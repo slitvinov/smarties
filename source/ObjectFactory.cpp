@@ -175,10 +175,101 @@ System ObjectFactory::getAgentVector()
 				}
 			}
 			
+			else if( name == "CouzinAgent" )
+			{
+				string s;
+				getline(inFile, s);
+				
+				Agent* object = new CouzinAgent(_parseDouble(s, "xm") *D + settings.centerX,
+												_parseDouble(s, "ym") *D + settings.centerY,
+												_parseDouble(s, "d")  *D, _parseDouble(s, "T"), 1,
+												_parseDouble(s, "zor")*D, _parseDouble(s, "zoo") *D,
+												_parseDouble(s, "zoa")*D, _parseDouble(s, "ang"),
+												_parseDouble(s, "tr"),    _parseDouble(s, "v")*D, 0, &rng);
+				
+				system.agents.push_back(object);
+			}
+			
+			else if( name == "CouzinAgents" )
+			{
+				string s;
+				getline(inFile, s);
+				
+				double d = _parseDouble(s, "d")*D;
+				double T = _parseDouble(s, "T");
+				int num  = _parseInt   (s, "n");
+				
+				double zor = _parseDouble(s, "zor")*D;
+				double zoo = _parseDouble(s, "zoo")*D;
+				double zoa = _parseDouble(s, "zoa")*D;
+				double ang = _parseDouble(s, "ang");
+				double tr  = _parseDouble(s, "tr");
+				double v   = _parseDouble(s, "v")*D;
+				
+				for(int j=0; j<num; j++)
+				{
+					const double radius = rng.uniform(0.0,0.3);
+					const double angle  = rng.uniform(0.0,2*M_PI);
+					const double xx     = radius*cos(angle);
+					const double yy     = radius*sin(angle);
+					
+					Agent* object = new CouzinAgent(xx+settings.centerX, yy+settings.centerY, d, T,
+													1, zor, zoo, zoa, ang, tr, v, 0, &rng);
+					system.agents.push_back(object);
+				}
+			}			
+			
+			
+			else if( name == "CouzinDipole" )
+			{
+				string s;
+				getline(inFile, s);
+				
+				Agent* object = new CouzinDipole(_parseDouble(s, "xm") *D + settings.centerX,
+												_parseDouble(s, "ym") *D + settings.centerY,
+												_parseDouble(s, "d")  *D, _parseDouble(s, "T"), 1,
+												_parseDouble(s, "zor")*D, _parseDouble(s, "zoo") *D,
+												_parseDouble(s, "zoa")*D, _parseDouble(s, "ang"),
+												_parseDouble(s, "tr"),    _parseDouble(s, "v")*D, 0, &rng);
+				
+				system.agents.push_back(object);
+			}
+			
+			else if( name == "CouzinDipoles" )
+			{
+				string s;
+				getline(inFile, s);
+				
+				double d = _parseDouble(s, "d")*D;
+				double T = _parseDouble(s, "T");
+				int num  = _parseInt   (s, "n");
+				
+				double zor = _parseDouble(s, "zor")*D;
+				double zoo = _parseDouble(s, "zoo")*D;
+				double zoa = _parseDouble(s, "zoa")*D;
+				double ang = _parseDouble(s, "ang");
+				double tr  = _parseDouble(s, "tr");
+				double v   = _parseDouble(s, "v")*D;
+				
+				for(int j=0; j<num; j++)
+				{
+					const double radius = rng.uniform(0.0,0.3);
+					const double angle  = rng.uniform(0.0,2*M_PI);
+					const double xx     = radius*cos(angle);
+					const double yy     = radius*sin(angle);
+					
+					Agent* object = new CouzinDipole(xx+settings.centerX, yy+settings.centerY, d, T,
+													 1, zor, zoo, zoa, ang, tr, v, 0, &rng);
+					system.agents.push_back(object);
+				}
+			}
+			
 			else if (name == "END")
 			{
-				if      (envName == "DodgerEnvironment")    system.env = new DodgerEnvironment   (system.agents);
-				else if (envName == "SelfAvoidEnvironment") system.env = new SelfAvoidEnvironment(system.agents);
+				if      (envName == "DodgerEnvironment")       system.env = new DodgerEnvironment       (system.agents);
+				else if (envName == "SelfAvoidEnvironment")    system.env = new SelfAvoidEnvironment    (system.agents);
+				else if (envName == "CouzinEnvironment")       system.env = new CouzinEnvironment       (system.agents);
+				else if (envName == "CouzinDipoleEnvironment") system.env = new CouzinDipoleEnvironment (system.agents);
 
 				else die("Unsupported environment type %s\n", envName.c_str());
 				break;

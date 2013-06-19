@@ -55,9 +55,9 @@ public:
 		o << vals[sInfo.dim-1] << "]";
 		return o.str();
 	}
-
 };
 
+State decode(const StateInfo& sInfo, long int idx);
 
 struct ActionInfo
 {

@@ -24,7 +24,7 @@ using namespace std;
 class QLearning
 {
 private:
-	System system;
+	System& system;
 	vector<Agent*> agents;
 	vector<MultiTable*> Qarray;
 	vector<State> s0, s1;

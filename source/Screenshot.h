@@ -4,8 +4,6 @@
  */
 #pragma once
 
-#include "RL_Environment.h"
-
 #ifdef _RL_VIZ
 
 #ifdef _WIN32

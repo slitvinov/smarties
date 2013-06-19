@@ -20,12 +20,18 @@ class Environment
 {
 public:
 	vector<Agent*> agents;
+	vector<void*>  data;
 	
 	Environment(vector<Agent*> newAgents): agents(newAgents) {};
 	
 	virtual void   getState (Agent* agent, State& s) { };
 	virtual double getReward(Agent* agent)           { return 0; }
 	virtual void   evolve   (double t)               { };
+	
+	inline  void   pushDataRef(void* someDataRef)
+	{
+		data.push_back(someDataRef);
+	}
 };
 
 struct System

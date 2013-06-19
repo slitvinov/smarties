@@ -93,11 +93,11 @@ void MultiTable::set(const State& s, const Action& a, double val)
 	long int sId = _encodeState(s);
 	long int id = _encodeIdx(sId, a);
 		
-	//if (fabs(val) > eps)
-	//{
+	if (fabs(val) > eps)
+	{
 		data[id] = val;
 	//	if (val > maxStateVal[sId]) maxStateVal[sId] = val;
-	//}
+	}
 }
 
 double MultiTable::usage() const

@@ -12,6 +12,18 @@
 #include "StateAction.h"
 #include "rng.h"
 
+State decode(const StateInfo& sInfo, long int idx)
+{
+	State res(sInfo);
+	
+	for(int i=0; i<sInfo.dim; i++)
+	{
+		res.vals[sInfo.dim - i - 1] = idx % sInfo.bounds[i];
+		idx /= sInfo.bounds[i];
+	}
+	return res;
+}
+
 ActionIterator::ActionIterator(const ActionInfo& newActInfo) : actInfo(newActInfo), currAction(newActInfo), storedAction(newActInfo), rAction(newActInfo)
 {
 	reset();	

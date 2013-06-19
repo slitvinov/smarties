@@ -11,7 +11,14 @@
 
 #include <vector>
 
-#include "../AllSystems.h"
+#include "Environment.h"
+
+class CircularWall;
+class DynamicColumn;
+class SmartyDodger;
+#include "../Agents/SmartyDodger.h"
+#include "../Agents/DynamicColumn.h"
+#include "../Agents/CircularWall.h"
 
 class DodgerEnvironment: public Environment
 {

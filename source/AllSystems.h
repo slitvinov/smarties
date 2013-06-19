@@ -9,21 +9,17 @@
 
 #pragma once
 
-#include "Agents/Agent.h"
+#include "AllAgents.h"
 #include "Environments/Environment.h"
-
-class CircularWall;
-class DynamicColumn;
-class SmartyDodger;
-class SmartySelfAvoider;
 
 class DodgerEnvironment;
 class SelfAvoidEnvironment;
-
-#include "Agents/SmartyDodger.h"
-#include "Agents/SmartySelfAvoider.h"
-#include "Agents/CircularWall.h"
-#include "Agents/DynamicColumn.h"
+class CouzinEnvironment;
+class PotentialFluidEnvironment;
+class CouzinDipoleEnvironment;
 
 #include "Environments/DodgerEnvironment.h"
 #include "Environments/SelfAvoidEnvironment.h"
+#include "Environments/CouzinEnvironment.h"
+#include "Environments/PotentialFluidEnvironment.h"
+#include "Environments/CouzinDipoleEnvironment.h"

@@ -11,12 +11,19 @@
 
 #include <vector>
 
-#include "../AllSystems.h"
+#include "Environment.h"
 #include "CellList.h"
+
+class CircularWall;
+class DynamicColumn;
+class SmartySelfAvoider;
+#include "../Agents/SmartySelfAvoider.h"
+#include "../Agents/DynamicColumn.h"
+#include "../Agents/CircularWall.h"
 
 class SelfAvoidEnvironment: public Environment
 {
-private:
+public:
 	StateInfo sI;
 	ActionInfo aI;
 	double totalReward;

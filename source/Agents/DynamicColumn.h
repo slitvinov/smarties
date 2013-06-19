@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Agent.h"
+#include "../Misc.h"
 
 class DynamicColumn : public Agent
 {		

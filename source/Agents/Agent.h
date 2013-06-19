@@ -11,8 +11,11 @@
 
 #include <vector>
 #include <string>
+#include <atomic>
 
 #include "../StateAction.h"
+
+class Environment;
 #include "../Environments/Environment.h"
 
 #ifdef _RL_VIZ
@@ -38,10 +41,11 @@ protected:
 	double learningInterval;
 	
 	string name;
+	int    id;
+	static atomic_int idCount;
 	
 public:
-	Agent(double newLearningInterval, Types newType, string newName):
-	      learningInterval(newLearningInterval), lastLearned(0), type(newType), name(newName) { };
+	Agent(double newLearningInterval, Types newType, string newName);
 	
 	virtual void   getState(State& s) { };
 	virtual double getReward()        { return 0; }

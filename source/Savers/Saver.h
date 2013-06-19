@@ -24,6 +24,7 @@ protected:
 	
 public:
 	Saver (ofstream* newFile) : file(newFile) { };
+	Saver (){};
 	virtual void setEnvironment(Environment*) { };
 	inline  void setPeriod(int);
 	inline  int  getPeriod();

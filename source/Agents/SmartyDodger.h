@@ -12,7 +12,12 @@
 #include <vector>
 
 #include "../StateAction.h"
-#include "../AllSystems.h"
+#include "Agent.h"
+#include "DynamicColumn.h"
+
+class DodgerEnvironment;
+#include "../Environments/Environment.h"
+#include "../Environments/DodgerEnvironment.h"
 
 class SmartyDodger : public Agent
 {

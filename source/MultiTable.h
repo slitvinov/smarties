@@ -43,6 +43,8 @@ public:
 	void   set(const State& s, const Action& a, double value);
 	double usage() const;
 	
+	inline map<long int, double>& getData()  { return data; }
+	
 	void   save(string name);
 	bool   restart(string name);
 };

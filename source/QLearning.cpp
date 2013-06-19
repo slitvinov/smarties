@@ -39,6 +39,8 @@ system(newSystem), agents(newSystem.agents), gamma(newGamma), greedyEps(newGreed
 	
 	bestActionVals.resize(agents.size());
 	r.resize(agents.size());
+	
+	//system.env->pushDataRef((void*)QMap["SmartySelfAvoider"]);
 }
 
 void QLearning::agentsChoose(double t)
@@ -46,7 +48,7 @@ void QLearning::agentsChoose(double t)
 	debug("Agents choose best actions\n");
 	int n = agents.size();
 	
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (int i = 0; i<n; i++)
 	{
 		Agent* agent = agents[i];
@@ -104,7 +106,7 @@ void QLearning::agentsAct(double t)
 	debug("Agents act according to best possible action\n");
 	int n = agents.size();
 
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (int i = 0; i<n; i++)
 	{
 		Agent* agent = agents[i];
@@ -136,7 +138,7 @@ void QLearning::agentsMove()
 	debug("Agents move\n");
 	int n = agents.size();
 	
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (int i = 0; i<n; i++)
 	{
 		agents[i]->move(dt);
@@ -147,7 +149,7 @@ void QLearning::execSavers(double t)
 {
 	for (list<Saver*>::iterator it = savers.begin(), end = savers.end(); it != end; ++it)
 	{
-		if ( ((int)(t/dt) % (*it)->getPeriod()) == 0) (*it)->exec();
+		if ( ((int)(t/dt) % (*it)->getPeriod()) == 0 && t > dt/10.0) (*it)->exec();
 	}	
 }
 

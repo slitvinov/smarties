@@ -57,8 +57,8 @@ void SmartySelfAvoider::getState(State& s)
 	
 	double dist2cen = _dist(x,y,x0,y0);
 	
-	s.vals.push_back( (_discr)(environment->circWall->d/2 - dist2cen - d/2, 0, 10*d, sInfo.bounds[0], true, true) );
-	s.vals.push_back( (_discr)(_angle(vx, vy, x-x0, y-y0), 0, 360, sInfo.bounds[1], false, false) );
+	s.vals.push_back( 0*( (_discr)(environment->circWall->d/2 - dist2cen - d/2, 0, 10*d, sInfo.bounds[0], true, true) ));
+	s.vals.push_back( 0*( (_discr)(_angle(vx, vy, x-x0, y-y0), 0, 360, sInfo.bounds[1], false, false) ));
 	
 	// Dynamic columns
 	
@@ -88,12 +88,13 @@ void SmartySelfAvoider::getState(State& s)
 	else
 	{
 		s.vals.push_back( (_discr)(_dist(x, y, closestNeighbour->x, closestNeighbour->y) - d, 0, 8*d, sInfo.bounds[4], true, true) );
-		s.vals.push_back( (_discr)(_angle(vx, vy, closestNeighbour->vx, closestNeighbour->vy), 0, 360, sInfo.bounds[5], false, false) );
-		s.vals.push_back( (_discr)(_angle(vx, vy, x  - closestNeighbour->x,  y  - closestNeighbour->y), 0, 360, sInfo.bounds[5], false, false) );
+		//s.vals.push_back( (_discr)(_angle(vx, vy, closestNeighbour->vx, closestNeighbour->vy), 0, 360, sInfo.bounds[5], false, false) );
+		//s.vals.push_back( (_discr)(_angle(vx, vy, x  - closestNeighbour->x,  y  - closestNeighbour->y), 0, 360, sInfo.bounds[5], false, false) );
 		
-		//s.vals.push_back( (_discr)(_angle(vx - closestNeighbour->vx, vy - closestNeighbour->vy,
-		//								  x  - closestNeighbour->x,  y  - closestNeighbour->y),
-		//						   0, 360, sInfo.bounds[6], false, false) );
+		s.vals.push_back( (_discr)(_angle(vx - closestNeighbour->vx, vy - closestNeighbour->vy,
+										  x  - closestNeighbour->x,  y  - closestNeighbour->y),
+								   0, 360, sInfo.bounds[5], false, false) );
+		s.vals.push_back(sInfo.bounds[6] - 1);
 		
 	}
 }

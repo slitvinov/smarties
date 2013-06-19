@@ -12,7 +12,12 @@
 #include <vector>
 
 #include "../StateAction.h"
-#include "../AllSystems.h"
+#include "Agent.h"
+#include "DynamicColumn.h"
+
+class SelfAvoidEnvironment;
+#include "../Environments/Environment.h"
+#include "../Environments/SelfAvoidEnvironment.h"
 
 class SmartySelfAvoider : public Agent
 {

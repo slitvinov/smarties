@@ -68,7 +68,7 @@ struct VisualSupport
 		glutInit(&argc, const_cast<char **>(argv));
 		glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
 		//glutInitWindowSize(1024,1024);
-		glutInitWindowSize(700,700);
+		glutInitWindowSize(800,800);
 		glutCreateWindow("School");
 		glutDisplayFunc(display);
 		//glClearColor(1,1,1,1);
@@ -79,6 +79,18 @@ struct VisualSupport
 		glOrtho(0, 1.0, 0, 1.0, -1, 1);
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
+		glClearColor(1, 1, 1, 1);
+		
+		glEnable(GL_DEPTH_TEST);
+		
+		// Setup other misc features.
+		glEnable(GL_LIGHTING);
+		glEnable(GL_NORMALIZE);
+		glShadeModel(GL_SMOOTH);
+		
+		// Setup lighting model.
+		glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
+		glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);    
 	}
 };
 #endif
@@ -101,8 +113,14 @@ void runTest()
 	double timeSinceLearn = 0;
 	int    iter = 0;
 	
-	RewardSaver* rsaver = new RewardSaver(new ofstream("reward.txt"));
-	learner.registerSaver(rsaver, settings.saveFreq / 30);
+	//RewardSaver* rsaver = new RewardSaver(new ofstream("reward.txt"));
+	//learner.registerSaver(rsaver, settings.saveFreq / 30);
+	
+	//StateSaver* ssaver = new StateSaver(new ofstream("state.txt"));
+	//learner.registerSaver(ssaver, settings.saveFreq / 30);
+	
+	PhotoSaver* camera = new PhotoSaver("img");
+	//learner.registerSaver(camera, settings.videoFreq);
 	
 	while (time < settings.endTime)
 	{
@@ -167,8 +185,8 @@ int main (int argc, char** argv)
 	debugLvl = 2;
 	settings.centerX = 0.5;
 	settings.centerY = 0.5;
-	settings.configFile = "/Users/alexeedm/Documents/Fish/dmitry-RL/data/factoryRL_test1";
-	settings.dt = 0.005;
+	settings.configFile = "/Users/alexeedm/Documents/Fish/smarties/factory/factoryRL_test1";
+	settings.dt = 0.001;
 	settings.endTime = 100000;
 	settings.gamma = 0.85;
 	settings.greedyEps = 0.01;
@@ -184,7 +202,7 @@ int main (int argc, char** argv)
 	Parser parser(vopts);
 	parser.parse(argc, argv);
 	
-	omp_set_num_threads(2);
+	omp_set_num_threads(1);
 
 #ifdef _RL_VIZ
 	VisualSupport::run(argc, argv);
