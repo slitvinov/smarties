@@ -15,19 +15,7 @@
 using namespace ErrorHandling;
 
 SelfAvoidEnvironment::SelfAvoidEnvironment(vector<Agent*> newAgents): Environment(newAgents)
-{
-	sI.dim = 7;
-	sI.bounds.push_back(10);	
-	sI.bounds.push_back(10);	
-	sI.bounds.push_back(10);	
-	sI.bounds.push_back(10);	
-	sI.bounds.push_back(10);	
-	sI.bounds.push_back(10);	
-	sI.bounds.push_back(10);
-	
-	aI.dim = 1;
-	for (int i=0; i<aI.dim; i++) aI.bounds.push_back(3);
-	
+{	
 	for (vector<Agent*>::iterator it = agents.begin(); it != agents.end(); it++)
 	{
 		if ((*it)->getName() == "CircularWall") 
@@ -43,17 +31,76 @@ SelfAvoidEnvironment::SelfAvoidEnvironment(vector<Agent*> newAgents): Environmen
 		if ((*it)->getName() == "SmartySelfAvoider")
 		{
 			dodgers.push_back(static_cast<SmartySelfAvoider*> (*it));
-			(static_cast<SmartySelfAvoider*> (*it))->setDims(sI, aI);
+			//(static_cast<SmartySelfAvoider*> (*it))->setDims(sI, aI);
 			continue;
 		}
 		else die("Dodger environment doesn't support objects of type %s\n", (*it)->getName().c_str());
 	}
-	
+					 
 	double x0 = circWall->x;
 	double y0 = circWall->y;
 	double d  = circWall->d;
 	cells =  new Cells<SmartySelfAvoider>(dodgers, 8*dodgers[0]->d, x0-d, y0-d, x0+d, y0+d);
 	totalReward = 0;
+	
+	setDims();
+	for (vector<SmartySelfAvoider*>::iterator it = dodgers.begin(); it != dodgers.end(); it++)
+		(*it)->setDims(sI, aI);
+
+}
+
+void SelfAvoidEnvironment::setDims()
+{
+	double d = dodgers[0]->d;
+	sI.dim = 6;
+	sI.type = DISCR;
+	
+	// dist to wall
+	sI.bounds.push_back(1);
+	sI.top.push_back(10*d);
+	sI.bottom.push_back(0);
+	sI.aboveTop.push_back(true);
+	sI.belowBottom.push_back(true);
+	
+	// angle to wall
+	sI.bounds.push_back(1);
+	sI.top.push_back(360);
+	sI.bottom.push_back(0);
+	sI.aboveTop.push_back(false);
+	sI.belowBottom.push_back(false);
+	
+	
+	// dist to column
+	sI.bounds.push_back(10);
+	sI.top.push_back(5*d);
+	sI.bottom.push_back(0);
+	sI.aboveTop.push_back(true);
+	sI.belowBottom.push_back(true);
+	
+	// angle to column
+	sI.bounds.push_back(10);
+	sI.top.push_back(360);
+	sI.bottom.push_back(0);
+	sI.aboveTop.push_back(false);
+	sI.belowBottom.push_back(false);
+
+	
+	// dist to neigh
+	sI.bounds.push_back(10);
+	sI.top.push_back(d/10);
+	sI.bottom.push_back(-d/10);
+	sI.aboveTop.push_back(true);
+	sI.belowBottom.push_back(true);
+	
+	// angle to neigh
+	sI.bounds.push_back(10);
+	sI.top.push_back(360);
+	sI.bottom.push_back(0);
+	sI.aboveTop.push_back(false);
+	sI.belowBottom.push_back(false);
+	
+	aI.dim = 1;
+	for (int i=0; i<aI.dim; i++) aI.bounds.push_back(3);
 }
 
 DynamicColumn* SelfAvoidEnvironment::findClosestDynColumn(SmartySelfAvoider* agent)

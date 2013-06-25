@@ -48,6 +48,13 @@ void CouzinDipole::setEnvironment(Environment* env)
 
 void CouzinDipole::move(double dt)
 {
+	if (type == DEAD)
+	{
+		vortices[0] = 0;
+		vortices[1] = 0;
+		return;
+	}
+	
 	CouzinAgent::act();
 	double sigma = rng->normal(0, 0.005);
 	

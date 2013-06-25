@@ -18,12 +18,13 @@
 
 #include "MultiTable.h"
 #include "ErrorHandling.h"
+#include "Misc.h"
 
 using namespace ErrorHandling;
 
 const double eps = 1e-9;
 
-MultiTable::MultiTable(StateInfo newSInfo, ActionInfo newActInfo) : sInfo(newSInfo), actInfo(newActInfo)
+MultiTable::MultiTable(StateInfo newSInfo, ActionInfo newActInfo) : QApproximator(newSInfo, newActInfo)
 {
 	dim = sInfo.dim + actInfo.dim;
 	
@@ -67,14 +68,15 @@ inline long int MultiTable::_encodeIdx(const long int sId, const Action& a) cons
 inline long int MultiTable::_encodeState(const State& s) const
 {
 	long int res = 0;
+	int (*_discr) (double, double, double, int, bool, bool) = &_discretize;	
 	
 	for(int i=0; i<sInfo.dim; i++)
-		res += s.vals[i] * shifts[i];
+		res += (*_discr)(s.vals[i], s.sInfo.bottom[i], s.sInfo.top[i], s.sInfo.bounds[i], s.sInfo.belowBottom[i], s.sInfo.aboveTop[i]) * shifts[i];
 	
 	return res;
 }
 
-double MultiTable::get(const State& s, const Action& a) const
+double MultiTable::get(const State& s, const Action& a)
 {
 	long int id = _encodeIdx(s, a);
 	if (data.find(id) == data.end()) return 0; 

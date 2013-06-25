@@ -26,6 +26,9 @@ class SelfAvoidEnvironment: public Environment
 public:
 	StateInfo sI;
 	ActionInfo aI;
+	
+	void setDims();
+	
 	double totalReward;
 	
 public:

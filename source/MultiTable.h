@@ -14,13 +14,12 @@
 #include <vector>
 
 #include "StateAction.h"
+#include "QApproximator.h"
 
-class MultiTable
+class MultiTable : public QApproximator
 {
 	int dim;
-	StateInfo  sInfo;
-	ActionInfo actInfo;
-	
+
 	map<long int, double> data;
 	map<long int, double> maxStateVal;
 	vector<long int> shifts;
@@ -37,7 +36,7 @@ public:
 	~MultiTable();
 	
 	// Methods
-	double get(const State& s, const Action& a) const;
+	double get(const State& s, const Action& a);
 	double getMax(const State& s);
 	double getBest(const State& s, Action& a, double& reward); //TODO
 	void   set(const State& s, const Action& a, double value);

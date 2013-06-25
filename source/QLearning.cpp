@@ -12,9 +12,7 @@
 #include "StateAction.h"
 #include "QLearning.h"
 #include "Settings.h"
-
-// TODO: action iterator
-
+ 
 QLearning::QLearning(System newSystem, double newGamma, double newGreedyEps, double newLRate, double newDt, MRAG::Profiler* newProfiler) :
 system(newSystem), agents(newSystem.agents), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate), dt(newDt), profiler(newProfiler)
 {
@@ -30,7 +28,12 @@ system(newSystem), agents(newSystem.agents), gamma(newGamma), greedyEps(newGreed
 		
 		string name = agents[i]->getName();
 		if (agents[i]->getType() != IDLER && QMap.find(name) == QMap.end())
-			QMap[name] = new MultiTable(agents[i]->getStateDims(), agents[i]->getActionDims());
+		{
+			if (agents[i]->getStateDims().type != DISCR)
+				QMap[name] = new MultiTable(agents[i]->getStateDims(), agents[i]->getActionDims());
+			else
+				QMap[name] = new ANNApproximator(agents[i]->getStateDims(), agents[i]->getActionDims());
+		}
 	}
 	
 	if  (settings.randSeed == -1 )  srand(time(NULL));
@@ -45,16 +48,16 @@ system(newSystem), agents(newSystem.agents), gamma(newGamma), greedyEps(newGreed
 
 void QLearning::agentsChoose(double t)
 {
-	debug("Agents choose best actions\n");
+	debug1("Agents choose best actions\n");
 	int n = agents.size();
 	
 //#pragma omp parallel for
 	for (int i = 0; i<n; i++)
 	{
 		Agent* agent = agents[i];
-		if (agent->getType() == IDLER || t - agent->getLastLearned() < agent->getLearningInterval()) continue;
+		if (agent->getType() == IDLER || agent->getType() == DEAD || t - agent->getLastLearned() < agent->getLearningInterval()) continue;
 
-		MultiTable* Q = QMap[agent->getName()];
+		QApproximator* Q = QMap[agent->getName()];
 		ActionIterator* actions = &(actionsIt[i]);
 		double best = -1e10;
 		
@@ -81,36 +84,51 @@ void QLearning::agentsChoose(double t)
 
 void QLearning::agentsUpdate(double t)
 {
-	debug("Agents update current policy\n");
+	debug1("Agents update current policy\n");
 	
 	for (int i = 0; i<agents.size(); i++)
 	{
 		Agent* agent = agents[i];
-		if (agent->getType() == IDLER || t - agent->getLastLearned() < agent->getLearningInterval()) continue;
+		ActionIterator* actions = &(actionsIt[i]);
+		if (agent->getType() == IDLER || agent->getType() == DEAD || t - agent->getLastLearned() < agent->getLearningInterval()) continue;
 
-		MultiTable* Q = QMap[agent->getName()];
+		QApproximator* Q = QMap[agent->getName()];
 		
 		double Qsa = Q->get(s0[i], a0[i]);
 		Q->set(s0[i], a0[i], Qsa + lRate * (r[i] + gamma * bestActionVals[i] - Qsa));
 		
+		//if (s0[i].vals[4] * s1[i].vals[4] < 0) 
 		debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
 		debug1("Prev state: %s\n", s0[i].print().c_str());
 		debug1("Curr state: %s\n", s1[i].print().c_str());
+		debug1("Action between: %s\n", a0[i].print().c_str());
 		debug1("Reward: %f\n", r[i]);
+		debug1("Actions:\n");
+				
+		actions->reset();
+		int u = 0;
+		while (!actions->done())
+		{
+			double val = Q->get(s1[i], actions->next());
+			debug1("\t[%d] : %f\n", u++, val);
+		}
+		
+		
 		debug1("Q(s, a): %f --> %f\n", Qsa, Qsa + lRate * (r[i] + gamma * bestActionVals[i] - Qsa));
+		
 	}
 }
 
 void QLearning::agentsAct(double t)
 {
-	debug("Agents act according to best possible action\n");
+	debug1("Agents act according to best possible action\n");
 	int n = agents.size();
 
 //#pragma omp parallel for
 	for (int i = 0; i<n; i++)
 	{
 		Agent* agent = agents[i];
-		if (agent->getType() == IDLER || t - agent->getLastLearned() < agent->getLearningInterval()) continue;
+		if (agent->getType() == IDLER || agent->getType() == DEAD || t - agent->getLastLearned() < agent->getLearningInterval()) continue;
 		
 		ActionIterator* actions = &(actionsIt[i]);
 		
@@ -135,7 +153,7 @@ void QLearning::agentsAct(double t)
 
 void QLearning::agentsMove()
 {
-	debug("Agents move\n");
+	debug1("Agents move\n");
 	int n = agents.size();
 	
 //#pragma omp parallel for
@@ -155,8 +173,8 @@ void QLearning::execSavers(double t)
 
 void QLearning::evolve(double t)
 {
-	debug("\n****************************************************************\n");
-	debug("Processing agents at time %f\n", t);
+	debug1("\n****************************************************************\n");
+	debug1("Processing agents at time %f\n", t);
 
 	// Observe current state of one agent
 	// Take action a according to e-greedy policy derived from Q(s, a)
@@ -201,7 +219,7 @@ void QLearning::try2restart(string prefix)
 {
 	info("Restarting from saved policy...\n");
 	bool fl = true;
-	for (map<string, MultiTable*>::iterator it=QMap.begin(); it!=QMap.end(); it++)
+	for (map<string, QApproximator*>::iterator it=QMap.begin(); it!=QMap.end(); it++)
 	{
 		string fname = prefix + it->first + "_backup";
 		if ( !(it->second->restart(fname)) ) fl = false;
@@ -213,7 +231,7 @@ void QLearning::try2restart(string prefix)
 void QLearning::savePolicy(string prefix)
 {
 	info("\nSaving all policies...\n");
-	for (map<string, MultiTable*>::iterator it=QMap.begin(); it!=QMap.end(); it++)
+	for (map<string, QApproximator*>::iterator it=QMap.begin(); it!=QMap.end(); it++)
 	{
 		string fname = prefix + it->first + "_backup";
 		it->second->save(fname);

@@ -50,7 +50,7 @@ void CouzinEnvironment::findClosestNeighbours(vector<CouzinAgent*>& res, CouzinA
 		n->physX = xj;
 		n->physY = yj;
 		double dst = _dist(agent->x, agent->y, xj, yj);
-		if (dst < dist)
+		if (dst < dist && n->type != DEAD)
 		{
 			res.push_back(n);
 		}

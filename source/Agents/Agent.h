@@ -26,14 +26,12 @@ class Environment;
 
 using namespace std;
 
-enum Types {ACTOR, IDLER};
+enum Types {ACTOR, IDLER, DEAD};
 
 class Agent
 {
 protected:
 	Environment* environment;
-	
-	Types  type;
 	
 	StateInfo  sInfo;
 	ActionInfo actInfo;
@@ -45,6 +43,8 @@ protected:
 	static atomic_int idCount;
 	
 public:
+	Types  type;
+	
 	Agent(double newLearningInterval, Types newType, string newName);
 	
 	virtual void   getState(State& s) { };
@@ -72,6 +72,24 @@ public:
 	inline Types 	   getType() {return type;}
 	
 	virtual void	   setEnvironment(Environment* env) {environment = env;}
+	
+	inline void setDims(StateInfo& newSInfo, ActionInfo& newActInfo)
+	{
+		sInfo.dim = newSInfo.dim;
+		sInfo.type = newSInfo.type;
+		actInfo.dim = newActInfo.dim;
+		
+		for (int i=0; i<sInfo.dim; i++)
+		{
+			sInfo.bounds.push_back     (newSInfo.bounds[i]);
+			sInfo.top.push_back        (newSInfo.top[i]);
+			sInfo.bottom.push_back     (newSInfo.bottom[i]);
+			sInfo.aboveTop.push_back   (newSInfo.aboveTop[i]);
+			sInfo.belowBottom.push_back(newSInfo.belowBottom[i]);
+		}
+		
+		for (int i=0; i<actInfo.dim; i++) actInfo.bounds.push_back(newActInfo.bounds[i]);
+	}
 };
 
 

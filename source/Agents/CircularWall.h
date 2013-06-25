@@ -28,7 +28,7 @@ public:
 #ifdef _RL_VIZ
 	void   paint()
 	{
-		_drawFullCircle(d/2.0, x, y, 1, 1, 1);
+		_drawFullCircle(d/2.0, x, y, 0.7, 0.7, 0.7);
 	}
 	
 #endif	

@@ -1,12 +1,21 @@
 CC = g++
-CPPFLAGS+= -g -Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
+CPPFLAGS+= -g -Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated -std=c++11
 
 OPENMP_FLAG= -openmp
 
 viz ?= 0
+config ?= "debug"
 
 ifeq "$(viz)" "1"
 CPPFLAGS+= -D_RL_VIZ
+endif
+
+ifeq "$(config)" "debug"
+CPPFLAGS+= -O0
+else ifeq "$(config)" "release"
+CPPFLAGS += -O3 -msse3
+else
+CPPFLAGS += -O1
 endif
 
 ifeq "$(CC)" "icc"
@@ -24,13 +33,9 @@ LIBS += \
 	$(OPENGL_LIB) \
 	$(OPENMP_FLAG)
 
-ifeq "$(config)" "production"
-CPPFLAGS += -O3 -msse3
-endif 
-
 LIBS += -lstdc++
 
-CPP_FILES = $(wildcard ../source/*.cpp ../source/Agents/*.cpp ../source/Environments/*.cpp)
+CPP_FILES = $(wildcard ../source/*.cpp ../source/Agents/*.cpp ../source/Environments/*.cpp ../source/ANN/*.cpp)
 OBJ_FILES = $(notdir $(CPP_FILES:.cpp=.o))
 	
 .DEFAULT_GOAL := rl
@@ -48,8 +53,8 @@ rl: $(OBJ_FILES)
 %.d: %.cpp
 	$(CC)  $(CPPFLAGS) -c $< -MD
     
-vpath %.cpp ../source ../source/Agents ../source/Environments ../source/Savers
-vpath %.h   ../source ../source/Agents ../source/Environments ../source/Savers
+vpath %.cpp ../source ../source/Agents ../source/Environments ../source/Savers ../source/ANN
+vpath %.h   ../source ../source/Agents ../source/Environments ../source/Savers ../source/ANN
 
 clean:
 	rm -f *.o

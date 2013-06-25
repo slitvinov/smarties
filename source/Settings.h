@@ -25,8 +25,13 @@ extern struct Settings
 	double lRate;
 	double greedyEps;
 	double gamma;
-	double learnDump;
-	bool   shared;
+	//double learnDump;
+	//bool   shared;
 	bool   restart;
+	
+	double nnEta;
+	double nnAlpha;
+	int    nnLayer1;
+	int    nnLayer2;
 
 } settings;

@@ -78,7 +78,6 @@ public:
 	}
 };
 
-#ifdef _RL_VIZ
 class PhotoSaver : public Saver
 {
 private:
@@ -90,6 +89,7 @@ public:
 	
 	void exec()
 	{
+#ifdef _RL_VIZ
 		char buf[100];
 		sprintf(buf, "%s%07d.tga", fname.c_str(), num);
 		info("Saving screenshot to %s... ", buf);
@@ -98,8 +98,9 @@ public:
 			info("Ok\n");
 		else
 			warn("Failed!\n");
+#endif
 	}
 };
-#endif
+
 
 

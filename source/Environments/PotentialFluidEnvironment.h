@@ -19,7 +19,10 @@ class FluidAgent;
 class PotentialFluidEnvironment : public virtual Environment
 {	
 public:
+	double minDist;
+	
 	vector<FluidAgent*> fagents;
+	vector<FluidAgent*> myfAgents;
 	vector<double> vortices;
 	vector<pair<double, double> > vortCoos;
 	vector<pair<double, double>* > targets;

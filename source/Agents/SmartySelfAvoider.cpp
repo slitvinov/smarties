@@ -23,15 +23,6 @@ Agent(newT, ACTOR, "SmartySelfAvoider"), x(newX), y(newY), d(newD), vx(newVx), v
 	closestNeighbour = NULL;
 }
 
-void SmartySelfAvoider::setDims(StateInfo& newSInfo, ActionInfo& newActInfo)
-{
-	sInfo.dim = newSInfo.dim;
-	actInfo.dim = newActInfo.dim;
-	
-	for (int i=0; i<sInfo.dim; i++)     sInfo.bounds.push_back(newSInfo.bounds[i]);
-	for (int i=0; i<actInfo.dim; i++) actInfo.bounds.push_back(newActInfo.bounds[i]);
-}
-
 void SmartySelfAvoider::setEnvironment(Environment* env)
 {
 	environment = static_cast<SelfAvoidEnvironment*> (env);
@@ -47,9 +38,7 @@ void SmartySelfAvoider::_rotate(double dAng)
 }
 
 void SmartySelfAvoider::getState(State& s)
-{
-	int (*_discr) (double, double, double, int, bool, bool) = &_discretize;	
-	
+{	
 	s.vals.clear();
 	// Circular wall
 	double x0 = environment->circWall->x;
@@ -57,22 +46,22 @@ void SmartySelfAvoider::getState(State& s)
 	
 	double dist2cen = _dist(x,y,x0,y0);
 	
-	s.vals.push_back( 0*( (_discr)(environment->circWall->d/2 - dist2cen - d/2, 0, 10*d, sInfo.bounds[0], true, true) ));
-	s.vals.push_back( 0*( (_discr)(_angle(vx, vy, x-x0, y-y0), 0, 360, sInfo.bounds[1], false, false) ));
+	s.vals.push_back( 0 );//environment->circWall->d/2 - dist2cen - d/2 ); 
+	s.vals.push_back( 0 );//_angle(vx, vy, x-x0, y-y0) );
 	
 	// Dynamic columns
 	
 	if (closestDynCol == NULL) closestDynCol = environment->findClosestDynColumn(this);	
 	if (closestDynCol == NULL)
 	{
-		s.vals.push_back(sInfo.bounds[2] - 1);
-		s.vals.push_back(sInfo.bounds[3] - 1);
+		s.vals.push_back(sInfo.top[2]);
+		s.vals.push_back(sInfo.top[3]);
 	}
 	else
 	{
 		double min = _dist(x,y, closestDynCol->x, closestDynCol->y) - d/2 - closestDynCol->d/2;
-		s.vals.push_back( (_discr)(min, 0, 5*d, sInfo.bounds[2], true, true) );
-		s.vals.push_back( (_discr)(_angle(vx, vy, x - closestDynCol->x, y - closestDynCol->y), 0, 360, sInfo.bounds[3], false, false) );
+		s.vals.push_back( min );
+		s.vals.push_back( _angle(vx, vy, x - closestDynCol->x, y - closestDynCol->y) );
 	}	
 	
 	// Neighbours
@@ -81,28 +70,20 @@ void SmartySelfAvoider::getState(State& s)
 	
 	if (closestNeighbour == NULL)
 	{
-		s.vals.push_back(sInfo.bounds[4] - 1);
-		s.vals.push_back(sInfo.bounds[5] - 1);
-		s.vals.push_back(sInfo.bounds[6] - 1);
+		s.vals.push_back(sInfo.top[4]);
+		s.vals.push_back(sInfo.top[5]);
 	}
 	else
 	{
-		s.vals.push_back( (_discr)(_dist(x, y, closestNeighbour->x, closestNeighbour->y) - d, 0, 8*d, sInfo.bounds[4], true, true) );
-		//s.vals.push_back( (_discr)(_angle(vx, vy, closestNeighbour->vx, closestNeighbour->vy), 0, 360, sInfo.bounds[5], false, false) );
-		//s.vals.push_back( (_discr)(_angle(vx, vy, x  - closestNeighbour->x,  y  - closestNeighbour->y), 0, 360, sInfo.bounds[5], false, false) );
-		
-		s.vals.push_back( (_discr)(_angle(vx - closestNeighbour->vx, vy - closestNeighbour->vy,
-										  x  - closestNeighbour->x,  y  - closestNeighbour->y),
-								   0, 360, sInfo.bounds[5], false, false) );
-		s.vals.push_back(sInfo.bounds[6] - 1);
-		
+		s.vals.push_back( _dist(x, y, closestNeighbour->x, closestNeighbour->y) - d);
+		s.vals.push_back( _angle(vx - closestNeighbour->vx, vy - closestNeighbour->vy,  -(x  - closestNeighbour->x),  -(y  - closestNeighbour->y)));	
 	}
 }
 
 double SmartySelfAvoider::getReward()
 {
 	double reward = 0;
-	if (crashed) reward -= 1;
+	//if (crashed) reward -= 1;
 	
 	if (closestDynCol == NULL) closestDynCol = environment->findClosestDynColumn(this);		
 	if ( closestDynCol != NULL &&

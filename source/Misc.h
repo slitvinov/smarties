@@ -9,6 +9,12 @@
 
 #pragma once
 
+#ifdef _RL_VIZ
+#ifdef __APPLE__
+#include "GLUT/glut.h"
+#endif
+#endif
+
 #include "Settings.h"
 #include "ErrorHandling.h"
 using namespace ErrorHandling;
@@ -111,6 +117,13 @@ inline vec3 cross(vec3 a, vec3 b)
 inline void _drawFullCircle(double radius, double xc, double yc, double r, double g, double b)
 {
 	const double deg2rad = M_PI/180;
+
+	float col[4]  = { (GLfloat)r, (GLfloat)g, (GLfloat)b, 1.0 };
+	float colorSpec[4] = { 0.0, 0.0, 0.0, 1.0 };
+	GLfloat shininess[] = {0};
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, col);
+	glMaterialfv(GL_FRONT, GL_SPECULAR, colorSpec);
+	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);	
 	
 	glPushMatrix();
 	
@@ -119,6 +132,7 @@ inline void _drawFullCircle(double radius, double xc, double yc, double r, doubl
 	for (int i=0; i<360; i++)
 	{
 		double degInRad = i*deg2rad;
+		glNormal3d(0,0,1);
 		glVertex2f(xc+cos(degInRad)*radius,yc+sin(degInRad)*radius);
 	}
 	glEnd();
@@ -128,13 +142,12 @@ inline void _drawFullCircle(double radius, double xc, double yc, double r, doubl
 
 inline void _drawSphere(double radius, double x, double y, double r, double g, double b)
 {
-	glShadeModel(GL_SMOOTH);
-	glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT0);
-	GLfloat lightpos[] = {0, 0, -1.0, 0};
-	glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
-	GLfloat lightColor[] = {r,g,b,1};
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, lightColor);
+	float col[4]  = { (GLfloat)r, (GLfloat)g, (GLfloat)b, 1.0 };
+	float colorSpec[4] = { 1.0, 1.0, 1.0, 1.0 };
+	GLfloat shininess[] = {500};
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, col);
+	glMaterialfv(GL_FRONT, GL_SPECULAR, colorSpec);
+	glMaterialfv(GL_FRONT, GL_SHININESS, shininess);
 	
 	glPushMatrix();
 	glColor3f(r,g,b);
@@ -145,16 +158,7 @@ inline void _drawSphere(double radius, double x, double y, double r, double g, d
 
 inline void _drawArrow(double size, double x, double y, double vx, double vy, double IvI, double r, double g, double b)
 {
-	glEnable(GL_LIGHT0);
-	glEnable(GL_COLOR_MATERIAL);
-	
-	GLfloat lightpos[] = {settings.centerX, settings.centerY, 1.0, 1};
-	glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
-	GLfloat light0_diffuse[] = {0.9f, 0.9f, 0.9f, 0.9f};   
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
-
-
-	float col[4]  = { r, g, b, 1.0 };
+	float col[4]  = { (GLfloat)r, (GLfloat)g, (GLfloat)b, 1.0 };
 	float colorSpec[4] = { 1.0, 1.0, 1.0, 1.0 };
 	GLfloat shininess[] = {150};
 	glMaterialfv(GL_FRONT, GL_DIFFUSE, col);

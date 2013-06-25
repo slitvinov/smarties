@@ -33,9 +33,7 @@ public:
 
 	SmartyDodger(double newX, double newY, double newD,  double newT,
 				 double newVx = 5.0, double newVy = 0.0);
-		
-	void   setDims(StateInfo& newSInfo, ActionInfo& newActInfo);
-	
+			
 	void   getState(State& s);
 	double getReward();
 	void   act(Action a);

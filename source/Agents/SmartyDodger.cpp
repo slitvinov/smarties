@@ -22,15 +22,6 @@ Agent(newT, ACTOR, "SmartyDodger"), x(newX), y(newY), d(newD), vx(newVx), vy(new
 	closestDynCol = NULL;
 }
 
-void SmartyDodger::setDims(StateInfo& newSInfo, ActionInfo& newActInfo)
-{
-	sInfo.dim = newSInfo.dim;
-	actInfo.dim = newActInfo.dim;
-	
-	for (int i=0; i<sInfo.dim; i++)     sInfo.bounds.push_back(newSInfo.bounds[i]);
-	for (int i=0; i<actInfo.dim; i++) actInfo.bounds.push_back(newActInfo.bounds[i]);
-}
-
 void SmartyDodger::setEnvironment(Environment* env)
 {
 	environment = static_cast<DodgerEnvironment*> (env);
@@ -46,9 +37,7 @@ void SmartyDodger::_rotate(double dAng)
 }
 
 void SmartyDodger::getState(State& s)
-{
-	int (*_discr) (double, double, double, int, bool, bool) = &_discretize;	
-	
+{	
 	s.vals.clear();
 	// Circular wall
 	double x0 = environment->circWall->x;
@@ -56,22 +45,22 @@ void SmartyDodger::getState(State& s)
 	
 	double dist2cen = _dist(x,y,x0,y0);
 	
-	s.vals.push_back( (_discr)(environment->circWall->d/2 - dist2cen - d/2, 0, 5*d, sInfo.bounds[0], true, true) );
-	s.vals.push_back( (_discr)(_angle(vx, vy, x-x0, y-y0), 0, 360, sInfo.bounds[1], false, false) );
+	s.vals.push_back( environment->circWall->d/2 - dist2cen - d/2 ); 
+	s.vals.push_back( _angle(vx, vy, x-x0, y-y0) );
 	
 	// Dynamic columns
 	
 	if (closestDynCol == NULL) closestDynCol = environment->findClosestDynColumn(this);	
 	if (closestDynCol == NULL)
 	{
-		s.vals.push_back(sInfo.bounds[2] - 1);
-		s.vals.push_back(sInfo.bounds[3] - 1);
+		s.vals.push_back(sInfo.top[2]);
+		s.vals.push_back(sInfo.top[3]);
 	}
 	else
 	{
 		double min = _dist(x,y, closestDynCol->x, closestDynCol->y) - d/2 - closestDynCol->d/2;
-		s.vals.push_back( (_discr)(min, 0, 5*d, sInfo.bounds[2], true, true) );
-		s.vals.push_back( (_discr)(_angle(vx, vy, x - closestDynCol->x, y - closestDynCol->y), 0, 360, sInfo.bounds[3], false, false) );
+		s.vals.push_back( min );
+		s.vals.push_back( _angle(vx, vy, x - closestDynCol->x, y - closestDynCol->y) );
 	}	
 }
 

@@ -26,8 +26,11 @@ private:
 	StateInfo sI;
 	ActionInfo aI;
 	
+	void setDims();
+	
 public:
 	vector<DynamicColumn*> dynColumns;
+	vector<SmartyDodger*>  dodgers;
 	CircularWall*          circWall;
 	
 	DodgerEnvironment(vector<Agent*> newAgents);

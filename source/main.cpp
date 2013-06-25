@@ -71,16 +71,14 @@ struct VisualSupport
 		glutInitWindowSize(800,800);
 		glutCreateWindow("School");
 		glutDisplayFunc(display);
-		//glClearColor(1,1,1,1);
-		glClearColor(0,0,0,1);
+		glClearColor(1,1,1,1);
+		//glClearColor(0,0,0,1);
 
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
 		glOrtho(0, 1.0, 0, 1.0, -1, 1);
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
-		glClearColor(1, 1, 1, 1);
-		
 		glEnable(GL_DEPTH_TEST);
 		
 		// Setup other misc features.
@@ -90,7 +88,15 @@ struct VisualSupport
 		
 		// Setup lighting model.
 		glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
-		glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);    
+		glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE); 
+		
+		glEnable(GL_LIGHT0);
+		glEnable(GL_COLOR_MATERIAL);
+		
+		GLfloat lightpos[] = {(GLfloat)settings.centerX, (GLfloat)settings.centerY, 1.0, 1};
+		glLightfv(GL_LIGHT0, GL_POSITION, lightpos);
+		GLfloat light0_diffuse[] = {0.9f, 0.9f, 0.9f, 0.9f};   
+		glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
 	}
 };
 #endif
@@ -113,13 +119,13 @@ void runTest()
 	double timeSinceLearn = 0;
 	int    iter = 0;
 	
-	//RewardSaver* rsaver = new RewardSaver(new ofstream("reward.txt"));
-	//learner.registerSaver(rsaver, settings.saveFreq / 30);
+	RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//new ofstream("reward.txt"));
+	learner.registerSaver(rsaver, settings.saveFreq / 30);
 	
 	//StateSaver* ssaver = new StateSaver(new ofstream("state.txt"));
 	//learner.registerSaver(ssaver, settings.saveFreq / 30);
 	
-	PhotoSaver* camera = new PhotoSaver("img");
+	//PhotoSaver* camera = new PhotoSaver("img");
 	//learner.registerSaver(camera, settings.videoFreq);
 	
 	while (time < settings.endTime)
@@ -132,7 +138,7 @@ void runTest()
 		time += dt;
 		timeSinceLearn += dt;
 		iter++;
-		debug("%d\n", iter);
+		debug2("%d\n", iter);
 		
 		if (iter % (settings.saveFreq/10) == 0)
 		{
@@ -170,35 +176,42 @@ int main (int argc, char** argv)
 		{'f', "end_time",   DOUBLE, "End time of simulaiton", &settings.endTime},
 		{'g', "gamma",      DOUBLE, "Gamma parameter",        &settings.gamma},
 		{'e', "greedy_eps", DOUBLE, "Greedy epsilon",         &settings.greedyEps},
-		{'d', "learn_dump", DOUBLE, "Learning dump",          &settings.learnDump},
 		{'l', "learn_rate", DOUBLE, "Learning rate",          &settings.lRate},
 		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed},
-		{'r', "restart",    NONE,   "Restart",                &settings.restart},
+/*10*/	{'r', "restart",    NONE,   "Restart",                &settings.restart},
 		{'q', "save_freq",  INT,    "Save frequency",         &settings.saveFreq},
 		{'p', "video_freq", INT,    "Video frequency",        &settings.videoFreq},
 		{'a', "scale",      DOUBLE, "Scaling factor",         &settings.scale},
-		{'v', "debug_lvl",  INT,    "Debug level",            &debugLvl}
+		{'v', "debug_lvl",  INT,    "Debug level",            &debugLvl},
+		
+		{'1', "nneta",      DOUBLE, "Debug level",            &settings.nnEta},
+		{'2', "nnalpha",    DOUBLE, "Debug level",            &settings.nnAlpha},
+		{'3', "nnlayer1",   INT,    "Debug level",            &settings.nnLayer1},
+		{'4', "nnlayer2",   INT,    "Debug level",            &settings.nnLayer2}
 	};
 	
-	vector<OptionStruct> vopts(opts, opts + 15);
+	vector<OptionStruct> vopts(opts, opts + 18);
 	
 	debugLvl = 2;
 	settings.centerX = 0.5;
 	settings.centerY = 0.5;
 	settings.configFile = "/Users/alexeedm/Documents/Fish/smarties/factory/factoryRL_test1";
-	settings.dt = 0.001;
+	settings.dt = 0.01;
 	settings.endTime = 100000;
 	settings.gamma = 0.85;
 	settings.greedyEps = 0.01;
-	settings.learnDump = 1;
 	settings.lRate = 0.03;
 	settings.randSeed = 142144;
 	settings.restart = false;
 	settings.saveFreq = 100000;
 	settings.videoFreq = 500;
 	settings.scale = 0.02;
-	settings.shared = true;
-
+	settings.nnEta = 0.5;
+	settings.nnAlpha = 0.1;
+	settings.nnLayer1 = 5;
+	settings.nnLayer2 = 5;
+	
+	
 	Parser parser(vopts);
 	parser.parse(argc, argv);
 	

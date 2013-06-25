@@ -18,19 +18,26 @@
 using namespace std;
 using namespace ErrorHandling;
 
+enum StateType {DISCR, CONT};
+
 struct StateInfo
 {
+	StateType type;
+	
 	int dim;
 	vector<int> bounds;
+	vector<double> bottom;
+	vector<double> top;
+	vector<bool>   belowBottom;
+	vector<bool>   aboveTop;
 };
 
 class State
 {
-private:
-	StateInfo sInfo;
-		
 public:
-	vector<int> vals;
+	StateInfo sInfo;
+
+	vector<double> vals;
 	
 	State() {};
 	State(const StateInfo& newSInfo) : sInfo(newSInfo)
@@ -57,7 +64,21 @@ public:
 	}
 };
 
-State decode(const StateInfo& sInfo, long int idx);
+inline State decode(const StateInfo& sInfo, long int idx)
+{
+	State res(sInfo);
+	
+	for(int i=0; i<sInfo.dim; i++)
+	{
+		res.vals[sInfo.dim - i - 1] = idx % sInfo.bounds[i];
+		idx /= sInfo.bounds[i];
+	}
+	return res;
+}
+
+//**************************************************************************************************************************************
+//
+//**************************************************************************************************************************************
 
 struct ActionInfo
 {
@@ -115,5 +136,9 @@ public:
 	Action& recall();
 	void    reset();
 };
+
+
+
+
 
 

@@ -16,6 +16,8 @@
 #include "Agents/Agent.h"
 #include "Environments/Environment.h"
 #include "MultiTable.h"
+#include "QApproximator.h"
+#include "ANNApproximator.h"
 #include "MRAGProfiler.h"
 #include "Savers/Saver.h"
 
@@ -26,13 +28,13 @@ class QLearning
 private:
 	System& system;
 	vector<Agent*> agents;
-	vector<MultiTable*> Qarray;
+	vector<QApproximator*> Qarray;
 	vector<State> s0, s1;
 	vector<Action> a0, a1;
 	vector<double> r;
 	vector<double> bestActionVals;
 	vector<ActionIterator> actionsIt;
-	map<string, MultiTable*> QMap;
+	map<string, QApproximator*> QMap;
 	
 	list<Saver*> savers;
 	

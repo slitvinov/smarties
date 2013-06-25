@@ -22,7 +22,7 @@ class FluidAgent : public virtual Agent
 {
 public:
 	PotentialFluidEnvironment* environment;
-		
+	
 public:
 	vector<pair<double, double> > vortCoos;
 	vector<pair<double, double> > vortVels;

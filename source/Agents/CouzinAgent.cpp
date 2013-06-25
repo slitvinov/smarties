@@ -125,7 +125,7 @@ void CouzinAgent::act()
 void CouzinAgent::move(double dt)
 {
 	act();
-	double sigma = rng->normal(0, 2.87);
+	double sigma = rng->normal(0, 0.0287);
 	
 	double desiredAng = _angle(dx, dy, vx, vy);
 	if (desiredAng > 180) desiredAng -= 360;
@@ -146,8 +146,8 @@ void CouzinAgent::move(double dt)
 #ifdef _RL_VIZ
 void CouzinAgent::paint()
 {
-	//_drawSphere(zor/2.0, x, y, 0, 1, 0);
-	_drawArrow(d, x, y, vx, vy, IvI, 0, 1, 0);
+	//_drawSphere(zor/2.0, x, y, type == DEAD ? 1 : 0, type == DEAD ? 0 : 1, 0);
+	_drawArrow(2*d, x, y, vx, vy, IvI, type == DEAD ? 1 : 0, type == DEAD ? 0 : 1, 0);
 }
 #endif
 
