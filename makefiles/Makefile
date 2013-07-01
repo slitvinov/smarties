@@ -8,6 +8,7 @@ config ?= "debug"
 
 ifeq "$(viz)" "1"
 CPPFLAGS+= -D_RL_VIZ
+OPENGL_LIB=-framework OpenGL -framework GLUT /opt/local/lib/libGLEW.a
 endif
 
 ifeq "$(config)" "debug"
@@ -24,8 +25,6 @@ else
 OPENMP_FLAG= -fopenmp
 CPPFLAGSOPT+= -msse3
 endif
-
-OPENGL_LIB=-framework OpenGL -framework GLUT /opt/local/lib/libGLEW.a
 
 CPPFLAGS+= $(OPENMP_FLAG)
 

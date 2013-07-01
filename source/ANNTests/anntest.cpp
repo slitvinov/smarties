@@ -27,9 +27,10 @@ int main (int argc, char** argv)
 	lsize.push_back(2);
 	lsize.push_back(5);
 	lsize.push_back(5);
+	lsize.push_back(5);
 	lsize.push_back(3);
 	
-	Network ann(lsize, 0.1, 0.2);
+	Network ann(lsize, 0.01, 0.2);
 	vector<double> x(2);
 	vector<double> res(3);
 	vector<double> err(3);
@@ -37,8 +38,8 @@ int main (int argc, char** argv)
 	double cerr = 0;
 	for (int i=0; i<20000000; i++)
 	{
-		x[0] = rng.uniform(0, 1);
-		x[1] = rng.uniform(0, 1);
+		x[0] = rng.uniform(0, 3);
+		x[1] = rng.uniform(0, 3);
 		
 		double exact = target(x[0], x[1]);
 		
@@ -46,7 +47,7 @@ int main (int argc, char** argv)
 		err[1] = res[1] - exact;
 		err[0] = 0;
 		
-		//printf("Res:  %f, exact  %f,   err: \t%f\n", res[0], exact, err[0]);
+		//printf("Res:  %f, exact  %f,\terr: \t%f\n", res[1], exact, err[1]);
 		ann.improve(err);
 		
 		cerr += fabs(err[1]);

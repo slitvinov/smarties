@@ -144,7 +144,7 @@ void runTest()
 		{
 		//	settings.greedyEps /= 2;
 			info("Time of simulation is now %f\n", time);
-			profiler.printSummary();
+			if (debugLvl > 1) profiler.printSummary();
 		}
 
 #ifdef _RL_VIZ
@@ -163,6 +163,8 @@ void runTest()
 #endif
 		
 	}
+	
+	exit(0);
 }
 
 int main (int argc, char** argv)
@@ -206,8 +208,8 @@ int main (int argc, char** argv)
 	settings.saveFreq = 100000;
 	settings.videoFreq = 500;
 	settings.scale = 0.02;
-	settings.nnEta = 0.5;
-	settings.nnAlpha = 0.1;
+	settings.nnEta = 0.3;
+	settings.nnAlpha = 0.2;
 	settings.nnLayer1 = 5;
 	settings.nnLayer2 = 5;
 	

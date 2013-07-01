@@ -56,14 +56,14 @@ void SelfAvoidEnvironment::setDims()
 	sI.type = DISCR;
 	
 	// dist to wall
-	sI.bounds.push_back(1);
-	sI.top.push_back(10*d);
-	sI.bottom.push_back(0);
+	sI.bounds.push_back(10);
+	sI.top.push_back(d/10);
+	sI.bottom.push_back(-d/10);
 	sI.aboveTop.push_back(true);
 	sI.belowBottom.push_back(true);
 	
 	// angle to wall
-	sI.bounds.push_back(1);
+	sI.bounds.push_back(10);
 	sI.top.push_back(360);
 	sI.bottom.push_back(0);
 	sI.aboveTop.push_back(false);

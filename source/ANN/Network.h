@@ -11,6 +11,8 @@
 
 #include <vector>
 #include <cmath>
+//#include <boost/numeric/ublas/matrix.hpp>
+
 
 #include "../rng.h"
 
@@ -39,6 +41,9 @@ using namespace std;
 		vector<double*> inputs;
 		vector<double*> outputs;
 		vector<double*> errors;
+		
+		//boost::numeric::ublas::matrix<double> J;
+		//boost::numeric::ublas::matrix<double> I;
 		
 	public:
 		
@@ -107,6 +112,9 @@ using namespace std;
 	public:
 		inline double eval(double& arg)
 		{
+			if (arg > 20)  return 1;
+			if (arg < -20) return -1;
+			
 			double ex = exp(arg);
 			double e_x = exp(-arg);
 			
@@ -115,6 +123,8 @@ using namespace std;
 		
 		inline double evalDiff(double& arg)
 		{
+			if (arg > 20 || arg < -20) return 0;
+			
 			double e2x = exp(2*arg);
 			double t = (e2x + 1);
 			
