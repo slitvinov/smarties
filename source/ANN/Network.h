@@ -11,7 +11,7 @@
 
 #include <vector>
 #include <cmath>
-//#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/matrix.hpp>
 
 
 #include "../rng.h"
@@ -42,8 +42,8 @@ using namespace std;
 		vector<double*> outputs;
 		vector<double*> errors;
 		
-		//boost::numeric::ublas::matrix<double> J;
-		//boost::numeric::ublas::matrix<double> I;
+		boost::numeric::ublas::matrix<double>* J;
+		boost::numeric::ublas::matrix<double>* I;
 		
 	public:
 		

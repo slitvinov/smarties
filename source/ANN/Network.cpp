@@ -12,7 +12,7 @@
 #include "Network.h"
 #include "../ErrorHandling.h"
 
-//#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/matrix.hpp>
 
 
 using namespace ErrorHandling;
@@ -40,6 +40,14 @@ using namespace ErrorHandling;
 		first->connect2inputs(inputs);
 		layers.back()->connect2outputs(outputs);
 		layers.back()->connect2errors(errors);
+		
+		int totWeights = 0;
+		for (int i=0; i<nLayers-1; i++)
+		{
+			totWeights += layers[i]->nNeurons * (layers[i+1]->nNeurons - 1);
+		}
+		
+		J = new boost::numeric::ublas::matrix<double> (nOutputs, totWeights);
 	}
 	
 	void Network::predict(const vector<double>& inputs, vector<double>& outputs)
@@ -61,6 +69,8 @@ using namespace ErrorHandling;
 	
 		for (int i=nLayers-1; i>=0; i--)
 			layers[i]->backPropagate();
+		
+		
 		
 		for (int i=0; i<nLayers; i++)
 			layers[i]->adjust(eta, alpha);

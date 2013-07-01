@@ -46,8 +46,8 @@ void SmartySelfAvoider::getState(State& s)
 	
 	double dist2cen = _dist(x,y,x0,y0);
 	
-	s.vals.push_back( environment->circWall->d/2 - dist2cen - d/2 ); 
-	s.vals.push_back( _angle(vx, vy, x-x0, y-y0) );
+	s.vals.push_back( 0 );//environment->circWall->d/2 - dist2cen - d/2 ); 
+	s.vals.push_back( 0 );//_angle(vx, vy, x-x0, y-y0) );
 	
 	// Dynamic columns
 	
@@ -83,7 +83,7 @@ void SmartySelfAvoider::getState(State& s)
 double SmartySelfAvoider::getReward()
 {
 	double reward = 0;
-	if (crashed) reward -= 1;
+	//if (crashed) reward -= 1;
 	
 	if (closestDynCol == NULL) closestDynCol = environment->findClosestDynColumn(this);		
 	if ( closestDynCol != NULL &&

@@ -57,8 +57,8 @@ void SelfAvoidEnvironment::setDims()
 	
 	// dist to wall
 	sI.bounds.push_back(10);
-	sI.top.push_back(d/10);
-	sI.bottom.push_back(-d/10);
+	sI.top.push_back(d/2);
+	sI.bottom.push_back(0);
 	sI.aboveTop.push_back(true);
 	sI.belowBottom.push_back(true);
 	
@@ -87,8 +87,8 @@ void SelfAvoidEnvironment::setDims()
 	
 	// dist to neigh
 	sI.bounds.push_back(10);
-	sI.top.push_back(d/10);
-	sI.bottom.push_back(-d/10);
+	sI.top.push_back(d/20);
+	sI.bottom.push_back(-d/20);
 	sI.aboveTop.push_back(true);
 	sI.belowBottom.push_back(true);
 	

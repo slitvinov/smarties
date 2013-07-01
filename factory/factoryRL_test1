@@ -1,4 +1,4 @@
 SelfAvoidEnvironment
 CircularWall
-SmartySelfAvoiders d=1 T=0.1 n=200
+SmartySelfAvoiders d=1 T=0.1 n=500
 END
