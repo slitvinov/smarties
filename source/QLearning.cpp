@@ -48,7 +48,7 @@ system(newSystem), agents(newSystem.agents), gamma(newGamma), greedyEps(newGreed
 
 void QLearning::agentsChoose(double t)
 {
-	debug1("Agents choose best actions\n");
+	//debug1("Agents choose best actions\n");
 	int n = agents.size();
 	
 //#pragma omp parallel for
@@ -74,8 +74,8 @@ void QLearning::agentsChoose(double t)
 		bestActionVals[i] = best;
 		a1[i] = actions->recall();
 		
-		debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
-		debug1("Best action is %s  with value %f\n", a1[i].print().c_str(), best);
+		//debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
+		//debug1("Best action is %s  with value %f\n", a1[i].print().c_str(), best);
 		
 		r[i]  = agent->getReward();
 		agent->getState(s1[i]);
@@ -84,7 +84,7 @@ void QLearning::agentsChoose(double t)
 
 void QLearning::agentsUpdate(double t)
 {
-	debug1("Agents update current policy\n");
+	//debug1("Agents update current policy\n");
 	
 	for (int i = 0; i<agents.size(); i++)
 	{
@@ -97,10 +97,10 @@ void QLearning::agentsUpdate(double t)
 		double Qsa = Q->get(s0[i], a0[i]);
 		Q->set(s0[i], a0[i], Qsa + lRate * (r[i] + gamma * bestActionVals[i] - Qsa));
 		
-		//if (s0[i].vals[4] * s1[i].vals[4] < 0) 
+		//if (s0[i].vals[4] * s1[i].vals[4] < 0)
 		debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
-		debug1("Prev state: %s\n", s0[i].print().c_str());
-		debug1("Curr state: %s\n", s1[i].print().c_str());
+		debug1("Prev state: %s\n", s0[i].printScaled().c_str());
+		debug1("Curr state: %s\n", s1[i].printScaled().c_str());
 		debug1("Action between: %s\n", a0[i].print().c_str());
 		debug1("Reward: %f\n", r[i]);
 		debug1("Actions:\n");
@@ -121,7 +121,7 @@ void QLearning::agentsUpdate(double t)
 
 void QLearning::agentsAct(double t)
 {
-	debug1("Agents act according to best possible action\n");
+	//debug1("Agents act according to best possible action\n");
 	int n = agents.size();
 
 //#pragma omp parallel for
@@ -132,16 +132,17 @@ void QLearning::agentsAct(double t)
 		
 		ActionIterator* actions = &(actionsIt[i]);
 		
-		debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
+		
 		
 		if (rng->uniform(0, 1) < settings.greedyEps)
 		{
 			a1[i] = actions->getRand(rng);
+			debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
 			debug1("Exploring!! Chose action %s\n", a0[i].print().c_str());
 		}
 		else
 		{
-			debug1("Chose best action %s\n", a1[i].print().c_str());
+			//debug1("Chose best action %s\n", a1[i].print().c_str());
 		}
 		
 		s0[i] = s1[i];
@@ -153,7 +154,7 @@ void QLearning::agentsAct(double t)
 
 void QLearning::agentsMove()
 {
-	debug1("Agents move\n");
+	//debug1("Agents move\n");
 	int n = agents.size();
 	
 //#pragma omp parallel for

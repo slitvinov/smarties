@@ -76,7 +76,7 @@ void SmartySelfAvoider::getState(State& s)
 	else
 	{
 		s.vals.push_back( _dist(x, y, closestNeighbour->x, closestNeighbour->y) - d);
-		s.vals.push_back( _angle(vx - closestNeighbour->vx, vy - closestNeighbour->vy,  -(x  - closestNeighbour->x),  -(y  - closestNeighbour->y)));	
+		s.vals.push_back( _angle(vx - closestNeighbour->vx, vy - closestNeighbour->vy,  (x  - closestNeighbour->x),  (y  - closestNeighbour->y)));	
 	}
 }
 

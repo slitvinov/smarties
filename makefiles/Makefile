@@ -14,9 +14,9 @@ endif
 ifeq "$(config)" "debug"
 CPPFLAGS+= -O0
 else ifeq "$(config)" "release"
-CPPFLAGS += -O3 -msse3
+CPPFLAGS += -O3 -msse3 -DNDEBUG -DBOOST_UBLAS_NDEBUG
 else
-CPPFLAGS += -O1
+CPPFLAGS += -O1 -DNDEBUG -DBOOST_UBLAS_NDEBUG
 endif
 
 ifeq "$(CC)" "icc"

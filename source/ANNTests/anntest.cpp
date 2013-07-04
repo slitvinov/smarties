@@ -12,48 +12,60 @@
 
 #include "../ANN/Network.h"
 #include "../rng.h"
+#include "../ErrorHandling.h"
 
-double target(double x, double y)
+using namespace ErrorHandling;
+int ErrorHandling::debugLvl;
+
+double target1(double x, double y)
 {
-	return x*x*5 - y*0.77 +1;
+	return x*x + 5* sin(x*3);
+}
+
+double target2(double x, double y)
+{
+	return y*y*0.3 + 5* sin(x*3) - 1;
 }
 
 //using namespace ANN;
 
 int main (int argc, char** argv)
 {
+	debugLvl = 2;
 	RNG rng(0);
 	vector<int> lsize;
-	lsize.push_back(2);
-	lsize.push_back(5);
-	lsize.push_back(5);
-	lsize.push_back(5);
+	lsize.push_back(6);
 	lsize.push_back(3);
+	lsize.push_back(3);
+	lsize.push_back(3);
+	lsize.push_back(2);
 	
-	Network ann(lsize, 0.1, 0.2);
-	vector<double> x(2);
-	vector<double> res(3);
-	vector<double> err(3);
+	NetworkLM ann(lsize, 1.1, 20);
+	//Network ann(lsize, 0.1, 0.8);
+	vector<double> x(6);
+	vector<double> res(2);
+	vector<double> err(2);
 	
 	double cerr = 0;
 	for (int i=0; i<20000000; i++)
 	{
-		x[0] = rng.uniform(0, 1);
-		x[1] = rng.uniform(0, 1);
+		x[4] = rng.uniform(0, 1);
+		x[5] = rng.uniform(0, 1);
 		
-		double exact = target(x[0], x[1]);
+		double exact1 = target1(x[4], x[5]);
+		double exact2 = target2(x[4], x[5]);
 		
 		ann.predict(x, res);
-		err[1] = res[1] - exact;
-		err[0] = 0;
+		err[0] = res[0] - exact1;
+		err[1] = res[1] - exact2;
 		
-		//printf("Res:  %f, exact  %f,\terr: \t%f\n", res[1], exact, err[1]);
+		//printf("Res:  %f, exact  %f,\terr: \t%f\n", res[1], exact2, abs(err[1]));
 		ann.improve(err);
 		
-		cerr += fabs(err[1]);
+		cerr = max(fabs(err[0]) + fabs(err[1]), cerr);
 		if (i % 5000 == 0)
 		{
-			printf("Average error:  %f\n", cerr/5050.0);
+			printf("Average L1 error:  %f\n", (cerr)/1);
 			cerr = 0;
 		}
 	}

@@ -17,6 +17,7 @@
 #include "../rng.h"
 
 using namespace std;
+namespace ublas = boost::numeric::ublas;
 
 //namespace ANN
 //{
@@ -27,7 +28,7 @@ using namespace std;
 	
 	class Network
 	{
-	private:
+	protected:
 		
 		int nInputs;
 		int nOutputs;
@@ -42,17 +43,40 @@ using namespace std;
 		vector<double*> outputs;
 		vector<double*> errors;
 		
-		boost::numeric::ublas::matrix<double>* J;
-		boost::numeric::ublas::matrix<double>* I;
-		
 	public:
 		
-		Network(vector<int> layerSize, double eta, double alpha);
+		Network(vector<int>& layerSize, double eta, double alpha);
+		virtual void predict(const vector<double>& inputs, vector<double>& outputs);
+		virtual void improve(const vector<double>& errors);		
+	};
+
+	class NetworkLM : public Network
+	{
+	private:
+		double mu, muFactor, muMin, muMax;
+		int totWeights;
+		int batchSize;
+		int nInBatch;
+		
+		ublas::matrix<double> J;
+		ublas::matrix<double> tmp;
+		ublas::matrix<double> I;
+		
+		ublas::vector<double> e;
+		ublas::vector<double> dw;
+		
+		vector< vector<double> > batch;
+		vector< vector<double> > batchOut;
+		vector< vector<double> > batchExact;
+		
+	public:
+		NetworkLM(vector<int>& layerSize, double muFactor, int batchSize);
+		NetworkLM(vector<int>& layerSize, int batchSize);
 		void predict(const vector<double>& inputs, vector<double>& outputs);
 		void improve(const vector<double>& errors);
-		
 	};
-	
+
+
 	class Layer
 	{
 	public:

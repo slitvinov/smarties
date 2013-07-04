@@ -25,7 +25,7 @@
 
 using namespace ErrorHandling;
 
-ANNApproximator::ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo) : QApproximator(newSInfo, newActInfo), prediction(newActInfo.bounds[0]), scaledInp(sInfo.dim)
+ANNApproximator::ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo) : QApproximator(newSInfo, newActInfo), scaledInp(sInfo.dim)
 {
 	// TODO: multidimensional actions
 	nActions = actInfo.bounds[0];
@@ -35,9 +35,11 @@ ANNApproximator::ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo) : QA
 	lsize.push_back(nStateDims);
 	lsize.push_back(settings.nnLayer1);
 	lsize.push_back(settings.nnLayer2);
-	lsize.push_back(1);
-		
-	for (int i=0; i<nActions; i++) ann.push_back(new Network(lsize, settings.nnEta, settings.nnAlpha));
+	lsize.push_back(nActions);
+	
+	//for (int i=0; i<nActions; i++) ann.push_back(new Network(lsize, settings.nnEta, settings.nnAlpha));
+	ann = new NetworkLM(lsize, round(settings.nnEta), round(settings.nnAlpha));
+	prediction.resize(nActions);
 }
 
 ANNApproximator::~ANNApproximator()
@@ -50,12 +52,12 @@ double ANNApproximator::get(const State& s, const Action& a)
 	{
 		scaledInp[i] = s.vals[i] - sInfo.bottom[i];
 		scaledInp[i] /= sInfo.top[i] - sInfo.bottom[i];
-		scaledInp[i] *= 4;
-		scaledInp[i] -= 2;
+		scaledInp[i] *= 1;
+		//scaledInp[i] -= 2;
 	}
 	
-	ann[a.vals[0]]->predict(scaledInp, prediction);
-	return prediction[0];
+	ann->Network::predict(scaledInp, prediction);
+	return prediction[a.vals[0]];
 }
 
 void ANNApproximator::set(const State& s, const Action& a, double val)
@@ -64,13 +66,15 @@ void ANNApproximator::set(const State& s, const Action& a, double val)
 	{
 		scaledInp[i] = s.vals[i] - sInfo.bottom[i];
 		scaledInp[i] /= sInfo.top[i] - sInfo.bottom[i];
-		scaledInp[i] *= 4;
-		scaledInp[i] -= 2;
+		scaledInp[i] *= 1;
+		//scaledInp[i] -= 2;
 	}
+	for (int i=0; i<nActions; i++)
+		prediction[i] = 0;
 	
-	ann[a.vals[0]]->predict(scaledInp, prediction);
-	prediction[0] = prediction[0] - val;
-	ann[a.vals[0]]->improve(prediction);
+	ann->predict(scaledInp, prediction);
+	prediction[a.vals[0]] = prediction[a.vals[0]] - val;
+	ann->improve(prediction);
 	return;
 	
 	

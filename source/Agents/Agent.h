@@ -39,11 +39,11 @@ protected:
 	double learningInterval;
 	
 	string name;
-	int    id;
 	static atomic_int idCount;
 	
 public:
 	Types  type;
+	int    id;
 	
 	Agent(double newLearningInterval, Types newType, string newName);
 	

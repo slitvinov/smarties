@@ -57,9 +57,25 @@ public:
 	{
 		ostringstream o;
 		o << "[";
-		for (int i=0; i<sInfo.dim-1; i++)
-			o << vals[i] << " ";
-		o << vals[sInfo.dim-1] << "]";
+		for (int i=0; i<sInfo.dim; i++)
+		{
+			o << vals[i];
+			if (i < sInfo.dim-1) o << " ";
+		}
+		o << "]";
+		return o.str();
+	}
+	
+	string printScaled()
+	{
+		ostringstream o;
+		o << "[";
+		for (int i=0; i<sInfo.dim; i++)
+		{
+			o << (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i]);
+			if (i < sInfo.dim-1) o << " ";
+		}
+		o << "]";
 		return o.str();
 	}
 };
