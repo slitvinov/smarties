@@ -24,7 +24,7 @@ double target1(double x, double y)
 
 double target2(double x, double y)
 {
-	return y*y*0.3 + 5* sin(x*3) - 1;
+	return -y*y*4.3 + 5* sin(x*3) - 1;
 }
 
 //using namespace ANN;
@@ -35,12 +35,11 @@ int main (int argc, char** argv)
 	RNG rng(0);
 	vector<int> lsize;
 	lsize.push_back(6);
-	lsize.push_back(3);
-	lsize.push_back(3);
-	lsize.push_back(3);
+	lsize.push_back(6);
+	lsize.push_back(6);
 	lsize.push_back(2);
 	
-	NetworkLM ann(lsize, 1.1, 20);
+	NetworkLM ann(lsize, 1.1, 50);
 	//Network ann(lsize, 0.1, 0.8);
 	vector<double> x(6);
 	vector<double> res(2);
@@ -52,8 +51,8 @@ int main (int argc, char** argv)
 		x[4] = rng.uniform(0, 1);
 		x[5] = rng.uniform(0, 1);
 		
-		double exact1 = target1(x[4], x[5]);
-		double exact2 = target2(x[4], x[5]);
+		double exact1 = target1(x[4], x[5]) + rng.normal(0, 0.01);
+		double exact2 = target2(x[4], x[5]) + rng.normal(0, 0.01);
 		
 		ann.predict(x, res);
 		err[0] = res[0] - exact1;

@@ -78,6 +78,62 @@ public:
 	}
 };
 
+class NNSaver : public Saver
+{
+private:
+	SelfAvoidEnvironment* env;
+	ANNApproximator* Q;
+	
+public:
+	NNSaver(ofstream* f) : Saver(f) { };
+	~NNSaver()
+	{
+		file->close();
+	}
+	
+	void setEnvironment(Environment *newEnv)
+	{
+		env = static_cast<SelfAvoidEnvironment*> (newEnv);
+		Q   = static_cast<ANNApproximator*> (env->data[0]);
+	}
+	
+	void exec()
+	{
+		ofstream& out(*file);
+		
+		vector<double> inp(6);
+		inp[0] = inp[1] = 0;
+		inp[2] = 0.05;
+		inp[3] = 360;
+		vector<double> outp(3);
+		
+		int ni = 15;
+		int nj = 10;
+		for (int i=0; i<ni; i++)
+		{
+			for (int j=0; j<nj; j++)
+			{
+				inp[4] = -0.001 + 0.002 * i / ni;
+				inp[5] = 360.0 * j / nj;
+				
+				out << "(";
+				for (int k=0; k<3; k++)
+				{
+					Q->ann[k]->predict(inp, outp);
+					out << outp[0];
+					if (k<2) out << " ";
+				}
+				out << "),  ";
+			}
+			out << endl;
+		}
+		
+		out.flush();
+		
+		info("Done\n");
+	}
+};
+
 class PhotoSaver : public Saver
 {
 private:

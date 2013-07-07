@@ -122,6 +122,9 @@ void runTest()
 	RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
 	learner.registerSaver(rsaver, settings.saveFreq / 300);
 	
+	NNSaver* nnsaver = new NNSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
+	learner.registerSaver(nnsaver, settings.saveFreq / 100);
+	
 	//StateSaver* ssaver = new StateSaver(new ofstream("state.txt"));
 	//learner.registerSaver(ssaver, settings.saveFreq / 30);
 	

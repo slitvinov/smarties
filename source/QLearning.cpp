@@ -43,7 +43,7 @@ system(newSystem), agents(newSystem.agents), gamma(newGamma), greedyEps(newGreed
 	bestActionVals.resize(agents.size());
 	r.resize(agents.size());
 	
-	//system.env->pushDataRef((void*)QMap["SmartySelfAvoider"]);
+	system.env->pushDataRef((void*)QMap["SmartySelfAvoider"]);
 }
 
 void QLearning::agentsChoose(double t)
@@ -107,12 +107,11 @@ void QLearning::agentsUpdate(double t)
 				
 		actions->reset();
 		int u = 0;
-		while (!actions->done())
+		while (debugLvl > 3 && !actions->done())
 		{
-			double val = Q->get(s1[i], actions->next());
+			double val = Q->get(s0[i], actions->next());
 			debug1("\t[%d] : %f\n", u++, val);
 		}
-		
 		
 		debug1("Q(s, a): %f --> %f\n", Qsa, Qsa + lRate * (r[i] + gamma * bestActionVals[i] - Qsa));
 		
@@ -138,7 +137,7 @@ void QLearning::agentsAct(double t)
 		{
 			a1[i] = actions->getRand(rng);
 			debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
-			debug1("Exploring!! Chose action %s\n", a0[i].print().c_str());
+			debug1("Exploring!! Chose action %s\n", a1[i].print().c_str());
 		}
 		else
 		{

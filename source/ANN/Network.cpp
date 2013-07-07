@@ -86,14 +86,14 @@ using namespace ErrorHandling;
 		J.resize(nOutputs*batchSize, totWeights);
 		I = ublas::identity_matrix<double>(totWeights);
 		
-		mu = 1;
+		mu = 0.001;
 		nInBatch = 0;
 		
 		e.resize(batchSize*nOutputs);
 		dw.resize(totWeights);
 		
-		muMax = 1e8;
-		muMin = 1e-8;
+		muMax = 1e7;
+		muMin = 1e-12;
 	}
 
 	NetworkLM::NetworkLM(vector<int>& layerSize, int batchSize) : NetworkLM(layerSize, 1 + batchSize/100, batchSize) {};
@@ -167,7 +167,7 @@ using namespace ErrorHandling;
 					for (int n=0; n<layers[l]->nNeurons; n++)
 						for (int lnk=0; lnk<layers[l]->neurons[n]->inLinks.size(); lnk++)
 						{
-							debug("l%d w%d%d = %f\n", l, lnk, n, layers[l]->neurons[n]->inLinks[lnk]->w); 
+							debug2("l%d w%d%d = %f\n", l, lnk, n, layers[l]->neurons[n]->inLinks[lnk]->w); 
 							layers[l]->neurons[n]->inLinks[lnk]->w += dw(w++);
 						}
 							

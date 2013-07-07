@@ -18,9 +18,10 @@
 
 class ANNApproximator : public QApproximator
 {
+public:
 	int nActions;
 	int nStateDims;
-	Network* ann;
+	vector<Network*> ann;
 	vector<double> prediction;
 	vector<double> scaledInp;
 	
