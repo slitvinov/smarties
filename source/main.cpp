@@ -121,8 +121,8 @@ void runTest()
 	//EfficiencySaver* esaver = new EfficiencySaver((ofstream*)&cout); //new ofstream("momentum_dipoles.txt"));
 	//learner.registerSaver(esaver, settings.saveFreq / 1000);
 	
-	MomentumSaver* msaver = new MomentumSaver(new ofstream("momentum_vehicles.txt"));
-	learner.registerSaver(msaver, settings.saveFreq / 1000);
+	//MomentumSaver* msaver = new MomentumSaver(new ofstream("momentum_vehicles.txt"));
+	//learner.registerSaver(msaver, settings.saveFreq / 1000);
 	
 	//RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
 	//learner.registerSaver(rsaver, settings.saveFreq / 300);
@@ -133,8 +133,8 @@ void runTest()
 	//StateSaver* ssaver = new StateSaver(new ofstream("state.txt"));
 	//learner.registerSaver(ssaver, settings.saveFreq / 30);
 	
-	PhotoSaver* camera = new PhotoSaver("img");
-	learner.registerSaver(camera, settings.videoFreq);
+	//PhotoSaver* camera = new PhotoSaver("img");
+	//learner.registerSaver(camera, settings.videoFreq);
 	
 	while (time < settings.endTime)
 	{
@@ -156,7 +156,7 @@ void runTest()
 
 #ifdef _RL_VIZ
 		
-		//if (iter % settings.videoFreq == 0)
+		if (iter % settings.videoFreq == 0)
 		{
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glPushAttrib(GL_ENABLE_BIT);

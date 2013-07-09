@@ -29,7 +29,7 @@ system(newSystem), agents(newSystem.agents), gamma(newGamma), greedyEps(newGreed
 		string name = agents[i]->getName();
 		if (agents[i]->getType() != IDLER && QMap.find(name) == QMap.end())
 		{
-			if (agents[i]->getStateDims().type == DISCR)
+			if (agents[i]->getStateDims().type != DISCR)
 				QMap[name] = new MultiTable(agents[i]->getStateDims(), agents[i]->getActionDims());
 			else
 				QMap[name] = new ANNApproximator(agents[i]->getStateDims(), agents[i]->getActionDims());
