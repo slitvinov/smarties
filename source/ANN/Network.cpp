@@ -26,7 +26,7 @@ using namespace ErrorHandling;
 //namespace ANN
 //{
 	Network::Network(vector<int>& layerSize, double eta, double alpha) :
-	nInputs(layerSize[0]), nOutputs(layerSize.back()), nLayers(layerSize.size()), eta(eta), alpha(alpha), rng(0)
+	nInputs(layerSize.front()), nOutputs(layerSize.back()), nLayers(layerSize.size()), eta(eta), alpha(alpha), rng(0)
 	{
 		Layer* first = new Layer(nInputs, new Linear);
 		layers.push_back(first);
@@ -229,19 +229,19 @@ using namespace ErrorHandling;
 	
 	void Layer::connect2inputs(vector<double*>& vals)
 	{
-		for (int i=0; i<nNeurons; i++)
+		for (int i=0; i<nNeurons-1; i++)
 			vals[i] = &(neurons[i]->ival);
 	}
 
 	void Layer::connect2outputs(vector<double*>& vals)
 	{
-		for (int i=0; i<nNeurons; i++)
+		for (int i=0; i<nNeurons-1; i++)
 			vals[i] = &(neurons[i]->oval);
 	}
 	
 	void Layer::connect2errors(vector<double*>& errs)
 	{
-		for (int i=0; i<nNeurons; i++)
+		for (int i=0; i<nNeurons-1; i++)
 			errs[i] = &(neurons[i]->err);
 	}
 	

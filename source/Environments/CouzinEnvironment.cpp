@@ -35,6 +35,8 @@ CouzinEnvironment::CouzinEnvironment(vector<Agent*> newAgents): Environment(newA
 	
 	cells =  new Cells<CouzinAgent>(couzins, couzins[0]->zoa, settings.centerX-d/2, settings.centerY-d/2, settings.centerX+d/2, settings.centerY+d/2);
 	getter = new CellsTraverser<CouzinAgent>(cells);
+	
+	storeDataRef(&couzins, "couzins");
 }
 
 void CouzinEnvironment::findClosestNeighbours(vector<CouzinAgent*>& res, CouzinAgent* agent, double dist)

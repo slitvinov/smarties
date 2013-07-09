@@ -29,21 +29,19 @@ system(newSystem), agents(newSystem.agents), gamma(newGamma), greedyEps(newGreed
 		string name = agents[i]->getName();
 		if (agents[i]->getType() != IDLER && QMap.find(name) == QMap.end())
 		{
-			if (agents[i]->getStateDims().type != DISCR)
+			if (agents[i]->getStateDims().type == DISCR)
 				QMap[name] = new MultiTable(agents[i]->getStateDims(), agents[i]->getActionDims());
 			else
 				QMap[name] = new ANNApproximator(agents[i]->getStateDims(), agents[i]->getActionDims());
 		}
 	}
 	
-	if  (settings.randSeed == -1 )  srand(time(NULL));
-	else							srand(settings.randSeed);
 	rng = new RNG(rand());
 	
 	bestActionVals.resize(agents.size());
 	r.resize(agents.size());
 	
-	system.env->pushDataRef((void*)QMap["SmartySelfAvoider"]);
+	if (QMap.find("SmartySelfAvoider") != QMap.end()) system.env->storeDataRef((void*)QMap["SmartySelfAvoider"], "QSelfAvoider");
 }
 
 void QLearning::agentsChoose(double t)

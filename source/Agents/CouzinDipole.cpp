@@ -22,8 +22,8 @@ CouzinDipole::CouzinDipole(double newX, double newY, double newD,  double newT, 
 CouzinAgent(newX, newY, newD, newT, newDomainSize, newZor, newZoo, newZoa, newAngle, newTurnRate, newVx,  newVy, newRng),
 FluidAgent (IDLER, "CouzinDipole", newT), Agent (newT, IDLER, "CouzinDipole"), alpha(0), l(0)
 {
-	l = d;
-	double gamma = 0.5 * l * IvI;
+	l = d / 5;
+	double gamma = l * IvI;
 	
 	vortices.resize(2);
 	vortCoos.resize(2);
@@ -56,16 +56,14 @@ void CouzinDipole::move(double dt)
 	}
 	
 	CouzinAgent::act();
-	double sigma = rng->normal(0, 0.005);
+	double sigma = rng->normal(0, 0.5);
 	
-	double desiredAng = _angle(dx, dy, vx, vy);	
-	if (desiredAng > 180) desiredAng -= 360;
+	double desiredAng = _angle(dx, dy, vx, vy);
+	if (desiredAng > 180.0) desiredAng -= 360.0;
 	if (turnRate * dt < fabs(desiredAng))
 		desiredAng = copysign(turnRate*dt, desiredAng);
 	
 	desiredAng += sigma;
-	if (desiredAng > 180)  desiredAng -= 360;
-	if (desiredAng < -180) desiredAng += 360;
 	
 	double alphaDotDesired = (desiredAng / dt) / 180 * M_PI;
 	
@@ -101,9 +99,15 @@ void CouzinDipole::move(double dt)
 	vortices[0] += gammaAdd;
 	vortices[1] += gammaAdd;
 	
-	vx = IvI * cos(alpha);
-	vy = IvI * sin(alpha);
+	//vx = IvI * cos(alpha);
+	//vy = IvI * sin(alpha);
 }
 
+#ifdef _RL_VIZ
+void CouzinDipole::paint()
+{
+	_drawArrow(d, x, y, IvI * cos(alpha), IvI * sin(alpha), IvI, type == DEAD ? 1 : 0, type == DEAD ? 0 : 1, 0);
+}
+#endif
 
 

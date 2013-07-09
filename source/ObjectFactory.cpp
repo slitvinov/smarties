@@ -10,12 +10,14 @@
 #include <string>
 #include <cmath>
 #include <fstream>
+#include <algorithm>
 
 #include "rng.h"
 #include "Settings.h"
 #include "ObjectFactory.h"
 #include "ErrorHandling.h"
 #include "AllSystems.h"
+#include "PF_SwarmCylinders.h"
 
 using namespace ErrorHandling;
 using namespace std;
@@ -262,6 +264,68 @@ System ObjectFactory::getAgentVector()
 													 1, zor, zoo, zoa, ang, tr, v, 0, &rng);
 					system.agents.push_back(object);
 				}
+			}
+			
+			else if (name == "CouzinSwarm" || name == "CouzinDipoleSwarm")
+			{
+				string s;
+				getline(inFile, s);
+				
+				double d = _parseDouble(s, "d")*D;
+				double T = _parseDouble(s, "T");
+				int num  = _parseInt   (s, "n");
+				
+				double zor = _parseDouble(s, "zor")*D;
+				double zoo = _parseDouble(s, "zoo")*D;
+				double zoa = _parseDouble(s, "zoa")*D;
+				double ang = _parseDouble(s, "ang");
+				double tr  = _parseDouble(s, "tr");
+				double v   = _parseDouble(s, "v")*D;
+
+				SwarmCylinders swarm(num, 0.5 * d, 0.05, 1.0, 1.0, 1.0, M_PI / 2);
+		
+				swarm.placeCylinders();
+				//swarm.printSpline();
+				swarm.findEquilibrium();
+				swarm.rotateClockwiseQuarterTurn();
+				
+				/// CALCULATE EQUILIBRIUM POSITIONS
+				vector<double> xs;
+				vector<double> ys;
+				
+				xs = swarm.getX();
+				ys = swarm.getY();
+				
+				/// SCALE DIPOLES AND MOVE DIPOLES
+				double const areaPerDipole = d * d * 4;
+				double const totalSwarmArea = areaPerDipole * num;
+				double const scaleRatio = sqrt(totalSwarmArea);
+				
+				double const yMin = *(std::min_element(ys.begin(), ys.end()));
+				
+				for (int i = 0; i < (int) xs.size(); i++)
+				{
+					xs[i] = xs[i] * scaleRatio;
+					ys[i] = (ys[i] - yMin) * scaleRatio;
+				}
+				
+				for(int j=0; j<num; j++)
+				{
+					const double xx     = xs[j];
+					const double yy     = ys[j];
+					
+					Agent* object;
+					if (name == "CouzinSwarm")
+						object = new CouzinAgent(xx+settings.centerX, yy+settings.centerY, d, T,
+												 1, zor, zoo, zoa, ang, tr, v, 0, &rng);
+					else
+						object = new CouzinDipole(xx+settings.centerX, yy+settings.centerY, d, T,
+												  1, zor, zoo, zoa, ang, tr, v, 0, &rng);
+					
+					system.agents.push_back(object);
+				}
+				
+				
 			}
 			
 			else if (name == "END")

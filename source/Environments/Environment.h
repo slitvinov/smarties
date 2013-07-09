@@ -10,6 +10,8 @@
 #pragma once
 
 #include <vector>
+#include <map>
+#include <string>
 
 class Agent;
 
@@ -20,7 +22,7 @@ class Environment
 {
 public:
 	vector<Agent*> agents;
-	vector<void*>  data;
+	map<string, void*> data;
 	
 	Environment(vector<Agent*> newAgents): agents(newAgents) {};
 	
@@ -28,9 +30,9 @@ public:
 	virtual double getReward(Agent* agent)           { return 0; }
 	virtual void   evolve   (double t)               { };
 	
-	inline  void   pushDataRef(void* someDataRef)
+	inline  void   storeDataRef(void* someDataRef, string name)
 	{
-		data.push_back(someDataRef);
+		data[name] = someDataRef;
 	}
 };
 

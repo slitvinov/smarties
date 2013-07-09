@@ -16,8 +16,9 @@ using namespace ErrorHandling;
 CouzinAgent::CouzinAgent(double newX, double newY, double newD,  double newT, double newDomainSize,
 						 double newZor, double newZoo, double newZoa, double newAngle, double newTurnRate, double newVx,  double newVy, RNG* newRng):
 Agent(newT, IDLER, "CouzinAgent"), x(newX), y(newY), d(newD), domainSize(newDomainSize),
-zor(newZor), zoo(newZoo), zoa(newZoa), angle(newAngle), turnRate(newTurnRate), vx(newVx), vy(newVy), rng(newRng)
+zor(newZor), zoo(newZoo), zoa(newZoa), angle(newAngle), turnRate(newTurnRate), vx(newVx), vy(newVy)
 {
+	rng = new RNG(rand());
 	IvI = sqrt(vx*vx + vy*vy);
 	//double ang = rng.uniform(0, 2*M_PI);
 //	
@@ -36,7 +37,6 @@ void CouzinAgent::setEnvironment(Environment* env)
 void CouzinAgent::_rotate(double dAng)
 {
 	double ang = _angle(vx, vy, 1, 0) + dAng;
-	//if (ang > 180.0) ang -= 360.0;
 	
 	vx = IvI * cos(2*M_PI * ang / 360.0);
 	vy = IvI * sin(2*M_PI * ang / 360.0);
@@ -125,14 +125,17 @@ void CouzinAgent::act()
 void CouzinAgent::move(double dt)
 {
 	act();
-	double sigma = rng->normal(0, 0.0287);
-	
+	double sigma = rng->normal(0, 0.25);
+		
 	double desiredAng = _angle(dx, dy, vx, vy);
-	if (desiredAng > 180) desiredAng -= 360;
+	if (desiredAng > 180.0) desiredAng -= 360.0;
 	if (turnRate * dt < fabs(desiredAng))
 		desiredAng = copysign(turnRate*dt, desiredAng);
 	
-	_rotate(desiredAng + sigma);
+	desiredAng += sigma;
+	//if (desiredAng < 0.0) desiredAng += 360.0;
+		
+	_rotate(desiredAng);
 	
 	x += vx*dt;
 	y += vy*dt;
@@ -147,7 +150,7 @@ void CouzinAgent::move(double dt)
 void CouzinAgent::paint()
 {
 	//_drawSphere(zor/2.0, x, y, type == DEAD ? 1 : 0, type == DEAD ? 0 : 1, 0);
-	_drawArrow(2*d, x, y, vx, vy, IvI, type == DEAD ? 1 : 0, type == DEAD ? 0 : 1, 0);
+	_drawArrow(d, x, y, vx, vy, IvI, type == DEAD ? 1 : 0, type == DEAD ? 0 : 1, 0);
 }
 #endif
 

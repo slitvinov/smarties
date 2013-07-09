@@ -39,6 +39,81 @@ public:
 };
 
 
+class MomentumSaver : public Saver
+{
+private:
+	Environment* env;
+	
+public:
+	MomentumSaver(ofstream* f) : Saver(f) { };
+	~MomentumSaver()
+	{
+		file->close();
+	}
+	
+	void setEnvironment(Environment *newEnv)
+	{
+		env = newEnv;
+	}
+	
+	void exec()
+	{
+		int tot = 0;
+		vector<CouzinAgent*>& agents = *(static_cast< vector<CouzinAgent*> *> (env->data["couzins"]));
+		double resx = 0;
+		double resy = 0;
+		for (int i=0; i<agents.size(); i++)
+		{
+			if (agents[i]->getType() != DEAD)
+			{
+				resx += agents[i]->vx;
+				resy += agents[i]->vy;
+				tot++;
+			}
+		}
+		
+		(*file) << hypot(resx, resy) / tot << endl; 
+	}
+};
+
+class EfficiencySaver : public Saver
+{
+private:
+	Environment* env;
+	
+public:
+	EfficiencySaver(ofstream* f) : Saver(f) { };
+	~EfficiencySaver()
+	{
+		file->close();
+	}
+	
+	void setEnvironment(Environment *newEnv)
+	{
+		env = newEnv;
+	}
+	
+	void exec()
+	{
+		int tot = 0;
+		vector<FluidAgent*>& agents = *(static_cast< vector<FluidAgent*> *> (env->data["fagents"]));
+		double res = 0;
+		double base = 0;
+		for (int i=0; i<agents.size(); i++)
+		{
+			if (agents[i]->getType() != DEAD)
+			{
+				res += abs(agents[i]->vortices[0] + agents[i]->vortices[1]);
+				base = 0.5*(agents[0]->vortices[0] - agents[0]->vortices[1]);
+				tot++;
+			}
+		}
+		
+		(*file) << res / (tot * base) << endl; 
+	}
+};
+
+
 class StateSaver : public Saver
 {
 private:
@@ -94,7 +169,7 @@ public:
 	void setEnvironment(Environment *newEnv)
 	{
 		env = static_cast<SelfAvoidEnvironment*> (newEnv);
-		Q   = static_cast<ANNApproximator*> (env->data[0]);
+		Q   = static_cast<ANNApproximator*> (env->data["QSelfAvoider"]);
 	}
 	
 	void exec()

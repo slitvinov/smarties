@@ -33,6 +33,8 @@ PotentialFluidEnvironment::PotentialFluidEnvironment(vector<Agent*> agents) : En
 	vortCoos.resize(n);
 	targets.resize(n);
 	myfAgents.resize(n);
+	
+	storeDataRef(&fagents, "fagents");
 }
 
 void PotentialFluidEnvironment::getVelocities()
@@ -84,7 +86,7 @@ void PotentialFluidEnvironment::getVelocities()
 			double Y = yn - yj;
 			
 			double dist2 = (X * X + Y * Y);
-			if (dist2 < minDist * minDist / 25) myfAgents[n]->type = myfAgents[j]->type = DEAD;
+			if (dist2 < minDist * minDist / 20) myfAgents[n]->type = myfAgents[j]->type = DEAD;
 			
 			velocity += -gammaj * (complex<double>(Y, X)) / dist2 ;
 		}

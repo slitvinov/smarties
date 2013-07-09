@@ -32,4 +32,7 @@ public:
 	
 	void move(double dt);
 	void setEnvironment(Environment* env);
+#ifdef _RL_VIZ
+	void   paint();
+#endif
 };
