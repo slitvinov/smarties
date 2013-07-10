@@ -59,6 +59,7 @@ namespace ublas = boost::numeric::ublas;
 		int nInBatch;
 		
 		ublas::matrix<double> J;
+		ublas::matrix<double> JtJ;
 		ublas::matrix<double> tmp;
 		ublas::matrix<double> I;
 		

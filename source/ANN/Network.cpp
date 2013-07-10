@@ -92,8 +92,8 @@ using namespace ErrorHandling;
 		e.resize(batchSize*nOutputs);
 		dw.resize(totWeights);
 		
-		muMax = 1e7;
-		muMin = 1e-12;
+		muMax = 1e6;
+		muMin = 1e-8;
 	}
 
 	NetworkLM::NetworkLM(vector<int>& layerSize, int batchSize) : NetworkLM(layerSize, 1 + batchSize/100, batchSize) {};
@@ -150,17 +150,25 @@ using namespace ErrorHandling;
 			double Q0 = Q;
 			Q = Q0+1;
 			
+			JtJ = ublas::prod(ublas::trans(J), J);
+			
 			while (Q > Q0)
 			{
 				dw  = ublas::prod(ublas::trans(J), e);
-				tmp = ublas::prod(ublas::trans(J), J);
-				tmp += mu*I;
+				tmp = JtJ + mu*I;
 				//cout << J << endl << tmp << endl << dw << endl;
 				
 				ublas::permutation_matrix<double> piv(tmp.size1()); 
 				ublas::lu_factorize(tmp, piv);
 				ublas::lu_substitute(tmp, piv, dw);
 				//cout << dw << endl;
+				
+				for (int w=0; w<totWeights; w++)
+					if (isnan(dw(w)) || isinf(dw(w)))
+					{
+						mu *= muFactor;
+						continue;
+					}
 				
 				int w = 0;
 				for (int l=0; l<nLayers; l++)

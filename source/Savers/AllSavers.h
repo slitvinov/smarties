@@ -13,6 +13,7 @@
 #include "../AllSystems.h"
 #include <string>
 #include "../Screenshot.h"
+#include <iomanip>
 
 class RewardSaver : public Saver
 {
@@ -177,6 +178,7 @@ public:
 		ofstream& out(*file);
 		
 		vector<double> inp(6);
+		vector<double> scaledInp(6);
 		inp[0] = inp[1] = 0;
 		inp[2] = 0.05;
 		inp[3] = 360;
@@ -188,14 +190,23 @@ public:
 		{
 			for (int j=0; j<nj; j++)
 			{
-				inp[4] = -0.001 + 0.002 * i / ni;
-				inp[5] = 360.0 * j / nj;
+				inp[4] = -0.001 + (0.002 * i) / ni;
+				inp[5] = (360.0 * j) / nj;
+				
+				for (int i=0; i<6; i++)
+				{
+					scaledInp[i] = inp[i] - env->sI.bottom[i];
+					scaledInp[i] /= env->sI.top[i] - env->sI.bottom[i];
+					scaledInp[i] *= 4;
+					scaledInp[i] -= 2;
+				}
+				
 				
 				out << "(";
 				for (int k=0; k<3; k++)
 				{
-					Q->ann[k]->predict(inp, outp);
-					out << outp[0];
+					Q->ann[k]->predict(scaledInp, outp);
+					out << std::setprecision(4) << outp[0];
 					if (k<2) out << " ";
 				}
 				out << "),  ";

@@ -124,8 +124,8 @@ void runTest()
 	//MomentumSaver* msaver = new MomentumSaver(new ofstream("momentum_vehicles.txt"));
 	//learner.registerSaver(msaver, settings.saveFreq / 1000);
 	
-	//RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
-	//learner.registerSaver(rsaver, settings.saveFreq / 300);
+	RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
+	learner.registerSaver(rsaver, settings.saveFreq / 300);
 	
 	//NNSaver* nnsaver = new NNSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
 	//learner.registerSaver(nnsaver, settings.saveFreq / 100);
