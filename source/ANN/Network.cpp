@@ -92,8 +92,8 @@ using namespace ErrorHandling;
 		e.resize(batchSize*nOutputs);
 		dw.resize(totWeights);
 		
-		muMax = 1e6;
-		muMin = 1e-10;
+		muMax = 1e10;
+		muMin = 1e-25;
 	}
 
 	NetworkLM::NetworkLM(vector<int>& layerSize, int batchSize) : NetworkLM(layerSize, 1 + batchSize/100, batchSize) {};
@@ -163,12 +163,15 @@ using namespace ErrorHandling;
 				ublas::lu_substitute(tmp, piv, dw);
 				//cout << dw << endl;
 				
+				bool nan = false;
 				for (int w=0; w<totWeights; w++)
 					if (std::isnan((double)(dw(w))) || std::isinf((double)(dw(w))))
-					{
-						mu *= muFactor;
-						continue;
-					}
+						nan = true;
+				if (nan)
+				{
+					mu *= muFactor;
+					continue;
+				}
 				
 				int w = 0;
 				for (int l=0; l<nLayers; l++)

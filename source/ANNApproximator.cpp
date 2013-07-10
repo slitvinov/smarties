@@ -35,6 +35,7 @@ ANNApproximator::ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo) : QA
 	lsize.push_back(nStateDims);
 	lsize.push_back(settings.nnLayer1);
 	lsize.push_back(settings.nnLayer2);
+	lsize.push_back(settings.nnLayer2);
 	lsize.push_back(1);
 	
 	//for (int i=0; i<nActions; i++) ann.push_back(new Network(lsize, settings.nnEta, settings.nnAlpha));
