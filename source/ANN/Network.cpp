@@ -183,7 +183,7 @@ using namespace ErrorHandling;
 				Q = 0;
 				for (int i=0; i<batchSize; i++)
 				{
-					predict(batch[i], batchOut[i]);
+					Network::predict(batch[i], batchOut[i]);
 					
 					for (int j=0; j<nOutputs; j++)
 						Q += (batchOut[i][j] - batchExact[i][j]) * (batchOut[i][j] - batchExact[i][j]);
@@ -201,6 +201,16 @@ using namespace ErrorHandling;
 				}
 			}
 			if (mu > muMin) mu /= muFactor;
+			
+			if (batch.size() != batchSize || batchExact.size() != batchSize || batchOut.size() != batchSize)
+				die("Ololo looooooser\n");
+			for (int b=0; b<batchSize; b++)
+			{
+				batch[b].clear();
+				batchOut[b].clear();
+				batchExact[b].clear();
+			}
+			
 			batch.clear();
 			batchOut.clear();
 			batchExact.clear();

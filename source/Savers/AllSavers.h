@@ -205,7 +205,7 @@ public:
 				out << "(";
 				for (int k=0; k<3; k++)
 				{
-					Q->ann[k]->predict(scaledInp, outp);
+					Q->ann[k]->Network::predict(scaledInp, outp);
 					out << std::setprecision(4) << outp[0];
 					if (k<2) out << " ";
 				}
