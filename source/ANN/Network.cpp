@@ -93,7 +93,7 @@ using namespace ErrorHandling;
 		dw.resize(totWeights);
 		
 		muMax = 1e6;
-		muMin = 1e-8;
+		muMin = 1e-10;
 	}
 
 	NetworkLM::NetworkLM(vector<int>& layerSize, int batchSize) : NetworkLM(layerSize, 1 + batchSize/100, batchSize) {};
@@ -164,7 +164,7 @@ using namespace ErrorHandling;
 				//cout << dw << endl;
 				
 				for (int w=0; w<totWeights; w++)
-					if (isnan(dw(w)) || isinf(dw(w)))
+					if (std::isnan((double)(dw(w))) || std::isinf((double)(dw(w))))
 					{
 						mu *= muFactor;
 						continue;
