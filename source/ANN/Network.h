@@ -57,6 +57,7 @@ namespace ublas = boost::numeric::ublas;
 		int totWeights;
 		int batchSize;
 		int nInBatch;
+		double Q;
 		
 		ublas::matrix<double> J;
 		ublas::matrix<double> JtJ;
@@ -75,6 +76,9 @@ namespace ublas = boost::numeric::ublas;
 		NetworkLM(vector<int>& layerSize, int batchSize);
 		void predict(const vector<double>& inputs, vector<double>& outputs);
 		void improve(const vector<double>& errors);
+		inline void rollback();
+		inline double getQ()      { return Q; }
+		inline bool   isUpdated() { return nInBatch == 0; }
 	};
 
 

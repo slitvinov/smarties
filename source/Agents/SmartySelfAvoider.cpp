@@ -31,7 +31,6 @@ void SmartySelfAvoider::setEnvironment(Environment* env)
 void SmartySelfAvoider::_rotate(double dAng)
 {
 	double ang = _angle(vx, vy, 1, 0) + dAng;
-	//if (ang > 180.0) ang -= 360.0;
 	
 	vx = IvI * cos(2*M_PI * ang / 360.0);
 	vy = IvI * sin(2*M_PI * ang / 360.0);
@@ -76,7 +75,7 @@ void SmartySelfAvoider::getState(State& s)
 	else
 	{
 		s.vals.push_back( _dist(x, y, closestNeighbour->x, closestNeighbour->y) - d);
-		s.vals.push_back( _angle(vx - closestNeighbour->vx, vy - closestNeighbour->vy,  (x  - closestNeighbour->x),  (y  - closestNeighbour->y)));	
+		s.vals.push_back( _angle(vx - closestNeighbour->vx, vy - closestNeighbour->vy,  -(x  - closestNeighbour->x),  -(y  - closestNeighbour->y)));	
 	}
 }
 

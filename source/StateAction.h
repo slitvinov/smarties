@@ -72,12 +72,23 @@ public:
 		o << "[";
 		for (int i=0; i<sInfo.dim; i++)
 		{
-			o << (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i]);
+			o << (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*4 - 2;
 			if (i < sInfo.dim-1) o << " ";
 		}
 		o << "]";
 		return o.str();
 	}
+	
+	void scale(vector<double>& res) const
+	{
+		for (int i=0; i<sInfo.dim; i++)
+		{
+			res[i] = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*4 - 2;
+			if (res[i] > 2)  res[i] = 2;
+			if (res[i] < -2) res[i] = -2;
+		}
+	}
+	
 };
 
 inline State decode(const StateInfo& sInfo, long int idx)

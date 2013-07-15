@@ -136,7 +136,7 @@ System ObjectFactory::getAgentVector()
 				
 				for(int j=0; j<num; j++)
 				{
-					const double radius = rng.uniform(0.0,0.49);
+					const double radius = rng.uniform(0.0,0.49-d);
 					const double angle  = rng.uniform(0.0,2*M_PI);
 					const double xx     = radius*cos(angle);
 					const double yy     = radius*sin(angle);

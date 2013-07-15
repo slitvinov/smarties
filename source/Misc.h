@@ -23,8 +23,10 @@ inline double _angle(double ux, double uy, double vx, double vy)
 {
 	const double anglev = atan2(uy, ux) / M_PI*180.0;
 	const double angled = atan2(vy, vx) / M_PI*180.0;
-	const double angle = anglev-angled;
-	return (angle<0.0)?angle+360.0:angle;
+	double angle = anglev-angled;
+	if (angle >  180.0) angle -= 360;
+	if (angle < -180.0) angle += 360;
+	return angle;
 }
 
 inline double _dist (double x1, double y1, double x2, double y2)

@@ -35,7 +35,8 @@ LIBS += \
 
 LIBS += -lstdc++
 
-CPP_FILES = $(wildcard ../source/*.cpp ../source/Agents/*.cpp ../source/Environments/*.cpp ../source/ANN/*.cpp)
+DIRS = $(filter-out ../source/ANNTests/ ../source/CMAUtility/, $(sort $(dir $(wildcard ../source/*/))))
+CPP_FILES = $(wildcard $(DIRS:%/=%/*.cpp))
 OBJ_FILES = $(notdir $(CPP_FILES:.cpp=.o))
 	
 .DEFAULT_GOAL := rl
@@ -51,10 +52,10 @@ rl: $(OBJ_FILES)
 	$(CC)  $(CPPFLAGS) $(CPPFLAGSOPT) -c $< -o $@
 	
 %.d: %.cpp
-	$(CC)  $(CPPFLAGS) -c $< -MD
+	$(CC)  $(CPPFLAGS) -MD -c $<
     
-vpath %.cpp ../source ../source/Agents ../source/Environments ../source/Savers ../source/ANN
-vpath %.h   ../source ../source/Agents ../source/Environments ../source/Savers ../source/ANN
+vpath %.cpp $(DIRS)
+vpath %.h   $(DIRS)
 
 clean:
 	rm -f *.o

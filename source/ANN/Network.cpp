@@ -73,7 +73,6 @@ using namespace ErrorHandling;
 	}
 
 
-
 	NetworkLM::NetworkLM(vector<int>& layerSize, double muFactor, int batchSize) :
 	Network(layerSize, 0, 0), muFactor(muFactor), batchSize(batchSize)
 	{
@@ -86,14 +85,14 @@ using namespace ErrorHandling;
 		J.resize(nOutputs*batchSize, totWeights);
 		I = ublas::identity_matrix<double>(totWeights);
 		
-		mu = 0.001;
+		mu = 0.01;
 		nInBatch = 0;
 		
 		e.resize(batchSize*nOutputs);
 		dw.resize(totWeights);
 		
 		muMax = 1e10;
-		muMin = 1e-25;
+		muMin = 1e-1;
 	}
 
 	NetworkLM::NetworkLM(vector<int>& layerSize, int batchSize) : NetworkLM(layerSize, 1 + batchSize/100, batchSize) {};
@@ -115,10 +114,10 @@ using namespace ErrorHandling;
 
 	void NetworkLM::improve(const vector<double>& errors)
 	{
-		vector<double> instExact(nOutputs);
+		vector<double> tmpVec(nOutputs);
 		for (int i=0; i<nOutputs; i++)
-			instExact[i] = batchOut.back()[i] - errors[i];
-		batchExact.push_back(instExact);
+			tmpVec[i] = batchOut.back()[i] - errors[i];
+		batchExact.push_back(tmpVec);
 		
 		for (int i=0; i<nOutputs; i++)
 			e(i + nInBatch*nOutputs) = errors[i];
@@ -126,7 +125,7 @@ using namespace ErrorHandling;
 		for (int i=0; i<nOutputs; i++)
 		{
 			for (int j=0; j<nOutputs; j++)
-				*(this->errors[j]) = (i==j) ? 1.0 : 0;  // !!!!!!!!!!!!!!!!!!!!!!
+				*(this->errors[j]) = (i==j) ? 1 : 0;  // !!!!!!!!!!!!!!!!!!!!!!
 			
 			for (int i=nLayers-1; i>=0; i--)
 				layers[i]->backPropagate();
@@ -144,15 +143,62 @@ using namespace ErrorHandling;
 		if (nInBatch == batchSize)
 		{
 			nInBatch = 0;
-			double Q = 0;
+			Q = 0;
+			double avgErr = 0;
+			double minE = 1e10;
+			double maxE = -1e10;
+			double newMaxE = 0;
 			for (int i=0; i<nOutputs*batchSize; i++)
+			{
 				Q += e(i) * e(i);
+				avgErr += abs(e(i));
+				minE = (abs(e(i)) < minE) ? abs(e(i)) : minE;
+				maxE = (abs(e(i)) > maxE) ? abs(e(i)) : maxE;
+			}
+			
+			double avgRelErr = 0;
+			int w = 0;
+			for (int i=0; i<batchSize; i++)
+				for (int j=0; j<nOutputs; j++)
+					avgRelErr += abs(e(w++)) / abs(batchOut[i][j]);
+			
+			avgRelErr /= batchSize * nOutputs;
+			avgErr    /= batchSize * nOutputs;
+			
 			double Q0 = Q;
 			Q = Q0+1;
 			
+			//info("Max, minerr, avgrelerr: %f %f %f\n",maxE, minE, avgErr);
+			
+			w = 0;
+			//debug("\n\n\n**************************************************************************************\n");
+			//for (int i=0; i<batchSize; i++)
+			//{
+			//	debug("Inp: [");
+			//	for (int j=0; j<nInputs; j++)
+			//		debug("%f ", batch[i][j]);
+			//	debug("];  Out: %f;  Err: %f;  Exact %f\n", batchOut[i][0], e(w++), batchExact[i][0]);
+			//}
+				 
+			//if (avgRelErr < 0.01 && maxE < 10*minE)
+//			{
+//				info ("Max, minerr, avgrelerr: %f %f %f\n",maxE, minE, avgRelErr);
+//				for (int b=0; b<batchSize; b++)
+//				{
+//					batch[b].clear();
+//					batchOut[b].clear();
+//					batchExact[b].clear();
+//				}
+//				
+//				batch.clear();
+//				batchOut.clear();
+//				batchExact.clear();
+//				return;
+//			}
+			
 			JtJ = ublas::prod(ublas::trans(J), J);
 			
-			while (Q > Q0)
+			while (newMaxE > maxE || Q > Q0)
 			{
 				dw  = ublas::prod(ublas::trans(J), e);
 				tmp = JtJ + mu*I;
@@ -170,6 +216,7 @@ using namespace ErrorHandling;
 				if (nan)
 				{
 					mu *= muFactor;
+					Q = Q0+1;
 					continue;
 				}
 				
@@ -184,25 +231,59 @@ using namespace ErrorHandling;
 							
 				
 				Q = 0;
+				newMaxE = -1e10;
 				for (int i=0; i<batchSize; i++)
 				{
-					Network::predict(batch[i], batchOut[i]);
+					Network::predict(batch[i], tmpVec);
 					
 					for (int j=0; j<nOutputs; j++)
-						Q += (batchOut[i][j] - batchExact[i][j]) * (batchOut[i][j] - batchExact[i][j]);
+					{
+						double diff = tmpVec[j] - batchExact[i][j];
+						Q += diff * diff;
+						newMaxE = (abs(diff) > newMaxE) ? abs(diff) : newMaxE;
+					}
 				}
 				
-				if (Q > Q0)
+				newMaxE = 0;
+				
+				if (newMaxE > maxE || Q > Q0)
 				{
-					if (mu < muMax) mu *= muFactor;
-					else break;
-					int w = 0;
-					for (int l=0; l<nLayers; l++)
-						for (int n=0; n<layers[l]->nNeurons; n++)
-							for (int lnk=0; lnk<layers[l]->neurons[n]->inLinks.size(); lnk++)
-								layers[l]->neurons[n]->inLinks[lnk]->w -= dw(w++);
+					if (mu < muMax)
+						mu *= muFactor;
+					else
+					{
+						break;
+					}
+					rollback();
 				}
 			}
+			//vector<double> invec(6);
+//			invec[0] = invec[1] = -2;
+//			invec[2] = invec[3] = 2;
+//			invec[4] = 3.1;
+//			invec[5] = -1.98;
+//			Network::predict(invec, tmpVec);
+//			
+//			if (tmpVec[0] > 1)
+//			{
+//				debug("  !!! %f\n", tmpVec[0]);
+//				for (int i=0; i<batchSize; i++)
+//				{
+//					Network::predict(batch[i], tmpVec);
+//					
+//					//if (tmpVec[0] > 0.5)
+//					{
+//					debug("Inp: [");
+//					for (int j=0; j<nInputs; j++)
+//						debug("%f ", batch[i][j]);
+//					debug("]; %f --> %f;  exact: %f\n",  batchOut[i][0], tmpVec[0], batchExact[i][0]);
+//					}
+//				}
+//				debug("Q0 %f, Q %f,   E0 %f, E %f\n", Q0, Q, maxE, newMaxE);
+//				if (debugLvl > 2) cout << dw << endl << endl;
+//
+//			}
+			
 			if (mu > muMin) mu /= muFactor;
 			
 			if (batch.size() != batchSize || batchExact.size() != batchSize || batchOut.size() != batchSize)
@@ -218,6 +299,15 @@ using namespace ErrorHandling;
 			batchOut.clear();
 			batchExact.clear();
 		}
+	}
+
+	inline void NetworkLM::rollback()
+	{
+		int w = 0;
+		for (int l=0; l<nLayers; l++)
+			for (int n=0; n<layers[l]->nNeurons; n++)
+				for (int lnk=0; lnk<layers[l]->neurons[n]->inLinks.size(); lnk++)
+					layers[l]->neurons[n]->inLinks[lnk]->w -= dw(w++);		
 	}
 	
 	Layer::Layer(int nNeurons, ActivationFunction* func) : nNeurons(nNeurons+1)

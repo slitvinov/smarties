@@ -184,14 +184,15 @@ public:
 		inp[3] = 360;
 		vector<double> outp(3);
 		
-		int ni = 15;
+		int ni = 10;
 		int nj = 10;
 		for (int i=0; i<ni; i++)
 		{
 			for (int j=0; j<nj; j++)
 			{
-				inp[4] = -0.001 + (0.002 * i) / ni;
-				inp[5] = (360.0 * j) / nj;
+				double s = 0.4;
+				inp[4] = -0.001 + 0.002*(i+0.5) / ni;//(0.5 - s)*settings.scale + s*settings.scale * (i+0.5) / ni;
+				inp[5] = (360.0 * (j+0.5)) / nj - 180;
 				
 				for (int i=0; i<6; i++)
 				{

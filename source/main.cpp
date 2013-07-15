@@ -12,7 +12,8 @@
 
 #include "ArgumentParser.h"
 #include "ErrorHandling.h"
-#include "QLearning.h"
+#include "Learners/QLearning.h"
+#include "Learners/Learner.h"
 #include "ObjectFactory.h"
 #include "Settings.h"
 #include "MRAGProfiler.h"
@@ -110,38 +111,38 @@ void runTest()
 	for (vector<Agent*>::iterator it = system.agents.begin(); it != system.agents.end(); it++)
 		(*it)->setEnvironment(system.env);
 	
-	QLearning learner(system, settings.gamma, settings.greedyEps, settings.lRate, settings.dt, &profiler);
+	Learner* learner = new QLearning(system, settings.gamma, settings.greedyEps, settings.lRate, settings.dt, &profiler);
 	
-	if (settings.restart) learner.try2restart("");
+	if (settings.restart) learner->try2restart("");
 	
 	double dt = settings.dt;
 	double time = 0;
 	int    iter = 0;
 	
 	//EfficiencySaver* esaver = new EfficiencySaver((ofstream*)&cout); //new ofstream("momentum_dipoles.txt"));
-	//learner.registerSaver(esaver, settings.saveFreq / 1000);
+	//learner->registerSaver(esaver, settings.saveFreq / 1000);
 	
 	//MomentumSaver* msaver = new MomentumSaver(new ofstream("momentum_vehicles.txt"));
-	//learner.registerSaver(msaver, settings.saveFreq / 1000);
+	//learner->registerSaver(msaver, settings.saveFreq / 1000);
 	
 	RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
-	learner.registerSaver(rsaver, settings.saveFreq / 300);
+	learner->registerSaver(rsaver, settings.saveFreq / 300);
 	
-	//NNSaver* nnsaver = new NNSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
-	//learner.registerSaver(nnsaver, settings.saveFreq / 100);
+	NNSaver* nnsaver = new NNSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
+	//learner->registerSaver(nnsaver, settings.saveFreq / 100);
 	
 	//StateSaver* ssaver = new StateSaver(new ofstream("state.txt"));
-	//learner.registerSaver(ssaver, settings.saveFreq / 30);
+	//learner->registerSaver(ssaver, settings.saveFreq / 30);
 	
 	//PhotoSaver* camera = new PhotoSaver("img");
-	//learner.registerSaver(camera, settings.videoFreq);
+	//learner->registerSaver(camera, settings.videoFreq);
 	
 	while (time < settings.endTime)
 	{
-		learner.evolve(time);
+		learner->evolve(time);
 		
 		if (iter % settings.saveFreq == 0)
-			learner.savePolicy("");
+			learner->savePolicy("");
 		
 		time += dt;
 		iter++;
