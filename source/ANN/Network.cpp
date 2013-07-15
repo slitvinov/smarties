@@ -73,6 +73,7 @@ using namespace ErrorHandling;
 	}
 
 
+
 	NetworkLM::NetworkLM(vector<int>& layerSize, double muFactor, int batchSize) :
 	Network(layerSize, 0, 0), muFactor(muFactor), batchSize(batchSize)
 	{
@@ -257,33 +258,7 @@ using namespace ErrorHandling;
 					rollback();
 				}
 			}
-			//vector<double> invec(6);
-//			invec[0] = invec[1] = -2;
-//			invec[2] = invec[3] = 2;
-//			invec[4] = 3.1;
-//			invec[5] = -1.98;
-//			Network::predict(invec, tmpVec);
-//			
-//			if (tmpVec[0] > 1)
-//			{
-//				debug("  !!! %f\n", tmpVec[0]);
-//				for (int i=0; i<batchSize; i++)
-//				{
-//					Network::predict(batch[i], tmpVec);
-//					
-//					//if (tmpVec[0] > 0.5)
-//					{
-//					debug("Inp: [");
-//					for (int j=0; j<nInputs; j++)
-//						debug("%f ", batch[i][j]);
-//					debug("]; %f --> %f;  exact: %f\n",  batchOut[i][0], tmpVec[0], batchExact[i][0]);
-//					}
-//				}
-//				debug("Q0 %f, Q %f,   E0 %f, E %f\n", Q0, Q, maxE, newMaxE);
-//				if (debugLvl > 2) cout << dw << endl << endl;
-//
-//			}
-			
+						
 			if (mu > muMin) mu /= muFactor;
 			
 			if (batch.size() != batchSize || batchExact.size() != batchSize || batchOut.size() != batchSize)
