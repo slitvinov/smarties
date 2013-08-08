@@ -20,10 +20,10 @@ using namespace ErrorHandling;
 CouzinDipole::CouzinDipole(double newX, double newY, double newD,  double newT, double newDomainSize,
 						   double newZor, double newZoo, double newZoa, double newAngle, double newTurnRate, double newVx,  double newVy, RNG* newRng):
 CouzinAgent(newX, newY, newD, newT, newDomainSize, newZor, newZoo, newZoa, newAngle, newTurnRate, newVx,  newVy, newRng),
-FluidAgent (IDLER, "CouzinDipole", newT), Agent (newT, IDLER, "CouzinDipole"), alpha(0), l(0)
+FluidAgent (IDLER, "CouzinDipole", newT), Agent (newT, IDLER, "CouzinDipole"), alpha(M_PI/2), l(0)
 {
-	l = d / 5;
-	double gamma = l * IvI;
+	l = d / (2*sqrt(2*M_PI));
+	double gamma = 2 * M_PI * l * IvI;
 	
 	vortices.resize(2);
 	vortCoos.resize(2);
@@ -32,11 +32,18 @@ FluidAgent (IDLER, "CouzinDipole", newT), Agent (newT, IDLER, "CouzinDipole"), a
 	vortices[0] = gamma;
 	vortices[1] = -gamma;
 	
-	vortCoos[0] = pair<double, double>(x, y+l/2);
-	vortCoos[1] = pair<double, double>(x, y-l/2);
+	complex<double> locationCenter(x, y);
+	complex<double> tmp = I*l*exp(complex<double>(I*alpha))/complex<double>(2,0);
+	complex<double> locationRightVortex = locationCenter + tmp;
+	complex<double> locationLeftVortex  = locationCenter - tmp;
+	vortCoos[0] = pair<double, double>(real(locationRightVortex), imag(locationRightVortex));
+	vortCoos[1] = pair<double, double>(real(locationLeftVortex),  imag(locationLeftVortex));
 	
 	vortVels[0] = pair<double, double>(0, 0);
 	vortVels[1] = pair<double, double>(0, 0);
+	
+	vx = IvI*cos(alpha);
+	vy = IvI*sin(alpha);
 };
 
 void CouzinDipole::setEnvironment(Environment* env)
@@ -52,11 +59,22 @@ void CouzinDipole::move(double dt)
 	{
 		vortices[0] = 0;
 		vortices[1] = 0;
+		alpha = -100;
 		return;
 	}
 	
+	complex <double> velocityLeft (vortVels[0].first, vortVels[0].second);
+	complex <double> velocityRight(vortVels[1].first, vortVels[1].second);
+	
+	complex <double> conjVelocity = (double)(0.5)*(velocityRight+velocityLeft);
+	double alphaDot0 = real((velocityRight-velocityLeft)*exp(I*alpha))/l;
+	
+	complex <double> vel = conj(conjVelocity);
+	vx = real(vel);
+	vy = imag(vel);
+	
 	CouzinAgent::act();
-	double sigma = rng->normal(0, 0.5);
+	double sigma = rng->normal(0, 0.5);	
 	
 	double desiredAng = _angle(dx, dy, vx, vy);
 	if (desiredAng > 180.0) desiredAng -= 360.0;
@@ -67,16 +85,7 @@ void CouzinDipole::move(double dt)
 	
 	double alphaDotDesired = (desiredAng / dt) / 180 * M_PI;
 	
-	complex <double> velocityLeft (vortVels[0].first, vortVels[0].second);
-	complex <double> velocityRight(vortVels[1].first, vortVels[1].second);
-	
-	complex <double> conjVelocity = (double)(0.5)*(velocityRight+velocityLeft);
-	double alphaDot0 = real((velocityRight-velocityLeft)*exp(I*alpha))/l;
 		
-	complex <double> vel = conj(conjVelocity);
-	vx = real(vel);
-	vy = imag(vel);
-	
 	x += vx*dt;
 	y += vy*dt;
 	alpha += alphaDotDesired*dt;
@@ -95,7 +104,7 @@ void CouzinDipole::move(double dt)
 	if (y < settings.centerY - domainSize/2) y += domainSize;
 	if (y > settings.centerY + domainSize/2) y -= domainSize;
 	
-	double gammaAdd = 0.5 * l*l * (alphaDotDesired - alphaDot0);
+	double gammaAdd = M_PI * l*l * (alphaDotDesired - alphaDot0);
 	vortices[0] += gammaAdd;
 	vortices[1] += gammaAdd;
 	
@@ -106,7 +115,8 @@ void CouzinDipole::move(double dt)
 #ifdef _RL_VIZ
 void CouzinDipole::paint()
 {
-	_drawArrow(d, x, y, IvI * cos(alpha), IvI * sin(alpha), IvI, type == DEAD ? 1 : 0, type == DEAD ? 0 : 1, 0);
+	if (type != DEAD) _drawArrow (d,   x, y, IvI * cos(alpha), IvI * sin(alpha), IvI, 0, 1, 0);
+	else			  _drawSphere(d/3, x, y, 1, 0, 0);
 }
 #endif
 

@@ -65,7 +65,14 @@ namespace ArgumentParser
 				for (int i=0; i<nOpt; i++)
 				{
 					OptionStruct& myOpt = opts[i];
-					info("-%c\tor --%s : %s\n", myOpt.shortOpt, myOpt.longOpt.c_str(), myOpt.description.c_str());
+					if (myOpt.longOpt.length() > 4)
+					{
+						info("-%c  or  --%s \t: %s\n", myOpt.shortOpt, myOpt.longOpt.c_str(), myOpt.description.c_str());
+					}
+					else
+					{
+						info("-%c  or  --%s \t\t: %s\n", myOpt.shortOpt, myOpt.longOpt.c_str(), myOpt.description.c_str());
+					}
 				}
 					
 				die("Finishing program\n");

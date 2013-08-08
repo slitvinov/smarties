@@ -34,4 +34,7 @@ extern struct Settings
 	int    nnLayer1;
 	int    nnLayer2;
 
+	bool best;
+	string prefix;
+	
 } settings;

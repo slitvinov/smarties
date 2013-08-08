@@ -21,7 +21,8 @@ private:
 	SelfAvoidEnvironment* env;
 	
 public:
-	RewardSaver(ofstream* f) : Saver(f) { };
+	RewardSaver(ostream* f) : Saver(f) { };
+	RewardSaver(string   f) : Saver(f) { };
 	~RewardSaver()
 	{
 		file->close();
@@ -46,7 +47,8 @@ private:
 	Environment* env;
 	
 public:
-	MomentumSaver(ofstream* f) : Saver(f) { };
+	MomentumSaver(ostream* f) : Saver(f) { };
+	MomentumSaver(string   f) : Saver(f) { };
 	~MomentumSaver()
 	{
 		file->close();
@@ -64,7 +66,7 @@ public:
 		double resx = 0;
 		double resy = 0;
 		for (int i=0; i<agents.size(); i++)
-		{
+		{ 
 			if (agents[i]->getType() != DEAD)
 			{
 				resx += agents[i]->vx;
@@ -83,7 +85,8 @@ private:
 	Environment* env;
 	
 public:
-	EfficiencySaver(ofstream* f) : Saver(f) { };
+	EfficiencySaver(ostream* f) : Saver(f) { };
+	EfficiencySaver(string   f) : Saver(f) { };
 	~EfficiencySaver()
 	{
 		file->close();
@@ -105,12 +108,78 @@ public:
 			if (agents[i]->getType() != DEAD)
 			{
 				res += abs(agents[i]->vortices[0] + agents[i]->vortices[1]);
-				base = 0.5*(agents[0]->vortices[0] - agents[0]->vortices[1]);
+				base = 0.5*(agents[i]->vortices[0] - agents[i]->vortices[1]);
 				tot++;
 			}
 		}
 		
 		(*file) << res / (tot * base) << endl; 
+	}
+};
+
+class DipolesSaver : public Saver
+{
+private:
+	Environment* env;
+	
+public:
+	DipolesSaver(ostream* f) : Saver(f) { };
+	DipolesSaver(string   f) : Saver(f) { };
+	DipolesSaver()
+	{
+		file->close();
+	}
+	
+	void setEnvironment(Environment *newEnv)
+	{
+		env = newEnv;
+	}
+	
+	void exec()
+	{
+		vector<CouzinDipole*>& agents = *(static_cast< vector<CouzinDipole*> *> (env->data["fagents"]));
+		double t = *(static_cast<double*> (env->data["time"]));
+		
+		for (int i=0; i<agents.size(); i++)
+		{	
+			CouzinDipole* agent = agents[i];
+			(*file) << t << " " << agent->x << " " << agent->y  << " 0 0 0 0 ";
+			(*file) << agent->alpha << " " << agent->vortices[0] << " " << agent->vortices[1] << " ";
+			(*file) << agent->l << " " << agent->IvI << endl;
+		}
+	}
+};
+
+class CollisionSaver : public Saver
+{
+private:
+	Environment* env;
+	
+public:
+	CollisionSaver(ostream* f) : Saver(f) { };
+	CollisionSaver(string   f) : Saver(f) { };
+	~CollisionSaver()
+	{
+		file->close();
+	}
+	
+	void setEnvironment(Environment *newEnv)
+	{
+		env = newEnv;
+	}
+	
+	void exec()
+	{
+		vector<FluidAgent*>& agents = *(static_cast< vector<FluidAgent*> *> (env->data["fagents"]));
+		
+		int collisions = 0;
+		for (int i=0; i<agents.size(); i++)
+		{	
+			if (agents[i]->getType() == DEAD)
+				collisions++;
+		}
+		
+		(*file) << collisions/2 << endl;
 	}
 };
 
@@ -122,7 +191,8 @@ private:
 	MultiTable* Q;
 	
 public:
-	StateSaver(ofstream* f) : Saver(f) { };
+	StateSaver(ostream* f) : Saver(f) { };
+	StateSaver(string   f) : Saver(f) { };
 	~StateSaver()
 	{
 		file->close();
@@ -161,7 +231,8 @@ private:
 	ANNApproximator* Q;
 	
 public:
-	NNSaver(ofstream* f) : Saver(f) { };
+	NNSaver(ostream* f) : Saver(f) { };
+	NNSaver(string   f) : Saver(f) { };
 	~NNSaver()
 	{
 		file->close();
@@ -179,34 +250,24 @@ public:
 		
 		vector<double> inp(6);
 		vector<double> scaledInp(6);
-		inp[0] = inp[1] = 0;
-		inp[2] = 0.05;
-		inp[3] = 360;
+		inp[0] = inp[1] = -2;
+		inp[2] = inp[3] = 2;
 		vector<double> outp(3);
 		
-		int ni = 10;
+		int ni = 20;
 		int nj = 10;
 		for (int i=0; i<ni; i++)
 		{
 			for (int j=0; j<nj; j++)
 			{
-				double s = 0.4;
-				inp[4] = -0.001 + 0.002*(i+0.5) / ni;//(0.5 - s)*settings.scale + s*settings.scale * (i+0.5) / ni;
-				inp[5] = (360.0 * (j+0.5)) / nj - 180;
-				
-				for (int i=0; i<6; i++)
-				{
-					scaledInp[i] = inp[i] - env->sI.bottom[i];
-					scaledInp[i] /= env->sI.top[i] - env->sI.bottom[i];
-					scaledInp[i] *= 4;
-					scaledInp[i] -= 2;
-				}
-				
+				//double s = 0.4;
+				inp[4] = -2 + (4.0*i) / (ni-1.0);
+				inp[5] = -2 + (4.0*j) / (nj-1.0);
 				
 				out << "(";
 				for (int k=0; k<3; k++)
 				{
-					Q->ann[k]->Network::predict(scaledInp, outp);
+					Q->ann[k]->predict(inp, outp);         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111111111111111
 					out << std::setprecision(4) << outp[0];
 					if (k<2) out << " ";
 				}
@@ -234,7 +295,7 @@ public:
 	{
 #ifdef _RL_VIZ
 		char buf[100];
-		sprintf(buf, "%s%07d.tga", fname.c_str(), num);
+		sprintf(buf, "%s%07d.tga", (folder+fname).c_str(), num);
 		info("Saving screenshot to %s... ", buf);
 		num++;
 		if (gltWriteTGA(buf))

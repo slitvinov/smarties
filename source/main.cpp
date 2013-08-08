@@ -119,25 +119,36 @@ void runTest()
 	double time = 0;
 	int    iter = 0;
 	
-	//EfficiencySaver* esaver = new EfficiencySaver((ofstream*)&cout); //new ofstream("momentum_dipoles.txt"));
-	//learner->registerSaver(esaver, settings.saveFreq / 1000);
+	if (!Saver::makedir((settings.prefix+"/").c_str())) die("Unable to make a working directory!");
 	
-	//MomentumSaver* msaver = new MomentumSaver(new ofstream("momentum_vehicles.txt"));
-	//learner->registerSaver(msaver, settings.saveFreq / 1000);
+	DipolesSaver* dsaver = new DipolesSaver("state.txt");
+	//learner->registerSaver(dsaver, settings.videoFreq);
 	
-	RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
+	CollisionSaver* csaver = new CollisionSaver("coll.txt");
+	//learner->registerSaver(csaver, settings.saveFreq / 100);
+	
+	EfficiencySaver* esaver = new EfficiencySaver("eff.txt");
+	//learner->registerSaver(esaver, settings.saveFreq / 300);
+	
+	MomentumSaver* msaver = new MomentumSaver("mom.txt");
+	//learner->registerSaver(msaver, settings.saveFreq / 300);
+	
+	RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//"rewar.txt");
 	learner->registerSaver(rsaver, settings.saveFreq / 300);
 	
 	NNSaver* nnsaver = new NNSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
-	//learner->registerSaver(nnsaver, settings.saveFreq / 100);
+	learner->registerSaver(nnsaver, settings.saveFreq / 100);
 	
-	//StateSaver* ssaver = new StateSaver(new ofstream("state.txt"));
+	//StateSaver* ssaver = new StateSaver("state.txt");
 	//learner->registerSaver(ssaver, settings.saveFreq / 30);
 	
-	//PhotoSaver* camera = new PhotoSaver("img");
-	//learner->registerSaver(camera, settings.videoFreq);
+	if (settings.videoFreq > 0)
+	{
+		PhotoSaver* camera = new PhotoSaver("zimg");
+		//learner->registerSaver(camera, settings.videoFreq);
+	}
 	
-	while (time < settings.endTime)
+	while (time < settings.endTime + settings.dt/2.0)
 	{
 		learner->evolve(time);
 		
@@ -157,7 +168,7 @@ void runTest()
 
 #ifdef _RL_VIZ
 		
-		if (iter % settings.videoFreq == 0)
+		if (settings.videoFreq > 0 && iter % settings.videoFreq == 0)
 		{
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			glPushAttrib(GL_ENABLE_BIT);
@@ -194,13 +205,16 @@ int main (int argc, char** argv)
 		{'a', "scale",      DOUBLE, "Scaling factor",         &settings.scale},
 		{'v', "debug_lvl",  INT,    "Debug level",            &debugLvl},
 		
-		{'1', "nneta",      DOUBLE, "Debug level",            &settings.nnEta},
-		{'2', "nnalpha",    DOUBLE, "Debug level",            &settings.nnAlpha},
-		{'3', "nnlayer1",   INT,    "Debug level",            &settings.nnLayer1},
-		{'4', "nnlayer2",   INT,    "Debug level",            &settings.nnLayer2}
+		{'1', "nneta",      DOUBLE, "NNeta",                  &settings.nnEta},
+		{'2', "nnalpha",    DOUBLE, "NNalpha",                &settings.nnAlpha},
+		{'3', "nnlayer1",   INT,    "NN layer 1",             &settings.nnLayer1},
+		{'4', "nnlayer2",   INT,    "NN layer 2",             &settings.nnLayer2},
+		
+		{'6', "best",       NONE,   "Use best shape",         &settings.best},
+		{'7', "prefix",     STRING, "Prefix",                 &settings.prefix}
 	};
 	
-	vector<OptionStruct> vopts(opts, opts + 18);
+	vector<OptionStruct> vopts(opts, opts + 20);
 	
 	debugLvl = 2;
 	settings.centerX = 0.5;
@@ -220,6 +234,9 @@ int main (int argc, char** argv)
 	settings.nnAlpha = 0.2;
 	settings.nnLayer1 = 5;
 	settings.nnLayer2 = 5;
+	
+	settings.best = false;
+	settings.prefix = "hpar_best";
 	
 	
 	Parser parser(vopts);

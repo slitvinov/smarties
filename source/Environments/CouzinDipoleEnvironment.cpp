@@ -13,4 +13,5 @@ void CouzinDipoleEnvironment::evolve(double t)
 {
 	CouzinEnvironment::evolve(t);
 	PotentialFluidEnvironment::getVelocities();
+	tm = t;
 }

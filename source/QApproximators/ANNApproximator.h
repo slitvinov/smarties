@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "../ANN/Network.h"
+#include "../ANN/WaveletNet.h"
 #include "QApproximator.h"
 #include "../rng.h"
 
@@ -23,7 +24,7 @@ public:
 	int nActions;
 	int nStateDims;
 	int batchSize;
-	vector<Network*> ann;
+	vector<WaveletNet*> ann;
 	vector<double> prediction;
 	vector<double> scaledInp;
 	

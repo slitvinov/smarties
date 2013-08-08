@@ -11,6 +11,9 @@
 
 #include <iostream>
 #include <fstream>
+#include <sys/stat.h>
+#include <errno.h>
+#include <string>
 
 #include "../Environments/Environment.h"
 
@@ -21,13 +24,26 @@ class Saver
 protected:
 	int period;
 	ofstream* file;
+	static string folder;
 	
 public:
-	Saver (ofstream* newFile) : file(newFile) { };
+	Saver (ostream* cOut) : file((ofstream*)cOut) { };
+	Saver (string fname)
+	{
+		file = new ofstream((folder+fname).c_str());
+	};
 	Saver (){};
+	
 	virtual void setEnvironment(Environment*) { };
 	inline  void setPeriod(int);
 	inline  int  getPeriod();
+	
+	inline static bool makedir(string name)
+	{
+		folder = name;
+		if (mkdir(folder.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0 && errno != EEXIST) return false;
+		return true;
+	}
 	
 	virtual void exec() = 0;
 };

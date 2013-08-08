@@ -62,6 +62,6 @@ void CouzinEnvironment::findClosestNeighbours(vector<CouzinAgent*>& res, CouzinA
 void CouzinEnvironment::evolve(double t)
 {
 	cells->migrate();
-	usleep(000);
+	usleep(2000);
 }
 

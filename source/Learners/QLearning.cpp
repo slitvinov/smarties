@@ -176,6 +176,10 @@ void QLearning::evolve(double t)
 		
 	if (profiler != NULL)
 	{
+		profiler->push_start("Environment evolution");
+		system.env->evolve(t);
+		profiler->pop_stop();
+		
 		profiler->push_start("Compute new values");
 		agentsChoose(t);
 		profiler->pop_stop();
@@ -191,18 +195,14 @@ void QLearning::evolve(double t)
 		profiler->push_start("Moving");
 		agentsMove();
 		profiler->pop_stop();
-		
-		profiler->push_start("Environment evolution");
-		system.env->evolve(t);
-		profiler->pop_stop();
 	}
 	else
 	{
+		system.env->evolve(t);
 		agentsChoose(t);
 		agentsUpdate(t);
 		agentsAct(t);
 		agentsMove();
-		system.env->evolve(t);
 	}
 	
 	execSavers(t);

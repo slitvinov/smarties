@@ -86,10 +86,13 @@ void PotentialFluidEnvironment::getVelocities()
 			double Y = yn - yj;
 			
 			double dist2 = (X * X + Y * Y);
-			if (dist2 < minDist * minDist / 20) myfAgents[n]->type = myfAgents[j]->type = DEAD;
+			if (dist2 < minDist * minDist / 4) myfAgents[n]->type = myfAgents[j]->type = DEAD;
 			
 			velocity += -gammaj * (complex<double>(Y, X)) / dist2 ;
 		}
+		
+		velocity /= 2 * M_PI;
+		
 		*(targets[n]) = pair<double, double> (real(velocity), imag(velocity)); /// beware, these are conjugate velocities
 	}
 }

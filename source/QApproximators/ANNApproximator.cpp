@@ -34,11 +34,12 @@ ANNApproximator::ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo) : QA
 	vector<int> lsize;
 	lsize.push_back(nStateDims);
 	lsize.push_back(settings.nnLayer1);
-	lsize.push_back(settings.nnLayer2);
+	//lsize.push_back(settings.nnLayer2);
 	lsize.push_back(1);
 	
+	for (int i=0; i<nActions; i++) ann.push_back(new WaveletNet(lsize, settings.nnEta, settings.nnAlpha, 50));
 	//for (int i=0; i<nActions; i++) ann.push_back(new Network(lsize, settings.nnEta, settings.nnAlpha));
-	for (int i=0; i<nActions; i++) ann.push_back(new NetworkLM(lsize, round(settings.nnEta), batchSize));
+	//for (int i=0; i<nActions; i++) ann.push_back(new NetworkLM(lsize, round(settings.nnEta), batchSize));
 	prediction.resize(1);
 	
 	batch.resize(nActions);
@@ -51,7 +52,7 @@ ANNApproximator::~ANNApproximator()
 double ANNApproximator::get(const State& s, const Action& a)
 {
 	s.scale(scaledInp);	
-	ann[a.vals[0]]->Network::predict(scaledInp, prediction);
+	ann[a.vals[0]]->predict(scaledInp, prediction);
 	
 	if (batch[a.vals[0]].size() < batchSize)
 		batch[a.vals[0]].push_back(scaledInp);
@@ -63,7 +64,7 @@ void ANNApproximator::set(const State& s, const Action& a, double val)
 	s.scale(scaledInp);	
 	ann[a.vals[0]]->predict(scaledInp, prediction);
 	prediction[0] = prediction[0] - val;
-	ann[a.vals[0]]->improve(prediction);
+	ann[a.vals[0]]->improve(scaledInp, prediction);
 }
 
 

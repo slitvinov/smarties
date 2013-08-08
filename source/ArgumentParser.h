@@ -31,7 +31,7 @@ namespace ArgumentParser
 	class Parser
 	{
 	private:
-		int nOpt;
+		int nOpt; 
 		vector<OptionStruct> opts;
 		map<char, OptionStruct> optsMap;
 		struct option* long_options;

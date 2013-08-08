@@ -35,7 +35,7 @@ protected:
 	{
 		for (list<Saver*>::iterator it = savers.begin(), end = savers.end(); it != end; ++it)
 		{
-			if ( ((int)(t/dt) % (*it)->getPeriod()) == 0 && t > dt/10.0) (*it)->exec();
+			if ( ((int)(t/dt) % (*it)->getPeriod()) == 0) (*it)->exec();
 		}	
 	}
 	

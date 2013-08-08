@@ -281,32 +281,45 @@ System ObjectFactory::getAgentVector()
 				double ang = _parseDouble(s, "ang");
 				double tr  = _parseDouble(s, "tr");
 				double v   = _parseDouble(s, "v")*D;
-
-				SwarmCylinders swarm(num, 0.5 * d, 0.05, 1.0, 1.0, 1.0, M_PI / 2);
+				
+				double avgDist;
+				SwarmCylinders* swarm;
+				if (settings.best)
+				{
+					avgDist = 1.35 * d;
+					swarm = new SwarmCylinders(num, 0.5 * d, 0.05, 1.0, 0.5, 1.98, 2.42);
+				}
+				else
+				{
+					avgDist = 3.0 * d;
+					swarm = new SwarmCylinders(num, 0.5 * d, 0.02, 1.0, 1.0, 1.0, M_PI / 2);
+				}
 		
-				swarm.placeCylinders();
+				swarm->placeCylinders();
 				//swarm.printSpline();
-				swarm.findEquilibrium();
-				swarm.rotateClockwiseQuarterTurn();
+				swarm->findEquilibrium();
+				swarm->rotateClockwiseQuarterTurn();
 				
 				/// CALCULATE EQUILIBRIUM POSITIONS
 				vector<double> xs;
 				vector<double> ys;
 				
-				xs = swarm.getX();
-				ys = swarm.getY();
+				xs = swarm->getX();
+				ys = swarm->getY();
 				
 				/// SCALE DIPOLES AND MOVE DIPOLES
-				double const areaPerDipole = d * d * 4;
+				
+				
+				double const areaPerDipole = avgDist * avgDist;
 				double const totalSwarmArea = areaPerDipole * num;
 				double const scaleRatio = sqrt(totalSwarmArea);
 				
-				double const yMin = *(std::min_element(ys.begin(), ys.end()));
+				//double const yMin = *(std::min_element(ys.begin(), ys.end()));
 				
 				for (int i = 0; i < (int) xs.size(); i++)
 				{
 					xs[i] = xs[i] * scaleRatio;
-					ys[i] = (ys[i] - yMin) * scaleRatio;
+					ys[i] = (ys[i]) * scaleRatio;
 				}
 				
 				for(int j=0; j<num; j++)
