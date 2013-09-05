@@ -303,6 +303,6 @@ bool CellsTraverser<Object>::getNextXY(double& x, double& y, Object*& obj)
 	
 	// Ooops. What if we try to return the original particle?
 	// Just go to the next one in that case
-	if (state == None && id == origId) return getNextXY(x, y, obj);
+	if (id == origId) return getNextXY(x, y, obj);
 	return true;
 }

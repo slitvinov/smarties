@@ -121,7 +121,7 @@ void runTest()
 	
 	if (!Saver::makedir((settings.prefix+"/").c_str())) die("Unable to make a working directory!");
 	
-	DipolesSaver* dsaver = new DipolesSaver("state.txt");
+	CouzinsSaver* dsaver = new CouzinsSaver("state.txt");
 	//learner->registerSaver(dsaver, settings.videoFreq);
 	
 	CollisionSaver* csaver = new CollisionSaver("coll.txt");
@@ -136,8 +136,8 @@ void runTest()
 	RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//"rewar.txt");
 	learner->registerSaver(rsaver, settings.saveFreq / 300);
 	
-	NNSaver* nnsaver = new NNSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
-	learner->registerSaver(nnsaver, settings.saveFreq / 100);
+	//NNSaver* nnsaver = new NNSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
+	//learner->registerSaver(nnsaver, settings.saveFreq / 100);
 	
 	//StateSaver* ssaver = new StateSaver("state.txt");
 	//learner->registerSaver(ssaver, settings.saveFreq / 30);
@@ -220,8 +220,8 @@ int main (int argc, char** argv)
 	settings.centerX = 0.5;
 	settings.centerY = 0.5;
 	settings.configFile = "/Users/alexeedm/Documents/Fish/smarties/factory/factoryRL_test1";
-	settings.dt = 0.01;
-	settings.endTime = 100000;
+	settings.dt = 0.005;
+	settings.endTime = 1000000;
 	settings.gamma = 0.85;
 	settings.greedyEps = 0.01;
 	settings.lRate = 0.03;

@@ -29,5 +29,5 @@ public:
 	
 	PotentialFluidEnvironment(vector<Agent*> newAgents);
 	
-	void getVelocities();
+	void getVelocities(bool immortal = false);
 };

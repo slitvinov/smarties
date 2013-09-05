@@ -55,6 +55,12 @@ void CouzinAgent::act()
 {
 	double IdI;
 	
+	// 0. Check for collisions
+	
+	static const double l = d / (2*sqrt(2*M_PI));
+	environment->findClosestNeighbours(guys, this, 2 * l);
+	if (guys.size() > 0) type = DEAD;
+	
 	// 1. Zone of repulsion
 	environment->findClosestNeighbours(guys, this, zor);
 	
@@ -124,7 +130,9 @@ void CouzinAgent::act()
 
 void CouzinAgent::move(double dt)
 {
+	if (type == DEAD) return;
 	act();
+	if (type == DEAD) return;
 	double sigma = rng->normal(0, 0.25);
 		
 	double desiredAng = _angle(dx, dy, vx, vy);
@@ -149,8 +157,9 @@ void CouzinAgent::move(double dt)
 #ifdef _RL_VIZ
 void CouzinAgent::paint()
 {
-	//_drawSphere(zor/2.0, x, y, type == DEAD ? 1 : 0, type == DEAD ? 0 : 1, 0);
-	_drawArrow(d, x, y, vx, vy, IvI, type == DEAD ? 1 : 0, type == DEAD ? 0 : 1, 0);
+	if (type != DEAD) _drawArrow (d,   x, y, vx, vy, IvI, 0, 1, 0);
+	else			  _drawSphere(d/3, x, y, 1, 0, 0);
+
 }
 #endif
 

@@ -11,26 +11,45 @@
 
 #include <vector>
 #include <cmath>
-#include <boost/numeric/ublas/matrix.hpp>
+#include <armadillo>
 
 #include "../rng.h"
 #include "../ErrorHandling.h"
+#include "Approximator.h"
 
 using namespace std;
 using namespace ErrorHandling;
-namespace ublas = boost::numeric::ublas;
 
 class GaussDer
 {
 public:
 	inline double eval(double x)
 	{
+		if (isnan(x) || isinf(x)) return 0;
 		return x * exp(-0.5 * x*x);
 	}
 	inline double evalDiff(double x)
 	{
+		if (isnan(x) || isinf(x)) return 0;
 		double x2 = x*x;
 		return (1 - x2) * exp(-0.5 * x2);
+	}
+};
+
+class MexicanHat
+{
+public:
+	inline double eval(double x)
+	{
+		if (isnan(x) || isinf(x)) return 0;
+		double x2 = x*x;
+		return (1 - x2) * exp(-0.5 * x2);
+	}
+	inline double evalDiff(double x)
+	{
+		if (isnan(x) || isinf(x)) return 0;
+		double x2 = x*x;
+		return x*(x2 - 3) * exp(-0.5 * x2);
 	}
 };
 
@@ -66,7 +85,7 @@ public:
 			backmul[i] = res;
 		}
 		
-		outval = pow(4, dimension) * backmul[0];
+		outval = backmul[0];
 		return outval;
 	}
 	
@@ -77,18 +96,18 @@ public:
 		front = k > 0           ? frontmul[k-1] : 1;
 		back  = k < dimension-1 ?  backmul[k+1] : 1;
 		
-		double res = pow(4, dimension) * front * back * wavelet.evalDiff(z[k]);
+		double res = front * back * wavelet.evalDiff(z[k]);
 		if (isnan(res) || isinf(res))
-			error("NaN error!!\n");
+			die("NaN error!!\n");
 		
 		return res;
 	}
 };
 
 
-class WaveletNet
+class WaveletNet: public Approximator
 {
-private:
+protected:
 	
 	int nInputs;
 	int nWavelons;
@@ -113,14 +132,16 @@ private:
 	int batchSize;
 	int nInBatch;
 	
-	ublas::matrix<double> J;
-	ublas::matrix<double> JtJ;
-	ublas::matrix<double> tmp;
-	ublas::matrix<double> I;
+	arma::mat J;
+	arma::mat JtJ;
+	arma::mat tmp;
+	arma::mat I;
 	
-	ublas::vector<double> e;
-	ublas::vector<double> dw;
-	ublas::vector<double> prevDw;
+	arma::vec e;
+	arma::vec dw;
+	arma::vec w;
+	arma::vec prevDw;
+	arma::vec Je;
 	
 	double mu, muFactor, muMin, muMax;
 	
@@ -128,18 +149,27 @@ private:
 	void computeDw();
 	void changeWeights();
 	void rollback();
-	void computeDwLM();
-		
+	
 public:
 	
-	WaveletNet(vector<int>& layerSize, double eta, double alpha, int batchSize);
-	void   predict  (const vector<double>& inputs, vector<double>& outputs);
-	void   improve  (const vector<double>& inputs, const vector<double>& errors);		
-	void   improveLM(const vector<double>& inputs, const vector<double>& errors);		
+	WaveletNet(vector<int>& layerSize, double eta, double alpha, int batchSize = -1);
+	void   predict  (const vector<double>& inputs,       vector<double>& outputs);
+	void   improve  (const vector<double>& inputs, const vector<double>& errors);
+	
+	void save(string fname);
+	bool restart(string fname);		
 };
 
 
+class WaveletNetLM: public WaveletNet
+{
+	void prepareLM();
+	void computeDwLM();
 
+public:
+	WaveletNetLM(vector<int>& layerSize, int batchSize = -1, double eta = 1.0) : WaveletNet(layerSize, eta, 1.0, batchSize) {};
+	void improve(const vector<double>& inputs, const vector<double>& errors);	
+};
 
 
 

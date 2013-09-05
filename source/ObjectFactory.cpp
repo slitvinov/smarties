@@ -66,9 +66,12 @@ System ObjectFactory::getAgentVector()
 	
 	while (inFile.good())
 	{
-		string name, envName;
+		string name, envName, appType;
 		
 		inFile >> envName;
+		string s;
+		getline(inFile, s);
+		appType = _parse(s, "type");
 		
 		while (true)
 		{
@@ -82,7 +85,6 @@ System ObjectFactory::getAgentVector()
 			
 			else if( name == "SmartyDodger" )
 			{
-				string s;
 				getline(inFile, s);
 				
 				Agent* object = new SmartyDodger(_parseDouble(s, "xm")*D + settings.centerX,
@@ -94,7 +96,6 @@ System ObjectFactory::getAgentVector()
 			
 			else if( name == "SmartyDodgers" )
 			{
-				string s;
 				getline(inFile, s);
 
 				double d = _parseDouble(s, "d")*D;
@@ -115,7 +116,6 @@ System ObjectFactory::getAgentVector()
 			
 			else if( name == "SmartySelfAvoider" )
 			{
-				string s;
 				getline(inFile, s);
 				
 				Agent* object = new SmartySelfAvoider(_parseDouble(s, "xm")*D + settings.centerX,
@@ -127,7 +127,6 @@ System ObjectFactory::getAgentVector()
 			
 			else if( name == "SmartySelfAvoiders" )
 			{
-				string s;
 				getline(inFile, s);
 				
 				double d = _parseDouble(s, "d")*D;
@@ -148,7 +147,6 @@ System ObjectFactory::getAgentVector()
 			
 			else if( name == "DynamicColumn" )
 			{
-				string s;
 				getline(inFile, s);
 
 				Agent* object = new DynamicColumn(_parseDouble(s, "xm")*D + settings.centerX,
@@ -159,7 +157,6 @@ System ObjectFactory::getAgentVector()
 			
 			else if( name == "DynamicColumns" )
 			{
-				string s;
 				getline(inFile, s);
 				
 				double d = _parseDouble(s, "d")*D;
@@ -179,7 +176,6 @@ System ObjectFactory::getAgentVector()
 			
 			else if( name == "CouzinAgent" )
 			{
-				string s;
 				getline(inFile, s);
 				
 				Agent* object = new CouzinAgent(_parseDouble(s, "xm") *D + settings.centerX,
@@ -194,7 +190,6 @@ System ObjectFactory::getAgentVector()
 			
 			else if( name == "CouzinAgents" )
 			{
-				string s;
 				getline(inFile, s);
 				
 				double d = _parseDouble(s, "d")*D;
@@ -224,7 +219,6 @@ System ObjectFactory::getAgentVector()
 			
 			else if( name == "CouzinDipole" )
 			{
-				string s;
 				getline(inFile, s);
 				
 				Agent* object = new CouzinDipole(_parseDouble(s, "xm") *D + settings.centerX,
@@ -239,7 +233,6 @@ System ObjectFactory::getAgentVector()
 			
 			else if( name == "CouzinDipoles" )
 			{
-				string s;
 				getline(inFile, s);
 				
 				double d = _parseDouble(s, "d")*D;
@@ -268,7 +261,6 @@ System ObjectFactory::getAgentVector()
 			
 			else if (name == "CouzinSwarm" || name == "CouzinDipoleSwarm")
 			{
-				string s;
 				getline(inFile, s);
 				
 				double d = _parseDouble(s, "d")*D;
@@ -330,23 +322,53 @@ System ObjectFactory::getAgentVector()
 					Agent* object;
 					if (name == "CouzinSwarm")
 						object = new CouzinAgent(xx+settings.centerX, yy+settings.centerY, d, T,
-												 1, zor, zoo, zoa, ang, tr, v, 0, &rng);
+												 1, zor, zoo, zoa, ang, tr, 0, v, &rng);
 					else
 						object = new CouzinDipole(xx+settings.centerX, yy+settings.centerY, d, T,
 												  1, zor, zoo, zoa, ang, tr, v, 0, &rng);
 					
 					system.agents.push_back(object);
 				}
+			}
+			else if (name == "SmartySwarm")
+			{
+				getline(inFile, s);
 				
+				double d = _parseDouble(s, "d")*D;
+				double T = _parseDouble(s, "T");
+				int num  = _parseInt   (s, "n");
 				
+				double zoo = _parseDouble(s, "zoo")*D;
+				double zoa = _parseDouble(s, "zoa")*D;
+				double v   = _parseDouble(s, "v")*D;
+				
+				for(int j=0; j<num; j++)
+				{
+					const double radius = rng.uniform(0.0,0.3);
+					const double angle  = rng.uniform(0.0,2*M_PI);
+					const double xx     = radius*cos(angle);
+					const double yy     = radius*sin(angle);
+					
+					Agent* object = new SmartySwarmer(xx+settings.centerX, yy+settings.centerY, d, T,
+													 1, zoo, zoa, v, 0, &rng);
+					system.agents.push_back(object);
+				}				
 			}
 			
 			else if (name == "END")
 			{
+				StateType tp;
+				
+				if (appType == "discr") tp = DISCR;
+				else if (appType == "ann")   tp = ANN;
+				else if (appType == "wave")  tp = WAVE;
+				else die("Unrecognized approximation type!");
+				
 				if      (envName == "DodgerEnvironment")       system.env = new DodgerEnvironment       (system.agents);
-				else if (envName == "SelfAvoidEnvironment")    system.env = new SelfAvoidEnvironment    (system.agents);
+				else if (envName == "SelfAvoidEnvironment")    system.env = new SelfAvoidEnvironment    (system.agents, tp);
 				else if (envName == "CouzinEnvironment")       system.env = new CouzinEnvironment       (system.agents);
 				else if (envName == "CouzinDipoleEnvironment") system.env = new CouzinDipoleEnvironment (system.agents);
+				else if (envName == "SwarmEnvironment")        system.env = new SwarmEnvironment        (system.agents, tp);
 
 				else die("Unsupported environment type %s\n", envName.c_str());
 				break;

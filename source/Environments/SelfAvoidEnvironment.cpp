@@ -14,11 +14,11 @@
 
 using namespace ErrorHandling;
 
-SelfAvoidEnvironment::SelfAvoidEnvironment(vector<Agent*> newAgents): Environment(newAgents)
+SelfAvoidEnvironment::SelfAvoidEnvironment(vector<Agent*> newAgents, StateType tp): Environment(newAgents)
 {	
 	for (vector<Agent*>::iterator it = agents.begin(); it != agents.end(); it++)
 	{
-		if ((*it)->getName() == "CircularWall") 
+		if ((*it)->getName() == "CircularWall")
 		{
 			circWall = static_cast<CircularWall*> (*it);
 			continue;
@@ -43,6 +43,7 @@ SelfAvoidEnvironment::SelfAvoidEnvironment(vector<Agent*> newAgents): Environmen
 	cells =  new Cells<SmartySelfAvoider>(dodgers, 8*dodgers[0]->d, x0-d, y0-d, x0+d, y0+d);
 	totalReward = 0;
 	
+	sI.type = tp;
 	setDims();
 	for (vector<SmartySelfAvoider*>::iterator it = dodgers.begin(); it != dodgers.end(); it++)
 		(*it)->setDims(sI, aI);
@@ -53,34 +54,33 @@ void SelfAvoidEnvironment::setDims()
 {
 	double d = dodgers[0]->d;
 	sI.dim = 6;
-	sI.type = CONT;
 	
 	// dist to wall
 	sI.bounds.push_back(10);
-	sI.top.push_back(d);
-	sI.bottom.push_back(0);
+	sI.top.push_back(8*d);
+	sI.bottom.push_back(-d);
 	sI.aboveTop.push_back(true);
 	sI.belowBottom.push_back(true);
 	
 	// angle to wall
 	sI.bounds.push_back(10);
-	sI.top.push_back(360);
-	sI.bottom.push_back(0);
+	sI.top.push_back(180);
+	sI.bottom.push_back(-180);
 	sI.aboveTop.push_back(false);
 	sI.belowBottom.push_back(false);
 	
 	
 	// dist to column
 	sI.bounds.push_back(10);
-	sI.top.push_back(5*d);
-	sI.bottom.push_back(0);
+	sI.top.push_back(8*d);
+	sI.bottom.push_back(-d);
 	sI.aboveTop.push_back(true);
 	sI.belowBottom.push_back(true);
 	
 	// angle to column
 	sI.bounds.push_back(10);
-	sI.top.push_back(360);
-	sI.bottom.push_back(0);
+	sI.top.push_back(180);
+	sI.bottom.push_back(-180);
 	sI.aboveTop.push_back(false);
 	sI.belowBottom.push_back(false);
 

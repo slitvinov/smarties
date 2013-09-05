@@ -13,8 +13,7 @@
 #include <string>
 #include <vector>
 
-#include "../ANN/Network.h"
-#include "../ANN/WaveletNet.h"
+#include "../ANN/Approximator.h"
 #include "QApproximator.h"
 #include "../rng.h"
 
@@ -24,23 +23,23 @@ public:
 	int nActions;
 	int nStateDims;
 	int batchSize;
-	vector<WaveletNet*> ann;
+	StateType sType;
+	
+	vector<Approximator*> ann;
 	vector<double> prediction;
 	vector<double> scaledInp;
-	
-	vector< vector< vector<double> > > batch;   // Num of actions * batch size * state dimension
-	
+		
 	RNG rng;
 	
 public:
 	// Costructor-Destructor
-	ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo);
+	ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo, StateType tp);
 	~ANNApproximator();
 	
 	// Methods
 	double get(const State& s, const Action& a);
 	void   set(const State& s, const Action& a, double value);
 	
-	void   save(string name)    { };
-	bool   restart(string name) { return false; };
+	void   save(string name);
+	bool   restart(string name);
 };

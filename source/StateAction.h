@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ErrorHandling;
 
-enum StateType {DISCR, CONT};
+enum StateType {DISCR, ANN, WAVE};
 
 struct StateInfo
 {
@@ -72,7 +72,11 @@ public:
 		o << "[";
 		for (int i=0; i<sInfo.dim; i++)
 		{
-			o << (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*4 - 2;
+			double res = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*4 - 2;
+			if (res > 2)  res = 2;
+			if (res < -2) res = -2;
+			
+			o << res;
 			if (i < sInfo.dim-1) o << " ";
 		}
 		o << "]";

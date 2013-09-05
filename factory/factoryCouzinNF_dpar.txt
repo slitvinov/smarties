@@ -1,0 +1,3 @@
+CouzinEnvironment
+CouzinSwarm d=1 T=0.01 n=100 zor=1 zoo=6 zoa=10 v=3 ang=270 tr=40
+END

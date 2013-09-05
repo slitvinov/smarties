@@ -8,19 +8,15 @@
  */
 
 #include <cmath>
-#include <boost/numeric/ublas/matrix.hpp>
-#include <boost/numeric/ublas/vector.hpp>
-#include <boost/numeric/ublas/lu.hpp>
-#include <boost/numeric/ublas/operations.hpp>
-#include <boost/numeric/ublas/assignment.hpp>
-#include <boost/numeric/ublas/io.hpp>
 
 #include "WaveletNet.h"
 
 WaveletNet::WaveletNet(vector<int>& layerSize, double eta, double alpha, int batchSize) :
 eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), batchSize(batchSize)
 {
-	nWeights = 1 + nInputs + nWavelons + nInputs*nWavelons * 2;
+	nWeights = nWavelons + nInputs*nWavelons * 2;
+	if (batchSize == -1) this->batchSize = batchSize = nWeights;
+
 	a.resize(nInputs);
 	c.resize(nWavelons);
 	wavelons.resize(nWavelons);
@@ -37,17 +33,19 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 		wavelons[i]->dimension = nInputs;
 		for (int j=0; j<nInputs; j++)
 		{
-			wavelons[i]->m[j] = 0 + rng.uniform(-1, 1);
-			wavelons[i]->d[j] = 1.8 + rng.uniform(-0.01, 0.01);
+			wavelons[i]->m[j] = 0.0 + rng.uniform(-0.1, 0.1);
+			wavelons[i]->d[j] = 1.0 + rng.uniform(-0.1, 0.1);
 		}
 	}
 	
-	J.resize(batchSize, nWeights);
-	I = ublas::identity_matrix<double>(nWeights);
+	J.set_size(batchSize, nWeights);
+	I.eye(nWeights, nWeights);
 	
-	e.resize(batchSize);
-	dw.resize(nWeights);
-	prevDw.resize(nWeights);
+	e.set_size(batchSize);
+	w.set_size(nWeights);
+	dw.set_size(nWeights);
+	Je.set_size(nWeights);
+	prevDw.set_size(nWeights);
 	
 	nInBatch = 0;	
 	
@@ -55,7 +53,7 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 		prevDw(i) = 0;
 	
 	for (int i=0; i<nWavelons; i++)
-		c[i] = rng.uniform(-0.01, 0.01);
+		c[i] = rng.uniform(-1, 1);
 	for (int i=0; i<nInputs; i++)
 		a[i] = rng.uniform(-0.01, 0.01);
 	
@@ -65,9 +63,9 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 	batchOut.resize(batchSize);
 	batchExact.resize(batchSize);
 	
-	mu = 0.01;
+	mu = 1;
 	muFactor = 5;
-	muMin = 1e-2;
+	muMin = 1e-10;
 	muMax = 1e+10;
 }
 
@@ -77,12 +75,12 @@ void WaveletNet::predict(const vector<double>& inputs, vector<double>& outputs)
 	
 	// Bias
 	
-	res += a0;
+	//res += a0;
 	
 	// Linear terms
 	
-	for (int i=0; i<nInputs; i++)
-		res += inputs[i] * a[i];
+	//for (int i=0; i<nInputs; i++)
+	//	res += inputs[i] * a[i];
 	
 	// Wavelet terms
 	
@@ -98,12 +96,12 @@ void WaveletNet::computeJ()
 	
 	// Bias
 	
-	J(nInBatch, iw++) = 1;
+	//J(nInBatch, iw++) = 1;
 	
 	// Linear terms
 	
-	for (int i=0; i < nInputs; i++)
-		J(nInBatch, iw++) = batch[nInBatch][i];
+	//for (int i=0; i < nInputs; i++)
+	//	J(nInBatch, iw++) = batch[nInBatch][i];
 	
 	// Summing weights
 	
@@ -125,22 +123,34 @@ void WaveletNet::computeJ()
 
 void WaveletNet::computeDw()
 {
-	dw = -eta * ublas::prod(ublas::trans(J), e) + alpha * prevDw;
-	prevDw = -eta * ublas::prod(ublas::trans(J), e);
+	dw = -eta * J.t() * e + alpha * prevDw;
+	//cout << J << endl << e << endl << prevDw << endl << dw << endl;
+	prevDw = -eta * J.t() * e;
 }
 
-void WaveletNet::computeDwLM()
+void WaveletNetLM::prepareLM()
 {
-	J = -J;
-	JtJ = ublas::prod(ublas::trans(J), J);
-	dw  = ublas::prod(ublas::trans(J), e);
+	JtJ = J.t() * J;
+	Je  = - J.t() * e;
+}
+
+void WaveletNetLM::computeDwLM()
+{
 	tmp = JtJ + mu*I;
 	
-	ublas::permutation_matrix<double> piv(tmp.size1()); 
-	ublas::lu_factorize(tmp, piv);
-	ublas::lu_substitute(tmp, piv, dw);
+	//vec eig;
+	//eig_sym(eig, tmp);
 	
+	//cout << eig(eig.n_elem - 1) / eig(0) << endl;
+	//cout << tmp;
+	
+	//cout << tmp << endl << dw << endl;
+	dw = solve(tmp, Je);
+	
+	//cout << dw << endl;
 	dw *= eta;
+	
+	//cout << J << endl << e << endl << prevDw << endl << dw << endl;
 }
 
 void WaveletNet::changeWeights()
@@ -151,29 +161,38 @@ void WaveletNet::changeWeights()
 	
 	// Bias
 	
-	a0 += dw(iw++);
+	//a0 += dw(iw++);
 	
 	// Linear terms
 	
-	for (int i=0; i < nInputs; i++)
-		a[i] += dw(iw++);
+	//for (int i=0; i < nInputs; i++)
+	//	a[i] += dw(iw++);
 	
 	// Summing weights
 	
 	for (int i=0; i < nWavelons; i++)
+	{
+		w(iw) = c[i] + dw(iw);
 		c[i] += dw(iw++);
+	}
 	
 	// Translations
 	
 	for (int j=0; j < nWavelons; j++)
 		for (int k=0; k < nInputs; k++)
+		{
+			w(iw) = wavelons[j]->m[k] + dw(iw);
 			wavelons[j]->m[k] += dw(iw++);
+		}
 	
 	// Dilations
 	
 	for (int j=0; j < nWavelons; j++)
 		for (int k=0; k < nInputs; k++)
-			wavelons[j]->d[k] += dw(iw++);	
+		{
+			w(iw) = wavelons[j]->d[k] + dw(iw);
+			wavelons[j]->d[k] += dw(iw++);
+		}
 }
 
 void WaveletNet::rollback()
@@ -184,12 +203,12 @@ void WaveletNet::rollback()
 	
 	// Bias
 	
-	a0 -= dw(iw++);
+	//a0 -= dw(iw++);
 	
 	// Linear terms
 	
-	for (int i=0; i < nInputs; i++)
-		a[i] -= dw(iw++);
+	//for (int i=0; i < nInputs; i++)
+	//	a[i] -= dw(iw++);
 	
 	// Summing weights
 	
@@ -214,8 +233,8 @@ void WaveletNet::improve(const vector<double>& inputs, const vector<double>& err
 	// Save all the info about current object
 	
 	vector<double> tmpVec(1);
-	//predict(inputs, tmpVec);
-	batch[nInBatch] = inputs;
+	predict(inputs, tmpVec);
+	//batch[nInBatch] = inputs;
 	//batchOut[nInBatch] = tmpVec[0];
 	//batchExact[nInBatch] = tmpVec[0] - errors[0];
 	e(nInBatch) = errors[0];
@@ -230,14 +249,14 @@ void WaveletNet::improve(const vector<double>& inputs, const vector<double>& err
 	
 	if (nInBatch == batchSize)
 	{
-		computeDwLM();
+		computeDw();
 		changeWeights();
 		
 		nInBatch = 0;
 	}		
 }
 
-void WaveletNet::improveLM(const vector<double>& inputs, const vector<double>& errors)
+void WaveletNetLM::improve(const vector<double>& inputs, const vector<double>& errors)
 {
 	// Save all the info about current object
 	
@@ -264,7 +283,7 @@ void WaveletNet::improveLM(const vector<double>& inputs, const vector<double>& e
 			Q0 += e(i) * e(i);
 		
 		Q = Q0+1;
-		
+		prepareLM();
 				
 		while (Q > Q0)
 		{
@@ -283,23 +302,108 @@ void WaveletNet::improveLM(const vector<double>& inputs, const vector<double>& e
 			
 			if (Q > Q0)
 			{
+				dw = -dw;
+				changeWeights();
 				if (mu < muMax)
+				{
 					mu *= muFactor;
+				}
 				else
 				{
 					break;
 				}
-				rollback();
 			}
 		}
 		
 		if (mu > muMin) mu /= muFactor;
 		
+		//cout << mu << endl;
+		//cout << Q0 << " --> " << Q << endl;
+		
 		nInBatch = 0;
 	}		
 }
 
+void WaveletNet::save(string fname)
+{
+	info("Saving into %s\n", fname.c_str());
+	
+	string nameBackup = fname + "_tmp";
+	ofstream out(nameBackup.c_str());
+	
+	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+	
+	out.precision(20);
+	
+	out << nWeights << " " << nInputs << " " << nWavelons << endl;
+	
+	//*****************************************
+	for (int i=0; i < nWavelons; i++)
+		out << c[i] << " ";
+	
+	// Translations
+	
+	for (int j=0; j < nWavelons; j++)
+		for (int k=0; k < nInputs; k++)
+			out << wavelons[j]->m[k] << " ";
+	
+	// Dilations
+	
+	for (int j=0; j < nWavelons; j++)
+		for (int k=0; k < nInputs; k++)
+			out << wavelons[j]->d[k] << " ";
+	//*****************************************
+	
+	out.flush();
+	out.close();
+	
+	// Prepare copying command
+	string command = "cp ";
+	string nameOriginal = fname;
+	command = command + nameBackup + " " + nameOriginal;
+	
+	// Submit the command to the system
+	system(command.c_str());
+}
 
+bool WaveletNet::restart(string fname)
+{
+	string nameBackup = fname + "_tmp";
+	
+	ifstream in(nameBackup.c_str());
+	info("Reading from %s\n", nameBackup.c_str());
+	if (!in.good())
+	{
+		error("WTF couldnt open file %s (ok keep going mofo)!\n", fname.c_str());
+		return false;
+	}
+	
+	int readNWeights, readNInputs, readNWavelons;
+	in >> readNWeights >> readNInputs >> readNWavelons;
+	
+	if (readNWeights != nWeights || readNInputs != nInputs || readNWavelons != nWavelons)
+		die("Network parameters differ!");
+	
+	//*****************************************
+	for (int i=0; i < nWavelons; i++)
+		in >> c[i];
+	
+	// Translations
+	
+	for (int j=0; j < nWavelons; j++)
+		for (int k=0; k < nInputs; k++)
+			in >> wavelons[j]->m[k];
+	
+	// Dilations
+	
+	for (int j=0; j < nWavelons; j++)
+		for (int k=0; k < nInputs; k++)
+			in >> wavelons[j]->d[k];
+	//*****************************************
+	
+	in.close();
+	return true;
+}
 
 
 

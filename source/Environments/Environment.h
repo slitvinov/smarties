@@ -23,8 +23,9 @@ class Environment
 public:
 	vector<Agent*> agents;
 	map<string, void*> data;
+	double totalReward;
 	
-	Environment(vector<Agent*> newAgents): agents(newAgents) {};
+	Environment(vector<Agent*> newAgents): agents(newAgents), totalReward(0) {};
 	
 	virtual void   getState (Agent* agent, State& s) { };
 	virtual double getReward(Agent* agent)           { return 0; }
@@ -34,6 +35,18 @@ public:
 	{
 		data[name] = someDataRef;
 	}
+	
+	inline double getAccumulatedReward()
+	{
+		double res = totalReward;
+		totalReward = 0;
+		return res;
+	}
+	inline void   accumulateReward    (double r)
+	{
+		totalReward += r; 
+	}
+	
 };
 
 struct System

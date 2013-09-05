@@ -16,11 +16,7 @@
 
 class CouzinDipoleEnvironment: public CouzinEnvironment, public PotentialFluidEnvironment
 {
-	double tm;
 public:
-	CouzinDipoleEnvironment(vector<Agent*> newAgents) : Environment(newAgents), CouzinEnvironment(newAgents), PotentialFluidEnvironment(newAgents)
-	{
-		storeDataRef(&tm, "time");
-	};
+	CouzinDipoleEnvironment(vector<Agent*> newAgents) : Environment(newAgents), CouzinEnvironment(newAgents), PotentialFluidEnvironment(newAgents) {};
 	void evolve(double t);
 };

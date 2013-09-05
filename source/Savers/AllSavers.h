@@ -18,7 +18,7 @@
 class RewardSaver : public Saver
 {
 private:
-	SelfAvoidEnvironment* env;
+	Environment* env;
 	
 public:
 	RewardSaver(ostream* f) : Saver(f) { };
@@ -30,7 +30,7 @@ public:
 	
 	void setEnvironment(Environment *newEnv)
 	{
-		env = static_cast<SelfAvoidEnvironment*> (newEnv);
+		env = newEnv;
 	}
 
 	void exec()
@@ -125,7 +125,7 @@ private:
 public:
 	DipolesSaver(ostream* f) : Saver(f) { };
 	DipolesSaver(string   f) : Saver(f) { };
-	DipolesSaver()
+	~DipolesSaver()
 	{
 		file->close();
 	}
@@ -150,6 +150,39 @@ public:
 	}
 };
 
+class CouzinsSaver : public Saver
+{
+private:
+	Environment* env;
+	
+public:
+	CouzinsSaver(ostream* f) : Saver(f) { };
+	CouzinsSaver(string   f) : Saver(f) { };
+	~CouzinsSaver()
+	{
+		file->close();
+	}
+	
+	void setEnvironment(Environment *newEnv)
+	{
+		env = newEnv;
+	}
+	
+	void exec()
+	{
+		vector<CouzinAgent*>& agents = *(static_cast< vector<CouzinAgent*> *> (env->data["couzins"]));
+		double t = *(static_cast<double*> (env->data["time"]));
+		
+		for (int i=0; i<agents.size(); i++)
+		{	
+			CouzinAgent* agent = agents[i];
+			(*file) << t << " " << agent->x << " " << agent->y  << " 0 0 0 0 ";
+			(*file) << ((agent->getType() != DEAD) ? atan2(agent->vy, agent->vx) : -100.0) << " " << 0 << " " << 0 << " ";
+			(*file) << agent->d / (2*sqrt(2*M_PI)) << " " << agent->IvI << endl;
+		}
+	}
+};
+
 class CollisionSaver : public Saver
 {
 private:
@@ -170,7 +203,7 @@ public:
 	
 	void exec()
 	{
-		vector<FluidAgent*>& agents = *(static_cast< vector<FluidAgent*> *> (env->data["fagents"]));
+		vector<Agent*>& agents = *(static_cast< vector<Agent*> *> (env->data["agents"]));
 		
 		int collisions = 0;
 		for (int i=0; i<agents.size(); i++)
@@ -241,44 +274,44 @@ public:
 	void setEnvironment(Environment *newEnv)
 	{
 		env = static_cast<SelfAvoidEnvironment*> (newEnv);
-		Q   = static_cast<ANNApproximator*> (env->data["QSelfAvoider"]);
+		Q   = static_cast<ANNApproximator*> (env->data["ann"]);
 	}
 	
 	void exec()
 	{
-		ofstream& out(*file);
-		
-		vector<double> inp(6);
-		vector<double> scaledInp(6);
-		inp[0] = inp[1] = -2;
-		inp[2] = inp[3] = 2;
-		vector<double> outp(3);
-		
-		int ni = 20;
-		int nj = 10;
-		for (int i=0; i<ni; i++)
+		if (Q != NULL)
 		{
-			for (int j=0; j<nj; j++)
+			ofstream& out(*file);
+			
+			vector<double> inp(9,0);
+			vector<double> outp(3);
+			
+			int ni = 10;
+			int nj = 10;
+			for (int i=0; i<ni; i++)
 			{
-				//double s = 0.4;
-				inp[4] = -2 + (4.0*i) / (ni-1.0);
-				inp[5] = -2 + (4.0*j) / (nj-1.0);
-				
-				out << "(";
-				for (int k=0; k<3; k++)
+				for (int j=0; j<nj; j++)
 				{
-					Q->ann[k]->predict(inp, outp);         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111111111111111
-					out << std::setprecision(4) << outp[0];
-					if (k<2) out << " ";
+					//double s = 0.4;
+					inp[2] = -2 + (4.0*i) / (ni-1.0);
+					//inp[1] = -2 + (4.0*j) / (nj-1.0);
+					
+					out << "(";
+					for (int k=0; k<3; k++)
+					{
+						Q->ann[k]->predict(inp, outp);         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111111111111111
+						out << std::setprecision(4) << outp[0];
+						if (k<2) out << " ";
+					}
+					out << "),  ";
 				}
-				out << "),  ";
+				out << endl;
 			}
-			out << endl;
+			
+			out.flush();
+			
+			info("Done\n");
 		}
-		
-		out.flush();
-		
-		info("Done\n");
 	}
 };
 
@@ -299,9 +332,13 @@ public:
 		info("Saving screenshot to %s... ", buf);
 		num++;
 		if (gltWriteTGA(buf))
+		{
 			info("Ok\n");
+		}
 		else
+		{
 			warn("Failed!\n");
+		}
 #endif
 	}
 };

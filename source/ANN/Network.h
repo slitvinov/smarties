@@ -11,13 +11,12 @@
 
 #include <vector>
 #include <cmath>
-#include <boost/numeric/ublas/matrix.hpp>
+#include <armadillo>
 
-
+#include "Approximator.h"
 #include "../rng.h"
 
 using namespace std;
-namespace ublas = boost::numeric::ublas;
 
 //namespace ANN
 //{
@@ -26,7 +25,7 @@ namespace ublas = boost::numeric::ublas;
 	class Neuron;
 	class ActivationFunction;
 	
-	class Network
+	class Network: public Approximator
 	{
 	protected:
 		
@@ -46,8 +45,8 @@ namespace ublas = boost::numeric::ublas;
 	public:
 		
 		Network(vector<int>& layerSize, double eta, double alpha);
-		virtual void predict(const vector<double>& inputs, vector<double>& outputs);
-		virtual void improve(const vector<double>& errors);		
+		void predict(const vector<double>& inputs, vector<double>& outputs);
+		void improve(const vector<double>& inputs, const vector<double>& errors);		
 	};
 
 	class NetworkLM : public Network
@@ -59,26 +58,28 @@ namespace ublas = boost::numeric::ublas;
 		int nInBatch;
 		double Q;
 		
-		ublas::matrix<double> J;
-		ublas::matrix<double> JtJ;
-		ublas::matrix<double> tmp;
-		ublas::matrix<double> I;
+		arma::mat J;
+		arma::mat JtJ;
+		arma::mat tmp;
+		arma::mat I;
 		
-		ublas::vector<double> e;
-		ublas::vector<double> dw;
+		arma::vec e;
+		arma::vec dw;
+		arma::vec Je;
 		
 		vector< vector<double> > batch;
 		vector< vector<double> > batchOut;
 		vector< vector<double> > batchExact;
 		
 	public:
-		NetworkLM(vector<int>& layerSize, double muFactor, int batchSize);
-		NetworkLM(vector<int>& layerSize, int batchSize);
-		void predict(const vector<double>& inputs, vector<double>& outputs);
-		void improve(const vector<double>& errors);
-		inline void rollback();
+		NetworkLM(vector<int>& layerSize, double muFactor, int batchSize = -1);
+		void improve(const vector<double>& inputs, const vector<double>& errors);
+		inline void   rollback();
 		inline double getQ()      { return Q; }
 		inline bool   isUpdated() { return nInBatch == 0; }
+		
+		void save(string fname);
+		bool restart(string fname);
 	};
 
 

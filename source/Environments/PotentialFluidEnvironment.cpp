@@ -37,7 +37,7 @@ PotentialFluidEnvironment::PotentialFluidEnvironment(vector<Agent*> agents) : En
 	storeDataRef(&fagents, "fagents");
 }
 
-void PotentialFluidEnvironment::getVelocities()
+void PotentialFluidEnvironment::getVelocities(bool immortal)
 {
 	// Prepare vortices - pack strengths, coordinates and desired velocities into vectors
 	int k=0;
@@ -86,7 +86,7 @@ void PotentialFluidEnvironment::getVelocities()
 			double Y = yn - yj;
 			
 			double dist2 = (X * X + Y * Y);
-			if (dist2 < minDist * minDist / 4) myfAgents[n]->type = myfAgents[j]->type = DEAD;
+			if (!immortal && dist2 < minDist * minDist / 4) myfAgents[n]->type = myfAgents[j]->type = DEAD;
 			
 			velocity += -gammaj * (complex<double>(Y, X)) / dist2 ;
 		}

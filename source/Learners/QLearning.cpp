@@ -32,7 +32,10 @@ Learner(newSystem, newDt, newProfiler), gamma(newGamma), greedyEps(newGreedyEps)
 			if (agents[i]->getStateDims().type == DISCR)
 				QMap[name] = new MultiTable(agents[i]->getStateDims(), agents[i]->getActionDims());
 			else
-				QMap[name] = new ANNApproximator(agents[i]->getStateDims(), agents[i]->getActionDims());
+			{
+				QMap[name] = new ANNApproximator(agents[i]->getStateDims(), agents[i]->getActionDims(), agents[i]->getStateDims().type);
+				system.env->storeDataRef((void*)QMap[name], "ann");
+			}
 		}
 	}
 	
@@ -40,8 +43,7 @@ Learner(newSystem, newDt, newProfiler), gamma(newGamma), greedyEps(newGreedyEps)
 	
 	bestActionVals.resize(agents.size());
 	r.resize(agents.size());
-	
-	if (QMap.find("SmartySelfAvoider") != QMap.end()) system.env->storeDataRef((void*)QMap["SmartySelfAvoider"], "QSelfAvoider");
+	system.env->storeDataRef((void*)&agents, "agents");
 }
 
 void QLearning::agentsChoose(double t)
@@ -57,8 +59,11 @@ void QLearning::agentsChoose(double t)
 
 		QApproximator* Q = QMap[agent->getName()];
 		ActionIterator* actions = &(actionsIt[i]);
-		double best = -1e10;
 		
+		agent->getState(s1[i]);
+		r[i]  = agent->getReward();
+		
+		double best = -1e10;
 		actions->reset();
 		while (!actions->done())
 		{
@@ -74,9 +79,6 @@ void QLearning::agentsChoose(double t)
 		
 		//debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
 		//debug1("Best action is %s  with value %f\n", a1[i].print().c_str(), best);
-		
-		r[i]  = agent->getReward();
-		agent->getState(s1[i]);
 	}
 }
 
@@ -97,22 +99,22 @@ void QLearning::agentsUpdate(double t)
 		
 		//if (bestActionVals[i] > 1.0)
 		{
-		debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
-		debug1("Prev state: %s\n", s0[i].printScaled().c_str());
-		debug1("Curr state: %s\n", s1[i].printScaled().c_str());
-		debug1("Action between: %s\n", a0[i].print().c_str());
-		debug1("Reward: %f\n", r[i]);
-		debug1("Actions:\n");
-				
-		actions->reset();
-		int u = 0;
-		while (debugLvl > 3 && !actions->done())
-		{
-			double val = Q->get(s0[i], actions->next());
-			debug1("\t[%d] : %f\n", u++, val);
-		}
-		
-		debug1("Q(s, a): %f --> %f\n", Qsa, Qsa + lRate * (r[i] + gamma * bestActionVals[i] - Qsa));
+			debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
+			debug1("Prev state: %s\n", s0[i].printScaled().c_str());
+			debug1("Curr state: %s\n", s1[i].printScaled().c_str());
+			debug1("Action between: %s\n", a0[i].print().c_str());
+			debug1("Reward: %f\n", r[i]);
+			debug1("Actions:\n");
+					
+			actions->reset();
+			int u = 0;
+			while (debugLvl > 3 && !actions->done())
+			{
+				double val = Q->get(s0[i], actions->next());
+				debug1("\t[%d] : %f\n", u++, val);
+			}
+			
+			debug1("Q(s, a): %f --> %f\n", Qsa, Qsa + lRate * (r[i] + gamma * bestActionVals[i] - Qsa));
 		}
 		
 	}
@@ -130,8 +132,6 @@ void QLearning::agentsAct(double t)
 		if (agent->getType() == IDLER || agent->getType() == DEAD || t - agent->getLastLearned() < agent->getLearningInterval()) continue;
 		
 		ActionIterator* actions = &(actionsIt[i]);
-		
-		
 		
 		if (rng->uniform(0, 1) < settings.greedyEps)
 		{
@@ -176,10 +176,7 @@ void QLearning::evolve(double t)
 		
 	if (profiler != NULL)
 	{
-		profiler->push_start("Environment evolution");
-		system.env->evolve(t);
-		profiler->pop_stop();
-		
+				
 		profiler->push_start("Compute new values");
 		agentsChoose(t);
 		profiler->pop_stop();
@@ -191,6 +188,10 @@ void QLearning::evolve(double t)
 		profiler->push_start("Taking actions");
 		agentsAct(t);
 		profiler->pop_stop();
+		
+		profiler->push_start("Environment evolution");
+		system.env->evolve(t);
+		profiler->pop_stop();
 
 		profiler->push_start("Moving");
 		agentsMove();
@@ -198,10 +199,10 @@ void QLearning::evolve(double t)
 	}
 	else
 	{
-		system.env->evolve(t);
 		agentsChoose(t);
 		agentsUpdate(t);
 		agentsAct(t);
+		system.env->evolve(t);
 		agentsMove();
 	}
 	
@@ -217,8 +218,14 @@ void QLearning::try2restart(string prefix)
 		string fname = prefix + it->first + "_backup";
 		if ( !(it->second->restart(fname)) ) fl = false;
 	}
-	if (fl) info("Restart successful, moving on...\n");
-	else    info("Not all policies restarted, therefore assumed zero. Moving on...\n");
+	if (fl)
+	{
+		info("Restart successful, moving on...\n");
+	}
+	else
+	{
+		info("Not all policies restarted, therefore assumed zero. Moving on...\n");
+	}
 }
 		
 void QLearning::savePolicy(string prefix)

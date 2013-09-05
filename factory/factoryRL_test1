@@ -1,4 +1,7 @@
 SelfAvoidEnvironment
+DynamicColumn xm=10 ym=5 d=8
+DynamicColumn xm=-7 ym=8 d=6
+DynamicColumn xm=30 ym=-15 d=15
 CircularWall
-SmartySelfAvoiders d=1 T=0.1 n=500
+SmartySelfAvoiders d=1 T=0.1 n=200
 END

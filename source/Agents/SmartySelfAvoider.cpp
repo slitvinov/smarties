@@ -45,8 +45,8 @@ void SmartySelfAvoider::getState(State& s)
 	
 	double dist2cen = _dist(x,y,x0,y0);
 	
-	s.vals.push_back( 0 );//environment->circWall->d/2 - dist2cen - d/2 ); 
-	s.vals.push_back( 0 );//_angle(vx, vy, x-x0, y-y0) );
+	s.vals.push_back( sInfo.top[0] );//environment->circWall->d/2 - dist2cen - d/2 ); 
+	s.vals.push_back( sInfo.top[1] );//_angle(vx, vy, x-x0, y-y0) );
 	
 	// Dynamic columns
 	
@@ -60,7 +60,7 @@ void SmartySelfAvoider::getState(State& s)
 	{
 		double min = _dist(x,y, closestDynCol->x, closestDynCol->y) - d/2 - closestDynCol->d/2;
 		s.vals.push_back( min );
-		s.vals.push_back( _angle(vx, vy, x - closestDynCol->x, y - closestDynCol->y) );
+		s.vals.push_back( _angle(vx, vy, closestDynCol->x - x, closestDynCol->y - y) );
 	}	
 	
 	// Neighbours

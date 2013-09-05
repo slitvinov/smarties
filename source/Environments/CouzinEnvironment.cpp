@@ -37,6 +37,7 @@ CouzinEnvironment::CouzinEnvironment(vector<Agent*> newAgents): Environment(newA
 	getter = new CellsTraverser<CouzinAgent>(cells);
 	
 	storeDataRef(&couzins, "couzins");
+	storeDataRef(&tm, "time");
 }
 
 void CouzinEnvironment::findClosestNeighbours(vector<CouzinAgent*>& res, CouzinAgent* agent, double dist)
@@ -61,6 +62,7 @@ void CouzinEnvironment::findClosestNeighbours(vector<CouzinAgent*>& res, CouzinA
 
 void CouzinEnvironment::evolve(double t)
 {
+	tm = t;
 	cells->migrate();
 	usleep(2000);
 }

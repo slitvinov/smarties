@@ -30,7 +30,7 @@ public:
 #ifdef _RL_VIZ
 	void   paint()
 	{
-		_drawSphere(d/2.0, x, y, 0.502941, 0.502941, 0.502941);
+		_drawFullCircle(d/2.0, x, y, 0.5, 0.5, 0.5);
 	}
 	
 #endif	

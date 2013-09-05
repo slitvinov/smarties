@@ -21,10 +21,14 @@
 #include "../ErrorHandling.h"
 #include "../Misc.h"
 #include "../Settings.h"
+#include "../ANN/Network.h"
+#include "../ANN/WaveletNet.h"
 
 using namespace ErrorHandling;
 
-ANNApproximator::ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo) : QApproximator(newSInfo, newActInfo), scaledInp(sInfo.dim), rng(rand())
+
+ANNApproximator::ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo, StateType tp) :
+QApproximator(newSInfo, newActInfo), scaledInp(sInfo.dim), rng(rand()), sType(tp)
 {
 	// TODO: multidimensional actions
 	nActions = actInfo.bounds[0];
@@ -37,12 +41,16 @@ ANNApproximator::ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo) : QA
 	//lsize.push_back(settings.nnLayer2);
 	lsize.push_back(1);
 	
-	for (int i=0; i<nActions; i++) ann.push_back(new WaveletNet(lsize, settings.nnEta, settings.nnAlpha, 50));
-	//for (int i=0; i<nActions; i++) ann.push_back(new Network(lsize, settings.nnEta, settings.nnAlpha));
-	//for (int i=0; i<nActions; i++) ann.push_back(new NetworkLM(lsize, round(settings.nnEta), batchSize));
-	prediction.resize(1);
+	//for (int i=0; i<nActions; i++) ann.push_back(new WaveletNet(lsize, 1, 1, batchSize));
+	if (sType == WAVE)
+		for (int i=0; i<nActions; i++)
+			ann.push_back(new WaveletNetLM(lsize, batchSize));
 	
-	batch.resize(nActions);
+	//for (int i=0; i<nActions; i++) ann.push_back(new Network(lsize, settings.nnEta, settings.nnAlpha));
+	if (sType == ANN)
+		for (int i=0; i<nActions; i++)
+			ann.push_back(new NetworkLM(lsize, round(settings.nnEta), batchSize));
+	prediction.resize(1);
 }
 
 ANNApproximator::~ANNApproximator()
@@ -54,8 +62,6 @@ double ANNApproximator::get(const State& s, const Action& a)
 	s.scale(scaledInp);	
 	ann[a.vals[0]]->predict(scaledInp, prediction);
 	
-	if (batch[a.vals[0]].size() < batchSize)
-		batch[a.vals[0]].push_back(scaledInp);
 	return prediction[0];
 }
 
@@ -66,6 +72,39 @@ void ANNApproximator::set(const State& s, const Action& a, double val)
 	prediction[0] = prediction[0] - val;
 	ann[a.vals[0]]->improve(scaledInp, prediction);
 }
+
+void ANNApproximator::save(string name)
+{
+	for (int i=0; i<nActions; i++)
+	{
+		string suff;
+		if (sType == ANN)  suff = "ANN_act";
+		if (sType == WAVE) suff = "WAVE_act";
+		
+		ann[i]->save(name + suff + to_string(i));
+	}
+}
+
+bool ANNApproximator::restart(string name)
+{
+	bool res = true;
+	for (int i=0; i<nActions; i++)
+	{
+		string suff;
+		if (sType == ANN)  suff = "ANN_act";
+		if (sType == WAVE) suff = "WAVE_act";
+		
+		res = ann[i]->restart(name + suff + to_string(i)) && res;
+	}
+	return res;
+}
+
+
+
+
+
+
+
 
 
 

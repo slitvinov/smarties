@@ -13,6 +13,7 @@ class SmartyDodger;
 class SmartySelfAvoider;
 class CouzinAgent;
 class FluidAgent;
+class SmartySwarmer;
 
 #include "Agents/SmartyDodger.h"
 #include "Agents/SmartySelfAvoider.h"
@@ -21,3 +22,4 @@ class FluidAgent;
 #include "Agents/CouzinAgent.h"
 #include "Agents/FluidAgent.h"
 #include "Agents/CouzinDipole.h"
+#include "Agents/SmartySwarmer.h"

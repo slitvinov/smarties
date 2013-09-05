@@ -18,55 +18,64 @@
 using namespace ErrorHandling;
 int ErrorHandling::debugLvl;
 
-double target1(double x, double y)
+inline double sqr(double x)
 {
-	return 3*x*x + 0*y;
+	return x*x;
 }
 
-double target2(double x, double y)
+double target1(vector<double>& x)
 {
-	return -y*y*4.3 + 5* sin(x*3) - 1;
+	return 3*x[0]*x[0];// + sin(x[1]);
+}
+
+double target2(vector<double>& x)
+{
+	double res = 0;
+	for (int i=0; i<x.size()-1; i++)
+		res += sqr(1-x[i]) + 100*sqr(x[i+1] - x[i]*x[i]);
+		
+	return res / 100.0 / x.size();
 }
 
 //using namespace ANN;
 
 int main (int argc, char** argv)
 {
+	vector<double> x(2,0);
+	
 	debugLvl = 2;
 	RNG rng(0);
 	vector<int> lsize;
-	lsize.push_back(2);
-	lsize.push_back(5);
+	lsize.push_back(x.size());
+	lsize.push_back(15);
 	lsize.push_back(1);
 
 	
-	//NetworkLM ann(lsize, 10, 50);
-	//Network ann(lsize, 0.01, 0.5);
-	WaveletNet ann(lsize, 0.01, 0.8, 500);
-	vector<double> x(6);
+	NetworkLM ann(lsize, 5.0, 100);
+	//Network ann(lsize, 0.4, 0.0);
+	//WaveletNetLM ann(lsize, 1000);
 	vector<double> res(2);
 	vector<double> err(2);
 	
 	double cerr = 0;
-	for (int i=0; i<2000000; i++)
+	for (int i=0; i<20000000; i++)
 	{
-		x[0] = rng.uniform(-1, 1);
-		x[1] = rng.uniform(-1, 1);
+		for (int i=0; i<x.size(); i++)
+			x[i] = rng.uniform(-1, 1);
 		
-		double exact1 = target1(x[0], x[1]);// + rng.normal(0, 0.00001);
-		double exact2 = target2(x[0], x[0]) + rng.normal(0, 0.00001);
+		double exact1 = target2(x);// + rng.normal(0, 0.00001);
 		
 		ann.predict(x, res);
-		err[0] = res[0] - exact1;
+		err[0] = (res[0] - exact1);
 		//err[1] = res[1] - exact2;
 		
-		//printf("Res:  %f, exact  %f,\terr: \t%f\n", res[0], exact1, abs(err[0]));
+		debug("Res:  %f, exact  %f,\terr: \t%f\n", res[0], exact1, (err[0]));
 		ann.improve(x, err);
 		
 		cerr = max(fabs(err[0]), cerr);
-		if (i % 5000 == 0)
+		if (i % 2000 == 0)
 		{
-			printf("Max L1 error:  %f\n", (cerr)/1);
+			printf("%d:\tMax L1 error:  %f\n", i, (cerr)/1.0);
 			cerr = 0;
 		}
 	}
