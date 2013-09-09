@@ -62,7 +62,10 @@ public:
 	void exec()
 	{
 		int tot = 0;
-		vector<CouzinAgent*>& agents = *(static_cast< vector<CouzinAgent*> *> (env->data["couzins"]));
+		vector<CouzinAgent*>* refAgents = (static_cast< vector<CouzinAgent*> *> (env->data["couzins"]));
+		if (refAgents == NULL) return;
+		vector<CouzinAgent*>& agents = *refAgents;
+		
 		double resx = 0;
 		double resy = 0;
 		for (int i=0; i<agents.size(); i++)
@@ -100,7 +103,10 @@ public:
 	void exec()
 	{
 		int tot = 0;
-		vector<FluidAgent*>& agents = *(static_cast< vector<FluidAgent*> *> (env->data["fagents"]));
+		vector<FluidAgent*>* refAgents = (static_cast< vector<FluidAgent*> *> (env->data["fagents"]));
+		if (refAgents == NULL) return;
+		vector<FluidAgent*>& agents = *refAgents;
+		
 		double res = 0;
 		double base = 0;
 		for (int i=0; i<agents.size(); i++)
@@ -137,7 +143,9 @@ public:
 	
 	void exec()
 	{
-		vector<CouzinDipole*>& agents = *(static_cast< vector<CouzinDipole*> *> (env->data["fagents"]));
+		vector<CouzinDipole*>* refAgents = (static_cast< vector<CouzinDipole*> *> (env->data["fagents"]));
+		if (refAgents == NULL) return;
+		vector<CouzinDipole*> agents = *refAgents;
 		double t = *(static_cast<double*> (env->data["time"]));
 		
 		for (int i=0; i<agents.size(); i++)
@@ -170,7 +178,10 @@ public:
 	
 	void exec()
 	{
-		vector<CouzinAgent*>& agents = *(static_cast< vector<CouzinAgent*> *> (env->data["couzins"]));
+		vector<CouzinAgent*>* refAgents = (static_cast< vector<CouzinAgent*> *> (env->data["couzins"]));
+		if (refAgents == NULL) return;
+		vector<CouzinAgent*>& agents = *refAgents;
+		
 		double t = *(static_cast<double*> (env->data["time"]));
 		
 		for (int i=0; i<agents.size(); i++)
@@ -203,7 +214,9 @@ public:
 	
 	void exec()
 	{
-		vector<Agent*>& agents = *(static_cast< vector<Agent*> *> (env->data["agents"]));
+		vector<Agent*>* refAgents = (static_cast< vector<Agent*> *> (env->data["agents"]));
+		if (refAgents == NULL) return;
+		vector<Agent*>& agents = *refAgents;
 		
 		int collisions = 0;
 		for (int i=0; i<agents.size(); i++)
@@ -234,7 +247,6 @@ public:
 	void setEnvironment(Environment *newEnv)
 	{
 		env = static_cast<SelfAvoidEnvironment*> (newEnv);
-		Q   = static_cast<MultiTable*> (env->data[0]);
 	}
 	
 	void exec()

@@ -122,16 +122,16 @@ void runTest()
 	if (!Saver::makedir((settings.prefix+"/").c_str())) die("Unable to make a working directory!");
 	
 	CouzinsSaver* dsaver = new CouzinsSaver("state.txt");
-	//learner->registerSaver(dsaver, settings.videoFreq);
+	learner->registerSaver(dsaver, settings.videoFreq);
 	
 	CollisionSaver* csaver = new CollisionSaver("coll.txt");
-	//learner->registerSaver(csaver, settings.saveFreq / 100);
+	learner->registerSaver(csaver, settings.saveFreq / 100);
 	
 	EfficiencySaver* esaver = new EfficiencySaver("eff.txt");
 	//learner->registerSaver(esaver, settings.saveFreq / 300);
 	
 	MomentumSaver* msaver = new MomentumSaver("mom.txt");
-	//learner->registerSaver(msaver, settings.saveFreq / 300);
+	learner->registerSaver(msaver, settings.saveFreq / 300);
 	
 	RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//"rewar.txt");
 	learner->registerSaver(rsaver, settings.saveFreq / 300);

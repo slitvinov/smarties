@@ -23,7 +23,7 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 	
 	for (int i=0; i<nWavelons; i++)
 	{
-		wavelons[i] = new Wavelon<GaussDer>();
+		wavelons[i] = new Wavelon<MexicanHat>();
 		wavelons[i]->m.resize(nInputs);
 		wavelons[i]->d.resize(nInputs);
 		wavelons[i]->z.resize(nInputs);
@@ -34,7 +34,7 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 		for (int j=0; j<nInputs; j++)
 		{
 			wavelons[i]->m[j] = 0.0 + rng.uniform(-0.1, 0.1);
-			wavelons[i]->d[j] = 1.0 + rng.uniform(-0.1, 0.1);
+			wavelons[i]->d[j] = 1.2 + rng.uniform(-0.1, 0.1);
 		}
 	}
 	

@@ -27,7 +27,7 @@ alpha(newAlpha), IvI(newIvI), d(newD), x(newX), y(newY), domainSize(newDomainSiz
 	l = d / (2*SQRT2PI);
 	gamma = 2 * M_PI * l * IvI;
 	
-	double rho = 25 * l;
+	double rho = 10 * l;
 	double speedK = 0.1;
 	gammaA = gamma * speedK;
 	gammaT = SQRT2PI * l / rho * gamma;
@@ -107,8 +107,8 @@ void SmartySwarmer::computeVecs()
 		dy = vy;
 	}
 	
-	dx = 0.1;
-	dy = -0.2;
+	//dx = 0.1;
+	//dy = -0.2;
 }
 
 void SmartySwarmer::move(double dt)
@@ -159,51 +159,38 @@ void SmartySwarmer::getState(State& s)
 	s.vals.clear();
 	computeVecs();
 
-	if (closestNeighbour == NULL)
+	vector<SmartySwarmer*> guys;
+	environment->findClosestNeighbours(guys, this, sInfo.top[0]);
+
+	Comparator comp(x, y);
+	sort(guys.begin(), guys.end(), comp);
+	
+	int maxnum = (sInfo.dim-1) / 2;
+	
+	for (int i=0; i < maxnum; i++)
 	{
-		s.vals.push_back(sInfo.top[0]);
-		s.vals.push_back(sInfo.top[1]);
-	}
-	else
-	{
-		s.vals.push_back( _dist(x, y, closestNeighbour->physX, closestNeighbour->physY) - d );
-		s.vals.push_back( _angle(vx - closestNeighbour->vx, vy - closestNeighbour->vy,  -(x  - closestNeighbour->physX),  -(y  - closestNeighbour->physY)) );	
+		if (i < guys.size())
+		{
+			SmartySwarmer* n = guys[i];
+			if (n == this)
+			{
+				maxnum++;
+				continue;
+			}
+			s.vals.push_back(_dist(x, y, n->physX, n->physY));
+			s.vals.push_back(_angle(vx - n->vx, vy - n->vy,  -(x - n->physX),  -(y - n->physY)));
+			//s.vals.push_back(_angle(vx, vy, n->vx, n->vy));
+		}
+		else
+		{
+			s.vals.push_back(sInfo.top[i*2]);
+			s.vals.push_back(sInfo.top[i*2+1]);
+			//s.vals.push_back(0);
+		}
+
 	}
 	
 	s.vals.push_back( _angle(dx, dy, vx, vy) );
-	
-	//vector<SmartySwarmer*> guys;
-//	environment->findClosestNeighbours(guys, this, zoneOfEffect);
-//
-//	Comparator comp(x, y);
-//	sort(guys.begin(), guys.end(), comp);
-//	
-//	int maxnum = (sInfo.dim-1) / 2;
-//	
-//	for (int i=0; i < maxnum; i++)
-//	{
-//		if (i < guys.size())
-//		{
-//			SmartySwarmer* n = guys[i];
-//			if (n == this)
-//			{
-//				maxnum++;
-//				continue;
-//			}
-//			s.vals.push_back(_dist(x, y, n->physX, n->physY));
-//			s.vals.push_back(_angle(vx - n->vx, vy - n->vy,  -(x - n->physX),  -(y - n->physY)));
-//			s.vals.push_back(_angle(vx, vy, n->vx, n->vy));
-//		}
-//		else
-//		{
-//			s.vals.push_back(zoneOfEffect);
-//			s.vals.push_back(0);
-//			s.vals.push_back(0);
-//		}
-//
-//	}
-//		
-//	s.vals.push_back(alpha*0);//0.9*IvI);//hypot(vx, vy));
 }
 
 double SmartySwarmer::getReward()
@@ -227,16 +214,16 @@ double SmartySwarmer::getReward()
 //	return reward;
 	
 	if ( closestNeighbour != NULL && _dist(x, y, closestNeighbour->physX, closestNeighbour->physY) - 1.0*d < 0 )
-		reward += -1.0;
+		reward += -1;
 	
 	if ( closestNeighbour != NULL && _dist(x, y, closestNeighbour->physX, closestNeighbour->physY) - 0.5*d < 0 )
 		alpha = atan2(y - closestNeighbour->physY, x - closestNeighbour->physX);
 	
-	if (movState == TURN) reward -= 0.0025;
+	if (movState == TURN) reward -= 0.002;
 	
 	computeVecs();
 	double desiredAng = abs(_angle(dx, dy, vx, vy) / 180);
-	reward += -0.1 * min(1.0 * desiredAng, 1.0);
+	reward += -0.1 * pow(desiredAng, 1.0);
 	//if (desiredAng * 180 > 10) reward -= 0.5; 
 	
 	environment->accumulateReward(reward);

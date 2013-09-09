@@ -48,55 +48,26 @@ void SwarmEnvironment::setDims()
 	double d = swarmers[0]->d;
 	double v = swarmers[0]->IvI;
 	
-	//int nNeigh = 4;
-//	
-//	sI.dim = 1 + 3*nNeigh;
-//	sI.type = CONT;
-//	
-//	for (int i=0; i<nNeigh; i++)
-//	{
-//		// dist to neigh
-//		sI.bounds.push_back(10);
-//		sI.top.push_back(7*d);
-//		sI.bottom.push_back(-d);
-//		sI.aboveTop.push_back(true);
-//		sI.belowBottom.push_back(true);
-//		
-//		// angle to neigh
-//		sI.bounds.push_back(10);
-//		sI.top.push_back(180);
-//		sI.bottom.push_back(-180);
-//		sI.aboveTop.push_back(false);
-//		sI.belowBottom.push_back(false);
-//		
-//		// angle to neigh
-//		sI.bounds.push_back(10);
-//		sI.top.push_back(180);
-//		sI.bottom.push_back(-180);
-//		sI.aboveTop.push_back(false);
-//		sI.belowBottom.push_back(false);
-//	}
-//	
-//	// velocity
-//	sI.bounds.push_back(10);
-//	sI.top.push_back(180);
-//	sI.bottom.push_back(-180);
-//	sI.aboveTop.push_back(false);
-//	sI.belowBottom.push_back(false);
+	int nNeigh = 1;
 	
-	sI.dim = 3;
+	sI.dim = 1 + 2*nNeigh;
 	
-	sI.bounds.push_back(20);
-	sI.top.push_back(15*d);
-	sI.bottom.push_back(-d);
-	sI.aboveTop.push_back(true);
-	sI.belowBottom.push_back(true);
-	
-	sI.bounds.push_back(20);
-	sI.top.push_back(180);
-	sI.bottom.push_back(-180);
-	sI.aboveTop.push_back(false);
-	sI.belowBottom.push_back(false);
+	for (int i=0; i<nNeigh; i++)
+	{
+		// dist to neigh
+		sI.bounds.push_back(20);
+		sI.top.push_back(12*d);
+		sI.bottom.push_back(-d);
+		sI.aboveTop.push_back(true);
+		sI.belowBottom.push_back(true);
+		
+		// angle to neigh
+		sI.bounds.push_back(20);
+		sI.top.push_back(180);
+		sI.bottom.push_back(-180);
+		sI.aboveTop.push_back(false);
+		sI.belowBottom.push_back(false);
+	}
 	
 	sI.bounds.push_back(20);
 	sI.top.push_back(180);

@@ -22,9 +22,9 @@ class ObjectFactory
 private:
 	string filename;
 	
-	inline string _parse(string source, string pattern);
-	inline int    _parseInt(string source, string pattern);
-	inline double _parseDouble(string source, string pattern);
+	inline string _parse(string source, string pattern, bool req = true);
+	inline int    _parseInt(string source, string pattern, bool req = true);
+	inline double _parseDouble(string source, string pattern, bool req = true);
 	
 	
 public:

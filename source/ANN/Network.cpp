@@ -86,7 +86,7 @@ Network(layerSize, 0, 0), muFactor(muFactor), batchSize(batchSize)
 	
 	mu = 0.01;
 	muMax = 1e10;
-	muMin = 1e-10;
+	muMin = 1e-1;
 }
 
 void NetworkLM::improve(const vector<double>& inputs, const vector<double>& errors)
@@ -160,6 +160,15 @@ void NetworkLM::improve(const vector<double>& inputs, const vector<double>& erro
 						
 			
 			Q = 0;
+			for (int i=0; i<batchSize; i++)
+			{
+				predict(batch[i], tmpVec);
+				for (int j=0; j<nOutputs; j++)
+				{
+					double diff = tmpVec[j] - batchExact[i][j];
+					Q += diff * diff;
+				}
+			}
 							
 			if (Q > Q0)
 			{

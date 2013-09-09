@@ -22,10 +22,14 @@
 using namespace ErrorHandling;
 using namespace std;
 
-inline string ObjectFactory::_parse(string source, string pattern)
+inline string ObjectFactory::_parse(string source, string pattern, bool req)
 {
 	int pos = source.find(pattern);
-	if (pos == string::npos) die("Parsing factory file failed at required argument '%s'\n", pattern.c_str());
+	if (pos == string::npos)
+	{
+		if (req) die("Parsing factory file failed at required argument '%s'\n", pattern.c_str());
+		else     return "";
+	}
 	
 	pos += pattern.length();
 	while (source[pos] == ' ') pos++;
@@ -39,14 +43,14 @@ inline string ObjectFactory::_parse(string source, string pattern)
 	return source.substr(stpos, pos - stpos);
 }
 	
-inline int ObjectFactory::_parseInt(string source, string pattern)
+inline int ObjectFactory::_parseInt(string source, string pattern, bool req)
 {
-	return atoi(_parse(source, pattern).c_str());
+	return atoi(_parse(source, pattern, req).c_str());
 }
 
-inline double ObjectFactory::_parseDouble(string source, string pattern)
+inline double ObjectFactory::_parseDouble(string source, string pattern, bool req)
 {
-	return atof(_parse(source, pattern).c_str());
+	return atof(_parse(source, pattern, req).c_str());
 }
 
 System ObjectFactory::getAgentVector()
@@ -71,7 +75,7 @@ System ObjectFactory::getAgentVector()
 		inFile >> envName;
 		string s;
 		getline(inFile, s);
-		appType = _parse(s, "type");
+		appType = _parse(s, "type", false);
 		
 		while (true)
 		{
@@ -362,7 +366,7 @@ System ObjectFactory::getAgentVector()
 				if (appType == "discr") tp = DISCR;
 				else if (appType == "ann")   tp = ANN;
 				else if (appType == "wave")  tp = WAVE;
-				else die("Unrecognized approximation type!");
+				//else die("Unrecognized approximation type!");
 				
 				if      (envName == "DodgerEnvironment")       system.env = new DodgerEnvironment       (system.agents);
 				else if (envName == "SelfAvoidEnvironment")    system.env = new SelfAvoidEnvironment    (system.agents, tp);

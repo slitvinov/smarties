@@ -26,11 +26,13 @@ OPENMP_FLAG= -fopenmp
 CPPFLAGSOPT+= -msse3
 endif
 
+CPPFLAGS+= -I/opt/local/include/openmpi
 CPPFLAGS+= $(OPENMP_FLAG)
 
 LIBS += \
 	$(OPENGL_LIB) \
-	$(OPENMP_FLAG)
+	$(OPENMP_FLAG) \
+	-L/opt/local/lib -lmpi -lmpi_cxx -larmadillo
 
 LIBS += -lstdc++
 

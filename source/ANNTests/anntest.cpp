@@ -41,7 +41,7 @@ double target2(vector<double>& x)
 
 int main (int argc, char** argv)
 {
-	vector<double> x(2,0);
+	vector<double> x(3,0);
 	
 	debugLvl = 2;
 	RNG rng(0);
@@ -51,9 +51,9 @@ int main (int argc, char** argv)
 	lsize.push_back(1);
 
 	
-	NetworkLM ann(lsize, 5.0, 100);
+	//NetworkLM ann(lsize, 5.0);
 	//Network ann(lsize, 0.4, 0.0);
-	//WaveletNetLM ann(lsize, 1000);
+	WaveletNetLM ann(lsize);
 	vector<double> res(2);
 	vector<double> err(2);
 	
