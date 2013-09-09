@@ -140,7 +140,7 @@ void NetworkLM::improve(const vector<double>& inputs, const vector<double>& erro
 							
 			bool nan = false;
 			for (int w=0; w<totWeights; w++)
-				if (std::isnan((double)(dw(w))) || std::isinf((double)(dw(w))))
+				if (std::isnan((dw(w))) || std::isinf((dw(w))))
 					nan = true;
 			if (nan)
 			{
