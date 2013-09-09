@@ -26,13 +26,14 @@ OPENMP_FLAG= -fopenmp
 CPPFLAGSOPT+= -msse3
 endif
 
-CPPFLAGS+= -I/opt/local/include/openmpi
+CPPFLAGS+= -I/opt/local/include/openmpi -I/cluster/home04/mavt/alexeedm/armadillo/usr/include
 CPPFLAGS+= $(OPENMP_FLAG)
 
 LIBS += \
 	$(OPENGL_LIB) \
 	$(OPENMP_FLAG) \
-	-L/opt/local/lib -lmpi -lmpi_cxx -larmadillo
+	-L/opt/local/lib -L/cluster/home04/mavt/alexeedm/armadillo/usr/lib6 \
+	-lmpi -lmpi_cxx -larmadillo
 
 LIBS += -lstdc++
 
