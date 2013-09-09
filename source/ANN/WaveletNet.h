@@ -25,12 +25,12 @@ class GaussDer
 public:
 	inline double eval(double x)
 	{
-		if (isnan(x) || isinf(x)) return 0;
+		if (isnan((double)x) || isinf((double)x)) return 0;
 		return x * exp(-0.5 * x*x);
 	}
 	inline double evalDiff(double x)
 	{
-		if (isnan(x) || isinf(x)) return 0;
+		if (isnan((double)x) || isinf((double)x)) return 0;
 		double x2 = x*x;
 		return (1 - x2) * exp(-0.5 * x2);
 	}
@@ -41,13 +41,13 @@ class MexicanHat
 public:
 	inline double eval(double x)
 	{
-		if (isnan(x) || isinf(x)) return 0;
+		if (isnan((double)x) || isinf((double)x)) return 0;
 		double x2 = x*x;
 		return (1 - x2) * exp(-0.5 * x2);
 	}
 	inline double evalDiff(double x)
 	{
-		if (isnan(x) || isinf(x)) return 0;
+		if (isnan((double)x) || isinf((double)x)) return 0;
 		double x2 = x*x;
 		return x*(x2 - 3) * exp(-0.5 * x2);
 	}
@@ -97,7 +97,7 @@ public:
 		back  = k < dimension-1 ?  backmul[k+1] : 1;
 		
 		double res = front * back * wavelet.evalDiff(z[k]);
-		if (isnan(res) || isinf(res))
+		if (isnan((double)res) || isinf((double)res))
 			die("NaN error!!\n");
 		
 		return res;
