@@ -35,10 +35,11 @@ public:
 	~MultiTable();
 	
 	// Methods
-	double get(const State& s, const Action& a);
-	double getMax(const State& s);
+	double get    (const State& s, const Action& a);
+	double getMax (const State& s);
 	double getBest(const State& s, Action& a, double& reward); //TODO
-	void   set(const State& s, const Action& a, double value);
+	void   set    (const State& s, const Action& a, double value);
+	void   correct(const State& s, const Action& a, double error);
 	double usage() const;
 	
 	inline map<long int, double>& getData()  { return data; }

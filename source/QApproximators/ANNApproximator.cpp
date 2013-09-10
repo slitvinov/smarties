@@ -73,6 +73,13 @@ void ANNApproximator::set(const State& s, const Action& a, double val)
 	ann[a.vals[0]]->improve(scaledInp, prediction);
 }
 
+void ANNApproximator::correct(const State& s, const Action& a, double err)
+{
+	s.scale(scaledInp);	
+	prediction[0] = -err;
+	ann[a.vals[0]]->improve(scaledInp, prediction);
+}
+
 void ANNApproximator::save(string name)
 {
 	for (int i=0; i<nActions; i++)

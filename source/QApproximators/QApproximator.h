@@ -20,8 +20,9 @@ protected:
 public:
 	QApproximator(StateInfo newSInfo, ActionInfo newActInfo) : sInfo(newSInfo), actInfo(newActInfo) { };
 	
-	virtual double get(const State& s, const Action& a)				  = 0;
-	virtual void   set(const State& s, const Action& a, double value) = 0;
+	virtual double get    (const State& s, const Action& a)				  = 0;
+	virtual void   set    (const State& s, const Action& a, double value) = 0;
+	virtual void   correct(const State& s, const Action& a, double error) = 0;
 	
 	virtual void   save(string name)    = 0;
 	virtual bool   restart(string name) = 0;

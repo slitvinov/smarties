@@ -95,7 +95,7 @@ void QLearning::agentsUpdate(double t)
 		QApproximator* Q = QMap[agent->getName()];
 		
 		double Qsa = Q->get(s0[i], a0[i]);
-		Q->set(s0[i], a0[i], Qsa + lRate * (r[i] + gamma * bestActionVals[i] - Qsa));
+		Q->correct(s0[i], a0[i], lRate * (r[i] + gamma * bestActionVals[i] - Qsa));
 		
 		//if (bestActionVals[i] > 1.0)
 		{

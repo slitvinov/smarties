@@ -102,6 +102,15 @@ void MultiTable::set(const State& s, const Action& a, double val)
 	}
 }
 
+void MultiTable::correct(const State& s, const Action& a, double err)
+{
+	long int sId = _encodeState(s);
+	long int id = _encodeIdx(sId, a);
+	
+	data[id] += err;
+	//	if (val > maxStateVal[sId]) maxStateVal[sId] = val;
+}
+
 double MultiTable::usage() const
 {
 	return (double) data.size() / (shifts[0] * actInfo.bounds[0]);

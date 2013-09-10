@@ -37,8 +37,9 @@ public:
 	~ANNApproximator();
 	
 	// Methods
-	double get(const State& s, const Action& a);
-	void   set(const State& s, const Action& a, double value);
+	double get    (const State& s, const Action& a);
+	void   set    (const State& s, const Action& a, double value);
+	void   correct(const State& s, const Action& a, double error);
 	
 	void   save(string name);
 	bool   restart(string name);

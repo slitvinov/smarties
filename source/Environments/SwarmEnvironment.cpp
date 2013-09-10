@@ -56,8 +56,8 @@ void SwarmEnvironment::setDims()
 	{
 		// dist to neigh
 		sI.bounds.push_back(20);
-		sI.top.push_back(12*d);
-		sI.bottom.push_back(-d);
+		sI.top.push_back(10*d);
+		sI.bottom.push_back(0);
 		sI.aboveTop.push_back(true);
 		sI.belowBottom.push_back(true);
 		

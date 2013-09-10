@@ -23,7 +23,7 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 	
 	for (int i=0; i<nWavelons; i++)
 	{
-		wavelons[i] = new Wavelon<MexicanHat>();
+		wavelons[i] = new Wavelon<GaussDer>();
 		wavelons[i]->m.resize(nInputs);
 		wavelons[i]->d.resize(nInputs);
 		wavelons[i]->z.resize(nInputs);
@@ -33,8 +33,8 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 		wavelons[i]->dimension = nInputs;
 		for (int j=0; j<nInputs; j++)
 		{
-			wavelons[i]->m[j] = 0.0 + rng.uniform(-0.1, 0.1);
-			wavelons[i]->d[j] = 1.2 + rng.uniform(-0.1, 0.1);
+			wavelons[i]->m[j] = 0.0 + rng.uniform(-1.1, 1.1);
+			wavelons[i]->d[j] = 1.0 + rng.uniform(-0.1, 0.1);
 		}
 	}
 	
@@ -340,18 +340,21 @@ void WaveletNet::save(string fname)
 	//*****************************************
 	for (int i=0; i < nWavelons; i++)
 		out << c[i] << " ";
+	out << endl;
 	
 	// Translations
 	
 	for (int j=0; j < nWavelons; j++)
 		for (int k=0; k < nInputs; k++)
 			out << wavelons[j]->m[k] << " ";
+	out << endl;
 	
 	// Dilations
 	
 	for (int j=0; j < nWavelons; j++)
 		for (int k=0; k < nInputs; k++)
 			out << wavelons[j]->d[k] << " ";
+	out << endl;
 	//*****************************************
 	
 	out.flush();
@@ -368,7 +371,7 @@ void WaveletNet::save(string fname)
 
 bool WaveletNet::restart(string fname)
 {
-	string nameBackup = fname + "_tmp";
+	string nameBackup = fname;
 	
 	ifstream in(nameBackup.c_str());
 	info("Reading from %s\n", nameBackup.c_str());

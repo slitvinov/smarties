@@ -213,17 +213,22 @@ double SmartySwarmer::getReward()
 //	environment->accumulateReward(reward);
 //	return reward;
 	
-	if ( closestNeighbour != NULL && _dist(x, y, closestNeighbour->physX, closestNeighbour->physY) - 1.0*d < 0 )
-		reward += -1;
-	
-	if ( closestNeighbour != NULL && _dist(x, y, closestNeighbour->physX, closestNeighbour->physY) - 0.5*d < 0 )
-		alpha = atan2(y - closestNeighbour->physY, x - closestNeighbour->physX);
+	if ( closestNeighbour != NULL )
+	{
+		double dst = _dist(x, y, closestNeighbour->physX, closestNeighbour->physY);
+		
+		if (dst < 1.0*d)
+			reward += -50.0 * (d - dst);
+		
+		if (dst < 0.5*d)
+			alpha = atan2(y - closestNeighbour->physY, x - closestNeighbour->physX);
+	}		
 	
 	if (movState == TURN) reward -= 0.002;
 	
 	computeVecs();
 	double desiredAng = abs(_angle(dx, dy, vx, vy) / 180);
-	reward += -0.1 * pow(desiredAng, 1.0);
+	reward += -0.5 * pow(desiredAng, 1.0);
 	//if (desiredAng * 180 > 10) reward -= 0.5; 
 	
 	environment->accumulateReward(reward);
