@@ -378,7 +378,11 @@ System ObjectFactory::getAgentVector()
 				break;
 			}
 			
-			else die("Unsopported agent type: '%s'\n", name.c_str());
+			else
+			{
+				if (name.length() != 0)
+					die("Unsopported agent type: '%s'\n", name.c_str());
+			}
 		}
 	}
 	

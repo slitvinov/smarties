@@ -133,7 +133,7 @@ void runTest()
 	//MomentumSaver* msaver = new MomentumSaver("mom.txt");
 	//learner->registerSaver(msaver, settings.saveFreq / 300);
 	
-	RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//"reward.txt");
+	RewardSaver* rsaver = new RewardSaver("reward.txt");
 	learner->registerSaver(rsaver, settings.saveFreq / 300);
 	
 	//NNSaver* nnsaver = new NNSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
