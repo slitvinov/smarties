@@ -143,7 +143,7 @@ void SwarmEnvironment::calculateMomentum()
 void SwarmEnvironment::evolve(double t)
 {
 	cells->migrate();
-	PotentialFluidEnvironment::getVelocities(true);
+	PotentialFluidEnvironment::getVelocities(settings.immortal);
 	calculateMomentum();
 	//usleep(200);
 }

@@ -38,7 +38,7 @@ LIBS += \
 
 LIBS += -lstdc++
 
-DIRS = $(filter-out ../source/ANNTests/ ../source/CMAUtility/, $(sort $(dir $(wildcard ../source/*/))))
+DIRS = $(filter-out ../source/ANNTests/ ../source/CMAUtility/ ../source/Process/, $(sort $(dir $(wildcard ../source/*/))))
 CPP_FILES = $(wildcard $(DIRS:%/=%/*.cpp))
 OBJ_FILES = $(notdir $(CPP_FILES:.cpp=.o))
 	

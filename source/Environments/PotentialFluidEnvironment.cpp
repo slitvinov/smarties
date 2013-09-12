@@ -86,7 +86,7 @@ void PotentialFluidEnvironment::getVelocities(bool immortal)
 			double Y = yn - yj;
 			
 			double dist2 = (X * X + Y * Y);
-			if (!immortal && dist2 < minDist * minDist / 4) myfAgents[n]->type = myfAgents[j]->type = DEAD;
+			if (!immortal && dist2 < minDist * minDist / 1.01) myfAgents[n]->type = myfAgents[j]->type = DEAD;
 			
 			velocity += -gammaj * (complex<double>(Y, X)) / dist2 ;
 		}

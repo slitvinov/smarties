@@ -35,6 +35,7 @@ extern struct Settings
 	int    nnLayer2;
 
 	bool best;
+	bool immortal;
 	string prefix;
 	
 } settings;
