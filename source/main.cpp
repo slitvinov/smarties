@@ -121,19 +121,19 @@ void runTest()
 	
 	if (!Saver::makedir((settings.prefix+"/").c_str())) die("Unable to make a working directory!");
 	
-	CouzinsSaver* dsaver = new CouzinsSaver("state.txt");
-	learner->registerSaver(dsaver, settings.videoFreq);
+	//CouzinsSaver* dsaver = new CouzinsSaver("state.txt");
+	//learner->registerSaver(dsaver, settings.videoFreq);
 	
 	CollisionSaver* csaver = new CollisionSaver("coll.txt");
 	learner->registerSaver(csaver, settings.saveFreq / 100);
 	
-	EfficiencySaver* esaver = new EfficiencySaver("eff.txt");
+	//EfficiencySaver* esaver = new EfficiencySaver("eff.txt");
 	//learner->registerSaver(esaver, settings.saveFreq / 300);
 	
-	MomentumSaver* msaver = new MomentumSaver("mom.txt");
-	learner->registerSaver(msaver, settings.saveFreq / 300);
+	//MomentumSaver* msaver = new MomentumSaver("mom.txt");
+	//learner->registerSaver(msaver, settings.saveFreq / 300);
 	
-	RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//"rewar.txt");
+	RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//"reward.txt");
 	learner->registerSaver(rsaver, settings.saveFreq / 300);
 	
 	//NNSaver* nnsaver = new NNSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
@@ -241,6 +241,8 @@ int main (int argc, char** argv)
 	
 	Parser parser(vopts);
 	parser.parse(argc, argv);
+	if (settings.lRate < 1e-9) settings.immortal = false;
+	else settings.immortal = true;
 	
 	omp_set_num_threads(1);
 
