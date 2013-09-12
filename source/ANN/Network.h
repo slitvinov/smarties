@@ -46,7 +46,10 @@ using namespace std;
 		
 		Network(vector<int>& layerSize, double eta, double alpha);
 		void predict(const vector<double>& inputs, vector<double>& outputs);
-		void improve(const vector<double>& inputs, const vector<double>& errors);		
+		void improve(const vector<double>& inputs, const vector<double>& errors);
+		
+		void save(string fname) {;}
+		bool restart(string fname) { return false; }
 	};
 
 	class NetworkLM : public Network

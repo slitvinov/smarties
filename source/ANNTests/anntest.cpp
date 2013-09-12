@@ -34,31 +34,31 @@ double target2(vector<double>& x)
 	for (int i=0; i<x.size()-1; i++)
 		res += sqr(1-x[i]) + 100*sqr(x[i+1] - x[i]*x[i]);
 		
-	return res / 100.0 / x.size();
+	return 1.0 * res / 100.0 / x.size();
 }
 
 //using namespace ANN;
 
 int main (int argc, char** argv)
 {
-	vector<double> x(3,0);
+	vector<double> x(5,0);
 	
 	debugLvl = 2;
 	RNG rng(0);
 	vector<int> lsize;
 	lsize.push_back(x.size());
-	lsize.push_back(15);
+	lsize.push_back(20);
 	lsize.push_back(1);
 
 	
 	//NetworkLM ann(lsize, 5.0);
-	//Network ann(lsize, 0.4, 0.0);
-	WaveletNetLM ann(lsize);
+	Network ann(lsize, 0.005, 0.9);
+	//WaveletNetLM ann(lsize);
 	vector<double> res(2);
 	vector<double> err(2);
 	
 	double cerr = 0;
-	for (int i=0; i<20000000; i++)
+	for (int i=0; i<2500000; i++)
 	{
 		for (int i=0; i<x.size(); i++)
 			x[i] = rng.uniform(-1, 1);
@@ -73,9 +73,9 @@ int main (int argc, char** argv)
 		ann.improve(x, err);
 		
 		cerr = max(fabs(err[0]), cerr);
-		if (i % 2000 == 0)
+		if (i % 500 == 0)
 		{
-			printf("%d:\tMax L1 error:  %f\n", i, (cerr)/1.0);
+			printf("%f\n", i, (cerr)/1.0);
 			cerr = 0;
 		}
 	}
