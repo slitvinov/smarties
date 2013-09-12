@@ -32,6 +32,7 @@ CPPFLAGS+= $(OPENMP_FLAG)
 LIBS += \
 	$(OPENGL_LIB) \
 	$(OPENMP_FLAG) \
+	-L$(MPI_ROOT)/lib \
 	-L/opt/local/lib -L/cluster/home04/mavt/alexeedm/armadillo/usr/lib64 \
 	-lmpi -lmpi_cxx -larmadillo
 
