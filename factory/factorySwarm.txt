@@ -1,3 +1,3 @@
-SwarmEnvironment type=ann
+SwarmEnvironment type=wave
 SmartySwarm d=1 T=0.01 n=300 zoa=10 zoo=10 v=3
 END

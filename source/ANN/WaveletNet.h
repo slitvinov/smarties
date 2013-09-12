@@ -117,7 +117,7 @@ protected:
 	double alpha;
 	RNG rng;
 	
-	vector<Wavelon<GaussDer>* > wavelons;
+	vector<Wavelon<MexicanHat>* > wavelons;
 	//vector<double>  inputs;
 	double output;
 	double error;

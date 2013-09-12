@@ -77,7 +77,7 @@ System ObjectFactory::getAgentVector()
 		getline(inFile, s);
 		appType = _parse(s, "type", false);
 		
-		while (true)
+		while (inFile.good())
 		{
 			inFile >> name;
 			
