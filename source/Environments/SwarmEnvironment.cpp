@@ -48,7 +48,7 @@ void SwarmEnvironment::setDims()
 	double d = swarmers[0]->d;
 	double v = swarmers[0]->IvI;
 	
-	int nNeigh = 1;
+	int nNeigh = 2;
 	
 	sI.dim = 1 + 2*nNeigh;
 	
