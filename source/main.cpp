@@ -121,20 +121,20 @@ void runTest()
 	
 	if (!Saver::makedir((settings.prefix+"/").c_str())) die("Unable to make a working directory!");
 	
-	//CouzinsSaver* dsaver = new CouzinsSaver("state.txt");
-	//learner->registerSaver(dsaver, settings.videoFreq);
+	CouzinsSaver* dsaver = new CouzinsSaver("state.txt");
+	learner->registerSaver(dsaver, settings.videoFreq);
 	
 	CollisionSaver* csaver = new CollisionSaver("coll.txt");
 	learner->registerSaver(csaver, settings.saveFreq / 100);
 	
-	//EfficiencySaver* esaver = new EfficiencySaver("eff.txt");
-	//learner->registerSaver(esaver, settings.saveFreq / 300);
+	EfficiencySaver* esaver = new EfficiencySaver("eff.txt");
+	learner->registerSaver(esaver, settings.saveFreq / 300);
 	
-	//MomentumSaver* msaver = new MomentumSaver("mom.txt");
-	//learner->registerSaver(msaver, settings.saveFreq / 300);
+	MomentumSaver* msaver = new MomentumSaver("mom.txt");
+	learner->registerSaver(msaver, settings.saveFreq / 300);
 	
-	RewardSaver* rsaver = new RewardSaver("reward.txt");
-	learner->registerSaver(rsaver, settings.saveFreq / 300);
+	//RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//"reward.txt");
+	//learner->registerSaver(rsaver, settings.saveFreq / 300);
 	
 	//NNSaver* nnsaver = new NNSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
 	//learner->registerSaver(nnsaver, settings.saveFreq / 100);
@@ -145,7 +145,7 @@ void runTest()
 	if (settings.videoFreq > 0)
 	{
 		PhotoSaver* camera = new PhotoSaver("zimg");
-		//learner->registerSaver(camera, settings.videoFreq);
+		learner->registerSaver(camera, settings.videoFreq);
 	}
 	
 	while (time < settings.endTime + settings.dt/2.0)
@@ -220,11 +220,11 @@ int main (int argc, char** argv)
 	settings.centerX = 0.5;
 	settings.centerY = 0.5;
 	settings.configFile = "/Users/alexeedm/Documents/Fish/smarties/factory/factoryRL_test1";
-	settings.dt = 0.005;
+	settings.dt = 0.01;
 	settings.endTime = 1000000;
 	settings.gamma = 0.85;
 	settings.greedyEps = 0.01;
-	settings.lRate = 0.03;
+	settings.lRate = 0.00;
 	settings.randSeed = 142144;
 	settings.restart = false;
 	settings.saveFreq = 100000;

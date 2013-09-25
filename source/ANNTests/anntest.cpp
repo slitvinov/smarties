@@ -41,7 +41,7 @@ double target2(vector<double>& x)
 
 int main (int argc, char** argv)
 {
-	vector<double> x(5,0);
+	vector<double> x(3,0);
 	
 	debugLvl = 2;
 	RNG rng(0);
@@ -52,8 +52,8 @@ int main (int argc, char** argv)
 
 	
 	//NetworkLM ann(lsize, 5.0);
-	Network ann(lsize, 0.005, 0.9);
-	//WaveletNetLM ann(lsize);
+	//Network ann(lsize, 0.005, 0.9);
+	WaveletNetLM ann(lsize);
 	vector<double> res(2);
 	vector<double> err(2);
 	
@@ -63,7 +63,7 @@ int main (int argc, char** argv)
 		for (int i=0; i<x.size(); i++)
 			x[i] = rng.uniform(-1, 1);
 		
-		double exact1 = target2(x);// + rng.normal(0, 0.00001);
+		double exact1 = target2(x) + rng.normal(0, 0.002);
 		
 		ann.predict(x, res);
 		err[0] = (res[0] - exact1);

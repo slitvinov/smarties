@@ -115,8 +115,10 @@ void SmartySwarmer::move(double dt)
 {
 	if (type == DEAD)
 	{
-		vortices[0] = 0;
-		vortices[1] = 0;
+		//vortices[0] = 0;
+		//vortices[1] = 0;
+		alpha = -alpha;
+		type = IDLER;
 		return;
 	}
 	
@@ -155,7 +157,7 @@ void SmartySwarmer::move(double dt)
 void SmartySwarmer::getState(State& s)
 {	
 	s.vals.clear();
-	//computeVecs();
+	computeVecs();
 
 	vector<SmartySwarmer*> guys;
 	environment->findClosestNeighbours(guys, this, sInfo.top[0]);
@@ -216,21 +218,17 @@ double SmartySwarmer::getReward()
 		double dst = _dist(x, y, closestNeighbour->physX, closestNeighbour->physY);
 		
 		if (dst < 1.0*d)
-			reward += -50.0 * (d - dst);
+			reward += -225.0 * (1.0*d - dst);
 		
 		if (dst < 0.5*d)
-		{
-			if (settings.immortal)
-				alpha = atan2(y - closestNeighbour->physY, x - closestNeighbour->physX);
-		}
-			
+			alpha = atan2(y - closestNeighbour->physY, x - closestNeighbour->physX);
 	}		
 	
-	if (movState == TURN) reward -= 0.005;
+	if (movState == TURN) reward -= 0.002;
 	
-	//computeVecs();
+	computeVecs();
 	double desiredAng = abs(_angle(dx, dy, vx, vy) / 180);
-	//reward += -0.5 * pow(desiredAng, 1.0);
+	reward += -0.5 * pow(desiredAng, 1.0);
 	//if (desiredAng * 180 > 10) reward -= 0.5; 
 	
 	environment->accumulateReward(reward);

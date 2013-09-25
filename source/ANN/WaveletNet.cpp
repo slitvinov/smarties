@@ -33,7 +33,7 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 		wavelons[i]->dimension = nInputs;
 		for (int j=0; j<nInputs; j++)
 		{
-			wavelons[i]->m[j] = 0.0 + rng.uniform(-0.1, 0.1);
+			wavelons[i]->m[j] = 0.0 + rng.uniform(-0.5, 0.5);
 			wavelons[i]->d[j] = 1.2 + rng.uniform(-0.1, 0.1);
 		}
 	}
@@ -53,7 +53,7 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 		prevDw(i) = 0;
 	
 	for (int i=0; i<nWavelons; i++)
-		c[i] = rng.uniform(-1, 1);
+		c[i] = rng.uniform(-1.0, 1.0);
 	for (int i=0; i<nInputs; i++)
 		a[i] = rng.uniform(-0.01, 0.01);
 	
@@ -65,7 +65,7 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 	
 	mu = 1;
 	muFactor = 5;
-	muMin = 1e-10;
+	muMin = 1e-0;
 	muMax = 1e+10;
 }
 
