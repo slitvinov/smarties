@@ -8,7 +8,24 @@
  */
 
 #include <vector>
+
+#if defined(_OPENMP)
 #include <omp.h>
+#else
+void omp_set_num_threads(int n)
+{
+}
+
+int omp_get_max_threads()
+{
+    return 1;
+}
+
+int omp_get_thread_num()
+{
+    return 0;
+}
+#endif
 
 #include "ArgumentParser.h"
 #include "ErrorHandling.h"
@@ -35,6 +52,9 @@ Settings settings;
 int ErrorHandling::debugLvl;
 
 #ifdef _RL_VIZ
+
+// A glut wrapper over simulation
+// Draws agents, environment, etc.
 struct VisualSupport
 {
 	static void display()
@@ -102,15 +122,20 @@ struct VisualSupport
 };
 #endif
 
+// Runs the simulation
 void runTest()
 {
 	MRAG::Profiler profiler;
+	
+	// Class creating agents and environment from info in the file
 	ObjectFactory factory(settings.configFile);
 	System system = factory.getAgentVector();
 	
 	for (vector<Agent*>::iterator it = system.agents.begin(); it != system.agents.end(); it++)
 		(*it)->setEnvironment(system.env);
 	
+	// Define learning algorithm
+	// TODO: Make this through object factory
 	Learner* learner = new QLearning(system, settings.gamma, settings.greedyEps, settings.lRate, settings.dt, &profiler);
 	
 	if (settings.restart) learner->try2restart("");
@@ -119,8 +144,11 @@ void runTest()
 	double time = 0;
 	int    iter = 0;
 	
+	// Save results to dir named  settings.prefix
 	if (!Saver::makedir((settings.prefix+"/").c_str())) die("Unable to make a working directory!");
 	
+	// Various savers
+	// TODO: Savers should be specified in factory file
 	CouzinsSaver* dsaver = new CouzinsSaver("state.txt");
 	learner->registerSaver(dsaver, settings.videoFreq);
 	
@@ -145,7 +173,7 @@ void runTest()
 	if (settings.videoFreq > 0)
 	{
 		PhotoSaver* camera = new PhotoSaver("zimg");
-		learner->registerSaver(camera, settings.videoFreq);
+		//learner->registerSaver(camera, settings.videoFreq);
 	}
 	
 	while (time < settings.endTime + settings.dt/2.0)

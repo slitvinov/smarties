@@ -1,4 +1,4 @@
-SelfAvoidEnvironment
+SelfAvoidEnvironment type=discr
 DynamicColumn xm=10 ym=5 d=8
 DynamicColumn xm=-7 ym=8 d=6
 DynamicColumn xm=30 ym=-15 d=15

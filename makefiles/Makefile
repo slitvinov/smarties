@@ -33,12 +33,13 @@ LIBS += \
 	$(OPENGL_LIB) \
 	$(OPENMP_FLAG) \
 	-L$(MPI_ROOT)/lib \
-	-L/opt/local/lib -L/cluster/home04/mavt/alexeedm/armadillo/usr/lib64 \
-	-lmpi -lmpi_cxx -larmadillo
+	-L/opt/local/lib \
+#-L/cluster/home04/mavt/alexeedm/armadillo/usr/lib64 \
+	-lmpi -lmpi_cxx #-larmadillo
 
 LIBS += -lstdc++
 
-DIRS = $(filter-out ../source/ANNTests/ ../source/CMAUtility/ ../source/Process/, $(sort $(dir $(wildcard ../source/*/))))
+DIRS = $(filter-out ../source/ANNTests/ ../source/ANN/ ../source/CMAUtility/ ../source/Process/, $(sort $(dir $(wildcard ../source/*/))))
 CPP_FILES = $(wildcard $(DIRS:%/=%/*.cpp))
 OBJ_FILES = $(notdir $(CPP_FILES:.cpp=.o))
 	

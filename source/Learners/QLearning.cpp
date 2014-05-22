@@ -33,8 +33,9 @@ Learner(newSystem, newDt, newProfiler), gamma(newGamma), greedyEps(newGreedyEps)
 				QMap[name] = new MultiTable(agents[i]->getStateDims(), agents[i]->getActionDims());
 			else
 			{
-				QMap[name] = new ANNApproximator(agents[i]->getStateDims(), agents[i]->getActionDims(), agents[i]->getStateDims().type);
-				system.env->storeDataRef((void*)QMap[name], "ann");
+				//QMap[name] = new ANNApproximator(agents[i]->getStateDims(), agents[i]->getActionDims(), agents[i]->getStateDims().type);
+				//system.env->storeDataRef((void*)QMap[name], "ann");
+                die("Neural networks are currently not supported\n");
 			}
 		}
 	}

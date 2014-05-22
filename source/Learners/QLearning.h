@@ -16,7 +16,7 @@
 #include "Learner.h"
 #include "../QApproximators/MultiTable.h"
 #include "../QApproximators/QApproximator.h"
-#include "../QApproximators/ANNApproximator.h"
+//#include "../QApproximators/ANNApproximator.h"
 
 using namespace std;
 

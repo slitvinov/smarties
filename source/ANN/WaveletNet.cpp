@@ -65,7 +65,7 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 	
 	mu = 1;
 	muFactor = 5;
-	muMin = 1e-0;
+	muMin = 1e-1;
 	muMax = 1e+10;
 }
 
