@@ -102,7 +102,7 @@ double SmartySelfAvoider::getReward()
 	return reward;
 }
 
-void SmartySelfAvoider::act(Action a)
+void SmartySelfAvoider::act(Action& a)
 {
 	double dAng = 5.0;
 	

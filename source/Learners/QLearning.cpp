@@ -13,231 +13,46 @@
 #include "QLearning.h"
 #include "../Settings.h"
  
-QLearning::QLearning(System newSystem, double newGamma, double newGreedyEps, double newLRate, double newDt, MRAG::Profiler* newProfiler) :
-Learner(newSystem, newDt, newProfiler), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate)
+QLearning::QLearning(QApproximator* newQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate) :
+Q(newQ), actionsIt(actInfo), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate)
 {
-	// All agents of the same type share same policy
-		
-	for (int i=0; i<agents.size(); i++)
-	{
-		s0.push_back(*(new State (agents[i]->getStateDims())));
-		s1.push_back(*(new State (agents[i]->getStateDims())));
-		a0.push_back(*(new Action(agents[i]->getActionDims())));
-		a1.push_back(*(new Action(agents[i]->getActionDims())));
-		actionsIt.push_back(*(new ActionIterator(agents[i]->getActionDims())));
-		
-		string name = agents[i]->getName();
-		if (agents[i]->getType() != IDLER && QMap.find(name) == QMap.end())
-		{
-			if (agents[i]->getStateDims().type == DISCR)
-				QMap[name] = new MultiTable(agents[i]->getStateDims(), agents[i]->getActionDims());
-			else
-			{
-				//QMap[name] = new ANNApproximator(agents[i]->getStateDims(), agents[i]->getActionDims(), agents[i]->getStateDims().type);
-				//system.env->storeDataRef((void*)QMap[name], "ann");
-                die("Neural networks are currently not supported\n");
-			}
-		}
-	}
-	
 	rng = new RNG(rand());
-	
-	bestActionVals.resize(agents.size());
-	r.resize(agents.size());
-	system.env->storeDataRef((void*)&agents, "agents");
 }
 
-void QLearning::agentsChoose(double t)
+void QLearning::selectAction(State &s, Action &a)
 {
-	//debug1("Agents choose best actions\n");
-	int n = agents.size();
-	
-//#pragma omp parallel for
-	for (int i = 0; i<n; i++)
-	{
-		Agent* agent = agents[i];
-		if (agent->getType() == IDLER || agent->getType() == DEAD || t - agent->getLastLearned() < agent->getLearningInterval()) continue;
-
-		QApproximator* Q = QMap[agent->getName()];
-		ActionIterator* actions = &(actionsIt[i]);
-		
-		agent->getState(s1[i]);
-		r[i]  = agent->getReward();
-		
-		double best = -1e10;
-		actions->reset();
-		while (!actions->done())
-		{
-			double val;
-			if ((val = Q->get(s1[i], actions->next())) > best)
-			{
-				best = val;
-				actions->memorize();
-			}
-		}
-		bestActionVals[i] = best;
-		a1[i] = actions->recall();
-		
-		//debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
-		//debug1("Best action is %s  with value %f\n", a1[i].print().c_str(), best);
-	}
+    double best = -1e10;
+    actionsIt.reset();
+    while (!actionsIt.done())
+    {
+        double val;
+        if ((val = Q->get(s, actionsIt.next())) > best)
+        {
+            best = val;
+            actionsIt.memorize();
+        }
+    }
+    a = actionsIt.recall();
 }
 
-void QLearning::agentsUpdate(double t)
+void QLearning::update(State &sOld, Action &a, double r, State &s)
 {
-	//debug1("Agents update current policy\n");
-	
-	for (int i = 0; i<agents.size(); i++)
-	{
-		Agent* agent = agents[i];
-		ActionIterator* actions = &(actionsIt[i]);
-		if (agent->getType() == IDLER || agent->getType() == DEAD || t - agent->getLastLearned() < agent->getLearningInterval()) continue;
-
-		QApproximator* Q = QMap[agent->getName()];
-		
-		double Qsa = Q->get(s0[i], a0[i]);
-		Q->correct(s0[i], a0[i], lRate * (r[i] + gamma * bestActionVals[i] - Qsa));
-		
-		//if (bestActionVals[i] > 1.0)
-		{
-			debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
-			debug1("Prev state: %s\n", s0[i].printScaled().c_str());
-			debug1("Curr state: %s\n", s1[i].printScaled().c_str());
-			debug1("Action between: %s\n", a0[i].print().c_str());
-			debug1("Reward: %f\n", r[i]);
-			debug1("Actions:\n");
-					
-			actions->reset();
-			int u = 0;
-			while (debugLvl > 3 && !actions->done())
-			{
-				double val = Q->get(s0[i], actions->next());
-				debug1("\t[%d] : %f\n", u++, val);
-			}
-			
-			debug1("Q(s, a): %f --> %f\n", Qsa, Qsa + lRate * (r[i] + gamma * bestActionVals[i] - Qsa));
-		}
-		
-	}
+    //       a, r
+    // sOld ------> s
+    //
+    // Find V(s) = max Q(s, a')
+    //              a'
+    
+    double best = -1e10;
+    actionsIt.reset();
+    while (!actionsIt.done())
+    {
+        double val;
+        if ((val = Q->get(s, actionsIt.next())) > best)
+            best = val;
+    }
+    
+    double err = lRate * (r + best - Q->get(sOld, a));
+    
+    Q->correct(sOld, a, err);
 }
-
-void QLearning::agentsAct(double t)
-{
-	//debug1("Agents act according to best possible action\n");
-	int n = agents.size();
-
-//#pragma omp parallel for
-	for (int i = 0; i<n; i++)
-	{
-		Agent* agent = agents[i];
-		if (agent->getType() == IDLER || agent->getType() == DEAD || t - agent->getLastLearned() < agent->getLearningInterval()) continue;
-		
-		ActionIterator* actions = &(actionsIt[i]);
-		
-		if (rng->uniform(0, 1) < settings.greedyEps)
-		{
-			a1[i] = actions->getRand(rng);
-			debug1("\n   Agent of type %s, #%d\n", agent->getName().c_str(), i);
-			debug1("Exploring!! Chose action %s\n", a1[i].print().c_str());
-		}
-		else
-		{
-			//debug1("Chose best action %s\n", a1[i].print().c_str());
-		}
-		
-		s0[i] = s1[i];
-		a0[i] = a1[i];
-		agent->act(a1[i]);
-		agent->setLastLearned(t);
-	}
-}
-
-void QLearning::agentsMove()
-{
-	//debug1("Agents move\n");
-	int n = agents.size();
-	
-//#pragma omp parallel for
-	for (int i = 0; i<n; i++)
-	{
-		agents[i]->move(dt);
-	}
-}
-
-void QLearning::evolve(double t)
-{
-	debug1("\n****************************************************************\n");
-	debug1("Processing agents at time %f\n", t);
-
-	// Observe current state of one agent
-	// Take action a according to e-greedy policy derived from Q(s, a)
-	// Get reward r, observe next state s'
-	// Modify Q(s, a) += lRate[ r + gamma * max{Q(s', a')} - Q(s, a) ]
-	// If agent can't learn, just let him move
-		
-	if (profiler != NULL)
-	{
-				
-		profiler->push_start("Compute new values");
-		agentsChoose(t);
-		profiler->pop_stop();
-
-		profiler->push_start("Update Q(s,a)");
-		agentsUpdate(t);
-		profiler->pop_stop();
-
-		profiler->push_start("Taking actions");
-		agentsAct(t);
-		profiler->pop_stop();
-		
-		profiler->push_start("Environment evolution");
-		system.env->evolve(t);
-		profiler->pop_stop();
-
-		profiler->push_start("Moving");
-		agentsMove();
-		profiler->pop_stop();
-	}
-	else
-	{
-		agentsChoose(t);
-		agentsUpdate(t);
-		agentsAct(t);
-		system.env->evolve(t);
-		agentsMove();
-	}
-	
-	execSavers(t);
-}
-
-void QLearning::try2restart(string prefix)
-{
-	info("Restarting from saved policy...\n");
-	bool fl = true;
-	for (map<string, QApproximator*>::iterator it=QMap.begin(); it!=QMap.end(); it++)
-	{
-		string fname = prefix + it->first + "_backup";
-		if ( !(it->second->restart(fname)) ) fl = false;
-	}
-	if (fl)
-	{
-		info("Restart successful, moving on...\n");
-	}
-	else
-	{
-		info("Not all policies restarted, therefore assumed zero. Moving on...\n");
-	}
-}
-		
-void QLearning::savePolicy(string prefix)
-{
-	info("\nSaving all policies...\n");
-	for (map<string, QApproximator*>::iterator it=QMap.begin(); it!=QMap.end(); it++)
-	{
-		string fname = prefix + it->first + "_backup";
-		it->second->save(fname);
-	}
-	info("Done\n");
-}
-
-		

@@ -8,6 +8,7 @@
  */
 
 #include <vector>
+#include <mpi.h>
 
 #if defined(_OPENMP)
 #include <omp.h>
@@ -34,6 +35,7 @@ int omp_get_thread_num()
 #include "ObjectFactory.h"
 #include "Settings.h"
 #include "MRAGProfiler.h"
+#include "Scheduler/Scheduler.h"
 
 #include "Savers/AllSavers.h"
 
@@ -64,7 +66,7 @@ struct VisualSupport
 	static void idle(void)
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		runTest();
+		//runTest();
 		glutSwapBuffers();
 	}
 
@@ -123,7 +125,7 @@ struct VisualSupport
 #endif
 
 // Runs the simulation
-void runTest()
+void runSlave()
 {
 	MRAG::Profiler profiler;
 	
@@ -134,11 +136,9 @@ void runTest()
 	for (vector<Agent*>::iterator it = system.agents.begin(); it != system.agents.end(); it++)
 		(*it)->setEnvironment(system.env);
 	
-	// Define learning algorithm
-	// TODO: Make this through object factory
-	Learner* learner = new QLearning(system, settings.gamma, settings.greedyEps, settings.lRate, settings.dt, &profiler);
+    Slave*   simulation = new Slave(system, settings.dt);
 	
-	if (settings.restart) learner->try2restart("");
+	//if (settings.restart) learner->try2restart("");
 	
 	double dt = settings.dt;
 	double time = 0;
@@ -149,17 +149,17 @@ void runTest()
 	
 	// Various savers
 	// TODO: Savers should be specified in factory file
-	CouzinsSaver* dsaver = new CouzinsSaver("state.txt");
-	learner->registerSaver(dsaver, settings.videoFreq);
+	//CouzinsSaver* dsaver = new CouzinsSaver("state.txt");
+	//learner->registerSaver(dsaver, settings.videoFreq);
 	
-	CollisionSaver* csaver = new CollisionSaver("coll.txt");
-	learner->registerSaver(csaver, settings.saveFreq / 100);
+	//CollisionSaver* csaver = new CollisionSaver("coll.txt");
+	//learner->registerSaver(csaver, settings.saveFreq / 100);
 	
-	EfficiencySaver* esaver = new EfficiencySaver("eff.txt");
-	learner->registerSaver(esaver, settings.saveFreq / 300);
+	//EfficiencySaver* esaver = new EfficiencySaver("eff.txt");
+	//learner->registerSaver(esaver, settings.saveFreq / 300);
 	
-	MomentumSaver* msaver = new MomentumSaver("mom.txt");
-	learner->registerSaver(msaver, settings.saveFreq / 300);
+	//MomentumSaver* msaver = new MomentumSaver("mom.txt");
+	//learner->registerSaver(msaver, settings.saveFreq / 300);
 	
 	//RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//"reward.txt");
 	//learner->registerSaver(rsaver, settings.saveFreq / 300);
@@ -172,18 +172,17 @@ void runTest()
 	
 	if (settings.videoFreq > 0)
 	{
-		PhotoSaver* camera = new PhotoSaver("zimg");
+		//PhotoSaver* camera = new PhotoSaver("zimg");
 		//learner->registerSaver(camera, settings.videoFreq);
 	}
 	
 	while (time < settings.endTime + settings.dt/2.0)
 	{
-		learner->evolve(time);
+		simulation->evolve(time);
 		
-		if (iter % settings.saveFreq == 0)
-			learner->savePolicy("");
+		//if (iter % settings.saveFreq == 0)
+		//	learner->savePolicy("");
 		
-		time += dt;
 		iter++;
 		debug2("%d\n", iter);
 		
@@ -214,8 +213,28 @@ void runTest()
 	exit(0);
 }
 
+void runMaster()
+{
+    // TODO: No need to create a whole system, just need actInfo and sInfo
+    ObjectFactory factory(settings.configFile);
+	System system = factory.getAgentVector();
+    
+    // Define learning algorithm
+	// TODO: Make this through object factory
+    QApproximator* Qvals = new MultiTable(system.sInfo, system.actInfo);
+	Learner* learner = new QLearning(Qvals, system.actInfo, settings.gamma, settings.greedyEps, settings.lRate);
+    
+    Master* master = new Master(learner, system.actInfo, system.sInfo);
+    
+    master->run();
+}
+
 int main (int argc, char** argv)
 {
+    int me;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &me);
+    
 	const OptionStruct opts[] =
 	{
 		{'x', "center_x",   DOUBLE, "X coo of domain center", &settings.centerX},
@@ -277,7 +296,10 @@ int main (int argc, char** argv)
 #ifdef _RL_VIZ
 	VisualSupport::run(argc, argv);
 #else
-	runTest();
+    
+    if (me == 0) runMaster();
+    else         runSlave();
+    
 #endif
 
 	return 0;

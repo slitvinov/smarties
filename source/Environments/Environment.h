@@ -51,6 +51,9 @@ public:
 
 struct System
 {
+    ActionInfo actInfo;
+    StateInfo  sInfo;
+    
 	Environment* env;
 	vector<Agent*> agents;
 };

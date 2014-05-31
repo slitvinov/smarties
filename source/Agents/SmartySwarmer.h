@@ -64,7 +64,7 @@ public:
 	
 	void   getState(State& s);
 	double getReward();
-	void   act(Action a);
+	void   act(Action& a);
 	
 #ifdef _RL_VIZ
 	void   paint();

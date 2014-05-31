@@ -236,7 +236,7 @@ double SmartySwarmer::getReward()
 }
 
 
-void SmartySwarmer::act(Action a)
+void SmartySwarmer::act(Action& a)
 {
 	vortices[0] = gamma;
 	vortices[1] = -gamma;

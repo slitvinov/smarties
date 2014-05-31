@@ -23,27 +23,18 @@ using namespace std;
 class QLearning : public Learner
 {
 private:
-	vector<QApproximator*> Qarray;
-	vector<State> s0, s1;
-	vector<Action> a0, a1;
-	vector<double> r;
-	vector<double> bestActionVals;
-	vector<ActionIterator> actionsIt;
+	QApproximator* Q;
+	ActionIterator actionsIt;
 	map<string, QApproximator*> QMap;
 		
 	double gamma, greedyEps, lRate;
 	
 	RNG* rng;
-	
-	void agentsChoose(double t);
-	void agentsUpdate(double t);
-	void agentsAct(double t);
-	void agentsMove();
 		
 public:
-	QLearning(System newSystem, double newGamma, double newGreedyEps, double newLRate, double newDt, MRAG::Profiler* newProfiler = NULL);
-	void evolve(double t);
-	void savePolicy(string prefix);
-	void try2restart(string prefix);
+	QLearning(QApproximator* newQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate);
+	
+    void selectAction(State& s, Action& a);
+    void update(State& sOld, Action& a, double r, State& s);
 };
 

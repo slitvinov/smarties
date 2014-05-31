@@ -1,7 +1,7 @@
 CC = g++
 CPPFLAGS+= -g -Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated -std=c++11
 
-OPENMP_FLAG= -openmp
+OPENMP_FLAG=# -openmp
 
 viz ?= 0
 config ?= "debug"
@@ -22,7 +22,7 @@ endif
 ifeq "$(CC)" "icc"
 CPPFLAGSOPT+= -diag-disable remark -wd68 -xHOST -ansi-alias -fno-fnalias -fno-alias
 else
-OPENMP_FLAG= -fopenmp
+OPENMP_FLAG=# -fopenmp
 CPPFLAGSOPT+= -msse3
 endif
 
