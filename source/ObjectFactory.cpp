@@ -55,8 +55,6 @@ inline double ObjectFactory::_parseDouble(string source, string pattern, bool re
 
 System ObjectFactory::getAgentVector()
 {
-	if  (settings.randSeed == -1 )  srand(time(NULL));
-	else							srand(settings.randSeed);
 	RNG rng(rand());
 	
 	double D = settings.scale;
@@ -386,5 +384,7 @@ System ObjectFactory::getAgentVector()
 		}
 	}
 	
+    system.actInfo = system.env->aI;
+    system.sInfo   = system.env->sI;
 	return system;
 }

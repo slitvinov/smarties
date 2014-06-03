@@ -20,8 +20,6 @@ class CouzinAgent;
 class CouzinEnvironment: public virtual Environment
 {
 public:
-	StateInfo sI;
-	ActionInfo aI;
 	double tm;
 	
 public:

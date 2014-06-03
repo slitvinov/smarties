@@ -32,7 +32,9 @@ void QLearning::selectAction(State &s, Action &a)
             actionsIt.memorize();
         }
     }
-    a = actionsIt.recall();
+    double p = rng->uniform();
+    if (p > greedyEps)  a = actionsIt.recall();
+    else                a = actionsIt.getRand(rng);
 }
 
 void QLearning::update(State &sOld, Action &a, double r, State &s)
@@ -53,6 +55,8 @@ void QLearning::update(State &sOld, Action &a, double r, State &s)
     }
     
     double err = lRate * (r + best - Q->get(sOld, a));
+    
+    debug1("Q learning: %f --> %f\n", Q->get(sOld, a), Q->get(sOld, a) + err);
     
     Q->correct(sOld, a, err);
 }

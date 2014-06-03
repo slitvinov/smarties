@@ -27,14 +27,19 @@ class Master
     inline void unpackChunk(byte* &buf, State& sOld, Action& a, double& r, State& s);
     inline void packChunk(byte* &buf, Action a);
     
+    double totR;
+    
 public:
     Master(Learner* learner, ActionInfo actInfo, StateInfo sInfo);
+    double getTotR() { double tmp = totR; totR = 0; return tmp; }
     
     void run();
 };
 
 class Slave
 {
+    int me;
+    
     System system;
     vector<Agent*> agents;
     double dt;
@@ -44,13 +49,14 @@ class Slave
     
     vector<Action> actions;
     vector<State> oldStates;
+    bool* needToPack;
     
     void packData();
     void unpackData();
         
 public:
     
-    Slave(System& newSystem, double newDt);
+    Slave(System& newSystem, double newDt, int me);
     void evolve(double& t);
 };
 

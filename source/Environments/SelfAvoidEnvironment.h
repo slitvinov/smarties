@@ -24,9 +24,6 @@ class SmartySelfAvoider;
 class SelfAvoidEnvironment: public Environment
 {
 public:
-	StateInfo sI;
-	ActionInfo aI;
-	
 	void setDims();
 		
 public:

@@ -19,6 +19,8 @@ learner(learner), actInfo(actInfo), sInfo(sInfo)
     outOneSize = actInfo.dim*sizeof(double);
     outsize = 1;
     outbuf  = new byte[outsize];
+    
+    totR = 0;
 }
 
 inline void Master::unpackChunk(byte* &buf, State& sOld, Action& a, double& r, State& s)
@@ -46,6 +48,7 @@ inline void Master::packChunk(byte* &buf, Action a)
     // a
     static const int actSize = actInfo.dim * sizeof(double);
     a.pack(buf);
+    buf += actSize;
 }
 
 void Master::run()
@@ -58,10 +61,13 @@ void Master::run()
     double r;
     
     int n;
+    int iter = 0;
     
     while (true)
     {
-        MPI_Recv(&n, 1, MPI_BYTE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv(&n, 1, MPI_INTEGER, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
+        debug("Master will receive %d chunks from proc %d of total size %d... ", n, status.MPI_SOURCE, n*inOneSize);
+
         
         if (n > insize)
         {
@@ -77,28 +83,43 @@ void Master::run()
             outbuf = new byte[outsize * outOneSize];
         }
         
-        MPI_Recv(inbuf, n*inOneSize, MPI_BYTE, status.MPI_SOURCE, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv(inbuf, n*inOneSize, MPI_BYTE, status.MPI_SOURCE, 2, MPI_COMM_WORLD, &status);
+        debug("completed\n");
         
         byte* cInbuf = inbuf;
         byte* cOutbuf = outbuf;
         for (int i=0; i<n; i++)
         {
             unpackChunk(cInbuf, sOld, a, r, s);
-            learner->update(sOld, a, r, s);
-            learner->selectAction(s, a);
+            
+            if (r > -1e10)
+            {
+                learner->update(sOld, a, r, s);
+                debug1("Updating: %s --> %s with %s was rewarded with %f\n", sOld.print().c_str(), s.print().c_str(), a.print().c_str(), r);
+                learner->selectAction(s, a);
+                totR += r;
+
+                debug1("Chose action %s to send to agent %3d of slave %d\n", a.print().c_str(), i, status.MPI_SOURCE);
+            }
             packChunk(cOutbuf, a);
         }
-        
-        MPI_Isend(outbuf, n*inOneSize, MPI_BYTE, status.MPI_SOURCE, 0, MPI_COMM_WORLD, &request);
+
+        MPI_Isend(outbuf, n*outOneSize, MPI_BYTE, status.MPI_SOURCE, 0, MPI_COMM_WORLD, &request);
+        debug("Master sends %d bytes to proc %d\n", n*outOneSize, status.MPI_SOURCE);
         
         // TODO: Add savers
         // TODO: also to the slave processes
+        
+        iter++;
+        if (iter % 1000 == 0) info("Reward: %f\n", getTotR());
     }
 
 }
 
-Slave::Slave(System& newSystem, double newDt) : system(newSystem), agents(newSystem.agents), dt(newDt)
+Slave::Slave(System& newSystem, double newDt, int me) : system(newSystem), agents(newSystem.agents), dt(newDt), me(me)
 {
+    MPI_Request req;
+    
     for (int i=0; i<agents.size(); i++)
     {
         actions.push_back(*(new Action(system.actInfo)));
@@ -110,6 +131,29 @@ Slave::Slave(System& newSystem, double newDt) : system(newSystem), agents(newSys
     
     inbuf  = new byte[insize];
     outbuf = new byte[outsize];
+    
+    ActionIterator aIter(system.actInfo);
+    RNG* rng = new RNG(rand());
+    for (int i=0; i<agents.size(); i++)
+    {
+        actions[i] = aIter.getRand(rng);
+    }
+    
+    needToPack = new bool[agents.size()];
+    
+    byte* tmpBuf = new byte[insize];
+    byte* cbuf = tmpBuf;
+    
+    // a
+    static const int actSize = system.actInfo.dim * sizeof(double);
+    
+    for (int i=0; i<agents.size(); i++)
+    {
+        actions[i].pack(cbuf);
+        cbuf += actSize;
+    }
+
+    MPI_Ibsend(tmpBuf, insize, MPI_BYTE, me, 0, MPI_COMM_WORLD, &req);
 }
 
 void Slave::evolve(double& t)
@@ -118,15 +162,17 @@ void Slave::evolve(double& t)
     MPI_Status  status;
 	int n = agents.size();
     
-    MPI_Recv(inbuf, insize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
-    
+    MPI_Recv(inbuf, insize, MPI_BYTE, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+    debug("Slave %d receives %d bytes\n", me, insize);
+
     unpackData();
-    
+
     for (int i = 0; i<n; i++)
 	{
         agents[i]->getState(oldStates[i]);
+        needToPack[i] = false;
     }
-    
+
     // TODO: not all of the agents act at the same moment of time
     bool acted = false;
     
@@ -138,8 +184,10 @@ void Slave::evolve(double& t)
             if (agent->getType() != IDLER && agent->getType() != DEAD && t - agent->getLastLearned() > agent->getLearningInterval())
             {
                 acted = true;
+                debug1("Agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
                 agent->act(actions[i]);
                 agent->setLastLearned(t);
+                needToPack[i] = true;
             };
             
             agent->move(dt);
@@ -148,11 +196,13 @@ void Slave::evolve(double& t)
         system.env->evolve(t);
         t += dt;
     }
-    
+
     packData();
-    
-    MPI_Isend(&n, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &outreqN);
-    MPI_Isend(outbuf, outsize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &outreqData);
+
+    MPI_Isend(&n, 1, MPI_INTEGER, 0, 1, MPI_COMM_WORLD, &outreqN);
+    MPI_Isend(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD, &outreqData);
+    debug("Slave %d sends %d chunks of total size %d bytes\n", me, n, outsize);
+
 }
 
 void Slave::unpackData()
@@ -160,7 +210,7 @@ void Slave::unpackData()
     byte* cbuf = inbuf;
     
     // a
-    int actSize = system.actInfo.dim * sizeof(double);
+    static const int actSize = system.actInfo.dim * sizeof(double);
     
     for (int i=0; i<agents.size(); i++)
     {
@@ -190,7 +240,11 @@ void Slave::packData()
         actions[i].pack(cbuf);
         cbuf += actSize;
         
-        *((double*)cbuf) = agent->getReward();
+        if (needToPack[i])
+            *((double*)cbuf) = agent->getReward();
+        else
+            *((double*)cbuf) = -2e10;
+        
         cbuf += sizeof(double);
         
         agent->getState(tmpState);

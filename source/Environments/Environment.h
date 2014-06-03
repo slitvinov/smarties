@@ -21,6 +21,9 @@ class Agent;
 class Environment
 {
 public:
+    StateInfo sI;
+	ActionInfo aI;
+    
 	vector<Agent*> agents;
 	map<string, void*> data;
 	double totalReward;

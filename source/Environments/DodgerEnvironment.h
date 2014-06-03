@@ -23,9 +23,6 @@ class SmartyDodger;
 class DodgerEnvironment: public Environment
 {
 private:
-	StateInfo sI;
-	ActionInfo aI;
-	
 	void setDims();
 	
 public:

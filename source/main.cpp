@@ -50,6 +50,7 @@ using namespace ArgumentParser;
 using namespace std;
 
 void runTest(void);
+void runSlave(int);
 Settings settings;
 int ErrorHandling::debugLvl;
 
@@ -66,7 +67,7 @@ struct VisualSupport
 	static void idle(void)
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		//runTest();
+		runSlave(0);
 		glutSwapBuffers();
 	}
 
@@ -125,7 +126,7 @@ struct VisualSupport
 #endif
 
 // Runs the simulation
-void runSlave()
+void runSlave(int me)
 {
 	MRAG::Profiler profiler;
 	
@@ -136,14 +137,14 @@ void runSlave()
 	for (vector<Agent*>::iterator it = system.agents.begin(); it != system.agents.end(); it++)
 		(*it)->setEnvironment(system.env);
 	
-    Slave*   simulation = new Slave(system, settings.dt);
+    Slave*   simulation = new Slave(system, settings.dt, me);
 	
 	//if (settings.restart) learner->try2restart("");
 	
 	double dt = settings.dt;
 	double time = 0;
 	int    iter = 0;
-	
+    	
 	// Save results to dir named  settings.prefix
 	if (!Saver::makedir((settings.prefix+"/").c_str())) die("Unable to make a working directory!");
 	
@@ -183,14 +184,13 @@ void runSlave()
 		//if (iter % settings.saveFreq == 0)
 		//	learner->savePolicy("");
 		
-		iter++;
-		debug2("%d\n", iter);
-		
+		iter++;		
 		if (iter % (settings.saveFreq/10) == 0)
 		{
 		//	settings.greedyEps /= 2;
 			info("Time of simulation is now %f\n", time);
 			if (debugLvl > 1) profiler.printSummary();
+            info("Reward:  %8.4f\n", system.env->getAccumulatedReward());
 		}
 
 #ifdef _RL_VIZ
@@ -290,6 +290,9 @@ int main (int argc, char** argv)
 	parser.parse(argc, argv);
 	if (settings.lRate < 1e-9) settings.immortal = false;
 	else settings.immortal = true;
+    
+    if  (settings.randSeed == -1 )  srand(time(NULL));
+	else							srand(settings.randSeed + me);
 	
 	omp_set_num_threads(1);
 
@@ -298,7 +301,7 @@ int main (int argc, char** argv)
 #else
     
     if (me == 0) runMaster();
-    else         runSlave();
+    else         runSlave(me);
     
 #endif
 
