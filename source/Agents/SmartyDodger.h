@@ -36,7 +36,7 @@ public:
 			
 	void   getState(State& s);
 	double getReward();
-	void   act(Action a);
+	void   act(Action& a);
 	void   move(double dt);
 	
 	void   setEnvironment(Environment* env);

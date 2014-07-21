@@ -1,10 +1,11 @@
 CC = g++
 CPPFLAGS+= -g -Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated -std=c++11
 
-OPENMP_FLAG= -openmp
+OPENMP_FLAG=# -openmp
 
 viz ?= 0
 config ?= "debug"
+extra ?= ""
 
 ifeq "$(viz)" "1"
 CPPFLAGS+= -D_RL_VIZ
@@ -22,23 +23,25 @@ endif
 ifeq "$(CC)" "icc"
 CPPFLAGSOPT+= -diag-disable remark -wd68 -xHOST -ansi-alias -fno-fnalias -fno-alias
 else
-OPENMP_FLAG= -fopenmp
+OPENMP_FLAG=# -fopenmp
 CPPFLAGSOPT+= -msse3
 endif
 
-CPPFLAGS+= -I/opt/local/include/openmpi -I/cluster/home04/mavt/alexeedm/armadillo/usr/include
+CPPFLAGS+= -I/usr/local/Cellar/vtk5/5.10.1/include/vtk-5.10/ -I../MRAGapps/source -I../MRAG/source  -I/opt/local/include/openmpi -I/cluster/home04/mavt/alexeedm/armadillo/usr/include
+CPPFLAGS+= -I../MRAGapps/IF2D_ROCKS/source/mattia-RL/
 CPPFLAGS+= $(OPENMP_FLAG)
 
 LIBS += \
 	$(OPENGL_LIB) \
 	$(OPENMP_FLAG) \
 	-L$(MPI_ROOT)/lib \
-	-L/opt/local/lib -L/cluster/home04/mavt/alexeedm/armadillo/usr/lib64 \
-	-lmpi -lmpi_cxx -larmadillo
+	-L/opt/local/lib \
+#-L/cluster/home04/mavt/alexeedm/armadillo/usr/lib64 \
+	-lmpi -lmpi_cxx #-larmadillo
 
 LIBS += -lstdc++
 
-DIRS = $(filter-out ../source/ANNTests/ ../source/CMAUtility/ ../source/Process/, $(sort $(dir $(wildcard ../source/*/))))
+DIRS = $(filter-out ../source/ANNTests/ ../source/ANN/ ../source/CMAUtility/ ../source/Process/, $(sort $(dir $(wildcard ../source/*/))))
 CPP_FILES = $(wildcard $(DIRS:%/=%/*.cpp))
 OBJ_FILES = $(notdir $(CPP_FILES:.cpp=.o))
 	
@@ -52,10 +55,10 @@ rl: $(OBJ_FILES)
 	$(CC) $(LIBS) $^ -o $@
 
 %.o: %.cpp
-	$(CC)  $(CPPFLAGS) $(CPPFLAGSOPT) -c $< -o $@
+	$(CC) $(extra)  $(CPPFLAGS) $(CPPFLAGSOPT) -c $< -o $@
 	
 %.d: %.cpp
-	$(CC)  $(CPPFLAGS) -MD -c $<
+	$(CC) $(extra)  $(CPPFLAGS) -MD -c $<
     
 vpath %.cpp $(DIRS)
 vpath %.h   $(DIRS)

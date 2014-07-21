@@ -254,7 +254,7 @@ public:
 		ofstream& out(*file);
 		map<long int, double>& data = Q->getData();
 		
-		info("Saving all the states... ");
+		_info("Saving all the states... ");
 		
 		for (map<long int, double>::iterator it = data.begin(); it != data.end(); it++)
 		{
@@ -265,7 +265,7 @@ public:
 		out << endl;
 		out.flush();
 		
-		info("Done\n");
+		_info("Done\n");
 	}
 };
 
@@ -273,7 +273,7 @@ class NNSaver : public Saver
 {
 private:
 	SelfAvoidEnvironment* env;
-	ANNApproximator* Q;
+	//ANNApproximator* Q;
 	
 public:
 	NNSaver(ostream* f) : Saver(f) { };
@@ -286,12 +286,12 @@ public:
 	void setEnvironment(Environment *newEnv)
 	{
 		env = static_cast<SelfAvoidEnvironment*> (newEnv);
-		Q   = static_cast<ANNApproximator*> (env->data["ann"]);
+		//Q   = static_cast<ANNApproximator*> (env->data["ann"]);
 	}
 	
 	void exec()
 	{
-		if (Q != NULL)
+		//if (Q != NULL)
 		{
 			ofstream& out(*file);
 			
@@ -311,7 +311,7 @@ public:
 					out << "(";
 					for (int k=0; k<3; k++)
 					{
-						Q->ann[k]->predict(inp, outp);         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111111111111111
+						//Q->ann[k]->predict(inp, outp);         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111111111111111
 						out << std::setprecision(4) << outp[0];
 						if (k<2) out << " ";
 					}
@@ -322,7 +322,7 @@ public:
 			
 			out.flush();
 			
-			info("Done\n");
+			_info("Done\n");
 		}
 	}
 };
@@ -341,11 +341,11 @@ public:
 #ifdef _RL_VIZ
 		char buf[100];
 		sprintf(buf, "%s%07d.tga", (folder+fname).c_str(), num);
-		info("Saving screenshot to %s... ", buf);
+		_info("Saving screenshot to %s... ", buf);
 		num++;
 		if (gltWriteTGA(buf))
 		{
-			info("Ok\n");
+			_info("Ok\n");
 		}
 		else
 		{

@@ -22,9 +22,6 @@ class SmartySwarmer;
 class SwarmEnvironment: public PotentialFluidEnvironment
 {
 public:
-	StateInfo sI;
-	ActionInfo aI;
-	
 	void setDims();
 	double momentum;
 	void calculateMomentum();	

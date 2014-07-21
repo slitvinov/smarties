@@ -8,7 +8,25 @@
  */
 
 #include <vector>
+#include <mpi.h>
+
+#if defined(_OPENMP)
 #include <omp.h>
+#else
+void omp_set_num_threads(int n)
+{
+}
+
+int omp_get_max_threads()
+{
+    return 1;
+}
+
+int omp_get_thread_num()
+{
+    return 0;
+}
+#endif
 
 #include "ArgumentParser.h"
 #include "ErrorHandling.h"
@@ -17,6 +35,7 @@
 #include "ObjectFactory.h"
 #include "Settings.h"
 #include "MRAGProfiler.h"
+#include "Scheduler/Scheduler.h"
 
 #include "Savers/AllSavers.h"
 
@@ -31,10 +50,14 @@ using namespace ArgumentParser;
 using namespace std;
 
 void runTest(void);
+void runSlave(int);
 Settings settings;
 int ErrorHandling::debugLvl;
 
 #ifdef _RL_VIZ
+
+// A glut wrapper over simulation
+// Draws agents, environment, etc.
 struct VisualSupport
 {
 	static void display()
@@ -44,7 +67,7 @@ struct VisualSupport
 	static void idle(void)
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		runTest();
+		runSlave(0);
 		glutSwapBuffers();
 	}
 
@@ -102,30 +125,36 @@ struct VisualSupport
 };
 #endif
 
-void runTest()
+// Runs the simulation
+void runSlave(int me, int argc = 0, const char** argv = NULL)
 {
 	MRAG::Profiler profiler;
+	
+	// Class creating agents and environment from info in the file
 	ObjectFactory factory(settings.configFile);
-	System system = factory.getAgentVector();
+	System system = factory.getAgentVector(argc, argv);
 	
 	for (vector<Agent*>::iterator it = system.agents.begin(); it != system.agents.end(); it++)
 		(*it)->setEnvironment(system.env);
 	
-	Learner* learner = new QLearning(system, settings.gamma, settings.greedyEps, settings.lRate, settings.dt, &profiler);
+    Slave*   simulation = new Slave(system, settings.dt, me);
 	
-	if (settings.restart) learner->try2restart("");
+	//if (settings.restart) learner->try2restart("");
 	
 	double dt = settings.dt;
 	double time = 0;
 	int    iter = 0;
-	
+    	
+	// Save results to dir named  settings.prefix
 	if (!Saver::makedir((settings.prefix+"/").c_str())) die("Unable to make a working directory!");
 	
+	// Various savers
+	// TODO: Savers should be specified in factory file
 	//CouzinsSaver* dsaver = new CouzinsSaver("state.txt");
 	//learner->registerSaver(dsaver, settings.videoFreq);
 	
-	CollisionSaver* csaver = new CollisionSaver("coll.txt");
-	learner->registerSaver(csaver, settings.saveFreq / 100);
+	//CollisionSaver* csaver = new CollisionSaver("coll.txt");
+	//learner->registerSaver(csaver, settings.saveFreq / 100);
 	
 	//EfficiencySaver* esaver = new EfficiencySaver("eff.txt");
 	//learner->registerSaver(esaver, settings.saveFreq / 300);
@@ -133,8 +162,8 @@ void runTest()
 	//MomentumSaver* msaver = new MomentumSaver("mom.txt");
 	//learner->registerSaver(msaver, settings.saveFreq / 300);
 	
-	RewardSaver* rsaver = new RewardSaver("reward.txt");
-	learner->registerSaver(rsaver, settings.saveFreq / 300);
+	//RewardSaver* rsaver = new RewardSaver((ofstream*)&cout);//"reward.txt");
+	//learner->registerSaver(rsaver, settings.saveFreq / 300);
 	
 	//NNSaver* nnsaver = new NNSaver((ofstream*)&cout);//new ofstream("reward_good.txt"));
 	//learner->registerSaver(nnsaver, settings.saveFreq / 100);
@@ -144,26 +173,24 @@ void runTest()
 	
 	if (settings.videoFreq > 0)
 	{
-		PhotoSaver* camera = new PhotoSaver("zimg");
+		//PhotoSaver* camera = new PhotoSaver("zimg");
 		//learner->registerSaver(camera, settings.videoFreq);
 	}
 	
 	while (time < settings.endTime + settings.dt/2.0)
 	{
-		learner->evolve(time);
+		simulation->evolve(time);
 		
-		if (iter % settings.saveFreq == 0)
-			learner->savePolicy("");
+		//if (iter % settings.saveFreq == 0)
+		//	learner->savePolicy("");
 		
-		time += dt;
-		iter++;
-		debug2("%d\n", iter);
-		
+		iter++;		
 		if (iter % (settings.saveFreq/10) == 0)
 		{
 		//	settings.greedyEps /= 2;
-			info("Time of simulation is now %f\n", time);
+			_info("Time of simulation is now %f\n", time);
 			if (debugLvl > 1) profiler.printSummary();
+            _info("Reward:  %8.4f\n", system.env->getAccumulatedReward());
 		}
 
 #ifdef _RL_VIZ
@@ -186,8 +213,31 @@ void runTest()
 	exit(0);
 }
 
-int main (int argc, char** argv)
+void runMaster(string restartFile)
 {
+    // TODO: No need to create a whole system, just need actInfo and sInfo
+    ObjectFactory factory(settings.configFile);
+	System system = factory.getAgentVector();
+    
+    // Define learning algorithm
+	// TODO: Make this through object factory
+    QApproximator* Qvals = new MultiTable(system.sInfo, system.actInfo);
+	Learner* learner = new QLearning(Qvals, system.actInfo, settings.gamma, settings.greedyEps, settings.lRate);
+    
+    Master* master = new Master(learner, system.actInfo, system.sInfo);
+    
+    if (settings.restart == "none")
+        master->restart(restartFile);
+    
+    master->run();
+}
+
+int main (int argc, const char** argv)
+{
+    int me;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &me);
+    
 	const OptionStruct opts[] =
 	{
 		{'x', "center_x",   DOUBLE, "X coo of domain center", &settings.centerX},
@@ -199,7 +249,7 @@ int main (int argc, char** argv)
 		{'e', "greedy_eps", DOUBLE, "Greedy epsilon",         &settings.greedyEps},
 		{'l', "learn_rate", DOUBLE, "Learning rate",          &settings.lRate},
 		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed},
-/*10*/	{'r', "restart",    NONE,   "Restart",                &settings.restart},
+/*10*/	{'r', "restart",    STRING, "Restart file",           &settings.restart},
 		{'q', "save_freq",  INT,    "Save frequency",         &settings.saveFreq},
 		{'p', "video_freq", INT,    "Video frequency",        &settings.videoFreq},
 		{'a', "scale",      DOUBLE, "Scaling factor",         &settings.scale},
@@ -220,13 +270,13 @@ int main (int argc, char** argv)
 	settings.centerX = 0.5;
 	settings.centerY = 0.5;
 	settings.configFile = "/Users/alexeedm/Documents/Fish/smarties/factory/factoryRL_test1";
-	settings.dt = 0.005;
+	settings.dt = 0.01;
 	settings.endTime = 1000000;
 	settings.gamma = 0.85;
 	settings.greedyEps = 0.01;
-	settings.lRate = 0.03;
+	settings.lRate = 0.00;
 	settings.randSeed = 142144;
-	settings.restart = false;
+	settings.restart = "none";
 	settings.saveFreq = 100000;
 	settings.videoFreq = 500;
 	settings.scale = 0.02;
@@ -243,13 +293,19 @@ int main (int argc, char** argv)
 	parser.parse(argc, argv);
 	if (settings.lRate < 1e-9) settings.immortal = false;
 	else settings.immortal = true;
+    
+    if  (settings.randSeed == -1 )  srand(time(NULL));
+	else							srand(settings.randSeed + me);
 	
 	omp_set_num_threads(1);
 
 #ifdef _RL_VIZ
 	VisualSupport::run(argc, argv);
 #else
-	runTest();
+    
+    if (me == 0) runMaster(settings.restart);
+    else         runSlave(me, argc, argv);
+    
 #endif
 
 	return 0;

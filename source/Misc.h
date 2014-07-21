@@ -19,6 +19,8 @@
 #include "ErrorHandling.h"
 using namespace ErrorHandling;
 
+typedef unsigned char byte;
+
 inline double _angle(double ux, double uy, double vx, double vy)
 {
 	const double anglev = atan2(uy, ux) / M_PI*180.0;

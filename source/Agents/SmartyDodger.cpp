@@ -79,7 +79,7 @@ double SmartyDodger::getReward()
 	return reward;
 }
 
-void SmartyDodger::act(Action a)
+void SmartyDodger::act(Action& a)
 {
 	double dAng = 5.0;
 	

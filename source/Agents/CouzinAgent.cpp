@@ -59,7 +59,7 @@ void CouzinAgent::act()
 	
 	static const double l = d / (2*sqrt(2*M_PI));
 	environment->findClosestNeighbours(guys, this, 2 * l);
-	if (guys.size() > 0) type = DEAD;
+	//if (guys.size() > 0) type = DEAD;
 	
 	// 1. Zone of repulsion
 	environment->findClosestNeighbours(guys, this, zor);
