@@ -125,7 +125,7 @@ SmartySelfAvoider* SelfAvoidEnvironment::findClosestNeighbour(SmartySelfAvoider*
 	double min = 1e10;	
 	double xj, yj;
 	
-	CellsTraverser<SmartySelfAvoider>* getter = new CellsTraverser<SmartySelfAvoider>(cells);
+	static CellsTraverser<SmartySelfAvoider>* getter(new CellsTraverser<SmartySelfAvoider>(cells));
 	getter->prepare(cells->getObjId(agent));
 	SmartySelfAvoider *n, *closest = NULL;
 	while (getter->getNextXY(xj, yj, n))

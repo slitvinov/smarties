@@ -126,13 +126,13 @@ struct VisualSupport
 #endif
 
 // Runs the simulation
-void runSlave(int me)
+void runSlave(int me, int argc = 0, const char** argv = NULL)
 {
 	MRAG::Profiler profiler;
 	
 	// Class creating agents and environment from info in the file
 	ObjectFactory factory(settings.configFile);
-	System system = factory.getAgentVector();
+	System system = factory.getAgentVector(argc, argv);
 	
 	for (vector<Agent*>::iterator it = system.agents.begin(); it != system.agents.end(); it++)
 		(*it)->setEnvironment(system.env);
@@ -188,9 +188,9 @@ void runSlave(int me)
 		if (iter % (settings.saveFreq/10) == 0)
 		{
 		//	settings.greedyEps /= 2;
-			info("Time of simulation is now %f\n", time);
+			_info("Time of simulation is now %f\n", time);
 			if (debugLvl > 1) profiler.printSummary();
-            info("Reward:  %8.4f\n", system.env->getAccumulatedReward());
+            _info("Reward:  %8.4f\n", system.env->getAccumulatedReward());
 		}
 
 #ifdef _RL_VIZ
@@ -213,7 +213,7 @@ void runSlave(int me)
 	exit(0);
 }
 
-void runMaster()
+void runMaster(string restartFile)
 {
     // TODO: No need to create a whole system, just need actInfo and sInfo
     ObjectFactory factory(settings.configFile);
@@ -226,10 +226,13 @@ void runMaster()
     
     Master* master = new Master(learner, system.actInfo, system.sInfo);
     
+    if (settings.restart == "none")
+        master->restart(restartFile);
+    
     master->run();
 }
 
-int main (int argc, char** argv)
+int main (int argc, const char** argv)
 {
     int me;
     MPI_Init(&argc, &argv);
@@ -246,7 +249,7 @@ int main (int argc, char** argv)
 		{'e', "greedy_eps", DOUBLE, "Greedy epsilon",         &settings.greedyEps},
 		{'l', "learn_rate", DOUBLE, "Learning rate",          &settings.lRate},
 		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed},
-/*10*/	{'r', "restart",    NONE,   "Restart",                &settings.restart},
+/*10*/	{'r', "restart",    STRING, "Restart file",           &settings.restart},
 		{'q', "save_freq",  INT,    "Save frequency",         &settings.saveFreq},
 		{'p', "video_freq", INT,    "Video frequency",        &settings.videoFreq},
 		{'a', "scale",      DOUBLE, "Scaling factor",         &settings.scale},
@@ -273,7 +276,7 @@ int main (int argc, char** argv)
 	settings.greedyEps = 0.01;
 	settings.lRate = 0.00;
 	settings.randSeed = 142144;
-	settings.restart = false;
+	settings.restart = "none";
 	settings.saveFreq = 100000;
 	settings.videoFreq = 500;
 	settings.scale = 0.02;
@@ -300,8 +303,8 @@ int main (int argc, char** argv)
 	VisualSupport::run(argc, argv);
 #else
     
-    if (me == 0) runMaster();
-    else         runSlave(me);
+    if (me == 0) runMaster(settings.restart);
+    else         runSlave(me, argc, argv);
     
 #endif
 

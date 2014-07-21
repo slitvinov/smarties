@@ -51,6 +51,11 @@ inline void Master::packChunk(byte* &buf, Action a)
     buf += actSize;
 }
 
+void Master::restart(string fname)
+{
+    learner->try2restart(fname);
+}
+
 void Master::run()
 {
     MPI_Request request;
@@ -67,7 +72,7 @@ void Master::run()
     {
         MPI_Recv(&n, 1, MPI_INTEGER, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
         debug("Master will receive %d chunks from proc %d of total size %d... ", n, status.MPI_SOURCE, n*inOneSize);
-
+        int slave = status.MPI_SOURCE;
         
         if (n > insize)
         {
@@ -83,7 +88,7 @@ void Master::run()
             outbuf = new byte[outsize * outOneSize];
         }
         
-        MPI_Recv(inbuf, n*inOneSize, MPI_BYTE, status.MPI_SOURCE, 2, MPI_COMM_WORLD, &status);
+        MPI_Recv(inbuf, n*inOneSize, MPI_BYTE, slave, 2, MPI_COMM_WORLD, &status);
         debug("completed\n");
         
         byte* cInbuf = inbuf;
@@ -104,14 +109,18 @@ void Master::run()
             packChunk(cOutbuf, a);
         }
 
-        MPI_Isend(outbuf, n*outOneSize, MPI_BYTE, status.MPI_SOURCE, 0, MPI_COMM_WORLD, &request);
-        debug("Master sends %d bytes to proc %d\n", n*outOneSize, status.MPI_SOURCE);
+        MPI_Send(outbuf, n*outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD);
+        debug("Master sends %d bytes to proc %d\n", n*outOneSize, slave);
         
         // TODO: Add savers
         // TODO: also to the slave processes
         
         iter++;
-        if (iter % 1000 == 0) info("Reward: %f\n", getTotR());
+        if (iter % 1000 == 0)
+        {
+            _info("Reward: %f\n", getTotR());
+            learner->savePolicy(Saver::folder + "policy");
+        }
     }
 
 }
@@ -153,7 +162,7 @@ Slave::Slave(System& newSystem, double newDt, int me) : system(newSystem), agent
         cbuf += actSize;
     }
 
-    MPI_Ibsend(tmpBuf, insize, MPI_BYTE, me, 0, MPI_COMM_WORLD, &req);
+    MPI_Isend(tmpBuf, insize, MPI_BYTE, me, 0, MPI_COMM_WORLD, &req);
 }
 
 void Slave::evolve(double& t)
@@ -199,8 +208,8 @@ void Slave::evolve(double& t)
 
     packData();
 
-    MPI_Isend(&n, 1, MPI_INTEGER, 0, 1, MPI_COMM_WORLD, &outreqN);
-    MPI_Isend(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD, &outreqData);
+    MPI_Send(&n, 1, MPI_INTEGER, 0, 1, MPI_COMM_WORLD);
+    MPI_Send(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD);
     debug("Slave %d sends %d chunks of total size %d bytes\n", me, n, outsize);
 
 }

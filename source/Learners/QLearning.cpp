@@ -17,6 +17,7 @@ QLearning::QLearning(QApproximator* newQ, ActionInfo& actInfo, double newGamma, 
 Q(newQ), actionsIt(actInfo), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate)
 {
 	rng = new RNG(rand());
+    suffix = 0;
 }
 
 void QLearning::selectAction(State &s, Action &a)
@@ -60,3 +61,28 @@ void QLearning::update(State &sOld, Action &a, double r, State &s)
     
     Q->correct(sOld, a, err);
 }
+
+void QLearning::try2restart(string prefix)
+{
+	_info("Restarting from saved policy...\n");
+	bool fl = true;
+	string fname = prefix + "_backup" + to_string(suffix);
+    suffix++;
+    
+    if ( Q->restart(fname) )
+	{
+		_info("Restart successful, moving on...\n");
+	}
+	else
+	{
+		_info("Not all policies restarted, therefore assumed zero. Moving on...\n");
+	}
+}
+
+void QLearning::savePolicy(string fname)
+{
+	_info("\nSaving all policies...\n");
+	Q->save(fname);
+	_info("Done\n");
+}
+

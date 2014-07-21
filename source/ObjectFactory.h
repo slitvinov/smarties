@@ -29,5 +29,5 @@ private:
 	
 public:
 	ObjectFactory(string newFilename) : filename(newFilename) {};
-	System getAgentVector();
+	System getAgentVector(int argc = 0, const char** argv = NULL);
 };

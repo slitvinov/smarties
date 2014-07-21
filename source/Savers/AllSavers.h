@@ -254,7 +254,7 @@ public:
 		ofstream& out(*file);
 		map<long int, double>& data = Q->getData();
 		
-		info("Saving all the states... ");
+		_info("Saving all the states... ");
 		
 		for (map<long int, double>::iterator it = data.begin(); it != data.end(); it++)
 		{
@@ -265,7 +265,7 @@ public:
 		out << endl;
 		out.flush();
 		
-		info("Done\n");
+		_info("Done\n");
 	}
 };
 
@@ -322,7 +322,7 @@ public:
 			
 			out.flush();
 			
-			info("Done\n");
+			_info("Done\n");
 		}
 	}
 };
@@ -341,11 +341,11 @@ public:
 #ifdef _RL_VIZ
 		char buf[100];
 		sprintf(buf, "%s%07d.tga", (folder+fname).c_str(), num);
-		info("Saving screenshot to %s... ", buf);
+		_info("Saving screenshot to %s... ", buf);
 		num++;
 		if (gltWriteTGA(buf))
 		{
-			info("Ok\n");
+			_info("Ok\n");
 		}
 		else
 		{

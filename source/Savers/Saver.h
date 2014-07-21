@@ -24,9 +24,10 @@ class Saver
 protected:
 	int period;
 	ofstream* file;
-	static string folder;
 	
 public:
+    static string folder;
+
 	Saver (ostream* cOut) : file((ofstream*)cOut) { };
 	Saver (string fname)
 	{

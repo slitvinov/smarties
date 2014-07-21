@@ -27,7 +27,7 @@ extern struct Settings
 	double gamma;
 	//double learnDump;
 	//bool   shared;
-	bool   restart;
+	string   restart;
 	
 	double nnEta;
 	double nnAlpha;

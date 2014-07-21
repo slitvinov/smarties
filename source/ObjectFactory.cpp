@@ -53,7 +53,7 @@ inline double ObjectFactory::_parseDouble(string source, string pattern, bool re
 	return atof(_parse(source, pattern, req).c_str());
 }
 
-System ObjectFactory::getAgentVector()
+System ObjectFactory::getAgentVector(int argc, const char** argv)
 {
 	RNG rng(rand());
 	

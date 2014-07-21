@@ -32,6 +32,7 @@ class Master
 public:
     Master(Learner* learner, ActionInfo actInfo, StateInfo sInfo);
     double getTotR() { double tmp = totR; totR = 0; return tmp; }
+    void restart(string fname);
     
     void run();
 };

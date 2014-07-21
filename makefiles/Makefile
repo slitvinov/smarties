@@ -5,6 +5,7 @@ OPENMP_FLAG=# -openmp
 
 viz ?= 0
 config ?= "debug"
+extra ?= ""
 
 ifeq "$(viz)" "1"
 CPPFLAGS+= -D_RL_VIZ
@@ -26,7 +27,8 @@ OPENMP_FLAG=# -fopenmp
 CPPFLAGSOPT+= -msse3
 endif
 
-CPPFLAGS+= -I/opt/local/include/openmpi -I/cluster/home04/mavt/alexeedm/armadillo/usr/include
+CPPFLAGS+= -I/usr/local/Cellar/vtk5/5.10.1/include/vtk-5.10/ -I../MRAGapps/source -I../MRAG/source  -I/opt/local/include/openmpi -I/cluster/home04/mavt/alexeedm/armadillo/usr/include
+CPPFLAGS+= -I../MRAGapps/IF2D_ROCKS/source/mattia-RL/
 CPPFLAGS+= $(OPENMP_FLAG)
 
 LIBS += \
@@ -53,10 +55,10 @@ rl: $(OBJ_FILES)
 	$(CC) $(LIBS) $^ -o $@
 
 %.o: %.cpp
-	$(CC)  $(CPPFLAGS) $(CPPFLAGSOPT) -c $< -o $@
+	$(CC) $(extra)  $(CPPFLAGS) $(CPPFLAGSOPT) -c $< -o $@
 	
 %.d: %.cpp
-	$(CC)  $(CPPFLAGS) -MD -c $<
+	$(CC) $(extra)  $(CPPFLAGS) -MD -c $<
     
 vpath %.cpp $(DIRS)
 vpath %.h   $(DIRS)
