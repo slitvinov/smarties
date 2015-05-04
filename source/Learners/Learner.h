@@ -15,7 +15,6 @@
 
 #include "../Agents/Agent.h"
 #include "../Environments/Environment.h"
-#include "../MRAGProfiler.h"
 #include "../Savers/Saver.h"
 
 using namespace std;
@@ -28,9 +27,7 @@ protected:
 	vector<Agent*> agents;
 		
 	list<Saver*> savers;
-	
-	MRAG::Profiler* profiler;
-	
+		
 	inline void execSavers(double t)
 	{
 		for (list<Saver*>::iterator it = savers.begin(), end = savers.end(); it != end; ++it)
@@ -41,8 +38,8 @@ protected:
 	
 	
 public:
-	Learner(System newSystem, double newDt, MRAG::Profiler* newProfiler = NULL) :
-	system(newSystem), agents(newSystem.agents), dt(newDt), profiler(newProfiler) { };
+	Learner(System newSystem, double newDt) :
+	system(newSystem), agents(newSystem.agents), dt(newDt) { };
 	
 	virtual void evolve(double t) = 0;
 	virtual void savePolicy(string prefix)  = 0;

@@ -41,7 +41,7 @@ private:
 	void agentsMove();
 		
 public:
-	QLearning(System newSystem, double newGamma, double newGreedyEps, double newLRate, double newDt, MRAG::Profiler* newProfiler = NULL);
+	QLearning(System newSystem, double newGamma, double newGreedyEps, double newLRate, double newDt);
 	void evolve(double t);
 	void savePolicy(string prefix);
 	void try2restart(string prefix);

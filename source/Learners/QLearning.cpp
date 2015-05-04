@@ -13,8 +13,8 @@
 #include "QLearning.h"
 #include "../Settings.h"
  
-QLearning::QLearning(System newSystem, double newGamma, double newGreedyEps, double newLRate, double newDt, MRAG::Profiler* newProfiler) :
-Learner(newSystem, newDt, newProfiler), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate)
+QLearning::QLearning(System newSystem, double newGamma, double newGreedyEps, double newLRate, double newDt) :
+Learner(newSystem, newDt), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate)
 {
 	// All agents of the same type share same policy
 		
@@ -239,5 +239,105 @@ void QLearning::savePolicy(string prefix)
 	}
 	info("Done\n");
 }
+
+
+
+
+
+
+
+
+
+
+
+/*
+ *  QLearning.cpp
+ *  rl
+ *
+ *  Created by Dmitry Alexeev on 02.05.13.
+ *  Copyright 2013 ETH Zurich. All rights reserved.
+ *
+ */
+
+#include <map>
+
+#include "../StateAction.h"
+#include "QLearning.h"
+#include "../Settings.h"
+
+QLearning::QLearning(QApproximator* Q, ActionInfo& actInfo, double gamma, double greedyEps, double lRate) :
+Q(newQ), actionsIt(actInfo), gamma(gamma), greedyEps(greedyEps), lRate(lRate)
+{
+    rng = new RNG(rand());
+    suffix = 0;
+}
+
+void QLearning::selectAction(State &s, Action &a)
+{
+    double best = -1e10;
+    actionsIt.reset();
+    while (!actionsIt.done())
+    {
+        double val;
+        if ((val = Q->get(s, actionsIt.next())) > best)
+        {
+            best = val;
+            actionsIt.memorize();
+        }
+    }
+    double p = rng->uniform();
+    if (p > greedyEps)  a = actionsIt.recall();
+    else                a = actionsIt.getRand(rng);
+}
+
+void QLearning::update(State &sOld, Action &a, double r, State &s)
+{
+    //       a, r
+    // sOld ------> s
+    //
+    // Find V(s) = max Q(s, a')
+    //              a'
+    
+    double best = -1e10;
+    actionsIt.reset();
+    while (!actionsIt.done())
+    {
+        double val;
+        if ((val = Q->get(s, actionsIt.next())) > best)
+            best = val;
+    }
+    
+    double err = lRate * (r + best - Q->get(sOld, a));
+    
+    debug1("Q learning: %f --> %f\n", Q->get(sOld, a), Q->get(sOld, a) + err);
+    
+    Q->correct(sOld, a, err);
+}
+
+void QLearning::try2restart(string prefix)
+{
+    _info("Restarting from saved policy...\n");
+    bool fl = true;
+    string fname = prefix + "_backup" + to_string(suffix);
+    suffix++;
+    
+    if ( Q->restart(fname) )
+    {
+        _info("Restart successful, moving on...\n");
+    }
+    else
+    {
+        _info("Not all policies restarted, therefore assumed zero. Moving on...\n");
+    }
+}
+
+void QLearning::savePolicy(string fname)
+{
+    _info("\nSaving all policies...\n");
+    Q->save(fname);
+    _info("Done\n");
+}
+
+
 
 		

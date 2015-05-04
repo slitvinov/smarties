@@ -40,7 +40,7 @@ namespace ArgumentParser
 			
 			if (optsMap.find(long_options[i].val) != optsMap.end())
 				die("Duplicate short options in declaration, please correct the source code\n");
-			else optsMap[long_options[i].val] = opts[i];
+            else optsMap[long_options[i].val] = opts[i];
 			
 		}
 		
@@ -54,7 +54,7 @@ namespace ArgumentParser
 	{
 		int option_index = 0;
 		int c = 0;
-		
+        
 		while((c = getopt_long (argc, argv, ctrlString.c_str(), long_options, &option_index)) != -1)
 		{
 			if (c == 0) continue;
@@ -90,17 +90,17 @@ namespace ArgumentParser
 					*((int*)myOpt.value) = atoi(optarg);
 					break;
 					
-				case UINT:
-					*((unsigned int*)myOpt.value) = atoi(optarg);
-					break;
-					
 				case DOUBLE:
 					*((double*)myOpt.value) = atof(optarg);
 					break;
 					
-				case STRING:
-					*((string*)myOpt.value) = optarg;
-					break;
+                case CHAR:
+                    *((string*)myOpt.value) = optarg;
+                    break;
+                
+                case STRING:
+                    *((string*)myOpt.value) = optarg;
+                    break;
 					
 			}
 		}
@@ -119,18 +119,18 @@ namespace ArgumentParser
 				case INT:
 					warn("%d", *((int*)myOpt.value));
 					break;
-					
-				case UINT:
-					warn("%d", *((unsigned int*)myOpt.value));
-					break;
-					
+
 				case DOUBLE:
 					warn("%f", *((double*)myOpt.value));
 					break;
 					
-				case STRING:
-					warn("%s", ((string*)myOpt.value)->c_str());
-					break;
+                case CHAR:
+                    warn("%c", *((char*)myOpt.value));
+                    break;
+                    
+                case STRING:
+                    warn("%s", ((string*)myOpt.value)->c_str());
+                    break;
 			}
 			
 			warn("\n");

@@ -210,7 +210,7 @@ bool MultiTable::restart(string fname)
 			data[key] = dummy;
 			counter++;
 			
-			debug("%d ", key);
+			debug("%ld ", key);
 			debug("---> %10.10e\n", dummy);
 		}
 	}

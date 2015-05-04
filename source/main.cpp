@@ -33,7 +33,6 @@ int omp_get_thread_num()
 #include "Learners/Learner.h"
 #include "ObjectFactory.h"
 #include "Settings.h"
-#include "MRAGProfiler.h"
 
 #include "Savers/AllSavers.h"
 
@@ -125,8 +124,6 @@ struct VisualSupport
 // Runs the simulation
 void runTest()
 {
-	MRAG::Profiler profiler;
-	
 	// Class creating agents and environment from info in the file
 	ObjectFactory factory(settings.configFile);
 	System system = factory.getAgentVector();
@@ -216,34 +213,32 @@ void runTest()
 
 int main (int argc, char** argv)
 {
-	const OptionStruct opts[] =
-	{
-		{'x', "center_x",   DOUBLE, "X coo of domain center", &settings.centerX},
-		{'y', "center_y",   DOUBLE, "Y coo of domain center", &settings.centerY},
-		{'c', "config",     STRING, "Name of config file",    &settings.configFile},
-		{'t', "dt",         DOUBLE, "Simulation timestep",    &settings.dt},
-		{'f', "end_time",   DOUBLE, "End time of simulaiton", &settings.endTime},
-		{'g', "gamma",      DOUBLE, "Gamma parameter",        &settings.gamma},
-		{'e', "greedy_eps", DOUBLE, "Greedy epsilon",         &settings.greedyEps},
-		{'l', "learn_rate", DOUBLE, "Learning rate",          &settings.lRate},
-		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed},
-/*10*/	{'r', "restart",    NONE,   "Restart",                &settings.restart},
-		{'q', "save_freq",  INT,    "Save frequency",         &settings.saveFreq},
-		{'p', "video_freq", INT,    "Video frequency",        &settings.videoFreq},
-		{'a', "scale",      DOUBLE, "Scaling factor",         &settings.scale},
-		{'v', "debug_lvl",  INT,    "Debug level",            &debugLvl},
+	vector<OptionStruct> vopts
+	({
+        {'x', "center_x",   DOUBLE, "X coo of domain center", &settings.centerX,    0.5},
+		{'y', "center_y",   DOUBLE, "Y coo of domain center", &settings.centerY,    0.5},
+		{'c', "config",     STRING, "Name of config file",    &settings.configFile, (string)"/Users/alexeedm/Documents/Fish/smarties/factory/factoryRL_test1"},
+		{'t', "dt",         DOUBLE, "Simulation timestep",    &settings.dt,         0.01},
+		{'f', "end_time",   DOUBLE, "End time of simulaiton", &settings.endTime,    1e9},
+		{'g', "gamma",      DOUBLE, "Gamma parameter",        &settings.gamma,      0.85},
+		{'e', "greedy_eps", DOUBLE, "Greedy epsilon",         &settings.greedyEps,  0.01},
+		{'l', "learn_rate", DOUBLE, "Learning rate",          &settings.lRate,      0.01},
+		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed,   11111},
+        {'r', "restart",    NONE,   "Restart",                &settings.restart,    false},
+		{'q', "save_freq",  INT,    "Save frequency",         &settings.saveFreq,   10000},
+		{'p', "video_freq", INT,    "Video frequency",        &settings.videoFreq,  10000},
+		{'a', "scale",      DOUBLE, "Scaling factor",         &settings.scale,      0.012},
+		{'v', "debug_lvl",  INT,    "Debug level",            &debugLvl,            2},
 		
-		{'1', "nneta",      DOUBLE, "NNeta",                  &settings.nnEta},
-		{'2', "nnalpha",    DOUBLE, "NNalpha",                &settings.nnAlpha},
-		{'3', "nnlayer1",   INT,    "NN layer 1",             &settings.nnLayer1},
-		{'4', "nnlayer2",   INT,    "NN layer 2",             &settings.nnLayer2},
+		{'1', "nneta",      DOUBLE, "NNeta",                  &settings.nnEta,      0.3},
+		{'2', "nnalpha",    DOUBLE, "NNalpha",                &settings.nnAlpha,    0.2},
+		{'3', "nnlayer1",   INT,    "NN layer 1",             &settings.nnLayer1,   5},
+		{'4', "nnlayer2",   INT,    "NN layer 2",             &settings.nnLayer2,   5},
 		
-		{'6', "best",       NONE,   "Use best shape",         &settings.best},
-		{'7', "prefix",     STRING, "Prefix",                 &settings.prefix}
-	};
-	
-	vector<OptionStruct> vopts(opts, opts + 20);
-	
+		{'6', "best",       NONE,   "Use best shape",         &settings.best,       false},
+		{'7', "prefix",     STRING, "Prefix",                 &settings.prefix,     (string)"hpar_best"}
+	});
+		
 	debugLvl = 2;
 	settings.centerX = 0.5;
 	settings.centerY = 0.5;

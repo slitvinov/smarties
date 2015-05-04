@@ -13,7 +13,6 @@
 
 #include "../ANN/Network.h"
 #include "../ANN/WaveletNet.h"
-#include "../ANN/lwpr.h"
 #include "../rng.h"
 #include "../ErrorHandling.h"
 

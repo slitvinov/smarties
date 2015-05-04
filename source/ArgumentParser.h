@@ -17,7 +17,7 @@ using namespace std;
 
 namespace ArgumentParser
 {
-	enum Types { NONE, INT, UINT, DOUBLE, CHAR, STRING };
+	enum Types { NONE, INT, DOUBLE, CHAR, STRING };
 	
 	struct OptionStruct
 	{
@@ -26,7 +26,18 @@ namespace ArgumentParser
 		Types  type;
 		string description;
 		void*  value;
-	};
+        
+        template <typename T>
+        OptionStruct(char shortOpt, string longOpt, Types type, string description, T* val, T defVal) :
+        shortOpt(shortOpt), longOpt(longOpt), type(type), description(description)
+        {
+            value = (void*)val;
+            *val = defVal;
+        }
+        
+        OptionStruct() {};
+
+    };
 
 	class Parser
 	{
