@@ -14,6 +14,7 @@
 
 #include "rng.h"
 #include "ErrorHandling.h"
+#include "Misc.h"
 
 using namespace std;
 using namespace ErrorHandling;
@@ -92,6 +93,20 @@ public:
 			if (res[i] < -2) res[i] = -2;
 		}
 	}
+    
+    void pack(byte* buf)
+    {
+        double* dbuf = (double*) buf;
+        for (int i=0; i<sInfo.dim; i++)
+            dbuf[i] = vals[i];
+    }
+    
+    void unpack(byte* buf)
+    {
+        double* dbuf = (double*) buf;
+        for (int i=0; i<sInfo.dim; i++)
+            vals[i] = dbuf[i];
+    }
 	
 };
 
@@ -125,6 +140,7 @@ private:
 public:
 	vector<int> vals;
 	
+	Action() {};
 	Action(const ActionInfo& newActInfo) : actInfo(newActInfo)
 	{
 		vals.resize(actInfo.dim);
@@ -147,6 +163,20 @@ public:
 		o << vals[actInfo.dim-1] << "]";
 		return o.str();
 	}
+    
+    void pack(byte* buf)
+    {
+        double* dbuf = (double*) buf;
+        for (int i=0; i<actInfo.dim; i++)
+            dbuf[i] = vals[i];
+    }
+    
+    void unpack(byte* buf)
+    {
+        double* dbuf = (double*) buf;
+        for (int i=0; i<actInfo.dim; i++)
+            vals[i] = dbuf[i];
+    }
 	
 };
 

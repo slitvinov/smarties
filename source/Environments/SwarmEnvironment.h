@@ -16,32 +16,33 @@
 
 class SmartySwarmer;
 #include "../Agents/SmartySwarmer.h"
-#include "PotentialFluidEnvironment.h"
 
-
-class SwarmEnvironment: public PotentialFluidEnvironment
+class SwarmEnvironment: public Environment
 {
 public:
-	StateInfo sI;
-	ActionInfo aI;
-	
-	void setDims();
-	double momentum;
-	void calculateMomentum();	
-	
+    void setDims();
+    double momentum, rWall;
+    void calculateMomentum();
+
+    vector<double> vortices;
+    vector<pair<double, double> > vortCoos;
+    vector<pair<double, double>* > targets;
+    vector<SmartySwarmer*> myfAgents;
+
 public:
-	vector<SmartySwarmer*>   swarmers;
-	Cells <SmartySwarmer>*   cells;
-	CellsTraverser<SmartySwarmer>* getter;
-	
-	SwarmEnvironment(vector<Agent*> newAgents, StateType tp);
-	
-	void findClosestNeighbours(vector<SmartySwarmer*>& res, SmartySwarmer* agent, double dist);
-	SmartySwarmer* findClosestNeighbour(SmartySwarmer* agent);	
-	void evolve(double t);
-	
-	double getMomentum()
-	{
-		return momentum;
-	}
+    vector<SmartySwarmer*>   swarmers;
+    Cells <SmartySwarmer>*   cells;
+    CellsTraverser<SmartySwarmer>* getter;
+
+    SwarmEnvironment(vector<Agent*> newAgents, double rWall, StateType tp);
+
+    void findClosestNeighbours(vector<SmartySwarmer*>& res, SmartySwarmer* agent, double dist);
+    SmartySwarmer* findClosestNeighbour(SmartySwarmer* agent);
+    void computeVelocities();
+    void evolve(double t);
+
+    double getMomentum()
+    {
+        return momentum;
+    }
 };

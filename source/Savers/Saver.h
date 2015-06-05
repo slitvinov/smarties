@@ -15,28 +15,35 @@
 #include <errno.h>
 #include <string>
 
-#include "../Environments/Environment.h"
+#include "../Scheduler/Scheduler.h"
 
 using namespace std;
+
+class Master;
 
 class Saver
 {
 protected:
 	int period;
 	ofstream* file;
-	static string folder;
+	Master* master;
 	
 public:
-	Saver (ostream* cOut) : file((ofstream*)cOut) { };
-	Saver (string fname)
+    static string folder;
+
+	Saver (ostream* cOut, int period = 1) : file((ofstream*)cOut), period(period) { };
+	Saver (string fname, int period = 1) : period(period)
 	{
 		file = new ofstream((folder+fname).c_str());
 	};
-	Saver (){};
+	Saver () : file(NULL) {};
 	
-	virtual void setEnvironment(Environment*) { };
-	inline  void setPeriod(int);
-	inline  int  getPeriod();
+    ~Saver() { if (file != NULL) file->close(); }
+
+	void setMaster(Master* m)
+	{
+	    master = m;
+	};
 	
 	inline static bool makedir(string name)
 	{
@@ -45,15 +52,10 @@ public:
 		return true;
 	}
 	
+	virtual bool isReady(double time, int iter)
+	{
+	    return (iter % period) == 0;
+	}
+
 	virtual void exec() = 0;
 };
-
-inline void Saver::setPeriod(int p)
-{
-	period = p;
-}
-
-inline int Saver::getPeriod()
-{
-	return period;
-}

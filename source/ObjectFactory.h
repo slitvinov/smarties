@@ -29,5 +29,5 @@ private:
 	
 public:
 	ObjectFactory(string newFilename) : filename(newFilename) {};
-	System getAgentVector();
+	Environment* createEnvironment();
 };

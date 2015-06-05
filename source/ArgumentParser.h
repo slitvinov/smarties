@@ -51,6 +51,6 @@ namespace ArgumentParser
 	public:
 		
 		Parser(const std::vector<OptionStruct> optionsMap);
-		void parse(int argc, char * const * argv);
+		void parse(int argc, char * const * argv, bool verbose = false);
 	};
 }

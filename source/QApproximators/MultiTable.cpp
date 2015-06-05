@@ -118,7 +118,7 @@ double MultiTable::usage() const
 
 void MultiTable::save(string fname)
 {
-	info("save %s\n", fname.c_str());
+	_info("save %s\n", fname.c_str());
 	
 	string nameBackup = fname + "_backup";
 	ofstream out(nameBackup.c_str());
@@ -169,7 +169,7 @@ bool MultiTable::restart(string fname)
 	string nameBackup = fname;// + "_backup";
 		
 	ifstream in(nameBackup.c_str());
-	info("%s\n", nameBackup.c_str());
+	_info("%s\n", nameBackup.c_str());
 	
 	if(in.good())
 	{
@@ -178,27 +178,27 @@ bool MultiTable::restart(string fname)
 		// Reading state info
 		in >> sDim;
 		if (sInfo.dim != sDim ) die("Saved state and current state do not match in dimensionality!\n");
-		else                   info("State dimension = %d\n", sDim);
+		else                    _info("State dimension = %d\n", sDim);
 		
 		for(int i=0; i<sDim; i++)
 		{
 			int dummy = 0;
 			in >> dummy;
 			if(dummy != sInfo.bounds[i])  die("Saved state and current state do not match in dimensionality!\n");
-			else                         info("StateDim[i] = %d\n", dummy);
+			else                          _info("StateDim[i] = %d\n", dummy);
 		}
 		
 		// Reading action info
 		in >> aDim;
 		if (actInfo.dim != aDim ) die("Saved action and current action do not match in dimensionality!\n");
-		else                     info("Action dimension = %d\n", aDim);
+		else                      _info("Action dimension = %d\n", aDim);
 		
 		for(int i=0; i<aDim; i++)
 		{
 			int dummy = 0;
 			in >> dummy;
 			if(dummy != actInfo.bounds[i])  die("Saved action and current action do not match in dimensionality!\n");
-			else                           info("ActionDim[i] = %d\n", dummy);
+			else                            _info("ActionDim[i] = %d\n", dummy);
 		}
 		
 		unsigned counter = 0;

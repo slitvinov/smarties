@@ -11,6 +11,7 @@
 
 #include <cstdlib>
 #include <cstdio>
+#include <cstdarg>
 
 namespace ErrorHandling
 {
@@ -20,7 +21,7 @@ namespace ErrorHandling
 #define  error(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
 	
 #define   warn(format, ...)	{if (debugLvl > 0) fprintf(stderr, format, ##__VA_ARGS__);}
-#define   info(format, ...)	{if (debugLvl > 1) fprintf(stderr, format, ##__VA_ARGS__);}
+#define   _info(format, ...)	{if (debugLvl > 1) fprintf(stderr, format, ##__VA_ARGS__);}
 
 #define  debug(format, ...)	{if (debugLvl > 2) fprintf(stderr, format, ##__VA_ARGS__);}
 #define debug1(format, ...)	{if (debugLvl > 3) fprintf(stderr, format, ##__VA_ARGS__);}

@@ -50,7 +50,7 @@ namespace ArgumentParser
 		long_options[nOpt].val  = 0;
 	}
 	
-	void Parser::parse(int argc, char * const * argv)
+	void Parser::parse(int argc, char * const * argv, bool verbose)
 	{
 		int option_index = 0;
 		int c = 0;
@@ -58,20 +58,21 @@ namespace ArgumentParser
 		while((c = getopt_long (argc, argv, ctrlString.c_str(), long_options, &option_index)) != -1)
 		{
 			if (c == 0) continue;
+			if (verbose)
 			if (optsMap.find(c) == optsMap.end())
 			{
-				info("Available options:\n");
+				_info("Available options:\n");
 				
 				for (int i=0; i<nOpt; i++)
 				{
 					OptionStruct& myOpt = opts[i];
 					if (myOpt.longOpt.length() > 4)
 					{
-						info("-%c  or  --%s \t: %s\n", myOpt.shortOpt, myOpt.longOpt.c_str(), myOpt.description.c_str());
+						_info("-%c  or  --%s \t: %s\n", myOpt.shortOpt, myOpt.longOpt.c_str(), myOpt.description.c_str());
 					}
 					else
 					{
-						info("-%c  or  --%s \t\t: %s\n", myOpt.shortOpt, myOpt.longOpt.c_str(), myOpt.description.c_str());
+						_info("-%c  or  --%s \t\t: %s\n", myOpt.shortOpt, myOpt.longOpt.c_str(), myOpt.description.c_str());
 					}
 				}
 					
@@ -105,6 +106,7 @@ namespace ArgumentParser
 			}
 		}
 		
+		if (verbose)
 		for (int i=0; i<nOpt; i++)
 		{
 			OptionStruct& myOpt = opts[i];

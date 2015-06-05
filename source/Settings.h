@@ -13,8 +13,6 @@ using namespace std;
 
 extern struct Settings
 {
-	double scale;
-	double centerX, centerY;
 	int    saveFreq;
 	int    videoFreq;
 	string configFile;
@@ -25,9 +23,7 @@ extern struct Settings
 	double lRate;
 	double greedyEps;
 	double gamma;
-	//double learnDump;
-	//bool   shared;
-	bool   restart;
+	string restart;
 	
 	double nnEta;
 	double nnAlpha;

@@ -21,36 +21,16 @@ class Agent;
 class Environment
 {
 public:
+    StateInfo sI;
+	ActionInfo aI;
+    
 	vector<Agent*> agents;
 	map<string, void*> data;
-	double totalReward;
 	
-	Environment(vector<Agent*> newAgents): agents(newAgents), totalReward(0) {};
+    Environment() {};
+    Environment(vector<Agent*> agents) : agents(agents) {};
 	
 	virtual void   getState (Agent* agent, State& s) { };
 	virtual double getReward(Agent* agent)           { return 0; }
 	virtual void   evolve   (double t)               { };
-	
-	inline  void   storeDataRef(void* someDataRef, string name)
-	{
-		data[name] = someDataRef;
-	}
-	
-	inline double getAccumulatedReward()
-	{
-		double res = totalReward;
-		totalReward = 0;
-		return res;
-	}
-	inline void   accumulateReward    (double r)
-	{
-		totalReward += r; 
-	}
-	
-};
-
-struct System
-{
-	Environment* env;
-	vector<Agent*> agents;
 };

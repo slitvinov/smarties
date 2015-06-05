@@ -13,7 +13,6 @@
 
 #include "../StateAction.h"
 #include "Agent.h"
-#include "DynamicColumn.h"
 
 class SelfAvoidEnvironment;
 #include "../Environments/Environment.h"
@@ -22,9 +21,7 @@ class SelfAvoidEnvironment;
 class SmartySelfAvoider : public Agent
 {
 public:
-	SelfAvoidEnvironment* environment;
-	DynamicColumn* closestDynCol;
-	SmartySelfAvoider* closestNeighbour;
+	SelfAvoidEnvironment* env;
 	
 	bool crashed;	
 		
@@ -33,17 +30,13 @@ public:
 public:
 	double x, y, IvI, vx, vy, d;
 
-	SmartySelfAvoider(double newX, double newY, double newD,  double newT,
-				      double newVx = 5.0, double newVy = 0.0);
+	SmartySelfAvoider(double x, double y, double d, double t,
+				      double vx = 5.0, double vy = 0.0);
 		
 	void   getState(State& s);
 	double getReward();
-	void   act(Action a);
+	void   act(Action& a);
 	void   move(double dt);
 	
 	void   setEnvironment(Environment* env);
-	
-#ifdef _RL_VIZ
-	void   paint();
-#endif
 };

@@ -10,33 +10,28 @@
 #pragma once
 
 #include <vector>
+#include <tuple>
 
 #include "Environment.h"
 #include "CellList.h"
-
-class CircularWall;
-class DynamicColumn;
-class SmartySelfAvoider;
 #include "../Agents/SmartySelfAvoider.h"
-#include "../Agents/DynamicColumn.h"
-#include "../Agents/CircularWall.h"
+
+class SmartySelfAvoider;
+
+typedef tuple<double, double, double> Column;
 
 class SelfAvoidEnvironment: public Environment
 {
-public:
-	StateInfo sI;
-	ActionInfo aI;
-	
-	void setDims();
-		
-public:
-	vector<DynamicColumn*> dynColumns;
-	CircularWall*          circWall;
-	vector<SmartySelfAvoider*>   dodgers;
-	Cells <SmartySelfAvoider>*   cells;
+    void setDims();
 
-	SelfAvoidEnvironment(vector<Agent*> newAgents, StateType tp);
-	DynamicColumn*     findClosestDynColumn(SmartySelfAvoider* agent);
+public:
+	vector<Column> columns;
+	vector<SmartySelfAvoider*> avoiders;
+	double rWall;
+	Cells <SmartySelfAvoider>* cells;
+
+	SelfAvoidEnvironment(vector<Agent*> agents, vector<Column> columns, double rWall, StateType st);
+	Column findClosestColumn(SmartySelfAvoider* agent);
 	SmartySelfAvoider* findClosestNeighbour(SmartySelfAvoider* agent);
 	
 	void evolve(double t);

@@ -12,16 +12,10 @@
 #include "AllAgents.h"
 #include "Environments/Environment.h"
 
-class DodgerEnvironment;
 class SelfAvoidEnvironment;
-class CouzinEnvironment;
-class PotentialFluidEnvironment;
-class CouzinDipoleEnvironment;
 class SwarmEnvironment;
+class ExternalAgent;
 
-#include "Environments/DodgerEnvironment.h"
 #include "Environments/SelfAvoidEnvironment.h"
-#include "Environments/CouzinEnvironment.h"
-#include "Environments/PotentialFluidEnvironment.h"
-#include "Environments/CouzinDipoleEnvironment.h"
 #include "Environments/SwarmEnvironment.h"
+#include "Environments/ExternalEnvironment.h"
