@@ -40,8 +40,18 @@ LIBS += \
 LIBS += -lstdc++
 
 DIRS = $(filter-out ../source/ANNTests/ ../source/ANN/ ../source/CMAUtility/ ../source/Process/, $(sort $(dir $(wildcard ../source/*/))))
-CPP_FILES = $(wildcard $(DIRS:%/=%/*.cpp))
-OBJ_FILES = $(notdir $(CPP_FILES:.cpp=.o))
+OBJ_FILES = ArgumentParser.o ObjectFactory.o \
+						Profiler.o StateAction.o \
+						main.o rng.o \
+						Agent.o ExternalAgent.o \
+						SmartySelfAvoider.o SmartySwarmer.o \
+						ExternalEnvironment.o SelfAvoidEnvironment.o \
+						SwarmEnvironment.o QLearning.o \
+						MultiTable.o Saver.o \
+						Scheduler.o
+						
+CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
+
 	
 .DEFAULT_GOAL := rl
 
@@ -50,6 +60,9 @@ ifneq "$(MAKECMDGOALS)" "clean"
 endif
     
 rl: $(OBJ_FILES)
+	$(CC) $(LIBS) $^ -o $@
+	
+analyse: analyse.o MultiTable.o StateAction.o
 	$(CC) $(LIBS) $^ -o $@
 
 %.o: %.cpp

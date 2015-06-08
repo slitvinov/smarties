@@ -31,12 +31,13 @@ MultiTable::MultiTable(StateInfo newSInfo, ActionInfo newActInfo) : QApproximato
 	if (dim == 0) return;
 	
 	shifts.resize(dim);
-	shifts[dim-1] = 1;
+	shifts[0] = 1;
+
+	for (int i=1; i < sInfo.dim+1; i++)
+		shifts[i] = (long int)shifts[i-1] * sInfo.bounds[i-1];
 	
-	for (int i=dim-2; i>=sInfo.dim; i--)
-		shifts[i] = (long int)shifts[i+1] * actInfo.bounds[i+1 - sInfo.dim];
-	for (int i=sInfo.dim - 1; i>=0; i--)
-		shifts[i] = (long int)shifts[i+1] * sInfo.bounds[i];
+	for (int i = sInfo.dim+1; i<dim; i++)
+		shifts[i] = (long int)shifts[i-1] * actInfo.bounds[i - sInfo.dim - 1];
 	
 	data.clear();
 	maxStateVal.clear();
@@ -50,7 +51,7 @@ MultiTable::~MultiTable()
 
 inline long int MultiTable::_encodeIdx(const State& s, const Action& a) const
 {
-	long int res = _encodeState(s);
+	long int res = _encodeState(s, _discretize);
 	
 	return _encodeIdx(res, a);
 }
@@ -65,13 +66,12 @@ inline long int MultiTable::_encodeIdx(const long int sId, const Action& a) cons
 	return res;
 }
 
-inline long int MultiTable::_encodeState(const State& s) const
+template <typename F>
+inline long int MultiTable::_encodeState(const State& s, F&& _discr) const
 {
 	long int res = 0;
-	int (*_discr) (double, double, double, int, bool, bool) = &_discretize;	
-	
 	for(int i=0; i<sInfo.dim; i++)
-		res += (*_discr)(s.vals[i], s.sInfo.bottom[i], s.sInfo.top[i], s.sInfo.bounds[i], s.sInfo.belowBottom[i], s.sInfo.aboveTop[i]) * shifts[i];
+		res += _discr(s.vals[i], s.sInfo.bottom[i], s.sInfo.top[i], s.sInfo.bounds[i], s.sInfo.belowBottom[i], s.sInfo.aboveTop[i]) * shifts[i];
 	
 	return res;
 }
@@ -85,14 +85,14 @@ double MultiTable::get(const State& s, const Action& a)
 
 double MultiTable::getMax(const State& s)
 {
-	long int id = _encodeState(s);
+	long int id = _encodeState(s, _discretize);
 	if (maxStateVal.find(id) == maxStateVal.end()) return 0; 
 	return maxStateVal[id];
 }
 
 void MultiTable::set(const State& s, const Action& a, double val)
 {
-	long int sId = _encodeState(s);
+	long int sId = _encodeState(s, _discretize);
 	long int id = _encodeIdx(sId, a);
 		
 	if (fabs(val) > eps)
@@ -104,7 +104,7 @@ void MultiTable::set(const State& s, const Action& a, double val)
 
 void MultiTable::correct(const State& s, const Action& a, double err)
 {
-	long int sId = _encodeState(s);
+	long int sId = _encodeState(s, _discretize);
 	long int id = _encodeIdx(sId, a);
 	
 	data[id] += err;
@@ -185,7 +185,7 @@ bool MultiTable::restart(string fname)
 			int dummy = 0;
 			in >> dummy;
 			if(dummy != sInfo.bounds[i])  die("Saved state and current state do not match in dimensionality!\n");
-			else                          _info("StateDim[i] = %d\n", dummy);
+			else                          _info("StateDim[%d] = %d\n", i, dummy);
 		}
 		
 		// Reading action info
@@ -198,7 +198,7 @@ bool MultiTable::restart(string fname)
 			int dummy = 0;
 			in >> dummy;
 			if(dummy != actInfo.bounds[i])  die("Saved action and current action do not match in dimensionality!\n");
-			else                            _info("ActionDim[i] = %d\n", dummy);
+			else                            _info("ActionDim[%d] = %d\n", i, dummy);
 		}
 		
 		unsigned counter = 0;
@@ -216,7 +216,7 @@ bool MultiTable::restart(string fname)
 	}
 	else
 	{
-		error("WTF couldnt open file %s %s\n", fname.c_str(), " (ok keep going mofo)!\n");
+		error("WTF couldnt open file '%s' %s\n", fname.c_str(), " (ok keep going mofo)!\n");
 		res = false;
 	}
 	

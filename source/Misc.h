@@ -40,14 +40,13 @@ inline int _discretize(double val, double min, double max, int levels, bool belo
 {
 	if (max - min < 1e-6) die("Bad interval of discretization\n");
 	int lvl = 0;
-	int oldLevels = levels;
+	int totLvl = levels;
 	
 	if (belowMin)
 	{
-		levels--;
 		lvl++;
+		totLvl++;
 	}
-	if (aboveMax) levels--;
 	
 	lvl += (val - min)*levels / (max - min);
 	
@@ -59,7 +58,7 @@ inline int _discretize(double val, double min, double max, int levels, bool belo
 	
 	if (val > max)
 	{
-		if (aboveMax) return oldLevels - 1;
+		if (aboveMax) return totLvl;
 		else die("Discretized value is above maximum\n");
 	}
 	

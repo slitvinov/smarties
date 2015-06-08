@@ -25,7 +25,9 @@ class MultiTable : public QApproximator
 	
 	inline long int _encodeIdx(const State& s, const Action& a) const;
 	inline long int _encodeIdx(const long int sId, const Action& a) const;
-	inline long int _encodeState(const State& s) const;
+
+	template <typename F>
+	inline long int _encodeState(const State& s, F&& _discr) const;
 
 	//inline int _lines(const char * const filename);
 	
@@ -37,7 +39,6 @@ public:
 	// Methods
 	double get    (const State& s, const Action& a);
 	double getMax (const State& s);
-	double getBest(const State& s, Action& a, double& reward); //TODO
 	void   set    (const State& s, const Action& a, double value);
 	void   correct(const State& s, const Action& a, double error);
 	double usage() const;

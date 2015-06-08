@@ -26,10 +26,14 @@ void QLearning::selectAction(State &s, Action &a)
     actionsIt.reset();
     while (!actionsIt.done())
     {
-        double val;
-        if ((val = Q->get(s, actionsIt.next())) > best)
+        const double val = Q->get(s, actionsIt.next());
+        if (val >= best + 1e-12)
         {
             best = val;
+            actionsIt.memorize();
+        }
+        else if (fabs(best - val) < 1e-12 && rng->uniform() > 0.5)
+        {
             actionsIt.memorize();
         }
     }
@@ -55,21 +59,18 @@ void QLearning::update(State &sOld, Action &a, double r, State &s)
             best = val;
     }
     
-    double err = lRate * (r + best - Q->get(sOld, a));
+    double err = lRate * (r + gamma*best - Q->get(sOld, a));
     
-    if (fabs(err) > 0.0001) _info("Q learning: %f --> %f for %s,  act %s\n",
+    if (fabs(err) > 0.001) debug("Q learning: %f --> %f for %s,  act %s\n",
             Q->get(sOld, a), Q->get(sOld, a) + err, sOld.print().c_str(), a.print().c_str());
     
     Q->correct(sOld, a, err);
 }
 
-void QLearning::try2restart(string prefix)
+void QLearning::try2restart(string fname)
 {
 	_info("Restarting from saved policy...\n");
-	bool fl = true;
-	string fname = prefix + "_backup" + to_string(suffix);
-    suffix++;
-    
+
     if ( Q->restart(fname) )
 	{
 		_info("Restart successful, moving on...\n");

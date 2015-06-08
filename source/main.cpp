@@ -95,7 +95,7 @@ int main (int argc, char** argv)
 		{'e', "greedy_eps", DOUBLE, "Greedy epsilon",         &settings.greedyEps,  0.01},
 		{'l', "learn_rate", DOUBLE, "Learning rate",          &settings.lRate,      0.01},
 		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed,   11111},
-        {'r', "restart",    NONE,   "Restart",                &settings.restart,    (string)"none"},
+        {'r', "restart",    STRING, "Restart",                &settings.restart,    (string)"none"},
 		{'q', "save_freq",  INT,    "Save frequency",         &settings.saveFreq,   10000},
         {'v', "debug_lvl",  INT,    "Debug level",            &debugLvl,            2},
         {'p', "prefix",     STRING, "Save folder",            &settings.prefix,     (string)"res/"}
