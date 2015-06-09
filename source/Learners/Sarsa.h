@@ -11,31 +11,29 @@
 
 #include <vector>
 #include <string>
-#include <list>
 
 #include "Learner.h"
 #include "../QApproximators/MultiTable.h"
 #include "../QApproximators/QApproximator.h"
 #include "Trace.h"
-//#include "../QApproximators/ANNApproximator.h"
 
 using namespace std;
 
-class QLearning : public Learner
+class Sarsa : public Learner
 {
 private:
 	QApproximator* Q;
 	ActionIterator actionsIt;
 	map<string, QApproximator*> QMap;
 		
-	double gamma, greedyEps, lRate;
+	double gamma, greedyEps, lRate, lambda;
 	
 	RNG* rng;
     
     int suffix;
 		
 public:
-	QLearning(QApproximator* newQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate);
+    Sarsa(QApproximator* Q, ActionInfo& actInfo, double gamma, double greedyEps, double lRate, double lambda);
 	
     void updateSelect(Trace& t, State& s, Action& a, double r);
     

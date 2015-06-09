@@ -13,6 +13,7 @@
 #include "ArgumentParser.h"
 #include "ErrorHandling.h"
 #include "Learners/QLearning.h"
+#include "Learners/Sarsa.h"
 #include "Learners/Learner.h"
 #include "ObjectFactory.h"
 #include "Settings.h"
@@ -49,7 +50,7 @@ void runSlave(int rank)
 	exit(0);
 }
 
-void runMaster()
+void runMaster(int nranks)
 {
     // TODO: No need to create a whole system, just need actInfo and sInfo
     ObjectFactory factory(settings.configFile);
@@ -58,9 +59,9 @@ void runMaster()
     // Define learning algorithm
 	// TODO: Make this through object factory
     QApproximator* Qvals = new MultiTable(env->sI, env->aI);
-	Learner* learner = new QLearning(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate);
+	Learner* learner = new Sarsa(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate, settings.lambda);
     
-    Master* master = new Master(learner, env->aI, env->sI);
+    Master* master = new Master(learner, env->aI, env->sI, env->agents.size(), nranks, settings.gamma*settings.lambda);
     
     if (settings.restart != "none")
         master->restart(settings.restart);
@@ -82,9 +83,10 @@ void runMaster()
 
 int main (int argc, char** argv)
 {
-    int rank;
+    int rank, nranks;
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
     
     vector<OptionStruct> opts
 	({
@@ -93,7 +95,8 @@ int main (int argc, char** argv)
 		{'f', "end_time",   DOUBLE, "End time of simulaiton", &settings.endTime,    1e9},
 		{'g', "gamma",      DOUBLE, "Gamma parameter",        &settings.gamma,      0.85},
 		{'e', "greedy_eps", DOUBLE, "Greedy epsilon",         &settings.greedyEps,  0.01},
-		{'l', "learn_rate", DOUBLE, "Learning rate",          &settings.lRate,      0.01},
+        {'l', "learn_rate", DOUBLE, "Learning rate",          &settings.lRate,      0.01},
+        {'d', "lambda",     DOUBLE, "Lambda",                 &settings.lambda,     0.0},
 		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed,   11111},
         {'r', "restart",    STRING, "Restart",                &settings.restart,    (string)"none"},
 		{'q', "save_freq",  INT,    "Save frequency",         &settings.saveFreq,   10000},
@@ -109,8 +112,8 @@ int main (int argc, char** argv)
     if  (settings.randSeed == -1 )  srand(time(NULL));
 	else							srand(settings.randSeed + rank);
 	
-    if (rank == 0) runMaster();
-    else         runSlave(rank);
+    if (rank == 0) runMaster(nranks);
+    else           runSlave(rank);
     
 	return 0;
 }

@@ -134,7 +134,7 @@ struct ActionInfo
 
 class Action
 {
-private:
+public:
 	ActionInfo actInfo;
 	
 public:

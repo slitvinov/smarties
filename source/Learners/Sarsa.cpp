@@ -10,27 +10,27 @@
 #include <map>
 
 #include "../StateAction.h"
-#include "QLearning.h"
+#include "Sarsa.h"
 #include "../Settings.h"
 
-QLearning::QLearning(QApproximator* newQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate) :
-Q(newQ), actionsIt(actInfo), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate)
+Sarsa::Sarsa(QApproximator* q, ActionInfo& actInfo, double gamma, double greedyEps, double lRate, double lambda) :
+Q(q), actionsIt(actInfo), gamma(gamma), greedyEps(greedyEps), lRate(lRate), lambda(lambda)
 {
     rng = new RNG(rand());
     suffix = 0;
 }
 
-void QLearning::updateSelect(Trace& t, State& s, Action& a, double r)
+void Sarsa::updateSelect(Trace& t, State& s, Action& a, double r)
 {
     //       aOld, r
     // sOld ---------> s
     //
-    // Find V(s) = max Q(s, a')
-    //              a'
+    // Next action:  a
     //
-    // Q(sOld, aOld) += lRate * [r + gamma*V(s) - Q(sOld, aOld)]
+    // Q(sOld, aOld) += lRate * [r + gamma*Q(s, a) - Q(sOld, aOld)]
     //
 
+    // Select new action
     double best = -1e10;
     actionsIt.reset();
     while (!actionsIt.done())
@@ -54,15 +54,27 @@ void QLearning::updateSelect(Trace& t, State& s, Action& a, double r)
 
     State&  sOld = *t.hist[t.start].s;
     Action& aOld = *t.hist[t.start].a;
-    double err = lRate * (r + gamma*best - Q->get(sOld, aOld));
+    double err = lRate * (r + gamma*Q->get(s, a) - Q->get(sOld, aOld));
 
-    if (fabs(err) > 0.001) debug("Q learning: %f --> %f for %s,  act %s\n",
-            Q->get(sOld, aOld), Q->get(sOld, aOld) + err, sOld.print().c_str(), a.print().c_str());
+    if (fabs(err) > 1e-8) debug1("Sarsa: Updating trace leading to %s,  act %s\n", s.print().c_str(), a.print().c_str());
 
-    Q->correct(sOld, aOld, err);
+    int i = t.start;
+    while (true)
+    {
+        History& e = t.hist[i];
+
+        if (e.value > 0) Q->correct(*e.s, *e.a, e.value * err);
+        e.value *= gamma * lambda;
+
+        if (fabs(err) > 1e-8 && e.value >= -0.1) debug1("Sarsa: %f --> %f for %s,  act %s\n",
+                    Q->get(*e.s, *e.a), Q->get(*e.s, *e.a) + err, e.s->print().c_str(), e.a->print().c_str());
+
+        i = (i == t.len-1) ? 0 : i + 1;
+        if (i == t.start) break;
+    }
 }
 
-void QLearning::try2restart(string fname)
+void Sarsa::try2restart(string fname)
 {
     _info("Restarting from saved policy...\n");
 
@@ -76,7 +88,7 @@ void QLearning::try2restart(string fname)
     }
 }
 
-void QLearning::savePolicy(string fname)
+void Sarsa::savePolicy(string fname)
 {
     _info("\nSaving all policies...\n");
     Q->save(fname);

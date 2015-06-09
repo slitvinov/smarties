@@ -10,6 +10,7 @@
 
 #include "../Learners/Learner.h"
 #include "../Savers/Saver.h"
+#include "../Learners/Trace.h"
 
 #include <mpi.h>
 
@@ -32,10 +33,13 @@ public:
     double totR;
     vector<Saver*> savers;
     
+    int nAgents, nSlaves;
+    vector<Trace> traces;
+
     void execSavers(double time, int iter);
 
 public:
-    Master(Learner* learner, ActionInfo actInfo, StateInfo sInfo);
+    Master(Learner* learner, ActionInfo actInfo, StateInfo sInfo, int nAgents, int nSlaves, double traceDecay);
     double getTotR() { double tmp = totR; totR = 0; return tmp; }
     void restart(string fname);
     

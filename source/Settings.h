@@ -23,6 +23,7 @@ extern struct Settings
 	double lRate;
 	double greedyEps;
 	double gamma;
+	double lambda;
 	string restart;
 	
 	double nnEta;

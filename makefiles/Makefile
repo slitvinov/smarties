@@ -48,7 +48,7 @@ OBJ_FILES = ArgumentParser.o ObjectFactory.o \
 						ExternalEnvironment.o SelfAvoidEnvironment.o \
 						SwarmEnvironment.o QLearning.o \
 						MultiTable.o Saver.o \
-						Scheduler.o
+						Scheduler.o Sarsa.o
 						
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
