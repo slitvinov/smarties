@@ -100,7 +100,7 @@ int main(int argc, const char * argv[])
         a.F    = 0;
     }
     
-    cout << n << " agents" << endl;
+    cerr << n << " agents" << endl;
     string keyword;
     
     while (true)
@@ -132,7 +132,7 @@ int main(int argc, const char * argv[])
 
                         
                     default:
-                        cerr << "Bad action" << endl;
+                        cout << "Bad action" << endl;
                         exit(1);
                         break;
                 }
@@ -140,7 +140,7 @@ int main(int argc, const char * argv[])
         }
         else
         {
-            cerr << "Bad keyword '" << keyword << "'" << endl;
+            cout << "Bad keyword '" << keyword << "'" << endl;
             exit(2);
         }
         
@@ -154,7 +154,7 @@ int main(int argc, const char * argv[])
             t += dt;
         }
         
-        cout << "States and rewards:" << endl;
+        cerr << "States and rewards:" << endl;
         for (auto& a : agents)
         {
             double r = 0.0;
@@ -167,8 +167,8 @@ int main(int argc, const char * argv[])
                 a.F = 0;
             }
             
-            cout << a.u.y1 << " " << a.u.y2 << " " << a.u.y3 << " " << a.u.y4 << " ";
-            cout << r << endl;
+            cerr << a.u.y1 << " " << a.u.y2 << " " << a.u.y3 << " " << a.u.y4 << " ";
+            cerr << r << endl;
         }
     }
     
