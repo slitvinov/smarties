@@ -8,11 +8,12 @@
  */
 
 #include <sys/types.h>
+#include <cstdio>
 #include <unistd.h>
 
 #include "ExternalEnvironment.h"
 
-ExternalEnvironment::ExternalEnvironment(vector<Agent*> agents, string execpath, StateType tp) :
+ExternalEnvironment::ExternalEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank) :
 Environment(agents), execpath(execpath)
 {
     int outpipe[2], inpipe[2];
@@ -67,6 +68,9 @@ Environment(agents), execpath(execpath)
         close(outpipe[1]);
         dup2(inpipe[1], 2);
         dup2(outpipe[0], 0);
+
+        string outFname = "output_"+to_string(rank);
+        freopen(("output_"+to_string(rank)+".txt").c_str(), "w", stdout);
 
         if (execlp(execpath.c_str(), execpath.c_str(), NULL) == -1)
             die("Unable to exec file '%s'!", execpath.c_str());

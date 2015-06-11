@@ -32,7 +32,7 @@ class ExternalEnvironment: public Environment
     vector<Action> actions;
 
 public:
-   ExternalEnvironment(vector<Agent*> agents, string execpath, StateType tp);
+   ExternalEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank);
 
    void   evolve   (double t);
 };

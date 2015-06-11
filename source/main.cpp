@@ -35,7 +35,7 @@ void runSlave(int rank)
 {
 	// Class creating agents and environment from info in the file
 	ObjectFactory factory(settings.configFile);
-	Environment* env = factory.createEnvironment();
+	Environment* env = factory.createEnvironment(rank);
 
     Slave* simulation = new Slave(env, settings.dt, rank);
 
@@ -54,7 +54,7 @@ void runMaster(int nranks)
 {
     // TODO: No need to create a whole system, just need actInfo and sInfo
     ObjectFactory factory(settings.configFile);
-    Environment* env = factory.createEnvironment();
+    Environment* env = factory.createEnvironment(0);
     
     // Define learning algorithm
 	// TODO: Make this through object factory

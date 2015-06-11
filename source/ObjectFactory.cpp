@@ -53,7 +53,7 @@ inline double ObjectFactory::_parseDouble(string source, string pattern, bool re
     return atof(_parse(source, pattern, req).c_str());
 }
 
-Environment* ObjectFactory::createEnvironment()
+Environment* ObjectFactory::createEnvironment(int rank)
 {
     RNG rng(rand());
 
@@ -88,7 +88,7 @@ Environment* ObjectFactory::createEnvironment()
                 agents.push_back(new ExternalAgent(1e-10, ACTOR, "ExternalAgent"));
             }
 
-            env = new ExternalEnvironment(agents, execpath, st);
+            env = new ExternalEnvironment(agents, execpath, st, rank);
             getline(inFile, s);
         }
 
