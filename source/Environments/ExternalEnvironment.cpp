@@ -11,6 +11,10 @@
 #include <sys/stat.h>
 #include <cstdio>
 #include <unistd.h>
+#include <string>
+#include <iostream>
+
+using namespace std;
 
 #include "ExternalEnvironment.h"
 
@@ -133,10 +137,24 @@ void ExternalEnvironment::evolve(double t)
     fprintf(fout, "\n");
     fflush(fout);
 
-    char str[1000];
-    fgets(str, 1000, fin);
-    fgets(str, 1000, fin);
-    if (string(str) != "States and rewards:\n")
+    char str[1000] = "";
+    bool empty = true;
+
+    while (empty)
+    {
+        fgets(str, 1000, fin);
+        string sstr(str);
+
+        sstr.erase(remove(sstr.begin(), sstr.end(), '\n'), sstr.end());
+        sstr.erase(remove(sstr.begin(), sstr.end(), ' '), sstr.end());
+        sstr.erase(remove(sstr.begin(), sstr.end(), '\t'), sstr.end());
+        empty = sstr.length() < 1;
+    }
+
+    string sstr(str);
+    sstr.erase(remove(sstr.begin(), sstr.end(), '\n'), sstr.end());
+
+    if (sstr != "States and rewards:")
         die("Unrecognized command '%s' from child process!\n", str);
 
     for (auto& a : exagents)
