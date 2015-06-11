@@ -161,7 +161,10 @@ void ExternalEnvironment::evolve(double t)
     {
         double aa, b, c;
 
-        fscanf(fin, "%lf %lf %lf %lf %lf", &(a->s->vals[0]), &(a->s->vals[1]), &(a->s->vals[2]), &(a->s->vals[3]), &(a->r));
+        for (int i=0; i<a->s->sInfo.dim; i++)
+            fscanf(fin, "%lf", &(a->s->vals[i]));
+        fscanf(fin, "%lf", &(a->r));
+
         debug2("Got from child: reward %f,  state %s\n", a->r, a->s->print().c_str());
     }
 }
