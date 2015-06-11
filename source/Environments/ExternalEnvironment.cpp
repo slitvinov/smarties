@@ -8,8 +8,14 @@
  */
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <cstdio>
 #include <unistd.h>
+#include <string>
+#include <iostream>
+#include <algorithm>
+
+using namespace std;
 
 #include "ExternalEnvironment.h"
 
@@ -39,9 +45,17 @@ Environment(agents), execpath(execpath)
         if (!fout) die("Couldn't create stream for output pipe!");
 
         int n;
-        fscanf(fin, "%d agents", &n);
-        if (n != agents.size())
-            die("Wrong number of agents: n=%d, size=%d!",n,agents.size());
+
+        if (rank != 0)
+        {
+            fscanf(fin, "%d agents", &n);
+            if (n != agents.size())
+                die("Wrong number of agents!");
+        }
+        else
+        {
+            n = agents.size();
+        }
 
         _info("Child simulation started with %d agents\n", n);
 
@@ -64,13 +78,17 @@ Environment(agents), execpath(execpath)
     }
     else
     {
+        if (rank == 0) exit(0);
+
+        mkdir( ("simulation_"+to_string(rank)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
+        chdir( ("simulation_"+to_string(rank)+"/").c_str() );
+
         close(inpipe[0]);
         close(outpipe[1]);
         dup2(inpipe[1], 2);
         dup2(outpipe[0], 0);
 
-        string outFname = "output_"+to_string(rank);
-        freopen(("output_"+to_string(rank)+".txt").c_str(), "w", stdout);
+        freopen("output.txt", "w", stdout);
 
         if (execlp(execpath.c_str(), execpath.c_str(), NULL) == -1)
             die("Unable to exec file '%s'!", execpath.c_str());
@@ -113,17 +131,31 @@ void ExternalEnvironment::evolve(double t)
     fprintf(fout, "\n");
     fflush(fout);
 
-    char str[1000];
-    fgets(str, 1000, fin);
-    fgets(str, 1000, fin);
-    if (string(str) != "States and rewards:\n")
+    char str[1000] = "";
+    bool empty = true;
+
+    while (empty)
+    {
+        fgets(str, 1000, fin);
+        string sstr(str);
+
+        sstr.erase(std::remove(sstr.begin(), sstr.end(), '\n'), sstr.end());
+        sstr.erase(std::remove(sstr.begin(), sstr.end(), ' '), sstr.end());
+        sstr.erase(std::remove(sstr.begin(), sstr.end(), '\t'), sstr.end());
+        empty = sstr.length() < 1;
+    }
+
+    string sstr(str);
+    sstr.erase(sstr.find_last_not_of(" \t\f\v\n\r")+1);
+
+    if (sstr != "States and rewards:")
         die("Unrecognized command '%s' from child process!\n", str);
 
     for (auto& a : exagents)
     {
         double aa, b, c;
 
-        fscanf(fin, "%lf %lf %lf %lf %lf", &(a->s->vals[0]), &(a->s->vals[1]), &(a->s->vals[2]), &(a->s->vals[3]), &(a->r));
+        fscanf(fin, "%lf %lf %lf %lf", &(a->s->vals[0]), &(a->s->vals[1]), &(a->s->vals[2]), &(a->r));
         debug2("Got from child: reward %f,  state %s\n", a->r, a->s->print().c_str());
     }
 }
