@@ -41,7 +41,7 @@ Environment(agents), execpath(execpath)
         int n;
         fscanf(fin, "%d agents", &n);
         if (n != agents.size())
-            die("Wrong number of agents!");
+            die("Wrong number of agents: n=%d, size=%d!",n,agents.size());
 
         _info("Child simulation started with %d agents\n", n);
 
@@ -79,30 +79,23 @@ Environment(agents), execpath(execpath)
 
 void ExternalEnvironment::setDims()
 {
-    sI.dim = 4;
-    // State: coordinate...
+    sI.dim = 3;
+    // State: Distance...
+    sI.bounds.push_back(4);
+    sI.top.push_back(3.0);
+    sI.bottom.push_back(1.4);
+    sI.aboveTop.push_back(true);
+    sI.belowBottom.push_back(true);
+
+    // ...quadrant...
     sI.bounds.push_back(4);
     sI.top.push_back(1);
     sI.bottom.push_back(-1);
     sI.aboveTop.push_back(true);
     sI.belowBottom.push_back(true);
 
-    // ...velocity...
-    sI.bounds.push_back(4);
-    sI.top.push_back(1);
-    sI.bottom.push_back(-1);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-
-    // ...angle...
-    sI.bounds.push_back(20);
-    sI.top.push_back(0.3);
-    sI.bottom.push_back(-0.3);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-
-    // ...and angular velocity
-    sI.bounds.push_back(4);
+    // ...relative inclination...
+    sI.bounds.push_back(3);
     sI.top.push_back(1);
     sI.bottom.push_back(-1);
     sI.aboveTop.push_back(true);

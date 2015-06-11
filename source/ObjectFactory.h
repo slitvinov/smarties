@@ -14,6 +14,7 @@
 
 #include "Agents/Agent.h"
 #include "Environments/Environment.h"
+#include "Agents/ExternalAgent.h"
 
 using namespace std;
 

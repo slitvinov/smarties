@@ -77,7 +77,7 @@ Environment* ObjectFactory::createEnvironment(int rank)
             string appType = _parse(envStr, "type", false);
             string execpath = _parse(envStr, "exec", true);
             int n = _parseInt(envStr, "n", true);
-
+            
             StateType st;
             if (appType == "DISCR") st = DISCR;
             else if (appType == "ANN") st = ANN;
