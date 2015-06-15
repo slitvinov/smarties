@@ -30,5 +30,5 @@ private:
 	
 public:
 	ObjectFactory(string newFilename) : filename(newFilename) {};
-	Environment* createEnvironment(int rank);
+	Environment* createEnvironment(int rank, int index);
 };

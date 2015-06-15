@@ -69,5 +69,5 @@ class Slave
 public:
     
     Slave(Environment* env, double newDt, int me);
-    void evolve(double& t);
+    int evolve(double& t);
 };

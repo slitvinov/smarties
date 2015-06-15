@@ -222,7 +222,7 @@ Slave::Slave(Environment* env, double dt, int me) : env(env), agents(env->agents
     MPI_Isend(tmpBuf, insize, MPI_BYTE, me, 0, MPI_COMM_WORLD, &req);
 }
 
-void Slave::evolve(double& t)
+int Slave::evolve(double& t)
 {
     MPI_Request inreq, outreqN, outreqData;
     MPI_Status  status;
@@ -241,7 +241,8 @@ void Slave::evolve(double& t)
 
     // TODO: not all of the agents act at the same moment of time
     bool acted = false;
-
+    int extflag;
+    
     while (!acted)
     {
         for (int i = 0; i<n; i++)
@@ -259,7 +260,7 @@ void Slave::evolve(double& t)
             agent->move(dt);
         }
 
-        env->evolve(t);
+        extflag = env->evolve(t);
         t += dt;
     }
 
@@ -268,6 +269,7 @@ void Slave::evolve(double& t)
     MPI_Send(&n, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
     MPI_Send(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD);
     debug("Slave %d sends %d chunks of total size %d bytes\n", me, n, outsize);
+    return extflag;
 
 }
 
