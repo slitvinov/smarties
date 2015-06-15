@@ -193,9 +193,10 @@ void SwarmEnvironment::calculateMomentum()
     momentum = hypot(resx, resy) / tot;
 }
 
-void SwarmEnvironment::evolve(double t)
+int SwarmEnvironment::evolve(double t)
 {
     cells->migrate();
     computeVelocities();
     calculateMomentum();
+    return 0;
 }

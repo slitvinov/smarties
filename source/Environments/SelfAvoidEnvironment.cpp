@@ -121,8 +121,9 @@ SmartySelfAvoider* SelfAvoidEnvironment::findClosestNeighbour(SmartySelfAvoider*
 	return closest;
 }
 
-void SelfAvoidEnvironment::evolve(double t)
+int SelfAvoidEnvironment::evolve(double t)
 {
 	cells->migrate();
+    return 0;
 }
 	

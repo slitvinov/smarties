@@ -1,7 +1,8 @@
-CC = /opt/mpich/bin/mpicxx
+CC = g++
+
 CPPFLAGS+=-g -Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated -std=c++11
 
-OPENMP_FLAG=# -openmp
+OPENMP_FLAG= -openmp
 
 viz ?= 0
 config ?= "debug"
@@ -21,23 +22,23 @@ endif
 ifeq "$(CC)" "icc"
 CPPFLAGSOPT+= -diag-disable remark -wd68 -xHOST -ansi-alias -fno-fnalias -fno-alias
 else
-OPENMP_FLAG=# -fopenmp
-CPPFLAGSOPT+= -msse3
+OPENMP_FLAG= -fopenmp -ltbb -ltbbmalloc
+CPPFLAGSOPT+= -msse3  -lm -lc -lstdc++
 endif
 
-CPPFLAGS+= -I/usr/local/Cellar/vtk5/5.10.1/include/vtk-5.10/ -I../MRAGapps/source -I../MRAG/source  -I/opt/local/include/openmpi -I/cluster/home04/mavt/alexeedm/armadillo/usr/include
+CPPFLAGS+= -I/opt/local/include/openmpi  -I/cluster/work/infk/wvanrees/apps/TBB/tbb42_20140416oss/include
 CPPFLAGS+= -I../MRAGapps/IF2D_ROCKS/source/mattia-RL/
 CPPFLAGS+= $(OPENMP_FLAG)
 
 LIBS += \
 	$(OPENGL_LIB) \
 	$(OPENMP_FLAG) \
-	-L$(MPI_ROOT)/lib \
+	-L/cluster/apps/openmpi/1.6.2/x86_64/gcc_4.8.2/lib \
 	-L/opt/local/lib \
-#-L/cluster/home04/mavt/alexeedm/armadillo/usr/lib64 \
-	-lmpi -lmpi_cxx #-larmadillo
+    -L/cluster/work/infk/wvanrees/apps/TBB/tbb42_20140122oss/build/linux_intel64_gcc_cc4.7.2_libc2.12_kernel2.6.32_release \
+	-lmpi -lmpi_cxx -lpthread -ldl
 
-LIBS += -lstdc++
+LIBS += -lstdc++ -ltbb
 
 DIRS = $(filter-out ../source/ANNTests/ ../source/ANN/ ../source/CMAUtility/ ../source/Process/, $(sort $(dir $(wildcard ../source/*/))))
 OBJ_FILES = ArgumentParser.o ObjectFactory.o \

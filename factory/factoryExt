@@ -1,1 +1,1 @@
-ExternalEnvironment exec=/home/novatig/MRAGapps/IF2D_ROCKS/launch/launchFalconLearn.sh n=1
+ExternalEnvironment exec=/cluster/home03/mavt/novatig/MRAGapps/IF2D_ROCKS/launch/launchBrutusLearn.sh n=1
