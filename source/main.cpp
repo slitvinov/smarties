@@ -33,19 +33,27 @@ int ErrorHandling::debugLvl;
 // Runs the simulation
 void runSlave(int rank)
 {
-	// Class creating agents and environment from info in the file
-	ObjectFactory factory(settings.configFile);
-	Environment* env = factory.createEnvironment(rank);
+    int index = 0;
+    while (true) {
+        // Class creating agents and environment from info in the file
+        ObjectFactory factory(settings.configFile);
+        Environment* env = factory.createEnvironment(rank, index);
 
-    Slave* simulation = new Slave(env, settings.dt, rank);
+        Slave* simulation = new Slave(env, settings.dt, rank);
 
-	double time = 0;
+        double time = 0;
 
-	while (time < settings.endTime + settings.dt/2.0)
-	{
-		simulation->evolve(time);
-		time += settings.dt;
-	}
+        while (time < settings.endTime + settings.dt/2.0)
+        {
+            if(simulation->evolve(time))
+            {
+                delete simulation;
+                index++;
+                break;
+            }
+            time += settings.dt;
+        }
+    }
 	
 	exit(0);
 }
@@ -54,7 +62,7 @@ void runMaster(int nranks)
 {
     // TODO: No need to create a whole system, just need actInfo and sInfo
     ObjectFactory factory(settings.configFile);
-    Environment* env = factory.createEnvironment(0);
+    Environment* env = factory.createEnvironment(0,0);
     
     // Define learning algorithm
 	// TODO: Make this through object factory

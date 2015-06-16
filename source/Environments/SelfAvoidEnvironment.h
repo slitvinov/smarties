@@ -34,5 +34,5 @@ public:
 	Column findClosestColumn(SmartySelfAvoider* agent);
 	SmartySelfAvoider* findClosestNeighbour(SmartySelfAvoider* agent);
 	
-	void evolve(double t);
+	int evolve(double t);
 };

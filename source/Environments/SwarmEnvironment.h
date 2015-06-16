@@ -39,7 +39,7 @@ public:
     void findClosestNeighbours(vector<SmartySwarmer*>& res, SmartySwarmer* agent, double dist);
     SmartySwarmer* findClosestNeighbour(SmartySwarmer* agent);
     void computeVelocities();
-    void evolve(double t);
+    int evolve(double t);
 
     double getMomentum()
     {

@@ -12,7 +12,7 @@ NPROCESS=$(($NPROCESS+1))
 NPROCESSORS=$(($NNODES*$NTHREADS))
 
 WCLOCK=08:00
-TIMES=1 # Job chaining
+TIMES=2 # Job chaining
 
 
 module load gcc
@@ -28,7 +28,7 @@ SETTINGS+=" --greedy_eps 0.00"
 SETTINGS+=" --save_freq 1"
 SETTINGS+=" --config factory"
 
-RESTART=" --restart policy_backup"
+RESTART=" --restart 0"
 
 RESTARTPOLICY=" -restartPolicy 1" # create a new simulation with a given policy (the policy to load has to be in ../factory/policy_backup)
 
@@ -44,8 +44,8 @@ mkdir -p ${BASEPATH}${RUNFOLDER}
 if [ "${RESTARTPOLICY}" = " -restartPolicy 1" ]; then
     echo "---- launch.sh >> Restart Policy ----"
     mkdir -p ${BASEPATH}${RUNFOLDER}/res
-    cp ../factory/policy* ${BASEPATH}${RUNFOLDER}/res/
-    cp ../factory/policy* ${BASEPATH}${RUNFOLDER}/
+#cp ../factory/policy* ${BASEPATH}${RUNFOLDER}/res/
+#    cp ../factory/policy* ${BASEPATH}${RUNFOLDER}/
 fi
 cp ../factory/factoryExt ${BASEPATH}${RUNFOLDER}/factory
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/
@@ -58,7 +58,7 @@ bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=${NTHREADS}] -sp 100 -W ${W
 #valgrind --tool=memcheck --leak-check=yes --log-file=toto%p
 
 # Job Chaining
-RESTART=" --restart 1"
+RESTART=" --restart res/policy_backup"
 OPTIONS=${SETTINGS}${RESTART}${RESTARTPOLICY}
 for (( c=1; c<=${TIMES}-1; c++ ))
 do

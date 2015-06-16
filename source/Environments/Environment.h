@@ -31,6 +31,6 @@ public:
     Environment(vector<Agent*> agents) : agents(agents) {};
 	
 	virtual void   getState (Agent* agent, State& s) { };
-	virtual double getReward(Agent* agent)           { return 0; }
-	virtual void   evolve   (double t)               { };
+	virtual double getReward(Agent* agent)           { return 0; };
+	virtual int   evolve   (double t)                { return 0; };
 };
