@@ -1,0 +1,30 @@
+Deleting folder.
+Directory does not exist yet! Setting up simulation.
+factoryFile detected: /home/novatig/MRAGapps/IF2D_ROCKS/launch/factoryStefans
+INITIALIZED THREADS=24 (_MRAG_TBB_NTHREADS_HINT is 24)
+////////////////////////////////////////////////////////////
+////////              FLOW SIM                      ////////
+////////////////////////////////////////////////////////////
+initial memory consumption (MB) peak: 3.534375e+01	 current: 3.534375e+01
+////////////////////////////////////////////////////////////
+////////////     FLOW PAST FIXED OBSTACLE    ///////////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////       FLOW PAST MOVING OBSTACLE            ////////
+////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+////////       LEARNING OBSTACLE VECTOR             ////////
+////////////////////////////////////////////////////////////
+Total Added: 256
+Done N=16x16x1 Compared:3294 Found:2604
+-------------   OBSTACLE FACTORY : START (2 objects)   ------------
+created IF2D_StefanFish: xpos=0.650 ypos=0.650 angle=0.785 L=0.100 Tprep=1.000 Tprop=1.000 tau=1.120 phi=0.000 smoothing_length=-1.000 LearnFreq=-1.000
+curvature points: pk1=0.000 pk2=0.015 pk3=0.040 pk4=0.065 pk5=0.090 pk6=0.100
+curvature values (normalized to L=1): k1=1.372 k2=1.740 k3=2.607 k4=3.746 k5=5.119 k6=5.730
+baseline points: pb1=0.000 pb2=0.015 pb3=0.040 pb4=0.065 pb5=0.090 pb6=0.100
+baseline values (normalized to L=1): b1=0.000 b2=0.000 b3=0.000 b4=0.000 b5=0.000 b6=0.000
+created IF2D_StefanFish: xpos=0.800 ypos=0.800 angle=0.785 L=0.100 Tprep=1.000 Tprop=1.000 tau=1.120 phi=0.000 smoothing_length=-1.000 LearnFreq=2.000
+curvature points: pk1=0.000 pk2=0.015 pk3=0.040 pk4=0.065 pk5=0.090 pk6=0.100
+curvature values (normalized to L=1): k1=1.372 k2=1.740 k3=2.607 k4=3.746 k5=5.119 k6=5.730
+baseline points: pb1=0.000 pb2=0.015 pb3=0.040 pb4=0.065 pb5=0.090 pb6=0.100
+baseline values (normalized to L=1): b1=0.500 b2=0.500 b3=0.500 b4=0.500 b5=0.500 b6=0.500
