@@ -51,18 +51,19 @@ Environment(agents), execpath(execpath)
         if (!fout) die("Couldn't create stream for output pipe!");
         
         int n;
-        
+
         if (rank != 0)
         {
             fscanf(fin, "%d agents", &n);
             if (n != agents.size())
             die("Wrong number of agents!");
+
         }
         else
         {
             n = agents.size();
         }
-        
+
         _info("Child simulation started with %d agents\n", n);
         
         for (auto a : agents)
@@ -88,16 +89,16 @@ Environment(agents), execpath(execpath)
         
         mkdir( ("simulation_"+to_string(index)+"_"+to_string(rank)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
         chdir( ("simulation_"+to_string(index)+"_"+to_string(rank)+"/").c_str() );
-        
+
         close(inpipe[0]);
         close(outpipe[1]);
         dup2(inpipe[1], 2);
         dup2(outpipe[0], 0);
-        
+
         freopen("output.txt", "w", stdout);
-        
+
         if (execlp(execpath.c_str(), execpath.c_str(), NULL) == -1)
-        die("Unable to exec file '%s'!", execpath.c_str());
+            die("Unable to exec file '%s'!", execpath.c_str());
     }
 }
 
