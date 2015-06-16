@@ -43,10 +43,10 @@ export LD_LIBRARY_PATH=/cluster/work/infk/cconti/VTK5.8_gcc/lib/vtk-5.8/:$LD_LIB
 export OMP_NUM_THREADS=${NTHREADS}
 mkdir -p ${BASEPATH}${RUNFOLDER}
 if [ "${RESTARTPOLICY}" = " -restartPolicy 1" ]; then
-echo "---- launch.sh >> Restart Policy ----"
-mkdir -p ${BASEPATH}${RUNFOLDER}/res
+    echo "---- launch.sh >> Restart Policy ----"
+    mkdir -p ${BASEPATH}${RUNFOLDER}/res
 #cp ../factory/policy* ${BASEPATH}${RUNFOLDER}/res/
-cp ../launch/policy* ${BASEPATH}${RUNFOLDER}/res/
+#    cp ../factory/policy* ${BASEPATH}${RUNFOLDER}/
 fi
 cp ../factory/factoryExt ${BASEPATH}${RUNFOLDER}/factory
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/
@@ -59,7 +59,10 @@ bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=${NTHREADS}] -sp 100 -W ${W
 #valgrind --tool=memcheck --leak-check=yes --log-file=toto%p
 
 # Job Chaining
-OPTIONS=${SETTINGS}${RESTART}
+
+RESTART=" --restart res/policy_backup"
+OPTIONS=${SETTINGS}${RESTART}${RESTARTPOLICY}
+
 for (( c=1; c<=${TIMES}-1; c++ ))
 do
 echo "Submission $c..."

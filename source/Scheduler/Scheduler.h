@@ -72,5 +72,4 @@ public:
     
     Slave(Environment* env, double newDt, int me);
     int evolve(double& t);
-    
 };

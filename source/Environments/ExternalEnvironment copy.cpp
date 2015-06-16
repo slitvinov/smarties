@@ -51,13 +51,12 @@ Environment(agents), execpath(execpath)
         if (!fout) die("Couldn't create stream for output pipe!");
         
         int n;
+        
         if (rank != 0)
         {
             fscanf(fin, "%d agents", &n);
             if (n != agents.size())
-            {
-                die("Wrong number of agents: n=%d, size=%d!",n,agents.size());
-            }
+            die("Wrong number of agents: n=%d, size=%d!",n,agents.size());
         }
         else
         {
@@ -100,7 +99,7 @@ Environment(agents), execpath(execpath)
         freopen("output.txt", "w", stdout);
         
         if (execlp(execpath.c_str(), execpath.c_str(), NULL) == -1)
-        die("Unable to exec file '%s'!", execpath.c_str());
+            die("Unable to exec file '%s'!", execpath.c_str());
     }
 }
 
@@ -108,25 +107,25 @@ void ExternalEnvironment::setDims()
 {
     sI.dim = 3;
     // State: Distance...
-    sI.bounds.push_back(10);
-    sI.top.push_back(3.2);
-    sI.bottom.push_back(1.2);
-    sI.aboveTop.push_back(false);
-    sI.belowBottom.push_back(false);
+    sI.bounds.push_back(8);
+    sI.top.push_back(3.0);
+    sI.bottom.push_back(1.4);
+    sI.aboveTop.push_back(true);
+    sI.belowBottom.push_back(true);
     
     // ...quadrant...
-    sI.bounds.push_back(8);
-    sI.top.push_back(0.4);
-    sI.bottom.push_back(-0.4);
-    sI.aboveTop.push_back(false);
-    sI.belowBottom.push_back(false);
+    sI.bounds.push_back(4);
+    sI.top.push_back(0.75);
+    sI.bottom.push_back(-0.75);
+    sI.aboveTop.push_back(true);
+    sI.belowBottom.push_back(true);
     
     // ...relative inclination...
-    sI.bounds.push_back(5);
+    sI.bounds.push_back(3);
     sI.top.push_back(0.5);
     sI.bottom.push_back(-0.5);
-    sI.aboveTop.push_back(false);
-    sI.belowBottom.push_back(false);
+    sI.aboveTop.push_back(true);
+    sI.belowBottom.push_back(true);
     
     aI.dim = 1;
     for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5);
