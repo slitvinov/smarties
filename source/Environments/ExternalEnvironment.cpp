@@ -56,7 +56,6 @@ Environment(agents), execpath(execpath)
         {
             fscanf(fin, "%d agents", &n);
             if (n != agents.size())
-
             die("Wrong number of agents: n=%d, size=%d!",n,agents.size());
         }
         else
