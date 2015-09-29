@@ -6,7 +6,7 @@
 //  Copyright (c) 2015 Dmitry Alexeev. All rights reserved.
 //
 
-#include <iostream>
+#include                               <iostream>
 #include <cmath>
 #include <cstdio>
 #include <vector>
@@ -61,7 +61,7 @@ struct CartPole
 {
     const double m = 1;
     const double M = 2;
-    const double l = 0.7;
+    const double l = 0.5;
     const double g = 9.81;
     
     Vec4 u;
@@ -86,25 +86,60 @@ struct CartPole
 
 int main(int argc, const char * argv[])
 {
-    const int n = 50;
-    const int nssteps = 5;
+    const int n = 1;
+    long long int nfallen = 0;
+    long long int sincelast = 0;
+    long long int duringlast = 0;
+    long long int ntot = 0;
+    double percfallen = 0.0;
+    const int nssteps = 20;
     
-    const double dF = 1;
-    const double dt = 1e-3;
+    const double dt = 1e-4;
     double t = 0;
-    
+    bool first = true;
     vector<CartPole> agents(n);
     for (auto& a : agents)
     {
-        a.u.y3 = 0.1 * (drand48() - 0.5);
+        a.u.y1 = 0.2 * (drand48() - 0.5);
+        a.u.y2 = 0.2 * (drand48() - 0.5);
+        a.u.y3 = 0.2 * (drand48() - 0.5);
+        a.u.y4 = 0.2 * (drand48() - 0.5);
         a.F    = 0;
     }
     
     cerr << n << " agents" << endl;
     string keyword;
     
-    while (true)
+    while (ntot<=1250000)
     {
+        if (first)
+        {
+            cin >> keyword;
+            if (keyword == "Actions:")
+            {
+                int act;
+                for (auto& a : agents)
+                    cin >> act;
+                cout << act;
+            }
+            else
+            {
+                cout << "Bad keyword '" << keyword << "'" << endl;
+                exit(2);
+            }
+            
+            cerr << "States and rewards:" << endl;
+            for (auto& a : agents)
+            {
+                double r = 0.0;
+                cerr << a.u.y1 << " " << a.u.y2 << " " << a.u.y4 << " " << a.u.y3 << " ";
+                cerr << r << endl;
+                cout << a.u.y1 << " " << a.u.y2 << " " << a.u.y4 << " " << a.u.y3 << " ";
+                cout << r << endl;
+            }
+            first = false;
+        }
+        
         cin >> keyword;
         if (keyword == "Actions:")
         {
@@ -116,21 +151,21 @@ int main(int argc, const char * argv[])
                 switch (act)
                 {
                     case 0:
+                        a.F = -50.;
                         break;
                     case 1:
-                        a.F = dF;
+                        a.F = -5.;
                         break;
                     case 2:
-                        a.F = -dF;
+                        a.F =  0.;
                         break;
                     case 3:
-                        a.F = 5*dF;
+                        a.F =  5.;
                         break;
                     case 4:
-                        a.F = -5*dF;
+                        a.F =  50.;
                         break;
 
-                        
                     default:
                         cout << "Bad action" << endl;
                         exit(1);
@@ -157,18 +192,37 @@ int main(int argc, const char * argv[])
         cerr << "States and rewards:" << endl;
         for (auto& a : agents)
         {
-            double r = 0.0;
-            if (fabs(a.u.y1) > 2)        r -= 1;
-            if (fabs(a.u.y3) > 1)        r -= 10;
-            
-            if (r < -0.0001)
+            double r = 0.5 -a.u.y3*a.u.y3;
+            bool kill = false;
+            //if (fabs(a.u.y1) > 2)        r -= 1;
+            //if (fabs(a.u.y3) > 1)        r -= 10;
+            ntot += 1;
+            sincelast += 1;
+            if ( (fabs(a.u.y3) > 1)) //(fabs(a.u.y1) > 2) ||
             {
-                a.u = Vec4(0, 0, 0.1 * (drand48() - 0.5), 0);
-                a.F = 0;
+                
+                r = -100;
+                nfallen += 1;
+                percfallen = nfallen/ntot;
+                //cout << "An other one bites the dust. " << sincelast << " actions ago I last fell. Risk at: " << percfallen << " %." << endl;
+                //cout << sincelast << endl;
+                sincelast = 0;
+                kill = true;
             }
             
-            cerr << a.u.y1 << " " << a.u.y2 << " " << a.u.y3 << " " << a.u.y4 << " ";
+            cerr << a.u.y1 << " " << a.u.y2 << " " << a.u.y4 << " " << a.u.y3 << " ";
             cerr << r << endl;
+            
+            if(kill)
+            {   //begin anew
+                a.u = Vec4( .2*(drand48()-.5), .2*(drand48()-.5), .2*(drand48()-.5), .2*(drand48() -.5));
+                a.F = 0;
+                first = true;
+            }
+        }
+        if (ntot % 10000 == 0) {
+            cout << nfallen - duringlast << endl;
+            duringlast =+ nfallen;
         }
     }
     

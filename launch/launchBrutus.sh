@@ -12,25 +12,26 @@ NPROCESS=$(($NPROCESS+1))
 NPROCESSORS=$(($NNODES*$NTHREADS))
 
 WCLOCK=08:00
-TIMES=2 # Job chaining
+TIMES=5 # Job chaining
 
 
 module load gcc
 module load open_mpi
+module load openblas
 
 BASEPATH="/cluster/scratch_xp/public/novatig/smarties/"
 
-SETTINGS+=" --learn_rate 0.08"
+SETTINGS+=" --learn_rate 0.1"
 SETTINGS+=" --gamma 0.9"
 SETTINGS+=" --lambda 0.0"
-SETTINGS+=" --greedy_eps 0.00"
+SETTINGS+=" --greedy_eps 0.05"
 
 SETTINGS+=" --save_freq 1"
 SETTINGS+=" --config factory"
 
-RESTART=" --restart 0"
+RESTART=" --restart res/policy_backup"
 
-RESTARTPOLICY=" -restartPolicy 1" # create a new simulation with a given policy (the policy to load has to be in ../factory/policy_backup)
+RESTARTPOLICY=" -restartPolicy 1" # create a new simulation with a given policy (the policy to load has to be in ../launch/policy_backup)
 
 OPTIONS=${SETTINGS}${RESTART}
 
@@ -42,10 +43,10 @@ export LD_LIBRARY_PATH=/cluster/work/infk/cconti/VTK5.8_gcc/lib/vtk-5.8/:$LD_LIB
 export OMP_NUM_THREADS=${NTHREADS}
 mkdir -p ${BASEPATH}${RUNFOLDER}
 if [ "${RESTARTPOLICY}" = " -restartPolicy 1" ]; then
-    echo "---- launch.sh >> Restart Policy ----"
-    mkdir -p ${BASEPATH}${RUNFOLDER}/res
+echo "---- launch.sh >> Restart Policy ----"
+mkdir -p ${BASEPATH}${RUNFOLDER}/res
 #cp ../factory/policy* ${BASEPATH}${RUNFOLDER}/res/
-#    cp ../factory/policy* ${BASEPATH}${RUNFOLDER}/
+cp ../launch/policy* ${BASEPATH}${RUNFOLDER}/res/
 fi
 cp ../factory/factoryExt ${BASEPATH}${RUNFOLDER}/factory
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/
@@ -58,20 +59,9 @@ bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=${NTHREADS}] -sp 100 -W ${W
 #valgrind --tool=memcheck --leak-check=yes --log-file=toto%p
 
 # Job Chaining
-RESTART=" --restart res/policy_backup"
-OPTIONS=${SETTINGS}${RESTART}${RESTARTPOLICY}
+OPTIONS=${SETTINGS}${RESTART}
 for (( c=1; c<=${TIMES}-1; c++ ))
 do
-    echo "Submission $c..."
-    bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=${NTHREADS}] -sp 100 -w "ended(${RUNFOLDER})" -W ${WCLOCK} mpirun -np ${NPROCESS} --mca btl tcp,self -bynode ./${EXECNAME} ${OPTIONS}
+echo "Submission $c..."
+bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=${NTHREADS}] -sp 100 -w "ended(${RUNFOLDER})" -W ${WCLOCK} mpirun -np ${NPROCESS} --mca btl tcp,self -bynode ./${EXECNAME} ${OPTIONS}
 done
-
-
-
-
-
-
-
-
-
-

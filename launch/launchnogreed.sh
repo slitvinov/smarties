@@ -4,12 +4,11 @@ EXECNAME=rl
 NTHREADS=$1
 
 SETTINGS+=" --learn_rate 0.1"
-SETTINGS+=" --gamma 0.9"
-SETTINGS+=" --greedy_eps 0.05" #high because we are restarting from same initial conditions
+SETTINGS+=" --gamma 0.95"
+SETTINGS+=" --greedy_eps 0.0" #high because we are restarting from same initial conditions
 
 SETTINGS+=" --save_freq 100"
-SETTINGS+=" --debug_lvl 10"
-SETTINGS+=" --learn Q"
+SETTINGS+=" --debug_lvl 3"
 SETTINGS+=" --config factory"
 
 RESTART=" --restart res/policy_backup"
@@ -33,9 +32,8 @@ cp ../launch/policy* ../run$3/res/
 #    cp ../factory/policy* ${BASEPATH}${RUNFOLDER}/
 fi
 
-cp ../makefiles/${EXECNAME} ../run$3/executable
+#cp ../makefiles/${EXECNAME} ../run$3/executable
 cp ../factory/factory$2 ../run$3/factory
-cp history.txt ../run$3
 cd ../run$3
 
 /opt/mpich/bin/mpirun -np $1 ./executable ${OPTIONS}
