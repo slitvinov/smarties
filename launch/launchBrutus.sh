@@ -43,10 +43,10 @@ export LD_LIBRARY_PATH=/cluster/work/infk/cconti/VTK5.8_gcc/lib/vtk-5.8/:$LD_LIB
 export OMP_NUM_THREADS=${NTHREADS}
 mkdir -p ${BASEPATH}${RUNFOLDER}
 if [ "${RESTARTPOLICY}" = " -restartPolicy 1" ]; then
-    echo "---- launch.sh >> Restart Policy ----"
-    mkdir -p ${BASEPATH}${RUNFOLDER}/res
+echo "---- launch.sh >> Restart Policy ----"
+mkdir -p ${BASEPATH}${RUNFOLDER}/res
 #cp ../factory/policy* ${BASEPATH}${RUNFOLDER}/res/
-#    cp ../factory/policy* ${BASEPATH}${RUNFOLDER}/
+cp ../launch/policy* ${BASEPATH}${RUNFOLDER}/res/
 fi
 cp ../factory/factoryExt ${BASEPATH}${RUNFOLDER}/factory
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/
