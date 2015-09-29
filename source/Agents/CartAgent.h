@@ -1,5 +1,5 @@
 /*
- *  ExternalAgent.h
+ *  CartAgent.h
  *  smarties
  *
  *  Created by Dmitry Alexeev on May 13, 2015
@@ -13,24 +13,23 @@
 #include "../StateAction.h"
 #include "Agent.h"
 
-class ExternalEnvironment;
+class CartEnvironment;
 #include "../Environments/Environment.h"
-#include "../Environments/ExternalEnvironment.h"
+#include "../Environments/CartEnvironment.h"
 
-class ExternalAgent : public Agent
+class CartAgent : public Agent
 {
 public:
     using Agent::Agent;
 
     State *s;
     Action *a;
-    double r, _r;
+    double r;
 
-    ExternalEnvironment* env;
+    CartEnvironment* env;
 
     void   getState(State& s);
     double getReward();
-    double altReward();
     void   act(Action& a);
     void   move(double dt) {};
 

@@ -1,8 +1,8 @@
 /*
- *  QLearning.h
+ *  NFQ.h
  *  rl
  *
- *  Created by Dmitry Alexeev on 02.05.13.
+ *  Created by Guido Novati on 16.07.15.
  *  Copyright 2013 ETH Zurich. All rights reserved.
  *
  */
@@ -16,12 +16,13 @@
 #include "Learner.h"
 #include "../QApproximators/MultiTable.h"
 #include "../QApproximators/QApproximator.h"
+#include "../QApproximators/NFQApproximator.h"
 #include "Trace.h"
 #include "../QApproximators/ANNApproximator.h"
 
 using namespace std;
 
-class QLearning : public Learner
+class NFQ : public Learner
 {
 private:
 	QApproximator* Q;
@@ -35,11 +36,12 @@ private:
     int suffix;
 		
 public:
-	QLearning(QApproximator* newQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate);
+	NFQ(QApproximator* newQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate);
 	
     void updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, double r, int Nagent = 0);
     void updateSelect(Trace& t, State& s, Action& a, double r, double alphaK) {};
     void try2restart(string prefix);
     void savePolicy(string fname);
+    void NFQimprove(int Niter);
 };
 

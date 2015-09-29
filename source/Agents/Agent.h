@@ -49,6 +49,7 @@ public:
 	
 	virtual void   getState(State& s) { };
 	virtual double getReward()        { return 0; }
+    double altReward()        { return 0; }
 	virtual void   act(Action& a)     { };
 	virtual void   move(double dt) = 0;
 	
