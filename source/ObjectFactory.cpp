@@ -91,6 +91,94 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
             env = new ExternalEnvironment(agents, execpath, st, rank, index);
             getline(inFile, s);
         }
+        
+        else if (envStr.find("ArtisticEnvironment ") != envStr.npos)
+        {
+            vector<Agent*> agents;
+            
+            string appType = _parse(envStr, "type", false);
+            string execpath = _parse(envStr, "exec", true);
+            int n = _parseInt(envStr, "n", true);
+            
+            StateType st;
+            if (appType == "DISCR") st = DISCR;
+            else if (appType == "ANN") st = ANN;
+            else if (appType == "WAVE") st = WAVE;
+            
+            for (int i=0; i<n; i++)
+            {
+                agents.push_back(new ExternalAgent(1e-10, ACTOR, "ExternalAgent"));
+            }
+            
+            env = new ArtisticEnvironment(agents, execpath, st, rank, index);
+            getline(inFile, s);
+        }
+        
+        else if (envStr.find("HuntEnvironment ") != envStr.npos)
+        {
+            vector<Agent*> agents;
+            
+            string appType = _parse(envStr, "type", false);
+            string execpath = _parse(envStr, "exec", true);
+            int n = _parseInt(envStr, "n", true);
+            
+            StateType st;
+            if (appType == "DISCR") st = DISCR;
+            else if (appType == "ANN") st = ANN;
+            else if (appType == "WAVE") st = WAVE;
+            
+            for (int i=0; i<n; i++)
+            {
+                agents.push_back(new ExternalAgent(1e-10, ACTOR, "ExternalAgent"));
+            }
+            
+            env = new HuntEnvironment(agents, execpath, st, rank, index);
+            getline(inFile, s);
+        }
+        
+        else if (envStr.find("CartEnvironment ") != envStr.npos)
+        {
+            vector<Agent*> agents;
+            
+            string appType = _parse(envStr, "type", false);
+            string execpath = _parse(envStr, "exec", true);
+            int n = _parseInt(envStr, "n", true);
+            
+            StateType st;
+            if (appType == "DISCR") st = DISCR;
+            else if (appType == "ANN") st = ANN;
+            else if (appType == "WAVE") st = WAVE;
+            
+            for (int i=0; i<n; i++)
+            {
+                agents.push_back(new CartAgent(1e-10, ACTOR, "CartAgent"));
+            }
+            
+            env = new CartEnvironment(agents, execpath, st, rank, index);
+            getline(inFile, s);
+        }
+        
+        else if (envStr.find("GlideEnvironment ") != envStr.npos)
+        {
+            vector<Agent*> agents;
+            
+            string appType = _parse(envStr, "type", false);
+            string execpath = _parse(envStr, "exec", true);
+            int n = _parseInt(envStr, "n", true);
+            
+            StateType st;
+            if (appType == "DISCR") st = DISCR;
+            else if (appType == "ANN") st = ANN;
+            else if (appType == "WAVE") st = WAVE;
+            
+            for (int i=0; i<n; i++)
+            {
+                agents.push_back(new CartAgent(1e-10, ACTOR, "CartAgent"));
+            }
+            
+            env = new GlideEnvironment(agents, execpath, st, rank, index);
+            getline(inFile, s);
+        }
 
         else if (envStr.find("SelfAvoidEnvironment ") != envStr.npos)
         {

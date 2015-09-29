@@ -64,12 +64,31 @@ eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), 
 	batchExact.resize(batchSize);
 	
 	mu = 1;
-	muFactor = 5;
-	muMin = 1e-1;
+	muFactor = 10;
+	muMin = 1e-3;
 	muMax = 1e+10;
 }
 
-void WaveletNet::predict(const vector<double>& inputs, vector<double>& outputs)
+void WaveletNet::setBatchsize(int size)
+{
+    batchSize = size;
+    J.set_size(batchSize, nWeights);
+	I.eye(nWeights, nWeights);
+	
+	e.set_size(batchSize);
+	w.set_size(nWeights);
+	dw.set_size(nWeights);
+	Je.set_size(nWeights);
+	prevDw.set_size(nWeights);
+	
+	nInBatch = 0;
+	
+	batch.resize(batchSize);
+	batchOut.resize(batchSize);
+	batchExact.resize(batchSize);
+}
+
+void WaveletNet::predict(const vector<double>& inputs, vector<double>& outputs, int nAgent)
 {
 	double res = 0;
 	
@@ -228,7 +247,7 @@ void WaveletNet::rollback()
 			wavelons[j]->d[k] -= dw(iw++);	
 }	
 
-void WaveletNet::improve(const vector<double>& inputs, const vector<double>& errors)
+void WaveletNet::improve(const vector<double>& inputs, const vector<double>& errors, int nAgent)
 {
 	// Save all the info about current object
 	
@@ -256,7 +275,7 @@ void WaveletNet::improve(const vector<double>& inputs, const vector<double>& err
 	}		
 }
 
-void WaveletNetLM::improve(const vector<double>& inputs, const vector<double>& errors)
+void WaveletNetLM::improve(const vector<double>& inputs, const vector<double>& errors, int nAgent)
 {
 	// Save all the info about current object
 	
@@ -326,7 +345,7 @@ void WaveletNetLM::improve(const vector<double>& inputs, const vector<double>& e
 
 void WaveletNet::save(string fname)
 {
-	info("Saving into %s\n", fname.c_str());
+	debug1("Saving into %s\n", fname.c_str());
 	
 	string nameBackup = fname + "_tmp";
 	ofstream out(nameBackup.c_str());
@@ -374,7 +393,7 @@ bool WaveletNet::restart(string fname)
 	string nameBackup = fname;
 	
 	ifstream in(nameBackup.c_str());
-	info("Reading from %s\n", nameBackup.c_str());
+	debug1("Reading from %s\n", nameBackup.c_str());
 	if (!in.good())
 	{
 		error("WTF couldnt open file %s (ok keep going mofo)!\n", fname.c_str());

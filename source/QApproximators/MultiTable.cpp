@@ -76,21 +76,22 @@ inline long int MultiTable::_encodeState(const State& s, F&& _discr) const
 	return res;
 }
 
-double MultiTable::get(const State& s, const Action& a)
+double MultiTable::get(const State& s, const Action& a, int nAgent)
 {
 	long int id = _encodeIdx(s, a);
+    //_info("final ID %d\n", id);
 	if (data.find(id) == data.end()) return 0; 
 	return data.find(id)->second;
 }
 
-double MultiTable::getMax(const State& s)
+double MultiTable::getMax(const State& s, int nAgent)
 {
 	long int id = _encodeState(s, _discretize);
 	if (maxStateVal.find(id) == maxStateVal.end()) return 0; 
 	return maxStateVal[id];
 }
 
-void MultiTable::set(const State& s, const Action& a, double val)
+void MultiTable::set(const State& s, const Action& a, double val, int nAgent)
 {
 	long int sId = _encodeState(s, _discretize);
 	long int id = _encodeIdx(sId, a);
@@ -102,11 +103,11 @@ void MultiTable::set(const State& s, const Action& a, double val)
 	}
 }
 
-void MultiTable::correct(const State& s, const Action& a, double err)
+void MultiTable::correct(const State& s, const Action& a, double err, int nAgent)
 {
 	long int sId = _encodeState(s, _discretize);
 	long int id = _encodeIdx(sId, a);
-	
+	//_info("sID %d, final ID %d\n", sId, id);
 	data[id] += err;
 	//	if (val > maxStateVal[sId]) maxStateVal[sId] = val;
 }

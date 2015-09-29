@@ -26,9 +26,9 @@ public:
     
 	vector<Agent*> agents;
 	map<string, void*> data;
-	
-    Environment() {};
-    Environment(vector<Agent*> agents) : agents(agents) {};
+	bool bRestart, bFailed;
+    Environment():bRestart(false),bFailed(false) {};
+    Environment(vector<Agent*> agents) : agents(agents),bRestart(false),bFailed(false) {};
 	
 	virtual void   getState (Agent* agent, State& s) { };
 	virtual double getReward(Agent* agent)           { return 0; };

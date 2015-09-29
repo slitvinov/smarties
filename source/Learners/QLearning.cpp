@@ -20,7 +20,7 @@ Q(newQ), actionsIt(actInfo), gamma(newGamma), greedyEps(newGreedyEps), lRate(new
     suffix = 0;
 }
 
-void QLearning::updateSelect(Trace& t, State& s, Action& a, double r)
+void QLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, double r, int Nagent)
 {
     //       aOld, r
     // sOld ---------> s
@@ -31,11 +31,15 @@ void QLearning::updateSelect(Trace& t, State& s, Action& a, double r)
     // Q(sOld, aOld) += lRate * [r + gamma*V(s) - Q(sOld, aOld)]
     //
 
+    double Qold = Q->get(sOld, aOld, Nagent); //LSTM: also memory advances to new state
+    
+    //LSTM: now test scenarios without updating memory
     double best = -1e10;
     actionsIt.reset();
     while (!actionsIt.done())
     {
-        const double val = Q->get(s, actionsIt.next());
+        const double val = Q->test(s, actionsIt.next(), Nagent);
+        //_info("Q learning: %f for %s,  act %s\n", val, s.print().c_str(), actionsIt.show().print().c_str());
         if (val >= best + 1e-12)
         {
             best = val;
@@ -48,18 +52,25 @@ void QLearning::updateSelect(Trace& t, State& s, Action& a, double r)
             actionsIt.memorize();
         }
     }
+    
+    double err =  lRate *(r/10. + gamma*best - Qold);
+    //printf("Err = %f\n", err);
     double p = rng->uniform();
-    if (p > greedyEps)  a = actionsIt.recall();
+    if (p > fabs(err))  a = actionsIt.recall();
     else                a = actionsIt.getRand(rng);
-
-    State&  sOld = *t.hist[t.start].s;
-    Action& aOld = *t.hist[t.start].a;
-    double err = lRate * (r + gamma*best - Q->get(sOld, aOld));
-
-    if (fabs(err) > 0.001) debug("Q learning: %f --> %f for %s,  act %s\n",
-            Q->get(sOld, aOld), Q->get(sOld, aOld) + err, sOld.print().c_str(), a.print().c_str());
-
-    Q->correct(sOld, aOld, err);
+    
+    if (fabs(Qold)>1e3)
+        die("Mkay\n");
+    
+    //if (fabs(err) > 0.02) cout << "Err before correct = " << err;
+    //if (fabs(err) > 0.02)
+    //_info("Q learning: %f (r = %f)--> %f for %s,  act %s\n", Qold, r, Qold + err, sOld.print().c_str(), a.print().c_str());
+    Qold = Q->advance(sOld, aOld, Nagent);
+    //LSTM: with memory after Q(sOld, aOld)
+    Q->correct(sOld, aOld, err, Nagent);
+    double Qnew = Q->get(sOld, aOld, Nagent);
+    //_info("Q was %f, err %f, now Q=%f\n",Qold,err,Qnew);
+    //if (fabs(err) > 0.02) cout << " Err after correct = " << lRate * (r + gamma*best - Q->test(sOld, aOld, Nagent))  << endl;
 }
 
 void QLearning::try2restart(string fname)

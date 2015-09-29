@@ -21,6 +21,11 @@ double ExternalAgent::getReward()
     return r;
 }
 
+double ExternalAgent::altReward()
+{
+    return _r;
+}
+
 void ExternalAgent::getState(State& _s)
 {
     _s = *s;

@@ -51,12 +51,13 @@ Environment(agents), execpath(execpath)
         if (!fout) die("Couldn't create stream for output pipe!");
         
         int n;
-        
         if (rank != 0)
         {
             fscanf(fin, "%d agents", &n);
             if (n != agents.size())
-            die("Wrong number of agents!");
+            {
+                die("Wrong number of agents: n=%d, size=%d!",n,agents.size());
+            }
         }
         else
         {
@@ -66,7 +67,9 @@ Environment(agents), execpath(execpath)
         _info("Child simulation started with %d agents\n", n);
         
         for (auto a : agents)
-        exagents.push_back(static_cast<ExternalAgent*>(a));
+        {
+            exagents.push_back(static_cast<ExternalAgent*>(a));
+        }
         
         rewards.resize(n);
         states.resize(n);
@@ -86,8 +89,8 @@ Environment(agents), execpath(execpath)
     {
         if (rank == 0) exit(0);
         
-        mkdir( ("simulation_"+to_string(index)+"_"+to_string(rank)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
-        chdir( ("simulation_"+to_string(index)+"_"+to_string(rank)+"/").c_str() );
+        mkdir( ("simulation_"+to_string(rank)+"_"+to_string(index)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
+        chdir( ("simulation_"+to_string(rank)+"_"+to_string(index)+"/").c_str() );
         
         close(inpipe[0]);
         close(outpipe[1]);
@@ -105,25 +108,25 @@ void ExternalEnvironment::setDims()
 {
     sI.dim = 3;
     // State: Distance...
-    sI.bounds.push_back(8);
-    sI.top.push_back(3.0);
-    sI.bottom.push_back(1.4);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
+    sI.bounds.push_back(10);
+    sI.top.push_back(3.2);
+    sI.bottom.push_back(1.2);
+    sI.aboveTop.push_back(false);
+    sI.belowBottom.push_back(false);
     
     // ...quadrant...
-    sI.bounds.push_back(4);
-    sI.top.push_back(0.75);
-    sI.bottom.push_back(-0.75);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
+    sI.bounds.push_back(8);
+    sI.top.push_back(0.4);
+    sI.bottom.push_back(-0.4);
+    sI.aboveTop.push_back(false);
+    sI.belowBottom.push_back(false);
     
     // ...relative inclination...
-    sI.bounds.push_back(3);
+    sI.bounds.push_back(5);
     sI.top.push_back(0.5);
     sI.bottom.push_back(-0.5);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
+    sI.aboveTop.push_back(false);
+    sI.belowBottom.push_back(false);
     
     aI.dim = 1;
     for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5);
