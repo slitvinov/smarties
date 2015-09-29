@@ -20,7 +20,7 @@ Q(q), actionsIt(actInfo), gamma(gamma), greedyEps(greedyEps), lRate(lRate), lamb
     suffix = 0;
 }
 
-void Sarsa::updateSelect(Trace& t, State& s, Action& a, double r)
+void Sarsa::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, double r, int Nagent)
 {
     //       aOld, r
     // sOld ---------> s
@@ -29,13 +29,15 @@ void Sarsa::updateSelect(Trace& t, State& s, Action& a, double r)
     //
     // Q(sOld, aOld) += lRate * [r + gamma*Q(s, a) - Q(sOld, aOld)]
     //
-
+    
+    double Qold = Q->get(sOld, aOld, Nagent);
+    
     // Select new action
     double best = -1e10;
     actionsIt.reset();
     while (!actionsIt.done())
     {
-        const double val = Q->get(s, actionsIt.next());
+        const double val = Q->test(s, actionsIt.next(), Nagent);
         if (val >= best + 1e-12)
         {
             best = val;
@@ -52,9 +54,7 @@ void Sarsa::updateSelect(Trace& t, State& s, Action& a, double r)
     if (p > greedyEps)  a = actionsIt.recall();
     else                a = actionsIt.getRand(rng);
 
-    State&  sOld = *t.hist[t.start].s;
-    Action& aOld = *t.hist[t.start].a;
-    double err = lRate * (r + gamma*Q->get(s, a) - Q->get(sOld, aOld));
+    double err = lRate * (r + gamma*best - Qold);
 
     if (fabs(err) > 1e-8) debug1("Sarsa: Updating trace leading to %s,  act %s\n", s.print().c_str(), a.print().c_str());
 
@@ -63,11 +63,11 @@ void Sarsa::updateSelect(Trace& t, State& s, Action& a, double r)
     {
         History& e = t.hist[i];
 
-        if (e.value > 0) Q->correct(*e.s, *e.a, e.value * err);
+        if (e.value > 0) Q->correct(*e.s, *e.a, e.value * err, Nagent);
         e.value *= gamma * lambda;
-
+        double Qe = Q->get(*e.s, *e.a, Nagent);
         if (fabs(err) > 1e-8 && e.value >= -0.1) debug1("Sarsa: %f --> %f for %s,  act %s\n",
-                    Q->get(*e.s, *e.a), Q->get(*e.s, *e.a) + err, e.s->print().c_str(), e.a->print().c_str());
+                   Qe , Qe + err, e.s->print().c_str(), e.a->print().c_str());
 
         i = (i == t.len-1) ? 0 : i + 1;
         if (i == t.start) break;

@@ -35,8 +35,8 @@ private:
 public:
     Sarsa(QApproximator* Q, ActionInfo& actInfo, double gamma, double greedyEps, double lRate, double lambda);
 	
-    void updateSelect(Trace& t, State& s, Action& a, double r);
-    
+    void updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, double r, int Nagent = 0);
+    void updateSelect(Trace& t, State& s, Action& a, double r, double alphaK) {};
     void try2restart(string prefix);
     void savePolicy(string fname);
 };

@@ -17,6 +17,7 @@
 
 #include "Settings.h"
 #include "ErrorHandling.h"
+#include "iostream"
 using namespace ErrorHandling;
 
 typedef unsigned char byte;
@@ -38,28 +39,43 @@ inline double _dist (double x1, double y1, double x2, double y2)
 
 inline int _discretize(double val, double min, double max, int levels, bool belowMin, bool aboveMax)
 {
-	if (max - min < 1e-6) die("Bad interval of discretization\n");
 	int lvl = 0;
+    //WTF!? int always truncates so you never return "levels", max is levels-1
 	int totLvl = levels;
 	
 	if (belowMin)
 	{
 		lvl++;
-		totLvl++;
 	}
-	
-	lvl += (val - min)*levels / (max - min);
+    if (aboveMax)
+	{
+		levels--;
+	}
+	if (max - min > 1e-6)
+    {
+        lvl += (val - min)*levels / (max - min);
+    }
+    else if ((val > min) && (val < max))
+    {
+        die("Bad interval of discretization\n");
+    }
 	
 	if (val < min)
 	{
 		if (belowMin) return 0;
-		else die("Discretized value is below minimum\n");
+		else{
+            std::cout << "max=" << max << " min=" << min << " levels="<< levels << " val="<< val << endl;
+            die("Discretized value is below minimum\n");
+        }
 	}
 	
-	if (val > max)
+	if (val >= max)
 	{
-		if (aboveMax) return totLvl;
-		else die("Discretized value is above maximum\n");
+		if (aboveMax) return totLvl-1; // lvl = [0 to totLvl-1]
+		else{
+            std::cout << "max=" << max << " min=" << min << " levels="<< levels << " val="<< val << endl;
+            die("Discretized value is above maximum\n");
+        }
 	}
 	
 	return lvl;

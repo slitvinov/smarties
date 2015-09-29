@@ -14,8 +14,13 @@
 
 class SelfAvoidEnvironment;
 class SwarmEnvironment;
-class ExternalAgent;
+class ExternalEnvironment;
+class CartEnvironment;
 
 #include "Environments/SelfAvoidEnvironment.h"
 #include "Environments/SwarmEnvironment.h"
 #include "Environments/ExternalEnvironment.h"
+#include "Environments/CartEnvironment.h"
+#include "Environments/ArtisticEnvironment.h"
+#include "Environments/HuntEnvironment.h"
+#include "Environments/GlideEnvironment.h"

@@ -26,7 +26,8 @@ public:
 	    
     //virtual void selectAction(State& s, Action& a) = 0;
     //virtual void update(State& s, Action& a, double r, State& s1) = 0;
-    virtual void updateSelect(Trace& t, State& s, Action& a, double r) = 0;
+    virtual void updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, double r, int Nagent) = 0;
+    virtual void updateSelect(Trace& t, State& s, Action& a, double r, double alphaK) = 0;
     
     virtual void savePolicy(string prefix) = 0;
 	virtual void try2restart(string fname) = 0;

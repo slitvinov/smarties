@@ -10,7 +10,9 @@
 class SmartySelfAvoider;
 class SmartySwarmer;
 class ExternalAgent;
+class CartAgent;
 
 #include "Agents/SmartySelfAvoider.h"
 #include "Agents/SmartySwarmer.h"
 #include "Agents/ExternalAgent.h"
+#include "Agents/CartAgent.h"

@@ -11,6 +11,7 @@
 
 #include "StateAction.h"
 #include "rng.h"
+#include "rng.h"
 
 ActionIterator::ActionIterator(const ActionInfo& newActInfo) : actInfo(newActInfo), currAction(newActInfo), storedAction(newActInfo), rAction(newActInfo)
 {
@@ -57,6 +58,13 @@ void ActionIterator::reset()
 	if (actInfo.dim > 0) currAction.vals[0] = -1;
 }
 
+void ActionIterator::initAct()
+{
+	for (int i=0; i<actInfo.dim; i++)
+        currAction.vals[i] = rand() % actInfo.bounds[i];
+	//if (actInfo.dim > 0) currAction.vals[0] = -1;
+}
+
 void ActionIterator::memorize()
 {
 	storedAction = currAction;
@@ -65,6 +73,11 @@ void ActionIterator::memorize()
 Action& ActionIterator::recall()
 {
 	return storedAction;
+}
+
+Action& ActionIterator::show()
+{
+    return currAction;
 }
 
 

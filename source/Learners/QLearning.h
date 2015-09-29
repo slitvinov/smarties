@@ -17,7 +17,7 @@
 #include "../QApproximators/MultiTable.h"
 #include "../QApproximators/QApproximator.h"
 #include "Trace.h"
-//#include "../QApproximators/ANNApproximator.h"
+#include "../QApproximators/ANNApproximator.h"
 
 using namespace std;
 
@@ -37,8 +37,8 @@ private:
 public:
 	QLearning(QApproximator* newQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate);
 	
-    void updateSelect(Trace& t, State& s, Action& a, double r);
-    
+    void updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, double r, int Nagent = 0);
+    void updateSelect(Trace& t, State& s, Action& a, double r, double alphaK) {};
     void try2restart(string prefix);
     void savePolicy(string fname);
 };

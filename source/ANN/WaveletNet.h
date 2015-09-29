@@ -116,6 +116,7 @@ protected:
 	double eta;
 	double alpha;
 	RNG rng;
+    int batchSize, nInBatch;
 	
 	vector<Wavelon<MexicanHat>* > wavelons;
 	//vector<double>  inputs;
@@ -129,8 +130,6 @@ protected:
 	vector<vector<double> > batch;
 	vector<double> batchOut;
 	vector<double> batchExact;
-	int batchSize;
-	int nInBatch;
 	
 	arma::mat J;
 	arma::mat JtJ;
@@ -151,13 +150,14 @@ protected:
 	void rollback();
 	
 public:
-	
+    
 	WaveletNet(vector<int>& layerSize, double eta, double alpha, int batchSize = -1);
-	void   predict  (const vector<double>& inputs,       vector<double>& outputs);
-	void   improve  (const vector<double>& inputs, const vector<double>& errors);
-	
+	void   predict  (const vector<double>& inputs,       vector<double>& outputs, int nAgent= 1);
+	void   improve  (const vector<double>& inputs, const vector<double>& errors, int nAgent= 1);
+    void predict(const vector<double>& inputs, const vector<double>& memory_in, const vector<double>& cstate_in, vector<double>& cstate_out,  vector<double>& outputs) {;}
 	void save(string fname);
-	bool restart(string fname);		
+	bool restart(string fname);
+    void setBatchsize(int size);
 };
 
 
@@ -168,7 +168,7 @@ class WaveletNetLM: public WaveletNet
 
 public:
 	WaveletNetLM(vector<int>& layerSize, int batchSize = -1, double eta = 1.0) : WaveletNet(layerSize, eta, 1.0, batchSize) {};
-	void improve(const vector<double>& inputs, const vector<double>& errors);	
+	void improve(const vector<double>& inputs, const vector<double>& errors, int nAgent= 1);
 };
 
 

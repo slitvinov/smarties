@@ -28,9 +28,13 @@ extern struct Settings
 	
 	double nnEta;
 	double nnAlpha;
+    double nnLambda;
 	int    nnLayer1;
 	int    nnLayer2;
-
+    
+    string learner;
+    string network;
+    
 	bool best;
 	bool immortal;
 	string prefix;
