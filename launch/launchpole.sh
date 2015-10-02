@@ -18,7 +18,7 @@ RESTARTPOLICY=" -restartPolicy 1"
 
 OPTIONS=${SETTINGS}${RESTART}
 
-#export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=12
 export OPENBLAS_NUM_THREADS=12
 export LD_LIBRARY_PATH=/Users/laskariangeliki/Documents/tbb40_297oss/lib/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/Users/laskariangeliki/Documents/tbb40_297oss/lib/:$LD_LIBRARY_PATH
@@ -36,7 +36,7 @@ fi
 
 cp ../makefiles/${EXECNAME} ../run$2/executable
 cp ../factory/factoryCart ../run$2/factory
-cp ../samples2/cart-pole ../run$2/
+cp ../samples/cart-pole ../run$2/
 cd ../run$2
 
 /opt/mpich/bin/mpirun -np $1 ./executable ${OPTIONS}

@@ -62,12 +62,12 @@ QApproximator(newSInfo, newActInfo), scaledInp(sInfo.dim + actInfo.dim), rng(ran
         
         lsize.clear();
         lsize.push_back(nStateDims);
-        lsize.push_back(20);
         lsize.push_back(10);
+        lsize.push_back(5);
         lsize.push_back(nActions);
         //memory blocks per layer (none in input and output)
         mblocks.push_back(0);
-        mblocks.push_back(10);
+        mblocks.push_back(15);
         mblocks.push_back(5);
         mblocks.push_back(0);
         //num mememory cell per block on layer
@@ -76,7 +76,7 @@ QApproximator(newSInfo, newActInfo), scaledInp(sInfo.dim + actInfo.dim), rng(ran
         mcells.push_back(1);
         mcells.push_back(0);
         _info("Creating the LSTM...");
-        ann = new NetworkLSTM(lsize, mblocks, mcells, 0.2, 0.1, 0.01, 0.5, nAgents);
+        ann = new NetworkLSTM(lsize, mblocks, mcells, 0.1, 0.2, 0.000001, 0.05, nAgents);
         _info("...created.");
         backup.init(15,45);
     }

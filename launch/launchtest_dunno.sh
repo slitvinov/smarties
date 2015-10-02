@@ -4,13 +4,12 @@ EXECNAME=rl
 NTHREADS=$1
 
 SETTINGS+=" --learn_rate 0.1"
-SETTINGS+=" --gamma 0.9"
-SETTINGS+=" --greedy_eps 0.01"
+SETTINGS+=" --gamma 0.99"
+SETTINGS+=" --greedy_eps 0.05"
 
-SETTINGS+=" --save_freq 1000000"
-SETTINGS+=" --learn A"
-SETTINGS+=" --net LSTM"
-SETTINGS+=" --debug_lvl 0"
+SETTINGS+=" --save_freq 10000"
+SETTINGS+=" --learn Q"
+SETTINGS+=" --debug_lvl 8"
 SETTINGS+=" --config factory"
 
 RESTART=" --restart res/policy"
@@ -19,7 +18,7 @@ RESTARTPOLICY=" -restartPolicy 1"
 
 OPTIONS=${SETTINGS}${RESTART}
 
-export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=12
 export OPENBLAS_NUM_THREADS=12
 export LD_LIBRARY_PATH=/Users/laskariangeliki/Documents/tbb40_297oss/lib/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/Users/laskariangeliki/Documents/tbb40_297oss/lib/:$LD_LIBRARY_PATH

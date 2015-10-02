@@ -165,7 +165,7 @@ int ArtisticEnvironment::evolve(double t)
     }
     fprintf(fout, "\n");
     fflush(fout);
-    
+    bRestart = false;
     /*
     char str[1000] = "";
     bool empty = true;

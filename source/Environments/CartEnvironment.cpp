@@ -191,7 +191,7 @@ int CartEnvironment::evolve(double t)
             fscanf(fin, "%lf", &(a->s->vals[i]));
         fscanf(fin, "%lf", &(a->r));
         
-        if (a->r < -50.0)
+        if (a->r < -99.0)
             bRestart = true;
         debug6("Got from child: reward %f,  state %s\n", a->r, a->s->print().c_str());
     }
