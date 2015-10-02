@@ -14,7 +14,9 @@
 
 #include "Network.h"
 #include "../ErrorHandling.h"
-
+//#define DBG_EXEC
+//#define DBG_BACK //panico
+//#define DBG_ADJS
 using namespace ErrorHandling;
 
 Network::Network(vector<int>& layerSize, double eta, double alpha, double _lambda, int batchSize) :
@@ -189,7 +191,7 @@ void NetworkLM::improve(const vector<double>& inputs, const vector<double>& erro
             for (int n=0; n<layers[l]->nNeurons; n++)
             for (int lnk=0; lnk<layers[l]->neurons[n]->inLinks.size(); lnk++)
             {
-                debug3("l%d w%d%d = %f\n", l, lnk, n, layers[l]->neurons[n]->inLinks[lnk]->w);
+                debug6("l%d w%d%d = %f\n", l, lnk, n, layers[l]->neurons[n]->inLinks[lnk]->w);
                 layers[l]->neurons[n]->inLinks[lnk]->w += dw(w++);
             }
             
@@ -392,12 +394,16 @@ void Neuron::exec()
         for (int i=0; i<inLinks.size(); i++)
         {
             ival += inLinks[i]->val * inLinks[i]->w;
-            //debug7("in val %d = %f, w = %f\n", i, inLinks[i]->val, inLinks[i]->w);
+#ifdef DBG_EXEC
+            _info("in val %d = %f, w = %f\n", i, inLinks[i]->val, inLinks[i]->w);
+#endif
         }
     }
     
     oval = func->eval(ival);
-    //_info("out val %f\n", oval);
+#ifdef DBG_EXEC
+    _info("out val %f\n", oval);
+#endif
     if (hasOutputs)
     {
         for (int i=0; i<outLinks.size(); i++)
@@ -410,7 +416,12 @@ void MemoryCell::exec()
     Input->exec();
     Sc_old = Sc_new;
     Sc_new = Sc_old * FG->oval + IG->oval * Input->oval;
-    ScO->oval = Sc_new;
+    ScN->oval = Sc_new;
+    for (int j=0; j<ScN->outLinks.size(); j++)
+        ScN->outLinks[j]->val = func->eval(Sc_new);
+#ifdef DBG_EXEC
+    _info("Sc_old = %f Sc_new = %f \n",func->eval(Sc_old),func->eval(Sc_new));
+#endif
     //oval = func->eval(Sc_new) * OG->oval;
     
     //for (int i=0; i<outLinks.size(); i++)
@@ -421,21 +432,31 @@ void MemoryBlock::exec()
 {
     for (int i=0; i<nMemoryCells; i++)
     {
-        mCells[i]->ScO->oval = mCells[i]->Sc_new;
+        //mCells[i]->ScO->oval = mCells[i]->Sc_new;
+        mCells[i]->ScO->oval = mCells[i]->func->eval(mCells[i]->Sc_new);
+        for (int j=0; j<mCells[i]->ScO->outLinks.size(); j++)
+            mCells[i]->ScO->outLinks[j]->val = mCells[i]->ScO->oval;
     }
         
     //IG, FG, OG behave like neurons: get input from outside
     IG->exec();
     FG->exec();
+#ifdef DBG_EXEC
+    _info("IG oval = %f\n",IG->oval);
+    _info("FG oval = %f\n",FG->oval);
+#endif
     
     //oval of gates used by the cell "neuron"
     for (int i=0; i<nMemoryCells; i++)
         mCells[i]->exec();
     OG->exec();
+    //_info("OG oval = %f\n",OG->oval);
     for (int i=0; i<nMemoryCells; i++)
     {
         mCells[i]->oval = mCells[i]->func->eval(mCells[i]->Sc_new) * OG->oval;
-        //_info("oval = %f\n",mCells[i]->oval);
+#ifdef DBG_EXEC
+        _info("Sj oval = %f\n",mCells[i]->oval);
+#endif
         for (int j=0; j<mCells[i]->outLinks.size(); j++)
             mCells[i]->outLinks[j]->val = mCells[i]->oval;
     }
@@ -449,12 +470,16 @@ void Neuron::backExec()
         for (int i=0; i<outLinks.size(); i++)
         {
             err += outLinks[i]->err * outLinks[i]->w;
-            //debug7("err %d = %f, w = %f\n", i, outLinks[i]->err, outLinks[i]->w);
+#ifdef DBG_BACK
+            _info("err %d = %f, w = %f\n", i, outLinks[i]->err, outLinks[i]->w);
+#endif
         }
     }
     
     err = func->evalDiff(ival) * err;
-    //debug7("out val %f\n", err);
+#ifdef DBG_BACK
+    _info("out val %f\n", err);
+#endif
     if (hasInputs)
     {
         for (int i=0; i<inLinks.size(); i++)
@@ -467,7 +492,12 @@ void MemoryCell::backExec()
     sumwd = 0.0;
     //Sum_{over out links k of cell} w_{out link k - cell v of block j} delta_{k}
     for (int i=0; i<outLinks.size(); i++)
+    {
         sumwd += outLinks[i]->err * outLinks[i]->w;
+#ifdef DBG_BACK
+        _info("err %d = %f, w = %f\n", i, outLinks[i]->err, outLinks[i]->w);
+#endif
+    }
     //fac = Sum_{over cells v in block} H(Sc_v) * fac_v
     OGerrfac = sumwd * func->eval(Sc_new);
     
@@ -479,9 +509,9 @@ void MemoryCell::backExec()
     for (int i=0; i<Input->inLinks.size(); i++)
     {
         Neuron* prev = Input->inLinks[i]->neuronFrom;
-        if (dsdw_IN.size() != Input->inLinks.size() || dsdw_INo.size() != Input->inLinks.size())
-            die("Mismatch inLinks Input and dsdw");
-        
+//        if (dsdw_IN.size() != Input->inLinks.size() || dsdw_INo.size() != Input->inLinks.size())
+//            die("Mismatch inLinks Input and dsdw\n");
+//        printf("dsdwIN %d old %f new %f\n", i, dsdw_INo[i], dsdw_IN[i]);
         dsdw_INo[i] = dsdw_IN[i];
         dsdw_IN[i]  = dsdw_INo[i] * FG->oval + Input->func->evalDiff(Input->ival) * IG->oval * prev->oval;
         
@@ -489,14 +519,17 @@ void MemoryCell::backExec()
         
         if (fabs(prev->oval)>1e-9)
             Input->inLinks[i]->err = err * dsdw_IN[i] / prev->oval;
+//#ifdef DBG_BACK
+//        _info("Input out err %f\n", Input->inLinks[i]->err);
+//#endif
     }
     
     for (int i=0; i<IG->inLinks.size(); i++)
     {
         Neuron* prev = IG->inLinks[i]->neuronFrom;
-        if (dsdw_IG.size() != IG->inLinks.size() || dsdw_IGo.size() != IG->inLinks.size())
-            die("Mismatch inLinks IG and dsdw");
-            
+//        if (dsdw_IG.size() != IG->inLinks.size() || dsdw_IGo.size() != IG->inLinks.size())
+//            die("Mismatch inLinks IG and dsdw\n");
+//        printf("dsdwIG %d old %f new %f\n", i, dsdw_IGo[i], dsdw_IG[i]);
         dsdw_IGo[i] = dsdw_IG[i];
         dsdw_IG[i]  = dsdw_IGo[i] * FG->oval + Input->oval * IG->func->evalDiff(IG->ival) * prev->oval;
     }
@@ -504,9 +537,9 @@ void MemoryCell::backExec()
     for (int i=0; i<FG->inLinks.size(); i++)
     {
         Neuron* prev = FG->inLinks[i]->neuronFrom;
-        if (dsdw_FG.size() != FG->inLinks.size() || dsdw_FGo.size() != FG->inLinks.size())
-            die("Mismatch inLinks FG and dsdw");
-        
+//        if (dsdw_FG.size() != FG->inLinks.size() || dsdw_FGo.size() != FG->inLinks.size())
+//            die("Mismatch inLinks FG and dsdw\n");
+//        printf("dsdwFG %d old %f new %f\n", i, dsdw_FGo[i], dsdw_FG[i]);
         dsdw_FGo[i] = dsdw_FG[i];
         dsdw_FG[i]  = dsdw_FGo[i] * FG->oval + Sc_old * FG->func->evalDiff(FG->ival) * prev->oval;
     }
@@ -525,6 +558,9 @@ void MemoryBlock::backExec()
     }
     //delta_OG = ...questo V
     OG->err = OG->func->evalDiff(OG->ival) * OGerrfac;
+#ifdef DBG_BACK
+    _info("OG out err %f\n", OG->err);
+#endif
     
     for (int i=0; i<OG->inLinks.size(); i++)
         OG->inLinks[i]->err = OG->err;
@@ -541,6 +577,9 @@ void MemoryBlock::backExec()
                 IG->inLinks[i]->err += mCells[j]->err * mCells[j]->dsdw_IG[i];
             
             IG->inLinks[i]->err /= prev->oval;
+#ifdef DBG_BACK
+            _info("IG out err %f\n", IG->inLinks[i]->err);
+#endif
         }
     }
     
@@ -556,8 +595,78 @@ void MemoryBlock::backExec()
                 FG->inLinks[i]->err += mCells[j]->err * mCells[j]->dsdw_FG[i];
             
             FG->inLinks[i]->err /= prev->oval;
+#ifdef DBG_BACK
+            _info("FG out err %f\n", FG->inLinks[i]->err);
+#endif
         }
     }
+}
+
+void MemoryCell::_backExec()
+{
+    sumwd = 0.0;
+    //Sum_{over out links k of cell} w_{out link k - cell v of block j} delta_{k}
+    for (int i=0; i<outLinks.size(); i++)
+    {
+        sumwd += outLinks[i]->err * outLinks[i]->w;
+#ifdef DBG_BACK
+        _info("MCell err %d = %f, w = %f\n", i, outLinks[i]->err, outLinks[i]->w);
+#endif
+    }
+    //fac = Sum_{over cells v in block} H(Sc_v) * fac_v
+    OGerrfac = sumwd * func->eval(Sc_new);
+    
+    //error state of cell
+    err = sumwd * OG->oval * func->evalDiff(Sc_new);
+    
+    //error of cell input
+    Input->err = err * Input->func->evalDiff(Input->ival) * IG->oval;
+#ifdef DBG_BACK
+    _info("Input err = %f\n", Input->err);
+#endif
+    for (int i=0; i<Input->inLinks.size(); i++)
+        Input->inLinks[i]->err = Input->err;
+}
+
+void MemoryBlock::_backExec()
+{
+    // error of output gate and error state of cell
+    
+    double OGerrfac = 0.0;
+    for (int i=0; i<nMemoryCells; i++)
+    {
+        mCells[i]->_backExec();
+        OGerrfac+=mCells[i]->OGerrfac;
+    }
+    //delta_OG = ...questo V
+    OG->err = OG->func->evalDiff(OG->ival) * OGerrfac;
+#ifdef DBG_BACK
+    _info("OG out err %f\n", OG->err);
+#endif
+    
+    for (int i=0; i<OG->inLinks.size(); i++)
+        OG->inLinks[i]->err = OG->err;
+    
+    IG->err = 0.0;
+    for (int j=0; j<nMemoryCells; j++)
+        IG->err += mCells[j]->err * mCells[j]->Input->oval * IG->func->evalDiff(IG->ival);
+    
+#ifdef DBG_BACK
+    _info("IG out err %f\n", IG->err);
+#endif
+    
+    for (int i=0; i<IG->inLinks.size(); i++)
+        IG->inLinks[i]->err = IG->err;
+    
+    FG->err = 0.0;
+    for (int j=0; j<nMemoryCells; j++)
+        FG->err += mCells[j]->err * mCells[j]->Sc_old * FG->func->evalDiff(FG->ival);
+    
+#ifdef DBG_BACK
+    _info("FG out err %f\n", FG->err);
+#endif
+    for (int i=0; i<FG->inLinks.size(); i++)
+        FG->inLinks[i]->err = FG->err;
 }
 
 void Neuron::adjust(double eta, double alpha, double lambda)
@@ -578,13 +687,103 @@ void Neuron::adjust(double error, double eta, double alpha, double lambda, doubl
 {
     if (hasInputs)
     {
+#ifdef DBG_ADJS
+        printf("error %f, eta %f, alpha %f, lambda %f, kappa %f\n",error, eta, alpha, lambda, kappa);
+#endif
+        bool bRegularization(true);
+        bool bMomentumLearn(true);
+        bool bEligibTrace(true);
+        bool bAdaptiveLearnR(false); //not working
+        bool bRprop(true);
+        bool bMix(true);
         for (int i=0; i<inLinks.size(); i++)
         {
             Neuron* prev = inLinks[i]->neuronFrom;
             inLinks[i]->prevDw = inLinks[i]->Dw;
-            inLinks[i]->epsilon = (kappa * inLinks[i]->epsilon) + inLinks[i]->err * prev->oval; //eligibility
-            inLinks[i]->Dw = eta * error * inLinks[i]->epsilon; // !!!!!!!!! Error = target - output !!!!!!!!!!
-            inLinks[i]->w += inLinks[i]->Dw + alpha * inLinks[i]->prevDw - lambda*eta*inLinks[i]->w;
+            
+            //here we assume we have just one error signal and the backprop has been done with error signal = 1 (hardcoded in LSTM)
+            if (bEligibTrace && kappa>0.)
+            {
+                inLinks[i]->epsilon = (kappa * inLinks[i]->epsilon) + inLinks[i]->err * prev->oval; //eligibility
+                inLinks[i]->Dw = eta * error * inLinks[i]->epsilon; // !!!!!!!!! Error = target - output !!!!!!!!!!
+            }
+            else
+                inLinks[i]->Dw = eta * error * inLinks[i]->err * prev->oval;
+            
+            double dEdw = -inLinks[i]->Dw / eta;
+            
+            if (bAdaptiveLearnR)
+            {
+                double delta = 0.1;
+                if (bMix)
+                    inLinks[i]->Dw = 0.5*inLinks[i]->Dw - 0.5 * dEdw * inLinks[i]->etar;
+                
+                inLinks[i]->rr = (1-delta)*inLinks[i]->rr + delta*dEdw;
+                inLinks[i]->maxrr = max(fabs(inLinks[i]->rr),inLinks[i]->maxrr);
+                double alpha = 0.002;
+                double beta  = 100./inLinks[i]->maxrr;
+            
+                inLinks[i]->etar = inLinks[i]->etar + alpha*inLinks[i]->etar* (beta*fabs(inLinks[i]->rr) - inLinks[i]->etar);
+                //printf("%f\n",inLinks[i]->etar);
+            }
+            
+            if (bRprop)
+            {
+                double Delta_w;
+                if (dEdw * inLinks[i]->o_dEdw > 0.)
+                {
+                    inLinks[i]->Delta = min(1.2*inLinks[i]->Delta, eta*fabs(inLinks[i]->w));
+                    inLinks[i]->o_dEdw = dEdw;
+                    if (dEdw>0.)
+                        Delta_w = -inLinks[i]->Delta;
+                    if (dEdw<0.)
+                        Delta_w =  inLinks[i]->Delta;
+                }
+                if (dEdw * inLinks[i]->o_dEdw < 0.)
+                {
+                    inLinks[i]->Delta = max(0.5*inLinks[i]->Delta, lambda*eta*fabs(inLinks[i]->w));
+                    inLinks[i]->o_dEdw = 0.0;
+                    Delta_w = - inLinks[i]->o_Delta_w;
+                }
+                if (dEdw * inLinks[i]->o_dEdw == 0.)
+                {
+                    inLinks[i]->o_dEdw = dEdw;
+                    if (dEdw>0.)
+                        Delta_w = -inLinks[i]->Delta;
+                    if (dEdw<0.)
+                        Delta_w =  inLinks[i]->Delta;
+                }
+                inLinks[i]->o_Delta_w = Delta_w;
+                if (bMix)
+                    inLinks[i]->Dw = 0.5*inLinks[i]->Dw + 0.5*Delta_w;
+            }
+            
+            if (fabs(inLinks[i]->Dw)>fabs(eta*inLinks[i]->w))
+            {
+                if (inLinks[i]->Dw>0.)
+                    inLinks[i]->Dw =  fabs(eta*inLinks[i]->w);
+                if (inLinks[i]->Dw<0.)
+                    inLinks[i]->Dw = -fabs(eta*inLinks[i]->w);
+            }
+            
+            inLinks[i]->w += inLinks[i]->Dw;
+            
+            if (bMomentumLearn && alpha>0.)
+            {
+                if (inLinks[i]->prevDw*inLinks[i]->Dw > 0.)
+                    inLinks[i]->w += alpha * inLinks[i]->prevDw;
+                if (inLinks[i]->prevDw*inLinks[i]->Dw < 0.)
+                {
+                    inLinks[i]->w -= alpha * inLinks[i]->Dw;
+                    inLinks[i]->Dw = 0.0;
+                }
+            }
+            
+            if (bRegularization && lambda>0.)
+                inLinks[i]->w -= lambda*eta*inLinks[i]->w;
+            
+                //inLinks[i]->w += inLinks[i]->Dw + alpha * inLinks[i]->prevDw - lambda*eta*inLinks[i]->w;
+            
         }
     }
 }
@@ -600,10 +799,10 @@ void MemoryBlock::adjust(double error, double eta, double alpha, double lambda, 
 }
 
 NetworkLSTM::NetworkLSTM(vector<int>& layerSize, vector<int>& memorySize, vector<int>& nCellpB, double eta, double alpha, double _lambda, double kappa, int nAgents = 1) :
-nInputs(layerSize.front()), nOutputs(layerSize.back()), nLayers(layerSize.size()), eta(eta), alpha(alpha),  rng(0), nAgents(nAgents), nMems(0), nRecurr(0), kappa(kappa)
+nInputs(layerSize.front()), nOutputs(layerSize.back()), nLayers(layerSize.size()), eta(eta), alpha(alpha),  rng(0), nAgents(nAgents), nMems(0), nRecurr(0), kappa(kappa), olderr(1)
 {
     //lambda(lambda),
-    lambda = _lambda; //...it's in the approximator class
+    lambda = _lambda;
     //total number of memory cells in network
     for (int i=1; i<nLayers-1; i++) //no memory in input and output layers, recurrency only in hidden layers
     {
@@ -663,7 +862,7 @@ nInputs(layerSize.front()), nOutputs(layerSize.back()), nLayers(layerSize.size()
     }
     
     debug7("Creating last layer with %d neurons\n", nOutputs);
-    HiddenLayer* last = new HiddenLayer(nOutputs, new Linear); //no memory
+    HiddenLayer* last = new HiddenLayer(nOutputs, new Linear);
     layers.push_back(last);
     
     for (int j=0; j<nLayers-1; j++)
@@ -681,7 +880,120 @@ nInputs(layerSize.front()), nOutputs(layerSize.back()), nLayers(layerSize.size()
     last->connect2outputs(outputs);
     last->connect2errors(errors);
 }
-
+/*
+void NetworkLSTM::improveLM(const vector<double>& inputs, const vector<double>& errors, int nAgent)
+{
+    openblas_set_num_threads(12);
+    vector<double> tmpVec(nOutputs);
+    predict(inputs, tmpVec, nAgent);
+    batch.push_back(inputs);
+    batchOut.push_back(tmpVec);
+    for (int i=0; i<nOutputs; i++)
+        tmpVec[i] -= errors[i];
+    batchExact.push_back(tmpVec);
+    
+    for (int i=0; i<nOutputs; i++)
+        e(i + nInBatch*nOutputs) = errors[i];
+    
+    for (int i=0; i<nOutputs; i++)
+    {
+        for (int j=0; j<nOutputs; j++)
+            *(this->errors[j]) = (i==j) ? 1 : 0;  // !!!!!!!!!!!!!!!!!!!!!!
+        
+        for (int i=nLayers-1; i>=0; i--)
+            layers[i]->backPropagate();
+        
+        int w = 0;
+        for (int l=0; l<nLayers; l++)
+            for (int n=0; n<layers[l]->nNeurons; n++)
+                for (int lnk=0; lnk<layers[l]->neurons[n]->inLinks.size(); lnk++)
+                    J(i + nInBatch*nOutputs, w++) = -layers[l]->neurons[n]->err * layers[l]->neurons[n]->inLinks[lnk]->neuronFrom->oval;
+        
+    }
+    
+    nInBatch++;
+    
+    if (nInBatch == batchSize)
+    {
+        debug("nInBatch %d\n", batchSize);
+        
+        nInBatch = 0;
+        Q = 0;
+        for (int i=0; i<nOutputs*batchSize; i++)
+            Q += e(i) * e(i);
+        
+        double Q0 = Q;
+        Q = Q0+1;
+        
+        JtJ = J.t() * J;
+        Je  = J.t() * e;
+        
+        while (Q > Q0)
+        {
+            tmp = JtJ + mu*I;
+            dw = solve(tmp, Je);
+            
+            bool _nan = false;
+            for (int w=0; w<totWeights; w++)
+                if (std::isnan((dw(w))) || std::isinf((dw(w))))
+                    _nan = true;
+            if (_nan)
+            {
+                mu *= muFactor;
+                Q = Q0+1;
+                continue;
+            }
+            
+            int w = 0;
+            for (int l=0; l<nLayers; l++)
+                for (int n=0; n<layers[l]->nNeurons; n++)
+                    for (int lnk=0; lnk<layers[l]->neurons[n]->inLinks.size(); lnk++)
+                    {
+                        debug6("l%d w%d%d = %f\n", l, lnk, n, layers[l]->neurons[n]->inLinks[lnk]->w);
+                        layers[l]->neurons[n]->inLinks[lnk]->w += dw(w++);
+                    }
+            
+            
+            Q = 0;
+            for (int i=0; i<batchSize; i++)
+            {
+                predict(batch[i], tmpVec);
+                for (int j=0; j<nOutputs; j++)
+                {
+                    double diff = tmpVec[j] - batchExact[i][j];
+                    Q += diff * diff;
+                }
+            }
+            
+            if (Q > Q0)
+            {
+                if (mu < muMax)
+                    mu *= muFactor;
+                else
+                {
+                    break;
+                }
+                rollback();
+            }
+        }
+        
+        if (mu > muMin) mu /= muFactor;
+        
+        if (batch.size() != batchSize || batchExact.size() != batchSize || batchOut.size() != batchSize)
+            die("Ololo looooooser\n");
+        for (int b=0; b<batchSize; b++)
+        {
+            batch[b].clear();
+            batchOut[b].clear();
+            batchExact[b].clear();
+        }
+        
+        batch.clear();
+        batchOut.clear();
+        batchExact.clear();
+    }
+}
+*/
 void NetworkLSTM::predict(const vector<double>& input, vector<double>& output, int nAgent)
 {
     for (int i=0; i<nInputs; i++)
@@ -788,11 +1100,18 @@ void NetworkLSTM::improve(const vector<double>& input, const vector<double>& err
     
     *(this->errors[Isignal]) = 1.;
     
+    if (fabs(olderr)>fabs(signal))
+    {
+        eta*=0.99;
+        olderr = signal;
+    }
+    
     for (int i=nLayers-1; i>=0; i--)
         layers[i]->backPropagate();
 
     for (int i=0; i<nLayers; i++)
         layers[i]->adjust(signal, eta, alpha, lambda, kappa);
+
     /*
     for (int i=0; i<nMems; i++)
     { //new state is uploaded to agents
@@ -892,19 +1211,23 @@ HiddenLayer::HiddenLayer(int nNeurons, ActivationFunction* func) : nNeurons(nNeu
     baseNeg->ival = -1.;
 }
 
-void HiddenLayer::link(Neuron* Nto, Neuron* Nfrom, RNG* rng, bool ground=false)
+void HiddenLayer::link(Neuron* Nto, Neuron* Nfrom, RNG* rng, double ground = 0.)
 {
     Link* lnk = new Link;
     lnk->neuronTo   = Nto;
     lnk->neuronFrom = Nfrom;
     
-    lnk->w = rng->uniform(-1./2., 1./2.);
-    if(ground)
-        lnk->w = 2.; //why the hell not! (remember, we'll normalise w/=Ninputs later)
+    lnk->w = rng->uniform(-1., 1.);
+    if(ground>0)
+        lnk->w = ground; //why the hell not! (remember, we'll normalise w/=Ninputs later)
     
     lnk->Dw = 0;
     lnk->val = 0;
     lnk->prevDw = 0;
+    lnk->etar = 10.;
+    lnk->rr = 0.0;
+    lnk->maxrr = 1e-9;
+    lnk->Delta = 0.5;
     
     Nfrom->outLinks.push_back(lnk);
     Nfrom->hasOutputs = true;
@@ -959,23 +1282,23 @@ void HiddenLayer::normaliseWeights()
     for (int i=0; i<nMemoryBlocks; i++)
     {
         for (int j=0; j<mBlocks[i]->OG->inLinks.size(); j++)
-        mBlocks[i]->OG->inLinks[j]->w /= mBlocks[i]->OG->inLinks.size();
+        mBlocks[i]->OG->inLinks[j]->w /= 2. * sqrt( mBlocks[i]->OG->inLinks.size() / 12.);
         
         for (int j=0; j<mBlocks[i]->FG->inLinks.size(); j++)
-        mBlocks[i]->FG->inLinks[j]->w /= mBlocks[i]->FG->inLinks.size();
+        mBlocks[i]->FG->inLinks[j]->w /= 2. * sqrt( mBlocks[i]->FG->inLinks.size() / 12.);
         
         for (int j=0; j<mBlocks[i]->IG->inLinks.size(); j++)
-        mBlocks[i]->IG->inLinks[j]->w /= mBlocks[i]->IG->inLinks.size();
+        mBlocks[i]->IG->inLinks[j]->w /= 2. * sqrt( mBlocks[i]->IG->inLinks.size() / 12.);
         
         for (int k=0; k<nCellpB; k++)
             for (int j=0; j<mBlocks[i]->mCells[k]->inLinks.size(); j++)
-                mBlocks[i]->mCells[k]->inLinks[j]->w /= mBlocks[i]->mCells[k]->inLinks.size();
+                mBlocks[i]->mCells[k]->inLinks[j]->w /= 2. * sqrt( mBlocks[i]->mCells[k]->inLinks.size() / 12.);
 
     }
     
     for (int i=0; i<nNeurons; i++)
         for (int j=0; j<neurons[i]->inLinks.size(); j++)
-            neurons[i]->inLinks[j]->w /= neurons[i]->inLinks.size();
+            neurons[i]->inLinks[j]->w /= 2. * sqrt( neurons[i]->inLinks.size() / 12.);
     
 }
 
@@ -1028,12 +1351,12 @@ void HiddenLayer::connect2ground(RNG* rng)
     if(nMemoryBlocks>0)
     for (int i=0; i<nMemoryBlocks; i++)
     {
-        link(mBlocks[i]->OG, baseNeg, rng, true); //at the beginning the OG and IG
-        link(mBlocks[i]->IG, baseNeg, rng, true); //gates are closed: negative bias
-        link(mBlocks[i]->FG, basePos, rng, true); //FG is open
+        link(mBlocks[i]->OG, baseNeg, rng, 10.); //at the beginning the OG and IG
+        link(mBlocks[i]->IG, baseNeg, rng, 10.); //gates are closed: negative bias
+        link(mBlocks[i]->FG, basePos, rng, 10.); //FG is open
         
         for (int k=0; k<nCellpB; k++)
-        link(mBlocks[i]->mCells[k]->Input, baseNeg, rng, true);
+        link(mBlocks[i]->mCells[k]->Input, baseNeg, rng);
     }
     
     for (int i=0; i<nNeurons; i++)
@@ -1069,30 +1392,30 @@ void HiddenLayer::connect2errors(vector<double*>& errs)
 
 void HiddenLayer::propagate()
 {   //memory first
-    #pragma omp for nowait
+    #pragma omp parallel for
     for (int i=0; i<nMemoryBlocks; i++)
     mBlocks[i]->exec();
-    #pragma omp for nowait
+    #pragma omp parallel for
     for (int i=0; i<nNeurons; i++)
     neurons[i]->exec();
 }
 
 void HiddenLayer::backPropagate()
 {   //first in last out
-    #pragma omp for nowait
+    #pragma omp parallel for
     for (int i=0; i<nNeurons; i++)
     neurons[i]->backExec();
-    #pragma omp for nowait
+    #pragma omp parallel for
     for (int i=0; i<nMemoryBlocks; i++)
     mBlocks[i]->backExec();
 }
 
 void HiddenLayer::adjust(double error, double eta, double alpha, double lambda, double kappa)
 {
-    #pragma omp for nowait
+    #pragma omp parallel for
     for (int i=0; i<nMemoryBlocks; i++)
         mBlocks[i]->adjust(error, eta, alpha, lambda, kappa);
-    #pragma omp for nowait
+    #pragma omp parallel for
     for (int i=0; i<nNeurons; i++)
         neurons[i]->adjust(error, eta, alpha, lambda, kappa);
 }
@@ -1177,3 +1500,5 @@ void NetworkLSTM::save(string fname)
     // Submit the command to the system
     system(command.c_str());
 }
+
+

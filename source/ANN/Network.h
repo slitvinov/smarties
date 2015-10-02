@@ -99,6 +99,7 @@ class NetworkLSTM: public Approximator
         double eta;
         double alpha;
         double kappa;
+        double olderr;
         RNG rng;
         
         vector<HiddenLayer*> layers;
@@ -133,9 +134,16 @@ class Link
         double  Dw; //only for memory updates
 		double  val;
         double  err;
+        //eligibility traces:
         double  epsilon;
+        //memory learning:
         double  dsdw;
+        //momentum learning:
 		double  prevDw;
+        //adaptive learning rate:
+        double rr, maxrr, etar;
+        //Rprop
+        double o_dEdw, Delta, o_Delta_w;
         
 	};
 	
@@ -154,8 +162,8 @@ class Neuron
 		bool hasOutputs;
 		
 		Neuron(ActivationFunction* func);		
-		void exec();
-		void backExec();
+        void exec();
+        void backExec();
 		void adjust(double eta, double alpha, double lambda=0);
         void adjust(double error, double eta, double alpha, double lambda, double kappa);
 	};
@@ -184,6 +192,7 @@ class MemoryCell : public Neuron
         void init_dsdw();
         void exec();
         void backExec();
+        void _backExec();
     };
 
 class MemoryBlock
@@ -200,6 +209,7 @@ class MemoryBlock
         void init_dsdw();
         void exec();
         void backExec();
+        void _backExec();
         void adjust(double error, double eta, double alpha, double lambda, double kappa);
     };
 
@@ -236,7 +246,7 @@ class HiddenLayer
         void propagate();
         void backPropagate();
         double TotSumWeights();
-        void link(Neuron* Nto, Neuron* Nin, RNG* rng, bool ground);
+        void link(Neuron* Nto, Neuron* Nin, RNG* rng, double ground);
         void normaliseWeights();
         void connect2layers(HiddenLayer* prev, RNG* rng, int dist);
         void connect2memstate(vector<double*>& memory, vector<double*>& Sc_old, vector<double*>& Sc_new, int firstm, int firstr);

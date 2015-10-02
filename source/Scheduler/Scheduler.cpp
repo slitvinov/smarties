@@ -295,7 +295,7 @@ int Slave::evolve(double& t)
     // with this, the first communication to the master has a proper Sold, A, Snew, rew
     if(first)
     {
-        debug6("Slave %d performing first action\n", me);
+        debug4("Slave %d performing first action\n", me);
         int extflag = env->evolve(t);
         //if(extflag) return extflag;
     }
@@ -327,9 +327,9 @@ int Slave::evolve(double& t)
             if(first)
             {
                 actions[i].initAct();
-                debug6("First random action for agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
+                debug4("First random action for agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
             }
-            debug6("Agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
+            debug4("Agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
             agent->act(actions[i]);
             agent->setLastLearned(t);
             needToPack[i] = true;
@@ -350,7 +350,7 @@ int Slave::evolve(double& t)
     {
         first = true;
         MPI_Recv(inbuf, insize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
-        debug6("Slave %d restarts before receiving %d bytes\n", me, insize);
+        debug4("Slave %d restarts before receiving %d bytes\n", me, insize);
     }
     return 0;
 }

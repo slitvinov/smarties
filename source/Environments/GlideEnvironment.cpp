@@ -182,7 +182,7 @@ int GlideEnvironment::evolve(double t)
     
     char str[1000] = "";
     bool empty = true;
-    
+    bRestart = false;
     while (empty)
     {
         fgets(str, 1000, fin);
