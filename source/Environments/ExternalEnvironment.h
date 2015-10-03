@@ -23,7 +23,7 @@ class ExternalEnvironment: public Environment
     string execpath;
     void setDims();
     vector<int> ids;
-
+    int pid;
     FILE *fin, *fout;
 
     vector<ExternalAgent*> exagents;
