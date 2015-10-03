@@ -38,14 +38,14 @@ public:
     virtual double Train() = 0;
     void passData(int agentId, State& sOld, Action& a, State& sNew, double reward, double altrew)
     {
-        /*
+        
         //FILE * ppFile = fopen("history.txt", "a");
         ofstream fout;
         fout.open("history.txt",ios::app);
         //fprintf(ppFile,"%d %s %s %s %f\n",slave, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r);
-        fout << agentId << " " << sOld.printClean().c_str() << sNew.printClean().c_str() << a.printClean().c_str() << reward <<endl; //<< " " << altrew << endl;
+        fout << agentId << " " << sOld.printClean().c_str() << sNew.printClean().c_str() << a.printClean().c_str() << reward << " " << altrew << endl;
         //fclose(ppFile);
         fout.close();
-      */
+      
     }
 };

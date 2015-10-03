@@ -33,7 +33,6 @@ Environment(agents), execpath(execpath)
         die("Outpipe error\n");
     }
     
-    int pid;
     if( (pid=fork()) == -1 )
     {
         die("Couldn't fork!");
@@ -136,63 +135,66 @@ void ExternalEnvironment::setDims()
     sI.belowBottom.push_back(false);
     
     // ...last action (HAX!)
-    sI.bounds.push_back(3);
-    sI.top.push_back(3.0);
+    sI.bounds.push_back(5);
+    sI.top.push_back(5.0);
     sI.bottom.push_back(0.0);
     sI.aboveTop.push_back(false);
     sI.belowBottom.push_back(false);
     
     // ...second last action (HAX!)
-    sI.bounds.push_back(3);
-    sI.top.push_back(3.0);
+    sI.bounds.push_back(5);
+    sI.top.push_back(5.0);
     sI.bottom.push_back(0.0);
     sI.aboveTop.push_back(false);
     sI.belowBottom.push_back(false);
     
     aI.dim = 1; //How many actions taken per turn by one agent
     
-    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(3); //Number of possible actions to choose from (nothing, curve right, curve left)
+    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5); //Number of possible actions to choose from (nothing, curve right, curve left)
 }
 
 int ExternalEnvironment::evolve(double t)
 {
-    fprintf(fout, "Actions:\n");
-    for (auto& a : exagents)
-    {
-        fprintf(fout, "%d ", a->a->vals[0]);
-        debug2("Sent child: action %d\n", a->a->vals[0]);
-    }
-    fprintf(fout, "\n");
-    fflush(fout);
     bRestart = false;
     /*
-     char str[1000] = "";
-     bool empty = true;
-     
-     while (empty)
-     {
-     fgets(str, 1000, fin);
-     string sstr(str);
-     
-     sstr.erase(std::remove(sstr.begin(), sstr.end(), '\n'), sstr.end());
-     sstr.erase(std::remove(sstr.begin(), sstr.end(), ' '), sstr.end());
-     sstr.erase(std::remove(sstr.begin(), sstr.end(), '\t'), sstr.end());
-     empty = sstr.length() < 1;
-     }
-     
-     string sstr(str);
-     sstr.erase(sstr.find_last_not_of(" \t\f\v\n\r")+1);
-     
-     if (sstr != "States and rewards:")
-     {
-     bFailed = true;
-     bRestart = true;
-     fprintf(fout, "Die\n");
-     return 1;
-     }
-     */
+    char str[1000] = "";
+    bool empty = true;
+
+    while (empty)
+    {
+        fgets(str, 1000, fin);
+        string sstr(str);
+
+        sstr.erase(std::remove(sstr.begin(), sstr.end(), '\n'), sstr.end());
+        sstr.erase(std::remove(sstr.begin(), sstr.end(), ' '), sstr.end());
+        sstr.erase(std::remove(sstr.begin(), sstr.end(), '\t'), sstr.end());
+        empty = sstr.length() < 1;
+    }
+
+    string sstr(str);
+    sstr.erase(sstr.find_last_not_of(" \t\f\v\n\r")+1);
+
+    if (sstr != "States and rewards:")
+    {
+        bFailed = true;
+        bRestart = true;
+        //fprintf(fout, "Die\n");
+        return 1;
+    }
+*/
+
     string sstr;
-    do{
+    do
+    {
+        fprintf(fout, "Actions:\n");
+        for (auto& a : exagents)
+        {
+            fprintf(fout, "%d ", a->a->vals[0]);
+            debug2("Sent child: action %d\n", a->a->vals[0]);
+        }
+        fprintf(fout, "\n");
+        fflush(fout);
+        
         char str[1000] = "";
         bool empty = true;
         while (empty)
@@ -220,7 +222,7 @@ int ExternalEnvironment::evolve(double t)
         fscanf(fin, "%lf", &(a->r));
         fscanf(fin, "%lf", &(a->_r));
         
-        debug2("Got from child: reward %f (%f),  state %s\n", a->r, a->_r, a->s->print().c_str());
+        debug2("Got from child %d: reward %f (%f),  state %s\n", pid, a->r, a->_r, a->s->print().c_str());
         if (a->r < -99)
             bRestart = true;
     }
