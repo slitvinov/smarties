@@ -27,11 +27,7 @@
 using namespace ErrorHandling;
 
 NFQApproximator::NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, double gamma, string nettype, int nAgents) :
-<<<<<<< HEAD
 QApproximator(newSInfo, newActInfo), scaledInp(sInfo.dim + actInfo.dim), gamma(gamma), A(0.02), B(1.), nettype(nettype), nAgents(nAgents), actionsIt(newActInfo)
-=======
-QApproximator(newSInfo, newActInfo), samples(newActInfo, newSInfo), scaledInp(sInfo.dim + actInfo.dim), actionsIt(newActInfo), gamma(gamma), A(0.02), B(1.), nettype(nettype), nAgents(nAgents)
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
 {
     rng = new RNG(rand());
     samples.Set.clear();
@@ -40,11 +36,7 @@ QApproximator(newSInfo, newActInfo), samples(newActInfo, newSInfo), scaledInp(sI
     batchSize = round(settings.nnAlpha);
     
     vector<int> lsize, mblocks, mcells;
-<<<<<<< HEAD
     prediction.resize(1);
-=======
-    
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
     if (nettype == "ANN")
     {
         lsize.push_back(nInputs);
@@ -68,7 +60,6 @@ QApproximator(newSInfo, newActInfo), samples(newActInfo, newSInfo), scaledInp(sI
     else if (nettype == "LSTM")
     {
         lsize.push_back(nInputs);
-<<<<<<< HEAD
         //lsize.push_back(sInfo.dim);
         lsize.push_back(30);
         lsize.push_back(15);
@@ -91,29 +82,6 @@ QApproximator(newSInfo, newActInfo), samples(newActInfo, newSInfo), scaledInp(sI
         B = 0.;
         //prediction.resize(actInfo.bounds[0]);
     }
-=======
-        lsize.push_back(13);
-        lsize.push_back(7);
-        lsize.push_back(1);
-        //memory blocks per layer (none in input and output)
-        mblocks.push_back(0);
-        mblocks.push_back(3);
-        mblocks.push_back(3);
-        mblocks.push_back(0);
-        //num mememory cell per block on layer
-        mcells.push_back(0);
-        mcells.push_back(3);
-        mcells.push_back(1);
-        mcells.push_back(0);
-        
-        ann = new NetworkLSTM(lsize, mblocks, mcells, 0.1, 0.0, 0.001, 0.5, nAgents);
-        A = .02;
-        B = 1.;
-    }
-    lambdaold= lambdanew= errold= errnew = 0;
-    first = true;
-    prediction.resize(1);
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
 }
 
 NFQApproximator::~NFQApproximator()
@@ -123,7 +91,6 @@ NFQApproximator::~NFQApproximator()
 double NFQApproximator::get(const State& s, const Action& a, int nAgent)
 {
     s.scale(scaledInp);
-<<<<<<< HEAD
     backup.copy(ann->Agents[nAgent-1]);
     if(prediction.size() < 2)
     {
@@ -192,12 +159,6 @@ void NFQApproximator::correct(const State& s, const Action& a, double err, int n
     prediction[a.vals[0]] = err;
     
     ann->improve(scaledInp, prediction, nAgent-1);
-=======
-    a.scale(scaledInp);
-    ann->predict(scaledInp, prediction, nAgent-1);
-    
-    return prediction[0];
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
 }
 
 double NFQApproximator::test(const State& s, const Action& a, int nAgent)
@@ -220,43 +181,20 @@ double NFQApproximator::batchUpdate()
     vector< double > target(1);
     Action a(actInfo);
     debug("Sample set size is %d\n", samples.Set.size());
-<<<<<<< HEAD
     double err(0.0), maxo(-1e6), mino(1e6), reward;
     
     
     for (int i=0; i<samples.Set.size(); i++)
-=======
-    double err(0.0), maxo(-1e6), mino(1e6);
-    
-    
-    for (int i=1; i<samples.Set.size(); i++)
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
     { //target values
     
         double best = -1e10;
         actionsIt.reset();
         samples.Set[i].sNew->scale(scaledInp); //to calculate max_a (Q^{k-1} (s' , a))
-<<<<<<< HEAD
-=======
-        
-        debug7("B4 [");
-        for (int i = 0; i < scaledInp.size(); ++i)
-            debug7(" %f ", scaledInp[i]);
-        debug7("]\n");
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
 
         while (!actionsIt.done())
         {
             a = actionsIt.next();
             a.scale(scaledInp);
-<<<<<<< HEAD
-=======
-
-            debug7("%d [", a.vals[0]);
-            for (int i = 0; i < scaledInp.size(); ++i)
-                debug7(" %f ", scaledInp[i]);
-            debug7("]\n");
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
             
             ann->predict(scaledInp, prediction, 0); // scaled network curr output
             if (descale(prediction[0]) >= best + 1e-12)
@@ -265,30 +203,17 @@ double NFQApproximator::batchUpdate()
                 actionsIt.memorize();
             }
         }
-<<<<<<< HEAD
         reward = samples.Set[i].reward - fabs(samples.Set[i].sOld->vals[1]) - fabs(samples.Set[i].sOld->vals[2])/1.57079632679;
         //output i:
         target[0] = reward + gamma*best;
-=======
-        
-        //output i:
-        target[0] = samples.Set[i].reward + gamma*best;
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
+
         tmp.outi = target; // not scaled network desired output (exact if Q has converged)
         
         //input i:
         samples.Set[i].sOld->scale(scaledInp);
         samples.Set[i].a->scale(scaledInp);
         tmp.insi = scaledInp;
-        
-<<<<<<< HEAD
-=======
-        debug7("old [");
-        for (int i = 0; i < scaledInp.size(); ++i)
-            debug7(" %f ", scaledInp[i]);
-        debug7("]\n");
-        
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
+
         //old approx & scaled Q(sOld)
         ann->predict(scaledInp, prediction, 0);
         tmp.pred = prediction;
@@ -312,11 +237,7 @@ double NFQApproximator::batchUpdate()
     
     for (int i=0; i<pairs.size(); i++)
     {
-<<<<<<< HEAD
         pairs[i].outi[0] = pairs[i].pred[0] - rescale(pairs[i].outi[0]); //scaled error pred-val
-=======
-        pairs[i].outi[0] = rescale(pairs[i].outi[0]) - pairs[i].pred[0]; //scaled error pred-val
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
         ann->improve(pairs[i].insi, pairs[i].outi, 0);
         err += fabs(pairs[i].outi[0]);
     }
@@ -331,7 +252,6 @@ double NFQApproximator::serialUpdate()
 {
     Action a(actInfo);
     debug("Sample set size is %d\n", samples.Set.size());
-<<<<<<< HEAD
     double err(0.0), reward, best, Qnew;
     vector<double> Qold(1), target(1);
     
@@ -346,44 +266,20 @@ double NFQApproximator::serialUpdate()
         samples.Set[i].sNew->scale(scaledInp); //to calculate max_a' (Q^{k-1} (s' , a'))
         actionsIt.reset();
         best = -1e10;
-=======
-    double err(0.0);
-    vector<double> Qold(1), target(1);
-    
-    for (int i=1; i<samples.Set.size(); i++)
-    { //target values
-        //we transition to state s' and get the Qold
-        Memory backup(ann->Agents[samples.Set[i].agentId-1]);
-        //printf("Memory %d backup example %f %f %f\n",samples.Set[i].agentId-1, backup.memory[0],  backup.ostate[0],  backup.nstate[0]);
-        samples.Set[i].sOld->scale(scaledInp);
-        samples.Set[i].a->scale(scaledInp);
-        ann->predict(scaledInp, Qold, samples.Set[i].agentId-1);
-        //_info("Qold=%f\n",Qold[0]);
-        //Look for the best action by testing the NN without changin memory
-        double best = -1e10;
-        
-        samples.Set[i].sNew->scale(scaledInp); //to calculate max_a' (Q^{k-1} (s' , a'))
-        
-        actionsIt.reset();
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
+
         while (!actionsIt.done())
         {
             a = actionsIt.next();
             a.scale(scaledInp);
-<<<<<<< HEAD
-            ann->predict(scaledInp, ann->Agents[samples.Set[i].agentId-1].memory, ann->Agents[samples.Set[i].agentId-1].ostate, ann->Agents[samples.Set[i].agentId-1].nstate, prediction);
-=======
-            
+
             ann->predict(scaledInp, ann->Agents[samples.Set[i].agentId-1].memory, ann->Agents[samples.Set[i].agentId-1].ostate, ann->Agents[samples.Set[i].agentId-1].nstate, prediction);
 
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
             if (prediction[0] >= best + 1e-12)
             {
                 best = prediction[0]; // best current Q option
                 actionsIt.memorize();
             }
         }
-<<<<<<< HEAD
         reward = samples.Set[i].reward - fabs(samples.Set[i].sOld->vals[1]) - fabs(samples.Set[i].sOld->vals[2])/1.57079632679;
         Qnew = reward + gamma*best;
         target[0] = 0.01*(Qnew - Qold[0]);
@@ -436,46 +332,7 @@ double NFQApproximator::serialALearning()
     B = -A*mino -1.;
     
     debug("Learning state: average error %f, avg weights %f, avg learn rate %f (%f - %f).\n", err/samples.Set.size(), ann->TotSumWeights(),ann->AvgLearnRate(), maxo, mino);
-=======
 
-        target[0] = samples.Set[i].reward/100. + gamma*best - Qold[0];
-        if (target[0]>1e6) {
-            die("Exploding!\n");
-        }
-        ann->Agents[samples.Set[i].agentId-1] = backup;
-
-        samples.Set[i].sOld->scale(scaledInp);
-        samples.Set[i].a->scale(scaledInp);
-        ann->predict(scaledInp, Qold, samples.Set[i].agentId-1);
-        //debug("Improving on error %f\n", target[0]);
-        ann->improve(scaledInp, target, samples.Set[i].agentId-1);
-        err += fabs(target[0]);
-    }
-    ann->setBatchsize(0);
-    debug("The average error was %f\n", err/samples.Set.size());
-    
-    if (first)
-    {
-        errnew = err/samples.Set.size();
-        lambdanew = ann->lambda;
-        ann->lambda = ann->lambda*1.01;
-        delta = ann->lambda-lambdanew;
-        first = false;
-    }
-    else
-    {
-        errold = errnew;
-        errnew = err/samples.Set.size();
-        lambdaold = lambdanew;
-        lambdanew = ann->lambda;
-        double change = lambdanew==lambdaold? 0.0 : -0.00001*(errnew-errold)/(lambdanew-lambdaold);
-        ann->lambda = lambdanew +change +0.1*delta;
-        delta = change;
-        ann->lambda = ann->lambda<0? 0. : ann->lambda;
-    }
-
-    debug("We will pick lambda = %f\n", ann->lambda );
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
     return err/samples.Set.size();
 }
 
@@ -531,53 +388,6 @@ bool NFQApproximator::restart(string name)
         fclose(f);
     }
     
-<<<<<<< HEAD
-=======
-    State t_sO(sInfo), t_sN(sInfo);
-    vector<double> d_sO(sInfo.dim), d_sN(sInfo.dim);
-    Action t_a(actInfo);
-    vector<int> d_a(actInfo.dim);
-    double reward;
-    int agentId;
-    
-    ifstream in("history.txt");
-    std::string line;
-    double alt_reward;
-	if(in.good())
-	{
-		unsigned counter = 0;
-		while (getline(in, line))
-        {
-            istringstream line_in(line);
-            line_in >> agentId;
-            for (int i=0; i<sInfo.dim; i++)
-            {
-                line_in >> d_sO[i];
-            }
-            for (int i=0; i<sInfo.dim; i++)
-            {
-                line_in >> d_sN[i];
-            }
-            for (int i=0; i<actInfo.dim; i++)
-            {
-                line_in >> d_a[i];
-            }
-            line_in >> reward;
-            line_in >> alt_reward;
-            t_sO.set(d_sO);
-            t_sN.set(d_sN);
-            t_a.set(d_a);
-            samples.add(agentId, t_sO, t_a, t_sN, reward);
-		}
-	}
-	else
-	{
-		die("WTF couldnt open file history.txt!\n");
-		res = false;
-	}
-	
-	in.close();
->>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
     return res;
 }
 
