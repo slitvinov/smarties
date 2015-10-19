@@ -354,6 +354,7 @@ int Slave::evolve(double& t)
         debug4("Slave %d restarts before receiving %d bytes\n", me, insize);
     }
     return 0;
+
 }
 
 void Slave::unpackData()

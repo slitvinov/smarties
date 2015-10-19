@@ -59,10 +59,8 @@ bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=${NTHREADS}] -sp 100 -W ${W
 #valgrind --tool=memcheck --leak-check=yes --log-file=toto%p
 
 # Job Chaining
-
 RESTART=" --restart res/policy_backup"
 OPTIONS=${SETTINGS}${RESTART}${RESTARTPOLICY}
-
 for (( c=1; c<=${TIMES}-1; c++ ))
 do
 echo "Submission $c..."

@@ -19,7 +19,11 @@ RESTARTPOLICY=" -restartPolicy 1"
 
 OPTIONS=${SETTINGS}${RESTART}
 
+<<<<<<< HEAD
 export OMP_NUM_THREADS=12
+=======
+export OMP_NUM_THREADS=1
+>>>>>>> 10c86dd8b1b6ba41f121230dc7ac9472ac58440d
 export OPENBLAS_NUM_THREADS=12
 export LD_LIBRARY_PATH=/Users/laskariangeliki/Documents/tbb40_297oss/lib/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/Users/laskariangeliki/Documents/tbb40_297oss/lib/:$LD_LIBRARY_PATH

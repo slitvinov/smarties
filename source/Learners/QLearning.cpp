@@ -68,7 +68,7 @@ void QLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action&
     Qold = Q->advance(sOld, aOld, Nagent);
     //LSTM: with memory after Q(sOld, aOld)
     Q->correct(sOld, aOld, err, Nagent);
-    //double Qnew = Q->get(sOld, aOld, Nagent);
+    double Qnew = Q->get(sOld, aOld, Nagent);
     //_info("Q was %f, err %f, now Q=%f\n",Qold,err,Qnew);
     //if (fabs(err) > 0.02) cout << " Err after correct = " << lRate * (r + gamma*best - Q->test(sOld, aOld, Nagent))  << endl;
 }

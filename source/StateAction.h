@@ -106,6 +106,7 @@ public:
 			if (res[i] < -2) res[i] = -2.;
             if (sInfo.isLabel[i]) res[i] = sInfo.values[vals[i]];
         }
+
 	}
     
     void pack(byte* buf)

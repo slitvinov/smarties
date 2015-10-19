@@ -11,6 +11,7 @@ SETTINGS+=" --save_freq 100"
 SETTINGS+=" --debug_lvl 9"
 SETTINGS+=" --learn NFQNN"
 SETTINGS+=" --net WAVE"
+
 SETTINGS+=" --config factory"
 
 RESTART=" --restart res/policy_backup"
