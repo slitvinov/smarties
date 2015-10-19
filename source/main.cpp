@@ -66,7 +66,7 @@ void runMaster(int nranks)
     if (settings.learner == "Q")
     {
         debug("Q\n");
-        Qvals = new MultiTable(env->sI, env->aI);
+        Qvals = new MultiTable(env->sI, env->aI, settings.gamma);
         learner = new QLearning(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate);
     }
     else if (settings.learner == "QNN")
@@ -81,15 +81,20 @@ void runMaster(int nranks)
         Qvals = new ANNApproximator(env->sI, env->aI, "LSTM", nranks*env->agents.size());
         learner = new ALearning(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate);
     }
-    else if (settings.learner == "NFQ")
+    else if (settings.learner == "NFQNN")
     {
-        Qvals = new NFQApproximator(env->sI, env->aI, settings.gamma, settings.network, nranks*env->agents.size());
+        Qvals = new NFQApproximator(env->sI, env->aI, settings.gamma, settings.network, nranks*env->agents.size()); //TODO fix last argument: size of agent memories (to be read from history file)
+        learner = new NFQ(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate);
+    }
+    else if (settings.learner == "NFQtable")
+    {
+        Qvals = new MultiTable(env->sI, env->aI, settings.gamma);
         learner = new NFQ(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate);
     }
     else if (settings.learner == "SARSA")
     {
         debug("Sarsa\n");
-        Qvals = new MultiTable(env->sI, env->aI);
+        Qvals = new MultiTable(env->sI, env->aI, settings.gamma);
         learner = new Sarsa(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate, settings.lambda);
     }
     /*else if (settings.learner == "Speedy")
@@ -135,7 +140,7 @@ int main (int argc, char** argv)
 		{'e', "greedy_eps", DOUBLE, "Greedy epsilon",         &settings.greedyEps,  0.05},
         {'l', "learn_rate", DOUBLE, "Learning rate",          &settings.lRate,      0.1},
         {'d', "lambda",     DOUBLE, "Lambda",                 &settings.lambda,     0.0},
-		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed,   11121},
+		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed,   84967194},
         {'r', "restart",    STRING, "Restart",                &settings.restart,    (string)"none"},
 		{'q', "save_freq",  INT,    "Save frequency",         &settings.saveFreq,   10000},
         {'v', "debug_lvl",  INT,    "Debug level",            &debugLvl,            2},

@@ -28,7 +28,9 @@ void NFQ::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld,
     //
     // Find V(s) = max Q(s, a')
     //              a'
-
+    
+    double Qold = Q->get(sOld, aOld, Nagent); //LSTM: also memory advances to new state
+    
     double best = -1e10;
     actionsIt.reset();
     while (!actionsIt.done())
@@ -48,18 +50,18 @@ void NFQ::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld,
     }
     a = actionsIt.recall();
     //LSTM: here you perform that action and update memory
-    double Qnew = Q->get(s, a, Nagent);
 }
 
 
 void NFQ::NFQimprove(int Niter)
 {
-    double err = 1;
-    
-    while (err > 0.015) {
+    double err = 1.0;
+    double errold = 0.0;
+    while (err>0.02)
+    {
         _info("Iterating batch update\n");
+        errold = err;
         err = Q->Train();
-        
         Q->save("tmp");
     }
 }
@@ -68,7 +70,7 @@ void NFQ::try2restart(string fname)
 {
     State(sInfo);
     _info("Restarting from history file\n");
-    
+    Q->restartSamples();
     if ( Q->restart(fname) )
     {
         _info("Restart successful, moving on...\n");

@@ -327,6 +327,7 @@ int Slave::evolve(double& t)
             if(first)
             {
                 actions[i].initAct();
+                actions[i].vals[0] = 2;
                 debug4("First random action for agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
             }
             debug4("Agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());

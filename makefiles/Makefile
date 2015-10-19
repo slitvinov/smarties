@@ -1,7 +1,7 @@
 CC = /opt/mpich/bin/mpicxx
 CPPFLAGS+=-g -Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated -std=c++11
 
-OPENMP_FLAG=# -openmp
+OPENMP_FLAG= -openmp
 
 viz ?= 0
 config ?= "debug"
@@ -26,13 +26,13 @@ OPENMP_FLAG= -fopenmp
 CPPFLAGSOPT+= -msse3
 endif
 
-CPPFLAGS+= -I/usr/local/Cellar/vtk5/5.10.1/include/vtk-5.10/ -I../MRAGapps/source -I../MRAG/source  -I/opt/local/include/openmpi -I/usr/include/openblas -I/home/novatig/armadillo/usr/include
+CPPFLAGS+= -I/usr/local/Cellar/vtk5/5.10.1/include/vtk-5.10/ -I../MRAGapps/source -I../MRAG/source  -I/opt/local/include/openmpi -I/usr/include/openblas -I/home/novatig/armadillo/usr/include -fopenmp
 
 CPPFLAGS+= -I../MRAGapps/IF2D_ROCKS/source/mattia-RL/
 CPPFLAGS+= $(OPENMP_FLAG)
 
 LIBS += \
-	$(OPENGL_LIB) \
+	-openmp \
 	$(OPENMP_FLAG) \
 	-L$(MPI_ROOT)/lib \
 	-L/opt/local/lib -L/usr/lib64 \

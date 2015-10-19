@@ -12,29 +12,18 @@
 
 #include <vector>
 
-#include "Environment.h"
+#include "ExternalEnvironment.h"
 #include "CellList.h"
 
 class ExternalAgent;
 #include "../Agents/ExternalAgent.h"
 
-class HuntEnvironment: public Environment
+class HuntEnvironment: public ExternalEnvironment
 {
-    string execpath;
     void setDims();
-    vector<int> ids;
-
-    FILE *fin, *fout;
-
-    vector<ExternalAgent*> exagents;
-    vector<State>  states;
-    vector<double> rewards;
-    vector<Action> actions;
-
+    
 public:
-   HuntEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index);
-
-   int   evolve   (double t);
+   HuntEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index) : ExternalEnvironment(agents, execpath, tp, rank, index) { }
 };
 
 

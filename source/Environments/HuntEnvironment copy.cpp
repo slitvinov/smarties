@@ -1,5 +1,5 @@
 /*
- *  ExternalEnvironment.cpp
+ *  HuntEnvironment.cpp
  *  smarties
  *
  *  Created by Dmitry Alexeev on May 13, 2015
@@ -17,9 +17,9 @@
 
 using namespace std;
 
-#include "ExternalEnvironment.h"
+#include "HuntEnvironment.h"
 
-ExternalEnvironment::ExternalEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index) :
+HuntEnvironment::HuntEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index) :
 Environment(agents), execpath(execpath)
 {
     int outpipe[2], inpipe[2];
@@ -33,6 +33,7 @@ Environment(agents), execpath(execpath)
         die("Outpipe error\n");
     }
     
+    int pid;
     if( (pid=fork()) == -1 )
     {
         die("Couldn't fork!");
@@ -103,32 +104,36 @@ Environment(agents), execpath(execpath)
     }
 }
 
-void ExternalEnvironment::setDims()
+void HuntEnvironment::setDims()
 {
-    sI.dim = 6;
-    // State: Horizontal distance from goal point...
-    sI.bounds.push_back(22); //one block in between the bounds, one more on each side
-    sI.top.push_back(0.5);
-    sI.bottom.push_back(-0.5);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
+    sI.dim = 7;
     
-    // ...vertical distance...
-    sI.bounds.push_back(22);
-    sI.top.push_back(0.5);
-    sI.bottom.push_back(-0.5);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
+    sI.bounds.push_back(2);
+    sI.top.push_back(1.1);
+    sI.bottom.push_back(0.0);
+    sI.aboveTop.push_back(false);
+    sI.belowBottom.push_back(false);
     
-    // ...inclination of the fish...
-    sI.bounds.push_back(22); // only positive or negative
-    sI.top.push_back(1.);
-    sI.bottom.push_back(-1.);
+    // ...distance...
+    sI.bounds.push_back(4);
+    sI.top.push_back(4.);
+    sI.bottom.push_back(0);
+    sI.aboveTop.push_back(false);
+    sI.belowBottom.push_back(false);
+    
+    // ...relative inclination...
+    sI.bounds.push_back(5);
+    sI.top.push_back(3.1416);
+    sI.bottom.push_back(-3.1416);
+    sI.aboveTop.push_back(false);
+    sI.belowBottom.push_back(false);
+    
+    // ...quadrant...
+    sI.bounds.push_back(8);
+    sI.top.push_back(1.5708);
+    sI.bottom.push_back(-1.5708);
     sI.aboveTop.push_back(true);
     sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
     
     // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
     sI.bounds.push_back(2); // Will get ~ 0 or 0.5
@@ -136,83 +141,65 @@ void ExternalEnvironment::setDims()
     sI.bottom.push_back(0.0);
     sI.aboveTop.push_back(false);
     sI.belowBottom.push_back(false);
-    sI.isLabel.push_back(false);
     
     // ...last action (HAX!)
-    sI.bounds.push_back(5);
-    sI.top.push_back(5.0);
+    sI.bounds.push_back(3);
+    sI.top.push_back(3.0);
     sI.bottom.push_back(0.0);
     sI.aboveTop.push_back(false);
     sI.belowBottom.push_back(false);
-    sI.isLabel.push_back(true);
     
     // ...second last action (HAX!)
-    sI.bounds.push_back(5);
-    sI.top.push_back(5.0);
+    sI.bounds.push_back(3);
+    sI.top.push_back(3.0);
     sI.bottom.push_back(0.0);
     sI.aboveTop.push_back(false);
     sI.belowBottom.push_back(false);
-    sI.isLabel.push_back(true);
     
     aI.dim = 1; //How many actions taken per turn by one agent
     
-    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5); //Number of possible actions to choose from (nothing, curve right, curve left)
-    
-    aI.values.push_back(-2.);
-    aI.values.push_back(-1.);
-    aI.values.push_back(0.0);
-    aI.values.push_back(1.0);
-    aI.values.push_back(2.0);
-    
-    sI.values.push_back(-2.);
-    sI.values.push_back(-1.);
-    sI.values.push_back(0.0);
-    sI.values.push_back(1.0);
-    sI.values.push_back(2.0);
+    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(3); //Number of possible actions to choose from (nothing, curve right, curve left)
 }
 
-int ExternalEnvironment::evolve(double t)
+int HuntEnvironment::evolve(double t)
 {
+    fprintf(fout, "Actions:\n");
+    for (auto& a : exagents)
+    {
+        fprintf(fout, "%d ", a->a->vals[0]);
+        debug2("Sent child: action %d\n", a->a->vals[0]);
+    }
+    fprintf(fout, "\n");
+    fflush(fout);
     bRestart = false;
     /*
-    char str[1000] = "";
-    bool empty = true;
-
-    while (empty)
-    {
-        fgets(str, 1000, fin);
-        string sstr(str);
-
-        sstr.erase(std::remove(sstr.begin(), sstr.end(), '\n'), sstr.end());
-        sstr.erase(std::remove(sstr.begin(), sstr.end(), ' '), sstr.end());
-        sstr.erase(std::remove(sstr.begin(), sstr.end(), '\t'), sstr.end());
-        empty = sstr.length() < 1;
-    }
-
-    string sstr(str);
-    sstr.erase(sstr.find_last_not_of(" \t\f\v\n\r")+1);
-
-    if (sstr != "States and rewards:")
-    {
-        bFailed = true;
-        bRestart = true;
-        //fprintf(fout, "Die\n");
-        return 1;
-    }
-*/
-
+     char str[1000] = "";
+     bool empty = true;
+     
+     while (empty)
+     {
+     fgets(str, 1000, fin);
+     string sstr(str);
+     
+     sstr.erase(std::remove(sstr.begin(), sstr.end(), '\n'), sstr.end());
+     sstr.erase(std::remove(sstr.begin(), sstr.end(), ' '), sstr.end());
+     sstr.erase(std::remove(sstr.begin(), sstr.end(), '\t'), sstr.end());
+     empty = sstr.length() < 1;
+     }
+     
+     string sstr(str);
+     sstr.erase(sstr.find_last_not_of(" \t\f\v\n\r")+1);
+     
+     if (sstr != "States and rewards:")
+     {
+     bFailed = true;
+     bRestart = true;
+     fprintf(fout, "Die\n");
+     return 1;
+     }
+     */
     string sstr;
-    do
-    {
-        fprintf(fout, "Actions:\n");
-        for (auto& a : exagents)
-        {
-            fprintf(fout, "%d ", a->a->vals[0]);
-            debug2("Sent child: action %d\n", a->a->vals[0]);
-        }
-        fprintf(fout, "\n");
-        fflush(fout);
-        
+    do{
         char str[1000] = "";
         bool empty = true;
         while (empty)
@@ -240,7 +227,7 @@ int ExternalEnvironment::evolve(double t)
         fscanf(fin, "%lf", &(a->r));
         fscanf(fin, "%lf", &(a->_r));
         
-        debug2("Got from child %d: reward %f (%f),  state %s\n", pid, a->r, a->_r, a->s->print().c_str());
+        debug2("Got from child: reward %f (%f),  state %s\n", a->r, a->_r, a->s->print().c_str());
         if (a->r < -99)
             bRestart = true;
     }

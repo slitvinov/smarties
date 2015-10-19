@@ -34,7 +34,7 @@ void ALearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action&
     double Vold = Q->getMax(sOld, Nagent); //LSTM: also memory advances to new state
     
     int Nbest;
-    double Vnew = Q->testMax(sOld, Nbest, Nagent);
+    double Vnew = Q->testMax(s, Nbest, Nagent);
     //printf("(AL) Chosen action %d\n",Nbest);
     double Aold = Q->advance(sOld, aOld, Nagent);
     

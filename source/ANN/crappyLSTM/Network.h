@@ -115,14 +115,13 @@ class NetworkLSTM: public Approximator
     public:
         
         double TotSumWeights();
-        double AvgLearnRate();
         NetworkLSTM(vector<int>& layerSize, vector<int>& memorySize, vector<int>& nCellpB, double eta, double alpha, double lambda, double kappa, int nAgents);
         void predict(const vector<double>& input, vector<double>& output, int nAgent = 0);
         void predict(const vector<double>& inputs, const vector<double>& memoryin, const vector<double>& ostate, vector<double>& nstate,  vector<double>& outputs);
         void improve(const vector<double>& inputs, const vector<double>& error, int nAgent = 0);
         void setBatchsize(int size) {cout << "Eta is " << eta << endl;}
         void save(string fname);
-        bool restart(string fname);
+        bool restart(string fname) { return false; }
     };
 
 class Link
@@ -213,7 +212,7 @@ class MemoryBlock
         void exec();
         void backExec();
         void _backExec();
-        void adjust(double error, double eta, double alpha, double lambda, double kappa);
+        void adjust(double error, double & eta, double alpha, double lambda, double kappa);
     };
 
 class Layer
@@ -248,7 +247,6 @@ class HiddenLayer
         void propagate();
         void backPropagate();
         double TotSumWeights();
-        double AvgLearnRate();
         int TotSumLinks();
         void link(Neuron* Nto, Neuron* Nin, RNG* rng, double ground);
         void normaliseWeights();
@@ -258,7 +256,7 @@ class HiddenLayer
         void connect2inputs(vector<double*>& vals, vector<double*>& mems);
         void connect2outputs(vector<double*>& vals);
         void connect2errors(vector<double*>& errs);
-        void adjust(double error, double eta, double alpha, double lambda, double kappa);
+        void adjust(double error, double & eta, double alpha, double lambda, double kappa);
     };
 
 class ActivationFunction

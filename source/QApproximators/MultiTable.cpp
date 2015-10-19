@@ -24,7 +24,7 @@ using namespace ErrorHandling;
 
 const double eps = 1e-9;
 
-MultiTable::MultiTable(StateInfo newSInfo, ActionInfo newActInfo) : QApproximator(newSInfo, newActInfo)
+MultiTable::MultiTable(StateInfo newSInfo, ActionInfo newActInfo, double gamma=.9) : QApproximator(newSInfo, newActInfo), actionsIt(newActInfo), gamma(gamma)
 {
 	dim = sInfo.dim + actInfo.dim;
 	
@@ -80,8 +80,54 @@ double MultiTable::get(const State& s, const Action& a, int nAgent)
 {
 	long int id = _encodeIdx(s, a);
     //_info("final ID %d\n", id);
+    //printf("Final ID from normal method=%d\n\n",id);
 	if (data.find(id) == data.end()) return 0; 
 	return data.find(id)->second;
+}
+
+double MultiTable::get(const State * s, const Action * a, int nAgent)
+{
+    long int res = 0;
+    
+    for(int i=0; i<sInfo.dim; i++)
+    {
+        res += _discretize(s->vals[i], s->sInfo.bottom[i], s->sInfo.top[i], s->sInfo.bounds[i], s->sInfo.belowBottom[i], s->sInfo.aboveTop[i]) * shifts[i];
+        //printf("sval %f, sid %d shift %d , ",s->vals[i],_discretize(s->vals[i], s->sInfo.bottom[i], s->sInfo.top[i], s->sInfo.bounds[i], s->sInfo.belowBottom[i], s->sInfo.aboveTop[i]), shifts[i]);
+    }
+
+    for(int i=0; i<actInfo.dim; i++)
+    {
+        res += a->vals[i] * shifts[i+sInfo.dim];
+        //printf("aid %d shift %d , ",a->vals[i], shifts[i+sInfo.dim]);
+    }
+    //printf("\n Final ID from pointer method=%d\n",res);
+    if (data.find(res) == data.end()) return 0;
+    return data.find(res)->second;
+}
+
+double MultiTable::getsmooth(const State& s, const Action& a, int nAgent)
+{
+    long int id = _encodeIdx(s, a);
+    //_info("final ID %d\n", id);
+    if (data.find(id) == data.end()) return 0;
+    if (data.find(id)->second == 0.0)
+    {
+        double avg = 0.0;
+        double wgt = 0.0;
+        for (int i=0; i<dim; ++i)
+        {
+            if (data.find(id + shifts[i]) != data.end() && id - shifts[i]>=0)
+            {
+                double Qplus = data.find(id + shifts[i])->second;
+                double Qminu = data.find(id - shifts[i])->second;
+                wgt += 1.0;
+                avg += .5*(Qplus+Qminu);
+            }
+        }
+        warn("Trying to interpolate state-action using %f adjacent states. This is bad if you are offline!\n", wgt);
+        return avg/wgt;
+    }
+    return data.find(id)->second;
 }
 
 double MultiTable::getMax(const State& s, int nAgent)
@@ -89,6 +135,43 @@ double MultiTable::getMax(const State& s, int nAgent)
 	long int id = _encodeState(s, _discretize);
 	if (maxStateVal.find(id) == maxStateVal.end()) return 0; 
 	return maxStateVal[id];
+}
+
+double  MultiTable::Train()
+{
+    Action a(actInfo);
+    debug("Offline training of multitable with %d samples.\n", samples.Set.size());
+    double err(0.0);
+    
+    for (int i=0; i<samples.Set.size(); i++)
+    { //target values
+        //we transition to state s' and get the Qold
+        
+        double Qold = get(samples.Set[i].sOld, samples.Set[i].a, 0);
+        //double Qtest = get(*samples.Set[i].sOld, *samples.Set[i].a, 0);
+        
+        actionsIt.reset();
+        double best = -1e10;
+        while (!actionsIt.done())
+        {
+            a = actionsIt.next();
+            double test = get(*samples.Set[i].sNew, a, 0);
+            if (test >= best + 1e-12)
+            {
+                best = test; // best current Q option
+                actionsIt.memorize();
+            }
+        }
+        double reward = samples.Set[i].reward - fabs(samples.Set[i].sOld->vals[1]) - fabs(samples.Set[i].sOld->vals[2])/1.57079632679;
+        double Qnew = reward + gamma*best;
+        
+        double target = 0.1*(Qnew - Qold);
+        correct(*samples.Set[i].sOld, *samples.Set[i].a, target, 0);
+        err += fabs(target);
+    }
+    
+    debug("Learning state: average error %f.\n", err/samples.Set.size());
+    return err/samples.Set.size();
 }
 
 void MultiTable::set(const State& s, const Action& a, double val, int nAgent)

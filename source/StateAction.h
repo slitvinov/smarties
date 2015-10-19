@@ -31,6 +31,8 @@ struct StateInfo
 	vector<double> top;
 	vector<bool>   belowBottom;
 	vector<bool>   aboveTop;
+    vector<bool>   isLabel;
+    vector<double> values;
 };
 
 class State
@@ -99,32 +101,11 @@ public:
 	{
 		for (int i=0; i<sInfo.dim; i++)
 		{
-            res[i]=vals[i];
-			//res[i] = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*4 - 2;
-			//if (res[i] > 2)  res[i] = 2;
-			//if (res[i] < -2) res[i] = -2;
-		}
-        /*
-        for (int i=sInfo.dim-2; i<sInfo.dim; i++)
-		{
-            if (vals[i] == 2)
-            {
-                res[i] = -2.;
-            }
-            else if (vals[i] == 1)
-            {
-                res[i] = 2.;
-            }
-            else if (vals[i] == 0)
-            {
-                res[i] = 0;
-            }
-            else
-            {
-                die("Forgot about StateAction.h didn't ya? \n");
-            }
-		}
-         */
+            res[i] = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*4. - 2.;
+			if (res[i] > 2)  res[i] = 2.0;
+			if (res[i] < -2) res[i] = -2.;
+            if (sInfo.isLabel[i]) res[i] = sInfo.values[vals[i]];
+        }
 	}
     
     void pack(byte* buf)
@@ -169,6 +150,7 @@ struct ActionInfo
 {
 	int dim;
 	vector<int> bounds;
+    vector<double> values;
 };
 
 class Action
@@ -244,72 +226,7 @@ public:
     void scale(vector<double>& res) const
 	{
 		for (int i=0; i<actInfo.dim; i++)
-		{
-            //res[res.size() - actInfo.dim + i] = vals[i];
-            /*
-            if (vals[i] == 0)
-            {
-                res[res.size() - actInfo.dim + i] = -2.; //-2
-            }
-            else if (vals[i] == 1)
-            {
-                //cout << actInfo.dim << " " << actInfo.bounds[i];
-                res[res.size() - actInfo.dim + i] = -1.; //2
-            }
-            else if (vals[i] == 2)
-            {
-                res[res.size() - actInfo.dim + i] =  0.; //0
-            } //res[res.size() - actInfo.dim + i] = ( (double)vals[i] / ((double)actInfo.bounds[i] -2.)) * 4. - 2.;
-            else if (vals[i] == 3)
-            {
-                res[res.size() - actInfo.dim + i] = 1.;
-            }
-            else if (vals[i] == 4)
-            {
-                res[res.size() - actInfo.dim + i] = 2.;
-            }
-            else
-            {
-                die("Forgot about StateAction.h didn't ya? \n");
-            }
-             */
-            if (vals[i] == 0)
-            {
-                res[res.size() - actInfo.dim + i] = -2.; //-2
-            }
-            else if (vals[i] == 1)
-            {
-                //cout << actInfo.dim << " " << actInfo.bounds[i];
-                res[res.size() - actInfo.dim + i] = -.2; //2
-            }
-            else if (vals[i] == 2)
-            {
-                res[res.size() - actInfo.dim + i] =  0.; //0
-            } //res[res.size() - actInfo.dim + i] = ( (double)vals[i] / ((double)actInfo.bounds[i] -2.)) * 4. - 2.;
-            else if (vals[i] == 3)
-            {
-                res[res.size() - actInfo.dim + i] = .2;
-            }
-            else if (vals[i] == 4)
-            {
-                res[res.size() - actInfo.dim + i] = 2.;
-            }/*
-            else if (vals[i] == 5)
-            {
-                res[res.size() - actInfo.dim + i] = 1.;
-            }
-            else if (vals[i] == 6)
-            {
-                res[res.size() - actInfo.dim + i] = 5.;
-            }/*
-            else
-            {
-                die("Forgot about StateAction.h didn't ya? \n");
-            }
-             */
-			//if (res[res.size() - actInfo.dim + i] > 2.)  res[res.size() - actInfo.dim + i] = 2;
-			//if (res[res.size() - actInfo.dim + i] < -2.) res[res.size() - actInfo.dim + i] = -2;
-		}
+            res[res.size() - actInfo.dim + i] = actInfo.values[vals[i]];
 	}
 };
 

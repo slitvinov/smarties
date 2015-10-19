@@ -74,4 +74,6 @@ public:
 	virtual void   save(string name)    = 0;
 	virtual bool   restart(string name) = 0;
     virtual void   setBatchsize(int size) = 0;
+    virtual double TotSumWeights() {return 0;}
+    virtual double AvgLearnRate() {return 0;}
 };
