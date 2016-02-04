@@ -14,7 +14,7 @@
 
 using namespace ErrorHandling;
 
-SelfAvoidEnvironment::SelfAvoidEnvironment(vector<Agent*> agents, vector<Column> columns, double rWall, StateType tp) :
+SelfAvoidEnvironment::SelfAvoidEnvironment(vector<Agent*> agents, vector<Column> columns, Real rWall, StateType tp) :
         Environment(agents), columns(columns), rWall(rWall)
 {
     for (auto a : agents)
@@ -33,7 +33,7 @@ SelfAvoidEnvironment::SelfAvoidEnvironment(vector<Agent*> agents, vector<Column>
 
 void SelfAvoidEnvironment::setDims()
 {
-	double d = avoiders[0]->d;
+	Real d = avoiders[0]->d;
 	sI.dim = 6;
 	
 	// dist to wall
@@ -86,12 +86,12 @@ void SelfAvoidEnvironment::setDims()
 
 Column SelfAvoidEnvironment::findClosestColumn(SmartySelfAvoider* agent)
 {
-	double min = 1e10;
+	Real min = 1e10;
 	Column res = make_tuple(1e10, 1e10, 0);
 
 	for (auto c : columns)
 	{
-		double l = _dist(agent->x, agent->y, get<0>(c), get<1>(c));
+		Real l = _dist(agent->x, agent->y, get<0>(c), get<1>(c));
 		if (l - agent->d/2 - get<2>(c)/2 < min)
 		{
 			min = l - agent->d/2 - get<2>(c);
@@ -103,15 +103,15 @@ Column SelfAvoidEnvironment::findClosestColumn(SmartySelfAvoider* agent)
 
 SmartySelfAvoider* SelfAvoidEnvironment::findClosestNeighbour(SmartySelfAvoider* agent)
 {
-	double min = 1e10;	
-	double xj, yj;
+	Real min = 1e10;	
+	Real xj, yj;
 	
 	static CellsTraverser<SmartySelfAvoider>* getter(new CellsTraverser<SmartySelfAvoider>(cells));
 	getter->prepare(cells->getObjId(agent));
 	SmartySelfAvoider *n, *closest = NULL;
 	while (getter->getNextXY(xj, yj, n))
 	{
-		double dst = _dist(agent->x, agent->y, xj, yj);
+		Real dst = _dist(agent->x, agent->y, xj, yj);
 		if (dst < min)
 		{
 			min = dst;
@@ -121,7 +121,7 @@ SmartySelfAvoider* SelfAvoidEnvironment::findClosestNeighbour(SmartySelfAvoider*
 	return closest;
 }
 
-int SelfAvoidEnvironment::evolve(double t)
+int SelfAvoidEnvironment::evolve(Real t)
 {
 	cells->migrate();
     return 0;

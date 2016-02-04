@@ -21,12 +21,12 @@ class SwarmEnvironment: public Environment
 {
 public:
     void setDims();
-    double momentum, rWall;
+    Real momentum, rWall;
     void calculateMomentum();
 
-    vector<double> vortices;
-    vector<pair<double, double> > vortCoos;
-    vector<pair<double, double>* > targets;
+    vector<Real> vortices;
+    vector<pair<Real, Real> > vortCoos;
+    vector<pair<Real, Real>* > targets;
     vector<SmartySwarmer*> myfAgents;
 
 public:
@@ -34,14 +34,14 @@ public:
     Cells <SmartySwarmer>*   cells;
     CellsTraverser<SmartySwarmer>* getter;
 
-    SwarmEnvironment(vector<Agent*> newAgents, double rWall, StateType tp);
+    SwarmEnvironment(vector<Agent*> newAgents, Real rWall, StateType tp);
 
-    void findClosestNeighbours(vector<SmartySwarmer*>& res, SmartySwarmer* agent, double dist);
+    void findClosestNeighbours(vector<SmartySwarmer*>& res, SmartySwarmer* agent, Real dist);
     SmartySwarmer* findClosestNeighbour(SmartySwarmer* agent);
     void computeVelocities();
-    int evolve(double t);
+    int evolve(Real t);
 
-    double getMomentum()
+    Real getMomentum()
     {
         return momentum;
     }

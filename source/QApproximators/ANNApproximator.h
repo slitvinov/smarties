@@ -28,8 +28,8 @@ class ANNApproximator : public QApproximator
     string nettype;
     Memory backup;
     Approximator * ann;
-    vector<double> prediction;
-    vector<double> scaledInp;
+    vector<Real> prediction;
+    vector<Real> scaledInp;
     
     RNG rng;
     
@@ -39,18 +39,18 @@ class ANNApproximator : public QApproximator
     ~ANNApproximator();
     
     // Methods
-    double get (const State& s, const Action& a, int nAgent = 0);
-    double test(const State& s, const Action& a, int nAgent = 0);
-    double advance(const State& s, const Action& a, int nAgent = 0);
+    Real get (const State& s, const Action& a, int nAgent = 0);
+    Real test(const State& s, const Action& a, int nAgent = 0);
+    Real advance(const State& s, const Action& a, int nAgent = 0);
     
-    double getMax (const State& s, int & nAct, int nAgent);
-    double testMax (const State& s, int & nAct,  int nAgent);
-    double advanceMax (const State& s, int & nAct, int nAgent);
+    Real getMax (const State& s, int & nAct, int nAgent);
+    Real testMax (const State& s, int & nAct,  int nAgent);
+    Real advanceMax (const State& s, int & nAct, int nAgent);
     
-    void set (const State& s, const Action& a, double value, int nAgent = 0);
-    void correct(const State& s, const Action& a, double error, int nAgent = 0);
+    void set (const State& s, const Action& a, Real value, int nAgent = 0);
+    void correct(const State& s, const Action& a, Real error, int nAgent = 0);
     
-    double Train() {;}
+    Real Train() {;}
     void save(string name);
     bool restart(string name);
 };

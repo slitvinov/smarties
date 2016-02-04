@@ -91,8 +91,8 @@ namespace ArgumentParser
 					*((int*)myOpt.value) = atoi(optarg);
 					break;
 					
-				case DOUBLE:
-					*((double*)myOpt.value) = atof(optarg);
+				case REAL:
+					*((Real*)myOpt.value) = atof(optarg);
 					break;
 					
                 case CHAR:
@@ -122,8 +122,8 @@ namespace ArgumentParser
 					warn("%d", *((int*)myOpt.value));
 					break;
 
-				case DOUBLE:
-					warn("%f", *((double*)myOpt.value));
+				case REAL:
+					warn("%f", *((Real*)myOpt.value));
 					break;
 					
                 case CHAR:

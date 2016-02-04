@@ -16,7 +16,7 @@ void CartAgent::setEnvironment(Environment* env)
     environment = env;
 }
 
-double CartAgent::getReward()
+Real CartAgent::getReward()
 {
     return r;
 }

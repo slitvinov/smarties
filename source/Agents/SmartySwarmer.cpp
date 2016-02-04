@@ -15,36 +15,36 @@
 #include "../ErrorHandling.h"
 #include "../Misc.h"
 
-const complex<double> I(0, 1);
+const complex<Real> I(0, 1);
 
 using namespace ErrorHandling;
 
-SmartySwarmer::SmartySwarmer(double x, double y, double d,  double T, double domainSize,
-							 double IvI,  double alpha):
+SmartySwarmer::SmartySwarmer(Real x, Real y, Real d,  Real T, Real domainSize,
+							 Real IvI,  Real alpha):
 Agent (T, ACTOR, "SmartySwarmer"),
 alpha(alpha), IvI(IvI), d(d), x(x), y(y), domainSize(domainSize)
 {
-	const double SQRT2PI = sqrt(2*M_PI);
+	const Real SQRT2PI = sqrt(2*M_PI);
 	l = d / (2*SQRT2PI);
 	gamma = 2 * M_PI * l * IvI;
 
-	double rho = 10 * l;
-	double speedK = 0.1;
+	Real rho = 10 * l;
+	Real speedK = 0.1;
 	gammaA = gamma * speedK;
 	gammaT = SQRT2PI * l / rho * gamma;
 
 	vortices[0] = gamma;
 	vortices[1] = -gamma;
 
-	complex<double> locationCenter(x, y);
-	complex<double> tmp = I*l*exp(complex<double>(I*alpha))/complex<double>(2,0);
-	complex<double> locationRightVortex = locationCenter + tmp;
-	complex<double> locationLeftVortex  = locationCenter - tmp;
-	vortCoos[0] = pair<double, double>(real(locationRightVortex), imag(locationRightVortex));
-	vortCoos[1] = pair<double, double>(real(locationLeftVortex),  imag(locationLeftVortex));
+	complex<Real> locationCenter(x, y);
+	complex<Real> tmp = I*l*exp(complex<Real>(I*alpha))/complex<Real>(2,0);
+	complex<Real> locationRightVortex = locationCenter + tmp;
+	complex<Real> locationLeftVortex  = locationCenter - tmp;
+	vortCoos[0] = pair<Real, Real>(real(locationRightVortex), imag(locationRightVortex));
+	vortCoos[1] = pair<Real, Real>(real(locationLeftVortex),  imag(locationLeftVortex));
 
-	vortVels[0] = pair<double, double>(0, 0);
-	vortVels[1] = pair<double, double>(0, 0);
+	vortVels[0] = pair<Real, Real>(0, 0);
+	vortVels[1] = pair<Real, Real>(0, 0);
 
 	vx = IvI*cos(alpha);
 	vy = IvI*sin(alpha);
@@ -57,15 +57,15 @@ void SmartySwarmer::setEnvironment(Environment* env)
 	Agent::environment = env;
 }
 
-void SmartySwarmer::move(double dt)
+void SmartySwarmer::move(Real dt)
 {
-	complex <double> velocityLeft (vortVels[0].first, vortVels[0].second);
-	complex <double> velocityRight(vortVels[1].first, vortVels[1].second);
+	complex <Real> velocityLeft (vortVels[0].first, vortVels[0].second);
+	complex <Real> velocityRight(vortVels[1].first, vortVels[1].second);
 
-	complex <double> conjVelocity = (double)(0.5)*(velocityRight+velocityLeft);
-	double alphaDot = real((velocityRight-velocityLeft)*exp(I*alpha))/l;
+	complex <Real> conjVelocity = (Real)(0.5)*(velocityRight+velocityLeft);
+	Real alphaDot = real((velocityRight-velocityLeft)*exp(I*alpha))/l;
 
-	complex <double> vel = conj(conjVelocity);
+	complex <Real> vel = conj(conjVelocity);
 	vx = real(vel);
 	vy = imag(vel);
 
@@ -76,12 +76,12 @@ void SmartySwarmer::move(double dt)
 	alpha = (alpha > M_PI)  ? alpha - 2 * M_PI : alpha;
 	alpha = (alpha < -M_PI) ? alpha + 2 * M_PI : alpha;
 
-	complex<double> locationCenter(x, y);
-	complex<double> tmp = I*l*exp(complex<double>(I*alpha))/complex<double>(2,0);
-	complex<double> locationRightVortex = locationCenter + tmp;
-	complex<double> locationLeftVortex  = locationCenter - tmp;
-	vortCoos[0] = pair<double, double>(real(locationRightVortex), imag(locationRightVortex));
-	vortCoos[1] = pair<double, double>(real(locationLeftVortex),  imag(locationLeftVortex));
+	complex<Real> locationCenter(x, y);
+	complex<Real> tmp = I*l*exp(complex<Real>(I*alpha))/complex<Real>(2,0);
+	complex<Real> locationRightVortex = locationCenter + tmp;
+	complex<Real> locationLeftVortex  = locationCenter - tmp;
+	vortCoos[0] = pair<Real, Real>(real(locationRightVortex), imag(locationRightVortex));
+	vortCoos[1] = pair<Real, Real>(real(locationLeftVortex),  imag(locationLeftVortex));
 
 	if (x < -domainSize/2) x += domainSize;
 	if (x > domainSize/2)  x -= domainSize;
@@ -125,14 +125,14 @@ void SmartySwarmer::getState(State& s)
 	}
 }
 
-double SmartySwarmer::getReward()
+Real SmartySwarmer::getReward()
 {
-	double reward = 0;
+	Real reward = 0;
 
 	SmartySwarmer* closestNeighbour = env->findClosestNeighbour(this);
 	if ( closestNeighbour != NULL )
 	{
-		double dst = _dist(x, y, closestNeighbour->physX, closestNeighbour->physY);
+		Real dst = _dist(x, y, closestNeighbour->physX, closestNeighbour->physY);
 
 		if (dst < 1.0*d)
 			reward += -1.0;

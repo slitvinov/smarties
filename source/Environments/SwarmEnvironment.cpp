@@ -16,7 +16,7 @@
 
 using namespace ErrorHandling;
 
-SwarmEnvironment::SwarmEnvironment(vector<Agent*> agents, double rWall, StateType tp): Environment(agents), rWall(rWall)
+SwarmEnvironment::SwarmEnvironment(vector<Agent*> agents, Real rWall, StateType tp): Environment(agents), rWall(rWall)
 {
     for (auto a : agents)
         swarmers.push_back(static_cast<SmartySwarmer*>(a));
@@ -41,8 +41,8 @@ SwarmEnvironment::SwarmEnvironment(vector<Agent*> agents, double rWall, StateTyp
 
 void SwarmEnvironment::setDims()
 {
-    double d = swarmers[0]->d;
-    double v = swarmers[0]->IvI;
+    Real d = swarmers[0]->d;
+    Real v = swarmers[0]->IvI;
 
     int nNeigh = 2;
 
@@ -77,14 +77,14 @@ void SwarmEnvironment::setDims()
 
 SmartySwarmer* SwarmEnvironment::findClosestNeighbour(SmartySwarmer* agent)
 {
-    double min = 1e10;
-    double xj, yj;
+    Real min = 1e10;
+    Real xj, yj;
 
     getter->prepare(cells->getObjId(agent));
     SmartySwarmer *n, *closest = NULL;
     while (getter->getNextXY(xj, yj, n))
     {
-        double dst = _dist(agent->x, agent->y, xj, yj);
+        Real dst = _dist(agent->x, agent->y, xj, yj);
         if (dst < min)
         {
             n->physX = xj;
@@ -96,17 +96,17 @@ SmartySwarmer* SwarmEnvironment::findClosestNeighbour(SmartySwarmer* agent)
     return closest;
 }
 
-void SwarmEnvironment::findClosestNeighbours(vector<SmartySwarmer*>& res, SmartySwarmer* agent, double dist)
+void SwarmEnvironment::findClosestNeighbours(vector<SmartySwarmer*>& res, SmartySwarmer* agent, Real dist)
 {
     res.clear();
-    double xj, yj;
+    Real xj, yj;
 
     getter->prepare(cells->getObjId(agent));
     SmartySwarmer *n;
 
     while (getter->getNextXY(xj, yj, n))
     {
-        double dst = _dist(agent->x, agent->y, xj, yj);
+        Real dst = _dist(agent->x, agent->y, xj, yj);
         if (dst < dist)
         {
             n->physX = xj;
@@ -120,7 +120,7 @@ void SwarmEnvironment::computeVelocities()
 {
     // Prepare vortices - pack strengths, coordinates and desired velocities into vectors
     int k=0;
-    double minDist = 1e10;
+    Real minDist = 1e10;
     for (int n = 0; n < (int) swarmers.size(); n++)
     {
         SmartySwarmer* agent = swarmers[n];
@@ -138,7 +138,7 @@ void SwarmEnvironment::computeVelocities()
         for (int i = 1; i <= (int) agent->nVort; i++)
             for (int j = i+1; j <= (int) agent->nVort; j++)
             {
-                double dist = _dist(vortCoos[k-i].first, vortCoos[k-i].second, vortCoos[k-j].first, vortCoos[k-j].second);
+                Real dist = _dist(vortCoos[k-i].first, vortCoos[k-i].second, vortCoos[k-j].first, vortCoos[k-j].second);
                 if (minDist > dist) minDist = dist;
             }
     }
@@ -147,30 +147,30 @@ void SwarmEnvironment::computeVelocities()
     int tot = vortices.size();
     for (int n = 0; n < (int) targets.size(); n++)
     {
-        complex<double> velocity(0, 0);
+        complex<Real> velocity(0, 0);
 
-        double xn = vortCoos[n].first;
-        double yn = vortCoos[n].second;
+        Real xn = vortCoos[n].first;
+        Real yn = vortCoos[n].second;
 
         for (int j = 0; j < tot; j++)
         {
             if (n == j) continue;
 
-            double xj = vortCoos[j].first;
-            double yj = vortCoos[j].second;
-            double gammaj = vortices[j];
-            double X = xn - xj;
-            double Y = yn - yj;
+            Real xj = vortCoos[j].first;
+            Real yj = vortCoos[j].second;
+            Real gammaj = vortices[j];
+            Real X = xn - xj;
+            Real Y = yn - yj;
 
-            double dist2 = (X * X + Y * Y);
+            Real dist2 = (X * X + Y * Y);
             //if (!immortal && dist2 < minDist * minDist / 4) myfAgents[n]->type = myfAgents[j]->type = DEAD;
 
-            velocity += -gammaj * (complex<double>(Y, X)) / dist2 ;
+            velocity += -gammaj * (complex<Real>(Y, X)) / dist2 ;
         }
 
         velocity /= 2 * M_PI;
 
-        *(targets[n]) = pair<double, double> (real(velocity), imag(velocity)); /// beware, these are conjugate velocities
+        *(targets[n]) = pair<Real, Real> (real(velocity), imag(velocity)); /// beware, these are conjugate velocities
     }
 }
 
@@ -178,8 +178,8 @@ void SwarmEnvironment::computeVelocities()
 void SwarmEnvironment::calculateMomentum()
 {
     int tot = 0;
-    double resx = 0;
-    double resy = 0;
+    Real resx = 0;
+    Real resy = 0;
     for (int i=0; i<swarmers.size(); i++)
     {
         if (swarmers[i]->getType() != DEAD)
@@ -193,7 +193,7 @@ void SwarmEnvironment::calculateMomentum()
     momentum = hypot(resx, resy) / tot;
 }
 
-int SwarmEnvironment::evolve(double t)
+int SwarmEnvironment::evolve(Real t)
 {
     cells->migrate();
     computeVelocities();

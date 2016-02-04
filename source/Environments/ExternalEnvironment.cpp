@@ -165,16 +165,16 @@ void ExternalEnvironment::setDims()
     sI.values.push_back(0.0);
     sI.values.push_back(2.0);
     sI.values.push_back(-2.);
-    
+    nInfo = 2; 
     aI.zeroact = 0;
     for (auto& a : exagents)
     {
-        a->Info.resize(2);
-        a->nInfo = 2;
+        a->Info.resize(nInfo);
+        a->nInfo = nInfo;
     }
 }
 
-int ExternalEnvironment::evolve(double t)
+int ExternalEnvironment::evolve(Real t)
 {
     bRestart = false;
     
@@ -212,7 +212,7 @@ int ExternalEnvironment::evolve(double t)
     
     for (auto& a : exagents)
     {
-        double aa, b, c;
+        Real aa, b, c;
         
         for (int i=0; i<a->s->sInfo.dim; i++)
             fscanf(fin, "%lf", &(a->s->vals[i]));

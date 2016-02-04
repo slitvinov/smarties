@@ -11,16 +11,15 @@
 
 #include "../StateAction.h"
 #include "ALearning.h"
-#include "../Settings.h"
 
-ALearning::ALearning(QApproximator* newQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate) :
+ALearning::ALearning(QApproximator* newQ, ActionInfo& actInfo, Real newGamma, Real newGreedyEps, Real newLRate) :
 Q(newQ), actionsIt(actInfo), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate)
 {
     rng = new RNG(rand());
     suffix = 0;
 }
 
-void ALearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, double r, int Nagent)
+void ALearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent)
 {
     //       aOld, r
     // sOld ---------> s
@@ -32,14 +31,14 @@ void ALearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action&
     //
     int Nbest, NoldBest;
     
-    double Vold = Q->getMax(sOld, NoldBest, Nagent); //LSTM: also memory advances to new state
+    Real Vold = Q->getMax(sOld, NoldBest, Nagent); //LSTM: also memory advances to new state
     
-    double Vnew = Q->testMax(s, Nbest, Nagent);
+    Real Vnew = Q->testMax(s, Nbest, Nagent);
     //printf("(AL) Chosen action %d\n",Nbest);
-    double Aold = Q->advance(sOld, aOld, Nagent);
+    Real Aold = Q->advance(sOld, aOld, Nagent);
     
-    //double err = (Vold + (r + gamma*Vnew - Vold)/.2 - Aold);
-    double err = (r + gamma*Vnew - Aold);
+    //Real err = (Vold + (r + gamma*Vnew - Vold)/.2 - Aold);
+    Real err = (r + gamma*Vnew - Aold);
     //printf("Err = %f\n", err);
     a.vals[0] = Nbest;
 

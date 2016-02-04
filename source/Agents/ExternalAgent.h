@@ -24,19 +24,19 @@ public:
 
     State *s;
     Action *a;
-    double r;
-    vector<double> Info;
+    Real r;
+    vector<Real> Info;
     int nInfo;
     
     ExternalEnvironment* env;
 
     void   getState(State& s);
     
-    double getReward();
-    double getInfo(int n);
+    Real getReward();
+    Real getInfo(int n);
     
     void   act(Action& a);
-    void   move(double dt) {};
+    void   move(Real dt) {};
 
     void   setEnvironment(Environment* env);
 };

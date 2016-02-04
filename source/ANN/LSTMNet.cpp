@@ -11,26 +11,34 @@
 #include <iostream>
 #include <cstdlib>
 
-#include "LSTMNEt.h"
+#include "LSTMNet.h"
 #include "../ErrorHandling.h"
-
+using namespace ErrorHandling;
 //#define DBG_EXEC
 //#define DBG_BACK //panico
 //#define DBG_ADJS
 //#define DBG_INPUT
+
+NormalLayer::NormalLayer(int layerSize, int normal_1st_link, int normal_n_links, int normal_pos, int n1stWeightHL, int n1stBiasHL, ActivationFunction* f) : nNeurons(layerSize), n1stLink(normal_1st_link), nLinks(normal_n_links), n1stNeuron(normal_pos), n1stWeight(n1stWeightHL), n1stBias(n1stBiasHL), func(f)
+{  }
+
+LSTMLayer::LSTMLayer(int recurSize, int recurr_1st_new_link, int recurr_n_new_links, int recurr_1st_old_link, int recurr_n_old_links, int recurr_tot_links, int recurr_pos, int indIG, int indFG, int indOG, int indState, int n1stWeightIG, int n1stWeightFG, int n1stWeightIN, int n1stWeightOG, int n1stWeightPeep, int n1stBiasIG, int n1stBiasFG, int n1stBiasIN, int n1stBiasOG, int n1stdSdWBias, int n1stdSdWIG, int n1stdSdWFG, int n1stdSdWIN, ActivationFunction* f) :
+NormalLayer(recurSize, recurr_1st_new_link, recurr_n_new_links, recurr_pos, n1stWeightIN, n1stBiasIN, f),
+n1stOld(recurr_1st_old_link), nOldL(recurr_n_old_links), nIG(indIG), nFG(indFG), nOG(indOG), n1stState(indState), n1stIG(n1stWeightIG), n1stFG(n1stWeightFG), n1stOG(n1stWeightOG), n1stPeep(n1stWeightPeep), n1stIGB(n1stBiasIG), n1stFGB(n1stBiasFG), n1stOGB(n1stBiasOG), n1dsdB(n1stdSdWBias), n1dsIG(n1stdSdWIG), n1dsFG(n1stdSdWFG), n1dsIN(n1stdSdWIN), sigm(new SoftSigm)
+{ }
 
 FishNet::FishNet(vector<int>& layerSize, vector<int>& recurSize, Settings settings, int nAgents = 1) :
 eta(settings.nnEta), alpha(settings.nnAlpha), lambda(settings.nnLambda), kappa(settings.nnKappa), AdFac(settings.nnAdFac), nAgents(nAgents)
 {
     beta_t_1 = 0.9; beta_t_2 = 0.999; beta_1 = 0.9; beta_2 = 0.999; epsilon = 1e-8;
     std::mt19937 gen(settings.randSeed);
-    std::uniform_real_distribution<double> dis(-1.,1.);
+    std::uniform_real_distribution<Real> dis(-1.,1.);
     
     int nMixedLayers = layerSize.size();
     for (int i=0; i<nMixedLayers; i++) /* TODO (more elegance) */
     {
-        layerSize[i] = ceil( (vt)layerSize[i]/SIMD )*SIMD
-        recurSize[i] = ceil( (vt)recurSize[i]/SIMD )*SIMD
+        layerSize[i] = ceil( (Real)layerSize[i]/SIMD )*SIMD;
+        recurSize[i] = ceil( (Real)recurSize[i]/SIMD )*SIMD;
     }
     /* Have fun debugging, me! */
     nInputs = layerSize.front();
@@ -40,15 +48,16 @@ eta(settings.nnEta), alpha(settings.nnAlpha), lambda(settings.nnLambda), kappa(s
     nWeights = 0;
     nBiases = 0; /* more than ovals because also gates have biases */
     ndScelldW = 0;
-    nGates 0;
+    nGates = 0;
     nStates = 0;
     /* Count number of links and index of first link for each layer type. new means t, old means t-1 */
     vector<int> recurr_1st_new_link(nLayers), recurr_n_new_links(nLayers), recurr_1st_old_link(nLayers), recurr_n_old_links(nLayers), normal_1st_link(nLayers), normal_n_links(nLayers), recurr_tot_links(nLayers), recurr_pos(nLayers), normal_pos(nLayers);
     /* just where the layer's gates stand along the vector of igates and ogates: ez */
     vector<int> indIG(nLayers), indFG(nLayers), indOG(nLayers), indState(nLayers);
     /* location of first weight (bias) for gates, cell inputs and normal layer, used also for FD */
-    vector<int> n1stWeightIG(nLayers), n1stWeightFG(nLayers), n1stWeightIN(nLayers), n1stWeightOG(nLayers), n1stWeightPeep(nLayers); n1stWeightHL(nLayers);
-    vector<int> n1stBiasIG(nLayers), n1stBiasFG(nLayers), n1stBiasIN(nLayers), n1stBiasOG(nLayers), n1stdSdWBias(nLayers), n1stBiasHL(nLayers);
+    vector<int> n1stWeightIG(nLayers), n1stWeightFG(nLayers), n1stWeightIN(nLayers), n1stWeightOG(nLayers), n1stWeightPeep(nLayers), n1stWeightHL(nLayers);
+    vector<int> n1stBiasIG(nLayers), n1stBiasFG(nLayers), n1stBiasIN(nLayers), n1stBiasOG(nLayers), n1stBiasHL(nLayers);
+    vector<int> n1stdSdWBias(nLayers), n1stdSdWIG(nLayers), n1stdSdWFG(nLayers), n1stdSdWIN(nLayers);
     for (int i=1; i<nMixedLayers; i++)
     { //layer 0 is the input layer
         /* connected to whole prev layer */
@@ -95,10 +104,9 @@ eta(settings.nnEta), alpha(settings.nnAlpha), lambda(settings.nnLambda), kappa(s
         n1stdSdWIG[i] = ndScelldW + 5*recurSize[i]; /* 2 peeps and 3 biases */
         n1stdSdWFG[i] = n1stdSdWIG[i] + recurr_tot_links[i]*recurSize[i];
         n1stdSdWIN[i] = n1stdSdWFG[i] + recurr_tot_links[i]*recurSize[i];
-        n1stdSdWOG[i] = n1stdSdWIN[i] + recurr_tot_links[i]*recurSize[i];
-        ndScelldW += (4*recurr_tot_links[i]+5)*recurSize[i];
+        ndScelldW += (3*recurr_tot_links[i]+5)*recurSize[i];
         
-        printf("LSTM layer %d: recurr_1st_new_link= %d, recurr_n_new_links= %d, recurr_pos= %d, recurr_1st_old_link= %d, recurr_n_old_links= %d, recurr_tot_links= %d, indIG= %d, indFG= %d, indOG= %d, indState= %d,  n1stWeightIG= %d, n1stWeightFG= %d, n1stWeightIN= %d, n1stWeightOG= %d, n1stWeightPeep= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasIN= %d, n1stBiasOG= %d, n1stdSdWBias= %d, n1stdSdWIG= %d, n1stdSdWFG= %d, n1stdSdWIN= %d, n1stdSdWOG= %d", i, recurr_1st_new_link[i], recurr_n_new_links[i], recurr_pos[i], recurr_1st_old_link[i], recurr_n_old_links[i], recurr_tot_links[i], indIG[i], indFG[i], indOG[i], indState[i],  n1stWeightIG[i], n1stWeightFG[i], n1stWeightIN[i], n1stWeightOG[i], n1stWeightPeep[i], n1stBiasIG[i], n1stBiasFG[i], n1stBiasIN[i], n1stBiasOG[i], n1stdSdWBias[i], n1stdSdWIG[i], n1stdSdWFG[i], n1stdSdWIN[i], n1stdSdWOG[i]);
+        printf("LSTM layer %d: recurr_1st_new_link= %d, recurr_n_new_links= %d, recurr_pos= %d, recurr_1st_old_link= %d, recurr_n_old_links= %d, recurr_tot_links= %d, indIG= %d, indFG= %d, indOG= %d, indState= %d,  n1stWeightIG= %d, n1stWeightFG= %d, n1stWeightIN= %d, n1stWeightOG= %d, n1stWeightPeep= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasIN= %d, n1stBiasOG= %d, n1stdSdWBias= %d, n1stdSdWIG= %d, n1stdSdWFG= %d, n1stdSdWIN= %d, n1stdSdWOG= %d", i, recurr_1st_new_link[i], recurr_n_new_links[i], recurr_pos[i], recurr_1st_old_link[i], recurr_n_old_links[i], recurr_tot_links[i], indIG[i], indFG[i], indOG[i], indState[i],  n1stWeightIG[i], n1stWeightFG[i], n1stWeightIN[i], n1stWeightOG[i], n1stWeightPeep[i], n1stBiasIG[i], n1stBiasFG[i], n1stBiasIN[i], n1stBiasOG[i], n1stdSdWBias[i], n1stdSdWIG[i], n1stdSdWFG[i], n1stdSdWIN[i]);
         printf("Normal layer %d: normal_1st_link= %d, normal_n_links= %d, normal_pos= %d, n1stWeightHL= %d, n1stBiasHL= %d", normal_1st_link[i], normal_n_links[i], normal_pos[i], n1stWeightHL[i], n1stBiasHL[i]);
     }
     nNeurons += recurSize[nMixedLayers-1] + layerSize[nMixedLayers-1];
@@ -109,33 +117,31 @@ eta(settings.nnEta), alpha(settings.nnAlpha), lambda(settings.nnLambda), kappa(s
         Agents.push_back(agent);
     }
     /* allocate all the shits */
-    oldvals = (vt*) _mm_malloc(nNeurons*sizeof(vt), ALLOC);
-    outvals = (vt*) _mm_malloc(nNeurons*sizeof(vt), ALLOC);
-    in_vals = (vt*) _mm_malloc(nNeurons*sizeof(vt), ALLOC);
-    errvals = (vt*) _mm_malloc(nNeurons*sizeof(vt), ALLOC);
-    weights = (vt*) _mm_malloc(nWeights*sizeof(vt), ALLOC);
-    biases  = (vt*) _mm_malloc(nBiases *sizeof(vt), ALLOC);
-    dsdw    = (vt*) _mm_malloc(ndScelldW*sizeof(vt),ALLOC);
-    Dw      = (vt*) _mm_malloc(nWeights*sizeof(vt), ALLOC);
-    Db      = (vt*) _mm_malloc(nBiases *sizeof(vt), ALLOC);
-    igates  = (vt*) _mm_malloc(nGates  *sizeof(vt), ALLOC);
-    ogates  = (vt*) _mm_malloc(nGates  *sizeof(vt), ALLOC);
-    ostates = (vt*) _mm_malloc(nStates *sizeof(vt), ALLOC);
-    nstates = (vt*) _mm_malloc(nStates *sizeof(vt), ALLOC);
+    oldvals = (Real*) _mm_malloc(nNeurons*sizeof(Real), ALLOC);
+    outvals = (Real*) _mm_malloc(nNeurons*sizeof(Real), ALLOC);
+    in_vals = (Real*) _mm_malloc(nNeurons*sizeof(Real), ALLOC);
+    errvals = (Real*) _mm_malloc(nNeurons*sizeof(Real), ALLOC);
+    weights = (Real*) _mm_malloc(nWeights*sizeof(Real), ALLOC);
+    biases  = (Real*) _mm_malloc(nBiases *sizeof(Real), ALLOC);
+    dsdw    = (Real*) _mm_malloc(ndScelldW*sizeof(Real),ALLOC);
+    Dw      = (Real*) _mm_malloc(nWeights*sizeof(Real), ALLOC);
+    Db      = (Real*) _mm_malloc(nBiases *sizeof(Real), ALLOC);
+    igates  = (Real*) _mm_malloc(nGates  *sizeof(Real), ALLOC);
+    ogates  = (Real*) _mm_malloc(nGates  *sizeof(Real), ALLOC);
+    ostates = (Real*) _mm_malloc(nStates *sizeof(Real), ALLOC);
+    nstates = (Real*) _mm_malloc(nStates *sizeof(Real), ALLOC);
     
     /* ADAM optimizer */
-    _1stMomW = (vt*) _mm_malloc(nWeights*sizeof(vt), ALLOC);
-    _1stMomB = (vt*) _mm_malloc(nBiases *sizeof(vt), ALLOC);
-    _2ndMomW = (vt*) _mm_malloc(nWeights*sizeof(vt), ALLOC);
-    _2ndMomB = (vt*) _mm_malloc(nBiases *sizeof(vt), ALLOC);
+    _1stMomW = (Real*) _mm_malloc(nWeights*sizeof(Real), ALLOC);
+    _1stMomB = (Real*) _mm_malloc(nBiases *sizeof(Real), ALLOC);
+    _2ndMomW = (Real*) _mm_malloc(nWeights*sizeof(Real), ALLOC);
+    _2ndMomB = (Real*) _mm_malloc(nBiases *sizeof(Real), ALLOC);
     /* Assumption: if a normal and a LSTM layer have the same index, LSTM happens first */
     for (int i=1; i<nMixedLayers; i++)
     {
         if (recurSize[i]>0)
         {
             /* initialize shits see Glorot 2010 */
-            ActivationFunction* func = (i+1!=nMixedLayers || layerSize[i]>0) new SoftSign : new Linear;
-            
             for (int w=n1stWeightIG[i]; w<n1stWeightIG[i]+(4*recurr_tot_links[i]+3)*recurSize[i]; w++)
             weights[w] = dis(gen)*sqrt(6)/(recurr_tot_links[i] + layerSize[i] + recurSize[i]);
             
@@ -148,19 +154,26 @@ eta(settings.nnEta), alpha(settings.nnAlpha), lambda(settings.nnLambda), kappa(s
             for (int w=n1stBiasOG[i]; w<n1stBiasOG[i]+recurSize[i]; w++)
             biases[w] = -10.; /* OG starts decisively closed */
             
-            layers.push_back(new LSTMLayer(recurSize[i], recurr_1st_new_link[i], recurr_n_new_links[i], recurr_1st_old_link[i], recurr_n_old_links[i], recurr_tot_links[i], recurr_pos[i], indIG[i], indFG[i], indOG[i], indState[i], n1stWeightIG[i], n1stWeightFG[i], n1stWeightIN[i], n1stWeightOG[i], n1stWeightPeep[i], n1stBiasIG[i], n1stBiasFG[i], n1stBiasIN[i], n1stBiasOG[i], n1stdSdWBias[i], func));
+            layers.push_back( (i+1!=nMixedLayers || layerSize[i]>0) ?
+                             new LSTMLayer(recurSize[i], recurr_1st_new_link[i], recurr_n_new_links[i], recurr_1st_old_link[i], recurr_n_old_links[i], recurr_tot_links[i], recurr_pos[i], indIG[i], indFG[i], indOG[i], indState[i], n1stWeightIG[i], n1stWeightFG[i], n1stWeightIN[i], n1stWeightOG[i], n1stWeightPeep[i], n1stBiasIG[i], n1stBiasFG[i], n1stBiasIN[i], n1stBiasOG[i], n1stdSdWBias[i], n1stdSdWIG[i], n1stdSdWFG[i], n1stdSdWIN[i], new SoftSign)
+                             :
+                             new LSTMLayer(recurSize[i], recurr_1st_new_link[i], recurr_n_new_links[i], recurr_1st_old_link[i], recurr_n_old_links[i], recurr_tot_links[i], recurr_pos[i], indIG[i], indFG[i], indOG[i], indState[i], n1stWeightIG[i], n1stWeightFG[i], n1stWeightIN[i], n1stWeightOG[i], n1stWeightPeep[i], n1stBiasIG[i], n1stBiasFG[i], n1stBiasIN[i], n1stBiasOG[i], n1stdSdWBias[i], n1stdSdWIG[i], n1stdSdWFG[i], n1stdSdWIN[i], new Linear)
+                             ); // damnit, Susan!
+            
         }
         if (layerSize[i]>0)
         {
-            ActivationFunction* func = (i+1!=nMixedLayers) new SoftSign : new Linear;
-            
             for (int w=n1stWeightHL[i]; w<n1stWeightHL[i]+normal_n_links[i]*layerSize[i]; w++)
             weights[w] = dis(gen)*sqrt(6)/(normal_n_links[i] + layerSize[i] + recurSize[i]);
             
             for (int w=n1stBiasHL[i]; w<n1stWeightHL[i]+normal_n_links[i]*layerSize[i]; w++)
             biases[w] = dis(gen)*sqrt(6)/(normal_n_links[i] + layerSize[i] + recurSize[i]);
             
-            layers.push_back(new NormalLayer(layerSize[i], normal_1st_link[i], normal_n_links[i], normal_pos[i], n1stWeightHL[i], n1stBiasHL[i], func));
+            layers.push_back( (i+1!=nMixedLayers) ?
+                             new NormalLayer(layerSize[i], normal_1st_link[i], normal_n_links[i], normal_pos[i], n1stWeightHL[i], n1stBiasHL[i], new SoftSign)
+                             :
+                             new NormalLayer(layerSize[i], normal_1st_link[i], normal_n_links[i], normal_pos[i], n1stWeightHL[i], n1stBiasHL[i], new Linear)
+                             );
         }
     }
     nLayers = layers.size();
@@ -225,7 +238,7 @@ bool FishNet::restart(string fname)
     return true;
 }
 
-void FishNet::predict(const vector<vt>& input, vector<vt>& output, int nAgent)
+void FishNet::predict(const vector<Real>& input, vector<Real>& output, int nAgent)
 { //updates memory of agent
     for (int n=0; n<nInputs; n++)
         *(outvals +n) = input[n]; /* inputs are the ovals of layer -1 */
@@ -247,7 +260,7 @@ void FishNet::predict(const vector<vt>& input, vector<vt>& output, int nAgent)
 #endif
 
     for (int i=0; i<layers.size(); i++)
-        layers[i]->propagate(vt* in_vals, vt* outvals, vt* oldvals, vt* weights, vt* biases, vt* igates, vt* ogates, vt* ostates, vt* nstates);
+        layers[i]->propagate(in_vals, outvals, oldvals, weights, biases, igates, ogates, ostates, nstates);
 
     for (int i=0; i<nOutputs; i++)
         output[i] = *(outvals +nNeurons -nOutputs +i);
@@ -265,7 +278,7 @@ void FishNet::predict(const vector<vt>& input, vector<vt>& output, int nAgent)
 #endif
 }
 
-void FishNet::test(const vector<vt>& input, vector<vt>& output, int nAgent)
+void FishNet::test(const vector<Real>& input, vector<Real>& output, int nAgent)
 { // does not affect memory of agents
     for (int n=0; n<nInputs; n++)
         *(outvals +n) = input[n]; /* inputs are the ovals of layer -1 */
@@ -287,7 +300,7 @@ void FishNet::test(const vector<vt>& input, vector<vt>& output, int nAgent)
 #endif
     
     for (int i=0; i<layers.size(); i++)
-    layers[i]->propagate(vt* in_vals, vt* outvals, vt* oldvals, vt* weights, vt* biases, vt* igates, vt* ogates, vt* ostates, vt* nstates);
+    layers[i]->propagate(in_vals, outvals, oldvals, weights, biases, igates, ogates, ostates, nstates);
     
     for (int i=0; i<nOutputs; i++)
     output[i] = *(outvals +nNeurons -nOutputs +i);
@@ -305,14 +318,14 @@ void FishNet::test(const vector<vt>& input, vector<vt>& output, int nAgent)
 #endif
 }
 
-void FishNet::improve(const vector<vt>& input, const vector<vt>& error, int nAgent)
+void FishNet::improve(const vector<Real>& input, const vector<Real>& error, int nAgent)
 {
     for (int n=0; n<nNeurons; n++)
-        *(errvals +n1stNeuron +n) = 0.;
+        *(errvals +n) = 0.;
     
     /*if(kappa>0) // eligibility trace: one error at the time, only for RL
     {
-        vt signal = 0.0;
+        Real signal = 0.0;
         int Isignal;
         for (int i=0; i<nOutputs; i++)
         if(fabs(error[i])>fabs(signal))
@@ -328,7 +341,7 @@ void FishNet::improve(const vector<vt>& input, const vector<vt>& error, int nAge
         *(errvals +nNeurons -nOutputs +i) = error[i];
   
     for (int i=nLayers-1; i>=0; i--)
-        layers[i]->backPropagate(vt* in_vals, vt* outvals, vt* oldvals, vt* errvals, vt* weights, vt* igates, vt* ogates, vt* ostates, vt* nstates, vt* dsdw, vt* Dw, vt* Db);
+        layers[i]->backPropagate(in_vals, outvals, oldvals, errvals, weights, igates, ogates, ostates, nstates, dsdw, Dw, Db);
 
     /*if(kappa>0)
     {
@@ -344,8 +357,8 @@ void FishNet::improve(const vector<vt>& input, const vector<vt>& error, int nAge
         }
     }*/
     /* Adam update. It's good, I like it. */
-    vt fac1 = 1./(1.-beta_t_1);
-    vt fac2 = 1./(1.-beta_t_2);
+    Real fac1 = 1./(1.-beta_t_1);
+    Real fac2 = 1./(1.-beta_t_2);
     for (int i=0; i<nWeights; i++)
     {
         *(_1stMomW + i) = beta_1 * *(_1stMomW + i) + (1.-beta_1) * *(Dw + i);
@@ -364,22 +377,22 @@ void FishNet::improve(const vector<vt>& input, const vector<vt>& error, int nAge
     beta_t_2 *= beta_1;
 }
 
-void NormalLayer::propagate(vt* in_vals, vt* outvals, vt* weights, vt* biases)
+void NormalLayer::propagate(Real* in_vals, Real* outvals, Real* oldvals, Real* weights, Real* biases, Real* igates, Real* ogates, Real* ostates, Real* nstates)
 {
     for (int n=0; n<nNeurons; n++)
     {
         for (int i=0; i<nLinks; i++)
             *(in_vals +n1stNeuron +n) += *(outvals +n1stLink +i) * *(weights +n1stWeight +n*nLinks +i);
-        
-        *(outvals +n1stNeuron +n) = func->eval( *(in_vals +n1stNeuron +n) + *(biases +n1stBias +n) );
+        *(in_vals +n1stNeuron +n) += *(biases +n1stBias +n);
+        *(outvals +n1stNeuron +n) = func->eval( (in_vals +n1stNeuron +n) );
     }
 }
 
-void NormalLayer::backPropagate(vt* in_vals, vt* outvals, vt* oldvals, vt* errvals, vt* weights, vt* igates, vt* ogates, vt* ostates, vt* nstates, vt* dsdw, vt* Dw, vt* Db)
+void NormalLayer::backPropagate(Real* in_vals, Real* outvals, Real* oldvals, Real* errvals, Real* weights, Real* igates, Real* ogates, Real* ostates, Real* nstates, Real* dsdw, Real* Dw, Real* Db)
 {   //downstream gave delta, assumed we forward propagated just before so we have ivals and "upstream" errvals are 0
     for (int n=0; n<nNeurons; n++)
     {
-        *(errvals +n1stNeuron +n) = *(errvals +n1stNeuron +n) * func->evalDiff( *(in_vals +n1stNeuron +n) );
+        *(errvals +n1stNeuron +n) = *(errvals +n1stNeuron +n) * func->evalDiff( (in_vals +n1stNeuron +n) );
         for (int i=0; i<nLinks; i++)
         {
             *(errvals +n1stLink +i) += *(errvals +n1stNeuron +n) * *(weights +n1stWeight +n*nLinks +i);
@@ -389,7 +402,7 @@ void NormalLayer::backPropagate(vt* in_vals, vt* outvals, vt* oldvals, vt* errva
     }
 }
 
-void LSTMLayer::propagate(vt* in_vals, vt* outvals, vt* oldvals, vt* weights, vt* biases, vt* igates, vt* ogates, vt* ostates, vt* nstates)
+void LSTMLayer::propagate(Real* in_vals, Real* outvals, Real* oldvals, Real* weights, Real* biases, Real* igates, Real* ogates, Real* ostates, Real* nstates)
 {
     for (int n=0; n<nNeurons; n++)
     { /* compute IG, IN and FG, required for peeps */
@@ -405,14 +418,14 @@ void LSTMLayer::propagate(vt* in_vals, vt* outvals, vt* oldvals, vt* weights, vt
             *(igates +nFG +n) += *(outvals +n1stLink +i) * *(weights +n1stFG +n*nLinks +i +nOldL);
             *(in_vals +n1stNeuron +n) += *(outvals +n1stLink +i) * *(weights +n1stWeight +n*nLinks +i +nOldL);
         }
+        *(in_vals +n1stNeuron +n) += *(biases +n1stBias +n);
+        *(igates +nIG +n) += *(ostates +n1stState +n) * *(weights +n1stPeep +3*n) + *(biases +n1stIGB +n);
+        *(igates +nFG +n) += *(ostates +n1stState +n) * *(weights +n1stPeep +3*n +1) + *(biases +n1stFGB +n);
         
-        *(igates +nIG +n) += *(ostates +n1stState +n) * *(weights +n1stPeep +3*n);
-        *(igates +nFG +n) += *(ostates +n1stState +n) * *(weights +n1stPeep +3*n +1);
+        *(ogates +nIG +n) = sigm->eval( (igates +nIG +n) );
+        *(ogates +nFG +n) = sigm->eval( (igates +nFG +n) );
         
-        *(ogates +nIG +n) = sigm->eval( *(igates +nIG +n) + *(biases +n1stIGB +n) );
-        *(ogates +nFG +n) = sigm->eval( *(igates +nFG +n) + *(biases +n1stFGB +n) );
-        
-        *(nstates +n1stState +n) = *(ostates +n1stState +n) * *(ogates +nFG +n) + func->eval( *(in_vals +n1stNeuron +n) + *(biases +n1stBias +n) ) * *(ogates +nIG +n);
+        *(nstates +n1stState +n) = *(ostates +n1stState +n) * *(ogates +nFG +n) + func->eval( (in_vals +n1stNeuron +n) ) * *(ogates +nIG +n);
 
         for (int i=0; i<nOldL; i++)
             *(igates +nOG +n) += *(oldvals +n1stOld +i) * *(weights +n1stOG +n*nLinks +i);
@@ -420,22 +433,22 @@ void LSTMLayer::propagate(vt* in_vals, vt* outvals, vt* oldvals, vt* weights, vt
         for (int i=0; i<nLinks; i++)
             *(igates +nOG +n) += *(outvals +n1stLink +i) * *(weights +n1stOG +n*nLinks +i  +nOldL);
         
-        *(igates +nOG +n) += *(nstates +n1stState +n) * *(weights +n1stPeep +3*n +2);
-        *(ogates +nOG +n) = sigm->eval( *(igates +nOG +n) + *(biases +n1stOGB +n) );
+        *(igates +nOG +n) += *(nstates +n1stState +n) * *(weights +n1stPeep +3*n +2) + *(biases +n1stOGB +n);
+        *(ogates +nOG +n) = sigm->eval( (igates +nOG +n) );
         *(outvals +n1stNeuron +n) = *(nstates +n1stState +n) * *(ogates +nOG +n);
     }
 }
 
-void LSTMLayer::backPropagate(vt* in_vals, vt* outvals, vt* oldvals, vt* errvals, vt* weights, vt* igates, vt* ogates, vt* ostates, vt* nstates, vt* dsdw, vt* Dw, vt* Db)
+void LSTMLayer::backPropagate(Real* in_vals, Real* outvals, Real* oldvals, Real* errvals, Real* weights, Real* igates, Real* ogates, Real* ostates, Real* nstates, Real* dsdw, Real* Dw, Real* Db)
 {
     for (int n=0; n<nNeurons; n++)
     {
-        vt tmp1 = sigm->evalDiff( *(igates +nOG +n) ) * *(errvals +n1stNeuron +n) * *(nstates +n1stState +n);
-        vt tmp2 = func->evalDiff( *(in_vals +n1stNeuron +n) ) * *(ogates +nIG +n);
-        vt tmp3 = sigm->evalDiff( *(igates +nIG +n) ) * func->eval( *(in_vals +n1stNeuron +n));
-        vt tmp4 = sigm->evalDiff( *(igates +nFG +n) ) * *(ostates +n1stState +n);
+        Real tmp1 = sigm->evalDiff( (igates +nOG +n) ) * *(errvals +n1stNeuron +n) * *(nstates +n1stState +n);
+        Real tmp2 = func->evalDiff( (in_vals +n1stNeuron +n) ) * *(ogates +nIG +n);
+        Real tmp3 = sigm->evalDiff( (igates +nIG +n) ) * func->eval( (in_vals +n1stNeuron +n));
+        Real tmp4 = sigm->evalDiff( (igates +nFG +n) ) * *(ostates +n1stState +n);
         *(errvals +n1stNeuron +n) = *(errvals +n1stNeuron +n) * *(ogates +nOG +n);
-        // multiply by * func->evalDiff( *(nstates +n1stState +n) ) in case its not linear
+        // multiply by * func->evalDiff( (nstates +n1stState +n) ) in case its not linear
 
         *(dsdw +n1dsdB +n*5   ) = *(dsdw +n1dsdB +n*5   ) * *(ogates +nFG +n) + tmp3;
         *(Db +n1stIGB +n) = *(dsdw +n1dsdB +n*5   ) * *(errvals +n1stNeuron +n);
@@ -491,7 +504,7 @@ void LSTMLayer::backPropagate(vt* in_vals, vt* outvals, vt* oldvals, vt* errvals
             *(errvals +n1stLink +i) += tmp1 * *(weights +n1stOG +n*nLinks +i +nOldL) + *(errvals +n1stNeuron +n) * (
                                          tmp2 * *(weights +n1stWeight +n*nLinks +i +nOldL) +
                                          tmp3 * *(weights +n1stIG +n*nLinks +i +nOldL) +
-                                         tmp4 * *(weights +n1stFG +n*nLinks +i +nOldL) ));
+                                         tmp4 * *(weights +n1stFG +n*nLinks +i +nOldL) );
         }
     }
 }

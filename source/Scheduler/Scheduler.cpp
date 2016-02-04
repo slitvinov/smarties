@@ -16,15 +16,15 @@
 #include <fstream>
 #include <algorithm>
 
-Master::Master(Learner* learner, QApproximator* newQ, Environment env, int nSlaves, double traceDecay) :
-learner(learner), env->aI(actInfo), env->sI(sInfo), env->agents.size()(nAgents), nSlaves(nSlaves), Q(newQ)
+Master::Master(Learner* learner, QApproximator* newQ, Environment* env, int nSlaves, Real traceDecay) :
+learner(learner), actInfo(env->aI), sInfo(env->sI), nAgents(env->agents.size()), nSlaves(nSlaves), Q(newQ)
 {
-    nInfo = env->exagents[0]->nInfo;
-    inOneSize = 2*sInfo.dim*sizeof(double) + actInfo.dim*sizeof(double) + (1+nInfo)*sizeof(double);
+    nInfo = env->nInfo;
+    inOneSize = 2*sInfo.dim*sizeof(Real) + actInfo.dim*sizeof(Real) + (1+nInfo)*sizeof(Real);
     insize = 1;
     inbuf  = new byte[insize*inOneSize];
     
-    outOneSize = actInfo.dim*sizeof(double);
+    outOneSize = actInfo.dim*sizeof(Real);
     outsize = 1;
     outbuf  = new byte[outsize*outOneSize];
     
@@ -51,7 +51,7 @@ learner(learner), env->aI(actInfo), env->sI(sInfo), env->agents.size()(nAgents),
     totR = 0;
 }
 
-void Master::execSavers(double time, int iter)
+void Master::execSavers(Real time, int iter)
 {
     for (auto s : savers)
         if (s->isReady(time, iter)) s->exec();
@@ -63,12 +63,12 @@ void Master::registerSaver(Saver* saver)
     saver->setMaster(this);
 }
 
-inline void Master::unpackChunk(byte* &buf, State& sOld, Action& a, double& r, State& s)
+inline void Master::unpackChunk(byte* &buf, State& sOld, Action& a, Real& r, State& s)
 {
     // Packing order
     // sOld, a, r, s
-    static const int sSize   = sInfo.dim   * sizeof(double);
-    static const int actSize = actInfo.dim * sizeof(double);
+    static const int sSize   = sInfo.dim   * sizeof(Real);
+    static const int actSize = actInfo.dim * sizeof(Real);
     
     sOld.unpack(buf);
     buf += sSize;
@@ -76,19 +76,19 @@ inline void Master::unpackChunk(byte* &buf, State& sOld, Action& a, double& r, S
     a.unpack(buf);
     buf += actSize;
     
-    r = *((double*) buf);
-    buf += sizeof(double);
+    r = *((Real*) buf);
+    buf += sizeof(Real);
     
     s.unpack(buf);
     buf += sSize;
 }
 
-inline void unpackChunk(byte* &buf, State& sOld, Action& a, double& r, vector<double>& info, State& s);
+inline void Master::unpackChunk(byte* &buf, State& sOld, Action& a, Real& r, vector<Real>& info, State& s)
 {
     // Packing order
     // sOld, a, r, s
-    static const int sSize   = sInfo.dim   * sizeof(double);
-    static const int actSize = actInfo.dim * sizeof(double);
+    static const int sSize   = sInfo.dim   * sizeof(Real);
+    static const int actSize = actInfo.dim * sizeof(Real);
     
     sOld.unpack(buf);
     buf += sSize;
@@ -96,14 +96,14 @@ inline void unpackChunk(byte* &buf, State& sOld, Action& a, double& r, vector<do
     a.unpack(buf);
     buf += actSize;
     
-    r = *((double*) buf);
-    buf += sizeof(double);
+    r = *((Real*) buf);
+    buf += sizeof(Real);
     
     //G
     for (int i = 0; i<nInfo; i++)
     {
-        info[i] = *((double*) buf);
-        buf += sizeof(double);
+        info[i] = *((Real*) buf);
+        buf += sizeof(Real);
     }
     
     s.unpack(buf);
@@ -112,7 +112,7 @@ inline void unpackChunk(byte* &buf, State& sOld, Action& a, double& r, vector<do
 
 inline void Master::packChunk(byte* &buf, Action a)
 {
-    static const int actSize = actInfo.dim * sizeof(double);
+    static const int actSize = actInfo.dim * sizeof(Real);
     a.pack(buf);
     buf += actSize;
 }
@@ -129,8 +129,8 @@ void Master::run()
     State sOld(sInfo);
     State s(sInfo);
     Action a(actInfo), aOld(actInfo);
-    vector<double> info;
-    double r;
+    vector<Real> info;
+    Real r;
     
     int n;
     int iter = 0;
@@ -223,7 +223,7 @@ void Master::run()
     
 }
 
-Slave::Slave(Environment* env, double dt, int me) : env(env), agents(env->agents), dt(dt), me(me), first(true), nInfo(agents[0]->nInfo)
+Slave::Slave(Environment* env, Real dt, int me) : env(env), agents(env->agents), dt(dt), me(me), first(true), nInfo(env->nInfo)
 {
     MPI_Request req;
     
@@ -233,10 +233,10 @@ Slave::Slave(Environment* env, double dt, int me) : env(env), agents(env->agents
         oldStates.push_back(*(new State(env->sI)));
     }
     
-    insize  = agents.size() * ( env->aI.dim*sizeof(double) );
-    //G outsize = agents.size() * ( 2*env->sI.dim*sizeof(double) + env->aI.dim*sizeof(double) + sizeof(double) );
+    insize  = agents.size() * ( env->aI.dim*sizeof(Real) );
+    //G outsize = agents.size() * ( 2*env->sI.dim*sizeof(Real) + env->aI.dim*sizeof(Real) + sizeof(Real) );
     
-    outsize = agents.size() * ( 2*env->sI.dim*sizeof(double) + env->aI.dim*sizeof(double) + (1+nInfo)*sizeof(double) );
+    outsize = agents.size() * ( 2*env->sI.dim*sizeof(Real) + env->aI.dim*sizeof(Real) + (1+nInfo)*sizeof(Real) );
     
     inbuf  = new byte[insize];
     outbuf = new byte[outsize];
@@ -252,7 +252,7 @@ Slave::Slave(Environment* env, double dt, int me) : env(env), agents(env->agents
     byte* cbuf = tmpBuf;
     
     // a
-    static const int actSize = env->aI.dim * sizeof(double);
+    static const int actSize = env->aI.dim * sizeof(Real);
     
     for (int i=0; i<agents.size(); i++)
     {
@@ -263,7 +263,7 @@ Slave::Slave(Environment* env, double dt, int me) : env(env), agents(env->agents
     MPI_Isend(tmpBuf, insize, MPI_BYTE, me, 0, MPI_COMM_WORLD, &req);
 }
 
-int Slave::evolve(double& t)
+int Slave::evolve(Real& t)
 {
     MPI_Request inreq, outreqN, outreqData;
     MPI_Status  status;
@@ -340,7 +340,7 @@ void Slave::unpackData()
 {
     byte* cbuf = inbuf;
 
-    static const int actSize = env->aI.dim * sizeof(double);
+    static const int actSize = env->aI.dim * sizeof(Real);
     for (int i=0; i<agents.size(); i++)
     {
         actions[i].unpack(cbuf);
@@ -356,8 +356,8 @@ void Slave::packData()
     
     // Packing order
     // sOld, a, r, s
-    static const int sSize   = env->sI.dim * sizeof(double);
-    static const int actSize = env->aI.dim * sizeof(double);
+    static const int sSize   = env->sI.dim * sizeof(Real);
+    static const int actSize = env->aI.dim * sizeof(Real);
     
     for (int i=0; i<agents.size(); i++)
     {
@@ -370,19 +370,19 @@ void Slave::packData()
         cbuf += actSize;
         
         if (needToPack[i])
-            *((double*)cbuf) = agent->getReward();
+            *((Real*)cbuf) = agent->getReward();
         else
-            *((double*)cbuf) = -2e10;
+            *((Real*)cbuf) = -2e10;
         
-        cbuf += sizeof(double);
+        cbuf += sizeof(Real);
 
         for (int i = 0; i<nInfo; i++)
         {
             if (needToPack[i])
-                *((double*)cbuf) = agent->Info[i];
+                *((Real*)cbuf) = agent->getInfo(i);
             else
-                *((double*)cbuf) = -2e10;
-            cbuf += sizeof(double);
+                *((Real*)cbuf) = -2e10;
+            cbuf += sizeof(Real);
         }
         
         agent->getState(tmpState);

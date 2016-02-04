@@ -28,12 +28,12 @@ class HardCartEnvironment: public Environment
     
     vector<HardCartAgent*> exagents;
     vector<State>  states;
-    vector<double> rewards;
+    vector<Real> rewards;
     vector<Action> actions;
 
 public:
     HardCartEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index);
-    int   evolve   (double t);
+    int   evolve   (Real t);
 };
 
 

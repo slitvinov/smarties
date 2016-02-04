@@ -31,17 +31,17 @@ private:
 	ActionIterator actionsIt;
 	map<string, QApproximator*> QMap;
 		
-	double gamma, greedyEps, lRate, lambda;
+	Real gamma, greedyEps, lRate, lambda;
 	
 	RNG* rng;
     
     int suffix;
 		
 public:
-	SpeedyQLearning(QApproximator* newQ, QApproximator* oldQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate, double LAMBDA);
+	SpeedyQLearning(QApproximator* newQ, QApproximator* oldQ, ActionInfo& actInfo, Real newGamma, Real newGreedyEps, Real newLRate, Real LAMBDA);
 	
-	void updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, double r, int Nagent = 0);
-    void updateSelect(Trace& t, State& s, Action& a, double r, double alphaK);
+	void updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent = 0);
+    void updateSelect(Trace& t, State& s, Action& a, Real r, Real alphaK);
     void try2restart(string prefix);
     void savePolicy(string fname);
 };

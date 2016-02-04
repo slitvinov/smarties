@@ -28,13 +28,13 @@ class ExternalEnvironment: public Environment
 
     vector<ExternalAgent*> exagents;
     vector<State>  states;
-    vector<double> rewards;
+    vector<Real> rewards;
     vector<Action> actions;
 
 public:
    ExternalEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index);
 
-   int   evolve   (double t);
+   int   evolve   (Real t);
 };
 
 

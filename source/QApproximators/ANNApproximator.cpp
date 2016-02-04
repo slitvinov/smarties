@@ -20,7 +20,6 @@
 
 #include "../ErrorHandling.h"
 #include "../Misc.h"
-#include "../Settings.h"
 #include "../ANN/Network.h"
 #include "../ANN/WaveletNet.h"
 #include "../ANN/LSTMNet.h"
@@ -91,7 +90,7 @@ ANNApproximator::~ANNApproximator()
 {
 }
 
-double ANNApproximator::get(const State& s, const Action& a, int nAgent)
+Real ANNApproximator::get(const State& s, const Action& a, int nAgent)
 {
     s.scale(scaledInp);
     //backup.copy(ann->Agents[nAgent]);
@@ -108,7 +107,7 @@ double ANNApproximator::get(const State& s, const Action& a, int nAgent)
     }
 }
 
-double ANNApproximator::advance(const State& s, const Action& a, int nAgent)
+Real ANNApproximator::advance(const State& s, const Action& a, int nAgent)
 {
     s.scale(scaledInp);
     //ann->Agents[nAgent].copy(backup);
@@ -125,7 +124,7 @@ double ANNApproximator::advance(const State& s, const Action& a, int nAgent)
     }
 }
 
-double ANNApproximator::test(const State& s, const Action& a, int nAgent)
+Real ANNApproximator::test(const State& s, const Action& a, int nAgent)
 {
     if (nettype == "LSTM")
     {
@@ -146,12 +145,12 @@ double ANNApproximator::test(const State& s, const Action& a, int nAgent)
         return get(s, a, nAgent);
 }
 
-double ANNApproximator::getMax (const State& s, int & nAct, int nAgent)
+Real ANNApproximator::getMax (const State& s, int & nAct, int nAgent)
 {
     //backup.copy(ann->Agents[nAgent]);
     s.scale(scaledInp);
     Action a(actInfo);
-    double Val = -1e10;
+    Real Val = -1e10;
     if (prediction.size()>1)
     {
         ann->predict(scaledInp, prediction, nAgent);
@@ -179,10 +178,10 @@ double ANNApproximator::getMax (const State& s, int & nAct, int nAgent)
     return Val;
 }
 
-double ANNApproximator::testMax (const State& s, int & nAct, int nAgent)
+Real ANNApproximator::testMax (const State& s, int & nAct, int nAgent)
 {
     s.scale(scaledInp);
-    double Val = -1e10;
+    Real Val = -1e10;
     Action a(actInfo);
     if (prediction.size()>1)
     {
@@ -211,12 +210,12 @@ double ANNApproximator::testMax (const State& s, int & nAct, int nAgent)
     return Val;
 }
 
-double ANNApproximator::advanceMax (const State& s, int & nAct, int nAgent)
+Real ANNApproximator::advanceMax (const State& s, int & nAct, int nAgent)
 {
     //ann->Agents[nAgent].copy(backup);
     s.scale(scaledInp);
     Action a(actInfo);
-    double Val = -1e10;
+    Real Val = -1e10;
     if (prediction.size()>1)
     {
         ann->predict(scaledInp, prediction, nAgent);
@@ -244,7 +243,7 @@ double ANNApproximator::advanceMax (const State& s, int & nAct, int nAgent)
     return Val;
 }
 
-void ANNApproximator::set(const State& s, const Action& a, double val, int nAgent)
+void ANNApproximator::set(const State& s, const Action& a, Real val, int nAgent)
 {
     s.scale(scaledInp);
     a.scale(scaledInp);
@@ -253,7 +252,7 @@ void ANNApproximator::set(const State& s, const Action& a, double val, int nAgen
     ann->improve(scaledInp, prediction, nAgent);
 }
 
-void ANNApproximator::correct(const State& s, const Action& a, double err, int nAgent)
+void ANNApproximator::correct(const State& s, const Action& a, Real err, int nAgent)
 {
     s.scale(scaledInp);
     if (prediction.size()>1)

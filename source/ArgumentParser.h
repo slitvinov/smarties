@@ -12,12 +12,12 @@
 #include <string>
 #include <vector>
 #include <map>
-
+#include "Settings.h"
 using namespace std;
 
 namespace ArgumentParser
 {
-	enum Types { NONE, INT, DOUBLE, CHAR, STRING };
+	enum Types { NONE, INT, REAL, CHAR, STRING };
 	
 	struct OptionStruct
 	{

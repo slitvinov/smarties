@@ -67,12 +67,12 @@ int main()
                     for (int k = 0; k<sI.dim; k++)
                         s.vals[k] = sI.bottom[k] + (ind[k]+0.5)/sI.bounds[k] * (sI.top[k] - sI.bottom[k]);
 
-                    double best = -1e10;
+                    Real best = -1e10;
                     ActionIterator actionsIt(aI);
                     actionsIt.reset();
                     while (!actionsIt.done())
                     {
-                        double val;
+                        Real val;
                         if ((val = q->get(s, actionsIt.next())) > best && fabs(val) > 1e-9)
                         {
                             best = val;

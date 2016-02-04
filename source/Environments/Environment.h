@@ -23,7 +23,7 @@ class Environment
 public:
     StateInfo sI;
 	ActionInfo aI;
-    
+        int nInfo;
 	vector<Agent*> agents;
 	map<string, void*> data;
 	bool bRestart, bFailed;
@@ -31,6 +31,6 @@ public:
     Environment(vector<Agent*> agents) : agents(agents),bRestart(false),bFailed(false) {};
 	
 	virtual void   getState (Agent* agent, State& s) { };
-	virtual double getReward(Agent* agent)           { return 0; };
-	virtual int   evolve   (double t)                { return 0; };
+	virtual Real getReward(Agent* agent)           { return 0; };
+	virtual int   evolve   (Real t)                { return 0; };
 };

@@ -16,12 +16,12 @@ void ExternalAgent::setEnvironment(Environment* env)
     environment = env;
 }
 
-double ExternalAgent::getReward()
+Real ExternalAgent::getReward()
 {
     return r;
 }
 
-double getInfo(int n)
+Real ExternalAgent::getInfo(int n)
 {
     if (n<nInfo)
     return Info[n];

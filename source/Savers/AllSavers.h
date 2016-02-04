@@ -43,11 +43,11 @@ public:
 	void exec()
 	{
 		ofstream& out(*file);
-		map<long int, double>& data = Q->getData();
+		map<long int, Real>& data = Q->getData();
 		
 		_info("Saving all the states... ");
 		
-		for (map<long int, double>::iterator it = data.begin(); it != data.end(); it++)
+		for (map<long int, Real>::iterator it = data.begin(); it != data.end(); it++)
 		{
 			State s = decode(master->sInfo, it->first / 10);
 			

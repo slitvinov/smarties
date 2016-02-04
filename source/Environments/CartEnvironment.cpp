@@ -151,7 +151,7 @@ void CartEnvironment::setDims()
     aI.values.push_back(2.0);
 }
 
-int CartEnvironment::evolve(double t)
+int CartEnvironment::evolve(Real t)
 {
     fprintf(fout, "Actions:\n");
     for (auto& a : exagents)
@@ -196,7 +196,7 @@ int CartEnvironment::evolve(double t)
     
     for (auto& a : exagents)
     {
-        double aa, b, c;
+        Real aa, b, c;
         
         for (int i=0; i<a->s->sInfo.dim; i++)
             fscanf(fin, "%lf", &(a->s->vals[i]));

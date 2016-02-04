@@ -11,7 +11,7 @@
 
 atomic_int Agent::idCount(0);
 
-Agent::Agent(double learningInterval, Types type, string name):
+Agent::Agent(Real learningInterval, Types type, string name):
 learningInterval(learningInterval), lastLearned(0), type(type), name(name), id(0)
 {
 	id = idCount.fetch_add(1);

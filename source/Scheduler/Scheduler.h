@@ -27,23 +27,23 @@ private:
     int outsize, outOneSize;
     byte *inbuf, *outbuf;
     
-    inline void unpackChunk(byte* &buf, State& sOld, Action& a, double& r, vector<double>& info, State& s);
-    inline void unpackChunk(byte* &buf, State& sOld, Action& a, double& r, State& s);
+    inline void unpackChunk(byte* &buf, State& sOld, Action& a, Real& r, vector<Real>& info, State& s);
+    inline void unpackChunk(byte* &buf, State& sOld, Action& a, Real& r, State& s);
     inline void packChunk(byte* &buf, Action a);
     
-    double totR;
+    Real totR;
     vector<Saver*> savers;
     
     int nAgents, nSlaves;
     vector<Trace> traces;
 
-    void execSavers(double time, int iter);
+    void execSavers(Real time, int iter);
 
 public:
     StateInfo  sInfo;
     ActionInfo actInfo;
-    Master(Learner* learner, QApproximator* newQ, ActionInfo actInfo, StateInfo sInfo, int nAgents, int nSlaves, double traceDecay);
-    double getTotR() { double tmp = totR; totR = 0; return tmp; }
+    Master(Learner* learner, QApproximator* newQ, Environment* env, int nSlaves, Real traceDecay);
+    Real getTotR() { Real tmp = totR; totR = 0; return tmp; }
     void restart(string fname);
     
     void run();
@@ -57,7 +57,7 @@ class Slave
     
     Environment* env;
     vector<Agent*> agents;
-    double dt;
+    Real dt;
     bool first;
     int insize, outsize, nInfo;
     byte *inbuf, *outbuf;
@@ -70,7 +70,7 @@ class Slave
         
 public:
     
-    Slave(Environment* env, double newDt, int me);
-    int evolve(double& t);
+    Slave(Environment* env, Real newDt, int me);
+    int evolve(Real& t);
     
 };

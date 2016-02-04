@@ -56,12 +56,12 @@ void Profiler::stop()
 	stop(ongoing);
 }
 
-double Profiler::elapsed(string name)
+Real Profiler::elapsed(string name)
 {
 	if (timings.find(name) != timings.end())
 	{
 		Timings *tm = &timings[name];
-		double res = tm->total / tm->iterations;
+		Real res = tm->total / tm->iterations;
 		tm->total = 0;
 		tm->iterations = 0;
 		return res;
@@ -71,11 +71,11 @@ double Profiler::elapsed(string name)
 
 string Profiler::printStat()
 {
-	double total = 0;
+	Real total = 0;
 	int longest = 0;
 	ostringstream out;
 	map<string, Timings>::iterator it;
-	double now = mach_absolute_time();
+	Real now = mach_absolute_time();
 	for (it = timings.begin(); it != timings.end(); it++)
 	{
 		if (it->second.started)
@@ -89,7 +89,7 @@ string Profiler::printStat()
 			longest = it->first.length();
 	}
 
-	double factor;
+	Real factor;
 	string unit;
 	if (mode == SEC) 
 	{

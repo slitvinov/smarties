@@ -8,24 +8,24 @@
  */
 
 #pragma once
-
+#include <immintrin.h>
 #include <vector>
-#include "../Types/types.h"
+#include "../Settings.h"
 #define SIMD 1 //TODO
+#define ALLOC 64
 using namespace std;
-typedef float vt;
 
 struct Memory
 {
     Memory(int _nNeurons=1, int _nStates=1): nNeurons(_nNeurons), nStates(_nStates)
     {
-        oldvals = (vt*) _mm_malloc(nNeurons*sizeof(vt), ALLOC);
-        ostates = (vt*) _mm_malloc(nStates *sizeof(vt), ALLOC);
+        oldvals = (Real*) _mm_malloc(nNeurons*sizeof(Real), ALLOC);
+        ostates = (Real*) _mm_malloc(nStates *sizeof(Real), ALLOC);
     }
     
-    ~VelocitySolverNSquared()
+    ~Memory()
     {
-        _mm_free(outvals);
+        _mm_free(oldvals);
         _mm_free(ostates);
     }
     
@@ -35,13 +35,13 @@ struct Memory
         _mm_free(ostates);
         nNeurons = _nNeurons;
         nStates = _nStates;
-        oldvals = (vt*) _mm_malloc(nNeurons*sizeof(vt), ALLOC);
-        ostates = (vt*) _mm_malloc(nStates *sizeof(vt), ALLOC);
+        oldvals = (Real*) _mm_malloc(nNeurons*sizeof(Real), ALLOC);
+        ostates = (Real*) _mm_malloc(nStates *sizeof(Real), ALLOC);
     }
     
     int nNeurons, nStates;
-    vt * oldvals;
-    vt * ostates;
+    Real * oldvals;
+    Real * ostates;
 };
 
 
@@ -50,12 +50,12 @@ class Approximator
 public:
     vector<Memory> Agents;
     
-    virtual void predict(const vector<vt>& input, vector<vt>& output, int nAgent) {};
-	virtual void improve(const vector<vt>& input, const vector<vt>& error, int nAgent) {};
-    virtual void test(const vector<vt>& input, vector<vt>& output, int nAgent) { predict(input, output, nAgent); };
+    virtual void predict(const vector<Real>& input, vector<Real>& output, int nAgent) {};
+	virtual void improve(const vector<Real>& input, const vector<Real>& error, int nAgent) {};
+    virtual void test(const vector<Real>& input, vector<Real>& output, int nAgent) { predict(input, output, nAgent); };
 	virtual void save(string name) = 0;
 	virtual bool restart(string name) = 0;
     virtual void setBatchsize(int size) = 0;
-    virtual vt TotSumWeights() {return 0;}
-    virtual vt AvgLearnRate() {return 0;}
+    virtual Real TotSumWeights() {return 0;}
+    virtual Real AvgLearnRate() {return 0;}
 };

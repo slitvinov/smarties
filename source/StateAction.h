@@ -11,7 +11,7 @@
 
 #include <vector>
 #include <sstream>
-
+#include "Settings.h"
 #include "rng.h"
 #include "ErrorHandling.h"
 #include "Misc.h"
@@ -27,12 +27,12 @@ struct StateInfo
 	
 	int dim;
 	vector<int> bounds;
-	vector<double> bottom;
-	vector<double> top;
+	vector<Real> bottom;
+	vector<Real> top;
 	vector<bool>   belowBottom;
 	vector<bool>   aboveTop;
     vector<bool>   isLabel;
-    vector<double> values;
+    vector<Real> values;
 };
 
 class State
@@ -40,7 +40,7 @@ class State
 public:
 	StateInfo sInfo;
 
-	vector<double> vals;
+	vector<Real> vals;
 	
 	State() {};
 	State(const StateInfo& newSInfo) : sInfo(newSInfo)
@@ -86,7 +86,7 @@ public:
 		o << "[";
 		for (int i=0; i<sInfo.dim; i++)
 		{
-			double res = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*4 - 2;
+			Real res = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*4 - 2;
 			if (res > 2)  res = 2;
 			if (res < -2) res = -2;
 			
@@ -97,7 +97,7 @@ public:
 		return o.str();
 	}
 	
-	void scale(vector<double>& res) const
+	void scale(vector<Real>& res) const
 	{
 		for (int i=0; i<sInfo.dim; i++)
 		{
@@ -111,19 +111,19 @@ public:
     
     void pack(byte* buf)
     {
-        double* dbuf = (double*) buf;
+        Real* dbuf = (Real*) buf;
         for (int i=0; i<sInfo.dim; i++)
             dbuf[i] = vals[i];
     }
     
     void unpack(byte* buf)
     {
-        double* dbuf = (double*) buf;
+        Real* dbuf = (Real*) buf;
         for (int i=0; i<sInfo.dim; i++)
             vals[i] = dbuf[i];
     }
     
-    void set(vector<double> data)
+    void set(vector<Real> data)
     {
         for (int i=0; i<sInfo.dim; i++)
             vals[i] = data[i];
@@ -152,7 +152,7 @@ struct ActionInfo
 	int dim;
     int zeroact;
 	vector<int> bounds;
-    vector<double> values;
+    vector<Real> values;
 };
 
 class Action
@@ -207,14 +207,14 @@ public:
     
     void pack(byte* buf)
     {
-        double* dbuf = (double*) buf;
+        Real* dbuf = (Real*) buf;
         for (int i=0; i<actInfo.dim; i++)
             dbuf[i] = vals[i];
     }
     
     void unpack(byte* buf)
     {
-        double* dbuf = (double*) buf;
+        Real* dbuf = (Real*) buf;
         for (int i=0; i<actInfo.dim; i++)
             vals[i] = dbuf[i];
     }
@@ -225,7 +225,7 @@ public:
             vals[i] = data[i];
     }
     
-    void scale(vector<double>& res) const
+    void scale(vector<Real>& res) const
 	{
 		for (int i=0; i<actInfo.dim; i++)
             res[res.size() - actInfo.dim + i] = actInfo.values[vals[i]];

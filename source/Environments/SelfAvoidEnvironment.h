@@ -18,7 +18,7 @@
 
 class SmartySelfAvoider;
 
-typedef tuple<double, double, double> Column;
+typedef tuple<Real, Real, Real> Column;
 
 class SelfAvoidEnvironment: public Environment
 {
@@ -27,12 +27,12 @@ class SelfAvoidEnvironment: public Environment
 public:
 	vector<Column> columns;
 	vector<SmartySelfAvoider*> avoiders;
-	double rWall;
+	Real rWall;
 	Cells <SmartySelfAvoider>* cells;
 
-	SelfAvoidEnvironment(vector<Agent*> agents, vector<Column> columns, double rWall, StateType st);
+	SelfAvoidEnvironment(vector<Agent*> agents, vector<Column> columns, Real rWall, StateType st);
 	Column findClosestColumn(SmartySelfAvoider* agent);
 	SmartySelfAvoider* findClosestNeighbour(SmartySelfAvoider* agent);
 	
-	int evolve(double t);
+	int evolve(Real t);
 };

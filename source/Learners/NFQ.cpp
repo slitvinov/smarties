@@ -11,17 +11,16 @@
 
 #include "../StateAction.h"
 #include "NFQ.h"
-#include "../Settings.h"
 
 
-NFQ::NFQ(QApproximator* newQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate) :
+NFQ::NFQ(QApproximator* newQ, ActionInfo& actInfo, Real newGamma, Real newGreedyEps, Real newLRate) :
 Q(newQ), actionsIt(actInfo), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate)
 {
     rng = new RNG(rand());
     suffix = 0;
 }
 
-void NFQ::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, double r, int Nagent)
+void NFQ::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent)
 {   // No learning here!
     //       aOld, r
     // sOld ---------> s
@@ -29,11 +28,11 @@ void NFQ::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld,
     // Find V(s) = max Q(s, a')
     //              a'
     
-    //double Qold = Q->get(sOld, aOld, Nagent); //LSTM: also memory advances to new state
+    //Real Qold = Q->get(sOld, aOld, Nagent); //LSTM: also memory advances to new state
     int Nbest, NoldBest;
-    double Vold = Q->getMax(sOld, NoldBest, Nagent);
-    double Vnew = Q->testMax(s, Nbest, Nagent);
-    double Aold = Q->advance(sOld, aOld, Nagent);
+    Real Vold = Q->getMax(sOld, NoldBest, Nagent);
+    Real Vnew = Q->testMax(s, Nbest, Nagent);
+    Real Aold = Q->advance(sOld, aOld, Nagent);
     a.vals[0] = Nbest;
     //LSTM: here you perform that action and update memory
 }
@@ -41,9 +40,9 @@ void NFQ::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld,
 
 void NFQ::NFQimprove()
 {
-    double err = 1.0;
-    double errold = 10.0;
-    double minerr = 100.0;
+    Real err = 1.0;
+    Real errold = 10.0;
+    Real minerr = 100.0;
     while (fabs((err-errold)/errold)>0.0001 || (err-minerr)/minerr>0.01)
     {
         _info("Iterating batch update\n");

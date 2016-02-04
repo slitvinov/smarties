@@ -14,7 +14,7 @@
 
 using namespace ErrorHandling;
 
-SmartySelfAvoider::SmartySelfAvoider(double x, double y, double d,  double t, double vx,  double vy):
+SmartySelfAvoider::SmartySelfAvoider(Real x, Real y, Real d,  Real t, Real vx,  Real vy):
 Agent(t, ACTOR, "SmartySelfAvoider"), x(x), y(y), d(d), vx(vx), vy(vy)
 {
 	IvI = sqrt(vx*vx + vy*vy);
@@ -27,9 +27,9 @@ void SmartySelfAvoider::setEnvironment(Environment* env)
 	environment = env;
 }
 
-void SmartySelfAvoider::_rotate(double dAng)
+void SmartySelfAvoider::_rotate(Real dAng)
 {
-	double ang = _angle(vx, vy, 1, 0) + dAng;
+	Real ang = _angle(vx, vy, 1, 0) + dAng;
 	
 	vx = IvI * cos(2*M_PI * ang / 360.0);
 	vy = IvI * sin(2*M_PI * ang / 360.0);
@@ -40,7 +40,7 @@ void SmartySelfAvoider::getState(State& s)
 	s.vals.clear();
 	
 	// Assume origin is in 0, 0
-	double dist2cen = _dist(x,y, 0, 0);
+	Real dist2cen = _dist(x,y, 0, 0);
 	
 	s.vals.push_back( sInfo.top[0] );//environment->circWall->d/2 - dist2cen - d/2 ); 
 	s.vals.push_back( sInfo.top[1] );//_angle(vx, vy, x-x0, y-y0) );
@@ -49,7 +49,7 @@ void SmartySelfAvoider::getState(State& s)
 	
 	Column c = env->findClosestColumn(this);
 	
-	double d = _dist(x,y, get<0>(c), get<1>(c)) - d/2 - get<2>(c)/2;
+	Real d = _dist(x,y, get<0>(c), get<1>(c)) - d/2 - get<2>(c)/2;
 	s.vals.push_back( d );
 	s.vals.push_back( _angle(vx, vy, get<0>(c) - x, get<1>(c) - y) );
 
@@ -69,9 +69,9 @@ void SmartySelfAvoider::getState(State& s)
 	}
 }
 
-double SmartySelfAvoider::getReward()
+Real SmartySelfAvoider::getReward()
 {
-	double reward = 0;
+	Real reward = 0;
 	//if (crashed) reward -= 1;
 	
 	Column c = env->findClosestColumn(this);
@@ -87,7 +87,7 @@ double SmartySelfAvoider::getReward()
 
 void SmartySelfAvoider::act(Action& a)
 {
-	double dAng = 5.0;
+	Real dAng = 5.0;
 	
 	switch (a.vals[0])
 	{
@@ -111,10 +111,10 @@ void SmartySelfAvoider::act(Action& a)
 	}
 }
 
-void SmartySelfAvoider::move(double dt)
+void SmartySelfAvoider::move(Real dt)
 {
-	double xOld = x;
-	double yOld = y;
+	Real xOld = x;
+	Real yOld = y;
 	x += vx*dt;
 	y += vy*dt;
 	

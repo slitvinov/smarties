@@ -26,7 +26,7 @@
 
 using namespace ErrorHandling;
 
-NFQApproximator::NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, double gamma) :
+NFQApproximator::NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, Real gamma) :
 QApproximator(newSInfo, newActInfo), samples(newActInfo, newSInfo), scaledInp(sInfo.dim), actionsIt(newActInfo), gamma(gamma)
 {
     rng = new RNG(rand());
@@ -63,7 +63,7 @@ NFQApproximator::~NFQApproximator()
 {
 }
 
-double NFQApproximator::get(const State& s, const Action& a)
+Real NFQApproximator::get(const State& s, const Action& a)
 {
     s.scale(scaledInp);
     ann[a.vals[0]]->predict(scaledInp, prediction);
@@ -71,14 +71,14 @@ double NFQApproximator::get(const State& s, const Action& a)
     return prediction[0];
 }
 
-double NFQApproximator::batchUpdate()
+Real NFQApproximator::batchUpdate()
 {
     vector< NFQdata > pairs;
     NFQdata tmp;
-    vector< double > target(1);
+    vector< Real > target(1);
     Action a(actInfo);
     debug("Sample set size is %d\n", samples.Set.size());
-    double err(0.0), maxo(-1e6), mino(1e6);
+    Real err(0.0), maxo(-1e6), mino(1e6);
 
     for (int j=0; j<actInfo.bounds[0]; j++)
     {
@@ -88,7 +88,7 @@ double NFQApproximator::batchUpdate()
             if (samples.Set[i].a->vals[0] == j)
             { //for now update one NN at the time. TODO: (0 0, 1=1, 2=-1) -> continuous!
                 // output i:
-                double best = -1e10;
+                Real best = -1e10;
                 actionsIt.reset();
                 samples.Set[i].sNew->scale(scaledInp); //to calculate max_a (Q^{k-1} (s' , a))
                 
@@ -243,10 +243,10 @@ bool NFQApproximator::restart(string name)
     }
     
     State t_sO(sInfo), t_sN(sInfo);
-    vector<double> d_sO(sInfo.dim), d_sN(sInfo.dim);
+    vector<Real> d_sO(sInfo.dim), d_sN(sInfo.dim);
     Action t_a(actInfo);
     vector<int> d_a(actInfo.dim);
-    double reward;
+    Real reward;
     int agentId;
     
     ifstream in("history.txt");
@@ -288,7 +288,7 @@ bool NFQApproximator::restart(string name)
     return res;
 }
 
-void NFQApproximator::passData(int agentId, State& sOld, Action& a, State& sNew, double reward)
+void NFQApproximator::passData(int agentId, State& sOld, Action& a, State& sNew, Real reward)
 {
     debug3("+1");
     samples.add(agentId, sOld, a, sNew, reward);

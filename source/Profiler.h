@@ -13,6 +13,7 @@
 #include <map>
 
 #include "timer.h"
+#include "Settings.h"
 
 using namespace std;
 
@@ -20,8 +21,8 @@ struct Timings
 {
 	bool started;
 	int iterations;
-	double start;
-	double total;
+	Real start;
+	Real total;
 };
 
 class Profiler
@@ -38,7 +39,7 @@ public:
 	void stop(string);
 	void stop();
 	string printStat();
-	double elapsed(string);
+	Real elapsed(string);
 	
 	void sec()      { mode = SEC; }
 	void millisec() { mode = MSEC; };

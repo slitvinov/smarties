@@ -16,7 +16,7 @@ void HardCartAgent::setEnvironment(Environment* env)
     environment = env;
 }
 
-double HardCartAgent::getReward()
+Real HardCartAgent::getReward()
 {
     return r;
 }

@@ -11,16 +11,15 @@
 
 #include "../StateAction.h"
 #include "SpeedyQLearning.h"
-#include "../Settings.h"
 
-SpeedyQLearning::SpeedyQLearning(QApproximator* newQ, QApproximator* oldQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate, double LAMBDA) :
+SpeedyQLearning::SpeedyQLearning(QApproximator* newQ, QApproximator* oldQ, ActionInfo& actInfo, Real newGamma, Real newGreedyEps, Real newLRate, Real LAMBDA) :
 Q(newQ), Qold(oldQ), actionsIt(actInfo), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate), lambda(LAMBDA)
 {
     rng = new RNG(rand());
     suffix = 0;
 }
 
-void SpeedyQLearning::updateSelect(Trace& t, State& s, Action& a, double r, double alphaK)
+void SpeedyQLearning::updateSelect(Trace& t, State& s, Action& a, Real r, Real alphaK)
 {
     //       aOld, r
     // sOld ---------> s
@@ -34,15 +33,15 @@ void SpeedyQLearning::updateSelect(Trace& t, State& s, Action& a, double r, doub
     // Q(sOld, aOld) += alphaK * (r + gamma*V_{k-1}(s) - Q(sOld, aOld)) + 
     //                              (1 - alphaK) * (gamma*best - gamma*bestOld);
 
-    double best = -1e10;
-    double bestOld = -1e10;
+    Real best = -1e10;
+    Real bestOld = -1e10;
 
     actionsIt.reset();
     while (!actionsIt.done())
     {   
         Action& tmpAction = actionsIt.next();
-        const double val = Q->test(s, tmpAction, 0);
-        const double valOld = Qold->test(s, tmpAction, 0);
+        const Real val = Q->test(s, tmpAction, 0);
+        const Real valOld = Qold->test(s, tmpAction, 0);
         if (valOld >= bestOld + 1e-12)
         {
             bestOld = val;
@@ -60,7 +59,7 @@ void SpeedyQLearning::updateSelect(Trace& t, State& s, Action& a, double r, doub
         }
     }
 
-    double p = rng->uniform();
+    Real p = rng->uniform();
     if (p > greedyEps)  a = actionsIt.recall();
     else                a = actionsIt.getRand(rng);
 
@@ -68,7 +67,7 @@ void SpeedyQLearning::updateSelect(Trace& t, State& s, Action& a, double r, doub
     Action& aOld = *t.hist[t.start].a;
 
     // Speedy Q Learning
-    double err = alphaK * (r + gamma*bestOld - Q->get(sOld, aOld, 0)) +
+    Real err = alphaK * (r + gamma*bestOld - Q->get(sOld, aOld, 0)) +
                     (1.0 - alphaK) * (gamma*best - gamma*bestOld);
     Qold->set(sOld, aOld, Q->get(sOld, aOld, 0), 0);
     Q->correct(sOld, aOld, err, 0);
@@ -76,7 +75,7 @@ void SpeedyQLearning::updateSelect(Trace& t, State& s, Action& a, double r, doub
 }
 
 
-void SpeedyQLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, double r, int Nagent)
+void SpeedyQLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent)
 {
     //       aOld, r
     // sOld ---------> s
@@ -90,15 +89,15 @@ void SpeedyQLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, A
     // Q(sOld, aOld) += alphaK * (r + gamma*V_{k-1}(s) - Q(sOld, aOld)) + 
     //                              (1 - alphaK) * (gamma*best - gamma*bestOld);
 
-    double best = -1e10;
-    double bestOld = -1e10;
+    Real best = -1e10;
+    Real bestOld = -1e10;
 
     actionsIt.reset();
     while (!actionsIt.done())
     {   
         Action& tmpAction = actionsIt.next();
-        const double val = Q->test(s, tmpAction, Nagent);
-        const double valOld = Qold->test(s, tmpAction, Nagent);
+        const Real val = Q->test(s, tmpAction, Nagent);
+        const Real valOld = Qold->test(s, tmpAction, Nagent);
         if (valOld >= bestOld + 1e-12)
         {
             bestOld = val;
@@ -116,12 +115,12 @@ void SpeedyQLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, A
         }
     }
 
-    double p = rng->uniform();
+    Real p = rng->uniform();
     if (p > greedyEps)  a = actionsIt.recall();
     else                a = actionsIt.getRand(rng);
 
     // Speedy Q Learning
-    double err = lRate * (r + gamma*bestOld - Q->get(sOld, aOld, Nagent)) +
+    Real err = lRate * (r + gamma*bestOld - Q->get(sOld, aOld, Nagent)) +
                     (1.0 - lRate) * (gamma*best - gamma*bestOld);
     Qold->set(sOld, aOld, Q->get(sOld, aOld, Nagent), Nagent);
     Q->correct(sOld, aOld, err, Nagent);

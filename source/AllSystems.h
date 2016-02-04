@@ -23,6 +23,4 @@ class HardCartEnvironment;
 #include "Environments/ExternalEnvironment.h"
 #include "Environments/CartEnvironment.h"
 #include "Environments/HardCartEnvironment.h"
-#include "Environments/ArtisticEnvironment.h"
-#include "Environments/HuntEnvironment.h"
 #include "Environments/GlideEnvironment.h"

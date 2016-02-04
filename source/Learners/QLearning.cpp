@@ -11,16 +11,15 @@
 
 #include "../StateAction.h"
 #include "QLearning.h"
-#include "../Settings.h"
 
-QLearning::QLearning(QApproximator* newQ, ActionInfo& actInfo, double newGamma, double newGreedyEps, double newLRate) :
+QLearning::QLearning(QApproximator* newQ, ActionInfo& actInfo, Real newGamma, Real newGreedyEps, Real newLRate) :
 Q(newQ), actionsIt(actInfo), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate)
 {
     rng = new RNG(rand());
     suffix = 0;
 }
 
-void QLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, double r, int Nagent)
+void QLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent)
 {
     //       aOld, r
     // sOld ---------> s
@@ -31,14 +30,14 @@ void QLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action&
     // Q(sOld, aOld) += lRate * [r + gamma*V(s) - Q(sOld, aOld)]
     //
 
-    double Qold = Q->get(sOld, aOld, Nagent); //LSTM: also memory advances to new state
+    Real Qold = Q->get(sOld, aOld, Nagent); //LSTM: also memory advances to new state
     
     //LSTM: now test scenarios without updating memory
-    double best = -1e10;
+    Real best = -1e10;
     actionsIt.reset();
     while (!actionsIt.done())
     {
-        const double val = Q->test(s, actionsIt.next(), Nagent);
+        const Real val = Q->test(s, actionsIt.next(), Nagent);
         //_info("Q learning: %f for %s,  act %s\n", val, s.print().c_str(), actionsIt.show().print().c_str());
         if (val >= best + 1e-12)
         {
@@ -53,9 +52,9 @@ void QLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action&
         }
     }
     
-    double err =  lRate *(r + gamma*best - Qold);
+    Real err =  lRate *(r + gamma*best - Qold);
     //printf("Err = %f\n", err);
-    double p = rng->uniform();
+    Real p = rng->uniform();
     if (p > fabs(err))  a = actionsIt.recall();
     else                a = actionsIt.getRand(rng);
     
@@ -68,7 +67,7 @@ void QLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action&
     Qold = Q->advance(sOld, aOld, Nagent);
     //LSTM: with memory after Q(sOld, aOld)
     Q->correct(sOld, aOld, err, Nagent);
-    double Qnew = Q->get(sOld, aOld, Nagent);
+    Real Qnew = Q->get(sOld, aOld, Nagent);
     //_info("Q was %f, err %f, now Q=%f\n",Qold,err,Qnew);
     //if (fabs(err) > 0.02) cout << " Err after correct = " << lRate * (r + gamma*best - Q->test(sOld, aOld, Nagent))  << endl;
 }

@@ -20,7 +20,6 @@
 
 #include "../ErrorHandling.h"
 #include "../Misc.h"
-#include "../Settings.h"
 #include "../ANN/Network.h"
 #include "../ANN/WaveletNet.h"
 #include "../ANN/LSTMNet.h"
@@ -100,10 +99,10 @@ NFQApproximator::~NFQApproximator()
 {
 }
 
-double NFQApproximator::get(const State& s, const Action& a, int nAgent)
+Real NFQApproximator::get(const State& s, const Action& a, int nAgent)
 {
     s.scale(scaledInp);
-    backup.copy(ann->Agents[nAgent]);
+    //backup.copy(ann->Agents[nAgent]);
     if(prediction.size() < 2)
     {
         a.scale(scaledInp);
@@ -116,7 +115,7 @@ double NFQApproximator::get(const State& s, const Action& a, int nAgent)
         return prediction[a.vals[0]];
     }
 }
-double NFQApproximator::advance(const State& s, const Action& a, int nAgent)
+Real NFQApproximator::advance(const State& s, const Action& a, int nAgent)
 {
     s.scale(scaledInp);
     //ann->Agents[nAgent].copy(backup);
@@ -132,7 +131,7 @@ double NFQApproximator::advance(const State& s, const Action& a, int nAgent)
         return prediction[a.vals[0]];
     }
 }
-double NFQApproximator::test(const State& s, const Action& a, int nAgent)
+Real NFQApproximator::test(const State& s, const Action& a, int nAgent)
 {
     if (nettype == "LSTM")
     {
@@ -152,12 +151,12 @@ double NFQApproximator::test(const State& s, const Action& a, int nAgent)
     else
         return get(s, a, nAgent);
 }
-double NFQApproximator::getMax(const State& s, int & nAct, int nAgent)
+Real NFQApproximator::getMax(const State& s, int & nAct, int nAgent)
 {
     //backup.copy(ann->Agents[nAgent]);
     s.scale(scaledInp);
     Action a(actInfo);
-    double Val = -1e10;
+    Real Val = -1e10;
     
     if (prediction.size()>1)
     {
@@ -186,10 +185,10 @@ double NFQApproximator::getMax(const State& s, int & nAct, int nAgent)
     
     return Val;
 }
-double NFQApproximator::testMax(const State& s, int & nAct, int nAgent)
+Real NFQApproximator::testMax(const State& s, int & nAct, int nAgent)
 {
     s.scale(scaledInp);
-    double Val = -1e10;
+    Real Val = -1e10;
     Action a(actInfo);
     if (prediction.size()>1)
     {
@@ -222,12 +221,12 @@ double NFQApproximator::testMax(const State& s, int & nAct, int nAgent)
     }
     return Val;
 }
-double NFQApproximator::advanceMax (const State& s, int & nAct, int nAgent)
+Real NFQApproximator::advanceMax (const State& s, int & nAct, int nAgent)
 {
     //ann->Agents[nAgent].copy(backup);
     s.scale(scaledInp);
     Action a(actInfo);
-    double Val = -1e10;
+    Real Val = -1e10;
     
     if (prediction.size()>1)
     {
@@ -256,7 +255,7 @@ double NFQApproximator::advanceMax (const State& s, int & nAct, int nAgent)
     
     return Val;
 }
-void NFQApproximator::correct(const State& s, const Action& a, double err, int nAgent)
+void NFQApproximator::correct(const State& s, const Action& a, Real err, int nAgent)
 {
     s.scale(scaledInp);
     if (prediction.size()>1)
@@ -273,15 +272,15 @@ void NFQApproximator::correct(const State& s, const Action& a, double err, int n
     ann->improve(scaledInp, prediction, nAgent);
 }
 
-double NFQApproximator::batchUpdate()
+Real NFQApproximator::batchUpdate()
 {
     vector<NFQdata> pairs;
     NFQdata tmp;
-    vector<double> target(prediction.size());
+    vector<Real> target(prediction.size());
     Action a(actInfo);
     debug("Sample set size is %d\n", samples.Set.size());
     
-    double err(0.0), maxo(-1e6), mino(1e6), reward, Vold, Vnxt, Aold;
+    Real err(0.0), maxo(-1e6), mino(1e6), reward, Vold, Vnxt, Aold;
     int aNxt;
     
     for (int i=0; i<samples.Set.size(); i++)
@@ -351,11 +350,11 @@ double NFQApproximator::batchUpdate()
     return err/samples.Set.size();
 }
 
-double NFQApproximator::serialUpdate()
+Real NFQApproximator::serialUpdate()
 {
     Action a(actInfo);
     debug("Serial sample set size is %d\n", samples.Set.size());
-    double err(0.0), maxo(-1e6), mino(1e6), Vold, Vnxt, Anew, Aold, target, reward;
+    Real err(0.0), maxo(-1e6), mino(1e6), Vold, Vnxt, Anew, Aold, target, reward;
     int anxt;
     
     for (int i=0; i<samples.Set.size(); i++)
@@ -390,7 +389,7 @@ double NFQApproximator::serialUpdate()
         //maxo = max(maxo, Anew);
         //mino = min(mino, Anew);
         
-        target = (rescale(Anew) - Aold)
+        target = (rescale(Anew) - Aold); // WTF?? check prev versions
         
         correct(*samples.Set[i].sOld, *samples.Set[i].a, target, samples.Set[i].agentId);
         err += fabs(target);
@@ -399,8 +398,8 @@ double NFQApproximator::serialUpdate()
     
     //maxo = min(maxo,  500.);
     //mino = max(mino, -500.);
-    //double goalA = 2./(maxo - mino); //scaling factors netmax = 1, netmin = -1
-    //double goalB = -A*mino -1.;
+    //Real goalA = 2./(maxo - mino); //scaling factors netmax = 1, netmin = -1
+    //Real goalB = -A*mino -1.;
     //A += 0.1*(goalA-A); // some learn rate... 1 leads to chasing an oscillatin rescaling
     //B += 0.1*(goalB-B); // 0.01 requires too many evaluations
 
@@ -464,7 +463,7 @@ bool NFQApproximator::restart(string name)
     return res;
 }
 
-void NFQApproximator::passData(int agentId, State& sOld, Action& a, State& sNew, double reward, double altrew)
+void NFQApproximator::passData(int agentId, State& sOld, Action& a, State& sNew, Real reward, Real altrew)
 {
     debug3("+1");
     samples.add(agentId, sOld, a, sNew, reward);

@@ -10,27 +10,28 @@
 
 #include <string>
 using namespace std;
-
+//using Real=float;
+#define Real double
 extern struct Settings
 {
 	int    saveFreq;
 	int    videoFreq;
 	string configFile;
-	double dt;
-	double endTime;
+	Real dt;
+	Real endTime;
 	int    randSeed;
 	
-	double lRate;
-	double greedyEps;
-	double gamma;
-	double lambda;
+	Real lRate;
+	Real greedyEps;
+	Real gamma;
+	Real lambda;
 	string restart;
 	
-	double nnEta;
-	double nnAlpha;
-    double nnKappa;
-    double nnLambda;
-    double nnAdFac;
+	Real nnEta;
+	Real nnAlpha;
+    Real nnKappa;
+    Real nnLambda;
+    Real nnAdFac;
 	int    nnLayer1;
 	int    nnLayer2;
     int    nnLayer3;
@@ -43,7 +44,7 @@ extern struct Settings
     int    nnMemory5;
     int    nnOuts;
     
-    double  AL_fac;
+    Real  AL_fac;
     string learner;
     string network;
     

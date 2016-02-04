@@ -48,7 +48,7 @@ inline int ObjectFactory::_parseInt(string source, string pattern, bool req)
     return atoi(_parse(source, pattern, req).c_str());
 }
 
-inline double ObjectFactory::_parseDouble(string source, string pattern, bool req)
+inline Real ObjectFactory::_parseReal(string source, string pattern, bool req)
 {
     return atof(_parse(source, pattern, req).c_str());
 }
@@ -89,50 +89,6 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
             }
 
             env = new ExternalEnvironment(agents, execpath, st, rank, index);
-            getline(inFile, s);
-        }
-        
-        else if (envStr.find("ArtisticEnvironment ") != envStr.npos)
-        {
-            vector<Agent*> agents;
-            
-            string appType = _parse(envStr, "type", false);
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            
-            StateType st;
-            if (appType == "DISCR") st = DISCR;
-            else if (appType == "ANN") st = ANN;
-            else if (appType == "WAVE") st = WAVE;
-            
-            for (int i=0; i<n; i++)
-            {
-                agents.push_back(new ExternalAgent(1e-10, ACTOR, "ExternalAgent"));
-            }
-            
-            env = new ArtisticEnvironment(agents, execpath, st, rank, index);
-            getline(inFile, s);
-        }
-        
-        else if (envStr.find("HuntEnvironment ") != envStr.npos)
-        {
-            vector<Agent*> agents;
-            
-            string appType = _parse(envStr, "type", false);
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            
-            StateType st;
-            if (appType == "DISCR") st = DISCR;
-            else if (appType == "ANN") st = ANN;
-            else if (appType == "WAVE") st = WAVE;
-            
-            for (int i=0; i<n; i++)
-            {
-                agents.push_back(new ExternalAgent(1e-10, ACTOR, "ExternalAgent"));
-            }
-            
-            env = new HuntEnvironment(agents, execpath, st, rank, index);
             getline(inFile, s);
         }
         
@@ -208,8 +164,8 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
             vector<Column> columns;
 
             string appType = _parse(envStr, "type", false);
-            double D = _parseDouble(envStr, "scale");
-            double rWall = _parseDouble(envStr, "rWall")*D;
+            Real D = _parseReal(envStr, "scale");
+            Real rWall = _parseReal(envStr, "rWall")*D;
 
             StateType st;
             if (appType == "DISCR") st = DISCR;
@@ -222,23 +178,23 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
 
                 if (s.find("SmartySelfAvoider ") != s.npos)
                 {
-                    SmartySelfAvoider* agent = new SmartySelfAvoider(_parseDouble(s, "x")*D,
-                            _parseDouble(s, "y")*D, _parseDouble(s, "d")*D,
-                            _parseDouble(s, "T"), D/5.0, 0);
+                    SmartySelfAvoider* agent = new SmartySelfAvoider(_parseReal(s, "x")*D,
+                            _parseReal(s, "y")*D, _parseReal(s, "d")*D,
+                            _parseReal(s, "T"), D/5.0, 0);
                     agents.push_back(agent);
                 }
                 else if( s.find("SmartySelfAvoiders ") != s.npos )
                 {
-                    double d = _parseDouble(s, "d")*D;
-                    double T = _parseDouble(s, "T");
+                    Real d = _parseReal(s, "d")*D;
+                    Real T = _parseReal(s, "T");
                     int num  = _parseInt   (s, "n");
 
                     for(int j=0; j<num; j++)
                     {
-                        const double radius = rng.uniform(0.0, 0.6*rWall);
-                        const double angle  = rng.uniform(0.0,2*M_PI);
-                        const double xx     = radius*cos(angle);
-                        const double yy     = radius*sin(angle);
+                        const Real radius = rng.uniform(0.0, 0.6*rWall);
+                        const Real angle  = rng.uniform(0.0,2*M_PI);
+                        const Real xx     = radius*cos(angle);
+                        const Real yy     = radius*sin(angle);
 
                         SmartySelfAvoider* agent = new SmartySelfAvoider(xx, yy, d, T, 0.01*rWall, 0);
                         agents.push_back(agent);
@@ -246,21 +202,21 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
                 }
                 else if( s.find("Column ") != s.npos )
                 {
-                    columns.push_back(make_tuple(_parseDouble(s, "x")*D, _parseDouble(s, "y")*D, _parseDouble(s, "d")*D));
+                    columns.push_back(make_tuple(_parseReal(s, "x")*D, _parseReal(s, "y")*D, _parseReal(s, "d")*D));
                 }
                 else if( s.find("Columns ") != s.npos )
                 {
-                    double dmin = _parseDouble(s, "dmin")*D;
-                    double dmax = _parseDouble(s, "dmax")*D;
+                    Real dmin = _parseReal(s, "dmin")*D;
+                    Real dmax = _parseReal(s, "dmax")*D;
                     int  num = _parseInt   (s, "n");
 
                     for(int j=0; j<num; j++)
                     {
-                        const double radius = rng.uniform(0.0,0.45);
-                        const double angle  = rng.uniform(0.0,2*M_PI);
-                        const double xx     = radius*cos(angle);
-                        const double yy     = radius*sin(angle);
-                        const double d      = rng.uniform(dmin, dmax);
+                        const Real radius = rng.uniform(0.0,0.45);
+                        const Real angle  = rng.uniform(0.0,2*M_PI);
+                        const Real xx     = radius*cos(angle);
+                        const Real yy     = radius*sin(angle);
+                        const Real d      = rng.uniform(dmin, dmax);
 
                         columns.push_back(make_tuple(xx, yy, d));
                     }

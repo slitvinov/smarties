@@ -135,7 +135,7 @@ void HardCartEnvironment::setDims()
     aI.values.push_back(2.0);
 }
 
-int HardCartEnvironment::evolve(double t)
+int HardCartEnvironment::evolve(Real t)
 {
     fprintf(fout, "Actions:\n");
     for (auto& a : exagents)
@@ -180,7 +180,7 @@ int HardCartEnvironment::evolve(double t)
     
     for (auto& a : exagents)
     {
-        double aa, b, c;
+        Real aa, b, c;
         
         for (int i=0; i<a->s->sInfo.dim; i++)
             fscanf(fin, "%lf", &(a->s->vals[i]));

@@ -25,7 +25,7 @@ private:
 	
 	inline string _parse(string source, string pattern, bool req = true);
 	inline int    _parseInt(string source, string pattern, bool req = true);
-	inline double _parseDouble(string source, string pattern, bool req = true);
+	inline Real _parseReal(string source, string pattern, bool req = true);
 	
 	
 public:

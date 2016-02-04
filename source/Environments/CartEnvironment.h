@@ -28,13 +28,13 @@ class CartEnvironment: public Environment
 
     vector<CartAgent*> exagents;
     vector<State>  states;
-    vector<double> rewards;
+    vector<Real> rewards;
     vector<Action> actions;
 
 public:
    CartEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index);
 
-   int   evolve   (double t);
+   int   evolve   (Real t);
 };
 
 

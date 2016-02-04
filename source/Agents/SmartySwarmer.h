@@ -26,39 +26,39 @@ class SmartySwarmer : public Agent
 {
 	struct Comparator
 	{
-		double x, y;
-		Comparator(double x, double y) : x(x), y(y) {};
+		Real x, y;
+		Comparator(Real x, Real y) : x(x), y(y) {};
 
 		inline bool operator() (SmartySwarmer* a, SmartySwarmer* b)
 		{
-			const double da = _dist(x, y, a->physX, a->physY);
-			const double db = _dist(x, y, b->physX, b->physY);
+			const Real da = _dist(x, y, a->physX, a->physY);
+			const Real db = _dist(x, y, b->physX, b->physY);
 			return (da < db);
 		}
 	};
 
 public:
 	static const int nVort = 2;
-    double vortices[nVort];
-    pair<double, double> vortCoos[nVort];
-    pair<double, double> vortVels[nVort];
+    Real vortices[nVort];
+    pair<Real, Real> vortCoos[nVort];
+    pair<Real, Real> vortVels[nVort];
 
 	SwarmEnvironment* env;
 
 public:
-	double x, y, vx, vy, IvI;
-	double physX, physY;
-	double domainSize;
+	Real x, y, vx, vy, IvI;
+	Real physX, physY;
+	Real domainSize;
 
-	double alpha, l, d;
-	double gamma, gammaA, gammaT;
+	Real alpha, l, d;
+	Real gamma, gammaA, gammaT;
 
-	SmartySwarmer(double x, double y, double d,  double T, double domainSize, double IvI,  double alpha);
+	SmartySwarmer(Real x, Real y, Real d,  Real T, Real domainSize, Real IvI,  Real alpha);
 
-	void move(double dt);
+	void move(Real dt);
 	void setEnvironment(Environment* env);
 
 	void   getState(State& s);
-	double getReward();
+	Real getReward();
 	void   act(Action& a);
 };

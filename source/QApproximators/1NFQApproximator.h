@@ -23,14 +23,14 @@ struct Tuple
     State* sOld;
     Action* a;
     State* sNew;
-    double reward;
+    Real reward;
 };
 
 struct NFQdata
 {
-    vector<double> insi;
-    vector<double> outi;
-    vector<double> pred;
+    vector<Real> insi;
+    vector<Real> outi;
+    vector<Real> pred;
 };
 
 struct Transitions
@@ -41,7 +41,7 @@ struct Transitions
     
     Transitions(ActionInfo actInfo, StateInfo sInfo): actInfo(actInfo), sInfo(sInfo) {}
     
-    void add(int agentId, State& sOld, Action& a, State& sNew, double reward)
+    void add(int agentId, State& sOld, Action& a, State& sNew, Real reward)
     {
         Tuple tmp;
         
@@ -69,25 +69,25 @@ class NFQApproximator : public QApproximator
     StateType sType;
     ActionIterator actionsIt;
     Transitions samples;
-    double gamma;
+    Real gamma;
     vector<Approximator*> ann;
-    vector<double> prediction, A, B;
-    vector<double> scaledInp;
+    vector<Real> prediction, A, B;
+    vector<Real> scaledInp;
     RNG* rng;
     
     public:
     // Costructor-Destructor
-    NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, double gamma);
+    NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, Real gamma);
     ~NFQApproximator();
     
     // Methods
-    double get (const State& s, const Action& a);
-    void set (const State& s, const Action& a, double value) {;} //nothing to see here
-    void correct(const State& s, const Action& a, double error) {;}
-    double batchUpdate();
+    Real get (const State& s, const Action& a);
+    void set (const State& s, const Action& a, Real value) {;} //nothing to see here
+    void correct(const State& s, const Action& a, Real error) {;}
+    Real batchUpdate();
     void save(string name);
     bool restart(string name);
-    void passData(int agentId, State& sOld, Action& a, State& sNew, double reward);
-    double descale(double y, int j) {return (y-B[j])/A[j];}
-    double rescale(double x, int j) {return  A[j]*x +B[j];}
+    void passData(int agentId, State& sOld, Action& a, State& sNew, Real reward);
+    Real descale(Real y, int j) {return (y-B[j])/A[j];}
+    Real rescale(Real x, int j) {return  A[j]*x +B[j];}
 };

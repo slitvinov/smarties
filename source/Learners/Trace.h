@@ -19,7 +19,7 @@ struct History
 {
     State* s;
     Action* a;
-    double value;
+    Real value;
 };
 
 struct Trace

@@ -169,7 +169,7 @@ void GlideEnvironment::setDims()
     for (int i=0; i<aI.dim; i++) aI.bounds.push_back(3);
 }
 
-int GlideEnvironment::evolve(double t)
+int GlideEnvironment::evolve(Real t)
 {
     fprintf(fout, "Actions:\n");
     for (auto& a : exagents)
@@ -212,7 +212,7 @@ int GlideEnvironment::evolve(double t)
     
     for (auto& a : exagents)
     {
-        double aa, b, c;
+        Real aa, b, c;
         
         for (int i=0; i<a->s->sInfo.dim; i++)
             fscanf(fin, "%lf", &(a->s->vals[i]));

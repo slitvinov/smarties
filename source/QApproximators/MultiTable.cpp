@@ -22,9 +22,9 @@
 
 using namespace ErrorHandling;
 
-const double eps = 1e-9;
+const Real eps = 1e-9;
 
-MultiTable::MultiTable(StateInfo newSInfo, ActionInfo newActInfo, double gamma=.9) : QApproximator(newSInfo, newActInfo), actionsIt(newActInfo), gamma(gamma)
+MultiTable::MultiTable(StateInfo newSInfo, ActionInfo newActInfo, Real gamma=.9) : QApproximator(newSInfo, newActInfo), actionsIt(newActInfo), gamma(gamma)
 {
 	dim = sInfo.dim + actInfo.dim;
 	
@@ -76,7 +76,7 @@ inline long int MultiTable::_encodeState(const State& s, F&& _discr) const
 	return res;
 }
 
-double MultiTable::get(const State& s, const Action& a, int nAgent)
+Real MultiTable::get(const State& s, const Action& a, int nAgent)
 {
 	long int id = _encodeIdx(s, a);
     //_info("final ID %d\n", id);
@@ -85,7 +85,7 @@ double MultiTable::get(const State& s, const Action& a, int nAgent)
 	return data.find(id)->second;
 }
 
-double MultiTable::get(const State * s, const Action * a, int nAgent)
+Real MultiTable::get(const State * s, const Action * a, int nAgent)
 {
     long int res = 0;
     
@@ -105,21 +105,21 @@ double MultiTable::get(const State * s, const Action * a, int nAgent)
     return data.find(res)->second;
 }
 
-double MultiTable::getsmooth(const State& s, const Action& a, int nAgent)
+Real MultiTable::getsmooth(const State& s, const Action& a, int nAgent)
 {
     long int id = _encodeIdx(s, a);
     //_info("final ID %d\n", id);
     if (data.find(id) == data.end()) return 0;
     if (data.find(id)->second == 0.0)
     {
-        double avg = 0.0;
-        double wgt = 0.0;
+        Real avg = 0.0;
+        Real wgt = 0.0;
         for (int i=0; i<dim; ++i)
         {
             if (data.find(id + shifts[i]) != data.end() && id - shifts[i]>=0)
             {
-                double Qplus = data.find(id + shifts[i])->second;
-                double Qminu = data.find(id - shifts[i])->second;
+                Real Qplus = data.find(id + shifts[i])->second;
+                Real Qminu = data.find(id - shifts[i])->second;
                 wgt += 1.0;
                 avg += .5*(Qplus+Qminu);
             }
@@ -130,42 +130,42 @@ double MultiTable::getsmooth(const State& s, const Action& a, int nAgent)
     return data.find(id)->second;
 }
 
-double MultiTable::getMax(const State& s, int & nAct, int nAgent)
+Real MultiTable::getMax(const State& s, int & nAct, int nAgent)
 {
 	long int id = _encodeState(s, _discretize);
 	if (maxStateVal.find(id) == maxStateVal.end()) return 0; 
 	return maxStateVal[id];
 }
 
-double  MultiTable::Train()
+Real  MultiTable::Train()
 {
     Action a(actInfo);
     debug("Offline training of multitable with %d samples.\n", samples.Set.size());
-    double err(0.0);
+    Real err(0.0);
     
     for (int i=0; i<samples.Set.size(); i++)
     { //target values
         //we transition to state s' and get the Qold
         
-        double Qold = get(samples.Set[i].sOld, samples.Set[i].a, 0);
-        //double Qtest = get(*samples.Set[i].sOld, *samples.Set[i].a, 0);
+        Real Qold = get(samples.Set[i].sOld, samples.Set[i].a, 0);
+        //Real Qtest = get(*samples.Set[i].sOld, *samples.Set[i].a, 0);
         
         actionsIt.reset();
-        double best = -1e10;
+        Real best = -1e10;
         while (!actionsIt.done())
         {
             a = actionsIt.next();
-            double test = get(*samples.Set[i].sNew, a, 0);
+            Real test = get(*samples.Set[i].sNew, a, 0);
             if (test >= best + 1e-12)
             {
                 best = test; // best current Q option
                 actionsIt.memorize();
             }
         }
-        double reward = samples.Set[i].reward - fabs(samples.Set[i].sOld->vals[1]) - fabs(samples.Set[i].sOld->vals[2])/1.57079632679;
-        double Qnew = reward + gamma*best;
+        Real reward = samples.Set[i].reward - fabs(samples.Set[i].sOld->vals[1]) - fabs(samples.Set[i].sOld->vals[2])/1.57079632679;
+        Real Qnew = reward + gamma*best;
         
-        double target = 0.1*(Qnew - Qold);
+        Real target = 0.1*(Qnew - Qold);
         correct(*samples.Set[i].sOld, *samples.Set[i].a, target, 0);
         err += fabs(target);
     }
@@ -174,7 +174,7 @@ double  MultiTable::Train()
     return err/samples.Set.size();
 }
 
-void MultiTable::set(const State& s, const Action& a, double val, int nAgent)
+void MultiTable::set(const State& s, const Action& a, Real val, int nAgent)
 {
 	long int sId = _encodeState(s, _discretize);
 	long int id = _encodeIdx(sId, a);
@@ -186,7 +186,7 @@ void MultiTable::set(const State& s, const Action& a, double val, int nAgent)
 	}
 }
 
-void MultiTable::correct(const State& s, const Action& a, double err, int nAgent)
+void MultiTable::correct(const State& s, const Action& a, Real err, int nAgent)
 {
 	long int sId = _encodeState(s, _discretize);
 	long int id = _encodeIdx(sId, a);
@@ -195,9 +195,9 @@ void MultiTable::correct(const State& s, const Action& a, double err, int nAgent
 	//	if (val > maxStateVal[sId]) maxStateVal[sId] = val;
 }
 
-double MultiTable::usage() const
+Real MultiTable::usage() const
 {
-	return (double) data.size() / (shifts[0] * actInfo.bounds[0]);
+	return (Real) data.size() / (shifts[0] * actInfo.bounds[0]);
 }
 
 void MultiTable::save(string fname)
@@ -222,7 +222,7 @@ void MultiTable::save(string fname)
 	out << endl;
 	
 	unsigned int counter = 0;
-	for(map<long int, double>::iterator it = data.begin(); it != data.end(); it++)
+	for(map<long int, Real>::iterator it = data.begin(); it != data.end(); it++)
 		if (fabs(it->second) > eps)
 		{
 			out << it->first << " " << scientific << it->second << endl;
@@ -289,7 +289,7 @@ bool MultiTable::restart(string fname)
 		while (in.good())
 		{
 			long int key;
-			double dummy;
+			Real dummy;
 			in >> key >> dummy;
 			data[key] = dummy;
 			counter++;

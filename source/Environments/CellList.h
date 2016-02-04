@@ -22,9 +22,9 @@ public:
 	int nx, ny;
 	int nTot;
 	
-	double x0, x1, y0, y1;
-	double hx, hy;
-	double lx, ly;
+	Real x0, x1, y0, y1;
+	Real hx, hy;
+	Real lx, ly;
 	
 	list<int>*        myObjects;
 	vector<Object*>   objects;
@@ -40,12 +40,12 @@ public:
 	inline list<int>::iterator getPartListStart(int);
 	inline list<int>::iterator getPartListEnd(int);
 	
-	Cells(vector<Object*>, double, double, double, double, double);
+	Cells(vector<Object*>, Real, Real, Real, Real, Real);
 	void migrate();
 };
 
 template <typename Object>
-Cells<Object>::Cells(vector<Object*> obj, double size, double xLeft, double yBottom, double xRight, double yTop):
+Cells<Object>::Cells(vector<Object*> obj, Real size, Real xLeft, Real yBottom, Real xRight, Real yTop):
 objects(obj), x0(xLeft), x1(xRight), y0(yBottom), y1(yTop)
 {
 	lx = x1 - x0;
@@ -172,7 +172,7 @@ private:
 	Direction state;
 	int curId;
 	list<int>::const_iterator curPart;
-	double xAdd, yAdd;
+	Real xAdd, yAdd;
 	int origId;
 	
 	inline void moveToNext();
@@ -180,7 +180,7 @@ private:
 public:
 	CellsTraverser(Cells<Object>* c):cells(c) {};
 	void prepare(int);
-	bool getNextXY(double&, double&, Object*&);
+	bool getNextXY(Real&, Real&, Object*&);
 };
 
 
@@ -283,7 +283,7 @@ void CellsTraverser<Object>::prepare(int id)
 }
 
 template <typename Object>
-bool CellsTraverser<Object>::getNextXY(double& x, double& y, Object*& obj)
+bool CellsTraverser<Object>::getNextXY(Real& x, Real& y, Object*& obj)
 {
 	while (state != Incorrect && 
 		   curPart == cells->getPartListEnd(curId))	//  OK, this cell is finished

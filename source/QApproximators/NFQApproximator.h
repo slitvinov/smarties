@@ -24,14 +24,14 @@ class NFQApproximator : public QApproximator
     int nInputs;
     int batchSize;
     int nAgents;
-    double lambdaold, lambdanew, errold, errnew, delta, ALfac; // if >= 1. then i'm not doing advantage learning
+    Real lambdaold, lambdanew, errold, errnew, delta, ALfac; // if >= 1. then i'm not doing advantage learning
     bool first;
     Memory backup;
     ActionIterator actionsIt;
-    double gamma, A, B;
+    Real gamma, A, B;
     Approximator * ann;
-    vector<double> prediction;
-    vector<double> scaledInp;
+    vector<Real> prediction;
+    vector<Real> scaledInp;
     RNG* rng;
     
     public:
@@ -41,30 +41,30 @@ class NFQApproximator : public QApproximator
     ~NFQApproximator();
     
     // Methods
-    double get (const State& s, const Action& a, int nAgent = 0);
-    double test(const State& s, const Action& a, int nAgent = 0);
-    double advance(const State& s, const Action& a, int nAgent = 0);
-    double getMax (const State& s, int & nAct, int nAgent);
-    double testMax (const State& s, int & nAct,  int nAgent);
-    double advanceMax (const State& s, int & nAct, int nAgent);
+    Real get (const State& s, const Action& a, int nAgent = 0);
+    Real test(const State& s, const Action& a, int nAgent = 0);
+    Real advance(const State& s, const Action& a, int nAgent = 0);
+    Real getMax (const State& s, int & nAct, int nAgent);
+    Real testMax (const State& s, int & nAct,  int nAgent);
+    Real advanceMax (const State& s, int & nAct, int nAgent);
     
-    void set (const State& s, const Action& a, double value, int nAgent = 0) {;} //nothing to see here
+    void set (const State& s, const Action& a, Real value, int nAgent = 0) {;} //nothing to see here
     
-    void correct(const State& s, const Action& a, double error, int nAgent = 0);
+    void correct(const State& s, const Action& a, Real error, int nAgent = 0);
     
-    double Train()
+    Real Train()
     {
         if (nettype == "LSTM")
             return serialUpdate();
         else
             return batchUpdate();
     }
-    double batchUpdate();
-    double serialUpdate();
-    //double serialALearning();
+    Real batchUpdate();
+    Real serialUpdate();
+    //Real serialALearning();
     void save(string name);
     bool restart(string name);
-    void passData(int agentId, State& sOld, Action& a, State& sNew, double reward, double altrew);
-    double descale(double y) {return (y-B)/A;}//y;}//
-    double rescale(double x) {return  A*x +B;}//x;}//
+    void passData(int agentId, State& sOld, Action& a, State& sNew, Real reward, Real altrew);
+    Real descale(Real y) {return (y-B)/A;}//y;}//
+    Real rescale(Real x) {return  A*x +B;}//x;}//
 };

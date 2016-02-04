@@ -25,18 +25,18 @@ public:
 	
 	bool crashed;	
 		
-	void _rotate(double dAng);
+	void _rotate(Real dAng);
 	
 public:
-	double x, y, IvI, vx, vy, d;
+	Real x, y, IvI, vx, vy, d;
 
-	SmartySelfAvoider(double x, double y, double d, double t,
-				      double vx = 5.0, double vy = 0.0);
+	SmartySelfAvoider(Real x, Real y, Real d, Real t,
+				      Real vx = 5.0, Real vy = 0.0);
 		
 	void   getState(State& s);
-	double getReward();
+	Real getReward();
 	void   act(Action& a);
-	void   move(double dt);
+	void   move(Real dt);
 	
 	void   setEnvironment(Environment* env);
 };

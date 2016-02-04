@@ -22,22 +22,22 @@ using namespace ErrorHandling;
 
 typedef unsigned char byte;
 
-inline double _angle(double ux, double uy, double vx, double vy)
+inline Real _angle(Real ux, Real uy, Real vx, Real vy)
 {
-	const double anglev = atan2(uy, ux) / M_PI*180.0;
-	const double angled = atan2(vy, vx) / M_PI*180.0;
-	double angle = anglev-angled;
+	const Real anglev = atan2(uy, ux) / M_PI*180.0;
+	const Real angled = atan2(vy, vx) / M_PI*180.0;
+	Real angle = anglev-angled;
 	if (angle >  180.0) angle -= 360;
 	if (angle < -180.0) angle += 360;
 	return angle;
 }
 
-inline double _dist (double x1, double y1, double x2, double y2)
+inline Real _dist (Real x1, Real y1, Real x2, Real y2)
 {
 	return sqrt( (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2) );
 }
 
-inline int _discretize(double val, double min, double max, int levels, bool belowMin, bool aboveMax)
+inline int _discretize(Real val, Real min, Real max, int levels, bool belowMin, bool aboveMax)
 {
 	int lvl = 0;
     //WTF!? int always truncates so you never return "levels", max is levels-1
@@ -81,7 +81,7 @@ inline int _discretize(double val, double min, double max, int levels, bool belo
 	return lvl;
 }
 
-inline int _logDiscr(double val, double min, double max, int levels, bool belowMin, bool aboveMax)
+inline int _logDiscr(Real val, Real min, Real max, int levels, bool belowMin, bool aboveMax)
 {
 	if (max - min < 1e-6) die("Bad interval of discretization\n");
 	int lvl = 0;
@@ -94,7 +94,7 @@ inline int _logDiscr(double val, double min, double max, int levels, bool belowM
 	}
 	if (aboveMax) levels--;
 	
-	double x = (max - min) / (pow(2.0, levels) - 2);	
+	Real x = (max - min) / (pow(2.0, levels) - 2);	
 	while (val - min > x)
 	{
 		x   = x*2;
@@ -120,8 +120,8 @@ inline int _logDiscr(double val, double min, double max, int levels, bool belowM
 
 struct vec3
 {
-	double x,y,z;
-	vec3(double x = 0, double y = 0, double z = 0):x(x), y(y), z(z) {};
+	Real x,y,z;
+	vec3(Real x = 0, Real y = 0, Real z = 0):x(x), y(y), z(z) {};
 };
 
 inline vec3 cross(vec3 a, vec3 b)
@@ -133,9 +133,9 @@ inline vec3 cross(vec3 a, vec3 b)
 	return res;
 }
 
-inline void _drawFullCircle(double radius, double xc, double yc, double r, double g, double b)
+inline void _drawFullCircle(Real radius, Real xc, Real yc, Real r, Real g, Real b)
 {
-	const double deg2rad = M_PI/180;
+	const Real deg2rad = M_PI/180;
 
 	float col[4]  = { (GLfloat)r, (GLfloat)g, (GLfloat)b, 1.0 };
 	float colorSpec[4] = { 0.0, 0.0, 0.0, 1.0 };
@@ -150,7 +150,7 @@ inline void _drawFullCircle(double radius, double xc, double yc, double r, doubl
 	glBegin(GL_POLYGON);
 	for (int i=0; i<360; i++)
 	{
-		double degInRad = i*deg2rad;
+		Real degInRad = i*deg2rad;
 		glNormal3d(0,0,1);
 		glVertex2f(xc+cos(degInRad)*radius,yc+sin(degInRad)*radius);
 	}
@@ -159,7 +159,7 @@ inline void _drawFullCircle(double radius, double xc, double yc, double r, doubl
 	glPopMatrix();
 }
 
-inline void _drawSphere(double radius, double x, double y, double r, double g, double b)
+inline void _drawSphere(Real radius, Real x, Real y, Real r, Real g, Real b)
 {
 	float col[4]  = { (GLfloat)r, (GLfloat)g, (GLfloat)b, 1.0 };
 	float colorSpec[4] = { 1.0, 1.0, 1.0, 1.0 };
@@ -175,7 +175,7 @@ inline void _drawSphere(double radius, double x, double y, double r, double g, d
 	glPopMatrix();
 }
 
-inline void _drawArrow(double size, double x, double y, double vx, double vy, double IvI, double r, double g, double b)
+inline void _drawArrow(Real size, Real x, Real y, Real vx, Real vy, Real IvI, Real r, Real g, Real b)
 {
 	float col[4]  = { (GLfloat)r, (GLfloat)g, (GLfloat)b, 1.0 };
 	float colorSpec[4] = { 1.0, 1.0, 1.0, 1.0 };

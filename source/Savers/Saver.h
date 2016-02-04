@@ -52,7 +52,7 @@ public:
 		return true;
 	}
 	
-	virtual bool isReady(double time, int iter)
+	virtual bool isReady(Real time, int iter)
 	{
 	    return (iter % period) == 0;
 	}

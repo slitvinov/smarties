@@ -14,7 +14,7 @@
 #include <atomic>
 
 #include "../StateAction.h"
-
+#include "../Settings.h"
 class Environment;
 #include "../Environments/Environment.h"
 
@@ -35,8 +35,8 @@ protected:
 	
 	StateInfo  sInfo;
 	ActionInfo actInfo;
-	double lastLearned;
-	double learningInterval;
+	Real lastLearned;
+	Real learningInterval;
 	
 	string name;
 	static atomic_int idCount;
@@ -45,23 +45,23 @@ public:
 	Types  type;
 	int    id;
 	
-	Agent(double learningInterval, Types type, string name);
+	Agent(Real learningInterval, Types type, string name);
 	
 	virtual void   getState(State& s) { };
-	virtual double getReward()        { return 0; }
-    virtual double getInfo(int n)     { return 0; }
+	virtual Real getReward()        { return 0; }
+    virtual Real getInfo(int n)     { return 0; }
 	virtual void   act(Action& a)     { };
-	virtual void   move(double dt) = 0;
+	virtual void   move(Real dt) = 0;
 	
 	inline StateInfo   getStateDims()   {return sInfo;}
 	
 	inline ActionInfo  getActionDims()  {return actInfo;}
 	
-	inline double	   getLastLearned() {return lastLearned;}
+	inline Real	   getLastLearned() {return lastLearned;}
 	
-	inline void 	   setLastLearned(double t) {lastLearned = t;}	
+	inline void 	   setLastLearned(Real t) {lastLearned = t;}	
 	
-	inline double	   getLearningInterval()    {return learningInterval;}
+	inline Real	   getLearningInterval()    {return learningInterval;}
 	
 	inline string	   getName() {return name;}
 	

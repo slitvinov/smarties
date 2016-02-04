@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <string>
 #include <fstream>
+#include "../Settings.h"
 
 struct Tuple
 {
@@ -21,14 +22,14 @@ struct Tuple
     State* sOld;
     Action* a;
     State* sNew;
-    double reward;
+    Real reward;
 };
 
 struct NFQdata
 {
-    vector<double> insi;
-    vector<double> outi;
-    vector<double> pred;
+    vector<Real> insi;
+    vector<Real> outi;
+    vector<Real> pred;
     int aInd;
 };
 
@@ -40,7 +41,7 @@ struct Transitions
     
     Transitions(ActionInfo actInfo, StateInfo sInfo): actInfo(actInfo), sInfo(sInfo) {}
     Transitions(){}
-    void add(int agentId, State& sOld, Action& a, State& sNew, double reward)
+    void add(int agentId, State& sOld, Action& a, State& sNew, Real reward)
     {
         Tuple tmp;
         
@@ -70,19 +71,19 @@ public:
     QApproximator() { };
     Transitions samples;
 	
-	virtual double get(const State& s, const Action& a, int nAgent)	= 0;
-    virtual double test(const State& s, const Action& a, int nAgent) = 0;
-    virtual double advance(const State& s, const Action& a, int nAgent) = 0;
-	virtual void set(const State& s, const Action& a, double value, int nAgent) = 0;
-	virtual void correct(const State& s, const Action& a, double error, int nAgent) = 0;
-    virtual double getMax(const State& s, int & nAct, int nAgent) {return 0.0;}
-    virtual double getsmooth(const State& s, const Action& a, int nAgent = 0) {return get(s,a,nAgent);}
-    virtual double testMax(const State& s, int & nAct,  int nAgent) {return getMax(s,nAct,nAgent);}
-    virtual double advanceMax(const State& s, int & nAct, int nAgent) {return getMax(s,nAct,nAgent);}
+	virtual Real get(const State& s, const Action& a, int nAgent)	= 0;
+    virtual Real test(const State& s, const Action& a, int nAgent) = 0;
+    virtual Real advance(const State& s, const Action& a, int nAgent) = 0;
+	virtual void set(const State& s, const Action& a, Real value, int nAgent) = 0;
+	virtual void correct(const State& s, const Action& a, Real error, int nAgent) = 0;
+    virtual Real getMax(const State& s, int & nAct, int nAgent) {return 0.0;}
+    virtual Real getsmooth(const State& s, const Action& a, int nAgent = 0) {return get(s,a,nAgent);}
+    virtual Real testMax(const State& s, int & nAct,  int nAgent) {return getMax(s,nAct,nAgent);}
+    virtual Real advanceMax(const State& s, int & nAct, int nAgent) {return getMax(s,nAct,nAgent);}
 	virtual void save(string name) = 0;
 	virtual bool restart(string name) = 0;
-    virtual double Train() = 0;
-    virtual void passData(int agentId, State& sOld, Action& a, State& sNew, double reward, vector<double>& info)
+    virtual Real Train() = 0;
+    virtual void passData(int agentId, State& sOld, Action& a, State& sNew, Real reward, vector<Real>& info)
     {
         ofstream fout;
         fout.open("history.txt",ios::app);
@@ -96,10 +97,10 @@ public:
     void restartSamples()
     {
         State t_sO(sInfo), t_sN(sInfo);
-        vector<double> d_sO(sInfo.dim), d_sN(sInfo.dim);
+        vector<Real> d_sO(sInfo.dim), d_sN(sInfo.dim);
         Action t_a(actInfo);
         vector<int> d_a(actInfo.dim);
-        double reward, alt_reward;
+        Real reward, alt_reward;
         int thisId, agentId=0;
         int Ndata;
         while(true)

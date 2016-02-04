@@ -49,7 +49,7 @@ void runSlave(int rank)
 
     Slave* simulation = new Slave(env, settings.dt, rank);
     
-    double time = 0;
+    Real time = 0;
     
     while (true)
         int test = simulation->evolve(time);
@@ -135,26 +135,25 @@ int main (int argc, char** argv)
     cout << clock.tv_usec << endl;
     int seed = 84967194 + floor(clock.tv_usec);
     
-    vector<OptionStruct> opts
-	({
+    vector<OptionStruct> opts ({
 		{'c', "config",     STRING, "Name of config file",    &settings.configFile, (string)"/home/novatig/smarties/factoryCart"},
-		{'t', "dt",         DOUBLE, "Simulation timestep",    &settings.dt,         0.01},
-		{'f', "end_time",   DOUBLE, "End time of simulaiton", &settings.endTime,    1e9},
-		{'g', "gamma",      DOUBLE, "Gamma parameter",        &settings.gamma,      0.9},
-		{'e', "greedy_eps", DOUBLE, "Greedy epsilon",         &settings.greedyEps,  0.05},
-        {'l', "learn_rate", DOUBLE, "Learning rate",          &settings.lRate,      0.1},
-        {'d', "lambda",     DOUBLE, "Lambda",                 &settings.lambda,     0.0},
+		{'t', "dt",         REAL,   "Simulation timestep",    &settings.dt,         0.01},
+		{'f', "end_time",   REAL,   "End time of simulaiton", &settings.endTime,    1e9},
+		{'g', "gamma",      REAL,   "Gamma parameter",        &settings.gamma,      0.9},
+		{'e', "greedy_eps", REAL,   "Greedy epsilon",         &settings.greedyEps,  0.05},
+        {'l', "learn_rate", REAL,   "Learning rate",          &settings.lRate,      0.1},
+        {'d', "lambda",     REAL,   "Lambda",                 &settings.lambda,     0.0},
 		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed,   seed},
         {'r', "restart",    STRING, "Restart",                &settings.restart,    (string)"none"},
 		{'q', "save_freq",  INT,    "Save frequency",         &settings.saveFreq,   10000},
         {'v', "debug_lvl",  INT,    "Debug level",            &debugLvl,            2},
         {'p', "prefix",     STRING, "Save folder",            &settings.prefix,     (string)"res/"},
-        {'H', "nne",        DOUBLE, "NN's eta",               &settings.nnEta,      0.05},
-		{'A', "nna",        DOUBLE, "NN's alpha",             &settings.nnAlpha,    0.5},
-        {'D', "nnl",        DOUBLE, "NN's lambda",            &settings.nnLambda,   0.0},
-        {'K', "nnk",        DOUBLE, "NN's kappa",             &settings.nnKappa,    0.0},
-        {'S', "nnS",        DOUBLE, "NN's adapt lrate fac",   &settings.nnAdFac,    1e-6},
-        {'F', "AL_fac",     DOUBLE, "Adv Learning factor",    &settings.AL_fac,     2.0},
+        {'H', "nne",        REAL,   "NN's eta",               &settings.nnEta,      0.05},
+		{'A', "nna",        REAL,   "NN's alpha",             &settings.nnAlpha,    0.5},
+        {'D', "nnl",        REAL,   "NN's lambda",            &settings.nnLambda,   0.0},
+        {'K', "nnk",        REAL,   "NN's kappa",             &settings.nnKappa,    0.0},
+        {'S', "nnS",        REAL,   "NN's adapt lrate fac",   &settings.nnAdFac,    1e-6},
+        {'F', "AL_fac",     REAL,   "Adv Learning factor",    &settings.AL_fac,     2.0},
         {'N', "nnl1",       INT,    "NN hidden layer 1",      &settings.nnLayer1,   100},
         {'L', "nnl2",       INT,    "NN hidden layer 2",      &settings.nnLayer2,   15},
         {'W', "nnl3",       INT,    "NN hidden layer 3",      &settings.nnLayer3,   0},

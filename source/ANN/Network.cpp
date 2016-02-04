@@ -22,7 +22,7 @@
 
 using namespace ErrorHandling;
 
-Network::Network(vector<int>& layerSize, vt eta, vt alpha, vt lambda, int batchSize) :
+Network::Network(vector<int>& layerSize, Real eta, Real alpha, Real lambda, int batchSize) :
 nInputs(layerSize.front()), nOutputs(layerSize.back()), nLayers(layerSize.size()), eta(eta), alpha(alpha), lambda(lambda), batchSize(batchSize), rng(0)
 {
     Layer* first = new Layer(nInputs, new Linear);
@@ -67,7 +67,7 @@ nInputs(layerSize.front()), nOutputs(layerSize.back()), nLayers(layerSize.size()
     }
 }
 
-void Network::predict(const vector<vt>& inputs, vector<vt>& outputs, int nAgent)
+void Network::predict(const vector<Real>& inputs, vector<Real>& outputs, int nAgent)
 {
     for (int i=0; i<nInputs; i++)
     *(this->inputs[i]) = inputs[i];
@@ -79,7 +79,7 @@ void Network::predict(const vector<vt>& inputs, vector<vt>& outputs, int nAgent)
     outputs[i] = *(this->outputs[i]);
 }
 
-void Network::improve(const vector<vt>& inputs, const vector<vt>& errors, int nAgent)
+void Network::improve(const vector<Real>& inputs, const vector<Real>& errors, int nAgent)
 {
     for (int i=0; i<nInputs; i++)
     *(this->inputs[i]) = inputs[i];
@@ -112,7 +112,7 @@ void Network::setBatchsize(int size)
     Je.set_size(totWeights);
 }
 
-NetworkLM::NetworkLM(vector<int>& layerSize, vt muFactor, int batchSize) :
+NetworkLM::NetworkLM(vector<int>& layerSize, Real muFactor, int batchSize) :
 Network(layerSize, 0, 0, 0, batchSize), muFactor(muFactor)
 {
     mu = 0.01;
@@ -120,10 +120,10 @@ Network(layerSize, 0, 0, 0, batchSize), muFactor(muFactor)
     muMin = 1e-3;
 }
 
-void NetworkLM::improve(const vector<vt>& inputs, const vector<vt>& errors, int nAgent)
+void NetworkLM::improve(const vector<Real>& inputs, const vector<Real>& errors, int nAgent)
 {
     openblas_set_num_threads(12);
-    vector<vt> tmpVec(nOutputs);
+    vector<Real> tmpVec(nOutputs);
     predict(inputs, tmpVec);
     batch.push_back(inputs);
     batchOut.push_back(tmpVec);
@@ -160,7 +160,7 @@ void NetworkLM::improve(const vector<vt>& inputs, const vector<vt>& errors, int 
         for (int i=0; i<nOutputs*batchSize; i++)
         Q += e(i) * e(i);
         
-        vt Q0 = Q;
+        Real Q0 = Q;
         Q = Q0+1;
         
         JtJ = J.t() * J;
@@ -198,7 +198,7 @@ void NetworkLM::improve(const vector<vt>& inputs, const vector<vt>& errors, int 
                 predict(batch[i], tmpVec);
                 for (int j=0; j<nOutputs; j++)
                 {
-                    vt diff = tmpVec[j] - batchExact[i][j];
+                    Real diff = tmpVec[j] - batchExact[i][j];
                     Q += diff * diff;
                 }
             }
@@ -339,19 +339,19 @@ void Layer::connect(Layer* next, RNG* rng)
     
 }
 
-void Layer::connect2inputs(vector<vt*>& vals)
+void Layer::connect2inputs(vector<Real*>& vals)
 {
     for (int i=0; i<nNeurons-1; i++)
     vals[i] = &(neurons[i]->ival);
 }
 
-void Layer::connect2outputs(vector<vt*>& vals)
+void Layer::connect2outputs(vector<Real*>& vals)
 {
     for (int i=0; i<nNeurons-1; i++)
     vals[i] = &(neurons[i]->oval);
 }
 
-void Layer::connect2errors(vector<vt*>& errs)
+void Layer::connect2errors(vector<Real*>& errs)
 {
     for (int i=0; i<nNeurons-1; i++)
     errs[i] = &(neurons[i]->err);
@@ -369,14 +369,14 @@ void Layer::backPropagate()
     neurons[i]->backExec();
 }
 
-void Layer::adjust(vt eta, vt alpha, vt lambda)
+void Layer::adjust(Real eta, Real alpha, Real lambda)
 {
     for (int i=0; i<nNeurons; i++)
     neurons[i]->adjust(eta, alpha, lambda);
 }
 
 Neuron::Neuron(ActivationFunction* func) :
-hasInputs(false), hasOutputs(false), func(func), damp(1.0) { };
+hasInputs(false), hasOutputs(false), func(func) { };
 
 void Neuron::exec()
 {
@@ -427,7 +427,7 @@ void Neuron::backExec()
             inLinks[i]->err = err;
 }
 
-void Neuron::adjust(vt eta, vt alpha, vt lambda)
+void Neuron::adjust(Real eta, Real alpha, Real lambda)
 {
     if (hasInputs)
         for (int i=0; i<inLinks.size(); i++)

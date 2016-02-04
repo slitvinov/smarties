@@ -25,14 +25,14 @@ public:
 
     State *s;
     Action *a;
-    double r;
+    Real r;
 
     CartEnvironment* env;
 
     void   getState(State& s);
-    double getReward();
+    Real getReward();
     void   act(Action& a);
-    void   move(double dt) {};
+    void   move(Real dt) {};
 
     void   setEnvironment(Environment* env);
 };
