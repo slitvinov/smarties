@@ -35,7 +35,7 @@ class ANNApproximator : public QApproximator
     
     public:
     // Costructor-Destructor
-    ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo, string tp, int nAgents);
+    ANNApproximator(StateInfo newSInfo, ActionInfo newActInfo, Settings settings, int nAgents);
     ~ANNApproximator();
     
     // Methods
@@ -43,9 +43,9 @@ class ANNApproximator : public QApproximator
     double test(const State& s, const Action& a, int nAgent = 0);
     double advance(const State& s, const Action& a, int nAgent = 0);
     
-    double getMax (const State& s, int nAgent);
-    double testMax (const State& s,int & nAct,  int nAgent);
-    double advanceMax (const State& s, int nAgent);
+    double getMax (const State& s, int & nAct, int nAgent);
+    double testMax (const State& s, int & nAct,  int nAgent);
+    double advanceMax (const State& s, int & nAct, int nAgent);
     
     void set (const State& s, const Action& a, double value, int nAgent = 0);
     void correct(const State& s, const Action& a, double error, int nAgent = 0);

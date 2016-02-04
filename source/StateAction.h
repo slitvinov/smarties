@@ -150,6 +150,7 @@ inline State decode(const StateInfo& sInfo, long int idx)
 struct ActionInfo
 {
 	int dim;
+    int zeroact;
 	vector<int> bounds;
     vector<double> values;
 };

@@ -107,37 +107,48 @@ Environment(agents), execpath(execpath)
 void CartEnvironment::setDims()
 {
     sI.dim = 4;
+
     // State: coordinate...
-    sI.bounds.push_back(42);
+    sI.bounds.push_back(12);
     sI.top.push_back(2.0);
     sI.bottom.push_back(-2.0);
     sI.aboveTop.push_back(true);
     sI.belowBottom.push_back(true);
+    sI.isLabel.push_back(false);
     
     // ...velocity...
-    sI.bounds.push_back(12);
+    sI.bounds.push_back(6);
     sI.top.push_back(0.5);
     sI.bottom.push_back(-0.5);
     sI.aboveTop.push_back(true);
     sI.belowBottom.push_back(true);
+    sI.isLabel.push_back(false);
     
     // ...and angular velocity
-    sI.bounds.push_back(12);
+    sI.bounds.push_back(6);
     sI.top.push_back(0.5);
     sI.bottom.push_back(-0.5);
     sI.aboveTop.push_back(true);
     sI.belowBottom.push_back(true);
+    sI.isLabel.push_back(false);
     
     // ...angle...
-    sI.bounds.push_back(22);
+    sI.bounds.push_back(16);
     sI.top.push_back(0.2);
     sI.bottom.push_back(-0.2);
     sI.aboveTop.push_back(true);
     sI.belowBottom.push_back(true);
+    sI.isLabel.push_back(false);
     
     aI.dim = 1;
     
     for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5);
+    
+    aI.values.push_back(-2.);
+    aI.values.push_back(-.5);
+    aI.values.push_back(0.0);
+    aI.values.push_back(0.5);
+    aI.values.push_back(2.0);
 }
 
 int CartEnvironment::evolve(double t)
@@ -191,7 +202,7 @@ int CartEnvironment::evolve(double t)
             fscanf(fin, "%lf", &(a->s->vals[i]));
         fscanf(fin, "%lf", &(a->r));
         
-        if (a->r < -99.0)
+        if (a->r < -.99)
             bRestart = true;
         debug6("Got from child: reward %f,  state %s\n", a->r, a->s->print().c_str());
     }

@@ -1,5 +1,5 @@
 /*
- *  ArtisticEnvironment.h
+ *  HardCartEnvironment.h
  *  smarties
  *
  *  Created by Dmitry Alexeev on May 13, 2015
@@ -15,26 +15,25 @@
 #include "Environment.h"
 #include "CellList.h"
 
-class ExternalAgent;
-#include "../Agents/ExternalAgent.h"
+class HardCartAgent;
+#include "../Agents/HardCartAgent.h"
 
-class ArtisticEnvironment: public Environment
+class HardCartEnvironment: public Environment
 {
     string execpath;
-    void setDims();
+    virtual void setDims();
     vector<int> ids;
-
+    
     FILE *fin, *fout;
-
-    vector<ExternalAgent*> exagents;
+    
+    vector<HardCartAgent*> exagents;
     vector<State>  states;
     vector<double> rewards;
     vector<Action> actions;
 
 public:
-   ArtisticEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index);
-
-   int   evolve   (double t);
+    HardCartEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index);
+    int   evolve   (double t);
 };
 
 

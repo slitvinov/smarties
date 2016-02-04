@@ -11,7 +11,7 @@
 
 #include "WaveletNet.h"
 
-WaveletNet::WaveletNet(vector<int>& layerSize, double eta, double alpha, int batchSize) :
+WaveletNet::WaveletNet(vector<int>& layerSize, vt eta, vt alpha, int batchSize) :
 eta(eta), alpha(alpha), nInputs(layerSize[0]), nWavelons(layerSize[1]), rng(0), batchSize(batchSize)
 {
 	nWeights = nWavelons + nInputs*nWavelons * 2;
@@ -88,9 +88,9 @@ void WaveletNet::setBatchsize(int size)
 	batchExact.resize(batchSize);
 }
 
-void WaveletNet::predict(const vector<double>& inputs, vector<double>& outputs, int nAgent)
+void WaveletNet::predict(const vector<vt>& inputs, vector<vt>& outputs)
 {
-	double res = 0;
+	vt res = 0;
 	
 	// Bias
 	
@@ -247,11 +247,11 @@ void WaveletNet::rollback()
 			wavelons[j]->d[k] -= dw(iw++);	
 }	
 
-void WaveletNet::improve(const vector<double>& inputs, const vector<double>& errors, int nAgent)
+void WaveletNet::improve(const vector<vt>& inputs, const vector<vt>& errors)
 {
 	// Save all the info about current object
 	
-	vector<double> tmpVec(1);
+	vector<vt> tmpVec(1);
 	predict(inputs, tmpVec);
 	//batch[nInBatch] = inputs;
 	//batchOut[nInBatch] = tmpVec[0];
@@ -275,11 +275,11 @@ void WaveletNet::improve(const vector<double>& inputs, const vector<double>& err
 	}		
 }
 
-void WaveletNetLM::improve(const vector<double>& inputs, const vector<double>& errors, int nAgent)
+void WaveletNetLM::improve(const vector<vt>& inputs, const vector<vt>& errors)
 {
 	// Save all the info about current object
 	
-	vector<double> tmpVec(1);
+	vector<vt> tmpVec(1);
 	predict(inputs, tmpVec);
 	batch[nInBatch] = inputs;
 	batchOut[nInBatch] = tmpVec[0];
@@ -296,7 +296,7 @@ void WaveletNetLM::improve(const vector<double>& inputs, const vector<double>& e
 	
 	if (nInBatch == batchSize)
 	{
-		double Q, Q0 = 0;
+		vt Q, Q0 = 0;
 		
 		for (int i=0; i<batchSize; i++)
 			Q0 += e(i) * e(i);
@@ -315,7 +315,7 @@ void WaveletNetLM::improve(const vector<double>& inputs, const vector<double>& e
 			{
 				predict(batch[i], tmpVec);
 				
-				double diff = tmpVec[0] - batchExact[i];
+				vt diff = tmpVec[0] - batchExact[i];
 				Q += diff * diff;
 			}
 			

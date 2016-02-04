@@ -23,15 +23,15 @@ using namespace ErrorHandling;
 class GaussDer
 {
 public:
-	inline double eval(double x)
+	inline vt eval(vt x)
 	{
 		if (std::isnan(x) || std::isinf(x)) return 0;
 		return x * exp(-0.5 * x*x);
 	}
-	inline double evalDiff(double x)
+	inline vt evalDiff(vt x)
 	{
 		if (std::isnan(x) || std::isinf(x)) return 0;
-		double x2 = x*x;
+		vt x2 = x*x;
 		return (1 - x2) * exp(-0.5 * x2);
 	}
 };
@@ -39,16 +39,16 @@ public:
 class MexicanHat
 {
 public:
-	inline double eval(double x)
+	inline vt eval(vt x)
 	{
 		if (std::isnan(x) || std::isinf(x)) return 0;
-		double x2 = x*x;
+		vt x2 = x*x;
 		return (1 - x2) * exp(-0.5 * x2);
 	}
-	inline double evalDiff(double x)
+	inline vt evalDiff(vt x)
 	{
 		if (std::isnan(x) || std::isinf(x)) return 0;
-		double x2 = x*x;
+		vt x2 = x*x;
 		return x*(x2 - 3) * exp(-0.5 * x2);
 	}
 };
@@ -58,19 +58,19 @@ class Wavelon
 {
 public:
 	int dimension;
-	vector<double> m;  // translations
-	vector<double> d;  // dilations
-	vector<double> z;  // scaled individual inputs
+	vector<vt> m;  // translations
+	vector<vt> d;  // dilations
+	vector<vt> z;  // scaled individual inputs
 	
-	vector<double> frontmul;  // Multiplication of first i wavelets
-	vector<double> backmul;   // Multiplication of last i wavelets
+	vector<vt> frontmul;  // Multiplication of first i wavelets
+	vector<vt> backmul;   // Multiplication of last i wavelets
 	
 	Wavelet wavelet;
-	double outval;
+	vt outval;
 	
-	inline double exec(const vector<double>& x)
+	inline vt exec(const vector<vt>& x)
 	{
-		double res = 1;
+		vt res = 1;
 		for (int i=0; i<dimension; i++)
 		{
 			z[i] = (x[i] - m[i]) / d[i];
@@ -89,14 +89,14 @@ public:
 		return outval;
 	}
 	
-	inline double derivate(int k)
+	inline vt derivate(int k)
 	{
-		double front, back;
+		vt front, back;
 		
 		front = k > 0           ? frontmul[k-1] : 1;
 		back  = k < dimension-1 ?  backmul[k+1] : 1;
 		
-		double res = front * back * wavelet.evalDiff(z[k]);
+		vt res = front * back * wavelet.evalDiff(z[k]);
 		if (std::isnan(res) || std::isinf(res))
 			die("NaN error!!\n");
 		
@@ -113,23 +113,23 @@ protected:
 	int nWavelons;
 	int nWeights;
 	
-	double eta;
-	double alpha;
+	vt eta;
+	vt alpha;
 	RNG rng;
     int batchSize, nInBatch;
 	
 	vector<Wavelon<MexicanHat>* > wavelons;
-	//vector<double>  inputs;
-	double output;
-	double error;
+	//vector<vt>  inputs;
+	vt output;
+	vt error;
 	
-	vector<double> c;
-	vector<double> a;
-	double a0;
+	vector<vt> c;
+	vector<vt> a;
+	vt a0;
 		
-	vector<vector<double> > batch;
-	vector<double> batchOut;
-	vector<double> batchExact;
+	vector<vector<vt> > batch;
+	vector<vt> batchOut;
+	vector<vt> batchExact;
 	
 	arma::mat J;
 	arma::mat JtJ;
@@ -142,7 +142,7 @@ protected:
 	arma::vec prevDw;
 	arma::vec Je;
 	
-	double mu, muFactor, muMin, muMax;
+	vt mu, muFactor, muMin, muMax;
 	
 	void computeJ();
 	void computeDw();
@@ -151,10 +151,10 @@ protected:
 	
 public:
     
-	WaveletNet(vector<int>& layerSize, double eta, double alpha, int batchSize = -1);
-	void   predict  (const vector<double>& inputs,       vector<double>& outputs, int nAgent= 1);
-	void   improve  (const vector<double>& inputs, const vector<double>& errors, int nAgent= 1);
-    void predict(const vector<double>& inputs, const vector<double>& memory_in, const vector<double>& cstate_in, vector<double>& cstate_out,  vector<double>& outputs) {;}
+	WaveletNet(vector<int>& layerSize, vt eta, vt alpha, int batchSize = -1);
+	void   predict  (const vector<vt>& inputs,       vector<vt>& outputs);
+	void   improve  (const vector<vt>& inputs, const vector<vt>& errors);
+
 	void save(string fname);
 	bool restart(string fname);
     void setBatchsize(int size);
@@ -167,8 +167,8 @@ class WaveletNetLM: public WaveletNet
 	void computeDwLM();
 
 public:
-	WaveletNetLM(vector<int>& layerSize, int batchSize = -1, double eta = 1.0) : WaveletNet(layerSize, eta, 1.0, batchSize) {};
-	void improve(const vector<double>& inputs, const vector<double>& errors, int nAgent= 1);
+	WaveletNetLM(vector<int>& layerSize, int batchSize = -1, vt eta = 1.0) : WaveletNet(layerSize, eta, 1.0, batchSize) {};
+	void improve(const vector<vt>& inputs, const vector<vt>& errors);	
 };
 
 

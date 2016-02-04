@@ -24,13 +24,17 @@ public:
 
     State *s;
     Action *a;
-    double r, _r;
-
+    double r;
+    vector<double> Info;
+    int nInfo;
+    
     ExternalEnvironment* env;
 
     void   getState(State& s);
+    
     double getReward();
-    double altReward();
+    double getInfo(int n);
+    
     void   act(Action& a);
     void   move(double dt) {};
 

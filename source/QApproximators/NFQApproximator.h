@@ -24,7 +24,7 @@ class NFQApproximator : public QApproximator
     int nInputs;
     int batchSize;
     int nAgents;
-    double lambdaold, lambdanew, errold, errnew, delta;
+    double lambdaold, lambdanew, errold, errnew, delta, ALfac; // if >= 1. then i'm not doing advantage learning
     bool first;
     Memory backup;
     ActionIterator actionsIt;
@@ -37,16 +37,16 @@ class NFQApproximator : public QApproximator
     public:
     string nettype;
     // Costructor-Destructor
-    NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, double gamma, string nettype, int nAgents);
+    NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, Settings settings, int nAgents);
     ~NFQApproximator();
     
     // Methods
     double get (const State& s, const Action& a, int nAgent = 0);
     double test(const State& s, const Action& a, int nAgent = 0);
     double advance(const State& s, const Action& a, int nAgent = 0);
-    double getMax (const State& s, int nAgent);
-    double testMax (const State& s,int & nAct,  int nAgent);
-    double advanceMax (const State& s, int nAgent);
+    double getMax (const State& s, int & nAct, int nAgent);
+    double testMax (const State& s, int & nAct,  int nAgent);
+    double advanceMax (const State& s, int & nAct, int nAgent);
     
     void set (const State& s, const Action& a, double value, int nAgent = 0) {;} //nothing to see here
     
@@ -55,20 +55,16 @@ class NFQApproximator : public QApproximator
     double Train()
     {
         if (nettype == "LSTM")
-        {
-            if(prediction.size() < 2)
-                return serialUpdate();
-            return serialALearning();
-        }
+            return serialUpdate();
         else
             return batchUpdate();
     }
     double batchUpdate();
     double serialUpdate();
-    double serialALearning();
+    //double serialALearning();
     void save(string name);
     bool restart(string name);
     void passData(int agentId, State& sOld, Action& a, State& sNew, double reward, double altrew);
-    double descale(double y) {return (y-B)/A;}
-    double rescale(double x) {return  A*x +B;}
+    double descale(double y) {return (y-B)/A;}//y;}//
+    double rescale(double x) {return  A*x +B;}//x;}//
 };

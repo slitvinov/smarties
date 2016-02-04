@@ -15,17 +15,14 @@
 
 #include "Approximator.h"
 #include "../rng.h"
-
+#include "../Settings.h"
 using namespace std;
 
 //namespace ANN
 //{
 	class Layer;
-    class HiddenLayer;
 	class Link;
-	class Neuron;
-    class MemoryCell;
-    class MemoryBlock;
+    class Neuron
 	class ActivationFunction;
 
 
@@ -36,16 +33,17 @@ using namespace std;
 		
 		int nInputs, nOutputs, nLayers;
 		
-		double eta;
-		double alpha;
+		vt eta;
+		vt alpha;
+        vt lambda;
 		RNG rng;
         int batchSize, nInBatch;
         int totWeights;
 		
 		vector<Layer*>  layers;
-		vector<double*> inputs;
-		vector<double*> outputs;
-		vector<double*> errors;
+		vector<vt*> inputs;
+		vector<vt*> outputs;
+		vector<vt*> errors;
         
         arma::mat J;
 		arma::mat JtJ;
@@ -57,10 +55,9 @@ using namespace std;
 		arma::vec Je;
 		
 	public:
-		Network(vector<int>& layerSize, double eta, double alpha,double lambda = 0, int batchSize = -1);
-		void predict(const vector<double>& inputs, vector<double>& outputs, int nAgent = 0);
-		void improve(const vector<double>& inputs, const vector<double>& errors, int nAgent = 0);
-        void predict(const vector<double>& inputs, const vector<double>& memoryin, const vector<double>& ostate, vector<double>& nstate,  vector<double>& outputs) {;}
+		Network(vector<int>& layerSize, vt eta, vt alpha,vt lambda = 0, int batchSize = -1);
+		void predict(const vector<vt>& inputs, vector<vt>& outputs, int nAgent = 0);
+		void improve(const vector<vt>& inputs, const vector<vt>& errors, int nAgent = 0);
 		void save(string fname) {;}
 		bool restart(string fname) { return false; }
         void setBatchsize(int size);
@@ -69,20 +66,20 @@ using namespace std;
 	class NetworkLM : public Network
 	{
 	private:
-		double mu, muFactor, muMin, muMax;
+		vt mu, muFactor, muMin, muMax;
 		
-		double Q;
+		vt Q;
 		
-		vector< vector<double> > batch;
-		vector< vector<double> > batchOut;
-		vector< vector<double> > batchExact;
+		vector< vector<vt> > batch;
+		vector< vector<vt> > batchOut;
+		vector< vector<vt> > batchExact;
 		
 	public:
         
-		NetworkLM(vector<int>& layerSize, double muFactor, int batchSize = -1);
-		void improve(const vector<double>& inputs, const vector<double>& errors, int nAgent = 0);
+		NetworkLM(vector<int>& layerSize, vt muFactor, int batchSize = -1);
+		void improve(const vector<vt>& inputs, const vector<vt>& errors, int nAgent = 0);
 		inline void   rollback();
-		inline double getQ()      { return Q; }
+		inline vt getQ()      { return Q; }
 		inline bool   isUpdated() { return nInBatch == 0; }
 		
 		void save(string fname);
@@ -90,40 +87,6 @@ using namespace std;
         
 	};
 
-class NetworkLSTM: public Approximator
-    {
-    protected:
-        
-        int nInputs, nOutputs, nLayers, nAgents, nMems, nRecurr, nDOF; //each agents has its memory T_T
-        
-        double eta;
-        double alpha;
-        double kappa;
-        double olderr;
-        RNG rng;
-        
-        vector<HiddenLayer*> layers;
-        //vector<Layer*> layers;
-        vector<double*> inputs;
-        vector<double*> outputs;
-        vector<double*> errors;
-        vector<double*> memory_in;
-        vector<double*> memory_out;
-        vector<double*> o_state;
-        vector<double*> n_state;
-        
-    public:
-        
-        double TotSumWeights();
-        double AvgLearnRate();
-        NetworkLSTM(vector<int>& layerSize, vector<int>& memorySize, vector<int>& nCellpB, double eta, double alpha, double lambda, double kappa, int nAgents);
-        void predict(const vector<double>& input, vector<double>& output, int nAgent = 0);
-        void predict(const vector<double>& inputs, const vector<double>& memoryin, const vector<double>& ostate, vector<double>& nstate,  vector<double>& outputs);
-        void improve(const vector<double>& inputs, const vector<double>& error, int nAgent = 0);
-        void setBatchsize(int size) {cout << "Eta is " << eta << endl;}
-        void save(string fname);
-        bool restart(string fname);
-    };
 
 class Link
 	{
@@ -131,22 +94,11 @@ class Link
 		Neuron* neuronTo;
 		Neuron* neuronFrom;
 		
-		double  w;
-        double  Dw; //only for memory updates
-		double  val;
-        double  err;
-        //eligibility traces:
-        double  epsilon;
-        //memory learning:
-        double  dsdw;
-        //momentum learning:
-		double  prevDw;
-        //adaptive learning rate:
-        double rr, maxrr, etar;
-        //Rprop
-        double o_dEdw, Delta, o_Delta_w;
-        //adaptive learning rate 2
-        double factor;
+		vt  w;
+        vt  Dw;
+		vt  val;
+        vt  err;
+		vt  prevDw;
 	};
 	
 class Neuron
@@ -157,63 +109,14 @@ class Neuron
 		vector<Link*>  inLinks;
 		vector<Link*>  outLinks;
 		
-		double ival;
-		double oval;
-		double err, delta, epsilon;
-        double damp;
-		bool hasInputs;
-		bool hasOutputs;
+        vt ival, err, oval;
+
+		bool hasInputs, hasOutputs;
 		
 		Neuron(ActivationFunction* func);		
-        void exec();
-        void backExec();
-		void adjust(double eta, double alpha, double lambda=0);
-        void adjust(double error, double eta, double alpha, double lambda, double kappa);
-	};
-
-class MemoryCell : public Neuron
-    {
-    public:
-        
-        double Sc, Sc_old, Sc_new; //Need to change per each learner, old and new handle communication
-        double sumwd, OGerrfac, FGerrfac, IGerrfac;
-        vector<double> dsdw_IN, dsdw_IG, dsdw_FG;
-        vector<double> dsdw_INo, dsdw_IGo, dsdw_FGo; //this is getting silly
-
-        Neuron* Input;
-        //input, forget, output gates
-        Neuron* IG;
-        Neuron* FG;
-        Neuron* OG;
-        
-        //quick fix for peephole
-        Neuron* ScN;
-        Neuron* ScO;
-        
-        MemoryCell();
-        
-        void init_dsdw();
-        void exec();
-        void backExec();
-        void _backExec();
-    };
-
-class MemoryBlock
-    {
-        public:
-        int nMemoryCells;
-        vector<MemoryCell*> mCells;
-        //input, forget, output gates
-        Neuron* IG;
-        Neuron* FG;
-        Neuron* OG;
-        
-        MemoryBlock(int nCellpB);
-        void init_dsdw();
-        void exec();
-        void backExec();
-        void _backExec();
-        void adjust(double error, double eta, double alpha, double lambda, double kappa);
+		void exec();
+		void backExec();
+		void adjust(vt eta, vt alpha, vt lambda=0);
     };
 
 class Layer
@@ -227,68 +130,36 @@ class Layer
         void backPropagate();
         void connect(Layer* next, RNG* rng);
     
-        void connect2inputs(vector<double*>& vals);
-        void connect2outputs(vector<double*>& vals);
-        void connect2errors(vector<double*>& errs);
-        void adjust(double eta, double alpha, double lambda);
-    };
-
-class HiddenLayer
-    {
-    public:
-        int nNeurons;
-        int nMemoryBlocks, nCellpB;
-        Neuron* base;
-        vector<Neuron*> neurons;
-        vector<MemoryBlock*> mBlocks;
-        
-        HiddenLayer(int nNeurons, ActivationFunction* func);
-        HiddenLayer(int nBlocks, int nCellpB, int nNeurons, ActivationFunction* func, RNG* rng);
-        void init_dsdw();
-        void propagate();
-        void backPropagate();
-        double TotSumWeights();
-        double AvgLearnRate();
-        int TotSumLinks();
-        void link(Neuron* Nto, Neuron* Nin, RNG* rng, double ground);
-        void normaliseWeights();
-        void connect2layers(HiddenLayer* prev, RNG* rng, int dist);
-        void connect2memstate(vector<double*>& memory, vector<double*>& Sc_old, vector<double*>& Sc_new, int firstm, int firstr);
-        void connect2ground(RNG* rng);
-        void connect2inputs(vector<double*>& vals, vector<double*>& mems);
-        void connect2outputs(vector<double*>& vals);
-        void connect2errors(vector<double*>& errs);
-        void adjust(double error, double eta, double alpha, double lambda, double kappa);
+        void connect2inputs(vector<vt*>& vals);
+        void connect2outputs(vector<vt*>& vals);
+        void connect2errors(vector<vt*>& errs);
+        void adjust(vt eta, vt alpha, vt lambda);
     };
 
 class ActivationFunction
 	{
 	public:
-		virtual double eval(double& arg) = 0;
-		virtual double evalDiff(double& arg) = 0;
+		virtual vt eval(vt& arg) = 0;
+		virtual vt evalDiff(vt& arg) = 0;
 	};
 
 class Tanh : public ActivationFunction
 	{
 	public:
-		inline double eval(double& arg)
+		inline vt eval(vt& arg)
 		{
 			if (arg > 20)  return 1;
 			if (arg < -20) return -1;
-			
-			double ex = exp(arg);
-			double e_x = exp(-arg);
-			
-			return (ex - e_x) / (ex + e_x);
+            vt e2x = exp(2.*x);
+            return (e2x - 1.) / (e2x + 1.);
 		}
 		
-		inline double evalDiff(double& arg)
+		inline vt evalDiff(vt& arg)
 		{
 			if (arg > 20 || arg < -20) return 0;
 			
-			double e2x = exp(2*arg);
-			double t = (e2x + 1);
-			
+			vt e2x = exp(2.*arg);
+			vt t = (e2x + 1.);
 			return 4*e2x/(t*t);
 		}
 	};
@@ -296,24 +167,20 @@ class Tanh : public ActivationFunction
 class Tanh2 : public ActivationFunction
     {
     public:
-        inline double eval(double& arg)
+        inline vt eval(vt& arg)
         {
             if (arg > 20)  return 2;
             if (arg < -20) return -2;
-            
-            double ex = exp(arg);
-            double e_x = exp(-arg);
-            
-            return 2.*(ex - e_x) / (ex + e_x);
+            vt e2x = exp(2.*x);
+            return 2.*(e2x - 1.) / (e2x + 1.);
         }
         
-        inline double evalDiff(double& arg)
+        inline vt evalDiff(vt& arg)
         {
             if (arg > 20 || arg < -20) return 0;
             
-            double e2x = exp(2*arg);
-            double t = (e2x + 1);
-            
+            vt e2x = exp(2.*arg);
+            vt t = (e2x + 1.);
             return 8.*e2x/(t*t);
         }
     };
@@ -321,22 +188,21 @@ class Tanh2 : public ActivationFunction
 class Sigm : public ActivationFunction
     {
     public:
-        inline double eval(double& arg)
+        inline vt eval(vt& arg)
         {
             if (arg > 20)  return 1;
             if (arg < -20) return 0;
             
-            double e_x = exp(-arg);
-            
+            vt e_x = exp(-arg);
             return 1. / (1. + e_x);
         }
         
-        inline double evalDiff(double& arg)
+        inline vt evalDiff(vt& arg)
         {
             if (arg > 20 || arg < -20) return 0;
             
-            double ex = exp(arg);
-            double e2x = (1. + ex)*(1. + ex);
+            vt ex = exp(arg);
+            vt e2x = (1. + ex)*(1. + ex);
             
             return ex/e2x;
         }
@@ -345,12 +211,12 @@ class Sigm : public ActivationFunction
 class Linear : public ActivationFunction
 	{
 	public:
-		inline double eval(double& arg)
+		inline vt eval(vt& arg)
 		{
 			return arg;
 		}
 		
-		inline double evalDiff(double& arg)
+		inline vt evalDiff(vt& arg)
 		{
 			return 1;
 		}
@@ -359,13 +225,13 @@ class Linear : public ActivationFunction
 class Gaussian : public ActivationFunction
     {
     public:
-        inline double eval(double& x)
+        inline vt eval(vt& x)
         {
             if (std::isnan(x) || std::isinf(x)) return 0;
             if (x > 5 || x < -5) return 0;
             return exp(-10.*x*x);
         }
-        inline double evalDiff(double& x)
+        inline vt evalDiff(vt& x)
         {
             if (std::isnan(x) || std::isinf(x)) return 0;
             if (x > 5 || x < -5) return 0;
@@ -373,7 +239,3 @@ class Gaussian : public ActivationFunction
         }
     };
 //}
-
-
-
-

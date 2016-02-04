@@ -46,13 +46,13 @@ DIRS = $(filter-out ../source/ANNTests/ ../source/CMAUtility/ ../source/Process/
 OBJ_FILES = 	ArgumentParser.o ObjectFactory.o \
 		Profiler.o StateAction.o \
 		main.o rng.o \
-		Agent.o ExternalAgent.o CartAgent.o \
+		Agent.o ExternalAgent.o CartAgent.o HardCartAgent.o \
 		SmartySelfAvoider.o SmartySwarmer.o GlideEnvironment.o \
-		ExternalEnvironment.o ArtisticEnvironment.o CartEnvironment.o SelfAvoidEnvironment.o \
+		ExternalEnvironment.o ArtisticEnvironment.o CartEnvironment.o SelfAvoidEnvironment.o HardCartEnvironment.o \
 		SwarmEnvironment.o QLearning.o SpeedyQLearning.o\
 		MultiTable.o Saver.o ALearning.o \
 		Scheduler.o Sarsa.o HuntEnvironment.o \
-		NFQApproximator.o NFQ.o \
+		NFQApproximator.o NFQ.o Explorer.o \
 		ANNApproximator.o Network.o WaveletNet.o 
 						
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))

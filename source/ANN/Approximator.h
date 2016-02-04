@@ -10,70 +10,52 @@
 #pragma once
 
 #include <vector>
-
+#include "../Types/types.h"
+#define SIMD 1 //TODO
 using namespace std;
+typedef float vt;
 
 struct Memory
 {
-    Memory(int nMems=1, int nRecurr=1): nMems(nMems), nRecurr(nRecurr)
+    Memory(int _nNeurons=1, int _nStates=1): nNeurons(_nNeurons), nStates(_nStates)
     {
-        memory.resize(nRecurr);
-        ostate.resize(nMems);
-        nstate.resize(nMems);
+        oldvals = (vt*) _mm_malloc(nNeurons*sizeof(vt), ALLOC);
+        ostates = (vt*) _mm_malloc(nStates *sizeof(vt), ALLOC);
     }
-    Memory(const Memory& c) : nMems(c.nMems), nRecurr(c.nRecurr)
+    
+    ~VelocitySolverNSquared()
     {
-        ostate.resize(nMems);
-        nstate.resize(nMems);
-        memory.resize(nRecurr);
-        for (int i = 0; i<c.nMems; ++i)
-        {
-            ostate[i] = c.ostate[i];
-            nstate[i] = c.nstate[i];
-        }
-        for (int i = 0; i<c.nRecurr; ++i)
-            memory[i] = c.memory[i];
+        _mm_free(outvals);
+        _mm_free(ostates);
     }
-    void copy(const Memory& c)
+    
+    void init(int _nNeurons, int _nStates)
     {
-        nMems = c.nMems;
-        nRecurr = c.nRecurr;
-        ostate.resize(c.nMems);
-        nstate.resize(c.nMems);
-        memory.resize(c.nRecurr);
-        for (int i = 0; i<c.nMems; ++i)
-        {
-            ostate[i] = c.ostate[i];
-            nstate[i] = c.nstate[i];
-        }
-        for (int i = 0; i<c.nRecurr; ++i)
-            memory[i] = c.memory[i];
+        _mm_free(oldvals);
+        _mm_free(ostates);
+        nNeurons = _nNeurons;
+        nStates = _nStates;
+        oldvals = (vt*) _mm_malloc(nNeurons*sizeof(vt), ALLOC);
+        ostates = (vt*) _mm_malloc(nStates *sizeof(vt), ALLOC);
     }
-    void init(int _nMems, int _nRecurr)
-    {
-        nMems = _nMems;
-        nRecurr = _nRecurr;
-        ostate.resize(nMems);
-        nstate.resize(nMems);
-        memory.resize(nRecurr);
-    }
-    int nMems, nRecurr;
-    vector<double> memory;
-    vector<double> nstate;
-    vector<double> ostate;
+    
+    int nNeurons, nStates;
+    vt * oldvals;
+    vt * ostates;
 };
+
 
 class Approximator
 {
 public:
-    double lambda;
     vector<Memory> Agents;
-	virtual void predict(const vector<double>& input, vector<double>& output, int nAgent) = 0;
-	virtual void improve(const vector<double>& input, const vector<double>& error, int nAgent) = 0;
-	virtual void predict(const vector<double>& input, const vector<double>& memoryin, const vector<double>& ostate, vector<double>& nstate,  vector<double>& output) = 0;
-	virtual void   save(string name)    = 0;
-	virtual bool   restart(string name) = 0;
-    virtual void   setBatchsize(int size) = 0;
-    virtual double TotSumWeights() {return 0;}
-    virtual double AvgLearnRate() {return 0;}
+    
+    virtual void predict(const vector<vt>& input, vector<vt>& output, int nAgent) {};
+	virtual void improve(const vector<vt>& input, const vector<vt>& error, int nAgent) {};
+    virtual void test(const vector<vt>& input, vector<vt>& output, int nAgent) { predict(input, output, nAgent); };
+	virtual void save(string name) = 0;
+	virtual bool restart(string name) = 0;
+    virtual void setBatchsize(int size) = 0;
+    virtual vt TotSumWeights() {return 0;}
+    virtual vt AvgLearnRate() {return 0;}
 };

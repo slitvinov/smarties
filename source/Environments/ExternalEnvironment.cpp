@@ -108,24 +108,24 @@ void ExternalEnvironment::setDims()
     sI.dim = 6;
     // State: Horizontal distance from goal point...
     sI.bounds.push_back(22); //one block in between the bounds, one more on each side
-    sI.top.push_back(0.5);
-    sI.bottom.push_back(-0.5);
+    sI.top.push_back(1.);
+    sI.bottom.push_back(-1.);
     sI.aboveTop.push_back(true);
     sI.belowBottom.push_back(true);
     sI.isLabel.push_back(false);
     
     // ...vertical distance...
     sI.bounds.push_back(22);
-    sI.top.push_back(0.5);
-    sI.bottom.push_back(-0.5);
+    sI.top.push_back(1.);
+    sI.bottom.push_back(-1.);
     sI.aboveTop.push_back(true);
     sI.belowBottom.push_back(true);
     sI.isLabel.push_back(false);
     
     // ...inclination of the fish...
     sI.bounds.push_back(22); // only positive or negative
-    sI.top.push_back(1.);
-    sI.bottom.push_back(-1.);
+    sI.top.push_back(1.5);
+    sI.bottom.push_back(-1.5);
     sI.aboveTop.push_back(true);
     sI.belowBottom.push_back(true);
     sI.isLabel.push_back(false);
@@ -139,16 +139,16 @@ void ExternalEnvironment::setDims()
     sI.isLabel.push_back(false);
     
     // ...last action (HAX!)
-    sI.bounds.push_back(5);
-    sI.top.push_back(5.0);
+    sI.bounds.push_back(3);
+    sI.top.push_back(3.0);
     sI.bottom.push_back(0.0);
     sI.aboveTop.push_back(false);
     sI.belowBottom.push_back(false);
     sI.isLabel.push_back(true);
     
     // ...second last action (HAX!)
-    sI.bounds.push_back(5);
-    sI.top.push_back(5.0);
+    sI.bounds.push_back(3);
+    sI.top.push_back(3.0);
     sI.bottom.push_back(0.0);
     sI.aboveTop.push_back(false);
     sI.belowBottom.push_back(false);
@@ -156,62 +156,40 @@ void ExternalEnvironment::setDims()
     
     aI.dim = 1; //How many actions taken per turn by one agent
     
-    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5); //Number of possible actions to choose from (nothing, curve right, curve left)
+    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(3); //Number of possible actions to choose from (nothing, curve right, curve left)    
     
-    aI.values.push_back(-2.);
-    aI.values.push_back(-1.);
     aI.values.push_back(0.0);
-    aI.values.push_back(1.0);
     aI.values.push_back(2.0);
-    
-    sI.values.push_back(-2.);
-    sI.values.push_back(-1.);
+    aI.values.push_back(-2.);
+
     sI.values.push_back(0.0);
-    sI.values.push_back(1.0);
     sI.values.push_back(2.0);
+    sI.values.push_back(-2.);
+    
+    aI.zeroact = 0;
+    for (auto& a : exagents)
+    {
+        a->Info.resize(2);
+        a->nInfo = 2;
+    }
 }
 
 int ExternalEnvironment::evolve(double t)
 {
     bRestart = false;
-    /*
-    char str[1000] = "";
-    bool empty = true;
-
-    while (empty)
+    
+    fprintf(fout, "Actions:\n");
+    for (auto& a : exagents)
     {
-        fgets(str, 1000, fin);
-        string sstr(str);
-
-        sstr.erase(std::remove(sstr.begin(), sstr.end(), '\n'), sstr.end());
-        sstr.erase(std::remove(sstr.begin(), sstr.end(), ' '), sstr.end());
-        sstr.erase(std::remove(sstr.begin(), sstr.end(), '\t'), sstr.end());
-        empty = sstr.length() < 1;
+        fprintf(fout, "%d ", a->a->vals[0]);
+        debug2("Sent child: action %d\n", a->a->vals[0]);
     }
-
-    string sstr(str);
-    sstr.erase(sstr.find_last_not_of(" \t\f\v\n\r")+1);
-
-    if (sstr != "States and rewards:")
-    {
-        bFailed = true;
-        bRestart = true;
-        //fprintf(fout, "Die\n");
-        return 1;
-    }
-*/
-
+    fprintf(fout, "\n");
+    fflush(fout);
+    
     string sstr;
     do
     {
-        fprintf(fout, "Actions:\n");
-        for (auto& a : exagents)
-        {
-            fprintf(fout, "%d ", a->a->vals[0]);
-            debug2("Sent child: action %d\n", a->a->vals[0]);
-        }
-        fprintf(fout, "\n");
-        fflush(fout);
         
         char str[1000] = "";
         bool empty = true;
@@ -231,6 +209,7 @@ int ExternalEnvironment::evolve(double t)
     }
     while(sstr != "States and rewards:");
     
+    
     for (auto& a : exagents)
     {
         double aa, b, c;
@@ -238,17 +217,16 @@ int ExternalEnvironment::evolve(double t)
         for (int i=0; i<a->s->sInfo.dim; i++)
             fscanf(fin, "%lf", &(a->s->vals[i]));
         fscanf(fin, "%lf", &(a->r));
-        fscanf(fin, "%lf", &(a->_r));
+        for (int i=0; i<a->nInfo; i++)
+            fscanf(fin, "%lf", &(a->Info[i]));
         
-        debug2("Got from child %d: reward %f (%f),  state %s\n", pid, a->r, a->_r, a->s->print().c_str());
+        debug2("Got from child %d: reward %f state %s\n", pid, a->r, a->s->print().c_str());
         if (a->r < -99)
             bRestart = true;
+
     }
+
     if (bRestart)
-    {
-        //fprintf(fout, "Die\n");
         return 1;
-    }
-    
     return 0;
 }

@@ -747,9 +747,9 @@ void Neuron::adjust(double error, double eta, double alpha, double lambda, doubl
             {
                 inLinks[i]->w += alpha * inLinks[i]->prevDw;
                 if (inLinks[i]->prevDw*inLinks[i]->Dw > 0.)
-                    inLinks[i]->factor *= 1.0 + 5e-4;
+                    inLinks[i]->factor *= 1.0 + 5e-5;
                 if (inLinks[i]->prevDw*inLinks[i]->Dw < 0.)
-                    inLinks[i]->factor *= 1.0 - 1e-3; //each weight should have its own LR
+                    inLinks[i]->factor *= 1.0 - 1e-4; //each weight should have its own LR
                 
                 //printf("%f\n",inLinks[i]->factor);
             }
@@ -766,6 +766,7 @@ NetworkLSTM::NetworkLSTM(vector<int>& layerSize, vector<int>& memorySize, vector
 nInputs(layerSize.front()), nOutputs(layerSize.back()), nLayers(layerSize.size()), eta(eta), alpha(alpha),  rng(0), nAgents(nAgents), nMems(0), nRecurr(layerSize.front()), kappa(kappa), olderr(1)
 {
     lambda = _lambda; //move back here, failed experiment.
+    nRecurr = 0; //debug
     for (int i=1; i<nLayers-1; i++) //no memory in input and output layers, recurrency not in output layer
     {
         nRecurr += memorySize[i]*nCellpB[i] + layerSize[i];
@@ -795,10 +796,10 @@ nInputs(layerSize.front()), nOutputs(layerSize.back()), nLayers(layerSize.size()
     layers.push_back(first);
     debug7("- connecting first layer to inputs\n");
     first->connect2inputs(inputs, memory_in);
-    first->connect2memstate(memory_out, o_state, n_state, 0, 0);
+    //first->connect2memstate(memory_out, o_state, n_state, 0, 0);
     
     int indMem = 0;
-    int indRec = nInputs;
+    int indRec = 0;//snInputs;
     for (int i=1; i<nLayers-1; i++)
     {
         debug7("Creating layer %d with neurons %d %d %d (B C N)\n",i, memorySize[i], nCellpB[i], layerSize[i]);
@@ -1298,7 +1299,7 @@ void HiddenLayer::adjust(double error, double & eta, double alpha, double lambda
             }
             if(u_d_u==0) die("WTF did you do???\n");
             for (int k=0; k<neurons[j]->inLinks.size(); k++)
-                neurons[i]->inLinks[k]->w -= 0.1*(v_d_u/u_d_u) * neurons[j]->inLinks[k]->w;
+                neurons[i]->inLinks[k]->w -= lambda * (v_d_u/u_d_u) * neurons[j]->inLinks[k]->w;
         }
 }
 

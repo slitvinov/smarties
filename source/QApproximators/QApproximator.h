@@ -29,6 +29,7 @@ struct NFQdata
     vector<double> insi;
     vector<double> outi;
     vector<double> pred;
+    int aInd;
 };
 
 struct Transitions
@@ -74,18 +75,21 @@ public:
     virtual double advance(const State& s, const Action& a, int nAgent) = 0;
 	virtual void set(const State& s, const Action& a, double value, int nAgent) = 0;
 	virtual void correct(const State& s, const Action& a, double error, int nAgent) = 0;
-    virtual double getMax(const State& s, int nAgent) {return 0.0;}
+    virtual double getMax(const State& s, int & nAct, int nAgent) {return 0.0;}
     virtual double getsmooth(const State& s, const Action& a, int nAgent = 0) {return get(s,a,nAgent);}
-    virtual double testMax(const State& s, int & nAct,  int nAgent) {return getMax(s,nAgent);}
-    virtual double advanceMax(const State& s, int nAgent) {return getMax(s,nAgent);}
+    virtual double testMax(const State& s, int & nAct,  int nAgent) {return getMax(s,nAct,nAgent);}
+    virtual double advanceMax(const State& s, int & nAct, int nAgent) {return getMax(s,nAct,nAgent);}
 	virtual void save(string name) = 0;
 	virtual bool restart(string name) = 0;
     virtual double Train() = 0;
-    virtual void passData(int agentId, State& sOld, Action& a, State& sNew, double reward, double altrew)
+    virtual void passData(int agentId, State& sOld, Action& a, State& sNew, double reward, vector<double>& info)
     {
         ofstream fout;
         fout.open("history.txt",ios::app);
-        fout << agentId << " " << sOld.printClean().c_str() << sNew.printClean().c_str() << a.printClean().c_str() << reward << " " << altrew << endl;
+        fout << agentId << " " << sOld.printClean().c_str() << sNew.printClean().c_str() << a.printClean().c_str() << reward;
+        for (int i = 0; i<info.size(); i++)
+            fout << " " << info[i];
+        fout << endl;
         fout.close();
     }
     
@@ -95,47 +99,56 @@ public:
         vector<double> d_sO(sInfo.dim), d_sN(sInfo.dim);
         Action t_a(actInfo);
         vector<int> d_a(actInfo.dim);
-        double reward;
-        int agentId;
-        
-        ifstream in("history.txt");
-        std::string line;
-        double alt_reward;
-        if(in.good())
+        double reward, alt_reward;
+        int thisId, agentId=0;
+        int Ndata;
+        while(true)
         {
-            unsigned counter = 0;
-            while (getline(in, line))
+            Ndata=0;
+            debug7("Loading from agent %d\n",agentId);
+            ifstream in("history.txt");
+            std::string line;
+            if(in.good())
             {
-                istringstream line_in(line);
-                line_in >> agentId;
-                for (int i=0; i<sInfo.dim; i++)
+                unsigned counter = 0;
+                while (getline(in, line))
                 {
-                    line_in >> d_sO[i];
-                }
-                for (int i=0; i<sInfo.dim; i++)
-                {
-                    line_in >> d_sN[i];
-                }
-                for (int i=0; i<actInfo.dim; i++)
-                {
-                    line_in >> d_a[i];
+                    istringstream line_in(line);
+                    line_in >> thisId;
+                    if (thisId==agentId)
+                    {
+                        Ndata++;
+                        for (int i=0; i<sInfo.dim; i++)
+                            line_in >> d_sO[i];
+                        for (int i=0; i<sInfo.dim; i++)
+                            line_in >> d_sN[i];
+                        for (int i=0; i<actInfo.dim; i++)
+                            line_in >> d_a[i];
+                        
+                        line_in >> reward;
+                        
+                        while (line_in.good())
+                            line_in >> alt_reward;
+			
+                        //if (reward<-10) reward = -10;
+                        //line_in >> reward;
+                        t_sO.set(d_sO);
+                        t_sN.set(d_sN);
+                        t_a.set(d_a);
+                        samples.add(1, t_sO, t_a, t_sN, reward);
+                    }
                 }
                 
-                line_in >> reward;
-                line_in >> alt_reward;
-                
-                //line_in >> reward;
-                t_sO.set(d_sO);
-                t_sN.set(d_sN);
-                t_a.set(d_a);
-                samples.add(agentId, t_sO, t_a, t_sN, reward);
+                if (Ndata==0 && agentId>0)
+                    break;
+                agentId++;
             }
+            else
+            {
+                die("WTF couldnt open file history.txt!\n");
+            }
+            
+            in.close();
         }
-        else
-        {
-            die("WTF couldnt open file history.txt!\n");
-        }
-        
-        in.close();
     }
 };

@@ -23,11 +23,11 @@ class Master
 private:
     Learner* learner;
     QApproximator* Q;
-    int insize,  inOneSize;
+    int insize,  inOneSize, nInfo;
     int outsize, outOneSize;
     byte *inbuf, *outbuf;
     
-    inline void unpackChunk(byte* &buf, State& sOld, Action& a, double& r, double& _r, State& s);
+    inline void unpackChunk(byte* &buf, State& sOld, Action& a, double& r, vector<double>& info, State& s);
     inline void unpackChunk(byte* &buf, State& sOld, Action& a, double& r, State& s);
     inline void packChunk(byte* &buf, Action a);
     
@@ -59,7 +59,7 @@ class Slave
     vector<Agent*> agents;
     double dt;
     bool first;
-    int insize, outsize;
+    int insize, outsize, nInfo;
     byte *inbuf, *outbuf;
     
     vector<Action> actions;

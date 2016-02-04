@@ -86,4 +86,11 @@ void ArtisticEnvironment::setDims()
     sI.values.push_back(0.0);
     sI.values.push_back(1.0);
     sI.values.push_back(2.0);
+    
+    aI.zeroact = 0;
+    for (auto& a : exagents)
+    {
+        a->Info.resize(2);
+        a->nInfo = 2;
+    }
 }

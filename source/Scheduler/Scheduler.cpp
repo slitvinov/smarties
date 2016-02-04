@@ -16,11 +16,11 @@
 #include <fstream>
 #include <algorithm>
 
-Master::Master(Learner* learner, QApproximator* newQ, ActionInfo actInfo, StateInfo sInfo, int nAgents, int nSlaves, double traceDecay) :
-learner(learner), actInfo(actInfo), sInfo(sInfo), nAgents(nAgents), nSlaves(nSlaves), Q(newQ)
+Master::Master(Learner* learner, QApproximator* newQ, Environment env, int nSlaves, double traceDecay) :
+learner(learner), env->aI(actInfo), env->sI(sInfo), env->agents.size()(nAgents), nSlaves(nSlaves), Q(newQ)
 {
-//    inOneSize = 2*sInfo.dim*sizeof(double) + actInfo.dim*sizeof(double) + sizeof(double);
-    inOneSize = 2*sInfo.dim*sizeof(double) + actInfo.dim*sizeof(double) + 2*sizeof(double);
+    nInfo = env->exagents[0]->nInfo;
+    inOneSize = 2*sInfo.dim*sizeof(double) + actInfo.dim*sizeof(double) + (1+nInfo)*sizeof(double);
     insize = 1;
     inbuf  = new byte[insize*inOneSize];
     
@@ -30,7 +30,7 @@ learner(learner), actInfo(actInfo), sInfo(sInfo), nAgents(nAgents), nSlaves(nSla
     
     int len;
     if (traceDecay < 1e-10)
-        len = 1;
+        len = 2;
     else
         len = round(-10/log10(traceDecay)) + 1;
     
@@ -83,7 +83,7 @@ inline void Master::unpackChunk(byte* &buf, State& sOld, Action& a, double& r, S
     buf += sSize;
 }
 
-inline void Master::unpackChunk(byte* &buf, State& sOld, Action& a, double& r, double& _r, State& s)
+inline void unpackChunk(byte* &buf, State& sOld, Action& a, double& r, vector<double>& info, State& s);
 {
     // Packing order
     // sOld, a, r, s
@@ -100,8 +100,11 @@ inline void Master::unpackChunk(byte* &buf, State& sOld, Action& a, double& r, d
     buf += sizeof(double);
     
     //G
-    _r = *((double*) buf);
-    buf += sizeof(double);
+    for (int i = 0; i<nInfo; i++)
+    {
+        info[i] = *((double*) buf);
+        buf += sizeof(double);
+    }
     
     s.unpack(buf);
     buf += sSize;
@@ -109,7 +112,6 @@ inline void Master::unpackChunk(byte* &buf, State& sOld, Action& a, double& r, d
 
 inline void Master::packChunk(byte* &buf, Action a)
 {
-    // a
     static const int actSize = actInfo.dim * sizeof(double);
     a.pack(buf);
     buf += actSize;
@@ -127,33 +129,17 @@ void Master::run()
     State sOld(sInfo);
     State s(sInfo);
     Action a(actInfo), aOld(actInfo);
-    double r, _r;
+    vector<double> info;
+    double r;
     
-    int n, kappa;
+    int n;
     int iter = 0;
     int relaxTime = 10;
-    kappa=0;
-    /* initial random action moved to slave
-    for (int i=1; i<nSlaves; ++i)
-    {
-        cout << "Random first action." << endl;
-        aOld.initAct();
-        a.initAct();
-        //outsize = 1.5*nAgents;
-        //delete[] outbuf;
-        //outbuf = new byte[outsize * outOneSize];
-        byte* cOutbuf = outbuf;
-        packChunk(cOutbuf, a);
-        MPI_Send(outbuf, nAgents*outOneSize, MPI_BYTE, i, 0, MPI_COMM_WORLD);
-        debug5("Master sends %d bytes to proc %d\n", nAgents*outOneSize, i);
-    }
-    */
     
     debug("Master starting...\n");
     
     while (true)
     {
-        //sleep(2);
         MPI_Irecv(&n, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
         int completed;
         int trials = 0;
@@ -194,27 +180,23 @@ void Master::run()
         
         byte* cInbuf = inbuf;
         byte* cOutbuf = outbuf;
-        ++kappa;
-        double alphaK = 1.0/(double)kappa;
+
         for (int i=0; i<n; i++)
         {
-            unpackChunk(cInbuf, sOld, aOld, r, _r, s);
+            unpackChunk(cInbuf, sOld, aOld, r, info, s);
 
-            for(int i=0; i<sInfo.dim; i++)
-                 debug7("Transition from state %f (n %d) to %f (n %d)\n", sOld.vals[i], _discretize(sOld.vals[i], sOld.sInfo.bottom[i], sOld.sInfo.top[i], sOld.sInfo.bounds[i], sOld.sInfo.belowBottom[i], sOld.sInfo.aboveTop[i]), s.vals[i], _discretize(s.vals[i], s.sInfo.bottom[i], s.sInfo.top[i], s.sInfo.bounds[i], s.sInfo.belowBottom[i], s.sInfo.aboveTop[i]));
+            //for(int i=0; i<sInfo.dim; i++) debug7("Transition from state %f (n %d) to %f (n %d)\n", sOld.vals[i], _discretize(sOld.vals[i], sOld.sInfo.bottom[i], sOld.sInfo.top[i], sOld.sInfo.bounds[i], sOld.sInfo.belowBottom[i], sOld.sInfo.aboveTop[i]), s.vals[i], _discretize(s.vals[i], s.sInfo.bottom[i], s.sInfo.top[i], s.sInfo.bounds[i], s.sInfo.belowBottom[i], s.sInfo.aboveTop[i]));
             
             if (r > -1e10)
             {
-                int agentId = status.MPI_SOURCE * nAgents + i;
+                int agentId = (status.MPI_SOURCE-1) * nAgents + i;
                 
-                debug4("To learner %d: %s --> %s with %s was rewarded with %f (%f)\n", slave, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r, _r);
+                debug4("To learner %d: %s --> %s with %s was rewarded with %f \n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r);
                 
-                Q->passData(agentId, sOld, aOld, s, r, _r);
+                Q->passData(agentId, sOld, aOld, s, r, info);
 
                 traces[agentId].add(sOld, aOld);
-                
-                learner->updateSelect(traces[agentId], s, a, sOld, aOld, r, slave);
-//                learner->updateSelect(traces[agentId], s, a, r, alphaK);
+                learner->updateSelect(traces[agentId], s, a, sOld, aOld, r, agentId);
 
                 totR += r;
 
@@ -241,7 +223,7 @@ void Master::run()
     
 }
 
-Slave::Slave(Environment* env, double dt, int me) : env(env), agents(env->agents), dt(dt), me(me), first(true)
+Slave::Slave(Environment* env, double dt, int me) : env(env), agents(env->agents), dt(dt), me(me), first(true), nInfo(agents[0]->nInfo)
 {
     MPI_Request req;
     
@@ -253,7 +235,8 @@ Slave::Slave(Environment* env, double dt, int me) : env(env), agents(env->agents
     
     insize  = agents.size() * ( env->aI.dim*sizeof(double) );
     //G outsize = agents.size() * ( 2*env->sI.dim*sizeof(double) + env->aI.dim*sizeof(double) + sizeof(double) );
-    outsize = agents.size() * ( 2*env->sI.dim*sizeof(double) + env->aI.dim*sizeof(double) + 2*sizeof(double) );
+    
+    outsize = agents.size() * ( 2*env->sI.dim*sizeof(double) + env->aI.dim*sizeof(double) + (1+nInfo)*sizeof(double) );
     
     inbuf  = new byte[insize];
     outbuf = new byte[outsize];
@@ -261,9 +244,7 @@ Slave::Slave(Environment* env, double dt, int me) : env(env), agents(env->agents
     ActionIterator aIter(env->aI);
     RNG* rng = new RNG(rand());
     for (int i=0; i<agents.size(); i++)
-    {
         actions[i] = aIter.getRand(rng);
-    }
     
     needToPack = new bool[agents.size()];
     
@@ -287,16 +268,17 @@ int Slave::evolve(double& t)
     MPI_Request inreq, outreqN, outreqData;
     MPI_Status  status;
     int n = agents.size();
-    //dmitry just assumes that initial state is {zeros} and initial action is zero. We are not ok with this.
-    // smartobstacle first prints the old state then asks for the next action action
-    // smarties first gives an action and then asks what is the resulting states
-    //here we do a dummy action: : MRAG gives out the initial state and ignores this next action
-    // then we do random act (not specified by master), give it to mrag and then get new state
-    // with this, the first communication to the master has a proper Sold, A, Snew, rew
+
     if(first)
     {
-        debug4("Slave %d performing first action\n", me);
+        for (int i = 0; i<n; i++)
+        {
+            Agent* agent = agents[i];
+            actions[i].vals[0] = env->aI.zeroact;
+            agent->act(actions[i]);
+        }
         int extflag = env->evolve(t);
+        debug6("Slave %d performing first action %d\n", me,env->aI.zeroact);
         //if(extflag) return extflag;
     }
     else // real action, we have done at least one MPI_Send
@@ -321,20 +303,17 @@ int Slave::evolve(double& t)
     for (int i = 0; i<n; i++)
     {
         Agent* agent = agents[i];
-        //if (agent->getType() != IDLER && agent->getType() != DEAD && t - agent->getLastLearned() > agent->getLearningInterval())
-        //{
-            acted = true;
-            if(first)
-            {
-                actions[i].initAct();
-                actions[i].vals[0] = 2;
-                debug4("First random action for agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
-            }
-            debug4("Agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
-            agent->act(actions[i]);
-            agent->setLastLearned(t);
-            needToPack[i] = true;
-        //};
+        acted = true;
+        if(first)
+        {
+            actions[i].initAct();
+            actions[i].vals[0] = env->aI.zeroact;
+            debug4("First random action for agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
+        }
+        debug6("Agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
+        agent->act(actions[i]);
+        agent->setLastLearned(t);
+        needToPack[i] = true;
         
         agent->move(dt);
     }
@@ -351,19 +330,17 @@ int Slave::evolve(double& t)
     {
         first = true;
         MPI_Recv(inbuf, insize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
-        debug4("Slave %d restarts before receiving %d bytes\n", me, insize);
+        debug6("Slave %d restarts before receiving %d bytes\n", me, insize);
     }
     return 0;
-
+    
 }
 
 void Slave::unpackData()
 {
     byte* cbuf = inbuf;
-    
-    // a
+
     static const int actSize = env->aI.dim * sizeof(double);
-    
     for (int i=0; i<agents.size(); i++)
     {
         actions[i].unpack(cbuf);
@@ -398,14 +375,16 @@ void Slave::packData()
             *((double*)cbuf) = -2e10;
         
         cbuf += sizeof(double);
-        //G
-        if (needToPack[i])
-            *((double*)cbuf) = agent->altReward();
-        else
-            *((double*)cbuf) = -2e10;
+
+        for (int i = 0; i<nInfo; i++)
+        {
+            if (needToPack[i])
+                *((double*)cbuf) = agent->Info[i];
+            else
+                *((double*)cbuf) = -2e10;
+            cbuf += sizeof(double);
+        }
         
-        cbuf += sizeof(double);
-        //G
         agent->getState(tmpState);
         tmpState.pack(cbuf);
         cbuf += sSize;

@@ -42,6 +42,6 @@ public:
     void updateSelect(Trace& t, State& s, Action& a, double r, double alphaK) {};
     void try2restart(string prefix);
     void savePolicy(string fname);
-    void NFQimprove(int Niter);
+    void NFQimprove();
 };
 

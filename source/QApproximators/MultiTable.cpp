@@ -1,4 +1,4 @@
-/*
+ /*
  *  MultiTable.cpp
  *  rl
  *
@@ -130,7 +130,7 @@ double MultiTable::getsmooth(const State& s, const Action& a, int nAgent)
     return data.find(id)->second;
 }
 
-double MultiTable::getMax(const State& s, int nAgent)
+double MultiTable::getMax(const State& s, int & nAct, int nAgent)
 {
 	long int id = _encodeState(s, _discretize);
 	if (maxStateVal.find(id) == maxStateVal.end()) return 0; 

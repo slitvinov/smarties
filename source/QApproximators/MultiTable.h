@@ -48,7 +48,7 @@ public:
     {
         return get(s, a);
     }
-	double getMax (const State& s, int nAgent);
+	double getMax (const State& s, int & nAct, int nAgent);
 	void   set    (const State& s, const Action& a, double value, int nAgent = 0);
 	void   correct(const State& s, const Action& a, double error, int nAgent = 0);
 	double usage() const;

@@ -29,40 +29,35 @@ void NFQ::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld,
     // Find V(s) = max Q(s, a')
     //              a'
     
-    double Qold = Q->get(sOld, aOld, Nagent); //LSTM: also memory advances to new state
-
-    double best = -1e10;
-    actionsIt.reset();
-    while (!actionsIt.done())
-    {
-        const double val = Q->test(s, actionsIt.next(), Nagent);
-        if (val >= best + 1e-12)
-        {
-            best = val;
-            actionsIt.memorize();
-        }
-        // If two actions yield the same Q-value, choose random
-        // TODO: Improve for more than 2 same actions
-        else if (fabs(best - val) < 1e-12 && rng->uniform() > 0.5)
-        {
-            actionsIt.memorize();
-        }
-    }
-    a = actionsIt.recall();
+    //double Qold = Q->get(sOld, aOld, Nagent); //LSTM: also memory advances to new state
+    int Nbest, NoldBest;
+    double Vold = Q->getMax(sOld, NoldBest, Nagent);
+    double Vnew = Q->testMax(s, Nbest, Nagent);
+    double Aold = Q->advance(sOld, aOld, Nagent);
+    a.vals[0] = Nbest;
     //LSTM: here you perform that action and update memory
 }
 
 
-void NFQ::NFQimprove(int Niter)
+void NFQ::NFQimprove()
 {
     double err = 1.0;
-    double errold = 0.0;
-    while (err>0.02)
+    double errold = 10.0;
+    double minerr = 100.0;
+    while (fabs((err-errold)/errold)>0.0001 || (err-minerr)/minerr>0.01)
     {
         _info("Iterating batch update\n");
         errold = err;
         err = Q->Train();
+        minerr = min(minerr,err);
         Q->save("tmp");
+        
+        ifstream in("stap.txt");
+        if(!in.good())
+        {
+            _info("Got the message!\n");
+            break;
+        }
     }
 }
 
@@ -71,6 +66,12 @@ void NFQ::try2restart(string fname)
     State(sInfo);
     _info("Restarting from history file\n");
     Q->restartSamples();
+    
+    ofstream fout;
+    fout.open("stap.txt",ios::app);
+    fout << 1 << endl;
+    fout.close();
+    
     if ( Q->restart(fname) )
     {
         _info("Restart successful, moving on...\n");
@@ -78,16 +79,17 @@ void NFQ::try2restart(string fname)
     else
     {
         _info("Not all policies restarted, therefore assumed zero. Moving on...\n");
+        this->NFQimprove();
     }
     
-    this->NFQimprove(100);
+    
     Q->save(fname);
     _info("I have a Q and I saved it.\n");
 }
 
 void NFQ::savePolicy(string fname)
 {
-    this->NFQimprove(10);
+    this->NFQimprove();
     _info("\nSaving all policies...\n");
     Q->save(fname);
     _info("Done\n");

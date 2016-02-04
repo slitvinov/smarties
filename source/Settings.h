@@ -28,10 +28,22 @@ extern struct Settings
 	
 	double nnEta;
 	double nnAlpha;
+    double nnKappa;
     double nnLambda;
+    double nnAdFac;
 	int    nnLayer1;
 	int    nnLayer2;
+    int    nnLayer3;
+    int    nnLayer4;
+    int    nnLayer5;
+    int    nnMemory1;
+    int    nnMemory2;
+    int    nnMemory3;
+    int    nnMemory4;
+    int    nnMemory5;
+    int    nnOuts;
     
+    double  AL_fac;
     string learner;
     string network;
     

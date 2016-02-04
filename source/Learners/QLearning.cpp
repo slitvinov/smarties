@@ -53,7 +53,7 @@ void QLearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action&
         }
     }
     
-    double err =  lRate *(r/10. + gamma*best - Qold);
+    double err =  lRate *(r + gamma*best - Qold);
     //printf("Err = %f\n", err);
     double p = rng->uniform();
     if (p > fabs(err))  a = actionsIt.recall();

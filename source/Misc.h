@@ -65,7 +65,7 @@ inline int _discretize(double val, double min, double max, int levels, bool belo
 		if (belowMin) return 0;
 		else{
             std::cout << "max=" << max << " min=" << min << " levels="<< levels << " val="<< val << endl;
-            die("Discretized value is below minimum\n");
+            return 0;
         }
 	}
 	
@@ -74,7 +74,7 @@ inline int _discretize(double val, double min, double max, int levels, bool belo
 		if (aboveMax) return totLvl-1; // lvl = [0 to totLvl-1]
 		else{
             std::cout << "max=" << max << " min=" << min << " levels="<< levels << " val="<< val << endl;
-            die("Discretized value is above maximum\n");
+            return totLvl-1;
         }
 	}
 	

@@ -14,9 +14,10 @@
 #include "Agent.h"
 
 class CartEnvironment;
+class HardCartEnvironment;
 #include "../Environments/Environment.h"
 #include "../Environments/CartEnvironment.h"
-
+#include "../Environments/HardCartEnvironment.h"
 class CartAgent : public Agent
 {
 public:

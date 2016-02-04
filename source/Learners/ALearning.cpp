@@ -30,22 +30,19 @@ void ALearning::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action&
     //
     // Q(sOld, aOld) += lRate * [r + gamma*V(s) - Q(sOld, aOld)]
     //
-
-    double Vold = Q->getMax(sOld, Nagent); //LSTM: also memory advances to new state
+    int Nbest, NoldBest;
     
-    int Nbest;
+    double Vold = Q->getMax(sOld, NoldBest, Nagent); //LSTM: also memory advances to new state
+    
     double Vnew = Q->testMax(s, Nbest, Nagent);
     //printf("(AL) Chosen action %d\n",Nbest);
     double Aold = Q->advance(sOld, aOld, Nagent);
     
-    double err = lRate * (Vold + (r + gamma*Vnew - Vold)/2. - Aold);
+    //double err = (Vold + (r + gamma*Vnew - Vold)/.2 - Aold);
+    double err = (r + gamma*Vnew - Aold);
     //printf("Err = %f\n", err);
-    double p = rng->uniform();
-    if (p > fabs(err))  a.vals[0] = Nbest;
-    else                a = actionsIt.getRand(rng);
-    
-    if (fabs(Aold)>1e3)
-        die("Mkay\n");
+    a.vals[0] = Nbest;
+
     
     //if (fabs(err) > 0.02) cout << "Err before correct = " << err;
     //if (fabs(err) > 0.02)

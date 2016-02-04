@@ -1,5 +1,5 @@
 /*
- *  ArtisticEnvironment.cpp
+ *  HardCartEnvironment.cpp
  *  smarties
  *
  *  Created by Dmitry Alexeev on May 13, 2015
@@ -17,9 +17,9 @@
 
 using namespace std;
 
-#include "ArtisticEnvironment.h"
+#include "HardCartEnvironment.h"
 
-ArtisticEnvironment::ArtisticEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index) :
+HardCartEnvironment::HardCartEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index) :
 Environment(agents), execpath(execpath)
 {
     int outpipe[2], inpipe[2];
@@ -68,7 +68,7 @@ Environment(agents), execpath(execpath)
         
         for (auto a : agents)
         {
-            exagents.push_back(static_cast<ExternalAgent*>(a));
+            exagents.push_back(static_cast<HardCartAgent*>(a));
         }
         
         rewards.resize(n);
@@ -104,69 +104,48 @@ Environment(agents), execpath(execpath)
     }
 }
 
-void ArtisticEnvironment::setDims()
+void HardCartEnvironment::setDims()
 {
-    sI.dim = 6;
-    
-    // ...horizontal position...
-    sI.bounds.push_back(10);
-    sI.top.push_back(5.);
-    sI.bottom.push_back(0);
-    sI.aboveTop.push_back(false);
-    sI.belowBottom.push_back(false);
-    
-    // ...vertical distance...
-    sI.bounds.push_back(8);
-    sI.top.push_back(0.8);
-    sI.bottom.push_back(-0.8);
+    sI.dim = 2;
+    printf("Created the correct cart??\n");
+    // State: coordinate...
+    sI.bounds.push_back(12);
+    sI.top.push_back(2.0);
+    sI.bottom.push_back(-2.0);
     sI.aboveTop.push_back(true);
     sI.belowBottom.push_back(true);
-    
-    // ...inclination of the fish...
-    sI.bounds.push_back(8); // only positive or negative
-    sI.top.push_back(0.8);
-    sI.bottom.push_back(-0.8);
+    sI.isLabel.push_back(false);
+
+    // ...angle...
+    sI.bounds.push_back(16);
+    sI.top.push_back(0.2);
+    sI.bottom.push_back(-0.2);
     sI.aboveTop.push_back(true);
     sI.belowBottom.push_back(true);
+    sI.isLabel.push_back(false);
     
-    // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
-    sI.bounds.push_back(2); // Will get ~ 0 or 0.5
-    sI.top.push_back(1.0);
-    sI.bottom.push_back(0.0);
-    sI.aboveTop.push_back(false);
-    sI.belowBottom.push_back(false);
+    aI.dim = 1;
     
-    // ...last action (HAX!)
-    sI.bounds.push_back(3);
-    sI.top.push_back(3.0);
-    sI.bottom.push_back(0.0);
-    sI.aboveTop.push_back(false);
-    sI.belowBottom.push_back(false);
+    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5);
     
-    // ...second last action (HAX!)
-    sI.bounds.push_back(3);
-    sI.top.push_back(3.0);
-    sI.bottom.push_back(0.0);
-    sI.aboveTop.push_back(false);
-    sI.belowBottom.push_back(false);
-    
-    aI.dim = 1; //How many actions taken per turn by one agent
-    
-    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(3); //Number of possible actions to choose from (nothing, curve right, curve left)
+    aI.values.push_back(-2.);
+    aI.values.push_back(-.5);
+    aI.values.push_back(0.0);
+    aI.values.push_back(0.5);
+    aI.values.push_back(2.0);
 }
 
-int ArtisticEnvironment::evolve(double t)
+int HardCartEnvironment::evolve(double t)
 {
     fprintf(fout, "Actions:\n");
     for (auto& a : exagents)
     {
         fprintf(fout, "%d ", a->a->vals[0]);
-        debug2("Sent child: action %d\n", a->a->vals[0]);
+        debug6("Sent child: action %d\n", a->a->vals[0]);
     }
     fprintf(fout, "\n");
     fflush(fout);
     bRestart = false;
-    /*
     char str[1000] = "";
     bool empty = true;
     
@@ -183,34 +162,21 @@ int ArtisticEnvironment::evolve(double t)
     
     string sstr(str);
     sstr.erase(sstr.find_last_not_of(" \t\f\v\n\r")+1);
-   
+    
     if (sstr != "States and rewards:")
     {
-        bFailed = true;
-        bRestart = true;
-        fprintf(fout, "Die\n");
-        return 1;
-    }
-    */
-    string sstr;
-    do{
-        char str[1000] = "";
-        bool empty = true;
-        while (empty)
-        {
-            fgets(str, 1000, fin);
-            string sstr(str);
-            
-            sstr.erase(std::remove(sstr.begin(), sstr.end(), '\n'), sstr.end());
-            sstr.erase(std::remove(sstr.begin(), sstr.end(), ' '), sstr.end());
-            sstr.erase(std::remove(sstr.begin(), sstr.end(), '\t'), sstr.end());
-            empty = sstr.length() < 1;
+        if (sstr != "Restart!") {
+            die("Unrecognized command '%s' from child process!\n", str);
         }
-        
-        sstr = str;
-        sstr.erase(sstr.find_last_not_of(" \t\f\v\n\r")+1);
+        else
+        {
+            die("Unrecognized command '%s' from child process!\n", str);
+        std:cout << "Ending environment" << endl;
+            fprintf(fout, "Die\n");
+            bRestart = true;
+            
+        }
     }
-    while(sstr != "States and rewards:");
     
     for (auto& a : exagents)
     {
@@ -219,17 +185,13 @@ int ArtisticEnvironment::evolve(double t)
         for (int i=0; i<a->s->sInfo.dim; i++)
             fscanf(fin, "%lf", &(a->s->vals[i]));
         fscanf(fin, "%lf", &(a->r));
-        fscanf(fin, "%lf", &(a->_r));
         
-        debug2("Got from child: reward %f (%f),  state %s\n", a->r, a->_r, a->s->print().c_str());
-        if (a->r < -99)
+        if (a->r < -.99)
             bRestart = true;
+        debug6("Got from child: reward %f,  state %s\n", a->r, a->s->print().c_str());
     }
     if (bRestart)
-    {
-        //fprintf(fout, "Die\n");
         return 1;
-    }
-
+    
     return 0;
 }

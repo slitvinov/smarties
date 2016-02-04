@@ -21,9 +21,12 @@ double ExternalAgent::getReward()
     return r;
 }
 
-double ExternalAgent::altReward()
+double getInfo(int n)
 {
-    return _r;
+    if (n<nInfo)
+    return Info[n];
+    else
+    return 0;
 }
 
 void ExternalAgent::getState(State& _s)

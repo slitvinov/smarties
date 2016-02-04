@@ -11,6 +11,7 @@
 #include <mpi.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,6 +25,7 @@
 #include "Learners/Sarsa.h"
 #include "Learners/Learner.h"
 #include "Learners/NFQ.h"
+#include "Learners/Explorer.h"
 #include "ObjectFactory.h"
 #include "Settings.h"
 #include "Learners/SpeedyQLearning.h"
@@ -61,6 +63,7 @@ void runMaster(int nranks)
     ObjectFactory factory(settings.configFile);
     Environment* env = factory.createEnvironment(0,0);
     QApproximator* Qvals;
+    QApproximator* Qexpl;
     Learner* learner;
     
     if (settings.learner == "Q")
@@ -72,18 +75,18 @@ void runMaster(int nranks)
     else if (settings.learner == "QNN")
     {
         debug("Q learning with Network approximator.\n");
-        Qvals = new ANNApproximator(env->sI, env->aI, settings.network, nranks*env->agents.size());
+        Qvals = new ANNApproximator(env->sI, env->aI, settings, nranks*env->agents.size());
         learner = new QLearning(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate);
     }
     else if (settings.learner == "A")
     {
         debug("A learning with Network approximator.\n");
-        Qvals = new ANNApproximator(env->sI, env->aI, "LSTM", nranks*env->agents.size());
+        Qvals = new ANNApproximator(env->sI, env->aI, settings, nranks*env->agents.size());
         learner = new ALearning(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate);
     }
     else if (settings.learner == "NFQNN")
     {
-        Qvals = new NFQApproximator(env->sI, env->aI, settings.gamma, settings.network, nranks*env->agents.size()); //TODO fix last argument: size of agent memories (to be read from history file)
+        Qvals = new NFQApproximator(env->sI, env->aI, settings, nranks*env->agents.size()); //TODO fix last argument: size of agent memories (to be read from history file)
         learner = new NFQ(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate);
     }
     else if (settings.learner == "NFQtable")
@@ -97,15 +100,14 @@ void runMaster(int nranks)
         Qvals = new MultiTable(env->sI, env->aI, settings.gamma);
         learner = new Sarsa(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate, settings.lambda);
     }
-    /*else if (settings.learner == "Speedy")
+    else if (settings.learner == "XP")
     {
-        Qvals = new MultiTable(env->sI, env->aI);
-        Qold = new MultiTable(env->sI, env->aI);
-        learner = new SpeedyQLearning(Qvals, Qold, env->aI, settings.gamma, settings.greedyEps, settings.lRate, settings.lambda);
-    }*/
+        Qvals = new ANNApproximator(env->sI, env->aI, settings,  nranks*env->agents.size());
+        Qexpl = new ANNApproximator(env->sI, env->aI, settings,  nranks*env->agents.size());
+        learner = new Explorer(Qvals, Qexpl, env->aI, settings.gamma, settings.greedyEps, settings.lRate, settings.lambda);
+    }
 
-
-    Master* master = new Master(learner, Qvals, env->aI, env->sI, env->agents.size(), nranks, settings.gamma*settings.lambda);
+    Master* master = new Master(learner, Qvals, env, nranks, settings.gamma*settings.lambda);
     
     if (settings.restart != "none")
         master->restart(settings.restart);
@@ -113,14 +115,11 @@ void runMaster(int nranks)
     // Save results to dir named  settings.prefix
     if (!Saver::makedir((settings.prefix+"/").c_str())) die("Unable to make a working directory!");
 
-//     Various savers
-//     TODO: Savers should be specified in factory file
-
     RewardSaver* rsaver = new RewardSaver((ofstream*)&cout, 1000);//"reward.txt");
     master->registerSaver(rsaver);
 
     StateSaver* ssaver = new StateSaver("state.txt", 1000);
-    //master->registerSaver(ssaver);
+    
     master->run();
 }
 
@@ -131,6 +130,11 @@ int main (int argc, char** argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nranks);
     
+    struct timeval clock;
+    gettimeofday(&clock, NULL);
+    cout << clock.tv_usec << endl;
+    int seed = 84967194 + floor(clock.tv_usec);
+    
     vector<OptionStruct> opts
 	({
 		{'c', "config",     STRING, "Name of config file",    &settings.configFile, (string)"/home/novatig/smarties/factoryCart"},
@@ -140,17 +144,26 @@ int main (int argc, char** argv)
 		{'e', "greedy_eps", DOUBLE, "Greedy epsilon",         &settings.greedyEps,  0.05},
         {'l', "learn_rate", DOUBLE, "Learning rate",          &settings.lRate,      0.1},
         {'d', "lambda",     DOUBLE, "Lambda",                 &settings.lambda,     0.0},
-		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed,   84967194},
+		{'s', "rand_seed",  INT,    "Random seed",            &settings.randSeed,   seed},
         {'r', "restart",    STRING, "Restart",                &settings.restart,    (string)"none"},
 		{'q', "save_freq",  INT,    "Save frequency",         &settings.saveFreq,   10000},
         {'v', "debug_lvl",  INT,    "Debug level",            &debugLvl,            2},
         {'p', "prefix",     STRING, "Save folder",            &settings.prefix,     (string)"res/"},
-        {'H', "nne",        DOUBLE, "NN's eta",               &settings.nnEta,      0.3},
-		{'A', "nna",        DOUBLE, "NN's alpha",             &settings.nnAlpha,    0.1},
-        {'D', "nnl",        DOUBLE, "NN's lambda",            &settings.nnLambda,    0.0},
-        {'L', "nnl1",       INT,    "NN hidden layer 1",      &settings.nnLayer1,   32},
-        {'M', "nnl2",       INT,    "NN hidden layer 2",      &settings.nnLayer2,   32},
-        {'N', "net",        STRING, "Network Type",           &settings.network,    (string)"ANN"},
+        {'H', "nne",        DOUBLE, "NN's eta",               &settings.nnEta,      0.05},
+		{'A', "nna",        DOUBLE, "NN's alpha",             &settings.nnAlpha,    0.5},
+        {'D', "nnl",        DOUBLE, "NN's lambda",            &settings.nnLambda,   0.0},
+        {'K', "nnk",        DOUBLE, "NN's kappa",             &settings.nnKappa,    0.0},
+        {'S', "nnS",        DOUBLE, "NN's adapt lrate fac",   &settings.nnAdFac,    1e-6},
+        {'F', "AL_fac",     DOUBLE, "Adv Learning factor",    &settings.AL_fac,     2.0},
+        {'N', "nnl1",       INT,    "NN hidden layer 1",      &settings.nnLayer1,   100},
+        {'L', "nnl2",       INT,    "NN hidden layer 2",      &settings.nnLayer2,   15},
+        {'W', "nnl3",       INT,    "NN hidden layer 3",      &settings.nnLayer3,   0},
+        {'X', "nnl4",       INT,    "NN hidden layer 4",      &settings.nnLayer4,   0},
+        {'Y', "nnm1",       INT,    "NN memory layer 1",      &settings.nnMemory1,  10},
+        {'Z', "nnm2",       INT,    "NN memory layer 2",      &settings.nnMemory2,  0},
+        {'O', "nnout",      INT,    "NN's outputs",           &settings.nnOuts,     1},
+        {'M', "nnm1",       INT,    "NN memory layer 1",      &settings.nnMemory1,  10},
+        {'T', "net",        STRING, "Network Type",           &settings.network,    (string)"ANN"},
         {'Q', "learn",      STRING, "Learner Type",           &settings.learner,    (string)"Q"}
     });
 	

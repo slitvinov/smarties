@@ -82,4 +82,11 @@ void HuntEnvironment::setDims()
     aI.dim = 1; //How many actions taken per turn by one agent
     
     for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5); //Number of possible actions to choose from (nothing, curve right, curve left)
+    
+    aI.zeroact = 0;
+    for (auto& a : exagents)
+    {
+        a->Info.resize(2);
+        a->nInfo = 2;
+    }
 }
