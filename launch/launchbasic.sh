@@ -22,10 +22,8 @@ mkdir -p ../run$2/res
 fi
 
 cp ../makefiles/${EXECNAME} ../run$2/executable
-cp ../factory/factoryCart ../run$2/factory
-cp ../apps/cart-pole ../run$2/
+cp ../factory/factoryCartOld ../run$2/factory
+cp ../apps/cart-pole-old ../run$2/
 cd ../run$2
 
-#aprun -n $1 ./executable ${OPTIONS}
-mpirun -np $1 ./executable ${OPTIONS}
-#/opt/mpich/bin/mpirun -np $1 ./executable ${OPTIONS}
+./executable ${OPTIONS}

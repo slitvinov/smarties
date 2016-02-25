@@ -21,50 +21,49 @@
 class NFQApproximator : public QApproximator
 {
     private:
-    int nInputs;
-    int batchSize;
-    int nAgents;
-    Real lambdaold, lambdanew, errold, errnew, delta, ALfac; // if >= 1. then i'm not doing advantage learning
+    int nInputs, nActions, nStateDims;
+    int batchSize, iter;
+    Real delta, ALfac; // if >= 1. then i'm not doing advantage learning
     bool first;
-    Memory backup;
     ActionIterator actionsIt;
     Real gamma, A, B;
     Approximator * ann;
     vector<Real> prediction;
     vector<Real> scaledInp;
+    vector<int> indexes;
     RNG* rng;
     
     public:
     string nettype;
     // Costructor-Destructor
-    NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, Settings settings, int nAgents);
+    NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings, int nAgents);
     ~NFQApproximator();
     
     // Methods
-    Real get (const State& s, const Action& a, int nAgent = 0);
-    Real test(const State& s, const Action& a, int nAgent = 0);
-    Real advance(const State& s, const Action& a, int nAgent = 0);
-    Real getMax (const State& s, int & nAct, int nAgent);
-    Real testMax (const State& s, int & nAct,  int nAgent);
-    Real advanceMax (const State& s, int & nAct, int nAgent);
+    void get(const State& sOld, vector<Real> & Qold, const State& s, vector<Real> & Q, int iAgent = 0) override;
+    Real get (const State& s, const Action& a, int nAgent = 0) override;
+    Real getMax (const State& s, Action& a, int nAgent = 0) override;
     
-    void set (const State& s, const Action& a, Real value, int nAgent = 0) {;} //nothing to see here
-    
-    void correct(const State& s, const Action& a, Real error, int nAgent = 0);
-    
-    Real Train()
+    void set (const State& s, const Action& a, Real value, int nAgent = 0) override
     {
-        if (nettype == "LSTM")
-            return serialUpdate();
-        else
-            return batchUpdate();
+        correct(s, a, value, nAgent);
+    } //nothing to see here
+    
+    void correct(const State& s, const Action& a, Real error, int nAgent = 0) override;
+    
+    void Train() override;
+    //Real batchUpdate();
+    //Real serialUpdate();
+    
+    void passData(int & agentId, int & first, State & sOld, Action & a, State & sNew, Real & reward, vector<Real>& info) override
+    {
+        QApproximator::passData(agentId, first, sOld, a, sNew, reward, info);
+        if (first)
+            ann->resetMemories(agentId);
     }
-    Real batchUpdate();
-    Real serialUpdate();
-    //Real serialALearning();
-    void save(string name);
-    bool restart(string name);
-    void passData(int agentId, State& sOld, Action& a, State& sNew, Real reward, Real altrew);
+    
+    void save(string name) override;
+    bool restart(string name) override;
     Real descale(Real y) {return (y-B)/A;}//y;}//
     Real rescale(Real x) {return  A*x +B;}//x;}//
 };

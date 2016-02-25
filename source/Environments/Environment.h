@@ -26,11 +26,15 @@ public:
         int nInfo;
 	vector<Agent*> agents;
 	map<string, void*> data;
-	bool bRestart, bFailed;
-    Environment():bRestart(false),bFailed(false) {};
-    Environment(vector<Agent*> agents) : agents(agents),bRestart(false),bFailed(false) {};
-	
-	virtual void   getState (Agent* agent, State& s) { };
-	virtual Real getReward(Agent* agent)           { return 0; };
-	virtual int   evolve   (Real t)                { return 0; };
+	int bStatus;
+    Environment() {};
+    Environment(vector<Agent*> agents) : agents(agents) {};
+    
+    virtual void setDims () =0;
+	virtual void getState (Agent* agent,State& s) { };
+	virtual Real getReward(Agent* agent)          { return 0; };
+	virtual int  evolve   (Real t)                { return 0; };
+    virtual int  init     ()                { return 0; };
+    virtual void close_Comm ( ) {};
+    virtual void setup_Comm ( ) {};
 };

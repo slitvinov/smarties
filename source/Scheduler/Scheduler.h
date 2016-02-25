@@ -7,14 +7,17 @@
 //
 
 #pragma once
-
+#define MEGADEBUG
 #include "../Learners/Learner.h"
 #include "../Savers/Saver.h"
 #include "../Learners/Trace.h"
 #include "../QApproximators/MultiTable.h"
 #include "../QApproximators/QApproximator.h"
 #include "../QApproximators/NFQApproximator.h"
+
+#ifndef MEGADEBUG
 #include <mpi.h>
+#endif
 
 class Saver;
 
@@ -27,8 +30,7 @@ private:
     int outsize, outOneSize;
     byte *inbuf, *outbuf;
     
-    inline void unpackChunk(byte* &buf, State& sOld, Action& a, Real& r, vector<Real>& info, State& s);
-    inline void unpackChunk(byte* &buf, State& sOld, Action& a, Real& r, State& s);
+    inline void unpackChunk(byte* &buf, int & first, State& sOld, Action& a, Real& r, vector<Real>& info, State& s);
     inline void packChunk(byte* &buf, Action a);
     
     Real totR;
@@ -58,7 +60,7 @@ class Slave
     Environment* env;
     vector<Agent*> agents;
     Real dt;
-    bool first;
+    int first;
     int insize, outsize, nInfo;
     byte *inbuf, *outbuf;
     
@@ -71,6 +73,6 @@ class Slave
 public:
     
     Slave(Environment* env, Real newDt, int me);
-    int evolve(Real& t);
+    void evolve(Real& t);
     
 };

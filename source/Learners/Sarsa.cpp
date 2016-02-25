@@ -36,7 +36,7 @@ void Sarsa::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOl
     actionsIt.reset();
     while (!actionsIt.done())
     {
-        const Real val = Q->test(s, actionsIt.next(), Nagent);
+        const Real val = Q->get(s, actionsIt.next(), Nagent);
         if (val >= best + 1e-12)
         {
             best = val;

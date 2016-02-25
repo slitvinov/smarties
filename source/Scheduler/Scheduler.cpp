@@ -20,7 +20,10 @@ Master::Master(Learner* learner, QApproximator* newQ, Environment* env, int nSla
 learner(learner), actInfo(env->aI), sInfo(env->sI), nAgents(env->agents.size()), nSlaves(nSlaves), Q(newQ)
 {
     nInfo = env->nInfo;
-    inOneSize = 2*sInfo.dim*sizeof(Real) + actInfo.dim*sizeof(Real) + (1+nInfo)*sizeof(Real);
+    printf("Adding %d info\n",nInfo);
+    
+    inOneSize = sizeof(int) + 2*sInfo.dim*sizeof(Real) + actInfo.dim*sizeof(Real) + (1+nInfo)*sizeof(Real);
+    //cout << inOneSize << endl;
     insize = 1;
     inbuf  = new byte[insize*inOneSize];
     
@@ -63,32 +66,15 @@ void Master::registerSaver(Saver* saver)
     saver->setMaster(this);
 }
 
-inline void Master::unpackChunk(byte* &buf, State& sOld, Action& a, Real& r, State& s)
+inline void Master::unpackChunk(byte* &buf, int & first, State& sOld, Action& a, Real& r, vector<Real>& info, State& s)
 {
     // Packing order
     // sOld, a, r, s
     static const int sSize   = sInfo.dim   * sizeof(Real);
     static const int actSize = actInfo.dim * sizeof(Real);
     
-    sOld.unpack(buf);
-    buf += sSize;
-    
-    a.unpack(buf);
-    buf += actSize;
-    
-    r = *((Real*) buf);
-    buf += sizeof(Real);
-    
-    s.unpack(buf);
-    buf += sSize;
-}
-
-inline void Master::unpackChunk(byte* &buf, State& sOld, Action& a, Real& r, vector<Real>& info, State& s)
-{
-    // Packing order
-    // sOld, a, r, s
-    static const int sSize   = sInfo.dim   * sizeof(Real);
-    static const int actSize = actInfo.dim * sizeof(Real);
+    first = *((Real*) buf);
+    buf += sizeof(int);
     
     sOld.unpack(buf);
     buf += sSize;
@@ -124,47 +110,48 @@ void Master::restart(string fname)
 
 void Master::run()
 {
+#ifndef MEGADEBUG
     MPI_Request request;
     MPI_Status  status;
-    State sOld(sInfo);
-    State s(sInfo);
-    Action a(actInfo), aOld(actInfo);
-    vector<Real> info;
+#endif
+    State  sOld(sInfo),   s(sInfo);
+    Action aOld(actInfo), a(actInfo);
+    vector<Real> info(nInfo);
     Real r;
-    
-    int n;
-    int iter = 0;
-    int relaxTime = 10;
+    int n, iter(0), completed, slave, first;
     
     debug("Master starting...\n");
     
     while (true)
     {
+#ifndef MEGADEBUG
         MPI_Irecv(&n, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
-        int completed;
-        int trials = 0;
         MPI_Test(&request, &completed, &status);
-        
-        while (completed == 0)
+#endif
+        do
         {
-            usleep(relaxTime);
+            Q->Train();
+            //debug2("Master trains\n");
+            
+#ifndef MEGADEBUG
             MPI_Test(&request, &completed, &status);
-            trials++;
+#endif
         }
-        if (trials < 2 && relaxTime > 1) relaxTime /= 2;
-        if (trials > 5) relaxTime *= 2;
+        while (completed == 0);
         
-        debug5("Idling time of the master: %d, fetch trials: %d\n", relaxTime, trials);
+        //debug5("Idling time of the master: %d, fetch trials: %d\n", relaxTime, trials);
         
-        debug5("Master will receive %d chunks from proc %d of total size %d... ", n, status.MPI_SOURCE, n*inOneSize);
-        int slave = status.MPI_SOURCE;
+#ifndef MEGADEBUG
+        debug9("Master will receive %d chunks from proc %d of total size %d... ", n, status.MPI_SOURCE, n*inOneSize);
+        slave = status.MPI_SOURCE;
+#endif
         
         if (n > insize)
         {
             insize = 1.5*n;
             delete[] inbuf;
             inbuf = new byte[insize * inOneSize];
-            printf("This should not be happening: size of inbuf increased.\n");
+            printf("This should not be happening? size of inbuf increased.\n");
         }
         
         if (n > outsize)
@@ -172,61 +159,64 @@ void Master::run()
             outsize = 1.5*n;
             delete[] outbuf;
             outbuf = new byte[outsize * outOneSize];
-            printf("This should not be happening: size of outbuf increased.\n");
+            printf("This should not be happening? size of outbuf increased.\n");
         }
-        
+#ifndef MEGADEBUG
         MPI_Recv(inbuf, n*inOneSize, MPI_BYTE, slave, 2, MPI_COMM_WORLD, &status);
         debug5("completed\n");
-        
+#endif
         byte* cInbuf = inbuf;
         byte* cOutbuf = outbuf;
 
         for (int i=0; i<n; i++)
         {
-            unpackChunk(cInbuf, sOld, aOld, r, info, s);
-
-            //for(int i=0; i<sInfo.dim; i++) debug7("Transition from state %f (n %d) to %f (n %d)\n", sOld.vals[i], _discretize(sOld.vals[i], sOld.sInfo.bottom[i], sOld.sInfo.top[i], sOld.sInfo.bounds[i], sOld.sInfo.belowBottom[i], sOld.sInfo.aboveTop[i]), s.vals[i], _discretize(s.vals[i], s.sInfo.bottom[i], s.sInfo.top[i], s.sInfo.bounds[i], s.sInfo.belowBottom[i], s.sInfo.aboveTop[i]));
+            unpackChunk(cInbuf, first, sOld, aOld, r, info, s);
             
             if (r > -1e10)
             {
-                int agentId = (status.MPI_SOURCE-1) * nAgents + i;
+                int agentId = slave*nAgents + i -1;
                 
-                debug4("To learner %d: %s --> %s with %s was rewarded with %f \n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r);
+                //printf("To learner %d: %s --> %s with %s was rewarded with %f \n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r);
+                fflush(stdout);
+                Q->passData(agentId, first, sOld, aOld, s, r, info);
                 
-                Q->passData(agentId, sOld, aOld, s, r, info);
-
-                traces[agentId].add(sOld, aOld);
+                //traces[agentId].add(sOld, aOld);
                 learner->updateSelect(traces[agentId], s, a, sOld, aOld, r, agentId);
 
                 totR += r;
 
-                debug4("Chose action %s to send to agent %3d of slave %d\n", a.print().c_str(), i, status.MPI_SOURCE);
+                debug9("Chose action %s to send to agent %3d of slave %d\n", a.print().c_str(), i, slave);
             }
+            
             packChunk(cOutbuf, a);
         }
-        
+#ifndef MEGADEBUG
         MPI_Send(outbuf, n*outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD);
-        debug5("Master sends %d bytes to proc %d\n", n*outOneSize, slave);
-        
-        // TODO: Add savers
-        // TODO: also to the slave processes
+        debug9("Master sends %d bytes to proc %d\n", n*outOneSize, slave);
+#endif
+        // TODO: Add savers, also to the slave processes
         
         iter++;
         if (iter % settings.saveFreq == 0)
         {
-            _info("Reward: %f\n", getTotR());
+            printf("Reward: %f\n", getTotR());
             learner->savePolicy(Saver::folder + "policy");
         }
         
-        execSavers(iter * settings.dt, iter);
+        //execSavers(iter * settings.dt, iter);
+#ifdef MEGADEBUG
+        abort();
+#endif
+        
     }
     
 }
 
 Slave::Slave(Environment* env, Real dt, int me) : env(env), agents(env->agents), dt(dt), me(me), first(true), nInfo(env->nInfo)
 {
+#ifndef MEGADEBUG
     MPI_Request req;
-    
+#endif
     for (int i=0; i<agents.size(); i++)
     {
         actions.push_back(*(new Action(env->aI)));
@@ -234,9 +224,9 @@ Slave::Slave(Environment* env, Real dt, int me) : env(env), agents(env->agents),
     }
     
     insize  = agents.size() * ( env->aI.dim*sizeof(Real) );
-    //G outsize = agents.size() * ( 2*env->sI.dim*sizeof(Real) + env->aI.dim*sizeof(Real) + sizeof(Real) );
     
-    outsize = agents.size() * ( 2*env->sI.dim*sizeof(Real) + env->aI.dim*sizeof(Real) + (1+nInfo)*sizeof(Real) );
+    outsize = agents.size() * ( sizeof(int) + 2*env->sI.dim*sizeof(Real) + env->aI.dim*sizeof(Real) + (1+nInfo)*sizeof(Real) );
+    //cout << outsize << endl;
     
     inbuf  = new byte[insize];
     outbuf = new byte[outsize];
@@ -247,49 +237,31 @@ Slave::Slave(Environment* env, Real dt, int me) : env(env), agents(env->agents),
         actions[i] = aIter.getRand(rng);
     
     needToPack = new bool[agents.size()];
-    
-    byte* tmpBuf = new byte[insize];
-    byte* cbuf = tmpBuf;
-    
-    // a
-    static const int actSize = env->aI.dim * sizeof(Real);
-    
-    for (int i=0; i<agents.size(); i++)
-    {
-        actions[i].pack(cbuf);
-        cbuf += actSize;
-    }
-    
-    MPI_Isend(tmpBuf, insize, MPI_BYTE, me, 0, MPI_COMM_WORLD, &req);
 }
 
-int Slave::evolve(Real& t)
+void Slave::evolve(Real& t)
 {
+#ifndef MEGADEBUG
     MPI_Request inreq, outreqN, outreqData;
     MPI_Status  status;
+#endif
     int n = agents.size();
-
-    if(first)
+    if(first) //get initial conditions
     {
         for (int i = 0; i<n; i++)
+        actions[i].vals[0] = env->aI.zeroact;
+        
+        int extflag = env->init();
+        debug9("Sheduler slave init\n");
+        if (extflag<0)
         {
-            Agent* agent = agents[i];
-            actions[i].vals[0] = env->aI.zeroact;
-            agent->act(actions[i]);
+            env->close_Comm();
+            env->setup_Comm();
+            return;
         }
-        int extflag = env->evolve(t);
-        debug6("Slave %d performing first action %d\n", me,env->aI.zeroact);
-        //if(extflag) return extflag;
-    }
-    else // real action, we have done at least one MPI_Send
-    {
-        MPI_Recv(inbuf, insize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
-        debug6("Slave %d receives %d bytes\n", me, insize);
     }
     
-    unpackData();
-    
-    for (int i = 0; i<n; i++)
+    for (int i = 0; i<n; i++) //backup old states before evolve
     {
         agents[i]->getState(oldStates[i]);
         //debug1("Old states %s\n", oldStates[i].print().c_str());
@@ -297,43 +269,43 @@ int Slave::evolve(Real& t)
     }
     
     // TODO: not all of the agents act at the same moment of time
-    bool acted = false;
-    int extflag=0;
-
-    for (int i = 0; i<n; i++)
+    for (int i = 0; i<n; i++) //perform the action that we got during previous MPI_Recv
     {
         Agent* agent = agents[i];
-        acted = true;
-        if(first)
-        {
-            actions[i].initAct();
-            actions[i].vals[0] = env->aI.zeroact;
-            debug4("First random action for agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
-        }
-        debug6("Agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
+
+        debug9("Agent %3d of slave %d will act %s\n", i, me, actions[i].print().c_str());
         agent->act(actions[i]);
         agent->setLastLearned(t);
         needToPack[i] = true;
         
         agent->move(dt);
     }
-    first = false;
-    extflag = env->evolve(t);
+    
+    int extflag = env->evolve(t);
     t += dt;
     
     packData();
-    // if dummy action comment has worked, here we are giving state old, action, new state, reward
+    
+    if(extflag==0)
+        first = false;
+    else
+        first = true;
+    
+    //here we are giving state old, action, new state, reward
+#ifndef MEGADEBUG
     MPI_Send(&n, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
     MPI_Send(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD);
-    debug6("Slave %d sends %d chunks of total size %d bytes\n", me, n, outsize);
-    if (extflag!=0)
-    {
-        first = true;
-        MPI_Recv(inbuf, insize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
-        debug6("Slave %d restarts before receiving %d bytes\n", me, insize);
-    }
-    return 0;
+    debug9("Slave %d sends %d chunks of total size %d bytes\n", me, n, outsize);
+
+    MPI_Recv(inbuf, insize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
+#endif
+    unpackData();
     
+    if (extflag<0)
+    {
+        env->close_Comm();
+        env->setup_Comm();
+    }
 }
 
 void Slave::unpackData()
@@ -345,9 +317,9 @@ void Slave::unpackData()
     {
         actions[i].unpack(cbuf);
         cbuf += actSize;
+        //debug9("Agent %3d of slave will act %s\n", i, actions[i].print().c_str());
     }
 }
-
 
 void Slave::packData()
 {
@@ -355,12 +327,15 @@ void Slave::packData()
     byte* cbuf = outbuf;
     
     // Packing order
-    // sOld, a, r, s
+    // first, sOld, a, r, info, s
     static const int sSize   = env->sI.dim * sizeof(Real);
     static const int actSize = env->aI.dim * sizeof(Real);
     
     for (int i=0; i<agents.size(); i++)
     {
+        *((Real*)cbuf) = first;
+        cbuf += sizeof(int);
+        
         Agent* agent = agents[i];
         
         oldStates[i].pack(cbuf);

@@ -1,245 +1,330 @@
 /*
- *  Network.cpp
+ *  LSTMNet.cpp
  *  rl
  *
- *  Created by Dmitry Alexeev on 20.06.13.
- *  Copyright 2013 ETH Zurich. All rights reserved.
+ *  Created by Guido Novati on 11.02.16.
+ *  Copyright 2016 ETH Zurich. All rights reserved.
  *
  */
 
 #include <cmath>
+#include <algorithm>
 #include <iostream>
-#include <cstdlib>
-#include <cblas.h>
-
+#include <fstream>
 #include "Network.h"
 #include "../ErrorHandling.h"
-
-//#define DBG_EXEC
-//#define DBG_BACK //panico
-//#define DBG_ADJS
-//#define DBG_INPUT
-
+#include <cassert>
+#define SCAL 6.
 using namespace ErrorHandling;
 
-Network::Network(vector<int>& layerSize, Real eta, Real alpha, Real lambda, int batchSize) :
-nInputs(layerSize.front()), nOutputs(layerSize.back()), nLayers(layerSize.size()), eta(eta), alpha(alpha), lambda(lambda), batchSize(batchSize), rng(0)
+void Network::orthogonalize(int nO, int nI, int n0)
 {
-    Layer* first = new Layer(nInputs, new Linear);
-    layers.push_back(first);
-    
-    for (int i=1; i<nLayers; i++)
+    if (nI>1)
+    for (int i=1; i<nO; i++)
+    for (int j=0; j<i;  j++)
     {
-        Layer* l = (i == nLayers-1) ? new Layer(layerSize[i], new Linear)
-                                    : new Layer(layerSize[i], new Tanh);
-        Layer* prev = layers.back();
+        Real u_d_u = 0.0;
+        Real v_d_u = 0.0;
+        for (int k=0; k<nI; k++)
+        {
+            u_d_u += *(weights +n0 +j*nI +k)* *(weights +n0 +j*nI +k);
+            v_d_u += *(weights +n0 +j*nI +k)* *(weights +n0 +i*nI +k);
+        }
+        if(u_d_u>0) //die("WTF did you do %d %d %d %d %d???\n",i,j,nO,nI,n0);
+        for (int k=0; k<nI; k++)
+            *(weights +n0 +i*nI +k) -= (v_d_u/u_d_u) * *(weights +n0 +j*nI +k);
+    }
+}
+
+void Network::initializeWeights(Graph & g, mt19937 & gen)
+{
+    uniform_real_distribution<Real> dis(-1.,1.);
+    
+    for (int w=g.wPeep; w<(g.wPeep + 3*g.recurrSize); w++)
+        *(weights +w) = dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
+    
+    for (const auto & l : *g.nl_c_l)
+    {
+        for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
+            *(weights +w) = dis(gen)*sqrt(SCAL)/Real(l->nO + l->nI);
+        orthogonalize(l->nO,l->nI,l->iW);
+    }
+    
+    for (const auto & l : *g.rl_c_l)
+    {
+        for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
+            *(weights +w) = dis(gen)*sqrt(SCAL)/Real(l->nO + l->nI);
+        orthogonalize(l->nO,l->nI,l->iW);
+        
+        for (int w=l->iWI; w<(l->iWI+ l->nO*l->nI); w++)
+            *(weights +w) = dis(gen)*sqrt(SCAL)/Real(l->nO + l->nI);
+        orthogonalize(l->nO,l->nI,l->iWI);
+        
+        for (int w=l->iWF; w<(l->iWF+ l->nO*l->nI); w++)
+            *(weights +w) = dis(gen)*sqrt(SCAL)/Real(l->nO + l->nI);
+        orthogonalize(l->nO,l->nI,l->iWF);
+        
+        for (int w=l->iWO; w<(l->iWO+ l->nO*l->nI); w++)
+            *(weights +w) = dis(gen)*sqrt(SCAL)/Real(l->nO + l->nI);
+        orthogonalize(l->nO,l->nI,l->iWO);
+    }
+    
+    for (const auto & l : *g.rl_o_l)
+    {
+        for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
+            *(weights +w) = dis(gen)*sqrt(SCAL)/Real(l->nO + l->nI);
+        orthogonalize(l->nO,l->nI,l->iW);
+        
+        for (int w=l->iWI; w<(l->iWI+ l->nO*l->nI); w++)
+            *(weights +w) = dis(gen)*sqrt(SCAL)/Real(l->nO + l->nI);
+        orthogonalize(l->nO,l->nI,l->iWI);
+        
+        for (int w=l->iWF; w<(l->iWF+ l->nO*l->nI); w++)
+            *(weights +w) = dis(gen)*sqrt(SCAL)/Real(l->nO + l->nI);
+        orthogonalize(l->nO,l->nI,l->iWF);
+        
+        for (int w=l->iWO; w<(l->iWO+ l->nO*l->nI); w++)
+            *(weights +w) = dis(gen)*sqrt(SCAL)/Real(l->nO + l->nI);
+        orthogonalize(l->nO,l->nI,l->iWO);
+    }
+
+    for (int w=g.biasHL; w<g.biasHL+g.normalSize; w++)
+        *(biases +w) = dis(gen)*sqrt(SCAL)/Real(g.normalSize);
+    
+    for (int w=g.biasIN; w<g.biasIN+g.recurrSize; w++)
+        *(biases +w) = dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
+        
+    for (int w=g.biasIG; w<g.biasIG+g.recurrSize; w++)
+        *(biases +w) = -2.; /* IG starts decisively closed */
+        
+    for (int w=g.biasFG; w<g.biasFG+g.recurrSize; w++)
+        *(biases +w) =  2.; /* FG starts decisively open */
+        
+    for (int w=g.biasOG; w<g.biasOG+g.recurrSize; w++)
+        *(biases +w) = -2.; /* OG starts decisively closed */
+}
+
+void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
+{
+    int normalSize_SIMD = ceil((Real)g->normalSize/SIMD)*SIMD;
+    if(!last && !first)
+        g->normalSize = normalSize_SIMD;
+    
+    if (g->normalSize>0)
+    {
+        g->normalPos = nNeurons;
+        nNeurons += normalSize_SIMD;
+        g->biasHL = nBiases;
+        nBiases += normalSize_SIMD;
+        
+        if (p->recurrSize>0)
+        { //conntected to previous recurrent layer
+            Link * link = new Link(p->recurrSize,p->recurrPos,g->normalSize,g->normalPos,nWeights,p->first);
+            
+            g->nl_c_l->push_back(link);
+            p->rl_l_c->push_back(link);
+            
+            nWeights += p->recurrSize*g->normalSize;
+        }
+        
+        if (p->normalSize>0)
+        { //conntected to previous normal layer
+            Link * link = new Link(p->normalSize,p->normalPos,g->normalSize,g->normalPos,nWeights,p->first);
+            
+            g->nl_c_l->push_back(link);
+            p->nl_l_c->push_back(link);
+            
+            nWeights += p->normalSize*g->normalSize;
+        }
+        
+        if (g->recurrSize>0)
+        { //conntected to previous normal layer
+            Link * link = new Link(g->recurrSize,g->recurrPos,g->normalSize,g->normalPos,nWeights,g->first);
+            
+            g->nl_c_l->push_back(link);
+            g->rl_l_c->push_back(link);
+            
+            nWeights += g->recurrSize*g->normalSize;
+        }
+        
+        NormalLayer * l;
+        ActivationFunction * f;
+        
+        if (last)
+            f = new Linear;
+        else
+            f = new SoftSign;
+        
+        l = new NormalLayer(g->normalSize, g->normalPos, g->biasHL, g->nl_c_l, g->nl_l_c, g->nl_l_f, f, last);
         layers.push_back(l);
-        prev->connect(l, &rng);
-    }
-    
-    inputs.resize(nInputs);
-    outputs.resize(nOutputs);
-    errors.resize(nOutputs);
-    
-    first->connect2inputs(inputs);
-    layers.back()->connect2outputs(outputs);
-    layers.back()->connect2errors(errors);
-    
-    totWeights = 0;
-    nInBatch   = 0;
-    for (int i=0; i<nLayers-1; i++)
-    totWeights += layers[i]->nNeurons * (layers[i+1]->nNeurons - 1);
-    
-    if (batchSize == -1) this->batchSize = batchSize = totWeights;
-    
-    J.set_size(nOutputs*batchSize, totWeights);
-    I.eye(totWeights, totWeights);
-    
-    e.set_size(batchSize*nOutputs);
-    dw.set_size(totWeights);
-    Je.set_size(totWeights);
-    
-    Agents.clear();
-    for (int i = 0; i<batchSize; ++i)
-    {
-        Memory agent(0, nInputs);
-        Agents.push_back(agent);
     }
 }
 
-void Network::predict(const vector<Real>& inputs, vector<Real>& outputs, int nAgent)
+void Network::addLSTM(Graph * p, Graph * g, bool first, bool last)
 {
-    for (int i=0; i<nInputs; i++)
-    *(this->inputs[i]) = inputs[i];
+    if (last) die("How the fudge did you get here?\n");
+    g->normalSize = ceil((Real)g->normalSize/SIMD)*SIMD;
+    g->recurrSize = ceil((Real)g->recurrSize/SIMD)*SIMD;
     
-    for (int i=0; i<nLayers; i++)
-    layers[i]->propagate();
-    
-    for (int i=0; i<nOutputs; i++)
-    outputs[i] = *(this->outputs[i]);
-}
-
-void Network::improve(const vector<Real>& inputs, const vector<Real>& errors, int nAgent)
-{
-    for (int i=0; i<nInputs; i++)
-    *(this->inputs[i]) = inputs[i];
-    
-    for (int i=0; i<nOutputs; i++)
-    *(this->errors[i]) = errors[i];
-    
-    for (int i=nLayers-1; i>=0; i--)
-    layers[i]->backPropagate();
-    
-    for (int i=0; i<nLayers; i++)
-    layers[i]->adjust(eta, alpha,lambda);
-}
-
-void Network::setBatchsize(int size)
-{
-    batchSize = size;
-    totWeights = 0;
-    nInBatch   = 0;
-    for (int i=0; i<nLayers-1; i++)
-    totWeights += layers[i]->nNeurons * (layers[i+1]->nNeurons - 1);
-    
-    if (batchSize == -1) this->batchSize = batchSize = totWeights;
-    
-    J.set_size(nOutputs*batchSize, totWeights);
-    I.eye(totWeights, totWeights);
-    
-    e.set_size(batchSize*nOutputs);
-    dw.set_size(totWeights);
-    Je.set_size(totWeights);
-}
-
-NetworkLM::NetworkLM(vector<int>& layerSize, Real muFactor, int batchSize) :
-Network(layerSize, 0, 0, 0, batchSize), muFactor(muFactor)
-{
-    mu = 0.01;
-    muMax = 1e10;
-    muMin = 1e-3;
-}
-
-void NetworkLM::improve(const vector<Real>& inputs, const vector<Real>& errors, int nAgent)
-{
-    openblas_set_num_threads(12);
-    vector<Real> tmpVec(nOutputs);
-    predict(inputs, tmpVec);
-    batch.push_back(inputs);
-    batchOut.push_back(tmpVec);
-    for (int i=0; i<nOutputs; i++)
-    tmpVec[i] -= errors[i];
-    batchExact.push_back(tmpVec);
-    
-    for (int i=0; i<nOutputs; i++)
-    e(i + nInBatch*nOutputs) = errors[i];
-    
-    for (int i=0; i<nOutputs; i++)
+    if (g->recurrSize>0)
     {
-        for (int j=0; j<nOutputs; j++)
-        *(this->errors[j]) = (i==j) ? 1 : 0;  // !!!!!!!!!!!!!!!!!!!!!!
-        
-        for (int i=nLayers-1; i>=0; i--)
-        layers[i]->backPropagate();
-        
-        int w = 0;
-        for (int l=0; l<nLayers; l++)
-        for (int n=0; n<layers[l]->nNeurons; n++)
-        for (int lnk=0; lnk<layers[l]->neurons[n]->inLinks.size(); lnk++)
-        J(i + nInBatch*nOutputs, w++) = -layers[l]->neurons[n]->err * layers[l]->neurons[n]->inLinks[lnk]->neuronFrom->oval;
-    }
-    
-    nInBatch++;
-    
-    if (nInBatch == batchSize)
-    {
-        debug("nInBatch %d\n", batchSize);
-        
-        nInBatch = 0;
-        Q = 0;
-        for (int i=0; i<nOutputs*batchSize; i++)
-        Q += e(i) * e(i);
-        
-        Real Q0 = Q;
-        Q = Q0+1;
-        
-        JtJ = J.t() * J;
-        Je  = J.t() * e;
-        
-        while (Q > Q0)
         {
-            tmp = JtJ + mu*I;
-            dw = solve(tmp, Je);
+            g->recurrPos = nNeurons;
+            nNeurons += g->recurrSize;
+            g->indState = nStates;
+            nStates  += g->recurrSize;
             
-            bool _nan = false;
-            for (int w=0; w<totWeights; w++)
-            if (std::isnan((dw(w))) || std::isinf((dw(w))))
-            _nan = true;
-            if (_nan)
-            {
-                mu *= muFactor;
-                Q = Q0+1;
-                continue;
-            }
+            g->biasIN = nBiases;
+            g->biasIG = g->biasIN + g->recurrSize;
+            g->biasFG = g->biasIG + g->recurrSize;
+            g->biasOG = g->biasFG + g->recurrSize;
+            nBiases += 4*g->recurrSize;
             
-            int w = 0;
-            for (int l=0; l<nLayers; l++)
-            for (int n=0; n<layers[l]->nNeurons; n++)
-            for (int lnk=0; lnk<layers[l]->neurons[n]->inLinks.size(); lnk++)
-            {
-                debug7("l%d w%d%d = %f\n", l, lnk, n, layers[l]->neurons[n]->inLinks[lnk]->w);
-                layers[l]->neurons[n]->inLinks[lnk]->w += dw(w++);
-            }
-            
-            
-            Q = 0;
-            for (int i=0; i<batchSize; i++)
-            {
-                predict(batch[i], tmpVec);
-                for (int j=0; j<nOutputs; j++)
-                {
-                    Real diff = tmpVec[j] - batchExact[i][j];
-                    Q += diff * diff;
-                }
-            }
-            
-            if (Q > Q0)
-            {
-                if (mu < muMax)
-                mu *= muFactor;
-                else
-                break;
-                rollback();
-            }
+            g->wPeep  = nWeights;
+            nWeights+= 3*g->recurrSize;
+            g->dSdB   = ndSdB;
+            ndSdB += 5 * g->recurrSize;
         }
         
-        if (mu > muMin) mu /= muFactor;
-        
-        if (batch.size() != batchSize || batchExact.size() != batchSize || batchOut.size() != batchSize)
-        die("Ololo looooooser\n");
-        for (int b=0; b<batchSize; b++)
-        {
-            batch[b].clear();
-            batchOut[b].clear();
-            batchExact[b].clear();
+        if (p->recurrSize>0)
+        { //conntected to previous recurrent layer
+            int WeightHL = nWeights;
+            nWeights += p->recurrSize*g->recurrSize;
+            int WeightIG = nWeights;
+            nWeights += p->recurrSize*g->recurrSize;
+            int WeightFG = nWeights;
+            nWeights += p->recurrSize*g->recurrSize;
+            int WeightOG = nWeights;
+            nWeights += p->recurrSize*g->recurrSize;
+            
+            int idSdW  = ndSdW;
+            ndSdW += p->recurrSize * g->recurrSize;
+            
+            Link * link = new Link(p->recurrSize,p->recurrPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG,idSdW,p->first);
+            g->rl_c_l->push_back(link);
+            p->rl_l_c->push_back(link);
+        }
+        if (p->normalSize>0)
+        { //conntected to previous normal layer
+            int WeightHL = nWeights;
+            nWeights += p->normalSize*g->recurrSize;
+            int WeightIG = nWeights;
+            nWeights += p->normalSize*g->recurrSize;
+            int WeightFG = nWeights;
+            nWeights += p->normalSize*g->recurrSize;
+            int WeightOG = nWeights;
+            nWeights += p->normalSize*g->recurrSize;
+            
+            int idSdW  = ndSdW;
+            ndSdW += p->normalSize * g->recurrSize;
+            
+            Link * link = new Link(p->normalSize,p->normalPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG,idSdW,p->first);
+            g->rl_c_l->push_back(link);
+            p->nl_l_c->push_back(link);
+        }
+
+        { //conntected to past realization of recurrent layer
+            int WeightHL = nWeights;
+            nWeights += g->recurrSize*g->recurrSize;
+            int WeightIG = nWeights;
+            nWeights += g->recurrSize*g->recurrSize;
+            int WeightFG = nWeights;
+            nWeights += g->recurrSize*g->recurrSize;
+            int WeightOG = nWeights;
+            nWeights += g->recurrSize*g->recurrSize;
+            
+            int idSdW  = ndSdW;
+            ndSdW += g->recurrSize * g->recurrSize;
+            
+            Link * link = new Link(g->recurrSize,g->recurrPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG,idSdW);
+            g->rl_o_l->push_back(link);
+            g->rl_l_f->push_back(link);
+        }
+        if (g->normalSize>0)
+        { //conntected to past realization of normal layer
+            int WeightHL = nWeights;
+            nWeights += g->normalSize*g->recurrSize;
+            int WeightIG = nWeights;
+            nWeights += g->normalSize*g->recurrSize;
+            int WeightFG = nWeights;
+            nWeights += g->normalSize*g->recurrSize;
+            int WeightOG = nWeights;
+            nWeights += g->normalSize*g->recurrSize;
+            
+            int idSdW  = ndSdW;
+            ndSdW += g->normalSize * g->recurrSize;
+            
+            Link * link = new Link(g->normalSize,g->normalPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG,idSdW);
+            g->rl_o_l->push_back(link);
+            g->nl_l_f->push_back(link);
         }
         
-        batch.clear();
-        batchOut.clear();
-        batchExact.clear();
+        NormalLayer * l;
+        ActivationFunction * f = new SoftSign;
+        ActivationFunction * h = new SoftSigm;
+        l = new LSTMLayer(g->recurrSize, g->recurrPos, g->indState, g->wPeep, g->biasIN, g->biasIG, g->biasFG, g->biasOG, g->dSdB, g->rl_c_l, g->rl_o_l, g->rl_l_c, g->rl_l_f, f, h, last);
+        layers.push_back(l);
     }
 }
 
-inline void NetworkLM::rollback()
+Network::Network(vector<int>& normalSize, vector<int>& recurrSize, Settings & settings, int nAgents) : nInputs(0), nOutputs(0), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), ndSdW(0), ndSdB(0), nStates(0), iOutputs(0), allocatedFrozenWeights(false)
 {
-    int w = 0;
-    for (int l=0; l<nLayers; l++)
-    for (int n=0; n<layers[l]->nNeurons; n++)
-    for (int lnk=0; lnk<layers[l]->neurons[n]->inLinks.size(); lnk++)
-				layers[l]->neurons[n]->inLinks[lnk]->w -= dw(w++);
+    if(normalSize.size()<3)
+        die("Put at least one hidden layer, would you kindly? \n");
+    if(recurrSize.back()>0)
+        die("Put just a normal layer as output, would you kindly? \n");
+    if(recurrSize.front()>0)
+        die("Put just a normal layer as input, would you kindly? \n");
+    mt19937 gen(settings.randSeed);
+    int nMixedLayers = normalSize.size();
+    nInputs = normalSize.front();
+    nOutputs = normalSize.back();
+    
+    {
+        Graph * g = new Graph();
+        g->first = true;
+        g->normalSize = nInputs;
+        nNeurons += ceil((Real)nInputs/SIMD)*SIMD;
+        G.push_back(g);
+    }
+    
+    for (int i=1; i<nMixedLayers; i++)
+    { //layer 0 is the input layer
+        Graph * g = new Graph();
+        bool first = i==1; bool last = i+1==nMixedLayers;
+        g->recurrSize = recurrSize[i];
+        g->normalSize = normalSize[i];
+        if (recurrSize[i]>0)
+            addLSTM(G.back(),g,first,last);
+        if (normalSize[i]>0)
+            addNormal(G.back(),g,first,last);
+        G.push_back(g);
+    }
+    
+    iOutputs = G.back()->normalPos;
+    nLayers = layers.size();
+    printf("nNeurons= %d, nWeights= %d, nBiases= %d, ndSdW= %d, ndSdB= %d, nStates= %d \n", nNeurons, nWeights, nBiases, ndSdW, ndSdB, nStates);
+    
+    for (int i=0; i<nAgents; ++i)
+    {
+        Mem * m = new Mem(nNeurons, nStates);
+        mem.push_back(m);
+    }
+    
+    dsdw = new Dsdw(ndSdW,ndSdB);
+    grad = new Grads(nWeights,nBiases);
+    
+    freshSeries(0);
+    freshSeries(1);
+    
+    _myallocate(weights, nWeights)
+    _myallocate(biases,   nBiases)
+    
+    for (int i=1; i<static_cast<int>(G.size()); i++)
+        initializeWeights(*G[i], gen);
 }
 
-void NetworkLM::save(string fname)
+void Network::save(string fname)
 {
     debug1("Saving into %s\n", fname.c_str());
     
@@ -250,18 +335,14 @@ void NetworkLM::save(string fname)
     
     out.precision(20);
     
-    out << totWeights << " " << nInputs << " " << nLayers << endl;
-    for(int i=0; i<nLayers; i++)
-    out << layers[i]->nNeurons << "  ";
-    out << endl;
+    out << nWeights << " "  << nBiases << " " << nLayers  << " " << nNeurons << endl;
     
-    //*************************************************************************
-    for (int l=0; l<nLayers; l++)
-    for (int n=0; n<layers[l]->nNeurons; n++)
-    for (int lnk=0; lnk<layers[l]->neurons[n]->inLinks.size(); lnk++)
-				out << layers[l]->neurons[n]->inLinks[lnk]->w << " ";
-    //*************************************************************************
+    for (int i=0; i<nWeights; i++)
+        out << *(weights + i) << " ";
     
+    for (int i=0; i<nBiases; i++)
+        out << *(biases + i) << " ";
+
     out.flush();
     out.close();
     
@@ -274,7 +355,7 @@ void NetworkLM::save(string fname)
     system(command.c_str());
 }
 
-bool NetworkLM::restart(string fname)
+bool Network::restart(string fname)
 {
     string nameBackup = fname + "_tmp";
     
@@ -286,155 +367,225 @@ bool NetworkLM::restart(string fname)
         return false;
     }
     
-    int readTotWeights, readNInputs, readNLayers;
-    in >> readTotWeights >> readNInputs >> readNLayers;
+    int readTotWeights, readTotBiases, readNNeurons, readNLayers;
+    in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
     
-    if (readTotWeights != totWeights || readNInputs != nInputs || readNLayers != nLayers)
+    if (readTotWeights != nWeights || readTotBiases != nBiases || readNLayers != nLayers || readNNeurons != nNeurons)
     die("Network parameters differ!");
     
-    for(int i=0; i<nLayers; i++)
-    {
-        int dummy;
-        in >> dummy;
-        if (dummy != layers[i]->nNeurons)
-        die("Network layer parameters differ!");
-    }
+    for (int i=0; i<nWeights; i++)
+        in >> *(weights + i);
     
-    //*************************************************************************
-    for (int l=0; l<nLayers; l++)
-    for (int n=0; n<layers[l]->nNeurons; n++)
-    for (int lnk=0; lnk<layers[l]->neurons[n]->inLinks.size(); lnk++)
-				in >> layers[l]->neurons[n]->inLinks[lnk]->w;
-    //*************************************************************************
-    
+    for (int i=0; i<nBiases; i++)
+        in >> *(biases + i);
+
     in.close();
     return true;
 }
 
-Layer::Layer(int nNeurons, ActivationFunction* func) : nNeurons(nNeurons+1)
+void Network::predict(const vector<Real>& _input, vector<Real>& _output, Lab * _M, Lab * _N, Real * _weights, Real * _biases)
 {
-    neurons.resize(this->nNeurons);
-    for (int i=0; i < this->nNeurons; i++)
-    neurons[i] = new Neuron(func);
-    neurons[this->nNeurons-1]->ival = -1;
+    #pragma omp single
+    for (int j=0; j<nInputs; j++)
+        *(_N->outvals +j) = _input[j];
+    
+    for (int j=0; j<nLayers; j++)
+        layers[j]->propagate(_M,_N,_weights,_biases);
+    
+    #pragma omp single
+    if (static_cast<int>(_output.size())==nOutputs)
+    for (int j=0; j<nOutputs; j++)
+        _output[j] = *(_N->outvals +iOutputs +j);
 }
 
-void Layer::connect(Layer* next, RNG* rng)
+void Network::computeGrads(const vector<Real>& _error, Lab * _M, Lab * _N, Grads * _grad)
 {
-    for (int i=0; i<nNeurons; i++)
-    for (int j=0; j<next->nNeurons-1; j++)
+    #pragma omp single
+    for (int j=0; j<nOutputs; j++)
+        *(_N->errvals +iOutputs +j) = _error[j];
+    
+    for (int j=1; j<=nLayers; j++)
+        //layers[nLayers-j]->backPropagate(_M,_N,_grad,weights,biases);
+        layers[nLayers-j]->backPropagate(_M,_N,dsdw,_grad,weights,biases);
+}
+
+void Network::computeDeltasSeries(vector<Lab*>& _series, const int k)
+{
+    for (int i=1; i<=nLayers; i++)
+        layers[nLayers-i]->backPropagateDelta(_series[k-1],_series[k],_series[k+1],weights,biases);
+}
+
+
+void Network::computeDeltasEnd(vector<Lab*>& _series, const int k)
+{
+    for (int i=1; i<=nLayers; i++)
+        layers[nLayers-i]->backPropagateDelta(_series[k-1],_series[k],weights,biases);
+}
+
+void Network::computeGradsSeries(vector<Lab*>& _series, const int k, Grads * _grad)
+{
+    for (int i=0; i<nLayers; i++)
+        layers[i]->backPropagateGrads(_series[k-1],_series[k],dsdw,_grad);
+}
+
+void Network::computeGradsLightSeries(vector<Lab*>& _series, const int k, Grads * _grad)
+{
+    for (int i=0; i<nLayers; i++)
+        layers[i]->backPropagateGradsLight(_series[k-1],_series[k],_grad);
+}
+
+void Network::updateFrozenWeights()
+{
+    #pragma omp single
+    if (allocatedFrozenWeights==false)
     {
-        Link* lnk = new Link;
-        lnk->neuronFrom = neurons[i];
-        lnk->neuronTo   = next->neurons[j];
-        lnk->w = rng->uniform(-1/(2.0*nNeurons), 1/(2.0*nNeurons));
-        lnk->val    = 0;
-        lnk->prevDw = 0;
-        
-        neurons[i]->outLinks.push_back(lnk);
-        neurons[i]->hasOutputs = true;
-        next->neurons[j]->inLinks.push_back(lnk);
-        next->neurons[j]->hasInputs = true;
+        _myallocate(frozen_weights, nWeights)
+        _myallocate(frozen_biases,   nBiases)
+        allocatedFrozenWeights = true;
+    }
+    #pragma omp for nowait
+    for (int j=0; j<nWeights; j+=SIMD)
+        #if SIMD == 1
+        *(frozen_weights + j) = *(weights + j);
+        #else
+        STORE (frozen_weights + j, LOAD(weights + j));
+        #endif
+    
+    #pragma omp for
+    for (int j=0; j<nBiases; j+=SIMD)
+        #if SIMD == 1
+        *(frozen_biases + j) = *(biases + j);
+        #else
+        STORE (frozen_biases + j, LOAD(biases + j));
+        #endif
+}
+
+void Network::expandMemory(Mem * _M, Lab * _N)
+{
+    std::swap(_N->outvals,_M->outvals);
+    std::swap(_N->ostates,_M->ostates);
+}
+
+void Network::freshSeries(int _k, vector<Lab*> & _series)
+{
+    if (static_cast<int>(_series.size()) <= _k)
+    {
+        Lab * ns = new Lab(nNeurons,nStates);
+        _series.push_back(ns);
+    }
+}
+
+void Network::clearInputs(Lab * _N)
+{
+    #if SIMD == 1
+    for (int j=0; j<nNeurons; j++)
+        *(_N->in_vals +j) = 0.; /* everything here is a += */
+    for (int j=0; j<nStates; j++)
+    {
+        *(_N->iIGates +j) = 0.; /* everything here is a += */
+        *(_N->iFGates +j) = 0.;
+        *(_N->iOGates +j) = 0.;
+    }
+    #else
+    const vec zeros = SET0 ();
+    for (int j=0; j<nNeurons; j+=SIMD)
+        STREAM (_N->in_vals +j,zeros);
+    for (int j=0; j<nStates; j+=SIMD)
+    {
+        STREAM (_N->iIGates +j,zeros);
+        STREAM (_N->iFGates +j,zeros);
+        STREAM (_N->iOGates +j,zeros);
+    }
+    #endif
+}
+
+void Network::clearErrors(Lab * _N)
+{
+    #if SIMD != 1
+    const vec zeros = SET0 ();
+    #endif
+    #pragma omp for nowait
+    for (int j=0; j<nNeurons; j+=SIMD)
+        #if SIMD == 1
+        *(_N->errvals +j) = 0.; /* everything here is a += */
+        #else
+        STREAM (_N->errvals +j,zeros);
+        #endif
+    #pragma omp for
+    for (int j=0; j<nStates; j+=SIMD)
+        #if SIMD == 1
+        *(_N->eOGates +j) = 0.; /* everything here is a += */
+        #else
+        STREAM (_N->eOGates +j,zeros);
+        #endif
+}
+
+void Network::clearDsdw(Dsdw * _dsdw)
+{
+    #if SIMD != 1
+    const vec zeros = SET0 ();
+    #endif
+    #pragma omp for nowait
+    for (int j=0; j<ndSdW; j+=SIMD)
+    {
+        #if SIMD == 1
+        *(_dsdw->IN +j) = 0.;
+        *(_dsdw->IG +j) = 0.;
+        *(_dsdw->FG +j) = 0.;
+        #else
+        STREAM (_dsdw->IN +j,zeros);
+        STREAM (_dsdw->IG +j,zeros);
+        STREAM (_dsdw->FG +j,zeros);
+        #endif
     }
     
-}
-
-void Layer::connect2inputs(vector<Real*>& vals)
-{
-    for (int i=0; i<nNeurons-1; i++)
-    vals[i] = &(neurons[i]->ival);
-}
-
-void Layer::connect2outputs(vector<Real*>& vals)
-{
-    for (int i=0; i<nNeurons-1; i++)
-    vals[i] = &(neurons[i]->oval);
-}
-
-void Layer::connect2errors(vector<Real*>& errs)
-{
-    for (int i=0; i<nNeurons-1; i++)
-    errs[i] = &(neurons[i]->err);
-}
-
-void Layer::propagate()
-{
-    for (int i=0; i<nNeurons; i++)
-    neurons[i]->exec();
-}
-
-void Layer::backPropagate()
-{
-    for (int i=0; i<nNeurons; i++)
-    neurons[i]->backExec();
-}
-
-void Layer::adjust(Real eta, Real alpha, Real lambda)
-{
-    for (int i=0; i<nNeurons; i++)
-    neurons[i]->adjust(eta, alpha, lambda);
-}
-
-Neuron::Neuron(ActivationFunction* func) :
-hasInputs(false), hasOutputs(false), func(func) { };
-
-void Neuron::exec()
-{
-    if (hasInputs)
+    #pragma omp for
+    for (int n=0; n<ndSdB; n+=SIMD)
     {
-        ival = 0;
-        for (int i=0; i<inLinks.size(); i++)
-        {
-            ival += inLinks[i]->val * inLinks[i]->w;
-#ifdef DBG_EXEC
-            //_info("in val %d = %f, w = %f\n", i, inLinks[i]->val, inLinks[i]->w);
-#endif
-        }
-    }
-    
-    oval = func->eval(ival);
-#ifdef DBG_EXEC
-    _info("out val %f\n", oval);
-#endif
-    if (hasOutputs)
-    {
-        for (int i=0; i<outLinks.size(); i++)
-            outLinks[i]->val = oval;
+        #if SIMD == 1
+        *(_dsdw->DB +n) = 0.;
+        #else
+        const vec zeros = SET0 ();
+        STREAM (_dsdw->DB +n,zeros);
+        #endif
     }
 }
 
-void Neuron::backExec()
+void Network::clearMemory(Real * _outvals, Real * _ostates)
 {
-    if (hasOutputs)
-    {
-        err = 0;
-        for (int i=0; i<outLinks.size(); i++)
-        {
-            err += outLinks[i]->err * outLinks[i]->w;
-#ifdef DBG_BACK
-            _info("err %d = %f, w = %f\n", i, outLinks[i]->err, outLinks[i]->w);
-#endif
-        }
-    }
+    #if SIMD != 1
+    const vec zeros = SET0 ();
+    #endif
+    #pragma omp for nowait
+    for (int j=0; j<nNeurons; j+=SIMD)
+        #if SIMD == 1
+        *(_outvals +j) = 0.;
+        #else
+        STREAM (_outvals +j,zeros);
+        #endif
     
-    err = func->evalDiff(ival) * err;
-#ifdef DBG_BACK
-    _info("out val %f\n", err);
-#endif
-    
-    if (hasInputs)
-        for (int i=0; i<inLinks.size(); i++)
-            inLinks[i]->err = err;
+    #pragma omp for nowait
+    for (int j=0; j<nStates; j+=SIMD)
+        #if SIMD == 1
+        *(_ostates +j) = 0.;
+        #else
+        STREAM (_ostates +j,zeros);
+        #endif
 }
 
-void Neuron::adjust(Real eta, Real alpha, Real lambda)
-{
-    if (hasInputs)
-        for (int i=0; i<inLinks.size(); i++)
-        {
-            Neuron* prev = inLinks[i]->neuronFrom;
-            inLinks[i]->prevDw = inLinks[i]->Dw;
-            inLinks[i]->Dw = - eta * err * prev->oval; // !!!!!!!!! Error = output - target !!!!!!!!!!
-            inLinks[i]->w += inLinks[i]->Dw + alpha * inLinks[i]->prevDw - lambda*eta*inLinks[i]->w;
-        }
-}
+/*
+ void inline Network::predict(const vector<Real>& _input, vector<Real>& _output, Lab * _M, Lab * _N)
+ {
+ #pragma omp single
+ for (int j=0; j<nInputs; j++)
+ *(_N->outvals +j) = _input[j];
+ 
+ for (int j=0; j<nLayers; j++)
+ layers[j]->propagate(_M,_N,weights,biases);
+ 
+ #pragma omp single
+ if (_output.size()==nOutputs)
+ for (int j=0; j<nOutputs; j++)
+ _output[j] = *(_N->outvals +iOutputs +j);
+ }
+ */

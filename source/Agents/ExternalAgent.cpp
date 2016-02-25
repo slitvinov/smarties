@@ -10,11 +10,13 @@
 #include "ExternalAgent.h"
 
 
-void ExternalAgent::setEnvironment(Environment* env)
+/*
+ void ExternalAgent::setEnvironment(Environment* env)
 {
     this->env = static_cast<ExternalEnvironment*> (env);
     environment = env;
 }
+ */
 
 Real ExternalAgent::getReward()
 {

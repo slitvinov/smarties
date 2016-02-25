@@ -22,7 +22,7 @@ class MultiTable : public QApproximator
 	map<long int, Real> data;
 	map<long int, Real> maxStateVal;
 	vector<long int> shifts;
-    Real gamma;
+    Real gamma, lRate;
 	inline long int _encodeIdx(const State& s, const Action& a) const;
 	inline long int _encodeIdx(const long int sId, const Action& a) const;
 
@@ -33,26 +33,20 @@ class MultiTable : public QApproximator
 	
 public:
 	// Costructor-Destructor
-	MultiTable(StateInfo newSInfo, ActionInfo newActInfo, Real gamma);
+	MultiTable(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings, int nAgents);
 	~MultiTable();
 	
 	// Methods
-    Real get (const State& s, const Action& a, int nAgent = 0);
-    Real get (const State * s, const Action * a, int nAgent = 0);
-    Real getsmooth (const State& s, const Action& a, int nAgent = 0);
-    Real test(const State& s, const Action& a, int nAgent = 0)
-    {
-        return getsmooth(s, a, nAgent);
-    }
-    Real advance(const State& s, const Action& a, int nAgent = 0)
-    {
-        return get(s, a);
-    }
-	Real getMax (const State& s, int & nAct, int nAgent);
-	void   set    (const State& s, const Action& a, Real value, int nAgent = 0);
-	void   correct(const State& s, const Action& a, Real error, int nAgent = 0);
+    Real get (const State& s, const Action& a, int iAgent = 0);
+    Real get (const State * s, const Action * a, int iAgent = 0);
+    
+    void get(const State& sOld, vector<Real> & Qold, const State& s, vector<Real> & Q, int iAgent = 0);
+    
+	Real getMax (const State& s, Action& a, int nAgent);
+	void   set    (const State& s, const Action& a, Real value, int iAgent = 0);
+	void   correct(const State& s, const Action& a, Real error, int iAgent = 0);
 	Real usage() const;
-    Real   Train();
+    void   Train();
 	inline map<long int, Real>& getData()  { return data; }
 	
 	void   save(string name);

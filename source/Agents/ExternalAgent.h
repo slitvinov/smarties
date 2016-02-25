@@ -13,9 +13,9 @@
 #include "../StateAction.h"
 #include "Agent.h"
 
-class ExternalEnvironment;
-#include "../Environments/Environment.h"
-#include "../Environments/ExternalEnvironment.h"
+//class ExternalEnvironment;
+//#include "../Environments/Environment.h"
+//#include "../Environments/ExternalEnvironment.h"
 
 class ExternalAgent : public Agent
 {
@@ -28,7 +28,7 @@ public:
     vector<Real> Info;
     int nInfo;
     
-    ExternalEnvironment* env;
+    //ExternalEnvironment* env;
 
     void   getState(State& s);
     
@@ -38,7 +38,7 @@ public:
     void   act(Action& a);
     void   move(Real dt) {};
 
-    void   setEnvironment(Environment* env);
+    //void   setEnvironment(Environment* env);
 };
 
 

@@ -13,16 +13,25 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <random>
+#include <algorithm>
 #include <fstream>
 #include "../Settings.h"
 
 struct Tuple
 {
-    int agentId;
     State* sOld;
     Action* a;
     State* sNew;
     Real reward;
+};
+
+struct Tuples
+{
+    vector<vector<Real>> sOld;
+    vector<vector<Real>> s;
+    vector<Real> r;
+    vector<int>  a;
 };
 
 struct NFQdata
@@ -35,63 +44,164 @@ struct NFQdata
 
 struct Transitions
 {
-    vector<Tuple> Set;
+protected:
+    int anneal;
+    vector<Tuples> Tmp;
+    vector<Real> Inp;
     StateInfo sInfo;
     ActionInfo actInfo;
+    mt19937 * gen;
+    discrete_distribution<int> * dist;
+public:
+    vector<Real> Errs;
+    vector<Tuples> Set;
+    vector<Real> Ps, Ws;
     
-    Transitions(ActionInfo actInfo, StateInfo sInfo): actInfo(actInfo), sInfo(sInfo) {}
-    Transitions(){}
-    void add(int agentId, State& sOld, Action& a, State& sNew, Real reward)
+    Transitions(const int nAgents, ActionInfo actInfo, StateInfo sInfo, int seed): actInfo(actInfo), sInfo(sInfo), anneal(0)
     {
-        Tuple tmp;
+        gen = new mt19937(seed);
+        Inp.resize(sInfo.dim);
+        Tmp.resize(nAgents);
+        dist = new discrete_distribution<int> (1,2);
+    }
+    
+    void add(const int & agentId, State& sOld, Action& a, State& sNew, const Real & reward)
+    {
+        //printf("Adding tuple %d to agent %d\n",Tmp[agentId].s.size(),agentId);
+        sOld.scale(Inp);
         
-        tmp.sOld   = new State(sInfo);
-        tmp.a      = new Action(actInfo);
-        tmp.sNew   = new State(sInfo);
+        if(Tmp[agentId].s.size()>0)
+        {
+            bool same(true);
+            for (int i=0; i<sInfo.dim; i++)
+                same = same && (Tmp[agentId].s.back()[i] - Inp[i])<1e-3;
+                
+            if (!same) {printf("Unexpected change of time series\n"); push_back(agentId);}
+        }
         
-        tmp.agentId= agentId;
-        *tmp.sOld  = sOld;
-        *tmp.a     = a;
-        *tmp.sNew  = sNew;
-        tmp.reward = reward;
+        Tmp[agentId].sOld.push_back(Inp);
+        sNew.scale(Inp);
+        Tmp[agentId].s.push_back(Inp);
         
-        //printf("Prova prova roger %d %s %s -> %s %f\n", tmp.agentId, tmp.sOld->print().c_str(), tmp.a->print().c_str(), tmp.sNew->print().c_str(), tmp.reward);
-        Set.push_back(tmp); //Growing batch
+        Tmp[agentId].r.push_back(reward);
+        
+        Tmp[agentId].a.push_back(a.vals[0]);
+        
+        //debug2("To stack %d %d %d: %s --> %s with %d was rewarded with %f \n", agentId, Tmp[agentId].r.size(), Set.size(),  sOld.printScaled().c_str(), sNew.printScaled().c_str(), a.vals[0], reward);
+    }
+    
+    void push_back(const int & agentId)
+    {
+        if(Tmp[agentId].s.size()>3)
+        {
+            Set.push_back(Tmp[agentId]);
+            Errs.push_back(1.0);
+        }
+        printf("Pushing series %d\n",Set.size());
+        clear(agentId);
+    }
+    
+    void clear(const int & agentId)
+    {
+        //printf("Clearning series %d\n",agentId);
+        Tmp[agentId].s.clear();
+        Tmp[agentId].sOld.clear();
+        Tmp[agentId].a.clear();
+        Tmp[agentId].r.clear();
+    }
+    
+    int sample()
+    {
+        return dist->operator()(*gen);
+    }
+    void updateP()
+    {
+        if(Errs.size() != Set.size()) die("That's a problem\n");
+        const int N = Errs.size();
+        Real beta = .5*(1. + (Real)anneal/(anneal+100));
+        anneal++;
+        Ps.resize(N);
+        Ws.resize(N);
+        std::vector<int> inds(N);
+        std::iota(inds.begin(), inds.end(), 0);
+        //sort in decreasing order of the error
+        auto comparator = [this](int a, int b){ return Errs[a] > Errs[b]; };
+        std::sort(inds.begin(), inds.end(), comparator);
+        
+        #pragma omp parallel for
+        for(int i=0;i<N;i++)
+        {
+            Ps[inds[i]]=pow((Real)Set[inds[i]].s.size()/(i+1),0.7);
+            //printf("P %f %d\n",Ps[inds[i]],inds[i]);
+        }
+        Real err = accumulate(Errs.begin(), Errs.end(), 0.);
+        Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
+        printf("SUM %f\n",err/N);
+        #pragma omp parallel for
+        for(int i=0;i<N;i++)
+        {
+            Ps[i]/=sum;
+            Ws[i] = pow(N*Ps[i],-beta);
+            //printf("%f %d\n",Ps[i],i);
+        }
+        
+        Real scale = *max_element(Ws.begin(), Ws.end());
+        //printf("sclae = %f\n",scale);
+        
+        #pragma omp parallel for
+        for(int i=0;i<N;i++)
+            Ws[i]/=scale;
+        
+        delete dist;
+        dist = new discrete_distribution<int>(Ps.begin(), Ps.end());
+        //die("Job's done\n");
     }
 };
 
 class QApproximator
 {
 protected:
+    int nAgents;
 	StateInfo  sInfo;
-	ActionInfo actInfo;
+    ActionInfo actInfo;
+    Transitions * samples;
 	
 public:
-	QApproximator(StateInfo newSInfo, ActionInfo newActInfo) : sInfo(newSInfo), actInfo(newActInfo), samples(newActInfo, newSInfo) { };
+	QApproximator(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings, int nAgents) : nAgents(nAgents), sInfo(newSInfo), actInfo(newActInfo)
+    {
+        samples = new Transitions(nAgents, actInfo, sInfo, settings.randSeed);
+    };
+    
     QApproximator() { };
-    Transitions samples;
 	
+    virtual void  get(const State& sOld, vector<Real> & Qold, const State& s, vector<Real> & Q, int iAgent) = 0;
 	virtual Real get(const State& s, const Action& a, int nAgent)	= 0;
-    virtual Real test(const State& s, const Action& a, int nAgent) = 0;
-    virtual Real advance(const State& s, const Action& a, int nAgent) = 0;
-	virtual void set(const State& s, const Action& a, Real value, int nAgent) = 0;
+    virtual void set(const State& s, const Action& a, Real value, int nAgent) = 0;
+    virtual Real getMax(const State& s, Action& a, int nAgent) = 0;
 	virtual void correct(const State& s, const Action& a, Real error, int nAgent) = 0;
-    virtual Real getMax(const State& s, int & nAct, int nAgent) {return 0.0;}
-    virtual Real getsmooth(const State& s, const Action& a, int nAgent = 0) {return get(s,a,nAgent);}
-    virtual Real testMax(const State& s, int & nAct,  int nAgent) {return getMax(s,nAct,nAgent);}
-    virtual Real advanceMax(const State& s, int & nAct, int nAgent) {return getMax(s,nAct,nAgent);}
+    
 	virtual void save(string name) = 0;
 	virtual bool restart(string name) = 0;
-    virtual Real Train() = 0;
-    virtual void passData(int agentId, State& sOld, Action& a, State& sNew, Real reward, vector<Real>& info)
+    virtual void Train() = 0;
+    
+    virtual void passData(int & agentId, int & first, State & sOld, Action & a, State & sNew, Real & reward, vector<Real>& info)
     {
+        //if (first)
+        //    samples->clear(agentId);
+        
         ofstream fout;
-        fout.open("history.txt",ios::app);
-        fout << agentId << " " << sOld.printClean().c_str() << sNew.printClean().c_str() << a.printClean().c_str() << reward;
+        fout.open("obs.dat",ios::app);
+        fout << first << " "<< agentId << " " << sOld.printClean().c_str() << sNew.printClean().c_str() << a.printClean().c_str() << reward;
+        //cout << first << " "<< agentId << " " << sOld.printClean().c_str() << sNew.printClean().c_str() << a.printClean().c_str() << reward<< endl;
         for (int i = 0; i<info.size(); i++)
             fout << " " << info[i];
         fout << endl;
         fout.close();
+        
+        samples->add(agentId, sOld, a, sNew, reward);
+        
+        if (reward<-.99)
+            samples->push_back(agentId);
     }
     
     void restartSamples()
@@ -100,17 +210,22 @@ public:
         vector<Real> d_sO(sInfo.dim), d_sN(sInfo.dim);
         Action t_a(actInfo);
         vector<int> d_a(actInfo.dim);
-        Real reward, alt_reward;
+        Real reward;
+        vector<Real> _info;
         int thisId, agentId=0;
-        int Ndata;
+        int Ndata, nInfo(0);
         while(true)
         {
             Ndata=0;
-            debug7("Loading from agent %d\n",agentId);
+            printf("Loading from agent %d\n",agentId);
             ifstream in("history.txt");
             std::string line;
             if(in.good())
             {
+                //getline(in, line);
+                //istringstream line_0(line);
+                //line_0 >> nInfo;
+                //_info.resize(nInfo);
                 unsigned counter = 0;
                 while (getline(in, line))
                 {
@@ -127,16 +242,20 @@ public:
                             line_in >> d_a[i];
                         
                         line_in >> reward;
-                        
-                        while (line_in.good())
-                            line_in >> alt_reward;
-			
-                        //if (reward<-10) reward = -10;
-                        //line_in >> reward;
+                        for(int i=0; i<nInfo; i++)
+                        {
+                            if (line_in.good()) line_in >> _info[i];
+                            else die("Wrong nInfo\n");
+                        }
+
                         t_sO.set(d_sO);
                         t_sN.set(d_sN);
                         t_a.set(d_a);
-                        samples.add(1, t_sO, t_a, t_sN, reward);
+                        
+                        samples->add(0, t_sO, t_a, t_sN, reward);
+                        
+                        if (reward<-10.99)
+                            samples->push_back(0);
                     }
                 }
                 
@@ -146,7 +265,8 @@ public:
             }
             else
             {
-                die("WTF couldnt open file history.txt!\n");
+                printf("WTF couldnt open file history.txt!\n");
+                break;
             }
             
             in.close();

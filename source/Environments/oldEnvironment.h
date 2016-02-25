@@ -1,5 +1,5 @@
 /*
- *  GlideEnvironment.h
+ *  ExternalEnvironment.h
  *  smarties
  *
  *  Created by Dmitry Alexeev on May 13, 2015
@@ -15,27 +15,27 @@
 #include "Environment.h"
 #include "CellList.h"
 
-class CartAgent;
-#include "../Agents/CartAgent.h"
+class ExternalAgent;
+#include "../Agents/ExternalAgent.h"
 
-class GlideEnvironment: public Environment
+class oldEnvironment: public Environment
 {
     string execpath;
     void setDims();
     vector<int> ids;
     int pid;
-    
     FILE *fin, *fout;
 
-    vector<CartAgent*> exagents;
+    vector<ExternalAgent*> exagents;
     vector<State>  states;
-    vector<Real> rewards;
+    vector<double> rewards;
     vector<Action> actions;
 
 public:
-   GlideEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, int index);
+   oldEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank);
 
-   int   evolve   (Real t);
+   int   evolve   (double t);
+    int   init   ();
 };
 
 

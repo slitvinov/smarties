@@ -69,27 +69,34 @@ public:
 	
 	virtual void	   setEnvironment(Environment* env) {environment = env;}
 	
-	inline void setDims(StateInfo& sInfo, ActionInfo& actInfo)
+	inline void setDims(StateInfo& stateInfo, ActionInfo& actionInfo)
 	{
-		this->sInfo.dim   = sInfo.dim;
-		this->sInfo.type  = sInfo.type;
-		this->actInfo.dim = actInfo.dim;
+		this->sInfo.dim   = stateInfo.dim;
+		this->sInfo.type  = stateInfo.type;
+		this->actInfo.dim = actionInfo.dim;
 		
-		for (int i=0; i<sInfo.dim; i++)
+		for (int i=0; i<stateInfo.dim; i++)
 		{
-		    this->sInfo.bounds.push_back     (sInfo.bounds[i]);
-		    this->sInfo.top.push_back        (sInfo.top[i]);
-		    this->sInfo.bottom.push_back     (sInfo.bottom[i]);
-		    this->sInfo.aboveTop.push_back   (sInfo.aboveTop[i]);
-		    this->sInfo.belowBottom.push_back(sInfo.belowBottom[i]);
+		    this->sInfo.bounds.push_back     (stateInfo.bounds[i]);
+		    this->sInfo.top.push_back        (stateInfo.top[i]);
+		    this->sInfo.bottom.push_back     (stateInfo.bottom[i]);
+		    this->sInfo.aboveTop.push_back   (stateInfo.aboveTop[i]);
+		    this->sInfo.belowBottom.push_back(stateInfo.belowBottom[i]);
+            this->sInfo.isLabel.push_back    (stateInfo.isLabel[i]);
 		}
-		
-		for (int i=0; i<actInfo.dim; i++)
-		    this->actInfo.bounds.push_back(actInfo.bounds[i]);
+        
+		for (int i=0; i<actionInfo.dim; i++)
+        {
+		    this->actInfo.bounds.push_back(actionInfo.bounds[i]);
+        }
+        
+        for (int i=0; i<actionInfo.values.size(); i++)
+        {
+            this->actInfo.values.push_back(actionInfo.values[i]);
+        }
+        for (int i=0; i<stateInfo.values.size(); i++)
+        {
+            this->sInfo.values.push_back(stateInfo.values[i]);
+        }
 	}
 };
-
-
-
-
-

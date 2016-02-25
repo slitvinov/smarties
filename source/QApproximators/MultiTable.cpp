@@ -24,7 +24,7 @@ using namespace ErrorHandling;
 
 const Real eps = 1e-9;
 
-MultiTable::MultiTable(StateInfo newSInfo, ActionInfo newActInfo, Real gamma=.9) : QApproximator(newSInfo, newActInfo), actionsIt(newActInfo), gamma(gamma)
+MultiTable::MultiTable(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings, int nAgents) : QApproximator(newSInfo, newActInfo, settings, nAgents), actionsIt(newActInfo), gamma(settings.gamma), lRate(settings.lRate)
 {
 	dim = sInfo.dim + actInfo.dim;
 	
@@ -76,7 +76,7 @@ inline long int MultiTable::_encodeState(const State& s, F&& _discr) const
 	return res;
 }
 
-Real MultiTable::get(const State& s, const Action& a, int nAgent)
+Real MultiTable::get(const State& s, const Action& a, int iAgent)
 {
 	long int id = _encodeIdx(s, a);
     //_info("final ID %d\n", id);
@@ -85,7 +85,7 @@ Real MultiTable::get(const State& s, const Action& a, int nAgent)
 	return data.find(id)->second;
 }
 
-Real MultiTable::get(const State * s, const Action * a, int nAgent)
+Real MultiTable::get(const State * s, const Action * a, int iAgent)
 {
     long int res = 0;
     
@@ -105,76 +105,72 @@ Real MultiTable::get(const State * s, const Action * a, int nAgent)
     return data.find(res)->second;
 }
 
-Real MultiTable::getsmooth(const State& s, const Action& a, int nAgent)
+void MultiTable::get(const State& sOld, vector<Real> & Qold, const State& s, vector<Real> & Q, int iAgent)
 {
-    long int id = _encodeIdx(s, a);
-    //_info("final ID %d\n", id);
-    if (data.find(id) == data.end()) return 0;
-    if (data.find(id)->second == 0.0)
+    int j = 0;
+       Q.resize(actionsIt.actInfo.bounds[0]);
+    Qold.resize(actionsIt.actInfo.bounds[0]);
+    
+    actionsIt.reset();
+    while (!actionsIt.done())
     {
-        Real avg = 0.0;
-        Real wgt = 0.0;
-        for (int i=0; i<dim; ++i)
-        {
-            if (data.find(id + shifts[i]) != data.end() && id - shifts[i]>=0)
-            {
-                Real Qplus = data.find(id + shifts[i])->second;
-                Real Qminu = data.find(id - shifts[i])->second;
-                wgt += 1.0;
-                avg += .5*(Qplus+Qminu);
-            }
-        }
-        warn("Trying to interpolate state-action using %f adjacent states. This is bad if you are offline!\n", wgt);
-        return avg/wgt;
+        Q[j] = get(s, actionsIt.next());
+        Qold[j] = get(sOld, actionsIt.next());
+        j++;
     }
-    return data.find(id)->second;
 }
 
-Real MultiTable::getMax(const State& s, int & nAct, int nAgent)
+Real MultiTable::getMax(const State& s, Action& a, int iAgent)
 {
 	long int id = _encodeState(s, _discretize);
-	if (maxStateVal.find(id) == maxStateVal.end()) return 0; 
+	if (maxStateVal.find(id) == maxStateVal.end()) return 0;
 	return maxStateVal[id];
 }
 
-Real  MultiTable::Train()
-{
+void  MultiTable::Train()
+{/*
     Action a(actInfo);
-    debug("Offline training of multitable with %d samples.\n", samples.Set.size());
+    debug("Offline training of multitable with %d samples.\n", samples->Set.size());
     Real err(0.0);
+    vector<Real> Qold, Q;
+    int Nbest, NoldBest;
     
-    for (int i=0; i<samples.Set.size(); i++)
+    for (int i=0; i<samples->Set.size(); i++)
     { //target values
         //we transition to state s' and get the Qold
+        Real Vnew(-1e10), Vold(-1e10);
         
-        Real Qold = get(samples.Set[i].sOld, samples.Set[i].a, 0);
-        //Real Qtest = get(*samples.Set[i].sOld, *samples.Set[i].a, 0);
+        get(samples->Set[i].sOld, Qold, samples->Set[i].sNew, Q);
         
-        actionsIt.reset();
-        Real best = -1e10;
-        while (!actionsIt.done())
+        for (int i=0; i<Q.size(); i++)
         {
-            a = actionsIt.next();
-            Real test = get(*samples.Set[i].sNew, a, 0);
-            if (test >= best + 1e-12)
+            if (Q[i]>Vnew)
             {
-                best = test; // best current Q option
-                actionsIt.memorize();
+                Nbest = i;
+                Vnew = Q[i];
+            }
+            if (Qold[i]>Vold)
+            {
+                NoldBest = i;
+                Vold = Qold[i];
             }
         }
-        Real reward = samples.Set[i].reward - fabs(samples.Set[i].sOld->vals[1]) - fabs(samples.Set[i].sOld->vals[2])/1.57079632679;
-        Real Qnew = reward + gamma*best;
         
-        Real target = 0.1*(Qnew - Qold);
-        correct(*samples.Set[i].sOld, *samples.Set[i].a, target, 0);
+        a.vals[0] = Nbest;
+        Real Aold = Qold(a.vals[0]);
+        
+        //Real err = (Vold + (r + gamma*Vnew - Vold)/.2 - Aold);
+        Real target = (samples->Set[i].reward + gamma*Vnew - Aold);
+        correct(samples->Set[i].sOld, samples->Set[i].a, target, 0);
         err += fabs(target);
     }
     
     debug("Learning state: average error %f.\n", err/samples.Set.size());
-    return err/samples.Set.size();
+    //return err/samples.Set.size();
+  */
 }
 
-void MultiTable::set(const State& s, const Action& a, Real val, int nAgent)
+void MultiTable::set(const State& s, const Action& a, Real val, int iAgent)
 {
 	long int sId = _encodeState(s, _discretize);
 	long int id = _encodeIdx(sId, a);
@@ -186,8 +182,9 @@ void MultiTable::set(const State& s, const Action& a, Real val, int nAgent)
 	}
 }
 
-void MultiTable::correct(const State& s, const Action& a, Real err, int nAgent)
+void MultiTable::correct(const State& s, const Action& a, Real err, int iAgent)
 {
+    err *= lRate;
 	long int sId = _encodeState(s, _discretize);
 	long int id = _encodeIdx(sId, a);
 	//_info("sID %d, final ID %d\n", sId, id);

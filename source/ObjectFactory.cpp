@@ -70,7 +70,7 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
         getline(inFile, envStr);
         string s;
 
-        if (envStr.find("ExternalEnvironment ") != envStr.npos)
+        if (envStr.find("TwoFishEnvironment ") != envStr.npos)
         {
             vector<Agent*> agents;
 
@@ -88,11 +88,12 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
                 agents.push_back(new ExternalAgent(1e-10, ACTOR, "ExternalAgent"));
             }
 
-            env = new ExternalEnvironment(agents, execpath, st, rank, index);
+            env = new TwoFishEnvironment(agents, execpath, st, rank);
+            env->setDims();
             getline(inFile, s);
         }
         
-        else if (envStr.find("CartEnvironment ") != envStr.npos)
+        else if (envStr.find("ExternalEnvironment ") != envStr.npos)
         {
             vector<Agent*> agents;
             
@@ -107,36 +108,15 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
             
             for (int i=0; i<n; i++)
             {
-                agents.push_back(new CartAgent(1e-10, ACTOR, "CartAgent"));
+                agents.push_back(new ExternalAgent(1e-10, ACTOR, "ExternalAgent"));
             }
             
-            env = new CartEnvironment(agents, execpath, st, rank, index);
+            env = new ExternalEnvironment(agents, execpath, st, rank);
+            env->setDims();
             getline(inFile, s);
         }
         
-        else if (envStr.find("HardEnvironment ") != envStr.npos)
-        {
-            vector<Agent*> agents;
-            printf("Created the correct cart??\n");
-            string appType = _parse(envStr, "type", false);
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            
-            StateType st;
-            if (appType == "DISCR") st = DISCR;
-            else if (appType == "ANN") st = ANN;
-            else if (appType == "WAVE") st = WAVE;
-            
-            for (int i=0; i<n; i++)
-            {
-                agents.push_back(new HardCartAgent(1e-10, ACTOR, "HardCartAgent"));
-            }
-            
-            env = new HardCartEnvironment(agents, execpath, st, rank, index);
-            getline(inFile, s);
-        }
-        
-        else if (envStr.find("GlideEnvironment ") != envStr.npos)
+        else if (envStr.find("oldEnvironment ") != envStr.npos)
         {
             vector<Agent*> agents;
             
@@ -151,10 +131,10 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
             
             for (int i=0; i<n; i++)
             {
-                agents.push_back(new CartAgent(1e-10, ACTOR, "CartAgent"));
+                agents.push_back(new ExternalAgent(1e-10, ACTOR, "ExternalAgent"));
             }
             
-            env = new GlideEnvironment(agents, execpath, st, rank, index);
+            env = new oldEnvironment(agents, execpath, st, rank);
             getline(inFile, s);
         }
 

@@ -27,19 +27,17 @@ void NFQ::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld,
     //
     // Find V(s) = max Q(s, a')
     //              a'
-    
-    //Real Qold = Q->get(sOld, aOld, Nagent); //LSTM: also memory advances to new state
-    int Nbest, NoldBest;
-    Real Vold = Q->getMax(sOld, NoldBest, Nagent);
-    Real Vnew = Q->testMax(s, Nbest, Nagent);
-    Real Aold = Q->advance(sOld, aOld, Nagent);
-    a.vals[0] = Nbest;
-    //LSTM: here you perform that action and update memory
+
+    Real Vnew = Q->getMax(s, a, Nagent);
+    Real p = rng->uniform();
+    if (p < greedyEps)  a.getRand(rng);
 }
 
 
-void NFQ::NFQimprove()
+void NFQ::improve()
 {
+    Q->Train();
+    /*
     Real err = 1.0;
     Real errold = 10.0;
     Real minerr = 100.0;
@@ -58,6 +56,7 @@ void NFQ::NFQimprove()
             break;
         }
     }
+     */
 }
 
 void NFQ::try2restart(string fname)
@@ -66,11 +65,6 @@ void NFQ::try2restart(string fname)
     _info("Restarting from history file\n");
     Q->restartSamples();
     
-    ofstream fout;
-    fout.open("stap.txt",ios::app);
-    fout << 1 << endl;
-    fout.close();
-    
     if ( Q->restart(fname) )
     {
         _info("Restart successful, moving on...\n");
@@ -78,17 +72,11 @@ void NFQ::try2restart(string fname)
     else
     {
         _info("Not all policies restarted, therefore assumed zero. Moving on...\n");
-        this->NFQimprove();
     }
-    
-    
-    Q->save(fname);
-    _info("I have a Q and I saved it.\n");
 }
 
 void NFQ::savePolicy(string fname)
 {
-    this->NFQimprove();
     _info("\nSaving all policies...\n");
     Q->save(fname);
     _info("Done\n");

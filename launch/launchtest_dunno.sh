@@ -36,7 +36,7 @@ fi
 
 cp ../makefiles/${EXECNAME} ../run$2/executable
 cp ../factory/factoryCart ../run$2/factory
-cp ../samples/cart-pole ../run$2/
+cp ../apps/cart-pole ../run$2/
 cd ../run$2
 
 /opt/mpich/bin/mpirun -np $1 ./executable ${OPTIONS}

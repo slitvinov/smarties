@@ -17,7 +17,7 @@
 #include "../QApproximators/MultiTable.h"
 #include "../QApproximators/QApproximator.h"
 #include "Trace.h"
-#include "../QApproximators/ANNApproximator.h"
+#include "../QApproximators/NFQApproximator.h"
 
 using namespace std;
 

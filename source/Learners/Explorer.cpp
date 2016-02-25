@@ -21,6 +21,7 @@ Q(newQ), errEst(errQ), actionsIt(actInfo), gamma(newGamma), greedyEps(newGreedyE
 
 void Explorer::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent)
 {
+    /*
     Real ALfac = .2;
 // Predict Q
     int Nbest, NoldBest, Nnext;
@@ -43,6 +44,7 @@ void Explorer::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& 
     //printf("Trace %d\n", i);
     Real errErr = t.hist[i].value + gamma*Unc - errOld;
     errEst->correct(*t.hist[i].s, *t.hist[i].a, errErr, Nagent);
+     */
 }
 
 void Explorer::try2restart(string fname)

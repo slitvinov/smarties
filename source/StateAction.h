@@ -39,7 +39,6 @@ class State
 {
 public:
 	StateInfo sInfo;
-
 	vector<Real> vals;
 	
 	State() {};
@@ -86,9 +85,7 @@ public:
 		o << "[";
 		for (int i=0; i<sInfo.dim; i++)
 		{
-			Real res = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*4 - 2;
-			if (res > 2)  res = 2;
-			if (res < -2) res = -2;
+			Real res = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*2 - 1;
 			
 			o << res;
 			if (i < sInfo.dim-1) o << " ";
@@ -101,9 +98,7 @@ public:
 	{
 		for (int i=0; i<sInfo.dim; i++)
 		{
-            res[i] = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*4. - 2.;
-			if (res[i] > 2)  res[i] = 2.0;
-			if (res[i] < -2) res[i] = -2.;
+            res[i] = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*2. - 1.;
             if (sInfo.isLabel[i]) res[i] = sInfo.values[vals[i]];
         }
 
@@ -159,8 +154,6 @@ class Action
 {
 public:
 	ActionInfo actInfo;
-	
-public:
 	vector<int> vals;
 	
 	Action() {};
@@ -181,6 +174,13 @@ public:
     {
         for (int i=0; i<actInfo.dim; i++)
             vals[i] = rand() % actInfo.bounds[i];
+        //if (actInfo.dim > 0) vals[0] = -1;
+    }
+    
+    void getRand(RNG* rng)
+    {
+        for (int i=0; i<actInfo.dim; i++)
+            vals[i] = rng->rand_int32() % actInfo.bounds[i];
         //if (actInfo.dim > 0) vals[0] = -1;
     }
     
@@ -237,9 +237,9 @@ class ActionIterator
 {
 private:
 	Action currAction, storedAction, rAction;
-	ActionInfo actInfo;
 	
 public:
+    ActionInfo actInfo;
 	ActionIterator(const ActionInfo& newActInfo);
 	Action& getRand(RNG* rng);
 	

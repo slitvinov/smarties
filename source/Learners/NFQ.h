@@ -18,7 +18,6 @@
 #include "../QApproximators/QApproximator.h"
 #include "../QApproximators/NFQApproximator.h"
 #include "Trace.h"
-#include "../QApproximators/ANNApproximator.h"
 
 using namespace std;
 
@@ -42,6 +41,6 @@ public:
     void updateSelect(Trace& t, State& s, Action& a, Real r, Real alphaK) {};
     void try2restart(string prefix);
     void savePolicy(string fname);
-    void NFQimprove();
+    void improve();
 };
 

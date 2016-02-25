@@ -15,12 +15,10 @@
 class SelfAvoidEnvironment;
 class SwarmEnvironment;
 class ExternalEnvironment;
-class CartEnvironment;
-class HardCartEnvironment;
-
+class oldEnvironment;
+class TwoFishEnvironment;
 #include "Environments/SelfAvoidEnvironment.h"
 #include "Environments/SwarmEnvironment.h"
 #include "Environments/ExternalEnvironment.h"
-#include "Environments/CartEnvironment.h"
-#include "Environments/HardCartEnvironment.h"
-#include "Environments/GlideEnvironment.h"
+#include "Environments/oldEnvironment.h"
+#include "Environments/TwoFishEnvironment.h"
