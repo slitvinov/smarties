@@ -19,7 +19,7 @@ using namespace std;
 #include <omp.h>
 
 #ifndef REG
-#define REG 1
+#define REG 5
 #endif /* REG */
 
 
@@ -38,6 +38,7 @@ using namespace std;
     #define MUL    _mm256_mul_pd
     #define DIV    _mm256_div_pd
     #define MAX    _mm256_max_pd
+    #define MIN    _mm256_min_pd
     #define RCP( arg ) ( _mm256_div_pd ( SET1(1.0) , arg ))
     #define SQRT   _mm256_sqrt_pd
     #define RSQRT( arg ) RCP( _mm256_sqrt_pd( arg ) )
@@ -61,6 +62,7 @@ using namespace std;
     #define MUL    _mm256_mul_ps
     #define DIV    _mm256_div_ps
     #define MAX    _mm256_max_ps
+    #define MIN    _mm256_min_ps
     #define RCP    _mm256_rcp_ps
     #define SQRT   _mm256_sqrt_ps
     #define RSQRT  _mm256_rsqrt_ps
@@ -84,6 +86,7 @@ using namespace std;
     #define MUL    _mm_mul_pd
     #define DIV    _mm_div_pd
     #define MAX    _mm_max_pd
+    #define MIN    _mm_min_pd
     #define RCP    _mm_rcp_pd
     //#define RCP( arg ) ( _mm_div_pd ( SET1(1.0) , arg ))
     #define SQRT   _mm_sqrt_pd
@@ -107,6 +110,7 @@ using namespace std;
     #define MUL    _mm_mul_ps
     #define DIV    _mm_div_ps
     #define MAX    _mm_max_ps
+    #define MIN    _mm_min_ps
     #define RCP    _mm_rcp_ps
     #define SQRT   _mm_sqrt_ps
     #define RSQRT  _mm_rsqrt_ps

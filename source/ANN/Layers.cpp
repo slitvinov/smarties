@@ -22,7 +22,7 @@ void NormalLayer::propagate(Mem * M, Lab * N, Real* weights, Real* biases)
     #pragma omp for
     for (int n=0; n<nNeurons; n++)
     {
-        updateInputs( n, N, nullptr, weights); //nullptr just because if it's ever accessed
+        updateInputs( n, N, M->outvals, weights); //nullptr just because if it's ever accessed
         updateOutputs(n, N, nullptr, weights, biases); // then I DESERVE a segfault
     }
 }
@@ -32,7 +32,7 @@ void NormalLayer::propagate(Lab * M, Lab * N, Real* weights, Real* biases)
     #pragma omp for
     for (int n=0; n<nNeurons; n++)
     {
-        updateInputs( n, N, nullptr, weights);
+        updateInputs( n, N, M->outvals, weights);
         updateOutputs(n, N, nullptr, weights, biases);
     }
 }
@@ -73,14 +73,46 @@ void NormalLayer::backPropagate(Mem * M, Lab * N, Dsdw * dsdw, Grads * grad, Rea
         
         *(N->errvals +n1stNeuron +n) *= func->evalDiff(*(N->in_vals +n1stNeuron +n));
         
-        updateGrads(n, N, nullptr, nullptr, dsdw, grad);
+        updateGrads(n, N, M->outvals, nullptr, nullptr, grad);
+    }
+}
+
+void NormalLayer::backPropagate(Lab * M, Lab * N, Dsdw * dsdw, Grads * grad, Real* weights, Real* biases)
+{
+#pragma omp for
+    for (int n=0; n<nNeurons; n++)
+    {
+        if(!last)
+            *(N->errvals +n1stNeuron +n) = 0.0; //here i truncate future errors
+        for (const auto & l : *curr_output_links)
+            addErrors(n, l, N, N->errvals, weights);
+        
+        *(N->errvals +n1stNeuron +n) *= func->evalDiff(*(N->in_vals +n1stNeuron +n));
+        
+        updateGrads(n, N, M->outvals, nullptr, nullptr, grad);
+    }
+}
+
+void NormalLayer::backPropagate(Lab * M, Lab * N, Grads * grad, Real* weights, Real* biases)
+{
+#pragma omp for
+    for (int n=0; n<nNeurons; n++)
+    {
+        if(!last)
+            *(N->errvals +n1stNeuron +n) = 0.0; //here i truncate future errors
+        for (const auto & l : *curr_output_links)
+            addErrors(n, l, N, N->errvals, weights);
+        
+        *(N->errvals +n1stNeuron +n) *= func->evalDiff(*(N->in_vals +n1stNeuron +n));
+        
+        updateGrads(n, N, M->outvals, nullptr, nullptr, grad);
     }
 }
 
 void LSTMLayer::backPropagate(Mem * M, Lab * N, Dsdw * dsdw, Grads * grad, Real* weights, Real* biases)
 {
     #pragma omp for
-    for (int n=0; n<nNeurons; n++)
+    for (int n=0; n<nNeurons;  n++)
     {
         if(!last)
             *(N->errvals +n1stNeuron +n) = 0.0; //here i truncate future errors
@@ -91,25 +123,10 @@ void LSTMLayer::backPropagate(Mem * M, Lab * N, Dsdw * dsdw, Grads * grad, Real*
         *(N->eIGates+n1stCell+n) = sigm->evalDiff(*(N->iIGates +n1stCell   +n)) * *(N->oMCell  +n1stCell +n);
         *(N->eFGates+n1stCell+n) = sigm->evalDiff(*(N->iFGates +n1stCell   +n)) * *(M->ostates +n1stCell +n);
         *(N->eOGates+n1stCell+n) = sigm->evalDiff(*(N->iOGates +n1stCell   +n)) * ofun->eval(*(N->ostates +n1stCell +n)) * *(N->errvals +n1stNeuron +n);
+        
         *(N->errvals +n1stNeuron +n) *= *(N->oOGates +n1stCell +n) * ofun->evalDiff(*(N->ostates +n1stCell +n));
 
         updateGrads(n, N, M->outvals, M->ostates, dsdw, grad);
-    }
-}
-
-void NormalLayer::backPropagate(Lab * M, Lab * N, Dsdw * dsdw, Grads * grad, Real* weights, Real* biases)
-{
-    #pragma omp for
-    for (int n=0; n<nNeurons; n++)
-    {
-        if(!last)
-            *(N->errvals +n1stNeuron +n) = 0.0; //here i truncate future errors
-        for (const auto & l : *curr_output_links)
-            addErrors(n, l, N, N->errvals, weights);
-        
-        *(N->errvals +n1stNeuron +n) *= func->evalDiff(*(N->in_vals +n1stNeuron +n));
-        
-        updateGrads(n, N, nullptr, nullptr, dsdw, grad);
     }
 }
 
@@ -127,25 +144,10 @@ void LSTMLayer::backPropagate(Lab * M, Lab * N, Dsdw * dsdw, Grads * grad, Real*
         *(N->eIGates+n1stCell+n) = sigm->evalDiff(*(N->iIGates +n1stCell   +n)) * *(N->oMCell  +n1stCell +n);
         *(N->eFGates+n1stCell+n) = sigm->evalDiff(*(N->iFGates +n1stCell   +n)) * *(M->ostates +n1stCell +n);
         *(N->eOGates+n1stCell+n) = sigm->evalDiff(*(N->iOGates +n1stCell   +n)) * ofun->eval(*(N->ostates +n1stCell +n)) * *(N->errvals +n1stNeuron +n);
-        *(N->errvals +n1stNeuron +n) *= *(N->oOGates +n1stCell +n) * ofun->evalDiff(*(N->ostates +n1stCell +n)); /// multiply by * func->evalDiff(*(N->ostates)) in original lstm
+        
+        *(N->errvals +n1stNeuron +n) *= *(N->oOGates +n1stCell +n) * ofun->evalDiff(*(N->ostates +n1stCell +n));
         
         updateGrads(n, N, M->outvals, M->ostates, dsdw, grad);
-    }
-}
-
-void NormalLayer::backPropagate(Lab * M, Lab * N, Grads * grad, Real* weights, Real* biases)
-{
-    #pragma omp for
-    for (int n=0; n<nNeurons; n++)
-    {
-        if(!last)
-            *(N->errvals +n1stNeuron +n) = 0.0; //here i truncate future errors
-        for (const auto & l : *curr_output_links)
-            addErrors(n, l, N, N->errvals, weights);
-        
-        *(N->errvals +n1stNeuron +n) *= func->evalDiff(*(N->in_vals +n1stNeuron +n));
-        
-        updateGrads(n, N, nullptr, nullptr, nullptr, grad);
     }
 }
 
@@ -166,7 +168,6 @@ void LSTMLayer::backPropagate(Lab * M, Lab * N, Grads * grad, Real* weights, Rea
         
         *(N->errvals +n1stNeuron +n) *= *(N->oOGates +n1stCell +n) * ofun->evalDiff(*(N->ostates +n1stCell +n));
         
-        //printf("output error %d is %f\n",n1stNeuron+n, *(N->errvals+n1stNeuron+n));
         updateGradsLight(n, N, M->outvals, M->ostates, grad);
     }
 }
@@ -180,76 +181,19 @@ void NormalLayer::backPropagateDelta(Lab * prev, Lab * curr, Lab * next, Real* w
 #pragma omp for
     for (int n=0; n<nNeurons; n++)
     {
-        if(!last)
-        *(curr->errvals +n1stNeuron +n) = 0.0;
-        for (const auto & l : *curr_output_links) //nl_l_f
+        if (!last) *(curr->errvals +n1stNeuron +n) = 0.0;
+        //printf("normal %f \n", *(curr->errvals+n1stNeuron+n));
+        
+        for (const auto & l : *curr_output_links)
             addErrors(n, l, curr, curr->errvals, weights);
-        for (const auto & l : *next_output_links) //nl_l_f
+        for (const auto & l : *next_output_links)
             addErrors(n, l, next, curr->errvals, weights);
         
         *(curr->errvals +n1stNeuron +n) *= func->evalDiff( *(curr->in_vals +n1stNeuron +n) );
-        
-        //printf("output error %d is %f\n",n1stNeuron+n, *(curr->errvals+n1stNeuron+n));
+        //printf("normal %f \n", *(curr->errvals+n1stNeuron+n));
     }
 }
 
-void LSTMLayer::backPropagateDelta(Lab * prev, Lab * curr, Lab * next, Real* weights, Real* biases)
-{
-#pragma omp for
-    for (int n=0; n<nNeurons; n++)
-    {
-        if(!last)
-        *(curr->errvals +n1stNeuron +n) = 0.0;
-        for (const auto & l : *curr_output_links)
-        {
-            //printf("curr link\n");
-            addErrors(n, l, curr, curr->errvals, weights); //adderrors updates the fourth arg
-        }
-        for (const auto & l : *next_output_links)
-        {
-            //printf("next link\n");
-            addErrors(n, l, next, curr->errvals, weights);
-        }
-        
-        *(curr->eMCell +n1stCell+n) = ifun->evalDiff(*(curr->in_vals+n1stNeuron+n)) * *(curr->oIGates+n1stCell+n);
-        *(curr->eIGates+n1stCell+n) = sigm->evalDiff(*(curr->iIGates+n1stCell  +n)) * *(curr->oMCell +n1stCell+n);
-        *(curr->eFGates+n1stCell+n) = sigm->evalDiff(*(curr->iFGates+n1stCell  +n)) * *(prev->ostates+n1stCell+n);
-        *(curr->eOGates+n1stCell+n) = sigm->evalDiff(*(curr->iOGates+n1stCell  +n)) * ofun->eval(*(curr->ostates+n1stCell+n)) * *(curr->errvals+n1stNeuron+n);
-        
-        //the final boss:
-        *(curr->errvals+n1stNeuron+n) = *(curr->errvals+n1stNeuron+n) * *(curr->oOGates+n1stCell+n) * ofun->evalDiff(*(curr->ostates +n1stCell +n)) +
-                                        *(next->errvals+n1stNeuron+n)* *(next->oFGates+n1stCell+n) +
-                                          *(next->eIGates+n1stCell+n)* *(weights+n1stPeep+3*n)   +
-                                          *(next->eFGates+n1stCell+n)* *(weights+n1stPeep+3*n+1) +
-                                          *(curr->eOGates+n1stCell+n)* *(weights+n1stPeep+3*n+2);
-        
-        
-        //printf("output error %d is %f\n",n1stNeuron+n, *(curr->errvals+n1stNeuron+n));
-    }
-}
-
-void LSTMLayer::backPropagateDelta(Lab * prev, Lab * curr, Real* weights, Real* biases)
-{
-#pragma omp for
-    for (int n=0; n<nNeurons; n++)
-    {
-        if(!last)
-        *(curr->errvals +n1stNeuron +n) = 0.0;
-        for (const auto & l : *curr_output_links)
-        {
-            //printf("curr link\n");
-            addErrors(n, l, curr, curr->errvals, weights); //adderrors updates the fourth arg
-        }
-        
-        *(curr->eMCell +n1stCell+n) = ifun->evalDiff(*(curr->in_vals+n1stNeuron+n)) * *(curr->oIGates+n1stCell+n);
-        *(curr->eIGates+n1stCell+n) = sigm->evalDiff(*(curr->iIGates+n1stCell  +n)) * *(curr->oMCell +n1stCell+n);
-        *(curr->eFGates+n1stCell+n) = sigm->evalDiff(*(curr->iFGates+n1stCell  +n)) * *(prev->ostates+n1stCell+n);
-        *(curr->eOGates+n1stCell+n) = sigm->evalDiff(*(curr->iOGates+n1stCell  +n)) * ofun->eval(*(curr->ostates+n1stCell+n)) * *(curr->errvals+n1stNeuron+n);
-        
-        //the final boss:
-        *(curr->errvals+n1stNeuron+n) = *(curr->errvals+n1stNeuron+n) * *(curr->oOGates+n1stCell+n) * ofun->evalDiff(*(curr->ostates +n1stCell +n));
-    }
-}
 void NormalLayer::backPropagateDelta(Lab * prev, Lab * curr, Real* weights, Real* biases)
 {
 #pragma omp for
@@ -261,8 +205,61 @@ void NormalLayer::backPropagateDelta(Lab * prev, Lab * curr, Real* weights, Real
             addErrors(n, l, curr, curr->errvals, weights);
         
         *(curr->errvals +n1stNeuron +n) *= func->evalDiff( *(curr->in_vals +n1stNeuron +n) );
+    }
+}
+
+void LSTMLayer::backPropagateDelta(Lab * prev, Lab * curr, Lab * next, Real* weights, Real* biases)
+{
+#pragma omp for
+    for (int n=0; n<nNeurons; n++)
+    {
+        if(!last) *(curr->errvals +n1stNeuron +n) = 0.0;
+        //printf("LSTM %f \n", *(curr->errvals+n1stNeuron+n));
         
-        //printf("output error %d is %f\n",n1stNeuron+n, *(curr->errvals+n1stNeuron+n));
+        for (const auto & l : *curr_output_links)
+        {
+            addErrors(n, l, curr, curr->errvals, weights); //adderrors updates the fourth arg
+        }
+        for (const auto & l : *next_output_links)
+        {
+            addErrors(n, l, next, curr->errvals, weights);
+        }
+        
+        *(curr->eMCell +n1stCell+n) = ifun->evalDiff(*(curr->in_vals+n1stNeuron+n)) * *(curr->oIGates+n1stCell+n);
+        *(curr->eIGates+n1stCell+n) = sigm->evalDiff(*(curr->iIGates+n1stCell  +n)) * *(curr->oMCell +n1stCell+n);
+        *(curr->eFGates+n1stCell+n) = sigm->evalDiff(*(curr->iFGates+n1stCell  +n)) * *(prev->ostates+n1stCell+n);
+        *(curr->eOGates+n1stCell+n) = sigm->evalDiff(*(curr->iOGates+n1stCell  +n)) * *(curr->errvals+n1stNeuron+n) * ofun->eval(*(curr->ostates+n1stCell+n));
+        
+        //the final boss:
+        *(curr->errvals+n1stNeuron+n) = *(curr->errvals+n1stNeuron+n) * *(curr->oOGates+n1stCell+n) * ofun->evalDiff(*(curr->ostates +n1stCell +n)) +
+                                          *(next->errvals+n1stNeuron+n)* *(next->oFGates+n1stCell+n) +
+                                          *(next->eIGates+n1stCell+n)* *(weights+n1stPeep+3*n)   +
+                                          *(next->eFGates+n1stCell+n)* *(weights+n1stPeep+3*n+1) +
+                                          *(curr->eOGates+n1stCell+n)* *(weights+n1stPeep+3*n+2);
+        //printf("LSTM %d %f %f %f %f %f %f \n", n1stNeuron+n,  *(curr->errvals+n1stNeuron+n),*(curr->eMCell +n1stCell+n), *(curr->eIGates+n1stCell+n), *(curr->eFGates+n1stCell+n), *(curr->eOGates+n1stCell+n),*(curr->outvals +n1stNeuron +n) );
+        //printf("%f %f %f %f\n",*(next->errvals+n1stNeuron+n), *(next->eIGates+n1stCell+n),*(next->eFGates+n1stCell+n),*(next->oFGates+n1stCell+n));
+        //printf("LSTM %d %f %f %f %f\n", n1stNeuron+n, *(curr->in_vals+n1stNeuron+n), *(curr->iIGates+n1stCell  +n), *(curr->iFGates+n1stCell  +n), *(curr->iOGates+n1stCell  +n));
+        //printf("LSTM %f \n", *(curr->errvals+n1stNeuron+n));
+    }
+}
+
+void LSTMLayer::backPropagateDelta(Lab * prev, Lab * curr, Real* weights, Real* biases)
+{
+#pragma omp for
+    for (int n=0; n<nNeurons; n++)
+    {
+        if(!last)
+        *(curr->errvals +n1stNeuron +n) = 0.0;
+        for (const auto & l : *curr_output_links)
+            addErrors(n, l, curr, curr->errvals, weights);
+        
+        *(curr->eMCell +n1stCell+n) = ifun->evalDiff(*(curr->in_vals+n1stNeuron+n)) * *(curr->oIGates+n1stCell+n);
+        *(curr->eIGates+n1stCell+n) = sigm->evalDiff(*(curr->iIGates+n1stCell  +n)) * *(curr->oMCell +n1stCell+n);
+        *(curr->eFGates+n1stCell+n) = sigm->evalDiff(*(curr->iFGates+n1stCell  +n)) * *(prev->ostates+n1stCell+n);
+        *(curr->eOGates+n1stCell+n) = sigm->evalDiff(*(curr->iOGates+n1stCell  +n)) * ofun->eval(*(curr->ostates+n1stCell+n)) * *(curr->errvals+n1stNeuron+n);
+        
+        //the final boss:
+        *(curr->errvals+n1stNeuron+n) = *(curr->errvals+n1stNeuron+n) * *(curr->oOGates+n1stCell+n) * ofun->evalDiff(*(curr->ostates +n1stCell +n));
     }
 }
 
@@ -274,7 +271,7 @@ void NormalLayer::backPropagateGrads(Lab * M, Lab * N, Dsdw * dsdw, Grads * grad
 {
 #pragma omp for
     for (int n=0; n<nNeurons; n++)
-        updateGrads(n, N, M->outvals, M->ostates, dsdw, grad);
+        updateGrads(n, N, M->outvals, nullptr, nullptr, grad);
 }
 
 void LSTMLayer::backPropagateGrads(Lab * M, Lab * N, Dsdw * dsdw, Grads * grad)
@@ -288,7 +285,7 @@ void NormalLayer::backPropagateGradsLight(Lab * M, Lab * N, Grads * grad)
 {
 #pragma omp for
     for (int n=0; n<nNeurons; n++)
-        updateGrads(n, N, nullptr, nullptr, nullptr, grad);
+        updateGrads(n, N, M->outvals, nullptr, nullptr, grad);
 }
 
 void LSTMLayer::backPropagateGradsLight(Lab * M, Lab * N, Grads * grad)
@@ -314,12 +311,20 @@ KER1 void NormalLayer::updateInputs(const int n, Lab * N, Real * oldvals, Real* 
     
     for (const auto & l : *curr_input_links)
     {
-    #ifdef SIMDKERNELSIN
+        #ifdef SIMDKERNELSIN
         if (l->first==false)
             addInputsSIMD(IN, n, l, N->outvals, weights);
         else
-    #endif
-            addInputs(in, n, l, N->outvals, weights);
+        #endif
+            addInputs(    in, n, l, N->outvals, weights);
+    }
+    for (const auto & l : *prev_input_links)
+    {
+        #ifdef SIMDKERNELSIN
+            addInputsSIMD(IN, n, l, oldvals, weights);
+        #else
+            addInputs(    in, n, l, oldvals, weights);
+        #endif
     }
     
     *(N->in_vals +n1stNeuron +n) = *in; //first element of in
@@ -335,6 +340,8 @@ KER1 void NormalLayer::updateInputs(const int n, Lab * N, Real * oldvals, Real* 
 
 KER1 void LSTMLayer::updateInputs(  const int n, Lab * N, Real * oldvals, Real* weights)
 {
+    *(N->in_vals +n1stNeuron +n) = 0.; *(N->iIGates +n1stCell +n) = 0.;
+    *(N->iFGates +n1stCell   +n) = 0.; *(N->iOGates +n1stCell +n) = 0.;
     Real *tC, *tI, *tF, *tO;
     #ifndef SIMDKERNELSIN
     tC  = (Real *) calloc(1,sizeof(Real)); //might be silly
@@ -343,31 +350,30 @@ KER1 void LSTMLayer::updateInputs(  const int n, Lab * N, Real * oldvals, Real* 
     tO  = (Real *) calloc(1,sizeof(Real));
     #else
     _myallocate(tC, SIMD)
-    *tC = 0.; //zero the first
     _myallocate(tI, SIMD)
-    *tI = 0.; //zero the first
     _myallocate(tF, SIMD)
-    *tF = 0.; //zero the first
     _myallocate(tO, SIMD)
-    *tO = 0.; //zero the first
     vec IN=SET0(); vec IG=SET0(); vec FG=SET0(); vec OG=SET0();
     #endif
+    *tC = 0.; *tI = 0.; *tF = 0.; *tO = 0.; //zero the first
     
     for (const auto & l : *curr_input_links)
     {
-    #ifdef SIMDKERNELSIN
+        #ifdef SIMDKERNELSIN
         if (l->first==false)
             addInputsSIMD(IN, IG, FG, OG, n, l, N->outvals, weights);
         else
-    #endif
+        #endif
             addInputs(    tC, tI, tF, tO, n, l, N->outvals, weights);
     }
     for (const auto & l : *prev_input_links)
-    #ifdef SIMDKERNELSIN
+    {
+        #ifdef SIMDKERNELSIN
             addInputsSIMD(IN, IG, FG, OG, n, l, oldvals, weights);
-    #else
+        #else
             addInputs(    tC, tI, tF, tO, n, l, oldvals, weights);
-    #endif
+        #endif
+    }
     
     *(N->in_vals +n1stNeuron +n) = *tC; *(N->iIGates +n1stCell +n) = *tI;
     *(N->iFGates +n1stCell +n) = *tF;   *(N->iOGates +n1stCell +n) = *tO;
@@ -385,7 +391,6 @@ KER1 void LSTMLayer::updateInputs(  const int n, Lab * N, Real * oldvals, Real* 
     #else
     free(tC); free(tI); free(tF); free(tO);
     #endif
-    
 }
 
 KER1 void NormalLayer::updateOutputs(const int n, Lab * N, Real * oldstates, Real* weights, Real* biases)
@@ -397,19 +402,24 @@ KER1 void NormalLayer::updateOutputs(const int n, Lab * N, Real * oldstates, Rea
 KER1 void LSTMLayer::updateOutputs(  const int n, Lab * N, Real * oldstates, Real* weights, Real* biases)
 {
     *(N->in_vals +n1stNeuron +n) += *(biases +n1stBias +n);
-    *(N->iIGates +n1stCell +n) += *(oldstates +n1stCell +n) * *(weights +n1stPeep +3*n)    + *(biases +n1stBiasIG +n);
-    *(N->iFGates +n1stCell +n) += *(oldstates +n1stCell +n) * *(weights +n1stPeep +3*n +1) + *(biases +n1stBiasFG +n);
+    *(N->iIGates +n1stCell   +n) += *(oldstates +n1stCell +n)* *(weights +n1stPeep +3*n)   + *(biases +n1stBiasIG +n);
+    *(N->iFGates +n1stCell   +n) += *(oldstates +n1stCell +n)* *(weights +n1stPeep +3*n +1)+ *(biases +n1stBiasFG +n);
     
     *(N->oMCell  +n1stCell +n) = ifun->eval(*(N->in_vals +n1stNeuron +n));
     *(N->oIGates +n1stCell +n) = sigm->eval(*(N->iIGates +n1stCell   +n));
     *(N->oFGates +n1stCell +n) = sigm->eval(*(N->iFGates +n1stCell   +n));
     
     *(N->ostates +n1stCell +n) = *(oldstates +n1stCell +n) * *(N->oFGates +n1stCell +n) +
-    *(N->oMCell  +n1stCell +n) * *(N->oIGates +n1stCell +n);
+                                 *(N->oMCell +n1stCell +n) * *(N->oIGates +n1stCell +n);
     
     *(N->iOGates +n1stCell +n) += *(N->ostates +n1stCell +n) * *(weights +n1stPeep +3*n +2) + *(biases +n1stBiasOG +n);
-    *(N->oOGates +n1stCell +n) = sigm->eval(*(N->iOGates +n1stCell +n) );
+    
+    *(N->oOGates +n1stCell +n) = sigm->eval(*(N->iOGates +n1stCell   +n));
+    
     *(N->outvals +n1stNeuron +n) = ofun->eval(*(N->ostates +n1stCell +n)) * *(N->oOGates +n1stCell +n);
+    
+    //printf("LSTM %d %f %f %f %f\n", n1stNeuron+n, *(N->in_vals+n1stNeuron+n), *(N->iIGates+n1stCell  +n), *(N->iFGates+n1stCell  +n), *(N->iOGates+n1stCell  +n));
+    //printf("LSTM %d %f %f %f %f\n", n1stNeuron+n, *(N->oMCell  +n1stCell +n), *(N->oIGates +n1stCell +n), *(N->oFGates +n1stCell +n),  *(N->oOGates +n1stCell +n));
 }
 
 KER1 void NormalLayer::updateGrads(const int n, Lab * N, Real * oldvals, Real * oldstates, Dsdw * dsdw, Grads * grad)
@@ -419,10 +429,18 @@ KER1 void NormalLayer::updateGrads(const int n, Lab * N, Real * oldvals, Real * 
     {
         #ifdef SIMDKERNELSG
         if (l->first==false)
-            updateGradsSIMD(n, l, N, N->outvals, grad->_W, dsdw);
+            updateGradsSIMD(n, l, N, N->outvals, grad->_W, nullptr);
         else
         #endif
-            updateGrads(n, l, N, N->outvals, grad->_W, dsdw);
+            updateGrads(n, l, N, N->outvals, grad->_W, nullptr);
+    }
+    for (const auto & l : *prev_input_links)
+    {
+        #ifdef SIMDKERNELSG
+        updateGradsSIMD(n, l, N, oldvals, grad->_W, nullptr);
+        #else
+        updateGrads(n, l, N, oldvals, grad->_W, nullptr);
+        #endif
     }
 }
 
@@ -489,6 +507,7 @@ KER1 void LSTMLayer::updateGradsLight(  const int n, Lab * N, Real * oldvals, Re
     
     for (const auto & l : *curr_input_links)
     {
+        //printf("curr %d %d %d %d\n",l->iW,l->iWI,l->iWF,l->iWO);
         #ifdef SIMDKERNELSG
         if (l->first==false)
             updateGradsSIMDLight(n, l, N, N->outvals, grad->_W);
@@ -498,6 +517,7 @@ KER1 void LSTMLayer::updateGradsLight(  const int n, Lab * N, Real * oldvals, Re
     }
     for (const auto & l : *prev_input_links)
     {
+        //printf("prev %d %d %d %d\n",l->iW,l->iWI,l->iWF,l->iWO);
         #ifdef SIMDKERNELSG
         updateGradsSIMDLight(n, l, N, oldvals, grad->_W);
         #else
@@ -562,8 +582,27 @@ KER2 void LSTMLayer::addInputsSIMD(vec & IN, vec & IG, vec & FG, vec & OG, const
 KER2 void NormalLayer::updateGrads(    const int n, Link *l, Lab * N, Real * outvals, Real* gradW, Dsdw * dsdw)
 {
     for (int i=0; i<l->nI; i++)
+    {
         *(gradW +l->iW +n*l->nI +i) = *(outvals +l->iI +i) * *(N->errvals +l->iO +n);
-    //printf("input errval %d is %f\n",l->iO +n, *(N->errvals +l->iO +n));
+        //printf("%d %d %d %d %d \n", l->iI, l->iO, l->iW, l->nI, l->nO);
+        //printf("%d %d %d\n",l->iI +i,l->iO +n,l->iW +n*l->nI +i);
+    }
+}
+
+KER2 void LSTMLayer::updateGradsLight( const int n, Link *l, Lab * N, Real * outvals, Real* gradW)
+{
+    for (int i=0; i<l->nI; i++)
+    {
+        //printf("up %d with %d and %d (%d) -> %f x %f (%f %f %f %f)\n", l->iW +n*l->nI +i, l->iI +i, l->iO +n, l->iC +n, *(outvals +l->iI +i), *(N->errvals +l->iO +n), *(N->eMCell  +l->iC +n), *(N->eIGates +l->iC +n), *(N->eFGates +l->iC +n), *(N->eOGates +l->iC +n) );
+        
+        *(gradW +l->iW       +n*l->nI +i) = *(outvals +l->iI +i) * *(N->eMCell  +l->iC +n) * *(N->errvals +l->iO +n);
+        
+        *(gradW +l->iWI      +n*l->nI +i) = *(outvals +l->iI +i) * *(N->eIGates +l->iC +n) * *(N->errvals +l->iO +n);
+        
+        *(gradW +l->iWF      +n*l->nI +i) = *(outvals +l->iI +i) * *(N->eFGates +l->iC +n) * *(N->errvals +l->iO +n);
+        
+        *(gradW +l->iWO      +n*l->nI +i) = *(outvals +l->iI +i) * *(N->eOGates +l->iC +n);
+    }
 }
 
 #ifdef SIMDKERNELSG
@@ -665,37 +704,24 @@ KER2 void LSTMLayer::updateGrads(      const int n, Link *l, Lab * N, Real * out
     }
 }
 
-KER2 void LSTMLayer::updateGradsLight( const int n, Link *l, Lab * N, Real * outvals, Real* gradW)
-{
-    for (int i=0; i<l->nI; i++)
-    {
-        *(gradW +l->iW       +n*l->nI +i) = *(outvals +l->iI +i) * *(N->eMCell  +l->iC +n) * *(N->errvals +l->iO +n);
-
-        *(gradW +l->iWI      +n*l->nI +i) = *(outvals +l->iI +i) * *(N->eIGates +l->iC +n) * *(N->errvals +l->iO +n);
-
-        *(gradW +l->iWF      +n*l->nI +i) = *(outvals +l->iI +i) * *(N->eFGates +l->iC +n) * *(N->errvals +l->iO +n);
-
-        *(gradW +l->iWO      +n*l->nI +i) = *(outvals +l->iI +i) * *(N->eOGates +l->iC +n);
-    }
-    //printf("input errval %d is %f\n",l->iO +n, *(N->errvals +l->iO +n));
-}
-
 KER2 void NormalLayer::addErrors(const int n, Link *l, Lab * N, Real * errvals, Real* weights)
 {
     Real err(0.);
     if (l->LSTM)
         for (int i=0; i<l->nO; i++)
         {
-            //printf("input error %d is %f\n",l->iO +i, *(N->errvals +l->iO +i));
-            err += *(N->eOGates +l->iC +i) * *(weights +l->iWO +i*l->nI +n) + *(N->errvals +l->iO +i) * (
-                                         *(N->eMCell  +l->iC +i) * *(weights +l->iW  +i*l->nI +n) +
-                                         *(N->eIGates +l->iC +i) * *(weights +l->iWI +i*l->nI +n) +
-                                         *(N->eFGates +l->iC +i) * *(weights +l->iWF +i*l->nI +n) );
+            err += *(N->eOGates +l->iC +i) * *(weights +l->iWO +i*l->nI +n) +
+                   *(N->errvals +l->iO +i) * (
+                   *(N->eMCell  +l->iC +i) * *(weights +l->iW  +i*l->nI +n) +
+                   *(N->eIGates +l->iC +i) * *(weights +l->iWI +i*l->nI +n) +
+                   *(N->eFGates +l->iC +i) * *(weights +l->iWF +i*l->nI +n) );
+            
+            ///printf("LSTM error %f %d (%d) to %d with %d (%d %d %d)\n",*(N->errvals +l->iO +i),l->iO +i,l->iC +i, l->iI +n,l->iW +i*l->nI +n,l->iWI+i*l->nI +n,l->iWF+i*l->nI +n,l->iWO+i*l->nI +n);
         }
     else
         for (int i=0; i<l->nO; i++)
         {
-            //printf("input error %d is %f\n",l->iO +i, *(N->errvals +l->iO +i));
+            ///printf("input error %f %d to %d with %d\n",*(N->errvals +l->iO +i),l->iO +i, l->iI +n,l->iW +i*l->nI +n);
             err  += *(N->errvals +l->iO +i) * *(weights +l->iW +i*l->nI +n);
         }
     

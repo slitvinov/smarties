@@ -122,12 +122,21 @@ int main (int argc, char** argv)
         settings.nnKappa=0.0;
         settings.nnAdFac=1e-6;
         settings.AL_fac=0.0;
-        settings.nnLayer1 =32;
-        settings.nnLayer2 =32;
+#if 0
+        settings.nnLayer1 =0;
+        settings.nnLayer2 =0;
         settings.nnLayer3 =0;
-       // settings.nnMemory1=32;
-       // settings.nnMemory2=16;
+        settings.nnMemory1=32;
+        settings.nnMemory2=16;
         settings.nnMemory3=8;
+#else
+        settings.nnLayer1 =32;
+        settings.nnLayer2 =24;
+        settings.nnLayer3 =16;
+        settings.nnMemory1=0;
+        settings.nnMemory2=0;
+        settings.nnMemory3=0;
+#endif
         settings.learner= (string)"NFQ";
     }
 	debugLvl = 9;
@@ -166,7 +175,7 @@ int main (int argc, char** argv)
     //vector<vector<Real>> testx, testy, test;
     vector<vector<vector<Real>>> input, target;
            vector<vector<Real>> tmp_i, tmp_o;
-                  vector<Real>  dmp_i(32), dmp_o(5);
+                  vector<Real>  testi(4), dmp_i(32), dmp_o(5);
     for (int i=1; i<= 563; i++)
     {
         string numbered_input, numbered_output;
@@ -219,6 +228,8 @@ int main (int argc, char** argv)
             {
                 std::istringstream iss(line);
                 if (!(iss >> dmp_i[0] >> dmp_i[1] >> dmp_i[2] >> dmp_i[3] >> dmp_i[4] >> dmp_i[5] >> dmp_i[6] >> dmp_i[7] >> dmp_i[8] >> dmp_i[9] >> dmp_i[10] >> dmp_i[11] >> dmp_i[12] >> dmp_i[13] >> dmp_i[14] >> dmp_i[15] >> dmp_i[16] >> dmp_i[17] >> dmp_i[18] >> dmp_i[19] >> dmp_i[20] >> dmp_i[21] >> dmp_i[22] >> dmp_i[23] >> dmp_i[24] >> dmp_i[25] >> dmp_i[26] >> dmp_i[27] >> dmp_i[28] >> dmp_i[29] >> dmp_i[30] >> dmp_i[31])) { cout << endl << "Failed to open file " << numbered_input << endl; break; } // error
+
+                //testi[0] = dis(gen); testi[1] = dis(gen); testi[2] = dis(gen); testi[3] = dis(gen);
                 tmp_i.push_back(dmp_i);
                 //for (int k=0; k<32; k++)
                 //    cout << dmp_i[k] << " ";
@@ -403,3 +414,21 @@ int main (int argc, char** argv)
 #endif
     return 0;
 }
+
+/*
+ nI 32, iI 0, nO 4, iO 32, iW 12, iC 0, iWI 140, iWF 268, iWO 396, idSdW 0
+ nI 4, iI 32, nO 4, iO 32, iW 524, iC 0, iWI 540, iWF 556, iWO 572, idSdW 128
+ nNeurons= 4, n1stNeuron= 32, n1stBias= 0
+ n1stCell= 0, n1stPeep= 0, n1stBiasIG= 4, n1stBiasFG= 8, n1stBiasOG= 12, n1stdSdB= 0
+ nI 4, iI 32, nO 4, iO 36, iW 600, iC 4, iWI 616, iWF 632, iWO 648, idSdW 144
+ nI 4, iI 36, nO 4, iO 36, iW 664, iC 4, iWI 680, iWF 696, iWO 712, idSdW 160
+ nNeurons= 4, n1stNeuron= 36, n1stBias= 16
+ n1stCell= 4, n1stPeep= 588, n1stBiasIG= 20, n1stBiasFG= 24, n1stBiasOG= 28, n1stdSdB= 20
+ nI 4, iI 36, nO 4, iO 40, iW 740, iC 8, iWI 756, iWF 772, iWO 788, idSdW 176
+ nI 4, iI 40, nO 4, iO 40, iW 804, iC 8, iWI 820, iWF 836, iWO 852, idSdW 192
+ nNeurons= 4, n1stNeuron= 40, n1stBias= 32
+ n1stCell= 8, n1stPeep= 728, n1stBiasIG= 36, n1stBiasFG= 40, n1stBiasOG= 44, n1stdSdB= 40
+ nI 4, iI 40, nO 5, iO 44, iW 868, iC -1, iWI -1, iWF -1, iWO -1, idSdW -1
+ nNeurons= 5, n1stNeuron= 44, n1stBias= 48
+ nNeurons= 49, nWeights= 888, nBiases= 53, ndSdW= 208, ndSdB= 60, nStates= 12
+ */

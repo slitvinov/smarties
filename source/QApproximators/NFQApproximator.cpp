@@ -251,21 +251,28 @@ void NFQApproximator::Train()
     if (batchSize-- <= 0 && ndata>0)
     {
         //printf("Updatingtheweights\n");
-        batchSize = ndata;
+        batchSize = min(ndata,100);
         ann->updateFrozenWeights();
         samples->updateP();
         iter++;
-        string restart_file;
-        char buf[500];
-        sprintf(buf, "restart.net%023", iter);
-        restart_file = string(buf);
-        ann->save(restart_file.c_str());
+        
+        if (iter%100==0)
+        {
+            string restart_file;
+            char buf[500];
+            sprintf(buf, "restart.net_%09d", iter);
+            restart_file = string(buf);
+            ann->save(restart_file.c_str());
+        }
     }
     if(ndata>0)
     {
         int ind = samples->sample();
+        //printf("Err prima %f ",samples->Errs[ind]);
         Real MSE = ann->trainDQ(samples->Set[ind].sOld, samples->Set[ind].a, samples->Set[ind].r, samples->Set[ind].s, gamma, samples->Ws[ind]);
         samples->Errs[ind] = MSE;
+        
+        //printf("Err dopo %f \n",samples->Errs[ind]);
         //printf("MSE %f iter %d sample %d weight %f\n",MSE,batchSize,ind, samples->Ws[ind]);
     }
     /*

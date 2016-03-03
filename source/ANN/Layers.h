@@ -14,7 +14,7 @@
 #include "../Settings.h"
 
 #define KER1
-#define KER2 inline
+#define KER2 
 //#define _myallocate( name, size ) name = (Real*) _mm_malloc(size*sizeof(Real), ALLOC);
 //#define _myfree( name ) _mm_free( name );
 #define _myallocate( name, size ) posix_memalign((void **) & name, ALLOC, size*sizeof(Real) );
@@ -27,15 +27,15 @@ using namespace std;
 
 struct Link
 {
-    const bool LSTM, first;
+    const bool LSTM, first, last;
     const int nI, iI, nO, iO, iW, iC, iWI, iWF, iWO, idSdW;
     
-    Link(int nI, int iI, int nO, int iO, int iW, bool first=false) : LSTM(false), first(first), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1), idSdW(-1)
+    Link(int nI, int iI, int nO, int iO, int iW, bool first=false, bool last=false) : LSTM(false), first(first), last(last), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1), idSdW(-1)
     {
         printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d, idSdW %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO, idSdW);
     }
     
-    Link(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO, int idSdW, bool first=false) : LSTM(true), first(first), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO), idSdW(idSdW)
+    Link(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO, int idSdW, bool first=false, bool last=false) : LSTM(true), first(first), last(last), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO), idSdW(idSdW)
     {
         printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d, idSdW %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO, idSdW);
     }
@@ -48,7 +48,7 @@ struct Graph //misleading, this is just the graph for a single layer
     int recurrPos,  normalPos;
     
     // links INTO layer FROM curr and FROM past layer
-    vector<Link*> *rl_c_l, *rl_o_l, *nl_c_l;
+    vector<Link*> *rl_c_l, *rl_o_l, *nl_c_l, *nl_o_l;
     // links FROM layer INTO curr and INTO future layer
     vector<Link*> *rl_l_c, *rl_l_f, *nl_l_c, *nl_l_f;
 
@@ -63,6 +63,8 @@ struct Graph //misleading, this is just the graph for a single layer
         
         nl_c_l = new vector<Link*>;
         nl_c_l->reserve(5);
+        nl_o_l = new vector<Link*>;
+        nl_o_l->reserve(5);
         
         rl_l_c = new vector<Link*>;
         rl_l_c->reserve(5);
@@ -189,6 +191,7 @@ public:
     const int nNeurons, n1stNeuron, n1stBias;
     const vector<Link*> * curr_input_links, * curr_output_links, * next_output_links;
     ActivationFunction * func;
+    const vector<Link*> * prev_input_links;
     
     NormalLayer(int nNeurons, int n1stNeuron, int n1stBias, vector<Link*> * nl_c_l, vector<Link*> * nl_l_c, vector<Link*> * nl_l_f, ActivationFunction* f, bool last) : last(last), nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias),  curr_input_links(nl_c_l), curr_output_links(nl_l_c), next_output_links(nl_l_f), func(f)
     {
@@ -228,12 +231,12 @@ class LSTMLayer: public NormalLayer
 public:
     const int n1stCell, n1stPeep, n1stBiasIG, n1stBiasFG, n1stBiasOG, n1stdSdB;
     ActivationFunction *sigm, *ifun, *ofun;
-    const vector<Link*> * prev_input_links;
     
     LSTMLayer(int nNeurons, int n1stNeuron, int indState, int n1stPeep, int n1stBias, int n1stBiasIG, int n1stBiasFG, int n1stBiasOG, int n1stdSdB, vector<Link*> * rl_c_l, vector<Link*> * rl_o_l, vector<Link*> * rl_l_c, vector<Link*> * rl_l_f, ActivationFunction* f, ActivationFunction* g, bool last) : NormalLayer(nNeurons, n1stNeuron, n1stBias, rl_c_l, rl_l_c, rl_l_f, f, last), n1stCell(indState), n1stPeep(n1stPeep), n1stBiasIG(n1stBiasIG), n1stBiasFG(n1stBiasFG), n1stBiasOG(n1stBiasOG), n1stdSdB(n1stdSdB),
-    sigm(new SoftSigm), ifun(new SoftSign2), ofun(new HardSign(2.)), prev_input_links(rl_o_l)
+    sigm(new SoftSigm), ifun(new SoftSign2), ofun(new HardSign(2.))//, prev_input_links(rl_o_l)
     //sigm(new SoftSigm), ifun(new SoftSign), ofun(new Linear), prev_input_links(rl_o_l)
     {
+        prev_input_links = rl_o_l;
         printf("n1stCell= %d, n1stPeep= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d, n1stdSdB= %d\n",n1stCell, n1stPeep, n1stBiasIG, n1stBiasFG, n1stBiasOG, n1stdSdB);
     }
     

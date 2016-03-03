@@ -8,11 +8,13 @@
  */
 
 #include "Optimizer.h"
+#include <iomanip>      // std::setprecision
+#include <iostream>     // std::cout, std::fixed
 #include <cassert>
 
 using namespace ErrorHandling;
 
-AdamOptimizer::AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.nnEta), beta_1(0.9), beta_2(0.999), epsilon(1e-8), net(_net), profiler(_prof), nInputs(net->nInputs), nOutputs(net->nOutputs), iOutputs(net->iOutputs), nWeights(net->nWeights), nBiases(net->nBiases), beta_t_1(0.9), beta_t_2(0.999), batchsize(0)
+AdamOptimizer::AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.nnEta), beta_1(0.9), beta_2(0.999), epsilon(1e-8), net(_net), profiler(_prof), nInputs(net->nInputs), nOutputs(net->nOutputs), iOutputs(net->iOutputs), nWeights(net->nWeights), nBiases(net->nBiases), beta_t_1(0.9), beta_t_2(0.999), batchsize(0), nepoch(1)
 {
     _myallocate(_1stMomW, nWeights)
     init(_1stMomW, nWeights);
@@ -165,6 +167,135 @@ void AdamOptimizer::trainSeries(const vector<vector<Real>>& inputs, const vector
     //printf("%f\n",trainMSE);
     trainMSE /= (Real)inputs.size();
     delete g;
+}
+
+void AdamOptimizer::checkGrads(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE)
+{
+    std::cout << std::setprecision(9);
+    int nseries = inputs.size();
+    vector<Real> res, Errors(nseries*nOutputs);
+    for (int k=0; k<=nseries; k++)
+    {
+        net->freshSeries(k+1);
+        //net->clearErrors(net->series[k+1]); //there is a omp for in here
+    }
+    net->clearMemory(net->series[0]->outvals, net->series[0]->ostates);
+    
+    Grads * g = new Grads(nWeights,nBiases);
+    Grads * G = new Grads(nWeights,nBiases);
+    for (int w=0; w<nWeights; w++)
+    {
+        *(g->_W+w) = 0;
+        *(G->_W+w) = 0;
+    }
+    for (int w=0; w<nBiases; w++)
+    {
+        *(g->_B+w) = 0;
+        *(G->_B+w) = 0;
+    }
+    const double eps = 1e-6;
+    int lastn = 2;
+    #pragma omp parallel
+    {
+        for (int k=0; k<lastn; k++)
+        {
+            //printf("\n Series %d\n",k+1);
+            
+            net->predict(inputs[k], res, net->series[k], net->series[k+1]);
+            
+            #pragma omp master
+            for (int i=0; i<nOutputs; i++)
+                *(net->series[k+1]->errvals +iOutputs+i) = 0.;
+        }
+
+        for (int i=0; i<1; i++)
+        {
+            Errors[(lastn-1)*nOutputs + i] = targets[lastn-1][i]- *(net->series[lastn]->outvals+iOutputs+i);
+            *(net->series[lastn]->errvals +iOutputs+i) = -1.;//Errors[1*nOutputs + i];
+        }
+        net->computeDeltasEnd(net->series, lastn);
+        for (int k=lastn-1; k>=1; k--)
+        {
+            net->computeDeltasSeries(net->series, k);
+            printf("\n\n\n");
+        }
+        
+        for (int k=1; k<=lastn; k++)
+        {
+            net->computeGradsLightSeries(net->series, k, g);
+            stackGrads(G,g);
+        }
+    }
+    
+    for (int w=0; w<nWeights; w++)
+    {
+        *(g->_W+w) = 0;
+        *(net->weights+w) += eps;
+        
+        for (int k=0; k<lastn; k++)
+        {
+            net->predict(inputs[k], res, net->series[k], net->series[k+1]);
+        }
+        
+        for (int i=0; i<1; i++)
+        {
+            Errors[(lastn-1)*nOutputs + i] = targets[(lastn-1)][i]- *(net->series[lastn]->outvals+iOutputs+i);
+        }
+        
+        *(net->weights+w) -= 2*eps;
+        
+        for (int k=0; k<lastn; k++)
+        {
+            net->predict(inputs[k], res, net->series[k], net->series[k+1]);
+        }
+        
+        for (int i=0; i<1; i++)
+        {
+            Real err = targets[(lastn-1)][i]- *(net->series[lastn]->outvals+iOutputs+i);
+            *(g->_W+w) += (Errors[(lastn-1)*nOutputs + i]-err)/(2*eps);
+        }
+        
+        *(net->weights+w) += eps;
+        //cout <<"W"<<w<<" "<< *(G->_W+w) << " " << *(g->_W+w) << endl;
+        cout << "W"<<w<<" "<< *(G->_W+w) << " " << *(g->_W+w)<<" "<< (*(G->_W+w)-*(g->_W+w))/max(fabs(*(G->_W+w)),fabs(*(g->_W+w)))<<endl;
+    }
+    
+    for (int w=0; w<nBiases; w++)
+    {
+        *(g->_B+w) = 0;
+        *(net->biases+w) += eps;
+        
+        for (int k=0; k<lastn; k++)
+        {
+            net->predict(inputs[k], res, net->series[k], net->series[k+1]);
+        }
+        
+        for (int i=0; i<1; i++)
+        {
+            Errors[(lastn-1)*nOutputs + i] = targets[(lastn-1)][i]- *(net->series[lastn]->outvals+iOutputs+i);
+        }
+        
+        *(net->biases+w) -= 2*eps;
+        
+        for (int k=0; k<lastn; k++)
+        {
+            net->predict(inputs[k], res, net->series[k], net->series[k+1]);
+        }
+        
+        for (int i=0; i<1; i++)
+        {
+            Real err = targets[(lastn-1)][i]- *(net->series[lastn]->outvals+iOutputs+i);
+            *(g->_B+w) += (Errors[(lastn-1)*nOutputs + i]-err)/(2*eps);
+        }
+        
+        *(net->biases+w) += eps;
+        
+        //cout <<"B"<<w<<" "<< *(G->_B+w) << " " << *(g->_B+w) << endl;
+        cout << "B"<<w<<" "<< *(G->_B+w) << " " << *(g->_B+w)<<" "<< (*(G->_B+w)-*(g->_B+w))/max(fabs(*(G->_B+w)),fabs(*(g->_B+w))) <<endl;
+    }
+    printf("\n\n\n");
+    printf("\n\n\n");
+    abort();
 }
 
 void AdamOptimizer::trainSeries3(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE)
@@ -455,34 +586,37 @@ void AdamOptimizer::addUpdate(Grads * G)
     }
 }
 
-#if 0
+#if 1
 
 void AdamOptimizer::stackGrads(Grads * G, Grads * g)
 {
     #pragma omp master
     batchsize++;
-    
+    #if SIMD > 1
+    vec _m01 = SET1 (-1.);
+    vec _p01 = SET1 (1.);
+    #endif
 
     #pragma omp for nowait
     for (int j=0; j<nWeights; j+=SIMD)
         #if SIMD == 1
-        *(G->_W + j) += *(g->_W + j);
+        *(G->_W + j) += max(min(*(g->_W + j),0.1),-0.1);
         #else
-        STORE (G->_W + j, ADD (LOAD(G->_W + j), LOAD(g->_W + j)));
+        STORE (G->_W + j, ADD (LOAD(G->_W + j), MAX(MIN(LOAD(g->_W + j),_p01),_m01)));
         #endif
 
     #pragma omp for
     for (int j=0; j<nBiases; j+=SIMD)
         #if SIMD == 1
-        *(G->_B + j) += *(g->_B + j);
+        *(G->_B + j) += max(min(*(g->_B + j),0.1),-0.1);//*(g->_B + j);
         #else
-        STORE (G->_B + j, ADD (LOAD(G->_B + j), LOAD(g->_B + j)));
+        STORE (G->_B + j, ADD (LOAD(G->_B + j), MAX(MIN(LOAD(g->_B + j),_p01),_m01)));
         #endif
 }
 
 void AdamOptimizer::update(Grads * G)
 {
-    Real etaB = eta;///max(batchsize,1);
+    Real etaB = eta *0.5*(1.+1./pow(nepoch,0.5));///max(batchsize,1);
     
     update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, etaB);
     update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, etaB);
@@ -491,6 +625,7 @@ void AdamOptimizer::update(Grads * G)
     {
         beta_t_1 *= beta_1;
         beta_t_2 *= beta_2;
+        nepoch++;
     }
 }
 
@@ -539,10 +674,10 @@ void AdamOptimizer::update(Real* dest, Real* grad, Real* _1stMom, Real* _2ndMom,
         #if SIMD == 1
         
         *(_2ndMom + i) = 0.9 * *(_2ndMom + i) + 0.1 * *(grad + i) * *(grad + i);
-        *(_eta    + i) = *(eta+i) * max(.5, 1+ .5 * *(grad + i) * *(_1stMom + i) / *(_2ndMom + i))
+        *(_eta    + i) = *(_eta+i) * max(.5, 1+ .5 * *(grad + i) * *(_1stMom + i) / *(_2ndMom + i));
         *(_1stMom + i) = 0.9 * *(_1stMom + i) + 0.1 * *(grad + i);
         
-        *(dest + i) += *(eta+i) * *(grad + i);
+        *(dest + i) += *(_eta+i) * *(grad + i);
         *(grad + i) = 0;
         
         #else

@@ -74,7 +74,7 @@ public:
         {
             bool same(true);
             for (int i=0; i<sInfo.dim; i++)
-                same = same && (Tmp[agentId].s.back()[i] - Inp[i])<1e-3;
+                same = same && fabs(Tmp[agentId].s.back()[i] - Inp[i])<1e-3;
                 
             if (!same) {printf("Unexpected change of time series\n"); push_back(agentId);}
         }
@@ -95,7 +95,7 @@ public:
         if(Tmp[agentId].s.size()>3)
         {
             Set.push_back(Tmp[agentId]);
-            Errs.push_back(1.0);
+            Errs.push_back(10.0);
         }
         printf("Pushing series %d\n",Set.size());
         clear(agentId);
@@ -118,7 +118,7 @@ public:
     {
         if(Errs.size() != Set.size()) die("That's a problem\n");
         const int N = Errs.size();
-        Real beta = .5*(1. + (Real)anneal/(anneal+100));
+        Real beta = .5;//*(1. + (Real)anneal/(anneal+1000));
         anneal++;
         Ps.resize(N);
         Ws.resize(N);
@@ -131,12 +131,12 @@ public:
         #pragma omp parallel for
         for(int i=0;i<N;i++)
         {
-            Ps[inds[i]]=pow((Real)Set[inds[i]].s.size()/(i+1),0.7);
-            //printf("P %f %d\n",Ps[inds[i]],inds[i]);
+            Ps[inds[i]]=pow((Real)Set[inds[i]].s.size()/(i+1),0.5);
+            //printf("P %f %f %d\n",Ps[inds[i]],Errs[inds[i]],inds[i]);
         }
         Real err = accumulate(Errs.begin(), Errs.end(), 0.);
         Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
-        printf("SUM %f\n",err/N);
+        printf("Avg MSE %f\n",err/N);
         #pragma omp parallel for
         for(int i=0;i<N;i++)
         {

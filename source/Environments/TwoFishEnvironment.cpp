@@ -29,7 +29,6 @@ ExternalEnvironment(agents, execpath, tp, _rank)
 
 void TwoFishEnvironment::setDims()
 {
-    printf("CORRECT ENVIRONMENT\n");
     sI.dim = 6;
     // State: Horizontal distance from goal point...
     sI.bounds.push_back(22); //one block in between the bounds, one more on each side
@@ -64,16 +63,16 @@ void TwoFishEnvironment::setDims()
     sI.isLabel.push_back(false);
     
     // ...last action (HAX!)
-    sI.bounds.push_back(3);
-    sI.top.push_back(3.0);
+    sI.bounds.push_back(5);
+    sI.top.push_back(5.0);
     sI.bottom.push_back(0.0);
     sI.aboveTop.push_back(false);
     sI.belowBottom.push_back(false);
     sI.isLabel.push_back(true);
     
     // ...second last action (HAX!)
-    sI.bounds.push_back(3);
-    sI.top.push_back(3.0);
+    sI.bounds.push_back(5);
+    sI.top.push_back(5.0);
     sI.bottom.push_back(0.0);
     sI.aboveTop.push_back(false);
     sI.belowBottom.push_back(false);
@@ -81,17 +80,22 @@ void TwoFishEnvironment::setDims()
     
     aI.dim = 1; //How many actions taken per turn by one agent
     
-    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(3); //Number of possible actions to choose from (nothing, curve right, curve left)    
+    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5); //Number of possible actions to choose from (nothing, curve right, curve left)
     
-    aI.values.push_back(0.0);
-    aI.values.push_back(2.0);
     aI.values.push_back(-2.);
-
-    sI.values.push_back(0.0);
-    sI.values.push_back(2.0);
+    aI.values.push_back(-1.);
+    aI.values.push_back(0.0);
+    aI.values.push_back(1.0);
+    aI.values.push_back(2.0);
+    
     sI.values.push_back(-2.);
+    sI.values.push_back(-1.);
+    sI.values.push_back(0.0);
+    sI.values.push_back(1.0);
+    sI.values.push_back(2.0);
+    
     nInfo = 0;
-    aI.zeroact = 0;
+    aI.zeroact = 2;
     for (auto& a : exagents)
     {
         a->Info.resize(nInfo);

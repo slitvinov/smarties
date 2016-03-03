@@ -14,12 +14,12 @@
 #include "Network.h"
 #include "../ErrorHandling.h"
 #include <cassert>
-#define SCAL 6.
+#define SCAL 3.
 using namespace ErrorHandling;
 
 void Network::orthogonalize(int nO, int nI, int n0)
 {
-    if (nI>1)
+    if (nI>=nO)
     for (int i=1; i<nO; i++)
     for (int j=0; j<i;  j++)
     {
@@ -44,6 +44,13 @@ void Network::initializeWeights(Graph & g, mt19937 & gen)
         *(weights +w) = dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
     
     for (const auto & l : *g.nl_c_l)
+    {
+        for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
+            *(weights +w) = dis(gen)*sqrt(SCAL)/Real(l->nO + l->nI);
+        orthogonalize(l->nO,l->nI,l->iW);
+    }
+    
+    for (const auto & l : *g.nl_o_l)
     {
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
             *(weights +w) = dis(gen)*sqrt(SCAL)/Real(l->nO + l->nI);
@@ -95,20 +102,25 @@ void Network::initializeWeights(Graph & g, mt19937 & gen)
         *(biases +w) = dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
         
     for (int w=g.biasIG; w<g.biasIG+g.recurrSize; w++)
-        *(biases +w) = -2.; /* IG starts decisively closed */
+        *(biases +w) =
+                        -2.; /* IG starts decisively closed */
+                        //dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
         
     for (int w=g.biasFG; w<g.biasFG+g.recurrSize; w++)
-        *(biases +w) =  2.; /* FG starts decisively open */
-        
+        *(biases +w) =
+                         2.; /* FG starts decisively open */
+                        // dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
+    
     for (int w=g.biasOG; w<g.biasOG+g.recurrSize; w++)
-        *(biases +w) = -2.; /* OG starts decisively closed */
+        *(biases +w) =
+                        -2.; /* OG starts decisively closed */
+                        // dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
 }
 
 void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
 {
     int normalSize_SIMD = ceil((Real)g->normalSize/SIMD)*SIMD;
-    if(!last && !first)
-        g->normalSize = normalSize_SIMD;
+    if(!last && !first) g->normalSize = normalSize_SIMD;
     
     if (g->normalSize>0)
     {
@@ -147,15 +159,25 @@ void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
             nWeights += g->recurrSize*g->normalSize;
         }
         
+        //if (false)
+        { //conntected to previous normal layer
+            Link * link = new Link(g->normalSize,g->normalPos,g->normalSize,g->normalPos,nWeights,g->first);
+            
+            g->nl_o_l->push_back(link);
+            g->nl_l_f->push_back(link);
+            
+            nWeights += g->normalSize*g->normalSize;
+        }
+        
         NormalLayer * l;
         ActivationFunction * f;
         
-        if (last)
-            f = new Linear;
-        else
+        //if (last) f = new Linear;
+        //else
             f = new SoftSign;
         
         l = new NormalLayer(g->normalSize, g->normalPos, g->biasHL, g->nl_c_l, g->nl_l_c, g->nl_l_f, f, last);
+        l->prev_input_links = g->nl_o_l;
         layers.push_back(l);
     }
 }
@@ -163,9 +185,11 @@ void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
 void Network::addLSTM(Graph * p, Graph * g, bool first, bool last)
 {
     if (last) die("How the fudge did you get here?\n");
-    g->normalSize = ceil((Real)g->normalSize/SIMD)*SIMD;
-    g->recurrSize = ceil((Real)g->recurrSize/SIMD)*SIMD;
-    
+    int normalSize_SIMD = ceil((Real)g->normalSize/SIMD)*SIMD; //g->normalSize
+    int recurrSize_SIMD = ceil((Real)g->recurrSize/SIMD)*SIMD; //g->recurrSize
+    if(!last && !first)          g->recurrSize = recurrSize_SIMD;
+    if (last && g->normalSize>0) g->recurrSize = recurrSize_SIMD;
+    g->normalSize = normalSize_SIMD; g->recurrSize = recurrSize_SIMD; //todo
     if (g->recurrSize>0)
     {
         {
@@ -411,27 +435,28 @@ void Network::computeGrads(const vector<Real>& _error, Lab * _M, Lab * _N, Grads
 
 void Network::computeDeltasSeries(vector<Lab*>& _series, const int k)
 {
+    //printf("\n Series %d\n",k);
     for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagateDelta(_series[k-1],_series[k],_series[k+1],weights,biases);
+        layers[nLayers-i]->backPropagateDelta(series[k-1],series[k],series[k+1],weights,biases);
 }
-
 
 void Network::computeDeltasEnd(vector<Lab*>& _series, const int k)
 {
     for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagateDelta(_series[k-1],_series[k],weights,biases);
+        layers[nLayers-i]->backPropagateDelta(series[k-1],series[k],weights,biases);
 }
 
 void Network::computeGradsSeries(vector<Lab*>& _series, const int k, Grads * _grad)
 {
     for (int i=0; i<nLayers; i++)
-        layers[i]->backPropagateGrads(_series[k-1],_series[k],dsdw,_grad);
+        layers[i]->backPropagateGrads(series[k-1],series[k],dsdw,_grad);
 }
 
 void Network::computeGradsLightSeries(vector<Lab*>& _series, const int k, Grads * _grad)
 {
+    //printf("\n Series %d\n",k);
     for (int i=0; i<nLayers; i++)
-        layers[i]->backPropagateGradsLight(_series[k-1],_series[k],_grad);
+        layers[i]->backPropagateGradsLight(series[k-1],series[k],_grad);
 }
 
 void Network::updateFrozenWeights()
@@ -471,7 +496,7 @@ void Network::freshSeries(int _k, vector<Lab*> & _series)
     if (static_cast<int>(_series.size()) <= _k)
     {
         Lab * ns = new Lab(nNeurons,nStates);
-        _series.push_back(ns);
+        series.push_back(ns);
     }
 }
 
@@ -506,18 +531,28 @@ void Network::clearErrors(Lab * _N)
     #endif
     #pragma omp for nowait
     for (int j=0; j<nNeurons; j+=SIMD)
+    {
         #if SIMD == 1
         *(_N->errvals +j) = 0.; /* everything here is a += */
         #else
         STREAM (_N->errvals +j,zeros);
         #endif
+    }
     #pragma omp for
     for (int j=0; j<nStates; j+=SIMD)
+    {
         #if SIMD == 1
         *(_N->eOGates +j) = 0.; /* everything here is a += */
+        *(_N->eIGates +j) = 0.;
+        *(_N->eFGates +j) = 0.;
+        *(_N->eMCell +j) = 0.;
         #else
         STREAM (_N->eOGates +j,zeros);
+        STREAM (_N->eIGates +j,zeros);
+        STREAM (_N->eFGates +j,zeros);
+        STREAM (_N->eMCell +j,zeros);
         #endif
+    }
 }
 
 void Network::clearDsdw(Dsdw * _dsdw)

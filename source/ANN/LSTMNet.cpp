@@ -104,12 +104,13 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
         std::random_shuffle(indexes.begin(), indexes.end());
         for (int b=0; b<ndata; ++b)
         {
+            //opt->checkGrads(inputs[indexes[b]],targets[indexes[b]],err);
             //if(int(err*100)%2==0)
             //    opt->trainSeries2(inputs[indexes[b]],targets[indexes[b]],err);
             //else if(int(err*100)%4==0)
             //    opt->trainSeries3(inputs[indexes[b]],targets[indexes[b]],err);
             //else
-                opt->trainSeries4(inputs[indexes[b]],targets[indexes[b]],err);
+                opt->trainSeries(inputs[indexes[b]],targets[indexes[b]],err);
             batch_err+=err;
         }
         //if(batch_err>12) far=true; else far=false;
@@ -324,9 +325,7 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
     
     Grads * g = new Grads(net->nWeights,net->nBiases);
     
-    vector<Real> Qs(nOutputs);
-    vector<Real> Qhats(nOutputs);
-    vector<Real> Qtildes(nOutputs);
+    vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs);
     //vector<int>  same(ndata+1);
     Real MSE = 0;
 
@@ -343,11 +342,14 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
             
             if(recycle) // recycling is good for the environment
             {
-                #pragma omp master
+                #pragma omp single
                 Qs = Qhats;
             }
             else
-            net->predict(sOld[k], Qs, net->series[k], net->series[k+1]);
+            {
+                if(k>0) printf("Split series?\n");
+                net->predict(sOld[k], Qs, net->series[k], net->series[k+1]);
+            }
 
             if (k+1==ndata && r[k]<-.99) //then i reached the end-state
             {
@@ -355,7 +357,7 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
                 {
                     for (int i=0; i<Qhats.size(); i++)
                         *(net->series[k+1]->errvals +net->iOutputs+i) = 0;
-                    Real err =  (-1./(1.-gamma) - Qs[a[k]]);
+                    Real err =  (-1. - Qs[a[k]]);
                     *(net->series[k+1]->errvals +net->iOutputs +a[k]) = weight*err;
                     MSE += err*err;
                 }
@@ -377,13 +379,10 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
                     for (int i=0; i<Qhats.size(); i++)
                     {
                         *(net->series[k+1]->errvals +net->iOutputs +i) = 0;
-                        if (Qhats[i]>Vhat)
-                        {
-                            Nbest = i; Vhat = Qhats[i];
-                        }
+                        if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
                     }
                     
-                    Real err =  (r[k] + gamma*Qtildes[Nbest] - Qs[a[k]]);
+                    Real err =  (r[k]*(1.-gamma) + gamma*Qtildes[Nbest] - Qs[a[k]]);
                     *(net->series[k+1]->errvals +net->iOutputs +a[k]) = weight*err;
                     MSE += err*err;
                 }

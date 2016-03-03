@@ -7,7 +7,7 @@
 //
 
 #pragma once
-#define MEGADEBUG
+//#define MEGADEBUG
 #include "../Learners/Learner.h"
 #include "../Savers/Saver.h"
 #include "../Learners/Trace.h"
