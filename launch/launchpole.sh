@@ -3,6 +3,15 @@
 EXECNAME=rl
 NTHREADS=$1
 
+SETTINGS+=" --gamma 0.95" #Crucial: discount factor
+SETTINGS+=" --nnl1 0" #Neurons in first layer
+SETTINGS+=" --nnl2 0" #Neurons in second layer
+SETTINGS+=" --nnl3 0" #Neurons in first layer
+SETTINGS+=" --nnm1 16"
+SETTINGS+=" --nnm2 12"
+SETTINGS+=" --nnm3  8"
+SETTINGS+=" --nne 0.0001" #(Initial) learning rate
+
 RESTART=" --restart res/policy"
 
 RESTARTPOLICY=" -restartPolicy 1"

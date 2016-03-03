@@ -90,6 +90,7 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
 
             env = new TwoFishEnvironment(agents, execpath, st, rank);
             env->setDims();
+            if (rank != 0) env->setup_Comm();
             getline(inFile, s);
         }
         
@@ -113,6 +114,7 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
             
             env = new ExternalEnvironment(agents, execpath, st, rank);
             env->setDims();
+            if (rank != 0) env->setup_Comm();
             getline(inFile, s);
         }
         

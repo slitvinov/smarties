@@ -99,7 +99,7 @@ public:
         sizein  = nAgents*sizeof(double);
         datain  = (double *) malloc(nAgents);
         /* Create a socket */
-        printf("problem dim = %i %d %d %d \n", probdim, nAgents, sizein, sizeout);
+        printf("recv problem dim = %d %d %d %d \n", probdim, nAgents, sizein, sizeout);
         sock = socket(AF_UNIX, SOCK_STREAM, 0);
         
         /* Specify the server */

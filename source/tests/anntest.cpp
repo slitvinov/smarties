@@ -122,7 +122,7 @@ int main (int argc, char** argv)
         settings.nnKappa=0.0;
         settings.nnAdFac=1e-6;
         settings.AL_fac=0.0;
-#if 0
+#if 1
         settings.nnLayer1 =0;
         settings.nnLayer2 =0;
         settings.nnLayer3 =0;
@@ -131,8 +131,8 @@ int main (int argc, char** argv)
         settings.nnMemory3=8;
 #else
         settings.nnLayer1 =32;
-        settings.nnLayer2 =24;
-        settings.nnLayer3 =16;
+        settings.nnLayer2 =16;
+        settings.nnLayer3 =8;
         settings.nnMemory1=0;
         settings.nnMemory2=0;
         settings.nnMemory3=0;

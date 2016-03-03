@@ -103,18 +103,18 @@ void Network::initializeWeights(Graph & g, mt19937 & gen)
         
     for (int w=g.biasIG; w<g.biasIG+g.recurrSize; w++)
         *(biases +w) =
-                        -2.; /* IG starts decisively closed */
-                        //dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
+                        //-2.; /* IG starts decisively closed */
+                        dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
         
     for (int w=g.biasFG; w<g.biasFG+g.recurrSize; w++)
         *(biases +w) =
-                         2.; /* FG starts decisively open */
-                        // dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
+                        // 2.; /* FG starts decisively open */
+                         dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
     
     for (int w=g.biasOG; w<g.biasOG+g.recurrSize; w++)
         *(biases +w) =
-                        -2.; /* OG starts decisively closed */
-                        // dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
+                        //-2.; /* OG starts decisively closed */
+                         dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
 }
 
 void Network::addNormal(Graph * p, Graph * g, bool first, bool last)

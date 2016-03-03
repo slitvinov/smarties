@@ -32,9 +32,6 @@ Environment(agents), execpath(execpath), rank(_rank), callid(0), sock(0), Listen
     rewards.resize(n);
     states.resize(n);
     sI.type = tp;
-    
-    if (rank != 0)
-        setup_Comm();
 }
 
 void ExternalEnvironment::setup_Comm()

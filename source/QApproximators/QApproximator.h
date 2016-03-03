@@ -92,12 +92,12 @@ public:
     
     void push_back(const int & agentId)
     {
-        if(Tmp[agentId].s.size()>3)
+        if(Tmp[agentId].s.size()>10)
         {
             Set.push_back(Tmp[agentId]);
             Errs.push_back(10.0);
         }
-        printf("Pushing series %d\n",Set.size());
+        //printf("Pushing series %d\n",Set.size());
         clear(agentId);
     }
     
@@ -136,7 +136,7 @@ public:
         }
         Real err = accumulate(Errs.begin(), Errs.end(), 0.);
         Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
-        printf("Avg MSE %f\n",err/N);
+        //printf("Avg MSE %f\n",err/N);
         #pragma omp parallel for
         for(int i=0;i<N;i++)
         {

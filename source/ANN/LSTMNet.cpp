@@ -104,13 +104,13 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
         std::random_shuffle(indexes.begin(), indexes.end());
         for (int b=0; b<ndata; ++b)
         {
-            //opt->checkGrads(inputs[indexes[b]],targets[indexes[b]],err);
+            opt->checkGrads(inputs[indexes[b]],targets[indexes[b]],err);
             //if(int(err*100)%2==0)
             //    opt->trainSeries2(inputs[indexes[b]],targets[indexes[b]],err);
             //else if(int(err*100)%4==0)
             //    opt->trainSeries3(inputs[indexes[b]],targets[indexes[b]],err);
             //else
-                opt->trainSeries(inputs[indexes[b]],targets[indexes[b]],err);
+             //   opt->trainSeries(inputs[indexes[b]],targets[indexes[b]],err);
             batch_err+=err;
         }
         //if(batch_err>12) far=true; else far=false;
@@ -241,7 +241,7 @@ void FishNet::trainQ(const vector<vector<Real>> & states, const vector<int> & ac
 Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight) //function<void(vector<Real>, st, Real, vector<Real>, vector<Real>)> & errs
 { //i wanna take in a function because i might decide later to use A learning instead of Q learning
     const int ndata = sOld.size();
-    //printf("Training with a glorious %d-length series\n",ndata);
+    printf("Training with a glorious %d-length series\n",ndata);
     if (sOld.size()!=a.size() || sOld.size()!=r.size() || sOld.size()!=s.size()) die("Get your shit together, bro. \n");
     if(!net->allocatedFrozenWeights) die("You really should not be here\n");
     if (ndata<2) die("Series is too short \n");
