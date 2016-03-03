@@ -24,7 +24,7 @@
 using namespace std;
 
 ExternalEnvironment::ExternalEnvironment(vector<Agent*> agents, string execpath, StateType tp, int _rank) :
-Environment(agents), execpath(execpath), rank(_rank), callid(0), sock(0), ListenerSocket(0), bytes(0), addr_len(0), servlen(0)
+Environment(agents), execpath(execpath), rank(_rank), workerid(0), callid(0), sock(0), ListenerSocket(0), bytes(0), addr_len(0), servlen(0)
 {
     n = agents.size();
     for (auto a : agents)
@@ -36,15 +36,16 @@ Environment(agents), execpath(execpath), rank(_rank), callid(0), sock(0), Listen
 
 void ExternalEnvironment::setup_Comm()
 {
-    sprintf(SOCK_PATH, "%s%d", "/tmp/sock_", workerid);
+    string dummy = "/tmp/sock_";
+    sprintf(SOCK_PATH, "%s%d", dummy.c_str(), workerid);
     printf("mserver: SOCK_PATH=->%s<-\n", SOCK_PATH);
     //signal(SIGUSR2, sighandler);// not safe with MPI
     
     probdim = n*(sI.dim + 1); //state, reward, additional stuff
     sizein = probdim*sizeof(double);
-    datain = (double *) malloc(probdim);
+    datain = (double *) malloc(sizein);
     sizeout = n*sizeof(double);
-    dataout = (double *) malloc(n);
+    dataout = (double *) malloc(sizeout);
     
     spawn_server(0);
     

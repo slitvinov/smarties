@@ -142,7 +142,7 @@ void Master::run()
         //debug5("Idling time of the master: %d, fetch trials: %d\n", relaxTime, trials);
         
 #ifndef MEGADEBUG
-        debug1("Master will receive %d chunks from proc %d of total size %d... ", n, status.MPI_SOURCE, n*inOneSize);
+        debug3("Master will receive %d chunks from proc %d of total size %d... ", n, status.MPI_SOURCE, n*inOneSize);
         slave = status.MPI_SOURCE;
 #endif
         
@@ -177,7 +177,7 @@ void Master::run()
             {
                 int agentId = max(0,slave*nAgents + i -1);
                 
-                debug1("To learner %d: %s --> %s with %s was rewarded with %f \n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r);
+                debug3("To learner %d: %s --> %s with %s was rewarded with %f \n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r);
 
                 //Q->passData(agentId, first, sOld, aOld, s, r, info);
                 
@@ -294,7 +294,7 @@ void Slave::evolve(Real& t)
 #ifndef MEGADEBUG
     MPI_Send(&n, 1, MPI_INT, 0, 121, MPI_COMM_WORLD);
     MPI_Send(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD);
-    debug1("Slave %d sends %d chunks of total size %d bytes\n", me, n, outsize);
+    debug3("Slave %d sends %d chunks of total size %d bytes\n", me, n, outsize);
     MPI_Recv(inbuf, insize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
 #endif
     unpackData();

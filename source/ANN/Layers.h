@@ -234,7 +234,7 @@ public:
     
     LSTMLayer(int nNeurons, int n1stNeuron, int indState, int n1stPeep, int n1stBias, int n1stBiasIG, int n1stBiasFG, int n1stBiasOG, int n1stdSdB, vector<Link*> * rl_c_l, vector<Link*> * rl_o_l, vector<Link*> * rl_l_c, vector<Link*> * rl_l_f, ActivationFunction* f, ActivationFunction* g, bool last) : NormalLayer(nNeurons, n1stNeuron, n1stBias, rl_c_l, rl_l_c, rl_l_f, f, last), n1stCell(indState), n1stPeep(n1stPeep), n1stBiasIG(n1stBiasIG), n1stBiasFG(n1stBiasFG), n1stBiasOG(n1stBiasOG), n1stdSdB(n1stdSdB),
     //sigm(new SoftSigm), ifun(new SoftSign2), ofun(new HardSign(2.))//, prev_input_links(rl_o_l)
-    sigm(new SoftSigm), ifun(new SoftSign), ofun(new Linear) //, prev_input_links(rl_o_l)
+    sigm(new SoftSigm), ifun(g), ofun(new Linear) //, prev_input_links(rl_o_l)
     {
         prev_input_links = rl_o_l;
         printf("n1stCell= %d, n1stPeep= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d, n1stdSdB= %d\n",n1stCell, n1stPeep, n1stBiasIG, n1stBiasFG, n1stBiasOG, n1stdSdB);

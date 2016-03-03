@@ -1,5 +1,5 @@
-#CC = /opt/mpich/bin/mpicxx
-CC = g++
+CC = /opt/mpich/bin/mpicxx
+#CC = g++
 #CC = CC
 CPPFLAGS+=-std=c++11 -mavx 
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
@@ -15,7 +15,7 @@ endif
 
 ifeq "$(config)" "debug"
 CPPFLAGS+= -O0 -g
-#CPPFLAGS+= -dynamic -fsanitize=address
+#CPPFLAGS+= -fsanitize=address
 else
 CPPFLAGS += -O3 -DNDEBUG -DBOOST_UBLAS_NDEBUG
 endif
@@ -27,7 +27,8 @@ endif
 CPPFLAGS+= -I/opt/local/include/openmpi
 
 LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
-LIBS+= -L/cluster/apps/openmpi/1.6.2/x86_64/gcc_4.8.2/lib -lmpi -lmpi_cxx
+LIBS+= -L/cluster/apps/openmpi/1.6.2/x86_64/gcc_4.8.2/lib 
+	#-lmpi -lmpi_cxx
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = 	ArgumentParser.o main.o ObjectFactory.o Profiler.o rng.o  StateAction.o \
