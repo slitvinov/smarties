@@ -402,7 +402,7 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
         
         opt->update(net->grad);
     }
-    
+    delete g;
     return MSE/ndata;
 }
 #endif

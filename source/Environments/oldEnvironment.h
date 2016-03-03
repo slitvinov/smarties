@@ -23,7 +23,7 @@ class oldEnvironment: public Environment
     string execpath;
     void setDims();
     vector<int> ids;
-    int pid;
+    int pid, n;
     FILE *fin, *fout;
 
     vector<ExternalAgent*> exagents;
@@ -33,9 +33,9 @@ class oldEnvironment: public Environment
 
 public:
    oldEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank);
-
-   int   evolve   (double t);
-    int   init   ();
+    void setup_Comm() override;
+    int   evolve   (double t) override;
+    int   init   () override;
 };
 
 

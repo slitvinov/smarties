@@ -111,7 +111,7 @@ int main (int argc, char** argv)
     gettimeofday(&clock, NULL);
     //cout << clock.tv_usec << endl;
     int seed = abs(84967194 + floor(clock.tv_usec));
-    debugLvl=0;
+    debugLvl=5;
     vector<OptionStruct> opts ({
     {'c', "config",   STRING,"config file",    &settings.configFile,(string)"factory"},
     {'t', "dt",       REAL,  "Sim timestep",   &settings.dt,        (Real)0.01},
@@ -122,7 +122,7 @@ int main (int argc, char** argv)
     {'d', "lambda",   REAL,  "Lambda",         &settings.lambda,    (Real)0.0},
     {'s', "rand_seed",INT,   "Random seed",    &settings.randSeed,  (int)seed},
     {'r', "restart",  STRING,"Restart",        &settings.restart,   (string)"res/policy"},
-    {'q', "save_freq",INT,   "Save frequency", &settings.saveFreq,  (int)10000},
+    {'q', "save_freq",INT,   "Save frequency", &settings.saveFreq,  (int)1000},
     {'v', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)4},
     {'p', "prefix",   STRING,"Save folder",    &settings.prefix,    (string)"res/"},
     {'H', "nne",      REAL,  "NN's eta",       &settings.nnEta,     (Real)0.001},

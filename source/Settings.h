@@ -16,7 +16,7 @@ using namespace std;
 #include <utility>
 #include <vector>
 #include <immintrin.h>
-#include <omp.h>
+//#include <omp.h>
 
 #ifndef REG
 #define REG 5

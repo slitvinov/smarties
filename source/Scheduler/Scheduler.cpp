@@ -125,12 +125,12 @@ void Master::run()
     while (true)
     {
 #ifndef MEGADEBUG
-        MPI_Irecv(&n, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
+        MPI_Irecv(&n, 1, MPI_INT, MPI_ANY_SOURCE, 121, MPI_COMM_WORLD, &request);
         MPI_Test(&request, &completed, &status);
 #endif
         do
         {
-            Q->Train();
+            //Q->Train();
             //debug2("Master trains\n");
             
 #ifndef MEGADEBUG
@@ -142,7 +142,7 @@ void Master::run()
         //debug5("Idling time of the master: %d, fetch trials: %d\n", relaxTime, trials);
         
 #ifndef MEGADEBUG
-        debug9("Master will receive %d chunks from proc %d of total size %d... ", n, status.MPI_SOURCE, n*inOneSize);
+        debug1("Master will receive %d chunks from proc %d of total size %d... ", n, status.MPI_SOURCE, n*inOneSize);
         slave = status.MPI_SOURCE;
 #endif
         
@@ -161,27 +161,28 @@ void Master::run()
             outbuf = new byte[outsize * outOneSize];
             printf("This should not be happening? size of outbuf increased.\n");
         }
+        
 #ifndef MEGADEBUG
         MPI_Recv(inbuf, n*inOneSize, MPI_BYTE, slave, 2, MPI_COMM_WORLD, &status);
         debug5("completed\n");
 #endif
         byte* cInbuf = inbuf;
         byte* cOutbuf = outbuf;
-
+        
         for (int i=0; i<n; i++)
         {
             unpackChunk(cInbuf, first, sOld, aOld, r, info, s);
             
             if (r > -1e10)
             {
-                int agentId = slave*nAgents + i -1;
+                int agentId = max(0,slave*nAgents + i -1);
                 
-                //printf("To learner %d: %s --> %s with %s was rewarded with %f \n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r);
-                fflush(stdout);
-                Q->passData(agentId, first, sOld, aOld, s, r, info);
+                debug1("To learner %d: %s --> %s with %s was rewarded with %f \n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r);
+
+                //Q->passData(agentId, first, sOld, aOld, s, r, info);
                 
                 //traces[agentId].add(sOld, aOld);
-                learner->updateSelect(traces[agentId], s, a, sOld, aOld, r, agentId);
+                //learner->updateSelect(traces[agentId], s, a, sOld, aOld, r, agentId);
 
                 totR += r;
 
@@ -200,7 +201,7 @@ void Master::run()
         if (iter % settings.saveFreq == 0)
         {
             printf("Reward: %f\n", getTotR());
-            learner->savePolicy(Saver::folder + "policy");
+            //learner->savePolicy(Saver::folder + "policy");
         }
         
         //execSavers(iter * settings.dt, iter);
@@ -286,17 +287,14 @@ void Slave::evolve(Real& t)
     
     packData();
     
-    if(extflag==0)
-        first = false;
-    else
-        first = true;
+    if(extflag==0) first = false;
+    else           first = true;
     
     //here we are giving state old, action, new state, reward
 #ifndef MEGADEBUG
-    MPI_Send(&n, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
+    MPI_Send(&n, 1, MPI_INT, 0, 121, MPI_COMM_WORLD);
     MPI_Send(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD);
-    debug9("Slave %d sends %d chunks of total size %d bytes\n", me, n, outsize);
-
+    debug1("Slave %d sends %d chunks of total size %d bytes\n", me, n, outsize);
     MPI_Recv(inbuf, insize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
 #endif
     unpackData();

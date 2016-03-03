@@ -275,8 +275,8 @@ void NFQApproximator::Train()
         //printf("Err dopo %f \n",samples->Errs[ind]);
         //printf("MSE %f iter %d sample %d weight %f\n",MSE,batchSize,ind, samples->Ws[ind]);
     }
-    /*
     
+    /*
     if (indexes.size()==0 && ndata>0)
     {
         indexes.reserve(ndata);

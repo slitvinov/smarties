@@ -136,11 +136,11 @@ public:
         }
         Real err = accumulate(Errs.begin(), Errs.end(), 0.);
         Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
-        //printf("Avg MSE %f\n",err/N);
+        printf("Avg MSE %f\n",err/N);
         #pragma omp parallel for
         for(int i=0;i<N;i++)
         {
-            Ps[i]/=sum;
+            Ps[i]/= sum;
             Ws[i] = pow(N*Ps[i],-beta);
             //printf("%f %d\n",Ps[i],i);
         }

@@ -36,5 +36,5 @@ cp ../apps/cart-pole ../run$2/
 cd ../run$2
 
 #aprun -n $1 ./executable ${OPTIONS}
-mpirun -np $1 ./executable ${OPTIONS}
+mpirun -mca btl tcp,sm,self -np $1 ./executable ${OPTIONS}
 #/opt/mpich/bin/mpirun -np $1 ./executable ${OPTIONS}

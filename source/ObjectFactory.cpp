@@ -137,6 +137,8 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
             }
             
             env = new oldEnvironment(agents, execpath, st, rank);
+            env->setDims();
+            if (rank != 0) env->setup_Comm();
             getline(inFile, s);
         }
 

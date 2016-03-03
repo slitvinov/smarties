@@ -22,16 +22,26 @@ using namespace std;
 oldEnvironment::oldEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank) :
 Environment(agents), execpath(execpath)
 {
+    n = agents.size();
+    
+    for (auto a : agents)
+        exagents.push_back(static_cast<ExternalAgent*>(a));
+    
+    rewards.resize(n);
+    states.resize(n);
+    
+    sI.type = tp;
+}
+
+void oldEnvironment::setup_Comm()
+{
     int outpipe[2], inpipe[2];
     
-    if(pipe(inpipe))
-        die("Inpipe error\n");
-        
-    if(pipe(outpipe))
-        die("Outpipe error\n");
+    if(pipe(inpipe))         die("Inpipe error\n");
     
-    if( (pid=fork()) == -1 )
-        die("Couldn't fork!");
+    if(pipe(outpipe))        die("Outpipe error\n");
+    
+    if( (pid=fork()) == -1 ) die("Couldn't fork!");
     
     if(pid)
     {
@@ -43,31 +53,11 @@ Environment(agents), execpath(execpath)
         
         fout = fdopen(outpipe[1], "w");
         if (!fout) die("Couldn't create stream for output pipe!");
-        
-        int n = agents.size();
-        
-        _info("Child simulation started with %d agents\n", n);
-        
-        for (auto a : agents)
-            exagents.push_back(static_cast<ExternalAgent*>(a));
-        
-        rewards.resize(n);
-        states.resize(n);
-        
-        sI.type = tp;
-        setDims();
-        for (auto& a : exagents)
-        {
-            //a->setEnvironment(this);
-            a->setDims(sI, aI);
-            
-            a->a = new Action(aI);
-            a->s = new State(sI);
-        }
     }
     else
     {
-        if (rank == 0) exit(0);
+        printf("About to exec.... \n");
+        cout << execpath << endl;
         
         //mkdir( ("simulation_"+to_string(rank)+"_"+to_string(index)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
         //chdir( ("simulation_"+to_string(rank)+"_"+to_string(index)+"/").c_str() );
@@ -83,7 +73,6 @@ Environment(agents), execpath(execpath)
             die("Unable to exec file '%s'!", execpath.c_str());
     }
 }
-
 void oldEnvironment::setDims()
 {
     sI.dim = 4;
@@ -131,7 +120,7 @@ void oldEnvironment::setDims()
     aI.values.push_back(2.0);
     
     nInfo = 0;
-    aI.zeroact = 0;
+    aI.zeroact = 2;
     for (auto& a : exagents)
     {
         a->Info.resize(nInfo);
@@ -142,32 +131,6 @@ void oldEnvironment::setDims()
 int oldEnvironment::evolve(double t)
 {
     bStatus = 0;
-    /*
-    char str[1000] = "";
-    bool empty = true;
-
-    while (empty)
-    {
-        fgets(str, 1000, fin);
-        string sstr(str);
-
-        sstr.erase(std::remove(sstr.begin(), sstr.end(), '\n'), sstr.end());
-        sstr.erase(std::remove(sstr.begin(), sstr.end(), ' '), sstr.end());
-        sstr.erase(std::remove(sstr.begin(), sstr.end(), '\t'), sstr.end());
-        empty = sstr.length() < 1;
-    }
-
-    string sstr(str);
-    sstr.erase(sstr.find_last_not_of(" \t\f\v\n\r")+1);
-
-    if (sstr != "States and rewards:")
-    {
-        bFailed = true;
-        bRestart = true;
-        //fprintf(fout, "Die\n");
-        return 1;
-    }
-*/
     
     fprintf(fout, "Actions:\n");
     for (auto& a : exagents)
@@ -207,6 +170,8 @@ int oldEnvironment::evolve(double t)
         for (int i=0; i<a->s->sInfo.dim; i++)
             fscanf(fin, "%lf", &(a->s->vals[i]));
         fscanf(fin, "%lf", &(a->r));
+        for (int j=0; j<nInfo; j++)
+            fscanf(fin, "%lf", &(a->Info[j]));
         
         debug2("Got from child %d: reward %f,  state %s\n", pid, a->r, a->s->print().c_str());
         if (a->r < -0.99)
@@ -248,6 +213,8 @@ int oldEnvironment::init()
         for (int i=0; i<a->s->sInfo.dim; i++)
             fscanf(fin, "%lf", &(a->s->vals[i]));
         fscanf(fin, "%lf", &(a->r));
+        for (int j=0; j<nInfo; j++)
+            fscanf(fin, "%lf", &(a->Info[j]));
         
         debug2("Got from child %d: reward %f ,  state %s\n", pid, a->r, a->s->print().c_str());
         if (a->r < -0.99)

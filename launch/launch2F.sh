@@ -11,7 +11,7 @@ SETTINGS+=" --nnm1 32"
 SETTINGS+=" --nnm2 16"
 SETTINGS+=" --nnm3  8"
 
-SETTINGS+=" --nne 0.0001" #(Initial) learning rate
+SETTINGS+=" --nne 0.00001" #(Initial) learning rate
 #SETTINGS+=" --nnl1 32" #Neurons in first layer
 #SETTINGS+=" --nnl2 16" #Neurons in second layer
 #SETTINGS+=" --nnm1 0"
@@ -19,7 +19,7 @@ SETTINGS+=" --nne 0.0001" #(Initial) learning rate
 
 OPTIONS=${SETTINGS}${RESTART}
 
-export OMP_NUM_THREADS=8
+export OMP_NUM_THREADS=4
 export OMP_PROC_BIND=true
 export OMP_NESTED=true
 mkdir ../run$2
