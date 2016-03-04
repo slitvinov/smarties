@@ -14,7 +14,7 @@
 
 using namespace ErrorHandling;
 
-AdamOptimizer::AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.nnEta), beta_1(0.9), beta_2(0.999), epsilon(1e-8), net(_net), profiler(_prof), nInputs(net->nInputs), nOutputs(net->nOutputs), iOutputs(net->iOutputs), nWeights(net->nWeights), nBiases(net->nBiases), beta_t_1(0.9), beta_t_2(0.999), batchsize(0), nepoch(1)
+AdamOptimizer::AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.nnEta), beta_1(0.8), beta_2(0.999), epsilon(1e-8), net(_net), profiler(_prof), nInputs(net->nInputs), nOutputs(net->nOutputs), iOutputs(net->iOutputs), nWeights(net->nWeights), nBiases(net->nBiases), beta_t_1(0.8), beta_t_2(0.999), batchsize(0), nepoch(1)
 {
     _myallocate(_1stMomW, nWeights)
     init(_1stMomW, nWeights);
@@ -600,7 +600,7 @@ void AdamOptimizer::stackGrads(Grads * G, Grads * g)
     #pragma omp for nowait
     for (int j=0; j<nWeights; j+=SIMD)
         #if SIMD == 1
-        *(G->_W + j) += max(min(*(g->_W + j),0.1),-0.1);
+        *(G->_W + j) += *(g->_W + j);//max(min(*(g->_W + j),1.),-1.);
         #else
         STORE (G->_W + j, ADD (LOAD(G->_W + j), MAX(MIN(LOAD(g->_W + j),_p01),_m01)));
         #endif
@@ -608,7 +608,7 @@ void AdamOptimizer::stackGrads(Grads * G, Grads * g)
     #pragma omp for
     for (int j=0; j<nBiases; j+=SIMD)
         #if SIMD == 1
-        *(G->_B + j) += max(min(*(g->_B + j),0.1),-0.1);//*(g->_B + j);
+        *(G->_B + j) += *(g->_B + j);//max(min(*(g->_B + j),1.),-1.);//*(g->_B + j);
         #else
         STORE (G->_B + j, ADD (LOAD(G->_B + j), MAX(MIN(LOAD(g->_B + j),_p01),_m01)));
         #endif
@@ -616,7 +616,7 @@ void AdamOptimizer::stackGrads(Grads * G, Grads * g)
 
 void AdamOptimizer::update(Grads * G)
 {
-    Real etaB = eta *0.5*(1.+1./pow(nepoch,0.5));///max(batchsize,1);
+    Real etaB = eta;// *0.5*(1.+1./pow(nepoch,0.5));///max(batchsize,1);
     
     update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, etaB);
     update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, etaB);
@@ -626,6 +626,8 @@ void AdamOptimizer::update(Grads * G)
         beta_t_1 *= beta_1;
         beta_t_2 *= beta_2;
         nepoch++;
+        
+        //for (int i =0 ; i<nWeights; i++) printf("%d %f %f %f %f %f\n",i,*(net->weights + i),*(G->_W + i),*(_1stMomW + i), *(_2ndMomW + i),etaB);
     }
 }
 
@@ -679,7 +681,6 @@ void AdamOptimizer::update(Real* dest, Real* grad, Real* _1stMom, Real* _2ndMom,
         
         *(dest + i) += *(_eta+i) * *(grad + i);
         *(grad + i) = 0;
-        
         #else
         
         vec _DW = LOAD(grad + i);
@@ -736,8 +737,10 @@ void AdamOptimizer::update(Real* dest, Real* grad, Real* _1stMom, Real* _2ndMom,
         #if SIMD == 1
         *(_1stMom + i) = beta_1 * *(_1stMom + i) + (1.-beta_1) * *(grad + i);
         *(_2ndMom + i) = beta_2 * *(_2ndMom + i) + (1.-beta_2) * *(grad + i) * *(grad + i);
-        *(dest + i) += _eta * *(_1stMom + i) * fac1 / (sqrt(*(_2ndMom + i) * fac2) + epsilon);
+        //*(dest + i) += _eta * *(_1stMom + i) * fac1 / (sqrt(*(_2ndMom + i) * fac2) + epsilon);
+        *(dest + i) += _eta * *(_1stMom + i) / (sqrt(*(_2ndMom + i)) + epsilon);
         *(grad + i) = 0.; //reset grads
+        
         //*(dest + i) += _eta * *(_1stMom + i)  / (sqrt(*(_2ndMom + i) * fac12 + epsilon));
         #else
         vec _DW = LOAD(grad + i);

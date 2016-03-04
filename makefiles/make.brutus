@@ -1,0 +1,7 @@
+CC=mpic++
+
+#export PATH=/cluster/home/mavt/chatzidp/usr/mpich3/bin:$PATH
+
+export LD_LIBRARY_PATH=/cluster/home/mavt/chatzidp/usr/mpich3/lib/:$LD_LIBRARY_PATH
+
+LIBS+= -L/cluster/home/mavt/chatzidp/usr/mpich3/lib/ -lz

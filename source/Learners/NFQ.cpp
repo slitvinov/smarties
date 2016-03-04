@@ -30,7 +30,7 @@ void NFQ::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld,
 
     Real Vnew = Q->getMax(s, a, Nagent);
     Real p = rng->uniform();
-    if  (p < greedyEps)  a.getRand(rng);
+    if  (p < greedyEps + 1./(max(Q->samples->anneal,1)))  a.getRand(rng);
 }
 
 

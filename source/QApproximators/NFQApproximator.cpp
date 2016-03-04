@@ -248,7 +248,8 @@ void NFQApproximator::correct(const State& s, const Action& a, Real err, int nAg
 void NFQApproximator::Train()
 {
     const int ndata = samples->Set.size();
-    if (batchSize-- <= 0 && ndata>0)
+#if 1
+    if (batchSize-- <= 0 && ndata>100)
     {
         //printf("Updatingtheweights\n");
         batchSize = min(ndata,100);
@@ -265,7 +266,7 @@ void NFQApproximator::Train()
             ann->save(restart_file.c_str());
         }
     }
-    if(ndata>0)
+    if(ndata>100)
     {
         int ind = samples->sample();
         //printf("Err prima %f ",samples->Errs[ind]);
@@ -275,8 +276,9 @@ void NFQApproximator::Train()
         //printf("Err dopo %f \n",samples->Errs[ind]);
         //printf("MSE %f iter %d sample %d weight %f\n",MSE,batchSize,ind, samples->Ws[ind]);
     }
-    
-    /*
+
+#else
+
     if (indexes.size()==0 && ndata>0)
     {
         indexes.reserve(ndata);
@@ -285,6 +287,7 @@ void NFQApproximator::Train()
         random_shuffle(indexes.begin(), indexes.end());
         ann->updateFrozenWeights();
         //cout << ndata << endl;
+        samples->anneal++;
     }
     
     if (indexes.size()>0) //do we have data?
@@ -292,12 +295,12 @@ void NFQApproximator::Train()
         const int ind = indexes.back();
         indexes.pop_back();
         
-        cout<<
+        //cout<<
         ann->trainDQ(samples->Set[ind].sOld, samples->Set[ind].a, samples->Set[ind].r, samples->Set[ind].s, gamma)
-        << endl
+        //<< endl
         ;
     }
-    */
+#endif
 }
 
 void NFQApproximator::save(string name)

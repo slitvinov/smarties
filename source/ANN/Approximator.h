@@ -30,5 +30,5 @@ public:
     virtual void updateFrozenWeights() = 0;
     virtual void resetMemories(int iAgent=0) {};
     
-    virtual Real trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight) = 0;
+    virtual Real trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight=1.) = 0;
 };

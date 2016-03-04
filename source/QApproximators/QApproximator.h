@@ -45,7 +45,6 @@ struct NFQdata
 struct Transitions
 {
 protected:
-    int anneal;
     vector<Tuples> Tmp;
     vector<Real> Inp;
     StateInfo sInfo;
@@ -53,6 +52,7 @@ protected:
     mt19937 * gen;
     discrete_distribution<int> * dist;
 public:
+    int anneal;
     vector<Real> Errs;
     vector<Tuples> Set;
     vector<Real> Ps, Ws;
@@ -67,6 +67,8 @@ public:
     
     void add(const int & agentId, State& sOld, Action& a, State& sNew, const Real & reward)
     {
+        if(Set.size()<200)
+        {
         //printf("Adding tuple %d to agent %d\n",Tmp[agentId].s.size(),agentId);
         sOld.scale(Inp);
         
@@ -86,7 +88,7 @@ public:
         Tmp[agentId].r.push_back(reward);
         
         Tmp[agentId].a.push_back(a.vals[0]);
-        
+        }
         //debug2("To stack %d %d %d: %s --> %s with %d was rewarded with %f \n", agentId, Tmp[agentId].r.size(), Set.size(),  sOld.printScaled().c_str(), sNew.printScaled().c_str(), a.vals[0], reward);
     }
     
@@ -131,26 +133,25 @@ public:
         #pragma omp parallel for
         for(int i=0;i<N;i++)
         {
-            Ps[inds[i]]=pow((Real)Set[inds[i]].s.size()/(i+1),0.5);
+            Ps[inds[i]]=pow(1./(i+2),0.5);
             //printf("P %f %f %d\n",Ps[inds[i]],Errs[inds[i]],inds[i]);
         }
         Real err = accumulate(Errs.begin(), Errs.end(), 0.);
         Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
-        printf("Avg MSE %f\n",err/N);
+        printf("Avg MSE %f %d\n",err/N,N);
         #pragma omp parallel for
         for(int i=0;i<N;i++)
         {
             Ps[i]/= sum;
             Ws[i] = pow(N*Ps[i],-beta);
-            //printf("%f %d\n",Ps[i],i);
+            //printf("%f\n",Ws[i]);
         }
         
         Real scale = *max_element(Ws.begin(), Ws.end());
         //printf("sclae = %f\n",scale);
         
         #pragma omp parallel for
-        for(int i=0;i<N;i++)
-            Ws[i]/=scale;
+        for(int i=0;i<N;i++) Ws[i]/=scale;
         
         delete dist;
         dist = new discrete_distribution<int>(Ps.begin(), Ps.end());
@@ -164,9 +165,9 @@ protected:
     int nAgents;
 	StateInfo  sInfo;
     ActionInfo actInfo;
-    Transitions * samples;
 	
 public:
+    Transitions * samples;
 	QApproximator(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings, int nAgents) : nAgents(nAgents), sInfo(newSInfo), actInfo(newActInfo)
     {
         samples = new Transitions(nAgents, actInfo, sInfo, settings.randSeed);

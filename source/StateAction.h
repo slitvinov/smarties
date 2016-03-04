@@ -85,7 +85,7 @@ public:
 		o << "[";
 		for (int i=0; i<sInfo.dim; i++)
 		{
-			Real res = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*2 - 1;
+            Real res = vals[i];//(vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*2 - 1;
 			
 			o << res;
 			if (i < sInfo.dim-1) o << " ";
@@ -98,7 +98,7 @@ public:
 	{
 		for (int i=0; i<sInfo.dim; i++)
 		{
-            res[i] = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*2. - 1.;
+            res[i] = vals[i];//(vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*2. - 1.;
             if (sInfo.isLabel[i]) res[i] = sInfo.values[vals[i]];
         }
 

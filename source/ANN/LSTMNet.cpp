@@ -311,7 +311,7 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
 
 #else
 
-Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight) //function<void(vector<Real>, st, Real, vector<Real>, vector<Real>)> & errs
+Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight=1.) //function<void(vector<Real>, st, Real, vector<Real>, vector<Real>)> & errs
 { //i wanna take in a function because i might decide later to use A learning instead of Q learning
     const int ndata = sOld.size();
     //printf("Training with a glorious %d-length series\n",ndata);
@@ -340,16 +340,20 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
             //#pragma omp master
             //same[k] = recycle; //if incoherent i must block errors
             
-            if(recycle) // recycling is good for the environment
-            {
-                #pragma omp single
-                Qs = Qhats;
-            }
-            else
-            {
-                if(k>0) printf("Split series?\n");
+            //if(recycle) // recycling is good for the environment
+            //{
+            //    #pragma omp single
+            //    Qs = Qhats;
+            //}
+            //else
+            //{
+            //    if(k>0) printf("Split series?\n");
                 net->predict(sOld[k], Qs, net->series[k], net->series[k+1]);
-            }
+            //}
+            
+            //for (int i=0; i<sOld[k].size(); i++)
+            //    printf("%f ", s[k][i]);
+            //printf("were the inputs (%d) (%f)\n", a[k], r[k]);
 
             if (k+1==ndata && r[k]<-.99) //then i reached the end-state
             {
@@ -360,16 +364,17 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
                     Real err =  (-1. - Qs[a[k]]);
                     *(net->series[k+1]->errvals +net->iOutputs +a[k]) = weight*err;
                     MSE += err*err;
+                    //printf("final %f,%f,%f,%f,%f  %f \n",*(net->series[k+1]->outvals +net->iOutputs),*(net->series[k+1]->outvals +net->iOutputs+1),*(net->series[k+1]->outvals +net->iOutputs+2),*(net->series[k+1]->outvals +net->iOutputs+3),*(net->series[k+1]->outvals +net->iOutputs+4),weight*err);
                 }
             }
             else
             {
-                #pragma omp sections
+                //#pragma omp sections
                 {
-                    #pragma omp section
+                   // #pragma omp section
                     net->predict(s[k], Qhats,   net->series[k+1], net->series[k+2]);
                     
-                    #pragma omp section
+                   // #pragma omp section
                     net->predict(s[k], Qtildes, net->series[k+1], net->series[ndata+2], net->frozen_weights, net->frozen_biases);
                 }
                 
@@ -378,17 +383,19 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
                     int Nbest; Real Vhat(-1e10);
                     for (int i=0; i<Qhats.size(); i++)
                     {
+                        //printf("action %d %f %f %f \n", i, Qs[i],Qhats[i],Qtildes[i]);
                         *(net->series[k+1]->errvals +net->iOutputs +i) = 0;
                         if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
                     }
-                    
-                    Real err =  (r[k]*(1.-gamma) + gamma*Qtildes[Nbest] - Qs[a[k]]);
+                    //printf("Best was %d \n",Nbest);
+                    Real err =  (r[k]+0.5 + gamma*Qtildes[Nbest] - Qs[a[k]]);
                     *(net->series[k+1]->errvals +net->iOutputs +a[k]) = weight*err;
                     MSE += err*err;
+                    //printf("%f,%f,%f,%f,%f  %f \n",*(net->series[k+1]->outvals +net->iOutputs),*(net->series[k+1]->outvals +net->iOutputs+1),*(net->series[k+1]->outvals +net->iOutputs+2),*(net->series[k+1]->outvals +net->iOutputs+3),*(net->series[k+1]->outvals +net->iOutputs+4),weight*err);
                 }
             }
         }
-            
+        
         //net->clearErrors(net->series[ndata+1]); //there is a omp for
         net->computeDeltasEnd(net->series, ndata);
         for (int k=ndata-1; k>=1; k--)
@@ -402,6 +409,7 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
         
         opt->update(net->grad);
     }
+    
     delete g;
     return MSE/ndata;
 }

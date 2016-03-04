@@ -128,16 +128,21 @@ void Master::run()
         MPI_Irecv(&n, 1, MPI_INT, MPI_ANY_SOURCE, 121, MPI_COMM_WORLD, &request);
         MPI_Test(&request, &completed, &status);
 #endif
-        do
+        bool test = true;
+        while(completed == 0)
         {
-            //Q->Train();
+            if(test)
+            {
+                Q->Train();
+                test=false;
+            }
             //debug2("Master trains\n");
             
 #ifndef MEGADEBUG
             MPI_Test(&request, &completed, &status);
 #endif
         }
-        while (completed == 0);
+        //while (completed == 0);
         
         //debug5("Idling time of the master: %d, fetch trials: %d\n", relaxTime, trials);
         
@@ -177,16 +182,14 @@ void Master::run()
             {
                 int agentId = max(0,slave*nAgents + i -1);
                 
-                debug3("To learner %d: %s --> %s with %s was rewarded with %f \n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r);
-
-                //Q->passData(agentId, first, sOld, aOld, s, r, info);
+                Q->passData(agentId, first, sOld, aOld, s, r, info);
                 
                 //traces[agentId].add(sOld, aOld);
-                //learner->updateSelect(traces[agentId], s, a, sOld, aOld, r, agentId);
+                learner->updateSelect(traces[agentId], s, a, sOld, aOld, r, agentId);
 
                 totR += r;
-
-                debug9("Chose action %s to send to agent %3d of slave %d\n", a.print().c_str(), i, slave);
+                //printf("To learner %d: %s --> %s with %s was rewarded with %f going to %s \n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r, a.print().c_str());
+                fflush(stdout);
             }
             
             packChunk(cOutbuf, a);
@@ -208,7 +211,6 @@ void Master::run()
 #ifdef MEGADEBUG
         abort();
 #endif
-        
     }
     
 }

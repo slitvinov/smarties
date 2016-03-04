@@ -159,7 +159,7 @@ void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
             nWeights += g->recurrSize*g->normalSize;
         }
         
-        //if (false)
+        if (false)
         { //conntected to previous normal layer
             Link * link = new Link(g->normalSize,g->normalPos,g->normalSize,g->normalPos,nWeights,g->first);
             
@@ -172,8 +172,8 @@ void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
         NormalLayer * l;
         ActivationFunction * f;
         
-        //if (last) f = new Linear;
-        //else
+        if (last) f = new Linear;
+        else
             f = new SoftSign;
         
         l = new NormalLayer(g->normalSize, g->normalPos, g->biasHL, g->nl_c_l, g->nl_l_c, g->nl_l_f, f, last);

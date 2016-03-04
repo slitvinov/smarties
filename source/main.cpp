@@ -117,7 +117,7 @@ int main (int argc, char** argv)
     {'t', "dt",       REAL,  "Sim timestep",   &settings.dt,        (Real)0.01},
     {'f', "end_time", REAL,  "End time of sim",&settings.endTime,   (Real)1e9},
     {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.95},
-    {'e', "greedyeps",REAL,  "Greedy epsilon", &settings.greedyEps, (Real)0.05},
+    {'e', "greedyeps",REAL,  "Greedy epsilon", &settings.greedyEps, (Real)0.01},
     {'l', "learnrate",REAL,  "Learning rate",  &settings.lRate,     (Real)0.1},
     {'d', "lambda",   REAL,  "Lambda",         &settings.lambda,    (Real)0.0},
     {'s', "rand_seed",INT,   "Random seed",    &settings.randSeed,  (int)seed},
