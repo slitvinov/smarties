@@ -14,7 +14,7 @@
 #include "Network.h"
 #include "../ErrorHandling.h"
 #include <cassert>
-#define SCAL 3.
+#define SCAL 6.
 using namespace ErrorHandling;
 
 void Network::orthogonalize(int nO, int nI, int n0)
@@ -159,7 +159,7 @@ void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
             nWeights += g->recurrSize*g->normalSize;
         }
         
-        if (false)
+        //if (false)
         { //conntected to previous normal layer
             Link * link = new Link(g->normalSize,g->normalPos,g->normalSize,g->normalPos,nWeights,g->first);
             
@@ -285,8 +285,8 @@ void Network::addLSTM(Graph * p, Graph * g, bool first, bool last)
         
         NormalLayer * l;
         ActivationFunction * f = new SoftSign;
-        ActivationFunction * h = new SoftSigm;
-        l = new LSTMLayer(g->recurrSize, g->recurrPos, g->indState, g->wPeep, g->biasIN, g->biasIG, g->biasFG, g->biasOG, g->dSdB, g->rl_c_l, g->rl_o_l, g->rl_l_c, g->rl_l_f, f, h, last);
+        
+        l = new LSTMLayer(g->recurrSize, g->recurrPos, g->indState, g->wPeep, g->biasIN, g->biasIG, g->biasFG, g->biasOG, g->dSdB, g->rl_c_l, g->rl_o_l, g->rl_l_c, g->rl_l_f, f, last);
         layers.push_back(l);
     }
 }

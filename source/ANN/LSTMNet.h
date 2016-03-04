@@ -40,8 +40,9 @@ public:
     void train(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, int batchsize, int nepochs);
     void train(const vector<vector<vector<Real>>>& inputs, const vector<vector<vector<Real>>>& targets, int nepochs);
     
-    void resetMemories(int iAgent=0)
+    void resetMemories(int iAgent=0) override
     {
+        //printf("Resetting the fukking mems\n");
         net->clearMemory(net->mem[iAgent]->outvals, net->mem[iAgent]->ostates);
     }
     
@@ -50,4 +51,5 @@ public:
     void save(string fname);
     bool restart(string fname);
     void updateFrozenWeights();
+    void checkGrads();
 };

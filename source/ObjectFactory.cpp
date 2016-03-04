@@ -118,6 +118,30 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
             getline(inFile, s);
         }
         
+        else if (envStr.find("HardCartEnvironment ") != envStr.npos)
+        {
+            vector<Agent*> agents;
+            
+            string appType = _parse(envStr, "type", false);
+            string execpath = _parse(envStr, "exec", true);
+            int n = _parseInt(envStr, "n", true);
+            
+            StateType st;
+            if (appType == "DISCR") st = DISCR;
+            else if (appType == "ANN") st = ANN;
+            else if (appType == "WAVE") st = WAVE;
+            
+            for (int i=0; i<n; i++)
+            {
+                agents.push_back(new ExternalAgent(1e-10, ACTOR, "ExternalAgent"));
+            }
+            
+            env = new HardCartEnvironment(agents, execpath, st, rank);
+            env->setDims();
+            if (rank != 0) env->setup_Comm();
+            getline(inFile, s);
+        }
+        
         else if (envStr.find("oldEnvironment ") != envStr.npos)
         {
             vector<Agent*> agents;

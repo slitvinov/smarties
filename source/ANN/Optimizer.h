@@ -32,7 +32,7 @@ public:
     virtual void trainSeries3(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) {die("Wrong algo, dude\n");};
     virtual void trainSeries4(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) {die("Wrong algo, dude\n");};
     virtual void trainSeries5(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) {die("Wrong algo, dude\n");};
-    virtual void checkGrads(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) {die("Wrong algo, dude\n");};
+    virtual void checkGrads(const vector<vector<Real>>& inputs) {die("Wrong algo, dude\n");};
 };
 
 class AdamOptimizer: public Optimizer
@@ -56,7 +56,7 @@ public:
     void update(Grads * G) override;
     void addUpdate(Grads * G) override;
     void stackGrads(Grads * G, Grads * g) override;
-    void checkGrads(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) override;
+    void checkGrads(const vector<vector<Real>>& inputs) override;
     void trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) override;
     void trainSeries2(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) override;
     void trainSeries3(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) override;

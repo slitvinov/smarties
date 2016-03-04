@@ -142,19 +142,19 @@ int main(int argc, const char * argv[])
                 switch (act)
                 {
                     case 0:
-                        a.F = -20.;
+                        a.F = -50.;
                         break;
                     case 1:
-                        a.F = -5.;
+                        a.F = -10.;
                         break;
                     case 2:
                         a.F =  0.;
                         break;
                     case 3:
-                        a.F =  5.;
+                        a.F =  10.;
                         break;
                     case 4:
-                        a.F =  20.;
+                        a.F =  50.;
                         break;
 
                     default:

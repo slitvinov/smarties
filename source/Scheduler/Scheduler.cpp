@@ -73,7 +73,7 @@ inline void Master::unpackChunk(byte* &buf, int & first, State& sOld, Action& a,
     static const int sSize   = sInfo.dim   * sizeof(Real);
     static const int actSize = actInfo.dim * sizeof(Real);
     
-    first = *((Real*) buf);
+    first = *((int*) buf);
     buf += sizeof(int);
     
     sOld.unpack(buf);
@@ -181,7 +181,8 @@ void Master::run()
             if (r > -1e10)
             {
                 int agentId = max(0,slave*nAgents + i -1);
-                
+                //if (r<-0.99) printf("About to ask for new\n");
+                //if (first)   printf("First %d of a new series\n",first);
                 Q->passData(agentId, first, sOld, aOld, s, r, info);
                 
                 //traces[agentId].add(sOld, aOld);
@@ -333,7 +334,7 @@ void Slave::packData()
     
     for (int i=0; i<agents.size(); i++)
     {
-        *((Real*)cbuf) = first;
+        *((int*)cbuf) = first;
         cbuf += sizeof(int);
         
         Agent* agent = agents[i];

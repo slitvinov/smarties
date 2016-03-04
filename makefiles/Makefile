@@ -45,7 +45,7 @@ DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = 	ArgumentParser.o main.o ObjectFactory.o Profiler.o rng.o  StateAction.o \
 		Agent.o ExternalAgent.o SmartySelfAvoider.o SmartySwarmer.o \
 		oldEnvironment.o ExternalEnvironment.o SelfAvoidEnvironment.o SwarmEnvironment.o TwoFishEnvironment.o \
-		Explorer.o NFQ.o QLearning.o Sarsa.o \
+		Explorer.o NFQ.o QLearning.o Sarsa.o HardCartEnvironment.o \
 		MultiTable.o NFQApproximator.o \
 		Scheduler.o Saver.o util.o\
 		Layers.o LSTMNet.o Network.o Optimizer.o 

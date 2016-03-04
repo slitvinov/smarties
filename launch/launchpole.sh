@@ -4,11 +4,11 @@ EXECNAME=rl
 NTHREADS=$1
 
 SETTINGS+=" --gamma 0.95" #Crucial: discount factor
-SETTINGS+=" --nnl1 32" #Neurons in first layer
-SETTINGS+=" --nnl2 16" #Neurons in second layer
+SETTINGS+=" --nnl1 0" #Neurons in first layer
+SETTINGS+=" --nnl2 0" #Neurons in second layer
 SETTINGS+=" --nnl3 0" #Neurons in first layer
-SETTINGS+=" --nnm1 0"
-SETTINGS+=" --nnm2 0"
+SETTINGS+=" --nnm1 32"
+SETTINGS+=" --nnm2 16"
 SETTINGS+=" --nnm3 0"
 SETTINGS+=" --nne 0.001" #(Initial) learning rate
 

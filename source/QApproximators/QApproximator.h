@@ -49,15 +49,16 @@ protected:
     vector<Real> Inp;
     StateInfo sInfo;
     ActionInfo actInfo;
-    mt19937 * gen;
     discrete_distribution<int> * dist;
+    Real mean_err;
 public:
     int anneal;
+    mt19937 * gen;
     vector<Real> Errs;
     vector<Tuples> Set;
     vector<Real> Ps, Ws;
     
-    Transitions(const int nAgents, ActionInfo actInfo, StateInfo sInfo, int seed): actInfo(actInfo), sInfo(sInfo), anneal(0)
+    Transitions(const int nAgents, ActionInfo actInfo, StateInfo sInfo, int seed): actInfo(actInfo), sInfo(sInfo), anneal(0), mean_err(1.)
     {
         gen = new mt19937(seed);
         Inp.resize(sInfo.dim);
@@ -94,10 +95,10 @@ public:
     
     void push_back(const int & agentId)
     {
-        if(Tmp[agentId].s.size()>10)
+        if(Tmp[agentId].s.size()>3)
         {
             Set.push_back(Tmp[agentId]);
-            Errs.push_back(10.0);
+            Errs.push_back(mean_err);
         }
         //printf("Pushing series %d\n",Set.size());
         clear(agentId);
@@ -129,16 +130,17 @@ public:
         //sort in decreasing order of the error
         auto comparator = [this](int a, int b){ return Errs[a] > Errs[b]; };
         std::sort(inds.begin(), inds.end(), comparator);
-        
+
         #pragma omp parallel for
         for(int i=0;i<N;i++)
         {
             Ps[inds[i]]=pow(1./(i+2),0.5);
             //printf("P %f %f %d\n",Ps[inds[i]],Errs[inds[i]],inds[i]);
         }
-        Real err = accumulate(Errs.begin(), Errs.end(), 0.);
+        mean_err = accumulate(Errs.begin(), Errs.end(), 0.)/N;
         Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
-        printf("Avg MSE %f %d\n",err/N,N);
+        printf("Avg MSE %f %d\n",mean_err,N);
+        
         #pragma omp parallel for
         for(int i=0;i<N;i++)
         {

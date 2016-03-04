@@ -104,7 +104,7 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
         std::random_shuffle(indexes.begin(), indexes.end());
         for (int b=0; b<ndata; ++b)
         {
-            opt->checkGrads(inputs[indexes[b]],targets[indexes[b]],err);
+            opt->checkGrads(inputs[indexes[b]]);
             //if(int(err*100)%2==0)
             //    opt->trainSeries2(inputs[indexes[b]],targets[indexes[b]],err);
             //else if(int(err*100)%4==0)
@@ -329,8 +329,12 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
     //vector<int>  same(ndata+1);
     Real MSE = 0;
 
+    
     #pragma omp parallel
     {
+        if (weight==0.)  opt->checkGrads(sOld);
+        else
+        {
         for (int k=0; k<ndata; k++) //TODO clean this shit up
         {
             bool recycle(k>0);
@@ -394,8 +398,9 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
                     //printf("%f,%f,%f,%f,%f  %f \n",*(net->series[k+1]->outvals +net->iOutputs),*(net->series[k+1]->outvals +net->iOutputs+1),*(net->series[k+1]->outvals +net->iOutputs+2),*(net->series[k+1]->outvals +net->iOutputs+3),*(net->series[k+1]->outvals +net->iOutputs+4),weight*err);
                 }
             }
+            //printf("%d ",a[k]);
         }
-        
+        //printf("\n");
         //net->clearErrors(net->series[ndata+1]); //there is a omp for
         net->computeDeltasEnd(net->series, ndata);
         for (int k=ndata-1; k>=1; k--)
@@ -408,6 +413,7 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
         }
         
         opt->update(net->grad);
+        }
     }
     
     delete g;
@@ -418,4 +424,10 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
 void FishNet::updateFrozenWeights()
 {
     net->updateFrozenWeights();
+}
+
+
+void FishNet::checkGrads()
+{
+    
 }

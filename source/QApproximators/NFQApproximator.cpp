@@ -248,7 +248,7 @@ void NFQApproximator::correct(const State& s, const Action& a, Real err, int nAg
 void NFQApproximator::Train()
 {
     const int ndata = samples->Set.size();
-#if 1
+#if 0
     if (batchSize-- <= 0 && ndata>100)
     {
         //printf("Updatingtheweights\n");
@@ -266,7 +266,7 @@ void NFQApproximator::Train()
             ann->save(restart_file.c_str());
         }
     }
-    if(ndata>100)
+    else if(ndata>100)
     {
         int ind = samples->sample();
         //printf("Err prima %f ",samples->Errs[ind]);
@@ -279,7 +279,7 @@ void NFQApproximator::Train()
 
 #else
 
-    if (indexes.size()==0 && ndata>0)
+    if (indexes.size()==0 && ndata>100)
     {
         indexes.reserve(ndata);
         for (int i=0; i<ndata; ++i)
@@ -287,18 +287,18 @@ void NFQApproximator::Train()
         random_shuffle(indexes.begin(), indexes.end());
         ann->updateFrozenWeights();
         //cout << ndata << endl;
+        Real mean_err = accumulate(samples->Errs.begin(), samples->Errs.end(), 0.)/ndata;
+        printf("Avg MSE %f %d\n",mean_err,ndata);
+        //ann->trainDQ(samples->Set[indexes.back()].sOld, samples->Set[indexes.back()].a, samples->Set[indexes.back()].r, samples->Set[indexes.back()].s, gamma, 0.);
         samples->anneal++;
     }
-    
-    if (indexes.size()>0) //do we have data?
+    else if (indexes.size()>0 && ndata>100) //do we have data?
     {
         const int ind = indexes.back();
         indexes.pop_back();
         
-        //cout<<
-        ann->trainDQ(samples->Set[ind].sOld, samples->Set[ind].a, samples->Set[ind].r, samples->Set[ind].s, gamma)
-        //<< endl
-        ;
+        Real MSE = ann->trainDQ(samples->Set[ind].sOld, samples->Set[ind].a, samples->Set[ind].r, samples->Set[ind].s, gamma);
+        samples->Errs[ind] = MSE;
     }
 #endif
 }
