@@ -337,9 +337,8 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
         {
         for (int k=0; k<ndata; k++) //TODO clean this shit up
         {
-            bool recycle(k>0);
-            for (int i=0; i<nInputs && recycle; i++)
-                recycle = recycle && fabs(s[k-1][i]-sOld[k][i])<1e-3;
+            //bool recycle(k>0);
+            //for (int i=0; i<nInputs && recycle; i++) recycle = recycle && fabs(s[k-1][i]-sOld[k][i])<1e-3;
             
             //#pragma omp master
             //same[k] = recycle; //if incoherent i must block errors
@@ -359,13 +358,15 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
             //    printf("%f ", s[k][i]);
             //printf("were the inputs (%d) (%f)\n", a[k], r[k]);
 
-            if (k+1==ndata && r[k]<-.99) //then i reached the end-state
+            if (r[k]<-0.99) //then i reached the end-state k+1==ndata &&
             {
+                
                 #pragma omp single
                 {
+                    if(k+1!=ndata) printf("Fucked up the reward %f \n" , r[k]);
                     for (int i=0; i<Qhats.size(); i++)
                         *(net->series[k+1]->errvals +net->iOutputs+i) = 0;
-                    Real err =  (-1. - Qs[a[k]]);
+                    Real err =  (r[k] - Qs[a[k]]);
                     *(net->series[k+1]->errvals +net->iOutputs +a[k]) = weight*err;
                     MSE += err*err;
                     //printf("final %f,%f,%f,%f,%f  %f \n",*(net->series[k+1]->outvals +net->iOutputs),*(net->series[k+1]->outvals +net->iOutputs+1),*(net->series[k+1]->outvals +net->iOutputs+2),*(net->series[k+1]->outvals +net->iOutputs+3),*(net->series[k+1]->outvals +net->iOutputs+4),weight*err);
@@ -391,8 +392,8 @@ Real FishNet::trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, 
                         *(net->series[k+1]->errvals +net->iOutputs +i) = 0;
                         if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
                     }
-                    //printf("Best was %d \n",Nbest);
-                    Real err =  (r[k]+0.5 + gamma*Qtildes[Nbest] - Qs[a[k]]);
+                    if (fabs(r[k] + gamma*Qtildes[Nbest]) > 1.) printf("Warning: big Q value %f (r=%f Qnext=%f)\n",r[k] + gamma*Qtildes[Nbest],r[k],Qtildes[Nbest]);
+                    Real err =  (r[k] + gamma*Qtildes[Nbest] - Qs[a[k]]);
                     *(net->series[k+1]->errvals +net->iOutputs +a[k]) = weight*err;
                     MSE += err*err;
                     //printf("%f,%f,%f,%f,%f  %f \n",*(net->series[k+1]->outvals +net->iOutputs),*(net->series[k+1]->outvals +net->iOutputs+1),*(net->series[k+1]->outvals +net->iOutputs+2),*(net->series[k+1]->outvals +net->iOutputs+3),*(net->series[k+1]->outvals +net->iOutputs+4),weight*err);

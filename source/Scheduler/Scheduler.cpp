@@ -128,13 +128,13 @@ void Master::run()
         MPI_Irecv(&n, 1, MPI_INT, MPI_ANY_SOURCE, 121, MPI_COMM_WORLD, &request);
         MPI_Test(&request, &completed, &status);
 #endif
-        bool test = true;
+        //bool test = true;
         while(completed == 0)
         {
-            if(test)
+            //if(test)
             {
                 Q->Train();
-                test=false;
+                //test=false;
             }
             //debug2("Master trains\n");
             

@@ -58,7 +58,7 @@ public:
     vector<Tuples> Set;
     vector<Real> Ps, Ws;
     
-    Transitions(const int nAgents, ActionInfo actInfo, StateInfo sInfo, int seed): actInfo(actInfo), sInfo(sInfo), anneal(0), mean_err(1.)
+    Transitions(const int nAgents, ActionInfo actInfo, StateInfo sInfo, int seed): actInfo(actInfo), sInfo(sInfo), anneal(0), mean_err(100.)
     {
         gen = new mt19937(seed);
         Inp.resize(sInfo.dim);
@@ -68,7 +68,7 @@ public:
     
     void add(const int & agentId, State& sOld, Action& a, State& sNew, const Real & reward)
     {
-        if(Set.size()<200)
+        //if(Set.size()<200)
         {
         //printf("Adding tuple %d to agent %d\n",Tmp[agentId].s.size(),agentId);
         sOld.scale(Inp);
@@ -209,6 +209,7 @@ public:
     
     void restartSamples()
     {
+        double maxY(0), maxT(0);
         State t_sO(sInfo), t_sN(sInfo);
         vector<Real> d_sO(sInfo.dim), d_sN(sInfo.dim);
         Action t_a(actInfo);
@@ -254,10 +255,33 @@ public:
                         t_sO.set(d_sO);
                         t_sN.set(d_sN);
                         t_a.set(d_a);
+                        bool new_sample(false);
+                        if (reward<-10.99) { reward = -1.; new_sample=true; }
+                        else
+                        {
+                            maxY = max(maxY, fabs(t_sN.vals[1]));
+                            
+                            maxT = max(maxT, fabs(t_sN.vals[2]));
+                            
+                            //reward = 1. -pow(t_sN.vals[1],2)/.5 -pow(t_sN.vals[2],2)/1.;
+                            reward = 1. -pow(t_sN.vals[1],2)/.1 -pow(t_sN.vals[2],2)/0.6;
+                            //(pi/4)^4/(0.7); (0.5)^4/(0.1) (pi/4)^4/(0.6)
+                            if (t_sN.vals[3]<.2)
+                            {
+                                if (t_sN.vals[4]==4) reward+=.01;
+                                if (t_sN.vals[4]==0) reward-=.01;
+                            }
+                            else
+                            {
+                                if (t_sN.vals[4]==1) reward-=.01;
+                                if (t_sN.vals[4]==0) reward+=.01;
+                            }
+                            reward*=(1-0.95);
+                        }
                         
                         samples->add(0, t_sO, t_a, t_sN, reward);
                         
-                        if (reward<-10.99)
+                        if (new_sample)
                             samples->push_back(0);
                     }
                 }
@@ -274,5 +298,7 @@ public:
             
             in.close();
         }
+        
+        printf("Max Y %f , max T %f \n", maxY, maxT);
     }
 };

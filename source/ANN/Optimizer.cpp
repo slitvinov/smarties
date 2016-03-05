@@ -184,23 +184,15 @@ void AdamOptimizer::checkGrads(const vector<vector<Real>>& inputs)
     Grads * g = new Grads(nWeights,nBiases);
     Grads * G = new Grads(nWeights,nBiases);
     for (int w=0; w<nWeights; w++)
-    {
-        *(g->_W+w) = 0;
-        *(G->_W+w) = 0;
-    }
+    {   *(g->_W+w) = 0; *(G->_W+w) = 0; }
     for (int w=0; w<nBiases; w++)
-    {
-        *(g->_B+w) = 0;
-        *(G->_B+w) = 0;
-    }
+    {   *(g->_B+w) = 0; *(G->_B+w) = 0; }
     const double eps = 1e-6;
     int lastn = 2;
     #pragma omp parallel
     {
         for (int k=0; k<lastn; k++)
         {
-            //printf("\n Series %d\n",k+1);
-            
             net->predict(inputs[k], res, net->series[k], net->series[k+1]);
             
             #pragma omp master
@@ -213,10 +205,7 @@ void AdamOptimizer::checkGrads(const vector<vector<Real>>& inputs)
         
         net->computeDeltasEnd(net->series, lastn);
         for (int k=lastn-1; k>=1; k--)
-        {
             net->computeDeltasSeries(net->series, k);
-            printf("\n\n\n");
-        }
         
         for (int k=1; k<=lastn; k++)
         {
@@ -231,21 +220,15 @@ void AdamOptimizer::checkGrads(const vector<vector<Real>>& inputs)
         *(net->weights+w) += eps;
         
         for (int k=0; k<lastn; k++)
-        {
             net->predict(inputs[k], res, net->series[k], net->series[k+1]);
-        }
         
         for (int i=0; i<1; i++)
-        {
             Errors[(lastn-1)*nOutputs + i] = - *(net->series[lastn]->outvals+iOutputs+i);
-        }
         
         *(net->weights+w) -= 2*eps;
         
         for (int k=0; k<lastn; k++)
-        {
             net->predict(inputs[k], res, net->series[k], net->series[k+1]);
-        }
         
         for (int i=0; i<1; i++)
         {
@@ -264,21 +247,15 @@ void AdamOptimizer::checkGrads(const vector<vector<Real>>& inputs)
         *(net->biases+w) += eps;
         
         for (int k=0; k<lastn; k++)
-        {
             net->predict(inputs[k], res, net->series[k], net->series[k+1]);
-        }
         
         for (int i=0; i<1; i++)
-        {
             Errors[(lastn-1)*nOutputs + i] = - *(net->series[lastn]->outvals+iOutputs+i);
-        }
         
         *(net->biases+w) -= 2*eps;
         
         for (int k=0; k<lastn; k++)
-        {
             net->predict(inputs[k], res, net->series[k], net->series[k+1]);
-        }
         
         for (int i=0; i<1; i++)
         {
@@ -452,7 +429,7 @@ void AdamOptimizer::update(Real* dest, Real* grad, Real* _1stMom, Real* _2ndMom,
 //    const vec F1 = SET1(_eta/(1.-beta_t_1));
 //    const vec F2 = SET1(1./(1.-beta_t_2));
     const vec F2 = SET1( (1.-beta_t_1)*(1.-beta_t_1)/(1.-beta_t_2) );
-//    const vec ETAB = SET1( _eta );
+    const vec ETAB = SET1( _eta );
     const vec EPS = SET1(epsilon);
     const vec zeros = SET0 ();
     #endif
@@ -478,8 +455,8 @@ void AdamOptimizer::update(Real* dest, Real* grad, Real* _1stMom, Real* _2ndMom,
         //FETCH((char*) _1stMom +i + M_PF_G, M_POL_G);
         vec M2 = ADD( MUL ( B2, LOAD(_2ndMom + i)), MUL ( _B2, MUL (_DW,_DW)));
         //FETCH((char*) _2ndMom +i + M_PF_G, M_POL_G);
-        STORE(dest+i,ADD(LOAD(dest+i),MUL( MUL(F1,M1), RSQRT(ADD(MUL(M2,F2),EPS)))));
-        //STORE(dest+i, ADD( LOAD(dest+i),MUL( MUL(ETAB, M1), RSQRT(ADD(MUL(M2,F2),EPS)))));
+        //STORE(dest+i,ADD(LOAD(dest+i),MUL( MUL(F1,M1), RSQRT(ADD(MUL(M2,F2),EPS)))));
+        STORE(dest+i, ADD( LOAD(dest+i),MUL( MUL(ETAB, M1), RSQRT(ADD(MUL(M2,F2),EPS)))));
         //FETCH((char*)    dest +i + M_PF_G, M_POL_G);
         
         STORE(_1stMom + i,M1);

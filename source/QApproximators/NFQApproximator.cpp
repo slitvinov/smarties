@@ -248,11 +248,11 @@ void NFQApproximator::correct(const State& s, const Action& a, Real err, int nAg
 void NFQApproximator::Train()
 {
     const int ndata = samples->Set.size();
-#if 0
+#if 1
     if (batchSize-- <= 0 && ndata>100)
     {
         //printf("Updatingtheweights\n");
-        batchSize = min(ndata,100);
+        batchSize = min(ndata,1000);
         ann->updateFrozenWeights();
         samples->updateP();
         iter++;

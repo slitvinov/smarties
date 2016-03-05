@@ -21,6 +21,13 @@ ifeq "$(findstring daint,$(shell hostname))" "daint"
 include make.daint
 endif
 
+ifeq "$(findstring falcon,$(shell hostname))" "falcon"
+include make.falcon
+endif
+ifeq "$(findstring panda,$(shell hostname))" "panda"
+include make.falcon
+endif
+
 CPPFLAGS+=-std=c++11
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
 
