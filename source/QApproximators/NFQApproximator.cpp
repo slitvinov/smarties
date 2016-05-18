@@ -20,17 +20,14 @@
 
 #include "../ErrorHandling.h"
 #include "../Misc.h"
-#include "../ANN/LSTMNet.h"
 
 using namespace ErrorHandling;
 
-NFQApproximator::NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings, int nAgents) :
-QApproximator(newSInfo, newActInfo, settings, nAgents), scaledInp(sInfo.dim + actInfo.dim), gamma(settings.gamma), A(0.02), B(1.), nettype(settings.network), actionsIt(newActInfo), ALfac(settings.AL_fac), batchSize(0), iter(0)
+NFQApproximator::NFQApproximator(StateInfo SInfo, ActionInfo ActInfo, Settings & settings) :
+QApproximator(SInfo, ActInfo, settings), iter(0)
 {
-    rng = new RNG(rand());
-    
     nActions = actInfo.bounds[0];
-    nStateDims = sInfo.dim;
+    nStateDims = sInfo.dimUsed;
     
     vector<int> lsize, mblocks;
     
@@ -52,14 +49,12 @@ QApproximator(newSInfo, newActInfo, settings, nAgents), scaledInp(sInfo.dim + ac
         if (settings.nnLayer3>1 || settings.nnMemory3>1 )
             mblocks.push_back(settings.nnMemory3);
     }
+    
     mblocks.push_back(0);
     
-    _info("Creating the LSTM...\n");
-    ann = new FishNet(lsize, mblocks, settings, nAgents);
-    _info("...created.\n");
-    
-    A = 1-settings.gamma;
-    B = 0.;
+    profiler = new Profiler();
+    net = new Network(lsize, mblocks, settings);
+    opt = new AdamOptimizer(net, profiler, settings);
     
     scaledInp.resize(nStateDims);
     prediction.resize(nActions);
@@ -74,270 +69,163 @@ void NFQApproximator::get(const State& sOld, vector<Real> & Qold, const State& s
 {
     vector<Real> scaledInpOld(nStateDims);
     
-    s.scale(scaledInp);
-    sOld.scale(scaledInpOld);
+    s.scaleUsed(scaledInp);
+    sOld.scaleUsed(scaledInpOld);
+    Qold.resize(nActions);
+    Q.resize(nActions);
     
-    ann->predict(scaledInpOld, Qold, scaledInp, Q, iAgent);
+    net->allocateSeries(2);
+    net->expandMemory(net->mem[iAgent], net->series[0]);
+    
+    net->predict(scaledInpOld, Qold, net->series[0], net->series[1]);
+    net->predict(scaledInp,    Q,    net->series[1], net->series[2]);
+    
+    net->expandMemory(net->mem[iAgent], net->series[1]);
 }
 
-Real NFQApproximator::get(const State& s, const Action& a, int nAgent)
+Real NFQApproximator::get(const State& s, const Action& a, int iAgent)
 {
-    s.scale(scaledInp);
-
-    ann->predict(scaledInp, prediction, nAgent);
+    s.scaleUsed(scaledInp);
+    
+    net->expandMemory(net->mem[iAgent], net->series[0]);
+    net->predict(scaledInp, prediction, net->series[0], net->series[1]);
+    net->expandMemory(net->mem[iAgent], net->series[1]);
+    
     return prediction[a.vals[0]];
 }
 
-Real NFQApproximator::getMax(const State& s, Action& a, int nAgent)
+Real NFQApproximator::getMax(const State& s, Action& a, int iAgent)
 {
-    s.scale(scaledInp);
+    s.scaleUsed(scaledInp);
     Real Val = -1e10;
-
-    ann->predict(scaledInp, prediction, nAgent);
+    
+    net->expandMemory(net->mem[iAgent], net->series[0]); //used by RNN to update recurrent signals
+    net->predict(scaledInp, prediction, net->series[0], net->series[1]);
+    net->expandMemory(net->mem[iAgent], net->series[1]);
+    
     for (int i=0; i<prediction.size(); ++i)
-    {
-        //printf("%f ",prediction[i]);
     if (prediction[i]>Val)
     {
         a.vals[0] = i;
         Val = prediction[i];
     }
-    }
-    //printf("%d\n",a.vals[0]);
+    
     return Val;
 }
 
-void NFQApproximator::correct(const State& s, const Action& a, Real err, int nAgent)
+void NFQApproximator::correct(const State& s, const Action& a, Real err, int iAgent)
 {
     for (int i=0; i<prediction.size(); ++i)
         prediction[i] = 0.;
     prediction[a.vals[0]] = err;
     
-    ann->improve(prediction, nAgent);
+    net->expandMemory(net->mem[iAgent], net->series[1]);
+    net->computeGrads(prediction, net->series[0], net->series[1], net->grad);
+    opt->update(net->grad);
+    net->expandMemory(net->mem[iAgent], net->series[1]);
 }
 
-/*
-    Real NFQApproximator::batchUpdate()
-    {
-        vector<NFQdata> pairs;
-        NFQdata tmp;
-        vector<Real> target(prediction.size());
-        Action a(actInfo);
-        debug("Sample set size is %d\n", samples.Set.size());
-        
-        Real err(0.0), maxo(-1e6), mino(1e6), reward, Vold, Vnxt, Aold;
-        int aNxt;
-        
-        for (int i=0; i<samples.Set.size(); i++)
-        { //target values
-            //printf("aInd=%d, prediction size=%d, target size = %d\n", tmp.aInd,prediction.size(),target.size());
-            if (ALfac<1.) Vold = getMax(*samples.Set[i].sOld, aNxt, samples.Set[i].agentId);
-            Vnxt = testMax(*samples.Set[i].sNew, aNxt, samples.Set[i].agentId);
-            
-            //input i:
-            samples.Set[i].sOld->scale(scaledInp);
-            
-            reward = 1. -samples.Set[i].sNew->vals[1]*samples.Set[i].sNew->vals[1]/.1 -samples.Set[i].sNew->vals[2]*samples.Set[i].sNew->vals[2]/.5;
-            if (samples.Set[i].sNew->vals[3]<.2)
-            {
-                if (samples.Set[i].sNew->vals[4]==1)
-                    reward+=.1;
-                //if (samples.Set[i].sNew->vals[4]==2)
-                //    reward-=.1;
-            }
-            else
-            {
-                //if (samples.Set[i].sNew->vals[4]==1)
-                //    reward-=.02;
-                if (samples.Set[i].sNew->vals[4]==2)
-                    reward+=.1;
-            }
-
-            if (prediction.size()>1)
-            {
-                tmp.aInd = samples.Set[i].a->vals[0];
-                for (int i=0; i<target.size(); ++i)
-                    target[i] = 0.;
-            }
-            else
-            {
-                tmp.aInd = 0;
-                samples.Set[i].a->scale(scaledInp);
-            }
-            
-            if (ALfac<1.) target[tmp.aInd] = descale(Vold) + (reward + gamma*descale(Vnxt) - descale(Vold))/ALfac;
-            else target[tmp.aInd] = reward + gamma*descale(Vnxt);
-            if (samples.Set[i].reward<-50) target[tmp.aInd] = -10;
-            tmp.insi = scaledInp;
-            tmp.outi = target;
-            
-            //maxo = max(maxo, target[tmp.aInd]);
-            //mino = min(mino, target[tmp.aInd]);
-            
-            pairs.push_back(tmp);
-        }
-
-        std::random_shuffle ( pairs.begin(), pairs.end() ); //if only we did not have memory in LSTM...
-        ann->setBatchsize(pairs.size());
-        
-        for (int i=0; i<pairs.size(); i++)
-        {
-            ann->predict(pairs[i].insi, prediction, 0); //need to put the neurons' ovals back in the right spots for the update
-            pairs[i].outi[pairs[i].aInd] = prediction[pairs[i].aInd] - rescale(pairs[i].outi[pairs[i].aInd]); //scaled error pred-val
-
-            ann->improve(pairs[i].insi, pairs[i].outi, 0);
-            err += fabs(pairs[i].outi[pairs[i].aInd]);
-        }
-        
-        pairs.clear();
-        
-        debug("The average error was %f, A=%f B=%f\n", err/samples.Set.size(), A,B);
-        return err/samples.Set.size();
-    }
-    Real NFQApproximator::serialUpdate()
-    {
-        Action a(actInfo);
-        debug("Serial sample set size is %d\n", samples.Set.size());
-        Real err(0.0), maxo(-1e6), mino(1e6), Vold, Vnxt, Anew, Aold, target, reward;
-        int anxt;
-        
-        for (int i=0; i<samples.Set.size(); i++)
-        { //target values
-            //we transition to state s' and get the Qold
-            //Vold = getMax(*samples.Set[i].sOld, samples.Set[i].agentId);
-            Vold = getMax(*samples.Set[i].sOld, anxt, samples.Set[i].agentId);
-            Vnxt = testMax(*samples.Set[i].sNew, anxt, samples.Set[i].agentId);
-            Aold = advance(*samples.Set[i].sOld, *samples.Set[i].a, samples.Set[i].agentId);
-
-            
-            reward = 1. -pow(samples.Set[i].sNew->vals[1],4)/.005 -pow(samples.Set[i].sNew->vals[2],4)/.25;
-            if (samples.Set[i].sNew->vals[3]<.2)
-            {
-                if (samples.Set[i].sNew->vals[4]==1)
-                    reward+=.1;
-                //if (samples.Set[i].sNew->vals[4]==2)
-                //    reward-=.1;
-            }
-            else
-            {
-                //if (samples.Set[i].sNew->vals[4]==1)
-                //    reward-=.02;
-                if (samples.Set[i].sNew->vals[4]==2)
-                    reward+=.1;
-            }
-
-            
-            if (ALfac<1.) Anew = descale(Vold) + (reward + gamma*descale(Vnxt) - descale(Vold))/ALfac;
-            else Anew = reward + gamma*descale(Vnxt);
-            if (samples.Set[i].reward<-50) Anew = -10;
-            //maxo = max(maxo, Anew);
-            //mino = min(mino, Anew);
-            
-            target = (rescale(Anew) - Aold); // WTF?? check prev versions
-            
-            correct(*samples.Set[i].sOld, *samples.Set[i].a, target, samples.Set[i].agentId);
-            err += fabs(target);
-        }
-        ann->setBatchsize(0);
-        debug("Learning state: average error %f, avg weights %f, avg learn rate %f (%f - %f) A %f B %f.\n", err/samples.Set.size(), ann->TotSumWeights(),ann->AvgLearnRate(), maxo, mino, A, B);
-
-        return err/samples.Set.size();
-    }
-*/
-
-void NFQApproximator::Train()
+Real NFQApproximator::Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight) //function<void(vector<Real>, st, Real, vector<Real>, vector<Real>)> & errs
 {
-    const int ndata = samples->Set.size();
-#if 1
-    if (batchSize-- <= 0 && ndata>100)
+    const int ndata = sOld.size();
+    if (sOld.size()!=a.size() || sOld.size()!=r.size() || sOld.size()!=s.size()) die("Get your shit together, bro. \n");
+    if(!net->allocatedFrozenWeights) die("You really should not be here\n");
+    if (ndata<2) die("Series is too short \n");
+    
+    //cleanup memory used by the net, allocate gradient and Q outputs
+    net->allocateSeries(ndata+2);
+    net->clearMemory(net->series[0]->outvals, net->series[0]->ostates);
+    Grads * g = new Grads(net->nWeights,net->nBiases);
+    vector<Real> Qs(nActions), Qhats(nActions), Qtildes(nActions);
+    Real MSE = 0;
+
+    if (weight==0.)  opt->checkGrads(sOld);
+    else
     {
-        //printf("Updatingtheweights\n");
-        batchSize = min(ndata,1000);
-        ann->updateFrozenWeights();
-        samples->updateP();
-        iter++;
-        
-        if (iter%100==0)
+        profiler->start("F");
+        for (int k=0; k<ndata; k++) //TODO clean this shit up
         {
-            string restart_file;
-            char buf[500];
-            sprintf(buf, "restart.net_%09d", iter);
-            restart_file = string(buf);
-            ann->save(restart_file.c_str());
+            if(k>0) Qs = Qhats;
+            else net->predict(sOld[k], Qs, net->series[k], net->series[k+1]);
+            
+            if (k+1==ndata && r[k]<-0.999) //then i reached the end-state k+1==ndata &&
+            {
+                for (int i=0; i<Qhats.size(); i++)
+                    *(net->series[k+1]->errvals +net->iOutputs+i) = 0;
+                
+                Real target = r[k];
+                if (fabs(target)>1.)
+                {
+                    target/=fabs(target);
+                    printf("Warning: big Q value %f: should be -1.\n",r[k]);
+                }
+                
+                Real err =  (target - Qs[a[k]]);
+                *(net->series[k+1]->errvals +net->iOutputs +a[k]) = weight*err;
+                MSE += err*err;
+            }
+            else
+            {
+                #pragma omp parallel sections
+                {
+                    #pragma omp section
+                    net->predict(s[k], Qhats,   net->series[k+1], net->series[k+2]);
+                    #pragma omp section
+                    net->predict(s[k], Qtildes, net->series[k+1], net->series[ndata+2], net->frozen_weights, net->frozen_biases);
+                }
+                
+                int Nbest; Real Vhat(-1e10);
+                for (int i=0; i<Qhats.size(); i++)
+                {
+                    *(net->series[k+1]->errvals +net->iOutputs +i) = 0;
+                    if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
+                }
+                
+                Real target = r[k] + gamma*Qtildes[Nbest];
+                if (fabs(target)>1.)
+                {
+                    target/=fabs(target);
+                    printf("Warning: big Q value %f (r=%f Qnext=%f)\n",r[k] + gamma*Qtildes[Nbest],r[k],Qtildes[Nbest]);
+                }
+                
+                Real err =  (target - Qs[a[k]]);
+                *(net->series[k+1]->errvals +net->iOutputs +a[k]) = weight*err;
+                MSE += err*err;
+            }
         }
+        profiler->stop("F");
+        //net->clearErrors(net->series[ndata+1]);
+        profiler->start("B");
+        net->computeDeltasEnd(net->series, ndata);
+        for (int k=ndata-1; k>=1; k--)
+            net->computeDeltasSeries(net->series, k);
+        profiler->stop("B");
+        profiler->start("G");
+        for (int k=1; k<=ndata; k++)
+        {
+            net->computeGradsLightSeries(net->series, k, g);
+            opt->stackGrads(net->grad,g);
+        }
+        profiler->stop("G");
+        profiler->start("O");
+        opt->update(net->grad);
+        profiler->stop("O");
     }
-    else if(ndata>100)
-    {
-        int ind = samples->sample();
-        //printf("Err prima %f ",samples->Errs[ind]);
-        Real MSE = ann->trainDQ(samples->Set[ind].sOld, samples->Set[ind].a, samples->Set[ind].r, samples->Set[ind].s, gamma, samples->Ws[ind]);
-        samples->Errs[ind] = MSE;
-        
-        //printf("Err dopo %f \n",samples->Errs[ind]);
-        //printf("MSE %f iter %d sample %d weight %f\n",MSE,batchSize,ind, samples->Ws[ind]);
-    }
-
-#else
-
-    if (indexes.size()==0 && ndata>100)
-    {
-        indexes.reserve(ndata);
-        for (int i=0; i<ndata; ++i)
-            indexes.push_back(i);
-        random_shuffle(indexes.begin(), indexes.end());
-        ann->updateFrozenWeights();
-        //cout << ndata << endl;
-        Real mean_err = accumulate(samples->Errs.begin(), samples->Errs.end(), 0.)/ndata;
-        printf("Avg MSE %f %d\n",mean_err,ndata);
-        //ann->trainDQ(samples->Set[indexes.back()].sOld, samples->Set[indexes.back()].a, samples->Set[indexes.back()].r, samples->Set[indexes.back()].s, gamma, 0.);
-        samples->anneal++;
-    }
-    else if (indexes.size()>0 && ndata>100) //do we have data?
-    {
-        const int ind = indexes.back();
-        indexes.pop_back();
-        
-        Real MSE = ann->trainDQ(samples->Set[ind].sOld, samples->Set[ind].a, samples->Set[ind].r, samples->Set[ind].s, gamma);
-        samples->Errs[ind] = MSE;
-    }
-#endif
+    
+    delete g;
+    return MSE/ndata;
 }
 
 void NFQApproximator::save(string name)
 {
-    string suff;
-    ann->save(name + nettype);
-    const string morestuff = name+"restart.scaling";
-    FILE * f = fopen(morestuff.c_str(), "w");
-    if (f != NULL)
-    {
-        fprintf(f, "A: %20.20e\n", A);
-        fprintf(f, "B: %20.20e\n", B);
-    }
-    fclose(f);
+    net->save(name + ".net");
 }
 
 bool NFQApproximator::restart(string name)
 {
     bool res = true;
     
-    string suff;
-    res = ann->restart(name + nettype) && res;
-    
-    const string morestuff = name+"restart.scaling";
-    FILE * f = fopen(morestuff.c_str(), "r");
-    if(f != NULL)
-	{
-        float val;
-        fscanf(f, "A: %e\n", &val);
-        A = val;
-        printf("A is %e\n", A);
-        
-        fscanf(f, "B: %e\n", &val);
-        B = val;
-        printf("B is %e\n", B);
-        fclose(f);
-    }
-    
+    res = net->restart(name + ".net") && res;
+
     return res;
 }

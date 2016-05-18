@@ -22,7 +22,6 @@ class MultiTable : public QApproximator
 	map<long int, Real> data;
 	map<long int, Real> maxStateVal;
 	vector<long int> shifts;
-    Real gamma, lRate;
 	inline long int _encodeIdx(const State& s, const Action& a) const;
 	inline long int _encodeIdx(const long int sId, const Action& a) const;
 
@@ -32,8 +31,7 @@ class MultiTable : public QApproximator
 	//inline int _lines(const char * const filename);
 	
 public:
-	// Costructor-Destructor
-	MultiTable(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings, int nAgents);
+	MultiTable(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings);
 	~MultiTable();
 	
 	// Methods
@@ -46,7 +44,7 @@ public:
 	void   set    (const State& s, const Action& a, Real value, int iAgent = 0);
 	void   correct(const State& s, const Action& a, Real error, int iAgent = 0);
 	Real usage() const;
-    void   Train();
+    Real Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight=1.);
 	inline map<long int, Real>& getData()  { return data; }
 	
 	void   save(string name);

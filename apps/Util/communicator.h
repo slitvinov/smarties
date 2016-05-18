@@ -38,7 +38,8 @@ public:
         {
             k = 0; a = 0;
             //double t1 = omp_get_wtime();
-
+            printf("SENDING %d,%d\n",sock,sizeout);
+            fflush(stdout);
             send_all(sock, dataout, sizeout);
             
             if (reward>-.99)
@@ -95,9 +96,9 @@ public:
         
         probdim = (probdim+1)*nAgents;
         sizeout = probdim*sizeof(double);
-        dataout = (double *) malloc(probdim);
+        dataout = (double *) malloc(sizeout);
         sizein  = nAgents*sizeof(double);
-        datain  = (double *) malloc(nAgents);
+        datain  = (double *) malloc(sizein);
         /* Create a socket */
         printf("recv problem dim = %d %d %d %d \n", probdim, nAgents, sizein, sizeout);
         sock = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -112,6 +113,8 @@ public:
         while (connect(sock, (struct sockaddr *)&server_addr, servlen) < 0)
             perror("connecting...\n");
             //exit(1);	// here, we can sleep and retry
+        
+        printf("CONNECTED?!?! %d\n",sock);
     }
     
     void dbg(double *x, int *pn)

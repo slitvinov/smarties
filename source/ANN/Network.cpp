@@ -30,8 +30,8 @@ void Network::orthogonalize(int nO, int nI, int n0)
             u_d_u += *(weights +n0 +j*nI +k)* *(weights +n0 +j*nI +k);
             v_d_u += *(weights +n0 +j*nI +k)* *(weights +n0 +i*nI +k);
         }
-        if(u_d_u>0) //die("WTF did you do %d %d %d %d %d???\n",i,j,nO,nI,n0);
-        for (int k=0; k<nI; k++)
+        if(u_d_u>0)
+            for (int k=0; k<nI; k++)
             *(weights +n0 +i*nI +k) -= (v_d_u/u_d_u) * *(weights +n0 +j*nI +k);
     }
 }
@@ -102,24 +102,25 @@ void Network::initializeWeights(Graph & g, mt19937 & gen)
         *(biases +w) = dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
         
     for (int w=g.biasIG; w<g.biasIG+g.recurrSize; w++)
-        *(biases +w) =
-                        //-2.; /* IG starts decisively closed */
+        *(biases +w) =  //-2.; /* IG starts decisively closed */
                         dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
         
     for (int w=g.biasFG; w<g.biasFG+g.recurrSize; w++)
-        *(biases +w) =
-                        // 2.; /* FG starts decisively open */
+        *(biases +w) =  // 2.; /* FG starts decisively open */
                          dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
     
     for (int w=g.biasOG; w<g.biasOG+g.recurrSize; w++)
-        *(biases +w) =
-                        //-2.; /* OG starts decisively closed */
+        *(biases +w) =  //-2.; /* OG starts decisively closed */
                          dis(gen)*sqrt(SCAL)/Real(g.recurrSize);
 }
 
 void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
 {
+#ifdef SIMDKERNELS
     int normalSize_SIMD = ceil((Real)g->normalSize/SIMD)*SIMD;
+#else
+    int normalSize_SIMD = g->normalSize;
+#endif
     if(!last && !first) g->normalSize = normalSize_SIMD;
     
     if (g->normalSize>0)
@@ -150,7 +151,7 @@ void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
         }
         
         if (g->recurrSize>0)
-        { //conntected to previous normal layer
+        { //conntected  to current realization of current rec layer
             Link * link = new Link(g->recurrSize,g->recurrPos,g->normalSize,g->normalPos,nWeights,g->first);
             
             g->nl_c_l->push_back(link);
@@ -159,8 +160,8 @@ void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
             nWeights += g->recurrSize*g->normalSize;
         }
         
-        //if (false)
-        { //conntected to previous normal layer
+        if (false)//(!last)
+        { //conntected  to past realization of current normal layer
             Link * link = new Link(g->normalSize,g->normalPos,g->normalSize,g->normalPos,nWeights,g->first);
             
             g->nl_o_l->push_back(link);
@@ -184,12 +185,20 @@ void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
 
 void Network::addLSTM(Graph * p, Graph * g, bool first, bool last)
 {
-    if (last) die("How the fudge did you get here?\n");
+    //if (last) die("How the fudge did you get here?\n");
+    
+#ifdef SIMDKERNELS
     int normalSize_SIMD = ceil((Real)g->normalSize/SIMD)*SIMD; //g->normalSize
     int recurrSize_SIMD = ceil((Real)g->recurrSize/SIMD)*SIMD; //g->recurrSize
+#else
+    int normalSize_SIMD = g->normalSize;
+    int recurrSize_SIMD = g->recurrSize;
+#endif
+    
     if(!last && !first)          g->recurrSize = recurrSize_SIMD;
     if (last && g->normalSize>0) g->recurrSize = recurrSize_SIMD;
-    g->normalSize = normalSize_SIMD; g->recurrSize = recurrSize_SIMD; //todo
+    g->normalSize = normalSize_SIMD;
+    g->recurrSize = recurrSize_SIMD; //TODO
     if (g->recurrSize>0)
     {
         {
@@ -247,7 +256,7 @@ void Network::addLSTM(Graph * p, Graph * g, bool first, bool last)
             p->nl_l_c->push_back(link);
         }
 
-        { //conntected to past realization of recurrent layer
+        { //conntected to past realization of current recurrent layer
             int WeightHL = nWeights;
             nWeights += g->recurrSize*g->recurrSize;
             int WeightIG = nWeights;
@@ -264,8 +273,8 @@ void Network::addLSTM(Graph * p, Graph * g, bool first, bool last)
             g->rl_o_l->push_back(link);
             g->rl_l_f->push_back(link);
         }
-        if (g->normalSize>0)
-        { //conntected to past realization of normal layer
+        if (false)//(g->normalSize>0) //NOT VALIDATED/SOMWETHING WRONG IN THE EQs
+        { //conntected to past realization of current normal layer
             int WeightHL = nWeights;
             nWeights += g->normalSize*g->recurrSize;
             int WeightIG = nWeights;
@@ -291,24 +300,28 @@ void Network::addLSTM(Graph * p, Graph * g, bool first, bool last)
     }
 }
 
-Network::Network(vector<int>& normalSize, vector<int>& recurrSize, Settings & settings, int nAgents) : nInputs(0), nOutputs(0), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), ndSdW(0), ndSdB(0), nStates(0), iOutputs(0), allocatedFrozenWeights(false)
+Network::Network(vector<int>& normalSize, vector<int>& recurrSize, Settings & settings) : nInputs(0), nOutputs(0), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), ndSdW(0), ndSdB(0), nStates(0), iOutputs(0), dump_ID(0), allocatedFrozenWeights(false), bDump(not settings.bTrain)
 {
     if(normalSize.size()<3)
         die("Put at least one hidden layer, would you kindly? \n");
-    if(recurrSize.back()>0)
-        die("Put just a normal layer as output, would you kindly? \n");
+    //if(recurrSize.back()>0)
+    //    die("Put just a normal layer as output, would you kindly? TODO \n");
     if(recurrSize.front()>0)
         die("Put just a normal layer as input, would you kindly? \n");
     mt19937 gen(settings.randSeed);
     int nMixedLayers = normalSize.size();
     nInputs = normalSize.front();
-    nOutputs = normalSize.back();
+    nOutputs = (normalSize.back()==0) ? recurrSize.back() : normalSize.back();
     
     {
         Graph * g = new Graph();
         g->first = true;
         g->normalSize = nInputs;
+        #ifdef SIMDKERNELS
         nNeurons += ceil((Real)nInputs/SIMD)*SIMD;
+        #else
+        nNeurons += nInputs;
+        #endif
         G.push_back(g);
     }
     
@@ -318,34 +331,31 @@ Network::Network(vector<int>& normalSize, vector<int>& recurrSize, Settings & se
         bool first = i==1; bool last = i+1==nMixedLayers;
         g->recurrSize = recurrSize[i];
         g->normalSize = normalSize[i];
-        if (recurrSize[i]>0)
-            addLSTM(G.back(),g,first,last);
-        if (normalSize[i]>0)
-            addNormal(G.back(),g,first,last);
+        if (recurrSize[i]>0) addLSTM(G.back(),g,first,last);
+        if (normalSize[i]>0) addNormal(G.back(),g,first,last);
         G.push_back(g);
     }
     
-    iOutputs = G.back()->normalPos;
+    iOutputs = (normalSize.back()==0) ? G.back()->recurrPos : G.back()->normalPos;
     nLayers = layers.size();
-    printf("nNeurons= %d, nWeights= %d, nBiases= %d, ndSdW= %d, ndSdB= %d, nStates= %d \n", nNeurons, nWeights, nBiases, ndSdW, ndSdB, nStates);
+    printf("nNeurons= %d, nWeights= %d, nBiases= %d, ndSdW= %d, ndSdB= %d, nStates= %d iOutputs = %d\n, nInputs = %d, nOutputs = %d ", nNeurons, nWeights, nBiases, ndSdW, ndSdB, nStates, iOutputs, nInputs, nOutputs);
     
-    for (int i=0; i<nAgents; ++i)
+    for (int i=0; i<settings.nAgents; ++i)
     {
         Mem * m = new Mem(nNeurons, nStates);
+        clearMemory(m->outvals, m->ostates);
         mem.push_back(m);
     }
-    
+    dump_ID.resize(settings.nAgents);
     dsdw = new Dsdw(ndSdW,ndSdB);
     grad = new Grads(nWeights,nBiases);
-    
-    freshSeries(0);
-    freshSeries(1);
+
+    allocateSeries(1);
     
     _myallocate(weights, nWeights)
     _myallocate(biases,   nBiases)
     
-    for (int i=1; i<static_cast<int>(G.size()); i++)
-        initializeWeights(*G[i], gen);
+    for (int i=1; i<static_cast<int>(G.size()); i++) initializeWeights(*G[i], gen);
 }
 
 void Network::save(string fname)
@@ -362,10 +372,18 @@ void Network::save(string fname)
     out << nWeights << " "  << nBiases << " " << nLayers  << " " << nNeurons << endl;
     
     for (int i=0; i<nWeights; i++)
-        out << *(weights + i) << " ";
+    {
+        if (std::isnan(*(weights + i)) || std::isinf(*(weights + i)))
+            *(weights + i) = 0.0;
+        out << *(weights + i) << "\n";
+    }
     
     for (int i=0; i<nBiases; i++)
-        out << *(biases + i) << " ";
+    {
+        if (std::isnan(*(biases + i)) || std::isinf(*(biases + i)))
+            *(biases + i) = 0.0;
+        out << *(biases + i) << "\n";
+    }
 
     out.flush();
     out.close();
@@ -377,6 +395,36 @@ void Network::save(string fname)
     
     // Submit the command to the system
     system(command.c_str());
+}
+
+void Network::dump(const int agentID)
+{
+    if (not bDump) return;
+    char buf[500];
+    sprintf(buf, "%07d", (int)dump_ID[agentID]);
+    string nameNeurons  = "neuronOuts_" + to_string(agentID) + "_" + string(buf) + ".dat";
+    string nameMemories = "cellStates_" + to_string(agentID) + "_" + string(buf) + ".dat";
+    string nameOut_Mems = "out_states_" + to_string(agentID) + "_" + string(buf) + ".dat";
+    {
+        ofstream out(nameOut_Mems.c_str());
+        if (!out.good()) die("Unable to open save into file %s\n", nameOut_Mems.c_str());
+        for (int j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << "\n";
+        for (int j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << "\n";
+        out.close();
+    }
+    {
+        ofstream out(nameNeurons.c_str());
+        if (!out.good()) die("Unable to open save into file %s\n", nameNeurons.c_str());
+        for (int j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << "\n";
+        out.close();
+    }
+    {
+        ofstream out(nameMemories.c_str());
+        if (!out.good()) die("Unable to open save into file %s\n", nameMemories.c_str());
+        for (int j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << "\n";
+        out.close();
+    }
+    dump_ID[agentID]++;
 }
 
 bool Network::restart(string fname)
@@ -409,14 +457,12 @@ bool Network::restart(string fname)
 
 void Network::predict(const vector<Real>& _input, vector<Real>& _output, Lab * _M, Lab * _N, Real * _weights, Real * _biases)
 {
-    #pragma omp single
     for (int j=0; j<nInputs; j++)
         *(_N->outvals +j) = _input[j];
     
     for (int j=0; j<nLayers; j++)
         layers[j]->propagate(_M,_N,_weights,_biases);
     
-    #pragma omp single
     if (static_cast<int>(_output.size())==nOutputs)
     for (int j=0; j<nOutputs; j++)
         _output[j] = *(_N->outvals +iOutputs +j);
@@ -424,18 +470,15 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output, Lab * _
 
 void Network::computeGrads(const vector<Real>& _error, Lab * _M, Lab * _N, Grads * _grad)
 {
-    #pragma omp single
     for (int j=0; j<nOutputs; j++)
         *(_N->errvals +iOutputs +j) = _error[j];
     
     for (int j=1; j<=nLayers; j++)
-        //layers[nLayers-j]->backPropagate(_M,_N,_grad,weights,biases);
-        layers[nLayers-j]->backPropagate(_M,_N,dsdw,_grad,weights,biases);
+        layers[nLayers-j]->backPropagate(_M,_N,_grad,weights,biases);
 }
 
 void Network::computeDeltasSeries(vector<Lab*>& _series, const int k)
 {
-    //printf("\n Series %d\n",k);
     for (int i=1; i<=nLayers; i++)
         layers[nLayers-i]->backPropagateDelta(series[k-1],series[k],series[k+1],weights,biases);
 }
@@ -454,35 +497,54 @@ void Network::computeGradsSeries(vector<Lab*>& _series, const int k, Grads * _gr
 
 void Network::computeGradsLightSeries(vector<Lab*>& _series, const int k, Grads * _grad)
 {
-    //printf("\n Series %d\n",k);
     for (int i=0; i<nLayers; i++)
         layers[i]->backPropagateGradsLight(series[k-1],series[k],_grad);
 }
 
 void Network::updateFrozenWeights()
 {
-    #pragma omp single
     if (allocatedFrozenWeights==false)
     {
         _myallocate(frozen_weights, nWeights)
         _myallocate(frozen_biases,   nBiases)
         allocatedFrozenWeights = true;
     }
-    #pragma omp for nowait
-    for (int j=0; j<nWeights; j+=SIMD)
-        #if SIMD == 1
-        *(frozen_weights + j) = *(weights + j);
-        #else
-        STORE (frozen_weights + j, LOAD(weights + j));
-        #endif
     
-    #pragma omp for
-    for (int j=0; j<nBiases; j+=SIMD)
-        #if SIMD == 1
-        *(frozen_biases + j) = *(biases + j);
-        #else
-        STORE (frozen_biases + j, LOAD(biases + j));
+    #pragma omp parallel
+    {
+        #pragma omp for nowait
+        for (int j=0; j<nWeights; j+=SIMD)
+        {
+            #if SIMD == 1
+            *(frozen_weights + j) = *(weights + j);
+            #else
+            STORE (frozen_weights + j, LOAD(weights + j));
+            #endif
+        }
+
+        #if SIMD > 1
+        #pragma omp single nowait
+        for (int j=int(nWeights/SIMD)*SIMD ; j<nWeights; ++j)
+            *(frozen_weights + j) = *(weights + j);
         #endif
+
+        
+        #pragma omp for nowait
+        for (int j=0; j<nBiases; j+=SIMD)
+        {
+            #if SIMD == 1
+            *(frozen_biases + j) = *(biases + j);
+            #else
+            STORE (frozen_biases + j, LOAD(biases + j));
+            #endif
+        }
+        
+        #if SIMD > 1
+        #pragma omp single
+        for (int j=int(nBiases/SIMD)*SIMD ; j<nBiases; ++j)
+            *(frozen_biases + j) = *(biases + j);
+        #endif
+    }
 }
 
 void Network::expandMemory(Mem * _M, Lab * _N)
@@ -491,9 +553,9 @@ void Network::expandMemory(Mem * _M, Lab * _N)
     std::swap(_N->ostates,_M->ostates);
 }
 
-void Network::freshSeries(int _k, vector<Lab*> & _series)
+void Network::allocateSeries(int _k, vector<Lab*> & _series)
 {
-    if (static_cast<int>(_series.size()) <= _k)
+    for (int j=static_cast<int>(_series.size()); j<=_k; j++)
     {
         Lab * ns = new Lab(nNeurons,nStates);
         series.push_back(ns);
@@ -502,110 +564,192 @@ void Network::freshSeries(int _k, vector<Lab*> & _series)
 
 void Network::clearInputs(Lab * _N)
 {
-    #if SIMD == 1
-    for (int j=0; j<nNeurons; j++)
-        *(_N->in_vals +j) = 0.; /* everything here is a += */
-    for (int j=0; j<nStates; j++)
+    #pragma omp parallel
     {
-        *(_N->iIGates +j) = 0.; /* everything here is a += */
-        *(_N->iFGates +j) = 0.;
-        *(_N->iOGates +j) = 0.;
+        #if SIMD > 1
+        const vec zeros = SET0 ();
+        #endif
+        
+        #pragma omp for nowait
+        for (int j=0; j<nNeurons; j+=SIMD)
+            #if SIMD == 1
+            *(_N->in_vals +j) = 0.;
+            #else
+            STREAM (_N->in_vals +j,zeros);
+            #endif
+
+        #if SIMD > 1
+        #pragma omp single nowait
+        for (int j=int(nNeurons/SIMD)*SIMD ; j<nNeurons; ++j)
+            *(_N->in_vals +j) = 0.;
+        #endif
+        
+        #pragma omp for nowait
+        for (int j=0; j<nStates; j+=SIMD)
+        {
+            #if SIMD == 1
+            *(_N->iIGates +j) = 0.;
+            *(_N->iFGates +j) = 0.;
+            *(_N->iOGates +j) = 0.;
+            #else
+            STREAM (_N->iIGates +j,zeros);
+            STREAM (_N->iFGates +j,zeros);
+            STREAM (_N->iOGates +j,zeros);
+            #endif
+        }
+        
+        #if SIMD > 1
+        #pragma omp single
+        for (int j=int(nStates/SIMD)*SIMD ; j<nStates; ++j)
+        {
+            *(_N->iIGates +j) = 0.;
+            *(_N->iFGates +j) = 0.;
+            *(_N->iOGates +j) = 0.;
+        }
+        #endif
     }
-    #else
-    const vec zeros = SET0 ();
-    for (int j=0; j<nNeurons; j+=SIMD)
-        STREAM (_N->in_vals +j,zeros);
-    for (int j=0; j<nStates; j+=SIMD)
-    {
-        STREAM (_N->iIGates +j,zeros);
-        STREAM (_N->iFGates +j,zeros);
-        STREAM (_N->iOGates +j,zeros);
-    }
-    #endif
 }
 
 void Network::clearErrors(Lab * _N)
 {
-    #if SIMD != 1
-    const vec zeros = SET0 ();
-    #endif
-    #pragma omp for nowait
-    for (int j=0; j<nNeurons; j+=SIMD)
+    #pragma omp parallel
     {
-        #if SIMD == 1
-        *(_N->errvals +j) = 0.; /* everything here is a += */
-        #else
-        STREAM (_N->errvals +j,zeros);
+        #if SIMD > 1
+        const vec zeros = SET0 ();
         #endif
-    }
-    #pragma omp for
-    for (int j=0; j<nStates; j+=SIMD)
-    {
-        #if SIMD == 1
-        *(_N->eOGates +j) = 0.; /* everything here is a += */
-        *(_N->eIGates +j) = 0.;
-        *(_N->eFGates +j) = 0.;
-        *(_N->eMCell +j) = 0.;
-        #else
-        STREAM (_N->eOGates +j,zeros);
-        STREAM (_N->eIGates +j,zeros);
-        STREAM (_N->eFGates +j,zeros);
-        STREAM (_N->eMCell +j,zeros);
+        
+        #pragma omp for nowait
+        for (int j=0; j<nNeurons; j+=SIMD)
+        {
+            #if SIMD == 1
+            *(_N->errvals +j) = 0.; /* everything here is a += */
+            #else
+            STREAM (_N->errvals +j,zeros);
+            #endif
+        }
+        
+        #if SIMD > 1
+        #pragma omp single nowait
+        for (int j=int(nNeurons/SIMD)*SIMD ; j<nNeurons; ++j)
+            *(_N->errvals +j) = 0.;
+        #endif
+        
+        #pragma omp for nowait
+        for (int j=0; j<nStates; j+=SIMD)
+        {
+            #if SIMD == 1
+            *(_N->eOGates +j) = 0.; // everything here is a +=
+            *(_N->eIGates +j) = 0.;
+            *(_N->eFGates +j) = 0.;
+            *(_N->eMCell  +j) = 0.;
+            #else
+            STREAM (_N->eOGates +j,zeros);
+            STREAM (_N->eIGates +j,zeros);
+            STREAM (_N->eFGates +j,zeros);
+            STREAM (_N->eMCell +j,zeros);
+            #endif
+        }
+        
+        #if SIMD > 1
+        #pragma omp single
+        for (int j=int(nStates/SIMD)*SIMD ; j<nStates; ++j)
+        {
+            *(_N->eOGates +j) = 0.; // everything here is a +=
+            *(_N->eIGates +j) = 0.;
+            *(_N->eFGates +j) = 0.;
+            *(_N->eMCell  +j) = 0.;
+        }
         #endif
     }
 }
 
 void Network::clearDsdw(Dsdw * _dsdw)
 {
-    #if SIMD != 1
-    const vec zeros = SET0 ();
-    #endif
-    #pragma omp for nowait
-    for (int j=0; j<ndSdW; j+=SIMD)
+    #pragma omp parallel
     {
-        #if SIMD == 1
-        *(_dsdw->IN +j) = 0.;
-        *(_dsdw->IG +j) = 0.;
-        *(_dsdw->FG +j) = 0.;
-        #else
-        STREAM (_dsdw->IN +j,zeros);
-        STREAM (_dsdw->IG +j,zeros);
-        STREAM (_dsdw->FG +j,zeros);
-        #endif
-    }
-    
-    #pragma omp for
-    for (int n=0; n<ndSdB; n+=SIMD)
-    {
-        #if SIMD == 1
-        *(_dsdw->DB +n) = 0.;
-        #else
+        #if SIMD > 1
         const vec zeros = SET0 ();
-        STREAM (_dsdw->DB +n,zeros);
+        #endif
+        
+        #pragma omp for nowait
+        for (int j=0; j<ndSdW; j+=SIMD)
+        {
+            #if SIMD == 1
+            *(_dsdw->IN +j) = 0.;
+            *(_dsdw->IG +j) = 0.;
+            *(_dsdw->FG +j) = 0.;
+            #else
+            STREAM (_dsdw->IN +j,zeros);
+            STREAM (_dsdw->IG +j,zeros);
+            STREAM (_dsdw->FG +j,zeros);
+            #endif
+        }
+        
+        #if SIMD > 1
+        #pragma omp single nowait
+        for (int j=int(ndSdW/SIMD)*SIMD ; j<ndSdW; ++j)
+        {
+            *(_dsdw->IN +j) = 0.;
+            *(_dsdw->IG +j) = 0.;
+            *(_dsdw->FG +j) = 0.;
+        }
+        #endif
+        
+        #pragma omp for
+        for (int j=0; j<ndSdB; j+=SIMD)
+        {
+            #if SIMD == 1
+            *(_dsdw->DB +j) = 0.;
+            #else
+            const vec zeros = SET0 ();
+            STREAM (_dsdw->DB +j,zeros);
+            #endif
+        }
+        
+        #if SIMD > 1
+        #pragma omp single nowait
+        for (int j=int(ndSdB/SIMD)*SIMD ; j<ndSdB; ++j)
+            *(_dsdw->DB +j) = 0.;
         #endif
     }
 }
 
 void Network::clearMemory(Real * _outvals, Real * _ostates)
 {
-    #if SIMD != 1
-    const vec zeros = SET0 ();
-    #endif
-    #pragma omp for nowait
-    for (int j=0; j<nNeurons; j+=SIMD)
-        #if SIMD == 1
-        *(_outvals +j) = 0.;
-        #else
-        STREAM (_outvals +j,zeros);
+    #pragma omp parallel
+    {
+        #if SIMD > 1
+        const vec zeros = SET0 ();
         #endif
-    
-    #pragma omp for nowait
-    for (int j=0; j<nStates; j+=SIMD)
-        #if SIMD == 1
-        *(_ostates +j) = 0.;
-        #else
-        STREAM (_ostates +j,zeros);
+        
+        #pragma omp for nowait
+        for (int j=0; j<nNeurons; j+=SIMD)
+            #if SIMD == 1
+            *(_outvals +j) = 0.;
+            #else
+            STREAM (_outvals +j,zeros);
+            #endif
+
+        #if SIMD > 1
+        #pragma omp single nowait
+        for (int j=int(nNeurons/SIMD)*SIMD ; j<nNeurons; ++j)
+            *(_outvals +j) = 0.;
         #endif
+        
+        #pragma omp for nowait
+        for (int j=0; j<nStates; j+=SIMD)
+            #if SIMD == 1
+            *(_ostates +j) = 0.;
+            #else
+            STREAM (_ostates +j,zeros);
+            #endif
+        
+        #if SIMD > 1
+        #pragma omp single
+        for (int j=int(nStates/SIMD)*SIMD ; j<nStates; ++j)
+            *(_ostates +j) = 0.;
+        #endif
+    }
 }
 
 /*

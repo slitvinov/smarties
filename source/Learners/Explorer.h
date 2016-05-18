@@ -23,24 +23,9 @@ using namespace std;
 
 class Explorer : public Learner
 {
-private:
-	QApproximator* Q;
-    QApproximator* errEst;
-	ActionIterator actionsIt;
-	map<string, QApproximator*> QMap;
-		
-	Real gamma, greedyEps, lRate;
-	
-	RNG* rng;
-    
-    int suffix;
-		
 public:
-	Explorer(QApproximator* newQ, QApproximator* errQ, ActionInfo& actInfo, Real newGamma, Real newGreedyEps, Real newLRate, Real lambda);
-	
-    void updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent = 0);
-    void updateSelect(Trace& t, State& s, Action& a, Real r, Real alphaK) {};
-    void try2restart(string prefix);
-    void savePolicy(string fname);
+	Explorer(Environment* env, Settings & settings);
+    vector<Real> max_scale, min_scale;
+    void updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r) override;
 };
 

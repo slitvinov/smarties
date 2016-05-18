@@ -26,7 +26,6 @@ public:
     Action *a;
     Real r;
     vector<Real> Info;
-    int nInfo;
     
     //ExternalEnvironment* env;
 

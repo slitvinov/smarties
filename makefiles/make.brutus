@@ -1,7 +1,7 @@
-CC=mpic++
+CC=g++
 
-#export PATH=/cluster/home/mavt/chatzidp/usr/mpich3/bin:$PATH
+CPPFLAGS+= -I/opt/local/include/openmpi -msse3
 
-export LD_LIBRARY_PATH=/cluster/home/mavt/chatzidp/usr/mpich3/lib/:$LD_LIBRARY_PATH
+LIBS+= -L/cluster/apps/openmpi/1.6.5/x86_64/gcc_4.9.2/lib -lmpi -lmpi_cxx -msse3
 
-LIBS+= -L/cluster/home/mavt/chatzidp/usr/mpich3/lib/ -lz
+#LIBS+= -lz -L/cluster/apps/openmpi/1.6.2/x86_64/gcc_4.8.2/lib -lmpi -lmpi_cxx

@@ -11,7 +11,6 @@
 
 #include "StateAction.h"
 #include "rng.h"
-#include "rng.h"
 
 ActionIterator::ActionIterator(const ActionInfo& newActInfo) : actInfo(newActInfo), currAction(newActInfo), storedAction(newActInfo), rAction(newActInfo)
 {

@@ -23,15 +23,18 @@
 
 using namespace std;
 
-ExternalEnvironment::ExternalEnvironment(vector<Agent*> agents, string execpath, StateType tp, int _rank) :
-Environment(agents), execpath(execpath), rank(_rank), workerid(0), callid(0), sock(0), ListenerSocket(0), bytes(0), addr_len(0), servlen(0)
+ExternalEnvironment::ExternalEnvironment(vector<Agent*> _agents, string execpath, StateType tp, int _rank) :
+Environment(_agents), execpath(execpath), rank(_rank), iter(0), workerid(_rank), callid(0), sock(0), ListenerSocket(0), bytes(0), addr_len(0), servlen(0)
 {
     n = agents.size();
-    for (auto a : agents)
-        exagents.push_back(static_cast<ExternalAgent*>(a));
+    //for (auto a : agents)
+    //    agents.push_back(a);
     rewards.resize(n);
     states.resize(n);
     sI.type = tp;
+    if (_agents.size()!=n) {
+        printf("Something wrong in the constructor\n");
+    }
 }
 
 void ExternalEnvironment::setup_Comm()
@@ -41,7 +44,7 @@ void ExternalEnvironment::setup_Comm()
     printf("mserver: SOCK_PATH=->%s<-\n", SOCK_PATH);
     //signal(SIGUSR2, sighandler);// not safe with MPI
     
-    probdim = n*(sI.dim + 1); //state, reward, additional stuff
+    probdim = n*(sI.dim + 1 + nInfo); //state, reward, additional stuff
     sizein = probdim*sizeof(double);
     datain = (double *) malloc(sizein);
     sizeout = n*sizeof(double);
@@ -52,44 +55,27 @@ void ExternalEnvironment::setup_Comm()
     printf("problem dim = %i %d %d %d \n", probdim, n, sizein, sizeout);
     printf("starting...\n");
     
-    if ((ListenerSocket = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
-    {
-        perror("socket");
-        exit(1);
-    }
-    unlink(SOCK_PATH);
+    sock = socket(AF_UNIX, SOCK_STREAM, 0);
     
-    bzero(&serverAddress, sizeof(serverAddress));
+    /* Specify the server */
+    bzero((char *)&serverAddress, sizeof(serverAddress));
     serverAddress.sun_family = AF_UNIX;
     strcpy(serverAddress.sun_path, SOCK_PATH);
     servlen = sizeof(serverAddress.sun_family) + strlen(serverAddress.sun_path);
     
-    if (bind(ListenerSocket, (struct sockaddr *)&serverAddress, servlen) < 0)
+    /* Connect to the server */
+    while (connect(sock, (struct sockaddr *)&serverAddress, servlen) < 0)
     {
-        perror("bind");
-        exit(1);
+        //perror("connecting...\n");
     }
-    
-    /* listen (only 1)*/
-    if (listen(ListenerSocket, 1) == -1)
-    {
-        perror("listen");
-        exit(1);
-    }
-    
-    addr_len = sizeof(clientAddress);
-    if ((sock = accept(ListenerSocket, (struct sockaddr *)&clientAddress, &addr_len)) == -1)
-    {
-        perror("accept");
-        return;
-    }
-    else
-        printf("selectserver: new connection from on socket %d\n", sock);
+    printf("CONNECTED?!?! %d\n",sock);
+    fflush(0);
+    //exit(1);	// here, we can sleep and retry
 }
 
 void ExternalEnvironment::close_Comm()
 {
-    close(ListenerSocket);
+    //close(ListenerSocket);
 }
 
 void ExternalEnvironment::spawn_server(int worker_id)
@@ -100,24 +86,27 @@ void ExternalEnvironment::spawn_server(int worker_id)
         char line[1024];
         char *largv[64];
         
-        //mkdir(("simulation_"+to_string(rank)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        //chdir(("simulation_"+to_string(rank)+"/").c_str());
+        mkdir(("simulation_"+to_string(rank)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        chdir(("simulation_"+to_string(rank)+"/").c_str());
         
         sprintf(line, execpath.c_str());
         parse(line, largv);     /* prepare argv */
         
-        //char output[256];
-        //sprintf(output, "output_%d", worker_id);
-        //int fd = open(output, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-        //dup2(fd, 1);    // make stdout go to file
-        //dup2(fd, 2);    // make stderr go to file
-        //close(fd);      // fd no longer needed
+        #if 1==1 //else goes to stdout
+        char output[256];
+        sprintf(output, "output_%d_%d", workerid,iter++);
+        int fd = open(output, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        dup2(fd, 1);    // make stdout go to file
+        dup2(fd, 2);    // make stderr go to file
+        close(fd);      // fd no longer needed
+        #endif
         
         printf("About to exec.... \n");
         cout << execpath << endl;
         cout << *largv << endl;
         
-        int res = execlp(execpath.c_str(), execpath.c_str(), NULL);
+        //int res = execlp(execpath.c_str(), execpath.c_str(), NULL);
+        int res = execlp(execpath.c_str(), execpath.c_str(),to_string(workerid).c_str(), NULL);
         //int res = execvp(*largv, largv);
         
         printf("Returning from exec\n");
@@ -125,7 +114,7 @@ void ExternalEnvironment::spawn_server(int worker_id)
     }
     
     printf("waiting for server to setup everything..\n");
-    
+    //sleep(2);
     //	pause();	// signals + MPI is not a safe solution
     //	we could check a file here 
     printf("ok, I continue...\n");
@@ -134,11 +123,11 @@ void ExternalEnvironment::spawn_server(int worker_id)
 int ExternalEnvironment::evolve(Real t)
 {
     bStatus = 0;
-    
+    bool _nan = false;
     for (int i=0; i<n; i++)
     {
-        dataout[i] = (double) exagents[i]->a->vals[0];
-        //printf("Client rank %d sent child %d: action %f\n", rank, i, dataout[i]);
+        dataout[i] = (double) agents[i]->a->vals[0];
+        printf("Client rank %d sent child %d: action %f\n", rank, i, dataout[i]);
     }
     send_all(sock, dataout, sizeout);
     
@@ -154,35 +143,49 @@ int ExternalEnvironment::evolve(Real t)
     }
     else/* (bytes == nbyte)*/
     {
+        debug3("RECEIVING %d,%d\n",sock,sizein);
         int k = 0;
         for (int i=0; i<n; i++)
         {
             for (int j=0; j<sI.dim; j++)
-                exagents[i]->s->vals[j] = datain[k++];
+            {
+                debug3(" %f (%d)",datain[k],k);
+                agents[i]->s->vals[j] = datain[k++];
+                if (std::isnan(agents[i]->s->vals[j]) || std::isinf(agents[i]->s->vals[j]))
+                    _nan = true;
+            }
             
-            exagents[i]->r = datain[k++];
+            debug3(" %f (%d)",datain[k],k);
+            agents[i]->r = datain[k++];
+            if (std::isnan(agents[i]->r) || std::isinf(agents[i]->r))
+                _nan = true;
             
             for (int j=0; j<nInfo; j++)
-                exagents[i]->Info[j] = datain[k++];
+            {
+                debug3(" %f (%d)",datain[k],k);
+                agents[i]->Info[j] = datain[k++];
+            }
+            debug3("\n");
+            debug2("Got from child %d: reward %f state %s\n", rank, agents[i]->r, agents[i]->s->print().c_str());
             
-            debug2("Got from child %d: reward %f state %s\n", rank, exagents[i]->r, exagents[i]->s->print().c_str());
-            
-            if (exagents[i]->r < -.99)
+            if (agents[i]->r < -9.09)
                 bStatus = 1;
         }
     }
-    
+    if (_nan)
+        bStatus = -1;
     return bStatus;
 }
 
 int ExternalEnvironment::init()
 {
     bStatus = 0;
-    
+    bool _nan = false;
+    printf("RECEIVING %d,%d\n",sock,sizein);
     if ((bytes = recv_all(sock, datain, sizein)) <= 0)
     {
         if (bytes == 0) /* connection closed */
-            printf("selectserver: socket %d hung up\n", sock);
+            printf("selectserver: socket %d hung up before first comm\n", sock);
         else
             perror("(1) recv");
         
@@ -192,24 +195,103 @@ int ExternalEnvironment::init()
     else/* (bytes == nbyte)*/
     {
         int k = 0;
+        debug3("Got this, asswinkle: ");
         for (int i=0; i<n; i++)
         {
             for (int j=0; j<sI.dim; j++)
-                exagents[i]->s->vals[j] = datain[k++];
+            {
+                debug3(" %f (%d)",datain[k],k);
+                agents[i]->s->vals[j] = datain[k++];
+                if (std::isnan(agents[i]->s->vals[j]) || std::isinf(agents[i]->s->vals[j]))
+                    _nan = true;
+            }
             
-            exagents[i]->r = datain[k++];
+            debug3(" %f (%d)",datain[k],k);
+            agents[i]->r = datain[k++];
+            if (std::isnan(agents[i]->r) || std::isinf(agents[i]->r))
+                _nan = true;
             
-           // for (int j=0; j<nInfo; j++)
-           //     exagents[i]->Info[j] = datain[k++];
+            for (int j=0; j<nInfo; j++)
+            {
+                debug3(" %f (%d)",datain[k],k);
+                agents[i]->Info[j] = datain[k++];
+            }
+            debug3("\n");
             
-            debug9("Got from child %d: reward %f initial state %s\n", rank, exagents[i]->r, exagents[i]->s->print().c_str());
+            debug3("Got from child %d: reward %f initial state %s\n", rank, agents[i]->r, agents[i]->s->print().c_str());
             
-            if (exagents[i]->r < -.99)
+            if (agents[i]->r < -9.09)
                 bStatus = 1;
         }
     }
-    
+    if (_nan)
+        bStatus = -1;
     return bStatus;
+}
+void ExternalEnvironment::setDims()
+{
+    sI.dim = 4;
+    
+    // State: coordinate...
+    sI.bounds.push_back(12);
+    sI.top.push_back(2.4);
+    sI.bottom.push_back(-2.4);
+    sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+    sI.isLabel.push_back(false); sI.inUse.push_back(true);
+    
+    // ...velocity...
+    sI.bounds.push_back(6);
+    sI.top.push_back(1.);
+    sI.bottom.push_back(-1.);
+    sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+    sI.isLabel.push_back(false); sI.inUse.push_back(true);
+    
+    // ...and angular velocity
+    sI.bounds.push_back(6);
+    sI.top.push_back(1.);
+    sI.bottom.push_back(-1.);
+    sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+    sI.isLabel.push_back(false); sI.inUse.push_back(true);
+    
+    // ...angle...
+    sI.bounds.push_back(16);
+    sI.top.push_back(0.2);
+    sI.bottom.push_back(-0.2);
+    sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+    sI.isLabel.push_back(false); sI.inUse.push_back(true);
+    
+    //now count the number of states variables and number of actually used
+    sI.dim = 0; sI.dimUsed = 0;
+    for (int i=0; i<sI.bounds.size(); i++)
+    {
+        sI.dim++;
+        if (sI.inUse[i])
+            sI.dimUsed++;
+    }
+    
+    aI.dim = 1;
+    
+    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5);
+    
+    aI.values.push_back(-1.);
+    aI.values.push_back(-.1);
+    aI.values.push_back(0.0);
+    aI.values.push_back(0.1);
+    aI.values.push_back(1.0);
+    
+    nInfo = 0;
+    aI.zeroact = 2;
+    for (auto& a : agents)
+    {
+        a->Info.resize(nInfo);
+        a->nInfo = nInfo;
+        
+        //a->setEnvironment(this);
+        a->setDims(sI, aI);
+        
+        a->a = new Action(aI);
+        a->s = new State(sI);
+    }
 }
 
 /*
@@ -277,7 +359,7 @@ void ExternalEnvironment::setDims()
     sI.values.push_back(-2.);
     nInfo = 2; 
     aI.zeroact = 0;
-    for (auto& a : exagents)
+    for (auto& a : agents)
     {
         a->Info.resize(nInfo);
         a->nInfo = nInfo;
@@ -377,63 +459,3 @@ for (int i=0; i<aI.dim; i++) aI.bounds.push_back(3);
 }
 */
 
-void ExternalEnvironment::setDims()
-{
-    sI.dim = 4;
-
-    // State: coordinate...
-    sI.bounds.push_back(12);
-    sI.top.push_back(2.4);
-    sI.bottom.push_back(-2.4);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
-
-    // ...velocity...
-    sI.bounds.push_back(6);
-    sI.top.push_back(1.);
-    sI.bottom.push_back(-1.);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
-
-    // ...and angular velocity
-    sI.bounds.push_back(6);
-    sI.top.push_back(1.);
-    sI.bottom.push_back(-1.);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
-
-    // ...angle...
-    sI.bounds.push_back(16);
-    sI.top.push_back(0.2);
-    sI.bottom.push_back(-0.2);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
-
-    aI.dim = 1;
-
-    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5);
-
-    aI.values.push_back(-1.);
-    aI.values.push_back(-.1);
-    aI.values.push_back(0.0);
-    aI.values.push_back(0.1);
-    aI.values.push_back(1.0);
-
-    nInfo = 0;
-    aI.zeroact = 2;
-    for (auto& a : exagents)
-    {
-        a->Info.resize(nInfo);
-        a->nInfo = nInfo;
-
-        //a->setEnvironment(this);
-        a->setDims(sI, aI);
-        
-        a->a = new Action(aI);
-        a->s = new State(sI);
-    }
-}

@@ -2,7 +2,7 @@
  *  Settings.h
  *  rl
  *
- *  Created by Dmitry Alexeev on 02.05.13.
+ *  Created by Dmitry Alexeev and extended by Guido Novati on 02.05.13.
  *  Copyright 2013 ETH Zurich. All rights reserved.
  *
  */
@@ -16,10 +16,10 @@ using namespace std;
 #include <utility>
 #include <vector>
 #include <immintrin.h>
-#include <omp.h>
+//#include <omp.h>
 
 #ifndef REG
-#define REG 5
+#define REG 2
 #endif /* REG */
 
 
@@ -78,7 +78,7 @@ using namespace std;
     typedef float Real;
     typedef __m256 vec;
 #elif REG == 2
-    #define BCAST  _mm_load1_sd
+    #define BCAST  _mm_load1_pd
     #define SET0   _mm_setzero_pd
     #define SET1   _mm_set1_pd
     #define ADD    _mm_add_pd
@@ -87,8 +87,7 @@ using namespace std;
     #define DIV    _mm_div_pd
     #define MAX    _mm_max_pd
     #define MIN    _mm_min_pd
-    #define RCP    _mm_rcp_pd
-    //#define RCP( arg ) ( _mm_div_pd ( SET1(1.0) , arg ))
+    #define RCP( arg ) ( _mm_div_pd ( SET1(1.0) , arg ))
     #define SQRT   _mm_sqrt_pd
     #define RSQRT( arg ) RCP( _mm_sqrt_pd( arg ) )
     #define LOAD   _mm_load_pd
@@ -96,13 +95,14 @@ using namespace std;
     #define STREAM _mm_stream_pd
     #define FETCH(a,b);  _mm_prefetch( a,b );
     #define SIMD 2
+    #define M_PF_G 4
     #define M_PF_O 4
     #define M_PF_W 4
     #define M_PF_DS 4
     typedef double Real;
     typedef __m128d vec;
 #elif REG == 3
-    #define BCAST  _mm_load1_ss
+    #define BCAST  _mm_load1_ps
     #define SET0   _mm_setzero_ps
     #define SET1   _mm_set1_ps
     #define ADD    _mm_add_ps
@@ -119,6 +119,7 @@ using namespace std;
     #define STREAM _mm_stream_ps
     #define FETCH(a,b);  _mm_prefetch( a,b );
     #define SIMD 4
+    #define M_PF_G 8
     #define M_PF_O 8
     #define M_PF_W 8
     #define M_PF_DS 8
@@ -127,7 +128,6 @@ using namespace std;
 #else
     #define SIMD 1
     typedef double Real;
-    typedef __m256d vec;
 #endif
 
 #define ALLOC 32
@@ -140,15 +140,21 @@ extern struct Settings
     nnEta(0.001), nnAlpha(0.5), nnLambda(0.0), nnKappa(0.0),
     nnAdFac(1e-6), AL_fac(0.0), nnLayer1(32), nnLayer2(16),
     nnLayer3( 0), nnMemory1(0), nnMemory2(0), nnMemory3(0),
-    learner ((string)"NFQ") {}
+    EndR(-9.99), bTrain(false), learner ((string)"NFQ"), approx ((string)"NN") {}
               
 	int    saveFreq;
 	int    videoFreq;
+    int    rewardType;
+    double goalDY;
+    
+    int nAgents, nSlaves;
+    
 	string configFile;
 	Real dt;
 	Real endTime;
 	int    randSeed;
 	
+    Real EndR;
 	Real lRate;
 	Real greedyEps;
 	Real gamma;
@@ -174,9 +180,10 @@ extern struct Settings
     
     Real  AL_fac;
     string learner;
-    string network;
+    string approx;
     
 	bool best;
+    int bTrain;
 	bool immortal;
 	string prefix;
 	

@@ -24,7 +24,7 @@ using namespace ErrorHandling;
 
 const Real eps = 1e-9;
 
-MultiTable::MultiTable(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings, int nAgents) : QApproximator(newSInfo, newActInfo, settings, nAgents), actionsIt(newActInfo), gamma(settings.gamma), lRate(settings.lRate)
+MultiTable::MultiTable(StateInfo SInfo, ActionInfo ActInfo, Settings & settings) : QApproximator(SInfo, ActInfo, settings), actionsIt(ActInfo)
 {
 	dim = sInfo.dim + actInfo.dim;
 	
@@ -52,7 +52,6 @@ MultiTable::~MultiTable()
 inline long int MultiTable::_encodeIdx(const State& s, const Action& a) const
 {
 	long int res = _encodeState(s, _discretize);
-	
 	return _encodeIdx(res, a);
 }
 
@@ -127,8 +126,9 @@ Real MultiTable::getMax(const State& s, Action& a, int iAgent)
 	return maxStateVal[id];
 }
 
-void  MultiTable::Train()
-{/*
+Real MultiTable::Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight)
+{
+    /*
     Action a(actInfo);
     debug("Offline training of multitable with %d samples.\n", samples->Set.size());
     Real err(0.0);
@@ -168,6 +168,7 @@ void  MultiTable::Train()
     debug("Learning state: average error %f.\n", err/samples.Set.size());
     //return err/samples.Set.size();
   */
+    return 0.;
 }
 
 void MultiTable::set(const State& s, const Action& a, Real val, int iAgent)

@@ -2,7 +2,7 @@
  *  Activations.h
  *  rl
  *
- *  Created by Guido Novati on 04.02.16.
+ *  Created by Dmitry Alexeev and extended by Guido Novati on 04.02.16.
  *  Copyright 2016 ETH Zurich. All rights reserved.
  *
  */

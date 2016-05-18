@@ -31,10 +31,19 @@ endif
 CPPFLAGS+=-std=c++11
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
 
+ifeq "$(config)" "nompi"
+CC=g++
+CPPFLAGS+= -DMEGADEBUG #-O0 -g
+LIBS += -DMEGADEBUG
+endif
 
 ifeq "$(config)" "debug"
 CPPFLAGS+= -O0 -g
-else
+#CPPFLAGS+= -fsanitize=address
+#LIBS += -fsanitize=address
+#else
+endif
+ifeq "$(config)" "prod"
 CPPFLAGS += -O3 -DNDEBUG #-DBOOST_UBLAS_NDEBUG
 endif
 
@@ -46,17 +55,17 @@ endif
 #LIBS+= -L/cluster/apps/openmpi/1.6.2/x86_64/gcc_4.8.2/lib -lmpi -lmpi_cxx
 
 CPPFLAGS+= -I/usr/local/include
-LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
+LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ #-fopenmp
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = 	ArgumentParser.o main.o ObjectFactory.o Profiler.o rng.o  StateAction.o \
-		Agent.o ExternalAgent.o SmartySelfAvoider.o SmartySwarmer.o \
-		oldEnvironment.o ExternalEnvironment.o SelfAvoidEnvironment.o SwarmEnvironment.o TwoFishEnvironment.o \
+		Agent.o SmartySelfAvoider.o SmartySwarmer.o \
+		oldEnvironment.o ExternalEnvironment.o SelfAvoidEnvironment.o SwarmEnvironment.o TwoFishEnvironment.o NewFishEnvironment.o \
 		Explorer.o NFQ.o QLearning.o Sarsa.o HardCartEnvironment.o \
-		MultiTable.o NFQApproximator.o \
+		MultiTable.o NFQApproximator.o Transitions.o\
 		Scheduler.o Saver.o util.o\
 		Layers.o LSTMNet.o Network.o Optimizer.o 
-						
+#ExternalAgent.o 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
 	

@@ -10,16 +10,18 @@
 #pragma once
 
 #include <vector>
+#include <random>
 #include "Approximator.h"
 #include "../Settings.h"
 
-#define KER1
-#define KER2 
-//#define _myallocate( name, size ) name = (Real*) _mm_malloc(size*sizeof(Real), ALLOC);
+#define KER1  
+#define KER2
+//#define _myallocate( name, size ) name = (Real*) _mm_malloc(ceil(size/SIMD)*SIMD*sizeof(Real), ALLOC);
 //#define _myfree( name ) _mm_free( name );
-#define _myallocate( name, size ) posix_memalign((void **) & name, ALLOC, size*sizeof(Real) );
+#define _myallocate( name, size ) posix_memalign((void **) & name, ALLOC, ceil(size/(Real)SIMD)*SIMD*sizeof(Real) );
 #define _myfree( name ) free( name );
 #if SIMD != 1
+//#define SIMDKERNELS
 //#define SIMDKERNELSIN
 //#define SIMDKERNELSG
 #endif

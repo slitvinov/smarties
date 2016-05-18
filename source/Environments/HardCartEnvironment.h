@@ -15,8 +15,8 @@
 #include "ExternalEnvironment.h"
 #include "CellList.h"
 
-class ExternalAgent;
-#include "../Agents/ExternalAgent.h"
+//class ExternalAgent;
+//#include "../Agents/ExternalAgent.h"
 
 class HardCartEnvironment: public ExternalEnvironment
 {

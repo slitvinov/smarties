@@ -30,21 +30,21 @@ protected:
     //void predict(const vector<Real>& _input, vector<Real>& _output, Lab * _M, Lab * _N, Real * _weights, Real * _biases);
 public:
     int nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, ndSdW, ndSdB, nStates, iOutputs;
-    
+    vector<int> dump_ID;
     vector<Mem*> mem;
     vector<Lab*> series;
     Dsdw * dsdw;
     Grads * grad;///, * _grad;
-    bool allocatedFrozenWeights;
+    bool allocatedFrozenWeights, bDump;
     Real *weights, *biases, *frozen_weights, *frozen_biases;
     
-    Network(vector<int>& layerSize, vector<int>& recurSize, Settings & settings, int nAgents=1);
+    Network(vector<int>& layerSize, vector<int>& recurSize, Settings & settings);
     
-    void freshSeries(int k, vector<Lab*> & _series);
+    void allocateSeries(int k, vector<Lab*> & _series);
     void clearDsdw(Dsdw * _dsdw);
-    void freshSeries(int k)
+    void allocateSeries(int k)
     {
-        return freshSeries(k, series);
+        return allocateSeries(k, series);
     }
     void clearDsdw()
     {
@@ -69,6 +69,7 @@ public:
     void computeGradsLightSeries(vector<Lab*>& _series, const int k, Grads * _grad);
 
     void save(string fname);
+    void dump(const int agentID);
     bool restart(string fname);
 };
 

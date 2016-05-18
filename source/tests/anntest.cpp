@@ -128,7 +128,7 @@ int main (int argc, char** argv)
         settings.nnLayer3 =0;
         settings.nnMemory1=32;
         settings.nnMemory2=16;
-        settings.nnMemory3=8;
+        settings.nnMemory3=12;
 #else
         settings.nnLayer1 =32;
         settings.nnLayer2 =16;
@@ -228,9 +228,12 @@ int main (int argc, char** argv)
             {
                 std::istringstream iss(line);
                 if (!(iss >> dmp_i[0] >> dmp_i[1] >> dmp_i[2] >> dmp_i[3] >> dmp_i[4] >> dmp_i[5] >> dmp_i[6] >> dmp_i[7] >> dmp_i[8] >> dmp_i[9] >> dmp_i[10] >> dmp_i[11] >> dmp_i[12] >> dmp_i[13] >> dmp_i[14] >> dmp_i[15] >> dmp_i[16] >> dmp_i[17] >> dmp_i[18] >> dmp_i[19] >> dmp_i[20] >> dmp_i[21] >> dmp_i[22] >> dmp_i[23] >> dmp_i[24] >> dmp_i[25] >> dmp_i[26] >> dmp_i[27] >> dmp_i[28] >> dmp_i[29] >> dmp_i[30] >> dmp_i[31])) { cout << endl << "Failed to open file " << numbered_input << endl; break; } // error
-
-                //testi[0] = dis(gen); testi[1] = dis(gen); testi[2] = dis(gen); testi[3] = dis(gen);
+                #if NIN==32
                 tmp_i.push_back(dmp_i);
+                #else
+                testi[0] = dis(gen); testi[1] = dis(gen); testi[2] = dis(gen); testi[3] = dis(gen);
+                tmp_i.push_back(testi);
+                #endif
                 //for (int k=0; k<32; k++)
                 //    cout << dmp_i[k] << " ";
                 //cout << endl;

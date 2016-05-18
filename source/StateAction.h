@@ -25,13 +25,11 @@ struct StateInfo
 {
 	StateType type;
 	
-	int dim;
+	int dim, dimUsed;
 	vector<int> bounds;
-	vector<Real> bottom;
-	vector<Real> top;
-	vector<bool>   belowBottom;
-	vector<bool>   aboveTop;
-    vector<bool>   isLabel;
+	vector<Real> bottom, top;
+	vector<bool> belowBottom, aboveTop;
+    vector<bool> isLabel, inUse;
     vector<Real> values;
 };
 
@@ -86,7 +84,7 @@ public:
 		for (int i=0; i<sInfo.dim; i++)
 		{
             Real res = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*2 - 1;
-			
+			if (sInfo.isLabel[i]) res = sInfo.values[vals[i]];
 			o << res;
 			if (i < sInfo.dim-1) o << " ";
 		}
@@ -94,6 +92,19 @@ public:
 		return o.str();
 	}
 	
+    void scaleUsed(vector<Real>& res) const
+    {
+        int k(0);
+        for (int i=0; i<sInfo.dim; i++)
+        if (sInfo.inUse[i])
+        {
+            res[k] = (vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i])*2. - 1.;
+            if (sInfo.isLabel[i]) res[k] = sInfo.values[vals[i]];
+            k++;
+        }
+        
+    }
+    
 	void scale(vector<Real>& res) const
 	{
 		for (int i=0; i<sInfo.dim; i++)
@@ -104,11 +115,17 @@ public:
 
 	}
     
+    void copy(vector<Real>& res) const
+    {
+        for (int i=0; i<sInfo.dim; i++)
+            res[i] = vals[i];
+    }
+    
     void pack(byte* buf)
     {
         Real* dbuf = (Real*) buf;
         for (int i=0; i<sInfo.dim; i++)
-            dbuf[i] = vals[i];
+            dbuf[i] = (Real) vals[i];
     }
     
     void unpack(byte* buf)

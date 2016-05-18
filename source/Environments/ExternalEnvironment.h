@@ -15,15 +15,15 @@
 #include "Environment.h"
 #include "CellList.h"
 
-class ExternalAgent;
-#include "../Agents/ExternalAgent.h"
+//class ExternalAgent;
+//#include "../Agents/ExternalAgent.h"
 
 class ExternalEnvironment: public Environment
 {
 protected:
     const string execpath;
     const int rank;
-    int n;
+    int n, iter;
     vector<int> ids;
     
     struct sockaddr_un serverAddress;
@@ -36,7 +36,7 @@ protected:
     
     void spawn_server(int worker_id);
     
-    vector<ExternalAgent*> exagents;
+    //vector<Agent*> exagents;
     vector<State>  states;
     vector<Real> rewards;
     vector<Action> actions;

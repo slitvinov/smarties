@@ -13,72 +13,87 @@
 #include "NFQ.h"
 
 
-NFQ::NFQ(QApproximator* newQ, ActionInfo& actInfo, Real newGamma, Real newGreedyEps, Real newLRate) :
-Q(newQ), actionsIt(actInfo), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate)
-{
-    rng = new RNG(rand());
-    suffix = 0;
-}
+NFQ::NFQ(Environment* env, Settings & settings) : Learner(env,settings), bTRAINING(settings.bTrain==1)
+{ }
 
-void NFQ::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent)
+void NFQ::updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r)
 {   // No learning here!
     //       aOld, r
     // sOld ---------> s
     //
     // Find V(s) = max Q(s, a')
     //              a'
-
-    Real Vnew = Q->getMax(s, a, Nagent);
+    Real newEps;
+    
+    if (bTRAINING) //(false) //TODO un-hardcode
+    {
+        newEps = greedyEps -(greedyEps-.1)*agentId/Real(nAgents);
+    }
+    
+    Real Vnew = Q->getMax(s, a, agentId);
     Real p = rng->uniform();
-    if  (p < greedyEps + 10./(pow(Q->samples->anneal,0.1)))  a.getRand(rng);
+    
+    double Prand = newEps;// * exp(-T->Set.size()/1e3);
+    if  (p < Prand)  a.getRand(rng);
 }
 
 
-void NFQ::improve()
+void NFQ::Train()
 {
-    Q->Train();
-    /*
-    Real err = 1.0;
-    Real errold = 10.0;
-    Real minerr = 100.0;
-    while (fabs((err-errold)/errold)>0.0001 || (err-minerr)/minerr>0.01)
+    const int ndata = T->Set.size();
+#if 0
+    if (batchSize-- <= 0 && ndata>100)
     {
-        _info("Iterating batch update\n");
-        errold = err;
-        err = Q->Train();
-        minerr = min(minerr,err);
-        Q->save("tmp");
+        batchSize = 10000;
+        Q->updateFrozenWeights();
+        T->updateP();
+        iter++;
         
-        ifstream in("stap.txt");
-        if(!in.good())
+        if (iter%100==0)
         {
-            _info("Got the message!\n");
-            break;
+            string restart_file;
+            char buf[500];
+            sprintf(buf, "restart.net_%09d", iter);
+            restart_file = string(buf);
+            Q->save(restart_file.c_str());
         }
     }
-     */
-}
-
-void NFQ::try2restart(string fname)
-{
-    State(sInfo);
-    _info("Restarting from history file\n");
-    Q->restartSamples();
+    else if(ndata>100)
+    {
+        int ind = T->sample();
+        Real MSE = Q->Train(T->Set[ind].sOld, T->Set[ind].a, T->Set[ind].r, T->Set[ind].s, gamma, T->Ws[ind]);
+        T->Errs[ind] = MSE;
+    }
     
-    if ( Q->restart(fname) )
+#else //the following does not prioritize "problematic" experiences
+    
+    if (T->inds.size()==0 && ndata>100)
     {
-        _info("Restart successful, moving on...\n");
+        T->inds.reserve(ndata);
+        for (int i=0; i<ndata; ++i) T->inds.push_back(i);
+        random_shuffle(T->inds.begin(), T->inds.end());
+        
+        Q->updateFrozenWeights();
+        
+        Real mean_err = accumulate(T->Errs.begin(), T->Errs.end(), 0.)/ndata;
+        printf("Avg MSE %f %d\n",mean_err,ndata);
+        
+        if ((++T->anneal)%1000==0)
+        {
+            string restart_file;
+            char buf[500];
+            sprintf(buf, "restart.net_%09d", T->anneal);
+            restart_file = string(buf);
+            Q->save(restart_file.c_str());
+        }
     }
-    else
+    else if (T->inds.size()>0 && ndata>100) //do we have data?
     {
-        _info("Not all policies restarted, therefore assumed zero. Moving on...\n");
+        const int ind = T->inds.back();
+        T->inds.pop_back();
+        
+        Real MSE = Q->Train(T->Set[ind].sOld, T->Set[ind].a, T->Set[ind].r, T->Set[ind].s, gamma, 1.0);
+        T->Errs[ind] = MSE;
     }
+#endif
 }
-
-void NFQ::savePolicy(string fname)
-{
-    _info("\nSaving all policies...\n");
-    Q->save(fname);
-    _info("Done\n");
-}
-

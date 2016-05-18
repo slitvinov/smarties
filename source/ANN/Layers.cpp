@@ -19,7 +19,7 @@ using namespace ErrorHandling;
 
 void NormalLayer::propagate(Mem * M, Lab * N, Real* weights, Real* biases)
 {
-    #pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         updateInputs( n, N, M->outvals, weights); //nullptr just because if it's ever accessed
@@ -29,7 +29,7 @@ void NormalLayer::propagate(Mem * M, Lab * N, Real* weights, Real* biases)
 
 void NormalLayer::propagate(Lab * M, Lab * N, Real* weights, Real* biases)
 {
-    #pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         updateInputs( n, N, M->outvals, weights);
@@ -39,7 +39,7 @@ void NormalLayer::propagate(Lab * M, Lab * N, Real* weights, Real* biases)
 
 void LSTMLayer::propagate(Mem * M, Lab * N, Real* weights, Real* biases)
 {
-    #pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         updateInputs( n, N, M->outvals, weights);
@@ -49,7 +49,7 @@ void LSTMLayer::propagate(Mem * M, Lab * N, Real* weights, Real* biases)
 
 void LSTMLayer::propagate(Lab * M, Lab * N, Real* weights, Real* biases)
 {
-    #pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         updateInputs( n, N, M->outvals, weights);
@@ -63,7 +63,7 @@ void LSTMLayer::propagate(Lab * M, Lab * N, Real* weights, Real* biases)
 
 void NormalLayer::backPropagate(Mem * M, Lab * N, Dsdw * dsdw, Grads * grad, Real* weights, Real* biases)
 {
-    #pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         if(!last)
@@ -79,7 +79,7 @@ void NormalLayer::backPropagate(Mem * M, Lab * N, Dsdw * dsdw, Grads * grad, Rea
 
 void NormalLayer::backPropagate(Lab * M, Lab * N, Dsdw * dsdw, Grads * grad, Real* weights, Real* biases)
 {
-#pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         if(!last)
@@ -95,7 +95,7 @@ void NormalLayer::backPropagate(Lab * M, Lab * N, Dsdw * dsdw, Grads * grad, Rea
 
 void NormalLayer::backPropagate(Lab * M, Lab * N, Grads * grad, Real* weights, Real* biases)
 {
-#pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         if(!last)
@@ -111,7 +111,7 @@ void NormalLayer::backPropagate(Lab * M, Lab * N, Grads * grad, Real* weights, R
 
 void LSTMLayer::backPropagate(Mem * M, Lab * N, Dsdw * dsdw, Grads * grad, Real* weights, Real* biases)
 {
-    #pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons;  n++)
     {
         if(!last)
@@ -132,7 +132,7 @@ void LSTMLayer::backPropagate(Mem * M, Lab * N, Dsdw * dsdw, Grads * grad, Real*
 
 void LSTMLayer::backPropagate(Lab * M, Lab * N, Dsdw * dsdw, Grads * grad, Real* weights, Real* biases)
 {
-    #pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         if(!last)
@@ -153,7 +153,7 @@ void LSTMLayer::backPropagate(Lab * M, Lab * N, Dsdw * dsdw, Grads * grad, Real*
 
 void LSTMLayer::backPropagate(Lab * M, Lab * N, Grads * grad, Real* weights, Real* biases)
 {
-    #pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         if(!last)
@@ -178,7 +178,7 @@ void LSTMLayer::backPropagate(Lab * M, Lab * N, Grads * grad, Real* weights, Rea
 
 void NormalLayer::backPropagateDelta(Lab * prev, Lab * curr, Lab * next, Real* weights, Real* biases)
 {
-#pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         if (!last) *(curr->errvals +n1stNeuron +n) = 0.0;
@@ -196,7 +196,7 @@ void NormalLayer::backPropagateDelta(Lab * prev, Lab * curr, Lab * next, Real* w
 
 void NormalLayer::backPropagateDelta(Lab * prev, Lab * curr, Real* weights, Real* biases)
 {
-#pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         if(!last)
@@ -210,7 +210,7 @@ void NormalLayer::backPropagateDelta(Lab * prev, Lab * curr, Real* weights, Real
 
 void LSTMLayer::backPropagateDelta(Lab * prev, Lab * curr, Lab * next, Real* weights, Real* biases)
 {
-#pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         if(!last) *(curr->errvals +n1stNeuron +n) = 0.0;
@@ -228,24 +228,20 @@ void LSTMLayer::backPropagateDelta(Lab * prev, Lab * curr, Lab * next, Real* wei
         *(curr->eMCell +n1stCell+n) = ifun->evalDiff(*(curr->in_vals+n1stNeuron+n)) * *(curr->oIGates+n1stCell+n);
         *(curr->eIGates+n1stCell+n) = sigm->evalDiff(*(curr->iIGates+n1stCell  +n)) * *(curr->oMCell +n1stCell+n);
         *(curr->eFGates+n1stCell+n) = sigm->evalDiff(*(curr->iFGates+n1stCell  +n)) * *(prev->ostates+n1stCell+n);
-        *(curr->eOGates+n1stCell+n) = sigm->evalDiff(*(curr->iOGates+n1stCell  +n)) * *(curr->errvals+n1stNeuron+n) * ofun->eval(*(curr->ostates+n1stCell+n));
+        *(curr->eOGates+n1stCell+n) = sigm->evalDiff(*(curr->iOGates+n1stCell  +n)) * ofun->eval(*(curr->ostates+n1stCell+n)) * *(curr->errvals+n1stNeuron+n);
         
         //the final boss:
         *(curr->errvals+n1stNeuron+n) = *(curr->errvals+n1stNeuron+n) * *(curr->oOGates+n1stCell+n) * ofun->evalDiff(*(curr->ostates +n1stCell +n)) +
-                                          *(next->errvals+n1stNeuron+n)* *(next->oFGates+n1stCell+n) +
-                                          *(next->eIGates+n1stCell+n)* *(weights+n1stPeep+3*n)   +
-                                          *(next->eFGates+n1stCell+n)* *(weights+n1stPeep+3*n+1) +
-                                          *(curr->eOGates+n1stCell+n)* *(weights+n1stPeep+3*n+2);
-        //printf("LSTM %d %f %f %f %f %f %f \n", n1stNeuron+n,  *(curr->errvals+n1stNeuron+n),*(curr->eMCell +n1stCell+n), *(curr->eIGates+n1stCell+n), *(curr->eFGates+n1stCell+n), *(curr->eOGates+n1stCell+n),*(curr->outvals +n1stNeuron +n) );
-        //printf("%f %f %f %f\n",*(next->errvals+n1stNeuron+n), *(next->eIGates+n1stCell+n),*(next->eFGates+n1stCell+n),*(next->oFGates+n1stCell+n));
-        //printf("LSTM %d %f %f %f %f\n", n1stNeuron+n, *(curr->in_vals+n1stNeuron+n), *(curr->iIGates+n1stCell  +n), *(curr->iFGates+n1stCell  +n), *(curr->iOGates+n1stCell  +n));
-        //printf("LSTM %f \n", *(curr->errvals+n1stNeuron+n));
+                                          *(next->errvals+n1stNeuron+n)* *(next->oFGates+n1stCell+n) ;// +
+                                          //*(next->eIGates+n1stCell+n)* *(weights+n1stPeep+3*n)   +
+                                          //*(next->eFGates+n1stCell+n)* *(weights+n1stPeep+3*n+1) +
+                                          //*(curr->eOGates+n1stCell+n)* *(weights+n1stPeep+3*n+2);
     }
 }
 
 void LSTMLayer::backPropagateDelta(Lab * prev, Lab * curr, Real* weights, Real* biases)
 {
-#pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
     {
         if(!last)
@@ -269,28 +265,28 @@ void LSTMLayer::backPropagateDelta(Lab * prev, Lab * curr, Real* weights, Real* 
 
 void NormalLayer::backPropagateGrads(Lab * M, Lab * N, Dsdw * dsdw, Grads * grad)
 {
-#pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
         updateGrads(n, N, M->outvals, nullptr, nullptr, grad);
 }
 
 void LSTMLayer::backPropagateGrads(Lab * M, Lab * N, Dsdw * dsdw, Grads * grad)
 {
-#pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
         updateGrads(n, N, M->outvals, M->ostates, dsdw, grad);
 }
 
 void NormalLayer::backPropagateGradsLight(Lab * M, Lab * N, Grads * grad)
 {
-#pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
         updateGrads(n, N, M->outvals, nullptr, nullptr, grad);
 }
 
 void LSTMLayer::backPropagateGradsLight(Lab * M, Lab * N, Grads * grad)
 {
-#pragma omp for
+    #pragma omp parallel for
     for (int n=0; n<nNeurons; n++)
         updateGradsLight(n, N, M->outvals, M->ostates, grad);
 }
@@ -305,14 +301,14 @@ KER1 void NormalLayer::updateInputs(const int n, Lab * N, Real * oldvals, Real* 
     in  = (Real *) calloc(1,sizeof(Real)); //yeah it's silly
     #else
     _myallocate(in, SIMD)
-    *in = 0.; //zero the first
     vec IN=SET0();
     #endif
+    *in = 0.; //zero the first
     
     for (const auto & l : *curr_input_links)
     {
         #ifdef SIMDKERNELSIN
-        if (l->first==false)
+        if (l->nI%SIMD == 0 && l->iI%SIMD == 0 &&  l->iW%SIMD == 0)//(l->first==false)
             addInputsSIMD(IN, n, l, N->outvals, weights);
         else
         #endif
@@ -321,10 +317,11 @@ KER1 void NormalLayer::updateInputs(const int n, Lab * N, Real * oldvals, Real* 
     for (const auto & l : *prev_input_links)
     {
         #ifdef SIMDKERNELSIN
+        if (l->nI%SIMD == 0 && l->iI%SIMD == 0 &&  l->iW%SIMD == 0)
             addInputsSIMD(IN, n, l, oldvals, weights);
-        #else
-            addInputs(    in, n, l, oldvals, weights);
+        else
         #endif
+            addInputs(    in, n, l, oldvals, weights);
     }
     
     *(N->in_vals +n1stNeuron +n) = *in; //first element of in
@@ -340,8 +337,8 @@ KER1 void NormalLayer::updateInputs(const int n, Lab * N, Real * oldvals, Real* 
 
 KER1 void LSTMLayer::updateInputs(  const int n, Lab * N, Real * oldvals, Real* weights)
 {
-    *(N->in_vals +n1stNeuron +n) = 0.; *(N->iIGates +n1stCell +n) = 0.;
-    *(N->iFGates +n1stCell   +n) = 0.; *(N->iOGates +n1stCell +n) = 0.;
+    //*(N->in_vals +n1stNeuron +n) = 0.; *(N->iIGates +n1stCell +n) = 0.;
+    //*(N->iFGates +n1stCell   +n) = 0.; *(N->iOGates +n1stCell +n) = 0.;
     Real *tC, *tI, *tF, *tO;
     #ifndef SIMDKERNELSIN
     tC  = (Real *) calloc(1,sizeof(Real)); //might be silly
@@ -360,7 +357,7 @@ KER1 void LSTMLayer::updateInputs(  const int n, Lab * N, Real * oldvals, Real* 
     for (const auto & l : *curr_input_links)
     {
         #ifdef SIMDKERNELSIN
-        if (l->first==false)
+        if (l->nI%SIMD == 0 && l->iI%SIMD == 0 &&  l->iW%SIMD == 0)//(l->first==false)
             addInputsSIMD(IN, IG, FG, OG, n, l, N->outvals, weights);
         else
         #endif
@@ -369,14 +366,15 @@ KER1 void LSTMLayer::updateInputs(  const int n, Lab * N, Real * oldvals, Real* 
     for (const auto & l : *prev_input_links)
     {
         #ifdef SIMDKERNELSIN
+        if (l->nI%SIMD == 0 && l->iI%SIMD == 0 &&  l->iW%SIMD == 0)
             addInputsSIMD(IN, IG, FG, OG, n, l, oldvals, weights);
-        #else
-            addInputs(    tC, tI, tF, tO, n, l, oldvals, weights);
+        else
         #endif
+            addInputs(    tC, tI, tF, tO, n, l, oldvals, weights);
     }
     
     *(N->in_vals +n1stNeuron +n) = *tC; *(N->iIGates +n1stCell +n) = *tI;
-    *(N->iFGates +n1stCell +n) = *tF;   *(N->iOGates +n1stCell +n) = *tO;
+    *(N->iFGates +n1stCell +n)   = *tF; *(N->iOGates +n1stCell +n) = *tO;
     
     #ifdef SIMDKERNELSIN
     STORE (tC,IN); STORE (tI,IG); STORE (tF,FG); STORE (tO,OG);
@@ -385,7 +383,7 @@ KER1 void LSTMLayer::updateInputs(  const int n, Lab * N, Real * oldvals, Real* 
         *tC += *(tC+t); *tI += *(tI+t); *tF += *(tF+t); *tO += *(tO+t);
     }
     *(N->in_vals +n1stNeuron +n) += *tC; *(N->iIGates +n1stCell +n) += *tI;
-    *(N->iFGates +n1stCell +n) += *tF;   *(N->iOGates +n1stCell +n) += *tO;
+    *(N->iFGates +n1stCell +n)   += *tF; *(N->iOGates +n1stCell +n) += *tO;
     
     _myfree(tC); _myfree(tI); _myfree(tF); _myfree(tO);
     #else
@@ -402,8 +400,8 @@ KER1 void NormalLayer::updateOutputs(const int n, Lab * N, Real * oldstates, Rea
 KER1 void LSTMLayer::updateOutputs(  const int n, Lab * N, Real * oldstates, Real* weights, Real* biases)
 {
     *(N->in_vals +n1stNeuron +n) += *(biases +n1stBias +n);
-    *(N->iIGates +n1stCell   +n) += *(oldstates +n1stCell +n)* *(weights +n1stPeep +3*n)   + *(biases +n1stBiasIG +n);
-    *(N->iFGates +n1stCell   +n) += *(oldstates +n1stCell +n)* *(weights +n1stPeep +3*n +1)+ *(biases +n1stBiasFG +n);
+    *(N->iIGates +n1stCell   +n) += *(biases +n1stBiasIG +n); //*(oldstates +n1stCell +n)* *(weights +n1stPeep +3*n)   + ;
+    *(N->iFGates +n1stCell   +n) += *(biases +n1stBiasFG +n); //*(oldstates +n1stCell +n)* *(weights +n1stPeep +3*n +1)+
     
     *(N->oMCell  +n1stCell +n) = ifun->eval(*(N->in_vals +n1stNeuron +n));
     *(N->oIGates +n1stCell +n) = sigm->eval(*(N->iIGates +n1stCell   +n));
@@ -412,14 +410,11 @@ KER1 void LSTMLayer::updateOutputs(  const int n, Lab * N, Real * oldstates, Rea
     *(N->ostates +n1stCell +n) = *(oldstates +n1stCell +n) * *(N->oFGates +n1stCell +n) +
                                  *(N->oMCell +n1stCell +n) * *(N->oIGates +n1stCell +n);
     
-    *(N->iOGates +n1stCell +n) += *(N->ostates +n1stCell +n) * *(weights +n1stPeep +3*n +2) + *(biases +n1stBiasOG +n);
+    *(N->iOGates +n1stCell +n) += *(biases +n1stBiasOG +n); //*(N->ostates +n1stCell +n) * *(weights +n1stPeep +3*n +2) +
     
     *(N->oOGates +n1stCell +n) = sigm->eval(*(N->iOGates +n1stCell   +n));
     
     *(N->outvals +n1stNeuron +n) = ofun->eval(*(N->ostates +n1stCell +n)) * *(N->oOGates +n1stCell +n);
-    
-    //printf("LSTM %d %f %f %f %f\n", n1stNeuron+n, *(N->in_vals+n1stNeuron+n), *(N->iIGates+n1stCell  +n), *(N->iFGates+n1stCell  +n), *(N->iOGates+n1stCell  +n));
-    //printf("LSTM %d %f %f %f %f\n", n1stNeuron+n, *(N->oMCell  +n1stCell +n), *(N->oIGates +n1stCell +n), *(N->oFGates +n1stCell +n),  *(N->oOGates +n1stCell +n));
 }
 
 KER1 void NormalLayer::updateGrads(const int n, Lab * N, Real * oldvals, Real * oldstates, Dsdw * dsdw, Grads * grad)
@@ -428,7 +423,7 @@ KER1 void NormalLayer::updateGrads(const int n, Lab * N, Real * oldvals, Real * 
     for (const auto & l : *curr_input_links)
     {
         #ifdef SIMDKERNELSG
-        if (l->first==false)
+        if (l->nI%SIMD == 0 && l->iI%SIMD == 0 &&  l->iW%SIMD == 0)//(l->first==false)
             updateGradsSIMD(n, l, N, N->outvals, grad->_W, nullptr);
         else
         #endif
@@ -437,10 +432,11 @@ KER1 void NormalLayer::updateGrads(const int n, Lab * N, Real * oldvals, Real * 
     for (const auto & l : *prev_input_links)
     {
         #ifdef SIMDKERNELSG
-        updateGradsSIMD(n, l, N, oldvals, grad->_W, nullptr);
-        #else
-        updateGrads(n, l, N, oldvals, grad->_W, nullptr);
+        if (l->nI%SIMD == 0 && l->iI%SIMD == 0 &&  l->iW%SIMD == 0)//(l->first==false)
+            updateGradsSIMD(n, l, N, oldvals, grad->_W, nullptr);
+        else
         #endif
+            updateGrads(n, l, N, oldvals, grad->_W, nullptr);
     }
 }
 
@@ -460,20 +456,20 @@ KER1 void LSTMLayer::updateGrads(  const int n, Lab * N, Real * oldvals, Real * 
     
     *(grad->_B +n1stBiasOG +n)    = *(N->eOGates+n1stCell+n);
     
-    *(dsdw->DB +n1stdSdB +5*n +3) = *(dsdw->DB +n1stdSdB +n*5 +3) * *(N->oFGates +n1stCell +n)
-                                      + *(oldstates +n1stCell +n) * *(N->eIGates +n1stCell +n);
-    *(grad->_W +n1stPeep +3*n)    = *(dsdw->DB +n1stdSdB +n*5 +3) * *(N->errvals +n1stNeuron +n);
+    //*(dsdw->DB +n1stdSdB +5*n +3) = *(dsdw->DB +n1stdSdB +n*5 +3) * *(N->oFGates +n1stCell +n)
+    //                                  + *(oldstates +n1stCell +n) * *(N->eIGates +n1stCell +n);
+    //*(grad->_W +n1stPeep +3*n)    = *(dsdw->DB +n1stdSdB +n*5 +3) * *(N->errvals +n1stNeuron +n);
     
-    *(dsdw->DB +n1stdSdB +5*n +4) = *(dsdw->DB +n1stdSdB +n*5 +4) * *(N->oFGates +n1stCell +n)
-                                      + *(oldstates +n1stCell +n) * *(N->eFGates +n1stCell +n);
-    *(grad->_W +n1stPeep +3*n +1) = *(dsdw->DB +n1stdSdB +n*5 +4) * *(N->errvals +n1stNeuron +n);
+    //*(dsdw->DB +n1stdSdB +5*n +4) = *(dsdw->DB +n1stdSdB +n*5 +4) * *(N->oFGates +n1stCell +n)
+    //                                  + *(oldstates +n1stCell +n) * *(N->eFGates +n1stCell +n);
+    //*(grad->_W +n1stPeep +3*n +1) = *(dsdw->DB +n1stdSdB +n*5 +4) * *(N->errvals +n1stNeuron +n);
     
-    *(grad->_W +n1stPeep +3*n +2) =    *(N->ostates +n1stCell +n) * *(N->eOGates+n1stCell +n);
+    //*(grad->_W +n1stPeep +3*n +2) =    *(N->ostates +n1stCell +n) * *(N->eOGates+n1stCell +n);
     
     for (const auto & l : *curr_input_links)
     {
         #ifdef SIMDKERNELSG
-        if (l->first==false)
+        if (l->nI%SIMD == 0 && l->iI%SIMD == 0 &&  l->iW%SIMD == 0)//(l->first==false)
             updateGradsSIMD(n, l, N, N->outvals, grad->_W, dsdw);
         else
         #endif
@@ -482,34 +478,29 @@ KER1 void LSTMLayer::updateGrads(  const int n, Lab * N, Real * oldvals, Real * 
     for (const auto & l : *prev_input_links)
     {
         #ifdef SIMDKERNELSG
-        updateGradsSIMD(n, l, N, oldvals, grad->_W, dsdw);
-        #else
-        updateGrads(n, l, N, oldvals, grad->_W, dsdw);
+        if (l->nI%SIMD == 0 && l->iI%SIMD == 0 &&  l->iW%SIMD == 0)//(l->first==false)
+            updateGradsSIMD(n, l, N, oldvals, grad->_W, dsdw);
+        else
         #endif
+            updateGrads(n, l, N, oldvals, grad->_W, dsdw);
     }
 }
 
 KER1 void LSTMLayer::updateGradsLight(  const int n, Lab * N, Real * oldvals, Real * oldstates, Grads * grad)
 {
     *(grad->_B +n1stBias   +n)    = *(N->eMCell  +n1stCell +n) * *(N->errvals +n1stNeuron +n);
-
     *(grad->_B +n1stBiasIG +n)    = *(N->eIGates +n1stCell +n) * *(N->errvals +n1stNeuron +n);
-
     *(grad->_B +n1stBiasFG +n)    = *(N->eFGates +n1stCell +n) * *(N->errvals +n1stNeuron +n);
-    
     *(grad->_B +n1stBiasOG +n)    = *(N->eOGates+n1stCell+n);
     
-    *(grad->_W +n1stPeep +3*n)    = *(oldstates +n1stCell +n) * *(N->eIGates +n1stCell +n) * *(N->errvals +n1stNeuron +n);
-    
-    *(grad->_W +n1stPeep +3*n +1) = *(oldstates +n1stCell +n) * *(N->eFGates +n1stCell +n) * *(N->errvals +n1stNeuron +n);
-    
-    *(grad->_W +n1stPeep +3*n +2) = *(N->ostates +n1stCell +n) * *(N->eOGates+n1stCell +n);
+    //*(grad->_W +n1stPeep +3*n)    = *(oldstates +n1stCell +n) * *(N->eIGates +n1stCell +n) * *(N->errvals +n1stNeuron +n);
+    //*(grad->_W +n1stPeep +3*n +1) = *(oldstates +n1stCell +n) * *(N->eFGates +n1stCell +n) * *(N->errvals +n1stNeuron +n);
+    //*(grad->_W +n1stPeep +3*n +2) = *(N->ostates +n1stCell +n) * *(N->eOGates+n1stCell +n);
     
     for (const auto & l : *curr_input_links)
     {
-        //printf("curr %d %d %d %d\n",l->iW,l->iWI,l->iWF,l->iWO);
         #ifdef SIMDKERNELSG
-        if (l->first==false)
+        if (l->nI%SIMD == 0 && l->iI%SIMD == 0 &&  l->iW%SIMD == 0)//(l->first==false)
             updateGradsSIMDLight(n, l, N, N->outvals, grad->_W);
         else
         #endif
@@ -517,12 +508,12 @@ KER1 void LSTMLayer::updateGradsLight(  const int n, Lab * N, Real * oldvals, Re
     }
     for (const auto & l : *prev_input_links)
     {
-        //printf("prev %d %d %d %d\n",l->iW,l->iWI,l->iWF,l->iWO);
         #ifdef SIMDKERNELSG
-        updateGradsSIMDLight(n, l, N, oldvals, grad->_W);
-        #else
-        updateGradsLight(n, l, N, oldvals, grad->_W);
+        if (l->nI%SIMD == 0 && l->iI%SIMD == 0 &&  l->iW%SIMD == 0)
+            updateGradsSIMDLight(n, l, N, oldvals, grad->_W);
+        else
         #endif
+            updateGradsLight(n, l, N, oldvals, grad->_W);
     }
 }
 
@@ -584,8 +575,6 @@ KER2 void NormalLayer::updateGrads(    const int n, Link *l, Lab * N, Real * out
     for (int i=0; i<l->nI; i++)
     {
         *(gradW +l->iW +n*l->nI +i) = *(outvals +l->iI +i) * *(N->errvals +l->iO +n);
-        //printf("%d %d %d %d %d \n", l->iI, l->iO, l->iW, l->nI, l->nO);
-        //printf("%d %d %d\n",l->iI +i,l->iO +n,l->iW +n*l->nI +i);
     }
 }
 
@@ -593,8 +582,6 @@ KER2 void LSTMLayer::updateGradsLight( const int n, Link *l, Lab * N, Real * out
 {
     for (int i=0; i<l->nI; i++)
     {
-        //printf("up %d with %d and %d (%d) -> %f x %f (%f %f %f %f)\n", l->iW +n*l->nI +i, l->iI +i, l->iO +n, l->iC +n, *(outvals +l->iI +i), *(N->errvals +l->iO +n), *(N->eMCell  +l->iC +n), *(N->eIGates +l->iC +n), *(N->eFGates +l->iC +n), *(N->eOGates +l->iC +n) );
-        
         *(gradW +l->iW       +n*l->nI +i) = *(outvals +l->iI +i) * *(N->eMCell  +l->iC +n) * *(N->errvals +l->iO +n);
         
         *(gradW +l->iWI      +n*l->nI +i) = *(outvals +l->iI +i) * *(N->eIGates +l->iC +n) * *(N->errvals +l->iO +n);
@@ -709,21 +696,14 @@ KER2 void NormalLayer::addErrors(const int n, Link *l, Lab * N, Real * errvals, 
     Real err(0.);
     if (l->LSTM)
         for (int i=0; i<l->nO; i++)
-        {
             err += *(N->eOGates +l->iC +i) * *(weights +l->iWO +i*l->nI +n) +
                    *(N->errvals +l->iO +i) * (
                    *(N->eMCell  +l->iC +i) * *(weights +l->iW  +i*l->nI +n) +
                    *(N->eIGates +l->iC +i) * *(weights +l->iWI +i*l->nI +n) +
                    *(N->eFGates +l->iC +i) * *(weights +l->iWF +i*l->nI +n) );
-            
-            ///printf("LSTM error %f %d (%d) to %d with %d (%d %d %d)\n",*(N->errvals +l->iO +i),l->iO +i,l->iC +i, l->iI +n,l->iW +i*l->nI +n,l->iWI+i*l->nI +n,l->iWF+i*l->nI +n,l->iWO+i*l->nI +n);
-        }
     else
         for (int i=0; i<l->nO; i++)
-        {
-            ///printf("input error %f %d to %d with %d\n",*(N->errvals +l->iO +i),l->iO +i, l->iI +n,l->iW +i*l->nI +n);
             err  += *(N->errvals +l->iO +i) * *(weights +l->iW +i*l->nI +n);
-        }
     
     *(errvals +l->iI +n) += err;
 }

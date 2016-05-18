@@ -22,24 +22,10 @@
 using namespace std;
 
 class QLearning : public Learner
-{
-private:
-	QApproximator* Q;
-	ActionIterator actionsIt;
-	map<string, QApproximator*> QMap;
-		
-	Real gamma, greedyEps, lRate;
-	
-	RNG* rng;
-    
-    int suffix;
-		
+{		
 public:
-	QLearning(QApproximator* newQ, ActionInfo& actInfo, Real newGamma, Real newGreedyEps, Real newLRate);
+	QLearning(Environment* env, Settings & settings);
 	
-    void updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent = 0);
-    void updateSelect(Trace& t, State& s, Action& a, Real r, Real alphaK) {};
-    void try2restart(string prefix);
-    void savePolicy(string fname);
+    void updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r) override;
 };
 

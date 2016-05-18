@@ -12,15 +12,17 @@
 #include "../StateAction.h"
 #include "Explorer.h"
 
-Explorer::Explorer(QApproximator* newQ, QApproximator* errQ, ActionInfo& actInfo, Real newGamma, Real newGreedyEps, Real newLRate, Real lambda) :
-Q(newQ), errEst(errQ), actionsIt(actInfo), gamma(newGamma), greedyEps(newGreedyEps), lRate(newLRate)
+Explorer::Explorer(Environment* env, Settings & settings) :
+Learner(env,settings)
 {
-    rng = new RNG(rand());
-    suffix = 0;
 }
 
-void Explorer::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent)
+void Explorer::updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r)
 {
+    die("Hic sunt leones.\n");
+    /*
+     The idea here is to have 2 networks: one to approx the Q the other to approximate the error made by the Q
+     */
     /*
     Real ALfac = .2;
 // Predict Q
@@ -46,35 +48,3 @@ void Explorer::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& 
     errEst->correct(*t.hist[i].s, *t.hist[i].a, errErr, Nagent);
      */
 }
-
-void Explorer::try2restart(string fname)
-{
-    _info("Restarting from saved policy...\n");
-
-    if ( Q->restart(fname) )
-    {
-        _info("Policy restart successful, moving on...\n");
-    }
-    else
-    {
-        _info("Not all policies restarted, therefore assumed zero. Moving on...\n");
-    }
-    
-    if ( errEst->restart(fname) )
-    {
-        _info("Uncertainty bounds restart successful, moving on...\n");
-    }
-    else
-    {
-        _info("Moving on...\n");
-    }
-}
-
-void Explorer::savePolicy(string fname)
-{
-    _info("\nSaving all policies...\n");
-    Q->save(fname);
-    errEst->save(fname);
-    _info("Done\n");
-}
-

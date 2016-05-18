@@ -15,18 +15,18 @@
 #include "Environment.h"
 #include "CellList.h"
 
-class ExternalAgent;
-#include "../Agents/ExternalAgent.h"
+//class Agent;
+//#include "../Agents/Agent.h"
 
 class oldEnvironment: public Environment
 {
     string execpath;
     void setDims();
     vector<int> ids;
-    int pid, n;
+    int pid, n, rank;
     FILE *fin, *fout;
 
-    vector<ExternalAgent*> exagents;
+    //vector<Agent*> exagents;
     vector<State>  states;
     vector<double> rewards;
     vector<Action> actions;

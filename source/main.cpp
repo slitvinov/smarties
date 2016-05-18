@@ -41,11 +41,27 @@ int ErrorHandling::debugLvl;
 // Runs the simulation
 void runSlave(int rank)
 {
-    ObjectFactory factory(settings.configFile);
+    ObjectFactory factory(settings);
     Environment* env = factory.createEnvironment(rank, 0);
-
-    Slave* simulation = new Slave(env, settings.dt, rank);
+    Learner* learner;
     
+    int nAgents = env->agents.size();
+    
+    settings.nAgents = nAgents;
+    settings.nSlaves = 1;
+    
+    //TODO:
+    if (settings.learner == "Q")
+        learner = new QLearning(env, settings);
+    else if (settings.learner == "DQ")
+        learner = new NFQ(env, settings);
+    Slave* simulation = new Slave(env, rank, settings);
+    simulation->learner = learner;
+    //TODO
+    
+    
+    if (settings.restart != "none")
+        simulation->restart(settings.restart);
     Real time = 0;
     
     while (true)
@@ -57,33 +73,21 @@ void runSlave(int rank)
 void runMaster(int nranks)
 {
     // TODO: No need to create a whole system, just need actInfo and sInfo
-    ObjectFactory factory(settings.configFile);
+    ObjectFactory factory(settings);
     Environment* env = factory.createEnvironment(0,0);
-    QApproximator* Qvals;
-    QApproximator* Qexpl;
     Learner* learner;
-    int nAgents = (nranks-1)*env->agents.size();
+    
+    int nAgents = (nranks)*env->agents.size();
+    
+    settings.nAgents = nAgents;
+    settings.nSlaves = nranks;
     
     if (settings.learner == "Q")
-    {
-        debug("Q\n");
-        Qvals = new MultiTable(env->sI, env->aI, settings, nAgents);
-        learner = new QLearning(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate);
-    }
-    else if (settings.learner == "QNN")
-    {
-        printf("Q learning with Network approximator.\n");
-        Qvals = new NFQApproximator(env->sI, env->aI, settings, nAgents);
-        learner = new QLearning(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate);
-    }
-    else if (settings.learner == "NFQ")
-    {
-        printf("DQN learning.\n");
-        Qvals = new NFQApproximator(env->sI, env->aI, settings, nranks*env->agents.size()); //TODO fix last argument: size of agent memories (to be read from history file)
-        learner = new NFQ(Qvals, env->aI, settings.gamma, settings.greedyEps, settings.lRate);
-    }
+        learner = new QLearning(env, settings);
+    else if (settings.learner == "DQ")
+        learner = new NFQ(env, settings);
     
-    Master* master = new Master(learner, Qvals, env, nranks, settings.gamma*settings.lambda);
+    Master* master = new Master(learner, env, settings);
     
     if (settings.restart != "none")
         master->restart(settings.restart);
@@ -111,20 +115,21 @@ int main (int argc, char** argv)
     gettimeofday(&clock, NULL);
     //cout << clock.tv_usec << endl;
     int seed = abs(84967194 + floor(clock.tv_usec));
-    debugLvl=0;
+    debugLvl=12;
     vector<OptionStruct> opts ({
     {'c', "config",   STRING,"config file",    &settings.configFile,(string)"factory"},
     {'t', "dt",       REAL,  "Sim timestep",   &settings.dt,        (Real)0.01},
     {'f', "end_time", REAL,  "End time of sim",&settings.endTime,   (Real)1e9},
-    {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.95},
+    {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.99},
+    {'E', "endRew",   REAL,  "Terminal reward",&settings.EndR,      (Real)-9.95},
     {'e', "greedyeps",REAL,  "Greedy epsilon", &settings.greedyEps, (Real)0.001},
     {'l', "learnrate",REAL,  "Learning rate",  &settings.lRate,     (Real)0.1},
     {'d', "lambda",   REAL,  "Lambda",         &settings.lambda,    (Real)0.0},
     {'s', "rand_seed",INT,   "Random seed",    &settings.randSeed,  (int)seed},
-    {'r', "restart",  STRING,"Restart",        &settings.restart,   (string)"res/policy"},
+    {'r', "restart",  STRING,"Restart",        &settings.restart,   (string)"policy"},
     {'q', "save_freq",INT,   "Save frequency", &settings.saveFreq,  (int)1000},
     {'v', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)4},
-    {'p', "prefix",   STRING,"Save folder",    &settings.prefix,    (string)"res/"},
+    {'p', "prefix",   STRING,"Save folder",    &settings.prefix,    (string)""},
     {'H', "nne",      REAL,  "NN's eta",       &settings.nnEta,     (Real)0.001},
     {'A', "nna",      REAL,  "NN's alpha",     &settings.nnAlpha,   (Real)0.5},
     {'D', "nnl",      REAL,  "NN's lambda",    &settings.nnLambda,  (Real)0.0},
@@ -137,8 +142,13 @@ int main (int argc, char** argv)
     {'Y', "nnm1",     INT,   "NN LSTM layer 1",&settings.nnMemory1, (int)32},
     {'Z', "nnm2",     INT,   "NN LSTM layer 2",&settings.nnMemory2, (int)16},
     {'X', "nnm3",     INT,   "NN LSTM layer 3",&settings.nnMemory3, (int)8},
-    {'Q', "learn",    STRING,"Learner Type",   &settings.learner,   (string)"NFQ"}
-    });
+    {'Q', "learn",    STRING,"Learner Type",   &settings.learner,   (string)"DQ"},
+    {'P', "approx",   STRING,"Approximator",   &settings.approx,    (string)"NN"},
+    {'R', "rType",    INT,   "Reward: ef,ef,y",&settings.rewardType,(int)0},
+    {'G', "goalDY",   REAL,  "If r==2  goalDY",&settings.goalDY,    (Real)0.0},
+    {'T', "bTrain",   INT,   "am I training?", &settings.bTrain,    (int)1}
+    }
+    );
     
     Parser parser(opts);
     parser.parse(argc, argv, rank == 0);

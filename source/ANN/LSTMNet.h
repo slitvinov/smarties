@@ -23,13 +23,13 @@ protected:
     const int nInputs, nOutputs;
     const int nAgents;
     Profiler * profiler;
-    Network * net;
-    Optimizer * opt; /* ADAM optimizer */
     vector<int> indexes;
     
 public:
+    Network * net;
+    Optimizer * opt; /* ADAM optimizer */
     
-    FishNet(vector<int>& layerSize, vector<int>& recurSize, Settings & settings, int nAgents=1);
+    FishNet(vector<int>& layerSize, vector<int>& recurSize, Settings & settings);
     
     void improve(const vector<Real>& error, int iAgent);
     
@@ -42,14 +42,9 @@ public:
     
     void resetMemories(int iAgent=0) override
     {
-        //printf("Resetting the fukking mems\n");
         net->clearMemory(net->mem[iAgent]->outvals, net->mem[iAgent]->ostates);
     }
     
-    Real trainDQ(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight);
-    void setBatchsize(int size) {;}
     void save(string fname);
     bool restart(string fname);
-    void updateFrozenWeights();
-    void checkGrads();
 };

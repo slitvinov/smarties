@@ -43,15 +43,21 @@ protected:
 	
 public:
 	Types  type;
-	int    id;
+    int    id;
+    int nInfo;
+    
+    State *s;
+    Action *a;
+    Real r;
+    vector<Real> Info;
 	
 	Agent(Real learningInterval, Types type, string name);
 	
-	virtual void   getState(State& s) { };
-	virtual Real getReward()        { return 0; }
-    virtual Real getInfo(int n)     { return 0; }
-	virtual void   act(Action& a)     { };
-	virtual void   move(Real dt) = 0;
+	virtual void   getState(State& s);
+    virtual Real getReward();
+    virtual Real getInfo(int n);
+	virtual void   act(Action& a);
+    virtual void   move(Real dt) {};
 	
 	inline StateInfo   getStateDims()   {return sInfo;}
 	
@@ -74,7 +80,12 @@ public:
 		this->sInfo.dim   = stateInfo.dim;
 		this->sInfo.type  = stateInfo.type;
 		this->actInfo.dim = actionInfo.dim;
-		
+        this->sInfo.bounds.clear();
+        this->sInfo.top.clear();
+        this->sInfo.bottom.clear();
+        this->sInfo.aboveTop.clear();
+        this->sInfo.belowBottom.clear();
+        this->sInfo.isLabel.clear();
 		for (int i=0; i<stateInfo.dim; i++)
 		{
 		    this->sInfo.bounds.push_back     (stateInfo.bounds[i]);

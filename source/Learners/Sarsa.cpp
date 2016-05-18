@@ -12,14 +12,31 @@
 #include "../StateAction.h"
 #include "Sarsa.h"
 
-Sarsa::Sarsa(QApproximator* q, ActionInfo& actInfo, Real gamma, Real greedyEps, Real lRate, Real lambda) :
-Q(q), actionsIt(actInfo), gamma(gamma), greedyEps(greedyEps), lRate(lRate), lambda(lambda)
+Sarsa::Sarsa(Environment* env, Settings & settings) :
+Learner(env,settings), lambda(settings.lambda)
 {
-    rng = new RNG(rand());
-    suffix = 0;
+    int len;
+    if (settings.gamma*settings.lambda < 1e-10)
+        len = 2;
+    else
+        len = round(-10/log10(settings.gamma*settings.lambda)) + 1;
+    
+    traces.resize(nAgents);
+    for (auto& t : traces)
+    {
+        t.len = len;
+        t.start = 0;
+        t.hist.resize(len);
+        for (auto& e : t.hist)
+        {
+            e.value = -1;
+            e.s = new State(sInfo);
+            e.a = new Action(aInfo);
+        }
+    }
 }
 
-void Sarsa::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent)
+void Sarsa::updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r)
 {
     //       aOld, r
     // sOld ---------> s
@@ -28,43 +45,44 @@ void Sarsa::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOl
     //
     // Q(sOld, aOld) += lRate * [r + gamma*Q(s, a) - Q(sOld, aOld)]
     //
+    int Nbest, NoldBest;
+    Real Vnew(-1e10), Vold(-1e10);
+    vector<Real> Qolds(a.actInfo.bounds[0]), Qs(a.actInfo.bounds[0]);
     
-    Real Qold = Q->get(sOld, aOld, Nagent);
-    
-    // Select new action
-    Real best = -1e10;
-    actionsIt.reset();
-    while (!actionsIt.done())
+    traces[agentId].add(sOld, aOld);
+    Q->get(sOld, Qolds, s, Qs, agentId);
+    for (int i=0; i<a.actInfo.bounds[0]; i++)
     {
-        const Real val = Q->get(s, actionsIt.next(), Nagent);
-        if (val >= best + 1e-12)
+        if (Qs[i]>Vnew)
         {
-            best = val;
-            actionsIt.memorize();
+            Nbest = i;
+            Vnew = Qs[i];
         }
-        // If two actions yield the same Q-value, choose random
-        // TODO: Improve for more than 2 same actions
-        else if (fabs(best - val) < 1e-12 && rng->uniform() > 0.5)
+        if (Qolds[i]>Vold)
         {
-            actionsIt.memorize();
+            NoldBest = i;
+            Vold = Qolds[i];
         }
     }
+    
+    a.vals[0] = Nbest;
+    Real Aold = Qolds[aOld.vals[0]];
+
+    Real err = (r + gamma*Vnew - Aold);
     Real p = rng->uniform();
-    if (p > greedyEps)  a = actionsIt.recall();
-    else                a = actionsIt.getRand(rng);
-
-    Real err = lRate * (r + gamma*best - Qold);
-
-    if (fabs(err) > 1e-8) debug1("Sarsa: Updating trace leading to %s,  act %s\n", s.print().c_str(), a.print().c_str());
-
+    if (p < greedyEps)  a.getRand(rng);
+    
+    Q->correct(sOld, aOld, err, agentId);
+    
+    auto t=traces[agentId];
     int i = t.start;
     while (true)
     {
         History& e = t.hist[i];
 
-        if (e.value > 0) Q->correct(*e.s, *e.a, e.value * err, Nagent);
+        if (e.value > 0) Q->correct(*e.s, *e.a, e.value * err, agentId);
         e.value *= gamma * lambda;
-        Real Qe = Q->get(*e.s, *e.a, Nagent);
+        Real Qe = Q->get(*e.s, *e.a, agentId);
         if (fabs(err) > 1e-8 && e.value >= -0.1) debug1("Sarsa: %f --> %f for %s,  act %s\n",
                    Qe , Qe + err, e.s->print().c_str(), e.a->print().c_str());
 
@@ -73,24 +91,5 @@ void Sarsa::updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOl
     }
 }
 
-void Sarsa::try2restart(string fname)
-{
-    _info("Restarting from saved policy...\n");
 
-    if ( Q->restart(fname) )
-    {
-        _info("Restart successful, moving on...\n");
-    }
-    else
-    {
-        _info("Not all policies restarted, therefore assumed zero. Moving on...\n");
-    }
-}
-
-void Sarsa::savePolicy(string fname)
-{
-    _info("\nSaving all policies...\n");
-    Q->save(fname);
-    _info("Done\n");
-}
 

@@ -31,22 +31,28 @@ void HardCartEnvironment::setDims()
 {
     
     sI.dim = 2;
-    printf("Created the correct cart??\n");
     // State: coordinate...
     sI.bounds.push_back(12);
     sI.top.push_back(2.0);
     sI.bottom.push_back(-2.0);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
+    sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+    sI.isLabel.push_back(false); sI.inUse.push_back(true);
     
     // ...angle...
     sI.bounds.push_back(16);
     sI.top.push_back(0.2);
     sI.bottom.push_back(-0.2);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
+    sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+    sI.isLabel.push_back(false); sI.inUse.push_back(true);
+    
+    //now count the number of states variables and number of actually used
+    sI.dim = 0; sI.dimUsed = 0;
+    for (int i=0; i<sI.bounds.size(); i++)
+    {
+        sI.dim++;
+        if (sI.inUse[i])
+            sI.dimUsed++;
+    }
     
     aI.dim = 1;
     
@@ -60,7 +66,7 @@ void HardCartEnvironment::setDims()
     
     nInfo = 0;
     aI.zeroact = 2;
-    for (auto& a : exagents)
+    for (auto& a : agents)
     {
         a->Info.resize(nInfo);
         a->nInfo = nInfo;

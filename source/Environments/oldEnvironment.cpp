@@ -19,18 +19,19 @@ using namespace std;
 
 #include "oldEnvironment.h"
 
-oldEnvironment::oldEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank) :
-Environment(agents), execpath(execpath)
+oldEnvironment::oldEnvironment(vector<Agent*> _agents, string execpath, StateType tp, int rank) :
+Environment(_agents), execpath(execpath), rank(rank)
 {
     n = agents.size();
-    
-    for (auto a : agents)
-        exagents.push_back(static_cast<ExternalAgent*>(a));
+    //for (auto a : agents)
+    //    agents.push_back(a);
     
     rewards.resize(n);
     states.resize(n);
     
     sI.type = tp;
+    if (_agents.size()!=n)
+        printf("Something wrong in the constructor\n");
 }
 
 void oldEnvironment::setup_Comm()
@@ -59,8 +60,8 @@ void oldEnvironment::setup_Comm()
         printf("About to exec.... \n");
         cout << execpath << endl;
         
-        //mkdir( ("simulation_"+to_string(rank)+"_"+to_string(index)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
-        //chdir( ("simulation_"+to_string(rank)+"_"+to_string(index)+"/").c_str() );
+        mkdir(("simulation_"+to_string(rank)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        chdir(("simulation_"+to_string(rank)+"/").c_str());
         
         close(inpipe[0]);
         close(outpipe[1]);
@@ -121,7 +122,7 @@ void oldEnvironment::setDims()
     
     nInfo = 0;
     aI.zeroact = 2;
-    for (auto& a : exagents)
+    for (auto& a : agents)
     {
         a->Info.resize(nInfo);
         a->nInfo = nInfo;
@@ -133,7 +134,7 @@ int oldEnvironment::evolve(double t)
     bStatus = 0;
     
     fprintf(fout, "Actions:\n");
-    for (auto& a : exagents)
+    for (auto& a : agents)
     {
         fprintf(fout, "%d ", a->a->vals[0]);
         debug2("Sent child: action %d\n", a->a->vals[0]);
@@ -163,7 +164,7 @@ int oldEnvironment::evolve(double t)
     while(sstr != "States and rewards:");
     
     
-    for (auto& a : exagents)
+    for (auto& a : agents)
     {
         double aa, b, c;
         
@@ -206,7 +207,7 @@ int oldEnvironment::init()
     while(sstr != "States and rewards:");
     
     
-    for (auto& a : exagents)
+    for (auto& a : agents)
     {
         double aa, b, c;
         

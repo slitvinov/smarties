@@ -22,22 +22,11 @@ using namespace std;
 class Sarsa : public Learner
 {
 private:
-	QApproximator* Q;
-	ActionIterator actionsIt;
-	map<string, QApproximator*> QMap;
-		
-	Real gamma, greedyEps, lRate, lambda;
-	
-	RNG* rng;
-    
-    int suffix;
+    vector<Trace> traces;
+	Real lambda;
 		
 public:
-    Sarsa(QApproximator* Q, ActionInfo& actInfo, Real gamma, Real greedyEps, Real lRate, Real lambda);
-	
-    void updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent = 0);
-    void updateSelect(Trace& t, State& s, Action& a, Real r, Real alphaK) {};
-    void try2restart(string prefix);
-    void savePolicy(string fname);
+    Sarsa(Environment* env, Settings & settings);	
+    void updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r) override;
 };
 

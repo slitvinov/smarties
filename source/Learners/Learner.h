@@ -15,20 +15,60 @@
 
 #include "../Agents/Agent.h"
 #include "../Environments/Environment.h"
+
+#include "../QApproximators/MultiTable.h"
+#include "../QApproximators/QApproximator.h"
+#include "../QApproximators/NFQApproximator.h"
+
+#include "../Transitions/Transitions.h"
 #include "Trace.h"
 
 using namespace std;
 
 class Learner
 {
-public:
-	Learner() { };
-	    
-    //virtual void selectAction(State& s, Action& a) = 0;
-    //virtual void update(State& s, Action& a, Real r, State& s1) = 0;
-    virtual void updateSelect(Trace& t, State& s, Action& a, State& sOld, Action& aOld, Real r, int Nagent) = 0;
-    virtual void updateSelect(Trace& t, State& s, Action& a, Real r, Real alphaK) = 0;
+protected:
+    int suffix, nAgents;
+    Real gamma, greedyEps;
+    ActionInfo aInfo;
+    StateInfo  sInfo;
     
-    virtual void savePolicy(string prefix) = 0;
-	virtual void try2restart(string fname) = 0;
+    RNG* rng;
+    QApproximator* Q;
+public:
+    Transitions* T;
+    
+    Learner(Environment* env, Settings & settings) :
+    suffix(0), nAgents(settings.nAgents), gamma(settings.gamma), greedyEps(settings.greedyEps), aInfo(env->aI), sInfo(env->sI)
+    {
+        rng = new RNG(rand());
+        
+        if (settings.approx == "NN")
+            Q = new NFQApproximator(sInfo, aInfo, settings);
+        else if (settings.approx == "table")
+            Q = new MultiTable(sInfo, aInfo, settings);
+        else {die("Undefined approximator.\n");}
+        
+        T = new Transitions(env, settings);
+    };
+
+    virtual void updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r) = 0;
+    
+    virtual void Train() {};
+    
+    void try2restart(string fname)
+    {
+        _info("Restarting from saved policy...\n");
+        
+        T->restartSamples();
+        if ( Q->restart(fname) ) {_info("Restart successful, moving on...\n");}
+        else {_info("Not all policies restarted, therefore assumed zero. Moving on...\n");}
+    }
+    
+    void savePolicy(string fname)
+    {
+        _info("\nSaving all policies...\n");
+        Q->save(fname);
+        _info("Done\n");
+    }
 };

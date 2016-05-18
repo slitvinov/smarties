@@ -17,7 +17,28 @@ learningInterval(learningInterval), lastLearned(0), type(type), name(name), id(0
 	id = idCount.fetch_add(1);
 };
 
+Real Agent::getReward()
+{
+    return r;
+}
 
+Real Agent::getInfo(int n)
+{
+    if (n<nInfo)
+        return Info[n];
+    else
+        return 0;
+}
+
+void Agent::getState(State& _s)
+{
+    _s = *s;
+}
+
+void Agent::act(Action& _a)
+{
+    *a = _a;
+}
 
 
 

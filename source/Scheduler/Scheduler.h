@@ -25,11 +25,10 @@ class Master
 {
 private:
     Learner* learner;
-    QApproximator* Q;
     int insize,  inOneSize, nInfo;
     int outsize, outOneSize;
     byte *inbuf, *outbuf;
-    
+    bool bTRAINING;
     inline void unpackChunk(byte* &buf, int & first, State& sOld, Action& a, Real& r, vector<Real>& info, State& s);
     inline void packChunk(byte* &buf, Action a);
     
@@ -37,28 +36,26 @@ private:
     vector<Saver*> savers;
     
     int nAgents, nSlaves;
-    vector<Trace> traces;
 
     void execSavers(Real time, int iter);
 
 public:
     StateInfo  sInfo;
     ActionInfo actInfo;
-    Master(Learner* learner, QApproximator* newQ, Environment* env, int nSlaves, Real traceDecay);
+    Master(Learner* learner, Environment* env, Settings & settings);
     Real getTotR() { Real tmp = totR; totR = 0; return tmp; }
     void restart(string fname);
-    
     void run();
-
     void registerSaver(Saver* saver);
 };
 
 class Slave
 {
     int me;
-    
+    RNG* rng;
     Environment* env;
     vector<Agent*> agents;
+    bool bTRAINING;
     Real dt;
     int first;
     int insize, outsize, nInfo;
@@ -69,10 +66,11 @@ class Slave
     bool* needToPack;
     void packData();
     void unpackData();
-        
 public:
     
-    Slave(Environment* env, Real newDt, int me);
+    Slave(Environment* env, int me, Settings & settings);
     void evolve(Real& t);
+    void restart(string fname); //TODO
+    Learner* learner; //TODO
     
 };

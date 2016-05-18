@@ -13,9 +13,10 @@
 #include <string>
 #include <vector>
 
-#include "../ANN/Approximator.h"
+#include "../ANN/Network.h"
+#include "../ANN/Optimizer.h"
 #include "QApproximator.h"
-#include "../rng.h"
+#include "../Profiler.h"
 
 
 class NFQApproximator : public QApproximator
@@ -23,22 +24,18 @@ class NFQApproximator : public QApproximator
     private:
     int nInputs, nActions, nStateDims;
     int batchSize, iter;
-    Real delta, ALfac; // if >= 1. then i'm not doing advantage learning
     bool first;
-    ActionIterator actionsIt;
-    Real gamma, A, B;
-    Approximator * ann;
-    vector<Real> prediction;
-    vector<Real> scaledInp;
+
+    vector<Real> prediction, scaledInp;
     vector<int> indexes;
     RNG* rng;
-    
+    Network* net;
+    Optimizer* opt;
     public:
-    string nettype;
-    // Costructor-Destructor
-    NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings, int nAgents);
+    NFQApproximator(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings);
     ~NFQApproximator();
     
+    Profiler* profiler;
     // Methods
     void get(const State& sOld, vector<Real> & Qold, const State& s, vector<Real> & Q, int iAgent = 0) override;
     Real get (const State& s, const Action& a, int nAgent = 0) override;
@@ -46,24 +43,18 @@ class NFQApproximator : public QApproximator
     
     void set (const State& s, const Action& a, Real value, int nAgent = 0) override
     {
-        correct(s, a, value, nAgent);
-    } //nothing to see here
-    
-    void correct(const State& s, const Action& a, Real error, int nAgent = 0) override;
-    
-    void Train() override;
-    //Real batchUpdate();
-    //Real serialUpdate();
-    
-    void passData(int & agentId, int & first, State & sOld, Action & a, State & sNew, Real & reward, vector<Real>& info) override
-    {
-        QApproximator::passData(agentId, first, sOld, a, sNew, reward, info);
-        if (first)
-            ann->resetMemories(agentId);
+        die("nothing to see here\n");//correct(s, a, value, nAgent);
     }
     
+    void correct(const State& s, const Action& a, Real error, int nAgent = 0) override;
+    Real Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight=1.) override;
+    void updateFrozenWeights() override
+    {
+        net->updateFrozenWeights();
+        cout << profiler->printStat() << endl;
+    }
     void save(string name) override;
     bool restart(string name) override;
-    Real descale(Real y) {return (y-B)/A;}//y;}//
-    Real rescale(Real x) {return  A*x +B;}//x;}//
+    //Real descale(Real y) {return (y-B)/A;}
+    //Real rescale(Real x) {return  A*x +B;}
 };

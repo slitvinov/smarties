@@ -18,9 +18,11 @@ class ExternalEnvironment;
 class HardCartEnvironment;
 class oldEnvironment;
 class TwoFishEnvironment;
+class NewFishEnvironment;
 #include "Environments/SelfAvoidEnvironment.h"
 #include "Environments/SwarmEnvironment.h"
 #include "Environments/ExternalEnvironment.h"
 #include "Environments/oldEnvironment.h"
 #include "Environments/TwoFishEnvironment.h"
+#include "Environments/NewFishEnvironment.h"
 #include "Environments/HardCartEnvironment.h"
