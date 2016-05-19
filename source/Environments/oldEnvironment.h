@@ -28,13 +28,13 @@ class oldEnvironment: public Environment
 
     //vector<Agent*> exagents;
     vector<State>  states;
-    vector<double> rewards;
+    vector<Real> rewards;
     vector<Action> actions;
 
 public:
    oldEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank);
     void setup_Comm() override;
-    int   evolve   (double t) override;
+    int   evolve   (Real t) override;
     int   init   () override;
 };
 

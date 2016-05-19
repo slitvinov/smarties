@@ -142,6 +142,9 @@ Real NFQApproximator::Train(const vector<vector<Real>> & sOld, const vector<int>
     if (weight==0.)  opt->checkGrads(sOld);
     else
     {
+        profiler->start("D");
+        //net->assignDropoutMask();
+        profiler->stop("D");
         profiler->start("F");
         for (int k=0; k<ndata; k++) //TODO clean this shit up
         {
@@ -206,6 +209,7 @@ Real NFQApproximator::Train(const vector<vector<Real>> & sOld, const vector<int>
             net->computeGradsLightSeries(net->series, k, g);
             opt->stackGrads(net->grad,g);
         }
+        //net->removeDropoutMask();
         profiler->stop("G");
         profiler->start("O");
         opt->update(net->grad);

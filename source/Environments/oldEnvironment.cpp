@@ -129,7 +129,7 @@ void oldEnvironment::setDims()
     }
 }
 
-int oldEnvironment::evolve(double t)
+int oldEnvironment::evolve(Real t)
 {
     bStatus = 0;
     
@@ -166,7 +166,7 @@ int oldEnvironment::evolve(double t)
     
     for (auto& a : agents)
     {
-        double aa, b, c;
+        Real aa, b, c;
         
         for (int i=0; i<a->s->sInfo.dim; i++)
             fscanf(fin, "%lf", &(a->s->vals[i]));
@@ -209,7 +209,7 @@ int oldEnvironment::init()
     
     for (auto& a : agents)
     {
-        double aa, b, c;
+        Real aa, b, c;
         
         for (int i=0; i<a->s->sInfo.dim; i++)
             fscanf(fin, "%lf", &(a->s->vals[i]));

@@ -300,7 +300,7 @@ void Network::addLSTM(Graph * p, Graph * g, bool first, bool last)
     }
 }
 
-Network::Network(vector<int>& normalSize, vector<int>& recurrSize, Settings & settings) : nInputs(0), nOutputs(0), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), ndSdW(0), ndSdB(0), nStates(0), iOutputs(0), dump_ID(0), allocatedFrozenWeights(false), bDump(not settings.bTrain)
+Network::Network(vector<int>& normalSize, vector<int>& recurrSize, Settings & settings) : Pdrop(settings.nnPdrop), nInputs(0), nOutputs(0), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), ndSdW(0), ndSdB(0), nStates(0), iOutputs(0), allocatedFrozenWeights(false), allocatedDroputWeights(false), backedUp(false), gen(settings.randSeed), bDump(not settings.bTrain)
 {
     if(normalSize.size()<3)
         die("Put at least one hidden layer, would you kindly? \n");
@@ -749,6 +749,40 @@ void Network::clearMemory(Real * _outvals, Real * _ostates)
         for (int j=int(nStates/SIMD)*SIMD ; j<nStates; ++j)
             *(_ostates +j) = 0.;
         #endif
+    }
+}
+
+void Network::assignDropoutMask()
+{
+    if (Pdrop > 0)
+    {
+        assert(Pdrop>0 && Pdrop<1 && backedUp==false);
+        if (allocatedDroputWeights==false)
+        {
+            _myallocate(weights_DropoutBackup, nWeights)
+            allocatedDroputWeights = true;
+        }
+        //backup the weights
+        swap(weights_DropoutBackup,weights);
+        backedUp = true;
+        //probability of having a true in the bernoulli distrib:
+        Real Pkeep = 1. - Pdrop;
+        bernoulli_distribution dis(Pkeep);
+        Real fac = 1./Pkeep; //the others have to compensate
+        for (int j=0; j<nWeights; j++) //TODO: betterer, simder, paralleler
+        {
+            bool res = dis(gen);
+            *(weights + j) = (res) ? *(weights_DropoutBackup + j)*fac : 0.;
+        }
+    }
+}
+
+void Network::removeDropoutMask()
+{
+    if (allocatedDroputWeights && backedUp)
+    {
+        swap(weights_DropoutBackup,weights);
+        backedUp = false;
     }
 }
 

@@ -31,7 +31,7 @@ public:
 
 class AdamOptimizer: public Optimizer
 { //for now just Adam...
-    const Real eta, beta_1, beta_2, epsilon;
+    const Real eta, beta_1, beta_2, epsilon, lambda;
     Network * net;
     Profiler * profiler;
     const int nInputs, nOutputs, iOutputs, nWeights, nBiases;
@@ -41,6 +41,7 @@ class AdamOptimizer: public Optimizer
     
     void init(Real* dest, const int N, Real ini=0);
     void update(Real* dest, Real* grad, Real* _1stMom, Real* _2ndMom, const int N, Real _eta);
+    void updateDecay(Real* dest, Real* grad, Real* _1stMom, Real* _2ndMom, const int N, Real _eta);
     void update(Real* dest, Real* grad, const int N, Real _eta);
     void stackGrads(Real * G, Real * g, Real* _1stMom, Real* _2ndMom, const int N);
 public:
@@ -52,11 +53,6 @@ public:
     void checkGrads(const vector<vector<Real>>& inputs) override;
     void trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) override;
     void trainBatch(const vector<const vector<Real>*>& inputs, const vector<const vector<Real>*>& targets, Real & trainMSE) override;
-    
-    //void trainSeries2(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) override;
-    //void trainSeries3(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) override;
-    //void trainSeries4(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) override;
-    //void trainSeries5(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) override;
 };
 
 /*

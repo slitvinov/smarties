@@ -33,7 +33,7 @@ void NFQ::updateSelect(const int agentId, State& s, Action& a, State& sOld, Acti
     Real Vnew = Q->getMax(s, a, agentId);
     Real p = rng->uniform();
     
-    double Prand = newEps;// * exp(-T->Set.size()/1e3);
+    Real Prand = newEps * exp(-T->Set.size()/1e3);
     if  (p < Prand)  a.getRand(rng);
 }
 

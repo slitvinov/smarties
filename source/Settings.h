@@ -16,10 +16,10 @@ using namespace std;
 #include <utility>
 #include <vector>
 #include <immintrin.h>
-//#include <omp.h>
+#include <omp.h>
 
 #ifndef REG
-#define REG 2
+#define REG 0
 #endif /* REG */
 
 
@@ -137,15 +137,15 @@ extern struct Settings
     dt(0.01), endTime(1e9), gamma(0.95), greedyEps(0.01),
     prefix((string)"res/"), lRate(0.1), lambda(0.0), randSeed(0),
     restart((string)"res/policy"), saveFreq(1000),
-    nnEta(0.001), nnAlpha(0.5), nnLambda(0.0), nnKappa(0.0),
-    nnAdFac(1e-6), AL_fac(0.0), nnLayer1(32), nnLayer2(16),
+    nnEta(0.001), nnAlpha(0.5), nnLambda(0.0), nnPdrop(0.0),
+    AL_fac(0.0), nnLayer1(32), nnLayer2(16),
     nnLayer3( 0), nnMemory1(0), nnMemory2(0), nnMemory3(0),
     EndR(-9.99), bTrain(false), learner ((string)"NFQ"), approx ((string)"NN") {}
               
 	int    saveFreq;
 	int    videoFreq;
     int    rewardType;
-    double goalDY;
+    Real goalDY;
     
     int nAgents, nSlaves;
     
@@ -163,9 +163,8 @@ extern struct Settings
 	
 	Real nnEta;
 	Real nnAlpha;
-    Real nnKappa;
+    Real nnPdrop;
     Real nnLambda;
-    Real nnAdFac;
 	int    nnLayer1;
 	int    nnLayer2;
     int    nnLayer3;

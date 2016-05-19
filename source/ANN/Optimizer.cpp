@@ -14,7 +14,7 @@
 
 using namespace ErrorHandling;
 
-AdamOptimizer::AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.nnEta), beta_1(0.9), beta_2(0.999), epsilon(1e-8), net(_net), profiler(_prof), nInputs(net->nInputs), nOutputs(net->nOutputs), iOutputs(net->iOutputs), nWeights(net->nWeights), nBiases(net->nBiases), beta_t_1(0.9), beta_t_2(0.999), batchsize(0), nepoch(1)
+AdamOptimizer::AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.nnEta), beta_1(0.9), beta_2(0.999), epsilon(1e-8), lambda(settings.nnLambda), net(_net), profiler(_prof), nInputs(net->nInputs), nOutputs(net->nOutputs), iOutputs(net->iOutputs), nWeights(net->nWeights), nBiases(net->nBiases), beta_t_1(0.9), beta_t_2(0.999), batchsize(0), nepoch(1)
 {
     _myallocate(_1stMomW, nWeights)
     init(_1stMomW, nWeights);
@@ -132,7 +132,7 @@ void AdamOptimizer::checkGrads(const vector<vector<Real>>& inputs)
     {   *(g->_W+w) = 0; *(G->_W+w) = 0; }
     for (int w=0; w<nBiases; w++)
     {   *(g->_B+w) = 0; *(G->_B+w) = 0; }
-    const double eps = 1e-6;
+    const Real eps = 1e-6;
     int lastn = 2;
     
     for (int k=0; k<lastn; k++)
@@ -270,8 +270,16 @@ void AdamOptimizer::stackGrads(Grads * G, Grads * g)
 
 void AdamOptimizer::update(Grads * G)
 {
-    update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, eta);
-    update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, eta);
+    if (lambda>1e-9)
+    {
+        updateDecay(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, eta);
+        updateDecay(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, eta);
+    }
+    else
+    {
+        update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, eta);
+        update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, eta);
+    }
     
     beta_t_1 *= beta_1;
     beta_t_2 *= beta_2;
@@ -348,6 +356,62 @@ void AdamOptimizer::update(Real* dest, Real* grad, Real* _1stMom, Real* _2ndMom,
             
             *(grad + i) = 0.; //reset grads
             *(dest + i) += fac12 * *(_1stMom + i)  / sqrt(*(_2ndMom + i) + epsilon);
+        }
+        #endif
+    }
+}
+
+void AdamOptimizer::updateDecay(Real* dest, Real* grad, Real* _1stMom, Real* _2ndMom, const int N, Real _eta)
+{
+    #pragma omp parallel
+    {
+        Real fac12 = _eta*sqrt(1.-beta_t_2)/(1.-beta_t_1);
+        #if SIMD > 1
+        const vec B1 = SET1(beta_1);
+        const vec B2 = SET1(beta_2);
+        const vec _B1 =SET1(1.-beta_1);
+        const vec _B2 =SET1(1.-beta_2);
+        const vec F12 = SET1(_eta*sqrt(1.-beta_t_2)/(1.-beta_t_1));
+        const vec EPS = SET1(epsilon);
+        const vec LAMBDA = SET1(-lambda*_eta);
+        const vec zeros = SET0 ();
+        #endif
+        
+        #pragma omp for nowait
+        for (int i=0; i<N; i+=SIMD)
+        {
+            #if SIMD == 1
+            *(_1stMom + i) = beta_1 * *(_1stMom + i) + (1.-beta_1) * *(grad + i);
+            *(_2ndMom + i) = beta_2 * *(_2ndMom + i) + (1.-beta_2) * *(grad + i) * *(grad + i);
+
+            *(grad + i) = 0.; //reset grads
+            *(dest + i) += fac12 * *(_1stMom + i)/sqrt(*(_2ndMom + i) + epsilon) -*(dest + i)*lambda*_eta;
+            #else
+            vec _DW = LOAD(grad + i);
+            //FETCH((char*)    grad +i + M_PF_G, M_POL_G);
+            vec M1 = ADD( MUL ( B1, LOAD(_1stMom + i)), MUL ( _B1, _DW));
+            //FETCH((char*) _1stMom +i + M_PF_G, M_POL_G);
+            vec M2 = ADD( MUL ( B2, LOAD(_2ndMom + i)), MUL ( _B2, MUL (_DW,_DW)));
+            //FETCH((char*) _2ndMom +i + M_PF_G, M_POL_G);
+            vec W = LOAD(dest + i);
+            STORE(dest+i,ADD(W,ADD(MUL(MUL(F12, M1),RSQRT(ADD(M2,EPS))),MUL(LAMBDA,W))));
+            //FETCH((char*)    dest +i + M_PF_G, M_POL_G);
+            
+            STORE(_1stMom + i,M1);
+            STORE(_2ndMom + i,M2);
+            STORE (grad+i,zeros); //reset grads
+            #endif
+        }
+        
+        #if SIMD > 1
+        #pragma omp single nowait
+        for (int i=int(N/SIMD)*SIMD ; i<N; ++i)
+        {
+            *(_1stMom + i) = beta_1 * *(_1stMom + i) + (1.-beta_1) * *(grad + i);
+            *(_2ndMom + i) = beta_2 * *(_2ndMom + i) + (1.-beta_2) * *(grad + i) * *(grad + i);
+            
+            *(grad + i) = 0.; //reset grads
+            *(dest + i) += fac12 * *(_1stMom + i)/sqrt(*(_2ndMom + i)+epsilon) -*(dest + i)*lambda*_eta;
         }
         #endif
     }

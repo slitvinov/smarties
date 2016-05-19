@@ -24,7 +24,7 @@
 using namespace std;
 
 NewFishEnvironment::NewFishEnvironment(vector<Agent*> agents, string execpath, StateType tp, int _rank, const int senses, Settings & settings) :
-ExternalEnvironment(agents, execpath, tp, _rank), sight(senses==0 || senses==2), l_line(senses==1 || senses==2), study(settings.rewardType), goalDY(settings.goalDY)
+ExternalEnvironment(agents, execpath, tp, _rank), sight(senses==0 || senses==2), l_line(senses==1 || senses==2), study(settings.rewardType), goalDY(settings.goalDY), gamma(settings.gamma)
 { }
 
 

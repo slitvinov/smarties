@@ -13,6 +13,10 @@ CPPFLAGS+= -D_RL_VIZ
 OPENGL_LIB=-framework OpenGL -framework GLUT /opt/local/lib/libGLEW.a
 endif
 
+ifeq "$(findstring euler,$(shell hostname))" "euler"
+include make.euler
+endif
+
 ifeq "$(findstring brutus,$(shell hostname))" "brutus"
 include make.brutus
 endif

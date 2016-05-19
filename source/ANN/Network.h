@@ -29,14 +29,16 @@ protected:
     
     //void predict(const vector<Real>& _input, vector<Real>& _output, Lab * _M, Lab * _N, Real * _weights, Real * _biases);
 public:
+    Real Pdrop;
     int nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, ndSdW, ndSdB, nStates, iOutputs;
     vector<int> dump_ID;
+    bool allocatedFrozenWeights, allocatedDroputWeights, backedUp, bDump;
+    mt19937 gen;
     vector<Mem*> mem;
     vector<Lab*> series;
     Dsdw * dsdw;
     Grads * grad;///, * _grad;
-    bool allocatedFrozenWeights, bDump;
-    Real *weights, *biases, *frozen_weights, *frozen_biases;
+    Real *weights, *biases, *frozen_weights, *frozen_biases, *weights_DropoutBackup;
     
     Network(vector<int>& layerSize, vector<int>& recurSize, Settings & settings);
     
@@ -56,6 +58,8 @@ public:
     void clearMemory(Real * outvals, Real * ostates);
     void expandMemory(Mem * _M, Lab * _N);
     void advance(Mem * _M, Lab * _N);
+    void assignDropoutMask();
+    void removeDropoutMask();
     
     void computeGrads(const vector<Real>& error, Lab * _M, Lab * _N, Grads * _grad);
     void predict(const vector<Real>& input, vector<Real>& output, Lab * _M, Lab * _N, Real * _weights, Real * _biases);

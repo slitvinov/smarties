@@ -1,1 +1,1 @@
-TwoFishEnvironment exec=/cluster/home03/mavt/novatig/MRAGapps_2/IF2D_ROCKS/launch/launchLocal2F.sh n=1 senses=0
+NewFishEnvironment exec=/cluster/home03/mavt/novatig/MRAGapps_2/IF2D_ROCKS/launch/launchLocal2F.sh n=1 senses=0

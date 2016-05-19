@@ -25,7 +25,7 @@ class Explorer : public Learner
 {
 public:
 	Explorer(Environment* env, Settings & settings);
-    vector<Real> max_scale, min_scale;
+	
     void updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r) override;
 };
 
