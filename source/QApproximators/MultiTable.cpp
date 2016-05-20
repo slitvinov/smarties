@@ -126,7 +126,7 @@ Real MultiTable::getMax(const State& s, Action& a, int iAgent)
 	return maxStateVal[id];
 }
 
-Real MultiTable::Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight)
+void MultiTable::Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s)
 {
     /*
     Action a(actInfo);
@@ -168,7 +168,6 @@ Real MultiTable::Train(const vector<vector<Real>> & sOld, const vector<int> & a,
     debug("Learning state: average error %f.\n", err/samples.Set.size());
     //return err/samples.Set.size();
   */
-    return 0.;
 }
 
 void MultiTable::set(const State& s, const Action& a, Real val, int iAgent)

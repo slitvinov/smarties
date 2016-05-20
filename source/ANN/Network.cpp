@@ -173,8 +173,11 @@ void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
         NormalLayer * l;
         ActivationFunction * f;
         
-        //if (last) f = new Linear;
-        //else
+#ifndef _scaleR_
+        if (last)
+            f = new Linear;
+        else
+#endif
             f = new SoftSign;
         
         l = new NormalLayer(g->normalSize, g->normalPos, g->biasHL, g->nl_c_l, g->nl_l_c, g->nl_l_f, f, last);
@@ -185,7 +188,7 @@ void Network::addNormal(Graph * p, Graph * g, bool first, bool last)
 
 void Network::addLSTM(Graph * p, Graph * g, bool first, bool last)
 {
-    //if (last) die("How the fudge did you get here?\n");
+    if (last) die("How the fudge did you get here?\n");
     
 #ifdef SIMDKERNELS
     int normalSize_SIMD = ceil((Real)g->normalSize/SIMD)*SIMD; //g->normalSize
@@ -300,12 +303,14 @@ void Network::addLSTM(Graph * p, Graph * g, bool first, bool last)
     }
 }
 
-Network::Network(vector<int>& normalSize, vector<int>& recurrSize, Settings & settings) : Pdrop(settings.nnPdrop), nInputs(0), nOutputs(0), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), ndSdW(0), ndSdB(0), nStates(0), iOutputs(0), allocatedFrozenWeights(false), allocatedDroputWeights(false), backedUp(false), gen(settings.randSeed), bDump(not settings.bTrain)
+Network::Network(vector<int>& normalSize, vector<int>& recurrSize, Settings & settings) :
+Pdrop(settings.nnPdrop), nInputs(0), nOutputs(0), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), ndSdW(0), ndSdB(0), nStates(0), iOutputs(0),
+allocatedFrozenWeights(false), allocatedDroputWeights(false), backedUp(false), gen(settings.randSeed), bDump(not settings.bTrain)
 {
     if(normalSize.size()<3)
         die("Put at least one hidden layer, would you kindly? \n");
-    //if(recurrSize.back()>0)
-    //    die("Put just a normal layer as output, would you kindly? TODO \n");
+    if(recurrSize.back()>0)
+        die("Put just a normal layer as output, would you kindly? TODO \n");
     if(recurrSize.front()>0)
         die("Put just a normal layer as input, would you kindly? \n");
     mt19937 gen(settings.randSeed);
@@ -338,7 +343,8 @@ Network::Network(vector<int>& normalSize, vector<int>& recurrSize, Settings & se
     
     iOutputs = (normalSize.back()==0) ? G.back()->recurrPos : G.back()->normalPos;
     nLayers = layers.size();
-    printf("nNeurons= %d, nWeights= %d, nBiases= %d, ndSdW= %d, ndSdB= %d, nStates= %d iOutputs = %d\n, nInputs = %d, nOutputs = %d ", nNeurons, nWeights, nBiases, ndSdW, ndSdB, nStates, iOutputs, nInputs, nOutputs);
+    printf("nNeurons= %d, nWeights= %d, nBiases= %d, ndSdW= %d, ndSdB= %d, nStates= %d iOutputs = %d\n, nInputs = %d, nOutputs = %d ",
+           nNeurons, nWeights, nBiases, ndSdW, ndSdB, nStates, iOutputs, nInputs, nOutputs);
     
     for (int i=0; i<settings.nAgents; ++i)
     {
@@ -767,13 +773,41 @@ void Network::assignDropoutMask()
         backedUp = true;
         //probability of having a true in the bernoulli distrib:
         Real Pkeep = 1. - Pdrop;
-        bernoulli_distribution dis(Pkeep);
         Real fac = 1./Pkeep; //the others have to compensate
+        
+        //seeds for the rng
+#ifdef  _useOMP_
+        const int nSeeds = omp_get_max_threads();
+        std::vector<unsigned> Seeds(nSeeds);
+        { //soo many seeds
+            if (nSeeds<1) die("ma povcaputtana\n");
+            std::vector<unsigned> seedsSeeds(nSeeds);
+            uniform_real_distribution<Real> dis(-1e6,1e6);
+            for (int i(0); i<nSeeds; i++) seedsSeeds[i] = dis(gen);
+            std::seed_seq genSeeds(seedsSeeds.begin(),seedsSeeds.end());
+            genSeeds.generate(Seeds.begin(),Seeds.end());
+        }
+        #pragma omp parallel
+        {
+            const int me = omp_get_thread_num();
+            if (me>=nSeeds) die("ma povcamiseria\n");
+            bernoulli_distribution dis(Pkeep);
+            mt19937 g(Seeds[me]);
+            #pragma omp for
+            for (int j=0; j<nWeights; j++) //TODO: betterer, simder, paralleler
+            {
+                bool res = dis(g);
+                *(weights + j) = (res) ? *(weights_DropoutBackup + j)*fac : 0.;
+            }
+        }
+#else
+        bernoulli_distribution dis(Pkeep);
         for (int j=0; j<nWeights; j++) //TODO: betterer, simder, paralleler
         {
             bool res = dis(gen);
             *(weights + j) = (res) ? *(weights_DropoutBackup + j)*fac : 0.;
         }
+#endif
     }
 }
 

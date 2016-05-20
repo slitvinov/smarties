@@ -25,7 +25,7 @@ class NFQApproximator : public QApproximator
     int nInputs, nActions, nStateDims;
     int batchSize, iter;
     bool first;
-
+    Real gamma;
     vector<Real> prediction, scaledInp;
     vector<int> indexes;
     RNG* rng;
@@ -47,11 +47,11 @@ class NFQApproximator : public QApproximator
     }
     
     void correct(const State& s, const Action& a, Real error, int nAgent = 0) override;
-    Real Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight=1.) override;
+    void Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s) override;
     void updateFrozenWeights() override
     {
         net->updateFrozenWeights();
-        cout << profiler->printStat() << endl;
+        //cout << profiler->printStat() << endl;
     }
     void save(string name) override;
     bool restart(string name) override;

@@ -20,6 +20,7 @@ using namespace std;
 
 class NFQ : public Learner
 {
+    int batchSize;
 public:
 	NFQ(Environment* env, Settings & settings);
     bool bTRAINING;

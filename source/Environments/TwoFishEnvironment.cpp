@@ -27,6 +27,9 @@ TwoFishEnvironment::TwoFishEnvironment(vector<Agent*> agents, string execpath, S
 ExternalEnvironment(agents, execpath, tp, _rank), sight(senses==0 || senses==2), l_line(senses==1 || senses==2), study(settings.rewardType), goalDY(settings.goalDY), gamma(settings.gamma)
 {
     if (goalDY > 1.) goalDY = 1. - goalDY; //poor man's sign
+#ifndef _scaleR_
+    gamma =0; //soory
+#endif
 }
 
 

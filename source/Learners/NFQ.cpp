@@ -13,7 +13,7 @@
 #include "NFQ.h"
 
 
-NFQ::NFQ(Environment* env, Settings & settings) : Learner(env,settings), bTRAINING(settings.bTrain==1)
+NFQ::NFQ(Environment* env, Settings & settings) : Learner(env,settings), bTRAINING(settings.bTrain==1), batchSize(-1)
 { }
 
 void NFQ::updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r)
@@ -41,59 +41,67 @@ void NFQ::updateSelect(const int agentId, State& s, Action& a, State& sOld, Acti
 void NFQ::Train()
 {
     const int ndata = T->Set.size();
-#if 0
-    if (batchSize-- <= 0 && ndata>100)
+    if (ndata<100) return; //do we have enough data?
+    
+    if (batchSize <= 0)
     {
-        batchSize = 10000;
+        batchSize = ndata; //
         Q->updateFrozenWeights();
+    }
+    batchSize--;
+    
+    if (T->inds.size()==0)
+    {
+#ifdef _Priority_
         T->updateP();
-        iter++;
-        
-        if (iter%100==0)
-        {
-            string restart_file;
-            char buf[500];
-            sprintf(buf, "restart.net_%09d", iter);
-            restart_file = string(buf);
-            Q->save(restart_file.c_str());
-        }
-    }
-    else if(ndata>100)
-    {
-        int ind = T->sample();
-        Real MSE = Q->Train(T->Set[ind].sOld, T->Set[ind].a, T->Set[ind].r, T->Set[ind].s, gamma, T->Ws[ind]);
-        T->Errs[ind] = MSE;
-    }
-    
-#else //the following does not prioritize "problematic" experiences
-    
-    if (T->inds.size()==0 && ndata>100)
-    {
+#else
+        T->anneal++;
         T->inds.reserve(ndata);
         for (int i=0; i<ndata; ++i) T->inds.push_back(i);
-        random_shuffle(T->inds.begin(), T->inds.end());
+        random_shuffle(T->inds.begin(), T->inds.end(),*(T->fix));
+#endif
         
-        Q->updateFrozenWeights();
-        
-        Real mean_err = accumulate(T->Errs.begin(), T->Errs.end(), 0.)/ndata;
-        printf("Avg MSE %f %d\n",mean_err,ndata);
-        
-        if ((++T->anneal)%1000==0)
+        if (T->avgQ.size()>0)
         {
+            Real mean_err = accumulate(T->Errs.begin(), T->Errs.end(), 0.)/ndata;
+            Real mean_Q   = accumulate(T->avgQ.begin(), T->avgQ.end(), 0.)/ndata;
+            Real max_Q = *max_element(T->maxQ.begin(), T->maxQ.end());
+            Real min_Q = *min_element(T->minQ.begin(), T->minQ.end());
+            printf("Avg MSE %f, avg Q %f, min Q %f, max Q %f, N %d\n",
+                   mean_err, mean_Q, min_Q, max_Q, ndata);
+            ofstream filestats;
+            filestats.open("stats.txt", ios::app);
+            filestats<<T->anneal<<" "<<mean_err<<" "<<mean_Q<<" "<<max_Q<<" "<<min_Q<<endl;
+            filestats.close();
+        }
+        
+        if (T->anneal%100==0)
+        {
+            printf("Saving\n");
             string restart_file;
             char buf[500];
             sprintf(buf, "restart.net_%09d", T->anneal);
             restart_file = string(buf);
             Q->save(restart_file.c_str());
         }
-    }
-    else if (T->inds.size()>0 && ndata>100) //do we have data?
-    {
-        const int ind = T->inds.back();
-        T->inds.pop_back();
         
-        Real MSE = Q->Train(T->Set[ind].sOld, T->Set[ind].a, T->Set[ind].r, T->Set[ind].s, gamma, 1.0);
-        T->Errs[ind] = MSE;
+        T->avgQ.resize(ndata);
+        T->minQ.resize(ndata);
+        T->maxQ.resize(ndata);
     }
+    
+#ifdef _Priority_
+    const int ind = T->sample();
+    Q->stats.weight=T->Ws[ind];
+#else //the following does not prioritize "problematic" experiences: basic sweep
+    const int ind = T->inds.back();
+    Q->stats.weight=1.;
 #endif
+    
+    T->inds.pop_back(); //dumb, dum-dumb, dum-duuuumb
+    Q->Train(T->Set[ind].sOld, T->Set[ind].a, T->Set[ind].r, T->Set[ind].s);
+    T->Errs[ind] = Q->stats.MSE;
+    T->avgQ[ind] = Q->stats.avgQ;
+    T->minQ[ind] = Q->stats.minQ;
+    T->maxQ[ind] = Q->stats.maxQ;
 }

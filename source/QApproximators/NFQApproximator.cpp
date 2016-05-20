@@ -24,7 +24,7 @@
 using namespace ErrorHandling;
 
 NFQApproximator::NFQApproximator(StateInfo SInfo, ActionInfo ActInfo, Settings & settings) :
-QApproximator(SInfo, ActInfo, settings), iter(0)
+QApproximator(SInfo, ActInfo, settings), iter(0), gamma(settings.gamma)
 {
     nActions = actInfo.bounds[0];
     nStateDims = sInfo.dimUsed;
@@ -38,6 +38,7 @@ QApproximator(SInfo, ActInfo, settings), iter(0)
         lsize.push_back(settings.nnLayer2);
         if (settings.nnLayer3>1 || settings.nnMemory3>1 )
             lsize.push_back(settings.nnLayer3);
+        //lsize.push_back(0);
     }
     lsize.push_back(nActions);
     
@@ -48,6 +49,7 @@ QApproximator(SInfo, ActInfo, settings), iter(0)
         mblocks.push_back(settings.nnMemory2);
         if (settings.nnLayer3>1 || settings.nnMemory3>1 )
             mblocks.push_back(settings.nnMemory3);
+        //mblocks.push_back(settings.nnMemory3);
     }
     
     mblocks.push_back(0);
@@ -125,7 +127,7 @@ void NFQApproximator::correct(const State& s, const Action& a, Real err, int iAg
     net->expandMemory(net->mem[iAgent], net->series[1]);
 }
 
-Real NFQApproximator::Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight) //function<void(vector<Real>, st, Real, vector<Real>, vector<Real>)> & errs
+void NFQApproximator::Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s) //function<void(vector<Real>, st, Real, vector<Real>, vector<Real>)> & errs
 {
     const int ndata = sOld.size();
     if (sOld.size()!=a.size() || sOld.size()!=r.size() || sOld.size()!=s.size()) die("Get your shit together, bro. \n");
@@ -137,13 +139,13 @@ Real NFQApproximator::Train(const vector<vector<Real>> & sOld, const vector<int>
     net->clearMemory(net->series[0]->outvals, net->series[0]->ostates);
     Grads * g = new Grads(net->nWeights,net->nBiases);
     vector<Real> Qs(nActions), Qhats(nActions), Qtildes(nActions);
-    Real MSE = 0;
-
-    if (weight==0.)  opt->checkGrads(sOld);
+    stats.minQ = 1e5; stats.maxQ = -1e5;
+    stats.MSE  = 0;   stats.avgQ = 0;
+    if (stats.weight==0.)  opt->checkGrads(sOld);
     else
     {
         profiler->start("D");
-        //net->assignDropoutMask();
+        net->assignDropoutMask();
         profiler->stop("D");
         profiler->start("F");
         for (int k=0; k<ndata; k++) //TODO clean this shit up
@@ -151,21 +153,25 @@ Real NFQApproximator::Train(const vector<vector<Real>> & sOld, const vector<int>
             if(k>0) Qs = Qhats;
             else net->predict(sOld[k], Qs, net->series[k], net->series[k+1]);
             
-            if (k+1==ndata && r[k]<-0.999) //then i reached the end-state k+1==ndata &&
+            if (k+1==ndata && r[k]<-0.9999) //then i reached the end-state k+1==ndata &&
             {
                 for (int i=0; i<Qhats.size(); i++)
                     *(net->series[k+1]->errvals +net->iOutputs+i) = 0;
                 
                 Real target = r[k];
+                #ifdef _scaleR_
                 if (fabs(target)>1.)
                 {
                     target/=fabs(target);
                     printf("Warning: big Q value %f: should be -1.\n",r[k]);
                 }
-                
+                #endif
                 Real err =  (target - Qs[a[k]]);
-                *(net->series[k+1]->errvals +net->iOutputs +a[k]) = weight*err;
-                MSE += err*err;
+                *(net->series[k+1]->errvals +net->iOutputs +a[k]) = stats.weight*err;
+                stats.MSE += err*err;
+                stats.avgQ += target;
+                stats.minQ = std::min(stats.minQ,target);
+                stats.maxQ = std::max(stats.maxQ,target);
             }
             else
             {
@@ -185,39 +191,52 @@ Real NFQApproximator::Train(const vector<vector<Real>> & sOld, const vector<int>
                 }
                 
                 Real target = r[k] + gamma*Qtildes[Nbest];
+                #ifdef _scaleR_
                 if (fabs(target)>1.)
                 {
                     target/=fabs(target);
                     printf("Warning: big Q value %f (r=%f Qnext=%f)\n",r[k] + gamma*Qtildes[Nbest],r[k],Qtildes[Nbest]);
                 }
-                
+                #endif
                 Real err =  (target - Qs[a[k]]);
-                *(net->series[k+1]->errvals +net->iOutputs +a[k]) = weight*err;
-                MSE += err*err;
+                *(net->series[k+1]->errvals +net->iOutputs +a[k]) = stats.weight*err;
+                stats.MSE += err*err;
+                stats.avgQ += target;
+                stats.minQ = std::min(stats.minQ,target);
+                stats.maxQ = std::max(stats.maxQ,target);
             }
         }
-        profiler->stop("F");
-        //net->clearErrors(net->series[ndata+1]);
-        profiler->start("B");
-        net->computeDeltasEnd(net->series, ndata);
-        for (int k=ndata-1; k>=1; k--)
-            net->computeDeltasSeries(net->series, k);
-        profiler->stop("B");
-        profiler->start("G");
-        for (int k=1; k<=ndata; k++)
         {
-            net->computeGradsLightSeries(net->series, k, g);
-            opt->stackGrads(net->grad,g);
+            profiler->stop("F");
+            //net->clearErrors(net->series[ndata+1]);
+            profiler->start("B");
+                net->computeDeltasEnd(net->series, ndata);
+            for (int k=ndata-1; k>=1; k--)
+            {
+            #ifdef _BPTT_
+                net->computeDeltasSeries(net->series, k);
+            #else
+                net->computeDeltasEnd(net->series, k);
+            #endif
+            }
+            profiler->stop("B");
+            profiler->start("G");
+            for (int k=1; k<=ndata; k++)
+            {
+                net->computeGradsLightSeries(net->series, k, g);
+                opt->stackGrads(net->grad,g);
+            }
+            net->removeDropoutMask(); //before the update!!!
+            profiler->stop("G");
+            profiler->start("O");
+                opt->update(net->grad);
+            profiler->stop("O");
         }
-        //net->removeDropoutMask();
-        profiler->stop("G");
-        profiler->start("O");
-        opt->update(net->grad);
-        profiler->stop("O");
     }
     
     delete g;
-    return MSE/ndata;
+    stats.MSE=std::sqrt(stats.MSE/(ndata-1));
+    stats.avgQ/=ndata;
 }
 
 void NFQApproximator::save(string name)

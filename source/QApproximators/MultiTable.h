@@ -44,7 +44,7 @@ public:
 	void   set    (const State& s, const Action& a, Real value, int iAgent = 0);
 	void   correct(const State& s, const Action& a, Real error, int iAgent = 0);
 	Real usage() const;
-    Real Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight=1.);
+    void Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s);
 	inline map<long int, Real>& getData()  { return data; }
 	
 	void   save(string name);

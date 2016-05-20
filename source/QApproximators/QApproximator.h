@@ -18,6 +18,12 @@
 #include <fstream>
 #include "../Settings.h"
 
+struct trainData
+{
+    trainData() : weight(1) {}
+    Real weight, MSE, avgQ, minQ, maxQ;
+};
+
 class QApproximator
 {
 protected:
@@ -28,7 +34,8 @@ protected:
 public:    
 	QApproximator(StateInfo newSInfo, ActionInfo newActInfo, Settings & settings) : nAgents(settings.nAgents), sInfo(newSInfo), actInfo(newActInfo), gamma(settings.gamma), lRate(settings.lRate)
     {  }
-	
+    trainData stats;
+    
     virtual void  get(const State& sOld, vector<Real> & Qold, const State& s, vector<Real> & Q, int iAgent) = 0;
 	virtual Real get(const State& s, const Action& a, int nAgent)	= 0;
     virtual void set(const State& s, const Action& a, Real value, int nAgent) = 0;
@@ -37,7 +44,7 @@ public:
     
 	virtual void save(string name) = 0;
 	virtual bool restart(string name) = 0;
-    virtual Real Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s, Real gamma, Real weight=1.) =0;
+    virtual void Train(const vector<vector<Real>> & sOld, const vector<int> & a, const vector<Real> & r, const vector<vector<Real>> & s) =0;
     virtual void updateFrozenWeights() {};
     
 };

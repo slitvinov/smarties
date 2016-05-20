@@ -11,74 +11,20 @@
 //#define CLEAN //dont
 
 Transitions::Transitions(Environment* env, Settings & settings):
-aI(env->aI), sI(env->sI), anneal(0), mean_err(100.), nbroken(0), env(env)
+aI(env->aI), sI(env->sI), anneal(0), mean_err(1.), nbroken(0), env(env)
 {
     gen = new mt19937(settings.randSeed);
+    fix = new Gen(gen);
     Inp.resize(sI.dim);
     Tmp.resize(settings.nAgents);
     dist = new discrete_distribution<int> (1,2); //trash
-}
-
-void Transitions::add(const int & agentId, State& sOld, Action& a, State& sNew, const Real & reward)
-{
-    sOld.scale(Inp);
-    if(Tmp[agentId].s.size()>0)
-    {
-        bool same(true);
-        for (int i=0; i<sI.dim; i++)
-        if (sI.inUse[i])
-        same = same && fabs(Tmp[agentId].s.back()[i] - Inp[i])<1e-3;
-            
-        if (!same)
-        {
-            //printf("Unexpected change of time series\n");
-            //for (int i=0; i<sI.dim; i++) cout << "--[" << Tmp[agentId].s.back()[i] << " " << Inp[i] << "]-- ";
-            //cout << a.vals[0];
-            //cout << endl;
-            ++nbroken;
-            push_back(agentId);
-        }
-    }
-    Tmp[agentId].sOld.push_back(Inp);
-    sNew.scale(Inp);
-    
-    Tmp[agentId].s.push_back(Inp);
-    Tmp[agentId].r.push_back(reward);
-    Tmp[agentId].a.push_back(a.vals[0]);
-    //debug9("To stack %d %d %d: %s --> %s with %d was rewarded with %f \n", agentId, Tmp[agentId].r.size(), Set.size(),  sOld.printScaled().c_str(), sNew.printScaled().c_str(), a.vals[0], reward);
-}
-
-void Transitions::push_back(const int & agentId)
-{
-    if(Tmp[agentId].s.size()>2)
-    {
-        //printf("Pushing back series of length %d\n",Tmp[agentId].s.size());
-        Set.push_back(Tmp[agentId]);
-        Errs.push_back(mean_err);
-    }
-    else  printf("Discarding series of length %d\n",Tmp[agentId].s.size());
-    
-    clear(agentId);
-}
-
-void Transitions::clear(const int & agentId)
-{
-    Tmp[agentId].s.clear();
-    Tmp[agentId].sOld.clear();
-    Tmp[agentId].a.clear();
-    Tmp[agentId].r.clear();
-}
-
-int Transitions::sample()
-{
-    return dist->operator()(*gen);
 }
 
 void Transitions::updateP()
 {
     if(Errs.size() != Set.size()) die("That's a problem\n");
     const int N = Errs.size();
-    Real beta = .5*(1.+(Real)anneal/(anneal+10000));
+    Real beta = .5*(1.+(Real)anneal/(anneal+500));
     anneal++;
     Ps.resize(N); Ws.resize(N); inds.resize(N);
     std::iota(inds.begin(), inds.end(), 0);
@@ -86,15 +32,15 @@ void Transitions::updateP()
     auto comparator = [this](int a, int b){ return Errs[a] > Errs[b]; };
     std::sort(inds.begin(), inds.end(), comparator);
 
-    #pragma omp parallel for
-    for(int i=0;i<N;i++) Ps[inds[i]]=pow(1./(i+2),0.5);
+    //#pragma omp parallel for
+    for(int i=0;i<N;i++) Ps[inds[i]]=pow(1./(i+1),0.5);
         
     mean_err = accumulate(Errs.begin(), Errs.end(), 0.)/N;
     Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
     
     printf("Avg MSE %f %d\n",mean_err,N);
     
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(int i=0;i<N;i++)
     {
         Ps[i]/= sum;
@@ -103,7 +49,7 @@ void Transitions::updateP()
     
     Real scale = *max_element(Ws.begin(), Ws.end());
     
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(int i=0;i<N;i++) Ws[i]/=scale;
     
     delete dist;
@@ -137,12 +83,9 @@ void Transitions::restartSamples()
                 {
                     Ndata++;
                     line_in >> first;
-                    for (int i=0; i<sI.dim; i++)
-                        line_in >> d_sO[i];
-                    for (int i=0; i<sI.dim; i++)
-                        line_in >> d_sN[i];
-                    for (int i=0; i<aI.dim; i++)
-                        line_in >> d_a[i];
+                    for (int i=0; i<sI.dim; i++) line_in >> d_sO[i];
+                    for (int i=0; i<sI.dim; i++) line_in >> d_sN[i];
+                    for (int i=0; i<aI.dim; i++) line_in >> d_a[i];
                     line_in >> reward;
                     
                     t_sO.set(d_sO);
@@ -163,7 +106,6 @@ void Transitions::restartSamples()
             printf("WTF couldnt open file history.txt!\n");
             break;
         }
-        
         in.close();
     }
     
@@ -216,4 +158,59 @@ void Transitions::passData(int & agentId, int & first, State & sOld, Action & a,
     bool new_sample = env->pickReward(sOld,a,sNew,reward);
     add(agentId, sOld, a, sNew, reward);
     if (new_sample) push_back(agentId);
+}
+
+void Transitions::add(const int & agentId, State& sOld, Action& a, State& sNew, const Real & reward)
+{
+    sOld.scale(Inp);
+    if(Tmp[agentId].s.size()>0)
+    {
+        bool same(true);
+        for (int i=0; i<sI.dim; i++)
+        if (sI.inUse[i])
+        same = same && fabs(Tmp[agentId].s.back()[i] - Inp[i])<1e-3;
+        
+        if (!same)
+        {
+            //printf("Unexpected change of time series\n");
+            //for (int i=0; i<sI.dim; i++) cout << "--[" << Tmp[agentId].s.back()[i] << " " << Inp[i] << "]-- ";
+            //cout << a.vals[0];
+            //cout << endl;
+            ++nbroken;
+            push_back(agentId);
+        }
+    }
+    Tmp[agentId].sOld.push_back(Inp);
+    sNew.scale(Inp);
+    
+    Tmp[agentId].s.push_back(Inp);
+    Tmp[agentId].r.push_back(reward);
+    Tmp[agentId].a.push_back(a.vals[0]);
+    //debug9("To stack %d %d %d: %s --> %s with %d was rewarded with %f \n", agentId, Tmp[agentId].r.size(), Set.size(),  sOld.printScaled().c_str(), sNew.printScaled().c_str(), a.vals[0], reward);
+}
+
+void Transitions::push_back(const int & agentId)
+{
+    if(Tmp[agentId].s.size()>2)
+    {
+        //printf("Pushing back series of length %d\n",Tmp[agentId].s.size());
+        Set.push_back(Tmp[agentId]);
+        Errs.push_back(mean_err);
+    }
+    else  printf("Discarding series of length %d\n",Tmp[agentId].s.size());
+    
+    clear(agentId);
+}
+
+void Transitions::clear(const int & agentId)
+{
+    Tmp[agentId].s.clear();
+    Tmp[agentId].sOld.clear();
+    Tmp[agentId].a.clear();
+    Tmp[agentId].r.clear();
+}
+
+int Transitions::sample()
+{
+    return dist->operator()(*gen);
 }

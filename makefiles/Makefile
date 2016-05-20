@@ -37,7 +37,7 @@ CPPFLAGS+=-std=c++11
 
 ifeq "$(config)" "nompi"
 CC=g++
-CPPFLAGS+= -DMEGADEBUG #-O0 -g
+CPPFLAGS+= -DMEGADEBUG -O4 -fstrict-aliasing -march=native -mtune=native -ffast-math #-O0 -g
 LIBS += -DMEGADEBUG
 endif
 
@@ -58,7 +58,7 @@ endif
 #CPPFLAGS+= -I/opt/local/include/openmpi
 #LIBS+= -L/cluster/apps/openmpi/1.6.2/x86_64/gcc_4.8.2/lib -lmpi -lmpi_cxx
 
-CPPFLAGS+= -I/usr/local/include
+CPPFLAGS+= -I/usr/local/include #-fopenmp
 LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ #-fopenmp
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))

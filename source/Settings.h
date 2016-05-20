@@ -16,12 +16,15 @@ using namespace std;
 #include <utility>
 #include <vector>
 #include <immintrin.h>
-#include <omp.h>
-
+//#include <omp.h>
+//#define _useOMP_
 #ifndef REG
 #define REG 0
 #endif /* REG */
 
+//#define _scaleR_
+#define _BPTT_
+//#define _Priority_
 
 #define M_POL_O _MM_HINT_NTA
 #define M_POL_DS _MM_HINT_NTA

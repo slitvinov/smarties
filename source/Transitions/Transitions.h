@@ -43,6 +43,21 @@ struct NFQdata
     int aInd;
 };
 
+struct Gen
+{
+    mt19937 * g;
+    Gen(mt19937 * gen)
+    : g(gen)
+    {
+    }
+    size_t operator()(size_t n)
+    {
+        std::uniform_int_distribution<size_t> d(0, n ? n-1 : 0);
+        //return d(g);
+        return d(*g);
+    }
+};
+
 class Transitions
 {
 protected:
@@ -56,11 +71,11 @@ protected:
 public:
     int anneal, nbroken;
     mt19937 * gen;
-    vector<Real> Errs;
+    Gen * fix;
+    vector<Real> Errs, Ps, Ws;
     vector<Tuples> Set;
-    vector<Real> Ps, Ws;
     vector<int> inds;
-    
+    vector<Real> avgQ, minQ, maxQ;
     Transitions(Environment* env, Settings & settings);
     
     void add(const int & agentId, State& sOld, Action& a, State& sNew, const Real & reward);
