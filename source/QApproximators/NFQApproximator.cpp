@@ -103,6 +103,9 @@ Real NFQApproximator::getMax(const State& s, Action& a, int iAgent)
     
     net->expandMemory(net->mem[iAgent], net->series[0]); //used by RNN to update recurrent signals
     net->predict(scaledInp, prediction, net->series[0], net->series[1]);
+#ifdef _dumpNet_
+    net->dump(iAgent);
+#endif
     net->expandMemory(net->mem[iAgent], net->series[1]);
     
     for (int i=0; i<prediction.size(); ++i)

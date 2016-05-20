@@ -23,12 +23,8 @@ void NFQ::updateSelect(const int agentId, State& s, Action& a, State& sOld, Acti
     //
     // Find V(s) = max Q(s, a')
     //              a'
-    Real newEps;
-    
-    if (bTRAINING) //(false) //TODO un-hardcode
-    {
-        newEps = greedyEps -(greedyEps-.1)*agentId/Real(nAgents);
-    }
+    Real newEps(0);
+    if (bTRAINING) newEps = greedyEps -(greedyEps-.1)*agentId/Real(nAgents);
     
     Real Vnew = Q->getMax(s, a, agentId);
     Real p = rng->uniform();

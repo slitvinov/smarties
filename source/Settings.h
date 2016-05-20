@@ -25,6 +25,7 @@ using namespace std;
 //#define _scaleR_
 #define _BPTT_
 //#define _Priority_
+#define _dumpNet_
 
 #define M_POL_O _MM_HINT_NTA
 #define M_POL_DS _MM_HINT_NTA
