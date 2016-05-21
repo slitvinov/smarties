@@ -414,20 +414,23 @@ void Network::dump(const int agentID)
     {
         ofstream out(nameOut_Mems.c_str());
         if (!out.good()) die("Unable to open save into file %s\n", nameOut_Mems.c_str());
-        for (int j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << "\n";
-        for (int j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << "\n";
+        for (int j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << " ";
+        for (int j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << " ";
+        out << "\n";
         out.close();
     }
     {
         ofstream out(nameNeurons.c_str());
         if (!out.good()) die("Unable to open save into file %s\n", nameNeurons.c_str());
-        for (int j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << "\n";
+        for (int j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << " ";
+        out << "\n";
         out.close();
     }
     {
         ofstream out(nameMemories.c_str());
         if (!out.good()) die("Unable to open save into file %s\n", nameMemories.c_str());
-        for (int j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << "\n";
+        for (int j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << " ";
+        out << "\n";
         out.close();
     }
     dump_ID[agentID]++;

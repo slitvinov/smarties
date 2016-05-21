@@ -24,25 +24,13 @@
 using namespace std;
 
 NewFishEnvironment::NewFishEnvironment(vector<Agent*> agents, string execpath, StateType tp, int _rank, const int senses, Settings & settings) :
-ExternalEnvironment(agents, execpath, tp, _rank), sight(senses==0 || senses==2), l_line(senses==1 || senses==2), study(settings.rewardType), goalDY(settings.goalDY), gamma(settings.gamma)
+ExternalEnvironment(agents, execpath, tp, _rank), sight(settings.senses==0), POV(settings.senses==1), l_line(settings.senses==2), p_sensors(settings.senses==3), study(settings.rewardType), goalDY(settings.goalDY), gamma(settings.gamma)
 {
 }
 
 
 void NewFishEnvironment::setDims()
-{
-    /*
-     int k(0);
-     for (int j=0; j<NpLatLine; j++) state[20+k++] = _D[i]->VelNAbove[j];
-     for (int j=0; j<NpLatLine; j++) state[20+k++] = _D[i]->VelTAbove[j];
-     for (int j=0; j<NpLatLine; j++) state[20+k++] = _D[i]->VelNBelow[j];
-     for (int j=0; j<NpLatLine; j++) state[20+k++] = _D[i]->VelTBelow[j];
-     for (int j=0; j<NpLatLine; j++) state[20+k++] = _D[i]->FPAbove[j];
-     for (int j=0; j<NpLatLine; j++) state[20+k++] = _D[i]->FVAbove[j];
-     for (int j=0; j<NpLatLine; j++) state[20+k++] = _D[i]->FPBelow[j];
-     for (int j=0; j<NpLatLine; j++) state[20+k++] = _D[i]->FVBelow[j];
-     */
-    
+{    
     sI.bounds.clear(); sI.top.clear();
     sI.bottom.clear(); sI.aboveTop.clear();
     sI.belowBottom.clear(); sI.isLabel.clear();
@@ -51,17 +39,17 @@ void NewFishEnvironment::setDims()
         sI.bounds.push_back(1); //one block in between the bounds, one more on each side
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(sight);
         // ...vertical distance...
         sI.bounds.push_back(1);
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(sight);
         // ...inclination of1the fish...
         sI.bounds.push_back(1); // only positive or negative
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(sight || POV);
         // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
         sI.bounds.push_back(1); // Will get ~ 0 or 0.5
         sI.top.push_back(0.5); sI.bottom.push_back(0.0);
@@ -82,27 +70,27 @@ void NewFishEnvironment::setDims()
         sI.bounds.push_back(1); //Dist 6
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        sI.isLabel.push_back(false); sI.inUse.push_back(POV);
 
         sI.bounds.push_back(1); //Quad 7
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        sI.isLabel.push_back(false); sI.inUse.push_back(POV);
 
         sI.bounds.push_back(1); // VxAvg 8
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         
         sI.bounds.push_back(1); // VyAvg 9
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         
         sI.bounds.push_back(1); // AvAvg 10
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
     }
     {
         sI.bounds.push_back(1); //Pout 11
@@ -151,16 +139,58 @@ void NewFishEnvironment::setDims()
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
     }
 
-    for (int i=0; i<20; i++)
+    for (int i=0; i<5; i++)
     {
-        sI.bounds.push_back(1); // (Vel  ) x 20
+        sI.bounds.push_back(1); // (VelNAbove  ) x 5 [20]
+        sI.top.push_back(1.); sI.bottom.push_back(-1.);
+        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
+    }
+    for (int i=0; i<5; i++)
+    {
+        sI.bounds.push_back(1); // (VelTAbove  ) x 5 [25]
+        sI.top.push_back(1.); sI.bottom.push_back(-1.);
+        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
+    }
+    for (int i=0; i<5; i++)
+    {
+        sI.bounds.push_back(1); // (VelNBelow  ) x 5 [30]
+        sI.top.push_back(1.); sI.bottom.push_back(-1.);
+        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
+    }
+    for (int i=0; i<5; i++)
+    {
+        sI.bounds.push_back(1); // (VelTBelow  ) x 5 [35]
+        sI.top.push_back(1.); sI.bottom.push_back(-1.);
+        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
+    }
+    for (int i=0; i<5; i++)
+    {
+        sI.bounds.push_back(1); // (FPAbove  ) x 5 [40]
+        sI.top.push_back(1.); sI.bottom.push_back(-1.);
+        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
+    }
+    for (int i=0; i<5; i++)
+    {
+        sI.bounds.push_back(1); // (FVAbove  ) x 5 [45]
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
     }
-    for (int i=0; i<20; i++)
+    for (int i=0; i<5; i++)
     {
-        sI.bounds.push_back(1); // (Force ) x 20
+        sI.bounds.push_back(1); // (FPBelow  ) x 5 [50]
+        sI.top.push_back(1.); sI.bottom.push_back(-1.);
+        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
+    }
+    for (int i=0; i<5; i++)
+    {
+        sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);

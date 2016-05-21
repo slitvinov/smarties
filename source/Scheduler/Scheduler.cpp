@@ -170,7 +170,7 @@ void Master::run()
         if (iter % settings.saveFreq == 0)
         {
             printf("Reward: %f\n", getTotR());
-            //learner->savePolicy(Saver::folder + "policy");
+            learner->savePolicy(Saver::folder + "policy");
         }
         
         //execSavers(iter * settings.dt, iter);

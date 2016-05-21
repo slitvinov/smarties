@@ -129,7 +129,7 @@ int main (int argc, char** argv)
     {'r', "restart",  STRING,"Restart",        &settings.restart,   (string)"policy"},
     {'q', "save_freq",INT,   "Save frequency", &settings.saveFreq,  (int)1000},
     {'v', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)4},
-    {'p', "prefix",   STRING,"Save folder",    &settings.prefix,    (string)""},
+    {'p', "prefix",   STRING,"Save folder",    &settings.prefix,    (string)"./"},
     {'H', "nne",      REAL,  "NN's eta",       &settings.nnEta,     (Real)0.0001},
     {'A', "nna",      REAL,  "NN's alpha",     &settings.nnAlpha,   (Real)0.5},
     {'K', "nnL",      REAL,  "Weight decay",   &settings.nnLambda,  (Real)0.0001},
@@ -144,7 +144,8 @@ int main (int argc, char** argv)
     {'P', "approx",   STRING,"Approximator",   &settings.approx,    (string)"NN"},
     {'R', "rType",    INT,   "Reward: ef,ef,y",&settings.rewardType,(int)0},
     {'G', "goalDY",   REAL,  "If r==2  goalDY",&settings.goalDY,    (Real)0.0},
-    {'T', "bTrain",   INT,   "am I training?", &settings.bTrain,    (int)1}
+    {'T', "bTrain",   INT,   "am I training?", &settings.bTrain,    (int)1},
+    {'S', "senses",   INT,   "top,pov,vel,pres",&settings.senses,   (int)0}
     }
     );
     

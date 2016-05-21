@@ -20,7 +20,7 @@
 
 class NewFishEnvironment: public ExternalEnvironment
 {
-    bool sight, l_line;
+    bool sight, POV, l_line, p_sensors;
     int study;
     double goalDY,gamma;
 public:

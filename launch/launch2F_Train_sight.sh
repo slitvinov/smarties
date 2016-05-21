@@ -12,15 +12,16 @@ module load gcc/4.9.2
 BASEPATH="/cluster/scratch_xp/public/novatig/smarties/"
 
 SETTINGS+=" --gamma 0.9" #Crucial: discount factor
-SETTINGS+=" --nnm1 36"
-SETTINGS+=" --nnm2 36"
-SETTINGS+=" --nnm3 36"
+SETTINGS+=" --nnm1 24"
+SETTINGS+=" --nnm2 24"
+SETTINGS+=" --nnm3 24"
 SETTINGS+=" --greedyeps 0.0"
 SETTINGS+=" --rType ${BOX}"
 SETTINGS+=" --bTrain 1"
 SETTINGS+=" --nne 0.00001"
 SETTINGS+=" --nnL 0.0"
-SETTINGS+=" --nnD 0.5"
+SETTINGS+=" --nnD 0.0"
+SETTINGS+=" --senses 3"
 
 OPTIONS=${SETTINGS}${RESTART}
 

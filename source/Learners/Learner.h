@@ -63,6 +63,7 @@ public:
         T->restartSamples();
         if ( Q->restart(fname) ) {_info("Restart successful, moving on...\n");}
         else {_info("Not all policies restarted, therefore assumed zero. Moving on...\n");}
+        savePolicy(fname);
     }
     
     void savePolicy(string fname)

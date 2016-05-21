@@ -19,7 +19,7 @@ using namespace std;
 //#include <omp.h>
 //#define _useOMP_
 #ifndef REG
-#define REG 0
+#define REG 2
 #endif /* REG */
 
 //#define _scaleR_

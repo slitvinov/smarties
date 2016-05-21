@@ -23,14 +23,13 @@ void NFQ::updateSelect(const int agentId, State& s, Action& a, State& sOld, Acti
     //
     // Find V(s) = max Q(s, a')
     //              a'
-    Real newEps(0);
-    if (bTRAINING) newEps = greedyEps -(greedyEps-.1)*agentId/Real(nAgents);
+    Real newEps(greedyEps);
+    if (bTRAINING) newEps = (greedyEps-(greedyEps-.1)*agentId/Real(nAgents)) * exp(-T->Set.size()/1e3);
     
     Real Vnew = Q->getMax(s, a, agentId);
     Real p = rng->uniform();
-    
-    Real Prand = newEps * exp(-T->Set.size()/1e3);
-    if  (p < Prand)  a.getRand(rng);
+
+    if  (p < newEps)  { a.getRand(rng); printf("Random action\n");}
 }
 
 
