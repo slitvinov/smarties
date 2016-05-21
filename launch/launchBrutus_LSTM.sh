@@ -16,7 +16,7 @@ TIMES=10 # Job chaining
 
 
 module load gcc/4.9.2
-module load open_mpi
+#module load open_mpi
 #module load valgrind
 BASEPATH="/cluster/scratch_xp/public/novatig/smarties/"
 
