@@ -144,7 +144,7 @@ extern struct Settings
     nnEta(0.001), nnAlpha(0.5), nnLambda(0.0), nnPdrop(0.0),
     AL_fac(0.0), nnLayer1(32), nnLayer2(16),
     nnLayer3( 0), nnMemory1(0), nnMemory2(0), nnMemory3(0),
-    EndR(-9.99), bTrain(false), learner ((string)"NFQ"), approx ((string)"NN") {}
+    EndR(-9.99), bTrain(false), senses(0), learner ((string)"NFQ"), approx ((string)"NN") {}
               
 	int    saveFreq;
 	int    videoFreq;
@@ -187,6 +187,7 @@ extern struct Settings
     
 	bool best;
     int bTrain;
+    int senses;
 	bool immortal;
 	string prefix;
 	
