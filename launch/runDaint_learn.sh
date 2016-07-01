@@ -10,8 +10,8 @@ if [ ! -f $SETTINGSNAME ];then
     echo ${SETTINGSNAME}" not found! - exiting"
     exit -1
 fi
-source SETTINGSNAME
-SETTINGS+=" -nThreads ${NTHREADS}"
+source $SETTINGSNAME
+SETTINGS+=" --nThreads ${NTHREADS}"
 echo $SETTINGS > settings.txt
 
 srun -n ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --cpus-per-task=${NTHREADS} ./exec ${SETTINGS}

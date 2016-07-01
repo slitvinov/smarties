@@ -37,7 +37,7 @@ CPPFLAGS+=-std=c++11
 
 ifeq "$(config)" "nompi"
 CC=g++
-CPPFLAGS+= -DMEGADEBUG -O4 -fstrict-aliasing -march=native -mtune=native -ffast-math #-O0 -g
+CPPFLAGS+= -DMEGADEBUG -O0 -g #-O4 -fstrict-aliasing -march=native -mtune=native -ffast-math #-O0 -g
 LIBS += -DMEGADEBUG
 endif
 

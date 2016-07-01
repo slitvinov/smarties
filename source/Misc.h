@@ -9,7 +9,6 @@
 
 #pragma once
 #include "Settings.h"
-#include "ErrorHandling.h"
 #ifdef _RL_VIZ
 #ifdef __APPLE__
 #include "GLUT/glut.h"

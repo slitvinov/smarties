@@ -24,7 +24,7 @@ using namespace std;
 
 struct trainData
 {
-    trainData() : weight(1), MSE(0), avgQ(0), minQ(1e3), maxQ(-1e3), relE(0), dumpCount(0), epochCount(0) {}
+    trainData() : weight(1), MSE(0), avgQ(0), minQ(1e5), maxQ(-1e5), relE(0), dumpCount(0), epochCount(0) {}
     Real weight, MSE, avgQ, minQ, maxQ, relE;
     int dumpCount, epochCount;
 };
@@ -44,13 +44,15 @@ protected:
     Optimizer* opt;
     Transitions* T;
     trainData stats;
+    vector<trainData*> Vstats;
     
-    virtual void Train(const int seq, const int first) = 0;
-    virtual void Train(const int seq, const int samp, const int first) = 0;
+    virtual void Train(const int thrID, const int seq, const int first) = 0;
+    virtual void Train(const int thrID, const int seq, const int samp, const int first) = 0;
     virtual void Train(const vector<int>& seq) = 0;
     virtual void Train(const vector<int>& seq, const vector<int>& samp) = 0;
-    void dumpStats(const Real tgt, const Real err, const Real Q);
-    
+    void dumpStats(const Real tgt, const Real err, const vector<Real>& Q);
+    void dumpStats(trainData* _stats, const Real tgt, const Real err, const vector<Real>& Q);
+    void processStats(vector<trainData*> _stats);
 public:
     vector<bool> flags;
     

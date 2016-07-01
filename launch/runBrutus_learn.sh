@@ -19,8 +19,8 @@ if [ ! -f $SETTINGSNAME ];then
     echo ${SETTINGSNAME}" not found! - exiting"
     exit -1
 fi
-source SETTINGSNAME
-SETTINGS+=" -nThreads ${NTHREADS}"
+source $SETTINGSNAME
+SETTINGS+=" --nThreads ${NTHREADS}"
 echo $SETTINGS > settings.txt
 
 mpich_run -n ${NPROCESS} -launcher ssh -f $LSB_DJOB_HOSTFILE -bind-to none ./exec ${SETTINGS}

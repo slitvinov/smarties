@@ -1,13 +1,14 @@
 #!/bin/bash
+EXECNAME=rl
 RUNFOLDER=$1
 NNODES=$2 # TEMP: here used as nthreads
 APP=$3
 SETTINGSNAME=$4
+BASEPATH="../"
 
 if [ $# -gt 4 ] ; then
-else
     POLICY=$5
-    cp $5 ${BASEPATH}${RUNFOLDER}/policy.net
+    cp ${POLICY} ${BASEPATH}${RUNFOLDER}/policy.net
 fi
 if [ $# -lt 7 ] ; then
     NTASK=2 #n tasks per node
@@ -30,9 +31,7 @@ fi
 NPROCESS=${NNODES}
 NPROCESSORS=${NNODES}
 
-BASEPATH="../"
 mkdir -p ${BASEPATH}${RUNFOLDER}
-
 #this must handle all app-side setup (as well as copying the factory)
 source ../apps/${APP}/setup.sh ${BASEPATH}${RUNFOLDER}
 
@@ -43,6 +42,7 @@ cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}
 
+#./run.sh ${NPROCESS}
 bsub -J ${RUNFOLDER} -n ${NPROCESS} -sp 100 -W ${WCLOCK} ./run.sh ${NPROCESS}
 
 for (( c=1; c<=${TIMES}-1; c++ ))

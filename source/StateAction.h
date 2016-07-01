@@ -10,7 +10,6 @@
 #pragma once
 
 #include "Settings.h"
-#include "ErrorHandling.h"
 #include "Misc.h"
 
 #include <sstream>

@@ -8,7 +8,6 @@
  */
 
 #include "Layers.h"
-#include "../ErrorHandling.h"
 #include <cassert>
 
 using namespace ErrorHandling;

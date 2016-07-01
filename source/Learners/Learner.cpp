@@ -32,6 +32,8 @@ greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI
     }
     lsize.push_back(nOutputs);
     
+    if (nThreads>1) for (int i=0; i<nThreads; i++) Vstats.push_back(new trainData());
+
     profiler = new Profiler();
     net = new Network(lsize, bRecurrent, settings);
     opt = new AdamOptimizer(net, profiler, settings);
@@ -105,10 +107,11 @@ void Learner::TrainBatch()
 
 void Learner::TrainTasking(Master* const master)
 {
-    vector<int> seq(batchSize), samp(batchSize), first(batchSize), last(batchSize);
+    vector<int> seq(batchSize), samp(batchSize);
     #pragma omp parallel num_threads(nThreads)
     while (true) {
         const int ndata =(bRecurrent)?T->nSequences:T->nTransitions;
+        int nAddedGradients(0);
         #pragma omp single
         {
             if (ndata>batchSize) {
@@ -116,38 +119,33 @@ void Learner::TrainTasking(Master* const master)
                     T->inds.resize(ndata);
                     std::iota(T->inds.begin(), T->inds.end(), 0);
                     random_shuffle(T->inds.begin(),T->inds.end(),*(T->gen));
-                    stats.epochCount++;
-                    if (stats.epochCount % 100==0) {
-                        save("policy");
-                        const string stuff = "policy.status";
-                        FILE * f = fopen(stuff.c_str(), "w");
-                        if (f == NULL) die("Save fail\n");
-                        fprintf(f, "policy iter: %d\n", T->anneal);
-                        fprintf(f, "epoch count: %d\n", stats.epochCount);
-                        fclose(f);
-                    }
+                    processStats(Vstats);
                 }
                 
                 if(bRecurrent) {
+                    int maxBufSize(0);
                     for (int i(0); i<batchSize; i++) {
-                        first[i] = (i==0) ? 2 : last[i-1]+1; //0 and 1 reserved
                         const int ind = T->inds.back();
                         T->inds.pop_back();
                         seq[i]  = ind;
-                        //LSTM NFQ requires size()+1 activations of the net:
-                        last[i] = first[i] + T->Set[ind]->tuples.size();
+                        const int seqSize = T->Set[ind]->tuples.size();
+                        nAddedGradients += seqSize;
+                        maxBufSize = max(maxBufSize,seqSize);
                     }
-                    net->allocateSeries(last.back());
+                    //LSTM NFQ requires size()+1 activations of the net:
+                    net->allocateSeries(2+nThreads*(maxBufSize+1)); //0 and 1 reserved
                     for (int i(0); i<batchSize; i++) {
-                        #pragma omp task firstprivate(i)
+                        #pragma omp task firstprivate(i) shared(maxBufSize)
                         {
-                            Train(seq[i], first[i]);
+                            const int thrID = omp_get_thread_num();
+                            const int first = 2+(maxBufSize+1)*thrID;
+                            //printf("Process %d works on seq %d with series from %d (buf = %d)\n", omp_get_thread_num(), seq[i], first, maxBufSize);
+                            Train(thrID, seq[i], first);
                             flags[i] = true;
                         }
                     }
                 } else {
                     for (int i(0); i<batchSize; i++) {
-                        first[i] = (i==0) ? 2 : last[i-1]+1; //0 and 1 reserved
                         const int ind = T->inds.back();
                         T->inds.pop_back();
                         int k(0), back(0), indT(T->Set[0]->tuples.size()-1);
@@ -157,14 +155,15 @@ void Learner::TrainTasking(Master* const master)
                         }
                         seq[i]  = k;
                         samp[i] = ind-back;
-                        //FFNN NFQ requires 3 activations of the net:
-                        last[i] = first[i] + 2;
                     }
-                    net->allocateSeries(last.back());
+                    nAddedGradients = batchSize;
+                    net->allocateSeries(2+nThreads*3);
                     for (int i(0); i<batchSize; i++) {
                         #pragma omp task firstprivate(i)
                         {
-                            Train(seq[i], samp[i], first[i]);
+                            const int thrID = omp_get_thread_num();
+                            const int first = 2+3*thrID;
+                            Train(thrID, seq[i], samp[i], first);
                             flags[i] = true;
                         }
                     }
@@ -176,8 +175,8 @@ void Learner::TrainTasking(Master* const master)
             #endif
         }
         if (ndata>batchSize) {
-            opt->stackGrads(net->grad,net->Vgrad);
-            opt->update(net->grad, last.back()-2);
+            opt->stackGrads(net->grad, net->Vgrad);
+            opt->update(net->grad,nAddedGradients);
         }
         
         if (cntUpdateDelay <= 0) {
@@ -192,6 +191,13 @@ void Learner::TrainTasking(Master* const master)
 void Learner::save(string name)
 {
     net->save(name + ".net");
+    
+    const string stuff = name + ".status";
+    FILE * f = fopen(stuff.c_str(), "w");
+    if (f == NULL) die("Save fail\n");
+    fprintf(f, "policy iter: %d\n", T->anneal);
+    fprintf(f, "epoch count: %d\n", stats.epochCount);
+    fclose(f);
 }
 
 void Learner::restart(string name)
@@ -202,6 +208,7 @@ void Learner::restart(string name)
     if ( net->restart(name + ".net") ) {_info("Restart successful, moving on...\n");}
     else { _info("Not all policies restarted, therefore assumed zero. Moving on...\n");}
     save("restarted_policy.net");
+    
     FILE * f = fopen("policy.status", "r");
     if(f != NULL) {
         int val;
@@ -218,10 +225,12 @@ void Learner::restart(string name)
     }
 }
 
-void Learner::dumpStats(const Real tgt, const Real err, const Real Q)
+void Learner::dumpStats(const Real tgt, const Real err, const vector<Real>& Q)
 {
+    const Real max_Q = *max_element(Q.begin(), Q.end());
+    const Real min_Q = *min_element(Q.begin(), Q.end());
     stats.MSE += err*err;
-    stats.relE += fabs(err);///(max_Q-min_Q);
+    stats.relE += fabs(err)/(max_Q-min_Q);
     stats.avgQ += tgt;
     stats.minQ = std::min(stats.minQ,tgt);
     stats.maxQ = std::max(stats.maxQ,tgt);
@@ -232,34 +241,64 @@ void Learner::dumpStats(const Real tgt, const Real err, const Real Q)
         stats.epochCount++;
         T->anneal++;
         
-        const Real mean_err = stats.MSE /(T->nTransitions-1);
-        const Real mean_Q   = stats.avgQ/T->nTransitions;
-        const Real mean_rel = stats.relE/T->nTransitions;
-        printf("Avg MSE %f, avg Q %f, min Q %f, max Q %f, relE %f, N %d\n",
-               mean_err, mean_Q, stats.minQ, stats.maxQ, mean_rel, T->nTransitions);
+        const Real mean_err = stats.MSE /(stats.dumpCount-1);
+        const Real mean_Q   = stats.avgQ/stats.dumpCount;
+        const Real mean_rel = stats.relE/stats.dumpCount;
+        
         ofstream filestats;
         filestats.open("stats.txt", ios::app);
-        filestats<<stats.epochCount<<" "<<mean_err<<" "<<mean_Q<<" "<<stats.maxQ<<" "<<stats.minQ<<" "<<mean_rel<<endl;
+        printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, N %d\n",
+               stats.epochCount, mean_err, mean_rel, mean_Q, stats.minQ, stats.maxQ, stats.dumpCount);
+        filestats<<stats.epochCount<<" "<<mean_err<<" "<<mean_rel<<" "<<mean_Q<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
         filestats.close();
         
-        if (stats.epochCount % 100==0) {
-            /*
-             string restart_file;
-             char buf[500];
-             sprintf(buf, "restart.net_%09d", T->anneal);
-             restart_file = string(buf);
-             Q->save(restart_file.c_str());
-             */
-            save("policy");
-            const string stuff = "policy.status";
-            FILE * f = fopen(stuff.c_str(), "w");
-            if (f == NULL) die("Save fail\n");
-            fprintf(f, "policy iter: %d\n", T->anneal);
-            fprintf(f, "epoch count: %d\n", stats.epochCount);
-            fclose(f);
-        }
+        if (stats.epochCount % 100==0) save("policy");
         
-        //cout << profiler->printStat() << endl;
         stats.minQ=1e5; stats.maxQ=-1e5; stats.MSE=0; stats.avgQ=0; stats.relE=0;
     }
+}
+
+void Learner::dumpStats(trainData* _stats, const Real tgt, const Real err, const vector<Real>& Q)
+{
+    const Real max_Q = *max_element(Q.begin(), Q.end());
+    const Real min_Q = *min_element(Q.begin(), Q.end());
+    _stats->MSE += err*err;
+    _stats->relE += fabs(err)/(max_Q-min_Q);
+    _stats->avgQ += tgt;
+    _stats->minQ = std::min(stats.minQ,tgt);
+    _stats->maxQ = std::max(stats.maxQ,tgt);
+    _stats->dumpCount++;
+}
+
+void Learner::processStats(vector<trainData*> _stats)
+{
+    stats.epochCount++;
+    stats.minQ=1e5; stats.maxQ=-1e5; stats.MSE=0;
+    stats.avgQ=0; stats.relE=0; stats.dumpCount=0;
+    
+    for (int i=0; i<_stats.size(); i++) {
+        stats.MSE += _stats[i]->MSE;
+        stats.relE += _stats[i]->relE;
+        stats.avgQ += _stats[i]->avgQ;
+        stats.dumpCount += _stats[i]->dumpCount;
+        stats.minQ = std::min(stats.minQ,_stats[i]->minQ);
+        stats.maxQ = std::max(stats.maxQ,_stats[i]->maxQ);
+        _stats[i]->minQ=1e5; _stats[i]->maxQ=-1e5; _stats[i]->MSE=0;
+        _stats[i]->avgQ=0; _stats[i]->relE=0; _stats[i]->dumpCount=0;
+    }
+    
+    if (stats.dumpCount<2) return;
+    
+    const Real mean_err = stats.MSE /(stats.dumpCount-1);
+    const Real mean_Q   = stats.avgQ/stats.dumpCount;
+    const Real mean_rel = stats.relE/stats.dumpCount;
+    
+    ofstream filestats;
+    filestats.open("stats.txt", ios::app);
+    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, N %d\n",
+           stats.epochCount, mean_err, mean_rel, mean_Q, stats.minQ, stats.maxQ, stats.dumpCount);
+    filestats<<stats.epochCount<<" "<<mean_err<<" "<<mean_rel<<" "<<mean_Q<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
+    filestats.close();
+    
+    if (stats.epochCount % 100==0) save("policy");
 }

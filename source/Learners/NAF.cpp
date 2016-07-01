@@ -47,7 +47,7 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     if(dis(*gen) < newEps) a.getRand();
 }
 
-void NAF::Train(const int seq, const int first)
+void NAF::Train(const int thrID, const int seq, const int first)
 {
     if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
     vector<Real> output(nOutputs),gradient(nOutputs);
@@ -58,18 +58,20 @@ void NAF::Train(const int seq, const int first)
         const Tuple * const _t = T->Set[seq]->tuples[k+1];
         if(k==0) net->predict(T->Set[seq]->tuples[k]->s, output, net->series[first+k]);
         else     net->predict(T->Set[seq]->tuples[k]->s, output, net->series[first+k-1], net->series[first+k]);
-        const Real Q = computeQandGrad(gradient, _t->aC, output);
+        vector<Real> Q(computeQandGrad(gradient, _t->aC, output));
         
         if (k+2==ndata && T->Set[seq]->ended) {
             const Real tgt = _t->r;
-            const Real err = tgt - Q;
+            const Real err = tgt - Q[0];
+            dumpStats(Vstats[thrID], tgt, err, Q);
             for (int i(0); i<nOutputs; i++)
                 *(net->series[first+k]->errvals +net->iOutputs+i) = err*gradient[i];
         } else {
             net->predict(_t->s, output, net->series[first+k], net->series[first+ndata-1],
                          net->frozen_weights, net->frozen_biases);
             const Real tgt = _t->r + gamma*output[0];
-            const Real err = tgt - Q;
+            const Real err = tgt - Q[0];
+            dumpStats(Vstats[thrID], tgt, err, Q);
             for (int i(0); i<nOutputs; i++)
                 *(net->series[first+k]->errvals +net->iOutputs+i) = err*gradient[i];
         }
@@ -78,7 +80,7 @@ void NAF::Train(const int seq, const int first)
         net->computeDeltasSeries(net->series, first, first+ndata-2);
         
         for (int k=first; k<first+ndata-1; k++)
-            net->computeAddGradsSeries(net->series, k, net->Vgrad[omp_get_thread_num()]);
+            net->computeAddGradsSeries(net->series, k, net->Vgrad[thrID]);
     }
 }
 
@@ -98,11 +100,11 @@ void NAF::Train(const vector<int>& seq)
             if(k==0) net->predict(T->Set[ind]->tuples[0]->s, output, net->series[0]);
             else     net->predict(T->Set[ind]->tuples[k]->s, output, net->series[k-1], net->series[k]);
             const Tuple * const _t = T->Set[ind]->tuples[k+1];
-            const Real Q = computeQandGrad(gradient, _t->aC, output);
+            vector<Real> Q(computeQandGrad(gradient, _t->aC, output));
             
             if (k+2==ndata && T->Set[ind]->ended) {
                 const Real tgt = _t->r;
-                const Real err = tgt - Q;
+                const Real err = tgt - Q[0];
                 dumpStats(tgt, err, Q);
                 for (int i(0); i<nOutputs; i++)
                     *(net->series[k]->errvals +net->iOutputs+i) = err*gradient[i];
@@ -110,7 +112,7 @@ void NAF::Train(const vector<int>& seq)
                 net->predict(_t->s, output, net->series[k], net->series[ndata-1],
                              net->frozen_weights, net->frozen_biases);
                 const Real tgt = _t->r + gamma*output[0];
-                const Real err = tgt - Q;
+                const Real err = tgt - Q[0];
                 dumpStats(tgt, err, Q);
                 for (int i(0); i<nOutputs; i++)
                     *(net->series[k]->errvals +net->iOutputs+i) = err*gradient[i];
@@ -131,7 +133,7 @@ void NAF::Train(const vector<int>& seq)
     opt->update(net->grad,countUpdate);
 }
 
-void NAF::Train(const int seq, const int samp, const int first)
+void NAF::Train(const int thrID, const int seq, const int samp, const int first)
 {
     if(not net->allocatedFrozenWeights) die("Allocate them!\n");
     vector<Real> output(nOutputs),gradient(nOutputs);
@@ -140,20 +142,21 @@ void NAF::Train(const int seq, const int samp, const int first)
     net->predict(T->Set[seq]->tuples[samp]->s, output, net->series[first]);
     
     const bool term = samp+2==T->Set[seq]->tuples.size() && T->Set[seq]->ended;
-    const Real Q = computeQandGrad(gradient, _t->aC, output);
+    vector<Real> Q(computeQandGrad(gradient, _t->aC, output));
     
     if (not term) {
         net->predict(_t->s, output, net->series[first],  net->series[first+1],
                                     net->frozen_weights, net->frozen_biases);
     }
     const Real target = (term) ? _t->r : _t->r + gamma*output[0];
-    const Real err =  (target - Q);
+    const Real err =  (target - Q[0]);
+    dumpStats(Vstats[thrID], target, err, Q);
     for (int i(0); i<nOutputs; i++) {
         *(net->series[first]->errvals +net->iOutputs+i) = err*gradient[i];
     }
     
     net->computeDeltas(net->series[first]);
-    net->computeAddGrads(net->series[first], net->Vgrad[omp_get_thread_num()]);
+    net->computeAddGrads(net->series[first], net->Vgrad[thrID]);
 }
 
 void NAF::Train(const vector<int>& seq, const vector<int>& samp)
@@ -169,14 +172,14 @@ void NAF::Train(const vector<int>& seq, const vector<int>& samp)
         net->predict(T->Set[knd]->tuples[ind]->s, output, net->series[0]);
         
         const bool term = ind+2==T->Set[knd]->tuples.size() && T->Set[knd]->ended;
-        const Real Q = computeQandGrad(gradient, _t->aC, output);
+        vector<Real> Q(computeQandGrad(gradient, _t->aC, output));
         
         if (not term) {
             net->predict(_t->s, output, net->series[0], net->series[1],
                                 net->frozen_weights, net->frozen_biases);
         }
         const Real target = (term) ? _t->r : _t->r + gamma*output[0];
-        const Real err =  (target - Q);
+        const Real err =  (target - Q[0]);
         dumpStats(target, err, Q);
         for (int i(0); i<nOutputs; i++) {
             *(net->series[0]->errvals +net->iOutputs+i) = err*gradient[i];
@@ -191,6 +194,80 @@ void NAF::Train(const vector<int>& seq, const vector<int>& samp)
     opt->update(net->grad, countUpdate);
 }
 
+vector<Real> NAF::getPolicy(const vector<Real>& out) const
+{
+    vector<Real> act(nA);
+    for (int j(0); j<nA; j++) act[j] = out[1+nL+j];
+    return act;
+}
+
+vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const
+{
+    vector<Real> Q(3, out[0]);
+    vector<Real> _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA);
+    grad[0] = 1.;
+    
+    int kL(1);
+    for (int j(0); j<nA; j++) {
+        _u[j] = act[j] - out[1+nL+j];
+        for (int i(0); i<nA; i++) {
+            const int ind = nA*j + i;
+            if (i<=j) _L[ind] = out[kL++];
+        }
+    }
+    assert(kL==1+nL);
+    
+    for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) {
+        const int ind = nA*j + i;
+        for (int k(0); k<nA; k++) {
+            const int k1 = nA*j + k;
+            const int k2 = nA*i + k;
+            _A[ind] += _L[k1] * _L[k2];
+        }
+        Q[0] -= .5*_A[ind]*_u[i]*_u[j];
+        Q[1] -= .5*_A[ind]*aInfo.upperBounds[i]*aInfo.upperBounds[j];
+        Q[2] -= .5*_A[ind]*aInfo.lowerBounds[i]*aInfo.lowerBounds[j];
+    }
+    Q[2] = std::min(Q[1],Q[2]);
+    Q[1] = out[0];
+    
+    for (int il(0); il<nL; il++) {
+        int kD(0);
+        for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) {
+            const int ind = nA*j + i;
+            _dLdl[ind] = 0;
+            if(i<=j) { if(kD++==il) _dLdl[ind]=1; }
+        }
+        assert(kD==nL);
+        
+        for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) {
+            const int ind = nA*j + i;
+            _dPdl[ind] = 0;
+            for (int k(0); k<nA; k++) {
+                const int k1 = nA*j + k;
+                const int k2 = nA*i + k;
+                _dPdl[ind] += _dLdl[k1]*_L[k2]+_L[k1]*_dLdl[k2];
+            }
+        }
+        
+        grad[1+il] = 0.;
+        for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) {
+            const int ind = nA*j + i;
+            grad[1+il] += -0.5*_dPdl[ind]*_u[i]*_u[j];
+        }
+    }
+    
+    for (int ia(0); ia<nA; ia++) {
+        grad[1+nL+ia] = 0.;
+        for (int i(0); i<nA; i++) {
+            const int ind = nA*ia + i;
+            grad[1+nL+ia] += _A[ind]*_u[i];
+        }
+    }
+    
+    return Q;
+}
+/*
 Real NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const
 {
     Real Q(out[0]);
@@ -252,107 +329,4 @@ Real NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vec
     }
 
     return Q;
-}
-
-vector<Real> NAF::getPolicy(const vector<Real>& out) const
-{
-    vector<Real> act(nA);
-    for (int j(0); j<nA; j++) act[j] = out[1+nL+j];
-    return act;
-}
-
-/*
-void NAF::computeL()
-{
-    int k(0);
-    for (int j(0); j<nA; j++)
-    for (int i(0); i<nA; i++) {
-        const int ind = nA*j + i;
-        L[ind] = 0.;
-        if (i<=j) L[ind] = l[k++];
-    }
-}
-
-void NAF::computeA()
-{
-    computeL();
-    for (int j(0); j<nA; j++)
-    for (int i(0); i<nA; i++) {
-        const int ind = nA*j + i;
-        A[ind] = 0.;
-        for (int k(0); k<nA; k++) {
-            const int k1 = nA*j + k;
-            const int k2 = nA*i + k;
-            A[ind] += L[k1] * L[k2];
-        }
-    }
-}
-
-void NAF::computedLdl(const int& lnd)
-{
-    int k(0);
-    for (int j(0); j<nA; j++)
-    for (int i(0); i<nA; i++) {
-        const int ind = nA*j + i;
-        dLdl[ind] = 0.;
-        if(i<=j) { if(k++==lnd) dLdl[ind]=1; }
-    }
-}
-
-void NAF::computedPdl(const int& lnd)
-{
-    computedLdl(lnd);
-    for (int j(0); j<nA; j++)
-    for (int i(0); i<nA; i++) {
-        const int ind = nA*j + i;
-        dPdl[ind] = 0.;
-        for (int k(0); k<nA; k++) {
-            const int k1 = nA*j + k;
-            const int k2 = nA*i + k;
-            
-            dPdl[ind] += dLdl[k1]*L[k2] + L[k1]*dLdl[k2];
-        }
-    }
-}
-
-void NAF::computeGrad()
-{
-    computeA();
-    gradient[0] = 1.;
-    for (int il(0); il<nL; il++) {
-        computedPdl(il);
-        gradient[1+il] = 0.;
-        for (int j(0); j<nA; j++)
-        for (int i(0); i<nA; i++) {
-            const int ind = nA*j + i;
-            gradient[1+il] += -0.5*dPdl[ind]*u[i]*u[j];
-        }
-    }
-    
-    for (int ia(0); ia<nA; ia++) {
-        gradient[1+nL+ia] = 0.;
-        for (int i(0); i<nA; i++) {
-            const int ind = nA*ia + i;
-            gradient[1+nL+ia] += A[ind]*u[i];
-        }
-    }
-}
-
-Real NAF::computeQ()
-{
-    Real Q(V);
-    computeGrad();
-    for (int j(0); j<nA; j++)
-    for (int i(0); i<nA; i++) {
-        const int ind = nA*j + i;
-        Q -= .5*A[ind]*u[i]*u[j];
-    }
-    return Q;
-}
-
-void NAF::extract()
-{
-    V = outputs[0];
-    for (int j(0); j<nL; j++) l[j] = outputs[1+j];
-    for (int j(0); j<nA; j++) pi[j] = outputs[1+nL+j];
 }*/

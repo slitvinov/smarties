@@ -81,7 +81,7 @@ void Transitions::restartSamples()
                 line_in >> thisId;
                 if (thisId==agentId) {
                     Ndata++;
-                    line_in >> info;
+                    //line_in >> info;
                     line_in >> info;
                     for(int i=0; i<sI.dim; i++) line_in >> d_sO[i];
                     for(int i=0; i<sI.dim; i++) line_in >> d_sN[i];

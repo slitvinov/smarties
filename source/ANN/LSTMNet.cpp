@@ -13,7 +13,6 @@
 #include <fstream>
 #include <chrono>
 #include "LSTMNet.h"
-#include "../ErrorHandling.h"
 #include <cassert>
 
 using namespace ErrorHandling;

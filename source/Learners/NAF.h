@@ -17,13 +17,14 @@ class NAF : public Learner
 {
     const int nA, nL;
     
-    void Train(const int seq, const int first) override;
-    void Train(const int seq, const int samp, const int first) override;
+    void Train(const int thrID, const int seq, const int first) override;
+    void Train(const int thrID, const int seq, const int samp, const int first) override;
     void Train(const vector<int>& seq) override;
     void Train(const vector<int>& seq, const vector<int>& samp) override;
 
     vector<Real> getPolicy(const vector<Real>& out) const;
-    Real computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const;
+    vector<Real> computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const;
+    //Real computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const;
     
 public:
     NAF(Environment* env, Settings & settings);

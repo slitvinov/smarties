@@ -163,8 +163,8 @@ void NewFishEnvironment::setDims()
         
         for (int i=0; i<aI.dim; i++) {
             aI.bounds.push_back(5); //Number of possible actions to choose from
-            aI.upperBounds.push_back(1.0);
-            aI.lowerBounds.push_back(-1.);
+            aI.upperBounds.push_back(0.5);
+            aI.lowerBounds.push_back(-.5);
             
             aI.values[i].push_back(-.50);
             aI.values[i].push_back(-.25);

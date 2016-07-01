@@ -15,8 +15,8 @@ using namespace std;
 
 class NFQ : public Learner
 {   
-    void Train(const int seq, const int first) override;
-    void Train(const int seq, const int samp, const int first) override;
+    void Train(const int thrID, const int seq, const int first) override;
+    void Train(const int thrID, const int seq, const int samp, const int first) override;
     void Train(const vector<int>& seq) override;
     void Train(const vector<int>& seq, const vector<int>& samp) override;
     

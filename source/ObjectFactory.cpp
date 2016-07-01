@@ -9,7 +9,6 @@
 
 #include "Settings.h"
 #include "ObjectFactory.h"
-#include "ErrorHandling.h"
 #include "AllSystems.h"
 
 #include <cmath>

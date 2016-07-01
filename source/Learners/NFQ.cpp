@@ -51,7 +51,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     if(dis(*gen) < newEps) a.getRand();
 }
 
-void NFQ::Train(const int seq, const int first)
+void NFQ::Train(const int thrID, const int seq, const int first)
 {
     if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs);
@@ -69,6 +69,7 @@ void NFQ::Train(const int seq, const int first)
             }
             const Real target = _t->r;
             const Real err =  (target - Qs[_t->a]);
+            dumpStats(Vstats[thrID], target, err, Qs);
             *(net->series[first+k]->errvals +net->iOutputs+_t->a) = err;
         } else {
             net->predict(_t->s, Qhats,   net->series[k], net->series[first+1]);
@@ -81,6 +82,7 @@ void NFQ::Train(const int seq, const int first)
             }
             const Real target = _t->r + gamma*Qtildes[Nbest];
             const Real err =  (target - Qs[_t->a]);
+            dumpStats(Vstats[thrID], target, err, Qs);
             *(net->series[first+k]->errvals +net->iOutputs+_t->a) = err;
         }
     }
@@ -88,7 +90,7 @@ void NFQ::Train(const int seq, const int first)
         net->computeDeltasSeries(net->series, first, first+ndata-2);
         
         for (int k=first; k<first+ndata-1; k++)
-            net->computeAddGradsSeries(net->series, k, net->Vgrad[omp_get_thread_num()]);
+            net->computeAddGradsSeries(net->series, k, net->Vgrad[thrID]);
     }
 }
 
@@ -115,7 +117,7 @@ void NFQ::Train(const vector<int>& seq)
                 }
                 const Real target = _t->r;
                 const Real err =  (target - Qs[_t->a]);
-                dumpStats(target, err, Qs[_t->a]);
+                dumpStats(target, err, Qs);
                 *(net->series[k]->errvals +net->iOutputs+_t->a) = err;
             } else {
                 net->predict(_t->s, Qhats,   net->series[k], net->series[k+1]);
@@ -128,7 +130,7 @@ void NFQ::Train(const vector<int>& seq)
                 }
                 const Real target = _t->r + gamma*Qtildes[Nbest];
                 const Real err =  (target - Qs[_t->a]);
-                dumpStats(target, err, Qs[_t->a]);
+                dumpStats(target, err, Qs);
                 *(net->series[k]->errvals +net->iOutputs+_t->a) = err;
             }
         }
@@ -147,7 +149,7 @@ void NFQ::Train(const vector<int>& seq)
     opt->update(net->grad, countUpdate);
 }
 
-void NFQ::Train(const int seq, const int samp, const int first)
+void NFQ::Train(const int thrID, const int seq, const int samp, const int first)
 {
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs);
 
@@ -168,9 +170,10 @@ void NFQ::Train(const int seq, const int samp, const int first)
     
     const Real target = (term) ? _t->r : _t->r + gamma*Qtildes[Nbest];
     const Real err =  (target - Qs[_t->a]);
+    dumpStats(Vstats[thrID], target, err, Qs);
     *(net->series[first]->errvals +net->iOutputs+_t->a) = err;
     net->computeDeltas(net->series[first]);
-    net->computeAddGrads(net->series[first], net->Vgrad[omp_get_thread_num()]);
+    net->computeAddGrads(net->series[first], net->Vgrad[thrID]);
 }
 
 void NFQ::Train(const vector<int>& seq, const vector<int>& samp)
@@ -199,7 +202,7 @@ void NFQ::Train(const vector<int>& seq, const vector<int>& samp)
         
         const Real target = (term) ? _t->r : _t->r + gamma*Qtildes[Nbest];
         const Real err =  (target - Qs[_t->a]);
-        dumpStats(target, err, Qs[_t->a]);
+        dumpStats(target, err, Qs);
         *(net->series[0]->errvals +net->iOutputs+_t->a) = err;
         
         net->computeDeltas(net->series[0]);

@@ -1,7 +1,5 @@
-RUNFOLDER=$1
-
-cp ../apps/Brutus_2Fish1act_train/factoryMRAGhere ${RUNFOLDER}/factory
-cp ../apps/Brutus_2Fish1act_train/settings2F_Learn.sh ${RUNFOLDER}/
-cp ../apps/Brutus_2Fish1act_train/launch2F_Learn.sh ${RUNFOLDER}/
-cp ../apps/Brutus_2Fish1act_train/factory2F_Learn ${RUNFOLDER}/
-cp ${HOME}/MRAGapps/IF2D_ROCKS/makefiles/hyperion ${RUNFOLDER}/
+cp ../apps/Brutus_2Fish1act_train/factoryMRAGhere ${BASEPATH}${RUNFOLDER}/factory
+cp ../apps/Brutus_2Fish1act_train/settings2F_Learn.sh ${BASEPATH}${RUNFOLDER}/
+cp ../apps/Brutus_2Fish1act_train/launch2F_Learn.sh ${BASEPATH}${RUNFOLDER}/
+cp ../apps/Brutus_2Fish1act_train/factory2F_Learn ${BASEPATH}${RUNFOLDER}/
+cp ${HOME}/MRAGapps/IF2D_ROCKS/makefiles/hyperion ${BASEPATH}${RUNFOLDER}/

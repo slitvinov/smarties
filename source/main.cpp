@@ -8,7 +8,6 @@
  */
 
 #include "ArgumentParser.h"
-#include "ErrorHandling.h"
 #include "Learners/Learner.h"
 #include "Learners/NFQ.h"
 #include "Learners/NAF.h"
