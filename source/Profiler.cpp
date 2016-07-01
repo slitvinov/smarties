@@ -1,123 +1,29 @@
 /*
  *  Profiler.cpp
- *  hpchw
+ *  Cubism
  *
- *  Created by Dmitry Alexeev on 30.10.13.
- *  Copyright 2013 ETH Zurich. All rights reserved.
+ *  Created by Diego Rossinelli on 9/13/08.
+ *  Copyright 2008 CSE Lab, ETH Zurich. All rights reserved.
  *
  */
-
-#include <sstream>
-#include <iomanip>
+#include <sys/time.h>
 
 #include "Profiler.h"
 
-Profiler::Profiler()
+//#include <tbb/tick_count.h>
+//using namespace tbb;
+
+void ProfileAgent::_getTime(ClockTime& time)
 {
-	mode = MSEC;
+	//time = tick_count::now();
+	gettimeofday(&time, NULL);
 }
 
-void Profiler::start(string name)
+double ProfileAgent::_getElapsedTime(const ClockTime& tS, const ClockTime& tE)
 {
-	Timings* tm;
-	if (timings.find(name) == timings.end())
-	{
-		tm = &timings[name];
-		tm->started    = true;
-		tm->total      = 0;
-		tm->iterations = 0;
-	}
-	else
-	{
-		tm = &timings[name];
-		tm->started = true;
-	}
-	
-	tm->start = mach_absolute_time();
-	ongoing = name;
+	return (tE.tv_sec - tS.tv_sec) + 1e-6 * (tE.tv_usec - tS.tv_usec);
+	//return (tE - tS).seconds();
 }
 
-void Profiler::stop(string name)
-{
-	if (timings.find(name) != timings.end())
-	{
-		Timings* tm = &timings[name];
-		if (tm->started)
-		{
-			tm->started = false;
-			tm->total += mach_absolute_time() - tm->start;
-			tm->iterations++;
-		}
-	}
-}
-
-void Profiler::stop()
-{
-	stop(ongoing);
-}
-
-Real Profiler::elapsed(string name)
-{
-	if (timings.find(name) != timings.end())
-	{
-		Timings *tm = &timings[name];
-		Real res = tm->total / tm->iterations;
-		tm->total = 0;
-		tm->iterations = 0;
-		return res;
-	}
-	return 0;
-}
-
-string Profiler::printStat()
-{
-	Real total = 0;
-	int longest = 0;
-	ostringstream out;
-	map<string, Timings>::iterator it;
-	Real now = mach_absolute_time();
-	for (it = timings.begin(); it != timings.end(); it++)
-	{
-		if (it->second.started)
-		{
-			it->second.started = false;
-			it->second.total += now - it->second.start;
-		}
-		
-		total += it->second.total / it->second.iterations;
-		if (longest < it->first.length())
-			longest = it->first.length();
-	}
-
-	Real factor;
-	string unit;
-	if (mode == SEC) 
-	{
-		factor = 1e-9;
-		unit = "sec";
-	}
-	if (mode == MSEC)
-	{
-		factor = 1e-6;
-		unit = "millisec";
-	}
-	if (mode == MCSEC)
-	{
-		factor = 1e-3;
-		unit = "microsec";
-	}
-	longest = max(longest, 6);
-	
-	out << "Average total time: " << total*factor << " " << unit << endl;
-	out << left << "[" << setw(longest) << "Kernel" << "]    " << setw(20) << "Time, "+unit << setw(20) << "Percentage" << endl;
-	for (it = timings.begin(); it != timings.end(); it++)
-	{
-		out << "[" << setw(longest) << it->first << "]    "
-			<< fixed << setprecision(3) << setw(20) << it->second.total * factor / it->second.iterations
-			<< fixed << setprecision(1) << setw(20) << it->second.total / total * 100 / it->second.iterations << endl;
-	}
-	
-	return out.str();
-}
 
 

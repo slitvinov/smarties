@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <vector>
 #include <functional>
 #include "Network.h"
 #include "Optimizer.h"

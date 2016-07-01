@@ -9,8 +9,6 @@
 
 #pragma once
 
-#include <vector>
-#include <random>
 //#include <armadillo>
 #include "Network.h"
 #include "../Profiler.h"
@@ -20,13 +18,15 @@ using namespace std;
 class Optimizer
 { //for now just Adam...
 public:
-    virtual void update(Grads * G) {};
-    virtual void addUpdate(Grads * G) {};
-    virtual void stackGrads(Grads * G, Grads * g) {};
+    //int batchsize;
+    int nepoch;
+    virtual void update(Grads* const G, const int batchsize) {};
+    virtual void addUpdate(Grads* const G) {};
+    virtual void stackGrads(Grads* const G, const Grads* const g) const {};
+    virtual void stackGrads(Grads* const G, const vector<Grads*> g) {};
     virtual void trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) {die("Wrong algo, dude\n");};
     virtual void trainBatch(const vector<const vector<Real>*>& inputs, const vector<const vector<Real>*>& targets, Real & trainMSE) {die("Wrong algo, dude\n");};
-
-    virtual void checkGrads(const vector<vector<Real>>& inputs) {die("Wrong algo, dude\n");};
+    virtual void checkGrads(const vector<vector<Real>>& inputs, const int lastn, const int ierr) {die("Wrong algo, dude\n");};
 };
 
 class AdamOptimizer: public Optimizer
@@ -36,21 +36,21 @@ class AdamOptimizer: public Optimizer
     Profiler * profiler;
     const int nInputs, nOutputs, iOutputs, nWeights, nBiases;
     Real beta_t_1, beta_t_2;
-    int batchsize, nepoch;
     Real *_1stMomW, *_1stMomB, *_2ndMomW, *_2ndMomB;
     
-    void init(Real* dest, const int N, Real ini=0);
-    void update(Real* dest, Real* grad, Real* _1stMom, Real* _2ndMom, const int N, Real _eta);
-    void updateDecay(Real* dest, Real* grad, Real* _1stMom, Real* _2ndMom, const int N, Real _eta);
-    void update(Real* dest, Real* grad, const int N, Real _eta);
-    void stackGrads(Real * G, Real * g, Real* _1stMom, Real* _2ndMom, const int N);
+    void init(Real* const dest, const int N, const Real ini=0);
+    void update(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const Real _eta);
+    void updateDecay(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const Real _eta);
+    void update(Real* const dest, Real* const grad, const int N, const Real _eta) const;
+    void stackGrads(Real* const G, const Real* const g, Real* const _1stMom, Real* const _2ndMom, const int N);
 public:
     AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings);
     
-    void update(Grads * G) override;
-    void addUpdate(Grads * G) override;
-    void stackGrads(Grads * G, Grads * g) override;
-    void checkGrads(const vector<vector<Real>>& inputs) override;
+    void update(Grads* const G, const int batchsize) override;
+    void addUpdate(Grads* const G) override;
+    void stackGrads(Grads* const G, const Grads* const g) const override;
+    void stackGrads(Grads* const G, const vector<Grads*> g) override;
+    void checkGrads(const vector<vector<Real>>& inputs, const int lastn, const int ierr) override;
     void trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE) override;
     void trainBatch(const vector<const vector<Real>*>& inputs, const vector<const vector<Real>*>& targets, Real & trainMSE) override;
 };

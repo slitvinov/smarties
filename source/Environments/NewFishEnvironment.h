@@ -10,21 +10,17 @@
 
 #pragma once
 
-#include <vector>
 #include "../Util/util.h"
-#include "ExternalEnvironment.h"
-#include "CellList.h"
+#include "Environment.h"
 
-//class ExternalAgent;
-//#include "../Agents/ExternalAgent.h"
-
-class NewFishEnvironment: public ExternalEnvironment
+class NewFishEnvironment: public Environment
 {
-    bool sight, POV, l_line, p_sensors;
-    int study;
-    double goalDY,gamma;
+protected:
+    const bool sight, POV, l_line, p_sensors;
+    const int study;
+    const Real goalDY,gamma;
 public:
-    NewFishEnvironment(vector<Agent*> agents, string execpath, StateType tp, int rank, const int senses, Settings & settings);
+    NewFishEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings);
     void setDims() override;
     bool pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward) override;
 };

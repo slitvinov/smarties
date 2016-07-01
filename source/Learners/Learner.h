@@ -2,74 +2,64 @@
  *  Learner.h
  *  rl
  *
- *  Created by Dmitry Alexeev on 15.07.13.
+ *  Created by Guido Novati on 15.06.16.
  *  Copyright 2013 ETH Zurich. All rights reserved.
  *
  */
 
 #pragma once
 
-#include <vector>
-#include <string>
+#include "../Agent.h"
+#include "../Environments/Environment.h"
+#include "Transitions.h"
+#include "../ANN/Network.h"
+#include "../ANN/Optimizer.h"
+
+class Master;
+
+#include "../Scheduler.h"
 #include <list>
 
-#include "../Agents/Agent.h"
-#include "../Environments/Environment.h"
-
-#include "../QApproximators/MultiTable.h"
-#include "../QApproximators/QApproximator.h"
-#include "../QApproximators/NFQApproximator.h"
-
-#include "../Transitions/Transitions.h"
-#include "Trace.h"
-
 using namespace std;
+
+struct trainData
+{
+    trainData() : weight(1), MSE(0), avgQ(0), minQ(1e3), maxQ(-1e3), relE(0), dumpCount(0), epochCount(0) {}
+    Real weight, MSE, avgQ, minQ, maxQ, relE;
+    int dumpCount, epochCount;
+};
 
 class Learner
 {
 protected:
-    int suffix, nAgents;
-    Real gamma, greedyEps;
+    const int nAgents, batchSize, tgtUpdateDelay, nThreads, nInputs, nOutputs;
+    const bool bRecurrent, bTrain;
+    const Real tgtUpdateAlpha, gamma, greedyEps;
+    int cntUpdateDelay;
     ActionInfo aInfo;
     StateInfo  sInfo;
-    
-    RNG* rng;
-    QApproximator* Q;
-public:
+    mt19937 * gen;
+    Profiler* profiler;
+    Network* net;
+    Optimizer* opt;
     Transitions* T;
+    trainData stats;
     
-    Learner(Environment* env, Settings & settings) :
-    suffix(0), nAgents(settings.nAgents), gamma(settings.gamma), greedyEps(settings.greedyEps), aInfo(env->aI), sInfo(env->sI)
-    {
-        rng = new RNG(rand());
-        
-        if (settings.approx == "NN")
-            Q = new NFQApproximator(sInfo, aInfo, settings);
-        else if (settings.approx == "table")
-            Q = new MultiTable(sInfo, aInfo, settings);
-        else {die("Undefined approximator.\n");}
-        
-        T = new Transitions(env, settings);
-    };
-
-    virtual void updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r) = 0;
+    virtual void Train(const int seq, const int first) = 0;
+    virtual void Train(const int seq, const int samp, const int first) = 0;
+    virtual void Train(const vector<int>& seq) = 0;
+    virtual void Train(const vector<int>& seq, const vector<int>& samp) = 0;
+    void dumpStats(const Real tgt, const Real err, const Real Q);
     
-    virtual void Train() {};
+public:
+    vector<bool> flags;
     
-    void try2restart(string fname)
-    {
-        _info("Restarting from saved policy...\n");
-        
-        T->restartSamples();
-        if ( Q->restart(fname) ) {_info("Restart successful, moving on...\n");}
-        else {_info("Not all policies restarted, therefore assumed zero. Moving on...\n");}
-        savePolicy(fname);
-    }
+    Learner(Environment* env, Settings & settings);
+    virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;
     
-    void savePolicy(string fname)
-    {
-        _info("\nSaving all policies...\n");
-        Q->save(fname);
-        _info("Done\n");
-    }
+    bool checkBatch();
+    void TrainBatch();
+    void TrainTasking(Master* const master);
+    void save(string name);
+    void restart(string fname);
 };

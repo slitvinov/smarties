@@ -8,9 +8,8 @@
  */
 
 #include <getopt.h>
-#include <map>
 #include <cstdlib>
-
+#include <map>
 #include "ErrorHandling.h"
 #include "ArgumentParser.h"
 

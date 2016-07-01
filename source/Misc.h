@@ -8,15 +8,13 @@
  */
 
 #pragma once
-
+#include "Settings.h"
+#include "ErrorHandling.h"
 #ifdef _RL_VIZ
 #ifdef __APPLE__
 #include "GLUT/glut.h"
 #endif
 #endif
-
-#include "Settings.h"
-#include "ErrorHandling.h"
 #include "iostream"
 using namespace ErrorHandling;
 
@@ -43,39 +41,23 @@ inline int _discretize(Real val, Real min, Real max, int levels, bool belowMin, 
     //WTF!? int always truncates so you never return "levels", max is levels-1
 	int totLvl = levels;
 	
-	if (belowMin)
-	{
-		lvl++;
-	}
-    if (aboveMax)
-	{
-		levels--;
-	}
-	if (max - min > 1e-6)
-    {
-        lvl += (val - min)*levels / (max - min);
-    }
-    else if ((val > min) && (val < max))
-    {
-        die("Bad interval of discretization\n");
-    }
+	if (belowMin) lvl++;
+    if (aboveMax) levels--;
+    
+	if (max - min > 1e-6) lvl += (val - min)*levels / (max - min);
+    else if ((val > min) && (val < max)) die("Bad interval of discretization\n");
+
 	
-	if (val < min)
-	{
+	if (val < min) {
 		if (belowMin) return 0;
-		else{
-            std::cout << "max=" << max << " min=" << min << " levels="<< levels << " val="<< val << endl;
-            return 0;
-        }
+		else return 0;
+            //std::cout << "max=" << max << " min=" << min << " levels="<< levels << " val="<< val << endl;
 	}
 	
-	if (val >= max)
-	{
+	if (val >= max) {
 		if (aboveMax) return totLvl-1; // lvl = [0 to totLvl-1]
-		else{
-            std::cout << "max=" << max << " min=" << min << " levels="<< levels << " val="<< val << endl;
-            return totLvl-1;
-        }
+		else return totLvl-1;
+            //std::cout << "max=" << max << " min=" << min << " levels="<< levels << " val="<< val << endl;
 	}
 	
 	return lvl;
@@ -87,32 +69,21 @@ inline int _logDiscr(Real val, Real min, Real max, int levels, bool belowMin, bo
 	int lvl = 0;
 	int oldLevels = levels;
 	
-	if (belowMin)
-	{
+	if (belowMin) {
 		levels--;
 		lvl++;
 	}
 	if (aboveMax) levels--;
 	
-	Real x = (max - min) / (pow(2.0, levels) - 2);	
-	while (val - min > x)
-	{
+	Real x = (max - min) / (pow(2.0, levels) - 2);
+    
+	while (val - min > x) {
 		x   = x*2;
 		lvl++;
 	}
 	
-	if (val < min)
-	{
-		if (belowMin) return 0;
-		else die("Discretized value is below minimum\n");
-	}
-	
-	if (val > max)
-	{
-		if (aboveMax) return oldLevels - 1;
-		else die("Discretized value is above maximum\n");
-	}
-	
+	if (val < min) return 0;
+	if (val > max) return oldLevels - 1;
 	return lvl;
 }
 

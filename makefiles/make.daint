@@ -1,8 +1,8 @@
 CC = CC
-
-ifeq "$(config)" "debug"
-CPPFLAGS+= -dynamic -fsanitize=address
-LIBS += -dynamic -fsanitize=address
-endif
-
 LIBS+= -mavx
+
+#ifeq "$(config)" "debug"
+#CPPFLAGS+= #-dynamic -fsanitize=address
+#LIBS += #-dynamic -fsanitize=address
+#endif
+

@@ -2,7 +2,7 @@ CC=mpic++
 
 #export PATH=/cluster/home/mavt/chatzidp/usr/mpich3/bin:$PATH
 
-CPPFLAGS+= -msse3 -I/cluster/home/mavt/chatzidp/usr/mpich3/include/
+CPPFLAGS+= -msse3 -I/cluster/home/mavt/chatzidp/usr/mpich3/include/ -DREG=5
 
 export LD_LIBRARY_PATH=/cluster/home/mavt/chatzidp/usr/mpich3/lib/:$LD_LIBRARY_PATH
 

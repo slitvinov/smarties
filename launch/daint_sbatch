@@ -1,0 +1,17 @@
+#!/bin/bash -l
+
+#SBATCH --account=s658
+#SBATCH --job-name="${1}"
+#SBATCH --output=${1}_%j.txt
+#SBATCH --error=${1}_%j.txt
+#SBATCH --time=${5}
+#SBATCH --nodes=${2}
+# #SBATCH --partition=viz
+#SBATCH --ntasks-per-node=${3}
+
+module load slurm
+module swap PrgEnv-cray PrgEnv-gnu
+module swap gcc/4.8.2 gcc/4.9.2
+export OMP_NUM_THREADS=$3
+
+run.sh ${2} ${3} ${4}

@@ -70,7 +70,7 @@ void FishNet::train(const vector<vector<Real>>& inputs, const vector<vector<Real
         }
         end = std::chrono::high_resolution_clock::now();
         printf("Epoch %d/%d took %f seconds and had absolute MSE of %f. \n",e,nepochs,std::chrono::duration<Real>(end-start).count(),batch_err/ndata);
-        cout << profiler->printStat() << endl;
+        //cout << profiler->printStat() << endl;
     }
 }
 
@@ -106,7 +106,7 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
         }
         end = std::chrono::high_resolution_clock::now();
         printf("Epoch %d/%d took %f seconds and had absolute MSE of %f. \n",e,nepochs,std::chrono::duration<Real>(end-start).count(),batch_err/ndata);
-        cout << profiler->printStat() << endl;
+        //cout << profiler->printStat() << endl;
     }
 }
 
@@ -163,7 +163,7 @@ void FishNet::improve(const vector<Real>& error, int iAgent)
     net->expandMemory(net->mem[iAgent], net->series[1]);
 
     net->computeGrads(error, net->series[0], net->series[1], net->grad);
-    opt->update(net->grad);
+    opt->update(net->grad, 1);
     
     net->expandMemory(net->mem[iAgent], net->series[1]);
 }

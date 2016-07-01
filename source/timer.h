@@ -12,13 +12,18 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <sys/time.h>
+#include <time.h>
 
 #ifndef __APPLE__
 inline long int mach_absolute_time()
 {
+    struct timeval clock;
+    gettimeofday(&clock, NULL);
+    /*
 	timespec t;
-	clock_gettime(CLOCK_MONOTONIC, &t);
-	return (long int) (t.tv_sec*1e9 + t.tv_nsec);
+	clock_gettime(CLOCK_MONOTONIC, &t);*/
+	return (long int) (clock.tv_usec*1e6);
 }
 #else
 #include <mach/mach.h>

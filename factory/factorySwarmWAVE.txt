@@ -1,3 +1,0 @@
-SwarmEnvironment type=wave
-SmartySwarm d=1 T=0.02 n=50 zoa=25 zoo=18 v=3
-END

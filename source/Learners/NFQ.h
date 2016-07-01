@@ -9,22 +9,19 @@
 
 #pragma once
 
-#include <vector>
-#include <string>
-#include <list>
-
 #include "Learner.h"
-#include "Trace.h"
 
 using namespace std;
 
 class NFQ : public Learner
-{
-    int batchSize;
+{   
+    void Train(const int seq, const int first) override;
+    void Train(const int seq, const int samp, const int first) override;
+    void Train(const vector<int>& seq) override;
+    void Train(const vector<int>& seq, const vector<int>& samp) override;
+    
 public:
 	NFQ(Environment* env, Settings & settings);
-    bool bTRAINING;
-    void updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r) override;
-    void Train() override;
+    void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) override;
 };
 

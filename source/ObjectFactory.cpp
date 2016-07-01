@@ -7,17 +7,15 @@
  *
  */
 
-#include <string>
-#include <cmath>
-#include <fstream>
-#include <algorithm>
-#include <iostream>
-
-#include "rng.h"
 #include "Settings.h"
 #include "ObjectFactory.h"
 #include "ErrorHandling.h"
 #include "AllSystems.h"
+
+#include <cmath>
+#include <fstream>
+#include <algorithm>
+#include <iostream>
 
 using namespace ErrorHandling;
 using namespace std;
@@ -25,8 +23,7 @@ using namespace std;
 inline string ObjectFactory::_parse(string source, string pattern, bool req)
 {
     int pos = source.find(((string)" ")+pattern);
-    if (pos == string::npos)
-    {
+    if (pos == string::npos) {
         if (req) die("Parsing factory file failed at required argument '%s' line '%s'\n", pattern.c_str(), source.c_str());
         else     return "";
     }
@@ -55,212 +52,47 @@ inline Real ObjectFactory::_parseReal(string source, string pattern, bool req)
 
 Environment* ObjectFactory::createEnvironment(int rank, int index)
 {
-    RNG rng(rand());
-
     ifstream inFile;
     inFile.open(filename.c_str());
     Environment* env;
-
+    
+    string envStr, execpath;
+    getline(inFile, envStr);
+    int n;
+    
     if (!inFile.good()) die("Unable to open file '%s'!\n", filename.c_str());
-
-    while (inFile.good())
     {
-        string envStr, name;
-
-        getline(inFile, envStr);
-        string s;
-
         if (envStr.find("TwoFishEnvironment ") != envStr.npos)
         {
-            vector<Agent*> agents;
-
-            string appType = _parse(envStr, "type", false);
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            int senses = _parseInt(envStr, "senses", true);
-            
-            StateType st;
-            if (appType == "DISCR") st = DISCR;
-            else if (appType == "ANN") st = ANN;
-            else if (appType == "WAVE") st = WAVE;
-
-            for (int i=0; i<n; i++)
-            {
-                agents.push_back(new Agent(1e-10, ACTOR, "ExternalAgent"));
-            }
-
-            env = new TwoFishEnvironment(agents, execpath, st, rank, senses, settings);
-            env->setDims();
-            if (rank != 0) env->setup_Comm();
-            getline(inFile, s);
+            execpath = _parse(envStr, "exec", true);
+            n = _parseInt(envStr, "n", true);
+            env = new TwoFishEnvironment(n, execpath, rank, settings);
         }
-        
+        else if (envStr.find("TwoActFishEnvironment ") != envStr.npos)
+        {
+            execpath = _parse(envStr, "exec", true);
+            n = _parseInt(envStr, "n", true);
+            env = new TwoActFishEnvironment(n, execpath, rank, settings);
+        }
         else if (envStr.find("NewFishEnvironment ") != envStr.npos)
         {
-            vector<Agent*> agents;
-            
-            string appType = _parse(envStr, "type", false);
             string execpath = _parse(envStr, "exec", true);
             int n = _parseInt(envStr, "n", true);
-            int senses = _parseInt(envStr, "senses", true);
-            
-            StateType st;
-            if (appType == "DISCR") st = DISCR;
-            else if (appType == "ANN") st = ANN;
-            else if (appType == "WAVE") st = WAVE;
-            
-            for (int i=0; i<n; i++)
-            {
-                agents.push_back(new Agent(1e-10, ACTOR, "ExternalAgent"));
-            }
-            
-            env = new NewFishEnvironment(agents, execpath, st, rank, senses, settings);
-            env->setDims();
-            if (rank != 0) env->setup_Comm();
-            getline(inFile, s);
+            env = new NewFishEnvironment(n, execpath, rank, settings);
         }
-        
-        else if (envStr.find("ExternalEnvironment ") != envStr.npos)
+        else if (envStr.find("CartPoleEnvironment ") != envStr.npos)
         {
-            vector<Agent*> agents;
-            
-            string appType = _parse(envStr, "type", false);
             string execpath = _parse(envStr, "exec", true);
             int n = _parseInt(envStr, "n", true);
-            
-            StateType st;
-            if (appType == "DISCR") st = DISCR;
-            else if (appType == "ANN") st = ANN;
-            else if (appType == "WAVE") st = WAVE;
-            
-            for (int i=0; i<n; i++)
-            {
-                agents.push_back(new Agent(1e-10, ACTOR, "ExternalAgent"));
-            }
-            
-            env = new ExternalEnvironment(agents, execpath, st, rank);
-            env->setDims();
-            if (rank != 0) env->setup_Comm();
-            getline(inFile, s);
-        }
-        
-        else if (envStr.find("HardCartEnvironment ") != envStr.npos)
-        {
-            vector<Agent*> agents;
-            
-            string appType = _parse(envStr, "type", false);
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            StateType st;
-            if (appType == "DISCR") st = DISCR;
-            else if (appType == "ANN") st = ANN;
-            else if (appType == "WAVE") st = WAVE;
-            
-            for (int i=0; i<n; i++)
-            {
-                agents.push_back(new Agent(1e-10, ACTOR, "ExternalAgent"));
-            }
-            
-            env = new HardCartEnvironment(agents, execpath, st, rank);
-            env->setDims();
-            if (rank != 0) env->setup_Comm();
-            getline(inFile, s);
-        }
-        
-        else if (envStr.find("oldEnvironment ") != envStr.npos)
-        {
-            vector<Agent*> agents;
-            
-            string appType = _parse(envStr, "type", false);
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            
-            StateType st;
-            if (appType == "DISCR") st = DISCR;
-            else if (appType == "ANN") st = ANN;
-            else if (appType == "WAVE") st = WAVE;
-            
-            for (int i=0; i<n; i++)
-            {
-                agents.push_back(new Agent(1e-10, ACTOR, "ExternalAgent"));
-            }
-            
-            env = new oldEnvironment(agents, execpath, st, rank);
-            env->setDims();
-            if (rank != 0) env->setup_Comm();
-            getline(inFile, s);
-        }
-
-        else if (envStr.find("SelfAvoidEnvironment ") != envStr.npos)
-        {
-            vector<Agent*> agents;
-            vector<Column> columns;
-
-            string appType = _parse(envStr, "type", false);
-            Real D = _parseReal(envStr, "scale");
-            Real rWall = _parseReal(envStr, "rWall")*D;
-
-            StateType st;
-            if (appType == "DISCR") st = DISCR;
-            else if (appType == "ANN") st = ANN;
-            else if (appType == "WAVE") st = WAVE;
-
-            while (inFile.good())
-            {
-                getline(inFile, s);
-
-                if (s.find("SmartySelfAvoider ") != s.npos)
-                {
-                    SmartySelfAvoider* agent = new SmartySelfAvoider(_parseReal(s, "x")*D,
-                            _parseReal(s, "y")*D, _parseReal(s, "d")*D,
-                            _parseReal(s, "T"), D/5.0, 0);
-                    agents.push_back(agent);
-                }
-                else if( s.find("SmartySelfAvoiders ") != s.npos )
-                {
-                    Real d = _parseReal(s, "d")*D;
-                    Real T = _parseReal(s, "T");
-                    int num  = _parseInt   (s, "n");
-
-                    for(int j=0; j<num; j++)
-                    {
-                        const Real radius = rng.uniform(0.0, 0.6*rWall);
-                        const Real angle  = rng.uniform(0.0,2*M_PI);
-                        const Real xx     = radius*cos(angle);
-                        const Real yy     = radius*sin(angle);
-
-                        SmartySelfAvoider* agent = new SmartySelfAvoider(xx, yy, d, T, 0.01*rWall, 0);
-                        agents.push_back(agent);
-                    }
-                }
-                else if( s.find("Column ") != s.npos )
-                {
-                    columns.push_back(make_tuple(_parseReal(s, "x")*D, _parseReal(s, "y")*D, _parseReal(s, "d")*D));
-                }
-                else if( s.find("Columns ") != s.npos )
-                {
-                    Real dmin = _parseReal(s, "dmin")*D;
-                    Real dmax = _parseReal(s, "dmax")*D;
-                    int  num = _parseInt   (s, "n");
-
-                    for(int j=0; j<num; j++)
-                    {
-                        const Real radius = rng.uniform(0.0,0.45);
-                        const Real angle  = rng.uniform(0.0,2*M_PI);
-                        const Real xx     = radius*cos(angle);
-                        const Real yy     = radius*sin(angle);
-                        const Real d      = rng.uniform(dmin, dmax);
-
-                        columns.push_back(make_tuple(xx, yy, d));
-                    }
-                }
-                else die("Couldn't parse line '%s' for SelfAvoidEnvironment\n", s.c_str());
-            }
-
-            env = new SelfAvoidEnvironment(agents, columns, rWall, st);
+            env = new Environment(n, execpath, rank, settings);
         }
         else die("Unsupported environment type in line %s\n", envStr.c_str());
+        
+        //getline(inFile, s); used to be a while loop, but env vectors are not supported...
     }
-
+    
+    env->setDims();
+    if (rank != 0) env->setup_Comm();
+    
     return env;
 }

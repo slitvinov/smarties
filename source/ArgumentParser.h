@@ -9,10 +9,8 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-#include <map>
 #include "Settings.h"
+#include <map>
 using namespace std;
 
 namespace ArgumentParser

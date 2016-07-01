@@ -9,12 +9,8 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-
-#include "Agents/Agent.h"
+#include "Agent.h"
 #include "Environments/Environment.h"
-//#include "Agents/ExternalAgent.h"
 
 using namespace std;
 

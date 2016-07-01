@@ -7,29 +7,14 @@
  *
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <cstdio>
-#include <unistd.h>
-#include <string>
-#include <errno.h>
-#include <math.h>
-#include <signal.h>
-#include <iostream>
-#include <algorithm>
-#include <stdio.h>
 #include "TwoFishEnvironment.h"
-
 
 using namespace std;
 
-TwoFishEnvironment::TwoFishEnvironment(vector<Agent*> agents, string execpath, StateType tp, int _rank, const int senses, Settings & settings) :
-ExternalEnvironment(agents, execpath, tp, _rank), sight(senses==0 || senses==2), l_line(senses==1 || senses==2), study(settings.rewardType), goalDY(settings.goalDY), gamma(settings.gamma)
+TwoFishEnvironment::TwoFishEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
+Environment(nAgents, execpath, _rank, settings), sight(settings.senses==0 || settings.senses==2), l_line(settings.senses==1 || settings.senses==2), study(settings.rewardType), goalDY(settings.goalDY), gamma(settings.gamma)
 {
     if (goalDY > 1.) goalDY = 1. - goalDY; //poor man's sign
-#ifndef _scaleR_
-    gamma =0; //soory
-#endif
 }
 
 
@@ -52,93 +37,76 @@ void TwoFishEnvironment::setDims()
      info[6]  = _D[i]->Vy;
      info[7]  = _D[i]->angVel;
      */
-    sI.bounds.clear(); sI.top.clear();
-    sI.bottom.clear(); sI.aboveTop.clear();
-    sI.belowBottom.clear(); sI.isLabel.clear();
+    sI.bounds.clear(); sI.top.clear(); sI.bottom.clear(); sI.isLabel.clear(); sI.inUse.clear();
     
     {
         // State: Horizontal distance from goal point...
         sI.bounds.push_back(1); //one block in between the bounds, one more on each side
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(sight);
         
         // ...vertical distance...
         sI.bounds.push_back(1);
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(sight);
         
         // ...inclination of1the fish...
         sI.bounds.push_back(1); // only positive or negative
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(sight);
         
         // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
         sI.bounds.push_back(1); // Will get ~ 0 or 0.5
         sI.top.push_back(0.5); sI.bottom.push_back(0.0);
-        sI.aboveTop.push_back(false); sI.belowBottom.push_back(false);
         sI.isLabel.push_back(false); sI.inUse.push_back(true);
         
         // ...last action (HAX!)
         sI.bounds.push_back(1);
         sI.top.push_back(5.0); sI.bottom.push_back(0.0);
-        sI.aboveTop.push_back(false); sI.belowBottom.push_back(false);
         sI.isLabel.push_back(true); sI.inUse.push_back(true);
         
         // ...second last action (HAX!)
         sI.bounds.push_back(1);
         sI.top.push_back(5.0); sI.bottom.push_back(0.0);
-        sI.aboveTop.push_back(false); sI.belowBottom.push_back(false);
         sI.isLabel.push_back(true); sI.inUse.push_back(true); //if l_line i have curvature info
     }
     {
         sI.bounds.push_back(1); //T / D 6
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
 
         sI.bounds.push_back(1); // Pout 7
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
 
         sI.bounds.push_back(1); // defPower 8
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
         
         sI.bounds.push_back(1); // eta = kin/kin+Pout 9
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
         
         sI.bounds.push_back(1); // etaPdef 10
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
         
         sI.bounds.push_back(1); // Vx 11
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
         
         sI.bounds.push_back(1); // Vy 12
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
         
         sI.bounds.push_back(1); // angvel 13
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
     }
     for (int i=0; i<10; i++) // >=14
     {
         sI.bounds.push_back(1); // (p_above  ) x 10
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
     }
     
@@ -146,7 +114,6 @@ void TwoFishEnvironment::setDims()
     {
         sI.bounds.push_back(1); // ( p_below ) x 10
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
     }
     
@@ -154,28 +121,8 @@ void TwoFishEnvironment::setDims()
     {
         sI.bounds.push_back(1); // ( curvature) x 10
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.aboveTop.push_back(true); sI.belowBottom.push_back(true);
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
     }
-    
-    //now count the number of states variables and number of actually used
-    sI.dim = 0; sI.dimUsed = 0;
-    for (int i=0; i<sI.bounds.size(); i++)
-    {
-        sI.dim++;
-        if (sI.inUse[i])
-            sI.dimUsed++;
-    }
-    
-    aI.dim = 1; //How many actions taken per turn by one agent MUST BE 1 (TODO?!??!!)
-    //for (int i=0; i<aI.dim; i++)
-        aI.bounds.push_back(5); //Number of possible actions to choose from
-    
-    aI.values.push_back(-2.);
-    aI.values.push_back(-1.);
-    aI.values.push_back(0.0);
-    aI.values.push_back(1.0);
-    aI.values.push_back(2.0);
     
     sI.values.push_back(-2.);
     sI.values.push_back(-1.);
@@ -183,24 +130,28 @@ void TwoFishEnvironment::setDims()
     sI.values.push_back(1.0);
     sI.values.push_back(2.0);
     
-    nInfo = 0;
+    aI.realValues = false;
+    aI.dim = 1;
     aI.zeroact = 2;
-    for (auto& a : agents)
+    aI.values.resize(aI.dim);
+    for (int i=0; i<aI.dim; i++)
     {
-        a->Info.resize(nInfo);
-        a->nInfo = nInfo;
+        aI.bounds.push_back(5); //Number of possible actions to choose from
+        aI.upperBounds.push_back( 1.);
+        aI.lowerBounds.push_back(-1.);
         
-        //a->setEnvironment(this);
-        a->setDims(sI, aI);
-        
-        a->a = new Action(aI);
-        a->s = new State(sI);
+        aI.values[i].push_back(-.5);
+        aI.values[i].push_back(-.25);
+        aI.values[i].push_back(0.0);
+        aI.values[i].push_back(.25);
+        aI.values[i].push_back(0.5);
     }
+    commonSetup();
 }
 
 bool TwoFishEnvironment::pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward)
 {
-    /*
+    
      if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001)
      {
      printf("ASSUMING 2F: mismatch between state and reported action!!! %s \n",t_sN.printClean().c_str());
@@ -216,7 +167,6 @@ bool TwoFishEnvironment::pickReward(const State & t_sO, const Action & t_a, cons
      printf("ASSUMING 2F: same time for two states!!! %s \n",t_sN.printClean().c_str());
      abort();
      }
-     */
     
     Real ToDmax(2.55764), PoutMax(5.85923e-07), dePowerMax(0.273871), etaMax(1), effMax(1);
     Real ToDmin(0.462123), PoutMin(-2.23674e-06), dePowerMin(0.), etaMin(0.253908), effMin(0.428293);

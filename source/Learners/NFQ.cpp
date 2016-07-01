@@ -7,96 +7,206 @@
  *
  */
 
-#include <map>
-
 #include "../StateAction.h"
 #include "NFQ.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <iostream>
+#include <fstream>
+#include <assert.h>
+#include <algorithm>
+#include <cmath>
 
-NFQ::NFQ(Environment* env, Settings & settings) : Learner(env,settings), bTRAINING(settings.bTrain==1), batchSize(-1)
-{ }
 
-void NFQ::updateSelect(const int agentId, State& s, Action& a, State& sOld, Action& aOld, vector<Real> info, Real r)
-{   // No learning here!
-    //       aOld, r
-    // sOld ---------> s
-    //
-    // Find V(s) = max Q(s, a')
-    //              a'
-    Real newEps(greedyEps);
-    if (bTRAINING) newEps = (greedyEps-(greedyEps-.1)*agentId/Real(nAgents)) * exp(-T->Set.size()/1e3);
-    
-    Real Vnew = Q->getMax(s, a, agentId);
-    Real p = rng->uniform();
 
-    if  (p < newEps)  { a.getRand(rng); printf("Random action\n");}
+NFQ::NFQ(Environment* env, Settings & settings) : Learner(env,settings)
+{
 }
 
-
-void NFQ::Train()
+void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r)
 {
-    const int ndata = T->Set.size();
-    if (ndata<100) return; //do we have enough data?
+    Real newEps(greedyEps);
+    vector<Real> output(nOutputs), inputs(nInputs);
+    const int handicap = min(static_cast<int>(T->Set.size()), stats.epochCount*10);
+    if (bTrain) newEps = (.1 +greedyEps*exp(-handicap/500.));//*agentId/Real(agentId+1);
+    if (info!=1) T->passData(agentId, info, sOld, aOld, s, r);
     
-    if (batchSize <= 0)
-    {
-        batchSize = ndata; //
-        Q->updateFrozenWeights();
+    s.scaleUsed(inputs);
+    net->expandMemory(net->mem[agentId], net->series[0]); //RNN to update recurrent signals
+    net->predict(inputs, output, net->series[0], net->series[1]);
+    #ifdef _dumpNet_
+    net->dump(agentId);
+    #endif
+    net->expandMemory(net->mem[agentId], net->series[1]);
+    
+    Real Val(-1e6); int Nbest;
+    for (int i=0; i<nOutputs; ++i) {
+        if (output[i]>Val) { Nbest=i; Val=output[i]; }
     }
-    batchSize--;
+    a.unpack(Nbest);
+    //printf("%d %d %f\n",a.vals[0],i,a.valsContinuous[0]);
     
-    if (T->inds.size()==0)
-    {
-#ifdef _Priority_
-        T->updateP();
-#else
-        T->anneal++;
-        T->inds.reserve(ndata);
-        for (int i=0; i<ndata; ++i) T->inds.push_back(i);
-        random_shuffle(T->inds.begin(), T->inds.end(),*(T->fix));
-#endif
+    uniform_real_distribution<Real> dis(0.,1.);
+    if(dis(*gen) < newEps) a.getRand();
+}
+
+void NFQ::Train(const int seq, const int first)
+{
+    if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
+    vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs);
+
+    net->predict(T->Set[seq]->tuples[0]->s, Qhats, net->series[first]);
+    const int ndata = T->Set[seq]->tuples.size();
+    
+    for (int k=0; k<ndata-1; k++) {//state in k=[0:N-2], act&rew in k+1
+        Qs = Qhats;
+        const Tuple * const _t = T->Set[seq]->tuples[k+1];
         
-        if (T->avgQ.size()>0)
+        if (k+2==ndata && T->Set[seq]->ended) {
+            for (int i=0; i<nOutputs; i++) {
+                *(net->series[first+k]->errvals +net->iOutputs+i) = 0;
+            }
+            const Real target = _t->r;
+            const Real err =  (target - Qs[_t->a]);
+            *(net->series[first+k]->errvals +net->iOutputs+_t->a) = err;
+        } else {
+            net->predict(_t->s, Qhats,   net->series[k], net->series[first+1]);
+            net->predict(_t->s, Qtildes, net->series[k], net->series[first+ndata],
+                                    net->frozen_weights, net->frozen_biases);
+            int Nbest; Real Vhat(-1e10);
+            for (int i=0; i<nOutputs; i++) {
+                *(net->series[first+k]->errvals +net->iOutputs +i) = 0;
+                if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
+            }
+            const Real target = _t->r + gamma*Qtildes[Nbest];
+            const Real err =  (target - Qs[_t->a]);
+            *(net->series[first+k]->errvals +net->iOutputs+_t->a) = err;
+        }
+    }
+    {
+        net->computeDeltasSeries(net->series, first, first+ndata-2);
+        
+        for (int k=first; k<first+ndata-1; k++)
+            net->computeAddGradsSeries(net->series, k, net->Vgrad[omp_get_thread_num()]);
+    }
+}
+
+void NFQ::Train(const vector<int>& seq)
+{
+    if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
+    vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs);
+    int countUpdate(0);
+
+    for (int jnd(0); jnd<seq.size(); jnd++) {
+        const int ind = seq[jnd];
+        const int ndata = T->Set[ind]->tuples.size();
+        net->allocateSeries(ndata);
+        //net->assignDropoutMask();
+        net->predict(T->Set[ind]->tuples[0]->s, Qhats, net->series[0]);
+        
+        for (int k=0; k<ndata-1; k++) {//state in k=[0:N-1], act&rew in k+1
+            Qs = Qhats;
+            const Tuple * const _t = T->Set[ind]->tuples[k+1];
+            
+            if (k+2==ndata && T->Set[ind]->ended) {
+                for (int i=0; i<nOutputs; i++) {
+                    *(net->series[k]->errvals +net->iOutputs+i) = 0;
+                }
+                const Real target = _t->r;
+                const Real err =  (target - Qs[_t->a]);
+                dumpStats(target, err, Qs[_t->a]);
+                *(net->series[k]->errvals +net->iOutputs+_t->a) = err;
+            } else {
+                net->predict(_t->s, Qhats,   net->series[k], net->series[k+1]);
+                net->predict(_t->s, Qtildes, net->series[k], net->series[ndata],
+                                        net->frozen_weights, net->frozen_biases);
+                int Nbest; Real Vhat(-1e10);
+                for (int i=0; i<nOutputs; i++) {
+                    *(net->series[k]->errvals +net->iOutputs +i) = 0;
+                    if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
+                }
+                const Real target = _t->r + gamma*Qtildes[Nbest];
+                const Real err =  (target - Qs[_t->a]);
+                dumpStats(target, err, Qs[_t->a]);
+                *(net->series[k]->errvals +net->iOutputs+_t->a) = err;
+            }
+        }
         {
-            Real mean_err = accumulate(T->Errs.begin(), T->Errs.end(), 0.)/ndata;
-            Real mean_Q   = accumulate(T->avgQ.begin(), T->avgQ.end(), 0.)/ndata;
-            Real max_Q = *max_element(T->maxQ.begin(), T->maxQ.end());
-            Real min_Q = *min_element(T->minQ.begin(), T->minQ.end());
-            printf("Avg MSE %f, avg Q %f, min Q %f, max Q %f, N %d\n",
-                   mean_err, mean_Q, min_Q, max_Q, ndata);
-            ofstream filestats;
-            filestats.open("stats.txt", ios::app);
-            filestats<<T->anneal<<" "<<mean_err<<" "<<mean_Q<<" "<<max_Q<<" "<<min_Q<<endl;
-            filestats.close();
+            net->computeDeltasSeries(net->series, 0, ndata-2);
+            
+            for (int k=0; k<ndata-1; k++) {
+                net->computeGradsSeries(net->series, k, net->_grad);
+                opt->stackGrads(net->grad,net->_grad);
+                countUpdate++;
+            }
+            //net->removeDropoutMask(); //before the update!!!
+        }
+    }
+    opt->nepoch=stats.epochCount;
+    opt->update(net->grad, countUpdate);
+}
+
+void NFQ::Train(const int seq, const int samp, const int first)
+{
+    vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs);
+
+    const Tuple * const _t = T->Set[seq]->tuples[samp+1];
+    net->predict(T->Set[seq]->tuples[samp]->s, Qs, net->series[first]);
+    
+    const bool term = samp+2==T->Set[seq]->tuples.size() && T->Set[seq]->ended;
+    if (not term) {
+        net->predict(_t->s, Qhats,   net->series[first], net->series[first+1]);
+        net->predict(_t->s, Qtildes, net->series[first], net->series[first+2],
+                                net->frozen_weights, net->frozen_biases);
+    }
+    int Nbest; Real Vhat(-1e10);
+    for (int i=0; i<nOutputs; i++) {
+        *(net->series[first]->errvals +net->iOutputs+i) = 0;
+        if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
+    }
+    
+    const Real target = (term) ? _t->r : _t->r + gamma*Qtildes[Nbest];
+    const Real err =  (target - Qs[_t->a]);
+    *(net->series[first]->errvals +net->iOutputs+_t->a) = err;
+    net->computeDeltas(net->series[first]);
+    net->computeAddGrads(net->series[first], net->Vgrad[omp_get_thread_num()]);
+}
+
+void NFQ::Train(const vector<int>& seq, const vector<int>& samp)
+{
+    if(not net->allocatedFrozenWeights) die("Allocate them!\n");
+    const int ndata = seq.size();
+    vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs);
+    int countUpdate(0);
+    
+    for (int k=0; k<ndata; k++) { //TODO clean this shit up
+        const int knd(seq[k]), ind(samp[k]);
+        net->predict(T->Set[knd]->tuples[ind]->s, Qs, net->series[0]);
+        const Tuple * const _t = T->Set[knd]->tuples[ind+1];
+        
+        const bool term = ind+2==T->Set[knd]->tuples.size() && T->Set[knd]->ended;
+        if(not term) {
+            net->predict(_t->s, Qhats,   net->series[0], net->series[1]);
+            net->predict(_t->s, Qtildes, net->series[0], net->series[2],
+                                    net->frozen_weights, net->frozen_biases);
+        }
+        int Nbest; Real Vhat(-1e10);
+        for (int i=0; i<nOutputs; i++) {
+            *(net->series[0]->errvals +net->iOutputs+i) = 0;
+            if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
         }
         
-        if (T->anneal%100==0)
-        {
-            printf("Saving\n");
-            string restart_file;
-            char buf[500];
-            sprintf(buf, "restart.net_%09d", T->anneal);
-            restart_file = string(buf);
-            Q->save(restart_file.c_str());
-        }
+        const Real target = (term) ? _t->r : _t->r + gamma*Qtildes[Nbest];
+        const Real err =  (target - Qs[_t->a]);
+        dumpStats(target, err, Qs[_t->a]);
+        *(net->series[0]->errvals +net->iOutputs+_t->a) = err;
         
-        T->avgQ.resize(ndata);
-        T->minQ.resize(ndata);
-        T->maxQ.resize(ndata);
+        net->computeDeltas(net->series[0]);
+        net->computeGrads(net->series[0], net->_grad);
+        opt->stackGrads(net->grad,net->_grad);
+        countUpdate++;
     }
-    
-#ifdef _Priority_
-    const int ind = T->sample();
-    Q->stats.weight=T->Ws[ind];
-#else //the following does not prioritize "problematic" experiences: basic sweep
-    const int ind = T->inds.back();
-    Q->stats.weight=1.;
-#endif
-    
-    T->inds.pop_back(); //dumb, dum-dumb, dum-duuuumb
-    Q->Train(T->Set[ind].sOld, T->Set[ind].a, T->Set[ind].r, T->Set[ind].s);
-    T->Errs[ind] = Q->stats.MSE;
-    T->avgQ[ind] = Q->stats.avgQ;
-    T->minQ[ind] = Q->stats.minQ;
-    T->maxQ[ind] = Q->stats.maxQ;
+    opt->nepoch=stats.epochCount;
+    opt->update(net->grad, countUpdate);
 }

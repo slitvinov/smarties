@@ -8,24 +8,28 @@
  */
 #pragma once
 
-#include <string>
 using namespace std;
 
-#include "ErrorHandling.h"
 #include <cstddef>
 #include <utility>
+#include <string>
+#include <random>
 #include <vector>
+#include <cstdlib>
+#include <cstdio>
+#include <cstdarg>
 #include <immintrin.h>
-//#include <omp.h>
+
+#include <omp.h>
 //#define _useOMP_
 #ifndef REG
-#define REG 2
+#define REG 0
 #endif /* REG */
 
 //#define _scaleR_
 #define _BPTT_
 //#define _Priority_
-#define _dumpNet_
+//#define _dumpNet_
 
 #define M_POL_O _MM_HINT_NTA
 #define M_POL_DS _MM_HINT_NTA
@@ -135,60 +139,43 @@ using namespace std;
 #endif
 
 #define ALLOC 32
-extern struct Settings
+
+struct Settings
 {
-    Settings() : configFile((string)"factory"),
-    dt(0.01), endTime(1e9), gamma(0.95), greedyEps(0.01),
-    prefix((string)"res/"), lRate(0.1), lambda(0.0), randSeed(0),
-    restart((string)"res/policy"), saveFreq(1000),
-    nnEta(0.001), nnAlpha(0.5), nnLambda(0.0), nnPdrop(0.0),
-    AL_fac(0.0), nnLayer1(32), nnLayer2(16),
-    nnLayer3( 0), nnMemory1(0), nnMemory2(0), nnMemory3(0),
-    EndR(-9.99), bTrain(false), senses(0), learner ((string)"NFQ"), approx ((string)"NN") {}
+    
+    Settings() :
+    saveFreq(1e3), randSeed(0), rewardType(0), senses(0), nAgents(1), nSlaves(1), nThreads(-1),
+    nnInputs(-1), nnOutputs(-1), nnLayer1(32), nnLayer2(32), nnLayer3(0), nnLayer4(0), nnLayer5(0),
+    nnType(1), dqnAppendS(0), dqnBatch(1), bTrain(1), lRate(.0001), greedyEps(.1), gamma(.9),
+    lambda(0), goalDY(0), nnPdrop(0), nnLambda(0), dqnUpdateC(1000.), learner((string)"NFQ"),
+    restart((string)"policy"), configFile((string)"factory"), prefix((string)"./"),
+    samplesFile((string)"../obs_master.txt")
+    {}
               
-	int    saveFreq;
-	int    videoFreq;
-    int    rewardType;
-    Real goalDY;
+    int saveFreq, randSeed, rewardType, senses, nAgents, nSlaves, nThreads, nnInputs, nnOutputs, nnLayer1, nnLayer2, nnLayer3, nnLayer4, nnLayer5, nnType, dqnAppendS, dqnBatch, bTrain;
+	Real lRate, greedyEps, gamma, lambda, goalDY, nnPdrop, nnLambda, dqnUpdateC;
+    string learner, restart, configFile, prefix, samplesFile;
+    mt19937 * gen;
+};
+
+namespace ErrorHandling
+{
+    extern int debugLvl;
     
-    int nAgents, nSlaves;
+#define    die(format, ...) fprintf(stderr, format, ##__VA_ARGS__), abort()
+#define  error(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
     
-	string configFile;
-	Real dt;
-	Real endTime;
-	int    randSeed;
-	
-    Real EndR;
-	Real lRate;
-	Real greedyEps;
-	Real gamma;
-	Real lambda;
-	string restart;
-	
-	Real nnEta;
-	Real nnAlpha;
-    Real nnPdrop;
-    Real nnLambda;
-	int    nnLayer1;
-	int    nnLayer2;
-    int    nnLayer3;
-    int    nnLayer4;
-    int    nnLayer5;
-    int    nnMemory1;
-    int    nnMemory2;
-    int    nnMemory3;
-    int    nnMemory4;
-    int    nnMemory5;
-    int    nnOuts;
+#define   warn(format, ...)	{if (debugLvl > 0) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#define  _info(format, ...)	{if (debugLvl > 1) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
     
-    Real  AL_fac;
-    string learner;
-    string approx;
-    
-	bool best;
-    int bTrain;
-    int senses;
-	bool immortal;
-	string prefix;
-	
-} settings;
+#define  debug(format, ...)	{if (debugLvl > 2) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#define debug1(format, ...)	{if (debugLvl > 3) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#define debug2(format, ...)	{if (debugLvl > 4) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#define debug3(format, ...)	{if (debugLvl > 5) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#define debug4(format, ...)	{if (debugLvl > 6) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#define debug5(format, ...)	{if (debugLvl > 7) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#define debug6(format, ...)	{if (debugLvl > 8) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#define debug7(format, ...)	{if (debugLvl > 9) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#define debug8(format, ...)	{if (debugLvl >10) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#define debug9(format, ...)	{if (debugLvl >11) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+}
