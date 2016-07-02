@@ -31,15 +31,16 @@ protected:
 public:
     const Real Pdrop;
     const int nInputs, nOutputs;
-    int nLayers, nNeurons, nWeights, nBiases, ndSdW, ndSdB, nStates, iOutputs;
+    int nLayers, nNeurons, nWeights, nBiases, nStates, iOutputs;
     vector<int> dump_ID;
     bool allocatedFrozenWeights, allocatedDroputWeights, backedUp, bDump;
     mt19937 * gen;
     vector<Mem*> mem;
     vector<Lab*> series;
     Grads * grad, * _grad;
-    vector<Grads*> Vgrad;
     Real *weights, *biases, *frozen_weights, *frozen_biases, *weights_DropoutBackup;
+    vector<Grads*> Vgrad;
+    vector<Real*> Vbiases, Vweights, VFbiases, VFweights;
     
     Network(const vector<int>& layerSize, const bool bLSTM, const Settings & settings);
     Network(const vector<int>& layerSize, const vector<int>& recurSize, const Settings & settings);
@@ -52,6 +53,7 @@ public:
     
     void clearInputs(Lab* _N);
     void updateFrozenWeights();
+    void synchronizeWeights();
     void moveFrozenWeights(const Real alpha);
     void clearErrors(Lab* _N) const;
     void clearMemory(Real * outvals, Real * ostates) const;
@@ -74,13 +76,25 @@ public:
         predict(_input, _output, _N, weights, biases);
     }
     
-    void computeDeltas(Lab* const _series) const;
-    void computeDeltasInputs(vector<Lab*>& _series, const int k) const;
-    void computeDeltasSeries(vector<Lab*>& _series, const int first, const int last) const;
+    void computeDeltas(Lab* const _series, const Real* const _weights, const Real* const _biases) const;
+    void computeDeltas(Lab* const _series) const
+    {
+        computeDeltas(_series, weights, biases);
+    }
+    void computeDeltasInputs(vector<Lab*>& _series, const int k, const Real* const _weights, const Real* const _biases) const;
+    void computeDeltasInputs(vector<Lab*>& _series, const int k) const
+    {
+        computeDeltasInputs(_series, k, weights, biases);
+    }
+    void computeDeltasSeries(vector<Lab*>& _series, const int first, const int last, const Real* const _weights, const Real* const _biases) const;
+    void computeDeltasSeries(vector<Lab*>& _series, const int first, const int last) const
+    {
+        computeDeltasSeries(_series, first, last, weights, biases);
+    }
     
     void computeGradsSeries(const vector<Lab*>& _series, const int k, Grads* const _Grad) const;
     void computeGrads(const Lab* const _series, Grads* const _Grad) const;
-    void computeAddGradsSeries(const vector<Lab*>& _series, const int k, Grads* const _Grad) const;
+    void computeAddGradsSeries(const vector<Lab*>& _series, const int first, const int last, Grads* const _Grad) const;
     void computeAddGrads(const Lab* const _series, Grads* const _Grad) const;
 
     void save(const string fname);

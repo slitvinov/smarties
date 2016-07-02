@@ -169,46 +169,37 @@ void Network::addNormal(Graph* const p, Graph* const g, const bool first, const 
 void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bool last)
 {
 #ifdef SIMDKERNELS
-    int normalSize_SIMD = ceil((Real)g->normalSize/SIMD)*SIMD; //g->normalSize
-    int recurrSize_SIMD = ceil((Real)g->recurrSize/SIMD)*SIMD; //g->recurrSize
-    if(!last && !first)          g->recurrSize = recurrSize_SIMD;
-    if( last && g->normalSize>0) g->recurrSize = recurrSize_SIMD;
-    g->normalSize = normalSize_SIMD;
-    g->recurrSize = recurrSize_SIMD; //TODO
+    g->recurrSize_SIMD = ceil((Real)g->recurrSize/SIMD)*SIMD;
 #else
-    int normalSize_SIMD = g->normalSize;
-    int recurrSize_SIMD = g->recurrSize;
+    g->recurrSize_SIMD = g->recurrSize;
 #endif
     
     if (g->recurrSize>0) {
         {
             g->recurrPos = nNeurons;
-            nNeurons += g->recurrSize;
+            nNeurons += g->recurrSize_SIMD;
             g->indState = nStates;
-            nStates  += g->recurrSize;
+            nStates  += g->recurrSize_SIMD;
             
             g->biasIN = nBiases;
-            g->biasIG = g->biasIN + g->recurrSize;
-            g->biasFG = g->biasIG + g->recurrSize;
-            g->biasOG = g->biasFG + g->recurrSize;
+            g->biasIG = g->biasIN + g->recurrSize_SIMD;
+            g->biasFG = g->biasIG + g->recurrSize_SIMD;
+            g->biasOG = g->biasFG + g->recurrSize_SIMD;
             nBiases += 4*g->recurrSize;
             
-            g->wPeep  = nWeights;
-            nWeights+= 3*g->recurrSize; //SIMD HAZARD
+            //g->wPeep  = nWeights;
+            //nWeights+= 3*g->recurrSize_SIMD; //SIMD HAZARD
         }
         
         if (p->recurrSize>0) { //conntected to previous recurrent layer
             int WeightHL = nWeights;
-            nWeights += p->recurrSize*g->recurrSize;
+            nWeights += p->recurrSize_SIMD*g->recurrSize;
             int WeightIG = nWeights;
-            nWeights += p->recurrSize*g->recurrSize;
+            nWeights += p->recurrSize_SIMD*g->recurrSize;
             int WeightFG = nWeights;
-            nWeights += p->recurrSize*g->recurrSize;
+            nWeights += p->recurrSize_SIMD*g->recurrSize;
             int WeightOG = nWeights;
-            nWeights += p->recurrSize*g->recurrSize;
-            
-            int idSdW  = ndSdW;
-            ndSdW += p->recurrSize * g->recurrSize;
+            nWeights += p->recurrSize_SIMD*g->recurrSize;
             
             Link * link = new Link(p->recurrSize_SIMD,p->recurrPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
             g->rl_c_l->push_back(link);
@@ -216,16 +207,13 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
         }
         if (p->normalSize>0) { //conntected to previous normal layer
             int WeightHL = nWeights;
-            nWeights += p->normalSize*g->recurrSize;
+            nWeights += p->normalSize_SIMD*g->recurrSize;
             int WeightIG = nWeights;
-            nWeights += p->normalSize*g->recurrSize;
+            nWeights += p->normalSize_SIMD*g->recurrSize;
             int WeightFG = nWeights;
-            nWeights += p->normalSize*g->recurrSize;
+            nWeights += p->normalSize_SIMD*g->recurrSize;
             int WeightOG = nWeights;
-            nWeights += p->normalSize*g->recurrSize;
-            
-            int idSdW  = ndSdW;
-            ndSdW += p->normalSize * g->recurrSize;
+            nWeights += p->normalSize_SIMD*g->recurrSize;
             
             Link * link = new Link(p->normalSize_SIMD,p->normalPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
             g->rl_c_l->push_back(link);
@@ -234,16 +222,13 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
 
         { //conntected to past realization of current recurrent layer
             int WeightHL = nWeights;
-            nWeights += g->recurrSize*g->recurrSize;
+            nWeights += g->recurrSize_SIMD*g->recurrSize;
             int WeightIG = nWeights;
-            nWeights += g->recurrSize*g->recurrSize;
+            nWeights += g->recurrSize_SIMD*g->recurrSize;
             int WeightFG = nWeights;
-            nWeights += g->recurrSize*g->recurrSize;
+            nWeights += g->recurrSize_SIMD*g->recurrSize;
             int WeightOG = nWeights;
-            nWeights += g->recurrSize*g->recurrSize;
-            
-            int idSdW  = ndSdW;
-            ndSdW += g->recurrSize * g->recurrSize;
+            nWeights += g->recurrSize_SIMD*g->recurrSize;
             
             Link * link = new Link(g->recurrSize_SIMD,g->recurrPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
             g->rl_o_l->push_back(link);
@@ -252,16 +237,13 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
         if (false)//(g->normalSize>0) //NOT VALIDATED/SOMWETHING WRONG IN THE EQs
         { //conntected to past realization of current normal layer
             int WeightHL = nWeights;
-            nWeights += g->normalSize*g->recurrSize;
+            nWeights += g->normalSize_SIMD*g->recurrSize;
             int WeightIG = nWeights;
-            nWeights += g->normalSize*g->recurrSize;
+            nWeights += g->normalSize_SIMD*g->recurrSize;
             int WeightFG = nWeights;
-            nWeights += g->normalSize*g->recurrSize;
+            nWeights += g->normalSize_SIMD*g->recurrSize;
             int WeightOG = nWeights;
-            nWeights += g->normalSize*g->recurrSize;
-            
-            int idSdW  = ndSdW;
-            ndSdW += g->normalSize * g->recurrSize;
+            nWeights += g->normalSize_SIMD*g->recurrSize;
             
             Link * link = new Link(g->normalSize_SIMD,g->normalPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
             g->rl_o_l->push_back(link);
@@ -285,7 +267,7 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
 
 Network::Network(const vector<int>& normalSize, const vector<int>& recurrSize, const Settings & settings) :
 Pdrop(settings.nnPdrop), nInputs(normalSize.front()), nOutputs(normalSize.back()),
-nLayers(0), nNeurons(0), nWeights(0), nBiases(0), ndSdW(0), ndSdB(0), nStates(0), iOutputs(0),
+nLayers(0), nNeurons(0), nWeights(0), nBiases(0), nStates(0), iOutputs(0),
 allocatedFrozenWeights(false), allocatedDroputWeights(false), backedUp(false),
 gen(settings.gen), bDump(not settings.bTrain)
 {
@@ -320,8 +302,8 @@ gen(settings.gen), bDump(not settings.bTrain)
     
     iOutputs = (normalSize.back()==0) ? G.back()->recurrPos : G.back()->normalPos;
     nLayers = layers.size();
-    printf("nNeurons= %d, nWeights= %d, nBiases= %d, ndSdW= %d, ndSdB= %d, nStates= %d iOutputs = %d\n, nInputs = %d, nOutputs = %d \n",
-           nNeurons, nWeights, nBiases, ndSdW, ndSdB, nStates, iOutputs, nInputs, nOutputs);
+    printf("nNeurons= %d, nWeights= %d, nBiases= %d, nStates= %d iOutputs = %d\n, nInputs = %d, nOutputs = %d \n",
+           nNeurons, nWeights, nBiases, nStates, iOutputs, nInputs, nOutputs);
     
     for (int i=0; i<settings.nAgents; ++i) {
         Mem * m = new Mem(nNeurons, nStates);
@@ -334,8 +316,16 @@ gen(settings.gen), bDump(not settings.bTrain)
     
     if (settings.nThreads>1) {
         Vgrad.resize(settings.nThreads);
+        Vbiases.resize(settings.nThreads);
+        Vweights.resize(settings.nThreads);
+        VFbiases.resize(settings.nThreads);
+        VFweights.resize(settings.nThreads);
         for (int i=0; i<settings.nThreads; ++i) {
             Vgrad[i] = new Grads(nWeights,nBiases);
+            _allocateQuick(VFweights[i], nWeights)
+            _allocateQuick(Vweights[i], nWeights)
+            _allocateQuick(VFbiases[i], nBiases)
+            _allocateQuick(Vbiases[i], nBiases)
         }
     } else {
         _grad = new Grads(nWeights,nBiases);
@@ -357,11 +347,12 @@ gen(settings.gen), bDump(not settings.bTrain)
         //initializeWeights(*G[i], frozen_weights, frozen_biases);
     }
     updateFrozenWeights();
+    synchronizeWeights();
 }
 
 Network::Network(const vector<int>& layerSize, const bool bLSTM, const Settings & settings) :
 Pdrop(settings.nnPdrop), nInputs(layerSize.front()), nOutputs(layerSize.back()),
-nLayers(0), nNeurons(0), nWeights(0), nBiases(0), ndSdW(0), ndSdB(0), nStates(0), iOutputs(0),
+nLayers(0), nNeurons(0), nWeights(0), nBiases(0), nStates(0), iOutputs(0),
 allocatedFrozenWeights(false), allocatedDroputWeights(false), backedUp(false),
 gen(settings.gen), bDump(not settings.bTrain)
 {
@@ -399,8 +390,8 @@ gen(settings.gen), bDump(not settings.bTrain)
     //iOutputs = (bLSTM) ? G.back()->recurrPos : G.back()->normalPos;
     iOutputs = G.back()->normalPos;
     nLayers = layers.size();
-    printf("nNeurons= %d, nWeights= %d, nBiases= %d, ndSdW= %d, ndSdB= %d, nStates= %d iOutputs = %d\n, nInputs = %d, nOutputs = %d \n",
-           nNeurons, nWeights, nBiases, ndSdW, ndSdB, nStates, iOutputs, nInputs, nOutputs);
+    printf("nNeurons= %d, nWeights= %d, nBiases= %d, nStates= %d iOutputs = %d\n, nInputs = %d, nOutputs = %d \n", 
+           nNeurons, nWeights, nBiases, nStates, iOutputs, nInputs, nOutputs);
     
     for (int i=0; i<settings.nAgents; ++i) {
         Mem * m = new Mem(nNeurons, nStates);
@@ -408,21 +399,29 @@ gen(settings.gen), bDump(not settings.bTrain)
         mem.push_back(m);
     }
     dump_ID.resize(settings.nAgents);
+    allocateSeries(3);
+    
     grad = new Grads(nWeights,nBiases);
+    _allocateClean(weights, nWeights)
+    _allocateClean(biases, nBiases)
     
     if (settings.nThreads>1) {
         Vgrad.resize(settings.nThreads);
+        Vbiases.resize(settings.nThreads);
+        Vweights.resize(settings.nThreads);
+        VFbiases.resize(settings.nThreads);
+        VFweights.resize(settings.nThreads);
         for (int i=0; i<settings.nThreads; ++i) {
             Vgrad[i] = new Grads(nWeights,nBiases);
+            _allocateQuick(VFweights[i], nWeights)
+            _allocateQuick(Vweights[i], nWeights)
+            _allocateQuick(VFbiases[i], nBiases)
+            _allocateQuick(Vbiases[i], nBiases)
         }
     } else {
         _grad = new Grads(nWeights,nBiases);
     }
     
-    allocateSeries(3);
-    
-    _allocateClean(weights, nWeights)
-    _allocateClean(biases, nBiases)
     
     /*
     _allocateClean(frozen_weights, nWeights)
@@ -435,6 +434,7 @@ gen(settings.gen), bDump(not settings.bTrain)
         //initializeWeights(*G[i], frozen_weights, frozen_biases);
     }
     updateFrozenWeights();
+    synchronizeWeights();
 }
 
 void Network::save(const string fname)
@@ -541,6 +541,9 @@ bool Network::restart(const string fname)
     }
 
     in.close();
+    
+    updateFrozenWeights();
+    synchronizeWeights();
     return true;
 }
 
@@ -581,53 +584,53 @@ void Network::computeGrads(const vector<Real>& _error, const Lab* const _M, Lab*
         layers[nLayers-j]->backPropagate(_M,_N,_Grad,weights,biases);
 }
 
-void Network::computeDeltasInputs(vector<Lab*>& _series, const int k) const
+void Network::computeDeltasInputs(vector<Lab*>& _series, const int k, const Real* const _weights, const Real* const _biases) const
 {//no weight grad to care about, no recurrent links
     for (int n=0; n<nInputs; n++) {
         Real err = 0.;
         for (const auto & l : *(G[0]->nl_l_c)) {
             if (l->LSTM)
                 for (int i=0; i<l->nO; i++)
-                    err+=*(series[k]->eOGates+l->iC+i)* *(weights+l->iWO+i*l->nI+n)+
+                    err+=*(series[k]->eOGates+l->iC+i)* *(_weights+l->iWO+i*l->nI+n)+
                     *(series[k]->errvals+l->iO+i)* (
-                    *(series[k]->eMCell +l->iC+i)* *(weights+l->iW +i*l->nI+n)+
-                    *(series[k]->eIGates+l->iC+i)* *(weights+l->iWI+i*l->nI+n)+
-                    *(series[k]->eFGates+l->iC+i)* *(weights+l->iWF+i*l->nI+n));
+                    *(series[k]->eMCell +l->iC+i)* *(_weights+l->iW +i*l->nI+n)+
+                    *(series[k]->eIGates+l->iC+i)* *(_weights+l->iWI+i*l->nI+n)+
+                    *(series[k]->eFGates+l->iC+i)* *(_weights+l->iWF+i*l->nI+n));
             else
                 for (int i=0; i<l->nO; i++)
-                    err+=*(series[k]->errvals+l->iO+i)* *(weights+l->iW+i*l->nI +n);
+                    err+=*(series[k]->errvals+l->iO+i)* *(_weights+l->iW+i*l->nI +n);
         }
         *(series[k]->errvals +n) = err;
     }
 }
 
-void Network::computeDeltasSeries(vector<Lab*>& _series, const int first, const int last) const
+void Network::computeDeltasSeries(vector<Lab*>& _series, const int first, const int last, const Real* const _weights, const Real* const _biases) const
 {
 #ifdef _BPTT_
     for (int i=1; i<=nLayers; i++) {
-        layers[nLayers-i]->backPropagateDeltaLast(series[last-1],series[last],weights,biases);
+        layers[nLayers-i]->backPropagateDeltaLast(series[last-1],series[last],_weights,_biases);
     }
     
     for (int k=last-1; k>=first+1; k--) {
         for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagateDelta(series[k-1],series[k],series[k+1],weights,biases);
+        layers[nLayers-i]->backPropagateDelta(series[k-1],series[k],series[k+1],_weights,_biases);
     }
     
     for (int i=1; i<=nLayers; i++) {
-        layers[nLayers-i]->backPropagateDeltaFirst(series[first],series[first+1],weights,biases);
+        layers[nLayers-i]->backPropagateDeltaFirst(series[first],series[first+1],_weights,_biases);
     }
 #else
     for (int k=first; k>=last; k--) {
         for (int i=1; i<=nLayers; i++)
-            layers[nLayers-i]->backPropagateDelta(series[k],weights,biases);
+            layers[nLayers-i]->backPropagateDelta(series[k],_weights,_biases);
     }
 #endif
 }
 
-void Network::computeDeltas(Lab* const _series) const
+void Network::computeDeltas(Lab* const _series, const Real* const _weights, const Real* const _biases) const
 {
     for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagateDelta(_series,weights,biases);
+        layers[nLayers-i]->backPropagateDelta(_series,_weights,_biases);
 }
 
 void Network::computeGradsSeries(const vector<Lab*>& _series, const int k, Grads* const _Grad) const
@@ -642,10 +645,15 @@ void Network::computeGrads(const Lab* const _series, Grads* const _Grad) const
         layers[i]->backPropagateGrads(_series,_Grad);
 }
 
-void Network::computeAddGradsSeries(const vector<Lab*>& _series, const int k, Grads* const _Grad) const
+void Network::computeAddGradsSeries(const vector<Lab*>& _series, const int first, const int last, Grads* const _Grad) const
 {
     for (int i=0; i<nLayers; i++)
-    layers[i]->backPropagateAddGrads(series[k-1],series[k],_Grad);
+        layers[i]->backPropagateAddGrads(series[first],_Grad);
+    
+    for (int k=first+1; k<=last; k++) {
+        for (int i=0; i<nLayers; i++)
+            layers[i]->backPropagateAddGrads(series[k-1],series[k],_Grad);
+    }
 }
 
 void Network::computeAddGrads(const Lab* const _series, Grads* const _Grad) const
@@ -681,6 +689,42 @@ void Network::updateFrozenWeights()
             *(frozen_biases + j) = *(biases + j);
             #else
             STORE (frozen_biases + j, LOAD(biases + j));
+            #endif
+        }
+    }
+}
+
+void Network::synchronizeWeights()
+{
+    const int WsizeSIMD=ceil(nWeights/(Real)SIMD)*SIMD;
+    const int BsizeSIMD=ceil(nBiases/(Real)SIMD)*SIMD;
+    const int nThreads = Vweights.size();
+    #if SIMD > 1
+    const vec zeros = SET0 ();
+    #endif
+    
+    #pragma omp for nowait
+    for (int j=0; j<WsizeSIMD; j+=SIMD) {
+        for (int k=0; k<nThreads; k++) {
+            #if SIMD==1
+            *(Vweights[k]+j) = *(weights+j);
+            *(VFweights[k]+j) = *(frozen_weights+j);
+            #else
+            STORE(Vweights[k]+j, LOAD(weights+j));
+            STORE(VFweights[k]+j, LOAD(frozen_weights+j));
+            #endif
+        }
+    }
+    
+    #pragma omp for
+    for (int j=0; j<BsizeSIMD; j+=SIMD) {
+        for (int k=0; k<nThreads; k++) {
+            #if SIMD==1
+            *(Vbiases[k]+j) = *(biases+j);
+            *(VFbiases[k]+j) = *(frozen_biases+j);
+            #else
+            STORE(Vbiases[k]+j, LOAD(biases+j));
+            STORE(VFbiases[k]+j, LOAD(frozen_biases+j));
             #endif
         }
     }

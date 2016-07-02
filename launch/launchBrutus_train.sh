@@ -4,6 +4,7 @@ RUNFOLDER=$1
 NNODES=$2
 APP=$3
 SETTINGSNAME=$4
+BASEPATH="../"
 
 if [ $# -gt 4 ] ; then
     POLICY=$5
@@ -27,11 +28,9 @@ else
     TIMES=$9
 fi
 
-NTHREADSPERNODE=48
-NPROCESS=$((${NNODES}*${NTASK}))
-NPROCESSORS=$((${NNODES}*${NTHREADSPERNODE}))
+NPROCESS=${NNODES}
+NPROCESSORS=${NNODES}
 
-BASEPATH="/cluster/scratch_xp/public/novatig/smarties/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 
 #this must handle all app-side setup (as well as copying the factory)
@@ -39,16 +38,17 @@ source ../apps/${APP}/setup.sh ${BASEPATH}${RUNFOLDER}
 
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
-cp runBrutus_learn.sh ${BASEPATH}${RUNFOLDER}/run.sh
+cp runBrutus_train.sh ${BASEPATH}${RUNFOLDER}/run.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}
 
-bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -W ${WCLOCK} ./run.sh ${NPROCESS} ${NTHREADS}
+bsub -J ${RUNFOLDER} -n ${NPROCESS} -R span[ptile=48] -sp 100 -W ${WCLOCK} ./run.sh ${NPROCESS}
+#./run.sh ${NPROCESS}
 
 for (( c=1; c<=${TIMES}-1; c++ ))
 do
-    bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -w "ended(${RUNFOLDER})" -W ${WCLOCK} ./run.sh ${NPROCESS} ${NTHREADS}
+    bsub -J ${RUNFOLDER} -n ${NPROCESS} -R span[ptile=48] -sp 100 -w "ended(${RUNFOLDER})" -W ${WCLOCK} ./run.sh ${NPROCESS}
 done
 
 

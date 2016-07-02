@@ -23,16 +23,17 @@ struct StateInfo
 {
 	int dim, dimUsed;
 	vector<int> bounds;
-	vector<Real> bottom, top;
-	vector<bool> belowBottom, aboveTop, isLabel, inUse;
-    vector<Real> values;
+	vector<Real> bottom, top, isLabel, inUse;
+	//vector<bool> belowBottom, aboveTop
+    //vector<Real> values;
     
     StateInfo& operator= (const StateInfo& stateInfo)
     {
         dim     = stateInfo.dim;
         dimUsed = stateInfo.dimUsed;
         bounds.resize(dim); bottom.resize(dim); top.resize(dim);
-        belowBottom.resize(dim); aboveTop.resize(dim); isLabel.resize(dim); inUse.resize(dim);
+        //belowBottom.resize(dim); aboveTop.resize(dim);
+        isLabel.resize(dim); inUse.resize(dim);
         
         for (int i=0; i<dim; i++)
         {

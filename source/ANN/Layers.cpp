@@ -949,7 +949,7 @@ void NormalLayer::backPropagateAddGrads(const Lab* const P, const Lab* const C, 
 {
     for (int n=0; n<nNeurons; n++) {
         const Real eC = *(C->errvals +n1stNeuron +n);
-        *(grad->_B +n1stBias +n) = eC;
+        *(grad->_B +n1stBias +n) += eC;
         for (const auto & l : *curr_input_links) {
             #ifdef SIMDKERNELSG
             const vec E = BCAST(&eC);
@@ -989,8 +989,8 @@ void LSTMLayer::backPropagateAddGrads(const Lab* const P, const Lab* const C, Gr
         const Real eF = *(C->eFGates +n1stCell +n) * *(C->errvals +n1stNeuron +n);
         const Real eO = *(C->eOGates +n1stCell +n);
         
-        *(grad->_B +n1stBias   +n) = eC; *(grad->_B +n1stBiasIG +n) = eI;
-        *(grad->_B +n1stBiasFG +n) = eF; *(grad->_B +n1stBiasOG +n) = eO;
+        *(grad->_B +n1stBias   +n) += eC; *(grad->_B +n1stBiasIG +n) += eI;
+        *(grad->_B +n1stBiasFG +n) += eF; *(grad->_B +n1stBiasOG +n) += eO;
         
         for (const auto & l : *curr_input_links) {
             #ifdef SIMDKERNELSG

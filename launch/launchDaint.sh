@@ -1,11 +1,11 @@
 #!/bin/bash
+EXECNAME=rl
 RUNFOLDER=$1
 NNODES=$2
 APP=$3
 SETTINGSNAME=$4
 
 if [ $# -gt 4 ] ; then
-else
     POLICY=$5
     cp $5 ${BASEPATH}${RUNFOLDER}/policy.net
 fi

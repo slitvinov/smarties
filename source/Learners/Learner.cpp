@@ -72,14 +72,15 @@ void Learner::TrainBatch()
         std::iota(T->inds.begin(), T->inds.end(), 0);
         random_shuffle(T->inds.begin(), T->inds.end(),*(T->gen));
     }
-    /*{
+    
+    /*
         vector<vector<Real>> inputs;
         const int ind = 1011;
         for (int k=0; k<T->Set[ind]->tuples.size(); k++)
-        inputs.push_back(T->Set[ind]->tuples[k]->s);
-        
-        opt->checkGrads(inputs, T->Set[ind]->tuples.size(), 1);
-    }*/
+            inputs.push_back(T->Set[ind]->tuples[k]->s);
+        opt->checkGrads(inputs, T->Set[ind]->tuples.size()-1, 1);
+    */
+    
     if(bRecurrent) {
         vector<int> seq(batchSize);
         for (int i(0); i<batchSize; i++) {
@@ -108,10 +109,10 @@ void Learner::TrainBatch()
 void Learner::TrainTasking(Master* const master)
 {
     vector<int> seq(batchSize), samp(batchSize);
+    int nAddedGradients(0);
     #pragma omp parallel num_threads(nThreads)
     while (true) {
-        const int ndata =(bRecurrent)?T->nSequences:T->nTransitions;
-        int nAddedGradients(0);
+        const int ndata =(bRecurrent) ? T->nSequences : T->nTransitions;
         #pragma omp single
         {
             if (ndata>batchSize) {
@@ -120,6 +121,7 @@ void Learner::TrainTasking(Master* const master)
                     std::iota(T->inds.begin(), T->inds.end(), 0);
                     random_shuffle(T->inds.begin(),T->inds.end(),*(T->gen));
                     processStats(Vstats);
+                    opt->nepoch=stats.epochCount;
                 }
                 
                 if(bRecurrent) {
@@ -129,8 +131,9 @@ void Learner::TrainTasking(Master* const master)
                         T->inds.pop_back();
                         seq[i]  = ind;
                         const int seqSize = T->Set[ind]->tuples.size();
-                        nAddedGradients += seqSize;
+                        nAddedGradients += seqSize-1;
                         maxBufSize = max(maxBufSize,seqSize);
+                        //printf("Added grads %d, Seq size %d, buf size %d\n",nAddedGradients, seqSize, maxBufSize);
                     }
                     //LSTM NFQ requires size()+1 activations of the net:
                     net->allocateSeries(2+nThreads*(maxBufSize+1)); //0 and 1 reserved
@@ -139,7 +142,7 @@ void Learner::TrainTasking(Master* const master)
                         {
                             const int thrID = omp_get_thread_num();
                             const int first = 2+(maxBufSize+1)*thrID;
-                            //printf("Process %d works on seq %d with series from %d (buf = %d)\n", omp_get_thread_num(), seq[i], first, maxBufSize);
+                            //printf("Process %d works on seq %d with series from %d (buf = %d)\n", thrID, seq[i], first, maxBufSize);
                             Train(thrID, seq[i], first);
                             flags[i] = true;
                         }
@@ -174,8 +177,10 @@ void Learner::TrainTasking(Master* const master)
             master->hustle();
             #endif
         }
+        
         if (ndata>batchSize) {
             opt->stackGrads(net->grad, net->Vgrad);
+            //printf("Added grads %d %d\n",omp_get_thread_num(),nAddedGradients);
             opt->update(net->grad,nAddedGradients);
         }
         
@@ -184,6 +189,7 @@ void Learner::TrainTasking(Master* const master)
             if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
             else net->updateFrozenWeights();
         }
+        //net->synchronizeWeights();
         cntUpdateDelay--;
     }
 }
@@ -237,10 +243,6 @@ void Learner::dumpStats(const Real tgt, const Real err, const vector<Real>& Q)
     stats.dumpCount++;
     
     if (T->nTransitions==stats.dumpCount && T->nTransitions>1) {
-        stats.dumpCount = 0;
-        stats.epochCount++;
-        T->anneal++;
-        
         const Real mean_err = stats.MSE /(stats.dumpCount-1);
         const Real mean_Q   = stats.avgQ/stats.dumpCount;
         const Real mean_rel = stats.relE/stats.dumpCount;
@@ -252,6 +254,10 @@ void Learner::dumpStats(const Real tgt, const Real err, const vector<Real>& Q)
         filestats<<stats.epochCount<<" "<<mean_err<<" "<<mean_rel<<" "<<mean_Q<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
         filestats.close();
         
+        
+        stats.dumpCount = 0;
+        stats.epochCount++;
+        T->anneal++;
         if (stats.epochCount % 100==0) save("policy");
         
         stats.minQ=1e5; stats.maxQ=-1e5; stats.MSE=0; stats.avgQ=0; stats.relE=0;
@@ -265,15 +271,15 @@ void Learner::dumpStats(trainData* _stats, const Real tgt, const Real err, const
     _stats->MSE += err*err;
     _stats->relE += fabs(err)/(max_Q-min_Q);
     _stats->avgQ += tgt;
-    _stats->minQ = std::min(stats.minQ,tgt);
-    _stats->maxQ = std::max(stats.maxQ,tgt);
+    _stats->minQ = std::min(_stats->minQ,tgt);
+    _stats->maxQ = std::max(_stats->maxQ,tgt);
     _stats->dumpCount++;
 }
 
 void Learner::processStats(vector<trainData*> _stats)
 {
     stats.epochCount++;
-    stats.minQ=1e5; stats.maxQ=-1e5; stats.MSE=0;
+    stats.minQ= 1e5; stats.maxQ=-1e5; stats.MSE=0;
     stats.avgQ=0; stats.relE=0; stats.dumpCount=0;
     
     for (int i=0; i<_stats.size(); i++) {
@@ -283,13 +289,13 @@ void Learner::processStats(vector<trainData*> _stats)
         stats.dumpCount += _stats[i]->dumpCount;
         stats.minQ = std::min(stats.minQ,_stats[i]->minQ);
         stats.maxQ = std::max(stats.maxQ,_stats[i]->maxQ);
-        _stats[i]->minQ=1e5; _stats[i]->maxQ=-1e5; _stats[i]->MSE=0;
+        _stats[i]->minQ= 1e5; _stats[i]->maxQ=-1e5; _stats[i]->MSE=0;
         _stats[i]->avgQ=0; _stats[i]->relE=0; _stats[i]->dumpCount=0;
     }
     
     if (stats.dumpCount<2) return;
     
-    const Real mean_err = stats.MSE /(stats.dumpCount-1);
+    const Real mean_err = stats.MSE/(stats.dumpCount-1);
     const Real mean_Q   = stats.avgQ/stats.dumpCount;
     const Real mean_rel = stats.relE/stats.dumpCount;
     

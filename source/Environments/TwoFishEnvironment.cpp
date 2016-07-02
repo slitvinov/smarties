@@ -124,11 +124,11 @@ void TwoFishEnvironment::setDims()
         sI.isLabel.push_back(false); sI.inUse.push_back(false);
     }
     
-    sI.values.push_back(-2.);
-    sI.values.push_back(-1.);
-    sI.values.push_back(0.0);
-    sI.values.push_back(1.0);
-    sI.values.push_back(2.0);
+    //sI.values.push_back(-2.);
+    //sI.values.push_back(-1.);
+    //sI.values.push_back(0.0);
+    //sI.values.push_back(1.0);
+    //sI.values.push_back(2.0);
     
     aI.realValues = false;
     aI.dim = 1;
