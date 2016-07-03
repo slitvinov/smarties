@@ -31,7 +31,7 @@ public:
     //int batchsize;
     int nepoch;
     
-    Optimizer(Network * _net, Profiler * _prof, Settings  & settings);
+    Optimizer(Network * _net, Profiler * _prof, Settings & settings);
     virtual void update(Grads* const G, const int batchsize);
     //virtual void addUpdate(Grads* const G) {};
     

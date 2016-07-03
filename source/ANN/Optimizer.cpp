@@ -20,7 +20,7 @@ AdamOptimizer::AdamOptimizer(Network * _net, Profiler * _prof, Settings  & setti
     _allocateClean(_2ndMomB, nBiases)
 }
 
-Optimizer::Optimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), net(_net), profiler(_prof), nInputs(net->nInputs), nOutputs(net->nOutputs), iOutputs(net->iOutputs), nWeights(net->nWeights), nBiases(net->nBiases), nepoch(0)//,batchsize(0)
+Optimizer::Optimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), net(_net), profiler(_prof), nInputs(_net->nInputs), nOutputs(_net->nOutputs), iOutputs(_net->iOutputs), nWeights(_net->nWeights), nBiases(_net->nBiases), nepoch(0)//,batchsize(0)
 {
     _allocateClean(_1stMomW, nWeights)
     _allocateClean(_1stMomB, nBiases)

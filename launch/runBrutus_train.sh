@@ -16,5 +16,5 @@ source $SETTINGSNAME
 SETTINGS+=" --nThreads ${NTHREADS}"
 echo $SETTINGS > settings.txt
 
-./exec ${SETTINGS}
-#valgrind  --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes ./exec ${SETTINGS}
+#./exec ${SETTINGS}
+valgrind  --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes ./exec ${SETTINGS}

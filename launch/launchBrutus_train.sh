@@ -43,8 +43,8 @@ cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}
 
-bsub -J ${RUNFOLDER} -n ${NPROCESS} -R span[ptile=48] -sp 100 -W ${WCLOCK} ./run.sh ${NPROCESS}
-#./run.sh ${NPROCESS}
+#bsub -J ${RUNFOLDER} -n ${NPROCESS} -R span[ptile=48] -sp 100 -W ${WCLOCK} ./run.sh ${NPROCESS}
+./run.sh ${NPROCESS}
 
 for (( c=1; c<=${TIMES}-1; c++ ))
 do
