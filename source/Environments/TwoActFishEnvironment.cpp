@@ -38,7 +38,7 @@ void TwoActFishEnvironment::setDims()
             // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
             sI.bounds.push_back(1); // Will get ~ 0 or 0.5
             sI.top.push_back(.5); sI.bottom.push_back(0.0);
-            sI.isLabel.push_back(false); sI.inUse.push_back(true);
+            sI.isLabel.push_back(false); sI.inUse.push_back(false);
             // ...last action (HAX!)
             sI.bounds.push_back(1);
             sI.top.push_back(.5); sI.bottom.push_back(-.5);
@@ -80,15 +80,15 @@ void TwoActFishEnvironment::setDims()
 
             sI.bounds.push_back(1); // VxAvg 8
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             
             sI.bounds.push_back(1); // VyAvg 9
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             
             sI.bounds.push_back(1); // AvAvg 10
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
         }
         {
             sI.bounds.push_back(1); //Pout 11

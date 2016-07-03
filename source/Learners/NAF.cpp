@@ -146,13 +146,14 @@ void NAF::Train(const int thrID, const int seq, const int samp, const int first)
     vector<Real> output(nOutputs),gradient(nOutputs);
     
     const Tuple * const _t = T->Set[seq]->tuples[samp+1];
-    net->predict(T->Set[seq]->tuples[samp]->s, output, net->series[first], net->Vweights[thrID], net->Vbiases[thrID]);
+    net->predict(T->Set[seq]->tuples[samp]->s, output, net->series[first]);
     
     const bool term = samp+2==T->Set[seq]->tuples.size() && T->Set[seq]->ended;
     vector<Real> Q(computeQandGrad(gradient, _t->aC, output));
     
     if (not term) {
-        net->predict(_t->s, output, net->series[first],  net->series[first+1], net->VFweights[thrID], net->VFbiases[thrID]);
+        net->predict(_t->s, output, net->series[first],  net->series[first+1],
+                     net->frozen_weights,  net->frozen_biases);
     }
     const Real target = (term) ? _t->r : _t->r + gamma*output[0];
     const Real err =  (target - Q[0]);
@@ -161,7 +162,7 @@ void NAF::Train(const int thrID, const int seq, const int samp, const int first)
         *(net->series[first]->errvals +net->iOutputs+i) = err*gradient[i];
     }
     
-    net->computeDeltas(net->series[first], net->Vweights[thrID], net->Vbiases[thrID]);
+    net->computeDeltas(net->series[first]);
     net->computeAddGrads(net->series[first], net->Vgrad[thrID]);
 }
 

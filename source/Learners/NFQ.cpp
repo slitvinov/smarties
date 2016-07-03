@@ -54,7 +54,7 @@ void NFQ::Train(const int thrID, const int seq, const int first)
     if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs);
 
-    net->predict(T->Set[seq]->tuples[0]->s, Qhats, net->series[first], net->Vweights[thrID], net->Vbiases[thrID]);
+    net->predict(T->Set[seq]->tuples[0]->s, Qhats, net->series[first]);
     const int ndata = T->Set[seq]->tuples.size();
     
     for (int k=0; k<ndata-1; k++) {//state in k=[0:N-2], act&rew in k+1
@@ -70,8 +70,9 @@ void NFQ::Train(const int thrID, const int seq, const int first)
             dumpStats(Vstats[thrID], target, err, Qs);
             *(net->series[first+k]->errvals +net->iOutputs+_t->a) = err;
         } else {
-            net->predict(_t->s, Qhats,   net->series[k], net->series[first+1], net->Vweights[thrID], net->Vbiases[thrID]);
-            net->predict(_t->s, Qtildes, net->series[k], net->series[first+ndata], net->VFweights[thrID], net->VFbiases[thrID]);
+            net->predict(_t->s, Qhats,   net->series[k], net->series[first+1]);
+            net->predict(_t->s, Qtildes, net->series[k], net->series[first+ndata],
+                         net->frozen_weights,  net->frozen_biases);
             int Nbest; Real Vhat(-1e10);
             for (int i=0; i<nOutputs; i++) {
                 *(net->series[first+k]->errvals +net->iOutputs +i) = 0;
@@ -84,7 +85,7 @@ void NFQ::Train(const int thrID, const int seq, const int first)
         }
     }
     {
-        net->computeDeltasSeries(net->series, first, first+ndata-2, net->Vweights[thrID], net->Vbiases[thrID]);
+        net->computeDeltasSeries(net->series, first, first+ndata-2);
         
         net->computeAddGradsSeries(net->series, first, first+ndata-2, net->Vgrad[thrID]);
         //for (int k=first; k<first+ndata-1; k++)
@@ -154,12 +155,13 @@ void NFQ::Train(const int thrID, const int seq, const int samp, const int first)
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs);
 
     const Tuple * const _t = T->Set[seq]->tuples[samp+1];
-    net->predict(T->Set[seq]->tuples[samp]->s, Qs, net->series[first], net->Vweights[thrID], net->Vbiases[thrID]);
+    net->predict(T->Set[seq]->tuples[samp]->s, Qs, net->series[first]);
     
     const bool term = samp+2==T->Set[seq]->tuples.size() && T->Set[seq]->ended;
     if (not term) {
-        net->predict(_t->s, Qhats,   net->series[first], net->series[first+1], net->Vweights[thrID], net->Vbiases[thrID]);
-        net->predict(_t->s, Qtildes, net->series[first], net->series[first+2], net->VFweights[thrID], net->VFbiases[thrID]);
+        net->predict(_t->s, Qhats,   net->series[first], net->series[first+1]);
+        net->predict(_t->s, Qtildes, net->series[first], net->series[first+2],
+                     net->frozen_weights,  net->frozen_biases);
     }
     int Nbest; Real Vhat(-1e10);
     for (int i=0; i<nOutputs; i++) {
@@ -171,7 +173,7 @@ void NFQ::Train(const int thrID, const int seq, const int samp, const int first)
     const Real err =  (target - Qs[_t->a]);
     dumpStats(Vstats[thrID], target, err, Qs);
     *(net->series[first]->errvals +net->iOutputs+_t->a) = err;
-    net->computeDeltas(net->series[first], net->Vweights[thrID], net->Vbiases[thrID]);
+    net->computeDeltas(net->series[first]);
     net->computeAddGrads(net->series[first], net->Vgrad[thrID]);
 }
 

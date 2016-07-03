@@ -281,11 +281,10 @@ gen(settings.gen), bDump(not settings.bTrain)
         g->normalSize = nInputs;
         #ifdef SIMDKERNELS
         nNeurons += ceil((Real)nInputs/SIMD)*SIMD;
-        g->normalSize_SIMD = ceil((Real)nInputs/SIMD)*SIMD;
         #else
         nNeurons += nInputs;
-        g->normalSize_SIMD = nInputs;
         #endif
+        g->normalSize_SIMD = g->normalSize_SIMD;
         G.push_back(g);
     }
     
@@ -316,16 +315,16 @@ gen(settings.gen), bDump(not settings.bTrain)
     
     if (settings.nThreads>1) {
         Vgrad.resize(settings.nThreads);
-        Vbiases.resize(settings.nThreads);
-        Vweights.resize(settings.nThreads);
-        VFbiases.resize(settings.nThreads);
-        VFweights.resize(settings.nThreads);
+        //Vbiases.resize(settings.nThreads);
+        //Vweights.resize(settings.nThreads);
+        //VFbiases.resize(settings.nThreads);
+        //VFweights.resize(settings.nThreads);
         for (int i=0; i<settings.nThreads; ++i) {
             Vgrad[i] = new Grads(nWeights,nBiases);
-            _allocateQuick(VFweights[i], nWeights)
-            _allocateQuick(Vweights[i], nWeights)
-            _allocateQuick(VFbiases[i], nBiases)
-            _allocateQuick(Vbiases[i], nBiases)
+            //_allocateQuick(VFweights[i], nWeights)
+            //_allocateQuick(Vweights[i], nWeights)
+            //_allocateQuick(VFbiases[i], nBiases)
+            //_allocateQuick(Vbiases[i], nBiases)
         }
     } else {
         _grad = new Grads(nWeights,nBiases);
@@ -347,7 +346,7 @@ gen(settings.gen), bDump(not settings.bTrain)
         //initializeWeights(*G[i], frozen_weights, frozen_biases);
     }
     updateFrozenWeights();
-    synchronizeWeights();
+    //synchronizeWeights();
 }
 
 Network::Network(const vector<int>& layerSize, const bool bLSTM, const Settings & settings) :
@@ -358,21 +357,23 @@ gen(settings.gen), bDump(not settings.bTrain)
 {
     const int nMixedLayers = layerSize.size();
     if(nMixedLayers<3) die("Put at least one hidden layer. \n");
+    if(nInputs<1) die("No inputs. \n");
     
     {
         Graph * g = new Graph();
         g->first = true;
         g->normalSize = nInputs;
         #ifdef SIMDKERNELS
+        g->normalSize_SIMD = ceil((Real)nInputs/SIMD)*SIMD;
         nNeurons += ceil((Real)nInputs/SIMD)*SIMD;
         #else
+        g->normalSize_SIMD = nInputs;
         nNeurons += nInputs;
         #endif
         G.push_back(g);
     }
     
-    for (int i=1; i<nMixedLayers; i++)
-    { //layer 0 is the input layer
+    for (int i=1; i<nMixedLayers; i++) { //layer 0 is the input layer
         Graph * g = new Graph();
         bool first = i==1; bool last = i+1==nMixedLayers;
         if (bLSTM && not last) {
@@ -407,16 +408,16 @@ gen(settings.gen), bDump(not settings.bTrain)
     
     if (settings.nThreads>1) {
         Vgrad.resize(settings.nThreads);
-        Vbiases.resize(settings.nThreads);
-        Vweights.resize(settings.nThreads);
-        VFbiases.resize(settings.nThreads);
-        VFweights.resize(settings.nThreads);
+        //Vbiases.resize(settings.nThreads);
+        //Vweights.resize(settings.nThreads);
+        //VFbiases.resize(settings.nThreads);
+        //VFweights.resize(settings.nThreads);
         for (int i=0; i<settings.nThreads; ++i) {
             Vgrad[i] = new Grads(nWeights,nBiases);
-            _allocateQuick(VFweights[i], nWeights)
-            _allocateQuick(Vweights[i], nWeights)
-            _allocateQuick(VFbiases[i], nBiases)
-            _allocateQuick(Vbiases[i], nBiases)
+            //_allocateQuick(VFweights[i], nWeights)
+            //_allocateQuick(Vweights[i], nWeights)
+            //_allocateQuick(VFbiases[i], nBiases)
+            //_allocateQuick(Vbiases[i], nBiases)
         }
     } else {
         _grad = new Grads(nWeights,nBiases);
@@ -434,7 +435,7 @@ gen(settings.gen), bDump(not settings.bTrain)
         //initializeWeights(*G[i], frozen_weights, frozen_biases);
     }
     updateFrozenWeights();
-    synchronizeWeights();
+    //synchronizeWeights();
 }
 
 void Network::save(const string fname)
@@ -543,7 +544,7 @@ bool Network::restart(const string fname)
     in.close();
     
     updateFrozenWeights();
-    synchronizeWeights();
+    //synchronizeWeights();
     return true;
 }
 
@@ -694,6 +695,7 @@ void Network::updateFrozenWeights()
     }
 }
 
+/*
 void Network::synchronizeWeights()
 {
     const int WsizeSIMD=ceil(nWeights/(Real)SIMD)*SIMD;
@@ -729,6 +731,7 @@ void Network::synchronizeWeights()
         }
     }
 }
+ */
 
 void Network::moveFrozenWeights(const Real alpha)
 {
@@ -954,4 +957,82 @@ void Network::removeDropoutMask()
         swap(weights_DropoutBackup,weights);
         backedUp = false;
     }
+}
+
+void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn, const int ierr)
+{
+    //std::cout << std::setprecision(9);
+    int nseries = inputs.size();
+    vector<Real> res(nOutputs);
+    allocateSeries(nseries+1);
+    
+    Grads * g = new Grads(nWeights,nBiases);
+    Grads * G = new Grads(nWeights,nBiases);
+    const Real eps = 1e-6;
+    
+    predict(inputs[0], res, series[0]);
+    for (int k=1; k<lastn; k++) {
+        predict(inputs[k], res, series[k-1], series[k]);
+        for (int i=0; i<nOutputs; i++)
+            *(series[k]->errvals +iOutputs+i) = 0.;
+    }
+
+    *(series[lastn-1]->errvals +iOutputs+ierr) = -1.;//Errors[1*nOutputs + i];
+    
+    computeDeltasSeries(series, 0, lastn-1);
+    computeAddGradsSeries(series, 0, lastn-1, G);
+    //for (int k=0; k<=lastn-2; k++) {
+    //    computeGradsSeries(series, k, g);
+    //    stackGrads(G,g);
+    //}
+
+    for (int w=0; w<nWeights; w++) {
+        *(g->_W+w) = 0;
+        
+        *(weights+w) += eps;
+        predict(inputs[0], res, series[0]);
+        for (int k=1; k<lastn; k++)
+            predict(inputs[k], res, series[k-1], series[k]);
+        const Real out1 = - *(series[lastn-1]->outvals+iOutputs+ierr);
+        
+        *(weights+w) -= 2*eps;
+        predict(inputs[0], res, series[0]);
+        for (int k=1; k<lastn; k++)
+            predict(inputs[k], res, series[k-1], series[k]);
+        const Real out2 = - *(series[lastn-1]->outvals+iOutputs+ierr);
+        
+        *(weights+w) += eps;
+        *(g->_W+w) += (out1-out2)/(2*eps);
+        
+        //const Real scale = fabs(*(biases+w));
+        const Real scale = max(fabs(*(G->_W+w)),fabs(*(g->_W+w)));
+        const Real err = (*(G->_W+w)-*(g->_W+w))/scale;
+        if (fabs(err)>1e-4) cout <<"W"<<w<<" "<<*(G->_W+w)<<" "<<*(g->_W+w)<<" "<<err<<endl;
+    }
+    
+    for (int w=0; w<nBiases; w++) {
+        *(g->_B+w) = 0;
+        
+        *(biases+w) += eps;
+        predict(inputs[0], res, series[0]);
+        for (int k=1; k<lastn; k++)
+            predict(inputs[k], res, series[k-1], series[k]);
+        const Real out1 = - *(series[lastn-1]->outvals+iOutputs+ierr);
+        
+        *(biases+w) -= 2*eps;
+        predict(inputs[0], res, series[0]);
+        for (int k=1; k<lastn; k++)
+            predict(inputs[k], res, series[k-1], series[k]);
+        const Real out2 = - *(series[lastn-1]->outvals+iOutputs+ierr);
+        
+        *(biases+w) += eps;
+        *(g->_B+w) += (out1-out2)/(2*eps);
+        
+        //const Real scale = fabs(*(biases+w));
+        const Real scale = max(fabs(*(G->_B+w)),fabs(*(g->_B+w)));
+        const Real err = (*(G->_B+w)-*(g->_B+w))/scale;
+        if (fabs(err)>1e-4) cout <<"B"<<w<<" "<<*(G->_B+w)<<" "<<*(g->_B+w)<<" "<<err<<endl;
+    }
+    printf("\n\n\n");
+    abort();
 }

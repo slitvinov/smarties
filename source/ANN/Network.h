@@ -40,7 +40,7 @@ public:
     Grads * grad, * _grad;
     Real *weights, *biases, *frozen_weights, *frozen_biases, *weights_DropoutBackup;
     vector<Grads*> Vgrad;
-    vector<Real*> Vbiases, Vweights, VFbiases, VFweights;
+    //vector<Real*> Vbiases, Vweights, VFbiases, VFweights;
     
     Network(const vector<int>& layerSize, const bool bLSTM, const Settings & settings);
     Network(const vector<int>& layerSize, const vector<int>& recurSize, const Settings & settings);
@@ -53,7 +53,7 @@ public:
     
     void clearInputs(Lab* _N);
     void updateFrozenWeights();
-    void synchronizeWeights();
+    //void synchronizeWeights();
     void moveFrozenWeights(const Real alpha);
     void clearErrors(Lab* _N) const;
     void clearMemory(Real * outvals, Real * ostates) const;
@@ -81,11 +81,13 @@ public:
     {
         computeDeltas(_series, weights, biases);
     }
+    
     void computeDeltasInputs(vector<Lab*>& _series, const int k, const Real* const _weights, const Real* const _biases) const;
     void computeDeltasInputs(vector<Lab*>& _series, const int k) const
     {
         computeDeltasInputs(_series, k, weights, biases);
     }
+    
     void computeDeltasSeries(vector<Lab*>& _series, const int first, const int last, const Real* const _weights, const Real* const _biases) const;
     void computeDeltasSeries(vector<Lab*>& _series, const int first, const int last) const
     {
@@ -96,6 +98,8 @@ public:
     void computeGrads(const Lab* const _series, Grads* const _Grad) const;
     void computeAddGradsSeries(const vector<Lab*>& _series, const int first, const int last, Grads* const _Grad) const;
     void computeAddGrads(const Lab* const _series, Grads* const _Grad) const;
+    
+    void checkGrads(const vector<vector<Real>>& inputs, const int lastn, const int ierr);
 
     void save(const string fname);
     void dump(const int agentID);

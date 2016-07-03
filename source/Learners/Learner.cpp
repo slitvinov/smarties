@@ -36,7 +36,7 @@ greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI
 
     profiler = new Profiler();
     net = new Network(lsize, bRecurrent, settings);
-    opt = new AdamOptimizer(net, profiler, settings);
+    opt = new Optimizer(net, profiler, settings);
     T = new Transitions(env, settings);
     flags.resize(batchSize, false);
 }
@@ -78,7 +78,7 @@ void Learner::TrainBatch()
         const int ind = 1011;
         for (int k=0; k<T->Set[ind]->tuples.size(); k++)
             inputs.push_back(T->Set[ind]->tuples[k]->s);
-        opt->checkGrads(inputs, T->Set[ind]->tuples.size()-1, 1);
+        net->checkGrads(inputs, 2, 1);
     */
     
     if(bRecurrent) {
