@@ -30,7 +30,6 @@ public:
     
     FishNet(vector<int>& layerSize, vector<int>& recurSize, Settings & settings);
     
-    void improve(const vector<Real>& error, int iAgent);
     
     void predict(const vector<Real>& input, vector<Real>& output, int iAgent=0);
     void predict(const vector<vector<Real>>& inputs, vector<vector<Real>>& outputs);
@@ -43,6 +42,9 @@ public:
     {
         net->clearMemory(net->mem[iAgent]->outvals, net->mem[iAgent]->ostates);
     }
+    
+    void trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE);
+    void trainBatch(const vector<const vector<Real>*>& inputs, const vector<const vector<Real>*>& targets, Real & trainMSE);
     
     void save(string fname);
     bool restart(string fname);

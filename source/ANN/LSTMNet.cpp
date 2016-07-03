@@ -109,17 +109,57 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
     }
 }
 
-void FishNet::predict(const vector<Real>& input, vector<Real>& output, int iAgent)
+
+void Optimizer::trainBatch(const vector<const vector<Real>*>& inputs, const vector<const vector<Real>*>& targets, Real & trainMSE)
 {
-    if (nInputs != static_cast<int>(   input.size())) die("Wrong input dim\n");
-    if (iAgent  >= static_cast<int>(net->mem.size())) die("Wrong agent dim\n");
+    trainMSE = 0.;
+    int nseries = inputs.size();
+    vector<Real> res(nOutputs);
     
-    output.resize(nOutputs); //might be a problem. Then again, I wouldn't call it MY problem
-    net->expandMemory(net->mem[iAgent], net->series[0]);
+    for (int k=0; k<nseries; k++) {
+        net->predict(*(inputs[k]), res, net->series[0]);
+        
+        for (int j =0; j<nOutputs; j++) {
+            const Real err = (*(targets[k]))[j] - res[j];
+            *(net->series[0]->errvals +iOutputs+i) = err;
+            trainMSE += 0.5*err*err;
+        }
+        
+        net->computeDeltas(net->series[0]);
+        net->computeAddGrads(net->series[0], net->grad);
+    }
+
+    opt->update(net->grad, nseries);
+    trainMSE /= (Real)nseries;
+}
+
+void Optimizer::trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE)
+{
+    vector<Real> res(nOutputs);
+    const int nseries = inputs.size();
+    net->allocateSeries(nseries);
     
-    net->predict(input, output, net->series[0], net->series[1]);
+    net->predict(inputs[0], res, net->series[0]);
+    for (int i=0; i<nOutputs; i++) {
+        const Real err = targets[0][i] - *(net->series[0]->outvals+iOutputs+i);
+        *(net->series[0]->errvals +iOutputs+i) = err;
+        trainMSE = 0.5*err*err;
+    }
     
-    net->expandMemory(net->mem[iAgent], net->series[1]);
+    for (int k=1; k<nseries; k++) {
+        net->predict(inputs[k], res, net->series[k-1], net->series[k]);
+        for (int i=0; i<nOutputs; i++) {
+            const Real err = targets[k][i] - *(net->series[k]->outvals+iOutputs+i);
+            *(net->series[k]->errvals +iOutputs+i) = err;
+            trainMSE += 0.5*err*err;
+        }
+    }
+    
+    net->computeDeltasSeries(net->series, 0, nseries-1);
+    net->computeAddGradsSeries(net->series, 0, nseries-1, net->grad);
+
+    opt->update(net->grad,nseries);
+    trainMSE /= (Real)nseries;
 }
 
 void FishNet::predict(const vector<Real>& S1, vector<Real>& Q1, const vector<Real>& S2, vector<Real>& Q2, int iAgent)
@@ -131,10 +171,19 @@ void FishNet::predict(const vector<Real>& S1, vector<Real>& Q1, const vector<Rea
     Q2.resize(nOutputs);
     net->allocateSeries(2);
     net->expandMemory(net->mem[iAgent], net->series[0]);
-
     net->predict(S1, Q1, net->series[0], net->series[1]);
     net->predict(S2, Q2, net->series[1], net->series[2]);
+    net->expandMemory(net->mem[iAgent], net->series[1]);
+}
+
+void FishNet::predict(const vector<Real>& input, vector<Real>& output, int iAgent)
+{
+    if (nInputs != static_cast<int>(   input.size())) die("Wrong input dim\n");
+    if (iAgent  >= static_cast<int>(net->mem.size())) die("Wrong agent dim\n");
     
+    output.resize(nOutputs); //might be a problem. Then again, I wouldn't call it MY problem
+    net->expandMemory(net->mem[iAgent], net->series[0]);
+    net->predict(input, output, net->series[0], net->series[1]);
     net->expandMemory(net->mem[iAgent], net->series[1]);
 }
 
@@ -143,26 +192,22 @@ void FishNet::predict(const vector<vector<Real>>& inputs, vector<vector<Real>>& 
     int nseries = inputs.size();
     vector<Real> res(nOutputs);
     outputs.clear();
-    net->clearMemory(net->series[0]->outvals, net->series[0]->ostates);
     
-    for (int k=0; k<nseries; k++)
-    {
+    if (nInputs != static_cast<int>(inputs[0].size())) die("Wrong input %d dim\n", k);
+    net->predict(inputs[0], res, net->series[0]);
+    outputs.push_back(res);
+    
+    for (int k=1; k<nseries; k++) {
         if (nInputs != static_cast<int>(inputs[k].size())) die("Wrong input %d dim\n", k);
         net->predict(inputs[k], res, net->series[0], net->series[1]);
-        
-        outputs.push_back(res);
         swap(net->series[0],net->series[1]);
+        outputs.push_back(res);
     }
 }
 
-void FishNet::improve(const vector<Real>& error, int iAgent)
-{ //bad function... should be removed really but.. legacy. ASSUMES WE FORWRD PROPPED series[1] and saved memory
-    if (nOutputs != static_cast<int>(error.size())) die("Wrong errors dim\n");
-    if (iAgent   >= static_cast<int>(net->mem.size())) die("Wrong agent dim\n");
-    net->expandMemory(net->mem[iAgent], net->series[1]);
-
-    net->computeGrads(error, net->series[0], net->series[1], net->grad);
-    opt->update(net->grad, 1);
-    
-    net->expandMemory(net->mem[iAgent], net->series[1]);
+void FishNet::predict(const vector<Real>& input, vector<Real>& output)
+{
+    if (nInputs != static_cast<int>(   input.size())) die("Wrong input dim\n");
+    output.resize(nOutputs); //might be a problem. Then again, I wouldn't call it MY problem
+    net->predict(input, output, net->series[0]);
 }

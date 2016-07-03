@@ -37,9 +37,6 @@ public:
     
     virtual void stackGrads(Grads* const G, const Grads* const g) const;
     virtual void stackGrads(Grads* const G, const vector<Grads*> g) const;
-    
-    virtual void trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE);
-    virtual void trainBatch(const vector<const vector<Real>*>& inputs, const vector<const vector<Real>*>& targets, Real & trainMSE);
 };
 
 class AdamOptimizer: public Optimizer
