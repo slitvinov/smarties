@@ -102,7 +102,7 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
         }
         indexes.push_back(i);
     }
-    
+    //net->checkGrads(inputs[101], 2,1);//inputs[101].size()-1
     for (int e=0; e<nepochs; e++) {
         start = std::chrono::high_resolution_clock::now();
         Real batch_err(0.), err(100.);
@@ -113,10 +113,10 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
         }
         end = std::chrono::high_resolution_clock::now();
         printf("Epoch %d/%d took %f seconds and had absolute MSE of %f. \n",e,nepochs,std::chrono::duration<Real>(end-start).count(),batch_err/(Real)ndata);
-        if (batch_err/(Real)ndata > 1.) {
-printf("Problem %f %d \n", batch_err, ndata); abort(); } 
-//cout << profiler->printStat() << endl;
+        if (batch_err/(Real)ndata > 1.)  printf("Problem %f %d \n", batch_err, ndata);
+        //cout << profiler->printStat() << endl;
     }
+    //net->checkGrads(inputs[101], 2,1);//inputs[101].size()-1
 }
 
 
@@ -153,7 +153,7 @@ void FishNet::trainSeries(const vector<vector<Real>>& inputs, const vector<vecto
     for (int i=0; i<nOutputs; i++) {
         const Real err = targets[0][i] - *(net->series[0]->outvals+net->iOutputs+i);
         *(net->series[0]->errvals +net->iOutputs+i) = err;
-        //printf("tgt %f err %f\n",targets[0][i],err);
+        //printf("tgt %f out %f err %f\n",targets[0][i],*(net->series[0]->outvals+net->iOutputs+i), err);
         trainMSE = 0.5*err*err;
     }
     
@@ -162,7 +162,7 @@ void FishNet::trainSeries(const vector<vector<Real>>& inputs, const vector<vecto
         for (int i=0; i<nOutputs; i++) {
             const Real err = targets[k][i] - *(net->series[k]->outvals+net->iOutputs+i);
             *(net->series[k]->errvals +net->iOutputs+i) = err;
-            //printf("tgt %f err %f\n",targets[k][i],err);
+            //printf("tgt %f out %f err %f\n",targets[k][i],*(net->series[k]->outvals+net->iOutputs+i), err);
             trainMSE += 0.5*err*err;
         }
     }
@@ -172,6 +172,7 @@ void FishNet::trainSeries(const vector<vector<Real>>& inputs, const vector<vecto
 
     opt->update(net->grad,nseries);
     trainMSE /= (Real)nseries;
+
 }
 
 void FishNet::predict(const vector<Real>& S1, vector<Real>& Q1, const vector<Real>& S2, vector<Real>& Q2, int iAgent)

@@ -189,7 +189,6 @@ void Learner::TrainTasking(Master* const master)
             if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
             else net->updateFrozenWeights();
         }
-        //net->synchronizeWeights();
         cntUpdateDelay--;
     }
 }
@@ -233,12 +232,13 @@ void Learner::restart(string name)
 
 void Learner::dumpStats(const Real& tgt, const Real& Q, const Real& err, const vector<Real>& Qs)
 {
+    /*
     ostringstream o;
     o << "[";
     for (int i=0; i<Qs.size(); i++) o << Qs[i] << " ";
     o << "]";
     printf("Process %f - %f : %s\n", tgt, Q, string(o.str()).c_str());
-    
+    */
     const Real max_Q = *max_element(Qs.begin(), Qs.end());
     const Real min_Q = *min_element(Qs.begin(), Qs.end());
     stats.MSE += err*err;

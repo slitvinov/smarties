@@ -132,8 +132,8 @@ int main (int argc, char** argv)
         string numbered_input, numbered_output;
         {
             char buf[500];
-            //sprintf(buf, "/cluster/home/novatig/2Fish_Data2/twofish_%03d/info.dat", (int)i);
-	    sprintf(buf, "/cluster/home03/mavt/novatig/2Fish_Data2/twofish_%03d/info.dat", (int)i);
+            sprintf(buf, "/cluster/home/novatig/2Fish_Data2/twofish_%03d/info.dat", (int)i);
+	         //sprintf(buf, "/cluster/home03/mavt/novatig/2Fish_Data2/twofish_%03d/info.dat", (int)i);
             numbered_output = string(buf);
         }
         //cout << numbered_output  << endl;
@@ -172,8 +172,8 @@ int main (int argc, char** argv)
         }
         {
             char buf[500];
-            //sprintf(buf, "/cluster/home/novatig/2Fish_Data2/twofish_%03d/data.dat", (int)i);
-	    sprintf(buf, "/cluster/home03/mavt/novatig/2Fish_Data2/twofish_%03d/data.dat", (int)i);
+            sprintf(buf, "/cluster/home/novatig/2Fish_Data2/twofish_%03d/data.dat", (int)i);
+	         //sprintf(buf, "/cluster/home03/mavt/novatig/2Fish_Data2/twofish_%03d/data.dat", (int)i);
             numbered_input = string(buf);
         }
         ifstream ininp(numbered_input.c_str());

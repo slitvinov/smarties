@@ -47,14 +47,12 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
             *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iW,_weights);
     }
-    
     {
         const Link* const l = g.nl_recurrent;
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
             *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iW,_weights);
     }
-    
     {
         const Link* const l = g.rl_inputs;
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
@@ -73,7 +71,6 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
             *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iWO,_weights);
     }
-    
     {
         const Link* const l = g.rl_recurrent;
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
@@ -100,13 +97,13 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
         *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize);
         
     for (int w=g.biasIG; w<g.biasIG+g.recurrSize; w++)
-        *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize)+2.;
+        *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize);
         
     for (int w=g.biasFG; w<g.biasFG+g.recurrSize; w++)
         *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize)+2.;
     
     for (int w=g.biasOG; w<g.biasOG+g.recurrSize; w++)
-        *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize)+2.;
+        *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize);
 }
 
 void Network::addNormal(Graph* const p, Graph* const g, const bool first, const bool last)
@@ -182,8 +179,8 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
             nWeights += p->recurrSize_SIMD*g->recurrSize;
             int WeightOG = nWeights;
             nWeights += p->recurrSize_SIMD*g->recurrSize;
-            g->rl_inputs->set(p->recurrSize_SIMD,p->recurrPos,g->recurrSize,g->recurrPos,
-                              g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
+            g->rl_inputs->set (p->recurrSize_SIMD,p->recurrPos,g->recurrSize,g->recurrPos,
+                               g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
             p->rl_outputs->set(p->recurrSize_SIMD,p->recurrPos,g->recurrSize,g->recurrPos,
                                g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
         } else if (p->normalSize>0) { //conntected to previous normal layer
@@ -195,8 +192,8 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
             nWeights += p->normalSize_SIMD*g->recurrSize;
             int WeightOG = nWeights;
             nWeights += p->normalSize_SIMD*g->recurrSize;
-            g->rl_inputs->set(p->normalSize_SIMD,p->normalPos,g->recurrSize,g->recurrPos,
-                              g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
+            g->rl_inputs->set (p->normalSize_SIMD,p->normalPos,g->recurrSize,g->recurrPos,
+                               g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
             p->nl_outputs->set(p->normalSize_SIMD,p->normalPos,g->recurrSize,g->recurrPos,
                                g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
         } else die("Unlinked to inputs");
@@ -339,7 +336,7 @@ gen(settings.gen), bDump(not settings.bTrain)
     for (int i=1; i<nMixedLayers; i++) { //layer 0 is the input layer
         Graph * g = new Graph();
         bool first = i==1; bool last = i+1==nMixedLayers;
-        if (bLSTM && not last) { //
+        if (bLSTM ) { //&& not last
             g->recurrSize = layerSize[i];
             g->normalSize = 0;
             addLSTM(G.back(),g,first,last);
@@ -351,8 +348,8 @@ gen(settings.gen), bDump(not settings.bTrain)
         G.push_back(g);
     }
     
-    //iOutputs = (bLSTM) ? G.back()->recurrPos : G.back()->normalPos;
-    iOutputs = G.back()->normalPos;
+    iOutputs = (bLSTM) ? G.back()->recurrPos : G.back()->normalPos;
+    //iOutputs = G.back()->normalPos;
     nLayers = layers.size();
     printf("nNeurons= %d, nWeights= %d, nBiases= %d, nStates= %d iOutputs = %d\n, nInputs = %d, nOutputs = %d \n", 
            nNeurons, nWeights, nBiases, nStates, iOutputs, nInputs, nOutputs);
@@ -521,8 +518,12 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output, const L
     
     assert(static_cast<int>(_output.size())==nOutputs);
     
-    for (int j=0; j<nOutputs; j++)
-        _output[j] = *(_N->outvals +iOutputs +j);
+    int j(0);
+    for (int i=iOutputs; i<nNeurons; i++) {
+        *(_N->errvals+i) = 0.;
+        _output[j] = *(_N->outvals+i);
+        j++;
+    }
 }
 
 void Network::predict(const vector<Real>& _input, vector<Real>& _output, Lab* const _N, const Real* const _weights, const Real* const _biases) const
@@ -531,14 +532,18 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output, Lab* co
     *(_N->outvals +j) = _input[j];
     
     for (int j=0; j<nLayers; j++) {
-        printf( "Layer %d\n",j); 
+        //printf( "Layer %d\n",j);
     layers[j]->propagate(_N,_weights,_biases);
     }
     
     assert(static_cast<int>(_output.size())==nOutputs);
-    
-    for (int j=0; j<nOutputs; j++)
-    _output[j] = *(_N->outvals +iOutputs +j);
+
+    int j(0);
+    for (int i=iOutputs; i<nNeurons; i++) {
+        *(_N->errvals+i) = 0.;
+        _output[j] = *(_N->outvals+i);
+        j++;
+    }
 }
 
 /*void Network::computeGrads(const vector<Real>& _error, const Lab* const _M, Lab* const _N, Grads* const _Grad) const
@@ -934,13 +939,12 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn, co
     
     Grads * g = new Grads(nWeights,nBiases);
     Grads * G = new Grads(nWeights,nBiases);
-    const Real eps = 1e-6;
+    const Real eps = 1e-5;
     
     predict(inputs[0], res, series[0]);
+    
     for (int k=1; k<lastn; k++) {
         predict(inputs[k], res, series[k-1], series[k]);
-        for (int i=0; i<nOutputs; i++)
-            *(series[k]->errvals +iOutputs+i) = 0.;
     }
 
     *(series[lastn-1]->errvals +iOutputs+ierr) = -1.;//Errors[1*nOutputs + i];
@@ -964,7 +968,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn, co
         const Real out2 = - *(series[lastn-1]->outvals+iOutputs+ierr);
         
         *(weights+w) += eps;
-        *(g->_W+w) += (out1-out2)/(2*eps);
+        *(g->_W+w) = (out1-out2)/(2*eps);
         
         //const Real scale = fabs(*(biases+w));
         const Real scale = max(fabs(*(G->_W+w)),fabs(*(g->_W+w)));
@@ -984,7 +988,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn, co
         const Real out2 = - *(series[lastn-1]->outvals+iOutputs+ierr);
         
         *(biases+w) += eps;
-        *(g->_B+w) += (out1-out2)/(2*eps);
+        *(g->_B+w) = (out1-out2)/(2*eps);
         
         //const Real scale = fabs(*(biases+w));
         const Real scale = max(fabs(*(G->_B+w)),fabs(*(g->_B+w)));

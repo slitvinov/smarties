@@ -57,14 +57,11 @@ void NAF::Train(const int thrID, const int seq, const int first)
         const Tuple * const _t = T->Set[seq]->tuples[k+1];
         if(k==0) net->predict(T->Set[seq]->tuples[0]->s, output, net->series[first]);
         else net->predict(T->Set[seq]->tuples[k]->s, output, net->series[first+k-1], net->series[first+k]);
-        //, net->Vweights[thrID], net->Vbiases[thrID]
         
         vector<Real> Q(computeQandGrad(gradient, _t->aC, output));
-        //printf("%d %f %f %f\n", thrID, Q[0], Q[1], Q[2]);
         
         if (k+2==ndata && T->Set[seq]->ended) {
             const Real tgt = _t->r;
-            //printf("last r %f\n",_t->r);
             const Real err = tgt - Q[0];
             dumpStats(Vstats[thrID], tgt, Q[0], err, Q);
             for (int i(0); i<nOutputs; i++)
@@ -72,20 +69,15 @@ void NAF::Train(const int thrID, const int seq, const int first)
         } else {
             net->predict(_t->s, output, net->series[first+k], net->series[first+ndata-1],
                                         net->frozen_weights,  net->frozen_biases);
-            // net->VFweights[thrID], net->VFbiases[thrID]
             const Real tgt = _t->r + gamma*output[0];
-            //printf("r %f\n",_t->r);
             const Real err = tgt - Q[0];
             dumpStats(Vstats[thrID], tgt, Q[0], err, Q);
             for (int i(0); i<nOutputs; i++)
                 *(net->series[first+k]->errvals +net->iOutputs+i) = err*gradient[i];
         }
     }
-    {
-        net->computeDeltasSeries(net->series, first, first+ndata-2);
-        //, net->Vweights[thrID], net->Vbiases[thrID]
-        net->computeAddGradsSeries(net->series, first, first+ndata-2, net->Vgrad[thrID]);
-    }
+    net->computeDeltasSeries(net->series, first, first+ndata-2);
+    net->computeAddGradsSeries(net->series, first, first+ndata-2, net->Vgrad[thrID]);
 }
 
 void NAF::Train(const vector<int>& seq)
@@ -98,7 +90,6 @@ void NAF::Train(const vector<int>& seq)
         const int ind = seq[jnd];
         const int ndata = T->Set[ind]->tuples.size();
         net->allocateSeries(ndata-1);
-        //net->assignDropoutMask();
         
         for (int k=0; k<ndata-1; k++) {
             if(k==0) net->predict(T->Set[ind]->tuples[0]->s, output, net->series[0]);
@@ -122,18 +113,9 @@ void NAF::Train(const vector<int>& seq)
                     *(net->series[k]->errvals +net->iOutputs+i) = err*gradient[i];
             }
         }
-        {
-            net->computeDeltasSeries(net->series, 0, ndata-2);
-            net->computeAddGradsSeries(net->series, 0, ndata-2, net->grad);
-            countUpdate+=ndata-1;
-            /*
-            for (int k=0; k<ndata-1; k++) {
-                net->computeGradsSeries(net->series, k, net->_grad);
-                opt->stackGrads(net->grad,net->_grad);
-                countUpdate++;
-            }*/
-            //net->removeDropoutMask(); //before the update!
-        }
+        net->computeDeltasSeries(net->series, 0, ndata-2);
+        net->computeAddGradsSeries(net->series, 0, ndata-2, net->grad);
+        countUpdate+=ndata-1;
     }
     opt->nepoch=stats.epochCount;
     opt->update(net->grad,countUpdate);
@@ -193,8 +175,6 @@ void NAF::Train(const vector<int>& seq, const vector<int>& samp)
         
         net->computeDeltas(net->series[0]);
         net->computeAddGrads(net->series[0], net->grad);
-        //net->computeGrads(net->series[0], net->_grad);
-        //opt->stackGrads(net->grad,net->_grad);
         countUpdate++;
     }
     opt->nepoch=stats.epochCount;

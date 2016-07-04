@@ -16,53 +16,15 @@ using namespace ErrorHandling;
  *
  */
 
-void NormalLayer::propagate(const Mem* const M, Lab* const N, const Real* const weights, const Real* const biases) const
-{
-    const Real* const outvals = N->outvals;
-    const Link* const lI = input_links;
-    const Link* const lR = recurrent_links;
-    Real in(0);
-    #ifdef SIMDKERNELSIN
-    Real * inry;
-    _allocateQuick(inry, SIMD)
-    #endif
-    
-    for (int n=0; n<nNeurons; n++) {
-        in = 0.; //zero the first
-
-        #ifdef SIMDKERNELSIN
-        vec IN=SET0();
-        for (int i=0; i<lI->nI; i+=SIMD) {
-            IN = ADD(IN, MUL(LOAD(outvals +lI->iI +i), LOAD(weights +lI->iW  +n*lI->nI +i)));
-        }
-        for (int i=0; i<lR->nI; i+=SIMD) {
-            IN = ADD(IN, MUL(LOAD(M->outvals +lR->iI +i), LOAD(weights +lR->iW  +n*lR->nI +i)));
-        }
-        STORE (inry,IN);
-        for(int t=0; t<SIMD; t++) in += *(inry+t);
-        #else
-        for (int i=0; i<lI->nI; i++) {
-            in += *(outvals +lI->iI +i) * *(weights +lI->iW +n*lI->nI +i);
-        }
-        for (int i=0; i<lR->nI; i++) {
-            in += *(M->outvals +lR->iI +i) * *(weights +lR->iW +n*lR->nI +i);
-        }
-        #endif
-
-        in += *(biases +n1stBias +n);
-        *(N->in_vals +n1stNeuron +n) = in; //first element of in
-        *(N->outvals +n1stNeuron +n) = func->eval( in );
-    }
-    #ifdef SIMDKERNELSIN
-    _myfree(inry);
-    #endif
-}
-
 void NormalLayer::propagate(const Lab* const M, Lab* const N, const Real* const weights, const Real* const biases) const
 {
     const Real* const outvals = N->outvals;
     const Link* const lI = input_links;
     const Link* const lR = recurrent_links;
+    //printf("Normal delta with 1stN %d, 1stB %d",n1stNeuron,n1stBias);
+    //lI->print();
+    //lR->print();
+    
     Real in(0);
     #ifdef SIMDKERNELSIN
     Real * inry;
@@ -70,12 +32,12 @@ void NormalLayer::propagate(const Lab* const M, Lab* const N, const Real* const 
     #endif
     
     for (int n=0; n<nNeurons; n++) {
-        in = 0.; //zero the first
+        in = 0.;
 
         #ifdef SIMDKERNELSIN
         vec IN=SET0();
         for (int i=0; i<lI->nI; i+=SIMD) {
-            IN = ADD(IN, MUL(LOAD(outvals +lI->iI +i), LOAD(weights +lI->iW  +n*lI->nI +i)));
+            IN = ADD(IN, MUL(LOAD(outvals    +lI->iI +i), LOAD(weights +lI->iW  +n*lI->nI +i)));
         }
         for (int i=0; i<lR->nI; i+=SIMD) {
             IN = ADD(IN, MUL(LOAD(M->outvals +lR->iI +i), LOAD(weights +lR->iW  +n*lR->nI +i)));
@@ -84,7 +46,7 @@ void NormalLayer::propagate(const Lab* const M, Lab* const N, const Real* const 
         for(int t=0; t<SIMD; t++) in += *(inry+t);
         #else
         for (int i=0; i<lI->nI; i++) {
-            in += *(outvals +lI->iI +i) * *(weights +lI->iW +n*lI->nI +i);
+            in += *(outvals    +lI->iI +i) * *(weights +lI->iW +n*lI->nI +i);
         }
         for (int i=0; i<lR->nI; i++) {
             in += *(M->outvals +lR->iI +i) * *(weights +lR->iW +n*lR->nI +i);
@@ -92,7 +54,7 @@ void NormalLayer::propagate(const Lab* const M, Lab* const N, const Real* const 
         #endif
 
         in += *(biases +n1stBias +n);
-        *(N->in_vals +n1stNeuron +n) = in; //first element of in
+        *(N->in_vals +n1stNeuron +n) = in;
         *(N->outvals +n1stNeuron +n) = func->eval( in );
     }
     #ifdef SIMDKERNELSIN
@@ -104,6 +66,9 @@ void NormalLayer::propagate(Lab* const N, const Real* const weights, const Real*
 {
     const Real* const outvals = N->outvals;
     const Link* const lI = input_links;
+    //printf("Normal delta with 1stN %d, 1stB %d",n1stNeuron,n1stBias);
+    //lI->print();
+    
     Real in(0);
     #ifdef SIMDKERNELSIN
     Real * inry;
@@ -138,6 +103,8 @@ void LSTMLayer::propagate(Lab* const N, const Real* const weights, const Real* c
 {
     const Real* const outvals = N->outvals;
     const Link* const lI = input_links;
+    //printf("First delta with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+    //lI->print();
     Real tC(0), tI(0), tF(0), tO(0);
     #ifdef SIMDKERNELSIN
     Real *tCry,*tIry,*tFry,*tOry;
@@ -148,105 +115,48 @@ void LSTMLayer::propagate(Lab* const N, const Real* const weights, const Real* c
     #endif
     for (int n=0; n<nNeurons; n++) {
         tC=0.; tI=0.; tF=0.; tO=0.;
-        #ifdef SIMDKERNELSIN
-        vec IN=SET0(); vec IG=SET0(); vec FG=SET0(); vec OG=SET0();
-        for (int i=0; i<lI->nI; i+=SIMD) {
-            const vec O = LOAD(outvals +lI->iI +i);
-            IN = ADD(IN, MUL(O, LOAD(weights +lI->iW  +n*lI->nI +i)));
-            IG = ADD(IG, MUL(O, LOAD(weights +lI->iWI +n*lI->nI +i)));
-            FG = ADD(FG, MUL(O, LOAD(weights +lI->iWF +n*lI->nI +i)));
-            OG = ADD(OG, MUL(O, LOAD(weights +lI->iWO +n*lI->nI +i)));
-        }
-        STORE (tCry,IN); STORE (tIry,IG); STORE (tFry,FG); STORE (tOry,OG);
-        for(int t=0; t<SIMD; t++) {
-            tC += *(tCry+t); tI += *(tIry+t); tF += *(tFry+t); tO += *(tOry+t);
-        }
-        #else
-        for (int i=0; i<lI->nI; i++) {
-            const Real oVal = *(outvals +lI->iI +i);
-            tC += oVal * *(weights +lI->iW  +n*lI->nI +i);
-            tI += oVal * *(weights +lI->iWI +n*lI->nI +i);
-            tF += oVal * *(weights +lI->iWF +n*lI->nI +i);
-            tO += oVal * *(weights +lI->iWO +n*lI->nI +i);
-        }
-        #endif
-        tC += *(biases +n1stBias +n);   *(N->in_vals +n1stNeuron +n) = tC;
-        tI += *(biases +n1stBiasIG +n); *(N->iIGates +n1stCell   +n) = tI;//*(oldstates +n1stCell +n)* *(weights +n1stPeep +3*n)   + ;
-        tF += *(biases +n1stBiasFG +n); *(N->iFGates +n1stCell   +n) = tF;//*(oldstates +n1stCell +n)* *(weights +n1stPeep +3*n +1)+
-        const Real oC = ifun->eval(tC); *(N->oMCell  +n1stCell +n) = oC;
-        const Real oI = sigm->eval(tI); *(N->oIGates +n1stCell +n) = oI;
-        const Real oF = sigm->eval(tF); *(N->oFGates +n1stCell +n) = oF;
-        const Real oS = oC * oI;        *(N->ostates +n1stCell +n) = oS;
-        tO += *(biases +n1stBiasOG +n); *(N->iOGates +n1stCell +n) = tO;//*(N->ostates +n1stCell +n) * *(weights +n1stPeep +3*n +2) +
-        const Real oO = sigm->eval(tO); *(N->oOGates +n1stCell +n) = oO;
-        *(N->outvals +n1stNeuron +n) = func->eval(oS) * oO;
-    }
-    #ifdef SIMDKERNELSIN
-    _myfree(tCry); _myfree(tIry); _myfree(tFry); _myfree(tOry);
-    #endif
-}
-
-void LSTMLayer::propagate(const Mem* const M, Lab* const N, const Real* const weights, const Real* const biases) const
-{
-    const Real* const outvals = N->outvals;
-    const Link* const lI = input_links;
-    const Link* const lR = recurrent_links;
-    Real tC(0), tI(0), tF(0), tO(0);
-    #ifdef SIMDKERNELSIN
-    Real *tCry,*tIry,*tFry,*tOry;
-    _allocateQuick(tCry, SIMD)
-    _allocateQuick(tIry, SIMD)
-    _allocateQuick(tFry, SIMD)
-    _allocateQuick(tOry, SIMD)
-    #endif
-    for (int n=0; n<nNeurons; n++) {
-        tC=0.; tI=0.; tF=0.; tO=0.;
-        #ifdef SIMDKERNELSIN
-        vec IN=SET0(); vec IG=SET0(); vec FG=SET0(); vec OG=SET0();
-        for (int i=0; i<lI->nI; i+=SIMD) {
-            const vec O = LOAD(outvals +lI->iI +i);
-            IN = ADD(IN, MUL(O, LOAD(weights +lI->iW  +n*lI->nI +i)));
-            IG = ADD(IG, MUL(O, LOAD(weights +lI->iWI +n*lI->nI +i)));
-            FG = ADD(FG, MUL(O, LOAD(weights +lI->iWF +n*lI->nI +i)));
-            OG = ADD(OG, MUL(O, LOAD(weights +lI->iWO +n*lI->nI +i)));
-        }
-        for (int i=0; i<lR->nI; i+=SIMD) {
-            const vec O = LOAD(M->outvals +lR->iI +i);
-            IN = ADD(IN, MUL(O, LOAD(weights +lR->iW  +n*lR->nI +i)));
-            IG = ADD(IG, MUL(O, LOAD(weights +lR->iWI +n*lR->nI +i)));
-            FG = ADD(FG, MUL(O, LOAD(weights +lR->iWF +n*lR->nI +i)));
-            OG = ADD(OG, MUL(O, LOAD(weights +lR->iWO +n*lR->nI +i)));
-        }
-        STORE (tCry,IN); STORE (tIry,IG); STORE (tFry,FG); STORE (tOry,OG);
-        for(int t=0; t<SIMD; t++) {
-            tC += *(tCry+t); tI += *(tIry+t); tF += *(tFry+t); tO += *(tOry+t);
-        }
-        #else
-        for (int i=0; i<lI->nI; i++) {
-            const Real oVal = *(outvals +lI->iI +i);
-            tC += oVal * *(weights +lI->iW  +n*lI->nI +i);
-            tI += oVal * *(weights +lI->iWI +n*lI->nI +i);
-            tF += oVal * *(weights +lI->iWF +n*lI->nI +i);
-            tO += oVal * *(weights +lI->iWO +n*lI->nI +i);
-        }
-        for (int i=0; i<lR->nI; i++) {
-            const Real oVal = *(M->outvals +lR->iI +i);
-            tC += oVal * *(weights +lR->iW  +n*lR->nI +i);
-            tI += oVal * *(weights +lR->iWI +n*lR->nI +i);
-            tF += oVal * *(weights +lR->iWF +n*lR->nI +i);
-            tO += oVal * *(weights +lR->iWO +n*lR->nI +i);
-        }
-        #endif
         
-        tC += *(biases +n1stBias +n); *(N->in_vals +n1stNeuron +n) = tC;
-        tI += *(biases +n1stBiasIG +n); *(N->iIGates +n1stCell   +n) = tI;//*(oldstates +n1stCell +n)* *(weights +n1stPeep +3*n)   + ;
-        tF += *(biases +n1stBiasFG +n); *(N->iFGates +n1stCell   +n) = tF;//*(oldstates +n1stCell +n)* *(weights +n1stPeep +3*n +1)+
-        const Real oC = ifun->eval(tC); *(N->oMCell  +n1stCell +n) = oC;
-        const Real oI = sigm->eval(tI); *(N->oIGates +n1stCell +n) = oI;
-        const Real oF = sigm->eval(tF); *(N->oFGates +n1stCell +n) = oF;
-        const Real oS = *(M->ostates +n1stCell +n) * oF + oC * oI; *(N->ostates +n1stCell +n) = oS;
-        tO += *(biases +n1stBiasOG +n); *(N->iOGates +n1stCell +n) = tO;//*(N->ostates +n1stCell +n) * *(weights +n1stPeep +3*n +2) +
-        const Real oO = sigm->eval(tO); *(N->oOGates +n1stCell +n) = oO;
+        #ifdef SIMDKERNELSIN
+        vec IN=SET0(); vec IG=SET0(); vec FG=SET0(); vec OG=SET0();
+        for (int i=0; i<lI->nI; i+=SIMD) {
+            const vec O = LOAD(outvals +lI->iI +i);
+            IN = ADD(IN, MUL(O, LOAD(weights +lI->iW  +n*lI->nI +i)));
+            IG = ADD(IG, MUL(O, LOAD(weights +lI->iWI +n*lI->nI +i)));
+            FG = ADD(FG, MUL(O, LOAD(weights +lI->iWF +n*lI->nI +i)));
+            OG = ADD(OG, MUL(O, LOAD(weights +lI->iWO +n*lI->nI +i)));
+        }
+        STORE (tCry,IN); STORE (tIry,IG); STORE (tFry,FG); STORE (tOry,OG);
+        for(int t=0; t<SIMD; t++) {
+            tC += *(tCry+t); tI += *(tIry+t); tF += *(tFry+t); tO += *(tOry+t);
+        }
+        #else
+        for (int i=0; i<lI->nI; i++) {
+            const Real oVal = *(outvals +lI->iI +i);
+            tC += oVal * *(weights +lI->iW  +n*lI->nI +i);
+            tI += oVal * *(weights +lI->iWI +n*lI->nI +i);
+            tF += oVal * *(weights +lI->iWF +n*lI->nI +i);
+            tO += oVal * *(weights +lI->iWO +n*lI->nI +i);
+        }
+        #endif
+        tC += *(biases +n1stBias +n);
+        *(N->in_vals +n1stNeuron +n) = tC;
+        tI += *(biases +n1stBiasIG +n);
+        *(N->iIGates +n1stCell   +n) = tI;
+        tF += *(biases +n1stBiasFG +n);
+        *(N->iFGates +n1stCell   +n) = tF;
+        tO += *(biases +n1stBiasOG +n);
+        *(N->iOGates +n1stCell   +n) = tO;
+        
+        const Real oC = ifun->eval(tC);
+        *(N->oMCell  +n1stCell +n) = oC;
+        const Real oI = sigm->eval(tI);
+        *(N->oIGates +n1stCell +n) = oI;
+        const Real oF = sigm->eval(tF);
+        *(N->oFGates +n1stCell +n) = oF;
+        const Real oO = sigm->eval(tO);
+        *(N->oOGates +n1stCell +n) = oO;
+        const Real oS = oC * oI;
+        *(N->ostates +n1stCell +n) = oS;
         *(N->outvals +n1stNeuron +n) = func->eval(oS) * oO;
     }
     #ifdef SIMDKERNELSIN
@@ -259,6 +169,9 @@ void LSTMLayer::propagate(const Lab* const M, Lab* const N, const Real* const we
     const Real* const outvals = N->outvals;
     const Link* const lI = input_links;
     const Link* const lR = recurrent_links;
+    //printf("NORMAL delta with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+    //lI->print();
+    //lR->print();
     Real tC(0), tI(0), tF(0), tO(0);
     #ifdef SIMDKERNELSIN
     Real *tCry,*tIry,*tFry,*tOry;
@@ -269,6 +182,7 @@ void LSTMLayer::propagate(const Lab* const M, Lab* const N, const Real* const we
     #endif
     for (int n=0; n<nNeurons; n++) {
         tC=0.; tI=0.; tF=0.; tO=0.;
+        
         #ifdef SIMDKERNELSIN
         vec IN=SET0(); vec IG=SET0(); vec FG=SET0(); vec OG=SET0();
         for (int i=0; i<lI->nI; i+=SIMD) {
@@ -306,15 +220,26 @@ void LSTMLayer::propagate(const Lab* const M, Lab* const N, const Real* const we
         }
         #endif
         
-        tC += *(biases +n1stBias +n);   *(N->in_vals +n1stNeuron +n) = tC;
-        tI += *(biases +n1stBiasIG +n); *(N->iIGates +n1stCell   +n) = tI;
-        tF += *(biases +n1stBiasFG +n); *(N->iFGates +n1stCell   +n) = tF;
-        tO += *(biases +n1stBiasOG +n); *(N->iOGates +n1stCell   +n) = tO;
-        const Real oC = ifun->eval(tC); *(N->oMCell  +n1stCell +n) = oC;
-        const Real oI = sigm->eval(tI); *(N->oIGates +n1stCell +n) = oI;
-        const Real oF = sigm->eval(tF); *(N->oFGates +n1stCell +n) = oF;
-        const Real oS = *(M->ostates +n1stCell +n) * oF + oC * oI; *(N->ostates +n1stCell +n) = oS;
-        const Real oO = sigm->eval(tO); *(N->oOGates +n1stCell +n) = oO;
+        
+        tC += *(biases +n1stBias +n);
+        *(N->in_vals +n1stNeuron +n) = tC;
+        tI += *(biases +n1stBiasIG +n);
+        *(N->iIGates +n1stCell   +n) = tI;
+        tF += *(biases +n1stBiasFG +n);
+        *(N->iFGates +n1stCell   +n) = tF;
+        tO += *(biases +n1stBiasOG +n);
+        *(N->iOGates +n1stCell   +n) = tO;
+        
+        const Real oC = ifun->eval(tC);
+        *(N->oMCell  +n1stCell +n) = oC;
+        const Real oI = sigm->eval(tI);
+        *(N->oIGates +n1stCell +n) = oI;
+        const Real oF = sigm->eval(tF);
+        *(N->oFGates +n1stCell +n) = oF;
+        const Real oO = sigm->eval(tO);
+        *(N->oOGates +n1stCell +n) = oO;
+        const Real oS = oC * oI + *(M->ostates +n1stCell +n) * oF;
+        *(N->ostates +n1stCell +n) = oS;
         *(N->outvals +n1stNeuron +n) = func->eval(oS) * oO;
     }
     #ifdef SIMDKERNELSIN
@@ -464,6 +389,8 @@ void NormalLayer::backPropagateDelta(Lab* const C, const Real* const weights, co
 {
     const Lab* const cC = C;
     const Link* const lO = output_links;
+    //printf("NORMAL delta with 1stN %d, 1stB %d",n1stNeuron,n1stBias);
+    //lO->print();
     
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
@@ -487,6 +414,9 @@ void NormalLayer::backPropagateDeltaFirst(Lab* const C, const Lab* const N, cons
     const Lab* const cC = C;
     const Link* const lO = output_links;
     const Link* const lR = recurrent_links;
+    //printf("FIRST delta with 1stN %d, 1stB %d",n1stNeuron,n1stBias);
+    //lO->print();
+    //lR->print();
     
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
@@ -514,9 +444,9 @@ void LSTMLayer::backPropagateDeltaFirst(Lab* const C, const Lab* const N, const 
     const Lab* const cC = C;
     const Link* const lO = output_links;
     const Link* const lR = recurrent_links;
-    printf("Last delta with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
-    lO->print();
-    lR->print();
+    //printf("First delta with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+    //lO->print();
+    //lR->print();
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
         
@@ -532,12 +462,12 @@ void LSTMLayer::backPropagateDeltaFirst(Lab* const C, const Lab* const N, const 
                 err  += *(cC->errvals +lO->iO +i) * *(weights +lO->iW +i*lO->nI +n);
         }
 
-        for (int i=0; i<lO->nO; i++)
-            err += *(cC->eOGates +lO->iC +i) * *(weights +lO->iWO +i*lO->nI +n) +
-            *(cC->errvals +lO->iO +i) * (
-                         *(cC->eMCell  +lO->iC +i) * *(weights +lO->iW  +i*lO->nI +n) +
-                         *(cC->eIGates +lO->iC +i) * *(weights +lO->iWI +i*lO->nI +n) +
-                         *(cC->eFGates +lO->iC +i) * *(weights +lO->iWF +i*lO->nI +n) );
+        for (int i=0; i<lR->nO; i++)
+                err +=  *(N->eOGates +lR->iC +i) * *(weights +lR->iWO +i*lR->nI +n) +
+                        *(N->errvals +lR->iO +i) * (
+                        *(N->eMCell  +lR->iC +i) * *(weights +lR->iW  +i*lR->nI +n) +
+                        *(N->eIGates +lR->iC +i) * *(weights +lR->iWI +i*lR->nI +n) +
+                        *(N->eFGates +lR->iC +i) * *(weights +lR->iWF +i*lR->nI +n) );
         /* Alternative for less reads:
         const Real tC = *(cC->in_vals +n1stNeuron +n);
         const Real tI = *(cC->iIGates +n1stCell   +n);
@@ -565,6 +495,8 @@ void LSTMLayer::backPropagateDelta(Lab* const C, const Real* const weights, cons
 {
     const Lab* const cC = C;
     const Link* const lO = output_links;
+    //printf("Short delta with 1stN %d, 1stC %d, 1stB %d ",n1stNeuron,n1stCell,n1stBias);
+    //lO->print();
     for (int n=0; n<nNeurons; n++)
     {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
@@ -594,29 +526,29 @@ void LSTMLayer::backPropagateDelta(const Lab* const P, Lab* const C, const Lab* 
     const Lab* const cC = C;
     const Link* const lO = output_links;
     const Link* const lR = recurrent_links;
-    printf("Normal delta with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
-    lO->print();
-    lR->print();
+    //printf("Normal delta with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+    //lO->print();
+    //lR->print();
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
         
         if (lO->LSTM) {
             for (int i=0; i<lO->nO; i++)
-                err += *(cC->eOGates +lO->iC +i) * *(weights +lO->iWO +i*lO->nI +n) +
-                *(cC->errvals +lO->iO +i) * (
-                                             *(cC->eMCell  +lO->iC +i) * *(weights +lO->iW  +i*lO->nI +n) +
-                                             *(cC->eIGates +lO->iC +i) * *(weights +lO->iWI +i*lO->nI +n) +
-                                             *(cC->eFGates +lO->iC +i) * *(weights +lO->iWF +i*lO->nI +n) );
+                err +=  *(cC->eOGates +lO->iC +i) * *(weights +lO->iWO +i*lO->nI +n) +
+                        *(cC->errvals +lO->iO +i) * (
+                        *(cC->eMCell  +lO->iC +i) * *(weights +lO->iW  +i*lO->nI +n) +
+                        *(cC->eIGates +lO->iC +i) * *(weights +lO->iWI +i*lO->nI +n) +
+                        *(cC->eFGates +lO->iC +i) * *(weights +lO->iWF +i*lO->nI +n) );
         } else {
             for (int i=0; i<lO->nO; i++)
                 err  += *(cC->errvals +lO->iO +i) * *(weights +lO->iW +i*lO->nI +n);
         }
-        for (int i=0; i<lO->nO; i++)
-            err += *(cC->eOGates +lO->iC +i) * *(weights +lO->iWO +i*lO->nI +n) +
-            *(cC->errvals +lO->iO +i) * (
-                                         *(cC->eMCell  +lO->iC +i) * *(weights +lO->iW  +i*lO->nI +n) +
-                                         *(cC->eIGates +lO->iC +i) * *(weights +lO->iWI +i*lO->nI +n) +
-                                         *(cC->eFGates +lO->iC +i) * *(weights +lO->iWF +i*lO->nI +n) );
+        for (int i=0; i<lR->nO; i++)
+            err +=  *(N->eOGates +lR->iC +i) * *(weights +lR->iWO +i*lR->nI +n) +
+                    *(N->errvals +lR->iO +i) * (
+                    *(N->eMCell  +lR->iC +i) * *(weights +lR->iW  +i*lR->nI +n) +
+                    *(N->eIGates +lR->iC +i) * *(weights +lR->iWI +i*lR->nI +n) +
+                    *(N->eFGates +lR->iC +i) * *(weights +lR->iWF +i*lR->nI +n) );
         /* Alternative for less reads:
         const Real tC = *(cC->in_vals +n1stNeuron +n);
         const Real tI = *(cC->iIGates +n1stCell   +n);
@@ -647,8 +579,8 @@ void LSTMLayer::backPropagateDeltaLast(const Lab* const P, Lab* const C, const R
 {
     const Lab* const cC = C;
     const Link* const lO = output_links;
-    printf("Last delta with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
-    lO->print();
+    //printf("Last delta with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+    //lO->print();
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
         
@@ -918,6 +850,7 @@ void NormalLayer::backPropagateAddGrads(const Lab* const C, Grads* const grad) c
 void LSTMLayer::backPropagateAddGrads(const Lab* const C, Grads* const grad) const
 {
     const Link* const lI = input_links;
+    
     for (int n=0; n<nNeurons; n++) {
         const Real eC = *(C->eMCell  +n1stCell +n) * *(C->errvals +n1stNeuron +n);
         const Real eI = *(C->eIGates +n1stCell +n) * *(C->errvals +n1stNeuron +n);

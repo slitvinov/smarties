@@ -60,9 +60,6 @@ void NFQ::Train(const int thrID, const int seq, const int first)
         Qs = Qhats;
         
         if (k+2==ndata && T->Set[seq]->ended) {
-            for (int i=0; i<nOutputs; i++) {
-                *(net->series[first+k]->errvals +net->iOutputs+i) = 0;
-            }
             const Real target = _t->r;
             const Real err =  (target - Qs[_t->a]);
             dumpStats(Vstats[thrID], target, Qs[_t->a], err, Qs);
@@ -72,23 +69,15 @@ void NFQ::Train(const int thrID, const int seq, const int first)
             net->predict(_t->s, Qtildes, net->series[first+k], net->series[first+ndata],
                          net->frozen_weights,  net->frozen_biases);
             int Nbest; Real Vhat(-1e10);
-            for (int i=0; i<nOutputs; i++) {
-                *(net->series[first+k]->errvals +net->iOutputs +i) = 0;
-                if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
-            }
+            for (int i=0;i<nOutputs;i++){if(Qhats[i]>Vhat){Nbest=i;Vhat=Qhats[i];}}
             const Real target = _t->r + gamma*Qtildes[Nbest];
             const Real err =  (target - Qs[_t->a]);
             dumpStats(Vstats[thrID], target, Qs[_t->a], err, Qs);
             *(net->series[first+k]->errvals +net->iOutputs+_t->a) = err;
         }
     }
-    {
-        net->computeDeltasSeries(net->series, first, first+ndata-2);
-        
-        net->computeAddGradsSeries(net->series, first, first+ndata-2, net->Vgrad[thrID]);
-        //for (int k=first; k<first+ndata-1; k++)
-        //    net->computeAddGradsSeries(net->series, k, net->Vgrad[thrID]);
-    }
+    net->computeDeltasSeries(net->series, first, first+ndata-2);
+    net->computeAddGradsSeries(net->series, first, first+ndata-2, net->Vgrad[thrID]);
 }
 
 void NFQ::Train(const vector<int>& seq)
@@ -110,9 +99,6 @@ void NFQ::Train(const vector<int>& seq)
             const Tuple * const _t = T->Set[ind]->tuples[k+1];
             
             if (k+2==ndata && T->Set[ind]->ended) {
-                for (int i=0; i<nOutputs; i++) {
-                    *(net->series[k]->errvals +net->iOutputs+i) = 0;
-                }
                 const Real target = _t->r;
                 const Real err =  (target - Qs[_t->a]);
                 dumpStats(target, Qs[_t->a], err, Qs);
@@ -122,28 +108,17 @@ void NFQ::Train(const vector<int>& seq)
                 net->predict(_t->s, Qtildes, net->series[k], net->series[ndata],
                                         net->frozen_weights, net->frozen_biases);
                 int Nbest; Real Vhat(-1e10);
-                for (int i=0; i<nOutputs; i++) {
-                    *(net->series[k]->errvals +net->iOutputs +i) = 0;
-                    if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
-                }
+                for (int i=0;i<nOutputs;i++){if(Qhats[i]>Vhat){Nbest=i;Vhat=Qhats[i];}}
+
                 const Real target = _t->r + gamma*Qtildes[Nbest];
                 const Real err =  (target - Qs[_t->a]);
                 dumpStats(target, Qs[_t->a], err, Qs);
                 *(net->series[k]->errvals +net->iOutputs+_t->a) = err;
             }
         }
-        {
-            net->computeDeltasSeries(net->series, 0, ndata-2);
-            net->computeAddGradsSeries(net->series, 0, ndata-2, net->grad);
-            countUpdate+=ndata-1;
-            /*
-            for (int k=0; k<ndata-1; k++) {
-                net->computeGradsSeries(net->series, k, net->_grad);
-                opt->stackGrads(net->grad,net->_grad);
-                countUpdate++;
-            }*/
-            //net->removeDropoutMask(); //before the update!!!
-        }
+        net->computeDeltasSeries(net->series, 0, ndata-2);
+        net->computeAddGradsSeries(net->series, 0, ndata-2, net->grad);
+        countUpdate+=ndata-1;
     }
     opt->nepoch=stats.epochCount;
     //cout << countUpdate << endl;
@@ -164,10 +139,7 @@ void NFQ::Train(const int thrID, const int seq, const int samp, const int first)
                      net->frozen_weights,  net->frozen_biases);
     }
     int Nbest; Real Vhat(-1e10);
-    for (int i=0; i<nOutputs; i++) {
-        *(net->series[first]->errvals +net->iOutputs+i) = 0;
-        if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
-    }
+    for (int i=0;i<nOutputs;i++){if(Qhats[i]>Vhat){Nbest=i;Vhat=Qhats[i];}}
     
     const Real target = (term) ? _t->r : _t->r + gamma*Qtildes[Nbest];
     const Real err =  (target - Qs[_t->a]);
@@ -196,10 +168,7 @@ void NFQ::Train(const vector<int>& seq, const vector<int>& samp)
                                     net->frozen_weights, net->frozen_biases);
         }
         int Nbest; Real Vhat(-1e10);
-        for (int i=0; i<nOutputs; i++) {
-            *(net->series[0]->errvals +net->iOutputs+i) = 0;
-            if (Qhats[i]>Vhat)  { Nbest=i; Vhat=Qhats[i]; }
-        }
+        for (int i=0;i<nOutputs;i++){if(Qhats[i]>Vhat){Nbest=i;Vhat=Qhats[i];}}
         
         const Real target = (term) ? _t->r : _t->r + gamma*Qtildes[Nbest];
         const Real err =  (target - Qs[_t->a]);
@@ -208,8 +177,6 @@ void NFQ::Train(const vector<int>& seq, const vector<int>& samp)
         
         net->computeDeltas(net->series[0]);
         net->computeAddGrads(net->series[0], net->grad);
-        //net->computeGrads(net->series[0], net->_grad);
-        //opt->stackGrads(net->grad,net->_grad);
         countUpdate++;
     }
     opt->nepoch=stats.epochCount;

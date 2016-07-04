@@ -36,7 +36,7 @@ struct Link
     Link(int nI, int iI, int nO, int iO, int iW) : LSTM(false), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1)
     { }
     
-    Link() : LSTM(false), nI(0), iI(-1), nO(0), iO(-1), iW(-1), iC(-1), iWI(-1), iWF(-1), iWO(-1)
+    Link() : LSTM(false), nI(0), iI(0), nO(0), iO(0), iW(0), iC(0), iWI(0), iWF(0), iWO(0)
     { }
     
     Link(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO) : LSTM(true), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO)
@@ -44,7 +44,7 @@ struct Link
     
     void set(int _nI, int _iI, int _nO, int _iO, int _iW)
     {
-        this->LSTM = false; this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW; this->iC = -1; this->iWI = -1; this->iWF = -1; this->iWO = -1;
+        this->LSTM = false; this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW; this->iC = 0; this->iWI = 0; this->iWF = 0; this->iWO = 0;
         cout << nI << " " << iI << " " << nO << " " << iO << " " << iW << " " << iC << " " << iWI << " " << iWF << " " << iWO << " " << endl;
     }
     
@@ -176,15 +176,11 @@ public:
     input_links(nl_il), recurrent_links(nl_rl), output_links(nl_ol)
     {
         printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d\n",nNeurons, n1stNeuron, n1stBias);
-        cout << input_links <<endl;
-        cout << recurrent_links <<endl;
-        cout << output_links <<endl;
     }
     
     //virtual void backPropagate(const Lab* const P, Lab* const C, Grads* const grad, const Real* const weights, const Real* const biases) const;
     
     virtual void propagate(Lab* const N, const Real* const weights, const Real* const biases) const;
-    virtual void propagate(const Mem* const M, Lab* const N, const Real* const weights, const Real* const biases) const;
     virtual void propagate(const Lab* const M, Lab* const N, const Real* const weights, const Real* const biases) const;
     
     virtual void backPropagateDeltaFirst(Lab* const C, const Lab* const N, const Real* const weights, const Real* const biases) const;
@@ -225,7 +221,6 @@ public:
     //void backPropagate(const Lab* const P, Lab* const C, Grads* const grad, const Real* const weights, const Real* const biases) const override;
     
     void propagate(Lab* const N, const Real* const weights, const Real* const biases) const override;
-    void propagate(const Mem* const M, Lab* const N, const Real* const weights, const Real* const biases) const override;
     void propagate(const Lab* const M, Lab* const N, const Real* const weights, const Real* const biases) const override;
     
     void backPropagateDeltaFirst(Lab* const C, const Lab* const N, const Real* const weights, const Real* const biases) const override;

@@ -20,7 +20,7 @@ Optimizer::Optimizer(Network * _net, Profiler * _prof, Settings  & settings) : e
     _allocateClean(_1stMomB, nBiases)
 }
 
-AdamOptimizer::AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings) : Optimizer(_net, _prof, settings), beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.999)
+AdamOptimizer::AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings) : Optimizer(_net, _prof, settings), beta_1(0.9), beta_2(0.999), epsilon(1e-9), beta_t_1(0.9), beta_t_2(0.999)
 {
     _allocateClean(_2ndMomW, nWeights)
     _allocateClean(_2ndMomB, nBiases)
@@ -228,20 +228,19 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
 
 void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const Real _eta)
 {
-    Real fac12 = _eta*sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    const Real fac12 = _eta*sqrt(1.-beta_t_2)/(1.-beta_t_1);
     #if SIMD > 1
     const vec B1 = SET1(beta_1);
     const vec B2 = SET1(beta_2);
     const vec _B1 =SET1(1.-beta_1);
     const vec _B2 =SET1(1.-beta_2);
-    const vec F12 = SET1(_eta*sqrt(1.-beta_t_2)/(1.-beta_t_1));
+    const vec F12 = SET1(fac12);
     const vec EPS = SET1(epsilon);
-    const vec zeros = SET0 ();
+    const vec zeros = SET0();
     #endif
     
     #pragma omp for nowait
     for (int i=0; i<N; i+=SIMD) {
-        //printf("Before: %f %f ..",*(_1stMom + i),*(grad + i));
         #if SIMD == 1
         *(_1stMom + i) = beta_1 * *(_1stMom + i) + (1.-beta_1) * *(grad + i);
         *(_2ndMom + i) = beta_2 * *(_2ndMom + i) + (1.-beta_2) * *(grad + i) * *(grad + i);
@@ -249,21 +248,19 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
         *(grad + i) = 0.; //reset grads
         *(dest + i) += fac12 * *(_1stMom + i)  / sqrt(*(_2ndMom + i) + epsilon);
         #else
-        vec _DW = LOAD(grad + i);
-        //FETCH((char*)    grad +i + M_PF_G, M_POL_G);
-        vec M1 = ADD( MUL ( B1, LOAD(_1stMom + i)), MUL ( _B1, _DW));
-        //FETCH((char*) _1stMom +i + M_PF_G, M_POL_G);
-        vec M2 = ADD( MUL ( B2, LOAD(_2ndMom + i)), MUL ( _B2, MUL (_DW,_DW)));
-        //FETCH((char*) _2ndMom +i + M_PF_G, M_POL_G);
-        STORE(dest+i, ADD( LOAD(dest+i), MUL( MUL(F12, M1), RSQRT(ADD(M2,EPS)) )));
-        //FETCH((char*)    dest +i + M_PF_G, M_POL_G);
+        const vec _DW = LOAD(grad + i);
+        const vec M1 = ADD( MUL(B1, LOAD(_1stMom+i)), MUL(_B1, _DW));
+        const vec M2 = ADD( MUL(B2, LOAD(_2ndMom+i)), MUL(_B2, MUL(_DW,_DW)));
+        const vec M2_= MAX(M2,EPS);
+        const vec DW = MUL(MUL(F12, M1),RSQRT(M2_));
+        const vec W  = LOAD(dest+i);
+        const vec DW_ = MIN(MAX(W,SUB(zeros,W)),MAX(MIN(W,SUB(zeros,W)),DW));
+        STORE(dest+i, ADD(W, DW_));
         
         STORE(_1stMom + i,M1);
-        STORE(_2ndMom + i,M2);
+        STORE(_2ndMom + i,M2_);
         STORE (grad+i,zeros); //reset grads
         #endif
-        //printf("Added grads %d %d %f\n",omp_get_thread_num(),i,fac12 * *(_1stMom + i)  / sqrt(*(_2ndMom + i) + epsilon));
-        //printf(".. after: %f %f\n",*(_1stMom + i),*(dest + i));
     }
 }
 
@@ -275,7 +272,7 @@ void AdamOptimizer::updateDecay(Real* const dest, Real* const grad, Real* const 
     const vec B2 = SET1(beta_2);
     const vec _B1 =SET1(1.-beta_1);
     const vec _B2 =SET1(1.-beta_2);
-    const vec F12 = SET1(_eta*sqrt(1.-beta_t_2)/(1.-beta_t_1));
+    const vec F12 = SET1(fac12);
     const vec EPS = SET1(epsilon);
     const vec LAMBDA = SET1(-lambda*_eta);
     const vec zeros = SET0 ();
@@ -291,17 +288,13 @@ void AdamOptimizer::updateDecay(Real* const dest, Real* const grad, Real* const 
         *(dest + i) += fac12 * *(_1stMom + i)/sqrt(*(_2ndMom + i) + epsilon) -*(dest + i)*lambda*_eta;
         #else
         vec _DW = LOAD(grad + i);
-        //FETCH((char*)    grad +i + M_PF_G, M_POL_G);
         vec M1 = ADD( MUL ( B1, LOAD(_1stMom + i)), MUL ( _B1, _DW));
-        //FETCH((char*) _1stMom +i + M_PF_G, M_POL_G);
         vec M2 = ADD( MUL ( B2, LOAD(_2ndMom + i)), MUL ( _B2, MUL (_DW,_DW)));
-        //FETCH((char*) _2ndMom +i + M_PF_G, M_POL_G);
+        vec M2_= MAX(M2,EPS);
         vec W = LOAD(dest + i);
-        STORE(dest+i,ADD(W,ADD(MUL(MUL(F12, M1),RSQRT(ADD(M2,EPS))),MUL(LAMBDA,W))));
-        //FETCH((char*)    dest +i + M_PF_G, M_POL_G);
-        
+        STORE(dest+i,ADD(W,ADD(MUL(MUL(F12, M1),RSQRT(M2_)),MUL(LAMBDA,W))));
         STORE(_1stMom + i,M1);
-        STORE(_2ndMom + i,M2);
+        STORE(_2ndMom + i,M2_);
         STORE (grad+i,zeros); //reset grads
         #endif
     }
