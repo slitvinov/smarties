@@ -41,22 +41,22 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
     for (int w=g.wPeep; w<(g.wPeep + 3*g.recurrSize); w++)
         *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize);
     
-    for (const auto & l : *g.nl_c_l)
     {
+        const Link* const l = g.nl_inputs;
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
             *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iW,_weights);
     }
     
-    for (const auto & l : *g.nl_o_l)
     {
+        const Link* const l = g.nl_recurrent;
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
             *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iW,_weights);
     }
     
-    for (const auto & l : *g.rl_c_l)
     {
+        const Link* const l = g.rl_inputs;
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
             *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iW,_weights);
@@ -74,8 +74,8 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
         orthogonalize(l->nO,l->nI,l->iWO,_weights);
     }
     
-    for (const auto & l : *g.rl_o_l)
     {
+        const Link* const l = g.rl_recurrent;
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
             *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iW,_weights);
@@ -111,11 +111,11 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
 
 void Network::addNormal(Graph* const p, Graph* const g, const bool first, const bool last)
 {
-#ifdef SIMDKERNELS
+    #ifdef SIMDKERNELS
     g->normalSize_SIMD = ceil((Real)g->normalSize/SIMD)*SIMD;
-#else
+    #else
     g->normalSize_SIMD = g->normalSize;
-#endif
+    #endif
     
     if (g->normalSize>0)
     {
@@ -125,52 +125,39 @@ void Network::addNormal(Graph* const p, Graph* const g, const bool first, const 
         nBiases += g->normalSize_SIMD;
         
         if (p->recurrSize>0) { //conntected to previous recurrent layer
-            Link * link = new Link(p->recurrSize_SIMD,p->recurrPos,g->normalSize,g->normalPos,nWeights);
-            g->nl_c_l->push_back(link);
-            p->rl_l_c->push_back(link);
+            g->nl_inputs->set(p->recurrSize_SIMD,p->recurrPos,g->normalSize,g->normalPos,nWeights);
+            p->rl_outputs->set(p->recurrSize_SIMD,p->recurrPos,g->normalSize,g->normalPos,nWeights);
             nWeights += p->recurrSize_SIMD*g->normalSize;
         }
-        
-        if (p->normalSize>0) { //conntected to previous normal layer
-            Link * link = new Link(p->normalSize_SIMD,p->normalPos,g->normalSize,g->normalPos,nWeights);
-            g->nl_c_l->push_back(link);
-            p->nl_l_c->push_back(link);
+        else if (p->normalSize>0) { //conntected to previous normal layer
+            g->nl_inputs->set(p->normalSize_SIMD,p->normalPos,g->normalSize,g->normalPos,nWeights);
+            p->nl_outputs->set(p->normalSize_SIMD,p->normalPos,g->normalSize,g->normalPos,nWeights);
             nWeights += p->normalSize_SIMD*g->normalSize;
-        }
-        
-        if (g->recurrSize>0) { //conntected  to current realization of current rec layer
-            Link * link = new Link(g->recurrSize_SIMD,g->recurrPos,g->normalSize,g->normalPos,nWeights);
-            g->nl_o_l->push_back(link);
-            g->rl_l_c->push_back(link);
-            nWeights += g->recurrSize_SIMD*g->normalSize;
-        }
+        } else die("Unlinked to inputs");
         
         if (false) { //(!last) //conntected  to past realization of current normal layer
-            Link * link = new Link(g->normalSize_SIMD,g->normalPos,g->normalSize,g->normalPos,nWeights);
-            g->nl_o_l->push_back(link);
-            g->nl_l_f->push_back(link);
+            g->nl_recurrent->set(g->normalSize_SIMD,g->normalPos,g->normalSize,g->normalPos,nWeights);
             nWeights += g->normalSize_SIMD*g->normalSize;
         }
         
-#ifndef _scaleR_
+        #ifndef _scaleR_
         const Activation * f = (last) ? new Activation : new SoftSign;
-#else
+        #else
         const Activation * f = new SoftSign;
-#endif
+        #endif
 
-        NormalLayer * l = new NormalLayer(g->normalSize, g->normalPos, g->biasHL, g->nl_c_l, g->nl_o_l, g->nl_l_c, g->nl_l_f, f, last);
-        l->prev_input_links = g->nl_o_l;
+        NormalLayer * l = new NormalLayer(g->normalSize, g->normalPos, g->biasHL, g->nl_inputs, g->nl_recurrent, g->nl_outputs, f, last);
         layers.push_back(l);
     }
 }
 
 void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bool last)
 {
-#ifdef SIMDKERNELS
+    #ifdef SIMDKERNELS
     g->recurrSize_SIMD = ceil((Real)g->recurrSize/SIMD)*SIMD;
-#else
+    #else
     g->recurrSize_SIMD = g->recurrSize;
-#endif
+    #endif
     
     if (g->recurrSize>0) {
         {
@@ -184,9 +171,6 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
             g->biasFG = g->biasIG + g->recurrSize_SIMD;
             g->biasOG = g->biasFG + g->recurrSize_SIMD;
             nBiases += 4*g->recurrSize;
-            
-            //g->wPeep  = nWeights;
-            //nWeights+= 3*g->recurrSize_SIMD; //SIMD HAZARD
         }
         
         if (p->recurrSize>0) { //conntected to previous recurrent layer
@@ -198,12 +182,11 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
             nWeights += p->recurrSize_SIMD*g->recurrSize;
             int WeightOG = nWeights;
             nWeights += p->recurrSize_SIMD*g->recurrSize;
-            
-            Link * link = new Link(p->recurrSize_SIMD,p->recurrPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
-            g->rl_c_l->push_back(link);
-            p->rl_l_c->push_back(link);
-        }
-        if (p->normalSize>0) { //conntected to previous normal layer
+            g->rl_inputs->set(p->recurrSize_SIMD,p->recurrPos,g->recurrSize,g->recurrPos,
+                              g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
+            p->rl_outputs->set(p->recurrSize_SIMD,p->recurrPos,g->recurrSize,g->recurrPos,
+                               g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
+        } else if (p->normalSize>0) { //conntected to previous normal layer
             int WeightHL = nWeights;
             nWeights += p->normalSize_SIMD*g->recurrSize;
             int WeightIG = nWeights;
@@ -212,11 +195,11 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
             nWeights += p->normalSize_SIMD*g->recurrSize;
             int WeightOG = nWeights;
             nWeights += p->normalSize_SIMD*g->recurrSize;
-            
-            Link * link = new Link(p->normalSize_SIMD,p->normalPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
-            g->rl_c_l->push_back(link);
-            p->nl_l_c->push_back(link);
-        }
+            g->rl_inputs->set(p->normalSize_SIMD,p->normalPos,g->recurrSize,g->recurrPos,
+                              g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
+            p->nl_outputs->set(p->normalSize_SIMD,p->normalPos,g->recurrSize,g->recurrPos,
+                               g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
+        } else die("Unlinked to inputs");
 
         { //conntected to past realization of current recurrent layer
             int WeightHL = nWeights;
@@ -227,38 +210,21 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
             nWeights += g->recurrSize_SIMD*g->recurrSize;
             int WeightOG = nWeights;
             nWeights += g->recurrSize_SIMD*g->recurrSize;
-            
-            Link * link = new Link(g->recurrSize_SIMD,g->recurrPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
-            g->rl_o_l->push_back(link);
-            g->rl_l_f->push_back(link);
-        }
-        if (false)//(g->normalSize>0) //NOT VALIDATED/SOMWETHING WRONG IN THE EQs
-        { //conntected to past realization of current normal layer
-            int WeightHL = nWeights;
-            nWeights += g->normalSize_SIMD*g->recurrSize;
-            int WeightIG = nWeights;
-            nWeights += g->normalSize_SIMD*g->recurrSize;
-            int WeightFG = nWeights;
-            nWeights += g->normalSize_SIMD*g->recurrSize;
-            int WeightOG = nWeights;
-            nWeights += g->normalSize_SIMD*g->recurrSize;
-            
-            Link * link = new Link(g->normalSize_SIMD,g->normalPos,g->recurrSize,g->recurrPos,g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
-            g->rl_o_l->push_back(link);
-            g->nl_l_f->push_back(link);
+            g->rl_recurrent->set(g->recurrSize_SIMD,g->recurrPos,g->recurrSize,g->recurrPos,
+                                 g->indState,WeightHL,WeightIG,WeightFG,WeightOG);
         }
         
-#ifndef _scaleR_
+        #ifndef _scaleR_
         const Activation * fI = (last) ? new Activation : new SoftSign2;
         const Activation * fG = new SoftSigm;
         const Activation * fO = (last) ? new Activation : new HardSign(2.);
-#else
+        #else
         const Activation * fI = new SoftSign2;
         const Activation * fG = new SoftSigm;
         const Activation * fO = new HardSign(2.);
-#endif
+        #endif
         
-        NormalLayer * l = new LSTMLayer(g->recurrSize, g->recurrPos, g->indState, g->wPeep, g->biasIN, g->biasIG, g->biasFG, g->biasOG, g->rl_c_l, g->rl_o_l, g->rl_l_c, g->rl_l_f, fI, fG, fO, last);
+        NormalLayer * l = new LSTMLayer(g->recurrSize, g->recurrPos, g->indState, g->wPeep, g->biasIN, g->biasIG, g->biasFG, g->biasOG, g->rl_inputs, g->rl_recurrent, g->rl_outputs, fI, fG, fO, last);
         layers.push_back(l);
     }
 }
@@ -363,11 +329,10 @@ gen(settings.gen), bDump(not settings.bTrain)
         g->normalSize = nInputs;
         #ifdef SIMDKERNELS
         g->normalSize_SIMD = ceil((Real)nInputs/SIMD)*SIMD;
-        nNeurons += ceil((Real)nInputs/SIMD)*SIMD;
         #else
         g->normalSize_SIMD = nInputs;
-        nNeurons += nInputs;
         #endif
+        nNeurons += g->normalSize_SIMD;
         G.push_back(g);
     }
     
@@ -565,8 +530,10 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output, Lab* co
     for (int j=0; j<nInputs; j++)
     *(_N->outvals +j) = _input[j];
     
-    for (int j=0; j<nLayers; j++)
+    for (int j=0; j<nLayers; j++) {
+        printf( "Layer %d\n",j); 
     layers[j]->propagate(_N,_weights,_biases);
+    }
     
     assert(static_cast<int>(_output.size())==nOutputs);
     
@@ -574,20 +541,21 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output, Lab* co
     _output[j] = *(_N->outvals +iOutputs +j);
 }
 
-void Network::computeGrads(const vector<Real>& _error, const Lab* const _M, Lab* const _N, Grads* const _Grad) const
+/*void Network::computeGrads(const vector<Real>& _error, const Lab* const _M, Lab* const _N, Grads* const _Grad) const
 {
     for (int j=0; j<nOutputs; j++)
         *(_N->errvals +iOutputs +j) = _error[j];
     
     for (int j=1; j<=nLayers; j++)
         layers[nLayers-j]->backPropagate(_M,_N,_Grad,weights,biases);
-}
+} */
 
 void Network::computeDeltasInputs(vector<Lab*>& _series, const int k, const Real* const _weights, const Real* const _biases) const
 {//no weight grad to care about, no recurrent links
     for (int n=0; n<nInputs; n++) {
         Real err = 0.;
-        for (const auto & l : *(G[0]->nl_l_c)) {
+        {
+            const Link* const l = G[0]->nl_outputs;
             if (l->LSTM)
                 for (int i=0; i<l->nO; i++)
                     err+=*(series[k]->eOGates+l->iC+i)* *(_weights+l->iWO+i*l->nI+n)+

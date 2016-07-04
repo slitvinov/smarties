@@ -11,6 +11,7 @@
 
 #include "../Settings.h"
 #include "Activations.h"
+#include <iostream>
 #include <cstring>
 #define KER1  
 #define KER2
@@ -29,18 +30,35 @@ using namespace std;
 
 struct Link
 {
-    const bool LSTM;
-    const int nI, iI, nO, iO, iW, iC, iWI, iWF, iWO;
+    bool LSTM;
+    int nI, iI, nO, iO, iW, iC, iWI, iWF, iWO;
     
     Link(int nI, int iI, int nO, int iO, int iW) :
     LSTM(false), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1)
     {
-        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
+        
+    }
+    
+    Link() : LSTM(false), nI(0), iI(-1), nO(0), iO(-1), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1)
+    {
+        
     }
     
     Link(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO) :
     LSTM(true), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO)
     {
+    }
+    
+    void set(int _nI, int _iI, int _nO, int _iO, int _iW)
+    {
+        LSTM = false; nI = _nI; iI = _iI; nO = _nO; iO = _iO; iW = _iW; iC = -1; iWI = -1; iWF = -1; iWO = -1;
+        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
+    }
+    
+    
+    void set(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO)
+    {
+        LSTM = true; nI = _nI; iI = _iI; nO = _nO; iO = _iO; iW = _iW; iC = _iC; iWI = _iWI; iWF = _iWF; iWO = _iWO;
         printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
     }
     
@@ -56,33 +74,14 @@ struct Graph //misleading, this is just the graph for a single layer
     int recurrSize, normalSize, recurrSize_SIMD, normalSize_SIMD, recurrPos, normalPos;
     
     // links INTO layer FROM curr and FROM past layer
-    vector<Link*> *rl_c_l, *rl_o_l, *nl_c_l, *nl_o_l;
-    // links FROM layer INTO curr and INTO future layer
-    vector<Link*> *rl_l_c, *rl_l_f, *nl_l_c, *nl_l_f;
+    Link *rl_inputs, *rl_recurrent, *rl_outputs, *nl_inputs, *nl_recurrent, *nl_outputs;
 
     int wPeep, indState;
     int biasHL, biasIN, biasIG, biasFG, biasOG;
     Graph() : first(false), recurrSize(0), normalSize(0), recurrSize_SIMD(0), normalSize_SIMD(0), recurrPos(0),  normalPos(0), wPeep(0), indState(0), biasHL(0), biasIN(0), biasIG(0), biasFG(0), biasOG(0)
     {
-        rl_c_l = new vector<Link*>;
-        rl_c_l->reserve(4);
-        rl_o_l = new vector<Link*>;
-        rl_o_l->reserve(4);
-        
-        nl_c_l = new vector<Link*>;
-        nl_c_l->reserve(4);
-        nl_o_l = new vector<Link*>;
-        nl_o_l->reserve(4);
-        
-        rl_l_c = new vector<Link*>;
-        rl_l_c->reserve(4);
-        rl_l_f = new vector<Link*>;
-        rl_l_f->reserve(4);
-        
-        nl_l_c = new vector<Link*>;
-        nl_l_c->reserve(4);
-        nl_l_f = new vector<Link*>;
-        nl_l_f->reserve(4);
+        rl_inputs = new Link(); rl_recurrent = new Link(); rl_outputs = new Link();
+        nl_inputs = new Link(); nl_recurrent = new Link(); nl_outputs = new Link();
     }
 };
 
@@ -176,19 +175,20 @@ public:
     const bool last;
     const int nNeurons, n1stNeuron, n1stBias;
     const Activation * func;
-    const vector<Link*> *curr_input_links, *prev_input_links, *curr_output_links, *next_output_links;
+    const Link *input_links, *recurrent_links, *output_links;
     
-    NormalLayer(int nNeurons, int n1stNeuron, int n1stBias,
-                const vector<Link*>* const nl_c_l, const vector<Link*>* const nl_o_l,
-                const vector<Link*>* const nl_l_c, const vector<Link*>* const nl_l_f,
-                const Activation* f, bool last) :
+    NormalLayer(int nNeurons, int n1stNeuron, int n1stBias, const Link* const nl_il,
+                const Link* const nl_rl, const Link* const nl_ol, const Activation* f, bool last) :
     last(last), nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), func(f),
-    curr_input_links(nl_c_l), prev_input_links(nl_o_l), curr_output_links(nl_l_c), next_output_links(nl_l_f)
+    input_links(nl_il), recurrent_links(nl_rl), output_links(nl_ol)
     {
         printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d\n",nNeurons, n1stNeuron, n1stBias);
+        cout << input_links <<endl;
+        cout << recurrent_links <<endl;
+        cout << output_links <<endl;
     }
     
-    virtual void backPropagate(const Lab* const P, Lab* const C, Grads* const grad, const Real* const weights, const Real* const biases) const;
+    //virtual void backPropagate(const Lab* const P, Lab* const C, Grads* const grad, const Real* const weights, const Real* const biases) const;
     
     virtual void propagate(Lab* const N, const Real* const weights, const Real* const biases) const;
     virtual void propagate(const Mem* const M, Lab* const N, const Real* const weights, const Real* const biases) const;
@@ -214,18 +214,16 @@ public:
     
     LSTMLayer(int nNeurons, int n1stNeuron, int indState, int n1stPeep,
               int n1stBias, int n1stBiasIG, int n1stBiasFG, int n1stBiasOG,
-              const vector<Link*>* const rl_c_l, const vector<Link*>* const rl_o_l,
-              const vector<Link*>* const rl_l_c, const vector<Link*>* const rl_l_f,
+              const Link* const rl_il, const Link* const rl_rl, const Link* const rl_ol,
               const Activation* fI, const Activation* fG, const Activation* fO, bool last) :
-    NormalLayer(nNeurons, n1stNeuron, n1stBias, rl_c_l, rl_o_l, rl_l_c, rl_l_f, fO, last),
+    NormalLayer(nNeurons, n1stNeuron, n1stBias, rl_il, rl_rl, rl_ol, fO, last),
     n1stCell(indState), n1stPeep(n1stPeep), n1stBiasIG(n1stBiasIG),
     n1stBiasFG(n1stBiasFG), n1stBiasOG(n1stBiasOG), ifun(fI), sigm(fG)
     {
-        printf("n1stCell= %d, n1stPeep= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d\n",
-               n1stCell, n1stPeep, n1stBiasIG, n1stBiasFG, n1stBiasOG);
+        printf("n1stCell= %d, n1stPeep= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d\n", n1stCell, n1stPeep, n1stBiasIG, n1stBiasFG, n1stBiasOG);
     }
     
-    void backPropagate(const Lab* const P, Lab* const C, Grads* const grad, const Real* const weights, const Real* const biases) const override;
+    //void backPropagate(const Lab* const P, Lab* const C, Grads* const grad, const Real* const weights, const Real* const biases) const override;
     
     void propagate(Lab* const N, const Real* const weights, const Real* const biases) const override;
     void propagate(const Mem* const M, Lab* const N, const Real* const weights, const Real* const biases) const override;

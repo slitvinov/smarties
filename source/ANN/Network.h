@@ -62,7 +62,7 @@ public:
     void assignDropoutMask();
     void removeDropoutMask();
     
-    void computeGrads(const vector<Real>& _error, const Lab* const _M, Lab* const _N, Grads* const _Grad) const;
+    //void computeGrads(const vector<Real>& _error, const Lab* const _M, Lab* const _N, Grads* const _Grad) const;
     
     void predict(const vector<Real>& _input, vector<Real>& _output, const Lab* const _M, Lab* const _N, const Real* const _weights, const Real* const _biases) const;
     void predict(const vector<Real>& _input, vector<Real>& _output, const Lab* const _M, Lab* const _N) const
