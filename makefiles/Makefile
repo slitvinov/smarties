@@ -61,9 +61,6 @@ ifeq "$(CC)" "icc"
 CPPFLAGSOPT+= -diag-disable remark -wd68 -xHOST -ansi-alias -fno-fnalias -fno-alias
 endif
 
-#CPPFLAGS+= -I/opt/local/include/openmpi
-#LIBS+= -L/cluster/apps/openmpi/1.6.2/x86_64/gcc_4.8.2/lib -lmpi -lmpi_cxx
-
 CPPFLAGS+= -I/usr/local/include -fopenmp
 LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
 
