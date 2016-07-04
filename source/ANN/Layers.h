@@ -35,16 +35,17 @@ struct Link
     
     Link(int nI, int iI, int nO, int iO, int iW) : LSTM(false), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1)
     {
-        
+        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
     }
     
     Link() : LSTM(false), nI(0), iI(-1), nO(0), iO(-1), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1)
     {
-        
+        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
     }
     
     Link(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO) : LSTM(true), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO)
     {
+        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
     }
     
     void set(int _nI, int _iI, int _nO, int _iO, int _iW)
