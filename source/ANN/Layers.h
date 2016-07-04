@@ -34,36 +34,30 @@ struct Link
     int nI, iI, nO, iO, iW, iC, iWI, iWF, iWO;
     
     Link(int nI, int iI, int nO, int iO, int iW) : LSTM(false), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1)
-    {
-        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
-    }
+    { }
     
-    Link() : LSTM(false), nI(0), iI(-1), nO(0), iO(-1), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1)
-    {
-        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
-    }
+    Link() : LSTM(false), nI(0), iI(-1), nO(0), iO(-1), iW(-1), iC(-1), iWI(-1), iWF(-1), iWO(-1)
+    { }
     
     Link(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO) : LSTM(true), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO)
-    {
-        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
-    }
+    { }
     
     void set(int _nI, int _iI, int _nO, int _iO, int _iW)
     {
-        LSTM = false; nI = _nI; iI = _iI; nO = _nO; iO = _iO; iW = _iW; iC = -1; iWI = -1; iWF = -1; iWO = -1;
-        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
+        this->LSTM = false; this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW; this->iC = -1; this->iWI = -1; this->iWF = -1; this->iWO = -1;
+        cout << nI << " " << iI << " " << nO << " " << iO << " " << iW << " " << iC << " " << iWI << " " << iWF << " " << iWO << " " << endl;
     }
     
     
     void set(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO)
     {
-        LSTM = true; nI = _nI; iI = _iI; nO = _nO; iO = _iO; iW = _iW; iC = _iC; iWI = _iWI; iWF = _iWF; iWO = _iWO;
-        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
+        this->LSTM = true; this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW; this->iC = _iC; this->iWI = _iWI; this->iWF = _iWF; this->iWO = _iWO;
+        cout << nI << " " << iI << " " << nO << " " << iO << " " << iW << " " << iC << " " << iWI << " " << iWF << " " << iWO << " " << endl;
     }
     
-    string print() const
+    void print() const
     {
-        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
+        cout << nI << " " << iI << " " << nO << " " << iO << " " << iW << " " << iC << " " << iWI << " " << iWF << " " << iWO << " " << endl;
     }
 };
 
@@ -90,7 +84,7 @@ struct Lab //All the network signals
     {
         _allocateQuick(in_vals, nNeurons)
         _allocateQuick(outvals, nNeurons)
-        _allocateClean(errvals, nNeurons)
+        _allocateQuick(errvals, nNeurons)
         
         _allocateQuick(ostates, nStates)
         _allocateQuick(iIGates, nStates)
@@ -196,8 +190,14 @@ public:
     virtual void backPropagateDeltaFirst(Lab* const C, const Lab* const N, const Real* const weights, const Real* const biases) const;
     virtual void backPropagateDelta(Lab* const C, const Real* const weights, const Real* const biases) const;
     
-    virtual void backPropagateDelta(const Lab* const P, Lab* const C, const Lab* const N, const Real* const weights, const Real* const biases) const;
-    virtual void backPropagateDeltaLast(const Lab* const P, Lab* const C, const Real* const weights, const Real* const biases) const;
+    virtual void backPropagateDelta(const Lab* const P, Lab* const C, const Lab* const N, const Real* const weights, const Real* const biases) const
+    {
+        backPropagateDeltaFirst(C, N, weights, biases);
+    }
+    virtual void backPropagateDeltaLast(const Lab* const P, Lab* const C, const Real* const weights, const Real* const biases) const
+    {
+        backPropagateDelta(C, weights, biases);
+    }
     
     virtual void backPropagateGrads(const Lab* const C, Grads* const grad) const;
     virtual void backPropagateGrads(const Lab* const P, const Lab* const C, Grads* const grad) const;
