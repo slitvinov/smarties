@@ -33,8 +33,7 @@ struct Link
     bool LSTM;
     int nI, iI, nO, iO, iW, iC, iWI, iWF, iWO;
     
-    Link(int nI, int iI, int nO, int iO, int iW) :
-    LSTM(false), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1)
+    Link(int nI, int iI, int nO, int iO, int iW) : LSTM(false), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1)
     {
         
     }
@@ -44,8 +43,7 @@ struct Link
         
     }
     
-    Link(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO) :
-    LSTM(true), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO)
+    Link(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO) : LSTM(true), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO)
     {
     }
     

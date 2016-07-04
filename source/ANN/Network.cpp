@@ -43,6 +43,7 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
     
     {
         const Link* const l = g.nl_inputs;
+        l->print();
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
             *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iW,_weights);
@@ -50,6 +51,7 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
     
     {
         const Link* const l = g.nl_recurrent;
+        l->print();
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
             *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iW,_weights);
@@ -57,6 +59,7 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
     
     {
         const Link* const l = g.rl_inputs;
+        l->print();
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
             *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iW,_weights);
@@ -76,6 +79,7 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
     
     {
         const Link* const l = g.rl_recurrent;
+        l->print();
         for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
             *(_weights +w) = dis(*gen)*sqrt(SCAL)/Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iW,_weights);
