@@ -177,6 +177,8 @@ void LSTMLayer::propagate(Lab* const N, const Real* const weights, const Real* c
         #endif
         
         for (const auto & l : *curr_input_links) {
+            printf("curr_input_links with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+            l->print();
             #ifdef SIMDKERNELSIN
             for (int i=0; i<l->nI; i+=SIMD) {
                 //FETCH((char*) N->outvals +l->iI +i + M_PF_O, M_POL_O);
@@ -321,6 +323,8 @@ void LSTMLayer::propagate(const Lab* const M, Lab* const N, const Real* const we
         #endif
         
         for (const auto & l : *curr_input_links) {
+            printf("curr_input_links with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+            l->print();
             #ifdef SIMDKERNELSIN
             for (int i=0; i<l->nI; i+=SIMD) {
                 const vec O = LOAD(outvals +l->iI +i);
@@ -340,6 +344,8 @@ void LSTMLayer::propagate(const Lab* const M, Lab* const N, const Real* const we
             #endif
         }
         for (const auto & l : *prev_input_links) {
+            printf("prev_input_links with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+            l->print();
             #ifdef SIMDKERNELSIN
             for (int i=0; i<l->nI; i+=SIMD) {
                 const vec O = LOAD(M->outvals +l->iI +i);
@@ -636,6 +642,8 @@ void LSTMLayer::backPropagateDeltaFirst(Lab* const C, const Lab* const N, const 
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
         for (const auto & l : *curr_output_links) {
+            printf("First delta curr_input_links with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+            l->print();
             if (l->LSTM)
                 for (int i=0; i<l->nO; i++)
                     err += *(cC->eOGates +l->iC +i) * *(weights +l->iWO +i*l->nI +n) +
@@ -648,6 +656,8 @@ void LSTMLayer::backPropagateDeltaFirst(Lab* const C, const Lab* const N, const 
                     err += *(cC->errvals +l->iO +i) * *(weights +l->iW  +i*l->nI +n);
         }
         for (const auto & l : *next_output_links) {
+            printf("First delta next_output_links with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+            l->print();
             if (l->LSTM)
                 for (int i=0; i<l->nO; i++)
                     err += *(N->eOGates +l->iC +i) * *(weights +l->iWO +i*l->nI +n) +
@@ -692,8 +702,9 @@ void LSTMLayer::backPropagateDelta(Lab* const C, const Real* const weights, cons
     for (int n=0; n<nNeurons; n++)
     {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
-        for (const auto & l : *curr_output_links)
-        {
+        for (const auto & l : *curr_output_links) {
+            printf("Solo delta curr_input_links with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+            l->print();
             if (l->LSTM)
                 for (int i=0; i<l->nO; i++)
                     err += *(cC->eOGates +l->iC +i) * *(weights +l->iWO +i*l->nI +n) +
@@ -722,6 +733,8 @@ void LSTMLayer::backPropagateDelta(const Lab* const P, Lab* const C, const Lab* 
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
         
         for (const auto & l : *curr_output_links) {
+            printf("Normal delta curr_input_links with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+            l->print();
             if (l->LSTM)
                 for (int i=0; i<l->nO; i++)
                     err += *(cC->eOGates +l->iC +i) * *(weights +l->iWO +i*l->nI +n) +
@@ -734,6 +747,8 @@ void LSTMLayer::backPropagateDelta(const Lab* const P, Lab* const C, const Lab* 
                     err += *(cC->errvals +l->iO +i) * *(weights +l->iW  +i*l->nI +n);
         }
         for (const auto & l : *next_output_links) {
+            printf("Normal delta next_output_links with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+            l->print();
             if (l->LSTM)
                 for (int i=0; i<l->nO; i++)
                     err += *(N->eOGates +l->iC +i) * *(weights +l->iWO +i*l->nI +n) +
@@ -778,13 +793,15 @@ void LSTMLayer::backPropagateDeltaLast(const Lab* const P, Lab* const C, const R
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
         
         for (const auto & l : *curr_output_links) {
+            printf("Last delta curr_input_links with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
+            l->print();
             if (l->LSTM)
                 for (int i=0; i<l->nO; i++)
                     err += *(cC->eOGates +l->iC +i) * *(weights +l->iWO +i*l->nI +n) +
-                    *(cC->errvals +l->iO +i) * (
-                       *(cC->eMCell  +l->iC +i) * *(weights +l->iW  +i*l->nI +n) +
-                       *(cC->eIGates +l->iC +i) * *(weights +l->iWI +i*l->nI +n) +
-                       *(cC->eFGates +l->iC +i) * *(weights +l->iWF +i*l->nI +n) );
+                           *(cC->errvals +l->iO +i) * (
+                               *(cC->eMCell  +l->iC +i) * *(weights +l->iW  +i*l->nI +n) +
+                               *(cC->eIGates +l->iC +i) * *(weights +l->iWI +i*l->nI +n) +
+                               *(cC->eFGates +l->iC +i) * *(weights +l->iWF +i*l->nI +n) );
             else
                 for (int i=0; i<l->nO; i++)
                     err  += *(cC->errvals +l->iO +i) * *(weights +l->iW +i*l->nI +n);

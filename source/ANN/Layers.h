@@ -18,6 +18,7 @@
 //#define _myfree( name ) _mm_free( name );
 #define _allocateClean( name, size ) {const int sizeSIMD=ceil(size/(Real)SIMD)*SIMD*sizeof(Real); posix_memalign((void **)& name,ALLOC,sizeSIMD); memset(name,0,sizeSIMD);}
 #define _allocateQuick( name, size ) {const int sizeSIMD=ceil(size/(Real)SIMD)*SIMD*sizeof(Real); posix_memalign((void **)& name,ALLOC,sizeSIMD);}
+//#define _allocateQuick( name, size ) {const int sizeSIMD=ceil(size/(Real)SIMD)*SIMD*sizeof(Real); posix_memalign((void **)& name,ALLOC,sizeSIMD); memset(name,0,sizeSIMD);}
 #define _myfree( name ) free( name );
 #if SIMD != 1
 //#define SIMDKERNELS
@@ -39,6 +40,11 @@ struct Link
     
     Link(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO) :
     LSTM(true), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO)
+    {
+        printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
+    }
+    
+    string print() const
     {
         printf("nI %d, iI %d, nO %d, iO %d, iW %d, iC %d, iWI %d, iWF %d, iWO %d\n", nI, iI, nO, iO, iW, iC, iWI, iWF, iWO);
     }
@@ -86,7 +92,7 @@ struct Lab //All the network signals
     {
         _allocateQuick(in_vals, nNeurons)
         _allocateQuick(outvals, nNeurons)
-        _allocateQuick(errvals, nNeurons)
+        _allocateClean(errvals, nNeurons)
         
         _allocateQuick(ostates, nStates)
         _allocateQuick(iIGates, nStates)

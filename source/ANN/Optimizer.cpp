@@ -145,7 +145,7 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, 
     #pragma omp for nowait
     for (int i=0; i<N; i+=SIMD)
     {
-        printf("Before: %f %f ..",*(_1stMom + i),*(grad + i));
+        //printf("Before: %f %f ..",*(_1stMom + i),*(grad + i));
         #if SIMD == 1
         *(_1stMom + i) = alpha * *(_1stMom + i) + _eta * *(grad + i);
         *(dest + i) += *(_1stMom + i) - _eta*lambda * *(dest + i);
@@ -156,7 +156,7 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, 
         STORE(_1stMom + i,M1);
         STORE(grad+i,zeros); //reset grads
         #endif
-        printf(".. after: %f %f %f\n",*(_1stMom + i),*(dest + i),*(grad + i));
+        //printf(".. after: %f %f %f\n",*(_1stMom + i),*(dest + i),*(grad + i));
     }
 }
 

@@ -112,8 +112,10 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
             batch_err+=err;
         }
         end = std::chrono::high_resolution_clock::now();
-        printf("Epoch %d/%d took %f seconds and had absolute MSE of %f. \n",e,nepochs,std::chrono::duration<Real>(end-start).count(),batch_err/ndata);
-        //cout << profiler->printStat() << endl;
+        printf("Epoch %d/%d took %f seconds and had absolute MSE of %f. \n",e,nepochs,std::chrono::duration<Real>(end-start).count(),batch_err/(Real)ndata);
+        if (batch_err/(Real)ndata > 1.) {
+printf("Problem %f %d \n", batch_err, ndata); abort(); } 
+//cout << profiler->printStat() << endl;
     }
 }
 
