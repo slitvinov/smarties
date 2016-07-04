@@ -18,6 +18,7 @@ using namespace ErrorHandling;
 
 void Network::orthogonalize(const int nO, const int nI, const int n0, Real* const _weights)
 {
+    return;
     if (nI>=nO)
     for (int i=1; i<nO; i++)
     for (int j=0; j<i;  j++) {
@@ -99,16 +100,13 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
         *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize);
         
     for (int w=g.biasIG; w<g.biasIG+g.recurrSize; w++)
-        *(_biases +w) = //-2.; /* IG starts closed */
-                       dis(*gen)*sqrt(SCAL)/Real(g.recurrSize)-1.;
+        *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize)+1.;
         
     for (int w=g.biasFG; w<g.biasFG+g.recurrSize; w++)
-        *(_biases +w) = // 2.; /* FG starts decisively open */
-                       dis(*gen)*sqrt(SCAL)/Real(g.recurrSize)+2.;
+        *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize)+1.;
     
     for (int w=g.biasOG; w<g.biasOG+g.recurrSize; w++)
-        *(_biases +w) = //-2.; /* OG starts closed */
-                       dis(*gen)*sqrt(SCAL)/Real(g.recurrSize)-1.;
+        *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize)+1.;
 }
 
 void Network::addNormal(Graph* const p, Graph* const g, const bool first, const bool last)
@@ -376,7 +374,7 @@ gen(settings.gen), bDump(not settings.bTrain)
     for (int i=1; i<nMixedLayers; i++) { //layer 0 is the input layer
         Graph * g = new Graph();
         bool first = i==1; bool last = i+1==nMixedLayers;
-        if (bLSTM && not last) {
+        if (bLSTM ) { //&& not last
             g->recurrSize = layerSize[i];
             g->normalSize = 0;
             addLSTM(G.back(),g,first,last);
@@ -388,8 +386,8 @@ gen(settings.gen), bDump(not settings.bTrain)
         G.push_back(g);
     }
     
-    //iOutputs = (bLSTM) ? G.back()->recurrPos : G.back()->normalPos;
-    iOutputs = G.back()->normalPos;
+    iOutputs = (bLSTM) ? G.back()->recurrPos : G.back()->normalPos;
+    //iOutputs = G.back()->normalPos;
     nLayers = layers.size();
     printf("nNeurons= %d, nWeights= %d, nBiases= %d, nStates= %d iOutputs = %d\n, nInputs = %d, nOutputs = %d \n", 
            nNeurons, nWeights, nBiases, nStates, iOutputs, nInputs, nOutputs);
@@ -987,18 +985,14 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn, co
     //}
 
     for (int w=0; w<nWeights; w++) {
-        *(g->_W+w) = 0;
-        
         *(weights+w) += eps;
         predict(inputs[0], res, series[0]);
-        for (int k=1; k<lastn; k++)
-            predict(inputs[k], res, series[k-1], series[k]);
+        for (int k=1; k<lastn; k++) predict(inputs[k], res, series[k-1], series[k]);
         const Real out1 = - *(series[lastn-1]->outvals+iOutputs+ierr);
         
         *(weights+w) -= 2*eps;
         predict(inputs[0], res, series[0]);
-        for (int k=1; k<lastn; k++)
-            predict(inputs[k], res, series[k-1], series[k]);
+        for (int k=1; k<lastn; k++) predict(inputs[k], res, series[k-1], series[k]);
         const Real out2 = - *(series[lastn-1]->outvals+iOutputs+ierr);
         
         *(weights+w) += eps;
@@ -1011,18 +1005,14 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn, co
     }
     
     for (int w=0; w<nBiases; w++) {
-        *(g->_B+w) = 0;
-        
         *(biases+w) += eps;
         predict(inputs[0], res, series[0]);
-        for (int k=1; k<lastn; k++)
-            predict(inputs[k], res, series[k-1], series[k]);
+        for (int k=1; k<lastn; k++) predict(inputs[k], res, series[k-1], series[k]);
         const Real out1 = - *(series[lastn-1]->outvals+iOutputs+ierr);
         
         *(biases+w) -= 2*eps;
         predict(inputs[0], res, series[0]);
-        for (int k=1; k<lastn; k++)
-            predict(inputs[k], res, series[k-1], series[k]);
+        for (int k=1; k<lastn; k++) predict(inputs[k], res, series[k-1], series[k]);
         const Real out2 = - *(series[lastn-1]->outvals+iOutputs+ierr);
         
         *(biases+w) += eps;
