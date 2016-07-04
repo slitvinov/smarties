@@ -16,7 +16,7 @@ using namespace std;
 class Approximator
 {
 public:
-    virtual void improve(const vector<Real>& error, int iAgent) = 0;
+    //virtual void improve(const vector<Real>& error, int iAgent) = 0;
     
     virtual void predict(const vector<Real>& input, vector<Real>& output, int iAgent) = 0;
 

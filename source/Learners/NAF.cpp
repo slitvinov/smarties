@@ -51,7 +51,6 @@ void NAF::Train(const int thrID, const int seq, const int first)
 {
     if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
     vector<Real> output(nOutputs),gradient(nOutputs);
-
     const int ndata = T->Set[seq]->tuples.size();
     
     for (int k=0; k<ndata-1; k++) {
@@ -67,7 +66,7 @@ void NAF::Train(const int thrID, const int seq, const int first)
             const Real tgt = _t->r;
             //printf("last r %f\n",_t->r);
             const Real err = tgt - Q[0];
-            dumpStats(Vstats[thrID], tgt, err, Q);
+            dumpStats(Vstats[thrID], tgt, Q[0], err, Q);
             for (int i(0); i<nOutputs; i++)
                 *(net->series[first+k]->errvals +net->iOutputs+i) = err*gradient[i];
         } else {
@@ -77,7 +76,7 @@ void NAF::Train(const int thrID, const int seq, const int first)
             const Real tgt = _t->r + gamma*output[0];
             //printf("r %f\n",_t->r);
             const Real err = tgt - Q[0];
-            dumpStats(Vstats[thrID], tgt, err, Q);
+            dumpStats(Vstats[thrID], tgt, Q[0], err, Q);
             for (int i(0); i<nOutputs; i++)
                 *(net->series[first+k]->errvals +net->iOutputs+i) = err*gradient[i];
         }
@@ -110,7 +109,7 @@ void NAF::Train(const vector<int>& seq)
             if (k+2==ndata && T->Set[ind]->ended) {
                 const Real tgt = _t->r;
                 const Real err = tgt - Q[0];
-                dumpStats(tgt, err, Q);
+                dumpStats(tgt, Q[0], err, Q);
                 for (int i(0); i<nOutputs; i++)
                     *(net->series[k]->errvals +net->iOutputs+i) = err*gradient[i];
             } else {
@@ -118,7 +117,7 @@ void NAF::Train(const vector<int>& seq)
                              net->frozen_weights, net->frozen_biases);
                 const Real tgt = _t->r + gamma*output[0];
                 const Real err = tgt - Q[0];
-                dumpStats(tgt, err, Q);
+                dumpStats(tgt, Q[0], err, Q);
                 for (int i(0); i<nOutputs; i++)
                     *(net->series[k]->errvals +net->iOutputs+i) = err*gradient[i];
             }
@@ -126,7 +125,7 @@ void NAF::Train(const vector<int>& seq)
         {
             net->computeDeltasSeries(net->series, 0, ndata-2);
             net->computeAddGradsSeries(net->series, 0, ndata-2, net->grad);
-            countUpdate+=ndata-2;
+            countUpdate+=ndata-1;
             /*
             for (int k=0; k<ndata-1; k++) {
                 net->computeGradsSeries(net->series, k, net->_grad);
@@ -157,7 +156,7 @@ void NAF::Train(const int thrID, const int seq, const int samp, const int first)
     }
     const Real target = (term) ? _t->r : _t->r + gamma*output[0];
     const Real err =  (target - Q[0]);
-    dumpStats(Vstats[thrID], target, err, Q);
+    dumpStats(Vstats[thrID], target, Q[0], err, Q);
     for (int i(0); i<nOutputs; i++) {
         *(net->series[first]->errvals +net->iOutputs+i) = err*gradient[i];
     }
@@ -187,7 +186,7 @@ void NAF::Train(const vector<int>& seq, const vector<int>& samp)
         }
         const Real target = (term) ? _t->r : _t->r + gamma*output[0];
         const Real err =  (target - Q[0]);
-        dumpStats(target, err, Q);
+        dumpStats(target, Q[0], err, Q);
         for (int i(0); i<nOutputs; i++) {
             *(net->series[0]->errvals +net->iOutputs+i) = err*gradient[i];
         }

@@ -140,6 +140,8 @@ using namespace std;
 
 #define ALLOC 32
 
+typedef volatile Real* ompReal;
+
 struct Settings
 {
     

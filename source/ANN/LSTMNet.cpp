@@ -18,10 +18,26 @@
 using namespace ErrorHandling;
 
 
-FishNet::FishNet(vector<int>& normalSize, vector<int>& recurrSize, Settings & settings) : nInputs(normalSize.front()), nOutputs(normalSize.back()), nAgents(settings.nAgents)
+FishNet::FishNet(Settings & settings) : nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), nAgents(settings.nAgents), bRecurrent(settings.nnType==1)
 {
+    vector<int> lsize;
+    lsize.push_back(nInputs);
+    lsize.push_back(settings.nnLayer1);
+    if (settings.nnLayer2>1) {
+        lsize.push_back(settings.nnLayer2);
+        if (settings.nnLayer3>1) {
+            lsize.push_back(settings.nnLayer3);
+            if (settings.nnLayer4>1) {
+                lsize.push_back(settings.nnLayer4);
+                if (settings.nnLayer5>1) {
+                    lsize.push_back(settings.nnLayer5);
+                }
+            }
+        }
+    }
+    lsize.push_back(nOutputs);
     profiler = new Profiler();
-    net = new Network(normalSize, recurrSize, settings);
+    net = new Network(lsize, bRecurrent, settings);
     opt = new AdamOptimizer(net, profiler, settings);
 }
 
@@ -45,26 +61,22 @@ void FishNet::train(const vector<vector<Real>>& inputs, const vector<vector<Real
     vector<const vector<Real>*> batch_in(batchsize), batch_out(batchsize);
     
     indexes.reserve(ndata);
-    for (int i=0; i<ndata; ++i)
-    {
+    for (int i=0; i<ndata; ++i)  {
         if (static_cast<int>(inputs[i].size()) != nInputs) die("Mismatch between size of input %d and net inputs\n",i);
         if (static_cast<int>(targets[i].size()) != nOutputs) die("Mismatch between size of output %d and net outputs\n",i);
         indexes.push_back(i);
     }
     
-    for (int e=0; e<nepochs; e++)
-    {
+    for (int e=0; e<nepochs; e++) {
         start = std::chrono::high_resolution_clock::now();
         Real batch_err(0.), err;
         std::random_shuffle(indexes.begin(), indexes.end());
-        for (int b=0; b<nbatches; ++b)
-        {
-            for (int i=0; i<batchsize; ++i)
-            {
+        for (int b=0; b<nbatches; ++b) {
+            for (int i=0; i<batchsize; ++i) {
                 batch_in[i]  =  &inputs[indexes[batchsize*b+i]];
                 batch_out[i] = &targets[indexes[batchsize*b+i]];
             }
-            opt->trainBatch(batch_in,batch_out,err);
+            trainBatch(batch_in,batch_out,err);
             batch_err+=err;
         }
         end = std::chrono::high_resolution_clock::now();
@@ -82,25 +94,21 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
     const int ndata = inputs.size();
     vector<int> indexes;
     indexes.reserve(ndata);
-    for (int i=0; i<ndata; ++i)
-    {
+    for (int i=0; i<ndata; ++i)  {
         if (inputs[i].size() != targets[i].size()) die("Mismatch between batch size of targets and inputs\n");
-        for(size_t j=0; j!=inputs[i].size(); j++)
-        {
+        for(size_t j=0; j!=inputs[i].size(); j++) {
             if (static_cast<int>(inputs[i][j].size())!=nInputs) die("Mismatch between size of input %d and net inputs\n", (int)j);
             if (static_cast<int>(targets[i][j].size())!=nOutputs) die("Mismatch between size of output %d and net outputs\n", (int)j);
         }
         indexes.push_back(i);
     }
     
-    for (int e=0; e<nepochs; e++)
-    {
+    for (int e=0; e<nepochs; e++) {
         start = std::chrono::high_resolution_clock::now();
         Real batch_err(0.), err(100.);
         std::random_shuffle(indexes.begin(), indexes.end());
-        for (int b=0; b<ndata; ++b)
-        {
-            opt->trainSeries(inputs[indexes[b]],targets[indexes[b]],err);
+        for (int b=0; b<ndata; ++b)  {
+            trainSeries(inputs[indexes[b]],targets[indexes[b]],err);
             batch_err+=err;
         }
         end = std::chrono::high_resolution_clock::now();
@@ -110,7 +118,7 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
 }
 
 
-void Optimizer::trainBatch(const vector<const vector<Real>*>& inputs, const vector<const vector<Real>*>& targets, Real & trainMSE)
+void FishNet::trainBatch(const vector<const vector<Real>*>& inputs, const vector<const vector<Real>*>& targets, Real & trainMSE)
 {
     trainMSE = 0.;
     int nseries = inputs.size();
@@ -121,7 +129,7 @@ void Optimizer::trainBatch(const vector<const vector<Real>*>& inputs, const vect
         
         for (int j =0; j<nOutputs; j++) {
             const Real err = (*(targets[k]))[j] - res[j];
-            *(net->series[0]->errvals +iOutputs+i) = err;
+            *(net->series[0]->errvals +net->iOutputs+j) = err;
             trainMSE += 0.5*err*err;
         }
         
@@ -133,7 +141,7 @@ void Optimizer::trainBatch(const vector<const vector<Real>*>& inputs, const vect
     trainMSE /= (Real)nseries;
 }
 
-void Optimizer::trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE)
+void FishNet::trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE)
 {
     vector<Real> res(nOutputs);
     const int nseries = inputs.size();
@@ -141,16 +149,18 @@ void Optimizer::trainSeries(const vector<vector<Real>>& inputs, const vector<vec
     
     net->predict(inputs[0], res, net->series[0]);
     for (int i=0; i<nOutputs; i++) {
-        const Real err = targets[0][i] - *(net->series[0]->outvals+iOutputs+i);
-        *(net->series[0]->errvals +iOutputs+i) = err;
+        const Real err = targets[0][i] - *(net->series[0]->outvals+net->iOutputs+i);
+        *(net->series[0]->errvals +net->iOutputs+i) = err;
+        //printf("tgt %f err %f\n",targets[0][i],err);
         trainMSE = 0.5*err*err;
     }
     
     for (int k=1; k<nseries; k++) {
         net->predict(inputs[k], res, net->series[k-1], net->series[k]);
         for (int i=0; i<nOutputs; i++) {
-            const Real err = targets[k][i] - *(net->series[k]->outvals+iOutputs+i);
-            *(net->series[k]->errvals +iOutputs+i) = err;
+            const Real err = targets[k][i] - *(net->series[k]->outvals+net->iOutputs+i);
+            *(net->series[k]->errvals +net->iOutputs+i) = err;
+            //printf("tgt %f err %f\n",targets[k][i],err);
             trainMSE += 0.5*err*err;
         }
     }
@@ -193,7 +203,7 @@ void FishNet::predict(const vector<vector<Real>>& inputs, vector<vector<Real>>& 
     vector<Real> res(nOutputs);
     outputs.clear();
     
-    if (nInputs != static_cast<int>(inputs[0].size())) die("Wrong input %d dim\n", k);
+    if (nInputs != static_cast<int>(inputs[0].size())) die("Wrong input %d dim\n", 0);
     net->predict(inputs[0], res, net->series[0]);
     outputs.push_back(res);
     

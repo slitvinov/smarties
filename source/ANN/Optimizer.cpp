@@ -14,16 +14,16 @@
 
 using namespace ErrorHandling;
 
+Optimizer::Optimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.lRate), lambda(settings.nnLambda), alpha(0.25), net(_net), profiler(_prof), nInputs(_net->nInputs), nOutputs(_net->nOutputs), iOutputs(_net->iOutputs), nWeights(_net->nWeights), nBiases(_net->nBiases), nepoch(0)//,batchsize(0)
+{
+    _allocateClean(_1stMomW, nWeights)
+    _allocateClean(_1stMomB, nBiases)
+}
+
 AdamOptimizer::AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings) : Optimizer(_net, _prof, settings), beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.999)
 {
     _allocateClean(_2ndMomW, nWeights)
     _allocateClean(_2ndMomB, nBiases)
-}
-
-Optimizer::Optimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), net(_net), profiler(_prof), nInputs(_net->nInputs), nOutputs(_net->nOutputs), iOutputs(_net->iOutputs), nWeights(_net->nWeights), nBiases(_net->nBiases), nepoch(0)//,batchsize(0)
-{
-    _allocateClean(_1stMomW, nWeights)
-    _allocateClean(_1stMomB, nBiases)
 }
 
 void Optimizer::stackGrads(Grads* const G, const Grads* const g) const
@@ -84,6 +84,56 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
     }
 }
 
+void Optimizer::stackGrads(const int thrID, Grads* const G, const vector<Grads*> g) const
+{
+    volatile Real* ompW = (volatile Real*) G->_W;
+    volatile Real* ompB = (volatile Real*) G->_B;
+    const int WsizeSIMD=ceil(nWeights/(Real)SIMD)*SIMD;
+    const int BsizeSIMD=ceil(nBiases/(Real)SIMD)*SIMD;
+    const int nThreads =g.size();
+    #if SIMD > 1
+    const vec zeros = SET0 ();
+    #endif
+    #pragma omp barrier
+    
+    vector<int> bndsW(nThreads+1), bndsB(nThreads+1);
+    for (int k=1; k<nThreads; k++){
+        bndsW[k] = ceil(k*WsizeSIMD/Real(nThreads)/(Real)SIMD)*SIMD;
+        bndsB[k] = ceil(k*BsizeSIMD/Real(nThreads)/(Real)SIMD)*SIMD;
+    }
+    bndsW.back() = WsizeSIMD; bndsB.back() = BsizeSIMD;
+        
+    for (int k=0; k<nThreads; k++) {
+        const int beg = (k  +thrID)%nThreads;
+        const int end = (beg+1==nThreads)?nThreads:(k+1+thrID)%nThreads;
+        //printf("%d %d %d %d\n", thrID, k, beg, end);
+        
+        for (int j=bndsW[beg]; j<bndsW[end]; j++) { //j+=SIMD
+        //#if SIMD==1
+            *(ompW+j) += *(g[thrID]->_W+j);
+            *(g[thrID]->_W+j) = 0.;
+        //#else
+        //    STORE(ompW+j, ADD (LOAD(G->_W+j), LOAD(g[k]->_W+j)));
+        //    STORE(g[k]->_W+j,zeros); //reset grads
+        //#endif
+        }
+        
+        for (int j=bndsB[beg]; j<bndsB[end]; j++) {
+        //#if SIMD==1
+            *(ompB+j) += *(g[thrID]->_B+j);
+            *(g[thrID]->_B+j) = 0.;
+        //#else
+        //    STORE(ompB+j, ADD (LOAD(G->_B+j), LOAD(g[k]->_B+j)));
+        //    STORE(g[k]->_B+j,zeros); //reset grads
+        //#endif
+        }
+        #pragma omp barrier
+    }
+    
+    //const Real dumb = *(ompW+2134);
+    //printf("Added grads %d %f\n",thrID,dumb);
+}
+
 void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const Real _eta) const
 {
     #if SIMD > 1
@@ -95,6 +145,7 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, 
     #pragma omp for nowait
     for (int i=0; i<N; i+=SIMD)
     {
+        printf("Before: %f %f ..",*(_1stMom + i),*(grad + i));
         #if SIMD == 1
         *(_1stMom + i) = alpha * *(_1stMom + i) + _eta * *(grad + i);
         *(dest + i) += *(_1stMom + i) - _eta*lambda * *(dest + i);
@@ -105,6 +156,7 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, 
         STORE(_1stMom + i,M1);
         STORE(grad+i,zeros); //reset grads
         #endif
+        printf(".. after: %f %f %f\n",*(_1stMom + i),*(dest + i),*(grad + i));
     }
 }
 
@@ -137,7 +189,7 @@ void Optimizer::updateDecay(Real* const dest, Real* const grad, Real* const _1st
 void Optimizer::update(Grads* const G, const int batchsize)
 {
     //const Real etaBatch = (exp(-nepoch/200.) + eta)/Real(max(batchsize,1));
-    const Real etaBatch = 1./Real(max(batchsize,1));
+    const Real etaBatch = eta/Real(max(batchsize,1));
     const int WsizeSIMD=ceil(nWeights/(Real)SIMD)*SIMD;
     const int BsizeSIMD=ceil(nBiases/(Real)SIMD)*SIMD;
     
@@ -189,6 +241,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
     
     #pragma omp for nowait
     for (int i=0; i<N; i+=SIMD) {
+        //printf("Before: %f %f ..",*(_1stMom + i),*(grad + i));
         #if SIMD == 1
         *(_1stMom + i) = beta_1 * *(_1stMom + i) + (1.-beta_1) * *(grad + i);
         *(_2ndMom + i) = beta_2 * *(_2ndMom + i) + (1.-beta_2) * *(grad + i) * *(grad + i);
@@ -210,6 +263,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
         STORE (grad+i,zeros); //reset grads
         #endif
         //printf("Added grads %d %d %f\n",omp_get_thread_num(),i,fac12 * *(_1stMom + i)  / sqrt(*(_2ndMom + i) + epsilon));
+        //printf(".. after: %f %f\n",*(_1stMom + i),*(dest + i));
     }
 }
 

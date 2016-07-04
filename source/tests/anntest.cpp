@@ -103,86 +103,39 @@ int main (int argc, char** argv)
         struct timeval time;
         gettimeofday(&time, NULL);
         int seed = abs(84967194 + floor(time.tv_usec));
-        settings.configFile=(string)"factory";
-        settings.dt=0.01;
-        settings.endTime=1e9;
-        settings.gamma=0.95;
-        settings.greedyEps=0.01;
-        settings.lRate=0.1;
-        settings.lambda=0.0;
         settings.randSeed=seed;
-        settings.restart=(string)"none";
-        settings.saveFreq=1000;
-        debugLvl=0;
-        settings.prefix=(string)"res/";
-        settings.nnEta=0.001;
-        settings.nnAlpha=0.5;
-        settings.nnLambda=0.0;
-        settings.nnKappa=0.0;
-        settings.nnAdFac=1e-6;
-        settings.AL_fac=0.0;
-#if 1
-        settings.nnLayer1 =0;
-        settings.nnLayer2 =0;
-        settings.nnLayer3 =0;
-        settings.nnMemory1=32;
-        settings.nnMemory2=16;
-        settings.nnMemory3=12;
-#else
+        settings.nnInputs = NIN;
+        settings.nnOutputs = OUT;
+        settings.lRate=0.0001;
         settings.nnLayer1 =32;
-        settings.nnLayer2 =16;
-        settings.nnLayer3 =8;
-        settings.nnMemory1=0;
-        settings.nnMemory2=0;
-        settings.nnMemory3=0;
-#endif
-        settings.learner= (string)"NFQ";
+        settings.nnLayer2 =32;
+        settings.nnLayer3 =0;
+        settings.nnType = 1;
     }
 	debugLvl = 9;
     
-    std::mt19937 gen(settings.randSeed);
+    std::mt19937 * gen = new std::mt19937(settings.randSeed);
+    settings.gen = gen;
     std::uniform_real_distribution<Real> dis(-1.,1.);
     std::uniform_real_distribution<Real> dis2(0.5,1.5);
     
-	vector<int> lsize, mblocks;
-    lsize.push_back(NIN);
-    lsize.push_back(settings.nnLayer1);
-    if (settings.nnLayer2>0 || settings.nnMemory2>0)
-    {
-        lsize.push_back(settings.nnLayer2);
-        if (settings.nnLayer3>0 || settings.nnMemory3>0)
-            lsize.push_back(settings.nnLayer3);
-    }
-    lsize.push_back(OUT);
-    
-    mblocks.push_back(0);
-    mblocks.push_back(settings.nnMemory1);
-    if (settings.nnLayer2>0 || settings.nnMemory2>0)
-    {
-        mblocks.push_back(settings.nnMemory2);
-        if (settings.nnLayer3>0 || settings.nnMemory3>0)
-            mblocks.push_back(settings.nnMemory3);
-    }
-    mblocks.push_back(0);
-    
-    FishNet ann(lsize, mblocks, settings, 1);
+    FishNet ann(settings);
 	vector<Real> in(NIN), tgt(OUT);
-    int nepochs(1000);
+    int nepochs(100);
     
 #if defined(FISH)
-    //vector<vector<vector<Real>>> inputs, targets;
     //vector<vector<Real>> testx, testy, test;
     vector<vector<vector<Real>>> input, target;
            vector<vector<Real>> tmp_i, tmp_o;
                   vector<Real>  testi(4), dmp_i(32), dmp_o(5);
-    for (int i=1; i<= 563; i++)
-    {
+    for (int i=1; i<= 563; i++) {
         string numbered_input, numbered_output;
         {
             char buf[500];
             sprintf(buf, "/cluster/home/novatig/2Fish_Data2/twofish_%03d/info.dat", (int)i);
             numbered_output = string(buf);
         }
+        //cout << numbered_output  << endl;
         ifstream inout(numbered_output.c_str());
         {
             Real dmp;
@@ -198,13 +151,15 @@ int main (int argc, char** argv)
                 dmp_o[3]*= 0.2;
                 dmp_o[4]*= 1e6;
                 
-                if(j==0)
-                    dmp_o[3] = 0.;
-                if(j==0)
-                    dmp_o[4] = 0.;
-                //for (int k=0; k<5; k++)
-                //    cout << dmp_o[k] << " ";
+                if(j==0) { dmp_o[3] = 0.; dmp_o[4] = 0.; }
+                /*for (int k=0; k<5; k++) cout << dmp_o[k] << " ";
                 //cout << endl;
+                for (int k=0; k<5; k++) if (fabs(dmp_o[k])>1) {
+                    cout << dmp_o[k] << endl;
+                    cout << numbered_output  << endl;
+                    cout << k << endl;
+                    cout << j << endl;
+                }*/
                 tmp_o.push_back(dmp_o);
                 j++;
             }
@@ -230,7 +185,7 @@ int main (int argc, char** argv)
                 #if NIN==32
                 tmp_i.push_back(dmp_i);
                 #else
-                testi[0] = dis(gen); testi[1] = dis(gen); testi[2] = dis(gen); testi[3] = dis(gen);
+                testi[0] = dis(*gen); testi[1] = dis(*gen); testi[2] = dis(*gen); testi[3] = dis(*gen);
                 tmp_i.push_back(testi);
                 #endif
                 //for (int k=0; k<32; k++)
@@ -274,10 +229,10 @@ int main (int argc, char** argv)
         for (int k=0; k<series; k++)
         {
             #if OUT == 2
-            Real dtheta = dis(gen)*M_PI/6;
+            Real dtheta = dis(*gen)*M_PI/6;
             theta += dtheta;
             #if NIN == 2
-            Real acc    = dis2(gen);
+            Real acc    = dis2(*gen);
             #else
             Real acc    = 1.;
             #endif
@@ -286,15 +241,15 @@ int main (int argc, char** argv)
             Real accy = acc*sin(theta);
             vely += accy*dt;
             //y += vely*dt;
-            y = dis(gen);
+            y = dis(*gen);
             tgt[1] = y;
             #else
-            Real accx = dis(gen);
+            Real accx = dis(*gen);
             #endif
             
             velx += accx*dt;
             //x += velx*dt;
-            x = dis(gen);
+            x = dis(*gen);
             tgt[0] = x;
             
             #if NIN == 2
@@ -352,7 +307,7 @@ int main (int argc, char** argv)
         
         for (int k=0; k<nseries; k++)
         {
-            tmp[NIN-1] = dis(gen);
+            tmp[NIN-1] = dis(*gen);
             in[0] = tmp[NIN-1];
             tgt[0] = target2(tmp);
             tmpi[k] = in;
@@ -375,7 +330,7 @@ int main (int argc, char** argv)
         for (int i=0; i+1<NIN; i++)
             in[i] = in[i+1];
         
-        in[NIN-1] = dis(gen);
+        in[NIN-1] = dis(*gen);
         tgt[0] = target2(in);
         inputs.push_back(in);
         targets.push_back(tgt);
@@ -397,7 +352,7 @@ int main (int argc, char** argv)
     {
         for (int i=0; i<NIN; i++)
         {
-            in[i] = dis(gen);
+            in[i] = dis(*gen);
             tgt[i] = target5(in[i]);
         }
         inputs.push_back(in);

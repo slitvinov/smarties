@@ -16,11 +16,11 @@
 
 using namespace std;
 
-class FishNet: public Approximator
+class FishNet
 {
 protected:
-    const int nInputs, nOutputs;
-    const int nAgents;
+    const int nInputs, nOutputs,nAgents;
+    const bool bRecurrent;
     Profiler * profiler;
     vector<int> indexes;
     
@@ -28,17 +28,18 @@ public:
     Network * net;
     Optimizer * opt; /* ADAM optimizer */
     
-    FishNet(vector<int>& layerSize, vector<int>& recurSize, Settings & settings);
+    FishNet(Settings & settings);
     
     
-    void predict(const vector<Real>& input, vector<Real>& output, int iAgent=0);
+    void predict(const vector<Real>& input, vector<Real>& output, int iAgent);
+    void predict(const vector<Real>& input, vector<Real>& output);
     void predict(const vector<vector<Real>>& inputs, vector<vector<Real>>& outputs);
     void predict(const vector<Real>& S1, vector<Real>& Q1, const vector<Real>& S2, vector<Real>& Q2, int iAgent=0);
     
     void train(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, int batchsize, int nepochs);
     void train(const vector<vector<vector<Real>>>& inputs, const vector<vector<vector<Real>>>& targets, int nepochs);
     
-    void resetMemories(int iAgent=0) override
+    void resetMemories(int iAgent=0)
     {
         net->clearMemory(net->mem[iAgent]->outvals, net->mem[iAgent]->ostates);
     }

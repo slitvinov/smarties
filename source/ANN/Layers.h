@@ -10,7 +10,7 @@
 #pragma once
 
 #include "../Settings.h"
-#include "Approximator.h"
+#include "Activations.h"
 #include <cstring>
 #define KER1  
 #define KER2
@@ -143,7 +143,7 @@ struct Grads
         _myfree(_B)
     }
     
-    const int  nWeights, nBiases;
+    const int nWeights, nBiases;
     Real *_W, *_B;
 };
 

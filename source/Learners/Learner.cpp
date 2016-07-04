@@ -74,12 +74,12 @@ void Learner::TrainBatch()
     }
     
     /*
-        vector<vector<Real>> inputs;
-        const int ind = 1011;
-        for (int k=0; k<T->Set[ind]->tuples.size(); k++)
-            inputs.push_back(T->Set[ind]->tuples[k]->s);
-        net->checkGrads(inputs, 2, 1);
-    */
+     vector<vector<Real>> inputs;
+     const int ind = 1011;
+     for (int k=0; k<T->Set[ind]->tuples.size(); k++)
+        inputs.push_back(T->Set[ind]->tuples[k]->s);
+     net->checkGrads(inputs, T->Set[ind]->tuples.size()-1, 1);
+     */
     
     if(bRecurrent) {
         vector<int> seq(batchSize);
@@ -179,8 +179,8 @@ void Learner::TrainTasking(Master* const master)
         }
         
         if (ndata>batchSize) {
-            opt->stackGrads(net->grad, net->Vgrad);
-            //printf("Added grads %d %d\n",omp_get_thread_num(),nAddedGradients);
+            const int thrID = omp_get_thread_num();
+            opt->stackGrads(thrID, net->grad, net->Vgrad);
             opt->update(net->grad,nAddedGradients);
         }
         
@@ -231,15 +231,21 @@ void Learner::restart(string name)
     }
 }
 
-void Learner::dumpStats(const Real tgt, const Real err, const vector<Real>& Q)
+void Learner::dumpStats(const Real& tgt, const Real& Q, const Real& err, const vector<Real>& Qs)
 {
-    const Real max_Q = *max_element(Q.begin(), Q.end());
-    const Real min_Q = *min_element(Q.begin(), Q.end());
+    ostringstream o;
+    o << "[";
+    for (int i=0; i<Qs.size(); i++) o << Qs[i] << " ";
+    o << "]";
+    printf("Process %f - %f : %s\n", tgt, Q, string(o.str()).c_str());
+    
+    const Real max_Q = *max_element(Qs.begin(), Qs.end());
+    const Real min_Q = *min_element(Qs.begin(), Qs.end());
     stats.MSE += err*err;
     stats.relE += fabs(err)/(max_Q-min_Q);
-    stats.avgQ += tgt;
-    stats.minQ = std::min(stats.minQ,tgt);
-    stats.maxQ = std::max(stats.maxQ,tgt);
+    stats.avgQ += Q;
+    stats.minQ = std::min(stats.minQ,Q);
+    stats.maxQ = std::max(stats.maxQ,Q);
     stats.dumpCount++;
     
     if (T->nTransitions==stats.dumpCount && T->nTransitions>1) {
@@ -264,15 +270,15 @@ void Learner::dumpStats(const Real tgt, const Real err, const vector<Real>& Q)
     }
 }
 
-void Learner::dumpStats(trainData* _stats, const Real tgt, const Real err, const vector<Real>& Q)
+void Learner::dumpStats(trainData* const _stats, const Real& tgt, const Real& Q, const Real& err, const vector<Real>& Qs)
 {
-    const Real max_Q = *max_element(Q.begin(), Q.end());
-    const Real min_Q = *min_element(Q.begin(), Q.end());
+    const Real max_Q = *max_element(Qs.begin(), Qs.end());
+    const Real min_Q = *min_element(Qs.begin(), Qs.end());
     _stats->MSE += err*err;
     _stats->relE += fabs(err)/(max_Q-min_Q);
-    _stats->avgQ += tgt;
-    _stats->minQ = std::min(_stats->minQ,tgt);
-    _stats->maxQ = std::max(_stats->maxQ,tgt);
+    _stats->avgQ += Q;
+    _stats->minQ = std::min(_stats->minQ,Q);
+    _stats->maxQ = std::max(_stats->maxQ,Q);
     _stats->dumpCount++;
 }
 

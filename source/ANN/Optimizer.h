@@ -37,6 +37,7 @@ public:
     
     virtual void stackGrads(Grads* const G, const Grads* const g) const;
     virtual void stackGrads(Grads* const G, const vector<Grads*> g) const;
+    virtual void stackGrads(const int thrID, Grads* const G, const vector<Grads*> g) const;
 };
 
 class AdamOptimizer: public Optimizer

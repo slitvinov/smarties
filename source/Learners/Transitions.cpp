@@ -86,7 +86,6 @@ void Transitions::restartSamples()
                     for(int i=0; i<sI.dim; i++) line_in >> d_sO[i];
                     for(int i=0; i<sI.dim; i++) line_in >> d_sN[i];
                     for(int i=0; i<aI.dim; i++) line_in >> d_a[i];
-                    //else { for(int i=0; i<aI.dim; i++) line_in >> d_a[i]; }
                     line_in >> reward;
                     
                     t_sO.set(d_sO);
