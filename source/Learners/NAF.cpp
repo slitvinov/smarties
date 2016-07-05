@@ -181,6 +181,82 @@ vector<Real> NAF::getPolicy(const vector<Real>& out) const
     return act;
 }
 
+#ifdef _scaleR_
+vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, Real& error) const
+{
+    vector<Real> Q(3, out[0]), _u(nA), _uL(nA), _uU(nA);
+    
+    for (int j(0); j<nA; j++) {
+        _u[j]  = act[j] - out[1+nA+j];
+        _uL[j] = -1.    - out[1+nA+j];
+        _uU[j] =  1.    - out[1+nA+j];
+        const Real A = -std::log(.5-.5*out[1+j]);
+        /*
+        Q[0] -= A*fabs(_u[j] );
+        Q[1] -= A*fabs(_uL[j]);
+        Q[2] -= A*fabs(_uU[j]);
+         */
+        Q[0] -= sqrt(A*fabs(_u[j] ));
+        Q[1] -= sqrt(A*fabs(_uL[j]));
+        Q[2] -= sqrt(A*fabs(_uU[j]));
+    }
+    
+    error -= Q[0];
+    Q[2] = std::min(Q[1],Q[2]);
+    Q[1] = out[0];
+    
+    grad[0] = error;
+    for (int j(0); j<nA; j++) {
+        const Real A = -std::log(.5-.5*out[1+j]);
+        /*
+        grad[1+j]    = -error*fabs(_u[j])/(1-out[1+j]);
+        grad[1+nA+j] = (_u[j]>0.) ? error*A : -error*A;
+         */
+        const Real fac = 0.5 / sqrt( A * fabs(_u[j] ));
+        grad[1+j]    = -error*fac*fabs(_u[j])/(1-out[1+j]);
+        grad[1+nA+j] = (_u[j]>0.) ? error*A*fac : -error*A*fac;
+    }
+    
+    //printf("act %f, err %f, out %f %f %f, u %f, Q %f, grad %f %f %f\n", act[0], error, out[0],  out[1], out[2], _u[0], Q[0], grad[0], grad[1], grad[2]);
+    return Q;
+}
+#else
+vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, Real& error) const
+{
+    vector<Real> Q(3, out[0]), _u(nA), _uL(nA), _uU(nA);
+    
+    for (int j(0); j<nA; j++) {
+        _u[j]  = act[j] - out[1+nA+j];
+        _uL[j] = -1.    - out[1+nA+j];
+        _uU[j] =  1.    - out[1+nA+j];
+        const Real A = (out[1+j]<0) ? 0 : out[1+j];
+        Q[0] -= sqrt(A*fabs(_u[j] ));
+        Q[1] -= sqrt(A*fabs(_uL[j]));
+        Q[2] -= sqrt(A*fabs(_uU[j]));
+    }
+    
+    error -= Q[0];
+    Q[2] = std::min(Q[1],Q[2]);
+    Q[1] = out[0];
+    
+    grad[0] = error;
+    for (int j(0); j<nA; j++) {
+        if (out[1+j]<=0) {
+            grad[1+j] = 10;
+            grad[1+nA+j] = 0;
+        } else {
+            const Real fac = .5/sqrt(out[1+j]*fabs(_u[j]));
+            grad[1+j]    = -error*fac*fabs(_u[j]);
+            grad[1+nA+j] = (_u[j]>0.) ? error*fac*out[1+j] : -error*fac*out[1+j];
+        }
+    }
+    
+    //printf("act %f, err %f, out %f %f %f, u %f, Q %f, grad %f %f %f\n", act[0], error, out[0],  out[1], out[2], _u[0], Q[0], grad[0], grad[1], grad[2]);
+    return Q;
+}
+#endif
+
+/*
 vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, Real& error) const
 {
     vector<Real> Q(3, out[0]), _u(nA), _uL(nA), _uU(nA);
@@ -213,37 +289,7 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, c
     //printf("act %f, err %f, out %f %f %f %f , u %f, Q %f, grad %f %f %f %f \n", act[0], error, out[0], out[1], out[2], out[3], _u[0], Q[0], grad[0], grad[1], grad[2], grad[3]);
     return Q;
 }
-
-/*
-vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, Real& error) const
-{
-    vector<Real> Q(3, out[0]), _u(nA), _uL(nA), _uU(nA);
-    
-    for (int j(0); j<nA; j++) {
-        _u[j]  = act[j] - out[1+nA+j];
-        _uL[j] = -1.    - out[1+nA+j];
-        _uU[j] =  1.    - out[1+nA+j];
-        
-        Q[0] -= out[1+j]*fabs(_u[j]); //rescaled!! -1 1
-        Q[1] -= out[1+j]*fabs(_uL[j]);
-        Q[2] -= out[1+j]*fabs(_uU[j]);
-    }
-    
-    error -= Q[0];
-    Q[2] = std::min(Q[1],Q[2]);
-    Q[1] = out[0];
-    
-    grad[0] = error;
-    for (int j(0); j<nA; j++) {
-        grad[1+nA+j] = (_u[j]>0.) ? error*out[1+j] : -error*out[1+j];
-        grad[1+j]    = out[1+j]<0 ? 1 : -error*fabs(_u[j]);
-    }
-    
-    //printf("act %f, err %f, out %f %f %f, u %f, Q %f, grad %f %f %f\n", act[0], error, out[0],  out[1], out[2], _u[0], Q[0], grad[0], grad[1], grad[2]);
-    return Q;
- }
- */
-/*
+ 
 vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const
 {
     vector<Real> Q(3, out[0]);

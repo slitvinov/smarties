@@ -66,7 +66,7 @@ void runMaster(int nranks)
     else if (settings.learner == "NA" || settings.learner == "NAF") {
         settings.nnInputs = env->sI.dimUsed;
         const int nA = env->aI.dim;
-        const int nL = 2*nA;//(nA*nA+nA)/2;
+        const int nL = 1*nA;//(nA*nA+nA)/2;
         settings.nnOutputs = 1+nL+nA;
         learner = new NAF(env,settings);
     }

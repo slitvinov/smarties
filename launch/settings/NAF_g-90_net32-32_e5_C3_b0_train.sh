@@ -1,10 +1,10 @@
 SETTINGS=
 
 SETTINGS+=" --gamma 0.9"
-SETTINGS+=" --learnrate 0.00001"
+SETTINGS+=" --learnrate 0.000001"
 SETTINGS+=" --nnl1 32"
 SETTINGS+=" --nnl2 32"
-SETTINGS+=" --nnl3 32"
+SETTINGS+=" --nnl3 0"
 SETTINGS+=" --nnType 1"
 SETTINGS+=" --greedyeps 0.0"
 SETTINGS+=" --bTrain 1"
