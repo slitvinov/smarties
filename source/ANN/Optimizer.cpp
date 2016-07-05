@@ -200,17 +200,15 @@ void Optimizer::update(Grads* const G, const int batchsize)
 
 void AdamOptimizer::update(Grads* const G, const int batchsize)
 {
-    const Real etaBatch = (exp(-nepoch/200.) + eta)/Real(max(batchsize,1));
-    //const Real etaBatch = 1./Real(max(batchsize,1));
     const int WsizeSIMD=ceil(nWeights/(Real)SIMD)*SIMD;
     const int BsizeSIMD=ceil(nBiases/(Real)SIMD)*SIMD;
     
     if (lambda>1e-9) {
-        updateDecay(net->weights, G->_W, _1stMomW, _2ndMomW, WsizeSIMD, batchsize);
-        updateDecay(net->biases,  G->_B, _1stMomB, _2ndMomB, BsizeSIMD, batchsize);
+        updateDecay(net->weights, G->_W, _1stMomW, _2ndMomW, WsizeSIMD, max(batchsize,1));
+        updateDecay(net->biases,  G->_B, _1stMomB, _2ndMomB, BsizeSIMD, max(batchsize,1));
     } else {
-        update(net->weights, G->_W, _1stMomW, _2ndMomW, WsizeSIMD, batchsize);
-        update(net->biases,  G->_B, _1stMomB, _2ndMomB, BsizeSIMD, batchsize);
+        update(net->weights, G->_W, _1stMomW, _2ndMomW, WsizeSIMD, max(batchsize,1));
+        update(net->biases,  G->_B, _1stMomB, _2ndMomB, BsizeSIMD, max(batchsize,1));
     }
     //batchsize=0;
     beta_t_1 *= beta_1;
@@ -221,7 +219,7 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
 
 void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const int batchsize)
 {
-    const Real fac12 = eta*sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    const Real fac12 = (0.0001*exp(-nepoch/100.)+eta)*sqrt(1.-beta_t_2)/(1.-beta_t_1);
     #if SIMD > 1
     const vec B1 = SET1(beta_1);
     const vec B2 = SET1(beta_2);
@@ -260,7 +258,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
 
 void AdamOptimizer::updateDecay(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const int batchsize) const
 {
-    const Real fac12 = eta*sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    const Real fac12 = (0.01*exp(-nepoch/200.)+eta)*sqrt(1.-beta_t_2)/(1.-beta_t_1);
     #if SIMD > 1
     const vec B1 = SET1(beta_1);
     const vec B2 = SET1(beta_2);

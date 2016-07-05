@@ -405,7 +405,7 @@ void NormalLayer::backPropagateDelta(Lab* const C, const Real* const weights, co
             for (int i=0; i<lO->nO; i++)
                 err  += *(cC->errvals +lO->iO +i) * *(weights +lO->iW +i*lO->nI +n);
 
-        *(C->errvals +n1stNeuron +n) = err * func->evalDiff(*(cC->in_vals +n1stNeuron+n));
+        *(C->errvals +n1stNeuron +n) = err * func->evalDiff(*(C->in_vals +n1stNeuron+n));
     }
 }
 
@@ -435,7 +435,7 @@ void NormalLayer::backPropagateDeltaFirst(Lab* const C, const Lab* const N, cons
         for (int i=0; i<lR->nO; i++)
             err  += *(N->errvals +lR->iO +i) * *(weights +lR->iW +i*lR->nI +n);
         
-        *(C->errvals +n1stNeuron +n) = err * func->evalDiff(*(cC->in_vals +n1stNeuron+n));
+        *(C->errvals +n1stNeuron +n) = err * func->evalDiff(*(C->in_vals +n1stNeuron+n));
     }
 }
 
@@ -444,9 +444,7 @@ void LSTMLayer::backPropagateDeltaFirst(Lab* const C, const Lab* const N, const 
     const Lab* const cC = C;
     const Link* const lO = output_links;
     const Link* const lR = recurrent_links;
-    //printf("First delta with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
-    //lO->print();
-    //lR->print();
+    
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
         
@@ -462,32 +460,18 @@ void LSTMLayer::backPropagateDeltaFirst(Lab* const C, const Lab* const N, const 
                 err  += *(cC->errvals +lO->iO +i) * *(weights +lO->iW +i*lO->nI +n);
         }
 
-        for (int i=0; i<lR->nO; i++)
+        for (int i=0; i<lR->nO; i++) {
                 err +=  *(N->eOGates +lR->iC +i) * *(weights +lR->iWO +i*lR->nI +n) +
                         *(N->errvals +lR->iO +i) * (
                         *(N->eMCell  +lR->iC +i) * *(weights +lR->iW  +i*lR->nI +n) +
                         *(N->eIGates +lR->iC +i) * *(weights +lR->iWI +i*lR->nI +n) +
                         *(N->eFGates +lR->iC +i) * *(weights +lR->iWF +i*lR->nI +n) );
-        /* Alternative for less reads:
-        const Real tC = *(cC->in_vals +n1stNeuron +n);
-        const Real tI = *(cC->iIGates +n1stCell   +n);
-        const Real tF = *(cC->iFGates +n1stCell   +n);
-        const Real tO = *(cC->iOGates +n1stCell   +n);
-        const Real oS = *(cC->ostates+n1stCell+n);
-        const Real oC = ifun->eval(tC);
-        const Real oI = sigm->eval(tI);
-        const Real oO = sigm->eval(tO);
-        *(C->eMCell +n1stCell+n) = ifun->evalDiff(tC) * oI;
-        *(C->eIGates+n1stCell+n) = sigm->evalDiff(tI) * oC;
+        }
+        *(C->eMCell +n1stCell+n) =       ifun->evalDiff(*(C->in_vals+n1stNeuron+n)) * *(C->oIGates+n1stCell+n);
+        *(C->eIGates+n1stCell+n) =       sigm->evalDiff(*(C->iIGates+n1stCell  +n)) * *(C->oMCell +n1stCell+n);
         *(C->eFGates+n1stCell+n) = 0.0;
-        *(C->eOGates+n1stCell+n) = sigm->evalDiff(tO) * func->eval(oS) * err;
-        *(C->errvals+n1stNeuron+n) = err * oO * func->evalDiff(oS) + *(N->errvals+n1stNeuron+n)* *(N->oFGates+n1stCell+n);
-        */
-        *(C->eMCell +n1stCell+n) = ifun->evalDiff(*(cC->in_vals+n1stNeuron+n)) * *(cC->oIGates+n1stCell+n);
-        *(C->eIGates+n1stCell+n) = sigm->evalDiff(*(cC->iIGates+n1stCell  +n)) * *(cC->oMCell +n1stCell+n);
-        *(C->eFGates+n1stCell+n) = 0.0;
-        *(C->eOGates+n1stCell+n) = err * sigm->evalDiff(*(cC->iOGates+n1stCell  +n)) * func->eval(*(cC->ostates+n1stCell+n));
-        *(C->errvals+n1stNeuron+n) = err * *(cC->oOGates+n1stCell+n) * func->evalDiff(*(cC->ostates +n1stCell +n)) + *(N->errvals+n1stNeuron+n)* *(N->oFGates+n1stCell+n);
+        *(C->eOGates+n1stCell+n) = err * sigm->evalDiff(*(C->iOGates+n1stCell  +n)) * func->eval(*(C->ostates+n1stCell+n));
+        *(C->errvals+n1stNeuron+n) = err * *(C->oOGates+n1stCell+n) * func->evalDiff(*(C->ostates +n1stCell +n)) + *(N->errvals+n1stNeuron+n)* *(N->oFGates+n1stCell+n);
     }
 }
 
@@ -495,12 +479,10 @@ void LSTMLayer::backPropagateDelta(Lab* const C, const Real* const weights, cons
 {
     const Lab* const cC = C;
     const Link* const lO = output_links;
-    //printf("Short delta with 1stN %d, 1stC %d, 1stB %d ",n1stNeuron,n1stCell,n1stBias);
-    //lO->print();
+    
     for (int n=0; n<nNeurons; n++)
     {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
-        
         if (lO->LSTM) {
             for (int i=0; i<lO->nO; i++)
                 err += *(cC->eOGates +lO->iC +i) * *(weights +lO->iWO +i*lO->nI +n) +
@@ -512,12 +494,11 @@ void LSTMLayer::backPropagateDelta(Lab* const C, const Real* const weights, cons
             for (int i=0; i<lO->nO; i++)
                 err  += *(cC->errvals +lO->iO +i) * *(weights +lO->iW +i*lO->nI +n);
         }
-        
-        *(C->eMCell +n1stCell+n) = ifun->evalDiff(*(cC->in_vals+n1stNeuron+n)) * *(cC->oIGates+n1stCell+n);
-        *(C->eIGates+n1stCell+n) = sigm->evalDiff(*(cC->iIGates+n1stCell  +n)) * *(cC->oMCell +n1stCell+n);
+        *(C->eMCell +n1stCell+n) = ifun->evalDiff(*(C->in_vals+n1stNeuron+n)) * *(C->oIGates+n1stCell+n);
+        *(C->eIGates+n1stCell+n) = sigm->evalDiff(*(C->iIGates+n1stCell  +n)) * *(C->oMCell +n1stCell+n);
         *(C->eFGates+n1stCell+n) = 0.0;
-        *(C->eOGates+n1stCell+n) = err * sigm->evalDiff(*(cC->iOGates+n1stCell  +n)) * func->eval(*(cC->ostates+n1stCell+n));
-        *(C->errvals+n1stNeuron+n) = err * *(cC->oOGates+n1stCell+n) * func->evalDiff(*(cC->ostates +n1stCell +n));
+        *(C->eOGates+n1stCell+n) = err * sigm->evalDiff(*(C->iOGates+n1stCell  +n)) * func->eval(*(C->ostates+n1stCell+n));
+        *(C->errvals+n1stNeuron+n) = err * *(C->oOGates+n1stCell+n) * func->evalDiff(*(C->ostates +n1stCell +n));
     }
 }
 
@@ -526,12 +507,9 @@ void LSTMLayer::backPropagateDelta(const Lab* const P, Lab* const C, const Lab* 
     const Lab* const cC = C;
     const Link* const lO = output_links;
     const Link* const lR = recurrent_links;
-    //printf("Normal delta with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
-    //lO->print();
-    //lR->print();
+    
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
-        
         if (lO->LSTM) {
             for (int i=0; i<lO->nO; i++)
                 err +=  *(cC->eOGates +lO->iC +i) * *(weights +lO->iWO +i*lO->nI +n) +
@@ -543,35 +521,18 @@ void LSTMLayer::backPropagateDelta(const Lab* const P, Lab* const C, const Lab* 
             for (int i=0; i<lO->nO; i++)
                 err  += *(cC->errvals +lO->iO +i) * *(weights +lO->iW +i*lO->nI +n);
         }
-        for (int i=0; i<lR->nO; i++)
+        for (int i=0; i<lR->nO; i++) {
             err +=  *(N->eOGates +lR->iC +i) * *(weights +lR->iWO +i*lR->nI +n) +
                     *(N->errvals +lR->iO +i) * (
                     *(N->eMCell  +lR->iC +i) * *(weights +lR->iW  +i*lR->nI +n) +
                     *(N->eIGates +lR->iC +i) * *(weights +lR->iWI +i*lR->nI +n) +
                     *(N->eFGates +lR->iC +i) * *(weights +lR->iWF +i*lR->nI +n) );
-        /* Alternative for less reads:
-        const Real tC = *(cC->in_vals +n1stNeuron +n);
-        const Real tI = *(cC->iIGates +n1stCell   +n);
-        const Real tF = *(cC->iFGates +n1stCell   +n);
-        const Real tO = *(cC->iOGates +n1stCell   +n);
-        const Real oS = *(cC->ostates+n1stCell+n);
-        const Real oC = ifun->eval(tC);
-        const Real oI = sigm->eval(tI);
-        const Real oO = sigm->eval(tO);
-        *(C->eMCell +n1stCell+n) = ifun->evalDiff(tC) * oI;
-        *(C->eIGates+n1stCell+n) = sigm->evalDiff(tI) * oC;
-        *(C->eFGates+n1stCell+n) = sigm->evalDiff(tI) * *(P->ostates+n1stCell+n);
-        *(C->eOGates+n1stCell+n) = sigm->evalDiff(tO) * func->eval(oS) * err;
-        *(C->errvals+n1stNeuron+n) = err * oO * func->evalDiff(oS) + *(N->errvals+n1stNeuron+n)* *(N->oFGates+n1stCell+n);
-        */
-        *(C->eMCell +n1stCell+n) = ifun->evalDiff(*(cC->in_vals+n1stNeuron+n)) * *(cC->oIGates+n1stCell+n);
-        *(C->eIGates+n1stCell+n) = sigm->evalDiff(*(cC->iIGates+n1stCell  +n)) * *(cC->oMCell +n1stCell+n);
-        *(C->eFGates+n1stCell+n) = sigm->evalDiff(*(cC->iFGates+n1stCell  +n)) * *(P->ostates+n1stCell+n);
-        *(C->eOGates+n1stCell+n) = err * sigm->evalDiff(*(cC->iOGates+n1stCell  +n)) * func->eval(*(cC->ostates+n1stCell+n));
-        *(C->errvals+n1stNeuron+n) = err * *(cC->oOGates+n1stCell+n) * func->evalDiff(*(cC->ostates +n1stCell +n)) + *(N->errvals+n1stNeuron+n)* *(N->oFGates+n1stCell+n);// +
-        //*(next->eIGates+n1stCell+n)* *(weights+n1stPeep+3*n)   +
-        //*(next->eFGates+n1stCell+n)* *(weights+n1stPeep+3*n+1) +
-         //*(curr->eOGates+n1stCell+n)* *(weights+n1stPeep+3*n+2);
+        }
+        *(C->eMCell +n1stCell+n) = ifun->evalDiff(*(C->in_vals+n1stNeuron+n)) * *(C->oIGates+n1stCell+n);
+        *(C->eIGates+n1stCell+n) = sigm->evalDiff(*(C->iIGates+n1stCell  +n)) * *(C->oMCell +n1stCell+n);
+        *(C->eFGates+n1stCell+n) = sigm->evalDiff(*(C->iFGates+n1stCell  +n)) * *(P->ostates+n1stCell+n);
+        *(C->eOGates+n1stCell+n) = err * sigm->evalDiff(*(C->iOGates+n1stCell  +n)) * func->eval(*(C->ostates+n1stCell+n));
+        *(C->errvals+n1stNeuron+n) = err * *(C->oOGates+n1stCell+n) * func->evalDiff(*(C->ostates +n1stCell +n)) + *(N->errvals+n1stNeuron+n)* *(N->oFGates+n1stCell+n);
     }
 }
 
@@ -579,11 +540,9 @@ void LSTMLayer::backPropagateDeltaLast(const Lab* const P, Lab* const C, const R
 {
     const Lab* const cC = C;
     const Link* const lO = output_links;
-    //printf("Last delta with 1stN %d, 1stC %d, 1stB %d",n1stNeuron,n1stCell,n1stBias);
-    //lO->print();
+    
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(cC->errvals +n1stNeuron +n) : 0.0;
-        
         if (lO->LSTM) {
             for (int i=0; i<lO->nO; i++)
                 err += *(cC->eOGates +lO->iC +i) * *(weights +lO->iWO +i*lO->nI +n) +
@@ -595,12 +554,11 @@ void LSTMLayer::backPropagateDeltaLast(const Lab* const P, Lab* const C, const R
             for (int i=0; i<lO->nO; i++)
                 err  += *(cC->errvals +lO->iO +i) * *(weights +lO->iW +i*lO->nI +n);
         }
-        
-        *(C->eMCell +n1stCell+n) = ifun->evalDiff(*(cC->in_vals+n1stNeuron+n)) * *(cC->oIGates+n1stCell+n);
-        *(C->eIGates+n1stCell+n) = sigm->evalDiff(*(cC->iIGates+n1stCell  +n)) * *(cC->oMCell +n1stCell+n);
-        *(C->eFGates+n1stCell+n) = sigm->evalDiff(*(cC->iFGates+n1stCell  +n)) * *(P->ostates+n1stCell+n);
-        *(C->eOGates+n1stCell+n) = err * sigm->evalDiff(*(cC->iOGates+n1stCell  +n)) * func->eval(*(cC->ostates+n1stCell+n));
-        *(C->errvals+n1stNeuron+n) = err * *(cC->oOGates+n1stCell+n) * func->evalDiff(*(cC->ostates +n1stCell +n));
+        *(C->eMCell +n1stCell+n) = ifun->evalDiff(*(C->in_vals+n1stNeuron+n)) * *(C->oIGates+n1stCell+n);
+        *(C->eIGates+n1stCell+n) = sigm->evalDiff(*(C->iIGates+n1stCell  +n)) * *(C->oMCell +n1stCell+n);
+        *(C->eFGates+n1stCell+n) = sigm->evalDiff(*(C->iFGates+n1stCell  +n)) * *(P->ostates+n1stCell+n);
+        *(C->eOGates+n1stCell+n) = err * sigm->evalDiff(*(C->iOGates+n1stCell  +n)) * func->eval(*(C->ostates+n1stCell+n));
+        *(C->errvals+n1stNeuron+n) = err * *(C->oOGates+n1stCell+n) * func->evalDiff(*(C->ostates +n1stCell +n));
     }
 }
 

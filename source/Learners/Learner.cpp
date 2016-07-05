@@ -113,7 +113,6 @@ void Learner::TrainTasking(Master* const master)
     #pragma omp parallel num_threads(nThreads)
     while (true) {
         const int ndata =(bRecurrent) ? T->nSequences : T->nTransitions;
-        nAddedGradients =0;
         #pragma omp single
         {
             if (ndata>batchSize) {
@@ -124,7 +123,7 @@ void Learner::TrainTasking(Master* const master)
                     processStats(Vstats);
                     opt->nepoch=stats.epochCount;
                 }
-                
+                nAddedGradients =0;
                 if(bRecurrent) {
                     for (int i(0); i<batchSize; i++) {
                         const int ind = T->inds.back();
@@ -171,18 +170,15 @@ void Learner::TrainTasking(Master* const master)
                     }
                 }
             }
-            
             #ifndef MEGADEBUG
             master->hustle();
             #endif
         }
-        
         if (ndata>batchSize) {
             const int thrID = omp_get_thread_num();
             opt->stackGrads(net->grad, net->Vgrad); //thrID
             opt->update(net->grad,nAddedGradients);
         }
-        
         if (cntUpdateDelay <= 0) {
             cntUpdateDelay = tgtUpdateDelay;
             if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
@@ -195,7 +191,6 @@ void Learner::TrainTasking(Master* const master)
 void Learner::save(string name)
 {
     net->save(name + ".net");
-    
     const string stuff = name + ".status";
     FILE * f = fopen(stuff.c_str(), "w");
     if (f == NULL) die("Save fail\n");
@@ -207,24 +202,20 @@ void Learner::save(string name)
 void Learner::restart(string name)
 {
     _info("Restarting from saved policy...\n");
-    
     T->restartSamples();
     if ( net->restart(name + ".net") ) {_info("Restart successful, moving on...\n");}
     else { _info("Not all policies restarted, therefore assumed zero. Moving on...\n");}
     save("restarted_policy.net");
-    
     FILE * f = fopen("policy.status", "r");
     if(f != NULL) {
         int val;
         fscanf(f, "policy iter: %d\n", &val);
         if(val>=0) T->anneal = val;
         printf("policy iter: %d\n", T->anneal);
-        
         val=-1;
         fscanf(f, "epoch count: %d\n", &val);
         if(val>=0) stats.epochCount = val;
         printf("epoch count: %d\n", stats.epochCount);
-        
         fclose(f);
     }
 }
