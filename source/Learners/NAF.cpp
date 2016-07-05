@@ -58,22 +58,20 @@ void NAF::Train(const int thrID, const int seq, const int first)
         if(k==0) net->predict(T->Set[seq]->tuples[0]->s, output, net->series[first]);
         else net->predict(T->Set[seq]->tuples[k]->s, output, net->series[first+k-1], net->series[first+k]);
         
-        vector<Real> Q(computeQandGrad(gradient, _t->aC, output));
-        
         if (k+2==ndata && T->Set[seq]->ended) {
-            const Real tgt = _t->r;
-            const Real err = tgt - Q[0];
-            dumpStats(Vstats[thrID], tgt, Q[0], err, Q);
+            Real err = _t->r;
+            vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
+            dumpStats(Vstats[thrID], Q[0], err, Q);
             for (int i(0); i<nOutputs; i++)
-                *(net->series[first+k]->errvals +net->iOutputs+i) = err*gradient[i];
+                *(net->series[first+k]->errvals +net->iOutputs+i) = gradient[i];
         } else {
             net->predict(_t->s, output, net->series[first+k], net->series[first+ndata-1],
                                         net->frozen_weights,  net->frozen_biases);
-            const Real tgt = _t->r + gamma*output[0];
-            const Real err = tgt - Q[0];
-            dumpStats(Vstats[thrID], tgt, Q[0], err, Q);
+            Real err = _t->r + gamma*output[0];
+            vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
+            dumpStats(Vstats[thrID], Q[0], err, Q);
             for (int i(0); i<nOutputs; i++)
-                *(net->series[first+k]->errvals +net->iOutputs+i) = err*gradient[i];
+                *(net->series[first+k]->errvals +net->iOutputs+i) = gradient[i];
         }
     }
     net->computeDeltasSeries(net->series, first, first+ndata-2);
@@ -95,22 +93,21 @@ void NAF::Train(const vector<int>& seq)
             if(k==0) net->predict(T->Set[ind]->tuples[0]->s, output, net->series[0]);
             else     net->predict(T->Set[ind]->tuples[k]->s, output, net->series[k-1], net->series[k]);
             const Tuple * const _t = T->Set[ind]->tuples[k+1];
-            vector<Real> Q(computeQandGrad(gradient, _t->aC, output));
             
             if (k+2==ndata && T->Set[ind]->ended) {
-                const Real tgt = _t->r;
-                const Real err = tgt - Q[0];
-                dumpStats(tgt, Q[0], err, Q);
+                Real err = _t->r;
+                vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
+                dumpStats(Q[0], err, Q);
                 for (int i(0); i<nOutputs; i++)
-                    *(net->series[k]->errvals +net->iOutputs+i) = err*gradient[i];
+                    *(net->series[k]->errvals +net->iOutputs+i) = gradient[i];
             } else {
                 net->predict(_t->s, output, net->series[k], net->series[ndata-1],
                              net->frozen_weights, net->frozen_biases);
-                const Real tgt = _t->r + gamma*output[0];
-                const Real err = tgt - Q[0];
-                dumpStats(tgt, Q[0], err, Q);
+                Real err = _t->r + gamma*output[0];
+                vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
+                dumpStats(Q[0], err, Q);
                 for (int i(0); i<nOutputs; i++)
-                    *(net->series[k]->errvals +net->iOutputs+i) = err*gradient[i];
+                    *(net->series[k]->errvals +net->iOutputs+i) = gradient[i];
             }
         }
         net->computeDeltasSeries(net->series, 0, ndata-2);
@@ -130,17 +127,15 @@ void NAF::Train(const int thrID, const int seq, const int samp, const int first)
     net->predict(T->Set[seq]->tuples[samp]->s, output, net->series[first]);
     
     const bool term = samp+2==T->Set[seq]->tuples.size() && T->Set[seq]->ended;
-    vector<Real> Q(computeQandGrad(gradient, _t->aC, output));
-    
     if (not term) {
         net->predict(_t->s, output, net->series[first],  net->series[first+1],
                      net->frozen_weights,  net->frozen_biases);
     }
-    const Real target = (term) ? _t->r : _t->r + gamma*output[0];
-    const Real err =  (target - Q[0]);
-    dumpStats(Vstats[thrID], target, Q[0], err, Q);
+    Real err = (term) ? _t->r : _t->r + gamma*output[0];
+    vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
+    dumpStats(Vstats[thrID], Q[0], err, Q);
     for (int i(0); i<nOutputs; i++) {
-        *(net->series[first]->errvals +net->iOutputs+i) = err*gradient[i];
+        *(net->series[first]->errvals +net->iOutputs+i) = gradient[i];
     }
     
     net->computeDeltas(net->series[first]);
@@ -160,15 +155,13 @@ void NAF::Train(const vector<int>& seq, const vector<int>& samp)
         net->predict(T->Set[knd]->tuples[ind]->s, output, net->series[0]);
         
         const bool term = ind+2==T->Set[knd]->tuples.size() && T->Set[knd]->ended;
-        vector<Real> Q(computeQandGrad(gradient, _t->aC, output));
-        
         if (not term) {
             net->predict(_t->s, output, net->series[0], net->series[1],
                                 net->frozen_weights, net->frozen_biases);
         }
-        const Real target = (term) ? _t->r : _t->r + gamma*output[0];
-        const Real err =  (target - Q[0]);
-        dumpStats(target, Q[0], err, Q);
+        Real err = (term) ? _t->r : _t->r + gamma*output[0];
+        vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
+        dumpStats(Q[0], err, Q);
         for (int i(0); i<nOutputs; i++) {
             *(net->series[0]->errvals +net->iOutputs+i) = err*gradient[i];
         }
@@ -188,6 +181,61 @@ vector<Real> NAF::getPolicy(const vector<Real>& out) const
     return act;
 }
 
+vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, Real& error) const
+{
+    vector<Real> Q(3, out[0]), _u(nA), _uL(nA), _uU(nA);
+    
+    for (int j(0); j<nA; j++) {
+        _u[j]  = act[j]- out[1+2*nA+j];
+        _uL[j] = -1.   - out[1+2*nA+j];
+        _uU[j] =  1.   - out[1+2*nA+j];
+        
+        Q[0] += (_u[j]>0. ) ? -out[1+j]*_u[j]  : out[1+nA+j]*_u[j];
+        Q[1] += (_uL[j]>0.) ? -out[1+j]*_uL[j] : out[1+nA+j]*_uL[j];
+        Q[2] += (_uU[j]>0.) ? -out[1+j]*_uU[j] : out[1+nA+j]*_uU[j];
+    }
+    
+    error -= Q[0];
+    Q[2] = std::min(Q[1],Q[2]);
+    Q[1] = out[0];
+    
+    grad[0] = error;
+    for (int j(0); j<nA; j++) {
+        grad[1+2*nA+j] = (_u[j] > 0.) ? error*out[1+j] : -error*out[1+nA+j];
+        grad[1+j]    = (grad[1+j]<0)   ? 1 : ((_u[j]>0.)? -error*_u[j] : 0);
+        grad[1+nA+j] = (grad[1+nA+j]<0)? 1 : ((_u[j]<0.)?  error*_u[j] : 0);
+    }
+    return Q;
+}
+
+/*
+vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, Real& error) const
+{
+    vector<Real> Q(3, out[0]), _u(nA), _uL(nA), _uU(nA);
+    
+    for (int j(0); j<nA; j++) {
+        _u[j]  = act[j] - out[1+nA+j];
+        _uL[j] = -1.    - out[1+nA+j];
+        _uU[j] =  1.    - out[1+nA+j];
+        
+        Q[0] -= out[1+j]*fabs(_u[j]); //rescaled!! -1 1
+        Q[1] -= out[1+j]*fabs(_uL[j]);
+        Q[2] -= out[1+j]*fabs(_uU[j]);
+    }
+    
+    error -= Q[0];
+    Q[2] = std::min(Q[1],Q[2]);
+    Q[1] = out[0];
+    
+    grad[0] = error;
+    for (int j(0); j<nA; j++) {
+        grad[1+nA+j] = (_u[j]>0.) ? error*out[1+j] : -error*out[1+j];
+        grad[1+j]    = grad[1+j]<0 ? 1 : -error*fabs(_u[j]);
+    }
+    return Q;
+ }*/
+ 
+/*
 vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const
 {
     vector<Real> Q(3, out[0]);
@@ -257,8 +305,8 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, c
     
     return Q;
 }
-/*
-Real NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const
+
+Real NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, const Real error) const
 {
     Real Q(out[0]);
     vector<Real> _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA);

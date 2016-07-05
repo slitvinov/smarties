@@ -23,7 +23,7 @@ class NAF : public Learner
     void Train(const vector<int>& seq, const vector<int>& samp) override;
 
     vector<Real> getPolicy(const vector<Real>& out) const;
-    vector<Real> computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const;
+    vector<Real> computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, Real& error) const;
     //Real computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const;
     
 public:

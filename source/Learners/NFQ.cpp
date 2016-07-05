@@ -62,7 +62,7 @@ void NFQ::Train(const int thrID, const int seq, const int first)
         if (k+2==ndata && T->Set[seq]->ended) {
             const Real target = _t->r;
             const Real err =  (target - Qs[_t->a]);
-            dumpStats(Vstats[thrID], target, Qs[_t->a], err, Qs);
+            dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
             *(net->series[first+k]->errvals +net->iOutputs+_t->a) = err;
         } else {
             net->predict(_t->s, Qhats,   net->series[first+k], net->series[first+k+1]);
@@ -72,7 +72,7 @@ void NFQ::Train(const int thrID, const int seq, const int first)
             for (int i=0;i<nOutputs;i++){if(Qhats[i]>Vhat){Nbest=i;Vhat=Qhats[i];}}
             const Real target = _t->r + gamma*Qtildes[Nbest];
             const Real err =  (target - Qs[_t->a]);
-            dumpStats(Vstats[thrID], target, Qs[_t->a], err, Qs);
+            dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
             *(net->series[first+k]->errvals +net->iOutputs+_t->a) = err;
         }
     }
@@ -101,7 +101,7 @@ void NFQ::Train(const vector<int>& seq)
             if (k+2==ndata && T->Set[ind]->ended) {
                 const Real target = _t->r;
                 const Real err =  (target - Qs[_t->a]);
-                dumpStats(target, Qs[_t->a], err, Qs);
+                dumpStats(Qs[_t->a], err, Qs);
                 *(net->series[k]->errvals +net->iOutputs+_t->a) = err;
             } else {
                 net->predict(_t->s, Qhats,   net->series[k], net->series[k+1]);
@@ -112,7 +112,7 @@ void NFQ::Train(const vector<int>& seq)
 
                 const Real target = _t->r + gamma*Qtildes[Nbest];
                 const Real err =  (target - Qs[_t->a]);
-                dumpStats(target, Qs[_t->a], err, Qs);
+                dumpStats(Qs[_t->a], err, Qs);
                 *(net->series[k]->errvals +net->iOutputs+_t->a) = err;
             }
         }
@@ -143,7 +143,7 @@ void NFQ::Train(const int thrID, const int seq, const int samp, const int first)
     
     const Real target = (term) ? _t->r : _t->r + gamma*Qtildes[Nbest];
     const Real err =  (target - Qs[_t->a]);
-    dumpStats(Vstats[thrID], target, Qs[_t->a], err, Qs);
+    dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
     *(net->series[first]->errvals +net->iOutputs+_t->a) = err;
     net->computeDeltas(net->series[first]);
     net->computeAddGrads(net->series[first], net->Vgrad[thrID]);
@@ -172,7 +172,7 @@ void NFQ::Train(const vector<int>& seq, const vector<int>& samp)
         
         const Real target = (term) ? _t->r : _t->r + gamma*Qtildes[Nbest];
         const Real err =  (target - Qs[_t->a]);
-        dumpStats(target, Qs[_t->a], err, Qs);
+        dumpStats(Qs[_t->a], err, Qs);
         *(net->series[0]->errvals +net->iOutputs+_t->a) = err;
         
         net->computeDeltas(net->series[0]);

@@ -47,8 +47,8 @@ protected:
     Real beta_t_1, beta_t_2;
     Real *_2ndMomW, *_2ndMomB;
     
-    void update(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const Real _eta);
-    void updateDecay(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const Real _eta) const;
+    void update(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const int batchsize);
+    void updateDecay(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const int batchsize) const;
     //void stackGrads(Real* const G, const Real* const g, Real* const _1stMom, Real* const _2ndMom, const int N);
 public:
     AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings);

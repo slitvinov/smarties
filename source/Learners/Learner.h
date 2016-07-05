@@ -50,8 +50,8 @@ protected:
     virtual void Train(const int thrID, const int seq, const int samp, const int first) = 0;
     virtual void Train(const vector<int>& seq) = 0;
     virtual void Train(const vector<int>& seq, const vector<int>& samp) = 0;
-    void dumpStats(const Real& tgt, const Real& Q, const Real& err, const vector<Real>& Qs);
-    void dumpStats(trainData* const _stats, const Real& tgt, const Real& Q, const Real& err, const vector<Real>& Qs);
+    void dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs);
+    void dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs);
     void processStats(vector<trainData*> _stats);
 public:
     vector<bool> flags;

@@ -100,7 +100,7 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
         *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize);
         
     for (int w=g.biasFG; w<g.biasFG+g.recurrSize; w++)
-        *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize)+2.;
+        *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize);
     
     for (int w=g.biasOG; w<g.biasOG+g.recurrSize; w++)
         *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize);
@@ -138,9 +138,10 @@ void Network::addNormal(Graph* const p, Graph* const g, const bool first, const 
         }
         
         #ifndef _scaleR_
-        const Activation * f = (last) ? new Activation : new SoftSign;
+        const Activation * f = (last) ? new Activation : new Tanh;
         #else
-        const Activation * f = new SoftSign;
+        //const Activation * f = new SoftSign;
+        const Activation * f = new Tanh;
         #endif
 
         NormalLayer * l = new NormalLayer(g->normalSize, g->normalPos, g->biasHL, g->nl_inputs, g->nl_recurrent, g->nl_outputs, f, last);
@@ -212,13 +213,13 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
         }
         
         #ifndef _scaleR_
-        const Activation * fI = (last) ? new Activation : new SoftSign2;
-        const Activation * fG = new SoftSigm;
-        const Activation * fO = (last) ? new Activation : new HardSign(2.);
+        const Activation * fI = (last) ? new Activation : new Tanh2;
+        const Activation * fG = new Sigm;
+        const Activation * fO = (last) ? new Activation : new Tanh;
         #else
-        const Activation * fI = new SoftSign2;
-        const Activation * fG = new SoftSigm;
-        const Activation * fO = new HardSign(2.);
+        const Activation * fI = new Tanh2;
+        const Activation * fG = new Sigm;
+        const Activation * fO = new Tanh;
         #endif
         
         NormalLayer * l = new LSTMLayer(g->recurrSize, g->recurrPos, g->indState, g->wPeep, g->biasIN, g->biasIG, g->biasFG, g->biasOG, g->rl_inputs, g->rl_recurrent, g->rl_outputs, fI, fG, fO, last);
@@ -336,7 +337,7 @@ gen(settings.gen), bDump(not settings.bTrain)
     for (int i=1; i<nMixedLayers; i++) { //layer 0 is the input layer
         Graph * g = new Graph();
         bool first = i==1; bool last = i+1==nMixedLayers;
-        if (bLSTM ) { //&& not last
+        if (bLSTM && not last) { //
             g->recurrSize = layerSize[i];
             g->normalSize = 0;
             addLSTM(G.back(),g,first,last);
@@ -348,8 +349,8 @@ gen(settings.gen), bDump(not settings.bTrain)
         G.push_back(g);
     }
     
-    iOutputs = (bLSTM) ? G.back()->recurrPos : G.back()->normalPos;
-    //iOutputs = G.back()->normalPos;
+    //iOutputs = (bLSTM) ? G.back()->recurrPos : G.back()->normalPos;
+    iOutputs = G.back()->normalPos;
     nLayers = layers.size();
     printf("nNeurons= %d, nWeights= %d, nBiases= %d, nStates= %d iOutputs = %d\n, nInputs = %d, nOutputs = %d \n", 
            nNeurons, nWeights, nBiases, nStates, iOutputs, nInputs, nOutputs);
@@ -641,7 +642,10 @@ void Network::updateFrozenWeights()
         _allocateQuick(frozen_biases,   nBiases)
         allocatedFrozenWeights = true;
     }
-    
+    #if SIMD > 1
+    const vec UBound = SET1( 10.);
+    const vec LBound = SET1(-10.);
+    #endif
     #pragma omp parallel
     {
         const int WsizeSIMD=ceil(nWeights/(Real)SIMD)*SIMD;
@@ -650,7 +654,9 @@ void Network::updateFrozenWeights()
             #if SIMD == 1
             *(frozen_weights + j) = *(weights + j);
             #else
-            STORE (frozen_weights + j, LOAD(weights + j));
+            const vec W = MIN(UBound,MAX(LBound,LOAD(weights + j)));
+            STORE (frozen_weights + j, W);
+            STORE (weights + j, W);
             #endif
         }
         
@@ -660,7 +666,9 @@ void Network::updateFrozenWeights()
             #if SIMD == 1
             *(frozen_biases + j) = *(biases + j);
             #else
-            STORE (frozen_biases + j, LOAD(biases + j));
+            const vec W = MIN(UBound,MAX(LBound,LOAD(biases + j)));
+            STORE (frozen_biases + j, W);
+            STORE (biases + j, W);
             #endif
         }
     }
@@ -712,6 +720,8 @@ void Network::moveFrozenWeights(const Real alpha)
     #if SIMD > 1
     const vec B1 = SET1(alpha);
     const vec B2 = SET1(_alpha);
+    const vec UBound = SET1( 10.);
+    const vec LBound = SET1(-10.);
     #endif
     #pragma omp parallel
     {
@@ -721,7 +731,9 @@ void Network::moveFrozenWeights(const Real alpha)
             #if SIMD == 1
             *(frozen_weights + j) = *(frozen_weights + j)*_alpha + *(weights + j)*alpha;
             #else
-            STORE(frozen_weights+j,ADD(MUL(B2,LOAD(frozen_weights+j)),MUL(B1,LOAD(weights+j))));
+            const vec W = MIN(UBound,MAX(LBound,LOAD(weights + j)));
+            STORE(frozen_weights+j,ADD(MUL(B2,LOAD(frozen_weights+j)),MUL(B1,W)));
+            STORE(weights + j, W);
             #endif
         }
 
@@ -731,7 +743,10 @@ void Network::moveFrozenWeights(const Real alpha)
             #if SIMD == 1
             *(frozen_biases + j) = *(frozen_biases + j)*_alpha + *(biases + j)*alpha;
             #else
-            STORE(frozen_biases+j,ADD(MUL(B2,LOAD(frozen_biases+j)),MUL(B1,LOAD(biases+j))));
+            const vec W = MIN(UBound,MAX(LBound,LOAD(biases + j)));
+            
+            STORE(frozen_biases+j,ADD(MUL(B2,LOAD(frozen_biases+j)),MUL(B1,W)));
+            STORE(biases + j, W);
             #endif
         }
     }
@@ -923,8 +938,7 @@ void Network::assignDropoutMask()
 
 void Network::removeDropoutMask()
 {
-    if (allocatedDroputWeights && backedUp)
-    {
+    if (allocatedDroputWeights && backedUp) {
         swap(weights_DropoutBackup,weights);
         backedUp = false;
     }
@@ -943,9 +957,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn, co
     
     predict(inputs[0], res, series[0]);
     
-    for (int k=1; k<lastn; k++) {
-        predict(inputs[k], res, series[k-1], series[k]);
-    }
+    for (int k=1; k<lastn; k++) predict(inputs[k], res, series[k-1], series[k]);
 
     *(series[lastn-1]->errvals +iOutputs+ierr) = -1.;//Errors[1*nOutputs + i];
     

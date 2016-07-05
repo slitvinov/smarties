@@ -36,7 +36,7 @@ greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI
 
     profiler = new Profiler();
     net = new Network(lsize, bRecurrent, settings);
-    opt = new Optimizer(net, profiler, settings);
+    opt = new AdamOptimizer(net, profiler, settings);
     T = new Transitions(env, settings);
     flags.resize(batchSize, false);
 }
@@ -109,10 +109,11 @@ void Learner::TrainBatch()
 void Learner::TrainTasking(Master* const master)
 {
     vector<int> seq(batchSize), samp(batchSize);
-    int nAddedGradients(0);
+    int nAddedGradients(0), maxBufSize(0);
     #pragma omp parallel num_threads(nThreads)
     while (true) {
         const int ndata =(bRecurrent) ? T->nSequences : T->nTransitions;
+        nAddedGradients =0;
         #pragma omp single
         {
             if (ndata>batchSize) {
@@ -125,7 +126,6 @@ void Learner::TrainTasking(Master* const master)
                 }
                 
                 if(bRecurrent) {
-                    int maxBufSize(0);
                     for (int i(0); i<batchSize; i++) {
                         const int ind = T->inds.back();
                         T->inds.pop_back();
@@ -133,17 +133,16 @@ void Learner::TrainTasking(Master* const master)
                         const int seqSize = T->Set[ind]->tuples.size();
                         nAddedGradients += seqSize-1;
                         maxBufSize = max(maxBufSize,seqSize);
-                        //printf("Added grads %d, Seq size %d, buf size %d\n",nAddedGradients, seqSize, maxBufSize);
                     }
                     //LSTM NFQ requires size()+1 activations of the net:
                     net->allocateSeries(2+nThreads*(maxBufSize+1)); //0 and 1 reserved
                     for (int i(0); i<batchSize; i++) {
-                        #pragma omp task firstprivate(i) shared(maxBufSize)
+                        const int knd = seq[i];
+                        #pragma omp task firstprivate(i) firstprivate(knd) shared(maxBufSize)
                         {
                             const int thrID = omp_get_thread_num();
                             const int first = 2+(maxBufSize+1)*thrID;
-                            //printf("Process %d works on seq %d with series from %d (buf = %d)\n", thrID, seq[i], first, maxBufSize);
-                            Train(thrID, seq[i], first);
+                            Train(thrID, knd, first);
                             flags[i] = true;
                         }
                     }
@@ -180,7 +179,7 @@ void Learner::TrainTasking(Master* const master)
         
         if (ndata>batchSize) {
             const int thrID = omp_get_thread_num();
-            opt->stackGrads(thrID, net->grad, net->Vgrad);
+            opt->stackGrads(net->grad, net->Vgrad); //thrID
             opt->update(net->grad,nAddedGradients);
         }
         
@@ -230,7 +229,7 @@ void Learner::restart(string name)
     }
 }
 
-void Learner::dumpStats(const Real& tgt, const Real& Q, const Real& err, const vector<Real>& Qs)
+void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
 {
     /*
     ostringstream o;
@@ -270,7 +269,7 @@ void Learner::dumpStats(const Real& tgt, const Real& Q, const Real& err, const v
     }
 }
 
-void Learner::dumpStats(trainData* const _stats, const Real& tgt, const Real& Q, const Real& err, const vector<Real>& Qs)
+void Learner::dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs)
 {
     const Real max_Q = *max_element(Qs.begin(), Qs.end());
     const Real min_Q = *min_element(Qs.begin(), Qs.end());
@@ -284,7 +283,6 @@ void Learner::dumpStats(trainData* const _stats, const Real& tgt, const Real& Q,
 
 void Learner::processStats(vector<trainData*> _stats)
 {
-    stats.epochCount++;
     stats.minQ= 1e5; stats.maxQ=-1e5; stats.MSE=0;
     stats.avgQ=0; stats.relE=0; stats.dumpCount=0;
     
@@ -300,6 +298,7 @@ void Learner::processStats(vector<trainData*> _stats)
     }
     
     if (stats.dumpCount<2) return;
+    stats.epochCount++;
     
     const Real mean_err = stats.MSE/(stats.dumpCount-1);
     const Real mean_Q   = stats.avgQ/stats.dumpCount;
