@@ -476,7 +476,7 @@ void Network::dump(const int agentID)
 
 bool Network::restart(const string fname)
 {
-    string nameBackup = fname + "_tmp";
+    string nameBackup = fname;
     
     ifstream in(nameBackup.c_str());
     debug1("Reading from %s\n", nameBackup.c_str());
