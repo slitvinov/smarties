@@ -5,6 +5,9 @@ NNODES=$2
 APP=$3
 SETTINGSNAME=$4
 
+BASEPATH="/scratch/daint/novatig/smarties/"
+mkdir -p ${BASEPATH}${RUNFOLDER}
+
 if [ $# -gt 4 ] ; then
     POLICY=$5
     cp $5 ${BASEPATH}${RUNFOLDER}/policy.net
@@ -21,9 +24,6 @@ if [ $# -lt 8 ] ; then
 else
     WCLOCK=$8
 fi
-
-BASEPATH="/scratch/daint/novatig/smarties/"
-mkdir -p ${BASEPATH}${RUNFOLDER}
 
 #this handles app-side setup (incl. copying the factory)
 source ../apps/${APP}/setup.sh ${BASEPATH}${RUNFOLDER}

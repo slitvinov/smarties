@@ -4,7 +4,9 @@ RUNFOLDER=$1
 NNODES=$2 # TEMP: here used as nthreads
 APP=$3
 SETTINGSNAME=$4
+
 BASEPATH="../"
+mkdir -p ${BASEPATH}${RUNFOLDER}
 
 if [ $# -gt 4 ] ; then
     POLICY=$5
@@ -31,7 +33,6 @@ fi
 NPROCESS=${NNODES}
 NPROCESSORS=${NNODES}
 
-mkdir -p ${BASEPATH}${RUNFOLDER}
 #this must handle all app-side setup (as well as copying the factory)
 source ../apps/${APP}/setup.sh ${BASEPATH}${RUNFOLDER}
 
