@@ -336,7 +336,7 @@ void Slave::save() const
 string Slave::bufferTransition(const int iAgent) const
 {
     ostringstream o;
-    o << iAgent << " " << env->iter << " " << info[iAgent] << " ";
+    o << iAgent << " " << info[iAgent] << " ";
     o << oldStates[iAgent].printClean().c_str();
     o << States[iAgent].printClean().c_str();
     o << actions[iAgent].printClean().c_str();

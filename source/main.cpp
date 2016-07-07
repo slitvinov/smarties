@@ -66,10 +66,15 @@ void runMaster(int nranks)
     else if (settings.learner == "NA" || settings.learner == "NAF") {
         settings.nnInputs = env->sI.dimUsed;
         const int nA = env->aI.dim;
-        const int nL = 1*nA;//(nA*nA+nA)/2;
+        const int nL = (nA*nA+nA)/2;
         settings.nnOutputs = 1+nL+nA;
         learner = new NAF(env,settings);
-    }
+    }/*
+    else if (settings.learner == "DP" || settings.learner == "DPG") {
+        settings.nnInputs = env->sI.dimUsed + env->aI.dim;
+        settings.nnOutputs = 1;
+        learner = new DPG(env,settings);
+    } */
     
     Master* master = new Master(learner, env, settings);
     if (settings.restart != "none") master->restart(settings.restart);

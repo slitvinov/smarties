@@ -69,7 +69,7 @@ void Transitions::restartSamples()
     Action t_a(aI, gen->g);
     vector<Real> d_a(aI.dim);
     Real reward(0);
-    int thisId(-1), agentId(0), Ndata(0), info(0), nSeq(0), tmp(1);
+    int thisId(-1), agentId(0), Ndata(0), info(0);
     
     while(true) {
         Ndata=0;
@@ -82,7 +82,6 @@ void Transitions::restartSamples()
                 if (thisId==agentId) {
                     Ndata++;
                     line_in >> info;
-                    //line_in >> info;
                     for(int i=0; i<sI.dim; i++) line_in >> d_sO[i];
                     for(int i=0; i<sI.dim; i++) line_in >> d_sN[i];
                     for(int i=0; i<aI.dim; i++) line_in >> d_a[i];

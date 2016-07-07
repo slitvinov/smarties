@@ -181,6 +181,97 @@ vector<Real> NAF::getPolicy(const vector<Real>& out) const
     return act;
 }
 
+vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, Real& error) const
+{
+    vector<Real> Q(3), _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
+    
+    int kL(1);
+    for (int j(0); j<nA; j++) { //compute u = act-pi and matrix L
+        _u[j]  = act[j] - out[1+nL+j];
+        _uL[j] = -1. - out[1+nL+j];
+        _uU[j] =  1. - out[1+nL+j];
+        for (int i(0); i<nA; i++) {
+            const int ind = nA*j + i;
+            #ifdef _scaleR_
+             //if scaleR, net output is logic e [-1, 1]
+             //this transforms l outputs back to linear
+            if (i<=j) {
+                const Real l = .5*std::log((1+out[kL])/(1-out[kL]));
+                _L[ind] = l;
+                kL++;
+            }
+            #else
+            if (i<=j) _L[ind] = out[kL++];
+            #endif
+        }
+    }
+    assert(kL==1+nL);
+    
+    for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) { //A = L * L'
+        const int ind = nA*j + i;
+        for (int k(0); k<nA; k++) {
+            const int k1 = nA*j + k;
+            const int k2 = nA*i + k;
+            _A[ind] += _L[k1] * _L[k2];
+        }
+        Q[0] += _A[ind]*_u[i]*_u[j]; //Advantage = u' * A * u
+        Q[1] += _A[ind]*_uL[i]*_uL[j];
+        Q[2] += _A[ind]*_uU[i]*_uU[j];
+    }
+    
+    const Real fac = .5*pow(Q[0],-.75);
+    Q[2] = out[0]-2.*std::pow(std::max(Q[1],Q[2]),0.25);
+    Q[0] = out[0]-2.*std::pow(Q[0],0.25);  //Q = V - 2*Adv^.25
+    Q[1] = out[0];
+    error -= Q[0];
+    
+    grad[0] = error;
+    for (int il(0); il<nL; il++) {
+        int kD(0);
+        for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) {
+            const int ind = nA*j + i;
+            _dLdl[ind] = 0;
+            if(i<=j) { if(kD++==il) _dLdl[ind]=1; }
+        }
+        assert(kD==nL);
+        
+        for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) {
+            const int ind = nA*j + i;
+            _dPdl[ind] = 0;
+            for (int k(0); k<nA; k++) {
+                const int k1 = nA*j + k;
+                const int k2 = nA*i + k;
+                _dPdl[ind] += _dLdl[k1]*_L[k2]+_L[k1]*_dLdl[k2];
+            }
+        }
+        
+        grad[1+il] = 0.;
+        for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) {
+            const int ind = nA*j + i;
+            grad[1+il] += -_dPdl[ind]*_u[i]*_u[j];
+        }
+        #ifdef _scaleR_
+         //if scaleR, net output is logic e [-1, 1]
+         //this transforms l gradient back to linear
+        grad[1+il] *= fac*error/(1-out[1+il]*out[1+il]);;
+        #else
+        grad[1+il] *= fac*error;
+        #endif
+    }
+    
+    for (int ia(0); ia<nA; ia++) {
+        grad[1+nL+ia] = 0.;
+        for (int i(0); i<nA; i++) {
+            const int ind = nA*ia + i;
+            grad[1+nL+ia] += 2.*_A[ind]*_u[i];
+        }
+        grad[1+nL+ia] *= fac*error;
+    }
+    //printf("act %f %f, err %f, out %f %f %f %f %f %f, u %f %f, Q %f, grad %f %f %f %f %f %f\n", act[0], act[1], error, out[0],  out[1], out[2], out[3],  out[4], out[5], _u[0], _u[1], Q[0], grad[0], grad[1], grad[2], grad[3], grad[4], grad[5]);
+    return Q;
+}
+
+/*
 #ifdef _scaleR_
 vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, Real& error) const
 {
@@ -191,11 +282,9 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, c
         _uL[j] = -1.    - out[1+nA+j];
         _uU[j] =  1.    - out[1+nA+j];
         const Real A = -std::log(.5-.5*out[1+j]);
-        /*
-        Q[0] -= A*fabs(_u[j] );
-        Q[1] -= A*fabs(_uL[j]);
-        Q[2] -= A*fabs(_uU[j]);
-         */
+        //Q[0] -= A*fabs(_u[j] );
+        //Q[1] -= A*fabs(_uL[j]);
+        //Q[2] -= A*fabs(_uU[j]);
         Q[0] -= sqrt(A*fabs(_u[j] ));
         Q[1] -= sqrt(A*fabs(_uL[j]));
         Q[2] -= sqrt(A*fabs(_uU[j]));
@@ -208,10 +297,8 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, c
     grad[0] = error;
     for (int j(0); j<nA; j++) {
         const Real A = -std::log(.5-.5*out[1+j]);
-        /*
         grad[1+j]    = -error*fabs(_u[j])/(1-out[1+j]);
         grad[1+nA+j] = (_u[j]>0.) ? error*A : -error*A;
-         */
         const Real fac = 0.5 / sqrt( A * fabs(_u[j] ));
         grad[1+j]    = -error*fac*fabs(_u[j])/(1-out[1+j]);
         grad[1+nA+j] = (_u[j]>0.) ? error*A*fac : -error*A*fac;
@@ -221,6 +308,8 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, c
     return Q;
 }
 #else
+ 
+ //THE FOLLOWING HAS ADV = -A*ABS(ACT-PI) WHERE A IS A POSITIVE COEFFICIENT
 vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, Real& error) const
 {
     vector<Real> Q(3, out[0]), _u(nA), _uL(nA), _uU(nA);
@@ -256,7 +345,8 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, c
 }
 #endif
 
-/*
+ //THE FOLLOWING HAS ADV = -A*ABS(ACT-PI) WHERE A IS A POSITIVE COEFFICIENT
+ // A = A1 IF ACT-PI>0, ELSE A=A2
 vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, Real& error) const
 {
     vector<Real> Q(3, out[0]), _u(nA), _uL(nA), _uU(nA);
@@ -290,76 +380,6 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, c
     return Q;
 }
  
-vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const
-{
-    vector<Real> Q(3, out[0]);
-    vector<Real> _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
-    grad[0] = 1.;
-    
-    int kL(1);
-    for (int j(0); j<nA; j++) {
-        _u[j]  = act[j] - out[1+nL+j];
-        _uL[j] = -1. - out[1+nL+j];
-        _uU[j] =  1. - out[1+nL+j];
-        for (int i(0); i<nA; i++) {
-            const int ind = nA*j + i;
-            if (i<=j) _L[ind] = out[kL++];
-        }
-    }
-    assert(kL==1+nL);
-    
-    for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) {
-        const int ind = nA*j + i;
-        for (int k(0); k<nA; k++) {
-            const int k1 = nA*j + k;
-            const int k2 = nA*i + k;
-            _A[ind] += _L[k1] * _L[k2];
-        }
-        Q[0] -= .5*_A[ind]*_u[i]*_u[j]; //rescaled!! -1 1
-        Q[1] -= .5*_A[ind]*_uL[i]*_uL[j];
-        Q[2] -= .5*_A[ind]*_uU[i]*_uU[j];
-    }
-    Q[2] = std::min(Q[1],Q[2]);
-    Q[1] = out[0];
-    //printf("Process %d %f %f %f\n", omp_get_thread_num(), Q[0], Q[1], Q[2]);
-    
-    for (int il(0); il<nL; il++) {
-        int kD(0);
-        for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) {
-            const int ind = nA*j + i;
-            _dLdl[ind] = 0;
-            if(i<=j) { if(kD++==il) _dLdl[ind]=1; }
-        }
-        assert(kD==nL);
-        
-        for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) {
-            const int ind = nA*j + i;
-            _dPdl[ind] = 0;
-            for (int k(0); k<nA; k++) {
-                const int k1 = nA*j + k;
-                const int k2 = nA*i + k;
-                _dPdl[ind] += _dLdl[k1]*_L[k2]+_L[k1]*_dLdl[k2];
-            }
-        }
-        
-        grad[1+il] = 0.;
-        for (int j(0); j<nA; j++) for (int i(0); i<nA; i++) {
-            const int ind = nA*j + i;
-            grad[1+il] += -0.5*_dPdl[ind]*_u[i]*_u[j];
-        }
-    }
-    
-    for (int ia(0); ia<nA; ia++) {
-        grad[1+nL+ia] = 0.;
-        for (int i(0); i<nA; i++) {
-            const int ind = nA*ia + i;
-            grad[1+nL+ia] += _A[ind]*_u[i];
-        }
-    }
-    
-    return Q;
-}
-
 Real NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out, const Real error) const
 {
     Real Q(out[0]);

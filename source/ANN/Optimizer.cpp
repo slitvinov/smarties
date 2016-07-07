@@ -236,21 +236,18 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
         #if SIMD == 1
         *(_1stMom + i) = beta_1 * *(_1stMom + i) + (1.-beta_1) * *(grad + i);
         *(_2ndMom + i) = beta_2 * *(_2ndMom + i) + (1.-beta_2) * *(grad + i) * *(grad + i);
-
         *(grad + i) = 0.; //reset grads
         *(dest + i) += fac12 * *(_1stMom + i)  / sqrt(*(_2ndMom + i) + epsilon);
         #else
-        const vec _DW = MUL(LOAD(grad + i),NORM);
+        const vec _DW = MUL(LOAD(grad+i),NORM);
         const vec M1 = ADD( MUL(B1, LOAD(_1stMom+i)), MUL(_B1, _DW));
-        const vec M2 = ADD( MUL(B2, LOAD(_2ndMom+i)), MUL(_B2, MUL(_DW,_DW)));
-        const vec M2_= MAX(M2,EPS);
-        const vec DW = MUL(MUL(F12, M1),RSQRT(M2_));
+        const vec M2 = MAX(ADD( MUL(B2, LOAD(_2ndMom+i)), MUL(_B2, MUL(_DW,_DW))),EPS);
+        const vec DW = MUL(MUL(F12, M1),RSQRT(M2));
         const vec W  = LOAD(dest+i);
         const vec DW_ = MIN(MAX(W,SUB(zeros,W)),MAX(MIN(W,SUB(zeros,W)),DW));
         STORE(dest+i, ADD(W, DW_));
-        
         STORE(_1stMom + i,M1);
-        STORE(_2ndMom + i,M2_);
+        STORE(_2ndMom + i,M2);
         STORE (grad+i,zeros); //reset grads
         #endif
     }
@@ -258,7 +255,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
 
 void AdamOptimizer::updateDecay(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const int batchsize) const
 {
-    const Real fac12 = (0.01*exp(-nepoch/200.)+eta)*sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    const Real fac12 = (0.0001*exp(-nepoch/200.)+eta)*sqrt(1.-beta_t_2)/(1.-beta_t_1);
     #if SIMD > 1
     const vec B1 = SET1(beta_1);
     const vec B2 = SET1(beta_2);
@@ -267,7 +264,7 @@ void AdamOptimizer::updateDecay(Real* const dest, Real* const grad, Real* const 
     const vec F12 = SET1(fac12);
     const vec EPS = SET1(epsilon);
     const vec NORM = SET1(1./(Real)batchsize);
-    const vec LAMBDA = SET1(-lambda*eta);
+    const vec LAMBDA = SET1(-lambda*( 0.0001*(1.-exp(-nepoch/200.))+eta ));
     const vec zeros = SET0 ();
     #endif
     
@@ -276,18 +273,18 @@ void AdamOptimizer::updateDecay(Real* const dest, Real* const grad, Real* const 
         #if SIMD == 1
         *(_1stMom + i) = beta_1 * *(_1stMom + i) + (1.-beta_1) * *(grad + i);
         *(_2ndMom + i) = beta_2 * *(_2ndMom + i) + (1.-beta_2) * *(grad + i) * *(grad + i);
-
         *(grad + i) = 0.; //reset grads
         *(dest + i) += fac12 * *(_1stMom + i)/sqrt(*(_2ndMom + i) + epsilon) -*(dest + i)*lambda*_eta;
         #else
-        const vec _DW = MUL(LOAD(grad + i),NORM);
-        vec M1 = ADD( MUL ( B1, LOAD(_1stMom + i)), MUL ( _B1, _DW));
-        vec M2 = ADD( MUL ( B2, LOAD(_2ndMom + i)), MUL ( _B2, MUL (_DW,_DW)));
-        vec M2_= MAX(M2,EPS);
-        vec W = LOAD(dest + i);
-        STORE(dest+i,ADD(W,ADD(MUL(MUL(F12, M1),RSQRT(M2_)),MUL(LAMBDA,W))));
+        const vec _DW = MUL(LOAD(grad+i),NORM);
+        const vec M1 = ADD( MUL(B1, LOAD(_1stMom+i)), MUL(_B1, _DW));
+        const vec M2 = MAX(ADD( MUL(B2, LOAD(_2ndMom+i)), MUL(_B2, MUL(_DW,_DW))),EPS);
+        const vec DW = MUL(MUL(F12, M1),RSQRT(M2));
+        const vec W  = LOAD(dest+i);
+        const vec DW_ = MIN(MAX(W,SUB(zeros,W)),MAX(MIN(W,SUB(zeros,W)),DW));
+        STORE(dest+i, ADD(ADD(W, DW_),MUL(LAMBDA,W)));
         STORE(_1stMom + i,M1);
-        STORE(_2ndMom + i,M2_);
+        STORE(_2ndMom + i,M2);
         STORE (grad+i,zeros); //reset grads
         #endif
     }

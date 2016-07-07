@@ -18,35 +18,6 @@
 #include <algorithm>
 #include <fstream>
 
-/*
-struct Tuple
-{
-    State* sOld;
-    Action* a;
-    State* sNew;
-    Real reward;
-};
-struct NFQdata
-{
-    vector<Real> insi;
-    vector<Real> outi;
-    vector<Real> pred;
-    int aInd;
-};
- */
-/*
-struct Tuple
-{
-    vector<Real> * sOld;
-    vector<Real> * s;
-    Real r;
-    int a;
-};
-struct Sequence
-{
-    vector<Tuple> obs;
-};*/
-
 struct Tuple
 {
     vector<Real> s;

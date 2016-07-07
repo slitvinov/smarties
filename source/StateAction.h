@@ -24,29 +24,20 @@ struct StateInfo
 	int dim, dimUsed;
 	vector<int> bounds;
 	vector<Real> bottom, top, isLabel, inUse;
-	//vector<bool> belowBottom, aboveTop
-    //vector<Real> values;
     
     StateInfo& operator= (const StateInfo& stateInfo)
     {
         dim     = stateInfo.dim;
         dimUsed = stateInfo.dimUsed;
         bounds.resize(dim); bottom.resize(dim); top.resize(dim);
-        //belowBottom.resize(dim); aboveTop.resize(dim);
         isLabel.resize(dim); inUse.resize(dim);
-        
-        for (int i=0; i<dim; i++)
-        {
+        for (int i=0; i<dim; i++) {
             bounds[i]=     (stateInfo.bounds[i]);
             bottom[i]=     (stateInfo.bottom[i]);
             top[i]=        (stateInfo.top[i]);
             isLabel[i]=    (stateInfo.isLabel[i]);
             inUse[i]=      (stateInfo.isLabel[i]);
         }
-        
-        //values.clear();
-        //for (int i=0; i<stateInfo.values.size(); i++)
-        //    values.push_back(stateInfo.values[i]);
     }
 };
 
@@ -85,7 +76,6 @@ public:
 		ostringstream o;
 		for (int i=0; i<sInfo.dim; i++) {
 			o << vals[i]<< " ";
-            //if (i < sInfo.dim-1) o << " ";
 		}
 		return o.str();
 	}
@@ -96,7 +86,6 @@ public:
 		o << "[";
 		for (int i=0; i<sInfo.dim; i++) {
             Real res = 2.*(vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i]) - 1.;
-			//if (sInfo.isLabel[i]) res = sInfo.values[vals[i]];
 			o << res;
 			if (i < sInfo.dim-1) o << " ";
 		}
@@ -110,7 +99,6 @@ public:
         for (int i=0; i<sInfo.dim; i++)
         if (sInfo.inUse[i]) {
             res[k] = 2.*(vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i]) - 1.;
-            //if (sInfo.isLabel[i]) res[k] = sInfo.values[vals[i]];
             k++;
         }
         
@@ -120,7 +108,6 @@ public:
 	{
 		for (int i=0; i<sInfo.dim; i++) {
             res[i] = 2.*(vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i]) - 1.;
-            //if (sInfo.isLabel[i]) res[i] = sInfo.values[vals[i]];
         }
 	}
     
@@ -146,10 +133,8 @@ public:
     
     void set(vector<Real> data)
     {
-        for (int i=0; i<sInfo.dim; i++) {
+        for (int i=0; i<sInfo.dim; i++)
             vals[i] = data[i];
-            //if (sInfo.isLabel[i]) vals[i] = sInfo.values[round(data[i])];
-        }
     }
 	
 };
@@ -166,10 +151,6 @@ inline State decode(const StateInfo& sInfo, long int idx)
 	return res;
 }
 
-//**************************************************************************************************************************************
-//
-//**************************************************************************************************************************************
-
 struct ActionInfo
 {
     bool realValues; //finite set, continuous
@@ -179,8 +160,6 @@ struct ActionInfo
     int zeroact; //if finite set: one that corresponds to 0
 	vector<int> bounds, shifts; //if finite set, number of choices per "dim"
     vector<vector<Real>> values; //used for rescaling, would be used if action is input to NN
-    
-    //continuous actions
     vector<Real> upperBounds, lowerBounds;
     
     ActionInfo() : realValues(false) {}
@@ -262,15 +241,9 @@ public:
 	{
 		ostringstream o;
 		o << "[";
-        //if (actInfo.realValues) {
             for (int i=0; i<actInfo.dim-1; i++)
                 o << valsContinuous[i] << " ";
             o << valsContinuous[actInfo.dim-1];
-        /*} else {
-            for (int i=0; i<actInfo.dim-1; i++)
-                o << vals[i] << " ";
-            o << vals[actInfo.dim-1];
-        }*/
         o << "]";
 		return o.str();
 	}
@@ -278,40 +251,23 @@ public:
     string printClean() const
 	{
         ostringstream o;
-        //if (actInfo.realValues) {
             for (int i=0; i<actInfo.dim; i++)
                 o << valsContinuous[i] << " ";
-        /*} else {
-            for (int i=0; i<actInfo.dim; i++)
-                o << vals[i] << " ";
-        }*/
 		return o.str();
 	}
     
     void pack(byte* buf) const
     {
-        //if (actInfo.realValues) {
-            Real* dbuf = (Real*) buf;
-            for (int i=0; i<actInfo.dim; i++)
-                dbuf[i] = valsContinuous[i];
-        /*} else {
-            int* dbuf = (int*) buf;
-            for (int i=0; i<actInfo.dim; i++)
-                dbuf[i] = vals[i];
-        }*/
+        Real* dbuf = (Real*) buf;
+        for (int i=0; i<actInfo.dim; i++)
+            dbuf[i] = valsContinuous[i];
     }
     
     void unpack(byte* buf)
     {
-        //if (actInfo.realValues) {
-            Real* dbuf = (Real*) buf;
-            for (int i=0; i<actInfo.dim; i++)
-                valsContinuous[i] = dbuf[i];
-        /*} else {
-            int* dbuf = (int*) buf;
-            for (int i=0; i<actInfo.dim; i++)
-                vals[i] = dbuf[i];
-        }*/
+        Real* dbuf = (Real*) buf;
+        for (int i=0; i<actInfo.dim; i++)
+            valsContinuous[i] = dbuf[i];
     }
 
     void set(vector<Real> data)
@@ -322,20 +278,8 @@ public:
                            (actInfo.values[i].back()-actInfo.values[i].front()) +.49;
             if (vals[i]<0) vals[i]=0;
             if (vals[i] > actInfo.bounds[i]-1) vals[i] = actInfo.bounds[i]-1;
-            //printf("%f %d\n", valsContinuous[i],vals[i]);
         }
     }
-    
-    /*
-    void set(vector<int> data)
-    {
-        for (int i=0; i<actInfo.dim; i++)
-        {
-            valsContinuous[i] = actInfo.values[i][round(data[i])];
-            vals[i] = data[i];
-        }
-    }
-    */
     
     vector<Real> scale() const
     {
@@ -355,12 +299,6 @@ public:
             if (vals[i] > actInfo.bounds[i]-1) vals[i] = actInfo.bounds[i]-1;
         }
     }
-    /*
-    void scale(vector<Real>& res) const
-	{
-		for (int i=0; i<actInfo.dim; i++)
-            res[res.size() - actInfo.dim + i] = actInfo.values[i][vals[i]];
-	}*/
 };
 
 /*
