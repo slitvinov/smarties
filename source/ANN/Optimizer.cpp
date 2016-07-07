@@ -14,7 +14,7 @@
 
 using namespace ErrorHandling;
 
-Optimizer::Optimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.lRate), lambda(settings.nnLambda), alpha(0.25), net(_net), profiler(_prof), nInputs(_net->nInputs), nOutputs(_net->nOutputs), iOutputs(_net->iOutputs), nWeights(_net->nWeights), nBiases(_net->nBiases), nepoch(0)//,batchsize(0)
+Optimizer::Optimizer(Network * _net, Profiler * _prof, Settings  & settings) : eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), net(_net), profiler(_prof), nInputs(_net->nInputs), nOutputs(_net->nOutputs), iOutputs(_net->iOutputs), nWeights(_net->nWeights), nBiases(_net->nBiases), nepoch(0)//,batchsize(0)
 {
     _allocateClean(_1stMomW, nWeights)
     _allocateClean(_1stMomB, nBiases)
@@ -127,38 +127,47 @@ void Optimizer::stackGrads(const int thrID, Grads* const G, const vector<Grads*>
     }
 }
 
-void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const Real _eta) const
+void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const int batchsize) const
 {
+    const Real norm = 1./(Real)max(batchsize,1);
+    const Real _eta = (0.0001*exp(-nepoch/100.)+eta)*norm;
     #if SIMD > 1
     const vec ETA = SET1( _eta );
     const vec ALPHA = SET1(alpha);
+    const vec NORM = SET1(norm);
     const vec zeros = SET0();
     #endif
     
     #pragma omp for nowait
     for (int i=0; i<N; i+=SIMD)
     {
-        //printf("Before: %f %f ..",*(_1stMom + i),*(grad + i));
         #if SIMD == 1
-        *(_1stMom + i) = alpha * *(_1stMom + i) + _eta * *(grad + i);
-        *(dest + i) += *(_1stMom + i) - _eta*lambda * *(dest + i);
+        const Real W = fabs(*(dest + i));
+        const Real M1 = alpha * *(_1stMom + i) + _eta * *(grad + i);
+        *(_1stMom + i) = std::max(std::min(M1,W),-W);
+        *(dest + i) += *(_1stMom + i);
         *(grad + i) = 0.; //reset grads
+        if (W>100) printf("W %d %f\n",i,W);
         #else
-        vec M1 = ADD( MUL(ALPHA, LOAD(_1stMom+i)), MUL(ETA, LOAD(grad+i)));
-        STORE(dest+i, ADD(LOAD(dest+i), M1));
-        STORE(_1stMom + i,M1);
+        const vec W = LOAD(dest+i);
+        const vec M1 = ADD(MUL(ALPHA, LOAD(_1stMom+i)), MUL(ETA, LOAD(grad+i)));
+        const vec DW = MIN(MAX(W,SUB(zeros,W)),MAX(MIN(W,SUB(zeros,W)),M1));
+        STORE(dest+i, ADD(LOAD(dest+i), DW));
+        STORE(_1stMom + i,DW);
         STORE(grad+i,zeros); //reset grads
         #endif
-        //printf(".. after: %f %f %f\n",*(_1stMom + i),*(dest + i),*(grad + i));
     }
 }
 
-void Optimizer::updateDecay(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const Real _eta) const
+void Optimizer::updateDecay(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const int batchsize) const
 {
+    const Real _eta = (0.0001*exp(-nepoch/100.)+eta);
+    const Real norm = 1./(Real)max(batchsize,1);
     #if SIMD > 1
     const vec ETA = SET1( _eta );
     const vec ALPHA = SET1(alpha);
     const vec LAMBDA = SET1(-lambda*_eta);
+    const vec NORM = SET1(norm);
     const vec zeros = SET0();
     #endif
     
@@ -166,14 +175,17 @@ void Optimizer::updateDecay(Real* const dest, Real* const grad, Real* const _1st
     for (int i=0; i<N; i+=SIMD)
     {
         #if SIMD == 1
-        *(_1stMom + i) = alpha * *(_1stMom + i) + _eta * *(grad + i);
+        const Real W = fabs(*(dest + i));
+        const Real M1 = alpha * *(_1stMom + i) + _eta * *(grad + i);
+        *(_1stMom + i) = std::max(std::min(M1,W),-W);
         *(dest + i) += *(_1stMom + i) - _eta*lambda * *(dest + i);
         *(grad + i) = 0.; //reset grads
         #else
-        vec M1 = ADD( MUL(ALPHA, LOAD(_1stMom+i)), MUL(ETA, LOAD(grad+i)));
-        vec W = LOAD(dest+i);
-        STORE(dest+i, ADD(W, ADD( M1, MUL(LAMBDA,W))));
-        STORE(_1stMom + i,M1);
+        const vec W = LOAD(dest+i);
+        const vec M1 = ADD(MUL(ALPHA, LOAD(_1stMom+i)), MUL(ETA, LOAD(grad+i)));
+        const vec DW = MIN(MAX(W,SUB(zeros,W)),MAX(MIN(W,SUB(zeros,W)),M1));
+        STORE(dest+i, ADD(W, ADD(DW, MUL(LAMBDA,W))));
+        STORE(_1stMom + i,DW);
         STORE(grad+i,zeros); //reset grads
         #endif
     }
@@ -181,17 +193,15 @@ void Optimizer::updateDecay(Real* const dest, Real* const grad, Real* const _1st
 
 void Optimizer::update(Grads* const G, const int batchsize)
 {
-    //const Real etaBatch = (exp(-nepoch/200.) + eta)/Real(max(batchsize,1));
-    const Real etaBatch = eta/Real(max(batchsize,1));
     const int WsizeSIMD=ceil(nWeights/(Real)SIMD)*SIMD;
     const int BsizeSIMD=ceil(nBiases/(Real)SIMD)*SIMD;
     
     if (lambda>1e-9) {
-        updateDecay(net->weights, G->_W, _1stMomW, WsizeSIMD, etaBatch);
-        updateDecay(net->biases,  G->_B, _1stMomB, BsizeSIMD, etaBatch);
+        updateDecay(net->weights, G->_W, _1stMomW, WsizeSIMD, max(batchsize,1));
+        updateDecay(net->biases,  G->_B, _1stMomB, BsizeSIMD, max(batchsize,1));
     } else {
-        update(net->weights, G->_W, _1stMomW, WsizeSIMD, etaBatch);
-        update(net->biases,  G->_B, _1stMomB, BsizeSIMD, etaBatch);
+        update(net->weights, G->_W, _1stMomW, WsizeSIMD, max(batchsize,1));
+        update(net->biases,  G->_B, _1stMomB, BsizeSIMD, max(batchsize,1));
     }
     //batchsize=0;
     //nepoch++;
@@ -219,14 +229,15 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
 
 void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const int batchsize)
 {
-    const Real fac12 = (0.0001*exp(-nepoch/100.)+eta)*sqrt(1.-beta_t_2)/(1.-beta_t_1);
-    const Real norm = 1./(Real)batchsize;
+    const Real norm = 1./(Real)max(batchsize,1);
+    const Real fac12 = sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    const Real eta_ = (0.0001*exp(-nepoch/100.)+eta);
     #if SIMD > 1
     const vec B1 = SET1(beta_1);
     const vec B2 = SET1(beta_2);
     const vec _B1 =SET1(1.-beta_1);
     const vec _B2 =SET1(1.-beta_2);
-    const vec F12 = SET1(fac12);
+    const vec F12 = SET1(fac12*eta_);
     const vec EPS = SET1(epsilon);
     const vec NORM = SET1(norm);
     const vec zeros = SET0();
@@ -234,20 +245,30 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
     
     #pragma omp for nowait
     for (int i=0; i<N; i+=SIMD) {
-        #if SIMD == 1
-        *(grad + i) *= norm;
-        *(_1stMom + i) = beta_1 * *(_1stMom + i) + (1.-beta_1) * *(grad + i);
-        *(_2ndMom + i) = beta_2 * *(_2ndMom + i) + (1.-beta_2) * *(grad + i) * *(grad + i);
+    #if SIMD == 1
+        const Real DW = *(grad+i) *norm;
+        const Real M1 = beta_1* *(_1stMom+i) +(1.-beta_1)*DW;
+        const Real M2 = beta_2* *(_2ndMom+i) +(1.-beta_2)*DW*DW;
+        
+        //slow down extreme updates (normalization)
+        const Real M2_ = std::max(M2,epsilon);
+        const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_) / fac12;
+        const Real M1_ = std::max(std::min(TOP,M1),-TOP);
+        const Real DW_ = eta_*fac12*M1_/sqrt(M2_);
+        //printf("TOP %d W %e M1 %e M2 %e DW %e TOP %e \n",i,std::fabs(*(dest+i)),M1_,M2_,DW_,TOP);
+        *(_1stMom + i) = M1_;
+        *(_2ndMom + i) = M2_;
+        *(dest + i) += DW_;
         *(grad + i) = 0.; //reset grads
-        *(dest + i) += fac12 * *(_1stMom + i)  / sqrt(*(_2ndMom + i) + epsilon);
+
         #else
-        const vec _DW = MUL(LOAD(grad+i),NORM);
+        const vec W  = LOAD(dest+i);
+        const vec DW_ = MUL(LOAD(grad+i),NORM);
+        const vec _DW = MIN(MAX(W,SUB(zeros,W)),MAX(MIN(W,SUB(zeros,W)),DW_));
         const vec M1 = ADD( MUL(B1, LOAD(_1stMom+i)), MUL(_B1, _DW));
         const vec M2 = MAX(ADD( MUL(B2, LOAD(_2ndMom+i)), MUL(_B2, MUL(_DW,_DW))),EPS);
         const vec DW = MUL(MUL(F12, M1),RSQRT(M2));
-        const vec W  = LOAD(dest+i);
-        const vec DW_ = MIN(MAX(W,SUB(zeros,W)),MAX(MIN(W,SUB(zeros,W)),DW));
-        STORE(dest+i, ADD(W, DW_));
+        STORE(dest+i, ADD(W, DW));
         STORE(_1stMom + i,M1);
         STORE(_2ndMom + i,M2);
         STORE (grad+i,zeros); //reset grads
@@ -257,8 +278,10 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
 
 void AdamOptimizer::updateDecay(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const int batchsize) const
 {
-    const Real fac12 = (0.0001*exp(-nepoch/200.)+eta)*sqrt(1.-beta_t_2)/(1.-beta_t_1);
-    const Real norm = 1./(Real)batchsize;
+    //begin with an hardcoded bigger eta, then anneal to user's eta, which should be <= 1e-5
+    const Real norm = 1./(Real)max(batchsize,1);
+    const Real fac12 = sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    const Real eta_ = (0.0001*exp(-nepoch/100.)+eta);
     #if SIMD > 1
     const vec B1 = SET1(beta_1);
     const vec B2 = SET1(beta_2);
@@ -273,20 +296,29 @@ void AdamOptimizer::updateDecay(Real* const dest, Real* const grad, Real* const 
     
     #pragma omp for nowait
     for (int i=0; i<N; i+=SIMD) {
-    #if SIMD == 1
-        *(grad + i) *= norm;
-        *(_1stMom + i) = beta_1 * *(_1stMom + i) + (1.-beta_1) * *(grad + i);
-        *(_2ndMom + i) = beta_2 * *(_2ndMom + i) + (1.-beta_2) * *(grad + i) * *(grad + i);
+        #if SIMD == 1
+        const Real DW = *(grad+i) *norm;
+        const Real M1 = beta_1* *(_1stMom+i) +(1.-beta_1)*DW;
+        const Real M2 = beta_2* *(_2ndMom+i) +(1.-beta_2)*DW*DW;
+        
+        //slow down extreme updates (normalization)
+        const Real M2_ = std::max(M2,epsilon);
+        const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_) / fac12;
+        const Real M1_ = std::max(std::min(TOP,M1),-TOP);
+        const Real DW_ = eta_*fac12*M1_/sqrt(M2_);
+        //printf("TOP %d W %e M1 %e M2 %e DW %e TOP %e \n",i,std::fabs(*(dest+i)),M1_,M2_,DW_,TOP);
+        *(_1stMom + i) = M1_;
+        *(_2ndMom + i) = M2_;
+        *(dest + i) += DW_ - *(dest + i)*lambda*eta;
         *(grad + i) = 0.; //reset grads
-        *(dest + i) += fac12 * *(_1stMom + i)/sqrt(*(_2ndMom + i) + epsilon) -*(dest + i)*lambda*eta;
         #else
-        const vec _DW = MUL(LOAD(grad+i),NORM);
+        const vec W  = LOAD(dest+i);
+        const vec DW_ = MUL(LOAD(grad+i),NORM);
+        const vec _DW = MIN(MAX(W,SUB(zeros,W)),MAX(MIN(W,SUB(zeros,W)),DW_));
         const vec M1 = ADD( MUL(B1, LOAD(_1stMom+i)), MUL(_B1, _DW));
         const vec M2 = MAX(ADD( MUL(B2, LOAD(_2ndMom+i)), MUL(_B2, MUL(_DW,_DW))),EPS);
         const vec DW = MUL(MUL(F12, M1),RSQRT(M2));
-        const vec W  = LOAD(dest+i);
-        const vec DW_ = MIN(MAX(W,SUB(zeros,W)),MAX(MIN(W,SUB(zeros,W)),DW));
-        STORE(dest+i, ADD(ADD(W, DW_),MUL(LAMBDA,W)));
+        STORE(dest+i, ADD(ADD(W, DW),MUL(LAMBDA,W)));
         STORE(_1stMom + i,M1);
         STORE(_2ndMom + i,M2);
         STORE (grad+i,zeros); //reset grads

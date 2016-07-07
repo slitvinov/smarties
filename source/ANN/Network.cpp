@@ -104,6 +104,8 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
     
     for (int w=g.biasOG; w<g.biasOG+g.recurrSize; w++)
         *(_biases +w) = dis(*gen)*sqrt(SCAL)/Real(g.recurrSize);
+    
+    //save("initialized");
 }
 
 void Network::addNormal(Graph* const p, Graph* const g, const bool first, const bool last)

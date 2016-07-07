@@ -216,18 +216,21 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     if (study == 0) {
 #ifndef _scaleR_
         reward = 2*t_sN.vals[13]-1;
+        if (new_sample) reward = -1./(1.-gamma);
 #else
         reward = (1.-gamma)*(t_sN.vals[13]-.4)/(1.-.4);
-#endif
         if (new_sample) reward = -1.;
+#endif
+        
     }
     else if (study == 1) {
 #ifndef _scaleR_
-       reward = 2*t_sN.vals[16]-1;
+        reward = 2*t_sN.vals[16]-1;
+        if (new_sample) reward = -1./(1.-gamma);
 #else
         reward = (1.-gamma)*(t_sN.vals[16]-.3)/(1.-.3);
-#endif
         if (new_sample) reward = -1.;
+#endif
     }
     else if (study == 2) {
 #ifndef _scaleR_

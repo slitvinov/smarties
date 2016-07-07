@@ -180,10 +180,13 @@ void Learner::TrainTasking(Master* const master)
             opt->update(net->grad,nAddedGradients);
         }
         if (cntUpdateDelay <= 0) {
+            #pragma omp master
             cntUpdateDelay = tgtUpdateDelay;
+            
             if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
             else net->updateFrozenWeights();
         }
+        #pragma omp master
         cntUpdateDelay--;
     }
 }

@@ -24,8 +24,8 @@ protected:
     Profiler * profiler;
     Real *_1stMomW, *_1stMomB;
     void init(Real* const dest, const int N, const Real ini=0);
-    void update(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const Real _eta) const;
-    void updateDecay(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const Real _eta) const;
+    void update(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const int batchsize) const;
+    void updateDecay(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const int batchsize) const;
     
 public:
     //int batchsize;

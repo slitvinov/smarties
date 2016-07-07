@@ -23,12 +23,12 @@ using namespace std;
 #include <omp.h>
 //#define _useOMP_
 #ifndef REG
-#define REG 0
+#define REG 5
 #endif /* REG */
 
 #define _scaleR_
 #define _BPTT_
-//#define _Priority_
+
 //#define _dumpNet_
 
 #define M_POL_O _MM_HINT_NTA
