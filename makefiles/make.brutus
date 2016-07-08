@@ -1,4 +1,4 @@
-CC=mpic++
+CC=/cluster/home/mavt/chatzidp/usr/mpich3/bin/mpic++
 
 #export PATH=/cluster/home/mavt/chatzidp/usr/mpich3/bin:$PATH
 

@@ -5,7 +5,8 @@ NNODES=$2
 APP=$3
 SETTINGSNAME=$4
 
-BASEPATH="/scratch/daint/novatig/smarties/"
+MYNAME=`whoami`
+BASEPATH="/scratch/daint/${MYNAME}/smarties/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 
 if [ $# -gt 4 ] ; then
