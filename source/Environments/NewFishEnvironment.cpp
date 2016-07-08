@@ -214,21 +214,23 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     if (reward<-9.9) new_sample=true;
     
     if (study == 0) {
+        const Real scaledEfficiency = 2.*(t_sN.vals[13]-.4)/(1.-.4) -1.; //between -1 and 1
 #ifndef _scaleR_
-        reward = 2*t_sN.vals[13]-1;
-        if (new_sample) reward = -1./(1.-gamma);
+        reward = scaledEfficiency;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
+        if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
 #else
-        reward = (1.-gamma)*(t_sN.vals[13]-.4)/(1.-.4);
-        if (new_sample) reward = -1.;
+        reward = (1.-gamma)*scaledEfficiency; //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
+        if (new_sample) reward = -1.;  // = - max cumulative reward
 #endif
         
     }
     else if (study == 1) {
+        const Real scaledBndEfficiency = 2.*(t_sN.vals[13]-.3)/(1.-.3) -1.; //between -1 and 1
 #ifndef _scaleR_
-        reward = 2*t_sN.vals[16]-1;
+        reward = scaledBndEfficiency;
         if (new_sample) reward = -1./(1.-gamma);
 #else
-        reward = (1.-gamma)*(t_sN.vals[16]-.3)/(1.-.3);
+        reward = (1.-gamma)*scaledBndEfficiency;
         if (new_sample) reward = -1.;
 #endif
     }

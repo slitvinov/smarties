@@ -108,7 +108,6 @@ void Master::run()
         slave = status.MPI_SOURCE;
         //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
         MPI_Recv(inbuf, inOneSize, MPI_BYTE, slave, 2, MPI_COMM_WORLD, &status);
-        #endif
         unpackChunk(inbuf, info, sOld, aOld, r, s);
         const int agentID = (slave)*nAgents +agentId;
         assert(agentID>=0);
@@ -116,42 +115,40 @@ void Master::run()
         //printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",agentID,
         //sOld.print().c_str(),s.print().c_str(),aOld.print().c_str(),r,a.print().c_str());
         totR += r;
-        if (info != 2) { //not terminal
-            #ifndef MEGADEBUG
+        
+        if (info != 2) { //not terminal[
             packChunk(outbuf, a);
             MPI_Send(outbuf, outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD);
-            #endif
         }
+        
         if (iter++ % saveFreq == 0) save();
+        #endif
     }
 }
 
 void Master::hustle()
 {
+#ifndef MEGADEBUG
     int completed(0), slave(0), info(0);
-    #ifndef MEGADEBUG
     if(not requested) {
         MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
         requested = true;
     }
-    #endif
     
     debug("Master starting... (completed? %d)\n",completed);
     while (true) {
         while (true) {
-            #ifndef MEGADEBUG
             MPI_Test(&request, &completed, &status);
             if (completed == 1) break;
-            #endif
+            
+            //if true: finish processing the dqn update and come right back to hustling
             if (learner->checkBatch()) return;
         }
-        #ifndef MEGADEBUG
+        
         slave = status.MPI_SOURCE;
-        
         //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
-        
         MPI_Recv(inbuf, inOneSize, MPI_BYTE, slave, 2, MPI_COMM_WORLD, &status);
-        #endif
+        
         unpackChunk(inbuf, info, sOld, aOld, r, s);
         const int agentID = (slave)*nAgents +agentId;
         learner->select(agentID, s, a, sOld, aOld, info, r);
@@ -161,18 +158,18 @@ void Master::hustle()
         
         totR += r;
         if (info != 2) { //not terminal
-            #ifndef MEGADEBUG
             packChunk(outbuf, a);
             MPI_Send(outbuf, outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD);
-            #endif
         }
+        
         if (iter++ % saveFreq == 0) save();
         
-        #ifndef MEGADEBUG
         MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
-        #endif
     }
+#endif
+    die("How on earth could you possibly get here? \n");
 }
+
 /*
 void Master::hustle()
 {
@@ -227,7 +224,6 @@ void Slave::run()
     #ifndef MEGADEBUG
     MPI_Status status;
     MPI_Request req;
-    #endif
     for (int i(0); i<info.size(); i++) info[i] = 1;
     int iAgent;
     while(true)
@@ -241,28 +237,24 @@ void Slave::run()
         agents[iAgent]->getAction(actions[iAgent]);
         agents[iAgent]->getOldState(oldStates[iAgent]);
 
-        #ifndef MEGADEBUG
-        if (extflag==2) {
-            const bool proper = info[iAgent]==0;
+        if (extflag==2) {  //simulation ended, no need for action
+            if(info[iAgent]==0) {  //did i observe at least one transition?
+                info[iAgent] = 2;
+                packData(iAgent);
+                MPI_Send(&iAgent, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
+                MPI_Isend(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD, &req);
             
-            info[iAgent] = 2;
-            packData(iAgent);
-            MPI_Send(&iAgent, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
-            MPI_Isend(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD, &req);
-            
-            if(proper) {
                 ofstream fout;
                 fout.open(("obs"+to_string(me)+".dat").c_str(),ios::app);
                 fout << bufferTransition(iAgent) << endl;
                 fout.close();
             }
-            
-            if(env->resetAll) {
+            if(env->resetAll) { //does this env require a full restart upon failing?
                 save();
                 for (int i(0); i<info.size(); i++) info[i] = 1;
             }
-            else info[iAgent] = 1;
-        } else { //simulation ended, no need for action
+            else info[iAgent] = 1; //else i just restart one agent (e.g. cart)
+        } else {
             packData(iAgent);
             MPI_Send(&iAgent, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
             MPI_Isend(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD, &req);
@@ -282,8 +274,9 @@ void Slave::run()
             debug3("Agent %d of slave %d was in %s and will act %s.\n",
                    iAgent, me, States[iAgent].print().c_str(), actions[iAgent].print().c_str());
         }
-        #endif
     }
+    #endif
+    die("How on earth could you possibly get here? \n");
 }
 
 void Slave::unpackData(const int iAgent)

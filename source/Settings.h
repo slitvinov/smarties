@@ -26,7 +26,7 @@ using namespace std;
 #define REG 5
 #endif /* REG */
 
-#define _scaleR_
+//#define _scaleR_
 #define _BPTT_
 
 //#define _dumpNet_

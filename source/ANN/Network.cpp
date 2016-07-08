@@ -714,8 +714,6 @@ void Network::moveFrozenWeights(const Real alpha)
     #if SIMD > 1
     const vec B1 = SET1(alpha);
     const vec B2 = SET1(_alpha);
-    const vec UBound = SET1( 10.);
-    const vec LBound = SET1(-10.);
     #endif
     #pragma omp parallel
     {
@@ -725,9 +723,7 @@ void Network::moveFrozenWeights(const Real alpha)
             #if SIMD == 1
             *(frozen_weights + j) = *(frozen_weights + j)*_alpha + *(weights + j)*alpha;
             #else
-            const vec W = MIN(UBound,MAX(LBound,LOAD(weights + j)));
-            STORE(frozen_weights+j,ADD(MUL(B2,LOAD(frozen_weights+j)),MUL(B1,W)));
-            STORE(weights + j, W);
+            STORE(frozen_weights+j,ADD(MUL(B2,LOAD(frozen_weights+j)),MUL(B1,LOAD(weights+j))));
             #endif
         }
 
@@ -737,10 +733,7 @@ void Network::moveFrozenWeights(const Real alpha)
             #if SIMD == 1
             *(frozen_biases + j) = *(frozen_biases + j)*_alpha + *(biases + j)*alpha;
             #else
-            const vec W = MIN(UBound,MAX(LBound,LOAD(biases + j)));
-            
-            STORE(frozen_biases+j,ADD(MUL(B2,LOAD(frozen_biases+j)),MUL(B1,W)));
-            STORE(biases + j, W);
+            STORE(frozen_biases+j,ADD(MUL(B2,LOAD(frozen_biases+j)),MUL(B1,LOAD(biases+j))));
             #endif
         }
     }
