@@ -231,7 +231,8 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
 {
     const Real norm = 1./(Real)max(batchsize,1);
     const Real fac12 = sqrt(1.-beta_t_2)/(1.-beta_t_1);
-    const Real eta_ = (0.0001*exp(-nepoch/100.)+eta);
+    //const Real eta_ = (0.0001*exp(-nepoch/100.)+eta);
+    const Real eta_ = eta;
     #if SIMD > 1
     const vec B1 = SET1(beta_1);
     const vec B2 = SET1(beta_2);
@@ -281,7 +282,8 @@ void AdamOptimizer::updateDecay(Real* const dest, Real* const grad, Real* const 
     //begin with an hardcoded bigger eta, then anneal to user's eta, which should be <= 1e-5
     const Real norm = 1./(Real)max(batchsize,1);
     const Real fac12 = sqrt(1.-beta_t_2)/(1.-beta_t_1);
-    const Real eta_ = (0.0001*exp(-nepoch/100.)+eta);
+    //const Real eta_ = (0.0001*exp(-nepoch/100.)+eta);
+    const Real eta_ = eta;
     #if SIMD > 1
     const vec B1 = SET1(beta_1);
     const vec B2 = SET1(beta_2);
@@ -303,11 +305,11 @@ void AdamOptimizer::updateDecay(Real* const dest, Real* const grad, Real* const 
         
         //slow down extreme updates (normalization)
         const Real M2_ = std::max(M2,epsilon);
-        const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_) / fac12;
-        const Real M1_ = std::max(std::min(TOP,M1),-TOP);
-        const Real DW_ = eta_*fac12*M1_/sqrt(M2_);
+        //const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_) / fac12;
+        //const Real M1_ = std::max(std::min(TOP,M1),-TOP);
+        const Real DW_ = eta_*fac12*M1/sqrt(M2_);
         //printf("TOP %d W %e M1 %e M2 %e DW %e TOP %e \n",i,std::fabs(*(dest+i)),M1_,M2_,DW_,TOP);
-        *(_1stMom + i) = M1_;
+        *(_1stMom + i) = M1;
         *(_2ndMom + i) = M2_;
         *(dest + i) += DW_ - *(dest + i)*lambda*eta;
         *(grad + i) = 0.; //reset grads

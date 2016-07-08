@@ -644,10 +644,6 @@ void Network::updateFrozenWeights()
         _allocateQuick(frozen_biases,   nBiases)
         allocatedFrozenWeights = true;
     }
-    #if SIMD > 1
-    const vec UBound = SET1( 10.);
-    const vec LBound = SET1(-10.);
-    #endif
     #pragma omp parallel
     {
         const int WsizeSIMD=ceil(nWeights/(Real)SIMD)*SIMD;
@@ -656,9 +652,7 @@ void Network::updateFrozenWeights()
             #if SIMD == 1
             *(frozen_weights + j) = *(weights + j);
             #else
-            const vec W = MIN(UBound,MAX(LBound,LOAD(weights + j)));
-            STORE (frozen_weights + j, W);
-            STORE (weights + j, W);
+            STORE (frozen_weights + j, LOAD(weights + j));
             #endif
         }
         
@@ -668,9 +662,7 @@ void Network::updateFrozenWeights()
             #if SIMD == 1
             *(frozen_biases + j) = *(biases + j);
             #else
-            const vec W = MIN(UBound,MAX(LBound,LOAD(biases + j)));
-            STORE (frozen_biases + j, W);
-            STORE (biases + j, W);
+            STORE (frozen_biases + j, LOAD(biases + j));
             #endif
         }
     }
