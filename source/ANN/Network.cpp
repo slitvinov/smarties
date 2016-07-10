@@ -141,9 +141,11 @@ void Network::addNormal(Graph* const p, Graph* const g, const bool first, const 
         
         #ifndef _scaleR_
         const Activation * f = (last) ? new Activation : new Tanh;
+        if (last) printf( "Linear output\n");
         #else
         //const Activation * f = new SoftSign;
         const Activation * f = new Tanh;
+        if (last) printf( "Logic output\n");
         #endif
 
         NormalLayer * l = new NormalLayer(g->normalSize, g->normalPos, g->biasHL, g->nl_inputs, g->nl_recurrent, g->nl_outputs, f, last);
@@ -218,10 +220,12 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
         const Activation * fI = (last) ? new Activation : new Tanh2;
         const Activation * fG = new Sigm;
         const Activation * fO = (last) ? new Activation : new Tanh;
+        if (last) printf( "Linear output\n");
         #else
         const Activation * fI = new Tanh2;
         const Activation * fG = new Sigm;
         const Activation * fO = new Tanh;
+        if (last) printf( "Logic output\n");
         #endif
         
         NormalLayer * l = new LSTMLayer(g->recurrSize, g->recurrPos, g->indState, g->wPeep, g->biasIN, g->biasIG, g->biasFG, g->biasOG, g->rl_inputs, g->rl_recurrent, g->rl_outputs, fI, fG, fO, last);

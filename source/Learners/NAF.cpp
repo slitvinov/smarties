@@ -191,6 +191,11 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, v
         _uL[j] = -1. - out[1+nL+j];
         _uU[j] =  1. - out[1+nL+j];
 
+        #ifdef _scaleR_
+        if (out[1+j]>0.99999) out[1+j] = 0.99999;
+        if (out[1+j]<-.99999) out[1+j] = -.99999;
+        #endif
+            
         for (int i(0); i<nA; i++) {
             const int ind = nA*j + i;
             #ifdef _scaleR_
