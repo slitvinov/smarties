@@ -6,16 +6,16 @@ SETTINGS+=" -study learning"
 SETTINGS+=" -factory factory2F_Learn"
 SETTINGS+=" -length 0.1"
 SETTINGS+=" -nu 2e-6"
-SETTINGS+=" -lmax 7"
+SETTINGS+=" -lmax 6"
 SETTINGS+=" -restartpath restart"
 
 SETTINGS+=" -lambda 1e6"
 SETTINGS+=" -Uinfx 0.0"
 SETTINGS+=" -Uinfy 0.0"
-SETTINGS+=" -Nagents 1"
 
 SETTINGS+=" -Tstartlearn 1"
-SETTINGS+=" -LearnFreq 2"
+SETTINGS+=" -NpLatLine 5"
+SETTINGS+=" -nActions 1"
 SETTINGS+=" -GoalDX 2"
 
 # grid settings
