@@ -60,6 +60,7 @@ OPTIONS=${SETTINGS}${RESTART}
 
 cd ${BASEPATH}${EXECNAME}
 
+export LD_LIBRARY_PATH=${HOME}/2d-treecodes/lib64/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/cluster/work/infk/wvanrees/apps/TBB/tbb42_20140416oss/build/linux_intel64_gcc_cc4.7.2_libc2.12_kernel2.6.32_release/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/cluster/work/infk/cconti/VTK5.8_gcc/lib/vtk-5.8/:$LD_LIBRARY_PATH
 export OMP_NUM_THREADS=${NTHREADS}

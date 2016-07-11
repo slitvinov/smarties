@@ -5,6 +5,10 @@ NNODES=$2
 APP=$3
 SETTINGSNAME=$4
 
+MYNAME=`whoami`
+BASEPATH="/cluster/scratch_xp/public/${MYNAME}/smarties/"
+mkdir -p ${BASEPATH}${RUNFOLDER}
+
 if [ $# -gt 4 ] ; then
     POLICY=$5
     cp $5 ${BASEPATH}${RUNFOLDER}/policy.net
@@ -31,9 +35,6 @@ NTHREADSPERNODE=48
 NPROCESS=$((${NNODES}*${NTASK}))
 NPROCESSORS=$((${NNODES}*${NTHREADSPERNODE}))
 
-MYNAME=`whoami`
-BASEPATH="/cluster/scratch_xp/public/${MYNAME}/smarties/"
-mkdir -p ${BASEPATH}${RUNFOLDER}
 
 #this must handle all app-side setup (as well as copying the factory)
 source ../apps/${APP}/setup.sh ${BASEPATH}${RUNFOLDER}
