@@ -38,7 +38,7 @@ greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI
     net = new Network(lsize, bRecurrent, settings);
     opt = new AdamOptimizer(net, profiler, settings);
     T = new Transitions(env, settings);
-    flags.resize(batchSize, false);
+    flags.resize(batchSize, true);
 }
 
 bool Learner::checkBatch()
@@ -46,14 +46,10 @@ bool Learner::checkBatch()
     const int ndata = (bRecurrent) ? T->nSequences : T->nTransitions;
     if (ndata<batchSize) return false; //do we have enough data?
     
+    //if no learning has been done yet: flags initialized as true
+    //if learning begun, master sets flags to false and each thread sets flag to true as batch is processed
     bool done(true);
-    for (int i=0; i<batchSize; i++)
-        done = done && flags[i];
-    
-    if (done) //reset flags
-        for (int i(0); i<batchSize; i++)
-            flags[i] = false;
-    
+    for (int i=0; i<batchSize; i++) done = done && flags[i];
     return done;
 }
 
@@ -116,6 +112,8 @@ void Learner::TrainTasking(Master* const master)
         #pragma omp single
         {
             if (ndata>batchSize) {
+                for (int i(0); i<batchSize; i++) flags[i] = false;
+                
                 if (T->inds.size()<batchSize) {
                     T->inds.resize(ndata);
                     std::iota(T->inds.begin(), T->inds.end(), 0);
@@ -135,6 +133,8 @@ void Learner::TrainTasking(Master* const master)
                     }
                     //LSTM NFQ requires size()+1 activations of the net:
                     net->allocateSeries(2+nThreads*(maxBufSize+1)); //0 and 1 reserved
+                    #pragma omp flush
+                    
                     for (int i(0); i<batchSize; i++) {
                         const int knd = seq[i];
                         #pragma omp task firstprivate(i) firstprivate(knd) shared(maxBufSize)
@@ -143,6 +143,7 @@ void Learner::TrainTasking(Master* const master)
                             const int first = 2+(maxBufSize+1)*thrID;
                             Train(thrID, knd, first);
                             flags[i] = true;
+                            #pragma omp flush
                         }
                     }
                 } else {
@@ -159,6 +160,8 @@ void Learner::TrainTasking(Master* const master)
                     }
                     nAddedGradients = batchSize;
                     net->allocateSeries(2+nThreads*3);
+                    #pragma omp flush
+                    
                     for (int i(0); i<batchSize; i++) {
                         #pragma omp task firstprivate(i)
                         {

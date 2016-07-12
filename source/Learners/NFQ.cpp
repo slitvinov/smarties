@@ -26,8 +26,8 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
 {
     Real newEps(greedyEps);
     vector<Real> output(nOutputs), inputs(nInputs);
-    const int handicap = min(static_cast<int>(T->Set.size()), stats.epochCount*10);
-    if (bTrain) newEps = (.1 +greedyEps*exp(-handicap/500.));//*agentId/Real(agentId+1);
+    const int handicap = min(static_cast<int>(T->Set.size()), stats.epochCount);
+    if (bTrain) newEps = (.1 +greedyEps*exp(-handicap/100.));//*agentId/Real(agentId+1);
     if (info!=1) T->passData(agentId, info, sOld, aOld, s, r);
     
     s.scaleUsed(inputs);

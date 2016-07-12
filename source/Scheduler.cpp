@@ -129,20 +129,26 @@ void Master::run()
 void Master::hustle()
 {
 #ifndef MEGADEBUG
-    int completed(0), slave(0), info(0);
+    int completed(0), slave(0), info(0), cnt(0);
     if(not requested) {
         MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
         requested = true;
     }
     
-    debug("Master starting... (completed? %d)\n",completed);
+    //debug("Master starting... (completed? %d)\n",completed);
     while (true) {
-        while (true) {
-            MPI_Test(&request, &completed, &status);
-            if (completed == 1) break;
-            
+        while (true) {            
             //if true: finish processing the dqn update and come right back to hustling
-            if (learner->checkBatch()) return;
+            if (learner->checkBatch()) {
+                printf("%d communications\n");
+                return;
+            }
+            
+            MPI_Test(&request, &completed, &status);
+            if (completed == 1) {
+                cnt++;
+                break;
+            }
         }
         
         slave = status.MPI_SOURCE;

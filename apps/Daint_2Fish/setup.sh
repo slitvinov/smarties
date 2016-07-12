@@ -1,5 +1,3 @@
-RUNFOLDER=$1
-
 cp ../apps/Daint_2Fish/factoryMRAGhere ${BASEPATH}${RUNFOLDER}/factory
 cp ../apps/Daint_2Fish/settings2F_Learn.sh ${BASEPATH}${RUNFOLDER}/
 cp ../apps/Daint_2Fish/launch2F_Learn.sh ${BASEPATH}${RUNFOLDER}/

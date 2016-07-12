@@ -3,10 +3,7 @@ SETTINGS=
 
 # setup settings
 SETTINGS+=" -study learning"
-#SETTINGS+=" -factory factory1F_Fix"
-#SETTINGS+=" -factory factoryCarling"
 SETTINGS+=" -factory factory2F_Learn"
-#SETTINGS+=" -factory factory2F_L_20"
 SETTINGS+=" -length 0.2"
 SETTINGS+=" -nu 8e-6"
 SETTINGS+=" -lmax 5"
@@ -17,10 +14,10 @@ SETTINGS+=" -lambda 1e6"
 #SETTINGS+=" -nu 2.5e-5"
 SETTINGS+=" -Uinfx 0.0"
 SETTINGS+=" -Uinfy 0.0"
-SETTINGS+=" -Nagents 1"
 
 SETTINGS+=" -Tstartlearn 1"
-SETTINGS+=" -LearnFreq 2"
+SETTINGS+=" -NpLatLine 20"
+SETTINGS+=" -nActions 2"
 SETTINGS+=" -GoalDX 2"
 
 # grid settings

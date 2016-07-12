@@ -7,6 +7,7 @@ SETTINGSNAME=$4
 
 BASEPATH="../"
 mkdir -p ${BASEPATH}${RUNFOLDER}
+lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
 
 if [ $# -gt 4 ] ; then
     POLICY=$5
