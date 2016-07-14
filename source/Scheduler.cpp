@@ -140,7 +140,7 @@ void Master::hustle()
         while (true) {            
             //if true: finish processing the dqn update and come right back to hustling
             if (learner->checkBatch()) {
-                printf("%d communications\n");
+                printf("%d communications\n",cnt);
                 return;
             }
             
