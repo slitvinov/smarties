@@ -21,7 +21,7 @@ else
     NTHREADS=$7
 fi
 if [ $# -lt 8 ] ; then
-    WCLOCK=12:00
+    WCLOCK=48:00
 else
     WCLOCK=$8
 fi

@@ -14,7 +14,7 @@ SETTINGS+=" -Uinfx 0.0"
 SETTINGS+=" -Uinfy 0.0"
 
 SETTINGS+=" -Tstartlearn 1"
-SETTINGS+=" -NpLatLine 5"
+SETTINGS+=" -NpLatLine 20"
 SETTINGS+=" -nActions 2"
 SETTINGS+=" -GoalDX 2"
 

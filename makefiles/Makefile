@@ -54,7 +54,7 @@ CPPFLAGS+= -O0 -g
 #else
 endif
 ifeq "$(config)" "prod"
-CPPFLAGS += -O4 -fstrict-aliasing -march=native -mtune=native -ffast-math -DNDEBUG #-DBOOST_UBLAS_NDEBUG
+CPPFLAGS += -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math -g #-DBOOST_UBLAS_NDEBUG
 endif
 
 ifeq "$(CC)" "icc"
