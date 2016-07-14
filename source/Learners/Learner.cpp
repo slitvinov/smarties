@@ -169,6 +169,7 @@ void Learner::TrainTasking(Master* const master)
                             const int first = 2+3*thrID;
                             Train(thrID, seq[i], samp[i], first);
                             flags[i] = true;
+                            #pragma omp flush
                         }
                     }
                 }
