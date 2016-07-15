@@ -31,9 +31,7 @@ sock(0), ListenerSocket(0), bytes(0), iter(0), max_scale(20, -1000), min_scale(2
 
 void Environment::setup_Comm()
 {
-    struct timeval clock;
-    gettimeofday(&clock, NULL);
-    workerid = abs(rank + floor(clock.tv_usec));
+    workerid = rank;
     
     string dummy = "/tmp/sock_";
     sprintf(SOCK_PATH, "%s%d", dummy.c_str(), workerid);

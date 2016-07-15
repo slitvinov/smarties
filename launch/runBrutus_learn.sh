@@ -1,8 +1,7 @@
 #!/bin/bash
 NPROCESS=$1
 NTHREADS=$2
-
-NPROCESS=$((${NNODES}*${NTASK}))
+TASKPERN=$3
 
 module load gcc/4.9.2
 export LD_LIBRARY_PATH=/cluster/work/infk/wvanrees/apps/TBB/tbb42_20140122oss/build/linux_intel64_gcc_cc4.7.2_libc2.12_kernel2.6.32_release/:$LD_LIBRARY_PATH
@@ -22,9 +21,14 @@ fi
 source $SETTINGSNAME
 SETTINGS+=" --nThreads ${NTHREADS}"
 echo $SETTINGS > settings.txt
+env > environment.log
+echo ${NPROCESS}
+#mpirun -np ${NPROCESS} --mca btl tcp,self -bynode ./exec ${SETTINGS} #openmpi
 
-mpich_run -n ${NPROCESS} -launcher ssh -f $LSB_DJOB_HOSTFILE -bind-to none ./exec ${SETTINGS}
+cat $LSB_DJOB_HOSTFILE
+
+mpich_run -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none -launcher ssh -f $LSB_DJOB_HOSTFILE  ./exec ${SETTINGS}
 
 #valgrind  --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes --show-reachable=yes
-#mpirun -np ${NPROCESS} --mca btl tcp,self -bynode ./exec ${SETTINGS} #openmpi
+#
 #/opt/mpich/bin/mpirun -np ${NPROCESS} ./exec ${SETTINGS} #falcon/panda

@@ -126,8 +126,8 @@ int main (int argc, char** argv)
     Parser parser(opts);
     parser.parse(argc, argv, rank == 0);
     
-    srand(settings.randSeed + rank);
-    settings.gen = new mt19937(settings.randSeed);
+    //srand(seed);
+    settings.gen = new mt19937(seed);
     
     if (rank == 0) runMaster(nranks);
     else           runSlave(rank);
