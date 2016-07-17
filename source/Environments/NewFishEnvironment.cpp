@@ -59,15 +59,15 @@ void NewFishEnvironment::setDims()
 
             sI.bounds.push_back(1); // VxAvg 8
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line);
+            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line || POV);
             
             sI.bounds.push_back(1); // VyAvg 9
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line);
+            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line || POV);
             
             sI.bounds.push_back(1); // AvAvg 10
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line);
+            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line || POV);
         }
         {
             sI.bounds.push_back(1); //Pout 11
@@ -129,7 +129,7 @@ void NewFishEnvironment::setDims()
         }
         for (int i=0; i<5; i++) {
             sI.bounds.push_back(1); // (FPAbove  ) x 5 [40]
-            sI.top.push_back(0.1); sI.bottom.push_back(-0.1);
+            sI.top.push_back(1e-4); sI.bottom.push_back(-1e-4);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         for (int i=0; i<5; i++) {
@@ -139,7 +139,7 @@ void NewFishEnvironment::setDims()
         }
         for (int i=0; i<5; i++) {
             sI.bounds.push_back(1); // (FPBelow  ) x 5 [50]
-            sI.top.push_back(0.1); sI.bottom.push_back(-0.1);
+            sI.top.push_back(1e-4); sI.bottom.push_back(-1e-4);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         for (int i=0; i<5; i++) {
@@ -179,19 +179,19 @@ void NewFishEnvironment::setDims()
 
 bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
                                     const State & t_sN, Real & reward)
-{/*
+{
     if (fabs(t_sN.vals[5] -t_sO.vals[4])>0.001) {
-        printf("Mismatch new and old state!!! %s\n",t_sN.print().c_str());
+        printf("Mismatch new and old state!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
     }
     if (fabs(t_sN.vals[4] -t_a.valsContinuous[0])>0.001) {
-        printf("Mismatch state and action!!! %s\n",t_sN.print().c_str());
+        printf("Mismatch state and action!!! \n %s \n %s \n",t_a.print().c_str(),t_sN.print().c_str());
         abort();
     }
-    if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-2 ) {
-        printf("Same time for two states!!! %s\n",t_sN.print().c_str());
+    if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-2 && reward>0 ) {
+        printf("Same time for two states!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
-    }
+    }/*
     if (t_sN.vals[13]>1 || t_sN.vals[13]<0) {
         printf("You modified the efficiency\n");
         abort();
@@ -225,7 +225,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 1) {
-        const Real scaledBndEfficiency = 2.*(t_sN.vals[13]-.3)/(1.-.3) -1.; //between -1 and 1
+        const Real scaledBndEfficiency = 2.*(t_sN.vals[16]-.3)/(1.-.3) -1.; //between -1 and 1
 #ifndef _scaleR_
         reward = scaledBndEfficiency;
         if (new_sample) reward = -1./(1.-gamma);
@@ -235,10 +235,12 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 2) {
+        const Real scaledRew = 1. -fabs(t_sN.vals[0]-goalDY) -fabs(t_sN.vals[1]); //actually goald DX
 #ifndef _scaleR_
-        reward =  1.-fabs(t_sN.vals[1]-goalDY)/.5;
+        reward =  scaledRew;
+        if (new_sample) reward = -1./(1.-gamma);
 #else
-        reward = (1.-gamma)*(1.-fabs(t_sN.vals[1]-goalDY));
+        reward = (1.-gamma)*scaledRew;
         if (new_sample) reward = -1.;
 #endif
     }
