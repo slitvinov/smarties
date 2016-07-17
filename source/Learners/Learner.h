@@ -59,7 +59,7 @@ public:
     Learner(Environment* env, Settings & settings);
     virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;
     
-    bool checkBatch();
+    bool checkBatch() const;
     void TrainBatch();
     void TrainTasking(Master* const master);
     void save(string name);

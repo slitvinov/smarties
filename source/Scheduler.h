@@ -32,7 +32,7 @@ private:
     byte *inbuf, *outbuf;
     
     #ifndef MEGADEBUG
-    MPI_Request request;
+    MPI_Request request, actRequest;
     MPI_Status  status;
     #endif
     

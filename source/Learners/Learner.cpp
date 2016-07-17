@@ -41,7 +41,7 @@ greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI
     flags.resize(batchSize, true);
 }
 
-bool Learner::checkBatch()
+bool Learner::checkBatch() const
 {
     const int ndata = (bRecurrent) ? T->nSequences : T->nTransitions;
     if (ndata<batchSize) return false; //do we have enough data?
@@ -50,6 +50,7 @@ bool Learner::checkBatch()
     //if learning begun, master sets flags to false and each thread sets flag to true as batch is processed
     bool done(true);
     for (int i=0; i<batchSize; i++) done = done && flags[i];
+    
     return done;
 }
 
@@ -144,6 +145,8 @@ void Learner::TrainTasking(Master* const master)
                             Train(thrID, knd, first);
                             flags[i] = true;
                             #pragma omp flush
+                            printf("Thd ID %d has finished his task (%d %d %d)\n",thrID,knd,first,maxBufSize);
+                            fflush(0);
                         }
                     }
                 } else {
@@ -308,6 +311,6 @@ void Learner::processStats(vector<trainData*> _stats)
            stats.epochCount, mean_err, mean_rel, mean_Q, stats.minQ, stats.maxQ, stats.dumpCount);
     filestats<<stats.epochCount<<" "<<mean_err<<" "<<mean_rel<<" "<<mean_Q<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
     filestats.close();
-    
+    fflush(0);
     if (stats.epochCount % 100==0) save("policy");
 }

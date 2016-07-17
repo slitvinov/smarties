@@ -11,7 +11,7 @@ if [ ! -f $SETTINGSNAME ];then
     exit -1
 fi
 source $SETTINGSNAME
-SETTINGS+=" --nThreads ${NTHREADS}"
+SETTINGS+=" --nThreads 1"
 echo $SETTINGS > settings.txt
 
 srun -n ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --cpus-per-task=${NTHREADS} ./exec ${SETTINGS}

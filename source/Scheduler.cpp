@@ -96,11 +96,11 @@ void Master::run()
             MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
             #endif
             while (true) {
-                learner->TrainBatch();
                 #ifndef MEGADEBUG
                 MPI_Test(&request, &completed, &status);
                 if (completed == 1) break;
                 #endif
+                learner->TrainBatch();
             }
         }
         #ifndef MEGADEBUG
@@ -112,8 +112,7 @@ void Master::run()
         const int agentID = (slave)*nAgents +agentId;
         assert(agentID>=0);
         learner->select(agentID, s, a, sOld, aOld, info, r);
-        //printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",agentID,
-        //sOld.print().c_str(),s.print().c_str(),aOld.print().c_str(),r,a.print().c_str());
+        ///printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentID, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
         totR += r;
         
         if (info != 2) { //not terminal[
@@ -129,7 +128,7 @@ void Master::run()
 void Master::hustle()
 {
 #ifndef MEGADEBUG
-    int completed(0), slave(0), info(0), cnt(0);
+    int completed(0), slave(0), info(0), cnt(0), knt(0);
     if(not requested) {
         MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
         requested = true;
@@ -137,40 +136,45 @@ void Master::hustle()
     
     //debug("Master starting... (completed? %d)\n",completed);
     while (true) {
-        while (true) {            
-            //if true: finish processing the dqn update and come right back to hustling
-            if (learner->checkBatch()) {
-                printf("%d communications\n",cnt);
-                return;
-            }
-            
+        while (true) {
             MPI_Test(&request, &completed, &status);
             if (completed == 1) {
                 cnt++;
+                completed = 0;
+                printf("Completed after %d tests\n",knt);
                 break;
             }
+            //if true: finish processing the dqn update and come right back to hustling
+            if (learner->checkBatch()) {
+                printf("%d communications, %d tests\n",cnt,knt);
+                return;
+            }
+            knt++;
         }
         
         slave = status.MPI_SOURCE;
-        //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
+        printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
         MPI_Recv(inbuf, inOneSize, MPI_BYTE, slave, 2, MPI_COMM_WORLD, &status);
         
         unpackChunk(inbuf, info, sOld, aOld, r, s);
         const int agentID = (slave)*nAgents +agentId;
         learner->select(agentID, s, a, sOld, aOld, info, r);
         
-        //printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",agentID,
-        //sOld.print().c_str(),s.print().c_str(),aOld.print().c_str(),r,a.print().c_str());
+        printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",agentID,
+        sOld.print().c_str(),s.print().c_str(),aOld.print().c_str(),r,a.print().c_str());
         
         totR += r;
         if (info != 2) { //not terminal
             packChunk(outbuf, a);
-            MPI_Send(outbuf, outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD);
+            MPI_Isend(outbuf, outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD, &actRequest);
         }
-        
         if (iter++ % saveFreq == 0) save();
-        
+        fflush(0);
+        printf("New iRecv\n");
+        fflush(0);
         MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
+        printf("Starting again\n");
+        fflush(0);
     }
 #endif
     die("How on earth could you possibly get here? \n");
