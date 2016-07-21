@@ -23,7 +23,7 @@
 NAF::NAF(Environment* env, Settings & settings) :
 Learner(env,settings), nA(aInfo.dim), nL((aInfo.dim*aInfo.dim+aInfo.dim)/2)
 {
-    settings.bSeparateOutputs = true; //else it does not really workg
+    
 }
 
 void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,const int info,Real r)

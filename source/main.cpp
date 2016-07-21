@@ -68,6 +68,7 @@ void runMaster(int nranks)
         const int nA = env->aI.dim;
         const int nL = (nA*nA+nA)/2;
         settings.nnOutputs = 1+nL+nA;
+        settings.bSeparateOutputs = true; //else it does not really work
         learner = new NAF(env,settings);
     }/*
     else if (settings.learner == "DP" || settings.learner == "DPG") {
