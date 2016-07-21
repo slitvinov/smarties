@@ -25,39 +25,6 @@ path(settings.samplesFile), bSampleSeq(settings.nnType == 1)
     gen = new Gen(settings.gen);
 }
 
-#ifdef _Priority_
-void Transitions::updateP()
-{
-    anneal++;
-    const int N = Errs.size();
-    Ps.resize(N); Ws.resize(N); inds.resize(N);
-    std::iota(inds.begin(), inds.end(), 0);
-    //sort in decreasing order of the error
-    const auto comparator=[this](int a,int b){return Errs[a]>Errs[b];};
-    std::sort(inds.begin(), inds.end(), comparator);
-
-    for(int i=0;i<N;i++) Ps[inds[i]]=pow(1./Real(i+1),0.5);
-        
-    const Real mean_err = accumulate(Errs.begin(), Errs.end(), 0.)/N;
-    const Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
-    
-    printf("Avg MSE %f %d\n",mean_err,N);
-    
-    const Real beta = .5*(1.+(Real)anneal/(anneal+500)); //TODO
-    for(int i=0;i<N;i++) {
-        Ps[i]/= sum;
-        Ws[i] = pow(N*Ps[i],-beta);
-    }
-    
-    Real scale = *max_element(Ws.begin(), Ws.end());
-    for(int i=0;i<N;i++) Ws[i]/=scale;
-    
-    delete dist;
-    dist = new discrete_distribution<int>(Ps.begin(), Ps.end());
-    //die("Job's done\n");
-}
-#endif
-
 void Transitions::restartSamples()
 {
     /*
@@ -243,42 +210,35 @@ int Transitions::sample()
     return dist->operator()(*(gen->g));
 }
 
-/*
-if (d_sO[0]==0 && d_sO[1]==0) {
-    while (reward<-9)
-    {
-        getline(in, line);
-        istringstream line_in(line);
-        line_in >> thisId;
-        line_in >> info;
-        line_in >> info;
-        for(int i=0; i<sI.dim; i++) line_in >> d_sO[i];
-        //if(d_sO[0]==0 && d_sO[1]==0) continue;
-        for(int i=0; i<sI.dim; i++) line_in >> d_sN[i];
-        for(int i=0; i<aI.dim; i++) line_in >> d_a[i];
-        line_in >> reward;
-        
-        nSeq++; tmp=1;
+#ifdef _Priority_
+void Transitions::updateP()
+{
+    anneal++;
+    const int N = Errs.size();
+    Ps.resize(N); Ws.resize(N); inds.resize(N);
+    std::iota(inds.begin(), inds.end(), 0);
+    //sort in decreasing order of the error
+    const auto comparator=[this](int a,int b){return Errs[a]>Errs[b];};
+    std::sort(inds.begin(), inds.end(), comparator);
+    
+    for(int i=0;i<N;i++) Ps[inds[i]]=pow(1./Real(i+1),0.5);
+    
+    const Real mean_err = accumulate(Errs.begin(), Errs.end(), 0.)/N;
+    const Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
+    
+    printf("Avg MSE %f %d\n",mean_err,N);
+    
+    const Real beta = .5*(1.+(Real)anneal/(anneal+500)); //TODO
+    for(int i=0;i<N;i++) {
+        Ps[i]/= sum;
+        Ws[i] = pow(N*Ps[i],-beta);
     }
-    continue;
+    
+    Real scale = *max_element(Ws.begin(), Ws.end());
+    for(int i=0;i<N;i++) Ws[i]/=scale;
+    
+    delete dist;
+    dist = new discrete_distribution<int>(Ps.begin(), Ps.end());
+    //die("Job's done\n");
 }
-if (reward<-9) tmp = 2;
-fout <<agentId<<" "<<nSeq<<" "<<tmp<<" "<<t_sO.printClean().c_str() <<
-t_sN.printClean().c_str() << t_a.printClean().c_str() << reward << endl;
-tmp=0;
-while (reward<-9) {
-    getline(in, line);
-    istringstream line_in(line);
-    line_in >> thisId;
-    line_in >> info;
-    line_in >> info;
-    for(int i=0; i<sI.dim; i++) line_in >> d_sO[i];
-    
-    if(d_sO[0]==0 && d_sO[1]==0) continue;
-    for(int i=0; i<sI.dim; i++) line_in >> d_sN[i];
-    for(int i=0; i<aI.dim; i++) line_in >> d_a[i];
-    line_in >> reward;
-    
-    nSeq++; tmp=1;
-}*/
-//debug9("To stack %d %d %d: %s --> %s with %d was rewarded with %f \n", agentId, Tmp[agentId].r.size(), Set.size(),  sOld.printScaled().c_str(), sNew.printScaled().c_str(), a.vals[0], reward);
+#endif

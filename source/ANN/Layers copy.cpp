@@ -19,18 +19,18 @@ using namespace ErrorHandling;
 void NormalLayer::propagate(Activation* const N, const Real* const weights, const Real* const biases) const
 {
     const Real* const outvals = N->outvals;
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
     Real in(0);
     
     for (int n=0; n<nNeurons; n++) {
         in = 0.; //zero the first
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             in += *(outvals +lI->iI +i) * *(weights +lI->iW +n*lI->nI +i);
         }
-        }
+        //}
         
         in += *(biases +n1stBias +n);
         *(N->in_vals +n1stNeuron +n) = in; //first element of in
@@ -42,19 +42,19 @@ void NormalLayer::propagate(const Activation* const M, Activation* const N, cons
 {
     const Real* const outvals = N->outvals;
     const Link* const lR = recurrent_links;
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
     
     Real in(0);
     
     for (int n=0; n<nNeurons; n++) {
         in = 0.;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             in += *(outvals    +lI->iI +i) * *(weights +lI->iW +n*lI->nI +i);
         }
-        }
+        //}
         for (int i=0; i<lR->nI; i++) {
             in += *(M->outvals +lR->iI +i) * *(weights +lR->iW +n*lR->nI +i);
         }
@@ -68,15 +68,15 @@ void NormalLayer::propagate(const Activation* const M, Activation* const N, cons
 void LSTMLayer::propagate(Activation* const N, const Real* const weights, const Real* const biases) const
 {
     const Real* const outvals = N->outvals;
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
 
     Real tC(0), tI(0), tF(0), tO(0);
 
     for (int n=0; n<nNeurons; n++) {
         tC=0.; tI=0.; tF=0.; tO=0.;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             const Real oVal = *(outvals +lI->iI +i);
             tC += oVal * *(weights +lI->iW  +n*lI->nI +i);
@@ -84,7 +84,7 @@ void LSTMLayer::propagate(Activation* const N, const Real* const weights, const 
             tF += oVal * *(weights +lI->iWF +n*lI->nI +i);
             tO += oVal * *(weights +lI->iWO +n*lI->nI +i);
         }
-        }
+        //}
         
         tC += *(biases +n1stBias +n);
         *(N->in_vals +n1stNeuron +n) = tC;
@@ -112,7 +112,7 @@ void LSTMLayer::propagate(Activation* const N, const Real* const weights, const 
 void LSTMLayer::propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const
 {
     const Real* const outvals = N->outvals;
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
     const Link* const lR = recurrent_links;
 
     Real tC(0), tI(0), tF(0), tO(0);
@@ -120,8 +120,8 @@ void LSTMLayer::propagate(const Activation* const M, Activation* const N, const 
     for (int n=0; n<nNeurons; n++) {
         tC=0.; tI=0.; tF=0.; tO=0.;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             const Real oVal = *(outvals +lI->iI +i);
             tC += oVal * *(weights +lI->iW  +n*lI->nI +i);
@@ -129,7 +129,7 @@ void LSTMLayer::propagate(const Activation* const M, Activation* const N, const 
             tF += oVal * *(weights +lI->iWF +n*lI->nI +i);
             tO += oVal * *(weights +lI->iWO +n*lI->nI +i);
         }
-        }
+        //}
         for (int i=0; i<lR->nI; i++) {
             const Real oVal = *(M->outvals +lR->iI +i);
             tC += oVal * *(weights +lR->iW  +n*lR->nI +i);
@@ -185,14 +185,14 @@ inline Real NormalLayer::propagateErrors(const Link* const l, const Activation* 
 
 void NormalLayer::backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const
 {
-    //const Link* const lO = output_links;
+    const Link* const lO = output_links;
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
         
-        for (int k=0; k<output_links->size(); k++) {
-            const Link* const lO = (*output_links)[k];
+        //for (int k=0; k<output_links->size(); k++) {
+        //    const Link* const lO = (*output_links)[k];
         err += propagateErrors(lO, C, n, weights);
-        }
+        //}
         
         *(C->errvals +n1stNeuron +n) = err * func->evalDiff(*(C->in_vals +n1stNeuron+n));
     }
@@ -200,14 +200,14 @@ void NormalLayer::backPropagateDelta(Activation* const C, const Real* const weig
 
 void NormalLayer::backPropagateDeltaFirst(Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const
 {
-    //const Link* const lO = output_links;
+    const Link* const lO = output_links;
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
         
-        for (int k=0; k<output_links->size(); k++) {
-            const Link* const lO = (*output_links)[k];
+        //for (int k=0; k<output_links->size(); k++) {
+        //    const Link* const lO = (*output_links)[k];
         err += propagateErrors(lO, C, n, weights);
-        }
+        //}
         err += propagateErrors(recurrent_links, N, n, weights);
         
         *(C->errvals +n1stNeuron +n) = err * func->evalDiff(*(C->in_vals +n1stNeuron+n));
@@ -216,14 +216,14 @@ void NormalLayer::backPropagateDeltaFirst(Activation* const C, const Activation*
 
 void LSTMLayer::backPropagateDeltaFirst(Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const
 {
-    //const Link* const lO = output_links;
+    const Link* const lO = output_links;
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
         
-        for (int k=0; k<output_links->size(); k++) {
-            const Link* const lO = (*output_links)[k];
+        //for (int k=0; k<output_links->size(); k++) {
+        //    const Link* const lO = (*output_links)[k];
         err += propagateErrors(lO, C, n, weights);
-        }
+        //}
         err += propagateErrors(recurrent_links, N, n, weights);
 
         *(C->eMCell +n1stCell+n) =       ifun->evalDiff(*(C->in_vals+n1stNeuron+n)) * *(C->oIGates+n1stCell+n);
@@ -236,15 +236,15 @@ void LSTMLayer::backPropagateDeltaFirst(Activation* const C, const Activation* c
 
 void LSTMLayer::backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const
 {
-    //const Link* const lO = output_links;
+    const Link* const lO = output_links;
     for (int n=0; n<nNeurons; n++)
     {
         Real err = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
         
-        for (int k=0; k<output_links->size(); k++) {
-            const Link* const lO = (*output_links)[k];
+        //for (int k=0; k<output_links->size(); k++) {
+        //    const Link* const lO = (*output_links)[k];
         err += propagateErrors(lO, C, n, weights);
-        }
+        //}
 
         *(C->eMCell +n1stCell+n) = ifun->evalDiff(*(C->in_vals+n1stNeuron+n)) * *(C->oIGates+n1stCell+n);
         *(C->eIGates+n1stCell+n) = sigm->evalDiff(*(C->iIGates+n1stCell  +n)) * *(C->oMCell +n1stCell+n);
@@ -256,14 +256,14 @@ void LSTMLayer::backPropagateDelta(Activation* const C, const Real* const weight
 
 void LSTMLayer::backPropagateDelta(const Activation* const P, Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const
 {
-    //const Link* const lO = output_links;
+    const Link* const lO = output_links;
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
         
-        for (int k=0; k<output_links->size(); k++) {
-            const Link* const lO = (*output_links)[k];
+        //for (int k=0; k<output_links->size(); k++) {
+        //    const Link* const lO = (*output_links)[k];
         err += propagateErrors(lO, C, n, weights);
-        }
+        //}
         err += propagateErrors(recurrent_links, N, n, weights);
 
         *(C->eMCell +n1stCell+n) = ifun->evalDiff(*(C->in_vals+n1stNeuron+n)) * *(C->oIGates+n1stCell+n);
@@ -276,14 +276,14 @@ void LSTMLayer::backPropagateDelta(const Activation* const P, Activation* const 
 
 void LSTMLayer::backPropagateDeltaLast(const Activation* const P, Activation* const C, const Real* const weights, const Real* const biases) const
 {
-    //const Link* const lO = output_links;
+    const Link* const lO = output_links;
     for (int n=0; n<nNeurons; n++) {
         Real err = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
         
-        for (int k=0; k<output_links->size(); k++) {
-            const Link* const lO = (*output_links)[k];
+        //for (int k=0; k<output_links->size(); k++) {
+        //    const Link* const lO = (*output_links)[k];
         err += propagateErrors(lO, C, n, weights);
-        }
+        //}
 
         *(C->eMCell +n1stCell+n) = ifun->evalDiff(*(C->in_vals+n1stNeuron+n)) * *(C->oIGates+n1stCell+n);
         *(C->eIGates+n1stCell+n) = sigm->evalDiff(*(C->iIGates+n1stCell  +n)) * *(C->oMCell +n1stCell+n);
@@ -299,18 +299,18 @@ void LSTMLayer::backPropagateDeltaLast(const Activation* const P, Activation* co
 
 void NormalLayer::backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
 {
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
     const Link* const lR = recurrent_links;
     for (int n=0; n<nNeurons; n++) {
         const Real eC = *(C->errvals +n1stNeuron +n);
         *(grad->_B +n1stBias +n) = eC;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             *(grad->_W +lI->iW +n*lI->nI +i) = *(C->outvals +lI->iI +i) * eC;
         }
-        }
+        //}
         for (int i=0; i<lR->nI; i++) {
             *(grad->_W +lR->iW +n*lR->nI +i) = *(P->outvals +lR->iI +i) * eC;
         }
@@ -319,7 +319,7 @@ void NormalLayer::backPropagateGrads(const Activation* const P, const Activation
 
 void LSTMLayer::backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
 {
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
     const Link* const lR = recurrent_links;
     for (int n=0; n<nNeurons; n++) {
         const Real eC = *(C->eMCell  +n1stCell +n) * *(C->errvals +n1stNeuron +n);
@@ -330,8 +330,8 @@ void LSTMLayer::backPropagateGrads(const Activation* const P, const Activation* 
         *(grad->_B +n1stBias   +n) = eC; *(grad->_B +n1stBiasIG +n) = eI;
         *(grad->_B +n1stBiasFG +n) = eF; *(grad->_B +n1stBiasOG +n) = eO;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             const Real oVal = *(C->outvals+lI->iI+i);
             *(grad->_W+lI->iW +n*lI->nI+i) = oVal * eC;
@@ -339,7 +339,7 @@ void LSTMLayer::backPropagateGrads(const Activation* const P, const Activation* 
             *(grad->_W+lI->iWF+n*lI->nI+i) = oVal * eF;
             *(grad->_W+lI->iWO+n*lI->nI+i) = oVal * eO;
         }
-        }
+        //}
         for (int i=0; i<lR->nI; i++) {
             const Real oVal = *(P->outvals+lR->iI+i);
             *(grad->_W+lR->iW +n*lR->nI+i) = oVal * eC;
@@ -352,23 +352,23 @@ void LSTMLayer::backPropagateGrads(const Activation* const P, const Activation* 
 
 void NormalLayer::backPropagateGrads(const Activation* const C, Grads* const grad) const
 {
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
     for (int n=0; n<nNeurons; n++) {
         const Real eC = *(C->errvals +n1stNeuron +n);
         *(grad->_B +n1stBias +n) = eC;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             *(grad->_W +lI->iW +n*lI->nI +i) = *(C->outvals +lI->iI +i) * eC;
         }
-        }
+        //}
     }
 }
 
 void LSTMLayer::backPropagateGrads(const Activation* const C, Grads* const grad) const
 {
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
     for (int n=0; n<nNeurons; n++) {
         const Real eC = *(C->eMCell  +n1stCell +n) * *(C->errvals +n1stNeuron +n);
         const Real eI = *(C->eIGates +n1stCell +n) * *(C->errvals +n1stNeuron +n);
@@ -378,8 +378,8 @@ void LSTMLayer::backPropagateGrads(const Activation* const C, Grads* const grad)
         *(grad->_B +n1stBias   +n) = eC; *(grad->_B +n1stBiasIG +n) = eI;
         *(grad->_B +n1stBiasFG +n) = eF; *(grad->_B +n1stBiasOG +n) = eO;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             const Real oVal = *(C->outvals+lI->iI+i);
             *(grad->_W+lI->iW +n*lI->nI+i) = oVal * eC;
@@ -387,24 +387,24 @@ void LSTMLayer::backPropagateGrads(const Activation* const C, Grads* const grad)
             *(grad->_W+lI->iWF+n*lI->nI+i) = oVal * eF;
             *(grad->_W+lI->iWO+n*lI->nI+i) = oVal * eO;
         }
-        }
+        //}
     }
 }
 
 void NormalLayer::backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
 {
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
     const Link* const lR = recurrent_links;
     for (int n=0; n<nNeurons; n++) {
         const Real eC = *(C->errvals +n1stNeuron +n);
         *(grad->_B +n1stBias +n) += eC;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             *(grad->_W +lI->iW +n*lI->nI +i) += *(C->outvals +lI->iI +i) * eC;
         }
-        }
+        //}
         for (int i=0; i<lR->nI; i++) {
             *(grad->_W +lR->iW +n*lR->nI +i) += *(P->outvals +lR->iI +i) * eC;
         }
@@ -413,7 +413,7 @@ void NormalLayer::backPropagateAddGrads(const Activation* const P, const Activat
 
 void LSTMLayer::backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
 {
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
     const Link* const lR = recurrent_links;
     for (int n=0; n<nNeurons; n++) {
         const Real eC = *(C->eMCell  +n1stCell +n) * *(C->errvals +n1stNeuron +n);
@@ -424,8 +424,8 @@ void LSTMLayer::backPropagateAddGrads(const Activation* const P, const Activatio
         *(grad->_B +n1stBias   +n) += eC; *(grad->_B +n1stBiasIG +n) += eI;
         *(grad->_B +n1stBiasFG +n) += eF; *(grad->_B +n1stBiasOG +n) += eO;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             const Real oVal = *(C->outvals+lI->iI+i);
             *(grad->_W+lI->iW +n*lI->nI+i) += oVal * eC;
@@ -433,7 +433,7 @@ void LSTMLayer::backPropagateAddGrads(const Activation* const P, const Activatio
             *(grad->_W+lI->iWF+n*lI->nI+i) += oVal * eF;
             *(grad->_W+lI->iWO+n*lI->nI+i) += oVal * eO;
         }
-        }
+        //}
         for (int i=0; i<lR->nI; i++) {
             const Real oVal = *(P->outvals+lR->iI+i);
             *(grad->_W+lR->iW +n*lR->nI+i) += oVal * eC;
@@ -446,23 +446,23 @@ void LSTMLayer::backPropagateAddGrads(const Activation* const P, const Activatio
 
 void NormalLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad) const
 {
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
     for (int n=0; n<nNeurons; n++) {
         const Real eC = *(C->errvals +n1stNeuron +n);
         *(grad->_B +n1stBias +n) = eC;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             *(grad->_W +lI->iW +n*lI->nI +i) += *(C->outvals +lI->iI +i) * eC;
         }
-        }
+        //}
     }
 }
 
 void LSTMLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad) const
 {
-    //const Link* const lI = input_links;
+    const Link* const lI = input_links;
     for (int n=0; n<nNeurons; n++) {
         const Real eC = *(C->eMCell  +n1stCell +n) * *(C->errvals +n1stNeuron +n);
         const Real eI = *(C->eIGates +n1stCell +n) * *(C->errvals +n1stNeuron +n);
@@ -472,8 +472,8 @@ void LSTMLayer::backPropagateAddGrads(const Activation* const C, Grads* const gr
         *(grad->_B +n1stBias   +n) = eC; *(grad->_B +n1stBiasIG +n) = eI;
         *(grad->_B +n1stBiasFG +n) = eF; *(grad->_B +n1stBiasOG +n) = eO;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
+        //for (int k=0; k<input_links->size(); k++) {
+        //    const Link* const lI = (*input_links)[k];
         for (int i=0; i<lI->nI; i++) {
             const Real oVal = *(C->outvals+lI->iI+i);
             *(grad->_W+lI->iW +n*lI->nI+i) += oVal * eC;
@@ -481,6 +481,6 @@ void LSTMLayer::backPropagateAddGrads(const Activation* const C, Grads* const gr
             *(grad->_W+lI->iWF+n*lI->nI+i) += oVal * eF;
             *(grad->_W+lI->iWO+n*lI->nI+i) += oVal * eO;
         }
-        }
+        //}
     }
 }

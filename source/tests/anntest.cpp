@@ -109,7 +109,7 @@ int main (int argc, char** argv)
         settings.lRate=0.0001;
         settings.nnLayer1 =32;
         settings.nnLayer2 =32;
-        settings.nnLayer3 =0;
+        settings.nnLayer3 =6;
         settings.nnType = 1;
     }
 	debugLvl = 9;

@@ -101,7 +101,6 @@ public:
             res[k] = 2.*(vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i]) - 1.;
             k++;
         }
-        
     }
     
 	void scale(vector<Real>& res) const
@@ -155,7 +154,6 @@ struct ActionInfo
 {
     bool realValues; //finite set, continuous
 	int dim; //number of actions per turn
-    
     //discrete actions
     int zeroact; //if finite set: one that corresponds to 0
 	vector<int> bounds, shifts; //if finite set, number of choices per "dim"
@@ -300,107 +298,4 @@ public:
         }
     }
 };
-
-/*
-struct TraceContainer
-{
-    int maxLen, nAgents;
-    
-    real *stData, *rData;
-    int  *actData;
-    bool *termData;
-    
-    //vector<real> es;
-    vector<int> start;
-    
-    TraceContainer(int maxLen, int nAgents, int sdims) :
-    maxLen(maxLen), nAgents(nAgents), sdims(sdims), start(maxLen)//, es(maxLen)
-    {
-        start.resize(maxLen);
-        posix_memalign((void**)&stData,  64, sizeof(real) * maxLen * nAgents * sdims);
-        posix_memalign((void**)&rData,   64, sizeof(real) * maxLen * nAgents);
-        posix_memalign((void**)&actData, 64, sizeof(int)  * maxLen * nAgents);
-        posix_memalign((void**)&termData,64, sizeof(bool) * maxLen * nAgents);
-        
-        memset(stData,  0, sizeof(real) * maxLen * nAgents * sdims);
-        memset(rData,   0, sizeof(real) * maxLen * nAgents);
-        memset(actData, 0, sizeof(int)  * maxLen * nAgents);
-        memset(termData,0, sizeof(bool) * maxLen * nAgents);
-        
-        //es[start] = 1;
-        debug("allocated traceContainer for %d agents", nAgents);
-    };
-    
-    inline void getCurrBuffs(real*& states, int*& actions, real*& rewards, bool*& term, const int n)
-    {
-        if (start[n] >= maxLen || start[n] <0) die("data corruption");
-        states  = stData  + (start[n] + n*maxLen)*sdims;
-        actions = actData + (start[n] + n*maxLen);
-        rewards = rData   + (start[n] + n*maxLen);
-        term    = termData+ (start[n] + n*maxLen);
-    }
-    
-    inline void advance(real lambda, const int n)
-    {
-        //for (auto& e : es) e *= lambda;
-        start[n] = (start[n] == maxLen-1) ? 0 : start[n] + 1;
-        //es[start] = 1;
-    }
-    
-    inline void access(State& s, Action& a, real& r, bool& final, const int n, const int k) const
-    {
-        int ind = start[n] - k;
-        if (ind < 0)       ind += maxLen;
-        if (ind >= maxLen) ind -= maxLen;
-        
-        s.vals = stData + (ind + n*maxLen)*sdims;
-        s.ndims = sdims;
-        
-        a     =  actData[ind + n*maxLen];
-        r     =    rData[ind + n*maxLen];
-        final = termData[ind + n*maxLen];
-        //e = es[ind];
-    }
-    
-    inline void access(State& s, const int n, const int k) const
-    {
-        int ind = start[n] - k;
-        if (ind < 0)       ind += maxLen;
-        if (ind >= maxLen) ind -= maxLen;
-        
-        s.vals = stData + (ind + n*maxLen)*sdims;
-        s.ndims = sdims;
-    }
-    
-    
-    inline void access(State& s, bool& final, const int n, const int k) const
-    {
-        int ind = start[n] - k;
-        if (ind < 0)       ind += maxLen;
-        if (ind >= maxLen) ind -= maxLen;
-        
-        s.vals = stData + (ind + n*maxLen)*sdims;
-        s.ndims = sdims;
-        final = termData[ind + n*maxLen];
-    }
-    
-    inline void access(Action& a, const int n, const int k) const
-    {
-        int ind = start[n] - k;
-        if (ind < 0)       ind += maxLen;
-        if (ind >= maxLen) ind -= maxLen;
-        
-        a = actData[ind + n*maxLen];
-    }
-    
-    inline void set(Action& a, const int n, const int k) const
-    {
-        int ind = start[n] - k;
-        if (ind < 0)       ind += maxLen;
-        if (ind >= maxLen) ind -= maxLen;
-        
-        actData[ind + n*maxLen] = a;
-    }
-};
-*/
 

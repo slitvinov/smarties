@@ -102,7 +102,7 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
         }
         indexes.push_back(i);
     }
-    //net->checkGrads(inputs[101], 2,1);//inputs[101].size()-1
+    net->checkGrads(inputs[101], 2,1);//inputs[101].size()-1
     for (int e=0; e<nepochs; e++) {
         start = std::chrono::high_resolution_clock::now();
         Real batch_err(0.), err(100.);
@@ -116,7 +116,7 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
         if (batch_err/(Real)ndata > 1.)  printf("Problem %f %d \n", batch_err, ndata);
         //cout << profiler->printStat() << endl;
     }
-    //net->checkGrads(inputs[101], 2,1);//inputs[101].size()-1
+    net->checkGrads(inputs[101], 2,1);//inputs[101].size()-1
 }
 
 
@@ -124,17 +124,18 @@ void FishNet::trainBatch(const vector<const vector<Real>*>& inputs, const vector
 {
     trainMSE = 0.;
     int nseries = inputs.size();
-    vector<Real> res(nOutputs);
+    vector<Real> res(nOutputs), errs(nOutputs,0);
     
     for (int k=0; k<nseries; k++) {
         net->predict(*(inputs[k]), res, net->series[0]);
         
         for (int j =0; j<nOutputs; j++) {
             const Real err = (*(targets[k]))[j] - res[j];
-            *(net->series[0]->errvals +net->iOutputs+j) = err;
+            errs[j] = err;
+            //*(net->series[0]->errvals +net->iOut[j]) = err;
             trainMSE += 0.5*err*err;
         }
-        
+        net->setOutputErrors(errs, net->series[0]);
         net->computeDeltas(net->series[0]);
         net->computeAddGrads(net->series[0], net->grad);
     }
@@ -145,26 +146,31 @@ void FishNet::trainBatch(const vector<const vector<Real>*>& inputs, const vector
 
 void FishNet::trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE)
 {
-    vector<Real> res(nOutputs);
+    vector<Real> res(nOutputs), errs(nOutputs,0);
     const int nseries = inputs.size();
     net->allocateSeries(nseries);
     
     net->predict(inputs[0], res, net->series[0]);
     for (int i=0; i<nOutputs; i++) {
-        const Real err = targets[0][i] - *(net->series[0]->outvals+net->iOutputs+i);
-        *(net->series[0]->errvals +net->iOutputs+i) = err;
+        //const Real err = targets[0][i] - *(net->series[0]->outvals+net->iOutputs+i);
+        const Real err = targets[0][i] - res[i];
+        errs[i] = err;
+        //*(net->series[0]->errvals +net->iOutputs+i) = err;
         //printf("tgt %f out %f err %f\n",targets[0][i],*(net->series[0]->outvals+net->iOutputs+i), err);
         trainMSE = 0.5*err*err;
     }
+    net->setOutputErrors(errs, net->series[0]);
     
     for (int k=1; k<nseries; k++) {
         net->predict(inputs[k], res, net->series[k-1], net->series[k]);
         for (int i=0; i<nOutputs; i++) {
-            const Real err = targets[k][i] - *(net->series[k]->outvals+net->iOutputs+i);
-            *(net->series[k]->errvals +net->iOutputs+i) = err;
+            const Real err = targets[k][i] - res[i];
+            errs[i] = err;
+            //*(net->series[k]->errvals +net->iOutputs+i) = err;
             //printf("tgt %f out %f err %f\n",targets[k][i],*(net->series[k]->outvals+net->iOutputs+i), err);
             trainMSE += 0.5*err*err;
         }
+        net->setOutputErrors(errs, net->series[k]);
     }
     
     net->computeDeltasSeries(net->series, 0, nseries-1);
@@ -172,7 +178,6 @@ void FishNet::trainSeries(const vector<vector<Real>>& inputs, const vector<vecto
 
     opt->update(net->grad,nseries);
     trainMSE /= (Real)nseries;
-
 }
 
 void FishNet::predict(const vector<Real>& S1, vector<Real>& Q1, const vector<Real>& S2, vector<Real>& Q2, int iAgent)

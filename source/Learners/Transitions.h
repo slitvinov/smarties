@@ -34,13 +34,6 @@ struct Sequence
     bool ended;
 };
 
-struct Tuples
-{
-    vector<vector<Real>> s;
-    vector<Real> r;
-    vector<int>  a;
-};
-
 struct Gen
 {
     mt19937 * g;

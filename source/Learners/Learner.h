@@ -35,24 +35,24 @@ protected:
     const int nAgents, batchSize, tgtUpdateDelay, nThreads, nInputs, nOutputs;
     const bool bRecurrent, bTrain;
     const Real tgtUpdateAlpha, gamma, greedyEps;
-    int cntUpdateDelay;
+    int cntUpdateDelay, taskCounter;
     ActionInfo aInfo;
     StateInfo  sInfo;
     mt19937 * gen;
     Profiler* profiler;
     Network* net;
     Optimizer* opt;
-    Transitions* T;
+    Transitions* data;
     trainData stats;
     vector<trainData*> Vstats;
     
-    virtual void Train(const int thrID, const int seq, const int first) = 0;
-    virtual void Train(const int thrID, const int seq, const int samp, const int first) = 0;
-    virtual void Train(const vector<int>& seq) = 0;
-    virtual void Train(const vector<int>& seq, const vector<int>& samp) = 0;
+    virtual void Train_BPTT(const int seq, const int first=0, const int thrID=0)=0;
+    virtual void Train(const int seq, const int samp, const int first=0, const int thrID=0)=0;
+    
     void dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs);
     void dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs);
     void processStats(vector<trainData*> _stats);
+    
 public:
     vector<bool> flags;
     
