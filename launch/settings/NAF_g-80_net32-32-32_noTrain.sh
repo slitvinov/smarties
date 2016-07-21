@@ -1,6 +1,6 @@
 SETTINGS=
 
-SETTINGS+=" --gamma 0.8"
+SETTINGS+=" --gamma 0.9"
 SETTINGS+=" --learnrate 0.0001"
 SETTINGS+=" --nnl1 32"
 SETTINGS+=" --nnl2 32"
