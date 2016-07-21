@@ -129,22 +129,22 @@ void NewFishEnvironment::setDims()
         }
         for (int i=0; i<5; i++) {
             sI.bounds.push_back(1); // (FPAbove  ) x 5 [40]
-            sI.top.push_back(1e-4); sI.bottom.push_back(-1e-4);
+            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         for (int i=0; i<5; i++) {
             sI.bounds.push_back(1); // (FVAbove  ) x 5 [45]
-            sI.top.push_back(1e-4); sI.bottom.push_back(-1e-4);
+            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         for (int i=0; i<5; i++) {
             sI.bounds.push_back(1); // (FPBelow  ) x 5 [50]
-            sI.top.push_back(1e-4); sI.bottom.push_back(-1e-4);
+            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         for (int i=0; i<5; i++) {
             sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
-            sI.top.push_back(1e-4); sI.bottom.push_back(-1e-4);
+            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         /*
@@ -225,7 +225,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 1) {
-        const Real scaledBndEfficiency = 2.*(t_sN.vals[16]-.3)/(1.-.3) -1.; //between -1 and 1
+        const Real scaledBndEfficiency = 2.*(t_sN.vals[16]-.3)/(.6-.3) -1.; //between -1 and 1
 #ifndef _scaleR_
         reward = scaledBndEfficiency;
         if (new_sample) reward = -1./(1.-gamma);
@@ -235,7 +235,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 2) {
-        const Real scaledRew = 1. -fabs(t_sN.vals[0]-goalDY) -fabs(t_sN.vals[1]); //actually goald DX
+        const Real scaledRew = 1. -2.*fabs(t_sN.vals[1]-goalDY);
 #ifndef _scaleR_
         reward =  scaledRew;
         if (new_sample) reward = -1./(1.-gamma);
@@ -245,6 +245,16 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 3) {
+        const Real scaledRew = 1. -fabs(t_sN.vals[0]-goalDY) -fabs(t_sN.vals[1]); //actually goal DX
+#ifndef _scaleR_
+        reward = scaledRew;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
+        if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+#else
+        reward = (1.-gamma)*scaledRew; //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
+        if (new_sample) reward = -1.;  // = - max cumulative reward
+#endif
+    }
+    else if (study == 4) {
         const Real scaledEfficiency = 0.;
 #ifndef _scaleR_
         reward = scaledEfficiency;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)

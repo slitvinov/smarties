@@ -13,7 +13,7 @@
 #include "../Settings.h"
 using namespace std;
 
-class Activation
+class Response
 {
 public:
     virtual inline Real eval(const Real& arg) const
@@ -25,18 +25,8 @@ public:
     {
         return 1;
     }
-#if SIMD != 1
-    virtual inline vec eval(const vec& arg) const
-    {
-        return arg;
-    }
-    virtual inline vec evalDiff(const vec& arg) const
-    {
-        return SET1(1.);
-    }
-#endif
 };
-class Tanh : public Activation
+class Tanh : public Response
 {
 public:
     inline Real eval(const Real& arg) const override
@@ -54,7 +44,7 @@ public:
         return 4*e2x/(t*t);
     }
 };
-class Tanh2 : public Activation
+class Tanh2 : public Response
 {
 public:
     inline Real eval(const Real& arg) const override
@@ -72,7 +62,7 @@ public:
         return 8.*e2x/(t*t);
     }
 };
-class Sigm : public Activation
+class Sigm : public Response
 {
 public:
     inline Real eval(const Real& arg) const override
@@ -89,7 +79,7 @@ public:
         return ex/e2x;
     }
 };
-class Gaussian : public Activation
+class Gaussian : public Response
 {
 public:
     inline Real eval(const Real& x) const override
@@ -102,7 +92,7 @@ public:
         return -2. * x * exp(-x*x);
     }
 };
-class SoftSign : public Activation
+class SoftSign : public Response
 {
 public:
     inline Real eval(const Real& x) const override
@@ -115,7 +105,7 @@ public:
         return 1./(denom*denom);
     }
 };
-class SoftSign2 : public Activation
+class SoftSign2 : public Response
 {
 public:
     inline Real eval(const Real& x) const override
@@ -128,7 +118,7 @@ public:
         return 2./(denom*denom);
     }
 };
-class SoftSigm : public Activation
+class SoftSigm : public Response
 {
 public:
     inline Real eval(const Real& x) const override
@@ -142,7 +132,7 @@ public:
         return 1./(denom*denom);
     }
 };
-class HardSign : public Activation
+class HardSign : public Response
 {
     const Real a;
 public:
@@ -156,21 +146,8 @@ public:
         const Real denom = 1./sqrt(1. + a*a*x*x);
         return a*(denom*denom*denom);
     }
-#if SIMD != 1 //TODO a
-    /*
-    inline vec eval(const vec& x) const override
-    {
-        return MUL(x, RSQRT( MUL(x,x)));
-    }
-    inline vec evalDiff(const vec& x) const override
-    {
-        const vec tmp = RSQRT( MUL (x,x));
-        return MUL(tmp, MUL(tmp,tmp));
-    }
-     */
-#endif
 };
-class HardSigm : public Activation
+class HardSigm : public Response
 {
     const Real a;
 public:
@@ -184,18 +161,4 @@ public:
         const Real denom = 1/sqrt(1. + a*a*x*x);
         return a*0.5*(denom*denom*denom);
     }
-#if SIMD != 1
-    /*
-    inline vec eval(const vec& x) const override
-    {
-        return MUL( SET1(0.5), ADD(SET1(1.), MUL(x, RSQRT( MUL(x,x))) ));
-    }
-    inline vec evalDiff(const vec& x) const override
-    {
-        const vec tmp = RSQRT( MUL (x,x));
-        const vec tmp2 = MUL (SET1(0.5), tmp);
-        return MUL(tmp2, MUL(tmp,tmp) );
-    }
-     */
-#endif
 };

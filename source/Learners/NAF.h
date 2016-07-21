@@ -17,12 +17,9 @@ class NAF : public Learner
 {
     const int nA, nL;
     
-    void Train(const int thrID, const int seq, const int first) override;
-    void Train(const int thrID, const int seq, const int samp, const int first) override;
-    void Train(const vector<int>& seq) override;
-    void Train(const vector<int>& seq, const vector<int>& samp) override;
-
-    vector<Real> getPolicy(const vector<Real>& out) const;
+    void Train_BPTT(const int seq, const int first=0, const int thrID=0) override;
+    void Train(const int seq, const int samp, const int first=0, const int thrID=0) override;
+    
     vector<Real> computeQandGrad(vector<Real>& grad, const vector<Real>& act, vector<Real>& out, Real& error) const;
     //Real computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const;
     

@@ -37,37 +37,40 @@ greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI
     profiler = new Profiler();
     net = new Network(lsize, bRecurrent, settings);
     opt = new AdamOptimizer(net, profiler, settings);
-    T = new Transitions(env, settings);
+    data = new Transitions(env, settings);
     flags.resize(batchSize, true);
 }
 
 bool Learner::checkBatch() const
 {
-    const int ndata = (bRecurrent) ? T->nSequences : T->nTransitions;
+    const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
     if (ndata<batchSize) return false; //do we have enough data?
     
     //if no learning has been done yet: flags initialized as true
     //if learning begun, master sets flags to false and each thread sets flag to true as batch is processed
-    bool done(true);
-    for (int i=0; i<batchSize; i++) done = done && flags[i];
+    //bool done(true);
+    //for (int i=0; i<batchSize; i++) done = done && flags[i];
     
-    return done;
+    return taskCounter>=batchSize;
 }
 
 void Learner::TrainBatch()
 {
-    const int ndata = (bRecurrent) ? T->nSequences : T->nTransitions;
+    const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
     if (ndata<batchSize) return; //do we have enough data?
-    if (cntUpdateDelay <= 0) {
+    int nAddedGradients(0);
+    
+    if (cntUpdateDelay <= 0) { //DQN-style frozen weight
         cntUpdateDelay = tgtUpdateDelay;
         if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
         else net->updateFrozenWeights();
     }
     cntUpdateDelay--;
-    if (T->inds.size()<batchSize) {
-        T->inds.resize(ndata);
-        std::iota(T->inds.begin(), T->inds.end(), 0);
-        random_shuffle(T->inds.begin(), T->inds.end(),*(T->gen));
+    
+    if (data->inds.size()<batchSize) { //uniform sampling
+        data->inds.resize(ndata);
+        std::iota(data->inds.begin(), data->inds.end(), 0);
+        random_shuffle(data->inds.begin(), data->inds.end(),*(data->gen));
     }
     
     /*
@@ -79,61 +82,83 @@ void Learner::TrainBatch()
      */
     
     if(bRecurrent) {
-        vector<int> seq(batchSize);
-        for (int i(0); i<batchSize; i++) {
-            const int ind = T->inds.back();
-            T->inds.pop_back();
-            seq[i]  = ind;
+        
+        for (int i(0); i<batchSize; i++)
+        {
+            const int ind = data->inds.back();
+            data->inds.pop_back();
+            const int seqSize = data->Set[ind]->tuples.size();
+            net->allocateSeries(seqSize);
+            nAddedGradients += seqSize-1;
+            
+            Train_BPTT(ind);
         }
-        Train(seq);
+        
     } else {
-        vector<int> seq(batchSize), samp(batchSize);
-        for (int i(0); i<batchSize; i++) {
-            const int ind = T->inds.back();
-            T->inds.pop_back();
-            int k(0), back(0), indT(T->Set[0]->tuples.size()-1);
-            while (ind>=indT) {
-                back=indT;
-                indT+=T->Set[++k]->tuples.size()-1;
+        
+        nAddedGradients = batchSize;
+        for (int i(0); i<batchSize; i++)
+        {
+            const int ind = data->inds.back();
+            data->inds.pop_back();
+            
+            int k(0), back(0), indT(data->Set[0]->tuples.size()-1);
+            while (ind >= indT) {
+                back = indT;
+                indT += data->Set[++k]->tuples.size()-1;
             }
-            seq[i]  = k;
-            samp[i] = ind-back;
+            
+            Train(k, ind-back);
         }
-        Train(seq, samp);
+        
     }
+    
+    opt->nepoch=stats.epochCount;
+    opt->update(net->grad,nAddedGradients);
 }
+
 
 void Learner::TrainTasking(Master* const master)
 {
     vector<int> seq(batchSize), samp(batchSize);
     int nAddedGradients(0), maxBufSize(0);
+    
     #pragma omp parallel num_threads(nThreads)
-    while (true) {
-        const int ndata =(bRecurrent) ? T->nSequences : T->nTransitions;
-        #pragma omp single
+    while (true)
+    {
+        const int ndata =(bRecurrent) ? data->nSequences : data->nTransitions;
+        
+        #pragma omp master
         {
-            if (ndata>batchSize) {
-                for (int i(0); i<batchSize; i++) flags[i] = false;
+            if (ndata>batchSize)
+            {
+                taskCounter=0;
+                nAddedGradients = 0;
                 
-                if (T->inds.size()<batchSize) {
-                    T->inds.resize(ndata);
-                    std::iota(T->inds.begin(), T->inds.end(), 0);
-                    random_shuffle(T->inds.begin(),T->inds.end(),*(T->gen));
-                    processStats(Vstats);
-                    opt->nepoch=stats.epochCount;
+                if (data->inds.size()<batchSize) //reset sampling
+                {
+                    data->inds.resize(ndata);
+                    std::iota(data->inds.begin(), data->inds.end(), 0);
+                    random_shuffle(data->inds.begin(), data->inds.end(), *(data->gen));
+                    processStats(Vstats); //dump info about convergence
+                    opt->nepoch=stats.epochCount; //used to anneal learning rate
                 }
-                nAddedGradients =0;
-                if(bRecurrent) {
-                    for (int i(0); i<batchSize; i++) {
-                        const int ind = T->inds.back();
-                        T->inds.pop_back();
+                
+                if(bRecurrent)
+                {
+                    for (int i(0); i<batchSize; i++)
+                    {
+                        const int ind = data->inds.back();
+                        data->inds.pop_back();
                         seq[i]  = ind;
-                        const int seqSize = T->Set[ind]->tuples.size();
-                        nAddedGradients += seqSize-1;
-                        maxBufSize = max(maxBufSize,seqSize);
+                        const int seqSize = data->Set[ind]->tuples.size();
+                        nAddedGradients += seqSize-1; //to normalize mean gradient for update
+                        maxBufSize = max(maxBufSize,seqSize); //allocate network activations
                     }
+                    
                     //LSTM NFQ requires size()+1 activations of the net:
                     net->allocateSeries(2+nThreads*(maxBufSize+1)); //0 and 1 reserved
+                    
                     #pragma omp flush
                     
                     for (int i(0); i<batchSize; i++) {
@@ -142,27 +167,31 @@ void Learner::TrainTasking(Master* const master)
                         {
                             const int thrID = omp_get_thread_num();
                             const int first = 2+(maxBufSize+1)*thrID;
-                            Train(thrID, knd, first);
-                            flags[i] = true;
-                            #pragma omp flush
-                            printf("Thd ID %d has finished his task (%d %d %d)\n",thrID,knd,first,maxBufSize);
-                            fflush(0);
+                            Train_BPTT(knd, first, thrID);
+                            
+                            #pragma omp atomic
+                            taskCounter++;
                         }
                     }
-                } else {
-                    for (int i(0); i<batchSize; i++) {
-                        const int ind = T->inds.back();
-                        T->inds.pop_back();
-                        int k(0), back(0), indT(T->Set[0]->tuples.size()-1);
-                        while (ind>=indT) {
-                            back=indT;
-                            indT+=T->Set[++k]->tuples.size()-1;
+                }
+                else
+                {
+                    for (int i(0); i<batchSize; i++)
+                    {
+                        const int ind = data->inds.back();
+                        data->inds.pop_back();
+                        int k(0), back(0), indT(data->Set[0]->tuples.size()-1);
+                        while (ind >= indT) {
+                            back = indT;
+                            indT += data->Set[++k]->tuples.size()-1;
                         }
                         seq[i]  = k;
                         samp[i] = ind-back;
                     }
+                    
                     nAddedGradients = batchSize;
                     net->allocateSeries(2+nThreads*3);
+                    
                     #pragma omp flush
                     
                     for (int i(0); i<batchSize; i++) {
@@ -170,22 +199,27 @@ void Learner::TrainTasking(Master* const master)
                         {
                             const int thrID = omp_get_thread_num();
                             const int first = 2+3*thrID;
-                            Train(thrID, seq[i], samp[i], first);
-                            flags[i] = true;
-                            #pragma omp flush
+                            Train(seq[i], samp[i], first, thrID);
+                            
+                            #pragma omp atomic
+                            taskCounter++;
                         }
                     }
                 }
             }
+            //TODO: can add task to update sampling probabilities for prioritized exp replay
             #ifndef MEGADEBUG
-            master->hustle();
+            master->hustle(); //master goes to communicate with slaves
             #endif
         }
+        #pragma omp barrier
+        
+        //here be omp fors:
         if (ndata>batchSize) {
-            const int thrID = omp_get_thread_num();
-            opt->stackGrads(net->grad, net->Vgrad); //thrID
-            opt->update(net->grad,nAddedGradients);
+            opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads (TODO: do not sum 0 component of Vgrad as now we have a pragma omp master above)
+            opt->update(net->grad,nAddedGradients); //update
         }
+        
         if (cntUpdateDelay <= 0) {
             #pragma omp master
             cntUpdateDelay = tgtUpdateDelay;
@@ -204,7 +238,7 @@ void Learner::save(string name)
     const string stuff = name + ".status";
     FILE * f = fopen(stuff.c_str(), "w");
     if (f == NULL) die("Save fail\n");
-    fprintf(f, "policy iter: %d\n", T->anneal);
+    fprintf(f, "policy iter: %d\n", data->anneal);
     fprintf(f, "epoch count: %d\n", stats.epochCount);
     fclose(f);
 }
@@ -212,7 +246,7 @@ void Learner::save(string name)
 void Learner::restart(string name)
 {
     _info("Restarting from saved policy...\n");
-    T->restartSamples();
+    data->restartSamples();
     if ( net->restart(name + ".net") ) {_info("Restart successful, moving on...\n");}
     else { _info("Not all policies restarted, therefore assumed zero. Moving on...\n");}
     save("restarted_policy.net");
@@ -220,8 +254,8 @@ void Learner::restart(string name)
     if(f != NULL) {
         int val;
         fscanf(f, "policy iter: %d\n", &val);
-        if(val>=0) T->anneal = val;
-        printf("policy iter: %d\n", T->anneal);
+        if(val>=0) data->anneal = val;
+        printf("policy iter: %d\n", data->anneal);
         val=-1;
         fscanf(f, "epoch count: %d\n", &val);
         if(val>=0) stats.epochCount = val;
@@ -241,14 +275,14 @@ void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
     */
     const Real max_Q = *max_element(Qs.begin(), Qs.end());
     const Real min_Q = *min_element(Qs.begin(), Qs.end());
-    stats.MSE += err*err;
+    stats.MSE  += err*err;
     stats.relE += fabs(err)/(max_Q-min_Q);
     stats.avgQ += Q;
     stats.minQ = std::min(stats.minQ,Q);
     stats.maxQ = std::max(stats.maxQ,Q);
     stats.dumpCount++;
     
-    if (T->nTransitions==stats.dumpCount && T->nTransitions>1) {
+    if (data->nTransitions==stats.dumpCount && data->nTransitions>1) {
         const Real mean_err = stats.MSE /(stats.dumpCount-1);
         const Real mean_Q   = stats.avgQ/stats.dumpCount;
         const Real mean_rel = stats.relE/stats.dumpCount;
@@ -260,10 +294,9 @@ void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
         filestats<<stats.epochCount<<" "<<mean_err<<" "<<mean_rel<<" "<<mean_Q<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
         filestats.close();
         
-        
         stats.dumpCount = 0;
         stats.epochCount++;
-        T->anneal++;
+        data->anneal++;
         if (stats.epochCount % 100==0) save("policy");
         
         stats.minQ=1e5; stats.maxQ=-1e5; stats.MSE=0; stats.avgQ=0; stats.relE=0;

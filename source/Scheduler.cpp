@@ -180,35 +180,6 @@ void Master::hustle()
     die("How on earth could you possibly get here? \n");
 }
 
-/*
-void Master::hustle()
-{
-    int agentId(0), completed(0), slave(0), info(0);
-    while (true) {
-        #ifndef MEGADEBUG
-        MPI_Recv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
-        slave = status.MPI_SOURCE;
-        //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
-        MPI_Recv(inbuf, inOneSize, MPI_BYTE, slave, 2, MPI_COMM_WORLD, &status);
-        #endif
-        unpackChunk(inbuf, info, sOld, aOld, r, s);
-        const int agentID = (slave)*nAgents +agentId;
-        assert(agentID>=0);
-        learner->select(agentID, s, a, sOld, aOld, info, r);
-        //printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",agentID,
-        //sOld.print().c_str(),s.print().c_str(),aOld.print().c_str(),r,a.print().c_str());
-        totR += r;
-        if (info != 2) { //not terminal
-            #ifndef MEGADEBUG
-            packChunk(outbuf, a);
-            MPI_Send(outbuf, outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD);
-            #endif
-        }
-        if (iter++ % saveFreq == 0) save();
-        if (learner->checkBatch()) return;
-    }
-}
-*/
 Slave::Slave(Environment* env, int me, Settings & settings) :
 env(env), agents(env->agents), me(me), bTrain(settings.bTrain)
 {

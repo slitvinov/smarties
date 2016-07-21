@@ -39,11 +39,6 @@ public:
     void train(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, int batchsize, int nepochs);
     void train(const vector<vector<vector<Real>>>& inputs, const vector<vector<vector<Real>>>& targets, int nepochs);
     
-    void resetMemories(int iAgent=0)
-    {
-        net->clearMemory(net->mem[iAgent]->outvals, net->mem[iAgent]->ostates);
-    }
-    
     void trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE);
     void trainBatch(const vector<const vector<Real>*>& inputs, const vector<const vector<Real>*>& targets, Real & trainMSE);
     
