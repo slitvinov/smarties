@@ -239,6 +239,5 @@ void Transitions::updateP()
     
     delete dist;
     dist = new discrete_distribution<int>(Ps.begin(), Ps.end());
-    //die("Job's done\n");
 }
 #endif

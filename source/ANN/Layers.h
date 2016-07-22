@@ -14,8 +14,8 @@
 #include <iostream>
 #include <cstring>
 
-#define _allocateClean(name, size) { const int sizeSIMD=ceil(size/4.)*4.*sizeof(Real); posix_memalign((void **)& name, ALLOC, sizeSIMD); memset(name, 0, size); }
-#define _allocateQuick(name, size) {const int sizeSIMD=ceil(size/4.)*4.*sizeof(Real);  posix_memalign((void **)& name, ALLOC, sizeSIMD); }
+#define _allocateClean(name, size) { const int sizeSIMD=ceil(size/4.)*4.*sizeof(Real); posix_memalign((void **)& name, 32, sizeSIMD); memset(name, 0, size); }
+#define _allocateQuick(name, size) { const int sizeSIMD=ceil(size/4.)*4.*sizeof(Real); posix_memalign((void **)& name, 32, sizeSIMD); }
 #define _myfree( name ) free( name );
 
 using namespace std;
@@ -23,7 +23,26 @@ using namespace std;
 struct Link
 {
     bool LSTM;
-    int nI, iI, nO, iO, iW, iC, iWI, iWF, iWO;
+    /*
+     a link here is defined as link layer to layer:
+     index iI along the network activation outvals representing the index of the first neuron of input layer
+     the number nI of neurons of the input layer
+     the index iO of the first neuron of the output layer
+     the number of neurons in the output layer nO
+     the index of the first weight iW along the weight vector
+     the weights are all to all: so this link occupies space iW to (iW + nI*nO) along weight vector
+     */
+    int nI, iI, nO, iO, iW;
+    
+    /*
+     if link is TO lstm, then the rules change a bit
+     each LSTM block contains 4 neurons, one is the proper cell and then there are the 3 gates
+     if a input signal is connected to one of the four, is also connected to the others 
+     thus we just need the index of the first weight for the 3 gates (could have skipped this, iWi = iW + nO*nI and so forth)
+     additionally the LSTM contains a memory, contained in Activation->ostate
+     memory and gates are treated differently than normal neurons, therefore are contained in separate array, and i keep track of the position with iC
+     */
+    int iC, iWI, iWF, iWO;
     
     Link(int nI, int iI, int nO, int iO, int iW) : LSTM(false), nI(nI), iI(iI), nO(nO), iO(iO), iW(iW), iC(-1), iWI(-1), iWF(-1), iWO(-1)
     { }
@@ -39,7 +58,6 @@ struct Link
         this->LSTM = false; this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW; this->iC = 0; this->iWI = 0; this->iWF = 0; this->iWO = 0;
         print();
     }
-    
     
     void set(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO)
     {
@@ -76,20 +94,24 @@ struct Activation //All the network signals
 {
     Activation(int _nNeurons, int _nStates): nNeurons(_nNeurons), nStates(_nStates)
     {
+        //contains all inputs to each neuron (inputs to network input layer is empty)
         _allocateQuick(in_vals, nNeurons)
+        //contains all neuron outputs that will be the incoming signal to linked layers (outputs of input layer is network inputs)
         _allocateQuick(outvals, nNeurons)
+        //deltas for each neuron
         _allocateQuick(errvals, nNeurons)
-        
+        //memory of LSTM
         _allocateQuick(ostates, nStates)
+        //inputs to gates (cell into in_vals)
         _allocateQuick(iIGates, nStates)
         _allocateQuick(iFGates, nStates)
         _allocateQuick(iOGates, nStates)
-        
+        //output of gates and LSTM cell
         _allocateQuick(oMCell, nStates)
         _allocateQuick(oIGates, nStates)
         _allocateQuick(oFGates, nStates)
         _allocateQuick(oOGates, nStates)
-        
+        //errors of gates and LSTM cell
         _allocateQuick(eMCell, nStates)
         _allocateQuick(eIGates, nStates)
         _allocateQuick(eFGates, nStates)
@@ -196,7 +218,9 @@ class NormalLayer
 {
 public:
     const bool last;
+    //n neurons and position along Activation->in_vals and outvals
     const int nNeurons, n1stNeuron, n1stBias;
+    //function outvals = func(in_vals)
     const Response * func;
     //const Link *input_links, *output_links;
     const Link *recurrent_links;

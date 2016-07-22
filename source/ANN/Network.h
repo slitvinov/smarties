@@ -27,7 +27,7 @@ protected:
     void initializeWeights(Graph & g, Real* const _weights, Real* const _biases);
 
 public:
-    const Real Pdrop;
+    const Real Pdrop; //dropout
     const int nInputs, nOutputs;
     int nLayers, nNeurons, nWeights, nBiases, nStates;
     vector<int> iOut, dump_ID;

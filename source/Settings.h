@@ -26,8 +26,6 @@ using namespace std;
 #define _BPTT_
 //#define _dumpNet_
 
-//#define SIMD 1
-#define ALLOC 32
 typedef double Real;
 
 

@@ -141,7 +141,7 @@ int Environment::getState(int & iAgent)
     return bStatus;
 }
 
-void Environment::setDims()
+void Environment::setDims() //this environment is for the cart pole test
 {
     {
         sI.bounds.clear(); sI.top.clear(); sI.bottom.clear(); sI.isLabel.clear(); sI.inUse.clear();

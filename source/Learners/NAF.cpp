@@ -70,12 +70,13 @@ void NAF::Train_BPTT(const int seq, const int first, const int thrID)
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
     const int ndata = data->Set[seq]->tuples.size();
     
-    for (int k=0; k<ndata-1; k++) {
+    for (int k=0; k<ndata-1; k++) {//state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
         //this tuple contains a, sNew, reward:
         const Tuple * const _t = data->Set[seq]->tuples[k+1];
         //this tuple contains sOld:
         const Tuple * const _tOld = data->Set[seq]->tuples[k];
-        //if first, no input from recurrent links
+        
+        //if first in a sequence, no input from recurrent links
         if(k==0)
             net->predict(_tOld->s, output, net->series[first]);
         else

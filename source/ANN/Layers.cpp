@@ -19,24 +19,95 @@ using namespace ErrorHandling;
 void NormalLayer::propagate(Activation* const N, const Real* const weights, const Real* const biases) const
 {
     const Real* const outvals = N->outvals;
-    //const Link* const lI = input_links;
-    Real in(0);
     
     for (int n=0; n<nNeurons; n++) {
-        in = 0.; //zero the first
+        Real input = 0.; //zero the first
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
-        for (int i=0; i<lI->nI; i++) {
-            in += *(outvals +lI->iI +i) * *(weights +lI->iW +n*lI->nI +i);
-        }
+        for (const auto & link : *input_links) {
+            /*
+             each link connects one layer to an other
+             multiple links in input_links vector means that a layer 
+             can be connected to other layers anywhere in the net
+             (eg. might want to have each layer linked to two previous layers)
+             */
+            
+            for (int i=0; i<link->nI; i++) {
+                /*
+                 a link here is defined as link layer to layer:
+                    index iI along the network activation outvals representing the index of the first neuron of input layer
+                    the number nI of neurons of the input layer
+                    the index iO of the first neuron of the output layer
+                    the number of neurons in the output layer nO    
+                    the index of the first weight iW along the weight vector
+                    the weights are all to all: so this link occupies space iW to (iW + nI*nO) along weight vector
+                 */
+                input += *(outvals +link->iI +i) * *(weights +link->iW +n*link->nI +i);
+            }
         }
         
-        in += *(biases +n1stBias +n);
-        *(N->in_vals +n1stNeuron +n) = in; //first element of in
-        *(N->outvals +n1stNeuron +n) = func->eval( in );
+        input += *(biases +n1stBias +n);
+        
+        //save input in memory, used later to compute derivative of evaluation function
+        *(N->in_vals +n1stNeuron +n) = input;
+        //evaluate output with activation function
+        *(N->outvals +n1stNeuron +n) = func->eval( input );
     }
 }
+
+void NormalLayer::backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const
+{
+    for (int n=0; n<nNeurons; n++) {
+        //if this an output neuron, the error is written from outside in the corresponding errvals, else zero
+        Real err = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
+    
+        for (const auto & link : *output_links) {
+            //loop over all layers to which this layer is connected to
+            err += propagateErrors(link, C, n, weights);
+        }
+        //delta_i = f'(input_i) * sum_(neurons j) ( error_j * w_i_j)
+        *(C->errvals +n1stNeuron +n) = err * func->evalDiff(*(C->in_vals +n1stNeuron+n));
+    }
+}
+
+inline Real NormalLayer::propagateErrors(const Link* const l, const Activation* const lab, const int iNeuron, const Real* const weights) const
+{
+    Real err(0.);
+    if (l->LSTM) { //is this link to LSTM?
+        for (int i=0; i<l->nO; i++)
+            err += *(lab->eOGates +l->iC +i) * *(weights +l->iWO +i*l->nI +iNeuron) +
+                   *(lab->errvals +l->iO +i) * (
+                   *(lab->eMCell  +l->iC +i) * *(weights +l->iW  +i*l->nI +iNeuron) +
+                   *(lab->eIGates +l->iC +i) * *(weights +l->iWI +i*l->nI +iNeuron) +
+                   *(lab->eFGates +l->iC +i) * *(weights +l->iWF +i*l->nI +iNeuron) );
+    } else {
+        //error: sum error signals in target layer times weights
+        //weights are sorted in row major order, when row is input neuron, column is output neuron
+        for (int i=0; i<l->nO; i++)
+            err += *(lab->errvals +l->iO +i) * *(weights +l->iW  +i*l->nI +iNeuron);
+    }
+    return err;
+}
+
+
+
+void NormalLayer::backPropagateGrads(const Activation* const C, Grads* const grad) const
+{
+    for (int n=0; n<nNeurons; n++) {
+        //load delta of this neuron
+        const Real eC = *(C->errvals +n1stNeuron +n);
+        //grad bias == delta
+        *(grad->_B +n1stBias +n) = eC;
+
+        for (const auto & link : *output_links) {
+            //loop again over incoming signals: grad_w_(from_neuron i, to_neuron j) = output_i * error_j
+            for (int i=0; i<link->nI; i++) {
+                *(grad->_W +link->iW +n*link->nI +i) = *(C->outvals +link->iI +i) * eC;
+            }
+        }
+    }
+}
+
+//all of the following is for recurrent neural networks
 
 void NormalLayer::propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const
 {
@@ -49,11 +120,11 @@ void NormalLayer::propagate(const Activation* const M, Activation* const N, cons
     for (int n=0; n<nNeurons; n++) {
         in = 0.;
         
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
-        for (int i=0; i<lI->nI; i++) {
-            in += *(outvals    +lI->iI +i) * *(weights +lI->iW +n*lI->nI +i);
-        }
+        
+        for (const auto & link : *input_links) {
+            for (int i=0; i<link->nI; i++) {
+                in += *(outvals +link->iI +i) * *(weights +link->iW +n*link->nI +i);
+            }
         }
         for (int i=0; i<lR->nI; i++) {
             in += *(M->outvals +lR->iI +i) * *(weights +lR->iW +n*lR->nI +i);
@@ -161,42 +232,6 @@ void LSTMLayer::propagate(const Activation* const M, Activation* const N, const 
         *(N->outvals +n1stNeuron +n) = func->eval(oS) * oO;
     }
 }
-/* backPropagateDelta(Activation * prev, Activation * curr, Activation * next, Real* weights, Real* biases)
- *
- */
-
-//given errors in output-side layer, propagate errors to current layer
-inline Real NormalLayer::propagateErrors(const Link* const l, const Activation* const lab, const int iNeuron, const Real* const weights) const
-{
-    Real err(0.);
-    if (l->LSTM) { //is this link to LSTM?
-        for (int i=0; i<l->nO; i++)
-            err += *(lab->eOGates +l->iC +i) * *(weights +l->iWO +i*l->nI +iNeuron) +
-                   *(lab->errvals +l->iO +i) * (
-                   *(lab->eMCell  +l->iC +i) * *(weights +l->iW  +i*l->nI +iNeuron) +
-                   *(lab->eIGates +l->iC +i) * *(weights +l->iWI +i*l->nI +iNeuron) +
-                   *(lab->eFGates +l->iC +i) * *(weights +l->iWF +i*l->nI +iNeuron) );
-    } else {
-        for (int i=0; i<l->nO; i++)
-            err += *(lab->errvals +l->iO +i) * *(weights +l->iW  +i*l->nI +iNeuron);
-    }
-    return err;
-}
-
-void NormalLayer::backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const
-{
-    //const Link* const lO = output_links;
-    for (int n=0; n<nNeurons; n++) {
-        Real err = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
-        
-        for (int k=0; k<output_links->size(); k++) {
-            const Link* const lO = (*output_links)[k];
-        err += propagateErrors(lO, C, n, weights);
-        }
-        
-        *(C->errvals +n1stNeuron +n) = err * func->evalDiff(*(C->in_vals +n1stNeuron+n));
-    }
-}
 
 void NormalLayer::backPropagateDeltaFirst(Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const
 {
@@ -293,10 +328,6 @@ void LSTMLayer::backPropagateDeltaLast(const Activation* const P, Activation* co
     }
 }
 
-/* backPropagateGrads(Activation * prev, Activation * curr, Activation * next, Real* weights, Real* biases)
- *
- */
-
 void NormalLayer::backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
 {
     //const Link* const lI = input_links;
@@ -346,22 +377,6 @@ void LSTMLayer::backPropagateGrads(const Activation* const P, const Activation* 
             *(grad->_W+lR->iWI+n*lR->nI+i) = oVal * eI;
             *(grad->_W+lR->iWF+n*lR->nI+i) = oVal * eF;
             *(grad->_W+lR->iWO+n*lR->nI+i) = oVal * eO;
-        }
-    }
-}
-
-void NormalLayer::backPropagateGrads(const Activation* const C, Grads* const grad) const
-{
-    //const Link* const lI = input_links;
-    for (int n=0; n<nNeurons; n++) {
-        const Real eC = *(C->errvals +n1stNeuron +n);
-        *(grad->_B +n1stBias +n) = eC;
-        
-        for (int k=0; k<input_links->size(); k++) {
-            const Link* const lI = (*input_links)[k];
-        for (int i=0; i<lI->nI; i++) {
-            *(grad->_W +lI->iW +n*lI->nI +i) = *(C->outvals +lI->iI +i) * eC;
-        }
         }
     }
 }
