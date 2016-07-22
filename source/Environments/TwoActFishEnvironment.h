@@ -18,7 +18,7 @@ class TwoActFishEnvironment: public Environment
 protected:
     const bool sight, POV, l_line, p_sensors;
     const int study;
-    const Real goalDY,gamma;
+    const Real goalDY;
 public:
     TwoActFishEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings);
     void setDims() override;

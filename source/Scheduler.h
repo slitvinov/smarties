@@ -42,6 +42,12 @@ private:
 
 public:
     Master(Learner* learner, Environment* env, Settings & settings);
+    ~Master()
+    {
+        _dispose_object(learner);
+        _dispose_object(inbuf);
+        _dispose_object(outbuf);
+    }
     void run();
     void hustle();
     void restart(string fname);
@@ -51,7 +57,7 @@ class Slave
 {
     Environment* env;
     vector<Agent*> agents;
-    bool bTrain;
+    const bool bTrain, bWriteToFile;
     int me, insize, outsize;
     byte *inbuf, *outbuf;
     
@@ -65,6 +71,13 @@ class Slave
 public:
     
     Slave(Environment* env, int me, Settings & settings);
+    ~Slave()
+    {
+        _dispose_object(env);
+        _dispose_object(inbuf);
+        _dispose_object(outbuf);
+        for (auto & trash : agents) _dispose_object( trash);
+    }
     void run();
     void restart(string fname);
     //Learner* learner; //TODO

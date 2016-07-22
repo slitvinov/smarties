@@ -12,6 +12,7 @@
 #include "Settings.h"
 #include "Misc.h"
 
+#include <cassert>
 #include <sstream>
 #include <math.h>
 
@@ -180,28 +181,43 @@ struct ActionInfo
 
 class Action
 {
+private:
+    void indexToRealAction(const int i)
+    {
+        valsContinuous[i] = actInfo.values[i][vals[i]];
+    }
+    
+    void realActionToIndex(const int i)
+    { //From cont. action, convert to an action index using chosen values in environment
+        assert(actInfo.values[i].size() == actInfo.bounds[i]);
+        const vector<Real> values(actInfo.values[i]);
+        const int nBounds = actInfo.bounds[i];
+        Real dist = 1e3;
+        for (int j=0; j<nBounds; j++) {
+            const Real _dist = std::fabs(values[j]-valsContinuous[i]);
+            if (_dist<dist) { dist = _dist; vals[i] = j; }
+        }
+    }
+    
+    Real realToScaledReal(const int i) const
+    { //i have smth in valsContinuous, i want a scaled value with upper and lower bounds
+        const Real upperBound = actInfo.upperBounds[i];
+        const Real lowerBound = actInfo.lowerBounds[i];
+        return 2.*(valsContinuous[i] - lowerBound)/(upperBound - lowerBound)-1.;
+    }
+    
+    Real scaledRealToReal(const Real scaled, const int i) const
+    { //i have a scaled quantity with lower and upper bnd, i want to get a dimensional action
+        const Real upperBound = actInfo.upperBounds[i];
+        const Real lowerBound = actInfo.lowerBounds[i];
+        return lowerBound + 0.5*(scaled+1.)*(upperBound - lowerBound);
+    }
+    
 public:
 	ActionInfo actInfo;
     vector<int>  vals;
     vector<Real> valsContinuous;
     mt19937 * gen;
-    
-    int pack() const
-    {
-        int lab=vals[0];
-        for (int i=1; i<actInfo.dim; i++)
-            lab += actInfo.shifts[i]*vals[i];
-        return lab;
-    }
-    
-    void unpack(int lab)
-    {
-        for (int i=actInfo.dim-1; i>=0; i--) {
-            vals[i] = lab/actInfo.shifts[i];
-            valsContinuous[i] = actInfo.values[i][vals[i]];
-            lab     = lab%actInfo.shifts[i];
-        }
-    }
     
 	Action(const ActionInfo& newActInfo, mt19937 * g) : actInfo(newActInfo), gen(g)
 	{
@@ -214,26 +230,10 @@ public:
 		if (actInfo.dim != a.actInfo.dim) die("Dimension of actions differ!!!\n");
         if (actInfo.realValues != a.actInfo.realValues) die("Contunuous/discrete actions mismatch!!!\n");
         
-		for (int i=0; i<actInfo.dim; i++)
-            vals[i] = a.vals[i];
-        for (int i=0; i<actInfo.dim; i++)
-            valsContinuous[i] = a.valsContinuous[i];
+		for (int i=0; i<actInfo.dim; i++) vals[i] = a.vals[i];
+        for (int i=0; i<actInfo.dim; i++) valsContinuous[i] = a.valsContinuous[i];
 		return *this;
 	}
-	
-    void getRand()
-    {
-        std::normal_distribution<Real> dist(0.,0.5);
-        for (int i=0; i<actInfo.dim; i++) {
-            valsContinuous[i] = actInfo.lowerBounds[i] + (.5+.5*std::tanh(dist(*gen)))*(actInfo.upperBounds[i]-actInfo.lowerBounds[i]);
-            
-            vals[i] = (actInfo.bounds[i]-1)*(valsContinuous[i]-actInfo.values[i].front()) /
-            (actInfo.values[i].back()-actInfo.values[i].front()) +.49;
-            
-            if (vals[i]<0) vals[i]=0;
-            if (vals[i] > actInfo.bounds[i]-1) vals[i] = actInfo.bounds[i]-1;
-        }
-    }
     
 	string print() const
 	{
@@ -254,6 +254,7 @@ public:
 		return o.str();
 	}
     
+    //pack and unpack for MPI comm
     void pack(byte* buf) const
     {
         Real* dbuf = (Real*) buf;
@@ -264,37 +265,50 @@ public:
     void unpack(byte* buf)
     {
         Real* dbuf = (Real*) buf;
-        for (int i=0; i<actInfo.dim; i++)
+        for (int i=0; i<actInfo.dim; i++) {
             valsContinuous[i] = dbuf[i];
+            realActionToIndex(i);
+        }
     }
 
+    //from action indices to unique label (for tables, DQN)
+    int pack() const
+    {
+        int lab=vals[0];
+        for (int i=1; i<actInfo.dim; i++)
+            lab += actInfo.shifts[i]*vals[i];
+        return lab;
+    }
+    
+    void unpack(int lab)
+    {
+        for (int i=actInfo.dim-1; i>=0; i--) {
+            vals[i] = lab/actInfo.shifts[i];
+            lab     = lab%actInfo.shifts[i];
+            indexToRealAction(i);
+        }
+    }
+    
     void set(vector<Real> data)
     {
         for (int i=0; i<actInfo.dim; i++) {
             valsContinuous[i] = data[i];
-            vals[i] = (actInfo.bounds[i]-1)*(data[i]-actInfo.values[i].front()) /
-                           (actInfo.values[i].back()-actInfo.values[i].front()) +.49;
-            if (vals[i]<0) vals[i]=0;
-            if (vals[i] > actInfo.bounds[i]-1) vals[i] = actInfo.bounds[i]-1;
+            realActionToIndex(i);
         }
     }
     
     vector<Real> scale() const
     {
         vector<Real> res(actInfo.dim);
-        for (int i=0; i<actInfo.dim; i++)
-            res[i] = 2.*(valsContinuous[i]-actInfo.lowerBounds[i])/(actInfo.upperBounds[i] - actInfo.lowerBounds [i]) -1.;
+        for (int i=0; i<actInfo.dim; i++) res[i] = realToScaledReal(i);
         return res;
     }
     
     void descale(vector<Real> data)
     {
         for (int i=0; i<actInfo.dim; i++) {
-            valsContinuous[i] = actInfo.lowerBounds[i] + .5*(data[i]+1.)*(actInfo.upperBounds[i] - actInfo.lowerBounds [i]);
-            vals[i] = (actInfo.bounds[i]-1)*(valsContinuous[i]-actInfo.values[i].front()) /
-                                     (actInfo.values[i].back()-actInfo.values[i].front()) +.49;
-            if (vals[i]<0) vals[i]=0;
-            if (vals[i] > actInfo.bounds[i]-1) vals[i] = actInfo.bounds[i]-1;
+            valsContinuous[i] = scaledRealToReal(data[i], i);
+            realActionToIndex(i);
         }
     }
 };

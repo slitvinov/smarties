@@ -32,6 +32,11 @@ struct Sequence
     
     vector<Tuple*> tuples;
     bool ended;
+    
+    ~Sequence()
+    {
+        for (auto & trash : tuples) _dispose_object( trash);
+    }
 };
 
 struct Gen
@@ -51,7 +56,7 @@ protected:
     Environment * const env;
     const int nAppended;
     const string path;
-    const bool bSampleSeq;
+    const bool bSampleSeq, bWriteToFile;
     vector<Real> Inp;
     vector<Sequence*> Tmp;
     discrete_distribution<int> * dist;
@@ -72,6 +77,14 @@ public:
     vector<int> inds;
     
     Transitions(Environment* env, Settings & settings);
+    
+    ~Transitions()
+    {
+        _dispose_object(gen);
+        _dispose_object(dist);
+        for (auto & trash : Set) _dispose_object( trash);
+        for (auto & trash : Tmp) _dispose_object( trash);
+    }
     
 #ifdef _Priority_
     void updateP();

@@ -14,7 +14,7 @@
 #include <iostream>
 #include <cstring>
 
-#define _allocateClean(name, size) { const int sizeSIMD=ceil(size/4.)*4.*sizeof(Real); posix_memalign((void **)& name, 32, sizeSIMD); memset(name, 0, size); }
+#define _allocateClean(name, size) { const int sizeSIMD=ceil(size/4.)*4.*sizeof(Real); posix_memalign((void **)& name, 32, sizeSIMD); memset(name, 0, sizeSIMD); }
 #define _allocateQuick(name, size) { const int sizeSIMD=ceil(size/4.)*4.*sizeof(Real); posix_memalign((void **)& name, 32, sizeSIMD); }
 #define _myfree( name ) free( name );
 
@@ -56,13 +56,13 @@ struct Link
     void set(int _nI, int _iI, int _nO, int _iO, int _iW)
     {
         this->LSTM = false; this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW; this->iC = 0; this->iWI = 0; this->iWF = 0; this->iWO = 0;
-        print();
+        //print();
     }
     
     void set(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO)
     {
         this->LSTM = true; this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW; this->iC = _iC; this->iWI = _iWI; this->iWF = _iWF; this->iWO = _iWO;
-        print();
+        //print();
     }
     
     void print() const
@@ -87,6 +87,24 @@ struct Graph //misleading, this is just the graph for a single layer
         rl_inputs = new Link(); rl_recurrent = new Link(); rl_outputs = new Link();
         nl_inputs = new Link(); nl_recurrent = new Link(); nl_outputs = new Link();
         rl_inputs_vec = new vector<Link*>(); rl_outputs_vec = new vector<Link*>(); nl_inputs_vec = new vector<Link*>(); nl_outputs_vec = new vector<Link*>();
+    }
+    
+    ~Graph()
+    {
+        delete rl_inputs;
+        delete rl_recurrent;
+        delete rl_outputs;
+        delete nl_inputs;
+        delete nl_recurrent;
+        delete nl_outputs;
+        for (auto & link : *rl_inputs_vec) delete link;
+        for (auto & link : *rl_outputs_vec) delete link;
+        for (auto & link : *nl_inputs_vec) delete link;
+        for (auto & link : *nl_outputs_vec) delete link;
+        delete rl_inputs_vec;
+        delete rl_outputs_vec;
+        delete nl_inputs_vec;
+        delete nl_outputs_vec;
     }
 };
 
@@ -232,7 +250,15 @@ public:
                 const Response* f, bool last) :
     last(last), nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), func(f),
     input_links(nl_il), recurrent_links(nl_rl), output_links(nl_ol)
-    {   printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d\n",nNeurons, n1stNeuron, n1stBias);  }
+    {
+        //printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d\n",nNeurons, n1stNeuron, n1stBias);
+    }
+    
+    ~NormalLayer()
+    {
+        _dispose_object(func);
+        //links deleted by network
+    }
     
     virtual void propagate(Activation* const N, const Real* const weights, const Real* const biases) const;
     virtual void propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const;
@@ -267,7 +293,16 @@ public:
     NormalLayer(nNeurons, n1stNeuron, n1stBias, rl_il, rl_rl, rl_ol, fO, last),
     n1stCell(indState), n1stPeep(n1stPeep), n1stBiasIG(n1stBiasIG),
     n1stBiasFG(n1stBiasFG), n1stBiasOG(n1stBiasOG), ifun(fI), sigm(fG)
-    {   printf("n1stCell= %d, n1stPeep= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d\n", n1stCell, n1stPeep, n1stBiasIG, n1stBiasFG, n1stBiasOG); }
+    {
+        //printf("n1stCell= %d, n1stPeep= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d\n", n1stCell, n1stPeep, n1stBiasIG, n1stBiasFG, n1stBiasOG);
+    }
+    
+    ~LSTMLayer()
+    {
+        _dispose_object(ifun);
+        _dispose_object(sigm);
+        //links deleted by network
+    }
     
     void propagate(Activation* const N, const Real* const weights, const Real* const biases) const override;
     void propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const override;

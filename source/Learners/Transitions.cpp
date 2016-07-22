@@ -14,7 +14,8 @@
 Transitions::Transitions(Environment* env, Settings & settings):
 aI(env->aI), sI(env->sI), anneal(0), nBroken(0), nTransitions(0),
 nSequences(0), env(env), nAppended(settings.dqnAppendS),
-path(settings.samplesFile), bSampleSeq(settings.nnType == 1)
+path(settings.samplesFile), bSampleSeq(settings.nnType == 1),
+bWriteToFile(!(settings.samplesFile=="none"))
 {
     Inp.resize(sI.dimUsed);
     Tmp.resize(settings.nAgents);
@@ -112,11 +113,13 @@ void Transitions::passData(const int agentId, const int info, const State & sOld
     fout.close();
      */
     
-    fout.open("history.txt",ios::app);
-    fout << agentId << " "<< info << " " << sOld.printClean().c_str() <<
-            sNew.printClean().c_str() << a.printClean().c_str() << reward;
-    fout << endl;
-    fout.close();
+    if (bWriteToFile) {
+        fout.open("history.txt",ios::app);
+        fout << agentId << " "<< info << " " << sOld.printClean().c_str() <<
+                sNew.printClean().c_str() << a.printClean().c_str() << reward;
+        fout << endl;
+        fout.close();
+    }
     
     add(agentId, info, sOld, a, sNew, reward);
 }
@@ -163,6 +166,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
     t->r = reward;
     t->a = a.pack();
     t->aC = a.scale();
+    //printf("Transitions storing: %f %f\n",t->aC[0],a.valsContinuous[0]); fflush(0);
     Tmp[agentId]->tuples.push_back(t);
     if (new_sample) {
         Tmp[agentId]->ended = true;
@@ -173,8 +177,8 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
 void Transitions::push_back(const int & agentId)
 {
     if(Tmp[agentId]->tuples.size()>3) {
-        /*if (nSequences>5000) {
-            printf("Too many sequences, trashing the oldest\n");
+        if (nSequences>10000) {
+            //printf("Too many sequences, trashing the oldest\n");
             nTransitions-=Set[0]->tuples.size()-1;
             for (int i(0); i<Set[0]->tuples.size(); i++)
                 delete Set[0]->tuples[i];
@@ -183,7 +187,7 @@ void Transitions::push_back(const int & agentId)
             
             nTransitions+=Tmp[agentId]->tuples.size()-1;
             Set[0] = Tmp[agentId];
-        } else */{
+        } else {
             nSequences++;
             Set.push_back(Tmp[agentId]);
             nTransitions+=Tmp[agentId]->tuples.size()-1;
@@ -194,7 +198,7 @@ void Transitions::push_back(const int & agentId)
     } else {
         for (int i(0); i<Tmp[agentId]->tuples.size(); i++)
             delete Tmp[agentId]->tuples[i];
-        printf("Trashing %d obs.\n",Tmp[agentId]->tuples.size());
+        //printf("Trashing %d obs.\n",Tmp[agentId]->tuples.size());
         Tmp[agentId]->tuples.clear();
         Tmp[agentId]->ended = false;
     }

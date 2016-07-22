@@ -13,7 +13,7 @@ Learner::Learner(Environment* env, Settings & settings) : nAgents(settings.nAgen
 batchSize(settings.dqnBatch), tgtUpdateDelay((int)settings.dqnUpdateC), nThreads(settings.nThreads),
 nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), bRecurrent(settings.nnType==1),
 bTrain(settings.bTrain==1), tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma),
-greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI), gen(settings.gen)
+greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI), gen(settings.gen), taskCounter(batchSize)
 {
     vector<int> lsize;
     lsize.push_back(nInputs);
@@ -32,7 +32,7 @@ greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI
     }
     lsize.push_back(nOutputs);
     
-    if (nThreads>1) for (int i=0; i<nThreads; i++) Vstats.push_back(new trainData());
+    for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
 
     profiler = new Profiler();
     net = new Network(lsize, bRecurrent, settings);
@@ -50,7 +50,8 @@ bool Learner::checkBatch() const
     //if learning begun, master sets flags to false and each thread sets flag to true as batch is processed
     //bool done(true);
     //for (int i=0; i<batchSize; i++) done = done && flags[i];
-    
+    //if (taskCounter>0)
+    //printf("taskCounter %d\n",taskCounter);
     return taskCounter>=batchSize;
 }
 
@@ -71,6 +72,7 @@ void Learner::TrainBatch()
         data->inds.resize(ndata);
         std::iota(data->inds.begin(), data->inds.end(), 0);
         random_shuffle(data->inds.begin(), data->inds.end(),*(data->gen));
+        processStats(Vstats);
     }
     
     /*
@@ -116,7 +118,6 @@ void Learner::TrainBatch()
     opt->nepoch=stats.epochCount;
     opt->update(net->grad,nAddedGradients);
 }
-
 
 void Learner::TrainTasking(Master* const master)
 {
@@ -264,15 +265,15 @@ void Learner::restart(string name)
     }
 }
 
+/*
 void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
 {
-    /*
-    ostringstream o;
-    o << "[";
-    for (int i=0; i<Qs.size(); i++) o << Qs[i] << " ";
-    o << "]";
-    printf("Process %f - %f : %s\n", tgt, Q, string(o.str()).c_str());
-    */
+    //ostringstream o;
+    //o << "[";
+    //for (int i=0; i<Qs.size(); i++) o << Qs[i] << " ";
+    //o << "]";
+    //printf("Process %f - %f : %s\n", tgt, Q, string(o.str()).c_str());
+ 
     const Real max_Q = *max_element(Qs.begin(), Qs.end());
     const Real min_Q = *min_element(Qs.begin(), Qs.end());
     stats.MSE  += err*err;
@@ -283,15 +284,16 @@ void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
     stats.dumpCount++;
     
     if (data->nTransitions==stats.dumpCount && data->nTransitions>1) {
-        const Real mean_err = stats.MSE /(stats.dumpCount-1);
-        const Real mean_Q   = stats.avgQ/stats.dumpCount;
-        const Real mean_rel = stats.relE/stats.dumpCount;
+        stats.MSE /=(stats.dumpCount-1);
+        stats.avgQ/=stats.dumpCount;
+        stats.relE/=stats.dumpCount;
         
         ofstream filestats;
         filestats.open("stats.txt", ios::app);
         printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, N %d\n",
-               stats.epochCount, mean_err, mean_rel, mean_Q, stats.minQ, stats.maxQ, stats.dumpCount);
-        filestats<<stats.epochCount<<" "<<mean_err<<" "<<mean_rel<<" "<<mean_Q<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
+               stats.epochCount,      stats.MSE,      stats.relE,      stats.avgQ,      stats.minQ,      stats.maxQ, stats.dumpCount);
+        filestats<<
+               stats.epochCount<<" "<<stats.MSE<<" "<<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
         filestats.close();
         
         stats.dumpCount = 0;
@@ -302,6 +304,7 @@ void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
         stats.minQ=1e5; stats.maxQ=-1e5; stats.MSE=0; stats.avgQ=0; stats.relE=0;
     }
 }
+*/
 
 void Learner::dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs)
 {
@@ -334,16 +337,18 @@ void Learner::processStats(vector<trainData*> _stats)
     if (stats.dumpCount<2) return;
     stats.epochCount++;
     
-    const Real mean_err = stats.MSE/(stats.dumpCount-1);
-    const Real mean_Q   = stats.avgQ/stats.dumpCount;
-    const Real mean_rel = stats.relE/stats.dumpCount;
+    stats.MSE/=(stats.dumpCount-1);
+    stats.avgQ/=stats.dumpCount;
+    stats.relE/=stats.dumpCount;
     
     ofstream filestats;
     filestats.open("stats.txt", ios::app);
     printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, N %d\n",
-           stats.epochCount, mean_err, mean_rel, mean_Q, stats.minQ, stats.maxQ, stats.dumpCount);
-    filestats<<stats.epochCount<<" "<<mean_err<<" "<<mean_rel<<" "<<mean_Q<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
+           stats.epochCount,      stats.MSE,      stats.relE,      stats.avgQ,      stats.minQ,      stats.maxQ, stats.dumpCount);
+    filestats<<
+           stats.epochCount<<" "<<stats.MSE<<" "<<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
     filestats.close();
+
     fflush(0);
     if (stats.epochCount % 100==0) save("policy");
 }

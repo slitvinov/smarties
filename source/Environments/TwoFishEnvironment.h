@@ -17,7 +17,7 @@ class TwoFishEnvironment: public Environment
 protected:
     bool sight, l_line;
     int study;
-    Real goalDY, gamma;
+    Real goalDY;
 public:
     TwoFishEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings);
     void setDims() override;

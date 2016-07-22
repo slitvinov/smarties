@@ -57,6 +57,16 @@ public:
     vector<bool> flags;
     
     Learner(Environment* env, Settings & settings);
+    
+    ~Learner()
+    {
+        _dispose_object(profiler);
+        _dispose_object(net);
+        _dispose_object(opt);
+        _dispose_object(data);
+        for (auto & trash : Vstats) _dispose_object( trash);
+    }
+    
     virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;
     
     bool checkBatch() const;

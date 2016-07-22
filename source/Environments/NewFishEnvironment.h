@@ -18,7 +18,7 @@ class NewFishEnvironment: public Environment
 protected:
     const bool sight, POV, l_line, p_sensors;
     const int study;
-    const Real goalDY,gamma;
+    const Real goalDY;
 public:
     NewFishEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings);
     void setDims() override;

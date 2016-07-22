@@ -41,6 +41,22 @@ public:
     
     Network(const vector<int>& layerSize, const bool bLSTM, const Settings & settings);//, bool bSeparateOutputs);
     
+    ~Network()
+    {
+        for (auto & trash : G) _dispose_object( trash);
+        for (auto & trash : layers) _dispose_object( trash);
+        for (auto & trash : mem) _dispose_object( trash);
+        for (auto & trash : series) _dispose_object( trash);
+        for (auto & trash : Vgrad) _dispose_object( trash);
+        _dispose_object( grad);
+        _dispose_object(_grad);
+        _myfree( weights )
+        _myfree( biases )
+        _myfree( tgt_weights )
+        _myfree( tgt_biases )
+        _myfree( weights_DropoutBackup )
+    }
+    
     void allocateSeries(int k, vector<Activation*> & _series);
     void allocateSeries(int k)
     {

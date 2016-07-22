@@ -4,6 +4,7 @@
 
 void Communicator::sendState(int agentId, int info, std::vector<double>& state, double reward)
 {
+    std::ostringstream o;
     o <<"Send: "<<agentId<<" "<<msgID++<<" "<< info<<" ";
     {int *ptr=(int*)(dataout);   *ptr=agentId;}
     {int *ptr=(int*)(dataout+1); *ptr=info;  }
@@ -16,12 +17,16 @@ void Communicator::sendState(int agentId, int info, std::vector<double>& state, 
     *(dataout +2+nStates) = reward;
     o << reward << "\n";
     
+    //std::cout<<o.str()<<std::endl;
+    
     send_all(sock, dataout, sizeout);
     if (info == 2)  msgID = 0;
+    fflush(0);
 }
     
 void Communicator::recvAction(std::vector<double>& actions)
 {
+    std::ostringstream o;
     int bytes = recv_all(sock, datain, sizein);
     if (bytes <= 0) {
         printf("selectserver: socket hung up\n");
@@ -34,11 +39,14 @@ void Communicator::recvAction(std::vector<double>& actions)
         o << actions[j] << " ";
     }
     o << "\n";
+    
+    //std::cout<<o.str()<<std::endl;
+    
+    fflush(0);
 }
     
 Communicator::~Communicator()
 {
-    std::cout<<o.str()<<std::endl;
     close(sock);
 }
     

@@ -31,6 +31,12 @@ public:
     int nepoch;
     
     Optimizer(Network * _net, Profiler * _prof, Settings & settings);
+    
+    ~Optimizer()
+    {
+        _myfree(_1stMomW);
+        _myfree(_1stMomB);
+    }
     virtual void update(Grads* const G, const int batchsize);
     
     virtual void stackGrads(Grads* const G, const Grads* const g) const;
@@ -50,6 +56,11 @@ protected:
 public:
     AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings);
     
+    ~AdamOptimizer()
+    {
+        _myfree(_2ndMomW);
+        _myfree(_2ndMomB);
+    }
     void update(Grads* const G, const int batchsize) override;
 };
 

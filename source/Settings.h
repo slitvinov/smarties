@@ -22,7 +22,7 @@ using namespace std;
 
 #include <omp.h>
 
-#define _scaleR_
+//#define _scaleR_
 #define _BPTT_
 //#define _dumpNet_
 
@@ -46,6 +46,15 @@ struct Settings
     bool bSeparateOutputs;
     mt19937 * gen;
 };
+
+
+template <typename T>
+void _dispose_object(T *& ptr)
+{
+    if(ptr == nullptr) return;
+    delete ptr;
+    ptr=nullptr;
+}
 
 namespace ErrorHandling
 {

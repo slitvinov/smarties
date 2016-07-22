@@ -109,7 +109,7 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
 void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const int batchsize) const
 {
     const Real norm = 1./(Real)max(batchsize,1);
-    const Real eta_ = (1e-6 + exp(-nepoch/10000.)*eta)*norm;
+    const Real eta_ = eta;//(1e-6 + exp(-nepoch/10000.)*eta)*norm;
     const Real lambda_ = lambda*eta_;
     
     #pragma omp for nowait
@@ -129,7 +129,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
 {
     const Real norm = 1./(Real)max(batchsize,1);
     const Real fac12 = sqrt(1.-beta_t_2)/(1.-beta_t_1);
-    const Real eta_ = (1e-6 + exp(-nepoch/10000.)*eta);
+    const Real eta_ = eta;//(1e-6 + exp(-nepoch/10000.)*eta);
     const Real lambda_ = lambda*eta_;
     
     #pragma omp for nowait

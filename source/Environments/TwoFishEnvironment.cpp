@@ -12,7 +12,7 @@
 using namespace std;
 
 TwoFishEnvironment::TwoFishEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
-Environment(nAgents, execpath, _rank, settings), sight(settings.senses==0 || settings.senses==2), l_line(settings.senses==1 || settings.senses==2), study(settings.rewardType), goalDY(settings.goalDY), gamma(settings.gamma)
+Environment(nAgents, execpath, _rank, settings), sight(settings.senses==0 || settings.senses==2), l_line(settings.senses==1 || settings.senses==2), study(settings.rewardType), goalDY(settings.goalDY)
 {
     if (goalDY > 1.) goalDY = 1. - goalDY; //poor man's sign
 }

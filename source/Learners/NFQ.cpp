@@ -36,6 +36,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
         net->expandMemory(net->mem[agentId], net->series[0]);
         net->predict(inputs, output, net->series[0], net->series[1]);
         //also, store sOld, aOld -> sNew, r
+        
         data->passData(agentId, info, sOld, aOld, s, r);
     }
     #ifdef _dumpNet_
@@ -59,7 +60,14 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
         newEps = (.1 +greedyEps*exp(-handicap/100.));//*agentId/Real(agentId+1);
     }
     uniform_real_distribution<Real> dis(0.,1.);
-    if(dis(*gen) < newEps) a.getRand();
+    //if(dis(*gen) < newEps) a.getRand();
+    if(dis(*gen) < newEps) {
+        const int randomActionLabel = nOutputs*dis(*gen);
+        a.unpack(randomActionLabel);
+        //printf("Random action %d %d %f %d %f\n",data->Set.size(),stats.epochCount,newEps, a.vals[0], a.valsContinuous[0]);
+    }
+    
+    //if (info!=1) printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
 }
 
 void NFQ::Train_BPTT(const int seq, const int first, const int thrID)
@@ -95,17 +103,14 @@ void NFQ::Train_BPTT(const int seq, const int first, const int thrID)
                 Nbest=i;
             }
         }
-        
         const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[Nbest];
+        //printf("target %f rew %f %d %f\n",target, _t->r, _t->a, _t->aC[0]);
         const Real err =  (target - Qs[_t->a]);
         errs[_t->a] = err;
         net->setOutputErrors(errs, net->series[first+k]);
         //*(net->series[first+k]->errvals +net->iOutputs+_t->a) = err;
         
-        if (first==0) //then there is no parallelism in train
-            dumpStats(Qs[_t->a], err, Qs);
-        else
-            dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
+        dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
     }
     
     net->computeDeltasSeries(net->series, first, first+ndata-2);
@@ -148,13 +153,10 @@ void NFQ::Train(const int seq, const int samp, const int first, const int thrID)
     net->setOutputErrors(errs, net->series[first]);
     //*(net->series[first]->errvals +net->iOutputs+_t->a) = err;
     
+    dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
     net->computeDeltas(net->series[first]);
     
-    if (first==0) {
-        dumpStats(Qs[_t->a], err, Qs);
-        net->computeAddGrads(net->series[first], net->grad);
-    } else {
-        dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
-        net->computeAddGrads(net->series[first], net->Vgrad[thrID]);
-    }
+    if (first==0) net->computeAddGrads(net->series[first], net->grad);
+    else          net->computeAddGrads(net->series[first], net->Vgrad[thrID]);
+    
 }

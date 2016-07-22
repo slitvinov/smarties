@@ -22,6 +22,7 @@ protected:
     const int rank;
     mt19937 * g;
     int n, workerid, sock, ListenerSocket, bytes, sizein, sizeout;
+    const double gamma;
     
     struct sockaddr_un serverAddress;
     struct sockaddr_un clientAddress;
@@ -29,7 +30,6 @@ protected:
     double *datain, *dataout;
     void commonSetup();
     void spawn_server();
-    
 public:
     int iter;
     bool resetAll;
@@ -39,6 +39,13 @@ public:
 	ActionInfo aI;
 
     Environment(const int nAgents, const string execpath, const int _rank, Settings & settings);
+    
+    ~Environment()
+    {
+        _dispose_object(datain);
+        _dispose_object(dataout);
+        for (auto & trash : agents) _dispose_object( trash);
+    }
     
     virtual void setDims ();
     int getState(int & iAgent) ;

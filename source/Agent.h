@@ -33,7 +33,13 @@ public:
     const int ID;
     
     Agent(const int _ID = 0) : ID(_ID) { }
-	
+    
+	~Agent()
+    {
+        _dispose_object(s);
+        _dispose_object(sOld);
+        _dispose_object(a);
+    }
     virtual void getState(State& _s) const
     {
         _s = *s;

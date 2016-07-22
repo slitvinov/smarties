@@ -29,7 +29,7 @@ class Communicator
     const int workerid, nActions, nStates;
     int sock, ListenerSocket, sizein, sizeout;
     int msgID;
-    std::ostringstream o;
+    
     char SOCK_PATH[256];
     struct sockaddr_un server_addr;
     struct sockaddr_un serverAddress;

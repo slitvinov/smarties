@@ -54,14 +54,30 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
     a.descale(act);
     
+    //printf("%f %f\n",act[0],a.valsContinuous[0]);
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const int handicap = min(static_cast<int>(data->Set.size()), stats.epochCount);
-        newEps = (.1 +greedyEps*exp(-handicap/100.));//*agentId/Real(agentId+1);
+        const Real crutch_1 = 1e6;//stats.relE < 0.5 ? 100. : 1./stats.relE;
+        const Real crutch_2 = static_cast<int>(data->Set.size())/100.;
+        const Real crutch_3 = stats.epochCount/10.;
+        const Real handicap = min(min(crutch_1,crutch_2),crutch_3);
+        newEps = (.1 +greedyEps*exp(-handicap));//*agentId/Real(agentId+1);
+        //printf("Random action %f %f %f %f\n",crutch_1,crutch_2,crutch_3,newEps);
     }
+    
     uniform_real_distribution<Real> dis(0.,1.);
-    if(dis(*gen) < newEps) a.getRand();
+    if(dis(*gen) < newEps) {
+        //printf("Random action %d %d %f\n",data->Set.size(),stats.epochCount,newEps);
+        std::normal_distribution<Real> dist(0.,0.5);
+        vector<Real> scaledRandomAction(nA);
+        for (int i=0; i<nA; i++) scaledRandomAction[i] = std::tanh(dist(*gen));
+        
+        a.descale(scaledRandomAction);
+        //printf("Random action %d  %f %f \n",a.vals[0], a.valsContinuous[0], scaledRandomAction[0]);fflush(0);
+    }
+    
+    //if (info!=1) printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
 }
 
 void NAF::Train_BPTT(const int seq, const int first, const int thrID)
@@ -96,10 +112,7 @@ void NAF::Train_BPTT(const int seq, const int first, const int thrID)
         //    *(net->series[first+k]->errvals +net->iOutputs+i) = gradient[i];
         //}
         
-        if (first==0) //then there is no parallelism in train
-            dumpStats(Q[0], err, Q);
-        else
-            dumpStats(Vstats[thrID], Q[0], err, Q);
+        dumpStats(Vstats[thrID], Q[0], err, Q);
     }
     
     net->computeDeltasSeries(net->series, first, first+ndata-2);
@@ -133,18 +146,14 @@ void NAF::Train(const int seq, const int samp, const int first, const int thrID)
     //    *(net->series[first]->errvals +net->iOutputs+i) = gradient[i];
     //}
     
+    dumpStats(Vstats[thrID], Q[0], err, Q);
     net->computeDeltas(net->series[first]);
     
-    if (first==0) {
-        dumpStats(Q[0], err, Q);
-        net->computeAddGrads(net->series[first], net->grad);
-    } else {
-        dumpStats(Vstats[thrID], Q[0], err, Q);
-        net->computeAddGrads(net->series[first], net->Vgrad[thrID]);
-    }
+    if (first==0) net->computeAddGrads(net->series[first], net->grad);
+    else          net->computeAddGrads(net->series[first], net->Vgrad[thrID]);    
 }
 
-#if 1==0 //original formulation of advantage = 0.5 (a - pi)' * A * (a - pi), does not work: why?
+#if 1==1 //original formulation of advantage = 0.5 (a - pi)' * A * (a - pi), does not work: why?
 
 vector<Real> NAF::computeQandGrad(vector<Real>& grad,const vector<Real>& act,vector<Real>& out,Real& error) const
 {
@@ -256,7 +265,7 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad,const vector<Real>& act,vec
 
 vector<Real> NAF::computeQandGrad(vector<Real>& grad,const vector<Real>& act,vector<Real>& out,Real& error) const
 {
-    vector<Real> Q(3), _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
+    vector<Real> Q(3,0), _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
     
     int kL(1);
     for (int j(0); j<nA; j++) { //compute u = act-pi and matrix L
@@ -345,6 +354,9 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad,const vector<Real>& act,vec
         }
         grad[1+nL+ia] *= fac*error;
     }
+    //1 action dim dump:
+    //printf("act %f, err %f, out %f %f %f, u %f, Q %f, grad %f %f %f\n", act[0], error, out[0], out[1], out[2], _u[0], Q[0], grad[0], grad[1], grad[2]);
+    //2 actions dim dump
     ///printf("act %f %f, err %f, out %f %f %f %f %f %f, u %f %f, Q %f, grad %f %f %f %f %f %f\n", act[0], act[1], error, out[0],  out[1], out[2], out[3],  out[4], out[5], _u[0], _u[1], Q[0], grad[0], grad[1], grad[2], grad[3], grad[4], grad[5]);
     return Q;
 }

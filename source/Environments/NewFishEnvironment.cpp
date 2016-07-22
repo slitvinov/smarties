@@ -13,7 +13,7 @@ using namespace std;
 
 NewFishEnvironment::NewFishEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
 Environment(nAgents, execpath, _rank, settings), sight(settings.senses==0), POV(settings.senses==1),
-l_line(settings.senses==2), p_sensors(settings.senses==3), study(settings.rewardType), gamma(settings.gamma),
+l_line(settings.senses==2), p_sensors(settings.senses==3), study(settings.rewardType),
 goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
 }

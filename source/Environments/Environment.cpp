@@ -24,7 +24,7 @@ using namespace std;
 
 Environment::Environment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
 execpath(execpath), rank(_rank), g(settings.gen), n(nAgents), resetAll(true), workerid(_rank),
-sock(0), ListenerSocket(0), bytes(0), iter(0), max_scale(20, -1000), min_scale(20, 1000)
+sock(0), ListenerSocket(0), bytes(0), iter(0), max_scale(20, -1000), min_scale(20, 1000), gamma(settings.gamma)
 {
     for (int i=0; i<nAgents; i++) agents.push_back(new Agent(i));
 }
@@ -76,7 +76,7 @@ void Environment::spawn_server()
         sprintf(line, execpath.c_str());
         parse(line, largv);     // prepare argv
         
-        #if 1==1 //if true goes to stdout
+        #if 1==0 //if true goes to stdout
         char output[256];
         sprintf(output, "output_%d_%d", workerid,iter);
         int fd = open(output, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
@@ -122,21 +122,19 @@ int Environment::getState(int & iAgent)
     } else { // (bytes == nbyte)
         iAgent  = *((int*)  datain   );
         bStatus = *((int*) (datain+1)); //first (==1?), terminal (==2?), etc
-        //printf("Receiving from agent %d %d: ", iAgent, bStatus);
+        debug3("Receiving from agent %d %d: ", iAgent, bStatus);
         
         std::swap(agents[iAgent]->s,agents[iAgent]->sOld);
         
         int k = 2;
         for (int j=0; j<sI.dim; j++) {
-            //printf(" %f (%d)",datain[k],k);
+            debug3(" %f (%d)",datain[k],k);
             agents[iAgent]->s->vals[j] = (Real) datain[k++];
         }
         
-        //printf(" %f (%d)\n",datain[k],k);
+        debug3(" %f (%d)\n",datain[k],k);
         agents[iAgent]->r = (Real) datain[k++];
-        //debug3("Got from child %d: reward %f initial state %s\n", rank, agents[i]->r, agents[i]->s->print().c_str());
-        
-        //if (agents[iAgent]->r < -9.9) bStatus = 1;
+        debug3("Got from child %d: reward %f initial state %s\n", rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
     }
     return bStatus;
 }
@@ -153,12 +151,12 @@ void Environment::setDims() //this environment is for the cart pole test
         // ...velocity...
         sI.bounds.push_back(6);
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(false);
         
         // ...and angular velocity
         sI.bounds.push_back(6);
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(false);
         
         // ...angle...
         sI.bounds.push_back(16);
@@ -173,14 +171,14 @@ void Environment::setDims() //this environment is for the cart pole test
         
         for (int i=0; i<aI.dim; i++) {
             aI.bounds.push_back(5);
-            aI.upperBounds.push_back( 1.);
-            aI.lowerBounds.push_back(-1.);
+            aI.upperBounds.push_back( 50.);
+            aI.lowerBounds.push_back(-50.);
             
-            aI.values[i].push_back(-1.);
-            aI.values[i].push_back(-.1);
+            aI.values[i].push_back(-20.);
+            aI.values[i].push_back(-5.);
             aI.values[i].push_back(0.0);
-            aI.values[i].push_back(0.1);
-            aI.values[i].push_back(1.0);
+            aI.values[i].push_back(5.);
+            aI.values[i].push_back(20.);
         }
     }
     commonSetup();
@@ -207,9 +205,18 @@ void Environment::commonSetup()
     }
 }
 
-bool pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward)
+bool Environment::pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward)
 {
-    return (reward < 0.9);
+    bool new_sample(false);
+    if (reward<-0.9) new_sample=true;
+#ifndef _scaleR_
+    reward = 1.;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
+    if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+#else
+    reward = (1.-gamma); //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
+    if (new_sample) reward = -1.;  // = - max cumulative reward
+#endif
+    return new_sample; //cart pole has failed if r = -1, need to clean this shit and rely only on info
 }
 /*
 void ExternalEnvironment::setDims()

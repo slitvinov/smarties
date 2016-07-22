@@ -30,6 +30,12 @@ public:
     
     FishNet(Settings & settings);
     
+    ~FishNet()
+    {
+        _dispose_object(net);
+        _dispose_object(opt);
+        _dispose_object(profiler);
+    }
     
     void predict(const vector<Real>& input, vector<Real>& output, int iAgent);
     void predict(const vector<Real>& input, vector<Real>& output);

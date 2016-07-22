@@ -60,8 +60,8 @@ struct Vec4
 
 struct CartPole
 {
-    const double m = 0.1;
-    const double M = 1;
+    const double mp = 0.1;
+    const double mc = 1;
     const double l = 0.5;
     const double g = 9.81;
     int info;
@@ -74,20 +74,16 @@ struct CartPole
         
         const double cosy = cos(u.y3);
         const double siny = sin(u.y3);
-        const double tmp1 = 1. / (M+m*(1-cosy));
-        const double tmp2 = u.y4*u.y4*l;
         
-        const double fac1 = 1./(M+m);
-        const double fac2 = l*(4./3. - fac1*(m*cosy*cosy));
+        const double fac1 = 1./(mp+mc);
+        const double fac2 = l*(4./3. - fac1*(mp*cosy*cosy));
         
-        const double F1 = F + m*l*u.y4*u.y4*siny;
+        const double F1 = F + mp * l * u.y4 * u.y4 * siny;
         
         res.y4 = (g*siny - fac1*F1*cosy)/fac2;
-        res.y2 = fac1*(F1 - m*l*res.y4*cosy);
+        res.y2 = fac1*(F1 - mp*l*res.y4*cosy);
         res.y1 = u.y2;
-        //res.y2 = m * tmp1 * ((tmp2 - cosy*g)*siny + F/m);
         res.y3 = u.y4;
-        //res.y4 = tmp1/l * (siny * (g*(m+M) - m*tmp2) - F);
         return res;
     }
 };
@@ -100,7 +96,7 @@ int main(int argc, const char * argv[])
     const int sock = std::stoi(argv[1]);
     //time stepping
     const int nssteps = 1;
-    const double dt = 5e-3;
+    const double dt = 2e-2;
     double t = 0;
     //trash:
     long long int nfallen(0), sincelast(0), duringlast(0), ntot(0);
@@ -115,63 +111,60 @@ int main(int argc, const char * argv[])
         a.F    = 0;
         a.info = 1;
     }
-    
     while (true) {
         
         int k(0); //agent ID, for now == 0
         for (auto& a : agents) {
-            double r = 0.0;
-            bool kill = false;
-            ntot += 1; sincelast += 1;
-            
-            if ((fabs(a.u.y3)>.2)||(fabs(a.u.y1)>2.4))
-            {
-                r = -1; nfallen += 1; sincelast = 0;
-                percfallen = nfallen/ntot;
-                
-                kill = true;
-                a.info = 2;
-            }
-            
+            double r = 0.;
+            //ntot += 1; sincelast += 1;
             state[0] = a.u.y1;
             state[1] = a.u.y2;
             state[2] = a.u.y4;
             state[3] = a.u.y3;
-            comm->sendState(k, a.info, state, r);
             
-            if(kill)
-            {  //begin anew & send new initial conditions
-                a.u = Vec4( .01*(drand48()-.5),
-                            .01*(drand48()-.5),
-                            .01*(drand48()-.5),
-                            .01*(drand48()-.5));
-                a.F = 0;
-                a.info = 1;
-                
-                state[0] = a.u.y1;
-                state[1] = a.u.y2;
-                state[2] = a.u.y4;
-                state[3] = a.u.y3;
-                comm->sendState(k, a.info, state, 0.0);
-                
-            } else {
-                comm->recvAction(actions);
-                a.F = actions[0];
-            }
+            //printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+            comm->sendState(k, a.info, state, r);
+            comm->recvAction(actions);
+            a.F = actions[0];
+            a.info = 0;
+            //printf("Received action %f\n", a.F); fflush(0);
         }
         
         
         for (int i=0; i<nssteps; i++) {
-            for (auto& a : agents)
+            for (auto& a : agents) {
                 a.u = rk46_nl(t, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
+                
+                if ((fabs(a.u.y3)>.2)||(fabs(a.u.y1)>2.4)) {
+                    //nfallen += 1; sincelast = 0; percfallen = nfallen/ntot;
+                    
+                    a.info = 2;
+                    double r = -1.;
+                    state[0] = a.u.y1;
+                    state[1] = a.u.y2;
+                    state[2] = a.u.y4;
+                    state[3] = a.u.y3;
+                    //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+                    comm->sendState(k, a.info, state, r);
+                    
+                    a.u = Vec4( .01*(drand48()-.5),
+                                .01*(drand48()-.5),
+                                .01*(drand48()-.5),
+                                .01*(drand48()-.5));
+                    t = 0;
+                    a.F = 0;
+                    a.info = 1;
+                }
+            }
             
             t += dt;
         }
-
+        /*
         if (ntot % 10000 == 0) {
             cout << nfallen - duringlast << endl;
             duringlast =+ nfallen;
         }
+         */
     }
     
     return 0;
