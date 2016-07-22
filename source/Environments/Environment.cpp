@@ -206,6 +206,11 @@ void Environment::commonSetup()
         a->sOld = new State(sI);
     }
 }
+
+bool pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward)
+{
+    return (reward < 0.9);
+}
 /*
 void ExternalEnvironment::setDims()
 {
