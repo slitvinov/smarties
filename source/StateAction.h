@@ -33,11 +33,11 @@ struct StateInfo
         bounds.resize(dim); bottom.resize(dim); top.resize(dim);
         isLabel.resize(dim); inUse.resize(dim);
         for (int i=0; i<dim; i++) {
-            bounds[i]=     (stateInfo.bounds[i]);
-            bottom[i]=     (stateInfo.bottom[i]);
-            top[i]=        (stateInfo.top[i]);
-            isLabel[i]=    (stateInfo.isLabel[i]);
-            inUse[i]=      (stateInfo.isLabel[i]);
+            top[i] = (stateInfo.top[i]);
+            bottom[i] = (stateInfo.bottom[i]);
+            bounds[i] = (stateInfo.bounds[i]);
+            isLabel[i] = (stateInfo.isLabel[i]);
+            inUse[i] = (stateInfo.inUse[i]);
         }
     }
 };

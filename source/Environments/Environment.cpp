@@ -76,7 +76,7 @@ void Environment::spawn_server()
         sprintf(line, execpath.c_str());
         parse(line, largv);     // prepare argv
         
-        #if 1==0 //if true goes to stdout
+        #if 1==1 //if true goes to stdout
         char output[256];
         sprintf(output, "output_%d_%d", workerid,iter);
         int fd = open(output, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);

@@ -44,14 +44,9 @@ greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI
 bool Learner::checkBatch() const
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    if (ndata<batchSize) return false; //do we have enough data?
-    
-    //if no learning has been done yet: flags initialized as true
-    //if learning begun, master sets flags to false and each thread sets flag to true as batch is processed
-    //bool done(true);
-    //for (int i=0; i<batchSize; i++) done = done && flags[i];
-    //if (taskCounter>0)
-    //printf("taskCounter %d\n",taskCounter);
+    if (ndata<batchSize) {
+        return false; //do we have enough data?
+    }
     return taskCounter>=batchSize;
 }
 
@@ -159,7 +154,6 @@ void Learner::TrainTasking(Master* const master)
                     
                     //LSTM NFQ requires size()+1 activations of the net:
                     net->allocateSeries(2+nThreads*(maxBufSize+1)); //0 and 1 reserved
-                    
                     #pragma omp flush
                     
                     for (int i(0); i<batchSize; i++) {
@@ -169,7 +163,6 @@ void Learner::TrainTasking(Master* const master)
                             const int thrID = omp_get_thread_num();
                             const int first = 2+(maxBufSize+1)*thrID;
                             Train_BPTT(knd, first, thrID);
-                            
                             #pragma omp atomic
                             taskCounter++;
                         }

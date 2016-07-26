@@ -121,7 +121,7 @@ void Master::run()
             MPI_Send(outbuf, outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD);
         }
         
-        if (iter++ % saveFreq == 0) save();
+        if (++iter % saveFreq == 0) save();
         #endif
     }
 }
@@ -174,7 +174,7 @@ void Master::hustle()
             MPI_Isend(outbuf, outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD, &actRequest);
         }
         
-        if (iter++ % saveFreq == 0) save();
+        if (++iter % saveFreq == 0) save();
         
         //prepare Recv for next round
         MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
@@ -214,7 +214,11 @@ void Slave::run()
         // flag = -1: failed comm, 0: normal, 2: ended
         const int extflag = env->getState(iAgent);
         
-        if (extflag<0) die("Comm failed, call again & pray.\n");
+        if ( bTrain &&  extflag<0) {
+            printf("\n\nSIMULATION CRASHED\n\n");
+            return; //if comm failed, retry & pray
+        }
+        //if (extflag<0) die("Comm failed, call again & pray.\n");
         //not bTrain assumes that im only interested in one run (e.g. for animation)
         if (not bTrain && extflag==2) die("Simulation is over.\n");
         

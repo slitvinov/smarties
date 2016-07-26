@@ -85,10 +85,12 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
             *(_weights +w) = dis(*gen) / Real(l->nO + l->nI);
         orthogonalize(l->nO,l->nI,l->iWO,_weights);
     }
-
+    
+    if (not g.last)
     for (int w=g.biasHL; w<g.biasHL+g.normalSize; w++)
         *(_biases +w) = dis(*gen) / Real(g.normalSize);
     
+    if (not g.last)
     for (int w=g.biasIN; w<g.biasIN+g.recurrSize; w++)
         *(_biases +w) = dis(*gen) / Real(g.recurrSize);
         
@@ -105,7 +107,7 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
 void Network::addNormal(Graph* const p, Graph* const g, const bool first, const bool last)
 {
     if (g->normalSize>0) {
-        
+        g->last = last;
         g->normalPos = nNeurons;
         nNeurons += g->normalSize;
         g->biasHL = nBiases;
@@ -157,7 +159,7 @@ void Network::addNormal(Graph* const p, Graph* const g, const bool first, const 
 void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bool last)
 {
     if (g->recurrSize>0) {
-
+        g->last = last;
         g->recurrPos = nNeurons;
         nNeurons += g->recurrSize;
         g->indState = nStates;
@@ -320,7 +322,7 @@ gen(settings.gen), bDump(not settings.bTrain)
             Graph * o = new Graph();
             o->normalSize = 1;
             o->recurrSize = 0;
-            addNormal(G.back(),o,first,true);
+            addNormal(G.back(),o,false,true);
             iOut[i] = o->normalPos;
             printf("iOut[%d] = %d\n",i,iOut[i]);
             G.push_back(o);

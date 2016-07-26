@@ -49,7 +49,7 @@ public:
     
     virtual void setDims ();
     int getState(int & iAgent) ;
-    void setAction(const int & iAgent) ;
+    virtual void setAction(const int & iAgent);
     void close_Comm ();
     void setup_Comm ();
     virtual bool pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward);

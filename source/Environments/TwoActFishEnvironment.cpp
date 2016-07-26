@@ -150,22 +150,27 @@ void TwoActFishEnvironment::setDims()
         }
         for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FPAbove  ) x 5 [40]
-            sI.top.push_back(0.1); sI.bottom.push_back(-0.1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FVAbove  ) x 5 [45]
-            sI.top.push_back(1e-4); sI.bottom.push_back(-1e-4);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FPBelow  ) x 5 [50]
-            sI.top.push_back(0.1); sI.bottom.push_back(-0.1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
-            sI.top.push_back(1e-4); sI.bottom.push_back(-1e-4);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
+            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
+        }
+        for (int i=0; i<2*nSensors; i++) {
+            sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
+            sI.top.push_back(5); sI.bottom.push_back(0);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         /*
@@ -177,10 +182,11 @@ void TwoActFishEnvironment::setDims()
          */
     }
     {
-        aI.realValues = false;
+        aI.realValues = true;
         aI.dim = 2;
         aI.zeroact = 2;
         aI.values.resize(aI.dim);
+        //curavture
         aI.bounds.push_back(5); //Number of possible actions to choose from
         aI.upperBounds.push_back(0.5);
         aI.lowerBounds.push_back(-.5);
@@ -189,6 +195,8 @@ void TwoActFishEnvironment::setDims()
         aI.values[0].push_back(0.00);
         aI.values[0].push_back(0.25);
         aI.values[0].push_back(0.50);
+        //period:
+        aI.bounds.push_back(5); //Number of possible actions to choose from
         aI.upperBounds.push_back(0.25);
         aI.lowerBounds.push_back(-.25);
         aI.values[1].push_back(-.25);
@@ -236,7 +244,7 @@ bool TwoActFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 1) {
-        const Real scaledEfficiency = 2.*(t_sN.vals[21]-.3)/(1.-.3) -1.;
+        const Real scaledEfficiency = 2.*(t_sN.vals[21]-.3)/(.6-.3) -1.;
 #ifndef _scaleR_
         reward = scaledEfficiency;
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
@@ -258,4 +266,18 @@ bool TwoActFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     }
     
     return new_sample;
+}
+
+void TwoActFishEnvironment::setAction(const int & iAgent)
+{
+    for (int i=0; i<aI.dim; i++) {
+        const Real val = agents[iAgent]->a->valsContinuous[i];
+        agents[iAgent]->a->valsContinuous[i] = max(aI.lowerBounds[i],
+                                               min(aI.upperBounds[i],val) );
+    }
+    
+    for (int i=0; i<aI.dim; i++)
+        dataout[i] = (double) agents[iAgent]->a->valsContinuous[i];
+    
+    send_all(sock, dataout, sizeout);
 }

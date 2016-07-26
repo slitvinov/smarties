@@ -106,45 +106,51 @@ void NewFishEnvironment::setDims()
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(false);
         }
-
-        for (int i=0; i<5; i++) {
+        
+        const int nSensors = 20;
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (VelNAbove  ) x 5 [20]
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (VelTAbove  ) x 5 [25]
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (VelNBelow  ) x 5 [30]
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (VelTBelow  ) x 5 [35]
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FPAbove  ) x 5 [40]
-            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FVAbove  ) x 5 [45]
-            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FPBelow  ) x 5 [50]
-            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
-            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
+            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
+        }
+        for (int i=0; i<2*nSensors; i++) {
+            sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
+            sI.top.push_back(5); sI.bottom.push_back(0);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         /*
@@ -156,7 +162,7 @@ void NewFishEnvironment::setDims()
          */
     }
     {
-        aI.realValues = false;
+        aI.realValues = true;
         aI.dim = 1;
         aI.zeroact = 2;
         aI.values.resize(aI.dim);
@@ -177,9 +183,23 @@ void NewFishEnvironment::setDims()
     commonSetup();
 }
 
+void NewFishEnvironment::setAction(const int & iAgent)
+{
+    
+    for (int i=0; i<aI.dim; i++) {
+        const Real val = agents[iAgent]->a->valsContinuous[i];
+        agents[iAgent]->a->valsContinuous[i] = max(-0.9, min(0.9,val) );
+    }
+    
+    for (int i=0; i<aI.dim; i++)
+        dataout[i] = (double) agents[iAgent]->a->valsContinuous[i];
+    
+    send_all(sock, dataout, sizeout);
+}
+
 bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
                                     const State & t_sN, Real & reward)
-{
+{/*
     if (fabs(t_sN.vals[5] -t_sO.vals[4])>0.001) {
         printf("Mismatch new and old state!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
@@ -191,7 +211,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-2 && reward>0 ) {
         printf("Same time for two states!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
-    }/*
+    }
     if (t_sN.vals[13]>1 || t_sN.vals[13]<0) {
         printf("You modified the efficiency\n");
         abort();

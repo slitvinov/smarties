@@ -47,7 +47,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --error=${RUNFOLDER}_%j.txt
 #SBATCH --time=${WCLOCK}
 #SBATCH --nodes=${NNODES}
-#SBATCH --partition=viz
+# #SBATCH --partition=viz
 #SBATCH --ntasks-per-node=${NTASK}
 
 module load slurm
