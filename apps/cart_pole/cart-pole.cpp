@@ -95,8 +95,7 @@ int main(int argc, const char * argv[])
     //communication:
     const int sock = std::stoi(argv[1]);
     //time stepping
-    const int nssteps = 1;
-    const double dt = 2e-2;
+    const double dt = 5e-2;
     double t = 0;
     //trash:
     long long int nfallen(0), sincelast(0), duringlast(0), ntot(0);
@@ -131,34 +130,32 @@ int main(int argc, const char * argv[])
         }
         
         
-        for (int i=0; i<nssteps; i++) {
-            for (auto& a : agents) {
-                a.u = rk46_nl(t, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
-                
-                if ((fabs(a.u.y3)>.2)||(fabs(a.u.y1)>2.4)) {
-                    //nfallen += 1; sincelast = 0; percfallen = nfallen/ntot;
-                    
-                    a.info = 2;
-                    double r = -1.;
-                    state[0] = a.u.y1;
-                    state[1] = a.u.y2;
-                    state[2] = a.u.y4;
-                    state[3] = a.u.y3;
-                    //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
-                    comm->sendState(k, a.info, state, r);
-                    
-                    a.u = Vec4( .01*(drand48()-.5),
-                                .01*(drand48()-.5),
-                                .01*(drand48()-.5),
-                                .01*(drand48()-.5));
-                    t = 0;
-                    a.F = 0;
-                    a.info = 1;
-                }
-            }
+        for (auto& a : agents) {
+            a.u = rk46_nl(t, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
             
-            t += dt;
+            if ((fabs(a.u.y3)>.2)||(fabs(a.u.y1)>2.4)) {
+                //nfallen += 1; sincelast = 0; percfallen = nfallen/ntot;
+                
+                a.info = 2;
+                double r = -1.;
+                state[0] = a.u.y1;
+                state[1] = a.u.y2;
+                state[2] = a.u.y4;
+                state[3] = a.u.y3;
+                //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+                comm->sendState(k, a.info, state, r);
+                
+                a.u = Vec4( .01*(drand48()-.5),
+                            .01*(drand48()-.5),
+                            .01*(drand48()-.5),
+                            .01*(drand48()-.5));
+                t = 0;
+                a.F = 0;
+                a.info = 1;
+            }
         }
+            
+        t += dt;
         /*
         if (ntot % 10000 == 0) {
             cout << nfallen - duringlast << endl;

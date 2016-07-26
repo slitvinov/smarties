@@ -30,6 +30,8 @@ struct StateInfo
     {
         dim     = stateInfo.dim;
         dimUsed = stateInfo.dimUsed;
+        assert(dimUsed<=dim);
+        
         bounds.resize(dim); bottom.resize(dim); top.resize(dim);
         isLabel.resize(dim); inUse.resize(dim);
         for (int i=0; i<dim; i++) {
@@ -143,8 +145,7 @@ inline State decode(const StateInfo& sInfo, long int idx)
 {
 	State res(sInfo);
 	
-	for(int i=0; i<sInfo.dim; i++)
-	{
+	for(int i=0; i<sInfo.dim; i++) {
 		res.vals[sInfo.dim - i - 1] = idx % sInfo.bounds[i];
 		idx /= sInfo.bounds[i];
 	}
@@ -286,6 +287,7 @@ public:
             vals[i] = lab/actInfo.shifts[i];
             lab     = lab%actInfo.shifts[i];
             indexToRealAction(i);
+            //printf("%d %d %f\n",lab,vals[i],valsContinuous[i]);
         }
     }
     
@@ -301,6 +303,7 @@ public:
     {
         vector<Real> res(actInfo.dim);
         for (int i=0; i<actInfo.dim; i++) res[i] = realToScaledReal(i);
+        //printf("%f %f\n",res[0],valsContinuous[0]);
         return res;
     }
     

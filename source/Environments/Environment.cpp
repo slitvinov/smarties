@@ -43,7 +43,7 @@ void Environment::setup_Comm()
     dataout = (double *) malloc(sizeout);
     
     spawn_server();
-    printf("comm dim = %d %d \n", sizein, sizeout);
+    //printf("comm dim = %d %d \n", sizein, sizeout);
     sock = socket(AF_UNIX, SOCK_STREAM, 0);
     
     /* Specify the server */
@@ -85,26 +85,28 @@ void Environment::spawn_server()
         close(fd);      // fd no longer needed
         #endif
         
-        printf("About to exec.... \n");
+        //printf("About to exec.... \n");
         cout << execpath << endl << *largv << endl;
         
         //int res = execlp(execpath.c_str(), execpath.c_str(), NULL);
         const int res = execlp(execpath.c_str(), execpath.c_str(),to_string(workerid).c_str(), NULL);
         //int res = execvp(*largv, largv);
         
-        printf("Returning from exec\n");
+        //printf("Returning from exec\n");
         if (res < 0) die("Unable to exec file '%s'!\n", execpath.c_str());
     }
     
-    printf("waiting for server to setup everything..\n");
+    //printf("waiting for server to setup everything..\n");
     //sleep(2); //pause is not safe with MPI
-    printf("ok, I continue...\n");
+    //printf("ok, I continue...\n");
 }
 
 void Environment::setAction(const int & iAgent)
 {
-    for (int i=0; i<aI.dim; i++)
+    for (int i=0; i<aI.dim; i++) {
         dataout[i] = (double) agents[iAgent]->a->valsContinuous[i];
+        assert(not std::isnan(agents[iAgent]->a->valsContinuous[i]) && not std::isinf(agents[iAgent]->a->valsContinuous[i]));
+    }
     
     send_all(sock, dataout, sizeout);
 }
@@ -130,10 +132,12 @@ int Environment::getState(int & iAgent)
         for (int j=0; j<sI.dim; j++) {
             debug3(" %f (%d)",datain[k],k);
             agents[iAgent]->s->vals[j] = (Real) datain[k++];
+            assert(not std::isnan(agents[iAgent]->s->vals[j]) && not std::isinf(agents[iAgent]->s->vals[j]));
         }
         
         debug3(" %f (%d)\n",datain[k],k);
         agents[iAgent]->r = (Real) datain[k++];
+        assert(not std::isnan(agents[iAgent]->r) && not std::isinf(agents[iAgent]->r));
         debug3("Got from child %d: reward %f initial state %s\n", rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
     }
     return bStatus;
@@ -151,12 +155,12 @@ void Environment::setDims() //this environment is for the cart pole test
         // ...velocity...
         sI.bounds.push_back(6);
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        sI.isLabel.push_back(false); sI.inUse.push_back(true);
         
         // ...and angular velocity
         sI.bounds.push_back(6);
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        sI.isLabel.push_back(false); sI.inUse.push_back(true);
         
         // ...angle...
         sI.bounds.push_back(16);
@@ -170,13 +174,15 @@ void Environment::setDims() //this environment is for the cart pole test
         aI.values.resize(aI.dim);
         
         for (int i=0; i<aI.dim; i++) {
-            aI.bounds.push_back(5);
-            aI.upperBounds.push_back( 50.);
-            aI.lowerBounds.push_back(-50.);
+            aI.bounds.push_back(7);
+            aI.upperBounds.push_back( 20.);
+            aI.lowerBounds.push_back(-20.);
             
             aI.values[i].push_back(-20.);
             aI.values[i].push_back(-5.);
+            aI.values[i].push_back(-1.);
             aI.values[i].push_back(0.0);
+            aI.values[i].push_back(1.);
             aI.values[i].push_back(5.);
             aI.values[i].push_back(20.);
         }
@@ -186,6 +192,11 @@ void Environment::setDims() //this environment is for the cart pole test
 
 void Environment::commonSetup()
 {
+    assert(sI.bottom.size() == sI.top.size());
+    assert(sI.bottom.size() == sI.inUse.size());
+    assert(sI.bottom.size() == sI.bounds.size());
+    assert(sI.bottom.size() == sI.isLabel.size());
+    
     sI.dim = 0; sI.dimUsed = 0;
     for (int i=0; i<sI.bounds.size(); i++) {
         sI.dim++;
@@ -194,8 +205,10 @@ void Environment::commonSetup()
     
     aI.shifts.resize(aI.dim);
     aI.shifts[0] = 1;
-    for (int i=1; i < aI.dim; i++)
+    for (int i=1; i < aI.dim; i++) {
+        assert(aI.bounds[i] == aI.values[i].size());
         aI.shifts[i] = aI.shifts[i-1] * aI.bounds[i-1];
+    }
     
     for (auto& a : agents) {
         a->setDims(sI, aI);

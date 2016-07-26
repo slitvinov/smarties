@@ -26,15 +26,15 @@ void NewFishEnvironment::setDims()
             // State: Horizontal distance from goal point...
             sI.bounds.push_back(1); //one block in between the bounds, one more on each side
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ...vertical distance...
             sI.bounds.push_back(1);
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ...inclination of1the fish...
             sI.bounds.push_back(1); // only positive or negative
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight || POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
             sI.bounds.push_back(1); // Will get ~ 0 or 0.5
             sI.top.push_back(.5); sI.bottom.push_back(0.0);
@@ -59,15 +59,15 @@ void NewFishEnvironment::setDims()
 
             sI.bounds.push_back(1); // VxAvg 8
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line || POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             
             sI.bounds.push_back(1); // VyAvg 9
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line || POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             
             sI.bounds.push_back(1); // AvAvg 10
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line || POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
         }
         {
             sI.bounds.push_back(1); //Pout 11

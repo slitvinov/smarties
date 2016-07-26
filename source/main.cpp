@@ -88,6 +88,15 @@ void runMaster(int nranks)
 int main (int argc, char** argv)
 {
     int rank(0), nranks(2);
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+    if (provided < MPI_THREAD_MULTIPLE) {
+        printf("ERROR: The MPI implementation does not have required thread support\n");
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+    
     struct timeval clock;
     gettimeofday(&clock, NULL);
     debugLvl=12;
@@ -119,22 +128,6 @@ int main (int argc, char** argv)
     
     Parser parser(opts);
     parser.parse(argc, argv, rank == 0);
-
-#ifndef MEGADEBUG
-    if (settings.nThreads > 1) {
-        int provided;
-        MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        if (provided < MPI_THREAD_MULTIPLE) {
-            printf("ERROR: The MPI implementation does not have required thread support\n");
-            MPI_Abort(MPI_COMM_WORLD, 1);
-        }
-    } else {
-        MPI_Init(&argc, &argv);
-    }
-    
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
-#endif
     
     int seed = abs(floor(clock.tv_usec + rank));
     settings.gen = new mt19937(seed);

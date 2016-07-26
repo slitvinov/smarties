@@ -177,7 +177,8 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
 void Transitions::push_back(const int & agentId)
 {
     if(Tmp[agentId]->tuples.size()>3) {
-        if (nSequences>10000) {
+        if (false)//(nSequences>10000)
+        {
             //printf("Too many sequences, trashing the oldest\n");
             nTransitions-=Set[0]->tuples.size()-1;
             for (int i(0); i<Set[0]->tuples.size(); i++)

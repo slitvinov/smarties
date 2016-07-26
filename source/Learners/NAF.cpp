@@ -54,7 +54,7 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
     a.descale(act);
     
-    //printf("%f %f\n",act[0],a.valsContinuous[0]);
+    //printf("Net selected %f %f\n",act[0],a.valsContinuous[0]);
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
@@ -274,8 +274,8 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad,const vector<Real>& act,vec
         _uU[j] =  1.    - out[1+nL+j];
 
         #ifdef _scaleR_
-        if (out[1+j]>0.99999) out[1+j] = 0.99999;
-        if (out[1+j]<-.99999) out[1+j] = -.99999;
+        if (out[1+j]>1.-1e-10) out[1+j] = 1.-1e-10;
+        if (out[1+j]<1e-10-1.) out[1+j] = 1e-10-1.;
         #endif
             
         for (int i(0); i<nA; i++) {

@@ -41,20 +41,6 @@ greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI
     flags.resize(batchSize, true);
 }
 
-bool Learner::checkBatch() const
-{
-    const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    if (ndata<batchSize) return false; //do we have enough data?
-    
-    //if no learning has been done yet: flags initialized as true
-    //if learning begun, master sets flags to false and each thread sets flag to true as batch is processed
-    //bool done(true);
-    //for (int i=0; i<batchSize; i++) done = done && flags[i];
-    //if (taskCounter>0)
-    //printf("taskCounter %d\n",taskCounter);
-    return taskCounter>=batchSize;
-}
-
 void Learner::TrainBatch()
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
@@ -145,7 +131,7 @@ void Learner::TrainTasking(Master* const master)
                     opt->nepoch=stats.epochCount; //used to anneal learning rate
                 }
                 
-                if(bRecurrent)
+                if(bRecurrent) //we are using an LSTM: do BPTT
                 {
                     for (int i(0); i<batchSize; i++)
                     {
@@ -225,12 +211,20 @@ void Learner::TrainTasking(Master* const master)
             #pragma omp master
             cntUpdateDelay = tgtUpdateDelay;
             
+            //2 options: either move tgt_wght = (1-a)*tgt_wght + a*wght
             if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
-            else net->updateFrozenWeights();
+            else net->updateFrozenWeights(); //or copy tgt_wghts = wghts
         }
         #pragma omp master
         cntUpdateDelay--;
     }
+}
+
+bool Learner::checkBatch() const
+{
+    const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+    if (ndata<batchSize) return false; //do we have enough data?
+    return taskCounter >= batchSize;
 }
 
 void Learner::save(string name)
@@ -263,6 +257,53 @@ void Learner::restart(string name)
         printf("epoch count: %d\n", stats.epochCount);
         fclose(f);
     }
+}
+
+void Learner::dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs)
+{
+    const Real max_Q = *max_element(Qs.begin(), Qs.end());
+    const Real min_Q = *min_element(Qs.begin(), Qs.end());
+    _stats->MSE += err*err;
+    _stats->relE += fabs(err)/(max_Q-min_Q);
+    _stats->avgQ += Q;
+    _stats->minQ = std::min(_stats->minQ,Q);
+    _stats->maxQ = std::max(_stats->maxQ,Q);
+    _stats->dumpCount++;
+}
+
+void Learner::processStats(vector<trainData*> _stats)
+{
+    stats.minQ= 1e5; stats.maxQ=-1e5; stats.MSE=0;
+    stats.avgQ=0; stats.relE=0; stats.dumpCount=0;
+    
+    for (int i=0; i<_stats.size(); i++) {
+        stats.MSE += _stats[i]->MSE;
+        stats.relE += _stats[i]->relE;
+        stats.avgQ += _stats[i]->avgQ;
+        stats.dumpCount += _stats[i]->dumpCount;
+        stats.minQ = std::min(stats.minQ,_stats[i]->minQ);
+        stats.maxQ = std::max(stats.maxQ,_stats[i]->maxQ);
+        _stats[i]->minQ= 1e5; _stats[i]->maxQ=-1e5; _stats[i]->MSE=0;
+        _stats[i]->avgQ=0; _stats[i]->relE=0; _stats[i]->dumpCount=0;
+    }
+    
+    if (stats.dumpCount<2) return;
+    stats.epochCount++;
+    
+    stats.MSE/=(stats.dumpCount-1);
+    stats.avgQ/=stats.dumpCount;
+    stats.relE/=stats.dumpCount;
+    
+    ofstream filestats;
+    filestats.open("stats.txt", ios::app);
+    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, N %d\n",
+           stats.epochCount,      stats.MSE,      stats.relE,      stats.avgQ,      stats.minQ,      stats.maxQ, stats.dumpCount);
+    filestats<<
+    stats.epochCount<<" "<<stats.MSE<<" "<<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
+    filestats.close();
+    
+    fflush(0);
+    if (stats.epochCount % 100==0) save("policy");
 }
 
 /*
@@ -305,50 +346,3 @@ void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
     }
 }
 */
-
-void Learner::dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs)
-{
-    const Real max_Q = *max_element(Qs.begin(), Qs.end());
-    const Real min_Q = *min_element(Qs.begin(), Qs.end());
-    _stats->MSE += err*err;
-    _stats->relE += fabs(err)/(max_Q-min_Q);
-    _stats->avgQ += Q;
-    _stats->minQ = std::min(_stats->minQ,Q);
-    _stats->maxQ = std::max(_stats->maxQ,Q);
-    _stats->dumpCount++;
-}
-
-void Learner::processStats(vector<trainData*> _stats)
-{
-    stats.minQ= 1e5; stats.maxQ=-1e5; stats.MSE=0;
-    stats.avgQ=0; stats.relE=0; stats.dumpCount=0;
-    
-    for (int i=0; i<_stats.size(); i++) {
-        stats.MSE += _stats[i]->MSE;
-        stats.relE += _stats[i]->relE;
-        stats.avgQ += _stats[i]->avgQ;
-        stats.dumpCount += _stats[i]->dumpCount;
-        stats.minQ = std::min(stats.minQ,_stats[i]->minQ);
-        stats.maxQ = std::max(stats.maxQ,_stats[i]->maxQ);
-        _stats[i]->minQ= 1e5; _stats[i]->maxQ=-1e5; _stats[i]->MSE=0;
-        _stats[i]->avgQ=0; _stats[i]->relE=0; _stats[i]->dumpCount=0;
-    }
-    
-    if (stats.dumpCount<2) return;
-    stats.epochCount++;
-    
-    stats.MSE/=(stats.dumpCount-1);
-    stats.avgQ/=stats.dumpCount;
-    stats.relE/=stats.dumpCount;
-    
-    ofstream filestats;
-    filestats.open("stats.txt", ios::app);
-    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, N %d\n",
-           stats.epochCount,      stats.MSE,      stats.relE,      stats.avgQ,      stats.minQ,      stats.maxQ, stats.dumpCount);
-    filestats<<
-           stats.epochCount<<" "<<stats.MSE<<" "<<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
-    filestats.close();
-
-    fflush(0);
-    if (stats.epochCount % 100==0) save("policy");
-}
