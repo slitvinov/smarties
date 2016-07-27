@@ -124,6 +124,7 @@ int main(int argc, const char * argv[])
             //printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
             comm->sendState(k, a.info, state, r);
             comm->recvAction(actions);
+            //printf("Cart acting %f\n", actions[0]); fflush(0);
             a.F = actions[0];
             a.info = 0;
             //printf("Received action %f\n", a.F); fflush(0);

@@ -38,26 +38,9 @@ cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}
 
-cat <<EOF >daint_sbatch
-#!/bin/bash -l
-
-#SBATCH --account=s658
-#SBATCH --job-name="${RUNFOLDER}"
-#SBATCH --output=${RUNFOLDER}_%j.txt
-#SBATCH --error=${RUNFOLDER}_%j.txt
-#SBATCH --time=${WCLOCK}
-#SBATCH --nodes=${NNODES}
-# #SBATCH --partition=viz
-#SBATCH --ntasks-per-node=${NTASK}
-
 module load slurm
 module swap PrgEnv-cray PrgEnv-gnu
 module swap gcc/4.8.2 gcc/4.9.2
 export OMP_NUM_THREADS=$NTHREADS
 
-run.sh ${NNODES} ${NTASK} ${NTHREADS}
-EOF
-
-chmod 755 daint_sbatch
-
-sbatch daint_sbatch
+./run.sh ${NNODES} ${NTASK} ${NTHREADS}

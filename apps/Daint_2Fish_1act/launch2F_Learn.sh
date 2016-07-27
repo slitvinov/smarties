@@ -60,7 +60,7 @@ SETTINGS+=" -sock ${SOCK}"
 OPTIONS=${SETTINGS}${RESTART}
 
 cd ${BASEPATH}${EXECNAME}
-export LD_LIBRARY_PATH=${HOME}/2d-treecodes/lib64/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${HOME}/2d-treecodes-ispc/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/opt/intel/13.0.1.117/composer_xe_2013.1.117/tbb/lib/intel64/:$LD_LIBRARY_PATH
 export OMP_NUM_THREADS=${NTHREADS}
 

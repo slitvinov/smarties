@@ -106,45 +106,51 @@ void NewFishEnvironment::setDims()
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(false);
         }
-
-        for (int i=0; i<5; i++) {
+        
+        const int nSensors = 20;
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (VelNAbove  ) x 5 [20]
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (VelTAbove  ) x 5 [25]
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (VelNBelow  ) x 5 [30]
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (VelTBelow  ) x 5 [35]
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(l_line);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FPAbove  ) x 5 [40]
-            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FVAbove  ) x 5 [45]
-            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FPBelow  ) x 5 [50]
-            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
-        for (int i=0; i<5; i++) {
+        for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
-            sI.top.push_back(1e-1); sI.bottom.push_back(-1e-1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
+            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
+        }
+        for (int i=0; i<2*nSensors; i++) {
+            sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
+            sI.top.push_back(5); sI.bottom.push_back(0);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         /*
@@ -156,15 +162,15 @@ void NewFishEnvironment::setDims()
          */
     }
     {
-        aI.realValues = false;
+        aI.realValues = true;
         aI.dim = 1;
         aI.zeroact = 2;
         aI.values.resize(aI.dim);
         
         for (int i=0; i<aI.dim; i++) {
             aI.bounds.push_back(5); //Number of possible actions to choose from
-            aI.upperBounds.push_back(0.5);
-            aI.lowerBounds.push_back(-.5);
+            aI.upperBounds.push_back(1.0);
+            aI.lowerBounds.push_back(-1.);
             
             aI.values[i].push_back(-.50);
             aI.values[i].push_back(-.25);
@@ -177,9 +183,28 @@ void NewFishEnvironment::setDims()
     commonSetup();
 }
 
+void NewFishEnvironment::setAction(const int & iAgent)
+{
+    if ( agents[iAgent]->a->valsContinuous[0] > .75 ) {
+        std::normal_distribution<Real> dist(0.5,0.25);
+        const Real uB = 0.75; const Real lB = -.75;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    }
+    if ( agents[iAgent]->a->valsContinuous[0] <-.75 ) {
+        std::normal_distribution<Real> dist(-.5,0.25);
+        const Real uB = 0.75; const Real lB = -.75;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    }
+    
+    for (int i=0; i<aI.dim; i++)
+        dataout[i] = (double) agents[iAgent]->a->valsContinuous[i];
+    
+    send_all(sock, dataout, sizeout);
+}
+
 bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
                                     const State & t_sN, Real & reward)
-{
+{/*
     if (fabs(t_sN.vals[5] -t_sO.vals[4])>0.001) {
         printf("Mismatch new and old state!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
@@ -191,7 +216,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-2 && reward>0 ) {
         printf("Same time for two states!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
-    }/*
+    }
     if (t_sN.vals[13]>1 || t_sN.vals[13]<0) {
         printf("You modified the efficiency\n");
         abort();
@@ -215,7 +240,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     
     if (study == 0) {
         //const Real scaledEfficiency = t_sN.vals[13];
-        const Real scaledEfficiency = 2.*(t_sN.vals[13]-.4)/(1.-.4) -1.; //between -1 and 1
+        const Real scaledEfficiency = (t_sN.vals[13]-.4)/(1.-.4); //between -1 and 1
 #ifndef _scaleR_
         reward = scaledEfficiency;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
@@ -225,7 +250,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 1) {
-        const Real scaledBndEfficiency = 2.*(t_sN.vals[16]-.3)/(.6-.3) -1.; //between -1 and 1
+        const Real scaledBndEfficiency = (t_sN.vals[16]-.3)/(.6-.3); //between 0 and 1
 #ifndef _scaleR_
         reward = scaledBndEfficiency;
         if (new_sample) reward = -1./(1.-gamma);

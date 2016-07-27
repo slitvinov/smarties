@@ -10,12 +10,13 @@
 #include "Transitions.h"
 #include <fstream>
 //#define CLEAN //dont
+#define NmaxDATA 10000
 
 Transitions::Transitions(Environment* env, Settings & settings):
 aI(env->aI), sI(env->sI), anneal(0), nBroken(0), nTransitions(0),
-nSequences(0), env(env), nAppended(settings.dqnAppendS),
-path(settings.samplesFile), bSampleSeq(settings.nnType == 1),
-bWriteToFile(!(settings.samplesFile=="none"))
+nSequences(0), env(env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
+path(settings.samplesFile), bSampleSeq(settings.nnType == 1), bRecurrent(settings.nnType==1),
+bWriteToFile(!(settings.samplesFile=="none")), iOldestSaved(0)
 {
     Inp.resize(sI.dimUsed);
     Tmp.resize(settings.nAgents);
@@ -24,6 +25,7 @@ bWriteToFile(!(settings.samplesFile=="none"))
     }
     dist = new discrete_distribution<int> (1,2); //dummy
     gen = new Gen(settings.gen);
+    Set.reserve(NmaxDATA);
 }
 
 void Transitions::restartSamples()
@@ -177,37 +179,57 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
 void Transitions::push_back(const int & agentId)
 {
     if(Tmp[agentId]->tuples.size()>3) {
-        if (false)//(nSequences>10000)
-        {
-            //printf("Too many sequences, trashing the oldest\n");
-            nTransitions-=Set[0]->tuples.size()-1;
-            for (int i(0); i<Set[0]->tuples.size(); i++)
-                delete Set[0]->tuples[i];
-            Set[0]->tuples.clear();
-            delete Set[0];
-            
-            nTransitions+=Tmp[agentId]->tuples.size()-1;
-            Set[0] = Tmp[agentId];
-        } else {
+        if (nSequences>NmaxDATA) Buffered.push_back(Tmp[agentId]);
+        else {
             nSequences++;
             Set.push_back(Tmp[agentId]);
             nTransitions+=Tmp[agentId]->tuples.size()-1;
         }
         
-        Tmp[agentId] = new Sequence();
         
     } else {
-        for (int i(0); i<Tmp[agentId]->tuples.size(); i++)
-            delete Tmp[agentId]->tuples[i];
+        //for (int i(0); i<Tmp[agentId]->tuples.size(); i++) {
+        //    _dispose_object(Tmp[agentId]->tuples[i]);
+        //}
         //printf("Trashing %d obs.\n",Tmp[agentId]->tuples.size());
-        Tmp[agentId]->tuples.clear();
-        Tmp[agentId]->ended = false;
+        _dispose_object(Tmp[agentId]);
+        //Tmp[agentId]->tuples.clear();
+        //Tmp[agentId]->ended = false;
     }
+    
+    Tmp[agentId] = new Sequence();
     
 #ifdef _Priority_
     if (bSampleSeq) Errs.resize(nSequences,1.);
     else  Errs.resize(nTransitions,1.);
 #endif
+}
+
+void Transitions::synchronize()
+{
+    for(auto & bufTransition : Buffered)
+    {
+        const int ind = iOldestSaved++;
+        iOldestSaved = (iOldestSaved == NmaxDATA) ? 0 : iOldestSaved;
+
+        nTransitions -= Set[ind]->tuples.size()-1;
+        _dispose_object(Set[ind]);
+        
+        nTransitions += bufTransition->tuples.size()-1;
+        Set[ind] = bufTransition;
+    }
+    Buffered.resize(0); //no clear?
+}
+
+void Transitions::updateSamples()
+{
+    synchronize();
+    
+    const int ndata = (bRecurrent) ? nSequences : nTransitions;
+    inds.resize(ndata);
+    
+    std::iota(inds.begin(), inds.end(), 0);
+    random_shuffle(inds.begin(), inds.end(), *(gen));
 }
 
 int Transitions::sample()

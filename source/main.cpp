@@ -11,6 +11,7 @@
 #include "Learners/Learner.h"
 #include "Learners/NFQ.h"
 #include "Learners/NAF.h"
+#include "Learners/DPG.h"
 #include "ObjectFactory.h"
 #include "Settings.h"
 #include "Scheduler.h"
@@ -70,12 +71,12 @@ void runMaster(int nranks)
         settings.nnOutputs = 1+nL+nA;
         settings.bSeparateOutputs = true; //else it does not really work
         learner = new NAF(env,settings);
-    }/*
+    }
     else if (settings.learner == "DP" || settings.learner == "DPG") {
         settings.nnInputs = env->sI.dimUsed + env->aI.dim;
         settings.nnOutputs = 1;
         learner = new DPG(env,settings);
-    } */
+    }
     
     Master* master = new Master(learner, env, settings);
     if (settings.restart != "none") master->restart(settings.restart);
@@ -88,42 +89,45 @@ void runMaster(int nranks)
 int main (int argc, char** argv)
 {
     int rank(0), nranks(2);
+#ifndef MEGADEBUG
     int provided;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-    if (provided < MPI_THREAD_MULTIPLE) {
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+    if (provided < MPI_THREAD_FUNNELED) {
         printf("ERROR: The MPI implementation does not have required thread support\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
+    
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+#endif
     
     struct timeval clock;
     gettimeofday(&clock, NULL);
     debugLvl=12;
     
     vector<OptionStruct> opts ({
-        {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.9},
-        {'e', "greedyeps",REAL,  "Greedy epsilon", &settings.greedyEps, (Real)0.1},
-        {'l', "learnrate",REAL,  "Learning rate",  &settings.lRate,     (Real)0.001},
-        {'b', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)4},
-        {'a', "learn",    STRING,"Learner Type",   &settings.learner,   (string)"DQ"},
-        {'r', "rType",    INT,   "Reward: ef,ef,y",&settings.rewardType,(int)0},
-        {'y', "goalDY",   REAL,  "If r==2  goalDY",&settings.goalDY,    (Real)0.},
-        {'t', "bTrain",   INT,   "am I training?", &settings.bTrain,    (int)1},
-        {'i', "senses",   INT,   "top,pov,vel,pres",&settings.senses,   (int)0},
-        {'K', "nnL",      REAL,  "Weight decay",   &settings.nnLambda,  (Real)0.0},
-        {'D', "nnD",      REAL,  "NN's droput",    &settings.nnPdrop,   (Real)0.0},
-        {'Z', "nnl1",     INT,   "NN layer 1",     &settings.nnLayer1,  (int)0},
-        {'Y', "nnl2",     INT,   "NN layer 2",     &settings.nnLayer2,  (int)0},
-        {'X', "nnl3",     INT,   "NN layer 3",     &settings.nnLayer3,  (int)0},
-        {'W', "nnl4",     INT,   "NN layer 4",     &settings.nnLayer4,  (int)0},
-        {'V', "nnl5",     INT,   "NN layer 5",     &settings.nnLayer5,  (int)0},
-        {'T', "nnType",   INT,   "NNtype: LSTM,FF",&settings.nnType,    (int)1},
-        {'C', "dqnT",     REAL,  "DQN update tgt", &settings.dqnUpdateC,(Real)1000},
-        {'S', "dqnNs",    INT,   "appended states",&settings.dqnAppendS,(int)0},
-        {'B', "dqnBatch", INT,   "batch update",   &settings.dqnBatch,  (int)10},
-        {'p', "nThreads", INT,   "parallel master",&settings.nThreads,  (int)-1},
-        {'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"../history.txt"}
+    {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.9},
+    {'e', "greedyeps",REAL,  "Greedy epsilon", &settings.greedyEps, (Real)0.1},
+    {'l', "learnrate",REAL,  "Learning rate",  &settings.lRate,     (Real)0.001},
+    {'b', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)4},
+    {'a', "learn",    STRING,"Learner Type",   &settings.learner,   (string)"DQ"},
+    {'r', "rType",    INT,   "Reward: ef,ef,y",&settings.rewardType,(int)0},
+    {'y', "goalDY",   REAL,  "If r==2  goalDY",&settings.goalDY,    (Real)0.},
+    {'t', "bTrain",   INT,   "am I training?", &settings.bTrain,    (int)1},
+    {'i', "senses",   INT,   "top,pov,vel,pres",&settings.senses,   (int)0},
+    {'K', "nnL",      REAL,  "Weight decay",   &settings.nnLambda,  (Real)0.0},
+    {'D', "nnD",      REAL,  "NN's droput",    &settings.nnPdrop,   (Real)0.0},
+    {'Z', "nnl1",     INT,   "NN layer 1",     &settings.nnLayer1,  (int)0},
+    {'Y', "nnl2",     INT,   "NN layer 2",     &settings.nnLayer2,  (int)0},
+    {'X', "nnl3",     INT,   "NN layer 3",     &settings.nnLayer3,  (int)0},
+    {'W', "nnl4",     INT,   "NN layer 4",     &settings.nnLayer4,  (int)0},
+    {'V', "nnl5",     INT,   "NN layer 5",     &settings.nnLayer5,  (int)0},
+    {'T', "nnType",   INT,   "NNtype: LSTM,FF",&settings.nnType,    (int)1},
+    {'C', "dqnT",     REAL,  "DQN update tgt", &settings.dqnUpdateC,(Real)1000},
+    {'S', "dqnNs",    INT,   "appended states",&settings.dqnAppendS,(int)0},
+    {'B', "dqnBatch", INT,   "batch update",   &settings.dqnBatch,  (int)10},
+    {'p', "nThreads", INT,   "parallel master",&settings.nThreads,  (int)-1},
+    {'H', "fileSamp", STRING,"history file", &settings.samplesFile,(string)"../history.txt"}
     });
     
     Parser parser(opts);

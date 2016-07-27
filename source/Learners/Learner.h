@@ -52,10 +52,12 @@ protected:
     void dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs);
     void dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs);
     void processStats(vector<trainData*> _stats);
+    virtual void updateTargetNetwork();
+    virtual void stackAndUpdateNNWeights(const int nAddedGradients);
+    virtual void updateNNWeights(const int nAddedGradients);
+    virtual void allocateNNactivations(const int buffer);
     
-public:
-    vector<bool> flags;
-    
+public:    
     Learner(Environment* env, Settings & settings);
     
     ~Learner()

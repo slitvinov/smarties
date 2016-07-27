@@ -26,15 +26,15 @@ void TwoActFishEnvironment::setDims()
             // State: Horizontal distance from goal point...
             sI.bounds.push_back(1); //one block in between the bounds, one more on each side
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ...vertical distance...
             sI.bounds.push_back(1);
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ...inclination of1the fish...
             sI.bounds.push_back(1); // only positive or negative
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight || POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
             sI.bounds.push_back(1); // Will get ~ 0 or 0.5
             sI.top.push_back(.5); sI.bottom.push_back(0.0);
@@ -150,22 +150,27 @@ void TwoActFishEnvironment::setDims()
         }
         for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FPAbove  ) x 5 [40]
-            sI.top.push_back(0.1); sI.bottom.push_back(-0.1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FVAbove  ) x 5 [45]
-            sI.top.push_back(1e-4); sI.bottom.push_back(-1e-4);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FPBelow  ) x 5 [50]
-            sI.top.push_back(0.1); sI.bottom.push_back(-0.1);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
-            sI.top.push_back(1e-4); sI.bottom.push_back(-1e-4);
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
+            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
+        }
+        for (int i=0; i<2*nSensors; i++) {
+            sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
+            sI.top.push_back(5); sI.bottom.push_back(0);
             sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
         }
         /*
@@ -177,10 +182,11 @@ void TwoActFishEnvironment::setDims()
          */
     }
     {
-        aI.realValues = false;
+        aI.realValues = true;
         aI.dim = 2;
         aI.zeroact = 2;
         aI.values.resize(aI.dim);
+        //curavture
         aI.bounds.push_back(5); //Number of possible actions to choose from
         aI.upperBounds.push_back(0.5);
         aI.lowerBounds.push_back(-.5);
@@ -189,6 +195,8 @@ void TwoActFishEnvironment::setDims()
         aI.values[0].push_back(0.00);
         aI.values[0].push_back(0.25);
         aI.values[0].push_back(0.50);
+        //period:
+        aI.bounds.push_back(5); //Number of possible actions to choose from
         aI.upperBounds.push_back(0.25);
         aI.lowerBounds.push_back(-.25);
         aI.values[1].push_back(-.25);
@@ -199,6 +207,35 @@ void TwoActFishEnvironment::setDims()
     }
     resetAll=true;
     commonSetup();
+}
+
+void TwoActFishEnvironment::setAction(const int & iAgent)
+{
+    if ( agents[iAgent]->a->valsContinuous[0] >0.75 ) {
+        std::normal_distribution<Real> dist(0.5,0.25);
+        const Real uB = 0.75; const Real lB = -.75;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    }
+    if ( agents[iAgent]->a->valsContinuous[0] <-.75 ) {
+        std::normal_distribution<Real> dist(-.5,0.25);
+        const Real uB = 0.75; const Real lB = -.75;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    }
+    if ( agents[iAgent]->a->valsContinuous[1] >0.25 ) {
+        std::normal_distribution<Real> dist(0.5,0.25);
+        const Real uB = 0.25; const Real lB = -.25;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    }
+    if ( agents[iAgent]->a->valsContinuous[1] <-.25 ) {
+        std::normal_distribution<Real> dist(-.5,0.25);
+        const Real uB = 0.25; const Real lB = -.25;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    }
+    
+    for (int i=0; i<aI.dim; i++)
+        dataout[i] = (double) agents[iAgent]->a->valsContinuous[i];
+    
+    send_all(sock, dataout, sizeout);
 }
 
 bool TwoActFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
@@ -226,7 +263,7 @@ bool TwoActFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     if (reward<-9.9) new_sample=true;
     
     if (study == 0) {
-        const Real scaledEfficiency = 2.*(t_sN.vals[18]-.4)/(1.-.4) -1.;
+        const Real scaledEfficiency = (t_sN.vals[18]-.4)/(1.-.4);
 #ifndef _scaleR_
         reward = scaledEfficiency;
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
@@ -236,7 +273,7 @@ bool TwoActFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 1) {
-        const Real scaledEfficiency = 2.*(t_sN.vals[21]-.3)/(1.-.3) -1.;
+        const Real scaledEfficiency = (t_sN.vals[21]-.3)/(.6-.3);
 #ifndef _scaleR_
         reward = scaledEfficiency;
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward

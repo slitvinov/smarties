@@ -54,7 +54,7 @@ CPPFLAGS+= -O0 -g
 #else
 endif
 ifeq "$(config)" "prod"
-CPPFLAGS += -g -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math  #-DBOOST_UBLAS_NDEBUG
+CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native -DNDEBUG #-DBOOST_UBLAS_NDEBUG -ffast-math  
 endif
 
 ifeq "$(CC)" "icc"
@@ -67,7 +67,7 @@ LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = 	ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
 		Environment.o TwoActFishEnvironment.o TwoFishEnvironment.o NewFishEnvironment.o \
-		Learner.o NAF.o NFQ.o  Transitions.o\
+		Learner.o NAF.o NFQ.o DPG.o Transitions.o\
 		Scheduler.o util.o\
 		Layers.o LSTMNet.o Network.o Optimizer.o 
 #ExternalAgent.o 

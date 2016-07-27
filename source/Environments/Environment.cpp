@@ -107,7 +107,6 @@ void Environment::setAction(const int & iAgent)
         dataout[i] = (double) agents[iAgent]->a->valsContinuous[i];
         assert(not std::isnan(agents[iAgent]->a->valsContinuous[i]) && not std::isinf(agents[iAgent]->a->valsContinuous[i]));
     }
-    
     send_all(sock, dataout, sizeout);
 }
 
@@ -140,6 +139,7 @@ int Environment::getState(int & iAgent)
         assert(not std::isnan(agents[iAgent]->r) && not std::isinf(agents[iAgent]->r));
         debug3("Got from child %d: reward %f initial state %s\n", rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
     }
+    fflush(0);
     return bStatus;
 }
 
@@ -149,7 +149,7 @@ void Environment::setDims() //this environment is for the cart pole test
         sI.bounds.clear(); sI.top.clear(); sI.bottom.clear(); sI.isLabel.clear(); sI.inUse.clear();
         // State: coordinate...
         sI.bounds.push_back(12);
-        sI.top.push_back(2.4); sI.bottom.push_back(-2.4);
+        sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.isLabel.push_back(false); sI.inUse.push_back(true);
         
         // ...velocity...
@@ -164,7 +164,7 @@ void Environment::setDims() //this environment is for the cart pole test
         
         // ...angle...
         sI.bounds.push_back(16);
-        sI.top.push_back(0.2); sI.bottom.push_back(-0.2);
+        sI.top.push_back(1.); sI.bottom.push_back(-1.);
         sI.isLabel.push_back(false); sI.inUse.push_back(true);
     }
     {
@@ -175,8 +175,8 @@ void Environment::setDims() //this environment is for the cart pole test
         
         for (int i=0; i<aI.dim; i++) {
             aI.bounds.push_back(7);
-            aI.upperBounds.push_back( 20.);
-            aI.lowerBounds.push_back(-20.);
+            aI.upperBounds.push_back( 1.);
+            aI.lowerBounds.push_back(-1.);
             
             aI.values[i].push_back(-20.);
             aI.values[i].push_back(-5.);
@@ -223,10 +223,10 @@ bool Environment::pickReward(const State & t_sO, const Action & t_a, const State
     bool new_sample(false);
     if (reward<-0.9) new_sample=true;
 #ifndef _scaleR_
-    reward = 1.;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
+    reward = 1. - fabs(t_sN.vals[3])/0.2;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
     if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
 #else
-    reward = (1.-gamma); //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
+    reward = (1. - fabs(t_sN.vals[3])/0.1)*(1.-gamma); //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
     if (new_sample) reward = -1.;  // = - max cumulative reward
 #endif
     return new_sample; //cart pole has failed if r = -1, need to clean this shit and rely only on info

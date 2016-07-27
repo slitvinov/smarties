@@ -35,11 +35,11 @@ struct StateInfo
         bounds.resize(dim); bottom.resize(dim); top.resize(dim);
         isLabel.resize(dim); inUse.resize(dim);
         for (int i=0; i<dim; i++) {
-            bounds[i]=     (stateInfo.bounds[i]);
-            bottom[i]=     (stateInfo.bottom[i]);
-            top[i]=        (stateInfo.top[i]);
-            isLabel[i]=    (stateInfo.isLabel[i]);
-            inUse[i]=      (stateInfo.isLabel[i]);
+            top[i] = (stateInfo.top[i]);
+            bottom[i] = (stateInfo.bottom[i]);
+            bounds[i] = (stateInfo.bounds[i]);
+            isLabel[i] = (stateInfo.isLabel[i]);
+            inUse[i] = (stateInfo.inUse[i]);
         }
     }
 };
@@ -81,16 +81,15 @@ public:
 			o << vals[i]<< " ";
 		}
 		return o.str();
-	}
+    }
 	
 	string printScaled()
 	{
 		ostringstream o;
 		o << "[";
-		for (int i=0; i<sInfo.dim; i++) {
+		for (int i=0; i<sInfo.dim; i++) if (sInfo.inUse[i]) {
             Real res = 2.*(vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i]) - 1.;
-			o << res;
-			if (i < sInfo.dim-1) o << " ";
+			o << res << " ";
 		}
 		o << "]";
 		return o.str();
@@ -296,6 +295,28 @@ public:
         for (int i=0; i<actInfo.dim; i++) {
             valsContinuous[i] = data[i];
             realActionToIndex(i);
+        }
+    }
+    
+    void getRandom(const int iRand = -1)
+    {
+        std::normal_distribution<Real> dist(0.,0.5);
+        
+        if ( iRand<0 || iRand >= actInfo.dim )
+        {
+            for (int i=0; i<actInfo.dim; i++) {
+                const Real uB = actInfo.values[i].back();
+                const Real lB = actInfo.values[i].front();
+                valsContinuous[i]=lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+                realActionToIndex(i);
+            }
+        }
+        else
+        {
+            const Real uB = actInfo.values[iRand].back();
+            const Real lB = actInfo.values[iRand].front();
+            valsContinuous[iRand]=lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+            realActionToIndex(iRand);
         }
     }
     

@@ -38,7 +38,6 @@ greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI
     net = new Network(lsize, bRecurrent, settings);
     opt = new AdamOptimizer(net, profiler, settings);
     data = new Transitions(env, settings);
-    flags.resize(batchSize, true);
 }
 
 void Learner::TrainBatch()
@@ -47,27 +46,13 @@ void Learner::TrainBatch()
     if (ndata<batchSize) return; //do we have enough data?
     int nAddedGradients(0);
     
-    if (cntUpdateDelay <= 0) { //DQN-style frozen weight
-        cntUpdateDelay = tgtUpdateDelay;
-        if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
-        else net->updateFrozenWeights();
-    }
-    cntUpdateDelay--;
+    updateTargetNetwork();
     
-    if (data->inds.size()<batchSize) { //uniform sampling
-        data->inds.resize(ndata);
-        std::iota(data->inds.begin(), data->inds.end(), 0);
-        random_shuffle(data->inds.begin(), data->inds.end(),*(data->gen));
-        processStats(Vstats);
+    if (data->inds.size()<batchSize)
+    { //uniform sampling
+        data->updateSamples();
+        processStats(Vstats); //dump info about convergence
     }
-    
-    /*
-     vector<vector<Real>> inputs;
-     const int ind = 1011;
-     for (int k=0; k<T->Set[ind]->tuples.size(); k++)
-        inputs.push_back(T->Set[ind]->tuples[k]->s);
-     net->checkGrads(inputs, T->Set[ind]->tuples.size()-1, 1);
-     */
     
     if(bRecurrent) {
         
@@ -76,7 +61,7 @@ void Learner::TrainBatch()
             const int ind = data->inds.back();
             data->inds.pop_back();
             const int seqSize = data->Set[ind]->tuples.size();
-            net->allocateSeries(seqSize);
+            allocateNNactivations(seqSize);
             nAddedGradients += seqSize-1;
             
             Train_BPTT(ind);
@@ -101,8 +86,7 @@ void Learner::TrainBatch()
         
     }
     
-    opt->nepoch=stats.epochCount;
-    opt->update(net->grad,nAddedGradients);
+    updateNNWeights(nAddedGradients);
 }
 
 void Learner::TrainTasking(Master* const master)
@@ -110,25 +94,37 @@ void Learner::TrainTasking(Master* const master)
     vector<int> seq(batchSize), samp(batchSize);
     int nAddedGradients(0), maxBufSize(0);
     
+    int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+    
     #pragma omp parallel num_threads(nThreads)
     while (true)
     {
-        const int ndata =(bRecurrent) ? data->nSequences : data->nTransitions;
         
         #pragma omp master
         {
-            if (ndata>batchSize)
+            ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+            
+            if (ndata > batchSize)
             {
                 taskCounter=0;
                 nAddedGradients = 0;
                 
                 if (data->inds.size()<batchSize) //reset sampling
                 {
-                    data->inds.resize(ndata);
-                    std::iota(data->inds.begin(), data->inds.end(), 0);
-                    random_shuffle(data->inds.begin(), data->inds.end(), *(data->gen));
+                    data->updateSamples();
+                    ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
                     processStats(Vstats); //dump info about convergence
                     opt->nepoch=stats.epochCount; //used to anneal learning rate
+                    
+                    #ifndef NDEBUG //check gradients with finite differences, just for debug
+                    if (stats.epochCount++ % 25 == 0) {
+                        vector<vector<Real>> inputs;
+                        const int ind = data->Set.size()-1;
+                        for (int k=0; k<data->Set[ind]->tuples.size(); k++)
+                            inputs.push_back(data->Set[ind]->tuples[k]->s);
+                        net->checkGrads(inputs, data->Set[ind]->tuples.size()-1);
+                    }
+                    #endif
                 }
                 
                 if(bRecurrent) //we are using an LSTM: do BPTT
@@ -144,8 +140,8 @@ void Learner::TrainTasking(Master* const master)
                     }
                     
                     //LSTM NFQ requires size()+1 activations of the net:
-                    net->allocateSeries(2+nThreads*(maxBufSize+1)); //0 and 1 reserved
-                    
+                    allocateNNactivations(2+nThreads*(maxBufSize+1)); //0 and 1 reserved
+
                     #pragma omp flush
                     
                     for (int i(0); i<batchSize; i++) {
@@ -155,7 +151,6 @@ void Learner::TrainTasking(Master* const master)
                             const int thrID = omp_get_thread_num();
                             const int first = 2+(maxBufSize+1)*thrID;
                             Train_BPTT(knd, first, thrID);
-                            
                             #pragma omp atomic
                             taskCounter++;
                         }
@@ -177,7 +172,7 @@ void Learner::TrainTasking(Master* const master)
                     }
                     
                     nAddedGradients = batchSize;
-                    net->allocateSeries(2+nThreads*3);
+                    allocateNNactivations(2+nThreads*3); //0 and 1 reserved
                     
                     #pragma omp flush
                     
@@ -201,23 +196,43 @@ void Learner::TrainTasking(Master* const master)
         }
         #pragma omp barrier
         
-        //here be omp fors:
-        if (ndata>batchSize) {
-            opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads (TODO: do not sum 0 component of Vgrad as now we have a pragma omp master above)
-            opt->update(net->grad,nAddedGradients); //update
-        }
         
-        if (cntUpdateDelay <= 0) {
-            #pragma omp master
-            cntUpdateDelay = tgtUpdateDelay;
-            
-            //2 options: either move tgt_wght = (1-a)*tgt_wght + a*wght
-            if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
-            else net->updateFrozenWeights(); //or copy tgt_wghts = wghts
-        }
-        #pragma omp master
-        cntUpdateDelay--;
+        //here be omp fors:
+        if (ndata>batchSize) stackAndUpdateNNWeights(nAddedGradients);
+        
+        updateTargetNetwork();
     }
+}
+
+void Learner::stackAndUpdateNNWeights(const int nAddedGradients)
+{
+    opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads (TODO: do not sum 0 component of Vgrad as now we have a pragma omp master above)
+    opt->update(net->grad,nAddedGradients); //update
+}
+
+void Learner::updateNNWeights(const int nAddedGradients)
+{
+    opt->nepoch=stats.epochCount;  //used to anneal learning rate
+    opt->update(net->grad,nAddedGradients);
+}
+
+void Learner::allocateNNactivations(const int buffer)
+{
+    net->allocateSeries(buffer);
+}
+
+void Learner::updateTargetNetwork()
+{
+    if (cntUpdateDelay <= 0) { //DQN-style frozen weight
+        #pragma omp master
+        cntUpdateDelay = tgtUpdateDelay;
+        
+        //2 options: either move tgt_wght = (1-a)*tgt_wght + a*wght
+        if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
+        else net->updateFrozenWeights(); //or copy tgt_wghts = wghts
+    }
+    #pragma omp master
+    cntUpdateDelay--;
 }
 
 bool Learner::checkBatch() const

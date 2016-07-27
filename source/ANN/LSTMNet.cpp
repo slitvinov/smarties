@@ -102,7 +102,7 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
         }
         indexes.push_back(i);
     }
-    net->checkGrads(inputs[101], 2,1);//inputs[101].size()-1
+    net->checkGrads(inputs[101], 2);//inputs[101].size()-1
     for (int e=0; e<nepochs; e++) {
         start = std::chrono::high_resolution_clock::now();
         Real batch_err(0.), err(100.);
@@ -116,7 +116,7 @@ void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vec
         if (batch_err/(Real)ndata > 1.)  printf("Problem %f %d \n", batch_err, ndata);
         //cout << profiler->printStat() << endl;
     }
-    net->checkGrads(inputs[101], 2,1);//inputs[101].size()-1
+    net->checkGrads(inputs[101], 2);//inputs[101].size()-1
 }
 
 
