@@ -26,15 +26,15 @@ void NewFishEnvironment::setDims()
             // State: Horizontal distance from goal point...
             sI.bounds.push_back(1); //one block in between the bounds, one more on each side
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ...vertical distance...
             sI.bounds.push_back(1);
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ...inclination of1the fish...
             sI.bounds.push_back(1); // only positive or negative
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight || POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
             sI.bounds.push_back(1); // Will get ~ 0 or 0.5
             sI.top.push_back(.5); sI.bottom.push_back(0.0);
@@ -59,15 +59,15 @@ void NewFishEnvironment::setDims()
 
             sI.bounds.push_back(1); // VxAvg 8
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line || POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             
             sI.bounds.push_back(1); // VyAvg 9
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line || POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             
             sI.bounds.push_back(1); // AvAvg 10
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line || POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
         }
         {
             sI.bounds.push_back(1); //Pout 11
@@ -169,8 +169,8 @@ void NewFishEnvironment::setDims()
         
         for (int i=0; i<aI.dim; i++) {
             aI.bounds.push_back(5); //Number of possible actions to choose from
-            aI.upperBounds.push_back(0.5);
-            aI.lowerBounds.push_back(-.5);
+            aI.upperBounds.push_back(1.0);
+            aI.lowerBounds.push_back(-1.);
             
             aI.values[i].push_back(-.50);
             aI.values[i].push_back(-.25);
@@ -185,10 +185,15 @@ void NewFishEnvironment::setDims()
 
 void NewFishEnvironment::setAction(const int & iAgent)
 {
-    
-    for (int i=0; i<aI.dim; i++) {
-        const Real val = agents[iAgent]->a->valsContinuous[i];
-        agents[iAgent]->a->valsContinuous[i] = max(-0.9, min(0.9,val) );
+    if ( agents[iAgent]->a->valsContinuous[0] > .75 ) {
+        std::normal_distribution<Real> dist(0.5,0.25);
+        const Real uB = 0.75; const Real lB = -.75;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    }
+    if ( agents[iAgent]->a->valsContinuous[0] <-.75 ) {
+        std::normal_distribution<Real> dist(-.5,0.25);
+        const Real uB = 0.75; const Real lB = -.75;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
     }
     
     for (int i=0; i<aI.dim; i++)
@@ -235,7 +240,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     
     if (study == 0) {
         //const Real scaledEfficiency = t_sN.vals[13];
-        const Real scaledEfficiency = 2.*(t_sN.vals[13]-.4)/(1.-.4) -1.; //between -1 and 1
+        const Real scaledEfficiency = (t_sN.vals[13]-.4)/(1.-.4); //between -1 and 1
 #ifndef _scaleR_
         reward = scaledEfficiency;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
@@ -245,7 +250,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 1) {
-        const Real scaledBndEfficiency = 2.*(t_sN.vals[16]-.3)/(.6-.3) -1.; //between -1 and 1
+        const Real scaledBndEfficiency = (t_sN.vals[16]-.3)/(.6-.3); //between 0 and 1
 #ifndef _scaleR_
         reward = scaledBndEfficiency;
         if (new_sample) reward = -1./(1.-gamma);

@@ -31,7 +31,7 @@ protected:
     void commonSetup();
     void spawn_server();
 public:
-    int iter;
+    long unsigned int iter;
     bool resetAll;
     vector<Agent*> agents;
     vector<Real> max_scale, min_scale;

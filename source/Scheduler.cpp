@@ -256,7 +256,7 @@ void Slave::run()
             MPI_Recv(inbuf, insize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
             unpackData(iAgent);
             agents[iAgent]->act(actions[iAgent]);
-            debug3("Agent %d of slave %d was in %s and will act %s.\n", iAgent, me, States[iAgent].print().c_str(), actions[iAgent].print().c_str()); fflush(0);
+            //printf("Agent %d of slave %d was in %s and will act %s.\n", iAgent, me, States[iAgent].print().c_str(), actions[iAgent].print().c_str()); fflush(0);
             env->setAction(iAgent);
             //if you got here, then state you send will not be an initial condition (ie. sOld and aOld contain something)
             info[iAgent] = 0;

@@ -54,7 +54,6 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
     a.descale(act);
     
-    //printf("%f %f\n",act[0],a.valsContinuous[0]);
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
@@ -68,13 +67,12 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     
     uniform_real_distribution<Real> dis(0.,1.);
     if(dis(*gen) < newEps) {
-        //printf("Random action %d %d %f\n",data->Set.size(),stats.epochCount,newEps);
-        std::normal_distribution<Real> dist(0.,0.5);
-        vector<Real> scaledRandomAction(nA);
-        for (int i=0; i<nA; i++) scaledRandomAction[i] = std::tanh(dist(*gen));
         
-        a.descale(scaledRandomAction);
-        //printf("Random action %d  %f %f \n",a.vals[0], a.valsContinuous[0], scaledRandomAction[0]);fflush(0);
+        a.getRandom();
+        //printf("Random action %d  %f  for state %s %s\n",a.vals[0], a.valsContinuous[0],s.printScaled().c_str(),s.print().c_str());fflush(0);
+    } else {
+        
+        //printf("Net selected %f %f for state %s\n",act[0],a.valsContinuous[0],s.printScaled().c_str());fflush(0);
     }
     
     //if (info!=1) printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
@@ -91,7 +89,7 @@ void NAF::Train_BPTT(const int seq, const int first, const int thrID)
         const Tuple * const _t = data->Set[seq]->tuples[k+1];
         //this tuple contains sOld:
         const Tuple * const _tOld = data->Set[seq]->tuples[k];
-        
+        //printf("%f %f %f %f %f %f\n",_tOld->s[0],_tOld->s[1], _t->aC[0], _t->s[0],_t->s[1], _t->r);
         //if first in a sequence, no input from recurrent links
         if(k==0)
             net->predict(_tOld->s, output, net->series[first]);
@@ -274,8 +272,8 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad,const vector<Real>& act,vec
         _uU[j] =  1.    - out[1+nL+j];
 
         #ifdef _scaleR_
-        if (out[1+j]>0.99999) out[1+j] = 0.99999;
-        if (out[1+j]<-.99999) out[1+j] = -.99999;
+        if (out[1+j]>1.-1e-10) out[1+j] = 1.-1e-10;
+        if (out[1+j]<1e-10-1.) out[1+j] = 1e-10-1.;
         #endif
             
         for (int i(0); i<nA; i++) {

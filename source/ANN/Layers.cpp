@@ -69,7 +69,7 @@ void NormalLayer::backPropagateDelta(Activation* const C, const Real* const weig
     }
 }
 
-inline Real NormalLayer::propagateErrors(const Link* const l, const Activation* const lab, const int iNeuron, const Real* const weights) const
+Real NormalLayer::propagateErrors(const Link* const l, const Activation* const lab, const int iNeuron, const Real* const weights) const
 {
     Real err(0.);
     if (l->LSTM) { //is this link to LSTM?

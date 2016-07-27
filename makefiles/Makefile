@@ -67,7 +67,7 @@ LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = 	ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
 		Environment.o TwoActFishEnvironment.o TwoFishEnvironment.o NewFishEnvironment.o \
-		Learner.o NAF.o NFQ.o  Transitions.o\
+		Learner.o NAF.o NFQ.o DPG.o Transitions.o\
 		Scheduler.o util.o\
 		Layers.o LSTMNet.o Network.o Optimizer.o 
 #ExternalAgent.o 

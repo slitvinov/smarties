@@ -11,6 +11,7 @@
 #include "Learners/Learner.h"
 #include "Learners/NFQ.h"
 #include "Learners/NAF.h"
+#include "Learners/DPG.h"
 #include "ObjectFactory.h"
 #include "Settings.h"
 #include "Scheduler.h"
@@ -70,12 +71,12 @@ void runMaster(int nranks)
         settings.nnOutputs = 1+nL+nA;
         settings.bSeparateOutputs = true; //else it does not really work
         learner = new NAF(env,settings);
-    }/*
+    }
     else if (settings.learner == "DP" || settings.learner == "DPG") {
         settings.nnInputs = env->sI.dimUsed + env->aI.dim;
         settings.nnOutputs = 1;
         learner = new DPG(env,settings);
-    } */
+    }
     
     Master* master = new Master(learner, env, settings);
     if (settings.restart != "none") master->restart(settings.restart);

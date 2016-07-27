@@ -26,7 +26,6 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
 {
     vector<Real> output(nOutputs), inputs(nInputs);
     s.scaleUsed(inputs);
-    
     if (info==1) //is it the first action performed by agent?
     {   //then old state, old action and reward are meaningless, just give the action
         net->predict(inputs, output, net->series[1]);
@@ -53,6 +52,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     }
     a.unpack(Nbest);
     
+    //printf("Net selected %d %f for state %s\n",Nbest,a.valsContinuous[0],s.print().c_str());
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn

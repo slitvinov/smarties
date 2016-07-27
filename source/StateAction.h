@@ -30,6 +30,8 @@ struct StateInfo
     {
         dim     = stateInfo.dim;
         dimUsed = stateInfo.dimUsed;
+        assert(dimUsed<=dim);
+        
         bounds.resize(dim); bottom.resize(dim); top.resize(dim);
         isLabel.resize(dim); inUse.resize(dim);
         for (int i=0; i<dim; i++) {
@@ -79,16 +81,15 @@ public:
 			o << vals[i]<< " ";
 		}
 		return o.str();
-	}
+    }
 	
 	string printScaled()
 	{
 		ostringstream o;
 		o << "[";
-		for (int i=0; i<sInfo.dim; i++) {
+		for (int i=0; i<sInfo.dim; i++) if (sInfo.inUse[i]) {
             Real res = 2.*(vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i]) - 1.;
-			o << res;
-			if (i < sInfo.dim-1) o << " ";
+			o << res << " ";
 		}
 		o << "]";
 		return o.str();
@@ -143,8 +144,7 @@ inline State decode(const StateInfo& sInfo, long int idx)
 {
 	State res(sInfo);
 	
-	for(int i=0; i<sInfo.dim; i++)
-	{
+	for(int i=0; i<sInfo.dim; i++) {
 		res.vals[sInfo.dim - i - 1] = idx % sInfo.bounds[i];
 		idx /= sInfo.bounds[i];
 	}
@@ -286,6 +286,7 @@ public:
             vals[i] = lab/actInfo.shifts[i];
             lab     = lab%actInfo.shifts[i];
             indexToRealAction(i);
+            //printf("%d %d %f\n",lab,vals[i],valsContinuous[i]);
         }
     }
     
@@ -297,10 +298,33 @@ public:
         }
     }
     
+    void getRandom(const int iRand = -1)
+    {
+        std::normal_distribution<Real> dist(0.,0.5);
+        
+        if ( iRand<0 || iRand >= actInfo.dim )
+        {
+            for (int i=0; i<actInfo.dim; i++) {
+                const Real uB = actInfo.values[i].back();
+                const Real lB = actInfo.values[i].front();
+                valsContinuous[i]=lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+                realActionToIndex(i);
+            }
+        }
+        else
+        {
+            const Real uB = actInfo.values[iRand].back();
+            const Real lB = actInfo.values[iRand].front();
+            valsContinuous[iRand]=lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+            realActionToIndex(iRand);
+        }
+    }
+    
     vector<Real> scale() const
     {
         vector<Real> res(actInfo.dim);
         for (int i=0; i<actInfo.dim; i++) res[i] = realToScaledReal(i);
+        //printf("%f %f\n",res[0],valsContinuous[0]);
         return res;
     }
     

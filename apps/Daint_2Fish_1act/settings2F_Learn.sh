@@ -9,7 +9,7 @@ SETTINGS+=" -nu 8e-6"
 SETTINGS+=" -lmax 6"
 SETTINGS+=" -restartpath restart"
 
-SETTINGS+=" -lambda 1e4"
+SETTINGS+=" -lambda 1e5"
 SETTINGS+=" -Uinfx 0.0"
 SETTINGS+=" -Uinfy 0.0"
 

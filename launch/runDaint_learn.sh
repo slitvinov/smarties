@@ -13,5 +13,5 @@ fi
 source $SETTINGSNAME
 SETTINGS+=" --nThreads ${NTHREADS}"
 echo $SETTINGS > settings.txt
-
+#echo  ${SETTINGS}
 srun -n ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --cpus-per-task=${NTHREADS} ./exec ${SETTINGS}

@@ -89,10 +89,10 @@ public:
         computeDeltas(_series, weights, biases);
     }
     
-    void computeDeltasInputs(vector<Activation*>& _series, const int k, const Real* const _weights, const Real* const _biases) const;
-    void computeDeltasInputs(vector<Activation*>& _series, const int k) const
+    void computeDeltasInputs(vector<Real>& grad, const Activation* const _series, const Real* const _weights, const Real* const _biases) const;
+    void computeDeltasInputs(vector<Real>& grad, const Activation* const _series) const
     {
-        computeDeltasInputs(_series, k, weights, biases);
+        computeDeltasInputs(grad, _series, weights, biases);
     }
     
     void computeDeltasSeries(vector<Activation*>& _series, const int first, const int last, const Real* const _weights, const Real* const _biases) const;
@@ -107,7 +107,7 @@ public:
     void computeAddGradsSeries(const vector<Activation*>& _series, const int first, const int last, Grads* const _Grad) const;
     void computeAddGrads(const Activation* const _series, Grads* const _Grad) const;
     
-    void checkGrads(const vector<vector<Real>>& inputs, const int lastn, const int ierr);
+    void checkGrads(const vector<vector<Real>>& inputs, const int lastn);
 
     void save(const string fname);
     void dump(const int agentID);

@@ -77,34 +77,39 @@ struct Graph //misleading, this is just the graph for a single layer
     bool first, last;
     int recurrSize, normalSize, recurrSize_SIMD, normalSize_SIMD, recurrPos, normalPos;
     
-    Link *rl_inputs, *rl_recurrent, *rl_outputs, *nl_inputs, *nl_recurrent, *nl_outputs;
+    //Link *rl_inputs, *rl_outputs, *nl_inputs, , *nl_outputs;
+    Link *rl_recurrent, *nl_recurrent;
     vector<Link*> *rl_inputs_vec, *rl_outputs_vec, *nl_inputs_vec, *nl_outputs_vec;
     
     int wPeep, indState;
     int biasHL, biasIN, biasIG, biasFG, biasOG;
     Graph() : first(false), last(false), recurrSize(0), normalSize(0), recurrSize_SIMD(0), normalSize_SIMD(0), recurrPos(0),  normalPos(0), wPeep(0), indState(0), biasHL(0), biasIN(0), biasIG(0), biasFG(0), biasOG(0)
     {
-        rl_inputs = new Link(); rl_recurrent = new Link(); rl_outputs = new Link();
-        nl_inputs = new Link(); nl_recurrent = new Link(); nl_outputs = new Link();
+        //rl_inputs = new Link();
+        rl_recurrent = new Link();
+        //rl_outputs = new Link();
+        //nl_inputs = new Link();
+        nl_recurrent = new Link();
+        //nl_outputs = new Link();
         rl_inputs_vec = new vector<Link*>(); rl_outputs_vec = new vector<Link*>(); nl_inputs_vec = new vector<Link*>(); nl_outputs_vec = new vector<Link*>();
     }
     
     ~Graph()
     {
-        delete rl_inputs;
-        delete rl_recurrent;
-        delete rl_outputs;
-        delete nl_inputs;
-        delete nl_recurrent;
-        delete nl_outputs;
-        for (auto & link : *rl_inputs_vec) delete link;
-        for (auto & link : *rl_outputs_vec) delete link;
-        for (auto & link : *nl_inputs_vec) delete link;
-        for (auto & link : *nl_outputs_vec) delete link;
-        delete rl_inputs_vec;
-        delete rl_outputs_vec;
-        delete nl_inputs_vec;
-        delete nl_outputs_vec;
+        //delete rl_inputs;
+        _dispose_object( rl_recurrent);
+        //delete rl_outputs;
+        //delete nl_inputs;
+        _dispose_object( nl_recurrent);
+        //delete nl_outputs;
+        for (auto & link : *rl_inputs_vec) _dispose_object( link);
+        for (auto & link : *rl_outputs_vec) _dispose_object ( link);
+        for (auto & link : *nl_inputs_vec) _dispose_object ( link);
+        for (auto & link : *nl_outputs_vec) _dispose_object( link);
+        _dispose_object( rl_inputs_vec);
+        _dispose_object( rl_outputs_vec);
+        _dispose_object( nl_inputs_vec);
+        _dispose_object( nl_outputs_vec);
     }
 };
 
@@ -276,7 +281,7 @@ public:
     virtual void backPropagateAddGrads(const Activation* const C, Grads* const grad) const;
     virtual void backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad) const;
     
-    inline Real propagateErrors(const Link* const l, const Activation* const lab, const int iNeuron, const Real* const weights) const;
+    Real propagateErrors(const Link* const l, const Activation* const lab, const int iNeuron, const Real* const weights) const;
 };
 
 class LSTMLayer: public NormalLayer

@@ -54,11 +54,12 @@ class Transitions
 {
 protected:
     Environment * const env;
-    const int nAppended;
+    const int nAppended, batchSize;
     const string path;
-    const bool bSampleSeq, bWriteToFile;
+    const bool bSampleSeq, bRecurrent, bWriteToFile;
+    int iOldestSaved;
     vector<Real> Inp;
-    vector<Sequence*> Tmp;
+    vector<Sequence*> Tmp, Buffered;
     discrete_distribution<int> * dist;
     
     void add(const int agentId, const int info, const State& sOld,
@@ -66,6 +67,7 @@ protected:
     
     void push_back(const int & agentId);
     void clear(const int & agentId);
+    void synchronize();
     
 public:
     const StateInfo sI;
@@ -89,6 +91,7 @@ public:
 #ifdef _Priority_
     void updateP();
 #endif
+    void updateSamples();
     int sample();
     void restartSamples();
     void saveSamples();

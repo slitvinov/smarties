@@ -26,15 +26,15 @@ void TwoActFishEnvironment::setDims()
             // State: Horizontal distance from goal point...
             sI.bounds.push_back(1); //one block in between the bounds, one more on each side
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ...vertical distance...
             sI.bounds.push_back(1);
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ...inclination of1the fish...
             sI.bounds.push_back(1); // only positive or negative
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(sight || POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
             sI.bounds.push_back(1); // Will get ~ 0 or 0.5
             sI.top.push_back(.5); sI.bottom.push_back(0.0);
@@ -209,6 +209,35 @@ void TwoActFishEnvironment::setDims()
     commonSetup();
 }
 
+void TwoActFishEnvironment::setAction(const int & iAgent)
+{
+    if ( agents[iAgent]->a->valsContinuous[0] >0.75 ) {
+        std::normal_distribution<Real> dist(0.5,0.25);
+        const Real uB = 0.75; const Real lB = -.75;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    }
+    if ( agents[iAgent]->a->valsContinuous[0] <-.75 ) {
+        std::normal_distribution<Real> dist(-.5,0.25);
+        const Real uB = 0.75; const Real lB = -.75;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    }
+    if ( agents[iAgent]->a->valsContinuous[1] >0.25 ) {
+        std::normal_distribution<Real> dist(0.5,0.25);
+        const Real uB = 0.25; const Real lB = -.25;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    }
+    if ( agents[iAgent]->a->valsContinuous[1] <-.25 ) {
+        std::normal_distribution<Real> dist(-.5,0.25);
+        const Real uB = 0.25; const Real lB = -.25;
+        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    }
+    
+    for (int i=0; i<aI.dim; i++)
+        dataout[i] = (double) agents[iAgent]->a->valsContinuous[i];
+    
+    send_all(sock, dataout, sizeout);
+}
+
 bool TwoActFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
                                     const State & t_sN, Real & reward)
 {/*
@@ -234,7 +263,7 @@ bool TwoActFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     if (reward<-9.9) new_sample=true;
     
     if (study == 0) {
-        const Real scaledEfficiency = 2.*(t_sN.vals[18]-.4)/(1.-.4) -1.;
+        const Real scaledEfficiency = (t_sN.vals[18]-.4)/(1.-.4);
 #ifndef _scaleR_
         reward = scaledEfficiency;
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
@@ -244,7 +273,7 @@ bool TwoActFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 1) {
-        const Real scaledEfficiency = 2.*(t_sN.vals[21]-.3)/(.6-.3) -1.;
+        const Real scaledEfficiency = (t_sN.vals[21]-.3)/(.6-.3);
 #ifndef _scaleR_
         reward = scaledEfficiency;
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
@@ -266,18 +295,4 @@ bool TwoActFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     }
     
     return new_sample;
-}
-
-void TwoActFishEnvironment::setAction(const int & iAgent)
-{
-    for (int i=0; i<aI.dim; i++) {
-        const Real val = agents[iAgent]->a->valsContinuous[i];
-        agents[iAgent]->a->valsContinuous[i] = max(aI.lowerBounds[i],
-                                               min(aI.upperBounds[i],val) );
-    }
-    
-    for (int i=0; i<aI.dim; i++)
-        dataout[i] = (double) agents[iAgent]->a->valsContinuous[i];
-    
-    send_all(sock, dataout, sizeout);
 }
