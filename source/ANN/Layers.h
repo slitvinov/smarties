@@ -56,13 +56,13 @@ struct Link
     void set(int _nI, int _iI, int _nO, int _iO, int _iW)
     {
         this->LSTM = false; this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW; this->iC = 0; this->iWI = 0; this->iWF = 0; this->iWO = 0;
-        //print();
+        print();
     }
     
     void set(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO)
     {
         this->LSTM = true; this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW; this->iC = _iC; this->iWI = _iWI; this->iWF = _iWF; this->iWO = _iWO;
-        //print();
+        print();
     }
     
     void print() const
@@ -294,7 +294,7 @@ public:
     n1stCell(indState), n1stPeep(n1stPeep), n1stBiasIG(n1stBiasIG),
     n1stBiasFG(n1stBiasFG), n1stBiasOG(n1stBiasOG), ifun(fI), sigm(fG)
     {
-        //printf("n1stCell= %d, n1stPeep= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d\n", n1stCell, n1stPeep, n1stBiasIG, n1stBiasFG, n1stBiasOG);
+        printf("n1stCell= %d, n1stPeep= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d\n", n1stCell, n1stPeep, n1stBiasIG, n1stBiasFG, n1stBiasOG);
     }
     
     ~LSTMLayer()

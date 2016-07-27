@@ -59,15 +59,15 @@ void NewFishEnvironment::setDims()
 
             sI.bounds.push_back(1); // VxAvg 8
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(true);
+            sI.isLabel.push_back(false); sI.inUse.push_back(POV || l_line || p_sensors);
             
             sI.bounds.push_back(1); // VyAvg 9
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(true);
+            sI.isLabel.push_back(false); sI.inUse.push_back(POV || l_line || p_sensors);
             
             sI.bounds.push_back(1); // AvAvg 10
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(true);
+            sI.isLabel.push_back(false); sI.inUse.push_back(POV || l_line || p_sensors);
         }
         {
             sI.bounds.push_back(1); //Pout 11
