@@ -45,7 +45,7 @@ endif
 
 ifeq "$(config)" "nompi"
 CC=g++
-CPPFLAGS+= -DMEGADEBUG -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math #-O0 -g
+CPPFLAGS+= -DMEGADEBUG -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math #-O0 -g
 LIBS += -DMEGADEBUG
 endif
 
