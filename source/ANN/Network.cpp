@@ -35,7 +35,7 @@ void Network::orthogonalize(const int nO, const int nI, const int n0, Real* cons
 
 void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _biases)
 {
-    uniform_real_distribution<Real> dis(-sqrt(12.),sqrt(12.));
+    uniform_real_distribution<Real> dis(-sqrt(6.),sqrt(6.));
     
     for (const auto & l : *(g.nl_inputs_vec))
     {
@@ -89,22 +89,22 @@ void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _bi
         orthogonalize(l->nO,l->nI,l->iWO,_weights);
     }
     
-    //if (not g.last)
+    if (not g.last)
     for (int w=g.biasHL; w<g.biasHL+g.normalSize; w++)
         *(_biases +w) = dis(*gen) / Real(g.normalSize);
     
-    //if (not g.last)
+    if (not g.last)
     for (int w=g.biasIN; w<g.biasIN+g.recurrSize; w++)
         *(_biases +w) = dis(*gen) / Real(g.recurrSize);
         
     for (int w=g.biasIG; w<g.biasIG+g.recurrSize; w++)
-        *(_biases +w) = dis(*gen) / Real(g.recurrSize) - .5;
+        *(_biases +w) = dis(*gen) / Real(g.recurrSize) + 1.0;
         
     for (int w=g.biasFG; w<g.biasFG+g.recurrSize; w++)
-        *(_biases +w) = dis(*gen) / Real(g.recurrSize) + .5;
+        *(_biases +w) = dis(*gen) / Real(g.recurrSize) + 1.0;
     
     for (int w=g.biasOG; w<g.biasOG+g.recurrSize; w++)
-        *(_biases +w) = dis(*gen) / Real(g.recurrSize) - .5;
+        *(_biases +w) = dis(*gen) / Real(g.recurrSize) + 1.0;
 }
 
 void Network::addNormal(Graph* const p, Graph* const g, const bool first, const bool last)
@@ -232,12 +232,12 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
         #ifndef _scaleR_
         const Response * fI = (last) ? new Response : new SoftSign2;
         const Response * fG = new SoftSigm;
-        const Response * fO = (last) ? new Response : new SoftSign;
+        const Response * fO = (last) ? new Response : new Tanh;
         if (last) printf("Linear output\n");
         #else
         const Response * fI = new SoftSign2;
         const Response * fG = new SoftSigm;
-        const Response * fO = new SoftSign;
+        const Response * fO = new Tanh;
         if (last) printf("Logic output\n");
         #endif
         
