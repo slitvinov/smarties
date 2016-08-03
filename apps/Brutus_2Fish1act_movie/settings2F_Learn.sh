@@ -14,12 +14,12 @@ SETTINGS+=" -Uinfx 0.0"
 SETTINGS+=" -Uinfy 0.0"
 
 SETTINGS+=" -Tstartlearn 1"
-SETTINGS+=" -NpLatLine 5"
+SETTINGS+=" -NpLatLine 20"
 SETTINGS+=" -nActions 1"
 SETTINGS+=" -GoalDX 2"
 
 # grid settings
-SETTINGS+=" -bpd 16"
+SETTINGS+=" -bpd 4"
 SETTINGS+=" -uniform 0"
 SETTINGS+=" -particles 1"
 SETTINGS+=" -jump 2"

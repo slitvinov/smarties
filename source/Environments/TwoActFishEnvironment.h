@@ -26,6 +26,7 @@ public:
     
     
     void setAction(const int & iAgent) override;
+    int getState(int & iAgent) override;
 };
 
 

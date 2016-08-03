@@ -6,7 +6,7 @@ SETTINGS+=" -study learning"
 SETTINGS+=" -factory factory2F_Learn"
 SETTINGS+=" -length 0.1"
 SETTINGS+=" -nu 2e-6"
-SETTINGS+=" -lmax 6"
+SETTINGS+=" -lmax 7"
 SETTINGS+=" -restartpath restart"
 
 SETTINGS+=" -lambda 1e6"
@@ -19,7 +19,7 @@ SETTINGS+=" -nActions 2"
 SETTINGS+=" -GoalDX 2"
 
 # grid settings
-SETTINGS+=" -bpd 16"
+SETTINGS+=" -bpd 4"
 SETTINGS+=" -uniform 0"
 SETTINGS+=" -particles 1"
 SETTINGS+=" -jump 2"

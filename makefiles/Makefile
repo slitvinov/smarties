@@ -69,7 +69,7 @@ OBJ_FILES = 	ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
 		Environment.o TwoActFishEnvironment.o TwoFishEnvironment.o NewFishEnvironment.o \
 		Learner.o NAF.o NFQ.o DPG.o Transitions.o\
 		Scheduler.o util.o\
-		Layers.o LSTMNet.o Network.o Optimizer.o 
+		Links.o Layers.o LSTMNet.o Network.o Optimizer.o 
 #ExternalAgent.o 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
@@ -83,7 +83,7 @@ endif
 rl: $(OBJ_FILES)
 	$(CC) $(LIBS) $^ -o $@
 	
-LSTM: anntest.o ArgumentParser.o Profiler.o Layers.o Network.o Optimizer.o LSTMNet.o
+LSTM: anntest.o ArgumentParser.o Profiler.o Links.o Layers.o Network.o Optimizer.o LSTMNet.o
 	g++ $(LIBS) $^ -o $@
 
 %.o: %.cpp

@@ -15,98 +15,6 @@
 #include <cassert>
 using namespace ErrorHandling;
 
-void Network::orthogonalize(const int nO, const int nI, const int n0, Real* const _weights)
-{
-    return;
-    if (nI>=nO)
-    for (int i=1; i<nO; i++)
-    for (int j=0; j<i;  j++) {
-        Real u_d_u = 0.0;
-        Real v_d_u = 0.0;
-        for (int k=0; k<nI; k++) {
-            u_d_u += *(_weights +n0 +j*nI +k)* *(_weights +n0 +j*nI +k);
-            v_d_u += *(_weights +n0 +j*nI +k)* *(_weights +n0 +i*nI +k);
-        }
-        if(u_d_u>0)
-            for (int k=0; k<nI; k++)
-                *(_weights+n0+i*nI+k) -= (v_d_u/u_d_u) * *(_weights+n0+j*nI+k);
-    }
-}
-
-void Network::initializeWeights(Graph & g, Real* const _weights, Real* const _biases)
-{
-    uniform_real_distribution<Real> dis(-sqrt(6.),sqrt(6.));
-    
-    for (const auto & l : *(g.nl_inputs_vec))
-    {
-        for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
-            *(_weights +w) = dis(*gen) / Real(l->nO + l->nI);
-        orthogonalize(l->nO,l->nI,l->iW,_weights);
-    }
-    
-    {
-        const Link* const l = g.nl_recurrent;
-        for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
-            *(_weights +w) = dis(*gen) / Real(l->nO + l->nI);
-        orthogonalize(l->nO,l->nI,l->iW,_weights);
-    }
-    
-    for (const auto & l : *(g.rl_inputs_vec))
-    {
-        for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
-            *(_weights +w) = dis(*gen) / Real(l->nO + l->nI);
-        orthogonalize(l->nO,l->nI,l->iW,_weights);
-        
-        for (int w=l->iWI; w<(l->iWI+ l->nO*l->nI); w++)
-            *(_weights +w) = dis(*gen) / Real(l->nO + l->nI);
-        orthogonalize(l->nO,l->nI,l->iWI,_weights);
-        
-        for (int w=l->iWF; w<(l->iWF+ l->nO*l->nI); w++)
-            *(_weights +w) = dis(*gen) / Real(l->nO + l->nI);
-        orthogonalize(l->nO,l->nI,l->iWF,_weights);
-        
-        for (int w=l->iWO; w<(l->iWO+ l->nO*l->nI); w++)
-            *(_weights +w) = dis(*gen) / Real(l->nO + l->nI);
-        orthogonalize(l->nO,l->nI,l->iWO,_weights);
-    }
-    
-    {
-        const Link* const l = g.rl_recurrent;
-        for (int w=l->iW ; w<(l->iW + l->nO*l->nI); w++)
-            *(_weights +w) = dis(*gen) / Real(l->nO + l->nI);
-        orthogonalize(l->nO,l->nI,l->iW,_weights);
-        
-        for (int w=l->iWI; w<(l->iWI+ l->nO*l->nI); w++)
-            *(_weights +w) = dis(*gen) / Real(l->nO + l->nI);
-        orthogonalize(l->nO,l->nI,l->iWI,_weights);
-        
-        for (int w=l->iWF; w<(l->iWF+ l->nO*l->nI); w++)
-            *(_weights +w) = dis(*gen) / Real(l->nO + l->nI);
-        orthogonalize(l->nO,l->nI,l->iWF,_weights);
-        
-        for (int w=l->iWO; w<(l->iWO+ l->nO*l->nI); w++)
-            *(_weights +w) = dis(*gen) / Real(l->nO + l->nI);
-        orthogonalize(l->nO,l->nI,l->iWO,_weights);
-    }
-    
-    if (not g.last)
-    for (int w=g.biasHL; w<g.biasHL+g.normalSize; w++)
-        *(_biases +w) = dis(*gen) / Real(g.normalSize);
-    
-    if (not g.last)
-    for (int w=g.biasIN; w<g.biasIN+g.recurrSize; w++)
-        *(_biases +w) = dis(*gen) / Real(g.recurrSize);
-        
-    for (int w=g.biasIG; w<g.biasIG+g.recurrSize; w++)
-        *(_biases +w) = dis(*gen) / Real(g.recurrSize) + 1.0;
-        
-    for (int w=g.biasFG; w<g.biasFG+g.recurrSize; w++)
-        *(_biases +w) = dis(*gen) / Real(g.recurrSize) + 1.0;
-    
-    for (int w=g.biasOG; w<g.biasOG+g.recurrSize; w++)
-        *(_biases +w) = dis(*gen) / Real(g.recurrSize) + 1.0;
-}
-
 void Network::addNormal(Graph* const p, Graph* const g, const bool first, const bool last)
 {
     if (g->normalSize>0) {
@@ -117,10 +25,7 @@ void Network::addNormal(Graph* const p, Graph* const g, const bool first, const 
         nBiases += g->normalSize;
         
         if (p->recurrSize>0)
-        { //conntected to previous recurrent layer
-            //g->nl_inputs->set( p->recurrSize, p->recurrPos, g->normalSize, g->normalPos, nWeights);
-            //p->rl_outputs->set(p->recurrSize, p->recurrPos, g->normalSize, g->normalPos, nWeights);
-            
+        { //connected to previous recurrent layer
             Link* tmp=new Link(p->recurrSize, p->recurrPos, g->normalSize, g->normalPos, nWeights);
             g->nl_inputs_vec->push_back(tmp);
             p->rl_outputs_vec->push_back(tmp);
@@ -128,10 +33,7 @@ void Network::addNormal(Graph* const p, Graph* const g, const bool first, const 
             nWeights += p->recurrSize*g->normalSize;
         }
         else if (p->normalSize>0)
-        { //conntected to previous normal layer
-            //g->nl_inputs->set( p->normalSize, p->normalPos, g->normalSize, g->normalPos, nWeights);
-            //p->nl_outputs->set(p->normalSize, p->normalPos, g->normalSize, g->normalPos, nWeights);
-            
+        { //connected to previous normal layer
             Link* tmp=new Link(p->normalSize, p->normalPos, g->normalSize, g->normalPos, nWeights);
             g->nl_inputs_vec->push_back(tmp);
             p->nl_outputs_vec->push_back(tmp);
@@ -140,8 +42,9 @@ void Network::addNormal(Graph* const p, Graph* const g, const bool first, const 
         }
         else die("Unlinked to inputs");
         
-        if (false) { //(!last) //conntected  to past realization of current normal layer
-            g->nl_recurrent->set(g->normalSize, g->normalPos, g->normalSize, g->normalPos, nWeights);
+        if (false) { //(!last) //connected  to past realization of current normal layer
+        	Link* tmp=new Link(g->normalSize, g->normalPos, g->normalSize, g->normalPos, nWeights);
+            g->nl_recurrent = tmp;
             nWeights += g->normalSize*g->normalSize;
         }
         
@@ -174,7 +77,7 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
         g->biasOG = g->biasFG + g->recurrSize;
         nBiases += 4*g->recurrSize;
         
-        if (p->recurrSize>0)      //conntected to previous recurrent layer
+        if (p->recurrSize>0)      //connected to previous recurrent layer
         {
             int WeightHL = nWeights;
             nWeights += p->recurrSize*g->recurrSize;
@@ -184,17 +87,12 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
             nWeights += p->recurrSize*g->recurrSize;
             int WeightOG = nWeights;
             nWeights += p->recurrSize*g->recurrSize;
-            /*
-            g->rl_inputs->set (p->recurrSize, p->recurrPos, g->recurrSize, g->recurrPos,
-                               g->indState, WeightHL, WeightIG, WeightFG, WeightOG);
-            p->rl_outputs->set(p->recurrSize, p->recurrPos, g->recurrSize, g->recurrPos,
-                               g->indState, WeightHL, WeightIG, WeightFG, WeightOG);
-            */
-            Link* tmp=new Link(p->recurrSize, p->recurrPos, g->recurrSize, g->recurrPos, g->indState, WeightHL, WeightIG, WeightFG, WeightOG);
+
+            Link* tmp=new LinkToLSTM(p->recurrSize, p->recurrPos, g->recurrSize, g->recurrPos, g->indState, WeightHL, WeightIG, WeightFG, WeightOG);
             g->rl_inputs_vec->push_back(tmp);
             p->rl_outputs_vec->push_back(tmp);
         }
-        else if (p->normalSize>0) //conntected to previous normal layer
+        else if (p->normalSize>0) //connected to previous normal layer
         {
             int WeightHL = nWeights;
             nWeights += p->normalSize*g->recurrSize;
@@ -204,19 +102,14 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
             nWeights += p->normalSize*g->recurrSize;
             int WeightOG = nWeights;
             nWeights += p->normalSize*g->recurrSize;
-            /*
-            g->rl_inputs->set (p->normalSize, p->normalPos, g->recurrSize, g->recurrPos,
-                               g->indState, WeightHL, WeightIG, WeightFG, WeightOG);
-            p->nl_outputs->set(p->normalSize, p->normalPos, g->recurrSize, g->recurrPos,
-                               g->indState, WeightHL, WeightIG, WeightFG, WeightOG);
-            */
-            Link* tmp=new Link(p->normalSize, p->normalPos, g->recurrSize, g->recurrPos, g->indState, WeightHL, WeightIG, WeightFG, WeightOG);
+
+            Link* tmp=new LinkToLSTM(p->normalSize, p->normalPos, g->recurrSize, g->recurrPos, g->indState, WeightHL, WeightIG, WeightFG, WeightOG);
             g->rl_inputs_vec->push_back(tmp);
             p->nl_outputs_vec->push_back(tmp);
         }
         else die("Unlinked to inputs");
 
-        { //conntected to past realization of current recurrent layer
+        { //connected to past realization of current recurrent layer
             int WeightHL = nWeights;
             nWeights += g->recurrSize*g->recurrSize;
             int WeightIG = nWeights;
@@ -225,10 +118,11 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
             nWeights += g->recurrSize*g->recurrSize;
             int WeightOG = nWeights;
             nWeights += g->recurrSize*g->recurrSize;
-            g->rl_recurrent->set(g->recurrSize, g->recurrPos, g->recurrSize, g->recurrPos,
-                                 g->indState, WeightHL, WeightIG, WeightFG, WeightOG);
+
+        	Link* tmp=new LinkToLSTM(g->recurrSize, g->recurrPos, g->recurrSize, g->recurrPos, g->indState, WeightHL, WeightIG, WeightFG, WeightOG);
+            g->rl_recurrent = tmp;
         }
-        
+#if  0
         #ifndef _scaleR_
         const Response * fI = (last) ? new Response : new SoftSign2;
         const Response * fG = new SoftSigm;
@@ -240,14 +134,26 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
         const Response * fO = new Tanh;
         if (last) printf("Logic output\n");
         #endif
-        
+#else
+        #ifndef _scaleR_
+        const Response * fI = (last) ? new Response : new Tanh2;
+        const Response * fG = new Sigm;
+        const Response * fO = (last) ? new Response : new Tanh;
+        if (last) printf("Linear output\n");
+        #else
+        const Response * fI = new Tanh2;
+        const Response * fG = new Sigm;
+        const Response * fO = new Tanh;
+        if (last) printf("Logic output\n");
+        #endif
+#endif
         NormalLayer * l = new LSTMLayer(g->recurrSize, g->recurrPos, g->indState, g->wPeep, g->biasIN, g->biasIG, g->biasFG, g->biasOG, g->rl_inputs_vec, g->rl_recurrent, g->rl_outputs_vec, fI, fG, fO, last);
         //NormalLayer * l = new LSTMLayer(g->recurrSize, g->recurrPos, g->indState, g->wPeep, g->biasIN, g->biasIG, g->biasFG, g->biasOG, g->rl_inputs, g->rl_recurrent, g->rl_outputs, fI, fG, fO, last);
         layers.push_back(l);
     }
 }
 
-Network::Network(const vector<int>& layerSize, const bool bLSTM, const Settings & settings) : //, bool bSeparateOutputs=false) :
+Network::Network(const vector<int>& layerSize, const bool bLSTM, const Settings & settings) :
 Pdrop(settings.nnPdrop), nInputs(layerSize.front()), nOutputs(layerSize.back()),
 nLayers(0), nNeurons(0), nWeights(0), nBiases(0), nStates(0),
 allocatedFrozenWeights(false), allocatedDroputWeights(false), backedUp(false),
@@ -355,119 +261,9 @@ gen(settings.gen), bDump(not settings.bTrain)
             _grad    = new Grads(nWeights, nBiases);
     }
     
-    for (int i=1; i<static_cast<int>(G.size()); i++) {
-        initializeWeights(*G[i], weights, biases);
-    }
+    for (auto & graph : G)  graph->initializeWeights(gen, weights, biases);
+
     updateFrozenWeights();
-}
-
-void Network::save(const string fname)
-{
-    printf("Saving into %s\n", fname.c_str());
-    fflush(0);
-    string nameBackup = fname + "_tmp";
-    ofstream out(nameBackup.c_str());
-    
-    if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
-    
-    out.precision(20);
-    out << nWeights << " "  << nBiases << " " << nLayers  << " " << nNeurons << endl;
-    
-    for (int i=0; i<nWeights; i++) {
-        if (std::isnan(*(weights + i)) || std::isinf(*(weights + i))) {
-            *(weights + i) = 0.0;
-            out << 0.0 << "\n";
-        } else {
-            out << *(weights + i) << "\n";
-        }
-    }
-    
-    for (int i=0; i<nBiases; i++) {
-       if (std::isnan(*(biases + i)) || std::isinf(*(biases + i))) {
-           *(biases + i) = 0.0;
-            out << 0.0 << "\n";
-        } else {
-            out << *(biases + i) << "\n";
-        }
-    }
-
-    out.flush();
-    out.close();
-    
-    //Prepare copying command
-    string command = "cp " + nameBackup + " " + fname;
-    
-    //Submit the command to the system
-    system(command.c_str());
-}
-
-void Network::dump(const int agentID)
-{
-    if (not bDump) return;
-    char buf[500];
-    sprintf(buf, "%07d", (int)dump_ID[agentID]);
-    string nameNeurons  = "neuronOuts_" + to_string(agentID) + "_" + string(buf) + ".dat";
-    string nameMemories = "cellStates_" + to_string(agentID) + "_" + string(buf) + ".dat";
-    string nameOut_Mems = "out_states_" + to_string(agentID) + "_" + string(buf) + ".dat";
-    {
-        ofstream out(nameOut_Mems.c_str());
-        if (!out.good()) die("Unable to open save into file %s\n", nameOut_Mems.c_str());
-        for (int j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << " ";
-        for (int j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << " ";
-        out << "\n";
-        out.close();
-    }
-    {
-        ofstream out(nameNeurons.c_str());
-        if (!out.good()) die("Unable to open save into file %s\n", nameNeurons.c_str());
-        for (int j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << " ";
-        out << "\n";
-        out.close();
-    }
-    {
-        ofstream out(nameMemories.c_str());
-        if (!out.good()) die("Unable to open save into file %s\n", nameMemories.c_str());
-        for (int j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << " ";
-        out << "\n";
-        out.close();
-    }
-    dump_ID[agentID]++;
-}
-
-bool Network::restart(const string fname)
-{
-    string nameBackup = fname;
-    
-    ifstream in(nameBackup.c_str());
-    debug1("Reading from %s\n", nameBackup.c_str());
-    if (!in.good()) {
-        error("WTF couldnt open file %s (ok keep going mofo)!\n", fname.c_str());
-        return false;
-    }
-    
-    int readTotWeights, readTotBiases, readNNeurons, readNLayers;
-    in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
-    
-    if (readTotWeights != nWeights || readTotBiases != nBiases || readNLayers != nLayers || readNNeurons != nNeurons)
-    die("Network parameters differ!");
-    
-    Real tmp;
-    for (int i=0; i<nWeights; i++) {
-        in >> tmp;
-        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-        *(weights + i) = tmp;
-    }
-    
-    for (int i=0; i<nBiases; i++) {
-        in >> tmp;
-        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-        *(biases + i) = tmp;
-    }
-
-    in.close();
-    
-    updateFrozenWeights();
-    return true;
 }
 
 void Network::predict(const vector<Real>& _input, vector<Real>& _output, const Activation* const _M, Activation* const _N, const Real* const _weights, const Real* const _biases) const
@@ -479,15 +275,7 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output, const A
         layers[j]->propagate(_M,_N,_weights,_biases);
     
     assert(static_cast<int>(_output.size())==nOutputs);
-    
-    /*
-    int j(0);
-    for (int i=iOutputs; i<nNeurons; i++) {
-        *(_N->errvals+i) = 0.;
-        _output[j] = *(_N->outvals+i);
-        j++;
-    }
-     */
+
     for (int i=0; i<nOutputs; i++) {
         *(_N->errvals + iOut[i]) = 0.;
         _output[i] = *(_N->outvals + iOut[i]);
@@ -503,14 +291,7 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output, Activat
         layers[j]->propagate(_N,_weights,_biases);
     
     assert(static_cast<int>(_output.size())==nOutputs);
-    /*
-    int j(0);
-    for (int i=iOutputs; i<nNeurons; i++) {
-        *(_N->errvals+i) = 0.;
-        _output[j] = *(_N->outvals+i);
-        j++;
-    }
-     */
+
     for (int i=0; i<nOutputs; i++) {
         *(_N->errvals + iOut[i]) = 0.;
         _output[i] = *(_N->outvals + iOut[i]);
@@ -546,6 +327,8 @@ void Network::computeAddGrads(const Activation* const lab, Grads* const _Grad) c
 
 //Back Prop Through Time:
 //compute deltas: start from last activation, propagate deltas back to first
+//ISSUES:   this array of activations disturbs me deeply because it is deeply inelegant
+//			but was the most robust and easiest path towards parallelism
 void Network::computeDeltasSeries(vector<Activation*>& _series, const int first, const int last, const Real* const _weights, const Real* const _biases) const
 {
 #ifdef _BPTT_
@@ -640,6 +423,11 @@ void Network::assignDropoutMask()
 {
     if (Pdrop > 0)
     {
+    	die("You are probably using dropout wrong anyway\n");
+    	//ISSUES:
+    	//- stupidly slow, no priority allocated to improve it
+    	//- does not work with threads, just for laziness: there is no obstacle to make it compatible to threads
+
         assert(Pdrop>0 && Pdrop<1 && backedUp==false);
         if (allocatedDroputWeights==false) {
             _allocateQuick(weights_DropoutBackup, nWeights)
@@ -653,8 +441,7 @@ void Network::assignDropoutMask()
         Real fac = 1./Pkeep; //the others have to compensate
 
         bernoulli_distribution dis(Pkeep);
-        for (int j=0; j<nWeights; j++) //TODO: betterer, simder, paralleler
-        {
+        for (int j=0; j<nWeights; j++) {
             bool res = dis(*gen);
             *(weights + j) = (res) ? *(weights_DropoutBackup + j)*fac : 0.;
         }
@@ -857,13 +644,122 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn)
 void Network::computeDeltasInputs(vector<Real>& grad, const Activation* const _series, const Real* const _weights, const Real* const _biases) const
 {//no weight grad to care about, no recurrent links
     assert(static_cast<int>(grad.size())==nInputs);
+
     for (int n=0; n<nInputs; n++) {
-        Real err(0);
-        for (const auto & link : *(G[0]->nl_outputs_vec)) {
-            //loop over all layers to which this layer is connected to
-            err += layers[0]->propagateErrors(link, _series, n, _weights);
-            //the propagateErrors method does not have any layer specific info, so it's fine
-        }
-        grad[n] = err; //no activation function on inputs
+        Real dEdy(0);
+
+        for (const auto & link : *(G[0]->nl_outputs_vec)) //loop over all layers to which this layer is connected to
+        	dEdy += link->backPropagate(_series, n, _weights);
+
+        grad[n] = dEdy; //no response function on inputs
     }
+}
+
+void Network::save(const string fname)
+{
+    printf("Saving into %s\n", fname.c_str());
+    fflush(0);
+    string nameBackup = fname + "_tmp";
+    ofstream out(nameBackup.c_str());
+
+    if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+
+    out.precision(20);
+    out << nWeights << " "  << nBiases << " " << nLayers  << " " << nNeurons << endl;
+
+    for (int i=0; i<nWeights; i++) {
+        if (std::isnan(*(weights + i)) || std::isinf(*(weights + i))) {
+            *(weights + i) = 0.0;
+            out << 0.0 << "\n";
+        } else {
+            out << *(weights + i) << "\n";
+        }
+    }
+
+    for (int i=0; i<nBiases; i++) {
+       if (std::isnan(*(biases + i)) || std::isinf(*(biases + i))) {
+           *(biases + i) = 0.0;
+            out << 0.0 << "\n";
+        } else {
+            out << *(biases + i) << "\n";
+        }
+    }
+
+    out.flush();
+    out.close();
+
+    //Prepare copying command
+    string command = "cp " + nameBackup + " " + fname;
+
+    //Submit the command to the system
+    system(command.c_str());
+}
+
+void Network::dump(const int agentID)
+{
+    if (not bDump) return;
+    char buf[500];
+    sprintf(buf, "%07d", (int)dump_ID[agentID]);
+    string nameNeurons  = "neuronOuts_" + to_string(agentID) + "_" + string(buf) + ".dat";
+    string nameMemories = "cellStates_" + to_string(agentID) + "_" + string(buf) + ".dat";
+    string nameOut_Mems = "out_states_" + to_string(agentID) + "_" + string(buf) + ".dat";
+    {
+        ofstream out(nameOut_Mems.c_str());
+        if (!out.good()) die("Unable to open save into file %s\n", nameOut_Mems.c_str());
+        for (int j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << " ";
+        for (int j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << " ";
+        out << "\n";
+        out.close();
+    }
+    {
+        ofstream out(nameNeurons.c_str());
+        if (!out.good()) die("Unable to open save into file %s\n", nameNeurons.c_str());
+        for (int j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << " ";
+        out << "\n";
+        out.close();
+    }
+    {
+        ofstream out(nameMemories.c_str());
+        if (!out.good()) die("Unable to open save into file %s\n", nameMemories.c_str());
+        for (int j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << " ";
+        out << "\n";
+        out.close();
+    }
+    dump_ID[agentID]++;
+}
+
+bool Network::restart(const string fname)
+{
+    string nameBackup = fname;
+
+    ifstream in(nameBackup.c_str());
+    debug1("Reading from %s\n", nameBackup.c_str());
+    if (!in.good()) {
+        error("WTF couldnt open file %s (ok keep going mofo)!\n", fname.c_str());
+        return false;
+    }
+
+    int readTotWeights, readTotBiases, readNNeurons, readNLayers;
+    in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
+
+    if (readTotWeights != nWeights || readTotBiases != nBiases || readNLayers != nLayers || readNNeurons != nNeurons)
+    die("Network parameters differ!");
+
+    Real tmp;
+    for (int i=0; i<nWeights; i++) {
+        in >> tmp;
+        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+        *(weights + i) = tmp;
+    }
+
+    for (int i=0; i<nBiases; i++) {
+        in >> tmp;
+        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+        *(biases + i) = tmp;
+    }
+
+    in.close();
+
+    updateFrozenWeights();
+    return true;
 }

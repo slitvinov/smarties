@@ -12,9 +12,10 @@
 using namespace std;
 
 NewFishEnvironment::NewFishEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
-Environment(nAgents, execpath, _rank, settings), sight(settings.senses==0), POV(settings.senses==1),
-l_line(settings.senses==2), p_sensors(settings.senses==3), study(settings.rewardType),
-goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
+Environment(nAgents, execpath, _rank, settings),
+sight(settings.senses==0 || settings.senses==4), POV(settings.senses==1),
+l_line(settings.senses==2), p_sensors(settings.senses==3 || settings.senses==4),
+study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
 }
 
@@ -26,15 +27,15 @@ void NewFishEnvironment::setDims()
             // State: Horizontal distance from goal point...
             sI.bounds.push_back(1); //one block in between the bounds, one more on each side
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(true);
+            sI.isLabel.push_back(false); sI.inUse.push_back(sight);
             // ...vertical distance...
             sI.bounds.push_back(1);
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(true);
+            sI.isLabel.push_back(false); sI.inUse.push_back(sight);
             // ...inclination of1the fish...
             sI.bounds.push_back(1); // only positive or negative
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(true);
+            sI.isLabel.push_back(false); sI.inUse.push_back(sight);
             // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
             sI.bounds.push_back(1); // Will get ~ 0 or 0.5
             sI.top.push_back(.5); sI.bottom.push_back(0.0);
@@ -56,18 +57,18 @@ void NewFishEnvironment::setDims()
             sI.bounds.push_back(1); //Quad 7
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(POV);
-
+            
             sI.bounds.push_back(1); // VxAvg 8
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(POV || l_line || p_sensors);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             
             sI.bounds.push_back(1); // VyAvg 9
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(POV || l_line || p_sensors);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
             
             sI.bounds.push_back(1); // AvAvg 10
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(POV || l_line || p_sensors);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
         }
         {
             sI.bounds.push_back(1); //Pout 11
@@ -294,4 +295,40 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     }
     
     return new_sample;
+}
+
+int NewFishEnvironment::getState(int & iAgent)
+{
+    int bStatus = 0;
+    //printf("RECEIVING %d,%d\n",sock,sizein);
+    if ((bytes = recv_all(sock, datain, sizein)) <= 0) {
+        if (bytes == 0) printf("socket %d hung up\n", sock);
+        else perror("(1) recv");
+        
+        close(sock);
+        bStatus = -1;
+    } else { // (bytes == nbyte)
+        iAgent  = *((int*)  datain   );
+        bStatus = *((int*) (datain+1)); //first (==1?), terminal (==2?), etc
+        debug3("Receiving from agent %d %d: ", iAgent, bStatus);
+        
+        std::swap(agents[iAgent]->s,agents[iAgent]->sOld);
+        
+        int k = 2;
+        for (int j=0; j<sI.dim; j++) {
+            debug3(" %f (%d)",datain[k],k);
+            agents[iAgent]->s->vals[j] = (Real) datain[k++];
+            assert(not std::isnan(agents[iAgent]->s->vals[j]) && not std::isinf(agents[iAgent]->s->vals[j]));
+            if (j>=180) { //sight sensors get non-dimensionalized differently depending on size of fish if no obstacle is found =(
+                agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
+            }
+        }
+        
+        debug3(" %f (%d)\n",datain[k],k);
+        agents[iAgent]->r = (Real) datain[k++];
+        assert(not std::isnan(agents[iAgent]->r) && not std::isinf(agents[iAgent]->r));
+        debug3("Got from child %d: reward %f initial state %s\n", rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
+    }
+    fflush(0);
+    return bStatus;
 }

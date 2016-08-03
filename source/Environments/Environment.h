@@ -48,7 +48,7 @@ public:
     }
     
     virtual void setDims ();
-    int getState(int & iAgent) ;
+    virtual int getState(int & iAgent) ;
     virtual void setAction(const int & iAgent);
     void close_Comm ();
     void setup_Comm ();

@@ -21,10 +21,8 @@ class Network
 protected:
     vector<Graph*> G;
     vector<NormalLayer*> layers;
-    void orthogonalize(const int nO, const int nI, const int n0, Real* const _weights);
     void addNormal(Graph* const p, Graph* const g, const bool first, const bool last);
     void addLSTM(Graph* const p, Graph* const g, const bool first, const bool last);
-    void initializeWeights(Graph & g, Real* const _weights, Real* const _biases);
 
 public:
     const Real Pdrop; //dropout

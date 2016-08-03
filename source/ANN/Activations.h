@@ -11,7 +11,136 @@
 #include <cmath>
 
 #include "../Settings.h"
+#include <cstring>
 using namespace std;
+
+#define _allocateClean(name, size) { const int sizeSIMD=ceil(size/4.)*4.*sizeof(Real); posix_memalign((void **)& name, 32, sizeSIMD); memset(name, 0, sizeSIMD); }
+#define _allocateQuick(name, size) { const int sizeSIMD=ceil(size/4.)*4.*sizeof(Real); posix_memalign((void **)& name, 32, sizeSIMD); }
+#define _myfree( name ) free( name );
+
+struct Activation //All the network signals
+{
+    Activation(int _nNeurons, int _nStates): nNeurons(_nNeurons), nStates(_nStates)
+    {
+        //contains all inputs to each neuron (inputs to network input layer is empty)
+        _allocateQuick(in_vals, nNeurons)
+        //contains all neuron outputs that will be the incoming signal to linked layers (outputs of input layer is network inputs)
+        _allocateQuick(outvals, nNeurons)
+        //deltas for each neuron
+        _allocateQuick(errvals, nNeurons)
+        //memory of LSTM
+        _allocateQuick(ostates, nStates)
+        //inputs to gates (cell into in_vals)
+        _allocateQuick(iIGates, nStates)
+        _allocateQuick(iFGates, nStates)
+        _allocateQuick(iOGates, nStates)
+        //output of gates and LSTM cell
+        _allocateQuick(oMCell, nStates)
+        _allocateQuick(oIGates, nStates)
+        _allocateQuick(oFGates, nStates)
+        _allocateQuick(oOGates, nStates)
+        //errors of gates and LSTM cell
+        _allocateQuick(eMCell, nStates)
+        _allocateQuick(eIGates, nStates)
+        _allocateQuick(eFGates, nStates)
+        _allocateQuick(eOGates, nStates)
+    }
+
+    ~Activation()
+    {
+        _myfree(in_vals)
+        _myfree(outvals)
+        _myfree(errvals)
+        _myfree(ostates)
+
+        _myfree(iIGates)
+        _myfree(iFGates)
+        _myfree(iOGates)
+
+        _myfree(oMCell)
+        _myfree(oIGates)
+        _myfree(oFGates)
+        _myfree(oOGates)
+
+        _myfree(eMCell)
+        _myfree(eIGates)
+        _myfree(eFGates)
+        _myfree(eOGates)
+
+    }
+
+    void clearOutput()
+    {
+        for (int j=0; j<nNeurons; j++)
+        *(outvals +j) = 0.;
+
+        for (int j=0; j<nStates; j++)
+        *(ostates +j) = 0.;
+    }
+
+    void clearErrors()
+    {
+        for (int j=0; j<nNeurons; j++)
+            *(errvals +j) = 0.;
+
+        for (int j=0; j<nStates; j++) {
+            *(eOGates +j) = 0.;
+            *(eIGates +j) = 0.;
+            *(eFGates +j) = 0.;
+            *(eMCell  +j) = 0.;
+        }
+    }
+
+    void clearInputs()
+    {
+        for (int j=0; j<nNeurons; j++)
+            *(in_vals +j) = 0.;
+
+        for (int j=0; j<nStates; j++) {
+            *(iIGates +j) = 0.;
+            *(iFGates +j) = 0.;
+            *(iOGates +j) = 0.;
+        }
+    }
+
+    const int nNeurons, nStates;
+    Real *in_vals, *outvals, *errvals, *ostates, *iIGates, *iFGates, *iOGates, *oMCell, *oIGates, *oFGates, *oOGates, *eMCell, *eIGates, *eFGates, *eOGates;
+};
+
+struct Grads
+{
+    Grads(int _nWeights, int _nBiases): nWeights(_nWeights), nBiases(_nBiases)
+    {
+        _allocateClean(_W, nWeights)
+        _allocateClean(_B, nBiases)
+    }
+
+    ~Grads()
+    {
+        _myfree(_W)
+        _myfree(_B)
+    }
+
+    const int nWeights, nBiases;
+    Real *_W, *_B;
+};
+
+struct Mem //Memory light recipient for prediction on agents
+{
+    Mem(int _nNeurons, int _nStates): nNeurons(_nNeurons), nStates(_nStates)
+    {
+        _allocateClean(outvals, nNeurons)
+        _allocateClean(ostates, nStates)
+    }
+
+    ~Mem()
+    {
+        _myfree(outvals);
+        _myfree(ostates);
+    }
+    const int nNeurons, nStates;
+    Real *outvals, *ostates;
+};
 
 class Response
 {
