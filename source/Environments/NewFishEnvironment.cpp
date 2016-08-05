@@ -271,13 +271,13 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 3) {
-        const Real scaledRew = 1. -fabs(t_sN.vals[0]-goalDY) -fabs(t_sN.vals[1]); //actually goal DX
+        const Real scaledRew = 1. -4*fabs(t_sN.vals[0]-goalDY) -fabs(t_sN.vals[1]); //actually goal DX
 #ifndef _scaleR_
         reward = scaledRew;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
-        if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+        //if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
 #else
         reward = (1.-gamma)*scaledRew; //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
-        if (new_sample) reward = -1.;  // = - max cumulative reward
+        //if (new_sample) reward = -1.;  // = - max cumulative reward
 #endif
     }
     else if (study == 4) {

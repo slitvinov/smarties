@@ -54,6 +54,7 @@ public:
     void orthogonalize(const int n0, Real* const _weights) const;
 };
 
+
 class LinkToLSTM : public Link
 {
 public:
@@ -98,10 +99,12 @@ struct Graph //misleading, this is just the graph for a single layer
     Link *rl_recurrent, *nl_recurrent;
     vector<Link*> *rl_inputs_vec, *rl_outputs_vec, *nl_inputs_vec, *nl_outputs_vec;
     
-    int wPeep, indState;
-    int biasHL, biasIN, biasIG, biasFG, biasOG;
+    int indState, wPeep, biasHL, biasIN, biasIG, biasFG, biasOG;
 
-    Graph() : first(false), last(false), recurrSize(0), normalSize(0), recurrPos(0),  normalPos(0), wPeep(0), indState(0), biasHL(0), biasIN(0), biasIG(0), biasFG(0), biasOG(0)
+    Graph()
+    : first(false), last(false), recurrSize(0), normalSize(0), recurrPos(0),  normalPos(0),
+	  wPeep(0), indState(0), biasHL(0), biasIN(0), biasIG(0), biasFG(0), biasOG(0),
+	  rl_recurrent(nullptr), nl_recurrent(nullptr)
     {
         rl_inputs_vec = new vector<Link*>();
         rl_outputs_vec = new vector<Link*>();

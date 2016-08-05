@@ -59,6 +59,15 @@ void NormalLayer::backPropagateGrads(const Activation* const C, Grads* const gra
     	link->computeGrad(C, C, grad->_W);
 }
 
+void NormalLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad) const
+{
+	for (int n=0; n<nNeurons; n++)  //grad bias == delta
+		*(grad->_B +n1stBias +n) += *(C->errvals +n1stNeuron +n);
+
+	for (const auto & link : *input_links)
+		link->addUpGrads(C, C, grad->_W);
+}
+
 //all of the following is for recurrent neural networks
 
 void NormalLayer::propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const
@@ -69,7 +78,8 @@ void NormalLayer::propagate(const Activation* const M, Activation* const N, cons
         for (const auto & link : *input_links)
             input += link->propagate(N,n,weights);
 
-        input += recurrent_link->propagate(M,n,weights);
+        if(recurrent_link not_eq nullptr)
+        	input += recurrent_link->propagate(M,n,weights);
 
         input += *(biases +n1stBias +n);
         *(N->in_vals +n1stNeuron +n) = input;
@@ -80,7 +90,7 @@ void NormalLayer::propagate(const Activation* const M, Activation* const N, cons
 void LSTMLayer::propagate(Activation* const N, const Real* const weights, const Real* const biases) const
 {
     for (int n=0; n<nNeurons; n++) {
-    	Real* inputs = new Real[4];
+    	Real inputs[4] = {0,0,0,0};
 
         for (const auto & link : *input_links)
             link->propagate(inputs,N,n,weights);
@@ -110,7 +120,7 @@ void LSTMLayer::propagate(Activation* const N, const Real* const weights, const 
 void LSTMLayer::propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const
 {
     for (int n=0; n<nNeurons; n++) {
-    	Real* inputs = new Real[4];
+    	Real inputs[4] = {0,0,0,0};
         for (const auto & link : *input_links)
             link->propagate(inputs,N,n,weights);
 
@@ -146,7 +156,8 @@ void NormalLayer::backPropagateDeltaFirst(Activation* const C, const Activation*
         for (const auto & link : *output_links) //loop over all layers to which this layer is connected to
         	dEdy += link->backPropagate(C, n, weights);
 
-        dEdy += recurrent_link->backPropagate(N, n, weights);
+        if(recurrent_link not_eq nullptr)
+        	dEdy += recurrent_link->backPropagate(N, n, weights);
         
         *(C->errvals +n1stNeuron +n) = dEdy * func->evalDiff(*(C->in_vals +n1stNeuron+n));
     }
@@ -220,13 +231,17 @@ void LSTMLayer::backPropagateDeltaLast(const Activation* const P, Activation* co
 void NormalLayer::backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
 {
 	backPropagateGrads(C, grad);
-	recurrent_link->computeGrad(P, C, grad->_W);
+
+    if(recurrent_link not_eq nullptr)
+    	recurrent_link->computeGrad(P, C, grad->_W);
 }
 
 void LSTMLayer::backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
 {
 	backPropagateGrads(C, grad);
-	recurrent_link->computeGrad(P, C, grad->_W);
+
+    if(recurrent_link not_eq nullptr)
+    	recurrent_link->computeGrad(P, C, grad->_W);
 }
 
 void LSTMLayer::backPropagateGrads(const Activation* const C, Grads* const grad) const
@@ -245,31 +260,26 @@ void LSTMLayer::backPropagateGrads(const Activation* const C, Grads* const grad)
 void NormalLayer::backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
 {
 	backPropagateAddGrads(C, grad);
-	recurrent_link->addUpGrads(P, C, grad->_W);
+
+    if(recurrent_link not_eq nullptr)
+    	recurrent_link->addUpGrads(P, C, grad->_W);
 }
 
 void LSTMLayer::backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
 {
 	backPropagateAddGrads(C, grad);
-	recurrent_link->addUpGrads(P, C, grad->_W);
-}
 
-void NormalLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad) const
-{
-	for (int n=0; n<nNeurons; n++)  //grad bias == delta
-		*(grad->_B +n1stBias +n) = *(C->errvals +n1stNeuron +n);
-
-	for (const auto & link : *input_links)
-		link->addUpGrads(C, C, grad->_W);
+    if(recurrent_link not_eq nullptr)
+    	recurrent_link->addUpGrads(P, C, grad->_W);
 }
 
 void LSTMLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad) const
 {
     for (int n=0; n<nNeurons; n++) {
-    	*(grad->_B +n1stBias   +n) = *(C->eMCell  +n1stCell +n) * *(C->errvals +n1stNeuron +n);
-    	*(grad->_B +n1stBiasIG +n) = *(C->eIGates +n1stCell +n) * *(C->errvals +n1stNeuron +n);
-    	*(grad->_B +n1stBiasFG +n) = *(C->eFGates +n1stCell +n) * *(C->errvals +n1stNeuron +n);
-    	*(grad->_B +n1stBiasOG +n) = *(C->eOGates +n1stCell +n);
+    	*(grad->_B +n1stBias   +n) += *(C->eMCell  +n1stCell +n) * *(C->errvals +n1stNeuron +n);
+    	*(grad->_B +n1stBiasIG +n) += *(C->eIGates +n1stCell +n) * *(C->errvals +n1stNeuron +n);
+    	*(grad->_B +n1stBiasFG +n) += *(C->eFGates +n1stCell +n) * *(C->errvals +n1stNeuron +n);
+    	*(grad->_B +n1stBiasOG +n) += *(C->eOGates +n1stCell +n);
     }
 
 	for (const auto & link : *input_links)

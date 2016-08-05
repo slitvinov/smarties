@@ -260,7 +260,7 @@ void Graph::initializeWeights(mt19937* const gen, Real* const _weights, Real* co
 		l->initialize(dis, gen, _weights);
 
 	if(rl_recurrent not_eq nullptr)
-		nl_recurrent->initialize(dis, gen, _weights);
+		rl_recurrent->initialize(dis, gen, _weights);
 
 	if (not last) //no bias on output layer
 			for (int w=biasHL; w<biasHL+normalSize; w++)

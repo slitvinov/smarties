@@ -122,7 +122,7 @@ void Network::addLSTM(Graph* const p, Graph* const g, const bool first, const bo
         	Link* tmp=new LinkToLSTM(g->recurrSize, g->recurrPos, g->recurrSize, g->recurrPos, g->indState, WeightHL, WeightIG, WeightFG, WeightOG);
             g->rl_recurrent = tmp;
         }
-#if  0
+#if  1
         #ifndef _scaleR_
         const Response * fI = (last) ? new Response : new SoftSign2;
         const Response * fG = new SoftSigm;
@@ -176,7 +176,8 @@ gen(settings.gen), bDump(not settings.bTrain)
         for (int i=1; i<nMixedLayers; i++)
         { //layer 0 is the input layer
             Graph * g = new Graph();
-            bool first = i==1; bool last = i+1==nMixedLayers;
+            bool first = i==1;
+            bool last = i+1==nMixedLayers;
             if (bLSTM && not last) { //
                 g->recurrSize = layerSize[i];
                 g->normalSize = 0;
@@ -212,7 +213,7 @@ gen(settings.gen), bDump(not settings.bTrain)
         }
         
         const int firstSeparate = nMixedLayers - 2;
-        const int lastJointLayer = G.size() - 1;
+        const int lastJointLayer = G.size() - 1; //== nMixedLayers - 3
         const bool first = 1 == firstSeparate;
         
         for (int i=0; i<nOutputs; i++) {
@@ -327,7 +328,7 @@ void Network::computeAddGrads(const Activation* const lab, Grads* const _Grad) c
 
 //Back Prop Through Time:
 //compute deltas: start from last activation, propagate deltas back to first
-//ISSUES:   this array of activations disturbs me deeply because it is deeply inelegant
+//ISSUES:   this array of activations disturbs me deeply as it is deeply inelegant
 //			but was the most robust and easiest path towards parallelism
 void Network::computeDeltasSeries(vector<Activation*>& _series, const int first, const int last, const Real* const _weights, const Real* const _biases) const
 {
@@ -503,8 +504,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn)
         predict(inputs[0], res, series[0]);
         partialResults[0] =- res[errorPlacements[0]];
         
-        for (int k=1; k<lastn; k++)
-        {
+        for (int k=1; k<lastn; k++) {
             predict(inputs[k], res, series[k-1], series[k]);
             partialResults[k] =- res[errorPlacements[k]];
         }
@@ -515,8 +515,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn)
         predict(inputs[0], res, series[0]);
         partialResults[0] += res[errorPlacements[0]];
             
-        for (int k=1; k<lastn; k++)
-        {
+        for (int k=1; k<lastn; k++) {
             predict(inputs[k], res, series[k-1], series[k]);
             partialResults[k] += res[errorPlacements[k]];
         }
@@ -560,7 +559,6 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn)
         
         //0
         *(biases+w) += incr;
-        
         
         Real grad(0);
         for (int k=0; k<lastn; k++)
