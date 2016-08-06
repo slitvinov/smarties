@@ -214,7 +214,6 @@ void LSTMLayer::backPropagateDelta(const Activation* const P, Activation* const 
 
 void LSTMLayer::backPropagateDeltaLast(const Activation* const P, Activation* const C, const Real* const weights, const Real* const biases) const
 {
-    //const Link* const lO = output_links;
     for (int n=0; n<nNeurons; n++) {
     	Real dEdy = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
     	for (const auto & link : *output_links) //loop over all layers to which this layer is connected to

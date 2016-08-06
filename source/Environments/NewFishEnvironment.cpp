@@ -152,7 +152,7 @@ void NewFishEnvironment::setDims()
         for (int i=0; i<2*nSensors; i++) {
             sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
             sI.top.push_back(5); sI.bottom.push_back(0);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors);
+            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line);
         }
         /*
         sI.values.push_back(-.50);
@@ -271,15 +271,15 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 3) {
-    	const Real DX_penal = min(4*fabs(t_sN.vals[0]-goalDY), 1.);  //goalDY actually goalDX
-    	const Real DY_penal = min(  fabs(t_sN.vals[1]),        1.);
-        const Real scaledRew = 2.-DX_penal-DY_penal;
+    	const Real DX_penal = 4*fabs(t_sN.vals[0]-goalDY);  //goalDY actually goalDX
+    	const Real DY_penal =   fabs(t_sN.vals[1]);
+        const Real scaledRew = 2. - min(DX_penal+DY_penal, 2.);
 #ifndef _scaleR_
         reward = scaledRew;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
-        //if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+        if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
 #else
         reward = (1.-gamma)*scaledRew; //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
-        //if (new_sample) reward = -1.;  // = - max cumulative reward
+        if (new_sample) reward = -1.;  // = - max cumulative reward
 #endif
     }
     else if (study == 4) {
