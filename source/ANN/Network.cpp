@@ -99,9 +99,9 @@ void Network::build_LSTM_layer(Graph* const graph)
 	}
 
 	{ //connected  to past realization of current recurrent layer
-		const int firstWeightIG = nWeights 		+ sizeLayerFrom*layerSize;
-		const int firstWeightFG = firstWeightIG + sizeLayerFrom*layerSize;
-		const int firstWeightOG = firstWeightFG + sizeLayerFrom*layerSize;
+		const int firstWeightIG = nWeights 		+ layerSize*layerSize;
+		const int firstWeightFG = firstWeightIG + layerSize*layerSize;
+		const int firstWeightOG = firstWeightFG + layerSize*layerSize;
     	Link* tmp = new LinkToLSTM(layerSize, firstNeuron_ID, layerSize, firstNeuron_ID,
     			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG);
 		graph->recurrent_link = tmp;
@@ -138,7 +138,6 @@ void Network::build_LSTM_layer(Graph* const graph)
         		graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID, graph->input_links_vec,
 				graph->recurrent_link, graph->output_links_vec, fI, fG, fO, graph->output);
         layers.push_back(l);
-    }
 }
 
 void Network::addInput(const int size)
@@ -625,10 +624,10 @@ void Network::computeDeltasInputs(vector<Real>& grad, const Activation* const _s
 {//no weight grad to care about, no recurrent links
     assert(static_cast<int>(grad.size())==nInputs);
 
-    for (int n=0; n<nInputs; n++) {
+    for (auto & graph : G) if(graph->input)
+    for (int n=0; n<graph->layerSize; n++) {
         Real dEdy(0);
-
-        for (const auto & link : *(G[0]->nl_outputs_vec)) //loop over all layers to which this layer is connected to
+        for (const auto & link : *(graph->output_links_vec)) //loop over all layers to which this layer is connected to
         	dEdy += link->backPropagate(_series, n, _weights);
 
         grad[n] = dEdy; //no response function on inputs

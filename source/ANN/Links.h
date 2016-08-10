@@ -32,8 +32,7 @@ public:
     Link(int nI, int iI, int nO, int iO, int iW) : nI(nI), iI(iI), nO(nO), iO(iO), iW(iW)
     { }
     
-    Link() : nI(0), iI(0), nO(0), iO(0), iW(0)
-    { }
+    ///Link() : nI(0), iI(0), nO(0), iO(0), iW(0){ }
     
     //void set(int _nI, int _iI, int _nO, int _iO, int _iW);
     
@@ -68,7 +67,7 @@ public:
      */
     const int iC, iWI, iWF, iWO;
 
-    LinkToLSTM() { }
+    //LinkToLSTM() { }
 
 	LinkToLSTM(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO) :
 		Link(nI, iI, nO, iO, iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO)
@@ -99,7 +98,7 @@ struct Graph //misleading, this is just the graph for a single layer
     int firstState_ID;
     int firstBias_ID;
     int firstBiasIG_ID, firstBiasFG_ID, firstBiasOG_ID;
-    
+    vector<int> linkedTo;
     Link * recurrent_link;//, *nl_recurrent;
     vector<Link*> * input_links_vec, * output_links_vec;
 

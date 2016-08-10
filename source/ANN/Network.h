@@ -25,8 +25,6 @@ protected:
     vector<int> iOut, dump_ID;
     vector<Graph*> G;
     vector<NormalLayer*> layers;
-    void addNormal(const int size, vector<int> linkedTo, const bool RNN = false);
-    void addLSTM(const int size, vector<int> linkedTo);
     void build_LSTM_layer(Graph* const graph);
     void build_normal_layer(Graph* const graph);
 
@@ -38,16 +36,18 @@ public:
     Grads * grad, * _grad;
     Real *weights, *biases, *tgt_weights, *tgt_biases, *weights_DropoutBackup;
     vector<Grads*> Vgrad;
-    
+
+    void build();
+    void addInput(const int size);
+    int getLastLayerID() {return G.size()-1;}
     void addLayer(const int size, const string type, vector<int> linkedTo, const bool output);
     void addLayer(const int size, const string type, vector<int> linkedTo) {addLayer(size,type,linkedTo,false);}
     void addLayer(const int size, const string type, const bool output) {addLayer(size,type,vector<int>(),output);}
     void addLayer(const int size, const string type) {addLayer(size,type,vector<int>(),false);}
     void addOutput(const int size, const string type, vector<int> linkedTo) {addLayer(size,type,linkedTo,true);}
     void addOutput(const int size, const string type) {addLayer(size,type,vector<int>(),true);}
-    int getLastLayerID() {return G.size()-1;}
 
-    Network(const vector<int>& layerSize, const bool bLSTM, const Settings & settings);//, bool bSeparateOutputs);
+    Network(const Settings & settings);
     
     ~Network()
     {
