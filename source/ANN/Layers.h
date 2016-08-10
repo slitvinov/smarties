@@ -100,18 +100,3 @@ public:
     void backPropagateAddGrads(const Activation* const C, Grads* const grad) const override;
     void backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad) const override;
 };
-
-class CNNLayer: public NormalLayer
-{
-public:    
-    void propagate(Activation* const N, const Real* const weights, const Real* const biases) const override;
-    
-    void backPropagateDeltaFirst(Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const override;
-    void backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const override;
-    
-    void backPropagateDelta(const Activation* const P, Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const override;
-    void backPropagateDeltaLast(const Activation* const P, Activation* const C, const Real* const weights, const Real* const biases) const override;
-    
-    void backPropagateGrads(const Activation* const C, Grads* const grad) const override;
-    void backPropagateAddGrads(const Activation* const C, Grads* const grad) const override;
-};
