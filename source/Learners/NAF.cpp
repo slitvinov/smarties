@@ -23,7 +23,34 @@
 NAF::NAF(Environment* env, Settings & settings) :
 Learner(env,settings), nA(aInfo.dim), nL((aInfo.dim*aInfo.dim+aInfo.dim)/2)
 {
-    
+	string lType = bRecurrent ? "LSTM" : "Normal";
+	vector<int> lsize;
+	lsize.push_back(settings.nnLayer1);
+	if (settings.nnLayer2>1) {
+		lsize.push_back(settings.nnLayer2);
+		if (settings.nnLayer3>1) {
+			lsize.push_back(settings.nnLayer3);
+			if (settings.nnLayer4>1) {
+				lsize.push_back(settings.nnLayer4);
+				if (settings.nnLayer5>1) {
+					lsize.push_back(settings.nnLayer5);
+				}
+			}
+		}
+	}
+
+	net = new Network(settings);
+	net->addInputs(nInputs);
+	for (int i=0; i<lsize.size()-1; i++) net->addLayer(lsize[i], lType);
+	const vector<int> lastJointLayer(1,net->getLastLayerID());
+	net->addLayer(lsize[i], lType, lastJointLayer);
+	net->addOutput(1, lType);
+	net->addLayer(lsize[i], lType, lastJointLayer);
+	net->addOutput(nL, lType);
+	net->addLayer(lsize[i], lType, lastJointLayer);
+	net->addOutput(nA, lType);
+	net->build();
+	opt = new AdamOptimizer(net, profiler, settings);
 }
 
 void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,const int info,Real r)

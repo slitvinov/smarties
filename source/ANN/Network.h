@@ -19,16 +19,18 @@ using namespace std;
 class Network
 {
 protected:
+	bool bBuilt, bAddedInputs;
+    int nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates;
+    const Real Pdrop; //dropout
+    vector<int> iOut, dump_ID;
     vector<Graph*> G;
     vector<NormalLayer*> layers;
-    void addNormal(Graph* const p, Graph* const g, const bool first, const bool last);
-    void addLSTM(Graph* const p, Graph* const g, const bool first, const bool last);
+    void addNormal(const int size, vector<int> linkedTo, const bool RNN = false);
+    void addLSTM(const int size, vector<int> linkedTo);
+    void build_LSTM_layer(Graph* const graph);
+    void build_normal_layer(Graph* const graph);
 
 public:
-    const Real Pdrop; //dropout
-    const int nInputs, nOutputs;
-    int nLayers, nNeurons, nWeights, nBiases, nStates;
-    vector<int> iOut, dump_ID;
     bool allocatedFrozenWeights, allocatedDroputWeights, backedUp, bDump;
     mt19937 * gen;
     vector<Mem*> mem;
@@ -37,6 +39,14 @@ public:
     Real *weights, *biases, *tgt_weights, *tgt_biases, *weights_DropoutBackup;
     vector<Grads*> Vgrad;
     
+    void addLayer(const int size, const string type, vector<int> linkedTo, const bool output);
+    void addLayer(const int size, const string type, vector<int> linkedTo) {addLayer(size,type,linkedTo,false);}
+    void addLayer(const int size, const string type, const bool output) {addLayer(size,type,vector<int>(),output);}
+    void addLayer(const int size, const string type) {addLayer(size,type,vector<int>(),false);}
+    void addOutput(const int size, const string type, vector<int> linkedTo) {addLayer(size,type,linkedTo,true);}
+    void addOutput(const int size, const string type) {addLayer(size,type,vector<int>(),true);}
+    int getLastLayerID() {return G.size()-1;}
+
     Network(const vector<int>& layerSize, const bool bLSTM, const Settings & settings);//, bool bSeparateOutputs);
     
     ~Network()

@@ -11,12 +11,13 @@
 #include <cassert>
 
 using namespace ErrorHandling;
-
+/*
 void Link::set(int _nI, int _iI, int _nO, int _iO, int _iW)
 {
 	this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW;
 	print();
 }
+*/
 
 void Link::print() const
 {
@@ -110,11 +111,13 @@ void LinkToLSTM::print() const
 	fflush(0);
 }
 
+/*
 void LinkToLSTM::set(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO)
 {
 	this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW; this->iC = _iC; this->iWI = _iWI; this->iWF = _iWF; this->iWO = _iWO;
 	print();
 }
+*/
 
 Real LinkToLSTM::backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const
 {

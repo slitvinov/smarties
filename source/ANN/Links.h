@@ -27,7 +27,7 @@ public:
      the index of the first weight iW along the weight vector
      the weights are all to all: so this link occupies space iW to (iW + nI*nO) along weight vector
      */
-    int nI, iI, nO, iO, iW;
+    const int nI, iI, nO, iO, iW;
     
     Link(int nI, int iI, int nO, int iO, int iW) : nI(nI), iI(iI), nO(nO), iO(iO), iW(iW)
     { }
@@ -35,7 +35,7 @@ public:
     Link() : nI(0), iI(0), nO(0), iO(0), iW(0)
     { }
     
-    void set(int _nI, int _iI, int _nO, int _iO, int _iW);
+    //void set(int _nI, int _iI, int _nO, int _iO, int _iW);
     
     void print() const;
 
@@ -66,7 +66,7 @@ public:
      additionally the LSTM contains a memory, contained in Activation->ostate
      memory and gates are treated differently than normal neurons, therefore are contained in separate array, and i keep track of the position with iC
      */
-    int iC, iWI, iWF, iWO;
+    const int iC, iWI, iWF, iWO;
 
     LinkToLSTM() { }
 
@@ -76,7 +76,7 @@ public:
 
     void print() const;
 
-    void set(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO);
+    //void set(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO);
 
     Real backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const override;
 
@@ -93,41 +93,34 @@ public:
 
 struct Graph //misleading, this is just the graph for a single layer
 {
-    bool first, last;
-    int recurrSize, normalSize, recurrPos, normalPos;
+    bool input, output, RNN, LSTM;
+    int layerSize;
+	int firstNeuron_ID; //recurrPos, normalPos;
+    int firstState_ID;
+    int firstBias_ID;
+    int firstBiasIG_ID, firstBiasFG_ID, firstBiasOG_ID;
     
-    Link *rl_recurrent, *nl_recurrent;
-    vector<Link*> *rl_inputs_vec, *rl_outputs_vec, *nl_inputs_vec, *nl_outputs_vec;
-    
-    int indState, wPeep, biasHL, biasIN, biasIG, biasFG, biasOG;
+    Link * recurrent_link;//, *nl_recurrent;
+    vector<Link*> * input_links_vec, * output_links_vec;
 
     Graph()
-    : first(false), last(false), recurrSize(0), normalSize(0), recurrPos(0),  normalPos(0),
-	  wPeep(0), indState(0), biasHL(0), biasIN(0), biasIG(0), biasFG(0), biasOG(0),
-	  rl_recurrent(nullptr), nl_recurrent(nullptr)
+    : input(false), output(false), RNN(false), LSTM(false), layerSize(0), firstNeuron_ID(0),
+	  firstState_ID(0), firstBias_ID(0), firstBiasIG_ID(0), firstBiasFG_ID(0), firstBiasOG_ID(0),
+	  recurrent_link(nullptr)
     {
-        rl_inputs_vec = new vector<Link*>();
-        rl_outputs_vec = new vector<Link*>();
-        nl_inputs_vec = new vector<Link*>();
-        nl_outputs_vec = new vector<Link*>();
+    	input_links_vec = new vector<Link*>();
+    	output_links_vec = new vector<Link*>();
     }
     
     ~Graph()
     {
-        _dispose_object( rl_recurrent);
-        _dispose_object( nl_recurrent);
-        for (auto & link : *rl_inputs_vec)
-        	_dispose_object( link);
-        _dispose_object( rl_inputs_vec);
-        for (auto & link : *rl_outputs_vec)
-        	_dispose_object ( link);
-        _dispose_object( rl_outputs_vec);
-        for (auto & link : *nl_inputs_vec)
-        	_dispose_object ( link);
-        _dispose_object( nl_inputs_vec);
-        for (auto & link : *nl_outputs_vec)
-        	_dispose_object( link);
-        _dispose_object( nl_outputs_vec);
+        _dispose_object(recurrent_link);
+        for (auto& link : *input_links_vec)
+        	_dispose_object(link);
+        _dispose_object(input_links_vec);
+        for (auto& link : *output_links_vec)
+        	_dispose_object (link);
+        _dispose_object(output_links_vec);
     }
     
     void initializeWeights(mt19937* const gen, Real* const _weights, Real* const _biases) const;

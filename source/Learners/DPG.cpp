@@ -20,25 +20,35 @@
 
 DPG::DPG(Environment* env, Settings & settings) : Learner(env,settings), nS(env->sI.dimUsed), nA(env->aI.dim)
 {
-    vector<int> lsize;
-    lsize.push_back(nS);
-    lsize.push_back(settings.nnLayer1);
-    if (settings.nnLayer2>1) {
-        lsize.push_back(settings.nnLayer2);
-        if (settings.nnLayer3>1) {
-            lsize.push_back(settings.nnLayer3);
-            if (settings.nnLayer4>1) {
-                lsize.push_back(settings.nnLayer4);
-                if (settings.nnLayer5>1) {
-                    lsize.push_back(settings.nnLayer5);
-                }
-            }
-        }
-    }
-    lsize.push_back(nA);
-    
-    net_policy = new Network(lsize, bRecurrent, settings);
-    opt_policy = new AdamOptimizer(net, profiler, settings);
+	string lType = bRecurrent ? "LSTM" : "Normal";
+	vector<int> lsize;
+	lsize.push_back(settings.nnLayer1);
+	if (settings.nnLayer2>1) {
+		lsize.push_back(settings.nnLayer2);
+		if (settings.nnLayer3>1) {
+			lsize.push_back(settings.nnLayer3);
+			if (settings.nnLayer4>1) {
+				lsize.push_back(settings.nnLayer4);
+				if (settings.nnLayer5>1) {
+					lsize.push_back(settings.nnLayer5);
+				}
+			}
+		}
+	}
+
+	net = new Network(settings);
+	net->addInputs(nS+nA);
+	for (int i=0; i<lsize.size(); i++) net->addLayer(lsize[i], lType);
+	net->addOutput(1, lType);
+	net->build();
+	opt = new AdamOptimizer(net, profiler, settings);
+
+	net_policy = new Network(settings);
+	net_policy->addInputs(nS);
+	for (int i=0; i<lsize.size(); i++) net_policy->addLayer(lsize[i], lType);
+	net_policy->addOutput(nA, lType);
+	net_policy->build();
+	opt_policy = new AdamOptimizer(net_policy, profiler, settings);
 }
 
 void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,const int info,Real r)

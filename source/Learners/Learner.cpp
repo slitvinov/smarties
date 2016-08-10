@@ -15,28 +15,8 @@ nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), bRecurrent(settings.nn
 bTrain(settings.bTrain==1), tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma),
 greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI), gen(settings.gen), taskCounter(batchSize)
 {
-    vector<int> lsize;
-    lsize.push_back(nInputs);
-    lsize.push_back(settings.nnLayer1);
-    if (settings.nnLayer2>1) {
-        lsize.push_back(settings.nnLayer2);
-        if (settings.nnLayer3>1) {
-            lsize.push_back(settings.nnLayer3);
-            if (settings.nnLayer4>1) {
-                lsize.push_back(settings.nnLayer4);
-                if (settings.nnLayer5>1) {
-                    lsize.push_back(settings.nnLayer5);
-                }
-            }
-        }
-    }
-    lsize.push_back(nOutputs);
-    
     for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
-
     profiler = new Profiler();
-    net = new Network(lsize, bRecurrent, settings);
-    opt = new AdamOptimizer(net, profiler, settings);
     data = new Transitions(env, settings);
 }
 

@@ -20,6 +20,28 @@
 
 NFQ::NFQ(Environment* env, Settings & settings) : Learner(env,settings)
 {
+	vector<int> lsize;
+	lsize.push_back(settings.nnLayer1);
+	if (settings.nnLayer2>1) {
+		lsize.push_back(settings.nnLayer2);
+		if (settings.nnLayer3>1) {
+			lsize.push_back(settings.nnLayer3);
+			if (settings.nnLayer4>1) {
+				lsize.push_back(settings.nnLayer4);
+				if (settings.nnLayer5>1) {
+					lsize.push_back(settings.nnLayer5);
+				}
+			}
+		}
+	}
+
+    net = new Network(settings);
+    net->addInputs(nInputs);
+    string lType = bRecurrent ? "LSTM" : "Normal";
+    for (int i=0; i<lsize.size(); i++) net->addLayer(lsize[i], lType);
+    net->addOutput(nOutputs, lType);
+    net->build();
+    opt = new AdamOptimizer(net, profiler, settings);
 }
 
 void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r)
