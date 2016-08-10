@@ -105,7 +105,7 @@ void Network::build_LSTM_layer(Graph* const graph)
     	Link* tmp = new LinkToLSTM(layerSize, firstNeuron_ID, layerSize, firstNeuron_ID,
     			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG);
 		graph->recurrent_link = tmp;
-		nWeights += sizeLayerFrom*layerSize*4; //fully connected, 4 units per cell
+		nWeights += layerSize*layerSize*4; //fully connected, 4 units per cell
 	}
 
 #if  1
@@ -157,9 +157,10 @@ void Network::addLayer(const int size, const string type, vector<int> linkedTo, 
 	if(not bAddedInput) die("First specify an input\n");
 	if(bBuilt) die("Cannot build the network multiple times\n");
 	if(size<=0) die("Requested an empty layer\n");
-	assert(!type.empty);
-	nLayers++;
 
+	nLayers++;
+	assert(!type.empty);
+	Graph * g = new Graph();
 	//default link is to previous layer:
 	if(linkedTo.size() == 0) linkedTo.push_back(G.size()-1);
 
@@ -170,12 +171,11 @@ void Network::addLayer(const int size, const string type, vector<int> linkedTo, 
 	else if (type == "LSTM")
 		g->LSTM = true;
 	else
-		die("Unknown layer type %s\n",type);
+		die("Unknown layer type \n");
 
-	Graph * g = new Graph();
 	g->layerSize = size;
-	const int inputLinks = linkedTo.size();
 	const int nTmpLayers = G.size();
+	const int inputLinks = linkedTo.size();
 
 	assert(inputLinks > 0);
 	for(int i = 0; i<inputLinks; i++) {
@@ -197,7 +197,7 @@ void Network::build()
 	nNeurons = nBiases = nWeights = nStates = 0;
 	for (auto & graph : G) {
 		if(graph->input) {
-			nNeurons += graph->normalSize;
+			nNeurons += graph->layerSize;
 			continue; //input layer is not a layer
 		}
 
@@ -207,20 +207,20 @@ void Network::build()
 	assert(layers.size() == nLayers);
 	if (iOut.size() == 0) die("Output layer(s) not specified\n");
 
-	for (int i=0; i<settings.nAgents; ++i) {
+	for (int i=0; i<nAgents; ++i) {
 		Mem * m = new Mem(nNeurons, nStates);
 		mem.push_back(m);
 	}
-	dump_ID.resize(settings.nAgents);
+	dump_ID.resize(nAgents);
 	allocateSeries(3);
 
 	grad = new Grads(nWeights,nBiases);
 	_allocateClean(weights, nWeights)
 	_allocateClean(biases,  nBiases)
 
-	if (settings.nThreads>1) {
-		Vgrad.resize(settings.nThreads);
-		for (int i=0; i<settings.nThreads; ++i)
+	if (nThreads>1) {
+		Vgrad.resize(nThreads);
+		for (int i=0; i<nThreads; ++i)
 			Vgrad[i] = new Grads(nWeights, nBiases);
 	} else {
 		_grad    = new Grads(nWeights, nBiases);
@@ -234,8 +234,9 @@ void Network::build()
 
 Network::Network(const Settings & settings) :
 Pdrop(settings.nnPdrop), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), nStates(0),
-allocatedFrozenWeights(false), allocatedDroputWeights(false), backedUp(false),
-gen(settings.gen), bDump(not settings.bTrain), bBuilt(false), bAddedInputs(false)
+nAgents(settings.nAgents), nThreads(settings.nThreads), allocatedFrozenWeights(false),
+allocatedDroputWeights(false), backedUp(false), gen(settings.gen), bDump(not settings.bTrain),
+bBuilt(false), bAddedInput(false)
 { }
 
 void Network::predict(const vector<Real>& _input, vector<Real>& _output, const Activation* const _M, Activation* const _N, const Real* const _weights, const Real* const _biases) const

@@ -37,7 +37,7 @@ FishNet::FishNet(Settings & settings) : nInputs(settings.nnInputs), nOutputs(set
 
     profiler = new Profiler();
 	net = new Network(settings);
-	net->addInputs(nInputs);
+	net->addInput(nInputs);
 	string lType = bRecurrent ? "LSTM" : "Normal";
 	for (int i=0; i<lsize.size(); i++) net->addLayer(lsize[i], lType);
 	net->addOutput(nOutputs, lType);

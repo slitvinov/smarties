@@ -19,7 +19,7 @@ using namespace std;
 class Network
 {
 protected:
-	bool bBuilt, bAddedInputs;
+	bool bBuilt, bAddedInput;
     int nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates;
     const Real Pdrop; //dropout
     vector<int> iOut, dump_ID;

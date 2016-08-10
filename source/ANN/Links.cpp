@@ -253,32 +253,24 @@ void Graph::initializeWeights(mt19937* const gen, Real* const _weights, Real* co
 {
 	uniform_real_distribution<Real> dis(-sqrt(6.),sqrt(6.));
 
-	for (const auto & l : *(nl_inputs_vec))
+	for (const auto & l : *(input_links_vec))
 		l->initialize(dis, gen, _weights);
 
-	if(nl_recurrent not_eq nullptr)
-		nl_recurrent->initialize(dis, gen, _weights);
+	if(recurrent_link not_eq nullptr)
+		recurrent_link->initialize(dis, gen, _weights);
 
-	for (const auto & l : *(rl_inputs_vec))
-		l->initialize(dis, gen, _weights);
+	if (not output) //no bias on output layer
+		for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++)
+			*(_biases +w) = dis(*gen) / Real(layerSize);
 
-	if(rl_recurrent not_eq nullptr)
-		rl_recurrent->initialize(dis, gen, _weights);
+	if (LSTM) {
+		for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize; w++)
+			*(_biases +w) = dis(*gen) / Real(layerSize) + 1.0;
 
-	if (not last) //no bias on output layer
-			for (int w=biasHL; w<biasHL+normalSize; w++)
-				*(_biases +w) = dis(*gen) / Real(normalSize);
+		for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize; w++)
+			*(_biases +w) = dis(*gen) / Real(layerSize) + 1.0;
 
-	if (not last)
-		for (int w=biasIN; w<biasIN+recurrSize; w++)
-			*(_biases +w) = dis(*gen) / Real(recurrSize);
-
-	for (int w=biasIG; w<biasIG+recurrSize; w++)
-		*(_biases +w) = dis(*gen) / Real(recurrSize) + 1.0;
-
-	for (int w=biasFG; w<biasFG+recurrSize; w++)
-		*(_biases +w) = dis(*gen) / Real(recurrSize) + 1.0;
-
-	for (int w=biasOG; w<biasOG+recurrSize; w++)
-		*(_biases +w) = dis(*gen) / Real(recurrSize) + 1.0;
+		for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize; w++)
+			*(_biases +w) = dis(*gen) / Real(layerSize) + 1.0;
+	}
 }

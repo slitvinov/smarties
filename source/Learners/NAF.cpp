@@ -40,14 +40,15 @@ Learner(env,settings), nA(aInfo.dim), nL((aInfo.dim*aInfo.dim+aInfo.dim)/2)
 	}
 
 	net = new Network(settings);
-	net->addInputs(nInputs);
+	net->addInput(nInputs);
 	for (int i=0; i<lsize.size()-1; i++) net->addLayer(lsize[i], lType);
+	const int splitLayer = lsize.size()-1;
 	const vector<int> lastJointLayer(1,net->getLastLayerID());
-	net->addLayer(lsize[i], lType, lastJointLayer);
+	net->addLayer(lsize[splitLayer], lType, lastJointLayer);
 	net->addOutput(1, lType);
-	net->addLayer(lsize[i], lType, lastJointLayer);
+	net->addLayer(lsize[splitLayer], lType, lastJointLayer);
 	net->addOutput(nL, lType);
-	net->addLayer(lsize[i], lType, lastJointLayer);
+	net->addLayer(lsize[splitLayer], lType, lastJointLayer);
 	net->addOutput(nA, lType);
 	net->build();
 	opt = new AdamOptimizer(net, profiler, settings);

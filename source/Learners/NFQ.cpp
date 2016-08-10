@@ -36,7 +36,7 @@ NFQ::NFQ(Environment* env, Settings & settings) : Learner(env,settings)
 	}
 
     net = new Network(settings);
-    net->addInputs(nInputs);
+    net->addInput(nInputs);
     string lType = bRecurrent ? "LSTM" : "Normal";
     for (int i=0; i<lsize.size(); i++) net->addLayer(lsize[i], lType);
     net->addOutput(nOutputs, lType);
