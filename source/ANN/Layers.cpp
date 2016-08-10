@@ -68,6 +68,63 @@ void NormalLayer::backPropagateAddGrads(const Activation* const C, Grads* const 
 		link->addUpGrads(C, C, grad->_W);
 }
 
+//CNN 
+void CNNLayer::propagate(Activation* const N, const Real* const weights, const Real* const biases) const
+{
+    for (int n=0; n<nNeurons; n++) {
+        Real input = 0.; //zero the first
+        /*
+         each link connects one layer to an other
+         multiple links in input_links vector means that a layer
+         can be connected to other layers anywhere in the net
+         (eg. might want to have each layer linked to two previous layers)
+         */
+        
+        for (const auto & link : *input_links)
+            input += link->propagate(N,n,weights);
+
+        input += *(biases +n1stBias +n);
+        
+        //save input in memory, used later to compute derivative of evaluation function
+        *(N->in_vals +n1stNeuron +n) = input;
+        //evaluate output with activation function
+        *(N->outvals +n1stNeuron +n) = func->Relu( input );
+    }
+}
+
+void CNNLayer::backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const
+{
+    for (int n=0; n<nNeurons; n++) {
+        //if this an output neuron, the error is written from outside in the corresponding errvals, else zero
+        Real dEdy = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
+
+        for (const auto & link : *output_links) //loop over all layers to which this layer is connected to
+        	dEdy += link->backPropagate(C, n, weights);
+
+        //delta_i = f'(input_i) * sum_(neurons j) ( error_j * w_i_j)
+        const Real input = *(C->in_vals +n1stNeuron+n);
+        *(C->errvals +n1stNeuron +n) = dEdy * func->evalDiff(input);
+    }
+}
+
+void CNNLayer::backPropagateGrads(const Activation* const C, Grads* const grad) const
+{
+    for (int n=0; n<nNeurons; n++)  //grad bias == delta
+        *(grad->_B +n1stBias +n) = *(C->errvals +n1stNeuron +n);
+
+    for (const auto & link : *input_links)
+    	link->computeGrad(C, C, grad->_W);
+}
+
+void CNNlLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad) const
+{
+	for (int n=0; n<nNeurons; n++)  //grad bias == delta
+		*(grad->_B +n1stBias +n) += *(C->errvals +n1stNeuron +n);
+
+	for (const auto & link : *input_links)
+		link->addUpGrads(C, C, grad->_W);
+}
+
 //all of the following is for recurrent neural networks
 
 void NormalLayer::propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const
@@ -214,6 +271,7 @@ void LSTMLayer::backPropagateDelta(const Activation* const P, Activation* const 
 
 void LSTMLayer::backPropagateDeltaLast(const Activation* const P, Activation* const C, const Real* const weights, const Real* const biases) const
 {
+    //const Link* const lO = output_links;
     for (int n=0; n<nNeurons; n++) {
     	Real dEdy = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
     	for (const auto & link : *output_links) //loop over all layers to which this layer is connected to

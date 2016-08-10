@@ -91,6 +91,32 @@ public:
     void initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const override;
 };
 
+class LinkToCNN : public Link
+{
+public:
+    
+    //maxPullSize = the size of the on side of the (square) maxPull
+    int kernelWidth, kernelHeight, stride, zeroPadding, imageWidth, imageHeight, imagesNum, kernelNum, maxPullSize, kernelDepth;
+
+    LinkToCNN() { }
+
+	LinkToCNN(int nI, int iI, int nO, int iO, int iW, int kW, int kH, int st, int zP, int imW, int imH, int iN, int kN, int mPS, int kD) :
+		Link(nI, iI, nO, iO, iW), kernelWidth(kW), kernelHeight(kH), stride(st), zeroPadding(zP), imageWidth(imW), imageHeight(imH), imagesNum(iN), kernelNum(kN), maxPullSize(mPS), kernelDepth(kD)
+	    { }
+
+    Real backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const;
+
+    Real propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const;
+
+    void propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const;
+
+    void computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const;
+
+    void addUpGrads(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const;
+
+    void initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const;
+};
+
 struct Graph //misleading, this is just the graph for a single layer
 {
     bool input, output, RNN, LSTM;
