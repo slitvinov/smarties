@@ -19,7 +19,7 @@ class Optimizer
 { //basic momentum update
 protected:
     const Real eta, lambda, alpha;
-    const int nInputs, nOutputs, nWeights, nBiases;
+    const int nWeights, nBiases;
     Network * net;
     Profiler * profiler;
     Real *_1stMomW, *_1stMomB;

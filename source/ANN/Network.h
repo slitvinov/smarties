@@ -20,7 +20,7 @@ class Network
 {
 protected:
 	bool bBuilt, bAddedInput;
-    int nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates;
+    int nAgents, nThreads, nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates;
     const Real Pdrop; //dropout
     vector<int> iOut, dump_ID;
     vector<Graph*> G;
@@ -39,6 +39,8 @@ public:
 
     void build();
     void addInput(const int size);
+    int getnWeights() {assert(bBuilt); return nWeights;}
+    int getnBiases() {assert(bBuilt); return nBiases;}
     int getLastLayerID() {return G.size()-1;}
     void addLayer(const int size, const string type, vector<int> linkedTo, const bool output);
     void addLayer(const int size, const string type, vector<int> linkedTo) {addLayer(size,type,linkedTo,false);}
