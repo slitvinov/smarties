@@ -246,6 +246,127 @@ void LinkToLSTM::initialize(uniform_real_distribution<Real>& dis, mt19937* const
 	orthogonalize(iWO, _weights);
 }
 
+
+
+Real LinkToCNN::backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const
+{
+	//if its the last?
+	Real dEdOutput(0.);
+	const Real* const dEdInput_LayerTo = lab->errvals +iO;
+	const Real* const my_weights =  weights +iW;
+
+	int kernelSize = kernelWidth*kernelWidth;
+	int layer_ID = ID_NeuronFrom/(kernelSize);
+	int j = (ID_NeuronFrom / kernelWidth) % kernelWidth;
+	int i = ID_NeuronFrom % kernelWidth;
+
+	for(int kernel_ID=0; kernel_ID<kernelDepth; kernel_ID++)
+		for(int y=0; y<kernelHeight; y++)
+			for(int x=0; x<kernelWidth; x++)
+				dEdOutput += dEdInput_LayerTo[localToGlobalCoord(j-y,i-x,kernel_ID,layer_ID,kernelWidth,kernelDepth)] * my_weights[localToGlobalCoord(y,x,kernel_ID,layer_ID,kernelWidth,kernelDepth)];
+		
+	return dEdOutput;
+}
+
+Real LinkToCNN::propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const
+{
+	int convOutSize,convOutSide;
+	convOutSide = (imageWidth - kernelWidth) / stride + 1
+	convOutSize = convOutSide * convOutSide;
+
+	int out_ID = (ID_NeuronTo) / convOutSize;
+
+	int kernel_ID = out_ID / kernelNum;
+
+	int input_ID = out_ID % kernelNum;
+
+	int posInOut_ID = ID_NeuronTo % convOutSize;
+
+	int inY = (posInOut_ID==0) ? 0 : posInOut_ID/convOutSide;
+
+	int inX = posInOut_ID % convOutSide;
+	
+
+	int kernelSize = kernelWidth * kernelWidth;
+
+	Real *convOut = new Real[kernelSize];
+	for(int i=0 i<kernelSize; i++)
+		convOut[i] = 0;
+
+	const Real* const output_LayerFrom = lab->outvals +iI;
+	const Real* const my_weights =  weights +iW;
+
+	for(int depth=0; depth<kernelDepth; depth++){
+		for(int y=0; y<kernelHeight; y++)
+			for(int x=0; x<kernelWidth; x++)
+				convOut[convOutIndex] += outvals[localToGlobalCoord(inY*stride+y,inX*stride+x,kernel_ID,depth,imageWidth,kernelDepth)] * weights[localToGlobalCoord(inY+y,inX+x,kernel_ID,depth,kernelWidth,kernelDepth)];
+	}
+
+	Real result(0);
+	for(int i=0; i<kernelSize; i++)
+		result += convOut[i];
+
+	return result;
+}
+
+void LinkToCNN::propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const
+{
+					
+}
+
+void LinkToCNN::computeWeightGrad(Real* const my_dEdW, int y, int x, int layer, int kernel_ID) const
+{
+	int convOutSize;
+	convOutSide = (imageWidth - kernelWidth) / stride + 1
+
+	for (int j=0; j<=convOutSide; j++)//summation eq 1/2
+		for (int i=0; i<=convOutSide); i++)//summation eq 2/2
+			my_dEdW[localToGlobalCoord(y,x,kernel_ID,layer,kernelWidth,kernelDepth)] += output_LayerFrom[localToGobalCoord(j*stride+y,i*stride+x,kernel_ID,layer,imageWidth,kernelDepth)] * dEdInput_LayerTo[localToGobalCoord(j,i,kernel_ID,layer,convOutSide,kernelDepth)];
+}
+
+void LinkToCNN::computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const
+{
+	const Real* const output_LayerFrom = activation_From->outvals +iI;
+	const Real* const dEdInput_LayerTo = activation_To->errvals +iO;
+	const Real* const input_LayerTo = activation_To->invals + iI;
+	Real* const my_dEdW = dEdW +iW;
+
+for(int kernel_ID=0; kernel_ID<kernelNum; kernel_ID++)//for each kernel in the link
+	for(int layer=0; layer<kernelDepth; layer++)
+		for(int y=0; y<kernelHeight; y++)//for each weight 1/2
+			for(int x=0; x<kernelWidth; x++)//for each weight 2/2
+				computeWeightGrad(my_dEdW,y,x,layer,kernel_ID);
+
+}//is thee from the l-1 or l ?
+
+//Assumes rectangular region that starts from 0,0
+int squareToLinearCoord(int y, int x, int zeroIndex, int width){
+	return (zeroIndex + width*y + x);
+}
+
+//layer of kernel
+int localToGlobalCoord(int y, int x, int kernel, int layer, int kernelWidth, int kernelDepth){
+	int kernelSize = kernelWidth*kernelWidth;
+	return kernel*kernelSize*kernelDepth + kernel*kernelLayer + squareToLinearCoord(y,x,0,kernelWidth);
+}
+
+void LinkToCNN::addUpGrads(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const
+{
+	const Real* const output_LayerFrom = activation_From->outvals +iI;
+	const Real* const dEdInput_LayerTo = activation_To->errvals +iO;
+	const Real* const input_LayerTo = activation_To->invals + iI;
+	Real* const my_dEdW = dEdW +iW;
+
+	for(int kernel_ID=0; kernel_ID<kernelNum; kernel_ID++)//for each kernel in the link
+		for(int layer=0; layer<kernelDepth; layer++)
+			for(int y=0; y<kernelHeight; y++)//for each weight 1/2
+				for(int x=0; x<kernelWidth; x++)//for each weight 2/2
+				{
+					my_dEdW[localToGlobalCoord(y,x,kernel_ID,layer,kernelWidth,kernelDepth)] = 0;
+					computeWeightGrad(my_dEdW,y,x,layer,kernel_ID);
+				}
+}
+
 void Graph::initializeWeights(mt19937* const gen, Real* const _weights, Real* const _biases) const
 {
 	uniform_real_distribution<Real> dis(-sqrt(6.),sqrt(6.));
