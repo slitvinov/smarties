@@ -203,7 +203,7 @@ void Network::build()
 			nNeurons += graph->layerSize;
 			continue; //input layer is not a layer
 		}
-
+		assert(!graph->input);
 		if (graph->LSTM) build_LSTM_layer(graph);
 		else build_normal_layer(graph);
 	}

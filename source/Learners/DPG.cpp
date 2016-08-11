@@ -39,14 +39,14 @@ DPG::DPG(Environment* env, Settings & settings) : Learner(env,settings), nS(env-
 	net = new Network(settings);
 	net->addInput(nS+nA);
 	for (int i=0; i<lsize.size(); i++) net->addLayer(lsize[i], lType);
-	net->addOutput(1, lType);
+	net->addOutput(1, "Normal");
 	net->build();
 	opt = new AdamOptimizer(net, profiler, settings);
 
 	net_policy = new Network(settings);
 	net_policy->addInput(nS);
 	for (int i=0; i<lsize.size(); i++) net_policy->addLayer(lsize[i], lType);
-	net_policy->addOutput(nA, lType);
+	net_policy->addOutput(nA, "Normal");
 	net_policy->build();
 	opt_policy = new AdamOptimizer(net_policy, profiler, settings);
 }
