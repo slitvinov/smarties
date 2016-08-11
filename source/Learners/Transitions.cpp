@@ -168,7 +168,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
     t->r = reward;
     t->a = a.pack();
     t->aC = a.scale();
-    //printf("Transitions storing: %f %f\n",t->aC[0],a.valsContinuous[0]); fflush(0);
+    //printf("Transitions storing: %d %f %f for state %s\n",t->a, t->aC[0],a.valsContinuous[0],sOld.print().c_str()); fflush(0);
     Tmp[agentId]->tuples.push_back(t);
     if (new_sample) {
         Tmp[agentId]->ended = true;

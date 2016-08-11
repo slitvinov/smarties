@@ -159,7 +159,7 @@ struct ActionInfo
     vector<vector<Real>> values; //used for rescaling, would be used if action is input to NN
     vector<Real> upperBounds, lowerBounds;
     
-    ActionInfo() : {}
+    ActionInfo() {}
     
     ActionInfo& operator= (const ActionInfo& actionInfo)
     {
