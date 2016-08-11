@@ -12,10 +12,10 @@
 using namespace std;
 
 NewFishEnvironment::NewFishEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
-Environment(nAgents, execpath, _rank, settings),
-sight(settings.senses==0 || settings.senses==4), POV(settings.senses==1),
-l_line(settings.senses==2), p_sensors(settings.senses==3 || settings.senses==4),
-study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
+Environment(nAgents, execpath, _rank, settings), sight(settings.senses==0 || settings.senses==4), 
+POV(settings.senses==1 || settings.senses==4), l_line(settings.senses==2), 
+p_sensors(settings.senses==3 || settings.senses==4), study(settings.rewardType), 
+goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
 }
 
@@ -52,11 +52,11 @@ void NewFishEnvironment::setDims()
         {
             sI.bounds.push_back(1); //Dist 6
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(false);
 
             sI.bounds.push_back(1); //Quad 7
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(false);
             
             sI.bounds.push_back(1); // VxAvg 8
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
@@ -152,7 +152,7 @@ void NewFishEnvironment::setDims()
         for (int i=0; i<2*nSensors; i++) {
             sI.bounds.push_back(1); // (FVBelow ) x 5 [55]
             sI.top.push_back(5); sI.bottom.push_back(0);
-            sI.isLabel.push_back(false); sI.inUse.push_back(p_sensors || l_line);
+            sI.isLabel.push_back(false); sI.inUse.push_back(POV);
         }
         /*
         sI.values.push_back(-.50);
