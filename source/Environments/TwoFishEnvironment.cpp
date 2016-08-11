@@ -130,9 +130,7 @@ void TwoFishEnvironment::setDims()
     //sI.values.push_back(1.0);
     //sI.values.push_back(2.0);
     
-    aI.realValues = false;
     aI.dim = 1;
-    aI.zeroact = 2;
     aI.values.resize(aI.dim);
     for (int i=0; i<aI.dim; i++)
     {

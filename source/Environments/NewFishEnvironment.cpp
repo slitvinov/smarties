@@ -163,9 +163,7 @@ void NewFishEnvironment::setDims()
          */
     }
     {
-        aI.realValues = true;
         aI.dim = 1;
-        aI.zeroact = 2;
         aI.values.resize(aI.dim);
         
         for (int i=0; i<aI.dim; i++) {

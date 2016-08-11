@@ -101,44 +101,64 @@ int main(int argc, const char * argv[])
     long long int nfallen(0), sincelast(0), duringlast(0), ntot(0);
     double percfallen = 0.0;
     
+    //communicator class, it needs a socket number sock, given by RL as first argument of execution
     comm = new Communicator(sock,4,1);
-    vector<double> state(4), actions(1);
+    //vector of state variables: in this case x, v, theta, ang_velocity
+    vector<double> state(4);
+    //vector of actions received by RL
+    vector<double> actions(1);
     
+    //random initial conditions:
     vector<CartPole> agents(n);
     for (auto& a : agents) {
         a.u = Vec4( .01*(drand48()-.5), .01*(drand48()-.5), .01*(drand48()-.5), .01*(drand48() -.5));
         a.F    = 0;
         a.info = 1;
     }
+
     while (true) {
         
         int k(0); //agent ID, for now == 0
-        for (auto& a : agents) {
+        for (auto& a : agents) { //assume we have only one agent per application for now...
             double r = 0.;
             //ntot += 1; sincelast += 1;
+            //load state:
             state[0] = a.u.y1;
             state[1] = a.u.y2;
             state[2] = a.u.y4;
             state[3] = a.u.y3;
+            r = 0; //we could give a reward, here i just give 0, and -1 if pole falls
             
             //printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+            ///////////////////////////////////////////////////////
+            // arguments of comm->sendState(k, a.info, state, r)
+
+            //k is agent id, if only one agent in the game: k=0
+
+        	//info is: 1 for the initial state communicated to the RL
+            //  	   0 for any following communication, except
+        	//		   2 for the terminal state (meaning NO ACTION REQUIRED)
+            ///////////////////////////////////////////////////////
             comm->sendState(k, a.info, state, r);
             comm->recvAction(actions);
+
             //printf("Cart acting %f\n", actions[0]); fflush(0);
+
             a.F = actions[0];
-            a.info = 0;
+            a.info = 0; //at least one comm is done, so i set info to 0
+
             //printf("Received action %f\n", a.F); fflush(0);
-        }
-        
-        
-        for (auto& a : agents) {
+
+        	//advance the sim:
             a.u = rk46_nl(t, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
             
-            if ((fabs(a.u.y3)>.2)||(fabs(a.u.y1)>2.4)) {
+            //check if terminal state has been reached:
+            if ((fabs(a.u.y3)>.2)||(fabs(a.u.y1)>2.4)) //angle too big = fallen, or x out of bounds
+            {
                 //nfallen += 1; sincelast = 0; percfallen = nfallen/ntot;
                 
-                a.info = 2;
-                double r = -1.;
+                a.info = 2; //tell RL we are in terminal state
+                double r = -1.; //give terminal reward (if different problem, this might be a bonus rather than a negative score)
                 state[0] = a.u.y1;
                 state[1] = a.u.y2;
                 state[2] = a.u.y4;
@@ -146,16 +166,17 @@ int main(int argc, const char * argv[])
                 //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
                 comm->sendState(k, a.info, state, r);
                 
+                //re-initialize the simulations (random initial conditions):
                 a.u = Vec4( .01*(drand48()-.5),
                             .01*(drand48()-.5),
                             .01*(drand48()-.5),
                             .01*(drand48()-.5));
                 t = 0;
                 a.F = 0;
-                a.info = 1;
+                a.info = 1; //set info back to 0
             }
         }
-            
+
         t += dt;
         /*
         if (ntot % 10000 == 0) {
