@@ -35,6 +35,8 @@ DPG::DPG(Environment* env, Settings & settings) : Learner(env,settings), nS(env-
 			}
 		}
 	}
+	if (env->predefinedNetwork(net))
+		die("Predefined env structure still unsupported for DPG.\n");
 
 	net = new Network(settings);
 	net->addInput(nS+nA);
@@ -103,47 +105,7 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
 
 void DPG::Train_BPTT(const int seq, const int first, const int thrID)
 {
-    /*
-    if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
-    vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
-    const int ndata = data->Set[seq]->tuples.size();
-    
-    for (int k=0; k<ndata-1; k++) {//state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
-        //this tuple contains a, sNew, reward:
-        const Tuple * const _t = data->Set[seq]->tuples[k+1];
-        //this tuple contains sOld:
-        const Tuple * const _tOld = data->Set[seq]->tuples[k];
-        //printf("%f %f %f %f %f %f\n",_tOld->s[0],_tOld->s[1], _t->aC[0], _t->s[0],_t->s[1], _t->r);
-        //if first in a sequence, no input from recurrent links
-        if(k==0)
-            net->predict(_tOld->s, output, net->series[first]);
-        else
-            net->predict(_tOld->s, output, net->series[first+k-1], net->series[first+k]);
-        
-        const bool terminal = k+2==ndata && data->Set[seq]->ended;
-        
-        if (not terminal) {
-            net->predict(_t->s, target, net->series[first+k], net->series[first+ndata-1],
-                         net->tgt_weights,  net->tgt_biases);
-        }
-        
-        Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
-        const vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
-        net->setOutputErrors(gradient, net->series[first+k]);
-        //for (int i(0); i<nOutputs; i++) { //put grad into network
-        //    *(net->series[first+k]->errvals +net->iOutputs+i) = gradient[i];
-        //}
-        
-        dumpStats(Vstats[thrID], Q[0], err, Q);
-    }
-    
-    net->computeDeltasSeries(net->series, first, first+ndata-2);
-    
-    if (first==0)
-        net->computeAddGradsSeries(net->series, 0, ndata-2, net->grad);
-    else
-        net->computeAddGradsSeries(net->series, first, first+ndata-2, net->Vgrad[thrID]);
-    */
+	die("DPG with BPTT not implemented: do eet!\n");
 }
 
 void DPG::Train(const int seq, const int samp, const int first, const int thrID)
@@ -200,8 +162,8 @@ void DPG::Train(const int seq, const int samp, const int first, const int thrID)
                      ,net->tgt_weights,net->tgt_biases
                      );
         
-      //now i need to compute dQ/dA, for Q net use tgt weight trughout
-        gradient[0] = 1.; //it's like having a smaller learn rate for pol net
+      //now i need to compute dQ/dA, for Q net use tgt weight throughout
+        gradient[0] = 1.;
         net->setOutputErrors(gradient, net->series[first]);
         net->computeDeltas(net->series[first]
                            ,net->tgt_weights,net->tgt_biases
@@ -213,7 +175,7 @@ void DPG::Train(const int seq, const int samp, const int first, const int thrID)
                                  ,net->tgt_weights,net->tgt_biases
                                  );
         
-        //take out the coponents relevant to actions
+        //take out the components relevant to actions
         for (int i=0; i<nA; i++) pol_gradient[i] = QinputGrad[i+nS];
         
         net_policy->setOutputErrors(pol_gradient, net_policy->series[first]);

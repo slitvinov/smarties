@@ -12,6 +12,7 @@
 #include "../Util/util.h"
 #include "../Agent.h"
 #include "../StateAction.h"
+#include "../ANN/Network.h"
 
 #include <map>
 
@@ -38,6 +39,7 @@ public:
     StateInfo sI;
 	ActionInfo aI;
 
+
     Environment(const int nAgents, const string execpath, const int _rank, Settings & settings);
     
     ~Environment()
@@ -47,10 +49,11 @@ public:
         for (auto & trash : agents) _dispose_object( trash);
     }
     
-    virtual void setDims ();
+    virtual void setDims () = 0;
     virtual int getState(int & iAgent) ;
     virtual void setAction(const int & iAgent);
     void close_Comm ();
     void setup_Comm ();
-    virtual bool pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward);
+    virtual bool pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward) = 0;
+	virtual bool predefinedNetwork(Network* const net) const;
 };

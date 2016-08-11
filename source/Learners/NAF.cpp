@@ -40,17 +40,23 @@ Learner(env,settings), nA(aInfo.dim), nL((aInfo.dim*aInfo.dim+aInfo.dim)/2)
 	}
 
 	net = new Network(settings);
-	net->addInput(nInputs);
-	for (int i=0; i<lsize.size()-1; i++) net->addLayer(lsize[i], lType);
-	const int splitLayer = lsize.size()-1;
-	const vector<int> lastJointLayer(1,net->getLastLayerID());
-	net->addLayer(lsize[splitLayer], lType, lastJointLayer);
-	net->addOutput(1, "Normal");
-	net->addLayer(lsize[splitLayer], lType, lastJointLayer);
-	net->addOutput(nL, "Normal");
-	net->addLayer(lsize[splitLayer], lType, lastJointLayer);
-	net->addOutput(nA, "Normal");
+	//check if environment wants a particular network structure
+	if (not env->predefinedNetwork(net))
+	{ //if that was true, environment created the layers it wanted, else we read the settings:
+		net->addInput(nInputs);
+		for (int i=0; i<lsize.size()-1; i++) net->addLayer(lsize[i], lType);
+		const int splitLayer = lsize.size()-1;
+		const vector<int> lastJointLayer(1,net->getLastLayerID());
+		net->addLayer(lsize[splitLayer], lType, lastJointLayer);
+		net->addOutput(1, "Normal");
+		net->addLayer(lsize[splitLayer], lType, lastJointLayer);
+		net->addOutput(nL, "Normal");
+		net->addLayer(lsize[splitLayer], lType, lastJointLayer);
+		net->addOutput(nA, "Normal");
+	}
 	net->build();
+	assert(1+nL+nA == net->getnOutputs() && nInputs == net->getnInputs());
+
 	opt = new AdamOptimizer(net, profiler, settings);
 }
 
