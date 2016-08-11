@@ -145,7 +145,7 @@ void Network::addInput(const int size)
 	if(bBuilt) die("Cannot build the network multiple times\n");
 	if(size<=0) die("Requested an empty input layer\n");
 	bAddedInput = true;
-
+	nInputs += size;
 	Graph * g = new Graph();
 	g->layerSize = size;
 	g->input = true;
@@ -184,7 +184,10 @@ void Network::addLayer(const int size, const string type, vector<int> linkedTo, 
 			die("Proposed link not available\n");
 	}
 	G.push_back(g);
-	if (bOutput) G.back()->output = true;
+	if (bOutput) {
+		G.back()->output = true;
+		nOutputs += size;
+	}
 }
 
 //counts up the number or neurons, weights, biases and creates the links and layers
@@ -205,7 +208,7 @@ void Network::build()
 		else build_normal_layer(graph);
 	}
 	assert(layers.size() == nLayers);
-	if (iOut.size() == 0) die("Output layer(s) not specified\n");
+	assert(iOut.size() == nOutputs);
 
 	for (int i=0; i<nAgents; ++i) {
 		Mem * m = new Mem(nNeurons, nStates);
