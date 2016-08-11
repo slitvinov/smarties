@@ -143,51 +143,12 @@ int Environment::getState(int & iAgent)
     return bStatus;
 }
 
-void Environment::setDims() //this environment is for the cart pole test
+bool Environment::predefinedNetwork(Network* const net) const
 {
-    {
-        sI.bounds.clear(); sI.top.clear(); sI.bottom.clear(); sI.isLabel.clear(); sI.inUse.clear();
-        // State: coordinate...
-        sI.bounds.push_back(12);
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
-        
-        // ...velocity...
-        sI.bounds.push_back(6);
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
-        
-        // ...and angular velocity
-        sI.bounds.push_back(6);
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
-        
-        // ...angle...
-        sI.bounds.push_back(16);
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
-    }
-    {
-        aI.realValues = false;
-        aI.dim = 1;
-        aI.zeroact = 2;
-        aI.values.resize(aI.dim);
-        
-        for (int i=0; i<aI.dim; i++) {
-            aI.bounds.push_back(7);
-            aI.upperBounds.push_back( 1.);
-            aI.lowerBounds.push_back(-1.);
-            
-            aI.values[i].push_back(-20.);
-            aI.values[i].push_back(-5.);
-            aI.values[i].push_back(-1.);
-            aI.values[i].push_back(0.0);
-            aI.values[i].push_back(1.);
-            aI.values[i].push_back(5.);
-            aI.values[i].push_back(20.);
-        }
-    }
-    commonSetup();
+	//this function can be used if environment requires particular network settings
+	//i.e. not fully connected LSTM/FF network
+	//i.e. if you want to use convolutions
+	return false;
 }
 
 void Environment::commonSetup()
@@ -217,126 +178,6 @@ void Environment::commonSetup()
         a->sOld = new State(sI);
     }
 }
-
-bool Environment::pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward)
-{
-    bool new_sample(false);
-    if (reward<-0.9) new_sample=true;
-#ifndef _scaleR_
-    reward = 1. - fabs(t_sN.vals[3])/0.2;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
-    if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
-#else
-    reward = (1. - fabs(t_sN.vals[3])/0.1)*(1.-gamma); //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
-    if (new_sample) reward = -1.;  // = - max cumulative reward
-#endif
-    return new_sample; //cart pole has failed if r = -1, need to clean this shit and rely only on info
-}
-/*
-void ExternalEnvironment::setDims()
-{
-    sI.dim = 6;
-    // State: Horizontal distance from goal point...
-    sI.bounds.push_back(22); //one block in between the bounds, one more on each side
-    sI.top.push_back(1.);
-    sI.bottom.push_back(-1.);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
-    
-    // ...vertical distance...
-    sI.bounds.push_back(22);
-    sI.top.push_back(1.);
-    sI.bottom.push_back(-1.);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
-    
-    // ...inclination of the fish...
-    sI.bounds.push_back(22); // only positive or negative
-    sI.top.push_back(1.5);
-    sI.bottom.push_back(-1.5);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
-    
-    // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
-    sI.bounds.push_back(2); // Will get ~ 0 or 0.5
-    sI.top.push_back(1.0);
-    sI.bottom.push_back(0.0);
-    sI.aboveTop.push_back(false);
-    sI.belowBottom.push_back(false);
-    sI.isLabel.push_back(false);
-    
-    // ...last action (HAX!)
-    sI.bounds.push_back(3);
-    sI.top.push_back(3.0);
-    sI.bottom.push_back(0.0);
-    sI.aboveTop.push_back(false);
-    sI.belowBottom.push_back(false);
-    sI.isLabel.push_back(true);
-    
-    // ...second last action (HAX!)
-    sI.bounds.push_back(3);
-    sI.top.push_back(3.0);
-    sI.bottom.push_back(0.0);
-    sI.aboveTop.push_back(false);
-    sI.belowBottom.push_back(false);
-    sI.isLabel.push_back(true);
-    
-    aI.dim = 1; //How many actions taken per turn by one agent
-    
-    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(3); //Number of possible actions to choose from (nothing, curve right, curve left)    
-    
-    aI.values.push_back(0.0);
-    aI.values.push_back(2.0);
-    aI.values.push_back(-2.);
-
-    sI.values.push_back(0.0);
-    sI.values.push_back(2.0);
-    sI.values.push_back(-2.);
-    nInfo = 2; 
-    aI.zeroact = 0;
-    for (auto& a : agents)
-    {
-        a->Info.resize(nInfo);
-        a->nInfo = nInfo;
-    }
-}
-*/
-
-/*
-void HardCartEnvironment::setDims()
-{
-    sI.dim = 2;
-    printf("Created the correct cart??\n");
-    // State: coordinate...
-    sI.bounds.push_back(12);
-    sI.top.push_back(2.0);
-    sI.bottom.push_back(-2.0);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
-    
-    // ...angle...
-    sI.bounds.push_back(16);
-    sI.top.push_back(0.2);
-    sI.bottom.push_back(-0.2);
-    sI.aboveTop.push_back(true);
-    sI.belowBottom.push_back(true);
-    sI.isLabel.push_back(false);
-    
-    aI.dim = 1;
-    
-    for (int i=0; i<aI.dim; i++) aI.bounds.push_back(5);
-    
-    aI.values.push_back(-2.);
-    aI.values.push_back(-.5);
-    aI.values.push_back(0.0);
-    aI.values.push_back(0.5);
-    aI.values.push_back(2.0);
-}
-*/
-
 /*
  void GlideEnvironment::setDims()
  {

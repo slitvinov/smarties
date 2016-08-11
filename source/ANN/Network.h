@@ -39,9 +39,11 @@ public:
 
     void build();
     void addInput(const int size);
-    int getnWeights() {assert(bBuilt); return nWeights;}
-    int getnBiases() {assert(bBuilt); return nBiases;}
-    int getLastLayerID() {return G.size()-1;}
+    int getnWeights() const {assert(bBuilt); return nWeights;}
+    int getnBiases() const {assert(bBuilt); return nBiases;}
+    int getnOutputs() const {assert(bBuilt); return nOutputs;}
+    int getnInputs() const {assert(bBuilt); return nInputs;}
+    int getLastLayerID() const {return G.size()-1;}
     void addLayer(const int size, const string type, vector<int> linkedTo, const bool output);
     void addLayer(const int size, const string type, vector<int> linkedTo) {addLayer(size,type,linkedTo,false);}
     void addLayer(const int size, const string type, const bool output) {addLayer(size,type,vector<int>(),output);}

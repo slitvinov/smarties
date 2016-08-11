@@ -628,14 +628,13 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn)
 void Network::computeDeltasInputs(vector<Real>& grad, const Activation* const _series, const Real* const _weights, const Real* const _biases) const
 {//no weight grad to care about, no recurrent links
     assert(static_cast<int>(grad.size())==nInputs);
-
+    int k = 0;
     for (auto & graph : G) if(graph->input)
     for (int n=0; n<graph->layerSize; n++) {
         Real dEdy(0);
         for (const auto & link : *(graph->output_links_vec)) //loop over all layers to which this layer is connected to
         	dEdy += link->backPropagate(_series, n, _weights);
-
-        grad[n] = dEdy; //no response function on inputs
+        grad[k++] = dEdy; //no response function on inputs
     }
 }
 
