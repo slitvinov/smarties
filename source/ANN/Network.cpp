@@ -159,7 +159,7 @@ void Network::addLayer(const int size, const string type, vector<int> linkedTo, 
 	if(size<=0) die("Requested an empty layer\n");
 
 	nLayers++;
-	assert(!type.empty);
+	assert(!type.empty());
 	Graph * g = new Graph();
 	//default link is to previous layer:
 	if(linkedTo.size() == 0) linkedTo.push_back(G.size()-1);

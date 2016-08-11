@@ -16,7 +16,7 @@ using namespace ErrorHandling;
 
 Optimizer::Optimizer(Network * _net, Profiler * _prof, Settings  & settings) :
 eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), net(_net), profiler(_prof),
-nWeights(_net->getnWeights), nBiases(_net->getnBiases), nepoch(0)
+nWeights(_net->getnWeights()), nBiases(_net->getnBiases()), nepoch(0)
 {
     _allocateClean(_1stMomW, nWeights)
     _allocateClean(_1stMomB, nBiases)
