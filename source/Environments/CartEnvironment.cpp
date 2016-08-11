@@ -27,7 +27,7 @@ Environment(nAgents, execpath, _rank, settings)
 {
 }
 
-bool Environment::predefinedNetwork(Network* const net) const
+bool CartEnvironment::predefinedNetwork(Network* const net) const
 {
 	//this function can be used if environment requires particular network settings
 	//i.e. not fully connected LSTM/FF network
@@ -35,63 +35,123 @@ bool Environment::predefinedNetwork(Network* const net) const
 	return false;
 }
 
-void Environment::setDims() //this environment is for the cart pole test
+void CartEnvironment::setDims() //this environment is for the cart pole test
 {
     {
         sI.bounds.clear(); sI.top.clear(); sI.bottom.clear(); sI.isLabel.clear(); sI.inUse.clear();
+        //for each state variable:
         // State: coordinate...
-        sI.bounds.push_back(12);
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
+        sI.top.push_back(1.); //maximum value of the variable: to normalize inputs of the network
+        sI.bottom.push_back(-1.); //minimum value
+        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
         
         // ...velocity...
-        sI.bounds.push_back(6);
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
         
         // ...and angular velocity
-        sI.bounds.push_back(6);
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
         
         // ...angle...
-        sI.bounds.push_back(16);
         sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
+        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+
+        /*
+         * also valid:
+         *
+         * for (int i=0; i<some_number_of_vars; i++)
+         * {
+         * 		sI.top.push_back(MAXVAL); sI.bottom.push_back(MINVAL);
+         * 		sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+         * }
+         */
     }
     {
-        aI.realValues = false;
-        aI.dim = 1;
-        aI.zeroact = 2;
+        aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
-        
         for (int i=0; i<aI.dim; i++) {
-            aI.bounds.push_back(7);
-            aI.upperBounds.push_back( 1.);
-            aI.lowerBounds.push_back(-1.);
-            
-            aI.values[i].push_back(-20.);
+        	const int nOptions = 7; //used if discrete actions: options available to agent for acting
+            aI.bounds.push_back(nOptions);
+            aI.upperBounds.push_back( 1.); //only used for continuous policy (NAF or DPG algorithms, not DQN): upper scaling bound
+            aI.lowerBounds.push_back(-1.); //only used for continuous policy: lower scaling bound
+
+            //this framework sends a real number to the application
+            //if you want to receive an integer number between 0 and nOptions (eg action option)
+            //just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
+            //i added the 0.1 is just to be extra safe when converting a float to an integer
+
+            aI.values[i].push_back(-20.); //here the app accepts real numbers
             aI.values[i].push_back(-5.);
             aI.values[i].push_back(-1.);
             aI.values[i].push_back(0.0);
-            aI.values[i].push_back(1.);
-            aI.values[i].push_back(5.);
+            aI.values[i].push_back(1.0);
+            aI.values[i].push_back(5.0);
             aI.values[i].push_back(20.);
+            //the number of components must be ==nOptions
         }
     }
-    commonSetup();
+    commonSetup(); //required
 }
 
-bool Environment::pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward)
+bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward)
 {
     bool new_sample(false);
-    if (reward<-0.9) new_sample=true;
-#ifndef _scaleR_
-    reward = 1. - fabs(t_sN.vals[3])/0.2;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
+
+    //Compute the reward. If you do not do anything, reward will be whatever was set already to reward.
+    //this means that reward will be one sent by the app
+
+    if (reward<-0.9) new_sample=true; //in cart pole example, if reward from the app is -1 then I failed
+
+    //here i can change the reward: instead of -1 or 0, i can give a positive reward if angle is small
+    reward = 1. - fabs(t_sN.vals[3])/0.2;    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
     if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
-#else
-    reward = (1. - fabs(t_sN.vals[3])/0.1)*(1.-gamma); //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
-    if (new_sample) reward = -1.;  // = - max cumulative reward
-#endif
+    //was is the last state of the sequence?
+
+    //this must be set: was it the last episode? you can get it from reward?
     return new_sample; //cart pole has failed if r = -1, need to clean this shit and rely only on info
 }
+
+/*
+/// IF YOU WANT TO RUN AN APP DIRECTLY INSIDE SMARTIES:
+NEED TO
+
+1) override these two function with empty functions to avoid calling any executable:
+
+	void Environment::setup_Comm() {}
+
+	void Environment::spawn_server(){ }
+
+2) define this function (iAgent is zero if only one agent per simulation is present)
+
+	void Environment::setAction(const int & iAgent)
+	{
+	 	 for (int i=0; i<aI.dim; i++) agents[iAgent]->a->valsContinuous[i]... do something
+
+	 	 this function loads the actions from the agent and sends it to the app
+	 	 if your application is local, then find a way to process the action locally
+	}
+
+
+3) define this function
+
+	int Environment::getState(int & iAgent)
+	{
+		get the agent number, if one agent per game iAgent=0
+		load the state into agents[iAgent]->s->vals[] and
+    	return bStatus;
+
+    	bStatus is 1 is first communication about the first state (no previous actions)
+    	bStatus is 2 if application is sending the last state (and requires no action!!)
+    	bStatus is 0 if i already sent at least one state in the past
+	}
+
+4) think about:
+	- functions 2 and 3 need to handle all the work
+	- RL first calls getState, then alternates setAction and getState untill terminal state
+	checklist:
+	- initializing the simulation
+	- sending the first state without prior actions
+	- catching a terminal state
+	- restarting the simulation
+*/

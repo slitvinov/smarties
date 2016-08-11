@@ -183,9 +183,7 @@ void TwoActFishEnvironment::setDims()
          */
     }
     {
-        aI.realValues = true;
         aI.dim = 2;
-        aI.zeroact = 2;
         aI.values.resize(aI.dim);
         //curavture
         aI.bounds.push_back(5); //Number of possible actions to choose from

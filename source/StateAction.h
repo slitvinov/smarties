@@ -153,23 +153,20 @@ inline State decode(const StateInfo& sInfo, long int idx)
 
 struct ActionInfo
 {
-    bool realValues; //finite set, continuous
 	int dim; //number of actions per turn
     //discrete actions
-    int zeroact; //if finite set: one that corresponds to 0
 	vector<int> bounds, shifts; //if finite set, number of choices per "dim"
     vector<vector<Real>> values; //used for rescaling, would be used if action is input to NN
     vector<Real> upperBounds, lowerBounds;
     
-    ActionInfo() : realValues(false) {}
+    ActionInfo() : {}
     
     ActionInfo& operator= (const ActionInfo& actionInfo)
     {
-        realValues = actionInfo.realValues;
         dim = actionInfo.dim;
-        zeroact = actionInfo.zeroact;
         
-        values.clear(); bounds.resize(dim); upperBounds.resize(dim); lowerBounds.resize(dim);
+        values.clear(); bounds.resize(dim);
+        upperBounds.resize(dim); lowerBounds.resize(dim);
         for (int i=0; i<dim; i++) values.push_back(actionInfo.values[i]);
         bounds = actionInfo.bounds;
         shifts = actionInfo.shifts;
@@ -228,8 +225,7 @@ public:
 	Action& operator= (const Action& a)
 	{
 		if (actInfo.dim != a.actInfo.dim) die("Dimension of actions differ!!!\n");
-        if (actInfo.realValues != a.actInfo.realValues) die("Contunuous/discrete actions mismatch!!!\n");
-        
+
 		for (int i=0; i<actInfo.dim; i++) vals[i] = a.vals[i];
         for (int i=0; i<actInfo.dim; i++) valsContinuous[i] = a.valsContinuous[i];
 		return *this;
