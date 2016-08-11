@@ -233,10 +233,11 @@ void Network::build()
 		graph->initializeWeights(gen, weights, biases);
 
 	updateFrozenWeights();
+	printf("%d %d %d %d %d %d %d\n",nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates);
 }
 
 Network::Network(const Settings & settings) :
-Pdrop(settings.nnPdrop), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), nStates(0),
+Pdrop(settings.nnPdrop), nInputs(0), nOutputs(0), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), nStates(0),
 nAgents(settings.nAgents), nThreads(settings.nThreads), allocatedFrozenWeights(false),
 allocatedDroputWeights(false), backedUp(false), gen(settings.gen), bDump(not settings.bTrain),
 bBuilt(false), bAddedInput(false)
