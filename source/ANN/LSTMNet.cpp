@@ -20,25 +20,29 @@ using namespace ErrorHandling;
 
 FishNet::FishNet(Settings & settings) : nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), nAgents(settings.nAgents), bRecurrent(settings.nnType==1)
 {
-    vector<int> lsize;
-    lsize.push_back(nInputs);
-    lsize.push_back(settings.nnLayer1);
-    if (settings.nnLayer2>1) {
-        lsize.push_back(settings.nnLayer2);
-        if (settings.nnLayer3>1) {
-            lsize.push_back(settings.nnLayer3);
-            if (settings.nnLayer4>1) {
-                lsize.push_back(settings.nnLayer4);
-                if (settings.nnLayer5>1) {
-                    lsize.push_back(settings.nnLayer5);
-                }
-            }
-        }
-    }
-    lsize.push_back(nOutputs);
+	vector<int> lsize;
+	lsize.push_back(settings.nnLayer1);
+	if (settings.nnLayer2>1) {
+		lsize.push_back(settings.nnLayer2);
+		if (settings.nnLayer3>1) {
+			lsize.push_back(settings.nnLayer3);
+			if (settings.nnLayer4>1) {
+				lsize.push_back(settings.nnLayer4);
+				if (settings.nnLayer5>1) {
+					lsize.push_back(settings.nnLayer5);
+				}
+			}
+		}
+	}
+
     profiler = new Profiler();
-    net = new Network(lsize, bRecurrent, settings);
-    opt = new AdamOptimizer(net, profiler, settings);
+	net = new Network(settings);
+	net->addInput(nInputs);
+	string lType = bRecurrent ? "LSTM" : "Normal";
+	for (int i=0; i<lsize.size(); i++) net->addLayer(lsize[i], lType);
+	net->addOutput(nOutputs, lType);
+	net->build();
+	opt = new AdamOptimizer(net, profiler, settings);
 }
 
 void FishNet::save(string fname)

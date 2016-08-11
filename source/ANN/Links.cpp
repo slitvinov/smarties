@@ -11,12 +11,13 @@
 #include <cassert>
 
 using namespace ErrorHandling;
-
+/*
 void Link::set(int _nI, int _iI, int _nO, int _iO, int _iW)
 {
 	this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW;
 	print();
 }
+*/
 
 void Link::print() const
 {
@@ -110,11 +111,13 @@ void LinkToLSTM::print() const
 	fflush(0);
 }
 
+/*
 void LinkToLSTM::set(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO)
 {
 	this->nI = _nI; this->iI = _iI; this->nO = _nO; this->iO = _iO; this->iW = _iW; this->iC = _iC; this->iWI = _iWI; this->iWF = _iWF; this->iWO = _iWO;
 	print();
 }
+*/
 
 Real LinkToLSTM::backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const
 {
@@ -250,32 +253,24 @@ void Graph::initializeWeights(mt19937* const gen, Real* const _weights, Real* co
 {
 	uniform_real_distribution<Real> dis(-sqrt(6.),sqrt(6.));
 
-	for (const auto & l : *(nl_inputs_vec))
+	for (const auto & l : *(input_links_vec))
 		l->initialize(dis, gen, _weights);
 
-	if(nl_recurrent not_eq nullptr)
-		nl_recurrent->initialize(dis, gen, _weights);
+	if(recurrent_link not_eq nullptr)
+		recurrent_link->initialize(dis, gen, _weights);
 
-	for (const auto & l : *(rl_inputs_vec))
-		l->initialize(dis, gen, _weights);
+	if (not output) //no bias on output layer
+		for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++)
+			*(_biases +w) = dis(*gen) / Real(layerSize);
 
-	if(rl_recurrent not_eq nullptr)
-		rl_recurrent->initialize(dis, gen, _weights);
+	if (LSTM) {
+		for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize; w++)
+			*(_biases +w) = dis(*gen) / Real(layerSize) + 1.0;
 
-	if (not last) //no bias on output layer
-			for (int w=biasHL; w<biasHL+normalSize; w++)
-				*(_biases +w) = dis(*gen) / Real(normalSize);
+		for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize; w++)
+			*(_biases +w) = dis(*gen) / Real(layerSize) + 1.0;
 
-	if (not last)
-		for (int w=biasIN; w<biasIN+recurrSize; w++)
-			*(_biases +w) = dis(*gen) / Real(recurrSize);
-
-	for (int w=biasIG; w<biasIG+recurrSize; w++)
-		*(_biases +w) = dis(*gen) / Real(recurrSize) + 1.0;
-
-	for (int w=biasFG; w<biasFG+recurrSize; w++)
-		*(_biases +w) = dis(*gen) / Real(recurrSize) + 1.0;
-
-	for (int w=biasOG; w<biasOG+recurrSize; w++)
-		*(_biases +w) = dis(*gen) / Real(recurrSize) + 1.0;
+		for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize; w++)
+			*(_biases +w) = dis(*gen) / Real(layerSize) + 1.0;
+	}
 }

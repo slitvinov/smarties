@@ -27,7 +27,6 @@ public:
     const vector<Link*> *input_links, *output_links;
     
     NormalLayer(int nNeurons, int n1stNeuron, int n1stBias,
-                //const Link* const nl_il, const Link* const nl_rl, const Link* const nl_ol,
                 const vector<Link*>* const nl_il, const Link* const nl_rl, const vector<Link*>* const nl_ol,
                 const Response* f, bool last) :
     last(last), nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), func(f),
@@ -64,19 +63,18 @@ public:
 class LSTMLayer: public NormalLayer
 {
 public:
-    const int n1stCell, n1stPeep, n1stBiasIG, n1stBiasFG, n1stBiasOG;
+    const int n1stCell, n1stBiasIG, n1stBiasFG, n1stBiasOG;
     const Response *ifun, *sigm;
     
-    LSTMLayer(int nNeurons, int n1stNeuron, int indState, int n1stPeep,
+    LSTMLayer(int nNeurons, int n1stNeuron, int indState,
               int n1stBias, int n1stBiasIG, int n1stBiasFG, int n1stBiasOG,
-              //const Link* const rl_il, const Link* const rl_rl, const Link* const rl_ol,
               const vector<Link*>* const rl_il, const Link* const rl_rl, const vector<Link*>* const rl_ol,
               const Response* fI, const Response* fG, const Response* fO, bool last) :
     NormalLayer(nNeurons, n1stNeuron, n1stBias, rl_il, rl_rl, rl_ol, fO, last),
-    n1stCell(indState), n1stPeep(n1stPeep), n1stBiasIG(n1stBiasIG),
+    n1stCell(indState), n1stBiasIG(n1stBiasIG),
     n1stBiasFG(n1stBiasFG), n1stBiasOG(n1stBiasOG), ifun(fI), sigm(fG)
     {
-        printf("n1stCell= %d, n1stPeep= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d\n", n1stCell, n1stPeep, n1stBiasIG, n1stBiasFG, n1stBiasOG);
+        printf("n1stCell= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d\n", n1stCell, n1stBiasIG, n1stBiasFG, n1stBiasOG);
     }
     
     ~LSTMLayer()

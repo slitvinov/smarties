@@ -271,9 +271,9 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 #endif
     }
     else if (study == 3) {
-    	const Real DX_penal = 4*fabs(t_sN.vals[0]-goalDY);  //goalDY actually goalDX
-    	const Real DY_penal =   fabs(t_sN.vals[1]);
-        const Real scaledRew = 2. - min(DX_penal+DY_penal, 2.);
+    	const Real DX_penal = 8*fabs(t_sN.vals[0]-goalDY);  //goalDY actually goalDX
+    	const Real DY_penal = 2*fabs(t_sN.vals[1]);
+        const Real scaledRew = 1. - min(DX_penal+DY_penal, 2.);
 #ifndef _scaleR_
         reward = scaledRew;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
