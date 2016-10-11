@@ -50,7 +50,7 @@ void Link::propagate(Real* const inputs, const Activation* const lab, const int 
 void WhiteningLink::propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const
 {
 	const Real* const output_LayerFrom = lab->outvals +iI;
-	const Real* const my_weights =  weights +iW +nI*nO;
+	const Real* const my_weights =  weights +iW;
 	// 4 parameters per neuron:
 	const Real mean  = my_weights[ID_NeuronTo*4];
 	const Real var   = my_weights[ID_NeuronTo*4+1];
@@ -98,7 +98,6 @@ void Link::computeGrad(const Activation* const activation_From, const Activation
 		for (int i=0; i<nI; i++)
 			my_dEdW[j*nI +i] = output_LayerFrom[i] * dEdInput_LayerTo[j];
 }
-
 
 void WhiteningLink::computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const
 {

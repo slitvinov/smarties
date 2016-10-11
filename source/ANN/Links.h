@@ -123,3 +123,21 @@ struct Graph //misleading, this is just the graph for a single layer
     
     void initializeWeights(mt19937* const gen, Real* const _weights, Real* const _biases) const;
 };
+
+class WhiteningLink : public Link
+{
+public:
+	WhiteningLink(int nI, int iI, int nO, int iO, int iW) : Link(nI, iI, nO, iO, iW) { }
+
+    Real backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const override;
+
+    Real propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const override;
+
+    void propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const override;
+
+    void computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const override;
+
+    void addUpGrads(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const override;
+
+    void initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const override;
+};
