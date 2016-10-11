@@ -52,12 +52,12 @@ public:
     virtual void backPropagateDeltaLast(const Activation* const P, Activation* const C, const Real* const weights, const Real* const biases) const
     {   backPropagateDelta(C, weights, biases); }
     
-    virtual void backPropagateGrads(const Activation* const C, Grads* const grad) const;
-    virtual void backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad) const;
-    virtual void backPropagateAddGrads(const Activation* const C, Grads* const grad) const;
-    virtual void backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad) const;
+    virtual void backPropagateGrads(const Activation* const C, Grads* const grad, const Real* const weights) const;
+    virtual void backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const;
+    virtual void backPropagateAddGrads(const Activation* const C, Grads* const grad, const Real* const weights) const;
+    virtual void backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const;
     
-    Real propagateErrors(const Link* const l, const Activation* const lab, const int iNeuron, const Real* const weights) const;
+    //Real propagateErrors(const Link* const l, const Activation* const lab, const int iNeuron, const Real* const weights) const;
 };
 
 class LSTMLayer: public NormalLayer
@@ -93,8 +93,36 @@ public:
     void backPropagateDelta(const Activation* const P, Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const override;
     void backPropagateDeltaLast(const Activation* const P, Activation* const C, const Real* const weights, const Real* const biases) const override;
     
-    void backPropagateGrads(const Activation* const C, Grads* const grad) const override;
-    void backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad) const override;
-    void backPropagateAddGrads(const Activation* const C, Grads* const grad) const override;
-    void backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad) const override;
+    void backPropagateGrads(const Activation* const C, Grads* const grad, const Real* const weights) const override;
+    void backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const override;
+    void backPropagateAddGrads(const Activation* const C, Grads* const grad, const Real* const weights) const override;
+    void backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const override;
+};
+
+class WhiteningLayer: public NormalLayer
+{
+public:
+	WhiteningLayer(int nNeurons, int n1stNeuron, int n1stBias,
+                const vector<Link*>* const nl_il, const Link* const nl_rl, const vector<Link*>* const nl_ol,
+                const Response* f, bool last) :
+	NormalLayer(nNeurons,n1stNeuron,n1stBias,nl_il,nl_rl,nl_ol,f,last)
+    { }
+
+    ~WhiteningLayer() { }
+
+    virtual void propagate(Activation* const N, const Real* const weights, const Real* const biases) const;
+    virtual void propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const;
+
+    virtual void backPropagateDeltaFirst(Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const;
+    virtual void backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const;
+
+    virtual void backPropagateDelta(const Activation* const P, Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const
+    {   backPropagateDeltaFirst(C, N, weights, biases); }
+    virtual void backPropagateDeltaLast(const Activation* const P, Activation* const C, const Real* const weights, const Real* const biases) const
+    {   backPropagateDelta(C, weights, biases); }
+
+    virtual void backPropagateGrads(const Activation* const C, Grads* const grad, const Real* const weights) const;
+    virtual void backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const;
+    virtual void backPropagateAddGrads(const Activation* const C, Grads* const grad, const Real* const weights) const;
+    virtual void backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const;
 };

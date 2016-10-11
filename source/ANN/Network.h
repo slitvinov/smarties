@@ -113,11 +113,11 @@ public:
         computeDeltasSeries(_series, first, last, weights, biases);
     }
     
-    void computeGradsSeries(const vector<Activation*>& _series, const int k, Grads* const _Grad) const;
-    void computeGrads(const Activation* const _series, Grads* const _Grad) const;
+    void computeGradsSeries(const vector<Activation*>& _series, const int k, Grads* const _Grad, const Real* const _weights) const;
+    void computeGrads(const Activation* const _series, Grads* const _Grad, const Real* const _weights) const;
     
-    void computeAddGradsSeries(const vector<Activation*>& _series, const int first, const int last, Grads* const _Grad) const;
-    void computeAddGrads(const Activation* const _series, Grads* const _Grad) const;
+    void computeAddGradsSeries(const vector<Activation*>& _series, const int first, const int last, Grads* const _Grad, const Real* const _weights) const;
+    void computeAddGrads(const Activation* const _series, Grads* const _Grad, const Real* const _weights) const;
     
     void checkGrads(const vector<vector<Real>>& inputs, const int lastn);
 

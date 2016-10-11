@@ -35,6 +35,18 @@ void NormalLayer::propagate(Activation* const N, const Real* const weights, cons
     }
 }
 
+void WhiteningLayer::propagate(Activation* const N, const Real* const weights, const Real* const biases) const
+{
+	const auto & iL = input_links[0]; //only one as input
+	assert(input_links.size() == 1);
+    for (int n=0; n<nNeurons; n++) {
+        Real input[2];
+        iL->propagate(input,N,n,weights);
+        *(N->in_vals +n1stNeuron +n) = input[0]; //xhat
+        *(N->outvals +n1stNeuron +n) = input[1]; //y
+    }
+}
+
 void NormalLayer::backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const
 {
     for (int n=0; n<nNeurons; n++) {
@@ -50,7 +62,24 @@ void NormalLayer::backPropagateDelta(Activation* const C, const Real* const weig
     }
 }
 
-void NormalLayer::backPropagateGrads(const Activation* const C, Grads* const grad) const
+void WhiteningLayer::backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const
+{
+    /*
+     * function should prepare dE/dx to be read from non-scaled layer
+     * TODO: how can I easily implement multivariate version?
+     */
+	const auto & iL = input_links[0]; //only one as input
+    const Real* const my_weights = weights + iL->iW;
+
+    for (int n=0; n<nNeurons; n++) {
+        Real dEdy = (last) ? *(C->errvals +n1stNeuron +n) : 0.0;
+        for (const auto & link : *output_links)
+        	dEdy += link->backPropagate(C, n, weights);
+        *(C->errvals +n1stNeuron +n) = dEdy;
+    }
+}
+
+void NormalLayer::backPropagateGrads(const Activation* const C, Grads* const grad, const Real* const weights) const
 {
     for (int n=0; n<nNeurons; n++)  //grad bias == delta
         *(grad->_B +n1stBias +n) = *(C->errvals +n1stNeuron +n);
@@ -59,13 +88,59 @@ void NormalLayer::backPropagateGrads(const Activation* const C, Grads* const gra
     	link->computeGrad(C, C, grad->_W);
 }
 
-void NormalLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad) const
+void WhiteningLayer::backPropagateGrads(const Activation* const C, Grads* const grad, const Real* const weights) const
+{
+	const auto & iL = input_links[0]; //only one as input
+	const Real* const x = C->outvals + iL->iI;
+    const Real* const my_weights = weights + iL->iW;
+
+    for (int n=0; n<nNeurons; n++)  {
+        const Real mean  = my_weights[n*4];
+        const Real var   = my_weights[n*4+1];
+
+        const Real dEdy = *(C->errvals +n1stNeuron +n);
+        const Real dEdScale = *(C->in_vals +n1stNeuron +n)*dEdy;
+        const Real dEdShift = dEdy;
+        const Real dEdMean = x[n]-mean;
+        const Real dEdVar = dEdMean*dEdMean - var;
+
+        *(grad->_W + iL->iW +n*4   ) = dEdMean;
+        *(grad->_W + iL->iW +n*4 +1) = dEdVar;
+        *(grad->_W + iL->iW +n*4 +2) = dEdScale;
+        *(grad->_W + iL->iW +n*4 +3) = dEdShift;
+    }
+}
+
+void NormalLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad, const Real* const weights) const
 {
 	for (int n=0; n<nNeurons; n++)  //grad bias == delta
 		*(grad->_B +n1stBias +n) += *(C->errvals +n1stNeuron +n);
 
 	for (const auto & link : *input_links)
 		link->addUpGrads(C, C, grad->_W);
+}
+
+void WhiteningLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad, const Real* const weights) const
+{
+	const auto & iL = input_links[0]; //only one as input
+	const Real* const x = C->outvals + iL->iI;
+    const Real* const my_weights = weights + iL->iW;
+
+    for (int n=0; n<nNeurons; n++)  {
+    	const Real mean  = my_weights[n*4];
+    	const Real var   = my_weights[n*4+1];
+
+    	const Real dEdy = *(C->errvals +n1stNeuron +n);
+    	const Real dEdScale = *(C->in_vals +n1stNeuron +n)*dEdy;
+    	const Real dEdShift = dEdy;
+    	const Real dEdMean = x[n]-mean;
+    	const Real dEdVar = dEdMean*dEdMean - var;
+
+    	*(grad->_W + iL->iW +n*4   ) += dEdMean;
+    	*(grad->_W + iL->iW +n*4 +1) += dEdVar;
+    	*(grad->_W + iL->iW +n*4 +2) += dEdScale;
+    	*(grad->_W + iL->iW +n*4 +3) += dEdShift;
+    }
 }
 
 //all of the following is for recurrent neural networks
@@ -85,6 +160,11 @@ void NormalLayer::propagate(const Activation* const M, Activation* const N, cons
         *(N->in_vals +n1stNeuron +n) = input;
         *(N->outvals +n1stNeuron +n) = func->eval( input );
     }
+}
+
+void WhiteningLayer::propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const
+{
+	propagate(N, weights, biases);
 }
 
 void LSTMLayer::propagate(Activation* const N, const Real* const weights, const Real* const biases) const
@@ -163,6 +243,11 @@ void NormalLayer::backPropagateDeltaFirst(Activation* const C, const Activation*
     }
 }
 
+void WhiteningLayer::backPropagateDeltaFirst(Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const
+{
+	backPropagateDeltaFirst(C, weights, biases);
+}
+
 void LSTMLayer::backPropagateDeltaFirst(Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const
 {
     for (int n=0; n<nNeurons; n++) {
@@ -227,23 +312,28 @@ void LSTMLayer::backPropagateDeltaLast(const Activation* const P, Activation* co
     }
 }
 
-void NormalLayer::backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
+void NormalLayer::backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const
 {
-	backPropagateGrads(C, grad);
+	backPropagateGrads(C, grad, weights);
 
     if(recurrent_link not_eq nullptr)
     	recurrent_link->computeGrad(P, C, grad->_W);
 }
 
-void LSTMLayer::backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
+void WhiteningLayer::backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const
 {
-	backPropagateGrads(C, grad);
+	backPropagateGrads(C, grad, weights);
+}
+
+void LSTMLayer::backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const
+{
+	backPropagateGrads(C, grad, weights);
 
     if(recurrent_link not_eq nullptr)
     	recurrent_link->computeGrad(P, C, grad->_W);
 }
 
-void LSTMLayer::backPropagateGrads(const Activation* const C, Grads* const grad) const
+void LSTMLayer::backPropagateGrads(const Activation* const C, Grads* const grad, const Real* const weights) const
 {
     for (int n=0; n<nNeurons; n++) {
     	*(grad->_B +n1stBias   +n) = *(C->eMCell  +n1stCell +n) * *(C->errvals +n1stNeuron +n);
@@ -256,23 +346,28 @@ void LSTMLayer::backPropagateGrads(const Activation* const C, Grads* const grad)
 		link->computeGrad(C, C, grad->_W);
 }
 
-void NormalLayer::backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
+void NormalLayer::backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const
 {
-	backPropagateAddGrads(C, grad);
+	backPropagateAddGrads(C, grad, weights);
 
     if(recurrent_link not_eq nullptr)
     	recurrent_link->addUpGrads(P, C, grad->_W);
 }
 
-void LSTMLayer::backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad) const
+void WhiteningLayer::backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const
 {
-	backPropagateAddGrads(C, grad);
+	backPropagateAddGrads(C, grad, weights);
+}
+
+void LSTMLayer::backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const
+{
+	backPropagateAddGrads(C, grad, weights);
 
     if(recurrent_link not_eq nullptr)
     	recurrent_link->addUpGrads(P, C, grad->_W);
 }
 
-void LSTMLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad) const
+void LSTMLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad, const Real* const weights) const
 {
     for (int n=0; n<nNeurons; n++) {
     	*(grad->_B +n1stBias   +n) += *(C->eMCell  +n1stCell +n) * *(C->errvals +n1stNeuron +n);

@@ -294,23 +294,23 @@ void Network::computeDeltas(Activation* const _series, const Real* const _weight
         layers[nLayers-i]->backPropagateDelta(_series,_weights,_biases);
 }
 
-void Network::computeGrads(const Activation* const lab, Grads* const _Grad) const
+void Network::computeGrads(const Activation* const lab, Grads* const _Grad, const Real* const _weights = weights) const
 {
 	assert(bBuilt);
     for (int i=0; i<nLayers; i++)
-    layers[i]->backPropagateGrads(lab,_Grad); //grad is zero-equal
+    layers[i]->backPropagateGrads(lab,_Grad, _weights); //grad is zero-equal
 }
 
-void Network::computeAddGrads(const Activation* const lab, Grads* const _Grad) const
+void Network::computeAddGrads(const Activation* const lab, Grads* const _Grad, const Real* const _weights = weights) const
 {
 	assert(bBuilt);
     for (int i=0; i<nLayers; i++)
-    layers[i]->backPropagateAddGrads(lab,_Grad);  //grad is add-equal
+    layers[i]->backPropagateAddGrads(lab,_Grad, _weights);  //grad is add-equal
 }
 
 //Back Prop Through Time:
 //compute deltas: start from last activation, propagate deltas back to first
-//ISSUES:   this array of activations disturbs me deeply as it is deeply inelegant
+// ISSUES:  this array of activations disturbs me deeply as it is deeply inelegant
 //			but was the most robust and easiest path towards parallelism
 void Network::computeDeltasSeries(vector<Activation*>& _series, const int first, const int last, const Real* const _weights, const Real* const _biases) const
 {
@@ -336,22 +336,22 @@ void Network::computeDeltasSeries(vector<Activation*>& _series, const int first,
 #endif
 }
 
-void Network::computeGradsSeries(const vector<Activation*>& _series, const int k, Grads* const _Grad) const
+void Network::computeGradsSeries(const vector<Activation*>& _series, const int k, Grads* const _Grad, const Real* const _weights = weights) const
 {
 	assert(bBuilt);
     for (int i=0; i<nLayers; i++)
-        layers[i]->backPropagateGrads(series[k-1],series[k],_Grad);
+        layers[i]->backPropagateGrads(series[k-1],series[k],_Grad, _weights);
 }
 
-void Network::computeAddGradsSeries(const vector<Activation*>& _series, const int first, const int last, Grads* const _Grad) const
+void Network::computeAddGradsSeries(const vector<Activation*>& _series, const int first, const int last, Grads* const _Grad, const Real* const _weights = weights) const
 {
 	assert(bBuilt);
     for (int i=0; i<nLayers; i++)
-        layers[i]->backPropagateAddGrads(series[first],_Grad);
+        layers[i]->backPropagateAddGrads(series[first],_Grad, _weights);
     
     for (int k=first+1; k<=last; k++)
         for (int i=0; i<nLayers; i++)
-            layers[i]->backPropagateAddGrads(series[k-1],series[k],_Grad);
+            layers[i]->backPropagateAddGrads(series[k-1],series[k],_Grad, _weights);
 }
 
 void Network::updateFrozenWeights()

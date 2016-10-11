@@ -108,13 +108,13 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
 void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const int batchsize) const
 {
     const Real norm = 1./(Real)max(batchsize,1);
-    const Real eta_ = eta;//(1e-6 + exp(-nepoch/10000.)*eta)*norm;
-    const Real lambda_ = lambda*eta_;
+    const Real eta_ = eta*norm;
+    const Real lambda_ = lambda*eta;
     
     #pragma omp for nowait
     for (int i=0; i<N; i++) {
         const Real W = fabs(*(dest + i));
-        const Real M1 = alpha * *(_1stMom + i) + eta_* *(grad + i);
+        const Real M1 = alpha* *(_1stMom + i) + eta_* *(grad+i);
         *(_1stMom + i) = std::max(std::min(M1,W),-W);
         *(grad + i) = 0.; //reset grads
         
@@ -126,24 +126,20 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, 
 
 void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const int batchsize)
 {
+    const Real lambda_ = lambda*eta;
     const Real norm = 1./(Real)max(batchsize,1);
-    const Real fac12 = sqrt(1.-beta_t_2)/(1.-beta_t_1);
-    const Real eta_ = eta;//(1e-6 + exp(-nepoch/10000.)*eta);
-    const Real lambda_ = lambda*eta_;
+    const Real eta_ = eta * sqrt(1.-beta_t_2)/(1.-beta_t_1);
     
     #pragma omp for nowait
     for (int i=0; i<N; i++) {
-        const Real DW = *(grad+i) *norm;
-        const Real M1 = beta_1* *(_1stMom+i) +(1.-beta_1)*DW;
-        const Real M2 = beta_2* *(_2ndMom+i) +(1.-beta_2)*DW*DW;
+        const Real DW  = *(grad+i) *norm;
+        const Real M1  = beta_1* *(_1stMom+i) +(1.-beta_1) *DW;
+        const Real M2  = beta_2* *(_2ndMom+i) +(1.-beta_2) *DW*DW;
         const Real M2_ = std::max(M2,epsilon);
-        
         //slow down extreme updates (normalization):
         //const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_) / fac12;
         //const Real M1_ = std::max(std::min(TOP,M1),-TOP);
-        
-        const Real DW_ = eta_*fac12*M1/sqrt(M2_);
-        //printf("TOP %d W %e M1 %e M2 %e DW %e TOP %e \n",i,std::fabs(*(dest+i)),M1_,M2_,DW_,TOP);
+        const Real DW_ = eta_ * M1/sqrt(M2_);
         *(_1stMom + i) = M1;
         *(_2ndMom + i) = M2_;
         *(grad + i) = 0.; //reset grads
@@ -151,7 +147,6 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
         if (lambda>1e-9)
              *(dest + i) += DW_ - *(dest + i)*lambda_;
         else *(dest + i) += DW_;
-        
     }
 }
 

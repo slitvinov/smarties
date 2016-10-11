@@ -53,7 +53,6 @@ public:
     void orthogonalize(const int n0, Real* const _weights) const;
 };
 
-
 class LinkToLSTM : public Link
 {
 public:

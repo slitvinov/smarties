@@ -25,6 +25,44 @@ void Link::print() const
 	fflush(0);
 }
 
+Real Link::propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const
+{
+	Real input(0);
+	const Real* const output_LayerFrom = lab->outvals +iI;
+	const Real* const my_weights =  weights +iW;
+	//looping all the neurons that input to the neuron oNeuron and are located in the layer
+	for (int i=0; i<nI; i++)
+		input += output_LayerFrom[i] * my_weights[ID_NeuronTo*nI + i];
+	return input;
+}
+
+Real WhiteningLink::propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const
+{
+	die("Forbidden\n");
+	return -1.;
+}
+
+void Link::propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const
+{
+	die("Forbidden\n");
+}
+
+void WhiteningLink::propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const
+{
+	const Real* const output_LayerFrom = lab->outvals +iI;
+	const Real* const my_weights =  weights +iW +nI*nO;
+	// 4 parameters per neuron:
+	const Real mean  = my_weights[ID_NeuronTo*4];
+	const Real var   = my_weights[ID_NeuronTo*4+1];
+	const Real scale = my_weights[ID_NeuronTo*4+2];
+	const Real shift = my_weights[ID_NeuronTo*4+3];
+	assert(var>std::numeric_limits<double>::epsilon());
+	//this is X hat
+	inputs[0] = (output_LayerFrom[ID_NeuronTo] - mean)/std::sqrt(var);
+	//this is y
+	inputs[1] =  scale*inputs[0] + shift;
+}
+
 Real Link::backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const
 {
 	Real dEdOutput(0.);
@@ -37,20 +75,15 @@ Real Link::backPropagate(const Activation* const lab, const int ID_NeuronFrom, c
 	return dEdOutput;
 }
 
-Real Link::propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const
+Real WhiteningLink::backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const
 {
-	Real input(0);
-	const Real* const output_LayerFrom = lab->outvals +iI;
+	// Whitening link is called by scaled layer for backprop.
+	// Error signal is per-feature, not weighted sum.
 	const Real* const my_weights =  weights +iW;
-	//looping all the neurons that input to the neuron oNeuron and are located in the layer
-	for (int i=0; i<nI; i++)
-		input += output_LayerFrom[i] * my_weights[ID_NeuronTo*nI + i];
-	return input;
-}
-
-void Link::propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const
-{
-	die("Forbidden\n");
+	const Real* const dEdInput_LayerTo = lab->errvals +iO;
+    const Real invvar= 1./std::sqrt(my_weights[ID_NeuronFrom*4+1]);
+    const Real scale = my_weights[ID_NeuronFrom*4+2];
+	return dEdInput_LayerTo[ID_NeuronFrom]*scale*invvar;
 }
 
 void Link::computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const
@@ -66,6 +99,12 @@ void Link::computeGrad(const Activation* const activation_From, const Activation
 			my_dEdW[j*nI +i] = output_LayerFrom[i] * dEdInput_LayerTo[j];
 }
 
+
+void WhiteningLink::computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const
+{
+	die("Forbidden\n");
+}
+
 void Link::addUpGrads(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const
 {
 	//in principle, this link could connect two different time-realizations of the network
@@ -79,12 +118,26 @@ void Link::addUpGrads(const Activation* const activation_From, const Activation*
 			my_dEdW[j*nI +i] += output_LayerFrom[i] * dEdInput_LayerTo[j];
 }
 
+void WhiteningLink::addUpGrads(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const
+{
+	die("Forbidden\n");
+}
+
 void Link::initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const
 {
 	for (int w=iW ; w<(iW + nO*nI); w++)
 		*(_weights +w) = dis(*gen) / Real(nO + nI);
 
 	orthogonalize(iW, _weights);
+}
+
+void WhiteningLink::initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const
+{
+	//set to 1 the temporary variance and scaling factor
+	Real* const my_weights = weights +iW;
+	for (int o=0 ; o<nO; o++)
+		for (int p=0 ; p<4; p++)
+			my_weights[o*4 + p] = Real(1==o || 2==o);
 }
 
 void Link::orthogonalize(const int n0, Real* const _weights) const
