@@ -37,7 +37,7 @@ void NormalLayer::propagate(Activation* const N, const Real* const weights, cons
 
 void WhiteningLayer::propagate(Activation* const N, const Real* const weights, const Real* const biases) const
 {
-	const Link* iL = input_links[0]; //only one as input
+	const Link* const iL = (*input_links)[0]; //only one as input
 	assert(input_links.size() == 1);
     for (int n=0; n<nNeurons; n++) {
         Real input[2];
@@ -68,7 +68,7 @@ void WhiteningLayer::backPropagateDelta(Activation* const C, const Real* const w
      * function should prepare dE/dx to be read from non-scaled layer
      * TODO: how can I easily implement multivariate version?
      */
-	const Link* iL = input_links[0]; //only one as input
+	const Link* const iL = (*input_links)[0]; //only one as input
     const Real* const my_weights = weights + iL->iW;
 
     for (int n=0; n<nNeurons; n++) {
@@ -90,7 +90,7 @@ void NormalLayer::backPropagateGrads(const Activation* const C, Grads* const gra
 
 void WhiteningLayer::backPropagateGrads(const Activation* const C, Grads* const grad, const Real* const weights) const
 {
-	const Link* iL = input_links[0]; //only one as input
+	const Link* const iL = (*input_links)[0]; //only one as input
 	const Real* const x = C->outvals + iL->iI;
     const Real* const my_weights = weights + iL->iW;
 
@@ -122,7 +122,7 @@ void NormalLayer::backPropagateAddGrads(const Activation* const C, Grads* const 
 
 void WhiteningLayer::backPropagateAddGrads(const Activation* const C, Grads* const grad, const Real* const weights) const
 {
-	const Link* iL = input_links[0]; //only one as input
+	const Link* const iL = (*input_links)[0]; //only one as input
 	const Real* const x = C->outvals + iL->iI;
     const Real* const my_weights = weights + iL->iW;
 

@@ -133,7 +133,7 @@ void Link::initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, 
 void WhiteningLink::initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const
 {
 	//set to 1 the temporary variance and scaling factor
-	Real* const my_weights = weights +iW;
+	Real* const my_weights = _weights +iW;
 	for (int o=0 ; o<nO; o++)
 		for (int p=0 ; p<4; p++)
 			my_weights[o*4 + p] = Real(1==o || 2==o);

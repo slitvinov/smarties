@@ -114,10 +114,26 @@ public:
     }
     
     void computeGradsSeries(const vector<Activation*>& _series, const int k, Grads* const _Grad, const Real* const _weights) const;
+    void computeGradsSeries(const vector<Activation*>& _series, const int k, Grads* const _Grad) const
+    {
+        computeGradsSeries(_series, k, _Grad, weights);
+    }
     void computeGrads(const Activation* const _series, Grads* const _Grad, const Real* const _weights) const;
+    void computeGrads(const Activation* const _series, Grads* const _Grad) const
+    {
+        computeGrads(_series, _Grad, weights);
+    }
     
     void computeAddGradsSeries(const vector<Activation*>& _series, const int first, const int last, Grads* const _Grad, const Real* const _weights) const;
+    void computeAddGradsSeries(const vector<Activation*>& _series, const int first, const int last, Grads* const _Grad) const
+    {
+        computeAddGradsSeries(_series, first, last, _Grad, weights);
+    }
     void computeAddGrads(const Activation* const _series, Grads* const _Grad, const Real* const _weights) const;
+    void computeAddGrads(const Activation* const _series, Grads* const _Grad) const
+    {
+        computeAddGrads(_series, _Grad, weights);
+    }
     
     void checkGrads(const vector<vector<Real>>& inputs, const int lastn);
 
