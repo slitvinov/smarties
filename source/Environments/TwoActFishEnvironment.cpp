@@ -70,14 +70,23 @@ void TwoActFishEnvironment::setDims()
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
             sI.isLabel.push_back(false); sI.inUse.push_back(true);
         }
+#if 1
+            sI.bounds.push_back(1); //Xabs 6
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
+            sI.isLabel.push_back(false); sI.inUse.push_back(false);
+
+            sI.bounds.push_back(1); //Yabs 7
+            sI.top.push_back(1.); sI.bottom.push_back(-1.);
+            sI.isLabel.push_back(false); sI.inUse.push_back(false);
+#endif
         {
             sI.bounds.push_back(1); //Dist 6
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
 
             sI.bounds.push_back(1); //Quad 7
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
-            sI.isLabel.push_back(false); sI.inUse.push_back(POV);
+            sI.isLabel.push_back(false); sI.inUse.push_back(true);
 
             sI.bounds.push_back(1); // VxAvg 8
             sI.top.push_back(1.); sI.bottom.push_back(-1.);
@@ -325,9 +334,10 @@ bool TwoActFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
         if (new_sample) reward = -1.;
 #endif
     }
-    else {
-        die("Wrong reward\n");
-    }
+    else if (new_sample) reward = -10.;
+         
+    //    die("Wrong reward\n");
+    //}
     
     return new_sample;
 }

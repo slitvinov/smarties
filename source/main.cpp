@@ -111,7 +111,7 @@ int main (int argc, char** argv)
     {'l', "learnrate",REAL,  "Learning rate",  &settings.lRate,     (Real)0.001},
     {'b', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)4},
     {'a', "learn",    STRING,"Learner Type",   &settings.learner,   (string)"DQ"},
-    {'r', "rType",    INT,   "Reward: ef,ef,y",&settings.rewardType,(int)0},
+    {'r', "rType",    INT,   "Reward: ef,ef,y",&settings.rewardType,(int)-1},
     {'y', "goalDY",   REAL,  "If r==2  goalDY",&settings.goalDY,    (Real)0.},
     {'t', "bTrain",   INT,   "am I training?", &settings.bTrain,    (int)1},
     {'i', "senses",   INT,   "top,pov,vel,pres",&settings.senses,   (int)0},

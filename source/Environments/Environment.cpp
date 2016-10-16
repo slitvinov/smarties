@@ -70,8 +70,8 @@ void Environment::spawn_server()
         char line[1024];
         char *largv[64];
         
-        mkdir(("simulation_"+to_string(rank)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        chdir(("simulation_"+to_string(rank)+"/").c_str());
+        mkdir(("simulation_"+to_string(rank)+"_"+to_string(iter)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        chdir(("simulation_"+to_string(rank)+"_"+to_string(iter)+"/").c_str());
         
         sprintf(line, execpath.c_str());
         parse(line, largv);     // prepare argv
@@ -163,7 +163,7 @@ void Environment::commonSetup()
         sI.dim++;
         if (sI.inUse[i]) sI.dimUsed++;
     }
-    
+    printf("State has %d component, %d in use\n", sI.dim, sI.dimUsed);
     aI.shifts.resize(aI.dim);
     aI.shifts[0] = 1;
     for (int i=1; i < aI.dim; i++) {

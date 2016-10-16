@@ -95,7 +95,7 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
         const Real crutch_2 = static_cast<int>(data->Set.size())/500.;
         const Real crutch_3 = stats.epochCount/10.;
         const Real handicap = min(min(crutch_1,crutch_2),crutch_3);
-        newEps = (.1 +greedyEps*exp(-handicap));//*agentId/Real(agentId+1);
+        newEps = (.2 +greedyEps*exp(-handicap));//*agentId/Real(agentId+1);
         //printf("Random action %f %f %f %f\n",crutch_1,crutch_2,crutch_3,newEps);
     }
     

@@ -6,7 +6,6 @@ ulimit -c unlimited
 module load gcc/4.9.2
 #module load open_mpi/1.6.5
 
-export LD_LIBRARY_PATH=/cluster/work/infk/wvanrees/apps/TBB/tbb42_20140122oss/build/linux_intel64_gcc_cc4.7.2_libc2.12_kernel2.6.32_release/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/cluster/work/infk/cconti/VTK5.8_gcc/lib/vtk-5.8/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/cluster/home/mavt/chatzidp/usr/mpich3/lib/:$LD_LIBRARY_PATH
 export PATH=/cluster/home/mavt/chatzidp/usr/mpich3/bin:$PATH
@@ -15,6 +14,7 @@ export PATH=/cluster/home/mavt/chatzidp/usr/mpich3/bin:$PATH
 #export OMP_PROC_BIND=true
 #export OMP_NESTED=true
 #export OMP_WAIT_POLICY=ACTIVE
+export TMPDIR=/cluster/scratch_xp/public/novatig/
 
 SETTINGSNAME=settings.sh
 if [ ! -f $SETTINGSNAME ];then
@@ -26,7 +26,7 @@ SETTINGS+=" --nThreads ${NTHREADS}"
 echo $SETTINGS > settings.txt
 env > environment.log
 echo ${NPROCESS} ${NTHREADS}
-
+module load valgrind
 #mpirun -np ${NPROCESS} --mca btl tcp,self -bynode ./exec ${SETTINGS} #openmpi
 
 sort $LSB_DJOB_HOSTFILE | uniq  > lsf_hostfile
