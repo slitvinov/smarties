@@ -38,7 +38,7 @@ void NormalLayer::propagate(Activation* const N, const Real* const weights, cons
 void WhiteningLayer::propagate(Activation* const N, const Real* const weights, const Real* const biases) const
 {
 	const Link* const iL = (*input_links)[0]; //only one as input
-	assert(input_links.size() == 1);
+	assert(input_links->size() == 1);
     for (int n=0; n<nNeurons; n++) {
         Real input[2];
         iL->propagate(input,N,n,weights);
