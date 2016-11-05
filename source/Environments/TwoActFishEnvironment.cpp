@@ -259,24 +259,24 @@ int TwoActFishEnvironment::getState(int & iAgent)
     } else { // (bytes == nbyte)
         iAgent  = *((int*)  datain   );
         bStatus = *((int*) (datain+1)); //first (==1?), terminal (==2?), etc
-        debug3("Receiving from agent %d %d: ", iAgent, bStatus);
+        //printf("Receiving from agent %d %d: ", iAgent, bStatus);
         
         std::swap(agents[iAgent]->s,agents[iAgent]->sOld);
         
         int k = 2;
         for (int j=0; j<sI.dim; j++) {
-            debug3(" %f (%d)",datain[k],k);
+            //printf(" %f (%d)",datain[k],k);
             agents[iAgent]->s->vals[j] = (Real) datain[k++];
             assert(not std::isnan(agents[iAgent]->s->vals[j]) && not std::isinf(agents[iAgent]->s->vals[j]));
-            if (j>=185) { //sight sensors get non-dimensionalized differently depending on size of fish if no obstacle is found =(
+            if (j>=187) { //sight sensors get non-dimensionalized differently depending on size of fish if no obstacle is found =(
                 agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
             }
         }
         
-        debug3(" %f (%d)\n",datain[k],k);
+        //printf(" %f (%d)\n",datain[k],k);
         agents[iAgent]->r = (Real) datain[k++];
         assert(not std::isnan(agents[iAgent]->r) && not std::isinf(agents[iAgent]->r));
-        debug3("Got from child %d: reward %f initial state %s\n", rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
+        //printf("Got from child %d: reward %f initial state %s\n", rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
     }
     fflush(0);
     return bStatus;
