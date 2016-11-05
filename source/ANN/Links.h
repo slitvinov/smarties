@@ -89,6 +89,42 @@ public:
     void initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const override;
 };
 
+/*
+class LinkToConv : public Link
+{
+public:
+    const int width, height, number, inputWidth, inputHeight, inputDepth, stride, padding;
+
+    LinkToConv(int nI, int inputW, int inputH, int inputD, int iI, int nO, int iO, int kW, int kH, int kN, int stride, int pad=0) :
+	Link(nI, iI, nO, iO, iW), width(kW), height(kH), number(kN), inputWidth(inputW), inputHeight(inputH), inputDepth(inputD), stride(stride), padding(pad)
+	{
+		assert(inputWidth*inputHeight*inputDepth == nI);
+		assert((inputWidth -width +2*padding) % stride == 0); //TODO: pad_x, pad_y, stride_x, stride_y
+		assert((inputHeight-height+2*padding) % stride == 0); //not to mention: 3D conv
+		const int outputWidth  = (inputWidth -width +2*padding)/stride + 1;
+		const int outputHeigth = (inputHeight-height+2*padding)/stride + 1;
+		assert(outputWidth*outputHeigth*number == nO);
+	}
+
+    Real backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const;
+
+    Real propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const;
+
+    void propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const;
+
+	void computeWeightGrad(Real* const my_dEdW, int y, int x, int layer, int kernel_ID, const Real* const output_LayerFrom, const Real* const dEdInput_LayerTo) const;
+    void computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const;
+
+    void addUpGrads(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const;
+
+    void initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const;
+
+	int squareToLinearCoord(int y, int x, int zeroIndex, int width) const;
+	int localToGlobalCoord(int y, int x, int kernel, int layer, int kernelWidth, int kernelDepth) const;
+
+};
+*/
+
 struct Graph //misleading, this is just the graph for a single layer
 {
     bool input, output, RNN, LSTM;

@@ -36,6 +36,18 @@ Real Link::propagate(const Activation* const lab, const int ID_NeuronTo, const R
 	return input;
 }
 
+Real Link::backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const
+{
+	Real dEdOutput(0.);
+	const Real* const dEdInput_LayerTo = lab->errvals +iO;
+	const Real* const my_weights =  weights +iW;
+	//error: sum error signals in target layer times weights
+	//weights are sorted in row major order, when row is input neuron, column is output neuron
+	for (int i=0; i<nO; i++)
+		dEdOutput += dEdInput_LayerTo[i] * my_weights[i*nI + ID_NeuronFrom];
+	return dEdOutput;
+}
+
 Real WhiteningLink::propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const
 {
 	die("Forbidden\n");
@@ -63,18 +75,6 @@ void WhiteningLink::propagate(Real* const inputs, const Activation* const lab, c
 	inputs[1] =  scale*inputs[0] + shift;
 }
 
-Real Link::backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const
-{
-	Real dEdOutput(0.);
-	const Real* const dEdInput_LayerTo = lab->errvals +iO;
-	const Real* const my_weights =  weights +iW;
-	//error: sum error signals in target layer times weights
-	//weights are sorted in row major order, when row is input neuron, column is output neuron
-	for (int i=0; i<nO; i++)
-		dEdOutput += dEdInput_LayerTo[i] * my_weights[i*nI + ID_NeuronFrom];
-	return dEdOutput;
-}
-
 Real WhiteningLink::backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const
 {
 	// Whitening link is called by scaled layer for backprop.
@@ -84,6 +84,39 @@ Real WhiteningLink::backPropagate(const Activation* const lab, const int ID_Neur
     const Real invvar= 1./std::sqrt(my_weights[ID_NeuronFrom*4+1]);
     const Real scale = my_weights[ID_NeuronFrom*4+2];
 	return dEdInput_LayerTo[ID_NeuronFrom]*scale*invvar;
+}
+
+int LinkToCNN::squareToLinearCoord(int y, int x, int zeroIndex, int width) const
+{
+	return (zeroIndex + width*y + x);
+}
+
+int LinkToCNN::localToGlobalCoord(const int k_x, const int k_y, const int k_z, const int kernel) const
+{
+	int kernelSize = width*height*inputDepth;
+	return kernel*kernelSize + kernel*layer + squareToLinearCoord(y,x,0,kernelWidth);
+}
+
+Real LinkToConv::backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const
+{
+	Real dEdOutput(0.);
+	const Real* const dEdInput_LayerTo = lab->errvals +iO;
+	const Real* const my_weights =  weights +iW;
+
+	//const int feature_ID = ID_NeuronFrom/(width*height);
+	const int feature_idx = ID_NeuronFrom - feature_ID*width*height);
+	const int pixel_j = feature_idx / width; //j row, i column
+	const int pixel_i = ID_NeuronFrom % width; //same as feature_idx
+
+	for(int pixel_k=0; pixel_k<inputDepth; pixel_k++)
+	for(int y=0; y<height;     y++)
+	for(int x=0; x<width;      x++) {
+		const int dEdInput_LayerToIndex = localToGlobalCoord(pixel_j-y,pixel_i-x,pixel_k,feature_ID);
+		const int my_weightsIndex = localToGlobalCoord(y,x,pixel_k,feature_ID);
+		dEdOutput += dEdInput_LayerTo[dEdInput_LayerToIndex] * my_weights[my_weightsIndex];
+	}
+
+	return dEdOutput;
 }
 
 void Link::computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const

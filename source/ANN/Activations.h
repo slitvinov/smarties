@@ -291,3 +291,39 @@ public:
         return a*0.5*(denom*denom*denom);
     }
 };
+class Relu : public Response
+{
+public:
+    inline Real eval(const Real& x) const override
+    {
+        return x>0 ? x : 0;
+    }
+    inline Real evalDiff(const Real& x) const override
+    {
+        return x>0 ? 1.0 : 0;
+    }
+};
+class ExpPlus : public Response
+{
+public:
+    inline Real eval(const Real& x) const override
+    {
+        return log(1.+exp(x));
+    }
+    inline Real evalDiff(const Real& x) const override
+    {
+        return 1./(1. + exp(-x));
+    }
+};
+class SoftPlus : public Response
+{
+public:
+    inline Real eval(const Real& x) const override
+    {
+        return .5*(x+sqrt(1+x*x));
+    }
+    inline Real evalDiff(const Real& x) const override
+    {
+        return .5*(1.+x/sqrt(1+x*x));
+    }
+};
