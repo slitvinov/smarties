@@ -35,7 +35,7 @@ void Network::build_normal_layer(Graph* const graph)
     	Graph* const layerFrom = G[graph->linkedTo[i]];
     	const int firstNeuronFrom = layerFrom->firstNeuron_ID;
     	const int sizeLayerFrom = layerFrom->layerSize;
-    	assert(firstNeuronFrom>=0 && firstNeuronFrom<firstNeuron_ID);
+    	assert(firstNeuronFrom>=0 && firstNeuronFrom<firstNeuron_ID && sizeLayerFrom>0);
     	Link* tmp = new Link(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID, nWeights);
     	graph->input_links_vec->push_back(tmp);
     	layerFrom->output_links_vec->push_back(tmp);
@@ -48,16 +48,13 @@ void Network::build_normal_layer(Graph* const graph)
     	nWeights += layerSize * layerSize;
     }
 
-#ifndef _scaleR_
-    const Response * f = (graph->output) ? new Response : new SoftSign;
-    if (graph->output) printf( "Linear output\n");
-#else
-    const Response * f = new SoftSign;
-    if (graph->output) printf( "Logic output\n");
-#endif
+    NormalLayer * l = nullptr;
+    if (graph->output)
+	l = new NormalLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, graph->input_links_vec, graph->recurrent_link, graph->output);
+    else
+    l = new NormalLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, graph->input_links_vec, graph->recurrent_link, graph->output);
 
-    NormalLayer * l = new NormalLayer(layerSize, firstNeuron_ID, graph->firstBias_ID,
-    		graph->input_links_vec, graph->recurrent_link, graph->output_links_vec, f, graph->output);
+    if (graph->output) printf( "Linear output\n");
     layers.push_back(l);
 }
 
@@ -87,7 +84,7 @@ void Network::build_LSTM_layer(Graph* const graph)
 		Graph* const layerFrom = G[graph->linkedTo[i]];
 		const int firstNeuronFrom = layerFrom->firstNeuron_ID;
     	const int sizeLayerFrom = layerFrom->layerSize;
-		assert(firstNeuronFrom>=0 && firstNeuronFrom<firstNeuron_ID);
+		assert(firstNeuronFrom>=0 && firstNeuronFrom<firstNeuron_ID && sizeLayerFrom>0);
     	const int firstWeightIG = nWeights 		+ sizeLayerFrom*layerSize;
     	const int firstWeightFG = firstWeightIG + sizeLayerFrom*layerSize;
     	const int firstWeightOG = firstWeightFG + sizeLayerFrom*layerSize;
@@ -108,36 +105,21 @@ void Network::build_LSTM_layer(Graph* const graph)
 		nWeights += layerSize*layerSize*4; //fully connected, 4 units per cell
 	}
 
-#if  1
-        #ifndef _scaleR_
-        const Response * fI = (graph->output) ? new Response : new SoftSign2;
-        const Response * fG = new SoftSigm;
-        const Response * fO = (graph->output) ? new Response : new Tanh;
-        if (graph->output) printf("Linear output\n");
-        #else
-        const Response * fI = new SoftSign2;
-        const Response * fG = new SoftSigm;
-        const Response * fO = new Tanh;
-        if (graph->output) printf("Logic output\n");
-        #endif
-#else
-        #ifndef _scaleR_
-        const Response * fI = (graph->output) ? new Response : new Tanh2;
-        const Response * fG = new Sigm;
-        const Response * fO = (graph->output) ? new Response : new Tanh;
-        if (graph->output) printf("Linear output\n");
-        #else
-        const Response * fI = new Tanh2;
-        const Response * fG = new Sigm;
-        const Response * fO = new Tanh;
-        if (graph->output) printf("Logic output\n");
-        #endif
-#endif
-        
-        NormalLayer * l = new LSTMLayer(layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
-        		graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID, graph->input_links_vec,
-				graph->recurrent_link, graph->output_links_vec, fI, fG, fO, graph->output);
-        layers.push_back(l);
+	NormalLayer * l = nullptr;
+
+    if (graph->output) //cell output func, gates func, cell input func
+	l = new LSTMLayer<Linear,SoftSigm,Linear>(
+					layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
+	        		graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
+					graph->input_links_vec, graph->recurrent_link, graph->output);
+	else
+	l = new LSTMLayer<Tanh,SoftSigm,Linear>(
+					layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
+					graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
+					graph->input_links_vec, graph->recurrent_link, graph->output);
+
+	if (graph->output) printf("Linear LSTM output\n");
+	layers.push_back(l);
 }
 
 void Network::addInput(const int size)
@@ -215,7 +197,6 @@ void Network::build()
 		mem.push_back(m);
 	}
 	dump_ID.resize(nAgents);
-	allocateSeries(3);
 
 	grad = new Grads(nWeights,nBiases);
 	_allocateClean(weights, nWeights)
@@ -229,7 +210,7 @@ void Network::build()
 		_grad    = new Grads(nWeights, nBiases);
 	}
 
-	for (auto & graph : G)
+	for (auto & graph : G) //TODO use for save/restart
 		graph->initializeWeights(gen, weights, biases);
 
 	updateFrozenWeights();
@@ -243,115 +224,99 @@ allocatedDroputWeights(false), backedUp(false), gen(settings.gen), bDump(not set
 bBuilt(false), bAddedInput(false)
 { }
 
-void Network::predict(const vector<Real>& _input, vector<Real>& _output, const Activation* const _M, Activation* const _N, const Real* const _weights, const Real* const _biases) const
+void Network::predict(const vector<Real>& _input, vector<Real>& _output,
+						vector<Activation*>& timeSeries, const int n_step,
+						const Real* const _weights, const Real* const _biases) const
 {
-	assert(bBuilt);
-    for (int j=0; j<nInputs; j++)
-        *(_N->outvals +j) = _input[j];
+	assert(bBuilt && n_step<timeSeries.size() && n_step>=0);
+	Activation* const currActivation = timeSeries[n_step];
+	Activation* const prevActivation = n_step==0 ? nullptr : timeSeries[n_step-1];
+
+    for (int j=0; j<nInputs; j++) *(currActivation->outvals +j) = _input[j];
     
     for (int j=0; j<nLayers; j++)
-        layers[j]->propagate(_M,_N,_weights,_biases);
+        layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
     
     assert(static_cast<int>(_output.size())==nOutputs);
 
-    for (int i=0; i<nOutputs; i++) {
-        *(_N->errvals + iOut[i]) = 0.;
-        _output[i] = *(_N->outvals + iOut[i]);
-    }
+    for (int i=0; i<nOutputs; i++)
+        _output[i] = *(currActivation->outvals + iOut[i]);
 }
 
-void Network::predict(const vector<Real>& _input, vector<Real>& _output, Activation* const _N, const Real* const _weights, const Real* const _biases) const
+void Network::predict(const vector<Real>& _input, vector<Real>& _output,
+						Activation* const prevActivation, Activation* const currActivation,
+						const Real* const _weights, const Real* const _biases) const
+{
+	assert(bBuilt && n_step<timeSeries.size() && n_step>=0);
+
+    for (int j=0; j<nInputs; j++) *(currActivation->outvals +j) = _input[j];
+
+    for (int j=0; j<nLayers; j++)
+        layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
+
+    assert(static_cast<int>(_output.size())==nOutputs);
+
+    for (int i=0; i<nOutputs; i++)
+        _output[i] = *(currActivation->outvals + iOut[i]);
+}
+
+void Network::predict(const vector<Real>& _input, vector<Real>& _output,
+		Activation* const net, const Real* const _weights, const Real* const _biases) const
 {
 	assert(bBuilt);
     for (int j=0; j<nInputs; j++)
-    *(_N->outvals +j) = _input[j];
-    
+    	net->outvals[j] = _input[j];
+
     for (int j=0; j<nLayers; j++)
-        layers[j]->propagate(_N,_weights,_biases);
-    
+        layers[j]->propagate(net,_weights,_biases);
+
     assert(static_cast<int>(_output.size())==nOutputs);
 
-    for (int i=0; i<nOutputs; i++) {
-        *(_N->errvals + iOut[i]) = 0.;
-        _output[i] = *(_N->outvals + iOut[i]);
-    }
+    for (int i=0; i<nOutputs; i++)
+        _output[i] = net->outvals[iOut[i]];
 }
 
-void Network::setOutputErrors(vector<Real>& _errors, Activation* const _N)
+void Network::backProp(vector<Activation*>& timeSeries, const Real* const _weights, Grads* const _grads) const
+{
+	assert(bBuilt);
+	const int last = timeSeries.size()-1;
+
+    for (int i=1; i<=nLayers; i++)
+        layers[nLayers-i]->backPropagate(timeSeries[last-1],timeSeries[last],nullptr, _weights, _grads);
+
+    for (int k=last-1; k>=1; k--)
+	for (int i=1; i<=nLayers; i++)
+        layers[nLayers-i]->backPropagate(timeSeries[k-1],timeSeries[k],timeSeries[k+1], _weights, _grads);
+
+    for (int i=1; i<=nLayers; i++)
+        layers[nLayers-i]->backPropagate(nullptr,timeSeries[0],timeSeries[1], _weights, _grads);
+}
+
+void Network::backProp(const vector<Real>& _errors,
+		Activation* const net, const Real* const _weights, Grads* const _grads) const
+{
+	assert(bBuilt);
+	net->clearErrors();
+	assert(static_cast<int>(_errors.size())==nOutputs);
+	for (int i=0; i<nOutputs; i++)
+		net->errvals[iOut[i]] = _errors[i];
+
+    for (int i=1; i<=nLayers; i++)
+        layers[nLayers-i]->backPropagate(net, _weights, _grads);
+}
+
+void Network::clearErrors(vector<Activation*>& timeSeries) const
+{
+	for (int k=0; k<timeSeries.size(); k--)
+		timeSeries[k]->clearErrors();
+}
+
+void Network::setOutputDeltas(vector<Real>& _errors, Activation* const net) const
 {
 	assert(bBuilt);
     assert(static_cast<int>(_errors.size())==nOutputs);
-    for (int i=0; i<nOutputs; i++) {
-        *(_N->errvals + iOut[i]) = _errors[i];
-    }
-}
-
-//No time dependencies
-void Network::computeDeltas(Activation* const _series, const Real* const _weights, const Real* const _biases) const
-{
-	assert(bBuilt);
-    for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagateDelta(_series,_weights,_biases);
-}
-
-void Network::computeGrads(const Activation* const lab, Grads* const _Grad, const Real* const _weights) const
-{
-	assert(bBuilt);
-    for (int i=0; i<nLayers; i++)
-    layers[i]->backPropagateGrads(lab,_Grad, _weights); //grad is zero-equal
-}
-
-void Network::computeAddGrads(const Activation* const lab, Grads* const _Grad, const Real* const _weights) const
-{
-	assert(bBuilt);
-    for (int i=0; i<nLayers; i++)
-    layers[i]->backPropagateAddGrads(lab,_Grad, _weights);  //grad is add-equal
-}
-
-//Back Prop Through Time:
-//compute deltas: start from last activation, propagate deltas back to first
-// ISSUES:  this array of activations disturbs me deeply as it is deeply inelegant
-//			but was the most robust and easiest path towards parallelism
-void Network::computeDeltasSeries(vector<Activation*>& _series, const int first, const int last, const Real* const _weights, const Real* const _biases) const
-{
-	assert(bBuilt);
-#ifdef _BPTT_
-    for (int i=1; i<=nLayers; i++) {
-        layers[nLayers-i]->backPropagateDeltaLast(series[last-1],series[last],_weights,_biases);
-    }
-    
-    for (int k=last-1; k>=first+1; k--) {
-        for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagateDelta(series[k-1],series[k],series[k+1],_weights,_biases);
-    }
-    
-    for (int i=1; i<=nLayers; i++) {
-        layers[nLayers-i]->backPropagateDeltaFirst(series[first],series[first+1],_weights,_biases);
-    }
-#else
-    for (int k=first; k>=last; k--) {
-        for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagateDelta(series[k],_weights,_biases);
-    }
-#endif
-}
-
-void Network::computeGradsSeries(const vector<Activation*>& _series, const int k, Grads* const _Grad, const Real* const _weights) const
-{
-	assert(bBuilt);
-    for (int i=0; i<nLayers; i++)
-        layers[i]->backPropagateGrads(series[k-1],series[k],_Grad, _weights);
-}
-
-void Network::computeAddGradsSeries(const vector<Activation*>& _series, const int first, const int last, Grads* const _Grad, const Real* const _weights) const
-{
-	assert(bBuilt);
-    for (int i=0; i<nLayers; i++)
-        layers[i]->backPropagateAddGrads(series[first],_Grad, _weights);
-    
-    for (int k=first+1; k<=last; k++)
-        for (int i=0; i<nLayers; i++)
-            layers[i]->backPropagateAddGrads(series[k-1],series[k],_Grad, _weights);
+    for (int i=0; i<nOutputs; i++)
+    	net->errvals[iOut[i]] = _errors[i];
 }
 
 void Network::updateFrozenWeights()
@@ -391,24 +356,38 @@ void Network::moveFrozenWeights(const Real alpha)
     }
 }
 
-void Network::expandMemory(Mem * _M, Activation * _N) const
+void Network::loadMemory(Mem * _M, Activation * _N) const
 {
     std::swap(_N->outvals,_M->outvals);
     std::swap(_N->ostates,_M->ostates);
 }
 
-void Network::allocateSeries(int _k, vector<Activation*> & _series)
+Activation* Network::allocateActivation() const
 {
-    for (int j=static_cast<int>(_series.size()); j<=_k; j++) {
-        Activation * ns = new Activation(nNeurons,nStates);
-        series.push_back(ns);
-    }
+	return new Activation(nNeurons,nStates);
+}
+
+vector<Activation*> Network::allocateUnrolledActivations(int length) const
+{
+	vector<Activation*> ret(length);
+	for (int j=0; j<=length; j++)
+		ret[j] = new Activation(nNeurons,nStates);
+}
+
+void Network::deallocateUnrolledActivations(vector<Activation*>* const ret) const
+{
+	for (auto & trash : ret) _dispose_object(trash);
+}
+
+void Network::appendUnrolledActivations(vector<Activation*>* const ret, int length=1) const
+{
+	for (int j=0; j<=length; j++)
+		ret->push_back(new Activation(nNeurons,nStates));
 }
 
 void Network::assignDropoutMask()
 {
-    if (Pdrop > 0)
-    {
+    if (Pdrop > 0) {
     	die("You are probably using dropout wrong anyway\n");
     	//ISSUES:
     	//- stupidly slow, no priority allocated to improve it
@@ -442,200 +421,89 @@ void Network::removeDropoutMask()
     }
 }
 
-void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn)
+void Network::checkGrads(const vector<vector<Real>>& inputs, const int seq_len)
 {
 	assert(bBuilt);
     printf("Checking gradients\n");
-    vector<int> errorPlacements(lastn);
-    vector<Real> partialResults(lastn);
-
-    int nseries = inputs.size();
-    vector<Real> res(nOutputs);
-    allocateSeries(nseries+1);
+    vector<int> errorPlacements(seq_len);
+    vector<Real> partialResults(seq_len);
+    vector<Activation*> timeSeries = allocateUnrolledActivations(seq_len);
+    assert(timeSeries.size() == seq_len);
     
     const Real incr = 1e-6;
     
     uniform_real_distribution<Real> dis(0.,1.);
-    for (int i=0; i<lastn; i++)
+    for (int i=0; i<seq_len; i++) //figure out where to place some errors at random in outputs
         errorPlacements[i] = nOutputs*dis(*gen);
     
     Grads * g = new Grads(nWeights,nBiases);
     Grads * G = new Grads(nWeights,nBiases);
-    
-    {
-        predict(inputs[0], res, series[0]);
-        
-        vector<Real> errs(nOutputs,0);
-        errs[errorPlacements[0]] = -1.;
-        setOutputErrors(errs, series[0]);
-    }
-    
-    for (int k=1; k<lastn; k++)
-    {
-        predict(inputs[k], res, series[k-1], series[k]);
-        
+    clearErrors(timeSeries);
+
+    for (int k=0; k<seq_len; k++) {
+    	predict(inputs[k], res, timeSeries, k);
         vector<Real> errs(nOutputs,0);
         errs[errorPlacements[k]] = -1.;
-        setOutputErrors(errs, series[k]);
+        setOutputDeltas(errs, timeSeries[k]);
     }
 
-    computeDeltasSeries(series, 0, lastn-1);
-    computeAddGradsSeries(series, 0, lastn-1, G);
+    backProp(timeSeries, G);
     
-    
+    vector<Real> res(nOutputs); //allocate net output
     for (int w=0; w<nWeights; w++) {
         //1
-        *(weights+w) += incr;
-        
-        predict(inputs[0], res, series[0]);
-        partialResults[0] =- res[errorPlacements[0]];
-        
-        for (int k=1; k<lastn; k++) {
-            predict(inputs[k], res, series[k-1], series[k]);
-            partialResults[k] =- res[errorPlacements[k]];
+        weights[w] += incr;
+        for (int k=0; k<seq_len; k++) {
+        	predict(inputs[k], res, timeSeries, k);
+            partialResults[k] = -res[errorPlacements[k]];
         }
-        
         //2
-        *(weights+w) -= 2*incr;
-        
-        predict(inputs[0], res, series[0]);
-        partialResults[0] += res[errorPlacements[0]];
-            
-        for (int k=1; k<lastn; k++) {
-            predict(inputs[k], res, series[k-1], series[k]);
+        weights[w] -= 2*incr;
+        for (int k=0; k<seq_len; k++) {
+        	predict(inputs[k], res, timeSeries, k);
             partialResults[k] += res[errorPlacements[k]];
         }
-        
         //0
-        *(weights+w) += incr;
+        weights[w] += incr;
         
         Real grad(0);
-        for (int k=0; k<lastn; k++)
-            grad += partialResults[k];
-        *(g->_W+w) = grad/(2.*incr);
+        for (int k=0; k<seq_len; k++) grad += partialResults[k];
+        g->_W[w] = grad/(2.*incr);
         
         //const Real scale = fabs(*(biases+w));
-        const Real scale = max(fabs(*(G->_W+w)),fabs(*(g->_W+w)));
-        const Real err = (*(G->_W+w)-*(g->_W+w))/scale;
-        if (fabs(err)>1e-4) cout <<"W"<<w<<" "<<*(G->_W+w)<<" "<<*(g->_W+w)<<" "<<err<<endl;
+        const Real scale = max(fabs(G->_W[w]),fabs(g->_W[w]));
+        const Real err = (G->_W[w] - g->_W[w])/scale;
+        if (fabs(err)>1e-4) cout <<"W"<<w<<" "<<G->_W[w]<<" "<<g->_W[w]<<" "<<err<<endl;
     }
     
     for (int w=0; w<nBiases; w++) {
         //1
         *(biases+w) += incr;
-        
-        predict(inputs[0], res, series[0]);
-        partialResults[0] =- res[errorPlacements[0]];
-        
-        for (int k=1; k<lastn; k++) {
-            predict(inputs[k], res, series[k-1], series[k]);
-            partialResults[k] =- res[errorPlacements[k]];
-        }
-        
+        for (int k=0; k<seq_len; k++) {
+			predict(inputs[k], res, timeSeries, k);
+			partialResults[k] = -res[errorPlacements[k]];
+		}
         //2
         *(biases+w) -= 2*incr;
-        
-        predict(inputs[0], res, series[0]);
-        partialResults[0] += res[errorPlacements[0]];
-        
-        for (int k=1; k<lastn; k++) {
-            predict(inputs[k], res, series[k-1], series[k]);
-            partialResults[k] += res[errorPlacements[k]];
-        }
-        
+        for (int k=0; k<seq_len; k++) {
+			predict(inputs[k], res, timeSeries, k);
+			partialResults[k] += res[errorPlacements[k]];
+		}
         //0
         *(biases+w) += incr;
         
         Real grad(0);
-        for (int k=0; k<lastn; k++)
-            grad += partialResults[k];
-        *(g->_B+w) = grad/(2.*incr);
+        for (int k=0; k<seq_len; k++) grad += partialResults[k];
+        g->_B[w] = grad/(2.*incr);
         
         //const Real scale = fabs(*(biases+w));
-        const Real scale = max(fabs(*(G->_B+w)),fabs(*(g->_B+w)));
-        const Real err = (*(G->_B+w)-*(g->_B+w))/scale;
-        if (fabs(err)>1e-4) cout <<"B"<<w<<" "<<*(G->_B+w)<<" "<<*(g->_B+w)<<" "<<err<<endl;
+        const Real scale = max(fabs(G->_B[w]), fabs(g->_B[w]));
+        const Real err = (G->_B[w] - g->_B[w])/scale;
+        if (fabs(err)>1e-4) cout <<"B"<<w<<" "<<G->_B[w]<<" "<<g->_B[w]<<" "<<err<<endl;
     }
-    printf("\n"); fflush(0);
-}
 
-/*
-void Network::checkGrads(const vector<vector<Real>>& inputs, const int lastn)
-{
-    printf("Checking gradients\n");
-    const int ierr = 0;
- 
-    int nseries = inputs.size();
-    vector<Real> res(nOutputs), errs(nOutputs,0);
-    allocateSeries(nseries+1);
-    
-    Grads * g = new Grads(nWeights,nBiases);
-    Grads * G = new Grads(nWeights,nBiases);
-    const Real eps = 1e-5;
-    
-    predict(inputs[0], res, series[0]);
-    
-    for (int k=1; k<lastn; k++) predict(inputs[k], res, series[k-1], series[k]);
-    
-    errs[ierr] = -1.;
-    setOutputErrors(errs, series[lastn-1]);
-    computeDeltasSeries(series, 0, lastn-1);
-    computeAddGradsSeries(series, 0, lastn-1, G);
-    
-    for (int w=0; w<nWeights; w++) {
-        *(weights+w) += eps;
-        predict(inputs[0], res, series[0]);
-        for (int k=1; k<lastn; k++) predict(inputs[k], res, series[k-1], series[k]);
-        const Real out1 = - *(series[lastn-1]->outvals+iOut[ierr]);
-        
-        *(weights+w) -= 2*eps;
-        predict(inputs[0], res, series[0]);
-        for (int k=1; k<lastn; k++) predict(inputs[k], res, series[k-1], series[k]);
-        const Real out2 = - *(series[lastn-1]->outvals+iOut[ierr]);
-        
-        *(weights+w) += eps;
-        *(g->_W+w) = (out1-out2)/(2*eps);
-        
-        //const Real scale = fabs(*(biases+w));
-        const Real scale = max(fabs(*(G->_W+w)),fabs(*(g->_W+w)));
-        const Real err = (*(G->_W+w)-*(g->_W+w))/scale;
-        if (fabs(err)>1e-4) cout <<"W"<<w<<" "<<*(G->_W+w)<<" "<<*(g->_W+w)<<" "<<err<<endl;
-    }
-    
-    for (int w=0; w<nBiases; w++) {
-        *(biases+w) += eps;
-        predict(inputs[0], res, series[0]);
-        for (int k=1; k<lastn; k++) predict(inputs[k], res, series[k-1], series[k]);
-        const Real out1 = - *(series[lastn-1]->outvals+iOut[ierr]);
-        
-        *(biases+w) -= 2*eps;
-        predict(inputs[0], res, series[0]);
-        for (int k=1; k<lastn; k++) predict(inputs[k], res, series[k-1], series[k]);
-        const Real out2 = - *(series[lastn-1]->outvals+iOut[ierr]);
-        
-        *(biases+w) += eps;
-        *(g->_B+w) = (out1-out2)/(2*eps);
-        
-        //const Real scale = fabs(*(biases+w));
-        const Real scale = max(fabs(*(G->_B+w)),fabs(*(g->_B+w)));
-        const Real err = (*(G->_B+w)-*(g->_B+w))/scale;
-        if (fabs(err)>1e-4) cout <<"B"<<w<<" "<<*(G->_B+w)<<" "<<*(g->_B+w)<<" "<<err<<endl;
-    }
+    deallocateUnrolledActivations(timeSeries);
     printf("\n"); fflush(0);
- }
- */
-
-void Network::computeDeltasInputs(vector<Real>& grad, const Activation* const _series, const Real* const _weights, const Real* const _biases) const
-{//no weight grad to care about, no recurrent links
-    assert(static_cast<int>(grad.size())==nInputs);
-    int k = 0;
-    for (auto & graph : G) if(graph->input)
-    for (int n=0; n<graph->layerSize; n++) {
-        Real dEdy(0);
-        for (const auto & link : *(graph->output_links_vec)) //loop over all layers to which this layer is connected to
-        	dEdy += link->backPropagate(_series, n, _weights);
-        grad[k++] = dEdy; //no response function on inputs
-    }
 }
 
 void Network::save(const string fname)

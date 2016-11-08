@@ -26,8 +26,6 @@ void Learner::TrainBatch()
     if (ndata<batchSize) return; //do we have enough data?
     int nAddedGradients(0);
     
-    updateTargetNetwork();
-    
     if (data->inds.size()<batchSize)
     { //uniform sampling
         data->updateSamples();
@@ -41,7 +39,6 @@ void Learner::TrainBatch()
             const int ind = data->inds.back();
             data->inds.pop_back();
             const int seqSize = data->Set[ind]->tuples.size();
-            allocateNNactivations(seqSize);
             nAddedGradients += seqSize-1;
             
             Train_BPTT(ind);
@@ -67,6 +64,7 @@ void Learner::TrainBatch()
     }
     
     updateNNWeights(nAddedGradients);
+    updateTargetNetwork();
 }
 
 void Learner::TrainTasking(Master* const master)
@@ -107,39 +105,29 @@ void Learner::TrainTasking(Master* const master)
                     #endif
                 }
                 
-                if(bRecurrent) //we are using an LSTM: do BPTT
-                {
-                    for (int i(0); i<batchSize; i++)
-                    {
+                if(bRecurrent) {//we are using an LSTM: do BPTT
+                    for (int i(0); i<batchSize; i++) {
                         const int ind = data->inds.back();
                         data->inds.pop_back();
                         seq[i]  = ind;
                         const int seqSize = data->Set[ind]->tuples.size();
                         nAddedGradients += seqSize-1; //to normalize mean gradient for update
-                        maxBufSize = max(maxBufSize,seqSize); //allocate network activations
                     }
-                    
-                    //LSTM NFQ requires size()+1 activations of the net:
-                    allocateNNactivations(2+nThreads*(maxBufSize+1)); //0 and 1 reserved
 
                     #pragma omp flush
                     
                     for (int i(0); i<batchSize; i++) {
-                        const int knd = seq[i];
-                        #pragma omp task firstprivate(i) firstprivate(knd) shared(maxBufSize)
+                        #pragma omp task firstprivate(i)
                         {
                             const int thrID = omp_get_thread_num();
-                            const int first = 2+(maxBufSize+1)*thrID;
-                            Train_BPTT(knd, first, thrID);
+                            Train_BPTT(seq[i], thrID);
+
                             #pragma omp atomic
                             taskCounter++;
                         }
                     }
-                }
-                else
-                {
-                    for (int i(0); i<batchSize; i++)
-                    {
+                } else {
+                    for (int i(0); i<batchSize; i++)  {
                         const int ind = data->inds.back();
                         data->inds.pop_back();
                         int k(0), back(0), indT(data->Set[0]->tuples.size()-1);
@@ -150,18 +138,14 @@ void Learner::TrainTasking(Master* const master)
                         seq[i]  = k;
                         samp[i] = ind-back;
                     }
-                    
                     nAddedGradients = batchSize;
-                    allocateNNactivations(2+nThreads*3); //0 and 1 reserved
                     
                     #pragma omp flush
                     
                     for (int i(0); i<batchSize; i++) {
-                        #pragma omp task firstprivate(i)
-                        {
+                        #pragma omp task firstprivate(i) {
                             const int thrID = omp_get_thread_num();
-                            const int first = 2+3*thrID;
-                            Train(seq[i], samp[i], first, thrID);
+                            Train(seq[i], samp[i], thrID);
                             
                             #pragma omp atomic
                             taskCounter++;
@@ -176,11 +160,11 @@ void Learner::TrainTasking(Master* const master)
         }
         #pragma omp barrier
         
-        
         //here be omp fors:
-        if (ndata>batchSize) stackAndUpdateNNWeights(nAddedGradients);
-        
-        updateTargetNetwork();
+        if (ndata>batchSize) {
+        	stackAndUpdateNNWeights(nAddedGradients);
+        	updateTargetNetwork();
+        }
     }
 }
 
@@ -194,11 +178,6 @@ void Learner::updateNNWeights(const int nAddedGradients)
 {
     opt->nepoch=stats.epochCount;  //used to anneal learning rate
     opt->update(net->grad,nAddedGradients);
-}
-
-void Learner::allocateNNactivations(const int buffer)
-{
-    net->allocateSeries(buffer);
 }
 
 void Learner::updateTargetNetwork()

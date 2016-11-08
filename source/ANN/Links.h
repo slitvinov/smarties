@@ -17,6 +17,8 @@ using namespace std;
 
 class Link
 {
+private:
+	const int nW;
 public:
     /*
      a link here is defined as link layer to layer:
@@ -27,34 +29,28 @@ public:
      the index of the first weight iW along the weight vector
      the weights are all to all: so this link occupies space iW to (iW + nI*nO) along weight vector
      */
-    const int nI, iI, nO, iO, iW;
+    const int iW, nI, iI, nO, iO;
     
-    Link(int nI, int iI, int nO, int iO, int iW) : nI(nI), iI(iI), nO(nO), iO(iO), iW(iW)
-    { }
-    
-    ///Link() : nI(0), iI(0), nO(0), iO(0), iW(0){ }
-    
-    //void set(int _nI, int _iI, int _nO, int _iO, int _iW);
-    
-    void print() const;
+    Link(int nI, int iI, int nO, int iO, int iW) : iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), nW(nI*nO)
+    {
+		assert(nI>0 && nO>0 && iI>=0 && iO>=0 && iW>=0);
+    }
 
-    virtual Real backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const;
-
-    virtual Real propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const;
-
-    virtual void propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const;
-
-    virtual void computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const;
-
-    virtual void addUpGrads(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const;
-
-    virtual void initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const;
-
-    void orthogonalize(const int n0, Real* const _weights) const;
+    virtual void print() const;
+    virtual void initialize(mt19937* const gen, Real* const _weights) const;
+    virtual void restart(std::istringstream & buf, Real* const _weights) const;
+    virtual void save(std::ostringstream & buf, const Real* const _weights) const;
+    virtual void propagate(const Activation* const netFrom, const Activation* const netTo,
+																	 const Real* const weights) const;
+    virtual void backPropagate(const Activation* const netFrom, const Activation* const netTo,
+											const Real* const weights, const Real* const gradW) const;
+    void orthogonalize(const int n0, Real* const _weights, const int nOut=nO, const int nIn=nI) const;
 };
 
 class LinkToLSTM : public Link
 {
+private:
+	const int nW;
 public:
     /*
      if link is TO lstm, then the rules change a bit
@@ -66,64 +62,78 @@ public:
      */
     const int iC, iWI, iWF, iWO;
 
-    //LinkToLSTM() { }
-
 	LinkToLSTM(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO) :
-		Link(nI, iI, nO, iO, iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO)
-	    { }
-
-    void print() const;
-
-    //void set(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO);
-
-    Real backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const override;
-
-    void propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const override;
-
-    Real propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const override;
-
-    void computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const override;
-
-    void addUpGrads(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const override;
-
-    void initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const override;
-};
-
-/*
-class LinkToConv : public Link
-{
-public:
-    const int width, height, number, inputWidth, inputHeight, inputDepth, stride, padding;
-
-    LinkToConv(int nI, int inputW, int inputH, int inputD, int iI, int nO, int iO, int kW, int kH, int kN, int stride, int pad=0) :
-	Link(nI, iI, nO, iO, iW), width(kW), height(kH), number(kN), inputWidth(inputW), inputHeight(inputH), inputDepth(inputD), stride(stride), padding(pad)
+	Link(nI, iI, nO, iO, iW), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO), nW(nI*nO) //i care nW per neuron, just for the asserts
 	{
-		assert(inputWidth*inputHeight*inputDepth == nI);
-		assert((inputWidth -width +2*padding) % stride == 0); //TODO: pad_x, pad_y, stride_x, stride_y
-		assert((inputHeight-height+2*padding) % stride == 0); //not to mention: 3D conv
-		const int outputWidth  = (inputWidth -width +2*padding)/stride + 1;
-		const int outputHeigth = (inputHeight-height+2*padding)/stride + 1;
-		assert(outputWidth*outputHeigth*number == nO);
+		assert(iC>=0 && iWI>=0 && iWF>=0 && iWO>=0);
 	}
 
-    Real backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const;
-
-    Real propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const;
-
-    void propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const;
-
-	void computeWeightGrad(Real* const my_dEdW, int y, int x, int layer, int kernel_ID, const Real* const output_LayerFrom, const Real* const dEdInput_LayerTo) const;
-    void computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const;
-
-    void addUpGrads(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const;
-
-    void initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const;
-
-	int squareToLinearCoord(int y, int x, int zeroIndex, int width) const;
-	int localToGlobalCoord(int y, int x, int kernel, int layer, int kernelWidth, int kernelDepth) const;
-
+    void print() const override;
+    void initialize(mt19937* const gen, Real* const _weights) const override;
+    void restart(std::istringstream & buf, Real* const _weights) const override;
+    void save(std::ostringstream & buf, const Real* const _weights) const override;
+    void propagate(const Activation* const netFrom, const Activation* const netTo,
+														 const Real* const weights) const override;
+    void backPropagate(const Activation* const netFrom, const Activation* const netTo,
+									const Real* const weights, const Real* const gradW) const override;
 };
-*/
+
+
+class LinkToConv2D : public Link
+{
+private:
+	const int nW;
+public:
+    const int inputWidth, inputHeight, inputDepth;
+    const int filterWidth, filterHeight;
+    const int outputWidth, outputHeight, outputDepth;
+	const int strideX, strideY, padX, padY;
+
+	LinkToConv2D(int nI, int iI, int nO, int iO, int iW,
+				int inW, int inH, int inD,
+    			int fW, int fH, int fN, int outW, int outH,
+				int sX=1, int sY=1, int pX=0, int pY=0) :
+	Link(nI, iI, nO, iO, iW), inputWidth(inW), inputHeight(inH), inputDepth(inD), filterWidth(fW), filterHeight(fH),
+	outputDepth(fN), outputWidth(outW), outputHeight(outH), strideX(sX), strideY(sY), padX(pX), padY(pY), nW(fW*fH*fN*inD)
+	{
+		assert(nW>0);
+		assert(inputWidth*inputHeight*inputDepth == nI);
+		assert(outputWidth*outputHeight*outputDepth == nO);
+		const int inW_withPadding = (outputWidth-1)*strideX + filterWidth;
+		const int inH_withPadding = (outputHeight-1)*strideY + filterHeight;
+		//this class prescribes the bottom padding, let's figure out if the top one makes sense
+		// inW_withPadding = inputWidth + bottomPad + topPad (where bottomPad = padX,padY)
+		//first: All pixels of input are covered. topPad must be >=0, and stride leq than filter size
+		assert(inW_withPadding-(inputWidth+padX) >= 0);
+		assert(inH_withPadding-(inputHeight+padY) >= 0);
+		assert(filterWidth >= strideX && filterHeight >= strideY);
+		//second condition: do not feed an output pixel only with padding
+		assert(inW_withPadding-(inputWidth+padX) < filterWidth);
+		assert(inH_withPadding-(inputHeight+padY) < filterHeight);
+		assert(padX < filterWidth && padY < filterHeight);
+	}
+
+    void initialize(mt19937* const gen, Real* const _weights) const override;
+    void restart(std::istringstream & buf, Real* const _weights) const override;
+    void save(std::ostringstream & buf, const Real* const _weights) const override;
+    void propagate(const Activation* const netFrom, const Activation* const netTo,
+														 const Real* const weights) const override;
+    void backPropagate(const Activation* const netFrom, const Activation* const netTo,
+									const Real* const weights, const Real* const gradW) const override;
+};
+
+class WhiteningLink : public Link
+{
+public:
+	WhiteningLink(int nI, int iI, int nO, int iO, int iW) : Link(nI, iI, nO, iO, iW) { }
+	void initialize(mt19937* const gen, Real* const _weights) const override;
+    void restart(std::istringstream & buf, Real* const _weights) const override;
+    void save(std::ostringstream & buf, const Real* const _weights) const override;
+    void propagate(const Activation* const netFrom, const Activation* const netTo,
+														 const Real* const weights) const override;
+    void backPropagate(const Activation* const netFrom, const Activation* const netTo,
+									const Real* const weights, const Real* const gradW) const override;
+};
 
 struct Graph //misleading, this is just the graph for a single layer
 {
@@ -158,22 +168,4 @@ struct Graph //misleading, this is just the graph for a single layer
     }
     
     void initializeWeights(mt19937* const gen, Real* const _weights, Real* const _biases) const;
-};
-
-class WhiteningLink : public Link
-{
-public:
-	WhiteningLink(int nI, int iI, int nO, int iO, int iW) : Link(nI, iI, nO, iO, iW) { }
-
-    Real backPropagate(const Activation* const lab, const int ID_NeuronFrom, const Real* const weights) const override;
-
-    Real propagate(const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const override;
-
-    void propagate(Real* const inputs, const Activation* const lab, const int ID_NeuronTo, const Real* const weights) const override;
-
-    void computeGrad(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const override;
-
-    void addUpGrads(const Activation* const activation_From, const Activation* const activation_To, Real* const dEdW) const override;
-
-    void initialize(uniform_real_distribution<Real>& dis, mt19937* const gen, Real* const _weights) const override;
 };

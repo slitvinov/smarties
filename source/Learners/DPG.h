@@ -18,14 +18,13 @@ class DPG : public Learner
     const int nA, nS;
     Network* net_policy;
     Optimizer* opt_policy;
-    void Train_BPTT(const int seq, const int first=0, const int thrID=0) override;
-    void Train(const int seq, const int samp, const int first=0, const int thrID=0) override;
+    void Train_BPTT(const int seq, const int thrID=0) override;
+    void Train(const int seq, const int samp, const int thrID=0) override;
     
     
     void updateTargetNetwork() override;
     void stackAndUpdateNNWeights(const int nAddedGradients) override;
     void updateNNWeights(const int nAddedGradients) override;
-    void allocateNNactivations(const int buffer) override;
     
 public:
 	DPG(Environment* env, Settings & settings);

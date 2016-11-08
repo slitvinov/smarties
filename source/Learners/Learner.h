@@ -46,8 +46,8 @@ protected:
     trainData stats;
     vector<trainData*> Vstats;
     
-    virtual void Train_BPTT(const int seq, const int first=0, const int thrID=0)=0;
-    virtual void Train(const int seq, const int samp, const int first=0, const int thrID=0)=0;
+    virtual void Train_BPTT(const int seq, const int thrID=0)=0;
+    virtual void Train(const int seq, const int samp, const int thrID=0)=0;
     
     void dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs);
     void dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs);
@@ -55,7 +55,6 @@ protected:
     virtual void updateTargetNetwork();
     virtual void stackAndUpdateNNWeights(const int nAddedGradients);
     virtual void updateNNWeights(const int nAddedGradients);
-    virtual void allocateNNactivations(const int buffer);
     
 public:    
     Learner(Environment* env, Settings & settings);

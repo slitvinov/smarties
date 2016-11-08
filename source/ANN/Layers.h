@@ -15,114 +15,66 @@
 
 using namespace std;
 
+template<typename Func>
 class NormalLayer
 {
-public:
+protected:
+    const Link* const recurrent_link;
+    const vector<Link*>* const input_links;
     const bool last;
-    //n neurons and position along Activation->in_vals and outvals
     const int nNeurons, n1stNeuron, n1stBias;
-    //function outvals = func(in_vals)
-    const Response * func;
-    const Link *recurrent_link;
-    const vector<Link*> *input_links, *output_links;
-    
-    NormalLayer(int nNeurons, int n1stNeuron, int n1stBias,
-                const vector<Link*>* const nl_il, const Link* const nl_rl, const vector<Link*>* const nl_ol,
-                const Response* f, bool last) :
-    last(last), nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), func(f),
-    input_links(nl_il), recurrent_link(nl_rl), output_links(nl_ol)
-    {
+public:
+    NormalLayer(int nNeurons, int n1stNeuron, int n1stBias, const vector<Link*>* const nl_il, const Link* const nl_rl, bool last) :
+    last(last), nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), input_links(nl_il), recurrent_link(nl_rl) {
         //printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d\n",nNeurons, n1stNeuron, n1stBias);
     }
     
-    ~NormalLayer()
-    {
-        _dispose_object(func);
-        //links deleted by network
-    }
-    
-    virtual void propagate(Activation* const N, const Real* const weights, const Real* const biases) const;
-    virtual void propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const;
-    
-    virtual void backPropagateDeltaFirst(Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const;
-    virtual void backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const;
-    
-    virtual void backPropagateDelta(const Activation* const P, Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const
-    {   backPropagateDeltaFirst(C, N, weights, biases); }
-    virtual void backPropagateDeltaLast(const Activation* const P, Activation* const C, const Real* const weights, const Real* const biases) const
-    {   backPropagateDelta(C, weights, biases); }
-    
-    virtual void backPropagateGrads(const Activation* const C, Grads* const grad, const Real* const weights) const;
-    virtual void backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const;
-    virtual void backPropagateAddGrads(const Activation* const C, Grads* const grad, const Real* const weights) const;
-    virtual void backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const;
-    
-    //Real propagateErrors(const Link* const l, const Activation* const lab, const int iNeuron, const Real* const weights) const;
+    virtual void propagate(const Activation* const prev, Activation* const curr, const Real* const weights, const Real* const biases) const;
+    virtual void backPropagate(const Activation* const prev, const Activation* const curr, const Activation* const next, Grads* const grad, const Real* const weights) const;
+
+    void propagate(Activation* const curr, const Real* const weights, const Real* const biases) const;
+    void backPropagate(const Activation* const curr, Grads* const grad, const Real* const weights) const;
 };
 
+template<typename Func>
+class Conv2DLayer
+{
+    const int outputWidth, outputHeight, outputDepth;
+public:
+    Conv2DLayer(int nNeurons, int n1stNeuron, int n1stBias, const vector<Link*>* const nl_il, bool last) :
+    	NormalLayer(nNeurons,n1stNeuron,n1stBias,nl_il,nullptr,last) {
+        //printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d\n",nNeurons, n1stNeuron, n1stBias);
+    }
+
+    void propagate(const Activation* const prev, Activation* const curr, const Real* const weights, const Real* const biases) const  override;
+	void backPropagate(const Activation* const prev, const Activation* const curr, const Activation* const next, Grads* const grad, const Real* const weights) const  override;
+};
+
+template<typename Func, typename Sigm, typename Cell>
 class LSTMLayer: public NormalLayer
 {
-public:
     const int n1stCell, n1stBiasIG, n1stBiasFG, n1stBiasOG;
-    const Response *ifun, *sigm;
-    
+public:
     LSTMLayer(int nNeurons, int n1stNeuron, int indState,
               int n1stBias, int n1stBiasIG, int n1stBiasFG, int n1stBiasOG,
-              const vector<Link*>* const rl_il, const Link* const rl_rl, const vector<Link*>* const rl_ol,
-              const Response* fI, const Response* fG, const Response* fO, bool last) :
-    NormalLayer(nNeurons, n1stNeuron, n1stBias, rl_il, rl_rl, rl_ol, fO, last),
-    n1stCell(indState), n1stBiasIG(n1stBiasIG),
-    n1stBiasFG(n1stBiasFG), n1stBiasOG(n1stBiasOG), ifun(fI), sigm(fG)
-    {
+              const vector<Link*>* const rl_il, const Link* const rl_rl, bool last) :
+    NormalLayer(nNeurons, n1stNeuron, n1stBias, rl_il, rl_rl, last),
+    n1stCell(indState), n1stBiasIG(n1stBiasIG), n1stBiasFG(n1stBiasFG), n1stBiasOG(n1stBiasOG) {
         printf("n1stCell= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d\n", n1stCell, n1stBiasIG, n1stBiasFG, n1stBiasOG);
     }
     
-    ~LSTMLayer()
-    {
-        _dispose_object(ifun);
-        _dispose_object(sigm);
-        //links deleted by network
-    }
-    
-    void propagate(Activation* const N, const Real* const weights, const Real* const biases) const override;
-    void propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const override;
-    
-    void backPropagateDeltaFirst(Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const override;
-    void backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const override;
-    
-    void backPropagateDelta(const Activation* const P, Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const override;
-    void backPropagateDeltaLast(const Activation* const P, Activation* const C, const Real* const weights, const Real* const biases) const override;
-    
-    void backPropagateGrads(const Activation* const C, Grads* const grad, const Real* const weights) const override;
-    void backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const override;
-    void backPropagateAddGrads(const Activation* const C, Grads* const grad, const Real* const weights) const override;
-    void backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const override;
+    void propagate(const Activation* const prev, Activation* const curr, const Real* const weights, const Real* const biases) const  override;
+	void backPropagate(const Activation* const prev, const Activation* const curr, const Activation* const next, Grads* const grad, const Real* const weights) const  override;
 };
 
+template<typename Func>
 class WhiteningLayer: public NormalLayer
 {
 public:
-	WhiteningLayer(int nNeurons, int n1stNeuron, int n1stBias,
-                const vector<Link*>* const nl_il, const Link* const nl_rl, const vector<Link*>* const nl_ol,
-                const Response* f, bool last) :
-	NormalLayer(nNeurons,n1stNeuron,n1stBias,nl_il,nl_rl,nl_ol,f,last)
+	WhiteningLayer(int nNeurons, int n1stNeuron, const vector<Link*>* const nl_il) :
+	NormalLayer(nNeurons,n1stNeuron,-1,nl_il,false)
     { }
 
-    ~WhiteningLayer() { }
-
-    virtual void propagate(Activation* const N, const Real* const weights, const Real* const biases) const;
-    virtual void propagate(const Activation* const M, Activation* const N, const Real* const weights, const Real* const biases) const;
-
-    virtual void backPropagateDeltaFirst(Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const;
-    virtual void backPropagateDelta(Activation* const C, const Real* const weights, const Real* const biases) const;
-
-    virtual void backPropagateDelta(const Activation* const P, Activation* const C, const Activation* const N, const Real* const weights, const Real* const biases) const
-    {   backPropagateDeltaFirst(C, N, weights, biases); }
-    virtual void backPropagateDeltaLast(const Activation* const P, Activation* const C, const Real* const weights, const Real* const biases) const
-    {   backPropagateDelta(C, weights, biases); }
-
-    virtual void backPropagateGrads(const Activation* const C, Grads* const grad, const Real* const weights) const;
-    virtual void backPropagateGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const;
-    virtual void backPropagateAddGrads(const Activation* const C, Grads* const grad, const Real* const weights) const;
-    virtual void backPropagateAddGrads(const Activation* const P, const Activation* const C, Grads* const grad, const Real* const weights) const;
+    void propagate(const Activation* const prev, Activation* const curr, const Real* const weights, const Real* const biases) const  override;
+	void backPropagate(const Activation* const prev, const Activation* const curr, const Activation* const next, Grads* const grad, const Real* const weights) const  override;
 };

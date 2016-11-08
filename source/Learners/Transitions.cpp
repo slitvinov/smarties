@@ -185,8 +185,8 @@ void Transitions::push_back(const int & agentId)
             Set.push_back(Tmp[agentId]);
             nTransitions+=Tmp[agentId]->tuples.size()-1;
         }
-        
-        
+
+
     } else {
         //for (int i(0); i<Tmp[agentId]->tuples.size(); i++) {
         //    _dispose_object(Tmp[agentId]->tuples[i]);

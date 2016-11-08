@@ -129,107 +129,106 @@ void FishNet::trainBatch(const vector<const vector<Real>*>& inputs, const vector
     trainMSE = 0.;
     int nseries = inputs.size();
     vector<Real> res(nOutputs), errs(nOutputs,0);
+    Activation* netActivation = net->allocateActivation();
+    netActivation->clearErrors();
     
     for (int k=0; k<nseries; k++) {
-        net->predict(*(inputs[k]), res, net->series[0]);
+        net->predict(*(inputs[k]), res, netActivation);
         
         for (int j =0; j<nOutputs; j++) {
             const Real err = (*(targets[k]))[j] - res[j];
             errs[j] = err;
-            //*(net->series[0]->errvals +net->iOut[j]) = err;
             trainMSE += 0.5*err*err;
         }
-        net->setOutputErrors(errs, net->series[0]);
-        net->computeDeltas(net->series[0]);
-        net->computeAddGrads(net->series[0], net->grad);
+        net->backProp(errs, netActivation, net->grad);
     }
 
     opt->update(net->grad, nseries);
     trainMSE /= (Real)nseries;
+    _dispose_object(netActivation);
 }
 
 void FishNet::trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE)
 {
     vector<Real> res(nOutputs), errs(nOutputs,0);
     const int nseries = inputs.size();
-    net->allocateSeries(nseries);
+    vector<Activation*> timeSeries = net->allocateUnrolledActivations(nseries);
+    net->clearErrors(timeSeries);
     
-    net->predict(inputs[0], res, net->series[0]);
-    for (int i=0; i<nOutputs; i++) {
-        //const Real err = targets[0][i] - *(net->series[0]->outvals+net->iOutputs+i);
-        const Real err = targets[0][i] - res[i];
-        errs[i] = err;
-        //*(net->series[0]->errvals +net->iOutputs+i) = err;
-        //printf("tgt %f out %f err %f\n",targets[0][i],*(net->series[0]->outvals+net->iOutputs+i), err);
-        trainMSE = 0.5*err*err;
-    }
-    net->setOutputErrors(errs, net->series[0]);
-    
-    for (int k=1; k<nseries; k++) {
-        net->predict(inputs[k], res, net->series[k-1], net->series[k]);
+    for (int k=0; k<nseries; k++) {
+    	net->predict(inputs[k], res, timeSeries, k);
+
         for (int i=0; i<nOutputs; i++) {
             const Real err = targets[k][i] - res[i];
             errs[i] = err;
-            //*(net->series[k]->errvals +net->iOutputs+i) = err;
-            //printf("tgt %f out %f err %f\n",targets[k][i],*(net->series[k]->outvals+net->iOutputs+i), err);
             trainMSE += 0.5*err*err;
         }
         net->setOutputErrors(errs, net->series[k]);
     }
     
-    net->computeDeltasSeries(net->series, 0, nseries-1);
-    net->computeAddGradsSeries(net->series, 0, nseries-1, net->grad);
-
+    net->backProp(timeSeries, net->grad);
     opt->update(net->grad,nseries);
     trainMSE /= (Real)nseries;
+    net->deallocateUnrolledActivations(timeSeries);
 }
 
 void FishNet::predict(const vector<Real>& S1, vector<Real>& Q1, const vector<Real>& S2, vector<Real>& Q2, int iAgent)
 {   //used for RL, used not to mess with mem
     if (nInputs != static_cast<int>(S1.size()) || nInputs != static_cast<int>(S2.size())) die("Wrong input dim\n");
     if (iAgent  >= static_cast<int>(net->mem.size())) die("Wrong agent dim\n");
+
+    Activation* prevActivation = net->allocateActivation();
+    Activation* currActivation = net->allocateActivation();
+    Activation* nextActivation = net->allocateActivation();
     
     Q1.resize(nOutputs);
     Q2.resize(nOutputs);
-    net->allocateSeries(2);
-    net->expandMemory(net->mem[iAgent], net->series[0]);
-    net->predict(S1, Q1, net->series[0], net->series[1]);
-    net->predict(S2, Q2, net->series[1], net->series[2]);
-    net->expandMemory(net->mem[iAgent], net->series[1]);
+    net->expandMemory(net->mem[iAgent], prevActivation);
+    net->predict(S1, Q1, prevActivation, currActivation);
+    net->predict(S2, Q2, currActivation, nextActivation);
+    net->expandMemory(net->mem[iAgent], nextActivation);
+
+    _dispose_object(prevActivation);
+    _dispose_object(currActivation);
+    _dispose_object(nextActivation);
 }
 
 void FishNet::predict(const vector<Real>& input, vector<Real>& output, int iAgent)
 {
     if (nInputs != static_cast<int>(   input.size())) die("Wrong input dim\n");
     if (iAgent  >= static_cast<int>(net->mem.size())) die("Wrong agent dim\n");
+    Activation* prevActivation = net->allocateActivation();
+    Activation* currActivation = net->allocateActivation();
     
     output.resize(nOutputs); //might be a problem. Then again, I wouldn't call it MY problem
-    net->expandMemory(net->mem[iAgent], net->series[0]);
-    net->predict(input, output, net->series[0], net->series[1]);
-    net->expandMemory(net->mem[iAgent], net->series[1]);
+    net->expandMemory(net->mem[iAgent], prevActivation);
+    net->predict(input, output, prevActivation, currActivation);
+    net->expandMemory(net->mem[iAgent], currActivation);
+
+    _dispose_object(prevActivation);
+    _dispose_object(currActivation);
 }
 
 void FishNet::predict(const vector<vector<Real>>& inputs, vector<vector<Real>>& outputs)
 {
     int nseries = inputs.size();
+    vector<Activation*> timeSeries = net->allocateUnrolledActivations(nseries);
     vector<Real> res(nOutputs);
     outputs.clear();
     
-    if (nInputs != static_cast<int>(inputs[0].size())) die("Wrong input %d dim\n", 0);
-    net->predict(inputs[0], res, net->series[0]);
-    outputs.push_back(res);
-    
-    for (int k=1; k<nseries; k++) {
+    for (int k=0; k<nseries; k++) {
         if (nInputs != static_cast<int>(inputs[k].size())) die("Wrong input %d dim\n", k);
-        net->predict(inputs[k], res, net->series[0], net->series[1]);
-        swap(net->series[0],net->series[1]);
+        net->predict(inputs[k], res, timeSeries, k);
         outputs.push_back(res);
     }
+    net->deallocateUnrolledActivations(timeSeries);
 }
 
 void FishNet::predict(const vector<Real>& input, vector<Real>& output)
 {
     if (nInputs != static_cast<int>(   input.size())) die("Wrong input dim\n");
+    Activation* currActivation = net->allocateActivation();
     output.resize(nOutputs); //might be a problem. Then again, I wouldn't call it MY problem
-    net->predict(input, output, net->series[0]);
+    net->predict(input, output, currActivation);
+    _dispose_object(currActivation);
 }

@@ -20,7 +20,6 @@ class Network
 {
 protected:
 	bool bBuilt, bAddedInput;
-    int nAgents, nThreads, nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates;
     const Real Pdrop; //dropout
     vector<int> iOut, dump_ID;
     vector<Graph*> G;
@@ -29,10 +28,10 @@ protected:
     void build_normal_layer(Graph* const graph);
 
 public:
+    int nAgents, nThreads, nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates;
     bool allocatedFrozenWeights, allocatedDroputWeights, backedUp, bDump;
     mt19937 * gen;
     vector<Mem*> mem;
-    vector<Activation*> series;
     Grads * grad, * _grad;
     Real *weights, *biases, *tgt_weights, *tgt_biases, *weights_DropoutBackup;
     vector<Grads*> Vgrad;
@@ -58,7 +57,6 @@ public:
         for (auto & trash : G) _dispose_object( trash);
         for (auto & trash : layers) _dispose_object( trash);
         for (auto & trash : mem) _dispose_object( trash);
-        for (auto & trash : series) _dispose_object( trash);
         for (auto & trash : Vgrad) _dispose_object( trash);
         _dispose_object( grad);
         _dispose_object(_grad);
@@ -69,73 +67,59 @@ public:
         _myfree( weights_DropoutBackup )
     }
     
-    void allocateSeries(int k, vector<Activation*> & _series);
-    void allocateSeries(int k)
-    {
-        return allocateSeries(k, series);
-    }
-    
     void updateFrozenWeights();
     void moveFrozenWeights(const Real alpha);
-    void expandMemory(Mem * _M, Activation * _N) const;
+    void loadMemory(Mem * _M, Activation * _N) const;
     void assignDropoutMask();
     void removeDropoutMask();
-    
-    void predict(const vector<Real>& _input, vector<Real>& _output, const Activation* const _M, Activation* const _N, const Real* const _weights, const Real* const _biases) const;
-    void predict(const vector<Real>& _input, vector<Real>& _output, const Activation* const _M, Activation* const _N) const
+    void clearErrors(vector<Activation*>& timeSeries) const;
+    void setOutputDeltas(vector<Real>& _errors, Activation* const _N) const;
+
+    Activation* allocateActivation() const;
+    vector<Activation*> allocateUnrolledActivations(int length) const;
+    void deallocateUnrolledActivations(vector<Activation*>* const ret) const;
+    void appendUnrolledActivations(vector<Activation*>* const ret, int length=1) const;
+
+    void predict(const vector<Real>& _input, vector<Real>& _output,
+    			vector<Activation*>& timeSeries, const int n_step,
+				const Real* const _weights, const Real* const _biases) const;
+    void predict(const vector<Real>& _input, vector<Real>& _output,
+    			vector<Activation*>& timeSeries, const int n_step) const
     {
-        predict(_input, _output, _M, _N, weights, biases);
+        predict(_input, _output, timeSeries, n_step, weights, biases);
     }
     
-    void predict(const vector<Real>& _input, vector<Real>& _output, Activation* const _N, const Real* const _weights, const Real* const _biases) const;
-    void predict(const vector<Real>& _input, vector<Real>& _output, Activation* const _N) const
+    void predict(const vector<Real>& _input, vector<Real>& _output,
+				Activation* const prevActivation, Activation* const currActivation,
+				const Real* const _weights, const Real* const _biases) const;
+    void predict(const vector<Real>& _input, vector<Real>& _output,
+				Activation* const prevActivation, Activation* const currActivation) const
     {
-        predict(_input, _output, _N, weights, biases);
+        predict(_input, _output, prevActivation, currActivation, weights, biases);
     }
     
-    void setOutputErrors(vector<Real>& _errors, Activation* const _N);
-    
-    void computeDeltas(Activation* const _series, const Real* const _weights, const Real* const _biases) const;
-    void computeDeltas(Activation* const _series) const
+    void predict(const vector<Real>& _input, vector<Real>& _output, Activation* const net,
+    			const Real* const _weights, const Real* const _biases) const;
+    void predict(const vector<Real>& _input, vector<Real>& _output, Activation* const net) const
     {
-        computeDeltas(_series, weights, biases);
+        predict(_input, _output, net, weights, biases);
+    }
+
+    void backProp(vector<Activation*>& timeSeries,
+    				const Real* const _weights, Grads* const _grads) const;
+    void backProp(vector<Activation*>& timeSeries, Grads* const _grads) const
+    {
+    	backProp(timeSeries, weights, _grads);
+    }
+
+    void backProp(const vector<Real>& _errors, Activation* const net,
+    				const Real* const _weights, Grads* const _grads) const;
+    void backProp(const vector<Real>& _errors, Activation* const net, Grads* const _grads) const
+    {
+    	backProp(_errors, net, weights, _grads);
     }
     
-    void computeDeltasInputs(vector<Real>& grad, const Activation* const _series, const Real* const _weights, const Real* const _biases) const;
-    void computeDeltasInputs(vector<Real>& grad, const Activation* const _series) const
-    {
-        computeDeltasInputs(grad, _series, weights, biases);
-    }
-    
-    void computeDeltasSeries(vector<Activation*>& _series, const int first, const int last, const Real* const _weights, const Real* const _biases) const;
-    void computeDeltasSeries(vector<Activation*>& _series, const int first, const int last) const
-    {
-        computeDeltasSeries(_series, first, last, weights, biases);
-    }
-    
-    void computeGradsSeries(const vector<Activation*>& _series, const int k, Grads* const _Grad, const Real* const _weights) const;
-    void computeGradsSeries(const vector<Activation*>& _series, const int k, Grads* const _Grad) const
-    {
-        computeGradsSeries(_series, k, _Grad, weights);
-    }
-    void computeGrads(const Activation* const _series, Grads* const _Grad, const Real* const _weights) const;
-    void computeGrads(const Activation* const _series, Grads* const _Grad) const
-    {
-        computeGrads(_series, _Grad, weights);
-    }
-    
-    void computeAddGradsSeries(const vector<Activation*>& _series, const int first, const int last, Grads* const _Grad, const Real* const _weights) const;
-    void computeAddGradsSeries(const vector<Activation*>& _series, const int first, const int last, Grads* const _Grad) const
-    {
-        computeAddGradsSeries(_series, first, last, _Grad, weights);
-    }
-    void computeAddGrads(const Activation* const _series, Grads* const _Grad, const Real* const _weights) const;
-    void computeAddGrads(const Activation* const _series, Grads* const _Grad) const
-    {
-        computeAddGrads(_series, _Grad, weights);
-    }
-    
-    void checkGrads(const vector<vector<Real>>& inputs, const int lastn);
+    void checkGrads(const vector<vector<Real>>& inputs, const int lastn=inputs.size());
 
     void save(const string fname);
     void dump(const int agentID);

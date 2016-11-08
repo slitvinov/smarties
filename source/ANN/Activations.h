@@ -2,7 +2,7 @@
  *  Activations.h
  *  rl
  *
- *  Created by Dmitry Alexeev and extended by Guido Novati on 04.02.16.
+ *  Guido Novati on 04.02.16.
  *  Copyright 2016 ETH Zurich. All rights reserved.
  *
  */
@@ -71,36 +71,25 @@ struct Activation //All the network signals
 
     void clearOutput()
     {
-        for (int j=0; j<nNeurons; j++)
-        *(outvals +j) = 0.;
-
-        for (int j=0; j<nStates; j++)
-        *(ostates +j) = 0.;
+    	std::memset(outvals,0.,nNeurons);
+    	std::memset(ostates,0.,nStates);
     }
 
     void clearErrors()
     {
-        for (int j=0; j<nNeurons; j++)
-            *(errvals +j) = 0.;
-
-        for (int j=0; j<nStates; j++) {
-            *(eOGates +j) = 0.;
-            *(eIGates +j) = 0.;
-            *(eFGates +j) = 0.;
-            *(eMCell  +j) = 0.;
-        }
+    	std::memset(errvals,0.,nNeurons);
+    	std::memset(eOGates,0.,nStates);
+    	std::memset(eIGates,0.,nStates);
+    	std::memset(eFGates,0.,nStates);
+    	std::memset(eMCell,0.,nStates);
     }
 
     void clearInputs()
     {
-        for (int j=0; j<nNeurons; j++)
-            *(in_vals +j) = 0.;
-
-        for (int j=0; j<nStates; j++) {
-            *(iIGates +j) = 0.;
-            *(iFGates +j) = 0.;
-            *(iOGates +j) = 0.;
-        }
+    	std::memset(in_vals,0.,nNeurons);
+    	std::memset(iIGates,0.,nStates);
+    	std::memset(iFGates,0.,nStates);
+    	std::memset(iOGates,0.,nStates);
     }
 
     const int nNeurons, nStates;
@@ -142,188 +131,186 @@ struct Mem //Memory light recipient for prediction on agents
     Real *outvals, *ostates;
 };
 
-class Response
+struct Linear
 {
-public:
-    virtual inline Real eval(const Real& arg) const
+	inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        return arg;
+		for (int o=0; o<N; o++) out[o] = in[o];
     }
     
-    virtual inline Real evalDiff(const Real& arg) const
+	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        return 1;
+		for (int o=0; o<N; o++) out[o] = 1.;
     }
 };
-class Tanh : public Response
+struct Tanh
 {
-public:
-    inline Real eval(const Real& arg) const override
+	inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        if (arg >  20.) return  1.;
-        if (arg < -20.) return -1.;
-        const Real e2x = exp(2.*arg);
-        return (e2x - 1.) / (e2x + 1.);
+		for (int o=0; o<N; o++) {
+			const Real e2x = std::exp(2.*in[o]);
+			out[o] = (e2x - 1.) / (e2x + 1.);
+		}
     }
     
-    inline Real evalDiff(const Real& arg) const override
+	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        const Real e2x = exp(2.*arg);
-        const Real t = (e2x + 1.);
-        return 4*e2x/(t*t);
+		for (int o=0; o<N; o++) {
+			const Real e2x = std::exp(2.*in[o]);
+			const Real t = (e2x + 1.);
+			out[o] = 4*e2x/(t*t);
+		}
     }
 };
-class Tanh2 : public Response
+struct TwoTanh
 {
-public:
-    inline Real eval(const Real& arg) const override
+	inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        if (arg >  20.) return  2.;
-        if (arg < -20.) return -2.;
-        const Real e2x = exp(2.*arg);
-        return 2.*(e2x - 1.) / (e2x + 1.);
+		for (int o=0; o<N; o++) {
+			const Real e2x = std::exp(2.*in[o]);
+			out[o] = 2.*(e2x - 1.) / (e2x + 1.);
+		}
     }
     
-    inline Real evalDiff(const Real& arg) const override
+	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        const Real e2x = exp(2.*arg);
-        const Real t = (e2x + 1.);
-        return 8.*e2x/(t*t);
+		for (int o=0; o<N; o++) {
+			const Real e2x = std::exp(2.*in[o]);
+			const Real t = (e2x + 1.);
+			out[o] = 8.*e2x/(t*t);
+		}
     }
 };
-class Sigm : public Response
+struct Sigm
 {
-public:
-    inline Real eval(const Real& arg) const override
+	inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        if (arg >  10.) return 1.;
-        if (arg < -10.) return 0.;
-        return 1. / (1. + exp(-arg));
+		for (int o=0; o<N; o++) out[o] = 1. / (1. + std::exp(-in[o]));
     }
     
-    inline Real evalDiff(const Real& arg) const override
+	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        const Real ex = exp(arg);
-        const Real e2x = (1. + ex)*(1. + ex);
-        return ex/e2x;
+		for (int o=0; o<N; o++) {
+			const Real ex = std::exp(in[o]);
+			const Real e2x = (1. + ex)*(1. + ex);
+			out[o] = ex/e2x;
+		}
     }
 };
-class Gaussian : public Response
+struct SoftSign
 {
-public:
-    inline Real eval(const Real& x) const override
+	inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        if (x > 3 || x < -3) return 0;
-        return exp(-x*x);
+		for (int o=0; o<N; o++) out[o] = in[o]/(1. + std::fabs(in[o]));
     }
-    inline Real evalDiff(const Real& x) const override
+    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        return -2. * x * exp(-x*x);
+		for (int o=0; o<N; o++) {
+			const Real denom = 1. + std::fabs(in[o]);
+			out[o] = 1./(denom*denom);
+		}
     }
 };
-class SoftSign : public Response
+struct TwoSoftSign
 {
-public:
-    inline Real eval(const Real& x) const override
+	inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        return x/(1. + fabs(x));
+		for (int o=0; o<N; o++) out[o] = 2*in[o]/(1. + std::fabs(in[o]));
     }
-    inline Real evalDiff(const Real& x) const override
+	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        const Real denom = 1. + fabs(x);
-        return 1./(denom*denom);
+		for (int o=0; o<N; o++) {
+			const Real denom = 1. + std::fabs(in[o]);
+			out[o] = 2./(denom*denom);
+		}
     }
 };
-class SoftSign2 : public Response
+struct SoftSigm
 {
-public:
-    inline Real eval(const Real& x) const override
+	inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        return 2*x/(1. + fabs(x));
+		for (int o=0; o<N; o++) out[o] = 0.5*(1. + in[o]/(1.+std::fabs(in[o])));
     }
-    inline Real evalDiff(const Real& x) const override
+    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        const Real denom = 1. + fabs(x);
-        return 2./(denom*denom);
+		for (int o=0; o<N; o++) {
+			const Real denom = 1.+std::fabs(in[o]);
+			out[o] = 0.5/(denom*denom);
+		}
     }
 };
-class SoftSigm : public Response
+struct HardSign
 {
-public:
-    inline Real eval(const Real& x) const override
+    inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        const Real _x = 2*x;
-        return 0.5*(1. + _x/(1. + fabs(_x)));
+		for (int o=0; o<N; o++) out[o] = in[o]/std::sqrt(1. + in[o]*in[o]);
     }
-    inline Real evalDiff(const Real& x) const override
+    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        const Real denom = 1. + 2*fabs(x);
-        return 1./(denom*denom);
+		for (int o=0; o<N; o++) {
+			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
+			out[o] = (denom*denom*denom);
+		}
     }
 };
-class HardSign : public Response
+struct TwoHardSign
 {
-    const Real a;
-public:
-    HardSign(Real a = 1) : a(a) {}
-    inline Real eval(const Real& x) const override
+	inline static void eval(const Real* const in, Real* const out, const int& N)
+	{
+		for (int o=0; o<N; o++) out[o] = 2*in[o]/std::sqrt(1. + in[o]*in[o]);
+	}
+	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+	{
+		for (int o=0; o<N; o++) {
+			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
+			out[o] = 2*(denom*denom*denom);
+		}
+	}
+};
+struct HardSigm
+{
+    inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        return a*x/sqrt(1. + a*a*x*x);
+		for (int o=0; o<N; o++) out[o] = 0.5*(1. + in[o]/std::sqrt(1. + in[o]*in[o]));
     }
-    inline Real evalDiff(const Real& x) const override
+    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        const Real denom = 1./sqrt(1. + a*a*x*x);
-        return a*(denom*denom*denom);
+		for (int o=0; o<N; o++) {
+			const Real denom = 1/std::sqrt(1. + in[o]*in[o]);
+			out[o] = 0.5*(denom*denom*denom);
+		}
     }
 };
-class HardSigm : public Response
+struct Relu
 {
-    const Real a;
-public:
-    HardSigm(Real a = 1) : a(a) {}
-    inline Real eval(const Real& x) const override
+	inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        return 0.5*(1. + a*x/sqrt(1. + a*a*x*x) );
+		for (int o=0; o<N; o++) out[o] = in[o]>0 ? in[o] : 0;
     }
-    inline Real evalDiff(const Real& x) const override
+    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        const Real denom = 1/sqrt(1. + a*a*x*x);
-        return a*0.5*(denom*denom*denom);
+		for (int o=0; o<N; o++) out[o] = in[o]>0 ? 1.0 : 0;
     }
 };
-class Relu : public Response
+struct ExpPlus
 {
-public:
-    inline Real eval(const Real& x) const override
+	inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        return x>0 ? x : 0;
+		for (int o=0; o<N; o++) out[o] = log(1.+std::exp(in[o]));
     }
-    inline Real evalDiff(const Real& x) const override
+    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        return x>0 ? 1.0 : 0;
+		for (int o=0; o<N; o++) out[o] = 1./(1. + std::exp(-in[o]));
     }
 };
-class ExpPlus : public Response
+struct SoftPlus
 {
-public:
-    inline Real eval(const Real& x) const override
+	inline static void eval(const Real* const in, Real* const out, const int& N)
     {
-        return log(1.+exp(x));
+		for (int o=0; o<N; o++) out[o] = .5*(in[o]+std::sqrt(1+in[o]*in[o]));
     }
-    inline Real evalDiff(const Real& x) const override
+    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-        return 1./(1. + exp(-x));
-    }
-};
-class SoftPlus : public Response
-{
-public:
-    inline Real eval(const Real& x) const override
-    {
-        return .5*(x+sqrt(1+x*x));
-    }
-    inline Real evalDiff(const Real& x) const override
-    {
-        return .5*(1.+x/sqrt(1+x*x));
+		for (int o=0; o<N; o++) out[o] = .5*(1.+in[o]/std::sqrt(1+in[o]*in[o]));
     }
 };
