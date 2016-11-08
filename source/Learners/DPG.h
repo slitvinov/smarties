@@ -21,7 +21,6 @@ class DPG : public Learner
     void Train_BPTT(const int seq, const int thrID=0) override;
     void Train(const int seq, const int samp, const int thrID=0) override;
     
-    
     void updateTargetNetwork() override;
     void stackAndUpdateNNWeights(const int nAddedGradients) override;
     void updateNNWeights(const int nAddedGradients) override;

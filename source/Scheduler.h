@@ -68,8 +68,8 @@ class Slave
     void packData(const int iAgent);
     void unpackData(const int iAgent);
     void save() const;
+
 public:
-    
     Slave(Environment* env, int me, Settings & settings);
     ~Slave()
     {

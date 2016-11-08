@@ -26,7 +26,7 @@ protected:
 public:
     NormalLayer(int nNeurons, int n1stNeuron, int n1stBias, const vector<Link*>* const nl_il, const Link* const nl_rl, bool last) :
     last(last), nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), input_links(nl_il), recurrent_link(nl_rl) {
-        //printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d\n",nNeurons, n1stNeuron, n1stBias);
+	printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d\n",nNeurons, n1stNeuron, n1stBias);
     }
     
     virtual void propagate(const Activation* const prev, Activation* const curr, const Real* const weights, const Real* const biases) const;
@@ -42,8 +42,8 @@ class Conv2DLayer
     const int outputWidth, outputHeight, outputDepth;
 public:
     Conv2DLayer(int nNeurons, int n1stNeuron, int n1stBias, const vector<Link*>* const nl_il, bool last) :
-    	NormalLayer(nNeurons,n1stNeuron,n1stBias,nl_il,nullptr,last) {
-        //printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d\n",nNeurons, n1stNeuron, n1stBias);
+	NormalLayer(nNeurons,n1stNeuron,n1stBias,nl_il,nullptr,last) {
+	printf("outputWidth=%d, outputHeight=%d, outputDepth=%d\n",outputWidth, outputHeight, outputDepth);
     }
 
     void propagate(const Activation* const prev, Activation* const curr, const Real* const weights, const Real* const biases) const  override;
@@ -60,7 +60,7 @@ public:
               const vector<Link*>* const rl_il, const Link* const rl_rl, bool last) :
     NormalLayer(nNeurons, n1stNeuron, n1stBias, rl_il, rl_rl, last),
     n1stCell(indState), n1stBiasIG(n1stBiasIG), n1stBiasFG(n1stBiasFG), n1stBiasOG(n1stBiasOG) {
-        printf("n1stCell= %d, n1stBiasIG= %d, n1stBiasFG= %d, n1stBiasOG= %d\n", n1stCell, n1stBiasIG, n1stBiasFG, n1stBiasOG);
+	printf("n1stCell=%d, n1stBiasIG=%d, n1stBiasFG=%d, n1stBiasOG=%d\n", n1stCell, n1stBiasIG, n1stBiasFG, n1stBiasOG);
     }
     
     void propagate(const Activation* const prev, Activation* const curr, const Real* const weights, const Real* const biases) const  override;

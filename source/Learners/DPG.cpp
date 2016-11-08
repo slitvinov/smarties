@@ -59,38 +59,27 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     vector<Real> output(nA), inputs(nS);
     s.scaleUsed(inputs);
     
-    if (info==1) //is it the first action performed by agent?
-    {   //then old state, old action and reward are meaningless, just give the action
+    if (info==1) {// if new sequence, sold, aold and reward are meaningless
         net_policy->predict(inputs, output, currActivation);
-    }
-    else
-    {   //then if i'm using RNN i need to load recurrent connections
+    } else { //then if i'm using RNN i need to load recurrent connections
         Activation* prevActivation = net_policy->allocateActivation();
         net_policy->loadMemory(net_policy->mem[agentId], prevActivation);
         net_policy->predict(inputs, output, prevActivation, currActivation);
-        //also, store sOld, aOld -> sNew, r
-        data->passData(agentId, info, sOld, aOld, s, r);
+        data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
         _dispose_object(prevActivation);
     }
-
 #ifdef _dumpNet_
     net_policy->dump(agentId);
 #endif
-    
     //save network transition
     net_policy->loadMemory(net_policy->mem[agentId], currActivation);
     _dispose_object(currActivation);
-    
     //load computed policy into a
     a.descale(output);
     
-    //random action?
-    Real newEps(greedyEps);
+    Real newEps(greedyEps); //random action?
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const Real crutch_1 = 1e6;//stats.relE < 0.5 ? 100. : 1./stats.relE;
-        const Real crutch_2 = static_cast<int>(data->Set.size())/500.;
-        const Real crutch_3 = stats.epochCount/10.;
-        const Real handicap = min(min(crutch_1,crutch_2),crutch_3);
+        const int handicap = min(static_cast<int>(data->Set.size())/500., stats.epochCount/10.);
         newEps = (.1 +greedyEps*exp(-handicap));//*agentId/Real(agentId+1);
         //printf("Random action %f %f %f %f\n",crutch_1,crutch_2,crutch_3,newEps);
     }

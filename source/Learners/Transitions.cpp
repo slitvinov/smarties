@@ -20,9 +20,8 @@ bWriteToFile(!(settings.samplesFile=="none")), iOldestSaved(0)
 {
     Inp.resize(sI.dimUsed);
     Tmp.resize(settings.nAgents);
-    for (int i(0); i<settings.nAgents; i++) {
-        Tmp[i] = new Sequence();
-    }
+    for (int i(0); i<settings.nAgents; i++) Tmp[i] = new Sequence();
+
     dist = new discrete_distribution<int> (1,2); //dummy
     gen = new Gen(settings.gen);
     Set.reserve(NmaxDATA);
@@ -185,8 +184,6 @@ void Transitions::push_back(const int & agentId)
             Set.push_back(Tmp[agentId]);
             nTransitions+=Tmp[agentId]->tuples.size()-1;
         }
-
-
     } else {
         //for (int i(0); i<Tmp[agentId]->tuples.size(); i++) {
         //    _dispose_object(Tmp[agentId]->tuples[i]);
@@ -207,8 +204,7 @@ void Transitions::push_back(const int & agentId)
 
 void Transitions::synchronize()
 {
-    for(auto & bufTransition : Buffered)
-    {
+    for(auto & bufTransition : Buffered) {
         const int ind = iOldestSaved++;
         iOldestSaved = (iOldestSaved == NmaxDATA) ? 0 : iOldestSaved;
 

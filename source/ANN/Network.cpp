@@ -113,7 +113,7 @@ void Network::build_LSTM_layer(Graph* const graph)
 	        		graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
 					graph->input_links_vec, graph->recurrent_link, graph->output);
 	else
-	l = new LSTMLayer<Tanh,SoftSigm,Linear>(
+	l = new LSTMLayer<Linear,SoftSigm,Tanh>(
 					layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
 					graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
 					graph->input_links_vec, graph->recurrent_link, graph->output);

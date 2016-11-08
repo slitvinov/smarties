@@ -58,7 +58,6 @@ inline void Master::packChunk(byte* buf, Action a)
 void Master::restart(string fname)
 {
     learner->restart(fname);
-    
     FILE * f = fopen("master.status", "r");
     int iter_fake(-1);
     if (f == NULL) return;
@@ -80,7 +79,7 @@ void Master::save()
     FILE * f = fopen("master.status", "w");
     if (f != NULL) fprintf(f, "master iter: %d\n", iter);
     fclose(f);
-    printf( "master iter: %d\n", iter);
+    printf("master iter: %d\n", iter);
     
     learner->save("policy");
 }
@@ -104,18 +103,20 @@ void Master::run()
         #ifndef MEGADEBUG
         
         slave = status.MPI_SOURCE;
-        //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize); fflush(0);
+        //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
+        //fflush(0);
         MPI_Recv(inbuf, inOneSize, MPI_BYTE, slave, 2, MPI_COMM_WORLD, &status);
         
         unpackChunk(inbuf, info, sOld, aOld, r, s);
         const int agentID = (slave)*nAgents +agentId;
         assert(agentID>=0);
         learner->select(agentID, s, a, sOld, aOld, info, r);
-        
-        ///printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n", agentID, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(),r, a.print().c_str());  fflush(0);
-        
+        /*
+         printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
+         agentID, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(),r, a.print().c_str());
+         fflush(0);
+         */
         if (info != 1) totR += r;
-        
         if (info != 2) { //not terminal
             packChunk(outbuf, a);
             MPI_Send(outbuf, outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD);
@@ -141,41 +142,36 @@ void Master::hustle()
     while (true) {
         while (true) {
             MPI_Test(&request, &completed, &status);
-            
             if (completed == 1) {
                 cnt++;
-                //printf("Completed after %d tests\n",knt);
                 break;
             }
-            
             //if true: finish processing the dqn update and come right back to hustling
-            if (learner->checkBatch()) {
-                //printf("%d communications, %d tests\n",cnt,knt);
-                return;
-            }
+            if (learner->checkBatch())  return;
             knt++;
         }
         
         slave = status.MPI_SOURCE;
-        //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize); fflush(0);
+        //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
+        //fflush(0);
         MPI_Recv(inbuf, inOneSize, MPI_BYTE, slave, 2, MPI_COMM_WORLD, &status);
         
         unpackChunk(inbuf, info, sOld, aOld, r, s);
         const int agentID = (slave)*nAgents +agentId;
         assert(agentID>=0);
         learner->select(agentID, s, a, sOld, aOld, info, r);
-        
-        ///printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n", agentID, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(),r, a.print().c_str());  fflush(0);
-        
+        /*
+         printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
+         agentID, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(),r, a.print().c_str());
+         fflush(0);
+         */
         if (info != 1) totR += r; //not first state, this is just to track performance
-        
         if (info != 2) { //if terminal, no action required
             packChunk(outbuf, a);
             MPI_Isend(outbuf, outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD, &actRequest);
         }
         
         if (++iter % saveFreq == 0) save();
-        
         //prepare Recv for next round
         MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
     }
@@ -251,14 +247,18 @@ void Slave::run()
                 for (int i(0); i<info.size(); i++) info[i] = 1;
             }
             else info[iAgent] = 1; //else i just restart one agent (e.g. multiple carts env?)
-        }
-        else {
+        } else {
             MPI_Recv(inbuf, insize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
             unpackData(iAgent);
             agents[iAgent]->act(actions[iAgent]);
-            //printf("Agent %d of slave %d was in %s and will act %s.\n", iAgent, me, States[iAgent].print().c_str(), actions[iAgent].print().c_str()); fflush(0);
+            /*
+             printf("Agent %d of slave %d was in %s and will act %s.\n",
+             iAgent, me, States[iAgent].print().c_str(), actions[iAgent].print().c_str());
+             fflush(0);
+             */
             env->setAction(iAgent);
-            //if you got here, then state you send will not be an initial condition (ie. sOld and aOld contain something)
+            //if you got here, then state you send will not be an initial condition
+            //(ie. sOld and aOld contain something)
             info[iAgent] = 0;
         }
     }
