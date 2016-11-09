@@ -68,8 +68,7 @@ DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = 	ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
 		Environment.o CartEnvironment.o TwoActFishEnvironment.o TwoFishEnvironment.o NewFishEnvironment.o \
 		Learner.o NAF.o NFQ.o DPG.o Transitions.o\
-		Scheduler.o util.o\
-		Links.o Layers.o LSTMNet.o Network.o Optimizer.o 
+		Scheduler.o util.o LSTMNet.o Network.o Optimizer.o #Links.o Layers.o
 #ExternalAgent.o 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 

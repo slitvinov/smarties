@@ -94,7 +94,7 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     //if (info!=1) printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
 }
 
-void DPG::Train_BPTT(const int seq, const int first, const int thrID)
+void DPG::Train_BPTT(const int seq, const int thrID)
 {
 	die("DPG with BPTT not implemented: do eet!\n");
 }
@@ -153,7 +153,7 @@ void DPG::Train(const int seq, const int samp, const int thrID)
         
         //now i need to compute dQ/dA, for Q net use tgt weight throughout
         gradient[0] = 1.;
-    	tmp_grad = new Grads(net->nWeights,net->nBiases);
+    	Grads* tmp_grad = new Grads(net->nWeights,net->nBiases);
     	net->backProp(gradient, sNewQAct, net->tgt_weights, tmp_grad);
         _dispose_object(tmp_grad);
     	for(int i=0;i<nA;i++) pol_gradient[i] = sNewQAct->errvals[nS+i];

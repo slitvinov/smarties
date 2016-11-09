@@ -163,13 +163,13 @@ void FishNet::trainSeries(const vector<vector<Real>>& inputs, const vector<vecto
             errs[i] = err;
             trainMSE += 0.5*err*err;
         }
-        net->setOutputErrors(errs, net->series[k]);
+        net->setOutputDeltas(errs, timeSeries[k]);
     }
     
     net->backProp(timeSeries, net->grad);
     opt->update(net->grad,nseries);
     trainMSE /= (Real)nseries;
-    net->deallocateUnrolledActivations(timeSeries);
+    net->deallocateUnrolledActivations(&timeSeries);
 }
 
 void FishNet::predict(const vector<Real>& S1, vector<Real>& Q1, const vector<Real>& S2, vector<Real>& Q2, int iAgent)
@@ -183,10 +183,10 @@ void FishNet::predict(const vector<Real>& S1, vector<Real>& Q1, const vector<Rea
     
     Q1.resize(nOutputs);
     Q2.resize(nOutputs);
-    net->expandMemory(net->mem[iAgent], prevActivation);
+    net->loadMemory(net->mem[iAgent], prevActivation);
     net->predict(S1, Q1, prevActivation, currActivation);
     net->predict(S2, Q2, currActivation, nextActivation);
-    net->expandMemory(net->mem[iAgent], nextActivation);
+    net->loadMemory(net->mem[iAgent], nextActivation);
 
     _dispose_object(prevActivation);
     _dispose_object(currActivation);
@@ -201,9 +201,9 @@ void FishNet::predict(const vector<Real>& input, vector<Real>& output, int iAgen
     Activation* currActivation = net->allocateActivation();
     
     output.resize(nOutputs); //might be a problem. Then again, I wouldn't call it MY problem
-    net->expandMemory(net->mem[iAgent], prevActivation);
+    net->loadMemory(net->mem[iAgent], prevActivation);
     net->predict(input, output, prevActivation, currActivation);
-    net->expandMemory(net->mem[iAgent], currActivation);
+    net->loadMemory(net->mem[iAgent], currActivation);
 
     _dispose_object(prevActivation);
     _dispose_object(currActivation);
@@ -221,7 +221,7 @@ void FishNet::predict(const vector<vector<Real>>& inputs, vector<vector<Real>>& 
         net->predict(inputs[k], res, timeSeries, k);
         outputs.push_back(res);
     }
-    net->deallocateUnrolledActivations(timeSeries);
+    net->deallocateUnrolledActivations(&timeSeries);
 }
 
 void FishNet::predict(const vector<Real>& input, vector<Real>& output)

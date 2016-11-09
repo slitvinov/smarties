@@ -1,6 +1,6 @@
 #!/bin/bash
 NTHREADS=$1
-
+export MV2_ENABLE_AFFINITY=0
 module load gcc/4.9.2
 module load open_mpi
 export OMP_NUM_THREADS=${NTHREADS}

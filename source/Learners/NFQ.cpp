@@ -141,7 +141,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
     if (thrID==0) net->backProp(timeSeries, net->grad);
     else net->backProp(timeSeries, net->Vgrad[thrID]);
 
-    net->deallocateUnrolledActivations(timeSeries);
+    net->deallocateUnrolledActivations(&timeSeries);
 }
 
 void NFQ::Train(const int seq, const int samp, const int thrID)

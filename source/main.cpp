@@ -109,7 +109,7 @@ int main (int argc, char** argv)
     {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.9},
     {'e', "greedyeps",REAL,  "Greedy epsilon", &settings.greedyEps, (Real)0.1},
     {'l', "learnrate",REAL,  "Learning rate",  &settings.lRate,     (Real)0.001},
-    {'b', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)4},
+    {'b', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)10},
     {'a', "learn",    STRING,"Learner Type",   &settings.learner,   (string)"DQ"},
     {'r', "rType",    INT,   "Reward: ef,ef,y",&settings.rewardType,(int)-1},
     {'y', "goalDY",   REAL,  "If r==2  goalDY",&settings.goalDY,    (Real)0.},

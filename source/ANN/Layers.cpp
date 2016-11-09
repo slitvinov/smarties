@@ -13,11 +13,11 @@
 using namespace ErrorHandling;
 
 
-void NormalLayer::propagate(Activation* const curr, const Real* const weights, const Real* const biases) const {
+void Layer::propagate(Activation* const curr, const Real* const weights, const Real* const biases) const {
 	return propagate(nullptr, curr, weights, biases);
 }
 
-void NormalLayer::backPropagate(const Activation* const curr, Grads* const grad, const Real* const weights) const
+void Layer::backPropagate(const Activation* const curr, Grads* const grad, const Real* const weights) const
 {
 	return backPropagate(nullptr, curr, nullptr, grad, weights);
 }

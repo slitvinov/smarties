@@ -17,6 +17,9 @@ using namespace ErrorHandling;
 
 void Network::build_normal_layer(Graph* const graph)
 {
+	vector<NormalLink*>* input_links = new vector<NormalLink*>();
+	NormalLink* recurrent_link;
+	
     const int layerSize = graph->layerSize;
     const int nInputLinks = graph->linkedTo.size();
     const int firstNeuron_ID = nNeurons;
@@ -36,23 +39,24 @@ void Network::build_normal_layer(Graph* const graph)
     	const int firstNeuronFrom = layerFrom->firstNeuron_ID;
     	const int sizeLayerFrom = layerFrom->layerSize;
     	assert(firstNeuronFrom>=0 && firstNeuronFrom<firstNeuron_ID && sizeLayerFrom>0);
-    	Link* tmp = new Link(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID, nWeights);
+    	NormalLink* tmp = new NormalLink(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID, nWeights);
+    	input_links->push_back(tmp);
     	graph->input_links_vec->push_back(tmp);
     	layerFrom->output_links_vec->push_back(tmp);
     	nWeights += sizeLayerFrom*layerSize; //fully connected
     }
 
     if (graph->RNN) { //connected  to past realization of current normal layer
-    	Link* tmp=new Link(layerSize, firstNeuron_ID, layerSize, firstNeuron_ID, nWeights);
-    	graph->recurrent_link = tmp;
+    	recurrent_link = new NormalLink(layerSize, firstNeuron_ID, layerSize, firstNeuron_ID, nWeights);
+    	graph->recurrent_link = recurrent_link;
     	nWeights += layerSize * layerSize;
     }
 
-    NormalLayer * l = nullptr;
+    Layer * l = nullptr;
     if (graph->output)
-	l = new NormalLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, graph->input_links_vec, graph->recurrent_link, graph->output);
+	l = new NormalLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->output);
     else
-    l = new NormalLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, graph->input_links_vec, graph->recurrent_link, graph->output);
+    l = new NormalLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->output);
 
     if (graph->output) printf( "Linear output\n");
     layers.push_back(l);
@@ -60,6 +64,9 @@ void Network::build_normal_layer(Graph* const graph)
 
 void Network::build_LSTM_layer(Graph* const graph)
 {
+	vector<LinkToLSTM*>* input_links = new vector<LinkToLSTM*>();
+	LinkToLSTM* recurrent_link;
+	
 	const int layerSize = graph->layerSize;
 	const int nInputLinks = graph->linkedTo.size();
     const int firstNeuron_ID = nNeurons;
@@ -88,8 +95,9 @@ void Network::build_LSTM_layer(Graph* const graph)
     	const int firstWeightIG = nWeights 		+ sizeLayerFrom*layerSize;
     	const int firstWeightFG = firstWeightIG + sizeLayerFrom*layerSize;
     	const int firstWeightOG = firstWeightFG + sizeLayerFrom*layerSize;
-    	Link* tmp = new LinkToLSTM(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID,
+    	LinkToLSTM* tmp = new LinkToLSTM(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID,
     			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG);
+    	input_links->push_back(tmp);
 		graph->input_links_vec->push_back(tmp);
 		layerFrom->output_links_vec->push_back(tmp);
 		nWeights += sizeLayerFrom*layerSize*4; //fully connected, 4 units per cell
@@ -99,24 +107,24 @@ void Network::build_LSTM_layer(Graph* const graph)
 		const int firstWeightIG = nWeights 		+ layerSize*layerSize;
 		const int firstWeightFG = firstWeightIG + layerSize*layerSize;
 		const int firstWeightOG = firstWeightFG + layerSize*layerSize;
-    	Link* tmp = new LinkToLSTM(layerSize, firstNeuron_ID, layerSize, firstNeuron_ID,
+		recurrent_link = new LinkToLSTM(layerSize, firstNeuron_ID, layerSize, firstNeuron_ID,
     			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG);
-		graph->recurrent_link = tmp;
+		graph->recurrent_link = recurrent_link;
 		nWeights += layerSize*layerSize*4; //fully connected, 4 units per cell
 	}
 
-	NormalLayer * l = nullptr;
+	Layer * l = nullptr;
 
     if (graph->output) //cell output func, gates func, cell input func
 	l = new LSTMLayer<Linear,SoftSigm,Linear>(
 					layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
 	        		graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
-					graph->input_links_vec, graph->recurrent_link, graph->output);
+					input_links, recurrent_link, graph->output);
 	else
 	l = new LSTMLayer<Linear,SoftSigm,Tanh>(
 					layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
 					graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
-					graph->input_links_vec, graph->recurrent_link, graph->output);
+					input_links, recurrent_link, graph->output);
 
 	if (graph->output) printf("Linear LSTM output\n");
 	layers.push_back(l);
@@ -229,6 +237,7 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output,
 						const Real* const _weights, const Real* const _biases) const
 {
 	assert(bBuilt && n_step<timeSeries.size() && n_step>=0);
+    
 	Activation* const currActivation = timeSeries[n_step];
 	Activation* const prevActivation = n_step==0 ? nullptr : timeSeries[n_step-1];
 
@@ -247,7 +256,7 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output,
 						Activation* const prevActivation, Activation* const currActivation,
 						const Real* const _weights, const Real* const _biases) const
 {
-	assert(bBuilt && n_step<timeSeries.size() && n_step>=0);
+	assert(bBuilt);
 
     for (int j=0; j<nInputs; j++) *(currActivation->outvals +j) = _input[j];
 
@@ -282,14 +291,14 @@ void Network::backProp(vector<Activation*>& timeSeries, const Real* const _weigh
 	const int last = timeSeries.size()-1;
 
     for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagate(timeSeries[last-1],timeSeries[last],nullptr, _weights, _grads);
+        layers[nLayers-i]->backPropagate(timeSeries[last-1],timeSeries[last],(Activation*)nullptr, _grads, _weights);
 
     for (int k=last-1; k>=1; k--)
 	for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagate(timeSeries[k-1],timeSeries[k],timeSeries[k+1], _weights, _grads);
+        layers[nLayers-i]->backPropagate(timeSeries[k-1],timeSeries[k],timeSeries[k+1], _grads, _weights);
 
     for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagate(nullptr,timeSeries[0],timeSeries[1], _weights, _grads);
+        layers[nLayers-i]->backPropagate((Activation*)nullptr,timeSeries[0],timeSeries[1], _grads, _weights);
 }
 
 void Network::backProp(const vector<Real>& _errors,
@@ -302,7 +311,7 @@ void Network::backProp(const vector<Real>& _errors,
 		net->errvals[iOut[i]] = _errors[i];
 
     for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagate(net, _weights, _grads);
+        layers[nLayers-i]->backPropagate(net, _grads, _weights);
 }
 
 void Network::clearErrors(vector<Activation*>& timeSeries) const
@@ -376,10 +385,10 @@ vector<Activation*> Network::allocateUnrolledActivations(int length) const
 
 void Network::deallocateUnrolledActivations(vector<Activation*>* const ret) const
 {
-	for (auto & trash : ret) _dispose_object(trash);
+	for (auto & trash : *ret) _dispose_object(trash);
 }
 
-void Network::appendUnrolledActivations(vector<Activation*>* const ret, int length=1) const
+void Network::appendUnrolledActivations(vector<Activation*>* const ret, int length) const
 {
 	for (int j=0; j<=length; j++)
 		ret->push_back(new Activation(nNeurons,nStates));
@@ -421,14 +430,16 @@ void Network::removeDropoutMask()
     }
 }
 
-void Network::checkGrads(const vector<vector<Real>>& inputs, const int seq_len)
+void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
 {
+    if (seq_len<0) seq_len = inputs.size();
 	assert(bBuilt);
     printf("Checking gradients\n");
     vector<int> errorPlacements(seq_len);
     vector<Real> partialResults(seq_len);
     vector<Activation*> timeSeries = allocateUnrolledActivations(seq_len);
     assert(timeSeries.size() == seq_len);
+    vector<Real> res(nOutputs); //allocate net output
     
     const Real incr = 1e-6;
     
@@ -449,7 +460,6 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int seq_len)
 
     backProp(timeSeries, G);
     
-    vector<Real> res(nOutputs); //allocate net output
     for (int w=0; w<nWeights; w++) {
         //1
         weights[w] += incr;
@@ -502,7 +512,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, const int seq_len)
         if (fabs(err)>1e-4) cout <<"B"<<w<<" "<<G->_B[w]<<" "<<g->_B[w]<<" "<<err<<endl;
     }
 
-    deallocateUnrolledActivations(timeSeries);
+    deallocateUnrolledActivations(&timeSeries);
     printf("\n"); fflush(0);
 }
 

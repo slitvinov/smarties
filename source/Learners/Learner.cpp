@@ -143,7 +143,8 @@ void Learner::TrainTasking(Master* const master)
                     #pragma omp flush
                     
                     for (int i(0); i<batchSize; i++) {
-                        #pragma omp task firstprivate(i) {
+                        #pragma omp task firstprivate(i) 
+                        {
                             const int thrID = omp_get_thread_num();
                             Train(seq[i], samp[i], thrID);
                             

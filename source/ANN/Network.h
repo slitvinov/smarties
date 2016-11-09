@@ -23,7 +23,7 @@ protected:
     const Real Pdrop; //dropout
     vector<int> iOut, dump_ID;
     vector<Graph*> G;
-    vector<NormalLayer*> layers;
+    vector<Layer*> layers;
     void build_LSTM_layer(Graph* const graph);
     void build_normal_layer(Graph* const graph);
 
@@ -119,7 +119,7 @@ public:
     	backProp(_errors, net, weights, _grads);
     }
     
-    void checkGrads(const vector<vector<Real>>& inputs, const int lastn=inputs.size());
+    void checkGrads(const vector<vector<Real>>& inputs, int lastn=-1);
 
     void save(const string fname);
     void dump(const int agentID);
