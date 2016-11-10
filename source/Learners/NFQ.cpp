@@ -82,7 +82,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     for (int i=0; i<nOutputs; ++i) {
         if (output[i]>Val) { Nbest=i; Val=output[i]; }
     }
-    a.unpack(Nbest);
+    a.set(aInfo.labelToAction(Nbest));
     
     //printf("Net selected %d %f for state %s\n",Nbest,a.valsContinuous[0],s.print().c_str());
     //random action?
@@ -146,7 +146,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
 
 void NFQ::Train(const int seq, const int samp, const int thrID)
 {
-    if(not net->allocatedFrozenWeights) die("Allocate them!\n");
+    assert(net->allocatedFrozenWeights);
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
     const int ndata = data->Set[seq]->tuples.size();
 

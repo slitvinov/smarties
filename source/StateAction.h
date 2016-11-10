@@ -165,69 +165,85 @@ struct ActionInfo
     {
         dim = actionInfo.dim;
         
-        values.clear(); bounds.resize(dim);
-        upperBounds.resize(dim); lowerBounds.resize(dim);
-        for (int i=0; i<dim; i++) values.push_back(actionInfo.values[i]);
+        assert(actionInfo.values.size()==dim && actionInfo.bounds.size()==dim && actionInfo.shifts.size()==dim 
+        		 && actionInfo.lowerBounds.size() == dim &&  actionInfo.upperBounds.size() == dim);
+        
+        values = actionInfo.values;
         bounds = actionInfo.bounds;
         shifts = actionInfo.shifts;
         upperBounds = actionInfo.upperBounds;
         lowerBounds = actionInfo.lowerBounds;
+        
+        assert(values.size()==dim && bounds.size()==dim && shifts.size()==dim 
+        		 && lowerBounds.size() == dim &&  upperBounds.size() == dim);
+    }
+
+    //from action indices to unique label (for tables, DQN)
+    int actionToLabel(vector<Real> vals) const
+    {
+        int lab=0;
+        for (int i=0; i<dim; i++) lab += shifts[i]*realActionToIndex(vals[i],i);
+        assert(lab>=0);
+        return lab;
     }
     
+    vector<Real> labelToAction(int lab) const
+    {
+    	vector<Real> ret(dim);
+        for (int i=actInfo.dim-1; i>=0; i--) {
+            ret[i] = indexToRealAction(lab/shifts[i]);
+            lab = lab % shifts[i];
+        }
+        return ret;
+    }
+    
+    Real indexToRealAction(const int lab, const int i) const
+	{
+    	assert(lab>=0 && i>=0 && i<values.size() && lab<values[i].size());
+		return values[i][lab];
+	}
+	
+	int realActionToIndex(const Real val, const int i) const
+	{ //From cont. action, convert to an action index using chosen values in environment
+		assert(values[i].size() == bounds[i]);
+		Real dist = 1e3; int ret = -1;
+		for (int j=0; j<bounds[i]; j++) {
+			const Real _dist = std::fabs(values[i][j]-val);
+			if (_dist<dist) { dist = _dist; ret = j; }
+		}
+		assert(ret>=0);
+		return ret
+	}
+	
+    Real realToScaledReal(const Real action, const int i) const
+    { //i have smth in valsContinuous, i want a scaled value with upper and lower bounds
+        return 2.*(action - lowerBounds[i])/(upperBounds[i] - lowerBounds[i])-1.;
+    }
+    
+    Real scaledRealToReal(const Real scaled, const int i) const
+    { //i have a scaled quantity with lower and upper bnd, i want to get a dimensional action
+        return lowerBounds[i] + 0.5*(scaled+1.)*(upperBounds[i] - );
+    }
 };
 
 class Action
 {
 private:
-    void indexToRealAction(const int i)
-    {
-        valsContinuous[i] = actInfo.values[i][vals[i]];
-    }
-    
-    void realActionToIndex(const int i)
-    { //From cont. action, convert to an action index using chosen values in environment
-        assert(actInfo.values[i].size() == actInfo.bounds[i]);
-        const vector<Real> values(actInfo.values[i]);
-        const int nBounds = actInfo.bounds[i];
-        Real dist = 1e3;
-        for (int j=0; j<nBounds; j++) {
-            const Real _dist = std::fabs(values[j]-valsContinuous[i]);
-            if (_dist<dist) { dist = _dist; vals[i] = j; }
-        }
-    }
-    
-    Real realToScaledReal(const int i) const
-    { //i have smth in valsContinuous, i want a scaled value with upper and lower bounds
-        const Real upperBound = actInfo.upperBounds[i];
-        const Real lowerBound = actInfo.lowerBounds[i];
-        return 2.*(valsContinuous[i] - lowerBound)/(upperBound - lowerBound)-1.;
-    }
-    
-    Real scaledRealToReal(const Real scaled, const int i) const
-    { //i have a scaled quantity with lower and upper bnd, i want to get a dimensional action
-        const Real upperBound = actInfo.upperBounds[i];
-        const Real lowerBound = actInfo.lowerBounds[i];
-        return lowerBound + 0.5*(scaled+1.)*(upperBound - lowerBound);
-    }
     
 public:
 	ActionInfo actInfo;
-    vector<int>  vals;
-    vector<Real> valsContinuous;
+    vector<Real> vals;
     mt19937 * gen;
     
 	Action(const ActionInfo& newActInfo, mt19937 * g) : actInfo(newActInfo), gen(g)
 	{
 		vals.resize(actInfo.dim);
-        valsContinuous.resize(actInfo.dim);
 	}
 	
 	Action& operator= (const Action& a)
 	{
 		if (actInfo.dim != a.actInfo.dim) die("Dimension of actions differ!!!\n");
-
 		for (int i=0; i<actInfo.dim; i++) vals[i] = a.vals[i];
-        for (int i=0; i<actInfo.dim; i++) valsContinuous[i] = a.valsContinuous[i];
 		return *this;
 	}
     
@@ -235,9 +251,8 @@ public:
 	{
 		ostringstream o;
 		o << "[";
-            for (int i=0; i<actInfo.dim-1; i++)
-                o << valsContinuous[i] << " ";
-            o << valsContinuous[actInfo.dim-1];
+		for (int i=0; i<actInfo.dim-1; i++) o << vals[i] << " ";
+		o << vals[actInfo.dim-1];
         o << "]";
 		return o.str();
 	}
@@ -245,8 +260,7 @@ public:
     string printClean() const
 	{
         ostringstream o;
-            for (int i=0; i<actInfo.dim; i++)
-                o << valsContinuous[i] << " ";
+		for (int i=0; i<actInfo.dim; i++)   o << vals[i] << " ";
 		return o.str();
 	}
     
@@ -254,81 +268,47 @@ public:
     void pack(byte* buf) const
     {
         Real* dbuf = (Real*) buf;
-        for (int i=0; i<actInfo.dim; i++)
-            dbuf[i] = valsContinuous[i];
+        for (int i=0; i<actInfo.dim; i++) dbuf[i] = vals[i];
     }
     
     void unpack(byte* buf)
     {
         Real* dbuf = (Real*) buf;
-        for (int i=0; i<actInfo.dim; i++) {
-            valsContinuous[i] = dbuf[i];
-            realActionToIndex(i);
-        }
-    }
-
-    //from action indices to unique label (for tables, DQN)
-    int pack() const
-    {
-        int lab=vals[0];
-        for (int i=1; i<actInfo.dim; i++)
-            lab += actInfo.shifts[i]*vals[i];
-        return lab;
-    }
-    
-    void unpack(int lab)
-    {
-        for (int i=actInfo.dim-1; i>=0; i--) {
-            vals[i] = lab/actInfo.shifts[i];
-            lab     = lab%actInfo.shifts[i];
-            indexToRealAction(i);
-            //printf("%d %d %f\n",lab,vals[i],valsContinuous[i]);
-        }
+        for (int i=0; i<actInfo.dim; i++) vals[i] = dbuf[i];
     }
     
     void set(vector<Real> data)
     {
-        for (int i=0; i<actInfo.dim; i++) {
-            valsContinuous[i] = data[i];
-            realActionToIndex(i);
-        }
+        for (int i=0; i<actInfo.dim; i++) vals[i] = data[i];
+    }
+    
+    vector<Real> scale() const
+    {
+        vector<Real> res(actInfo.dim);
+        for (int i=0; i<actInfo.dim; i++) res[i] = actInfo.realToScaledReal(vals[i], i);
+        return res;
+    }
+    
+    void set_fromScaled(vector<Real> data)
+    {
+        for (int i=0; i<actInfo.dim; i++) vals[i] = actInfo.scaledRealToReal(data[i], i);
     }
     
     void getRandom(const int iRand = -1)
     {
         std::normal_distribution<Real> dist(0.,0.5);
         
-        if ( iRand<0 || iRand >= actInfo.dim )
-        {
+        if ( iRand<0 || iRand >= actInfo.dim ) {
+        	//select all random actions
             for (int i=0; i<actInfo.dim; i++) {
                 const Real uB = actInfo.values[i].back();
                 const Real lB = actInfo.values[i].front();
-                valsContinuous[i]=lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
-                realActionToIndex(i);
+                valsContinuous[i]=    lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
             }
-        }
-        else
-        {
-            const Real uB = actInfo.values[iRand].back();
-            const Real lB = actInfo.values[iRand].front();
-            valsContinuous[iRand]=lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
-            realActionToIndex(iRand);
-        }
-    }
-    
-    vector<Real> scale() const
-    {
-        vector<Real> res(actInfo.dim);
-        for (int i=0; i<actInfo.dim; i++) res[i] = realToScaledReal(i);
-        //printf("%f %f\n",res[0],valsContinuous[0]);
-        return res;
-    }
-    
-    void descale(vector<Real> data)
-    {
-        for (int i=0; i<actInfo.dim; i++) {
-            valsContinuous[i] = scaledRealToReal(data[i], i);
-            realActionToIndex(i);
+        } else {  //select just one
+				const Real uB = actInfo.values[iRand].back();
+				const Real lB = actInfo.values[iRand].front();
+				valsContinuous[iRand]=lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
         }
     }
 };

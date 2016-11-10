@@ -121,7 +121,7 @@ public:
 
         for (int i = 0; i < nI; i++)
         for (int o = 0; o < nO; o++) {
-            assert(nI*i+o>=0 && nI*i+o<nW);
+            assert(nO*i+o>=0 && nO*i+o<nW);
             link_outputs[o] += link_input[i] * link_weights[nO*i + o];
         }
     }

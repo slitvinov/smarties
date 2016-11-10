@@ -21,8 +21,7 @@
 struct Tuple
 {
     vector<Real> s;
-    int a;
-    vector<Real> aC;
+    vector<Real> a;
     Real r;
 };
 

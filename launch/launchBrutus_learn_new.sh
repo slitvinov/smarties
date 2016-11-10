@@ -14,14 +14,14 @@ if [ $# -gt 4 ] ; then
     cp $5 ${BASEPATH}${RUNFOLDER}/policy.net
 fi
 if [ $# -lt 7 ] ; then
-    NTASK=2 #n tasks per node
+    NTASK=4 #n tasks per node
     NTHREADS=12 #n threads per task
 else
     NTASK=$6
     NTHREADS=$7
 fi
 if [ $# -lt 8 ] ; then
-    WCLOCK=12:00
+    WCLOCK=48:00
 else
     WCLOCK=$8
 fi
@@ -45,8 +45,8 @@ cp runBrutus_learn.sh ${BASEPATH}${RUNFOLDER}/run.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}
-#./run.sh ${NPROCESS} ${NTHREADS} ${NTASK}
-bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -W ${WCLOCK} ./run.sh  ${NPROCESS} ${NTHREADS} ${NTASK}
+./run.sh ${NPROCESS} ${NTHREADS} ${NTASK}
+#bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -W ${WCLOCK} ./run.sh  ${NPROCESS} ${NTHREADS} ${NTASK}
 
 for (( c=1; c<=${TIMES}-1; c++ ))
 do

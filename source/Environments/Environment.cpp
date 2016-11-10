@@ -104,8 +104,8 @@ void Environment::spawn_server()
 void Environment::setAction(const int & iAgent)
 {
     for (int i=0; i<aI.dim; i++) {
-        dataout[i] = (double) agents[iAgent]->a->valsContinuous[i];
-        assert(not std::isnan(agents[iAgent]->a->valsContinuous[i]) && not std::isinf(agents[iAgent]->a->valsContinuous[i]));
+        dataout[i] = (double) agents[iAgent]->a->vals[i];
+        assert(not std::isnan(agents[iAgent]->a->vals[i]) && not std::isinf(agents[iAgent]->a->vals[i]));
     }
     send_all(sock, dataout, sizeout);
 }
@@ -164,6 +164,7 @@ void Environment::commonSetup()
         if (sI.inUse[i]) sI.dimUsed++;
     }
     printf("State has %d component, %d in use\n", sI.dim, sI.dimUsed);
+    
     aI.shifts.resize(aI.dim);
     aI.shifts[0] = 1;
     for (int i=1; i < aI.dim; i++) {

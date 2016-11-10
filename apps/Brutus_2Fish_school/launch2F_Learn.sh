@@ -2,7 +2,7 @@ SOCK=$1
 PROGNAME=hyperion
 SETTINGSNAME=settings2F_Learn.sh
 EXECNAME=LearningSim
-NTHREADS=48
+NTHREADS=12
 
 module load gcc/4.9.2
 #module purge

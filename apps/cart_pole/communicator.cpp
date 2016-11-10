@@ -1,9 +1,16 @@
 #include "communicator.h"
-#include <iostream>
 #include "util.h"
+
+#include <iostream>
+#include <cmath>
+#include <cassert>
+
 
 void Communicator::sendState(int agentId, int info, std::vector<double>& state, double reward)
 {
+	for (int j=0; j<nStates; j++) 
+	        if (std::isnan(state[j]) || std::isinf(state[j]) ) abort();
+	    
     std::ostringstream o;
     o <<"Send: "<<agentId<<" "<<msgID++<<" "<< info<<" ";
     {int *ptr=(int*)(dataout);   *ptr=agentId;}

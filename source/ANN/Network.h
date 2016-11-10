@@ -32,7 +32,7 @@ public:
     bool allocatedFrozenWeights, allocatedDroputWeights, backedUp, bDump;
     mt19937 * gen;
     vector<Mem*> mem;
-    Grads * grad, * _grad;
+    Grads * grad;//, * _grad;
     Real *weights, *biases, *tgt_weights, *tgt_biases, *weights_DropoutBackup;
     vector<Grads*> Vgrad;
 
@@ -59,7 +59,7 @@ public:
         for (auto & trash : mem) _dispose_object( trash);
         for (auto & trash : Vgrad) _dispose_object( trash);
         _dispose_object( grad);
-        _dispose_object(_grad);
+        //_dispose_object(_grad);
         _myfree( weights )
         _myfree( biases )
         _myfree( tgt_weights )

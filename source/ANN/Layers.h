@@ -64,10 +64,7 @@ public:
     {
         const Real* const inputs = curr->in_vals +n1stNeuron;
         Real* const deltas = curr->errvals +n1stNeuron;
-
-        Real funcDiff[nNeurons];
-        Func::evalDiff(inputs, funcDiff, nNeurons);
-        for (int o=0; o<nNeurons; o++) deltas[o] *= funcDiff[o];
+        Func::mulDiff(inputs, deltas, nNeurons);
 
         for (const auto & link : *input_links)
                       link->backPropagate(curr,curr,weights,grad->_W);
@@ -119,9 +116,7 @@ public:
     {
         const Real* const inputs = curr->in_vals +n1stNeuron;
         Real* const errors = curr->errvals +n1stNeuron;
-        Real funcDiff[nNeurons];
-        Func::evalDiff(inputs, funcDiff, nNeurons);
-        for (int o=0; o<nNeurons; o++) errors[o] *= funcDiff[o];
+        Func::mulDiff(inputs, errors, nNeurons);
 
         for (const auto & link : *input_links)
             link->backPropagate(curr,curr,weights,grad->_W);
@@ -211,26 +206,26 @@ public:
         Real* const deltaC = curr->eMCell +n1stCell;
 
         Real evalCurrState[nNeurons], diffCurrState[nNeurons];
-        Cell::evalDiff(inputs, deltaC, nNeurons);
-        Sigm::evalDiff(inputI, deltaI, nNeurons);
-        Sigm::evalDiff(inputO, deltaO, nNeurons);
+        
+        Cell::evalDiff(inputs, deltaC, outputI, nNeurons);
+        Sigm::evalDiff(inputI, deltaI, outputC, nNeurons);
+        Sigm::evalDiff(inputO, deltaO, deltas,  nNeurons);
         Func::eval(curr->ostates +n1stCell, evalCurrState, nNeurons);
         Func::evalDiff(curr->ostates +n1stCell, diffCurrState, nNeurons);
 
-        for (int o=0; o<nNeurons; o++) {
-            deltaO[o] *= deltas[o] * evalCurrState[o];
+        for (int o=0; o<nNeurons; o++) 
             deltas[o]  = deltas[o] * outputO[o] * diffCurrState[o] +
                     (next==nullptr ?  0 : *(next->errvals+n1stNeuron+o)* *(next->oFGates+n1stCell+o));
-            deltaC[o] *= deltas[o] * outputI[o];
-            deltaI[o] *= deltas[o] * outputC[o];
-        }
 
-        if (prev==nullptr) {
-            for (int o=0; o<nNeurons; o++) deltaF[o] = 0.;
-        } else {
-		Sigm::evalDiff(inputF, deltaF, nNeurons);
-		for (int o=0; o<nNeurons; o++) deltaF[o] *= deltas[o] * *(prev->ostates +n1stCell+o);
-	}
+        if (prev==nullptr) for (int o=0; o<nNeurons; o++) deltaF[o] = 0.;
+        else Sigm::evalDiff(inputF, deltaF, prev->ostates+n1stCell, nNeurons);
+		
+		for (int o=0; o<nNeurons; o++) {
+            deltaC[o] *= deltas[o];
+            deltaI[o] *= deltas[o];
+            deltaO[o] *= evalCurrState[o];
+			deltaF[o] *= deltas[o];
+		}
 
 	for (const auto & link : *input_links)
 				  link->backPropagate(curr,curr,weights,grad->_W);

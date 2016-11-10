@@ -18,7 +18,7 @@ using namespace ErrorHandling;
 void Network::build_normal_layer(Graph* const graph)
 {
 	vector<NormalLink*>* input_links = new vector<NormalLink*>();
-	NormalLink* recurrent_link;
+	NormalLink* recurrent_link = nullptr;
 	
     const int layerSize = graph->layerSize;
     const int nInputLinks = graph->linkedTo.size();
@@ -65,7 +65,7 @@ void Network::build_normal_layer(Graph* const graph)
 void Network::build_LSTM_layer(Graph* const graph)
 {
 	vector<LinkToLSTM*>* input_links = new vector<LinkToLSTM*>();
-	LinkToLSTM* recurrent_link;
+	LinkToLSTM* recurrent_link = nullptr;
 	
 	const int layerSize = graph->layerSize;
 	const int nInputLinks = graph->linkedTo.size();
@@ -210,13 +210,9 @@ void Network::build()
 	_allocateClean(weights, nWeights)
 	_allocateClean(biases,  nBiases)
 
-	if (nThreads>1) {
-		Vgrad.resize(nThreads);
-		for (int i=0; i<nThreads; ++i)
-			Vgrad[i] = new Grads(nWeights, nBiases);
-	} else {
-		_grad    = new Grads(nWeights, nBiases);
-	}
+	Vgrad.resize(nThreads);
+	for (int i=0; i<nThreads; ++i)
+		Vgrad[i] = new Grads(nWeights, nBiases);
 
 	for (auto & graph : G) //TODO use for save/restart
 		graph->initializeWeights(gen, weights, biases);
@@ -293,7 +289,7 @@ void Network::backProp(vector<Activation*>& timeSeries, const Real* const _weigh
     for (int i=1; i<=nLayers; i++)
         layers[nLayers-i]->backPropagate(timeSeries[last-1],timeSeries[last],(Activation*)nullptr, _grads, _weights);
 
-    for (int k=last-1; k>=1; k--)
+    for (int k=last-1; k>=1; k--) 
 	for (int i=1; i<=nLayers; i++)
         layers[nLayers-i]->backPropagate(timeSeries[k-1],timeSeries[k],timeSeries[k+1], _grads, _weights);
 
@@ -379,8 +375,9 @@ Activation* Network::allocateActivation() const
 vector<Activation*> Network::allocateUnrolledActivations(int length) const
 {
 	vector<Activation*> ret(length);
-	for (int j=0; j<=length; j++)
+	for (int j=0; j<length; j++)
 		ret[j] = new Activation(nNeurons,nStates);
+	return ret;
 }
 
 void Network::deallocateUnrolledActivations(vector<Activation*>* const ret) const
@@ -481,9 +478,9 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         g->_W[w] = grad/(2.*incr);
         
         //const Real scale = fabs(*(biases+w));
-        const Real scale = max(fabs(G->_W[w]),fabs(g->_W[w]));
+        const Real scale = std::max(std::fabs(G->_W[w]),std::fabs(g->_W[w]));
         const Real err = (G->_W[w] - g->_W[w])/scale;
-        if (fabs(err)>1e-4) cout <<"W"<<w<<" "<<G->_W[w]<<" "<<g->_W[w]<<" "<<err<<endl;
+        if (fabs(err)>1e-6) cout <<"W"<<w<<" "<<G->_W[w]<<" "<<g->_W[w]<<" "<<err<<endl;
     }
     
     for (int w=0; w<nBiases; w++) {
@@ -507,9 +504,9 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         g->_B[w] = grad/(2.*incr);
         
         //const Real scale = fabs(*(biases+w));
-        const Real scale = max(fabs(G->_B[w]), fabs(g->_B[w]));
+        const Real scale = std::max(std::fabs(G->_B[w]), std::fabs(g->_B[w]));
         const Real err = (G->_B[w] - g->_B[w])/scale;
-        if (fabs(err)>1e-4) cout <<"B"<<w<<" "<<G->_B[w]<<" "<<g->_B[w]<<" "<<err<<endl;
+        if (fabs(err)>1e-6) cout <<"B"<<w<<" "<<G->_B[w]<<" "<<g->_B[w]<<" "<<err<<endl;
     }
 
     deallocateUnrolledActivations(&timeSeries);

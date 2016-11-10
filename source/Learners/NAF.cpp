@@ -91,7 +91,7 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     //load computed policy into a
     vector<Real> act(nA);
     for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
-    a.descale(act);
+    a.set_fromScaled(output);
     
     //random action?
     Real newEps(greedyEps);

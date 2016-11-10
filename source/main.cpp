@@ -76,7 +76,7 @@ void runMaster(int nranks)
         settings.nnInputs = env->sI.dimUsed + env->aI.dim;
         settings.nnOutputs = 1;
         learner = new DPG(env,settings);
-    }
+    } else die("Learning algorithm not recognized\n");
     
     Master* master = new Master(learner, env, settings);
     if (settings.restart != "none") master->restart(settings.restart);
@@ -103,13 +103,13 @@ int main (int argc, char** argv)
     
     struct timeval clock;
     gettimeofday(&clock, NULL);
-    debugLvl=12;
+    debugLvl=3;
     
     vector<OptionStruct> opts ({
     {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.9},
     {'e', "greedyeps",REAL,  "Greedy epsilon", &settings.greedyEps, (Real)0.1},
     {'l', "learnrate",REAL,  "Learning rate",  &settings.lRate,     (Real)0.001},
-    {'b', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)10},
+    {'b', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)debugLvl},
     {'a', "learn",    STRING,"Learner Type",   &settings.learner,   (string)"DQ"},
     {'r', "rType",    INT,   "Reward: ef,ef,y",&settings.rewardType,(int)-1},
     {'y', "goalDY",   REAL,  "If r==2  goalDY",&settings.goalDY,    (Real)0.},

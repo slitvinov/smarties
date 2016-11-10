@@ -27,7 +27,7 @@ struct Activation //All the network signals
         //contains all neuron outputs that will be the incoming signal to linked layers (outputs of input layer is network inputs)
         _allocateQuick(outvals, nNeurons)
         //deltas for each neuron
-        _allocateQuick(errvals, nNeurons)
+        _allocateClean(errvals, nNeurons)
         //memory of LSTM
         _allocateQuick(ostates, nStates)
         //inputs to gates (cell into in_vals)
@@ -40,10 +40,10 @@ struct Activation //All the network signals
         _allocateQuick(oFGates, nStates)
         _allocateQuick(oOGates, nStates)
         //errors of gates and LSTM cell
-        _allocateQuick(eMCell, nStates)
-        _allocateQuick(eIGates, nStates)
-        _allocateQuick(eFGates, nStates)
-        _allocateQuick(eOGates, nStates)
+		_allocateClean(eMCell, nStates)
+		_allocateClean(eIGates, nStates)
+		_allocateClean(eFGates, nStates)
+		_allocateClean(eOGates, nStates)
     }
 
     ~Activation()
@@ -142,6 +142,16 @@ struct Linear
     {
 		for (int o=0; o<N; o++) out[o] = 1.;
     }
+	
+	inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    {
+		return;
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) out[o] = err[o];
+    }
 };
 struct Tanh
 {
@@ -158,10 +168,29 @@ struct Tanh
 		for (int o=0; o<N; o++) {
 			const Real e2x = std::exp(2.*in[o]);
 			const Real t = (e2x + 1.);
-			out[o] = 4*e2x/(t*t);
+			out[o]  = 4*e2x/(t*t);
+		}
+    }
+    
+	inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real e2x = std::exp(2.*in[o]);
+			const Real t = (e2x + 1.);
+			out[o] *= 4*e2x/(t*t);
+		}
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real e2x = std::exp(2.*in[o]);
+			const Real t = (e2x + 1.);
+			out[o] = 4*err[o]*e2x/(t*t);
 		}
     }
 };
+
 struct TwoTanh
 {
 	inline static void eval(const Real* const in, Real* const out, const int& N)
@@ -177,7 +206,25 @@ struct TwoTanh
 		for (int o=0; o<N; o++) {
 			const Real e2x = std::exp(2.*in[o]);
 			const Real t = (e2x + 1.);
-			out[o] = 8.*e2x/(t*t);
+			out[o]  = 8.*e2x/(t*t);
+		}
+    }
+    
+	inline static void mullDiff(const Real* const in, Real* const out, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real e2x = std::exp(2.*in[o]);
+			const Real t = (e2x + 1.);
+			out[o] *= 8.*e2x/(t*t);
+		}
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real e2x = std::exp(2.*in[o]);
+			const Real t = (e2x + 1.);
+			out[o] = 8*err[o]*e2x/(t*t);
 		}
     }
 };
@@ -193,7 +240,25 @@ struct Sigm
 		for (int o=0; o<N; o++) {
 			const Real ex = std::exp(in[o]);
 			const Real e2x = (1. + ex)*(1. + ex);
-			out[o] = ex/e2x;
+			out[o]  = ex/e2x;
+		}
+    }
+    
+	inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real ex = std::exp(in[o]);
+			const Real e2x = (1. + ex)*(1. + ex);
+			out[o] *= ex/e2x;
+		}
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real ex = std::exp(in[o]);
+			const Real e2x = (1. + ex)*(1. + ex);
+			out[o] = err[o]*ex/e2x;
 		}
     }
 };
@@ -207,7 +272,22 @@ struct SoftSign
     {
 		for (int o=0; o<N; o++) {
 			const Real denom = 1. + std::fabs(in[o]);
-			out[o] = 1./(denom*denom);
+			out[o]  = 1./(denom*denom);
+		}
+    }
+    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real denom = 1. + std::fabs(in[o]);
+			out[o] *= 1./(denom*denom);
+		}
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real denom = 1. + std::fabs(in[o]);
+			out[o] = err[o]/(denom*denom);
 		}
     }
 };
@@ -221,7 +301,22 @@ struct TwoSoftSign
     {
 		for (int o=0; o<N; o++) {
 			const Real denom = 1. + std::fabs(in[o]);
-			out[o] = 2./(denom*denom);
+			out[o]  = 2./(denom*denom);
+		}
+    }
+	inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real denom = 1. + std::fabs(in[o]);
+			out[o] *= 2./(denom*denom);
+		}
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real denom = 1. + std::fabs(in[o]);
+			out[o] = 2*err[o]/(denom*denom);
 		}
     }
 };
@@ -235,7 +330,22 @@ struct SoftSigm
     {
 		for (int o=0; o<N; o++) {
 			const Real denom = 1.+std::fabs(in[o]);
-			out[o] = 0.5/(denom*denom);
+			out[o]  = 0.5/(denom*denom);
+		}
+    }
+    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real denom = 1.+std::fabs(in[o]);
+			out[o] *= 0.5/(denom*denom);
+		}
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real denom = 1.+std::fabs(in[o]);
+			out[o] = 0.5*err[o]/(denom*denom);
 		}
     }
 };
@@ -249,7 +359,22 @@ struct HardSign
     {
 		for (int o=0; o<N; o++) {
 			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
-			out[o] = (denom*denom*denom);
+			out[o]  = denom*denom*denom;
+		}
+    }
+    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
+			out[o] *= denom*denom*denom;
+		}
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
+			out[o] = err[o]*denom*denom*denom;
 		}
     }
 };
@@ -263,9 +388,24 @@ struct TwoHardSign
 	{
 		for (int o=0; o<N; o++) {
 			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
-			out[o] = 2*(denom*denom*denom);
+			out[o]  = 2*denom*denom*denom;
 		}
 	}
+	inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+	{
+		for (int o=0; o<N; o++) {
+			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
+			out[o] *= 2*denom*denom*denom;
+		}
+	}
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
+			out[o] = 2*err[o]*denom*denom*denom;
+		}
+    }
 };
 struct HardSigm
 {
@@ -277,7 +417,22 @@ struct HardSigm
     {
 		for (int o=0; o<N; o++) {
 			const Real denom = 1/std::sqrt(1. + in[o]*in[o]);
-			out[o] = 0.5*(denom*denom*denom);
+			out[o]  = 0.5*denom*denom*denom;
+		}
+    }
+    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real denom = 1/std::sqrt(1. + in[o]*in[o]);
+			out[o] *= 0.5*denom*denom*denom;
+		}
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) {
+			const Real denom = 1/std::sqrt(1. + in[o]*in[o]);
+			out[o] = 0.5*err[o]*denom*denom*denom;
 		}
     }
 };
@@ -291,6 +446,15 @@ struct Relu
     {
 		for (int o=0; o<N; o++) out[o] = in[o]>0 ? 1.0 : 0;
     }
+    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    {
+		for (int o=0; o<N; o++) out[o] = in[o]>0 ? out[o] : 0;
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) out[o] = in[o]>0 ? err[o] : 0;
+    }
 };
 struct ExpPlus
 {
@@ -300,9 +464,19 @@ struct ExpPlus
     }
     inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-		for (int o=0; o<N; o++) out[o] = 1./(1. + std::exp(-in[o]));
+		for (int o=0; o<N; o++) out[o]  = 1./(1. + std::exp(-in[o]));
+    }
+    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    {
+		for (int o=0; o<N; o++) out[o] *= 1./(1. + std::exp(-in[o]));
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) out[o] = err[o]/(1. + std::exp(-in[o]));
     }
 };
+
 struct SoftPlus
 {
 	inline static void eval(const Real* const in, Real* const out, const int& N)
@@ -311,6 +485,15 @@ struct SoftPlus
     }
     inline static void evalDiff(const Real* const in, Real* const out, const int& N)
     {
-		for (int o=0; o<N; o++) out[o] = .5*(1.+in[o]/std::sqrt(1+in[o]*in[o]));
+		for (int o=0; o<N; o++) out[o]  = .5*(1.+in[o]/std::sqrt(1+in[o]*in[o]));
+    }
+    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    {
+		for (int o=0; o<N; o++) out[o] *= .5*(1.+in[o]/std::sqrt(1+in[o]*in[o]));
+    }
+	
+	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+    {
+		for (int o=0; o<N; o++) out[o] = .5*err[o]*(1.+in[o]/std::sqrt(1+in[o]*in[o]));
     }
 };

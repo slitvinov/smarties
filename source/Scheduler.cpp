@@ -212,7 +212,7 @@ void Slave::run()
         
         if ( bTrain &&  extflag<0) {
             printf("\n\nSIMULATION CRASHED\n\n");
-            return; //if comm failed, retry & pray
+            abort(); //return; //if comm failed, retry & pray
         }
         //if (extflag<0) die("Comm failed, call again & pray.\n");
         //not bTrain assumes that im only interested in one run (e.g. for animation)

@@ -55,6 +55,6 @@ SETTINGS+=" -rho 1.0"
 SETTINGS+=" -dumpfreq 0"
 SETTINGS+=" -savefreq 0"
 
-SETTINGS+=" -DumpTFreq 4"
+SETTINGS+=" -DumpTFreq 0"
 SETTINGS+=" -SaveTFreq 0"
 #SETTINGS+=" -vtu 1"

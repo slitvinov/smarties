@@ -29,6 +29,14 @@ using namespace std;
 typedef double Real;
 
 
+template <typename T>
+void _dispose_object(T *& ptr)
+{
+    if(ptr == nullptr) return;
+    delete ptr;
+    ptr=nullptr;
+}
+
 struct Settings
 {
     Settings() :
@@ -45,16 +53,12 @@ struct Settings
     string learner, restart, configFile, prefix, samplesFile;
     bool bSeparateOutputs;
     mt19937 * gen;
+    
+    ~Settings() 
+    {
+    	_dispose_object(gen);
+    }
 };
-
-
-template <typename T>
-void _dispose_object(T *& ptr)
-{
-    if(ptr == nullptr) return;
-    delete ptr;
-    ptr=nullptr;
-}
 
 namespace ErrorHandling
 {

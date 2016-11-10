@@ -75,7 +75,7 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     net_policy->loadMemory(net_policy->mem[agentId], currActivation);
     _dispose_object(currActivation);
     //load computed policy into a
-    a.descale(output);
+    a.set_fromScaled(output);
     
     Real newEps(greedyEps); //random action?
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
