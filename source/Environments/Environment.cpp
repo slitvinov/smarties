@@ -105,7 +105,8 @@ void Environment::setAction(const int & iAgent)
 {
     for (int i=0; i<aI.dim; i++) {
         dataout[i] = (double) agents[iAgent]->a->vals[i];
-        assert(not std::isnan(agents[iAgent]->a->vals[i]) && not std::isinf(agents[iAgent]->a->vals[i]));
+        assert(not std::isnan(agents[iAgent]->a->vals[i]) &&
+        	   not std::isinf(agents[iAgent]->a->vals[i]));
     }
     send_all(sock, dataout, sizeout);
 }

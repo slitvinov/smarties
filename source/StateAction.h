@@ -311,5 +311,10 @@ public:
 				valsContinuous[iRand]=lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
         }
     }
+
+    int getActionLabel()
+    {
+    	return actInfo.actionToLabel(vals);
+    }
 };
 

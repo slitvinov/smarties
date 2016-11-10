@@ -95,7 +95,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     //if(dis(*gen) < newEps) a.getRand();
     if(dis(*gen) < newEps) {
         const int randomActionLabel = nOutputs*dis(*gen);
-        a.unpack(randomActionLabel);
+        a.set(aInfo.labelToAction(randomActionLabel));
         //printf("Random action %d %d %f %d %f\n",data->Set.size(),stats.epochCount,newEps, a.vals[0], a.valsContinuous[0]);
     }
     //if (info!=1) printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
@@ -151,7 +151,6 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
     const int ndata = data->Set[seq]->tuples.size();
 
     Activation* sOldActivation = net->allocateActivation();
-    Activation* sNewActivation = net->allocateActivation();
     sOldActivation->clearErrors();
 
     const Tuple * const _t = data->Set[seq]->tuples[samp+1];
@@ -159,8 +158,10 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
     
     const bool term = samp+2==ndata && data->Set[seq]->ended;
     if (not term) {
+        Activation* sNewActivation = net->allocateActivation();
         net->predict(_t->s, Qhats,   sNewActivation);
         net->predict(_t->s, Qtildes, sNewActivation, net->tgt_weights, net->tgt_biases);
+        _dispose_object(sNewActivation);
     }
     
     // find best action for sNew with moving wghts, evaluate it with tgt wgths:
@@ -180,5 +181,4 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
 	else net->backProp(errs, sOldActivation, net->Vgrad[thrID]);
 
     _dispose_object(sOldActivation);
-    _dispose_object(sNewActivation);
 }

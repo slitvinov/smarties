@@ -184,19 +184,21 @@ void NewFishEnvironment::setDims()
 
 void NewFishEnvironment::setAction(const int & iAgent)
 {
-    if ( agents[iAgent]->a->valsContinuous[0] > .75 ) {
+    if ( agents[iAgent]->a->vals[0] > .75 ) {
+    	printf("Action 0 is too large (>0), reassigned at random to prevent sim from crashing\n");
         std::normal_distribution<Real> dist(0.5,0.25);
         const Real uB = 0.75; const Real lB = -.75;
-        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
     }
-    if ( agents[iAgent]->a->valsContinuous[0] <-.75 ) {
+    if ( agents[iAgent]->a->vals[0] <-.75 ) {
+    	printf("Action 0 is too large (<0), reassigned at random to prevent sim from crashing\n");
         std::normal_distribution<Real> dist(-.5,0.25);
         const Real uB = 0.75; const Real lB = -.75;
-        agents[iAgent]->a->valsContinuous[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
     }
     
     for (int i=0; i<aI.dim; i++)
-        dataout[i] = (double) agents[iAgent]->a->valsContinuous[i];
+        dataout[i] = (double) agents[iAgent]->a->vals[i];
     
     send_all(sock, dataout, sizeout);
 }
@@ -208,7 +210,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
         printf("Mismatch new and old state!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
     }
-    if (fabs(t_sN.vals[4] -t_a.valsContinuous[0])>0.001) {
+    if (fabs(t_sN.vals[4] -t_a.vals[0])>0.001) {
         printf("Mismatch state and action!!! \n %s \n %s \n",t_a.print().c_str(),t_sN.print().c_str());
         abort();
     }/*

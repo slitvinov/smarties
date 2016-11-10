@@ -165,7 +165,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
     
     const bool new_sample = env->pickReward(sOld,a,sNew,reward); // || info==2 TODO
     t->r = reward;
-    t->a = a.pack();
+    t->a = a.getActionLabel();
     t->aC = a.scale();
     //printf("Transitions storing: %d %f %f for state %s\n",t->a, t->aC[0],a.valsContinuous[0],sOld.print().c_str()); fflush(0);
     Tmp[agentId]->tuples.push_back(t);
