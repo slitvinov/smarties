@@ -26,6 +26,7 @@ protected:
     vector<Layer*> layers;
     void build_LSTM_layer(Graph* const graph);
     void build_normal_layer(Graph* const graph);
+    void build_whitening_layer(Graph* const graph);
 
 public:
     int nAgents, nThreads, nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates;
@@ -37,18 +38,29 @@ public:
     vector<Grads*> Vgrad;
 
     void build();
-    void addInput(const int size);
+    
     int getnWeights() const {assert(bBuilt); return nWeights;}
     int getnBiases() const {assert(bBuilt); return nBiases;}
     int getnOutputs() const {assert(bBuilt); return nOutputs;}
     int getnInputs() const {assert(bBuilt); return nInputs;}
     int getLastLayerID() const {return G.size()-1;}
-    void addLayer(const int size, const string type, vector<int> linkedTo, const bool output);
-    void addLayer(const int size, const string type, vector<int> linkedTo) {addLayer(size,type,linkedTo,false);}
-    void addLayer(const int size, const string type, const bool output) {addLayer(size,type,vector<int>(),output);}
-    void addLayer(const int size, const string type) {addLayer(size,type,vector<int>(),false);}
-    void addOutput(const int size, const string type, vector<int> linkedTo) {addLayer(size,type,linkedTo,true);}
-    void addOutput(const int size, const string type) {addLayer(size,type,vector<int>(),true);}
+    
+    void addInput(const int size, const bool normalize);
+    void addInput(const int size) {
+        addInput(size, true);}
+    
+    void addLayer(const int size, const string type, const bool normalize, vector<int> linkedTo, const bool output);
+    void addLayer(const int size, const string type, vector<int> linkedTo) {
+        addLayer(size,type,true,linkedTo,false);}
+    void addLayer(const int size, const string type, const bool normalize) {
+        addLayer(size,type,normalize,vector<int>(),false);}
+    void addLayer(const int size, const string type) {
+        addLayer(size,type,true,vector<int>(),false);}
+    
+    void addOutput(const int size, const string type, vector<int> linkedTo) {
+        addLayer(size,type,false,linkedTo,true);}
+    void addOutput(const int size, const string type) {
+        addLayer(size,type,false,vector<int>(),true);}
 
     Network(const Settings & settings);
     
@@ -82,27 +94,27 @@ public:
 
     void predict(const vector<Real>& _input, vector<Real>& _output,
     			vector<Activation*>& timeSeries, const int n_step,
-				const Real* const _weights, const Real* const _biases) const;
+				const Real* const _weights, const Real* const _biases, const Real noise=0.) const;
     void predict(const vector<Real>& _input, vector<Real>& _output,
-    			vector<Activation*>& timeSeries, const int n_step) const
+    			vector<Activation*>& timeSeries, const int n_step, const Real noise=0.) const
     {
-        predict(_input, _output, timeSeries, n_step, weights, biases);
+        predict(_input, _output, timeSeries, n_step, weights, biases, noise);
     }
     
     void predict(const vector<Real>& _input, vector<Real>& _output,
 				Activation* const prevActivation, Activation* const currActivation,
-				const Real* const _weights, const Real* const _biases) const;
+				const Real* const _weights, const Real* const _biases, const Real noise=0.) const;
     void predict(const vector<Real>& _input, vector<Real>& _output,
-				Activation* const prevActivation, Activation* const currActivation) const
+				Activation* const prevActivation, Activation* const currActivation, const Real noise=0.) const
     {
-        predict(_input, _output, prevActivation, currActivation, weights, biases);
+        predict(_input, _output, prevActivation, currActivation, weights, biases, noise);
     }
     
     void predict(const vector<Real>& _input, vector<Real>& _output, Activation* const net,
-    			const Real* const _weights, const Real* const _biases) const;
-    void predict(const vector<Real>& _input, vector<Real>& _output, Activation* const net) const
+    			const Real* const _weights, const Real* const _biases, const Real noise=0.) const;
+    void predict(const vector<Real>& _input, vector<Real>& _output, Activation* const net, const Real noise=0.) const
     {
-        predict(_input, _output, net, weights, biases);
+        predict(_input, _output, net, weights, biases, noise);
     }
 
     void backProp(vector<Activation*>& timeSeries,

@@ -73,26 +73,25 @@ public:
      */
 	NormalLink(int nI, int iI, int nO, int iO, int iW) : iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), nW(nI*nO)
     {
-		assert(nI>0 && nO>0 && iI>=0 && iO>=0 && iW>=0);
 		print();
+		assert(nI>0 && nO>0 && iI>=0 && iO>=0 && iW>=0);
     }
 
     void print() const
     {
-        cout << "nI "  << nI << ", iI " << iI << ", nO " << nO << ", iO " << iO << ", iW " << iW << ", nW " << nW << endl;
+        cout << "Normal link: nInputs="<< nI << " IDinput=" << iI << " nOutputs=" << nO << " IDoutput" << iO << " IDweight" << iW << " nWeights" << nW << endl;
         fflush(0);
     }
     
     void initialize(mt19937* const gen, Real* const _weights) const override
     {
         const Real range = std::sqrt(6./(nO + nI));
-        //uniform_real_distribution<Real> dis(-range,range);
-        normal_distribution<Real> dis(0.,range);
+        uniform_real_distribution<Real> dis(-range,range);
+        //normal_distribution<Real> dis(0.,range);
 
-        for (int w=iW ; w<(iW + nO*nI); w++)
-            *(_weights +w) = dis(*gen);
+        for (int w=iW ; w<(iW + nO*nI); w++) _weights[w] = dis(*gen);
 
-        orthogonalize(iW, _weights, nO, nI);
+        //orthogonalize(iW, _weights, nO, nI);
     }
     
     virtual void restart(std::istringstream & buf, Real* const _weights) const override
@@ -101,7 +100,7 @@ public:
             Real tmp;
             buf >> tmp;
             assert(not std::isnan(tmp) & not std::isinf(tmp));
-            *(_weights +w) = tmp;
+            _weights[w] = tmp;
         }
     }
     
@@ -109,29 +108,28 @@ public:
     {
         o << std::setprecision(10);
 
-        for (int w=iW ; w<(iW + nO*nI); w++)
-            o << *(_weights +w);
+        for (int w=iW ; w<(iW + nO*nI); w++) o << _weights[w];
     }
 
     virtual void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
     {
         const Real* const link_input = netFrom->outvals + iI;
+        const Real* const link_weights = weights + iW;
         Real* const link_outputs = netTo->in_vals + iO;
-        const Real* const link_weights =  weights + iW;
 
         for (int i = 0; i < nI; i++)
         for (int o = 0; o < nO; o++) {
             assert(nO*i+o>=0 && nO*i+o<nW);
-            link_outputs[o] += link_input[i] * link_weights[nO*i + o];
+            link_outputs[o] += link_input[i] * link_weights[nO*i+o];
         }
     }
     
     virtual void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
     {
-        const Real* const deltas = netTo->errvals + iO;
-        Real* const link_errors = netFrom->errvals + iI;
         const Real* const layer_input = netFrom->outvals + iI;
+        const Real* const deltas = netTo->errvals + iO;
         const Real* const link_weights = weights + iW;
+        Real* const link_errors = netFrom->errvals + iI;
         Real* const link_dEdW = gradW + iW;
 
         for (int i = 0; i < nI; i++)
@@ -159,22 +157,24 @@ public:
 	LinkToLSTM(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO) :
 	iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO), nW(nI*nO) //i care nW per neuron, just for the asserts
 	{
-		assert(iC>=0 && iWI>=0 && iWF>=0 && iWO>=0);
 		print();
+        assert(iWI==iW +nW);
+        assert(iWF==iWI+nW);
+        assert(iWO==iWF+nW);
+		assert(iC>=0 && iWI>=0 && iWF>=0 && iWO>=0);
 	}
 
     void print() const override
     {
-        cout << nI << " " << iI << " " << nO << " " << iO << " " << iW << " " << iC << " " 
-        		   << iWI << " " << iWF << " " << iWO << " " << endl;
+        cout << "LSTM link: nInputs="<< nI << " IDinput=" << iI << " nOutputs=" << nO << " IDoutput" << iO << " IDcell" << iC << " IDweight" << iW << " nWeights" << nW << endl;
         fflush(0);
     }
     
     void initialize(mt19937* const gen, Real* const _weights) const override
     {
         const Real range = std::sqrt(6./(nO + nI));
-        //uniform_real_distribution<Real> dis(-range,range);
-        normal_distribution<Real> dis(0.,range);
+        uniform_real_distribution<Real> dis(-range,range);
+        //normal_distribution<Real> dis(0.,range);
 
         for (int w=iW ; w<(iW + nO*nI); w++)
             *(_weights +w) = dis(*gen);
@@ -333,8 +333,8 @@ public:
     {
         const int nAdded = filterWidth*filterHeight*inputDepth;
         const Real range = std::sqrt(6./(nAdded+outputDepth));
-        //uniform_real_distribution<Real> dis(-range,range);
-        normal_distribution<Real> dis(0.,range);
+        uniform_real_distribution<Real> dis(-range,range);
+        //normal_distribution<Real> dis(0.,range);
         assert(outputDepth*nAdded == nW);
         for (int w=iW ; w<(iW + outputDepth*nAdded); w++)
             *(_weights +w) = dis(*gen);
@@ -425,8 +425,12 @@ public:
 class WhiteningLink : public Link
 {
 public:
-	const int iW, nI, iI, nO, iO;
-	WhiteningLink(int nI, int iI, int nO, int iO, int iW) : iW(iW), nI(nI), iI(iI), nO(nO), iO(iO) { }
+	const int iW, nI, iI, nO, iO, nW;
+	WhiteningLink(int nI, int iI, int nO, int iO, int iW) : iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), nW(4*nI)
+    { 
+        print();
+        assert(nI==nO && iI+nI==iO);
+    }
 	void initialize(mt19937* const gen, Real* const _weights) const override
     {
         //set to 1 the temporary variance and scaling factor
@@ -438,7 +442,7 @@ public:
 
     void print() const override
     {
-        cout << nI << " " << iI << " " << nO << " " << iO << " " << iW << endl;
+        cout << "Whitening link: nInputs="<< nI << " IDinput=" << iI << " nOutputs=" << nO << " IDoutput" << iO << " IDweight" << iW << endl;
         fflush(0);
     }
     
@@ -473,45 +477,35 @@ public:
 
 struct Graph //misleading, this is just the graph for a single layer
 {
-    bool input, output, RNN, LSTM;
+    bool input, output, RNN, LSTM, normalize;
     int layerSize;
 	int firstNeuron_ID; //recurrPos, normalPos;
     int firstState_ID;
     int firstBias_ID;
     int firstBiasIG_ID, firstBiasFG_ID, firstBiasOG_ID;
     vector<int> linkedTo;
-    Link * recurrent_link;//, *nl_recurrent;
-    vector<Link*> * input_links_vec, * output_links_vec;
+    vector<Link*> * links;
 
     Graph()
-    : input(false), output(false), RNN(false), LSTM(false), layerSize(0), firstNeuron_ID(0),
-	  firstState_ID(0), firstBias_ID(0), firstBiasIG_ID(0), firstBiasFG_ID(0), firstBiasOG_ID(0),
-	  recurrent_link(nullptr)
+    : input(false), output(false), RNN(false), LSTM(false), normalize(false), layerSize(0), firstNeuron_ID(0),
+	  firstState_ID(0), firstBias_ID(0), firstBiasIG_ID(0), firstBiasFG_ID(0), firstBiasOG_ID(0)
     {
-    	input_links_vec = new vector<Link*>();
-    	output_links_vec = new vector<Link*>();
+    	links = new vector<Link*>();
     }
     
     ~Graph()
     {
-        _dispose_object(recurrent_link);
-        for (auto& link : *input_links_vec)
+        for (auto& link : *links)
         	_dispose_object(link);
-        _dispose_object(input_links_vec);
-        for (auto& link : *output_links_vec)
-        	_dispose_object (link);
-        _dispose_object(output_links_vec);
+        _dispose_object(links);
     }
     
     void initializeWeights(mt19937* const gen, Real* const _weights, Real* const _biases) const
     {
         uniform_real_distribution<Real> dis(-sqrt(6./layerSize),sqrt(6./layerSize));
 
-        for (const auto & l : *(input_links_vec))
-            l->initialize(gen, _weights);
-
-        if(recurrent_link not_eq nullptr)
-            recurrent_link->initialize(gen, _weights);
+        for (const auto & l : *(links))
+            if(l not_eq nullptr) l->initialize(gen, _weights);
 
         if (not output) //let's try not having bias on output layer
             for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++)

@@ -15,8 +15,8 @@ using namespace std;
 
 class NFQ : public Learner
 {   
-    void Train_BPTT(const int seq, const int thrID=0) override;
-    void Train(const int seq, const int samp, const int thrID=0) override;
+    Real Train_BPTT(const int seq, const int thrID=0) override;
+    Real Train(const int seq, const int samp, const int thrID=0) override;
     
 public:
 	NFQ(Environment* env, Settings & settings);

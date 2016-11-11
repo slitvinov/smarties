@@ -103,7 +103,7 @@ int main (int argc, char** argv)
     
     struct timeval clock;
     gettimeofday(&clock, NULL);
-    debugLvl=3;
+    debugLvl=10;
     
     vector<OptionStruct> opts ({
     {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.9},

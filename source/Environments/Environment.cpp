@@ -108,6 +108,7 @@ void Environment::setAction(const int & iAgent)
         assert(not std::isnan(agents[iAgent]->a->vals[i]) &&
         	   not std::isinf(agents[iAgent]->a->vals[i]));
     }
+    //debug3("Sent child %d: action %s\n", rank, agents[iAgent]->a->print().c_str()); fflush(0);
     send_all(sock, dataout, sizeout);
 }
 
@@ -124,21 +125,21 @@ int Environment::getState(int & iAgent)
     } else { // (bytes == nbyte)
         iAgent  = *((int*)  datain   );
         bStatus = *((int*) (datain+1)); //first (==1?), terminal (==2?), etc
-        debug3("Receiving from agent %d %d: ", iAgent, bStatus);
+        //debug3("Receiving from agent %d %d: ", iAgent, bStatus);
         
         std::swap(agents[iAgent]->s,agents[iAgent]->sOld);
         
         int k = 2;
         for (int j=0; j<sI.dim; j++) {
-            debug3(" %f (%d)",datain[k],k);
+            //debug3(" %f (%d)",datain[k],k);
             agents[iAgent]->s->vals[j] = (Real) datain[k++];
             assert(not std::isnan(agents[iAgent]->s->vals[j]) && not std::isinf(agents[iAgent]->s->vals[j]));
         }
         
-        debug3(" %f (%d)\n",datain[k],k);
+        //debug3(" %f (%d)\n",datain[k],k);
         agents[iAgent]->r = (Real) datain[k++];
         assert(not std::isnan(agents[iAgent]->r) && not std::isinf(agents[iAgent]->r));
-        debug3("Got from child %d: reward %f initial state %s\n", rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
+        //debug3("Got from child %d: reward %f state %s\n", rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
     }
     fflush(0);
     return bStatus;

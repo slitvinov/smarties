@@ -66,12 +66,9 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     vector<Real> output(nOutputs), inputs(nInputs);
     s.scaleUsed(inputs);
     
-    if (info==1) //is it the first action performed by agent?
-    {   //then old state, old action and reward are meaningless, just give the action
+    if (info==1) // if new sequence, sold, aold and reward are meaningless
         net->predict(inputs, output, currActivation);
-    }
-    else
-    {   //then if i'm using RNN i need to load recurrent connections
+    else {   //then if i'm using RNN i need to load recurrent connections
     	Activation* prevActivation = net->allocateActivation();
 		net->loadMemory(net->mem[agentId], prevActivation);
         net->predict(inputs, output, prevActivation, currActivation);
@@ -79,14 +76,14 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
         data->passData(agentId, info, sOld, aOld, s, r);
         _dispose_object(prevActivation);
     }
-
-    #ifdef _dumpNet_
-    net->dump(agentId);
-    #endif
     
     //save network transition
     net->loadMemory(net->mem[agentId], currActivation);
     _dispose_object(currActivation);
+
+    #ifdef _dumpNet_
+    net->dump(agentId);
+    #endif
     
     //load computed policy into a
     vector<Real> act(nA);
@@ -111,12 +108,14 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     //if (info!=1) printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
 }
 
-void NAF::Train_BPTT(const int seq, const int thrID)
+Real NAF::Train_BPTT(const int seq, const int thrID)
 {
+    Real MSE(0.);
     if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
     const int ndata = data->Set[seq]->tuples.size();
-    vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata);
+    const int nalloc = data->Set[seq]->ended ? ndata-1 : ndata;
+    vector<Activation*> timeSeries = net->allocateUnrolledActivations(nalloc);
     net->clearErrors(timeSeries);
     
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
@@ -132,15 +131,17 @@ void NAF::Train_BPTT(const int seq, const int thrID)
         const vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
         net->setOutputDeltas(gradient, timeSeries[k]);
         dumpStats(Vstats[thrID], Q[0], err, Q);
+        MSE += err*err;
     }
 
     if (thrID==0) net->backProp(timeSeries, net->grad);
     else net->backProp(timeSeries, net->Vgrad[thrID]);
 
     net->deallocateUnrolledActivations(&timeSeries);
+    return MSE/(ndata-1);
 }
 
-void NAF::Train(const int seq, const int samp, const int thrID)
+Real NAF::Train(const int seq, const int samp, const int thrID)
 {
     if(not net->allocatedFrozenWeights) die("Allocate them!\n");
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
@@ -166,6 +167,7 @@ void NAF::Train(const int seq, const int samp, const int thrID)
 
     _dispose_object(sOldActivation);
     _dispose_object(sNewActivation);
+    return err*err;
 }
 
 #if 1==1 //original formulation of advantage = 0.5 (a - pi)' * A * (a - pi), does not work: why?

@@ -54,28 +54,25 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     vector<Real> output(nOutputs), inputs(nInputs);
     s.scaleUsed(inputs);
 
-    if (info==1) //is it the first action performed by agent?
-    {   //then old state, old action and reward are meaningless, just give the action
-        net->predict(inputs, output, currActivation);
-    }
-    else
-    {   //then if i'm using RNN i need to load recurrent connections
+    if (info==1)// if new sequence, sold, aold and reward are meaningless
+        net->predict(inputs, output, currActivation, 0.1);
+    else {   //then if i'm using RNN i need to load recurrent connections
         Activation* prevActivation = net->allocateActivation();
         net->loadMemory(net->mem[agentId], prevActivation);
-        net->predict(inputs, output, prevActivation, currActivation);
+        net->predict(inputs, output, prevActivation, currActivation, 0.1);
         _dispose_object(prevActivation);
 
         //also, store sOld, aOld -> sNew, r
         data->passData(agentId, info, sOld, aOld, s, r);
     }
-
-    #ifdef _dumpNet_
-    net->dump(agentId);
-    #endif
     
     //save network transition
     net->loadMemory(net->mem[agentId], currActivation);
     _dispose_object(currActivation);
+
+    #ifdef _dumpNet_
+    net->dump(agentId);
+    #endif
     
     //load computed policy into a
     Real Val(-1e6); int Nbest;
@@ -84,29 +81,30 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     }
     a.set(aInfo.labelToAction(Nbest));
     
-    //printf("Net selected %d %f for state %s\n",Nbest,a.valsContinuous[0],s.print().c_str());
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
         const int handicap = min(static_cast<int>(data->Set.size())/500., stats.epochCount/10.);
-        newEps = (.1 +greedyEps*exp(-handicap/100.));//*agentId/Real(agentId+1);
+        newEps = greedyEps*exp(-handicap);//*agentId/Real(agentId+1);
     }
     uniform_real_distribution<Real> dis(0.,1.);
-    //if(dis(*gen) < newEps) a.getRand();
+    
     if(dis(*gen) < newEps) {
         const int randomActionLabel = nOutputs*dis(*gen);
         a.set(aInfo.labelToAction(randomActionLabel));
-        //printf("Random action %d %d %f %d %f\n",data->Set.size(),stats.epochCount,newEps, a.vals[0], a.valsContinuous[0]);
-    }
-    //if (info!=1) printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
+        //printf("Random action %d %d %f %d %f\n",data->Set.size(),stats.epochCount,newEps, randomActionLabel, a.vals[0]);
+    } 
+    //else printf("Net selected %d %f for state %s\n",Nbest,a.vals[0],s.print().c_str());
 }
 
-void NFQ::Train_BPTT(const int seq, const int thrID)
+Real NFQ::Train_BPTT(const int seq, const int thrID)
 {
+    Real MSE(0.);
     if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
     const int ndata = data->Set[seq]->tuples.size();
-    vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata);
+    const int nalloc = data->Set[seq]->ended ? ndata-1 : ndata;
+    vector<Activation*> timeSeries = net->allocateUnrolledActivations(nalloc);
     net->clearErrors(timeSeries);
     
     //first prediction in sequence without recurrent connections
@@ -118,12 +116,12 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
         const bool terminal = k+2==ndata && data->Set[seq]->ended;
         if (not terminal) {
             net->predict(_t->s, Qtildes, timeSeries, k+1, net->tgt_weights,  net->tgt_biases);
-            net->predict(_t->s, Qhats,   timeSeries, k+1);
+            net->predict(_t->s, Qhats,   timeSeries, k+1, 0.1);
         }
         
         // find best action for sNew with moving wghts, evaluate it with tgt wgths:
         // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
-        int Nbest;
+        int Nbest(-1);
         Real Vhat(-1e10);
         for (int i=0; i<nOutputs; i++) {
             errs[i] = 0.;
@@ -136,15 +134,17 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
         net->setOutputDeltas(errs, timeSeries[k]);
         
         dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
+        MSE += err*err;
     }
 
     if (thrID==0) net->backProp(timeSeries, net->grad);
     else net->backProp(timeSeries, net->Vgrad[thrID]);
 
     net->deallocateUnrolledActivations(&timeSeries);
+    return MSE/(ndata-1);
 }
 
-void NFQ::Train(const int seq, const int samp, const int thrID)
+Real NFQ::Train(const int seq, const int samp, const int thrID)
 {
     assert(net->allocatedFrozenWeights);
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
@@ -181,4 +181,5 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
 	else net->backProp(errs, sOldActivation, net->Vgrad[thrID]);
 
     _dispose_object(sOldActivation);
+    return err*err;
 }

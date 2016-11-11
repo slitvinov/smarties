@@ -190,8 +190,8 @@ struct ActionInfo
     vector<Real> labelToAction(int lab) const
     {
     	vector<Real> ret(dim);
-        for (int i=actInfo.dim-1; i>=0; i--) {
-            ret[i] = indexToRealAction(lab/shifts[i]);
+        for (int i=dim-1; i>=0; i--) {
+            ret[i] = indexToRealAction(lab/shifts[i], i);
             lab = lab % shifts[i];
         }
         return ret;
@@ -212,7 +212,7 @@ struct ActionInfo
 			if (_dist<dist) { dist = _dist; ret = j; }
 		}
 		assert(ret>=0);
-		return ret
+		return ret;
 	}
 	
     Real realToScaledReal(const Real action, const int i) const
@@ -222,7 +222,7 @@ struct ActionInfo
     
     Real scaledRealToReal(const Real scaled, const int i) const
     { //i have a scaled quantity with lower and upper bnd, i want to get a dimensional action
-        return lowerBounds[i] + 0.5*(scaled+1.)*(upperBounds[i] - );
+        return lowerBounds[i] + 0.5*(scaled+1.)*(upperBounds[i] - lowerBounds[i]);
     }
 };
 
@@ -303,16 +303,16 @@ public:
             for (int i=0; i<actInfo.dim; i++) {
                 const Real uB = actInfo.values[i].back();
                 const Real lB = actInfo.values[i].front();
-                valsContinuous[i]=    lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+                vals[i]=    lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
             }
         } else {  //select just one
 				const Real uB = actInfo.values[iRand].back();
 				const Real lB = actInfo.values[iRand].front();
-				valsContinuous[iRand]=lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+				vals[iRand]=lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
         }
     }
 
-    int getActionLabel()
+    int getActionLabel() const
     {
     	return actInfo.actionToLabel(vals);
     }

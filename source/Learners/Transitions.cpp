@@ -133,7 +133,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
     sOld.scaleUsed(Inp);
     if(Tmp[agentId]->tuples.size()!=0) {
         bool same(true);
-        const Tuple * const last =Tmp[agentId]->tuples.back();
+        const Tuple * const last = Tmp[agentId]->tuples.back();
         //scaled vec only has used dims:
         for (int i=0; i<sI.dimUsed; i++)
             same = same && fabs(last->s[i] - Inp[i])<1e-4;
@@ -167,7 +167,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
     t->r = reward;
     t->a = a.getActionLabel();
     t->aC = a.scale();
-    //printf("Transitions storing: %d %f %f for state %s\n",t->a, t->aC[0],a.valsContinuous[0],sOld.print().c_str()); fflush(0);
+    //printf("Storing: %s -> [%d %f %f]-> %s\n", sOld.print().c_str(),t->a, t->aC[0],a.vals[0],sNew.print().c_str()); fflush(0);
     Tmp[agentId]->tuples.push_back(t);
     if (new_sample) {
         Tmp[agentId]->ended = true;
@@ -213,7 +213,7 @@ void Transitions::synchronize()
         
         nTransitions += bufTransition->tuples.size()-1;
         Set[ind] = bufTransition;
-    }
+    } //number of sequences remains constant
     Buffered.resize(0); //no clear?
 }
 
@@ -244,7 +244,7 @@ void Transitions::updateP()
     const auto comparator=[this](int a,int b){return Errs[a]>Errs[b];};
     std::sort(inds.begin(), inds.end(), comparator);
     
-    for(int i=0;i<N;i++) Ps[inds[i]]=pow(1./Real(i+1),0.5);
+    for(int i=0;i<N;i++) Ps[i]=pow(1./Real(inds[i]+1),0.5);
     
     const Real mean_err = accumulate(Errs.begin(), Errs.end(), 0.)/N;
     const Real sum = accumulate(Ps.begin(), Ps.end(), 0.);

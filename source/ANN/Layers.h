@@ -19,11 +19,11 @@ class Layer
 {
     public:
     virtual void propagate(const Activation* const prev, Activation* const curr, 
-                           const Real* const weights, const Real* const biases) const = 0;
+                           const Real* const weights, const Real* const biases, const Real noise) const = 0;
     virtual void backPropagate( Activation* const prev,  Activation* const curr, const Activation* const next, Grads* const grad, const Real* const weights) const = 0;
 
-    void propagate(Activation* const curr, const Real* const weights, const Real* const biases) const 
-        { return propagate(nullptr, curr, weights, biases); }
+    void propagate(Activation* const curr, const Real* const weights, const Real* const biases, const Real noise) const 
+        { return propagate(nullptr, curr, weights, biases, noise); }
     void backPropagate( Activation* const curr, Grads* const grad, const Real* const weights) const
         { return backPropagate(nullptr, curr, nullptr, grad, weights); }
 };
@@ -40,11 +40,11 @@ public:
     NormalLayer(int nNeurons, int n1stNeuron, int n1stBias, const vector<NormalLink*>* const nl_il, const NormalLink* const nl_rl, bool last) :
     nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), input_links(nl_il), recurrent_link(nl_rl), last(last)
     {
-	   printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d\n",nNeurons, n1stNeuron, n1stBias);
+	   printf("Normal Layer of size %d, with first ID %d and first bias ID %d\n",nNeurons, n1stNeuron, n1stBias);
     }
     
     void propagate(const Activation* const prev, Activation* const curr, 
-                   const Real* const weights, const Real* const biases) const override
+                   const Real* const weights, const Real* const biases, const Real noise) const override
     {
         Real* const outputs = curr->outvals +n1stNeuron;
         Real* const inputs = curr->in_vals +n1stNeuron;
@@ -88,12 +88,12 @@ public:
 	nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), 
     outputWidth(outputWidth), outputHeight(outputHeight), outputDepth(outputDepth), input_links(nl_il), last(last)
     {
-	   printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d, outputWidth=%d, outputHeight=%d, outputDepth=%d\n",
-              nNeurons,n1stNeuron,n1stBias,outputWidth,outputHeight,outputDepth);
+	   printf("Conv2D Layer of size %d (%d x %d x %d), with first ID %d and first bias ID %d\n",
+              nNeurons,outputWidth,outputHeight,outputDepth, n1stNeuron, n1stBias);
     }
 
     void propagate(const Activation* const prev, Activation* const curr, 
-                   const Real* const weights, const Real* const biases) const  override
+                   const Real* const weights, const Real* const biases, const Real noise) const  override
     {
         Real* const inputs  = curr->in_vals +n1stNeuron;
         Real* const outputs = curr->outvals +n1stNeuron;
@@ -148,12 +148,14 @@ public:
     n1stBiasIG(n1stBiasIG), n1stBiasFG(n1stBiasFG), n1stBiasOG(n1stBiasOG), 
     input_links(rl_il), recurrent_link(rl_rl), last(last)
     {
-	printf("nNeurons= %d, n1stNeuron= %d, n1stBias= %d, n1stCell=%d, n1stBiasIG=%d, n1stBiasFG=%d, n1stBiasOG=%d\n",
-           nNeurons,n1stNeuron,n1stBias,n1stCell,n1stBiasIG,n1stBiasFG,n1stBiasOG);
+	    printf("LSTM Layer of size %d, with first ID %d, first cell ID %d, and first bias ID %d\n",nNeurons, n1stNeuron, n1stCell, n1stBias);
+        assert(n1stBiasIG==n1stBias  +nNeurons);
+        assert(n1stBiasFG==n1stBiasIG+nNeurons);
+        assert(n1stBiasOG==n1stBiasFG+nNeurons);
     }
     
     void propagate(const Activation* const prev, Activation* const curr, 
-                   const Real* const weights, const Real* const biases) const  override
+                   const Real* const weights, const Real* const biases, const Real noise) const  override
     {
         Real* const outputI = curr->oIGates +n1stCell;
         Real* const outputF = curr->oFGates +n1stCell;
@@ -244,18 +246,19 @@ public:
 
 class WhiteningLayer: public Layer
 {
-    const vector<WhiteningLink*>* const input_links;
+    const WhiteningLink* const link;
     const int nNeurons, n1stNeuron;
+    mt19937* const gen;
 public:
-	WhiteningLayer(int nNeurons, int n1stNeuron, const vector<WhiteningLink*>* const nl_il) :
-    nNeurons(nNeurons), n1stNeuron(n1stNeuron), input_links(nl_il)
-    { }
+	WhiteningLayer(int nNeurons, int n1stNeuron, const WhiteningLink* const nl_il, mt19937* const gen) :
+    nNeurons(nNeurons), n1stNeuron(n1stNeuron), link(nl_il), gen(gen)
+    {
+        printf("Whitening layer of size %d starting from ID %d\n",nNeurons,n1stNeuron);
+    }
 
     void propagate(const Activation* const prev, Activation* const curr, 
-                   const Real* const weights, const Real* const biases) const  override
+                   const Real* const weights, const Real* const biases, const Real noise) const  override
     {
-        assert(input_links->size() == 1);
-        const WhiteningLink* const link = (*input_links)[0]; //only one as input
         Real* const inputs = curr->in_vals + n1stNeuron;
         Real* const outputs = curr->outvals + n1stNeuron;
         const Real* const link_inputs = curr->outvals +link->iI;
@@ -266,16 +269,23 @@ public:
         const Real* const link_shifts = weights + link->iW +3*nNeurons;
 
         for (int n=0; n<nNeurons; n++) {
-            assert(link_vars[n]>std::numeric_limits<Real>::epsilon());
-            const Real xhat = (link_inputs[n] - link_means[n])/std::sqrt(link_vars[n]);
-            inputs[n] = xhat;
-            outputs[n] = link_scales[n]*xhat + link_shifts[n]; //y
+                const Real std = std::max(std::numeric_limits<Real>::epsilon(), link_vars[n]);
+                const Real xhat = (link_inputs[n] - link_means[n])/std::sqrt(std);
+                inputs[n] = xhat;
         }
+        
+        if (noise>0) {
+            normal_distribution<Real> dis(0.,noise);
+            for (int n=0; n<nNeurons; n++)
+                inputs[n] += dis(*gen);
+        }
+        
+        for (int n=0; n<nNeurons; n++)
+            outputs[n] = link_scales[n]*inputs[n] + link_shifts[n]; 
     }
 	void backPropagate( Activation* const prev,  Activation* const curr, const Activation* const next, 
                        Grads* const grad, const Real* const weights) const  override
     {
-        const WhiteningLink* const link = (*input_links)[0];
         Real* const link_errors = curr->errvals + link->iI;
         const Real* const errors = curr->errvals +n1stNeuron;
         const Real* const inputs = curr->in_vals + n1stNeuron;
@@ -289,7 +299,8 @@ public:
         Real* const grad_shifts = grad->_W + link->iW +3*nNeurons;
 
         for (int n=0; n<nNeurons; n++)  {
-            link_errors[n] = errors[n]*link_scales[n]/std::sqrt(link_vars[n]);
+            const Real std = std::max(std::numeric_limits<Real>::epsilon(), link_vars[n]);
+            link_errors[n] = errors[n]*link_scales[n]/std::sqrt(std);
             const Real dEdMean = link_inputs[n]-link_means[n];
             grad_means[n] += dEdMean;
             grad_vars[n] += dEdMean*dEdMean - link_vars[n];

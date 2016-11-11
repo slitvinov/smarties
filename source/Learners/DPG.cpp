@@ -68,12 +68,15 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
         data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
         _dispose_object(prevActivation);
     }
-#ifdef _dumpNet_
-    net_policy->dump(agentId);
-#endif
+    
     //save network transition
     net_policy->loadMemory(net_policy->mem[agentId], currActivation);
     _dispose_object(currActivation);
+    
+#ifdef _dumpNet_
+    net_policy->dump(agentId);
+#endif
+    
     //load computed policy into a
     a.set_fromScaled(output);
     
@@ -94,12 +97,13 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     //if (info!=1) printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
 }
 
-void DPG::Train_BPTT(const int seq, const int thrID)
+Real DPG::Train_BPTT(const int seq, const int thrID)
 {
 	die("DPG with BPTT not implemented: do eet!\n");
+    return 0.;
 }
 
-void DPG::Train(const int seq, const int samp, const int thrID)
+Real DPG::Train(const int seq, const int samp, const int thrID)
 {
     assert(net->allocatedFrozenWeights && net_policy->allocatedFrozenWeights);
     
@@ -135,6 +139,7 @@ void DPG::Train(const int seq, const int samp, const int thrID)
     }
     
     const Real target = (terminal) ? _t->r : _t->r + gamma*vSnew[0];
+    const Real err = target - Q[0];
     gradient[0] = target - Q[0];
     
     if (thrID==0) net->backProp(gradient, sOldQAct, net->grad);
@@ -166,6 +171,7 @@ void DPG::Train(const int seq, const int samp, const int thrID)
     _dispose_object(sNewAAct);
     _dispose_object(sOldQAct);
     _dispose_object(sNewQAct);
+    return err*err;
 }
 
 void DPG::updateTargetNetwork()

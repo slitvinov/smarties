@@ -32,8 +32,8 @@ beta_t_1(0.9), beta_t_2(0.999)
 
 void Optimizer::stackGrads(Grads* const G, const Grads* const g) const
 {
-    for (int j=0; j<nWeights; j++) *(G->_W +j) += *(g->_W +j);
-    for (int j=0; j<nBiases; j++)  *(G->_B +j) += *(g->_B +j);
+    for (int j=0; j<nWeights; j++) G->_W[j] += g->_W[j];
+    for (int j=0; j<nBiases; j++)  G->_B[j] += g->_B[j];
 }
 
 void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
@@ -41,19 +41,17 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
     const int nThreads = g.size();
     
     #pragma omp for nowait
-    for (int j=0; j<nWeights; j++) {
-        for (int k=1; k<nThreads; k++) {
-            G->_W[j] += g[k]->_W[j];
-            g[k]->_W[j] = 0.;
-        }
+    for (int j=0; j<nWeights; j++) 
+    for (int k=1; k<nThreads; k++) {
+        G->_W[j] += g[k]->_W[j];
+        g[k]->_W[j] = 0.;
     }
     
     #pragma omp for
-    for (int j=0; j<nBiases; j++) {
-        for (int k=1; k<nThreads; k++) {
-        	G->_B[j] += g[k]->_B[j];
-        	g[k]->_B[j] = 0.;
-        }
+    for (int j=0; j<nBiases; j++) 
+    for (int k=1; k<nThreads; k++) {
+        G->_B[j] += g[k]->_B[j];
+        g[k]->_B[j] = 0.;
     }
 }
 
@@ -62,7 +60,7 @@ void Optimizer::stackGrads(const int thrID, Grads* const G, const vector<Grads*>
     const int nThreads =g.size();
     
     vector<int> bndsW(nThreads+1), bndsB(nThreads+1);
-    for (int k=1; k<nThreads; k++){
+    for (int k=1; k<nThreads; k++) {
         bndsW[k] = k*nWeights/Real(nThreads);
         bndsB[k] = k*nBiases/Real(nThreads);
     }
@@ -73,13 +71,13 @@ void Optimizer::stackGrads(const int thrID, Grads* const G, const vector<Grads*>
         const int end = (beg+1==nThreads)?nThreads:(k+1+thrID)%nThreads;
         
         for (int j=bndsW[beg]; j<bndsW[end]; j++) {
-            *(G->_W+j) += *(g[thrID]->_W+j);
-            *(g[thrID]->_W+j) = 0.;
+            G->_W[j] += g[thrID]->_W[j];
+            g[thrID]->_W[j] = 0.;
         }
         
         for (int j=bndsB[beg]; j<bndsB[end]; j++) {
-            *(G->_B+j) += *(g[thrID]->_B+j);
-            *(g[thrID]->_B+j) = 0.;
+            G->_B[j] += g[thrID]->_B[j];
+            g[thrID]->_B[j] = 0.;
         }
         #pragma omp barrier
     }
@@ -113,14 +111,15 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, 
     
     #pragma omp for nowait
     for (int i=0; i<N; i++) {
-        const Real W = fabs(*(dest + i));
-        const Real M1 = alpha* *(_1stMom + i) + eta_* *(grad+i);
-        *(_1stMom + i) = std::max(std::min(M1,W),-W);
-        *(grad + i) = 0.; //reset grads
+        const Real W = fabs(dest[i]);
+        const Real M1 = alpha * _1stMom[i] + eta_ * grad[i];
+        _1stMom[i] = std::max(std::min(M1,W),-W);
+        grad[i] = 0.; //reset grads
         
-        if (lambda>1e-9)
-             *(dest + i) += *(_1stMom + i) - *(dest + i)*lambda_;
-        else *(dest + i) += *(_1stMom + i);
+        if (lambda>0)
+             dest[i] += _1stMom[i] + (dest[i]<0 ? lambda_ : -lambda_);
+             //dest[i] += _1stMom[i] - dest[i]*lambda_;
+        else dest[i] += _1stMom[i];
     }
 }
 
@@ -132,27 +131,28 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
     
     #pragma omp for nowait
     for (int i=0; i<N; i++) {
-        const Real DW  = *(grad+i) *norm;
-        const Real M1  = beta_1* *(_1stMom+i) +(1.-beta_1) *DW;
-        const Real M2  = beta_2* *(_2ndMom+i) +(1.-beta_2) *DW*DW;
+        const Real DW  = grad[i] *norm;
+        const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
+        const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
         const Real M2_ = std::max(M2,epsilon);
         //slow down extreme updates (normalization):
         //const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_) / fac12;
         //const Real M1_ = std::max(std::min(TOP,M1),-TOP);
         const Real DW_ = eta_ * M1/sqrt(M2_);
-        *(_1stMom + i) = M1;
-        *(_2ndMom + i) = M2_;
-        *(grad + i) = 0.; //reset grads
+        _1stMom[i] = M1;
+        _2ndMom[i] = M2_;
+        grad[i] = 0.; //reset grads
         
-        if (lambda>1e-9)
-             *(dest + i) += DW_ - *(dest + i)*lambda_;
-        else *(dest + i) += DW_;
+        if (lambda>0)
+             dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);
+             //dest[i] += DW_ - dest[i]*lambda_;
+        else dest[i] += DW_;
     }
 }
 
 void Optimizer::init(Real* const dest, const int N, const Real ini)
 {
-    for (int j=0; j<N; j++) *(dest +j) = ini;
+    for (int j=0; j<N; j++) dest[j] = ini;
 }
 
 /*

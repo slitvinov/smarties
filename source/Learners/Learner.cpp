@@ -69,7 +69,7 @@ void Learner::TrainBatch()
 
 void Learner::TrainTasking(Master* const master)
 {
-    vector<int> seq(batchSize), samp(batchSize);
+    vector<int> seq(batchSize), samp(batchSize), index(batchSize);
     int nAddedGradients(0), maxBufSize(0);
     
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
@@ -94,8 +94,8 @@ void Learner::TrainTasking(Master* const master)
                     processStats(Vstats); //dump info about convergence
                     opt->nepoch=stats.epochCount; //used to anneal learning rate
                     
-                    #ifndef NDEBUG //check gradients with finite differences, just for debug
-                    if (stats.epochCount++ % 25 == 0) {
+                    #ifndef NDEBUG //check gradients with finite differences, just for debug  0==1//
+                    if (stats.epochCount++ % 1000 == 0) {
                         vector<vector<Real>> inputs;
                         const int ind = data->Set.size()-1;
                         for (int k=0; k<data->Set[ind]->tuples.size(); k++)
@@ -110,6 +110,7 @@ void Learner::TrainTasking(Master* const master)
                         const int ind = data->inds.back();
                         data->inds.pop_back();
                         seq[i]  = ind;
+                        index[i] = ind;
                         const int seqSize = data->Set[ind]->tuples.size();
                         nAddedGradients += seqSize-1; //to normalize mean gradient for update
                     }
@@ -137,6 +138,7 @@ void Learner::TrainTasking(Master* const master)
                         }
                         seq[i]  = k;
                         samp[i] = ind-back;
+                        index[i] = ind;
                     }
                     nAddedGradients = batchSize;
                     
