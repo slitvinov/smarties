@@ -195,15 +195,28 @@ void Transitions::push_back(const int & agentId)
     }
     
     Tmp[agentId] = new Sequence();
-    
-#ifdef _Priority_
-    if (bSampleSeq) Errs.resize(nSequences,1.);
-    else  Errs.resize(nTransitions,1.);
-#endif
 }
 
 void Transitions::synchronize()
 {
+#if 1==1
+	printf("Removing the %d easiest to predict sequences in favor of new ones\n", Buffered.size());
+	assert(nSequences==Set.size() && NmaxDATA = nSequences);
+	for(auto & samp : Set) {
+		int count(0);
+		samp->MSE = 0.;
+		for(const auto & t : samp->tuples) {
+			samp->MSE += t->SquaredError;
+			count++;
+		}
+		samp->MSE /= count;
+	}
+    const auto comparator=[this](Sequence* a, Sequence* b){ return a->MSE<b->MSE;};
+    std::sort(Set.begin(), Set.end(), comparator);
+    assert(Set.front()->MSE < Set.back()->MSE);
+    iOldestSaved = 0;
+#endif
+
     for(auto & bufTransition : Buffered) {
         const int ind = iOldestSaved++;
         iOldestSaved = (iOldestSaved == NmaxDATA) ? 0 : iOldestSaved;
@@ -219,7 +232,7 @@ void Transitions::synchronize()
 
 void Transitions::updateSamples()
 {
-    synchronize();
+	if(Buffered.size()>0) synchronize();
     
     const int ndata = (bRecurrent) ? nSequences : nTransitions;
     inds.resize(ndata);
@@ -237,12 +250,44 @@ int Transitions::sample()
 void Transitions::updateP()
 {
     anneal++;
-    const int N = Errs.size();
-    Ps.resize(N); Ws.resize(N); inds.resize(N);
+    const int ndata = (bRecurrent) ? nSequences : nTransitions;
+    Ps.resize(ndataN); Ws.resize(ndata); inds.resize(ndata);
     std::iota(inds.begin(), inds.end(), 0);
+
     //sort in decreasing order of the error
-    const auto comparator=[this](int a,int b){return Errs[a]>Errs[b];};
-    std::sort(inds.begin(), inds.end(), comparator);
+    if (bRecurrent) {
+    	for(auto & samp : Set) {
+			int count(0);
+			samp->MSE = 0.;
+			for(const auto & t : samp->tuples) {
+				samp->MSE += t->SquaredError;
+				count++;
+			}
+			samp->MSE /= count;
+		}
+        const auto comparator=[this](int a,int b){return Set[a]->MSE>Set[b]->MSE;};
+        std::sort(inds.begin(), inds.end(), comparator);
+    } else {
+        const auto comparator=[this](int a,int b){
+			int k(0), back(0), indT(Set[0]->tuples.size()-1);
+			while (a >= indT) {
+				back = indT;
+				indT += Set[++k]->tuples.size()-1;
+			}
+
+			int k(0), back(0), indT(Set[0]->tuples.size()-1);
+			while (b >= indT) {
+				back = indT;
+				indT += Set[++k]->tuples.size()-1;
+			}
+
+			seq[i]  = k;
+			samp[i] = ind-back;
+			index[i] = ind;
+        	return Set[ka]->tuples[]->SquaredError > MSE>Set[b]->MSE;
+        };
+        std::sort(inds.begin(), inds.end(), comparator);
+    }
     
     for(int i=0;i<N;i++) Ps[i]=pow(1./Real(inds[i]+1),0.5);
     

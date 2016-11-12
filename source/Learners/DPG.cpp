@@ -97,10 +97,9 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     //if (info!=1) printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
 }
 
-Real DPG::Train_BPTT(const int seq, const int thrID)
+void DPG::Train_BPTT(const int seq, const int thrID)
 {
 	die("DPG with BPTT not implemented: do eet!\n");
-    return 0.;
 }
 
 Real DPG::Train(const int seq, const int samp, const int thrID)
@@ -140,6 +139,7 @@ Real DPG::Train(const int seq, const int samp, const int thrID)
     
     const Real target = (terminal) ? _t->r : _t->r + gamma*vSnew[0];
     const Real err = target - Q[0];
+    data->Set[seq]->tuples[samp]->SquaredError = err*err;
     gradient[0] = target - Q[0];
     
     if (thrID==0) net->backProp(gradient, sOldQAct, net->grad);
@@ -171,7 +171,6 @@ Real DPG::Train(const int seq, const int samp, const int thrID)
     _dispose_object(sNewAAct);
     _dispose_object(sOldQAct);
     _dispose_object(sNewQAct);
-    return err*err;
 }
 
 void DPG::updateTargetNetwork()

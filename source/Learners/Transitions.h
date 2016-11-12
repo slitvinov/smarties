@@ -24,14 +24,17 @@ struct Tuple
     vector<Real> aC;
     Real r;
     int a;
+
+    Real SquaredError;
 };
 
 struct Sequence
 {
-    Sequence() : ended(false) {}
+    Sequence() : ended(false), MSE(0.) {}
     
     vector<Tuple*> tuples;
     bool ended;
+    Real MSE;
     
     ~Sequence()
     {
@@ -74,7 +77,6 @@ public:
     const ActionInfo aI;
     Gen * gen;
     int anneal, nBroken, nTransitions, nSequences;
-    vector<Real> Errs, Ps, Ws;
     vector<Sequence*> Set;
     vector<int> inds;
     

@@ -41,7 +41,7 @@ void Learner::TrainBatch()
             const int seqSize = data->Set[ind]->tuples.size();
             nAddedGradients += seqSize-1;
             
-            Train_BPTT(ind);
+            const Real MSE = Train_BPTT(ind);
         }
         
     } else {
@@ -58,7 +58,7 @@ void Learner::TrainBatch()
                 indT += data->Set[++k]->tuples.size()-1;
             }
             
-            Train(k, ind-back);
+            const Real SE = Train(k, ind-back);
         }
         
     }
@@ -121,7 +121,7 @@ void Learner::TrainTasking(Master* const master)
                         #pragma omp task firstprivate(i)
                         {
                             const int thrID = omp_get_thread_num();
-                            Train_BPTT(seq[i], thrID);
+                            const Real MSE = Train_BPTT(seq[i], thrID);
 
                             #pragma omp atomic
                             taskCounter++;
@@ -148,7 +148,7 @@ void Learner::TrainTasking(Master* const master)
                         #pragma omp task firstprivate(i) 
                         {
                             const int thrID = omp_get_thread_num();
-                            Train(seq[i], samp[i], thrID);
+                            const Real SE = Train(seq[i], samp[i], thrID);
                             
                             #pragma omp atomic
                             taskCounter++;

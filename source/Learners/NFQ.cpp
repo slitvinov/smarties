@@ -97,9 +97,8 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     //else printf("Net selected %d %f for state %s\n",Nbest,a.vals[0],s.print().c_str());
 }
 
-Real NFQ::Train_BPTT(const int seq, const int thrID)
+void NFQ::Train_BPTT(const int seq, const int thrID)
 {
-    Real MSE(0.);
     if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
     const int ndata = data->Set[seq]->tuples.size();
@@ -132,19 +131,16 @@ Real NFQ::Train_BPTT(const int seq, const int thrID)
         const Real err =  (target - Qs[_t->a]);
         errs[_t->a] = err;
         net->setOutputDeltas(errs, timeSeries[k]);
-        
         dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
-        MSE += err*err;
+        data->Set[seq]->tuples[k]->SquaredError = err*err;
     }
 
     if (thrID==0) net->backProp(timeSeries, net->grad);
     else net->backProp(timeSeries, net->Vgrad[thrID]);
-
     net->deallocateUnrolledActivations(&timeSeries);
-    return MSE/(ndata-1);
 }
 
-Real NFQ::Train(const int seq, const int samp, const int thrID)
+void NFQ::Train(const int seq, const int samp, const int thrID)
 {
     assert(net->allocatedFrozenWeights);
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
@@ -179,7 +175,6 @@ Real NFQ::Train(const int seq, const int samp, const int thrID)
     dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
     if (thrID==0) net->backProp(errs, sOldActivation, net->grad);
 	else net->backProp(errs, sOldActivation, net->Vgrad[thrID]);
-
+    data->Set[seq]->tuples[samp]->SquaredError = err*err;
     _dispose_object(sOldActivation);
-    return err*err;
 }
