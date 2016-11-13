@@ -102,7 +102,7 @@ void DPG::Train_BPTT(const int seq, const int thrID)
 	die("DPG with BPTT not implemented: do eet!\n");
 }
 
-Real DPG::Train(const int seq, const int samp, const int thrID)
+void DPG::Train(const int seq, const int samp, const int thrID)
 {
     assert(net->allocatedFrozenWeights && net_policy->allocatedFrozenWeights);
     
