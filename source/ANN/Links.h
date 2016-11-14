@@ -490,7 +490,7 @@ struct Graph //misleading, this is just the graph for a single layer
     vector<Link*> * links;
 
     Graph() :
-	input(false), output(false), RNN(false), LSTM(false), Conv2D(false), normalize(false)
+	input(false), output(false), RNN(false), LSTM(false), Conv2D(false), normalize(false),
 	layerSize(0), firstNeuron_ID(0), firstState_ID(0), firstBias_ID(0),
 	firstBiasIG_ID(0), firstBiasFG_ID(0), firstBiasOG_ID(0), //LSTM
 	layerWidth(0), layerHeight(0), layerDepth(0), padWidth(0), padHeight(0), //Conv2D

@@ -149,8 +149,8 @@ public:
     	if(runningStd.size() != nNeurons) runningStd.resize(nNeurons);
 
     	for (int k=0; k<nNeurons; k++) {
-    		runningAvg = 0;
-    		runningStd = 0;
+    		runningAvg[k] = 0;
+    		runningStd[k] = 0;
     	}
     }
 
@@ -165,6 +165,8 @@ public:
 
 		for (int i=0; i<nNeurons; i++)  outa << runningAvg[i] << " ";
 		for (int i=0; i<nNeurons; i++)  outs << runningStd[i]*invNm1 << " ";
+		outa << '\n';
+		outs << '\n';
     }
 
     void updateRunning(Activation* const act) {
