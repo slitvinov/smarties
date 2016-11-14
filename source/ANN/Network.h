@@ -143,43 +143,40 @@ public:
     	backProp(_errors, net, weights, _grads);
     }
 
+
+	virtual void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) {};
+
     void resetRunning() {
     	counter=0;
 
-    	if(runningAvg.size() != nNeurons) runningAvg.resize(nNeurons);
-    	if(runningStd.size() != nNeurons) runningStd.resize(nNeurons);
-
-    	for (int k=0; k<nNeurons; k++) {
-    		runningAvg[k] = 0;
-    		runningStd[k] = 0;
-    	}
+    	for(auto & graph : G)
+    		for(auto & l : graph->links)
+    			l->resetRunning();
     }
 
     void printRunning() {
     	counter = std::max(counter,2);
+    	ostringstream oa;
+    	ostringstream os;
+    	for(auto & graph : G)
+			for(auto & l : graph->links)
+				l->resetRunning(counter, oa, os);
+		oa << '\n';
+		os << '\n';
 
     	ofstream outa("running_avg.txt",std::ofstream::app);
     	ofstream outs("running_std.txt",std::ofstream::app);
 		if (!outa.good()) die("Unable to open save into avg file\n");
 		if (!outs.good()) die("Unable to open save into std file\n");
-    	const Real invNm1 = 1./(counter-1);
-
-		for (int i=nInputs; i<nNeurons; i++)  outa << runningAvg[i] << " ";
-		for (int i=nInputs; i<nNeurons; i++)  outs << runningStd[i]*invNm1 << " ";
-		outa << '\n';
-		outs << '\n';
+		outa << oa.str();
+		outs << os.str();
     }
 
     void updateRunning(Activation* const act) {
     	counter++;
-    	assert(runningAvg.size() == nNeurons);
-    	assert(runningStd.size() == nNeurons);
-    	const Real invN = 1./counter;
-    	for (int k=nInputs; k<nNeurons; k++) {
-    		const Real delta = act->in_vals[k] - runningAvg[k];
-    		runningAvg[k] += delta*invN;
-    		runningStd[k] += delta*(act->in_vals[k] - runningAvg[k]);
-    	}
+    	for(auto & graph : G)
+			for(auto & l : graph->links)
+				l->resetRunning(act, counter);
     }
 
     void checkGrads(const vector<vector<Real>>& inputs, int lastn=-1);

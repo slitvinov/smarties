@@ -56,6 +56,10 @@ public:
 				*(_weights+n0+k*nOut+i) *= std::sqrt(v_d_v_pre/v_d_v_post);
 		}
 	}
+
+	virtual void resetRunning() {};
+	virtual void updateRunning(Activation* const act, const int counter) {};
+	virtual void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) {};
 };
 
 class NormalLink: public Link
@@ -424,6 +428,7 @@ public:
 
 class WhiteningLink : public Link
 {
+    vector<Real> runningAvg, runningStd;
 public:
 	const int iW, nI, iI, nO, iO, nW;
 	WhiteningLink(int nI, int iI, int nO, int iO, int iW) : iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), nW(4*nI)
@@ -472,6 +477,33 @@ public:
     void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const override
     {
         die("You really should not be able to get here as well.\n");
+    }
+
+    void resetRunning() override {
+    	if(runningAvg.size() != nO) runningAvg.resize(nO);
+    	if(runningStd.size() != nO) runningStd.resize(nO);
+    	for (int k=0; k<nO; k++) {
+    		runningAvg[k] = 0;
+    		runningStd[k] = 0;
+    	}
+    }
+
+    void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) override {
+    	counter = std::max(counter,2);
+    	const Real invNm1 = 1./(counter-1);
+		for (int i=0; i<nO; i++)  oa << runningAvg[i] << " ";
+		for (int i=0; i<nO; i++)  os << runningStd[i]*invNm1 << " ";
+    }
+
+    void updateRunning(Activation* const act, const int counter) override {
+    	assert(runningAvg.size() == nO && runningStd.size() == nO && counter>0);
+    	const Real invN = 1./counter;
+
+    	for (int k=0; k<nO; k++) {
+    		const Real delta = act->in_vals[k] - runningAvg[k];
+    		runningAvg[k] += delta*invN;
+    		runningStd[k] += delta*(act->in_vals[k] - runningAvg[k]);
+    	}
     }
 };
 
