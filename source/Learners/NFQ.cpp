@@ -162,8 +162,8 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
     net->updateBatchStatistics(sOldActivation);
 #endif
     
-    const bool term = samp+2==ndata && data->Set[seq]->ended;
-    if (not term) {
+    const bool terminal = samp+2==ndata && data->Set[seq]->ended;
+    if (not terminal) {
         Activation* sNewActivation = net->allocateActivation();
         net->predict(_t->s, Qhats,   sNewActivation);
         net->predict(_t->s, Qtildes, sNewActivation, net->tgt_weights, net->tgt_biases);
@@ -178,14 +178,16 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
     	if(Qhats[i]>Vhat) { Vhat=Qhats[i]; Nbest=i;  }
     }
     
-    const Real target = (term) ? _t->r : _t->r + gamma*Qtildes[Nbest];
+    const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[Nbest];
     const Real err =  (target - Qs[_t->a]);
     errs[_t->a] = err;
     
     dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
+    if(thrID == 1) net->updateRunning(sOldActivation);
+    data->Set[seq]->tuples[samp]->SquaredError = err*err;
+
     if (thrID==0) net->backProp(errs, sOldActivation, net->grad);
 	else net->backProp(errs, sOldActivation, net->Vgrad[thrID]);
-    data->Set[seq]->tuples[samp]->SquaredError = err*err;
-    if(thrID == 1) net->updateRunning(sOldActivation);
+
     _dispose_object(sOldActivation);
 }

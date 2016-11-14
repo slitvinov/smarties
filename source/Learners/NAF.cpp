@@ -131,7 +131,7 @@ void NAF::Train_BPTT(const int seq, const int thrID)
         data->Set[seq]->tuples[k]->SquaredError = err*err;
         net->setOutputDeltas(gradient, timeSeries[k]);
         dumpStats(Vstats[thrID], Q[0], err, Q);
-        if(thrID == 1) net->updateRunning(timeSeries[k]);
+        if(thrID==1) net->updateRunning(timeSeries[k]);
     }
 
     if (thrID==0) net->backProp(timeSeries, net->grad);
@@ -141,7 +141,7 @@ void NAF::Train_BPTT(const int seq, const int thrID)
 
 void NAF::Train(const int seq, const int samp, const int thrID)
 {
-    if(not net->allocatedFrozenWeights) die("Allocate them!\n");
+    assert(net->allocatedFrozenWeights);
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
     const int ndata = data->Set[seq]->tuples.size();
 
@@ -149,7 +149,11 @@ void NAF::Train(const int seq, const int samp, const int thrID)
     sOldActivation->clearErrors();
     
     const Tuple * const _t = data->Set[seq]->tuples[samp+1]; //this tuple contains a, sNew, reward:
-    net->predict(data->Set[seq]->tuples[samp]->s, output, sOldActivation); //sOld in previous tuple
+    net->predict(data->Set[seq]->tuples[samp]->s, output, sOldActivation, 0.01); //sOld in previous tuple
+#ifdef _whitenTarget_
+    #pragma	omp critical
+    net->updateBatchStatistics(sOldActivation);
+#endif
 
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
     if (not terminal) {
@@ -160,12 +164,13 @@ void NAF::Train(const int seq, const int samp, const int thrID)
     
     Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
     const vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
-    data->Set[seq]->tuples[samp]->SquaredError = err*err;
+
     dumpStats(Vstats[thrID], Q[0], err, Q);
+    if(thrID == 1) net->updateRunning(sOldActivation);
+    data->Set[seq]->tuples[samp]->SquaredError = err*err;
     
     if (thrID==0) net->backProp(gradient, sOldActivation, net->grad);
 	else net->backProp(gradient, sOldActivation, net->Vgrad[thrID]);
-    if(thrID == 1) net->updateRunning(sOldActivation);
 
     _dispose_object(sOldActivation);
 }

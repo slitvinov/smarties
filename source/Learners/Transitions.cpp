@@ -178,7 +178,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
 void Transitions::push_back(const int & agentId)
 {
     if(Tmp[agentId]->tuples.size()>3) {
-        if (nSequences>NmaxDATA) Buffered.push_back(Tmp[agentId]);
+        if (nSequences>=NmaxDATA) Buffered.push_back(Tmp[agentId]);
         else {
             nSequences++;
             Set.push_back(Tmp[agentId]);
