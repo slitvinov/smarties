@@ -14,6 +14,7 @@
 #include "Layers.h"
 #include "../Profiler.h"
 
+#include <fstream>
 using namespace std;
 
 class Network
@@ -26,8 +27,8 @@ protected:
     vector<Layer*> layers;
     void build_LSTM_layer(Graph* const graph);
     void build_normal_layer(Graph* const graph);
-    void build_whitening_layer(Graph* const graph);;
-    void build_conv2d_layer(Graph* const graph)
+    void build_whitening_layer(Graph* const graph);
+    void build_conv2d_layer(Graph* const graph);
 
 public:
     int nAgents, nThreads, nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates;
@@ -55,7 +56,7 @@ public:
         addInput(size, true);}
     
     void addConv2DLayer(const int filterSize[3], const int outSize[3], const int padding[2], const int stride[2],
-    											const bool normalize, vector<int> linkedTo, const bool bOutput=false)
+    											const bool normalize, vector<int> linkedTo, const bool bOutput=false);
     void addConv2DLayer(const int filterSize[3], const int outSize[3], const int padding[2], const int stride[2],
     											const bool normalize, const bool bOutput = false) {
     	addConv2DLayer(filterSize, outSize, padding, stride, normalize, vector<int>(), bOutput); }
@@ -157,8 +158,8 @@ public:
     void printRunning() {
     	counter = std::max(counter,2);
 
-    	ofstream outa("running_avg.txt");
-    	ofstream outs("running_std.txt");
+    	ofstream outa("running_avg.txt",std::ofstream::app);
+    	ofstream outs("running_std.txt",std::ofstream::app);
 		if (!outa.good()) die("Unable to open save into avg file\n");
 		if (!outs.good()) die("Unable to open save into std file\n");
     	const Real invNm1 = 1./(counter-1);

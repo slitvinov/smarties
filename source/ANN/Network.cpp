@@ -64,7 +64,7 @@ void Network::build_normal_layer(Graph* const graph)
 
 void Network::build_conv2d_layer(Graph* const graph)
 {
-	vector<LinkToConv2D*>* input_links = new vector<NormalLink*>();
+	vector<LinkToConv2D*>* input_links = new vector<LinkToConv2D*>();
     const int layerSize = graph->layerSize;
     const int nInputLinks = graph->linkedTo.size();
     const int firstNeuron_ID = nNeurons;
@@ -227,7 +227,6 @@ void Network::add2DInput(const int size[3], const bool normalize)
 void Network::addConv2DLayer(const int filterSize[3], const int outSize[3], const int padding[2], const int stride[2],
 							 const bool normalize, vector<int> linkedTo, const bool bOutput)
 {
-	g->Conv2D = true;
 	if(not bAddedInput) die("First specify an input\n");
 	if(bBuilt) die("Cannot build the network multiple times\n");
 	if(filterSize[0]<=0 || filterSize[1]<=0 || filterSize[2]<=0) die("Bad request for conv2D layer\n");
@@ -238,6 +237,7 @@ void Network::addConv2DLayer(const int filterSize[3], const int outSize[3], cons
 	nLayers++;
 	Graph * g = new Graph();
 	//default link is to previous layer:
+	g->Conv2D = true;
 	if(linkedTo.size() == 0) linkedTo.push_back(G.size()-1);
 	g->normalize = normalize;
 	if (normalize) nLayers++;
@@ -253,10 +253,10 @@ void Network::addConv2DLayer(const int filterSize[3], const int outSize[3], cons
 	for(int i = 0; i<inputLinks; i++) {
 		g->linkedTo.push_back(linkedTo[i]);
 		if(linkedTo[i]<0 || linkedTo[i]>=nTmpLayers) die("Proposed link not available\n");
+		const Graph* const layerFrom = G[g->linkedTo[i]];
 		if(layerFrom->layerWidth==0 || layerFrom->layerHeight==0 || layerFrom->layerDepth==0)
 			die("Incompatible with 1D input, place 2D input or resize to 2D... how? TODO\n");
 
-		const Graph* const layerFrom = G[graph->linkedTo[i]];
 		const int inW_withPadding = (outSize[0]-1)*stride[0] + filterSize[0];
 		const int inH_withPadding = (outSize[1]-1)*stride[1] + filterSize[1];
 		assert(inW_withPadding - (layerFrom->layerWidth  + padding[0]) >= 0);
@@ -267,7 +267,7 @@ void Network::addConv2DLayer(const int filterSize[3], const int outSize[3], cons
 	G.push_back(g);
 	if (bOutput) {
 		G.back()->output = true;
-		nOutputs += size;
+		nOutputs += g->layerSize;
 	}
 }
 
