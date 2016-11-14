@@ -105,8 +105,6 @@ void Learner::TrainTasking(Master* const master)
                     #endif
                 }
 
-                net->applyBatchStatistics();
-                
                 if(bRecurrent) {//we are using an LSTM: do BPTT
                     for (int i(0); i<batchSize; i++) {
                         const int ind = data->inds.back();
@@ -168,6 +166,7 @@ void Learner::TrainTasking(Master* const master)
         //here be omp fors:
         if (ndata>batchSize) {
         	stackAndUpdateNNWeights(nAddedGradients);
+            net->applyBatchStatistics();
         	updateTargetNetwork();
         }
     }
