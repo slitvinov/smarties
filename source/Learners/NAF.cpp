@@ -131,6 +131,7 @@ void NAF::Train_BPTT(const int seq, const int thrID)
         data->Set[seq]->tuples[k]->SquaredError = err*err;
         net->setOutputDeltas(gradient, timeSeries[k]);
         dumpStats(Vstats[thrID], Q[0], err, Q);
+        if(thrID == 1) net->updateRunning(timeSeries[k]);
     }
 
     if (thrID==0) net->backProp(timeSeries, net->grad);
@@ -162,6 +163,7 @@ void NAF::Train(const int seq, const int samp, const int thrID)
     
     if (thrID==0) net->backProp(gradient, sOldActivation, net->grad);
 	else net->backProp(gradient, sOldActivation, net->Vgrad[thrID]);
+    if(thrID == 1) net->updateRunning(sOldActivation);
 
     _dispose_object(sOldActivation);
     _dispose_object(sNewActivation);

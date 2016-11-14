@@ -26,7 +26,8 @@ protected:
     vector<Layer*> layers;
     void build_LSTM_layer(Graph* const graph);
     void build_normal_layer(Graph* const graph);
-    void build_whitening_layer(Graph* const graph);
+    void build_whitening_layer(Graph* const graph);;
+    void build_conv2d_layer(Graph* const graph)
 
 public:
     int nAgents, nThreads, nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates;
@@ -37,6 +38,9 @@ public:
     Real *weights, *biases, *tgt_weights, *tgt_biases, *weights_DropoutBackup;
     vector<Grads*> Vgrad;
 
+    int counter;
+    vector<Real> runningAvg, runningStd;
+
     void build();
     
     int getnWeights() const {assert(bBuilt); return nWeights;}
@@ -45,10 +49,17 @@ public:
     int getnInputs() const {assert(bBuilt); return nInputs;}
     int getLastLayerID() const {return G.size()-1;}
     
+    void add2DInput(const int size[3], const bool normalize);
     void addInput(const int size, const bool normalize);
     void addInput(const int size) {
         addInput(size, true);}
     
+    void addConv2DLayer(const int filterSize[3], const int outSize[3], const int padding[2], const int stride[2],
+    											const bool normalize, vector<int> linkedTo, const bool bOutput=false)
+    void addConv2DLayer(const int filterSize[3], const int outSize[3], const int padding[2], const int stride[2],
+    											const bool normalize, const bool bOutput = false) {
+    	addConv2DLayer(filterSize, outSize, padding, stride, normalize, vector<int>(), bOutput); }
+
     void addLayer(const int size, const string type, const bool normalize, vector<int> linkedTo, const bool output);
     void addLayer(const int size, const string type, vector<int> linkedTo) {
         addLayer(size,type,true,linkedTo,false);}
@@ -130,7 +141,44 @@ public:
     {
     	backProp(_errors, net, weights, _grads);
     }
-    
+
+    void resetRunning() {
+    	counter=0;
+
+    	if(runningAvg.size() != nNeurons) runningAvg.resize(nNeurons);
+    	if(runningStd.size() != nNeurons) runningStd.resize(nNeurons);
+
+    	for (int k=0; k<nNeurons; k++) {
+    		runningAvg = 0;
+    		runningStd = 0;
+    	}
+    }
+
+    void printRunning() {
+    	counter = std::max(counter,2);
+
+    	ofstream outa("running_avg.txt");
+    	ofstream outs("running_std.txt");
+		if (!outa.good()) die("Unable to open save into avg file\n");
+		if (!outs.good()) die("Unable to open save into std file\n");
+    	const Real invNm1 = 1./(counter-1);
+
+		for (int i=0; i<nNeurons; i++)  outa << runningAvg[i] << " ";
+		for (int i=0; i<nNeurons; i++)  outs << runningStd[i]*invNm1 << " ";
+    }
+
+    void updateRunning(Activation* const act) {
+    	counter++;
+    	assert(runningAvg.size() == nNeurons);
+    	assert(runningStd.size() == nNeurons);
+    	const Real invN = 1./counter;
+    	for (int k=0; k<nNeurons; k++) {
+    		const Real delta = act->in_vals[k] - runningAvg[k];
+    		runningAvg[k] += delta*invN;
+    		runningStd[k] += delta*(act->in_vals[k] - runningAvg[k]);
+    	}
+    }
+
     void checkGrads(const vector<vector<Real>>& inputs, int lastn=-1);
 
     void save(const string fname);

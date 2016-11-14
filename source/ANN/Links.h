@@ -477,18 +477,24 @@ public:
 
 struct Graph //misleading, this is just the graph for a single layer
 {
-    bool input, output, RNN, LSTM, normalize;
+	//TODO SIMD safety
+    bool input, output, RNN, LSTM, Conv2D, normalize;
     int layerSize;
 	int firstNeuron_ID; //recurrPos, normalPos;
     int firstState_ID;
     int firstBias_ID;
     int firstBiasIG_ID, firstBiasFG_ID, firstBiasOG_ID;
+    int layerWidth, layerHeight, layerDepth;
+    int padWidth, padHeight, featsWidth, featsHeight, featsNumber, strideWidth, strideHeight;
     vector<int> linkedTo;
     vector<Link*> * links;
 
-    Graph()
-    : input(false), output(false), RNN(false), LSTM(false), normalize(false), layerSize(0), firstNeuron_ID(0),
-	  firstState_ID(0), firstBias_ID(0), firstBiasIG_ID(0), firstBiasFG_ID(0), firstBiasOG_ID(0)
+    Graph() :
+	input(false), output(false), RNN(false), LSTM(false), Conv2D(false), normalize(false)
+	layerSize(0), firstNeuron_ID(0), firstState_ID(0), firstBias_ID(0),
+	firstBiasIG_ID(0), firstBiasFG_ID(0), firstBiasOG_ID(0), //LSTM
+	layerWidth(0), layerHeight(0), layerDepth(0), padWidth(0), padHeight(0), //Conv2D
+	featsWidth(0), featsHeight(0), featsNumber(0), strideWidth(0), strideHeight(0)
     {
     	links = new vector<Link*>();
     }

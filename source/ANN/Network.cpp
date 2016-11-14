@@ -62,6 +62,47 @@ void Network::build_normal_layer(Graph* const graph)
     layers.push_back(l);
 }
 
+void Network::build_conv2d_layer(Graph* const graph)
+{
+	vector<LinkToConv2D*>* input_links = new vector<NormalLink*>();
+    const int layerSize = graph->layerSize;
+    const int nInputLinks = graph->linkedTo.size();
+    const int firstNeuron_ID = nNeurons;
+    assert(layerSize>0 && nInputLinks>0 && firstNeuron_ID>0);
+    if(graph->output)
+    	for(int i=0; i<layerSize; i++) iOut.push_back(i+firstNeuron_ID);
+
+    graph->firstNeuron_ID = firstNeuron_ID;
+    nNeurons += layerSize; //move the counter
+    graph->firstBias_ID = nBiases;
+    nBiases += layerSize; //one bias per neuron
+
+    for(int i = 0; i<nInputLinks; i++) {
+		assert(graph->linkedTo[i]>=0 || graph->linkedTo[i]<G.size());
+		Graph* const layerFrom = G[graph->linkedTo[i]];
+		const int firstNeuronFrom = layerFrom->firstNeuron_ID;
+		const int sizeLayerFrom = layerFrom->layerSize;
+
+		assert(firstNeuronFrom>=0 && firstNeuronFrom<firstNeuron_ID && sizeLayerFrom>0);
+		LinkToConv2D* tmp = new LinkToConv2D(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID,
+				nWeights, layerFrom->layerWidth, layerFrom->layerHeight, layerFrom->layerDepth,
+				graph->featsWidth, graph->featsHeight, graph->featsNumber, graph->layerWidth, graph->layerHeight,
+				graph->strideWidth, graph->strideHeight, graph->padWidth, graph->padHeight);
+		input_links->push_back(tmp);
+		graph->links->push_back(tmp);
+		nWeights += graph->featsWidth*graph->featsHeight*graph->featsNumber*layerFrom->layerDepth;
+    }
+
+    Layer * l = nullptr;
+    if (graph->output)
+	l = new Conv2DLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, graph->output);
+    else
+    l = new Conv2DLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, graph->output);
+
+    if (graph->output) printf( "Linear output\n");
+    layers.push_back(l);
+}
+
 void Network::build_whitening_layer(Graph* const graph)
 {	
     const int layerSize = graph->layerSize;
@@ -164,6 +205,72 @@ void Network::addInput(const int size, const bool normalize)
 	G.push_back(g);
 }
 
+void Network::add2DInput(const int size[3], const bool normalize)
+{
+	if(bBuilt) die("Cannot build the network multiple times\n");
+	if(size[0]<=0 || size[1]<=0 || size[2]<=0) die("Requested an empty input layer\n");
+	const int flatSize = size[0] * size[1] * size[2];
+	bAddedInput = true;
+	nInputs += flatSize;
+	Graph * g = new Graph();
+    g->normalize = normalize;
+	if (normalize) nLayers++;
+	g->layerSize = flatSize;
+	//2d input: depth is actually num of color channels: todo standard notation for eventual 3d?
+	g->layerWidth = size[0];
+	g->layerHeight = size[1];
+	g->layerDepth = size[2];
+	g->input = true;
+	G.push_back(g);
+}
+
+void Network::addConv2DLayer(const int filterSize[3], const int outSize[3], const int padding[2], const int stride[2],
+							 const bool normalize, vector<int> linkedTo, const bool bOutput)
+{
+	g->Conv2D = true;
+	if(not bAddedInput) die("First specify an input\n");
+	if(bBuilt) die("Cannot build the network multiple times\n");
+	if(filterSize[0]<=0 || filterSize[1]<=0 || filterSize[2]<=0) die("Bad request for conv2D layer\n");
+	if(outSize[0]<=0 || outSize[1]<=0 || outSize[2]<=0) die("Bad request for conv2D layer\n");
+	assert(filterSize[0] >= stride[0] && filterSize[1] >= stride[1]);
+	assert(padding[0] < filterSize[0] && padding[1] < filterSize[1]);
+
+	nLayers++;
+	Graph * g = new Graph();
+	//default link is to previous layer:
+	if(linkedTo.size() == 0) linkedTo.push_back(G.size()-1);
+	g->normalize = normalize;
+	if (normalize) nLayers++;
+	g->layerSize = outSize[0] * outSize[1] * outSize[2];
+	g->layerWidth = outSize[0]; g->layerHeight = outSize[1]; g->layerDepth = outSize[2];
+	g->featsWidth = filterSize[0]; g->featsHeight = filterSize[1]; g->featsNumber = filterSize[2];
+	g->padWidth = padding[0]; g->padHeight = padding[1]; g->strideWidth = stride[0]; g->strideHeight = stride[1];
+
+	const int nTmpLayers = G.size();
+	const int inputLinks = linkedTo.size();
+
+	assert(inputLinks > 0);
+	for(int i = 0; i<inputLinks; i++) {
+		g->linkedTo.push_back(linkedTo[i]);
+		if(linkedTo[i]<0 || linkedTo[i]>=nTmpLayers) die("Proposed link not available\n");
+		if(layerFrom->layerWidth==0 || layerFrom->layerHeight==0 || layerFrom->layerDepth==0)
+			die("Incompatible with 1D input, place 2D input or resize to 2D... how? TODO\n");
+
+		const Graph* const layerFrom = G[graph->linkedTo[i]];
+		const int inW_withPadding = (outSize[0]-1)*stride[0] + filterSize[0];
+		const int inH_withPadding = (outSize[1]-1)*stride[1] + filterSize[1];
+		assert(inW_withPadding - (layerFrom->layerWidth  + padding[0]) >= 0);
+		assert(inH_withPadding - (layerFrom->layerHeight + padding[1]) >= 0);
+		assert(inW_withPadding - (layerFrom->layerWidth  + padding[0]) < filterSize[0]);
+		assert(inH_withPadding - (layerFrom->layerHeight + padding[1]) < filterSize[1]);
+	}
+	G.push_back(g);
+	if (bOutput) {
+		G.back()->output = true;
+		nOutputs += size;
+	}
+}
+
 void Network::addLayer(const int size, const string type, const bool normalize, vector<int> linkedTo, 
                        const bool bOutput)
 {
@@ -222,12 +329,16 @@ void Network::build()
 		}
 		assert(!graph->input);
 		if (graph->LSTM) build_LSTM_layer(graph);
+		else if (graph->Conv2D) build_conv2d_layer(graph);
 		else build_normal_layer(graph);
         
         if(graph->normalize) build_whitening_layer(graph);
 	}
 	assert(layers.size() == nLayers);
 	assert(iOut.size() == nOutputs);
+
+	runningAvg.resize(nNeurons);
+	runningStd.resize(nNeurons);
 
 	for (int i=0; i<nAgents; ++i) {
 		Mem * m = new Mem(nNeurons, nStates);

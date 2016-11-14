@@ -267,16 +267,24 @@ void Learner::processStats(vector<trainData*> _stats)
     if (stats.dumpCount<2) return;
     stats.epochCount++;
     
+
+    Real sumWeights(0.);
+    for (int w=0; w<net->nWeights; w++){
+    	sumWeights += std::fabs(net->weights[w]);
+    }
+
     stats.MSE/=(stats.dumpCount-1);
     stats.avgQ/=stats.dumpCount;
     stats.relE/=stats.dumpCount;
-    
+    net->printRunning();
+    net->resetRunning();
+
     ofstream filestats;
     filestats.open("stats.txt", ios::app);
-    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, N %d\n",
-           stats.epochCount,      stats.MSE,      stats.relE,      stats.avgQ,      stats.minQ,      stats.maxQ, stats.dumpCount);
+    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, sumWeights %f, N %d\n",
+	   stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ, stats.maxQ, sumWeights, stats.dumpCount);
     filestats<<
-    stats.epochCount<<" "<<stats.MSE<<" "<<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
+    stats.epochCount<<" "<<stats.MSE<<" "<<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "<<sumWeights<<" "<<stats.minQ<<endl;
     filestats.close();
     
     fflush(0);

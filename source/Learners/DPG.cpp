@@ -167,6 +167,8 @@ void DPG::Train(const int seq, const int samp, const int thrID)
     	else net_policy->backProp(pol_gradient, sOldAAct, net_policy->Vgrad[thrID]);
     }
 
+    if(thrID == 1) net->updateRunning(sOldAAct);
+
     _dispose_object(sOldAAct);
     _dispose_object(sNewAAct);
     _dispose_object(sOldQAct);

@@ -133,6 +133,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
         net->setOutputDeltas(errs, timeSeries[k]);
         dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
         data->Set[seq]->tuples[k]->SquaredError = err*err;
+        if(thrID == 1) net->updateRunning(timeSeries[k]);
     }
 
     if (thrID==0) net->backProp(timeSeries, net->grad);
@@ -176,5 +177,6 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
     if (thrID==0) net->backProp(errs, sOldActivation, net->grad);
 	else net->backProp(errs, sOldActivation, net->Vgrad[thrID]);
     data->Set[seq]->tuples[samp]->SquaredError = err*err;
+    if(thrID == 1) net->updateRunning(sOldActivation);
     _dispose_object(sOldActivation);
 }
