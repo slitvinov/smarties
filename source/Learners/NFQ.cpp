@@ -157,16 +157,16 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
 
     const Tuple * const _t = data->Set[seq]->tuples[samp+1];
     net->predict(data->Set[seq]->tuples[samp]->s, Qs, sOldActivation, 0.01);
+#ifdef _whitenTarget_
+    #pragma	omp critical
+    net->updateBatchStatistics(sOldActivation);
+#endif
     
     const bool term = samp+2==ndata && data->Set[seq]->ended;
     if (not term) {
         Activation* sNewActivation = net->allocateActivation();
         net->predict(_t->s, Qhats,   sNewActivation);
         net->predict(_t->s, Qtildes, sNewActivation, net->tgt_weights, net->tgt_biases);
-#ifdef _whitenTarget_
-        #pragma	omp critical
-        net->updateBatchStatistics(sNewActivation);
-#endif
         _dispose_object(sNewActivation);
     }
     

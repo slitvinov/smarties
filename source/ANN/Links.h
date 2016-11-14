@@ -464,7 +464,7 @@ public:
     {
         Real* const link_means = _weights +iW;
         Real* const link_vars = _weights +iW +nO;
-        const Real eta = 0.01;
+        const Real eta = 0.1;
         const Real _eta = 1. - eta;
         for (int k=0; k<nO; k++) {
 			link_means[k] = _eta*link_means[k] + eta*avgs[k+iO];

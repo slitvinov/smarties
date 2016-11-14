@@ -155,6 +155,7 @@ public:
 
 	void applyBatchStatistics() {
 		const int invNm1 = 1./(batch_counter-1);
+      printf("Applying batch statistics from %d samples\n", batch_counter);
 		batch_counter = 0;
 		for(auto & graph : G)
 			for(auto & l : *(graph->links))

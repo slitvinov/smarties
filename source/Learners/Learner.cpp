@@ -93,6 +93,9 @@ void Learner::TrainTasking(Master* const master)
                     ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
                     processStats(Vstats); //dump info about convergence
                     opt->nepoch=stats.epochCount; //used to anneal learning rate
+                     #ifdef _whitenTarget_
+	                  net->applyBatchStatistics();
+                     #endif
                     
                     #if 0==1//ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
                     if (stats.epochCount++ % 1000 == 0) {
@@ -186,10 +189,6 @@ void Learner::updateNNWeights(const int nAddedGradients)
 
 void Learner::updateTargetNetwork()
 {
-#ifdef _whitenTarget_
-	#pragma omp single
-	net->applyBatchStatistics();
-#endif
 
     if (cntUpdateDelay <= 0) { //DQN-style frozen weight
         #pragma omp master
