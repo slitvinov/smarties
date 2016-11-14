@@ -424,24 +424,24 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output,
         _output[i] = net->outvals[iOut[i]];
 }
 
-void Network::backProp(vector<Activation*>& timeSeries, const Real* const _weights, Grads* const _grads) const
+void Network::backProp(vector<Activation*>& timeSeries, const Real* const _weights, const Real* const _biases, Grads* const _grads) const
 {
 	assert(bBuilt);
 	const int last = timeSeries.size()-1;
 
     for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagate(timeSeries[last-1],timeSeries[last],(Activation*)nullptr, _grads, _weights);
+        layers[nLayers-i]->backPropagate(timeSeries[last-1],timeSeries[last],(Activation*)nullptr, _grads, _weights, _biases);
 
     for (int k=last-1; k>=1; k--) 
 	for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagate(timeSeries[k-1],timeSeries[k],timeSeries[k+1], _grads, _weights);
+        layers[nLayers-i]->backPropagate(timeSeries[k-1],timeSeries[k],timeSeries[k+1], _grads, _weights, _biases);
 
     for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagate((Activation*)nullptr,timeSeries[0],timeSeries[1], _grads, _weights);
+        layers[nLayers-i]->backPropagate((Activation*)nullptr,timeSeries[0],timeSeries[1], _grads, _weights, _biases);
 }
 
 void Network::backProp(const vector<Real>& _errors,
-		Activation* const net, const Real* const _weights, Grads* const _grads) const
+		Activation* const net, const Real* const _weights, const Real* const _biases, Grads* const _grads) const
 {
 	assert(bBuilt);
 	net->clearErrors();
@@ -450,7 +450,7 @@ void Network::backProp(const vector<Real>& _errors,
 		net->errvals[iOut[i]] = _errors[i];
 
     for (int i=1; i<=nLayers; i++)
-        layers[nLayers-i]->backPropagate(net, _grads, _weights);
+        layers[nLayers-i]->backPropagate(net, _grads, _weights, _biases);
 }
 
 void Network::clearErrors(vector<Activation*>& timeSeries) const

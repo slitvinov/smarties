@@ -19,12 +19,12 @@ class Layer
     public:
     virtual void propagate(const Activation* const prev, Activation* const curr, 
                            const Real* const weights, const Real* const biases, const Real noise) const = 0;
-    virtual void backPropagate( Activation* const prev,  Activation* const curr, const Activation* const next, Grads* const grad, const Real* const weights) const = 0;
+    virtual void backPropagate( Activation* const prev,  Activation* const curr, const Activation* const next, Grads* const grad, const Real* const weights, const Real* const biases) const = 0;
 
     void propagate(Activation* const curr, const Real* const weights, const Real* const biases, const Real noise) const 
         { return propagate(nullptr, curr, weights, biases, noise); }
-    void backPropagate( Activation* const curr, Grads* const grad, const Real* const weights) const
-        { return backPropagate(nullptr, curr, nullptr, grad, weights); }
+    void backPropagate( Activation* const curr, Grads* const grad, const Real* const weights, const Real* const biases) const
+        { return backPropagate(nullptr, curr, nullptr, grad, weights, biases); }
 };
 
 template<typename outFunc>
@@ -59,7 +59,7 @@ public:
         Func::eval(inputs, outputs, nNeurons);
     }
     void backPropagate( Activation* const prev,  Activation* const curr, const Activation* const next, 
-                       Grads* const grad, const Real* const weights) const override
+                       Grads* const grad, const Real* const weights, const Real* const biases) const override
     {
         const Real* const inputs = curr->in_vals +n1stNeuron;
         Real* const deltas = curr->errvals +n1stNeuron;
@@ -111,7 +111,7 @@ public:
         Func::eval(inputs, outputs, nNeurons);
     }
 	void backPropagate( Activation* const prev,  Activation* const curr, const Activation* const next, 
-                       Grads* const grad, const Real* const weights) const  override
+                       Grads* const grad, const Real* const weights, const Real* const biases) const  override
     {
         const Real* const inputs = curr->in_vals +n1stNeuron;
         Real* const errors = curr->errvals +n1stNeuron;
@@ -190,7 +190,7 @@ public:
         for (int o=0; o<nNeurons; o++) *(curr->outvals +n1stNeuron +o) *= outputO[o];
     }
 	void backPropagate( Activation* const prev,  Activation* const curr, const Activation* const next, 
-                       Grads* const grad, const Real* const weights) const  override
+                       Grads* const grad, const Real* const weights, const Real* const biases) const  override
     {
         const Real* const inputs = curr->in_vals +n1stNeuron;
         const Real* const inputI = curr->iIGates +n1stCell;
@@ -283,7 +283,7 @@ public:
             outputs[n] = link_scales[n]*inputs[n] + link_shifts[n]; 
     }
 	void backPropagate( Activation* const prev,  Activation* const curr, const Activation* const next, 
-                       Grads* const grad, const Real* const weights) const  override
+                       Grads* const grad, const Real* const weights, const Real* const biases) const  override
     {
         Real* const link_errors = curr->errvals + link->iI;
         const Real* const errors = curr->errvals +n1stNeuron;

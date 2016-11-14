@@ -129,17 +129,17 @@ public:
     }
 
     void backProp(vector<Activation*>& timeSeries,
-    				const Real* const _weights, Grads* const _grads) const;
+    				const Real* const _weights, const Real* const biases, Grads* const _grads) const;
     void backProp(vector<Activation*>& timeSeries, Grads* const _grads) const
     {
-    	backProp(timeSeries, weights, _grads);
+    	backProp(timeSeries, weights, biases, _grads);
     }
 
     void backProp(const vector<Real>& _errors, Activation* const net,
-    				const Real* const _weights, Grads* const _grads) const;
+    				const Real* const _weights, const Real* const biases, Grads* const _grads) const;
     void backProp(const vector<Real>& _errors, Activation* const net, Grads* const _grads) const
     {
-    	backProp(_errors, net, weights, _grads);
+    	backProp(_errors, net, weights, biases, _grads);
     }
 
 
