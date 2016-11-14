@@ -116,10 +116,10 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
         const bool terminal = k+2==ndata && data->Set[seq]->ended;
         if (not terminal) {
             net->predict(_t->s, Qtildes, timeSeries, k+1, net->tgt_weights,  net->tgt_biases);
-
+#ifdef _whitenTarget_
 			#pragma	omp critical
             net->updateBatchStatistics(timeSeries[k+1]);
-
+#endif
             net->predict(_t->s, Qhats,   timeSeries, k+1, 0.01);
         }
         
@@ -163,10 +163,10 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
         Activation* sNewActivation = net->allocateActivation();
         net->predict(_t->s, Qhats,   sNewActivation);
         net->predict(_t->s, Qtildes, sNewActivation, net->tgt_weights, net->tgt_biases);
-
+#ifdef _whitenTarget_
         #pragma	omp critical
         net->updateBatchStatistics(sNewActivation);
-
+#endif
         _dispose_object(sNewActivation);
     }
     

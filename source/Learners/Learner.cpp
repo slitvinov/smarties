@@ -166,7 +166,7 @@ void Learner::TrainTasking(Master* const master)
         //here be omp fors:
         if (ndata>batchSize) {
         	stackAndUpdateNNWeights(nAddedGradients);
-            net->applyBatchStatistics();
+
         	updateTargetNetwork();
         }
     }
@@ -186,6 +186,11 @@ void Learner::updateNNWeights(const int nAddedGradients)
 
 void Learner::updateTargetNetwork()
 {
+#ifdef _whitenTarget_
+	#pragma omp single
+	net->applyBatchStatistics();
+#endif
+
     if (cntUpdateDelay <= 0) { //DQN-style frozen weight
         #pragma omp master
         cntUpdateDelay = tgtUpdateDelay;

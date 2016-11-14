@@ -464,9 +464,12 @@ public:
     {
         Real* const link_means = _weights +iW;
         Real* const link_vars = _weights +iW +nO;
+        const Real eta = 0.01;
+        const Real _eta = 1. - eta;
         for (int k=0; k<nO; k++) {
-			link_means[k] = avgs[k+iO];
-			link_vars[k] = std::max(stds[k+iO]*invNm1, std::numeric_limits<Real>::epsilon());
+			link_means[k] = _eta*link_means[k] + eta*avgs[k+iO];
+			const Real tmp = std::max(stds[k+iO]*invNm1, std::numeric_limits<Real>::epsilon());
+			link_vars[k] = _eta*link_vars[k] + eta*tmp;
 			avgs[k+iO] = 0;
 			stds[k+iO] = 0;
 		}
