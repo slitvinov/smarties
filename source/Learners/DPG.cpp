@@ -64,7 +64,7 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     } else { //then if i'm using RNN i need to load recurrent connections
         Activation* prevActivation = net_policy->allocateActivation();
         net_policy->loadMemory(net_policy->mem[agentId], prevActivation);
-        net_policy->predict(inputs, output, prevActivation, currActivation);
+        net_policy->predict(inputs, output, prevActivation, currActivation, 0.01);
         data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
         _dispose_object(prevActivation);
     }
@@ -111,7 +111,6 @@ void DPG::Train(const int seq, const int samp, const int thrID)
     //sOld contained in previous tuple
     const Tuple * const _tOld = data->Set[seq]->tuples[samp];
     Activation* sOldAAct = net_policy->allocateActivation();
-    Activation* sNewAAct = net_policy->allocateActivation();
     Activation* sOldQAct = net->allocateActivation();
     Activation* sNewQAct = net->allocateActivation();
     sOldAAct->clearErrors();
@@ -123,11 +122,12 @@ void DPG::Train(const int seq, const int samp, const int thrID)
     { //join state and action to predict Q
         vector<Real> input(_tOld->s);
         input.insert(input.end(),_t->aC.begin(),_t->aC.end());
-        net->predict(input, Q, sOldQAct);
+        net->predict(input, Q, sOldQAct, 0.01);
     }
 
     const bool terminal = samp+2==data->Set[seq]->tuples.size() && data->Set[seq]->ended;
     if (not terminal) {
+        Activation* sNewAAct = net_policy->allocateActivation();
         //first predict best action with policy NN w/ target weights
         vector<Real> policy(nA);
         net_policy->predict(_t->s, policy, sNewAAct, net_policy->tgt_weights, net_policy->tgt_biases);
@@ -135,6 +135,7 @@ void DPG::Train(const int seq, const int samp, const int thrID)
         vector<Real> input(_t->s);
         input.insert(input.end(),policy.begin(),policy.end());
         net->predict(input, vSnew, sNewQAct, net->tgt_weights, net->tgt_biases);
+        _dispose_object(sNewAAct);
     }
     
     const Real target = (terminal) ? _t->r : _t->r + gamma*vSnew[0];
@@ -149,8 +150,8 @@ void DPG::Train(const int seq, const int samp, const int thrID)
     //now update policy network:
     { //predict policy for sOld
         vector<Real> policy(nA), pol_gradient(nA);
-        net_policy->predict(_tOld->s, policy, sOldAAct);
-        
+        net_policy->predict(_tOld->s, policy, sOldAAct, 0.01);
+
         //use it to compute activation with frozen weitghts for Q net
         vector<Real> input(_tOld->s);
         input.insert(input.end(), policy.begin(), policy.end());
@@ -170,7 +171,6 @@ void DPG::Train(const int seq, const int samp, const int thrID)
     if(thrID == 1) net->updateRunning(sOldAAct);
 
     _dispose_object(sOldAAct);
-    _dispose_object(sNewAAct);
     _dispose_object(sOldQAct);
     _dispose_object(sNewQAct);
 }

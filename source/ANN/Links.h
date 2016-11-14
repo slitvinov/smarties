@@ -15,6 +15,9 @@
 #include <cassert>
 #include <sstream>
 #include <iomanip>
+
+// #define _whitenTarget_
+
 using namespace std;
 
 class Link

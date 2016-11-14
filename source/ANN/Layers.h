@@ -12,7 +12,6 @@
 #include "../Settings.h"
 #include "Links.h"
 #include <iostream>
-#define _whitenTarget_
 using namespace std;
 
 class Layer
@@ -301,8 +300,8 @@ public:
         for (int n=0; n<nNeurons; n++)  {
             const Real std = std::max(std::numeric_limits<Real>::epsilon(), link_vars[n]);
             link_errors[n] = errors[n]*link_scales[n]/std::sqrt(std);
-            const Real dEdMean = link_inputs[n]-link_means[n];
 #ifndef _whitenTarget_
+            const Real dEdMean = link_inputs[n]-link_means[n];
             grad_means[n] += 0.001*dEdMean;
             grad_vars[n] += 0.001*(dEdMean*dEdMean - link_vars[n]);
 #endif
