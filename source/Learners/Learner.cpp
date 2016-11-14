@@ -104,6 +104,8 @@ void Learner::TrainTasking(Master* const master)
                     }
                     #endif
                 }
+
+                net->applyBatchStatistics();
                 
                 if(bRecurrent) {//we are using an LSTM: do BPTT
                     for (int i(0); i<batchSize; i++) {

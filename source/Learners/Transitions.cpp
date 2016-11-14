@@ -216,7 +216,7 @@ void Transitions::synchronize()
 	}
     const auto comparator=[this](Sequence* a, Sequence* b){ return a->MSE<b->MSE;};
     std::sort(Set.begin(), Set.end(), comparator);
-    assert(Set.front()->MSE < Set.back()->MSE);
+    if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
     iOldestSaved = 0;
 #endif
 

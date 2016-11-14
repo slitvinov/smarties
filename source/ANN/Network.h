@@ -36,11 +36,10 @@ public:
     mt19937 * gen;
     vector<Mem*> mem;
     Grads * grad;//, * _grad;
-    Real *weights, *biases, *tgt_weights, *tgt_biases, *weights_DropoutBackup;
+    Real *weights, *biases, *tgt_weights, *tgt_biases, *weights_DropoutBackup, *running_std, *running_avg;
     vector<Grads*> Vgrad;
 
-    int counter;
-    vector<Real> runningAvg, runningStd;
+    int counter, batch_counter;
 
     void build();
     
@@ -145,6 +144,22 @@ public:
 
 
 	virtual void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) {};
+
+	void updateBatchStatistics(Activation* const act) {
+		batch_counter++;
+		const int invN = 1./batch_counter;
+		for(auto & graph : G)
+			for(auto & l : *(graph->links))
+				l->updateBatchStatistics(running_std, running_avg, act, invN);
+	}
+
+	void applyBatchStatistics() {
+		const int invNm1 = 1./(batch_counter-1);
+		batch_counter = 0;
+		for(auto & graph : G)
+			for(auto & l : *(graph->links))
+				l->applyBatchStatistics(running_std, running_avg, weights, invNm1);
+	}
 
     void resetRunning() {
     	counter=0;

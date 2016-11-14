@@ -56,7 +56,8 @@ public:
 				*(_weights+n0+k*nOut+i) *= std::sqrt(v_d_v_pre/v_d_v_post);
 		}
 	}
-
+	virtual void updateBatchStatistics(Real* const stds, Real* const avgs, const Activation* const act, const Real invN) {};
+	virtual void applyBatchStatistics(Real* const stds, Real* const avgs, Real* const _weights, const Real invNm1) {};
 	virtual void resetRunning() {};
 	virtual void updateRunning(Activation* const act, const int counter) {};
 	virtual void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) {};
@@ -117,9 +118,9 @@ public:
 
     virtual void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
     {
-        const Real* const link_input = netFrom->outvals + iI;
-        const Real* const link_weights = weights + iW;
-        Real* const link_outputs = netTo->in_vals + iO;
+        const Real* __restrict__ const link_input = netFrom->outvals + iI;
+        const Real* __restrict__ const link_weights = weights + iW;
+        Real* __restrict__ const link_outputs = netTo->in_vals + iO;
 
         for (int i = 0; i < nI; i++)
         for (int o = 0; o < nO; o++) {
@@ -130,11 +131,11 @@ public:
     
     virtual void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
     {
-        const Real* const layer_input = netFrom->outvals + iI;
-        const Real* const deltas = netTo->errvals + iO;
-        const Real* const link_weights = weights + iW;
-        Real* const link_errors = netFrom->errvals + iI;
-        Real* const link_dEdW = gradW + iW;
+        const Real* __restrict__ const layer_input = netFrom->outvals + iI;
+        const Real* __restrict__ const deltas = netTo->errvals + iO;
+        const Real* __restrict__ const link_weights = weights + iW;
+        Real* __restrict__ const link_errors = netFrom->errvals + iI;
+        Real* __restrict__ const link_dEdW = gradW + iW;
 
         for (int i = 0; i < nI; i++)
         for (int o = 0; o < nO; o++) {
@@ -241,15 +242,15 @@ public:
     
     void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const override
     {
-        Real* const inputs = netTo->in_vals + iO;
-        Real* const inputI = netTo->iIGates + iC;
-        Real* const inputF = netTo->iFGates + iC;
-        Real* const inputO = netTo->iOGates + iC;
-        const Real* const weights_toCell = weights + iW;
-        const Real* const weights_toIgate = weights + iWI;
-        const Real* const weights_toFgate = weights + iWF;
-        const Real* const weights_toOgate = weights + iWO;
-        const Real* const link_input = netFrom->outvals + iI;
+        Real* __restrict__ const inputs = netTo->in_vals + iO;
+        Real* __restrict__ const inputI = netTo->iIGates + iC;
+        Real* __restrict__ const inputF = netTo->iFGates + iC;
+        Real* __restrict__ const inputO = netTo->iOGates + iC;
+        const Real* __restrict__ const weights_toCell = weights + iW;
+        const Real* __restrict__ const weights_toIgate = weights + iWI;
+        const Real* __restrict__ const weights_toFgate = weights + iWF;
+        const Real* __restrict__ const weights_toOgate = weights + iWO;
+        const Real* __restrict__ const link_input = netFrom->outvals + iI;
 
         for (int i = 0; i < nI; i++)
         for (int o = 0; o < nO; o++) {
@@ -263,20 +264,20 @@ public:
     
     void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const override
     {
-        const Real* const deltaI = netTo->eIGates +iC;
-        const Real* const deltaF = netTo->eFGates +iC;
-        const Real* const deltaO = netTo->eOGates +iC;
-        const Real* const deltaC = netTo->eMCell +iC;
-        const Real* const layer_input = netFrom->outvals + iI;
-        Real* const link_errors = netFrom->errvals + iI;
-        const Real* const w_toOgate = weights + iWO;
-        const Real* const w_toFgate = weights + iWF;
-        const Real* const w_toIgate = weights + iWI;
-        const Real* const w_toCell = weights + iW;
-        Real* const dw_toOgate = gradW + iWO;
-        Real* const dw_toFgate = gradW + iWF;
-        Real* const dw_toIgate = gradW + iWI;
-        Real* const dw_toCell = gradW + iW;
+        const Real* __restrict__ const deltaI = netTo->eIGates +iC;
+        const Real* __restrict__ const deltaF = netTo->eFGates +iC;
+        const Real* __restrict__ const deltaO = netTo->eOGates +iC;
+        const Real* __restrict__ const deltaC = netTo->eMCell +iC;
+        const Real* __restrict__ const layer_input = netFrom->outvals + iI;
+        Real* __restrict__ const link_errors = netFrom->errvals + iI;
+        const Real* __restrict__ const w_toOgate = weights + iWO;
+        const Real* __restrict__ const w_toFgate = weights + iWF;
+        const Real* __restrict__ const w_toIgate = weights + iWI;
+        const Real* __restrict__ const w_toCell = weights + iW;
+        Real* __restrict__ const dw_toOgate = gradW + iWO;
+        Real* __restrict__ const dw_toFgate = gradW + iWF;
+        Real* __restrict__ const dw_toIgate = gradW + iWI;
+        Real* __restrict__ const dw_toCell = gradW + iW;
 
         for (int i = 0; i < nI; i++)
         for (int o = 0; o < nO; o++) {
@@ -368,9 +369,9 @@ public:
     
     void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const override
     {
-        Real* const link_outputs = netTo->in_vals + iO;
-        const Real* const link_inputs = netFrom->outvals + iI;
-        const Real* const link_weights = weights + iW;
+        Real* __restrict__ const link_outputs = netTo->in_vals + iO;
+        const Real* __restrict__ const link_inputs = netFrom->outvals + iI;
+        const Real* __restrict__ const link_weights = weights + iW;
 
         for(int ox=0; ox<outputWidth;  ox++)
         for(int oy=0; oy<outputHeight; oy++) {
@@ -396,11 +397,11 @@ public:
     
     void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const override
     {
-        const Real* const link_inputs = netFrom->outvals + iI;
-        const Real* const deltas = netTo->errvals + iO;
-        const Real* const link_weights = weights + iW;
-        Real* const link_errors = netFrom->errvals + iI;
-        Real* const link_dEdW = gradW + iW;
+        const Real* __restrict__ const link_inputs = netFrom->outvals + iI;
+        const Real* __restrict__ const deltas = netTo->errvals + iO;
+        const Real* __restrict__ const link_weights = weights + iW;
+        Real* __restrict__ const link_errors = netFrom->errvals + iI;
+        Real* __restrict__ const link_dEdW = gradW + iW;
 
         for(int ox=0; ox<outputWidth;  ox++)
         for(int oy=0; oy<outputHeight; oy++) {
@@ -451,6 +452,26 @@ public:
         fflush(0);
     }
     
+    void updateBatchStatistics(Real* const stds, Real* const avgs, const Activation* const act, const Real invN) override
+	{
+		for (int k=0; k<nO; k++) {
+			const Real delta = act->outvals[k+iI] - avgs[k+iO];
+			avgs[k+iO] += delta*invN;
+			stds[k+iO] += delta*(act->outvals[k+iI] - avgs[k+iO]);
+		}
+	}
+    void applyBatchStatistics(Real* const stds, Real* const avgs, Real* const _weights, const Real invNm1)
+    {
+        Real* const link_means = _weights +iW;
+        Real* const link_vars = _weights +iW +nO;
+        for (int k=0; k<nO; k++) {
+			link_means[k] = avgs[k+iO];
+			link_vars[k] = std::max(stds[k+iO]*invNm1, std::numeric_limits<Real>::epsilon());
+			avgs[k+iO] = 0;
+			stds[k+iO] = 0;
+		}
+    }
+
     void restart(std::istringstream & buf, Real* const _weights) const override
     {
         for (int w=iW ; w<(iW + nO*4); w++) {
