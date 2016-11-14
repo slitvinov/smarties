@@ -58,7 +58,7 @@ void runMaster(int nranks)
     settings.nSlaves = nranks;
     
     Learner* learner;
-    if      (settings.learner == "DQ" || settings.learner == "DQN") {
+    if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
         settings.nnInputs = env->sI.dimUsed;
         settings.nnOutputs = 1;
         for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];

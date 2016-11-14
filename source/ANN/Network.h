@@ -164,8 +164,8 @@ public:
 		if (!outs.good()) die("Unable to open save into std file\n");
     	const Real invNm1 = 1./(counter-1);
 
-		for (int i=0; i<nNeurons; i++)  outa << runningAvg[i] << " ";
-		for (int i=0; i<nNeurons; i++)  outs << runningStd[i]*invNm1 << " ";
+		for (int i=nInputs; i<nNeurons; i++)  outa << runningAvg[i] << " ";
+		for (int i=nInputs; i<nNeurons; i++)  outs << runningStd[i]*invNm1 << " ";
 		outa << '\n';
 		outs << '\n';
     }
@@ -175,7 +175,7 @@ public:
     	assert(runningAvg.size() == nNeurons);
     	assert(runningStd.size() == nNeurons);
     	const Real invN = 1./counter;
-    	for (int k=0; k<nNeurons; k++) {
+    	for (int k=nInputs; k<nNeurons; k++) {
     		const Real delta = act->in_vals[k] - runningAvg[k];
     		runningAvg[k] += delta*invN;
     		runningStd[k] += delta*(act->in_vals[k] - runningAvg[k]);
