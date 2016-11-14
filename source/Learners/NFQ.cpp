@@ -20,6 +20,7 @@
 
 NFQ::NFQ(Environment* env, Settings & settings) : Learner(env,settings)
 {
+	string lType = bRecurrent ? "LSTM" : "Normal";
 	vector<int> lsize;
 	lsize.push_back(settings.nnLayer1);
 	if (settings.nnLayer2>1) {
@@ -40,7 +41,6 @@ NFQ::NFQ(Environment* env, Settings & settings) : Learner(env,settings)
 	if (not env->predefinedNetwork(net))
 	{ //if that was true, environment created the layers it wanted, else we read the settings:
 		net->addInput(nInputs);
-		string lType = bRecurrent ? "LSTM" : "Normal";
 		for (int i=0; i<lsize.size(); i++) net->addLayer(lsize[i], lType);
 		net->addOutput(nOutputs, "Normal");
 	}
@@ -61,10 +61,9 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
         Activation* prevActivation = net->allocateActivation();
         net->loadMemory(net->mem[agentId], prevActivation);
         net->predict(inputs, output, prevActivation, currActivation, 0.01);
-        _dispose_object(prevActivation);
-
         //also, store sOld, aOld -> sNew, r
         data->passData(agentId, info, sOld, aOld, s, r);
+        _dispose_object(prevActivation);
     }
     
     //save network transition

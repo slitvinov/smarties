@@ -95,7 +95,6 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
         const int handicap = min(static_cast<int>(data->Set.size())/500., stats.epochCount/10.);
         newEps = (.1 +greedyEps*exp(-handicap));//*agentId/Real(agentId+1);
-        //printf("Random action %f %f %f %f\n",crutch_1,crutch_2,crutch_3,newEps);
     }
     
     uniform_real_distribution<Real> dis(0.,1.);
