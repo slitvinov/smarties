@@ -200,7 +200,10 @@ void Transitions::push_back(const int & agentId)
 void Transitions::synchronize()
 {
 #if 1==1
-	printf("Removing the %d easiest to predict sequences in favor of new ones\n", Buffered.size());
+
+   printf("Removing the %d easiest to predict sequences in favor of new ones\n", Buffered.size());
+
+	//printf("Removing the %d easiest to predict sequences in favor of new ones\n", Buffered.size());
 	assert(nSequences==Set.size() && NmaxDATA == nSequences);
 	for(auto & samp : Set) {
 		int count(0);
@@ -232,11 +235,17 @@ void Transitions::synchronize()
 
 void Transitions::updateSamples()
 {
-	if(Buffered.size()>0) synchronize();
+	if(Buffered.size()>0) {
+      printf("nSequences %d > NmaxDATA %d (nTransitions=%d, avg sequence length = %f).\n", 
+               nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
+      synchronize();
+   } else
+      printf("nSequences %d < NmaxDATA %d (nTransitions=%d, avg sequence length = %f).\n", 
+               nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
+   
     
     const int ndata = (bRecurrent) ? nSequences : nTransitions;
     inds.resize(ndata);
-    printf("Shuffling\n");   
     std::iota(inds.begin(), inds.end(), 0);
     random_shuffle(inds.begin(), inds.end(), *(gen));
 }

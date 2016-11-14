@@ -500,9 +500,9 @@ public:
     	const Real invN = 1./counter;
 
     	for (int k=0; k<nO; k++) {
-    		const Real delta = act->in_vals[k] - runningAvg[k];
+    		const Real delta = act->in_vals[k+iO] - runningAvg[k];
     		runningAvg[k] += delta*invN;
-    		runningStd[k] += delta*(act->in_vals[k] - runningAvg[k]);
+    		runningStd[k] += delta*(act->in_vals[k+iO] - runningAvg[k]);
     	}
     }
 };

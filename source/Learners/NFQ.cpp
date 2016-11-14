@@ -45,6 +45,7 @@ NFQ::NFQ(Environment* env, Settings & settings) : Learner(env,settings)
 		net->addOutput(nOutputs, "Normal");
 	}
     net->build();
+    //opt = new Optimizer(net, profiler, settings);
     opt = new AdamOptimizer(net, profiler, settings);
 }
 
@@ -55,11 +56,11 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     s.scaleUsed(inputs);
 
     if (info==1)// if new sequence, sold, aold and reward are meaningless
-        net->predict(inputs, output, currActivation, 0.1);
+        net->predict(inputs, output, currActivation, 0.01);
     else {   //then if i'm using RNN i need to load recurrent connections
         Activation* prevActivation = net->allocateActivation();
         net->loadMemory(net->mem[agentId], prevActivation);
-        net->predict(inputs, output, prevActivation, currActivation, 0.1);
+        net->predict(inputs, output, prevActivation, currActivation, 0.01);
         _dispose_object(prevActivation);
 
         //also, store sOld, aOld -> sNew, r
@@ -107,7 +108,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
     net->clearErrors(timeSeries);
     
     //first prediction in sequence without recurrent connections
-    net->predict(data->Set[seq]->tuples[0]->s, Qhats, timeSeries, 0);
+    net->predict(data->Set[seq]->tuples[0]->s, Qhats, timeSeries, 0, 0.01);
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1
         Qs = Qhats; //Q(sNew) predicted at previous loop with moving wghts is current Q
         
@@ -115,7 +116,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
         const bool terminal = k+2==ndata && data->Set[seq]->ended;
         if (not terminal) {
             net->predict(_t->s, Qtildes, timeSeries, k+1, net->tgt_weights,  net->tgt_biases);
-            net->predict(_t->s, Qhats,   timeSeries, k+1, 0.1);
+            net->predict(_t->s, Qhats,   timeSeries, k+1, 0.01);
         }
         
         // find best action for sNew with moving wghts, evaluate it with tgt wgths:
@@ -151,7 +152,7 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
     sOldActivation->clearErrors();
 
     const Tuple * const _t = data->Set[seq]->tuples[samp+1];
-    net->predict(data->Set[seq]->tuples[samp]->s, Qs, sOldActivation);
+    net->predict(data->Set[seq]->tuples[samp]->s, Qs, sOldActivation, 0.01);
     
     const bool term = samp+2==ndata && data->Set[seq]->ended;
     if (not term) {

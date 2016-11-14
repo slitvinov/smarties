@@ -150,7 +150,7 @@ public:
     	counter=0;
 
     	for(auto & graph : G)
-    		for(auto & l : graph->links)
+    		for(auto & l : *(graph->links))
     			l->resetRunning();
     }
 
@@ -159,13 +159,13 @@ public:
     	ostringstream oa;
     	ostringstream os;
     	for(auto & graph : G)
-			for(auto & l : graph->links)
-				l->resetRunning(counter, oa, os);
+			for(auto & l : *(graph->links))
+				l->printRunning(counter, oa, os);
 		oa << '\n';
 		os << '\n';
 
-    	ofstream outa("running_avg.txt",std::ofstream::app);
-    	ofstream outs("running_std.txt",std::ofstream::app);
+    	ofstream outa("running_avg.dat",std::ofstream::app);
+    	ofstream outs("running_std.dat",std::ofstream::app);
 		if (!outa.good()) die("Unable to open save into avg file\n");
 		if (!outs.good()) die("Unable to open save into std file\n");
 		outa << oa.str();
@@ -175,8 +175,8 @@ public:
     void updateRunning(Activation* const act) {
     	counter++;
     	for(auto & graph : G)
-			for(auto & l : graph->links)
-				l->resetRunning(act, counter);
+			for(auto & l : *(graph->links))
+				l->updateRunning(act, counter);
     }
 
     void checkGrads(const vector<vector<Real>>& inputs, int lastn=-1);
