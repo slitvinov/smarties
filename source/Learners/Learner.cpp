@@ -277,6 +277,7 @@ void Learner::processStats(vector<trainData*> _stats)
     for (int w=0; w<net->nWeights; w++){
     	sumWeights += std::fabs(net->weights[w]);
     }
+    sumWeights *= opt->lambda;
 
     stats.MSE/=(stats.dumpCount-1);
     stats.avgQ/=stats.dumpCount;
@@ -286,7 +287,7 @@ void Learner::processStats(vector<trainData*> _stats)
 
     ofstream filestats;
     filestats.open("stats.txt", ios::app);
-    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, sumWeights %f, N %d\n",
+    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, errWeights %f, N %d\n",
 	   stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ, stats.maxQ, sumWeights, stats.dumpCount);
     filestats<<
     stats.epochCount<<" "<<stats.MSE<<" "<<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "<<sumWeights<<" "<<stats.minQ<<endl;

@@ -85,15 +85,16 @@ void Optimizer::stackGrads(const int thrID, Grads* const G, const vector<Grads*>
 
 void Optimizer::update(Grads* const G, const int batchsize)
 {
-    update(net->weights, G->_W, _1stMomW, nWeights, batchsize);
+    update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
     update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
     #pragma omp barrier
 }
 
 void AdamOptimizer::update(Grads* const G, const int batchsize)
 {
-    update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, batchsize);
-    update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, batchsize);
+    update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, batchsize, lambda);
+    update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
+    //update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, batchsize);
         
     #pragma omp barrier
     #pragma omp master
@@ -103,11 +104,11 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
     }
 }
 
-void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const int batchsize) const
+void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const int batchsize, const Real _lambda) const
 {
     const Real norm = 1./(Real)max(batchsize,1);
     const Real eta_ = eta*norm;
-    const Real lambda_ = lambda*eta;
+    const Real lambda_ = _lambda*eta;
     
     #pragma omp for nowait
     for (int i=0; i<N; i++) {
@@ -116,16 +117,16 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, 
         _1stMom[i] = std::max(std::min(M1,W),-W);
         grad[i] = 0.; //reset grads
         
-        if (lambda>0)
+        if (lambda_>0)
              dest[i] += _1stMom[i] + (dest[i]<0 ? lambda_ : -lambda_);
              //dest[i] += _1stMom[i] - dest[i]*lambda_;
         else dest[i] += _1stMom[i];
     }
 }
 
-void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const int batchsize)
+void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const int batchsize, const Real _lambda)
 {
-    const Real lambda_ = lambda*eta;
+    const Real lambda_ = _lambda*eta;
     const Real norm = 1./(Real)max(batchsize,1);
     const Real eta_ = eta * sqrt(1.-beta_t_2)/(1.-beta_t_1);
     
@@ -143,7 +144,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
         _2ndMom[i] = M2_;
         grad[i] = 0.; //reset grads
         
-        if (lambda>0)
+        if (lambda_>0)
              dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);
              //dest[i] += DW_ - dest[i]*lambda_;
         else dest[i] += DW_;

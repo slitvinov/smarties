@@ -108,6 +108,8 @@ void Network::build_whitening_layer(Graph* const graph)
     const int layerSize = graph->layerSize;
     const int firstNeuron_ID = nNeurons;
     const int firstNeuronFrom = graph->firstNeuron_ID;
+    graph->firstBiasWhiten = nBiases;
+    nBiases += 2*nNeurons; //mean and std
     assert(layerSize>0 && firstNeuron_ID>0);
     //move for the next
 	graph->firstNeuron_ID = firstNeuron_ID;
@@ -118,8 +120,9 @@ void Network::build_whitening_layer(Graph* const graph)
     graph->links->push_back(link);
     nWeights += 4*layerSize; //fully connected
 
-    Layer * l = new WhiteningLayer(layerSize, firstNeuron_ID, link, gen);
+    Layer * l = new WhiteningLayer(layerSize, firstNeuron_ID, graph->firstBiasWhiten, link, gen);
     layers.push_back(l);
+
 }
 
 void Network::build_LSTM_layer(Graph* const graph)

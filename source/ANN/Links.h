@@ -435,18 +435,18 @@ class WhiteningLink : public Link
     vector<Real> runningAvg, runningStd;
 public:
 	const int iW, nI, iI, nO, iO, nW;
-	WhiteningLink(int nI, int iI, int nO, int iO, int iW) : iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), nW(4*nI)
+	WhiteningLink(int nI, int iI, int nO, int iO, int iW) : iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), nW(2*nI)
     { 
         print();
         assert(nI==nO && iI+nI==iO);
     }
 	void initialize(mt19937* const gen, Real* const _weights) const override
     {
-        //set to 1 the temporary variance and scaling factor
+        //set to 1 the scaling factor
         Real* const my_weights = _weights +iW;
-        for (int p=0 ; p<4; p++)
+        for (int p=0 ; p<2; p++)
         for (int o=0 ; o<nO; o++)
-            my_weights[p*nO+o] = Real(1==p || 2==p);
+            my_weights[p*nO+o] = Real(1==p);
     }
 
     void print() const override
@@ -457,6 +457,7 @@ public:
     
     void updateBatchStatistics(Real* const stds, Real* const avgs, const Activation* const act, const Real invN) override
 	{
+    	die("WRONG\n");
 		for (int k=0; k<nO; k++) {
 			const Real delta = act->outvals[k+iI] - avgs[k+iO];
 			avgs[k+iO] += delta*invN;
@@ -465,9 +466,10 @@ public:
 	}
     void applyBatchStatistics(Real* const stds, Real* const avgs, Real* const _weights, const Real invNm1)
     {
+    	die("WRONG\n");
         Real* const link_means = _weights +iW;
         Real* const link_vars = _weights +iW +nO;
-        const Real eta = 0.1;
+        const Real eta = 0.01;
         const Real _eta = 1. - eta;
         for (int k=0; k<nO; k++) {
 			link_means[k] = _eta*link_means[k] + eta*avgs[k+iO];
@@ -480,7 +482,7 @@ public:
 
     void restart(std::istringstream & buf, Real* const _weights) const override
     {
-        for (int w=iW ; w<(iW + nO*4); w++) {
+        for (int w=iW ; w<(iW + nO*2); w++) {
             Real tmp;
             buf >> tmp;
             assert(not std::isnan(tmp) & not std::isinf(tmp));
@@ -492,7 +494,7 @@ public:
     {
         o << std::setprecision(10);
 
-        for (int w=iW ; w<(iW + nO*4); w++)
+        for (int w=iW ; w<(iW + nO*2); w++)
             o << *(_weights +w);
     }
     
@@ -543,6 +545,7 @@ struct Graph //misleading, this is just the graph for a single layer
     int firstState_ID;
     int firstBias_ID;
     int firstBiasIG_ID, firstBiasFG_ID, firstBiasOG_ID;
+    int firstBiasWhiten, firstBiasFG_ID, firstBiasOG_ID;
     int layerWidth, layerHeight, layerDepth;
     int padWidth, padHeight, featsWidth, featsHeight, featsNumber, strideWidth, strideHeight;
     vector<int> linkedTo;
@@ -550,7 +553,7 @@ struct Graph //misleading, this is just the graph for a single layer
 
     Graph() :
 	input(false), output(false), RNN(false), LSTM(false), Conv2D(false), normalize(false),
-	layerSize(0), firstNeuron_ID(0), firstState_ID(0), firstBias_ID(0),
+	layerSize(0), firstNeuron_ID(0), firstState_ID(0), firstBias_ID(0), firstBiasWhiten(-1),
 	firstBiasIG_ID(0), firstBiasFG_ID(0), firstBiasOG_ID(0), //LSTM
 	layerWidth(0), layerHeight(0), layerDepth(0), padWidth(0), padHeight(0), //Conv2D
 	featsWidth(0), featsHeight(0), featsNumber(0), strideWidth(0), strideHeight(0)
@@ -585,6 +588,12 @@ struct Graph //misleading, this is just the graph for a single layer
 
             for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize; w++)
                 *(_biases +w) = dis(*gen) + 0.5;
+        }
+
+        if (firstBiasWhiten>0) {
+        	for (int p=0 ; p<2; p++)
+				for (int o=0 ; o<layerSize; o++)
+					_biases[firstBiasWhiten + p*layerSize+o] = Real(1==p);
         }
     }
 };

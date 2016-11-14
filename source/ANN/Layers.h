@@ -246,13 +246,13 @@ public:
 class WhiteningLayer: public Layer
 {
     const WhiteningLink* const link;
-    const int nNeurons, n1stNeuron;
+    const int nNeurons, n1stNeuron, n1stBias;
     mt19937* const gen;
 public:
-	WhiteningLayer(int nNeurons, int n1stNeuron, const WhiteningLink* const nl_il, mt19937* const gen) :
-    nNeurons(nNeurons), n1stNeuron(n1stNeuron), link(nl_il), gen(gen)
+	WhiteningLayer(int nNeurons, int n1stNeuron, int n1stBias, const WhiteningLink* const nl_il, mt19937* const gen) :
+    nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), link(nl_il), gen(gen)
     {
-        printf("Whitening layer of size %d starting from ID %d\n",nNeurons,n1stNeuron);
+        printf("Whitening layer of size %d starting from ID %d. Means/vars start at bias %d\n",nNeurons,n1stNeuron,n1stBias);
     }
 
     void propagate(const Activation* const prev, Activation* const curr, 
@@ -262,10 +262,10 @@ public:
         Real* const outputs = curr->outvals + n1stNeuron;
         const Real* const link_inputs = curr->outvals +link->iI;
         // 4 parameters per neuron:
-        const Real* const link_means = weights + link->iW;
-        const Real* const link_vars = weights + link->iW +nNeurons;
-        const Real* const link_scales = weights + link->iW +2*nNeurons;
-        const Real* const link_shifts = weights + link->iW +3*nNeurons;
+        const Real* const link_means = biases + n1stBias;
+        const Real* const link_vars = biases + n1stBias +nNeurons;
+        const Real* const link_shifts = weights + link->iW;
+        const Real* const link_scales = weights + link->iW +nNeurons;
 
         for (int n=0; n<nNeurons; n++) {
                 const Real std = std::max(std::numeric_limits<Real>::epsilon(), link_vars[n]);
@@ -289,13 +289,14 @@ public:
         const Real* const errors = curr->errvals +n1stNeuron;
         const Real* const inputs = curr->in_vals + n1stNeuron;
         const Real* const link_inputs = curr->outvals +link->iI;
-        const Real* const link_means = weights + link->iW;
-        Real* const grad_means = grad->_W + link->iW;
-        const Real* const link_vars = weights + link->iW +nNeurons;
-        Real* const grad_vars = grad->_W + link->iW +nNeurons;
-        const Real* const link_scales = weights + link->iW +2*nNeurons;
-        Real* const grad_scales = grad->_W + link->iW +2*nNeurons;
-        Real* const grad_shifts = grad->_W + link->iW +3*nNeurons;
+        const Real* const link_means = biases + n1stBias;
+        const Real* const link_vars = biases + n1stBias +nNeurons;
+        const Real* const link_shifts = weights + link->iW;
+        const Real* const link_scales = weights + link->iW +nNeurons;
+        Real* const grad_means = grad->_B + n1stBias;
+        Real* const grad_vars = grad->_B + n1stBias +nNeurons;
+        Real* const grad_scales = grad->_W + link->iW;
+        Real* const grad_shifts = grad->_W + link->iW +nNeurons;
 
         for (int n=0; n<nNeurons; n++)  {
             const Real std = std::max(std::numeric_limits<Real>::epsilon(), link_vars[n]);
