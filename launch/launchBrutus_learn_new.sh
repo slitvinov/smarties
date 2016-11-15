@@ -15,7 +15,7 @@ if [ $# -gt 4 ] ; then
 fi
 if [ $# -lt 7 ] ; then
     NTASK=2 #n tasks per node
-    NTHREADS=12 #n threads per task
+    NTHREADS=2 #n threads per task
 else
     NTASK=$6
     NTHREADS=$7

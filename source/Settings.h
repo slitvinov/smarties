@@ -21,7 +21,7 @@ using namespace std;
 #include <immintrin.h>
 
 #include <omp.h>
-
+#define __vec_width__ 32
 //#define _scaleR_
 #define _BPTT_
 //#define _dumpNet_

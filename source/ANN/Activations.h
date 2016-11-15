@@ -14,8 +14,8 @@
 #include <cstring>
 using namespace std;
 
-#define _allocateClean(name, size) { const int sizeSIMD=ceil(size/4.)*4.*sizeof(Real); posix_memalign((void **)& name, 32, sizeSIMD); memset(name, 0, sizeSIMD); }
-#define _allocateQuick(name, size) { const int sizeSIMD=ceil(size/4.)*4.*sizeof(Real); posix_memalign((void **)& name, 32, sizeSIMD); }
+#define _allocateClean(name, size) { const int nsimd = __vec_width__/sizeof(Real); const int sizeSIMD=std::ceil(size/(Real)nsimd)*nsimd*sizeof(Real); posix_memalign((void **)& name, __vec_width__, sizeSIMD); memset(name, 0, sizeSIMD); }
+#define _allocateQuick(name, size) { const int nsimd = __vec_width__/sizeof(Real); const int sizeSIMD=std::ceil(size/(Real)nsimd)*nsimd*sizeof(Real); posix_memalign((void **)& name, __vec_width__, sizeSIMD); }
 #define _myfree( name ) free( name );
 
 struct Activation //All the network signals
@@ -133,38 +133,49 @@ struct Mem //Memory light recipient for prediction on agents
 
 struct Linear
 {
-	inline static void eval(const Real* const in, Real* const out, const int& N)
+	inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = in[o];
     }
     
-	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = 1.;
     }
 	
-	inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+	inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
 		return;
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = err[o];
     }
 };
 struct Tanh
 {
-	inline static void eval(const Real* const in, Real* const out, const int& N)
+	inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real e2x = std::exp(2.*in[o]);
 			out[o] = (e2x - 1.) / (e2x + 1.);
 		}
     }
     
-	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real e2x = std::exp(2.*in[o]);
 			const Real t = (e2x + 1.);
@@ -172,8 +183,10 @@ struct Tanh
 		}
     }
     
-	inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+	inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real e2x = std::exp(2.*in[o]);
 			const Real t = (e2x + 1.);
@@ -181,8 +194,11 @@ struct Tanh
 		}
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real e2x = std::exp(2.*in[o]);
 			const Real t = (e2x + 1.);
@@ -193,16 +209,20 @@ struct Tanh
 
 struct TwoTanh
 {
-	inline static void eval(const Real* const in, Real* const out, const int& N)
+	inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real e2x = std::exp(2.*in[o]);
 			out[o] = 2.*(e2x - 1.) / (e2x + 1.);
 		}
     }
     
-	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real e2x = std::exp(2.*in[o]);
 			const Real t = (e2x + 1.);
@@ -210,8 +230,10 @@ struct TwoTanh
 		}
     }
     
-	inline static void mullDiff(const Real* const in, Real* const out, const int& N)
+	inline static void mullDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real e2x = std::exp(2.*in[o]);
 			const Real t = (e2x + 1.);
@@ -219,8 +241,11 @@ struct TwoTanh
 		}
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real e2x = std::exp(2.*in[o]);
 			const Real t = (e2x + 1.);
@@ -230,13 +255,17 @@ struct TwoTanh
 };
 struct Sigm
 {
-	inline static void eval(const Real* const in, Real* const out, const int& N)
+	inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = 1. / (1. + std::exp(-in[o]));
     }
     
-	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real ex = std::exp(in[o]);
 			const Real e2x = (1. + ex)*(1. + ex);
@@ -244,8 +273,10 @@ struct Sigm
 		}
     }
     
-	inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+	inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real ex = std::exp(in[o]);
 			const Real e2x = (1. + ex)*(1. + ex);
@@ -253,8 +284,11 @@ struct Sigm
 		}
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real ex = std::exp(in[o]);
 			const Real e2x = (1. + ex)*(1. + ex);
@@ -264,27 +298,36 @@ struct Sigm
 };
 struct SoftSign
 {
-	inline static void eval(const Real* const in, Real* const out, const int& N)
+	inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = in[o]/(1. + std::fabs(in[o]));
     }
-    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+    inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1. + std::fabs(in[o]);
 			out[o]  = 1./(denom*denom);
 		}
     }
-    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1. + std::fabs(in[o]);
 			out[o] *= 1./(denom*denom);
 		}
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1. + std::fabs(in[o]);
 			out[o] = err[o]/(denom*denom);
@@ -293,27 +336,36 @@ struct SoftSign
 };
 struct TwoSoftSign
 {
-	inline static void eval(const Real* const in, Real* const out, const int& N)
+	inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = 2*in[o]/(1. + std::fabs(in[o]));
     }
-	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1. + std::fabs(in[o]);
 			out[o]  = 2./(denom*denom);
 		}
     }
-	inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+	inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1. + std::fabs(in[o]);
 			out[o] *= 2./(denom*denom);
 		}
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1. + std::fabs(in[o]);
 			out[o] = 2*err[o]/(denom*denom);
@@ -322,27 +374,36 @@ struct TwoSoftSign
 };
 struct SoftSigm
 {
-	inline static void eval(const Real* const in, Real* const out, const int& N)
+	inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = 0.5*(1. + in[o]/(1.+std::fabs(in[o])));
     }
-    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+    inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1.+std::fabs(in[o]);
 			out[o]  = 0.5/(denom*denom);
 		}
     }
-    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1.+std::fabs(in[o]);
 			out[o] *= 0.5/(denom*denom);
 		}
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1.+std::fabs(in[o]);
 			out[o] = 0.5*err[o]/(denom*denom);
@@ -351,27 +412,36 @@ struct SoftSigm
 };
 struct HardSign
 {
-    inline static void eval(const Real* const in, Real* const out, const int& N)
+    inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = in[o]/std::sqrt(1. + in[o]*in[o]);
     }
-    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+    inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
 			out[o]  = denom*denom*denom;
 		}
     }
-    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
 			out[o] *= denom*denom*denom;
 		}
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
 			out[o] = err[o]*denom*denom*denom;
@@ -380,27 +450,36 @@ struct HardSign
 };
 struct TwoHardSign
 {
-	inline static void eval(const Real* const in, Real* const out, const int& N)
+	inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
 	{
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = 2*in[o]/std::sqrt(1. + in[o]*in[o]);
 	}
-	inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
 	{
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
 			out[o]  = 2*denom*denom*denom;
 		}
 	}
-	inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+	inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
 	{
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
 			out[o] *= 2*denom*denom*denom;
 		}
 	}
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1./std::sqrt(1. + in[o]*in[o]);
 			out[o] = 2*err[o]*denom*denom*denom;
@@ -409,27 +488,36 @@ struct TwoHardSign
 };
 struct HardSigm
 {
-    inline static void eval(const Real* const in, Real* const out, const int& N)
+    inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = 0.5*(1. + in[o]/std::sqrt(1. + in[o]*in[o]));
     }
-    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+    inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1/std::sqrt(1. + in[o]*in[o]);
 			out[o]  = 0.5*denom*denom*denom;
 		}
     }
-    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1/std::sqrt(1. + in[o]*in[o]);
 			out[o] *= 0.5*denom*denom*denom;
 		}
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) {
 			const Real denom = 1/std::sqrt(1. + in[o]*in[o]);
 			out[o] = 0.5*err[o]*denom*denom*denom;
@@ -438,62 +526,89 @@ struct HardSigm
 };
 struct Relu
 {
-	inline static void eval(const Real* const in, Real* const out, const int& N)
+	inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = in[o]>0 ? in[o] : 0;
     }
-    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+    inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = in[o]>0 ? 1.0 : 0;
     }
-    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = in[o]>0 ? out[o] : 0;
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = in[o]>0 ? err[o] : 0;
     }
 };
 struct ExpPlus
 {
-	inline static void eval(const Real* const in, Real* const out, const int& N)
+	inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = log(1.+std::exp(in[o]));
     }
-    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+    inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o]  = 1./(1. + std::exp(-in[o]));
     }
-    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] *= 1./(1. + std::exp(-in[o]));
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = err[o]/(1. + std::exp(-in[o]));
     }
 };
 
 struct SoftPlus
 {
-	inline static void eval(const Real* const in, Real* const out, const int& N)
+	inline static void eval(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = .5*(in[o]+std::sqrt(1+in[o]*in[o]));
     }
-    inline static void evalDiff(const Real* const in, Real* const out, const int& N)
+    inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o]  = .5*(1.+in[o]/std::sqrt(1+in[o]*in[o]));
     }
-    inline static void mulDiff(const Real* const in, Real* const out, const int& N)
+    inline static void mulDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
 		for (int o=0; o<N; o++) out[o] *= .5*(1.+in[o]/std::sqrt(1+in[o]*in[o]));
     }
 	
-	inline static void evalDiff(const Real* const in, Real* const out, const Real* const err, const int& N)
+	inline static void evalDiff(const Real* __restrict__ const in, Real* __restrict__ const out, const Real* __restrict__ const err, const int& N)
     {
+        __builtin_assume_aligned(in,  __vec_width__);
+        __builtin_assume_aligned(out, __vec_width__);
+        __builtin_assume_aligned(err, __vec_width__);
 		for (int o=0; o<N; o++) out[o] = .5*err[o]*(1.+in[o]/std::sqrt(1+in[o]*in[o]));
     }
 };
