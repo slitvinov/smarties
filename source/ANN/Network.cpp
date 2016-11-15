@@ -17,10 +17,13 @@ using namespace ErrorHandling;
 
 void Network::build_normal_layer(Graph* const graph)
 {
+    const int simdWidth = __vec_width__/sizeof(Real);
+	assert(nNeurons%simdWidth==0 && nBiases%simdWidth==0 && nWeights%simdWidth==0);
 	vector<NormalLink*>* input_links = new vector<NormalLink*>();
 	NormalLink* recurrent_link = nullptr;
 	
     const int layerSize = graph->layerSize;
+	graph->layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
     const int nInputLinks = graph->linkedTo.size();
     const int firstNeuron_ID = nNeurons;
     assert(layerSize>0 && nInputLinks>0 && firstNeuron_ID>0);
@@ -29,9 +32,9 @@ void Network::build_normal_layer(Graph* const graph)
     		iOut.push_back(i+firstNeuron_ID);
 
     graph->firstNeuron_ID = firstNeuron_ID;
-    nNeurons += layerSize; //move the counter
+    nNeurons += graph->layerSize_simd; //move the counter
     graph->firstBias_ID = nBiases;
-    nBiases += layerSize; //one bias per neuron
+    nBiases += graph->layerSize_simd; //one bias per neuron
 
     for(int i = 0; i<nInputLinks; i++) {
     	assert(graph->linkedTo[i]>=0 || graph->linkedTo[i]<G.size());
@@ -39,24 +42,24 @@ void Network::build_normal_layer(Graph* const graph)
     	const int firstNeuronFrom = layerFrom->firstNeuron_ID;
     	const int sizeLayerFrom = layerFrom->layerSize;
     	assert(firstNeuronFrom>=0 && firstNeuronFrom<firstNeuron_ID && sizeLayerFrom>0);
-    	NormalLink* tmp = new NormalLink(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID, nWeights);
+    	NormalLink* tmp = new NormalLink(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID, nWeights, graph->layerSize_simd);
     	input_links->push_back(tmp);
 		graph->links->push_back(tmp);
-    	nWeights += sizeLayerFrom*layerSize; //fully connected
+    	nWeights += sizeLayerFrom*graph->layerSize_simd; //fully connected
     }
 
     if (graph->RNN) { //connected  to past realization of current normal layer
         const int firstNeuronFrom = graph->normalize ? nNeurons : firstNeuron_ID;
-    	recurrent_link = new NormalLink(layerSize, firstNeuronFrom, layerSize, firstNeuron_ID, nWeights);
+    	recurrent_link = new NormalLink(layerSize, firstNeuronFrom, layerSize, firstNeuron_ID, nWeights, graph->layerSize_simd);
 		graph->links->push_back(recurrent_link);
-    	nWeights += layerSize * layerSize;
+    	nWeights += layerSize * graph->layerSize_simd;
     }
 
     Layer * l = nullptr;
     if (graph->output)
-	l = new NormalLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->output);
+	l = new NormalLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
     else
-    l = new NormalLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->output);
+    l = new NormalLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
 
     if (graph->output) printf( "Linear output\n");
     layers.push_back(l);
@@ -64,18 +67,21 @@ void Network::build_normal_layer(Graph* const graph)
 
 void Network::build_conv2d_layer(Graph* const graph)
 {
+    const int simdWidth = __vec_width__/sizeof(Real);
+	assert(nNeurons%simdWidth==0 && nBiases%simdWidth==0 && nWeights%simdWidth==0);
 	vector<LinkToConv2D*>* input_links = new vector<LinkToConv2D*>();
     const int layerSize = graph->layerSize;
+    graph->layerDepth_simd = std::ceil(graph->featsNumber/(Real)simdWidth)*simdWidth;
+	graph->layerSize_simd = graph->layerWidth*graph->layerHeight*graph->layerDepth_simd;
     const int nInputLinks = graph->linkedTo.size();
     const int firstNeuron_ID = nNeurons;
     assert(layerSize>0 && nInputLinks>0 && firstNeuron_ID>0);
-    if(graph->output)
-    	for(int i=0; i<layerSize; i++) iOut.push_back(i+firstNeuron_ID);
+    if(graph->output) for(int i=0; i<layerSize; i++) iOut.push_back(i+firstNeuron_ID);
 
     graph->firstNeuron_ID = firstNeuron_ID;
-    nNeurons += layerSize; //move the counter
+    nNeurons += graph->layerSize_simd; //move the counter
     graph->firstBias_ID = nBiases;
-    nBiases += layerSize; //one bias per neuron
+    nBiases += graph->layerSize_simd; //one bias per neuron
 
     for(int i = 0; i<nInputLinks; i++) {
 		assert(graph->linkedTo[i]>=0 || graph->linkedTo[i]<G.size());
@@ -84,20 +90,20 @@ void Network::build_conv2d_layer(Graph* const graph)
 		const int sizeLayerFrom = layerFrom->layerSize;
 
 		assert(firstNeuronFrom>=0 && firstNeuronFrom<firstNeuron_ID && sizeLayerFrom>0);
-		LinkToConv2D* tmp = new LinkToConv2D(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID,
-				nWeights, layerFrom->layerWidth, layerFrom->layerHeight, layerFrom->layerDepth,
+		LinkToConv2D* tmp = new LinkToConv2D(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID, nWeights,
+				graph->layerDepth_simd, layerFrom->layerWidth, layerFrom->layerHeight, layerFrom->layerDepth,
 				graph->featsWidth, graph->featsHeight, graph->featsNumber, graph->layerWidth, graph->layerHeight,
 				graph->strideWidth, graph->strideHeight, graph->padWidth, graph->padHeight);
 		input_links->push_back(tmp);
 		graph->links->push_back(tmp);
-		nWeights += graph->featsWidth*graph->featsHeight*graph->featsNumber*layerFrom->layerDepth;
+		nWeights += graph->featsWidth*graph->featsHeight*graph->layerDepth_simd*layerFrom->layerDepth;
     }
 
     Layer * l = nullptr;
     if (graph->output)
-	l = new Conv2DLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, graph->output);
+	l = new Conv2DLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, graph->layerSize_simd);
     else
-    l = new Conv2DLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, graph->output);
+    l = new Conv2DLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, graph->layerSize_simd);
 
     if (graph->output) printf( "Linear output\n");
     layers.push_back(l);
@@ -105,49 +111,54 @@ void Network::build_conv2d_layer(Graph* const graph)
 
 void Network::build_whitening_layer(Graph* const graph)
 {	
+    const int simdWidth = __vec_width__/sizeof(Real);
+	assert(nNeurons%simdWidth==0 && nBiases%simdWidth==0 && nWeights%simdWidth==0 && not graph->output);
     const int layerSize = graph->layerSize;
+    const int layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
     const int firstNeuron_ID = nNeurons;
     const int firstNeuronFrom = graph->firstNeuron_ID;
     graph->firstBiasWhiten = nBiases;
-    nBiases += 2*nNeurons; //mean and std
+    nBiases += 2*layerSize_simd; //mean and std
     assert(layerSize>0 && firstNeuron_ID>0);
     //move for the next
 	graph->firstNeuron_ID = firstNeuron_ID;
-    nNeurons += layerSize; //move the counter
+    nNeurons += layerSize_simd; //move the counter
     
     
-    WhiteningLink* link = new WhiteningLink(layerSize, firstNeuronFrom, layerSize, firstNeuron_ID, nWeights);
+    WhiteningLink* link = new WhiteningLink(layerSize, firstNeuronFrom, layerSize, firstNeuron_ID, nWeights, layerSize_simd);
     graph->links->push_back(link);
-    nWeights += 4*layerSize; //fully connected
+    nWeights += 2*layerSize_simd; //fully connected
 
-    Layer * l = new WhiteningLayer(layerSize, firstNeuron_ID, graph->firstBiasWhiten, link, gen);
+    Layer * l = new WhiteningLayer(layerSize, firstNeuron_ID, graph->firstBiasWhiten, link, gen, layerSize_simd);
     layers.push_back(l);
 
 }
 
 void Network::build_LSTM_layer(Graph* const graph)
 {
+    const int simdWidth = __vec_width__/sizeof(Real);
+	assert(nNeurons%simdWidth==0 && nBiases%simdWidth==0 && nWeights%simdWidth==0);
 	vector<LinkToLSTM*>* input_links = new vector<LinkToLSTM*>();
 	LinkToLSTM* recurrent_link = nullptr;
 	
 	const int layerSize = graph->layerSize;
+    const int layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
 	const int nInputLinks = graph->linkedTo.size();
     const int firstNeuron_ID = nNeurons;
     const int firstCell_ID = nStates;
 	assert(layerSize>0 && nInputLinks>0 && firstNeuron_ID>0 && firstCell_ID>=0);
 	if(graph->output)
-		for(int i=0; i<layerSize; i++)
-			iOut.push_back(i+firstNeuron_ID);
+		for(int i=0; i<layerSize; i++) iOut.push_back(i+firstNeuron_ID);
 
 	graph->firstNeuron_ID = firstNeuron_ID;
-	nNeurons += layerSize; //move the counter
+	nNeurons += layerSize_simd; //move the counter
 	graph->firstState_ID = firstCell_ID;
-	nStates += layerSize; //move the counter
+	nStates += layerSize_simd; //move the counter
 	graph->firstBias_ID = nBiases;
-	graph->firstBiasIG_ID = graph->firstBias_ID   + layerSize;
-	graph->firstBiasFG_ID = graph->firstBiasIG_ID + layerSize;
-	graph->firstBiasOG_ID = graph->firstBiasFG_ID + layerSize;
-	nBiases += 4*layerSize; //one bias per neuron
+	graph->firstBiasIG_ID = graph->firstBias_ID   + layerSize_simd;
+	graph->firstBiasFG_ID = graph->firstBiasIG_ID + layerSize_simd;
+	graph->firstBiasOG_ID = graph->firstBiasFG_ID + layerSize_simd;
+	nBiases += 4*layerSize_simd; //one bias per neuron
 
 	for(int i=0; i<nInputLinks; i++) {
 		assert(graph->linkedTo[i]>=0 || graph->linkedTo[i]<G.size());
@@ -155,26 +166,26 @@ void Network::build_LSTM_layer(Graph* const graph)
 		const int firstNeuronFrom = layerFrom->firstNeuron_ID;
     	const int sizeLayerFrom = layerFrom->layerSize;
 		assert(firstNeuronFrom>=0 && firstNeuronFrom<firstNeuron_ID && sizeLayerFrom>0);
-    	const int firstWeightIG = nWeights 		+ sizeLayerFrom*layerSize;
-    	const int firstWeightFG = firstWeightIG + sizeLayerFrom*layerSize;
-    	const int firstWeightOG = firstWeightFG + sizeLayerFrom*layerSize;
+    	const int firstWeightIG = nWeights 		+ sizeLayerFrom*layerSize_simd;
+    	const int firstWeightFG = firstWeightIG + sizeLayerFrom*layerSize_simd;
+    	const int firstWeightOG = firstWeightFG + sizeLayerFrom*layerSize_simd;
     	LinkToLSTM* tmp = new LinkToLSTM(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID,
-    			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG);
+    			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG, layerSize_simd);
     	input_links->push_back(tmp);
 		graph->links->push_back(tmp);
-		nWeights += sizeLayerFrom*layerSize*4; //fully connected, 4 units per cell
+		nWeights += sizeLayerFrom*layerSize_simd*4; //fully connected, 4 units per cell
 	}
 
 	{ //connected  to past realization of current recurrent layer
-		const int firstWeightIG = nWeights 		+ layerSize*layerSize;
-		const int firstWeightFG = firstWeightIG + layerSize*layerSize;
-		const int firstWeightOG = firstWeightFG + layerSize*layerSize;
+		const int firstWeightIG = nWeights 		+ layerSize*layerSize_simd;
+		const int firstWeightFG = firstWeightIG + layerSize*layerSize_simd;
+		const int firstWeightOG = firstWeightFG + layerSize*layerSize_simd;
         const int firstNeuronFrom = graph->normalize ? nNeurons : firstNeuron_ID;
         
 		recurrent_link = new LinkToLSTM(layerSize, firstNeuronFrom, layerSize, firstNeuron_ID,
-    			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG);
+    			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG, layerSize_simd);
 		graph->links->push_back(recurrent_link);
-		nWeights += layerSize*layerSize*4; //fully connected, 4 units per cell
+		nWeights += layerSize*layerSize_simd*4; //fully connected, 4 units per cell
 	}
 
 	Layer * l = nullptr;
@@ -183,12 +194,12 @@ void Network::build_LSTM_layer(Graph* const graph)
 	l = new LSTMLayer<Linear,SoftSigm,Linear>(
 					layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
 	        		graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
-					input_links, recurrent_link, graph->output);
+					input_links, recurrent_link, layerSize_simd);
 	else
 	l = new LSTMLayer<Linear,SoftSigm,Tanh>(
 					layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
 					graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
-					input_links, recurrent_link, graph->output);
+					input_links, recurrent_link, layerSize_simd);
 
 	if (graph->output) printf("Linear LSTM output\n");
 	layers.push_back(l);
