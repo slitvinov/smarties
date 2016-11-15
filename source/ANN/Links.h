@@ -545,7 +545,7 @@ struct Graph //misleading, this is just the graph for a single layer
     int firstState_ID;
     int firstBias_ID;
     int firstBiasIG_ID, firstBiasFG_ID, firstBiasOG_ID;
-    int firstBiasWhiten, firstBiasFG_ID, firstBiasOG_ID;
+    int firstBiasWhiten;
     int layerWidth, layerHeight, layerDepth;
     int padWidth, padHeight, featsWidth, featsHeight, featsNumber, strideWidth, strideHeight;
     vector<int> linkedTo;

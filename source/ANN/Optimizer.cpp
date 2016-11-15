@@ -93,8 +93,8 @@ void Optimizer::update(Grads* const G, const int batchsize)
 void AdamOptimizer::update(Grads* const G, const int batchsize)
 {
     update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, batchsize, lambda);
-    update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
-    //update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, batchsize);
+    //Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
+    update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, batchsize);
         
     #pragma omp barrier
     #pragma omp master
