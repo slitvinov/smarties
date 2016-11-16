@@ -60,7 +60,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     else {   //then if i'm using RNN i need to load recurrent connections
         Activation* prevActivation = net->allocateActivation();
         net->loadMemory(net->mem[agentId], prevActivation);
-        net->predict(inputs, output, prevActivation, currActivation, 0.01);
+        net->predict(inputs, output, prevActivation, currActivation, 0.1);
         //also, store sOld, aOld -> sNew, r
         data->passData(agentId, info, sOld, aOld, s, r);
         _dispose_object(prevActivation);
@@ -107,7 +107,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
     net->clearErrors(timeSeries);
     
     //first prediction in sequence without recurrent connections
-    net->predict(data->Set[seq]->tuples[0]->s, Qhats, timeSeries, 0, 0.01);
+    net->predict(data->Set[seq]->tuples[0]->s, Qhats, timeSeries, 0, 0.1);
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1
         Qs = Qhats; //Q(sNew) predicted at previous loop with moving wghts is current Q
         
@@ -119,7 +119,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
 			#pragma	omp critical
             net->updateBatchStatistics(timeSeries[k+1]);
 #endif
-            net->predict(_t->s, Qhats,   timeSeries, k+1, 0.01);
+            net->predict(_t->s, Qhats,   timeSeries, k+1, 0.1);
         }
         
         // find best action for sNew with moving wghts, evaluate it with tgt wgths:

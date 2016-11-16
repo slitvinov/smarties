@@ -10,7 +10,7 @@
 #include "Transitions.h"
 #include <fstream>
 //#define CLEAN //dont
-#define NmaxDATA 10000
+#define NmaxDATA 1000
 
 Transitions::Transitions(Environment* env, Settings & settings):
 aI(env->aI), sI(env->sI), anneal(0), nBroken(0), nTransitions(0),
@@ -200,10 +200,6 @@ void Transitions::push_back(const int & agentId)
 void Transitions::synchronize()
 {
 #if 1==1
-
-   printf("Removing the %d easiest to predict sequences in favor of new ones\n", Buffered.size());
-
-	//printf("Removing the %d easiest to predict sequences in favor of new ones\n", Buffered.size());
 	assert(nSequences==Set.size() && NmaxDATA == nSequences);
 	for(auto & samp : Set) {
 		int count(0);
@@ -219,10 +215,13 @@ void Transitions::synchronize()
     if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
     iOldestSaved = 0;
 #endif
-
+    int nTransitionsInBuf(0), nTransitionsDeleted(0), bufferSize(Buffered.size());
     for(auto & bufTransition : Buffered) {
         const int ind = iOldestSaved++;
         iOldestSaved = (iOldestSaved == NmaxDATA) ? 0 : iOldestSaved;
+   
+        nTransitionsDeleted += Set[ind]->tuples.size()-1;
+        nTransitionsInBuf += bufTransition->tuples.size()-1;
 
         nTransitions -= Set[ind]->tuples.size()-1;
         _dispose_object(Set[ind]);
@@ -230,6 +229,7 @@ void Transitions::synchronize()
         nTransitions += bufTransition->tuples.size()-1;
         Set[ind] = bufTransition;
     } //number of sequences remains constant
+    printf("Removing the %d easiest to predict sequences with avg length %f in favor of new ones with avg lendth %f\n", Buffered.size(), nTransitionsDeleted/(Real)bufferSize, nTransitionsInBuf/(Real)bufferSize);
     Buffered.resize(0); //no clear?
 }
 

@@ -379,9 +379,9 @@ public:
 #ifndef _whitenTarget_
             const Real dEdXhat = errors[n]*link_scales[n];
             //mean increases if input is greater than mean
-            const Real dMudX = 0.001*(link_inputs[n] - link_means[n]);
+            const Real dMudX = (link_inputs[n] - link_means[n]);
             //std increases if input is less than mean
-            const Real dStddX = 0.001*(dMudX*dMudX - link_vars[n]);
+            const Real dStddX = (dMudX*dMudX - link_vars[n]);
             //const Real dXhatdMu = -invstd;
             //const Real fac = std::max(_eps, std::pow(link_vars[n],1.5));
             //const Real dXhatdStd = -.5*(link_inputs[n]-link_means[n])*std::pow(invstd, 3);
@@ -390,10 +390,14 @@ public:
             if (dStddX>0 || link_vars[n]>_eps)
             grad_vars[n] += dStddX;
 
-            link_errors[n] = errors[n]*link_scales[n]*invstd;
-            //link_errors[n] = dEdXhat*(dXhatdX + dXhatdMu*dMudX + dXhatdStd*dStddX);
-            //printf("Weight values %d %9.9e %9.9e %9.9e %9.9e\n",n+n1stBias, link_means[n],link_vars[n], link_shifts[n], link_scales[n]); fflush(0);
-            //printf("Grad values %d %9.9e %9.9e %9.9e\n", n+n1stBias, link_errors[n], errors[n]*link_scales[n]*invstd, std::pow(invstd,3)); fflush(0);
+            //link_errors[n] = errors[n]*link_scales[n]*invstd;
+            const Real pid_avg =  dEdXhat*dMudX<0 ? -0.5*invstd : 0.5*invstd;
+            const Real pid_std = link_inputs[n]-link_means[n] > 0  ? 
+                                 ( dStddX*dEdXhat<0 ? -0.5*invstd : 0.5*invstd)
+                                                                   :
+                                 ( dStddX*dEdXhat>0 ? -0.5*invstd : 0.5*invstd);
+
+            link_errors[n] = dEdXhat*(invstd + pid_avg + pid_std);
 #else
             die("WRONG\n");
             link_errors[n] = errors[n]*link_scales[n]*invstd;

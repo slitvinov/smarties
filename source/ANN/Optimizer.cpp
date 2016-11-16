@@ -93,6 +93,7 @@ void Optimizer::update(Grads* const G, const int batchsize)
 void AdamOptimizer::update(Grads* const G, const int batchsize)
 {
     update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, batchsize, lambda);
+    //Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
     //Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
     update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, batchsize);
         
