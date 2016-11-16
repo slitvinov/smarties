@@ -211,7 +211,7 @@ bool Learner::checkBatch() const
 
 void Learner::save(string name)
 {
-    net->save(name + ".net");
+    //net->save(name + ".net");
     const string stuff = name + ".status";
     FILE * f = fopen(stuff.c_str(), "w");
     if (f == NULL) die("Save fail\n");
@@ -222,6 +222,7 @@ void Learner::save(string name)
 
 void Learner::restart(string name)
 {
+      return;
     _info("Restarting from saved policy...\n");
     data->restartSamples();
     if ( net->restart(name + ".net") ) {_info("Restart successful, moving on...\n");}

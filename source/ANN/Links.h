@@ -614,7 +614,7 @@ struct Graph //misleading, this is just the graph for a single layer
 
     Graph() :
 	input(false), output(false), RNN(false), LSTM(false), Conv2D(false), normalize(false),
-	layerSize(0), layerSize_simd(0), firstNeuron_ID(0), firstState_ID(0), firstBias_ID(0), firstBiasWhiten(0),
+	layerSize(0), layerSize_simd(0), firstNeuron_ID(0), firstState_ID(0), firstBias_ID(0), firstBiasWhiten(-1),
 	firstBiasIG_ID(-1), firstBiasFG_ID(-1), firstBiasOG_ID(-1), //LSTM
 	layerWidth(-1), layerHeight(-1), layerDepth(-1), layerDepth_simd(-1), padWidth(-1), padHeight(-1), //Conv2D
 	featsWidth(-1), featsHeight(-1), featsNumber(-1), strideWidth(-1), strideHeight(-1)
@@ -631,6 +631,8 @@ struct Graph //misleading, this is just the graph for a single layer
     
     void initializeWeights(mt19937* const gen, Real* const _weights, Real* const _biases) const
     {
+         
+      printf("Initializing biases 1stBw %d lS %d simd %d \n", firstBiasWhiten, layerSize, layerSize_simd);
         uniform_real_distribution<Real> dis(-sqrt(6./layerSize),sqrt(6./layerSize));
         assert(layerSize>0 && layerSize_simd>0 && firstNeuron_ID>=0);
 
