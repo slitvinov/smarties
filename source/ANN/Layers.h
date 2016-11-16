@@ -333,10 +333,8 @@ public:
         __builtin_assume_aligned(link_scales,  __vec_width__);
         const Real _eps = 1e-9;//std::numeric_limits<Real>::epsilon();
 
-        for (int n=0; n<nNeurons; n++) {
-                const Real xhat = (link_inputs[n] - link_means[n])/std::sqrt(std::max(_eps,  link_vars[n]));
-                inputs[n] = xhat;
-        }
+        for (int n=0; n<nNeurons; n++)
+                inputs[n] = (link_inputs[n] - link_means[n])/std::sqrt(std::max(_eps,  link_vars[n]));
         
         if (noise>0) {
             normal_distribution<Real> dis(0.,noise);
@@ -380,19 +378,20 @@ public:
             const Real invstd = 1./std::sqrt(std::max(_eps, link_vars[n]));
 #ifndef _whitenTarget_
             const Real dEdXhat = errors[n]*link_scales[n];
-            const Real dEdMean = link_inputs[n]-link_means[n];
-            const Real dXhatdMu = -invstd;
-           // const Real fac = std::max(_eps, std::pow(link_vars[n],1.5));
-            const Real dXhatdStd = -.5*(link_inputs[n]-link_means[n])*std::pow(invstd, 3);
-            const Real dXhatdX = invstd; 
-            const Real dMudX = dEdMean;
-            const Real dStddX = (dEdMean*dEdMean - link_vars[n]); 
+            //mean increases if input is greater than mean
+            const Real dMudX = 0.001*(link_inputs[n] - link_means[n]);
+            //std increases if input is less than mean
+            const Real dStddX = 0.001*(dMudX*dMudX - link_vars[n]);
+            //const Real dXhatdMu = -invstd;
+            //const Real fac = std::max(_eps, std::pow(link_vars[n],1.5));
+            //const Real dXhatdStd = -.5*(link_inputs[n]-link_means[n])*std::pow(invstd, 3);
+            //const Real dXhatdX = invstd;
             grad_means[n] += dMudX;
             if (dStddX>0 || link_vars[n]>_eps)
             grad_vars[n] += dStddX;
 
-            //link_errors[n] = errors[n]*link_scales[n]*invstd;
-            link_errors[n] = dEdXhat*(dXhatdX + dXhatdMu*dMudX + dXhatdStd*dStddX);
+            link_errors[n] = errors[n]*link_scales[n]*invstd;
+            //link_errors[n] = dEdXhat*(dXhatdX + dXhatdMu*dMudX + dXhatdStd*dStddX);
             //printf("Weight values %d %9.9e %9.9e %9.9e %9.9e\n",n+n1stBias, link_means[n],link_vars[n], link_shifts[n], link_scales[n]); fflush(0);
             //printf("Grad values %d %9.9e %9.9e %9.9e\n", n+n1stBias, link_errors[n], errors[n]*link_scales[n]*invstd, std::pow(invstd,3)); fflush(0);
 #else
