@@ -10,7 +10,7 @@
 #include "Transitions.h"
 #include <fstream>
 //#define CLEAN //dont
-#define NmaxDATA 1000
+#define NmaxDATA 10000
 
 Transitions::Transitions(Environment* env, Settings & settings):
 aI(env->aI), sI(env->sI), anneal(0), nBroken(0), nTransitions(0),
