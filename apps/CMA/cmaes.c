@@ -185,8 +185,8 @@ void cmaes_readpara_WriteToFile(cmaes_readpara_t *, const char *filenamedest);
 const double * cmaes_Optimize( cmaes_t *, double(*pFun)(double const *, int dim), 
                                 long iterations);
 double const * cmaes_SetMean(cmaes_t *, const double *xmean);
-double * cmaes_PerturbSolutionInto(cmaes_t *t, double *xout, 
-                                   double const *xin, double eps);
+/*double * cmaes_PerturbSolutionInto(cmaes_t *t, double *xout,
+                                   double const *xin, double eps);*/
 void cmaes_WriteToFile(cmaes_t *, const char *key, const char *name);
 void cmaes_WriteToFileAW(cmaes_t *t, const char *key, const char *name, 
                          const char * append);
@@ -730,7 +730,7 @@ cmaes_SampleSingleInto( cmaes_t *t, double *rgx)
 }
 
 /* --------------------------------------------------------- */
-/* --------------------------------------------------------- */
+/* --------------------------------------------------------- *
 double * 
 cmaes_PerturbSolutionInto( cmaes_t *t, double *rgx)
 {
@@ -744,7 +744,7 @@ cmaes_PerturbSolutionInto( cmaes_t *t, double *rgx)
 
   for (i = 0; i < N; ++i)
     t->rgdTmp[i] = t->rgD[i] * cmaes_random_Gauss(&t->rand);
-  /* add mutation (sigma * B * (D*z)) */
+  // add mutation (sigma * B * (D*z))
   for (i = 0; i < N; ++i) {
     for (j = 0, sum = 0.; j < N; ++j)
       sum += t->B[i][j] * t->rgdTmp[j];
@@ -753,7 +753,7 @@ cmaes_PerturbSolutionInto( cmaes_t *t, double *rgx)
   return rgx;
 }
 
-/* --------------------------------------------------------- */
+* --------------------------------------------------------- */
 /* --------------------------------------------------------- */
 const double *
 cmaes_Optimize( cmaes_t *evo, double(*pFun)(double const *, int dim), long iterations)
