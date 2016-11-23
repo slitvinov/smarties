@@ -27,8 +27,8 @@ public:
 	virtual void initialize(mt19937* const gen, Real* const _weights) const = 0;
 	virtual void restart(std::istringstream & buf, Real* const _weights) const = 0;
 	virtual void save(std::ostringstream & buf, Real* const _weights) const = 0;
-	virtual void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const = 0;
-	virtual void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const =0;
+	//virtual void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const = 0;
+	//virtual void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const =0;
 	void orthogonalize(const int n0, Real* const _weights, int nOut, int nIn, int n_simd) const
 	{
 		if (nIn<nOut) return;
@@ -134,7 +134,7 @@ public:
         }
     }
 
-    virtual void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
+    inline void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
     {
         const Real* __restrict__ const link_input = netFrom->outvals +iI;
         Real* __restrict__ const link_outputs = netTo->in_vals +iO;
@@ -149,8 +149,8 @@ public:
         }
         }
     }
-    
-    virtual void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
+   
+    inline void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
     {
         const Real* __restrict__ const layer_input = netFrom->outvals + iI;
         const Real* __restrict__ const deltas = netTo->errvals + iO;
@@ -270,7 +270,7 @@ public:
         	out << _weights[iWO + nO_simd*i + o];
     }
     
-    void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const override
+    void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
     {
         const Real* __restrict__ const link_input = netFrom->outvals + iI;
         Real* __restrict__ const inputs = netTo->in_vals + iO;
@@ -302,7 +302,7 @@ public:
         }
     }
     
-    void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const override
+    void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
     {
         const Real* __restrict__ const layer_input = netFrom->outvals + iI;
         Real* __restrict__ const link_errors = netFrom->errvals + iI;
@@ -428,7 +428,7 @@ public:
 			out << _weights[iW + outputDepth_simd*i + o];
     }
     
-    void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const override
+    void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
     {
         for(int ox=0; ox<outputWidth;  ox++)
         for(int oy=0; oy<outputHeight; oy++) {
@@ -456,7 +456,7 @@ public:
         }
     }
     
-    void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const override
+    void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
     {
         for(int ox=0; ox<outputWidth;  ox++)
         for(int oy=0; oy<outputHeight; oy++) {
@@ -558,7 +558,7 @@ public:
 			stds[k+iO] = 0;
 		}
     }
-    
+  /*  
     void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const override
     {
         die("You really should not be able to get here.\n");
@@ -568,7 +568,7 @@ public:
     {
         die("You really should not be able to get here as well.\n");
     }
-
+*/
     void resetRunning() override {
     	if(runningAvg.size() != nO) runningAvg.resize(nO);
     	if(runningStd.size() != nO) runningStd.resize(nO);

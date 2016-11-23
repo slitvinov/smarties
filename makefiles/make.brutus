@@ -6,4 +6,4 @@ CPPFLAGS+= -msse3 -I/cluster/home/mavt/chatzidp/usr/mpich3/include/ -DREG=5
 
 export LD_LIBRARY_PATH=/cluster/home/mavt/chatzidp/usr/mpich3/lib/:$LD_LIBRARY_PATH
 
-LIBS+= -L/cluster/home/mavt/chatzidp/usr/mpich3/lib/  -msse3 -lz
+LIBS+= -L/cluster/home/mavt/chatzidp/usr/mpich3/lib/ -lopenblas -msse3 -lz

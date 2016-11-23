@@ -54,7 +54,8 @@ CPPFLAGS+= -O0 -g
 #else
 endif
 ifeq "$(config)" "prod"
-CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native -ftree-vectorize -ftree-vectorizer-verbose=0 -DNDEBUG #-DBOOST_UBLAS_NDEBUG -ffast-math  
+CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native -ftree-vectorize -ftree-vectorizer-verbose=0 -DNDEBUG 
+CPPFLAGS +=  -funsafe-math-optimizations -falign-functions=16 #-DBOOST_UBLAS_NDEBUG -ffast-math  
 endif
 
 ifeq "$(CC)" "icc"

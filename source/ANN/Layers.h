@@ -55,17 +55,21 @@ public:
         for (int n=0; n<nNeurons; n++) inputs[n] = bias[n];
 
         for (const auto & link : *input_links)
+            link->propagate(curr,curr,weights);
+/*
         	cblas_dgemv(CblasRowMajor, CblasTrans, link->nI, nNeurons_simd,
         				1.0, weights  + link->iW, nNeurons_simd,
 						curr->outvals + link->iI, 1,
 						1.0, inputs, 1);
-
+*/
         if(recurrent_link not_eq nullptr && prev not_eq nullptr)
+            recurrent_link->propagate(prev,curr,weights);
+/*
         	cblas_dgemv(CblasRowMajor, CblasTrans, nNeurons, nNeurons_simd,
         				1.0, weights  +recurrent_link->iW, nNeurons_simd,
 						prev->outvals +n1stNeuron, 1,
 						1.0, inputs, 1);
-
+*/
         Func::eval(inputs, outputs, nNeurons);
     }
     void backPropagate( Activation* const prev,  Activation* const curr, const Activation* const next, 
