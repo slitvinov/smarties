@@ -100,7 +100,8 @@ int main(int argc, const char * argv[])
     //trash:
     long long int nfallen(0), sincelast(0), duringlast(0), ntot(0);
     double percfallen = 0.0;
-    
+    mt19937 gen(sock);
+    std::uniform_real_distribution<double> distribution(-0.05,0.05);
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
     comm = new Communicator(sock,4,1);
     //vector of state variables: in this case x, v, theta, ang_velocity
@@ -111,7 +112,7 @@ int main(int argc, const char * argv[])
     //random initial conditions:
     vector<CartPole> agents(n);
     for (auto& a : agents) {
-        a.u = Vec4( .01*(drand48()-.5), .01*(drand48()-.5), .01*(drand48()-.5), .01*(drand48() -.5));
+        a.u = Vec4(distribution(gen), distribution(gen), distribution(gen), distribution(gen));
         a.F    = 0;
         a.info = 1;
     }
@@ -167,10 +168,7 @@ int main(int argc, const char * argv[])
                 comm->sendState(k, a.info, state, r);
                 
                 //re-initialize the simulations (random initial conditions):
-                a.u = Vec4( .01*(drand48()-.5),
-                            .01*(drand48()-.5),
-                            .01*(drand48()-.5),
-                            .01*(drand48()-.5));
+                a.u = Vec4(distribution(gen), distribution(gen), distribution(gen), distribution(gen));
                 t = 0;
                 a.F = 0;
                 a.info = 1; //set info back to 0

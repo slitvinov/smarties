@@ -85,6 +85,12 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
             int n = _parseInt(envStr, "n", true);
             env = new CartEnvironment(n, execpath, rank, settings);
         }
+        else if (envStr.find("CMAEnvironment ") != envStr.npos)
+        {
+            string execpath = _parse(envStr, "exec", true);
+            int n = _parseInt(envStr, "n", true);
+            env = new CMAEnvironment(n, execpath, rank, settings);
+        }
         else if (envStr.find("Environment ") != envStr.npos)
         {
             string execpath = _parse(envStr, "exec", true);

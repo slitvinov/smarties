@@ -7,7 +7,7 @@
  *
  */
 
-#include "CartEnvironment.h"
+#include "CMAEnvironment.h"
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -22,12 +22,12 @@
 
 using namespace std;
 
-CartEnvironment::CartEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
+CMAEnvironment::CartEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
 Environment(nAgents, execpath, _rank, settings)
 {
 }
 
-bool CartEnvironment::predefinedNetwork(Network* const net) const
+bool CMAEnvironment::predefinedNetwork(Network* const net) const
 {
 	//this function can be used if environment requires particular network settings
 	//i.e. not fully connected LSTM/FF network
@@ -35,77 +35,70 @@ bool CartEnvironment::predefinedNetwork(Network* const net) const
 	return false;
 }
 
-void CartEnvironment::setDims() //this environment is for the cart pole test
+void CMAEnvironment::setDims() //this environment is for the cart pole test
 {
     {
         sI.bounds.clear(); sI.top.clear(); sI.bottom.clear(); sI.isLabel.clear(); sI.inUse.clear();
         //for each state variable:
-        // State: coordinate...
+        // State: ratio between min/max std...
         sI.top.push_back(1.); //maximum value of the variable: to normalize inputs of the network
-        sI.bottom.push_back(-1.); //minimum value
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
-        
-        // ...velocity...
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
-        
-        // ...and angular velocity
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
-        
-        // ...angle...
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
+        sI.bottom.push_back(0.); //minimum value
         sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
 
-        /*
-         * also valid:
-         *
-         * for (int i=0; i<some_number_of_vars; i++)
-         * {
-         * 		sI.top.push_back(MAXVAL); sI.bottom.push_back(MINVAL);
-         * 		sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
-         * }
-         */
+        // ...ratio between min/max eigenvalues of covariance...
+        sI.top.push_back(1.); sI.bottom.push_back(0.);
+        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+        
+        // ...progress rate...
+        sI.top.push_back(1.); sI.bottom.push_back(0.);
+        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+        
+        // ...function change...
+        sI.top.push_back(1.); sI.bottom.push_back(-1.);
+        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+        
+        // ...dimensionality...
+        sI.top.push_back(10.); sI.bottom.push_back(1.);
+        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
     }
     {
         aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
         for (int i=0; i<aI.dim; i++) {
-        	const int nOptions = 7; //used if discrete actions: options available to agent for acting
+        	const int nOptions = 5; //used if discrete actions: options available to agent for acting
             aI.bounds.push_back(nOptions);
-            aI.upperBounds.push_back( 1.); //only used for continuous policy (NAF or DPG algorithms, not DQN): upper scaling bound
-            aI.lowerBounds.push_back(-1.); //only used for continuous policy: lower scaling bound
+            aI.upperBounds.push_back(1.); //only used for continuous policy (NAF or DPG algorithms, not DQN): upper scaling bound
+            aI.lowerBounds.push_back(0.); //only used for continuous policy: lower scaling bound
 
             //this framework sends a real number to the application
             //if you want to receive an integer number between 0 and nOptions (eg action option)
             //just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
             //i added the 0.1 is just to be extra safe when converting a float to an integer
 
-            aI.values[i].push_back(-10.); //here the app accepts real numbers
-            aI.values[i].push_back(-3.);
-            aI.values[i].push_back(-1.);
-            aI.values[i].push_back(0.0);
-            aI.values[i].push_back(1.0);
-            aI.values[i].push_back(3.0);
-            aI.values[i].push_back(10.);
+            aI.values[i].push_back(.0); //here the app accepts real numbers
+            aI.values[i].push_back(.1);
+            aI.values[i].push_back(.2);
+            aI.values[i].push_back(.3);
+            aI.values[i].push_back(.4);
+            aI.values[i].push_back(.5);
             //the number of components must be ==nOptions
         }
     }
     commonSetup(); //required
 }
 
-bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward, const int info)
+bool CMAEnvironment::pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward, const int info)
 {
-    bool new_sample(false);
+    bool new_sample(info == 2);
 
     //Compute the reward. If you do not do anything, reward will be whatever was set already to reward.
     //this means that reward will be one sent by the app
 
-    if (reward<-0.9) new_sample=true; //in cart pole example, if reward from the app is -1 then I failed
+    //if (reward<-0.9) new_sample=true; //in cart pole example, if reward from the app is -1 then I failed
 
     //here i can change the reward: instead of -1 or 0, i can give a positive reward if angle is small
-    reward = 1. - fabs(t_sN.vals[3])/0.2;    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
-    if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+    //reward = 1. - fabs(t_sN.vals[3])/0.2;    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
+    //if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     //was is the last state of the sequence?
 
     //this must be set: was it the last episode? you can get it from reward?

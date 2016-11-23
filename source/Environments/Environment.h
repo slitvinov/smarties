@@ -54,6 +54,6 @@ public:
     virtual void setAction(const int & iAgent);
     void close_Comm ();
     void setup_Comm ();
-    virtual bool pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward) = 0;
+    virtual bool pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward, const int info) = 0;
 	virtual bool predefinedNetwork(Network* const net) const;
 };
