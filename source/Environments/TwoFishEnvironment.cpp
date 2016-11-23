@@ -147,7 +147,7 @@ void TwoFishEnvironment::setDims()
     commonSetup();
 }
 
-bool TwoFishEnvironment::pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward)
+bool TwoFishEnvironment::pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward, const int info)
 {
     
      if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001)

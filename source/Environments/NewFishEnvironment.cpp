@@ -204,7 +204,7 @@ void NewFishEnvironment::setAction(const int & iAgent)
 }
 
 bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
-                                    const State & t_sN, Real & reward)
+                                    const State & t_sN, Real & reward, const int info)
 {
     if (fabs(t_sN.vals[5] -t_sO.vals[4])>0.001) {
         printf("Mismatch new and old state!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());

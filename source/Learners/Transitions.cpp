@@ -163,7 +163,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
         t->s.insert(t->s.end(),last->s[0],last->s[sApp-1]);
     }
     
-    const bool new_sample = env->pickReward(sOld,a,sNew,reward); // || info==2 TODO
+    const bool new_sample = env->pickReward(sOld,a,sNew,reward,info); // || info==2 TODO
     t->r = reward;
     t->a = a.getActionLabel();
     t->aC = a.scale();

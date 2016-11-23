@@ -67,7 +67,7 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     s.scaleUsed(inputs);
     
     if (info==1) // if new sequence, sold, aold and reward are meaningless
-        net->predict(inputs, output, currActivation);
+        net->predict(inputs, output, currActivation, 0.01);
     else {   //then if i'm using RNN i need to load recurrent connections
     	Activation* prevActivation = net->allocateActivation();
 		net->loadMemory(net->mem[agentId], prevActivation);

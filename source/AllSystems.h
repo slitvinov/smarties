@@ -16,7 +16,9 @@ class CartEnvironment;
 class TwoFishEnvironment;
 class NewFishEnvironment;
 class TwoActFishEnvironment;
+class CMAEnvironment;
 
+#include "Environments/CMAEnvironment.h"
 #include "Environments/CartEnvironment.h"
 #include "Environments/TwoFishEnvironment.h"
 #include "Environments/NewFishEnvironment.h"
