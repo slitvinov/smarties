@@ -67,11 +67,11 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     s.scaleUsed(inputs);
     
     if (info==1) // if new sequence, sold, aold and reward are meaningless
-        net->predict(inputs, output, currActivation, 0.01);
+        net->predict(inputs, output, currActivation, 0.001);
     else {   //then if i'm using RNN i need to load recurrent connections
     	Activation* prevActivation = net->allocateActivation();
 		net->loadMemory(net->mem[agentId], prevActivation);
-        net->predict(inputs, output, prevActivation, currActivation, 0.01);
+        net->predict(inputs, output, prevActivation, currActivation, 0.001);
         //also, store sOld, aOld -> sNew, r
         data->passData(agentId, info, sOld, aOld, s, r);
         _dispose_object(prevActivation);
@@ -88,7 +88,7 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     //load computed policy into a
     vector<Real> act(nA);
     for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
-    a.set_fromScaled(output);
+    a.set_fromScaled(act);
     
     //random action?
     Real newEps(greedyEps);
@@ -112,18 +112,18 @@ void NAF::Train_BPTT(const int seq, const int thrID)
     if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
     const int ndata = data->Set[seq]->tuples.size();
-    const int nalloc = data->Set[seq]->ended ? ndata-1 : ndata;
-    vector<Activation*> timeSeries = net->allocateUnrolledActivations(nalloc);
+    vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
+    Activation* tgtActivation = net->allocateActivation();
     net->clearErrors(timeSeries);
     
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
-        const Tuple * const _t = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
+        const Tuple * const _t    = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
         const Tuple * const _tOld = data->Set[seq]->tuples[k]; //this tuple contains sOld
-        net->predict(_tOld->s, output, timeSeries, k, 0.01);
+        net->predict(_tOld->s, output, timeSeries, k, 0.001);
 
         const bool terminal = k+2==ndata && data->Set[seq]->ended;
         if (not terminal)
-		net->predict(_t->s, target, timeSeries, k+1, net->tgt_weights,  net->tgt_biases);
+		net->predict(_t->s, target, timeSeries[k], tgtActivation, net->tgt_weights, net->tgt_biases);
         
         Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
         const vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
@@ -136,6 +136,7 @@ void NAF::Train_BPTT(const int seq, const int thrID)
     if (thrID==0) net->backProp(timeSeries, net->grad);
     else net->backProp(timeSeries, net->Vgrad[thrID]);
     net->deallocateUnrolledActivations(&timeSeries);
+    _dispose_object(tgtActivation);
 }
 
 void NAF::Train(const int seq, const int samp, const int thrID)
