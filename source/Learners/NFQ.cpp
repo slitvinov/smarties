@@ -102,24 +102,24 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
     if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
     const int ndata = data->Set[seq]->tuples.size();
-    const int nalloc = data->Set[seq]->ended ? ndata-1 : ndata;
-    vector<Activation*> timeSeries = net->allocateUnrolledActivations(nalloc);
+    vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
+    Activation* tgtActivation = net->allocateActivation();
     net->clearErrors(timeSeries);
     
     //first prediction in sequence without recurrent connections
-    net->predict(data->Set[seq]->tuples[0]->s, Qhats, timeSeries, 0, 0.1);
+    net->predict(data->Set[seq]->tuples[0]->s, Qhats, timeSeries, 0, 0.01);
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1
         Qs = Qhats; //Q(sNew) predicted at previous loop with moving wghts is current Q
         
         const Tuple * const _t = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
         const bool terminal = k+2==ndata && data->Set[seq]->ended;
         if (not terminal) {
-            net->predict(_t->s, Qtildes, timeSeries, k+1, net->tgt_weights,  net->tgt_biases);
+    		net->predict(_t->s, Qtildes, timeSeries[k], tgtActivation, net->tgt_weights, net->tgt_biases);
 #ifdef _whitenTarget_
 			#pragma	omp critical
             net->updateBatchStatistics(timeSeries[k+1]);
 #endif
-            net->predict(_t->s, Qhats,   timeSeries, k+1, 0.1);
+            net->predict(_t->s, Qhats,   timeSeries, k+1, 0.01);
         }
         
         // find best action for sNew with moving wghts, evaluate it with tgt wgths:
@@ -143,6 +143,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
     if (thrID==0) net->backProp(timeSeries, net->grad);
     else net->backProp(timeSeries, net->Vgrad[thrID]);
     net->deallocateUnrolledActivations(&timeSeries);
+    _dispose_object(tgtActivation);
 }
 
 void NFQ::Train(const int seq, const int samp, const int thrID)
