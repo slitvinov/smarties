@@ -29,7 +29,7 @@ void Learner::TrainBatch()
     if (data->inds.size()<batchSize)
     { //uniform sampling
         data->updateSamples();
-        processStats(Vstats); //dump info about convergence
+        processStats(Vstats, 0 ); //dump info about convergence
     }
     
     if(bRecurrent) {
@@ -72,7 +72,8 @@ void Learner::TrainTasking(Master* const master)
     std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
     vector<int> seq(batchSize), samp(batchSize), index(batchSize);
     int nAddedGradients(0), maxBufSize(0);
-    
+    Real sumElapsed(0.); 
+    int countElapsed(0);
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
     
     #pragma omp parallel num_threads(nThreads)
@@ -92,13 +93,14 @@ void Learner::TrainTasking(Master* const master)
                 {
                     data->updateSamples();
                     ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-                    processStats(Vstats); //dump info about convergence
+                    processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
                     opt->nepoch=stats.epochCount; //used to anneal learning rate
                      #ifdef _whitenTarget_
 	                  net->applyBatchStatistics();
                      #endif
+                    sumElapsed = 0; countElapsed=0;
                     
-                    #if 0==1// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
+                    #if 1==1// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
                     if (stats.epochCount++ % 100 == 0) {
                         vector<vector<Real>> inputs;
                         const int ind = data->Set.size()-1;
@@ -167,7 +169,8 @@ void Learner::TrainTasking(Master* const master)
             master->hustle(); //master goes to communicate with slaves
             #endif
             end = std::chrono::high_resolution_clock::now();
-            printf("Batch took %f seconds (processed %d samples).\n",std::chrono::duration<Real>(end-start).count(),nAddedGradients);
+            sumElapsed += std::chrono::duration<Real>(end-start).count()/nAddedGradients;
+            countElapsed++;
         }
         #pragma omp barrier
         
@@ -259,7 +262,7 @@ void Learner::dumpStats(trainData* const _stats, const Real& Q, const Real& err,
     _stats->dumpCount++;
 }
 
-void Learner::processStats(vector<trainData*> _stats)
+void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
 {
     stats.minQ= 1e5; stats.maxQ=-1e5; stats.MSE=0;
     stats.avgQ=0; stats.relE=0; stats.dumpCount=0;
@@ -293,8 +296,8 @@ void Learner::processStats(vector<trainData*> _stats)
 
     ofstream filestats;
     filestats.open("stats.txt", ios::app);
-    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, errWeights %f, N %d\n",
-	   stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ, stats.maxQ, sumWeights, stats.dumpCount);
+    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, errWeights %f, N %d, dT %f\n",
+	   stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ, stats.maxQ, sumWeights, stats.dumpCount, avgTime);
     filestats<<
     stats.epochCount<<" "<<stats.MSE<<" "<<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "<<sumWeights<<" "<<stats.minQ<<endl;
     filestats.close();

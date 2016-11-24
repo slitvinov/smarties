@@ -51,7 +51,7 @@ protected:
     
     void dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs);
     void dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs);
-    void processStats(vector<trainData*> _stats);
+    void processStats(vector<trainData*> _stats, const Real avgTime);
     virtual void updateTargetNetwork();
     virtual void stackAndUpdateNNWeights(const int nAddedGradients);
     virtual void updateNNWeights(const int nAddedGradients);

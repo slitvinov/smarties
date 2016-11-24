@@ -79,7 +79,7 @@ void Master::save()
     FILE * f = fopen("master.status", "w");
     if (f != NULL) fprintf(f, "master iter: %d\n", iter);
     fclose(f);
-    printf("master iter: %d\n", iter);
+    //printf("master iter: %d\n", iter);
     
     learner->save("policy");
 }
