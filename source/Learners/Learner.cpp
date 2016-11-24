@@ -8,7 +8,7 @@
  */
 
 #include "Learner.h"
-
+#include <chrono>
 Learner::Learner(Environment* env, Settings & settings) : nAgents(settings.nAgents),
 batchSize(settings.dqnBatch), tgtUpdateDelay((int)settings.dqnUpdateC), nThreads(settings.nThreads),
 nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), bRecurrent(settings.nnType==1),
@@ -69,6 +69,7 @@ void Learner::TrainBatch()
 
 void Learner::TrainTasking(Master* const master)
 {
+    std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
     vector<int> seq(batchSize), samp(batchSize), index(batchSize);
     int nAddedGradients(0), maxBufSize(0);
     
@@ -97,8 +98,8 @@ void Learner::TrainTasking(Master* const master)
 	                  net->applyBatchStatistics();
                      #endif
                     
-                    #ifndef NDEBUG //check gradients with finite differences, just for debug  0==1//
-                    if (stats.epochCount++ % 1000 == 0) {
+                    #if 0==1// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
+                    if (stats.epochCount++ % 100 == 0) {
                         vector<vector<Real>> inputs;
                         const int ind = data->Set.size()-1;
                         for (int k=0; k<data->Set[ind]->tuples.size(); k++)
@@ -107,6 +108,8 @@ void Learner::TrainTasking(Master* const master)
                     }
                     #endif
                 }
+
+                start = std::chrono::high_resolution_clock::now();
 
                 if(bRecurrent) {//we are using an LSTM: do BPTT
                     for (int i(0); i<batchSize; i++) {
@@ -163,6 +166,8 @@ void Learner::TrainTasking(Master* const master)
             #ifndef MEGADEBUG
             master->hustle(); //master goes to communicate with slaves
             #endif
+            end = std::chrono::high_resolution_clock::now();
+            printf("Batch took %f seconds (processed %d samples).\n",std::chrono::duration<Real>(end-start).count(),nAddedGradients);
         }
         #pragma omp barrier
         

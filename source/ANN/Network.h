@@ -8,7 +8,8 @@
  */
 
 #pragma once
-#define __WHITEN_DEFAULT true // false
+#define __WHITEN_DEFAULT false
+//#define __WHITEN_DEFAULT true
 #include <vector>
 #include <functional>
 #include "Layers.h"

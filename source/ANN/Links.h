@@ -188,14 +188,14 @@ public:
 	LinkToLSTM(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO, int nO_simd) :
 	iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO), nO_simd(nO_simd), nW(nI*nO_simd) //i care nW per neuron, just for the asserts
 	{
-		assert(iW  % (__vec_width__/sizeof(Real) == 0));
-		assert(iWI % (__vec_width__/sizeof(Real) == 0));
-		assert(iWF % (__vec_width__/sizeof(Real) == 0));
-		assert(iWO % (__vec_width__/sizeof(Real) == 0));
-		assert(iI  % (__vec_width__/sizeof(Real) == 0));
-		assert(iC  % (__vec_width__/sizeof(Real) == 0));
-		assert(iO  % (__vec_width__/sizeof(Real) == 0));
-		assert(nO_simd % (__vec_width__/sizeof(Real) == 0));
+		assert(iW  % (__vec_width__/sizeof(Real)) == 0);
+		assert(iWI % (__vec_width__/sizeof(Real)) == 0);
+		assert(iWF % (__vec_width__/sizeof(Real)) == 0);
+		assert(iWO % (__vec_width__/sizeof(Real)) == 0);
+		assert(iI  % (__vec_width__/sizeof(Real)) == 0);
+		assert(iC  % (__vec_width__/sizeof(Real)) == 0);
+		assert(iO  % (__vec_width__/sizeof(Real)) == 0);
+		assert(nO_simd % (__vec_width__/sizeof(Real)) == 0);
 		print();
         assert(iWI==iW +nW);
         assert(iWF==iWI+nW);
@@ -365,10 +365,10 @@ public:
 	iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), outputDepth_simd(nO_simd), inputWidth(inW), inputHeight(inH), inputDepth(inD), filterWidth(fW), filterHeight(fH),
 	outputDepth(fN), outputWidth(outW), outputHeight(outH), strideX(sX), strideY(sY), padX(pX), padY(pY), nW(fW*fH*nO_simd*inD)
 	{
-		assert(iW % (__vec_width__/sizeof(Real) == 0));
-		assert(iI % (__vec_width__/sizeof(Real) == 0));
-		assert(iO % (__vec_width__/sizeof(Real) == 0));
-		assert(outputDepth_simd % (__vec_width__/sizeof(Real) == 0));
+		assert(iW % (__vec_width__/sizeof(Real)) == 0);
+		assert(iI % (__vec_width__/sizeof(Real)) == 0);
+		assert(iO % (__vec_width__/sizeof(Real)) == 0);
+		assert(outputDepth_simd % (__vec_width__/sizeof(Real)) == 0);
 		assert(nW>0);
 		assert(inputWidth*inputHeight*inputDepth == nI);
 		assert(outputWidth*outputHeight*outputDepth == nO);

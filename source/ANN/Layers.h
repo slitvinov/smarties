@@ -286,7 +286,7 @@ public:
         if (prev==nullptr)
         	for (int o=0; o<nNeurons; o++) deltaF[o] = 0.;
         else
-        	Sigm::evalDiff(inputF, deltaF, prev->ostates+n1stCell, nNeurons_simd);
+        	Sigm::evalDiff(inputF, deltaF, prev->ostates+n1stCell, nNeurons);
 		
 		for (int o=0; o<nNeurons; o++) {
             deltaC[o] *= deltas[o];

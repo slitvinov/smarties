@@ -141,7 +141,7 @@ void Network::build_LSTM_layer(Graph* const graph)
 	LinkToLSTM* recurrent_link = nullptr;
 	
 	const int layerSize = graph->layerSize;
-    const int layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
+    graph->layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
 	const int nInputLinks = graph->linkedTo.size();
     const int firstNeuron_ID = nNeurons;
     const int firstCell_ID = nStates;
@@ -150,14 +150,14 @@ void Network::build_LSTM_layer(Graph* const graph)
 		for(int i=0; i<layerSize; i++) iOut.push_back(i+firstNeuron_ID);
 
 	graph->firstNeuron_ID = firstNeuron_ID;
-	nNeurons += layerSize_simd; //move the counter
+	nNeurons += graph->layerSize_simd; //move the counter
 	graph->firstState_ID = firstCell_ID;
-	nStates += layerSize_simd; //move the counter
+	nStates += graph->layerSize_simd; //move the counter
 	graph->firstBias_ID = nBiases;
-	graph->firstBiasIG_ID = graph->firstBias_ID   + layerSize_simd;
-	graph->firstBiasFG_ID = graph->firstBiasIG_ID + layerSize_simd;
-	graph->firstBiasOG_ID = graph->firstBiasFG_ID + layerSize_simd;
-	nBiases += 4*layerSize_simd; //one bias per neuron
+	graph->firstBiasIG_ID = graph->firstBias_ID   + graph->layerSize_simd;
+	graph->firstBiasFG_ID = graph->firstBiasIG_ID + graph->layerSize_simd;
+	graph->firstBiasOG_ID = graph->firstBiasFG_ID + graph->layerSize_simd;
+	nBiases += 4*graph->layerSize_simd; //one bias per neuron
 
 	for(int i=0; i<nInputLinks; i++) {
 		assert(graph->linkedTo[i]>=0 || graph->linkedTo[i]<G.size());
@@ -165,26 +165,26 @@ void Network::build_LSTM_layer(Graph* const graph)
 		const int firstNeuronFrom = layerFrom->firstNeuron_ID;
     	const int sizeLayerFrom = layerFrom->layerSize;
 		assert(firstNeuronFrom>=0 && firstNeuronFrom<firstNeuron_ID && sizeLayerFrom>0);
-    	const int firstWeightIG = nWeights 		+ sizeLayerFrom*layerSize_simd;
-    	const int firstWeightFG = firstWeightIG + sizeLayerFrom*layerSize_simd;
-    	const int firstWeightOG = firstWeightFG + sizeLayerFrom*layerSize_simd;
+    	const int firstWeightIG = nWeights 		+ sizeLayerFrom*graph->layerSize_simd;
+    	const int firstWeightFG = firstWeightIG + sizeLayerFrom*graph->layerSize_simd;
+    	const int firstWeightOG = firstWeightFG + sizeLayerFrom*graph->layerSize_simd;
     	LinkToLSTM* tmp = new LinkToLSTM(sizeLayerFrom, firstNeuronFrom, layerSize, firstNeuron_ID,
-    			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG, layerSize_simd);
+    			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG, graph->layerSize_simd);
     	input_links->push_back(tmp);
 		graph->links->push_back(tmp);
-		nWeights += sizeLayerFrom*layerSize_simd*4; //fully connected, 4 units per cell
+		nWeights += sizeLayerFrom*graph->layerSize_simd*4; //fully connected, 4 units per cell
 	}
 
 	{ //connected  to past realization of current recurrent layer
-		const int firstWeightIG = nWeights 		+ layerSize*layerSize_simd;
-		const int firstWeightFG = firstWeightIG + layerSize*layerSize_simd;
-		const int firstWeightOG = firstWeightFG + layerSize*layerSize_simd;
+		const int firstWeightIG = nWeights 		+ layerSize*graph->layerSize_simd;
+		const int firstWeightFG = firstWeightIG + layerSize*graph->layerSize_simd;
+		const int firstWeightOG = firstWeightFG + layerSize*graph->layerSize_simd;
         const int firstNeuronFrom = graph->normalize ? nNeurons : firstNeuron_ID;
         
 		recurrent_link = new LinkToLSTM(layerSize, firstNeuronFrom, layerSize, firstNeuron_ID,
-    			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG, layerSize_simd);
+    			firstCell_ID, nWeights, firstWeightIG, firstWeightFG, firstWeightOG, graph->layerSize_simd);
 		graph->links->push_back(recurrent_link);
-		nWeights += layerSize*layerSize_simd*4; //fully connected, 4 units per cell
+		nWeights += layerSize*graph->layerSize_simd*4; //fully connected, 4 units per cell
 	}
 
 	Layer * l = nullptr;
@@ -193,12 +193,12 @@ void Network::build_LSTM_layer(Graph* const graph)
 	l = new LSTMLayer<Linear,SoftSigm,Linear>(
 					layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
 	        		graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
-					input_links, recurrent_link, layerSize_simd);
+					input_links, recurrent_link, graph->layerSize_simd);
 	else
 	l = new LSTMLayer<Linear,SoftSigm,SoftSign>(
 					layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
 					graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
-					input_links, recurrent_link, layerSize_simd);
+					input_links, recurrent_link, graph->layerSize_simd);
 
 	if (graph->output) printf("Linear LSTM output\n");
 	layers.push_back(l);
