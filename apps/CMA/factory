@@ -1,1 +1,2 @@
-CMAEnvironment exec=../engine_cmaes
+CMAEnvironment exec=../engine_cmaes n=1
+

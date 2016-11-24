@@ -85,7 +85,7 @@ void Environment::spawn_server()
         close(fd);      // fd no longer needed
         #endif
         
-        //printf("About to exec.... \n");
+        printf("About to exec.... \n");
         cout << execpath << endl << *largv << endl;
         
         //int res = execlp(execpath.c_str(), execpath.c_str(), NULL);

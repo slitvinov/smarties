@@ -10,13 +10,13 @@ restarts 0                    # read by example_restarts.c, remark that restarts
 ## --- OBLIGATORY SETTINGS
 # these settings, if read, overwrite the input values to cmaes_init 
 
- N 2        # Problem dimension, overwrites parameter in cmaes_init
- initialX 2:   # Initial search point. Syntax: 1==read one number, see also end of file. 
-   0.0 0.0       #    these are the read value(s)!
- typicalX 2:   # Typical search point (useful for restarts, cave: boundaries), overwritten by initialX 
-   0.0 0.0        #    these are the read value(s)
- initialStandardDeviations  2:   #  1==read only one number for all coordinates
-   3.0 3.0                           #  numbers should not differ by orders of magnitude
+# N 2        # Problem dimension, overwrites parameter in cmaes_init
+# initialX 2:   # Initial search point. Syntax: 1==read one number, see also end of file. 
+#   0.0 0.0       #    these are the read value(s)!
+# typicalX 2:   # Typical search point (useful for restarts, cave: boundaries), overwritten by initialX 
+#   0.0 0.0        #    these are the read value(s)
+# initialStandardDeviations  2:   #  1==read only one number for all coordinates
+#   3.0 3.0                           #  numbers should not differ by orders of magnitude
                                  #  should be roughly 1/4 of the search interval
                                  #  this number essentially influences the global 
                                  #  search ability (ie. the horizon where to search
@@ -32,15 +32,15 @@ stopMaxIter       1e299     # max number of iterations (generations), inf is def
 
 # stopFitness 1e-9   # stop if function value is smaller than stopFitness
                      # commented == never stop on function value (default)
-stopTolFun 1e-12     # stop if function value differences are 
+stopTolFun 1e-9     # stop if function value differences are 
                      # smaller than stopTolFun, default=1e-12
-stopTolFunHist 1e-13 # stop if function value differences of best values are 
+stopTolFunHist 1e-10 # stop if function value differences of best values are 
                      # smaller than stopTolFunHist, default was 0
-stopTolX 1e-11   # stop if step sizes/steps in x-space are 
+stopTolX 1e-9   # stop if step sizes/steps in x-space are 
                  # smaller than TolX, default=0
 stopTolUpXFactor 1e3 # stop if std dev increases more than by TolUpXFactor, default 1e3
 
-seed 3            # 0 == by time, also regard maxTimeFractionForEigendecomposition
+#seed 3            # 0 == by time, also regard maxTimeFractionForEigendecomposition
                   #   below, as for values smaller than one the outcome might not be  
                   #   exactly reproducible even with the same seed
 
@@ -68,7 +68,7 @@ maxTimeFractionForEigendecompostion 1  # maximal CPU-time fraction for eigensyst
 ## --- Strategy internal parameter ---
 ##     default values are set in cmaes_readpara_SupplementDefaults()
 ## -- Selection related parameters
-lambda 32        # number of offspring == samplesize
+#lambda 32        # number of offspring == samplesize
 # mu  
 # weights      log # possible values: log (==default), 
                    #   lin (==linearely decreasing), or equal 

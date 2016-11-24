@@ -1,14 +1,14 @@
 CC = g++
 
-CPPFLAGS+=-std=c++11 -O3
+CPPFLAGS+=-std=c++11 -O3 -fopenmp
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
-OBJ_FILES = 	engine_cmaes.o communicator.o cmaes.c
+OBJ_FILES = 	engine_cmaes.o communicator.o cmaes.o
 
-.DEFAULT_GOAL := cart-pole
+.DEFAULT_GOAL := engine_cmaes
 
-cart-pole: $(OBJ_FILES)
-	$(CC) $(LIBS) $^ -o $@
+engine_cmaes: $(OBJ_FILES)
+	$(CC) $(LIBS) -fopenmp $^ -o $@
 
 %.o: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@

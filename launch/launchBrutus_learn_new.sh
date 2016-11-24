@@ -6,7 +6,8 @@ APP=$3
 SETTINGSNAME=$4
 
 MYNAME=`whoami`
-BASEPATH="/cluster/scratch_xp/public/${MYNAME}/smarties/"
+#BASEPATH="/cluster/scratch_xp/public/${MYNAME}/smarties/"
+BASEPATH="/cluster/home03/mavt/${MYNAME}/smarties/runs/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 
 if [ $# -gt 4 ] ; then
@@ -14,14 +15,14 @@ if [ $# -gt 4 ] ; then
     cp $5 ${BASEPATH}${RUNFOLDER}/policy.net
 fi
 if [ $# -lt 7 ] ; then
-    NTASK=2 #n tasks per node
-    NTHREADS=2 #n threads per task
+    NTASK=4 #n tasks per node
+    NTHREADS=12 #n threads per task
 else
     NTASK=$6
     NTHREADS=$7
 fi
 if [ $# -lt 8 ] ; then
-    WCLOCK=48:00
+    WCLOCK=12:00
 else
     WCLOCK=$8
 fi

@@ -30,205 +30,150 @@ double fitfun(double *x, int N, void *output, int *info) {
     int i;
 
     int rnd = info[0] % _COUNT;  /* this defines which function to use */
-
+    //std::cout << "Function evaluation at ";
+    //for (i = 0; i < N; ++i) std::cout << x[i] << " ";
+    //std::cout << std::endl;
+    
     switch (rnd) {
         case ACKLEY: {
-            /* bounds: [-32.768, 32.768] */
-            /* minima: f(x*) = 0, x*[i] = 0 */
-
             double a = 20, b = .2, c = 2.*M_PI, s1 = 0., s2 = 0.;
             for (i = 0; i < N; ++i) {
                 s1 += x[i]*x[i];
                 s2 += cos(c*x[i]);
             }
             f = -a*exp(-b*sqrt(s1/N)) - exp(s2/N) + a + exp(1.);
-
             break;
         }
 
         case DIXON_PRICE: {
-            /* bounds: [-10, 10] */
-            /* minima: f(x*) = 0, x*[i] = pow(2, -1.+1./pow(2, i))*/
-
             double s = 0.;
             for (i = 1; i < N; ++i)
                 s += (i+1.)*pow(2*x[i]*x[i]-x[i-1], 2);
             f = pow(x[0]-1., 2) + s;
-
             break;
         }
 
         case GRIEWANK: {
-            /* bounds: [-600, 600] */
-            /* minima: f(x*) = 0, x*[i] = 0 */
-
             double s = 0., p = 1.;
             for (i = 0; i < N; ++i) {
                 s += x[i]*x[i];
                 p *= cos(x[i]/sqrt(1.+i));
             }
             f = s/4000. - p + 1.;
-
             break;
         }
 
         case LEVY: {
-            /* bounds: [-10, 10] */
-            /* minima: f(x*) = 0, x*[i] = 1 */
-
             double s = 0.;
             for (i = 0; i < N-1; ++i)
                 s += .0625*pow(x[i]-1., 2)
                     * (1.+10.*pow(sin(M_PI*.25*(3.+x[i])+1.), 2));
             f = pow(sin(M_PI*.25*(3.+x[0])), 2) + s
                 + .0625*pow(x[N-1]-1., 2)*(1.+pow(sin(M_PI*.5*(3.+x[N-1])), 2));
-
             break;
         }
 
         case PERM: {
-            /* bounds: [-N, N] */
-            /* minima: f(x*) = 0, x*[i] = i+1. */
-
             double beta = .5;
-            double s1 = 0., s2 = 0.;
+            double s2 = 0.;
             int j;
             for (i = 0; i < N; ++i) {
+                double s1 = 0.;
                 for (j = 0; j < N; ++j)
-                    s1 += (pow(j+1, i+i)+beta)*(pow(x[j]/(j+1.), i+1) - 1.);
+                    s1 += (pow(j+1, i+1)+beta)*(pow(x[j]/(j+1.), i+1) - 1.);
                 s2 += s1*s1;
             }
             f = s2;
-
             break;
         }
 
         case PERM0: {
-            /* bounds: [-N, N] */
-            /* minima: f(x*) = 0, x*[i] = 1./(i+1.) */
-
             double beta = 10.;
-            double s1 = 0., s2 = 0.;
+            double s2 = 0.;
             int j;
             for (i = 0; i < N; ++i) {
+                double s1 = 0.;
                 for (j = 0; j < N; ++j)
                     s1 += (j+1.+beta)*(pow(x[j], i+1) - 1./pow(j+1, i+1));
                 s2 += s1*s1;
             }
             f = s2;
-
             break;
         }
 
         case RASTRIGIN: {
-            /* bounds: [-5.12, 5.12] */
-            /* minima: f(x*) = 0, x*[i] = 0 */
-
             double s = 0.;
             for (i = 0; i < N; ++i)
                 s += x[i]*x[i] - 10.*cos(2.*M_PI*x[i]);
             f = 10.*N+s;
-
             break;
         }
 
         case ROSENBROCK: {
-            /* bounds: [-5, 10] */
-            /* minima: f(x*) = 0, x*[i] = 1 */
-
             double s = 0.;
             for (i = 0; i < N-1; ++i)
                 s += 100.*pow(x[i+1]-x[i]*x[i], 2) + pow(x[i]-1., 2);
             f = s;
-
             break;
         }
 
         case ROTATED_HYPER_ELLIPSOID: {
-            /* bounds: [-65.536, 65.536] */
-            /* minima: f(x*) = 0, x*[i] = 0 */
-
             int j;
             double s = 0.;
             for (i = 0; i < N; ++i)
                 for (j = 0; j < i; ++j)
                     s += x[j]*x[j];
             f = s;
-
             break;
         }
 
        case SCHWEFEL: {
-            /* bounds: [-500, 500] */
-            /* minima: f(x*) = 0, x*[i] = 420.9687 */
-
             double s = 0.;
             for (i = 0; i < N; ++i)
                 s += x[i]*sin(sqrt(fabs(x[i])));
             f = 418.9829*N-s;
-
             break;
         }
 
         case SPHERE: {
-            /* bounds: [-5.12, 5.12] */
-            /* minima: f(x*) = 0, x*[i] = 0 */
-
             double s = 0.;
             for (i = 0; i < N; ++i)
                 s += x[i]*x[i];
             f = s;
-
             break;
         }
 
         case STYBLINSKI_TANG: {
-            /* bounds: [-5, 5] */
-            /* minima: f(x*) = 0, x*[i] = -2.903534 */
-
             double s = 0.;
             for (i = 0; i < N; ++i)
                 s += pow(x[i], 4) - 16.*x[i]*x[i] + 5.*x[i];
             f = 39.16599*N + .5*s;
-
             break;
         }
 
         case SUM_OF_POWER: {
-            /* bounds: [-1, 1] */
-            /* minima: f(x*) = 0, x*[i] = 0 */
-
             double s = 0.;
             for (i = 0; i < N; ++i)
                 s += pow(fabs(x[i]), i+2);
             f = s;
-
             break;
         }
 
         case SUM_OF_SQUARES: {
-            /* bounds: [-10, 10] */
-            /* minima: f(x*) = 0, x*[i] = 0 */
-
             double s = 0.;
             for (i = 0; i < N; ++i)
                 s += (i+1.)*x[i]*x[i];
             f = s;
-
             break;
         }
 
         case ZAKHAROV: {
-            /* bounds: [-5, 10] */
-            /* minima: f(x*) = 0, x*[i] = 0 */
-
             double s1 = 0., s2 = 0.;
             for (i = 0; i < N; ++i) {
                 s1 += x[i]*x[i];
                 s2 = .5*(i+1.)*x[i];
             }
             f = s1 + pow(s2, 2) + pow(s2, 4);
-
             break;
         }
 
@@ -236,7 +181,7 @@ double fitfun(double *x, int N, void *output, int *info) {
             printf("Function %d not found. Exiting.\n", rnd);
             exit(1);
     }
-
+    //std::cout << "feval = " << f << std::endl;
     return -f;  /* our CMA maximizes (there's another "-" in the code) */
 }
 

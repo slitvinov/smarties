@@ -146,6 +146,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#include <iostream>
 #include <math.h>   /* sqrt() */
 #include <stddef.h> /* size_t */
 #include <stdlib.h> /* NULL, free */
@@ -961,7 +962,7 @@ cmaes_UpdateDistribution( cmaes_t *t, const double *rgFunVal)
 /* --------------------------------------------------------- */
 /* --------------------------------------------------------- */
 static void
-Adapt_C2(cmaes_t *t, int hsig, double _ccov1, double _ccovmu)
+Adapt_C2(cmaes_t *t, int hsig)
 {
   int i, j, k, N=t->sp.N;
   int flgdiag = ((t->sp.diagonalCov == 1) || (t->sp.diagonalCov >= t->gen)); 
@@ -974,7 +975,6 @@ Adapt_C2(cmaes_t *t, int hsig, double _ccov1, double _ccovmu)
     double ccovmu = (t->sp.ccovmu > 0) ? t->sp.ccovmu :
                 douMin(t->sp.ccov * (1-1./t->sp.mucov)* (flgdiag ? (N+1.5) / 3. : 1.), 1.-ccov1); 
     double sigmasquare = t->sigma * t->sigma; 
-
     t->flgEigensysIsUptodate = 0;
 
     /* update covariance matrix */
@@ -1428,6 +1428,9 @@ cmaes_Get( cmaes_t *t, char const *s)
            || strncmp(s, "funvalue", 6) == 0
            || strncmp(s, "fitness", 3) == 0) { /* recent best function value */
     return(t->rgFuncValue[t->index[0]]);
+  }
+  else if (strncmp(s, "fmedian", 6) == 0 ) { /* recent mean function value */
+    return(t->rgFuncValue[ t->index[(int)(t->sp.lambda/2)] ]);
   }
   else if (strncmp(s, "fbestever", 7) == 0) { /* ever best function value */
     return(t->rgxbestever[N]);
@@ -2492,11 +2495,11 @@ szCat(const char *sz1, const char*sz2,
 /* --------------------------------------------------------- */
 void
 cmaes_readpara_init (cmaes_readpara_t *t,
-               int dim, 
+               const int dim, 
                const double * inxstart, 
                const double * inrgsigma,
-               int inseed, 
-               int lambda, 
+               const int inseed, 
+               const int lambda, 
                const char * filename)
 {
   int i, N;
@@ -2608,24 +2611,31 @@ cmaes_readpara_init (cmaes_readpara_t *t,
 
     /* put inxstart into xstart */
     if (inxstart != NULL) { 
-      for (i=0; i<N; ++i)
+      for (i=0; i<N; ++i) { 
         t->xstart[i] = inxstart[i];
+        //std::cout << "Initial x " << i << " = " << t->xstart[i] << std::endl;
+      }
     }
     /* otherwise use typicalX or default */
     else {
       t->typicalXcase = 1;
-      for (i=0; i<N; ++i)
+      for (i=0; i<N; ++i) { 
         t->xstart[i] = (t->typicalX == NULL) ? 0.5 : t->typicalX[i]; 
+        //std::cout << "Initial x " << i << " = " << t->xstart[i] << std::endl;
+      }
     }
   } /* xstart == NULL */
   
   if (t->rgInitialStds == NULL) {
     t->rgInitialStds = new_double(N);
-    for (i=0; i<N; ++i)
+    for (i=0; i<N; ++i) { 
       t->rgInitialStds[i] = (inrgsigma == NULL) ? 0.3 : inrgsigma[i];
+      //std::cout << "Initial std " << i << " = " << t->rgInitialStds[i] << std::endl;
+    }
   }
 
   t->flgsupplemented = 0;
+    
 
 } /* cmaes_readpara_init */
 

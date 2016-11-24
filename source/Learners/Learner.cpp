@@ -97,7 +97,7 @@ void Learner::TrainTasking(Master* const master)
 	                  net->applyBatchStatistics();
                      #endif
                     
-                    #if 0==1//ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
+                    #ifndef NDEBUG //check gradients with finite differences, just for debug  0==1//
                     if (stats.epochCount++ % 1000 == 0) {
                         vector<vector<Real>> inputs;
                         const int ind = data->Set.size()-1;

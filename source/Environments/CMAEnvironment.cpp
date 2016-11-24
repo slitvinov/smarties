@@ -22,7 +22,7 @@
 
 using namespace std;
 
-CMAEnvironment::CartEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
+CMAEnvironment::CMAEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
 Environment(nAgents, execpath, _rank, settings)
 {
 }

@@ -8,7 +8,7 @@
  */
 
 #pragma once
-
+#define __WHITEN_DEFAULT true // false
 #include <vector>
 #include <functional>
 #include "Layers.h"
@@ -52,7 +52,7 @@ public:
     void add2DInput(const int size[3], const bool normalize);
     void addInput(const int size, const bool normalize);
     void addInput(const int size) {
-        addInput(size, true);}
+        addInput(size, __WHITEN_DEFAULT);}
     
     void addConv2DLayer(const int filterSize[3], const int outSize[3], const int padding[2], const int stride[2],
     											const bool normalize, vector<int> linkedTo, const bool bOutput=false);
@@ -62,11 +62,11 @@ public:
 
     void addLayer(const int size, const string type, const bool normalize, vector<int> linkedTo, const bool output);
     void addLayer(const int size, const string type, vector<int> linkedTo) {
-        addLayer(size,type,true,linkedTo,false);}
+        addLayer(size,type,__WHITEN_DEFAULT,linkedTo,false);}
     void addLayer(const int size, const string type, const bool normalize) {
         addLayer(size,type,normalize,vector<int>(),false);}
     void addLayer(const int size, const string type) {
-        addLayer(size,type,true,vector<int>(),false);}
+        addLayer(size,type,__WHITEN_DEFAULT,vector<int>(),false);}
     
     void addOutput(const int size, const string type, vector<int> linkedTo) {
         addLayer(size,type,false,linkedTo,true);}
