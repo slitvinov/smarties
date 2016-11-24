@@ -35,10 +35,7 @@ void taskfun(double *x, int dim, double *res, int *info) {
 	return;
 }
 
-double *lower_bound;	//double lower_bound[] = {-6.0, -6.0};
-double *upper_bound;	//double upper_bound[] = {+6.0, +6.0};
-
-int is_feasible(double *pop, int dim)
+int is_feasible(double *pop, double*lower_bound, double*upper_bound, int dim)
 {
 	int good;
 	for (int i = 0; i < dim; i++) {
@@ -76,14 +73,20 @@ void update_state(cmaes_t * evo, double * const state, double* oldFmedian, doubl
 /* the optimization loop */
 int main(int argn, char **args)
 {
-    if (argn<2) {
-        std::cout << "I did not receive the socket ID. Aborting." << std::endl;
+    if (argn<3) {
+        std::cout << "I did not receive the socket ID and nthreads. Aborting." << std::endl;
         //abort();
     }
     const int sock = std::stoi(args[1]);
+    const int nthreads = std::stoi(args[2]);
     const int act_dim   = 1;
     const int state_dim = 5;
-    std::mt19937 gen(sock);
+    std::seed_seq seq{sock};
+	std::vector<int> seeds(nthreads);
+	seq.generate(seeds.begin(), seeds.end());
+	std::vector<std::mt19937*> generators(nthreads);
+	for (int i=0; i<nthreads; i++) generators[i] = new std::mt19937(seeds[i]);
+
     std::uniform_real_distribution<double> start_x_distribution(0.35,0.65);
     std::uniform_real_distribution<double> start_std_distribution(0.2,0.5);
     std::normal_distribution<double> func_dim_distribution(0, 3);
@@ -91,18 +94,19 @@ int main(int argn, char **args)
     std::uniform_int_distribution<long> cma_seed_distribution(0, std::numeric_limits<long>::max());
 
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
-    //Communicator comm(sock, state_dim, act_dim);
+    Communicator comm(sock, state_dim, act_dim);
     //vector of state variables
     std::vector<double> state(state_dim);
     //vector of actions received by RL
     std::vector<double> actions(act_dim);
 
-//    #pragma omp parallel
-//    #pragma omp single 
+    #pragma omp parallel
     while (true) {
+    	const int thrid = omp_get_thread_num();
+    	std::mt19937 gen = *generators[thrid];
         cmaes_t evo; /* an CMA-ES type struct or "object" */
         double oldFmedian, *oldXmean; //related to RL rewards
-        double *init_x, *init_std; //IC for cmaes
+        double *lower_bound, *upper_bound, *init_x, *init_std; //IC for cmaes
         double *arFunvals, *const*pop;  //cma current function values and samples
         int step = 0; // cmaes stepping
         int info[4]; //legacy: gen, chain, step, task
@@ -110,7 +114,7 @@ int main(int argn, char **args)
         const int runseed = cma_seed_distribution(gen);
         const int lambda = 4 + floor(3*std::log(func_dim));
         info[0] = func_ID_distribution(gen);
-        std::cout << "Selected function " << info[0] << std::endl;
+        //std::cout << "Selected function " << info[0] << std::endl;
 
 		init_x = (double*)malloc(func_dim * sizeof(double));
 		init_std = (double*)malloc(func_dim * sizeof(double));
@@ -125,22 +129,24 @@ int main(int argn, char **args)
 
         arFunvals = cmaes_init(&evo, func_dim, init_x, init_std, runseed, lambda, "cmaes_initials.par");
         printf("%s\n", cmaes_SayHello(&evo));
-        cmaes_ReadSignals(&evo, "cmaes_signals.par");  /* write header and initial values */
+        //cmaes_ReadSignals(&evo, "cmaes_signals.par");  /* write header and initial values */
 
 #if __RLON 
-            // initial state
-            state[0] = 1;
-            state[1] = 1;
-            state[2] = 0;
-            state[3] = 0;
-            state[4] = (double)func_dim;
-			comm.sendState(0, 1, state, 0);
+	#pragma omp critical
+        {   // initial state
+			state[0] = 1;
+			state[1] = 1;
+			state[2] = 0;
+			state[3] = 0;
+			state[4] = (double)func_dim;
+			comm.sendState(thrid, 1, state, 0);
 
 			comm.recvAction(actions);
 						   evo.sp.ccov1   = actions[0]; //rank 1 covariance update
 			if (act_dim>1) evo.sp.ccovmu  = actions[1]; //rank mu covariance update
 			if (act_dim>2) evo.sp.ccumcov = actions[2]; //path update c_c
 			if (act_dim>3) evo.sp.cs      = actions[3]; //step size control c_sigma
+        }
 #endif
         
         bool bConverged = false;
@@ -178,8 +184,8 @@ int main(int argn, char **args)
             	}
 
                 /* read instructions for printing output or changing termination conditions */
-                cmaes_ReadSignals(&evo, "cmaes_signals.par");
-                fflush(stdout); /* useful in MinGW */
+                //cmaes_ReadSignals(&evo, "cmaes_signals.par");
+                //fflush(stdout); /* useful in MinGW */
 #if VERBOSE
                 {
 					const double *xbever = cmaes_GetPtr(&evo, "xbestever");
@@ -211,16 +217,18 @@ int main(int argn, char **args)
             }
         	if (bConverged) break; //go to send terminal state
 
-        	update_state(&evo, state.data(), &oldFmedian, oldXmean, func_dim);
 #if __RLON
-            const double r = -.01;
-			comm.sendState(0, 0, state, r);
-
-			comm.recvAction(actions);
-						   evo.sp.ccov1   = actions[0]; //rank 1 covariance update
-			if (act_dim>1) evo.sp.ccovmu  = actions[1]; //rank mu covariance update
-			if (act_dim>2) evo.sp.ccumcov = actions[2]; //path update c_c
-			if (act_dim>3) evo.sp.cs      = actions[3]; //step size control c_sigma
+	#pragma omp critical
+			{
+	        	update_state(&evo, state.data(), &oldFmedian, oldXmean, func_dim);
+				const double r = -.01;
+				comm.sendState(thrid, 0, state, r);
+				comm.recvAction(actions);
+							   evo.sp.ccov1   = actions[0]; //rank 1 covariance update
+				if (act_dim>1) evo.sp.ccovmu  = actions[1]; //rank mu covariance update
+				if (act_dim>2) evo.sp.ccumcov = actions[2]; //path update c_c
+				if (act_dim>3) evo.sp.cs      = actions[3]; //step size control c_sigma
+			}
 #endif
         }
         
@@ -228,13 +236,16 @@ int main(int argn, char **args)
         /* get best estimator for the optimum, xmean */
         double* xfinal = cmaes_GetNew(&evo, "xmean"); /* "xbestever" might be used as well */
         const double r_end = 1. - eval_distance_from_optimum(xfinal, func_dim, info)/(upper_bound[0]-lower_bound[0]);
-        std::cout << r_end << std::endl;
+        //std::cout << r_end << std::endl;
 #if __RLON
-        comm.sendState(0, 2, state, r_end); // final state: info is 2
+	#pragma omp critical
+        {
+        	comm.sendState(thrid, 2, state, r_end); // final state: info is 2
+        }
 #endif
         
-        printf("Stop:\n%s\n",  cmaes_TestForTermination(&evo)); /* print termination reason */
-        cmaes_WriteToFile(&evo, "all", "allcmaes.dat");         /* write final results */
+        //printf("Stop:\n%s\n",  cmaes_TestForTermination(&evo)); /* print termination reason */
+        //cmaes_WriteToFile(&evo, "all", "allcmaes.dat");         /* write final results */
         cmaes_exit(&evo); /* release memory */ 
 		free(xfinal);
 		free(oldXmean);
