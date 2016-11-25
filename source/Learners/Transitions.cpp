@@ -18,6 +18,8 @@ nSequences(0), env(env), nAppended(settings.dqnAppendS), batchSize(settings.dqnB
 path(settings.samplesFile), bSampleSeq(settings.nnType == 1), bRecurrent(settings.nnType==1),
 bWriteToFile(!(settings.samplesFile=="none")), iOldestSaved(0)
 {
+    mean.resize(sI.dimUsed, 0);
+    std.resize(sI.dimUsed, 1);
     Inp.resize(sI.dimUsed);
     Tmp.resize(settings.nAgents);
     for (int i(0); i<settings.nAgents; i++) Tmp[i] = new Sequence();
@@ -200,8 +202,6 @@ void Transitions::push_back(const int & agentId)
 void Transitions::update_samples_mean()
 {
 	int count = 0;
-	std.resize(sI.dimUsed);
-	mean.resize(sI.dimUsed);
 	std::fill(std.begin(), std.end(), 0.);
 	std::fill(mean.begin(), mean.end(), 0.);
 
@@ -232,16 +232,23 @@ void Transitions::update_samples_mean()
 		}
 	}
 
-	for (int i=0; i<sI.dimUsed; i++)
-		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count*(count-1)));
+	for (int i=0; i<sI.dimUsed; i++) {
+        
+		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count));
+        std::cout << "std "<< std[i] << endl;
+    }
 
-	for (int i=0; i<sI.dimUsed; i++) mean[i] /= Real(count);
+	for (int i=0; i<sI.dimUsed; i++) { 
+        mean[i] /= Real(count);
+        std::cout << "mean "<< mean[i] << endl;
+     }
 }
 
 vector<Real> Transitions::standardize(const vector<Real>&  state) const
 {
 	vector<Real> tmp(sI.dimUsed);
 	for (int i=0; i<sI.dimUsed; i++) tmp[i] = (state[i] - mean[i])/std[i];
+    return tmp;
 }
 
 void Transitions::synchronize()

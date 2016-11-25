@@ -79,31 +79,32 @@ void Learner::TrainTasking(Master* const master)
     while (true) {
 		ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
 
-		if (ndata > batchSize) {
-			taskCounter=0;
-			nAddedGradients = 0;
+		if (ndata <= batchSize) master->hustle();
+        
+        taskCounter=0;
+        nAddedGradients = 0;
 
-			if (data->inds.size()<batchSize) { //reset sampling
-				data->updateSamples();
-				ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-				processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
-				opt->nepoch=stats.epochCount; //used to anneal learning rate
-				 #ifdef _whitenTarget_
-				  net->applyBatchStatistics();
-				 #endif
-				sumElapsed = 0; countElapsed=0;
+        if (data->inds.size()<batchSize) { //reset sampling
+            data->updateSamples();
+            ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+            processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
+            opt->nepoch=stats.epochCount; //used to anneal learning rate
+             #ifdef _whitenTarget_
+              net->applyBatchStatistics();
+             #endif
+            sumElapsed = 0; countElapsed=0;
 
-				#if 1==1// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
-				if (stats.epochCount++ % 100 == 0) {
-					vector<vector<Real>> inputs;
-					const int ind = data->Set.size()-1;
-					for (int k=0; k<data->Set[ind]->tuples.size(); k++)
-						inputs.push_back(data->Set[ind]->tuples[k]->s);
-					net->checkGrads(inputs, data->Set[ind]->tuples.size()-1);
-				}
-				#endif
-			}
-		}
+            #if 1==0// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
+            if (stats.epochCount++ % 100 == 0) {
+                vector<vector<Real>> inputs;
+                const int ind = data->Set.size()-1;
+                for (int k=0; k<data->Set[ind]->tuples.size(); k++)
+                    inputs.push_back(data->Set[ind]->tuples[k]->s);
+                net->checkGrads(inputs, data->Set[ind]->tuples.size()-1);
+            }
+            #endif
+        }
+		
 
 #pragma omp parallel num_threads(nThreads)
 #pragma omp master
