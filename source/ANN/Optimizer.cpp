@@ -40,18 +40,21 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 {
     const int nThreads = g.size();
     
-    #pragma omp for nowait
-    for (int j=0; j<nWeights; j++) 
-    for (int k=1; k<nThreads; k++) {
-        G->_W[j] += g[k]->_W[j];
-        g[k]->_W[j] = 0.;
-    }
-    
-    #pragma omp for
-    for (int j=0; j<nBiases; j++) 
-    for (int k=1; k<nThreads; k++) {
-        G->_B[j] += g[k]->_B[j];
-        g[k]->_B[j] = 0.;
+    #pragma omp parallel
+    {
+		#pragma omp for nowait
+        for (int j=0; j<nWeights; j++)
+        for (int k=1; k<nThreads; k++) {
+            G->_W[j] += g[k]->_W[j];
+            g[k]->_W[j] = 0.;
+        }
+
+        #pragma omp for
+        for (int j=0; j<nBiases; j++)
+        for (int k=1; k<nThreads; k++) {
+            G->_B[j] += g[k]->_B[j];
+            g[k]->_B[j] = 0.;
+        }
     }
 }
 
@@ -79,7 +82,6 @@ void Optimizer::stackGrads(const int thrID, Grads* const G, const vector<Grads*>
             G->_B[j] += g[thrID]->_B[j];
             g[thrID]->_B[j] = 0.;
         }
-        #pragma omp barrier
     }
 }
 
@@ -87,7 +89,6 @@ void Optimizer::update(Grads* const G, const int batchsize)
 {
     update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
     update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
-    #pragma omp barrier
 }
 
 void AdamOptimizer::update(Grads* const G, const int batchsize)
@@ -97,12 +98,8 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
     //Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
     update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, batchsize);
         
-    #pragma omp barrier
-    #pragma omp master
-    {
-        beta_t_1 *= beta_1;
-        beta_t_2 *= beta_2;
-    }
+	beta_t_1 *= beta_1;
+	beta_t_2 *= beta_2;
 }
 
 void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const int batchsize, const Real _lambda) const
@@ -111,7 +108,7 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, 
     const Real eta_ = eta*norm;
     const Real lambda_ = _lambda*eta;
     
-    #pragma omp for nowait
+    #pragma omp parallel for
     for (int i=0; i<N; i++) {
         const Real W = fabs(dest[i]);
         const Real M1 = alpha * _1stMom[i] + eta_ * grad[i];
@@ -130,8 +127,8 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
     const Real lambda_ = _lambda*eta;
     const Real norm = 1./(Real)max(batchsize,1);
     const Real eta_ = eta * std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
-    
-    #pragma omp for nowait
+
+	#pragma omp parallel for
     for (int i=0; i<N; i++) {
         const Real DW  = grad[i] *norm;
         const Real W   = std::fabs(dest[i]);

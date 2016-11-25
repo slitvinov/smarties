@@ -53,14 +53,15 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
 {
     Activation* currActivation = net->allocateActivation();
     vector<Real> output(nOutputs), inputs(nInputs);
-    s.scaleUsed(inputs);
+    s.copy_observed(inputs);
+    vector<Real> scaledSold = data->standardize(inputs);
 
     if (info==1)// if new sequence, sold, aold and reward are meaningless
-        net->predict(inputs, output, currActivation, 0.001);
+        net->predict(scaledSold, output, currActivation, 0.001);
     else {   //then if i'm using RNN i need to load recurrent connections
         Activation* prevActivation = net->allocateActivation();
         net->loadMemory(net->mem[agentId], prevActivation);
-        net->predict(inputs, output, prevActivation, currActivation, 0.001);
+        net->predict(scaledSold, output, prevActivation, currActivation, 0.001);
         //also, store sOld, aOld -> sNew, r
         data->passData(agentId, info, sOld, aOld, s, r);
         _dispose_object(prevActivation);
@@ -105,24 +106,26 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
     Activation* tgtActivation = net->allocateActivation();
     net->clearErrors(timeSeries);
-    
+
+    vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[0]->s);
     //first prediction in sequence without recurrent connections
-    net->predict(data->Set[seq]->tuples[0]->s, Qhats, timeSeries, 0, 0.001);
+    net->predict(scaledSold, Qhats, timeSeries, 0, 0.001);
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1
         Qs = Qhats; //Q(sNew) predicted at previous loop with moving wghts is current Q
         
         const Tuple * const _t = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
         const bool terminal = k+2==ndata && data->Set[seq]->ended;
         if (not terminal) {
-    		net->predict(_t->s, Qtildes, timeSeries[k], tgtActivation, net->tgt_weights, net->tgt_biases);
+        	vector<Real> scaledSnew = data->standardize(_t->s);
+    		net->predict(scaledSnew, Qtildes, timeSeries[k], tgtActivation, net->tgt_weights, net->tgt_biases);
 #ifdef _whitenTarget_
 			#pragma	omp critical
             net->updateBatchStatistics(timeSeries[k+1]);
 #endif
             if (k+2==ndata)
-            net->predict(_t->s, Qhats, timeSeries[k], tgtActivation , 0.001);
+            net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation , 0.001);
             else 
-            net->predict(_t->s, Qhats, timeSeries, k+1, 0.001);
+            net->predict(scaledSnew, Qhats, timeSeries, k+1, 0.001);
         }
         
         // find best action for sNew with moving wghts, evaluate it with tgt wgths:
@@ -158,8 +161,10 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
     Activation* sOldActivation = net->allocateActivation();
     sOldActivation->clearErrors();
 
+    vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[samp]->s);
     const Tuple * const _t = data->Set[seq]->tuples[samp+1];
-    net->predict(data->Set[seq]->tuples[samp]->s, Qs, sOldActivation, 0.01);
+    net->predict(scaledSold, Qs, sOldActivation, 0.01);
+
 #ifdef _whitenTarget_
     #pragma	omp critical
     net->updateBatchStatistics(sOldActivation);
@@ -167,9 +172,10 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
     
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
     if (not terminal) {
+    	vector<Real> scaledSnew = data->standardize(_t->s);
         Activation* sNewActivation = net->allocateActivation();
-        net->predict(_t->s, Qhats,   sNewActivation);
-        net->predict(_t->s, Qtildes, sNewActivation, net->tgt_weights, net->tgt_biases);
+        net->predict(scaledSnew, Qhats,   sNewActivation);
+        net->predict(scaledSnew, Qtildes, sNewActivation, net->tgt_weights, net->tgt_biases);
         _dispose_object(sNewActivation);
     }
     

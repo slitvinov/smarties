@@ -492,7 +492,7 @@ void Network::updateFrozenWeights()
         #pragma omp for nowait
         for (int j=0; j<nWeights; j++)
             *(tgt_weights + j) = *(weights + j);
-        
+
         #pragma omp for nowait
         for (int j=0; j<nBiases; j++)
             *(tgt_biases + j) = *(biases + j);

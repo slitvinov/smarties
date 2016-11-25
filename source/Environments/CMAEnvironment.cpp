@@ -38,28 +38,22 @@ bool CMAEnvironment::predefinedNetwork(Network* const net) const
 void CMAEnvironment::setDims() //this environment is for the cart pole test
 {
     {
-        sI.bounds.clear(); sI.top.clear(); sI.bottom.clear(); sI.isLabel.clear(); sI.inUse.clear();
+        sI.inUse.clear();
         //for each state variable:
         // State: ratio between min/max std...
-        sI.top.push_back(1.); //maximum value of the variable: to normalize inputs of the network
-        sI.bottom.push_back(0.); //minimum value
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+        sI.inUse.push_back(true);//ignore, leave as is
 
         // ...ratio between min/max eigenvalues of covariance...
-        sI.top.push_back(1.); sI.bottom.push_back(0.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+        sI.inUse.push_back(true);//ignore, leave as is
         
         // ...progress rate...
-        sI.top.push_back(1.); sI.bottom.push_back(0.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+        sI.inUse.push_back(true); //ignore, leave as is
         
         // ...function change...
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+        sI.inUse.push_back(true); //ignore, leave as is
         
         // ...dimensionality...
-        sI.top.push_back(10.); sI.bottom.push_back(1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+        sI.inUse.push_back(true); //ignore, leave as is
     }
     {
         aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
@@ -80,7 +74,6 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
             aI.values[i].push_back(.2);
             aI.values[i].push_back(.3);
             aI.values[i].push_back(.4);
-            aI.values[i].push_back(.5);
             //the number of components must be ==nOptions
         }
     }

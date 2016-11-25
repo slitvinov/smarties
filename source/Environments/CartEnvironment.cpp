@@ -38,24 +38,19 @@ bool CartEnvironment::predefinedNetwork(Network* const net) const
 void CartEnvironment::setDims() //this environment is for the cart pole test
 {
     {
-        sI.bounds.clear(); sI.top.clear(); sI.bottom.clear(); sI.isLabel.clear(); sI.inUse.clear();
+        sI.inUse.clear();
         //for each state variable:
         // State: coordinate...
-        sI.top.push_back(1.); //maximum value of the variable: to normalize inputs of the network
-        sI.bottom.push_back(-1.); //minimum value
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+        sI.inUse.push_back(true); //ignore, leave as is
         
         // ...velocity...
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+		sI.inUse.push_back(true); //ignore, leave as is
         
         // ...and angular velocity
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+		sI.inUse.push_back(true); //ignore, leave as is
         
         // ...angle...
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+		sI.inUse.push_back(true); //ignore, leave as is
 
         /*
          * also valid:

@@ -130,7 +130,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
 {
     const int sApp = nAppended*sI.dimUsed;
     
-    sOld.scaleUsed(Inp);
+    sOld.copy_observed(Inp);
     if(Tmp[agentId]->tuples.size()!=0) {
         bool same(true);
         const Tuple * const last = Tmp[agentId]->tuples.back();
@@ -155,7 +155,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
     
     //at this point we made sure that sOld == s.back() (right?)
     //we can add sNew:
-    sNew.scaleUsed(Inp);
+    sNew.copy_observed(Inp);
     Tuple * t = new Tuple();
     t->s = Inp;
     if (sApp>0) {
@@ -195,6 +195,53 @@ void Transitions::push_back(const int & agentId)
     }
     
     Tmp[agentId] = new Sequence();
+}
+
+void Transitions::update_samples_mean()
+{
+	int count = 0;
+	std.resize(sI.dimUsed);
+	mean.resize(sI.dimUsed);
+	std::fill(std.begin(), std.end(), 0.);
+	std::fill(mean.begin(), mean.end(), 0.);
+
+	#pragma omp parallel
+	{
+		//local sum and counter
+		vector<Real> sum(sI.dimUsed), sum2(sI.dimUsed);
+		int cnt = 0;
+
+		#pragma omp for schedule(dynamic)
+		for(int i=0; i<Set.size(); i++)
+		for(const auto & t : Set[i]->tuples) {
+			assert(t->s.size() == sI.dimUsed);
+			cnt++;
+			for (int i=0; i<sI.dimUsed; i++) {
+				sum2[i] += t->s[i]*t->s[i];
+				sum[i] += t->s[i];
+			}
+		}
+
+		#pragma omp critical
+		{
+			count += cnt;
+			for (int i=0; i<sI.dimUsed; i++) {
+				mean[i] += sum[i];
+				std[i] += sum2[i];
+			}
+		}
+	}
+
+	for (int i=0; i<sI.dimUsed; i++)
+		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count*(count-1)));
+
+	for (int i=0; i<sI.dimUsed; i++) mean[i] /= Real(count);
+}
+
+vector<Real> Transitions::standardize(const vector<Real>&  state) const
+{
+	vector<Real> tmp(sI.dimUsed);
+	for (int i=0; i<sI.dimUsed; i++) tmp[i] = (state[i] - mean[i])/std[i];
 }
 
 void Transitions::synchronize()
@@ -248,6 +295,7 @@ void Transitions::updateSamples()
     inds.resize(ndata);
     std::iota(inds.begin(), inds.end(), 0);
     random_shuffle(inds.begin(), inds.end(), *(gen));
+    update_samples_mean();
 }
 
 int Transitions::sample()

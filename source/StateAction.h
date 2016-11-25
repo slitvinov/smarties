@@ -23,24 +23,15 @@ using namespace ErrorHandling;
 struct StateInfo
 {
 	int dim, dimUsed;
-	vector<int> bounds;
-	vector<Real> bottom, top, isLabel, inUse;
+	vector<bool> inUse;
     
     StateInfo& operator= (const StateInfo& stateInfo)
     {
         dim     = stateInfo.dim;
         dimUsed = stateInfo.dimUsed;
         assert(dimUsed<=dim);
-        
-        bounds.resize(dim); bottom.resize(dim); top.resize(dim);
-        isLabel.resize(dim); inUse.resize(dim);
-        for (int i=0; i<dim; i++) {
-            top[i] = (stateInfo.top[i]);
-            bottom[i] = (stateInfo.bottom[i]);
-            bounds[i] = (stateInfo.bounds[i]);
-            isLabel[i] = (stateInfo.isLabel[i]);
-            inUse[i] = (stateInfo.inUse[i]);
-        }
+        inUse.resize(dim);
+        for (int i=0; i<dim; i++)  inUse[i] = (stateInfo.inUse[i]);
     }
 };
 
@@ -83,34 +74,15 @@ public:
 		return o.str();
     }
 	
-	string printScaled()
-	{
-		ostringstream o;
-		o << "[";
-		for (int i=0; i<sInfo.dim; i++) if (sInfo.inUse[i]) {
-            Real res = 2.*(vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i]) - 1.;
-			o << res << " ";
-		}
-		o << "]";
-		return o.str();
-	}
-	
-    void scaleUsed(vector<Real>& res) const
+    void copy_observed(vector<Real>& res) const
     {
         int k(0);
         for (int i=0; i<sInfo.dim; i++)
         if (sInfo.inUse[i]) {
-            res[k] = 2.*(vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i]) - 1.;
+            res[k] = vals[i];
             k++;
         }
     }
-    
-	void scale(vector<Real>& res) const
-	{
-		for (int i=0; i<sInfo.dim; i++) {
-            res[i] = 2.*(vals[i]-sInfo.bottom[i]) / (sInfo.top[i] - sInfo.bottom[i]) - 1.;
-        }
-	}
     
     void copy(vector<Real>& res) const
     {
@@ -140,16 +112,6 @@ public:
 	
 };
 
-inline State decode(const StateInfo& sInfo, long int idx)
-{
-	State res(sInfo);
-	
-	for(int i=0; i<sInfo.dim; i++) {
-		res.vals[sInfo.dim - i - 1] = idx % sInfo.bounds[i];
-		idx /= sInfo.bounds[i];
-	}
-	return res;
-}
 
 struct ActionInfo
 {

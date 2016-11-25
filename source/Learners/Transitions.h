@@ -61,7 +61,7 @@ protected:
     const string path;
     const bool bSampleSeq, bRecurrent, bWriteToFile;
     int iOldestSaved;
-    vector<Real> Inp;
+    vector<Real> Inp, std, mean;
     vector<Sequence*> Tmp, Buffered;
     discrete_distribution<int> * dist;
     
@@ -88,8 +88,11 @@ public:
         _dispose_object(dist);
         for (auto & trash : Set) _dispose_object( trash);
         for (auto & trash : Tmp) _dispose_object( trash);
+        for (auto & trash : Buffered) _dispose_object( trash);
     }
     
+    void update_samples_mean();
+    vector<Real>standardize(const vector<Real>& state) const;
 #ifdef _Priority_
     void updateP();
 #endif

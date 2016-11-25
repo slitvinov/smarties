@@ -25,7 +25,7 @@ typedef enum {
 
 
 /* info[0] chooses a random function */
-double fitfun(double *x, int N, void *output, int *info) {
+double fitfun(double *x, int N, void *output, int *info)  {
     double f;
     int i;
 
