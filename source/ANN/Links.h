@@ -647,13 +647,13 @@ struct Graph //misleading, this is just the graph for a single layer
             assert(firstState_ID>=0 && firstBiasIG_ID>0 && firstBiasFG_ID>0 && firstBiasOG_ID>0);
 
             for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize_simd; w++)
-                *(_biases +w) = dis(*gen) + 2.;
+                *(_biases +w) = dis(*gen);
 
             for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize_simd; w++)
-                *(_biases +w) = dis(*gen) + 2.;
+                *(_biases +w) = dis(*gen);
 
             for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize_simd; w++)
-                *(_biases +w) = dis(*gen) + 2.;
+                *(_biases +w) = dis(*gen);
         }
 
         if (firstBiasWhiten>=0) {

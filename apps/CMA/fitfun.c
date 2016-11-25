@@ -432,8 +432,8 @@ double eval_distance_from_optimum(double * found_optimum, int N, int *info) {
             printf("Function %d not found. Exiting.\n", rnd);
             exit(1);
         }
-
-		return sqrt(dist);
     }
+std::cout << sqrt(dist)  << std::endl;
+		return sqrt(dist);
 }
 

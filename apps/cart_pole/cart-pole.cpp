@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <random>
 #include <cstdio>
 #include <vector>
 #include <functional>
@@ -95,13 +96,13 @@ int main(int argc, const char * argv[])
     //communication:
     const int sock = std::stoi(argv[1]);
     //time stepping
-    const double dt = 5e-2;
+    const double dt = 1e-3;
     double t = 0;
     //trash:
     long long int nfallen(0), sincelast(0), duringlast(0), ntot(0);
     double percfallen = 0.0;
-    mt19937 gen(sock);
-    std::uniform_real_distribution<double> distribution(-0.05,0.05);
+    std::mt19937 gen(sock);
+    std::uniform_real_distribution<double> distribution(-0.1,0.1);
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
     comm = new Communicator(sock,4,1);
     //vector of state variables: in this case x, v, theta, ang_velocity
@@ -126,8 +127,8 @@ int main(int argc, const char * argv[])
             //load state:
             state[0] = a.u.y1;
             state[1] = a.u.y2;
-            state[2] = a.u.y4;
-            state[3] = a.u.y3;
+            state[2] = a.u.y4/M_PI;
+            state[3] = a.u.y3/M_PI;
             r = 0; //we could give a reward, here i just give 0, and -1 if pole falls
             
             //printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
@@ -151,10 +152,14 @@ int main(int argc, const char * argv[])
             //printf("Received action %f\n", a.F); fflush(0);
 
         	//advance the sim:
-            a.u = rk46_nl(t, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
+            double tlocal = t;
+            for (int i=0; i<50; i++) {
+                a.u = rk46_nl(tlocal, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
+                tlocal += dt;
+            }
             
-            //check if terminal state has been reached:
-            if ((fabs(a.u.y3)>.2)||(fabs(a.u.y1)>2.4)) //angle too big = fallen, or x out of bounds
+            //check if terminal state has been reached: 
+            if ((fabs(a.u.y3)>.5)||(fabs(a.u.y1)>2.4)) //angle too big = fallen, or x out of bounds
             {
                 //nfallen += 1; sincelast = 0; percfallen = nfallen/ntot;
                 
@@ -162,8 +167,8 @@ int main(int argc, const char * argv[])
                 double r = -1.; //give terminal reward (if different problem, this might be a bonus rather than a negative score)
                 state[0] = a.u.y1;
                 state[1] = a.u.y2;
-                state[2] = a.u.y4;
-                state[3] = a.u.y3;
+                state[2] = a.u.y4/M_PI;
+                state[3] = a.u.y3/M_PI;
                 //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
                 comm->sendState(k, a.info, state, r);
                 
@@ -175,7 +180,7 @@ int main(int argc, const char * argv[])
             }
         }
 
-        t += dt;
+        t += 50*dt;
         /*
         if (ntot % 10000 == 0) {
             cout << nfallen - duringlast << endl;

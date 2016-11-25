@@ -115,16 +115,17 @@ void NAF::Train_BPTT(const int seq, const int thrID)
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
     Activation* tgtActivation = net->allocateActivation();
     net->clearErrors(timeSeries);
-    
+    bool terminal(0);
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
         const Tuple * const _t    = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
         const Tuple * const _tOld = data->Set[seq]->tuples[k]; //this tuple contains sOld
         net->predict(_tOld->s, output, timeSeries, k, 0.001);
 
-        const bool terminal = k+2==ndata && data->Set[seq]->ended;
+        terminal =+ k+2==ndata && data->Set[seq]->ended;
         if (not terminal)
 		net->predict(_t->s, target, timeSeries[k], tgtActivation, net->tgt_weights, net->tgt_biases);
-        
+       
+ 
         Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
         const vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
         data->Set[seq]->tuples[k]->SquaredError = err*err;
@@ -132,6 +133,8 @@ void NAF::Train_BPTT(const int seq, const int thrID)
         dumpStats(Vstats[thrID], Q[0], err, Q);
         if(thrID==1) net->updateRunning(timeSeries[k]);
     }
+
+   if(terminal!=1) die("Smth wrong in termination\n"); 
 
     if (thrID==0) net->backProp(timeSeries, net->grad);
     else net->backProp(timeSeries, net->Vgrad[thrID]);

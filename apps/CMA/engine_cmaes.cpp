@@ -4,6 +4,7 @@
 
 #define _XOPEN_SOURCE 500
 #define _BSD_SOURCE
+#define __RLON 1
 #define __NGENSKIP 10
 #include <stdio.h>
 #include <stdlib.h> /* free() */
@@ -85,7 +86,9 @@ int main(int argn, char **args)
 	std::vector<int> seeds(nthreads);
 	seq.generate(seeds.begin(), seeds.end());
 	std::vector<std::mt19937*> generators(nthreads);
-	for (int i=0; i<nthreads; i++) generators[i] = new std::mt19937(seeds[i]);
+	for (int i=0; i<nthreads; i++) {
+       generators[i] = new std::mt19937(seeds[i]);
+}
 
     std::uniform_real_distribution<double> start_x_distribution(0.35,0.65);
     std::uniform_real_distribution<double> start_std_distribution(0.2,0.5);
@@ -94,27 +97,28 @@ int main(int argn, char **args)
     std::uniform_int_distribution<long> cma_seed_distribution(0, std::numeric_limits<long>::max());
 
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
+#if __RLON
     Communicator comm(sock, state_dim, act_dim);
+#endif
     //vector of state variables
     std::vector<double> state(state_dim);
     //vector of actions received by RL
     std::vector<double> actions(act_dim);
 
-    #pragma omp parallel
+    #pragma omp parallel num_threads(nthreads)
     while (true) {
     	const int thrid = omp_get_thread_num();
-    	std::mt19937 gen = *generators[thrid];
         cmaes_t evo; /* an CMA-ES type struct or "object" */
         double oldFmedian, *oldXmean; //related to RL rewards
         double *lower_bound, *upper_bound, *init_x, *init_std; //IC for cmaes
         double *arFunvals, *const*pop;  //cma current function values and samples
         int step = 0; // cmaes stepping
         int info[4]; //legacy: gen, chain, step, task
-        const int func_dim = 1 + ceil(std::fabs(func_dim_distribution(gen)));
-        const int runseed = cma_seed_distribution(gen);
+        const int func_dim = 1 + ceil(std::fabs(func_dim_distribution(*generators[thrid])));
+        const int runseed = cma_seed_distribution(*generators[thrid]);
         const int lambda = 4 + floor(3*std::log(func_dim));
-        info[0] = func_ID_distribution(gen);
-        //std::cout << "Selected function " << info[0] << std::endl;
+        info[0] = func_ID_distribution(*generators[thrid]);
+        std::cout << "Selected function " << info[0] << std::endl;
 
 		init_x = (double*)malloc(func_dim * sizeof(double));
 		init_std = (double*)malloc(func_dim * sizeof(double));
@@ -123,13 +127,13 @@ int main(int argn, char **args)
 
 		get_upper_lower_bounds(lower_bound, upper_bound, func_dim, info);
 		for (int i = 0; i < func_dim; i++) { //to be returned from function?
-			init_x[i] = start_x_distribution(gen)*(upper_bound[i]-lower_bound[i]) + lower_bound[i];
-			init_std[i] = start_std_distribution(gen)*(upper_bound[i]-lower_bound[i]);
+			init_x[i] = start_x_distribution(*generators[thrid])*(upper_bound[i]-lower_bound[i]) + lower_bound[i];
+			init_std[i] = start_std_distribution(*generators[thrid])*(upper_bound[i]-lower_bound[i]);
 		}
 
         arFunvals = cmaes_init(&evo, func_dim, init_x, init_std, runseed, lambda, "cmaes_initials.par");
         printf("%s\n", cmaes_SayHello(&evo));
-        //cmaes_ReadSignals(&evo, "cmaes_signals.par");  /* write header and initial values */
+        cmaes_ReadSignals(&evo, "cmaes_signals.par");  /* write header and initial values */
 
 #if __RLON 
 	#pragma omp critical
@@ -152,7 +156,7 @@ int main(int argn, char **args)
         bool bConverged = false;
         while(true) {
             /* Iterate until stop criterion holds */
-            for(int dG = 0; dG < __NGENSKIP; dG++) {
+            for(int dG = 0; dG < __NGENSKIP*func_dim; dG++) {
                 
                 /* generate lambda new search points, sample population */
                 pop = cmaes_SamplePopulation(&evo); /* do not change content of pop */
@@ -167,7 +171,7 @@ int main(int argn, char **args)
                 */
                 for (int i = 0; i < cmaes_Get(&evo, "popsize"); ++i) {
                     //std::cout << i << std::endl; fflush(0);
-                    while (!is_feasible(pop[i], func_dim))
+                    while (!is_feasible(pop[i],lower_bound, upper_bound, func_dim))
                     cmaes_ReSampleSingle(&evo, i);
                 }
                     /* evaluate current pop */
@@ -184,7 +188,7 @@ int main(int argn, char **args)
             	}
 
                 /* read instructions for printing output or changing termination conditions */
-                //cmaes_ReadSignals(&evo, "cmaes_signals.par");
+                cmaes_ReadSignals(&evo, "cmaes_signals.par");
                 //fflush(stdout); /* useful in MinGW */
 #if VERBOSE
                 {
@@ -235,12 +239,12 @@ int main(int argn, char **args)
     	update_state(&evo, state.data(), &oldFmedian, oldXmean, func_dim);
         /* get best estimator for the optimum, xmean */
         double* xfinal = cmaes_GetNew(&evo, "xmean"); /* "xbestever" might be used as well */
-        const double r_end = 1. - eval_distance_from_optimum(xfinal, func_dim, info)/(upper_bound[0]-lower_bound[0]);
-        //std::cout << r_end << std::endl;
+        const double r_end = 1. - 1e3*eval_distance_from_optimum(xfinal, func_dim, info)/(upper_bound[0]-lower_bound[0]);
+        std::cout << r_end << std::endl;
 #if __RLON
 	#pragma omp critical
         {
-        	comm.sendState(thrid, 2, state, r_end); // final state: info is 2
+        	comm.sendState(thrid, 2, state, std::max(-1.,r_end)); // final state: info is 2
         }
 #endif
         

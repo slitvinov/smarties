@@ -104,7 +104,7 @@ bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a, const S
     if (reward<-0.9) new_sample=true; //in cart pole example, if reward from the app is -1 then I failed
 
     //here i can change the reward: instead of -1 or 0, i can give a positive reward if angle is small
-    reward = 1. - fabs(t_sN.vals[3])/0.2;    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
+    reward = 1. - fabs(t_sN.vals[3])/0.5;    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
     if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     //was is the last state of the sequence?
 
