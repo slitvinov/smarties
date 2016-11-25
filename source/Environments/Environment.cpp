@@ -155,13 +155,8 @@ bool Environment::predefinedNetwork(Network* const net) const
 
 void Environment::commonSetup()
 {
-    assert(sI.bottom.size() == sI.top.size());
-    assert(sI.bottom.size() == sI.inUse.size());
-    assert(sI.bottom.size() == sI.bounds.size());
-    assert(sI.bottom.size() == sI.isLabel.size());
-    
     sI.dim = 0; sI.dimUsed = 0;
-    for (int i=0; i<sI.bounds.size(); i++) {
+    for (int i=0; i<sI.inUse.size(); i++) {
         sI.dim++;
         if (sI.inUse[i]) sI.dimUsed++;
     }

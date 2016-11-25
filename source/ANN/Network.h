@@ -52,8 +52,7 @@ public:
     
     void add2DInput(const int size[3], const bool normalize);
     void addInput(const int size, const bool normalize);
-    void addInput(const int size) {
-        addInput(size, __WHITEN_DEFAULT);}
+    void addInput(const int size) { addInput(size, false);}
     
     void addConv2DLayer(const int filterSize[3], const int outSize[3], const int padding[2], const int stride[2],
     											const bool normalize, vector<int> linkedTo, const bool bOutput=false);

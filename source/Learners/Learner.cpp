@@ -76,94 +76,89 @@ void Learner::TrainTasking(Master* const master)
     int countElapsed(0);
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
     
-    #pragma omp parallel num_threads(nThreads)
-    while (true)
-    {
-        
-        #pragma omp master
-        {
-            ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-            
-            if (ndata > batchSize)
-            {
-                taskCounter=0;
-                nAddedGradients = 0;
-                
-                if (data->inds.size()<batchSize) //reset sampling
-                {
-                    data->updateSamples();
-                    ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-                    processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
-                    opt->nepoch=stats.epochCount; //used to anneal learning rate
-                     #ifdef _whitenTarget_
-	                  net->applyBatchStatistics();
-                     #endif
-                    sumElapsed = 0; countElapsed=0;
-                    
-                    #if 1==1// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
-                    if (stats.epochCount++ % 100 == 0) {
-                        vector<vector<Real>> inputs;
-                        const int ind = data->Set.size()-1;
-                        for (int k=0; k<data->Set[ind]->tuples.size(); k++)
-                            inputs.push_back(data->Set[ind]->tuples[k]->s);
-                        net->checkGrads(inputs, data->Set[ind]->tuples.size()-1);
-                    }
-                    #endif
-                }
+    while (true) {
+		ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
 
-                start = std::chrono::high_resolution_clock::now();
+		if (ndata > batchSize) {
+			taskCounter=0;
+			nAddedGradients = 0;
 
-                if(bRecurrent) {//we are using an LSTM: do BPTT
-                    for (int i(0); i<batchSize; i++) {
-                        const int ind = data->inds.back();
-                        data->inds.pop_back();
-                        seq[i]  = ind;
-                        index[i] = ind;
-                        const int seqSize = data->Set[ind]->tuples.size();
-                        nAddedGradients += seqSize-1; //to normalize mean gradient for update
-                    }
+			if (data->inds.size()<batchSize) { //reset sampling
+				data->updateSamples();
+				ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+				processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
+				opt->nepoch=stats.epochCount; //used to anneal learning rate
+				 #ifdef _whitenTarget_
+				  net->applyBatchStatistics();
+				 #endif
+				sumElapsed = 0; countElapsed=0;
 
-                    #pragma omp flush
-                    
-                    for (int i(0); i<batchSize; i++) {
-                        #pragma omp task firstprivate(i)
-                        {
-                            const int thrID = omp_get_thread_num();
-                            Train_BPTT(seq[i], thrID);
+				#if 1==1// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
+				if (stats.epochCount++ % 100 == 0) {
+					vector<vector<Real>> inputs;
+					const int ind = data->Set.size()-1;
+					for (int k=0; k<data->Set[ind]->tuples.size(); k++)
+						inputs.push_back(data->Set[ind]->tuples[k]->s);
+					net->checkGrads(inputs, data->Set[ind]->tuples.size()-1);
+				}
+				#endif
+			}
+		}
 
-                            #pragma omp atomic
-                            taskCounter++;
-                        }
-                    }
-                } else {
-                    for (int i(0); i<batchSize; i++)  {
-                        const int ind = data->inds.back();
-                        data->inds.pop_back();
-                        int k(0), back(0), indT(data->Set[0]->tuples.size()-1);
-                        while (ind >= indT) {
-                            back = indT;
-                            indT += data->Set[++k]->tuples.size()-1;
-                        }
-                        seq[i]  = k;
-                        samp[i] = ind-back;
-                        index[i] = ind;
-                    }
-                    nAddedGradients = batchSize;
-                    
-                    #pragma omp flush
-                    
-                    for (int i(0); i<batchSize; i++) {
-                        #pragma omp task firstprivate(i) 
-                        {
-                            const int thrID = omp_get_thread_num();
-                            Train(seq[i], samp[i], thrID);
-                            
-                            #pragma omp atomic
-                            taskCounter++;
-                        }
-                    }
-                }
-            }
+#pragma omp parallel num_threads(nThreads)
+#pragma omp master
+		{
+			start = std::chrono::high_resolution_clock::now();
+
+			if(bRecurrent) {//we are using an LSTM: do BPTT
+				for (int i(0); i<batchSize; i++) {
+					const int ind = data->inds.back();
+					data->inds.pop_back();
+					seq[i]  = ind;
+					index[i] = ind;
+					const int seqSize = data->Set[ind]->tuples.size();
+					nAddedGradients += seqSize-1; //to normalize mean gradient for update
+				}
+				#pragma omp flush
+
+				for (int i(0); i<batchSize; i++) {
+					#pragma omp task firstprivate(i)
+					{
+						const int thrID = omp_get_thread_num();
+						Train_BPTT(seq[i], thrID);
+
+						#pragma omp atomic
+						taskCounter++;
+					}
+				}
+			} else {
+				for (int i(0); i<batchSize; i++)  {
+					const int ind = data->inds.back();
+					data->inds.pop_back();
+					int k(0), back(0), indT(data->Set[0]->tuples.size()-1);
+					while (ind >= indT) {
+						back = indT;
+						indT += data->Set[++k]->tuples.size()-1;
+					}
+					seq[i]  = k;
+					samp[i] = ind-back;
+					index[i] = ind;
+				}
+				nAddedGradients = batchSize;
+				#pragma omp flush
+
+				for (int i(0); i<batchSize; i++) {
+					#pragma omp task firstprivate(i)
+					{
+						const int thrID = omp_get_thread_num();
+						Train(seq[i], samp[i], thrID);
+
+						#pragma omp atomic
+						taskCounter++;
+					}
+				}
+			}
+
             //TODO: can add task to update sampling probabilities for prioritized exp replay
             #ifndef MEGADEBUG
             master->hustle(); //master goes to communicate with slaves
@@ -172,8 +167,7 @@ void Learner::TrainTasking(Master* const master)
             sumElapsed += std::chrono::duration<Real>(end-start).count()/nAddedGradients;
             countElapsed++;
         }
-        #pragma omp barrier
-        
+
         //here be omp fors:
         if (ndata>batchSize) {
         	stackAndUpdateNNWeights(nAddedGradients);

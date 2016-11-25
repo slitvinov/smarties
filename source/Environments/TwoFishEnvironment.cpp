@@ -41,87 +41,63 @@ void TwoFishEnvironment::setDims()
     
     {
         // State: Horizontal distance from goal point...
-        sI.bounds.push_back(1); //one block in between the bounds, one more on each side
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(sight);
+        sI.inUse.push_back(sight);
         
         // ...vertical distance...
-        sI.bounds.push_back(1);
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(sight);
+        sI.inUse.push_back(sight);
         
         // ...inclination of1the fish...
-        sI.bounds.push_back(1); // only positive or negative
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(sight);
+        sI.inUse.push_back(sight);
         
         // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
-        sI.bounds.push_back(1); // Will get ~ 0 or 0.5
-        sI.top.push_back(0.5); sI.bottom.push_back(0.0);
-        sI.isLabel.push_back(false); sI.inUse.push_back(true);
+        sI.inUse.push_back(true);
         
         // ...last action (HAX!)
-        sI.bounds.push_back(1);
-        sI.top.push_back(5.0); sI.bottom.push_back(0.0);
-        sI.isLabel.push_back(true); sI.inUse.push_back(true);
+        sI.inUse.push_back(true);
         
         // ...second last action (HAX!)
-        sI.bounds.push_back(1);
-        sI.top.push_back(5.0); sI.bottom.push_back(0.0);
-        sI.isLabel.push_back(true); sI.inUse.push_back(true); //if l_line i have curvature info
+        sI.inUse.push_back(true); //if l_line i have curvature info
     }
     {
-        sI.bounds.push_back(1); //T / D 6
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        //T / D 6
+        sI.inUse.push_back(false);
 
-        sI.bounds.push_back(1); // Pout 7
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        // Pout 7
+        sI.inUse.push_back(false);
 
-        sI.bounds.push_back(1); // defPower 8
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        // defPower 8
+        sI.inUse.push_back(false);
         
-        sI.bounds.push_back(1); // eta = kin/kin+Pout 9
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        // eta = kin/kin+Pout 9
+        sI.inUse.push_back(false);
         
-        sI.bounds.push_back(1); // etaPdef 10
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        // etaPdef 10
+        sI.inUse.push_back(false);
         
-        sI.bounds.push_back(1); // Vx 11
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        // Vx 11
+        sI.inUse.push_back(false);
         
-        sI.bounds.push_back(1); // Vy 12
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        // Vy 12
+        sI.inUse.push_back(false);
         
-        sI.bounds.push_back(1); // angvel 13
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        // angvel 13
+        sI.inUse.push_back(false);
     }
-    for (int i=0; i<10; i++) // >=14
-    {
-        sI.bounds.push_back(1); // (p_above  ) x 10
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+    for (int i=0; i<10; i++) { // >=14
+        // (p_above  ) x 10
+        sI.inUse.push_back(false);
     }
     
     for (int i=0; i<10; i++) // >=24
     {
-        sI.bounds.push_back(1); // ( p_below ) x 10
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        // ( p_below ) x 10
+        sI.inUse.push_back(false);
     }
     
     for (int i=0; i<10; i++) // >=34
     {
-        sI.bounds.push_back(1); // ( curvature) x 10
-        sI.top.push_back(1.); sI.bottom.push_back(-1.);
-        sI.isLabel.push_back(false); sI.inUse.push_back(false);
+        // ( curvature) x 10
+        sI.inUse.push_back(false);
     }
     
     //sI.values.push_back(-2.);

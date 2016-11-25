@@ -64,14 +64,14 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
 {
     Activation* currActivation = net->allocateActivation();
     vector<Real> output(nOutputs), inputs(nInputs);
-    s.scaleUsed(inputs);
-    
+    s.copy_observed(inputs);
+    vector<Real> scaledSold = data->standardize(inputs);
     if (info==1) // if new sequence, sold, aold and reward are meaningless
-        net->predict(inputs, output, currActivation, 0.001);
+        net->predict(scaledSold, output, currActivation, 0.001);
     else {   //then if i'm using RNN i need to load recurrent connections
     	Activation* prevActivation = net->allocateActivation();
 		net->loadMemory(net->mem[agentId], prevActivation);
-        net->predict(inputs, output, prevActivation, currActivation, 0.001);
+        net->predict(scaledSold, output, prevActivation, currActivation, 0.001);
         //also, store sOld, aOld -> sNew, r
         data->passData(agentId, info, sOld, aOld, s, r);
         _dispose_object(prevActivation);
@@ -119,11 +119,14 @@ void NAF::Train_BPTT(const int seq, const int thrID)
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
         const Tuple * const _t    = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
         const Tuple * const _tOld = data->Set[seq]->tuples[k]; //this tuple contains sOld
-        net->predict(_tOld->s, output, timeSeries, k, 0.001);
+        vector<Real> scaledSold = data->standardize(_tOld->s);
+        net->predict(scaledSold, output, timeSeries, k, 0.001);
 
         const bool terminal = k+2==ndata && data->Set[seq]->ended;
-        if (not terminal)
-		net->predict(_t->s, target, timeSeries[k], tgtActivation, net->tgt_weights, net->tgt_biases);
+        if (not terminal) {
+            vector<Real> scaledSnew = data->standardize(_t->s);
+            net->predict(scaledSnew, target, timeSeries[k], tgtActivation, net->tgt_weights, net->tgt_biases);
+        }
         
         Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
         const vector<Real> Q(computeQandGrad(gradient, _t->aC, output, err));
@@ -149,7 +152,9 @@ void NAF::Train(const int seq, const int samp, const int thrID)
     sOldActivation->clearErrors();
     
     const Tuple * const _t = data->Set[seq]->tuples[samp+1]; //this tuple contains a, sNew, reward:
-    net->predict(data->Set[seq]->tuples[samp]->s, output, sOldActivation, 0.01); //sOld in previous tuple
+    vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[samp]->s);
+
+    net->predict(scaledSold, output, sOldActivation, 0.01); //sOld in previous tuple
 #ifdef _whitenTarget_
     #pragma	omp critical
     net->updateBatchStatistics(sOldActivation);
@@ -158,7 +163,8 @@ void NAF::Train(const int seq, const int samp, const int thrID)
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
     if (not terminal) {
         Activation* sNewActivation = net->allocateActivation();
-        net->predict(_t->s, target, sNewActivation,net->tgt_weights,net->tgt_biases);
+        vector<Real> scaledSnew = data->standardize(_t->s);
+        net->predict(scaledSnew, target, sNewActivation,net->tgt_weights,net->tgt_biases);
         _dispose_object(sNewActivation);
     }
     
@@ -189,24 +195,9 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, v
         _uL[j] = -1.    - out[1+nL+j];
         _uU[j] =  1.    - out[1+nL+j];
         
-        #ifdef _scaleR_
-        if (out[1+j]>0.99999) out[1+j] = 0.99999;
-        if (out[1+j]<-.99999) out[1+j] = -.99999;
-        #endif
-
         //put in place elements of lower diag matrix L
-        for (int i(0); i<nA; i++) {
-            const int ind = nA*j + i;
-            #ifdef _scaleR_
-            //if scaleR, net output is logic e [-1, 1] this transforms l outputs back to linear
-            if (i<=j) {
-                _L[ind] = .5*std::log((1+out[kL])/(1-out[kL]));
-                kL++;
-            }
-            #else
-            if (i<=j) _L[ind] = out[kL++];
-            #endif
-        }
+        for (int i(0); i<nA; i++)
+            if (i<=j) _L[nA*j + i] = out[kL++];
     }
     assert(kL==1+nL);
     
@@ -231,6 +222,7 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, v
     error -= Q[0];
     
     grad[0] = error;
+
     for (int il(0); il<nL; il++) {
         int kD(0);
         for (int j(0); j<nA; j++)
@@ -258,13 +250,8 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, v
             const int ind = nA*j + i;
             grad[1+il] += -0.5*_dPdl[ind]*_u[i]*_u[j];
         }
-        
-        #ifdef _scaleR_
-        //if scaleR, net output is logic e [-1, 1], this transforms l gradient back to linear
-        grad[1+il] *= error/(1 - out[1+il]*out[1+il]);
-        #else
+
         grad[1+il] *= error;
-        #endif
     }
     
     for (int ia(0); ia<nA; ia++) {

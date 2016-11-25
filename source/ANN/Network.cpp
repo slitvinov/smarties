@@ -492,7 +492,7 @@ void Network::updateFrozenWeights()
         #pragma omp for nowait
         for (int j=0; j<nWeights; j++)
             *(tgt_weights + j) = *(weights + j);
-        
+
         #pragma omp for nowait
         for (int j=0; j<nBiases; j++)
             *(tgt_biases + j) = *(biases + j);
@@ -593,7 +593,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
     assert(timeSeries.size() == seq_len);
     vector<Real> res(nOutputs); //allocate net output
     
-    const Real incr = 1e-6;
+    const Real incr = 1e-4;
     
     uniform_real_distribution<Real> dis(0.,1.);
     for (int i=0; i<seq_len; i++) //figure out where to place some errors at random in outputs
