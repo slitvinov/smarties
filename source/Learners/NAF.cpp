@@ -196,11 +196,13 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, v
     }
 
 #ifndef NDEBUG
+   /*
     ostringstream o;
 	o << "[";
 	for (int i=0; i<nA*nA; i++) o << _L[i] << " ";
 	o << "]";
-	std::cout << o.str() std::endl;
+	std::cout << o.str() << std::endl;
+   */
 #endif
     assert(kL==1+nL);
     
