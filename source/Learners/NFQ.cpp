@@ -119,10 +119,8 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
         	vector<Real> scaledSnew = data->standardize(_t->s);
     		net->predict(scaledSnew, Qtildes, timeSeries[k], tgtActivation, net->tgt_weights, net->tgt_biases);
 
-            if (k+2==ndata)
-            net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation);
-            else 
-            net->predict(scaledSnew, Qhats, timeSeries, k+1);
+            if (k+2==ndata) net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation);
+            else            net->predict(scaledSnew, Qhats, timeSeries, k+1);
         }
         
         // find best action for sNew with moving wghts, evaluate it with tgt wgths:
