@@ -207,7 +207,7 @@ void Transitions::update_samples_mean()
 	#pragma omp parallel
 	{
 		//local sum and counter
-		vector<Real> sum(sI.dimUsed), sum2(sI.dimUsed);
+		vector<Real> sum(sI.dimUsed,0), sum2(sI.dimUsed,0);
 		int cnt = 0;
 
 		#pragma omp for schedule(dynamic)

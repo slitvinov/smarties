@@ -13,6 +13,7 @@
 #include "Misc.h"
 
 #include <cassert>
+#include <algorithm>
 #include <sstream>
 #include <math.h>
 

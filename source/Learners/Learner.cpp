@@ -76,11 +76,10 @@ void Learner::TrainTasking(Master* const master)
     int countElapsed(0);
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
 
+	if (ndata <= batchSize) master->hustle();
+
     while (true) {
 		ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-
-		if (ndata <= batchSize) master->hustle();
-        
         taskCounter=0;
         nAddedGradients = 0;
 
@@ -167,11 +166,9 @@ void Learner::TrainTasking(Master* const master)
         }
 
         //here be omp fors:
-        if (ndata>batchSize) {
-        	stackAndUpdateNNWeights(nAddedGradients);
+		stackAndUpdateNNWeights(nAddedGradients);
 
-        	updateTargetNetwork();
-        }
+		updateTargetNetwork();
     }
 }
 

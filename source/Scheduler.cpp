@@ -230,8 +230,8 @@ void Slave::run()
         }
         
         packData(iAgent);
-        MPI_Send(&iAgent, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
-        MPI_Send(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD);
+        MPI_Ssend(&iAgent, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
+        MPI_Ssend(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD);
         
         //if buffer is not empty, print it to file, while we wait for action
         if (!outBuffer.empty()) {

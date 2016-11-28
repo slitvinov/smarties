@@ -143,14 +143,13 @@ void NAF::Train_BPTT(const int seq, const int thrID)
 void NAF::Train(const int seq, const int samp, const int thrID)
 {
     assert(net->allocatedFrozenWeights);
-    vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
     const int ndata = data->Set[seq]->tuples.size();
+    vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
 
+    vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[samp]->s);
+    const Tuple* const _t = data->Set[seq]->tuples[samp+1]; //this tuple contains a, sNew, reward:
     Activation* sOldActivation = net->allocateActivation();
     sOldActivation->clearErrors();
-    
-    const Tuple * const _t = data->Set[seq]->tuples[samp+1]; //this tuple contains a, sNew, reward:
-    vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[samp]->s);
 
     net->predict(scaledSold, output, sOldActivation); //sOld in previous tuple
 
@@ -201,7 +200,7 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, v
 	o << "[";
 	for (int i=0; i<nA*nA; i++) o << _L[i] << " ";
 	o << "]";
-	std::cout << o.str() << std::endl;
+	std::cout << o.str() std::endl; fflush(0);
    */
 #endif
     assert(kL==1+nL);

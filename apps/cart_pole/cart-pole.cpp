@@ -159,7 +159,7 @@ int main(int argc, const char * argv[])
             }
             
             //check if terminal state has been reached: 
-            if ((fabs(a.u.y3)>.5)||(fabs(a.u.y1)>2.4)) //angle too big = fallen, or x out of bounds
+            if ((fabs(a.u.y3)>.2*M_PI)||(fabs(a.u.y1)>2.4)) //angle too big = fallen, or x out of bounds
             {
                 //nfallen += 1; sincelast = 0; percfallen = nfallen/ntot;
                 
