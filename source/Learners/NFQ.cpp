@@ -57,11 +57,11 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     vector<Real> scaledSold = data->standardize(inputs);
 
     if (info==1)// if new sequence, sold, aold and reward are meaningless
-        net->predict(scaledSold, output, currActivation, 0.001);
+        net->predict(scaledSold, output, currActivation);
     else {   //then if i'm using RNN i need to load recurrent connections
         Activation* prevActivation = net->allocateActivation();
         net->loadMemory(net->mem[agentId], prevActivation);
-        net->predict(scaledSold, output, prevActivation, currActivation, 0.001);
+        net->predict(scaledSold, output, prevActivation, currActivation);
         //also, store sOld, aOld -> sNew, r
         data->passData(agentId, info, sOld, aOld, s, r);
         _dispose_object(prevActivation);
@@ -109,7 +109,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
 
     vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[0]->s);
     //first prediction in sequence without recurrent connections
-    net->predict(scaledSold, Qhats, timeSeries, 0, 0.001);
+    net->predict(scaledSold, Qhats, timeSeries, 0);
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1
         Qs = Qhats; //Q(sNew) predicted at previous loop with moving wghts is current Q
         
@@ -123,9 +123,9 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
             net->updateBatchStatistics(timeSeries[k+1]);
 #endif
             if (k+2==ndata)
-            net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation , 0.001);
+            net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation);
             else 
-            net->predict(scaledSnew, Qhats, timeSeries, k+1, 0.001);
+            net->predict(scaledSnew, Qhats, timeSeries, k+1);
         }
         
         // find best action for sNew with moving wghts, evaluate it with tgt wgths:
@@ -163,7 +163,7 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
 
     vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[samp]->s);
     const Tuple * const _t = data->Set[seq]->tuples[samp+1];
-    net->predict(scaledSold, Qs, sOldActivation, 0.01);
+    net->predict(scaledSold, Qs, sOldActivation);
 
 #ifdef _whitenTarget_
     #pragma	omp critical

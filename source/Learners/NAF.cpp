@@ -67,11 +67,11 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     s.copy_observed(inputs);
     vector<Real> scaledSold = data->standardize(inputs);
     if (info==1) // if new sequence, sold, aold and reward are meaningless
-        net->predict(scaledSold, output, currActivation, 0.001);
+        net->predict(scaledSold, output, currActivation);
     else {   //then if i'm using RNN i need to load recurrent connections
     	Activation* prevActivation = net->allocateActivation();
 		net->loadMemory(net->mem[agentId], prevActivation);
-        net->predict(scaledSold, output, prevActivation, currActivation, 0.001);
+        net->predict(scaledSold, output, prevActivation, currActivation);
         //also, store sOld, aOld -> sNew, r
         data->passData(agentId, info, sOld, aOld, s, r);
         _dispose_object(prevActivation);
@@ -120,7 +120,7 @@ void NAF::Train_BPTT(const int seq, const int thrID)
         const Tuple * const _t    = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
         const Tuple * const _tOld = data->Set[seq]->tuples[k]; //this tuple contains sOld
         vector<Real> scaledSold = data->standardize(_tOld->s);
-        net->predict(scaledSold, output, timeSeries, k, 0.001);
+        net->predict(scaledSold, output, timeSeries, k);
 
         terminal =+ k+2==ndata && data->Set[seq]->ended;
         if (not terminal) {
@@ -156,7 +156,7 @@ void NAF::Train(const int seq, const int samp, const int thrID)
     const Tuple * const _t = data->Set[seq]->tuples[samp+1]; //this tuple contains a, sNew, reward:
     vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[samp]->s);
 
-    net->predict(scaledSold, output, sOldActivation, 0.01); //sOld in previous tuple
+    net->predict(scaledSold, output, sOldActivation); //sOld in previous tuple
 #ifdef _whitenTarget_
     #pragma	omp critical
     net->updateBatchStatistics(sOldActivation);

@@ -235,12 +235,12 @@ void Transitions::update_samples_mean()
 	for (int i=0; i<sI.dimUsed; i++) {
         
 		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count));
-        std::cout << "std "<< std[i] << endl;
+        //std::cout << "std "<< std[i] << endl;
     }
 
 	for (int i=0; i<sI.dimUsed; i++) { 
         mean[i] /= Real(count);
-        std::cout << "mean "<< mean[i] << endl;
+        //std::cout << "mean "<< mean[i] << endl;
      }
 }
 
