@@ -136,8 +136,6 @@ void NewFishEnvironment::setDims()
         
         for (int i=0; i<aI.dim; i++) {
             aI.bounds.push_back(5); //Number of possible actions to choose from
-            aI.upperBounds.push_back(1.0);
-            aI.lowerBounds.push_back(-1.);
             
             aI.values[i].push_back(-.50);
             aI.values[i].push_back(-.25);
@@ -181,7 +179,9 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     if (fabs(t_sN.vals[4] -t_a.vals[0])>0.001) {
         printf("Mismatch state and action!!! \n %s \n %s \n",t_a.print().c_str(),t_sN.print().c_str());
         abort();
-    }/*
+    }
+
+    /*
     if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-2 && reward>0 ) {
         printf("Same time for two states!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
@@ -198,67 +198,37 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
         printf("You modified the actions\n");
         abort();
     }*/
-    
-    for (int i(0); i<20; i++) {
-        max_scale[i] = std::max(max_scale[i], t_sN.vals[i]);
-        min_scale[i] = std::min(min_scale[i], t_sN.vals[i]);
-    }
 
     bool new_sample(false);
     if (reward<-9.9) new_sample=true;
     
     if (study == 0) {
         //const Real scaledEfficiency = t_sN.vals[13];
-        const Real scaledEfficiency = (t_sN.vals[13]-.4)/(1.-.4); //between -1 and 1
-#ifndef _scaleR_
-        reward = scaledEfficiency;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
+        const Real scaledEfficiency = (t_sN.vals[13]-.4)/(1.-.4); //between 0 and 1
+        reward = scaledEfficiency; //max cumulative reward = sum gamma^t r < 1/(1-gamma)
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
-#else
-        reward = (1.-gamma)*scaledEfficiency; //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
-        if (new_sample) reward = -1.;  // = - max cumulative reward
-#endif
     }
     else if (study == 1) {
         const Real scaledBndEfficiency = (t_sN.vals[16]-.3)/(.6-.3); //between 0 and 1
-#ifndef _scaleR_
         reward = scaledBndEfficiency;
         if (new_sample) reward = -1./(1.-gamma);
-#else
-        reward = (1.-gamma)*scaledBndEfficiency;
-        if (new_sample) reward = -1.;
-#endif
     }
     else if (study == 2) {
         const Real scaledRew = 1. -2.*fabs(t_sN.vals[1]-goalDY);
-#ifndef _scaleR_
         reward =  scaledRew;
         if (new_sample) reward = -1./(1.-gamma);
-#else
-        reward = (1.-gamma)*scaledRew;
-        if (new_sample) reward = -1.;
-#endif
     }
     else if (study == 3) {
     	const Real DX_penal = 8*fabs(t_sN.vals[0]-goalDY);  //goalDY actually goalDX
     	const Real DY_penal = 2*fabs(t_sN.vals[1]);
         const Real scaledRew = 1. - min(DX_penal+DY_penal, 2.);
-#ifndef _scaleR_
         reward = scaledRew;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
-#else
-        reward = (1.-gamma)*scaledRew; //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
-        if (new_sample) reward = -1.;  // = - max cumulative reward
-#endif
     }
     else if (study == 4) {
         const Real scaledEfficiency = 0.;
-#ifndef _scaleR_
         reward = scaledEfficiency;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
-#else
-        reward = (1.-gamma)*scaledEfficiency; //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
-        if (new_sample) reward = -1.;  // = - max cumulative reward
-#endif
     }
     else {
         die("Wrong reward\n");

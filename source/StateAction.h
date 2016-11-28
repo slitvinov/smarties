@@ -119,30 +119,20 @@ struct ActionInfo
     //discrete actions
 	vector<int> bounds, shifts; //if finite set, number of choices per "dim"
     vector<vector<Real>> values; //used for rescaling, would be used if action is input to NN
-    vector<Real> upperBounds, lowerBounds;
     
     ActionInfo() {}
     
-    ActionInfo& operator= (const ActionInfo& actionInfo)
-    {
+    ActionInfo& operator= (const ActionInfo& actionInfo) {
         dim = actionInfo.dim;
-        
-        assert(actionInfo.values.size()==dim && actionInfo.bounds.size()==dim && actionInfo.shifts.size()==dim 
-        		 && actionInfo.lowerBounds.size() == dim &&  actionInfo.upperBounds.size() == dim);
-        
+        assert(actionInfo.values.size()==dim && actionInfo.bounds.size()==dim && actionInfo.shifts.size()==dim);
         values = actionInfo.values;
         bounds = actionInfo.bounds;
         shifts = actionInfo.shifts;
-        upperBounds = actionInfo.upperBounds;
-        lowerBounds = actionInfo.lowerBounds;
-        
-        assert(values.size()==dim && bounds.size()==dim && shifts.size()==dim 
-        		 && lowerBounds.size() == dim &&  upperBounds.size() == dim);
+        assert(values.size()==dim && bounds.size()==dim && shifts.size()==dim);
     }
 
     //from action indices to unique label (for tables, DQN)
-    int actionToLabel(vector<Real> vals) const
-    {
+    int actionToLabel(vector<Real> vals) const {
         int lab=0;
         for (int i=0; i<dim; i++) lab += shifts[i]*realActionToIndex(vals[i],i);
         assert(lab>=0);
@@ -153,7 +143,7 @@ struct ActionInfo
     {
     	vector<Real> ret(dim);
         for (int i=dim-1; i>=0; i--) {
-            ret[i] = indexToRealAction(lab/shifts[i], i);
+            ret[i] = indexToRealAction((int)lab/shifts[i], i);
             lab = lab % shifts[i];
         }
         return ret;
@@ -168,7 +158,7 @@ struct ActionInfo
 	int realActionToIndex(const Real val, const int i) const
 	{ //From cont. action, convert to an action index using chosen values in environment
 		assert(values[i].size() == bounds[i]);
-		Real dist = 1e3; int ret = -1;
+		Real dist = 1e9; int ret = -1;
 		for (int j=0; j<bounds[i]; j++) {
 			const Real _dist = std::fabs(values[i][j]-val);
 			if (_dist<dist) { dist = _dist; ret = j; }
@@ -176,16 +166,6 @@ struct ActionInfo
 		assert(ret>=0);
 		return ret;
 	}
-	
-    Real realToScaledReal(const Real action, const int i) const
-    { //i have smth in valsContinuous, i want a scaled value with upper and lower bounds
-        return 2.*(action - lowerBounds[i])/(upperBounds[i] - lowerBounds[i])-1.;
-    }
-    
-    Real scaledRealToReal(const Real scaled, const int i) const
-    { //i have a scaled quantity with lower and upper bnd, i want to get a dimensional action
-        return lowerBounds[i] + 0.5*(scaled+1.)*(upperBounds[i] - lowerBounds[i]);
-    }
 };
 
 class Action
@@ -244,18 +224,6 @@ public:
         for (int i=0; i<actInfo.dim; i++) vals[i] = data[i];
     }
     
-    vector<Real> scale() const
-    {
-        vector<Real> res(actInfo.dim);
-        for (int i=0; i<actInfo.dim; i++) res[i] = actInfo.realToScaledReal(vals[i], i);
-        return res;
-    }
-    
-    void set_fromScaled(vector<Real> data)
-    {
-        for (int i=0; i<actInfo.dim; i++) vals[i] = actInfo.scaledRealToReal(data[i], i);
-    }
-    
     void getRandom(const int iRand = -1)
     {
         std::normal_distribution<Real> dist(0.,0.5);
@@ -263,14 +231,14 @@ public:
         if ( iRand<0 || iRand >= actInfo.dim ) {
         	//select all random actions
             for (int i=0; i<actInfo.dim; i++) {
-                const Real uB = actInfo.values[i].back();
-                const Real lB = actInfo.values[i].front();
-                vals[i]=    lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+            	const auto uB = *std::min_element(std::begin(actInfo.values[i]), std::end(actInfo.values[i]));
+            	const auto lB = *std::max_element(std::begin(actInfo.values[i]), std::end(actInfo.values[i]));
+                vals[i] = lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
             }
         } else {  //select just one
-				const Real uB = actInfo.values[iRand].back();
-				const Real lB = actInfo.values[iRand].front();
-				vals[iRand]=lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+        	const auto uB = *std::min_element(std::begin(actInfo.values[iRand]), std::end(actInfo.values[iRand]));
+        	const auto lB = *std::max_element(std::begin(actInfo.values[iRand]), std::end(actInfo.values[iRand]));
+			vals[iRand] = lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
         }
     }
 

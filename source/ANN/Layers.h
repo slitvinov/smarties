@@ -387,21 +387,22 @@ public:
 
         for (int n=0; n<nNeurons; n++)  {
             const Real invstd = 1./std::sqrt(std::max(_eps, link_vars[n]));
-#ifndef _whitenTarget_
             const Real dEdXhat = errors[n]*link_scales[n];
+
             //mean increases if input is greater than mean
             const Real dMudX = (link_inputs[n] - link_means[n]);
             //std increases if input is less than mean
             const Real dStddX = (dMudX*dMudX - link_vars[n]);
+
             //const Real dXhatdMu = -invstd;
             //const Real fac = std::max(_eps, std::pow(link_vars[n],1.5));
             //const Real dXhatdStd = -.5*(link_inputs[n]-link_means[n])*std::pow(invstd, 3);
             //const Real dXhatdX = invstd;
+
             grad_means[n] += dMudX;
             if (dStddX>0 || link_vars[n]>_eps)
-            grad_vars[n] += dStddX;
+            	grad_vars[n] += dStddX;
 
-            //link_errors[n] = errors[n]*link_scales[n]*invstd;
             const Real pid_avg =  dEdXhat*dMudX<0 ? -0.5*invstd : 0.5*invstd;
             const Real pid_std = link_inputs[n]-link_means[n] > 0  ? 
                                  ( dStddX*dEdXhat<0 ? -0.5*invstd : 0.5*invstd)
@@ -409,10 +410,7 @@ public:
                                  ( dStddX*dEdXhat>0 ? -0.5*invstd : 0.5*invstd);
 
             link_errors[n] = dEdXhat*(invstd + pid_avg + pid_std);
-#else
-            die("WRONG\n");
-            link_errors[n] = errors[n]*link_scales[n]*invstd;
-#endif
+
             grad_scales[n] += inputs[n]*errors[n];
             grad_shifts[n] += errors[n];
         }

@@ -61,8 +61,6 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
         for (int i=0; i<aI.dim; i++) {
         	const int nOptions = 5; //used if discrete actions: options available to agent for acting
             aI.bounds.push_back(nOptions);
-            aI.upperBounds.push_back(1.); //only used for continuous policy (NAF or DPG algorithms, not DQN): upper scaling bound
-            aI.lowerBounds.push_back(0.); //only used for continuous policy: lower scaling bound
 
             //this framework sends a real number to the application
             //if you want to receive an integer number between 0 and nOptions (eg action option)

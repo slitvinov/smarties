@@ -79,7 +79,7 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
 #endif
     
     //load computed policy into a
-    a.set_fromScaled(output);
+    a.set(output);
     
     Real newEps(greedyEps); //random action?
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
@@ -124,7 +124,7 @@ void DPG::Train(const int seq, const int samp, const int thrID)
     vector<Real> vSnew(1), Q(1), gradient(1);
     { //join state and action to predict Q
         vector<Real> input(scaledSold);
-        input.insert(input.end(),_t->aC.begin(),_t->aC.end());
+        input.insert(input.end(),_t->a.begin(),_t->a.end());
         net->predict(input, Q, sOldQAct, 0.01);
     }
 

@@ -108,12 +108,8 @@ void TwoFishEnvironment::setDims()
     
     aI.dim = 1;
     aI.values.resize(aI.dim);
-    for (int i=0; i<aI.dim; i++)
-    {
+    for (int i=0; i<aI.dim; i++) {
         aI.bounds.push_back(5); //Number of possible actions to choose from
-        aI.upperBounds.push_back( 1.);
-        aI.lowerBounds.push_back(-1.);
-        
         aI.values[i].push_back(-.5);
         aI.values[i].push_back(-.25);
         aI.values[i].push_back(0.0);

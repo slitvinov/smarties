@@ -86,42 +86,39 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
         const int handicap = min(static_cast<int>(data->Set.size())/500., stats.epochCount/10.);
-        newEps = 0.1 + greedyEps*exp(-handicap);//*agentId/Real(agentId+1);
+        newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
     uniform_real_distribution<Real> dis(0.,1.);
     
-    if(dis(*gen) < newEps) {
-        const int randomActionLabel = nOutputs*dis(*gen);
-        a.set(aInfo.labelToAction(randomActionLabel));
-        //printf("Random action %d %d %f %d %f\n",data->Set.size(),stats.epochCount,newEps, randomActionLabel, a.vals[0]);
-    } 
+    if(dis(*gen) < newEps) a.set(aInfo.labelToAction(nOutputs*dis(*gen)));
+
     //else printf("Net selected %d %f for state %s\n",Nbest,a.vals[0],s.print().c_str());
 }
 
 void NFQ::Train_BPTT(const int seq, const int thrID)
 {
-    if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
+    assert(net->allocatedFrozenWeights);
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
     const int ndata = data->Set[seq]->tuples.size();
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
     Activation* tgtActivation = net->allocateActivation();
     net->clearErrors(timeSeries);
 
-    vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[0]->s);
-    //first prediction in sequence without recurrent connections
-    net->predict(scaledSold, Qhats, timeSeries, 0);
+    {   //first prediction in sequence without recurrent connections
+		vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[0]->s);
+		net->predict(scaledSold, Qhats, timeSeries, 0);
+    }
+
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1
         Qs = Qhats; //Q(sNew) predicted at previous loop with moving wghts is current Q
         
         const Tuple * const _t = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
         const bool terminal = k+2==ndata && data->Set[seq]->ended;
+
         if (not terminal) {
         	vector<Real> scaledSnew = data->standardize(_t->s);
     		net->predict(scaledSnew, Qtildes, timeSeries[k], tgtActivation, net->tgt_weights, net->tgt_biases);
-#ifdef _whitenTarget_
-			#pragma	omp critical
-            net->updateBatchStatistics(timeSeries[k+1]);
-#endif
+
             if (k+2==ndata)
             net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation);
             else 
@@ -137,11 +134,11 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
             if(Qhats[i]>Vhat) { Vhat=Qhats[i]; Nbest=i;  }
         }
         const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[Nbest];
-        //printf("target %f rew %f %d %f\n",target, _t->r, _t->a, _t->aC[0]);
-        const Real err =  (target - Qs[_t->a]);
-        errs[_t->a] = err;
+        const int action = aInfo.actionToLabel(_t->a);
+        const Real err =  (target - Qs[action]);
+        errs[action] = err;
         net->setOutputDeltas(errs, timeSeries[k]);
-        dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
+        dumpStats(Vstats[thrID], Qs[action], err, Qs);
         data->Set[seq]->tuples[k]->SquaredError = err*err;
         if(thrID == 1) net->updateRunning(timeSeries[k]);
     }
@@ -155,21 +152,16 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
 void NFQ::Train(const int seq, const int samp, const int thrID)
 {
     assert(net->allocatedFrozenWeights);
-    vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
     const int ndata = data->Set[seq]->tuples.size();
+    vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
 
+    vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[samp]->s);
+    const Tuple* const _t = data->Set[seq]->tuples[samp+1];
     Activation* sOldActivation = net->allocateActivation();
     sOldActivation->clearErrors();
 
-    vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[samp]->s);
-    const Tuple * const _t = data->Set[seq]->tuples[samp+1];
     net->predict(scaledSold, Qs, sOldActivation);
 
-#ifdef _whitenTarget_
-    #pragma	omp critical
-    net->updateBatchStatistics(sOldActivation);
-#endif
-    
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
     if (not terminal) {
     	vector<Real> scaledSnew = data->standardize(_t->s);
@@ -188,10 +180,11 @@ void NFQ::Train(const int seq, const int samp, const int thrID)
     }
     
     const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[Nbest];
-    const Real err =  (target - Qs[_t->a]);
-    errs[_t->a] = err;
+    const int action = aInfo.actionToLabel(_t->a);
+    const Real err =  (target - Qs[action]);
+    errs[action] = err;
     
-    dumpStats(Vstats[thrID], Qs[_t->a], err, Qs);
+    dumpStats(Vstats[thrID], Qs[action], err, Qs);
     if(thrID == 1) net->updateRunning(sOldActivation);
     data->Set[seq]->tuples[samp]->SquaredError = err*err;
 

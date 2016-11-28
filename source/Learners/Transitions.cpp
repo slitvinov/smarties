@@ -165,11 +165,10 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
         t->s.insert(t->s.end(),last->s[0],last->s[sApp-1]);
     }
     
-    const bool new_sample = env->pickReward(sOld,a,sNew,reward,info); // || info==2 TODO
+    const bool new_sample = env->pickReward(sOld,a,sNew,reward,info);
     t->r = reward;
-    t->a = a.getActionLabel();
-    t->aC = a.scale();
-    //printf("Storing: %s -> [%d %f %f]-> %s\n", sOld.print().c_str(),t->a, t->aC[0],a.vals[0],sNew.print().c_str()); fflush(0);
+    t->a = a.vals;
+
     Tmp[agentId]->tuples.push_back(t);
     if (new_sample) {
         Tmp[agentId]->ended = true;
@@ -232,16 +231,17 @@ void Transitions::update_samples_mean()
 		}
 	}
 
+	std::cout << "States stds: ["
 	for (int i=0; i<sI.dimUsed; i++) {
-        
 		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count));
-        //std::cout << "std "<< std[i] << endl;
+		std::cout << std[i] << " ";
     }
-
+	std::cout << "]. States means: ["
 	for (int i=0; i<sI.dimUsed; i++) { 
         mean[i] /= Real(count);
-        //std::cout << "mean "<< mean[i] << endl;
+        std::cout << mean[i] << " ";
      }
+	std::cout << "]" << std::endl;
 }
 
 vector<Real> Transitions::standardize(const vector<Real>&  state) const

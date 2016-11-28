@@ -533,31 +533,7 @@ public:
         cout << "Whitening link: nInputs="<< nI << " IDinput=" << iI << " nOutputs=" << nO << " IDoutput" << iO << " IDweight" << iW << " nO_simd"<<nO_simd<<endl;
         fflush(0);
     }
-    
-    void updateBatchStatistics(Real* const stds, Real* const avgs, const Activation* const act, const Real invN) override
-	{
-    	die("WRONG\n");
-		for (int k=0; k<nO; k++) {
-			const Real delta = act->outvals[k+iI] - avgs[k+iO];
-			avgs[k+iO] += delta*invN;
-			stds[k+iO] += delta*(act->outvals[k+iI] - avgs[k+iO]);
-		}
-	}
-    void applyBatchStatistics(Real* const stds, Real* const avgs, Real* const _weights, const Real invNm1)
-    {
-    	die("WRONG\n");
-        Real* const link_means = _weights +iW;
-        Real* const link_vars = _weights +iW +nO;
-        const Real eta = 0.01;
-        const Real _eta = 1. - eta;
-        for (int k=0; k<nO; k++) {
-			link_means[k] = _eta*link_means[k] + eta*avgs[k+iO];
-			const Real tmp = std::max(stds[k+iO]*invNm1, std::numeric_limits<Real>::epsilon());
-			link_vars[k] = _eta*link_vars[k] + eta*tmp;
-			avgs[k+iO] = 0;
-			stds[k+iO] = 0;
-		}
-    }
+
   /*  
     void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const override
     {

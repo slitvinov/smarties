@@ -154,8 +154,6 @@ void TwoActFishEnvironment::setDims()
         aI.values.resize(aI.dim);
         //curavture
         aI.bounds.push_back(5); //Number of possible actions to choose from
-        aI.upperBounds.push_back(0.5);
-        aI.lowerBounds.push_back(-.5);
         aI.values[0].push_back(-.50);
         aI.values[0].push_back(-.25);
         aI.values[0].push_back(0.00);
@@ -163,8 +161,6 @@ void TwoActFishEnvironment::setDims()
         aI.values[0].push_back(0.50);
         //period:
         aI.bounds.push_back(5); //Number of possible actions to choose from
-        aI.upperBounds.push_back(0.25);
-        aI.lowerBounds.push_back(-.25);
         aI.values[1].push_back(-.25);
         aI.values[1].push_back(-.125);
         aI.values[1].push_back(0.00);
