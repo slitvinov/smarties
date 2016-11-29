@@ -976,7 +976,7 @@ Adapt_C2(cmaes_t *t, int hsig)
                 douMin(t->sp.ccov * (1-1./t->sp.mucov)* (flgdiag ? (N+1.5) / 3. : 1.), 1.-ccov1); 
     double sigmasquare = t->sigma * t->sigma; 
     t->flgEigensysIsUptodate = 0;
-    printf("%f %f %f %f\n", ccov1, ccovmu, t->sp.ccumcov, t->sp.cs);
+    //printf("%f %f %f %f\n", ccov1, ccovmu, t->sp.ccumcov, t->sp.cs);
     /* update covariance matrix */
     for (i = 0; i < N; ++i)
       for (j = flgdiag ? i : 0; j <= i; ++j) {

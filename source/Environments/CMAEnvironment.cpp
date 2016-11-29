@@ -72,6 +72,40 @@ void CMAEnvironment::setAction(const int & iAgent)
 	Environment::setAction(iAgent);
 }
 
+void CMAEnvironment::spawn_server()
+{
+    const int rf = fork();
+    if (rf == 0) {
+        char line[1024];
+        char *largv[64];
+        
+        mkdir(("simulation_"+to_string(rank)+"_"+to_string(iter)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        chdir(("simulation_"+to_string(rank)+"_"+to_string(iter)+"/").c_str());
+        
+        sprintf(line, execpath.c_str());
+        parse(line, largv);     // prepare argv
+        
+        #if 0==1 //if true goes to stdout
+        char output[256];
+        sprintf(output, "output_%d_%d", workerid,iter);
+        int fd = open(output, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+        dup2(fd, 1);    // make stdout go to file
+        dup2(fd, 2);    // make stderr go to file
+        close(fd);      // fd no longer needed
+        #endif
+        
+        printf("About to exec.... \n");
+        cout << execpath << endl << *largv << endl;
+        
+        const int res = execlp(execpath.c_str(), 
+                               execpath.c_str(),
+                               to_string(workerid).c_str(), 
+                               to_string(1).c_str(),
+                               NULL);
+        if (res < 0) die("Unable to exec file '%s'!\n", execpath.c_str());
+    }
+}
+       
 void CMAEnvironment::setDims() //this environment is for the cart pole test
 {
     {
@@ -95,22 +129,27 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
     {
         aI.dim = 4; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
-        for (int i=0; i<aI.dim; i++) {
+        for (int i=0; i<2; i++) {
         	const int nOptions = 5; //used if discrete actions: options available to agent for acting
             aI.bounds.push_back(nOptions);
-
-            //this framework sends a real number to the application
-            //if you want to receive an integer number between 0 and nOptions (eg action option)
-            //just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
-            //i added the 0.1 is just to be extra safe when converting a float to an integer
 
             aI.values[i].push_back(.01); //here the app accepts real numbers
             aI.values[i].push_back(.03);
             aI.values[i].push_back(.05);
             aI.values[i].push_back(.07);
             aI.values[i].push_back(.09);
-            //the number of components must be ==nOptions
         }
+        for (int i=2; i<4; i++) {
+        	const int nOptions = 5; //used if discrete actions: options available to agent for acting
+            aI.bounds.push_back(nOptions);
+
+            aI.values[i].push_back(.1); //here the app accepts real numbers
+            aI.values[i].push_back(.3);
+            aI.values[i].push_back(.5);
+            aI.values[i].push_back(.7);
+            aI.values[i].push_back(.9);
+        }
+    
     }
     commonSetup(); //required
 }
@@ -133,46 +172,3 @@ bool CMAEnvironment::pickReward(const State & t_sO, const Action & t_a, const St
     return new_sample; //cart pole has failed if r = -1, need to clean this shit and rely only on info
 }
 
-/*
-/// IF YOU WANT TO RUN AN APP DIRECTLY INSIDE SMARTIES:
-NEED TO
-
-1) override these two function with empty functions to avoid calling any executable:
-
-	void Environment::setup_Comm() {}
-
-	void Environment::spawn_server(){ }
-
-2) define this function (iAgent is zero if only one agent per simulation is present)
-
-	void Environment::setAction(const int & iAgent)
-	{
-	 	 for (int i=0; i<aI.dim; i++) agents[iAgent]->a->valsContinuous[i]... do something
-
-	 	 this function loads the actions from the agent and sends it to the app
-	 	 if your application is local, then find a way to process the action locally
-	}
-
-
-3) define this function
-
-	int Environment::getState(int & iAgent)
-	{
-		get the agent number, if one agent per game iAgent=0
-		load the state into agents[iAgent]->s->vals[] and
-    	return bStatus;
-
-    	bStatus is 1 is first communication about the first state (no previous actions)
-    	bStatus is 2 if application is sending the last state (and requires no action!!)
-    	bStatus is 0 if i already sent at least one state in the past
-	}
-
-4) think about:
-	- functions 2 and 3 need to handle all the work
-	- RL first calls getState, then alternates setAction and getState untill terminal state
-	checklist:
-	- initializing the simulation
-	- sending the first state without prior actions
-	- catching a terminal state
-	- restarting the simulation
-*/

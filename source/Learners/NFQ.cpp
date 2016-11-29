@@ -85,7 +85,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const int handicap = min(static_cast<int>(data->Set.size())/500., opt->nepoch/1e6);
+        const int handicap = min(static_cast<int>(data->Set.size())/500., opt->nepoch/1e4);
         newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
     uniform_real_distribution<Real> dis(0.,1.);
@@ -142,6 +142,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
         const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[Nbest];
         const int action = aInfo.actionToLabel(_t->a);
         const Real err =  (target - Qs[action]);
+        //printf("t %f r %f e %f Q %f\n", target, _t->r, err, Qs[action]); fflush(0);
         errs[action] = err;
         net->setOutputDeltas(errs, timeSeries[k]);
         dumpStats(Vstats[thrID], Qs[action], err, Qs);
@@ -188,6 +189,7 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
     const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[Nbest];
     const int action = aInfo.actionToLabel(_t->a);
     const Real err =  (target - Qs[action]);
+    //printf("t %f r %f e %f Q %f\n", target, _t->r, err, Qs[action]); fflush(0);
     errs[action] = err;
     
     dumpStats(Vstats[thrID], Qs[action], err, Qs);

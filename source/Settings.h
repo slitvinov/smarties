@@ -40,7 +40,7 @@ void _dispose_object(T *& ptr)
 struct Settings
 {
     Settings() :
-    saveFreq(1e3), randSeed(0), rewardType(0), senses(0), nAgents(1), nSlaves(1), nThreads(-1),
+    saveFreq(1e4), randSeed(0), rewardType(0), senses(0), nAgents(1), nSlaves(1), nThreads(-1),
     nnInputs(-1), nnOutputs(-1), nnLayer1(32), nnLayer2(32), nnLayer3(0), nnLayer4(0), nnLayer5(0),
     nnType(1), dqnAppendS(0), dqnBatch(1), bTrain(1), lRate(.0001), greedyEps(.1), gamma(.9),
     lambda(0), goalDY(0), nnPdrop(0), nnLambda(0), dqnUpdateC(1000.), learner((string)"NFQ"),

@@ -34,7 +34,7 @@ void Learner::TrainBatch()
     
     if(bRecurrent) {
         
-        for (int i(0); i<batchSize; i++)
+        for (int i=0; i<batchSize; i++)
         {
             const int ind = data->inds.back();
             data->inds.pop_back();
@@ -47,7 +47,7 @@ void Learner::TrainBatch()
     } else {
         
         nAddedGradients = batchSize;
-        for (int i(0); i<batchSize; i++)
+        for (int i=0; i<batchSize; i++)
         {
             const int ind = data->inds.back();
             data->inds.pop_back();
@@ -106,7 +106,7 @@ void Learner::TrainTasking(Master* const master)
 			start = std::chrono::high_resolution_clock::now();
 
 			if(bRecurrent) {//we are using an LSTM: do BPTT
-				for (int i(0); i<batchSize; i++) {
+				for (int i=0; i<batchSize; i++) {
 					const int ind = data->inds.back();
 					data->inds.pop_back();
 					seq[i]  = ind;
@@ -116,7 +116,7 @@ void Learner::TrainTasking(Master* const master)
 				}
 				#pragma omp flush
 
-				for (int i(0); i<batchSize; i++) {
+				for (int i=0; i<batchSize; i++) {
 					#pragma omp task firstprivate(i)
 					{
 						const int thrID = omp_get_thread_num();
@@ -129,7 +129,7 @@ void Learner::TrainTasking(Master* const master)
 					}
 				}
 			} else {
-				for (int i(0); i<batchSize; i++)  {
+				for (int i=0; i<batchSize; i++)  {
 					const int ind = data->inds.back();
 					data->inds.pop_back();
 					int k(0), back(0), indT(data->Set[0]->tuples.size()-1);
@@ -144,7 +144,7 @@ void Learner::TrainTasking(Master* const master)
 				nAddedGradients = batchSize;
 				#pragma omp flush
 
-				for (int i(0); i<batchSize; i++) {
+				for (int i=0; i<batchSize; i++) {
 					#pragma omp task firstprivate(i)
 					{
 						const int thrID = omp_get_thread_num();
@@ -176,14 +176,14 @@ void Learner::TrainTasking(Master* const master)
 
 void Learner::stackAndUpdateNNWeights(const int nAddedGradients)
 {
-    opt->nepoch += nAddedGradients;
+    opt->nepoch++;
     opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads (TODO: do not sum 0 component of Vgrad as now we have a pragma omp master above)
     opt->update(net->grad,nAddedGradients); //update
 }
 
 void Learner::updateNNWeights(const int nAddedGradients)
 {
-    opt->nepoch += nAddedGradients;
+    opt->nepoch++;
     opt->update(net->grad, nAddedGradients);
 }
 
@@ -209,7 +209,7 @@ bool Learner::checkBatch() const
 
 void Learner::save(string name)
 {
-    //net->save(name + ".net");
+    net->save(name + ".net");
     const string stuff = name + ".status";
     FILE * f = fopen(stuff.c_str(), "w");
     if (f == NULL) die("Save fail\n");

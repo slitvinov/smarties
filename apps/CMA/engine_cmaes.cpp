@@ -4,7 +4,7 @@
 
 #define _XOPEN_SOURCE 500
 #define _BSD_SOURCE
-#define __RLON 0
+#define __RLON 1
 #define __NGENSKIP 10
 #include <stdio.h>
 #include <stdlib.h> /* free() */
@@ -21,32 +21,27 @@
 #define _IODUMP_ 0
 #define JOBMAXTIME	0
 #include "fitfun.c" 
-#include <omp.h>
-/* the objective (fitness) function to be minimized */
-void taskfun(double *x, int dim, double *res, int *info) {
 
+/* the objective (fitness) function to be minimized */
+void taskfun(double *x, int dim, double *res, int *info)
+{
 #if 0
 	int gen, chain, step, task;
 	gen = info[0]; chain = info[1]; step = info[2]; task = info[3];
 	printf("executing task (%d,%d,%d,%d)\n", gen, chain, step, task);
 #endif
+
 	double f = -fitfun(x, dim, (void *)NULL, info);	/* CMA-ES needs this minus sign */
 
 	*res = f;
-	return;
 }
 
 int is_feasible(double *pop, double*lower_bound, double*upper_bound, int dim)
 {
 	int good;
 	for (int i = 0; i < dim; i++) {
-        //std::cout << pop[i] << std::endl; fflush(0);
-        //std::cout << lower_bound[i] << std::endl; fflush(0);
-        //std::cout << upper_bound[i] << std::endl; fflush(0);
 		good = (lower_bound[i] <= pop[i]) && (pop[i] <= upper_bound[i]);
-		if (!good) {
-			return 0;
-		}
+		if (!good) return 0;
 	}
 	return 1;
 }
@@ -66,8 +61,7 @@ void update_state(cmaes_t * evo, double * const state, double* oldFmedian, doubl
 
 	//advance:
 	*oldFmedian = cmaes_Get(evo, "fmedian");
-    for (int i=0; i<func_dim; i++)
-        oldXmean[i] = xMean[i];
+    for (int i=0; i<func_dim; i++) oldXmean[i] = xMean[i];
 	free(xMean);
 }
 
@@ -80,15 +74,14 @@ int main(int argn, char **args)
     }
     const int sock = std::stoi(args[1]);
     const int nthreads = std::stoi(args[2]);
-    const int act_dim   = 1;
+    const int act_dim   = 4;
     const int state_dim = 5;
     std::seed_seq seq{sock};
 	std::vector<int> seeds(nthreads);
 	seq.generate(seeds.begin(), seeds.end());
 	std::vector<std::mt19937*> generators(nthreads);
-	for (int i=0; i<nthreads; i++) {
+	for (int i=0; i<nthreads; i++)
        generators[i] = new std::mt19937(seeds[i]);
-}
 
     std::uniform_real_distribution<double> start_x_distribution(0.35,0.65);
     std::uniform_real_distribution<double> start_std_distribution(0.2,0.5);
@@ -105,20 +98,18 @@ int main(int argn, char **args)
     //vector of actions received by RL
     std::vector<double> actions(act_dim);
 
-    #pragma omp parallel num_threads(nthreads)
     while (true) {
-    	const int thrid = omp_get_thread_num();
+        int step = 0; // cmaes stepping
+        int info[4]; //legacy: gen, chain, step, task
+    	const int thrid = 0; //omp_get_thread_num();
         cmaes_t evo; /* an CMA-ES type struct or "object" */
         double oldFmedian, *oldXmean; //related to RL rewards
         double *lower_bound, *upper_bound, *init_x, *init_std; //IC for cmaes
         double *arFunvals, *const*pop;  //cma current function values and samples
-        int step = 0; // cmaes stepping
-        int info[4]; //legacy: gen, chain, step, task
         const int func_dim = 1 + ceil(std::fabs(func_dim_distribution(*generators[thrid])));
         const int runseed = cma_seed_distribution(*generators[thrid]);
         const int lambda = 4 + floor(3*std::log(func_dim));
         info[0] = func_ID_distribution(*generators[thrid]);
-        std::cout << "Selected function " << info[0] << std::endl;
 
 		init_x = (double*)malloc(func_dim * sizeof(double));
 		init_std = (double*)malloc(func_dim * sizeof(double));
@@ -136,20 +127,21 @@ int main(int argn, char **args)
         cmaes_ReadSignals(&evo, "cmaes_signals.par");  /* write header and initial values */
 
 #if __RLON 
-	#pragma omp critical
         {   // initial state
 			state[0] = 1;
 			state[1] = 1;
 			state[2] = 0;
 			state[3] = 0;
 			state[4] = (double)func_dim;
+         //printf("Thr %d sending state, apparent thrd safety\n", thrid); fflush(0);
 			comm.sendState(thrid, 1, state, 0);
 
 			comm.recvAction(actions);
 						   evo.sp.ccov1   = actions[0]; //rank 1 covariance update
 			if (act_dim>1) evo.sp.ccovmu  = actions[1]; //rank mu covariance update
 			if (act_dim>2) evo.sp.ccumcov = actions[2]; //path update c_c
-			if (act_dim>3) evo.sp.cs      = actions[3]; //step size control c_sigma
+			if (act_dim>3) evo.sp.cs      = actions[3]; //step size control c_sigmai
+         printf("selected action %f %f %f %f\n", evo.sp.ccov1, evo.sp.ccovmu, evo.sp.ccumcov, evo.sp.cs); fflush(0);
         }
 #endif
         
@@ -161,24 +153,22 @@ int main(int argn, char **args)
                 /* generate lambda new search points, sample population */
                 pop = cmaes_SamplePopulation(&evo); /* do not change content of pop */
                 /*
-                Here we may resample each solution point pop[i] until it
-                becomes feasible. function is_feasible(...) needs to be
-                user-defined.
-                Assumptions: the feasible domain is convex, the optimum is
-                not on (or very close to) the domain boundary, initialX is
-                feasible and initialStandardDeviations are sufficiently small
-                to prevent quasi-infinite looping.
+                Here we may resample each solution point pop[i] until it becomes feasible.
+                Assumptions:
+                			the feasible domain is convex,
+							the optimum is not on (or very close to) the domain boundary,
+							initialX is feasible and
+							initialSTD are sufficiently small to prevent quasi-infinite looping.
                 */
                 for (int i = 0; i < cmaes_Get(&evo, "popsize"); ++i) {
                     //std::cout << i << std::endl; fflush(0);
                     while (!is_feasible(pop[i],lower_bound, upper_bound, func_dim))
                     cmaes_ReSampleSingle(&evo, i);
                 }
-                    /* evaluate current pop */
-                    for (int i = 0; i < lambda; i++) {
-    //            #pragma omp task firstprivate(i)
+
+				/* evaluate current pop */
+				for (int i = 0; i < lambda; i++)
                         taskfun(pop[i], func_dim, &arFunvals[i], info);
-                }
 
     			/* update the search distribution used for cmaes_SampleDistribution() */
             	cmaes_UpdateDistribution(&evo, arFunvals);
@@ -222,7 +212,6 @@ int main(int argn, char **args)
         	if (bConverged) break; //go to send terminal state
 
 #if __RLON
-	#pragma omp critical
 			{
 	        	update_state(&evo, state.data(), &oldFmedian, oldXmean, func_dim);
 				const double r = -.01;
@@ -232,17 +221,17 @@ int main(int argn, char **args)
 				if (act_dim>1) evo.sp.ccovmu  = actions[1]; //rank mu covariance update
 				if (act_dim>2) evo.sp.ccumcov = actions[2]; //path update c_c
 				if (act_dim>3) evo.sp.cs      = actions[3]; //step size control c_sigma
+         printf("selected action %f %f %f %f\n", evo.sp.ccov1, evo.sp.ccovmu, evo.sp.ccumcov, evo.sp.cs); fflush(0);
 			}
 #endif
         }
         
     	update_state(&evo, state.data(), &oldFmedian, oldXmean, func_dim);
-        /* get best estimator for the optimum, xmean */
-        double* xfinal = cmaes_GetNew(&evo, "xmean"); /* "xbestever" might be used as well */
+        double* xfinal = cmaes_GetNew(&evo, "xmean");
         const double r_end = 1. - 1e3*eval_distance_from_optimum(xfinal, func_dim, info)/(upper_bound[0]-lower_bound[0]);
-        std::cout << r_end << std::endl;
+        //std::cout << r_end << std::endl;
+
 #if __RLON
-	#pragma omp critical
         {
         	comm.sendState(thrid, 2, state, std::max(-1.,r_end)); // final state: info is 2
         }

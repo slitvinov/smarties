@@ -185,7 +185,7 @@ double fitfun(double *x, int N, void *output, int *info)  {
     return -f;  /* our CMA maximizes (there's another "-" in the code) */
 }
 
-void get_upper_lower_bounds(double * lower_bound, double * upper_bound, int N, int *info) {
+void get_upper_lower_bounds(double* const lower_bound, double* const upper_bound, int N, int *info) {
     int i;
 
     int rnd = info[0] % _COUNT;  /* this defines which function to use */

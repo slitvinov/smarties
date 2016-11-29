@@ -374,6 +374,7 @@ void Network::build()
 		graph->initializeWeights(gen, weights, biases);
 
 	updateFrozenWeights();
+   save("first.net");
 }
 
 Network::Network(const Settings & settings) :
@@ -682,8 +683,7 @@ void Network::save(const string fname)
 
     for (int i=0; i<nWeights; i++) {
         if (std::isnan(*(weights + i)) || std::isinf(*(weights + i))) {
-            *(weights + i) = 0.0;
-            out << 0.0 << "\n";
+            die("Caught a nan\n");
         } else {
             out << *(weights + i) << "\n";
         }
@@ -691,8 +691,7 @@ void Network::save(const string fname)
 
     for (int i=0; i<nBiases; i++) {
        if (std::isnan(*(biases + i)) || std::isinf(*(biases + i))) {
-           *(biases + i) = 0.0;
-            out << 0.0 << "\n";
+            die("Caught a nan\n");
         } else {
             out << *(biases + i) << "\n";
         }

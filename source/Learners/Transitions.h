@@ -25,6 +25,7 @@ struct Tuple
     Real r;
 
     Real SquaredError;
+    Tuple(): SquaredError(0), r(0) {}
 };
 
 struct Sequence
