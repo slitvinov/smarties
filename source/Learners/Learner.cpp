@@ -85,9 +85,7 @@ void Learner::TrainTasking(Master* const master)
 
         if (data->inds.size()<batchSize) { //reset sampling
             data->updateSamples();
-            ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
             processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
-            opt->nepoch=stats.epochCount; //used to anneal learning rate
             sumElapsed = 0; countElapsed=0;
 
             #if 1==0// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
@@ -178,14 +176,15 @@ void Learner::TrainTasking(Master* const master)
 
 void Learner::stackAndUpdateNNWeights(const int nAddedGradients)
 {
+    opt->nepoch++;
     opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads (TODO: do not sum 0 component of Vgrad as now we have a pragma omp master above)
     opt->update(net->grad,nAddedGradients); //update
 }
 
 void Learner::updateNNWeights(const int nAddedGradients)
 {
-    opt->nepoch=stats.epochCount;  //used to anneal learning rate
-    opt->update(net->grad,nAddedGradients);
+    opt->nepoch++;
+    opt->update(net->grad, nAddedGradients);
 }
 
 void Learner::updateTargetNetwork()

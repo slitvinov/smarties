@@ -30,7 +30,7 @@ protected:
     char SOCK_PATH[256];
     double *datain, *dataout;
     void commonSetup();
-    void spawn_server();
+    virtual void spawn_server();
 public:
     long unsigned int iter;
     bool resetAll;

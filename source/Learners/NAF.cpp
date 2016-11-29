@@ -94,7 +94,7 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const int handicap = min(static_cast<int>(data->Set.size())/500., stats.epochCount/200.);
+        const int handicap = min(static_cast<int>(data->Set.size())/500., opt->nepoch/1e4);
         newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
     
@@ -184,7 +184,7 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     _dispose_object(sOldActivation);
 }
 
-#if 1==1 //original formulation of advantage = 0.5 (a - pi)' * A * (a - pi), does not work: why?
+#if 1==0 //original formulation of advantage = 0.5 (a - pi)' * A * (a - pi), does not work: why?
 
 vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, vector<Real>& out, Real& error) const
 {
@@ -276,7 +276,7 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, v
         grad[1+nL+ia] *= error;
     }
     //1 action dim dump:
-    ///printf("act %f, err %f, out %f %f %f, u %f, Q %f, grad %f %f %f\n", act[0], error, out[0], out[1], out[2], _u[0], Q[0], grad[0], grad[1], grad[2]);
+    printf("act %f, err %f, out %f %f %f, u %f, Q %f, grad %f %f %f\n", act[0], error, out[0], out[1], out[2], _u[0], Q[0], grad[0], grad[1], grad[2]);
     //2 actions dim dump
     ///printf("act %f %f, err %f, out %f %f %f %f %f %f, u %f %f, Q %f, grad %f %f %f %f %f %f\n", act[0], act[1], error,
     ///out[0], out[1], out[2], out[3], out[4], out[5], _u[0], _u[1], Q[0], grad[0], grad[1], grad[2], grad[3], grad[4], grad[5]);
@@ -354,7 +354,7 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad,const vector<Real>& act,vec
         grad[1+nL+ia] = 0.;
         for (int i=0; i<nA; i++) {
             const int ind = nA*ia + i;
-            grad[1+nL+ia] += 2.*_A[ind]*_u[i];
+            grad[1+nL+ia] -= 2.*_A[ind]*_u[i];
         }
         grad[1+nL+ia] *= dQdA*error;
     }

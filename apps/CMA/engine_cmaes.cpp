@@ -4,7 +4,7 @@
 
 #define _XOPEN_SOURCE 500
 #define _BSD_SOURCE
-#define __RLON 0
+#define __RLON 1
 #define __NGENSKIP 10
 #include <stdio.h>
 #include <stdlib.h> /* free() */
@@ -21,7 +21,6 @@
 #define _IODUMP_ 0
 #define JOBMAXTIME	0
 #include "fitfun.c" 
-#include <omp.h>
 /* the objective (fitness) function to be minimized */
 void taskfun(double *x, int dim, double *res, int *info) {
 
@@ -80,7 +79,7 @@ int main(int argn, char **args)
     }
     const int sock = std::stoi(args[1]);
     const int nthreads = std::stoi(args[2]);
-    const int act_dim   = 1;
+    const int act_dim   = 4;
     const int state_dim = 5;
     std::seed_seq seq{sock};
 	std::vector<int> seeds(nthreads);
@@ -105,9 +104,8 @@ int main(int argn, char **args)
     //vector of actions received by RL
     std::vector<double> actions(act_dim);
 
-    #pragma omp parallel num_threads(nthreads)
     while (true) {
-    	const int thrid = omp_get_thread_num();
+    	const int thrid = 0;//omp_get_thread_num();
         cmaes_t evo; /* an CMA-ES type struct or "object" */
         double oldFmedian, *oldXmean; //related to RL rewards
         double *lower_bound, *upper_bound, *init_x, *init_std; //IC for cmaes
@@ -118,7 +116,7 @@ int main(int argn, char **args)
         const int runseed = cma_seed_distribution(*generators[thrid]);
         const int lambda = 4 + floor(3*std::log(func_dim));
         info[0] = func_ID_distribution(*generators[thrid]);
-        std::cout << "Selected function " << info[0] << std::endl;
+        //std::cout << "Selected function " << info[0] << std::endl;
 
 		init_x = (double*)malloc(func_dim * sizeof(double));
 		init_std = (double*)malloc(func_dim * sizeof(double));
@@ -136,20 +134,21 @@ int main(int argn, char **args)
         cmaes_ReadSignals(&evo, "cmaes_signals.par");  /* write header and initial values */
 
 #if __RLON 
-	#pragma omp critical
         {   // initial state
 			state[0] = 1;
 			state[1] = 1;
 			state[2] = 0;
 			state[3] = 0;
 			state[4] = (double)func_dim;
+         //printf("Thr %d sending state, apparent thrd safety\n", thrid); fflush(0);
 			comm.sendState(thrid, 1, state, 0);
 
 			comm.recvAction(actions);
 						   evo.sp.ccov1   = actions[0]; //rank 1 covariance update
 			if (act_dim>1) evo.sp.ccovmu  = actions[1]; //rank mu covariance update
 			if (act_dim>2) evo.sp.ccumcov = actions[2]; //path update c_c
-			if (act_dim>3) evo.sp.cs      = actions[3]; //step size control c_sigma
+			if (act_dim>3) evo.sp.cs      = actions[3]; //step size control c_sigmai
+         printf("selected action %f %f %f %f\n", evo.sp.ccov1, evo.sp.ccovmu, evo.sp.ccumcov, evo.sp.cs); fflush(0);
         }
 #endif
         
@@ -222,7 +221,6 @@ int main(int argn, char **args)
         	if (bConverged) break; //go to send terminal state
 
 #if __RLON
-	#pragma omp critical
 			{
 	        	update_state(&evo, state.data(), &oldFmedian, oldXmean, func_dim);
 				const double r = -.01;
@@ -232,6 +230,7 @@ int main(int argn, char **args)
 				if (act_dim>1) evo.sp.ccovmu  = actions[1]; //rank mu covariance update
 				if (act_dim>2) evo.sp.ccumcov = actions[2]; //path update c_c
 				if (act_dim>3) evo.sp.cs      = actions[3]; //step size control c_sigma
+         printf("selected action %f %f %f %f\n", evo.sp.ccov1, evo.sp.ccovmu, evo.sp.ccumcov, evo.sp.cs); fflush(0);
 			}
 #endif
         }
@@ -242,7 +241,6 @@ int main(int argn, char **args)
         const double r_end = 1. - 1e3*eval_distance_from_optimum(xfinal, func_dim, info)/(upper_bound[0]-lower_bound[0]);
         std::cout << r_end << std::endl;
 #if __RLON
-	#pragma omp critical
         {
         	comm.sendState(thrid, 2, state, std::max(-1.,r_end)); // final state: info is 2
         }

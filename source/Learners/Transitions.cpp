@@ -247,6 +247,7 @@ void Transitions::update_samples_mean()
 vector<Real> Transitions::standardize(const vector<Real>&  state) const
 {
 	vector<Real> tmp(sI.dimUsed);
+   assert(state.size() == sI.dimUsed);
    std::normal_distribution<Real> dist(0.,0.01);
 	for (int i=0; i<sI.dimUsed; i++) {
       tmp[i] = (state[i] - mean[i])/std[i];
@@ -260,7 +261,7 @@ void Transitions::synchronize()
 #if 1==1
 	assert(nSequences==Set.size() && NmaxDATA == nSequences);
 	for(auto & samp : Set) {
-		int count(0);
+		int count = 0;
 		samp->MSE = 0.;
 		for(const auto & t : samp->tuples) {
 			samp->MSE += t->SquaredError;
