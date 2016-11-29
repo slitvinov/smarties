@@ -34,7 +34,7 @@ void Learner::TrainBatch()
     
     if(bRecurrent) {
         
-        for (int i(0); i<batchSize; i++)
+        for (int i=0; i<batchSize; i++)
         {
             const int ind = data->inds.back();
             data->inds.pop_back();
@@ -47,7 +47,7 @@ void Learner::TrainBatch()
     } else {
         
         nAddedGradients = batchSize;
-        for (int i(0); i<batchSize; i++)
+        for (int i=0; i<batchSize; i++)
         {
             const int ind = data->inds.back();
             data->inds.pop_back();
@@ -108,7 +108,7 @@ void Learner::TrainTasking(Master* const master)
 			start = std::chrono::high_resolution_clock::now();
 
 			if(bRecurrent) {//we are using an LSTM: do BPTT
-				for (int i(0); i<batchSize; i++) {
+				for (int i=0; i<batchSize; i++) {
 					const int ind = data->inds.back();
 					data->inds.pop_back();
 					seq[i]  = ind;
@@ -118,7 +118,7 @@ void Learner::TrainTasking(Master* const master)
 				}
 				#pragma omp flush
 
-				for (int i(0); i<batchSize; i++) {
+				for (int i=0; i<batchSize; i++) {
 					#pragma omp task firstprivate(i)
 					{
 						const int thrID = omp_get_thread_num();
@@ -131,7 +131,7 @@ void Learner::TrainTasking(Master* const master)
 					}
 				}
 			} else {
-				for (int i(0); i<batchSize; i++)  {
+				for (int i=0; i<batchSize; i++)  {
 					const int ind = data->inds.back();
 					data->inds.pop_back();
 					int k(0), back(0), indT(data->Set[0]->tuples.size()-1);
@@ -146,7 +146,7 @@ void Learner::TrainTasking(Master* const master)
 				nAddedGradients = batchSize;
 				#pragma omp flush
 
-				for (int i(0); i<batchSize; i++) {
+				for (int i=0; i<batchSize; i++) {
 					#pragma omp task firstprivate(i)
 					{
 						const int thrID = omp_get_thread_num();
@@ -210,7 +210,7 @@ bool Learner::checkBatch() const
 
 void Learner::save(string name)
 {
-    //net->save(name + ".net");
+    net->save(name + ".net");
     const string stuff = name + ".status";
     FILE * f = fopen(stuff.c_str(), "w");
     if (f == NULL) die("Save fail\n");

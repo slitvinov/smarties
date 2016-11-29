@@ -94,7 +94,7 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const int handicap = min(static_cast<int>(data->Set.size())/500., stats.epochCount/10.);
+        const int handicap = min(static_cast<int>(data->Set.size())/500., stats.epochCount/200.);
         newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
     
@@ -172,7 +172,7 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     
     Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
     const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
-    //if (thrID==1) printf("%d %f %f\n",terminal, _t->r + gamma*target[0], err);
+    //if (thrID==1) printf("%d %f %f %f\n",terminal, _t->r,_t->r + gamma*target[0], err);
 
     dumpStats(Vstats[thrID], Q[0], err, Q);
     if(thrID == 1) net->updateRunning(sOldActivation);
