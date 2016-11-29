@@ -184,11 +184,11 @@ void NAF::Train(const int seq, const int samp, const int thrID)
     _dispose_object(sOldActivation);
 }
 
-#if 1==0 //original formulation of advantage = 0.5 (a - pi)' * A * (a - pi), does not work: why?
+#if 1==1 //original formulation of advantage = 0.5 (a - pi)' * A * (a - pi), does not work: why?
 
 vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, vector<Real>& out, Real& error) const
 {
-    vector<Real> Q(3), _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
+    vector<Real> Q(3,0), _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
     
     int kL = 1; //skip out[0] == V(state)
     for (int j=0; j<nA; j++)
