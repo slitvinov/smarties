@@ -22,7 +22,7 @@ protected:
     const string execpath;
     const int rank;
     mt19937 * g;
-    int n, workerid, sock, ListenerSocket, bytes, sizein, sizeout;
+    int nAgents, workerid, sock, ListenerSocket, bytes, sizein, sizeout;
     const double gamma;
     
     struct sockaddr_un serverAddress;

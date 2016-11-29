@@ -259,14 +259,21 @@ void Transitions::synchronize()
 {
 #if 1==1
 	assert(nSequences==Set.size() && NmaxDATA == nSequences);
-	for(auto & samp : Set) {
+	#pragma omp parallel for schedule(dynamic)
+	for(int i=0; i<Set.size(); i++) {
 		int count(0);
-		samp->MSE = 0.;
-		for(const auto & t : samp->tuples) {
-			samp->MSE += t->SquaredError;
+		Set[i]->MSE = 0.;
+
+		for(const auto & t : Set[i]->tuples) {
+			Set[i]->MSE += t->SquaredError;
 			count++;
 		}
-		samp->MSE /= count;
+		Set[i]->MSE /= (double)(count-1);
+		/*
+		for(const auto & t : Set[i]->tuples)
+		for (int i=0; i<sI.dimUsed; i++)
+		  Set[i]->MSE += std::pow((t->s[i] - mean[i])/std[i], 2);
+	   */
 	}
     const auto comparator=[this](Sequence* a, Sequence* b){ return a->MSE<b->MSE;};
     std::sort(Set.begin(), Set.end(), comparator);

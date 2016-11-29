@@ -23,7 +23,7 @@
 using namespace std;
 
 Environment::Environment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
-execpath(execpath), rank(_rank), g(settings.gen), n(nAgents), resetAll(true), workerid(_rank),
+execpath(execpath), rank(_rank), g(settings.gen), nAgents(nAgents), resetAll(true), workerid(_rank),
 sock(0), ListenerSocket(0), bytes(0), iter(0), max_scale(20, -1000), min_scale(20, 1000), gamma(settings.gamma)
 {
     for (int i=0; i<nAgents; i++) agents.push_back(new Agent(i));
@@ -124,6 +124,7 @@ int Environment::getState(int & iAgent)
         bStatus = -1;
     } else { // (bytes == nbyte)
         iAgent  = *((int*)  datain   );
+        assert(iAgent<nAgents);
         bStatus = *((int*) (datain+1)); //first (==1?), terminal (==2?), etc
         //debug3("Receiving from agent %d %d: ", iAgent, bStatus);
         
