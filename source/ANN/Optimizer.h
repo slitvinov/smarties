@@ -28,7 +28,7 @@ protected:
     
 public:
     const Real eta, lambda, alpha;
-    int nepoch;
+    long unsigned nepoch;
     
     Optimizer(Network * _net, Profiler * _prof, Settings & settings);
     
