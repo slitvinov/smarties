@@ -18,8 +18,8 @@ class DPG : public Learner
     const int nA, nS;
     Network* net_policy;
     Optimizer* opt_policy;
-    void Train_BPTT(const int seq, const int thrID=0) override;
-    void Train(const int seq, const int samp, const int thrID=0) override;
+    void Train_BPTT(const int seq, const int thrID=0) const override;
+    void Train(const int seq, const int samp, const int thrID=0) const override;
     
     void updateTargetNetwork() override;
     void stackAndUpdateNNWeights(const int nAddedGradients) override;
