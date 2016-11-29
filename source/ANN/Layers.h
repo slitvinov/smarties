@@ -404,11 +404,14 @@ public:
             if (dStddX>0 || link_vars[n]>_eps)
             	grad_vars[n] += dStddX;
 
-            const Real pid_avg =  dEdXhat*dMudX<0 ? -0.25*invstd : 0.25*invstd;
+            const Real pid_avg =  dEdXhat*dMudX<0 ? -0.25*invstd   //then change in mean already helps reduce error
+            								      :  0.25*invstd;
             const Real pid_std = link_inputs[n]-link_means[n] > 0  ? 
-                                 ( dStddX*dEdXhat<0 ? -0.25*invstd : 0.25*invstd)
+                                 ( dStddX*dEdXhat<0 ? -0.25*invstd //then change in std already helps reduce error
+                                		 	 	 	:  0.25*invstd)
                                                                    :
-                                 ( dStddX*dEdXhat>0 ? -0.25*invstd : 0.25*invstd);
+                                 ( dStddX*dEdXhat>0 ? -0.25*invstd //then change in std already helps reduce error
+                                		 	 	 	:  0.25*invstd);
 
             link_errors[n] = dEdXhat*(invstd + pid_avg + pid_std);
             

@@ -35,6 +35,43 @@ bool CMAEnvironment::predefinedNetwork(Network* const net) const
 	return false;
 }
 
+
+
+void CMAEnvironment::setAction(const int & iAgent)
+{
+			if(aI.dim > 0) {
+
+		std::uniform_real_distribution<Real> dist(0.,0.1);
+		if (fabs(agents[iAgent]->a->vals[0]) > .4 ||
+			fabs(agents[iAgent]->a->vals[0]) <= 0   )
+				 agents[iAgent]->a->vals[0] = dist(*g);
+
+	}  else if(aI.dim > 1) {
+
+		std::uniform_real_distribution<Real> dist(0.,0.1);
+		if (fabs(agents[iAgent]->a->vals[0]) > .4 ||
+			fabs(agents[iAgent]->a->vals[0]) <= 0   )
+				 agents[iAgent]->a->vals[0] = dist(*g);
+
+	}  else if(aI.dim > 2) {
+
+		std::uniform_real_distribution<Real> dist(0.,1.);
+		if (fabs(agents[iAgent]->a->vals[0]) > .9 ||
+			fabs(agents[iAgent]->a->vals[0]) <= 0   )
+				 agents[iAgent]->a->vals[0] = dist(*g);
+
+	}  else if(aI.dim > 3) {
+
+		std::uniform_real_distribution<Real> dist(0.,1.);
+		if (fabs(agents[iAgent]->a->vals[0]) > .9 ||
+			fabs(agents[iAgent]->a->vals[0]) <= 0   )
+				 agents[iAgent]->a->vals[0] = dist(*g);
+
+	}  else die("No actions sent?\n");
+
+	Environment::setAction(iAgent);
+}
+
 void CMAEnvironment::setDims() //this environment is for the cart pole test
 {
     {
@@ -56,7 +93,7 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
         sI.inUse.push_back(true); //ignore, leave as is
     }
     {
-        aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
+        aI.dim = 4; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
         for (int i=0; i<aI.dim; i++) {
         	const int nOptions = 5; //used if discrete actions: options available to agent for acting
@@ -67,11 +104,11 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
             //just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
             //i added the 0.1 is just to be extra safe when converting a float to an integer
 
-            aI.values[i].push_back(.0); //here the app accepts real numbers
-            aI.values[i].push_back(.1);
-            aI.values[i].push_back(.2);
-            aI.values[i].push_back(.3);
-            aI.values[i].push_back(.4);
+            aI.values[i].push_back(.01); //here the app accepts real numbers
+            aI.values[i].push_back(.03);
+            aI.values[i].push_back(.05);
+            aI.values[i].push_back(.07);
+            aI.values[i].push_back(.09);
             //the number of components must be ==nOptions
         }
     }
