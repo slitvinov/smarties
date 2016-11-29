@@ -65,7 +65,7 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     } else { //then if i'm using RNN i need to load recurrent connections
         Activation* prevActivation = net_policy->allocateActivation();
         net_policy->loadMemory(net_policy->mem[agentId], prevActivation);
-        net_policy->predict(scaledSold, output, prevActivation, currActivation, 0.01);
+        net_policy->predict(scaledSold, output, prevActivation, currActivation);
         data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
         _dispose_object(prevActivation);
     }
@@ -83,19 +83,21 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     
     Real newEps(greedyEps); //random action?
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const int handicap = min(static_cast<int>(data->Set.size())/500., stats.epochCount/10.);
-        newEps = (.1 +greedyEps*exp(-handicap));//*agentId/Real(agentId+1);
+        const int handicap = min(static_cast<int>(data->Set.size())/500., stats.epochCount/200.);
+        newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
         //printf("Random action %f %f %f %f\n",crutch_1,crutch_2,crutch_3,newEps);
     }
     
     uniform_real_distribution<Real> dis(0.,1.);
-    if(dis(*gen) < newEps) {
-        a.getRandom();
-        //printf("Random action %d  %f  for state %s %s\n",a.vals[0], a.valsContinuous[0],s.printScaled().c_str(),s.print().c_str());fflush(0);
+    if(dis(*gen) < newEps)  a.getRandom();
+    /*
+    if(dis(*gen) < newEps)  {
+    	a.getRandom();
+        printf("Random action %d  %f  for state %s %s\n",a.vals[0], a.valsContinuous[0],s.printScaled().c_str(),s.print().c_str());fflush(0);
     } else {
-        //printf("Net selected %f %f for state %s\n",act[0],a.valsContinuous[0],s.printScaled().c_str());fflush(0);
+        printf("Net selected %f %f for state %s\n",act[0],a.valsContinuous[0],s.printScaled().c_str());fflush(0);
     }
-    //if (info!=1) printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
+    */
 }
 
 void DPG::Train_BPTT(const int seq, const int thrID) const
@@ -125,7 +127,7 @@ void DPG::Train(const int seq, const int samp, const int thrID) const
     { //join state and action to predict Q
         vector<Real> input(scaledSold);
         input.insert(input.end(),_t->a.begin(),_t->a.end());
-        net->predict(input, Q, sOldQAct, 0.01);
+        net->predict(input, Q, sOldQAct);
     }
 
     const bool terminal = samp+2==data->Set[seq]->tuples.size() && data->Set[seq]->ended;
@@ -153,7 +155,7 @@ void DPG::Train(const int seq, const int samp, const int thrID) const
     //now update policy network:
     { //predict policy for sOld
         vector<Real> policy(nA), pol_gradient(nA);
-        net_policy->predict(scaledSold, policy, sOldAAct, 0.01);
+        net_policy->predict(scaledSold, policy, sOldAAct);
 
         //use it to compute activation with frozen weitghts for Q net
         vector<Real> input(scaledSold);
@@ -181,7 +183,6 @@ void DPG::Train(const int seq, const int samp, const int thrID) const
 void DPG::updateTargetNetwork()
 {
     if (cntUpdateDelay <= 0) { //DQN-style frozen weight
-        #pragma omp master
         cntUpdateDelay = tgtUpdateDelay;
         
         //2 options: either move tgt_wght = (1-a)*tgt_wght + a*wght
@@ -193,7 +194,7 @@ void DPG::updateTargetNetwork()
             net_policy->updateFrozenWeights(); //or copy tgt_wghts = wghts
         }
     }
-    #pragma omp master
+
     cntUpdateDelay--;
 }
 

@@ -112,7 +112,7 @@ public:
         orthogonalize(iW, _weights, nO, nI, nO_simd);
     }
     
-    virtual void restart(std::istringstream & buf, Real* const _weights) const override
+    void restart(std::istringstream & buf, Real* const _weights) const override
     {
     	for (int i = 0; i < nI; i++)
         for (int o = 0; o < nO; o++) {
@@ -124,14 +124,11 @@ public:
         }
     }
     
-    virtual void save(std::ostringstream & out, Real* const _weights) const override
+    void save(std::ostringstream & out, Real* const _weights) const override
     {
         out << std::setprecision(10);
-    	for (int i = 0; i < nI; i++)
-        for (int o = 0; o < nO; o++) {
-        	const int w = iW + nO_simd*i + o;
-        	out << _weights[w];
-        }
+    	for (int i=0; i<nI; i++) for (int o=0; o<nO; o++)
+        	out << _weights[iW + nO_simd*i + o]  << "\n";
     }
 
     inline void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
@@ -258,16 +255,16 @@ public:
     {
         out << std::setprecision(10);
         for (int i=0; i<nI; i++) for (int o=0; o<nO; o++)
-        	out << _weights[iW  + nO_simd*i + o];
+        	out << _weights[iW  + nO_simd*i + o] << "\n";
 
         for (int i=0; i<nI; i++) for (int o=0; o<nO; o++)
-        	out << _weights[iWI + nO_simd*i + o];
+        	out << _weights[iWI + nO_simd*i + o] << "\n";
 
         for (int i=0; i<nI; i++) for (int o=0; o<nO; o++)
-        	out << _weights[iWF + nO_simd*i + o];
+        	out << _weights[iWF + nO_simd*i + o] << "\n";
 
         for (int i=0; i<nI; i++) for (int o=0; o<nO; o++)
-        	out << _weights[iWO + nO_simd*i + o];
+        	out << _weights[iWO + nO_simd*i + o] << "\n";
     }
     
     void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
@@ -425,7 +422,7 @@ public:
         const int nAdded = filterWidth*filterHeight*inputDepth;
         for (int i = 0; i < nAdded; i++)
 		for (int o = 0; o < nO; o++)
-			out << _weights[iW + outputDepth_simd*i + o];
+			out << _weights[iW + outputDepth_simd*i + o] << "\n";
     }
     
     void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
@@ -523,9 +520,8 @@ public:
     void save(std::ostringstream & out, Real* const _weights) const override
     {
         out << std::setprecision(10);
-        for (int p=0 ; p<2; p++)
-        for (int o=0 ; o<nO; o++)
-            out << *(_weights +iW +p*nO_simd +o);
+        for (int p=0; p<2; p++) for (int o=0; o<nO; o++)
+            out << *(_weights +iW +p*nO_simd +o) << "\n";
     }
 
     void print() const override
@@ -534,17 +530,6 @@ public:
         fflush(0);
     }
 
-  /*  
-    void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const override
-    {
-        die("You really should not be able to get here.\n");
-    }
-    
-    void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const override
-    {
-        die("You really should not be able to get here as well.\n");
-    }
-*/
     void resetRunning() override {
     	if(runningAvg.size() != nO) runningAvg.resize(nO);
     	if(runningStd.size() != nO) runningStd.resize(nO);
@@ -604,11 +589,81 @@ struct Graph //misleading, this is just the graph for a single layer
         	_dispose_object(link);
         _dispose_object(links);
     }
+
+    void restart(std::istringstream & bufWeights,
+    			 std::istringstream & bufBiases,
+				 Real* const _weights,
+				 Real* const _biases) const
+    {
+    	for (const auto & l : *(links))
+			if(l not_eq nullptr) l->restart(bufWeights, _weights);
+
+    	Real tmp;
+
+		for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++) {
+			bufBiases >> tmp;
+			assert(not std::isnan(tmp) & not std::isinf(tmp));
+			*(_biases +w) = tmp;
+		}
+
+		if (LSTM) { //let all gates be biased towards open: better backprop
+			for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize; w++){
+				bufBiases >> tmp;
+				assert(not std::isnan(tmp) & not std::isinf(tmp));
+				*(_biases +w) = tmp;
+			}
+
+			for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize; w++){
+				bufBiases >> tmp;
+				assert(not std::isnan(tmp) & not std::isinf(tmp));
+				*(_biases +w) = tmp;
+			}
+
+			for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize; w++){
+				bufBiases >> tmp;
+				assert(not std::isnan(tmp) & not std::isinf(tmp));
+				*(_biases +w) = tmp;
+			}
+		}
+
+		if (firstBiasWhiten>=0)
+		for (int p=0 ; p<2; p++) for (int o=0 ; o<layerSize; o++){
+			bufBiases >> tmp;
+			assert(not std::isnan(tmp) & not std::isinf(tmp));
+			_biases[firstBiasWhiten + p*layerSize_simd+o] = tmp;
+		}
+    }
+
+    void save(std::ostringstream & outWeights,
+			  std::ostringstream & outBiases,
+			  Real* const _weights,
+			  Real* const _biases) const
+    {
+    	for (const auto & l : *(links))
+			if(l not_eq nullptr) l->save(outWeights, _weights);
+
+		for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++)
+			outBiases << *(_biases +w) << "\n";
+
+		if (LSTM) { //let all gates be biased towards open: better backprop
+			for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize; w++)
+				outBiases << *(_biases +w) << "\n";
+
+			for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize; w++)
+				outBiases << *(_biases +w) << "\n";
+
+			for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize; w++)
+				outBiases << *(_biases +w) << "\n";
+		}
+
+		if (firstBiasWhiten>=0)
+		for (int p=0 ; p<2; p++) for (int o=0 ; o<layerSize; o++)
+			outBiases << _biases[firstBiasWhiten + p*layerSize_simd+o] << "\n";
+    }
     
     void initializeWeights(mt19937* const gen, Real* const _weights, Real* const _biases) const
     {
-         
-      printf("Initializing biases 1stBw %d lS %d simd %d \n", firstBiasWhiten, layerSize, layerSize_simd);
+    	printf("Initializing biases 1stBw %d lS %d simd %d \n", firstBiasWhiten, layerSize, layerSize_simd);
         uniform_real_distribution<Real> dis(-sqrt(6./layerSize),sqrt(6./layerSize));
         assert(layerSize>0 && layerSize_simd>0 && firstNeuron_ID>=0);
 
