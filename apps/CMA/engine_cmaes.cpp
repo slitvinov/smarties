@@ -4,7 +4,7 @@
 
 #define _XOPEN_SOURCE 500
 #define _BSD_SOURCE
-#define __RLON 1
+#define __RLON 0
 #define __NGENSKIP 10
 #include <stdio.h>
 #include <stdlib.h> /* free() */

@@ -247,7 +247,11 @@ void Transitions::update_samples_mean()
 vector<Real> Transitions::standardize(const vector<Real>&  state) const
 {
 	vector<Real> tmp(sI.dimUsed);
-	for (int i=0; i<sI.dimUsed; i++) tmp[i] = (state[i] - mean[i])/std[i];
+   std::normal_distribution<Real> dist(0.,0.01);
+	for (int i=0; i<sI.dimUsed; i++) {
+      tmp[i] = (state[i] - mean[i])/std[i];
+      tmp[i] += dist(*(gen->g));
+   }
     return tmp;
 }
 

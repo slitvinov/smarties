@@ -144,7 +144,7 @@ int main(int argc, const char * argv[])
             comm->sendState(k, a.info, state, r);
             comm->recvAction(actions);
 
-            //printf("Cart acting %f\n", actions[0]); fflush(0);
+            //printf("Cart acting %f from state %f %f %f %f\n", actions[0],state[0],state[1],state[2],state[3]); fflush(0);
 
             a.F = actions[0];
             a.info = 0; //at least one comm is done, so i set info to 0
