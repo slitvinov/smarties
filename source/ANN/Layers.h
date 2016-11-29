@@ -346,6 +346,7 @@ public:
 
         for (int n=0; n<nNeurons; n++)
                 inputs[n] = (link_inputs[n] - link_means[n])/std::sqrt(std::max(_eps,  link_vars[n]));
+        //for (int n=0; n<nNeurons; n++) inputs[n] = link_inputs[n];
         
         if (noise>0) {
             normal_distribution<Real> dis(0.,noise);
@@ -398,21 +399,23 @@ public:
             //const Real fac = std::max(_eps, std::pow(link_vars[n],1.5));
             //const Real dXhatdStd = -.5*(link_inputs[n]-link_means[n])*std::pow(invstd, 3);
             //const Real dXhatdX = invstd;
-
+            
             grad_means[n] += dMudX;
             if (dStddX>0 || link_vars[n]>_eps)
             	grad_vars[n] += dStddX;
 
-            const Real pid_avg =  dEdXhat*dMudX<0 ? -0.5*invstd : 0.5*invstd;
+            const Real pid_avg =  dEdXhat*dMudX<0 ? -0.25*invstd : 0.25*invstd;
             const Real pid_std = link_inputs[n]-link_means[n] > 0  ? 
-                                 ( dStddX*dEdXhat<0 ? -0.5*invstd : 0.5*invstd)
+                                 ( dStddX*dEdXhat<0 ? -0.25*invstd : 0.25*invstd)
                                                                    :
-                                 ( dStddX*dEdXhat>0 ? -0.5*invstd : 0.5*invstd);
+                                 ( dStddX*dEdXhat>0 ? -0.25*invstd : 0.25*invstd);
 
             link_errors[n] = dEdXhat*(invstd + pid_avg + pid_std);
-
+            
             grad_scales[n] += inputs[n]*errors[n];
             grad_shifts[n] += errors[n];
+            
+            //link_errors[n] = dEdXhat*invstd;
         }
     }
 };

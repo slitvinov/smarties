@@ -39,7 +39,6 @@ void Optimizer::stackGrads(Grads* const G, const Grads* const g) const
 void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 {
     const int nThreads = g.size();
-    
     #pragma omp parallel
     {
 		#pragma omp for nowait
@@ -135,12 +134,14 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
         const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
         const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
         //const Real M1_ = std::min(std::max(M1,   -1e9),1e9);
-        const Real M2_ = std::min(std::max(M2,epsilon),1e9);
+        const Real M1_ = M1;
+        const Real M2_ = std::max(M2,epsilon);
         //slow down extreme updates (normalization):
         //const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_) / fac12;
         //const Real M1_ = std::max(std::min(TOP,M1),-TOP);
-        const Real DW_ = std::max(std::min(eta_*M1/sqrt(M2_), W),-W);
-        //_1stMom[i] = M1_;
+        const Real DW_ = std::max(std::min(eta_*M1_/sqrt(M2_), W),-W);
+        //const Real DW_ = eta_*M1_/sqrt(M2_);
+        _1stMom[i] = M1_;
         _2ndMom[i] = M2_;
         grad[i] = 0.; //reset grads
         

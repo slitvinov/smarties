@@ -126,6 +126,8 @@ void Learner::TrainTasking(Master* const master)
 
 						#pragma omp atomic
 						taskCounter++;
+            
+//                  printf("Thread %d performed task %d\n", thrID, taskCounter); fflush(0);
 					}
 				}
 			} else {
@@ -152,6 +154,8 @@ void Learner::TrainTasking(Master* const master)
 
 						#pragma omp atomic
 						taskCounter++;
+
+//                  printf("Thread %d performed task %d\n", thrID, taskCounter); fflush(0);
 					}
 				}
 			}
@@ -188,21 +192,19 @@ void Learner::updateTargetNetwork()
 {
 
     if (cntUpdateDelay <= 0) { //DQN-style frozen weight
-        #pragma omp master
         cntUpdateDelay = tgtUpdateDelay;
         
         //2 options: either move tgt_wght = (1-a)*tgt_wght + a*wght
         if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
         else net->updateFrozenWeights(); //or copy tgt_wghts = wghts
     }
-    #pragma omp master
     cntUpdateDelay--;
 }
 
 bool Learner::checkBatch() const
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    if (ndata<batchSize) return false; //do we have enough data?
+    if (ndata<10*batchSize) return false; //do we have enough data?
     return taskCounter >= batchSize;
 }
 

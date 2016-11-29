@@ -188,9 +188,9 @@ bWriteToFile(!(settings.samplesFile=="none"))
     #endif
     info.resize(agents.size());
     for (int i=0; i<agents.size(); i++) {
-        actions.push_back(*(new Action(env->aI, settings.gen)));
-        oldStates.push_back(*(new State(env->sI)));
-        States.push_back(*(new State(env->sI)));
+        actions.push_back(Action(env->aI, settings.gen));
+        oldStates.push_back(State(env->sI));
+        States.push_back(State(env->sI));
         info[i] = 1;
     }
     

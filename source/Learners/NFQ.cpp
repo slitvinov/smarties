@@ -91,8 +91,16 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     uniform_real_distribution<Real> dis(0.,1.);
     
     if(dis(*gen) < newEps) a.set(aInfo.labelToAction(nOutputs*dis(*gen)));
-
-    //else printf("Net selected %d %f for state %s\n",Nbest,a.vals[0],s.print().c_str());
+      /*
+    if(dis(*gen) < newEps) {
+        a.set(aInfo.labelToAction(nOutputs*dis(*gen)));
+        printf("Random action %f  for state  %s\n", 
+         a.vals[0], s.print().c_str()); fflush(0);
+    } else {
+        printf("Net selected %d %f for state %s\n",
+         Nbest, a.vals[0], s.print().c_str()); fflush(0);
+    }
+      */
 }
 
 void NFQ::Train_BPTT(const int seq, const int thrID)

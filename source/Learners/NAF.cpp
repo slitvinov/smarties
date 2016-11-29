@@ -100,6 +100,14 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     
     uniform_real_distribution<Real> dis(0.,1.);
     if(dis(*gen) < newEps) a.getRandom();
+      /*
+    if(dis(*gen) < newEps) {
+        a.getRandom();
+        printf("Random action %f  for state %s\n",a.vals[0], s.print().c_str());fflush(0);
+    } else {
+        printf("Net selected %f for state %s\n", a.vals[0], s.print().c_str()); fflush(0);
+    }
+      */
 }
 
 void NAF::Train_BPTT(const int seq, const int thrID)
@@ -126,6 +134,7 @@ void NAF::Train_BPTT(const int seq, const int thrID)
         
         Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
         const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
+        //if (thrID==1) printf("%d %d %f %f\n",k, terminal, _t->r + gamma*target[0], err);
         data->Set[seq]->tuples[k]->SquaredError = err*err;
         net->setOutputDeltas(gradient, timeSeries[k]);
         dumpStats(Vstats[thrID], Q[0], err, Q);
@@ -163,6 +172,7 @@ void NAF::Train(const int seq, const int samp, const int thrID)
     
     Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
     const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
+    //if (thrID==1) printf("%d %f %f\n",terminal, _t->r + gamma*target[0], err);
 
     dumpStats(Vstats[thrID], Q[0], err, Q);
     if(thrID == 1) net->updateRunning(sOldActivation);
@@ -194,15 +204,15 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, v
             if (i<=j) _L[nA*j + i] = out[kL++];
     }
 
-#ifndef NDEBUG
    /*
-    ostringstream o;
-	o << "[";
-	for (int i=0; i<nA*nA; i++) o << _L[i] << " ";
-	o << "]";
-	std::cout << o.str() std::endl; fflush(0);
-   */
-#endif
+   std::stringstream ooo;
+	ooo << "[";
+	for (int i=0; i<nA*nA; i++) 
+      ooo << _L[i] << " ";
+	ooo << "]";
+   printf("%s\n", ooo.str().c_str());
+   fflush(0);
+   */ 
     assert(kL==1+nL);
     
     //A = L * L'
