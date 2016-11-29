@@ -103,7 +103,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
       */
 }
 
-void NFQ::Train_BPTT(const int seq, const int thrID)
+void NFQ::Train_BPTT(const int seq, const int thrID) const
 {
     assert(net->allocatedFrozenWeights);
     vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
@@ -155,7 +155,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID)
     _dispose_object(tgtActivation);
 }
 
-void NFQ::Train(const int seq, const int samp, const int thrID)
+void NFQ::Train(const int seq, const int samp, const int thrID) const
 {
     assert(net->allocatedFrozenWeights);
     const int ndata = data->Set[seq]->tuples.size();

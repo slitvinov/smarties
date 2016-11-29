@@ -98,12 +98,12 @@ void DPG::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     //if (info!=1) printf("Agent %d: %s > %s with %s rewarded with %f acting %s\n", agentId, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(), r ,a.print().c_str());
 }
 
-void DPG::Train_BPTT(const int seq, const int thrID)
+void DPG::Train_BPTT(const int seq, const int thrID) const
 {
 	die("DPG with BPTT not implemented: do eet!\n");
 }
 
-void DPG::Train(const int seq, const int samp, const int thrID)
+void DPG::Train(const int seq, const int samp, const int thrID) const
 {
     assert(net->allocatedFrozenWeights && net_policy->allocatedFrozenWeights);
     

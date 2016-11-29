@@ -241,7 +241,7 @@ void Learner::restart(string name)
     }
 }
 
-void Learner::dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs)
+void Learner::dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs) const
 {
     const Real max_Q = *max_element(Qs.begin(), Qs.end());
     const Real min_Q = *min_element(Qs.begin(), Qs.end());

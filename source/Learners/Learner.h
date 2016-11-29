@@ -50,7 +50,7 @@ protected:
     virtual void Train(const int seq, const int samp, const int thrID=0)=0;
     
     void dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs);
-    void dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs);
+    void dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs) const;
     void processStats(vector<trainData*> _stats, const Real avgTime);
     virtual void updateTargetNetwork();
     virtual void stackAndUpdateNNWeights(const int nAddedGradients);

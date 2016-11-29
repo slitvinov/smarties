@@ -110,7 +110,7 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
       */
 }
 
-void NAF::Train_BPTT(const int seq, const int thrID)
+void NAF::Train_BPTT(const int seq, const int thrID) const
 {
     assert(net->allocatedFrozenWeights);
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
@@ -149,7 +149,7 @@ void NAF::Train_BPTT(const int seq, const int thrID)
     _dispose_object(tgtActivation);
 }
 
-void NAF::Train(const int seq, const int samp, const int thrID)
+void NAF::Train(const int seq, const int samp, const int thrID) const
 {
     assert(net->allocatedFrozenWeights);
     const int ndata = data->Set[seq]->tuples.size();
