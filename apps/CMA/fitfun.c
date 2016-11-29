@@ -65,11 +65,12 @@ double fitfun(double *x, int N, void *output, int *info)  {
 
         case LEVY: {
             double s = 0.;
-            for (i = 0; i < N-1; ++i)
-                s += .0625*pow(x[i]-1., 2)
-                    * (1.+10.*pow(sin(M_PI*.25*(3.+x[i])+1.), 2));
+            for (i = 0; i < N-1; ++i) {
+                s += .0625*pow(x[i]-1, 2)
+                    * (1.+10.*pow(sin(M_PI*.25*(3+x[i]) +1), 2));
+            }
             f = pow(sin(M_PI*.25*(3.+x[0])), 2) + s
-                + .0625*pow(x[N-1]-1., 2)*(1.+pow(sin(M_PI*.5*(3.+x[N-1])), 2));
+                + .0625*pow(x[N-1]-1, 2)*(1+pow(sin(M_PI*.5*(3+x[N-1])), 2));
             break;
         }
 
@@ -171,7 +172,7 @@ double fitfun(double *x, int N, void *output, int *info)  {
             double s1 = 0., s2 = 0.;
             for (i = 0; i < N; ++i) {
                 s1 += x[i]*x[i];
-                s2 = .5*(i+1.)*x[i];
+                s2 += .5*(i+1.)*x[i];
             }
             f = s1 + pow(s2, 2) + pow(s2, 4);
             break;
@@ -332,7 +333,7 @@ double eval_distance_from_optimum(double * found_optimum, int N, int *info) {
 
         case DIXON_PRICE: {
         	for (i = 0; i < N; ++i) {
-        		dist += pow(found_optimum[i] - pow(2, -1.+1./pow(2,i-1)), 2);
+        		dist += pow(found_optimum[i] - pow(2, -1.+1./pow(2,i)), 2);
             }
             break;
         }
@@ -433,7 +434,8 @@ double eval_distance_from_optimum(double * found_optimum, int N, int *info) {
             exit(1);
         }
     }
-std::cout << sqrt(dist)  << std::endl;
-		return sqrt(dist);
+
+	std::cout << sqrt(dist)  << std::endl;
+	return sqrt(dist);
 }
 
