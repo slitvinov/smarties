@@ -104,7 +104,7 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
 
 void NAF::Train_BPTT(const int seq, const int thrID)
 {
-    if(not net->allocatedFrozenWeights) die("Gitouttahier!\n");
+    assert(net->allocatedFrozenWeights);
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
     const int ndata = data->Set[seq]->tuples.size();
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
@@ -174,7 +174,7 @@ void NAF::Train(const int seq, const int samp, const int thrID)
     _dispose_object(sOldActivation);
 }
 
-#if 1==1 //original formulation of advantage = 0.5 (a - pi)' * A * (a - pi), does not work: why?
+#if 1==0 //original formulation of advantage = 0.5 (a - pi)' * A * (a - pi), does not work: why?
 
 vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, vector<Real>& out, Real& error) const
 {
@@ -190,8 +190,7 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act, v
         _uU[j] = *std::max_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j])) - out[1+nL+j];
         
         //put in place elements of lower diag matrix L
-        for (int i=0; i<nA; i++)
-            if (i<=j) _L[nA*j + i] = out[kL++];
+        for (int i=0; i<nA; i++) if (i<=j) _L[nA*j + i] = out[kL++];
     }
 
 #ifndef NDEBUG
@@ -279,36 +278,19 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad,const vector<Real>& act,vec
     vector<Real> Q(3,0), _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
     
     int kL(1);
-    for (int j(0); j<nA; j++) { //compute u = act-pi and matrix L
+    for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
         _u[j]  = act[j] - out[1+nL+j];
-        _uL[j] = -1.    - out[1+nL+j];
-        _uU[j] =  1.    - out[1+nL+j];
-
-        #ifdef _scaleR_
-        if (out[1+j]>1.-1e-10) out[1+j] = 1.-1e-10;
-        if (out[1+j]<1e-10-1.) out[1+j] = 1e-10-1.;
-        #endif
+        _uL[j] = *std::min_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j])) - out[1+nL+j];
+        _uU[j] = *std::max_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j])) - out[1+nL+j];
             
-        for (int i(0); i<nA; i++) {
-            const int ind = nA*j + i;
-            #ifdef _scaleR_
-            //if scaleR, net output is logic e [-1, 1] this transforms l outputs back to linear
-            if (i<=j) {
-                const Real l = .5*std::log((1+out[kL])/(1-out[kL]));
-                _L[ind] = l;
-                kL++;
-            }
-            #else
-            if (i<=j) _L[ind] = out[kL++];
-            #endif
-        }
+        for (int i=0; i<nA; i++) if (i<=j) _L[nA*j + i] = out[kL++];
     }
     assert(kL==1+nL);
     
-    for (int j(0); j<nA; j++)
-    for (int i(0); i<nA; i++) { //A = L * L'
+    for (int j=0; j<nA; j++)
+    for (int i=0; i<nA; i++) { //A = L * L'
         const int ind = nA*j + i;
-        for (int k(0); k<nA; k++) {
+        for (int k=0; k<nA; k++) {
             const int k1 = nA*j + k;
             const int k2 = nA*i + k;
             _A[ind] += _L[k1] * _L[k2];
@@ -318,56 +300,51 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad,const vector<Real>& act,vec
         Q[2] += _A[ind]*_uU[i]*_uU[j];
     }
     
-    const Real fac = .5*pow(Q[0],-.75);
-    Q[2] = out[0]-2.*std::pow(std::max(Q[1],Q[2]),0.25);
-    Q[0] = out[0]-2.*std::pow(Q[0],0.25);  //Q = V - 2*Adv^.25
+    const Real dQdA = -.5*pow(Q[0],-.75);
+    Q[2] = out[0] -2.*std::pow(std::max(Q[1],Q[2]),0.25);
+    Q[0] = out[0] -2.*std::pow(Q[0],0.25);  //Q = V - 2*Adv^.25
     Q[1] = out[0];
     error -= Q[0];
     
     grad[0] = error;
-    for (int il(0); il<nL; il++) {
-        int kD(0);
-        for (int j(0); j<nA; j++)
-        for (int i(0); i<nA; i++) {
+    for (int il=0; il<nL; il++) {
+        int kD=0;
+        for (int j=0; j<nA; j++)
+        for (int i=0; i<nA; i++) {
             const int ind = nA*j + i;
             _dLdl[ind] = 0;
             if(i<=j) { if(kD++==il) _dLdl[ind]=1; }
         }
         assert(kD==nL);
         
-        for (int j(0); j<nA; j++)
-        for (int i(0); i<nA; i++) {
+        for (int j=0; j<nA; j++)
+        for (int i=0; i<nA; i++) {
             const int ind = nA*j + i;
             _dPdl[ind] = 0;
             for (int k(0); k<nA; k++) {
                 const int k1 = nA*j + k;
                 const int k2 = nA*i + k;
-                _dPdl[ind] += _dLdl[k1]*_L[k2]+_L[k1]*_dLdl[k2];
+                _dPdl[ind] += _dLdl[k1]*_L[k2] + _L[k1]*_dLdl[k2];
             }
         }
         
         grad[1+il] = 0.;
-        for (int j(0); j<nA; j++)
-        for (int i(0); i<nA; i++) {
+        for (int j=0; j<nA; j++)
+        for (int i=0; i<nA; i++) {
             const int ind = nA*j + i;
-            grad[1+il] += -_dPdl[ind]*_u[i]*_u[j];
+            grad[1+il] += _dPdl[ind]*_u[i]*_u[j];
         }
         
-        #ifdef _scaleR_ 
-        //if scaleR, net output is logic e [-1, 1], this transforms l gradient back to linear
-        grad[1+il] *= fac*error/(1 - out[1+il]*out[1+il]);
-        #else
-        grad[1+il] *= fac*error;
-        #endif
+        grad[1+il] *= dQdA*error;
     }
     
-    for (int ia(0); ia<nA; ia++) {
+    for (int ia=0; ia<nA; ia++) {
         grad[1+nL+ia] = 0.;
-        for (int i(0); i<nA; i++) {
+        for (int i=0; i<nA; i++) {
             const int ind = nA*ia + i;
             grad[1+nL+ia] += 2.*_A[ind]*_u[i];
         }
-        grad[1+nL+ia] *= fac*error;
+        grad[1+nL+ia] *= dQdA*error;
     }
     //1 action dim dump:
     //printf("act %f, err %f, out %f %f %f, u %f, Q %f, grad %f %f %f\n", act[0], error, out[0], out[1], out[2], _u[0], Q[0], grad[0], grad[1], grad[2]);
