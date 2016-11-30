@@ -70,33 +70,42 @@ int main(int argn, char **args)
 {
     if (argn<3) {
         std::cout << "I did not receive the socket ID and nthreads. Aborting." << std::endl;
-        //abort();
+        abort();
     }
-    const int sock = std::stoi(args[1]);
-    const int nthreads = std::stoi(args[2]);
+
+    const int sock      = std::stoi(args[1]);
+    const int nthreads  = std::stoi(args[2]);
     const int act_dim   = 4;
     const int state_dim = 5;
     std::seed_seq seq{sock};
 	std::vector<int> seeds(nthreads);
 	seq.generate(seeds.begin(), seeds.end());
 	std::vector<std::mt19937*> generators(nthreads);
-	for (int i=0; i<nthreads; i++)
-       generators[i] = new std::mt19937(seeds[i]);
+	for (int i=0; i<nthreads; i++) generators[i] = new std::mt19937(seeds[i]);
 
-    std::uniform_real_distribution<double> start_x_distribution(0.35,0.65);
-    std::uniform_real_distribution<double> start_std_distribution(0.2,0.5);
     std::normal_distribution<double> func_dim_distribution(0, 3);
-    std::uniform_int_distribution<int> func_ID_distribution(0,_COUNT-1);
+    std::uniform_real_distribution<double> start_x_distribution(.3,.7);
+    std::uniform_real_distribution<double> start_std_distribution(.2,.5);
+    std::uniform_int_distribution<int> func_ID_distribution(0, _COUNT-1);
     std::uniform_int_distribution<long> cma_seed_distribution(0, std::numeric_limits<long>::max());
 
-    //communicator class, it needs a socket number sock, given by RL as first argument of execution
 #if __RLON
+    //communicator class, it needs a socket number sock, given by RL as first argument of execution
     Communicator comm(sock, state_dim, act_dim);
 #endif
+
     //vector of state variables
     std::vector<double> state(state_dim);
     //vector of actions received by RL
     std::vector<double> actions(act_dim);
+
+    {
+    	char filename[256];
+		sprintf(filename, "cma_perf_%02d.dat", thrid);
+		FILE *fp = fopen(filename, "a");
+		fprintf(fp, "dim func nstep dist feval\n");
+		fclose(fp);
+    }
 
     while (true) {
         int step = 0; // cmaes stepping
@@ -106,10 +115,12 @@ int main(int argn, char **args)
         double oldFmedian, *oldXmean; //related to RL rewards
         double *lower_bound, *upper_bound, *init_x, *init_std; //IC for cmaes
         double *arFunvals, *const*pop;  //cma current function values and samples
+
         const int func_dim = 1 + ceil(std::fabs(func_dim_distribution(*generators[thrid])));
         const int runseed = cma_seed_distribution(*generators[thrid]);
-        const int lambda = 4 + floor(3*std::log(func_dim));
         info[0] = func_ID_distribution(*generators[thrid]);
+        const int lambda = 4+floor(3*std::log(func_dim));
+        evo.sp.funcID = info[0];
 
 		init_x = (double*)malloc(func_dim * sizeof(double));
 		init_std = (double*)malloc(func_dim * sizeof(double));
@@ -133,7 +144,6 @@ int main(int argn, char **args)
 			state[2] = 0;
 			state[3] = 0;
 			state[4] = (double)func_dim;
-         //printf("Thr %d sending state, apparent thrd safety\n", thrid); fflush(0);
 			comm.sendState(thrid, 1, state, 0);
 
 			comm.recvAction(actions);
@@ -228,8 +238,18 @@ int main(int argn, char **args)
         
     	update_state(&evo, state.data(), &oldFmedian, oldXmean, func_dim);
         double* xfinal = cmaes_GetNew(&evo, "xmean");
-        const double r_end = 1. - 1e3*eval_distance_from_optimum(xfinal, func_dim, info)/(upper_bound[0]-lower_bound[0]);
+        double ffinal = - fitfun(xfinal, func_dim, (void *)NULL, info);
+        const double final_dist = eval_distance_from_optimum(xfinal, func_dim, info);
+        const double r_end = 1. - 1e3*final_dist/(upper_bound[0]-lower_bound[0]);
         //std::cout << r_end << std::endl;
+
+        { //print to file dim, function ID, nsteps, distance from opt, function value
+			char filename[256];
+			sprintf(filename, "cma_perf_%02d.dat", thrid);
+			FILE *fp = fopen(filename, "a");
+			fprintf(fp, "%d %d %d %e %e\n", func_dim, info[0], step, final_dist, ffinal);
+			fclose(fp);
+		}
 
 #if __RLON
         {
