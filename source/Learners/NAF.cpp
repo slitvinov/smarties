@@ -21,7 +21,7 @@
 
 
 NAF::NAF(Environment* env, Settings & settings) :
-Learner(env,settings), nA(aInfo.dim), nL((aInfo.dim*aInfo.dim+aInfo.dim)/2)
+Learner(env,settings), nA(env->aI.dim), nL((env->aI.dim*env->aI.dim+env->aI.dim)/2)
 {
 	string lType = bRecurrent ? "LSTM" : "Normal";
 	vector<int> lsize;

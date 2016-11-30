@@ -82,8 +82,8 @@ public:
      the index of the first weight iW along the weight vector
      the weights are all to all: so this link occupies space iW to (iW + nI*nO) along weight vector
      */
-	NormalLink(int nI, int iI, int nO, int iO, int iW, int nO_simd) :
-		iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), nO_simd(nO_simd), nW(nI*nO_simd)
+	NormalLink(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd) :
+		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nO_simd(_nO_simd), nW(_nI*_nO_simd)
     {
 		assert(iW % (__vec_width__/sizeof(Real)) == 0);
 		assert(iI % (__vec_width__/sizeof(Real)) == 0);
@@ -183,8 +183,8 @@ public:
      */
 	const int iW, nI, iI, nO, iO, iC, iWI, iWF, iWO, nO_simd, nW;
 
-	LinkToLSTM(int nI, int iI, int nO, int iO, int iC, int iW, int iWI, int iWF, int iWO, int nO_simd) :
-	iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), iC(iC), iWI(iWI), iWF(iWF), iWO(iWO), nO_simd(nO_simd), nW(nI*nO_simd) //i care nW per neuron, just for the asserts
+	LinkToLSTM(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO, int _nO_simd) :
+	iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), iC(_iC), iWI(_iWI), iWF(_iWF), iWO(_iWO), nO_simd(_nO_simd), nW(_nI*_nO_simd) //i care nW per neuron, just for the asserts
 	{
 		assert(iW  % (__vec_width__/sizeof(Real)) == 0);
 		assert(iWI % (__vec_width__/sizeof(Real)) == 0);
@@ -356,12 +356,12 @@ public:
 	const int strideX, strideY, padX, padY;
 	const int nW;
 
-	LinkToConv2D(int nI, int iI, int nO, int iO, int iW, int nO_simd,
-				int inW, int inH, int inD,
-    			int fW, int fH, int fN, int outW, int outH,
-				int sX=1, int sY=1, int pX=0, int pY=0) :
-	iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), outputDepth_simd(nO_simd), inputWidth(inW), inputHeight(inH), inputDepth(inD), filterWidth(fW), filterHeight(fH),
-	outputDepth(fN), outputWidth(outW), outputHeight(outH), strideX(sX), strideY(sY), padX(pX), padY(pY), nW(fW*fH*nO_simd*inD)
+	LinkToConv2D(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd,
+				int _inW, int _inH, int _inD,
+    			int _fW, int _fH, int _fN, int _outW, int _outH,
+				int _sX=1, int _sY=1, int _pX=0, int _pY=0) :
+	iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), outputDepth_simd(_nO_simd), inputWidth(_inW), inputHeight(_inH), inputDepth(_inD), filterWidth(_fW), filterHeight(_fH),
+	outputDepth(_fN), outputWidth(_outW), outputHeight(_outH), strideX(_sX), strideY(_sY), padX(_pX), padY(_pY), nW(_fW*_fH*_nO_simd*_inD)
 	{
 		assert(iW % (__vec_width__/sizeof(Real)) == 0);
 		assert(iI % (__vec_width__/sizeof(Real)) == 0);
@@ -494,7 +494,8 @@ class WhiteningLink : public Link
     vector<Real> runningAvg, runningStd;
 public:
 	const int iW, nI, iI, nO, iO, nW, nO_simd;
-	WhiteningLink(int nI, int iI, int nO, int iO, int iW, int nO_simd) : iW(iW), nI(nI), iI(iI), nO(nO), iO(iO), nW(2*nI), nO_simd(nO_simd)
+	WhiteningLink(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd) :
+		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nW(2*_nI), nO_simd(_nO_simd)
     { 
         print();
         assert(nI==nO && iI+nO_simd==iO);

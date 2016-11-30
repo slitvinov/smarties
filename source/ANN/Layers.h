@@ -37,8 +37,8 @@ class NormalLayer: public Layer
     const NormalLink* const recurrent_link;
 public:
     typedef outFunc Func;
-    NormalLayer(int nNeurons, int n1stNeuron, int n1stBias, const vector<NormalLink*>* const nl_il, const NormalLink* const nl_rl, const int nn_simd) :
-    nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), nNeurons_simd(nn_simd), input_links(nl_il), recurrent_link(nl_rl)
+    NormalLayer(int _nNeurons, int _n1stNeuron, int _n1stBias, const vector<NormalLink*>* const nl_il, const NormalLink* const nl_rl, const int nn_simd) :
+    nNeurons(_nNeurons), n1stNeuron(_n1stNeuron), n1stBias(_n1stBias), nNeurons_simd(nn_simd), input_links(nl_il), recurrent_link(nl_rl)
     {
 	   printf("Normal Layer of size %d, with first ID %d and first bias ID %d\n",nNeurons, n1stNeuron, n1stBias);
     }
@@ -102,9 +102,9 @@ class Conv2DLayer : public Layer
     const vector<LinkToConv2D*>* const input_links;
 public:
     typedef outFunc Func;
-    Conv2DLayer(int nNeurons, int n1stNeuron, int n1stBias, const vector<LinkToConv2D*>* const nl_il, const int nn_simd) :
-	nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), 
-    outputWidth(outputWidth), outputHeight(outputHeight), outputDepth(outputDepth), nNeurons_simd(nn_simd), input_links(nl_il)
+    Conv2DLayer(int _nNeurons, int _n1stNeuron, int _n1stBias, int _outputWidth, int _outputHeight, int _outputDepth, const vector<LinkToConv2D*>* const nl_il, const int nn_simd) :
+	nNeurons(_nNeurons), n1stNeuron(_n1stNeuron), n1stBias(_n1stBias),
+    outputWidth(_outputWidth), outputHeight(_outputHeight), outputDepth(_outputDepth), nNeurons_simd(nn_simd), input_links(nl_il)
     {
 	   printf("Conv2D Layer of size %d (%d x %d x %d), with first ID %d and first bias ID %d\n",
               nNeurons,outputWidth,outputHeight,outputDepth, n1stNeuron, n1stBias);
@@ -165,11 +165,11 @@ public:
     typedef gateFunc Sigm;
     typedef cellFunc Cell;
     
-    LSTMLayer(int nNeurons, int n1stNeuron, int indState,
-              int n1stBias, int n1stBiasIG, int n1stBiasFG, int n1stBiasOG,
+    LSTMLayer(int _nNeurons, int _n1stNeuron, int _indState,
+              int _n1stBias, int _n1stBiasIG, int _n1stBiasFG, int _n1stBiasOG,
               const vector<LinkToLSTM*>* const rl_il, const LinkToLSTM* const rl_rl, const int nn_simd) :
-    nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), n1stCell(indState), 
-    n1stBiasIG(n1stBiasIG), n1stBiasFG(n1stBiasFG), n1stBiasOG(n1stBiasOG), nNeurons_simd(nn_simd),
+    nNeurons(_nNeurons), n1stNeuron(_n1stNeuron), n1stBias(_n1stBias), n1stCell(_indState),
+    n1stBiasIG(_n1stBiasIG), n1stBiasFG(_n1stBiasFG), n1stBiasOG(_n1stBiasOG), nNeurons_simd(nn_simd),
     input_links(rl_il), recurrent_link(rl_rl)
     {
 	    printf("LSTM Layer of size %d, with first ID %d, first cell ID %d, and first bias ID %d\n",nNeurons, n1stNeuron, n1stCell, n1stBias);
@@ -320,8 +320,8 @@ class WhiteningLayer: public Layer
     const int nNeurons, n1stNeuron, n1stBias, nNeurons_simd;
     mt19937* const gen;
 public:
-	WhiteningLayer(int nNeurons, int n1stNeuron, int n1stBias, const WhiteningLink* const nl_il, mt19937* const gen, const int nn_simd) :
-    nNeurons(nNeurons), n1stNeuron(n1stNeuron), n1stBias(n1stBias), nNeurons_simd(nn_simd), link(nl_il), gen(gen)
+	WhiteningLayer(int _nNeurons, int _n1stNeuron, int _n1stBias, const WhiteningLink* const nl_il, mt19937* const _gen, const int nn_simd) :
+    nNeurons(_nNeurons), n1stNeuron(_n1stNeuron), n1stBias(_n1stBias), nNeurons_simd(nn_simd), link(nl_il), gen(_gen)
     {
         printf("Whitening layer of size %d starting from ID %d. Means/vars start at bias %d\n",nNeurons,n1stNeuron,n1stBias);
     }
