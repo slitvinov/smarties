@@ -40,31 +40,31 @@ public:
         _dispose_object(sOld);
         _dispose_object(a);
     }
-    virtual void getState(State& _s) const
+    void getState(State& _s) const
     {
         _s = *s;
     }
-    virtual void getAction(Action& _a) const
+    void getAction(Action& _a) const
     {
         _a = *a;
     }
-    virtual void getOldState(State& _s) const
+    void getOldState(State& _s) const
     {
         _s = *sOld;
     }
-    virtual void act(Action& _a)
+    void act(Action& _a)
     {
         *a = _a;
     }
-    virtual Real getReward()
+    Real getReward()
     {
         return r;
     }
 	
-	inline StateInfo getStateDims() {return sInfo;}
-    inline ActionInfo getActionDims() {return aInfo;}
+	StateInfo getStateDims() {return sInfo;}
+    ActionInfo getActionDims() {return aInfo;}
 	
-	inline void setDims(const StateInfo& stateInfo, const ActionInfo& actionInfo)
+	void setDims(const StateInfo& stateInfo, const ActionInfo& actionInfo)
 	{
         this->aInfo = actionInfo;
         this->sInfo = stateInfo;

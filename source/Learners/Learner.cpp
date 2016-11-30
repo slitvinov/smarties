@@ -13,7 +13,7 @@ Learner::Learner(Environment* env, Settings & settings) : nAgents(settings.nAgen
 batchSize(settings.dqnBatch), tgtUpdateDelay((int)settings.dqnUpdateC), nThreads(settings.nThreads),
 nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), bRecurrent(settings.nnType==1),
 bTrain(settings.bTrain==1), tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma),
-greedyEps(settings.greedyEps), cntUpdateDelay(-1), aInfo(env->aI), sInfo(env->sI), gen(settings.gen), taskCounter(batchSize)
+greedyEps(settings.greedyEps), cntUpdateDelay(-1), taskCounter(batchSize), aInfo(env->aI), sInfo(env->sI), gen(settings.gen)
 {
     for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
     profiler = new Profiler();
@@ -71,7 +71,7 @@ void Learner::TrainTasking(Master* const master)
 {
     std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
     vector<int> seq(batchSize), samp(batchSize), index(batchSize);
-    int nAddedGradients(0), maxBufSize(0);
+    int nAddedGradients(0);
     Real sumElapsed(0.); 
     int countElapsed(0);
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
