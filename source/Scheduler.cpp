@@ -29,7 +29,7 @@ a(env->aI,gen), totR(0), r(0), requested(false)
     outbuf  = new byte[outOneSize];
 }
 
-inline void Master::unpackChunk(byte* buf, int & info, State& sOld, Action& a, Real& r, State& s)
+inline void Master::unpackChunk(byte* buf, int & info, State& _sOld, Action& _a, Real& _r, State& _s)
 {
     static const int sSize   = sInfo.dim   * sizeof(Real);
     static const int actSize = actInfo.dim * sizeof(Real);
@@ -37,22 +37,22 @@ inline void Master::unpackChunk(byte* buf, int & info, State& sOld, Action& a, R
     info = *((int*) buf);
     buf += sizeof(int);
     
-    sOld.unpack(buf);
+    _sOld.unpack(buf);
     buf += sSize;
     
-    a.unpack(buf);
+    _a.unpack(buf);
     buf += actSize;
     
-    r = *((Real*) buf);
+    _r = *((Real*) buf);
     buf += sizeof(Real);
     
-    s.unpack(buf);
+    _s.unpack(buf);
 }
 
-inline void Master::packChunk(byte* buf, Action a)
+inline void Master::packChunk(byte* buf, Action _a)
 {
     //static const int actSize = actInfo.dim * sizeof(Real);
-    a.pack(buf);
+    _a.pack(buf);
 }
 
 void Master::restart(string fname)
@@ -179,8 +179,8 @@ void Master::hustle()
     die("How on earth could you possibly get here? \n");
 }
 
-Slave::Slave(Environment* env, int me, Settings & settings) :
-env(env), agents(env->agents), me(me), bTrain(settings.bTrain),
+Slave::Slave(Environment* _env, int _me, Settings & settings) :
+env(_env), agents(env->agents), me(_me), bTrain(settings.bTrain),
 bWriteToFile(!(settings.samplesFile=="none"))
 {
     #ifndef MEGADEBUG
