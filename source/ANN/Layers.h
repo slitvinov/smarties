@@ -18,6 +18,7 @@ using namespace std;
 class Layer
 {
     public:
+	virtual ~Layer() {};
     virtual void propagate(const Activation* const prev, Activation* const curr, 
                            const Real* const weights, const Real* const biases, const Real noise) const = 0;
     virtual void backPropagate( Activation* const prev,  Activation* const curr, const Activation* const next, Grads* const grad, const Real* const weights, const Real* const biases) const = 0;

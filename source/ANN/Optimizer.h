@@ -32,7 +32,7 @@ public:
     
     Optimizer(Network * _net, Profiler * _prof, Settings & settings);
     
-    ~Optimizer()
+    virtual ~Optimizer()
     {
         _myfree(_1stMomW);
         _myfree(_1stMomB);

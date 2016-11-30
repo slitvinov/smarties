@@ -143,7 +143,7 @@ public:
     }
 
 
-	virtual void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) {};
+	void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) {};
 
 	void updateBatchStatistics(Activation* const act) {
 		batch_counter++;
