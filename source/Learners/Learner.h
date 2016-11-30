@@ -59,7 +59,7 @@ protected:
 public:    
     Learner(Environment* env, Settings & settings);
     
-    ~Learner()
+    virtual ~Learner()
     {
         _dispose_object(profiler);
         _dispose_object(net);

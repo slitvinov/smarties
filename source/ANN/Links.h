@@ -23,6 +23,7 @@ using namespace std;
 class Link
 {
 public:
+	virtual ~Link() {}
 	virtual void print() const = 0;
 	virtual void initialize(mt19937* const gen, Real* const _weights) const = 0;
 	virtual void restart(std::istringstream & buf, Real* const _weights) const = 0;
