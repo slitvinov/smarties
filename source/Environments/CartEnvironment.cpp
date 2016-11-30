@@ -22,8 +22,8 @@
 
 using namespace std;
 
-CartEnvironment::CartEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
-Environment(nAgents, execpath, _rank, settings)
+CartEnvironment::CartEnvironment(const int _nAgents, const string _execpath, const int _rank, Settings & settings) :
+Environment(_nAgents, _execpath, _rank, settings)
 {
 }
 

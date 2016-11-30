@@ -11,8 +11,8 @@
 
 using namespace std;
 
-NewFishEnvironment::NewFishEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
-Environment(nAgents, execpath, _rank, settings), sight(settings.senses==0 || settings.senses==4), 
+NewFishEnvironment::NewFishEnvironment(const int _nAgents, const string _execpath, const int _rank, Settings & settings) :
+Environment(_nAgents, _execpath, _rank, settings), sight(settings.senses==0 || settings.senses==4),
 POV(settings.senses==1 || settings.senses==4), l_line(settings.senses==2), 
 p_sensors(settings.senses==3 || settings.senses==4), study(settings.rewardType), 
 goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
