@@ -76,7 +76,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     #endif
     
     //load computed policy into a
-    Real Val(-1e6); int Nbest;
+    Real Val(-1e6); int Nbest(-1);
     for (int i=0; i<nOutputs; ++i) {
         if (output[i]>Val) { Nbest=i; Val=output[i]; }
     }
