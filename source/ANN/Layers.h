@@ -98,16 +98,14 @@ public:
 template<typename outFunc>
 class Conv2DLayer : public Layer
 {
-    const int nNeurons, n1stNeuron, n1stBias, outputWidth, outputHeight, outputDepth, nNeurons_simd;
+    const int nNeurons, n1stNeuron, n1stBias, nNeurons_simd;
     const vector<LinkToConv2D*>* const input_links;
 public:
     typedef outFunc Func;
-    Conv2DLayer(int _nNeurons, int _n1stNeuron, int _n1stBias, int _outputWidth, int _outputHeight, int _outputDepth, const vector<LinkToConv2D*>* const nl_il, const int nn_simd) :
-	nNeurons(_nNeurons), n1stNeuron(_n1stNeuron), n1stBias(_n1stBias),
-    outputWidth(_outputWidth), outputHeight(_outputHeight), outputDepth(_outputDepth), nNeurons_simd(nn_simd), input_links(nl_il)
+    Conv2DLayer(int _nNeurons, int _n1stNeuron, int _n1stBias, const vector<LinkToConv2D*>* const nl_il, const int nn_simd) :
+	nNeurons(_nNeurons), n1stNeuron(_n1stNeuron), n1stBias(_n1stBias), nNeurons_simd(nn_simd), input_links(nl_il)
     {
-	   printf("Conv2D Layer of size %d (%d x %d x %d), with first ID %d and first bias ID %d\n",
-              nNeurons,outputWidth,outputHeight,outputDepth, n1stNeuron, n1stBias);
+	   printf("Conv2D Layer of size %d, with first ID %d and first bias ID %d\n", nNeurons,n1stNeuron, n1stBias);
     }
 
     void propagate(const Activation* const prev, Activation* const curr, 
