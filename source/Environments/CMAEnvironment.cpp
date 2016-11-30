@@ -22,8 +22,8 @@
 
 using namespace std;
 
-CMAEnvironment::CMAEnvironment(const int nAgents, const string execpath, const int _rank, Settings & settings) :
-Environment(settings.nThreads, execpath, _rank, settings)
+CMAEnvironment::CMAEnvironment(const int _nAgents, const string _execpath, const int _rank, Settings & settings) :
+Environment(settings.nThreads, _execpath, _rank, settings)
 {
 }
 

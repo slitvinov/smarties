@@ -600,8 +600,8 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
     for (int i=0; i<seq_len; i++) //figure out where to place some errors at random in outputs
         errorPlacements[i] = nOutputs*dis(*gen);
     
-    Grads * g = new Grads(nWeights,nBiases);
-    Grads * G = new Grads(nWeights,nBiases);
+    Grads * testg = new Grads(nWeights,nBiases);
+    Grads * testG = new Grads(nWeights,nBiases);
     clearErrors(timeSeries);
 
     for (int k=0; k<seq_len; k++) {
@@ -611,7 +611,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         setOutputDeltas(errs, timeSeries[k]);
     }
 
-    backProp(timeSeries, G);
+    backProp(timeSeries, testG);
     
     for (int w=0; w<nWeights; w++) {
         //1
@@ -629,14 +629,14 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         //0
         weights[w] += incr;
         
-        Real grad(0);
-        for (int k=0; k<seq_len; k++) grad += partialResults[k];
-        g->_W[w] = grad/(2.*incr);
+        Real diff(0);
+        for (int k=0; k<seq_len; k++) diff += partialResults[k];
+        testg->_W[w] = diff/(2.*incr);
         
         //const Real scale = fabs(*(biases+w));
-        const Real scale = std::max(std::fabs(G->_W[w]),std::fabs(g->_W[w]));
-        const Real err = (G->_W[w] - g->_W[w])/scale;
-        if (fabs(err)>1e-5) cout <<"W"<<w<<" analytical:"<<G->_W[w]<<" finite:"<<g->_W[w]<<" error:"<<err<<endl;
+        const Real scale = std::max(std::fabs(testG->_W[w]),std::fabs(testg->_W[w]));
+        const Real err = (testG->_W[w] - testg->_W[w])/scale;
+        if (fabs(err)>1e-5) cout <<"W"<<w<<" analytical:"<<testG->_W[w]<<" finite:"<<testg->_W[w]<<" error:"<<err<<endl;
     }
     
     for (int w=0; w<nBiases; w++) {
@@ -655,14 +655,14 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         //0
         *(biases+w) += incr;
         
-        Real grad(0);
-        for (int k=0; k<seq_len; k++) grad += partialResults[k];
-        g->_B[w] = grad/(2.*incr);
+        Real diff(0);
+        for (int k=0; k<seq_len; k++) diff += partialResults[k];
+        testg->_B[w] = diff/(2.*incr);
         
         //const Real scale = fabs(*(biases+w));
-        const Real scale = std::max(std::fabs(G->_B[w]), std::fabs(g->_B[w]));
-        const Real err = (G->_B[w] - g->_B[w])/scale;
-        if (fabs(err)>1e-5) cout <<"B"<<w<<" analytical:"<<G->_B[w]<<" finite:"<<g->_B[w]<<" error:"<<err<<endl;
+        const Real scale = std::max(std::fabs(testG->_B[w]), std::fabs(testg->_B[w]));
+        const Real err = (testG->_B[w] - testg->_B[w])/scale;
+        if (fabs(err)>1e-5) cout <<"B"<<w<<" analytical:"<<testG->_B[w]<<" finite:"<<testg->_B[w]<<" error:"<<err<<endl;
     }
 
     deallocateUnrolledActivations(&timeSeries);
