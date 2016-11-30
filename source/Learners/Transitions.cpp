@@ -215,9 +215,9 @@ void Transitions::update_samples_mean()
 		for(const auto & t : Set[i]->tuples) {
 			assert(t->s.size() == sI.dimUsed);
 			cnt++;
-			for (int i=0; i<sI.dimUsed; i++) {
-				sum2[i] += t->s[i]*t->s[i];
-				sum[i] += t->s[i];
+			for (int j=0; j<sI.dimUsed; j++) {
+				sum2[j] += t->s[j]*t->s[j];
+				sum[j] += t->s[j];
 			}
 		}
 
@@ -248,10 +248,10 @@ vector<Real> Transitions::standardize(const vector<Real>&  state) const
 {
 	vector<Real> tmp(sI.dimUsed);
    assert(state.size() == sI.dimUsed);
-   std::normal_distribution<Real> dist(0.,0.01);
+   std::normal_distribution<Real> noise(0.,0.01);
 	for (int i=0; i<sI.dimUsed; i++) {
       tmp[i] = (state[i] - mean[i])/std[i];
-      tmp[i] += dist(*(gen->g));
+      tmp[i] += noise(*(gen->g));
    }
     return tmp;
 }
