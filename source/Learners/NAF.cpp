@@ -135,7 +135,7 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
         
         Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
         const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
-        //if (thrID==1) printf("%d %d %f %f\n",k, terminal, _t->r + gamma*target[0], err);
+
         data->Set[seq]->tuples[k]->SquaredError = err*err;
         net->setOutputDeltas(gradient, timeSeries[k]);
         dumpStats(Vstats[thrID], Q[0], err, Q);
@@ -173,7 +173,6 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     
     Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
     const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
-    //if (thrID==1) printf("%d %f %f %f\n",terminal, _t->r,_t->r + gamma*target[0], err);
 
     dumpStats(Vstats[thrID], Q[0], err, Q);
     if(thrID == 1) net->updateRunning(sOldActivation);

@@ -32,7 +32,9 @@ struct StateInfo
         dimUsed = stateInfo.dimUsed;
         assert(dimUsed<=dim);
         inUse.resize(dim);
-        for (int i=0; i<dim; i++)  inUse[i] = (stateInfo.inUse[i]);
+        for (int i=0; i<dim; i++)
+        	inUse[i] = (stateInfo.inUse[i]);
+        return *this;
     }
 };
 
@@ -130,6 +132,7 @@ struct ActionInfo
         bounds = actionInfo.bounds;
         shifts = actionInfo.shifts;
         assert(values.size()==dim && bounds.size()==dim && shifts.size()==dim);
+        return *this;
     }
 
     //from action indices to unique label (for tables, DQN)
