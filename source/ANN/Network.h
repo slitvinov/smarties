@@ -143,24 +143,7 @@ public:
     }
 
 
-	void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) {};
-
-	void updateBatchStatistics(Activation* const act) {
-		batch_counter++;
-		const int invN = 1./batch_counter;
-		for(auto & graph : G)
-			for(auto & l : *(graph->links))
-				l->updateBatchStatistics(running_std, running_avg, act, invN);
-	}
-
-	void applyBatchStatistics() {
-		const int invNm1 = 1./(batch_counter-1);
-      printf("Applying batch statistics from %d samples\n", batch_counter);
-		batch_counter = 0;
-		for(auto & graph : G)
-			for(auto & l : *(graph->links))
-				l->applyBatchStatistics(running_std, running_avg, weights, invNm1);
-	}
+	void printRunning(int cnt, std::ostringstream & oa, std::ostringstream & os) {};
 
     void resetRunning() {
     	counter=0;

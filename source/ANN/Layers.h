@@ -316,8 +316,8 @@ public:
 
 class WhiteningLayer: public Layer
 {
-    const WhiteningLink* const link;
     const int nNeurons, n1stNeuron, n1stBias, nNeurons_simd;
+    const WhiteningLink* const link;
     mt19937* const gen;
 public:
 	WhiteningLayer(int _nNeurons, int _n1stNeuron, int _n1stBias, const WhiteningLink* const nl_il, mt19937* const _gen, const int nn_simd) :
