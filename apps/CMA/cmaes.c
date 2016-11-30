@@ -254,8 +254,7 @@ cmaes_SayHello(cmaes_t *t)
   /* write initial message */
   sprintf(t->sOutString, 
           "(%d,%d)-CMA-ES(mu_eff=%.1f), Ver=\"%s\", dimension=%d, diagonalIterations=%ld, randomSeed=%d (%s)", 
-          t->sp.mu, t->sp.lambda, t->sp.mueff, t->version, t->sp.N, (long)t->sp.diagonalCov,
-          t->sp.seed, getTimeStr());
+          t->sp.mu, t->sp.lambda, t->sp.mueff, t->version, t->sp.N, (long)t->sp.diagonalCov, t->sp.seed, getTimeStr());
 
   return t->sOutString; 
 }
@@ -827,6 +826,10 @@ cmaes_UpdateDistribution( cmaes_t *t, const double *rgFunVal)
   if (t->rgFuncValue[t->index[0]] == 
       t->rgFuncValue[t->index[(int)t->sp.lambda/2]]) {
     t->sigma *= exp(0.2+t->sp.cs/t->sp.damps);
+    printf("Going to have trouble with f %d: sigma %e cs %e damp %e ccov1 %e ccovmu %e ccumcov %e",
+    		t->sp.funcID, t->sigma, t->sp.cs, t->sp.damps, t->sp.ccov1, t->sp.ccovmu, t->sp.ccumcov);
+    fflush(0);
+    cmaes_ReadSignals(&evo, "../cmaes_signals.par");
     ERRORMESSAGE("Warning: sigma increased due to equal function values\n",
                  "   Reconsider the formulation of the objective function",0,0);
   }

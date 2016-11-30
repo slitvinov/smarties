@@ -85,6 +85,7 @@ typedef struct
   double stopTolUpXFactor;
 
   /* internal evolution strategy parameters */
+  int funcID;
   int lambda;          /* -> mu, <- N */
   int mu;              /* -> weights, (lambda) */
   double mucov, mueff; /* <- weights */
