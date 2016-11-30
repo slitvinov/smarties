@@ -12,9 +12,9 @@
 //#define CLEAN //dont
 #define NmaxDATA 10000
 
-Transitions::Transitions(Environment* env, Settings & settings):
-aI(env->aI), sI(env->sI), anneal(0), nBroken(0), nTransitions(0),
-nSequences(0), env(env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
+Transitions::Transitions(Environment* _env, Settings & settings):
+aI(_env->aI), sI(_env->sI), anneal(0), nBroken(0), nTransitions(0),
+nSequences(0), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
 path(settings.samplesFile), bSampleSeq(settings.nnType == 1), bRecurrent(settings.nnType==1),
 bWriteToFile(!(settings.samplesFile=="none")), iOldestSaved(0)
 {

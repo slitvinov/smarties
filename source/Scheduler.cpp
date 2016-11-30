@@ -16,11 +16,11 @@
 #include <algorithm>
 #include <cassert>
 
-Master::Master(Learner* learner, Environment* env, Settings & settings) :
-learner(learner), actInfo(env->aI), sInfo(env->sI), bTrain(settings.bTrain==1),
+Master::Master(Learner* _learner, Environment* env, Settings & settings) :
+learner(_learner), actInfo(env->aI), sInfo(env->sI), bTrain(settings.bTrain==1),
 nAgents(env->agents.size()), nSlaves(settings.nSlaves), saveFreq(settings.saveFreq),
-iter(0), agentId(-1), gen(settings.gen), sOld(sInfo), s(sInfo), aOld(actInfo,gen),
-a(actInfo,gen), totR(0), r(0), requested(false)
+iter(0), agentId(-1), gen(settings.gen), sOld(env->sI), s(env->sI), aOld(env->aI,gen),
+a(env->aI,gen), totR(0), r(0), requested(false)
 {
     inOneSize = sizeof(int) + (2*env->sI.dim +env->aI.dim +1)*sizeof(Real);
     inbuf  = new byte[inOneSize];
