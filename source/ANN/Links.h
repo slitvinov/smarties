@@ -361,7 +361,7 @@ public:
     			int _fW, int _fH, int _fN, int _outW, int _outH,
 				int _sX=1, int _sY=1, int _pX=0, int _pY=0) :
 	iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), outputDepth_simd(_nO_simd), inputWidth(_inW), inputHeight(_inH), inputDepth(_inD), filterWidth(_fW), filterHeight(_fH),
-	outputDepth(_fN), outputWidth(_outW), outputHeight(_outH), strideX(_sX), strideY(_sY), padX(_pX), padY(_pY), nW(_fW*_fH*_nO_simd*_inD)
+	outputWidth(_outW), outputHeight(_outH), outputDepth(_fN), strideX(_sX), strideY(_sY), padX(_pX), padY(_pY), nW(_fW*_fH*_nO_simd*_inD)
 	{
 		assert(iW % (__vec_width__/sizeof(Real)) == 0);
 		assert(iI % (__vec_width__/sizeof(Real)) == 0);
@@ -436,7 +436,7 @@ public:
             for(int fy=0; fy<filterHeight; fy++) {
                 const int cx(ix+fx), cy(iy+fy);
                 //padding: skip addition if outside input boundaries
-                if (cx < 0 || cy < 0 || cx >= inputWidth | cy >= inputHeight) continue;
+                if (cx < 0 || cy < 0 || cx >= inputWidth || cy >= inputHeight) continue;
 
                 const Real* __restrict__ const link_inputs = netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
                 __builtin_assume_aligned(link_inputs, __vec_width__);
@@ -464,7 +464,7 @@ public:
             for(int fy=0; fy<filterHeight; fy++) {
                 const int cx(ix+fx), cy(iy+fy);
                 //padding: skip addition if outside input boundaries
-                if (cx < 0 || cy < 0 || cx >= inputWidth | cy >= inputHeight) continue;
+                if (cx < 0 || cy < 0 || cx >= inputWidth || cy >= inputHeight) continue;
 
                 const Real* __restrict__ const link_inputs = netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
                       Real* __restrict__ const link_errors = netFrom->errvals +iI +inputDepth*(cy +inputHeight*cx);
@@ -568,8 +568,8 @@ struct Graph //misleading, this is just the graph for a single layer
 	int firstNeuron_ID; //recurrPos, normalPos;
     int firstState_ID;
     int firstBias_ID;
-    int firstBiasIG_ID, firstBiasFG_ID, firstBiasOG_ID;
     int firstBiasWhiten;
+    int firstBiasIG_ID, firstBiasFG_ID, firstBiasOG_ID;
     int layerWidth, layerHeight, layerDepth, layerDepth_simd;
     int padWidth, padHeight, featsWidth, featsHeight, featsNumber, strideWidth, strideHeight;
     vector<int> linkedTo;
