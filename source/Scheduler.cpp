@@ -19,7 +19,7 @@
 Master::Master(Learner* _learner, Environment* env, Settings & settings) :
 learner(_learner), actInfo(env->aI), sInfo(env->sI), bTrain(settings.bTrain==1),
 nAgents(env->agents.size()), nSlaves(settings.nSlaves), saveFreq(settings.saveFreq),
-iter(0), agentId(-1), gen(settings.gen), sOld(env->sI), s(env->sI), aOld(env->aI,gen),
+iter(0), gen(settings.gen), sOld(env->sI), s(env->sI), aOld(env->aI,gen),
 a(env->aI,gen), totR(0), r(0), requested(false)
 {
     inOneSize = sizeof(int) + (2*env->sI.dim +env->aI.dim +1)*sizeof(Real);
@@ -130,7 +130,7 @@ void Master::run()
 void Master::hustle()
 {
 #ifndef MEGADEBUG
-    int completed(0), slave(0), info(0), cnt(0), knt(0);
+    int completed(0), slave(0), info(0), cnt(0), knt(0), agentId(0);
     
     //this is only called the first time, the following Irecv will be sent at the end of the first comm
     //the idea is that while the communication is not done, we continue processing the NN update
