@@ -180,7 +180,7 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
     
     // find best action for sNew with moving wghts, evaluate it with tgt wgths:
     // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
-    int Nbest;
+    int Nbest(-1);
     Real Vhat(-1e10);
     for (int i=0; i<nOutputs; i++) {
     	if(Qhats[i]>Vhat) { Vhat=Qhats[i]; Nbest=i;  }
