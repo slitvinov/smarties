@@ -5,7 +5,7 @@
 #define _XOPEN_SOURCE 500
 #define _BSD_SOURCE
 #define __RLON 1
-#define __NGENSKIP 10
+#define __NGENSKIP 1
 #include <stdio.h>
 #include <stdlib.h> /* free() */
 #include "cmaes_interface.h"
@@ -32,7 +32,7 @@ void taskfun(double *x, int dim, double *res, int *info)
 #endif
 
 	double f = -fitfun(x, dim, (void *)NULL, info);	/* CMA-ES needs this minus sign */
-
+   //std::cout << f << std::endl;
 	*res = f;
 }
 
@@ -52,15 +52,16 @@ void update_state(cmaes_t * evo, double * const state, double* oldFmedian, doubl
 	double xProgress = 0.;
 	for (int i=0; i<func_dim; i++)
 		xProgress += pow(xMean[i]-oldXmean[i],2);
+   const double fmedian = cmaes_Get(evo, "fmedian");
 
 	state[0] = sqrt(evo->mindiagC/evo->maxdiagC);
 	state[1] = sqrt(evo->minEW/evo->maxEW);
 	state[2] = sqrt(xProgress);
-	state[3] = cmaes_Get(evo, "fmedian") - *oldFmedian;
+	state[3] = (fmedian - *oldFmedian)/(fabs(fmedian) + fabs(*oldFmedian));
 	state[4] = (double)func_dim;
 
 	//advance:
-	*oldFmedian = cmaes_Get(evo, "fmedian");
+	*oldFmedian = fmedian;
     for (int i=0; i<func_dim; i++) oldXmean[i] = xMean[i];
 	free(xMean);
 }
@@ -122,7 +123,11 @@ int main(int argn, char **args)
 			init_std[i] = start_std_distribution(*generators[thrid])*(upper_bound[i]-lower_bound[i]);
 		}
 
+#if __RLON
+        arFunvals = cmaes_init(&evo, func_dim, init_x, init_std, runseed, lambda, "../cmaes_initials.par");
+#else
         arFunvals = cmaes_init(&evo, func_dim, init_x, init_std, runseed, lambda, "cmaes_initials.par");
+#endif
         printf("%s\n", cmaes_SayHello(&evo));
         cmaes_ReadSignals(&evo, "cmaes_signals.par");  /* write header and initial values */
 
@@ -141,7 +146,7 @@ int main(int argn, char **args)
 			if (act_dim>1) evo.sp.ccovmu  = actions[1]; //rank mu covariance update
 			if (act_dim>2) evo.sp.ccumcov = actions[2]; //path update c_c
 			if (act_dim>3) evo.sp.cs      = actions[3]; //step size control c_sigmai
-         printf("selected action %f %f %f %f\n", evo.sp.ccov1, evo.sp.ccovmu, evo.sp.ccumcov, evo.sp.cs); fflush(0);
+         //printf("selected action %f %f %f %f\n", evo.sp.ccov1, evo.sp.ccovmu, evo.sp.ccumcov, evo.sp.cs); fflush(0);
         }
 #endif
         
@@ -178,7 +183,11 @@ int main(int argn, char **args)
             	}
 
                 /* read instructions for printing output or changing termination conditions */
+#if __RLON
+                //cmaes_ReadSignals(&evo, "../cmaes_signals.par");
+#else
                 cmaes_ReadSignals(&evo, "cmaes_signals.par");
+#endif
                 //fflush(stdout); /* useful in MinGW */
 #if VERBOSE
                 {
@@ -214,14 +223,14 @@ int main(int argn, char **args)
 #if __RLON
 			{
 	        	update_state(&evo, state.data(), &oldFmedian, oldXmean, func_dim);
-				const double r = -.01;
+				const double r = -.1;
 				comm.sendState(thrid, 0, state, r);
 				comm.recvAction(actions);
 							   evo.sp.ccov1   = actions[0]; //rank 1 covariance update
 				if (act_dim>1) evo.sp.ccovmu  = actions[1]; //rank mu covariance update
 				if (act_dim>2) evo.sp.ccumcov = actions[2]; //path update c_c
 				if (act_dim>3) evo.sp.cs      = actions[3]; //step size control c_sigma
-         printf("selected action %f %f %f %f\n", evo.sp.ccov1, evo.sp.ccovmu, evo.sp.ccumcov, evo.sp.cs); fflush(0);
+            //printf("selected action %f %f %f %f\n", evo.sp.ccov1, evo.sp.ccovmu, evo.sp.ccumcov, evo.sp.cs); fflush(0);
 			}
 #endif
         }

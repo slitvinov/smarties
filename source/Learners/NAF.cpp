@@ -94,7 +94,8 @@ void NAF::select(const int agentId,State& s,Action& a,State& sOld,Action& aOld,c
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const int handicap = min(static_cast<int>(data->Set.size())/500., opt->nepoch/1e4);
+        const int handicap = min(static_cast<int>(data->Set.size())/500., 
+                                (bRecurrent ? opt->nepoch/1e3 : opt->nepoch/1e4) );
         newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
     

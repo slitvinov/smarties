@@ -39,33 +39,33 @@ bool CMAEnvironment::predefinedNetwork(Network* const net) const
 
 void CMAEnvironment::setAction(const int & iAgent)
 {
-			if(aI.dim > 0) {
+		     if(aI.dim > 0) {
 
 		std::uniform_real_distribution<Real> dist(.01,0.1);
-		if (fabs(agents[iAgent]->a->vals[0]) > .4 ||
-			fabs(agents[iAgent]->a->vals[0]) <= 0   )
-				 agents[iAgent]->a->vals[0] = dist(*g);
+		if (agents[iAgent]->a->vals[0] > .4 ||
+		    agents[iAgent]->a->vals[0] < 1e-6 )
+			 agents[iAgent]->a->vals[0] = dist(*g);
 
 	}  else if(aI.dim > 1) {
 
 		std::uniform_real_distribution<Real> dist(.01,0.1);
-		if (fabs(agents[iAgent]->a->vals[0]) > .4 ||
-			fabs(agents[iAgent]->a->vals[0]) <= 0   )
-				 agents[iAgent]->a->vals[0] = dist(*g);
+		if (agents[iAgent]->a->vals[1] > .4 ||
+			 agents[iAgent]->a->vals[1] < 1e-6 )
+			 agents[iAgent]->a->vals[1] = dist(*g);
 
 	}  else if(aI.dim > 2) {
 
 		std::uniform_real_distribution<Real> dist(.1,.9);
-		if (fabs(agents[iAgent]->a->vals[0]) > .9 ||
-			fabs(agents[iAgent]->a->vals[0]) <= 0   )
-				 agents[iAgent]->a->vals[0] = dist(*g);
+		if (agents[iAgent]->a->vals[2] > .9 ||
+		    agents[iAgent]->a->vals[2] < 1e-6 )
+			 agents[iAgent]->a->vals[2] = dist(*g);
 
 	}  else if(aI.dim > 3) {
 
 		std::uniform_real_distribution<Real> dist(.1,.9);
-		if (fabs(agents[iAgent]->a->vals[0]) > .9 ||
-			fabs(agents[iAgent]->a->vals[0]) <= 0   )
-				 agents[iAgent]->a->vals[0] = dist(*g);
+		if (agents[iAgent]->a->vals[3] > .9 ||
+			 agents[iAgent]->a->vals[3] < 1e-6 )
+		    agents[iAgent]->a->vals[3] = dist(*g);
 
 	}  else die("No actions sent?\n");
 
@@ -85,7 +85,7 @@ void CMAEnvironment::spawn_server()
         sprintf(line, execpath.c_str());
         parse(line, largv);     // prepare argv
         
-        #if 0==1 //if true goes to stdout
+        #if 1==1 //if true goes to stdout
         char output[256];
         sprintf(output, "output_%d_%d", workerid,iter);
         int fd = open(output, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);

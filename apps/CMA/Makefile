@@ -1,7 +1,7 @@
 CC = g++
 
-#CPPFLAGS+=-std=c++11 -O3 -fopenmp
-CPPFLAGS+=-std=c++11 -O0 -g -fopenmp
+CPPFLAGS+=-std=c++11 -O3 -fopenmp
+#CPPFLAGS+=-std=c++11 -O0 -g -fopenmp
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = 	engine_cmaes.o communicator.o cmaes.o
