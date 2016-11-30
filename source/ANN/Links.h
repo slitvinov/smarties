@@ -62,8 +62,6 @@ public:
 				*(_weights+n0+k*n_simd+i) *= std::sqrt(v_d_v_pre/v_d_v_post);
 		}
 	}
-	virtual void updateBatchStatistics(Real* const stds, Real* const avgs, const Activation* const act, const Real invN) {};
-	virtual void applyBatchStatistics(Real* const stds, Real* const avgs, Real* const _weights, const Real invNm1) {};
 	virtual void resetRunning() {};
 	virtual void updateRunning(Activation* const act, const int counter) {};
 	virtual void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) {};
