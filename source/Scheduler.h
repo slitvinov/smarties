@@ -23,7 +23,7 @@ private:
     ActionInfo actInfo;
     StateInfo  sInfo;
     const bool bTrain;
-    int nAgents, nSlaves, saveFreq, iter, inOneSize, outOneSize, agentId;
+    int nAgents, nSlaves, saveFreq, iter, inOneSize, outOneSize;
     mt19937 * gen;
     State  sOld, s;
     Action aOld, a;
