@@ -7,17 +7,149 @@
  *
  */
 
+ #include <sys/time.h>
+ #include <sys/resource.h>
+ #include <unistd.h>
+ #include <cstdlib>
+#include <string.h>
+#include <stdio.h>      /* printf, fgets */
+#include <stdlib.h>     /* atol */
+ static void print_memory_usage()
+ {
+     char pidstatus[256];
+     char *line;
+     char *vmsize;
+     char *vmpeak;
+     char *vmrss;
+     char *vmhwm;
+
+     size_t len;
+
+     FILE *f;
+     static int times = 0;
+
+     if (times % 100 != 0)
+     {
+         //return;
+     }
+     times++;
+
+     sprintf(pidstatus, "/proc/%d/status", getpid());
+     vmsize = NULL;
+     vmpeak = NULL;
+     vmrss = NULL;
+     vmhwm = NULL;
+     //line = malloc(128);
+     line = static_cast<char*>(malloc(128));
+     len = 128;
+
+     f = fopen(pidstatus, "r");
+     if (!f) return;
+
+     /* Read memory size data from /proc/pid/status */
+     while (!vmsize || !vmpeak || !vmrss || !vmhwm)
+     {
+         if (getline(&line, &len, f) == -1)
+         {
+             /* Some of the information isn't there, die */
+             return;
+         }
+
+         /* Find VmPeak */
+         if (!strncmp(line, "VmPeak:", 7))
+         {
+             vmpeak = strdup(&line[7]);
+         }
+
+         /* Find VmSize */
+         else if (!strncmp(line, "VmSize:", 7))
+         {
+             vmsize = strdup(&line[7]);
+         }
+
+
+         /* Find VmRSS */
+         else if (!strncmp(line, "VmRSS:", 6))
+         {
+             vmrss = strdup(&line[7]);
+         }
+
+         /* Find VmHWM */
+         else if (!strncmp(line, "VmHWM:", 6))
+         {
+             vmhwm = strdup(&line[7]);
+         }
+     }
+     free(line);
+
+     fclose(f);
+
+
+     /* Get rid of " kB\n"*/
+     len = strlen(vmsize);
+     vmsize[len - 4] = 0;
+     len = strlen(vmpeak);
+     vmpeak[len - 4] = 0;
+     len = strlen(vmrss);
+     vmrss[len - 4] = 0;
+     len = strlen(vmhwm);
+     vmhwm[len - 4] = 0;
+
+     /* Output results to stderr */
+
+     /*
+      VmPeak: Peak virtual memory usage
+      VmSize: Current virtual memory usage
+      VmLck:  Current mlocked memory
+      VmHWM:  Peak resident set size
+      VmRSS:  Resident set size
+      VmData: Size of "data" segment
+      VmStk:  Size of stack
+      VmExe:  Size of "text" segment
+      VmLib:  Shared library usage
+      VmPTE:  Pagetable entries size
+      VmSwap: Swap space used
+      */
+
+     long _vmsize, _vmpeak, _vmrss, _vmhwm;
+
+     _vmsize = atol(vmsize);
+     _vmpeak = atol(vmpeak);
+     _vmrss = atol(vmrss);
+     _vmhwm = atol(vmhwm);
+
+     //      fprintf(stderr, "(PID=%d) VmSize:%s\tVmPeak:%s\tVmRSS:%s\tVmHWM:%s\n", getpid(), vmsize, vmpeak, vmrss, vmhwm);
+     printf("(PID=%d) VmSize:%8.1fMB, VmPeak:%8.1fMB, VmRSS:%8.1fMB, VmHWM:%8.1fMB\n",
+            getpid(), _vmsize/1024., _vmpeak/1024., _vmrss/1024., _vmhwm/1024.);
+
+     free(vmpeak);
+     free(vmsize);
+     free(vmrss);
+     free(vmhwm);
+
+     /* Success */
+     return;
+ }
+
 #include "Learner.h"
 #include <chrono>
-Learner::Learner(Environment* env, Settings & settings) : nAgents(settings.nAgents),
-batchSize(settings.dqnBatch), tgtUpdateDelay((int)settings.dqnUpdateC), nThreads(settings.nThreads),
-nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), bRecurrent(settings.nnType==1),
-bTrain(settings.bTrain==1), tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma),
-greedyEps(settings.greedyEps), cntUpdateDelay(-1), taskCounter(batchSize), aInfo(env->aI), sInfo(env->sI), gen(settings.gen)
+Learner::Learner(Environment* env, Settings & settings) :
+nAgents(settings.nAgents), batchSize(settings.dqnBatch),
+tgtUpdateDelay((int)settings.dqnUpdateC), nThreads(settings.nThreads),
+nInputs(settings.nnInputs), nOutputs(settings.nnOutputs),
+bRecurrent(settings.nnType==1), bTrain(settings.bTrain==1),
+tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma),
+greedyEps(settings.greedyEps), cntUpdateDelay(-1), taskCounter(batchSize),
+aInfo(env->aI), sInfo(env->sI), gen(settings.gen)
 {
     for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
     profiler = new Profiler();
     data = new Transitions(env, settings);
+}
+
+void Learner::clearFailedSim(const int agentOne, const int agentEnd)
+{
+  data->clearFailedSim(agentOne, agentEnd);
 }
 
 void Learner::TrainBatch()
@@ -25,44 +157,44 @@ void Learner::TrainBatch()
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
     if (ndata<batchSize) return; //do we have enough data?
     int nAddedGradients(0);
-    
+
     if (data->inds.size()<batchSize)
     { //uniform sampling
         data->updateSamples();
         processStats(Vstats, 0 ); //dump info about convergence
     }
-    
+
     if(bRecurrent) {
-        
+
         for (int i=0; i<batchSize; i++)
         {
             const int ind = data->inds.back();
             data->inds.pop_back();
             const int seqSize = data->Set[ind]->tuples.size();
             nAddedGradients += seqSize-1;
-            
+
             Train_BPTT(ind);
         }
-        
+
     } else {
-        
+
         nAddedGradients = batchSize;
         for (int i=0; i<batchSize; i++)
         {
             const int ind = data->inds.back();
             data->inds.pop_back();
-            
+
             int k(0), back(0), indT(data->Set[0]->tuples.size()-1);
             while (ind >= indT) {
                 back = indT;
                 indT += data->Set[++k]->tuples.size()-1;
             }
-            
+
             Train(k, ind-back);
         }
-        
+
     }
-    
+
     updateNNWeights(nAddedGradients);
     updateTargetNetwork();
 }
@@ -72,7 +204,7 @@ void Learner::TrainTasking(Master* const master)
     std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
     vector<int> seq(batchSize), samp(batchSize), index(batchSize);
     int nAddedGradients(0);
-    Real sumElapsed(0.); 
+    Real sumElapsed(0.);
     int countElapsed(0);
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
 
@@ -87,7 +219,7 @@ void Learner::TrainTasking(Master* const master)
             data->updateSamples();
             processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
             sumElapsed = 0; countElapsed=0;
-
+            //print_memory_usage();
             #if 1==0// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
             if (stats.epochCount++ % 100 == 0) {
                 vector<vector<Real>> inputs;
@@ -98,7 +230,7 @@ void Learner::TrainTasking(Master* const master)
             }
             #endif
         }
-		
+
 
 #pragma omp parallel num_threads(nThreads)
 #pragma omp master
@@ -124,7 +256,7 @@ void Learner::TrainTasking(Master* const master)
 
 						#pragma omp atomic
 						taskCounter++;
-            
+
 //                  printf("Thread %d performed task %d\n", thrID, taskCounter); fflush(0);
 					}
 				}
@@ -163,7 +295,8 @@ void Learner::TrainTasking(Master* const master)
             master->hustle(); //master goes to communicate with slaves
             #endif
             end = std::chrono::high_resolution_clock::now();
-            sumElapsed += std::chrono::duration<Real>(end-start).count()/nAddedGradients;
+            const auto len = std::chrono::duration<Real>(end-start).count();
+            sumElapsed += len/nAddedGradients;
             countElapsed++;
         }
 
@@ -192,7 +325,7 @@ void Learner::updateTargetNetwork()
 
     if (cntUpdateDelay <= 0) { //DQN-style frozen weight
         cntUpdateDelay = tgtUpdateDelay;
-        
+
         //2 options: either move tgt_wght = (1-a)*tgt_wght + a*wght
         if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
         else net->updateFrozenWeights(); //or copy tgt_wghts = wghts
@@ -223,8 +356,10 @@ void Learner::restart(string name)
       return;
     _info("Restarting from saved policy...\n");
     data->restartSamples();
-    if ( net->restart(name + ".net") ) {_info("Restart successful, moving on...\n");}
-    else { _info("Not all policies restarted, therefore assumed zero. Moving on...\n");}
+    if ( net->restart(name + ".net") )
+        _info("Restart successful, moving on...\n")
+    else
+        _info("Not all policies restarted. \n")
     save("restarted_policy.net");
     FILE * f = fopen("policy.status", "r");
     if(f != NULL) {
@@ -240,7 +375,8 @@ void Learner::restart(string name)
     }
 }
 
-void Learner::dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs) const
+void Learner::dumpStats(trainData* const _stats, const Real& Q,
+                        const Real& err, const vector<Real>& Qs) const
 {
     const Real max_Q = *max_element(Qs.begin(), Qs.end());
     const Real min_Q = *min_element(Qs.begin(), Qs.end());
@@ -256,7 +392,7 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
 {
     stats.minQ= 1e5; stats.maxQ=-1e5; stats.MSE=0;
     stats.avgQ=0; stats.relE=0; stats.dumpCount=0;
-    
+
     for (int i=0; i<_stats.size(); i++) {
         stats.MSE += _stats[i]->MSE;
         stats.relE += _stats[i]->relE;
@@ -267,10 +403,10 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
         _stats[i]->minQ= 1e5; _stats[i]->maxQ=-1e5; _stats[i]->MSE=0;
         _stats[i]->avgQ=0; _stats[i]->relE=0; _stats[i]->dumpCount=0;
     }
-    
+
     if (stats.dumpCount<2) return;
     stats.epochCount++;
-    
+
 
     Real sumWeights(0.);
     for (int w=0; w<net->nWeights; w++){
@@ -286,12 +422,15 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
 
     ofstream filestats;
     filestats.open("stats.txt", ios::app);
-    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, errWeights %f, N %d, dT %f\n",
-	   stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ, stats.maxQ, sumWeights, stats.dumpCount, avgTime);
-    filestats<<
-    stats.epochCount<<" "<<stats.MSE<<" "<<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "<<sumWeights<<" "<<stats.minQ<<endl;
+    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, "
+           "min_Q %f, max_Q %f, errWeights %f, N %d, dT %f\n",
+      	   stats.epochCount, stats.MSE, stats.relE, stats.avgQ,
+           stats.minQ, stats.maxQ, sumWeights, stats.dumpCount, avgTime);
+    filestats<<stats.epochCount<<" "<<stats.MSE<<" "
+             <<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "
+             <<sumWeights<<" "<<stats.minQ<<endl;
     filestats.close();
-    
+
     fflush(0);
     if (stats.epochCount % 100==0) save("policy");
 }
@@ -304,7 +443,7 @@ void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
     //for (int i=0; i<Qs.size(); i++) o << Qs[i] << " ";
     //o << "]";
     //printf("Process %f - %f : %s\n", tgt, Q, string(o.str()).c_str());
- 
+
     const Real max_Q = *max_element(Qs.begin(), Qs.end());
     const Real min_Q = *min_element(Qs.begin(), Qs.end());
     stats.MSE  += err*err;
@@ -313,12 +452,12 @@ void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
     stats.minQ = std::min(stats.minQ,Q);
     stats.maxQ = std::max(stats.maxQ,Q);
     stats.dumpCount++;
-    
+
     if (data->nTransitions==stats.dumpCount && data->nTransitions>1) {
         stats.MSE /=(stats.dumpCount-1);
         stats.avgQ/=stats.dumpCount;
         stats.relE/=stats.dumpCount;
-        
+
         ofstream filestats;
         filestats.open("stats.txt", ios::app);
         printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, N %d\n",
@@ -326,12 +465,12 @@ void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
         filestats<<
                stats.epochCount<<" "<<stats.MSE<<" "<<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
         filestats.close();
-        
+
         stats.dumpCount = 0;
         stats.epochCount++;
         data->anneal++;
         if (stats.epochCount % 100==0) save("policy");
-        
+
         stats.minQ=1e5; stats.maxQ=-1e5; stats.MSE=0; stats.avgQ=0; stats.relE=0;
     }
 }

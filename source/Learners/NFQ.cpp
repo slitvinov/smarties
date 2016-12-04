@@ -49,7 +49,8 @@ NFQ::NFQ(Environment* env, Settings & settings) : Learner(env,settings)
     opt = new AdamOptimizer(net, profiler, settings);
 }
 
-void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r)
+void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
+									Action& aOld, const int info, Real r)
 {
     Activation* currActivation = net->allocateActivation();
     vector<Real> output(nOutputs), inputs(nInputs);
@@ -66,7 +67,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
         data->passData(agentId, info, sOld, aOld, s, r);
         _dispose_object(prevActivation);
     }
-    
+
     //save network transition
     net->loadMemory(net->mem[agentId], currActivation);
     _dispose_object(currActivation);
@@ -74,29 +75,29 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
     #ifdef _dumpNet_
     net->dump(agentId);
     #endif
-    
+
     //load computed policy into a
     Real Val(-1e6); int Nbest(-1);
     for (int i=0; i<nOutputs; ++i) {
         if (output[i]>Val) { Nbest=i; Val=output[i]; }
     }
     a.set(aInfo.labelToAction(Nbest));
-    
+
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
         const int handicap = min(static_cast<int>(data->Set.size())/500.,
-                                (bRecurrent ? opt->nepoch/1e3 : opt->nepoch/1e4) );
+                              (bRecurrent ? opt->nepoch/1e3 : opt->nepoch/1e4));
 //        const int handicap = min(static_cast<int>(data->Set.size())/500., opt->nepoch/1e4);
         newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
     uniform_real_distribution<Real> dis(0.,1.);
-    
+
     if(dis(*gen) < newEps) a.set(aInfo.labelToAction(nOutputs*dis(*gen)));
       /*
     if(dis(*gen) < newEps) {
         a.set(aInfo.labelToAction(nOutputs*dis(*gen)));
-        printf("Random action %f  for state  %s\n", 
+        printf("Random action %f  for state  %s\n",
          a.vals[0], s.print().c_str()); fflush(0);
     } else {
         printf("Net selected %d %f for state %s\n",
@@ -108,7 +109,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld, Action& aO
 void NFQ::Train_BPTT(const int seq, const int thrID) const
 {
     assert(net->allocatedFrozenWeights);
-    vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
+    vector<Real> Qs(nOutputs),Qhats(nOutputs),Qtildes(nOutputs),errs(nOutputs);
     const int ndata = data->Set[seq]->tuples.size();
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
     Activation* tgtActivation = net->allocateActivation();
@@ -121,18 +122,21 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
 
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1
         Qs = Qhats; //Q(sNew) predicted at previous loop with moving wghts is current Q
-        
+
         const Tuple * const _t = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
         const bool terminal = k+2==ndata && data->Set[seq]->ended;
 
         if (not terminal) {
         	vector<Real> scaledSnew = data->standardize(_t->s);
-    		net->predict(scaledSnew, Qtildes, timeSeries[k], tgtActivation, net->tgt_weights, net->tgt_biases);
+    			net->predict(scaledSnew, Qtildes, timeSeries[k], tgtActivation,
+																					net->tgt_weights, net->tgt_biases);
 
-            if (k+2==ndata) net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation);
-            else            net->predict(scaledSnew, Qhats, timeSeries, k+1);
+            if (k+2==ndata)
+								net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation);
+            else
+								net->predict(scaledSnew, Qhats, timeSeries, k+1);
         }
-        
+
         // find best action for sNew with moving wghts, evaluate it with tgt wgths:
         // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
         int Nbest(-1);
@@ -162,9 +166,9 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
 {
     assert(net->allocatedFrozenWeights);
     const int ndata = data->Set[seq]->tuples.size();
-    vector<Real> Qs(nOutputs), Qhats(nOutputs), Qtildes(nOutputs), errs(nOutputs, 0);
+    vector<Real> Qs(nOutputs),Qhats(nOutputs),Qtildes(nOutputs),errs(nOutputs);
 
-    vector<Real> scaledSold = data->standardize(data->Set[seq]->tuples[samp]->s);
+    vector<Real> scaledSold =data->standardize(data->Set[seq]->tuples[samp]->s);
     const Tuple* const _t = data->Set[seq]->tuples[samp+1];
     Activation* sOldActivation = net->allocateActivation();
     sOldActivation->clearErrors();
@@ -176,10 +180,11 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
     	vector<Real> scaledSnew = data->standardize(_t->s);
         Activation* sNewActivation = net->allocateActivation();
         net->predict(scaledSnew, Qhats,   sNewActivation);
-        net->predict(scaledSnew, Qtildes, sNewActivation, net->tgt_weights, net->tgt_biases);
+        net->predict(scaledSnew, Qtildes, sNewActivation,
+															net->tgt_weights, net->tgt_biases);
         _dispose_object(sNewActivation);
     }
-    
+
     // find best action for sNew with moving wghts, evaluate it with tgt wgths:
     // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
     int Nbest(-1);
@@ -187,13 +192,13 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
     for (int i=0; i<nOutputs; i++) {
     	if(Qhats[i]>Vhat) { Vhat=Qhats[i]; Nbest=i;  }
     }
-    
+
     const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[Nbest];
     const int action = aInfo.actionToLabel(_t->a);
     const Real err =  (target - Qs[action]);
     //printf("t %f r %f e %f Q %f\n", target, _t->r, err, Qs[action]); fflush(0);
     errs[action] = err;
-    
+
     dumpStats(Vstats[thrID], Qs[action], err, Qs);
     if(thrID == 1) net->updateRunning(sOldActivation);
     data->Set[seq]->tuples[samp]->SquaredError = err*err;

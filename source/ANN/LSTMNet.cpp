@@ -58,19 +58,19 @@ bool FishNet::restart(string fname)
 void FishNet::train(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, int batchsize, int nepochs)
 {
     if (inputs.size() != targets.size()) die("Mismatch between batch size of targets and inputs\n");
-    
+
     std::chrono::time_point<std::chrono::high_resolution_clock> start,end;
     const int ndata = inputs.size();
     const int nbatches = floor((Real)ndata/batchsize);
     vector<const vector<Real>*> batch_in(batchsize), batch_out(batchsize);
-    
+
     indexes.reserve(ndata);
     for (int i=0; i<ndata; ++i)  {
         if (static_cast<int>(inputs[i].size()) != nInputs) die("Mismatch between size of input %d and net inputs\n",i);
         if (static_cast<int>(targets[i].size()) != nOutputs) die("Mismatch between size of output %d and net outputs\n",i);
         indexes.push_back(i);
     }
-    
+
     for (int e=0; e<nepochs; e++) {
         start = std::chrono::high_resolution_clock::now();
         Real batch_err(0.), err;
@@ -92,11 +92,11 @@ void FishNet::train(const vector<vector<Real>>& inputs, const vector<vector<Real
 void FishNet::train(const vector<vector<vector<Real>>>& inputs, const vector<vector<vector<Real>>>& targets, int nepochs)
 {
     if (inputs.size() != targets.size()) die("Mismatch between batch size of targets and inputs\n");
-    printf("Data has size %d %d\n",inputs.size(), inputs[0].size());
-    
+    printf("Data has size %lu %lu\n",inputs.size(), inputs[0].size());
+
     std::chrono::time_point<std::chrono::high_resolution_clock> start,end;
     const int ndata = inputs.size();
-    vector<int> indexes;
+
     indexes.reserve(ndata);
     for (int i=0; i<ndata; ++i)  {
         if (inputs[i].size() != targets[i].size()) die("Mismatch between batch size of targets and inputs\n");
@@ -131,10 +131,10 @@ void FishNet::trainBatch(const vector<const vector<Real>*>& inputs, const vector
     vector<Real> res(nOutputs), errs(nOutputs,0);
     Activation* netActivation = net->allocateActivation();
     netActivation->clearErrors();
-    
+
     for (int k=0; k<nseries; k++) {
         net->predict(*(inputs[k]), res, netActivation);
-        
+
         for (int j =0; j<nOutputs; j++) {
             const Real err = (*(targets[k]))[j] - res[j];
             errs[j] = err;
@@ -154,7 +154,7 @@ void FishNet::trainSeries(const vector<vector<Real>>& inputs, const vector<vecto
     const int nseries = inputs.size();
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(nseries);
     net->clearErrors(timeSeries);
-    
+
     for (int k=0; k<nseries; k++) {
     	net->predict(inputs[k], res, timeSeries, k);
 
@@ -165,7 +165,7 @@ void FishNet::trainSeries(const vector<vector<Real>>& inputs, const vector<vecto
         }
         net->setOutputDeltas(errs, timeSeries[k]);
     }
-    
+
     net->backProp(timeSeries, net->grad);
     opt->update(net->grad,nseries);
     trainMSE /= (Real)nseries;
@@ -180,7 +180,7 @@ void FishNet::predict(const vector<Real>& S1, vector<Real>& Q1, const vector<Rea
     Activation* prevActivation = net->allocateActivation();
     Activation* currActivation = net->allocateActivation();
     Activation* nextActivation = net->allocateActivation();
-    
+
     Q1.resize(nOutputs);
     Q2.resize(nOutputs);
     net->loadMemory(net->mem[iAgent], prevActivation);
@@ -199,7 +199,7 @@ void FishNet::predict(const vector<Real>& input, vector<Real>& output, int iAgen
     if (iAgent  >= static_cast<int>(net->mem.size())) die("Wrong agent dim\n");
     Activation* prevActivation = net->allocateActivation();
     Activation* currActivation = net->allocateActivation();
-    
+
     output.resize(nOutputs); //might be a problem. Then again, I wouldn't call it MY problem
     net->loadMemory(net->mem[iAgent], prevActivation);
     net->predict(input, output, prevActivation, currActivation);
@@ -215,7 +215,7 @@ void FishNet::predict(const vector<vector<Real>>& inputs, vector<vector<Real>>& 
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(nseries);
     vector<Real> res(nOutputs);
     outputs.clear();
-    
+
     for (int k=0; k<nseries; k++) {
         if (nInputs != static_cast<int>(inputs[k].size())) die("Wrong input %d dim\n", k);
         net->predict(inputs[k], res, timeSeries, k);

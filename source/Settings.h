@@ -21,6 +21,9 @@ using namespace std;
 #include <immintrin.h>
 
 #include <omp.h>
+#ifndef MEGADEBUG
+#include <mpi.h>
+#endif
 #define __vec_width__ 32
 //#define _scaleR_
 #define _BPTT_
@@ -35,6 +38,13 @@ void _dispose_object(T *& ptr)
     if(ptr == nullptr) return;
     delete ptr;
     ptr=nullptr;
+}
+
+template <typename T>
+void _dispose_object(T *const& ptr)
+{
+    if(ptr == nullptr) return;
+    delete ptr;
 }
 
 struct Settings
@@ -53,8 +63,8 @@ struct Settings
     string learner, restart, configFile, prefix, samplesFile;
     bool bSeparateOutputs;
     mt19937 * gen;
-    
-    ~Settings() 
+
+    ~Settings()
     {
     	_dispose_object(gen);
     }
@@ -63,13 +73,13 @@ struct Settings
 namespace ErrorHandling
 {
     extern int debugLvl;
-    
-#define    die(format, ...) fprintf(stderr, format, ##__VA_ARGS__), abort()
+
+#define    die(format, ...) fprintf(stderr, format, ##__VA_ARGS__), MPI_Abort(MPI_COMM_WORLD, 1)
 #define  error(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
-    
+
 #define   warn(format, ...)	{if (debugLvl > 0) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
 #define  _info(format, ...)	{if (debugLvl > 1) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
-    
+
 #define  debug(format, ...)	{if (debugLvl > 2) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
 #define debug1(format, ...)	{if (debugLvl > 3) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
 #define debug2(format, ...)	{if (debugLvl > 4) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}

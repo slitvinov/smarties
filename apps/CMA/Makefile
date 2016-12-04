@@ -1,27 +1,29 @@
-CC = g++
+CPP = g++
+CC = gcc
 
-CPPFLAGS+=-std=c++11 -O3 -fopenmp
-#CPPFLAGS+=-std=c++11 -O0 -g -fopenmp
+WARNINGS =  -Wall -Wextra -Wredundant-decls -Wshadow -Woverloaded-virtual -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings -Wlogical-op -Wmissing-declarations
 
-DIRS = $(sort $(dir $(wildcard ../source/*/)))
-OBJ_FILES = 	engine_cmaes.o communicator.o cmaes.o
+#CPPFLAGS+=-std=c++11 -Wall -O0 # -fopenmp
+CPPFLAGS+=-std=c++11 -O0 -g -fopenmp $(WARNINGS)# -fopenmp
+CFLAGS+= -O0 -g $(WARNINGS)
+
+OBJ_FILES_PP = engine_cmaes.o communicator.o
+OBJ_FILES =    cmaes.o
 
 .DEFAULT_GOAL := engine_cmaes
 
-engine_cmaes: $(OBJ_FILES)
-	$(CC) $(LIBS) -fopenmp $^ -o $@
+engine_cmaes: $(OBJ_FILES) $(OBJ_FILES_PP)
+	$(CPP) $(LIBS) -fopenmp $^ -o $@
 
-%.o: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
-	
-%.d: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -MD -c $<
+engine_cmaes.o: engine_cmaes.cpp
+	$(CPP) $(CPPFLAGS) -c $< -o $@
     
-vpath %.cpp $(DIRS)
-vpath %.h   $(DIRS)
+communicator.o: communicator.cpp
+	$(CPP) $(CPPFLAGS) -c $< -o $@
+    
+cmaes.o: cmaes.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f *.o
-	rm -f *.s
-	rm -f *.d
-	rm -f rl
+	rm -f engine_cmaes

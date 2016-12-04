@@ -24,7 +24,7 @@ protected:
     mt19937 * g;
     int nAgents, workerid, sock, ListenerSocket, bytes, sizein, sizeout;
     const double gamma;
-    
+
     struct sockaddr_un serverAddress;
     struct sockaddr_un clientAddress;
     char SOCK_PATH[256];
@@ -40,8 +40,9 @@ public:
 	ActionInfo aI;
 
 
-    Environment(const int nAgents, const string execpath, const int _rank, Settings & settings);
-    
+    Environment(const int nAgents, const string execpath,
+                const int _rank, Settings & settings);
+
     virtual ~Environment()
     {
         _dispose_object(datain);
@@ -49,12 +50,13 @@ public:
         for (auto & trash : agents)
         	_dispose_object( trash);
     }
-    
+
     virtual void setDims () = 0;
     virtual int getState(int & iAgent) ;
     virtual void setAction(const int & iAgent);
     void close_Comm ();
     void setup_Comm ();
-    virtual bool pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward, const int info) = 0;
+    virtual bool pickReward(const State& t_sO, const Action& t_a,
+                            const State& t_sN, Real& reward, const int info) =0;
 	virtual bool predefinedNetwork(Network* const net) const;
 };

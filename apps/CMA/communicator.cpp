@@ -1,10 +1,14 @@
 #include "communicator.h"
-#include "util.h"
 
 #include <iostream>
 #include <cmath>
 #include <cassert>
 
+#include <netdb.h>
+#include <unistd.h>
+
+static int send_all(int fd, void *buffer, unsigned int size);
+static int recv_all(int fd, void *buffer, unsigned int size);
 
 void Communicator::sendState(int agentId, int info, std::vector<double>& state, double reward)
 {
@@ -55,18 +59,22 @@ void Communicator::recvAction(std::vector<double>& actions)
 Communicator::~Communicator()
 {
     close(sock);
+    free(datain);
+    free(dataout);
 }
     
-Communicator::Communicator(int _sockID, int _statedim, int _actdim): workerid(_sockID), nActions(_actdim), nStates(_statedim), sock(0), sizein(0), msgID(0)
+Communicator::Communicator(int _sockID, int _statedim, int _actdim): 
+workerid(_sockID), nActions(_actdim), nStates(_statedim), sock(0), sizein(0), msgID(0)
 {
     sprintf(SOCK_PATH, "%s%d", "/tmp/sock_", workerid);
     printf("SOCK_PATH=->%s<-\n", SOCK_PATH);
 
     sizeout = (3+nStates)*sizeof(double);
     dataout = (double *) malloc(sizeout);
+    memset(dataout, 0, sizeout); 
     sizein  =    nActions*sizeof(double);
     datain  = (double *) malloc(sizein);
-    
+    memset(datain, 0, sizein); 
     /* Create a socket */
     printf("problem dim = %i %d %d \n", nStates, sizein, sizeout);
     
@@ -111,4 +119,47 @@ void Communicator::dbg(double *x, int *pn)
         printf("%.6lf,", x[i]);
     printf("%.6lf)\n", x[i]);
     fflush(0);
+}
+
+
+
+/*************************************************************************/
+/**************************   HELPER ROUTINES   **************************/
+/*************************************************************************/
+
+static int recv_all(int fd, void *buffer, unsigned int size)
+{
+    int result;
+    unsigned int s=size;
+    char *pos = (char*)buffer;
+
+
+    do {
+        result=recv(fd,pos,s,0);
+        if((result!=-1)&&(result>0)) {
+            s -= result;
+            pos += result;
+        }
+        else 
+            return result; /*-1;*/
+    } while (s>0);
+    //printf("recver %f\n",*((double*)buffer));
+    return size;
+}
+
+static int send_all(int fd, void *buffer, unsigned int size)
+{
+    int result;
+    unsigned int s=size;
+    char *pos = (char*)buffer;
+
+    do {
+        result=send(fd,pos,s,0);
+        if((result!=-1)&&(result>0)) {
+            s -= result;
+            pos += result;
+        }
+        else return result; /*-1;*/
+    } while (s>0);
+    return size;
 }

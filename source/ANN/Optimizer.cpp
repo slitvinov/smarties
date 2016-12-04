@@ -14,17 +14,18 @@
 
 using namespace ErrorHandling;
 
-Optimizer::Optimizer(Network * _net, Profiler * _prof, Settings  & settings) :
-nWeights(_net->getnWeights()), nBiases(_net->getnBiases()), net(_net), profiler(_prof),
+Optimizer::Optimizer(Network* const _net, Profiler* const _prof,
+  Settings& settings) : nWeights(_net->getnWeights()),
+  nBiases(_net->getnBiases()), net(_net), profiler(_prof),
 eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), nepoch(0)
 {
     _allocateClean(_1stMomW, nWeights)
     _allocateClean(_1stMomB, nBiases)
 }
 
-AdamOptimizer::AdamOptimizer(Network * _net, Profiler * _prof, Settings  & settings) :
-Optimizer(_net, _prof, settings), beta_1(0.9), beta_2(0.999), epsilon(1e-9),
-beta_t_1(0.9), beta_t_2(0.999)
+AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
+  Settings& settings) : Optimizer(_net, _prof, settings),
+  beta_1(0.9), beta_2(0.999), epsilon(1e-9), beta_t_1(0.9), beta_t_2(0.999)
 {
     _allocateClean(_2ndMomW, nWeights)
     _allocateClean(_2ndMomB, nBiases)
@@ -57,26 +58,27 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
     }
 }
 
-void Optimizer::stackGrads(const int thrID, Grads* const G, const vector<Grads*> g) const
+void Optimizer::stackGrads(const int thrID, Grads* const G,
+                           const vector<Grads*> g) const
 {
     const int nThreads =g.size();
-    
+
     vector<int> bndsW(nThreads+1), bndsB(nThreads+1);
     for (int k=1; k<nThreads; k++) {
         bndsW[k] = k*nWeights/Real(nThreads);
         bndsB[k] = k*nBiases/Real(nThreads);
     }
     bndsW.back() = nWeights; bndsB.back() = nBiases;
-        
+
     for (int k=0; k<nThreads; k++) {
         const int beg = (k  +thrID)%nThreads;
         const int end = (beg+1==nThreads)?nThreads:(k+1+thrID)%nThreads;
-        
+
         for (int j=bndsW[beg]; j<bndsW[end]; j++) {
             G->_W[j] += g[thrID]->_W[j];
             g[thrID]->_W[j] = 0.;
         }
-        
+
         for (int j=bndsB[beg]; j<bndsB[end]; j++) {
             G->_B[j] += g[thrID]->_B[j];
             g[thrID]->_B[j] = 0.;
@@ -92,29 +94,30 @@ void Optimizer::update(Grads* const G, const int batchsize)
 
 void AdamOptimizer::update(Grads* const G, const int batchsize)
 {
-    update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, batchsize, lambda);
+    update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, batchsize,lambda);
     //Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
     //Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
     update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, batchsize);
-        
+
 	beta_t_1 *= beta_1;
 	beta_t_2 *= beta_2;
 	//printf("%d %f %f\n",nepoch, beta_t_1,beta_t_2);
 }
 
-void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, const int N, const int batchsize, const Real _lambda) const
+void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
+                    const int N, const int batchsize, const Real _lambda) const
 {
     const Real norm = 1./(Real)max(batchsize,1);
     const Real eta_ = eta*norm/std::log((double)nepoch/1.);
     const Real lambda_ = _lambda*eta;
-    
+
     #pragma omp parallel for
     for (int i=0; i<N; i++) {
         const Real W = fabs(dest[i]);
         const Real M1 = alpha * _1stMom[i] + eta_ * grad[i];
         _1stMom[i] = std::max(std::min(M1,W),-W);
         grad[i] = 0.; //reset grads
-        
+
         if (lambda_>0)
              dest[i] += _1stMom[i] + (dest[i]<0 ? lambda_ : -lambda_);
              //dest[i] += _1stMom[i] - dest[i]*lambda_;
@@ -122,11 +125,14 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, 
     }
 }
 
-void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stMom, Real* const _2ndMom, const int N, const int batchsize, const Real _lambda)
+void AdamOptimizer::update(Real* const dest, Real* const grad,
+                           Real* const _1stMom, Real* const _2ndMom,
+                           const int N, const int batchsize, const Real _lambda)
 {
     const Real lambda_ = _lambda*eta;
     const Real norm = 1./(Real)max(batchsize,1);
-    const Real eta_ = eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1)/(1.+std::log(1. + (double)nepoch/1e6));
+    const Real eta_ = eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1)
+                         /(1.+std::log(1. + (double)nepoch/1e6));
 
 	#pragma omp parallel for
     for (int i=0; i<N; i++) {
@@ -145,7 +151,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad, Real* const _1stM
         _1stMom[i] = M1_;
         _2ndMom[i] = M2_;
         grad[i] = 0.; //reset grads
-        
+
         if (lambda_>0)
              dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);
              //dest[i] += DW_ - dest[i]*lambda_;
@@ -171,7 +177,7 @@ void LMOptimizer::stackGrads(Grads * g, const int k, const int i)
     #pragma omp parallel for nowait
     for (int j=0; j<nWeights; j++)
         J(i + k*nOutputs, j) = -*(g->_W + j);
-    
+
     #pragma omp parallel for
     for (int j=0; j<nBiases; j++)
         J(i + k*nOutputs, j+nWeights) = -*(g->_B + j);
@@ -182,7 +188,7 @@ void LMOptimizer::tryNew()
     #pragma omp parallel for nowait
     for (int j=0; j<nWeights; j++)
         *(net->weights +j) += dw(j);
-    
+
     #pragma omp parallel for
     for (int j=0; j<nBiases; j++)
         *(net->biases +j) += dw(j+nWeights);
@@ -193,7 +199,7 @@ void LMOptimizer::goBack()
     #pragma omp parallel for nowait
     for (int j=0; j<nWeights; j++)
         *(net->weights +j) -= dw(j);
-    
+
     #pragma omp parallel for
     for (int j=0; j<nBiases; j++)
         *(net->biases +j) -= dw(j+nWeights);
@@ -206,20 +212,20 @@ void LMOptimizer::trainSeries(const vector<vector<Real>>& inputs, const vector<v
     int nseries = inputs.size();
     net->allocateSeries(nseries+1);
     net->clearMemory(net->series[0]->outvals, net->series[0]->ostates);
-    
+
     J.set_size(nOutputs*nseries, totWeights);
     e.set_size(nOutputs*nseries);
-    
+
     #pragma omp parallel
     {
         //STEP 1: go through the data to compute predictions
         #pragma omp master
             profiler->start("F");
-        
+
         for (int k=0; k<nseries; k++)
         {
             net->predict(inputs[k], res, net->series[k], net->series[k+1]);
-            
+
             #pragma omp master
             for (int i=0; i<nOutputs; i++)
             { //put this loop here to slightly reduce overhead on second step
@@ -229,14 +235,14 @@ void LMOptimizer::trainSeries(const vector<vector<Real>>& inputs, const vector<v
                 trainMSE += err*err;
             }
         }
-        
+
         #pragma omp master
             profiler->stop("F");
-        
+
         //STEP 2: go backwards to backpropagate deltas (errors)
         #pragma omp master
             profiler->start("B");
-        
+
         net->clearErrors(net->series[nseries+1]); //there is a omp for in here
         for (int i=0; i<nOutputs; i++)
         {
@@ -245,10 +251,10 @@ void LMOptimizer::trainSeries(const vector<vector<Real>>& inputs, const vector<v
                 #pragma omp single
                 for (int j=0; j<nOutputs; j++)
                     *(net->series[k]->errvals +iOutputs+i) = j==i;
-                
+
                 net->computeDeltasSeries(net->series, k);
             }
-            
+
             net->clearDsdw();
             for (int k=1; k<=nseries; k++)
             {
@@ -259,14 +265,14 @@ void LMOptimizer::trainSeries(const vector<vector<Real>>& inputs, const vector<v
         #pragma omp master
             profiler->stop("B");
     }
-    
+
     {
         Real Q = trainMSE+1.;
-        
+
         JtJ = J.t() * J;
         Je  = J.t() * e;
         //diagJtJ = diagmat(JtJ);
-        
+
         while (Q > trainMSE)
         {
             profiler->start("S");
@@ -289,13 +295,13 @@ void LMOptimizer::trainSeries(const vector<vector<Real>>& inputs, const vector<v
             tryNew();
             profiler->stop("N");
             Q = 0;
-            
+
             profiler->start("T");
             #pragma omp parallel
             for (int k=0; k<nseries; k++)
             {
                 net->predict(inputs[k], res, net->series[k], net->series[k+1]);
-                
+
                 #pragma omp master
                 for (int i=0; i<nOutputs; i++)
                 { //put this loop here to slightly reduce overhead on second step
@@ -304,13 +310,13 @@ void LMOptimizer::trainSeries(const vector<vector<Real>>& inputs, const vector<v
                 }
             }
             profiler->stop("T");
-            
+
             if (Q > trainMSE)
             {
                 profiler->start("O");
                 goBack();
                 profiler->stop("O");
-                
+
                 printf("Nope \n");
                 if (mu < muMax)
                     mu *= muFactor;
@@ -320,12 +326,10 @@ void LMOptimizer::trainSeries(const vector<vector<Real>>& inputs, const vector<v
             else
             printf("Yeap \n");
         }
-        
+
         if (mu > muMin) mu /= muFactor;
 
     }
 
 }
  */
-
-

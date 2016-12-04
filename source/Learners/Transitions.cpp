@@ -13,10 +13,11 @@
 #define NmaxDATA 10000
 
 Transitions::Transitions(Environment* _env, Settings & settings):
-aI(_env->aI), sI(_env->sI), anneal(0), nBroken(0), nTransitions(0),
-nSequences(0), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
-path(settings.samplesFile), bSampleSeq(settings.nnType == 1), bRecurrent(settings.nnType==1),
-bWriteToFile(!(settings.samplesFile=="none")), iOldestSaved(0)
+aI(_env->aI),sI(_env->sI),anneal(0),nBroken(0),nTransitions(0),nSequences(0),
+env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
+path(settings.samplesFile), bSampleSeq(settings.nnType == 1),
+bRecurrent(settings.nnType==1), bWriteToFile(!(settings.samplesFile=="none")),
+iOldestSaved(0)
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
@@ -41,7 +42,7 @@ void Transitions::restartSamples()
     vector<Real> d_a(aI.dim);
     Real reward(0);
     int thisId(-1), agentId(0), Ndata(0), info(0);
-    
+
     while(true) {
         Ndata=0;
         ifstream in(path.c_str());
@@ -57,7 +58,7 @@ void Transitions::restartSamples()
                     for(int i=0; i<sI.dim; i++) line_in >> d_sN[i];
                     for(int i=0; i<aI.dim; i++) line_in >> d_a[i];
                     line_in >> reward;
-                    
+
                     t_sO.set(d_sO);
                     t_sN.set(d_sN);
                     t_a.set(d_a);
@@ -72,12 +73,13 @@ void Transitions::restartSamples()
         }
         in.close();
     }
-    
-    printf("Found %d broken chains out of %d / %d.\n",nBroken, nSequences, nTransitions);
-    
+
+    printf("Found %d broken chains out of %d / %d.\n",
+            nBroken, nSequences, nTransitions);
+
     for (int i(0); i<20; i++) cout << env->max_scale[i] << " ";
     cout << endl;
-    
+
     for (int i(0); i<20; i++) cout << env->min_scale[i] << " ";
     cout << endl;
 }
@@ -90,8 +92,9 @@ void Transitions::saveSamples()
     for(int i=0; i<Set.size(); i++)
     for(int j=1; j<Set[i].s.size(); j++)
     {
-        if (Set[i].s[j-1].size() != Set[i].s[j].size()) { die("How did you manage THAT?\n");}
-        
+        if (Set[i].s[j-1].size() != Set[i].s[j].size()) {
+        die("How did you manage THAT?\n");}
+
         fout << to_string(0) <<" "<< to_string(j==1) <<" ";
         for(int k=0; k<Set[i].s[j].size(); k++)
             fout<<Set[i].s[j-1][k]<<" ";
@@ -104,7 +107,7 @@ void Transitions::saveSamples()
     fout.close();
 }*/
 
-void Transitions::passData(const int agentId, const int info, const State & sOld,
+void Transitions::passData(const int agentId, const int info, const State& sOld,
                        const Action & a, const State & sNew, const Real reward)
 {
     ofstream fout;
@@ -115,7 +118,7 @@ void Transitions::passData(const int agentId, const int info, const State & sOld
     fout << endl;
     fout.close();
      */
-    
+
     if (bWriteToFile) {
         fout.open("history.txt",ios::app);
         fout << agentId << " "<< info << " " << sOld.printClean().c_str() <<
@@ -123,7 +126,7 @@ void Transitions::passData(const int agentId, const int info, const State & sOld
         fout << endl;
         fout.close();
     }
-    
+
     add(agentId, info, sOld, a, sNew, reward);
 }
 
@@ -131,7 +134,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
       const Action& a, const State& sNew, Real reward)
 {
     const int sApp = nAppended*sI.dimUsed;
-    
+
     sOld.copy_observed(Inp);
     if(Tmp[agentId]->tuples.size()!=0) {
         bool same(true);
@@ -139,13 +142,13 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
         //scaled vec only has used dims:
         for (int i=0; i<sI.dimUsed; i++)
             same = same && fabs(last->s[i] - Inp[i])<1e-4;
-        
+
         if (!same) {
             ++nBroken;
             push_back(agentId); //create new sequence
         }
     }
-    
+
     //if first of a new sequence, create slot for sOld = s_0
     if(Tmp[agentId]->tuples.size()==0) {
         Tuple * t = new Tuple();
@@ -154,7 +157,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
         if (sApp>0) t->s.insert(t->s.end(),sApp,0.);
         Tmp[agentId]->tuples.push_back(t);
     }
-    
+
     //at this point we made sure that sOld == s.back() (right?)
     //we can add sNew:
     sNew.copy_observed(Inp);
@@ -164,7 +167,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
         const Tuple * const last = Tmp[agentId]->tuples.back();
         t->s.insert(t->s.end(),last->s[0],last->s[sApp-1]);
     }
-    
+
     const bool new_sample = env->pickReward(sOld,a,sNew,reward,info);
     t->r = reward;
     t->a = a.vals;
@@ -176,9 +179,18 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
     }
 }
 
+
+void Transitions::clearFailedSim(const int agentOne, const int agentEnd)
+{
+  for (int i = agentOne; i<agentEnd; i++) {
+    _dispose_object(Tmp[i]);
+    Tmp[i] = new Sequence();
+  }
+}
+
 void Transitions::push_back(const int & agentId)
 {
-    if(Tmp[agentId]->tuples.size()>3) {
+    if(Tmp[agentId]->tuples.size()>3 || Tmp[agentId]->tuples.size()>1e4) {
         if (nSequences>=NmaxDATA) Buffered.push_back(Tmp[agentId]);
         else {
             nSequences++;
@@ -194,13 +206,15 @@ void Transitions::push_back(const int & agentId)
         //Tmp[agentId]->tuples.clear();
         //Tmp[agentId]->ended = false;
     }
-    
+
     Tmp[agentId] = new Sequence();
 }
 
 void Transitions::update_samples_mean()
 {
 	int count = 0;
+  vector<Real> oldStd = std;
+  vector<Real> oldMean = mean;
 	std::fill(std.begin(), std.end(), 0.);
 	std::fill(mean.begin(), mean.end(), 0.);
 
@@ -230,18 +244,22 @@ void Transitions::update_samples_mean()
 			}
 		}
 	}
-
+  bool bSimilar = true;
 	std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {
+    bSimilar&= (fabs(std[i]-oldStd[i])/max(fabs(std[i]),fabs(oldStd[i]))<.01);
 		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count));
 		std::cout << std[i] << " ";
-    }
+  }
 	std::cout << "]. States means: [";
-	for (int i=0; i<sI.dimUsed; i++) { 
-        mean[i] /= Real(count);
-        std::cout << mean[i] << " ";
-     }
+	for (int i=0; i<sI.dimUsed; i++) {
+    bSimilar&= (fabs(mean[i]-oldMean[i])/std[i]<.01);
+    mean[i] /= Real(count);
+    std::cout << mean[i] << " ";
+  }
 	std::cout << "]" << std::endl;
+  if (!bSimilar)
+  warn("Means and/or std changed too much, try increasing the buffer size.\n");
 }
 
 vector<Real> Transitions::standardize(const vector<Real>&  state) const
@@ -276,40 +294,42 @@ void Transitions::synchronize()
 		  Set[i]->MSE += std::pow((t->s[i] - mean[i])/std[i], 2);
 	   */
 	}
-    const auto comparator=[this](Sequence* a, Sequence* b){ return a->MSE<b->MSE;};
-    std::sort(Set.begin(), Set.end(), comparator);
+    const auto compare=[this](Sequence* a, Sequence* b){return a->MSE<b->MSE;};
+    std::sort(Set.begin(), Set.end(), compare);
     if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
     iOldestSaved = 0;
 #endif
-    int nTransitionsInBuf(0), nTransitionsDeleted(0), bufferSize(Buffered.size());
+    int nTransitionsInBuf(0),nTransitionsDeleted(0),bufferSize(Buffered.size());
     for(auto & bufTransition : Buffered) {
         const int ind = iOldestSaved++;
         iOldestSaved = (iOldestSaved == NmaxDATA) ? 0 : iOldestSaved;
-   
+
         nTransitionsDeleted += Set[ind]->tuples.size()-1;
         nTransitionsInBuf += bufTransition->tuples.size()-1;
 
         nTransitions -= Set[ind]->tuples.size()-1;
         _dispose_object(Set[ind]);
-        
+
         nTransitions += bufTransition->tuples.size()-1;
         Set[ind] = bufTransition;
     } //number of sequences remains constant
-    printf("Removing the %d easiest to predict sequences with avg length %f in favor of new ones with avg lendth %f\n", Buffered.size(), nTransitionsDeleted/(Real)bufferSize, nTransitionsInBuf/(Real)bufferSize);
+    printf("Removing %lu sequences (avg length %f) associated with small MSE"
+      "error in favor of new ones (avg lendth %f)\n", Buffered.size(),
+      nTransitionsDeleted/(Real)bufferSize, nTransitionsInBuf/(Real)bufferSize);
     Buffered.resize(0); //no clear?
 }
 
 void Transitions::updateSamples()
 {
 	if(Buffered.size()>0) {
-      printf("nSequences %d > NmaxDATA %d (nTransitions=%d, avg sequence length = %f).\n", 
-               nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
-      synchronize();
+    printf("nSequences %d > NmaxDATA %d (nTransitions=%d, avg seq len = %f).\n",
+             nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
+    synchronize();
    } else
-      printf("nSequences %d < NmaxDATA %d (nTransitions=%d, avg sequence length = %f).\n", 
-               nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
-   
-    
+    printf("nSequences %d < NmaxDATA %d (nTransitions=%d, avg seq len = %f).\n",
+             nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
+
+
     const int ndata = (bRecurrent) ? nSequences : nTransitions;
     inds.resize(ndata);
     std::iota(inds.begin(), inds.end(), 0);
@@ -325,6 +345,7 @@ int Transitions::sample()
 #ifdef _Priority_
 void Transitions::updateP()
 {
+    die("Not correctly implemented. Go away!\n")
     anneal++;
     const int ndata = (bRecurrent) ? nSequences : nTransitions;
     Ps.resize(ndataN); Ws.resize(ndata); inds.resize(ndata);
@@ -341,8 +362,8 @@ void Transitions::updateP()
 			}
 			samp->MSE /= count;
 		}
-        const auto comparator=[this](int a,int b){return Set[a]->MSE>Set[b]->MSE;};
-        std::sort(inds.begin(), inds.end(), comparator);
+        const auto compare=[this](int a,int b){return Set[a]->MSE>Set[b]->MSE;};
+        std::sort(inds.begin(), inds.end(), compare);
     } else {
         const auto comparator=[this](int a,int b){
 			int k(0), back(0), indT(Set[0]->tuples.size()-1);
@@ -364,23 +385,23 @@ void Transitions::updateP()
         };
         std::sort(inds.begin(), inds.end(), comparator);
     }
-    
+
     for(int i=0;i<N;i++) Ps[i]=pow(1./Real(inds[i]+1),0.5);
-    
+
     const Real mean_err = accumulate(Errs.begin(), Errs.end(), 0.)/N;
     const Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
-    
+
     printf("Avg MSE %f %d\n",mean_err,N);
-    
+
     const Real beta = .5*(1.+(Real)anneal/(anneal+500)); //TODO
     for(int i=0;i<N;i++) {
         Ps[i]/= sum;
         Ws[i] = pow(N*Ps[i],-beta);
     }
-    
+
     Real scale = *max_element(Ws.begin(), Ws.end());
     for(int i=0;i<N;i++) Ws[i]/=scale;
-    
+
     delete dist;
     dist = new discrete_distribution<int>(Ps.begin(), Ps.end());
 }

@@ -16,16 +16,16 @@ using namespace std;
 class NAF : public Learner
 {
     const int nA, nL;
-    
+
     void Train_BPTT(const int seq, const int thrID=0) const override;
     void Train(const int seq, const int samp, const int thrID=0) const override;
-    
-    vector<Real> computeQandGrad(vector<Real>& grad, const vector<Real>& act, vector<Real>& out, Real& error) const;
+
+    vector<Real> computeQandGrad(vector<Real>& grad, const vector<Real>& act,
+                                 vector<Real>& out, Real& error) const;
     //Real computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const;
-    
+
 public:
     NAF(Environment* env, Settings & settings);
     void select(const int agentId, State& s,Action& a, State& sOld,
                 Action& aOld, const int info, Real r) override;
 };
-

@@ -22,7 +22,8 @@
 
 using namespace std;
 
-CartEnvironment::CartEnvironment(const int _nAgents, const string _execpath, const int _rank, Settings & settings) :
+CartEnvironment::CartEnvironment(const int _nAgents, const string _execpath,
+																 const int _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings)
 {
 }
@@ -42,13 +43,13 @@ void CartEnvironment::setDims() //this environment is for the cart pole test
         //for each state variable:
         // State: coordinate...
         sI.inUse.push_back(true); //ignore, leave as is
-        
+
         // ...velocity...
 		sI.inUse.push_back(true); //ignore, leave as is
-        
+
         // ...and angular velocity
 		sI.inUse.push_back(true); //ignore, leave as is
-        
+
         // ...angle...
 		sI.inUse.push_back(true); //ignore, leave as is
 
@@ -87,7 +88,8 @@ void CartEnvironment::setDims() //this environment is for the cart pole test
     commonSetup(); //required
 }
 
-bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a, const State & t_sN, Real & reward, const int info)
+bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a,
+																 const State& t_sN, Real& reward,const int info)
 {
     bool new_sample(false);
 

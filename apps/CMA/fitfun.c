@@ -25,7 +25,7 @@ typedef enum {
 
 
 /* info[0] chooses a random function */
-double fitfun(double *x, int N, void *output, int *info)  {
+double fitfun(double * const x, int N, void * const output, int * const info)  {
     double f;
     int i;
 
@@ -33,7 +33,7 @@ double fitfun(double *x, int N, void *output, int *info)  {
     //std::cout << "Function evaluation at ";
     //for (i = 0; i < N; ++i) std::cout << x[i] << " ";
     //std::cout << std::endl;
-    
+
     switch (rnd) {
         case ACKLEY: {
             double a = 20, b = .2, c = 2.*M_PI, s1 = 0., s2 = 0.;
@@ -183,10 +183,13 @@ double fitfun(double *x, int N, void *output, int *info)  {
             exit(1);
     }
     //std::cout << "feval = " << f << std::endl;
-    return -f;  /* our CMA maximizes (there's another "-" in the code) */
+    return f;  /* our CMA maximizes (there's another "-" in the code) */
 }
 
-void get_upper_lower_bounds(double* const lower_bound, double* const upper_bound, int N, int *info) {
+void get_upper_lower_bounds(double* const lower_bound,
+                            double* const upper_bound,
+                            int N, int * const info)
+{
     int i;
 
     int rnd = info[0] % _COUNT;  /* this defines which function to use */
@@ -318,7 +321,9 @@ void get_upper_lower_bounds(double* const lower_bound, double* const upper_bound
     }
 }
 
-double eval_distance_from_optimum(double * found_optimum, int N, int *info) {
+double eval_distance_from_optimum(const double* const found_optimum,
+                                  int N, int* const info) 
+{
     int i;
     double dist = 0.;
     int rnd = info[0] % _COUNT;  /* this defines which function to use */
@@ -435,7 +440,6 @@ double eval_distance_from_optimum(double * found_optimum, int N, int *info) {
         }
     }
 
-	std::cout << sqrt(dist)  << std::endl;
+	//std::cout << sqrt(dist)  << std::endl;
 	return sqrt(dist);
 }
-

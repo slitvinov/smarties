@@ -40,10 +40,10 @@ void runSlave(int rank)
     Environment* env = factory.createEnvironment(rank, 0);
     settings.nAgents = env->agents.size();
     settings.nSlaves = 1;
-    Slave * simulation = new Slave(env, rank, settings);
-    if (settings.restart != "none") simulation->restart(settings.restart);
+    Slave simulation(env, rank, settings);
+    if (settings.restart != "none") simulation.restart(settings.restart);
     while (true) {
-        simulation->run(); //if it returns, something is messed up
+        simulation.run(); //if it returns, something is messed up
         env->close_Comm();
         env->setup_Comm();
     }
@@ -56,8 +56,8 @@ void runMaster(int nranks)
 
     settings.nAgents = nranks*env->agents.size();
     settings.nSlaves = nranks;
-    
-    Learner* learner;
+
+    Learner* learner = nullptr;
     if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
         settings.nnInputs = env->sI.dimUsed;
         settings.nnOutputs = 1;
@@ -77,13 +77,13 @@ void runMaster(int nranks)
         settings.nnOutputs = 1;
         learner = new DPG(env,settings);
     } else die("Learning algorithm not recognized\n");
-    
-    Master* master = new Master(learner, env, settings);
-    if (settings.restart != "none") master->restart(settings.restart);
-    
-    if (settings.nThreads > 1) learner->TrainTasking(master);
-    else master->run();
-    
+    assert(learner not_eq nullptr);
+
+    Master master(learner, env, settings);
+    if (settings.restart != "none") master.restart(settings.restart);
+
+    if (settings.nThreads > 1) learner->TrainTasking(&master);
+    else master.run();
 }
 
 int main (int argc, char** argv)
@@ -96,15 +96,15 @@ int main (int argc, char** argv)
         printf("ERROR: The MPI implementation does not have required thread support\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
-    
+
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nranks);
 #endif
-    
+
     struct timeval clock;
     gettimeofday(&clock, NULL);
     debugLvl=10;
-    
+
     vector<OptionStruct> opts ({
     {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.9},
     {'e', "greedyeps",REAL,  "Greedy epsilon", &settings.greedyEps, (Real)0.1},
@@ -129,15 +129,15 @@ int main (int argc, char** argv)
     {'p', "nThreads", INT,   "parallel master",&settings.nThreads,  (int)-1},
     {'H', "fileSamp", STRING,"history file", &settings.samplesFile,(string)"../history.txt"}
     });
-    
+
     Parser parser(opts);
     parser.parse(argc, argv, rank == 0);
-    
+
     int seed = abs(floor(clock.tv_usec + rank));
     settings.gen = new mt19937(seed);
-    
+
     if (rank == 0) runMaster(nranks);
     else           runSlave(rank);
-    
+
 	return 0;
 }

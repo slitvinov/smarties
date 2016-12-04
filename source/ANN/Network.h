@@ -32,49 +32,57 @@ protected:
     void build_conv2d_layer(Graph* const graph);
 
 public:
-    int nAgents, nThreads, nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates;
+    int nAgents, nThreads, nInputs, nOutputs, nLayers;
+		int nNeurons, nWeights, nBiases, nStates;
     bool allocatedFrozenWeights, allocatedDroputWeights, backedUp, bDump;
     mt19937 * gen;
     vector<Mem*> mem;
     Grads * grad;//, * _grad;
-    Real *weights, *biases, *tgt_weights, *tgt_biases, *weights_DropoutBackup, *running_std, *running_avg;
+    Real *weights, *biases, *tgt_weights, *tgt_biases;
+		Real *weights_DropoutBackup, *running_std, *running_avg;
     vector<Grads*> Vgrad;
 
     int counter, batch_counter;
 
     void build();
-    
+
     int getnWeights() const {assert(bBuilt); return nWeights;}
     int getnBiases() const {assert(bBuilt); return nBiases;}
     int getnOutputs() const {assert(bBuilt); return nOutputs;}
     int getnInputs() const {assert(bBuilt); return nInputs;}
     int getLastLayerID() const {return G.size()-1;}
-    
+
     void add2DInput(const int size[3], const bool normalize);
     void addInput(const int size, const bool normalize);
     void addInput(const int size) { addInput(size, false);}
-    
-    void addConv2DLayer(const int filterSize[3], const int outSize[3], const int padding[2], const int stride[2],
-    											const bool normalize, vector<int> linkedTo, const bool bOutput=false);
-    void addConv2DLayer(const int filterSize[3], const int outSize[3], const int padding[2], const int stride[2],
-    											const bool normalize, const bool bOutput = false) {
-    	addConv2DLayer(filterSize, outSize, padding, stride, normalize, vector<int>(), bOutput); }
 
-    void addLayer(const int size, const string type, const bool normalize, vector<int> linkedTo, const bool output);
+    void addConv2DLayer(const int filterSize[3], const int outSize[3],
+												const int padding[2], const int stride[2],
+  											const bool normalize, vector<int> linkedTo,
+												const bool bOutput=false);
+
+    void addConv2DLayer(const int filterSize[3], const int outSize[3],
+												const int padding[2], const int stride[2],
+  											const bool normalize, const bool bOutput = false) {
+    	addConv2DLayer(filterSize, outSize, padding, stride, normalize,
+										vector<int>(), bOutput); }
+
+    void addLayer(const int size, const string type, const bool normalize,
+									vector<int> linkedTo, const bool output);
     void addLayer(const int size, const string type, vector<int> linkedTo) {
         addLayer(size,type,__WHITEN_DEFAULT,linkedTo,false);}
     void addLayer(const int size, const string type, const bool normalize) {
         addLayer(size,type,normalize,vector<int>(),false);}
     void addLayer(const int size, const string type) {
         addLayer(size,type,__WHITEN_DEFAULT,vector<int>(),false);}
-    
+
     void addOutput(const int size, const string type, vector<int> linkedTo) {
         addLayer(size,type,false,linkedTo,true);}
     void addOutput(const int size, const string type) {
         addLayer(size,type,false,vector<int>(),true);}
 
     Network(const Settings & settings);
-    
+
     ~Network()
     {
         for (auto & trash : G) _dispose_object( trash);
@@ -89,7 +97,7 @@ public:
         _myfree( tgt_biases )
         _myfree( weights_DropoutBackup )
     }
-    
+
     void updateFrozenWeights();
     void moveFrozenWeights(const Real alpha);
     void loadMemory(Mem * _M, Activation * _N) const;
@@ -101,49 +109,60 @@ public:
     Activation* allocateActivation() const;
     vector<Activation*> allocateUnrolledActivations(int length) const;
     void deallocateUnrolledActivations(vector<Activation*>* const ret) const;
-    void appendUnrolledActivations(vector<Activation*>* const ret, int length=1) const;
+    void appendUnrolledActivations(vector<Activation*>* const ret,
+																	 int length=1) const;
 
     void predict(const vector<Real>& _input, vector<Real>& _output,
-    			vector<Activation*>& timeSeries, const int n_step,
-				const Real* const _weights, const Real* const _biases, const Real noise=0.) const;
+  							 vector<Activation*>& timeSeries, const int n_step,
+							 	 const Real* const _weights, const Real* const _biases,
+							 	const Real noise=0.) const;
     void predict(const vector<Real>& _input, vector<Real>& _output,
-    			vector<Activation*>& timeSeries, const int n_step, const Real noise=0.) const
+    						 vector<Activation*>& timeSeries, const int n_step,
+								 const Real noise=0.) const
     {
         predict(_input, _output, timeSeries, n_step, weights, biases, noise);
     }
-    
+
     void predict(const vector<Real>& _input, vector<Real>& _output,
-				Activation* const prevActivation, Activation* const currActivation,
-				const Real* const _weights, const Real* const _biases, const Real noise=0.) const;
+						Activation* const prevActivation, Activation* const currActivation,
+						const Real* const _weights, const Real* const _biases,
+						const Real noise=0.) const;
     void predict(const vector<Real>& _input, vector<Real>& _output,
-				Activation* const prevActivation, Activation* const currActivation, const Real noise=0.) const
+						Activation* const prevActivation, Activation* const currActivation,
+						const Real noise=0.) const
     {
-        predict(_input, _output, prevActivation, currActivation, weights, biases, noise);
+        predict(_input, _output, prevActivation, currActivation,
+								weights, biases, noise);
     }
-    
-    void predict(const vector<Real>& _input, vector<Real>& _output, Activation* const net,
-    			const Real* const _weights, const Real* const _biases, const Real noise=0.) const;
-    void predict(const vector<Real>& _input, vector<Real>& _output, Activation* const net, const Real noise=0.) const
+
+    void predict(const vector<Real>& _input, vector<Real>& _output,
+								 Activation* const net, const Real* const _weights,
+						  	 const Real* const _biases, const Real noise=0.) const;
+    void predict(const vector<Real>& _input, vector<Real>& _output,
+									Activation* const net, const Real noise=0.) const
     {
         predict(_input, _output, net, weights, biases, noise);
     }
 
     void backProp(vector<Activation*>& timeSeries,
-    				const Real* const _weights, const Real* const biases, Grads* const _grads) const;
+    							const Real* const _weights, const Real* const biases,
+									Grads* const _grads) const;
     void backProp(vector<Activation*>& timeSeries, Grads* const _grads) const
     {
     	backProp(timeSeries, weights, biases, _grads);
     }
 
     void backProp(const vector<Real>& _errors, Activation* const net,
-    				const Real* const _weights, const Real* const biases, Grads* const _grads) const;
-    void backProp(const vector<Real>& _errors, Activation* const net, Grads* const _grads) const
+    							const Real* const _weights, const Real* const biases,
+									Grads* const _grads) const;
+    void backProp(const vector<Real>& _errors, Activation* const net,
+									Grads* const _grads) const
     {
     	backProp(_errors, net, weights, biases, _grads);
     }
 
 
-	void printRunning(int cnt, std::ostringstream & oa, std::ostringstream & os) {};
+	void printRunning(int cnt, std::ostringstream& oa, std::ostringstream& os) {};
 
     void resetRunning() {
     	counter=0;
@@ -184,4 +203,3 @@ public:
     void dump(const int agentID);
     bool restart(const string fname);
 };
-

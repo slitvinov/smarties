@@ -32,7 +32,8 @@ ifeq "$(findstring panda,$(shell hostname))" "panda"
 include make.falcon
 endif
 
-CPPFLAGS+=-std=c++11
+CPPFLAGS+=-Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Woverloaded-virtual 
+CPPFLAGS+=-std=c++11 -Wno-reorder -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
 
 ifeq "$(config)" "nompidebug"
@@ -54,7 +55,7 @@ CPPFLAGS+= -O0 -g
 #else
 endif
 ifeq "$(config)" "prod"
-CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native 
+CPPFLAGS +=  -O2 -fstrict-aliasing -march=native -mtune=native 
 #CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 -DNDEBUG 
 #CPPFLAGS += -funsafe-math-optimizations
 #CPPFLAGS += -falign-functions=16 #-DBOOST_UBLAS_NDEBUG 

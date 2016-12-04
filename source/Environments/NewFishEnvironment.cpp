@@ -11,10 +11,12 @@
 
 using namespace std;
 
-NewFishEnvironment::NewFishEnvironment(const int _nAgents, const string _execpath, const int _rank, Settings & settings) :
-Environment(_nAgents, _execpath, _rank, settings), sight(settings.senses==0 || settings.senses==4),
-POV(settings.senses==1 || settings.senses==4), l_line(settings.senses==2), 
-p_sensors(settings.senses==3 || settings.senses==4), study(settings.rewardType), 
+NewFishEnvironment::NewFishEnvironment(const int _nAgents,
+                const string _execpath, const int _rank, Settings & settings) :
+Environment(_nAgents, _execpath, _rank, settings),
+sight(settings.senses==0 || settings.senses==4),
+POV(settings.senses==1 || settings.senses==4), l_line(settings.senses==2),
+p_sensors(settings.senses==3 || settings.senses==4), study(settings.rewardType),
 goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
 }
@@ -46,45 +48,45 @@ void NewFishEnvironment::setDims()
 
             //Quad 7
             sI.inUse.push_back(false);
-            
+
             // VxAvg 8
             sI.inUse.push_back(true);
-            
+
             // VyAvg 9
             sI.inUse.push_back(true);
-            
+
             // AvAvg 10
             sI.inUse.push_back(true);
         }
         {
             //Pout 11
             sI.inUse.push_back(false);
-            
+
             //defPower 12
             sI.inUse.push_back(false);
-            
+
             // EffPDef 13
             sI.inUse.push_back(false);
-            
+
             // PoutBnd 14
             sI.inUse.push_back(false);
-            
+
             // defPowerBnd 15
             sI.inUse.push_back(false);
-            
+
             // EffPDefBnd 16
             sI.inUse.push_back(false);
-            
+
             // Pthrust 17
             sI.inUse.push_back(false);
-            
+
             // Pdrag 18
             sI.inUse.push_back(false);
-            
+
             // ToD 19
             sI.inUse.push_back(false);
         }
-        
+
         const int nSensors = 20;
         for (int i=0; i<nSensors; i++) {
             // (VelNAbove  ) x 5 [20]
@@ -133,10 +135,10 @@ void NewFishEnvironment::setDims()
     {
         aI.dim = 1;
         aI.values.resize(aI.dim);
-        
+
         for (int i=0; i<aI.dim; i++) {
             aI.bounds.push_back(5); //Number of possible actions to choose from
-            
+
             aI.values[i].push_back(-.50);
             aI.values[i].push_back(-.25);
             aI.values[i].push_back(0.00);
@@ -162,22 +164,24 @@ void NewFishEnvironment::setAction(const int & iAgent)
         const Real uB = 0.75; const Real lB = -.75;
         agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
     }
-    
+
     for (int i=0; i<aI.dim; i++)
         dataout[i] = (double) agents[iAgent]->a->vals[i];
-    
+
     send_all(sock, dataout, sizeout);
 }
 
-bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
-                                    const State & t_sN, Real & reward, const int info)
+bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
+                                const State& t_sN, Real& reward, const int info)
 {
     if (fabs(t_sN.vals[5] -t_sO.vals[4])>0.001) {
-        printf("Mismatch new and old state!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());
+        printf("Mismatch new and old state!!! \n %s \n %s \n",
+                t_sO.print().c_str(),t_sN.print().c_str());
         abort();
     }
     if (fabs(t_sN.vals[4] -t_a.vals[0])>0.001) {
-        printf("Mismatch state and action!!! \n %s \n %s \n",t_a.print().c_str(),t_sN.print().c_str());
+        printf("Mismatch state and action!!! \n %s \n %s \n",
+                t_a.print().c_str(),t_sN.print().c_str());
         abort();
     }
 
@@ -201,7 +205,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
 
     bool new_sample(false);
     if (reward<-9.9) new_sample=true;
-    
+
     if (study == 0) {
         //const Real scaledEfficiency = t_sN.vals[13];
         const Real scaledEfficiency = (t_sN.vals[13]-.4)/(1.-.4); //between 0 and 1
@@ -233,7 +237,7 @@ bool NewFishEnvironment::pickReward(const State & t_sO, const Action & t_a,
     else {
         die("Wrong reward\n");
     }
-    
+
     return new_sample;
 }
 
@@ -244,30 +248,32 @@ int NewFishEnvironment::getState(int & iAgent)
     if ((bytes = recv_all(sock, datain, sizein)) <= 0) {
         if (bytes == 0) printf("socket %d hung up\n", sock);
         else perror("(1) recv");
-        
+
         close(sock);
         bStatus = -1;
     } else { // (bytes == nbyte)
         iAgent  = *((int*)  datain   );
         bStatus = *((int*) (datain+1)); //first (==1?), terminal (==2?), etc
         debug3("Receiving from agent %d %d: ", iAgent, bStatus);
-        
+
         std::swap(agents[iAgent]->s,agents[iAgent]->sOld);
-        
+
         int k = 2;
         for (int j=0; j<sI.dim; j++) {
             debug3(" %f (%d)",datain[k],k);
             agents[iAgent]->s->vals[j] = (Real) datain[k++];
-            assert(not std::isnan(agents[iAgent]->s->vals[j]) && not std::isinf(agents[iAgent]->s->vals[j]));
-            if (j>=180) { //sight sensors get non-dimensionalized differently depending on size of fish if no obstacle is found =(
-                agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
-            }
+            assert(not std::isnan(agents[iAgent]->s->vals[j]) &&
+                   not std::isinf(agents[iAgent]->s->vals[j]));
+            if (j>=180) //sight sensors get non-dimensionalized differently depending on size of fish if no obstacle is found =(
+              agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
         }
-        
+
         debug3(" %f (%d)\n",datain[k],k);
         agents[iAgent]->r = (Real) datain[k++];
-        assert(not std::isnan(agents[iAgent]->r) && not std::isinf(agents[iAgent]->r));
-        debug3("Got from child %d: reward %f initial state %s\n", rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
+        assert(not std::isnan(agents[iAgent]->r) &&
+               not std::isinf(agents[iAgent]->r));
+        debug3("Got from child %d: reward %f initial state %s\n",
+        rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
     }
     fflush(0);
     return bStatus;

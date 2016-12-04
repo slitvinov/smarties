@@ -60,10 +60,7 @@
 ##        KEYWORD(s)                                  FILE          SECONDS to wait until next writing
 # write with default format for plotting
 write iter+eval+sigma+axisratio+fbestever+fitness+fmedian+fworst+mindii+idxmaxSD+maxSD+idxminSD+minSD   outcmaesfit.dat 
-#write iter+eval+sigma+axisratio+stddevratio+diag(D)       outcmaesaxlen.dat 
-#write iter+eval+sigma+idxmaxSD+idxminSD+stddev            outcmaesstddev.dat   
-#write iter+eval+sigma+0+0+xmean                           outcmaesxmean.dat       
-#write iter+eval+sigma+0+fitness+xbest                     outcmaesxrecentbest.dat 
+write iter+eval+xmean+stddevratio+stddev+diag(D)       outcmaesaxlen.dat 
 
 ##        KEYWORD(s)        FILE       SECONDS to wait until next writing
 

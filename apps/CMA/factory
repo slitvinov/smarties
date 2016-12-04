@@ -1,2 +1,2 @@
-CMAEnvironment exec=../engine_cmaes n=1
+CMAEnvironment exec=../cmaes_launch.sh n=1
 

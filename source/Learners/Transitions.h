@@ -31,11 +31,11 @@ struct Tuple
 struct Sequence
 {
     Sequence() : ended(false), MSE(0.) {}
-    
+
     vector<Tuple*> tuples;
     bool ended;
     Real MSE;
-    
+
     ~Sequence()
     {
         for (auto & trash : tuples) _dispose_object( trash);
@@ -64,14 +64,14 @@ protected:
     vector<Real> Inp, std, mean;
     vector<Sequence*> Tmp, Buffered;
     discrete_distribution<int> * dist;
-    
+
     void add(const int agentId, const int info, const State& sOld,
              const Action& a, const State& sNew, const Real reward);
-    
+
     void push_back(const int & agentId);
     void clear(const int & agentId);
     void synchronize();
-    
+
 public:
     const StateInfo sI;
     const ActionInfo aI;
@@ -79,9 +79,9 @@ public:
     int anneal, nBroken, nTransitions, nSequences;
     vector<Sequence*> Set;
     vector<int> inds;
-    
+
     Transitions(Environment* env, Settings & settings);
-    
+
     ~Transitions()
     {
         _dispose_object(gen);
@@ -90,7 +90,7 @@ public:
         for (auto & trash : Tmp) _dispose_object( trash);
         for (auto & trash : Buffered) _dispose_object( trash);
     }
-    
+    void clearFailedSim(const int agentOne, const int agentEnd);
     void update_samples_mean();
     vector<Real>standardize(const vector<Real>& state) const;
 #ifdef _Priority_
