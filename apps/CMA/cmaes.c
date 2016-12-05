@@ -838,13 +838,13 @@ cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
     		t->sp.funcID, t->sigma, t->sp.cs, t->sp.damps, t->sp.ccov1, t->sp.ccovmu, t->sp.ccumcov);
     if (isnan(t->sigma)) {t->sigma = 0; perror("Fucking nan sigma\n");}
     t->isStuck = 1;
-    if(t->sigma<2e-8) t->sigma = 2e-8;
-    if(t->sigma>1e7) t->sigma = 1e7;
-    fflush(0);
+    //if(t->sigma<2e-8) t->sigma = 2e-8;
+    //if(t->sigma>1e7) t->sigma = 1e7;
+    //fflush(0);
     //cmaes_ReadSignals(t, "../cmaes_signals.par");
     ERRORMESSAGE("Warning: sigma increased due to equal function values\n",
                  "   Reconsider the formulation of the objective function",0,0);
-    return (t->rgxmean);
+    //return (t->rgxmean);
   }
 
   /* update function value history */
@@ -968,8 +968,8 @@ cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
   /* update of sigma */
   t->trace = sqrt(psxps);
   t->sigma *= exp(((sqrt(psxps)/t->chiN)-1.)*t->sp.cs/t->sp.damps);
-  if(t->sigma<2e-8) t->sigma = 2e-8;
-  if(t->sigma>1e7) t->sigma = 1e7;
+  //if(t->sigma<2e-8) t->sigma = 2e-8;
+  //if(t->sigma>1e7) t->sigma = 1e7;
   if (isnan(t->sigma)) {t->sigma = 0; perror("Fucking nan sigma 2\n");
   t->isStuck = 1; }
   t->state = 3;
@@ -1034,11 +1034,11 @@ TestMinStdDevs(cmaes_t * const t)
     return;
   int safety = 0;
   for (i = 0; i < N; ++i)
-    while (t->sigma * sqrt(t->C[i][i]) < t->sp.rgDiffMinChange[i] && safety++ < 1e3) {
+    while (t->sigma * sqrt(t->C[i][i]) < t->sp.rgDiffMinChange[i] && safety++ < 1e4) {
       t->sigma *= exp(0.05+t->sp.cs/t->sp.damps);
     }
-  if(t->sigma<2e-8) t->sigma = 2e-8;
-  if(t->sigma>1e7) t->sigma = 1e7;
+  //if(t->sigma<2e-8) t->sigma = 2e-8;
+  //if(t->sigma>1e7) t->sigma = 1e7;
 } /* cmaes_TestMinStdDevs() */
 
 
@@ -2016,7 +2016,7 @@ Eigen( int N,  double ** const C, double* const diag, double ** const  Q, double
     QLalgo2( N, diag, rgtmp, Q);
     //printf("3 %p\n",diag); fflush(0);
 #endif
-
+/*
   for (i=0; i < N; ++i)
   if( isnan(diag[i]) ) {
     for (j = 0; j < N; ++j)
@@ -2031,6 +2031,7 @@ Eigen( int N,  double ** const C, double* const diag, double ** const  Q, double
     for (j = 0; j < N; ++j)
       Q[i][j] =0;
   }
+*/
 }
 
 
@@ -2071,7 +2072,7 @@ QLalgo2 (int n, double* const d, double* const e, double ** const V) {
            tst1 = fabs(d[l]) + fabs(e[l]);
          m = l;
          while (m < n) {
-           if (fabs(e[m]) <= eps) { // eps*tst1
+           if (fabs(e[m]) <= eps*tst1) { // eps*tst1
              /* if (fabs(e[m]) + fabs(d[m]+d[m+1]) == fabs(d[m]+d[m+1])) { */
                break;
             }
@@ -2123,9 +2124,9 @@ QLalgo2 (int n, double* const d, double* const e, double ** const V) {
                   g = c * e[i];
                   h = c * p;
                   r = myhypot(p, e[i]);
-                  e[i+1] = (r > eps) ? s * r : 0;
-                  s = (r > eps) ? e[i] / r : 0;
-                  c = (r > eps) ? p / r : 0;
+                  e[i+1] = s * r;
+                  s = e[i] / r;
+                  c = p / r;
                   p = c * d[i] - s * g;
                   d[i+1] = h + s * (c * g + s * d[i]);
 
@@ -2137,15 +2138,14 @@ QLalgo2 (int n, double* const d, double* const e, double ** const V) {
                      V[k][i] = c * V[k][i] - s * h;
                   }
                }
-               p = (fabs(dl1) > eps) ? -s * s2 * c3 * el1 * e[l] / dl1 : 0;
-               //p = -s * s2 * c3 * el1 * e[l] / dl1;
+               p = -s * s2 * c3 * el1 * e[l] / dl1;
                e[l] = s * p;
                d[l] = c * p;
              }
 
                /* Check for convergence. */
 
-            } while (fabs(e[l]) > eps*tst1 && safety++ < 1e3);
+            } while (fabs(e[l]) > eps*tst1 && safety++ < 1e4);
          }
          d[l] = d[l] + f;
          e[l] = 0.0;
@@ -2215,7 +2215,7 @@ Householder2(int n, double ** const V, double * const d, double * const e) {
          for (k = 0; k < i; k++) {
             scale = scale + fabs(d[k]);
          }
-         if (fabs(scale) < eps) {
+         if (scale == 0.0) {
             e[i] = d[i-1];
             for (j = 0; j < i; j++) {
                d[j] = V[i-1][j];
@@ -2285,7 +2285,7 @@ Householder2(int n, double ** const V, double * const d, double * const e) {
          V[n-1][i] = V[i][i];
          V[i][i] = 1.0;
          h = d[i+1];
-         if (fabs(h) > eps) {
+         if (h != 0.0) {
             for (k = 0; k <= i; k++) {
                d[k] = V[k][i+1] / h;
             }
@@ -3033,11 +3033,10 @@ myhypot(double a, double b)
 /* sqrt(a^2 + b^2) numerically stable. */
 {
   double r = 0;
-  double eps = 1e-16; /* Math.pow(2.0,-52.0);  == 2.22e-16 */
   if (fabs(a) > fabs(b)) {
     r = b/a;
     r = fabs(a)*sqrt(1+r*r);
-  } else if (fabs(b) > eps) {
+  } else if (b != 0) {
     r = a/b;
     r = fabs(b)*sqrt(1+r*r);
   }

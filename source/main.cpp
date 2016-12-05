@@ -125,6 +125,7 @@ int main (int argc, char** argv)
     {'T', "nnType",   INT,   "NNtype: LSTM,FF",&settings.nnType,    (int)1},
     {'C', "dqnT",     REAL,  "DQN update tgt", &settings.dqnUpdateC,(Real)1000},
     {'S', "dqnNs",    INT,   "appended states",&settings.dqnAppendS,(int)0},
+    {'L', "dqnSeqMax",INT,   "max seq length", &settings.maxSeqLen, (int)200},
     {'B', "dqnBatch", INT,   "batch update",   &settings.dqnBatch,  (int)10},
     {'p', "nThreads", INT,   "parallel master",&settings.nThreads,  (int)-1},
     {'H', "fileSamp", STRING,"history file", &settings.samplesFile,(string)"../history.txt"}

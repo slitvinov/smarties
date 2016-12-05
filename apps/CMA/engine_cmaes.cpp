@@ -5,7 +5,8 @@
 #define _XOPEN_SOURCE 500
 #define _BSD_SOURCE
 #define __RLON 1
-#define __NGENSKIP 5
+#define __RANDACT 1
+#define __NGENSKIP 1
 #include <stdio.h>
 #include <stdlib.h> /* free() */
 #include "cmaes_interface.h"
@@ -139,10 +140,19 @@ int main(int argn, char **args)
     //vector of actions received by RL
     std::vector<double> actions(act_dim);
 
+    const int thrid = 0; //omp_get_thread_num();
+
+    {
+        char filename[256];
+        sprintf(filename, "cma_perf_%02d.dat", thrid);
+        FILE *fp = fopen(filename, "a");
+        fprintf(fp, "dim func nstep dist feval\n");
+        fclose(fp);
+    }
+
     while (true) {
         int step = 0; // cmaes stepping
         int info[4]; //legacy: gen, chain, step, task
-    		const int thrid = 0; //omp_get_thread_num();
         cmaes_t * const evo = new cmaes_t(); /* an CMA-ES type struct or "object" */
         double oldFmedian, *oldXmean; //related to RL rewards
         double *lower_bound, *upper_bound, *init_x, *init_std; //IC for cmaes
@@ -169,14 +179,6 @@ int main(int argn, char **args)
 															*(upper_bound[i]-lower_bound[i]);
 				}
 
-        {
-            char filename[256];
-            sprintf(filename, "cma_perf_%02d.dat", thrid);
-            FILE *fp = fopen(filename, "a");
-            fprintf(fp, "dim func nstep dist feval\n");
-            fclose(fp);
-        }
-
         arFunvals = cmaes_init(evo, func_dim, init_x, init_std,
 																runseed, lambda, "../cmaes_initials.par");
         printf("%s\n", cmaes_SayHello(evo));
@@ -201,7 +203,7 @@ int main(int argn, char **args)
 						evo->sp.ccov1, evo->sp.ccovmu, evo->sp.ccumcov, evo->sp.cs);
 						fflush(0);
         }
-#else
+#elif __RANDACT
         {
             evo->sp.ccov1   = act0dist(*generators[thrid]);
             evo->sp.ccovmu  = act1dist(*generators[thrid]);
@@ -315,7 +317,7 @@ int main(int argn, char **args)
 						if (act_dim>3) evo->sp.cs      = actions[3]; //step size control c_sigma
             //printf("selected action %f %f %f %f\n", evo.sp.ccov1, evo.sp.ccovmu, evo.sp.ccumcov, evo.sp.cs); fflush(0);
 					}
-#else
+#elif __RANDACT
           {
               evo->sp.ccov1   = act0dist(*generators[thrid]);
               evo->sp.ccovmu  = act1dist(*generators[thrid]);
@@ -345,8 +347,9 @@ int main(int argn, char **args)
 						printf("Evaluated function in %s = %e\n",
 										o.str().c_str(), arFunvals[i]);
 					}
-
+#if __RLON
         	comm.sendState(thrid, 2, state, -1.); // final state: info is 2
+#endif
 				} else {
 					update_state(evo, state.data(), &oldFmedian, oldXmean, func_dim);
 	        double* xfinal = cmaes_GetNew(evo, "xmean");

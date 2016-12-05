@@ -13,11 +13,11 @@
 #define NmaxDATA 10000
 
 Transitions::Transitions(Environment* _env, Settings & settings):
-aI(_env->aI),sI(_env->sI),anneal(0),nBroken(0),nTransitions(0),nSequences(0),
 env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
-path(settings.samplesFile), bSampleSeq(settings.nnType == 1),
-bRecurrent(settings.nnType==1), bWriteToFile(!(settings.samplesFile=="none")),
-iOldestSaved(0)
+maxSeqLen(settings.maxSeqLen), iOldestSaved(0), bSampleSeq(settings.nnType),
+bRecurrent(settings.nnType), bWriteToFile(!(settings.samplesFile=="none")),
+path(settings.samplesFile), anneal(0), nBroken(0), nTransitions(0),nSequences(0),
+aI(_env->aI), sI(_env->sI)
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
@@ -149,6 +149,11 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
         }
     }
 
+    if (Tmp[agentId]->tuples.size() >= maxSeqLen) {
+      //upper limit to how long a sequence can be
+      push_back(agentId); //create new sequence
+    }
+
     //if first of a new sequence, create slot for sOld = s_0
     if(Tmp[agentId]->tuples.size()==0) {
         Tuple * t = new Tuple();
@@ -190,10 +195,12 @@ void Transitions::clearFailedSim(const int agentOne, const int agentEnd)
 
 void Transitions::push_back(const int & agentId)
 {
-    if(Tmp[agentId]->tuples.size()>3 || Tmp[agentId]->tuples.size()>1e4) {
+    if(Tmp[agentId]->tuples.size()>3 ) {
         if (nSequences>=NmaxDATA) Buffered.push_back(Tmp[agentId]);
         else {
             nSequences++;
+            if (not Tmp[agentId]->ended) ++nBroken;
+
             Set.push_back(Tmp[agentId]);
             nTransitions+=Tmp[agentId]->tuples.size()-1;
         }
@@ -213,8 +220,7 @@ void Transitions::push_back(const int & agentId)
 void Transitions::update_samples_mean()
 {
 	int count = 0;
-  vector<Real> oldStd = std;
-  vector<Real> oldMean = mean;
+  vector<Real> oldStd{std}, oldMean{mean};
 	std::fill(std.begin(), std.end(), 0.);
 	std::fill(mean.begin(), mean.end(), 0.);
 
@@ -244,6 +250,7 @@ void Transitions::update_samples_mean()
 			}
 		}
 	}
+  
   bool bSimilar = true;
 	std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {
@@ -304,6 +311,7 @@ void Transitions::synchronize()
         const int ind = iOldestSaved++;
         iOldestSaved = (iOldestSaved == NmaxDATA) ? 0 : iOldestSaved;
 
+        if (not Set[ind]->ended) --nBroken;
         nTransitionsDeleted += Set[ind]->tuples.size()-1;
         nTransitionsInBuf += bufTransition->tuples.size()-1;
 
@@ -311,6 +319,7 @@ void Transitions::synchronize()
         _dispose_object(Set[ind]);
 
         nTransitions += bufTransition->tuples.size()-1;
+        if (not bufTransition->ended) ++nBroken;
         Set[ind] = bufTransition;
     } //number of sequences remains constant
     printf("Removing %lu sequences (avg length %f) associated with small MSE"

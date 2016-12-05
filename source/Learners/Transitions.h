@@ -25,7 +25,7 @@ struct Tuple
     Real r;
 
     Real SquaredError;
-    Tuple(): SquaredError(0), r(0) {}
+    Tuple(): r(0), SquaredError(0) {}
 };
 
 struct Sequence
@@ -57,10 +57,10 @@ class Transitions
 {
 protected:
     Environment * const env;
-    const int nAppended, batchSize;
-    const string path;
-    const bool bSampleSeq, bRecurrent, bWriteToFile;
+    const int nAppended, batchSize, maxSeqLen;
     int iOldestSaved;
+    const bool bSampleSeq, bRecurrent, bWriteToFile;
+    const string path;
     vector<Real> Inp, std, mean;
     vector<Sequence*> Tmp, Buffered;
     discrete_distribution<int> * dist;
@@ -73,10 +73,10 @@ protected:
     void synchronize();
 
 public:
+    int anneal, nBroken, nTransitions, nSequences;
     const StateInfo sI;
     const ActionInfo aI;
     Gen * gen;
-    int anneal, nBroken, nTransitions, nSequences;
     vector<Sequence*> Set;
     vector<int> inds;
 
