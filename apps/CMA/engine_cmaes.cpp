@@ -24,32 +24,23 @@
 /*#define _RESTART_*/
 #define _IODUMP_ 0
 #define JOBMAXTIME	0
-#include "fitfun.c"
+
 
 /* the objective (fitness) function to be minimized */
-void taskfun(double * const x, int dim, double * const res, int * const info)
-{
-#if 0
-	int gen, chain, step, task;
-	gen = info[0]; chain = info[1]; step = info[2]; task = info[3];
-	printf("executing task (%d,%d,%d,%d)\n", gen, chain, step, task);
-#endif
+void fitfun(double * const x, int N, double* const output, int * const info);
+/* the upper and lower bounds are defined by the function */
+void get_upper_lower_bounds(double*const lower_bound, double*const upper_bound,
+                            int N, int * const info);
+/* final evaluation of the found optimum */
+double eval_distance_from_optimum(const double* const found_optimum,
+                                  int N, int* const info);
+#include "fitfun.c"
 
-	double f = fitfun(x, dim, (void *)NULL, info);	/* CMA-ES needs this minus sign */
-	if (std::isnan(f) || std::isinf(f)) { printf("Nan function\n"); abort(); }
-   //std::cout << f << std::endl;
-    /*
-    std::ostringstream o;
-    o << "[";
-    for (int i=0; i<dim; i++) {
-        o << x[i];
-        if (i < dim-1) o << " ";
-    }
-    o << "]";
-    printf("Evaluated function in %s = %e\n", o.str().c_str(), f);
-    */
-	*res = f;
-}
+
+int is_feasible(double* const pop, double* const lower_bound,
+								double* const upper_bound, int dim);
+void update_state(cmaes_t* const evo, double* const state, double* oldFmedian,
+																		  double* oldXmean, const int func_dim);
 
 int is_feasible(double* const pop, double* const lower_bound,
 								double* const upper_bound, int dim)
@@ -74,18 +65,25 @@ void update_state(cmaes_t* const evo, double* const state, double* oldFmedian,
   const double fmedian = cmaes_Get(evo, "fmedian");
 	const double fProgress = (fmedian - *oldFmedian)
 														/(fabs(fmedian) + fabs(*oldFmedian));
-	//const double fmedian = 0;
-	const double ratio1 = sqrt(evo->mindiagC/evo->maxdiagC);
-	const double ratio2 = sqrt(evo->minEW/evo->maxEW);
 
+
+  //ratio between standard deviations
+	const double ratio1 = sqrt(evo->mindiagC/evo->maxdiagC);
+  //ratio between eigenvalues
+	const double ratio2 = sqrt(evo->minEW/evo->maxEW);
+  //distinction makes sense if function is rotated
+
+  //prevent nans/infs from infecting the delicate snowflake that is the RL code
 	if (std::isnan(ratio1) || std::isinf(ratio1))
-			{ perror("Ratio1 is nan, fu CMAES \n"); abort(); }
+			{ perror("Ratio1 is nan, FU CMAES \n"); abort(); }
 	if (std::isnan(ratio2) || std::isinf(ratio2))
-			{ perror("Ratio2 is nan, fu CMAES \n"); abort(); }
+			{ perror("Ratio2 is nan, FU CMAES \n"); abort(); }
 	if (std::isnan(xProgress) || std::isinf(xProgress))
-			{ perror("xProgress is nan, fu CMAES \n"); abort(); }
+			{ perror("xProgress is nan, FU CMAES \n"); abort(); }
 	if (std::isnan(fProgress) || std::isinf(fProgress))
-			{ perror("fProgress is nan, fu CMAES \n"); abort(); }
+			{ perror("fProgress is nan, FU CMAES \n"); abort(); }
+	if (std::isnan(evo->trace) || std::isinf(evo->trace))
+			{ perror("evo->trace is nan, FU CMAES \n"); abort(); }
 
 	state[0] = ratio1;
 	state[1] = ratio2;
@@ -96,21 +94,21 @@ void update_state(cmaes_t* const evo, double* const state, double* oldFmedian,
 
 	//advance:
 	*oldFmedian = fmedian;
-    for (int i=0; i<func_dim; i++) oldXmean[i] = xMean[i];
+  for (int i=0; i<func_dim; i++) oldXmean[i] = xMean[i];
 	free(xMean);
 }
 
 /* the optimization loop */
 int main(int argn, char **args)
 {
-    if (argn<3) {
+    if (argn<2) {
       printf("Did not receive the socket and nthreads. Aborting.\n");
       abort();
     }
 
     const int sock      = std::stoi(args[1]);
-    const int nthreads  = std::stoi(args[2]);
-    const int act_dim   = 4;
+    const int nthreads  = 1;
+    const int act_dim   = 5;
     const int state_dim = 6;
     std::seed_seq seq{sock};
 		std::vector<int> seeds(nthreads);
@@ -154,7 +152,7 @@ int main(int argn, char **args)
         int step = 0; // cmaes stepping
         int info[4]; //legacy: gen, chain, step, task
         cmaes_t * const evo = new cmaes_t(); /* an CMA-ES type struct or "object" */
-        double oldFmedian, *oldXmean; //related to RL rewards
+        double oldFmedian, *oldXmean = nullptr; //related to RL rewards
         double *lower_bound, *upper_bound, *init_x, *init_std; //IC for cmaes
         double *arFunvals, *const*pop;  //cma current function values and samples
 
@@ -162,7 +160,9 @@ int main(int argn, char **args)
 										ceil(std::fabs(func_dim_distribution(*generators[thrid])));
         const int runseed = cma_seed_distribution(*generators[thrid]);
         info[0] = func_ID_distribution(*generators[thrid]);
-        const int lambda = 4+floor(3*std::log(func_dim));
+        const int lambda_0 = 4+floor(3*std::log(func_dim));
+        double lambda_fac = 1.001;
+        int lambda = floor(lambda_0*lambda_fac);
         evo->sp.funcID = info[0];
         printf("Selected function %d with dimensionality %d\n",
 								info[0], func_dim);
@@ -199,9 +199,15 @@ int main(int argn, char **args)
 						if (act_dim>1) evo->sp.ccovmu  = actions[1]; //rank mu covariance update
 						if (act_dim>2) evo->sp.ccumcov = actions[2]; //path update c_c
 						if (act_dim>3) evo->sp.cs      = actions[3]; //step size control c_sigmai
-			      printf("selected action %f %f %f %f\n",
-						evo->sp.ccov1, evo->sp.ccovmu, evo->sp.ccumcov, evo->sp.cs);
-						fflush(0);
+						if (act_dim>4) { lambda_fac    = actions[4]; //pop size
+                             lambda = floor(lambda_0*lambda_fac);
+                             lambda = lambda < 4 ? 4 : lambda;
+                             lambda_fac = lambda/(double)lambda_0;
+                             arFunvals = cmaes_ChangePopSize(evo, lambda);
+            }
+            printf("selected action %f %f %f %f %f\n",
+            evo->sp.ccov1,evo->sp.ccovmu,evo->sp.ccumcov,evo->sp.cs,lambda_fac);
+            fflush(0);
         }
 #elif __RANDACT
         {
@@ -221,7 +227,7 @@ int main(int argn, char **args)
 							pop = cmaes_SamplePopulation(evo);
 
 							bool foundnan = false;
-							for (int i = 0; i < cmaes_Get(evo, "popsize"); ++i)
+							for (int i = 0; i < lambda; ++i)
 							for (int j = 0; j < func_dim; j++)
 								if (std::isnan(pop[i][j]) || std::isinf(pop[i][j]))
 									foundnan = true;
@@ -243,7 +249,7 @@ int main(int argn, char **args)
 
 							int safety = 0;
 							if(!bConverged)
-							for (int i = 0; i < cmaes_Get(evo, "popsize"); ++i)
+							for (int i = 0; i < lambda; ++i)
 							{
 								while (!is_feasible(pop[i],lower_bound,upper_bound,func_dim)
 												&& safety++ < 1e3)
@@ -256,7 +262,7 @@ int main(int argn, char **args)
 							/* evaluate current pop */
 							if(!bConverged)
 							for (int i = 0; i < lambda; i++)
-                taskfun(pop[i], func_dim, &arFunvals[i], info);
+                fitfun(pop[i], func_dim, &arFunvals[i], info);
 
 							if(!bConverged)
 							cmaes_UpdateDistribution(evo, arFunvals);
@@ -270,12 +276,11 @@ int main(int argn, char **args)
 								oldXmean = cmaes_GetNew(evo, "xmean");
             	}
 
-							step++;
+							step += lambda;
 							if(!bConverged)
             	if(cmaes_TestForTermination(evo)) {
             		bConverged = true;
             	}
-
               fflush(stdout); /* useful in MinGW */
 							if(bConverged) break;
               /* read instructions for printing output or changing termination conditions */
@@ -308,14 +313,22 @@ int main(int argn, char **args)
 #if __RLON
 					{
 	        	update_state(evo, state.data(), &oldFmedian, oldXmean, func_dim);
-						const double r = -.1;
+						const double r = -.01*lambda_fac;
 						comm.sendState(thrid, 0, state, r);
 						comm.recvAction(actions);
 									   			 evo->sp.ccov1   = actions[0]; //rank 1 covariance update
 						if (act_dim>1) evo->sp.ccovmu  = actions[1]; //rank mu covariance update
 						if (act_dim>2) evo->sp.ccumcov = actions[2]; //path update c_c
 						if (act_dim>3) evo->sp.cs      = actions[3]; //step size control c_sigma
-            //printf("selected action %f %f %f %f\n", evo.sp.ccov1, evo.sp.ccovmu, evo.sp.ccumcov, evo.sp.cs); fflush(0);
+						if (act_dim>4) { lambda_fac    = actions[4]; //pop size
+                             lambda = floor(lambda_0*lambda_fac);
+                             lambda = lambda < 4 ? 4 : lambda;
+                             lambda_fac = lambda/(double)lambda_0;
+                             arFunvals = cmaes_ChangePopSize(evo, lambda);
+            }
+            //printf("selected action %f %f %f %f %f\n",
+            //evo->sp.ccov1,evo->sp.ccovmu,evo->sp.ccumcov,evo->sp.cs,lambda_fac);
+            //fflush(0);
 					}
 #elif __RANDACT
           {
@@ -353,16 +366,17 @@ int main(int argn, char **args)
 				} else {
 					update_state(evo, state.data(), &oldFmedian, oldXmean, func_dim);
 	        double* xfinal = cmaes_GetNew(evo, "xmean");
-	        double ffinal = - fitfun(xfinal, func_dim, (void *)NULL, info);
+	        double ffinal;
+          fitfun(xfinal, func_dim, &ffinal, info);
 	        const double final_dist =
 														 eval_distance_from_optimum(xfinal, func_dim, info);
-	        const double r_end = 1-1e3*final_dist/(upper_bound[0]-lower_bound[0]);
+	        const double r_end = std::max(-1., 1-1e3*final_dist);
 
-					printf("Sending %f %f %f %f %f %f\n",
-							state[0],state[1],state[2],state[3],state[4],r_end);
-					fflush(0);
+					//printf("Sending %f %f %f %f %f %f\n",
+					//		state[0],state[1],state[2],state[3],state[4],r_end);
+					//fflush(0);
 					#if __RLON
-        	comm.sendState(thrid, 2, state, std::max(-1.,r_end)); // final state: info is 2
+        	comm.sendState(thrid, 2, state, r_end); // final state: info is 2
 					#endif
 
 	        {
@@ -381,6 +395,7 @@ int main(int argn, char **args)
         //cmaes_WriteToFile(&evo, "all", "allcmaes.dat");         /* write final results */
         cmaes_exit(evo); /* release memory */
 				delete evo;
+        if(oldXmean not_eq nullptr)
 				free(oldXmean);
 				free(lower_bound);
 				free(upper_bound);

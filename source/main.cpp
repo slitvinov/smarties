@@ -29,19 +29,33 @@ using namespace ErrorHandling;
 using namespace ArgumentParser;
 using namespace std;
 
-void runTest(void);
-void runSlave(int);
+void runSlave(MPI_Comm slavesComm);
+void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm);
 Settings settings;
 int ErrorHandling::debugLvl;
 
-void runSlave(int rank)
+void runSlave(MPI_Comm slavesComm)
 {
+    int rank, nranks;
+    MPI_Comm_rank(slavesComm, &rank);
+    MPI_Comm_size(slavesComm, &nranks);
+    if(rank==0) die("Slave is master?\n")
+    if(nranks==1) die("Slave has no master?\n");
+
+    //////// TODO
+    int wRank, wSize;
+    MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &wSize);
+    if(rank!=wRank || wSize!=nranks) die("Not ready for multiple masters!\n");
+
     ObjectFactory factory(settings);
     Environment* env = factory.createEnvironment(rank, 0);
     settings.nAgents = env->agents.size();
     settings.nSlaves = 1;
-    Slave simulation(env, rank, settings);
-    if (settings.restart != "none") simulation.restart(settings.restart);
+    Slave simulation(slavesComm, env, rank, settings);
+    if (settings.restart != "none")
+        simulation.restart(settings.restart);
+
     while (true) {
         simulation.run(); //if it returns, something is messed up
         env->close_Comm();
@@ -49,20 +63,36 @@ void runSlave(int rank)
     }
 }
 
-void runMaster(int nranks)
+void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 {
+    int masterRank, nMasters, nSlaves, isSlave;
+    MPI_Comm_rank(mastersComm, &masterRank);
+    MPI_Comm_size(mastersComm, &nMasters);
+    MPI_Comm_rank(slavesComm, &isSlave);
+    MPI_Comm_size(slavesComm, &nSlaves);
+    nSlaves--; //minus master
+    if(isSlave) die("Master is slave?\n")
+    //if(nSlaves==0) die("Master has no slaves?\n");
+
+    //////// TODO
+    int wRank, wSize;
+    MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &wSize);
+    if(isSlave!=wRank || wSize!=nSlaves+1 || nMasters!=1 || masterRank)
+        die("Not ready for multiple masters!\n");
+
     ObjectFactory factory(settings);
     Environment* env = factory.createEnvironment(0,0);
 
-    settings.nAgents = nranks*env->agents.size();
-    settings.nSlaves = nranks;
+    settings.nAgents = nSlaves*env->agents.size();
+    settings.nSlaves = nSlaves;
 
     Learner* learner = nullptr;
     if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
         settings.nnInputs = env->sI.dimUsed;
         settings.nnOutputs = 1;
         for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];
-        learner = new NFQ(env, settings);
+        learner = new NFQ(mastersComm, env, settings);
     }
     else if (settings.learner == "NA" || settings.learner == "NAF") {
         settings.nnInputs = env->sI.dimUsed;
@@ -70,16 +100,16 @@ void runMaster(int nranks)
         const int nL = (nA*nA+nA)/2;
         settings.nnOutputs = 1+nL+nA;
         settings.bSeparateOutputs = true; //else it does not really work
-        learner = new NAF(env,settings);
+        learner = new NAF(mastersComm, env, settings);
     }
     else if (settings.learner == "DP" || settings.learner == "DPG") {
         settings.nnInputs = env->sI.dimUsed + env->aI.dim;
         settings.nnOutputs = 1;
-        learner = new DPG(env,settings);
+        learner = new DPG(mastersComm, env, settings);
     } else die("Learning algorithm not recognized\n");
     assert(learner not_eq nullptr);
 
-    Master master(learner, env, settings);
+    Master master(slavesComm, learner, env, settings);
     if (settings.restart != "none") master.restart(settings.restart);
 
     if (settings.nThreads > 1) learner->TrainTasking(&master);
@@ -89,16 +119,16 @@ void runMaster(int nranks)
 int main (int argc, char** argv)
 {
     int rank(0), nranks(2);
+
 #ifndef MEGADEBUG
     int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
-    if (provided < MPI_THREAD_FUNNELED) {
-        printf("ERROR: The MPI implementation does not have required thread support\n");
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
+    if (provided < MPI_THREAD_FUNNELED)
+        die("The MPI implementation does not have required thread support\n");
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+
 #endif
 
     struct timeval clock;
@@ -106,6 +136,7 @@ int main (int argc, char** argv)
     debugLvl=10;
 
     vector<OptionStruct> opts ({
+    {'N', "nMasters", INT,   "N policy ranks", &settings.nMasters,  (int)1},
     {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.9},
     {'e', "greedyeps",REAL,  "Greedy epsilon", &settings.greedyEps, (Real)0.1},
     {'l', "learnrate",REAL,  "Learning rate",  &settings.lRate,     (Real)0.001},
@@ -128,8 +159,19 @@ int main (int argc, char** argv)
     {'L', "dqnSeqMax",INT,   "max seq length", &settings.maxSeqLen, (int)200},
     {'B', "dqnBatch", INT,   "batch update",   &settings.dqnBatch,  (int)10},
     {'p', "nThreads", INT,   "parallel master",&settings.nThreads,  (int)-1},
-    {'H', "fileSamp", STRING,"history file", &settings.samplesFile,(string)"../history.txt"}
+    //{'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"../history.txt"}
+    {'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"obs_master.txt"}
     });
+
+    const int slavesPerMaster = ceil(nranks/(double)settings.nMasters) - 1;
+    const int isMaster = rank % (slavesPerMaster+1) == 0;
+    const int whichMaster = rank / (slavesPerMaster+1);
+    printf("%d %d %d\n", slavesPerMaster, isMaster, whichMaster);
+    MPI_Comm slavesComm; //this communicator allows slaves to talk to their master
+    MPI_Comm mastersComm; //this communicator allows masters to talk among themselves
+    MPI_Comm_split(MPI_COMM_WORLD, isMaster, rank, &mastersComm);
+    MPI_Comm_split(MPI_COMM_WORLD, whichMaster, rank, &slavesComm);
+    if (!isMaster) MPI_Comm_free(&mastersComm);
 
     Parser parser(opts);
     parser.parse(argc, argv, rank == 0);
@@ -137,8 +179,11 @@ int main (int argc, char** argv)
     int seed = abs(floor(clock.tv_usec + rank));
     settings.gen = new mt19937(seed);
 
-    if (rank == 0) runMaster(nranks);
-    else           runSlave(rank);
+    if (rank == 0) runMaster(slavesComm, mastersComm);
+    else           runSlave(slavesComm);
 
-	return 0;
+    if (isMaster) MPI_Comm_free(&mastersComm);
+    MPI_Comm_free(&slavesComm);
+    MPI_Finalize();
+    return 0;
 }

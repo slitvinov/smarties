@@ -70,45 +70,16 @@ void CMAEnvironment::setAction(const int & iAgent)
 			  agents[iAgent]->a->vals[3] < 0. )
 		    agents[iAgent]->a->vals[3] = dist(*g);
 
+	}
+	if(aI.dim > 4) {
+		std::uniform_real_distribution<Real> dist(.5,2.);
+		if (agents[iAgent]->a->vals[4] > 100. ||
+			  agents[iAgent]->a->vals[4] < 0. )
+		    agents[iAgent]->a->vals[4] = dist(*g);
+
 	}  else die("No actions sent?\n");
 
 	Environment::setAction(iAgent);
-}
-
-void CMAEnvironment::spawn_server()
-{
-		sleep(2);
-    const int rf = fork();
-    if (rf == 0) {
-        char line[1024];
-        char *largv[64];
-
-        mkdir(("simulation_"+to_string(rank)+"_"+to_string(iter)+"/").c_str(),
-																				S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        chdir(("simulation_"+to_string(rank)+"_"+to_string(iter)+"/").c_str());
-
-        sprintf(line, execpath.c_str());
-        parse(line, largv);     // prepare argv
-
-        printf("About to exec.... \n");
-        #if 1==1 //if true goes to stdout
-        char output[256];
-        sprintf(output, "output");
-        int fd = open(output, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-        dup2(fd, 1);    // make stdout go to file
-        dup2(fd, 2);  // make stderr go to file
-        close(fd);      // fd no longer needed
-        #endif
-
-        cout << execpath << endl << *largv << endl;
-
-        const int res = execlp(execpath.c_str(),
-                               execpath.c_str(),
-                               to_string(workerid).c_str(),
-                               to_string(1).c_str(),
-                               NULL);
-        if (res < 0) die("Unable to exec file '%s'!\n", execpath.c_str());
-    }
 }
 
 void CMAEnvironment::setDims() //this environment is for the cart pole test
@@ -135,7 +106,7 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
         sI.inUse.push_back(true); //ignore, leave as is
     }
     {
-        aI.dim = 4; //number of action that agent can perform per turn: usually 1 (eg DQN)
+        aI.dim = 5; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
         for (int i=0; i<2; i++) {
         	const int nOptions = 5; //used if discrete actions: options available to agent for acting
@@ -157,6 +128,10 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
             aI.values[i].push_back(.7);
             aI.values[i].push_back(.9);
         }
+            aI.bounds.push_back(3);
+            aI.values[4].push_back(.5); //here the app accepts real numbers
+            aI.values[4].push_back(1.);
+            aI.values[4].push_back(2.);
 
     }
     commonSetup(); //required

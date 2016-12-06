@@ -20,8 +20,8 @@
 
 
 
-NAF::NAF(Environment* env, Settings & settings) :
-Learner(env,settings), nA(env->aI.dim),
+NAF::NAF(MPI_Comm comm, Environment*const env, Settings & settings) :
+Learner(comm,env,settings), nA(env->aI.dim),
 nL((env->aI.dim*env->aI.dim+env->aI.dim)/2)
 {
 	string lType = bRecurrent ? "LSTM" : "Normal";

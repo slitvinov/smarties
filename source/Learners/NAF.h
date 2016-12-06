@@ -25,7 +25,7 @@ class NAF : public Learner
     //Real computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const;
 
 public:
-    NAF(Environment* env, Settings & settings);
+    NAF(MPI_Comm comm, Environment*const env, Settings & settings);
     void select(const int agentId, State& s,Action& a, State& sOld,
                 Action& aOld, const int info, Real r) override;
 };

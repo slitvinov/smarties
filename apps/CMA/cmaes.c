@@ -250,7 +250,7 @@ cmaes_SayHello(cmaes_t * const t)
   /* write initial message */
   sprintf(t->sOutString,
           "(%d,%d)-CMA-ES(mu_eff=%.1f), Ver=\"%s\", dimension=%d, diagonalIterations=%ld, randomSeed=%d (%s)",
-          t->sp.mu, t->sp.lambda, t->sp.mueff, t->version, t->sp.N, (long)t->sp.diagonalCov, t->sp.seed, getTimeStr());
+          t->sp.mu, t->sp.lambda, t->sp.mueff, t->version, t->sp.N, t->sp.diagonalCov, t->sp.seed, getTimeStr());
 
   return t->sOutString;
 }
@@ -277,7 +277,7 @@ cmaes_init_final(cmaes_t * const t /* "this" */)
  * */
 {
   int i, j, N;
-  double dtest, trace;
+  double trace;
 
   if (t->version == NULL) {
         ERRORMESSAGE("cmaes_init_final called (probably) without calling cmaes_init_para first",
@@ -326,34 +326,30 @@ cmaes_init_final(cmaes_t * const t /* "this" */)
   t->rgps = new_double(N);
   t->rgdTmp = new_double(N+1);
   t->rgBDz = new_double(N);
-  t->rgxmean = new_double(N+2); t->rgxmean[0] = N; ++t->rgxmean;
-  t->rgxold = new_double(N+2); t->rgxold[0] = N; ++t->rgxold;
-  t->rgxbestever = new_double(N+3); t->rgxbestever[0] = N; ++t->rgxbestever;
-  t->rgout = new_double(N+2); t->rgout[0] = N; ++t->rgout;
+  t->rgxmean = new_double(N+1);
+  t->rgxold = new_double(N+1);
+  t->rgxbestever = new_double(N+2);
+  t->rgout = new_double(N+1);
   t->rgD = new_double(N);
   t->C = (double**)new_void(N, sizeof(double*));
   t->B = (double**)new_void(N, sizeof(double*));
-  t->publicFitness = new_double(t->sp.lambda);
-  t->rgFuncValue = new_double(t->sp.lambda+1);
-  t->rgFuncValue[0]=t->sp.lambda; ++t->rgFuncValue;
-  t->arFuncValueHist = new_double(10+(int)ceil(3.*10.*N/t->sp.lambda)+1);
-  t->arFuncValueHist[0] = (double)(10+(int)ceil(3.*10.*N/t->sp.lambda));
-  t->arFuncValueHist++;
-
   for (i = 0; i < N; ++i) {
       t->C[i] = new_double(i+1);
       t->B[i] = new_double(N);
-    }
+  }
+
+///////////////////////////////////////////////////
+  t->publicFitness = new_double(t->sp.lambda);
+  t->rgFuncValue = new_double(t->sp.lambda);
+  t->arFuncValueHist = new_double(10+(int)ceil(30.*N));
+
   t->index = (int *) new_void(t->sp.lambda, sizeof(int));
   for (i = 0; i < t->sp.lambda; ++i)
     t->index[i] = i; /* should not be necessary */
   t->rgrgx = (double **)new_void(t->sp.lambda, sizeof(double*));
-  for (i = 0; i < t->sp.lambda; ++i) {
-    t->rgrgx[i] = new_double(N+2);
-    t->rgrgx[i][0] = N;
-    t->rgrgx[i]++;
-  }
-
+  for (i = 0; i < t->sp.lambda; ++i)
+    t->rgrgx[i] = new_double(N+1);
+///////////////////////////////////////////////////
   /* Initialize newed space  */
 
   for (i = 0; i < N; ++i)
@@ -389,7 +385,33 @@ cmaes_init_final(cmaes_t * const t /* "this" */)
 
 } /* cmaes_init_final() */
 
+double * cmaes_ChangePopSize(cmaes_t * const t,const int newlambda)
+{
+    int i;
+    int N = t->sp.N;
+  //deallocate previous population
+    for (i = 0; i < t->sp.lambda; ++i)
+      free( t->rgrgx[i]);
+    free( t->rgrgx);
+    free( t->index);
+    free( t->publicFitness);
+    free( t->rgFuncValue);
 
+    t->sp.lambda = newlambda;
+
+   //allocate new population
+    t->publicFitness = new_double(t->sp.lambda);
+    t->rgFuncValue = new_double(t->sp.lambda);
+
+    t->index = (int *) new_void(t->sp.lambda, sizeof(int));
+    for (i = 0; i < t->sp.lambda; ++i)
+      t->index[i] = i; /* should not be necessary */
+    t->rgrgx = (double **)new_void(t->sp.lambda, sizeof(double*));
+    for (i = 0; i < t->sp.lambda; ++i)
+      t->rgrgx[i] = new_double(N+1);
+
+    return t->publicFitness;
+}
 /* --------------------------------------------------------- */
 /* --------------------------------------------------------- */
 double *
@@ -560,24 +582,24 @@ cmaes_exit(cmaes_t * const t)
   free( t->rgps);
   free( t->rgdTmp);
   free( t->rgBDz);
-  free( --t->rgxmean);
-  free( --t->rgxold);
-  free( --t->rgxbestever);
-  free( --t->rgout);
+  free( t->rgxmean);
+  free( t->rgxold);
+  free( t->rgxbestever);
+  free( t->rgout);
   free( t->rgD);
   for (i = 0; i < N; ++i) {
     free( t->C[i]);
     free( t->B[i]);
   }
   for (i = 0; i < t->sp.lambda; ++i)
-    free( --t->rgrgx[i]);
+    free( t->rgrgx[i]);
   free( t->rgrgx);
   free( t->C);
   free( t->B);
   free( t->index);
   free( t->publicFitness);
-  free( --t->rgFuncValue);
-  free( --t->arFuncValueHist);
+  free( t->rgFuncValue);
+  free( t->arFuncValueHist);
   cmaes_random_exit (&t->rand);
   cmaes_readpara_exit (&t->sp);
 } /* cmaes_exit() */
@@ -804,6 +826,7 @@ cmaes_Optimize( cmaes_t * const evo, double(*pFun)(double const *, int dim), lon
 double *
 cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
 {
+  double eps = 1e-16; /* Math.pow(2.0,-52.0);  == 2.22e-16 */
   int i, j, iNk, hsig, N=t->sp.N;
   int flgdiag = ((t->sp.diagonalCov == 1) || (t->sp.diagonalCov >= t->gen));
   double sum;
@@ -832,7 +855,7 @@ cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
   Sorted_index(rgFunVal, t->index, t->sp.lambda);
 
   /* Test if function values are identical, escape flat fitness */
-  if (t->rgFuncValue[t->index[0]] == t->rgFuncValue[t->index[(int)t->sp.lambda/2]]) {
+  if (fabs(t->rgFuncValue[t->index[0]] - t->rgFuncValue[t->index[(int)t->sp.lambda/2]]) < eps) {
     t->sigma *= exp(0.2+t->sp.cs/t->sp.damps);
     printf("Going to have trouble with f %d: sigma %e cs %e damp %e ccov1 %e ccovmu %e ccumcov %e\n",
     		t->sp.funcID, t->sigma, t->sp.cs, t->sp.damps, t->sp.ccov1, t->sp.ccovmu, t->sp.ccumcov);
@@ -848,7 +871,8 @@ cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
   }
 
   /* update function value history */
-  for(i = (int)*(t->arFuncValueHist-1)-1; i > 0; --i) /* for(i = t->arFuncValueHist[-1]-1; i > 0; --i) */
+  const int sizeFunHist = 10+(int)ceil(t->sp.N*30.);
+  for(i = sizeFunHist-1; i > 0; --i)
     t->arFuncValueHist[i] = t->arFuncValueHist[i-1];
   t->arFuncValueHist[0] = rgFunVal[t->index[0]];
 
@@ -1219,7 +1243,7 @@ void cmaes_WriteToFilePtr(cmaes_t * const t, const char *key, FILE *fp)
           ++key;
       }
       if (strncmp(key, "few", 3) == 0) {
-        fprintf(fp, " %4.0f ", t->gen);
+        fprintf(fp, " %ld ", t->gen);
         fprintf(fp, " %5.0f ", t->countevals);
         fprintf(fp, "%.15e", t->rgFuncValue[t->index[0]]);
         fprintf(fp, "  %.2e  %.2e %.2e", t->sigma, t->sigma*sqrt(t->maxdiagC),
@@ -1268,14 +1292,14 @@ void cmaes_WriteToFilePtr(cmaes_t * const t, const char *key, FILE *fp)
         }
       if (strncmp(key, "gen", 3) == 0)
         {
-          fprintf(fp, "%.0f", t->gen);
+          fprintf(fp, "%ld", t->gen);
           while (*key != '+' && *key != '\0' && key < keyend)
             ++key;
           fprintf(fp, "%c", (*key=='+') ? '\t':'\n');
         }
       if (strncmp(key, "iter", 4) == 0)
         {
-          fprintf(fp, "%.0f", t->gen);
+          fprintf(fp, "%ld", t->gen);
           while (*key != '+' && *key != '\0' && key < keyend)
            ++key;
           fprintf(fp, "%c", (*key=='+') ? '\t':'\n');
@@ -1461,7 +1485,7 @@ cmaes_Get( cmaes_t * const t, char const *s)
   }
   else if (strncmp(s, "generation", 3) == 0
            || strncmp(s, "iteration", 4) == 0) {
-    return(t->gen);
+    return((double)t->gen);
   }
   else if (strncmp(s, "maxeval", 4) == 0
            || strncmp(s, "MaxFunEvals", 8) == 0
@@ -1579,10 +1603,12 @@ cmaes_TestForTermination( cmaes_t * const t)
                       t->rgFuncValue[t->index[0]], t->sp.stStopFitness.val);
 
       /* TolFun */
-      range = douMax(rgdouMax(t->arFuncValueHist, (int)douMin(t->gen,*(t->arFuncValueHist-1))),
+      const int sizeFunHist = 10+(int)ceil(t->sp.N*30./t->sp.lambda);
+      const long histLen = t->gen > sizeFunHist ? sizeFunHist : t->gen; //min
+      range = douMax(rgdouMax(t->arFuncValueHist, histLen),
                      rgdouMax(t->rgFuncValue, t->sp.lambda)) -
-        douMin(rgdouMin(t->arFuncValueHist, (int)douMin(t->gen, *(t->arFuncValueHist-1))),
-               rgdouMin(t->rgFuncValue, t->sp.lambda));
+              douMin(rgdouMin(t->arFuncValueHist, histLen),
+                     rgdouMin(t->rgFuncValue, t->sp.lambda));
 
       if (t->gen > 0 && range <= t->sp.stopTolFun) {
         cp += sprintf(cp,
@@ -1591,9 +1617,9 @@ cmaes_TestForTermination( cmaes_t * const t)
       }
 
       /* TolFunHist */
-      if (t->gen > *(t->arFuncValueHist-1)) {
-        range = rgdouMax(t->arFuncValueHist, (int)*(t->arFuncValueHist-1))
-          - rgdouMin(t->arFuncValueHist, (int)*(t->arFuncValueHist-1));
+      if (t->gen > sizeFunHist) {
+        range = rgdouMax(t->arFuncValueHist, sizeFunHist)
+          - rgdouMin(t->arFuncValueHist, sizeFunHist);
         if (range <= t->sp.stopTolFunHist)
           cp += sprintf(cp,
                         "TolFunHist: history of function value changes %7.2e stopTolFunHist=%7.2e",
@@ -1670,7 +1696,7 @@ cmaes_TestForTermination( cmaes_t * const t)
         cp += sprintf(cp, "MaxFunEvals: conducted function evaluations %.0f >= %g\n",
                       t->countevals, t->sp.stopMaxFunEvals);
       if(t->gen >= t->sp.stopMaxIter)
-        cp += sprintf(cp, "MaxIter: number of iterations %.0f >= %g\n",
+        cp += sprintf(cp, "MaxIter: number of iterations %ld >= %g\n",
                       t->gen, t->sp.stopMaxIter);
       if(t->flgStop)
         cp += sprintf(cp, "Manual: stop signal read\n");
@@ -2016,7 +2042,7 @@ Eigen( int N,  double ** const C, double* const diag, double ** const  Q, double
     QLalgo2( N, diag, rgtmp, Q);
     //printf("3 %p\n",diag); fflush(0);
 #endif
-/*
+
   for (i=0; i < N; ++i)
   if( isnan(diag[i]) ) {
     for (j = 0; j < N; ++j)
@@ -2031,7 +2057,6 @@ Eigen( int N,  double ** const C, double* const diag, double ** const  Q, double
     for (j = 0; j < N; ++j)
       Q[i][j] =0;
   }
-*/
 }
 
 
@@ -2198,7 +2223,7 @@ Householder2(int n, double ** const V, double * const d, double * const e) {
   */
 
   int i,j,k;
-  double eps = 1e-16; /* Math.pow(2.0,-52.0);  == 2.22e-16 */
+  //double eps = 1e-16; /* Math.pow(2.0,-52.0);  == 2.22e-16 */
 
       for (j = 0; j < n; j++) {
          d[j] = V[n-1][j];
@@ -2576,7 +2601,7 @@ cmaes_readpara_init (cmaes_readpara_t * const t,
   t->rgsformat[i] = " ccumcov %lg";    t->rgpadr[i++] = (void *) &t->ccumcov;
   t->rgsformat[i] = " mucov %lg";     t->rgpadr[i++] = (void *) &t->mucov;
   t->rgsformat[i] = " fac*ccov %lg";  t->rgpadr[i++]=(void *) &t->ccov;
-  t->rgsformat[i] = " diagonalCovarianceMatrix %lg"; t->rgpadr[i++]=(void *) &t->diagonalCov;
+  t->rgsformat[i] = " diagonalCovarianceMatrix %ld"; t->rgpadr[i++]=(void *) &t->diagonalCov;
   t->rgsformat[i] = " updatecov %lg"; t->rgpadr[i++]=(void *) &t->updateCmode.modulo;
   t->rgsformat[i] = " maxTimeFractionForEigendecompostion %lg"; t->rgpadr[i++]=(void *) &t->updateCmode.maxtime;
   t->rgsformat[i] = " resume %59s";    t->rgpadr[i++] = (void *) t->resumefile;
@@ -2888,12 +2913,12 @@ cmaes_readpara_SupplementDefaults(cmaes_readpara_t * const t)
   if (t->diagonalCov == -1)
     t->diagonalCov = 2 + 100. * N / sqrt((double)t->lambda);
 
-  if (t->stopMaxFunEvals == -1)  /* may depend on ccov in near future */
+  if (t->stopMaxFunEvals < 0)  /* may depend on ccov in near future */
     t->stopMaxFunEvals = t->facmaxeval*900*(N+3)*(N+3);
   else
     t->stopMaxFunEvals *= t->facmaxeval;
 
-  if (t->stopMaxIter == -1)
+  if (t->stopMaxIter < 0)
     t->stopMaxIter = ceil((double)(t->stopMaxFunEvals / t->lambda));
 
   if (t->damps < 0)

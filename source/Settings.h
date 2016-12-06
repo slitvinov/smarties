@@ -51,8 +51,8 @@ struct Settings
 {
     Settings() : saveFreq(1e4), randSeed(0), rewardType(0), senses(0),
     nAgents(1), nSlaves(1), nThreads(-1), nnInputs(-1), nnOutputs(-1),
-    nnLayer1(32), nnLayer2(32), nnLayer3(0), nnLayer4(0), nnLayer5(0),
-    nnType(1), dqnAppendS(0), dqnBatch(1), bTrain(1), maxSeqLen(200),
+    nnLayer1(32), nnLayer2(32), nnLayer3(0), nnLayer4(0), nnLayer5(0), nnType(1),
+    dqnAppendS(0), dqnBatch(1), bTrain(1), maxSeqLen(200), nMasters(1),
     lRate(.0001), greedyEps(.1), gamma(.9), lambda(0), goalDY(0), nnPdrop(0),
     nnLambda(0), dqnUpdateC(1000.), learner((string)"NFQ"),
     restart((string)"policy"), configFile((string)"factory"), prefix((string)"./"),
@@ -61,7 +61,7 @@ struct Settings
 
     int saveFreq, randSeed, rewardType, senses, nAgents, nSlaves, nThreads;
     int nnInputs, nnOutputs, nnLayer1, nnLayer2, nnLayer3, nnLayer4, nnLayer5;
-    int nnType, dqnAppendS, dqnBatch, bTrain, maxSeqLen;
+    int nnType, dqnAppendS, dqnBatch, bTrain, maxSeqLen, nMasters;
     Real lRate, greedyEps, gamma, lambda, goalDY, nnPdrop, nnLambda, dqnUpdateC;
     string learner, restart, configFile, prefix, samplesFile;
     bool bSeparateOutputs;
@@ -77,7 +77,7 @@ namespace ErrorHandling
 {
     extern int debugLvl;
 
-#define    die(format, ...) fprintf(stderr, format, ##__VA_ARGS__), MPI_Abort(MPI_COMM_WORLD, 1)
+#define    die(format, ...) {fprintf(stderr, format, ##__VA_ARGS__); MPI_Abort(MPI_COMM_WORLD, 1);}
 #define  error(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
 
 #define   warn(format, ...)	{if (debugLvl > 0) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}

@@ -165,10 +165,7 @@ void NewFishEnvironment::setAction(const int & iAgent)
         agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
     }
 
-    for (int i=0; i<aI.dim; i++)
-        dataout[i] = (double) agents[iAgent]->a->vals[i];
-
-    send_all(sock, dataout, sizeout);
+    Environment::setAction(iAgent);
 }
 
 bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
@@ -243,38 +240,10 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 
 int NewFishEnvironment::getState(int & iAgent)
 {
-    int bStatus = 0;
-    //printf("RECEIVING %d,%d\n",sock,sizein);
-    if ((bytes = recv_all(sock, datain, sizein)) <= 0) {
-        if (bytes == 0) printf("socket %d hung up\n", sock);
-        else perror("(1) recv");
+    int bStatus = Environment::getState(iAgent);
 
-        close(sock);
-        bStatus = -1;
-    } else { // (bytes == nbyte)
-        iAgent  = *((int*)  datain   );
-        bStatus = *((int*) (datain+1)); //first (==1?), terminal (==2?), etc
-        debug3("Receiving from agent %d %d: ", iAgent, bStatus);
-
-        std::swap(agents[iAgent]->s,agents[iAgent]->sOld);
-
-        int k = 2;
-        for (int j=0; j<sI.dim; j++) {
-            debug3(" %f (%d)",datain[k],k);
-            agents[iAgent]->s->vals[j] = (Real) datain[k++];
-            assert(not std::isnan(agents[iAgent]->s->vals[j]) &&
-                   not std::isinf(agents[iAgent]->s->vals[j]));
-            if (j>=180) //sight sensors get non-dimensionalized differently depending on size of fish if no obstacle is found =(
-              agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
-        }
-
-        debug3(" %f (%d)\n",datain[k],k);
-        agents[iAgent]->r = (Real) datain[k++];
-        assert(not std::isnan(agents[iAgent]->r) &&
-               not std::isinf(agents[iAgent]->r));
-        debug3("Got from child %d: reward %f initial state %s\n",
-        rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
-    }
-    fflush(0);
+    for (int j=180; j<sI.dim; j++)
+        agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
+        
     return bStatus;
 }

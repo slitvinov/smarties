@@ -94,7 +94,7 @@ typedef struct
   double cs;           /* -> damps, <- N */
   double ccumcov;      /* <- N */
   double ccov;         /* <- mucov, <- N */
-  double diagonalCov;  /* number of initial iterations */
+  long diagonalCov;  /* number of initial iterations */
   double ccov1;
   double ccovmu;
   struct { int flgalways; double modulo; double maxtime; } updateCmode;
@@ -148,9 +148,9 @@ typedef struct
   double *rgFuncValue;
   double *publicFitness; /* returned by cmaes_init() */
 
-  double gen; /* Generation number */
+  long gen; /* Generation number */
   double countevals;
-  double state; /* 1 == sampled, 2 == not in use anymore, 3 == updated */
+  int state; /* 1 == sampled, 2 == not in use anymore, 3 == updated */
 
   double maxdiagC; /* repeatedly used for output */
   double mindiagC;

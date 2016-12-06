@@ -26,7 +26,7 @@ class DPG : public Learner
     void updateNNWeights(const int nAddedGradients) override;
 
 public:
-	DPG(Environment* env, Settings & settings);
+	DPG(MPI_Comm comm, Environment*const env, Settings & settings);
     void select(const int agentId, State& s, Action& a, State& sOld,
                 Action& aOld, const int info, Real r) override;
 };

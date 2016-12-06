@@ -16,8 +16,8 @@
 #include <algorithm>
 #include <cassert>
 
-Master::Master(Learner* const _learner, Environment* const _env,
-  Settings& settings): learner(_learner), env(_env), actInfo(_env->aI),
+Master::Master(MPI_Comm comm, Learner*const _learner, Environment* const _env,
+  Settings& settings): slavesComm(comm), learner(_learner), env(_env), actInfo(_env->aI),
   sInfo(_env->sI), bTrain(settings.bTrain==1), nAgents(_env->agents.size()),
   nSlaves(settings.nSlaves), saveFreq(settings.saveFreq), iter(0),
   gen(settings.gen), sOld(_env->sI), s(_env->sI), aOld(_env->aI, settings.gen),
@@ -87,7 +87,7 @@ void Master::save()
 
 void Master::run()
 {
-    int agentId(0), completed(0), slave(0), info(0);
+    int agentId(0), completed(0), info(0);
     //printf("Master starting...\n");
     MPI_Status  status;
 
@@ -104,10 +104,9 @@ void Master::run()
         }
         #ifndef MEGADEBUG
 
-        slave = status.MPI_SOURCE;
+        const int slave = status.MPI_SOURCE - 1, srcID = status.MPI_SOURCE;
         //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
-        //fflush(0);
-        MPI_Recv(inbuf, inOneSize, MPI_BYTE, slave, 2, MPI_COMM_WORLD, &status);
+        MPI_Recv(inbuf, inOneSize, MPI_BYTE, srcID, 2, MPI_COMM_WORLD, &status);
 
         unpackChunk(inbuf, info, sOld, aOld, r, s);
         if (info == 3) {
@@ -125,7 +124,7 @@ void Master::run()
         if (info != 1) totR += r;
         if (info != 2) { //not terminal
             packChunk(outbuf, a);
-            MPI_Send(outbuf, outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD);
+            MPI_Send(outbuf, outOneSize, MPI_BYTE, srcID, 0, MPI_COMM_WORLD);
         }
 
         if (++iter % saveFreq == 0) save();
@@ -137,7 +136,7 @@ void Master::hustle()
 {
 #ifndef MEGADEBUG
     MPI_Status  status;
-    int completed(0), slave(0), info(0), cnt(0), knt(0), agentId(0);
+    int completed(0), info(0), cnt(0), knt(0), agentId(0);
 
     //this is only called the first time, the following Irecv will be sent at the end of the first comm
     //the idea is that while the communication is not done, we continue processing the NN update
@@ -158,10 +157,9 @@ void Master::hustle()
             knt++;
         }
 
-        slave = status.MPI_SOURCE;
+        const int slave = status.MPI_SOURCE - 1, srcID = status.MPI_SOURCE;
         //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
-        //fflush(0);
-        MPI_Recv(inbuf, inOneSize, MPI_BYTE, slave, 2, MPI_COMM_WORLD, &status);
+        MPI_Recv(inbuf, inOneSize, MPI_BYTE, srcID, 2, MPI_COMM_WORLD, &status);
 
         unpackChunk(inbuf, info, sOld, aOld, r, s);
 
@@ -182,7 +180,7 @@ void Master::hustle()
         if (info != 1) totR += r; //not first state, this is just to track performance
         if (info != 2) { //if terminal, no action required
             packChunk(outbuf, a);
-            MPI_Send(outbuf, outOneSize, MPI_BYTE, slave, 0, MPI_COMM_WORLD);
+            MPI_Send(outbuf, outOneSize, MPI_BYTE, srcID, 0, MPI_COMM_WORLD);
         }
 
         if (++iter % saveFreq == 0) save();
@@ -193,9 +191,9 @@ void Master::hustle()
     die("How on earth could you possibly get here? \n");
 }
 
-Slave::Slave(Environment* _env, int _me, Settings & settings) :
-env(_env), agents(env->agents), me(_me), bTrain(settings.bTrain),
-bWriteToFile(!(settings.samplesFile=="none"))
+Slave::Slave(MPI_Comm comm, Environment*const _env,int _me, Settings& settings):
+slavesComm(comm), env(_env), agents(env->agents), me(_me),
+bTrain(settings.bTrain), bWriteToFile(!(settings.samplesFile=="none"))
 {
     #ifndef MEGADEBUG
     //MPI_Request req;

@@ -19,7 +19,7 @@ class NFQ : public Learner
     void Train(const int seq, const int samp, const int thrID=0) const override;
 
 public:
-	NFQ(Environment* env, Settings & settings);
+	NFQ(MPI_Comm comm, Environment*const env, Settings & settings);
     void select(const int agentId, State& s, Action& a, State& sOld,
                 Action& aOld, const int info, Real r) override;
 };

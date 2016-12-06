@@ -32,6 +32,7 @@ struct trainData
 class Learner
 {
 protected:
+    const MPI_Comm mastersComm;
     const int nAgents, batchSize, tgtUpdateDelay, nThreads, nInputs, nOutputs;
     const bool bRecurrent, bTrain;
     const Real tgtUpdateAlpha, gamma, greedyEps;
@@ -57,7 +58,7 @@ protected:
     virtual void updateNNWeights(const int nAddedGradients);
 
 public:
-    Learner(Environment* env, Settings & settings);
+    Learner(MPI_Comm mastersComm, Environment*const env, Settings & settings);
 
     virtual ~Learner()
     {

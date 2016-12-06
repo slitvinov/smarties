@@ -8,19 +8,75 @@
  */
 
 #include "Environment.h"
-#include <sys/types.h>
-#include <sys/time.h>
+//#include <sys/types.h>
+//#include <sys/time.h>
 #include <sys/stat.h>
-#include <cstdio>
-#include <unistd.h>
-#include <errno.h>
-#include <math.h>
+//#include <cstdio>
+//#include <unistd.h>
+//#include <errno.h>
+//#include <math.h>
 #include <signal.h>
-#include <iostream>
-#include <algorithm>
-#include <stdio.h>
+//#include <iostream>
+//#include <algorithm>
+//#include <stdio.h>
+
+#include <netdb.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 using namespace std;
+
+
+static void parse(char *line, char **argv)
+{
+    while (*line != '\0') {		/* if not the end of line ....... */
+        while (*line == ' ' || *line == '\t' || *line == '\n')
+            *line++ = '\0';		/* replace white spaces with 0 */
+        *argv++ = line;		/* save the argument position */
+        while (*line != '\0' && *line != ' ' &&
+               *line != '\t' && *line != '\n')
+            line++;	/* skip the argument until ...*/
+    }
+    *argv = '\0';	/* mark the end of argument list */
+}
+
+static int recv_all(int fd, void *buffer, unsigned int size)
+{
+    int result;
+    unsigned int s=size;
+    char *pos = (char*)buffer;
+
+
+    do {
+        result=recv(fd,pos,s,0);
+        if((result!=-1)&&(result>0)) {
+            s -= result;
+            pos += result;
+        }
+        else
+            return result; /*-1;*/
+    } while (s>0);
+    return size;
+}
+
+static int send_all(int fd, void *buffer, unsigned int size)
+{
+    int result;
+    unsigned int s=size;
+    char *pos = (char*)buffer;
+
+    do {
+        result=send(fd,pos,s,0);
+        if((result!=-1)&&(result>0)) {
+            s -= result;
+            pos += result;
+        }
+        else return result; /*-1;*/
+    } while (s>0);
+
+    //printf("sender %f\n",*((double*)buffer));
+    return size;
+}
 
 Environment::Environment(const int _nAgents, const string _execpath, const int _rank, Settings & settings) :
 execpath(_execpath), rank(_rank), g(settings.gen), nAgents(_nAgents), resetAll(true), workerid(_rank),
@@ -71,7 +127,8 @@ void Environment::spawn_server()
         char line[1024];
         char *largv[64];
 
-        mkdir(("simulation_"+to_string(rank)+"_"+to_string(iter)+"/").c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        mkdir(("simulation_"+to_string(rank)+"_"+to_string(iter)+"/").c_str(),
+                                        S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
         chdir(("simulation_"+to_string(rank)+"_"+to_string(iter)+"/").c_str());
 
         sprintf(line, execpath.c_str());
@@ -90,7 +147,10 @@ void Environment::spawn_server()
         cout << execpath << endl << *largv << endl;
 
         //int res = execlp(execpath.c_str(), execpath.c_str(), NULL);
-        const int res = execlp(execpath.c_str(), execpath.c_str(),to_string(workerid).c_str(), NULL);
+        const int res = execlp(execpath.c_str(),
+                               execpath.c_str(),
+                               to_string(workerid).c_str(),
+                               NULL);
         //int res = execvp(*largv, largv);
 
         //printf("Returning from exec\n");
@@ -135,13 +195,17 @@ int Environment::getState(int & iAgent)
         for (int j=0; j<sI.dim; j++) {
             //debug3(" %f (%d)",datain[k],k);
             agents[iAgent]->s->vals[j] = (Real) datain[k++];
-            assert(not std::isnan(agents[iAgent]->s->vals[j]) && not std::isinf(agents[iAgent]->s->vals[j]));
+            assert(not std::isnan(agents[iAgent]->s->vals[j]) &&
+                   not std::isinf(agents[iAgent]->s->vals[j]));
         }
 
         //debug3(" %f (%d)\n",datain[k],k);
         agents[iAgent]->r = (Real) datain[k++];
-        assert(not std::isnan(agents[iAgent]->r) && not std::isinf(agents[iAgent]->r));
-        //debug3("Got from child %d: reward %f state %s\n", rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
+        assert(not std::isnan(agents[iAgent]->r) &&
+               not std::isinf(agents[iAgent]->r));
+        //debug3("Got from child %d: reward %f state %s\n",
+        //rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str());
+        fflush(0);
     }
     fflush(0);
     return bStatus;

@@ -200,65 +200,30 @@ void TwoActFishEnvironment::setAction(const int & iAgent)
         agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
     }
 
-    for (int i=0; i<aI.dim; i++)
-        dataout[i] = (double) agents[iAgent]->a->vals[i];
-
-    send_all(sock, dataout, sizeout);
+    Environment::setAction(iAgent);
 }
 
 int TwoActFishEnvironment::getState(int & iAgent)
 {
-    int bStatus = 0;
-    //printf("RECEIVING %d,%d\n",sock,sizein);
-    if ((bytes = recv_all(sock, datain, sizein)) <= 0) {
-        if (bytes == 0) printf("socket %d hung up\n", sock);
-        else perror("(1) recv");
+    int bStatus = Environment::getState(iAgent);
 
-        close(sock);
-        bStatus = -1;
-    } else { // (bytes == nbyte)
-        iAgent  = *((int*)  datain   );
-        bStatus = *((int*) (datain+1)); //first (==1?), terminal (==2?), etc
-        //printf("Receiving from agent %d %d: ", iAgent, bStatus);
+    for (int j=187; j<sI.dim; j++)
+        agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
 
-        std::swap(agents[iAgent]->s,agents[iAgent]->sOld);
-
-        int k = 2;
-        for (int j=0; j<sI.dim; j++) {
-            //printf(" %f (%d)",datain[k],k);
-            agents[iAgent]->s->vals[j] = (Real) datain[k++];
-            assert(not std::isnan(agents[iAgent]->s->vals[j]) &&
-                   not std::isinf(agents[iAgent]->s->vals[j]));
-            if (j>=187) { //sight sensors get non-dimensionalized differently depending on size of fish if no obstacle is found =(
-                agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j],5.);
-            }
-        }
-
-        //printf(" %f (%d)\n",datain[k],k);
-        agents[iAgent]->r = (Real) datain[k++];
-        assert(not std::isnan(agents[iAgent]->r) &&
-               not std::isinf(agents[iAgent]->r));
-        //printf("Got from child %d: reward %f initial state %s\n", rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str()); fflush(0);
-    }
-    fflush(0);
     return bStatus;
 }
 
 bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
                                 const State& t_sN, Real& reward, const int info)
-{/*
-    if (fabs(t_sN.vals[5] -t_sO.vals[4])>0.001) {
-        printf("Mismatch new and old state!!! %s === %s\n",t_sO.print().c_str(),t_sN.print().c_str());
-        abort();
-    }
+{
     if (fabs(t_sN.vals[4] -t_a.vals[0])>0.001) {
         printf("Mismatch state and action!!! %s === %s\n",t_sN.print().c_str(),t_a.print().c_str());
         abort();
     }
-    if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-2 ) {
+    if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-3 ) {
         printf("Same time for two states!!! %s === %s\n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
-    }*/
+    }
 
     for (int i(0); i<20; i++) {
         max_scale[i] = std::max(max_scale[i], t_sN.vals[i]);
@@ -270,31 +235,16 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 
     if (study == 0) {
         const Real scaledEfficiency = (t_sN.vals[18]-.4)/(1.-.4);
-#ifndef _scaleR_
         reward = scaledEfficiency;
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
-#else
-        reward = (1.-gamma)*scaledEfficiency; //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
-        if (new_sample) reward = -1.;  // = - max cumulative reward
-#endif
     }
     else if (study == 1) {
         const Real scaledEfficiency = (t_sN.vals[21]-.3)/(.6-.3);
-#ifndef _scaleR_
         reward = scaledEfficiency;
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
-#else
-        reward = (1.-gamma)*scaledEfficiency; //max cumulative reward = sum gamma^t r < 1/(1-gamma) = 1
-        if (new_sample) reward = -1.;  // = - max cumulative reward
-#endif
     }
     else if (study == 2) {
-#ifndef _scaleR_
         reward =  1.-fabs(t_sN.vals[1]-goalDY)/.5;
-#else
-        reward = (1.-gamma)*(1.-fabs(t_sN.vals[1]-goalDY));
-        if (new_sample) reward = -1.;
-#endif
     }
     else if (new_sample) reward = -10.;
 

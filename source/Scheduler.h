@@ -16,6 +16,7 @@ class Learner;
 class Master
 {
 private:
+    const MPI_Comm slavesComm;
     Learner* const learner;
     Environment* const env;
     ActionInfo actInfo;
@@ -38,7 +39,7 @@ private:
     void save();
 
 public:
-    Master(Learner* const learner, Environment* env, Settings & settings);
+    Master(MPI_Comm comm, Learner*const learner, Environment*const env, Settings& settings);
     ~Master()
     {
         _dispose_object(env);
@@ -53,6 +54,7 @@ public:
 
 class Slave
 {
+    const MPI_Comm slavesComm;
     Environment* const env;
     vector<Agent*> agents;
     const bool bTrain, bWriteToFile;
@@ -69,7 +71,7 @@ class Slave
     void save() const;
 
 public:
-    Slave(Environment* env, int me, Settings & settings);
+    Slave(MPI_Comm comm, Environment * const env, int me, Settings & settings);
     ~Slave()
     {
         _dispose_object(env);

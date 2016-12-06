@@ -36,8 +36,8 @@ namespace ArgumentParser
 			if (opts[i].type != NONE) ctrlString += ':';
 
 			if (optsMap.find(long_options[i].val) != optsMap.end())
-				die("Duplicate short options in declaration, please correct the source code\n");
-            else optsMap[long_options[i].val] = opts[i];
+				die("Duplicate short options in declaration, please correct the source code\n")
+      else optsMap[long_options[i].val] = opts[i];
 
 		}
 

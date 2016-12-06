@@ -3,14 +3,14 @@
 /* ---------------------- last modified:  IV 2007        --- */
 /* --------------------------------- by: Nikolaus Hansen --- */
 /* --------------------------------------------------------- */
-/*   
-     CMA-ES for non-linear function minimization. 
+/*
+     CMA-ES for non-linear function minimization.
 
-     Copyright (C) 1996, 2003, 2007 Nikolaus Hansen. 
+     Copyright (C) 1996, 2003, 2007 Nikolaus Hansen.
      e-mail: hansen AT lri.fr
-     
+
      Documentation: see file docfunctions.txt
-     
+
      License: see file cmaes.c
 */
 #include "cmaes.h"
@@ -37,10 +37,10 @@ const char *     cmaes_TestForTermination(cmaes_t * const);
 
 /* --- additional functions --- */
 double * const * cmaes_ReSampleSingle( cmaes_t * const t, int index);
-double const *   cmaes_ReSampleSingle_old(cmaes_t * const , double *rgx); 
+double const *   cmaes_ReSampleSingle_old(cmaes_t * const , double *rgx);
 double *         cmaes_SampleSingleInto( cmaes_t *  const t, double *rgx);
 void             cmaes_UpdateEigensystem(cmaes_t * const, int flgforce);
-
+double *         cmaes_ChangePopSize(cmaes_t * const t,const int newlambda);
 /* --- getter functions --- */
 double         cmaes_Get(cmaes_t * const, char const *keyword);
 const double * cmaes_GetPtr(cmaes_t * const, char const *keyword); /* e.g. "xbestever" */
@@ -49,7 +49,7 @@ double *       cmaes_GetInto( cmaes_t * const t, char const *keyword, double *me
 
 /* --- online control and output --- */
 void           cmaes_ReadSignals(cmaes_t * const, char const *filename);
-void           cmaes_WriteToFile(cmaes_t * const, const char *szKeyWord, const char *output_filename); 
+void           cmaes_WriteToFile(cmaes_t * const, const char *szKeyWord, const char *output_filename);
 char *         cmaes_SayHello(cmaes_t * const);
 /* --- misc --- */
 double *       cmaes_NewDouble(int n); /* user is responsible to free */
@@ -57,4 +57,3 @@ double *       cmaes_NewDouble(int n); /* user is responsible to free */
 #ifdef __cplusplus
 } // end extern "C"
 #endif
-

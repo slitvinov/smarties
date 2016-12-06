@@ -80,7 +80,7 @@ public:
     vector<Sequence*> Set;
     vector<int> inds;
 
-    Transitions(Environment* env, Settings & settings);
+    Transitions(Environment*const env, Settings & settings);
 
     ~Transitions()
     {

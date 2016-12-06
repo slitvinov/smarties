@@ -23,13 +23,17 @@ inline string ObjectFactory::_parse(string source, string pattern, bool req)
 {
     int pos = source.find(((string)" ")+pattern);
     if (pos == string::npos) {
-        if (req) die("Parsing factory file failed at required argument '%s' line '%s'\n", pattern.c_str(), source.c_str());
+        if (req)
+            die("Parse factory file failed: required argument '%s' line '%s'\n",
+                pattern.c_str(), source.c_str())
         else     return "";
     }
 
     pos += pattern.length()+1;
     while (source[pos] == ' ') pos++;
-    if (source[pos] != '=')  die("Parsing factory file failed at argument '%s' line '%s'\n", pattern.c_str(), source.c_str());
+    if (source[pos] != '=')
+          die("Parse factory file failed: argument '%s' line '%s'\n",
+              pattern.c_str(), source.c_str())
     while (source[pos] == ' ') pos++;
 
     pos++;

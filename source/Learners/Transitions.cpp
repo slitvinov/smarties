@@ -12,7 +12,7 @@
 //#define CLEAN //dont
 #define NmaxDATA 10000
 
-Transitions::Transitions(Environment* _env, Settings & settings):
+Transitions::Transitions(Environment*const _env, Settings & settings):
 env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
 maxSeqLen(settings.maxSeqLen), iOldestSaved(0), bSampleSeq(settings.nnType),
 bRecurrent(settings.nnType), bWriteToFile(!(settings.samplesFile=="none")),
@@ -22,8 +22,9 @@ aI(_env->aI), sI(_env->sI)
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
     Inp.resize(sI.dimUsed);
-    Tmp.resize(settings.nAgents);
-    for (int i(0); i<settings.nAgents; i++) Tmp[i] = new Sequence();
+    Tmp.resize(max(settings.nAgents,1));
+    for (int i(0); i<max(settings.nAgents,1); i++)
+        Tmp[i] = new Sequence();
 
     dist = new discrete_distribution<int> (1,2); //dummy
     gen = new Gen(settings.gen);
@@ -42,7 +43,7 @@ void Transitions::restartSamples()
     vector<Real> d_a(aI.dim);
     Real reward(0);
     int thisId(-1), agentId(0), Ndata(0), info(0);
-
+    printf("About to read from %s...\n",path.c_str());
     while(true) {
         Ndata=0;
         ifstream in(path.c_str());
@@ -62,10 +63,12 @@ void Transitions::restartSamples()
                     t_sO.set(d_sO);
                     t_sN.set(d_sN);
                     t_a.set(d_a);
-                    add(0, info, t_sO, t_a, t_sN, reward);
+                    if(info==2) printf("Terminal state\n");
+                    if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001) printf("Skipping one\n");
+                    else add(0, info, t_sO, t_a, t_sN, reward);
                 }
             }
-            if (Ndata==0 && agentId>0) break;
+            if (Ndata==0 && agentId>1) break;
             agentId++;
         } else {
             printf("WTF couldnt open file history.txt!\n");
@@ -145,6 +148,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
 
         if (!same) {
             ++nBroken;
+            printf("Broken chain\n");
             push_back(agentId); //create new sequence
         }
     }
@@ -250,7 +254,7 @@ void Transitions::update_samples_mean()
 			}
 		}
 	}
-  
+
   bool bSimilar = true;
 	std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {

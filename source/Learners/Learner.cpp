@@ -133,8 +133,8 @@
 
 #include "Learner.h"
 #include <chrono>
-Learner::Learner(Environment* env, Settings & settings) :
-nAgents(settings.nAgents), batchSize(settings.dqnBatch),
+Learner::Learner(MPI_Comm comm, Environment*const env, Settings & settings) :
+mastersComm(comm), nAgents(settings.nAgents), batchSize(settings.dqnBatch),
 tgtUpdateDelay((int)settings.dqnUpdateC), nThreads(settings.nThreads),
 nInputs(settings.nnInputs), nOutputs(settings.nnOutputs),
 bRecurrent(settings.nnType==1), bTrain(settings.bTrain==1),
@@ -208,7 +208,10 @@ void Learner::TrainTasking(Master* const master)
     int countElapsed(0);
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
 
-	if (ndata <= batchSize) master->hustle();
+  	if (ndata <= batchSize) {
+      if(nAgents<1) die("Nothing to do, nowhere to go.\n");
+      master->hustle();
+    }
 
     while (true) {
 		ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
@@ -232,11 +235,11 @@ void Learner::TrainTasking(Master* const master)
         }
 
 
+    start = std::chrono::high_resolution_clock::now();
+
 #pragma omp parallel num_threads(nThreads)
 #pragma omp master
 		{
-			start = std::chrono::high_resolution_clock::now();
-
 			if(bRecurrent) {//we are using an LSTM: do BPTT
 				for (int i=0; i<batchSize; i++) {
 					const int ind = data->inds.back();
@@ -290,17 +293,20 @@ void Learner::TrainTasking(Master* const master)
 				}
 			}
 
-            //TODO: can add task to update sampling probabilities for prioritized exp replay
-            #ifndef MEGADEBUG
-            master->hustle(); //master goes to communicate with slaves
-            #endif
-            end = std::chrono::high_resolution_clock::now();
-            const auto len = std::chrono::duration<Real>(end-start).count();
-            sumElapsed += len/nAddedGradients;
-            countElapsed++;
-        }
+      //TODO: can add task to update sampling probabilities for prioritized exp replay
+      #ifndef MEGADEBUG
+      if(nAgents>0)
+      master->hustle(); //master goes to communicate with slaves
+      #endif
 
-        //here be omp fors:
+    }
+
+    end = std::chrono::high_resolution_clock::now();
+    const auto len = std::chrono::duration<Real>(end-start).count();
+    sumElapsed += len/nAddedGradients;
+    countElapsed++;
+
+    //here be omp fors:
 		stackAndUpdateNNWeights(nAddedGradients);
 
 		updateTargetNetwork();
@@ -353,7 +359,6 @@ void Learner::save(string name)
 
 void Learner::restart(string name)
 {
-      return;
     _info("Restarting from saved policy...\n");
     data->restartSamples();
     if ( net->restart(name + ".net") )

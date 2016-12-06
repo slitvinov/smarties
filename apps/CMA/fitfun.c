@@ -25,7 +25,7 @@ typedef enum {
 
 
 /* info[0] chooses a random function */
-double fitfun(double * const x, int N, void * const output, int * const info)  {
+void fitfun(double * const x, int N, double*const output, int * const info)  {
     double f;
     int i;
 
@@ -183,7 +183,20 @@ double fitfun(double * const x, int N, void * const output, int * const info)  {
             exit(1);
     }
     //std::cout << "feval = " << f << std::endl;
-    return f;  /* our CMA maximizes (there's another "-" in the code) */
+    //return f;  /* our CMA maximizes (there's another "-" in the code) */
+    if (std::isnan(f) || std::isinf(f)) { printf("Nan function\n"); abort(); }
+     //std::cout << f << std::endl;
+      /*
+      std::ostringstream o;
+      o << "[";
+      for (int i=0; i<dim; i++) {
+          o << x[i];
+          if (i < dim-1) o << " ";
+      }
+      o << "]";
+      printf("Evaluated function in %s = %e\n", o.str().c_str(), f);
+      */
+  	*output = f;
 }
 
 void get_upper_lower_bounds(double* const lower_bound,
@@ -322,7 +335,7 @@ void get_upper_lower_bounds(double* const lower_bound,
 }
 
 double eval_distance_from_optimum(const double* const found_optimum,
-                                  int N, int* const info) 
+                                  int N, int* const info)
 {
     int i;
     double dist = 0.;
