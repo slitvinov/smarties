@@ -88,7 +88,7 @@ sock(0), ListenerSocket(0), bytes(0), iter(0), max_scale(20, -1000), min_scale(2
 void Environment::setup_Comm()
 {
     workerid = rank;
-    string dummy = "/tmp/sock_";
+    string dummy = "/tmp/smarties_sock_";
     sprintf(SOCK_PATH, "%s%d", dummy.c_str(), workerid);
     printf("mserver: SOCK_PATH=->%s<-\n", SOCK_PATH);
 
@@ -101,6 +101,11 @@ void Environment::setup_Comm()
     //printf("comm dim = %d %d \n", sizein, sizeout);
     sock = socket(AF_UNIX, SOCK_STREAM, 0);
 
+    int _true = 1;
+    if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int))<0) {
+	     die("Sockopt failed\n");
+    }
+
     /* Specify the server */
     bzero((char *)&serverAddress, sizeof(serverAddress));
     serverAddress.sun_family = AF_UNIX;
@@ -111,6 +116,15 @@ void Environment::setup_Comm()
     while (connect(sock, (struct sockaddr *)&serverAddress, servlen) < 0) {
         //perror("connecting...\n");
     }
+}
+
+Environment::~Environment()
+{
+    close(sock);
+    _dispose_object(datain);
+    _dispose_object(dataout);
+    for (auto & trash : agents)
+      _dispose_object( trash);
 }
 
 void Environment::close_Comm()

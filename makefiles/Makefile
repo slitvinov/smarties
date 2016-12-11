@@ -3,7 +3,7 @@
 #CC = CC
 hn ?= $(shell hostname)
 username ?= $(shell whoami)
-
+UNAME_S := $(shell uname -s)
 viz ?= 0
 config ?= “prod”
 extra ?=
@@ -11,6 +11,10 @@ extra ?=
 ifeq "$(viz)" "1"
 CPPFLAGS+= -D_RL_VIZ
 OPENGL_LIB=-framework OpenGL -framework GLUT /opt/local/lib/libGLEW.a
+endif
+
+ifeq ($(UNAME_S),Darwin)
+include make.macos
 endif
 
 ifeq "$(findstring euler,$(shell hostname))" "euler"
@@ -32,8 +36,10 @@ ifeq "$(findstring panda,$(shell hostname))" "panda"
 include make.falcon
 endif
 
-CPPFLAGS+=-Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Woverloaded-virtual 
-CPPFLAGS+=-std=c++11 -Wno-reorder -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter
+CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings
+CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
+CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wno-reorder -Wno-deprecated
+CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
 
 ifeq "$(config)" "nompidebug"
@@ -55,11 +61,12 @@ CPPFLAGS+= -O0 -g
 #else
 endif
 ifeq "$(config)" "prod"
-CPPFLAGS +=  -O2 -fstrict-aliasing -march=native -mtune=native 
-#CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 -DNDEBUG 
+CPPFLAGS +=  -O0
+#CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
+#CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 -DNDEBUG
 #CPPFLAGS += -funsafe-math-optimizations
-#CPPFLAGS += -falign-functions=16 #-DBOOST_UBLAS_NDEBUG 
-#CPPFLAGS += -ffast-math  
+#CPPFLAGS += -falign-functions=16 #-DBOOST_UBLAS_NDEBUG
+#CPPFLAGS += -ffast-math
 endif
 
 ifeq "$(CC)" "icc"
@@ -74,28 +81,28 @@ OBJ_FILES = 	ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
 		Environment.o CMAEnvironment.o CartEnvironment.o TwoActFishEnvironment.o TwoFishEnvironment.o NewFishEnvironment.o \
 		Learner.o NAF.o NFQ.o DPG.o Transitions.o\
 		Scheduler.o LSTMNet.o Network.o Optimizer.o #Links.o Layers.o
-#ExternalAgent.o 
+#ExternalAgent.o
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
-	
+
 .DEFAULT_GOAL := rl
 
 ifneq "$(MAKECMDGOALS)" "clean"
 -include $(notdir $(patsubst %.cpp,%.d,$(CPP_FILES)))
 endif
-    
+
 rl: $(OBJ_FILES)
 	$(CC) $(LIBS) $^ -o $@
-	
+
 LSTM: anntest.o ArgumentParser.o Profiler.o Links.o Layers.o Network.o Optimizer.o LSTMNet.o
 	g++ $(LIBS) $^ -o $@
 
 %.o: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
-	
+
 %.d: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -MD -c $<
-    
+
 vpath %.cpp $(DIRS)
 vpath %.h   $(DIRS)
 
