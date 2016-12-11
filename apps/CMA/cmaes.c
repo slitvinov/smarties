@@ -338,7 +338,7 @@ cmaes_init_final(cmaes_t * const t /* "this" */)
       t->B[i] = new_double(N);
   }
 
-///////////////////////////////////////////////////
+ ///////////////////////////////////////////////////
   t->publicFitness = new_double(t->sp.lambda);
   t->rgFuncValue = new_double(t->sp.lambda);
   t->arFuncValueHist = new_double(10+(int)ceil(30.*N));
@@ -349,7 +349,7 @@ cmaes_init_final(cmaes_t * const t /* "this" */)
   t->rgrgx = (double **)new_void(t->sp.lambda, sizeof(double*));
   for (i = 0; i < t->sp.lambda; ++i)
     t->rgrgx[i] = new_double(N+1);
-///////////////////////////////////////////////////
+ ///////////////////////////////////////////////////
   /* Initialize newed space  */
 
   for (i = 0; i < N; ++i)
@@ -398,6 +398,27 @@ double * cmaes_ChangePopSize(cmaes_t * const t,const int newlambda)
     free( t->rgFuncValue);
 
     t->sp.lambda = newlambda;
+    t->sp.mu = t->sp.lambda/2;
+    double s1, s2;
+
+    if(t->sp.weights != NULL)
+      free( t->sp.weights);
+    t->sp.weights = new_double(t->sp.mu);
+    for (i=0; i<t->sp.mu; ++i)
+      t->sp.weights[i] = log(t->sp.mu+1.)-log(i+1.);
+
+    /* normalize weights vector and set mueff */
+    for (i=0, s1=0, s2=0; i<t->sp.mu; ++i) {
+      s1 += t->sp.weights[i];
+      s2 += t->sp.weights[i]*t->sp.weights[i];
+    }
+    t->sp.mueff = s1*s1/s2;
+    for (i=0; i<t->sp.mu; ++i)
+      t->sp.weights[i] /= s1;
+
+    if(t->sp.mu < 1 || t->sp.mu > t->sp.lambda ||
+       (t->sp.mu==t->sp.lambda && t->sp.weights[0]==t->sp.weights[t->sp.mu-1]))
+      FATAL("cmaes_readpara_SetWeights(): invalid setting of mu or lambda",0,0,0);
 
    //allocate new population
     t->publicFitness = new_double(t->sp.lambda);
@@ -1730,7 +1751,7 @@ void cmaes_ReadSignals(cmaes_t * const t, char const *filename)
   FILE *fp;
   if (filename == NULL)
     filename = s;
-/* if (filename) assign_string(&(t->signalsFilename), filename)*/
+ /* if (filename) assign_string(&(t->signalsFilename), filename)*/
   fp = fopen( filename, "r");
   if(fp == NULL) {
     return;
@@ -2399,10 +2420,11 @@ cmaes_timings_start(cmaes_timings_t *t) {
 }
 
 double
-cmaes_timings_update(cmaes_timings_t *t) {
-/* returns time between last call of cmaes_timings_*() and now,
- *    should better return totaltime or tictoctime?
- */
+cmaes_timings_update(cmaes_timings_t *t)
+{
+  /* returns time between last call of cmaes_timings_*() and now,
+   *    should better return totaltime or tictoctime?
+   */
   double diffc, difft;
   clock_t lc = t->lastclock; /* measure CPU in 1e-6s */
   time_t lt = t->lasttime;   /* measure time in s */

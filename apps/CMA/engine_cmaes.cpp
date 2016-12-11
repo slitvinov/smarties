@@ -42,6 +42,15 @@ int is_feasible(double* const pop, double* const lower_bound,
 void update_state(cmaes_t* const evo, double* const state, double* oldFmedian,
 																		  double* oldXmean, const int func_dim);
 
+void update_damps(cmaes_t* const evo,const int N, const int lambda)
+{
+  evo->sp.damps =
+    (1 + 2*std::max(0., sqrt((evo->sp.mueff-1.)/(N+1.)) - 1 ) )     /* basic factor */
+    * std::max(0.3, 1. -                                       /* modify for short runs */
+              (double)N / (1e-6+std::min(evo->sp.stopMaxIter, evo->sp.stopMaxFunEvals/lambda)))
+    + evo->sp.cs;
+}
+
 int is_feasible(double* const pop, double* const lower_bound,
 								double* const upper_bound, int dim)
 {
@@ -108,7 +117,7 @@ int main(int argn, char **args)
 
     const int sock      = std::stoi(args[1]);
     const int nthreads  = 1;
-    const int act_dim   = 5;
+    const int act_dim   = 6;
     const int state_dim = 6;
     std::seed_seq seq{sock};
 		std::vector<int> seeds(nthreads);
@@ -199,7 +208,9 @@ int main(int argn, char **args)
 						if (act_dim>1) evo->sp.ccovmu  = actions[1]; //rank mu covariance update
 						if (act_dim>2) evo->sp.ccumcov = actions[2]; //path update c_c
 						if (act_dim>3) evo->sp.cs      = actions[3]; //step size control c_sigmai
-						if (act_dim>4) { lambda_fac    = actions[4]; //pop size
+						if (act_dim>4) evo->sp.damps   = actions[4]; //step size control c_sigmai
+            else update_damps(evo,func_dim, lambda);
+						if (act_dim>5) { lambda_fac    = actions[5]; //pop size
                              lambda = floor(lambda_0*lambda_fac);
                              lambda = lambda < 4 ? 4 : lambda;
                              lambda_fac = lambda/(double)lambda_0;
@@ -215,6 +226,7 @@ int main(int argn, char **args)
             evo->sp.ccovmu  = act1dist(*generators[thrid]);
             evo->sp.ccumcov = act2dist(*generators[thrid]);
             evo->sp.cs      = act3dist(*generators[thrid]);
+            update_damps(evo,func_dim, lambda);
         }
 #endif
 
@@ -320,7 +332,9 @@ int main(int argn, char **args)
 						if (act_dim>1) evo->sp.ccovmu  = actions[1]; //rank mu covariance update
 						if (act_dim>2) evo->sp.ccumcov = actions[2]; //path update c_c
 						if (act_dim>3) evo->sp.cs      = actions[3]; //step size control c_sigma
-						if (act_dim>4) { lambda_fac    = actions[4]; //pop size
+            if (act_dim>4) evo->sp.damps   = actions[4]; //step size control c_sigmai
+            else update_damps(evo,func_dim, lambda);
+						if (act_dim>5) { lambda_fac    = actions[5]; //pop size
                              lambda = floor(lambda_0*lambda_fac);
                              lambda = lambda < 4 ? 4 : lambda;
                              lambda_fac = lambda/(double)lambda_0;
@@ -336,6 +350,8 @@ int main(int argn, char **args)
               evo->sp.ccovmu  = act1dist(*generators[thrid]);
               evo->sp.ccumcov = act2dist(*generators[thrid]);
               evo->sp.cs      = act3dist(*generators[thrid]);
+              update_damps(evo,func_dim, lambda);
+
           }
 #endif
         }

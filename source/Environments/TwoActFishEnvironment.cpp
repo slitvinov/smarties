@@ -169,7 +169,7 @@ void TwoActFishEnvironment::setDims()
         aI.values[1].push_back(0.125);
         aI.values[1].push_back(0.250);
     }
-    resetAll=true;
+    resetAll=false;
     commonSetup();
 }
 

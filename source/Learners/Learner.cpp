@@ -342,7 +342,7 @@ void Learner::updateTargetNetwork()
 bool Learner::checkBatch() const
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    if (ndata<10*batchSize) return false; //do we have enough data?
+    if (ndata<batchSize) return false; //do we have enough data?
     return taskCounter >= batchSize;
 }
 

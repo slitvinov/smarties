@@ -26,7 +26,8 @@ SETTINGS+=" --nThreads ${NTHREADS}"
 echo $SETTINGS > settings.txt
 env > environment.log
 echo ${NPROCESS} ${NTHREADS}
-#module load valgrind
+
+
 #mpirun -np ${NPROCESS} --mca btl tcp,self -bynode ./exec ${SETTINGS} #openmpi
 
 sort $LSB_DJOB_HOSTFILE | uniq  > lsf_hostfile

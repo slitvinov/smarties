@@ -6,8 +6,8 @@ APP=$3
 SETTINGSNAME=$4
 
 MYNAME=`whoami`
-#BASEPATH="/cluster/scratch_xp/public/${MYNAME}/smarties/"
-BASEPATH="/cluster/home03/mavt/${MYNAME}/smarties/runs/"
+BASEPATH="/cluster/scratch_xp/public/${MYNAME}/smarties/"
+#BASEPATH="/cluster/home03/mavt/${MYNAME}/smarties/runs/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 
 if [ $# -gt 4 ] ; then
@@ -15,14 +15,14 @@ if [ $# -gt 4 ] ; then
     cp $5 ${BASEPATH}${RUNFOLDER}/policy.net
 fi
 if [ $# -lt 7 ] ; then
-    NTASK=1 #n tasks per node
-    NTHREADS=48 #n threads per task
+    NTASK=4 #n tasks per node
+    NTHREADS=12 #n threads per task
 else
     NTASK=$6
     NTHREADS=$7
 fi
 if [ $# -lt 8 ] ; then
-    WCLOCK=36:00
+    WCLOCK=12:00
 else
     WCLOCK=$8
 fi
@@ -53,5 +53,3 @@ for (( c=1; c<=${TIMES}-1; c++ ))
 do
     bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -w "ended(${RUNFOLDER})" -W ${WCLOCK} ./run.sh ${NPROCESS} ${NTHREADS} ${NTASK}
 done
-
-

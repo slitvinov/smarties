@@ -15,6 +15,7 @@
 #include <cassert>
 using namespace ErrorHandling;
 
+
 void Network::build_normal_layer(Graph* const graph)
 {
     const int simdWidth = __vec_width__/sizeof(Real);

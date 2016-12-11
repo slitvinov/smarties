@@ -4,8 +4,8 @@ CC = gcc
 WARNINGS =  -Wall -Wextra -Wredundant-decls -Wshadow -Woverloaded-virtual -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings -Wlogical-op -Wmissing-declarations
 
 #CPPFLAGS+=-std=c++11 -Wall -O0 # -fopenmp
-CPPFLAGS+=-std=c++11 -O2 -g -fopenmp $(WARNINGS)# -fopenmp
-CFLAGS+= -O2 -g $(WARNINGS)
+CPPFLAGS+=-std=c++11 -O2 -fopenmp $(WARNINGS)# -fopenmp
+CFLAGS+= -O2  $(WARNINGS)
 
 OBJ_FILES_PP = engine_cmaes.o communicator.o
 OBJ_FILES =    cmaes.o

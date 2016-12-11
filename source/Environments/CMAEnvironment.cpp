@@ -72,10 +72,17 @@ void CMAEnvironment::setAction(const int & iAgent)
 
 	}
 	if(aI.dim > 4) {
-		std::uniform_real_distribution<Real> dist(.5,2.);
-		if (agents[iAgent]->a->vals[4] > 100. ||
-			  agents[iAgent]->a->vals[4] < 0. )
+		std::uniform_real_distribution<Real> dist(1.1,2.5);
+		if (agents[iAgent]->a->vals[4]  > 5. ||
+			  agents[iAgent]->a->vals[4] < 1. )
 		    agents[iAgent]->a->vals[4] = dist(*g);
+
+	}
+	if(aI.dim > 5) {
+		std::uniform_real_distribution<Real> dist(.5,2.);
+		if (agents[iAgent]->a->vals[5] > 100. ||
+			  agents[iAgent]->a->vals[5] < 0. )
+		    agents[iAgent]->a->vals[5] = dist(*g);
 
 	}  else die("No actions sent?\n");
 
@@ -106,7 +113,7 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
         sI.inUse.push_back(true); //ignore, leave as is
     }
     {
-        aI.dim = 5; //number of action that agent can perform per turn: usually 1 (eg DQN)
+        aI.dim = 6; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
         for (int i=0; i<2; i++) {
         	const int nOptions = 5; //used if discrete actions: options available to agent for acting
@@ -129,9 +136,14 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
             aI.values[i].push_back(.9);
         }
             aI.bounds.push_back(3);
-            aI.values[4].push_back(.5); //here the app accepts real numbers
-            aI.values[4].push_back(1.);
-            aI.values[4].push_back(2.);
+            aI.values[4].push_back(1.2); //here the app accepts real numbers
+            aI.values[4].push_back(1.8);
+            aI.values[4].push_back(2.5);
+
+            aI.bounds.push_back(3);
+            aI.values[5].push_back(.5); //here the app accepts real numbers
+            aI.values[5].push_back(1.);
+            aI.values[5].push_back(2.);
 
     }
     commonSetup(); //required
