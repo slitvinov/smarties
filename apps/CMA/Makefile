@@ -1,5 +1,11 @@
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+CPP = g++-6
+CC = gcc-6
+else
 CPP = g++
 CC = gcc
+endif
 
 WARNINGS =  -Wall -Wextra -Wredundant-decls -Wshadow -Woverloaded-virtual -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings -Wlogical-op -Wmissing-declarations
 

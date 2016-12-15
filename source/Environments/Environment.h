@@ -44,13 +44,7 @@ public:
     Environment(const int nAgents, const string execpath,
                 const int _rank, Settings & settings);
 
-    virtual ~Environment()
-    {
-        _dispose_object(datain);
-        _dispose_object(dataout);
-        for (auto & trash : agents)
-        	_dispose_object( trash);
-    }
+    virtual ~Environment();
 
     virtual void setDims () = 0;
     virtual int getState(int & iAgent) ;

@@ -26,12 +26,12 @@ Vec rk46_nl(double t0, double dt, Vec u0, Func&& Diff)
     const double a[] = {0.000000000000, -0.737101392796, -1.634740794341, -0.744739003780, -1.469897351522, -2.813971388035};
     const double b[] = {0.032918605146,  0.823256998200,  0.381530948900,  0.200092213184,  1.718581042715,  0.270000000000};
     const double c[] = {0.000000000000,  0.032918605146,  0.249351723343,  0.466911705055,  0.582030414044,  0.847252983783};
-    
+
     const int s = 6;
     Vec w;
     Vec u(u0);
     double t;
-    
+
 #pragma unroll
     for (int i=0; i<s; i++)
     {
@@ -45,14 +45,14 @@ Vec rk46_nl(double t0, double dt, Vec u0, Func&& Diff)
 struct Vec4
 {
     double y1, y2, y3, y4;
-    
+
     Vec4(double y1=0, double y2=0, double y3=0, double y4=0) : y1(y1), y2(y2), y3(y3), y4(y4) {};
-    
+
     Vec4 operator*(double v) const
     {
         return Vec4(y1*v, y2*v, y3*v, y4*v);
     }
-                                                     
+
     Vec4 operator+(const Vec4& v) const
     {
         return Vec4(y1+v.y1, y2+v.y2, y3+v.y3, y4+v.y4);
@@ -68,19 +68,19 @@ struct CartPole
     int info;
     Vec4 u;
     double F;
-    
+
     Vec4 D(Vec4 u, double t)
     {
         Vec4 res;
-        
+
         const double cosy = cos(u.y3);
         const double siny = sin(u.y3);
-        
+
         const double fac1 = 1./(mp+mc);
         const double fac2 = l*(4./3. - fac1*(mp*cosy*cosy));
-        
+
         const double F1 = F + mp * l * u.y4 * u.y4 * siny;
-        
+
         res.y4 = (g*siny - fac1*F1*cosy)/fac2;
         res.y2 = fac1*(F1 - mp*l*res.y4*cosy);
         res.y1 = u.y2;
@@ -104,12 +104,12 @@ int main(int argc, const char * argv[])
     std::mt19937 gen(sock);
     std::uniform_real_distribution<double> distribution(-0.1,0.1);
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
-    comm = new Communicator(sock,4,1);
+    Communicator comm(sock,4,1);
     //vector of state variables: in this case x, v, theta, ang_velocity
     vector<double> state(4);
     //vector of actions received by RL
     vector<double> actions(1);
-    
+
     //random initial conditions:
     vector<CartPole> agents(n);
     for (auto& a : agents) {
@@ -119,7 +119,7 @@ int main(int argc, const char * argv[])
     }
 
     while (true) {
-        
+
         int k(0); //agent ID, for now == 0
         for (auto& a : agents) { //assume we have only one agent per application for now...
             double r = 0.;
@@ -130,8 +130,8 @@ int main(int argc, const char * argv[])
             state[2] = a.u.y4/M_PI;
             state[3] = a.u.y3/M_PI;
             r = 0; //we could give a reward, here i just give 0, and -1 if pole falls
-            
-            //printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+
+            printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
             ///////////////////////////////////////////////////////
             // arguments of comm->sendState(k, a.info, state, r)
 
@@ -141,10 +141,10 @@ int main(int argc, const char * argv[])
             //  	   0 for any following communication, except
         	//		   2 for the terminal state (meaning NO ACTION REQUIRED)
             ///////////////////////////////////////////////////////
-            comm->sendState(k, a.info, state, r);
-            comm->recvAction(actions);
+            comm.sendState(k, a.info, state, r);
+            comm.recvAction(actions);
 
-            //printf("Cart acting %f from state %f %f %f %f\n", actions[0],state[0],state[1],state[2],state[3]); fflush(0);
+            printf("Cart acting %f from state %f %f %f %f\n", actions[0],state[0],state[1],state[2],state[3]); fflush(0);
 
             a.F = actions[0];
             a.info = 0; //at least one comm is done, so i set info to 0
@@ -157,12 +157,12 @@ int main(int argc, const char * argv[])
                 a.u = rk46_nl(tlocal, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
                 tlocal += dt;
             }
-            
-            //check if terminal state has been reached: 
+
+            //check if terminal state has been reached:
             if ((fabs(a.u.y3)>.2*M_PI)||(fabs(a.u.y1)>2.4)) //angle too big = fallen, or x out of bounds
             {
                 //nfallen += 1; sincelast = 0; percfallen = nfallen/ntot;
-                
+
                 a.info = 2; //tell RL we are in terminal state
                 double r = -1.; //give terminal reward (if different problem, this might be a bonus rather than a negative score)
                 state[0] = a.u.y1;
@@ -170,8 +170,8 @@ int main(int argc, const char * argv[])
                 state[2] = a.u.y4/M_PI;
                 state[3] = a.u.y3/M_PI;
                 //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
-                comm->sendState(k, a.info, state, r);
-                
+                comm.sendState(k, a.info, state, r);
+
                 //re-initialize the simulations (random initial conditions):
                 a.u = Vec4(distribution(gen), distribution(gen), distribution(gen), distribution(gen));
                 t = 0;
@@ -188,6 +188,6 @@ int main(int argc, const char * argv[])
         }
          */
     }
-    
+
     return 0;
 }
