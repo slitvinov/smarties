@@ -8,221 +8,57 @@
  */
 
 #include "Environment.h"
-//#include <sys/types.h>
-//#include <sys/time.h>
-#include <sys/stat.h>
-//#include <cstdio>
-//#include <unistd.h>
-//#include <errno.h>
-//#include <math.h>
-#include <signal.h>
-//#include <iostream>
-//#include <algorithm>
-//#include <stdio.h>
-
-#include <netdb.h>
-#include <unistd.h>
-#include <fcntl.h>
 
 using namespace std;
 
-
-static void parse(char *line, char **argv)
-{
-    while (*line != '\0') {		/* if not the end of line ....... */
-        while (*line == ' ' || *line == '\t' || *line == '\n')
-            *line++ = '\0';		/* replace white spaces with 0 */
-        *argv++ = line;		/* save the argument position */
-        while (*line != '\0' && *line != ' ' &&
-               *line != '\t' && *line != '\n')
-            line++;	/* skip the argument until ...*/
-    }
-    *argv = '\0';	/* mark the end of argument list */
-}
-
-static int recv_all(int fd, void *buffer, unsigned int size)
-{
-    int result;
-    unsigned int s=size;
-    char *pos = (char*)buffer;
-
-
-    do {
-        result=recv(fd,pos,s,0);
-        if((result!=-1)&&(result>0)) {
-            s -= result;
-            pos += result;
-        }
-        else
-            return result; /*-1;*/
-    } while (s>0);
-    return size;
-}
-
-static int send_all(int fd, void *buffer, unsigned int size)
-{
-    int result;
-    unsigned int s=size;
-    char *pos = (char*)buffer;
-
-    do {
-        result=send(fd,pos,s,0);
-        if((result!=-1)&&(result>0)) {
-            s -= result;
-            pos += result;
-        }
-        else return result; /*-1;*/
-    } while (s>0);
-
-    //printf("sender %f\n",*((double*)buffer));
-    return size;
-}
-
 Environment::Environment(const int _nAgents, const string _execpath, const int _rank, Settings & settings) :
-execpath(_execpath), rank(_rank), g(settings.gen), nAgents(_nAgents), resetAll(true), workerid(_rank),
-sock(0), ListenerSocket(0), bytes(0), iter(0), max_scale(20, -1000), min_scale(20, 1000), gamma(settings.gamma)
+execpath(_execpath), rank(_rank), isLauncher(settings.isLauncher), nAgents(_nAgents),
+gamma(settings.gamma), g(settings.gen), resetAll(true), iter(0), communicator(nullptr)
 {
     for (int i=0; i<nAgents; i++) agents.push_back(new Agent(i));
 }
 
 void Environment::setup_Comm()
 {
-    workerid = rank;
-    string dummy = "/tmp/smarties_sock_";
-    sprintf(SOCK_PATH, "%s%d", dummy.c_str(), workerid);
-    printf("mserver: SOCK_PATH=->%s<-\n", SOCK_PATH);
+    if(communicator == nullptr)
+      die("Set up the state before establishing a communication.\n");
 
-    sizein = (2 + sI.dim + 1)*sizeof(double); //nagent, tag, state, reward
-    datain = (double *) malloc(sizein);
-    sizeout = aI.dim * sizeof(double);
-    dataout = (double *) malloc(sizeout);
-
-    spawn_server();
-    //printf("comm dim = %d %d \n", sizein, sizeout);
-    sock = socket(AF_UNIX, SOCK_STREAM, 0);
-
-    int _true = 1;
-    if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int))<0) {
-	     die("Sockopt failed\n");
-    }
-
-    /* Specify the server */
-    bzero((char *)&serverAddress, sizeof(serverAddress));
-    serverAddress.sun_family = AF_UNIX;
-    strcpy(serverAddress.sun_path, SOCK_PATH);
-    const int servlen = sizeof(serverAddress.sun_family) + strlen(serverAddress.sun_path);
-
-    /* Connect to the server */
-    while (connect(sock, (struct sockaddr *)&serverAddress, servlen) < 0) {
-        //perror("connecting...\n");
-    }
+    if (isLauncher)
+      communicator->setupClient(iter, execpath);
+    else
+      communicator->setupServer();
 }
 
 Environment::~Environment()
 {
-    close(sock);
-    _dispose_object(datain);
-    _dispose_object(dataout);
+    _dispose_object(communicator);
     for (auto & trash : agents)
-      _dispose_object( trash);
+      _dispose_object(trash);
 }
 
 void Environment::close_Comm()
 {
-    close(ListenerSocket);
-    free(datain);
-    free(dataout);
+    communicator->closeSocket();
 }
 
-void Environment::spawn_server()
+void Environment::setAction(const int iAgent)
 {
-    const int rf = fork();
-    if (rf == 0) {
-        char line[1024];
-        char *largv[64];
-
-        mkdir(("simulation_"+to_string(rank)+"_"+to_string(iter)+"/").c_str(),
-                                        S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        chdir(("simulation_"+to_string(rank)+"_"+to_string(iter)+"/").c_str());
-
-        sprintf(line, execpath.c_str());
-        parse(line, largv);     // prepare argv
-
-        #if 1==1 //if true goes to stdout
-        char output[256];
-        sprintf(output, "output");
-        int fd = open(output, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-        dup2(fd, 1);    // make stdout go to file
-        dup2(fd, 2);    // make stderr go to file
-        close(fd);      // fd no longer needed
-        #endif
-
-        printf("About to exec.... \n");
-        cout << execpath << endl << *largv << endl;
-
-        //int res = execlp(execpath.c_str(), execpath.c_str(), NULL);
-        const int res = execlp(execpath.c_str(),
-                               execpath.c_str(),
-                               to_string(workerid).c_str(),
-                               NULL);
-        //int res = execvp(*largv, largv);
-
-        //printf("Returning from exec\n");
-        if (res < 0) die("Unable to exec file '%s'!\n", execpath.c_str());
-    }
-
-    //printf("waiting for server to setup everything..\n");
-    //sleep(2); //pause is not safe with MPI
-    //printf("ok, I continue...\n");
+    communicator->sendAction(agents[iAgent]->a->vals);
 }
 
-void Environment::setAction(const int & iAgent)
+int Environment::getState(int& iAgent)
 {
-    for (int i=0; i<aI.dim; i++) {
-        dataout[i] = (double) agents[iAgent]->a->vals[i];
-        assert(not std::isnan(agents[iAgent]->a->vals[i]) &&
-        	   not std::isinf(agents[iAgent]->a->vals[i]));
-    }
-    //debug3("Sent child %d: action %s\n", rank, agents[iAgent]->a->print().c_str()); fflush(0);
-    send_all(sock, dataout, sizeout);
-}
+    _AGENT_STATUS status;
+    vector<double> state(sI.dim);
+    double reward;
+    communicator->recvState(iAgent, status, state, reward);
 
-int Environment::getState(int & iAgent)
-{
-    int bStatus = 0;
-    //printf("RECEIVING %d,%d\n",sock,sizein);
-    if ((bytes = recv_all(sock, datain, sizein)) <= 0) {
-        if (bytes == 0) printf("socket %d hung up\n", sock);
-        else perror("(1) recv");
-
-        close(sock);
-        bStatus = -1;
-    } else { // (bytes == nbyte)
-        iAgent  = *((int*)  datain   );
-        assert(iAgent<nAgents);
-        bStatus = *((int*) (datain+1)); //first (==1?), terminal (==2?), etc
-        //debug3("Receiving from agent %d %d: ", iAgent, bStatus);
-
-        std::swap(agents[iAgent]->s,agents[iAgent]->sOld);
-
-        int k = 2;
-        for (int j=0; j<sI.dim; j++) {
-            //debug3(" %f (%d)",datain[k],k);
-            agents[iAgent]->s->vals[j] = (Real) datain[k++];
-            assert(not std::isnan(agents[iAgent]->s->vals[j]) &&
-                   not std::isinf(agents[iAgent]->s->vals[j]));
-        }
-
-        //debug3(" %f (%d)\n",datain[k],k);
-        agents[iAgent]->r = (Real) datain[k++];
-        assert(not std::isnan(agents[iAgent]->r) &&
-               not std::isinf(agents[iAgent]->r));
-        //debug3("Got from child %d: reward %f state %s\n",
-        //rank, agents[iAgent]->r, agents[iAgent]->s->print().c_str());
-        fflush(0);
-    }
-    fflush(0);
-    return bStatus;
+    assert(iAgent<nAgents);
+    std::swap(agents[iAgent]->s,agents[iAgent]->sOld);
+    for (int j=0; j<sI.dim; j++)
+    agents[iAgent]->s->vals[j] = state[j];
+    agents[iAgent]->r = reward;
+    return status;
 }
 
 bool Environment::predefinedNetwork(Network* const net) const
@@ -255,6 +91,8 @@ void Environment::commonSetup()
         a->s = new State(sI);
         a->sOld = new State(sI);
     }
+
+    communicator = new Communicator(rank,sI.dim,aI.dim,isLauncher);
 }
 /*
  void GlideEnvironment::setDims()

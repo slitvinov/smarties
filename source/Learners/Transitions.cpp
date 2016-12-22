@@ -16,8 +16,8 @@ Transitions::Transitions(Environment*const _env, Settings & settings):
 env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
 maxSeqLen(settings.maxSeqLen), iOldestSaved(0), bSampleSeq(settings.nnType),
 bRecurrent(settings.nnType), bWriteToFile(!(settings.samplesFile=="none")),
-path(settings.samplesFile), anneal(0), nBroken(0), nTransitions(0),nSequences(0),
-aI(_env->aI), sI(_env->sI)
+bNormalize(settings.nnTypeInput), path(settings.samplesFile), anneal(0),
+nBroken(0), nTransitions(0), nSequences(0), aI(_env->aI), sI(_env->sI)
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
@@ -79,12 +79,6 @@ void Transitions::restartSamples()
 
     printf("Found %d broken chains out of %d / %d.\n",
             nBroken, nSequences, nTransitions);
-
-    for (int i(0); i<20; i++) cout << env->max_scale[i] << " ";
-    cout << endl;
-
-    for (int i(0); i<20; i++) cout << env->min_scale[i] << " ";
-    cout << endl;
 }
 
 /*
@@ -223,6 +217,7 @@ void Transitions::push_back(const int & agentId)
 
 void Transitions::update_samples_mean()
 {
+  if(!bNormalize) return;
 	int count = 0;
   vector<Real> oldStd{std}, oldMean{mean};
 	std::fill(std.begin(), std.end(), 0.);
@@ -275,13 +270,14 @@ void Transitions::update_samples_mean()
 
 vector<Real> Transitions::standardize(const vector<Real>&  state) const
 {
-	vector<Real> tmp(sI.dimUsed);
-   assert(state.size() == sI.dimUsed);
-   std::normal_distribution<Real> noise(0.,0.01);
-	for (int i=0; i<sI.dimUsed; i++) {
+    if(!bNormalize) return state;
+    vector<Real> tmp(sI.dimUsed);
+    assert(state.size() == sI.dimUsed);
+    std::normal_distribution<Real> noise(0.,0.01);
+    for (int i=0; i<sI.dimUsed; i++) {
       tmp[i] = (state[i] - mean[i])/std[i];
       tmp[i] += noise(*(gen->g));
-   }
+    }
     return tmp;
 }
 

@@ -63,6 +63,38 @@ void runSlave(MPI_Comm slavesComm)
     }
 }
 
+void runClient()
+{
+    ObjectFactory factory(settings);
+    Environment* env = factory.createEnvironment(1, 0);
+    settings.nAgents = env->agents.size();
+    settings.nSlaves = 1;
+
+    Learner* learner = nullptr;
+    if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
+        settings.nnInputs = env->sI.dimUsed;
+        settings.nnOutputs = 1;
+        for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];
+        learner = new NFQ(mastersComm, env, settings);
+    }
+    else if (settings.learner == "NA" || settings.learner == "NAF") {
+        settings.nnInputs = env->sI.dimUsed;
+        const int nA = env->aI.dim;
+        const int nL = (nA*nA+nA)/2;
+        settings.nnOutputs = 1+nL+nA;
+        settings.bSeparateOutputs = true; //else it does not really work
+        learner = new NAF(mastersComm, env, settings);
+    }
+    else if (settings.learner == "DP" || settings.learner == "DPG") {
+        settings.nnInputs = env->sI.dimUsed + env->aI.dim;
+        settings.nnOutputs = 1;
+        learner = new DPG(mastersComm, env, settings);
+    } else die("Learning algorithm not recognized\n");
+    assert(learner not_eq nullptr);
+
+    Client simulation(learner, env, settings);
+}
+
 void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 {
     int masterRank, nMasters, nSlaves, isSlave;
@@ -120,17 +152,6 @@ int main (int argc, char** argv)
 {
     int rank(0), nranks(2);
 
-#ifndef MEGADEBUG
-    int provided;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
-    if (provided < MPI_THREAD_FUNNELED)
-        die("The MPI implementation does not have required thread support\n");
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
-
-#endif
-
     struct timeval clock;
     gettimeofday(&clock, NULL);
     debugLvl=10;
@@ -162,6 +183,25 @@ int main (int argc, char** argv)
     //{'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"../history.txt"}
     {'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"obs_master.txt"}
     });
+
+    if (not settings.isLauncher) {
+      if (settings.restart == "none") {
+        printf("smarties as client works only for evaluating policies.\n");
+        abort();
+      }
+      runClient();
+      return;
+    }
+
+    #ifndef MEGADEBUG
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+    if (provided < MPI_THREAD_FUNNELED)
+        die("The MPI implementation does not have required thread support\n");
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+    #endif
 
     const int slavesPerMaster = ceil(nranks/(double)settings.nMasters) - 1;
     const int isMaster = rank % (slavesPerMaster+1) == 0;

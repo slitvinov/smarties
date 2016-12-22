@@ -11,6 +11,7 @@
 
 //#include "../Util/util.h"
 #include <sys/un.h>
+#include "../Util/Communicator.h"
 #include "../Agent.h"
 #include "../StateAction.h"
 #include "../ANN/Network.h"
@@ -21,26 +22,18 @@ class Environment
 {
 protected:
     const string execpath;
-    const int rank;
-    mt19937 * g;
-    int nAgents, workerid, sock, ListenerSocket, bytes, sizein, sizeout;
+    const int rank, isLauncher, nAgents;
     const double gamma;
+    mt19937 * g;
+    Communicator * communicator;
 
-    struct sockaddr_un serverAddress;
-    struct sockaddr_un clientAddress;
-    char SOCK_PATH[256];
-    double *datain, *dataout;
     void commonSetup();
-    virtual void spawn_server();
 public:
     long unsigned int iter;
     bool resetAll;
     vector<Agent*> agents;
-    vector<Real> max_scale, min_scale;
     StateInfo sI;
-	ActionInfo aI;
-
-
+    ActionInfo aI;
     Environment(const int nAgents, const string execpath,
                 const int _rank, Settings & settings);
 
@@ -53,5 +46,5 @@ public:
     void setup_Comm ();
     virtual bool pickReward(const State& t_sO, const Action& t_a,
                             const State& t_sN, Real& reward, const int info) =0;
-	virtual bool predefinedNetwork(Network* const net) const;
+    virtual bool predefinedNetwork(Network* const net) const;
 };
