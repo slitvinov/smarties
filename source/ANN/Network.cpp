@@ -336,11 +336,11 @@ void Network::build()
 	nNeurons = nBiases = nWeights = nStates = 0;
 	for (auto & graph : G) {
 		if(graph->input) {
-            graph->firstNeuron_ID = nNeurons;
-            const int simdWidth = __vec_width__/sizeof(Real);
-            graph->layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
-			nNeurons += graph->layerSize_simd;
-            if(graph->normalize) build_whitening_layer(graph);
+      graph->firstNeuron_ID = nNeurons;
+      const int simdWidth = __vec_width__/sizeof(Real);
+      graph->layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
+      nNeurons += graph->layerSize_simd;
+      if(graph->normalize) build_whitening_layer(graph);
 			continue; //input layer is not a layer
 		}
 		assert(!graph->input);
