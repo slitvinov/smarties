@@ -103,4 +103,4 @@ class Client
           _dispose_object(env);
           _dispose_object(learner);
       }
-}
+};

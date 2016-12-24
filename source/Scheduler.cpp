@@ -353,7 +353,7 @@ string Slave::bufferTransition(const int iAgent) const
 
 Client::Client(Learner*const _learner, Environment* const _env, Settings& settings):
   learner(_learner), env(_env), actInfo(_env->aI), sInfo(_env->sI),
-  agents(_env->agents), nAgents(_env->agents.size()), sOld(_env->sI), s(_env->sI),
+  agents(_env->agents),  sOld(_env->sI), s(_env->sI),
   aOld(_env->aI, settings.gen), a(_env->aI, settings.gen), r(0)
 {
   learner->restart(settings.restart);
@@ -369,14 +369,13 @@ Client::Client(Learner*const _learner, Environment* const _env, Settings& settin
 
       learner->select(iAgent, s, a, sOld, aOld, extflag, r);
 
-      if(info[iAgent]==2) { //then we do not recv an action, we reset
+      if(extflag==2) { //then we do not recv an action, we reset
           if(env->resetAll) { //does this env require a full restart upon failing?
               return;
           }
       }
 
-      agents[iAgent]->act(actions[iAgent]);
+      agents[iAgent]->act(a);
       env->setAction(iAgent);
-      info[iAgent] = 0;
   }
 }

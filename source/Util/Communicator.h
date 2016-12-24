@@ -13,7 +13,7 @@
 class Communicator
 {
     const int workerid, nActions, nStates, isServer;
-    int CallerSocket, ListenerSocket, sizein, sizeout;
+    int Socket, ListenerSocket, sizein, sizeout;
     std::ostringstream o;
     int msgID;
 
@@ -24,7 +24,7 @@ class Communicator
 
 public:
     void setupServer();
-    void setupClient(const int iter, const string execpath);
+    void setupClient(const int iter, const std::string execpath);
     void closeSocket();
 
     void dbg(double *x, int *pn);
@@ -44,5 +44,5 @@ public:
     void sendAction(std::vector<double> & actions);
 
     ~Communicator();
-    Communicator(int _sockID, int _statedim, int _actdim, int _isserver);
+    Communicator(int _sockID, int _statedim, int _actdim, int _isserver=0, int _issim=1);
 };

@@ -60,6 +60,7 @@ void Network::build_normal_layer(Graph* const graph)
     if (graph->output)
 	l = new NormalLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
     else
+    //l = new NormalLayer<Tanh>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
     l = new NormalLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
 
     if (graph->output) printf( "Linear output\n");

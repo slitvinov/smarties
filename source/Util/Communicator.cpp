@@ -1,4 +1,4 @@
-#include "communicator.h"
+#include "Communicator.h"
 
 #include <iostream>
 #include <cmath>
@@ -53,22 +53,22 @@ void Communicator::recvState(int& agentId, _AGENT_STATUS& info,
 
         int k = 2;
         for (int j=0; j<nStates; j++) {
-            state[j] = (Real) datain[k++];
+            state[j] = datain[k++];
             o << state[j] << " ";
             assert(not std::isnan(state[j]) && not std::isinf(state[j]));
         }
 
         //debug3(" %f (%d)\n",datain[k],k);
-        reward = (Real) datain[k++];
+        reward = datain[k++];
         o << reward << "\n";
         assert(not std::isnan(reward) && not std::isinf(reward));
-        assert(k==datain);
+        assert(k==3+nStates);
     }
 }
 
 void Communicator::recvAction(std::vector<double>& actions)
 {
-    assert(actions.size() == sizein);
+    assert(actions.size() == nActions);
     int bytes = recv_all(Socket, datain, sizein);
     if (bytes <= 0) {
         printf("selectserver: socket hung up\n");
@@ -85,7 +85,7 @@ void Communicator::recvAction(std::vector<double>& actions)
 
 void Communicator::sendAction(std::vector<double>& actions)
 {
-    assert(actions.size() == sizeout);
+    assert(actions.size() == nActions);
     o << "Sent: ";
     for (int i=0; i<nActions; i++) {
         dataout[i] = actions[i];
@@ -105,10 +105,11 @@ Communicator::~Communicator()
     free(dataout);
 }
 
-Communicator::Communicator(int _sockID, int _statedim, int _actdim, int _server):
-workerid(_sockID),nActions(_actdim),nStates(_statedim),isServer(_server),msgID(0)
+Communicator::Communicator(int _sockID, int _statedim, int _actdim, int _server, int _issim):
+workerid(_sockID==0?1:_sockID),nActions(_actdim),nStates(_statedim),
+isServer(_sockID==0||_server), msgID(0)
 {
-    if (isServer) {
+    if (_issim) {
       sizeout = (3+nStates)*sizeof(double);
       sizein  =    nActions*sizeof(double);
     } else {
@@ -123,6 +124,8 @@ workerid(_sockID),nActions(_actdim),nStates(_statedim),isServer(_server),msgID(0
     memset(datain, 0, sizein);
     printf("nStates:%d nActions:%d sizein:%d sizeout:%d\n",
           nStates, nActions, sizein, sizeout);
+    if(_sockID==0)
+      setupClient(0, std::string());
 }
 
 
@@ -149,7 +152,8 @@ void Communicator::setupServer()
   int _true = 1;
   if(setsockopt(ListenerSocket, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int))<0)
   {
-      die("Sockopt failed\n");
+      perror("Sockopt failed\n");
+      exit(1);
   }
 
   /* listen (only 1)*/
@@ -159,7 +163,7 @@ void Communicator::setupServer()
   }
 
   unsigned int addr_len = sizeof(clientAddress);
-  if (Socket = accept(ListenerSocket, (struct sockaddr*)&clientAddress, &addr_len) == -1)
+  if ((Socket = accept(ListenerSocket, (struct sockaddr*)&clientAddress, &addr_len)) == -1)
   {
       perror("accept");
       return;
@@ -168,20 +172,34 @@ void Communicator::setupServer()
   fflush(0);
 }
 
-void Communicator::setupClient(const int iter, const string execpath)
+void Communicator::setupClient(const int iter, std::string execpath)
 {
   //Spawn server
   const int rf = fork();
   if (rf == 0) {
       char line[1024];
-      char *largv[64];
+      //char *largv[64];
 
-      mkdir(("simulation_"+to_string(workerid)+"_"+to_string(iter)+"/").c_str(),
-                                      S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-      chdir(("simulation_"+to_string(workerid)+"_"+to_string(iter)+"/").c_str());
+      if (execpath == std::string()) {
+         execpath = "./runClient.sh";
+         struct stat buffer;
+         while(stat("runClient.sh", &buffer)) {
+           chdir("..");
+           char cwd[1024];
+           if (getcwd(cwd, sizeof(cwd)) != NULL)
+                printf("Current working dir: %s\n", cwd);
+           else perror("getcwd() error");
+         }
+      } else {
+        mkdir(("simulation_"+std::to_string(workerid)+"_"
+                            +std::to_string(iter)+"/").c_str(),
+                                        S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        chdir(("simulation_"+std::to_string(workerid)+"_"
+                            +std::to_string(iter)+"/").c_str());
+      }
 
       sprintf(line, execpath.c_str());
-      parse(line, largv);     // prepare argv
+      //parse(line, largv);     // prepare argv
 
       #if 1==1 //if true goes to stdout
       char output[256];
@@ -193,12 +211,12 @@ void Communicator::setupClient(const int iter, const string execpath)
       #endif
 
       printf("About to exec.... \n");
-      cout << execpath << endl << *largv << endl;
+      std::cout << execpath << std::endl; //<< *largv << endl;
 
       //int res = execlp(execpath.c_str(), execpath.c_str(), NULL);
       const int res = execlp(execpath.c_str(),
                              execpath.c_str(),
-                             to_string(workerid).c_str(),
+                             std::to_string(workerid).c_str(),
                              NULL);
       //int res = execvp(*largv, largv);
 
@@ -216,7 +234,8 @@ void Communicator::setupClient(const int iter, const string execpath)
 
   int _true = 1;
   if(setsockopt(Socket, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int))<0) {
-     die("Sockopt failed\n");
+     perror("Sockopt failed\n");
+     exit(1);
   }
 
   /* Specify the server */

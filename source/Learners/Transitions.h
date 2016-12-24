@@ -59,7 +59,7 @@ protected:
     Environment * const env;
     const int nAppended, batchSize, maxSeqLen;
     int iOldestSaved;
-    const bool bSampleSeq, bRecurrent, bWriteToFile;
+    const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize;
     const string path;
     vector<Real> Inp, std, mean;
     vector<Sequence*> Tmp, Buffered;

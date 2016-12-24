@@ -41,7 +41,7 @@ void Environment::close_Comm()
     communicator->closeSocket();
 }
 
-void Environment::setAction(const int iAgent)
+void Environment::setAction(const int& iAgent)
 {
     communicator->sendAction(agents[iAgent]->a->vals);
 }
@@ -92,7 +92,7 @@ void Environment::commonSetup()
         a->sOld = new State(sI);
     }
 
-    communicator = new Communicator(rank,sI.dim,aI.dim,isLauncher);
+    communicator = new Communicator(rank,sI.dim,aI.dim,isLauncher,0);
 }
 /*
  void GlideEnvironment::setDims()

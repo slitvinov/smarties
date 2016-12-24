@@ -29,6 +29,7 @@ using namespace ErrorHandling;
 using namespace ArgumentParser;
 using namespace std;
 
+void runClient();
 void runSlave(MPI_Comm slavesComm);
 void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm);
 Settings settings;
@@ -75,7 +76,7 @@ void runClient()
         settings.nnInputs = env->sI.dimUsed;
         settings.nnOutputs = 1;
         for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];
-        learner = new NFQ(mastersComm, env, settings);
+        learner = new NFQ(0, env, settings);
     }
     else if (settings.learner == "NA" || settings.learner == "NAF") {
         settings.nnInputs = env->sI.dimUsed;
@@ -83,12 +84,12 @@ void runClient()
         const int nL = (nA*nA+nA)/2;
         settings.nnOutputs = 1+nL+nA;
         settings.bSeparateOutputs = true; //else it does not really work
-        learner = new NAF(mastersComm, env, settings);
+        learner = new NAF(0, env, settings);
     }
     else if (settings.learner == "DP" || settings.learner == "DPG") {
         settings.nnInputs = env->sI.dimUsed + env->aI.dim;
         settings.nnOutputs = 1;
-        learner = new DPG(mastersComm, env, settings);
+        learner = new DPG(0, env, settings);
     } else die("Learning algorithm not recognized\n");
     assert(learner not_eq nullptr);
 
@@ -180,18 +181,10 @@ int main (int argc, char** argv)
     {'L', "dqnSeqMax",INT,   "max seq length", &settings.maxSeqLen, (int)200},
     {'B', "dqnBatch", INT,   "batch update",   &settings.dqnBatch,  (int)10},
     {'p', "nThreads", INT,   "parallel master",&settings.nThreads,  (int)-1},
+    {'I', "isServer", INT,   "client or server",&settings.isLauncher,  (int)1},
     //{'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"../history.txt"}
     {'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"obs_master.txt"}
     });
-
-    if (not settings.isLauncher) {
-      if (settings.restart == "none") {
-        printf("smarties as client works only for evaluating policies.\n");
-        abort();
-      }
-      runClient();
-      return;
-    }
 
     #ifndef MEGADEBUG
     int provided;
@@ -203,6 +196,21 @@ int main (int argc, char** argv)
     MPI_Comm_size(MPI_COMM_WORLD, &nranks);
     #endif
 
+    Parser parser(opts);
+    parser.parse(argc, argv, rank == 0);
+    int seed = abs(floor(clock.tv_usec + rank));
+    settings.gen = new mt19937(seed);
+
+    if (not settings.isLauncher) {
+      printf("Launching smarties as client.\n");
+      if (settings.restart == "none") {
+        printf("smarties as client works only for evaluating policies.\n");
+        abort();
+      }
+      runClient();
+      return 0;
+    }
+
     const int slavesPerMaster = ceil(nranks/(double)settings.nMasters) - 1;
     const int isMaster = rank % (slavesPerMaster+1) == 0;
     const int whichMaster = rank / (slavesPerMaster+1);
@@ -212,12 +220,6 @@ int main (int argc, char** argv)
     MPI_Comm_split(MPI_COMM_WORLD, isMaster, rank, &mastersComm);
     MPI_Comm_split(MPI_COMM_WORLD, whichMaster, rank, &slavesComm);
     if (!isMaster) MPI_Comm_free(&mastersComm);
-
-    Parser parser(opts);
-    parser.parse(argc, argv, rank == 0);
-
-    int seed = abs(floor(clock.tv_usec + rank));
-    settings.gen = new mt19937(seed);
 
     if (rank == 0) runMaster(slavesComm, mastersComm);
     else           runSlave(slavesComm);

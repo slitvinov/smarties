@@ -225,11 +225,6 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         abort();
     }
 
-    for (int i(0); i<20; i++) {
-        max_scale[i] = std::max(max_scale[i], t_sN.vals[i]);
-        min_scale[i] = std::min(min_scale[i], t_sN.vals[i]);
-    }
-
     bool new_sample(false);
     if (reward<-9.9) new_sample=true;
 

@@ -136,7 +136,7 @@ public:
         Real* __restrict__ const link_outputs = netTo->in_vals +iO;
         __builtin_assume_aligned(link_outputs, __vec_width__);
         __builtin_assume_aligned(link_input, __vec_width__);
-
+#if 0
         for (int i = 0; i < nI; i++) {
             const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
             __builtin_assume_aligned(link_weights, __vec_width__);
@@ -144,6 +144,14 @@ public:
             link_outputs[o] += link_input[i] * link_weights[o];
         }
         }
+#else
+        for (int o = 0; o < nO; o++) {
+            const Real* __restrict__ const link_weights = weights +iW +nI*o;
+        for (int i = 0; i < nI; i++) {
+            link_outputs[o] += link_input[i] * link_weights[i];
+        }
+        }
+#endif
     }
 
     inline void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
