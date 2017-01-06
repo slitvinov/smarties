@@ -10,7 +10,7 @@
 
 using namespace std;
 
-#include <cstddef>
+//#include <cstddef>
 #include <utility>
 #include <string>
 #include <random>
@@ -24,7 +24,8 @@ using namespace std;
 #ifndef MEGADEBUG
 #include <mpi.h>
 #endif
-#define __vec_width__ 32
+//#define __vec_width__ 32
+#define __vec_width__ 8
 //#define _scaleR_
 #define _BPTT_
 //#define _dumpNet_
