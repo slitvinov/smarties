@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <cstring>
 #include <cassert>
 
 #include <netdb.h>

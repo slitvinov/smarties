@@ -56,6 +56,7 @@ struct Gen
 class Transitions
 {
 protected:
+    const MPI_Comm mastersComm;
     Environment * const env;
     const int nAppended, batchSize, maxSeqLen;
     int iOldestSaved;
@@ -80,7 +81,7 @@ public:
     vector<Sequence*> Set;
     vector<int> inds;
 
-    Transitions(Environment*const env, Settings & settings);
+    Transitions(MPI_Comm comm, Environment*const env, Settings & settings);
 
     ~Transitions()
     {
@@ -96,6 +97,8 @@ public:
 #ifdef _Priority_
     void updateP();
 #endif
+    void save(std::string fname);
+    void restart(std::string fname);
     void updateSamples();
     int sample();
     void restartSamples();

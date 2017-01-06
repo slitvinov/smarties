@@ -6,7 +6,22 @@
  *  Copyright 2013 ETH Zurich. All rights reserved.
  *
  */
+/*
+  TODO:
+    - still need atari environment, could do it over xmas
+    - due to size of weight verctor:
+      - allreduce grads
+      - each rank updates a portion
+      - MPI_Allgather!
+      - speedup probably meaningless
+    -test compile multiple masters
+    -polish savers and restart
+      - mean std data
+      - momenta Optimizer
+      - save weights layer wise to ease conversion from legacy policies
+    -retrain policy for 3d case
 
+*/
 #include "ArgumentParser.h"
 #include "Learners/Learner.h"
 #include "Learners/NFQ.h"

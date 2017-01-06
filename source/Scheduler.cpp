@@ -216,7 +216,8 @@ void Slave::run()
 {
     #ifndef MEGADEBUG
     for (int i=0; i<info.size(); i++) info[i] = 1;
-    int iAgent;
+    int iAgent, rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     while(true) {
         // flag = -1: failed comm, 0: normal, 2: ended
         const int extflag = env->getState(iAgent);
@@ -253,8 +254,9 @@ void Slave::run()
         //if buffer is not empty, print it to file, while we wait for action
         if (!outBuffer.empty()) {
             ofstream fout;
-            fout.open(("obs"+to_string(me)+".dat").c_str(),ios::app);
+            fout.open(("obs"+to_string(rank)+".dat").c_str(),ios::app);
             fout << outBuffer << endl;
+            fout.flush();
             fout.close();
         }
 
@@ -320,8 +322,9 @@ void Slave::packData(const int iAgent)
 
 void Slave::restart(string fname)
 {
-    //learner->restart(fname);
-    FILE * f = fopen(("sim_"+to_string(me)+".status").c_str(), "r");
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    FILE * f = fopen(("slave_"+to_string(rank)+".status").c_str(), "r");
     if (f == NULL) return;
     int sim_id_fake = -1;
     fscanf(f, "sim number: %d\n", &sim_id_fake);
@@ -332,7 +335,9 @@ void Slave::restart(string fname)
 
 void Slave::save() const
 {
-    FILE * f = fopen(("sim_"+to_string(me)+".status").c_str(), "w");
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    FILE * f = fopen(("slave_"+to_string(rank)+".status").c_str(), "w");
     if (f != NULL) fprintf(f, "sim number: %lu\n", env->iter);
     fclose(f);
     //printf( "sim number: %d\n", env->iter);
