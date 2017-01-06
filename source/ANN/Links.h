@@ -136,7 +136,7 @@ public:
         Real* __restrict__ const link_outputs = netTo->in_vals +iO;
         __builtin_assume_aligned(link_outputs, __vec_width__);
         __builtin_assume_aligned(link_input, __vec_width__);
-#if 0
+#if 1
         for (int i = 0; i < nI; i++) {
             const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
             __builtin_assume_aligned(link_weights, __vec_width__);

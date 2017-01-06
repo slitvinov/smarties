@@ -31,7 +31,7 @@ using namespace std;
 //#define _dumpNet_
 
 typedef double Real;
-
+#define MPI_VALUE_TYPE MPI_DOUBLE
 
 template <typename T>
 void _dispose_object(T *& ptr)

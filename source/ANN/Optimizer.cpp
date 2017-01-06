@@ -42,46 +42,18 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
     const int nThreads = g.size();
     #pragma omp parallel
     {
-		#pragma omp for nowait
+		    #pragma omp for nowait
         for (int j=0; j<nWeights; j++)
         for (int k=1; k<nThreads; k++) {
             G->_W[j] += g[k]->_W[j];
             g[k]->_W[j] = 0.;
         }
 
-        #pragma omp for
+        #pragma omp for nowait
         for (int j=0; j<nBiases; j++)
         for (int k=1; k<nThreads; k++) {
             G->_B[j] += g[k]->_B[j];
             g[k]->_B[j] = 0.;
-        }
-    }
-}
-
-void Optimizer::stackGrads(const int thrID, Grads* const G,
-                           const vector<Grads*> g) const
-{
-    const int nThreads =g.size();
-
-    vector<int> bndsW(nThreads+1), bndsB(nThreads+1);
-    for (int k=1; k<nThreads; k++) {
-        bndsW[k] = k*nWeights/Real(nThreads);
-        bndsB[k] = k*nBiases/Real(nThreads);
-    }
-    bndsW.back() = nWeights; bndsB.back() = nBiases;
-
-    for (int k=0; k<nThreads; k++) {
-        const int beg = (k  +thrID)%nThreads;
-        const int end = (beg+1==nThreads)?nThreads:(k+1+thrID)%nThreads;
-
-        for (int j=bndsW[beg]; j<bndsW[end]; j++) {
-            G->_W[j] += g[thrID]->_W[j];
-            g[thrID]->_W[j] = 0.;
-        }
-
-        for (int j=bndsB[beg]; j<bndsB[end]; j++) {
-            G->_B[j] += g[thrID]->_B[j];
-            g[thrID]->_B[j] = 0.;
         }
     }
 }
@@ -119,8 +91,8 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
         grad[i] = 0.; //reset grads
 
         if (lambda_>0)
-             dest[i] += _1stMom[i] + (dest[i]<0 ? lambda_ : -lambda_);
-             //dest[i] += _1stMom[i] - dest[i]*lambda_;
+             //dest[i] += _1stMom[i] + (dest[i]<0 ? lambda_ : -lambda_);
+             dest[i] += _1stMom[i] - dest[i]*lambda_;
         else dest[i] += _1stMom[i];
     }
 }
@@ -153,8 +125,8 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
         grad[i] = 0.; //reset grads
 
         if (lambda_>0)
-             dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);
-             //dest[i] += DW_ - dest[i]*lambda_;
+             //dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);
+             dest[i] += DW_ - dest[i]*lambda_;
         else dest[i] += DW_;
     }
 }
@@ -162,6 +134,246 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 void Optimizer::init(Real* const dest, const int N, const Real ini)
 {
     for (int j=0; j<N; j++) dest[j] = ini;
+}
+
+void Optimizer::save(const string fname)
+{
+  const int nNeurons(net->getnNeurons()), nLayers(net->nLayers());
+  const int nAgents(net->getnAgents()), nStates(net->nStates());
+
+  {
+    printf("Saving into %s\n", fname.c_str());
+    fflush(0);
+    string nameBackup = fname + "_tmp";
+    ofstream out(nameBackup.c_str());
+
+    if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+
+    out.precision(20);
+    out << nWeights << " " << nBiases << " " << nLayers  << " " << nNeurons << endl;
+
+    for (int i=0; i<nWeights; i++) {
+        if (std::isnan(net->weights[i]) || std::isinf(net->weights[i]))
+            die("Caught a nan\n");
+        else
+            out << net->weights[i] <<" "<< _1stMomW[i] << "\n";
+    }
+
+    for (int i=0; i<nBiases; i++) {
+      if (std::isnan(net->biases[i]) || std::isinf(net->biases[i]))
+            die("Caught a nan\n");
+        else
+            out << net->biases[i] <<" "<< _1stMomB[i] << "\n";
+    }
+
+    out.flush();
+    out.close();
+    string command = "cp " + nameBackup + " " + fname;
+    system(command.c_str());
+  }
+  {
+    string nameBackup = fname + "_mems_tmp";
+    ofstream out(nameBackup.c_str());
+
+    if (!out.good())
+      die("Unable to open save into file %s\n", nameBackup.c_str());
+
+    for(int agentID=0; agentID<nAgents; agentID++) {
+      for (int j=0; j<nNeurons; j++) out << net->mem[agentID]->outvals[j] << "\n";
+      for (int j=0; j<nStates;  j++) out << net->mem[agentID]->ostates[j] << "\n";
+    }
+
+    out.flush();
+    out.close();
+    string command = "cp " + nameBackup + " " + fname + "_mems";
+    system(command.c_str());
+  }
+}
+
+void AdamOptimizer::save(const string fname)
+{
+  const int nNeurons(net->getnNeurons()), nLayers(net->nLayers());
+  const int nAgents(net->getnAgents()), nStates(net->nStates());
+
+  {
+    printf("Saving into %s\n", fname.c_str());
+    fflush(0);
+    string nameBackup = fname + "_tmp";
+    ofstream out(nameBackup.c_str());
+
+    if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+
+    out.precision(20);
+    out << nWeights << " " << nBiases << " " << nLayers  << " " << nNeurons << endl;
+
+    for (int i=0; i<nWeights; i++) {
+        if (std::isnan(net->weights[i]) || std::isinf(net->weights[i]))
+            die("Caught a nan\n");
+        else
+            out<<net->weights[i]<<" "<<_1stMomW[i]<<" "<<_2ndMomW[i]<<"\n";
+    }
+
+    for (int i=0; i<nBiases; i++) {
+      if (std::isnan(net->biases[i]) || std::isinf(net->biases[i]))
+            die("Caught a nan\n");
+        else
+            out<<net->biases[i]<<" "<<_1stMomB[i]<<" "<<_2ndMomB[i]<<"\n";
+    }
+
+    out.flush();
+    out.close();
+    string command = "cp " + nameBackup + " " + fname;
+    system(command.c_str());
+  }
+  {
+    string nameBackup = fname + "_mems_tmp";
+    ofstream out(nameBackup.c_str());
+
+    if (!out.good())
+      die("Unable to open save into file %s\n", nameBackup.c_str());
+
+    for(int agentID=0; agentID<nAgents; agentID++) {
+      for (int j=0; j<nNeurons; j++) out << net->mem[agentID]->outvals[j] << "\n";
+      for (int j=0; j<nStates;  j++) out << net->mem[agentID]->ostates[j] << "\n";
+    }
+
+    out.flush();
+    out.close();
+    string command = "cp " + nameBackup + " " + fname + "_mems";
+    system(command.c_str());
+  }
+}
+
+bool Optimizer::restart(const string fname)
+{
+  const int nNeurons(net->getnNeurons()), nLayers(net->nLayers());
+  const int nAgents(net->getnAgents()), nStates(net->nStates());
+
+  {
+    string nameBackup = fname;
+    ifstream in(nameBackup.c_str());
+    debug1("Reading from %s\n", nameBackup.c_str());
+    if (!in.good()) {
+        error("Couldnt open file %s \n", nameBackup.c_str());
+        return false;
+    }
+
+    int readTotWeights, readTotBiases, readNNeurons, readNLayers;
+    in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
+
+    if (readTotWeights != nWeights || readTotBiases != nBiases || readNLayers != nLayers || readNNeurons != nNeurons)
+    die("Network parameters differ!");
+
+    Real tmp, tmp1;
+    for (int i=0; i<nWeights; i++) {
+        in >> tmp >> tmp1;
+        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+        net->weights[i] = tmp;
+        _1stMomW[i] = tmp1;
+    }
+
+    for (int i=0; i<nBiases; i++) {
+        in >> tmp >> tmp1;
+        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+        net->biases[i] = tmp;
+        _1stMomB[i] = tmp1;
+    }
+    in.close();
+    updateFrozenWeights();
+  }
+  {
+    string nameBackup = fname + "_mems";
+    ifstream in(nameBackup.c_str());
+    debug1("Reading from %s\n", nameBackup.c_str());
+    if (!in.good()) {
+        error("Couldnt open file %s \n", nameBackup.c_str());
+        return false;
+    }
+
+    Real tmp;
+    for(int agentID=0; agentID<nAgents; agentID++) {
+      for (int j=0; j<nNeurons; j++) {
+        in >> tmp;
+        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+        net->mem[agentID]->outvals[j] = tmp;
+      }
+      for (int j=0; j<nStates; j++) {
+        in >> tmp;
+        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+        net->mem[agentID]->ostates[j] = tmp;
+      }
+    }
+    in.close();
+  }
+  return true;
+}
+
+
+bool AdamOptimizer::restart(const string fname)
+{
+  const int nNeurons(net->getnNeurons()), nLayers(net->nLayers());
+  const int nAgents(net->getnAgents()), nStates(net->nStates());
+
+  {
+    string nameBackup = fname;
+    ifstream in(nameBackup.c_str());
+    debug1("Reading from %s\n", nameBackup.c_str());
+    if (!in.good()) {
+        error("Couldnt open file %s \n", nameBackup.c_str());
+        return false;
+    }
+
+    int readTotWeights, readTotBiases, readNNeurons, readNLayers;
+    in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
+
+    if (readTotWeights != nWeights || readTotBiases != nBiases ||
+           readNLayers != nLayers  || readNNeurons  != nNeurons )
+    die("Network parameters differ!");
+
+    Real tmp, tmp1, tmp2;
+    for (int i=0; i<nWeights; i++) {
+        in >> tmp >> tmp1 >> tmp2;
+        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+        net->weights[i] = tmp;
+        _1stMomW[i] = tmp1;
+        _2ndMomW[i] = tmp1;
+    }
+
+    for (int i=0; i<nBiases; i++) {
+        in >> tmp >> tmp1 >> tmp2;
+        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+        net->biases[i] = tmp;
+        _1stMomB[i] = tmp1;
+        _2ndMomB[i] = tmp1;
+    }
+    in.close();
+    updateFrozenWeights();
+  }
+  {
+    string nameBackup = fname + "_mems";
+    ifstream in(nameBackup.c_str());
+    debug1("Reading from %s\n", nameBackup.c_str());
+    if (!in.good()) {
+        error("Couldnt open file %s \n", nameBackup.c_str());
+        return false;
+    }
+
+    Real tmp;
+    for(int agentID=0; agentID<nAgents; agentID++) {
+      for (int j=0; j<nNeurons; j++) {
+        in >> tmp;
+        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+        net->mem[agentID]->outvals[j] = tmp;
+      }
+      for (int j=0; j<nStates; j++) {
+        in >> tmp;
+        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+        net->mem[agentID]->ostates[j] = tmp;
+      }
+    }
+    in.close();
+  }
+  return true;
 }
 
 /*

@@ -12,8 +12,8 @@
 //#define CLEAN //dont
 #define NmaxDATA 10000
 
-Transitions::Transitions(Environment*const _env, Settings & settings):
-env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
+Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
+mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
 maxSeqLen(settings.maxSeqLen), iOldestSaved(0), bSampleSeq(settings.nnType),
 bRecurrent(settings.nnType), bWriteToFile(!(settings.samplesFile=="none")),
 bNormalize(settings.nnTypeInput), path(settings.samplesFile), anneal(0),
@@ -121,6 +121,7 @@ void Transitions::passData(const int agentId, const int info, const State& sOld,
         fout << agentId << " "<< info << " " << sOld.printClean().c_str() <<
                 sNew.printClean().c_str() << a.printClean().c_str() << reward;
         fout << endl;
+        fout.flush();
         fout.close();
     }
 
@@ -250,6 +251,18 @@ void Transitions::update_samples_mean()
 		}
 	}
 
+  //add up gradients across nodes (masters)
+  int nMasters;
+  MPI_Comm_size(mastersComm, &nMasters);
+  if (nMasters > 1) {
+    MPI_Allreduce(MPI_IN_PLACE, &count, 1,
+                  MPI_INT, MPI_SUM, mastersComm);
+    MPI_Allreduce(MPI_IN_PLACE, mean.data(), sI.dimUsed,
+                  MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+    MPI_Allreduce(MPI_IN_PLACE, std.data(), sI.dimUsed,
+                  MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+  }
+
   bool bSimilar = true;
 	std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {
@@ -349,6 +362,26 @@ void Transitions::updateSamples()
 int Transitions::sample()
 {
     return dist->operator()(*(gen->g));
+}
+
+void Transitions::save(std::string fname)
+{
+    FILE * f = fopen(fname.c_str(), "w");
+    if (f != NULL)
+    for (int i=0; i<sI.dimUsed; i++)
+    fprintf(f, "%9.9e %9.9e\n", mean[i], std[i]);
+    fclose(f);
+}
+
+void Transitions::restart(std::string fname)
+{
+    ifstream in(fname.c_str());
+    debug1("Reading from %s\n", fname.c_str());
+    if (!in.good()) return;
+
+    for (int i=0; i<sI.dimUsed; i++)
+    in >> mean[i] >> std[i];
+    in.close();
 }
 
 #ifdef _Priority_
