@@ -138,8 +138,8 @@ void Optimizer::init(Real* const dest, const int N, const Real ini)
 
 void Optimizer::save(const string fname)
 {
-  const int nNeurons(net->getnNeurons()), nLayers(net->nLayers());
-  const int nAgents(net->getnAgents()), nStates(net->nStates());
+  const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
+  const int nAgents(net->getnAgents()), nStates(net->getnStates());
 
   {
     printf("Saving into %s\n", fname.c_str());
@@ -153,15 +153,15 @@ void Optimizer::save(const string fname)
     out << nWeights << " " << nBiases << " " << nLayers  << " " << nNeurons << endl;
 
     for (int i=0; i<nWeights; i++) {
-        if (std::isnan(net->weights[i]) || std::isinf(net->weights[i]))
-            die("Caught a nan\n");
+        if (std::isnan(net->weights[i]) || std::isinf(net->weights[i])) 
+            die("Caught a nan\n")
         else
             out << net->weights[i] <<" "<< _1stMomW[i] << "\n";
     }
 
     for (int i=0; i<nBiases; i++) {
       if (std::isnan(net->biases[i]) || std::isinf(net->biases[i]))
-            die("Caught a nan\n");
+            die("Caught a nan\n")
         else
             out << net->biases[i] <<" "<< _1stMomB[i] << "\n";
     }
@@ -192,8 +192,8 @@ void Optimizer::save(const string fname)
 
 void AdamOptimizer::save(const string fname)
 {
-  const int nNeurons(net->getnNeurons()), nLayers(net->nLayers());
-  const int nAgents(net->getnAgents()), nStates(net->nStates());
+  const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
+  const int nAgents(net->getnAgents()), nStates(net->getnStates());
 
   {
     printf("Saving into %s\n", fname.c_str());
@@ -208,14 +208,14 @@ void AdamOptimizer::save(const string fname)
 
     for (int i=0; i<nWeights; i++) {
         if (std::isnan(net->weights[i]) || std::isinf(net->weights[i]))
-            die("Caught a nan\n");
+            die("Caught a nan\n")
         else
             out<<net->weights[i]<<" "<<_1stMomW[i]<<" "<<_2ndMomW[i]<<"\n";
     }
 
     for (int i=0; i<nBiases; i++) {
       if (std::isnan(net->biases[i]) || std::isinf(net->biases[i]))
-            die("Caught a nan\n");
+            die("Caught a nan\n")
         else
             out<<net->biases[i]<<" "<<_1stMomB[i]<<" "<<_2ndMomB[i]<<"\n";
     }
@@ -246,8 +246,8 @@ void AdamOptimizer::save(const string fname)
 
 bool Optimizer::restart(const string fname)
 {
-  const int nNeurons(net->getnNeurons()), nLayers(net->nLayers());
-  const int nAgents(net->getnAgents()), nStates(net->nStates());
+  const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
+  const int nAgents(net->getnAgents()), nStates(net->getnStates());
 
   {
     string nameBackup = fname;
@@ -279,7 +279,7 @@ bool Optimizer::restart(const string fname)
         _1stMomB[i] = tmp1;
     }
     in.close();
-    updateFrozenWeights();
+    net->updateFrozenWeights();
   }
   {
     string nameBackup = fname + "_mems";
@@ -311,8 +311,8 @@ bool Optimizer::restart(const string fname)
 
 bool AdamOptimizer::restart(const string fname)
 {
-  const int nNeurons(net->getnNeurons()), nLayers(net->nLayers());
-  const int nAgents(net->getnAgents()), nStates(net->nStates());
+  const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
+  const int nAgents(net->getnAgents()), nStates(net->getnStates());
 
   {
     string nameBackup = fname;
@@ -347,7 +347,7 @@ bool AdamOptimizer::restart(const string fname)
         _2ndMomB[i] = tmp1;
     }
     in.close();
-    updateFrozenWeights();
+    net->updateFrozenWeights();
   }
   {
     string nameBackup = fname + "_mems";

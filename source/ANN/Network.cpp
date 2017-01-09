@@ -382,7 +382,7 @@ void Network::build()
 Network::Network(const Settings & settings) :
 Pdrop(settings.nnPdrop), nInputs(0), nOutputs(0), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), nStates(0),
 nAgents(settings.nAgents), nThreads(settings.nThreads), allocatedFrozenWeights(false),
-allocatedDroputWeights(false), backedUp(false), gen(settings.gen), bDump(not settings.bTrain),
+allocatedDroputWeights(false), gen(settings.gen), bDump(not settings.bTrain),
 bBuilt(false), bAddedInput(false), counter(0), batch_counter(0)
 { }
 
