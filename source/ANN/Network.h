@@ -100,7 +100,6 @@ public:
         _myfree( biases )
         _myfree( tgt_weights )
         _myfree( tgt_biases )
-        _myfree( weights_DropoutBackup )
     }
 
     void updateFrozenWeights();
