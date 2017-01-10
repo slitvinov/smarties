@@ -266,13 +266,13 @@ void Transitions::update_samples_mean()
   bool bSimilar = true;
 	std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {
-    bSimilar&= (fabs(std[i]-oldStd[i])/max(fabs(std[i]),fabs(oldStd[i]))<.01);
 		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count));
+    bSimilar&= (fabs(std[i]-oldStd[i])/max(fabs(std[i]),fabs(oldStd[i]))<.01);
 		std::cout << std[i] << " ";
   }
 	std::cout << "]. States means: [";
 	for (int i=0; i<sI.dimUsed; i++) {
-    bSimilar&= (fabs(mean[i]-oldMean[i])/std[i]<.01);
+    bSimilar&= (fabs(mean[i]-oldMean[i])/max(fabs(std[i]),fabs(oldStd[i]))<.01);
     mean[i] /= Real(count);
     std::cout << mean[i] << " ";
   }
@@ -366,21 +366,25 @@ int Transitions::sample()
 
 void Transitions::save(std::string fname)
 {
-    FILE * f = fopen(fname.c_str(), "w");
+    string nameBackup = fname + "_data_stats";
+    FILE * f = fopen(nameBackup.c_str(), "w");
     if (f != NULL)
-    for (int i=0; i<sI.dimUsed; i++)
-    fprintf(f, "%9.9e %9.9e\n", mean[i], std[i]);
+      for (int i=0; i<sI.dimUsed; i++)
+        fprintf(f, "%9.9e %9.9e\n", mean[i], std[i]);
     fclose(f);
 }
 
 void Transitions::restart(std::string fname)
 {
-    ifstream in(fname.c_str());
-    debug1("Reading from %s\n", fname.c_str());
+    string nameBackup = fname + "_data_stats";
+    ifstream in(nameBackup.c_str());
+    debug1("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) return;
 
-    for (int i=0; i<sI.dimUsed; i++)
-    in >> mean[i] >> std[i];
+    for (int i=0; i<sI.dimUsed; i++) {
+      in >> mean[i] >> std[i];
+      printf("Read: %9.9e %9.9e\n", mean[i], std[i]);
+    }
     in.close();
 }
 

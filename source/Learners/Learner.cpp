@@ -392,6 +392,7 @@ void Learner::restart(string name)
         _info("Restart successful, moving on...\n")
     else
         _info("Not all policies restarted. \n")
+    data->restart(name);
     save("restarted_policy.net");
     FILE * f = fopen("policy.status", "r");
     if(f != NULL) {
