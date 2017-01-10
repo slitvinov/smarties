@@ -21,7 +21,8 @@ gamma(settings.gamma), g(settings.gen), resetAll(true), iter(0), communicator(nu
 void Environment::setup_Comm()
 {
     if(communicator == nullptr)
-      die("Set up the state before establishing a communication.\n");
+      communicator = new Communicator(rank,sI.dim,aI.dim,isLauncher,0);
+      //die("Set up the state before establishing a communication.\n");
 
     if (isLauncher)
       communicator->setupClient(iter, execpath);
@@ -91,8 +92,6 @@ void Environment::commonSetup()
         a->s = new State(sI);
         a->sOld = new State(sI);
     }
-
-    communicator = new Communicator(rank,sI.dim,aI.dim,isLauncher,0);
 }
 /*
  void GlideEnvironment::setDims()

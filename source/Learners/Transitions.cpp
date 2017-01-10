@@ -64,8 +64,9 @@ void Transitions::restartSamples()
                     t_sN.set(d_sN);
                     t_a.set(d_a);
                     if(info==2) printf("Terminal state\n");
-                    if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001) printf("Skipping one\n");
-                    else add(0, info, t_sO, t_a, t_sN, reward);
+                    //if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001) printf("Skipping one\n");
+                    //else 
+                    add(0, info, t_sO, t_a, t_sN, reward);
                 }
             }
             if (Ndata==0 && agentId>1) break;
