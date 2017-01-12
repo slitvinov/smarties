@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <sys/un.h>
+#include <mpi.h>
 #include <vector>
 
 #define _AGENT_STATUS int
@@ -15,7 +16,8 @@ class Communicator
     const int workerid, nActions, nStates, isServer;
     int Socket, ListenerSocket, sizein, sizeout;
     std::ostringstream o;
-    int msgID;
+    int msgID, rank_MPI, size_MPI;
+    MPI_Comm comm_MPI;
 
     char SOCK_PATH[256];
     struct sockaddr_un serverAddress;
@@ -29,10 +31,10 @@ public:
 
     void dbg(double *x, int *pn);
 
-    void sendState(int& agentId,
-                   int& info,
+    void sendState(int agentId,
+                   int info,
                    std::vector<double>& state,
-                   double& reward);
+                   double reward);
     void recvState(int& agentId,
                    int& info,
                    std::vector<double>& state,
@@ -44,5 +46,6 @@ public:
     void sendAction(std::vector<double> & actions);
 
     ~Communicator();
-    Communicator(int _sockID, int _statedim, int _actdim, int _isserver=0, int _issim=1);
+    Communicator(int _sockID, int _statedim, int _actdim, bool _isserver=0, bool _issim=1);
+    Communicator(int _sockID, int _statedim, int _actdim, MPI_Comm comm);
 };

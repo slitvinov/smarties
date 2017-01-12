@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include <cmath>
-#include <cstring>
 #include <cassert>
 
 #include <netdb.h>
@@ -14,9 +13,11 @@
 static int send_all(int fd, void *buffer, unsigned int size);
 static int recv_all(int fd, void *buffer, unsigned int size);
 
-void Communicator::sendState(int& agentId, _AGENT_STATUS& info,
-                             std::vector<double>& state, double& reward)
+void Communicator::sendState(int agentId, _AGENT_STATUS info,
+                             std::vector<double>& state, double reward)
 {
+    if(rank_MPI) return;
+
     assert(state.size() == nStates);
     o <<"Send: "<<agentId<<" "<<msgID++<<" "<< info<<" ";
     {int *ptr=(int*)(dataout);   *ptr=agentId;}
@@ -70,18 +71,29 @@ void Communicator::recvState(int& agentId, _AGENT_STATUS& info,
 void Communicator::recvAction(std::vector<double>& actions)
 {
     assert(actions.size() == nActions);
-    int bytes = recv_all(Socket, datain, sizein);
-    if (bytes <= 0) {
-        printf("selectserver: socket hung up\n");
-        fflush(0);
-        abort();
+    if(!rank_MPI) {
+      int bytes = recv_all(Socket, datain, sizein);
+      if (bytes <= 0) {
+          printf("selectserver: socket hung up\n");
+          fflush(0);
+          abort();
+      }
+      for (int i=1; i<size_MPI; ++i)
+      MPI_Send(datain, sizein, MPI_DOUBLE, i, 42, comm_MPI);
     }
+    else
+    {
+      MPI_Status status;
+      MPI_Recv(datain, sizein, MPI_DOUBLE, 0, 42, comm_MPI, &status);
+    }
+
     o << "Recv: ";
     for (int j=0; j<nActions; j++) {
         actions[j] = *(datain +j);
         o << actions[j] << " ";
     }
     o << "\n";
+    if(!rank_MPI)
     std::cout<<o.str()<<std::endl;
     o.str( std::string() );
     o.clear();
@@ -100,23 +112,43 @@ void Communicator::sendAction(std::vector<double>& actions)
     std::cout<<o.str()<<std::endl;
     o.str( std::string() );
     o.clear();
-
     send_all(Socket, dataout, sizeout);
 }
 
 Communicator::~Communicator()
 {
-    std::cout<<o.str()<<std::endl;
     close(Socket);
     free(datain);
     free(dataout);
 }
 
-Communicator::Communicator(int _sockID, int _statedim, int _actdim, int _server, int _issim):
+Communicator::Communicator(int _sockID, int _statedim, int _actdim, MPI_Comm comm):
 workerid(_sockID==0?1:_sockID),nActions(_actdim),nStates(_statedim),
-isServer(_sockID==0||_server), msgID(0)
+isServer(_sockID==0), msgID(0), comm_MPI(comm)
 {
-    if (_issim) {
+  sizeout = (3+nStates)*sizeof(double);
+  sizein  =    nActions*sizeof(double);
+
+  sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock_", workerid);
+  printf("SOCK_PATH=->%s<-\n", SOCK_PATH);
+  dataout = (double *) malloc(sizeout);
+  memset(dataout, 0, sizeout);
+  datain  = (double *) malloc(sizein);
+  memset(datain, 0, sizein);
+  printf("nStates:%d nActions:%d sizein:%d sizeout:%d\n",
+        nStates, nActions, sizein, sizeout);
+
+  MPI_Comm_rank(comm_MPI,&rank_MPI);
+  MPI_Comm_size(comm_MPI,&size_MPI);
+
+  if(_sockID==0 && rank_MPI == 0) setupClient(0, std::string());
+}
+
+Communicator::Communicator(int _sockID, int _statedim, int _actdim, bool _server, bool _sim):
+workerid(_sockID==0?1:_sockID),nActions(_actdim),nStates(_statedim),
+isServer(_sockID==0||_server),msgID(0), rank_MPI(0), size_MPI(0)
+{
+    if (_sim) {
       sizeout = (3+nStates)*sizeof(double);
       sizein  =    nActions*sizeof(double);
     } else {
@@ -139,6 +171,8 @@ isServer(_sockID==0||_server), msgID(0)
 void Communicator::setupServer()
 {
   /* Create a socket */
+  printf("Server create socket\n");
+  fflush(0);
   if ((ListenerSocket = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
       perror("socket");
       exit(1);
@@ -148,8 +182,10 @@ void Communicator::setupServer()
   bzero(&serverAddress, sizeof(serverAddress));
   serverAddress.sun_family = AF_UNIX;
   strcpy(serverAddress.sun_path, SOCK_PATH);
-  const int servlen = sizeof(serverAddress.sun_family) +
-                      strlen(serverAddress.sun_path);
+  const int servlen = sizeof(serverAddress.sun_family) + strlen(serverAddress.sun_path);
+
+  printf("Server bind listener socket\n");
+  fflush(0);
 
   if (bind(ListenerSocket, (struct sockaddr *)&serverAddress, servlen) < 0) {
       perror("bind");
@@ -163,6 +199,11 @@ void Communicator::setupServer()
       exit(1);
   }
 
+  char hostname[1024];
+  hostname[1023] = '\0';
+  gethostname(hostname, 1023);
+  printf("Server listen listener socket on %s\n", hostname);
+  fflush(0);
   /* listen (only 1)*/
   if (listen(ListenerSocket, 1) == -1) {
       perror("listen");
@@ -198,13 +239,13 @@ void Communicator::setupClient(const int iter, std::string execpath)
            else perror("getcwd() error");
          }
       } else {
-        mkdir(("simulation_"+std::to_string(workerid)+"_"
-                            +std::to_string(iter)+"/").c_str(),
-                                        S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-        chdir(("simulation_"+std::to_string(workerid)+"_"
-                            +std::to_string(iter)+"/").c_str());
-      }
 
+      mkdir(("simulation_"+std::to_string(workerid)+"_"
+                          +std::to_string(iter)+"/").c_str(),
+                                      S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+      chdir(("simulation_"+std::to_string(workerid)+"_"
+                          +std::to_string(iter)+"/").c_str());
+      }
       sprintf(line, execpath.c_str());
       //parse(line, largv);     // prepare argv
 
@@ -233,10 +274,10 @@ void Communicator::setupClient(const int iter, std::string execpath)
       }
   }
 
-  //printf("waiting for server to setup everything..\n");
-  //sleep(2); //pause is not safe with MPI
-  //printf("ok, I continue...\n");
-
+  printf("waiting for server to setup everything..\n");
+  sleep(2); //pause is not safe with MPI
+  printf("ok, I continue...\n");
+  fflush(0);
   Socket = socket(AF_UNIX, SOCK_STREAM, 0);
 
   int _true = 1;
@@ -244,6 +285,8 @@ void Communicator::setupClient(const int iter, std::string execpath)
      perror("Sockopt failed\n");
      exit(1);
   }
+  printf("Created socket\n");
+  fflush(0);
 
   /* Specify the server */
   bzero((char *)&serverAddress, sizeof(serverAddress));
@@ -251,10 +294,32 @@ void Communicator::setupClient(const int iter, std::string execpath)
   strcpy(serverAddress.sun_path, SOCK_PATH);
   const int servlen = sizeof(serverAddress.sun_family) + strlen(serverAddress.sun_path);
 
+  char hostname[1024];
+  hostname[1023] = '\0';
+  gethostname(hostname, 1023);
+  printf("Specify the server %s\n", hostname);
+  fflush(0);
   /* Connect to the server */
   while (connect(Socket, (struct sockaddr *)&serverAddress, servlen) < 0) {
       //perror("connecting...\n");
   }
+  printf("Connected to server\n");
+  fflush(0);
+
+  /*
+  int check = -1;
+  int bytes = recv_all(Socket, &check, sizeof(int));
+  if (bytes <= 0) {
+      printf("selectserver: socket hung up\n");
+      fflush(0);
+      abort();
+  }
+  if (check) {
+      printf("handshake failed\n");
+      fflush(0);
+      abort();
+  }
+  */
 }
 
 void Communicator::closeSocket()
