@@ -1,1 +1,1 @@
-NewFishEnvironment exec=../launch2F_Learn.sh n=1
+NewFishEnvironment exec=../launchSim.sh n=1

@@ -71,5 +71,5 @@ export LD_LIBRARY_PATH=/cluster/home03/mavt/novatig/tbb2017_20160916oss/build/li
 export LD_LIBRARY_PATH=/cluster/work/infk/cconti/VTK5.8_gcc/lib/vtk-5.8/:$LD_LIBRARY_PATH
 export OMP_NUM_THREADS=${NTHREADS}
 ./hyperion ${OPTIONS}
-
+#module load valgrind
 #valgrind  --tool=memcheck  --track-origins=yes ./hyperion ${OPTIONS}

@@ -25,7 +25,7 @@ struct StateInfo
 {
 	int dim, dimUsed;
 	vector<bool> inUse;
-    
+
     StateInfo& operator= (const StateInfo& stateInfo)
     {
         dim     = stateInfo.dim;
@@ -43,19 +43,19 @@ class State
 public:
 	StateInfo sInfo;
 	vector<Real> vals;
-	
+
 	State(const StateInfo& newSInfo) : sInfo(newSInfo)
 	{
 		vals.resize(sInfo.dim);
 	};
-	
+
 	State& operator= (const State& s)
 	{
 		if (sInfo.dim != s.sInfo.dim) die("Dimension of states differ!!!\n");
 		for (int i=0; i<sInfo.dim; i++) vals[i] = s.vals[i];
 		return *this;
 	}
-	
+
 	string print() const
 	{
 		ostringstream o;
@@ -67,7 +67,7 @@ public:
 		o << "]";
 		return o.str();
 	}
-    
+
     string printClean() const
 	{
 		ostringstream o;
@@ -76,43 +76,44 @@ public:
 		}
 		return o.str();
     }
-	
+
     void copy_observed(vector<Real>& res) const
     {
-        int k(0);
+				assert(res.size() == sInfo.dimUsed);
+        int k = 0;
         for (int i=0; i<sInfo.dim; i++)
         if (sInfo.inUse[i]) {
             res[k] = vals[i];
             k++;
         }
     }
-    
+
     void copy(vector<Real>& res) const
     {
         for (int i=0; i<sInfo.dim; i++)
             res[i] = vals[i];
     }
-    
+
     void pack(byte* buf) const
     {
         Real* dbuf = (Real*) buf;
         for (int i=0; i<sInfo.dim; i++)
             dbuf[i] = (Real) vals[i];
     }
-    
+
     void unpack(byte* buf)
     {
         Real* dbuf = (Real*) buf;
         for (int i=0; i<sInfo.dim; i++)
             vals[i] = dbuf[i];
     }
-    
+
     void set(vector<Real> data)
     {
         for (int i=0; i<sInfo.dim; i++)
             vals[i] = data[i];
     }
-	
+
 };
 
 
@@ -122,9 +123,9 @@ struct ActionInfo
     //discrete actions
 	vector<int> bounds, shifts; //if finite set, number of choices per "dim"
     vector<vector<Real>> values; //used for rescaling, would be used if action is input to NN
-    
+
     ActionInfo() {}
-    
+
     ActionInfo& operator= (const ActionInfo& actionInfo) {
         dim = actionInfo.dim;
         assert(actionInfo.values.size()==dim && actionInfo.bounds.size()==dim && actionInfo.shifts.size()==dim);
@@ -142,7 +143,7 @@ struct ActionInfo
         assert(lab>=0);
         return lab;
     }
-    
+
     vector<Real> labelToAction(int lab) const
     {
     	vector<Real> ret(dim);
@@ -152,13 +153,13 @@ struct ActionInfo
         }
         return ret;
     }
-    
+
     Real indexToRealAction(const int lab, const int i) const
 	{
     	assert(lab>=0 && i>=0 && i<values.size() && lab<values[i].size());
 		return values[i][lab];
 	}
-	
+
 	int realActionToIndex(const Real val, const int i) const
 	{ //From cont. action, convert to an action index using chosen values in environment
 		assert(values[i].size() == bounds[i]);
@@ -175,24 +176,24 @@ struct ActionInfo
 class Action
 {
 private:
-    
+
 public:
 	ActionInfo actInfo;
     vector<Real> vals;
     mt19937 * gen;
-    
+
 	Action(const ActionInfo& newActInfo, mt19937 * g) : actInfo(newActInfo), gen(g)
 	{
 		vals.resize(actInfo.dim);
 	}
-	
+
 	Action& operator= (const Action& a)
 	{
 		if (actInfo.dim != a.actInfo.dim) die("Dimension of actions differ!!!\n");
 		for (int i=0; i<actInfo.dim; i++) vals[i] = a.vals[i];
 		return *this;
 	}
-    
+
 	string print() const
 	{
 		ostringstream o;
@@ -202,36 +203,36 @@ public:
         o << "]";
 		return o.str();
 	}
-    
+
     string printClean() const
 	{
         ostringstream o;
 		for (int i=0; i<actInfo.dim; i++)   o << vals[i] << " ";
 		return o.str();
 	}
-    
+
     //pack and unpack for MPI comm
     void pack(byte* buf) const
     {
         Real* dbuf = (Real*) buf;
         for (int i=0; i<actInfo.dim; i++) dbuf[i] = vals[i];
     }
-    
+
     void unpack(byte* buf)
     {
         Real* dbuf = (Real*) buf;
         for (int i=0; i<actInfo.dim; i++) vals[i] = dbuf[i];
     }
-    
+
     void set(vector<Real> data)
     {
         for (int i=0; i<actInfo.dim; i++) vals[i] = data[i];
     }
-    
+
     void getRandom(const int iRand = -1)
     {
         std::normal_distribution<Real> dist(0.,0.5);
-        
+
         if ( iRand<0 || iRand >= actInfo.dim ) {
         	//select all random actions
             for (int i=0; i<actInfo.dim; i++) {
@@ -251,4 +252,3 @@ public:
     	return actInfo.actionToLabel(vals);
     }
 };
-

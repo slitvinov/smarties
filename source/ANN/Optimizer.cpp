@@ -144,7 +144,7 @@ void Optimizer::save(const string fname)
   {
     printf("Saving into %s\n", fname.c_str());
     fflush(0);
-    string nameBackup = fname + "_tmp";
+    string nameBackup = fname + "_net_tmp";
     ofstream out(nameBackup.c_str());
 
     if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
@@ -153,7 +153,7 @@ void Optimizer::save(const string fname)
     out << nWeights << " " << nBiases << " " << nLayers  << " " << nNeurons << endl;
 
     for (int i=0; i<nWeights; i++) {
-        if (std::isnan(net->weights[i]) || std::isinf(net->weights[i])) 
+        if (std::isnan(net->weights[i]) || std::isinf(net->weights[i]))
             die("Caught a nan\n")
         else
             out << net->weights[i] <<" "<< _1stMomW[i] << "\n";
@@ -168,7 +168,7 @@ void Optimizer::save(const string fname)
 
     out.flush();
     out.close();
-    string command = "cp " + nameBackup + " " + fname;
+    string command = "cp " + nameBackup + " " + fname + "_net";
     system(command.c_str());
   }
   {
@@ -198,7 +198,7 @@ void AdamOptimizer::save(const string fname)
   {
     printf("Saving into %s\n", fname.c_str());
     fflush(0);
-    string nameBackup = fname + "_tmp";
+    string nameBackup = fname + "_net_tmp";
     ofstream out(nameBackup.c_str());
 
     if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
@@ -222,7 +222,7 @@ void AdamOptimizer::save(const string fname)
 
     out.flush();
     out.close();
-    string command = "cp " + nameBackup + " " + fname;
+    string command = "cp " + nameBackup + " " + fname + "_net";
     system(command.c_str());
   }
   {
@@ -250,7 +250,7 @@ bool Optimizer::restart(const string fname)
   const int nAgents(net->getnAgents()), nStates(net->getnStates());
 
   {
-    string nameBackup = fname;
+    string nameBackup = fname + "_net";
     ifstream in(nameBackup.c_str());
     debug1("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) {
@@ -315,7 +315,7 @@ bool AdamOptimizer::restart(const string fname)
   const int nAgents(net->getnAgents()), nStates(net->getnStates());
 
   {
-    string nameBackup = fname;
+    string nameBackup = fname + "_net";
     ifstream in(nameBackup.c_str());
     debug1("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) {
@@ -336,7 +336,7 @@ bool AdamOptimizer::restart(const string fname)
         if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
         net->weights[i] = tmp;
         _1stMomW[i] = tmp1;
-        _2ndMomW[i] = tmp1;
+        _2ndMomW[i] = tmp2;
     }
 
     for (int i=0; i<nBiases; i++) {
@@ -344,7 +344,7 @@ bool AdamOptimizer::restart(const string fname)
         if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
         net->biases[i] = tmp;
         _1stMomB[i] = tmp1;
-        _2ndMomB[i] = tmp1;
+        _2ndMomB[i] = tmp2;
     }
     in.close();
     net->updateFrozenWeights();

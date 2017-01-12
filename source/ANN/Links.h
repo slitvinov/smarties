@@ -376,17 +376,15 @@ public:
 		assert(nW>0);
 		assert(inputWidth*inputHeight*inputDepth == nI);
 		assert(outputWidth*outputHeight*outputDepth == nO);
-		const int inW_withPadding = (outputWidth-1)*strideX + filterWidth;
-		const int inH_withPadding = (outputHeight-1)*strideY + filterHeight;
 		//this class prescribes the bottom padding, let's figure out if the top one makes sense
 		// inW_withPadding = inputWidth + bottomPad + topPad (where bottomPad = padX,padY)
 		//first: All pixels of input are covered. topPad must be >=0, and stride leq than filter size
-		assert(inW_withPadding-(inputWidth+padX) >= 0);
-		assert(inH_withPadding-(inputHeight+padY) >= 0);
+		assert((outputWidth -1)*strideX + filterWidth  - (inputWidth+padX)  >= 0);
+		assert((outputHeight-1)*strideY + filterHeight - (inputHeight+padY) >= 0);
 		assert(filterWidth >= strideX && filterHeight >= strideY);
 		//second condition: do not feed an output pixel only with padding
-		assert(inW_withPadding-(inputWidth+padX) < filterWidth);
-		assert(inH_withPadding-(inputHeight+padY) < filterHeight);
+		assert((outputWidth -1)*strideX + filterWidth  - (inputWidth+padX)  < filterWidth);
+		assert((outputHeight-1)*strideY + filterHeight - (inputHeight+padY) < filterHeight);
 		assert(padX < filterWidth && padY < filterHeight);
 	}
 
@@ -688,7 +686,7 @@ struct Graph //misleading, this is just the graph for a single layer
 				for (const auto & l : *(links))
 				    if(l not_eq nullptr) l->initialize(gen, _weights);
 
-				if (not output) //let's try not having bias on output layer
+				//if (not output) //let's try not having bias on output layer
 				    for (int w=firstBias_ID; w<firstBias_ID+layerSize_simd; w++)
 				        *(_biases +w) = dis(*gen);
 
@@ -696,13 +694,13 @@ struct Graph //misleading, this is just the graph for a single layer
 				    assert(firstState_ID>=0 && firstBiasIG_ID>0 && firstBiasFG_ID>0 && firstBiasOG_ID>0);
 
 				    for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize_simd; w++)
-				        *(_biases +w) = dis(*gen) + 0.5;
+				        *(_biases +w) = dis(*gen) + 0.0;
 
 				    for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize_simd; w++)
-				        *(_biases +w) = dis(*gen) - 0.5;
+				        *(_biases +w) = dis(*gen) + 0.0;
 
 				    for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize_simd; w++)
-				        *(_biases +w) = dis(*gen) + 0.5;
+				        *(_biases +w) = dis(*gen) + 0.0;
 				}
     }
 };

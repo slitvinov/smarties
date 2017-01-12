@@ -214,7 +214,7 @@ void Learner::TrainTasking(Master* const master)
     }
 
     while (true) {
-		ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+		    ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
         taskCounter=0;
         nAddedGradients = 0;
 
@@ -224,7 +224,7 @@ void Learner::TrainTasking(Master* const master)
             sumElapsed = 0; countElapsed=0;
             //print_memory_usage();
             #if 1==0// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
-            if (stats.epochCount++ % 100 == 0) {
+            if (stats.epochCount % 100 == 0) {
                 vector<vector<Real>> inputs;
                 const int ind = data->Set.size()-1;
                 for (int k=0; k<data->Set[ind]->tuples.size(); k++)
@@ -388,7 +388,7 @@ void Learner::restart(string name)
 {
     _info("Restarting from saved policy...\n");
     data->restartSamples();
-    if ( net->restart(name + ".net") )
+    if ( opt->restart(name) )
         _info("Restart successful, moving on...\n")
     else
         _info("Not all policies restarted. \n")

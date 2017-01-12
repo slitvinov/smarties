@@ -368,11 +368,19 @@ Client::Client(Learner*const _learner, Environment* const _env, Settings& settin
       // flag = -1: failed comm, 0: normal, 2: ended
       const int extflag = env->getState(iAgent);
 
+
       agents[iAgent]->getState(s);
       agents[iAgent]->getAction(aOld);
       agents[iAgent]->getOldState(sOld);
+      r = agents[iAgent]->getReward();
+
+      //printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
+      //extflag, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(),r, a.print().c_str());
 
       learner->select(iAgent, s, a, sOld, aOld, extflag, r);
+
+      printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
+      extflag, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(),r, a.print().c_str());
 
       if(extflag==2) { //then we do not recv an action, we reset
           if(env->resetAll) { //does this env require a full restart upon failing?

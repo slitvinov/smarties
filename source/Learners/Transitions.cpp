@@ -65,7 +65,7 @@ void Transitions::restartSamples()
                     t_a.set(d_a);
                     if(info==2) printf("Terminal state\n");
                     //if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001) printf("Skipping one\n");
-                    //else 
+                    //else
                     add(0, info, t_sO, t_a, t_sN, reward);
                 }
             }
@@ -179,6 +179,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
 
     Tmp[agentId]->tuples.push_back(t);
     if (new_sample) {
+        printf("LAst reward %g\n",t->r);
         Tmp[agentId]->ended = true;
         push_back(agentId);
     }
@@ -273,8 +274,8 @@ void Transitions::update_samples_mean()
   }
 	std::cout << "]. States means: [";
 	for (int i=0; i<sI.dimUsed; i++) {
-    bSimilar&= (fabs(mean[i]-oldMean[i])/max(fabs(std[i]),fabs(oldStd[i]))<.01);
     mean[i] /= Real(count);
+    bSimilar&= (fabs(mean[i]-oldMean[i])/max(fabs(std[i]),fabs(oldStd[i]))<.01);
     std::cout << mean[i] << " ";
   }
 	std::cout << "]" << std::endl;
@@ -287,17 +288,18 @@ vector<Real> Transitions::standardize(const vector<Real>&  state) const
     if(!bNormalize) return state;
     vector<Real> tmp(sI.dimUsed);
     assert(state.size() == sI.dimUsed);
-    std::normal_distribution<Real> noise(0.,0.01);
+    std::normal_distribution<Real> noise(0.,0.001);
     for (int i=0; i<sI.dimUsed; i++) {
       tmp[i] = (state[i] - mean[i])/std[i];
-      tmp[i] += noise(*(gen->g));
+      //printf("Scale: %9.9e %9.9e %9.9e\n", tmp[i], mean[i], std[i]);
+      //tmp[i] += noise(*(gen->g));
     }
     return tmp;
 }
 
 void Transitions::synchronize()
 {
-#if 1==1
+  #if 1==1
 	assert(nSequences==Set.size() && NmaxDATA == nSequences);
 	#pragma omp parallel for schedule(dynamic)
 	for(int i=0; i<Set.size(); i++) {
@@ -319,7 +321,8 @@ void Transitions::synchronize()
     std::sort(Set.begin(), Set.end(), compare);
     if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
     iOldestSaved = 0;
-#endif
+    #endif
+
     int nTransitionsInBuf(0),nTransitionsDeleted(0),bufferSize(Buffered.size());
     for(auto & bufTransition : Buffered) {
         const int ind = iOldestSaved++;

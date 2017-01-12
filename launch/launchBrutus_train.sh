@@ -10,7 +10,9 @@ mkdir -p ${BASEPATH}${RUNFOLDER}
 
 if [ $# -gt 4 ] ; then
     POLICY=$5
-    cp $5 ${BASEPATH}${RUNFOLDER}/policy.net
+    cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
+    #cp ${POLICY}_mems ${BASEPATH}${RUNFOLDER}/policy_mems
+    cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
 fi
 if [ $# -lt 7 ] ; then
     NTASK=4 #n tasks per node
@@ -50,5 +52,3 @@ for (( c=1; c<=${TIMES}-1; c++ ))
 do
     bsub -J ${RUNFOLDER} -n ${NPROCESS} -R span[ptile=48] -sp 100 -w "ended(${RUNFOLDER})" -W ${WCLOCK} ./run.sh ${NPROCESS}
 done
-
-

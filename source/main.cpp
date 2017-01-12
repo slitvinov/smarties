@@ -91,7 +91,7 @@ void runClient()
         settings.nnInputs = env->sI.dimUsed;
         settings.nnOutputs = 1;
         for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];
-        learner = new NFQ(0, env, settings);
+        learner = new NFQ(MPI_COMM_WORLD, env, settings);
     }
     else if (settings.learner == "NA" || settings.learner == "NAF") {
         settings.nnInputs = env->sI.dimUsed;
@@ -99,12 +99,12 @@ void runClient()
         const int nL = (nA*nA+nA)/2;
         settings.nnOutputs = 1+nL+nA;
         settings.bSeparateOutputs = true; //else it does not really work
-        learner = new NAF(0, env, settings);
+        learner = new NAF(MPI_COMM_WORLD, env, settings);
     }
     else if (settings.learner == "DP" || settings.learner == "DPG") {
         settings.nnInputs = env->sI.dimUsed + env->aI.dim;
         settings.nnOutputs = 1;
-        learner = new DPG(0, env, settings);
+        learner = new DPG(MPI_COMM_WORLD, env, settings);
     } else die("Learning algorithm not recognized\n");
     assert(learner not_eq nullptr);
 

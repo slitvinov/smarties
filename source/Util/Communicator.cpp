@@ -82,6 +82,9 @@ void Communicator::recvAction(std::vector<double>& actions)
         o << actions[j] << " ";
     }
     o << "\n";
+    std::cout<<o.str()<<std::endl;
+    o.str( std::string() );
+    o.clear();
 }
 
 void Communicator::sendAction(std::vector<double>& actions)
@@ -94,6 +97,9 @@ void Communicator::sendAction(std::vector<double>& actions)
         assert(not std::isnan(actions[i]) && not std::isinf(actions[i]));
     }
     o << "\n";
+    std::cout<<o.str()<<std::endl;
+    o.str( std::string() );
+    o.clear();
 
     send_all(Socket, dataout, sizeout);
 }

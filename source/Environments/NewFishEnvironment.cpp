@@ -171,7 +171,7 @@ void NewFishEnvironment::setAction(const int & iAgent)
 bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
                                 const State& t_sN, Real& reward, const int info)
 {
-/*
+
     if (fabs(t_sN.vals[5] -t_sO.vals[4])>0.001) {
         printf("Mismatch new and old state!!! \n %s \n %s \n",
                 t_sO.print().c_str(),t_sN.print().c_str());
@@ -182,12 +182,13 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
                 t_a.print().c_str(),t_sN.print().c_str());
         abort();
     }
-*/
-    /*
+
+
     if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-2 && reward>0 ) {
         printf("Same time for two states!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
     }
+    /*
     if (t_sN.vals[13]>1 || t_sN.vals[13]<0) {
         printf("You modified the efficiency\n");
         abort();
@@ -232,6 +233,9 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         reward = scaledEfficiency;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     }
+    else if (study == 5) {
+        reward = (t_sN.vals[16]-.3)/(.6-.3) - 2*t_sN.vals[1]*t_sN.vals[1];
+    }
     else {
         die("Wrong reward\n");
     }
@@ -245,6 +249,6 @@ int NewFishEnvironment::getState(int & iAgent)
 
     for (int j=180; j<sI.dim; j++)
         agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
-        
+
     return bStatus;
 }

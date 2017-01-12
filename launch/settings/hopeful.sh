@@ -1,0 +1,16 @@
+SETTINGS=
+
+SETTINGS+=" --gamma 0.8"
+SETTINGS+=" --learnrate 0.00"
+SETTINGS+=" --nnl1 36"
+SETTINGS+=" --nnl2 24"
+SETTINGS+=" --nnl3 12"
+SETTINGS+=" --nnType 0"
+SETTINGS+=" --nnL 0.0000"
+SETTINGS+=" --greedyeps 0.0"
+SETTINGS+=" --bTrain 0"
+SETTINGS+=" --rType 1"
+SETTINGS+=" --senses 0"
+SETTINGS+=" --learn DQN"
+SETTINGS+=" --dqnBatch 100"
+SETTINGS+=" --dqnT 0.0001"
