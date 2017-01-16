@@ -133,7 +133,7 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
         vector<Real> scaledSold = data->standardize(_tOld->s);
         net->predict(scaledSold, output, timeSeries, k);
 
-        const bool terminal = false;//k+2==ndata && data->Set[seq]->ended;
+        const bool terminal = k+2==ndata && data->Set[seq]->ended;
         if (not terminal) {
             vector<Real> scaledSnew = data->standardize(_t->s);
             net->predict(scaledSnew, target, timeSeries[k], tgtActivation,
@@ -175,6 +175,7 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
 
     vector<Real> scaledSold =data->standardize(data->Set[seq]->tuples[samp]->s);
+    const Tuple* const _tOld = data->Set[seq]->tuples[samp]; //this tuple contains a, sNew, reward:
     const Tuple* const _t = data->Set[seq]->tuples[samp+1]; //this tuple contains a, sNew, reward:
     Activation* sOldActivation = net->allocateActivation();
     sOldActivation->clearErrors();
@@ -191,7 +192,16 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     }
 
     Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
+	 Real temp = err;
     const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
+	 
+    if (std::fabs(output[1+nL])>0.7) {
+	 printf("in %e %e %e %e %e %e, out %e %e %e, a %e, r %e, y %e, err %e (%e), g %e %e %e\n",
+	 _tOld->s[0], _tOld->s[1], _tOld->s[2], _tOld->s[3], _tOld->s[4], _tOld->s[5],
+	 output[0],output[1],output[2],_t->a[0],_t->r,target[0], err,temp,gradient[0],gradient[1],gradient[2]);
+	 }
+
+	 if (output[0] > 1./(1.-gamma) && gradient[0]>0) gradient[0] = 0;
 
     dumpStats(Vstats[thrID], Q[0], err, Q);
     if(thrID == 1) net->updateRunning(sOldActivation);

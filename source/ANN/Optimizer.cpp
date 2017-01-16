@@ -80,7 +80,8 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
                     const int N, const int batchsize, const Real _lambda) const
 {
     const Real norm = 1./(Real)max(batchsize,1);
-    const Real eta_ = eta*norm/std::log((double)nepoch/1.);
+    //const Real eta_ = eta*norm/std::log((double)nepoch/1.);
+    const Real eta_ = eta*norm/(1.+std::log(1. + (double)nepoch/1e3));
     const Real lambda_ = _lambda*eta;
 
     #pragma omp parallel for
@@ -104,7 +105,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
     const Real lambda_ = _lambda*eta;
     const Real norm = 1./(Real)max(batchsize,1);
     const Real eta_ = eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1)
-                         /(1.+std::log(1. + (double)nepoch/1e6));
+                         /(1.+std::log(1. + (double)nepoch/1e3));
 
 	#pragma omp parallel for
     for (int i=0; i<N; i++) {
