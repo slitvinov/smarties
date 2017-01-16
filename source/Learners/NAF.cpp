@@ -151,10 +151,10 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
 				}
 
 				if (output[0] > 1./(1.-gamma) && gradient[0]>0) gradient[0] = 0;
-				if (std::fabs(output[1+nL]) > 0.75 && gradient[1+nL]*output[1+nL] > 0) {
-						//gradient[1] = 0;
-						gradient[1+nL] = 0;
-				}
+				//if (std::fabs(output[1+nL]) > 0.75 && gradient[1+nL]*output[1+nL] > 0) {
+				//		//gradient[1] = 0;
+				//		gradient[1+nL] = 0;
+				//}
 
         data->Set[seq]->tuples[k]->SquaredError = err*err;
         net->setOutputDeltas(gradient, timeSeries[k]);

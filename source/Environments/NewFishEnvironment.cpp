@@ -217,8 +217,10 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         if (new_sample) reward = -1./(1.-gamma);
     }
     else if (study == 2) {
-        const Real scaledRew = 1. -2.*fabs(t_sN.vals[1]-goalDY);
+        //const Real scaledRew = 1. -2.*fabs(t_sN.vals[1]-goalDY);
+        const Real scaledRew = 1. -2.*sqrt(fabs(t_sN.vals[1]));
         reward =  scaledRew;
+        new_sample = false;
         if (new_sample) reward = -1./(1.-gamma);
     }
     else if (study == 3) {
