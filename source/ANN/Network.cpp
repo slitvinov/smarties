@@ -272,12 +272,10 @@ void Network::addConv2DLayer(const int filterSize[3], const int outSize[3], cons
 		if(layerFrom->layerWidth==0 || layerFrom->layerHeight==0 || layerFrom->layerDepth==0)
 			die("Incompatible with 1D input, place 2D input or resize to 2D... how? TODO\n");
 
-		const int inW_withPadding = (outSize[0]-1)*stride[0] + filterSize[0];
-		const int inH_withPadding = (outSize[1]-1)*stride[1] + filterSize[1];
-		assert(inW_withPadding - (layerFrom->layerWidth  + padding[0]) >= 0);
-		assert(inH_withPadding - (layerFrom->layerHeight + padding[1]) >= 0);
-		assert(inW_withPadding - (layerFrom->layerWidth  + padding[0]) < filterSize[0]);
-		assert(inH_withPadding - (layerFrom->layerHeight + padding[1]) < filterSize[1]);
+		assert((outSize[0]-1)*stride[0]+filterSize[0]-(layerFrom->layerWidth +padding[0])>=0);
+		assert((outSize[0]-1)*stride[0]+filterSize[0]-(layerFrom->layerWidth +padding[0])<filterSize[0]);
+		assert((outSize[1]-1)*stride[1]+filterSize[1]-(layerFrom->layerHeight+padding[1])>=0);
+		assert((outSize[1]-1)*stride[1]+filterSize[1]-(layerFrom->layerHeight+padding[1])<filterSize[1]);
 	}
 	G.push_back(g);
 	if (bOutput) {
