@@ -12,12 +12,12 @@
 //#define CLEAN //dont
 #define NmaxDATA 10000
 
-Transitions::Transitions(Environment*const _env, Settings & settings):
-env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
+Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
+mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
 maxSeqLen(settings.maxSeqLen), iOldestSaved(0), bSampleSeq(settings.nnType),
 bRecurrent(settings.nnType), bWriteToFile(!(settings.samplesFile=="none")),
-path(settings.samplesFile), anneal(0), nBroken(0), nTransitions(0),nSequences(0),
-aI(_env->aI), sI(_env->sI)
+bNormalize(settings.nnTypeInput), path(settings.samplesFile), anneal(0),
+nBroken(0), nTransitions(0), nSequences(0), aI(_env->aI), sI(_env->sI)
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
@@ -64,8 +64,9 @@ void Transitions::restartSamples()
                     t_sN.set(d_sN);
                     t_a.set(d_a);
                     if(info==2) printf("Terminal state\n");
-                    if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001) printf("Skipping one\n");
-                    else add(0, info, t_sO, t_a, t_sN, reward);
+                    //if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001) printf("Skipping one\n");
+                    //else
+                    add(0, info, t_sO, t_a, t_sN, reward);
                 }
             }
             if (Ndata==0 && agentId>1) break;
@@ -79,12 +80,6 @@ void Transitions::restartSamples()
 
     printf("Found %d broken chains out of %d / %d.\n",
             nBroken, nSequences, nTransitions);
-
-    for (int i(0); i<20; i++) cout << env->max_scale[i] << " ";
-    cout << endl;
-
-    for (int i(0); i<20; i++) cout << env->min_scale[i] << " ";
-    cout << endl;
 }
 
 /*
@@ -127,6 +122,7 @@ void Transitions::passData(const int agentId, const int info, const State& sOld,
         fout << agentId << " "<< info << " " << sOld.printClean().c_str() <<
                 sNew.printClean().c_str() << a.printClean().c_str() << reward;
         fout << endl;
+        fout.flush();
         fout.close();
     }
 
@@ -183,6 +179,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
 
     Tmp[agentId]->tuples.push_back(t);
     if (new_sample) {
+        printf("LAst reward %g\n",t->r);
         Tmp[agentId]->ended = true;
         push_back(agentId);
     }
@@ -223,6 +220,7 @@ void Transitions::push_back(const int & agentId)
 
 void Transitions::update_samples_mean()
 {
+  if(!bNormalize) return;
 	int count = 0;
   vector<Real> oldStd{std}, oldMean{mean};
 	std::fill(std.begin(), std.end(), 0.);
@@ -255,17 +253,29 @@ void Transitions::update_samples_mean()
 		}
 	}
 
+  //add up gradients across nodes (masters)
+  int nMasters;
+  MPI_Comm_size(mastersComm, &nMasters);
+  if (nMasters > 1) {
+    MPI_Allreduce(MPI_IN_PLACE, &count, 1,
+                  MPI_INT, MPI_SUM, mastersComm);
+    MPI_Allreduce(MPI_IN_PLACE, mean.data(), sI.dimUsed,
+                  MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+    MPI_Allreduce(MPI_IN_PLACE, std.data(), sI.dimUsed,
+                  MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+  }
+
   bool bSimilar = true;
 	std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {
-    bSimilar&= (fabs(std[i]-oldStd[i])/max(fabs(std[i]),fabs(oldStd[i]))<.01);
 		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count));
+    bSimilar&= (fabs(std[i]-oldStd[i])/max(fabs(std[i]),fabs(oldStd[i]))<.01);
 		std::cout << std[i] << " ";
   }
 	std::cout << "]. States means: [";
 	for (int i=0; i<sI.dimUsed; i++) {
-    bSimilar&= (fabs(mean[i]-oldMean[i])/std[i]<.01);
     mean[i] /= Real(count);
+    bSimilar&= (fabs(mean[i]-oldMean[i])/max(fabs(std[i]),fabs(oldStd[i]))<.01);
     std::cout << mean[i] << " ";
   }
 	std::cout << "]" << std::endl;
@@ -275,19 +285,21 @@ void Transitions::update_samples_mean()
 
 vector<Real> Transitions::standardize(const vector<Real>&  state) const
 {
-	vector<Real> tmp(sI.dimUsed);
-   assert(state.size() == sI.dimUsed);
-   std::normal_distribution<Real> noise(0.,0.01);
-	for (int i=0; i<sI.dimUsed; i++) {
+    if(!bNormalize) return state;
+    vector<Real> tmp(sI.dimUsed);
+    assert(state.size() == sI.dimUsed);
+    std::normal_distribution<Real> noise(0.,0.001);
+    for (int i=0; i<sI.dimUsed; i++) {
       tmp[i] = (state[i] - mean[i])/std[i];
-      tmp[i] += noise(*(gen->g));
-   }
+      //printf("Scale: %9.9e %9.9e %9.9e\n", tmp[i], mean[i], std[i]);
+      //tmp[i] += noise(*(gen->g));
+    }
     return tmp;
 }
 
 void Transitions::synchronize()
 {
-#if 1==1
+  #if 1==1
 	assert(nSequences==Set.size() && NmaxDATA == nSequences);
 	#pragma omp parallel for schedule(dynamic)
 	for(int i=0; i<Set.size(); i++) {
@@ -309,7 +321,8 @@ void Transitions::synchronize()
     std::sort(Set.begin(), Set.end(), compare);
     if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
     iOldestSaved = 0;
-#endif
+    #endif
+
     int nTransitionsInBuf(0),nTransitionsDeleted(0),bufferSize(Buffered.size());
     for(auto & bufTransition : Buffered) {
         const int ind = iOldestSaved++;
@@ -353,6 +366,30 @@ void Transitions::updateSamples()
 int Transitions::sample()
 {
     return dist->operator()(*(gen->g));
+}
+
+void Transitions::save(std::string fname)
+{
+    string nameBackup = fname + "_data_stats";
+    FILE * f = fopen(nameBackup.c_str(), "w");
+    if (f != NULL)
+      for (int i=0; i<sI.dimUsed; i++)
+        fprintf(f, "%9.9e %9.9e\n", mean[i], std[i]);
+    fclose(f);
+}
+
+void Transitions::restart(std::string fname)
+{
+    string nameBackup = fname + "_data_stats";
+    ifstream in(nameBackup.c_str());
+    debug1("Reading from %s\n", nameBackup.c_str());
+    if (!in.good()) return;
+
+    for (int i=0; i<sI.dimUsed; i++) {
+      in >> mean[i] >> std[i];
+      printf("Read: %9.9e %9.9e\n", mean[i], std[i]);
+    }
+    in.close();
 }
 
 #ifdef _Priority_

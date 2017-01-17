@@ -61,9 +61,9 @@ CPPFLAGS+= -O0 -g
 #else
 endif
 ifeq "$(config)" "prod"
-CPPFLAGS +=  -O0
-#CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
-#CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 -DNDEBUG
+CPPFLAGS +=  -O3 -DNDEBUG
+CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
+#CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 #-DNDEBUG
 #CPPFLAGS += -funsafe-math-optimizations
 #CPPFLAGS += -falign-functions=16 #-DBOOST_UBLAS_NDEBUG
 #CPPFLAGS += -ffast-math
@@ -77,7 +77,7 @@ CPPFLAGS+= -I/usr/local/include -fopenmp
 LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
-OBJ_FILES = 	ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
+OBJ_FILES = Communicator.o	ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
 		Environment.o CMAEnvironment.o CartEnvironment.o TwoActFishEnvironment.o TwoFishEnvironment.o NewFishEnvironment.o \
 		Learner.o NAF.o NFQ.o DPG.o Transitions.o\
 		Scheduler.o LSTMNet.o Network.o Optimizer.o #Links.o Layers.o

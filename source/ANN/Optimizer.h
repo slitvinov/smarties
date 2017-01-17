@@ -42,8 +42,10 @@ public:
 
     virtual void stackGrads(Grads* const G, const Grads* const g) const;
     virtual void stackGrads(Grads* const G, const vector<Grads*> g) const;
-    virtual void stackGrads(const int thrID, Grads* const G,
-                            const vector<Grads*> g) const;
+
+
+    virtual void save(const string fname);
+    virtual bool restart(const string fname);
 };
 
 class AdamOptimizer: public Optimizer
@@ -66,6 +68,9 @@ public:
         _myfree(_2ndMomB);
     }
     void update(Grads* const G, const int batchsize) override;
+
+    void save(const string fname) override;
+    bool restart(const string fname) override;
 };
 
 /*

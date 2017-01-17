@@ -15,14 +15,14 @@ if [ $# -gt 4 ] ; then
     cp $5 ${BASEPATH}${RUNFOLDER}/policy.net
 fi
 if [ $# -lt 7 ] ; then
-    NTASK=4 #n tasks per node
+    NTASK=2 #n tasks per node
     NTHREADS=12 #n threads per task
 else
     NTASK=$6
     NTHREADS=$7
 fi
 if [ $# -lt 8 ] ; then
-    WCLOCK=12:00
+    WCLOCK=48:00
 else
     WCLOCK=$8
 fi

@@ -33,7 +33,7 @@ public:
 	void orthogonalize(const int n0, Real* const _weights, int nOut, int nIn, int n_simd) const
 	{
 		if (nIn<nOut) return;
-		
+
 		for (int i=1; i<nOut; i++) {
 			Real v_d_v_pre = 0.;
 			for (int k=0; k<nIn; k++)
@@ -96,7 +96,7 @@ public:
         cout << "Normal link: nInputs="<< nI << " IDinput=" << iI << " nOutputs=" << nO << " IDoutput" << iO << " IDweight" << iW << " nWeights" << nW << " nO_simd"<<nO_simd << endl;
         fflush(0);
     }
-    
+
     void initialize(mt19937* const gen, Real* const _weights) const override
     {
       printf("Initializing normal\n");
@@ -110,7 +110,7 @@ public:
 
         orthogonalize(iW, _weights, nO, nI, nO_simd);
     }
-    
+
     void restart(std::istringstream & buf, Real* const _weights) const override
     {
     	for (int i = 0; i < nI; i++)
@@ -122,7 +122,7 @@ public:
             _weights[w] = tmp;
         }
     }
-    
+
     void save(std::ostringstream & out, Real* const _weights) const override
     {
         out << std::setprecision(10);
@@ -136,7 +136,7 @@ public:
         Real* __restrict__ const link_outputs = netTo->in_vals +iO;
         __builtin_assume_aligned(link_outputs, __vec_width__);
         __builtin_assume_aligned(link_input, __vec_width__);
-
+#if 1
         for (int i = 0; i < nI; i++) {
             const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
             __builtin_assume_aligned(link_weights, __vec_width__);
@@ -144,8 +144,16 @@ public:
             link_outputs[o] += link_input[i] * link_weights[o];
         }
         }
+#else
+        for (int o = 0; o < nO; o++) {
+            const Real* __restrict__ const link_weights = weights +iW +nI*o;
+        for (int i = 0; i < nI; i++) {
+            link_outputs[o] += link_input[i] * link_weights[i];
+        }
+        }
+#endif
     }
-   
+
     inline void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
     {
         const Real* __restrict__ const layer_input = netFrom->outvals + iI;
@@ -204,7 +212,7 @@ public:
         cout << "LSTM link: nInputs="<< nI << " IDinput=" << iI << " nOutputs=" << nO << " IDoutput" << iO << " IDcell" << iC << " IDweight" << iW << " nWeights" << nW << " nO_simd"<<nO_simd << endl;
         fflush(0);
     }
-    
+
     void initialize(mt19937* const gen, Real* const _weights) const override
     {
       printf("Initializing LSTM\n");
@@ -224,7 +232,7 @@ public:
         orthogonalize(iWF, _weights, nO, nI, nO_simd);
         orthogonalize(iWO, _weights, nO, nI, nO_simd);
     }
-    
+
     void restart(std::istringstream & buf, Real* const _weights) const override
     {
         Real tmp;
@@ -249,7 +257,7 @@ public:
             _weights[iWO + nO_simd*i + o] = tmp;
         }
     }
-    
+
     void save(std::ostringstream & out, Real* const _weights) const override
     {
         out << std::setprecision(10);
@@ -265,7 +273,7 @@ public:
         for (int i=0; i<nI; i++) for (int o=0; o<nO; o++)
         	out << _weights[iWO + nO_simd*i + o] << "\n";
     }
-    
+
     void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
     {
         const Real* __restrict__ const link_input = netFrom->outvals + iI;
@@ -297,7 +305,7 @@ public:
         }
         }
     }
-    
+
     void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
     {
         const Real* __restrict__ const layer_input = netFrom->outvals + iI;
@@ -368,17 +376,15 @@ public:
 		assert(nW>0);
 		assert(inputWidth*inputHeight*inputDepth == nI);
 		assert(outputWidth*outputHeight*outputDepth == nO);
-		const int inW_withPadding = (outputWidth-1)*strideX + filterWidth;
-		const int inH_withPadding = (outputHeight-1)*strideY + filterHeight;
 		//this class prescribes the bottom padding, let's figure out if the top one makes sense
 		// inW_withPadding = inputWidth + bottomPad + topPad (where bottomPad = padX,padY)
 		//first: All pixels of input are covered. topPad must be >=0, and stride leq than filter size
-		assert(inW_withPadding-(inputWidth+padX) >= 0);
-		assert(inH_withPadding-(inputHeight+padY) >= 0);
+		assert((outputWidth -1)*strideX + filterWidth  - (inputWidth+padX)  >= 0);
+		assert((outputHeight-1)*strideY + filterHeight - (inputHeight+padY) >= 0);
 		assert(filterWidth >= strideX && filterHeight >= strideY);
 		//second condition: do not feed an output pixel only with padding
-		assert(inW_withPadding-(inputWidth+padX) < filterWidth);
-		assert(inH_withPadding-(inputHeight+padY) < filterHeight);
+		assert((outputWidth -1)*strideX + filterWidth  - (inputWidth+padX)  < filterWidth);
+		assert((outputHeight-1)*strideY + filterHeight - (inputHeight+padY) < filterHeight);
 		assert(padX < filterWidth && padY < filterHeight);
 	}
 
@@ -387,7 +393,7 @@ public:
         cout << nI << " " << iI << " " << nO << " " << iO << " " << iW << endl;
         fflush(0);
     }
-    
+
     void initialize(mt19937* const gen, Real* const _weights) const override
     {
       printf("Initializing conv\n");
@@ -402,7 +408,7 @@ public:
 
         orthogonalize(iW, _weights, outputDepth, nAdded, outputDepth_simd);
     }
-    
+
     void restart(std::istringstream & buf, Real* const _weights) const override
     {
         const int nAdded = filterWidth*filterHeight*inputDepth;
@@ -414,7 +420,7 @@ public:
             *(_weights +iW + outputDepth_simd*i + o) = tmp;
         }
     }
-    
+
     void save(std::ostringstream & out, Real* const _weights) const override
     {
         out << std::setprecision(10);
@@ -423,7 +429,7 @@ public:
 		for (int o = 0; o < nO; o++)
 			out << _weights[iW + outputDepth_simd*i + o] << "\n";
     }
-    
+
     void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
     {
         for(int ox=0; ox<outputWidth;  ox++)
@@ -451,7 +457,7 @@ public:
             }
         }
     }
-    
+
     void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
     {
         for(int ox=0; ox<outputWidth;  ox++)
@@ -494,7 +500,7 @@ public:
 	const int iW, nI, iI, nO, iO, nW, nO_simd;
 	WhiteningLink(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd) :
 		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nW(2*_nI), nO_simd(_nO_simd)
-    { 
+    {
         print();
         assert(nI==nO && iI+nO_simd==iO);
     }
@@ -502,7 +508,7 @@ public:
 	void initialize(mt19937* const gen, Real* const _weights) const override
     {
         for (int p=0 ; p<2; p++)
-        for (int o=0 ; o<nO; o++) 
+        for (int o=0 ; o<nO; o++)
         	*(_weights +iW +p*nO_simd +o) = 1==p ? 1. : 0.; //set to 1 the scaling factor
     }
 
@@ -582,7 +588,7 @@ struct Graph //misleading, this is just the graph for a single layer
     {
     	links = new vector<Link*>();
     }
-    
+
     ~Graph()
     {
         for (auto& link : *links)
@@ -660,37 +666,41 @@ struct Graph //misleading, this is just the graph for a single layer
 		for (int p=0 ; p<2; p++) for (int o=0 ; o<layerSize; o++)
 			outBiases << _biases[firstBiasWhiten + p*layerSize_simd+o] << "\n";
     }
-    
+
     void initializeWeights(mt19937* const gen, Real* const _weights, Real* const _biases) const
     {
-    	printf("Initializing biases 1stBw %d lS %d simd %d \n", firstBiasWhiten, layerSize, layerSize_simd);
-        uniform_real_distribution<Real> dis(-sqrt(6./layerSize),sqrt(6./layerSize));
-        assert(layerSize>0 && layerSize_simd>0 && firstNeuron_ID>=0);
+				uniform_real_distribution<Real> dis(-sqrt(6./layerSize),sqrt(6./layerSize));
 
-        for (const auto & l : *(links))
-            if(l not_eq nullptr) l->initialize(gen, _weights);
-
-        if (not output) //let's try not having bias on output layer
-            for (int w=firstBias_ID; w<firstBias_ID+layerSize_simd; w++)
-                *(_biases +w) = dis(*gen);
-
-        if (LSTM) { //let all gates be biased towards open: better backprop
-            assert(firstState_ID>=0 && firstBiasIG_ID>0 && firstBiasFG_ID>0 && firstBiasOG_ID>0);
-
-            for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize_simd; w++)
-                *(_biases +w) = dis(*gen) + 0.5;
-
-            for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize_simd; w++)
-                *(_biases +w) = dis(*gen) - 0.5;
-
-            for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize_simd; w++)
-                *(_biases +w) = dis(*gen) + 0.5;
-        }
-
-        if (firstBiasWhiten>=0) {
-        	for (int p=0 ; p<2; p++)
-				for (int o=0 ; o<layerSize; o++)
+				if (firstBiasWhiten>=0) {
+					for (int p=0 ; p<2; p++)
+					for (int o=0 ; o<layerSize; o++)
 					_biases[firstBiasWhiten + p*layerSize_simd+o] = Real(1==p);
-        }
+				}
+
+				if (input) return;
+
+				printf("Initializing biases 1stBias %d (whitening %d) lS %d simd %d \n",
+				firstBias_ID, firstBiasWhiten, layerSize, layerSize_simd);
+				assert(layerSize>0 && layerSize_simd>0 && firstNeuron_ID>=0);
+
+				for (const auto & l : *(links))
+				    if(l not_eq nullptr) l->initialize(gen, _weights);
+
+				//if (not output) //let's try not having bias on output layer
+				    for (int w=firstBias_ID; w<firstBias_ID+layerSize_simd; w++)
+				        *(_biases +w) = dis(*gen);
+
+				if (LSTM) { //let all gates be biased towards open: better backprop
+				    assert(firstState_ID>=0 && firstBiasIG_ID>0 && firstBiasFG_ID>0 && firstBiasOG_ID>0);
+
+				    for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize_simd; w++)
+				        *(_biases +w) = dis(*gen) + 0.0;
+
+				    for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize_simd; w++)
+				        *(_biases +w) = dis(*gen) + 0.0;
+
+				    for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize_simd; w++)
+				        *(_biases +w) = dis(*gen) + 0.0;
+				}
     }
 };

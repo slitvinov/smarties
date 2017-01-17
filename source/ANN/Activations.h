@@ -412,7 +412,7 @@ struct TwoSoftSign
     }
 };
 struct SoftSigm
-{
+{    
 	inline static void eval(const Real* __restrict__ const in,
                           Real* __restrict__ const out, const int& N)
   {

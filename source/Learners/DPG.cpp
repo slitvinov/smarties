@@ -170,16 +170,20 @@ void DPG::Train(const int seq, const int samp, const int thrID) const
 
         //now i need to compute dQ/dA, for Q net use tgt weight throughout
         gradient[0] = 1.;
-    	Grads* tmp_grad = new Grads(net->nWeights,net->nBiases);
-    	net->backProp(gradient, sNewQAct,
-										net->tgt_weights, net->tgt_biases, tmp_grad);
+	    	Grads* tmp_grad = new Grads(net->nWeights, net->nBiases);
+	    	net->backProp(gradient, sNewQAct,
+											net->tgt_weights, net->tgt_biases, tmp_grad);
         _dispose_object(tmp_grad);
-    	for(int i=0;i<nA;i++) pol_gradient[i] = sNewQAct->errvals[nS+i];
+				
+    		for(int i=0;i<nA;i++) {
+					if(sNewQAct->errvals[nS+i] == 0) die("Failed backprop?\n");
+					pol_gradient[i] = sNewQAct->errvals[nS+i];
+				}
 
-    	if (thrID==0)
+    		if (thrID==0)
 					net_policy->backProp(pol_gradient, sOldAAct, net_policy->grad);
-    	else
-					net_policy->backProp(pol_gradient, sOldAAct,net_policy->Vgrad[thrID]);
+    		else
+					net_policy->backProp(pol_gradient, sOldAAct, net_policy->Vgrad[thrID]);
     }
 
     if(thrID == 1) net->updateRunning(sOldAAct);

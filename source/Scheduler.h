@@ -83,3 +83,24 @@ public:
     void restart(string fname);
     //Learner* learner; //TODO
 };
+
+class Client
+{
+  private:
+      Learner* const learner;
+      Environment* const env;
+      vector<Agent*> agents;
+      ActionInfo actInfo;
+      StateInfo  sInfo;
+      State  sOld, s;
+      Action aOld, a;
+      Real r;
+
+  public:
+      Client(Learner*const learner, Environment*const env, Settings& settings);
+      ~Client()
+      {
+          _dispose_object(env);
+          _dispose_object(learner);
+      }
+};

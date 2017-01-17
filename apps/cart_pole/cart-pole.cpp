@@ -12,7 +12,7 @@
 #include <cstdio>
 #include <vector>
 #include <functional>
-#include "communicator.h"
+#include "Communicator.h"
 
 using namespace std;
 

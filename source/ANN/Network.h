@@ -21,7 +21,7 @@ using namespace std;
 class Network
 {
 protected:
-	bool bBuilt, bAddedInput;
+		bool bBuilt, bAddedInput;
     const Real Pdrop; //dropout
     vector<int> iOut, dump_ID;
     vector<Graph*> G;
@@ -34,12 +34,12 @@ protected:
 public:
     int nAgents, nThreads, nInputs, nOutputs, nLayers;
 		int nNeurons, nWeights, nBiases, nStates;
-    bool allocatedFrozenWeights, allocatedDroputWeights, backedUp, bDump;
+    bool allocatedFrozenWeights, allocatedDroputWeights, bDump;
     mt19937 * gen;
     vector<Mem*> mem;
     Grads * grad;//, * _grad;
     Real *weights, *biases, *tgt_weights, *tgt_biases;
-		Real *weights_DropoutBackup, *running_std, *running_avg;
+		Real *running_std, *running_avg;
     vector<Grads*> Vgrad;
 
     int counter, batch_counter;
@@ -50,6 +50,11 @@ public:
     int getnBiases() const {assert(bBuilt); return nBiases;}
     int getnOutputs() const {assert(bBuilt); return nOutputs;}
     int getnInputs() const {assert(bBuilt); return nInputs;}
+    int getnNeurons() const {assert(bBuilt); return nNeurons;}
+    int getnStates() const {assert(bBuilt); return nStates;}
+    int getnLayers() const {assert(bBuilt); return nLayers;}
+    int getnAgents() const {assert(bBuilt); return nAgents;}
+
     int getLastLayerID() const {return G.size()-1;}
 
     void add2DInput(const int size[3], const bool normalize);
@@ -95,14 +100,11 @@ public:
         _myfree( biases )
         _myfree( tgt_weights )
         _myfree( tgt_biases )
-        _myfree( weights_DropoutBackup )
     }
 
     void updateFrozenWeights();
     void moveFrozenWeights(const Real alpha);
     void loadMemory(Mem * _M, Activation * _N) const;
-    void assignDropoutMask();
-    void removeDropoutMask();
     void clearErrors(vector<Activation*>& timeSeries) const;
     void setOutputDeltas(vector<Real>& _errors, Activation* const _N) const;
 

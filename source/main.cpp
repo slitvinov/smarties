@@ -6,7 +6,22 @@
  *  Copyright 2013 ETH Zurich. All rights reserved.
  *
  */
+/*
+  TODO:
+    - still need atari environment, could do it over xmas
+    - due to size of weight verctor:
+      - allreduce grads
+      - each rank updates a portion
+      - MPI_Allgather!
+      - speedup probably meaningless
+    -test compile multiple masters
+    -polish savers and restart
+      - mean std data
+      - momenta Optimizer
+      - save weights layer wise to ease conversion from legacy policies
+    -retrain policy for 3d case
 
+*/
 #include "ArgumentParser.h"
 #include "Learners/Learner.h"
 #include "Learners/NFQ.h"
@@ -29,6 +44,7 @@ using namespace ErrorHandling;
 using namespace ArgumentParser;
 using namespace std;
 
+void runClient();
 void runSlave(MPI_Comm slavesComm);
 void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm);
 Settings settings;
@@ -61,6 +77,38 @@ void runSlave(MPI_Comm slavesComm)
         env->close_Comm();
         env->setup_Comm();
     }
+}
+
+void runClient()
+{
+    ObjectFactory factory(settings);
+    Environment* env = factory.createEnvironment(1, 0);
+    settings.nAgents = env->agents.size();
+    settings.nSlaves = 1;
+
+    Learner* learner = nullptr;
+    if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
+        settings.nnInputs = env->sI.dimUsed;
+        settings.nnOutputs = 1;
+        for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];
+        learner = new NFQ(MPI_COMM_WORLD, env, settings);
+    }
+    else if (settings.learner == "NA" || settings.learner == "NAF") {
+        settings.nnInputs = env->sI.dimUsed;
+        const int nA = env->aI.dim;
+        const int nL = (nA*nA+nA)/2;
+        settings.nnOutputs = 1+nL+nA;
+        settings.bSeparateOutputs = true; //else it does not really work
+        learner = new NAF(MPI_COMM_WORLD, env, settings);
+    }
+    else if (settings.learner == "DP" || settings.learner == "DPG") {
+        settings.nnInputs = env->sI.dimUsed + env->aI.dim;
+        settings.nnOutputs = 1;
+        learner = new DPG(MPI_COMM_WORLD, env, settings);
+    } else die("Learning algorithm not recognized\n");
+    assert(learner not_eq nullptr);
+
+    Client simulation(learner, env, settings);
 }
 
 void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
@@ -120,17 +168,6 @@ int main (int argc, char** argv)
 {
     int rank(0), nranks(2);
 
-#ifndef MEGADEBUG
-    int provided;
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
-    if (provided < MPI_THREAD_FUNNELED)
-        die("The MPI implementation does not have required thread support\n");
-
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
-
-#endif
-
     struct timeval clock;
     gettimeofday(&clock, NULL);
     debugLvl=10;
@@ -159,9 +196,35 @@ int main (int argc, char** argv)
     {'L', "dqnSeqMax",INT,   "max seq length", &settings.maxSeqLen, (int)200},
     {'B', "dqnBatch", INT,   "batch update",   &settings.dqnBatch,  (int)10},
     {'p', "nThreads", INT,   "parallel master",&settings.nThreads,  (int)-1},
+    {'I', "isServer", INT,   "client or server",&settings.isLauncher,  (int)1},
     //{'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"../history.txt"}
     {'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"obs_master.txt"}
     });
+
+    #ifndef MEGADEBUG
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+    if (provided < MPI_THREAD_FUNNELED)
+        die("The MPI implementation does not have required thread support\n");
+
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nranks);
+    #endif
+
+    Parser parser(opts);
+    parser.parse(argc, argv, rank == 0);
+    int seed = abs(floor(clock.tv_usec + rank));
+    settings.gen = new mt19937(seed);
+
+    if (not settings.isLauncher) {
+      printf("Launching smarties as client.\n");
+      if (settings.restart == "none") {
+        printf("smarties as client works only for evaluating policies.\n");
+        abort();
+      }
+      runClient();
+      return 0;
+    }
 
     const int slavesPerMaster = ceil(nranks/(double)settings.nMasters) - 1;
     const int isMaster = rank % (slavesPerMaster+1) == 0;
@@ -172,12 +235,6 @@ int main (int argc, char** argv)
     MPI_Comm_split(MPI_COMM_WORLD, isMaster, rank, &mastersComm);
     MPI_Comm_split(MPI_COMM_WORLD, whichMaster, rank, &slavesComm);
     if (!isMaster) MPI_Comm_free(&mastersComm);
-
-    Parser parser(opts);
-    parser.parse(argc, argv, rank == 0);
-
-    int seed = abs(floor(clock.tv_usec + rank));
-    settings.gen = new mt19937(seed);
 
     if (rank == 0) runMaster(slavesComm, mastersComm);
     else           runSlave(slavesComm);

@@ -144,7 +144,7 @@ aInfo(env->aI), sInfo(env->sI), gen(settings.gen)
 {
     for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
     profiler = new Profiler();
-    data = new Transitions(env, settings);
+    data = new Transitions(mastersComm, env, settings);
 }
 
 void Learner::clearFailedSim(const int agentOne, const int agentEnd)
@@ -214,7 +214,7 @@ void Learner::TrainTasking(Master* const master)
     }
 
     while (true) {
-		ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+		    ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
         taskCounter=0;
         nAddedGradients = 0;
 
@@ -224,7 +224,7 @@ void Learner::TrainTasking(Master* const master)
             sumElapsed = 0; countElapsed=0;
             //print_memory_usage();
             #if 1==0// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
-            if (stats.epochCount++ % 100 == 0) {
+            if (stats.epochCount % 100 == 0) {
                 vector<vector<Real>> inputs;
                 const int ind = data->Set.size()-1;
                 for (int k=0; k<data->Set[ind]->tuples.size(); k++)
@@ -306,9 +306,9 @@ void Learner::TrainTasking(Master* const master)
     sumElapsed += len/nAddedGradients;
     countElapsed++;
 
-    //here be omp fors:
+    //this needs to be compatible with multiple servers
 		stackAndUpdateNNWeights(nAddedGradients);
-
+    // this can be handled node wise
 		updateTargetNetwork();
     }
 }
@@ -316,19 +316,42 @@ void Learner::TrainTasking(Master* const master)
 void Learner::stackAndUpdateNNWeights(const int nAddedGradients)
 {
     opt->nepoch++;
-    opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads (TODO: do not sum 0 component of Vgrad as now we have a pragma omp master above)
-    opt->update(net->grad,nAddedGradients); //update
+    //add up gradients across threads
+    opt->stackGrads(net->grad, net->Vgrad);
+
+    //add up gradients across nodes (masters)
+    int nMasters;
+    MPI_Comm_size(mastersComm, &nMasters);
+    if (nMasters > 1) {
+      MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
+                    MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+      MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
+                    MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+    }
+
+    //update is deterministic: can be handled independently by each node
+    //communication overhead is probably greater than a parallelised sum
+    opt->update(net->grad,nAddedGradients);
 }
 
 void Learner::updateNNWeights(const int nAddedGradients)
 {
+    //add up gradients across nodes (masters)
+    int nMasters;
+    MPI_Comm_size(mastersComm, &nMasters);
+    if (nMasters > 1) {
+      MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
+                    MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+      MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
+                    MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+    }
+
     opt->nepoch++;
     opt->update(net->grad, nAddedGradients);
 }
 
 void Learner::updateTargetNetwork()
 {
-
     if (cntUpdateDelay <= 0) { //DQN-style frozen weight
         cntUpdateDelay = tgtUpdateDelay;
 
@@ -348,7 +371,11 @@ bool Learner::checkBatch() const
 
 void Learner::save(string name)
 {
-    net->save(name + ".net");
+    int masterRank;
+    MPI_Comm_rank(mastersComm, &masterRank);
+//    net->save(name);
+    if (!masterRank) opt->save(name);
+    data->save(name);
     const string stuff = name + ".status";
     FILE * f = fopen(stuff.c_str(), "w");
     if (f == NULL) die("Save fail\n");
@@ -361,10 +388,11 @@ void Learner::restart(string name)
 {
     _info("Restarting from saved policy...\n");
     data->restartSamples();
-    if ( net->restart(name + ".net") )
+    if ( opt->restart(name) )
         _info("Restart successful, moving on...\n")
     else
         _info("Not all policies restarted. \n")
+    data->restart(name);
     save("restarted_policy.net");
     FILE * f = fopen("policy.status", "r");
     if(f != NULL) {

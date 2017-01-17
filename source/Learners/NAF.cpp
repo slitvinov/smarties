@@ -66,14 +66,17 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 {
     Activation* currActivation = net->allocateActivation();
     vector<Real> output(nOutputs), inputs(nInputs);
+
     s.copy_observed(inputs);
     vector<Real> scaledSold = data->standardize(inputs);
+		for (int i=0; i<nInputs; i++)
+      printf("Net in: %9.9e %9.9e \n", inputs[i], scaledSold[i]);
 
     if (info==1) // if new sequence, sold, aold and reward are meaningless
         net->predict(scaledSold, output, currActivation);
     else {   //then if i'm using RNN i need to load recurrent connections
-    	Activation* prevActivation = net->allocateActivation();
-		net->loadMemory(net->mem[agentId], prevActivation);
+    		Activation* prevActivation = net->allocateActivation();
+				net->loadMemory(net->mem[agentId], prevActivation);
         net->predict(scaledSold, output, prevActivation, currActivation);
         //also, store sOld, aOld -> sNew, r
         data->passData(agentId, info, sOld, aOld, s, r);
@@ -92,6 +95,8 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
     vector<Real> act(nA);
     for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
     a.set(act);
+
+    printf("Net out: %9.9e %9.9e %9.9e \n", output[0], output[1], output[2]);
 
     //random action?
     Real newEps(greedyEps);
@@ -136,8 +141,21 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
         }
 
         Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
+				Real temp = err;
         const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
+				/* // to ignore
+					if (std::fabs(output[1+nL])>0.7) {
+					printf("in %e %e %e %e %e %e, out %e %e %e, a %e, r %e, y %e, err %e (%e), g %e %e %e\n",
+					_tOld->s[0], _tOld->s[1], _tOld->s[2], _tOld->s[3], _tOld->s[4], _tOld->s[5],
+					output[0],output[1],output[2],_t->a[0],_t->r,target[0], err,temp,gradient[0],gradient[1],gradient[2]);
+					}
 
+					if (output[0] > 1./(1.-gamma) && gradient[0]>0) gradient[0] = 0;
+					//if (std::fabs(output[1+nL]) > 0.75 && gradient[1+nL]*output[1+nL] > 0) {
+					//		//gradient[1] = 0;
+					//		gradient[1+nL] = 0;
+					//}
+				*/
         data->Set[seq]->tuples[k]->SquaredError = err*err;
         net->setOutputDeltas(gradient, timeSeries[k]);
         dumpStats(Vstats[thrID], Q[0], err, Q);
@@ -157,6 +175,7 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
 
     vector<Real> scaledSold =data->standardize(data->Set[seq]->tuples[samp]->s);
+    const Tuple* const _tOld = data->Set[seq]->tuples[samp]; //this tuple contains a, sNew, reward:
     const Tuple* const _t = data->Set[seq]->tuples[samp+1]; //this tuple contains a, sNew, reward:
     Activation* sOldActivation = net->allocateActivation();
     sOldActivation->clearErrors();
@@ -173,8 +192,17 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     }
 
     Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
+	 	Real temp = err;
     const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
+		/* // to ignore
+			if (std::fabs(output[1+nL])>0.7) {
+			printf("in %e %e %e %e %e %e, out %e %e %e, a %e, r %e, y %e, err %e (%e), g %e %e %e\n",
+			_tOld->s[0], _tOld->s[1], _tOld->s[2], _tOld->s[3], _tOld->s[4], _tOld->s[5],
+			output[0],output[1],output[2],_t->a[0],_t->r,target[0], err,temp,gradient[0],gradient[1],gradient[2]);
+			}
 
+			if (output[0] > 1./(1.-gamma) && gradient[0]>0) gradient[0] = 0;
+	  */
     dumpStats(Vstats[thrID], Q[0], err, Q);
     if(thrID == 1) net->updateRunning(sOldActivation);
     data->Set[seq]->tuples[samp]->SquaredError = err*err;
@@ -185,10 +213,10 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     _dispose_object(sOldActivation);
 }
 
-#if 1==0 //original formulation of advantage = 0.5 (a - pi)' * A * (a - pi), does not work: why?
+#if 0 //original formulation of advantage = 0.5 (a - pi)' * A * (a - pi), does not work: why?
 
 vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
-																	vector<Real>& out, Real& error) const
+																	const vector<Real>& out, Real& error) const
 {
     vector<Real> Q(3,0), _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA);
 		vector<Real> _u(nA), _uL(nA), _uU(nA);
@@ -210,10 +238,10 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 
    /*
    std::stringstream ooo;
-	ooo << "[";
-	for (int i=0; i<nA*nA; i++)
-      ooo << _L[i] << " ";
-	ooo << "]";
+		ooo << "[";
+		for (int i=0; i<nA*nA; i++)
+	      ooo << _L[i] << " ";
+		ooo << "]";
    printf("%s\n", ooo.str().c_str());
    fflush(0);
    */
@@ -281,7 +309,7 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
         grad[1+nL+ia] *= error;
     }
     //1 action dim dump:
-    //printf("act %f, err %f, out %f %f %f, u %f, Q %f, grad %f %f %f\n",
+    //printf("act %9.9e, err %9.9e, out %9.9e %9.9e %9.9e, u %9.9e, Q %9.9e, grad %9.9e %9.9e %9.9e\n",
 		//act[0],error,out[0],out[1],out[2],_u[0],Q[0],grad[0],grad[1],grad[2]);
     //2 actions dim dump
     ///printf("act %f %f, err %f, out %f %f %f %f %f %f, u %f %f, Q %f, grad %f %f %f %f %f %f\n", act[0], act[1], error,
@@ -291,7 +319,8 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 
 #else  //my formulation of advantage = 2 pow((a - pi)' * A * (a - pi), 0.25), works
 
-vector<Real> NAF::computeQandGrad(vector<Real>& grad,const vector<Real>& act,vector<Real>& out,Real& error) const
+vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
+																	const vector<Real>& out, Real& error) const
 {
     vector<Real> Q(3,0), _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
 
@@ -365,7 +394,8 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad,const vector<Real>& act,vec
         grad[1+nL+ia] *= dQdA*error;
     }
     //1 action dim dump:
-    //printf("act %f, err %f, out %f %f %f, u %f, Q %f, grad %f %f %f\n", act[0], error, out[0], out[1], out[2], _u[0], Q[0], grad[0], grad[1], grad[2]);
+		//printf("act %9.9e, err %9.9e, out %9.9e %9.9e %9.9e, u %9.9e, Q %9.9e, grad %9.9e %9.9e %9.9e\n",
+		//act[0], error, out[0], out[1], out[2], _u[0], Q[0], grad[0], grad[1], grad[2]);
     //2 actions dim dump
     ///printf("act %f %f, err %f, out %f %f %f %f %f %f, u %f %f, Q %f, grad %f %f %f %f %f %f\n", act[0], act[1], error, out[0],  out[1], out[2], out[3],  out[4], out[5], _u[0], _u[1], Q[0], grad[0], grad[1], grad[2], grad[3], grad[4], grad[5]);
     return Q;

@@ -60,6 +60,7 @@ void Network::build_normal_layer(Graph* const graph)
     if (graph->output)
 	l = new NormalLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
     else
+    //l = new NormalLayer<Tanh>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
     l = new NormalLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
 
     if (graph->output) printf( "Linear output\n");
@@ -196,7 +197,7 @@ void Network::build_LSTM_layer(Graph* const graph)
 	        		graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
 					input_links, recurrent_link, graph->layerSize_simd);
 	else
-	l = new LSTMLayer<Linear,SoftSigm,SoftSign>(
+	l = new LSTMLayer<Linear,SoftSigm,SoftSign>( //SoftSign
 					layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
 					graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,
 					input_links, recurrent_link, graph->layerSize_simd);
@@ -271,12 +272,10 @@ void Network::addConv2DLayer(const int filterSize[3], const int outSize[3], cons
 		if(layerFrom->layerWidth==0 || layerFrom->layerHeight==0 || layerFrom->layerDepth==0)
 			die("Incompatible with 1D input, place 2D input or resize to 2D... how? TODO\n");
 
-		const int inW_withPadding = (outSize[0]-1)*stride[0] + filterSize[0];
-		const int inH_withPadding = (outSize[1]-1)*stride[1] + filterSize[1];
-		assert(inW_withPadding - (layerFrom->layerWidth  + padding[0]) >= 0);
-		assert(inH_withPadding - (layerFrom->layerHeight + padding[1]) >= 0);
-		assert(inW_withPadding - (layerFrom->layerWidth  + padding[0]) < filterSize[0]);
-		assert(inH_withPadding - (layerFrom->layerHeight + padding[1]) < filterSize[1]);
+		assert((outSize[0]-1)*stride[0]+filterSize[0]-(layerFrom->layerWidth +padding[0])>=0);
+		assert((outSize[0]-1)*stride[0]+filterSize[0]-(layerFrom->layerWidth +padding[0])<filterSize[0]);
+		assert((outSize[1]-1)*stride[1]+filterSize[1]-(layerFrom->layerHeight+padding[1])>=0);
+		assert((outSize[1]-1)*stride[1]+filterSize[1]-(layerFrom->layerHeight+padding[1])<filterSize[1]);
 	}
 	G.push_back(g);
 	if (bOutput) {
@@ -336,11 +335,11 @@ void Network::build()
 	nNeurons = nBiases = nWeights = nStates = 0;
 	for (auto & graph : G) {
 		if(graph->input) {
-            graph->firstNeuron_ID = nNeurons;
-            const int simdWidth = __vec_width__/sizeof(Real);
-            graph->layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
-			nNeurons += graph->layerSize_simd;
-            if(graph->normalize) build_whitening_layer(graph);
+      graph->firstNeuron_ID = nNeurons;
+      const int simdWidth = __vec_width__/sizeof(Real);
+      graph->layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
+      nNeurons += graph->layerSize_simd;
+      if(graph->normalize) build_whitening_layer(graph);
 			continue; //input layer is not a layer
 		}
 		assert(!graph->input);
@@ -381,7 +380,7 @@ void Network::build()
 Network::Network(const Settings & settings) :
 Pdrop(settings.nnPdrop), nInputs(0), nOutputs(0), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), nStates(0),
 nAgents(settings.nAgents), nThreads(settings.nThreads), allocatedFrozenWeights(false),
-allocatedDroputWeights(false), backedUp(false), gen(settings.gen), bDump(not settings.bTrain),
+allocatedDroputWeights(false), gen(settings.gen), bDump(not settings.bTrain),
 bBuilt(false), bAddedInput(false), counter(0), batch_counter(0)
 { }
 
@@ -469,13 +468,12 @@ void Network::backProp(const vector<Real>& _errors,
 
 void Network::clearErrors(vector<Activation*>& timeSeries) const
 {
-	for (int k=0; k<timeSeries.size(); k--)
-		timeSeries[k]->clearErrors();
+	for (int k=0; k<timeSeries.size(); k--) timeSeries[k]->clearErrors();
 }
 
 void Network::setOutputDeltas(vector<Real>& _errors, Activation* const net) const
 {
-	assert(bBuilt);
+    assert(bBuilt);
     assert(static_cast<int>(_errors.size())==nOutputs);
     for (int i=0; i<nOutputs; i++)
     	net->errvals[iOut[i]] = _errors[i];
@@ -548,46 +546,53 @@ void Network::appendUnrolledActivations(vector<Activation*>* const ret, int leng
 		ret->push_back(new Activation(nNeurons,nStates));
 }
 
-void Network::assignDropoutMask()
+/*
+inline Real saru(unsigned int seed1, unsigned int seed2, unsigned int seed3)
+{
+   seed3 ^= ( seed1 << 7 ) ^ ( seed2 >> 6 );
+   seed2 += ( seed1 >> 4 ) ^ ( seed3 >> 15 );
+   seed1 ^= ( seed2 << 9 ) + ( seed3 << 8 );
+   seed3 ^= 0xA5366B4D * ( ( seed2 >> 11 ) ^ ( seed1 << 1 ) );
+   seed2 += 0x72BE1579 * ( ( seed1 << 4 )  ^ ( seed3 >> 16 ) );
+   seed1 ^= 0X3F38A6ED * ( ( seed3 >> 5 )  ^ ( ( ( signed int )seed2 ) >> 22 ) );
+   seed2 += seed1 * seed3;
+   seed1 += seed3 ^ ( seed2 >> 2 );
+   seed2 ^= ( ( signed int )seed2 ) >> 17;
+   int state  = 0x79dedea3 * ( seed1 ^ ( ( ( signed int )seed1 ) >> 14 ) );
+   int wstate = ( state + seed2 ) ^ ( ( ( signed int )state ) >> 8 );
+   state  = state + ( wstate * ( wstate ^ 0xdddf97f5 ) );
+   wstate = 0xABCB96F7 + ( wstate >> 1 );
+   state  = 0x4beb5d59 * state + 0x2600e1f7; // LCG
+   wstate = wstate + 0x8009d14b + ( ( ( ( signed int )wstate ) >> 31 ) & 0xda879add ); // OWS
+   unsigned int v = ( state ^ ( state >> 26 ) ) + wstate;
+   unsigned int r = ( v ^ ( v >> 20 ) ) * 0x6957f5a7;
+   Real res = r / (Real) 4294967295.;
+   return res;
+}
+
+Real* Network::assignDropoutMask(unsigned int s2, unsigned int s3)
 {
     if (Pdrop > 0) {
     	die("You are probably using dropout wrong anyway\n");
-    	//ISSUES:
-    	//- stupidly slow, no priority allocated to improve it
-    	//- does not work with threads, just for laziness: there is no obstacle to make it compatible to threads
+      Real * dropW;
+      _allocateClean(dropW, nWeights)
+      s2 += 2*nWeights; //not sure whether it is required that seeds
+      s3 += 4*nWeights; //should be sorted from smallest to biggest... be safe
 
-        assert(Pdrop>0 && Pdrop<1 && backedUp==false);
-        if (allocatedDroputWeights==false) {
-            _allocateQuick(weights_DropoutBackup, nWeights)
-            allocatedDroputWeights = true;
-        }
-        //backup the weights
-        swap(weights_DropoutBackup,weights);
-        backedUp = true;
-        //probability of having a true in the bernoulli distrib:
-        Real Pkeep = 1. - Pdrop;
+      for (int w=0; w<nWeights; w++) {
+
+      }
+        const Real Pkeep = 1. - Pdrop;
         Real fac = 1./Pkeep; //the others have to compensate
 
-        bernoulli_distribution dis(Pkeep);
-        for (int j=0; j<nWeights; j++) {
-            bool res = dis(*gen);
-            *(weights + j) = (res) ? *(weights_DropoutBackup + j)*fac : 0.;
-        }
-    }
+    } else return weights;
 }
-
-void Network::removeDropoutMask()
-{
-    if (allocatedDroputWeights && backedUp) {
-        swap(weights_DropoutBackup,weights);
-        backedUp = false;
-    }
-}
+*/
 
 void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
 {
     if (seq_len<0) seq_len = inputs.size();
-	assert(bBuilt);
+    assert(bBuilt);
     printf("Checking gradients\n");
     vector<int> errorPlacements(seq_len);
     vector<Real> partialResults(seq_len);
@@ -598,7 +603,8 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
     const Real incr = 1e-4;
 
     uniform_real_distribution<Real> dis(0.,1.);
-    for (int i=0; i<seq_len; i++) //figure out where to place some errors at random in outputs
+    //figure out where to place some errors at random in outputs
+    for (int i=0; i<seq_len; i++)
         errorPlacements[i] = nOutputs*dis(*gen);
 
     Grads * testg = new Grads(nWeights,nBiases);
@@ -635,9 +641,13 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         testg->_W[w] = diff/(2.*incr);
 
         //const Real scale = fabs(*(biases+w));
-        const Real scale = std::max(std::fabs(testG->_W[w]),std::fabs(testg->_W[w]));
+        const Real scale = std::max(std::fabs(testG->_W[w]),
+                                    std::fabs(testg->_W[w]));
         const Real err = (testG->_W[w] - testg->_W[w])/scale;
-        if (fabs(err)>1e-5) cout <<"W"<<w<<" analytical:"<<testG->_W[w]<<" finite:"<<testg->_W[w]<<" error:"<<err<<endl;
+        if (fabs(err)>1e-5)
+        cout <<"W"<<w<<" analytical:"<<testG->_W[w]
+                     <<" finite:"<<testg->_W[w]
+                     <<" error:"<<err<<endl;
     }
 
     for (int w=0; w<nBiases; w++) {
@@ -661,9 +671,13 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         testg->_B[w] = diff/(2.*incr);
 
         //const Real scale = fabs(*(biases+w));
-        const Real scale = std::max(std::fabs(testG->_B[w]), std::fabs(testg->_B[w]));
+        const Real scale = std::max(std::fabs(testG->_B[w]),
+                                    std::fabs(testg->_B[w]));
         const Real err = (testG->_B[w] - testg->_B[w])/scale;
-        if (fabs(err)>1e-5) cout <<"B"<<w<<" analytical:"<<testG->_B[w]<<" finite:"<<testg->_B[w]<<" error:"<<err<<endl;
+        if (fabs(err)>1e-5)
+        cout <<"B"<<w<<" analytical:"<<testG->_B[w]
+                     <<" finite:"    <<testg->_B[w]
+                     <<" error:"     <<err<<endl;
     }
 
     deallocateUnrolledActivations(&timeSeries);
@@ -672,6 +686,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
 
 void Network::save(const string fname)
 {
+  {
     printf("Saving into %s\n", fname.c_str());
     fflush(0);
     string nameBackup = fname + "_tmp";
@@ -700,12 +715,26 @@ void Network::save(const string fname)
 
     out.flush();
     out.close();
-
-    //Prepare copying command
     string command = "cp " + nameBackup + " " + fname;
-
-    //Submit the command to the system
     system(command.c_str());
+  }
+  {
+    string nameBackup = fname + "_mems_tmp";
+    ofstream out(nameBackup.c_str());
+
+    if (!out.good())
+      die("Unable to open save into file %s\n", nameBackup.c_str());
+
+    for(int agentID=0; agentID<nAgents; agentID++) {
+      for (int j=0; j<nNeurons; j++) out << mem[agentID]->outvals[j] << "\n";
+      for (int j=0; j<nStates;  j++) out << mem[agentID]->ostates[j] << "\n";
+    }
+
+    out.flush();
+    out.close();
+    string command = "cp " + nameBackup + " " + fname + "_mems";
+    system(command.c_str());
+  }
 }
 
 void Network::dump(const int agentID)
@@ -743,36 +772,59 @@ void Network::dump(const int agentID)
 
 bool Network::restart(const string fname)
 {
-    string nameBackup = fname;
+    {
+      string nameBackup = fname;
+      ifstream in(nameBackup.c_str());
+      debug1("Reading from %s\n", nameBackup.c_str());
+      if (!in.good()) {
+          error("Couldnt open file %s \n", nameBackup.c_str());
+          return false;
+      }
 
-    ifstream in(nameBackup.c_str());
-    debug1("Reading from %s\n", nameBackup.c_str());
-    if (!in.good()) {
-        error("WTF couldnt open file %s (ok keep going mofo)!\n", fname.c_str());
-        return false;
+      int readTotWeights, readTotBiases, readNNeurons, readNLayers;
+      in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
+
+      if (readTotWeights != nWeights || readTotBiases != nBiases || readNLayers != nLayers || readNNeurons != nNeurons)
+      die("Network parameters differ!");
+
+      Real tmp;
+      for (int i=0; i<nWeights; i++) {
+          in >> tmp;
+          if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+          weights[i] = tmp;
+      }
+
+      for (int i=0; i<nBiases; i++) {
+          in >> tmp;
+          if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+          biases[i] = tmp;
+      }
+      in.close();
+      updateFrozenWeights();
     }
+    {
+      string nameBackup = fname + "_mems";
+      ifstream in(nameBackup.c_str());
+      debug1("Reading from %s\n", nameBackup.c_str());
+      if (!in.good()) {
+          error("Couldnt open file %s \n", nameBackup.c_str());
+          return false;
+      }
 
-    int readTotWeights, readTotBiases, readNNeurons, readNLayers;
-    in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
-
-    if (readTotWeights != nWeights || readTotBiases != nBiases || readNLayers != nLayers || readNNeurons != nNeurons)
-    die("Network parameters differ!");
-
-    Real tmp;
-    for (int i=0; i<nWeights; i++) {
-        in >> tmp;
-        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-        *(weights + i) = tmp;
+      Real tmp;
+      for(int agentID=0; agentID<nAgents; agentID++) {
+        for (int j=0; j<nNeurons; j++) {
+          in >> tmp;
+          if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+          mem[agentID]->outvals[j] = tmp;
+        }
+        for (int j=0; j<nStates; j++) {
+          in >> tmp;
+          if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+          mem[agentID]->ostates[j] = tmp;
+        }
+      }
+      in.close();
     }
-
-    for (int i=0; i<nBiases; i++) {
-        in >> tmp;
-        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-        *(biases + i) = tmp;
-    }
-
-    in.close();
-
-    updateFrozenWeights();
     return true;
 }

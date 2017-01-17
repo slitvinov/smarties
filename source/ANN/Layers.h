@@ -282,17 +282,19 @@ public:
             deltas[o]  = deltas[o] * outputO[o] * diffCurrState[o] +
                     (next==nullptr ?  0 : *(next->errvals+n1stNeuron+o)* *(next->oFGates+n1stCell+o));
 
-        if (prev==nullptr)
+        if (prev==nullptr) {
         	for (int o=0; o<nNeurons; o++) deltaF[o] = 0.;
-        else
+        }
+        else {
         	Sigm::evalDiff(inputF, deltaF, prev->ostates+n1stCell, nNeurons);
+        }
 		
-		for (int o=0; o<nNeurons; o++) {
+		    for (int o=0; o<nNeurons; o++) {
             deltaC[o] *= deltas[o];
             deltaI[o] *= deltas[o];
             deltaO[o] *= evalCurrState[o];
-			deltaF[o] *= deltas[o];
-		}
+			      deltaF[o] *= deltas[o];
+		    }
 
 		for (const auto & link : *input_links)
 					  link->backPropagate(curr,curr,weights,grad->_W);
