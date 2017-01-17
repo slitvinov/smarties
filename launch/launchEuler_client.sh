@@ -27,7 +27,7 @@ cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
 cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
-cp runBrutus_client.sh ${BASEPATH}${RUNFOLDER}/runClient.sh
+cp runEuler_client.sh ${BASEPATH}${RUNFOLDER}/runClient.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}"/simulation"

@@ -9,26 +9,26 @@ NTHREADS=24
 MYNAME=`whoami`
 BASEPATH="./"
 
-settingsfile=${BASEPATH}${EXECNAME}"/"${SETTINGSNAME}
-if [ ! -f $settingsfile ];then
-    echo "Deleting folder."
-    rm -rf ${BASEPATH}${EXECNAME}
-fi
+#settingsfile=${BASEPATH}${EXECNAME}"/"${SETTINGSNAME}
+#if [ ! -f $settingsfile ];then
+#    echo "Deleting folder."
+#    rm -rf ${BASEPATH}${EXECNAME}
+#fi
 
-restartfile=${BASEPATH}${EXECNAME}"/restart.mrg"
-if [ ! -f $restartfile ];then
-  echo "Deleting folder."
-  rm -rf ${BASEPATH}${EXECNAME}
-fi
+#restartfile=${BASEPATH}${EXECNAME}"/restart.mrg"
+#if [ ! -f $restartfile ];then
+#  echo "Deleting folder."
+#  rm -rf ${BASEPATH}${EXECNAME}
+#fi
 
-if [ ! -d ${BASEPATH}${EXECNAME} ]; then
-    echo "Directory does not exist yet! Setting up simulation."
+#if [ ! -d ${BASEPATH}${EXECNAME} ]; then
+#    echo "Directory does not exist yet! Setting up simulation."
     RESTART=" -restart 0"
     mkdir -p ${BASEPATH}${EXECNAME}
-else
-    echo "Directory already exists! Restarting."
-    RESTART=" -restart 1"
-fi
+#else
+#    echo "Directory already exists! Restarting."
+#    RESTART=" -restart 1"
+#fi
 
 echo "Setting up simulation."
 
@@ -61,7 +61,7 @@ cd ${BASEPATH}${EXECNAME}
 
 
 export LD_LIBRARY_PATH=${HOME}/2d-treecodes/:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/cluster/home/novatig/tbb2017/build/linux_intel64_gcc_cc4.9    .2_libc2.12_kernel2.6.32_release:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/cluster/home/novatig/tbb2017/build/linux_intel64_gcc_cc4.9.2_libc2.12_kernel2.6.32_release:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/cluster/home/novatig/VTK-7.1.0/Build/lib/:$LD_LIBRARY_PATH
 export OMP_NUM_THREADS=${NTHREADS}
 

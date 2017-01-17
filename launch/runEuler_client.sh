@@ -4,7 +4,7 @@ module load gcc/4.9.2
 
 #export LD_LIBRARY_PATH=/cluster/home03/mavt/novatig/mpich-3.2/lib/:$LD_LIBRARY_PATH
 #export PATH=/cluster/home03/mavt/novatig/mpich-3.2/bin/:$PATH
-
+export MV2_ENABLE_AFFINITY=0
 #export LD_LIBRARY_PATH=/cluster/home/mavt/chatzidp/usr/mpich3/lib/:$LD_LIBRARY_PATH
 #export PATH=/cluster/home/mavt/chatzidp/usr/mpich3/bin:$PATH
 #export LD_LIBRARY_PATH=/cluster/apps/openmpi/1.6.5/x86_64/gcc_4.9.2/lib/:$LD_LIBRARY_PATH
