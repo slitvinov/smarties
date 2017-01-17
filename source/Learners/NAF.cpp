@@ -143,19 +143,19 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
         Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
 				Real temp = err;
         const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
+				/* // to ignore
+					if (std::fabs(output[1+nL])>0.7) {
+					printf("in %e %e %e %e %e %e, out %e %e %e, a %e, r %e, y %e, err %e (%e), g %e %e %e\n",
+					_tOld->s[0], _tOld->s[1], _tOld->s[2], _tOld->s[3], _tOld->s[4], _tOld->s[5],
+					output[0],output[1],output[2],_t->a[0],_t->r,target[0], err,temp,gradient[0],gradient[1],gradient[2]);
+					}
 
-				if (std::fabs(output[1+nL])>0.7) {
-				printf("in %e %e %e %e %e %e, out %e %e %e, a %e, r %e, y %e, err %e (%e), g %e %e %e\n",
-				_tOld->s[0], _tOld->s[1], _tOld->s[2], _tOld->s[3], _tOld->s[4], _tOld->s[5],
-				output[0],output[1],output[2],_t->a[0],_t->r,target[0], err,temp,gradient[0],gradient[1],gradient[2]);
-				}
-
-				if (output[0] > 1./(1.-gamma) && gradient[0]>0) gradient[0] = 0;
-				//if (std::fabs(output[1+nL]) > 0.75 && gradient[1+nL]*output[1+nL] > 0) {
-				//		//gradient[1] = 0;
-				//		gradient[1+nL] = 0;
-				//}
-
+					if (output[0] > 1./(1.-gamma) && gradient[0]>0) gradient[0] = 0;
+					//if (std::fabs(output[1+nL]) > 0.75 && gradient[1+nL]*output[1+nL] > 0) {
+					//		//gradient[1] = 0;
+					//		gradient[1+nL] = 0;
+					//}
+				*/
         data->Set[seq]->tuples[k]->SquaredError = err*err;
         net->setOutputDeltas(gradient, timeSeries[k]);
         dumpStats(Vstats[thrID], Q[0], err, Q);
@@ -192,17 +192,17 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     }
 
     Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
-	 Real temp = err;
+	 	Real temp = err;
     const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
-	 
-    if (std::fabs(output[1+nL])>0.7) {
-	 printf("in %e %e %e %e %e %e, out %e %e %e, a %e, r %e, y %e, err %e (%e), g %e %e %e\n",
-	 _tOld->s[0], _tOld->s[1], _tOld->s[2], _tOld->s[3], _tOld->s[4], _tOld->s[5],
-	 output[0],output[1],output[2],_t->a[0],_t->r,target[0], err,temp,gradient[0],gradient[1],gradient[2]);
-	 }
+		/* // to ignore
+			if (std::fabs(output[1+nL])>0.7) {
+			printf("in %e %e %e %e %e %e, out %e %e %e, a %e, r %e, y %e, err %e (%e), g %e %e %e\n",
+			_tOld->s[0], _tOld->s[1], _tOld->s[2], _tOld->s[3], _tOld->s[4], _tOld->s[5],
+			output[0],output[1],output[2],_t->a[0],_t->r,target[0], err,temp,gradient[0],gradient[1],gradient[2]);
+			}
 
-	 if (output[0] > 1./(1.-gamma) && gradient[0]>0) gradient[0] = 0;
-
+			if (output[0] > 1./(1.-gamma) && gradient[0]>0) gradient[0] = 0;
+	  */
     dumpStats(Vstats[thrID], Q[0], err, Q);
     if(thrID == 1) net->updateRunning(sOldActivation);
     data->Set[seq]->tuples[samp]->SquaredError = err*err;

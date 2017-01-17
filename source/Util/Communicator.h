@@ -2,7 +2,9 @@
 
 #include <sstream>
 #include <sys/un.h>
+#ifdef __MPI_CLIENT
 #include <mpi.h>
+#endif
 #include <vector>
 
 #define _AGENT_STATUS int
@@ -17,7 +19,9 @@ class Communicator
     int Socket, ListenerSocket, sizein, sizeout;
     std::ostringstream o;
     int msgID, rank_MPI, size_MPI;
+    #ifdef __MPI_CLIENT
     MPI_Comm comm_MPI;
+    #endif
 
     char SOCK_PATH[256];
     struct sockaddr_un serverAddress;
@@ -47,5 +51,8 @@ public:
 
     ~Communicator();
     Communicator(int _sockID, int _statedim, int _actdim, bool _isserver=0, bool _issim=1);
+
+    #ifdef __MPI_CLIENT
     Communicator(int _sockID, int _statedim, int _actdim, MPI_Comm comm);
+    #endif
 };

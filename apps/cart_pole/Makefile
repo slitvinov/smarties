@@ -1,9 +1,10 @@
 CC = g++
 
-CPPFLAGS+=-std=c++11 -O3
-
-DIRS = $(sort $(dir $(wildcard ../source/*/)))
-OBJ_FILES = 	cart-pole.o communicator.o
+OBJ_FILES = 	cart-pole.o Communicator.o
+SRC_DIR = ./
+COM_DIR = ../../source/Util
+VPATH := $(SRC_DIR):$(COM_DIR)
+CPPFLAGS+=-std=c++11 -O3 -I$(COM_DIR)
 
 .DEFAULT_GOAL := cart-pole
 
@@ -16,8 +17,8 @@ cart-pole: $(OBJ_FILES)
 %.d: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -MD -c $<
     
-vpath %.cpp $(DIRS)
-vpath %.h   $(DIRS)
+#vpath %.cpp $(DIRS)
+#vpath %.h   $(DIRS)
 
 clean:
 	rm -f *.o

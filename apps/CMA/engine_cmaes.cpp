@@ -10,13 +10,13 @@
 #include <stdio.h>
 #include <stdlib.h> /* free() */
 #include "cmaes_interface.h"
-#include "communicator.h"
+#include "Communicator.h"
 #include <unistd.h>
 #include <math.h>
 #include <string.h>
 #include <random>
 #include <chrono>
-#include <omp.h>
+//#include <omp.h>
 #include <algorithm>
 #include <iostream>
 #include <sstream>
@@ -412,7 +412,7 @@ int main(int argn, char **args)
         cmaes_exit(evo); /* release memory */
 				delete evo;
         if(oldXmean not_eq nullptr)
-				free(oldXmean);
+            free(oldXmean);
 				free(lower_bound);
 				free(upper_bound);
 				free(init_x);

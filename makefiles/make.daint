@@ -2,7 +2,7 @@ CC=/users/novatig/mpich-3.2/build/bin/mpic++
 
 #export PATH=/cluster/home/mavt/chatzidp/usr/mpich3/bin:$PATH
 
-CPPFLAGS+= -mavx -I/users/novatig/mpich-3.2/build/include/
+CPPFLAGS+= -mavx -I/users/novatig/mpich-3.2/build/include/ -D__MPI_CLIENT
 
 export LD_LIBRARY_PATH=/users/novatig/mpich-3.2/build/lib/:$LD_LIBRARY_PATH
 
@@ -12,4 +12,3 @@ LIBS+= -L/users/novatig/mpich-3.2/build/lib/  -lz -mavx
 #CPPFLAGS+= #-dynamic -fsanitize=address
 #LIBS += #-dynamic -fsanitize=address
 #endif
-

@@ -18,7 +18,7 @@ void Communicator::sendState(int agentId, _AGENT_STATUS info,
 {
     if(rank_MPI) return;
 
-    assert(state.size() == nStates);
+    assert(state.size() == (std::size_t) nStates);
     o <<"Send: "<<agentId<<" "<<msgID++<<" "<< info<<" ";
     {int *ptr=(int*)(dataout);   *ptr=agentId;}
     {int *ptr=(int*)(dataout+1); *ptr=info;  }
@@ -39,7 +39,7 @@ void Communicator::sendState(int agentId, _AGENT_STATUS info,
 void Communicator::recvState(int& agentId, _AGENT_STATUS& info,
                              std::vector<double>& state, double& reward)
 {
-    assert(state.size() == nStates);
+    assert(state.size() == (std::size_t) nStates);
     int bytes = 0;
     //printf("RECEIVING %d,%d\n",Socket,sizein);
     if ((bytes = recv_all(Socket, datain, sizein)) <= 0) {
@@ -70,22 +70,30 @@ void Communicator::recvState(int& agentId, _AGENT_STATUS& info,
 
 void Communicator::recvAction(std::vector<double>& actions)
 {
-    assert(actions.size() == nActions);
-    if(!rank_MPI) {
-      int bytes = recv_all(Socket, datain, sizein);
-      if (bytes <= 0) {
-          printf("selectserver: socket hung up\n");
-          fflush(0);
-          abort();
+    assert(actions.size() == (std::size_t) nActions);
+
+    #ifdef __MPI_CLIENT
+      if(!rank_MPI)
+      {
+    #endif
+
+        int bytes = recv_all(Socket, datain, sizein);
+        if (bytes <= 0) {
+            printf("selectserver: socket hung up\n");
+            fflush(0);
+            abort();
+        }
+
+    #ifdef __MPI_CLIENT
+        for (int i=1; i<size_MPI; ++i)
+        MPI_Send(datain, sizein, MPI_DOUBLE, i, 42, comm_MPI);
       }
-      for (int i=1; i<size_MPI; ++i)
-      MPI_Send(datain, sizein, MPI_DOUBLE, i, 42, comm_MPI);
-    }
-    else
-    {
-      MPI_Status status;
-      MPI_Recv(datain, sizein, MPI_DOUBLE, 0, 42, comm_MPI, &status);
-    }
+      else
+      {
+        MPI_Status status;
+        MPI_Recv(datain, sizein, MPI_DOUBLE, 0, 42, comm_MPI, &status);
+      }
+    #endif
 
     o << "Recv: ";
     for (int j=0; j<nActions; j++) {
@@ -101,7 +109,7 @@ void Communicator::recvAction(std::vector<double>& actions)
 
 void Communicator::sendAction(std::vector<double>& actions)
 {
-    assert(actions.size() == nActions);
+    assert(actions.size() == (std::size_t) nActions);
     o << "Sent: ";
     for (int i=0; i<nActions; i++) {
         dataout[i] = actions[i];
@@ -122,6 +130,7 @@ Communicator::~Communicator()
     free(dataout);
 }
 
+#ifdef __MPI_CLIENT
 Communicator::Communicator(int _sockID, int _statedim, int _actdim, MPI_Comm comm):
 workerid(_sockID==0?1:_sockID),nActions(_actdim),nStates(_statedim),
 isServer(_sockID==0), msgID(0), comm_MPI(comm)
@@ -143,6 +152,7 @@ isServer(_sockID==0), msgID(0), comm_MPI(comm)
 
   if(_sockID==0 && rank_MPI == 0) setupClient(0, std::string());
 }
+#endif
 
 Communicator::Communicator(int _sockID, int _statedim, int _actdim, bool _server, bool _sim):
 workerid(_sockID==0?1:_sockID),nActions(_actdim),nStates(_statedim),
@@ -246,7 +256,7 @@ void Communicator::setupClient(const int iter, std::string execpath)
       chdir(("simulation_"+std::to_string(workerid)+"_"
                           +std::to_string(iter)+"/").c_str());
       }
-      sprintf(line, execpath.c_str());
+      sprintf(line, "%s", execpath.c_str());
       //parse(line, largv);     // prepare argv
 
       #if 1==1 //if true goes to stdout
