@@ -60,9 +60,9 @@ OPTIONS=${SETTINGS}${RESTART}
 
 cd ${BASEPATH}${EXECNAME}
 
-export LD_LIBRARY_PATH=${HOME}/2d-treecodes-ispc/p6_f12_mp/:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/cluster/work/infk/wvanrees/apps/TBB/tbb42_20140416oss/build/linux_intel64_gcc_cc4.7.2_libc2.12_kernel2.6.32_release/:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/cluster/work/infk/cconti/VTK5.8_gcc/lib/vtk-5.8/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${HOME}/2d-treecodes/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/cluster/home/novatig/tbb2017/build/linux_intel64_gcc_cc4.9.2_libc2.12_kernel2.6.32_release:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/cluster/home/novatig/VTK-7.1.0/Build/lib/:$LD_LIBRARY_PATH
 export OMP_NUM_THREADS=${NTHREADS}
 
 ./hyperion ${OPTIONS}

@@ -6,7 +6,8 @@ SETTINGSNAME=$3
 POLICY=$4
 NNODES=$5
 MYNAME=`whoami`
-BASEPATH="/cluster/scratch/${MYNAME}/smarties/"
+BASEPATH="../"
+#BASEPATH="/cluster/scratch/${MYNAME}/smarties/"
 echo ${BASEPATH}${RUNFOLDER}
 mkdir -p ${BASEPATH}${RUNFOLDER}
 mkdir -p ${BASEPATH}${RUNFOLDER}"/simulation"
