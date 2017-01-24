@@ -153,7 +153,7 @@ isServer(_sockID==0), msgID(0), comm_MPI(comm)
   MPI_Comm_size(comm_MPI,&size_MPI);
 
   if(_sockID==0 && rank_MPI == 0) setupClient(0, std::string());
-  else if(_sim) setupServer();
+  //else if(_sim) setupServer();
 }
 #endif
 

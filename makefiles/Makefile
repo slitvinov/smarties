@@ -26,7 +26,8 @@ include make.brutus
 endif
 
 ifeq "$(findstring daint,$(shell hostname))" "daint"
-include make.daint
+#include make.daint	# When using self-compiled MPI - AVOID !!
+include make.daint_srun # When using srun - Default
 endif
 
 ifeq "$(findstring falcon,$(shell hostname))" "falcon"
