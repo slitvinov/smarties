@@ -39,6 +39,7 @@ source ../apps/${APP}/setup.sh ${BASEPATH}${RUNFOLDER}
 
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
+cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/policy_settings.sh
 cp runEuler_train.sh ${BASEPATH}${RUNFOLDER}/run.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
