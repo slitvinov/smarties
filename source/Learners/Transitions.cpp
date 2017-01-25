@@ -272,7 +272,7 @@ void Transitions::update_samples_mean()
 	std::cout << "]. States means: [";
 	for (int i=0; i<sI.dimUsed; i++) {
     mean[i] /= Real(count);
-    mean[i] = oldMean[i]*.99 + .01*oldStd[i];
+    mean[i] = oldMean[i]*.99 + .01*mean[i];
     std::cout << mean[i] << " ";
   }
 	std::cout << "]" << std::endl;
@@ -298,14 +298,14 @@ void Transitions::synchronize()
 	assert(nSequences==Set.size() && NmaxDATA == nSequences);
 	#pragma omp parallel for schedule(dynamic)
 	for(int i=0; i<Set.size(); i++) {
-		int count = 0;
+		//int count = 0;
 		Set[i]->MSE = 0.;
 
 		for(const auto & t : Set[i]->tuples) {
-			Set[i]->MSE += t->SquaredError;
-			count++;
+			Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
+			//count++;
 		}
-		Set[i]->MSE /= (Real)(count-1);
+		//Set[i]->MSE /= (Real)(count-1);
 		/*
 		for(const auto & t : Set[i]->tuples)
 		for (int i=0; i<sI.dimUsed; i++)
