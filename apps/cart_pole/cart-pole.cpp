@@ -67,7 +67,7 @@ struct CartPole
     const double g = 9.81;
     int info;
     Vec4 u;
-    double F;
+    double F, t;
 
     Vec4 D(Vec4 u, double t)
     {
@@ -97,12 +97,8 @@ int main(int argc, const char * argv[])
     const int sock = std::stoi(argv[1]);
     //time stepping
     const double dt = 1e-3;
-    double t = 0;
-    //trash:
-    long long int nfallen(0), sincelast(0), duringlast(0), ntot(0);
-    double percfallen = 0.0;
     std::mt19937 gen(sock);
-    std::uniform_real_distribution<double> distribution(-0.1,0.1);
+    std::uniform_real_distribution<double> distribution(-0.05,0.05);
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
     Communicator comm(sock,4,1);
     //vector of state variables: in this case x, v, theta, ang_velocity
@@ -152,41 +148,31 @@ int main(int argc, const char * argv[])
             //printf("Received action %f\n", a.F); fflush(0);
 
         	//advance the sim:
-            double tlocal = t;
             for (int i=0; i<50; i++) {
-                a.u = rk46_nl(tlocal, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
-                tlocal += dt;
-            }
+                a.u = rk46_nl(a.t, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
+                a.t += dt;
 
-            //check if terminal state has been reached:
-            if ((fabs(a.u.y3)>.2*M_PI)||(fabs(a.u.y1)>2.4)) //angle too big = fallen, or x out of bounds
-            {
-                //nfallen += 1; sincelast = 0; percfallen = nfallen/ntot;
+                //check if terminal state has been reached:
+                if ((fabs(a.u.y3)>.2*M_PI)||(fabs(a.u.y1)>2.4)) //angle too big = fallen, or x out of bounds
+                {
+                    a.info = 2; //tell RL we are in terminal state
+                    double r = -1.; //give terminal reward (if different problem, this might be a bonus rather than a negative score)
+                    state[0] = a.u.y1;
+                    state[1] = a.u.y2;
+                    state[2] = a.u.y4/M_PI;
+                    state[3] = a.u.y3/M_PI;
+                    //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+                    comm.sendState(k, a.info, state, r);
 
-                a.info = 2; //tell RL we are in terminal state
-                double r = -1.; //give terminal reward (if different problem, this might be a bonus rather than a negative score)
-                state[0] = a.u.y1;
-                state[1] = a.u.y2;
-                state[2] = a.u.y4/M_PI;
-                state[3] = a.u.y3/M_PI;
-                //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
-                comm.sendState(k, a.info, state, r);
-
-                //re-initialize the simulations (random initial conditions):
-                a.u = Vec4(distribution(gen), distribution(gen), distribution(gen), distribution(gen));
-                t = 0;
-                a.F = 0;
-                a.info = 1; //set info back to 0
+                    //re-initialize the simulations (random initial conditions):
+                    a.u = Vec4(distribution(gen), distribution(gen), distribution(gen), distribution(gen));
+                    a.t = 0;
+                    a.F = 0;
+                    a.info = 1; //set info back to 0
+                    break;
+                }
             }
         }
-
-        t += 50*dt;
-        /*
-        if (ntot % 10000 == 0) {
-            cout << nfallen - duringlast << endl;
-            duringlast =+ nfallen;
-        }
-         */
     }
 
     return 0;
