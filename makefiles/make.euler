@@ -1,8 +1,7 @@
 #CC=g++
 CC=mpic++
 LD=mpic++
-LIBS += -lmpi -lmpicxx -lmpich -lsz -mavx
-CPPFLAGS+= -D__MPI_CLIENT
+LIBS += -lmpi -lmpicxx -lmpich -mavx
 
 #CPPFLAGS+= -I/opt/local/include/openmpi -mavx
 

@@ -1,6 +1,5 @@
 CC = CC
 LIBS+= -mavx
-CPPFLAGS+= -D__MPI_CLIENT
 
 #ifeq "$(config)" "debug"
 #CPPFLAGS+= #-dynamic -fsanitize=address

@@ -103,6 +103,7 @@ void Communicator::recvAction(std::vector<double>& actions)
     o << "\n";
     if(!rank_MPI)
     std::cout<<o.str()<<std::endl;
+  fflush(0);
     o.str( std::string() );
     o.clear();
 }
@@ -118,6 +119,7 @@ void Communicator::sendAction(std::vector<double>& actions)
     }
     o << "\n";
     std::cout<<o.str()<<std::endl;
+  fflush(0);
     o.str( std::string() );
     o.clear();
     send_all(Socket, dataout, sizeout);
@@ -139,7 +141,7 @@ isServer(_sockID==0), msgID(0), comm_MPI(comm)
   sizein  =    nActions*sizeof(double);
 
   sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock_", workerid);
-  printf("SOCK_PATH=->%s<-\n", SOCK_PATH);
+  printf("sockedID:%d, SOCK_PATH=->%s<-\n", _sockID, SOCK_PATH);
   dataout = (double *) malloc(sizeout);
   memset(dataout, 0, sizeout);
   datain  = (double *) malloc(sizein);
@@ -151,6 +153,7 @@ isServer(_sockID==0), msgID(0), comm_MPI(comm)
   MPI_Comm_size(comm_MPI,&size_MPI);
 
   if(_sockID==0 && rank_MPI == 0) setupClient(0, std::string());
+  //else if(_sim) setupServer();
 }
 #endif
 
@@ -166,7 +169,7 @@ isServer(_sockID==0||_server),msgID(0), rank_MPI(0), size_MPI(0)
       sizeout =    nActions*sizeof(double);
     }
     sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock_", workerid);
-    printf("SOCK_PATH=->%s<-\n", SOCK_PATH);
+    printf("sockedID:%d, _server:%d, _sim:%d, SOCK_PATH=->%s<-\n", _sockID, _server, _sim, SOCK_PATH);
     dataout = (double *) malloc(sizeout);
     memset(dataout, 0, sizeout);
     datain  = (double *) malloc(sizein);
@@ -175,6 +178,7 @@ isServer(_sockID==0||_server),msgID(0), rank_MPI(0), size_MPI(0)
           nStates, nActions, sizein, sizeout);
     if(_sockID==0)
       setupClient(0, std::string());
+    else if(_sim) setupServer();
 }
 
 
@@ -258,7 +262,7 @@ void Communicator::setupClient(const int iter, std::string execpath)
       }
       sprintf(line, "%s", execpath.c_str());
       //parse(line, largv);     // prepare argv
-
+	fflush(0);
       #if 1==1 //if true goes to stdout
       char output[256];
       sprintf(output, "output");

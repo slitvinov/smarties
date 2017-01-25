@@ -21,7 +21,7 @@ gamma(settings.gamma), g(settings.gen), resetAll(true), iter(0), communicator(nu
 void Environment::setup_Comm()
 {
     if(communicator == nullptr)
-      communicator = new Communicator(rank,sI.dim,aI.dim,isLauncher,0);
+      communicator = new Communicator(rank,sI.dim,aI.dim,isLauncher==1,false);
       //die("Set up the state before establishing a communication.\n");
 
     if (isLauncher)

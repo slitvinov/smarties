@@ -26,7 +26,8 @@ include make.brutus
 endif
 
 ifeq "$(findstring daint,$(shell hostname))" "daint"
-include make.daint
+#include make.daint	# When using self-compiled MPI - AVOID !!
+include make.daint_srun # When using srun - Default
 endif
 
 ifeq "$(findstring falcon,$(shell hostname))" "falcon"
@@ -42,19 +43,6 @@ CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wno-reorder -Wno-deprecated
 CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
 
-ifeq "$(config)" "nompidebug"
-CC=g++
-CPPFLAGS+= -DMEGADEBUG -O0 -g#-O4 -fstrict-aliasing -march=native -mtune=native -ffast-math #-O0 -g
-LIBS += -DMEGADEBUG
-#CPPFLAGS+= -fsanitize=address
-#LIBS += -fsanitize=address
-endif
-
-ifeq "$(config)" "nompi"
-CC=g++
-CPPFLAGS+= -DMEGADEBUG -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math #-O0 -g
-LIBS += -DMEGADEBUG
-endif
 
 ifeq "$(config)" "debug"
 CPPFLAGS+= -O0 -g
