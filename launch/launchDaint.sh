@@ -22,7 +22,7 @@ else
     NTHREADS=$7
 fi
 if [ $# -lt 8 ] ; then
-WCLOCK=00:30:00 #chaining
+WCLOCK=24:00:00 #chaining
 else
     WCLOCK=$8
 fi
@@ -58,14 +58,13 @@ cat <<EOF >daint_sbatch
 #SBATCH --error=${RUNFOLDER}_%j.txt
 #SBATCH --time=${WCLOCK}
 #SBATCH --nodes=${NNODES}
-# #SBATCH --partition=viz
 #SBATCH --ntasks-per-node=${NTASK}
-#SBATCH --cpus-per-task=${NTHREADS}
+#SBATCH --cpus-per-task=$((${NTHREADS}/2)) # Hyperthreaded
 #SBATCH --constraint=gpu
+#SBATCH --mail-user="${MYNAME}@ethz.ch"
+#SBATCH --mail-type=ALL
+
 module load daint-gpu 
-#module load slurm
-#module swap PrgEnv-cray PrgEnv-gnu
-#module swap gcc/4.8.2 gcc/4.9.2
 export OMP_NUM_THREADS=${NTHREADS}
 export CRAY_CUDA_MPS=1
 
