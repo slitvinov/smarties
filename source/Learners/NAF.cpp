@@ -69,8 +69,6 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 
     s.copy_observed(inputs);
     vector<Real> scaledSold = data->standardize(inputs);
-		for (int i=0; i<nInputs; i++)
-      printf("Net in: %9.9e %9.9e \n", inputs[i], scaledSold[i]);
 
     if (info==1) // if new sequence, sold, aold and reward are meaningless
         net->predict(scaledSold, output, currActivation);
@@ -96,13 +94,11 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
     for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
     a.set(act);
 
-    printf("Net out: %9.9e %9.9e %9.9e \n", output[0], output[1], output[2]);
-
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
         const int handicap = min(static_cast<int>(data->Set.size())/500.,
-                              (bRecurrent ? opt->nepoch/1e2 : opt->nepoch/1e3));
+                              (bRecurrent ? opt->nepoch/100. : opt->nepoch/100.));
         newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
 

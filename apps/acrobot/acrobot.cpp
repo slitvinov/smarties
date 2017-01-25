@@ -105,9 +105,6 @@ int main(int argc, const char * argv[])
     //time stepping
     const double dt = 1e-3;
     double t = 0;
-    //trash:
-    long long int nfallen(0), sincelast(0), duringlast(0), ntot(0);
-    double percfallen = 0.0;
     std::mt19937 gen(sock);
     std::uniform_real_distribution<double> distribution(-0.1,0.1);
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
@@ -139,8 +136,8 @@ int main(int argc, const char * argv[])
             state[3] = a.u.y3;
             r += -1.; //negative reward for every further time step
 
-            printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
-            printf("Current reward %f\n", r); fflush(0);
+            //printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+            //printf("Current reward %f\n", r); fflush(0);
             ///////////////////////////////////////////////////////
             // arguments of comm->sendState(k, a.info, state, r)
 
@@ -158,7 +155,7 @@ int main(int argc, const char * argv[])
             a.T = actions[0];
             a.info = 0; //at least one comm is done, so i set info to 0
 
-            printf("Received action %f\n", a.T); fflush(0);
+            //printf("Received action %f\n", a.T); fflush(0);
 
         	//advance the sim:
             double tlocal = t;
@@ -170,8 +167,6 @@ int main(int argc, const char * argv[])
             //check if terminal state has been reached:
             if (fabs(fmod(fabs(a.u.y1),2.*M_PI)-M_PI)<.1) //acrobot is standing straight up
             {
-                //nfallen += 1; sincelast = 0; percfallen = nfallen/ntot;
-
                 a.info = 2; //tell RL we are in terminal state
                 r += -.1;    //for the AcrobotEnvironment::pickReward function to recognise a terminal state
                 //double r = -1.; //give terminal reward (if different problem, this might be a bonus rather than a negative score)
@@ -179,7 +174,7 @@ int main(int argc, const char * argv[])
                 state[1] = a.u.y2;
                 state[2] = a.u.y4;
                 state[3] = a.u.y3;
-                printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+                //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
                 comm.sendState(k, a.info, state, r);
 
                 //re-initialize the simulations (random initial conditions):
@@ -191,8 +186,6 @@ int main(int argc, const char * argv[])
             }
             if ((fabs(a.u.y2)>4.*M_PI)||(fabs(a.u.y4)>9.*M_PI)) //acrobot rotating too fast
             {
-                //nfallen += 1; sincelast = 0; percfallen = nfallen/ntot;
-                
                 a.info = 2; //tell RL we are in terminal state
                 r = -10000000;  //terminal reward
               
@@ -200,7 +193,7 @@ int main(int argc, const char * argv[])
                 state[1] = a.u.y2;
                 state[2] = a.u.y4;
                 state[3] = a.u.y3;
-                printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+                //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); ffnush(0);
                 comm.sendState(k, a.info, state, r);
                 
                 //re-initialize the simulations (random initial conditions):
@@ -213,12 +206,6 @@ int main(int argc, const char * argv[])
         }
 
         t += 50*dt;
-        /*
-        if (ntot % 10000 == 0) {
-            cout << nfallen - duringlast << endl;
-            duringlast =+ nfallen;
-        }
-         */
     }
 
     return 0;
