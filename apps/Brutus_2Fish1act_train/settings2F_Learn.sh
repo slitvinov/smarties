@@ -6,15 +6,15 @@ SETTINGS+=" -study learning"
 SETTINGS+=" -factory factory2F_Learn"
 SETTINGS+=" -length 0.2"
 SETTINGS+=" -nu 8e-6"
-SETTINGS+=" -lmax 5"
+SETTINGS+=" -lmax 4"
 SETTINGS+=" -restartpath restart"
 
-SETTINGS+=" -lambda 1e6"
+SETTINGS+=" -lambda 1e5"
 SETTINGS+=" -Uinfx 0.0"
 SETTINGS+=" -Uinfy 0.0"
 
 SETTINGS+=" -Tstartlearn 1"
-SETTINGS+=" -NpLatLine 5"
+SETTINGS+=" -NpLatLine 20"
 SETTINGS+=" -nActions 1"
 SETTINGS+=" -GoalDX 2"
 
