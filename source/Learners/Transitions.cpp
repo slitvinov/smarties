@@ -10,7 +10,7 @@
 #include "Transitions.h"
 #include <fstream>
 //#define CLEAN //dont
-#define NmaxDATA 10000
+#define NmaxDATA 5000
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
 mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
@@ -63,7 +63,6 @@ void Transitions::restartSamples()
                     t_sO.set(d_sO);
                     t_sN.set(d_sN);
                     t_a.set(d_a);
-                    if(info==2) printf("Terminal state\n");
                     //if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001) printf("Skipping one\n");
                     //else
                     add(0, info, t_sO, t_a, t_sN, reward);
@@ -179,7 +178,6 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
 
     Tmp[agentId]->tuples.push_back(t);
     if (new_sample) {
-        printf("LAst reward %g\n",t->r);
         Tmp[agentId]->ended = true;
         push_back(agentId);
     }
@@ -222,7 +220,7 @@ void Transitions::update_samples_mean()
 {
   if(!bNormalize) return;
 	int count = 0;
-  vector<Real> oldStd{std}, oldMean{mean};
+  vector<Real> oldStd(std), oldMean(mean);
 	std::fill(std.begin(), std.end(), 0.);
 	std::fill(mean.begin(), mean.end(), 0.);
 
@@ -265,22 +263,19 @@ void Transitions::update_samples_mean()
                   MPI_VALUE_TYPE, MPI_SUM, mastersComm);
   }
 
-  bool bSimilar = true;
 	std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {
 		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count));
-    bSimilar&= (fabs(std[i]-oldStd[i])/max(fabs(std[i]),fabs(oldStd[i]))<.01);
+      std[i] = oldStd[i]*.99 + .01*std[i];
 		std::cout << std[i] << " ";
   }
 	std::cout << "]. States means: [";
 	for (int i=0; i<sI.dimUsed; i++) {
     mean[i] /= Real(count);
-    bSimilar&= (fabs(mean[i]-oldMean[i])/max(fabs(std[i]),fabs(oldStd[i]))<.01);
+    mean[i] = oldMean[i]*.99 + .01*mean[i];
     std::cout << mean[i] << " ";
   }
 	std::cout << "]" << std::endl;
-  if (!bSimilar)
-  warn("Means and/or std changed too much, try increasing the buffer size.\n");
 }
 
 vector<Real> Transitions::standardize(const vector<Real>&  state) const
@@ -303,14 +298,14 @@ void Transitions::synchronize()
 	assert(nSequences==Set.size() && NmaxDATA == nSequences);
 	#pragma omp parallel for schedule(dynamic)
 	for(int i=0; i<Set.size(); i++) {
-		int count = 0;
+		//int count = 0;
 		Set[i]->MSE = 0.;
 
 		for(const auto & t : Set[i]->tuples) {
-			Set[i]->MSE += t->SquaredError;
-			count++;
+			Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
+			//count++;
 		}
-		Set[i]->MSE /= (Real)(count-1);
+		//Set[i]->MSE /= (Real)(count-1);
 		/*
 		for(const auto & t : Set[i]->tuples)
 		for (int i=0; i<sI.dimUsed; i++)

@@ -147,13 +147,13 @@ void Master::hustle()
 
     while (true) {
         while (true) {
+            //if true: finish processing the dqn update and come right back to hustling
+            if (learner->checkBatch())  return;
             MPI_Test(&request, &completed, &status);
             if (completed == 1) {
                 cnt++;
                 break;
             }
-            //if true: finish processing the dqn update and come right back to hustling
-            if (learner->checkBatch())  return;
             knt++;
         }
 

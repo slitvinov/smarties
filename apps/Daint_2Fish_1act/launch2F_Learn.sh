@@ -2,9 +2,7 @@ SOCK=$1
 PROGNAME=hyperion
 SETTINGSNAME=settings2F_Learn.sh
 EXECNAME=LearningSim
-NTHREADS=8
-
-module load gcc/4.9.2
+NTHREADS=12
 
 MYNAME=`whoami`
 BASEPATH="./"
@@ -60,8 +58,8 @@ SETTINGS+=" -sock ${SOCK}"
 OPTIONS=${SETTINGS}${RESTART}
 
 cd ${BASEPATH}${EXECNAME}
-export LD_LIBRARY_PATH=${HOME}/2d-treecodes-ispc/:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/opt/intel/13.0.1.117/composer_xe_2013.1.117/tbb/lib/intel64/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${HOME}/2d-treecodes/lib64/daint/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/users/sverma/tbb2017/build/linux_intel64_gcc_cc5.3.0_libc2.19_kernel3.12.60_release:$LD_LIBRARY_PATH
 export OMP_NUM_THREADS=${NTHREADS}
 
 ./hyperion ${OPTIONS}

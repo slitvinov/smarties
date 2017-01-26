@@ -101,9 +101,7 @@ void Communicator::recvAction(std::vector<double>& actions)
         o << actions[j] << " ";
     }
     o << "\n";
-    if(!rank_MPI)
-    std::cout<<o.str()<<std::endl;
-  fflush(0);
+    //if(!rank_MPI) std::cout<<o.str()<<std::endl;   fflush(0);
     o.str( std::string() );
     o.clear();
 }
@@ -118,8 +116,7 @@ void Communicator::sendAction(std::vector<double>& actions)
         assert(not std::isnan(actions[i]) && not std::isinf(actions[i]));
     }
     o << "\n";
-    std::cout<<o.str()<<std::endl;
-  fflush(0);
+    //std::cout<<o.str()<<std::endl;  fflush(0);
     o.str( std::string() );
     o.clear();
     send_all(Socket, dataout, sizeout);
@@ -151,9 +148,10 @@ isServer(_sockID==0), msgID(0), comm_MPI(comm)
 
   MPI_Comm_rank(comm_MPI,&rank_MPI);
   MPI_Comm_size(comm_MPI,&size_MPI);
+  if(rank_MPI) return;
 
-  if(_sockID==0 && rank_MPI == 0) setupClient(0, std::string());
-  else if(_sim) setupServer();
+  if(_sockID==0) setupClient(0, std::string());
+  else           setupServer();
 }
 #endif
 

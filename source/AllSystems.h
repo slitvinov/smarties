@@ -12,12 +12,14 @@
 #include "Environments/Environment.h"
 
 class Environment;
+class AcrobotEnvironment;
 class CartEnvironment;
 class TwoFishEnvironment;
 class NewFishEnvironment;
 class TwoActFishEnvironment;
 class CMAEnvironment;
 
+#include "Environments/AcrobotEnvironment.h"
 #include "Environments/CMAEnvironment.h"
 #include "Environments/CartEnvironment.h"
 #include "Environments/TwoFishEnvironment.h"

@@ -686,7 +686,7 @@ struct Graph //misleading, this is just the graph for a single layer
 				for (const auto & l : *(links))
 				    if(l not_eq nullptr) l->initialize(gen, _weights);
 
-				//if (not output) //let's try not having bias on output layer
+				if (not output) //let's try not having bias on output layer
 				    for (int w=firstBias_ID; w<firstBias_ID+layerSize_simd; w++)
 				        *(_biases +w) = dis(*gen);
 
