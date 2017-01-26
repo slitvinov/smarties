@@ -229,7 +229,9 @@ int main (int argc, char** argv)
     const int slavesPerMaster = ceil(nranks/(double)settings.nMasters) - 1;
     const int isMaster = rank % (slavesPerMaster+1) == 0;
     const int whichMaster = rank / (slavesPerMaster+1);
-    printf("%d %d %d\n", slavesPerMaster, isMaster, whichMaster);
+    printf("Job size=%d, with %d masters, %d slaves per master. I'm %d: %s part of comm %d.\n",
+    nranks,settings.nMasters,slavesPerMaster,rank,isMaster?"master":"slave",whichMaster);
+
     MPI_Comm slavesComm; //this communicator allows slaves to talk to their master
     MPI_Comm mastersComm; //this communicator allows masters to talk among themselves
     MPI_Comm_split(MPI_COMM_WORLD, isMaster, rank, &mastersComm);
