@@ -1,0 +1,3 @@
+IF2D_DeadFish L=0.1 xpos=0.25 ypos=0.5 VelX=0.0 phase=0.0 angle=0 T=2 Ltow=1.5 Ttow=1 Atow=0.2 DID=0 CompPress=1 
+
+IF2D_DeadFish L=0.1 xpos=0.25 ypos=0.5 VelX=0.0 phase=0.0 angle=0 T=2 Ltow=1.5 Ttow=1 Atow=0.2 DID=1 CompPress=1 
