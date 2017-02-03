@@ -13,6 +13,9 @@ SETTINGS+=" -compute-efficiency 0"
 SETTINGS+=" -compute-pressure 1"
 SETTINGS+=" -restartpath restart"
 
+SETTINGS+=" -Tstartlearn 0.0"
+SETTINGS+=" -nActions 1"
+
 # grid settings
 SETTINGS+=" -bpd 16"
 SETTINGS+=" -uniform 0"

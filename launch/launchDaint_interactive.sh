@@ -6,7 +6,7 @@ APP=$3
 SETTINGSNAME=$4
 
 MYNAME=`whoami`
-BASEPATH="/scratch/daint/${MYNAME}/smarties/"
+BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
 

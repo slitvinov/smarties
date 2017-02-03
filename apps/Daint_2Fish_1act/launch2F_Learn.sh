@@ -58,7 +58,7 @@ SETTINGS+=" -sock ${SOCK}"
 OPTIONS=${SETTINGS}${RESTART}
 
 cd ${BASEPATH}${EXECNAME}
-export LD_LIBRARY_PATH=${HOME}/2d-treecodes/lib64/daint/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${HOME}/2d-treecodes/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/users/sverma/tbb2017/build/linux_intel64_gcc_cc5.3.0_libc2.19_kernel3.12.60_release:$LD_LIBRARY_PATH
 export OMP_NUM_THREADS=${NTHREADS}
 
