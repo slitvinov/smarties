@@ -74,6 +74,19 @@ void DeadFishEnvironment::setDims()
 
 void DeadFishEnvironment::setAction(const int & iAgent)
 {
+
+	const double maxAccel = 5*1.5; // 1.5 is the fixed accel amp for non-learner. Will allow at most 5 times that, to avoid hitting the boundaries
+
+	if(agents[iAgent]->a->vals[0] > maxAccel){
+		printf("Action 0 is too large (>0), reassigned at random to prevent sim from crashing\n");
+		std::uniform_real_distribution<Real> dist(0.0, maxAccel);
+		agents[iAgent]->a->vals[0]= dist(*g);
+	} else if (agents[iAgent]->a->vals[0] < -maxAccel){
+		printf("Action 0 is too large (<0), reassigned at random to prevent sim from crashing\n");
+		std::uniform_real_distribution<Real> dist(-maxAccel,0.0);
+		agents[iAgent]->a->vals[0]= dist(*g);
+	}
+
     /*if ( agents[iAgent]->a->vals[0] > .75 ) {
     	printf("Action 0 is too large (>0), reassigned at random to prevent sim from crashing\n");
         std::normal_distribution<Real> dist(0.5,0.25);
