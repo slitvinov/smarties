@@ -196,7 +196,6 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
 			_tOld->s[0], _tOld->s[1], _tOld->s[2], _tOld->s[3], _tOld->s[4], _tOld->s[5],
 			output[0],output[1],output[2],_t->a[0],_t->r,target[0], err,temp,gradient[0],gradient[1],gradient[2]);
 			}
-
 			if (output[0] > 1./(1.-gamma) && gradient[0]>0) gradient[0] = 0;
 	  */
     dumpStats(Vstats[thrID], Q[0], err, Q);

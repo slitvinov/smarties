@@ -14,9 +14,9 @@ using namespace std;
 NewFishEnvironment::NewFishEnvironment(const int _nAgents,
                 const string _execpath, const int _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings),
-sight(settings.senses==0 || settings.senses==4),
-POV(settings.senses==1 || settings.senses==4), l_line(settings.senses==2),
-p_sensors(settings.senses==3 || settings.senses==4), study(settings.rewardType),
+sight(settings.senses==0), POV(settings.senses==1),
+l_line(settings.senses==2), p_sensors(settings.senses==3),
+study(settings.rewardType),
 goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
 }
@@ -36,11 +36,11 @@ void NewFishEnvironment::setDims()
             sI.inUse.push_back(sight);
             // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
             // Will get ~ 0 or 0.5
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(sight);
             // ...last action (HAX!)
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(sight);
             // ...second last action (HAX!)
-            sI.inUse.push_back(true); //if l_line i have curvature info
+            sI.inUse.push_back(sight); //if l_line i have curvature info
         }
         {
             //Dist 6
@@ -90,39 +90,39 @@ void NewFishEnvironment::setDims()
         const int nSensors = 20;
         for (int i=0; i<nSensors; i++) {
             // (VelNAbove  ) x 5 [20]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(l_line || p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTAbove  ) x 5 [25]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(l_line || p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelNBelow  ) x 5 [30]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(l_line || p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTBelow  ) x 5 [35]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(l_line || p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPAbove  ) x 5 [40]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(l_line || p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVAbove  ) x 5 [45]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(l_line || p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPBelow  ) x 5 [50]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(l_line || p_sensors);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(l_line || p_sensors);
         }
         for (int i=0; i<2*nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(POV);
+            sI.inUse.push_back(l_line);
         }
         /*
         sI.values.push_back(-.50);
@@ -236,7 +236,13 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 5) {
-        reward = (t_sN.vals[16]-.3)/(.6-.3) - 2*t_sN.vals[1]*t_sN.vals[1];
+        //reward = (t_sN.vals[16]-.3)/(.6-.3) - 16*std::pow(t_sN.vals[1],4);
+        reward = (t_sN.vals[16]-.3)/(.6-.3);
+        if ( fabs(t_sN.vals[1]) > .5 ) reward += 1-2*fabs(t_sN.vals[1]);
+        if (new_sample) reward = -1./(1.-gamma);
+//         if (t_sN.vals[0] < -.65) reward += 6*(t_sN.vals[0]+.65);
+//         if (t_sN.vals[0] > 0.55) reward -= 6*(t_sN.vals[0]-.55);
+//         new_sample = true;
     }
     else {
         die("Wrong reward\n");
