@@ -20,6 +20,6 @@ SETTINGS+=" --nThreads ${NTHREADS}"
 echo $SETTINGS > settings.txt
 env > environment.log
 
-mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none ./exec ${SETTINGS} #--mca btl tcp,self 
-#mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none valgrind  --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes --show-reachable=yes ./exec ${SETTINGS} #--mca btl tcp,self 
+mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none ./exec ${SETTINGS} #--mca btl tcp,self
+#mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none valgrind  --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes --show-reachable=yes ./exec ${SETTINGS} #--mca btl tcp,self
 #./exec ${SETTINGS}
