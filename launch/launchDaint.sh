@@ -54,8 +54,8 @@ cat <<EOF >daint_sbatch
 
 #SBATCH --account=s658
 #SBATCH --job-name="${RUNFOLDER}"
-#SBATCH --output=${RUNFOLDER}_%j.txt
-#SBATCH --error=${RUNFOLDER}_%j.txt
+#SBATCH --output=${RUNFOLDER}_out_%j.txt
+#SBATCH --error=${RUNFOLDER}_err_%j.txt
 #SBATCH --time=${WCLOCK}
 #SBATCH --nodes=${NNODES}
 #SBATCH --ntasks-per-node=${NTASK}
@@ -64,11 +64,11 @@ cat <<EOF >daint_sbatch
 #SBATCH --mail-user="${MYNAME}@ethz.ch"
 #SBATCH --mail-type=ALL
 
-module load daint-gpu 
+module load daint-gpu
 export OMP_NUM_THREADS=${NTHREADS}
 export CRAY_CUDA_MPS=1
 
-srun -n ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --cpus-per-task=${NTHREADS} ./exec ${SETTINGS}
+srun --ntasks ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --cpus-per-task=$((${NTHREADS}/2)) --threads-per-core=2 ./exec ${SETTINGS}
 EOF
 
 chmod 755 daint_sbatch

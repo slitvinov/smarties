@@ -266,12 +266,14 @@ void Transitions::update_samples_mean()
 	std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {
 		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count));
+    //Networks seem not to like abrupt change in scaling...
       std[i] = oldStd[i]*.99 + .01*std[i];
 		std::cout << std[i] << " ";
   }
 	std::cout << "]. States means: [";
 	for (int i=0; i<sI.dimUsed; i++) {
     mean[i] /= Real(count);
+    //Networks seem not to like abrupt change in scaling...
     mean[i] = oldMean[i]*.99 + .01*mean[i];
     std::cout << mean[i] << " ";
   }
@@ -285,7 +287,7 @@ vector<Real> Transitions::standardize(const vector<Real>&  state) const
     assert(state.size() == sI.dimUsed);
     std::normal_distribution<Real> noise(0.,0.001);
     for (int i=0; i<sI.dimUsed; i++) {
-      tmp[i] = (state[i] - mean[i])/std[i];
+      tmp[i] = (state[i] - mean[i])/(std[i]+1e-9);
       //printf("Scale: %9.9e %9.9e %9.9e\n", tmp[i], mean[i], std[i]);
       //tmp[i] += noise(*(gen->g));
     }

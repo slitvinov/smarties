@@ -16,6 +16,7 @@ class AcrobotEnvironment;
 class CartEnvironment;
 class TwoFishEnvironment;
 class NewFishEnvironment;
+class DeadFishEnvironment;
 class TwoActFishEnvironment;
 class CMAEnvironment;
 
@@ -25,3 +26,4 @@ class CMAEnvironment;
 #include "Environments/TwoFishEnvironment.h"
 #include "Environments/NewFishEnvironment.h"
 #include "Environments/TwoActFishEnvironment.h"
+#include "Environments/DeadFishEnvironment.h"

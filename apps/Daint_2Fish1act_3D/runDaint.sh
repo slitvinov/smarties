@@ -1,5 +1,7 @@
 #!/bin/bash
-NNODES=$1
+NNODESX=$1
+NNODESY=$2
+NNODES=$((${1}*${2}))
 cp ../factory2Stefans ./factory
 echo "starting job "${RUNFOLDER}" with "${NNODES}" processors"
 if [ ! -f ../settings2Stefans.sh ];then
@@ -8,7 +10,8 @@ if [ ! -f ../settings2Stefans.sh ];then
 fi
 source ../settings2Stefans.sh
 OPTIONS+=" -sock 0"
-OPTIONS+=" -nprocsx ${NNODES}"
+OPTIONS+=" -nprocsx ${NNODESX}"
+OPTIONS+=" -nprocsy ${NNODESY}"
 
 echo $OPTIONS > settings.txt
 
@@ -27,7 +30,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --constraint=gpu
 
 #module swap PrgEnv-cray PrgEnv-gnu
-export LD_LIBRARY_PATH=/users/novatig/accfft/build_cuda/:$LD_LIBRARY_PATH
+#export LD_LIBRARY_PATH=/users/novatig/accfft/build_dbg/:$LD_LIBRARY_PATH
 module load daint-gpu GSL/2.1-CrayGNU-2016.11 cray-hdf5-parallel/1.10.0
 module load cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1 fftw/3.3.4.10
 export OMP_NUM_THREADS=24

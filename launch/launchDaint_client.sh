@@ -2,7 +2,8 @@
 RUNFOLDER=$1
 APP=$2
 POLICY=$3
-NNODES=$4
+NNODESX=$4
+NNODESY=$5
 
 MYNAME=`whoami`
 BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
@@ -25,4 +26,4 @@ cp runDaint_client.sh ${BASEPATH}${RUNFOLDER}/runClient.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}"/simulation"
-source ../launchSim.sh ${NNODES}
+source ../launchSim.sh ${NNODESX} ${NNODESY}

@@ -82,6 +82,12 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
             int n = _parseInt(envStr, "n", true);
             env = new NewFishEnvironment(n, execpath, rank, settings);
         }
+        else if (envStr.find("DeadFishEnvironment ") != envStr.npos)
+		{
+            string execpath = _parse(envStr, "exec", true);
+            int n = _parseInt(envStr, "n", true);
+            env = new DeadFishEnvironment(n, execpath, rank, settings);
+        }
         else if (envStr.find("CartEnvironment ") != envStr.npos)
         {
             string execpath = _parse(envStr, "exec", true);

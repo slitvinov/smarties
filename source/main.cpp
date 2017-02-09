@@ -6,22 +6,7 @@
  *  Copyright 2013 ETH Zurich. All rights reserved.
  *
  */
-/*
-  TODO:
-    - still need atari environment, could do it over xmas
-    - due to size of weight verctor:
-      - allreduce grads
-      - each rank updates a portion
-      - MPI_Allgather!
-      - speedup probably meaningless
-    -test compile multiple masters
-    -polish savers and restart
-      - mean std data
-      - momenta Optimizer
-      - save weights layer wise to ease conversion from legacy policies
-    -retrain policy for 3d case
 
-*/
 #include "ArgumentParser.h"
 #include "Learners/Learner.h"
 #include "Learners/NFQ.h"
@@ -229,7 +214,9 @@ int main (int argc, char** argv)
     const int slavesPerMaster = ceil(nranks/(double)settings.nMasters) - 1;
     const int isMaster = rank % (slavesPerMaster+1) == 0;
     const int whichMaster = rank / (slavesPerMaster+1);
-    printf("%d %d %d\n", slavesPerMaster, isMaster, whichMaster);
+    printf("Job size=%d, with %d masters, %d slaves per master. I'm %d: %s part of comm %d.\n",
+    nranks,settings.nMasters,slavesPerMaster,rank,isMaster?"master":"slave",whichMaster);
+
     MPI_Comm slavesComm; //this communicator allows slaves to talk to their master
     MPI_Comm mastersComm; //this communicator allows masters to talk among themselves
     MPI_Comm_split(MPI_COMM_WORLD, isMaster, rank, &mastersComm);
