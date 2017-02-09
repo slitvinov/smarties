@@ -337,8 +337,8 @@ void Communicator::setupClient(const int iter, std::string execpath)
 void Communicator::closeSocket()
 {
     close(ListenerSocket);
-    free(datain);
-    free(dataout);
+    //free(datain);
+    //free(dataout);
 }
 
 void Communicator::dbg(double *x, int *pn)

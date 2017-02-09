@@ -5,7 +5,7 @@ hn ?= $(shell hostname)
 username ?= $(shell whoami)
 UNAME_S := $(shell uname -s)
 viz ?= 0
-config ?= “prod”
+config ?= "prod"
 extra ?=
 
 ifeq "$(viz)" "1"
@@ -41,11 +41,12 @@ CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wno-reorder -Wno-deprecated
 CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter
+CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
 
 
 ifeq "$(config)" "debug"
-CPPFLAGS+= -O0 -g
+CPPFLAGS+= -g
 #else
 endif
 ifeq "$(config)" "prod"
@@ -66,7 +67,7 @@ LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = Communicator.o	ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
-		Environment.o CMAEnvironment.o CartEnvironment.o TwoActFishEnvironment.o TwoFishEnvironment.o NewFishEnvironment.o \
+		Environment.o CMAEnvironment.o CartEnvironment.o TwoActFishEnvironment.o TwoFishEnvironment.o NewFishEnvironment.o DeadFishEnvironment.o \
 		Learner.o NAF.o NFQ.o DPG.o Transitions.o\
 		Scheduler.o LSTMNet.o Network.o Optimizer.o #Links.o Layers.o
 #ExternalAgent.o

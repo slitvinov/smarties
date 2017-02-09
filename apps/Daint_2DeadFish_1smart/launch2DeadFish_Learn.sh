@@ -1,6 +1,6 @@
 SOCK=$1
 PROGNAME=hyperion
-SETTINGSNAME=settings2F_Learn.sh
+SETTINGSNAME=deadSettings.sh
 EXECNAME=LearningSim
 NTHREADS=12
 
