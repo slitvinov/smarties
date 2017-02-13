@@ -102,10 +102,10 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
                            Real* const _1stMom, Real* const _2ndMom,
                            const int N, const int batchsize, const Real _lambda)
 {
-    const Real lambda_ = _lambda*eta;
+    const Real _eta = eta/(1.+std::log(1. + (double)nepoch/1e3));
+    const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
     const Real norm = 1./(Real)max(batchsize,1);
-    const Real eta_ = eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1)
-                         /(1.+std::log(1. + (double)nepoch/1e3));
+    const Real lambda_ = _lambda*_eta;
 
 	#pragma omp parallel for
     for (int i=0; i<N; i++) {

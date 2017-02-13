@@ -28,7 +28,7 @@ using namespace std;
 #define __vec_width__ 8
 //#define _scaleR_
 #define _BPTT_
-//#define _dumpNet_
+#define _dumpNet_
 
 typedef double Real;
 #define MPI_VALUE_TYPE MPI_DOUBLE
