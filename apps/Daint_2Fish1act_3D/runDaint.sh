@@ -26,7 +26,8 @@ cat <<EOF >daint_sbatch
 #SBATCH --nodes=${NNODES}
 # #SBATCH --partition=viz
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=24
+#SBATCH --cpus-per-task=12
+#SBATCH --threads-per-core=2
 #SBATCH --constraint=gpu
 
 #module swap PrgEnv-cray PrgEnv-gnu
@@ -38,7 +39,7 @@ export MYROUNDS=10000
 export USEMAXTHREADS=1
 export CRAY_CUDA_MPS=1
 
-srun -n ${NNODES} --ntasks-per-node=1 --cpus-per-task=24 ../execSim ${OPTIONS}
+srun --ntasks ${NNODES} --threads-per-core=2 --ntasks-per-node=1 --cpus-per-task=12 ../execSim ${OPTIONS}
 EOF
 
 chmod 755 daint_sbatch

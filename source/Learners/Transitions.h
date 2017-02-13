@@ -63,7 +63,7 @@ protected:
     const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize;
     const string path;
     vector<Real> Inp, std, mean;
-    vector<Sequence*> Tmp, Buffered;
+    vector<Sequence*> Buffered;
     discrete_distribution<int> * dist;
 
     void add(const int agentId, const int info, const State& sOld,
@@ -78,7 +78,7 @@ public:
     const StateInfo sI;
     const ActionInfo aI;
     Gen * gen;
-    vector<Sequence*> Set;
+    vector<Sequence*> Set, Tmp;
     vector<int> inds;
 
     Transitions(MPI_Comm comm, Environment*const env, Settings & settings);

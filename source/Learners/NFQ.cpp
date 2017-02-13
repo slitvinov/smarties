@@ -74,7 +74,29 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
     _dispose_object(currActivation);
 
     #ifdef _dumpNet_
-    net->dump(agentId);
+    	net->dump(agentId);
+			vector<Real> Qs(nOutputs);
+	    const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
+	    vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata);
+	    net->clearErrors(timeSeries);
+
+	    for (int k=0; k<ndata; k++) {
+	        const Tuple * const _t = data->Tmp[agentId]->tuples[k];
+					vector<Real> scaledSnew = data->standardize(_t->s);
+					net->predict(scaledSnew, Qhats, timeSeries, k);
+	    }
+			net->backProp(timeSeries, net->grad);
+			string fname="gradInputs_"+to_string(agentID)+"_"+to_string(ndata)+".dat";
+			ofstream out(fname.c_str());
+			if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+			for (int k=0; k<ndata; k++) {
+				for (int j=0; j<nInputs; j++)
+					out << timeSeries[k]->errvals[j] << " ";
+				out << "\n";
+			}
+			out.close();
+	    net->deallocateUnrolledActivations(&timeSeries);
+	    net->grad->clear();
     #endif
 
     //load computed policy into a

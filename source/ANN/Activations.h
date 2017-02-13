@@ -112,7 +112,11 @@ struct Grads
         _myfree(_W)
         _myfree(_B)
     }
-
+    void clear()
+    {
+      std::memset(_W,0.,nWeights);
+      std::memset(_B,0.,nBiases);
+    }
     const int nWeights, nBiases;
     Real *_W, *_B;
 };
@@ -412,7 +416,7 @@ struct TwoSoftSign
     }
 };
 struct SoftSigm
-{    
+{
 	inline static void eval(const Real* __restrict__ const in,
                           Real* __restrict__ const out, const int& N)
   {

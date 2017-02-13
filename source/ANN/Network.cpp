@@ -679,7 +679,8 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
                      <<" finite:"    <<testg->_B[w]
                      <<" error:"     <<err<<endl;
     }
-
+    _dispose_object(testg);
+    _dispose_object(testG);
     deallocateUnrolledActivations(&timeSeries);
     printf("\n"); fflush(0);
 }
