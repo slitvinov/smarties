@@ -329,9 +329,11 @@ void Learner::stackAndUpdateNNWeights(const int nAddedGradients)
                     MPI_VALUE_TYPE, MPI_SUM, mastersComm);
     }
 
+    net->updateWhiten(nAddedGradients*nMasters);
     //update is deterministic: can be handled independently by each node
     //communication overhead is probably greater than a parallelised sum
-    opt->update(net->grad,nAddedGradients);
+    assert(nMasters>0);
+    opt->update(net->grad, nAddedGradients*nMasters);
 }
 
 void Learner::updateNNWeights(const int nAddedGradients)
@@ -459,9 +461,9 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
            "min_Q %f, max_Q %f, errWeights %f, N %d, dT %f\n",
       	   stats.epochCount, stats.MSE, stats.relE, stats.avgQ,
            stats.minQ, stats.maxQ, sumWeights, stats.dumpCount, avgTime);
-    filestats<<stats.epochCount<<" "<<stats.MSE<<" "
-             <<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "
-             <<sumWeights<<" "<<stats.minQ<<endl;
+    filestats<<stats.epochCount<<"\t"<<stats.MSE<<"\t" <<stats.relE<<"\t"
+             <<stats.avgQ<<"\t"<<stats.maxQ<<"\t"<<stats.minQ<<"\t"
+             <<sumWeights<<"\t"<<stats.dumpCount<<"\t"<<avgTime<<endl;
     filestats.close();
 
     fflush(0);

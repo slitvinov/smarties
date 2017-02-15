@@ -69,7 +69,7 @@ public:
 
 class NormalLink: public Link
 {
-public:
+ public:
 	const int iW, nI, iI, nO, iO, nO_simd, nW;
     /*
      a link here is defined as link layer to layer:
@@ -80,15 +80,15 @@ public:
      the index of the first weight iW along the weight vector
      the weights are all to all: so this link occupies space iW to (iW + nI*nO) along weight vector
      */
-	NormalLink(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd) :
+	 	NormalLink(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd) :
 		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nO_simd(_nO_simd), nW(_nI*_nO_simd)
     {
-		assert(iW % (__vec_width__/sizeof(Real)) == 0);
-		assert(iI % (__vec_width__/sizeof(Real)) == 0);
-		assert(iO % (__vec_width__/sizeof(Real)) == 0);
-		assert(nO_simd % (__vec_width__/sizeof(Real)) == 0);
-		print();
-		assert(nI>0 && nO>0 && iI>=0 && iO>=0 && iW>=0);
+			assert(iW % (__vec_width__/sizeof(Real)) == 0);
+			assert(iI % (__vec_width__/sizeof(Real)) == 0);
+			assert(iO % (__vec_width__/sizeof(Real)) == 0);
+			assert(nO_simd % (__vec_width__/sizeof(Real)) == 0);
+			print();
+			assert(nI>0 && nO>0 && iI>=0 && iO>=0 && iW>=0);
     }
 
     void print() const
@@ -105,8 +105,8 @@ public:
         //normal_distribution<Real> dis(0.,range);
 
         for (int i = 0; i < nI; i++)
-		for (int o = 0; o < nO; o++)
-			_weights[iW + nO_simd*i + o] = dis(*gen);
+				for (int o = 0; o < nO; o++)
+					_weights[iW + nO_simd*i + o] = dis(*gen);
 
         orthogonalize(iW, _weights, nO, nI, nO_simd);
     }
@@ -136,7 +136,7 @@ public:
         Real* __restrict__ const link_outputs = netTo->in_vals +iO;
         __builtin_assume_aligned(link_outputs, __vec_width__);
         __builtin_assume_aligned(link_input, __vec_width__);
-#if 1
+				#if 1
         for (int i = 0; i < nI; i++) {
             const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
             __builtin_assume_aligned(link_weights, __vec_width__);
@@ -144,14 +144,14 @@ public:
             link_outputs[o] += link_input[i] * link_weights[o];
         }
         }
-#else
+				#else
         for (int o = 0; o < nO; o++) {
             const Real* __restrict__ const link_weights = weights +iW +nI*o;
         for (int i = 0; i < nI; i++) {
             link_outputs[o] += link_input[i] * link_weights[i];
         }
         }
-#endif
+				#endif
     }
 
     inline void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
@@ -178,7 +178,7 @@ public:
 
 class LinkToLSTM : public Link
 {
-public:
+ public:
     /*
      if link is TO lstm, then the rules change a bit
      each LSTM block contains 4 neurons, one is the proper cell and then there are the 3 gates
@@ -215,18 +215,22 @@ public:
 
     void initialize(mt19937* const gen, Real* const _weights) const override
     {
-      printf("Initializing LSTM\n");
+      	printf("Initializing LSTM\n");
+				#ifndef __posDef_layers_
         const Real range = std::sqrt(6./(nO + nI));
+        #else
+				const Real range = 2./nI;
+        #endif
         uniform_real_distribution<Real> dis(-range,range);
         //normal_distribution<Real> dis(0.,range);
 
-        for (int i = 0; i < nI; i++)
-		for (int o = 0; o < nO; o++) {
-			_weights[iW  + nO_simd*i + o] = dis(*gen);
-			_weights[iWI + nO_simd*i + o] = dis(*gen);
-			_weights[iWF + nO_simd*i + o] = dis(*gen);
-			_weights[iWO + nO_simd*i + o] = dis(*gen);
-		}
+	      for (int i = 0; i < nI; i++)
+				for (int o = 0; o < nO; o++) {
+					_weights[iW  + nO_simd*i + o] = dis(*gen);
+					_weights[iWI + nO_simd*i + o] = dis(*gen);
+					_weights[iWF + nO_simd*i + o] = dis(*gen);
+					_weights[iWO + nO_simd*i + o] = dis(*gen);
+				}
         orthogonalize(iW,  _weights, nO, nI, nO_simd);
         orthogonalize(iWI, _weights, nO, nI, nO_simd);
         orthogonalize(iWF, _weights, nO, nI, nO_simd);
@@ -354,7 +358,7 @@ public:
 
 class LinkToConv2D : public Link
 {
-public:
+ public:
 	const int iW, nI, iI, nO, iO, outputDepth_simd;
     const int inputWidth, inputHeight, inputDepth;
     const int filterWidth, filterHeight;
@@ -426,8 +430,8 @@ public:
         out << std::setprecision(10);
         const int nAdded = filterWidth*filterHeight*inputDepth;
         for (int i = 0; i < nAdded; i++)
-		for (int o = 0; o < nO; o++)
-			out << _weights[iW + outputDepth_simd*i + o] << "\n";
+				for (int o = 0; o < nO; o++)
+					out << _weights[iW + outputDepth_simd*i + o] << "\n";
     }
 
     void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
@@ -496,7 +500,7 @@ public:
 class WhiteningLink : public Link
 {
     vector<Real> runningAvg, runningStd;
-public:
+ public:
 	const int iW, nI, iI, nO, iO, nW, nO_simd;
 	WhiteningLink(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd) :
 		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nW(2*_nI), nO_simd(_nO_simd)
@@ -694,13 +698,13 @@ struct Graph //misleading, this is just the graph for a single layer
 				    assert(firstState_ID>=0 && firstBiasIG_ID>0 && firstBiasFG_ID>0 && firstBiasOG_ID>0);
 
 				    for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize_simd; w++)
-				        *(_biases +w) = dis(*gen) + 0.0;
+				        *(_biases +w) = dis(*gen) - 0.0;
 
 				    for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize_simd; w++)
-				        *(_biases +w) = dis(*gen) + 0.0;
+				        *(_biases +w) = dis(*gen) + 0.5;
 
 				    for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize_simd; w++)
-				        *(_biases +w) = dis(*gen) + 0.0;
+				        *(_biases +w) = dis(*gen) - 0.0;
 				}
     }
 };

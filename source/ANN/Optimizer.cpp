@@ -66,11 +66,11 @@ void Optimizer::update(Grads* const G, const int batchsize)
 
 void AdamOptimizer::update(Grads* const G, const int batchsize)
 {
-    update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, batchsize,lambda);
-    //Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
-    //Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
-    update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, batchsize);
-
+  const Real _eta = eta/(1.+std::log(1. + (double)nepoch/1e3));
+  update(net->weights,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,lambda,_eta);
+  update(net->biases, G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,     0,_eta);
+  //Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
+  //Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
 	beta_t_1 *= beta_1;
 	beta_t_2 *= beta_2;
 	//printf("%d %f %f\n",nepoch, beta_t_1,beta_t_2);
@@ -100,9 +100,8 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
 
 void AdamOptimizer::update(Real* const dest, Real* const grad,
                            Real* const _1stMom, Real* const _2ndMom,
-                           const int N, const int batchsize, const Real _lambda)
+                           const int N, const int batchsize, const Real _lambda, const Real _eta)
 {
-    const Real _eta = eta/(1.+std::log(1. + (double)nepoch/1e3));
     const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
     const Real norm = 1./(Real)max(batchsize,1);
     const Real lambda_ = _lambda*_eta;

@@ -85,10 +85,6 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
     net->loadMemory(net->mem[agentId], currActivation);
     _dispose_object(currActivation);
 
-    #ifdef _dumpNet_
-    net->dump(agentId);
-    #endif
-
     //load computed policy into a
     vector<Real> act(nA);
     for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
@@ -104,14 +100,56 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 
     uniform_real_distribution<Real> dis(0.,1.);
     if(dis(*gen) < newEps) a.getRandom();
-      /*
-    if(dis(*gen) < newEps) {
-        a.getRandom();
-        printf("Random action %f  for state %s\n",a.vals[0], s.print().c_str());fflush(0);
-    } else {
-        printf("Net selected %f for state %s\n", a.vals[0], s.print().c_str()); fflush(0);
-    }
-      */
+
+		#ifdef _dumpNet_
+    	net->dump(agentId);
+
+	    const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
+			if (ndata == 0) return;
+
+			vector<Activation*> timeSeries_base = net->allocateUnrolledActivations(ndata);
+			net->clearErrors(timeSeries_base);
+
+			for (int k=0; k<ndata; k++) {
+					const Tuple * const _t = data->Tmp[agentId]->tuples[k];
+					vector<Real> scaledSnew = data->standardize(_t->s);
+					net->predict(scaledSnew, output, timeSeries_base, k);
+			}
+
+			//sensitivity of value for this action in this state wrt all previous inputs
+			for (int ii=0; ii<ndata; ii++)
+			for (int i=0; i<nInputs; i++) {
+			   vector<Activation*> timeSeries_diff = net->allocateUnrolledActivations(ndata);
+
+		      for (int k=0; k<ndata; k++) {
+		         const Tuple * const _t = data->Tmp[agentId]->tuples[k];
+					vector<Real> scaledSnew = data->standardize(_t->s);
+					if (k==ii) scaledSnew[i] = 0;
+					net->predict(scaledSnew, output, timeSeries_diff, k);
+		      }
+				vector<Real> out_diff = net->getOutputs(timeSeries_diff.back());
+				vector<Real> out_base = net->getOutputs(timeSeries_base.back());
+            const Tuple * const _t = data->Tmp[agentId]->tuples[ii];
+				vector<Real> scaledSnew = data->standardize(_t->s);
+
+		      assert(nA==1); //TODO ask Sid for muldi-dim actions?
+				timeSeries_base[ii]->errvals[i] = (out_diff[1+nL]-out_base[1+nL])/scaledSnew[i];
+
+	         net->deallocateUnrolledActivations(&timeSeries_diff);
+			}
+
+			string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
+			ofstream out(fname.c_str());
+			if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+			for (int k=0; k<ndata; k++) {
+				for (int j=0; j<nInputs; j++)
+					out << timeSeries_base[k]->errvals[j] << " ";
+				out << "\n";
+			}
+			out.close();
+
+	    net->deallocateUnrolledActivations(&timeSeries_base);
+		#endif
 }
 
 void NAF::Train_BPTT(const int seq, const int thrID) const
@@ -137,7 +175,7 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
         }
 
         Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
-				Real temp = err;
+				//Real temp = err;
         const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
 				/* // to ignore
 					if (std::fabs(output[1+nL])>0.7) {
@@ -188,7 +226,7 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     }
 
     Real err = (terminal) ? _t->r : _t->r + gamma*target[0];
-	 	Real temp = err;
+	 	//Real temp = err;
     const vector<Real> Q(computeQandGrad(gradient, _t->a, output, err));
 		/* // to ignore
 			if (std::fabs(output[1+nL])>0.7) {
