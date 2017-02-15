@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdio.h>      /* printf, fgets */
 #include <stdlib.h>     /* atol */
+/*
  static void print_memory_usage()
  {
      char pidstatus[256];
@@ -46,35 +47,35 @@
      f = fopen(pidstatus, "r");
      if (!f) return;
 
-     /* Read memory size data from /proc/pid/status */
+     // Read memory size data from /proc/pid/status 
      while (!vmsize || !vmpeak || !vmrss || !vmhwm)
      {
          if (getline(&line, &len, f) == -1)
          {
-             /* Some of the information isn't there, die */
+             // Some of the information isn't there, die 
              return;
          }
 
-         /* Find VmPeak */
+         // Find VmPeak 
          if (!strncmp(line, "VmPeak:", 7))
          {
              vmpeak = strdup(&line[7]);
          }
 
-         /* Find VmSize */
+         // Find VmSize
          else if (!strncmp(line, "VmSize:", 7))
          {
              vmsize = strdup(&line[7]);
          }
 
 
-         /* Find VmRSS */
+         // Find VmRSS 
          else if (!strncmp(line, "VmRSS:", 6))
          {
              vmrss = strdup(&line[7]);
          }
 
-         /* Find VmHWM */
+         // Find VmHWM
          else if (!strncmp(line, "VmHWM:", 6))
          {
              vmhwm = strdup(&line[7]);
@@ -85,7 +86,7 @@
      fclose(f);
 
 
-     /* Get rid of " kB\n"*/
+     // Get rid of " kB\n"
      len = strlen(vmsize);
      vmsize[len - 4] = 0;
      len = strlen(vmpeak);
@@ -95,9 +96,9 @@
      len = strlen(vmhwm);
      vmhwm[len - 4] = 0;
 
-     /* Output results to stderr */
+     // Output results to stderr 
 
-     /*
+     #if 0
       VmPeak: Peak virtual memory usage
       VmSize: Current virtual memory usage
       VmLck:  Current mlocked memory
@@ -109,7 +110,7 @@
       VmLib:  Shared library usage
       VmPTE:  Pagetable entries size
       VmSwap: Swap space used
-      */
+      #endif
 
      long _vmsize, _vmpeak, _vmrss, _vmhwm;
 
@@ -127,9 +128,10 @@
      free(vmrss);
      free(vmhwm);
 
-     /* Success */
+     // Success
      return;
  }
+*/
 
 #include "Learner.h"
 #include <chrono>
