@@ -33,29 +33,29 @@ void TwoActFishEnvironment::setDims()
             // ...inclination of1the fish...
             sI.inUse.push_back(sight);
             // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
             // ...last action (HAX!)
             sI.inUse.push_back(true);
             // ...second last action (HAX!)
-            sI.inUse.push_back(true); //if l_line i have curvature info
+            sI.inUse.push_back(false); //if l_line i have curvature info
         }
         {
-            //Dist 6
+            //New T period
             sI.inUse.push_back(true);
 
-            //Quad 7
+            //Phase Shift
             sI.inUse.push_back(true);
 
-            // VxAvg 8
+            // VxInst
             sI.inUse.push_back(true);
 
-            // VyAvg 9
+            // VyInst
             sI.inUse.push_back(true);
 
-            // AvAvg 10
-            sI.inUse.push_back(true);
+            // AvInst
+            sI.inUse.push_back(false);
         }
-#if 1
+#if 0
             //Xabs 6
             sI.inUse.push_back(false);
 
@@ -64,10 +64,10 @@ void TwoActFishEnvironment::setDims()
 #endif
         {
             //Dist 6
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
 
             //Quad 7
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
 
             // VxAvg 8
             sI.inUse.push_back(true);
@@ -125,23 +125,23 @@ void TwoActFishEnvironment::setDims()
         }
         for (int i=0; i<nSensors; i++) {
             // (FPAbove  ) x 5 [40]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(p_sensors || l_line);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVAbove  ) x 5 [45]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(p_sensors || l_line);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPBelow  ) x 5 [50]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(p_sensors || l_line);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(p_sensors || l_line);
         }
         for (int i=0; i<2*nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(p_sensors || l_line);
         }
         /*
         sI.values.push_back(-.50);
@@ -175,29 +175,37 @@ void TwoActFishEnvironment::setDims()
 
 void TwoActFishEnvironment::setAction(const int & iAgent)
 {
-    if ( agents[iAgent]->a->vals[0] >0.75 ) {
+    if (agents[iAgent]->a->vals[0] >0.75 ) {
     	printf("Act0 is too large (>0), reassigned at random to prevent crash\n");
-        std::normal_distribution<Real> dist(0.5,0.25);
-        const Real uB = 0.75; const Real lB = -.75;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+	uniform_real_distribution<Real> dist( 0., .75);
+        agents[iAgent]->a->vals[0] = dist(*g);
+        //std::normal_distribution<Real> dist(0.5,0.25);
+        //const Real uB = 0.75; const Real lB = -.75;
+        //agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
     }
-    if ( agents[iAgent]->a->vals[0] <-.75 ) {
+    if (agents[iAgent]->a->vals[0] <-.75 ) {
     	printf("Act0 is too large (<0), reassigned at random to prevent crash\n");
-        std::normal_distribution<Real> dist(-.5,0.25);
-        const Real uB = 0.75; const Real lB = -.75;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+	uniform_real_distribution<Real> dist(-.75, 0.);
+        agents[iAgent]->a->vals[0] = dist(*g);
+        //std::normal_distribution<Real> dist(-.5,0.25);
+        //const Real uB = 0.75; const Real lB = -.75;
+        //agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
     }
-    if ( agents[iAgent]->a->vals[1] >0.25 ) {
+    if (agents[iAgent]->a->vals[1] >0.5 ) {
     	printf("Act1 is too large (>0), reassigned at random to prevent crash\n");
-        std::normal_distribution<Real> dist(0.5,0.25);
-        const Real uB = 0.25; const Real lB = -.25;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+	uniform_real_distribution<Real> dist(0.,.5);
+        agents[iAgent]->a->vals[1] = dist(*g);
+        //std::normal_distribution<Real> dist(0.5,0.25);
+        //const Real uB = 0.5; const Real lB = -.5;
+        //agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
     }
-    if ( agents[iAgent]->a->vals[1] <-.25 ) {
+    if (agents[iAgent]->a->vals[1] <-.5 ) {
     	printf("Act1 is too large (<0), reassigned at random to prevent crash\n");
-        std::normal_distribution<Real> dist(-.5,0.25);
-        const Real uB = 0.25; const Real lB = -.25;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+	uniform_real_distribution<Real> dist(-.5, 0.);
+        agents[iAgent]->a->vals[1] = dist(*g);
+        //std::normal_distribution<Real> dist(-.5,0.25);
+        ///const Real uB = 0.5; const Real lB = -.5;
+        //agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
     }
 
     Environment::setAction(iAgent);

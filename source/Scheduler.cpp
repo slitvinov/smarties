@@ -92,17 +92,13 @@ void Master::run()
     MPI_Status  status;
 
     while (true) {
-        #ifndef MEGADEBUG
         MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
-        #endif
+
         while (true) {
-            #ifndef MEGADEBUG
             MPI_Test(&request, &completed, &status);
             if (completed == 1) break;
-            #endif
             learner->TrainBatch();
         }
-        #ifndef MEGADEBUG
 
         const int slave = status.MPI_SOURCE - 1, srcID = status.MPI_SOURCE;
         //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
@@ -128,13 +124,11 @@ void Master::run()
         }
 
         if (++iter % saveFreq == 0) save();
-        #endif
     }
 }
 
 void Master::hustle()
 {
-#ifndef MEGADEBUG
     MPI_Status  status;
     int completed(0), info(0), cnt(0), knt(0), agentId(0);
 
@@ -187,7 +181,6 @@ void Master::hustle()
         //prepare Recv for next round
         MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
     }
-#endif
     die("How on earth could you possibly get here? \n");
 }
 
@@ -195,9 +188,6 @@ Slave::Slave(MPI_Comm comm, Environment*const _env,int _me, Settings& settings):
 slavesComm(comm), env(_env), agents(env->agents), me(_me),
 bTrain(settings.bTrain), bWriteToFile(!(settings.samplesFile=="none"))
 {
-    #ifndef MEGADEBUG
-    //MPI_Request req;
-    #endif
     info.resize(agents.size());
     for (int i=0; i<agents.size(); i++) {
         actions.push_back(Action(env->aI, settings.gen));
@@ -214,7 +204,6 @@ bTrain(settings.bTrain), bWriteToFile(!(settings.samplesFile=="none"))
 
 void Slave::run()
 {
-    #ifndef MEGADEBUG
     for (int i=0; i<info.size(); i++) info[i] = 1;
     int iAgent, rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -282,7 +271,7 @@ void Slave::run()
             info[iAgent] = 0;
         }
     }
-    #endif
+
     die("How on earth could you possibly get here? \n");
 }
 

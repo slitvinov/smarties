@@ -151,42 +151,41 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 
 int main (int argc, char** argv)
 {
-    int rank(0), nranks(2);
+    int rank, nranks;
 
     struct timeval clock;
     gettimeofday(&clock, NULL);
     debugLvl=10;
 
     vector<OptionStruct> opts ({
-    {'N', "nMasters", INT,   "N policy ranks", &settings.nMasters,  (int)1},
-    {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.9},
-    {'e', "greedyeps",REAL,  "Greedy epsilon", &settings.greedyEps, (Real)0.1},
-    {'l', "learnrate",REAL,  "Learning rate",  &settings.lRate,     (Real)0.001},
-    {'b', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)debugLvl},
-    {'a', "learn",    STRING,"Learner Type",   &settings.learner,   (string)"DQ"},
-    {'r', "rType",    INT,   "Reward: ef,ef,y",&settings.rewardType,(int)-1},
-    {'y', "goalDY",   REAL,  "If r==2  goalDY",&settings.goalDY,    (Real)0.},
-    {'t', "bTrain",   INT,   "am I training?", &settings.bTrain,    (int)1},
-    {'i', "senses",   INT,   "top,pov,vel,pres",&settings.senses,   (int)0},
-    {'K', "nnL",      REAL,  "Weight decay",   &settings.nnLambda,  (Real)0.0},
-    {'D', "nnD",      REAL,  "NN's droput",    &settings.nnPdrop,   (Real)0.0},
-    {'Z', "nnl1",     INT,   "NN layer 1",     &settings.nnLayer1,  (int)0},
-    {'Y', "nnl2",     INT,   "NN layer 2",     &settings.nnLayer2,  (int)0},
-    {'X', "nnl3",     INT,   "NN layer 3",     &settings.nnLayer3,  (int)0},
-    {'W', "nnl4",     INT,   "NN layer 4",     &settings.nnLayer4,  (int)0},
-    {'V', "nnl5",     INT,   "NN layer 5",     &settings.nnLayer5,  (int)0},
-    {'T', "nnType",   INT,   "NNtype: LSTM,FF",&settings.nnType,    (int)1},
-    {'C', "dqnT",     REAL,  "DQN update tgt", &settings.dqnUpdateC,(Real)1000},
-    {'S', "dqnNs",    INT,   "appended states",&settings.dqnAppendS,(int)0},
-    {'L', "dqnSeqMax",INT,   "max seq length", &settings.maxSeqLen, (int)200},
-    {'B', "dqnBatch", INT,   "batch update",   &settings.dqnBatch,  (int)10},
-    {'p', "nThreads", INT,   "parallel master",&settings.nThreads,  (int)-1},
-    {'I', "isServer", INT,   "client or server",&settings.isLauncher,  (int)1},
-    //{'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"../history.txt"}
-    {'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"obs_master.txt"}
+      {'N', "nMasters", INT,   "N policy ranks", &settings.nMasters,  (int)1},
+      {'g', "gamma",    REAL,  "Gamma parameter",&settings.gamma,     (Real)0.9},
+      {'e', "greedyeps",REAL,  "Greedy epsilon", &settings.greedyEps, (Real)0.1},
+      {'l', "learnrate",REAL,  "Learning rate",  &settings.lRate,     (Real)0.001},
+      {'b', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)debugLvl},
+      {'a', "learn",    STRING,"Learner Type",   &settings.learner,   (string)"DQ"},
+      {'r', "rType",    INT,   "Reward: ef,ef,y",&settings.rewardType,(int)-1},
+      {'y', "goalDY",   REAL,  "If r==2  goalDY",&settings.goalDY,    (Real)0.},
+      {'t', "bTrain",   INT,   "am I training?", &settings.bTrain,    (int)1},
+      {'i', "senses",   INT,   "top,pov,vel,pres",&settings.senses,   (int)0},
+      {'K', "nnL",      REAL,  "Weight decay",   &settings.nnLambda,  (Real)0.0},
+      {'D', "nnD",      REAL,  "NN's droput",    &settings.nnPdrop,   (Real)0.0},
+      {'Z', "nnl1",     INT,   "NN layer 1",     &settings.nnLayer1,  (int)0},
+      {'Y', "nnl2",     INT,   "NN layer 2",     &settings.nnLayer2,  (int)0},
+      {'X', "nnl3",     INT,   "NN layer 3",     &settings.nnLayer3,  (int)0},
+      {'W', "nnl4",     INT,   "NN layer 4",     &settings.nnLayer4,  (int)0},
+      {'V', "nnl5",     INT,   "NN layer 5",     &settings.nnLayer5,  (int)0},
+      {'T', "nnType",   INT,   "NNtype: LSTM,FF",&settings.nnType,    (int)1},
+      {'C', "dqnT",     REAL,  "DQN update tgt", &settings.dqnUpdateC,(Real)1000},
+      {'S', "dqnNs",    INT,   "appended states",&settings.dqnAppendS,(int)0},
+      {'L', "dqnSeqMax",INT,   "max seq length", &settings.maxSeqLen, (int)200},
+      {'B', "dqnBatch", INT,   "batch update",   &settings.dqnBatch,  (int)10},
+      {'p', "nThreads", INT,   "parallel master",&settings.nThreads,  (int)-1},
+      {'I', "isServer", INT,   "client or server",&settings.isLauncher,  (int)1},
+      //{'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"../history.txt"}
+      {'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"obs_master.txt"}
     });
 
-    #ifndef MEGADEBUG
     int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
     if (provided < MPI_THREAD_FUNNELED)
@@ -194,7 +193,6 @@ int main (int argc, char** argv)
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nranks);
-    #endif
 
     Parser parser(opts);
     parser.parse(argc, argv, rank == 0);

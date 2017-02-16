@@ -30,9 +30,7 @@ private:
     bool requested;
     byte *inbuf, *outbuf;
 
-    #ifndef MEGADEBUG
     MPI_Request request;
-    #endif
 
     inline void unpackChunk(byte* buf, int & first, State& sOld, Action& a, Real& r, State& s);
     inline void packChunk(byte* buf, Action a);

@@ -47,16 +47,16 @@
      f = fopen(pidstatus, "r");
      if (!f) return;
 
-     // Read memory size data from /proc/pid/status 
+     // Read memory size data from /proc/pid/status
      while (!vmsize || !vmpeak || !vmrss || !vmhwm)
      {
          if (getline(&line, &len, f) == -1)
          {
-             // Some of the information isn't there, die 
+             // Some of the information isn't there, die
              return;
          }
 
-         // Find VmPeak 
+         // Find VmPeak
          if (!strncmp(line, "VmPeak:", 7))
          {
              vmpeak = strdup(&line[7]);
@@ -69,7 +69,7 @@
          }
 
 
-         // Find VmRSS 
+         // Find VmRSS
          else if (!strncmp(line, "VmRSS:", 6))
          {
              vmrss = strdup(&line[7]);
@@ -96,7 +96,7 @@
      len = strlen(vmhwm);
      vmhwm[len - 4] = 0;
 
-     // Output results to stderr 
+     // Output results to stderr
 
      #if 0
       VmPeak: Peak virtual memory usage
@@ -239,8 +239,8 @@ void Learner::TrainTasking(Master* const master)
 
     start = std::chrono::high_resolution_clock::now();
 
-#pragma omp parallel num_threads(nThreads)
-#pragma omp master
+    #pragma omp parallel num_threads(nThreads)
+    #pragma omp master
 		{
 			if(bRecurrent) {//we are using an LSTM: do BPTT
 				for (int i=0; i<batchSize; i++) {
@@ -296,11 +296,9 @@ void Learner::TrainTasking(Master* const master)
 			}
 
       //TODO: can add task to update sampling probabilities for prioritized exp replay
-      #ifndef MEGADEBUG
+
       if(nAgents>0)
       master->hustle(); //master goes to communicate with slaves
-      #endif
-
     }
 
     end = std::chrono::high_resolution_clock::now();

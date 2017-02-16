@@ -45,6 +45,6 @@ public:
     void close_Comm ();
     void setup_Comm ();
     virtual bool pickReward(const State& t_sO, const Action& t_a,
-                            const State& t_sN, Real& reward, const int info) =0;
+                            const State& t_sN, Real& reward, const int info);
     virtual bool predefinedNetwork(Network* const net) const;
 };

@@ -109,11 +109,11 @@ void Transitions::passData(const int agentId, const int info, const State& sOld,
 {
     ofstream fout;
     /*
-    fout.open("obs_master.dat",ios::app); //safety
-    fout << agentId << " "<< info << " " << sOld.printClean().c_str() <<
-            sNew.printClean().c_str() << a.printClean().c_str() << reward;
-    fout << endl;
-    fout.close();
+      fout.open("obs_master.dat",ios::app); //safety
+      fout << agentId << " "<< info << " " << sOld.printClean().c_str() <<
+              sNew.printClean().c_str() << a.printClean().c_str() << reward;
+      fout << endl;
+      fout.close();
      */
 
     if (bWriteToFile) {
