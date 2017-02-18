@@ -67,7 +67,7 @@ void AcrobotEnvironment::setDims() //this environment is for the cart pole test
         aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
         for (int i=0; i<aI.dim; i++) {
-        	const int nOptions = 7; //used if discrete actions: options available to agent for acting
+        	const int nOptions = 3; //used if discrete actions: options available to agent for acting
             aI.bounds.push_back(nOptions);
 
             //this framework sends a real number to the application
@@ -75,13 +75,13 @@ void AcrobotEnvironment::setDims() //this environment is for the cart pole test
             //just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
             //i added the 0.1 is just to be extra safe when converting a float to an integer
 
-            aI.values[i].push_back(-10.); //here the app accepts real numbers
-            aI.values[i].push_back(-3.);
+            //aI.values[i].push_back(-10.); //here the app accepts real numbers
+            //aI.values[i].push_back(-3.);
             aI.values[i].push_back(-1.);
             aI.values[i].push_back(0.0);
             aI.values[i].push_back(1.0);
-            aI.values[i].push_back(3.0);
-            aI.values[i].push_back(10.);
+            //aI.values[i].push_back(3.0);
+            //aI.values[i].push_back(10.);
             //the number of components must be ==nOptions
         }
     }
@@ -97,13 +97,13 @@ bool AcrobotEnvironment::pickReward(const State & t_sO, const Action & t_a,
     //Compute the reward. If you do not do anything, reward will be whatever was set already to reward.
     //this means that reward will be one sent by the app
     
-    if (reward<-0.9) new_sample=true; //in cart pole example, if reward from the app is -1 then I failed
+    if (info==2) new_sample=true; //in cart pole example, if reward from the app is -1 then I failed
         
         //here i can change the reward: instead of -1 or 0, i can give a positive reward if angle is small
-    if ((fabs(t_sN.vals[0]) - M_PI)<=0.2*M_PI)
-    {
-        reward = 1. - (fabs(t_sN.vals[0]) - M_PI)/(0.2*M_PI);    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
-    }
+   // if ((fabs(t_sN.vals[0]) - M_PI)<=0.2*M_PI)
+   // {
+   //     reward = 1. - (fabs(t_sN.vals[0]) - M_PI)/(0.2*M_PI);    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
+   // }
     if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
             //was is the last state of the sequence?
             

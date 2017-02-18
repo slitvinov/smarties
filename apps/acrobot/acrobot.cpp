@@ -122,10 +122,9 @@ int main(int argc, const char * argv[])
         a.F    = 0;
         a.info = 1;
     }
-    
+
     
     while (true) {
-        const double gamma = 0.99;
         int k(0); //agent ID, for now == 0
         for (auto& a : agents) { //assume we have only one agent per application for now...
             double r = 0.;
@@ -135,9 +134,40 @@ int main(int argc, const char * argv[])
             state[1] = a.u.y2;
             state[2] = a.u.y4;
             state[3] = a.u.y3;
-            r = 0;
-            //printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
-            //printf("Current reward %f\n", r); fflush(0);
+            
+            double r1=0.;
+            double r2=0.;
+            double r3=0.;
+            double r4=0.;
+            
+            if ((fabs(a.u.y1) - M_PI)<=0.2*M_PI)
+            {
+                r1 = 0.25*(1. - (fabs(a.u.y1) - M_PI)/(0.2*M_PI));
+            }
+            
+            if (fabs(a.u.y3)<=0.2*M_PI)
+            {
+                r2 = 0.25*(1. - fabs(a.u.y3)/(0.2*M_PI));
+            }
+            
+            if ((fabs(a.u.y2))<=0.2*M_PI)
+            {
+                r3 = 0.25*(1. - (fabs(a.u.y1))/(0.2*M_PI));
+            }
+            
+            if ((fabs(a.u.y4))<=0.2*M_PI)
+            {
+                r4 = 0.25*(1. - (fabs(a.u.y1))/(0.2*M_PI));
+            }
+            
+            r = r1*r2*r3*r4;
+            if (r==0)
+            {
+                r= -0.1;
+            }
+            
+            printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+            printf("Current reward %f\n", r); fflush(0);
             ///////////////////////////////////////////////////////
             // arguments of comm->sendState(k, a.info, state, r)
 
@@ -180,6 +210,7 @@ int main(int argc, const char * argv[])
                 a.t = 0;
                 a.F = 0;
                 a.info = 1; //set info back to 0
+                r = 0.;
                 break;
             }
         }

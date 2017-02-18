@@ -3,7 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <cassert>
-
+#include <cstring>
 #include <netdb.h>
 #include <unistd.h>
 #include <signal.h>
