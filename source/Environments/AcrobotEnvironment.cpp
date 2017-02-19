@@ -67,7 +67,7 @@ void AcrobotEnvironment::setDims() //this environment is for the cart pole test
         aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
         for (int i=0; i<aI.dim; i++) {
-        	const int nOptions = 3; //used if discrete actions: options available to agent for acting
+        	const int nOptions = 5; //used if discrete actions: options available to agent for acting
             aI.bounds.push_back(nOptions);
 
             //this framework sends a real number to the application
@@ -75,13 +75,13 @@ void AcrobotEnvironment::setDims() //this environment is for the cart pole test
             //just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
             //i added the 0.1 is just to be extra safe when converting a float to an integer
 
-            //aI.values[i].push_back(-10.); //here the app accepts real numbers
+            aI.values[i].push_back(-50.); //here the app accepts real numbers
             //aI.values[i].push_back(-3.);
-            aI.values[i].push_back(-1.);
+            aI.values[i].push_back(-10.);
             aI.values[i].push_back(0.0);
-            aI.values[i].push_back(1.0);
+            aI.values[i].push_back(10.);
             //aI.values[i].push_back(3.0);
-            //aI.values[i].push_back(10.);
+            aI.values[i].push_back(50.);
             //the number of components must be ==nOptions
         }
     }

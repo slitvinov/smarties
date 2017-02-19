@@ -135,32 +135,44 @@ int main(int argc, const char * argv[])
             state[2] = a.u.y4;
             state[3] = a.u.y3;
             
+            double r_parameter = 0.5;
+            double r_parameter2 = 0.5;
             double r1=0.;
             double r2=0.;
             double r3=0.;
             double r4=0.;
             
-            if ((fabs(a.u.y1) - M_PI)<=0.2*M_PI)
+            if ((fabs(a.u.y1) - M_PI)<=r_parameter*M_PI)
             {
-                r1 = 0.25*(1. - (fabs(a.u.y1) - M_PI)/(0.2*M_PI));
+                r1 = (1. - (fabs(a.u.y1) - M_PI)/(r_parameter*M_PI));
             }
             
-            if (fabs(a.u.y3)<=0.2*M_PI)
+            if (fabs(a.u.y3)<=r_parameter*M_PI)
             {
-                r2 = 0.25*(1. - fabs(a.u.y3)/(0.2*M_PI));
+                r2 = (1. - fabs(a.u.y3)/(r_parameter*M_PI));
             }
             
-            if ((fabs(a.u.y2))<=0.2*M_PI)
+            if ((fabs(a.u.y2))<=r_parameter*M_PI)
             {
-                r3 = 0.25*(1. - (fabs(a.u.y1))/(0.2*M_PI));
+                r3 = (1. - (fabs(a.u.y1))/(r_parameter*M_PI));
             }
             
-            if ((fabs(a.u.y4))<=0.2*M_PI)
+            if ((fabs(a.u.y4))<=r_parameter*M_PI)
             {
-                r4 = 0.25*(1. - (fabs(a.u.y1))/(0.2*M_PI));
+                r4 = (1. - (fabs(a.u.y1))/(r_parameter*M_PI));
+            }
+            //if(r==0)
+            
+            r = 0.5*r1*r2*r3*r4;
+            if (fabs(a.u.y1)>r_parameter*M_PI)
+            {
+                r += 0.25;
+            }
+            if ((cos(a.u.y1) + cos(a.u.y1 + a.u.y3))<0.)
+            {
+                r += 0.25;
             }
             
-            r = r1*r2*r3*r4;
             if (r==0)
             {
                 r= -0.1;
