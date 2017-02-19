@@ -164,14 +164,11 @@ int main(int argc, const char * argv[])
             //if(r==0)
             
             r = 0.5*r1*r2*r3*r4;
-            if (fabs(a.u.y1)>r_parameter*M_PI)
+            if ((fabs(a.u.y1)>r_parameter*M_PI)&&((cos(a.u.y1) + cos(a.u.y1 + a.u.y3))<0.))
             {
-                r += 0.25;
+                r += 0.5;
             }
-            if ((cos(a.u.y1) + cos(a.u.y1 + a.u.y3))<0.)
-            {
-                r += 0.25;
-            }
+        
             
             if (r==0)
             {
