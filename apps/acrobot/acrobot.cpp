@@ -128,15 +128,14 @@ int main(int argc, const char * argv[])
         int k(0); //agent ID, for now == 0
         for (auto& a : agents) { //assume we have only one agent per application for now...
             double r = 0.;
-            //ntot += 1; sincelast += 1;
+           
             //load state:
             state[0] = a.u.y1;
             state[1] = a.u.y2;
             state[2] = a.u.y4;
             state[3] = a.u.y3;
             
-            double r_parameter = 0.5;
-            double r_parameter2 = 0.5;
+            double r_parameter = 0.3; //defines angles when the regard is given
             double r1=0.;
             double r2=0.;
             double r3=0.;
@@ -144,37 +143,34 @@ int main(int argc, const char * argv[])
             
             if ((fabs(a.u.y1) - M_PI)<=r_parameter*M_PI)
             {
-                r1 = (1. - (fabs(a.u.y1) - M_PI)/(r_parameter*M_PI));
+                r1 = 1. - (fabs(a.u.y1) - M_PI)/(r_parameter*M_PI);
+            }
+            
+            if (fabs(a.u.y2)<=r_parameter*M_PI)
+            {
+                r2 = 1. - fabs(a.u.y2)/(r_parameter*M_PI);
             }
             
             if (fabs(a.u.y3)<=r_parameter*M_PI)
             {
-                r2 = (1. - fabs(a.u.y3)/(r_parameter*M_PI));
-            }
-            
-            if ((fabs(a.u.y2))<=r_parameter*M_PI)
-            {
-                r3 = (1. - (fabs(a.u.y1))/(r_parameter*M_PI));
+                r2 = 1. - fabs(a.u.y3)/(r_parameter*M_PI);
             }
             
             if ((fabs(a.u.y4))<=r_parameter*M_PI)
             {
-                r4 = (1. - (fabs(a.u.y1))/(r_parameter*M_PI));
+                r4 = 1. - fabs(a.u.y4)/(r_parameter*M_PI);
             }
-            //if(r==0)
             
-            r = 0.5*r1*r2*r3*r4;
-            if ((fabs(a.u.y1)>r_parameter*M_PI)&&((cos(a.u.y1) + cos(a.u.y1 + a.u.y3))<0.))
-            {
+            double c1=0.35;
+            double c2=0.05;
+            double c3=0.05;
+            double c4=0.05;
+            
+            r = c1*r1+c2*r2+c3*r3+c4*r4;                //could be improved by a better fit of c1-c4
+            if (fabs(a.u.y1)>0.5*M_PI) {            //intermediate reward
                 r += 0.5;
             }
-        
-            
-            if (r==0)
-            {
-                r= -0.1;
-            }
-            
+          
             printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
             printf("Current reward %f\n", r); fflush(0);
             ///////////////////////////////////////////////////////
@@ -198,15 +194,33 @@ int main(int argc, const char * argv[])
 
         	//advance the sim:
             for (int i=0; i<50; i++) {
+                if (((a.u.y3>M_PI) || (a.u.y3<-0.5*M_PI) )) {   //legs in an inhumane position
+                    a.F=0.;
+                    if (a.u.y3>M_PI) {
+                        a.u.y3=M_PI;
+                        a.u.y4=0;
+                    }
+                    else {
+                        a.u.y3=-0.5*M_PI;
+                        a.u.y4=0;
+                    }
+                    a.u = rk46_nl(a.t, dt, a.u, bind(&Acrobot::D, &a, placeholders::_1, placeholders::_2));
+                }
+                else {
                 a.u = rk46_nl(a.t, dt, a.u, bind(&Acrobot::D, &a, placeholders::_1, placeholders::_2));
+                }
+                if (fabs(a.u.y1)> 2.*M_PI){             //acrobot went full round
+                    a.u.y1= fmod(a.u.y1,2.*M_PI);
+                }
                 a.t += dt;
-            
-
+                
+        
+                //
             //check if terminal state has been reached:
-            if ((fabs(a.u.y1)> 2.*M_PI)||((a.u.y3>M_PI) || (a.u.y3<-0.25*M_PI) )) //acrobot went through a full round, or legs in an inhumane position
+            if ((fabs(a.u.y1)> 2.*M_PI) || (fabs(a.u.y4)>10.*M_PI)) //acrobot went through a full round, or legs rotating too fast
             {
                 a.info = 2; //tell RL we are in terminal state
-                double r = -1.; //give terminal reward (if different problem, this might be a bonus rather than a negative score)
+                double r = -1.; //give terminal reward
                 state[0] = a.u.y1;
                 state[1] = a.u.y2;
                 state[2] = a.u.y4;
