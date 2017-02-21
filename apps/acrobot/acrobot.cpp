@@ -135,40 +135,32 @@ int main(int argc, const char * argv[])
             state[2] = a.u.y4;
             state[3] = a.u.y3;
             
-            double r_parameter = 0.3; //defines angles when the regard is given
-            double r1=0.;
-            double r2=0.;
-            double r3=0.;
-            double r4=0.;
+            r=0;
+            const double r_parameter = 0.4; //defines angles when the reward is given
+            const double r_parameter2 = 0.9; //defines angles when the bonus reward can be given
+            const double c1=0.5;
+            const double c2=0.15;
+            const double c3=0.05;
+            const double c4=0.3;            //c1+c2+c3+c4=1
             
-            if ((fabs(a.u.y1) - M_PI)<=r_parameter*M_PI)
+            if ((fabs(a.u.y1))>(r_parameter)*M_PI)   //reward increasing if acrobot straight up
             {
-                r1 = 1. - (fabs(a.u.y1) - M_PI)/(r_parameter*M_PI);
+                r = c1*(1. - fabs((fabs(a.u.y1)-M_PI)/(M_PI*(r_parameter-1.))));
             }
             
-            if (fabs(a.u.y2)<=r_parameter*M_PI)
+            if ( ((fabs(a.u.y1))>r_parameter2*M_PI) && (fabs(a.u.y2)<3) )   //bonus if rotating slow on top
             {
-                r2 = 1. - fabs(a.u.y2)/(r_parameter*M_PI);
+                r += c2*(1. - fabs(a.u.y2)/3);
             }
             
-            if (fabs(a.u.y3)<=r_parameter*M_PI)
+            if ( ((fabs(a.u.y1))>r_parameter2*M_PI) && (fabs(a.u.y3)<0.5*M_PI) ) //bonus if legs straight on top
             {
-                r2 = 1. - fabs(a.u.y3)/(r_parameter*M_PI);
+                r += c3*(1. - fabs(a.u.y3)/(0.5*M_PI));
             }
             
-            if ((fabs(a.u.y4))<=r_parameter*M_PI)
-            {
-                r4 = 1. - fabs(a.u.y4)/(r_parameter*M_PI);
-            }
             
-            double c1=0.35;
-            double c2=0.05;
-            double c3=0.05;
-            double c4=0.05;
-            
-            r = c1*r1+c2*r2+c3*r3+c4*r4;                //could be improved by a better fit of c1-c4
-            if (fabs(a.u.y1)>0.5*M_PI) {            //intermediate reward
-                r += 0.5;
+            if (fabs(a.u.y1)>r_parameter*M_PI) {            //intermediate reward
+                r += c4;
             }
           
             printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
@@ -185,7 +177,7 @@ int main(int argc, const char * argv[])
             comm.sendState(k, a.info, state, r);
             comm.recvAction(actions);
 
-            printf("Acrobot acting %f from state %f %f %f %f\n", actions[0],state[0],state[1],state[2],state[3]); fflush(0);
+            //printf("Acrobot acting %f from state %f %f %f %f\n", actions[0],state[0],state[1],state[2],state[3]); fflush(0);
 
             a.F = actions[0];
             a.info = 0; //at least one comm is done, so i set info to 0
@@ -217,7 +209,7 @@ int main(int argc, const char * argv[])
         
                 //
             //check if terminal state has been reached:
-            if ((fabs(a.u.y1)> 2.*M_PI) || (fabs(a.u.y4)>10.*M_PI)) //acrobot went through a full round, or legs rotating too fast
+            if ((fabs(a.u.y2)> 2*M_PI) || (fabs(a.u.y4)>7.*M_PI)) //acrobot or his legs rotating too fast
             {
                 a.info = 2; //tell RL we are in terminal state
                 double r = -1.; //give terminal reward
