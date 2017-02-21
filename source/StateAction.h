@@ -120,41 +120,42 @@ public:
 struct ActionInfo
 {
 	int dim; //number of actions per turn
-    //discrete actions
 	vector<int> bounds, shifts; //if finite set, number of choices per "dim"
-    vector<vector<Real>> values; //used for rescaling, would be used if action is input to NN
+  vector<vector<Real>> values; //used for rescaling, would be used if action is input to NN
+	bool bounded;
+  ActionInfo(): bounded(false) {}
 
-    ActionInfo() {}
+  ActionInfo& operator= (const ActionInfo& actionInfo)
+	{
+			bounded = actionInfo.bounded;
+      dim = actionInfo.dim;
+      assert(actionInfo.values.size()==dim && actionInfo.bounds.size()==dim && actionInfo.shifts.size()==dim);
+      values = actionInfo.values;
+      bounds = actionInfo.bounds;
+      shifts = actionInfo.shifts;
+      assert(values.size()==dim && bounds.size()==dim && shifts.size()==dim);
+      return *this;
+  }
 
-    ActionInfo& operator= (const ActionInfo& actionInfo) {
-        dim = actionInfo.dim;
-        assert(actionInfo.values.size()==dim && actionInfo.bounds.size()==dim && actionInfo.shifts.size()==dim);
-        values = actionInfo.values;
-        bounds = actionInfo.bounds;
-        shifts = actionInfo.shifts;
-        assert(values.size()==dim && bounds.size()==dim && shifts.size()==dim);
-        return *this;
-    }
+  //from action indices to unique label (for tables, DQN)
+  int actionToLabel(vector<Real> vals) const {
+      int lab=0;
+      for (int i=0; i<dim; i++) lab += shifts[i]*realActionToIndex(vals[i],i);
+      assert(lab>=0);
+      return lab;
+  }
 
-    //from action indices to unique label (for tables, DQN)
-    int actionToLabel(vector<Real> vals) const {
-        int lab=0;
-        for (int i=0; i<dim; i++) lab += shifts[i]*realActionToIndex(vals[i],i);
-        assert(lab>=0);
-        return lab;
-    }
+  vector<Real> labelToAction(int lab) const
+  {
+  	vector<Real> ret(dim);
+      for (int i=dim-1; i>=0; i--) {
+          ret[i] = indexToRealAction((int)lab/shifts[i], i);
+          lab = lab % shifts[i];
+      }
+      return ret;
+  }
 
-    vector<Real> labelToAction(int lab) const
-    {
-    	vector<Real> ret(dim);
-        for (int i=dim-1; i>=0; i--) {
-            ret[i] = indexToRealAction((int)lab/shifts[i], i);
-            lab = lab % shifts[i];
-        }
-        return ret;
-    }
-
-    Real indexToRealAction(const int lab, const int i) const
+  Real indexToRealAction(const int lab, const int i) const
 	{
     	assert(lab>=0 && i>=0 && i<values.size() && lab<values[i].size());
 		return values[i][lab];

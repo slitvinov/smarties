@@ -59,6 +59,8 @@ nL((env->aI.dim*env->aI.dim+env->aI.dim)/2)
 	assert(1+nL+nA == net->getnOutputs() && nInputs == net->getnInputs());
 
 	opt = new AdamOptimizer(net, profiler, settings);
+
+	//computeQandGrad(grad, act, out, 1.);
 }
 
 void NAF::select(const int agentId, State& s, Action& a, State& sOld,
@@ -87,7 +89,14 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 
     //load computed policy into a
     vector<Real> act(nA);
-    for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
+		if(aInfo.bounded) {
+			for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
+				const Real min_a = *std::min_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
+				const Real max_a = *std::max_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
+				act[j] = min_a + 0.5*(output[1+nL+j]/(1 + std::fabs(output[1+nL+j])) + 1)*(max_a - min_a);
+
+	    }
+		} else for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
     a.set(act);
 
     //random action?
@@ -174,14 +183,23 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
 										net->tgt_weights, net->tgt_biases);
         }
 
-      const Real Vnext = (terminal) ? _t->r : _t->r + gamma*target[0];
-		const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);
-		const Real err = Vnext - Q[0];
+      Real Vnext = (terminal) ? _t->r : _t->r + gamma*target[0];
+//      if(std::fabs(_t->a[0])>0.6)  Vnext = std::min((Real)0.,Vnext);
+//      if(std::fabs(_t->a[1])>0.25) Vnext = std::min((Real)0.,Vnext);
 
-        data->Set[seq]->tuples[k]->SquaredError = err*err;
-        net->setOutputDeltas(gradient, timeSeries[k]);
-        dumpStats(Vstats[thrID], Q[0], err, Q);
-        if(thrID==1) net->updateRunning(timeSeries[k]);
+			const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);
+			const Real err = Vnext - Q[0];
+      //if(output[0] > 1/(1-gamma) && gradient[0]>0) gradient[0] = 0;
+      //if(std::fabs(output[1+nL  ])>0.6 && output[1+nL  ]*gradient[1+nL  ] > 0)
+      //      gradient[1+nL  ] = -output[1+nL];
+      //if(std::fabs(output[1+nL+1])>0.4 && output[1+nL+1]*gradient[1+nL+1] > 0)
+      //      gradient[1+nL+1] = -output[1+nL+1];
+      //if(std::fabs(output[1+nL+1])>0.6) printf("Hate you too\n");
+
+      data->Set[seq]->tuples[k]->SquaredError = err*err;
+      net->setOutputDeltas(gradient, timeSeries[k]);
+      dumpStats(Vstats[thrID], Q[0], err, Q);
+      if(thrID==1) net->updateRunning(timeSeries[k]);
     }
 
     if (thrID==0) net->backProp(timeSeries, net->grad);
@@ -213,7 +231,9 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
         _dispose_object(sNewActivation);
     }
 
-    const Real Vnext = (terminal) ? _t->r : _t->r + gamma*target[0];
+    Real Vnext = (terminal) ? _t->r : _t->r + gamma*target[0];
+//		if(std::fabs(_t->a[0])>0.6)  Vnext = std::min((Real)0.,Vnext);
+//		if(std::fabs(_t->a[1])>0.25) Vnext = std::min((Real)0.,Vnext);
     const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);
     const Real err = Vnext - Q[0];
     dumpStats(Vstats[thrID], Q[0], err, Q);
@@ -335,17 +355,32 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 							const vector<Real>& out, const Real Vnext) const
 {
-    vector<Real> Q(3,0), _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
+    vector<Real> Q(3,0), _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA);
+		vector<Real> _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
 
-    int kL(1);
-    for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
+		{
+	    int kL = 1;
+			for (int j=0; j<nA; j++)
+				for (int i=0; i<nA; i++) if (i<=j) _L[nA*j + i] = out[kL++];
+	    assert(kL==1+nL);
+		}
+
+		if(aInfo.bounded) {
+			for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
+				const Real min_a = *std::min_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
+				const Real max_a = *std::max_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
+				const Real pi = min_a + 0.5*(out[1+nL+j]/(1 + std::fabs(out[1+nL+j])) + 1)*(max_a - min_a);
+        _u[j]  = act[j] - pi;
+        _uL[j] = min_a - pi;
+        _uU[j] = max_a - pi;
+	    }
+		} else {
+	    for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
         _u[j]  = act[j] - out[1+nL+j];
         _uL[j] = *std::min_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j])) - out[1+nL+j];
         _uU[j] = *std::max_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j])) - out[1+nL+j];
-
-        for (int i=0; i<nA; i++) if (i<=j) _L[nA*j + i] = out[kL++];
-    }
-    assert(kL==1+nL);
+	    }
+		}
 
     for (int j=0; j<nA; j++)
     for (int i=0; i<nA; i++) { //A = L * L'
@@ -359,7 +394,7 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
         Q[1] += _A[ind]*_uL[i]*_uL[j];
         Q[2] += _A[ind]*_uU[i]*_uU[j];
     }
-
+		assert(*std::min_element(std::begin(Q), std::end(Q)) > 0.);
     const Real dQdA = -.5*pow(Q[0],-.75);
     Q[2] = out[0] -2.*std::pow(std::max(Q[1],Q[2]),0.25);
     Q[0] = out[0] -2.*std::pow(Q[0],0.25);  //Q = V - 2*Adv^.25
@@ -367,6 +402,7 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
     const Real error = Vnext - Q[0];
 
     grad[0] = error;
+
     for (int il=0; il<nL; il++) {
         int kD=0;
         for (int j=0; j<nA; j++)
@@ -406,6 +442,16 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
         }
         grad[1+nL+ia] *= dQdA*error;
     }
+
+		if(aInfo.bounded) {
+			for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
+				const Real min_a = *std::min_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
+				const Real max_a = *std::max_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
+				const Real denom = 1. + std::fabs(out[1+nL+j]);
+				grad[1+nL+j] *= 0.5*(max_a - min_a)/denom/denom;
+	    }
+		}
+
     //1 action dim dump:
 		//printf("act %9.9e, err %9.9e, out %9.9e %9.9e %9.9e, u %9.9e, Q %9.9e, grad %9.9e %9.9e %9.9e\n",
 		//act[0], error, out[0], out[1], out[2], _u[0], Q[0], grad[0], grad[1], grad[2]);

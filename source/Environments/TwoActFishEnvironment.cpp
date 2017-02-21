@@ -153,21 +153,26 @@ void TwoActFishEnvironment::setDims()
     }
     {
         aI.dim = 2;
+        aI.bounded = true;
         aI.values.resize(aI.dim);
         //curavture
-        aI.bounds.push_back(5); //Number of possible actions to choose from
+        aI.bounds.push_back(7); //Number of possible actions to choose from
+        aI.values[0].push_back(-.75);
         aI.values[0].push_back(-.50);
         aI.values[0].push_back(-.25);
         aI.values[0].push_back(0.00);
         aI.values[0].push_back(0.25);
         aI.values[0].push_back(0.50);
+        aI.values[0].push_back(0.75);
         //period:
-        aI.bounds.push_back(5); //Number of possible actions to choose from
+        aI.bounds.push_back(7); //Number of possible actions to choose from
+        aI.values[1].push_back(-.5);
         aI.values[1].push_back(-.25);
         aI.values[1].push_back(-.125);
         aI.values[1].push_back(0.00);
         aI.values[1].push_back(0.125);
         aI.values[1].push_back(0.250);
+        aI.values[1].push_back(0.5);
     }
     resetAll=false;
     commonSetup();
@@ -175,7 +180,7 @@ void TwoActFishEnvironment::setDims()
 
 void TwoActFishEnvironment::setAction(const int & iAgent)
 {
-    
+
     if (agents[iAgent]->a->vals[0] >0.75 ) {
     	printf("Act0 is too large (>0), reassigned to prevent crash\n");
       agents[iAgent]->a->vals[0] = 0.75;
@@ -211,14 +216,21 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
                                 const State& t_sN, Real& reward, const int info)
 {
     if (fabs(t_sN.vals[4] -t_a.vals[0])>0.001) {
-        printf("Mismatch state and action!!! %s === %s\n",t_sN.print().c_str(),t_a.print().c_str());
+        printf("Mismatch state and action!!! %s === %s\n",
+         t_sN.print().c_str(),t_a.print().c_str());
         abort();
     }
-/*    if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-3 ) {
+    if (fabs(t_sN.vals[6] -t_a.vals[1])>0.001) {
+        printf("Mismatch state and action!!! %s === %s\n",
+         t_sN.print().c_str(),t_a.print().c_str());
+        abort();
+    }
+    /*
+    if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-3 ) {
         printf("Same time for two states!!! %s === %s\n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
     }
-*/
+    */
     bool new_sample(false);
     if (reward<-9.9) new_sample=true;
 
@@ -237,8 +249,10 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
     }
     else if (new_sample) reward = -10.;
 
-    //    die("Wrong reward\n");
-    //}
+    if(std::fabs(t_a.vals[0])>0.74)
+      reward = std::min((Real)-1.,reward); //gently push sim away from extreme curvature: not kosher
+    if(std::fabs(t_a.vals[1])>0.49)
+      reward = std::min((Real)-1.,reward); //gently push sim away from extreme acceleration: not kosher
 
     return new_sample;
 }
