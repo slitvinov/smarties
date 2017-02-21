@@ -21,7 +21,7 @@ class NAF : public Learner
     void Train(const int seq, const int samp, const int thrID=0) const override;
 
     vector<Real> computeQandGrad(vector<Real>& grad, const vector<Real>& act,
-                                 const vector<Real>& out, Real& error) const;
+						   const vector<Real>& out, const Real Vnext) const;
     //Real computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const;
 
 public:

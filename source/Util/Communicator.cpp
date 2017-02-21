@@ -33,7 +33,12 @@ void Communicator::sendState(int agentId, _AGENT_STATUS info,
     o << reward << "\n";
 
     send_all(Socket, dataout, sizeout);
-    if (info == 2)  msgID = 0;
+    if (info == 2) {
+      if(!rank_MPI) std::cout<<o.str()<<std::endl;   fflush(0);
+      o.str( std::string() );
+      o.clear();
+      msgID = 0;
+    }
 }
 
 void Communicator::recvState(int& agentId, _AGENT_STATUS& info,
@@ -101,7 +106,7 @@ void Communicator::recvAction(std::vector<double>& actions)
         o << actions[j] << " ";
     }
     o << "\n";
-    //if(!rank_MPI) std::cout<<o.str()<<std::endl;   fflush(0);
+    if(!rank_MPI) std::cout<<o.str()<<std::endl;   fflush(0);
     o.str( std::string() );
     o.clear();
 }

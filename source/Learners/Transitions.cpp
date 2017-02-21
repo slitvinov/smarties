@@ -10,7 +10,7 @@
 #include "Transitions.h"
 #include <fstream>
 //#define CLEAN //dont
-#define NmaxDATA 5000
+#define NmaxDATA 20000
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
 mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
@@ -79,6 +79,7 @@ void Transitions::restartSamples()
 
     printf("Found %d broken chains out of %d / %d.\n",
             nBroken, nSequences, nTransitions);
+    update_samples_mean(1.);
 }
 
 /*
@@ -175,7 +176,7 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
     const bool new_sample = env->pickReward(sOld,a,sNew,reward,info);
     t->r = reward;
     t->a = a.vals;
-
+//printf("%g\n", t->r);
     Tmp[agentId]->tuples.push_back(t);
     if (new_sample) {
         Tmp[agentId]->ended = true;
@@ -216,7 +217,7 @@ void Transitions::push_back(const int & agentId)
     Tmp[agentId] = new Sequence();
 }
 
-void Transitions::update_samples_mean()
+void Transitions::update_samples_mean(const Real alpha)
 {
   if(!bNormalize) return;
 	int count = 0;
@@ -263,34 +264,43 @@ void Transitions::update_samples_mean()
                   MPI_VALUE_TYPE, MPI_SUM, mastersComm);
   }
 
-	std::cout << "States stds: [";
+	//std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {
 		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count));
     //Networks seem not to like abrupt change in scaling...
-      std[i] = oldStd[i]*.99 + .01*std[i];
-		std::cout << std[i] << " ";
+      std[i] = oldStd[i]*(1.-alpha) + alpha*std[i];
+	//	std::cout << std[i] << " ";
   }
-	std::cout << "]. States means: [";
+	//std::cout << "]. States means: [";
 	for (int i=0; i<sI.dimUsed; i++) {
     mean[i] /= Real(count);
     //Networks seem not to like abrupt change in scaling...
-    mean[i] = oldMean[i]*.99 + .01*mean[i];
-    std::cout << mean[i] << " ";
+    mean[i] = oldMean[i]*(1.-alpha) + alpha*mean[i];
+   // std::cout << mean[i] << " ";
   }
-	std::cout << "]" << std::endl;
+//	std::cout << "]" << std::endl;
 }
 
-vector<Real> Transitions::standardize(const vector<Real>&  state) const
+vector<Real> Transitions::standardize(const vector<Real>&  state, const Real noise) const
 {
     if(!bNormalize) return state;
     vector<Real> tmp(sI.dimUsed);
     assert(state.size() == sI.dimUsed);
-    std::normal_distribution<Real> noise(0.,0.001);
+    //std::normal_distribution<Real> noise(0.,0.001);
     for (int i=0; i<sI.dimUsed; i++) {
       tmp[i] = (state[i] - mean[i])/(std[i]+1e-9);
       //printf("Scale: %9.9e %9.9e %9.9e\n", tmp[i], mean[i], std[i]);
       //tmp[i] += noise(*(gen->g));
     }
+   if (noise)
+   {
+   std::normal_distribution<Real> distn(0.,noise);
+   #pragma omp critical
+   {
+      for (int i=0; i<sI.dimUsed; i++)
+         tmp[i] += distn(*(gen->g));
+   }
+   }
     return tmp;
 }
 

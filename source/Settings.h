@@ -21,14 +21,12 @@ using namespace std;
 #include <immintrin.h>
 
 #include <omp.h>
-#ifndef MEGADEBUG
 #include <mpi.h>
-#endif
 //#define __vec_width__ 32
 #define __vec_width__ 8
 //#define _scaleR_
 #define _BPTT_
-#define _dumpNet_
+//#define _dumpNet_
 
 typedef double Real;
 #define MPI_VALUE_TYPE MPI_DOUBLE

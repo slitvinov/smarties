@@ -33,7 +33,7 @@ void TwoActFishEnvironment::setDims()
             // ...inclination of1the fish...
             sI.inUse.push_back(sight);
             // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
-            sI.inUse.push_back(false);
+            sI.inUse.push_back(true);
             // ...last action (HAX!)
             sI.inUse.push_back(true);
             // ...second last action (HAX!)
@@ -175,37 +175,22 @@ void TwoActFishEnvironment::setDims()
 
 void TwoActFishEnvironment::setAction(const int & iAgent)
 {
+    
     if (agents[iAgent]->a->vals[0] >0.75 ) {
-    	printf("Act0 is too large (>0), reassigned at random to prevent crash\n");
-	uniform_real_distribution<Real> dist( 0., .75);
-        agents[iAgent]->a->vals[0] = dist(*g);
-        //std::normal_distribution<Real> dist(0.5,0.25);
-        //const Real uB = 0.75; const Real lB = -.75;
-        //agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    	printf("Act0 is too large (>0), reassigned to prevent crash\n");
+      agents[iAgent]->a->vals[0] = 0.75;
     }
     if (agents[iAgent]->a->vals[0] <-.75 ) {
-    	printf("Act0 is too large (<0), reassigned at random to prevent crash\n");
-	uniform_real_distribution<Real> dist(-.75, 0.);
-        agents[iAgent]->a->vals[0] = dist(*g);
-        //std::normal_distribution<Real> dist(-.5,0.25);
-        //const Real uB = 0.75; const Real lB = -.75;
-        //agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    	printf("Act0 is too large (<0), reassigned to prevent crash\n");
+      agents[iAgent]->a->vals[0] = -.75;
     }
     if (agents[iAgent]->a->vals[1] >0.5 ) {
-    	printf("Act1 is too large (>0), reassigned at random to prevent crash\n");
-	uniform_real_distribution<Real> dist(0.,.5);
-        agents[iAgent]->a->vals[1] = dist(*g);
-        //std::normal_distribution<Real> dist(0.5,0.25);
-        //const Real uB = 0.5; const Real lB = -.5;
-        //agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    	printf("Act1 is too large (>0), reassigned to prevent crash\n");
+      agents[iAgent]->a->vals[1] = 0.5;
     }
     if (agents[iAgent]->a->vals[1] <-.5 ) {
-    	printf("Act1 is too large (<0), reassigned at random to prevent crash\n");
-	uniform_real_distribution<Real> dist(-.5, 0.);
-        agents[iAgent]->a->vals[1] = dist(*g);
-        //std::normal_distribution<Real> dist(-.5,0.25);
-        ///const Real uB = 0.5; const Real lB = -.5;
-        //agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    	printf("Act1 is too large (<0), reassigned to prevent crash\n");
+      agents[iAgent]->a->vals[1] = -.5;
     }
 
     Environment::setAction(iAgent);
@@ -214,9 +199,10 @@ void TwoActFishEnvironment::setAction(const int & iAgent)
 int TwoActFishEnvironment::getState(int & iAgent)
 {
     int bStatus = Environment::getState(iAgent);
-
-    for (int j=187; j<sI.dim; j++)
-        agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
+    if(std::fabs(agents[iAgent]->a->vals[0])>0.74)
+      agents[iAgent]->r = 0; //gently push sim away from extreme curvature: not kosher
+    if(std::fabs(agents[iAgent]->a->vals[1])>0.49)
+      agents[iAgent]->r = 0; //gently push sim away from extreme acceleration: not kosher
 
     return bStatus;
 }
@@ -228,11 +214,11 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         printf("Mismatch state and action!!! %s === %s\n",t_sN.print().c_str(),t_a.print().c_str());
         abort();
     }
-    if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-3 ) {
+/*    if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-3 ) {
         printf("Same time for two states!!! %s === %s\n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
     }
-
+*/
     bool new_sample(false);
     if (reward<-9.9) new_sample=true;
 
@@ -242,7 +228,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 1) {
-        const Real scaledEfficiency = (t_sN.vals[21]-.3)/(.6-.3);
+        const Real scaledEfficiency = (t_sN.vals[21]-.4)/(.6-.4);
         reward = scaledEfficiency;
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     }

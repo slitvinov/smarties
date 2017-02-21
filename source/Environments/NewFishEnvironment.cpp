@@ -37,7 +37,7 @@ void NewFishEnvironment::setDims()
             // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
             // Will get ~ 0 or 0.5
             sI.inUse.push_back(false);
-            //sI.inUse.push_back(sight);
+//            sI.inUse.push_back(sight);
 
             // ...last action (HAX!)
             //sI.inUse.push_back(false);
@@ -45,7 +45,7 @@ void NewFishEnvironment::setDims()
 
             // ...second last action (HAX!)
             sI.inUse.push_back(false); //if l_line i have curvature info
-            //sI.inUse.push_back(sight); //if l_line i have curvature info
+//            sI.inUse.push_back(sight); //if l_line i have curvature info
         }
         {
             //Dist 6
@@ -217,7 +217,7 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 1) {
-        const Real scaledBndEfficiency = (t_sN.vals[16]-.3)/(.6-.3); //between 0 and 1
+        const Real scaledBndEfficiency = (t_sN.vals[16]-.4)/(.6-.4); //between 0 and 1
         reward = scaledBndEfficiency;
         if (new_sample) reward = -1./(1.-gamma);
     }

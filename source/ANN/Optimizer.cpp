@@ -100,7 +100,8 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
 
 void AdamOptimizer::update(Real* const dest, Real* const grad,
                            Real* const _1stMom, Real* const _2ndMom,
-                           const int N, const int batchsize, const Real _lambda, const Real _eta)
+                           const int N, const int batchsize,
+						   const Real _lambda, const Real _eta)
 {
     const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
     const Real norm = 1./(Real)max(batchsize,1);
@@ -116,9 +117,9 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
         const Real M1_ = M1;
         const Real M2_ = std::max(M2,epsilon);
         //slow down extreme updates (normalization):
-        //const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_) / fac12;
+        //const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_);
         //const Real M1_ = std::max(std::min(TOP,M1),-TOP);
-        const Real DW_ = std::max(std::min(eta_*M1_/sqrt(M2_), W),-W);
+        const Real DW_ = std::max(std::min(eta_*M1_/sqrt(M2_), W*0.1),-W*0.1);
         //const Real DW_ = eta_*M1_/sqrt(M2_);
         _1stMom[i] = M1_;
         _2ndMom[i] = M2_;

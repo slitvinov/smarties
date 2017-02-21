@@ -92,8 +92,8 @@ public:
         for (auto & trash : Buffered) _dispose_object( trash);
     }
     void clearFailedSim(const int agentOne, const int agentEnd);
-    void update_samples_mean();
-    vector<Real>standardize(const vector<Real>& state) const;
+    void update_samples_mean(const Real alpha = 0.01);
+    vector<Real>standardize(const vector<Real>& state, const Real noise=0.) const;
 #ifdef _Priority_
     void updateP();
 #endif

@@ -443,11 +443,13 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     stats.epochCount++;
 
 
-    Real sumWeights(0.);
+    Real sumWeights = 0, distTarget = 0, sumWeightsSq = 0;
     for (int w=0; w<net->nWeights; w++){
     	sumWeights += std::fabs(net->weights[w]);
+      sumWeightsSq += net->weights[w]*net->weights[w];
+      distTarget += std::pow(net->weights[w]-net->tgt_weights[w],2);
     }
-    sumWeights *= opt->lambda;
+    //sumWeights *= opt->lambda;
 
     stats.MSE/=(stats.dumpCount-1);
     stats.avgQ/=stats.dumpCount;
@@ -458,12 +460,13 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     ofstream filestats;
     filestats.open("stats.txt", ios::app);
     printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, "
-           "min_Q %f, max_Q %f, errWeights %f, N %d, dT %f\n",
-      	   stats.epochCount, stats.MSE, stats.relE, stats.avgQ,
-           stats.minQ, stats.maxQ, sumWeights, stats.dumpCount, avgTime);
+            "min_Q %f, max_Q %f, errWeights [%f %f %f], N %d, dT %f\n",
+          stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ,
+          stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dumpCount, avgTime);
     filestats<<stats.epochCount<<"\t"<<stats.MSE<<"\t" <<stats.relE<<"\t"
              <<stats.avgQ<<"\t"<<stats.maxQ<<"\t"<<stats.minQ<<"\t"
-             <<sumWeights<<"\t"<<stats.dumpCount<<"\t"<<avgTime<<endl;
+             <<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"
+                         <<stats.dumpCount<<"\t"<<avgTime<<endl;
     filestats.close();
 
     fflush(0);
