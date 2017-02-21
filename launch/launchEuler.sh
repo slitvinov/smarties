@@ -5,7 +5,7 @@ NNODES=$2 # TEMP: here used as nthreads
 APP=$3
 SETTINGSNAME=$4
 
-BASEPATH="../"
+BASEPATH="../runs/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 #lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
 
@@ -14,7 +14,7 @@ if [ $# -gt 4 ] ; then
     cp ${POLICY} ${BASEPATH}${RUNFOLDER}/policy.net
 fi
 if [ $# -lt 7 ] ; then
-    NTASK=2 #n tasks per node
+    NTASK=1 #n tasks per node
     NTHREADS=12 #n threads per task
 else
     NTASK=$6
@@ -45,8 +45,8 @@ cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}
 
-./run.sh ${NPROCESS}
-#bsub -J ${RUNFOLDER} -n ${NPROCESS} -sp 100 -W ${WCLOCK} ./run.sh ${NPROCESS}
+#./run.sh ${NPROCESS}
+bsub -J ${RUNFOLDER} -n ${NPROCESS} -sp 100 -W ${WCLOCK} ./run.sh ${NPROCESS}
 
 for (( c=1; c<=${TIMES}-1; c++ ))
 do

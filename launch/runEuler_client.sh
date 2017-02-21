@@ -27,12 +27,9 @@ echo $SETTINGS > settings.txt
 env > environment.log
 
 
-#mpirun -np ${NPROCESS} --mca btl tcp,self -bynode ./exec ${SETTINGS} #openmpi
-module load valgrind
+#module load valgrind
+#mpirun -n 1 -launcher fork  valgrind  --tool=memcheck  --leak-check=full --show-reachable=no --show-possibly-lost=no --track-origins=yes ./exec ${SETTINGS}
 mpirun -n 1 -launcher fork ./exec ${SETTINGS}
 
-#module load valgrind
 #mpich_run -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none -launcher ssh -f lsf_hostfile valgrind  --tool=memcheck  --leak-check=full --show-reachable=no --show-possibly-lost=no --track-origins=yes ./exec ${SETTINGS}
 
-#valgrind  --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes --show-reachable=yes
-#/opt/mpich/bin/mpirun -np ${NPROCESS} ./exec ${SETTINGS} #falcon/panda
