@@ -31,8 +31,9 @@ public:
     Action *a;
     Real r;
     const int ID;
-    
-    Agent(const int _ID = 0) : ID(_ID) { }
+    int Status; 
+
+    Agent(const int _ID = 0) : ID(_ID), Status(1) { }
     
 	~Agent()
     {
@@ -55,6 +56,10 @@ public:
     void act(Action& _a)
     {
         *a = _a;
+    }
+    int getStatus() const 
+    {
+        return Status;
     }
     Real getReward()
     {

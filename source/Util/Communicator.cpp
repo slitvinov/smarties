@@ -32,7 +32,17 @@ void Communicator::sendState(int agentId, _AGENT_STATUS info,
     *(dataout +2+nStates) = reward;
     o << reward << "\n";
 
-    send_all(Socket, dataout, sizeout);
+    const int bytes = send_all(Socket, dataout, sizeout);
+    if(bytes <= 0) {
+      printf("Lost comm with smarties, aborting...\n");
+      fflush(0);
+    #ifdef __MPI_CLIENT
+      MPI_Abort(comm_MPI, 1);
+    #else  
+      abort();
+    #endif 
+    }
+
     if (info == 2) {
       if(!rank_MPI) std::cout<<o.str()<<std::endl;   fflush(0);
       o.str( std::string() );
@@ -86,7 +96,11 @@ void Communicator::recvAction(std::vector<double>& actions)
         if (bytes <= 0) {
             printf("selectserver: socket hung up\n");
             fflush(0);
+            #ifdef __MPI_CLIENT
+            MPI_Abort(comm_MPI, 1);
+            #else
             abort();
+            #endif
         }
 
     #ifdef __MPI_CLIENT

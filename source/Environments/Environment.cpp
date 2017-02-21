@@ -59,6 +59,7 @@ int Environment::getState(int& iAgent)
     for (int j=0; j<sI.dim; j++)
     agents[iAgent]->s->vals[j] = state[j];
     agents[iAgent]->r = reward;
+    agents[iAgent]->Status = status;
     return status;
 }
 

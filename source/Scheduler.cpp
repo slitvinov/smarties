@@ -216,7 +216,7 @@ void Slave::run()
             sendFail(iAgent);
             MPI_Ssend(&iAgent, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
             MPI_Ssend(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD);
-
+            for (int i(0); i<info.size(); i++) info[i] = 1;
             env->iter++;
             //abort(); //
             return; //if comm failed, retry & pray
@@ -371,10 +371,16 @@ Client::Client(Learner*const _learner, Environment* const _env, Settings& settin
       printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
       extflag, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(),r, a.print().c_str());
 
+      if(extflag<0) die("Communication lost.\n");
+
       if(extflag==2) { //then we do not recv an action, we reset
           if(env->resetAll) { //does this env require a full restart upon failing?
               return;
           }
+          bool bDone = true;
+          for (int i=0; i<agents.size(); i++) 
+            bDone = bDone && agents[i]->getStatus() == 2;
+          if(bDone) return;
       }
 
       agents[iAgent]->act(a);
