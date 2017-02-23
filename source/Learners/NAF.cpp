@@ -183,18 +183,10 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
 										net->tgt_weights, net->tgt_biases);
         }
 
-      Real Vnext = (terminal) ? _t->r : _t->r + gamma*target[0];
-//      if(std::fabs(_t->a[0])>0.6)  Vnext = std::min((Real)0.,Vnext);
-//      if(std::fabs(_t->a[1])>0.25) Vnext = std::min((Real)0.,Vnext);
+      const Real Vnext = (terminal) ? _t->r : _t->r + gamma*target[0];
 
 			const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);
 			const Real err = Vnext - Q[0];
-      //if(output[0] > 1/(1-gamma) && gradient[0]>0) gradient[0] = 0;
-      //if(std::fabs(output[1+nL  ])>0.6 && output[1+nL  ]*gradient[1+nL  ] > 0)
-      //      gradient[1+nL  ] = -output[1+nL];
-      //if(std::fabs(output[1+nL+1])>0.4 && output[1+nL+1]*gradient[1+nL+1] > 0)
-      //      gradient[1+nL+1] = -output[1+nL+1];
-      //if(std::fabs(output[1+nL+1])>0.6) printf("Hate you too\n");
 
       data->Set[seq]->tuples[k]->SquaredError = err*err;
       net->setOutputDeltas(gradient, timeSeries[k]);
@@ -231,9 +223,7 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
         _dispose_object(sNewActivation);
     }
 
-    Real Vnext = (terminal) ? _t->r : _t->r + gamma*target[0];
-//		if(std::fabs(_t->a[0])>0.6)  Vnext = std::min((Real)0.,Vnext);
-//		if(std::fabs(_t->a[1])>0.25) Vnext = std::min((Real)0.,Vnext);
+    const Real Vnext = (terminal) ? _t->r : _t->r + gamma*target[0];
     const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);
     const Real err = Vnext - Q[0];
     dumpStats(Vstats[thrID], Q[0], err, Q);
