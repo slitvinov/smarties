@@ -60,7 +60,34 @@ nL((env->aI.dim*env->aI.dim+env->aI.dim)/2)
 
 	opt = new AdamOptimizer(net, profiler, settings);
 
-	//computeQandGrad(grad, act, out, 1.);
+#ifndef NDEBUG
+   vector<Real> out_0(nOutputs, 0.1), grad_0(nOutputs);
+   for(int i = 0; i<nOutputs; i++) {
+      uniform_real_distribution<Real> dis(-10,10);
+      out_0[i] = dis(*gen);
+   }
+   vector<Real> act(nA,0.25);
+   for(int i = 0; i<nA; i++) {
+      uniform_real_distribution<Real> dis(-0.5,0.5);
+      act[i] = dis(*gen);
+   }
+   uniform_real_distribution<Real> dis(-10,10);
+   const Real V = dis(*gen);
+
+   vector<Real> Q_0 = computeQandGrad(grad_0, act, out_0, V);
+   for(int i = 0; i<1+nL+nA; i++) {
+      vector<Real> grad_1(nOutputs), grad_2(nOutputs);
+      vector<Real> out_1 = out_0;
+      vector<Real> out_2 = out_0;
+      out_1[i] -= 0.0001;
+      out_2[i] += 0.0001;
+      vector<Real> Q_1 = computeQandGrad(grad_1, act, out_1, V);
+      vector<Real> Q_2 = computeQandGrad(grad_2, act, out_2, V);
+      const Real gradi = grad_0[i]/(V - Q_0[0]);
+      const Real diffi = (Q_2[0]-Q_1[0])/0.0002;
+      printf("Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
+   }
+#endif
 }
 
 void NAF::select(const int agentId, State& s, Action& a, State& sOld,
