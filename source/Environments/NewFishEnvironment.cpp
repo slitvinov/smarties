@@ -140,15 +140,17 @@ void NewFishEnvironment::setDims()
     {
         aI.dim = 1;
         aI.values.resize(aI.dim);
-
+        aI.bounded = true;
         for (int i=0; i<aI.dim; i++) {
-            aI.bounds.push_back(5); //Number of possible actions to choose from
+            aI.bounds.push_back(7); //Number of possible actions to choose from
 
+            aI.values[i].push_back(-.75);
             aI.values[i].push_back(-.50);
             aI.values[i].push_back(-.25);
             aI.values[i].push_back(0.00);
             aI.values[i].push_back(0.25);
             aI.values[i].push_back(0.50);
+            aI.values[i].push_back(0.75);
         }
     }
     resetAll=true;
@@ -217,7 +219,7 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 1) {
-        const Real scaledBndEfficiency = (t_sN.vals[16]-.4)/(.6-.4); //between 0 and 1
+        const Real scaledBndEfficiency = (t_sN.vals[16]-.3)/(.6-.3); //between 0 and 1
         reward = scaledBndEfficiency;
         if (new_sample) reward = -1./(1.-gamma);
     }
@@ -252,7 +254,8 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
     else {
         die("Wrong reward\n");
     }
-
+//    if(std::fabs(t_a.vals[0])>0.7)
+//       reward = std::min((Real)-1.,reward);
     return new_sample;
 }
 
@@ -260,8 +263,8 @@ int NewFishEnvironment::getState(int & iAgent)
 {
     int bStatus = Environment::getState(iAgent);
 
-    for (int j=180; j<sI.dim; j++)
-        agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
+//    for (int j=180; j<sI.dim; j++)
+//        agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
 
     return bStatus;
 }

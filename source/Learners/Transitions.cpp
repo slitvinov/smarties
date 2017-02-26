@@ -79,7 +79,6 @@ void Transitions::restartSamples()
 
     printf("Found %d broken chains out of %d / %d.\n",
             nBroken, nSequences, nTransitions);
-    update_samples_mean(1.);
 }
 
 /*
@@ -264,6 +263,7 @@ void Transitions::update_samples_mean(const Real alpha)
                   MPI_VALUE_TYPE, MPI_SUM, mastersComm);
   }
 
+   if(count<batchSize) return;
 	//std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {
 		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count));

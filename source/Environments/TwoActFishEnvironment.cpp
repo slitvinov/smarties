@@ -241,7 +241,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 1) {
-        const Real scaledEfficiency = (t_sN.vals[21]-.4)/(.6-.4);
+        const Real scaledEfficiency = (t_sN.vals[21]-.3)/(.6-.3);
         reward = scaledEfficiency;
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     }
