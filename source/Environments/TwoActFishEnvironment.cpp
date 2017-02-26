@@ -205,9 +205,9 @@ int TwoActFishEnvironment::getState(int & iAgent)
 {
     int bStatus = Environment::getState(iAgent);
     if(std::fabs(agents[iAgent]->a->vals[0])>0.74)
-      agents[iAgent]->r = 0; //gently push sim away from extreme curvature: not kosher
+      agents[iAgent]->r = std::min((Real)-1.,agents[iAgent]->r); //gently push sim away from extreme curvature: not kosher
     if(std::fabs(agents[iAgent]->a->vals[1])>0.49)
-      agents[iAgent]->r = 0; //gently push sim away from extreme acceleration: not kosher
+      agents[iAgent]->r = std::min((Real)-1.,agents[iAgent]->r); //gently push sim away from extreme acceleration: not kosher
 
     return bStatus;
 }
@@ -233,6 +233,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
     */
     bool new_sample(false);
     if (reward<-9.9) new_sample=true;
+    if(new_sample) assert(info==2);
 
     if (study == 0) {
         const Real scaledEfficiency = (t_sN.vals[18]-.4)/(1.-.4);
