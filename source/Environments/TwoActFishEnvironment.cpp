@@ -37,7 +37,7 @@ void TwoActFishEnvironment::setDims()
             // ...last action (HAX!)
             sI.inUse.push_back(true);
             // ...second last action (HAX!)
-            sI.inUse.push_back(false); //if l_line i have curvature info
+            sI.inUse.push_back(true); //if l_line i have curvature info
         }
         {
             //New T period

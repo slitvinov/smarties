@@ -456,20 +456,20 @@ void Network::backProp(vector<Activation*>& timeSeries, const Real* const _weigh
 	assert(bBuilt);
 	const int last = timeSeries.size()-1;
 
-  if (last == 0) {
+  if (last == 0) { //just one activation
     for (int i=1; i<=nLayers; i++)
-    layers[nLayers-i]->backPropagate((Activation*)nullptr,timeSeries[last],
+      layers[nLayers-i]->backPropagate((Activation*)nullptr,timeSeries[last],
                                      (Activation*)nullptr, _grads, _weights, _biases);
   } else if (last == 1) {
-    for (int i=1; i<=nLayers; i++)
-    layers[nLayers-i]->backPropagate(timeSeries[0],timeSeries[1],
+    for (int i=1; i<=nLayers; i++) 
+      layers[nLayers-i]->backPropagate(timeSeries[0],timeSeries[1],
                                   (Activation*)nullptr, _grads, _weights, _biases);
     for (int i=1; i<=nLayers; i++)
-    layers[nLayers-i]->backPropagate((Activation*)nullptr,timeSeries[0],
+      layers[nLayers-i]->backPropagate((Activation*)nullptr,timeSeries[0],
                                      timeSeries[1], _grads, _weights, _biases);
   } else {
     for (int i=1; i<=nLayers; i++)
-    layers[nLayers-i]->backPropagate(timeSeries[last-1],timeSeries[last],
+      layers[nLayers-i]->backPropagate(timeSeries[last-1],timeSeries[last],
                                   (Activation*)nullptr, _grads, _weights, _biases);
 
     for (int k=last-1; k>=1; k--)

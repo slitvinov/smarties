@@ -36,16 +36,16 @@ void NewFishEnvironment::setDims()
             sI.inUse.push_back(sight);
             // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
             // Will get ~ 0 or 0.5
-            sI.inUse.push_back(false);
-//            sI.inUse.push_back(sight);
+//            sI.inUse.push_back(false);
+            sI.inUse.push_back(sight);
 
             // ...last action (HAX!)
             //sI.inUse.push_back(false);
             sI.inUse.push_back(sight);
 
             // ...second last action (HAX!)
-            sI.inUse.push_back(false); //if l_line i have curvature info
-//            sI.inUse.push_back(sight); //if l_line i have curvature info
+//            sI.inUse.push_back(false); //if l_line i have curvature info
+            sI.inUse.push_back(sight); //if l_line i have curvature info
         }
         {
             //Dist 6
@@ -254,8 +254,17 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
     else {
         die("Wrong reward\n");
     }
-//    if(std::fabs(t_a.vals[0])>0.7)
-//       reward = std::min((Real)-1.,reward);
+
+    if (fabs(t_sN.vals[0])>0.9999)
+    reward = std::min((Real)-1/(1.-gamma),reward);
+
+    if (fabs(t_sN.vals[1])>0.9999)
+    reward = std::min((Real)-1/(1.-gamma),reward);
+
+    if (fabs(t_sN.vals[2])> M_PI - 0.0001)
+    reward = std::min((Real)-1/(1.-gamma),reward);
+    //    if(std::fabs(t_a.vals[0])>0.7)
+    //
     return new_sample;
 }
 
