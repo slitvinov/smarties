@@ -60,7 +60,7 @@ struct Settings
 
     int saveFreq, randSeed, rewardType, senses, nAgents, nSlaves, nThreads;
     int nnInputs, nnOutputs, nnLayer1, nnLayer2, nnLayer3, nnLayer4, nnLayer5;
-    int nnType, dqnAppendS, dqnBatch, bTrain, maxSeqLen, nMasters, isLauncher;
+    int nnType, dqnAppendS, dqnBatch, bTrain, maxSeqLen, nMasters, isLauncher, sockPrefix;
     Real lRate, greedyEps, gamma, lambda, goalDY, nnPdrop, nnLambda, dqnUpdateC;
     string learner, restart, configFile, prefix, samplesFile;
     bool bSeparateOutputs, nnTypeInput;

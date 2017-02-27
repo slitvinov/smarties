@@ -15,8 +15,8 @@
 
 class Communicator
 {
-    const int workerid, nActions, nStates, isServer;
-    int Socket, ListenerSocket, sizein, sizeout;
+    const int nActions, nStates, isServer;
+    int workerid, Socket, ListenerSocket, sizein, sizeout;
     std::ostringstream o;
     int msgID, rank_MPI, size_MPI;
     #ifdef __MPI_CLIENT
