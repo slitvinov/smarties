@@ -33,7 +33,7 @@ class Learner
 {
 protected:
     const MPI_Comm mastersComm;
-    const int nAgents, batchSize, tgtUpdateDelay, nThreads, nInputs, nOutputs;
+    const int nAgents, batchSize, tgtUpdateDelay, nThreads, nInputs, nOutputs, nAppended;
     const bool bRecurrent, bTrain;
     const Real tgtUpdateAlpha, gamma, greedyEps;
     int cntUpdateDelay, taskCounter;

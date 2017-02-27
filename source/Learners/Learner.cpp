@@ -138,7 +138,7 @@
 Learner::Learner(MPI_Comm comm, Environment*const env, Settings & settings) :
 mastersComm(comm), nAgents(settings.nAgents), batchSize(settings.dqnBatch),
 tgtUpdateDelay((int)settings.dqnUpdateC), nThreads(settings.nThreads),
-nInputs(settings.nnInputs), nOutputs(settings.nnOutputs),
+nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), nAppended(settings.dqnAppendS),
 bRecurrent(settings.nnType==1), bTrain(settings.bTrain==1),
 tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma),
 greedyEps(settings.greedyEps), cntUpdateDelay(-1), taskCounter(batchSize),
@@ -225,8 +225,8 @@ void Learner::TrainTasking(Master* const master)
             processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
             sumElapsed = 0; countElapsed=0;
             //print_memory_usage();
-            #if 1==0// ndef NDEBUG //check gradients with finite differences, just for debug  0==1//
-            if (stats.epochCount % 100 == 0) {
+            #if 1==0 // ndef NDEBUG //check gradients with finite differences, just for debug
+            if (stats.epochCount == 0) { //% 100
                 vector<vector<Real>> inputs;
                 const int ind = data->Set.size()-1;
                 for (int k=0; k<data->Set[ind]->tuples.size(); k++)
@@ -262,7 +262,7 @@ void Learner::TrainTasking(Master* const master)
 						#pragma omp atomic
 						taskCounter++;
 
-//                  printf("Thread %d performed task %d\n", thrID, taskCounter); fflush(0);
+            //printf("Thread %d performed task %d\n", thrID, taskCounter); fflush(0);
 					}
 				}
 			} else {
@@ -290,7 +290,7 @@ void Learner::TrainTasking(Master* const master)
 						#pragma omp atomic
 						taskCounter++;
 
-//                  printf("Thread %d performed task %d\n", thrID, taskCounter); fflush(0);
+            //printf("Thread %d performed task %d\n", thrID, taskCounter); fflush(0);
 					}
 				}
 			}

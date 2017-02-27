@@ -22,7 +22,7 @@ class Environment
 {
 protected:
     const string execpath;
-    const int rank, isLauncher, nAgents;
+    const int rank, isLauncher, nAgents, workid;
     const double gamma;
     mt19937 * g;
     Communicator * communicator;

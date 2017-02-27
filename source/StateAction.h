@@ -77,10 +77,10 @@ public:
 		return o.str();
     }
 
-    void copy_observed(vector<Real>& res) const
+    void copy_observed(vector<Real>& res, const int append=0) const
     {
-				assert(res.size() == sInfo.dimUsed);
-        int k = 0;
+        int k = append*sInfo.dimUsed;
+				assert(res.size() >= k+sInfo.dimUsed);
         for (int i=0; i<sInfo.dim; i++)
         if (sInfo.inUse[i]) {
             res[k] = vals[i];

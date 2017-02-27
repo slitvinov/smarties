@@ -108,7 +108,7 @@ class NormalLink: public Link
 				for (int o = 0; o < nO; o++)
 					_weights[iW + nO_simd*i + o] = dis(*gen);
 
-        orthogonalize(iW, _weights, nO, nI, nO_simd);
+        //orthogonalize(iW, _weights, nO, nI, nO_simd);
     }
 
     void restart(std::istringstream & buf, Real* const _weights) const override
@@ -231,10 +231,10 @@ class LinkToLSTM : public Link
 					_weights[iWF + nO_simd*i + o] = dis(*gen);
 					_weights[iWO + nO_simd*i + o] = dis(*gen);
 				}
-        orthogonalize(iW,  _weights, nO, nI, nO_simd);
-        orthogonalize(iWI, _weights, nO, nI, nO_simd);
-        orthogonalize(iWF, _weights, nO, nI, nO_simd);
-        orthogonalize(iWO, _weights, nO, nI, nO_simd);
+        //orthogonalize(iW,  _weights, nO, nI, nO_simd);
+        //orthogonalize(iWI, _weights, nO, nI, nO_simd);
+        //orthogonalize(iWF, _weights, nO, nI, nO_simd);
+        //orthogonalize(iWO, _weights, nO, nI, nO_simd);
     }
 
     void restart(std::istringstream & buf, Real* const _weights) const override
@@ -407,8 +407,8 @@ class LinkToConv2D : public Link
         //normal_distribution<Real> dis(0.,range);
         assert(outputDepth_simd*nAdded == nW);
         for (int i = 0; i < nAdded; i++)
-		for (int o = 0; o < nO; o++)
-			_weights[iW + outputDepth_simd*i + o] = dis(*gen);
+				for (int o = 0; o < nO; o++)
+					_weights[iW + outputDepth_simd*i + o] = dis(*gen);
 
         orthogonalize(iW, _weights, outputDepth, nAdded, outputDepth_simd);
     }
@@ -610,38 +610,38 @@ struct Graph //misleading, this is just the graph for a single layer
 
     	Real tmp;
 
-		for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++) {
-			bufBiases >> tmp;
-			assert(not std::isnan(tmp) & not std::isinf(tmp));
-			*(_biases +w) = tmp;
-		}
-
-		if (LSTM) { //let all gates be biased towards open: better backprop
-			for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize; w++){
+			for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++) {
 				bufBiases >> tmp;
 				assert(not std::isnan(tmp) & not std::isinf(tmp));
 				*(_biases +w) = tmp;
 			}
 
-			for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize; w++){
-				bufBiases >> tmp;
-				assert(not std::isnan(tmp) & not std::isinf(tmp));
-				*(_biases +w) = tmp;
+			if (LSTM) { //let all gates be biased towards open: better backprop
+				for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize; w++){
+					bufBiases >> tmp;
+					assert(not std::isnan(tmp) & not std::isinf(tmp));
+					*(_biases +w) = tmp;
+				}
+
+				for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize; w++){
+					bufBiases >> tmp;
+					assert(not std::isnan(tmp) & not std::isinf(tmp));
+					*(_biases +w) = tmp;
+				}
+
+				for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize; w++){
+					bufBiases >> tmp;
+					assert(not std::isnan(tmp) & not std::isinf(tmp));
+					*(_biases +w) = tmp;
+				}
 			}
 
-			for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize; w++){
+			if (firstBiasWhiten>=0)
+			for (int p=0 ; p<2; p++) for (int o=0 ; o<layerSize; o++){
 				bufBiases >> tmp;
 				assert(not std::isnan(tmp) & not std::isinf(tmp));
-				*(_biases +w) = tmp;
+				_biases[firstBiasWhiten + p*layerSize_simd+o] = tmp;
 			}
-		}
-
-		if (firstBiasWhiten>=0)
-		for (int p=0 ; p<2; p++) for (int o=0 ; o<layerSize; o++){
-			bufBiases >> tmp;
-			assert(not std::isnan(tmp) & not std::isinf(tmp));
-			_biases[firstBiasWhiten + p*layerSize_simd+o] = tmp;
-		}
     }
 
     void save(std::ostringstream & outWeights,
@@ -652,23 +652,23 @@ struct Graph //misleading, this is just the graph for a single layer
     	for (const auto & l : *(links))
 			if(l not_eq nullptr) l->save(outWeights, _weights);
 
-		for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++)
-			outBiases << *(_biases +w) << "\n";
-
-		if (LSTM) { //let all gates be biased towards open: better backprop
-			for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize; w++)
+			for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++)
 				outBiases << *(_biases +w) << "\n";
 
-			for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize; w++)
-				outBiases << *(_biases +w) << "\n";
+			if (LSTM) { //let all gates be biased towards open: better backprop
+				for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize; w++)
+					outBiases << *(_biases +w) << "\n";
 
-			for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize; w++)
-				outBiases << *(_biases +w) << "\n";
-		}
+				for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize; w++)
+					outBiases << *(_biases +w) << "\n";
 
-		if (firstBiasWhiten>=0)
-		for (int p=0 ; p<2; p++) for (int o=0 ; o<layerSize; o++)
-			outBiases << _biases[firstBiasWhiten + p*layerSize_simd+o] << "\n";
+				for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize; w++)
+					outBiases << *(_biases +w) << "\n";
+			}
+
+			if (firstBiasWhiten>=0)
+			for (int p=0 ; p<2; p++) for (int o=0 ; o<layerSize; o++)
+				outBiases << _biases[firstBiasWhiten + p*layerSize_simd+o] << "\n";
     }
 
     void initializeWeights(mt19937* const gen, Real* const _weights, Real* const _biases) const
@@ -698,13 +698,13 @@ struct Graph //misleading, this is just the graph for a single layer
 				    assert(firstState_ID>=0 && firstBiasIG_ID>0 && firstBiasFG_ID>0 && firstBiasOG_ID>0);
 
 				    for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize_simd; w++)
-				        *(_biases +w) = dis(*gen) - 0.5;
+				        *(_biases +w) = dis(*gen) - 0.0;
 
 				    for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize_simd; w++)
-				        *(_biases +w) = dis(*gen) + 0.5;
+				        *(_biases +w) = dis(*gen) + 0.0;
 
 				    for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize_simd; w++)
-				        *(_biases +w) = dis(*gen) - 0.5;
+				        *(_biases +w) = dis(*gen) - 0.0;
 				}
     }
 };

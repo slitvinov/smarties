@@ -13,7 +13,7 @@ using namespace std;
 
 Environment::Environment(const int _nAgents, const string _execpath, const int _rank, Settings & settings) :
 execpath(_execpath), rank(_rank), isLauncher(settings.isLauncher), nAgents(_nAgents),
-gamma(settings.gamma), g(settings.gen), resetAll(true), iter(0), communicator(nullptr)
+gamma(settings.gamma), g(settings.gen), resetAll(true), iter(0), communicator(nullptr), workid(settings.sockPrefix)
 {
     for (int i=0; i<nAgents; i++) agents.push_back(new Agent(i));
 }
@@ -21,7 +21,7 @@ gamma(settings.gamma), g(settings.gen), resetAll(true), iter(0), communicator(nu
 void Environment::setup_Comm()
 {
     if(communicator == nullptr)
-      communicator = new Communicator(rank,sI.dim,aI.dim,isLauncher==1,false);
+      communicator = new Communicator(workid,sI.dim,aI.dim,isLauncher==1,false);
       //die("Set up the state before establishing a communication.\n");
 
     if (isLauncher)
