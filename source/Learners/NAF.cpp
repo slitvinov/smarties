@@ -94,10 +94,7 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 								 Action& aOld, const int info, Real r)
 {
     Activation* currActivation = net->allocateActivation();
-    vector<Real> output(nOutputs), inputs(nInputs);
-
-    s.copy_observed(inputs);
-    vector<Real> scaledSold = data->standardize(inputs);
+    vector<Real> output(nOutputs);
 
     if (info==1) {// if new sequence, sold, aold and reward are meaningless
 			vector<Real> inputs(nInputs,0);
