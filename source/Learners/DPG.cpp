@@ -19,7 +19,7 @@
 #include <cmath>
 
 DPG::DPG(MPI_Comm comm, Environment*const env, Settings & settings) :
-Learner(comm,env,settings), nS(env->sI.dimUsed), nA(env->aI.dim)
+Learner(comm,env,settings), nS(env->sI.dimUsed*(1+settings.dqnAppendS)), nA(env->aI.dim)
 {
 	string lType = bRecurrent ? "LSTM" : "Normal";
 	vector<int> lsize;
@@ -57,18 +57,24 @@ Learner(comm,env,settings), nS(env->sI.dimUsed), nA(env->aI.dim)
 void DPG::select(const int agentId, State& s, Action& a,
 								 State& sOld, Action& aOld, const int info, Real r)
 {
+		if (info!=1)
+			data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
+		if (info == 2) return;
+		assert(info==1 || data->Tmp[agentId]->tuples.size());
     Activation* currActivation = net_policy->allocateActivation();
-    vector<Real> output(nA), inputs(nS);
-    s.copy_observed(inputs);
-    vector<Real> scaledSold = data->standardize(inputs);
+    vector<Real> output(nA);
 
     if (info==1) {// if new sequence, sold, aold and reward are meaningless
-        net_policy->predict(scaledSold, output, currActivation);
+				vector<Real> inputs(nInputs,0);
+		    s.copy_observed(inputs);
+    		vector<Real> scaledSold = data->standardize(inputs);
+        net->predict(scaledSold, output, currActivation);
     } else { //then if i'm using RNN i need to load recurrent connections
+				const Tuple* const last = data->Tmp[agentId]->tuples.back();
+				vector<Real> scaledSold = data->standardize(last->s);
         Activation* prevActivation = net_policy->allocateActivation();
         net_policy->loadMemory(net_policy->mem[agentId], prevActivation);
         net_policy->predict(scaledSold, output, prevActivation, currActivation);
-        data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
         _dispose_object(prevActivation);
     }
 
@@ -174,7 +180,7 @@ void DPG::Train(const int seq, const int samp, const int thrID) const
 	    	net->backProp(gradient, sNewQAct,
 											net->tgt_weights, net->tgt_biases, tmp_grad);
         _dispose_object(tmp_grad);
-				
+
     		for(int i=0;i<nA;i++) {
 					if(sNewQAct->errvals[nS+i] == 0) die("Failed backprop?\n");
 					pol_gradient[i] = sNewQAct->errvals[nS+i];

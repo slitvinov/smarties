@@ -53,6 +53,10 @@ Learner(comm,env,settings)
 void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
 									Action& aOld, const int info, Real r)
 {
+		if (info!=1)
+		data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
+		if (info == 2) return;
+		assert(info==1 || data->Tmp[agentId]->tuples.size());
     Activation* currActivation = net->allocateActivation();
     vector<Real> output(nOutputs);
 
@@ -62,19 +66,11 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
     		vector<Real> scaledSold = data->standardize(inputs);
         net->predict(scaledSold, output, currActivation);
 		} else {   //then if i'm using RNN i need to load recurrent connections
-				vector<Real> inputs(sInfo.dimUsed);
-				s.copy_observed(inputs);
-				if (nAppended>0) {
-					const int sApp = nAppended*sInfo.dimUsed;
-	        const Tuple* const last = data->Tmp[agentId]->tuples.back();
-					inputs.insert(inputs.end(),last->s[0],last->s[sApp-1]);
-				}
-    		vector<Real> scaledSold = data->standardize(inputs);
+				const Tuple* const last = data->Tmp[agentId]->tuples.back();
+				vector<Real> scaledSold = data->standardize(last->s);
         Activation* prevActivation = net->allocateActivation();
         net->loadMemory(net->mem[agentId], prevActivation);
         net->predict(scaledSold, output, prevActivation, currActivation);
-        //also, store sOld, aOld -> sNew, r
-        data->passData(agentId, info, sOld, aOld, s, r);
         _dispose_object(prevActivation);
     }
 

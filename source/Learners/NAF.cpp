@@ -93,6 +93,10 @@ nL((env->aI.dim*env->aI.dim+env->aI.dim)/2)
 void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 								 Action& aOld, const int info, Real r)
 {
+		if (info!=1)
+		data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
+		if (info == 2) return;
+		assert(info==1 || data->Tmp[agentId]->tuples.size());
     Activation* currActivation = net->allocateActivation();
     vector<Real> output(nOutputs);
 
@@ -102,19 +106,11 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 			vector<Real> scaledSold = data->standardize(inputs);
       net->predict(scaledSold, output, currActivation);
     } else {   //then if i'm using RNN i need to load recurrent connections
-			vector<Real> inputs(sInfo.dimUsed);
-			s.copy_observed(inputs);
-			if (nAppended>0) {
-				const int sApp = nAppended*sInfo.dimUsed;
-				const Tuple* const last = data->Tmp[agentId]->tuples.back();
-				inputs.insert(inputs.end(),last->s[0],last->s[sApp-1]);
-			}
-			vector<Real> scaledSold = data->standardize(inputs);
+			const Tuple* const last = data->Tmp[agentId]->tuples.back();
+			vector<Real> scaledSold = data->standardize(last->s);
 			Activation* prevActivation = net->allocateActivation();
 			net->loadMemory(net->mem[agentId], prevActivation);
       net->predict(scaledSold, output, prevActivation, currActivation);
-      //also, store sOld, aOld -> sNew, r
-      data->passData(agentId, info, sOld, aOld, s, r);
       _dispose_object(prevActivation);
     }
 
@@ -128,7 +124,7 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 			for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
 				const Real min_a = *std::min_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
 				const Real max_a = *std::max_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
-				act[j] = min_a + 0.5*(output[1+nL+j]/(1 + std::fabs(output[1+nL+j])) + 1)*(max_a - min_a);
+				act[j] = min_a + 0.5*(output[1+nL+j]/(1.+std::fabs(output[1+nL+j])) +1)*(max_a - min_a);
 
 	    }
 		} else for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
@@ -137,8 +133,7 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const double handicap = min(static_cast<int>(data->Set.size())/500.,
-                              (bRecurrent ? opt->nepoch/1000. : opt->nepoch/1000.));
+        const double handicap = min(static_cast<int>(data->Set.size())/1e2, opt->nepoch/1e4);
         newEps = std::exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
 
@@ -242,7 +237,7 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     const int ndata = data->Set[seq]->tuples.size();
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
 
-    vector<Real> scaledSold =data->standardize(data->Set[seq]->tuples[samp]->s, 0.001);
+    vector<Real> scaledSold =data->standardize(data->Set[seq]->tuples[samp]->s);
     const Tuple* const _tOld = data->Set[seq]->tuples[samp]; //this tuple contains a, sNew, reward:
     const Tuple* const _t = data->Set[seq]->tuples[samp+1]; //this tuple contains a, sNew, reward:
     Activation* sOldActivation = net->allocateActivation();
@@ -259,7 +254,7 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
         _dispose_object(sNewActivation);
     }
 
-		const Real relax = - Real(opt->nepoch) / 1e3;
+		const Real relax = - Real(opt->nepoch) / 1e4;
 		const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
 		const Real Vnext = (terminal) ? _t->r : _t->r + realxedGamma*target[0];
 

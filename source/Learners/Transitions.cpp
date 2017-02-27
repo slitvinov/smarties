@@ -10,7 +10,7 @@
 #include "Transitions.h"
 #include <fstream>
 //#define CLEAN //dont
-#define NmaxDATA 20000
+#define NmaxDATA 5000
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
 mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
@@ -171,7 +171,9 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
     t->s = Inp;
     if (sApp>0) {
         const Tuple * const last = Tmp[agentId]->tuples.back();
-        t->s.insert(t->s.end(),last->s[0],last->s[sApp-1]);
+        vector<Real> prev(sApp);
+        for(int i=0; i<sApp; i++) prev[i] = last->s[i];
+        t->s.insert(t->s.end(),prev.begin(),prev.end());
     }
 
     const bool new_sample = env->pickReward(sOld,a,sNew,reward,info);
