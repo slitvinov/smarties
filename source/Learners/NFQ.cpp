@@ -227,6 +227,7 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
     int Nbest(-1);
     Real Vhat(-1e10);
     for (int i=0; i<nOutputs; i++) {
+			errs[i] = 0.;
     	if(Qhats[i]>Vhat) { Vhat=Qhats[i]; Nbest=i;  }
     }
 

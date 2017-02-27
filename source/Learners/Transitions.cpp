@@ -17,7 +17,7 @@ mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings
 maxSeqLen(settings.maxSeqLen), iOldestSaved(0), bSampleSeq(settings.nnType),
 bRecurrent(settings.nnType), bWriteToFile(!(settings.samplesFile=="none")),
 bNormalize(settings.nnTypeInput), path(settings.samplesFile), anneal(0),
-nBroken(0), nTransitions(0), nSequences(0), aI(_env->aI), sI(_env->sI)
+nBroken(0), nTransitions(0), nSequences(0), aI(_env->aI), sI(_env->sI), old_ndata(0)
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
@@ -79,6 +79,8 @@ void Transitions::restartSamples()
 
     printf("Found %d broken chains out of %d / %d.\n",
             nBroken, nSequences, nTransitions);
+    if(nTransitions>0) update_samples_mean(1.0);
+    old_ndata = nTransitions;
 }
 
 /*
@@ -175,14 +177,19 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
     const bool new_sample = env->pickReward(sOld,a,sNew,reward,info);
     t->r = reward;
     t->a = a.vals;
-//printf("%g\n", t->r);
+    ofstream fout;
+    /*
+    fout.open("rewards.dat",ios::app);
+    fout<<t->s[0]<<" "<<t->s[1]<<" "<<t->s[2]<<" "<<t->s[3]<<" "<<reward<<endl;
+    fout.flush();
+    fout.close();
+    */
     Tmp[agentId]->tuples.push_back(t);
     if (new_sample) {
         Tmp[agentId]->ended = true;
         push_back(agentId);
     }
 }
-
 
 void Transitions::clearFailedSim(const int agentOne, const int agentEnd)
 {
@@ -220,9 +227,7 @@ void Transitions::update_samples_mean(const Real alpha)
 {
   if(!bNormalize) return;
 	int count = 0;
-  vector<Real> oldStd(std), oldMean(mean);
-	std::fill(std.begin(), std.end(), 0.);
-	std::fill(mean.begin(), mean.end(), 0.);
+  vector<Real> newStd(sI.dimUsed,0), newMean(sI.dimUsed,0);
 
 	#pragma omp parallel
 	{
@@ -245,8 +250,8 @@ void Transitions::update_samples_mean(const Real alpha)
 		{
 			count += cnt;
 			for (int i=0; i<sI.dimUsed; i++) {
-				mean[i] += sum[i];
-				std[i] += sum2[i];
+				newMean[i] += sum[i];
+				newStd[i] += sum2[i];
 			}
 		}
 	}
@@ -257,28 +262,27 @@ void Transitions::update_samples_mean(const Real alpha)
   if (nMasters > 1) {
     MPI_Allreduce(MPI_IN_PLACE, &count, 1,
                   MPI_INT, MPI_SUM, mastersComm);
-    MPI_Allreduce(MPI_IN_PLACE, mean.data(), sI.dimUsed,
+    MPI_Allreduce(MPI_IN_PLACE, newMean.data(), sI.dimUsed,
                   MPI_VALUE_TYPE, MPI_SUM, mastersComm);
-    MPI_Allreduce(MPI_IN_PLACE, std.data(), sI.dimUsed,
+    MPI_Allreduce(MPI_IN_PLACE, newStd.data(), sI.dimUsed,
                   MPI_VALUE_TYPE, MPI_SUM, mastersComm);
   }
 
    if(count<batchSize) return;
-	//std::cout << "States stds: [";
+   std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {
-		std[i] = std::sqrt((std[i] - mean[i]*mean[i]/Real(count))/Real(count));
-    //Networks seem not to like abrupt change in scaling...
-      std[i] = oldStd[i]*(1.-alpha) + alpha*std[i];
-	//	std::cout << std[i] << " ";
+    newStd[i] = std::sqrt((newStd[i] - newMean[i]*newMean[i]/Real(count))/Real(count));
+    newStd[i] = std::max(newStd[i],1e-8);
+    std[i] = std[i]*(1.-alpha) + alpha*newStd[i];
+    std::cout << std[i] << " ";
   }
-	//std::cout << "]. States means: [";
+  std::cout << "]. States means: [";
 	for (int i=0; i<sI.dimUsed; i++) {
-    mean[i] /= Real(count);
-    //Networks seem not to like abrupt change in scaling...
-    mean[i] = oldMean[i]*(1.-alpha) + alpha*mean[i];
-   // std::cout << mean[i] << " ";
+    newMean[i] /= Real(count);
+    mean[i] = mean[i]*(1.-alpha) + alpha*newMean[i];
+    std::cout << mean[i] << " ";
   }
-//	std::cout << "]" << std::endl;
+  std::cout << "]" << std::endl;
 }
 
 vector<Real> Transitions::standardize(const vector<Real>&  state, const Real noise) const
@@ -286,21 +290,17 @@ vector<Real> Transitions::standardize(const vector<Real>&  state, const Real noi
     if(!bNormalize) return state;
     vector<Real> tmp(sI.dimUsed);
     assert(state.size() == sI.dimUsed);
-    //std::normal_distribution<Real> noise(0.,0.001);
-    for (int i=0; i<sI.dimUsed; i++) {
-      tmp[i] = (state[i] - mean[i])/(std[i]+1e-9);
-      //printf("Scale: %9.9e %9.9e %9.9e\n", tmp[i], mean[i], std[i]);
-      //tmp[i] += noise(*(gen->g));
+    for (int i=0; i<sI.dimUsed; i++)
+    tmp[i] = (state[i] - mean[i])/(std[i]+1e-8);
+
+    if (noise>0) {
+      std::normal_distribution<Real> distn(0.,noise);
+      #pragma omp critical
+      {
+        for (int i=0; i<sI.dimUsed; i++)
+          tmp[i] += distn(*(gen->g));
+      }
     }
-   if (noise)
-   {
-   std::normal_distribution<Real> distn(0.,noise);
-   #pragma omp critical
-   {
-      for (int i=0; i<sI.dimUsed; i++)
-         tmp[i] += distn(*(gen->g));
-   }
-   }
     return tmp;
 }
 
@@ -358,16 +358,21 @@ void Transitions::updateSamples()
     printf("nSequences %d > NmaxDATA %d (nTransitions=%d, avg seq len = %f).\n",
              nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
     synchronize();
-   } else
+    update_samples_mean();
+    old_ndata = nTransitions;
+  } else {
     printf("nSequences %d < NmaxDATA %d (nTransitions=%d, avg seq len = %f).\n",
              nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
-
+    const int ndata = nTransitions;
+    if(ndata!=old_ndata)
+    update_samples_mean();
+    old_ndata = ndata;
+  }
 
     const int ndata = (bRecurrent) ? nSequences : nTransitions;
     inds.resize(ndata);
     std::iota(inds.begin(), inds.end(), 0);
     random_shuffle(inds.begin(), inds.end(), *(gen));
-    update_samples_mean();
 }
 
 int Transitions::sample()
@@ -390,7 +395,10 @@ void Transitions::restart(std::string fname)
     string nameBackup = fname + "_data_stats";
     ifstream in(nameBackup.c_str());
     debug1("Reading from %s\n", nameBackup.c_str());
-    if (!in.good()) return;
+    if (!in.good()) {
+      debug1("File not found %s\n", nameBackup.c_str());
+      return;
+    }
 
     for (int i=0; i<sI.dimUsed; i++) {
       in >> mean[i] >> std[i];
