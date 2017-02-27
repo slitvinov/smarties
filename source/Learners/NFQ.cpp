@@ -54,13 +54,22 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
 									Action& aOld, const int info, Real r)
 {
     Activation* currActivation = net->allocateActivation();
-    vector<Real> output(nOutputs), inputs(nInputs);
-    s.copy_observed(inputs);
-    vector<Real> scaledSold = data->standardize(inputs);
+    vector<Real> output(nOutputs);
 
-    if (info==1)// if new sequence, sold, aold and reward are meaningless
+    if (info==1) {// if new sequence, sold, aold and reward are meaningless
+				vector<Real> inputs(nInputs,0);
+		    s.copy_observed(inputs);
+    		vector<Real> scaledSold = data->standardize(inputs);
         net->predict(scaledSold, output, currActivation);
-    else {   //then if i'm using RNN i need to load recurrent connections
+		} else {   //then if i'm using RNN i need to load recurrent connections
+				vector<Real> inputs(sInfo.dimUsed);
+				s.copy_observed(inputs);
+				if (nAppended>0) {
+					const int sApp = nAppended*sInfo.dimUsed;
+	        const Tuple* const last = data->Tmp[agentId]->tuples.back();
+					inputs.insert(inputs.end(),last->s[0],last->s[sApp-1]);
+				}
+    		vector<Real> scaledSold = data->standardize(inputs);
         Activation* prevActivation = net->allocateActivation();
         net->loadMemory(net->mem[agentId], prevActivation);
         net->predict(scaledSold, output, prevActivation, currActivation);

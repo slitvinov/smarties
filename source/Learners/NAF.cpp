@@ -99,15 +99,26 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
     s.copy_observed(inputs);
     vector<Real> scaledSold = data->standardize(inputs);
 
-    if (info==1) // if new sequence, sold, aold and reward are meaningless
-        net->predict(scaledSold, output, currActivation);
-    else {   //then if i'm using RNN i need to load recurrent connections
-		Activation* prevActivation = net->allocateActivation();
-		net->loadMemory(net->mem[agentId], prevActivation);
-        net->predict(scaledSold, output, prevActivation, currActivation);
-        //also, store sOld, aOld -> sNew, r
-        data->passData(agentId, info, sOld, aOld, s, r);
-        _dispose_object(prevActivation);
+    if (info==1) {// if new sequence, sold, aold and reward are meaningless
+			vector<Real> inputs(nInputs,0);
+			s.copy_observed(inputs);
+			vector<Real> scaledSold = data->standardize(inputs);
+      net->predict(scaledSold, output, currActivation);
+    } else {   //then if i'm using RNN i need to load recurrent connections
+			vector<Real> inputs(sInfo.dimUsed);
+			s.copy_observed(inputs);
+			if (nAppended>0) {
+				const int sApp = nAppended*sInfo.dimUsed;
+				const Tuple* const last = data->Tmp[agentId]->tuples.back();
+				inputs.insert(inputs.end(),last->s[0],last->s[sApp-1]);
+			}
+			vector<Real> scaledSold = data->standardize(inputs);
+			Activation* prevActivation = net->allocateActivation();
+			net->loadMemory(net->mem[agentId], prevActivation);
+      net->predict(scaledSold, output, prevActivation, currActivation);
+      //also, store sOld, aOld -> sNew, r
+      data->passData(agentId, info, sOld, aOld, s, r);
+      _dispose_object(prevActivation);
     }
 
     //save network transition

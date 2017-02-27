@@ -73,13 +73,13 @@ void runClient()
 
     Learner* learner = nullptr;
     if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
-        settings.nnInputs = env->sI.dimUsed;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
         settings.nnOutputs = 1;
         for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];
         learner = new NFQ(MPI_COMM_WORLD, env, settings);
     }
     else if (settings.learner == "NA" || settings.learner == "NAF") {
-        settings.nnInputs = env->sI.dimUsed;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
         const int nA = env->aI.dim;
         const int nL = (nA*nA+nA)/2;
         settings.nnOutputs = 1+nL+nA;
@@ -87,7 +87,7 @@ void runClient()
         learner = new NAF(MPI_COMM_WORLD, env, settings);
     }
     else if (settings.learner == "DP" || settings.learner == "DPG") {
-        settings.nnInputs = env->sI.dimUsed + env->aI.dim;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS) + env->aI.dim;
         settings.nnOutputs = 1;
         learner = new DPG(MPI_COMM_WORLD, env, settings);
     } else die("Learning algorithm not recognized\n");
@@ -122,13 +122,13 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 
     Learner* learner = nullptr;
     if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
-        settings.nnInputs = env->sI.dimUsed;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
         settings.nnOutputs = 1;
         for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];
         learner = new NFQ(mastersComm, env, settings);
     }
     else if (settings.learner == "NA" || settings.learner == "NAF") {
-        settings.nnInputs = env->sI.dimUsed;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
         const int nA = env->aI.dim;
         const int nL = (nA*nA+nA)/2;
         settings.nnOutputs = 1+nL+nA;
@@ -136,7 +136,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
         learner = new NAF(mastersComm, env, settings);
     }
     else if (settings.learner == "DP" || settings.learner == "DPG") {
-        settings.nnInputs = env->sI.dimUsed + env->aI.dim;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS) + env->aI.dim;
         settings.nnOutputs = 1;
         learner = new DPG(mastersComm, env, settings);
     } else die("Learning algorithm not recognized\n");

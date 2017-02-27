@@ -238,7 +238,7 @@ void Transitions::update_samples_mean(const Real alpha)
 		#pragma omp for schedule(dynamic)
 		for(int i=0; i<Set.size(); i++)
 		for(const auto & t : Set[i]->tuples) {
-			assert(t->s.size() == sI.dimUsed);
+			assert(t->s.size() == sI.dimUsed*(1+nAppended));
 			cnt++;
 			for (int j=0; j<sI.dimUsed; j++) {
 				sum2[j] += t->s[j]*t->s[j];
@@ -288,16 +288,19 @@ void Transitions::update_samples_mean(const Real alpha)
 vector<Real> Transitions::standardize(const vector<Real>&  state, const Real noise) const
 {
     if(!bNormalize) return state;
-    vector<Real> tmp(sI.dimUsed);
-    assert(state.size() == sI.dimUsed);
-    for (int i=0; i<sI.dimUsed; i++)
-    tmp[i] = (state[i] - mean[i])/(std[i]+1e-8);
+    vector<Real> tmp(sI.dimUsed*(1+nAppended));
+    assert(state.size() == sI.dimUsed*(1+nAppended));
+    for (int j=0; j<1+nAppended; j++)
+    for (int i=0; i<sI.dimUsed; i++) {
+      const int k = j*sI.dimUsed + i;
+      tmp[k] = (state[k] - mean[i])/(std[i]+1e-8);
+    }
 
     if (noise>0) {
       std::normal_distribution<Real> distn(0.,noise);
       #pragma omp critical
       {
-        for (int i=0; i<sI.dimUsed; i++)
+        for (int i=0; i<sI.dimUsed*(1+nAppended); i++)
           tmp[i] += distn(*(gen->g));
       }
     }

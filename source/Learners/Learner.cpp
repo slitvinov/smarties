@@ -138,7 +138,7 @@
 Learner::Learner(MPI_Comm comm, Environment*const env, Settings & settings) :
 mastersComm(comm), nAgents(settings.nAgents), batchSize(settings.dqnBatch),
 tgtUpdateDelay((int)settings.dqnUpdateC), nThreads(settings.nThreads),
-nInputs(settings.nnInputs), nOutputs(settings.nnOutputs),
+nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), nAppended(settings.dqnAppendS),
 bRecurrent(settings.nnType==1), bTrain(settings.bTrain==1),
 tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma),
 greedyEps(settings.greedyEps), cntUpdateDelay(-1), taskCounter(batchSize),
