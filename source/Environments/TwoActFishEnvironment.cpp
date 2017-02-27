@@ -37,7 +37,7 @@ void TwoActFishEnvironment::setDims()
             // ...last action (HAX!)
             sI.inUse.push_back(true);
             // ...second last action (HAX!)
-            sI.inUse.push_back(true); //if l_line i have curvature info
+            sI.inUse.push_back(false); //if l_line i have curvature info
         }
         {
             //New T period
@@ -237,12 +237,12 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
     if (study == 0) {
         const Real scaledEfficiency = (t_sN.vals[18]-.4)/(1.-.4);
         reward = scaledEfficiency;
-        if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+        if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 1) {
         const Real scaledEfficiency = (t_sN.vals[21]-.3)/(.6-.3);
         reward = scaledEfficiency;
-        if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+        if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 2) {
         reward =  1.-fabs(t_sN.vals[1]-goalDY)/.5;

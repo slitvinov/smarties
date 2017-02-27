@@ -26,7 +26,7 @@ void Communicator::sendState(int agentId, _AGENT_STATUS info,
     {int *ptr=(int*)(dataout+1); *ptr=info;  }
 
     for (int j=0; j<nStates; j++) {
-        if (std::isnan(state[j]) || std::isinf(state[j]) ) abort();
+        assert(not std::isnan(state[j]) && not std::isinf(state[j]));
         *(dataout +j+2) = state[j];
         o << state[j] << " ";
     }
