@@ -87,6 +87,11 @@ void Environment::commonSetup()
         aI.shifts[i] = aI.shifts[i-1] * aI.bounds[i-1];
     }
 
+    if(! aI.bounded.size()) {
+      aI.bounded.resize(aI.dim, 0);
+      printf("Unspecified whether action space is bounded: assumed not\n");
+    } else assert(aI.bounded.size() == aI.dim);
+
     for (auto& a : agents) {
         a->setDims(sI, aI);
         a->a = new Action(aI, g);

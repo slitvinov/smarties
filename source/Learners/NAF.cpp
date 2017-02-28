@@ -60,7 +60,7 @@ nL((env->aI.dim*env->aI.dim+env->aI.dim)/2)
 
 	opt = new AdamOptimizer(net, profiler, settings);
 
-#ifndef NDEBUG
+	#ifndef NDEBUG
    vector<Real> out_0(nOutputs, 0.1), grad_0(nOutputs);
    for(int i = 0; i<nOutputs; i++) {
       uniform_real_distribution<Real> dis(-10,10);
@@ -87,7 +87,7 @@ nL((env->aI.dim*env->aI.dim+env->aI.dim)/2)
       const Real diffi = (Q_2[0]-Q_1[0])/0.0002;
       printf("Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
    }
-#endif
+  #endif
 }
 
 void NAF::select(const int agentId, State& s, Action& a, State& sOld,
@@ -97,6 +97,7 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 		data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
 		if (info == 2) return;
 		assert(info==1 || data->Tmp[agentId]->tuples.size());
+
     Activation* currActivation = net->allocateActivation();
     vector<Real> output(nOutputs);
 
@@ -119,21 +120,14 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
     _dispose_object(currActivation);
 
     //load computed policy into a
-    vector<Real> act(nA);
-		if(aInfo.bounded) {
-			for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
-				const Real min_a = *std::min_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
-				const Real max_a = *std::max_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
-				act[j] = min_a + 0.5*(output[1+nL+j]/(1.+std::fabs(output[1+nL+j])) +1)*(max_a - min_a);
-
-	    }
-		} else for (int j(0); j<nA; j++) act[j] = output[1+nL+j];
-    a.set(act);
+    vector<Real> scaledAct(nA);
+		for (int j=0; j<nA; j++) scaledAct[j] = output[1+nL+j];
+    a.set(aInfo.getScaled(scaledAct));
 
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const double handicap = min(static_cast<int>(data->Set.size())/1e2, opt->nepoch/1e4);
+        const double handicap = min(data->Set.size()/1e2, opt->nepoch/1e4);
         newEps = std::exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
 
@@ -389,22 +383,19 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 	    assert(kL==1+nL);
 		}
 
-		if(aInfo.bounded) {
-			for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
-				const Real min_a = *std::min_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
-				const Real max_a = *std::max_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
-				const Real pi = min_a + 0.5*(out[1+nL+j]/(1 + std::fabs(out[1+nL+j])) + 1)*(max_a - min_a);
-        _u[j]  = act[j] - pi;
-        _uL[j] = min_a - pi;
-        _uU[j] = max_a - pi;
-	    }
-		} else {
-	    for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
-        _u[j]  = act[j] - out[1+nL+j];
-        _uL[j] = *std::min_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j])) - out[1+nL+j];
-        _uU[j] = *std::max_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j])) - out[1+nL+j];
-	    }
-		}
+
+		for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
+			const Real min_a = *std::min_element(std::begin(aInfo.values[j]),
+																						 std::end(aInfo.values[j]));
+			const Real max_a = *std::max_element(std::begin(aInfo.values[j]),
+																						 std::end(aInfo.values[j]));
+			//const Real _a = out[1+nL+j];
+			//const Real pi = aInfo.bounded[j] ? min_a + .5*(max_a-min_a)*(_a/(1.+std::fabs(_a))+1) : _a;
+			const Real pi = aInfo.getScaled(out[1+nL+j], j);
+			_u[j]  = act[j] - pi;
+			_uL[j] = min_a - pi;
+			_uU[j] = max_a - pi;
+    }
 
     for (int j=0; j<nA; j++)
     for (int i=0; i<nA; i++) { //A = L * L'
@@ -467,15 +458,18 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
         grad[1+nL+ia] *= dQdA*error;
     }
 
-		if(aInfo.bounded) {
-			for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
-				const Real min_a = *std::min_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
-				const Real max_a = *std::max_element(std::begin(aInfo.values[j]), std::end(aInfo.values[j]));
-				const Real denom = 1. + std::fabs(out[1+nL+j]);
-				grad[1+nL+j] *= 0.5*(max_a - min_a)/denom/denom;
-	    }
-		}
-
+		for (int j=0; j<nA; j++)
+		grad[1+nL+j] *= aInfo.getDactDscale(out[1+nL+j], j);
+		/*
+		if  (aInfo.bounded[j]) {
+			const Real min_a = *std::min_element(std::begin(aInfo.values[j]),
+																						 std::end(aInfo.values[j]));
+			const Real max_a = *std::max_element(std::begin(aInfo.values[j]),
+																						 std::end(aInfo.values[j]));
+			const Real denom = 1. + std::fabs(out[1+nL+j]);
+			grad[1+nL+j] *= 0.5*(max_a-min_a)/denom/denom;
+    }
+		*/
     //1 action dim dump:
 		//printf("act %9.9e, err %9.9e, out %9.9e %9.9e %9.9e, u %9.9e, Q %9.9e, grad %9.9e %9.9e %9.9e\n",
 		//act[0], error, out[0], out[1], out[2], _u[0], Q[0], grad[0], grad[1], grad[2]);

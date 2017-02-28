@@ -120,10 +120,9 @@ public:
 struct ActionInfo
 {
 	int dim; //number of actions per turn
-	vector<int> bounds, shifts; //if finite set, number of choices per "dim"
+	vector<int> bounds, shifts, bounded; //if finite set, number of choices per "dim"
   vector<vector<Real>> values; //used for rescaling, would be used if action is input to NN
-	bool bounded;
-  ActionInfo(): bounded(false) {}
+  ActionInfo() {}
 
   ActionInfo& operator= (const ActionInfo& actionInfo)
 	{
@@ -137,8 +136,61 @@ struct ActionInfo
       return *this;
   }
 
+	inline vector<Real> getScaled(vector<Real> data) const
+	{
+		vector<Real> ret = data;
+		assert(ret.size()==dim);
+		for (int i=0; i<dim; i++)
+		if (bounded[i]) {
+			const Real min_a=*std::min_element(std::begin(values[i]),std::end(values[i]));
+			const Real max_a=*std::max_element(std::begin(values[i]),std::end(values[i]));
+			ret[i] = min_a + 0.5*(data[i]/(1.+std::fabs(data[i])) +1)*(max_a - min_a);
+		}
+		return ret;
+	}
+
+	inline vector<Real> getInvScaled(vector<Real> data) const
+	{
+		vector<Real> ret = data;
+		assert(ret.size()==dim);
+		for (int i=0; i<dim; i++)
+		if (bounded[i]) {
+			const Real min_a=*std::min_element(std::begin(values[i]),std::end(values[i]));
+			const Real max_a=*std::max_element(std::begin(values[i]),std::end(values[i]));
+			assert(data[i]>=min_a && data[i]<=max_a);
+			const Real y = 2*(data[i] - min_a)/(max_a - min_a) -1;
+			assert(std::fabs(y) < 1);
+			ret[i] =  y/(1.-std::fabs(y));
+		}
+		return ret;
+	}
+
+	inline Real getScaled(const Real data, const int i) const
+	{
+		Real ret = data;
+		if (bounded[i]) {
+			const Real min_a=*std::min_element(std::begin(values[i]),std::end(values[i]));
+			const Real max_a=*std::max_element(std::begin(values[i]),std::end(values[i]));
+			ret = min_a + .5*(max_a - min_a)*(data/(1.+std::fabs(data)) +1);
+		}
+		return ret;
+	}
+
+	inline Real getDactDscale(const Real data, const int i) const
+	{
+		Real ret = 1;
+		if (bounded[i]) {
+			const Real min_a=*std::min_element(std::begin(values[i]),std::end(values[i]));
+			const Real max_a=*std::max_element(std::begin(values[i]),std::end(values[i]));
+			const Real denom = 1. + std::fabs(data);
+			ret = 0.5*(max_a-min_a)/denom/denom;
+    }
+		return ret;
+	}
+
   //from action indices to unique label (for tables, DQN)
-  int actionToLabel(vector<Real> vals) const {
+  int actionToLabel(vector<Real> vals) const
+	{
       int lab=0;
       for (int i=0; i<dim; i++) lab += shifts[i]*realActionToIndex(vals[i],i);
       assert(lab>=0);
@@ -158,7 +210,7 @@ struct ActionInfo
   Real indexToRealAction(const int lab, const int i) const
 	{
     	assert(lab>=0 && i>=0 && i<values.size() && lab<values[i].size());
-		return values[i][lab];
+			return values[i][lab];
 	}
 
 	int realActionToIndex(const Real val, const int i) const
@@ -227,7 +279,13 @@ public:
 
     void set(vector<Real> data)
     {
-        for (int i=0; i<actInfo.dim; i++) vals[i] = data[i];
+			assert(data.size() == actInfo.dim);
+			vals = data;
+    }
+
+    void set(const int label)
+    {
+			vals = actInfo.labelToAction(label);
     }
 
     void getRandom(const int iRand = -1)

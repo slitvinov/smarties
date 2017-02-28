@@ -11,6 +11,7 @@
 #include <fstream>
 //#define CLEAN //dont
 #define NmaxDATA 5000
+#define minSeqThreshold 7
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
 mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
@@ -203,7 +204,7 @@ void Transitions::clearFailedSim(const int agentOne, const int agentEnd)
 
 void Transitions::push_back(const int & agentId)
 {
-    if(Tmp[agentId]->tuples.size()>3 ) {
+    if(Tmp[agentId]->tuples.size()>minSeqThreshold ) {
         if (nSequences>=NmaxDATA) Buffered.push_back(Tmp[agentId]);
         else {
             nSequences++;
