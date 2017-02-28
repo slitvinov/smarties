@@ -14,11 +14,13 @@ using namespace std;
 NewFishEnvironment::NewFishEnvironment(const int _nAgents,
                 const string _execpath, const int _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings),
-sight(settings.senses==0), POV(settings.senses==1),
-l_line(settings.senses==2), p_sensors(settings.senses==3),
-study(settings.rewardType),
-goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
+sight( settings.senses    ==0),
+rcast( settings.senses    % 2), //if eq {1,  3,  5,  7}
+lline((settings.senses/2) % 2), //if eq {  2,3,    6,7}
+press((settings.senses/4) % 2), //if eq {      4,5,6,7}
+study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
+  assert(settings.senses<8);
 }
 
 void NewFishEnvironment::setDims()
@@ -62,8 +64,7 @@ void NewFishEnvironment::setDims()
 
             // AvAvg 10
             sI.inUse.push_back(false);
-        }
-        {
+
             //Pout 11
             sI.inUse.push_back(false);
 
@@ -95,39 +96,39 @@ void NewFishEnvironment::setDims()
         const int nSensors = 20;
         for (int i=0; i<nSensors; i++) {
             // (VelNAbove  ) x 5 [20]
-            sI.inUse.push_back(l_line || p_sensors);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTAbove  ) x 5 [25]
-            sI.inUse.push_back(l_line || p_sensors);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelNBelow  ) x 5 [30]
-            sI.inUse.push_back(l_line || p_sensors);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTBelow  ) x 5 [35]
-            sI.inUse.push_back(l_line || p_sensors);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPAbove  ) x 5 [40]
-            sI.inUse.push_back(l_line || p_sensors);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVAbove  ) x 5 [45]
-            sI.inUse.push_back(l_line || p_sensors);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPBelow  ) x 5 [50]
-            sI.inUse.push_back(l_line || p_sensors);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(l_line || p_sensors);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<2*nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(rcast);
         }
         /*
         sI.values.push_back(-.50);
@@ -140,7 +141,7 @@ void NewFishEnvironment::setDims()
     {
         aI.dim = 1;
         aI.values.resize(aI.dim);
-        aI.bounded = true;
+        aI.bounded.push_back(1);
         for (int i=0; i<aI.dim; i++) {
             aI.bounds.push_back(7); //Number of possible actions to choose from
 
@@ -160,16 +161,12 @@ void NewFishEnvironment::setDims()
 void NewFishEnvironment::setAction(const int & iAgent)
 {
     if ( agents[iAgent]->a->vals[0] > .75 ) {
-    	printf("Action 0 is too large (>0), reassigned at random to prevent sim from crashing\n");
-        std::normal_distribution<Real> dist(0.5,0.25);
-        const Real uB = 0.75; const Real lB = -.75;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    	printf("Action 0 is too large (>0), reassigned to prevent sim from crashing\n");
+      agents[iAgent]->a->vals[0] = 0.75;
     }
     if ( agents[iAgent]->a->vals[0] <-.75 ) {
-    	printf("Action 0 is too large (<0), reassigned at random to prevent sim from crashing\n");
-        std::normal_distribution<Real> dist(-.5,0.25);
-        const Real uB = 0.75; const Real lB = -.75;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
+    	printf("Action 0 is too large (<0), reassigned to prevent sim from crashing\n");
+      agents[iAgent]->a->vals[0] = -.75;
     }
 
     Environment::setAction(iAgent);
