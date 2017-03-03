@@ -96,16 +96,16 @@ public:
 
     void pack(byte* buf) const
     {
-        Real* dbuf = (Real*) buf;
+        double* dbuf = (double*) buf;
         for (int i=0; i<sInfo.dim; i++)
-            dbuf[i] = (Real) vals[i];
+            dbuf[i] = (double) vals[i];
     }
 
     void unpack(byte* buf)
     {
-        Real* dbuf = (Real*) buf;
+        double* dbuf = (double*) buf;
         for (int i=0; i<sInfo.dim; i++)
-            vals[i] = dbuf[i];
+            vals[i] = (Real) dbuf[i];
     }
 
     void set(vector<Real> data)

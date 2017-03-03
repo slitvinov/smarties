@@ -66,7 +66,7 @@ protected:
     vector<Sequence*> Buffered;
     discrete_distribution<int> * dist;
 
-    void add(const int agentId, const int info, const State& sOld,
+    int add(const int agentId, const int info, const State& sOld,
              const Action& a, const State& sNew, const Real reward);
 
     void push_back(const int & agentId);
@@ -103,6 +103,6 @@ public:
     int sample();
     void restartSamples();
     void saveSamples();
-    void passData(const int agentId, const int info, const State & sOld,
+    int passData(const int agentId, const int info, const State & sOld,
                   const Action & a, const State & sNew, const Real reward);
 };

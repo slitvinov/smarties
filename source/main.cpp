@@ -49,10 +49,10 @@ void runSlave(MPI_Comm slavesComm)
     MPI_Comm_size(MPI_COMM_WORLD, &wSize);
     if(rank!=wRank || wSize!=nranks) die("Not ready for multiple masters!\n");
 
+    settings.nSlaves = 1;
     ObjectFactory factory(settings);
     Environment* env = factory.createEnvironment(rank, 0);
     settings.nAgents = env->agents.size();
-    settings.nSlaves = 1;
     Slave simulation(slavesComm, env, rank, settings);
     if (settings.restart != "none")
         simulation.restart(settings.restart);

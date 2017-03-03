@@ -19,22 +19,34 @@ private:
     const MPI_Comm slavesComm;
     Learner* const learner;
     Environment* const env;
-    ActionInfo actInfo;
-    StateInfo  sInfo;
-    const bool bTrain;
-    int nAgents, nSlaves, saveFreq, iter, inOneSize, outOneSize;
-    mt19937 * gen;
-    State  sOld, s;
-    Action aOld, a;
-    Real totR, r;
+    const ActionInfo aI;
+    const StateInfo  sI;
+    const vector<Agent*> agents;
+    const int bTrain, nAgents, nSlaves, saveFreq, inOneSize, outOneSize;
+    byte *const inbuf;
+    byte *const outbuf;
+    mt19937 * const gen;
+    State  sOld, sNew;
+    Action aOld, aNew;
+    Real totR;
     bool requested;
-    byte *inbuf, *outbuf;
+    int iter;
 
     MPI_Request request;
 
     inline void unpackChunk(byte* buf, int & first, State& sOld, Action& a, Real& r, State& s);
     inline void packChunk(byte* buf, Action a);
     void save();
+
+    byte * _alloc(const int size) {
+      return new byte[size];
+    }
+    void _dealloc(byte* ptr) {
+        if(ptr not_eq nullptr) {
+            delete [] ptr;
+            ptr=nullptr;
+        }
+    }
 
 public:
     Master(MPI_Comm comm, Learner*const learner, Environment*const env, Settings& settings);
@@ -54,7 +66,7 @@ class Slave
 {
     const MPI_Comm slavesComm;
     Environment* const env;
-    vector<Agent*> agents;
+
     const bool bTrain, bWriteToFile;
     int me, insize, outsize;
     byte *inbuf, *outbuf;

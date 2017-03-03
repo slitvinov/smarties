@@ -10,7 +10,7 @@
 #include "Transitions.h"
 #include <fstream>
 //#define CLEAN //dont
-#define NmaxDATA 5000
+#define NmaxDATA 6000
 #define minSeqThreshold 7
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
@@ -107,7 +107,7 @@ void Transitions::saveSamples()
     fout.close();
 }*/
 
-void Transitions::passData(const int agentId, const int info, const State& sOld,
+int Transitions::passData(const int agentId, const int info, const State& sOld,
                        const Action & a, const State & sNew, const Real reward)
 {
     ofstream fout;
@@ -128,12 +128,16 @@ void Transitions::passData(const int agentId, const int info, const State& sOld,
         fout.close();
     }
 
-    add(agentId, info, sOld, a, sNew, reward);
+    return add(agentId, info, sOld, a, sNew, reward);
 }
 
-void Transitions::add(const int agentId, const int info, const State& sOld,
+int Transitions::add(const int agentId, const int info, const State& sOld,
       const Action& a, const State& sNew, Real reward)
 {
+    //return value is 1 in two cases:
+    //if the agent states buffer is empty
+    //is the stored s does not match sold
+    int ret = 0;
     const int sApp = nAppended*sI.dimUsed;
 
     sOld.copy_observed(Inp);
@@ -148,8 +152,9 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
             ++nBroken;
             printf("Broken chain\n");
             push_back(agentId); //create new sequence
+            ret = 1;
         }
-    }
+    } else ret = 1;
 
     if (Tmp[agentId]->tuples.size() >= maxSeqLen) {
       //upper limit to how long a sequence can be
@@ -177,21 +182,23 @@ void Transitions::add(const int agentId, const int info, const State& sOld,
         t->s.insert(t->s.end(),prev.begin(),prev.end());
     }
 
-    const bool new_sample = env->pickReward(sOld,a,sNew,reward,info);
+    const bool end_seq = env->pickReward(sOld,a,sNew,reward,info);
     t->r = reward;
     t->a = a.vals;
-    ofstream fout;
     /*
+    ofstream fout;
     fout.open("rewards.dat",ios::app);
     fout<<t->s[0]<<" "<<t->s[1]<<" "<<t->s[2]<<" "<<t->s[3]<<" "<<reward<<endl;
     fout.flush();
     fout.close();
     */
     Tmp[agentId]->tuples.push_back(t);
-    if (new_sample) {
+    if (end_seq) {
         Tmp[agentId]->ended = true;
         push_back(agentId);
     }
+
+    return ret;
 }
 
 void Transitions::clearFailedSim(const int agentOne, const int agentEnd)

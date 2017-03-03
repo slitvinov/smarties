@@ -16,44 +16,42 @@
 #include <algorithm>
 #include <cassert>
 
-Master::Master(MPI_Comm comm, Learner*const _learner, Environment* const _env,
-  Settings& settings): slavesComm(comm), learner(_learner), env(_env), actInfo(_env->aI),
-  sInfo(_env->sI), bTrain(settings.bTrain==1), nAgents(_env->agents.size()),
-  nSlaves(settings.nSlaves), saveFreq(settings.saveFreq), iter(0),
-  gen(settings.gen), sOld(_env->sI), s(_env->sI), aOld(_env->aI, settings.gen),
-  a(_env->aI, settings.gen), totR(0), r(0), requested(false)
+Master::Master(MPI_Comm _c, Learner*const _l, Environment*const _e, Settings&_s):
+  slavesComm(_c), learner(_l), env(_e), aI(_e->aI), sI(_e->sI), agents(_e->agents),
+  bTrain(settings.bTrain), nSlaves(settings.nSlaves), saveFreq(settings.saveFreq),
+  nAgents(_e->nAgents), inSize(2*sizeof(int)+(1+_e->sI.dim)*sizeof(double)),
+  outSize(_e->aI.dim*sizeof(double)), inbuf(_alloc(inSize)), outbuf(_alloc(outSize)),
+  gen(settings.gen), sOld(_e->sI), sNew(_e->sI), aOld(_e->aI, settings.gen),
+  aNew(_e->aI, settings.gen), totR(0), r(0), requested(false), iter(0) {}
+
+inline void Master::unpackInBuf(int& status, int& iAgent, Real& reward)
 {
-    inOneSize = sizeof(int) + (2*env->sI.dim +env->aI.dim +1)*sizeof(Real);
-    inbuf  = new byte[inOneSize];
+    byte* buf = inbuf;
 
-    outOneSize = actInfo.dim*sizeof(Real);
-    outbuf  = new byte[outOneSize];
-}
-
-inline void Master::unpackChunk(byte* buf, int & info, State& _sOld, Action& _a, Real& _r, State& _s)
-{
-    static const int sSize   = sInfo.dim   * sizeof(Real);
-    static const int actSize = actInfo.dim * sizeof(Real);
-
-    info = *((int*) buf);
+    iAgent = *((int*) buf);
+    assert(iAgent<nAgents);
     buf += sizeof(int);
 
-    _sOld.unpack(buf);
-    buf += sSize;
+    status = *((int*) buf);
+    agents[iAgent]->Status = status;
+    buf += sizeof(int);
 
-    _a.unpack(buf);
-    buf += actSize;
+    //agent's s is stored in sOld
+    agents[iAgent]->swapStates();
 
-    _r = *((Real*) buf);
-    buf += sizeof(Real);
+    sNew.unpack(buf);
+    buf += sI.dim * sizeof(double);
 
-    _s.unpack(buf);
+    reward = *((double*) buf);
+    agents[iAgent]->r = reward;
+    buf += sizeof(double);
+
+    assert(buf-inbuf == inSize);
 }
 
-inline void Master::packChunk(byte* buf, Action _a)
+inline void Master::packOutBuf()
 {
-    //static const int actSize = actInfo.dim * sizeof(Real);
-    _a.pack(buf);
+    aNew.pack(outbuf);
 }
 
 void Master::restart(string fname)
@@ -204,7 +202,6 @@ bTrain(settings.bTrain), bWriteToFile(!(settings.samplesFile=="none"))
 
 void Slave::run()
 {
-    for (int i=0; i<info.size(); i++) info[i] = 1;
     int iAgent, rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     while(true) {
@@ -378,7 +375,7 @@ Client::Client(Learner*const _learner, Environment* const _env, Settings& settin
               return;
           }
           bool bDone = true;
-          for (int i=0; i<agents.size(); i++) 
+          for (int i=0; i<agents.size(); i++)
             bDone = bDone && agents[i]->getStatus() == 2;
           if(bDone) return;
       }
