@@ -225,6 +225,7 @@ int main (int argc, char** argv)
 
     const int slavesPerMaster = ceil(nranks/(double)settings.nMasters) - 1;
     const int isMaster = rank % (slavesPerMaster+1) == 0;
+    settings.bIsMaster = isMaster;
     const int whichMaster = rank / (slavesPerMaster+1);
     printf("Job size=%d, with %d masters, %d slaves per master. I'm %d: %s part of comm %d.\n",
     nranks,settings.nMasters,slavesPerMaster,rank,isMaster?"master":"slave",whichMaster);

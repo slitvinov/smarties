@@ -28,7 +28,7 @@ protected:
 
 public:
     const string execpath;
-    const int rank, isLauncher, nAgents, workid;
+    const int rank, isLauncher, nAgents, nAgentsPerRank, workid;
     const double gamma;
     long unsigned int iter;
     bool resetAll;

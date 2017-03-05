@@ -12,6 +12,7 @@ using namespace std;
 
 //#include <cstddef>
 #include <utility>
+//#define __posDef_layers_
 #include <string>
 #include <random>
 #include <vector>
@@ -22,8 +23,8 @@ using namespace std;
 
 #include <omp.h>
 #include <mpi.h>
-//#define __vec_width__ 32
-#define __vec_width__ 8
+#define __vec_width__ 32
+//#define __vec_width__ 8
 //#define _scaleR_
 #define _BPTT_
 //#define _dumpNet_
@@ -55,7 +56,8 @@ struct Settings
     lRate(.0001), greedyEps(.1), gamma(.9), lambda(0), goalDY(0), nnPdrop(0),
     nnLambda(0), dqnUpdateC(1000.), learner((string)"NFQ"),
     restart((string)"policy"), configFile((string)"factory"), prefix((string)"./"),
-    samplesFile((string)"../obs_master.txt"), bSeparateOutputs(false), nnTypeInput(true)
+    samplesFile((string)"../obs_master.txt"), bSeparateOutputs(false),
+    nnTypeInput(true), bIsMaster(true)
     {}
 
     int saveFreq, randSeed, rewardType, senses, nAgents, nSlaves, nThreads;
@@ -63,7 +65,7 @@ struct Settings
     int nnType, dqnAppendS, dqnBatch, bTrain, maxSeqLen, nMasters, isLauncher, sockPrefix;
     Real lRate, greedyEps, gamma, lambda, goalDY, nnPdrop, nnLambda, dqnUpdateC;
     string learner, restart, configFile, prefix, samplesFile;
-    bool bSeparateOutputs, nnTypeInput;
+    bool bSeparateOutputs, nnTypeInput, bIsMaster;
     mt19937 * gen;
 
     ~Settings()

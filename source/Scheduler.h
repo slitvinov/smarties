@@ -22,7 +22,7 @@ private:
     const ActionInfo aI;
     const StateInfo  sI;
     const vector<Agent*> agents;
-    const int bTrain, nAgents, nSlaves, saveFreq, inOneSize, outOneSize;
+    const int bTrain, nPerRank, nSlaves, saveFreq, inOneSize, outOneSize;
     byte *const inbuf;
     byte *const outbuf;
     mt19937 * const gen;
@@ -30,7 +30,7 @@ private:
     Action aOld, aNew;
     Real totR;
     bool requested;
-    int iter;
+    int iter, recv_iAgent;
 
     MPI_Request request;
 
@@ -39,11 +39,15 @@ private:
     void save();
 
     byte * _alloc(const int size) {
-      return new byte[size];
+      //return new byte[size];
+      byte* ret = (byte*) malloc(size);
+      memset(ret, 0, size);
+      return ret;
     }
     void _dealloc(byte* ptr) {
         if(ptr not_eq nullptr) {
-            delete [] ptr;
+            //delete [] ptr;
+            free(ptr);
             ptr=nullptr;
         }
     }

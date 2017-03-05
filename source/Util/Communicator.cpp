@@ -176,42 +176,6 @@ workerid(_sockID==0?1:_sockID),msgID(0), comm_MPI(comm)
 }
 #endif
 
-Communicator::Communicator(int _sockID, int _statedim, int _actdim, bool _server, bool _sim):
-nActions(_actdim),nStates(_statedim),
-//to avoid any modification of the app, app gets passed socketid = 0 if it has to behave as server
-isServer(_sockID==0||_server),
-workerid(_sockID), msgID(0), rank_MPI(0), size_MPI(0)
-{
-    if (_sim) {
-      sizeout = (3+nStates)*sizeof(double);
-      sizein  =    nActions*sizeof(double);
-    } else {
-      sizein  = (3+nStates)*sizeof(double);
-      sizeout =    nActions*sizeof(double);
-    }
-    if (!_sockID) {
-      struct timeval clock;
-      gettimeofday(&clock, NULL);
-      workerid = abs(clock.tv_usec % std::numeric_limits<int>::max());
-    }
-
-    sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock_", workerid);
-    printf("sockedID:%d, _server:%d, _sim:%d, SOCK_PATH=->%s<-\n",
-            _sockID, _server, _sim, SOCK_PATH);
-    dataout = (double *) malloc(sizeout);
-    memset(dataout, 0, sizeout);
-    datain  = (double *) malloc(sizein);
-    memset(datain, 0, sizein);
-    printf("nStates:%d nActions:%d sizein:%d sizeout:%d\n",
-          nStates, nActions, sizein, sizeout);
-
-    // if this is smarties, no further setup needed
-    if(_sockID==0) //app as server
-      setupClient(0, std::string());
-    else if(_sim) setupServer(); //app as client
-}
-
-
 void Communicator::setupServer()
 {
   /* Create a socket */

@@ -12,9 +12,11 @@
 using namespace std;
 
 Environment::Environment(const int _nAgents, const string _execpath, const int _rank, Settings & settings) :
-execpath(_execpath), rank(_rank), isLauncher(settings.isLauncher), nAgents(_nAgents*settings.nSlaves),
+execpath(_execpath), rank(_rank), isLauncher(settings.isLauncher),
+nAgents(_nAgents*settings.nSlaves), nAgentsPerRank(_nAgents),
 gamma(settings.gamma), g(settings.gen), resetAll(true), iter(0), communicator(nullptr), workid(settings.sockPrefix)
 {
+    assert(settings.bIsMaster || nAgentsPerRank == nAgents);
     for (int i=0; i<nAgents; i++) agents.push_back(new Agent(i));
 }
 

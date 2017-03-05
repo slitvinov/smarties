@@ -18,40 +18,55 @@
 
 Master::Master(MPI_Comm _c, Learner*const _l, Environment*const _e, Settings&_s):
   slavesComm(_c), learner(_l), env(_e), aI(_e->aI), sI(_e->sI), agents(_e->agents),
-  bTrain(settings.bTrain), nSlaves(settings.nSlaves), saveFreq(settings.saveFreq),
-  nAgents(_e->nAgents), inSize(2*sizeof(int)+(1+_e->sI.dim)*sizeof(double)),
-  outSize(_e->aI.dim*sizeof(double)), inbuf(_alloc(inSize)), outbuf(_alloc(outSize)),
+  bTrain(settings.bTrain), nPerRank(_e->nAgentsPerRank), nSlaves(settings.nSlaves),
+  saveFreq(settings.saveFreq), inSize(2*sizeof(int)+(1+_e->sI.dim)*sizeof(double)),
+  outSize(_e->aI.dim*sizeof(double)), inbuf(alloc(inSize)), outbuf(alloc(outSize)),
   gen(settings.gen), sOld(_e->sI), sNew(_e->sI), aOld(_e->aI, settings.gen),
-  aNew(_e->aI, settings.gen), totR(0), r(0), requested(false), iter(0) {}
+  aNew(_e->aI, settings.gen), totR(0), reward(0), iter(0)
+  {
+    //the following Irecv will be sent after sending the action
+    MPI_Irecv(inbuf, inOneSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
+  }
 
-inline void Master::unpackInBuf(int& status, int& iAgent, Real& reward)
+inline void Master::recvState(const int slave, int& iAgent, int& status, Real& reward)
 {
+    //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
     byte* buf = inbuf;
 
-    iAgent = *((int*) buf);
-    assert(iAgent<nAgents);
+    const int recv_iAgent = *((int*) buf);
+    iAgent = (slave-1) * nPerRank + recv_iAgent;
+    assert(iAgent >= 0 && iAgent < agents.size());
     buf += sizeof(int);
+
 
     status = *((int*) buf);
     agents[iAgent]->Status = status;
     buf += sizeof(int);
 
-    //agent's s is stored in sOld
-    agents[iAgent]->swapStates();
-
     sNew.unpack(buf);
     buf += sI.dim * sizeof(double);
+
+    //agent's s is stored in sOld
+    agents[iAgent]->swapStates();
+    agents[iAgent]->setState(sNew);
+    agents[iAgent]->getState(sOld);
+    agents[iAgent]->getAction(aOld);
 
     reward = *((double*) buf);
     agents[iAgent]->r = reward;
     buf += sizeof(double);
 
     assert(buf-inbuf == inSize);
+
+    MPI_Irecv(inbuf, inOneSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
 }
 
-inline void Master::packOutBuf()
+inline void Master::sendAction(const int slave, const int iAgent)
 {
+    assert(iAgent >= 0 && iAgent < agents.size());
+    agents[iAgent]->act(aNew);
     aNew.pack(outbuf);
+    MPI_Send(outbuf, outOneSize, MPI_BYTE, slave, 0, slavesComm);
 }
 
 void Master::restart(string fname)
@@ -85,191 +100,69 @@ void Master::save()
 
 void Master::run()
 {
-    int agentId(0), completed(0), info(0);
-    //printf("Master starting...\n");
-    MPI_Status  status;
+    MPI_Status status;
+    int completed=0, agentStatus=0, agent;
 
     while (true) {
-        MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
-
         while (true) {
+            //if threaded, check on the guys, synchronize apply gradient
+            if (nThreads > 1 && learner->checkBatch()) return;
+
             MPI_Test(&request, &completed, &status);
-            if (completed == 1) break;
-            learner->TrainBatch();
+            if (completed) break;
+
+            //if single thread master, process a batch
+            if (nThreads == 1) learner->TrainBatch();
         }
 
-        const int slave = status.MPI_SOURCE - 1, srcID = status.MPI_SOURCE;
-        //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
-        MPI_Recv(inbuf, inOneSize, MPI_BYTE, srcID, 2, MPI_COMM_WORLD, &status);
+        const int slave = status.MPI_SOURCE;
+        recvState(slave, agent, agentStatus, reward);
 
-        unpackChunk(inbuf, info, sOld, aOld, r, s);
-        if (info == 3) {
-          learner->clearFailedSim(slave*nAgents, (slave+1)*nAgents);
+        if (agentStatus == 3) {
+          learner->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
           continue;
         }
-        const int agentID = (slave)*nAgents +agentId;
-        assert(agentID>=0);
-        learner->select(agentID, s, a, sOld, aOld, info, r);
+
+        learner->select(agent, sNew, aNew, sOld, aOld, agentStatus, reward);
         /*
          printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
-         agentID, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(),r, a.print().c_str());
+         agent, sOld.print().c_str(), sNew.print().c_str(), aOld.print().c_str(), reward, aNew.print().c_str());
          fflush(0);
          */
         if (info != 1) totR += r;
-        if (info != 2) { //not terminal
-            packChunk(outbuf, a);
-            MPI_Send(outbuf, outOneSize, MPI_BYTE, srcID, 0, MPI_COMM_WORLD);
-        }
+        if (info != 2)  //if terminal, no action required
+        sendAction(slave, agent);
 
         if (++iter % saveFreq == 0) save();
-    }
-}
-
-void Master::hustle()
-{
-    MPI_Status  status;
-    int completed(0), info(0), cnt(0), knt(0), agentId(0);
-
-    //this is only called the first time, the following Irecv will be sent at the end of the first comm
-    //the idea is that while the communication is not done, we continue processing the NN update
-    if(not requested) {
-        MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
-        requested = true;
-    }
-
-    while (true) {
-        while (true) {
-            //if true: finish processing the dqn update and come right back to hustling
-            if (learner->checkBatch())  return;
-            MPI_Test(&request, &completed, &status);
-            if (completed == 1) {
-                cnt++;
-                break;
-            }
-            knt++;
-        }
-
-        const int slave = status.MPI_SOURCE - 1, srcID = status.MPI_SOURCE;
-        //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
-        MPI_Recv(inbuf, inOneSize, MPI_BYTE, srcID, 2, MPI_COMM_WORLD, &status);
-
-        unpackChunk(inbuf, info, sOld, aOld, r, s);
-
-        if (info == 3) {
-          learner->clearFailedSim(slave*nAgents, (slave+1)*nAgents);
-          //prepare Recv for next round
-          MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
-          continue;
-        }
-        const int agentID = (slave)*nAgents +agentId;
-        assert(agentID>=0);
-        learner->select(agentID, s, a, sOld, aOld, info, r);
-        /*
-         printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
-         agentID, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(),r, a.print().c_str());
-         fflush(0);
-         */
-        if (info != 1) totR += r; //not first state, this is just to track performance
-        if (info != 2) { //if terminal, no action required
-            packChunk(outbuf, a);
-            MPI_Send(outbuf, outOneSize, MPI_BYTE, srcID, 0, MPI_COMM_WORLD);
-        }
-
-        if (++iter % saveFreq == 0) save();
-        //prepare Recv for next round
-        MPI_Irecv(&agentId, 1, MPI_INT, MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &request);
     }
     die("How on earth could you possibly get here? \n");
 }
 
-Slave::Slave(MPI_Comm comm, Environment*const _env,int _me, Settings& settings):
+Slave::Slave(Environment*const _env,int _me, Settings& settings):
 slavesComm(comm), env(_env), agents(env->agents), me(_me),
 bTrain(settings.bTrain), bWriteToFile(!(settings.samplesFile=="none"))
 {
-    info.resize(agents.size());
-    for (int i=0; i<agents.size(); i++) {
-        actions.push_back(Action(env->aI, settings.gen));
-        oldStates.push_back(State(env->sI));
-        States.push_back(State(env->sI));
-        info[i] = 1;
-    }
-
-    insize  = env->aI.dim*sizeof(Real);
-    outsize = sizeof(int) + (2*env->sI.dim +env->aI.dim +1)*sizeof(Real);
-    inbuf  = new byte[insize];
-    outbuf = new byte[outsize];
 }
 
 void Slave::run()
 {
-    int iAgent, rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    while(true) {
-        // flag = -1: failed comm, 0: normal, 2: ended
-        const int extflag = env->getState(iAgent);
+  vector<double> status(nStates);
+  int iAgent, status;
+  double reward;
 
-        if ( bTrain &&  extflag<0) {
-            //printf("\nSIMULATION CRASHED\n\n");
-            sendFail(iAgent);
-            MPI_Ssend(&iAgent, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
-            MPI_Ssend(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD);
-            for (int i(0); i<info.size(); i++) info[i] = 1;
-            env->iter++;
-            //abort(); //
-            return; //if comm failed, retry & pray
-        }
-        //if (extflag<0) die("Comm failed, call again & pray.\n");
-        //not bTrain assumes that im only interested in one run (e.g. for animation)
-        if (not bTrain && extflag==2) die("Simulation is over.\n");
+  while(true) {
+      // flag = -1: failed comm, 0: normal, 2: ended
+      if (comm->recvStateFromApp()) return; //sim probably crashed
 
-        agents[iAgent]->getState(States[iAgent]);
-        agents[iAgent]->getAction(actions[iAgent]);
-        agents[iAgent]->getOldState(oldStates[iAgent]);
+      comm->unpackState(iAgent, status, state, reward);
+      comm->sendStateMPI();
 
-        std::string outBuffer;
-        //if i observed at least one transition, fill a buffer to write to file
-        if(info[iAgent]==0) {
-            if (extflag==2) info[iAgent] = 2;
-            outBuffer = bufferTransition(iAgent);
-        }
-
-        packData(iAgent);
-        MPI_Ssend(&iAgent, 1, MPI_INT, 0, 1, MPI_COMM_WORLD);
-        MPI_Ssend(outbuf, outsize, MPI_BYTE, 0, 2, MPI_COMM_WORLD);
-
-        //if buffer is not empty, print it to file, while we wait for action
-        if (!outBuffer.empty()) {
-            ofstream fout;
-            fout.open(("obs"+to_string(rank)+".dat").c_str(),ios::app);
-            fout << outBuffer << endl;
-            fout.flush();
-            fout.close();
-        }
-
-        if(info[iAgent]==2) { //then we do not recv an action, we reset
-            if(env->resetAll) { //does this env require a full restart upon failing?
-                save();
-                for (int i(0); i<info.size(); i++) info[i] = 1;
-            }
-            else info[iAgent] = 1; //else i just restart one agent (e.g. multiple carts env?)
-        } else {
-            MPI_Status status;
-            MPI_Recv(inbuf, insize, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
-            unpackData(iAgent);
-            agents[iAgent]->act(actions[iAgent]);
-            /*
-             printf("Agent %d of slave %d was in %s and will act %s.\n",
-             iAgent, me, States[iAgent].print().c_str(), actions[iAgent].print().c_str());
-             fflush(0);
-             */
-            env->setAction(iAgent);
-            //if you got here, then state you send will not be an initial condition
-            //(ie. sOld and aOld contain something)
-            info[iAgent] = 0;
-        }
-    }
-
-    die("How on earth could you possibly get here? \n");
+      if(status != _AGENT_LASTCOMM)
+      {
+        comm->recvActionMPI();
+        comm->sendActionToApp();
+      }
+  }
 }
 
 void Slave::unpackData(const int iAgent)
@@ -278,12 +171,6 @@ void Slave::unpackData(const int iAgent)
     actions[iAgent].unpack(cbuf);
 }
 
-void Slave::sendFail(const int iAgent)
-{
-    byte* cbuf = outbuf;
-    *((int*)cbuf) = 3;
-    cbuf += sizeof(int);
-}
 
 void Slave::packData(const int iAgent)
 {
