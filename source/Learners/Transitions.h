@@ -60,7 +60,7 @@ protected:
     Environment * const env;
     const int nAppended, batchSize, maxSeqLen;
     int iOldestSaved;
-    const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize;
+    const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize, bTrain;
     const string path;
     vector<Real> Inp, std, mean;
     vector<Sequence*> Buffered;
@@ -92,6 +92,7 @@ public:
         for (auto & trash : Buffered) _dispose_object( trash);
     }
     void clearFailedSim(const int agentOne, const int agentEnd);
+    void pushBackEndedSim(const int agentOne, const int agentEnd);
     void update_samples_mean(const Real alpha = 0.01);
     vector<Real> standardize(const vector<Real>& state, const Real noise = -1) const;
 #ifdef _Priority_

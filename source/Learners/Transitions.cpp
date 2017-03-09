@@ -10,15 +10,16 @@
 #include "Transitions.h"
 #include <fstream>
 //#define CLEAN //dont
-#define NmaxDATA 6000
-#define minSeqThreshold 7
+#define NmaxDATA 5000
+#define minSeqThreshold 3
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
 mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
 maxSeqLen(settings.maxSeqLen), iOldestSaved(0), bSampleSeq(settings.nnType),
 bRecurrent(settings.nnType), bWriteToFile(!(settings.samplesFile=="none")),
-bNormalize(settings.nnTypeInput), path(settings.samplesFile), anneal(0),
-nBroken(0), nTransitions(0), nSequences(0), aI(_env->aI), sI(_env->sI), old_ndata(0)
+bNormalize(settings.nnTypeInput), bTrain(settings.bTrain==1),
+path(settings.samplesFile), anneal(0), nBroken(0), nTransitions(0),
+nSequences(0), aI(_env->aI), sI(_env->sI), old_ndata(0)
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
@@ -149,8 +150,7 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
             same = same && fabs(last->s[i] - Inp[i])<1e-4;
 
         if (!same) {
-            ++nBroken;
-            printf("Broken chain\n");
+            printf("Broken chain %s, %g\n", sNew.print().c_str(), reward);
             push_back(agentId); //create new sequence
             ret = 1;
         }
@@ -158,7 +158,14 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
 
     if (Tmp[agentId]->tuples.size() >= maxSeqLen) {
       //upper limit to how long a sequence can be
+      printf("Sequence is too long!");
+      const Tuple * const l = Tmp[agentId]->tuples.back();
+      Tuple * t = new Tuple(); //backup last state
+      t->s =l->s; t->a=l->a; t->r =l->r;
+      t->SquaredError = l->SquaredError;
+
       push_back(agentId); //create new sequence
+      Tmp[agentId]->tuples.push_back(t);
     }
 
     //if first of a new sequence, create slot for sOld = s_0
@@ -209,6 +216,12 @@ void Transitions::clearFailedSim(const int agentOne, const int agentEnd)
   }
 }
 
+void Transitions::pushBackEndedSim(const int agentOne, const int agentEnd)
+{
+  for (int i = agentOne; i<agentEnd; i++)
+    push_back(i);
+}
+
 void Transitions::push_back(const int & agentId)
 {
     if(Tmp[agentId]->tuples.size()>minSeqThreshold ) {
@@ -235,6 +248,7 @@ void Transitions::push_back(const int & agentId)
 
 void Transitions::update_samples_mean(const Real alpha)
 {
+  if(!bTrain) return;
   if(!bNormalize) return;
 	int count = 0;
   vector<Real> newStd(sI.dimUsed,0), newMean(sI.dimUsed,0);
@@ -410,6 +424,7 @@ void Transitions::restart(std::string fname)
     debug1("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) {
       debug1("File not found %s\n", nameBackup.c_str());
+      if(!bTrain) {die("...and I'm not training\n");}
       return;
     }
 

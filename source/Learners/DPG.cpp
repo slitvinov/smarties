@@ -279,6 +279,7 @@ void DPG::Train(const int seq, const int samp, const int thrID) const
 
 void DPG::updateTargetNetwork()
 {
+		assert(bTrain);
     if (cntUpdateDelay <= 0) { //DQN-style frozen weight
         cntUpdateDelay = tgtUpdateDelay;
 
@@ -297,6 +298,7 @@ void DPG::updateTargetNetwork()
 
 void DPG::stackAndUpdateNNWeights(const int nAddedGradients)
 {
+		assert(nAddedGradients>0 && bTrain);
     opt->nepoch ++;
     opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads
     opt->update(net->grad,nAddedGradients); //update
@@ -308,6 +310,7 @@ void DPG::stackAndUpdateNNWeights(const int nAddedGradients)
 
 void DPG::updateNNWeights(const int nAddedGradients)
 {
+		assert(nAddedGradients>0 && bTrain);
     opt->nepoch ++;
     opt->update(net->grad,nAddedGradients);
 

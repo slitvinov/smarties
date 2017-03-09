@@ -79,11 +79,8 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
     _dispose_object(currActivation);
 
     //load computed policy into a
-    Real Val(-1e6); int Nbest(-1);
-    for (int i=0; i<nOutputs; ++i) {
-        if (output[i]>Val) { Nbest=i; Val=output[i]; }
-    }
-    a.set(Nbest);
+		const int indBest = maxInd(output);
+    a.set(indBest);
 
     //random action?
     Real newEps(greedyEps);
@@ -173,19 +170,17 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
 																			net->tgt_weights, net->tgt_biases);
 
           if (k+2==ndata)
-								net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation);
-          else  net->predict(scaledSnew, Qhats, timeSeries, k+1);
+						net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation);
+          else  //used for next transition:
+						net->predict(scaledSnew, Qhats, timeSeries, k+1);
         }
 
         // find best action for sNew with moving wghts, evaluate it with tgt wgths:
         // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
-        int Nbest(-1);
-        Real Vhat(-1e10);
-        for (int i=0; i<nOutputs; i++) {
-            errs[i] = 0.;
-            if(Qhats[i]>Vhat) { Vhat=Qhats[i]; Nbest=i;  }
-        }
-        const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[Nbest];
+        const int indBest = maxInd(Qhats);
+        for (int i=0; i<nOutputs; i++) errs[i] = 0.;
+
+        const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[indBest];
         const int action = aInfo.actionToLabel(_t->a);
         const Real err =  (target - Qs[action]);
         //printf("t %f r %f e %f Q %f\n", target, _t->r, err, Qs[action]); fflush(0);
@@ -227,14 +222,10 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
 
     // find best action for sNew with moving wghts, evaluate it with tgt wgths:
     // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
-    int Nbest(-1);
-    Real Vhat(-1e10);
-    for (int i=0; i<nOutputs; i++) {
-			errs[i] = 0.;
-    	if(Qhats[i]>Vhat) { Vhat=Qhats[i]; Nbest=i;  }
-    }
+		const int indBest = maxInd(Qhats);
+		for (int i=0; i<nOutputs; i++) errs[i] = 0.;
 
-    const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[Nbest];
+    const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[indBest];
     const int action = aInfo.actionToLabel(_t->a);
     const Real err =  (target - Qs[action]);
     //printf("t %f r %f e %f Q %f\n", target, _t->r, err, Qs[action]); fflush(0);
@@ -245,7 +236,7 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
     data->Set[seq]->tuples[samp]->SquaredError = err*err;
 
     if (thrID==0) net->backProp(errs, sOldActivation, net->grad);
-	else net->backProp(errs, sOldActivation, net->Vgrad[thrID]);
+		else net->backProp(errs, sOldActivation, net->Vgrad[thrID]);
 
     _dispose_object(sOldActivation);
 }

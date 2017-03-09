@@ -154,8 +154,10 @@ typedef struct
 
   double maxdiagC; /* repeatedly used for output */
   double mindiagC;
+  double meandiagC;
   double maxEW;
   double minEW;
+  double meanEW;
 
   char sOutString[330]; /* 4x80 */
 

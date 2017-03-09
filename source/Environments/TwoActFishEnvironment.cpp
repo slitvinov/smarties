@@ -57,13 +57,13 @@ void TwoActFishEnvironment::setDims()
             // AvInst
             sI.inUse.push_back(true);
         }
-#if 0
+        #if 0
             //Xabs 6
             sI.inUse.push_back(false);
 
             //Yabs 7
             sI.inUse.push_back(false);
-#endif
+        #endif
         {
             //Dist 6
             sI.inUse.push_back(false);
@@ -156,7 +156,6 @@ void TwoActFishEnvironment::setDims()
         aI.dim = 2;
         aI.values.resize(aI.dim);
         //curavture
-        aI.bounds.push_back(7); //Number of possible actions to choose from
         aI.bounded.push_back(1);
         aI.values[0].push_back(-.75);
         aI.values[0].push_back(-.50);
@@ -166,7 +165,6 @@ void TwoActFishEnvironment::setDims()
         aI.values[0].push_back(0.50);
         aI.values[0].push_back(0.75);
         //period:
-        aI.bounds.push_back(7); //Number of possible actions to choose from
         aI.bounded.push_back(1);
         aI.values[1].push_back(-.5);
         aI.values[1].push_back(-.25);
@@ -180,49 +178,23 @@ void TwoActFishEnvironment::setDims()
     commonSetup();
 }
 
-void TwoActFishEnvironment::setAction(const int & iAgent)
-{
-    if (agents[iAgent]->a->vals[0] >0.75 ) {
-    	printf("Act0 is too large (>0), reassigned to prevent crash\n");
-      agents[iAgent]->a->vals[0] = 0.75;
-    }
-    if (agents[iAgent]->a->vals[0] <-.75 ) {
-    	printf("Act0 is too large (<0), reassigned to prevent crash\n");
-      agents[iAgent]->a->vals[0] = -.75;
-    }
-    if (agents[iAgent]->a->vals[1] >0.5 ) {
-    	printf("Act1 is too large (>0), reassigned to prevent crash\n");
-      agents[iAgent]->a->vals[1] = 0.5;
-    }
-    if (agents[iAgent]->a->vals[1] <-.5 ) {
-    	printf("Act1 is too large (<0), reassigned to prevent crash\n");
-      agents[iAgent]->a->vals[1] = -.5;
-    }
-
-    Environment::setAction(iAgent);
-}
-
-int TwoActFishEnvironment::getState(int & iAgent)
-{
-    int bStatus = Environment::getState(iAgent);
-    if(std::fabs(agents[iAgent]->a->vals[0])>0.74)
-      agents[iAgent]->r = std::min((Real)-1.,agents[iAgent]->r); //gently push sim away from extreme curvature: not kosher
-    if(std::fabs(agents[iAgent]->a->vals[1])>0.49)
-      agents[iAgent]->r = std::min((Real)-1.,agents[iAgent]->r); //gently push sim away from extreme acceleration: not kosher
-
-    return bStatus;
-}
 
 bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
                                 const State& t_sN, Real& reward, const int info)
 {
-    if (fabs(t_sN.vals[4] -t_a.vals[0])>0.001) {
+    if (fabs(t_sN.vals[4] -t_a.vals[0])>0.0001) {
         printf("Mismatch state and action!!! %s === %s\n",
          t_sN.print().c_str(),t_a.print().c_str());
         abort();
     }
-    if (fabs(t_sN.vals[6] -t_a.vals[1])>0.001) {
+    if (fabs(t_sN.vals[6] -t_a.vals[1])>0.0001) {
         printf("Mismatch state and action!!! %s === %s\n",
+         t_sN.print().c_str(),t_a.print().c_str());
+        abort();
+    }
+    if(info!=1)
+    if (fabs(t_sO.vals[4] -t_sN.vals[5])>0.0001) {
+        printf("Mismatch state two states!!! %s === %s\n",
          t_sN.print().c_str(),t_a.print().c_str());
         abort();
     }
@@ -247,14 +219,21 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 2) {
-        reward =  1.-fabs(t_sN.vals[1]-goalDY)/.5;
+        reward =  1.-2*sqrt(fabs(t_sN.vals[1])); //-goalDY
+    }
+    else if (study == 5) {
+        reward = (t_sN.vals[21]-.3)/.3;
+        if (fabs(t_sN.vals[1]) > 0.25) reward -= 2*(fabs(t_sN.vals[1])-.25);
+        if (t_sN.vals[0] > 0.75) reward = std::min(0.,reward);
+        if (new_sample) reward = -2./(1.-gamma);
     }
     else if (new_sample) reward = -10.;
 
+    //gently push sim away from extreme curvature: not kosher
     if(std::fabs(t_a.vals[0])>0.74)
-      reward = std::min((Real)-1.,reward); //gently push sim away from extreme curvature: not kosher
+      reward = std::min((Real)-1.,reward);
     if(std::fabs(t_a.vals[1])>0.49)
-      reward = std::min((Real)-1.,reward); //gently push sim away from extreme acceleration: not kosher
+      reward = std::min((Real)-1.,reward); 
 
     return new_sample;
 }

@@ -11,58 +11,18 @@
 
 using namespace std;
 
-Environment::Environment(const int _nAgents, const string _execpath, const int _rank, Settings & settings) :
-execpath(_execpath), rank(_rank), isLauncher(settings.isLauncher),
-nAgents(_nAgents*settings.nSlaves), nAgentsPerRank(_nAgents),
-gamma(settings.gamma), g(settings.gen), resetAll(true), iter(0), communicator(nullptr), workid(settings.sockPrefix)
+Environment::Environment(const int nA,const string exe,const int _rank,Settings& _s) :
+execpath(exe), rank(_rank), nAgents(nA*_s.nSlaves), nAgentsPerRank(nA),
+gamma(_s.gamma), g(_s.gen), resetAll(false), mpi_ranks_per_env(1), paramsfile(string())
 {
-    assert(settings.bIsMaster || nAgentsPerRank == nAgents);
+    assert(_s.bIsMaster || nAgentsPerRank == nAgents);
     for (int i=0; i<nAgents; i++) agents.push_back(new Agent(i));
-}
-
-void Environment::setup_Comm()
-{
-    if(communicator == nullptr)
-      communicator = new Communicator(workid,sI.dim,aI.dim,isLauncher==1,false);
-      //die("Set up the state before establishing a communication.\n");
-
-    if (isLauncher)
-      communicator->setupClient(iter, execpath);
-    else
-      communicator->setupServer();
 }
 
 Environment::~Environment()
 {
-    _dispose_object(communicator);
     for (auto & trash : agents)
       _dispose_object(trash);
-}
-
-void Environment::close_Comm()
-{
-    communicator->closeSocket();
-}
-
-void Environment::setAction(const int& iAgent)
-{
-    communicator->sendAction(agents[iAgent]->a->vals);
-}
-
-int Environment::getState(int& iAgent)
-{
-    _AGENT_STATUS status;
-    vector<double> state(sI.dim);
-    double reward;
-    communicator->recvState(iAgent, status, state, reward);
-
-    assert(iAgent<nAgents);
-    std::swap(agents[iAgent]->s,agents[iAgent]->sOld);
-    for (int j=0; j<sI.dim; j++)
-    agents[iAgent]->s->vals[j] = state[j];
-    agents[iAgent]->r = reward;
-    agents[iAgent]->Status = status;
-    return status;
 }
 
 bool Environment::predefinedNetwork(Network* const net) const
@@ -75,22 +35,21 @@ bool Environment::predefinedNetwork(Network* const net) const
 
 void Environment::commonSetup()
 {
+    int wRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
     sI.dim = 0; sI.dimUsed = 0;
     for (int i=0; i<sI.inUse.size(); i++) {
         sI.dim++;
         if (sI.inUse[i]) sI.dimUsed++;
     }
+    if(!wRank)
     printf("State has %d component, %d in use\n", sI.dim, sI.dimUsed);
 
-    aI.shifts.resize(aI.dim);
-    aI.shifts[0] = 1;
-    for (int i=1; i < aI.dim; i++) {
-        assert(aI.bounds[i] == aI.values[i].size());
-        aI.shifts[i] = aI.shifts[i-1] * aI.bounds[i-1];
-    }
+    aI.updateShifts();
 
     if(! aI.bounded.size()) {
       aI.bounded.resize(aI.dim, 0);
+      if(!wRank)
       printf("Unspecified whether action space is bounded: assumed not\n");
     } else assert(aI.bounded.size() == aI.dim);
 

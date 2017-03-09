@@ -154,47 +154,32 @@ void Learner::clearFailedSim(const int agentOne, const int agentEnd)
   data->clearFailedSim(agentOne, agentEnd);
 }
 
+void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
+{
+  data->pushBackEndedSim(agentOne, agentEnd);
+}
+
 void Learner::TrainBatch()
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+    vector<int> seq(batchSize), samp(batchSize);
     if (ndata<batchSize) return; //do we have enough data?
-    int nAddedGradients(0);
+    if (!bTrain) return; //are we training?
+    int nAddedGradients=0;
 
-    if (data->inds.size()<batchSize)
-    { //uniform sampling
+    if (data->inds.size()<batchSize) { //uniform sampling
         data->updateSamples();
         processStats(Vstats, 0 ); //dump info about convergence
     }
 
     if(bRecurrent) {
-
+        nAddedGradients = sampleSequences(seq);
         for (int i=0; i<batchSize; i++)
-        {
-            const int ind = data->inds.back();
-            data->inds.pop_back();
-            const int seqSize = data->Set[ind]->tuples.size();
-            nAddedGradients += seqSize-1;
-
-            Train_BPTT(ind);
-        }
-
+          Train_BPTT(seq[i]);
     } else {
-
-        nAddedGradients = batchSize;
+        nAddedGradients = sampleTransitions(seq, samp);
         for (int i=0; i<batchSize; i++)
-        {
-            const int ind = data->inds.back();
-            data->inds.pop_back();
-
-            int k(0), back(0), indT(data->Set[0]->tuples.size()-1);
-            while (ind >= indT) {
-                back = indT;
-                indT += data->Set[++k]->tuples.size()-1;
-            }
-
-            Train(k, ind-back);
-        }
-
+          Train(seq[i], samp[i]);
     }
 
     updateNNWeights(nAddedGradients);
@@ -204,15 +189,15 @@ void Learner::TrainBatch()
 void Learner::TrainTasking(Master* const master)
 {
     std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
-    vector<int> seq(batchSize), samp(batchSize), index(batchSize);
+    vector<int> seq(batchSize), samp(batchSize);//, index(batchSize);
     int nAddedGradients(0);
     Real sumElapsed(0.);
     int countElapsed(0);
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
 
-  	if (ndata <= batchSize) {
+  	if (ndata <= batchSize || !bTrain) {
       if(nAgents<1) die("Nothing to do, nowhere to go.\n");
-      master->hustle();
+      master->run();
     }
 
     while (true) {
@@ -235,86 +220,104 @@ void Learner::TrainTasking(Master* const master)
             }
             #endif
         }
+        start = std::chrono::high_resolution_clock::now();
 
+        #pragma omp parallel num_threads(nThreads)
+        #pragma omp master
+      	{
+      		if(bRecurrent) {//we are using an LSTM: do BPTT
+            nAddedGradients = sampleSequences(seq);
+      			#pragma omp flush
 
-    start = std::chrono::high_resolution_clock::now();
+      			for (int i=0; i<batchSize; i++) {
+              const int sequence = seq[i];
+      				#pragma omp task firstprivate(sequence)
+      				{
+      					const int thrID = omp_get_thread_num();
+      					Train_BPTT(sequence, thrID);
 
-    #pragma omp parallel num_threads(nThreads)
-    #pragma omp master
-		{
-			if(bRecurrent) {//we are using an LSTM: do BPTT
-				for (int i=0; i<batchSize; i++) {
-					const int ind = data->inds.back();
-					data->inds.pop_back();
-					seq[i]  = ind;
-					index[i] = ind;
-					const int seqSize = data->Set[ind]->tuples.size();
-					nAddedGradients += seqSize-1; //to normalize mean gradient for update
-				}
-				#pragma omp flush
+      					#pragma omp atomic
+      					taskCounter++;
+      				}
+      			}
+      		} else {
+      			nAddedGradients = sampleTransitions(seq, samp);
+      			#pragma omp flush
 
-				for (int i=0; i<batchSize; i++) {
-					#pragma omp task firstprivate(i)
-					{
-						const int thrID = omp_get_thread_num();
-						Train_BPTT(seq[i], thrID);
+      			for (int i=0; i<batchSize; i++) {
+              const int sequence = seq[i];
+              const int transition = samp[i];
+      				#pragma omp task firstprivate(sequence,transition)
+      				{
+      					const int thrID = omp_get_thread_num();
+      					Train(sequence, transition, thrID);
 
-						#pragma omp atomic
-						taskCounter++;
+      					#pragma omp atomic
+      					taskCounter++;
+      				}
+      			}
+      		}
 
-            //printf("Thread %d performed task %d\n", thrID, taskCounter); fflush(0);
-					}
-				}
-			} else {
-				for (int i=0; i<batchSize; i++)  {
-					const int ind = data->inds.back();
-					data->inds.pop_back();
-					int k(0), back(0), indT(data->Set[0]->tuples.size()-1);
-					while (ind >= indT) {
-						back = indT;
-						indT += data->Set[++k]->tuples.size()-1;
-					}
-					seq[i]  = k;
-					samp[i] = ind-back;
-					index[i] = ind;
-				}
-				nAddedGradients = batchSize;
-				#pragma omp flush
+          //TODO: can add task to update sampling probabilities for prioritized exp replay
 
-				for (int i=0; i<batchSize; i++) {
-					#pragma omp task firstprivate(i)
-					{
-						const int thrID = omp_get_thread_num();
-						Train(seq[i], samp[i], thrID);
+          if(nAgents>0)
+          master->run(); //master goes to communicate with slaves
+        }
 
-						#pragma omp atomic
-						taskCounter++;
+        end = std::chrono::high_resolution_clock::now();
+        const Real len = std::chrono::duration<Real>(end-start).count();
+        sumElapsed += len/nAddedGradients;
+        countElapsed++;
 
-            //printf("Thread %d performed task %d\n", thrID, taskCounter); fflush(0);
-					}
-				}
-			}
+        //this needs to be compatible with multiple servers
+      	stackAndUpdateNNWeights(nAddedGradients);
+        // this can be handled node wise
+      	updateTargetNetwork();
+    }
+}
 
-      //TODO: can add task to update sampling probabilities for prioritized exp replay
+int Learner::sampleTransitions(vector<int>& sequences, vector<int>& transitions)
+{
+  assert(sequences.size() == batchSize && transitions.size() == batchSize);
+  assert(!bRecurrent);
+  for (int i=0; i<batchSize; i++)
+  {
+    const int ind = data->inds.back();
+    data->inds.pop_back();
 
-      if(nAgents>0)
-      master->hustle(); //master goes to communicate with slaves
+    int k=0, back=0, indT=data->Set[0]->tuples.size()-1;
+    while (ind >= indT) {
+      back = indT;
+      indT += data->Set[++k]->tuples.size()-1;
     }
 
-    end = std::chrono::high_resolution_clock::now();
-    const auto len = std::chrono::duration<Real>(end-start).count();
-    sumElapsed += len/nAddedGradients;
-    countElapsed++;
+    sequences[i] = k;
+    transitions[i] = ind-back;
+    //index[i] = ind;
+  }
 
-    //this needs to be compatible with multiple servers
-		stackAndUpdateNNWeights(nAddedGradients);
-    // this can be handled node wise
-		updateTargetNetwork();
-    }
+  return batchSize; //always add one grad per transition
+}
+
+int Learner::sampleSequences(vector<int>& sequences)
+{
+  assert(sequences.size() == batchSize && bRecurrent);
+  int nAddedGradients = 0;
+  for (int i=0; i<batchSize; i++) {
+    const int ind = data->inds.back();
+    data->inds.pop_back();
+    sequences[i]  = ind;
+    //index[i] = ind;
+    const int seqSize = data->Set[ind]->tuples.size();
+    //to normalize mean gradient for update:
+    nAddedGradients += seqSize-1; //last state = terminal, no next reward
+  }
+  return nAddedGradients;
 }
 
 void Learner::stackAndUpdateNNWeights(const int nAddedGradients)
 {
+    assert(bTrain);
     opt->nepoch++;
     //add up gradients across threads
     opt->stackGrads(net->grad, net->Vgrad);
@@ -338,6 +341,7 @@ void Learner::stackAndUpdateNNWeights(const int nAddedGradients)
 
 void Learner::updateNNWeights(const int nAddedGradients)
 {
+    assert(bTrain && nAddedGradients>0);
     //add up gradients across nodes (masters)
     int nMasters;
     MPI_Comm_size(mastersComm, &nMasters);
@@ -354,6 +358,7 @@ void Learner::updateNNWeights(const int nAddedGradients)
 
 void Learner::updateTargetNetwork()
 {
+    assert(bTrain);
     if (cntUpdateDelay <= 0) { //DQN-style frozen weight
         cntUpdateDelay = tgtUpdateDelay;
 
@@ -367,7 +372,7 @@ void Learner::updateTargetNetwork()
 bool Learner::checkBatch() const
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    if (ndata<batchSize) return false; //do we have enough data?
+    if (ndata<batchSize) return false; //do we have enough data? TODO k*ndata?
     return taskCounter >= batchSize;
 }
 
@@ -375,39 +380,52 @@ void Learner::save(string name)
 {
     int masterRank;
     MPI_Comm_rank(mastersComm, &masterRank);
-//    net->save(name);
-    if (!masterRank) opt->save(name);
-    data->save(name);
-    const string stuff = name + ".status";
+    //    net->save(name);
+    if (!masterRank) {
+      opt->save(name);
+      data->save(name);
+    }
+    const string stuff = name + to_string(masterRank) + ".status";
     FILE * f = fopen(stuff.c_str(), "w");
     if (f == NULL) die("Save fail\n");
     fprintf(f, "policy iter: %d\n", data->anneal);
+    fprintf(f, "optimize epoch: %d\n", opt->nepoch);
     fprintf(f, "epoch count: %d\n", stats.epochCount);
     fclose(f);
 }
 
 void Learner::restart(string name)
 {
-    _info("Restarting from saved policy...\n");
-    data->restartSamples();
-    if ( opt->restart(name) )
-        _info("Restart successful, moving on...\n")
-    else
-        _info("Not all policies restarted. \n")
-    data->restart(name);
-    save("restarted_policy.net");
-    FILE * f = fopen("policy.status", "r");
-    if(f != NULL) {
-        int val;
+  int masterRank;
+  MPI_Comm_rank(mastersComm, &masterRank);
+  _info("Restarting from saved policy...\n");
+
+  data->restartSamples();
+  if ( opt->restart(name) )
+      _info("Restart successful, moving on...\n")
+  else
+      _info("Not all policies restarted. \n")
+  data->restart(name);
+
+  const string stuff = name + to_string(masterRank) + ".status";
+  FILE * f = fopen(stuff.c_str(), "r");
+  if(f != NULL) {
+      int val=-1;
         fscanf(f, "policy iter: %d\n", &val);
         if(val>=0) data->anneal = val;
         printf("policy iter: %d\n", data->anneal);
-        val=-1;
+      val=-1;
+        fscanf(f, "optimize epoch: %d\n", &val);
+        if(val>=0) opt->nepoch = val;
+        printf("optimize epoch: %d\n", opt->nepoch);
+      val=-1;
         fscanf(f, "epoch count: %d\n", &val);
         if(val>=0) stats.epochCount = val;
         printf("epoch count: %d\n", stats.epochCount);
-        fclose(f);
-    }
+      fclose(f);
+  }
+
+  save("restarted_policy");
 }
 
 void Learner::dumpStats(trainData* const _stats, const Real& Q,

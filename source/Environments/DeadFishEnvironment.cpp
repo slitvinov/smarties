@@ -63,44 +63,12 @@ void DeadFishEnvironment::setDims()
 
 
         for (int i=0; i<aI.dim; i++) {
-            aI.bounds.push_back(2); //Number of possible actions to choose from
-            aI.values[i].push_back(-1.5);
-            aI.values[i].push_back(+1.5);
+            aI.values[i].push_back(-5*1.5);
+            aI.values[i].push_back(+5*1.5);
         }
     }
     resetAll=true;
     commonSetup();
-}
-
-void DeadFishEnvironment::setAction(const int & iAgent)
-{
-
-	const double maxAccel = 5*1.5; // 1.5 is the fixed accel amp for non-learner. Will allow at most 5 times that, to avoid hitting the boundaries
-
-	if(agents[iAgent]->a->vals[0] > maxAccel){
-		printf("Action 0 is too large (>0), reassigned at random to prevent sim from crashing\n");
-		std::uniform_real_distribution<Real> dist(0.0, maxAccel);
-		agents[iAgent]->a->vals[0]= dist(*g);
-	} else if (agents[iAgent]->a->vals[0] < -maxAccel){
-		printf("Action 0 is too large (<0), reassigned at random to prevent sim from crashing\n");
-		std::uniform_real_distribution<Real> dist(-maxAccel,0.0);
-		agents[iAgent]->a->vals[0]= dist(*g);
-	}
-
-    /*if ( agents[iAgent]->a->vals[0] > .75 ) {
-    	printf("Action 0 is too large (>0), reassigned at random to prevent sim from crashing\n");
-        std::normal_distribution<Real> dist(0.5,0.25);
-        const Real uB = 0.75; const Real lB = -.75;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
-    }
-    if ( agents[iAgent]->a->vals[0] <-.75 ) {
-    	printf("Action 0 is too large (<0), reassigned at random to prevent sim from crashing\n");
-        std::normal_distribution<Real> dist(-.5,0.25);
-        const Real uB = 0.75; const Real lB = -.75;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
-    }*/
-
-    Environment::setAction(iAgent);
 }
 
 bool DeadFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
@@ -179,14 +147,4 @@ bool DeadFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 
     //return new_sample;
     return info==2;
-}
-
-int DeadFishEnvironment::getState(int & iAgent)
-{
-    int bStatus = Environment::getState(iAgent);
-
-//    for (int j=180; j<sI.dim; j++)
- //       agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
-
-    return bStatus;
 }

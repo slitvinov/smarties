@@ -16,7 +16,7 @@ using namespace ErrorHandling;
 
 Optimizer::Optimizer(Network* const _net, Profiler* const _prof,
   Settings& settings) : nWeights(_net->getnWeights()),
-  nBiases(_net->getnBiases()), net(_net), profiler(_prof),
+  nBiases(_net->getnBiases()), bTrain(settings.bTrain), net(_net), profiler(_prof),
 eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), nepoch(0)
 {
     _allocateClean(_1stMomW, nWeights)
@@ -256,6 +256,7 @@ bool Optimizer::restart(const string fname)
     debug1("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) {
         error("Couldnt open file %s \n", nameBackup.c_str());
+        if(!bTrain) {die("...and I'm not training\n");}
         return false;
     }
 
@@ -321,6 +322,7 @@ bool AdamOptimizer::restart(const string fname)
     debug1("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) {
         error("Couldnt open file %s \n", nameBackup.c_str());
+        if(!bTrain) {die("...and I'm not training\n");}
         return false;
     }
 

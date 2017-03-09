@@ -53,14 +53,35 @@ void runSlave(MPI_Comm slavesComm)
     ObjectFactory factory(settings);
     Environment* env = factory.createEnvironment(rank, 0);
     settings.nAgents = env->agents.size();
-    Slave simulation(slavesComm, env, rank, settings);
-    if (settings.restart != "none")
-        simulation.restart(settings.restart);
 
-    while (true) {
-        simulation.run(); //if it returns, something is messed up
-        env->close_Comm();
-        env->setup_Comm();
+    const bool isSpawner = true;
+    const bool verbose = 0;
+    const int sdim = env->sI.dim;
+    const int adim = env->aI.dim;
+    const int socket = settings.sockPrefix;
+    const std::string exec = env->execpath;
+    const std::string flog = "log_"+std::to_string(wRank)+"_";
+    int available_ranks = nranks-1; //one is the master
+    const int ranks_per = env->mpi_ranks_per_env;
+
+    if(ranks_per>1)
+    {
+      if(available_ranks%ranks_per)
+          die("Number of ranks does not match app\n");
+      int split = (rank-1) / ranks_per;
+      MPI_Comm app_com;
+      MPI_Comm_split(slavesComm, split, rank, &app_com);
+
+      Communicator comm(sdim,adim,slavesComm,app_com,exec,env->paramsfile,flog,verbose);
+      comm.ext_app_run();
+    }
+    else
+    {
+      Communicator comm(socket,sdim,adim,isSpawner,exec,slavesComm,flog,verbose);
+      //if (settings.restart != "none") comm.restart(settings.restart);
+
+      Slave simulation(&comm, env, settings);
+      simulation.run();
     }
 }
 
@@ -72,13 +93,14 @@ void runClient()
     settings.nSlaves = 1;
 
     Learner* learner = nullptr;
-    if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
+    if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ")
+    {
         settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-        settings.nnOutputs = 1;
-        for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];
+        settings.nnOutputs = env->aI.maxLabel;
         learner = new NFQ(MPI_COMM_WORLD, env, settings);
     }
-    else if (settings.learner == "NA" || settings.learner == "NAF") {
+    else if (settings.learner == "NA" || settings.learner == "NAF")
+    {
         settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
         const int nA = env->aI.dim;
         const int nL = (nA*nA+nA)/2;
@@ -86,14 +108,30 @@ void runClient()
         settings.bSeparateOutputs = true; //else it does not really work
         learner = new NAF(MPI_COMM_WORLD, env, settings);
     }
-    else if (settings.learner == "DP" || settings.learner == "DPG") {
+    else if (settings.learner == "DP" || settings.learner == "DPG")
+    {
         settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS) + env->aI.dim;
         settings.nnOutputs = 1;
         learner = new DPG(MPI_COMM_WORLD, env, settings);
     } else die("Learning algorithm not recognized\n");
     assert(learner not_eq nullptr);
 
-    Client simulation(learner, env, settings);
+    const bool isSpawner = false;
+    const bool verbose = 0;
+    const int sdim = env->sI.dim;
+    const int adim = env->aI.dim;
+    const int socket = settings.sockPrefix;
+    const std::string exec = env->execpath;
+    const std::string flog = "log_0_";
+
+    Communicator comm(socket,sdim,adim,isSpawner,exec,MPI_COMM_WORLD,flog,verbose);
+    if (settings.restart != "none") {
+      learner->restart(settings.restart);
+      //comm.restart(settings.restart);
+    }
+
+    Client simulation(learner, &comm, env, settings);
+    simulation.run();
 }
 
 void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
@@ -117,14 +155,20 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
     ObjectFactory factory(settings);
     Environment* env = factory.createEnvironment(0,0);
 
+    if(env->mpi_ranks_per_env>1)
+    { //unblock creation of app comm if needed
+      MPI_Comm tmp_com;
+      MPI_Comm_split(slavesComm, MPI_UNDEFINED, 0, &tmp_com);
+      //no need to free this
+    }
+
     settings.nAgents = nSlaves*env->agents.size();
     settings.nSlaves = nSlaves;
 
     Learner* learner = nullptr;
     if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
         settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-        settings.nnOutputs = 1;
-        for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];
+        settings.nnOutputs = env->aI.maxLabel;
         learner = new NFQ(mastersComm, env, settings);
     }
     else if (settings.learner == "NA" || settings.learner == "NAF") {
@@ -151,8 +195,6 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 
 int main (int argc, char** argv)
 {
-    int rank, nranks;
-
     struct timeval clock;
     gettimeofday(&clock, NULL);
     debugLvl=10;
@@ -186,7 +228,7 @@ int main (int argc, char** argv)
       {'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"obs_master.txt"}
     });
 
-    int provided;
+    int provided, rank, nranks;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
     if (provided < MPI_THREAD_FUNNELED)
         die("The MPI implementation does not have required thread support\n");
@@ -199,7 +241,8 @@ int main (int argc, char** argv)
 
 
     if (not settings.isLauncher) {
-      if (settings.sockPrefix<0) die("Not received a prefix for the socket\n");
+      if (settings.sockPrefix<0)
+        die("Not received a prefix for the socket\n");
       settings.gen = new mt19937(settings.sockPrefix);
       printf("Launching smarties as client.\n");
       if (settings.restart == "none")
@@ -220,7 +263,6 @@ int main (int argc, char** argv)
           MPI_Recv(&runSeed, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
     settings.sockPrefix = runSeed+rank;
-
     settings.gen = new mt19937(settings.sockPrefix);
 
     const int slavesPerMaster = ceil(nranks/(double)settings.nMasters) - 1;

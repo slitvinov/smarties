@@ -22,7 +22,6 @@ class NAF : public Learner
 
     vector<Real> computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 						   const vector<Real>& out, const Real Vnext) const;
-    //Real computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const;
 
 public:
     NAF(MPI_Comm comm, Environment*const env, Settings & settings);

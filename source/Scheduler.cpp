@@ -16,68 +16,30 @@
 #include <algorithm>
 #include <cassert>
 
+static int doublePtrToInt(const double* const ptr);
+
 Master::Master(MPI_Comm _c, Learner*const _l, Environment*const _e, Settings&_s):
-  slavesComm(_c), learner(_l), env(_e), aI(_e->aI), sI(_e->sI), agents(_e->agents),
-  bTrain(settings.bTrain), nPerRank(_e->nAgentsPerRank), nSlaves(settings.nSlaves),
-  saveFreq(settings.saveFreq), inSize(2*sizeof(int)+(1+_e->sI.dim)*sizeof(double)),
-  outSize(_e->aI.dim*sizeof(double)), inbuf(alloc(inSize)), outbuf(alloc(outSize)),
-  gen(settings.gen), sOld(_e->sI), sNew(_e->sI), aOld(_e->aI, settings.gen),
-  aNew(_e->aI, settings.gen), totR(0), reward(0), iter(0)
-  {
-    //the following Irecv will be sent after sending the action
-    MPI_Irecv(inbuf, inOneSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
-  }
-
-inline void Master::recvState(const int slave, int& iAgent, int& status, Real& reward)
+  slavesComm(_c), learner(_l), env(_e), aI(_e->aI), sI(_e->sI),
+  agents(_e->agents), bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank),
+  nSlaves(_s.nSlaves), saveFreq(_s.saveFreq), nThreads(_s.nThreads),
+  inSize((3+_e->sI.dim)*sizeof(double)), outSize(_e->aI.dim*sizeof(double)),
+  inbuf(_alloc(inSize)), outbuf(_alloc(outSize)),
+  sOld(_e->sI), sNew(_e->sI), aOld(_e->aI,_s.gen), aNew(_e->aI,_s.gen),
+  totR(0), iter(0), status(_e->agents.size(),1)
 {
-    //printf("Master receives from %d - %d (size %d)...\n", agentId, slave, inOneSize);
-    byte* buf = inbuf;
-
-    const int recv_iAgent = *((int*) buf);
-    iAgent = (slave-1) * nPerRank + recv_iAgent;
-    assert(iAgent >= 0 && iAgent < agents.size());
-    buf += sizeof(int);
-
-
-    status = *((int*) buf);
-    agents[iAgent]->Status = status;
-    buf += sizeof(int);
-
-    sNew.unpack(buf);
-    buf += sI.dim * sizeof(double);
-
-    //agent's s is stored in sOld
-    agents[iAgent]->swapStates();
-    agents[iAgent]->setState(sNew);
-    agents[iAgent]->getState(sOld);
-    agents[iAgent]->getAction(aOld);
-
-    reward = *((double*) buf);
-    agents[iAgent]->r = reward;
-    buf += sizeof(double);
-
-    assert(buf-inbuf == inSize);
-
-    MPI_Irecv(inbuf, inOneSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
-}
-
-inline void Master::sendAction(const int slave, const int iAgent)
-{
-    assert(iAgent >= 0 && iAgent < agents.size());
-    agents[iAgent]->act(aNew);
-    aNew.pack(outbuf);
-    MPI_Send(outbuf, outOneSize, MPI_BYTE, slave, 0, slavesComm);
+  //the following Irecv will be sent after sending the action
+  MPI_Irecv(inbuf, inSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
 }
 
 void Master::restart(string fname)
 {
     learner->restart(fname);
     FILE * f = fopen("master.status", "r");
-    int iter_fake(-1);
+    unsigned long iter_fake = 0;
     if (f == NULL) return;
-    fscanf(f, "master iter: %d\n", &iter_fake);
-    if(iter_fake>=0) iter = iter_fake;
-    printf("master iter: %d\n", iter);
+    fscanf(f, "master iter: %lu\n", &iter_fake);
+    if(iter_fake) iter = iter_fake;
+    printf("master iter: %lu\n", iter);
     fclose(f);
 }
 
@@ -87,38 +49,38 @@ void Master::save()
     filestats.open("master_rewards.dat", ios::app);
     filestats<<iter<<" "<<totR<<endl;
     filestats.close();
-    printf("Iter %d, Reward: %f\n", iter, totR);
+    printf("Iter %lu, Reward: %f\n", iter, totR);
     totR = 0.;
 
     FILE * f = fopen("master.status", "w");
-    if (f != NULL) fprintf(f, "master iter: %d\n", iter);
+    if (f != NULL)
+      fprintf(f, "master iter: %lu\n", iter);
     fclose(f);
-    //printf("master iter: %d\n", iter);
 
     learner->save("policy");
 }
 
 void Master::run()
 {
-    MPI_Status status;
+    MPI_Status mpistatus;
     int completed=0, agentStatus=0, agent;
-
+    double reward;
     while (true) {
         while (true) {
-            //if threaded, check on the guys, synchronize apply gradient
+            //if threaded: check on the guys, synchronize, apply gradient
             if (nThreads > 1 && learner->checkBatch()) return;
 
-            MPI_Test(&request, &completed, &status);
+            MPI_Test(&request, &completed, &mpistatus);
             if (completed) break;
 
-            //if single thread master, process a batch
+            //if single thread master: process a batch
             if (nThreads == 1) learner->TrainBatch();
         }
-
-        const int slave = status.MPI_SOURCE;
+        //printf("Master receives from %d\n", mpistatus.MPI_SOURCE);
+        const int slave = mpistatus.MPI_SOURCE;
         recvState(slave, agent, agentStatus, reward);
 
-        if (agentStatus == 3) {
+        if (agentStatus == _AGENT_FAILCOMM) {
           learner->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
           continue;
         }
@@ -129,145 +91,168 @@ void Master::run()
          agent, sOld.print().c_str(), sNew.print().c_str(), aOld.print().c_str(), reward, aNew.print().c_str());
          fflush(0);
          */
-        if (info != 1) totR += r;
-        if (info != 2)  //if terminal, no action required
+        if (agentStatus != _AGENT_FIRSTCOMM) totR += reward;
+        if (agentStatus != _AGENT_LASTCOMM)  //if terminal, no action required
         sendAction(slave, agent);
+
+        if(env->resetAll)
+          learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
 
         if (++iter % saveFreq == 0) save();
     }
     die("How on earth could you possibly get here? \n");
 }
 
-Slave::Slave(Environment*const _env,int _me, Settings& settings):
-slavesComm(comm), env(_env), agents(env->agents), me(_me),
-bTrain(settings.bTrain), bWriteToFile(!(settings.samplesFile=="none"))
-{
-}
+Slave::Slave(Communicator*const _c, Environment*const _e, Settings& _s):
+comm(_c), env(_e), bTrain(_s.bTrain), status(_e->agents.size(),1) {}
 
 void Slave::run()
 {
-  vector<double> status(nStates);
-  int iAgent, status;
+  vector<double> state(env->sI.dim);
+  int iAgent, agentStatus;
   double reward;
 
-  while(true) {
-      // flag = -1: failed comm, 0: normal, 2: ended
-      if (comm->recvStateFromApp()) return; //sim probably crashed
+  while(true)
+  {
+    comm->launch();
+    while(true)
+    {
+        if (comm->recvStateFromApp()) break; //sim crashed
 
-      comm->unpackState(iAgent, status, state, reward);
-      comm->sendStateMPI();
+        comm->unpackState(iAgent, agentStatus, state, reward);
+        comm->sendStateMPI();
 
-      if(status != _AGENT_LASTCOMM)
-      {
-        comm->recvActionMPI();
-        comm->sendActionToApp();
-      }
+        status[iAgent] = agentStatus;
+        if(agentStatus != _AGENT_LASTCOMM)
+        {
+          comm->recvActionMPI();
+          comm->sendActionToApp();
+        } else {
+          bool bDone = true; //did all agents reach terminal state?
+          for (int i=0; i<status.size(); i++)
+            bDone = bDone && status[i] == _AGENT_LASTCOMM;
+          bDone = bDone || env->resetAll; //does env end is any terminates?
+
+          if(bDone && !bTrain) {
+            comm->answerTerminateReq(-1);
+            return;
+          }
+          else comm->answerTerminateReq(1);
+        }
+    }
+    //if here, a crash happened:
+    //if we are training, then launch again, otherwise exit
+    if (!bTrain) return;
   }
 }
 
-void Slave::unpackData(const int iAgent)
+Client::Client(Learner*const _l, Communicator*const _c, Environment*const _e,
+  Settings& _s):
+  learner(_l), comm(_c), env(_e), aI(_e->aI), sI(_e->sI), agents(_e->agents),
+  sOld(_e->sI), sNew(_e->sI), aOld(_e->aI, _s.gen), aNew(_e->aI, _s.gen),
+  status(_e->agents.size(),1)
+{}
+
+void Client::run()
 {
-    byte* cbuf = inbuf;
-    actions[iAgent].unpack(cbuf);
-}
+  vector<double> state(env->sI.dim);
+  int iAgent, agentStatus;
+  double reward;
 
+  comm->launch();
 
-void Slave::packData(const int iAgent)
-{
-    byte* cbuf = outbuf;
-    const int sSize = env->sI.dim * sizeof(Real);
-    const int aSize = env->aI.dim * sizeof(Real);
+  while(true)
+  {
+      if (comm->recvStateFromApp()) break; //sim crashed
 
-    *((int*)cbuf) = (int)info[iAgent];
-    cbuf += sizeof(int);
-
-    oldStates[iAgent].pack(cbuf);
-    cbuf += sSize;
-
-    actions[iAgent].pack(cbuf);
-    cbuf += aSize;
-
-    *((Real*)cbuf) = agents[iAgent]->getReward();
-    cbuf += sizeof(Real);
-
-    States[iAgent].pack(cbuf);
-}
-
-void Slave::restart(string fname)
-{
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    FILE * f = fopen(("slave_"+to_string(rank)+".status").c_str(), "r");
-    if (f == NULL) return;
-    int sim_id_fake = -1;
-    fscanf(f, "sim number: %d\n", &sim_id_fake);
-    if(sim_id_fake>=0) env->iter = sim_id_fake;
-    printf("sim number: %lu\n", env->iter);
-    fclose(f);
-}
-
-void Slave::save() const
-{
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    FILE * f = fopen(("slave_"+to_string(rank)+".status").c_str(), "w");
-    if (f != NULL) fprintf(f, "sim number: %lu\n", env->iter);
-    fclose(f);
-    //printf( "sim number: %d\n", env->iter);
-}
-
-string Slave::bufferTransition(const int iAgent) const
-{
-    ostringstream o;
-    if (not bWriteToFile) return o.str();
-
-    o << iAgent << " " << info[iAgent] << " ";
-    o << oldStates[iAgent].printClean().c_str();
-    o << States[iAgent].printClean().c_str();
-    o << actions[iAgent].printClean().c_str();
-    o << agents[iAgent]->getReward();
-    return o.str();
-}
-
-Client::Client(Learner*const _learner, Environment* const _env, Settings& settings):
-  learner(_learner), env(_env), actInfo(_env->aI), sInfo(_env->sI),
-  agents(_env->agents),  sOld(_env->sI), s(_env->sI),
-  aOld(_env->aI, settings.gen), a(_env->aI, settings.gen), r(0)
-{
-  learner->restart(settings.restart);
-
-  while(true) {
-      int iAgent;
-      // flag = -1: failed comm, 0: normal, 2: ended
-      const int extflag = env->getState(iAgent);
-
-
-      agents[iAgent]->getState(s);
-      agents[iAgent]->getAction(aOld);
-      agents[iAgent]->getOldState(sOld);
-      r = agents[iAgent]->getReward();
-
-      //printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
-      //extflag, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(),r, a.print().c_str());
-
-      learner->select(iAgent, s, a, sOld, aOld, extflag, r);
+      prepareState(iAgent, agentStatus, reward);
+      learner->select(iAgent, sNew, aNew, sOld, aOld, agentStatus, reward);
 
       printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
-      extflag, sOld.print().c_str(), s.print().c_str(), aOld.print().c_str(),r, a.print().c_str());
+              iAgent, sOld.print().c_str(), sNew.print().c_str(),
+              aOld.print().c_str(), reward, aNew.print().c_str());
+      status[iAgent] = agentStatus;
 
-      if(extflag<0) die("Communication lost.\n");
+      if(agentStatus != _AGENT_LASTCOMM) {
+        prepareAction(iAgent);
+        comm->sendActionToApp();
+      } else {
+        bool bDone = true; //did all agents reach terminal state?
+        for (int i=0; i<status.size(); i++)
+          bDone = bDone && status[i] == _AGENT_LASTCOMM;
+        bDone = bDone || env->resetAll; //or does env end is any terminates?
 
-      if(extflag==2) { //then we do not recv an action, we reset
-          if(env->resetAll) { //does this env require a full restart upon failing?
-              return;
-          }
-          bool bDone = true;
-          for (int i=0; i<agents.size(); i++)
-            bDone = bDone && agents[i]->getStatus() == 2;
-          if(bDone) return;
+        if(bDone) {
+          comm->answerTerminateReq(-1);
+          return;
+        }
+        else comm->answerTerminateReq(1);
       }
-
-      agents[iAgent]->act(a);
-      env->setAction(iAgent);
   }
+}
+
+void Client::prepareState(int& iAgent, int& istatus, Real& reward)
+{
+    const double*const buf = comm->getDataout();
+    iAgent = doublePtrToInt(buf+0);
+    assert(iAgent >= 0 && iAgent < agents.size());
+
+    istatus = doublePtrToInt(buf+1);
+    agents[iAgent]->Status = istatus;
+
+    sNew.unpack(buf+2);
+
+    //agent's s is stored in sOld
+    agents[iAgent]->swapStates();
+    agents[iAgent]->setState(sNew);
+    agents[iAgent]->getOldState(sOld);
+    agents[iAgent]->getAction(aOld);
+
+    reward = buf[env->sI.dim+2];
+    agents[iAgent]->r = reward;
+}
+
+void Master::recvState(const int slave, int& iAgent, int& istatus, Real& reward)
+{
+    const double*const buf = inbuf;
+
+    const int recv_iAgent = doublePtrToInt(buf+0);
+    iAgent = (slave-1) * nPerRank + recv_iAgent;
+    assert(iAgent >= 0 && iAgent < agents.size());
+
+    istatus = doublePtrToInt(buf+1);
+    agents[iAgent]->Status = istatus;
+
+    sNew.unpack(buf+2);
+
+    //agent's s is stored in sOld
+    agents[iAgent]->swapStates();
+    agents[iAgent]->setState(sNew);
+    agents[iAgent]->getOldState(sOld);
+    agents[iAgent]->getAction(aOld);
+
+    reward = buf[env->sI.dim+2];
+    agents[iAgent]->r = reward;
+
+    MPI_Irecv(inbuf, inSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
+}
+
+void Master::sendAction(const int slave, const int iAgent)
+{
+    assert(iAgent >= 0 && iAgent < agents.size());
+    agents[iAgent]->act(aNew);
+    aNew.pack(outbuf);
+    MPI_Send(outbuf, outSize, MPI_BYTE, slave, 0, slavesComm);
+}
+
+void Client::prepareAction(const int iAgent)
+{
+    assert(iAgent >= 0 && iAgent < agents.size());
+    agents[iAgent]->act(aNew);
+    aNew.pack(comm->getDatain());
+}
+
+static int doublePtrToInt(const double*const ptr)
+{
+  return *((int*)ptr);
 }

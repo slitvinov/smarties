@@ -67,8 +67,6 @@ void AcrobotEnvironment::setDims() //this environment is for the cart pole test
         aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
         for (int i=0; i<aI.dim; i++) {
-        	const int nOptions = 5; //used if discrete actions: options available to agent for acting
-            aI.bounds.push_back(nOptions);
 
             //this framework sends a real number to the application
             //if you want to receive an integer number between 0 and nOptions (eg action option)

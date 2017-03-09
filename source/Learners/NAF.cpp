@@ -197,7 +197,7 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
       const Tuple * const _t    = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
       const Tuple * const _tOld = data->Set[seq]->tuples[k]; //this tuple contains sOld
-      vector<Real> scaledSold = data->standardize(_tOld->s);
+      vector<Real> scaledSold = data->standardize(_tOld->s, 0.001);
       net->predict(scaledSold, output, timeSeries, k);
 
       const bool terminal = k+2==ndata && data->Set[seq]->ended;
@@ -231,12 +231,12 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     const int ndata = data->Set[seq]->tuples.size();
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
 
-    vector<Real> scaledSold =data->standardize(data->Set[seq]->tuples[samp]->s);
     const Tuple* const _tOld = data->Set[seq]->tuples[samp]; //this tuple contains a, sNew, reward:
     const Tuple* const _t = data->Set[seq]->tuples[samp+1]; //this tuple contains a, sNew, reward:
     Activation* sOldActivation = net->allocateActivation();
     sOldActivation->clearErrors();
 
+    vector<Real> scaledSold =data->standardize(_tOld->s, 0.001);
     net->predict(scaledSold, output, sOldActivation); //sOld in previous tuple
 
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
@@ -383,12 +383,9 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 	    assert(kL==1+nL);
 		}
 
-
 		for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
-			const Real min_a = *std::min_element(std::begin(aInfo.values[j]),
-																						 std::end(aInfo.values[j]));
-			const Real max_a = *std::max_element(std::begin(aInfo.values[j]),
-																						 std::end(aInfo.values[j]));
+			const Real min_a = aInfo.getActMinVal(j);
+			const Real max_a = aInfo.getActMaxVal(j);
 			//const Real _a = out[1+nL+j];
 			//const Real pi = aInfo.bounded[j] ? min_a + .5*(max_a-min_a)*(_a/(1.+std::fabs(_a))+1) : _a;
 			const Real pi = aInfo.getScaled(out[1+nL+j], j);

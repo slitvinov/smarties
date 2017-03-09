@@ -49,7 +49,8 @@ protected:
 
     virtual void Train_BPTT(const int seq, const int thrID=0) const = 0;
     virtual void Train(const int seq, const int samp, const int thrID=0) const = 0;
-
+    int sampleSequences(vector<int>& sequences);
+    int sampleTransitions(vector<int>& sequences, vector<int>& transitions);
     void dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs);
     void dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs) const;
     void processStats(vector<trainData*> _stats, const Real avgTime);
@@ -71,6 +72,7 @@ public:
 
     virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;
     void clearFailedSim(const int agentOne, const int agentEnd);
+    void pushBackEndedSim(const int agentOne, const int agentEnd);
     bool checkBatch() const;
     void TrainBatch();
     void TrainTasking(Master* const master);

@@ -8,7 +8,7 @@ CC = gcc
 #endif
 
 SRC_DIR = ./
-COM_DIR = ../../source/Util
+COM_DIR = ../../source/
 VPATH := $(SRC_DIR):$(COM_DIR)
 WARNINGS = -Wall -Wextra -Wredundant-decls -Wshadow -Woverloaded-virtual
 WARNINGS+= -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings -Wlogical-op
