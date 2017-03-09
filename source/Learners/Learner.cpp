@@ -389,7 +389,7 @@ void Learner::save(string name)
     FILE * f = fopen(stuff.c_str(), "w");
     if (f == NULL) die("Save fail\n");
     fprintf(f, "policy iter: %d\n", data->anneal);
-    fprintf(f, "optimize epoch: %d\n", opt->nepoch);
+    fprintf(f, "optimize epoch: %lu\n", opt->nepoch);
     fprintf(f, "epoch count: %d\n", stats.epochCount);
     fclose(f);
 }
@@ -414,17 +414,17 @@ void Learner::restart(string name)
         fscanf(f, "policy iter: %d\n", &val);
         if(val>=0) data->anneal = val;
         printf("policy iter: %d\n", data->anneal);
-      val=-1;
-        fscanf(f, "optimize epoch: %d\n", &val);
-        if(val>=0) opt->nepoch = val;
-        printf("optimize epoch: %d\n", opt->nepoch);
+      long unsigned ret = 0;
+        fscanf(f, "optimize epoch: %lu\n", &ret);
+        if(ret>0) opt->nepoch = ret;
+        printf("optimize epoch: %lu\n", opt->nepoch);
       val=-1;
         fscanf(f, "epoch count: %d\n", &val);
         if(val>=0) stats.epochCount = val;
         printf("epoch count: %d\n", stats.epochCount);
       fclose(f);
   }
-
+  else printf("No status\n");
   save("restarted_policy");
 }
 
