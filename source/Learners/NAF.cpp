@@ -90,6 +90,13 @@ nL((env->aI.dim*env->aI.dim+env->aI.dim)/2)
   #endif
 }
 
+static void printselection(const int iA,const int nA,const int i,vector<Real> s)
+{
+	printf("%d/%d s=%d : ", iA, nA, i);
+	for(int k=0; k<s.size(); k++) printf("%g ", s[k]);
+	printf("\n"); fflush(0);
+}
+
 void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 								 Action& aOld, const int info, Real r)
 {
@@ -101,17 +108,21 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
     Activation* currActivation = net->allocateActivation();
     vector<Real> output(nOutputs);
 
-    if (info==1) {// if new sequence, sold, aold and reward are meaningless
+    if (info==1) {
+			// if new sequence, sold, aold and reward are meaningless
 			vector<Real> inputs(nInputs,0);
 			s.copy_observed(inputs);
 			vector<Real> scaledSold = data->standardize(inputs);
+			//printselection(agentId,nAgents,info,scaledSold);
       net->predict(scaledSold, output, currActivation);
-    } else {   //then if i'm using RNN i need to load recurrent connections
+    } else {
+			//then if i'm using RNN i need to load recurrent connections
 			const Tuple* const last = data->Tmp[agentId]->tuples.back();
 			vector<Real> scaledSold = data->standardize(last->s);
 			Activation* prevActivation = net->allocateActivation();
 			net->loadMemory(net->mem[agentId], prevActivation);
-      net->predict(scaledSold, output, prevActivation, currActivation);
+			//printselection(agentId,nAgents,info,scaledSold);
+			net->predict(scaledSold, output, prevActivation, currActivation);
       _dispose_object(prevActivation);
     }
 
@@ -127,62 +138,68 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const double handicap = min(data->Set.size()/1e2, opt->nepoch/1e4);
-        newEps = std::exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
+      const double handicap = min(data->Set.size()/1e2, opt->nepoch/1e5);
+      newEps = std::exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
 
     uniform_real_distribution<Real> dis(0.,1.);
     if(dis(*gen) < newEps) a.getRandom();
 
 	#ifdef _dumpNet_
-		net->dump(agentId);
-
-		const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
-		if (ndata == 0) return;
-
-		vector<Activation*> timeSeries_base = net->allocateUnrolledActivations(ndata);
-		net->clearErrors(timeSeries_base);
-
-		for (int k=0; k<ndata; k++) {
-			const Tuple * const _t = data->Tmp[agentId]->tuples[k];
-			vector<Real> scaledSnew = data->standardize(_t->s);
-			net->predict(scaledSnew, output, timeSeries_base, k);
-		}
-
-		//sensitivity of value for this action in this state wrt all previous inputs
-		for (int ii=0; ii<ndata; ii++)
-		for (int i=0; i<nInputs; i++) {
-			vector<Activation*> series =net->allocateUnrolledActivations(ndata);
-
-			for (int k=0; k<ndata; k++) {
-				const Tuple* const _t = data->Tmp[agentId]->tuples[k];
-				vector<Real> scaledSnew = data->standardize(_t->s);
-				if (k==ii) scaledSnew[i] = 0;
-				net->predict(scaledSnew, output, series, k);
-			}
-			vector<Real> oDiff = net->getOutputs(series.back());
-			vector<Real> oBase = net->getOutputs(timeSeries_base.back());
-			const Tuple* const _t = data->Tmp[agentId]->tuples[ii];
-			vector<Real> sSnew = data->standardize(_t->s);
-
-			assert(nA==1); //TODO ask Sid for muldi-dim actions?
-			timeSeries_base[ii]->errvals[i]=(oDiff[1+nL]-oBase[1+nL])/sSnew[i];
-
-			net->deallocateUnrolledActivations(&series);
-		}
-
-		string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
-		ofstream out(fname.c_str());
-		if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
-		for (int k=0; k<ndata; k++) {
-			for (int j=0; j<nInputs; j++)
-			out << timeSeries_base[k]->errvals[j] << " ";
-			out << "\n";
-		}
-		out.close();
-
-		net->deallocateUnrolledActivations(&timeSeries_base);
+		dumpNetworkInfo(agentId);
 	#endif
+}
+
+void NAF::dumpNetworkInfo(const int agentId)
+{
+	net->dump(agentId);
+	vector<Real> output(nOutputs);
+
+	const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
+	if (ndata == 0) return;
+
+	vector<Activation*> timeSeries_base = net->allocateUnrolledActivations(ndata);
+	net->clearErrors(timeSeries_base);
+
+	for (int k=0; k<ndata; k++) {
+		const Tuple * const _t = data->Tmp[agentId]->tuples[k];
+		vector<Real> scaledSnew = data->standardize(_t->s);
+		net->predict(scaledSnew, output, timeSeries_base, k);
+	}
+
+	//sensitivity of value for this action in this state wrt all previous inputs
+	for (int ii=0; ii<ndata; ii++)
+	for (int i=0; i<nInputs; i++) {
+		vector<Activation*> series =net->allocateUnrolledActivations(ndata);
+
+		for (int k=0; k<ndata; k++) {
+			const Tuple* const _t = data->Tmp[agentId]->tuples[k];
+			vector<Real> scaledSnew = data->standardize(_t->s);
+			if (k==ii) scaledSnew[i] = 0;
+			net->predict(scaledSnew, output, series, k);
+		}
+		vector<Real> oDiff = net->getOutputs(series.back());
+		vector<Real> oBase = net->getOutputs(timeSeries_base.back());
+		const Tuple* const _t = data->Tmp[agentId]->tuples[ii];
+		vector<Real> sSnew = data->standardize(_t->s);
+
+		assert(nA==1); //TODO ask Sid for muldi-dim actions?
+		timeSeries_base[ii]->errvals[i]=(oDiff[1+nL]-oBase[1+nL])/sSnew[i];
+
+		net->deallocateUnrolledActivations(&series);
+	}
+
+	string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
+	ofstream out(fname.c_str());
+	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+	for (int k=0; k<ndata; k++) {
+		for (int j=0; j<nInputs; j++)
+		out << timeSeries_base[k]->errvals[j] << " ";
+		out << "\n";
+	}
+	out.close();
+
+	net->deallocateUnrolledActivations(&timeSeries_base);
 }
 
 void NAF::Train_BPTT(const int seq, const int thrID) const
@@ -197,7 +214,7 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
     for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
       const Tuple * const _t    = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
       const Tuple * const _tOld = data->Set[seq]->tuples[k]; //this tuple contains sOld
-      vector<Real> scaledSold = data->standardize(_tOld->s, 0.001);
+      vector<Real> scaledSold = data->standardize(_tOld->s);
       net->predict(scaledSold, output, timeSeries, k);
 
       const bool terminal = k+2==ndata && data->Set[seq]->ended;
@@ -236,7 +253,7 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     Activation* sOldActivation = net->allocateActivation();
     sOldActivation->clearErrors();
 
-    vector<Real> scaledSold =data->standardize(_tOld->s, 0.001);
+    vector<Real> scaledSold =data->standardize(_tOld->s);
     net->predict(scaledSold, output, sOldActivation); //sOld in previous tuple
 
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;

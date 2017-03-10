@@ -34,16 +34,16 @@ protected:
     char SOCK_PATH[256];
     struct sockaddr_un serverAddress, clientAddress;
 
-    void intToDoublePtr(const int i, double*const ptr)
+    void intToDoublePtr(const int i, double*const ptr) const
     {
       int*const buf = (int*)ptr;
       *buf = i;
     }
-    int doublePtrToInt(const double*const ptr)
+    int doublePtrToInt(const double*const ptr) const
     {
       return *((int*)ptr);
     }
-    double* _alloc(const int size)
+    double* _alloc(const int size) const
     {
       #if 0
         return new double[size/sizeof(double)];
@@ -53,7 +53,7 @@ protected:
         return ret;
       #endif
     }
-    void _dealloc(double* ptr)
+    void _dealloc(double* ptr) const
     {
       if(ptr not_eq nullptr)
       {
@@ -66,14 +66,14 @@ protected:
       }
     }
     #ifdef MPI_INCLUDED
-    int getRank(const MPI_Comm comm)
+    int getRank(const MPI_Comm comm) const
     {
       if (comm == MPI_COMM_NULL) return -1;
       int rank;
       MPI_Comm_rank(comm, &rank);
       return rank;
     }
-    int getSize(const MPI_Comm comm)
+    int getSize(const MPI_Comm comm) const
     {
       if (comm == MPI_COMM_NULL) return -1;
       int size;
@@ -125,7 +125,7 @@ public:
     void save() const;
 
     void ext_app_run();
-    int jobs_init(char **largv);
+    int jobs_init(char *line, char **largv);
     void redirect_stdout_init();
     void redirect_stdout_finalize();
     //called by smarties

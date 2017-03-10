@@ -504,9 +504,8 @@ void Communicator::unpackState(int& iAgent, _AGENT_STATUS& status,
 
 void Communicator::restart(std::string fname)
 {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    FILE * f = fopen(("comm_"+to_string(rank)+".status").c_str(), "r");
+    int wrank = getRank(MPI_COMM_WORLD);
+    FILE * f = fopen(("comm_"+to_string(wrank)+".status").c_str(), "r");
     if (f == NULL) return;
     {
       int ret = -1;
@@ -531,16 +530,15 @@ void Communicator::restart(std::string fname)
 
 void Communicator::save() const
 {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    FILE * f = fopen(("comm_"+to_string(rank)+".status").c_str(), "w");
+    int wrank = getRank(MPI_COMM_WORLD);
+    FILE * f = fopen(("comm_"+to_string(wrank)+".status").c_str(), "w");
     if (f != NULL)
     {
       fprintf(f, "sim number: %d\n", iter);
       fprintf(f, "message ID: %d\n", msg_id);
       fprintf(f, "socket  ID: %d\n", socket_id);
+      fclose(f);
     }
-    fclose(f);
     //printf( "sim number: %d\n", env->iter);
 }
 
@@ -579,7 +577,8 @@ paramfile(std::string()), logfile(log), msg_id(0), iter(0), socket_id(socket)
 void Communicator::ext_app_run()
 {
 	char *largv[256];
-  int largc = jobs_init(largv);
+	char line[1024];
+  int largc = jobs_init(line, largv);
 
 	char initd[256], newd[256];
   getcwd(initd,256);
@@ -593,10 +592,8 @@ void Communicator::ext_app_run()
 	chdir(initd);	// go up one level
 }
 
-int Communicator::jobs_init(char **largv)
+int Communicator::jobs_init(char *line, char **largv)
 {
-	char line[1024];
-
 	FILE * cmdfp = fopen(paramfile.c_str(), "r");
 
   if (cmdfp == NULL)

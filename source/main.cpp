@@ -47,7 +47,8 @@ void runSlave(MPI_Comm slavesComm)
     int wRank, wSize;
     MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
     MPI_Comm_size(MPI_COMM_WORLD, &wSize);
-    if(rank!=wRank || wSize!=nranks) die("Not ready for multiple masters!\n");
+    //if(rank!=wRank || wSize!=nranks)
+    //die("Not ready for multiple masters!\n");
 
     settings.nSlaves = 1;
     ObjectFactory factory(settings);
@@ -149,11 +150,15 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
     int wRank, wSize;
     MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
     MPI_Comm_size(MPI_COMM_WORLD, &wSize);
-    if(isSlave!=wRank || wSize!=nSlaves+1 || nMasters!=1 || masterRank)
-        die("Not ready for multiple masters!\n");
+    //if(isSlave!=wRank || wSize!=nSlaves+1 || nMasters!=1 || masterRank)
+    //    die("Not ready for multiple masters!\n");
+
+    settings.nSlaves = nSlaves;
 
     ObjectFactory factory(settings);
     Environment* env = factory.createEnvironment(0,0);
+
+    settings.nAgents = env->agents.size();
 
     if(env->mpi_ranks_per_env>1)
     { //unblock creation of app comm if needed
@@ -161,9 +166,6 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
       MPI_Comm_split(slavesComm, MPI_UNDEFINED, 0, &tmp_com);
       //no need to free this
     }
-
-    settings.nAgents = nSlaves*env->agents.size();
-    settings.nSlaves = nSlaves;
 
     Learner* learner = nullptr;
     if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
@@ -278,8 +280,8 @@ int main (int argc, char** argv)
     MPI_Comm_split(MPI_COMM_WORLD, whichMaster, rank, &slavesComm);
     if (!isMaster) MPI_Comm_free(&mastersComm);
 
-    if (rank == 0) runMaster(slavesComm, mastersComm);
-    else           runSlave(slavesComm);
+    if (isMaster) runMaster(slavesComm, mastersComm);
+    else          runSlave(slavesComm);
 
     if (isMaster) MPI_Comm_free(&mastersComm);
     MPI_Comm_free(&slavesComm);

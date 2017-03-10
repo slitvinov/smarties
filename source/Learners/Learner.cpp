@@ -167,9 +167,19 @@ void Learner::TrainBatch()
     if (!bTrain) return; //are we training?
     int nAddedGradients=0;
 
-    if (data->inds.size()<batchSize) { //uniform sampling
+    if(data->requestReduction(data->inds.size()<batchSize))
+    { //uniform sampling
         data->updateSamples();
         processStats(Vstats, 0 ); //dump info about convergence
+        #if 1==0 // ndef NDEBUG //check gradients with finite differences, just for debug
+        if (stats.epochCount == 0) { //% 100
+            vector<vector<Real>> inputs;
+            const int ind = data->Set.size()-1;
+            for (int k=0; k<data->Set[ind]->tuples.size(); k++)
+                inputs.push_back(data->Set[ind]->tuples[k]->s);
+            net->checkGrads(inputs, data->Set[ind]->tuples.size()-1);
+        }
+        #endif
     }
 
     if(bRecurrent) {
@@ -205,7 +215,8 @@ void Learner::TrainTasking(Master* const master)
         taskCounter=0;
         nAddedGradients = 0;
 
-        if (data->inds.size()<batchSize) { //reset sampling
+        if(data->requestReduction(data->inds.size()<batchSize))
+        { //reset sampling
             data->updateSamples();
             processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
             sumElapsed = 0; countElapsed=0;
@@ -372,7 +383,7 @@ void Learner::updateTargetNetwork()
 bool Learner::checkBatch() const
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    if (ndata<batchSize) return false; //do we have enough data? TODO k*ndata?
+    if (ndata<batchSize*10) return false; //do we have enough data? TODO k*ndata?
     return taskCounter >= batchSize;
 }
 
@@ -384,14 +395,15 @@ void Learner::save(string name)
     if (!masterRank) {
       opt->save(name);
       data->save(name);
+
+      const string stuff = name+".status";
+      FILE * f = fopen(stuff.c_str(), "w");
+      if (f == NULL) die("Save fail\n");
+      fprintf(f, "policy iter: %d\n", data->anneal);
+      fprintf(f, "optimize epoch: %lu\n", opt->nepoch);
+      fprintf(f, "epoch count: %d\n", stats.epochCount);
+      fclose(f);
     }
-    const string stuff = name + to_string(masterRank) + ".status";
-    FILE * f = fopen(stuff.c_str(), "w");
-    if (f == NULL) die("Save fail\n");
-    fprintf(f, "policy iter: %d\n", data->anneal);
-    fprintf(f, "optimize epoch: %lu\n", opt->nepoch);
-    fprintf(f, "epoch count: %d\n", stats.epochCount);
-    fclose(f);
 }
 
 void Learner::restart(string name)
@@ -407,21 +419,25 @@ void Learner::restart(string name)
       _info("Not all policies restarted. \n")
   data->restart(name);
 
-  const string stuff = name + to_string(masterRank) + ".status";
+  const string stuff = name+".status";
   FILE * f = fopen(stuff.c_str(), "r");
   if(f != NULL) {
-      int val=-1;
+      {
+        int val=-1;
         fscanf(f, "policy iter: %d\n", &val);
         if(val>=0) data->anneal = val;
         printf("policy iter: %d\n", data->anneal);
-      long unsigned ret = 0;
+      }{
+        long unsigned ret = 0;
         fscanf(f, "optimize epoch: %lu\n", &ret);
         if(ret>0) opt->nepoch = ret;
         printf("optimize epoch: %lu\n", opt->nepoch);
-      val=-1;
+      }{
+        int val=-1;
         fscanf(f, "epoch count: %d\n", &val);
         if(val>=0) stats.epochCount = val;
         printf("epoch count: %d\n", stats.epochCount);
+      }
       fclose(f);
   }
   else printf("No status\n");

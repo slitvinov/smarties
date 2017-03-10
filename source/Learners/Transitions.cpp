@@ -23,7 +23,6 @@ nSequences(0), aI(_env->aI), sI(_env->sI), old_ndata(0)
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
-    Inp.resize(sI.dimUsed);
     Tmp.resize(max(settings.nAgents,1));
     for (int i(0); i<max(settings.nAgents,1); i++)
         Tmp[i] = new Sequence();
@@ -81,7 +80,9 @@ void Transitions::restartSamples()
 
     printf("Found %d broken chains out of %d / %d.\n",
             nBroken, nSequences, nTransitions);
-    if(nTransitions>0) update_samples_mean(1.0);
+    const bool update_meanstd_needed = nTransitions>0;
+    if(requestReduction(update_meanstd_needed))
+      update_samples_mean(1.0);
     old_ndata = nTransitions;
 }
 
@@ -141,13 +142,13 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
     int ret = 0;
     const int sApp = nAppended*sI.dimUsed;
 
-    sOld.copy_observed(Inp);
+    const vector<Real> vecSold = sOld.copy_observed();
     if(Tmp[agentId]->tuples.size()!=0) {
         bool same(true);
         const Tuple * const last = Tmp[agentId]->tuples.back();
         //scaled vec only has used dims:
         for (int i=0; i<sI.dimUsed; i++)
-            same = same && fabs(last->s[i] - Inp[i])<1e-4;
+            same = same && fabs(last->s[i] - vecSold[i])<1e-4;
 
         if (!same) {
             printf("Broken chain %s, %g\n", sNew.print().c_str(), reward);
@@ -158,7 +159,7 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
 
     if (Tmp[agentId]->tuples.size() >= maxSeqLen) {
       //upper limit to how long a sequence can be
-      printf("Sequence is too long!");
+      printf("Sequence is too long!\n");
       const Tuple * const l = Tmp[agentId]->tuples.back();
       Tuple * t = new Tuple(); //backup last state
       t->s =l->s; t->a=l->a; t->r =l->r;
@@ -171,7 +172,7 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
     //if first of a new sequence, create slot for sOld = s_0
     if(Tmp[agentId]->tuples.size()==0) {
         Tuple * t = new Tuple();
-        t->s = Inp;
+        t->s = vecSold;
         //appended states are zeros: suck on that, FFNN!
         if (sApp>0) t->s.insert(t->s.end(),sApp,0.);
         Tmp[agentId]->tuples.push_back(t);
@@ -179,9 +180,9 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
 
     //at this point we made sure that sOld == s.back() (right?)
     //we can add sNew:
-    sNew.copy_observed(Inp);
+    const vector<Real> vecSnew = sNew.copy_observed();
     Tuple * t = new Tuple();
-    t->s = Inp;
+    t->s = vecSnew;
     if (sApp>0) {
         const Tuple * const last = Tmp[agentId]->tuples.back();
         vector<Real> prev(sApp);
@@ -237,7 +238,8 @@ void Transitions::push_back(const int & agentId)
         //for (int i(0); i<Tmp[agentId]->tuples.size(); i++) {
         //    _dispose_object(Tmp[agentId]->tuples[i]);
         //}
-        //printf("Trashing %d obs.\n",Tmp[agentId]->tuples.size());
+        printf("Trashing %lu obs.\n",Tmp[agentId]->tuples.size());
+        fflush(0);
         _dispose_object(Tmp[agentId]);
         //Tmp[agentId]->tuples.clear();
         //Tmp[agentId]->ended = false;
@@ -246,9 +248,20 @@ void Transitions::push_back(const int & agentId)
     Tmp[agentId] = new Sequence();
 }
 
+int Transitions::requestReduction(int needed) const
+{
+  int nMasters;
+  MPI_Comm_size(mastersComm, &nMasters);
+  if (nMasters > 1) {
+    MPI_Allreduce(MPI_IN_PLACE, &needed, 1,
+                  MPI_INT, MPI_SUM, mastersComm);
+  }
+  return needed;
+}
+
 void Transitions::update_samples_mean(const Real alpha)
 {
-  if(!bTrain) return;
+  if(!bTrain) return; //if not training, keep the stored values
   if(!bNormalize) return;
 	int count = 0;
   vector<Real> newStd(sI.dimUsed,0), newMean(sI.dimUsed,0);
@@ -318,6 +331,7 @@ vector<Real> Transitions::standardize(const vector<Real>&  state, const Real noi
     for (int i=0; i<sI.dimUsed; i++) {
       const int k = j*sI.dimUsed + i;
       tmp[k] = (state[k] - mean[i])/(std[i]+1e-8);
+      //tmp[k] = state[k]/(std[i]+1e-8);
     }
 
     if (noise>0) {
@@ -381,25 +395,28 @@ void Transitions::synchronize()
 
 void Transitions::updateSamples()
 {
+  bool update_meanstd_needed = false;
 	if(Buffered.size()>0) {
     printf("nSequences %d > NmaxDATA %d (nTransitions=%d, avg seq len = %f).\n",
              nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
     synchronize();
-    update_samples_mean();
+    update_meanstd_needed = true;
     old_ndata = nTransitions;
   } else {
     printf("nSequences %d < NmaxDATA %d (nTransitions=%d, avg seq len = %f).\n",
              nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
     const int ndata = nTransitions;
     if(ndata!=old_ndata)
-    update_samples_mean();
+    update_meanstd_needed = true;
     old_ndata = ndata;
   }
+  if(requestReduction(update_meanstd_needed))
+    update_samples_mean();
 
-    const int ndata = (bRecurrent) ? nSequences : nTransitions;
-    inds.resize(ndata);
-    std::iota(inds.begin(), inds.end(), 0);
-    random_shuffle(inds.begin(), inds.end(), *(gen));
+  const int ndata = (bRecurrent) ? nSequences : nTransitions;
+  inds.resize(ndata);
+  std::iota(inds.begin(), inds.end(), 0);
+  random_shuffle(inds.begin(), inds.end(), *(gen));
 }
 
 int Transitions::sample()

@@ -89,6 +89,14 @@ class State
       }
   }
 
+	vector<Real> copy_observed() const
+  {
+			vector<Real> ret(sInfo.dimUsed);
+      for (int i=0, k=0; i<sInfo.dim; i++)
+      if (sInfo.inUse[i]) ret[k++] = vals[i];
+			return ret;
+  }
+
   void copy(vector<Real>& res) const
   {
       for (int i=0; i<sInfo.dim; i++)

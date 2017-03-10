@@ -67,14 +67,13 @@ void Master::run()
     double reward;
     while (true) {
         while (true) {
-            //if threaded: check on the guys, synchronize, apply gradient
-            if (nThreads > 1 && learner->checkBatch()) return;
-
             MPI_Test(&request, &completed, &mpistatus);
             if (completed) break;
 
+            //if threaded: check on the guys, synchronize, apply gradient
+            if (nThreads > 1 && learner->checkBatch()) return;
             //if single thread master: process a batch
-            if (nThreads == 1) learner->TrainBatch();
+            else if (nThreads == 1) learner->TrainBatch();
         }
         //printf("Master receives from %d\n", mpistatus.MPI_SOURCE);
         const int slave = mpistatus.MPI_SOURCE;
@@ -86,18 +85,18 @@ void Master::run()
         }
 
         learner->select(agent, sNew, aNew, sOld, aOld, agentStatus, reward);
-        /*
+        #if 0
          printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
          agent, sOld.print().c_str(), sNew.print().c_str(), aOld.print().c_str(), reward, aNew.print().c_str());
          fflush(0);
-         */
+        #endif
         if (agentStatus != _AGENT_FIRSTCOMM) totR += reward;
-        if (agentStatus != _AGENT_LASTCOMM)  //if terminal, no action required
-        sendAction(slave, agent);
-
-        if(env->resetAll)
-          learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
-
+        if (agentStatus != _AGENT_LASTCOMM)  {
+          sendAction(slave, agent);
+        } else { //if terminal, no action required
+          if(env->resetAll)
+            learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
+        }
         if (++iter % saveFreq == 0) save();
     }
     die("How on earth could you possibly get here? \n");

@@ -382,8 +382,9 @@ void Network::build()
 }
 
 Network::Network(const Settings & settings) :
-Pdrop(settings.nnPdrop), nInputs(0), nOutputs(0), nLayers(0), nNeurons(0), nWeights(0), nBiases(0), nStates(0),
-nAgents(settings.nAgents), nThreads(settings.nThreads), allocatedFrozenWeights(false),
+Pdrop(settings.nnPdrop), nInputs(0), nOutputs(0), nLayers(0), nNeurons(0),
+nWeights(0), nBiases(0), nStates(0), nAgents(settings.nAgents),
+nThreads(settings.nThreads), allocatedFrozenWeights(false),
 allocatedDroputWeights(false), gen(settings.gen), bDump(not settings.bTrain),
 bBuilt(false), bAddedInput(false), counter(0), batch_counter(0)
 { }
@@ -461,7 +462,7 @@ void Network::backProp(vector<Activation*>& timeSeries, const Real* const _weigh
       layers[nLayers-i]->backPropagate((Activation*)nullptr,timeSeries[last],
                                      (Activation*)nullptr, _grads, _weights, _biases);
   } else if (last == 1) {
-    for (int i=1; i<=nLayers; i++) 
+    for (int i=1; i<=nLayers; i++)
       layers[nLayers-i]->backPropagate(timeSeries[0],timeSeries[1],
                                   (Activation*)nullptr, _grads, _weights, _biases);
     for (int i=1; i<=nLayers; i++)

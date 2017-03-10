@@ -393,42 +393,78 @@ public:
         __builtin_assume_aligned(grad_vars, __vec_width__);
         __builtin_assume_aligned(grad_shifts, __vec_width__);
         __builtin_assume_aligned(grad_scales,  __vec_width__);
-        //const Real _eps = 1e-9; //std::numeric_limits<Real>::epsilon();
+        #if 0
+          for (int n=0; n<nNeurons; n++)
+          {
+              const Real invstd = 1./std::sqrt(link_vars[n]);
 
-        for (int n=0; n<nNeurons; n++)  {
-            const Real invstd = 1./std::sqrt(link_vars[n]);
+              link_errors[n] = errors[n]*link_scales[n]*invstd;
+              grad_scales[n] += inputs[n]*errors[n];
+              grad_shifts[n] += errors[n];
 
-            link_errors[n] = errors[n]*link_scales[n]*invstd;
-            grad_scales[n] += inputs[n]*errors[n];
-            grad_shifts[n] += errors[n];
+              //mean increases if input is greater than mean
+              //const Real dMudX = (link_inputs[n] - link_means[n]);
+              //std increases if input is less than mean
+              //const Real dStddX = (dMudX*dMudX - link_vars[n]);
 
-            //mean increases if input is greater than mean
-            //const Real dMudX = (link_inputs[n] - link_means[n]);
-            //std increases if input is less than mean
-            //const Real dStddX = (dMudX*dMudX - link_vars[n]);
+              grad_means[n] += link_inputs[n];
+              grad_vars[n] += link_inputs[n]*link_inputs[n];
+          }
+        #else
+          const Real _eps = 1e-9; //std::numeric_limits<Real>::epsilon();
 
-            grad_means[n] += link_inputs[n];
-            grad_vars[n] += link_inputs[n]*link_inputs[n];
-        }
+          for (int n=0; n<nNeurons; n++)
+          {
+              const Real invstd = 1./std::sqrt(std::max(_eps, link_vars[n]));
+              const Real dEdXhat = errors[n]*link_scales[n];
+
+              //mean increases if input is greater than mean
+              const Real dMudX = (link_inputs[n] - link_means[n]);
+              grad_means[n] += dMudX;
+
+              //std increases if input is less than mean
+              const Real dStddX = (dMudX*dMudX - link_vars[n]);
+              if (dStddX>0 || link_vars[n]>_eps)
+              grad_vars[n] += dStddX;
+              #if 1
+              const Real pid_avg =  dEdXhat*dMudX<0 ? -.25*invstd   //then change in mean already helps reduce error
+                                                    : 0.25*invstd;
+              const Real pid_std = link_inputs[n]-link_means[n] > 0  ?
+              (dStddX*dEdXhat<0 ? -.25*invstd //change in std already helps reduce error
+                                : 0.25*invstd)
+              :
+              (dStddX*dEdXhat>0 ? -.25*invstd //change in std already helps reduce error
+                                : 0.25*invstd);
+
+              link_errors[n] = dEdXhat*(invstd + pid_avg + pid_std);
+              #else
+              link_errors[n] = dEdXhat*invstd;
+              #endif
+              grad_scales[n] += inputs[n]*errors[n];
+              grad_shifts[n] += errors[n];
+          }
+        #endif
     }
 
     void updateWhiten(const int batchsize, Grads* const grad, Real* const biases) override
     {
-      Real* __restrict__ const link_means = biases + n1stBias;
-      Real* __restrict__ const link_vars = biases + n1stBias +nNeurons_simd;
-      Real* __restrict__ const grad_means = grad->_B + n1stBias;
-      Real* __restrict__ const grad_vars = grad->_B + n1stBias +nNeurons_simd;
-      __builtin_assume_aligned(link_means,  __vec_width__);
-      __builtin_assume_aligned(link_vars, __vec_width__);
-      __builtin_assume_aligned(grad_means,  __vec_width__);
-      __builtin_assume_aligned(grad_vars, __vec_width__);
-      const Real _eps = 1e-9; //std::numeric_limits<Real>::epsilon();
-      for (int n=0; n<nNeurons; n++)  {
-          link_means[n] = grad_means[n]/batchsize;
-          link_vars[n] = std::sqrt((grad_vars[n] - grad_means[n]*grad_means[n]/batchsize)/batchsize);
-          link_vars[n] = std::max(_eps, link_vars[n]);
-          grad_means[n] = 0;
-          grad_vars[n] = 0;
-      }
+      #if 0
+        Real* __restrict__ const link_means = biases + n1stBias;
+        Real* __restrict__ const link_vars = biases + n1stBias +nNeurons_simd;
+        Real* __restrict__ const grad_means = grad->_B + n1stBias;
+        Real* __restrict__ const grad_vars = grad->_B + n1stBias +nNeurons_simd;
+        __builtin_assume_aligned(link_means,  __vec_width__);
+        __builtin_assume_aligned(link_vars, __vec_width__);
+        __builtin_assume_aligned(grad_means,  __vec_width__);
+        __builtin_assume_aligned(grad_vars, __vec_width__);
+        const Real _eps = 1e-9; //std::numeric_limits<Real>::epsilon();
+        for (int n=0; n<nNeurons; n++)  {
+            link_means[n] = grad_means[n]/batchsize;
+            link_vars[n] = std::sqrt((grad_vars[n] - grad_means[n]*grad_means[n]/batchsize)/batchsize);
+            link_vars[n] = std::max(_eps, link_vars[n]);
+            grad_means[n] = 0;
+            grad_vars[n] = 0;
+        }
+      #endif
   	}
 };

@@ -62,7 +62,7 @@ protected:
     int iOldestSaved;
     const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize, bTrain;
     const string path;
-    vector<Real> Inp, std, mean;
+    vector<Real> std, mean;
     vector<Sequence*> Buffered;
     discrete_distribution<int> * dist;
 
@@ -94,6 +94,7 @@ public:
     void clearFailedSim(const int agentOne, const int agentEnd);
     void pushBackEndedSim(const int agentOne, const int agentEnd);
     void update_samples_mean(const Real alpha = 0.01);
+    int requestReduction(int needed) const;
     vector<Real> standardize(const vector<Real>& state, const Real noise = -1) const;
 #ifdef _Priority_
     void updateP();
