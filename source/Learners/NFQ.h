@@ -17,6 +17,7 @@ class NFQ : public Learner
 {
     void Train_BPTT(const int seq, const int thrID=0) const override;
     void Train(const int seq, const int samp, const int thrID=0) const override;
+    void dumpNetworkInfo(const int agentId);
     inline int maxInd(const vector<Real>& Qs) const
     {
       assert(Qs.size() == nOutputs);

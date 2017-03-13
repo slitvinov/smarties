@@ -93,55 +93,60 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
     if(dis(*gen) < newEps) a.set(nOutputs*dis(*gen));
 
     #ifdef _dumpNet_
-    	net->dump(agentId);
-
-	   const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
-	  	if (ndata == 0) return;
-
-	  	vector<Real> Qs(nOutputs);
-	  	vector<Activation*> timeSeries_base = net->allocateUnrolledActivations(ndata);
-	  	net->clearErrors(timeSeries_base);
-
-	  	for (int k=0; k<ndata; k++) {
-	  		const Tuple * const _t = data->Tmp[agentId]->tuples[k];
-	  		vector<Real> scaledSnew = data->standardize(_t->s);
-	  		net->predict(scaledSnew, Qs, timeSeries_base, k);
-	  	}
-
-	  	const int thisAction = aInfo.actionToLabel(data->Tmp[agentId]->tuples[ndata-1]->a);
-	  	//sensitivity of value for this action in this state wrt all previous inputs
-	  	for (int ii=0; ii<ndata; ii++)
-	  	for (int i=0; i<nInputs; i++) {
-	  	   vector<Activation*> timeSeries_diff = net->allocateUnrolledActivations(ndata);
-
-	      for (int k=0; k<ndata; k++) {
-	         const Tuple * const _t = data->Tmp[agentId]->tuples[k];
-	  			vector<Real> scaledSnew = data->standardize(_t->s);
-	  			if (k==ii) scaledSnew[i] = 0;
-	  			net->predict(scaledSnew, Qs, timeSeries_diff, k);
-	      }
-
-	  		vector<Real> out_diff = net->getOutputs(timeSeries_diff.back());
-	  		vector<Real> out_base = net->getOutputs(timeSeries_base.back());
-         const Tuple * const _t = data->Tmp[agentId]->tuples[ii];
-	  		vector<Real> scaledSnew = data->standardize(_t->s);
-	  		timeSeries_base[ii]->errvals[i] = (out_diff[thisAction]-out_base[thisAction])/scaledSnew[i];
-
-	      net->deallocateUnrolledActivations(&timeSeries_diff);
-	  	}
-
-	  	string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
-	  	ofstream out(fname.c_str());
-	  	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
-	  	for (int k=0; k<ndata; k++) {
-	  		for (int j=0; j<nInputs; j++)
-	  			out << timeSeries_base[k]->errvals[j] << " ";
-	  		out << "\n";
-	  	}
-	  	out.close();
-
-	   net->deallocateUnrolledActivations(&timeSeries_base);
+		if (!bTrain) dumpNetworkInfo(agentId);
     #endif
+}
+
+void NFQ::dumpNetworkInfo(const int agentId)
+{
+	net->dump(agentId);
+
+ 	const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
+	if (ndata == 0) return;
+
+	vector<Real> Qs(nOutputs);
+	vector<Activation*> timeSeries_base = net->allocateUnrolledActivations(ndata);
+	net->clearErrors(timeSeries_base);
+
+	for (int k=0; k<ndata; k++) {
+		const Tuple * const _t = data->Tmp[agentId]->tuples[k];
+		vector<Real> scaledSnew = data->standardize(_t->s);
+		net->predict(scaledSnew, Qs, timeSeries_base, k);
+	}
+
+	const int thisAction = aInfo.actionToLabel(data->Tmp[agentId]->tuples[ndata-1]->a);
+	//sensitivity of value for this action in this state wrt all previous inputs
+	for (int ii=0; ii<ndata; ii++)
+	for (int i=0; i<nInputs; i++) {
+		 vector<Activation*> timeSeries_diff = net->allocateUnrolledActivations(ndata);
+
+		for (int k=0; k<ndata; k++) {
+			 const Tuple * const _t = data->Tmp[agentId]->tuples[k];
+			vector<Real> scaledSnew = data->standardize(_t->s);
+			if (k==ii) scaledSnew[i] = 0;
+			net->predict(scaledSnew, Qs, timeSeries_diff, k);
+		}
+
+		vector<Real> out_diff = net->getOutputs(timeSeries_diff.back());
+		vector<Real> out_base = net->getOutputs(timeSeries_base.back());
+		 const Tuple * const _t = data->Tmp[agentId]->tuples[ii];
+		vector<Real> scaledSnew = data->standardize(_t->s);
+		timeSeries_base[ii]->errvals[i] = (out_diff[thisAction]-out_base[thisAction])/scaledSnew[i];
+
+		net->deallocateUnrolledActivations(&timeSeries_diff);
+	}
+
+	string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
+	ofstream out(fname.c_str());
+	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+	for (int k=0; k<ndata; k++) {
+		for (int j=0; j<nInputs; j++)
+			out << timeSeries_base[k]->errvals[j] << " ";
+		out << "\n";
+	}
+	out.close();
+
+ net->deallocateUnrolledActivations(&timeSeries_base);
 }
 
 void NFQ::Train_BPTT(const int seq, const int thrID) const
