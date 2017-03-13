@@ -2622,7 +2622,7 @@ double cmaes_random_Gauss(cmaes_random_t *t)
     x1 = 2.0 * cmaes_random_Uniform(t) - 1.0;
     x2 = 2.0 * cmaes_random_Uniform(t) - 1.0;
     rquad = x1*x1 + x2*x2;
-  } while(rquad >= 1 || rquad <= 0);
+  } while(rquad >= 1 || rquad <= eps);
   fac = sqrt(-2.0*log(rquad)/rquad);
   t->flgstored = 1;
   t->hold = fac * x1;
