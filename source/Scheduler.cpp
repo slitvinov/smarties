@@ -68,7 +68,7 @@ void Master::run()
     while (true) {
         while (true) {
             //if threaded: check on the guys, synchronize, apply gradient
-            if (nThreads > 1 && learner->checkBatch()) return;
+            if (nThreads > 1 && learner->checkBatch(iter)) return;
 
             MPI_Test(&request, &completed, &mpistatus);
             if (completed) break;

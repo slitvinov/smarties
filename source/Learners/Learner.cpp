@@ -135,14 +135,14 @@
 
 #include "Learner.h"
 #include <chrono>
-Learner::Learner(MPI_Comm comm, Environment*const env, Settings & settings) :
-mastersComm(comm), nAgents(settings.nAgents), batchSize(settings.dqnBatch),
+Learner::Learner(MPI_Comm comm, Environment*const _env, Settings & settings) :
+mastersComm(comm), env(_env), nAgents(settings.nAgents), batchSize(settings.dqnBatch),
 tgtUpdateDelay((int)settings.dqnUpdateC), nThreads(settings.nThreads),
 nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), nAppended(settings.dqnAppendS),
 bRecurrent(settings.nnType==1), bTrain(settings.bTrain==1),
-tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma),
-greedyEps(settings.greedyEps), cntUpdateDelay(-1), taskCounter(batchSize),
-aInfo(env->aI), sInfo(env->sI), gen(settings.gen)
+tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma), greedyEps(settings.greedyEps),
+epsAnneal(settings.epsAnneal), cntUpdateDelay(-1), taskCounter(batchSize),
+aInfo(env->aI), sInfo(env->sI), gen(settings.gen), mastersNiter_b4PolUpdates(0)
 {
     for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
     profiler = new Profiler();
@@ -385,11 +385,23 @@ void Learner::updateTargetNetwork()
     cntUpdateDelay--;
 }
 
-bool Learner::checkBatch() const
+bool Learner::checkBatch(unsigned long mastersNiter)
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    if (ndata<batchSize*10) return false; //do we have enough data? TODO k*ndata?
-    return taskCounter >= batchSize;
+    if (ndata<batchSize*2) {
+      mastersNiter_b4PolUpdates = mastersNiter;
+      return false;
+    }  //do we have enough data? TODO k*ndata?
+
+    //if we are using a cheap to simulate env, we want to prioritize networks
+    //if optimizer has done less updates than master has done communications
+    // ratio is 1 : 1 in DQN paper
+    //then let master thread go to help other threads finish the batch
+    //otherwise only go to communicate if batch is over
+    if (env->cheaperThanNetwork && mastersNiter > opt->nepoch + mastersNiter_b4PolUpdates)
+      return true;
+    else
+      return taskCounter >= batchSize;
 }
 
 void Learner::save(string name)

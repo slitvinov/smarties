@@ -28,7 +28,7 @@ public:
     string paramsfile;
     const int rank, nAgents, nAgentsPerRank;
     const double gamma;
-    bool resetAll;
+    bool resetAll, cheaperThanNetwork;
     int mpi_ranks_per_env;
     vector<Agent*> agents;
     StateInfo  sI;

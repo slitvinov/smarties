@@ -9,13 +9,11 @@
 
 #include "Transitions.h"
 #include <fstream>
-//#define CLEAN //dont
-#define NmaxDATA 9000
-#define minSeqThreshold 6
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
 mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
-maxSeqLen(settings.maxSeqLen), iOldestSaved(0), bSampleSeq(settings.nnType),
+maxSeqLen(settings.maxSeqLen), minSeqLen(settings.minSeqLen),
+maxTotSeqNum(settings.maxTotSeqNum), iOldestSaved(0), bSampleSeq(settings.nnType),
 bRecurrent(settings.nnType), bWriteToFile(!(settings.samplesFile=="none")),
 bNormalize(settings.nnTypeInput), bTrain(settings.bTrain==1),
 path(settings.samplesFile), anneal(0), nBroken(0), nTransitions(0),
@@ -29,7 +27,7 @@ nSequences(0), aI(_env->aI), sI(_env->sI), old_ndata(0)
 
     dist = new discrete_distribution<int> (1,2); //dummy
     gen = new Gen(settings.gen);
-    Set.reserve(NmaxDATA);
+    Set.reserve(maxTotSeqNum);
 }
 
 void Transitions::restartSamples()
@@ -223,8 +221,8 @@ void Transitions::pushBackEndedSim(const int agentOne, const int agentEnd)
 
 void Transitions::push_back(const int & agentId)
 {
-    if(Tmp[agentId]->tuples.size()>minSeqThreshold ) {
-        if (nSequences>=NmaxDATA) Buffered.push_back(Tmp[agentId]);
+    if(Tmp[agentId]->tuples.size() > minSeqLen ) {
+        if (nSequences>=maxTotSeqNum) Buffered.push_back(Tmp[agentId]);
         else {
             nSequences++;
             if (not Tmp[agentId]->ended) ++nBroken;
@@ -248,6 +246,12 @@ void Transitions::push_back(const int & agentId)
 
 int Transitions::syncBoolOr(int needed) const
 {
+  assert(needed>=0);
+  //if for any rank needed !=0 then return needed !=0
+  //used in two cases:
+  // - check if any rank needs to update means and std of dataset
+  // - check if any rank needs to reset the index array for sampling
+  
   int nMasters;
   MPI_Comm_size(mastersComm, &nMasters);
   if (nMasters > 1) {
@@ -346,7 +350,7 @@ vector<Real> Transitions::standardize(const vector<Real>&  state, const Real noi
 void Transitions::synchronize()
 {
   #if 1==1
-	assert(nSequences==Set.size() && NmaxDATA == nSequences);
+	assert(nSequences==Set.size() && maxTotSeqNum == nSequences);
 	#pragma omp parallel for schedule(dynamic)
 	for(int i=0; i<Set.size(); i++) {
 		//int count = 0;
@@ -372,7 +376,7 @@ void Transitions::synchronize()
     int nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
     for(auto & bufTransition : Buffered) {
         const int ind = iOldestSaved++;
-        iOldestSaved = (iOldestSaved >= NmaxDATA) ? 0 : iOldestSaved;
+        iOldestSaved = (iOldestSaved >= maxTotSeqNum) ? 0 : iOldestSaved;
 
         if (not Set[ind]->ended) --nBroken;
         nTransitionsDeleted += Set[ind]->tuples.size()-1;
@@ -395,14 +399,14 @@ void Transitions::updateSamples()
 {
   bool update_meanstd_needed = false;
 	if(Buffered.size()>0) {
-    printf("nSequences %d > NmaxDATA %d (nTransitions=%d, avg seq len = %f).\n",
-             nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
+    printf("nSequences %d > maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
+             nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
     synchronize();
     update_meanstd_needed = true;
     old_ndata = nTransitions;
   } else {
-    printf("nSequences %d < NmaxDATA %d (nTransitions=%d, avg seq len = %f).\n",
-             nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
+    printf("nSequences %d < maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
+             nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
     const int ndata = nTransitions;
     update_meanstd_needed = ndata!=old_ndata;
     old_ndata = ndata;

@@ -92,7 +92,7 @@ void DPG::select(const int agentId, State& s, Action& a,
 
     Real newEps(greedyEps); //random action?
 		if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const double handicap = min(data->Set.size()/1e2, opt->nepoch/1e5);
+        const double handicap = min(data->Set.size()/1e2, opt->nepoch/epsAnneal);
         newEps = std::exp(-handicap) + greedyEps;
     }
 
@@ -111,24 +111,29 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 	Activation* tgtQAct = net->allocateActivation();
 	//now update value network:
 	{
+		vector<Real> scaledSnew = data->standardize(data->Set[seq]->tuples[0]->s);
+		vector<Real> scaledSold, policy(nA);
+		net_policy->predict(scaledSnew, policy, polSeries, 0,
+												net_policy->tgt_weights, net_policy->tgt_biases);
+
 		for (int k=0; k<ndata-1; k++)
 		{ //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
-			const Tuple*const _t   =data->Set[seq]->tuples[k+1]; //this contains a, sNew, reward
-			const Tuple*const _tOld=data->Set[seq]->tuples[k]; //this tuple contains sOld
-			vector<Real> scaledSold = data->standardize(_tOld->s);
+			const Tuple*const _t   =data->Set[seq]->tuples[k+1]; //contains a, sNew, r
+			scaledSold = scaledSnew;
+			scaledSnew = data->standardize(_t->s);
 
 			vector<Real> vSnew(1), Q(1), gradient(1);
 	    { //join state and rescaled action to predict Q
-	        vector<Real> input = scaledSold, scaledA = aInfo.getInvScaled(_t->a);
-	        input.insert(input.end(),scaledA.begin(),scaledA.end());
+	        vector<Real> input = scaledSold;
+					vector<Real> scaledA = aInfo.getInvScaled(_t->a);
+	        input.insert(input.end(), scaledA.begin(), scaledA.end());
 	        net->predict(input, Q, valSeries, k);
 	    }
 
 			const bool terminal = k+2==ndata && data->Set[seq]->ended;
 			if (not terminal) {
 				//first predict best action with policy NN w/ target weights
-				vector<Real> policy(nA), scaledSnew = data->standardize(_t->s);
-				net_policy->predict(scaledSnew, policy, polSeries, k,
+				net_policy->predict(scaledSnew, policy, polSeries, k+1,
 														net_policy->tgt_weights, net_policy->tgt_biases);
 				//then predict target value for V(s_new)
 				vector<Real> input = scaledSnew;
@@ -145,7 +150,7 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 			}
 
 			net->setOutputDeltas(gradient, valSeries[k]);
-			vector<Real> dumQ(2, 100); dumQ[0] = Q[0]; //just to avoid nans in dumpStats
+			vector<Real> dumQ(2, 100); dumQ[0] = Q[0]; //avoid nans in dumpStats
 			dumpStats(Vstats[thrID], Q[0], gradient[0], dumQ);
 			if(thrID==1) net->updateRunning(valSeries[k]);
 		}
@@ -165,13 +170,16 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 
 			vector<Real> input = scaledSold;
 			input.insert(input.end(), pol.begin(), pol.end());
-			net->predict(input, Q, valSeries, k);
-
+			net->predict(input, Q, valSeries, k
+									, net->tgt_weights, net->tgt_biases
+									);
 			Q[0] = 1.; //grad
 			net->setOutputDeltas(Q, valSeries[k]);
 		}
 
-		net->backProp(valSeries, tmp_grad);
+		net->backProp(valSeries,
+									net->tgt_weights, net->tgt_biases,
+									tmp_grad);
 
 		for (int k=0; k<ndata-1; k++) {
 			vector<Real> pol_gradient(nA);
@@ -251,18 +259,17 @@ void DPG::Train(const int seq, const int samp, const int thrID) const
         //use it to compute activation with frozen weitghts for Q net
         vector<Real> input = scaledSold;
         input.insert(input.end(), policy.begin(), policy.end());
-        net->predict(input, Q, sNewQAct);
+				net->predict(input, Q, sNewQAct
+											, net->tgt_weights, net->tgt_biases
+											);
 
         //now i need to compute dQ/dA, for Q net use tgt weight throughout
         gradient[0] = 1.; //who to increase Q?
 	    	Grads* tmp_grad = new Grads(net->nWeights, net->nBiases);
-	    	net->backProp(gradient, sNewQAct,tmp_grad);
+				net->backProp(gradient, sNewQAct,
+											net->tgt_weights, net->tgt_biases,
+											tmp_grad);
         _dispose_object(tmp_grad);
-
-    		for(int i=0;i<nA;i++) {
-					if(sNewQAct->errvals[nS+i] == 0) die("Failed backprop?\n");
-					pol_gradient[i] = sNewQAct->errvals[nS+i];
-				}
 
     		if (thrID==0)
 					net_policy->backProp(pol_gradient, sOldAAct, net_policy->grad);

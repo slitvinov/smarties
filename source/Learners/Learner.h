@@ -33,10 +33,12 @@ class Learner
 {
 protected:
     const MPI_Comm mastersComm;
+    Environment * const env;
     const int nAgents, batchSize, tgtUpdateDelay, nThreads, nInputs, nOutputs, nAppended;
     const bool bRecurrent, bTrain;
-    const Real tgtUpdateAlpha, gamma, greedyEps;
+    const Real tgtUpdateAlpha, gamma, greedyEps, epsAnneal;
     int cntUpdateDelay, taskCounter;
+    unsigned long mastersNiter_b4PolUpdates;
     ActionInfo aInfo;
     StateInfo  sInfo;
     mt19937 * gen;
@@ -57,7 +59,6 @@ protected:
     virtual void updateTargetNetwork();
     virtual void stackAndUpdateNNWeights(const int nAddedGradients);
     virtual void updateNNWeights(const int nAddedGradients);
-
 public:
     Learner(MPI_Comm mastersComm, Environment*const env, Settings & settings);
 
@@ -73,7 +74,7 @@ public:
     virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;
     void clearFailedSim(const int agentOne, const int agentEnd);
     void pushBackEndedSim(const int agentOne, const int agentEnd);
-    bool checkBatch() const;
+    bool checkBatch(unsigned long mastersNiter);
     void TrainBatch();
     void TrainTasking(Master* const master);
     void save(string name);

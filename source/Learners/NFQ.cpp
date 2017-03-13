@@ -85,7 +85,7 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-			const double handicap = min(data->Set.size()/1e2, opt->nepoch/1e4);
+			const double handicap = min(data->Set.size()/1e2, opt->nepoch/epsAnneal);
       newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
     uniform_real_distribution<Real> dis(0.,1.);
