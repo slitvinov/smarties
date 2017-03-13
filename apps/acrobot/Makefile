@@ -1,7 +1,7 @@
 CC = g++
 
 SRC_DIR = ./
-COM_DIR = ../../source/Util
+COM_DIR = ../../source/
 VPATH := $(SRC_DIR):$(COM_DIR)
 CPPFLAGS+=-std=c++11 -O3 -I$(COM_DIR)
 OBJ_FILES = 	acrobot.o Communicator.o

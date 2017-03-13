@@ -4,9 +4,9 @@ SETTINGS=
 # setup settings
 SETTINGS+=" -study learning"
 SETTINGS+=" -factory factory2F_Learn"
-SETTINGS+=" -length 0.1"
-SETTINGS+=" -nu 2e-6"
-SETTINGS+=" -lmax 7"
+SETTINGS+=" -length 0.2"
+SETTINGS+=" -nu 8e-6"
+SETTINGS+=" -lmax 6"
 SETTINGS+=" -restartpath restart"
 
 SETTINGS+=" -lambda 1e5"
@@ -36,7 +36,7 @@ SETTINGS+=" -killvort 1"
 SETTINGS+=" -cfl 0.95"
 SETTINGS+=" -lcfl 0.1"
 SETTINGS+=" -fc 0.25"
-SETTINGS+=" -ramp 1000"
+SETTINGS+=" -ramp 100"
 SETTINGS+=" -nsteps 100000000"
 SETTINGS+=" -tmax 80000.0"
 

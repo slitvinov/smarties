@@ -67,13 +67,14 @@ void Master::run()
     double reward;
     while (true) {
         while (true) {
+            //if threaded: check on the guys, synchronize, apply gradient
+            if (nThreads > 1 && learner->checkBatch()) return;
+
             MPI_Test(&request, &completed, &mpistatus);
             if (completed) break;
 
-            //if threaded: check on the guys, synchronize, apply gradient
-            if (nThreads > 1 && learner->checkBatch()) return;
             //if single thread master: process a batch
-            else if (nThreads == 1) learner->TrainBatch();
+            if (nThreads == 1) learner->TrainBatch();
         }
         //printf("Master receives from %d\n", mpistatus.MPI_SOURCE);
         const int slave = mpistatus.MPI_SOURCE;

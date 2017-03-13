@@ -15,7 +15,7 @@ if [ $# -gt 4 ] ; then
 fi
 if [ $# -lt 7 ] ; then
     NTASK=2 #n tasks per node
-    NTHREADS=12 #n threads per task
+    NTHREADS=24 #n threads per task
 else
     NTASK=$6
     NTHREADS=$7
@@ -30,7 +30,7 @@ if [ $# -lt 9 ] ; then
 else
     TIMES=$9
 fi
-NTHREADSPERNODE=12
+NTHREADSPERNODE=24
 NPROCESS=$((${NNODES}*${NTASK}))
 NPROCESSORS=$((${NNODES}*${NTHREADSPERNODE}))
 

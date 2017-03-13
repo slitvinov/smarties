@@ -167,7 +167,7 @@ void Learner::TrainBatch()
     if (!bTrain) return; //are we training?
     int nAddedGradients=0;
 
-    if(data->requestReduction(data->inds.size()<batchSize))
+    if(data->syncBoolOr(data->inds.size()<batchSize))
     { //uniform sampling
         data->updateSamples();
         processStats(Vstats, 0 ); //dump info about convergence
@@ -200,9 +200,8 @@ void Learner::TrainTasking(Master* const master)
 {
     std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
     vector<int> seq(batchSize), samp(batchSize);//, index(batchSize);
-    int nAddedGradients(0);
-    Real sumElapsed(0.);
-    int countElapsed(0);
+    int nAddedGradients = 0, countElapsed = 0;
+    Real sumElapsed = 0;
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
 
   	if (ndata <= batchSize || !bTrain) {
@@ -212,10 +211,10 @@ void Learner::TrainTasking(Master* const master)
 
     while (true) {
 		    ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-        taskCounter=0;
+        taskCounter = 0;
         nAddedGradients = 0;
 
-        if(data->requestReduction(data->inds.size()<batchSize))
+        if(data->syncBoolOr(data->inds.size()<batchSize))
         { //reset sampling
             data->updateSamples();
             processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
@@ -323,6 +322,12 @@ int Learner::sampleSequences(vector<int>& sequences)
     //to normalize mean gradient for update:
     nAddedGradients += seqSize-1; //last state = terminal, no next reward
   }
+  //sort them such that longer ones are started first, reducing overhead!
+  const auto compare = [this] (int a, int b) {
+    return data->Set[a]->tuples.size() > data->Set[b]->tuples.size();
+  };
+  std::sort(sequences.begin(), sequences.end(), compare);
+
   return nAddedGradients;
 }
 

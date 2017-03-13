@@ -94,7 +94,7 @@ public:
     void clearFailedSim(const int agentOne, const int agentEnd);
     void pushBackEndedSim(const int agentOne, const int agentEnd);
     void update_samples_mean(const Real alpha = 0.01);
-    int requestReduction(int needed) const;
+    int syncBoolOr(int needed) const;
     vector<Real> standardize(const vector<Real>& state, const Real noise = -1) const;
 #ifdef _Priority_
     void updateP();

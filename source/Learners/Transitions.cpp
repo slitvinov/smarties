@@ -10,8 +10,8 @@
 #include "Transitions.h"
 #include <fstream>
 //#define CLEAN //dont
-#define NmaxDATA 5000
-#define minSeqThreshold 3
+#define NmaxDATA 9000
+#define minSeqThreshold 6
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
 mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
@@ -24,7 +24,7 @@ nSequences(0), aI(_env->aI), sI(_env->sI), old_ndata(0)
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
     Tmp.resize(max(settings.nAgents,1));
-    for (int i(0); i<max(settings.nAgents,1); i++)
+    for (int i=0; i<max(settings.nAgents,1); i++)
         Tmp[i] = new Sequence();
 
     dist = new discrete_distribution<int> (1,2); //dummy
@@ -64,8 +64,6 @@ void Transitions::restartSamples()
                     t_sO.set(d_sO);
                     t_sN.set(d_sN);
                     t_a.set(d_a);
-                    //if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001) printf("Skipping one\n");
-                    //else
                     add(0, info, t_sO, t_a, t_sN, reward);
                 }
             }
@@ -81,7 +79,7 @@ void Transitions::restartSamples()
     printf("Found %d broken chains out of %d / %d.\n",
             nBroken, nSequences, nTransitions);
     const bool update_meanstd_needed = nTransitions>0;
-    if(requestReduction(update_meanstd_needed))
+    if(syncBoolOr(update_meanstd_needed))
       update_samples_mean(1.0);
     old_ndata = nTransitions;
 }
@@ -248,7 +246,7 @@ void Transitions::push_back(const int & agentId)
     Tmp[agentId] = new Sequence();
 }
 
-int Transitions::requestReduction(int needed) const
+int Transitions::syncBoolOr(int needed) const
 {
   int nMasters;
   MPI_Comm_size(mastersComm, &nMasters);
@@ -279,7 +277,7 @@ void Transitions::update_samples_mean(const Real alpha)
 			cnt++;
 			for (int j=0; j<sI.dimUsed; j++) {
 				sum2[j] += t->s[j]*t->s[j];
-				sum[j] += t->s[j];
+				sum[j]  += t->s[j];
 			}
 		}
 
@@ -371,10 +369,10 @@ void Transitions::synchronize()
     iOldestSaved = 0;
     #endif
 
-    int nTransitionsInBuf(0),nTransitionsDeleted(0),bufferSize(Buffered.size());
+    int nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
     for(auto & bufTransition : Buffered) {
         const int ind = iOldestSaved++;
-        iOldestSaved = (iOldestSaved == NmaxDATA) ? 0 : iOldestSaved;
+        iOldestSaved = (iOldestSaved >= NmaxDATA) ? 0 : iOldestSaved;
 
         if (not Set[ind]->ended) --nBroken;
         nTransitionsDeleted += Set[ind]->tuples.size()-1;
@@ -406,11 +404,10 @@ void Transitions::updateSamples()
     printf("nSequences %d < NmaxDATA %d (nTransitions=%d, avg seq len = %f).\n",
              nSequences, NmaxDATA, nTransitions, nTransitions/(Real)nSequences);
     const int ndata = nTransitions;
-    if(ndata!=old_ndata)
-    update_meanstd_needed = true;
+    update_meanstd_needed = ndata!=old_ndata;
     old_ndata = ndata;
   }
-  if(requestReduction(update_meanstd_needed))
+  if(syncBoolOr(update_meanstd_needed))
     update_samples_mean();
 
   const int ndata = (bRecurrent) ? nSequences : nTransitions;
@@ -476,7 +473,7 @@ void Transitions::updateP()
         std::sort(inds.begin(), inds.end(), compare);
     } else {
         const auto comparator=[this](int a,int b){
-			int k(0), back(0), indT(Set[0]->tuples.size()-1);
+			int k=0, back=0, indT=Set[0]->tuples.size()-1;
 			while (a >= indT) {
 				back = indT;
 				indT += Set[++k]->tuples.size()-1;

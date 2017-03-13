@@ -250,7 +250,7 @@ cmaes_SayHello(cmaes_t * const t)
   /* write initial message */
   sprintf(t->sOutString,
           "(%d,%d)-CMA-ES(mu_eff=%.1f), Ver=\"%s\", dimension=%d, diagonalIterations=%ld, randomSeed=%d (%s)",
-          t->sp.mu, t->sp.lambda, t->sp.mueff, t->version, t->sp.N, t->sp.diagonalCov, t->sp.seed, getTimeStr());
+          t->sp.mu, t->sp.lambda, t->sp.mueff, t->version, t->sp.N, (long)t->sp.diagonalCov, t->sp.seed, getTimeStr());
 
   return t->sOutString;
 }
@@ -340,6 +340,7 @@ cmaes_init_final(cmaes_t * const t /* "this" */)
       t->C[i] = new_double(i+1);
       t->B[i] = new_double(N);
   }
+	//GN: changed size of array: made independent of lambda
   t->arFuncValueHist = new_double(10+(int)ceil(30.*N));
 
  ///////////////////////////////////////////////////
@@ -1124,7 +1125,7 @@ TestMinStdDevs(cmaes_t * const t)
       t->sigma *= exp(0.05+t->sp.cs/t->sp.damps);
     }
   //
-  if(t->sigma<2e-8) t->sigma = 2e-8;
+  if(t->sigma<1e-16) t->sigma = 1e-16;
   if(t->sigma>1e7) t->sigma = 1e7;
 } /* cmaes_TestMinStdDevs() */
 
@@ -2247,7 +2248,7 @@ QLalgo2 (int n, double* const d, double* const e, double ** const V) {
 
                /* Check for convergence. */
 
-            } while (fabs(e[l]) > eps*tst1 && safety++ < 1e4);
+            } while (fabs(e[l]) > eps*tst1 && safety++ < 1e8);
          }
          d[l] = d[l] + f;
          e[l] = 0.0;
@@ -2621,7 +2622,7 @@ double cmaes_random_Gauss(cmaes_random_t *t)
     x1 = 2.0 * cmaes_random_Uniform(t) - 1.0;
     x2 = 2.0 * cmaes_random_Uniform(t) - 1.0;
     rquad = x1*x1 + x2*x2;
-  } while(rquad >= 1 || rquad <= eps);
+  } while(rquad >= 1 || rquad <= 0);
   fac = sqrt(-2.0*log(rquad)/rquad);
   t->flgstored = 1;
   t->hold = fac * x1;

@@ -652,6 +652,10 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
 
     backProp(timeSeries, testG);
 
+    FILE * f;
+    f = fopen("weights_finite_diffs.txt", "w");
+    if (f == NULL) die("check grads fail\n");
+
     for (int w=0; w<nWeights; w++) {
         //1
         weights[w] += incr;
@@ -676,11 +680,19 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         const Real scale = std::max(std::fabs(testG->_W[w]),
                                     std::fabs(testg->_W[w]));
         const Real err = (testG->_W[w] - testg->_W[w])/scale;
-        if (fabs(err)>1e-4)
-        cout <<"W"<<w<<" analytical:"<<testG->_W[w]
-                     <<" finite:"<<testg->_W[w]
-                     <<" error:"<<err<<endl;
+        if (fabs(err)>1e-4) {
+          /*
+              cout <<"W"<<w<<" analytical:"<<testG->_W[w]
+                           <<" finite:"<<testg->_W[w]
+                           <<" error:"<<err<<endl;
+          */
+          fprintf(f, "%d %g %g %g\n", w, testG->_W[w], testg->_W[w], err);
+        }
     }
+
+    fclose(f);
+    f = fopen("biases_finite_diffs.txt", "w");
+    if (f == NULL) die("check grads fail 2\n");
 
     for (int w=0; w<nBiases; w++) {
         //1
@@ -706,15 +718,21 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         const Real scale = std::max(std::fabs(testG->_B[w]),
                                     std::fabs(testg->_B[w]));
         const Real err = (testG->_B[w] - testg->_B[w])/scale;
-        if (fabs(err)>1e-4)
-        cout <<"B"<<w<<" analytical:"<<testG->_B[w]
-                     <<" finite:"    <<testg->_B[w]
-                     <<" error:"     <<err<<endl;
+        if (fabs(err)>1e-4) {
+          /*
+              cout <<"B"<<w<<" analytical:"<<testG->_B[w]
+                           <<" finite:"<<testg->_B[w]
+                           <<" error:"<<err<<endl;
+          */
+          fprintf(f, "%d %g %g %g\n", w, testG->_B[w], testg->_B[w], err);
+        }
     }
     _dispose_object(testg);
     _dispose_object(testG);
     deallocateUnrolledActivations(&timeSeries);
-    printf("\n"); fflush(0);
+    printf("\n"); 
+    fclose(f);
+    fflush(0);
 }
 
 void Network::save(const string fname)

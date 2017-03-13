@@ -221,11 +221,11 @@ class LSTMLayer: public Layer
         Cell::eval(inputs, outputC, nNeurons);
         Sigm::eval(inputI, outputI, nNeurons);
         Sigm::eval(inputF, outputF, nNeurons);
-        #ifndef __posDef_layers_
+        //#ifndef __posDef_layers_
         Sigm::eval(inputO, outputO, nNeurons);
-        #else
-        SoftSign::eval(inputO, outputO, nNeurons);
-        #endif
+        //#else
+        //SoftSign::eval(inputO, outputO, nNeurons);
+        //#endif
 
         for (int o=0; o<nNeurons; o++)
             *(curr->ostates +n1stCell +o) = outputC[o] * outputI[o] +
@@ -279,11 +279,11 @@ class LSTMLayer: public Layer
 
         Cell::evalDiff(inputs, deltaC, outputI, nNeurons);
         Sigm::evalDiff(inputI, deltaI, outputC, nNeurons);
-        #ifndef __posDef_layers_
+        //#ifndef __posDef_layers_
         Sigm::evalDiff(inputO, deltaO, deltas,  nNeurons);
-        #else
-        SoftSign::evalDiff(inputO, deltaO, deltas,  nNeurons);
-        #endif
+        //#else
+        //SoftSign::evalDiff(inputO, deltaO, deltas,  nNeurons);
+        //#endif
         Func::eval(curr->ostates +n1stCell, evalCurrState, nNeurons);
         Func::evalDiff(curr->ostates +n1stCell, diffCurrState, nNeurons);
 

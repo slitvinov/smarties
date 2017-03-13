@@ -18,3 +18,4 @@ SETTINGS+=" --nThreads ${NTHREADS}"
 echo $SETTINGS > settings.txt
 
 ./exec ${SETTINGS}
+#valgrind  --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes --show-reachable=yes ./exec ${SETTINGS}

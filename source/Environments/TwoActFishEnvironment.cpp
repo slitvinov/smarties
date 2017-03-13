@@ -209,23 +209,21 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
     if(new_sample) assert(info==2);
 
     if (study == 0) {
-        const Real scaledEfficiency = (t_sN.vals[18]-.4)/(1.-.4);
-        reward = scaledEfficiency;
+        reward = (t_sN.vals[18]-.4)/(1.-.4);
         if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 1) {
-        const Real scaledEfficiency = (t_sN.vals[21]-.3)/(.6-.3);
-        reward = scaledEfficiency;
+        reward = (t_sN.vals[21]-.3)/(.6-.3);
         if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 2) {
         reward =  1.-2*sqrt(fabs(t_sN.vals[1])); //-goalDY
+        if (new_sample) reward = -2./(1.-gamma);
     }
     else if (study == 5) {
-        reward = (t_sN.vals[21]-.3)/.3;
-        if (fabs(t_sN.vals[1]) > 0.25) reward -= 2*(fabs(t_sN.vals[1])-.25);
-        if (t_sN.vals[0] > 0.75) reward = std::min(0.,reward);
-        if (new_sample) reward = -2./(1.-gamma);
+      reward = (t_sN.vals[18]-.4)/(1.-.4);
+      if (t_sN.vals[0] > 0.5) reward = std::min(0.,reward);
+      if (new_sample) reward = -2./(1.-gamma);
     }
     else if (new_sample) reward = -10.;
 
@@ -233,7 +231,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
     if(std::fabs(t_a.vals[0])>0.74)
       reward = std::min((Real)-1.,reward);
     if(std::fabs(t_a.vals[1])>0.49)
-      reward = std::min((Real)-1.,reward); 
+      reward = std::min((Real)-1.,reward);
 
     return new_sample;
 }
