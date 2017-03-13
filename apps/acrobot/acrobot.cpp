@@ -122,12 +122,11 @@ int main(int argc, const char * argv[])
         a.F    = 0;
         a.info = 1;
     }
-
     
     while (true) {
         int k(0); //agent ID, for now == 0
         for (auto& a : agents) { //assume we have only one agent per application for now...
-            double r = 0.;
+            double r = 0.0;
            
             //load state:
             state[0] = a.u.y1;
@@ -135,34 +134,30 @@ int main(int argc, const char * argv[])
             state[2] = a.u.y4;
             state[3] = a.u.y3;
             
-            r=0;
-            const double r_parameter = 0.4; //defines angles when the reward is given
-            const double r_parameter2 = 0.9; //defines angles when the bonus reward can be given
-            const double c1=0.5;
-            const double c2=0.15;
-            const double c3=0.05;
-            const double c4=0.3;            //c1+c2+c3+c4=1
+            const double l1 = 1.;    //length arms
+            const double l2 = 1.;    //length legs
+            /*const double nu1 = 1.;   //constants
+            const double nu2 = 1.;
+            const double nu3 = 1.;
             
-            if ((fabs(a.u.y1))>(r_parameter)*M_PI)   //reward increasing if acrobot straight up
-            {
-                r = c1*(1. - fabs((fabs(a.u.y1)-M_PI)/(M_PI*(r_parameter-1.))));
+            double h =(l1*cos(a.u.y1)+l2*cos(a.u.y1+a.u.y3)+l1+l2)/(2.*(l1+l2));
+            */
+            
+            r= (-l1*cos(a.u.y1)-l2*cos(a.u.y1+a.u.y3))/(l1+l2);
+            //r*= (1-a.u.y2*a.u.y2/(3.*3.*M_PI*M_PI))*(1-a.u.y4*a.u.y4/(6.*6.*M_PI*M_PI));
+            //r = exp(-(1.-h)*(1.-h)/(2*nu1*nu1)-a.u.y2*a.u.y2/(2*nu2*nu2)-a.u.y4*a.u.y4/(2*nu3*nu3)) -1;
+            
+            /*if ((fabs(a.u.y1)>0.8*M_PI) &&(fabs(a.u.y1)<1.2*M_PI)){
+                r += 0.3;
             }
-            
-            if ( ((fabs(a.u.y1))>r_parameter2*M_PI) && (fabs(a.u.y2)<3) )   //bonus if rotating slow on top
-            {
-                r += c2*(1. - fabs(a.u.y2)/3);
-            }
-            
-            if ( ((fabs(a.u.y1))>r_parameter2*M_PI) && (fabs(a.u.y3)<0.5*M_PI) ) //bonus if legs straight on top
-            {
-                r += c3*(1. - fabs(a.u.y3)/(0.5*M_PI));
-            }
-            
-            
-            if (fabs(a.u.y1)>r_parameter*M_PI) {            //intermediate reward
-                r += c4;
-            }
-          
+            */
+            //if (fabs(a.u.y1)>0.8*M_PI) {   //bonus
+            //    r +=0.1/2.*(1.-a.u.y2*a.u.y2/(2.*2.*M_PI*M_PI))*(1.-a.u.y4*a.u.y4/(2.*2.*M_PI*M_PI));
+            //   }
+
+           
+            //r *= 1-fabs(a.u.y1-M_PI)/M_PI;
+		
             printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
             printf("Current reward %f\n", r); fflush(0);
             ///////////////////////////////////////////////////////
@@ -185,31 +180,34 @@ int main(int argc, const char * argv[])
             //printf("Received action %f\n", a.F); fflush(0);
 
         	//advance the sim:
-            for (int i=0; i<50; i++) {
-                if (((a.u.y3>M_PI) || (a.u.y3<-0.5*M_PI) )) {   //legs in an inhumane position
-                    a.F=0.;
-                    if (a.u.y3>M_PI) {
-                        a.u.y3=M_PI;
-                        a.u.y4=0;
+            for (int i=0; i<100; i++) {
+                if (((a.u.y3>=0.95*M_PI) || (a.u.y3<=-0.25*M_PI) )) {   //legs in an inhumane position
+                    a.F=0.; //acrobot is not capable of executing any torque in this position
+                    
+                    if (a.u.y3>=0.95*M_PI) {            //legs too far in the front
+                        a.u.y3=0.95*M_PI;
+                        a.u.y4=0.;
                     }
-                    else {
-                        a.u.y3=-0.5*M_PI;
-                        a.u.y4=0;
+                    else {                              //legs too far in the back
+                        a.u.y3=-0.25*M_PI;
+                        a.u.y4=0.;
                     }
                     a.u = rk46_nl(a.t, dt, a.u, bind(&Acrobot::D, &a, placeholders::_1, placeholders::_2));
                 }
                 else {
                 a.u = rk46_nl(a.t, dt, a.u, bind(&Acrobot::D, &a, placeholders::_1, placeholders::_2));
                 }
-                if (fabs(a.u.y1)> 2.*M_PI){             //acrobot went full round
-                    a.u.y1= fmod(a.u.y1,2.*M_PI);
-                }
                 a.t += dt;
-                
+                /*
+                if (fabs(a.u.y1)>2.*M_PI) {
+                    a.u.y1 = fmod(a.u.y1, 2.*M_PI);
+                }
+                */
         
                 //
             //check if terminal state has been reached:
-            if ((fabs(a.u.y2)> 2*M_PI) || (fabs(a.u.y4)>7.*M_PI)) //acrobot or his legs rotating too fast
+            //if ((fabs(a.u.y2)> 3*M_PI) || (fabs(a.u.y4)>6.*M_PI)||((fabs(a.u.y1)> 0.9*M_PI)&&(fabs(a.u.y2)>1.5*M_PI) && (fabs(a.u.y1)< 1.1*M_PI))) //acrobot or his legs rotating too fast, tighter constraints in the top position
+            if ((fabs(a.u.y2)> 3*M_PI) || (fabs(a.u.y4)>6.*M_PI)||((fabs(a.u.y1)> 2.*M_PI))) //acrobot rotating too fast, or went through a full round
             {
                 a.info = 2; //tell RL we are in terminal state
                 double r = -1.; //give terminal reward
@@ -222,9 +220,9 @@ int main(int argc, const char * argv[])
 
                 //re-initialize the simulations (random initial conditions):
                 a.u = Vec4(distribution(gen), distribution(gen), distribution(gen), distribution(gen));
-                a.t = 0;
-                a.F = 0;
-                a.info = 1; //set info back to 0
+                a.t = 0.;
+                a.F = 0.;
+                a.info = 1; //set info back to initial state
                 r = 0.;
                 break;
             }

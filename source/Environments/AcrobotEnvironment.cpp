@@ -75,13 +75,13 @@ void AcrobotEnvironment::setDims() //this environment is for the cart pole test
             //just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
             //i added the 0.1 is just to be extra safe when converting a float to an integer
 
-            aI.values[i].push_back(-50.); //here the app accepts real numbers
+            aI.values[i].push_back(-10.); //here the app accepts real numbers
             //aI.values[i].push_back(-3.);
-            aI.values[i].push_back(-10.);
+            aI.values[i].push_back(-0.1);
             aI.values[i].push_back(0.0);
-            aI.values[i].push_back(10.);
+            aI.values[i].push_back(0.1);
             //aI.values[i].push_back(3.0);
-            aI.values[i].push_back(50.);
+            aI.values[i].push_back(10.);
             //the number of components must be ==nOptions
         }
     }
