@@ -92,7 +92,7 @@ void DPG::select(const int agentId, State& s, Action& a,
 
     Real newEps(greedyEps); //random action?
 		if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const double handicap = min(data->Set.size()/1e2, opt->nepoch/1e4);
+        const double handicap = min(data->Set.size()/1e2, opt->nepoch/1e5);
         newEps = std::exp(-handicap) + greedyEps;
     }
 
@@ -165,7 +165,7 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 
 			vector<Real> input = scaledSold;
 			input.insert(input.end(), pol.begin(), pol.end());
-			net->predict(input, Q, valSeries, k, net->tgt_weights, net->tgt_biases);
+			net->predict(input, Q, valSeries, k);
 
 			Q[0] = 1.; //grad
 			net->setOutputDeltas(Q, valSeries[k]);
@@ -251,12 +251,12 @@ void DPG::Train(const int seq, const int samp, const int thrID) const
         //use it to compute activation with frozen weitghts for Q net
         vector<Real> input = scaledSold;
         input.insert(input.end(), policy.begin(), policy.end());
-        net->predict(input, Q, sNewQAct, net->tgt_weights, net->tgt_biases);
+        net->predict(input, Q, sNewQAct);
 
         //now i need to compute dQ/dA, for Q net use tgt weight throughout
         gradient[0] = 1.; //who to increase Q?
 	    	Grads* tmp_grad = new Grads(net->nWeights, net->nBiases);
-	    	net->backProp(gradient, sNewQAct, net->tgt_weights, net->tgt_biases, tmp_grad);
+	    	net->backProp(gradient, sNewQAct,tmp_grad);
         _dispose_object(tmp_grad);
 
     		for(int i=0;i<nA;i++) {
