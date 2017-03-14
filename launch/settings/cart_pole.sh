@@ -9,7 +9,7 @@ SETTINGS+=" --fileSamp history.txt"
 SETTINGS+=" --gamma 0.9"
 
 #network update learning rate
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.001"
 
 #size of network layers
 SETTINGS+=" --nnl1 32"
@@ -49,7 +49,7 @@ SETTINGS+=" --dqnSeqMax 1000"
 #batch size for network gradients compute
 SETTINGS+=" --dqnBatch 48"
 
-SETTINGS+=" --epsAnneal 100000" 
+SETTINGS+=" --epsAnneal 500000" 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w

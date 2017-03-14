@@ -171,9 +171,9 @@ int main(int argc, const char * argv[])
         	//advance the sim:
             for (int i=0; i<50; i++) {
 #if 1
-                if ( a.u.y3 > 0.95*M_PI ) {   //legs in an inhumane position
+                if ( a.u.y3 > 0.75*M_PI ) {   //legs in an inhumane position
                     //acrobot is not capable of executing any torque in this position
-                    a.u.y3=0.94999*M_PI; //legs too far in the front
+                    a.u.y3=0.74999*M_PI; //legs too far in the front
                     a.u.y4=0.;
                 } else if (a.u.y3 < -.25*M_PI) {
                     a.u.y3=-.25001*M_PI; //legs too far in the back
@@ -192,7 +192,7 @@ int main(int argc, const char * argv[])
                 // - more or less up ( a.u.y1 \approx M_PI )
                 // - with the legs stretched ( a.u.y3 \approx 0 )
                 // - relatively slow
-                if(a.u.y1 > .75*M_PI && a.u.y1 < 1.25*M_PI && fabs(a.u.y3) < .25*M_PI && fabs(a.u.y2) < 1 )
+                if(a.u.y1 > .75*M_PI && a.u.y1 < 1.25*M_PI && fabs(a.u.y3) < .25*M_PI && fabs(a.u.y2) < 0.5 )
                     a.time_since_up = a.t;
                 
                 //check if terminal state has been reached:
