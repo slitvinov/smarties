@@ -15,7 +15,8 @@ WARNINGS+= -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings -Wlogical-op
 WARNINGS+= -Wmissing-declarations
 
 #CPPFLAGS+=-std=c++11 -Wall -O0 # -fopenmp
-CPPFLAGS+= -std=c++11 -O2 $(WARNINGS) -I$(COM_DIR)# -fopenmp
+CPPFLAGS+= -std=c++11 -O0 $(WARNINGS) -I$(COM_DIR)# -fopenmp
+CFLAGS+= -O0 $(WARNINGS)
 
 OBJ_FILES_PP = engine_cmaes.o Communicator.o
 OBJ_FILES =    cmaes.o

@@ -1,4 +1,4 @@
 CC=/opt/mpich/bin/mpicxx
 
-CPPFLAGS+= -mavx
+CPPFLAGS+= -mavx -I/opt/mpich/include
 #LIBS+= -lmpi
