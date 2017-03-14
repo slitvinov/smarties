@@ -402,7 +402,7 @@ int main(int argn, char **args)
           fitfun(xfinal, func_dim, &ffinal, info);
 	        const double final_dist =
 														 eval_distance_from_optimum(xfinal, func_dim, info);
-	        const double r_end = std::max(-1., 1-1e3*final_dist);
+	        const double r_end = std::max(-1., 1-1e2*final_dist);
 
 					//printf("Sending %f %f %f %f %f %f\n",
 					//		state[0],state[1],state[2],state[3],state[4],r_end);

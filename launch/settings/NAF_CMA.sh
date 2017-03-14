@@ -9,15 +9,15 @@ SETTINGS+=" --gamma 0.9"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"
 #size of network layers
-SETTINGS+=" --nnl1 64"
-SETTINGS+=" --nnl2 64"
-SETTINGS+=" --nnl3 64"
+SETTINGS+=" --nnl1 32"
+SETTINGS+=" --nnl2 32"
+SETTINGS+=" --nnl3 32"
 #0 means feed forward neural nets
 #1 means LSTM
 #subject to changes
-SETTINGS+=" --nnType 0"
+SETTINGS+=" --nnType 1"
 # L2 regularization of the weights 
-SETTINGS+=" --nnL 0.01"
+SETTINGS+=" --nnL 0.001"
 #chance of taking random actions
 SETTINGS+=" --greedyeps 0.01"
 #whether you are training a policy or testing an already trained network
@@ -25,7 +25,9 @@ SETTINGS+=" --bTrain 1"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learn NAF"
 #batch size for network gradients compute
-SETTINGS+=" --dqnBatch 48"
+SETTINGS+=" --dqnBatch 24"
+
+SETTINGS+=" --epsAnneal 10000"
 #maximum allowed lenth for a sequence (from first to terminal state)
 #if a sequence is longer is just cut after #number of transitions
 SETTINGS+=" --dqnSeqMax 1000"

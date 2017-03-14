@@ -1040,10 +1040,14 @@ cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
   /* update of sigma */
   t->trace = sqrt(psxps);
   t->sigma *= exp(((sqrt(psxps)/t->chiN)-1.)*t->sp.cs/t->sp.damps);
-  //if(t->sigma<2e-8) t->sigma = 2e-8;
-  //if(t->sigma>1e7) t->sigma = 1e7;
-  if (isnan(t->sigma)) {t->sigma = 0; perror("Fucking nan sigma 2\n");
-  t->isStuck = 1; }
+  if(t->sigma<1e-16) t->sigma = 1e-16;
+  if(t->sigma>1e7) t->sigma = 1e7;
+  
+  if (isnan(t->sigma)) {
+    t->sigma = 0;
+    perror("Fucking nan sigma 2\n");
+    t->isStuck = 1;
+  }
   t->state = 3;
 
   return (t->rgxmean);

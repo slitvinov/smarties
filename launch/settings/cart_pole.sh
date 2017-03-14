@@ -1,7 +1,7 @@
 SETTINGS=
 #file that stores every observtion (log of states and actions)
 #if none then no output
-SETTINGS+=" --fileSamp none"
+SETTINGS+=" --fileSamp history.txt"
 
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
@@ -22,7 +22,7 @@ SETTINGS+=" --nnl3 12"
 SETTINGS+=" --nnType 0"
 
 # L2 regularization of the weights
-SETTINGS+=" --nnL 0.001"
+SETTINGS+=" --nnL 0.00"
 
 #chance of taking random actions
 SETTINGS+=" --greedyeps 0.01"
@@ -37,6 +37,7 @@ SETTINGS+=" --senses 0"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 #SETTINGS+=" --learn DQN"
 SETTINGS+=" --learn NAF"
+#SETTINGS+=" --learn DPG"
 
 #number of state vectors received from env to be chained together to form input to net (faux RNN?)
 SETTINGS+=" --dqnNs 0"
@@ -46,8 +47,9 @@ SETTINGS+=" --dqnNs 0"
 SETTINGS+=" --dqnSeqMax 1000"
 
 #batch size for network gradients compute
-SETTINGS+=" --dqnBatch 48"
+SETTINGS+=" --dqnBatch 24"
 
+SETTINGS+=" --epsAnneal 100000" 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w
