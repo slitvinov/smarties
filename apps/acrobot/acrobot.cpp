@@ -191,11 +191,12 @@ int main(int argc, const char * argv[])
                 //added a variable: how much since acrobot was
                 // - more or less up ( a.u.y1 \approx M_PI )
                 // - with the legs stretched ( a.u.y3 \approx 0 )
-                if(a.u.y1 > .75*M_PI && a.u.y1 < 1.25*M_PI && fabs(a.u.y3) < .25*M_PI)
+                // - relatively slow
+                if(a.u.y1 > .75*M_PI && a.u.y1 < 1.25*M_PI && fabs(a.u.y3) < .25*M_PI && fabs(a.u.y2) < 0.5*M_PI )
                     a.time_since_up = a.t;
                 
                 //check if terminal state has been reached:
-                bool failed = fabs(a.u.y2)>10*M_PI || fabs(a.u.y4)>10*M_PI ||  a.t-a.time_since_up > 5;
+                bool failed = fabs(a.u.y2)>10*M_PI || fabs(a.u.y4)>10*M_PI ||  a.t-a.time_since_up > 10;
                 if (failed)
                 {
                     a.info = 2; //tell RL we are in terminal state
