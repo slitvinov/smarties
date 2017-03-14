@@ -116,7 +116,10 @@ int main(int argc, const char * argv[])
     const double dt = 1e-3;
     double t = 0;
     std::mt19937 gen(sock);
-    std::uniform_real_distribution<double> distribution(-.2,.2);
+    std::uniform_real_distribution<double> dist1(-.2+M_PI,.2+M_PI);
+    std::uniform_real_distribution<double> dist2(-.1,.1);
+    std::uniform_real_distribution<double> dist3(-.1,.1);
+    std::uniform_real_distribution<double> dist4(-.1,.1);
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
     Communicator comm(sock,4,1);
     //vector of state variables: in this case theta1, ang_velocity1, theta2, ang_velocity2
@@ -127,7 +130,7 @@ int main(int argc, const char * argv[])
     //random initial conditions:
     vector<Acrobot> agents(n);
     for (auto& a : agents) {
-        a.u = Vec4(distribution(gen)+M_PI, distribution(gen), distribution(gen), distribution(gen));
+        a.u = Vec4(dist1(gen), dist2(gen), dist3(gen), dist4(gen));
         a.u.y1 = mapTheta1_to_2pi(a.u.y1);
         a.F    = 0; a.time_since_up = 0; 
         a.info = 1;
@@ -168,8 +171,9 @@ int main(int argc, const char * argv[])
 
             //printf("Received action %f\n", a.F); fflush(0);
 
+	    const double oldav = a.u.y2;
         	//advance the sim:
-            for (int i=0; i<50; i++) {
+            for (int i=0; i<100; i++) {
 #if 1
                 if ( a.u.y3 > 0.75*M_PI ) {   //legs in an inhumane position
                     //acrobot is not capable of executing any torque in this position
@@ -192,11 +196,11 @@ int main(int argc, const char * argv[])
                 // - more or less up ( a.u.y1 \approx M_PI )
                 // - with the legs stretched ( a.u.y3 \approx 0 )
                 // - relatively slow
-                if(a.u.y1 > .75*M_PI && a.u.y1 < 1.25*M_PI && fabs(a.u.y3) < .25*M_PI && fabs(a.u.y2) < 0.5 )
+                if(a.u.y1 > .75*M_PI && a.u.y1 < 1.25*M_PI && fabs(a.u.y3) < .25*M_PI && oldav*a.u.y2 < 0 )
                     a.time_since_up = a.t;
                 
                 //check if terminal state has been reached:
-                bool failed = fabs(a.u.y2)>10*M_PI || fabs(a.u.y4)>10*M_PI ||  a.t-a.time_since_up > 10;
+                bool failed = fabs(a.u.y2)>10*M_PI || fabs(a.u.y4)>10*M_PI ||  a.t-a.time_since_up > 5;
                 if (failed)
                 {
                     a.info = 2; //tell RL we are in terminal state
@@ -209,7 +213,7 @@ int main(int argc, const char * argv[])
                     comm.sendState(k, a.info, state, r);
 
                     //re-initialize the simulations (random initial conditions):
-                    a.u = Vec4(distribution(gen)+M_PI, distribution(gen), distribution(gen), distribution(gen));
+        	    a.u = Vec4(dist1(gen), dist2(gen), dist3(gen), dist4(gen));
                     a.u.y1 = mapTheta1_to_2pi(a.u.y1);
                     a.t = 0.; a.time_since_up = 0.;
                     a.F = 0.;

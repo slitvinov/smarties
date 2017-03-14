@@ -6,7 +6,7 @@ SETTINGS+=" --fileSamp history.txt"
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.9"
+SETTINGS+=" --gamma 0.95"
 
 #network update learning rate
 SETTINGS+=" --learnrate 0.001"
@@ -49,7 +49,7 @@ SETTINGS+=" --dqnSeqMax 1000"
 #batch size for network gradients compute
 SETTINGS+=" --dqnBatch 48"
 
-SETTINGS+=" --epsAnneal 500000" 
+SETTINGS+=" --epsAnneal 200000" 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w
