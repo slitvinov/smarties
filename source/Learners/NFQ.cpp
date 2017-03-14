@@ -18,8 +18,8 @@
 #include <algorithm>
 #include <cmath>
 
-NFQ::NFQ(MPI_Comm comm, Environment*const env, Settings & settings) :
-Learner(comm,env,settings)
+NFQ::NFQ(MPI_Comm comm, Environment*const _env, Settings & settings) :
+Learner(comm,_env,settings)
 {
 	string lType = bRecurrent ? "LSTM" : "Normal";
 	vector<int> lsize;

@@ -18,8 +18,8 @@
 #include <algorithm>
 #include <cmath>
 
-DPG::DPG(MPI_Comm comm, Environment*const env, Settings & settings) :
-Learner(comm,env,settings), nS(env->sI.dimUsed*(1+settings.dqnAppendS)), nA(env->aI.dim)
+DPG::DPG(MPI_Comm comm, Environment*const _env, Settings & settings) :
+Learner(comm,_env,settings), nS(_env->sI.dimUsed*(1+settings.dqnAppendS)), nA(_env->aI.dim)
 {
 	string lType = bRecurrent ? "LSTM" : "Normal";
 	vector<int> lsize;

@@ -20,9 +20,9 @@
 
 
 
-NAF::NAF(MPI_Comm comm, Environment*const env, Settings & settings) :
-Learner(comm,env,settings), nA(env->aI.dim),
-nL((env->aI.dim*env->aI.dim+env->aI.dim)/2)
+NAF::NAF(MPI_Comm comm, Environment*const _env, Settings & settings) :
+Learner(comm,_env,settings), nA(_env->aI.dim),
+nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2)
 {
 	string lType = bRecurrent ? "LSTM" : "Normal";
 	vector<int> lsize;
