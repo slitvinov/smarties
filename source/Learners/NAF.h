@@ -19,10 +19,9 @@ class NAF : public Learner
 
     void Train_BPTT(const int seq, const int thrID=0) const override;
     void Train(const int seq, const int samp, const int thrID=0) const override;
-
+    void dumpNetworkInfo(const int agentId);
     vector<Real> computeQandGrad(vector<Real>& grad, const vector<Real>& act,
-                                 const vector<Real>& out, Real& error) const;
-    //Real computeQandGrad(vector<Real>& grad, const vector<Real>& act, const vector<Real>& out) const;
+						   const vector<Real>& out, const Real Vnext) const;
 
 public:
     NAF(MPI_Comm comm, Environment*const env, Settings & settings);

@@ -66,13 +66,16 @@ struct Activation //All the network signals
         _myfree(eIGates)
         _myfree(eFGates)
         _myfree(eOGates)
-
     }
 
     void clearOutput()
     {
     	std::memset(outvals,0.,nNeurons);
     	std::memset(ostates,0.,nStates);
+    	std::memset(oMCell, 0.,nStates);
+    	std::memset(oIGates,0.,nStates);
+    	std::memset(oFGates,0.,nStates);
+    	std::memset(oOGates,0.,nStates);
     }
 
     void clearErrors()
@@ -112,7 +115,11 @@ struct Grads
         _myfree(_W)
         _myfree(_B)
     }
-
+    void clear()
+    {
+      std::memset(_W,0.,nWeights);
+      std::memset(_B,0.,nBiases);
+    }
     const int nWeights, nBiases;
     Real *_W, *_B;
 };
@@ -412,7 +419,7 @@ struct TwoSoftSign
     }
 };
 struct SoftSigm
-{    
+{
 	inline static void eval(const Real* __restrict__ const in,
                           Real* __restrict__ const out, const int& N)
   {

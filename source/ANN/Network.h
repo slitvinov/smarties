@@ -37,7 +37,7 @@ public:
     bool allocatedFrozenWeights, allocatedDroputWeights, bDump;
     mt19937 * gen;
     vector<Mem*> mem;
-    Grads * grad;//, * _grad;
+    Grads * grad;
     Real *weights, *biases, *tgt_weights, *tgt_biases;
 		Real *running_std, *running_avg;
     vector<Grads*> Vgrad;
@@ -55,6 +55,7 @@ public:
     int getnLayers() const {assert(bBuilt); return nLayers;}
     int getnAgents() const {assert(bBuilt); return nAgents;}
 
+    vector<Real> getOutputs(const Activation* const act);
     int getLastLayerID() const {return G.size()-1;}
 
     void add2DInput(const int size[3], const bool normalize);
@@ -163,6 +164,10 @@ public:
     	backProp(_errors, net, weights, biases, _grads);
     }
 
+	void updateWhiten(const int batchsize) {
+		for(auto l : layers)
+				l->updateWhiten(batchsize, grad, biases);
+	}
 
 	void printRunning(int cnt, std::ostringstream& oa, std::ostringstream& os) {};
 

@@ -18,7 +18,7 @@ using namespace std;
 class Optimizer
 { //basic momentum update
 protected:
-    const int nWeights, nBiases;
+    const int nWeights, nBiases, bTrain;
     Network * net;
     Profiler * profiler;
     Real *_1stMomW, *_1stMomB;
@@ -57,7 +57,7 @@ protected:
 
     void update(Real* const dest, Real* const grad, Real* const _1stMom,
                 Real* const _2ndMom, const int N, const int batchsize,
-                const Real _lambda=0);
+                const Real _lambda, const Real _eta);
 
 public:
     AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings);

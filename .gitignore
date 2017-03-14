@@ -45,3 +45,7 @@ Temporary Items
 .VolumeIcon.icns
 test.dSYM
 *.dSYM
+
+launch/settings*
+policies/*
+test_*

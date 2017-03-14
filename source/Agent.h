@@ -25,15 +25,16 @@ class Agent
 protected:
 	StateInfo  sInfo;
 	ActionInfo aInfo;
-	
+
 public:
     State *s, *sOld;
     Action *a;
     Real r;
     const int ID;
-    
-    Agent(const int _ID = 0) : ID(_ID) { }
-    
+    int Status;
+
+    Agent(const int _ID = 0) : ID(_ID), Status(1) { }
+
 	~Agent()
     {
         _dispose_object(s);
@@ -43,6 +44,14 @@ public:
     void getState(State& _s) const
     {
         _s = *s;
+    }
+    void setState(State& _s)
+    {
+        *s = _s;
+    }
+    void swapStates()
+    {
+        std::swap(s, sOld);
     }
     void getAction(Action& _a) const
     {
@@ -56,14 +65,18 @@ public:
     {
         *a = _a;
     }
+    int getStatus() const
+    {
+        return Status;
+    }
     Real getReward()
     {
         return r;
     }
-	
+
 	StateInfo getStateDims() {return sInfo;}
-    ActionInfo getActionDims() {return aInfo;}
-	
+  ActionInfo getActionDims() {return aInfo;}
+
 	void setDims(const StateInfo& stateInfo, const ActionInfo& actionInfo)
 	{
         this->aInfo = actionInfo;

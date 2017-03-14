@@ -67,13 +67,13 @@ struct Acrobot
     const double l2 = 1;    //length legs
     const double lc1 = 0.5; //length to center of mass of arms
     const double lc2 = 0.5; //length to center of mass of legs
-    const double I1 = 1;    //moment of inertia of arms
-    const double I2 = 1;    //moment of intertia of legs
+    const double I1 = m1*l1/12.;    //moment of inertia of arms
+    const double I2 = m2*l2/12.;    //moment of intertia of legs
     const double g = 9.81;  //gravity
     int info;
     Vec4 u;
     double F; //torque at the second joint
-    double t;
+    double t, time_since_up;
 
     Vec4 D(Vec4 u, double t)
     {
@@ -97,6 +97,15 @@ struct Acrobot
     }
 };
 
+double mapTheta1_to_2pi(double theta)
+{
+//theta between -2pi and 2pi
+ theta = fmod(theta,2*M_PI);
+ if(theta<0) theta += 2*M_PI;
+//theta between 0 and 2*pi
+ return theta;
+}
+
 Communicator * comm;
 int main(int argc, const char * argv[])
 {
@@ -107,7 +116,7 @@ int main(int argc, const char * argv[])
     const double dt = 1e-3;
     double t = 0;
     std::mt19937 gen(sock);
-    std::uniform_real_distribution<double> distribution(-0.1,0.1);
+    std::uniform_real_distribution<double> distribution(-1,1);
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
     Communicator comm(sock,4,1);
     //vector of state variables: in this case theta1, ang_velocity1, theta2, ang_velocity2
@@ -118,8 +127,9 @@ int main(int argc, const char * argv[])
     //random initial conditions:
     vector<Acrobot> agents(n);
     for (auto& a : agents) {
-        a.u = Vec4(distribution(gen), distribution(gen), distribution(gen), distribution(gen));
-        a.F    = 0;
+        a.u = Vec4(distribution(gen)+M_PI, distribution(gen), distribution(gen), distribution(gen));
+        a.u.y1 = mapTheta1_to_2pi(a.u.y1);
+        a.F    = 0; a.time_since_up = 0; 
         a.info = 1;
     }
     
@@ -129,37 +139,16 @@ int main(int argc, const char * argv[])
             double r = 0.0;
            
             //load state:
+            //theta1 is between 0 and 2pi, 0 and 2pi are vertical down
             state[0] = a.u.y1;
             state[1] = a.u.y2;
             state[2] = a.u.y4;
             state[3] = a.u.y3;
             
-            const double l1 = 1.;    //length arms
-            const double l2 = 1.;    //length legs
-            /*const double nu1 = 1.;   //constants
-            const double nu2 = 1.;
-            const double nu3 = 1.;
-            
-            double h =(l1*cos(a.u.y1)+l2*cos(a.u.y1+a.u.y3)+l1+l2)/(2.*(l1+l2));
-            */
-            
-            r= (-l1*cos(a.u.y1)-l2*cos(a.u.y1+a.u.y3))/(l1+l2);
-            //r*= (1-a.u.y2*a.u.y2/(3.*3.*M_PI*M_PI))*(1-a.u.y4*a.u.y4/(6.*6.*M_PI*M_PI));
-            //r = exp(-(1.-h)*(1.-h)/(2*nu1*nu1)-a.u.y2*a.u.y2/(2*nu2*nu2)-a.u.y4*a.u.y4/(2*nu3*nu3)) -1;
-            
-            /*if ((fabs(a.u.y1)>0.8*M_PI) &&(fabs(a.u.y1)<1.2*M_PI)){
-                r += 0.3;
-            }
-            */
-            //if (fabs(a.u.y1)>0.8*M_PI) {   //bonus
-            //    r +=0.1/2.*(1.-a.u.y2*a.u.y2/(2.*2.*M_PI*M_PI))*(1.-a.u.y4*a.u.y4/(2.*2.*M_PI*M_PI));
-            //   }
-
-           
-            //r *= 1-fabs(a.u.y1-M_PI)/M_PI;
+            r = -pow(cos(a.u.y1),3);
 		
-            printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
-            printf("Current reward %f\n", r); fflush(0);
+            //printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+            //printf("Current reward %f\n", r); fflush(0);
             ///////////////////////////////////////////////////////
             // arguments of comm->sendState(k, a.info, state, r)
 
@@ -180,52 +169,53 @@ int main(int argc, const char * argv[])
             //printf("Received action %f\n", a.F); fflush(0);
 
         	//advance the sim:
-            for (int i=0; i<100; i++) {
-                if (((a.u.y3>=0.95*M_PI) || (a.u.y3<=-0.25*M_PI) )) {   //legs in an inhumane position
-                    a.F=0.; //acrobot is not capable of executing any torque in this position
-                    
-                    if (a.u.y3>=0.95*M_PI) {            //legs too far in the front
-                        a.u.y3=0.95*M_PI;
-                        a.u.y4=0.;
-                    }
-                    else {                              //legs too far in the back
-                        a.u.y3=-0.25*M_PI;
-                        a.u.y4=0.;
-                    }
-                    a.u = rk46_nl(a.t, dt, a.u, bind(&Acrobot::D, &a, placeholders::_1, placeholders::_2));
+            for (int i=0; i<50; i++) {
+#if 1
+                if ( a.u.y3 > 0.95*M_PI ) {   //legs in an inhumane position
+                    //acrobot is not capable of executing any torque in this position
+                    a.u.y3=0.94999*M_PI; //legs too far in the front
+                    a.u.y4=0.;
+                } else if (a.u.y3 < -.25*M_PI) {
+                    a.u.y3=-.25001*M_PI; //legs too far in the back
+                    a.u.y4=0.;
                 }
-                else {
+#endif
                 a.u = rk46_nl(a.t, dt, a.u, bind(&Acrobot::D, &a, placeholders::_1, placeholders::_2));
-                }
+                    
+                if (a.u.y3 > 2*M_PI || a.u.y3 < -2*M_PI) abort(); //should never happen
+                    
+                a.u.y1 = mapTheta1_to_2pi(a.u.y1);
+                    
                 a.t += dt;
-                /*
-                if (fabs(a.u.y1)>2.*M_PI) {
-                    a.u.y1 = fmod(a.u.y1, 2.*M_PI);
-                }
-                */
-        
-                //
-            //check if terminal state has been reached:
-            //if ((fabs(a.u.y2)> 3*M_PI) || (fabs(a.u.y4)>6.*M_PI)||((fabs(a.u.y1)> 0.9*M_PI)&&(fabs(a.u.y2)>1.5*M_PI) && (fabs(a.u.y1)< 1.1*M_PI))) //acrobot or his legs rotating too fast, tighter constraints in the top position
-            if ((fabs(a.u.y2)> 3*M_PI) || (fabs(a.u.y4)>6.*M_PI)||((fabs(a.u.y1)> 2.*M_PI))) //acrobot rotating too fast, or went through a full round
-            {
-                a.info = 2; //tell RL we are in terminal state
-                double r = -1.; //give terminal reward
-                state[0] = a.u.y1;
-                state[1] = a.u.y2;
-                state[2] = a.u.y4;
-                state[3] = a.u.y3;
-                printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
-                comm.sendState(k, a.info, state, r);
+                
+                //added a variable: how much since acrobot was
+                // - more or less up ( a.u.y1 \approx M_PI )
+                // - with the legs stretched ( a.u.y3 \approx 0 )
+                if(a.u.y1 > .75*M_PI && a.u.y1 < 1.25*M_PI && fabs(a.u.y3) < .25*M_PI)
+                    a.time_since_up = a.t;
+                
+                //check if terminal state has been reached:
+                bool failed = fabs(a.u.y2)>10*M_PI || fabs(a.u.y4)>10*M_PI ||  a.t-a.time_since_up > 5;
+                if (failed)
+                {
+                    a.info = 2; //tell RL we are in terminal state
+                    double r = -10.; //give terminal reward
+                    state[0] = a.u.y1;
+                    state[1] = a.u.y2;
+                    state[2] = a.u.y4;
+                    state[3] = a.u.y3;
+                //    printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+                    comm.sendState(k, a.info, state, r);
 
-                //re-initialize the simulations (random initial conditions):
-                a.u = Vec4(distribution(gen), distribution(gen), distribution(gen), distribution(gen));
-                a.t = 0.;
-                a.F = 0.;
-                a.info = 1; //set info back to initial state
-                r = 0.;
-                break;
-            }
+                    //re-initialize the simulations (random initial conditions):
+                    a.u = Vec4(distribution(gen)+M_PI, distribution(gen), distribution(gen), distribution(gen));
+                    a.u.y1 = mapTheta1_to_2pi(a.u.y1);
+                    a.t = 0.; a.time_since_up = 0.;
+                    a.F = 0.;
+                    a.info = 1; //set info back to initial state
+                    r = 0.;
+                    break;
+                }
         }
     }
 }

@@ -41,34 +41,36 @@ CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wno-reorder -Wno-deprecated
 CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter
-CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
 
-
-ifeq "$(config)" "debug"
-CPPFLAGS+= -g
-#else
-endif
-ifeq "$(config)" "prod"
-CPPFLAGS +=  -O3 -DNDEBUG
 CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
 CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 #-DNDEBUG
-CPPFLAGS += -funsafe-math-optimizations
+#CPPFLAGS += -funsafe-math-optimizations
 CPPFLAGS += -falign-functions=16 #-DBOOST_UBLAS_NDEBUG
 CPPFLAGS += -ffast-math
+
+ifeq "$(config)" "debug"
+CPPFLAGS+= -g -O2
+endif
+ifeq "$(config)" "prod"
+CPPFLAGS += -DNDEBUG -O2
+endif
+ifeq "$(config)" "fit"
+CPPFLAGS += -DNDEBUG -O3
 endif
 
 ifeq "$(CC)" "icc"
 CPPFLAGSOPT+= -diag-disable remark -wd68 -xHOST -ansi-alias -fno-fnalias -fno-alias
 endif
 
-CPPFLAGS+= -I/usr/local/include -fopenmp
+CPPFLAGS+= -I/usr/local/include -fopenmp -D__Smarties_
 LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = Communicator.o	ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
-		Environment.o CMAEnvironment.o CartEnvironment.o TwoActFishEnvironment.o TwoFishEnvironment.o NewFishEnvironment.o DeadFishEnvironment.o \
-		Learner.o NAF.o NFQ.o DPG.o Transitions.o\
+		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o TwoActFishEnvironment.o \
+		TwoFishEnvironment.o NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
+		Learner.o NAF.o NFQ.o DPG.o Transitions.o \
 		Scheduler.o LSTMNet.o Network.o Optimizer.o #Links.o Layers.o
 #ExternalAgent.o
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
@@ -80,8 +82,11 @@ ifneq "$(MAKECMDGOALS)" "clean"
 -include $(notdir $(patsubst %.cpp,%.d,$(CPP_FILES)))
 endif
 
-rl: $(OBJ_FILES)
-	$(CC) $(LIBS) $^ -o $@
+lib: ext_app_test.o
+	ar rs libsimulation.a $^
+
+rl: $(OBJ_FILES) lib
+	$(CC) $(LIBS) $(OBJ_FILES) -L. -lsimulation -o $@
 
 LSTM: anntest.o ArgumentParser.o Profiler.o Links.o Layers.o Network.o Optimizer.o LSTMNet.o
 	g++ $(LIBS) $^ -o $@

@@ -266,8 +266,12 @@ void get_upper_lower_bounds(double* const lower_bound,
 
         case ROSENBROCK: {
         	for (i = 0; i < N; ++i) {
-            	lower_bound[i] = -5;
-            	upper_bound[i] =  10;
+            //restricted bounds because of poor perf
+            // bounds from https://www.sfu.ca/~ssurjano/rosen.html
+            lower_bound[i] = -2.048;
+            upper_bound[i] =  2.048;
+            	//lower_bound[i] = -5;
+            	//upper_bound[i] =  10;
             }
             break;
         }

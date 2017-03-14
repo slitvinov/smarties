@@ -2,9 +2,7 @@ SOCK=$1
 PROGNAME=hyperion
 SETTINGSNAME=settings2F_Learn.sh
 EXECNAME=LearningSim
-NTHREADS=24
-
-#module load gcc/4.9.2
+NTHREADS=12
 
 MYNAME=`whoami`
 BASEPATH="./"
@@ -43,7 +41,7 @@ if [ -n "$factoryFile" ]; then
     echo "factoryFile detected: "../$factoryFile
 fi
 
-cp ../launch2F_Learn.sh ${BASEPATH}${EXECNAME}/
+cp ../launchSim.sh ${BASEPATH}${EXECNAME}/
 cp ../$SETTINGSNAME ${BASEPATH}${EXECNAME}/
 cp ../hyperion ${BASEPATH}${EXECNAME}/
 
@@ -59,11 +57,10 @@ OPTIONS=${SETTINGS}${RESTART}
 
 cd ${BASEPATH}${EXECNAME}
 
-
 export LD_LIBRARY_PATH=${HOME}/2d-treecodes/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/cluster/home/novatig/tbb2017/build/linux_intel64_gcc_cc4.9.2_libc2.12_kernel2.6.32_release:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=/cluster/home/novatig/VTK-7.1.0/Build/lib/:$LD_LIBRARY_PATH
 export OMP_NUM_THREADS=${NTHREADS}
 
-#valgrind  --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes --show-reachable=yes 
+#valgrind  --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes --show-reachable=yes
 ./hyperion ${OPTIONS}

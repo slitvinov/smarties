@@ -19,24 +19,37 @@ private:
     const MPI_Comm slavesComm;
     Learner* const learner;
     Environment* const env;
-    ActionInfo actInfo;
-    StateInfo  sInfo;
-    const bool bTrain;
-    int nAgents, nSlaves, saveFreq, iter, inOneSize, outOneSize;
-    mt19937 * gen;
-    State  sOld, s;
-    Action aOld, a;
-    Real totR, r;
-    bool requested;
-    byte *inbuf, *outbuf;
+    const ActionInfo aI;
+    const StateInfo  sI;
+    const vector<Agent*> agents;
+    const int bTrain, nPerRank, nSlaves, nThreads, saveFreq, inSize, outSize;
+    double*const inbuf;
+    double*const outbuf;
+    State  sOld, sNew;
+    Action aOld, aNew;
+    Real totR;
+    unsigned long iter;
+    vector<int> status;
 
-    #ifndef MEGADEBUG
     MPI_Request request;
-    #endif
 
-    inline void unpackChunk(byte* buf, int & first, State& sOld, Action& a, Real& r, State& s);
-    inline void packChunk(byte* buf, Action a);
+    void recvState(const int slave, int& iAgent, int& istatus, Real& reward);
+    void sendAction(const int slave, const int iAgent);
     void save();
+
+    double * _alloc(const int size) {
+      //return new byte[size];
+      double* ret = (double*) malloc(size);
+      memset(ret, 0, size);
+      return ret;
+    }
+    void _dealloc(double* ptr) {
+        if(ptr not_eq nullptr) {
+            //delete [] ptr;
+            free(ptr);
+            ptr=nullptr;
+        }
+    }
 
 public:
     Master(MPI_Comm comm, Learner*const learner, Environment*const env, Settings& settings);
@@ -48,59 +61,47 @@ public:
         _dispose_object(learner);
     }
     void run();
-    void hustle();
     void restart(string fname);
 };
 
 class Slave
 {
-    const MPI_Comm slavesComm;
+  private:
+    Communicator* const comm;
     Environment* const env;
-    vector<Agent*> agents;
-    const bool bTrain, bWriteToFile;
-    int me, insize, outsize;
-    byte *inbuf, *outbuf;
+    const bool bTrain;
+    vector<int> status;
 
-    vector<Action> actions;
-    vector<State> States, oldStates;
-    vector<int> info;
-    string bufferTransition(const int iAgent) const;
-    void packData(const int iAgent);
-    void unpackData(const int iAgent);
-    void sendFail(const int iAgent);
-    void save() const;
-
-public:
-    Slave(MPI_Comm comm, Environment * const env, int me, Settings & settings);
+  public:
+    Slave(Communicator*const c, Environment*const e, Settings& s);
     ~Slave()
     {
         _dispose_object(env);
-        _dispose_object(inbuf);
-        _dispose_object(outbuf);
-        for (auto & trash : agents) _dispose_object( trash);
     }
     void run();
-    void restart(string fname);
-    //Learner* learner; //TODO
 };
 
 class Client
 {
   private:
-      Learner* const learner;
-      Environment* const env;
-      vector<Agent*> agents;
-      ActionInfo actInfo;
-      StateInfo  sInfo;
-      State  sOld, s;
-      Action aOld, a;
-      Real r;
+    Learner* const learner;
+    Communicator* const comm;
+    Environment* const env;
+    vector<Agent*> agents;
+    const ActionInfo aI;
+    const StateInfo  sI;
+    State  sOld, sNew;
+    Action aOld, aNew;
+    vector<int> status;
+    void prepareState(int& iAgent, int& istatus, Real& reward);
+    void prepareAction(const int iAgent);
 
   public:
-      Client(Learner*const learner, Environment*const env, Settings& settings);
-      ~Client()
-      {
-          _dispose_object(env);
-          _dispose_object(learner);
-      }
+    Client(Learner*const l,Communicator*const c,Environment*const e,Settings&s);
+    ~Client()
+    {
+        _dispose_object(env);
+        _dispose_object(learner);
+    }
+    void run();
 };

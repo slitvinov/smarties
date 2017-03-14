@@ -23,18 +23,11 @@
 using namespace std;
 
 AcrobotEnvironment::AcrobotEnvironment(const int _nAgents, const string _execpath,
-																 const int _rank, Settings & settings) :
+		 const int _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings)
 {
 }
 
-bool AcrobotEnvironment::predefinedNetwork(Network* const net) const
-{
-	//this function can be used if environment requires particular network settings
-	//i.e. not fully connected LSTM/FF network
-	//i.e. if you want to use convolutions
-	return false;
-}
 
 void AcrobotEnvironment::setDims() //this environment is for the cart pole test
 {
@@ -67,21 +60,14 @@ void AcrobotEnvironment::setDims() //this environment is for the cart pole test
         aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
         for (int i=0; i<aI.dim; i++) {
-        	const int nOptions = 5; //used if discrete actions: options available to agent for acting
-            aI.bounds.push_back(nOptions);
 
             //this framework sends a real number to the application
             //if you want to receive an integer number between 0 and nOptions (eg action option)
             //just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
             //i added the 0.1 is just to be extra safe when converting a float to an integer
 
-            aI.values[i].push_back(-10.); //here the app accepts real numbers
-            //aI.values[i].push_back(-3.);
-            aI.values[i].push_back(-0.1);
-            aI.values[i].push_back(0.0);
-            aI.values[i].push_back(0.1);
-            //aI.values[i].push_back(3.0);
-            aI.values[i].push_back(10.);
+            aI.values[i].push_back(-20.); //here the app accepts real numbers
+            aI.values[i].push_back( 20.);
             //the number of components must be ==nOptions
         }
     }
@@ -89,8 +75,7 @@ void AcrobotEnvironment::setDims() //this environment is for the cart pole test
 }
 
 bool AcrobotEnvironment::pickReward(const State & t_sO, const Action & t_a,
-																 const State& t_sN, Real& reward,const int info)
-)
+				const State& t_sN, Real& reward,const int info)
 {
     bool new_sample(false);
     
@@ -104,7 +89,7 @@ bool AcrobotEnvironment::pickReward(const State & t_sO, const Action & t_a,
    // {
    //     reward = 1. - (fabs(t_sN.vals[0]) - M_PI)/(0.2*M_PI);    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
    // }
-    if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+    if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
             //was is the last state of the sequence?
             
             //this must be set: was it the last episode? you can get it from reward?

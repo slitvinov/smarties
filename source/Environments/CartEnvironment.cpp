@@ -67,8 +67,6 @@ void CartEnvironment::setDims() //this environment is for the cart pole test
         aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
         for (int i=0; i<aI.dim; i++) {
-        	const int nOptions = 7; //used if discrete actions: options available to agent for acting
-            aI.bounds.push_back(nOptions);
 
             //this framework sends a real number to the application
             //if you want to receive an integer number between 0 and nOptions (eg action option)
@@ -99,8 +97,9 @@ bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a,
     if (reward<-0.9) new_sample=true; //in cart pole example, if reward from the app is -1 then I failed
 
     //here i can change the reward: instead of -1 or 0, i can give a positive reward if angle is small
-    reward = 1. - fabs(t_sN.vals[3])/0.2;    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
-    if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+    reward = 1>fabs(t_sN.vals[0]) ? 1 - fabs(t_sN.vals[3])/0.2 : 0;    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
+    if (new_sample)
+			reward = -2./(1.-gamma); // = - max cumulative reward
     //was is the last state of the sequence?
 
     //this must be set: was it the last episode? you can get it from reward?

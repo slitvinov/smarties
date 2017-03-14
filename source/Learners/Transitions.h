@@ -58,15 +58,15 @@ class Transitions
 protected:
     const MPI_Comm mastersComm;
     Environment * const env;
-    const int nAppended, batchSize, maxSeqLen;
+    const int nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
     int iOldestSaved;
-    const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize;
+    const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize, bTrain;
     const string path;
-    vector<Real> Inp, std, mean;
-    vector<Sequence*> Tmp, Buffered;
+    vector<Real> std, mean;
+    vector<Sequence*> Buffered;
     discrete_distribution<int> * dist;
 
-    void add(const int agentId, const int info, const State& sOld,
+    int add(const int agentId, const int info, const State& sOld,
              const Action& a, const State& sNew, const Real reward);
 
     void push_back(const int & agentId);
@@ -74,11 +74,11 @@ protected:
     void synchronize();
 
 public:
-    int anneal, nBroken, nTransitions, nSequences;
+    int anneal, nBroken, nTransitions, nSequences, old_ndata;
     const StateInfo sI;
     const ActionInfo aI;
     Gen * gen;
-    vector<Sequence*> Set;
+    vector<Sequence*> Set, Tmp;
     vector<int> inds;
 
     Transitions(MPI_Comm comm, Environment*const env, Settings & settings);
@@ -92,8 +92,10 @@ public:
         for (auto & trash : Buffered) _dispose_object( trash);
     }
     void clearFailedSim(const int agentOne, const int agentEnd);
-    void update_samples_mean();
-    vector<Real>standardize(const vector<Real>& state) const;
+    void pushBackEndedSim(const int agentOne, const int agentEnd);
+    void update_samples_mean(const Real alpha = 0.01);
+    int syncBoolOr(int needed) const;
+    vector<Real> standardize(const vector<Real>& state, const Real noise = -1) const;
 #ifdef _Priority_
     void updateP();
 #endif
@@ -103,6 +105,6 @@ public:
     int sample();
     void restartSamples();
     void saveSamples();
-    void passData(const int agentId, const int info, const State & sOld,
+    int passData(const int agentId, const int info, const State & sOld,
                   const Action & a, const State & sNew, const Real reward);
 };

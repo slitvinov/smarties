@@ -62,57 +62,62 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
     string envStr;
     getline(inFile, envStr);
 
-    if (!inFile.good()) die("Unable to open file '%s'!\n", filename.c_str());
-    {
-        if (envStr.find("TwoFishEnvironment ") != envStr.npos)
-        {
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            env = new TwoFishEnvironment(n, execpath, rank, settings);
-        }
-        else if (envStr.find("TwoActFishEnvironment ") != envStr.npos)
-        {
-            string execpath = _parse(envStr, "exec", true);
-            int n  = _parseInt(envStr, "n", true);
-            env = new TwoActFishEnvironment(n, execpath, rank, settings);
-        }
-        else if (envStr.find("NewFishEnvironment ") != envStr.npos)
-        {
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            env = new NewFishEnvironment(n, execpath, rank, settings);
-        }
-        else if (envStr.find("DeadFishEnvironment ") != envStr.npos)
-		{
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            env = new DeadFishEnvironment(n, execpath, rank, settings);
-        }
-        else if (envStr.find("CartEnvironment ") != envStr.npos)
-        {
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            env = new CartEnvironment(n, execpath, rank, settings);
-        }
-        else if (envStr.find("CMAEnvironment ") != envStr.npos)
-        {
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            env = new CMAEnvironment(n, execpath, rank, settings);
-        }
-        else if (envStr.find("Environment ") != envStr.npos)
-        {
-            string execpath = _parse(envStr, "exec", true);
-            int n = _parseInt(envStr, "n", true);
-            env = new CartEnvironment(n, execpath, rank, settings);
-        }
-        else die("Unsupported environment type in line %s\n", envStr.c_str());
+    if (!inFile.good())
+      die("Unable to open file '%s'!\n", filename.c_str());
 
-        //getline(inFile, s); used to be a while loop, but env vectors are not supported...
+    if (envStr.find("TwoFishEnvironment ") != envStr.npos)
+    {
+        string execpath = _parse(envStr, "exec", true);
+        int n = _parseInt(envStr, "n", true);
+        env = new TwoFishEnvironment(n, execpath, rank, settings);
     }
+    else if (envStr.find("TwoActFishEnvironment ") != envStr.npos)
+    {
+        string execpath = _parse(envStr, "exec", true);
+        int n  = _parseInt(envStr, "n", true);
+        env = new TwoActFishEnvironment(n, execpath, rank, settings);
+    }
+    else if (envStr.find("NewFishEnvironment ") != envStr.npos)
+    {
+        string execpath = _parse(envStr, "exec", true);
+        int n = _parseInt(envStr, "n", true);
+        env = new NewFishEnvironment(n, execpath, rank, settings);
+    }
+    else if (envStr.find("DeadFishEnvironment ") != envStr.npos)
+    {
+        string execpath = _parse(envStr, "exec", true);
+        int n = _parseInt(envStr, "n", true);
+        env = new DeadFishEnvironment(n, execpath, rank, settings);
+    }
+    else if (envStr.find("AcrobotEnvironment ") != envStr.npos)
+    {
+        string execpath = _parse(envStr, "exec", true);
+        int n = _parseInt(envStr, "n", true);
+        env = new AcrobotEnvironment(n, execpath, rank, settings);
+    }
+    else if (envStr.find("CartEnvironment ") != envStr.npos)
+    {
+        string execpath = _parse(envStr, "exec", true);
+        int n = _parseInt(envStr, "n", true);
+        env = new CartEnvironment(n, execpath, rank, settings);
+    }
+    else if (envStr.find("CMAEnvironment ") != envStr.npos)
+    {
+        string execpath = _parse(envStr, "exec", true);
+        int n = _parseInt(envStr, "n", true);
+        env = new CMAEnvironment(n, execpath, rank, settings);
+    }
+    else if (envStr.find("TestEnvironment ") != envStr.npos)
+    {
+        string execpath = _parse(envStr, "exec", true);
+        env = new TestEnvironment(1, execpath, rank, settings);
+    }
+    else die("Unsupported environment type in line %s\n", envStr.c_str());
+
+    //getline(inFile, s); used to be a while loop, but env vectors are not supported...
+
     assert(env not_eq nullptr);
     env->setDims();
-    if (rank != 0) env->setup_Comm();
 
     return env;
 }

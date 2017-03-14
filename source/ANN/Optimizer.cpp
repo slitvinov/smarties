@@ -16,7 +16,7 @@ using namespace ErrorHandling;
 
 Optimizer::Optimizer(Network* const _net, Profiler* const _prof,
   Settings& settings) : nWeights(_net->getnWeights()),
-  nBiases(_net->getnBiases()), net(_net), profiler(_prof),
+  nBiases(_net->getnBiases()), bTrain(settings.bTrain), net(_net), profiler(_prof),
 eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), nepoch(0)
 {
     _allocateClean(_1stMomW, nWeights)
@@ -44,14 +44,14 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
     {
 		    #pragma omp for nowait
         for (int j=0; j<nWeights; j++)
-        for (int k=1; k<nThreads; k++) {
+        for (int k=0; k<nThreads; k++) {
             G->_W[j] += g[k]->_W[j];
             g[k]->_W[j] = 0.;
         }
 
         #pragma omp for nowait
         for (int j=0; j<nBiases; j++)
-        for (int k=1; k<nThreads; k++) {
+        for (int k=0; k<nThreads; k++) {
             G->_B[j] += g[k]->_B[j];
             g[k]->_B[j] = 0.;
         }
@@ -66,11 +66,11 @@ void Optimizer::update(Grads* const G, const int batchsize)
 
 void AdamOptimizer::update(Grads* const G, const int batchsize)
 {
-    update(net->weights, G->_W, _1stMomW, _2ndMomW, nWeights, batchsize,lambda);
-    //Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
-    //Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
-    update(net->biases,  G->_B, _1stMomB, _2ndMomB, nBiases, batchsize);
-
+  const Real _eta = eta/(1.+std::log(1. + (double)nepoch/1e3));
+  update(net->weights,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,lambda,_eta);
+  update(net->biases, G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,     0,_eta);
+  //Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
+  //Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
 	beta_t_1 *= beta_1;
 	beta_t_2 *= beta_2;
 	//printf("%d %f %f\n",nepoch, beta_t_1,beta_t_2);
@@ -86,9 +86,9 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
 
     #pragma omp parallel for
     for (int i=0; i<N; i++) {
-        const Real W = fabs(dest[i]);
+        //const Real W = fabs(dest[i]);
         const Real M1 = alpha * _1stMom[i] + eta_ * grad[i];
-        _1stMom[i] = std::max(std::min(M1,W),-W);
+        _1stMom[i] = std::max(std::min(M1,eta_),-eta_);
         grad[i] = 0.; //reset grads
 
         if (lambda_>0)
@@ -100,9 +100,9 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
 
 void AdamOptimizer::update(Real* const dest, Real* const grad,
                            Real* const _1stMom, Real* const _2ndMom,
-                           const int N, const int batchsize, const Real _lambda)
+                           const int N, const int batchsize,
+						   const Real _lambda, const Real _eta)
 {
-    const Real _eta = eta/(1.+std::log(1. + (double)nepoch/1e3));
     const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
     const Real norm = 1./(Real)max(batchsize,1);
     const Real lambda_ = _lambda*_eta;
@@ -110,16 +110,16 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 	#pragma omp parallel for
     for (int i=0; i<N; i++) {
         const Real DW  = grad[i] *norm;
-        const Real W   = std::fabs(dest[i]);
+        //const Real W   = std::fabs(dest[i]);
         const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
         const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
         //const Real M1_ = std::min(std::max(M1,   -1e9),1e9);
         const Real M1_ = M1;
         const Real M2_ = std::max(M2,epsilon);
         //slow down extreme updates (normalization):
-        //const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_) / fac12;
+        //const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_);
         //const Real M1_ = std::max(std::min(TOP,M1),-TOP);
-        const Real DW_ = std::max(std::min(eta_*M1_/sqrt(M2_), W),-W);
+        const Real DW_ = std::max(std::min(eta_*M1_/sqrt(M2_), eta_),-eta_);
         //const Real DW_ = eta_*M1_/sqrt(M2_);
         _1stMom[i] = M1_;
         _2ndMom[i] = M2_;
@@ -256,6 +256,7 @@ bool Optimizer::restart(const string fname)
     debug1("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) {
         error("Couldnt open file %s \n", nameBackup.c_str());
+        if(!bTrain) {die("...and I'm not training\n");}
         return false;
     }
 
@@ -321,6 +322,7 @@ bool AdamOptimizer::restart(const string fname)
     debug1("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) {
         error("Couldnt open file %s \n", nameBackup.c_str());
+        if(!bTrain) {die("...and I'm not training\n");}
         return false;
     }
 

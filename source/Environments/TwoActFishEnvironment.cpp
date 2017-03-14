@@ -14,11 +14,13 @@ using namespace std;
 TwoActFishEnvironment::TwoActFishEnvironment(const int _nAgents,
   const string _execpath, const int _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings),
-sight(settings.senses==0 || settings.senses==4), POV(settings.senses==1),
-l_line(settings.senses==2), p_sensors(settings.senses==3 || settings.senses==4),
-study(settings.rewardType),
-goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
+sight( settings.senses    ==0),
+rcast( settings.senses    % 2), //if eq {1,  3,  5,  7}
+lline((settings.senses/2) % 2), //if eq {  2,3,    6,7}
+press((settings.senses/4) % 2), //if eq {      4,5,6,7}
+study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
+  assert(settings.senses<8);
 }
 
 void TwoActFishEnvironment::setDims()
@@ -37,48 +39,47 @@ void TwoActFishEnvironment::setDims()
             // ...last action (HAX!)
             sI.inUse.push_back(true);
             // ...second last action (HAX!)
-            sI.inUse.push_back(true); //if l_line i have curvature info
+            sI.inUse.push_back(false); //if l_line i have curvature info
         }
         {
-            //Dist 6
+            //New T period
             sI.inUse.push_back(true);
 
-            //Quad 7
+            //Phase Shift
             sI.inUse.push_back(true);
 
-            // VxAvg 8
+            // VxInst
             sI.inUse.push_back(true);
 
-            // VyAvg 9
+            // VyInst
             sI.inUse.push_back(true);
 
-            // AvAvg 10
+            // AvInst
             sI.inUse.push_back(true);
         }
-#if 1
+        #if 0
             //Xabs 6
             sI.inUse.push_back(false);
 
             //Yabs 7
             sI.inUse.push_back(false);
-#endif
+        #endif
         {
             //Dist 6
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
 
             //Quad 7
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
 
             // VxAvg 8
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
 
             // VyAvg 9
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
 
             // AvAvg 10
-            sI.inUse.push_back(true);
-        }
-        {
+            sI.inUse.push_back(false);
+
             //Pout 11
             sI.inUse.push_back(false);
 
@@ -109,39 +110,39 @@ void TwoActFishEnvironment::setDims()
         const int nSensors = 20;
         for (int i=0; i<nSensors; i++) {
             // (VelNAbove  ) x 5 [20]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTAbove  ) x 5 [25]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelNBelow  ) x 5 [30]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTBelow  ) x 5 [35]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPAbove  ) x 5 [40]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVAbove  ) x 5 [45]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPBelow  ) x 5 [50]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<2*nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(p_sensors);
+            sI.inUse.push_back(rcast);
         }
         /*
         sI.values.push_back(-.50);
@@ -155,96 +156,82 @@ void TwoActFishEnvironment::setDims()
         aI.dim = 2;
         aI.values.resize(aI.dim);
         //curavture
-        aI.bounds.push_back(5); //Number of possible actions to choose from
+        aI.bounded.push_back(1);
+        aI.values[0].push_back(-.75);
         aI.values[0].push_back(-.50);
         aI.values[0].push_back(-.25);
         aI.values[0].push_back(0.00);
         aI.values[0].push_back(0.25);
         aI.values[0].push_back(0.50);
+        aI.values[0].push_back(0.75);
         //period:
-        aI.bounds.push_back(5); //Number of possible actions to choose from
+        aI.bounded.push_back(1);
+        aI.values[1].push_back(-.5);
         aI.values[1].push_back(-.25);
         aI.values[1].push_back(-.125);
         aI.values[1].push_back(0.00);
         aI.values[1].push_back(0.125);
         aI.values[1].push_back(0.250);
+        aI.values[1].push_back(0.5);
     }
     resetAll=false;
     commonSetup();
 }
 
-void TwoActFishEnvironment::setAction(const int & iAgent)
-{
-    if ( agents[iAgent]->a->vals[0] >0.75 ) {
-    	printf("Act0 is too large (>0), reassigned at random to prevent crash\n");
-        std::normal_distribution<Real> dist(0.5,0.25);
-        const Real uB = 0.75; const Real lB = -.75;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
-    }
-    if ( agents[iAgent]->a->vals[0] <-.75 ) {
-    	printf("Act0 is too large (<0), reassigned at random to prevent crash\n");
-        std::normal_distribution<Real> dist(-.5,0.25);
-        const Real uB = 0.75; const Real lB = -.75;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
-    }
-    if ( agents[iAgent]->a->vals[1] >0.25 ) {
-    	printf("Act1 is too large (>0), reassigned at random to prevent crash\n");
-        std::normal_distribution<Real> dist(0.5,0.25);
-        const Real uB = 0.25; const Real lB = -.25;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
-    }
-    if ( agents[iAgent]->a->vals[1] <-.25 ) {
-    	printf("Act1 is too large (<0), reassigned at random to prevent crash\n");
-        std::normal_distribution<Real> dist(-.5,0.25);
-        const Real uB = 0.25; const Real lB = -.25;
-        agents[iAgent]->a->vals[0]=lB+.5*(std::tanh(dist(*g))+1.)*(uB-lB);
-    }
-
-    Environment::setAction(iAgent);
-}
-
-int TwoActFishEnvironment::getState(int & iAgent)
-{
-    int bStatus = Environment::getState(iAgent);
-
-    for (int j=187; j<sI.dim; j++)
-        agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
-
-    return bStatus;
-}
 
 bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
                                 const State& t_sN, Real& reward, const int info)
 {
-    if (fabs(t_sN.vals[4] -t_a.vals[0])>0.001) {
-        printf("Mismatch state and action!!! %s === %s\n",t_sN.print().c_str(),t_a.print().c_str());
+    if (fabs(t_sN.vals[4] -t_a.vals[0])>0.0001) {
+        printf("Mismatch state and action!!! %s === %s\n",
+         t_sN.print().c_str(),t_a.print().c_str());
         abort();
     }
+    if (fabs(t_sN.vals[6] -t_a.vals[1])>0.0001) {
+        printf("Mismatch state and action!!! %s === %s\n",
+         t_sN.print().c_str(),t_a.print().c_str());
+        abort();
+    }
+    if(info!=1)
+    if (fabs(t_sO.vals[4] -t_sN.vals[5])>0.0001) {
+        printf("Mismatch state two states!!! %s === %s\n",
+         t_sN.print().c_str(),t_a.print().c_str());
+        abort();
+    }
+    /*
     if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-3 ) {
         printf("Same time for two states!!! %s === %s\n",t_sO.print().c_str(),t_sN.print().c_str());
         abort();
     }
-
+    */
     bool new_sample(false);
     if (reward<-9.9) new_sample=true;
+    if(new_sample) assert(info==2);
 
     if (study == 0) {
-        const Real scaledEfficiency = (t_sN.vals[18]-.4)/(1.-.4);
-        reward = scaledEfficiency;
-        if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+        reward = (t_sN.vals[18]-.4)/(1.-.4);
+        if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 1) {
-        const Real scaledEfficiency = (t_sN.vals[21]-.3)/(.6-.3);
-        reward = scaledEfficiency;
-        if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+        reward = (t_sN.vals[21]-.3)/(.6-.3);
+        if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 2) {
-        reward =  1.-fabs(t_sN.vals[1]-goalDY)/.5;
+        reward =  1.-2*sqrt(fabs(t_sN.vals[1])); //-goalDY
+        if (new_sample) reward = -2./(1.-gamma);
+    }
+    else if (study == 5) {
+      reward = (t_sN.vals[18]-.4)/(1.-.4);
+      if (t_sN.vals[0] > 0.5) reward = std::min(0.,reward);
+      if (new_sample) reward = -2./(1.-gamma);
     }
     else if (new_sample) reward = -10.;
 
-    //    die("Wrong reward\n");
-    //}
+    //gently push sim away from extreme curvature: not kosher
+    if(std::fabs(t_a.vals[0])>0.74)
+      reward = std::min((Real)-1.,reward);
+    if(std::fabs(t_a.vals[1])>0.49)
+      reward = std::min((Real)-1.,reward);
 
     return new_sample;
 }
