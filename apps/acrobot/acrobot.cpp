@@ -116,7 +116,7 @@ int main(int argc, const char * argv[])
     const double dt = 1e-3;
     double t = 0;
     std::mt19937 gen(sock);
-    std::uniform_real_distribution<double> distribution(-1,1);
+    std::uniform_real_distribution<double> distribution(-.2,.2);
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
     Communicator comm(sock,4,1);
     //vector of state variables: in this case theta1, ang_velocity1, theta2, ang_velocity2
@@ -192,7 +192,7 @@ int main(int argc, const char * argv[])
                 // - more or less up ( a.u.y1 \approx M_PI )
                 // - with the legs stretched ( a.u.y3 \approx 0 )
                 // - relatively slow
-                if(a.u.y1 > .75*M_PI && a.u.y1 < 1.25*M_PI && fabs(a.u.y3) < .25*M_PI && fabs(a.u.y2) < 0.5*M_PI )
+                if(a.u.y1 > .75*M_PI && a.u.y1 < 1.25*M_PI && fabs(a.u.y3) < .25*M_PI && fabs(a.u.y2) < 1 )
                     a.time_since_up = a.t;
                 
                 //check if terminal state has been reached:
