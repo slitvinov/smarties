@@ -148,7 +148,7 @@ int main(int argc, const char * argv[])
             state[2] = a.u.y4;
             state[3] = a.u.y3;
             
-            r = -pow(cos(a.u.y1),3);
+            r = -pow(cos(a.u.y1),5);
 		
             //printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
             //printf("Current reward %f\n", r); fflush(0);
@@ -204,7 +204,7 @@ int main(int argc, const char * argv[])
                 if (failed)
                 {
                     a.info = 2; //tell RL we are in terminal state
-                    double r = -10.; //give terminal reward
+                    double r = -100.; //give terminal reward
                     state[0] = a.u.y1;
                     state[1] = a.u.y2;
                     state[2] = a.u.y4;

@@ -6,7 +6,7 @@ SETTINGS+=" --fileSamp history.txt"
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.95"
+SETTINGS+=" --gamma 0.99"
 
 #network update learning rate
 SETTINGS+=" --learnrate 0.001"
