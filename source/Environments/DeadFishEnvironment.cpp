@@ -18,6 +18,7 @@ POV(settings.senses==1 || settings.senses==4), l_line(settings.senses==2),
 p_sensors(settings.senses==3 || settings.senses==4), study(settings.rewardType),
 goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
+	cheaperThanNetwork = false; //this environment is more expensive to simulate than updating net. todo: think it over?
 }
 
 void DeadFishEnvironment::setDims()

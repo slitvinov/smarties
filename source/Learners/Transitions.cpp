@@ -155,7 +155,7 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
 
     if (Tmp[agentId]->tuples.size() >= maxSeqLen) {
       //upper limit to how long a sequence can be
-      printf("Sequence is too long!\n");
+      //printf("Sequence is too long!\n");
       const Tuple * const l = Tmp[agentId]->tuples.back();
       Tuple * t = new Tuple(); //backup last state
       t->s =l->s; t->a=l->a; t->r =l->r;

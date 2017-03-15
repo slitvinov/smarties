@@ -398,7 +398,8 @@ bool Learner::checkBatch(unsigned long mastersNiter)
     // ratio is 1 : 1 in DQN paper
     //then let master thread go to help other threads finish the batch
     //otherwise only go to communicate if batch is over
-    if (env->cheaperThanNetwork && mastersNiter > opt->nepoch + mastersNiter_b4PolUpdates)
+    if (env->cheaperThanNetwork && bTrain && 
+	mastersNiter > opt->nepoch + mastersNiter_b4PolUpdates)
       return true;
     else
       return taskCounter >= batchSize;

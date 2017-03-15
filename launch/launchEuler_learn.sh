@@ -1,11 +1,13 @@
 #!/bin/bash
 EXECNAME=rl
 RUNFOLDER=$1
-NNODES=$2  
+NNODES=$2
 APP=$3
 SETTINGSNAME=$4
 
-BASEPATH="../"
+MYNAME=`whoami`
+BASEPATH="/cluster/scratch/${MYNAME}/smarties/"
+#BASEPATH="../"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 #lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
 
@@ -47,7 +49,7 @@ cd ${BASEPATH}${RUNFOLDER}
 
 ./run.sh ${NPROCESS} ${NTHREADS} ${NTASK}
 #bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -W ${WCLOCK} ./run.sh  ${NPROCESS} ${NTHREADS} ${NTASK}
- 
+
 for (( c=1; c<=${TIMES}-1; c++ ))
 do
     bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -w "ended(${RUNFOLDER})" -W ${WCLOCK} ./run.sh  ${NPROCESS} ${NTHREADS} ${NTASK}
