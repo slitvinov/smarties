@@ -184,9 +184,12 @@ void NAF::dumpNetworkInfo(const int agentId)
 		const Tuple* const _t = data->Tmp[agentId]->tuples[ii];
 		vector<Real> sSnew = data->standardize(_t->s);
 
-		assert(nA==1); //TODO ask Sid for muldi-dim actions?
-		timeSeries_base[ii]->errvals[i]=(oDiff[1+nL]-oBase[1+nL])/sSnew[i];
+		//assert(nA==1); //TODO ask Sid for muldi-dim actions?
+		double dAct = 0;
+		for (int j=0; j<nA; j++)
+			dAct+=pow(oDiff[1+nL+j]-oBase[1+nL+j],2);
 
+		timeSeries_base[ii]->errvals[i]=sqrt(dAct)/sSnew[i];
 		net->deallocateUnrolledActivations(&series);
 	}
 
