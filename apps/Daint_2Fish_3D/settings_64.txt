@@ -1,0 +1,1 @@
+../launchSim.sh -nActions 2 -bpdx 64 -bpdy 32 -bpdz 8 -CFL 0.1 -length 0.2 -lambda 1e5 -nu 0.000008 -tend 0 -tdump 0.25 -tsave 0

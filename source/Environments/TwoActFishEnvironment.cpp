@@ -19,8 +19,12 @@ rcast( settings.senses    % 2), //if eq {1,  3,  5,  7}
 lline((settings.senses/2) % 2), //if eq {  2,3,    6,7}
 press((settings.senses/4) % 2), //if eq {      4,5,6,7}
 study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
-{ 
+{
   cheaperThanNetwork = false; //this environment is more expensive to simulate than updating net. todo: think it over?
+
+	mpi_ranks_per_env = 8;
+	paramsfile="settings_64.txt";
+
   assert(settings.senses<8);
 }
 
