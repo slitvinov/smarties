@@ -58,7 +58,7 @@ OPTIONS=${SETTINGS}${RESTART}
 
 cd ${BASEPATH}${EXECNAME}
 
-export LD_LIBRARY_PATH=/opt/tbb/lib/intel64/gcc4.4/:${HOME}/2d-treecodes/lib64/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/opt/tbb/lib/intel64/gcc4.4/:${HOME}/2d-treecodes/:$LD_LIBRARY_PATH
 export OMP_NUM_THREADS=${NTHREADS}
 
 ./hyperion ${OPTIONS}

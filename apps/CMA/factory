@@ -1,2 +1,2 @@
-CMAEnvironment exec=../cmaes_launch.sh n=1
+CMAEnvironment exec=../launchSim.sh n=1
 
