@@ -7,6 +7,7 @@ UNAME_S := $(shell uname -s)
 viz ?= 0
 config ?= "prod"
 extra ?=
+app ?= "test"
 
 ifeq "$(viz)" "1"
 CPPFLAGS+= -D_RL_VIZ
@@ -26,8 +27,8 @@ include make.brutus
 endif
 
 ifeq "$(findstring daint,$(shell hostname))" "daint"
-#include make.daint	# When using self-compiled MPI - AVOID !!
-include make.daint_srun # When using srun - Default
+include make.daint_mpich # When using self-compiled MPI - for client runs with srun main app
+#include make.daint_srun # When using srun - Default
 endif
 
 ifeq "$(findstring falcon,$(shell hostname))" "falcon"
@@ -82,11 +83,19 @@ ifneq "$(MAKECMDGOALS)" "clean"
 -include $(notdir $(patsubst %.cpp,%.d,$(CPP_FILES)))
 endif
 
+ifeq "$(app)" "cubism"
+lib:
+	make -C ../../CubismUP_3D/makefiles/ clean 
+	make -C ../../CubismUP_3D/makefiles/ config=prod librl -j
+else
+LIBAPP= -L. -lsimulation
+
 lib: ext_app_test.o
 	ar rs libsimulation.a $^
+endif
 
 rl: $(OBJ_FILES) lib
-	$(CC) $(LIBS) $(OBJ_FILES) -L. -lsimulation -o $@
+	$(CC) $(LIBS) $(OBJ_FILES) $(LIBAPP) -o $@
 
 LSTM: anntest.o ArgumentParser.o Profiler.o Links.o Layers.o Network.o Optimizer.o LSTMNet.o
 	g++ $(LIBS) $^ -o $@
@@ -104,4 +113,4 @@ clean:
 	rm -f *.o
 	rm -f *.s
 	rm -f *.d
-	rm -f rl
+	rm -f libsimulation.a rl

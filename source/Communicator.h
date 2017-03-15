@@ -2,7 +2,7 @@
 
 #include <sstream>
 #include <sys/un.h>
-#ifdef __MPI_CLIENT
+#ifdef __RL_MPI_CLIENT
 #include <mpi.h>
 #endif
 #ifdef __Smarties_

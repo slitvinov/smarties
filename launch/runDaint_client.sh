@@ -1,5 +1,6 @@
 #!/bin/bash
 #export OMP_SCHEDULE=dynamic
+SOCK=$1
 #export MPICH_NEMESIS_ASYNC_PROGRESS=1
 #export MPICH_MAX_THREAD_SAFETY=multiple
 export MYROUNDS=10000
@@ -17,6 +18,7 @@ fi
 source $SETTINGSNAME
 SETTINGS+=" --nThreads 1"
 SETTINGS+=" --isServer 0"
+SETTINGS+=" --sockPrefix ${SOCK}"
 
 echo $SETTINGS > settings.txt
 env > environment.log
