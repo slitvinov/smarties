@@ -163,21 +163,21 @@ void TwoActFishEnvironment::setDims()
         //curavture
         aI.bounded.push_back(1);
         aI.values[0].push_back(-.75);
-        aI.values[0].push_back(-.50);
+        /*aI.values[0].push_back(-.50);
         aI.values[0].push_back(-.25);
         aI.values[0].push_back(0.00);
         aI.values[0].push_back(0.25);
         aI.values[0].push_back(0.50);
-        aI.values[0].push_back(0.75);
+        */aI.values[0].push_back(0.75);
         //period:
         aI.bounded.push_back(1);
         aI.values[1].push_back(-.5);
-        aI.values[1].push_back(-.25);
+        /*aI.values[1].push_back(-.25);
         aI.values[1].push_back(-.125);
         aI.values[1].push_back(0.00);
         aI.values[1].push_back(0.125);
         aI.values[1].push_back(0.250);
-        aI.values[1].push_back(0.5);
+        */aI.values[1].push_back(0.5);
     }
     resetAll=false;
     commonSetup();
