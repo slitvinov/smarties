@@ -14,11 +14,13 @@ using namespace std;
 TwoActFishEnvironment::TwoActFishEnvironment(const int _nAgents,
   const string _execpath, const int _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings),
-sight(settings.senses==0 || settings.senses==4), POV(settings.senses==1),
-l_line(settings.senses==2), p_sensors(settings.senses==3 || settings.senses==4),
-study(settings.rewardType),
-goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
+sight( settings.senses    ==0),
+rcast( settings.senses    % 2), //if eq {1,  3,  5,  7}
+lline((settings.senses/2) % 2), //if eq {  2,3,    6,7}
+press((settings.senses/4) % 2), //if eq {      4,5,6,7}
+study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
+  assert(settings.senses<8);
 }
 
 void TwoActFishEnvironment::setDims()
@@ -53,7 +55,7 @@ void TwoActFishEnvironment::setDims()
             sI.inUse.push_back(true);
 
             // AvInst
-            sI.inUse.push_back(false);
+            sI.inUse.push_back(true);
         }
 #if 0
             //Xabs 6
@@ -70,15 +72,14 @@ void TwoActFishEnvironment::setDims()
             sI.inUse.push_back(false);
 
             // VxAvg 8
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
 
             // VyAvg 9
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
 
             // AvAvg 10
-            sI.inUse.push_back(true);
-        }
-        {
+            sI.inUse.push_back(false);
+
             //Pout 11
             sI.inUse.push_back(false);
 
@@ -109,39 +110,39 @@ void TwoActFishEnvironment::setDims()
         const int nSensors = 20;
         for (int i=0; i<nSensors; i++) {
             // (VelNAbove  ) x 5 [20]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTAbove  ) x 5 [25]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelNBelow  ) x 5 [30]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTBelow  ) x 5 [35]
-            sI.inUse.push_back(l_line);
+            sI.inUse.push_back(lline);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPAbove  ) x 5 [40]
-            sI.inUse.push_back(p_sensors || l_line);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVAbove  ) x 5 [45]
-            sI.inUse.push_back(p_sensors || l_line);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPBelow  ) x 5 [50]
-            sI.inUse.push_back(p_sensors || l_line);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(p_sensors || l_line);
+            sI.inUse.push_back(press);
         }
         for (int i=0; i<2*nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(p_sensors || l_line);
+            sI.inUse.push_back(rcast);
         }
         /*
         sI.values.push_back(-.50);
@@ -153,10 +154,10 @@ void TwoActFishEnvironment::setDims()
     }
     {
         aI.dim = 2;
-        aI.bounded = true;
         aI.values.resize(aI.dim);
         //curavture
         aI.bounds.push_back(7); //Number of possible actions to choose from
+        aI.bounded.push_back(1);
         aI.values[0].push_back(-.75);
         aI.values[0].push_back(-.50);
         aI.values[0].push_back(-.25);
@@ -166,6 +167,7 @@ void TwoActFishEnvironment::setDims()
         aI.values[0].push_back(0.75);
         //period:
         aI.bounds.push_back(7); //Number of possible actions to choose from
+        aI.bounded.push_back(1);
         aI.values[1].push_back(-.5);
         aI.values[1].push_back(-.25);
         aI.values[1].push_back(-.125);
@@ -180,7 +182,6 @@ void TwoActFishEnvironment::setDims()
 
 void TwoActFishEnvironment::setAction(const int & iAgent)
 {
-
     if (agents[iAgent]->a->vals[0] >0.75 ) {
     	printf("Act0 is too large (>0), reassigned to prevent crash\n");
       agents[iAgent]->a->vals[0] = 0.75;
@@ -205,9 +206,9 @@ int TwoActFishEnvironment::getState(int & iAgent)
 {
     int bStatus = Environment::getState(iAgent);
     if(std::fabs(agents[iAgent]->a->vals[0])>0.74)
-      agents[iAgent]->r = 0; //gently push sim away from extreme curvature: not kosher
+      agents[iAgent]->r = std::min((Real)-1.,agents[iAgent]->r); //gently push sim away from extreme curvature: not kosher
     if(std::fabs(agents[iAgent]->a->vals[1])>0.49)
-      agents[iAgent]->r = 0; //gently push sim away from extreme acceleration: not kosher
+      agents[iAgent]->r = std::min((Real)-1.,agents[iAgent]->r); //gently push sim away from extreme acceleration: not kosher
 
     return bStatus;
 }
@@ -233,16 +234,17 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
     */
     bool new_sample(false);
     if (reward<-9.9) new_sample=true;
+    if(new_sample) assert(info==2);
 
     if (study == 0) {
         const Real scaledEfficiency = (t_sN.vals[18]-.4)/(1.-.4);
         reward = scaledEfficiency;
-        if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+        if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 1) {
         const Real scaledEfficiency = (t_sN.vals[21]-.3)/(.6-.3);
         reward = scaledEfficiency;
-        if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+        if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 2) {
         reward =  1.-fabs(t_sN.vals[1]-goalDY)/.5;

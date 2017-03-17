@@ -53,19 +53,24 @@ Learner(comm,env,settings)
 void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
 									Action& aOld, const int info, Real r)
 {
+		if (info!=1)
+		data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
+		if (info == 2) return;
+		assert(info==1 || data->Tmp[agentId]->tuples.size());
     Activation* currActivation = net->allocateActivation();
-    vector<Real> output(nOutputs), inputs(nInputs);
-    s.copy_observed(inputs);
-    vector<Real> scaledSold = data->standardize(inputs);
+    vector<Real> output(nOutputs);
 
-    if (info==1)// if new sequence, sold, aold and reward are meaningless
+    if (info==1) {// if new sequence, sold, aold and reward are meaningless
+				vector<Real> inputs(nInputs,0);
+		    s.copy_observed(inputs);
+    		vector<Real> scaledSold = data->standardize(inputs);
         net->predict(scaledSold, output, currActivation);
-    else {   //then if i'm using RNN i need to load recurrent connections
+		} else {   //then if i'm using RNN i need to load recurrent connections
+				const Tuple* const last = data->Tmp[agentId]->tuples.back();
+				vector<Real> scaledSold = data->standardize(last->s);
         Activation* prevActivation = net->allocateActivation();
         net->loadMemory(net->mem[agentId], prevActivation);
         net->predict(scaledSold, output, prevActivation, currActivation);
-        //also, store sOld, aOld -> sNew, r
-        data->passData(agentId, info, sOld, aOld, s, r);
         _dispose_object(prevActivation);
     }
 
@@ -78,19 +83,17 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
     for (int i=0; i<nOutputs; ++i) {
         if (output[i]>Val) { Nbest=i; Val=output[i]; }
     }
-    a.set(aInfo.labelToAction(Nbest));
+    a.set(Nbest);
 
     //random action?
     Real newEps(greedyEps);
     if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const int handicap = min(static_cast<int>(data->Set.size())/500.,
-                              (bRecurrent ? opt->nepoch/1e3 : opt->nepoch/1e4));
-        //const int handicap = min(static_cast<int>(data->Set.size())/500., opt->nepoch/1e4);
-        newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
+			const double handicap = min(data->Set.size()/1e2, opt->nepoch/1e4);
+      newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
     }
     uniform_real_distribution<Real> dis(0.,1.);
 
-    if(dis(*gen) < newEps) a.set(aInfo.labelToAction(nOutputs*dis(*gen)));
+    if(dis(*gen) < newEps) a.set(nOutputs*dis(*gen));
 
     #ifdef _dumpNet_
     	net->dump(agentId);
@@ -227,6 +230,7 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
     int Nbest(-1);
     Real Vhat(-1e10);
     for (int i=0; i<nOutputs; i++) {
+			errs[i] = 0.;
     	if(Qhats[i]>Vhat) { Vhat=Qhats[i]; Nbest=i;  }
     }
 

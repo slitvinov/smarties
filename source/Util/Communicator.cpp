@@ -8,7 +8,9 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <fcntl.h>
+#include <limits>
 
 static int send_all(int fd, void *buffer, unsigned int size);
 static int recv_all(int fd, void *buffer, unsigned int size);
@@ -24,7 +26,7 @@ void Communicator::sendState(int agentId, _AGENT_STATUS info,
     {int *ptr=(int*)(dataout+1); *ptr=info;  }
 
     for (int j=0; j<nStates; j++) {
-        if (std::isnan(state[j]) || std::isinf(state[j]) ) abort();
+        assert(not std::isnan(state[j]) && not std::isinf(state[j]));
         *(dataout +j+2) = state[j];
         o << state[j] << " ";
     }
@@ -38,9 +40,9 @@ void Communicator::sendState(int agentId, _AGENT_STATUS info,
       fflush(0);
     #ifdef __MPI_CLIENT
       MPI_Abort(comm_MPI, 1);
-    #else  
+    #else
       abort();
-    #endif 
+    #endif
     }
 
     if (info == 2) {
@@ -150,8 +152,8 @@ Communicator::~Communicator()
 
 #ifdef __MPI_CLIENT
 Communicator::Communicator(int _sockID, int _statedim, int _actdim, MPI_Comm comm):
-workerid(_sockID==0?1:_sockID),nActions(_actdim),nStates(_statedim),
-isServer(_sockID==0), msgID(0), comm_MPI(comm)
+nActions(_actdim),nStates(_statedim), isServer(_sockID==0),
+workerid(_sockID==0?1:_sockID),msgID(0), comm_MPI(comm)
 {
   sizeout = (3+nStates)*sizeof(double);
   sizein  =    nActions*sizeof(double);
@@ -175,8 +177,10 @@ isServer(_sockID==0), msgID(0), comm_MPI(comm)
 #endif
 
 Communicator::Communicator(int _sockID, int _statedim, int _actdim, bool _server, bool _sim):
-workerid(_sockID==0?1:_sockID),nActions(_actdim),nStates(_statedim),
-isServer(_sockID==0||_server),msgID(0), rank_MPI(0), size_MPI(0)
+nActions(_actdim),nStates(_statedim),
+//to avoid any modification of the app, app gets passed socketid = 0 if it has to behave as server
+isServer(_sockID==0||_server),
+workerid(_sockID), msgID(0), rank_MPI(0), size_MPI(0)
 {
     if (_sim) {
       sizeout = (3+nStates)*sizeof(double);
@@ -185,17 +189,26 @@ isServer(_sockID==0||_server),msgID(0), rank_MPI(0), size_MPI(0)
       sizein  = (3+nStates)*sizeof(double);
       sizeout =    nActions*sizeof(double);
     }
+    if (!_sockID) {
+      struct timeval clock;
+      gettimeofday(&clock, NULL);
+      workerid = abs(clock.tv_usec % std::numeric_limits<int>::max());
+    }
+
     sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock_", workerid);
-    printf("sockedID:%d, _server:%d, _sim:%d, SOCK_PATH=->%s<-\n", _sockID, _server, _sim, SOCK_PATH);
+    printf("sockedID:%d, _server:%d, _sim:%d, SOCK_PATH=->%s<-\n",
+            _sockID, _server, _sim, SOCK_PATH);
     dataout = (double *) malloc(sizeout);
     memset(dataout, 0, sizeout);
     datain  = (double *) malloc(sizein);
     memset(datain, 0, sizein);
     printf("nStates:%d nActions:%d sizein:%d sizeout:%d\n",
           nStates, nActions, sizein, sizeout);
-    if(_sockID==0)
+
+    // if this is smarties, no further setup needed
+    if(_sockID==0) //app as server
       setupClient(0, std::string());
-    else if(_sim) setupServer();
+    else if(_sim) setupServer(); //app as client
 }
 
 
@@ -279,7 +292,9 @@ void Communicator::setupClient(const int iter, std::string execpath)
       }
       sprintf(line, "%s", execpath.c_str());
       //parse(line, largv);     // prepare argv
-	fflush(0);
+	     fflush(0);
+
+
       #if 1==1 //if true goes to stdout
       char output[256];
       sprintf(output, "output");
@@ -328,7 +343,7 @@ void Communicator::setupClient(const int iter, std::string execpath)
   char hostname[1024];
   hostname[1023] = '\0';
   gethostname(hostname, 1023);
-  printf("Specify the server %s\n", hostname);
+  //printf("Specify the server %s\n", hostname);
   fflush(0);
   /* Connect to the server */
   while (connect(Socket, (struct sockaddr *)&serverAddress, servlen) < 0) {

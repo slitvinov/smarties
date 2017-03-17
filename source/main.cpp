@@ -73,13 +73,13 @@ void runClient()
 
     Learner* learner = nullptr;
     if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
-        settings.nnInputs = env->sI.dimUsed;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
         settings.nnOutputs = 1;
         for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];
         learner = new NFQ(MPI_COMM_WORLD, env, settings);
     }
     else if (settings.learner == "NA" || settings.learner == "NAF") {
-        settings.nnInputs = env->sI.dimUsed;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
         const int nA = env->aI.dim;
         const int nL = (nA*nA+nA)/2;
         settings.nnOutputs = 1+nL+nA;
@@ -87,7 +87,7 @@ void runClient()
         learner = new NAF(MPI_COMM_WORLD, env, settings);
     }
     else if (settings.learner == "DP" || settings.learner == "DPG") {
-        settings.nnInputs = env->sI.dimUsed + env->aI.dim;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS) + env->aI.dim;
         settings.nnOutputs = 1;
         learner = new DPG(MPI_COMM_WORLD, env, settings);
     } else die("Learning algorithm not recognized\n");
@@ -122,13 +122,13 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 
     Learner* learner = nullptr;
     if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
-        settings.nnInputs = env->sI.dimUsed;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
         settings.nnOutputs = 1;
         for (int i(0); i<env->aI.dim; i++) settings.nnOutputs*=env->aI.bounds[i];
         learner = new NFQ(mastersComm, env, settings);
     }
     else if (settings.learner == "NA" || settings.learner == "NAF") {
-        settings.nnInputs = env->sI.dimUsed;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
         const int nA = env->aI.dim;
         const int nL = (nA*nA+nA)/2;
         settings.nnOutputs = 1+nL+nA;
@@ -136,7 +136,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
         learner = new NAF(mastersComm, env, settings);
     }
     else if (settings.learner == "DP" || settings.learner == "DPG") {
-        settings.nnInputs = env->sI.dimUsed + env->aI.dim;
+        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS) + env->aI.dim;
         settings.nnOutputs = 1;
         learner = new DPG(mastersComm, env, settings);
     } else die("Learning algorithm not recognized\n");
@@ -164,24 +164,24 @@ int main (int argc, char** argv)
       {'l', "learnrate",REAL,  "Learning rate",  &settings.lRate,     (Real)0.001},
       {'b', "debug_lvl",INT,   "Debug level",    &debugLvl,           (int)debugLvl},
       {'a', "learn",    STRING,"Learner Type",   &settings.learner,   (string)"DQ"},
-      {'r', "rType",    INT,   "Reward: ef,ef,y",&settings.rewardType,(int)-1},
-      {'y', "goalDY",   REAL,  "If r==2  goalDY",&settings.goalDY,    (Real)0.},
+      {'r', "rType",    INT,   "Reward: see env",&settings.rewardType,(int)-1},
+      {'i', "senses",   INT,   "State: see env", &settings.senses,   (int)0},
+      {'y', "goalDY",   REAL,  "goalDY: see env",&settings.goalDY,    (Real)0.},
       {'t', "bTrain",   INT,   "am I training?", &settings.bTrain,    (int)1},
-      {'i', "senses",   INT,   "top,pov,vel,pres",&settings.senses,   (int)0},
       {'K', "nnL",      REAL,  "Weight decay",   &settings.nnLambda,  (Real)0.0},
-      {'D', "nnD",      REAL,  "NN's droput",    &settings.nnPdrop,   (Real)0.0},
       {'Z', "nnl1",     INT,   "NN layer 1",     &settings.nnLayer1,  (int)0},
       {'Y', "nnl2",     INT,   "NN layer 2",     &settings.nnLayer2,  (int)0},
       {'X', "nnl3",     INT,   "NN layer 3",     &settings.nnLayer3,  (int)0},
       {'W', "nnl4",     INT,   "NN layer 4",     &settings.nnLayer4,  (int)0},
       {'V', "nnl5",     INT,   "NN layer 5",     &settings.nnLayer5,  (int)0},
       {'T', "nnType",   INT,   "NNtype: LSTM,FF",&settings.nnType,    (int)1},
-      {'C', "dqnT",     REAL,  "DQN update tgt", &settings.dqnUpdateC,(Real)1000},
+      {'C', "dqnT",     REAL,  "DQN tgt delay",  &settings.dqnUpdateC,(Real)1000},
       {'S', "dqnNs",    INT,   "appended states",&settings.dqnAppendS,(int)0},
       {'L', "dqnSeqMax",INT,   "max seq length", &settings.maxSeqLen, (int)200},
       {'B', "dqnBatch", INT,   "batch update",   &settings.dqnBatch,  (int)10},
       {'p', "nThreads", INT,   "parallel master",&settings.nThreads,  (int)-1},
-      {'I', "isServer", INT,   "client or server",&settings.isLauncher,  (int)1},
+      {'I', "isServer", INT,   "client=0 server=1",&settings.isLauncher,  (int)1},
+      {'P',"sockPrefix",INT,   "socked id prefix",&settings.sockPrefix,  (int)-1},
       //{'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"../history.txt"}
       {'H', "fileSamp", STRING,"history file",   &settings.samplesFile,(string)"obs_master.txt"}
     });
@@ -196,18 +196,32 @@ int main (int argc, char** argv)
 
     Parser parser(opts);
     parser.parse(argc, argv, rank == 0);
-    int seed = abs(floor(clock.tv_usec + rank));
-    settings.gen = new mt19937(seed);
+
 
     if (not settings.isLauncher) {
+      if (settings.sockPrefix<0) die("Not received a prefix for the socket\n");
+      settings.gen = new mt19937(settings.sockPrefix);
       printf("Launching smarties as client.\n");
-      if (settings.restart == "none") {
-        printf("smarties as client works only for evaluating policies.\n");
-        abort();
-      }
+      if (settings.restart == "none")
+        die("smarties as client works only for evaluating policies.\n");
+      settings.bTrain = 0;
       runClient();
       return 0;
     }
+
+    int runSeed;
+    if (!rank) {
+      runSeed = abs(clock.tv_usec % std::numeric_limits<int>::max());
+
+      for (int i = 1; i < nranks; i++)
+          MPI_Send(&runSeed, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+
+    } else
+          MPI_Recv(&runSeed, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    settings.sockPrefix = runSeed+rank;
+
+    settings.gen = new mt19937(settings.sockPrefix);
 
     const int slavesPerMaster = ceil(nranks/(double)settings.nMasters) - 1;
     const int isMaster = rank % (slavesPerMaster+1) == 0;

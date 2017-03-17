@@ -74,7 +74,7 @@ protected:
     void synchronize();
 
 public:
-    int anneal, nBroken, nTransitions, nSequences;
+    int anneal, nBroken, nTransitions, nSequences, old_ndata;
     const StateInfo sI;
     const ActionInfo aI;
     Gen * gen;
@@ -93,7 +93,7 @@ public:
     }
     void clearFailedSim(const int agentOne, const int agentEnd);
     void update_samples_mean(const Real alpha = 0.01);
-    vector<Real>standardize(const vector<Real>& state, const Real noise=0.) const;
+    vector<Real> standardize(const vector<Real>& state, const Real noise = -1) const;
 #ifdef _Priority_
     void updateP();
 #endif
