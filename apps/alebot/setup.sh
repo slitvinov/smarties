@@ -1,2 +1,2 @@
-cp ../apps/ALE/factory ${BASEPATH}${RUNFOLDER}/factory
-cp ../apps/ALE/alebot ${BASEPATH}${RUNFOLDER}/
+cp ../apps/alebot/factory ${BASEPATH}${RUNFOLDER}/factory
+cp ../apps/alebot/alebot ${BASEPATH}${RUNFOLDER}/
