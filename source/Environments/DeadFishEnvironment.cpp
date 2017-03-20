@@ -118,8 +118,8 @@ bool DeadFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 	}
 
 	const bool terminated = info==2;
-	assert(terminated == (reward<-9.9));
-	
+	//assert(terminated == (reward<-9.9));
+
 	if (study == 1) reward = t_sN.vals[25]; //then we use single guy miles per gallon
 
 	if (terminated) reward = -2./(1.-gamma);
