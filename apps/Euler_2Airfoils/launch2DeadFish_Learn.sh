@@ -43,6 +43,6 @@ export LD_LIBRARY_PATH=/cluster/home/novatig/tbb2017/build/linux_intel64_gcc_cc4
 export LD_LIBRARY_PATH=/cluster/home/novatig/VTK-7.1.0/Build/lib/:$LD_LIBRARY_PATH
 export OMP_NUM_THREADS=${NTHREADS}
 
-#./hyperion ${OPTIONS}
+./hyperion ${OPTIONS}
 module load valgrind
-valgrind  --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes --show-reachable=yes ./hyperion ${OPTIONS}
+#valgrind  --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes --show-reachable=yes ./hyperion ${OPTIONS}
