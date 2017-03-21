@@ -256,7 +256,9 @@ bool Optimizer::restart(const string fname)
     debug1("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) {
         error("Couldnt open file %s \n", nameBackup.c_str());
+        #ifndef NDEBUG //if debug, you might want to do this
         if(!bTrain) {die("...and I'm not training\n");}
+        #endif
         return false;
     }
 
@@ -322,7 +324,9 @@ bool AdamOptimizer::restart(const string fname)
     debug1("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) {
         error("Couldnt open file %s \n", nameBackup.c_str());
+        #ifndef NDEBUG //if debug, you might want to do this
         if(!bTrain) {die("...and I'm not training\n");}
+        #endif
         return false;
     }
 

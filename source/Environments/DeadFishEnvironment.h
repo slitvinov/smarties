@@ -16,9 +16,8 @@
 class DeadFishEnvironment: public Environment
 {
 protected:
-    const bool sight, POV, l_line, p_sensors;
+    const bool sight, rcast, lline, press;
     const int study;
-    const Real goalDY;
 public:
     DeadFishEnvironment(const int nAgents, const string execpath,
                        const int _rank, Settings & settings);

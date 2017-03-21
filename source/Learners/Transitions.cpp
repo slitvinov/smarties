@@ -251,7 +251,7 @@ int Transitions::syncBoolOr(int needed) const
   //used in two cases:
   // - check if any rank needs to update means and std of dataset
   // - check if any rank needs to reset the index array for sampling
-  
+
   int nMasters;
   MPI_Comm_size(mastersComm, &nMasters);
   if (nMasters > 1) {
@@ -442,7 +442,9 @@ void Transitions::restart(std::string fname)
     debug1("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) {
       debug1("File not found %s\n", nameBackup.c_str());
+      #ifndef NDEBUG //if debug, you might want to do this
       if(!bTrain) {die("...and I'm not training\n");}
+      #endif
       return;
     }
 
