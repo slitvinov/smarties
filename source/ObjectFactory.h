@@ -17,7 +17,7 @@ using namespace std;
 class ObjectFactory
 {
 private:
-    Settings settings;
+  Settings * settings;
 	string filename;
 	inline string _parse(string source, string pattern, bool req = true);
 	inline int    _parseInt(string source, string pattern, bool req = true);
@@ -25,6 +25,7 @@ private:
 
 
 public:
-	ObjectFactory(Settings & _settings) : settings(_settings), filename(settings.configFile) {};
+	ObjectFactory(Settings & _settings) :
+  settings(&_settings), filename(_settings.configFile) {};
 	Environment* createEnvironment(int rank, int index);
 };

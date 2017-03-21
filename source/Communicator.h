@@ -22,7 +22,7 @@ protected:
     #ifdef MPI_INCLUDED
     const MPI_Comm appComm, masterComm;
     #endif
-    const int sizeout, sizein, nActions, nStates, spawner;
+    const int sizeout, sizein, nActions, nStates, spawner, slaveGroup;
     const int app_rank, smarties_rank, app_size, smarties_size, verbose;
     double*const dataout;
     double*const datain;
@@ -134,8 +134,9 @@ public:
       const std::string log = std::string(), const int verbose = 0);
 
     Communicator(const int sdim, const int adim, const MPI_Comm scom,
-      const MPI_Comm acom, const std::string exec, const std::string params,
-      const std::string log = std::string(), const int verbose = 0);
+      const MPI_Comm acom, const int _slaveGroup, const std::string exec,
+      const std::string params, const std::string log = std::string(),
+      const int verbose = 0);
   #endif
 
     Communicator(const int socket, const int sdim, const int adim,

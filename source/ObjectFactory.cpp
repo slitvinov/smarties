@@ -69,48 +69,48 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
     {
         string execpath = _parse(envStr, "exec", true);
         int n = _parseInt(envStr, "n", true);
-        env = new TwoFishEnvironment(n, execpath, rank, settings);
+        env = new TwoFishEnvironment(n, execpath, rank, *settings);
     }
     else if (envStr.find("TwoActFishEnvironment ") != envStr.npos)
     {
         string execpath = _parse(envStr, "exec", true);
         int n  = _parseInt(envStr, "n", true);
-        env = new TwoActFishEnvironment(n, execpath, rank, settings);
+        env = new TwoActFishEnvironment(n, execpath, rank, *settings);
     }
     else if (envStr.find("NewFishEnvironment ") != envStr.npos)
     {
         string execpath = _parse(envStr, "exec", true);
         int n = _parseInt(envStr, "n", true);
-        env = new NewFishEnvironment(n, execpath, rank, settings);
+        env = new NewFishEnvironment(n, execpath, rank, *settings);
     }
     else if (envStr.find("DeadFishEnvironment ") != envStr.npos)
     {
         string execpath = _parse(envStr, "exec", true);
         int n = _parseInt(envStr, "n", true);
-        env = new DeadFishEnvironment(n, execpath, rank, settings);
+        env = new DeadFishEnvironment(n, execpath, rank, *settings);
     }
     else if (envStr.find("AcrobotEnvironment ") != envStr.npos)
     {
         string execpath = _parse(envStr, "exec", true);
         int n = _parseInt(envStr, "n", true);
-        env = new AcrobotEnvironment(n, execpath, rank, settings);
+        env = new AcrobotEnvironment(n, execpath, rank, *settings);
     }
     else if (envStr.find("CartEnvironment ") != envStr.npos)
     {
         string execpath = _parse(envStr, "exec", true);
         int n = _parseInt(envStr, "n", true);
-        env = new CartEnvironment(n, execpath, rank, settings);
+        env = new CartEnvironment(n, execpath, rank, *settings);
     }
     else if (envStr.find("CMAEnvironment ") != envStr.npos)
     {
         string execpath = _parse(envStr, "exec", true);
         int n = _parseInt(envStr, "n", true);
-        env = new CMAEnvironment(n, execpath, rank, settings);
+        env = new CMAEnvironment(n, execpath, rank, *settings);
     }
     else if (envStr.find("TestEnvironment ") != envStr.npos)
     {
         string execpath = _parse(envStr, "exec", true);
-        env = new TestEnvironment(1, execpath, rank, settings);
+        env = new TestEnvironment(1, execpath, rank, *settings);
     }
     else die("Unsupported environment type in line %s\n", envStr.c_str());
 

@@ -65,16 +65,18 @@ void runSlave(MPI_Comm slavesComm)
     int available_ranks = nranks-1; //one is the master
     const int ranks_per = env->mpi_ranks_per_env;
 
-    if(ranks_per>1)
+    if(ranks_per) // if 0 then it's supposed to be run as a forked process
     {
       if(available_ranks%ranks_per)
           die("Number of ranks does not match app\n");
-      int split = (rank-1) / ranks_per;
+      int slaveGroup = (rank-1) / ranks_per;
       MPI_Comm app_com;
-      MPI_Comm_split(slavesComm, split, rank, &app_com);
+      MPI_Comm_split(slavesComm, slaveGroup, rank, &app_com);
 
-      Communicator comm(sdim,adim,slavesComm,app_com,exec,env->paramsfile,flog,verbose);
-      comm.ext_app_run();
+      Communicator comm(sdim,adim,slavesComm,app_com,slaveGroup,exec,env->paramsfile,flog,verbose);
+      do
+        comm.ext_app_run();
+      while (settings.bTrain);
     }
     else
     {
@@ -160,7 +162,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 
     settings.nAgents = env->agents.size();
 
-    if(env->mpi_ranks_per_env>1)
+    if(env->mpi_ranks_per_env)
     { //unblock creation of app comm if needed
       MPI_Comm tmp_com;
       MPI_Comm_split(slavesComm, MPI_UNDEFINED, 0, &tmp_com);

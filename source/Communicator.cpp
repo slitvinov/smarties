@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <cassert>
+#include <dirent.h>
 
 #include <netdb.h>
 #include <unistd.h>
@@ -15,6 +16,7 @@
 static int send_all(int fd, void *buffer, unsigned int size);
 static int recv_all(int fd, void *buffer, unsigned int size);
 static int parse2(char *line, char **argv);
+static int copy_from_dir(const std::string name);
 
 void Communicator::sendState(const int iAgent, const _AGENT_STATUS status,
                           const std::vector<double> state, const double reward)
@@ -360,8 +362,8 @@ Communicator::Communicator(const int socket, const int sdim, const int adim,
   #ifdef MPI_INCLUDED
   appComm( MPI_COMM_NULL ), masterComm( MPI_COMM_NULL ),
   #endif
-  sizeout((3+sdim)*sizeof(double)), sizein(adim*sizeof(double)),
-  nActions(adim), nStates(sdim), spawner(socket==0), app_rank(0),
+  sizeout((3+sdim)*sizeof(double)), sizein(adim*sizeof(double)), nActions(adim),
+  nStates(sdim), spawner(socket==0), slaveGroup(-1), app_rank(0),
   smarties_rank(0), app_size(0), smarties_size(0), verbose(verb),
   dataout(_alloc(sizeout)), datain(_alloc(sizein)), execpath(std::string()),
   paramfile(std::string()), logfile(log), msg_id(0), iter(0), socket_id(socket)
@@ -386,8 +388,8 @@ Communicator::Communicator(const int socket, const int sdim, const int adim,
 Communicator::Communicator(const int socket, const int sdim,const int adim,
                 const MPI_Comm app, const std::string log, const int verb) :
   appComm(app), masterComm(MPI_COMM_NULL),
-  sizeout((3+sdim)*sizeof(double)), sizein(adim*sizeof(double)),
-  nActions(adim), nStates(sdim), spawner(socket==0), app_rank(getRank(app)),
+  sizeout((3+sdim)*sizeof(double)), sizein(adim*sizeof(double)), nActions(adim),
+  nStates(sdim), spawner(socket==0), slaveGroup(-1), app_rank(getRank(app)),
   smarties_rank(0), app_size(getSize(app)), smarties_size(0), verbose(verb),
   dataout(_alloc(sizeout)), datain(_alloc(sizein)), execpath(std::string()),
   paramfile(std::string()), logfile(log), msg_id(0), iter(0), socket_id(socket)
@@ -544,11 +546,11 @@ void Communicator::save() const
 
 //comm directly with master, constructor by smarties, pass this to app
 Communicator::Communicator(const int sdim, const int adim, const MPI_Comm scom,
-  const MPI_Comm acom, const std::string exec, const std::string params,
-  const std::string log, const int verb):
+  const MPI_Comm acom, const int _slaveGroup, const std::string exec,
+  const std::string params, const std::string log, const int verb):
 appComm(acom), masterComm(scom),
 sizeout((3+sdim)*sizeof(double)), sizein(adim*sizeof(double)),
-nActions(adim), nStates(sdim), spawner(0),
+nActions(adim), nStates(sdim), spawner(0), slaveGroup(_slaveGroup),
 app_rank(getRank(acom)), smarties_rank(getRank(scom)),
 app_size(getSize(acom)), smarties_size(getSize(scom)),
 verbose(verb), dataout(_alloc(sizeout)), datain(_alloc(sizein)),
@@ -564,7 +566,7 @@ const bool spawn, const std::string exe, const MPI_Comm scom,
 const std::string log, const int verb):
 appComm(MPI_COMM_NULL), masterComm(scom),
 sizeout((3+sdim)*sizeof(double)), sizein(adim*sizeof(double)),
-nActions(adim), nStates(sdim), spawner(spawn), app_rank(0),
+nActions(adim), nStates(sdim), spawner(spawn), slaveGroup(-1), app_rank(0),
 smarties_rank(getRank(scom)), app_size(0), smarties_size(getSize(scom)),
 verbose(verb), dataout(_alloc(sizeout)), datain(_alloc(sizein)), execpath(exe),
 paramfile(std::string()), logfile(log), msg_id(0), iter(0), socket_id(socket)
@@ -576,20 +578,33 @@ paramfile(std::string()), logfile(log), msg_id(0), iter(0), socket_id(socket)
 
 void Communicator::ext_app_run()
 {
+  assert(slaveGroup>=0);
 	char *largv[256];
 	char line[1024];
   int largc = jobs_init(line, largv);
 
 	char initd[256], newd[256];
   getcwd(initd,256);
-	sprintf(newd,"%s/%s_%d_%d",initd,"simulation",getRank(MPI_COMM_WORLD),iter);
+	sprintf(newd,"%s/%s_%d_%d",initd,"simulation",slaveGroup,iter);
+  if(!app_rank)
   mkdir(newd, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+  MPI_Barrier(appComm);
 	chdir(newd);	// go to the task private directory
-	//redirect_stdout_init();
+
+  //copy any additional file
+  if(!app_rank)
+  if (copy_from_dir("../bin") !=0 )  {
+    printf("Error in copy from dir\n");
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+  MPI_Barrier(appComm);
+
+	redirect_stdout_init();
 	app_main(this, appComm, largc, largv);
-	//redirect_stdout_finalize();
+	redirect_stdout_finalize();
 
 	chdir(initd);	// go up one level
+  iter++;
 }
 
 int Communicator::jobs_init(char *line, char **largv)
@@ -687,4 +702,97 @@ static int parse2(char *line, char **argv)
 	*argv = '\0';   /* mark the end of argument list */
 
 	return argc;
+}
+
+static int cp(const char *from, const char *to)
+{
+	int fd_to, fd_from;
+	char buf[4096];
+	ssize_t nread;
+	int saved_errno;
+	struct stat sb;
+
+	fd_from = open(from, O_RDONLY);
+	if (fd_from < 0)
+		return -1;
+
+	fstat(fd_from, &sb);
+	if (S_ISDIR(sb.st_mode)) {	/* more supported than DT_REG */
+		//printf("It is a directory!\n");
+		fd_to = -1;
+		goto out_error;
+	}
+
+	fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
+	if (fd_to < 0)
+		goto out_error;
+
+	while (nread = read(fd_from, buf, sizeof buf), nread > 0) {
+		char *out_ptr = buf;
+		ssize_t nwritten;
+
+		do {
+			nwritten = write(fd_to, out_ptr, nread);
+			if (nwritten >= 0) {
+				nread -= nwritten;
+				out_ptr += nwritten;
+			}
+			else if (errno != EINTR) {
+				goto out_error;
+			}
+		} while (nread > 0);
+	}
+
+	if (nread == 0) {
+		if (close(fd_to) < 0) {
+			fd_to = -1;
+			goto out_error;
+		}
+		else {	// peh: added due to some issues on monte rosa
+			fsync(fd_to);
+		}
+		close(fd_from);
+
+		/* Success! */
+		return 0;
+	}
+
+out_error:
+	saved_errno = errno;
+
+	close(fd_from);
+	if (fd_to >= 0)
+		close(fd_to);
+
+	errno = saved_errno;
+	return -1;
+}
+
+static int copy_from_dir(const std::string name)
+{
+	DIR *dir;
+	struct dirent *ent;
+	//struct stat sb;
+
+	dir = opendir (name.c_str());
+	if (dir != NULL) {
+		/* print all the files and directories within directory */
+		while ((ent = readdir (dir)) != NULL) {
+			//if (ent->d_type == DT_REG) {
+				//printf ("%s (%d)\n", ent->d_name, ent->d_type);
+				char source[256], dest[256];
+
+				sprintf(source, "%s/%s", name.c_str(), ent->d_name);
+				sprintf(dest, "./%s", ent->d_name);
+				cp(source, dest);
+			//}
+
+		}
+		closedir (dir);
+	} else {
+		/* could not open directory */
+		perror ("oops!");
+		return 1;
+	}
+	return 0;
 }
