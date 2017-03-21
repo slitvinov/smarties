@@ -22,12 +22,13 @@ study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : se
 {
   cheaperThanNetwork = false; //this environment is more expensive to simulate than updating net. todo: think it over?
 #ifdef __Cubism3D
+	//mpi_ranks_per_env = 1;
 	mpi_ranks_per_env = 8;
 #else
 	mpi_ranks_per_env = 1;
 #endif
-	paramsfile="settings_64.txt";
 	//paramsfile="settings_32.txt";
+  paramsfile="settings_64.txt";
 
   assert(settings.senses<=8);
 }
@@ -167,25 +168,11 @@ void TwoActFishEnvironment::setDims()
         //curavture
         aI.bounded.push_back(1);
         aI.values[0].push_back(-.75);
-        /*
-	aI.values[0].push_back(-.50);
-        aI.values[0].push_back(-.25);
-        aI.values[0].push_back(0.00);
-        aI.values[0].push_back(0.25);
-        aI.values[0].push_back(0.50);
-        */
-	aI.values[0].push_back(0.75);
+        aI.values[0].push_back(0.75);
         //period:
         aI.bounded.push_back(1);
         aI.values[1].push_back(-.5);
-        /*
-	aI.values[1].push_back(-.25);
-        aI.values[1].push_back(-.125);
-        aI.values[1].push_back(0.00);
-        aI.values[1].push_back(0.125);
-        aI.values[1].push_back(0.250);
-        */
-	aI.values[1].push_back(0.5);
+        aI.values[1].push_back(0.5);
     }
     resetAll=false;
     commonSetup();
@@ -252,9 +239,9 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 
     //gently push sim away from extreme curvature: not kosher
     if(std::fabs(t_a.vals[0])>0.74)
-      reward = std::min((Real)-1.,reward);
+      reward = std::min((Real)0.,reward);
     if(std::fabs(t_a.vals[1])>0.49)
-      reward = std::min((Real)-1.,reward);
+      reward = std::min((Real)0.,reward);
 
     return new_sample;
 }

@@ -388,7 +388,7 @@ void Learner::updateTargetNetwork()
 bool Learner::checkBatch(unsigned long mastersNiter)
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    if (ndata<batchSize*2) {
+    if (ndata<batchSize*5) {
       mastersNiter_b4PolUpdates = mastersNiter;
       return false;
     }  //do we have enough data? TODO k*ndata?
@@ -398,7 +398,7 @@ bool Learner::checkBatch(unsigned long mastersNiter)
     // ratio is 1 : 1 in DQN paper
     //then let master thread go to help other threads finish the batch
     //otherwise only go to communicate if batch is over
-    if (env->cheaperThanNetwork && bTrain && 
+    if (env->cheaperThanNetwork && bTrain &&
 	mastersNiter > opt->nepoch + mastersNiter_b4PolUpdates)
       return true;
     else
@@ -514,7 +514,7 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, "
             "min_Q %f, max_Q %f, errWeights [%f %f %f], N %d, steps %d, dT %f\n",
           stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ,
-          stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dumpCount, 
+          stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dumpCount,
 	  opt->nepoch, avgTime);
     filestats<<stats.epochCount<<"\t"<<stats.MSE<<"\t" <<stats.relE<<"\t"
              <<stats.avgQ<<"\t"<<stats.maxQ<<"\t"<<stats.minQ<<"\t"

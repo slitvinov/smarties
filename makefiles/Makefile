@@ -8,6 +8,7 @@ viz ?= 0
 config ?= "prod"
 extra ?=
 app ?= "test"
+mpi_lib ?= "default"
 
 ifeq "$(viz)" "1"
 CPPFLAGS+= -D_RL_VIZ
@@ -27,8 +28,11 @@ include make.brutus
 endif
 
 ifeq "$(findstring daint,$(shell hostname))" "daint"
+ifeq "$(mpi_lib)" "mpich"
 include make.daint_mpich # When using self-compiled MPI - for client runs with srun main app
-#include make.daint_srun # When using srun - Default
+else
+include make.daint_srun # When using srun - Default
+endif
 endif
 
 ifeq "$(findstring falcon,$(shell hostname))" "falcon"
@@ -85,8 +89,9 @@ endif
 
 ifeq "$(app)" "cubism"
 lib:
-	make -C ../../CubismUP_3D/makefiles/ clean 
-	make -C ../../CubismUP_3D/makefiles/ config=prod librl -j
+	make -C ../../CubismUP_3D/makefiles/ clean
+	make -C ../../CubismUP_3D/makefiles/ train=true librl -j
+	#make -C ../../CubismUP_3D/makefiles/ librl -j
 else
 LIBAPP= -L. -lsimulation
 

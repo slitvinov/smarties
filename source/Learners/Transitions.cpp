@@ -109,13 +109,14 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
                        const Action & a, const State & sNew, const Real reward)
 {
     ofstream fout;
-    /*
-      fout.open("obs_master.dat",ios::app); //safety
+    {
+      const std::string fname = "obs_agent_"+std::to_string(agentId)+".dat";
+      fout.open(fname.c_str(),ios::app); //safety
       fout << agentId << " "<< info << " " << sOld.printClean().c_str() <<
               sNew.printClean().c_str() << a.printClean().c_str() << reward;
       fout << endl;
       fout.close();
-     */
+    }
 
     if (bWriteToFile) {
         fout.open("history.txt",ios::app);

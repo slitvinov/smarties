@@ -227,8 +227,8 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
           net->predict(scaledSnew, target, timeSeries[k], tgtActivation,
 									net->tgt_weights, net->tgt_biases);
       }
-      const Real relax = tgtUpdateAlpha>1 ? - Real(opt->nepoch) / 1e2 / tgtUpdateAlpha
-					  : - Real(opt->nepoch) / 1e2 * tgtUpdateAlpha;
+			const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/1e2/tgtUpdateAlpha
+																				: -Real(opt->nepoch)/1e2*tgtUpdateAlpha;
       const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
       const Real Vnext = (terminal) ? _t->r : _t->r + realxedGamma*target[0];
 
@@ -270,7 +270,8 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
         _dispose_object(sNewActivation);
     }
 
-		const Real relax = - Real(opt->nepoch) / 1e4;
+		const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch) /1e2 /tgtUpdateAlpha
+																			: -Real(opt->nepoch) /1e2 *tgtUpdateAlpha;
 		const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
 		const Real Vnext = (terminal) ? _t->r : _t->r + realxedGamma*target[0];
 
