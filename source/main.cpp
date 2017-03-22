@@ -248,12 +248,13 @@ int main (int argc, char** argv)
     if (not settings.isLauncher) {
       if (settings.sockPrefix<0)
         die("Not received a prefix for the socket\n");
-      settings.gen = new mt19937(settings.sockPrefix);
+      settings.generators.push_back(mt19937(settings.sockPrefix));
       printf("Launching smarties as client.\n");
       if (settings.restart == "none")
         die("smarties as client works only for evaluating policies.\n");
       settings.bTrain = 0;
       runClient();
+      MPI_Finalize();
       return 0;
     }
 
@@ -268,7 +269,10 @@ int main (int argc, char** argv)
           MPI_Recv(&runSeed, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
     settings.sockPrefix = runSeed+rank;
-    settings.gen = new mt19937(settings.sockPrefix);
+    settings.generators.reserve(settings.nThreads);
+    settings.generators.push_back(mt19937(settings.sockPrefix));
+    for(int i=1; i<settings.nThreads; i++)
+      settings.generators.push_back(mt19937(settings.generators[0]));
 
     const int slavesPerMaster = ceil(nranks/(double)settings.nMasters) - 1;
     const int isMaster = rank % (slavesPerMaster+1) == 0;

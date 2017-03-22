@@ -68,11 +68,12 @@ struct Settings
     Real lRate, greedyEps, gamma, lambda, goalDY, nnPdrop, nnLambda, dqnUpdateC, epsAnneal;
     string learner, restart, configFile, prefix, samplesFile;
     bool bSeparateOutputs, nnTypeInput, bIsMaster;
-    mt19937 * gen;
+    //std::mt19937* gen;
+    std::vector<std::mt19937> generators;
 
     ~Settings()
     {
-    	_dispose_object(gen);
+    	//_dispose_object(gen);
     }
 };
 

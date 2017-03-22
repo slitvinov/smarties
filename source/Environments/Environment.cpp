@@ -12,8 +12,9 @@
 using namespace std;
 
 Environment::Environment(const int nA,const string exe,const int _rank,Settings& _s) :
-execpath(exe), rank(_rank), nAgents(nA*_s.nSlaves), nAgentsPerRank(nA), gamma(_s.gamma),
-g(_s.gen), resetAll(false), cheaperThanNetwork(true), mpi_ranks_per_env(0), paramsfile(string())
+execpath(exe), rank(_rank), nAgents(nA*_s.nSlaves), nAgentsPerRank(nA),
+gamma(_s.gamma), g(&_s.generators[0]), resetAll(false), cheaperThanNetwork(true),
+mpi_ranks_per_env(0), paramsfile(string())
 {
     assert(_s.bIsMaster || nAgentsPerRank == nAgents);
     for (int i=0; i<nAgents; i++) agents.push_back(new Agent(i));

@@ -327,10 +327,12 @@ class WhiteningLayer: public Layer
 {
     const int nNeurons, n1stNeuron, n1stBias, nNeurons_simd;
     const WhiteningLink* const link;
-    mt19937* const gen;
+    std::vector<std::mt19937>& generators;
 public:
-	WhiteningLayer(int _nNeurons, int _n1stNeuron, int _n1stBias, const WhiteningLink* const nl_il, mt19937* const _gen, const int nn_simd) :
-    nNeurons(_nNeurons), n1stNeuron(_n1stNeuron), n1stBias(_n1stBias), nNeurons_simd(nn_simd), link(nl_il), gen(_gen)
+	WhiteningLayer(int _nNeurons, int _n1stNeuron, int _n1stBias,
+    const WhiteningLink* const nl_il, std::vector<std::mt19937>& _gen, const int nn_simd) :
+    nNeurons(_nNeurons), n1stNeuron(_n1stNeuron), n1stBias(_n1stBias), nNeurons_simd(nn_simd),
+    link(nl_il), generators(_gen)
     {
         printf("Whitening layer of size %d starting from ID %d. Means/vars start at bias %d\n",nNeurons,n1stNeuron,n1stBias);
     }
@@ -357,12 +359,12 @@ public:
         for (int n=0; n<nNeurons; n++)
                 inputs[n] = (link_inputs[n] - link_means[n])/std::sqrt(std::max(_eps,  link_vars[n]));
         //for (int n=0; n<nNeurons; n++) inputs[n] = link_inputs[n];
-
+        /*
         if (noise>0) {
             normal_distribution<Real> dis(0.,noise);
             for (int n=0; n<nNeurons; n++) inputs[n] += dis(*gen);
         }
-
+        */
         for (int n=0; n<nNeurons; n++)
             outputs[n] = link_scales[n]*inputs[n] + link_shifts[n];
     }

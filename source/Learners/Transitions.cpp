@@ -17,7 +17,7 @@ maxTotSeqNum(settings.maxTotSeqNum), iOldestSaved(0), bSampleSeq(settings.nnType
 bRecurrent(settings.nnType), bWriteToFile(!(settings.samplesFile=="none")),
 bNormalize(settings.nnTypeInput), bTrain(settings.bTrain==1),
 path(settings.samplesFile), anneal(0), nBroken(0), nTransitions(0),
-nSequences(0), aI(_env->aI), sI(_env->sI), old_ndata(0)
+nSequences(0), aI(_env->aI), sI(_env->sI), generators(settings.generators), old_ndata(0)
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
@@ -26,7 +26,7 @@ nSequences(0), aI(_env->aI), sI(_env->sI), old_ndata(0)
         Tmp[i] = new Sequence();
 
     dist = new discrete_distribution<int> (1,2); //dummy
-    gen = new Gen(settings.gen);
+    gen = new Gen(&generators[0]);
     Set.reserve(maxTotSeqNum);
 }
 
@@ -325,7 +325,7 @@ void Transitions::update_samples_mean(const Real alpha)
   std::cout << "]" << std::endl;
 }
 
-vector<Real> Transitions::standardize(const vector<Real>&  state, const Real noise) const
+vector<Real> Transitions::standardize(const vector<Real>& state, const Real noise, const int thrID) const
 {
     if(!bNormalize) return state;
     vector<Real> tmp(sI.dimUsed*(1+nAppended));
@@ -338,12 +338,10 @@ vector<Real> Transitions::standardize(const vector<Real>&  state, const Real noi
     }
 
     if (noise>0) {
+      assert(generators.size()>thrID);
       std::normal_distribution<Real> distn(0.,noise);
-      #pragma omp critical
-      {
-        for (int i=0; i<sI.dimUsed*(1+nAppended); i++)
-          tmp[i] += distn(*(gen->g));
-      }
+      for (int i=0; i<sI.dimUsed*(1+nAppended); i++)
+        tmp[i] += distn(generators[thrID]);
     }
     return tmp;
 }
@@ -420,12 +418,12 @@ void Transitions::updateSamples()
   std::iota(inds.begin(), inds.end(), 0);
   random_shuffle(inds.begin(), inds.end(), *(gen));
 }
-
+/*
 int Transitions::sample()
 {
     return dist->operator()(*(gen->g));
 }
-
+*/
 void Transitions::save(std::string fname)
 {
     string nameBackup = fname + "_data_stats";

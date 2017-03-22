@@ -16,6 +16,8 @@
 #include "../ANN/Optimizer.h"
 
 class Master;
+#define __NOISE 0.01
+#define __LAG 10
 
 #include "../Scheduler.h"
 #include <list>
@@ -41,7 +43,7 @@ protected:
     unsigned long mastersNiter_b4PolUpdates;
     ActionInfo aInfo;
     StateInfo  sInfo;
-    mt19937 * gen;
+    mt19937* const gen;  //only ok if only thread 0 accesses
     Profiler* profiler;
     Network* net;
     Optimizer* opt;

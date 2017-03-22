@@ -6,7 +6,6 @@
  *  Copyright 2016 ETH Zurich. All rights reserved.
  *
  */
-
 #pragma once
 
 #include "../StateAction.h"
@@ -77,6 +76,7 @@ public:
     int anneal, nBroken, nTransitions, nSequences, old_ndata;
     const StateInfo sI;
     const ActionInfo aI;
+    std::vector<std::mt19937>& generators;
     Gen * gen;
     vector<Sequence*> Set, Tmp;
     vector<int> inds;
@@ -95,14 +95,14 @@ public:
     void pushBackEndedSim(const int agentOne, const int agentEnd);
     void update_samples_mean(const Real alpha = 0.01);
     int syncBoolOr(int needed) const;
-    vector<Real> standardize(const vector<Real>& state, const Real noise = -1) const;
+    vector<Real> standardize(const vector<Real>& state, const Real noise=-1, const int thrID=0) const;
 #ifdef _Priority_
     void updateP();
 #endif
     void save(std::string fname);
     void restart(std::string fname);
     void updateSamples();
-    int sample();
+    //int sample();
     void restartSamples();
     void saveSamples();
     int passData(const int agentId, const int info, const State & sOld,

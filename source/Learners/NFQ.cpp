@@ -170,10 +170,13 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
         const bool terminal = k+2==ndata && data->Set[seq]->ended;
 
         if (not terminal) {
-        	vector<Real> scaledSnew = data->standardize(_t->s);
+					{
+        	vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
     			net->predict(scaledSnew, Qtildes, timeSeries[k], tgtActivation,
 																			net->tgt_weights, net->tgt_biases);
+					}
 
+        	vector<Real> scaledSnew = data->standardize(_t->s);
           if (k+2==ndata)
 						net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation);
           else  //used for next transition:
@@ -185,7 +188,11 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
         const int indBest = maxInd(Qhats);
         for (int i=0; i<nOutputs; i++) errs[i] = 0.;
 
-        const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[indBest];
+				const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/__LAG/tgtUpdateAlpha
+																					: -Real(opt->nepoch)/__LAG*tgtUpdateAlpha;
+	      const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
+	      const Real target = (terminal) ? _t->r : _t->r + realxedGamma*Qtildes[indBest];
+
         const int action = aInfo.actionToLabel(_t->a);
         const Real err =  (target - Qs[action]);
         //printf("t %f r %f e %f Q %f\n", target, _t->r, err, Qs[action]); fflush(0);
@@ -217,7 +224,7 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
 
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
     if (not terminal) {
-    	vector<Real> scaledSnew = data->standardize(_t->s);
+    	vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
         Activation* sNewActivation = net->allocateActivation();
         net->predict(scaledSnew, Qhats,   sNewActivation);
         net->predict(scaledSnew, Qtildes, sNewActivation,
@@ -230,7 +237,11 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
 		const int indBest = maxInd(Qhats);
 		for (int i=0; i<nOutputs; i++) errs[i] = 0.;
 
-    const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[indBest];
+		const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/__LAG/tgtUpdateAlpha
+																			: -Real(opt->nepoch)/__LAG*tgtUpdateAlpha;
+    const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
+    const Real target = (terminal) ? _t->r : _t->r + realxedGamma*Qtildes[indBest];
+
     const int action = aInfo.actionToLabel(_t->a);
     const Real err =  (target - Qs[action]);
     //printf("t %f r %f e %f Q %f\n", target, _t->r, err, Qs[action]); fflush(0);

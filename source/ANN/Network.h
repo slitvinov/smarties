@@ -35,7 +35,7 @@ public:
     int nAgents, nThreads, nInputs, nOutputs, nLayers;
 		int nNeurons, nWeights, nBiases, nStates;
     bool allocatedFrozenWeights, allocatedDroputWeights, bDump;
-    mt19937 * gen;
+    std::vector<std::mt19937>& generators;
     vector<Mem*> mem;
     Grads * grad;
     Real *weights, *biases, *tgt_weights, *tgt_biases;
@@ -87,7 +87,7 @@ public:
     void addOutput(const int size, const string type) {
         addLayer(size,type,false,vector<int>(),true);}
 
-    Network(const Settings & settings);
+    Network(Settings & settings);
 
     ~Network()
     {

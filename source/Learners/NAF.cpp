@@ -223,12 +223,12 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
 
       const bool terminal = k+2==ndata && data->Set[seq]->ended;
       if (not terminal) {
-          vector<Real> scaledSnew = data->standardize(_t->s);
+          vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
           net->predict(scaledSnew, target, timeSeries[k], tgtActivation,
 									net->tgt_weights, net->tgt_biases);
       }
-			const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/1e2/tgtUpdateAlpha
-																				: -Real(opt->nepoch)/1e2*tgtUpdateAlpha;
+			const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/__LAG/tgtUpdateAlpha
+																				: -Real(opt->nepoch)/__LAG*tgtUpdateAlpha;
       const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
       const Real Vnext = (terminal) ? _t->r : _t->r + realxedGamma*target[0];
 
@@ -264,14 +264,14 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
     if (not terminal) {
         Activation* sNewActivation = net->allocateActivation();
-        vector<Real> scaledSnew = data->standardize(_t->s);
+        vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
         net->predict(scaledSnew, target, sNewActivation,
 														net->tgt_weights, net->tgt_biases);
         _dispose_object(sNewActivation);
     }
 
-		const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch) /1e2 /tgtUpdateAlpha
-																			: -Real(opt->nepoch) /1e2 *tgtUpdateAlpha;
+		const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch) /__LAG/tgtUpdateAlpha
+																			: -Real(opt->nepoch) /__LAG*tgtUpdateAlpha;
 		const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
 		const Real Vnext = (terminal) ? _t->r : _t->r + realxedGamma*target[0];
 

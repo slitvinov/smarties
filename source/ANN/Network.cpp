@@ -127,11 +127,13 @@ void Network::build_whitening_layer(Graph* const graph)
     nNeurons += graph->layerSize_simd; //move the counter
 
 
-    WhiteningLink* link = new WhiteningLink(layerSize, firstNeuronFrom, layerSize, firstNeuron_ID, nWeights, graph->layerSize_simd);
+    WhiteningLink* link = new WhiteningLink(layerSize, firstNeuronFrom,
+                  layerSize, firstNeuron_ID, nWeights, graph->layerSize_simd);
     graph->links->push_back(link);
     nWeights += 2*graph->layerSize_simd; //fully connected
 
-    Layer * l = new WhiteningLayer(layerSize, firstNeuron_ID, graph->firstBiasWhiten, link, gen, graph->layerSize_simd);
+    Layer * l = new WhiteningLayer(layerSize, firstNeuron_ID, graph->firstBiasWhiten,
+                                            link, generators, graph->layerSize_simd);
     layers.push_back(l);
 }
 
@@ -375,17 +377,17 @@ void Network::build()
 		Vgrad[i] = new Grads(nWeights, nBiases);
 
 	for (auto & graph : G) //TODO use for save/restart
-		graph->initializeWeights(gen, weights, biases);
+		graph->initializeWeights(&generators[0], weights, biases);
 
 	updateFrozenWeights();
    save("first.net");
 }
 
-Network::Network(const Settings & settings) :
+Network::Network(Settings & settings) :
 Pdrop(settings.nnPdrop), nInputs(0), nOutputs(0), nLayers(0), nNeurons(0),
 nWeights(0), nBiases(0), nStates(0), nAgents(settings.nAgents),
 nThreads(settings.nThreads), allocatedFrozenWeights(false),
-allocatedDroputWeights(false), gen(settings.gen), bDump(not settings.bTrain),
+allocatedDroputWeights(false), generators(settings.generators), bDump(not settings.bTrain),
 bBuilt(false), bAddedInput(false), counter(0), batch_counter(0)
 { }
 
@@ -637,7 +639,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
     uniform_real_distribution<Real> dis(0.,1.);
     //figure out where to place some errors at random in outputs
     for (int i=0; i<seq_len; i++)
-        errorPlacements[i] = nOutputs*dis(*gen);
+        errorPlacements[i] = nOutputs*dis(generators[0]);
 
     Grads * testg = new Grads(nWeights,nBiases);
     Grads * testG = new Grads(nWeights,nBiases);
@@ -730,7 +732,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
     _dispose_object(testg);
     _dispose_object(testG);
     deallocateUnrolledActivations(&timeSeries);
-    printf("\n"); 
+    printf("\n");
     fclose(f);
     fflush(0);
 }

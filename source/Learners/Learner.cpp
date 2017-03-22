@@ -142,7 +142,7 @@ nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), nAppended(settings.dqn
 bRecurrent(settings.nnType==1), bTrain(settings.bTrain==1),
 tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma), greedyEps(settings.greedyEps),
 epsAnneal(settings.epsAnneal), cntUpdateDelay(-1), taskCounter(batchSize),
-aInfo(env->aI), sInfo(env->sI), gen(settings.gen), mastersNiter_b4PolUpdates(0)
+aInfo(env->aI), sInfo(env->sI), gen(&settings.generators[0]), mastersNiter_b4PolUpdates(0)
 {
     for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
     profiler = new Profiler();

@@ -20,7 +20,7 @@
 class Environment
 {
 protected:
-    mt19937 * g;
+    mt19937 * const g; //only ok if only thread 0 accesses
     void commonSetup();
 
 public:

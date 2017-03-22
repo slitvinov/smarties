@@ -142,9 +142,10 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 									net->tgt_weights, net->tgt_biases);
 			}
 			{
-				const Real relax = - Real(opt->nepoch) / 1e4;
-				const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
-				const Real target = (terminal) ? _t->r : _t->r + realxedGamma*vSnew[0];
+				const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/__LAG/tgtUpdateAlpha
+																					: -Real(opt->nepoch)/__LAG*tgtUpdateAlpha;
+	      const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
+	      const Real target = (terminal) ? _t->r : _t->r + realxedGamma*vSnew[0];
 				gradient[0] = target - Q[0];
 				data->Set[seq]->tuples[k]->SquaredError = gradient[0]*gradient[0];
 			}
@@ -240,7 +241,8 @@ void DPG::Train(const int seq, const int samp, const int thrID) const
     }
 
 		{
-			const Real relax = - Real(opt->nepoch) / 1e4;
+			const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/__LAG/tgtUpdateAlpha
+																				: -Real(opt->nepoch)/__LAG*tgtUpdateAlpha;
 			const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
 			const Real target = (terminal) ? _t->r : _t->r + realxedGamma*vSnew[0];
 		  gradient[0] = target - Q[0];
