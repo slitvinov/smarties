@@ -90,10 +90,10 @@ void runSlave(MPI_Comm slavesComm)
 
 void runClient()
 {
+    settings.nSlaves = 1;
     ObjectFactory factory(settings);
     Environment* env = factory.createEnvironment(1, 0);
     settings.nAgents = env->agents.size();
-    settings.nSlaves = 1;
 
     Learner* learner = nullptr;
     if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ")
