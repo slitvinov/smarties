@@ -119,8 +119,8 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
         //slow down extreme updates (normalization):
         //const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_);
         //const Real M1_ = std::max(std::min(TOP,M1),-TOP);
-        const Real DW_ = std::max(std::min(eta_*M1_/sqrt(M2_), eta_),-eta_);
-        //const Real DW_ = eta_*M1_/sqrt(M2_);
+        //const Real DW_ = std::max(std::min(eta_*M1_/sqrt(M2_), eta_),-eta_);
+        const Real DW_ = eta_*M1_/sqrt(M2_);
         _1stMom[i] = M1_;
         _2ndMom[i] = M2_;
         grad[i] = 0.; //reset grads

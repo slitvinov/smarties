@@ -469,6 +469,14 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
         grad[1+nL+ia] *= dQdA*error;
     }
 
+	if(error>0) {
+	//then Q will increase.. slow down the V
+	 Real meangrad = 0;
+	 for (int i=1; i<nA+nL+1; i++)
+		meangrad+= std::fabs(grad[i]);
+	 meangrad/=(nA+nL);
+	 if(grad[0]>meangrad) grad[0] = meangrad;
+	}
 		for (int j=0; j<nA; j++)
 		grad[1+nL+j] *= aInfo.getDactDscale(out[1+nL+j], j);
 		/*
