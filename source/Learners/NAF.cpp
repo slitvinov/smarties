@@ -136,14 +136,9 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
     a.set(aInfo.getScaled(scaledAct));
 
     //random action?
-    Real newEps(greedyEps);
-    if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-      const double handicap = min(data->Set.size()/1e2, opt->nepoch/epsAnneal);
-      newEps = std::exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
-    }
-
+    const Real annealedEps = bTrain ? annealingFactor() + greedyEps : greedyEps;
     uniform_real_distribution<Real> dis(0.,1.);
-    if(dis(*gen) < newEps) a.getRandom();
+    if(dis(*gen) < annealedEps) a.getRandom();
 
 	#ifdef _dumpNet_
    if (!bTrain)
@@ -208,7 +203,7 @@ void NAF::dumpNetworkInfo(const int agentId)
 
 void NAF::Train_BPTT(const int seq, const int thrID) const
 {
-    assert(net->allocatedFrozenWeights);
+    assert(net->allocatedFrozenWeights && bTrain);
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
     const int ndata = data->Set[seq]->tuples.size();
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
@@ -227,9 +222,7 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
           net->predict(scaledSnew, target, timeSeries[k], tgtActivation,
 									net->tgt_weights, net->tgt_biases);
       }
-			const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/__LAG/tgtUpdateAlpha
-																				: -Real(opt->nepoch)/__LAG*tgtUpdateAlpha;
-      const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
+			const Real realxedGamma = gamma * (1. - annealingFactor());
       const Real Vnext = (terminal) ? _t->r : _t->r + realxedGamma*target[0];
 
 			const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);
@@ -249,7 +242,7 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
 
 void NAF::Train(const int seq, const int samp, const int thrID) const
 {
-    assert(net->allocatedFrozenWeights);
+    assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
 
@@ -270,9 +263,7 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
         _dispose_object(sNewActivation);
     }
 
-		const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch) /__LAG/tgtUpdateAlpha
-																			: -Real(opt->nepoch) /__LAG*tgtUpdateAlpha;
-		const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
+		const Real realxedGamma = gamma * (1. - annealingFactor());
 		const Real Vnext = (terminal) ? _t->r : _t->r + realxedGamma*target[0];
 
     const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);

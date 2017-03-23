@@ -70,7 +70,14 @@ public:
         _dispose_object(net);
         _dispose_object(opt);
         _dispose_object(data);
-        for (auto & trash : Vstats) _dispose_object( trash);
+        for (auto & trash : Vstats) _dispose_object(trash);
+    }
+
+    inline Real annealingFactor() const
+    {
+      //number that goes from 1 to 0 with optimizer's steps
+      assert(epsAnneal>1. && opt->nepoch >= 0);
+      return 1. - std::min(1., Real(opt->nepoch)/epsAnneal);
     }
 
     virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;

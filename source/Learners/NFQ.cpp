@@ -83,14 +83,10 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
     a.set(indBest);
 
     //random action?
-    Real newEps(greedyEps);
-    if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-			const double handicap = min(data->Set.size()/1e2, opt->nepoch/epsAnneal);
-      newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
-    }
+    const Real annealedEps = bTrain ? annealingFactor() + greedyEps : greedyEps;
     uniform_real_distribution<Real> dis(0.,1.);
 
-    if(dis(*gen) < newEps) a.set(nOutputs*dis(*gen));
+    if(dis(*gen) < annealedEps) a.set(nOutputs*dis(*gen));
 
     #ifdef _dumpNet_
 		if (!bTrain) dumpNetworkInfo(agentId);
@@ -151,7 +147,7 @@ void NFQ::dumpNetworkInfo(const int agentId)
 
 void NFQ::Train_BPTT(const int seq, const int thrID) const
 {
-    assert(net->allocatedFrozenWeights);
+    assert(net->allocatedFrozenWeights && bTrain);
     vector<Real> Qs(nOutputs),Qhats(nOutputs),Qtildes(nOutputs),errs(nOutputs);
     const int ndata = data->Set[seq]->tuples.size();
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
@@ -188,9 +184,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
         const int indBest = maxInd(Qhats);
         for (int i=0; i<nOutputs; i++) errs[i] = 0.;
 
-				const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/__LAG/tgtUpdateAlpha
-																					: -Real(opt->nepoch)/__LAG*tgtUpdateAlpha;
-	      const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
+	      const Real realxedGamma = gamma * (1. - annealingFactor());
 	      const Real target = (terminal) ? _t->r : _t->r + realxedGamma*Qtildes[indBest];
 
         const int action = aInfo.actionToLabel(_t->a);
@@ -211,7 +205,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
 
 void NFQ::Train(const int seq, const int samp, const int thrID) const
 {
-    assert(net->allocatedFrozenWeights);
+    assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
     vector<Real> Qs(nOutputs),Qhats(nOutputs),Qtildes(nOutputs),errs(nOutputs);
 
@@ -237,9 +231,9 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
 		const int indBest = maxInd(Qhats);
 		for (int i=0; i<nOutputs; i++) errs[i] = 0.;
 
-		const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/__LAG/tgtUpdateAlpha
-																			: -Real(opt->nepoch)/__LAG*tgtUpdateAlpha;
-    const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
+		//const Real annealingTime = tgtUpdateAlpha>1 ? __LAG*tgtUpdateAlpha
+		//																						: __LAG/tgtUpdateAlpha;
+    const Real realxedGamma = gamma * (1. - annealingFactor());
     const Real target = (terminal) ? _t->r : _t->r + realxedGamma*Qtildes[indBest];
 
     const int action = aInfo.actionToLabel(_t->a);

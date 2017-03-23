@@ -90,14 +90,9 @@ void DPG::select(const int agentId, State& s, Action& a,
     //load computed policy into a
 		a.set(aInfo.getScaled(output));
 
-    Real newEps(greedyEps); //random action?
-		if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const double handicap = min(data->Set.size()/1e2, opt->nepoch/epsAnneal);
-        newEps = std::exp(-handicap) + greedyEps;
-    }
-
+    const Real annealedEps = bTrain ? annealingFactor() + greedyEps : greedyEps;
     uniform_real_distribution<Real> dis(0.,1.);
-    if(dis(*gen) < newEps)  a.getRandom();
+    if(dis(*gen) < annealedEps)  a.getRandom();
 }
 
 void DPG::Train_BPTT(const int seq, const int thrID) const
@@ -142,9 +137,7 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 									net->tgt_weights, net->tgt_biases);
 			}
 			{
-				const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/__LAG/tgtUpdateAlpha
-																					: -Real(opt->nepoch)/__LAG*tgtUpdateAlpha;
-	      const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
+				const Real realxedGamma = gamma * (1. - annealingFactor());
 	      const Real target = (terminal) ? _t->r : _t->r + realxedGamma*vSnew[0];
 				gradient[0] = target - Q[0];
 				data->Set[seq]->tuples[k]->SquaredError = gradient[0]*gradient[0];
@@ -241,9 +234,7 @@ void DPG::Train(const int seq, const int samp, const int thrID) const
     }
 
 		{
-			const Real relax=tgtUpdateAlpha>1 ? -Real(opt->nepoch)/__LAG/tgtUpdateAlpha
-																				: -Real(opt->nepoch)/__LAG*tgtUpdateAlpha;
-			const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
+			const Real realxedGamma = gamma * (1. - annealingFactor());
 			const Real target = (terminal) ? _t->r : _t->r + realxedGamma*vSnew[0];
 		  gradient[0] = target - Q[0];
 		  data->Set[seq]->tuples[samp]->SquaredError = gradient[0]*gradient[0];
