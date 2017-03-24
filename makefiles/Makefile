@@ -51,7 +51,7 @@ CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter
 CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
 CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 #-DNDEBUG
 #CPPFLAGS += -funsafe-math-optimizations
-CPPFLAGS += -falign-functions=16 #-DBOOST_UBLAS_NDEBUG
+CPPFLAGS += -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
 CPPFLAGS += -ffast-math
 
 ifeq "$(config)" "debug"
