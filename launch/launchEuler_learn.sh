@@ -13,7 +13,11 @@ mkdir -p ${BASEPATH}${RUNFOLDER}
 
 if [ $# -gt 4 ] ; then
     POLICY=$5
-    cp ${POLICY} ${BASEPATH}${RUNFOLDER}/policy.net
+   #cp ${POLICY} ${BASEPATH}${RUNFOLDER}/policy.net
+   cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
+   #cp ${POLICY}_mems ${BASEPATH}${RUNFOLDER}/policy_mems
+   cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
+   cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
 fi
 if [ $# -lt 7 ] ; then
     NTASK=2 #n tasks per node
