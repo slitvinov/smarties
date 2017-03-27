@@ -9,9 +9,8 @@
 
 #pragma once
 
-//#include "../Util/util.h"
 #include <sys/un.h>
-#include "../Util/Communicator.h"
+#include "../Communicator.h"
 #include "../Agent.h"
 #include "../StateAction.h"
 #include "../ANN/Network.h"
@@ -21,18 +20,18 @@
 class Environment
 {
 protected:
-    const string execpath;
-    const int rank, isLauncher, nAgents, workid;
-    const double gamma;
-    mt19937 * g;
-    Communicator * communicator;
-
+    mt19937 * const g; //only ok if only thread 0 accesses
     void commonSetup();
+
 public:
-    long unsigned int iter;
-    bool resetAll;
+    const string execpath;
+    string paramsfile;
+    const int rank, nAgents, nAgentsPerRank;
+    const double gamma;
+    bool resetAll, cheaperThanNetwork;
+    int mpi_ranks_per_env;
     vector<Agent*> agents;
-    StateInfo sI;
+    StateInfo  sI;
     ActionInfo aI;
     Environment(const int nAgents, const string execpath,
                 const int _rank, Settings & settings);
@@ -40,10 +39,7 @@ public:
     virtual ~Environment();
 
     virtual void setDims () = 0;
-    virtual int getState(int & iAgent) ;
-    virtual void setAction(const int & iAgent);
-    void close_Comm ();
-    void setup_Comm ();
+
     virtual bool pickReward(const State& t_sO, const Action& t_a,
                             const State& t_sN, Real& reward, const int info);
     virtual bool predefinedNetwork(Network* const net) const;

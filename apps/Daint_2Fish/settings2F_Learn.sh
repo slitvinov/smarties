@@ -6,7 +6,7 @@ SETTINGS+=" -study learning"
 SETTINGS+=" -factory factory2F_Learn"
 SETTINGS+=" -length 0.2"
 SETTINGS+=" -nu 8e-6"
-SETTINGS+=" -lmax 5"
+SETTINGS+=" -lmax 6"
 SETTINGS+=" -restartpath restart"
 
 SETTINGS+=" -lambda 1e5"

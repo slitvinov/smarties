@@ -45,6 +45,14 @@ public:
     {
         _s = *s;
     }
+    void setState(State& _s)
+    {
+        *s = _s;
+    }
+    void swapStates()
+    {
+        std::swap(s, sOld);
+    }
     void getAction(Action& _a) const
     {
         _a = *a;

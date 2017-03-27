@@ -20,6 +20,7 @@ lline((settings.senses/2) % 2), //if eq {  2,3,    6,7}
 press((settings.senses/4) % 2), //if eq {      4,5,6,7}
 study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
+  cheaperThanNetwork = false; //this environment is more expensive to simulate than updating net. todo: think it over?
   assert(settings.senses<8);
 }
 
@@ -143,7 +144,6 @@ void NewFishEnvironment::setDims()
         aI.values.resize(aI.dim);
         aI.bounded.push_back(1);
         for (int i=0; i<aI.dim; i++) {
-            aI.bounds.push_back(7); //Number of possible actions to choose from
 
             aI.values[i].push_back(-.75);
             aI.values[i].push_back(-.50);
@@ -156,20 +156,6 @@ void NewFishEnvironment::setDims()
     }
     resetAll=true;
     commonSetup();
-}
-
-void NewFishEnvironment::setAction(const int & iAgent)
-{
-    if ( agents[iAgent]->a->vals[0] > .75 ) {
-    	printf("Action 0 is too large (>0), reassigned to prevent sim from crashing\n");
-      agents[iAgent]->a->vals[0] = 0.75;
-    }
-    if ( agents[iAgent]->a->vals[0] <-.75 ) {
-    	printf("Action 0 is too large (<0), reassigned to prevent sim from crashing\n");
-      agents[iAgent]->a->vals[0] = -.75;
-    }
-
-    Environment::setAction(iAgent);
 }
 
 bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
@@ -240,13 +226,9 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 5) {
-        //reward = (t_sN.vals[16]-.3)/(.6-.3) - 16*std::pow(t_sN.vals[1],4);
-        reward = (t_sN.vals[16]-.3)/(.6-.3);
-        if ( fabs(t_sN.vals[1]) > .5 ) reward += 1-2*fabs(t_sN.vals[1]);
+        reward = (t_sN.vals[16]-.3)/(.6-.3) -8*std::pow(t_sN.vals[1],4);
+        if (t_sN.vals[0] > 0.75) reward = 0;
         if (new_sample) reward = -1./(1.-gamma);
-//         if (t_sN.vals[0] < -.65) reward += 6*(t_sN.vals[0]+.65);
-//         if (t_sN.vals[0] > 0.55) reward -= 6*(t_sN.vals[0]-.55);
-//         new_sample = true;
     }
     else {
         die("Wrong reward\n");
@@ -263,14 +245,4 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
     //    if(std::fabs(t_a.vals[0])>0.7)
     //
     return new_sample;
-}
-
-int NewFishEnvironment::getState(int & iAgent)
-{
-    int bStatus = Environment::getState(iAgent);
-
-//    for (int j=180; j<sI.dim; j++)
-//        agents[iAgent]->s->vals[j] = min(agents[iAgent]->s->vals[j], 5.);
-
-    return bStatus;
 }

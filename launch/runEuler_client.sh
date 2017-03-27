@@ -1,4 +1,5 @@
 #!/bin/bash
+SOCK=$1
 ulimit -c unlimited
 module load gcc/4.9.2
 
@@ -22,6 +23,7 @@ fi
 source $SETTINGSNAME
 SETTINGS+=" --nThreads 1"
 SETTINGS+=" --isServer 0"
+SETTINGS+=" --sockPrefix ${SOCK}"
 
 echo $SETTINGS > settings.txt
 env > environment.log
@@ -32,4 +34,3 @@ env > environment.log
 mpirun -n 1 -launcher fork ./exec ${SETTINGS}
 
 #mpich_run -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none -launcher ssh -f lsf_hostfile valgrind  --tool=memcheck  --leak-check=full --show-reachable=no --show-possibly-lost=no --track-origins=yes ./exec ${SETTINGS}
-

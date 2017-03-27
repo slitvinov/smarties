@@ -5,7 +5,7 @@
 #define _XOPEN_SOURCE 500
 #define _BSD_SOURCE
 #define __RLON 1
-#define __RANDACT 1
+#define __RANDACT 0
 #define __NGENSKIP 1
 #include <stdio.h>
 #include <stdlib.h> /* free() */
@@ -24,7 +24,6 @@
 /*#define _RESTART_*/
 #define _IODUMP_ 0
 #define JOBMAXTIME	0
-
 
 /* the objective (fitness) function to be minimized */
 void fitfun(double * const x, int N, double* const output, int * const info);
@@ -67,6 +66,7 @@ int is_feasible(double* const pop, double* const lower_bound,
 void update_state(cmaes_t* const evo, double* const state, double* oldFmedian,
 																			double* oldXmean, const int func_dim)
 {
+  double eps = 1e-16;
 	double* xMean = cmaes_GetNew(evo, "xmean");
 	double xProgress = 0.;
 	for (int i=0; i<func_dim; i++)
@@ -77,9 +77,19 @@ void update_state(cmaes_t* const evo, double* const state, double* oldFmedian,
 
 
   //ratio between standard deviations
-	const double ratio1 = sqrt(evo->mindiagC/evo->maxdiagC);
+  const double d1 = evo->meandiagC < 0 ? evo->meandiagC-eps : evo->meandiagC+eps;
+  const double d2 = evo->meanEW < 0 ? evo->meanEW-eps : evo->meanEW+eps;
+  /*printf("%g %g %g %g %g %g\n",
+  d1,d2,
+  evo->mindiagC, evo->maxdiagC,
+  evo->minEW, evo->maxEW);
+  fflush(0);*/
+  const double ratio1 = (evo->mindiagC/d1);
   //ratio between eigenvalues
-	const double ratio2 = sqrt(evo->minEW/evo->maxEW);
+	const double ratio2 = (evo->minEW/d2);
+  const double ratio3 = (evo->maxdiagC/d1);
+  //ratio between eigenvalues
+	const double ratio4 = (evo->maxEW/d2);
   //distinction makes sense if function is rotated
 
   //prevent nans/infs from infecting the delicate snowflake that is the RL code
@@ -96,10 +106,12 @@ void update_state(cmaes_t* const evo, double* const state, double* oldFmedian,
 
 	state[0] = ratio1;
 	state[1] = ratio2;
-	state[2] = sqrt(xProgress);
-	state[3] = fProgress;
-	state[4] = (double)func_dim;
-	state[5] = evo->trace;
+	state[2] = ratio3;
+	state[3] = ratio4;
+	state[4] = sqrt(xProgress);
+	state[5] = fProgress;
+	state[6] = (double)func_dim;
+	state[7] = evo->trace;
 
 	//advance:
 	*oldFmedian = fmedian;
@@ -118,7 +130,7 @@ int main(int argn, char **args)
     const int sock      = std::stoi(args[1]);
     const int nthreads  = 1;
     const int act_dim   = 6;
-    const int state_dim = 6;
+    const int state_dim = 8;
     std::seed_seq seq{sock};
 		std::vector<int> seeds(nthreads);
 		seq.generate(seeds.begin(), seeds.end());
@@ -197,10 +209,12 @@ int main(int argn, char **args)
         {   // initial state
 						state[0] = 1;
 						state[1] = 1;
-						state[2] = 0;
-						state[3] = 0;
-						state[4] = (double)func_dim;
+						state[2] = 1;
+						state[3] = 1;
+						state[4] = 0;
 						state[5] = 0;
+						state[6] = (double)func_dim;
+						state[7] = 0;
 						comm.sendState(thrid, 1, state, 0);
 
 						comm.recvAction(actions);
@@ -216,9 +230,9 @@ int main(int argn, char **args)
                              lambda_fac = lambda/(double)lambda_0;
                              arFunvals = cmaes_ChangePopSize(evo, lambda);
             }
-            printf("selected action %f %f %f %f %f\n",
-            evo->sp.ccov1,evo->sp.ccovmu,evo->sp.ccumcov,evo->sp.cs,lambda_fac);
-            fflush(0);
+            //printf("selected action %f %f %f %f %f\n",
+            //evo->sp.ccov1,evo->sp.ccovmu,evo->sp.ccumcov,evo->sp.cs,lambda_fac);
+            //fflush(0);
         }
 #elif __RANDACT
         {
@@ -362,8 +376,10 @@ int main(int argn, char **args)
 					state[1] = 0;
 					state[2] = 0;
 					state[3] = 0;
-					state[4] = (double)func_dim;
+					state[4] = 0;
 					state[5] = 0;
+					state[6] = (double)func_dim;
+					state[7] = 0;
 
 					for (int i = 0; i < lambda; ++i) {
 						std::ostringstream o;
@@ -386,7 +402,7 @@ int main(int argn, char **args)
           fitfun(xfinal, func_dim, &ffinal, info);
 	        const double final_dist =
 														 eval_distance_from_optimum(xfinal, func_dim, info);
-	        const double r_end = std::max(-1., 1-1e3*final_dist);
+	        const double r_end = std::max(-1., 1-1e2*final_dist);
 
 					//printf("Sending %f %f %f %f %f %f\n",
 					//		state[0],state[1],state[2],state[3],state[4],r_end);

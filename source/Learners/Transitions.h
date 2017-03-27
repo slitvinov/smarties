@@ -6,7 +6,6 @@
  *  Copyright 2016 ETH Zurich. All rights reserved.
  *
  */
-
 #pragma once
 
 #include "../StateAction.h"
@@ -58,15 +57,15 @@ class Transitions
 protected:
     const MPI_Comm mastersComm;
     Environment * const env;
-    const int nAppended, batchSize, maxSeqLen;
+    const int nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
     int iOldestSaved;
-    const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize;
+    const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize, bTrain;
     const string path;
-    vector<Real> Inp, std, mean;
+    vector<Real> std, mean;
     vector<Sequence*> Buffered;
     discrete_distribution<int> * dist;
 
-    void add(const int agentId, const int info, const State& sOld,
+    int add(const int agentId, const int info, const State& sOld,
              const Action& a, const State& sNew, const Real reward);
 
     void push_back(const int & agentId);
@@ -77,6 +76,7 @@ public:
     int anneal, nBroken, nTransitions, nSequences, old_ndata;
     const StateInfo sI;
     const ActionInfo aI;
+    std::vector<std::mt19937>& generators;
     Gen * gen;
     vector<Sequence*> Set, Tmp;
     vector<int> inds;
@@ -92,17 +92,19 @@ public:
         for (auto & trash : Buffered) _dispose_object( trash);
     }
     void clearFailedSim(const int agentOne, const int agentEnd);
+    void pushBackEndedSim(const int agentOne, const int agentEnd);
     void update_samples_mean(const Real alpha = 0.01);
-    vector<Real> standardize(const vector<Real>& state, const Real noise = -1) const;
+    int syncBoolOr(int needed) const;
+    vector<Real> standardize(const vector<Real>& state, const Real noise=-1, const int thrID=0) const;
 #ifdef _Priority_
     void updateP();
 #endif
     void save(std::string fname);
     void restart(std::string fname);
     void updateSamples();
-    int sample();
+    //int sample();
     void restartSamples();
     void saveSamples();
-    void passData(const int agentId, const int info, const State & sOld,
+    int passData(const int agentId, const int info, const State & sOld,
                   const Action & a, const State & sNew, const Real reward);
 };

@@ -7,6 +7,8 @@ UNAME_S := $(shell uname -s)
 viz ?= 0
 config ?= "prod"
 extra ?=
+app ?= "test"
+mpi_lib ?= "default"
 
 ifeq "$(viz)" "1"
 CPPFLAGS+= -D_RL_VIZ
@@ -26,8 +28,11 @@ include make.brutus
 endif
 
 ifeq "$(findstring daint,$(shell hostname))" "daint"
-#include make.daint	# When using self-compiled MPI - AVOID !!
+ifeq "$(mpi_lib)" "mpich"
+include make.daint_mpich # When using self-compiled MPI - for client runs with srun main app
+else
 include make.daint_srun # When using srun - Default
+endif
 endif
 
 ifeq "$(findstring falcon,$(shell hostname))" "falcon"
@@ -43,30 +48,34 @@ CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wno-reorder -Wno-deprecated
 CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
 
-CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native
+CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
 CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 #-DNDEBUG
 #CPPFLAGS += -funsafe-math-optimizations
-CPPFLAGS += -falign-functions=16 #-DBOOST_UBLAS_NDEBUG
+CPPFLAGS += -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
 CPPFLAGS += -ffast-math
 
 ifeq "$(config)" "debug"
-CPPFLAGS+= -g
+CPPFLAGS+= -g -O2
 endif
 ifeq "$(config)" "prod"
-CPPFLAGS += -DNDEBUG
+CPPFLAGS += -DNDEBUG -O2
+endif
+ifeq "$(config)" "fit"
+CPPFLAGS += -DNDEBUG -O3
 endif
 
 ifeq "$(CC)" "icc"
 CPPFLAGSOPT+= -diag-disable remark -wd68 -xHOST -ansi-alias -fno-fnalias -fno-alias
 endif
 
-CPPFLAGS+= -I/usr/local/include -fopenmp
+CPPFLAGS+= -I/usr/local/include -fopenmp -D__Smarties_
 LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = Communicator.o	ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
-		Environment.o CMAEnvironment.o CartEnvironment.o TwoActFishEnvironment.o TwoFishEnvironment.o NewFishEnvironment.o DeadFishEnvironment.o \
-		Learner.o NAF.o NFQ.o DPG.o Transitions.o\
+		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o TwoActFishEnvironment.o \
+		TwoFishEnvironment.o NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
+		Learner.o NAF.o NFQ.o DPG.o Transitions.o \
 		Scheduler.o LSTMNet.o Network.o Optimizer.o #Links.o Layers.o
 #ExternalAgent.o
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
@@ -78,8 +87,20 @@ ifneq "$(MAKECMDGOALS)" "clean"
 -include $(notdir $(patsubst %.cpp,%.d,$(CPP_FILES)))
 endif
 
-rl: $(OBJ_FILES)
-	$(CC) $(LIBS) $^ -o $@
+ifeq "$(app)" "cubism"
+lib:
+	make -C ../../CubismUP_3D/makefiles/ clean
+	make -C ../../CubismUP_3D/makefiles/ train=true librl -j
+	#make -C ../../CubismUP_3D/makefiles/ librl -j
+else
+LIBAPP= -L. -lsimulation
+
+lib: ext_app_test.o
+	ar rs libsimulation.a $^
+endif
+
+rl: $(OBJ_FILES) lib
+	$(CC) $(LIBS) $(OBJ_FILES) $(LIBAPP) -o $@
 
 LSTM: anntest.o ArgumentParser.o Profiler.o Links.o Layers.o Network.o Optimizer.o LSTMNet.o
 	g++ $(LIBS) $^ -o $@
@@ -97,4 +118,4 @@ clean:
 	rm -f *.o
 	rm -f *.s
 	rm -f *.d
-	rm -f rl
+	rm -f libsimulation.a rl

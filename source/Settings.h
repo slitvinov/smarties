@@ -12,6 +12,7 @@ using namespace std;
 
 //#include <cstddef>
 #include <utility>
+//#define __posDef_layers_
 #include <string>
 #include <random>
 #include <vector>
@@ -26,7 +27,7 @@ using namespace std;
 #define __vec_width__ 8
 //#define _scaleR_
 #define _BPTT_
-//#define _dumpNet_
+#define _dumpNet_
 
 typedef double Real;
 #define MPI_VALUE_TYPE MPI_DOUBLE
@@ -51,24 +52,28 @@ struct Settings
     Settings() : saveFreq(1e4), randSeed(0), rewardType(0), senses(0),
     nAgents(1), nSlaves(1), nThreads(-1), nnInputs(-1), nnOutputs(-1),
     nnLayer1(32), nnLayer2(32), nnLayer3(0), nnLayer4(0), nnLayer5(0), nnType(1),
-    dqnAppendS(0), dqnBatch(1), bTrain(1), maxSeqLen(200), nMasters(1), isLauncher(1),
+    dqnAppendS(0), dqnBatch(1), bTrain(1), maxSeqLen(200), minSeqLen(5),
+    maxTotSeqNum(5000), nMasters(1), isLauncher(1),
     lRate(.0001), greedyEps(.1), gamma(.9), lambda(0), goalDY(0), nnPdrop(0),
-    nnLambda(0), dqnUpdateC(1000.), learner((string)"NFQ"),
+    nnLambda(0), dqnUpdateC(1000.), epsAnneal(1e4), learner((string)"NFQ"),
     restart((string)"policy"), configFile((string)"factory"), prefix((string)"./"),
-    samplesFile((string)"../obs_master.txt"), bSeparateOutputs(false), nnTypeInput(true)
+    samplesFile((string)"../obs_master.txt"), bSeparateOutputs(false),
+    nnTypeInput(true), bIsMaster(true)
     {}
 
     int saveFreq, randSeed, rewardType, senses, nAgents, nSlaves, nThreads;
     int nnInputs, nnOutputs, nnLayer1, nnLayer2, nnLayer3, nnLayer4, nnLayer5;
-    int nnType, dqnAppendS, dqnBatch, bTrain, maxSeqLen, nMasters, isLauncher, sockPrefix;
-    Real lRate, greedyEps, gamma, lambda, goalDY, nnPdrop, nnLambda, dqnUpdateC;
+    int nnType, dqnAppendS, dqnBatch, bTrain, maxSeqLen, minSeqLen;
+    int maxTotSeqNum, nMasters, isLauncher, sockPrefix;
+    Real lRate, greedyEps, gamma, lambda, goalDY, nnPdrop, nnLambda, dqnUpdateC, epsAnneal;
     string learner, restart, configFile, prefix, samplesFile;
-    bool bSeparateOutputs, nnTypeInput;
-    mt19937 * gen;
+    bool bSeparateOutputs, nnTypeInput, bIsMaster;
+    //std::mt19937* gen;
+    std::vector<std::mt19937> generators;
 
     ~Settings()
     {
-    	_dispose_object(gen);
+    	//_dispose_object(gen);
     }
 };
 

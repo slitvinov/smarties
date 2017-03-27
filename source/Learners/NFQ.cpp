@@ -18,8 +18,8 @@
 #include <algorithm>
 #include <cmath>
 
-NFQ::NFQ(MPI_Comm comm, Environment*const env, Settings & settings) :
-Learner(comm,env,settings)
+NFQ::NFQ(MPI_Comm comm, Environment*const _env, Settings & settings) :
+Learner(comm,_env,settings)
 {
 	string lType = bRecurrent ? "LSTM" : "Normal";
 	vector<int> lsize;
@@ -79,77 +79,75 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
     _dispose_object(currActivation);
 
     //load computed policy into a
-    Real Val(-1e6); int Nbest(-1);
-    for (int i=0; i<nOutputs; ++i) {
-        if (output[i]>Val) { Nbest=i; Val=output[i]; }
-    }
-    a.set(Nbest);
+		const int indBest = maxInd(output);
+    a.set(indBest);
 
     //random action?
-    Real newEps(greedyEps);
-    if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-			const double handicap = min(data->Set.size()/1e2, opt->nepoch/1e4);
-      newEps = exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
-    }
+    const Real annealedEps = bTrain ? annealingFactor() + greedyEps : greedyEps;
     uniform_real_distribution<Real> dis(0.,1.);
 
-    if(dis(*gen) < newEps) a.set(nOutputs*dis(*gen));
+    if(dis(*gen) < annealedEps) a.set(nOutputs*dis(*gen));
 
     #ifdef _dumpNet_
-    	net->dump(agentId);
-
-	   const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
-	  	if (ndata == 0) return;
-
-	  	vector<Real> Qs(nOutputs);
-	  	vector<Activation*> timeSeries_base = net->allocateUnrolledActivations(ndata);
-	  	net->clearErrors(timeSeries_base);
-
-	  	for (int k=0; k<ndata; k++) {
-	  		const Tuple * const _t = data->Tmp[agentId]->tuples[k];
-	  		vector<Real> scaledSnew = data->standardize(_t->s);
-	  		net->predict(scaledSnew, Qs, timeSeries_base, k);
-	  	}
-
-	  	const int thisAction = aInfo.actionToLabel(data->Tmp[agentId]->tuples[ndata-1]->a);
-	  	//sensitivity of value for this action in this state wrt all previous inputs
-	  	for (int ii=0; ii<ndata; ii++)
-	  	for (int i=0; i<nInputs; i++) {
-	  	   vector<Activation*> timeSeries_diff = net->allocateUnrolledActivations(ndata);
-
-	      for (int k=0; k<ndata; k++) {
-	         const Tuple * const _t = data->Tmp[agentId]->tuples[k];
-	  			vector<Real> scaledSnew = data->standardize(_t->s);
-	  			if (k==ii) scaledSnew[i] = 0;
-	  			net->predict(scaledSnew, Qs, timeSeries_diff, k);
-	      }
-
-	  		vector<Real> out_diff = net->getOutputs(timeSeries_diff.back());
-	  		vector<Real> out_base = net->getOutputs(timeSeries_base.back());
-         const Tuple * const _t = data->Tmp[agentId]->tuples[ii];
-	  		vector<Real> scaledSnew = data->standardize(_t->s);
-	  		timeSeries_base[ii]->errvals[i] = (out_diff[thisAction]-out_base[thisAction])/scaledSnew[i];
-
-	      net->deallocateUnrolledActivations(&timeSeries_diff);
-	  	}
-
-	  	string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
-	  	ofstream out(fname.c_str());
-	  	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
-	  	for (int k=0; k<ndata; k++) {
-	  		for (int j=0; j<nInputs; j++)
-	  			out << timeSeries_base[k]->errvals[j] << " ";
-	  		out << "\n";
-	  	}
-	  	out.close();
-
-	   net->deallocateUnrolledActivations(&timeSeries_base);
+		if (!bTrain) dumpNetworkInfo(agentId);
     #endif
+}
+
+void NFQ::dumpNetworkInfo(const int agentId)
+{
+	net->dump(agentId);
+
+ 	const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
+	if (ndata == 0) return;
+
+	vector<Real> Qs(nOutputs);
+	vector<Activation*> timeSeries_base = net->allocateUnrolledActivations(ndata);
+	net->clearErrors(timeSeries_base);
+
+	for (int k=0; k<ndata; k++) {
+		const Tuple * const _t = data->Tmp[agentId]->tuples[k];
+		vector<Real> scaledSnew = data->standardize(_t->s);
+		net->predict(scaledSnew, Qs, timeSeries_base, k);
+	}
+
+	const int thisAction = aInfo.actionToLabel(data->Tmp[agentId]->tuples[ndata-1]->a);
+	//sensitivity of value for this action in this state wrt all previous inputs
+	for (int ii=0; ii<ndata; ii++)
+	for (int i=0; i<nInputs; i++) {
+		 vector<Activation*> timeSeries_diff = net->allocateUnrolledActivations(ndata);
+
+		for (int k=0; k<ndata; k++) {
+			 const Tuple * const _t = data->Tmp[agentId]->tuples[k];
+			vector<Real> scaledSnew = data->standardize(_t->s);
+			if (k==ii) scaledSnew[i] = 0;
+			net->predict(scaledSnew, Qs, timeSeries_diff, k);
+		}
+
+		vector<Real> out_diff = net->getOutputs(timeSeries_diff.back());
+		vector<Real> out_base = net->getOutputs(timeSeries_base.back());
+		 const Tuple * const _t = data->Tmp[agentId]->tuples[ii];
+		vector<Real> scaledSnew = data->standardize(_t->s);
+		timeSeries_base[ii]->errvals[i] = (out_diff[thisAction]-out_base[thisAction])/scaledSnew[i];
+
+		net->deallocateUnrolledActivations(&timeSeries_diff);
+	}
+
+	string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
+	ofstream out(fname.c_str());
+	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+	for (int k=0; k<ndata; k++) {
+		for (int j=0; j<nInputs; j++)
+			out << timeSeries_base[k]->errvals[j] << " ";
+		out << "\n";
+	}
+	out.close();
+
+ net->deallocateUnrolledActivations(&timeSeries_base);
 }
 
 void NFQ::Train_BPTT(const int seq, const int thrID) const
 {
-    assert(net->allocatedFrozenWeights);
+    assert(net->allocatedFrozenWeights && bTrain);
     vector<Real> Qs(nOutputs),Qhats(nOutputs),Qtildes(nOutputs),errs(nOutputs);
     const int ndata = data->Set[seq]->tuples.size();
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
@@ -168,24 +166,27 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
         const bool terminal = k+2==ndata && data->Set[seq]->ended;
 
         if (not terminal) {
-        	vector<Real> scaledSnew = data->standardize(_t->s);
+					{
+        	vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
     			net->predict(scaledSnew, Qtildes, timeSeries[k], tgtActivation,
 																			net->tgt_weights, net->tgt_biases);
+					}
 
+        	vector<Real> scaledSnew = data->standardize(_t->s);
           if (k+2==ndata)
-								net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation);
-          else  net->predict(scaledSnew, Qhats, timeSeries, k+1);
+						net->predict(scaledSnew, Qhats, timeSeries[k], tgtActivation);
+          else  //used for next transition:
+						net->predict(scaledSnew, Qhats, timeSeries, k+1);
         }
 
         // find best action for sNew with moving wghts, evaluate it with tgt wgths:
         // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
-        int Nbest(-1);
-        Real Vhat(-1e10);
-        for (int i=0; i<nOutputs; i++) {
-            errs[i] = 0.;
-            if(Qhats[i]>Vhat) { Vhat=Qhats[i]; Nbest=i;  }
-        }
-        const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[Nbest];
+        const int indBest = maxInd(Qhats);
+        for (int i=0; i<nOutputs; i++) errs[i] = 0.;
+
+	      const Real realxedGamma = gamma * (1. - annealingFactor());
+	      const Real target = (terminal) ? _t->r : _t->r + realxedGamma*Qtildes[indBest];
+
         const int action = aInfo.actionToLabel(_t->a);
         const Real err =  (target - Qs[action]);
         //printf("t %f r %f e %f Q %f\n", target, _t->r, err, Qs[action]); fflush(0);
@@ -204,7 +205,7 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
 
 void NFQ::Train(const int seq, const int samp, const int thrID) const
 {
-    assert(net->allocatedFrozenWeights);
+    assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
     vector<Real> Qs(nOutputs),Qhats(nOutputs),Qtildes(nOutputs),errs(nOutputs);
 
@@ -217,7 +218,7 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
 
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
     if (not terminal) {
-    	vector<Real> scaledSnew = data->standardize(_t->s);
+    	vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
         Activation* sNewActivation = net->allocateActivation();
         net->predict(scaledSnew, Qhats,   sNewActivation);
         net->predict(scaledSnew, Qtildes, sNewActivation,
@@ -227,14 +228,14 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
 
     // find best action for sNew with moving wghts, evaluate it with tgt wgths:
     // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
-    int Nbest(-1);
-    Real Vhat(-1e10);
-    for (int i=0; i<nOutputs; i++) {
-			errs[i] = 0.;
-    	if(Qhats[i]>Vhat) { Vhat=Qhats[i]; Nbest=i;  }
-    }
+		const int indBest = maxInd(Qhats);
+		for (int i=0; i<nOutputs; i++) errs[i] = 0.;
 
-    const Real target = (terminal) ? _t->r : _t->r + gamma*Qtildes[Nbest];
+		//const Real annealingTime = tgtUpdateAlpha>1 ? __LAG*tgtUpdateAlpha
+		//																						: __LAG/tgtUpdateAlpha;
+    const Real realxedGamma = gamma * (1. - annealingFactor());
+    const Real target = (terminal) ? _t->r : _t->r + realxedGamma*Qtildes[indBest];
+
     const int action = aInfo.actionToLabel(_t->a);
     const Real err =  (target - Qs[action]);
     //printf("t %f r %f e %f Q %f\n", target, _t->r, err, Qs[action]); fflush(0);
@@ -245,7 +246,7 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
     data->Set[seq]->tuples[samp]->SquaredError = err*err;
 
     if (thrID==0) net->backProp(errs, sOldActivation, net->grad);
-	else net->backProp(errs, sOldActivation, net->Vgrad[thrID]);
+		else net->backProp(errs, sOldActivation, net->Vgrad[thrID]);
 
     _dispose_object(sOldActivation);
 }

@@ -99,7 +99,7 @@ class NormalLink: public Link
 
     void initialize(mt19937* const gen, Real* const _weights) const override
     {
-      printf("Initializing normal\n");
+      //printf("Initializing normal\n");
         const Real range = std::sqrt(6./(nO + nI));
         uniform_real_distribution<Real> dis(-range,range);
         //normal_distribution<Real> dis(0.,range);

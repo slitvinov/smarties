@@ -8,23 +8,26 @@ SETTINGSNAME=$4
 MYNAME=`whoami`
 BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
-lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
+ulimit -c unlimited
+#lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
 
 if [ $# -gt 4 ] ; then
     POLICY=$5
-    cp $5 ${BASEPATH}${RUNFOLDER}/policy.net
+    cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
+    #cp ${POLICY}_mems ${BASEPATH}${RUNFOLDER}/policy_mems
+    cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
 fi
 if [ $# -lt 7 ] ; then
-    NTASK=2 #n tasks per node
-    NTHREADS=12 #n threads per task
+    NTASK=1 #n tasks per node
+    NTHREADS=24 #n threads per task
 else
     NTASK=$6
     NTHREADS=$7
 fi
 if [ $# -lt 8 ] ; then
-WCLOCK=24:00:00 #chaining
+  WCLOCK=24:00:00 #chaining
 else
-    WCLOCK=$8
+  WCLOCK=$8
 fi
 NPROCESS=$((${NNODES}*${NTASK}))
 
@@ -46,7 +49,7 @@ fi
 source settings.sh
 SETTINGS+=" --nThreads ${NTHREADS}"
 echo $SETTINGS > settings.txt
-echo  ${SETTINGS}
+echo ${SETTINGS}
 echo ${NPROCESS} ${NNODES} ${NTASK} ${NTHREADS}
 
 cat <<EOF >daint_sbatch
@@ -57,6 +60,8 @@ cat <<EOF >daint_sbatch
 #SBATCH --output=${RUNFOLDER}_out_%j.txt
 #SBATCH --error=${RUNFOLDER}_err_%j.txt
 #SBATCH --time=${WCLOCK}
+# #SBATCH --partition=debug
+# #SBATCH --time=00:30:00
 #SBATCH --nodes=${NNODES}
 #SBATCH --ntasks-per-node=${NTASK}
 #SBATCH --cpus-per-task=$((${NTHREADS}/2)) # Hyperthreaded
@@ -69,8 +74,11 @@ export OMP_NUM_THREADS=${NTHREADS}
 export CRAY_CUDA_MPS=1
 
 srun --ntasks ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --cpus-per-task=$((${NTHREADS}/2)) --threads-per-core=2 ./exec ${SETTINGS}
+
+#srun --ntasks ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --cpus-per-task=$((${NTHREADS}/2)) --threads-per-core=2 valgrind  --tool=memcheck  --leak-check=full --show-reachable=no --show-possibly-lost=no --track-origins=yes ./exec ${SETTINGS}
 EOF
 
 chmod 755 daint_sbatch
+
 
 sbatch daint_sbatch

@@ -250,7 +250,7 @@ cmaes_SayHello(cmaes_t * const t)
   /* write initial message */
   sprintf(t->sOutString,
           "(%d,%d)-CMA-ES(mu_eff=%.1f), Ver=\"%s\", dimension=%d, diagonalIterations=%ld, randomSeed=%d (%s)",
-          t->sp.mu, t->sp.lambda, t->sp.mueff, t->version, t->sp.N, t->sp.diagonalCov, t->sp.seed, getTimeStr());
+          t->sp.mu, t->sp.lambda, t->sp.mueff, t->version, t->sp.N, (long)t->sp.diagonalCov, t->sp.seed, getTimeStr());
 
   return t->sOutString;
 }
@@ -300,7 +300,10 @@ cmaes_init_final(cmaes_t * const t /* "this" */)
   t->sp.seed = cmaes_random_init( &t->rand, (long unsigned int) t->sp.seed);
 
   N = t->sp.N; /* for convenience */
-
+  if (N<1) {
+    printf("Dimensionality abort\n");
+    abort();
+  }
   /* initialization  */
   for (i = 0, trace = 0.; i < N; ++i)
     trace += t->sp.rgInitialStds[i]*t->sp.rgInitialStds[i];
@@ -337,11 +340,12 @@ cmaes_init_final(cmaes_t * const t /* "this" */)
       t->C[i] = new_double(i+1);
       t->B[i] = new_double(N);
   }
+	//GN: changed size of array: made independent of lambda
+  t->arFuncValueHist = new_double(10+(int)ceil(30.*N));
 
  ///////////////////////////////////////////////////
   t->publicFitness = new_double(t->sp.lambda);
   t->rgFuncValue = new_double(t->sp.lambda);
-  t->arFuncValueHist = new_double(10+(int)ceil(30.*N));
 
   t->index = (int *) new_void(t->sp.lambda, sizeof(int));
   for (i = 0; i < t->sp.lambda; ++i)
@@ -356,8 +360,7 @@ cmaes_init_final(cmaes_t * const t /* "this" */)
     for (j = 0; j < i; ++j)
        t->C[i][j] = t->B[i][j] = t->B[j][i] = 0.;
 
-  for (i = 0; i < N; ++i)
-    {
+  for (i = 0; i < N; ++i) {
       t->B[i][i] = 1.;
       t->C[i][i] = t->rgD[i] = t->sp.rgInitialStds[i] * sqrt(N / trace);
       t->C[i][i] *= t->C[i][i];
@@ -367,8 +370,10 @@ cmaes_init_final(cmaes_t * const t /* "this" */)
   t->minEW = rgdouMin(t->rgD, N); t->minEW = t->minEW * t->minEW;
   t->maxEW = rgdouMax(t->rgD, N); t->maxEW = t->maxEW * t->maxEW;
 
-  t->maxdiagC=t->C[0][0]; for(i=1;i<N;++i) if(t->maxdiagC<t->C[i][i]) t->maxdiagC=t->C[i][i];
-  t->mindiagC=t->C[0][0]; for(i=1;i<N;++i) if(t->mindiagC>t->C[i][i]) t->mindiagC=t->C[i][i];
+  t->maxdiagC=t->C[0][0];
+  for(i=1;i<N;++i) if(t->maxdiagC<t->C[i][i]) t->maxdiagC=t->C[i][i];
+  t->mindiagC=t->C[0][0];
+  for(i=1;i<N;++i) if(t->mindiagC>t->C[i][i]) t->mindiagC=t->C[i][i];
 
   /* set xmean */
   for (i = 0; i < N; ++i)
@@ -378,11 +383,12 @@ cmaes_init_final(cmaes_t * const t /* "this" */)
     for (i = 0; i < N; ++i)
       t->rgxmean[i] += t->sigma * t->rgD[i] * cmaes_random_Gauss(&t->rand);
 
-  if (strcmp(t->sp.resumefile, "_no_")  != 0)
+  if (strcmp(t->sp.resumefile, "_no_")  != 0) {
+    printf("Calling resume_distribution\n");
     cmaes_resume_distribution(t, t->sp.resumefile);
+  }
 
   return (t->publicFitness);
-
 } /* cmaes_init_final() */
 
 double * cmaes_ChangePopSize(cmaes_t * const t,const int newlambda)
@@ -413,6 +419,14 @@ double * cmaes_ChangePopSize(cmaes_t * const t,const int newlambda)
       s2 += t->sp.weights[i]*t->sp.weights[i];
     }
     t->sp.mueff = s1*s1/s2;
+    t->sp.mucov = t->sp.mueff;
+    double t1, t2;
+    t1 = 2. / ((N+1.4142)*(N+1.4142));
+    t2 = (2.*t->sp.mueff-1.) / ((N+2.)*(N+2.)+t->sp.mueff);
+    t2 = (t2 > 1) ? 1 : t2;
+    t2 = (1./t->sp.mucov) * t1 + (1.-1./t->sp.mucov) * t2;
+    t->sp.ccov = t2;
+
     for (i=0; i<t->sp.mu; ++i)
       t->sp.weights[i] /= s1;
 
@@ -665,8 +679,9 @@ cmaes_SamplePopulation(cmaes_t * const t)
 
   /* calculate eigensystem  */
   if (!t->flgEigensysIsUptodate) {
-    if (!flgdiag)
+    if (!flgdiag) {
       cmaes_UpdateEigensystem(t, 0);
+    }
     else {
         for (i = 0; i < N; ++i)
             t->rgD[i] = sqrt(t->C[i][i]);
@@ -676,7 +691,7 @@ cmaes_SamplePopulation(cmaes_t * const t)
         cmaes_timings_start(&t->eigenTimings);
       }
   }
-
+  fflush(0);
   /* treat minimal standard deviations and numeric problems */
   TestMinStdDevs(t);
 
@@ -874,7 +889,10 @@ cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
 
   /* Generate index */
   Sorted_index(rgFunVal, t->index, t->sp.lambda);
-
+  if (t->sp.damps<0.99999) {
+    printf("sp.damps\n");
+    abort();
+  }
   /* Test if function values are identical, escape flat fitness */
   if (fabs(t->rgFuncValue[t->index[0]] - t->rgFuncValue[t->index[(int)t->sp.lambda/2]]) < eps) {
     t->sigma *= exp(0.2+t->sp.cs/t->sp.damps);
@@ -890,7 +908,7 @@ cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
                  "   Reconsider the formulation of the objective function",0,0);
     //return (t->rgxmean);
   }
-
+  if(t->sigma<eps) t->sigma=eps;
   /* update function value history */
   const int sizeFunHist = 10+(int)ceil(t->sp.N*30.);
   for(i = sizeFunHist-1; i > 0; --i)
@@ -920,7 +938,8 @@ cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
         sum += t->B[j][i] * t->rgBDz[j];
     else
       sum = t->rgBDz[i];
-    t->rgdTmp[i] = sum / t->rgD[i];
+    const double dmp = t->rgD[i]<0 ? t->rgD[i]-eps : t->rgD[i]+eps;
+    t->rgdTmp[i] = sum / dmp;
   }
 
   /* TODO?: check length of t->rgdTmp and set an upper limit, e.g. 6 stds */
@@ -952,19 +971,27 @@ cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
     psxps += t->rgps[i] * t->rgps[i];
 
   /* cumulation for covariance matrix (pc) using B*D*z~N(0,C) */
-  hsig = sqrt(psxps) / sqrt(1. - pow(1.-t->sp.cs, 2*t->gen)) / t->chiN
-    < 1.4 + 2./(N+1);
+  {
+  const double denum = sqrt(1. - pow(1.-t->sp.cs, 2*t->gen)) * t->chiN;
+  hsig = sqrt(psxps) / (denum+eps) < 1.4 + 2./(N+1);
+  }
+
   for (i = 0; i < N; ++i) {
     t->rgpc[i] = (1. - t->sp.ccumcov) * t->rgpc[i] +
       hsig * sqrt(t->sp.ccumcov * (2. - t->sp.ccumcov)) * t->rgBDz[i];
   }
-
+  if(t->sp.cs<eps) {
+    printf("t->sp.cs\n"); abort();
+  }
+  if(t->sp.mucov<eps) {
+    printf("t->sp.mucov\n"); abort();
+  }
   /* stop initial phase */
   if (t->flgIniphase &&
       t->gen > douMin(1/t->sp.cs, 1+N/t->sp.mucov))
     {
-      if (psxps / t->sp.damps / (1.-pow((1. - t->sp.cs), t->gen))
-          < N * 1.05)
+      const double denum =  1.-pow((1. - t->sp.cs), t->gen);
+      if (psxps / t->sp.damps / (denum+eps) < N * 1.05)
         t->flgIniphase = 0;
     }
 
@@ -1013,10 +1040,14 @@ cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
   /* update of sigma */
   t->trace = sqrt(psxps);
   t->sigma *= exp(((sqrt(psxps)/t->chiN)-1.)*t->sp.cs/t->sp.damps);
-  //if(t->sigma<2e-8) t->sigma = 2e-8;
-  //if(t->sigma>1e7) t->sigma = 1e7;
-  if (isnan(t->sigma)) {t->sigma = 0; perror("Fucking nan sigma 2\n");
-  t->isStuck = 1; }
+  if(t->sigma<1e-16) t->sigma = 1e-16;
+  if(t->sigma>1e7) t->sigma = 1e7;
+  
+  if (isnan(t->sigma)) {
+    t->sigma = 0;
+    perror("Fucking nan sigma 2\n");
+    t->isStuck = 1;
+  }
   t->state = 3;
 
   return (t->rgxmean);
@@ -1029,8 +1060,12 @@ cmaes_UpdateDistribution( cmaes_t * const t, const double *rgFunVal)
 static void
 Adapt_C2(cmaes_t * const t, int hsig)
 {
+  double eps = 1e-16;
   int i, j, k, N=t->sp.N;
   int flgdiag = ((t->sp.diagonalCov == 1) || (t->sp.diagonalCov >= t->gen));
+  for (i = 0; i < N; ++i)
+    for (j = 0; j < N; ++j)
+      if(isnan(t->C[i][j]))  t->C[i][j] = 0;
 
   if (t->sp.ccov != 0. && t->flgIniphase == 0) {
 
@@ -1039,13 +1074,15 @@ Adapt_C2(cmaes_t * const t, int hsig)
                 douMin(t->sp.ccov * (1./t->sp.mucov) * (flgdiag ? (N+1.5) / 3. : 1.), 1.);
     double ccovmu = (t->sp.ccovmu > 0) ? t->sp.ccovmu :
                 douMin(t->sp.ccov * (1-1./t->sp.mucov)* (flgdiag ? (N+1.5) / 3. : 1.), 1.-ccov1);
-    double sigmasquare = t->sigma * t->sigma;
+    double sigmasquare = t->sigma * t->sigma + eps;
     t->flgEigensysIsUptodate = 0;
     //printf("%f %f %f %f %f\n", ccov1, ccovmu, t->sp.ccumcov, t->sp.cs, sigmasquare);
     /* update covariance matrix */
+
     for (i = 0; i < N; ++i)
       for (j = flgdiag ? i : 0; j <= i; ++j) {
-        t->C[i][j] = (1 - ccov1 - ccovmu) * t->C[i][j]
+        const double dampedOld = t->C[i][j]>1e6 ? 1e6 : (t->C[i][j]<-1e6 ? -1e6 : t->C[i][j]);
+        t->C[i][j] = (1 - ccov1 - ccovmu) * dampedOld
           + ccov1
             * (t->rgpc[i] * t->rgpc[j]
                + (1-hsig)*t->sp.ccumcov*(2.-t->sp.ccumcov) * t->C[i][j]);
@@ -1056,14 +1093,19 @@ Adapt_C2(cmaes_t * const t, int hsig)
             / sigmasquare;
         }
       }
-    /* update maximal and minimal diagonal value */
+    /* update maximal, minimal. mean diagonal values */
+    t->meandiagC = 0;
     t->maxdiagC = t->mindiagC = t->C[0][0];
     for (i = 1; i < N; ++i) {
+      if(!isnan(t->C[i][i]))
+        t->meandiagC += t->C[i][i];
+
       if (t->maxdiagC < t->C[i][i])
         t->maxdiagC = t->C[i][i];
       else if (t->mindiagC > t->C[i][i])
         t->mindiagC = t->C[i][i];
     }
+    t->meandiagC/=N;
   } /* if ccov... */
 }
 
@@ -1074,6 +1116,10 @@ static void
 TestMinStdDevs(cmaes_t * const t)
   /* increases sigma */
 {
+  if (t->sp.damps<0.99999) {
+    printf("sp.damps 2\n");
+    abort();
+  }
   int i, N = t->sp.N;
   if (t->sp.rgDiffMinChange == NULL)
     return;
@@ -1082,8 +1128,9 @@ TestMinStdDevs(cmaes_t * const t)
     while (t->sigma * sqrt(t->C[i][i]) < t->sp.rgDiffMinChange[i] && safety++ < 1e4) {
       t->sigma *= exp(0.05+t->sp.cs/t->sp.damps);
     }
-  //if(t->sigma<2e-8) t->sigma = 2e-8;
-  //if(t->sigma>1e7) t->sigma = 1e7;
+  //
+  if(t->sigma<1e-16) t->sigma = 1e-16;
+  if(t->sigma>1e7) t->sigma = 1e7;
 } /* cmaes_TestMinStdDevs() */
 
 
@@ -1705,8 +1752,8 @@ cmaes_TestForTermination( cmaes_t * const t)
               /* t->C[iKoo][iKoo] *= (1 + t->sp.ccov); */
               /* flg = 1; */
               cp += sprintf(cp,
-                            "NoEffectCoordinate: standard deviation 0.2*%7.2e in coordinate %d without effect\n",
-                            t->sigma*sqrt(t->C[iKoo][iKoo]), iKoo);
+                    "NoEffectCoordinate: standard deviation 0.2*%7.2e in coordinate %d without effect\n",
+                    t->sigma*sqrt(t->C[iKoo][iKoo]), iKoo);
               break;
             }
 
@@ -1927,6 +1974,7 @@ Check_Eigen( int N,  double ** const C, double * const diag, double ** const Q)
 */
 {
     /* compute Q diag Q^T and Q Q^T to check */
+  double eps = 1e-16;
   int i, j, k, res = 0;
   double cc, dd;
   static char s[324];
@@ -1938,7 +1986,7 @@ Check_Eigen( int N,  double ** const C, double * const diag, double ** const Q)
         dd += Q[i][k] * Q[j][k];
       }
       /* check here, is the normalization the right one? */
-      if (fabs(cc - C[i>j?i:j][i>j?j:i])/sqrt(C[i][i]*C[j][j]) > 1e-10
+      if (fabs(cc - C[i>j?i:j][i>j?j:i])/(sqrt(C[i][i]*C[j][j])+eps) > 1e-10
           && fabs(cc - C[i>j?i:j][i>j?j:i]) > 3e-14) {
         sprintf(s, "%d %d: %.17e %.17e, %e",
                 i, j, cc, C[i>j?i:j][i>j?j:i], cc-C[i>j?i:j][i>j?j:i]);
@@ -1982,7 +2030,13 @@ cmaes_UpdateEigensystem(cmaes_t * const t, int flgforce)
       return;
   }
   cmaes_timings_tic(&t->eigenTimings);
-  //printf("%p\n",t->rgD); fflush(0);
+  /*
+  int j;
+  for (j=0;j<N;j++)
+    for (i=0;i<N;i++)
+      printf("%g ",t->C[i][j]);
+    printf("\n");
+    */
   Eigen( N, t->C, t->rgD, t->B, t->rgdTmp);
 
   cmaes_timings_toc(&t->eigenTimings);
@@ -1990,6 +2044,9 @@ cmaes_UpdateEigensystem(cmaes_t * const t, int flgforce)
   /* find largest and smallest eigenvalue, they are supposed to be sorted anyway */
   t->minEW = rgdouMin(t->rgD, N);
   t->maxEW = rgdouMax(t->rgD, N);
+  for (i=0;i<N;i++) if(!isnan(t->rgD[i]))
+    t->meanEW += t->rgD[i];
+  t->meanEW/=N;
 
   if (t->flgCheckEigen)
     /* needs O(n^3)! writes, in case, error message in error file */
@@ -2013,7 +2070,7 @@ cmaes_UpdateEigensystem(cmaes_t * const t, int flgforce)
 #endif
 
   for (i = 0; i < N; ++i)
-    t->rgD[i] = sqrt(t->rgD[i]);
+    t->rgD[i] = t->rgD[i]<=0 ? 0 : sqrt(t->rgD[i]);
 
   t->flgEigensysIsUptodate = 1;
   t->genOfEigensysUpdate = t->gen;
@@ -2047,10 +2104,13 @@ Eigen( int N,  double ** const C, double* const diag, double ** const  Q, double
   if (C != Q) {
     for (i=0; i < N; ++i)
       for (j = 0; j <= i; ++j)
-        if( isnan(C[i][j]) )
-        Q[i][j] = Q[j][i] = C[i][j] = 0;
-        else
-        Q[i][j] = Q[j][i] = C[i][j];
+        if( isnan(C[i][j]) ) {
+          printf("Nan C\n");
+          Q[i][j] = Q[j][i] = C[i][j] = 0;
+        }
+        else {
+          Q[i][j] = Q[j][i] = C[i][j];
+        }
   }
 
 #if 0
@@ -2133,8 +2193,8 @@ QLalgo2 (int n, double* const d, double* const e, double ** const V) {
             do { /* while (fabs(e[l]) > eps*tst1); */
                double dl1, h;
                double g = d[l];
-               //double p = (fabs(e[l]) > eps) ? (d[l+1] - g) / (2.0 * e[l]) : 0;
-               double p = (d[l+1] - g) / (2.0 * e[l]) ;
+               double p = (fabs(e[l]) > eps) ? (d[l+1] - g) / (2.0 * e[l]) : 0;
+               //double p = (d[l+1] - g) / (2.0 * e[l]) ;
                double r = myhypot(p, 1.);
 
                iter = iter + 1;  /* Could check iteration count here */
@@ -2142,7 +2202,7 @@ QLalgo2 (int n, double* const d, double* const e, double ** const V) {
                /* Compute implicit shift */
 
                if (p < 0) {
-                  r = -r;
+                  r = -r -eps;
                }
                d[l] = e[l] / (p + r);
                d[l+1] = e[l] * (p + r);
@@ -2171,8 +2231,8 @@ QLalgo2 (int n, double* const d, double* const e, double ** const V) {
                   h = c * p;
                   r = myhypot(p, e[i]);
                   e[i+1] = s * r;
-                  s = e[i] / r;
-                  c = p / r;
+                  s = e[i] / (r+eps);
+                  c = p / (r+eps);
                   p = c * d[i] - s * g;
                   d[i+1] = h + s * (c * g + s * d[i]);
 
@@ -2184,14 +2244,15 @@ QLalgo2 (int n, double* const d, double* const e, double ** const V) {
                      V[k][i] = c * V[k][i] - s * h;
                   }
                }
-               p = -s * s2 * c3 * el1 * e[l] / dl1;
+               const double denom = dl1<0 ? dl1-eps : dl1+eps;
+               p = -s * s2 * c3 * el1 * e[l] / denom;
                e[l] = s * p;
                d[l] = c * p;
              }
 
                /* Check for convergence. */
 
-            } while (fabs(e[l]) > eps*tst1 && safety++ < 1e4);
+            } while (fabs(e[l]) > eps*tst1 && safety++ < 1e8);
          }
          d[l] = d[l] + f;
          e[l] = 0.0;
@@ -2244,7 +2305,7 @@ Householder2(int n, double ** const V, double * const d, double * const e) {
   */
 
   int i,j,k;
-  //double eps = 1e-16; /* Math.pow(2.0,-52.0);  == 2.22e-16 */
+  double eps = 1e-16; /* Math.pow(2.0,-52.0);  == 2.22e-16 */
 
       for (j = 0; j < n; j++) {
          d[j] = V[n-1][j];
@@ -2258,10 +2319,11 @@ Householder2(int n, double ** const V, double * const d, double * const e) {
 
          double scale = 0.0;
          double h = 0.0;
-         for (k = 0; k < i; k++) {
+         for (k = 0; k < i; k++)
             scale = scale + fabs(d[k]);
-         }
-         if (scale == 0.0) {
+
+
+         if (scale < eps) {
             e[i] = d[i-1];
             for (j = 0; j < i; j++) {
                d[j] = V[i-1][j];
@@ -2271,7 +2333,6 @@ Householder2(int n, double ** const V, double * const d, double * const e) {
          } else {
 
            /* Generate Householder vector */
-
             double f, g, hh;
 
             for (k = 0; k < i; k++) {
@@ -2285,6 +2346,13 @@ Householder2(int n, double ** const V, double * const d, double * const e) {
             }
             e[i] = scale * g;
             h = h - f * g;
+            if (h<0) {
+              printf("h is neg\n");
+              h -= eps;
+            } else {
+              h += eps;
+            }
+
             d[i-1] = f - g;
             for (j = 0; j < i; j++) {
                e[j] = 0.0;
@@ -2333,7 +2401,8 @@ Householder2(int n, double ** const V, double * const d, double * const e) {
          h = d[i+1];
          if (h != 0.0) {
             for (k = 0; k <= i; k++) {
-               d[k] = V[k][i+1] / h;
+              const double denom = h<0 ? h-eps : h+eps;
+               d[k] = V[k][i+1] / denom;
             }
             for (j = 0; j <= i; j++) {
                double g = 0.0;
@@ -2545,6 +2614,7 @@ long cmaes_random_Start( cmaes_random_t *t, long unsigned inseed)
 double cmaes_random_Gauss(cmaes_random_t *t)
 {
   double x1, x2, rquad, fac;
+  double eps = 1e-16;
 
   if (t->flgstored)
   {
@@ -2556,7 +2626,7 @@ double cmaes_random_Gauss(cmaes_random_t *t)
     x1 = 2.0 * cmaes_random_Uniform(t) - 1.0;
     x2 = 2.0 * cmaes_random_Uniform(t) - 1.0;
     rquad = x1*x1 + x2*x2;
-  } while(rquad >= 1 || rquad <= 0);
+  } while(rquad >= 1 || rquad <= eps);
   fac = sqrt(-2.0*log(rquad)/rquad);
   t->flgstored = 1;
   t->hold = fac * x1;
@@ -3079,15 +3149,11 @@ static double
 myhypot(double a, double b)
 /* sqrt(a^2 + b^2) numerically stable. */
 {
-  double r = 0;
-  if (fabs(a) > fabs(b)) {
-    r = b/a;
-    r = fabs(a)*sqrt(1+r*r);
-  } else if (b != 0) {
-    r = a/b;
-    r = fabs(b)*sqrt(1+r*r);
-  }
-  return r;
+  double eps = 1e-16;
+  double _min = (fabs(a) > fabs(b)) ? fabs(b) : fabs(a);
+  double _max = (fabs(a) > fabs(b)) ? fabs(a) : fabs(b);
+  double ratio = _min/(_max+eps);
+  return _max*sqrt(1+ratio*ratio);
 }
 
 static int SignOfDiff(const void *d1, const void * d2)

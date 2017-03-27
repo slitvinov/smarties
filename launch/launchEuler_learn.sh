@@ -1,21 +1,27 @@
 #!/bin/bash
 EXECNAME=rl
 RUNFOLDER=$1
-NNODES=$2  
+NNODES=$2
 APP=$3
 SETTINGSNAME=$4
 
-BASEPATH="../"
+MYNAME=`whoami`
+BASEPATH="/cluster/scratch/${MYNAME}/smarties/"
+#BASEPATH="../"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 #lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
 
 if [ $# -gt 4 ] ; then
     POLICY=$5
-    cp ${POLICY} ${BASEPATH}${RUNFOLDER}/policy.net
+   #cp ${POLICY} ${BASEPATH}${RUNFOLDER}/policy.net
+   cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
+   #cp ${POLICY}_mems ${BASEPATH}${RUNFOLDER}/policy_mems
+   cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
+   cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
 fi
 if [ $# -lt 7 ] ; then
     NTASK=2 #n tasks per node
-    NTHREADS=12 #n threads per task
+    NTHREADS=24 #n threads per task
 else
     NTASK=$6
     NTHREADS=$7
@@ -30,7 +36,7 @@ if [ $# -lt 9 ] ; then
 else
     TIMES=$9
 fi
-NTHREADSPERNODE=12
+NTHREADSPERNODE=24
 NPROCESS=$((${NNODES}*${NTASK}))
 NPROCESSORS=$((${NNODES}*${NTHREADSPERNODE}))
 
@@ -47,7 +53,7 @@ cd ${BASEPATH}${RUNFOLDER}
 
 ./run.sh ${NPROCESS} ${NTHREADS} ${NTASK}
 #bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -W ${WCLOCK} ./run.sh  ${NPROCESS} ${NTHREADS} ${NTASK}
- 
+
 for (( c=1; c<=${TIMES}-1; c++ ))
 do
     bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -w "ended(${RUNFOLDER})" -W ${WCLOCK} ./run.sh  ${NPROCESS} ${NTHREADS} ${NTASK}

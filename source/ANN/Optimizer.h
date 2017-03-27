@@ -18,7 +18,7 @@ using namespace std;
 class Optimizer
 { //basic momentum update
 protected:
-    const int nWeights, nBiases;
+    const int nWeights, nBiases, bTrain;
     Network * net;
     Profiler * profiler;
     Real *_1stMomW, *_1stMomB;

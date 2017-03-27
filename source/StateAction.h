@@ -40,7 +40,7 @@ struct StateInfo
 
 class State
 {
-public:
+ public:
 	StateInfo sInfo;
 	vector<Real> vals;
 
@@ -75,136 +75,205 @@ public:
 			o << vals[i]<< " ";
 		}
 		return o.str();
-    }
+  }
 
-    void copy_observed(vector<Real>& res, const int append=0) const
-    {
-        int k = append*sInfo.dimUsed;
-				assert(res.size() >= k+sInfo.dimUsed);
-        for (int i=0; i<sInfo.dim; i++)
-        if (sInfo.inUse[i]) {
-            res[k] = vals[i];
-            k++;
-        }
-    }
+  void copy_observed(vector<Real>& res, const int append=0) const
+  {
+			//copy state into res, append is used to chain multiple states together
+      int k = append*sInfo.dimUsed;
+			assert(res.size() >= k+sInfo.dimUsed);
+      for (int i=0; i<sInfo.dim; i++)
+      if (sInfo.inUse[i]) {
+          res[k] = vals[i];
+          k++;
+      }
+  }
 
-    void copy(vector<Real>& res) const
-    {
-        for (int i=0; i<sInfo.dim; i++)
-            res[i] = vals[i];
-    }
+	vector<Real> copy_observed() const
+  {
+			vector<Real> ret(sInfo.dimUsed);
+      for (int i=0, k=0; i<sInfo.dim; i++)
+      if (sInfo.inUse[i]) ret[k++] = vals[i];
+			return ret;
+  }
 
-    void pack(byte* buf) const
-    {
-        Real* dbuf = (Real*) buf;
-        for (int i=0; i<sInfo.dim; i++)
-            dbuf[i] = (Real) vals[i];
-    }
+  void copy(vector<Real>& res) const
+  {
+      for (int i=0; i<sInfo.dim; i++)
+          res[i] = vals[i];
+  }
 
-    void unpack(byte* buf)
-    {
-        Real* dbuf = (Real*) buf;
-        for (int i=0; i<sInfo.dim; i++)
-            vals[i] = dbuf[i];
-    }
+	//pack and unpack for MPI comm
+  void pack(double*const buf) const
+  {
+      for (int i=0; i<sInfo.dim; i++)
+			buf[i] = (double)vals[i];
+  }
 
-    void set(vector<Real> data)
-    {
-        for (int i=0; i<sInfo.dim; i++)
-            vals[i] = data[i];
-    }
+  void unpack(const double*const buf)
+  {
+      for (int i=0; i<sInfo.dim; i++)
+			vals[i] = (Real)buf[i];
+  }
 
+  void set(const vector<Real> data)
+  {
+      for (int i=0; i<sInfo.dim; i++)
+          vals[i] = data[i];
+  }
 };
 
 
 struct ActionInfo
 {
-	int dim; //number of actions per turn
-	vector<int> bounds, shifts, bounded; //if finite set, number of choices per "dim"
-  vector<vector<Real>> values; //used for rescaling, would be used if action is input to NN
+	int dim, maxLabel; //number of actions per turn
+	vector<int> bounded; //whether action have a lower && upper bounded (bool)
+	//vector<int> boundedTOP, boundedBOT; TODO
+
+	//each component of action vector has a vector of possible values that action can take with DQN
+  vector<vector<Real>> values; //max and min of this vector also used for rescaling
+	vector<int> shifts; //used by DQN to map int to an (entry in each component of values)
+
   ActionInfo() {}
 
   ActionInfo& operator= (const ActionInfo& actionInfo)
 	{
-			bounded = actionInfo.bounded;
       dim = actionInfo.dim;
-      assert(actionInfo.values.size()==dim && actionInfo.bounds.size()==dim && actionInfo.shifts.size()==dim);
+			maxLabel = actionInfo.maxLabel;
+      assert(actionInfo.values.size() ==dim);
+			assert(actionInfo.shifts.size() ==dim);
+			assert(actionInfo.bounded.size()==dim);
       values = actionInfo.values;
-      bounds = actionInfo.bounds;
       shifts = actionInfo.shifts;
-      assert(values.size()==dim && bounds.size()==dim && shifts.size()==dim);
+			bounded = actionInfo.bounded;
+      assert(values.size()==dim && shifts.size()==dim);
       return *this;
   }
 
-	inline vector<Real> getScaled(vector<Real> data) const
+	inline int nDiscrVals(const int i)  const
 	{
-		vector<Real> ret = data;
-		assert(ret.size()==dim);
-		for (int i=0; i<dim; i++)
+		return values[i].size();
+	}
+
+	void updateShifts()
+	{
+		shifts.resize(dim);
+    shifts[0] = 1;
+    for (int i=1; i < dim; i++) {
+        assert(nDiscrVals(i) == values[i].size());
+        shifts[i] = shifts[i-1] * nDiscrVals(i-1);
+    }
+		maxLabel = shifts[dim-1] * nDiscrVals(dim-1);
+	}
+
+	inline Real getActMaxVal(const int i) const
+	{
+		assert(i>=0 && i<dim && dim==values.size());
+		assert(values[i].size()>1); //otherwise scaling is impossible
+		return *std::max_element(std::begin(values[i]), std::end(values[i]));
+	}
+
+	inline Real getActMinVal(const int i) const
+	{
+		assert(i>=0 && i<dim && dim==values.size());
+		assert(values[i].size()>1); //otherwise scaling is impossible
+		return *std::min_element(std::begin(values[i]), std::end(values[i]));
+	}
+
+	inline Real getScaled(const Real unscaled, const int i) const
+	{
+		//unscaled value and i is to which component of action vector it corresponds
+		//if action space is bounded, return the scaled component, else return unscaled
+		//scaling is between max and min of values vector (user specified in environment)
+		//scaling function is x/(1+abs(x)) (between -1 and 1 for x in -inf, inf)
+		Real ret = unscaled;
 		if (bounded[i]) {
-			const Real min_a=*std::min_element(std::begin(values[i]),std::end(values[i]));
-			const Real max_a=*std::max_element(std::begin(values[i]),std::end(values[i]));
-			ret[i] = min_a + 0.5*(data[i]/(1.+std::fabs(data[i])) +1)*(max_a - min_a);
+			const Real min_a = getActMinVal(i);
+			const Real max_a = getActMaxVal(i);
+			const Real soft_sign = unscaled/(1. + std::fabs(unscaled));
+			ret = min_a + 0.5*(max_a - min_a)*(soft_sign + 1);
 		}
 		return ret;
 	}
 
-	inline vector<Real> getInvScaled(vector<Real> data) const
+	inline Real getDactDscale(const Real unscaled, const int i) const
 	{
-		vector<Real> ret = data;
+		//derivative of scaled action wrt to unscaled action, see getScaled()
+		Real ret = 1;
+		if (bounded[i]) {
+			const Real min_a = getActMinVal(i);
+			const Real max_a = getActMaxVal(i);
+			const Real denom = 1. + std::fabs(unscaled);
+			ret = 0.5*(max_a-min_a)/denom/denom;
+    }
+		return ret;
+	}
+
+	inline vector<Real> getScaled(vector<Real> unscaled) const
+	{
+		//see per-component getScaled
+		vector<Real> ret = unscaled;
 		assert(ret.size()==dim);
 		for (int i=0; i<dim; i++)
 		if (bounded[i]) {
-			const Real min_a=*std::min_element(std::begin(values[i]),std::end(values[i]));
-			const Real max_a=*std::max_element(std::begin(values[i]),std::end(values[i]));
-			assert(data[i]>=min_a && data[i]<=max_a);
-			const Real y = 2*(data[i] - min_a)/(max_a - min_a) -1;
+			const Real min_a = getActMinVal(i);
+			const Real max_a = getActMaxVal(i);
+			assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
+			const Real soft_sign = unscaled[i]/(1. + std::fabs(unscaled[i]));
+			ret[i] = min_a + 0.5*(soft_sign + 1)*(max_a - min_a);
+		}
+		return ret;
+	}
+
+	inline vector<Real> getInvScaled(vector<Real> scaled) const
+	{
+		//opposite operation
+		vector<Real> ret = scaled;
+		assert(ret.size()==dim);
+		for (int i=0; i<dim; i++)
+		if (bounded[i]) {
+			const Real min_a = getActMinVal(i);
+			const Real max_a = getActMaxVal(i);
+			assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
+			assert(scaled[i]>min_a && scaled[i]<max_a);
+			const Real y = 2*(scaled[i] - min_a)/(max_a - min_a) -1;
 			assert(std::fabs(y) < 1);
 			ret[i] =  y/(1.-std::fabs(y));
 		}
 		return ret;
 	}
 
-	inline Real getScaled(const Real data, const int i) const
+  int actionToLabel(const vector<Real> vals) const
 	{
-		Real ret = data;
-		if (bounded[i]) {
-			const Real min_a=*std::min_element(std::begin(values[i]),std::end(values[i]));
-			const Real max_a=*std::max_element(std::begin(values[i]),std::end(values[i]));
-			ret = min_a + .5*(max_a - min_a)*(data/(1.+std::fabs(data)) +1);
-		}
-		return ret;
-	}
-
-	inline Real getDactDscale(const Real data, const int i) const
-	{
-		Real ret = 1;
-		if (bounded[i]) {
-			const Real min_a=*std::min_element(std::begin(values[i]),std::end(values[i]));
-			const Real max_a=*std::max_element(std::begin(values[i]),std::end(values[i]));
-			const Real denom = 1. + std::fabs(data);
-			ret = 0.5*(max_a-min_a)/denom/denom;
-    }
-		return ret;
-	}
-
-  //from action indices to unique label (for tables, DQN)
-  int actionToLabel(vector<Real> vals) const
-	{
+		//map from discretized action (entry per component of values vectors) to int
       int lab=0;
-      for (int i=0; i<dim; i++) lab += shifts[i]*realActionToIndex(vals[i],i);
+      for (int i=0; i<dim; i++)
+				lab += shifts[i]*realActionToIndex(vals[i],i);
       assert(lab>=0);
       return lab;
+
+		#ifndef NDEBUG
+			vector<int> test(dim);
+			int max = 1;
+			for (int i=0; i < dim; i++) {
+					test[i] = i==0 ? 1 : test[i-1] * nDiscrVals(i-1);
+					assert(test[i] == shifts[i]);
+					max *= nDiscrVals(i);
+			}
+			assert(max == maxLabel);
+		#endif
   }
 
   vector<Real> labelToAction(int lab) const
   {
+		//map an int to the corresponding entries in the values vec
   	vector<Real> ret(dim);
-      for (int i=dim-1; i>=0; i--) {
-          ret[i] = indexToRealAction((int)lab/shifts[i], i);
-          lab = lab % shifts[i];
-      }
-      return ret;
+    for (int i=dim-1; i>=0; i--) {
+			int tmp = lab/shifts[i]; //in opposite op: add shifts*index
+      ret[i] = indexToRealAction(tmp, i);
+      lab = lab % shifts[i];
+    }
+    return ret;
   }
 
   Real indexToRealAction(const int lab, const int i) const
@@ -214,10 +283,11 @@ struct ActionInfo
 	}
 
 	int realActionToIndex(const Real val, const int i) const
-	{ //From cont. action, convert to an action index using chosen values in environment
-		assert(values[i].size() == bounds[i]);
+	{
+		//From continous action for i-th component of action vector
+		// convert to an entry in values vector
 		Real dist = 1e9; int ret = -1;
-		for (int j=0; j<bounds[i]; j++) {
+		for (int j=0; j<nDiscrVals(i); j++) {
 			const Real _dist = std::fabs(values[i][j]-val);
 			if (_dist<dist) { dist = _dist; ret = j; }
 		}
@@ -228,22 +298,23 @@ struct ActionInfo
 
 class Action
 {
-private:
-
 public:
 	ActionInfo actInfo;
-    vector<Real> vals;
-    mt19937 * gen;
+  vector<Real> vals;
+  mt19937 * gen;
 
-	Action(const ActionInfo& newActInfo, mt19937 * g) : actInfo(newActInfo), gen(g)
+	Action(const ActionInfo& newActInfo, mt19937 * g) :
+	actInfo(newActInfo), gen(g)
 	{
 		vals.resize(actInfo.dim);
 	}
 
 	Action& operator= (const Action& a)
 	{
-		if (actInfo.dim != a.actInfo.dim) die("Dimension of actions differ!!!\n");
-		for (int i=0; i<actInfo.dim; i++) vals[i] = a.vals[i];
+		if (actInfo.dim != a.actInfo.dim)
+			die("Dimension of actions differ!!!\n");
+		for (int i=0; i<actInfo.dim; i++)
+			vals[i] = a.vals[i];
 		return *this;
 	}
 
@@ -265,16 +336,16 @@ public:
 	}
 
     //pack and unpack for MPI comm
-    void pack(byte* buf) const
+    void pack(double*const buf) const
     {
-        Real* dbuf = (Real*) buf;
-        for (int i=0; i<actInfo.dim; i++) dbuf[i] = vals[i];
+        for (int i=0; i<actInfo.dim; i++)
+				buf[i] = (double)vals[i];
     }
 
-    void unpack(byte* buf)
+    void unpack(const double*const buf)
     {
-        Real* dbuf = (Real*) buf;
-        for (int i=0; i<actInfo.dim; i++) vals[i] = dbuf[i];
+        for (int i=0; i<actInfo.dim; i++)
+				vals[i] = (Real)buf[i];
     }
 
     void set(vector<Real> data)
@@ -295,14 +366,14 @@ public:
         if ( iRand<0 || iRand >= actInfo.dim ) {
         	//select all random actions
             for (int i=0; i<actInfo.dim; i++) {
-            	const auto uB = *std::min_element(std::begin(actInfo.values[i]), std::end(actInfo.values[i]));
-            	const auto lB = *std::max_element(std::begin(actInfo.values[i]), std::end(actInfo.values[i]));
-                vals[i] = lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+							const Real uB = actInfo.getActMinVal(i);
+							const Real lB = actInfo.getActMaxVal(i);
+            	vals[i] = lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
             }
         } else {  //select just one
-        	const auto uB = *std::min_element(std::begin(actInfo.values[iRand]), std::end(actInfo.values[iRand]));
-        	const auto lB = *std::max_element(std::begin(actInfo.values[iRand]), std::end(actInfo.values[iRand]));
-			vals[iRand] = lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+					const Real uB = actInfo.getActMinVal(iRand);
+					const Real lB = actInfo.getActMaxVal(iRand);
+					vals[iRand] = lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
         }
     }
 

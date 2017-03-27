@@ -20,9 +20,9 @@
 
 
 
-NAF::NAF(MPI_Comm comm, Environment*const env, Settings & settings) :
-Learner(comm,env,settings), nA(env->aI.dim),
-nL((env->aI.dim*env->aI.dim+env->aI.dim)/2)
+NAF::NAF(MPI_Comm comm, Environment*const _env, Settings & settings) :
+Learner(comm,_env,settings), nA(_env->aI.dim),
+nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2)
 {
 	string lType = bRecurrent ? "LSTM" : "Normal";
 	vector<int> lsize;
@@ -90,6 +90,13 @@ nL((env->aI.dim*env->aI.dim+env->aI.dim)/2)
   #endif
 }
 
+static void printselection(const int iA,const int nA,const int i,vector<Real> s)
+{
+	printf("%d/%d s=%d : ", iA, nA, i);
+	for(int k=0; k<s.size(); k++) printf("%g ", s[k]);
+	printf("\n"); fflush(0);
+}
+
 void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 								 Action& aOld, const int info, Real r)
 {
@@ -101,17 +108,21 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
     Activation* currActivation = net->allocateActivation();
     vector<Real> output(nOutputs);
 
-    if (info==1) {// if new sequence, sold, aold and reward are meaningless
+    if (info==1) {
+			// if new sequence, sold, aold and reward are meaningless
 			vector<Real> inputs(nInputs,0);
 			s.copy_observed(inputs);
 			vector<Real> scaledSold = data->standardize(inputs);
+			//printselection(agentId,nAgents,info,scaledSold);
       net->predict(scaledSold, output, currActivation);
-    } else {   //then if i'm using RNN i need to load recurrent connections
+    } else {
+			//then if i'm using RNN i need to load recurrent connections
 			const Tuple* const last = data->Tmp[agentId]->tuples.back();
 			vector<Real> scaledSold = data->standardize(last->s);
 			Activation* prevActivation = net->allocateActivation();
 			net->loadMemory(net->mem[agentId], prevActivation);
-      net->predict(scaledSold, output, prevActivation, currActivation);
+			//printselection(agentId,nAgents,info,scaledSold);
+			net->predict(scaledSold, output, prevActivation, currActivation);
       _dispose_object(prevActivation);
     }
 
@@ -125,69 +136,74 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
     a.set(aInfo.getScaled(scaledAct));
 
     //random action?
-    Real newEps(greedyEps);
-    if (bTrain) { //if training: anneal random chance if i'm just starting to learn
-        const double handicap = min(data->Set.size()/1e2, opt->nepoch/1e4);
-        newEps = std::exp(-handicap) + greedyEps;//*agentId/Real(agentId+1);
-    }
-
+    const Real annealedEps = bTrain ? annealingFactor() + greedyEps : greedyEps;
     uniform_real_distribution<Real> dis(0.,1.);
-    if(dis(*gen) < newEps) a.getRandom();
+    if(dis(*gen) < annealedEps) a.getRandom();
 
 	#ifdef _dumpNet_
-		net->dump(agentId);
-
-		const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
-		if (ndata == 0) return;
-
-		vector<Activation*> timeSeries_base = net->allocateUnrolledActivations(ndata);
-		net->clearErrors(timeSeries_base);
-
-		for (int k=0; k<ndata; k++) {
-			const Tuple * const _t = data->Tmp[agentId]->tuples[k];
-			vector<Real> scaledSnew = data->standardize(_t->s);
-			net->predict(scaledSnew, output, timeSeries_base, k);
-		}
-
-		//sensitivity of value for this action in this state wrt all previous inputs
-		for (int ii=0; ii<ndata; ii++)
-		for (int i=0; i<nInputs; i++) {
-			vector<Activation*> series =net->allocateUnrolledActivations(ndata);
-
-			for (int k=0; k<ndata; k++) {
-				const Tuple* const _t = data->Tmp[agentId]->tuples[k];
-				vector<Real> scaledSnew = data->standardize(_t->s);
-				if (k==ii) scaledSnew[i] = 0;
-				net->predict(scaledSnew, output, series, k);
-			}
-			vector<Real> oDiff = net->getOutputs(series.back());
-			vector<Real> oBase = net->getOutputs(timeSeries_base.back());
-			const Tuple* const _t = data->Tmp[agentId]->tuples[ii];
-			vector<Real> sSnew = data->standardize(_t->s);
-
-			assert(nA==1); //TODO ask Sid for muldi-dim actions?
-			timeSeries_base[ii]->errvals[i]=(oDiff[1+nL]-oBase[1+nL])/sSnew[i];
-
-			net->deallocateUnrolledActivations(&series);
-		}
-
-		string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
-		ofstream out(fname.c_str());
-		if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
-		for (int k=0; k<ndata; k++) {
-			for (int j=0; j<nInputs; j++)
-			out << timeSeries_base[k]->errvals[j] << " ";
-			out << "\n";
-		}
-		out.close();
-
-		net->deallocateUnrolledActivations(&timeSeries_base);
+   if (!bTrain)
+		dumpNetworkInfo(agentId);
 	#endif
+}
+
+void NAF::dumpNetworkInfo(const int agentId)
+{
+	net->dump(agentId);
+	vector<Real> output(nOutputs);
+
+	const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
+	if (ndata == 0) return;
+
+	vector<Activation*> timeSeries_base = net->allocateUnrolledActivations(ndata);
+	net->clearErrors(timeSeries_base);
+
+	for (int k=0; k<ndata; k++) {
+		const Tuple * const _t = data->Tmp[agentId]->tuples[k];
+		vector<Real> scaledSnew = data->standardize(_t->s);
+		net->predict(scaledSnew, output, timeSeries_base, k);
+	}
+
+	//sensitivity of value for this action in this state wrt all previous inputs
+	for (int ii=0; ii<ndata; ii++)
+	for (int i=0; i<nInputs; i++) {
+		vector<Activation*> series =net->allocateUnrolledActivations(ndata);
+
+		for (int k=0; k<ndata; k++) {
+			const Tuple* const _t = data->Tmp[agentId]->tuples[k];
+			vector<Real> scaledSnew = data->standardize(_t->s);
+			if (k==ii) scaledSnew[i] = 0;
+			net->predict(scaledSnew, output, series, k);
+		}
+		vector<Real> oDiff = net->getOutputs(series.back());
+		vector<Real> oBase = net->getOutputs(timeSeries_base.back());
+		const Tuple* const _t = data->Tmp[agentId]->tuples[ii];
+		vector<Real> sSnew = data->standardize(_t->s);
+
+		//assert(nA==1); //TODO ask Sid for muldi-dim actions?
+		double dAct = 0;
+		for (int j=0; j<nA; j++)
+			dAct+=pow(oDiff[1+nL+j]-oBase[1+nL+j],2);
+
+		timeSeries_base[ii]->errvals[i]=sqrt(dAct)/sSnew[i];
+		net->deallocateUnrolledActivations(&series);
+	}
+
+	string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
+	ofstream out(fname.c_str());
+	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+	for (int k=0; k<ndata; k++) {
+		for (int j=0; j<nInputs; j++)
+		out << timeSeries_base[k]->errvals[j] << " ";
+		out << "\n";
+	}
+	out.close();
+
+	net->deallocateUnrolledActivations(&timeSeries_base);
 }
 
 void NAF::Train_BPTT(const int seq, const int thrID) const
 {
-    assert(net->allocatedFrozenWeights);
+    assert(net->allocatedFrozenWeights && bTrain);
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
     const int ndata = data->Set[seq]->tuples.size();
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
@@ -202,12 +218,11 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
 
       const bool terminal = k+2==ndata && data->Set[seq]->ended;
       if (not terminal) {
-          vector<Real> scaledSnew = data->standardize(_t->s);
+          vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
           net->predict(scaledSnew, target, timeSeries[k], tgtActivation,
 									net->tgt_weights, net->tgt_biases);
       }
-			const Real relax = - Real(opt->nepoch) / 1e4;
-			const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
+			const Real realxedGamma = gamma * (1. - annealingFactor());
       const Real Vnext = (terminal) ? _t->r : _t->r + realxedGamma*target[0];
 
 			const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);
@@ -227,29 +242,28 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
 
 void NAF::Train(const int seq, const int samp, const int thrID) const
 {
-    assert(net->allocatedFrozenWeights);
+    assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
 
-    vector<Real> scaledSold =data->standardize(data->Set[seq]->tuples[samp]->s);
     const Tuple* const _tOld = data->Set[seq]->tuples[samp]; //this tuple contains a, sNew, reward:
     const Tuple* const _t = data->Set[seq]->tuples[samp+1]; //this tuple contains a, sNew, reward:
     Activation* sOldActivation = net->allocateActivation();
     sOldActivation->clearErrors();
 
+    vector<Real> scaledSold =data->standardize(_tOld->s);
     net->predict(scaledSold, output, sOldActivation); //sOld in previous tuple
 
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
     if (not terminal) {
         Activation* sNewActivation = net->allocateActivation();
-        vector<Real> scaledSnew = data->standardize(_t->s);
+        vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
         net->predict(scaledSnew, target, sNewActivation,
 														net->tgt_weights, net->tgt_biases);
         _dispose_object(sNewActivation);
     }
 
-		const Real relax = - Real(opt->nepoch) / 1e4;
-		const Real realxedGamma = bTrain ? gamma*(1.-std::exp(relax)) : gamma;
+		const Real realxedGamma = gamma * (1. - annealingFactor());
 		const Real Vnext = (terminal) ? _t->r : _t->r + realxedGamma*target[0];
 
     const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);
@@ -383,12 +397,9 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 	    assert(kL==1+nL);
 		}
 
-
 		for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
-			const Real min_a = *std::min_element(std::begin(aInfo.values[j]),
-																						 std::end(aInfo.values[j]));
-			const Real max_a = *std::max_element(std::begin(aInfo.values[j]),
-																						 std::end(aInfo.values[j]));
+			const Real min_a = aInfo.getActMinVal(j);
+			const Real max_a = aInfo.getActMaxVal(j);
 			//const Real _a = out[1+nL+j];
 			//const Real pi = aInfo.bounded[j] ? min_a + .5*(max_a-min_a)*(_a/(1.+std::fabs(_a))+1) : _a;
 			const Real pi = aInfo.getScaled(out[1+nL+j], j);
@@ -460,6 +471,28 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 
 		for (int j=0; j<nA; j++)
 		grad[1+nL+j] *= aInfo.getDactDscale(out[1+nL+j], j);
+
+	#if 0
+		if(error>0) {
+		//then Q will increase.. slow down the V
+		 Real meangrad = grad[0];
+		 for (int i=1; i<nA+nL+1; i++)
+			meangrad = std::min(std::fabs(grad[i]), meangrad);
+		 //meangrad/=(nA+nL);
+		 //if(grad[0]>meangrad)
+		 grad[0] = meangrad;
+		}
+	#else
+		if(error>0) { //then grad[0]>0
+			Real meangrad = 0;
+			for (int i=1; i<nA+nL+1; i++)
+				meangrad += std::fabs(grad[i]);
+			meangrad/=(nA+nL);
+			if(grad[0]>meangrad) grad[0] = meangrad;
+		}
+	#endif
+
+
 		/*
 		if  (aInfo.bounded[j]) {
 			const Real min_a = *std::min_element(std::begin(aInfo.values[j]),

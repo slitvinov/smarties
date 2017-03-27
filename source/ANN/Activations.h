@@ -66,13 +66,16 @@ struct Activation //All the network signals
         _myfree(eIGates)
         _myfree(eFGates)
         _myfree(eOGates)
-
     }
 
     void clearOutput()
     {
     	std::memset(outvals,0.,nNeurons);
     	std::memset(ostates,0.,nStates);
+    	std::memset(oMCell, 0.,nStates);
+    	std::memset(oIGates,0.,nStates);
+    	std::memset(oFGates,0.,nStates);
+    	std::memset(oOGates,0.,nStates);
     }
 
     void clearErrors()

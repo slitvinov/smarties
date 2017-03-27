@@ -19,10 +19,12 @@ class NewFishEnvironment;
 class DeadFishEnvironment;
 class TwoActFishEnvironment;
 class CMAEnvironment;
+class TestEnvironment;
 
 #include "Environments/AcrobotEnvironment.h"
 #include "Environments/CMAEnvironment.h"
 #include "Environments/CartEnvironment.h"
+#include "Environments/TestEnvironment.h"
 #include "Environments/TwoFishEnvironment.h"
 #include "Environments/NewFishEnvironment.h"
 #include "Environments/TwoActFishEnvironment.h"

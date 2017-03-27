@@ -8,19 +8,29 @@
  */
 
 #include "TwoActFishEnvironment.h"
-
+#define __Cubism3D
 using namespace std;
 
 TwoActFishEnvironment::TwoActFishEnvironment(const int _nAgents,
   const string _execpath, const int _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings),
-sight( settings.senses    ==0),
+sight( settings.senses    ==0 ||  settings.senses==8),
 rcast( settings.senses    % 2), //if eq {1,  3,  5,  7}
 lline((settings.senses/2) % 2), //if eq {  2,3,    6,7}
-press((settings.senses/4) % 2), //if eq {      4,5,6,7}
+press((settings.senses/4) % 2 ||  settings.senses==8), //if eq {      4,5,6,7}
 study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
-  assert(settings.senses<8);
+  cheaperThanNetwork = false; //this environment is more expensive to simulate than updating net. todo: think it over?
+#ifdef __Cubism3D
+	//mpi_ranks_per_env = 1;
+	mpi_ranks_per_env = 8;
+#else
+	mpi_ranks_per_env = 1;
+#endif
+	//paramsfile="settings_32.txt";
+  paramsfile="settings_64.txt";
+
+  assert(settings.senses<=8);
 }
 
 void TwoActFishEnvironment::setDims()
@@ -57,13 +67,13 @@ void TwoActFishEnvironment::setDims()
             // AvInst
             sI.inUse.push_back(true);
         }
-#if 0
+        #if 0
             //Xabs 6
             sI.inUse.push_back(false);
 
             //Yabs 7
             sI.inUse.push_back(false);
-#endif
+        #endif
         {
             //Dist 6
             sI.inUse.push_back(false);
@@ -156,73 +166,35 @@ void TwoActFishEnvironment::setDims()
         aI.dim = 2;
         aI.values.resize(aI.dim);
         //curavture
-        aI.bounds.push_back(7); //Number of possible actions to choose from
         aI.bounded.push_back(1);
         aI.values[0].push_back(-.75);
-        aI.values[0].push_back(-.50);
-        aI.values[0].push_back(-.25);
-        aI.values[0].push_back(0.00);
-        aI.values[0].push_back(0.25);
-        aI.values[0].push_back(0.50);
         aI.values[0].push_back(0.75);
         //period:
-        aI.bounds.push_back(7); //Number of possible actions to choose from
         aI.bounded.push_back(1);
         aI.values[1].push_back(-.5);
-        aI.values[1].push_back(-.25);
-        aI.values[1].push_back(-.125);
-        aI.values[1].push_back(0.00);
-        aI.values[1].push_back(0.125);
-        aI.values[1].push_back(0.250);
         aI.values[1].push_back(0.5);
     }
     resetAll=false;
     commonSetup();
 }
 
-void TwoActFishEnvironment::setAction(const int & iAgent)
-{
-    if (agents[iAgent]->a->vals[0] >0.75 ) {
-    	printf("Act0 is too large (>0), reassigned to prevent crash\n");
-      agents[iAgent]->a->vals[0] = 0.75;
-    }
-    if (agents[iAgent]->a->vals[0] <-.75 ) {
-    	printf("Act0 is too large (<0), reassigned to prevent crash\n");
-      agents[iAgent]->a->vals[0] = -.75;
-    }
-    if (agents[iAgent]->a->vals[1] >0.5 ) {
-    	printf("Act1 is too large (>0), reassigned to prevent crash\n");
-      agents[iAgent]->a->vals[1] = 0.5;
-    }
-    if (agents[iAgent]->a->vals[1] <-.5 ) {
-    	printf("Act1 is too large (<0), reassigned to prevent crash\n");
-      agents[iAgent]->a->vals[1] = -.5;
-    }
-
-    Environment::setAction(iAgent);
-}
-
-int TwoActFishEnvironment::getState(int & iAgent)
-{
-    int bStatus = Environment::getState(iAgent);
-    if(std::fabs(agents[iAgent]->a->vals[0])>0.74)
-      agents[iAgent]->r = std::min((Real)-1.,agents[iAgent]->r); //gently push sim away from extreme curvature: not kosher
-    if(std::fabs(agents[iAgent]->a->vals[1])>0.49)
-      agents[iAgent]->r = std::min((Real)-1.,agents[iAgent]->r); //gently push sim away from extreme acceleration: not kosher
-
-    return bStatus;
-}
 
 bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
                                 const State& t_sN, Real& reward, const int info)
 {
-    if (fabs(t_sN.vals[4] -t_a.vals[0])>0.001) {
+    if (fabs(t_sN.vals[4] -t_a.vals[0])>0.00001) {
         printf("Mismatch state and action!!! %s === %s\n",
          t_sN.print().c_str(),t_a.print().c_str());
         abort();
     }
-    if (fabs(t_sN.vals[6] -t_a.vals[1])>0.001) {
+    if (fabs(t_sN.vals[6] -t_a.vals[1])>0.00001) {
         printf("Mismatch state and action!!! %s === %s\n",
+         t_sN.print().c_str(),t_a.print().c_str());
+        abort();
+    }
+    if(info!=1)
+    if (fabs(t_sO.vals[4] -t_sN.vals[5])>0.00001) {
+        printf("Mismatch state two states!!! %s === %s\n",
          t_sN.print().c_str(),t_a.print().c_str());
         abort();
     }
@@ -237,24 +209,39 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
     if(new_sample) assert(info==2);
 
     if (study == 0) {
-        const Real scaledEfficiency = (t_sN.vals[18]-.4)/(1.-.4);
-        reward = scaledEfficiency;
-        if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
+        #ifdef __Cubism3D
+          reward = (t_sN.vals[18]-.6)/(.8-.6);
+          if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
+        #else
+          reward = (t_sN.vals[18]-.4)/(1.-.4);
+          if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
+        #endif
     }
     else if (study == 1) {
-        const Real scaledEfficiency = (t_sN.vals[21]-.3)/(.6-.3);
-        reward = scaledEfficiency;
+        #ifdef __Cubism3D
+        	reward = (t_sN.vals[21]-.3)/(.6-.3);
+        #else
+        	reward = (t_sN.vals[21]-.3)/(.6-.3);
+        #endif
+
         if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 2) {
-        reward =  1.-fabs(t_sN.vals[1]-goalDY)/.5;
+        reward =  1.-2*sqrt(fabs(t_sN.vals[1])); //-goalDY
+        if (new_sample) reward = -2./(1.-gamma);
+    }
+    else if (study == 5) {
+      reward = (t_sN.vals[18]-.4)/(1.-.4);
+      if (t_sN.vals[0] > 0.5) reward = std::min(0.,reward);
+      if (new_sample) reward = -2./(1.-gamma);
     }
     else if (new_sample) reward = -10.;
 
+    //gently push sim away from extreme curvature: not kosher
     if(std::fabs(t_a.vals[0])>0.74)
-      reward = std::min((Real)-1.,reward); //gently push sim away from extreme curvature: not kosher
+      reward = std::min((Real)0.,reward);
     if(std::fabs(t_a.vals[1])>0.49)
-      reward = std::min((Real)-1.,reward); //gently push sim away from extreme acceleration: not kosher
+      reward = std::min((Real)0.,reward);
 
     return new_sample;
 }
