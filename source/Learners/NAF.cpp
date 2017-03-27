@@ -485,9 +485,9 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 	#else
 		if(error>0) { //then grad[0]>0
 			Real meangrad = 0;
-			for (int i=1; i<nA+nL+1; i++)
+			for (int i=0; i<nA+nL+1; i++)
 				meangrad += std::fabs(grad[i]);
-			meangrad/=(nA+nL);
+			meangrad/=(1+nA+nL);
 			if(grad[0]>meangrad) grad[0] = meangrad;
 		}
 	#endif

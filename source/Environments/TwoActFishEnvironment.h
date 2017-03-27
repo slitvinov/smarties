@@ -9,7 +9,7 @@
 
 
 #pragma once
-
+//#define __DBG_CNN
 #include "../Util/util.h"
 #include "Environment.h"
 
@@ -25,4 +25,7 @@ public:
     void setDims() override;
     bool pickReward(const State& t_sO, const Action& t_a,
                     const State& t_sN, Real& reward, const int info) override;
+    #ifdef __DBG_CNN
+    bool predefinedNetwork(Network* const net) const override;
+    #endif
 };
