@@ -387,7 +387,7 @@ void Learner::updateTargetNetwork()
 bool Learner::checkBatch(unsigned long mastersNiter)
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    if (ndata<batchSize*5) {
+    if (ndata<batchSize*5 || !bTrain) {
       mastersNiter_b4PolUpdates = mastersNiter;
       return false;
     }  //do we have enough data? TODO k*ndata?
@@ -397,7 +397,7 @@ bool Learner::checkBatch(unsigned long mastersNiter)
     // ratio is 1 : 1 in DQN paper
     //then let master thread go to help other threads finish the batch
     //otherwise only go to communicate if batch is over
-    if (env->cheaperThanNetwork && bTrain &&
+    if (env->cheaperThanNetwork &&
 	mastersNiter > opt->nepoch + mastersNiter_b4PolUpdates)
       return true;
     else
