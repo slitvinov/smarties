@@ -58,9 +58,8 @@ public:
     vector<Real> getOutputs(const Activation* const act);
     int getLastLayerID() const {return G.size()-1;}
 
-    void add2DInput(const int size[3], const bool normalize);
-    void addInput(const int size, const bool normalize);
-    void addInput(const int size) { addInput(size, false);}
+    void add2DInput(const int size[3], const bool normalize=false);
+    void addInput(const int size, const bool normalize=false);
 
     void addConv2DLayer(const int filterSize[3], const int outSize[3],
 												const int padding[2], const int stride[2],
@@ -69,7 +68,7 @@ public:
 
     void addConv2DLayer(const int filterSize[3], const int outSize[3],
 												const int padding[2], const int stride[2],
-  											const bool normalize, const bool bOutput = false) {
+  											const bool normalize=false, const bool bOutput = false) {
     	addConv2DLayer(filterSize, outSize, padding, stride, normalize,
 										vector<int>(), bOutput); }
 
@@ -77,10 +76,8 @@ public:
 									vector<int> linkedTo, const bool output);
     void addLayer(const int size, const string type, vector<int> linkedTo) {
         addLayer(size,type,__WHITEN_DEFAULT,linkedTo,false);}
-    void addLayer(const int size, const string type, const bool normalize) {
+    void addLayer(const int size, const string type, const bool normalize=__WHITEN_DEFAULT) {
         addLayer(size,type,normalize,vector<int>(),false);}
-    void addLayer(const int size, const string type) {
-        addLayer(size,type,__WHITEN_DEFAULT,vector<int>(),false);}
 
     void addOutput(const int size, const string type, vector<int> linkedTo) {
         addLayer(size,type,false,linkedTo,true);}

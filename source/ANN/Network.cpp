@@ -105,7 +105,7 @@ void Network::build_conv2d_layer(Graph* const graph)
     if (graph->output)
     l = new Conv2DLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, graph->layerSize_simd);
     else
-    l = new Conv2DLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, graph->layerSize_simd);
+    l = new Conv2DLayer<SoftPlus>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, graph->layerSize_simd);
 
     if (graph->output) printf( "Linear output\n");
     layers.push_back(l);
@@ -635,11 +635,13 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
     vector<Real> res(nOutputs); //allocate net output
 
     const Real incr = 1e-6;
-
+    const Real tol  = 1e-8;
     uniform_real_distribution<Real> dis(0.,1.);
     //figure out where to place some errors at random in outputs
-    for (int i=0; i<seq_len; i++)
+    for (int i=0; i<seq_len; i++) {
         errorPlacements[i] = nOutputs*dis(generators[0]);
+      std::cout << "Placing error in "<< errorPlacements[i]<<std::endl;
+    }
 
     Grads * testg = new Grads(nWeights,nBiases);
     Grads * testG = new Grads(nWeights,nBiases);
@@ -648,6 +650,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
     for (int k=0; k<seq_len; k++) {
     	predict(inputs[k], res, timeSeries, k);
         vector<Real> errs(nOutputs,0);
+        //for (int i=0; i<nOutputs; i++) errs[i] = -1.;
         errs[errorPlacements[k]] = -1.;
         setOutputDeltas(errs, timeSeries[k]);
     }
@@ -682,12 +685,13 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         const Real scale = std::max(std::fabs(testG->_W[w]),
                                     std::fabs(testg->_W[w]));
         const Real err = (testG->_W[w] - testg->_W[w])/scale;
-        if (fabs(err)>1e-4) {
-          /*
+        if (fabs(err)>tol || !testG->_W[w]) {
+        //if (1) {
+
               cout <<"W"<<w<<" analytical:"<<testG->_W[w]
                            <<" finite:"<<testg->_W[w]
                            <<" error:"<<err<<endl;
-          */
+
           fprintf(f, "%d %g %g %g\n", w, testG->_W[w], testg->_W[w], err);
         }
     }
@@ -720,12 +724,13 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         const Real scale = std::max(std::fabs(testG->_B[w]),
                                     std::fabs(testg->_B[w]));
         const Real err = (testG->_B[w] - testg->_B[w])/scale;
-        if (fabs(err)>1e-4) {
-          /*
+        if (fabs(err)>tol || !testG->_B[w]) {
+        //if (1) {
+
               cout <<"B"<<w<<" analytical:"<<testG->_B[w]
                            <<" finite:"<<testg->_B[w]
                            <<" error:"<<err<<endl;
-          */
+
           fprintf(f, "%d %g %g %g\n", w, testG->_B[w], testg->_B[w], err);
         }
     }
