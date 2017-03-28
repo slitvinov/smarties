@@ -415,7 +415,7 @@ void Transitions::updateSamples()
 
   const int ndata = (bRecurrent) ? nSequences : nTransitions;
   inds.resize(ndata);
-  #if 0
+  #if 1
   if (bRecurrent) {
     delete dist;
     assert(nSequences==Set.size());
@@ -441,11 +441,14 @@ void Transitions::updateSamples()
 
 int Transitions::sample()
 {
-  const int ind = data->inds.back();
-  data->inds.pop_back();
-  #if 0
-  if (bRecurrent)
-    return dist->operator()(*(gen->g));
+  const int ind = inds.back();
+  inds.pop_back();
+  #if 1
+  if (bRecurrent) {
+    const int sampid = dist->operator()(*(gen->g));
+    //printf("Choosing %d with length %lu\n", sampid, Set[sampid]->tuples.size());
+    return sampid;
+  }
   else
   #endif
     return ind;
