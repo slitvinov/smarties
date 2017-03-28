@@ -102,7 +102,7 @@ public:
     void save(std::string fname);
     void restart(std::string fname);
     void updateSamples();
-    //int sample();
+    int sample();
     void restartSamples();
     void saveSamples();
     int passData(const int agentId, const int info, const State & sOld,

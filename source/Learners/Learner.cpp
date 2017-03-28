@@ -292,8 +292,7 @@ int Learner::sampleTransitions(vector<int>& sequences, vector<int>& transitions)
   assert(!bRecurrent);
   for (int i=0; i<batchSize; i++)
   {
-    const int ind = data->inds.back();
-    data->inds.pop_back();
+    const int ind = data->sample();
 
     int k=0, back=0, indT=data->Set[0]->tuples.size()-1;
     while (ind >= indT) {
@@ -313,9 +312,9 @@ int Learner::sampleSequences(vector<int>& sequences)
 {
   assert(sequences.size() == batchSize && bRecurrent);
   int nAddedGradients = 0;
-  for (int i=0; i<batchSize; i++) {
-    const int ind = data->inds.back();
-    data->inds.pop_back();
+  for (int i=0; i<batchSize; i++)
+  {
+    const int ind = data->sample();
     sequences[i]  = ind;
     //index[i] = ind;
     const int seqSize = data->Set[ind]->tuples.size();
