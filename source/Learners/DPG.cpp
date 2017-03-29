@@ -138,8 +138,14 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 									net->tgt_weights, net->tgt_biases);
 			}
 			{
+				#if 0
 				const Real realxedGamma = gamma * (1. - annealingFactor());
 	      const Real target = (terminal) ? _t->r : _t->r + realxedGamma*vSnew[0];
+				#else
+				const Real anneal = annealingFactor(), seqRew = sequenceR(k, seq);
+	      const Real target = (terminal) ? _t->r :
+													anneal*seqRew + (1-anneal)*( _t->r + gamma*vSnew[0]);
+				#endif
 				gradient[0] = target - Q[0];
 				data->Set[seq]->tuples[k]->SquaredError = gradient[0]*gradient[0];
 			}

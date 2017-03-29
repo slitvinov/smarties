@@ -79,6 +79,16 @@ public:
       assert(epsAnneal>1. && opt->nepoch >= 0);
       return 1. - std::min(1., Real(opt->nepoch)/epsAnneal);
     }
+    inline Real sequenceR(const int t0, const int seq) const
+    {
+      Real R = 0, G = 1;
+      assert(t0+1 < data->Set[seq]->tuples.size());
+      for(int i=t0+1; i<data->Set[seq]->tuples.size(); i++) {
+        R += G*data->Set[seq]->tuples[i]->r;
+        G *= gamma;
+      }
+      return R;
+    }
 
     virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;
     void clearFailedSim(const int agentOne, const int agentEnd);
