@@ -1,1 +1,1 @@
-NewDeadFishEnvironment exec=../launch2DeadFish_Learn.sh n=1
+DeadFishEnvironment exec=../launchSim.sh n=2
