@@ -223,8 +223,14 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
           net->predict(scaledSnew, target, timeSeries[k], tgtActivation,
 									net->tgt_weights, net->tgt_biases);
       }
+			#if 0
 			const Real realxedGamma = gamma * (1. - annealingFactor());
       const Real Vnext = (terminal) ? _t->r : _t->r + realxedGamma*target[0];
+			#else
+			const Real anneal = annealingFactor(), seqRew = sequenceR(k, seq);
+			const Real Vnext = (terminal) ? _t->r :
+												anneal*seqRew + (1-anneal)*( _t->r + gamma*target[0]);
+			#endif
 
 			const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);
 			const Real err = Vnext - Q[0];
@@ -484,7 +490,7 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 		 //if(grad[0]>meangrad)
 		 grad[0] = meangrad;
 		}
-	#else
+	#elif 0
 		if(error>0) { //then grad[0]>0
 			Real meangrad = 0;
 			for (int i=0; i<nA+nL+1; i++)

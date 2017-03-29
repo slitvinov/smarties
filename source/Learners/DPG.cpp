@@ -100,7 +100,7 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
   assert(net->allocatedFrozenWeights && net_policy->allocatedFrozenWeights);
 	const int ndata = data->Set[seq]->tuples.size();
 	vector<Activation*>valSeries=       net->allocateUnrolledActivations(ndata-1);
-	vector<Activation*>polSeries=net_policy->allocateUnrolledActivations(ndata-1);
+	vector<Activation*>polSeries=net_policy->allocateUnrolledActivations(ndata);
 	net->clearErrors(valSeries);
 	Grads* tmp_grad = new Grads(net->nWeights, net->nBiases);
 	Activation* tgtQAct = net->allocateActivation();
@@ -128,8 +128,9 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 			const bool terminal = k+2==ndata && data->Set[seq]->ended;
 			if (not terminal) {
 				//first predict best action with policy NN w/ target weights
-				net_policy->predict(scaledSnew, policy, polSeries, k+1,
-														net_policy->tgt_weights, net_policy->tgt_biases);
+				net_policy->predict(scaledSnew, policy, polSeries, k+1
+					//, net_policy->tgt_weights, net_policy->tgt_biases
+						   );
 				//then predict target value for V(s_new)
 				vector<Real> input = scaledSnew;
 				input.insert(input.end(),policy.begin(),policy.end());
@@ -137,8 +138,14 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 									net->tgt_weights, net->tgt_biases);
 			}
 			{
+				#if 0
 				const Real realxedGamma = gamma * (1. - annealingFactor());
 	      const Real target = (terminal) ? _t->r : _t->r + realxedGamma*vSnew[0];
+				#else
+				const Real anneal = annealingFactor(), seqRew = sequenceR(k, seq);
+	      const Real target = (terminal) ? _t->r :
+													anneal*seqRew + (1-anneal)*( _t->r + gamma*vSnew[0]);
+				#endif
 				gradient[0] = target - Q[0];
 				data->Set[seq]->tuples[k]->SquaredError = gradient[0]*gradient[0];
 			}
@@ -153,6 +160,8 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 		else net->backProp(valSeries, net->Vgrad[thrID]);
 	}
 	//now update policy network:
+	delete polSeries.back();
+	polSeries.pop_back(); //im done using the term state for the policy, and i want to bptt
 	net->clearErrors(valSeries); net_policy->clearErrors(polSeries);
 	{
 		for (int k=0; k<ndata-1; k++) {
@@ -165,14 +174,14 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 			vector<Real> input = scaledSold;
 			input.insert(input.end(), pol.begin(), pol.end());
 			net->predict(input, Q, valSeries, k
-									, net->tgt_weights, net->tgt_biases
+									//, net->tgt_weights, net->tgt_biases
 									);
 			Q[0] = 1.; //grad
 			net->setOutputDeltas(Q, valSeries[k]);
 		}
 
 		net->backProp(valSeries,
-									net->tgt_weights, net->tgt_biases,
+									//net->tgt_weights, net->tgt_biases,
 									tmp_grad);
 
 		for (int k=0; k<ndata-1; k++) {
