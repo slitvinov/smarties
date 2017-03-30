@@ -184,8 +184,14 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
         const int indBest = maxInd(Qhats);
         for (int i=0; i<nOutputs; i++) errs[i] = 0.;
 
-	      const Real realxedGamma = gamma * (1. - annealingFactor());
+				#if 0
+				const Real realxedGamma = gamma * (1. - annealingFactor());
 	      const Real target = (terminal) ? _t->r : _t->r + realxedGamma*Qtildes[indBest];
+				#else
+				const Real anneal = annealingFactor(), seqRew = sequenceR(k, seq);
+				const Real target = (terminal) ? _t->r :
+													anneal*seqRew + (1-anneal)*( _t->r + gamma*Qtildes[indBest]);
+				#endif
 
         const int action = aInfo.actionToLabel(_t->a);
         const Real err =  (target - Qs[action]);

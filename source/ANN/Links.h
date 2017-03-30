@@ -390,11 +390,16 @@ class LinkToConv2D : public Link
 		assert((outputWidth -1)*strideX + filterWidth  - (inputWidth+padX)  < filterWidth);
 		assert((outputHeight-1)*strideY + filterHeight - (inputHeight+padY) < filterHeight);
 		assert(padX < filterWidth && padY < filterHeight);
+		print();
 	}
 
     void print() const override
     {
-        cout << nI << " " << iI << " " << nO << " " << iO << " " << iW << endl;
+			printf("iW=%d, nI=%d, iI=%d, nO=%d, iO=%d, nW=%d\n",iW,nI,iI,nO,iO,nW);
+			printf("inputWidth=%d, inputHeight=%d, inputDepth=%d\n",inputWidth, inputHeight, inputDepth);
+			printf("outputWidth=%d, outputHeight=%d, outputDepth=%d (%d)\n",outputWidth, outputHeight, outputDepth, outputDepth_simd);
+			printf("filterWidth=%d, filterHeight=%d, strideX=%d, strideY=%d, padX=%d, padY=%d\n",
+			filterWidth, filterHeight, strideX, strideY, padX, padY);
         fflush(0);
     }
 
@@ -438,25 +443,32 @@ class LinkToConv2D : public Link
     {
         for(int ox=0; ox<outputWidth;  ox++)
         for(int oy=0; oy<outputHeight; oy++) {
-            const int ix = ox*strideX - padX;
-            const int iy = oy*strideY - padY;
+						const int ix = ox*strideX - padX;
+						const int iy = oy*strideY - padY;
             for(int fx=0; fx<filterWidth; fx++)
             for(int fy=0; fy<filterHeight; fy++) {
-                const int cx(ix+fx), cy(iy+fy);
+                const int cx=ix+fx, cy=iy+fy;
                 //padding: skip addition if outside input boundaries
                 if (cx < 0 || cy < 0 || cx >= inputWidth || cy >= inputHeight) continue;
 
-                const Real* __restrict__ const link_inputs = netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
-                __builtin_assume_aligned(link_inputs, __vec_width__);
-                Real* __restrict__ const link_outputs = netTo->in_vals +iO +outputDepth*(oy +outputHeight*ox);
+                const Real* __restrict__ const link_inputs =
+													netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
+                			Real* __restrict__ const link_outputs =
+														netTo->in_vals +iO+outputDepth*(oy+outputHeight*ox);
                 __builtin_assume_aligned(link_outputs, __vec_width__);
+								__builtin_assume_aligned(link_inputs, __vec_width__);
 
                 for(int iz=0; iz<inputDepth; iz++) {
-                    const Real* __restrict__ const link_weights = weights +iW +outputDepth*(iz +inputDepth*(fy +filterHeight*fx));
+                    const Real* __restrict__ const link_weights =
+										weights +iW +outputDepth*(iz +inputDepth*(fy +filterHeight*fx));
                     __builtin_assume_aligned(link_weights, __vec_width__);
 
-                for(int fz=0; fz<outputDepth; fz++)
+                for(int fz=0; fz<outputDepth; fz++) {
+									//printf("oz %d \n",iO +outputDepth*(oy +outputHeight*ox)+fz);
+										//printf("iz %d \n",iI +inputDepth*(cy +inputHeight*cx)+iz);
+											//printf("wz %d \n",iW +outputDepth*(iz +inputDepth*(fy +filterHeight*fx))+fz);
                     link_outputs[fz] += link_inputs[iz] * link_weights[fz];
+								}
                 }
             }
         }
@@ -470,20 +482,26 @@ class LinkToConv2D : public Link
             const int iy = oy*strideY - padY;
             for(int fx=0; fx<filterWidth; fx++)
             for(int fy=0; fy<filterHeight; fy++) {
-                const int cx(ix+fx), cy(iy+fy);
+                const int cx = ix+fx;
+								const int cy = iy+fy;
                 //padding: skip addition if outside input boundaries
                 if (cx < 0 || cy < 0 || cx >= inputWidth || cy >= inputHeight) continue;
 
-                const Real* __restrict__ const link_inputs = netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
-                      Real* __restrict__ const link_errors = netFrom->errvals +iI +inputDepth*(cy +inputHeight*cx);
+                const Real* __restrict__ const link_inputs =
+													netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
+                      Real* __restrict__ const link_errors =
+													netFrom->errvals +iI +inputDepth*(cy +inputHeight*cx);
+                const Real* __restrict__ const deltas =
+														netTo->errvals +iO+outputDepth*(oy+outputHeight*ox);
                 __builtin_assume_aligned(link_inputs, __vec_width__);
                 __builtin_assume_aligned(link_errors, __vec_width__);
-                const Real* __restrict__ const deltas = netTo->errvals +iO +outputDepth*(oy +outputHeight*ox);
                 __builtin_assume_aligned(deltas, __vec_width__);
 
                 for(int iz=0; iz<inputDepth; iz++) {
-                    const Real* __restrict__ const link_weights = weights +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
-                          Real* __restrict__ const link_dEdW    =   gradW +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
+                    const Real* __restrict__ const link_weights =
+										weights +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
+                          Real* __restrict__ const link_dEdW    =
+											gradW +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
                     __builtin_assume_aligned(link_weights, __vec_width__);
                     __builtin_assume_aligned(link_dEdW, __vec_width__);
 

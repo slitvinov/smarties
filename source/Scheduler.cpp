@@ -132,12 +132,14 @@ void Slave::run()
           for (int i=0; i<status.size(); i++)
             bDone = bDone && status[i] == _AGENT_LASTCOMM;
           bDone = bDone || env->resetAll; //does env end is any terminates?
-
+/*
           if(bDone && !bTrain) {
             comm->answerTerminateReq(-1);
             return;
           }
-          else comm->answerTerminateReq(1);
+          else 
+*/
+	comm->answerTerminateReq(1);
         }
     }
     //if here, a crash happened:

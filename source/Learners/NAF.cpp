@@ -218,12 +218,19 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
 
       const bool terminal = k+2==ndata && data->Set[seq]->ended;
       if (not terminal) {
-          vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
+          //vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
+          vector<Real> scaledSnew = data->standardize(_t->s);
           net->predict(scaledSnew, target, timeSeries[k], tgtActivation,
 									net->tgt_weights, net->tgt_biases);
       }
+			#if 0
 			const Real realxedGamma = gamma * (1. - annealingFactor());
       const Real Vnext = (terminal) ? _t->r : _t->r + realxedGamma*target[0];
+			#else
+			const Real anneal = annealingFactor(), seqRew = sequenceR(k, seq);
+			const Real Vnext = (terminal) ? _t->r :
+												anneal*seqRew + (1-anneal)*( _t->r + gamma*target[0]);
+			#endif
 
 			const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);
 			const Real err = Vnext - Q[0];
@@ -257,7 +264,8 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
     if (not terminal) {
         Activation* sNewActivation = net->allocateActivation();
-        vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
+        //vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
+        vector<Real> scaledSnew = data->standardize(_t->s);
         net->predict(scaledSnew, target, sNewActivation,
 														net->tgt_weights, net->tgt_biases);
         _dispose_object(sNewActivation);
@@ -482,12 +490,12 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 		 //if(grad[0]>meangrad)
 		 grad[0] = meangrad;
 		}
-	#else
+	#elif 0
 		if(error>0) { //then grad[0]>0
 			Real meangrad = 0;
-			for (int i=1; i<nA+nL+1; i++)
+			for (int i=0; i<nA+nL+1; i++)
 				meangrad += std::fabs(grad[i]);
-			meangrad/=(nA+nL);
+			meangrad/=(1+nA+nL);
 			if(grad[0]>meangrad) grad[0] = meangrad;
 		}
 	#endif

@@ -8,7 +8,7 @@
  */
 
 #include "TwoActFishEnvironment.h"
-#define __Cubism3D
+//#define __Cubism3D
 using namespace std;
 
 TwoActFishEnvironment::TwoActFishEnvironment(const int _nAgents,
@@ -25,7 +25,7 @@ study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : se
 	//mpi_ranks_per_env = 1;
 	mpi_ranks_per_env = 8;
 #else
-	mpi_ranks_per_env = 1;
+	mpi_ranks_per_env = 0;
 #endif
 	//paramsfile="settings_32.txt";
   paramsfile="settings_64.txt";
@@ -182,6 +182,9 @@ void TwoActFishEnvironment::setDims()
 bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
                                 const State& t_sN, Real& reward, const int info)
 {
+    //if(t_sO.vals[4] == 0) {
+//		t_sO.vals[5] = 0; t_sN.vals[6] = 0;
+//	}
     if (fabs(t_sN.vals[4] -t_a.vals[0])>0.00001) {
         printf("Mismatch state and action!!! %s === %s\n",
          t_sN.print().c_str(),t_a.print().c_str());
@@ -231,7 +234,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         if (new_sample) reward = -2./(1.-gamma);
     }
     else if (study == 5) {
-      reward = (t_sN.vals[18]-.4)/(1.-.4);
+      reward = (t_sN.vals[18]-.4)/.5;
       if (t_sN.vals[0] > 0.5) reward = std::min(0.,reward);
       if (new_sample) reward = -2./(1.-gamma);
     }
@@ -245,3 +248,40 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 
     return new_sample;
 }
+
+#ifdef __DBG_CNN
+bool TwoActFishEnvironment::predefinedNetwork(Network* const net) const
+{
+  if(!sight || !press || rcast || lline || sI.dimUsed != 90 )
+    die("Pick correct state\n");
+
+  {
+  const int inputsize[3] = {9,10,1};
+  net->add2DInput(inputsize);
+  }
+  {
+    const int filterSize[3] = {3,3,3};
+    const int padding[2] = {1,1};
+    const int outSize[3] = {9,10,3};
+    const int stride[2] = {1,1};
+    net->addConv2DLayer(filterSize, outSize, padding, stride);
+  }
+  {
+    const int filterSize[3] = {3,2,3};
+    const int padding[2] = {0,0};
+    const int outSize[3] = {3,5,3};
+    const int stride[2] = {3,2};
+    net->addConv2DLayer(filterSize, outSize, padding, stride);
+  }
+  {
+    const int filterSize[3] = {3,5,32};
+    const int padding[2] = {0,0};
+    const int outSize[3] = {1,1,32};
+    const int stride[2] = {0,0};
+    net->addConv2DLayer(filterSize, outSize, padding, stride);
+  }
+  net->addOutput(1+3+2, "Normal");
+
+  return true;
+}
+#endif

@@ -75,6 +75,7 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
     {
         string execpath = _parse(envStr, "exec", true);
         int n  = _parseInt(envStr, "n", true);
+        printf("TwoActFishEnvironment with %d agents per slave.\n",n);
         env = new TwoActFishEnvironment(n, execpath, rank, *settings);
     }
     else if (envStr.find("NewFishEnvironment ") != envStr.npos)

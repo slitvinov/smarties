@@ -366,32 +366,32 @@ void Transitions::synchronize()
 		  Set[i]->MSE += std::pow((t->s[i] - mean[i])/std[i], 2);
 	   */
 	}
-    const auto compare=[this](Sequence* a, Sequence* b){return a->MSE<b->MSE;};
-    std::sort(Set.begin(), Set.end(), compare);
-    if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
-    iOldestSaved = 0;
-    #endif
+  const auto compare=[this](Sequence* a, Sequence* b){return a->MSE<b->MSE;};
+  std::sort(Set.begin(), Set.end(), compare);
+  if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
+  iOldestSaved = 0;
+  #endif
 
-    int nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
-    for(auto & bufTransition : Buffered) {
-        const int ind = iOldestSaved++;
-        iOldestSaved = (iOldestSaved >= maxTotSeqNum) ? 0 : iOldestSaved;
+  int nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
+  for(auto & bufTransition : Buffered) {
+      const int ind = iOldestSaved++;
+      iOldestSaved = (iOldestSaved >= maxTotSeqNum) ? 0 : iOldestSaved;
 
-        if (not Set[ind]->ended) --nBroken;
-        nTransitionsDeleted += Set[ind]->tuples.size()-1;
-        nTransitionsInBuf += bufTransition->tuples.size()-1;
+      if (not Set[ind]->ended) --nBroken;
+      nTransitionsDeleted += Set[ind]->tuples.size()-1;
+      nTransitionsInBuf += bufTransition->tuples.size()-1;
 
-        nTransitions -= Set[ind]->tuples.size()-1;
-        _dispose_object(Set[ind]);
+      nTransitions -= Set[ind]->tuples.size()-1;
+      _dispose_object(Set[ind]);
 
-        nTransitions += bufTransition->tuples.size()-1;
-        if (not bufTransition->ended) ++nBroken;
-        Set[ind] = bufTransition;
-    } //number of sequences remains constant
-    printf("Removing %lu sequences (avg length %f) associated with small MSE"
-      "error in favor of new ones (avg lendth %f)\n", Buffered.size(),
-      nTransitionsDeleted/(Real)bufferSize, nTransitionsInBuf/(Real)bufferSize);
-    Buffered.resize(0); //no clear?
+      nTransitions += bufTransition->tuples.size()-1;
+      if (not bufTransition->ended) ++nBroken;
+      Set[ind] = bufTransition;
+  } //number of sequences remains constant
+  printf("Removing %lu sequences (avg length %f) associated with small MSE"
+    "error in favor of new ones (avg lendth %f)\n", Buffered.size(),
+    nTransitionsDeleted/(Real)bufferSize, nTransitionsInBuf/(Real)bufferSize);
+  Buffered.resize(0); //no clear?
 }
 
 void Transitions::updateSamples()
@@ -415,15 +415,45 @@ void Transitions::updateSamples()
 
   const int ndata = (bRecurrent) ? nSequences : nTransitions;
   inds.resize(ndata);
-  std::iota(inds.begin(), inds.end(), 0);
-  random_shuffle(inds.begin(), inds.end(), *(gen));
+  #if 1
+  if (bRecurrent) {
+    delete dist;
+    assert(nSequences==Set.size());
+    #ifndef NDEBUG
+    int recount_Transitions = 0;
+    #endif
+    for(int i=0; i<nSequences; i++) {
+      #ifndef NDEBUG
+      recount_Transitions += Set[i]->tuples.size()-1;
+      #endif
+  		inds[i] = Set[i]->tuples.size()-1;
+    }
+    assert(recount_Transitions==nTransitions);
+    dist = new discrete_distribution<int>(inds.begin(), inds.end());
+  }
+  else
+  #endif
+  {
+    std::iota(inds.begin(), inds.end(), 0);
+    random_shuffle(inds.begin(), inds.end(), *(gen));
+  }
 }
-/*
+
 int Transitions::sample()
 {
-    return dist->operator()(*(gen->g));
+  const int ind = inds.back();
+  inds.pop_back();
+  #if 1
+  if (bRecurrent) {
+    const int sampid = dist->operator()(*(gen->g));
+    //printf("Choosing %d with length %lu\n", sampid, Set[sampid]->tuples.size());
+    return sampid;
+  }
+  else
+  #endif
+    return ind;
 }
-*/
+
 void Transitions::save(std::string fname)
 {
     string nameBackup = fname + "_data_stats";

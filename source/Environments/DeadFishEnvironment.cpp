@@ -98,11 +98,10 @@ void DeadFishEnvironment::setDims()
     //accel = 4*Ltow*length/(Tperiod*Tperiod);
     // Hardcode Ltow = 1.5, Tperiod = 2. KEEP THIS CONST
     // so bounds = +/-1.5. Rescale in MRAG by multiplying Length_fisch
-    for (int i=0; i<aI.dim; i++) {
-        aI.values[i].push_back(-5*1.5);
-        aI.values[i].push_back(+5*1.5);
-    }
+        aI.values[0].push_back(-5*1.5);
+        aI.values[0].push_back(+5*1.5);
 
+	aI.bounded.push_back(1);
     resetAll=false; //all agents send states upon a failure
     commonSetup();
 }
@@ -119,9 +118,7 @@ bool DeadFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 
 	const bool terminated = info==2;
 	//assert(terminated == (reward<-9.9));
-
 	if (study == 1) reward = t_sN.vals[25]; //then we use single guy miles per gallon
-
 	if (terminated) reward = -2./(1.-gamma);
   return terminated;
 }

@@ -292,8 +292,7 @@ int Learner::sampleTransitions(vector<int>& sequences, vector<int>& transitions)
   assert(!bRecurrent);
   for (int i=0; i<batchSize; i++)
   {
-    const int ind = data->inds.back();
-    data->inds.pop_back();
+    const int ind = data->sample();
 
     int k=0, back=0, indT=data->Set[0]->tuples.size()-1;
     while (ind >= indT) {
@@ -313,9 +312,9 @@ int Learner::sampleSequences(vector<int>& sequences)
 {
   assert(sequences.size() == batchSize && bRecurrent);
   int nAddedGradients = 0;
-  for (int i=0; i<batchSize; i++) {
-    const int ind = data->inds.back();
-    data->inds.pop_back();
+  for (int i=0; i<batchSize; i++)
+  {
+    const int ind = data->sample();
     sequences[i]  = ind;
     //index[i] = ind;
     const int seqSize = data->Set[ind]->tuples.size();
@@ -388,7 +387,7 @@ void Learner::updateTargetNetwork()
 bool Learner::checkBatch(unsigned long mastersNiter)
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    if (ndata<batchSize*5) {
+    if (ndata<batchSize*5 || !bTrain) {
       mastersNiter_b4PolUpdates = mastersNiter;
       return false;
     }  //do we have enough data? TODO k*ndata?
@@ -398,7 +397,7 @@ bool Learner::checkBatch(unsigned long mastersNiter)
     // ratio is 1 : 1 in DQN paper
     //then let master thread go to help other threads finish the batch
     //otherwise only go to communicate if batch is over
-    if (env->cheaperThanNetwork && bTrain &&
+    if (env->cheaperThanNetwork &&
 	mastersNiter > opt->nepoch + mastersNiter_b4PolUpdates)
       return true;
     else
