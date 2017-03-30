@@ -218,8 +218,8 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
 
       const bool terminal = k+2==ndata && data->Set[seq]->ended;
       if (not terminal) {
-					vector<Real> scaledSnew = data->standardize(_t->s);
           //vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
+          vector<Real> scaledSnew = data->standardize(_t->s);
           net->predict(scaledSnew, target, timeSeries[k], tgtActivation,
 									net->tgt_weights, net->tgt_biases);
       }
@@ -264,7 +264,8 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
     if (not terminal) {
         Activation* sNewActivation = net->allocateActivation();
-        vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
+        //vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
+        vector<Real> scaledSnew = data->standardize(_t->s);
         net->predict(scaledSnew, target, sNewActivation,
 														net->tgt_weights, net->tgt_biases);
         _dispose_object(sNewActivation);

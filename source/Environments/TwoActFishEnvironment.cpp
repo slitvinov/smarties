@@ -8,7 +8,7 @@
  */
 
 #include "TwoActFishEnvironment.h"
-#define __Cubism3D
+//#define __Cubism3D
 using namespace std;
 
 TwoActFishEnvironment::TwoActFishEnvironment(const int _nAgents,
@@ -25,7 +25,7 @@ study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : se
 	//mpi_ranks_per_env = 1;
 	mpi_ranks_per_env = 8;
 #else
-	mpi_ranks_per_env = 1;
+	mpi_ranks_per_env = 0;
 #endif
 	//paramsfile="settings_32.txt";
   paramsfile="settings_64.txt";
@@ -182,6 +182,9 @@ void TwoActFishEnvironment::setDims()
 bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
                                 const State& t_sN, Real& reward, const int info)
 {
+    //if(t_sO.vals[4] == 0) {
+//		t_sO.vals[5] = 0; t_sN.vals[6] = 0;
+//	}
     if (fabs(t_sN.vals[4] -t_a.vals[0])>0.00001) {
         printf("Mismatch state and action!!! %s === %s\n",
          t_sN.print().c_str(),t_a.print().c_str());
