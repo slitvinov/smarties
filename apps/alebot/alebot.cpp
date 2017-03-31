@@ -5,12 +5,12 @@
 #include <cstdio>
 #include <vector>
 #include <functional>
-#include <Communicator.h>
+#include "Communicator.h"
 
 
 //size is [x,y]
 //resamples input image to newsize using bilinear interpolation
-void resampleimage(const std::vector<double>& originalimage, int *originalsize, std::vector<double>& newimage, int *newsize)
+void resampleimage(const std::vector<unsigned char>& originalimage, int *originalsize, std::vector<double>& newimage, int *newsize)
 {
 	const double xratio=1.*(*originalsize)/(*newsize);
 	const double yratio=1.*(*(originalsize+1))/(*(newsize+1));
@@ -18,11 +18,11 @@ void resampleimage(const std::vector<double>& originalimage, int *originalsize, 
 	{
 		for(int y=0;y<*(newsize+1);++y)
 		{
-			newimage(x*(*(newsize+1))+y)=(originalimage(math.floor(x*xratio)*(*(originalsize+1))+math.floor(y*yratio))+originalimage(math.floor(x*xratio)*(*(originalsize+1))+math.ceil(y*yratio))+originalimage(math.ceil(x*xratio)*(*(originalsize+1))+math.floor(y*yratio))+originalimage(math.ceil(x*xratio)*(*(originalsize+1))+math.ceil(y*yratio)))/4; //should instead use distance as prefactor instead of 1/4 const
+			newimage[x*(*(newsize+1))+y]=(originalimage[std::floor(x*xratio)*(*(originalsize+1))+std::floor(y*yratio)]+originalimage[std::floor(x*xratio)*(*(originalsize+1))+std::ceil(y*yratio)]+originalimage[std::ceil(x*xratio)*(*(originalsize+1))+std::floor(y*yratio)]+originalimage[std::ceil(x*xratio)*(*(originalsize+1))+std::ceil(y*yratio)])/4; //should instead use distance as prefactor instead of 1/4 const
 		}
 	}
 }
-void addframetostate(const std::vector<unsigned char>& newframe, std::vector<double>& state)
+void addframetostate(const std::vector<double>& newframe, std::vector<double>& state)
 {
 	//newframe has been resized to 84x84
 	//order in vector is: z,y,x ?
@@ -78,26 +78,33 @@ int main(int argc, const char * argv[])
 	std::vector<double> actions;
 	std::vector<unsigned char> curscreen;
 	curscreen.reserve(inputdim);
+	std::vector<double> resampledscreen;
+	resampledscreen.reserve(inputdim);
 	std::vector<double> state;
 	state.reserve(inputdim);
 	double reward=0;
 	int info=1;
 	int k=0;
+	int originalsize[2]={210,160};
+	int newsize[2]={84,84};
 
     
     while (true) {
 		
 		//preprocess state
 		ale.getScreenGrayscale(curscreen);
+		resampleimage(curscreen, originalsize, resampledscreen, newsize);
+		addframetostate(resampledscreen, state);
 		comm.sendState(k,info, state, reward);
 		comm.recvAction(actions);
 		Action a=legal_actions[actions[0]];
 		reward+=ale.act(a);
-		//use som CNN to preprocess getScreenGrayscale()
 		info=0;
 		if(ale.game_over())
 		{
 			ale.getScreenGrayscale(curscreen);
+			resampleimage(curscreen, originalsize, resampledscreen, newsize);
+			addframetostate(resampledscreen, state);
 			info=2;
 			comm.sendState(k,info, state, reward); //reward?
 			ale.reset_game();

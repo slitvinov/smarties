@@ -2,7 +2,7 @@ CC = g++
 
 OBJ_FILES = 	alebot.o Communicator.o
 SRC_DIR = ./
-COM_DIR = ../../source/Util
+COM_DIR = ../../source
 ALE = ./Arcade-Learning-Environment
 VPATH := $(SRC_DIR):$(COM_DIR)
 CPPFLAGS =-std=c++11 -O3 -I$(COM_DIR) -I$(ALE)/src
