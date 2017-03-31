@@ -8,22 +8,43 @@
 #include <Communicator.h>
 
 
+//size is [x,y]
+//resamples input image to newsize using bilinear interpolation
+void resampleimage(const std::vector<double>& originalimage, int *originalsize, std::vector<double>& newimage, int *newsize)
+{
+	const double xratio=1.*(*originalsize)/(*newsize);
+	const double yratio=1.*(*(originalsize+1))/(*(newsize+1));
+	for(int x=0;x<*newsize;++x)
+	{
+		for(int y=0;y<*(newsize+1);++y)
+		{
+			newimage(x*(*(newsize+1))+y)=(originalimage(math.floor(x*xratio)*(*(originalsize+1))+math.floor(y*yratio))+originalimage(math.floor(x*xratio)*(*(originalsize+1))+math.ceil(y*yratio))+originalimage(math.ceil(x*xratio)*(*(originalsize+1))+math.floor(y*yratio))+originalimage(math.ceil(x*xratio)*(*(originalsize+1))+math.ceil(y*yratio)))/4; //should instead use distance as prefactor instead of 1/4 const
+		}
+	}
+}
 void addframetostate(const std::vector<unsigned char>& newframe, std::vector<double>& state)
 {
-	const int dim1=210;
-	const int dim2=160;
-	//shift state s.t the oldest image drops out and new one gets appended at the end
-	state.erase(state.begin(),state.begin()+8400);
-	//newframe is of size 210x160 stored rowmajor
+	//newframe has been resized to 84x84
+	//order in vector is: z,y,x ?
+	const int dim1=4;
+	const int dim2=84;
+	const int dim3=84;
 	//for efficiency use 1 loop only
-	//resize newframe to 105x80
-	for(int i=0;i<dim1*dim2/4;++i)
+	for(int x=0;x<dim3;++x)
 	{
-		state.push_back((1.*newframe[(i*2/dim2)*2*dim2+i*2%dim2]+newframe[(i*2/dim2)*2*dim2+i*2%dim2+1]+newframe[((i*2/dim2)*2+1)*dim1+i*2%dim2]+newframe[((i*2/dim2)*2+1)*dim2+i*2%dim2+1])/4.);
+		for(int y=0;y<dim2;++y)
+		{
+			for(int z=0;z<dim1-1;++z)
+			{
+				state[x*dim2*dim1+y*dim1+z]=state[x*dim2*dim1+y*dim1+z+1];
+			}
+			state[x*dim2*dim1+y*dim1+dim1-1]=newframe[x*dim2+y];
+		}
 	}	
 	//convert to double (maybe done??)
 
 }
+
 
 
 Communicator * comm;
@@ -51,12 +72,12 @@ int main(int argc, const char * argv[])
    
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
     //second and 3rd arguments are dimensions, not correct yet
-    const int inputdim=33600; //dimension to which input gets resampled, this is for 4x105x80, uses last 4 images since dynamic is relevant
+    const int inputdim=28224; //dimension to which input gets resampled, this is for 4x84x84, uses last 4 images since dynamic is relevant
     Communicator comm(sock,inputdim,legal_actions.size()); 
 
 	std::vector<double> actions;
 	std::vector<unsigned char> curscreen;
-	curscreen.reserve(33600);
+	curscreen.reserve(inputdim);
 	std::vector<double> state;
 	state.reserve(inputdim);
 	double reward=0;

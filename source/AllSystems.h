@@ -29,3 +29,4 @@ class TestEnvironment;
 #include "Environments/NewFishEnvironment.h"
 #include "Environments/TwoActFishEnvironment.h"
 #include "Environments/DeadFishEnvironment.h"
+#include "Environments/alebotEnvironment.h"
