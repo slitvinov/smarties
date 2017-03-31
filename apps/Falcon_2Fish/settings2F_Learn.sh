@@ -3,7 +3,7 @@ SETTINGS=
 
 # setup settings
 SETTINGS+=" -study learning"
-SETTINGS+=" -factory factory2F_Learn"
+SETTINGS+=" -factory ../factory2F_Learn"
 SETTINGS+=" -length 0.2"
 SETTINGS+=" -nu 8e-6"
 SETTINGS+=" -lmax 6"
