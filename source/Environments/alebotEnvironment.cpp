@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <stdio.h>
 
-#include "../../../Arcade-Learning-Environment/src/ale_interface.hpp"
 
 using namespace std;
 
