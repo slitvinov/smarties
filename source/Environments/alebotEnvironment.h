@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Environment.h"
-#include "../../../Arcade-Learning-Environment/src/ale_interface.hpp"
 
 class alebotEnvironment : public Environment
 {
