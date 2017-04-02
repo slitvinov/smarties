@@ -103,7 +103,7 @@ void alebotEnvironment::setDims() //this environment is for the cart pole test
         for (int i=0; i<aI.dim; i++) {
         	for (int j=0;j<legalActions;++j) //should be something like: actionvec=ale.getLeagalActionSet() actionvec.length: Pass aleInterface without recreating it?
         	{
-				al.values[0].push_back(j);
+				aI.values[0].push_back(j);
 			}
         }
     }
