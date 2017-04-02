@@ -51,40 +51,39 @@ bool alebotEnvironment::predefinedNetwork(Network* const net) const
 	//output layer (fully connected), linear
 	//	1 output per valid action (4-18)
 	{
-	 const int inputsize[3] = {84,84,4};
-	 net->add2DInput(inputsize);
-	 }
-	 {
-	   const int filterSize[3] = {8,8,32}; //not too sure about 3rd dim (number of rectifier units)
-	   const int padding[2] = {0,0};
-	   const int outSize[3] = {20,20,32};
-	   const int stride[2] = {4,4};
-	   net->addConv2DLayer(filterSize, outSize, padding, stride);
-	 }
-	 {
-	   const int filterSize[3] = {4,4,64};
-	   const int padding[2] = {0,0};
-	   const int outSize[3] = {9,9,64};
-	   const int stride[2] = {2,2};
-	   net->addConv2DLayer(filterSize, outSize, padding, stride);
-	 }
-	 {
-	   const int filterSize[3] = {3,3,64};
-	   const int padding[2] = {0,0};
-	   const int outSize[3] = {7,7,64};
-	   const int stride[2] = {1,1};
-	   net->addConv2DLayer(filterSize, outSize, padding, stride);
-	 }
-	 {
+		const int inputsize[3] = {84,84,4};
+		net->add2DInput(inputsize);
+	}
+	{
+		const int filterSize[3] = {8,8,32}; //not too sure about 3rd dim (number of rectifier units)
+		const int padding[2] = {0,0};
+		const int outSize[3] = {20,20,32};
+		const int stride[2] = {4,4};
+		net->addConv2DLayer(filterSize, outSize, padding, stride);
+	}
+	{
+		const int filterSize[3] = {4,4,64};
+		const int padding[2] = {0,0};
+		const int outSize[3] = {9,9,64};
+		const int stride[2] = {2,2};
+		net->addConv2DLayer(filterSize, outSize, padding, stride);
+	}
+	{
+		const int filterSize[3] = {3,3,64};
+		const int padding[2] = {0,0};
+		const int outSize[3] = {7,7,64};
+		const int stride[2] = {1,1};
+		net->addConv2DLayer(filterSize, outSize, padding, stride);
+	}
+	{
 		 //add fully connected layer with 512 rectifier units
 		 const int nunits=512;
 		 net->addLayer(nunits, "normal");
-	 }
-	 
-	 net->addOutput(legalActions, "Normal");
-
-	 return true;
 	}
+
+	net->addOutput(legalActions, "Normal");
+
+	return true;
 }
 
 void alebotEnvironment::setDims() //this environment is for the cart pole test
