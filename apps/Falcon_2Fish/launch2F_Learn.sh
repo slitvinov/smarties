@@ -2,7 +2,7 @@ SOCK=$1
 PROGNAME=hyperion
 SETTINGSNAME=settings2F_Learn.sh
 EXECNAME=LearningSim
-NTHREADS=12
+NTHREADS=8
 
 MYNAME=`whoami`
 BASEPATH="./"
@@ -35,11 +35,11 @@ source ../$SETTINGSNAME
 
 factoryFile=`echo $SETTINGS | awk 'BEGIN{FS="-factory "} {print $2}' | awk '{print $1}'`
 if [ -n "$factoryFile" ]; then
-    if [ ! -f ../$factoryFile ];then
+    if [ ! -f $factoryFile ];then
         echo "factoryFile "$factoryFile" not found! - exiting"
         exit -1
     fi
-    echo "factoryFile detected: "../$factoryFile
+    echo "factoryFile detected: "$factoryFile
 fi
 
 cp ../launchSim.sh ${BASEPATH}${EXECNAME}/
@@ -47,7 +47,7 @@ cp ../$SETTINGSNAME ${BASEPATH}${EXECNAME}/
 cp ../hyperion ${BASEPATH}${EXECNAME}/
 
 if [ -n "$factoryFile" ]; then
-cp ../$factoryFile ${BASEPATH}${EXECNAME}/
+cp $factoryFile ${BASEPATH}${EXECNAME}/
 fi
 env > ${BASEPATH}${EXECNAME}/environment.log
 
