@@ -108,15 +108,16 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
         int n = _parseInt(envStr, "n", true);
         env = new CMAEnvironment(n, execpath, rank, *settings);
     }
+    else if (envStr.find("alebotEnvironment ") != envStr.npos)
+    {
+        string execpath = _parse(envStr, "exec", true);
+        int n = _parseInt(envStr, "n", true);
+        env = new alebotEnvironment(n, execpath, rank, *settings);
+    }
     else if (envStr.find("TestEnvironment ") != envStr.npos)
     {
         string execpath = _parse(envStr, "exec", true);
         env = new TestEnvironment(1, execpath, rank, *settings);
-    }
-    else if (envStr.find("alebotEnvironment ") != envStr.npos)
-    {
-        string execpath = _parse(envStr, "exec", true);
-        env = new alebotEnvironment(1, execpath, rank, *settings);
     }
     else die("Unsupported environment type in line %s\n", envStr.c_str());
 
