@@ -113,6 +113,11 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
         string execpath = _parse(envStr, "exec", true);
         env = new TestEnvironment(1, execpath, rank, *settings);
     }
+    else if (envStr.find("alebotEnvironment ") != envStr.npos)
+    {
+        string execpath = _parse(envStr, "exec", true);
+        env = new alebotEnvironment(1, execpath, rank, *settings);
+    }
     else die("Unsupported environment type in line %s\n", envStr.c_str());
 
     //getline(inFile, s); used to be a while loop, but env vectors are not supported...
