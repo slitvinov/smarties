@@ -20,6 +20,7 @@ class DeadFishEnvironment;
 class TwoActFishEnvironment;
 class CMAEnvironment;
 class TestEnvironment;
+class alebotEnvironment;
 
 #include "Environments/AcrobotEnvironment.h"
 #include "Environments/CMAEnvironment.h"
