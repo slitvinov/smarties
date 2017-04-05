@@ -21,10 +21,10 @@ struct Tuple
 {
     vector<Real> s;
     vector<Real> a;
-    Real r;
+    Real r, mu;
 
     Real SquaredError;
-    Tuple(): r(0), SquaredError(0) {}
+    Tuple(): r(0), mu(1), SquaredError(0) {}
 };
 
 struct Sequence
@@ -62,9 +62,11 @@ protected:
     const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize, bTrain;
     const string path;
     vector<Real> std, mean;
+    vector<int> curr_transition_id;
     vector<Sequence*> Buffered;
     discrete_distribution<int> * dist;
-
+    int add(const int agentId, const int info, const Action& a,
+             const Real mu, const State& s, Real r);
     int add(const int agentId, const int info, const State& sOld,
              const Action& a, const State& sNew, const Real reward);
 
@@ -105,6 +107,9 @@ public:
     int sample();
     void restartSamples();
     void saveSamples();
+
+    int passData(const int agentId, const int info, const Action & a,
+                 const Real mu, const State & s, const Real reward);
     int passData(const int agentId, const int info, const State & sOld,
                   const Action & a, const State & sNew, const Real reward);
 };

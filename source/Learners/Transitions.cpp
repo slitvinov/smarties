@@ -25,6 +25,7 @@ nSequences(0), aI(_env->aI), sI(_env->sI), generators(settings.generators), old_
     for (int i=0; i<max(settings.nAgents,1); i++)
         Tmp[i] = new Sequence();
 
+    curr_transition_id.resize(max(settings.nAgents,1));
     dist = new discrete_distribution<int> (1,2); //dummy
     gen = new Gen(&generators[0]);
     Set.reserve(maxTotSeqNum);
@@ -130,6 +131,78 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
     return add(agentId, info, sOld, a, sNew, reward);
 }
 
+int Transitions::passData(const int agentId, const int info, const Action & a,
+                          const Real mu, const State & s, const Real reward)
+{
+    assert(agentId<curr_transition_id.size());
+    const int ret = add(agentId, info, a, mu, s, reward);
+    if (ret) curr_transition_id[agentId] = 0;
+
+    ofstream fout;
+    const std::string fname = "obs_agent_"+std::to_string(agentId)+".dat";
+    fout.open(fname.c_str(),ios::app); //safety
+    fout << agentId << " " << info << " " << curr_transition_id[agentId] << " "
+         << s.printClean().c_str() << a.printClean().c_str() << mu << " "<< reward;
+    fout << endl;
+    fout.close();
+
+    return ret;
+}
+
+int Transitions::add(const int agentId, const int info, const Action& aNew,
+                            const Real muNew, const State& sNew, Real rNew)
+{
+    //return value is 1 if the agent states buffer is empty or on initial state
+    int ret = 0;
+    const int sApp = nAppended*sI.dimUsed;
+    if (Tmp[agentId]->tuples.size()!=0 && info == 1) {
+      push_back(agentId); //create new sequence
+      ret = 1;
+    } else if(Tmp[agentId]->tuples.size()==0) {
+      assert(info == 1);
+      ret = 1; //new Sequence
+    }
+
+    if (Tmp[agentId]->tuples.size() >= maxSeqLen) {
+      //upper limit to how long a sequence can be
+      //printf("Sequence is too long!\n");
+      const Tuple * const l = Tmp[agentId]->tuples.back();
+      Tuple * t = new Tuple(); //backup last state
+      t->s = l->s; t->a = l->a; t->r = l->r, t->mu = l->mu;
+      t->SquaredError = l->SquaredError;
+
+      push_back(agentId); //create new sequence
+      Tmp[agentId]->tuples.push_back(t);
+    }
+
+    //we can add sNew:
+    Tuple * t = new Tuple();
+    t->s = sNew.copy_observed();
+    if (sApp>0) {
+        if(Tmp[agentId]->tuples.size()==0)
+          t->s.insert(t->s.end(),sApp,0.);
+        else {
+          const Tuple * const last = Tmp[agentId]->tuples.back();
+          t->s.insert(t->s.end(),last->s.begin(),last->s.begin()+sApp);
+          assert(last->s.size()==t->s.size());
+        }
+    }
+
+    const bool end_seq = env->pickReward(sOld,a,sNew,rNew,info);
+    assert((info==2)==end_seq); //alternative not supported
+    t->a = a.vals;
+    t->r = rNew;
+    t->mu = muNew;
+
+    Tmp[agentId]->tuples.push_back(t);
+    if (end_seq) {
+        Tmp[agentId]->ended = true;
+        push_back(agentId);
+    }
+
+    return ret;
+}
+
 int Transitions::add(const int agentId, const int info, const State& sOld,
       const Action& a, const State& sNew, Real reward)
 {
@@ -138,8 +211,8 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
     //is the stored s does not match sold
     int ret = 0;
     const int sApp = nAppended*sI.dimUsed;
-
     const vector<Real> vecSold = sOld.copy_observed();
+
     if(Tmp[agentId]->tuples.size()!=0) {
         bool same(true);
         const Tuple * const last = Tmp[agentId]->tuples.back();
@@ -202,7 +275,6 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
         Tmp[agentId]->ended = true;
         push_back(agentId);
     }
-
     return ret;
 }
 

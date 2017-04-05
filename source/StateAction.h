@@ -359,8 +359,16 @@ public:
 			vals = actInfo.labelToAction(label);
     }
 
+		Real getUniformProbability()
+		{
+			Real P = 1;
+			for (int i=0; i<actInfo.dim; i++) P *= (uB-lB);
+			return P;
+		}
+
     void getRandom(const int iRand = -1)
     {
+			/*
         std::normal_distribution<Real> dist(0.,0.5);
 
         if ( iRand<0 || iRand >= actInfo.dim ) {
@@ -374,6 +382,20 @@ public:
 					const Real uB = actInfo.getActMinVal(iRand);
 					const Real lB = actInfo.getActMaxVal(iRand);
 					vals[iRand] = lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+        }
+				*/
+				std::uniform_real_distribution<Real> dist(0,1);
+				if ( iRand<0 || iRand >= actInfo.dim ) {
+        	//select all random actions
+            for (int i=0; i<actInfo.dim; i++) {
+							const Real uB = actInfo.getActMinVal(i);
+							const Real lB = actInfo.getActMaxVal(i);
+            	vals[i] = lB + dist(*gen)*(uB-lB);
+            }
+        } else {  //select just one
+					const Real uB = actInfo.getActMinVal(iRand);
+					const Real lB = actInfo.getActMaxVal(iRand);
+					vals[iRand] = lB + dist(*gen)*(uB-lB);
         }
     }
 

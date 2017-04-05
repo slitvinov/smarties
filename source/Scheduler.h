@@ -58,7 +58,7 @@ public:
         _dispose_object(env);
         _dispose_object(inbuf);
         _dispose_object(outbuf);
-        _dispose_object(learner);
+        //_dispose_object(learner);
     }
     void run();
     void restart(string fname);
@@ -101,7 +101,7 @@ class Client
     ~Client()
     {
         _dispose_object(env);
-        _dispose_object(learner);
+        //_dispose_object(learner);
     }
     void run();
 };
