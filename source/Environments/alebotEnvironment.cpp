@@ -33,7 +33,7 @@ bool alebotEnvironment::predefinedNetwork(Network* const net) const
 	//1st layer (Convolution):
 	//	32 filters (8x8)
 	//	stride 4
-	//	applies a rectifier nonlinearity??
+	//	applies a rectifier nonlinearity
 	
 	//2nd layer (Convolution):
 	//	64 filters (4x4)
@@ -103,7 +103,7 @@ void alebotEnvironment::setDims() //this environment is for the cart pole test
         for (int i=0; i<aI.dim; i++) {
         	for (int j=0;j<legalActions;++j) //should be something like: actionvec=ale.getLeagalActionSet() actionvec.length: Pass aleInterface without recreating it?
         	{
-				aI.values[0].push_back(j);
+				aI.values[i].push_back(j);
 			}
         }
     }
