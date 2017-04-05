@@ -362,7 +362,11 @@ public:
 		Real getUniformProbability()
 		{
 			Real P = 1;
-			for (int i=0; i<actInfo.dim; i++) P *= (uB-lB);
+			for (int i=0; i<actInfo.dim; i++) {
+				const Real uB = actInfo.getActMinVal(iRand);
+				const Real lB = actInfo.getActMaxVal(iRand);
+				P *= (uB-lB);
+			}
 			return P;
 		}
 

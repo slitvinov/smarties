@@ -65,8 +65,8 @@ protected:
     vector<int> curr_transition_id;
     vector<Sequence*> Buffered;
     discrete_distribution<int> * dist;
-    int add(const int agentId, const int info, const Action& a,
-             const Real mu, const State& s, Real r);
+    int add(const int agentId, const int info, const State & sOld,
+      const Action & a, const Real mu, const State& s, Real r);
     int add(const int agentId, const int info, const State& sOld,
              const Action& a, const State& sNew, const Real reward);
 
@@ -108,8 +108,8 @@ public:
     void restartSamples();
     void saveSamples();
 
-    int passData(const int agentId, const int info, const Action & a,
-                 const Real mu, const State & s, const Real reward);
-    int passData(const int agentId, const int info, const State & sOld,
-                  const Action & a, const State & sNew, const Real reward);
+    int passData(const int agentId, const int info, const State& sOld,
+      const Action & a, const Real mu, const State & s, const Real r);
+    int passData(const int agentId, const int info, const State& sOld,
+                  const Action & a, const State & sNew, const Real r);
 };

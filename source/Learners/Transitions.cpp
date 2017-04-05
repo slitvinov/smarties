@@ -131,11 +131,11 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
     return add(agentId, info, sOld, a, sNew, reward);
 }
 
-int Transitions::passData(const int agentId, const int info, const Action & a,
-                          const Real mu, const State & s, const Real reward)
+int Transitions::passData(const int agentId, const int info, const State & sOld,
+   const Action & a, const Real mu, const State & s, const Real reward)
 {
     assert(agentId<curr_transition_id.size());
-    const int ret = add(agentId, info, a, mu, s, reward);
+    const int ret = add(agentId, info, sOld, a, mu, s, reward);
     if (ret) curr_transition_id[agentId] = 0;
 
     ofstream fout;
@@ -149,8 +149,8 @@ int Transitions::passData(const int agentId, const int info, const Action & a,
     return ret;
 }
 
-int Transitions::add(const int agentId, const int info, const Action& aNew,
-                            const Real muNew, const State& sNew, Real rNew)
+int Transitions::add(const int agentId, const int info, const State & sOld,
+   const Action& aNew, const Real muNew, const State& sNew, Real rNew)
 {
     //return value is 1 if the agent states buffer is empty or on initial state
     int ret = 0;

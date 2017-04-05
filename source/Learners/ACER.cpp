@@ -74,7 +74,7 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 								 Action& aOld, const int info, Real r)
 {
 		if (info == 2) { //no need for action, just pass terminal s & r
-			data->passData(agentId, info, a, 1, s, r);
+			data->passData(agentId, info, sOld, a, 1, s, r);
 			return;
 		}
 
@@ -138,7 +138,7 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 		}
 
 		finalizePolicy(a);
-		data->passData(agentId, info, a, mu, s, r);
+		data->passData(agentId, info, sOld, a, mu, s, r);
 
 		/*
 			#ifdef _dumpNet_
@@ -226,8 +226,7 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 
 		for (int k=0; k<ndata-1; k++)
 		{
-      const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains sOld
-			const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //this contains a, mu
+      const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
       vector<Real> scaledSold = data->standardize(_t->s);
       net->predict(scaledSold, out_cur[k], series_cur, k);
       net->predict(scaledSold, out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
@@ -245,8 +244,8 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 				rho_cur[k] = evaluateProbability(act_cur, out_cur[k])/t_->mu;
 				c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
 			*/
-			act[k] = prepareAction(t_->a);
-			rho_cur[k] = evaluateProbability(act[k], out_cur[k])/_t->mu; //TODO: UN-HACK
+			act[k] = prepareAction(_t->a);
+			rho_cur[k] = evaluateProbability(act[k], out_cur[k])/_t->mu;
 			c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
 		}
 
@@ -275,10 +274,11 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 			const Real error = Q_RET - Q_cur;
 			Q_RET = c_cur[k] *(Q_RET - Q_hat) + out_hat[k][0];
 			Q_OPC = 					(Q_OPC - Q_hat) + out_hat[k][0];
-			vector<Real> fake_Q {Q_cur, 100};
 			const vector<Real> grad = computeGradient(error, out_cur[k], out_hat[k], act[k], gain);
-
 			net->setOutputDeltas(grad, series_cur[k]);
+			//bookkeeping:
+			vector<Real> fake{Q_cur, 100};
+	    dumpStats(Vstats[thrID], Q_cur, error, fake);
 			if(thrID == 1) net->updateRunning(series_cur[k]);
 	    data->Set[seq]->tuples[k]->SquaredError = error*error;
 		}
