@@ -109,25 +109,21 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 
 	#pragma omp parallel for
     for (int i=0; i<N; i++) {
-        const Real DW  = grad[i] *norm;
-        //const Real W   = std::fabs(dest[i]);
+        const Real DW  = std::max(std::min(grad[i]*norm, 1.), -1.);
+        //const Real DW  = grad[i]*norm;
         const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
         const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
-        //const Real M1_ = std::min(std::max(M1,   -1e9),1e9);
         const Real M1_ = M1;
         const Real M2_ = std::max(M2,epsilon);
-        //slow down extreme updates (normalization):
-        //const Real TOP = std::fabs(*(dest+i)) * std::sqrt(M2_);
-        //const Real M1_ = std::max(std::min(TOP,M1),-TOP);
-        const Real DW_ = std::max(std::min(eta_*M1_/std::sqrt(M2_),eta_),-eta_);
-        //const Real DW_ = eta_*M1_/sqrt(M2_);
+        //const Real DW_ = std::max(std::min(eta_*M1_/std::sqrt(M2_),eta_),-eta_);
+        const Real DW_ = eta_*M1_/sqrt(M2_);
         _1stMom[i] = M1_;
         _2ndMom[i] = M2_;
         grad[i] = 0.; //reset grads
 
         if (lambda_>0)
-             //dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);
-             dest[i] += DW_ - dest[i]*lambda_;
+             //dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);   // L1
+             dest[i] += DW_ - dest[i]*lambda_;                      // L2
         else dest[i] += DW_;
     }
 }

@@ -216,6 +216,7 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 		/*
 			this algo only works by sampling entire trajectories: ignore samp
 		*/
+		const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
     assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
 		vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2,0));
@@ -266,8 +267,8 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 		{
       //const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains sOld
 			const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //this contains a, r, sNew
-			Q_RET = t_->r + gamma*Q_RET; //if k==ndata-2 then this is r_end
-			Q_OPC = t_->r + gamma*Q_OPC;
+			Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
+			Q_OPC = t_->r + rGamma*Q_OPC;
 			//compute Q using target net for pi and C, for consistency of derivatives
 			const Real Q_cur = computeQ(act[k], out_hat[k], out_cur[k]);
 			const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
