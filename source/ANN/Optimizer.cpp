@@ -109,7 +109,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 
 	#pragma omp parallel for
     for (int i=0; i<N; i++) {
-        const Real DW  = std::max(std::min(grad[i]*norm, 1.), -1.);
+        const Real DW  = std::max(std::min(grad[i]*norm, 100.), -100.);
         //const Real DW  = grad[i]*norm;
         const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
         const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;

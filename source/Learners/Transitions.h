@@ -59,7 +59,7 @@ protected:
     Environment * const env;
     const int nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
     int iOldestSaved;
-    const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize, bTrain;
+    const bool bSampleSeq, bWriteToFile, bNormalize, bTrain;
     const string path;
     vector<Real> std, mean;
     vector<int> curr_transition_id;
@@ -75,6 +75,7 @@ protected:
     void synchronize();
 
 public:
+    bool bRecurrent;
     int anneal, nBroken, nTransitions, nSequences, old_ndata;
     const StateInfo sI;
     const ActionInfo aI;

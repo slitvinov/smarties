@@ -27,7 +27,7 @@ private:
     double*const outbuf;
     State  sOld, sNew;
     Action aOld, aNew;
-    Real totR;
+    Real meanR, varR;
     unsigned long iter;
     vector<int> status;
 

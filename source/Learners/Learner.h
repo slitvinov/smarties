@@ -37,7 +37,8 @@ protected:
     const MPI_Comm mastersComm;
     Environment * const env;
     const int nAgents, batchSize, tgtUpdateDelay, nThreads, nInputs, nOutputs, nAppended;
-    const bool bRecurrent, bTrain;
+    bool bRecurrent;
+    const bool bTrain;
     const Real tgtUpdateAlpha, gamma, greedyEps, epsAnneal;
     int cntUpdateDelay, taskCounter;
     unsigned long mastersNiter_b4PolUpdates;

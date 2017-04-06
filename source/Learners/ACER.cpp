@@ -62,6 +62,7 @@ nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
 	assert(1+nL+2*nA == net->getnOutputs() && nInputs == net->getnInputs());
 
 	opt = new AdamOptimizer(net, profiler, settings);
+	data->bRecurrent = bRecurrent = true;
 }
 
 static void printselection(const int iA,const int nA,const int i,vector<Real> s)
@@ -206,16 +207,13 @@ void ACER::dumpNetworkInfo(const int agentId)
 }
 */
 
-void ACER::Train_BPTT(const int seq, const int thrID) const
-{
-    die("TODO ACER BPTT\n");
-}
-
 void ACER::Train(const int seq, const int samp, const int thrID) const
 {
-		/*
-			this algo only works by sampling entire trajectories: ignore samp
-		*/
+    die("ACER only works by sampling entire trajectories.\n");
+}
+
+void ACER::Train_BPTT(const int seq, const int thrID) const
+{
 		const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
     assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
@@ -247,7 +245,9 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 				c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
 			*/
 			act[k] = prepareAction(_t->a);
-			rho_cur[k] = evaluateProbability(act[k], out_cur[k])/_t->mu;
+			const Real onPolP = evaluateProbability(act[k], out_hat[k]);
+			assert(onPolP>0 && _t->mu>0);
+			rho_cur[k] = onPolP/_t->mu;
 			c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
 		}
 
