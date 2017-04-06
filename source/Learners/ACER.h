@@ -30,22 +30,27 @@ public:
 
 private:
 
-  inline Real evaluateProbability(const vector<Real>& a, const vector<Real>& out) const
+  inline Real evaluateLogProbability(const vector<Real>& a, const vector<Real>& out) const
   {
-    Real p = 1;
-    for(int i=0; i<nA; i++)
-      p *= std::exp(-.5*out[1+nL+nA+i]*std::pow(a[i]-out[1+nL+i],2))*std::sqrt(0.5*out[1+nL+nA+i]/M_PI);
-
+    Real p = 0;
+    for(int i=0; i<nA; i++) {
+	assert(out[1+nL+nA+i]>0);
+      p -= 0.5*out[1+nL+nA+i]*std::pow(a[i]-out[1+nL+i],2);
+      p += 0.5*std::log(0.5*out[1+nL+nA+i]/M_PI);
+	}
     return p;
   }
 
-  inline Real evaluateBehavioralPolicy(const vector<Real>& a, const vector<Real>& mu)
+  inline Real evaluateLogBehavioralPolicy(const vector<Real>& a, const vector<Real>& mu) const
   {
-    assert(mu.size()==nA*2+1);
-    Real p = 1;
-    for(int i=0; i<nA; i++)
-      p *= std::exp(-.5*mu[nA+i]*std::pow(a[i]-mu[i],2))*std::sqrt(.5*mu[nA+i]/M_PI);
-    return mu.back() * aInfo.getUniformProbability() + (1-mu.back()) * p;
+    assert(mu.size()==nA*2);
+    Real p = 0;
+    for(int i=0; i<nA; i++) {
+	assert(mu[nA+i]>0);
+      p -= 0.5*mu[nA+i]*std::pow(a[i]-mu[i],2);
+      p += 0.5*std::log(0.5*mu[nA+i]/M_PI);
+	}
+    return p;
   }
 
   inline vector<Real> preparePmatrix(const vector<Real>& out) const
@@ -123,7 +128,7 @@ private:
     return ret;
   }
 
-  inline vector<Real> gradAcerTrpo(const vector<Real>& DA1, const vector<Real>& DA2, const vector<Real>& DKL)
+  inline vector<Real> gradAcerTrpo(const vector<Real>& DA1, const vector<Real>& DA2, const vector<Real>& DKL) const
   {
     assert(DA1.size() == nA*2);
     assert(DA2.size() == nA*2);
@@ -143,7 +148,7 @@ private:
     return gradAcer;
   }
 
-  inline vector<Real> policyGradient(const vector<Real>& out, const vector<Real>& a, const Real factor)
+  inline vector<Real> policyGradient(const vector<Real>& out, const vector<Real>& a, const Real factor) const
   {
     /*
     this function returns the off policy corrected gradient

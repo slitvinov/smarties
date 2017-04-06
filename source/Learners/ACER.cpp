@@ -111,22 +111,14 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 		prepareVariance(output);
 
 		const Real annealedEps = bTrain ? std::max(annealingFactor()+greedyEps,1.) : 0;
-		vector<Real> mu = vector<Real>(&output[1+nL], &output[1+nL]+2*nA);
-		mu.push_back(annealedEps);
 
 		if(bTrain) {
-	    uniform_real_distribution<Real> dis(0.,1.);
-	    if(dis(*gen) < annealedEps) {
-				a.getRandom();
-				//have to map it back to algo space, we are not done here:
-				a.vals = prepareAction(a.vals);
-			} else {
-				for(int i=0; i<nA; i++) {
-					std::normal_distribution<Real> dist_cur(output[1+nL+i], 1./std::sqrt(output[1+nL+nA+i]));
-					a.vals[i] = dist_cur(*gen);
-				}
+			for(int i=0; i<nA; i++) {
+				const Real var = annealedEps*aInfo.addedVariance(i) + 1./std::sqrt(output[1+nL+nA+i]);
+				std::normal_distribution<Real> dist_cur(output[1+nL+i], var);
+				output[1+nL+nA+i] = 1./std::pow(var, 2);
+				a.vals[i] = dist_cur(*gen);
 			}
-			const Real onPol_prob = evaluateProbability(a.vals, output);
 		}
 		else if (greedyEps) { //not training but still want to sample policy. how if i do want eps?
 			for(int i=0; i<nA; i++) {
@@ -139,6 +131,7 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 			a.set(pi);
 		}
 
+		const vector<Real> mu(&output[1+nL], &output[1+nL]+2*nA);
 		finalizePolicy(a);
 		data->passData(agentId, info, sOld, a, mu, s, r);
 
@@ -235,19 +228,19 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			prepareVariance(out_hat[k]); //grad correction in computeGradient
 			act[k] = prepareAction(_t->a);
 	    for(int i=0; i<nA; i++) {
-				std::normal_distribution<Real> dist_cur(out_cur[1+nL+i], 1./std::sqrt(out_cur[1+nL+nA+i]));
+				std::normal_distribution<Real> dist_cur(out_cur[k][1+nL+i], 1./std::sqrt(out_cur[k][1+nL+nA+i]));
 				pol[k][i] = dist_cur(generators[thrID]);
 			}
-			const Real actProbOnPolicy = evaluateProbability(act[k], out_cur[k]);
-			const Real polProbOnPolicy = evaluateProbability(pol[k], out_cur[k]);
-			const Real actProbOnTarget = evaluateProbability(pol[k], out_hat[k]);
-			const Real actProbBehavior = evaluateBehavioralPolicy(act[k], _t->mu);
-			const Real polProbBehavior = evaluateBehavioralPolicy(pol[k], _t->mu);
-
-			assert(actProbOnPolicy>0 && polProbOnPolicy>0 && actProbOnTarget>0 && actProbBehavior>0 && polProbBehavior>0);
-			rho_cur[k] = actProbOnPolicy/actProbBehavior;
-			rho_pol[k] = polProbOnPolicy/polProbBehavior;
-			rho_hat[k] = actProbOnTarget/actProbBehavior;
+			const Real actProbOnPolicy = evaluateLogProbability(act[k], out_cur[k]);
+			const Real polProbOnPolicy = evaluateLogProbability(pol[k], out_cur[k]);
+			const Real actProbOnTarget = evaluateLogProbability(pol[k], out_hat[k]);
+			const Real actProbBehavior = evaluateLogBehavioralPolicy(act[k], _t->mu);
+			const Real polProbBehavior = evaluateLogBehavioralPolicy(pol[k], _t->mu);
+		
+			//assert(actProbOnPolicy>0 && polProbOnPolicy>0 && actProbOnTarget>0 && actProbBehavior>0 && polProbBehavior>0);
+			rho_cur[k] = std::min(10.,std::max(-10.,actProbOnPolicy-actProbBehavior));
+			rho_pol[k] = std::min(10.,std::max(-10.,polProbOnPolicy-polProbBehavior));
+			rho_hat[k] = std::min(10.,std::max(-10.,actProbOnTarget-actProbBehavior));
 			c_hat[k] = std::min((Real)1.,std::pow(rho_hat[k],1./nA));
 		}
 
@@ -288,7 +281,7 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			//const Real error = Q_RET - Q_cur;
 			const Real error =(Q_RET - Q_cur)*std::min(1.,rho_cur[k]);
 			//prepare rolled Q with off policy corrections for next step:
-			Q_RET = c_cur[k] *(Q_RET - Q_hat) + out_hat[k][0];
+			Q_RET = c_hat[k] *(Q_RET - Q_hat) + out_hat[k][0];
 			Q_OPC = 					(Q_OPC - Q_hat) + out_hat[k][0];
 
 			const vector<Real> grad = computeGradient(error, out_cur[k], out_hat[k], act[k], gradAcer);

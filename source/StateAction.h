@@ -295,15 +295,20 @@ struct ActionInfo
 		return ret;
 	}
 
-	Real getUniformProbability()
+	Real getUniformProbability() const
 	{
 		Real P = 1;
 		for (int i=0; i<dim; i++) {
 			const Real lB = getActMinVal(i);
 			const Real uB = getActMaxVal(i);
-			P *= (uB-lB);
+			P /= (uB-lB);
 		}
 		return P;
+	}
+	Real addedVariance(const Real i)
+	{
+	    if (bounded[i]) return 1; //enough to sample sigmoid
+	    else return getActMaxVal(i) - getActMinVal(i);
 	}
 };
 
