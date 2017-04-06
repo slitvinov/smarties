@@ -259,8 +259,8 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			vector<Real> out_T(1+nL+nA*2, 0);
       net->predict(S_T, out_T, series_hat, ndata-1, net->tgt_weights, net->tgt_biases);
 			Q_RET = out_T[0]; //V(s_T) computed with tgt weights
-      net->predict(S_T, out_T, series_cur.back(), series_hat.back());
-			Q_OPC = out_T[0]; //V(s_T) computed with curr weights
+      //net->predict(S_T, out_T, series_cur.back(), series_hat.back());
+			Q_OPC = out_T[0]; //V(s_T) computed with tgt weights
 		}
 
 		for (int k=ndata-2; k>=0; k--)
@@ -272,10 +272,13 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			//compute Q using target net for pi and C, for consistency of derivatives
 			const Real Q_cur = computeQ(act[k], out_hat[k], out_cur[k]);
 			const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
-			const Real gain  = rho_cur[k] * (Q_OPC - out_hat[k][0]); // V(s_{t-1})
-			const Real error = Q_RET - Q_cur;
+			const Real gain  =(Q_OPC - out_hat[k][0]) * rho_cur[k]; // V(s_{t-1})
+			//const Real error = Q_RET - Q_cur;
+			const Real error =(Q_RET - Q_cur)*std::min(1.,rho_cur[k]);
+			//prepare rolled Q with off policy corrections for next step:
 			Q_RET = c_cur[k] *(Q_RET - Q_hat) + out_hat[k][0];
 			Q_OPC = 					(Q_OPC - Q_hat) + out_hat[k][0];
+			
 			const vector<Real> grad = computeGradient(error, out_cur[k], out_hat[k], act[k], gain);
 			net->setOutputDeltas(grad, series_cur[k]);
 			//bookkeeping:
