@@ -363,8 +363,8 @@ public:
 		{
 			Real P = 1;
 			for (int i=0; i<actInfo.dim; i++) {
-				const Real uB = actInfo.getActMinVal(iRand);
-				const Real lB = actInfo.getActMaxVal(iRand);
+				const Real uB = actInfo.getActMinVal(i);
+				const Real lB = actInfo.getActMaxVal(i);
 				P *= (uB-lB);
 			}
 			return P;

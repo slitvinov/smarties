@@ -77,7 +77,7 @@ private:
     for (int j=0; j<nA; j++)
     for (int i=0; i<nA; i++) { //A = L * L'
         const int ind = nA*j + i;
-        Q += _P[ind]*(a[i]-pi[i])*(a[j]-pi[j]);
+        Q += P[ind]*(a[i]-pi[i])*(a[j]-pi[j]);
     }
     return -0.5*Q;
   }
@@ -101,8 +101,8 @@ private:
     */
     assert(out.size() == 1+nL+2*nA);
     assert(hat.size() == 1+nL+2*nA);
-    const vector<Real> pi_cur(out[1+nL],out[1+nL+nA]), pi_hat(hat[1+nL],hat[1+nL+nA]);
-    const vector<Real> C_cur(out[1+nL+nA],out[1+nL+nA*2]), C_hat(hat[1+nL+nA],hat[1+nL+nA*2]);
+    const vector<Real> pi_cur(&out[1+nL],&out[1+nL]+nA), C_cur(&out[1+nL+nA],&out[1+nL+nA]+nA);
+    const vector<Real> pi_hat(&hat[1+nL],&hat[1+nL]+nA), C_hat(&hat[1+nL+nA],&hat[1+nL+nA]+nA);
     vector<Real> ret(2*nA);
     for (int i=0; i<nA; i++) {
       ret[i]    = (pi_cur[i]-pi_hat[i])*C_cur[i];
@@ -126,7 +126,7 @@ private:
     Therefore log of distrib becomes:
     sum_i( -.5*log(2*M_PI*Sigma_i) -.5*(a-pi)^2*Sigma_i^-1 )
     */
-    const vector<Real> pi(out[1+nL],out[1+nL+nA]), C(out[1+nL+nA],out[1+nL+nA*2]);
+    const vector<Real> pi(&out[1+nL],&out[1+nL]+nA), C(&out[1+nL+nA],&out[1+nL+nA]+nA);
     vector<Real> ret(2*nA);
     for (int i=0; i<nA; i++) {
       ret[i]    = factor*(a[i]-pi[i])*C[i];
@@ -142,7 +142,7 @@ private:
   {
     assert(pi.size() == nA);
     assert(C.size() == nA);
-    assert(P.size() == 2*nA);
+    assert(P.size() == nA*nA);
     assert(act.size() == nA);
     const Real A_s_a = computeAdvantage(P, pi, act);
     /*
@@ -155,7 +155,7 @@ private:
     return A_s_a - expectation; //subtract expectation from advantage of action
   }
 
-  inline Real computeQ(const vector<Real>& act, const vector<Real>& pol_out, const vector<Real>& val_out)
+  inline Real computeQ(const vector<Real>& act, const vector<Real>& pol_out, const vector<Real>& val_out) const
   {
     const vector<Real> pi(&pol_out[1+nL], &pol_out[1+nL]+nA);
     const vector<Real> C(&pol_out[1+nL+nA], &pol_out[1+nL+nA]+nA);
@@ -169,7 +169,7 @@ private:
     assert(out.size() == 1+nL+2*nA);
     assert(hat.size() == 1+nL+2*nA);
     assert(act.size() == nA);
-    assert(P.size() == 2*nA);
+    //assert(P.size() == 2*nA);
     vector<Real> grad(1+nL+nA*2);
     grad[0] = error;
 

@@ -22,8 +22,9 @@
 
 ACER::ACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
-nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2)
+nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
 {
+	printf("Running (R)ACER! Fancy banner here\n");
 	string lType = bRecurrent ? "LSTM" : "Normal";
 	vector<int> lsize;
 	lsize.push_back(settings.nnLayer1);
@@ -87,19 +88,19 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
         if(info==1)
           input.insert(input.end(),sApp, 0);
         else {
-					if (Tmp[agentId]->tuples.size()==0) die("Issues in data\n");
-          const Tuple * const last = Tmp[agentId]->tuples.back();
+					if (data->Tmp[agentId]->tuples.size()==0) die("Issues in data\n");
+          const Tuple * const last = data->Tmp[agentId]->tuples.back();
           input.insert(input.end(),last->s.begin(),last->s.begin()+sApp);
           assert(last->s.size()==input.size());
         }
     }
 
 		if(info==1) {
-			net->predict(data->standardize(inputs), output, currActivation);
+			net->predict(data->standardize(input), output, currActivation);
 		} else { //then if i'm using RNN i need to load recurrent connections
 			Activation* prevActivation = net->allocateActivation();
 			net->loadMemory(net->mem[agentId], prevActivation);
-			net->predict(data->standardize(inputs), output, prevActivation, currActivation);
+			net->predict(data->standardize(input), output, prevActivation, currActivation);
       _dispose_object(prevActivation);
 		}
 
@@ -133,7 +134,7 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 			mu = evaluateProbability(a.vals, output);
 		}
 		else {//load computed policy into a
-			const vector<Real> pi = output(&output[1+nL], &output[1+nL]+nA);
+			const vector<Real> pi(&output[1+nL], &output[1+nL]+nA);
 			a.set(pi);
 		}
 
@@ -255,9 +256,9 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 			const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
       vector<Real> S_T = data->standardize(_t->s); //last state
 			vector<Real> out_T(1+nL+nA*2, 0);
-      net->predict(S_T, out_T, act_hat, ndata-1, net->tgt_weights, net->tgt_biases);
+      net->predict(S_T, out_T, series_hat, ndata-1, net->tgt_weights, net->tgt_biases);
 			Q_RET = out_T[0]; //V(s_T) computed with tgt weights
-      net->predict(S_T, out_T, act_cur.back(), act_hat.back());
+      net->predict(S_T, out_T, series_cur.back(), series_hat.back());
 			Q_OPC = out_T[0]; //V(s_T) computed with curr weights
 		}
 
@@ -287,5 +288,4 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
     else net->backProp(series_cur, net->Vgrad[thrID]);
     net->deallocateUnrolledActivations(&series_cur);
     net->deallocateUnrolledActivations(&series_hat);
-    _dispose_object(tgtActivation);
 }

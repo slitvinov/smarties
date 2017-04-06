@@ -44,6 +44,14 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
       settings.nnOutputs = env->aI.maxLabel;
       return new NFQ(mastersComm, env, settings);
   }
+  else if (settings.learner == "ACER") {
+      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+      const int nA = env->aI.dim;
+      const int nL = (nA*nA+nA)/2;
+      settings.nnOutputs = 1+nL+2*nA;
+      settings.bSeparateOutputs = true; //else it does not really work
+      return new ACER(mastersComm, env, settings);
+  }
   else if (settings.learner == "NA" || settings.learner == "NAF") {
       settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
       const int nA = env->aI.dim;
@@ -112,6 +120,7 @@ void runSlave(MPI_Comm slavesComm)
       Slave simulation(&comm, env, settings);
       simulation.run();
     }
+	die("Slave returning?\n");
 }
 
 void runClient()
@@ -173,13 +182,14 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
       //no need to free this
     }
 
-    Learner* learner = createLearner(MPI_COMM_WORLD, env);
+    Learner* learner = createLearner(mastersComm, env);
 
     Master master(slavesComm, learner, env, settings);
     if (settings.restart != "none") master.restart(settings.restart);
-
+printf("nthreads %d\n",settings.nThreads);fflush(0);
     if (settings.nThreads > 1) learner->TrainTasking(&master);
     else master.run();
+	 die("Master returning?\n");
 }
 
 int main (int argc, char** argv)

@@ -188,9 +188,9 @@ int Transitions::add(const int agentId, const int info, const State & sOld,
         }
     }
 
-    const bool end_seq = env->pickReward(sOld,a,sNew,rNew,info);
+    const bool end_seq = env->pickReward(sOld,aNew,sNew,rNew,info);
     assert((info==2)==end_seq); //alternative not supported
-    t->a = a.vals;
+    t->a = aNew.vals;
     t->r = rNew;
     t->mu = muNew;
 

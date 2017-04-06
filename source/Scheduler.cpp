@@ -118,7 +118,6 @@ void Slave::run()
     while(true)
     {
         if (comm->recvStateFromApp()) break; //sim crashed
-
         comm->unpackState(iAgent, agentStatus, state, reward);
         comm->sendStateMPI();
 
@@ -144,7 +143,7 @@ void Slave::run()
     }
     //if here, a crash happened:
     //if we are training, then launch again, otherwise exit
-    if (!bTrain) return;
+    //if (!bTrain) return;
   }
 }
 

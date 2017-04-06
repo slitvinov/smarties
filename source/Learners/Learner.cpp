@@ -203,8 +203,7 @@ void Learner::TrainTasking(Master* const master)
     int nAddedGradients = 0, countElapsed = 0;
     Real sumElapsed = 0;
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-
-  	if (ndata <= batchSize || !bTrain) {
+  	if (ndata <= 5*batchSize || !bTrain) {
       if(nAgents<1) die("Nothing to do, nowhere to go.\n");
       master->run();
     }
@@ -400,7 +399,7 @@ bool Learner::checkBatch(unsigned long mastersNiter)
     if (env->cheaperThanNetwork &&
 	mastersNiter > opt->nepoch + mastersNiter_b4PolUpdates)
       return true;
-    else
+    
       return taskCounter >= batchSize;
 }
 
