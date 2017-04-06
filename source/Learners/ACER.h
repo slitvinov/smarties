@@ -16,7 +16,7 @@ using namespace std;
 class ACER : public Learner
 {
     const int nA, nL;
-    const Real delta = 1;
+    const Real delta = 1, truncation = 5;
     std::vector<std::mt19937>& generators;
 
     void Train_BPTT(const int seq, const int thrID=0) const override;
@@ -37,6 +37,15 @@ private:
       p *= std::exp(-.5*out[1+nL+nA+i]*std::pow(a[i]-out[1+nL+i],2))*std::sqrt(0.5*out[1+nL+nA+i]/M_PI);
 
     return p;
+  }
+
+  inline Real evaluateBehavioralPolicy(const vector<Real>& a, const vector<Real>& mu)
+  {
+    assert(mu.size()==nA*2+1);
+    Real p = 1;
+    for(int i=0; i<nA; i++)
+      p *= std::exp(-.5*mu[nA+i]*std::pow(a[i]-mu[i],2))*std::sqrt(.5*mu[nA+i]/M_PI);
+    return mu.back() * aInfo.getUniformProbability() + (1-mu.back()) * p;
   }
 
   inline vector<Real> preparePmatrix(const vector<Real>& out) const
@@ -114,7 +123,27 @@ private:
     return ret;
   }
 
-  inline vector<Real> gradAcer(const vector<Real>& out, const vector<Real>& a, const Real factor) const
+  inline vector<Real> gradAcerTrpo(const vector<Real>& DA1, const vector<Real>& DA2, const vector<Real>& DKL)
+  {
+    assert(DA1.size() == nA*2);
+    assert(DA2.size() == nA*2);
+    assert(DKL.size() == nA*2);
+
+    vector<Real> gradAcer(nA*2);
+    Real dot=0, norm=0;
+    for (int j=0; j<nA*2; j++) {
+      norm += DKL[j] * DKL[j];
+      dot +=  DKL[j] * (DA1[j] + DA2[j]);
+    }
+    const Real proj = std::max((Real)0., (dot - delta)/norm);
+
+    for (int j=0; j<nA*2; j++)
+      gradAcer[j] = (DA1[j]+DA2[j]) - proj*DKL[j];
+
+    return gradAcer;
+  }
+
+  inline vector<Real> policyGradient(const vector<Real>& out, const vector<Real>& a, const Real factor)
   {
     /*
     this function returns the off policy corrected gradient
@@ -125,6 +154,10 @@ private:
       - factor contains rho_i * gain_i
     Therefore log of distrib becomes:
     sum_i( -.5*log(2*M_PI*Sigma_i) -.5*(a-pi)^2*Sigma_i^-1 )
+
+    out gives statistics and determines function whose gradient is computed
+    a is action at which grad is evaluated
+    factor is the advantage gain
     */
     const vector<Real> pi(&out[1+nL],&out[1+nL]+nA), C(&out[1+nL+nA],&out[1+nL+nA]+nA);
     vector<Real> ret(2*nA);
@@ -164,10 +197,11 @@ private:
   }
 
   inline vector<Real> computeGradient(const Real error, const vector<Real>& out,
-    const vector<Real>& hat, const vector<Real>& act, const Real fac) const
+    const vector<Real>& hat, const vector<Real>& act, const vector<Real>& gradAcer) const
   {
     assert(out.size() == 1+nL+2*nA);
     assert(hat.size() == 1+nL+2*nA);
+    assert(gradAcer.size() == 2*nA);
     assert(act.size() == nA);
     //assert(P.size() == 2*nA);
     vector<Real> grad(1+nL+nA*2);
@@ -223,18 +257,7 @@ private:
         }
         }
     {
-      //derivative wrt to statistics!
-      const vector<Real> grad_acer = gradAcer(out, act, fac);
-      const vector<Real> grad_divKL= gradDKL(out, hat);
-      Real dot=0, norm=0;
-      for (int j=0; j<nA*2; j++) {
-        norm += grad_divKL[j]*grad_divKL[j];
-        dot += grad_acer[j]*grad_divKL[j];
-      }
-      const Real proj = (dot - delta)/norm;
-      for (int j=0; j<nA*2; j++)
-        grad[1+nL+j] = grad_acer[j] - max((Real)0., proj)*grad_divKL[j];
-
+      for (int j=0; j<nA*2; j++) grad[1+nL+j] = gradAcer[j];
       finalizeVarianceGrad(grad, out);
     }
     return grad;

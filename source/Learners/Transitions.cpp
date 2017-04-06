@@ -131,8 +131,15 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
     return add(agentId, info, sOld, a, sNew, reward);
 }
 
-int Transitions::passData(const int agentId, const int info, const State & sOld,
-   const Action & a, const Real mu, const State & s, const Real reward)
+static inline string printVec(const vector<Real> vals)
+{
+  ostringstream o;
+  for (int i=0; i<vals.size(); i++) o << " " << vals[i];
+  return o.str();
+}
+
+int Transitions::passData(const int agentId, const int info, const State& sOld,
+   const Action& a, const vector<Real>& mu, const State& s, const Real reward)
 {
     assert(agentId<curr_transition_id.size());
     const int ret = add(agentId, info, sOld, a, mu, s, reward);
@@ -142,7 +149,7 @@ int Transitions::passData(const int agentId, const int info, const State & sOld,
     const std::string fname = "obs_agent_"+std::to_string(agentId)+".dat";
     fout.open(fname.c_str(),ios::app); //safety
     fout << agentId << " " << info << " " << curr_transition_id[agentId] << " "
-         << s.printClean().c_str() << a.printClean().c_str() << mu << " "<< reward;
+     << s.printClean().c_str() << a.printClean().c_str() << reward << printVec(mu);
     fout << endl;
     fout.close();
 
@@ -150,7 +157,7 @@ int Transitions::passData(const int agentId, const int info, const State & sOld,
 }
 
 int Transitions::add(const int agentId, const int info, const State & sOld,
-   const Action& aNew, const Real muNew, const State& sNew, Real rNew)
+   const Action& aNew, const vector<Real>& mu, const State& sNew, Real rNew)
 {
     //return value is 1 if the agent states buffer is empty or on initial state
     int ret = 0;
@@ -192,7 +199,7 @@ int Transitions::add(const int agentId, const int info, const State & sOld,
     assert((info==2)==end_seq); //alternative not supported
     t->a = aNew.vals;
     t->r = rNew;
-    t->mu = muNew;
+    t->mu = mu;
 
     Tmp[agentId]->tuples.push_back(t);
     if (end_seq) {

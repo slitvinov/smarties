@@ -294,6 +294,17 @@ struct ActionInfo
 		assert(ret>=0);
 		return ret;
 	}
+
+	Real getUniformProbability()
+	{
+		Real P = 1;
+		for (int i=0; i<dim; i++) {
+			const Real lB = getActMinVal(i);
+			const Real uB = getActMaxVal(i);
+			P *= (uB-lB);
+		}
+		return P;
+	}
 };
 
 class Action
@@ -358,17 +369,6 @@ public:
     {
 			vals = actInfo.labelToAction(label);
     }
-
-		Real getUniformProbability()
-		{
-			Real P = 1;
-			for (int i=0; i<actInfo.dim; i++) {
-				const Real lB = actInfo.getActMinVal(i);
-				const Real uB = actInfo.getActMaxVal(i);
-				P *= (uB-lB);
-			}
-			return P;
-		}
 
     void getRandom(const int iRand = -1)
     {
