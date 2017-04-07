@@ -202,7 +202,7 @@ private:
   }
 
   inline vector<Real> computeGradient(const Real error, const vector<Real>& out,
-    const vector<Real>& hat, const vector<Real>& act, const vector<Real>& gradAcer) const
+    const vector<Real>& hat, const vector<Real>& act, const vector<Real>& gradAcer, const Real factor) const
   {
     assert(out.size() == 1+nL+2*nA);
     assert(hat.size() == 1+nL+2*nA);
@@ -210,7 +210,7 @@ private:
     assert(act.size() == nA);
     //assert(P.size() == 2*nA);
     vector<Real> grad(1+nL+nA*2);
-    grad[0] = error;
+    grad[0] = error*factor;
 
     {
         //these are used to compute Q, so only involved in value gradient

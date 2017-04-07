@@ -236,7 +236,7 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			const Real actProbOnTarget = evaluateLogProbability(pol[k], out_hat[k]);
 			const Real actProbBehavior = evaluateLogBehavioralPolicy(act[k], _t->mu);
 			const Real polProbBehavior = evaluateLogBehavioralPolicy(pol[k], _t->mu);
-		
+
 			//assert(actProbOnPolicy>0 && polProbOnPolicy>0 && actProbOnTarget>0 && actProbBehavior>0 && polProbBehavior>0);
 			rho_cur[k] = std::exp(std::min(10.,std::max(-10.,actProbOnPolicy-actProbBehavior)));
 			rho_pol[k] = std::exp(std::min(10.,std::max(-10.,polProbOnPolicy-polProbBehavior)));
@@ -279,12 +279,14 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			const vector<Real> gradAcer = gradAcerTrpo(gradAcer_1,gradAcer_2,gradDivKL);
 
 			//const Real error = Q_RET - Q_cur;
-			const Real error =(Q_RET - Q_cur)*std::min(1.,rho_cur[k]);
+			const Real error =(Q_RET - Q_cur);
+			const Real fac = std::min(1.,rho_hat[k]);
 			//prepare rolled Q with off policy corrections for next step:
 			Q_RET = c_hat[k] *(Q_RET - Q_hat) + out_hat[k][0];
 			Q_OPC = 					(Q_OPC - Q_hat) + out_hat[k][0];
 
-			const vector<Real> grad = computeGradient(error, out_cur[k], out_hat[k], act[k], gradAcer);
+			const vector<Real> grad = computeGradient(error, out_cur[k], out_hat[k],
+				act[k], gradAcer, fac);
 			net->setOutputDeltas(grad, series_cur[k]);
 			//bookkeeping:
 			vector<Real> fake{Q_cur, 100};
