@@ -67,7 +67,7 @@ nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
 	#if 1//ndef NDEBUG
    vector<Real> out_0(nOutputs, 0.1), grad_0(nOutputs);
    for(int i = 0; i<nOutputs; i++) {
-      uniform_real_distribution<Real> dis(-10,10);
+      uniform_real_distribution<Real> dis(-5,5);
       out_0[i] = dis(*gen);
    }
    vector<Real> act(nA,0.25);
@@ -75,6 +75,7 @@ nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
       uniform_real_distribution<Real> dis(-10,10);
       act[i] = dis(*gen);
    }
+	 prepareVariance(out_0); 
 
 	 const vector<Real> polGrad = policyGradient(out_0, act, 1.0);
 	 for(int i = 0; i<2*nA; i++) {
