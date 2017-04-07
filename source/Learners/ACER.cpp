@@ -212,8 +212,8 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 void ACER::Train_BPTT(const int seq, const int thrID) const
 {
 		//this should go to gamma rather quick:
-		//const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
-		const Real rGamma = gamma;
+		const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
+		//const Real rGamma = gamma;
     assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
 		vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2,0));
@@ -234,8 +234,8 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			prepareVariance(out_cur[k]); //pass through softplus to make it pos def
 			prepareVariance(out_hat[k]); //grad correction in computeGradient
 			//also works in unbounded action spce
-			act[k] = prepareAction(_t->a);
-	    for(int i=0; i<nA; i++) {
+			act[k] = aInfo.getInvScaled(_t->a);
+	    for(int i=0; i<nA; i++) { //sample current policy
 				const Real pol_var = 1./std::sqrt(out_cur[k][1+nL+nA+i]);
 				std::normal_distribution<Real> dist_cur(out_cur[k][1+nL+i], pol_var);
 				pol[k][i] = dist_cur(generators[thrID]);

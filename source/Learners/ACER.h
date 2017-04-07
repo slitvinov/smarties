@@ -37,7 +37,7 @@ private:
 	     assert(out[1+nL+nA+i]>0);
       p -= 0.5*out[1+nL+nA+i]*std::pow(a[i]-out[1+nL+i],2);
       p += 0.5*std::log(0.5*out[1+nL+nA+i]/M_PI);
-	}
+	   }
     return p;
   }
 
@@ -49,8 +49,8 @@ private:
 	     assert(mu[nA+i]>0);
       p -= 0.5*mu[nA+i]*std::pow(a[i]-mu[i],2);
       p += 0.5*std::log(0.5*mu[nA+i]/M_PI);
-	}
-    return p;
+	   }
+     return p;
   }
 
   inline vector<Real> preparePmatrix(const vector<Real>& out) const
@@ -66,14 +66,14 @@ private:
     }
     //fill positive definite matrix P == L * L'
     for (int j=0; j<nA; j++)
-        for (int i=0; i<nA; i++) {
-            const int ind = nA*j + i;
-            for (int k=0; k<nA; k++) {
-                const int k1 = nA*j + k;
-                const int k2 = nA*i + k;
-                _P[ind] += _L[k1] * _L[k2];
-            }
+    for (int i=0; i<nA; i++) {
+        const int ind = nA*j + i;
+        for (int k=0; k<nA; k++) {
+            const int k1 = nA*j + k;
+            const int k2 = nA*i + k;
+            _P[ind] += _L[k1] * _L[k2];
         }
+    }
     return _P;
   }
 
@@ -259,7 +259,7 @@ private:
 
             //add the term dependent on the estimate: applies only to diagonal terms
             for (int i=0; i<nA; i++)
-                grad[1+il] -= 0.5*_dPdl[nA*i+i]/C_hat[i];
+                grad[1+il] += 0.5*_dPdl[nA*i+i]/C_hat[i];
 
             grad[1+il] *= Qerror;
         }
