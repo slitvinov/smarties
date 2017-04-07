@@ -84,12 +84,13 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 
     vector<Real> output(nOutputs);
 		vector<Real> input = s.copy_observed();
+		//if required, chain together nAppended obs to compose state
     if (nAppended>0) {
 				const int sApp = nAppended*sInfo.dimUsed;
         if(info==1)
           input.insert(input.end(),sApp, 0);
         else {
-					if (data->Tmp[agentId]->tuples.size()==0) die("Issues in data\n");
+					assert(data->Tmp[agentId]->tuples.size()!=0);
           const Tuple * const last = data->Tmp[agentId]->tuples.back();
           input.insert(input.end(),last->s.begin(),last->s.begin()+sApp);
           assert(last->s.size()==input.size());
@@ -98,7 +99,7 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 
 		if(info==1) {
 			net->predict(data->standardize(input), output, currActivation);
-		} else { //then if i'm using RNN i need to load recurrent connections
+		} else { //then if i'm using RNN i need to load recurrent connections (else no effect)
 			Activation* prevActivation = net->allocateActivation();
 			net->loadMemory(net->mem[agentId], prevActivation);
 			net->predict(data->standardize(input), output, prevActivation, currActivation);
@@ -108,21 +109,24 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
     //save network transition
     net->loadMemory(net->mem[agentId], currActivation);
     _dispose_object(currActivation);
+		//variance is pos def: transform linear output layer with softplus
 		prepareVariance(output);
 
 		const Real annealedEps = bTrain ? std::max(annealingFactor()+greedyEps,1.) : 0;
 
 		if(bTrain) {
 			for(int i=0; i<nA; i++) {
-				const Real var = annealedEps*aInfo.addedVariance(i) + 1./std::sqrt(output[1+nL+nA+i]);
-				std::normal_distribution<Real> dist_cur(output[1+nL+i], var);
-				output[1+nL+nA+i] = 1./std::pow(var, 2);
+				const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
+				const Real anneal_var = annealedEps*aInfo.addedVariance(i) + policy_var;
+				std::normal_distribution<Real> dist_cur(output[1+nL+i], anneal_var);
+				output[1+nL+nA+i] = 1./std::pow(anneal_var, 2); //to save correct mu
 				a.vals[i] = dist_cur(*gen);
 			}
 		}
-		else if (greedyEps) { //not training but still want to sample policy. how if i do want eps?
+		else if (greedyEps) { //not training but still want to sample policy.
 			for(int i=0; i<nA; i++) {
-				std::normal_distribution<Real> dist_cur(output[1+nL+i], 1./std::sqrt(output[1+nL+nA+i]));
+				const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
+				std::normal_distribution<Real> dist_cur(output[1+nL+i], policy_var);
 				a.vals[i] = dist_cur(*gen);
 			}
 		}
@@ -132,7 +136,7 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 		}
 
 		const vector<Real> mu(&output[1+nL], &output[1+nL]+2*nA);
-		finalizePolicy(a);
+		finalizePolicy(a); //if bounded action space: scale
 		data->passData(agentId, info, sOld, a, mu, s, r);
 
 		/*
@@ -207,7 +211,9 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 
 void ACER::Train_BPTT(const int seq, const int thrID) const
 {
-		const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
+		//this should go to gamma rather quick:
+		//const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
+		const Real rGamma = gamma;
     assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
 		vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2,0));
@@ -226,21 +232,23 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
       net->predict(scaledSold, out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
 			prepareVariance(out_cur[k]); //pass through softplus to make it pos def
 			prepareVariance(out_hat[k]); //grad correction in computeGradient
+			//also works in unbounded action spce
 			act[k] = prepareAction(_t->a);
 	    for(int i=0; i<nA; i++) {
-				std::normal_distribution<Real> dist_cur(out_cur[k][1+nL+i], 1./std::sqrt(out_cur[k][1+nL+nA+i]));
+				const Real pol_var = 1./std::sqrt(out_cur[k][1+nL+nA+i]);
+				std::normal_distribution<Real> dist_cur(out_cur[k][1+nL+i], pol_var);
 				pol[k][i] = dist_cur(generators[thrID]);
 			}
 			const Real actProbOnPolicy = evaluateLogProbability(act[k], out_cur[k]);
 			const Real polProbOnPolicy = evaluateLogProbability(pol[k], out_cur[k]);
-			const Real actProbOnTarget = evaluateLogProbability(pol[k], out_hat[k]);
+			//const Real actProbOnTarget = evaluateLogProbability(act[k], out_hat[k]);
 			const Real actProbBehavior = evaluateLogBehavioralPolicy(act[k], _t->mu);
 			const Real polProbBehavior = evaluateLogBehavioralPolicy(pol[k], _t->mu);
 
-			//assert(actProbOnPolicy>0 && polProbOnPolicy>0 && actProbOnTarget>0 && actProbBehavior>0 && polProbBehavior>0);
 			rho_cur[k] = std::exp(std::min(10.,std::max(-10.,actProbOnPolicy-actProbBehavior)));
 			rho_pol[k] = std::exp(std::min(10.,std::max(-10.,polProbOnPolicy-polProbBehavior)));
-			rho_hat[k] = std::exp(std::min(10.,std::max(-10.,actProbOnTarget-actProbBehavior)));
+			//rho_hat[k] = std::exp(std::min(10.,std::max(-10.,actProbOnTarget-actProbBehavior)));
+			rho_hat[k] = rho_pol[k];
 			c_hat[k] = std::min((Real)1.,std::pow(rho_hat[k],1./nA));
 		}
 
@@ -255,6 +263,12 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
       //net->predict(S_T, out_T, series_cur.back(), series_hat.back());
 			Q_OPC = out_T[0]; //V(s_T) computed with tgt weights
 		}
+		#ifndef NDEBUG
+		else {
+			const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
+			assert(_t->mu.size() == 0);
+		}
+		#endif
 
 		for (int k=ndata-2; k>=0; k--)
 		{
@@ -263,6 +277,7 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
 			Q_OPC = t_->r + rGamma*Q_OPC;
 			//compute Q using target net for pi and C, for consistency of derivatives
+			//Q(s,a)                     v a		 v policy    v quadratic Q parameters
 			const Real Q_cur = computeQ(act[k], out_hat[k], out_cur[k]);
 			const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
 			const Real Q_pol = computeQ(pol[k], out_cur[k], out_hat[k]);
@@ -278,15 +293,14 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
       const vector<Real> gradDivKL= gradDKL(out_cur[k], out_hat[k]);
 			const vector<Real> gradAcer = gradAcerTrpo(gradAcer_1,gradAcer_2,gradDivKL);
 
-			//const Real error = Q_RET - Q_cur;
-			const Real error =(Q_RET - Q_cur);
-			const Real fac = std::min(1.,rho_hat[k]);
+			const Real Qerror = (Q_RET - Q_cur);
+			const Real Verror = (Q_RET - Q_cur) * std::min(1.,rho_hat[k]); //unclear usefulness
 			//prepare rolled Q with off policy corrections for next step:
 			Q_RET = c_hat[k] *(Q_RET - Q_hat) + out_hat[k][0];
 			Q_OPC = 					(Q_OPC - Q_hat) + out_hat[k][0];
 
-			const vector<Real> grad = computeGradient(error, out_cur[k], out_hat[k],
-				act[k], gradAcer, fac);
+			const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k],
+				act[k], gradAcer);
 			net->setOutputDeltas(grad, series_cur[k]);
 			//bookkeeping:
 			vector<Real> fake{Q_cur, 100};

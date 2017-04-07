@@ -301,6 +301,7 @@ struct ActionInfo
 		for (int i=0; i<dim; i++) {
 			const Real lB = getActMinVal(i);
 			const Real uB = getActMaxVal(i);
+			assert(uB-lB > std::numeric_limits<Real>::epsilon());
 			P /= (uB-lB);
 		}
 		return P;

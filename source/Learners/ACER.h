@@ -34,7 +34,7 @@ private:
   {
     Real p = 0;
     for(int i=0; i<nA; i++) {
-	assert(out[1+nL+nA+i]>0);
+	     assert(out[1+nL+nA+i]>0);
       p -= 0.5*out[1+nL+nA+i]*std::pow(a[i]-out[1+nL+i],2);
       p += 0.5*std::log(0.5*out[1+nL+nA+i]/M_PI);
 	}
@@ -46,7 +46,7 @@ private:
     assert(mu.size()==nA*2);
     Real p = 0;
     for(int i=0; i<nA; i++) {
-	assert(mu[nA+i]>0);
+	     assert(mu[nA+i]>0);
       p -= 0.5*mu[nA+i]*std::pow(a[i]-mu[i],2);
       p += 0.5*std::log(0.5*mu[nA+i]/M_PI);
 	}
@@ -123,7 +123,7 @@ private:
     }
     for (int i=0; i<nA; i++) {
       //               v from trace    v from quadratic term   v from normalization
-      ret[i+nA] = 0.5*(1/C_hat[i] +pow(pi_cur[i]-pi_hat[i],2) +C_cur[i]);
+      ret[i+nA] = 0.5*(1/C_hat[i] +pow(pi_cur[i]-pi_hat[i],2) -1/C_cur[i]);
     }
     return ret;
   }
@@ -170,7 +170,7 @@ private:
       ret[i]    = factor*(a[i]-pi[i])*C[i];
     }
     for (int i=0; i<nA; i++) {
-      ret[i+nA] = factor*(-0.5*C[i] -0.5*pow(a[i]-pi[i],2));
+      ret[i+nA] = factor*(.5/C[i] -0.5*pow(a[i]-pi[i],2));
     }
     return ret;
   }
@@ -201,8 +201,9 @@ private:
     return val_out[0] + advantageExpectation(pi, C, P, act);
   }
 
-  inline vector<Real> computeGradient(const Real error, const vector<Real>& out,
-    const vector<Real>& hat, const vector<Real>& act, const vector<Real>& gradAcer, const Real factor) const
+  inline vector<Real> computeGradient(const Real Qerror, const Real Verror,
+    const vector<Real>& out, const vector<Real>& hat, const vector<Real>& act,
+    const vector<Real>& gradAcer) const
   {
     assert(out.size() == 1+nL+2*nA);
     assert(hat.size() == 1+nL+2*nA);
@@ -210,7 +211,7 @@ private:
     assert(act.size() == nA);
     //assert(P.size() == 2*nA);
     vector<Real> grad(1+nL+nA*2);
-    grad[0] = error*factor;
+    grad[0] = Qerror+Verror;
 
     {
         //these are used to compute Q, so only involved in value gradient
@@ -251,14 +252,14 @@ private:
             for (int j=0; j<nA; j++)
             for (int i=0; i<nA; i++) {
                 const int ind = nA*j + i;
-                grad[1+il] += -0.5*_dPdl[ind]*_u[i]*_u[j];
+                grad[1+il] -= 0.5*_dPdl[ind]*_u[i]*_u[j];
             }
 
             //add the term dependent on the estimate: applies only to diagonal terms
             for (int i=0; i<nA; i++)
-                grad[1+il] -= 0.5*_dPdl[nA*i + i]/C_hat[i];
+                grad[1+il] -= 0.5*_dPdl[nA*i+i]/C_hat[i];
 
-            grad[1+il] *= error;
+            grad[1+il] *= Qerror;
         }
         }
     {

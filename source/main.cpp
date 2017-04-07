@@ -186,7 +186,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 
     Master master(slavesComm, learner, env, settings);
     if (settings.restart != "none") master.restart(settings.restart);
-printf("nthreads %d\n",settings.nThreads);fflush(0);
+    printf("nthreads %d\n",settings.nThreads); fflush(0);
     if (settings.nThreads > 1) learner->TrainTasking(&master);
     else master.run();
 	 die("Master returning?\n");
