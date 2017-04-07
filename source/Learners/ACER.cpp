@@ -238,9 +238,9 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			const Real polProbBehavior = evaluateLogBehavioralPolicy(pol[k], _t->mu);
 		
 			//assert(actProbOnPolicy>0 && polProbOnPolicy>0 && actProbOnTarget>0 && actProbBehavior>0 && polProbBehavior>0);
-			rho_cur[k] = std::min(10.,std::max(-10.,actProbOnPolicy-actProbBehavior));
-			rho_pol[k] = std::min(10.,std::max(-10.,polProbOnPolicy-polProbBehavior));
-			rho_hat[k] = std::min(10.,std::max(-10.,actProbOnTarget-actProbBehavior));
+			rho_cur[k] = std::exp(std::min(10.,std::max(-10.,actProbOnPolicy-actProbBehavior)));
+			rho_pol[k] = std::exp(std::min(10.,std::max(-10.,polProbOnPolicy-polProbBehavior)));
+			rho_hat[k] = std::exp(std::min(10.,std::max(-10.,actProbOnTarget-actProbBehavior)));
 			c_hat[k] = std::min((Real)1.,std::pow(rho_hat[k],1./nA));
 		}
 
