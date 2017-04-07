@@ -6,15 +6,16 @@ SETTINGS+=" --fileSamp history.txt"
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.99"
+SETTINGS+=" --gamma 0.90"
 
 #network update learning rate
-SETTINGS+=" --learnrate 0.001"
+SETTINGS+=" --learnrate 0.00001"
 
 #size of network layers
-SETTINGS+=" --nnl1 32"
+SETTINGS+=" --nnl1 16"
 SETTINGS+=" --nnl2 32"
-SETTINGS+=" --nnl3 32"
+SETTINGS+=" --nnl3 16"
+SETTINGS+=" --nnl4 8"
 
 #0 means feed forward neural nets
 #1 means LSTM
@@ -36,7 +37,8 @@ SETTINGS+=" --senses 0"
 
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 #SETTINGS+=" --learn DQN"
-SETTINGS+=" --learn NAF"
+#SETTINGS+=" --learn NAF"
+SETTINGS+=" --learn ACER"
 #SETTINGS+=" --learn DPG"
 
 #number of state vectors received from env to be chained together to form input to net (faux RNN?)
@@ -45,13 +47,14 @@ SETTINGS+=" --dqnNs 0"
 #maximum allowed lenth for a sequence (from first to terminal state)
 #if a sequence is longer is just cut after #number of transitions
 SETTINGS+=" --dqnSeqMax 1000"
+SETTINGS+=" --maxTotSeqNum 1000"
 
 #batch size for network gradients compute
-SETTINGS+=" --dqnBatch 48"
+SETTINGS+=" --dqnBatch 8"
 
-SETTINGS+=" --epsAnneal 200000" 
+SETTINGS+=" --epsAnneal 100000" 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w
 #the first option is markedly safer
-SETTINGS+=" --dqnT 1000"
+SETTINGS+=" --dqnT 100"

@@ -103,20 +103,21 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
                            const int N, const int batchsize,
 						   const Real _lambda, const Real _eta)
 {
-    const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
-    const Real norm = 1./(Real)max(batchsize,1);
+    const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    //const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    const Real norm = _eta/(Real)max(batchsize,1);
     const Real lambda_ = _lambda*_eta;
 
 	#pragma omp parallel for
     for (int i=0; i<N; i++) {
-        const Real DW  = std::max(std::min(grad[i]*norm, 100.), -100.);
+        const Real DW  = std::max(std::min(grad[i]*norm, 10.), -10.);
         //const Real DW  = grad[i]*norm;
         const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
         const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
         const Real M1_ = M1;
         const Real M2_ = std::max(M2,epsilon);
         //const Real DW_ = std::max(std::min(eta_*M1_/std::sqrt(M2_),eta_),-eta_);
-        const Real DW_ = eta_*M1_/sqrt(M2_);
+        const Real DW_ = fac_*M1_/sqrt(M2_);
         _1stMom[i] = M1_;
         _2ndMom[i] = M2_;
         grad[i] = 0.; //reset grads

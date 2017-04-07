@@ -22,7 +22,8 @@
 
 ACER::ACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
-nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
+nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2),
+delta(1), truncation(1), generators(settings.generators)
 {
 	printf("Running (R)ACER! Fancy banner here\n");
 	string lType = bRecurrent ? "LSTM" : "Normal";
@@ -46,17 +47,18 @@ nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
 	if (not env->predefinedNetwork(net))
 	{ //if that was true, environment created the layers it wanted, else we read the settings:
 		net->addInput(nInputs);
-		for (int i=0; i<lsize.size()-1; i++) net->addLayer(lsize[i], lType);
-		const int splitLayer = lsize.size()-1;
+		const int outputs[4] = {1,nL,nA,nA};
+		const int nsplit = lsize.size()>3 ? 2 : 1;
+		for (int i=0; i<lsize.size()-nsplit; i++) 
+			net->addLayer(lsize[i], lType);
+		const int firstSplit = lsize.size()-nsplit;
 		const vector<int> lastJointLayer(1,net->getLastLayerID());
-		net->addLayer(lsize[splitLayer], lType, lastJointLayer);
-		net->addOutput(1, "Normal");
-		net->addLayer(lsize[splitLayer], lType, lastJointLayer);
-		net->addOutput(nL, "Normal");
-		net->addLayer(lsize[splitLayer], lType, lastJointLayer);
-		net->addOutput(nA, "Normal");
-		net->addLayer(lsize[splitLayer], lType, lastJointLayer);
-		net->addOutput(nA, "Normal");
+		for (int i=0; i<4; i++) {
+			net->addLayer(lsize[firstSplit], lType, lastJointLayer);
+			for (int j=firstSplit+1; j<lsize.size(); j++)
+				net->addLayer(lsize[j], lType);
+                	net->addOutput(outputs[i], "Normal");
+		}
 	}
 	net->build();
 	assert(1+nL+2*nA == net->getnOutputs() && nInputs == net->getnInputs());
@@ -156,13 +158,15 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 		//variance is pos def: transform linear output layer with softplus
 		prepareVariance(output);
 
-		const Real annealedEps = bTrain ? std::max(annealingFactor()+greedyEps,1.) : 0;
 
 		if(bTrain) {
 			for(int i=0; i<nA; i++) {
+				const Real eps = annealingFactor() * greedyEps;
 				const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
-				const Real anneal_var = annealedEps*aInfo.addedVariance(i) + policy_var;
-				std::normal_distribution<Real> dist_cur(output[1+nL+i], anneal_var);
+				const Real anneal_var = eps*aInfo.addedVariance(i) + (1-eps)*policy_var;
+				const Real annealed_mean = (1-eps)*output[1+nL+i];
+				std::normal_distribution<Real> dist_cur(annealed_mean, anneal_var);
+				output[1+nL+i] = annealed_mean; //to save correct mu
 				output[1+nL+nA+i] = 1./std::pow(anneal_var, 2); //to save correct mu
 				a.vals[i] = dist_cur(*gen);
 			}
@@ -248,6 +252,13 @@ void ACER::dumpNetworkInfo(const int agentId)
 }
 */
 
+static inline string printVec(const vector<Real> vals)
+{
+  ostringstream o;
+  for (int i=0; i<vals.size(); i++) o << " " << vals[i];
+  return o.str();
+}
+
 void ACER::Train(const int seq, const int samp, const int thrID) const
 {
     die("ACER only works by sampling entire trajectories.\n");
@@ -256,8 +267,8 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 void ACER::Train_BPTT(const int seq, const int thrID) const
 {
 		//this should go to gamma rather quick:
-		const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
-		//const Real rGamma = gamma;
+		//const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
+		const Real rGamma = gamma;
     assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
 		vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2,0));
@@ -346,6 +357,10 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 
 			const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k],
 				act[k], gradAcer);
+			#ifndef NDEBUG
+			printf("Applying gradient %s\n",printVec(grad).c_str());
+			fflush(0);
+			#endif
 			net->setOutputDeltas(grad, series_cur[k]);
 			//bookkeeping:
 			vector<Real> fake{Q_cur, 100};

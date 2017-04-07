@@ -78,7 +78,8 @@ public:
     {
       //number that goes from 1 to 0 with optimizer's steps
       assert(epsAnneal>1. && opt->nepoch >= 0);
-      return 1. - std::min(1., Real(opt->nepoch)/epsAnneal);
+	if(opt->nepoch >= epsAnneal) return 0;
+	else return 1 - opt->nepoch/epsAnneal;
     }
     inline Real sequenceR(const int t0, const int seq) const
     {

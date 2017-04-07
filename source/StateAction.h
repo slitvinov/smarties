@@ -306,7 +306,7 @@ struct ActionInfo
 		}
 		return P;
 	}
-	Real addedVariance(const Real i)
+	Real addedVariance(const Real i) const
 	{
 	    if (bounded[i]) return 1; //enough to sample sigmoid
 	    else return getActMaxVal(i) - getActMinVal(i);

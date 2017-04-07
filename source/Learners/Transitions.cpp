@@ -427,18 +427,24 @@ vector<Real> Transitions::standardize(const vector<Real>& state, const Real nois
 
 void Transitions::synchronize()
 {
-  #if 1==1
+  #if 1==0
 	assert(nSequences==Set.size() && maxTotSeqNum == nSequences);
 	#pragma omp parallel for schedule(dynamic)
 	for(int i=0; i<Set.size(); i++) {
-		//int count = 0;
 		Set[i]->MSE = 0.;
-
-		for(const auto & t : Set[i]->tuples) {
+		#if 0
+		for(const auto & t : Set[i]->tuples) 
 			Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
-			//count++;
-		}
-		//Set[i]->MSE /= (Real)(count-1);
+		#else
+		unsigned count = 0;
+		for(const auto & t : Set[i]->tuples) {
+			//assert(t->SquaredError>0); //last one has error 0
+                        Set[i]->MSE += t->SquaredError; 
+                        count++;
+                }
+		assert(count);
+		Set[i]->MSE /= (Real)(count-1);
+		#endif
 		/*
 		for(const auto & t : Set[i]->tuples)
 		for (int i=0; i<sI.dimUsed; i++)

@@ -16,7 +16,7 @@ using namespace std;
 class ACER : public Learner
 {
     const int nA, nL;
-    const Real delta = 1, truncation = 5;
+    const Real delta, truncation;
     std::vector<std::mt19937>& generators;
 
     void Train_BPTT(const int seq, const int thrID=0) const override;
@@ -141,7 +141,9 @@ private:
       dot +=  DKL[j] * (DA1[j] + DA2[j]);
     }
     const Real proj = std::max((Real)0., (dot - delta)/norm);
-
+	#ifndef NDEBUG
+		if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
+	#endif
     for (int j=0; j<nA*2; j++)
       gradAcer[j] = (DA1[j]+DA2[j]) - proj*DKL[j];
 
