@@ -63,6 +63,49 @@ nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
 
 	opt = new AdamOptimizer(net, profiler, settings);
 	data->bRecurrent = bRecurrent = true;
+
+	#if 1//ndef NDEBUG
+   vector<Real> out_0(nOutputs, 0.1), grad_0(nOutputs);
+   for(int i = 0; i<nOutputs; i++) {
+      uniform_real_distribution<Real> dis(-10,10);
+      out_0[i] = dis(*gen);
+   }
+   vector<Real> act(nA,0.25);
+   for(int i = 0; i<nA; i++) {
+      uniform_real_distribution<Real> dis(-10,10);
+      act[i] = dis(*gen);
+   }
+
+	 const vector<Real> polGrad = policyGradient(out_0, act, 1.0);
+	 for(int i = 0; i<2*nA; i++) {
+      vector<Real> grad_1(nOutputs), grad_2(nOutputs);
+      vector<Real> out_1 = out_0;
+      vector<Real> out_2 = out_0;
+      out_1[1+nL+i] -= 0.0001;
+      out_2[1+nL+i] += 0.0001;
+ 			const Real p1 = evaluateLogProbability(act, out_1);
+ 			const Real p2 = evaluateLogProbability(act, out_2);
+
+      const Real gradi = polGrad[i];
+      const Real diffi = (p2-p1)/0.0002;
+      printf("LogPol Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
+   }
+
+	 vector<Real> grad_0 = computeGradient(1., 0, out_0, out_0, polGrad);
+	 for(int i = 0; i<1+nL; i++) {
+      vector<Real> out_1 = out_0;
+      vector<Real> out_2 = out_0;
+      out_1[i] -= 0.0001;
+      out_2[i] += 0.0001;
+      const Real Q_1 = computeQ(act, out_0, out_1);
+      const Real Q_2 = computeQ(act, out_0, out_2);
+      const Real gradi = grad_0[i];
+      const Real diffi = (Q_2-Q_1)/0.0002;
+      printf("Value Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
+   }
+
+  #endif
+
 }
 
 static void printselection(const int iA,const int nA,const int i,vector<Real> s)

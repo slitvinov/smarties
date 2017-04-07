@@ -304,6 +304,6 @@ private:
   	assert(grad.size()==1+nL+2*nA);
   	assert(out.size()==1+nL+2*nA);
   	for (int j=0; j<nA; j++)
-  	grad[1+nL+nA+j]*=.5*(1+out[1+nL+nA+j]/std::sqrt(1+std::pow(out[1+nL+nA+j],2)));
+  	grad[1+nL+nA+j]*=.5*(1+out[1+nL+nA+j]/std::sqrt(1.+std::pow(out[1+nL+nA+j],2)));
   }
 };
