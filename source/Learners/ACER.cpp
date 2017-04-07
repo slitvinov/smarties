@@ -65,7 +65,7 @@ nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
 	data->bRecurrent = bRecurrent = true;
 
 	#if 1//ndef NDEBUG
-   vector<Real> out_0(nOutputs, 0.1), grad_0(nOutputs);
+   vector<Real> out_0(nOutputs, 0.1);
    for(int i = 0; i<nOutputs; i++) {
       uniform_real_distribution<Real> dis(-10,10);
       out_0[i] = dis(*gen);
@@ -91,7 +91,7 @@ nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
       printf("LogPol Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
    }
 
-	 vector<Real> grad_0 = computeGradient(1., 0, out_0, out_0, polGrad);
+	 vector<Real> grad_0 = computeGradient(1., 0., out_0, out_0, act, polGrad);
 	 for(int i = 0; i<1+nL; i++) {
       vector<Real> out_1 = out_0;
       vector<Real> out_2 = out_0;
@@ -338,7 +338,7 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			const vector<Real> gradAcer = gradAcerTrpo(gradAcer_1,gradAcer_2,gradDivKL);
 
 			const Real Qerror = (Q_RET - Q_cur);
-			const Real Verror = 0;//(Q_RET - Q_cur) * std::min(1.,rho_cur[k]); //unclear usefulness
+			const Real Verror = (Q_RET - Q_cur) * std::min(1.,rho_cur[k]); //unclear usefulness
 			//prepare rolled Q with off policy corrections for next step:
 			Q_RET = c_cur[k] *(Q_RET - Q_cur) + out_cur[k][0];
 			Q_OPC = 					(Q_OPC - Q_cur) + out_cur[k][0];
