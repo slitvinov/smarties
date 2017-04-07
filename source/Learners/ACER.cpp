@@ -219,7 +219,8 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 		vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2,0));
 		vector<vector<Real>> out_hat(ndata-1, vector<Real>(1+nL+nA*2,0));
 		vector<Real> rho_cur(ndata-1), rho_pol(ndata-1);
-		vector<Real> rho_hat(ndata-1), c_hat(ndata-1);
+		//vector<Real> rho_hat(ndata-1), c_hat(ndata-1);
+		vector<Real> c_cur(ndata-1);
 		vector<vector<Real>> act(ndata-1, vector<Real>(nA,0)), pol(ndata-1, vector<Real>(nA,0));
     vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
     vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata);
@@ -248,8 +249,8 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			rho_cur[k] = std::exp(std::min(10.,std::max(-10.,actProbOnPolicy-actProbBehavior)));
 			rho_pol[k] = std::exp(std::min(10.,std::max(-10.,polProbOnPolicy-polProbBehavior)));
 			//rho_hat[k] = std::exp(std::min(10.,std::max(-10.,actProbOnTarget-actProbBehavior)));
-			rho_hat[k] = rho_pol[k];
-			c_hat[k] = std::min((Real)1.,std::pow(rho_hat[k],1./nA));
+			//rho_hat[k] = rho_cur[k];
+			c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
 		}
 
 		Real Q_RET = 0, Q_OPC = 0;
@@ -258,9 +259,9 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
       vector<Real> S_T = data->standardize(_t->s); //last state
 			vector<Real> out_T(1+nL+nA*2, 0);
-      net->predict(S_T, out_T, series_hat, ndata-1, net->tgt_weights, net->tgt_biases);
+      //net->predict(S_T, out_T, series_hat, ndata-1, net->tgt_weights, net->tgt_biases);
+      net->predict(S_T, out_T, series_cur.back(), series_hat.back());
 			Q_RET = out_T[0]; //V(s_T) computed with tgt weights
-      //net->predict(S_T, out_T, series_cur.back(), series_hat.back());
 			Q_OPC = out_T[0]; //V(s_T) computed with tgt weights
 		}
 		#ifndef NDEBUG
@@ -278,14 +279,14 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			Q_OPC = t_->r + rGamma*Q_OPC;
 			//compute Q using target net for pi and C, for consistency of derivatives
 			//Q(s,a)                     v a		 v policy    v quadratic Q parameters
-			const Real Q_cur = computeQ(act[k], out_hat[k], out_cur[k]);
-			const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
-			const Real Q_pol = computeQ(pol[k], out_cur[k], out_hat[k]);
+			const Real Q_cur = computeQ(act[k], out_cur[k], out_cur[k]);
+			//const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
+			const Real Q_pol = computeQ(pol[k], out_cur[k], out_cur[k]);
 			//compute quantities needed for trunc import sampl with bias correction
 			const Real importance = std::min(rho_cur[k], truncation);
 			const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
-			const Real gain1 = (Q_OPC - out_hat[k][0]) * importance;
-			const Real gain2 = (Q_pol - out_hat[k][0]) * correction;
+			const Real gain1 = (Q_OPC - out_cur[k][0]) * importance;
+			const Real gain2 = (Q_pol - out_cur[k][0]) * correction;
 			//derivative wrt to statistics
 			const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1);
 			const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2);
@@ -294,19 +295,19 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			const vector<Real> gradAcer = gradAcerTrpo(gradAcer_1,gradAcer_2,gradDivKL);
 
 			const Real Qerror = (Q_RET - Q_cur);
-			const Real Verror = (Q_RET - Q_cur) * std::min(1.,rho_hat[k]); //unclear usefulness
+			const Real Verror = 0;//(Q_RET - Q_cur) * std::min(1.,rho_cur[k]); //unclear usefulness
 			//prepare rolled Q with off policy corrections for next step:
-			Q_RET = c_hat[k] *(Q_RET - Q_hat) + out_hat[k][0];
-			Q_OPC = 					(Q_OPC - Q_hat) + out_hat[k][0];
+			Q_RET = c_cur[k] *(Q_RET - Q_cur) + out_cur[k][0];
+			Q_OPC = 					(Q_OPC - Q_cur) + out_cur[k][0];
 
 			const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k],
 				act[k], gradAcer);
 			net->setOutputDeltas(grad, series_cur[k]);
 			//bookkeeping:
 			vector<Real> fake{Q_cur, 100};
-	    dumpStats(Vstats[thrID], Q_cur, error, fake);
+	    dumpStats(Vstats[thrID], Q_cur, Qerror, fake);
 			if(thrID == 1) net->updateRunning(series_cur[k]);
-	    data->Set[seq]->tuples[k]->SquaredError = error*error;
+	    data->Set[seq]->tuples[k]->SquaredError = Qerror*Qerror;
 		}
 
 		if (thrID==0) net->backProp(series_cur, net->grad);

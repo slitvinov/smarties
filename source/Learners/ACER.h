@@ -215,8 +215,10 @@ private:
 
     {
         //these are used to compute Q, so only involved in value gradient
-        const vector<Real> pi_hat(&hat[1+nL], &hat[1+nL]+nA);
-        const vector<Real> C_hat(&hat[1+nL+nA], &hat[1+nL+nA]+nA);
+        //const vector<Real> pi_hat(&hat[1+nL], &hat[1+nL]+nA);
+        //const vector<Real> C_hat(&hat[1+nL+nA], &hat[1+nL+nA]+nA);
+        const vector<Real> pi_hat(&out[1+nL], &out[1+nL]+nA);
+        const vector<Real> C_hat(&out[1+nL+nA], &out[1+nL+nA]+nA);
         vector<Real> _L(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA);
         int kL = 1;
         for (int j=0; j<nA; j++) {
