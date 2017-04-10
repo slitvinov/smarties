@@ -667,8 +667,9 @@ struct Graph //misleading, this is just the graph for a single layer
 			  Real* const _weights,
 			  Real* const _biases) const
     {
-    	for (const auto & l : *(links))
-			if(l not_eq nullptr) l->save(outWeights, _weights);
+			for (const auto & l : *(links))
+				if(l not_eq nullptr)
+					l->save(outWeights, _weights);
 
 			for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++)
 				outBiases << *(_biases +w) << "\n";

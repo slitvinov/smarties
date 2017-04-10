@@ -9,6 +9,8 @@
 
 #include "Transitions.h"
 #include <fstream>
+#include <dirent.h>
+#include <iterator>
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
 mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
@@ -31,6 +33,77 @@ nSequences(0), aI(_env->aI), sI(_env->sI), generators(settings.generators), old_
     Set.reserve(maxTotSeqNum);
 }
 
+void Transitions::restartSamplesNew()
+{
+    /*
+      This guy only reads using env state and action info
+      If states need to be packed, this is performed by add
+    */
+    printf("About to read from %s...\n",path.c_str());
+    int agentId=0, maxAgentID=0;
+
+    while(true)
+    {
+        int Ndata=0, thisId=0, oldSampID=-1, oldInfo=2, info=2, sampID=-1;
+        vector<Real> vecSold(sI.dim), vecSnew(sI.dim);
+        vector<Real> vecAct(aI.dim), policy(aI.dim*2);
+        State oldState(sI), newState(sI);
+        Action action(aI, gen->g);
+        Real reward = 0;
+
+        ifstream in(path.c_str());
+        std::string line;
+        if(in.good())
+        {
+            while (getline(in, line))
+            {
+                istringstream line_in(line);
+                line_in >> thisId;
+                maxAgentID = std::max(thisId, maxAgentID);
+                if (thisId==agentId)
+                {
+                    Ndata++;
+                    oldInfo = info;
+                    oldSampID = sampID;
+                    line_in >> info >> sampID;
+
+                    if((sampID==0) != (info==1))
+                      die("Mismatch in transition counter\n");
+                    if(sampID != oldSampID+1) {
+                      if(info!=1) die("Mismatch in transition change\n");
+                      if(oldInfo!=2) nBroken++;
+                    }
+                    if (info == 1) vecSold = vector<Real>(sI.dim);
+                    else vecSold = vecSnew;
+
+                    for(int i=0; i<sI.dim; i++) line_in >> vecSnew[i];
+                    for(int i=0; i<aI.dim; i++) line_in >> vecAct[i];
+                    line_in >> reward;
+                    for(int i=0; i<aI.dim*2; i++) line_in >> policy[i];
+
+                    oldState.set(vecSold);
+                    newState.set(vecSnew);
+                    action.set(vecAct);
+
+                    passData(0, info, oldState, action, policy, newState, reward);
+                }
+            }
+            if (Ndata==0 && agentId++>maxAgentID) break;
+        } else {
+            printf("WTF couldnt open file history.txt!\n");
+            break;
+        }
+        in.close();
+    }
+
+    printf("Found %d broken chains out of %d / %d.\n",
+            nBroken, nSequences, nTransitions);
+    const bool update_meanstd_needed = nTransitions>0;
+    if(syncBoolOr(update_meanstd_needed))
+      update_samples_mean(1.0);
+    old_ndata = nTransitions;
+}
+
 void Transitions::restartSamples()
 {
     /*
@@ -46,11 +119,22 @@ void Transitions::restartSamples()
     printf("About to read from %s...\n",path.c_str());
     while(true) {
         Ndata=0;
-        ifstream in(path.c_str());
+        std::ifstream in(path.c_str());
         std::string line;
         if(in.good()) {
             while (getline(in, line))  {
-                istringstream line_in(line);
+                std::istringstream line_in(line);
+                if(agentId==0 && thisId==-1) {
+                  int len = std::distance(std::istream_iterator<std::string>(line_in),
+                                          std::istream_iterator<std::string>());
+                  if(len != 2 + sI.dim*2 + aI.dim + 1) {
+                    assert(len == 3 + sI.dim + aI.dim*3 + 1);
+                    in.close();
+                    return restartSamplesNew();
+                  }
+                  line_in = std::istringstream(line);
+                }
+
                 line_in >> thisId;
                 if (thisId==agentId) {
                     Ndata++;
@@ -433,13 +517,13 @@ void Transitions::synchronize()
 	for(int i=0; i<Set.size(); i++) {
 		Set[i]->MSE = 0.;
 		#if 0
-		for(const auto & t : Set[i]->tuples) 
+		for(const auto & t : Set[i]->tuples)
 			Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
 		#else
 		unsigned count = 0;
 		for(const auto & t : Set[i]->tuples) {
 			//assert(t->SquaredError>0); //last one has error 0
-                        Set[i]->MSE += t->SquaredError; 
+                        Set[i]->MSE += t->SquaredError;
                         count++;
                 }
 		assert(count);

@@ -72,9 +72,10 @@ CPPFLAGS+= -I/usr/local/include -fopenmp -D__Smarties_
 LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
-OBJ_FILES = Communicator.o	ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
-		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o TwoActFishEnvironment.o \
-		TwoFishEnvironment.o NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
+OBJ_FILES = Communicator.o ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
+		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o \
+		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
+		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
 		Learner.o ACER.o NAF.o NFQ.o DPG.o Transitions.o \
 		Scheduler.o LSTMNet.o Network.o Optimizer.o #Links.o Layers.o
 #ExternalAgent.o

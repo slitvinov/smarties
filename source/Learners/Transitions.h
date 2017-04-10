@@ -108,6 +108,7 @@ public:
     void updateSamples();
     int sample();
     void restartSamples();
+    void restartSamplesNew();
     void saveSamples();
 
     int passData(const int agentId, const int info, const State& sOld,
