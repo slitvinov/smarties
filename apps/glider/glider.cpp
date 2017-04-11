@@ -104,10 +104,10 @@ struct Glider
     const double II  = 3.; //we have to multiply *2 all moments by Anderson
     const double beta= 0;
 
-    double Jerk, oldDistance, oldEnergySpent, time; //angular jerk
+    double Jerk, oldDistance, oldAngle, oldEnergySpent, time; //angular jerk
     int info;
     Vec7 _s;
-    Glider(): Jerk(0), time(0), info(1), oldEnergySpent(0), oldDistance(0) {}
+    Glider(): Jerk(0), time(0), info(1), oldAngle(0),  oldEnergySpent(0), oldDistance(0) {}
 
     void reset()
     {
@@ -160,7 +160,7 @@ struct Glider
     {
       //goal is {100,-50}
       const double xx = std::pow(_s.x-100.,2);
-      const double yy = std::pow(_s.y+ 50.,2);
+      const double yy = 0;//std::pow(_s.y+ 50.,2);
       return std::sqrt(xx+yy);
     }
 
@@ -185,6 +185,7 @@ struct Glider
       //same time, put angle back in 0, 2*pi
       _s.a = std::fmod( _s.a, 2*M_PI);
       _s.a = _s.a < 0 ? _s.a +2*M_PI : _s.a;
+      oldAngle = _s.a;
     }
 };
 #ifdef __SMARTIES_
@@ -199,7 +200,7 @@ int main(int argc, const char * argv[])
     const double dt = 1e-3;
     const double tol_pos = 1.0;
     const double tol_ang = 0.1;
-    const int nstep = 50;
+    const int nstep = 500;
     #ifdef __SMARTIES_
     //communication:
     const int sock = std::stoi(argv[1]);
@@ -231,18 +232,21 @@ int main(int argc, const char * argv[])
 
         //const int k = 0; //agent ID, for now == 0
         for (auto& a : agents) { //assume we have only one agent per application for now...
-            const double dist_gain = a.getDistance() - a.oldDistance;
+            const double dist_gain = a.oldDistance - a.getDistance();
+	    const double rotation = std::fabs(a.oldAngle-a._s.a);
             const double performamce = a._s.E - a.oldEnergySpent + eps;
             //reward clipping: what are the proper scaled? TODO
-            const double reward=std::min(std::max(-1.,dist_gain/performamce),1.);
+            //const double reward=std::min(std::max(-1.,dist_gain/performamce),1.);
+            const double reward=dist_gain -rotation -performamce;
             a.updateOldDistanceAndEnergy();
             //load state:
             a.prepareState(state);
 
 #ifdef __SMARTIES_
-            comm.sendState(k, a.info, state, reward);
+            comm.sendState(0, a.info, state, reward);
             comm.recvAction(actions);
-            a.Jerk = actions[0];
+            //a.Jerk = actions[0];
+            a._s.T = actions[0];
             a.info = 0; //at least one comm is done, so i set info to 0
 #endif
 
@@ -252,13 +256,13 @@ int main(int argc, const char * argv[])
                 a.time += dt;
 
                 //check if terminal state has been reached:
-                const bool max_torque = std::fabs(a._s.T)>1;
-                const bool way_too_far = a._s.x > 150;
-                const bool hit_bottom = a._s.y <= -500;
-                const bool wrong_xdir = a._s.x < -50;
+                const bool max_torque = std::fabs(a._s.T)>5;
+                const bool way_too_far = a._s.x > 125;
+                const bool hit_bottom = a._s.y <= -50;
+                const bool wrong_xdir = a._s.x < -25;
                 const bool timeover = a.time > 2000;
 #ifdef __SMARTIES_
-                if (max_torque || hit_bottom || wrong_xdir || waytoo_far)
+                if (max_torque || hit_bottom || wrong_xdir || way_too_far || timeover)
                 {
                     a.info = 2; //tell RL we are in terminal state
                     const bool got_there = a.getDistance() < tol_pos;
@@ -266,11 +270,12 @@ int main(int argc, const char * argv[])
                     double final_reward = 0;
                     //these rewards will then be multiplied by 1/(1-gamma)
                     //in RL algorithm, so that internal RL scales make sense
-                    final_reward += got_there ? 1. : -1;
-                    final_reward += landing ? 1. : 0;
+                    final_reward += got_there ? 100 : (50-a.getDistance())/10.;
+                    final_reward += landing && got_there ? 10. : 0;
+			final_reward = (max_torque||way_too_far) ? -100 : final_reward;
                     a.prepareState(state);
                     //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
-                    comm.sendState(k, a.info, state, final_reward);
+                    comm.sendState(0, a.info, state, final_reward);
 
                     a.reset(); //set info back to 0
                     a._s = Vec7(d1(gen), d1(gen), d1(gen), d2(gen), d2(gen), d1(gen), 0, 0);
@@ -282,7 +287,7 @@ int main(int argc, const char * argv[])
                     break;
                 }
 #else
-                if (hit_bottom)
+                if (a._s.y <= -500 || timeover)
                 {
                     a.print(k);
                     return 0;

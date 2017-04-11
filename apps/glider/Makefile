@@ -1,5 +1,5 @@
 CC = g++
-smart ?= 0
+smart ?= 1
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
@@ -11,7 +11,7 @@ ifeq "$(smart)" "0"
 OBJ_FILES =  glider.o
 else
 CPPFLAGS+= -D__SMARTIES_
-OBJ_FILES =   glider.o Communicator.o
+OBJ_FILES = glider.o Communicator.o
 endif
 
 SRC_DIR = ./
@@ -21,7 +21,7 @@ CPPFLAGS+=-std=c++11 -O2 -I$(COM_DIR)
 
 .DEFAULT_GOAL := glider
 
-cart-pole: $(OBJ_FILES)
+glider: $(OBJ_FILES)
 	$(CC) $(LIBS) $^ -o $@
 
 %.o: %.cpp
@@ -37,4 +37,4 @@ clean:
 	rm -f *.o
 	rm -f *.s
 	rm -f *.d
-	rm -f rl
+	rm -f glider
