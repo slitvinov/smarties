@@ -267,8 +267,8 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 void ACER::Train_BPTT(const int seq, const int thrID) const
 {
 		//this should go to gamma rather quick:
-		//const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
-		const Real rGamma = gamma;
+		const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
+		//const Real rGamma = gamma;
     assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
 		vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2,0));

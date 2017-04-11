@@ -125,14 +125,14 @@ void Transitions::restartSamples()
             while (getline(in, line))  {
                 std::istringstream line_in(line);
                 if(agentId==0 && thisId==-1) {
-                  int len = std::distance(std::istream_iterator<std::string>(line_in),
+		  std::istringstream testline(line);
+                  int len = std::distance(std::istream_iterator<std::string>(testline),
                                           std::istream_iterator<std::string>());
                   if(len != 2 + sI.dim*2 + aI.dim + 1) {
                     assert(len == 3 + sI.dim + aI.dim*3 + 1);
                     in.close();
                     return restartSamplesNew();
                   }
-                  line_in = std::istringstream(line);
                 }
 
                 line_in >> thisId;
@@ -236,7 +236,7 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
      << s.printClean().c_str() << a.printClean().c_str() << reward << printVec(mu);
     fout << endl;
     fout.close();
-
+	curr_transition_id[agentId]++;
     return ret;
 }
 
@@ -511,12 +511,14 @@ vector<Real> Transitions::standardize(const vector<Real>& state, const Real nois
 
 void Transitions::synchronize()
 {
-  #if 1==0
+  #if 1==1
 	assert(nSequences==Set.size() && maxTotSeqNum == nSequences);
+	uniform_real_distribution<Real> dis(0.,1.);
+	 if (dis(*(gen->g))>0.01) {
 	#pragma omp parallel for schedule(dynamic)
 	for(int i=0; i<Set.size(); i++) {
 		Set[i]->MSE = 0.;
-		#if 0
+		#if 1
 		for(const auto & t : Set[i]->tuples)
 			Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
 		#else
@@ -538,6 +540,11 @@ void Transitions::synchronize()
   const auto compare=[this](Sequence* a, Sequence* b){return a->MSE<b->MSE;};
   std::sort(Set.begin(), Set.end(), compare);
   if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
+	}
+	else 
+	{
+	random_shuffle(Set.begin(), Set.end(), *(gen));
+	}
   iOldestSaved = 0;
   #endif
 
@@ -563,7 +570,7 @@ void Transitions::synchronize()
   Buffered.resize(0); //no clear?
 }
 
-void Transitions::updateSamples()
+void Transitions::updateSamples(const Real alpha)
 {
   bool update_meanstd_needed = false;
 	if(Buffered.size()>0) {
@@ -579,8 +586,9 @@ void Transitions::updateSamples()
     update_meanstd_needed = ndata!=old_ndata;
     old_ndata = ndata;
   }
+	update_meanstd_needed = update_meanstd_needed && alpha;
   if(syncBoolOr(update_meanstd_needed))
-    update_samples_mean();
+    update_samples_mean(alpha);
 
   const int ndata = (bRecurrent) ? nSequences : nTransitions;
   inds.resize(ndata);

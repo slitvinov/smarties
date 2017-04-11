@@ -105,7 +105,7 @@ public:
 #endif
     void save(std::string fname);
     void restart(std::string fname);
-    void updateSamples();
+    void updateSamples(const Real alpha = 0.01);
     int sample();
     void restartSamples();
     void restartSamplesNew();

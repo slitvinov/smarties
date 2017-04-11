@@ -96,6 +96,12 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
         int n = _parseInt(envStr, "n", true);
         env = new AcrobotEnvironment(n, execpath, rank, *settings);
     }
+    else if (envStr.find("GliderEnvironment ") != envStr.npos)
+    {
+        string execpath = _parse(envStr, "exec", true);
+        int n = _parseInt(envStr, "n", true);
+        env = new GliderEnvironment(n, execpath, rank, *settings);
+    }
     else if (envStr.find("CartEnvironment ") != envStr.npos)
     {
         string execpath = _parse(envStr, "exec", true);
