@@ -230,13 +230,27 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
     if (ret) curr_transition_id[agentId] = 0;
 
     ofstream fout;
-    const std::string fname = "obs_agent_"+std::to_string(agentId)+".dat";
-    fout.open(fname.c_str(),ios::app); //safety
-    fout << agentId << " " << info << " " << curr_transition_id[agentId] << " "
-     << s.printClean().c_str() << a.printClean().c_str() << reward << printVec(mu);
-    fout << endl;
-    fout.close();
-	curr_transition_id[agentId]++;
+    
+    if (bWriteToFile)
+    {
+      fout.open("history.txt",ios::app); //safety
+      fout << agentId << " " << info << " " << curr_transition_id[agentId] << " "
+       << s.printClean().c_str() << a.printClean().c_str() << reward << printVec(mu);
+      fout << endl;
+      fout.flush();
+      fout.close();
+    }
+    {
+      const std::string fname = "obs_agent_"+std::to_string(agentId)+".dat";
+      fout.open(fname.c_str(),ios::app); //safety
+      fout << agentId << " " << info << " " << curr_transition_id[agentId] << " "
+       << s.printClean().c_str() << a.printClean().c_str() << reward << printVec(mu);
+      fout << endl;
+      fout.flush();
+      fout.close();
+    }
+
+	  curr_transition_id[agentId]++;
     return ret;
 }
 
@@ -541,7 +555,7 @@ void Transitions::synchronize()
   std::sort(Set.begin(), Set.end(), compare);
   if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
 	}
-	else 
+	else
 	{
 	random_shuffle(Set.begin(), Set.end(), *(gen));
 	}
