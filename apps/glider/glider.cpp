@@ -237,7 +237,7 @@ int main(int argc, const char * argv[])
             const double performamce = a._s.E - a.oldEnergySpent + eps;
             //reward clipping: what are the proper scaled? TODO
             //const double reward=std::min(std::max(-1.,dist_gain/performamce),1.);
-            const double reward=dist_gain -rotation -performamce;
+            const double reward=dist_gain -rotation;// -performamce;
             a.updateOldDistanceAndEnergy();
             //load state:
             a.prepareState(state);
@@ -259,10 +259,10 @@ int main(int argc, const char * argv[])
                 const bool max_torque = std::fabs(a._s.T)>5;
                 const bool way_too_far = a._s.x > 125;
                 const bool hit_bottom = a._s.y <= -50;
-                const bool wrong_xdir = a._s.x < -25;
+                const bool wrong_xdir = a._s.x < -10;
                 const bool timeover = a.time > 2000;
 #ifdef __SMARTIES_
-                if (max_torque || hit_bottom || wrong_xdir || way_too_far || timeover)
+                if (max_torque || hit_bottom || wrong_xdir || way_too_far )
                 {
                     a.info = 2; //tell RL we are in terminal state
                     const bool got_there = a.getDistance() < tol_pos;
@@ -272,7 +272,7 @@ int main(int argc, const char * argv[])
                     //in RL algorithm, so that internal RL scales make sense
                     final_reward += got_there ? 100 : (50-a.getDistance())/10.;
                     final_reward += landing && got_there ? 10. : 0;
-			final_reward = (max_torque||way_too_far) ? -100 : final_reward;
+			final_reward = (max_torque||way_too_far||wrong_xdir) ? -100 : final_reward;
                     a.prepareState(state);
                     //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
                     comm.sendState(0, a.info, state, final_reward);
