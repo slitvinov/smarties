@@ -109,12 +109,14 @@ void DeadFishEnvironment::setDims()
 bool DeadFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
                                 const State& t_sN, Real& reward, const int info)
 {
+	/*
 	//here we can check that we correclt gave old action in state:
 	if (fabs(t_sN.vals[6] -t_a.vals[0])>1e-10) {
 			printf("Mismatch state and action!!! %s === %s\n",
 			 t_sN.print().c_str(),t_a.print().c_str());
 			abort();
 	}
+	*/
 
 	const bool terminated = info==2;
 	//assert(terminated == (reward<-9.9));
