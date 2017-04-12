@@ -49,7 +49,7 @@ delta(1), truncation(1), generators(settings.generators)
 		net->addInput(nInputs);
 		const int outputs[4] = {1,nL,nA,nA};
 		const int nsplit = lsize.size()>3 ? 2 : 1;
-		for (int i=0; i<lsize.size()-nsplit; i++) 
+		for (int i=0; i<lsize.size()-nsplit; i++)
 			net->addLayer(lsize[i], lType);
 		const int firstSplit = lsize.size()-nsplit;
 		const vector<int> lastJointLayer(1,net->getLastLayerID());
@@ -77,7 +77,7 @@ delta(1), truncation(1), generators(settings.generators)
       uniform_real_distribution<Real> dis(-10,10);
       act[i] = dis(*gen);
    }
-	 prepareVariance(out_0); 
+	 prepareVariance(out_0);
 
 	 const vector<Real> polGrad = policyGradient(out_0, act, 1.0);
 	 for(int i = 0; i<2*nA; i++) {
@@ -159,20 +159,22 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 		prepareVariance(output);
 
 
-		if(bTrain) {
+		if(bTrain && annealingFactor()) {
 			for(int i=0; i<nA; i++) {
-				const Real eps = annealingFactor() * greedyEps;
+				const Real eps = annealingFactor();
+				const Real varscale = aInfo.addedVariance(i);
 				const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
-				const Real anneal_var = eps*aInfo.addedVariance(i) + (1-eps)*policy_var;
-				//const Real annealed_mean = (1-eps)*output[1+nL+i];
-				const Real annealed_mean = output[1+nL+i]; 
+				Real anneal_var = eps*varscale*greedyEps + (1-eps)*policy_var;
+				anneal_var = anneal_var>varscale ? varscale : anneal_var;
+				const Real annealed_mean = (1-eps*eps)*output[1+nL+i];
+				//const Real annealed_mean = output[1+nL+i];
 				std::normal_distribution<Real> dist_cur(annealed_mean, anneal_var);
 				output[1+nL+i] = annealed_mean; //to save correct mu
 				output[1+nL+nA+i] = 1./std::pow(anneal_var, 2); //to save correct mu
 				a.vals[i] = dist_cur(*gen);
 			}
 		}
-		else if (greedyEps) { //not training but still want to sample policy.
+		else if (greedyEps || bTrain) { //still want to sample policy.
 			for(int i=0; i<nA; i++) {
 				const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
 				std::normal_distribution<Real> dist_cur(output[1+nL+i], policy_var);
