@@ -117,38 +117,38 @@ void TwoActFishEnvironment::setDims()
             // ToD 19
             sI.inUse.push_back(false);
         }
-        const int nSensors = 20;
+        const int nSensors = 10;
         for (int i=0; i<nSensors; i++) {
             // (VelNAbove  ) x 5 [20]
-            sI.inUse.push_back(lline);
+            sI.inUse.push_back(lline && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTAbove  ) x 5 [25]
-            sI.inUse.push_back(lline);
+            sI.inUse.push_back(lline && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelNBelow  ) x 5 [30]
-            sI.inUse.push_back(lline);
+            sI.inUse.push_back(lline && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTBelow  ) x 5 [35]
-            sI.inUse.push_back(lline);
+            sI.inUse.push_back(lline && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPAbove  ) x 5 [40]
-            sI.inUse.push_back(press);
+            sI.inUse.push_back(press && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVAbove  ) x 5 [45]
-            sI.inUse.push_back(press);
+            sI.inUse.push_back(press && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPBelow  ) x 5 [50]
-            sI.inUse.push_back(press);
+            sI.inUse.push_back(press && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(press);
+            sI.inUse.push_back(press && nSensors<4);
         }
         for (int i=0; i<2*nSensors; i++) {
             // (FVBelow ) x 5 [55]
