@@ -72,7 +72,9 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
   //Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
   //Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
 	beta_t_1 *= beta_1;
+  if (beta_t_1<2.2e-16) beta_t_1 = 0;
 	beta_t_2 *= beta_2;
+  if (beta_t_2<2.2e-16) beta_t_2 = 0; 
 	//printf("%d %f %f\n",nepoch, beta_t_1,beta_t_2);
 }
 
