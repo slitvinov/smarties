@@ -23,7 +23,7 @@
 ACER::ACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2),
-delta(1), truncation(1), generators(settings.generators)
+delta(.5), truncation(10), generators(settings.generators)
 {
 	printf("Running (R)ACER! Fancy banner here\n");
 	string lType = bRecurrent ? "LSTM" : "Normal";
@@ -165,8 +165,8 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 				const Real varscale = aInfo.addedVariance(i);
 				const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
 				Real anneal_var = eps*varscale*greedyEps + (1-eps)*policy_var;
-				anneal_var = anneal_var>varscale ? varscale : anneal_var;
-				const Real annealed_mean = (1-eps*eps)*output[1+nL+i];
+//				anneal_var = anneal_var>varscale ? varscale : anneal_var;
+				const Real annealed_mean = (1-eps)*output[1+nL+i];
 				//const Real annealed_mean = output[1+nL+i];
 				std::normal_distribution<Real> dist_cur(annealed_mean, anneal_var);
 				output[1+nL+i] = annealed_mean; //to save correct mu
