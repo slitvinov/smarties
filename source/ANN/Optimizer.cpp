@@ -45,6 +45,7 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 		    #pragma omp for nowait
         for (int j=0; j<nWeights; j++)
         for (int k=0; k<nThreads; k++) {
+            //G->_W[j] += std::max(std::min(g[k]->_W[j], 10.), -10.);
             G->_W[j] += g[k]->_W[j];
             g[k]->_W[j] = 0.;
         }
@@ -52,6 +53,7 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
         #pragma omp for nowait
         for (int j=0; j<nBiases; j++)
         for (int k=0; k<nThreads; k++) {
+            //G->_B[j] += std::max(std::min(g[k]->_B[j], 10.), -10.);
             G->_B[j] += g[k]->_B[j];
             g[k]->_B[j] = 0.;
         }
@@ -118,7 +120,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
         const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
         const Real M1_ = M1;
         const Real M2_ = std::max(M2,epsilon);
-        //const Real DW_ = std::max(std::min(eta_*M1_/std::sqrt(M2_),eta_),-eta_);
+        //const Real DW_ = std::max(eta_*std::min(M1_/std::sqrt(M2_),1.),-1.);
         const Real DW_ = eta_*M1_/sqrt(M2_);
         _1stMom[i] = M1_;
         _2ndMom[i] = M2_;

@@ -23,7 +23,7 @@
 ACER::ACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2),
-delta(1), truncation(5), generators(settings.generators)
+delta(1), truncation(1), generators(settings.generators)
 {
 	printf("Running (R)ACER! Fancy banner here\n");
 	string lType = bRecurrent ? "LSTM" : "Normal";
@@ -164,7 +164,7 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 				const Real eps = annealingFactor();
 				const Real varscale = aInfo.addedVariance(i);
 				const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
-				Real anneal_var = eps*varscale*greedyEps + (1-eps)*policy_var;
+				Real anneal_var = eps*varscale*greedyEps + policy_var;
 //				anneal_var = anneal_var>varscale ? varscale : anneal_var;
 				const Real annealed_mean = (1-eps)*output[1+nL+i];
 				//const Real annealed_mean = output[1+nL+i];
@@ -270,8 +270,10 @@ void ACER::Train(const int seq, const int samp, const int thrID) const
 void ACER::Train_BPTT(const int seq, const int thrID) const
 {
 		//this should go to gamma rather quick:
+		const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
+      const Real rGamma = std::sqrt(anneal*anneal)*gamma;
 		//const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
-		const Real rGamma = gamma;
+		//const Real rGamma = gamma;
     assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
 		vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2,0));

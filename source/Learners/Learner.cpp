@@ -215,7 +215,7 @@ void Learner::TrainTasking(Master* const master)
 
         if(data->syncBoolOr(data->inds.size()<batchSize))
         { //reset sampling
-            data->updateSamples(annealingFactor());
+            data->updateSamples();
             processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
             sumElapsed = 0; countElapsed=0;
             //print_memory_usage();

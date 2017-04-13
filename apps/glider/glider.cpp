@@ -270,9 +270,10 @@ int main(int argc, const char * argv[])
                     double final_reward = 0;
                     //these rewards will then be multiplied by 1/(1-gamma)
                     //in RL algorithm, so that internal RL scales make sense
-                    final_reward += got_there ? 100 : (50-a.getDistance())/10.;
+                    final_reward += got_there ? 10 : -a.getDistance();
                     final_reward += landing && got_there ? 10. : 0;
-			final_reward = (max_torque||way_too_far||wrong_xdir) ? -100 : final_reward;
+                    if(max_torque||way_too_far||wrong_xdir)
+                        final_reward = -100;
                     a.prepareState(state);
                     //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
                     comm.sendState(0, a.info, state, final_reward);
