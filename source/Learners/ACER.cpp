@@ -23,7 +23,7 @@
 ACER::ACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2),
-delta(.5), truncation(10), generators(settings.generators)
+delta(1), truncation(5), generators(settings.generators)
 {
 	printf("Running (R)ACER! Fancy banner here\n");
 	string lType = bRecurrent ? "LSTM" : "Normal";
