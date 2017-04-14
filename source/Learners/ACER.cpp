@@ -23,7 +23,8 @@
 ACER::ACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2),
-delta(1), truncation(1), generators(settings.generators)
+delta(0.1), truncation(10), generators(settings.generators)
+//delta(0.1), truncation(10), generators(settings.generators)
 {
 	printf("Running (R)ACER! Fancy banner here\n");
 	string lType = bRecurrent ? "LSTM" : "Normal";
@@ -271,7 +272,7 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 {
 		//this should go to gamma rather quick:
 		const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
-      const Real rGamma = std::sqrt(anneal*anneal)*gamma;
+      const Real rGamma = std::sqrt(anneal)*gamma;
 		//const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
 		//const Real rGamma = gamma;
     assert(net->allocatedFrozenWeights && bTrain);

@@ -23,7 +23,7 @@ SETTINGS+=" --nnl4 8"
 SETTINGS+=" --nnType 0"
 
 # L2 regularization of the weights
-SETTINGS+=" --nnL 0.000"
+SETTINGS+=" --nnL 0"
 
 #chance of taking random actions
 SETTINGS+=" --greedyeps 0.5"
@@ -57,4 +57,5 @@ SETTINGS+=" --epsAnneal 10000"
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w
 #the first option is markedly safer
-SETTINGS+=" --dqnT 100"
+SETTINGS+=" --dqnT 0.01"
+#SETTINGS+=" --dqnT 0.001"

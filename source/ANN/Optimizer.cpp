@@ -25,7 +25,7 @@ eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), nepoch(0)
 
 AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
   Settings& settings) : Optimizer(_net, _prof, settings),
-  beta_1(0.9), beta_2(0.999), epsilon(1e-9), beta_t_1(0.9), beta_t_2(0.999)
+  beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.999)
 {
     _allocateClean(_2ndMomW, nWeights)
     _allocateClean(_2ndMomB, nBiases)
@@ -102,6 +102,7 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
     }
 }
 
+#if 0
 void AdamOptimizer::update(Real* const dest, Real* const grad,
                            Real* const _1stMom, Real* const _2ndMom,
                            const int N, const int batchsize,
@@ -114,14 +115,14 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 
 	#pragma omp parallel for
     for (int i=0; i<N; i++) {
-        const Real DW  = std::max(std::min(grad[i]*norm, 10.), -10.);
+        const Real DW  = std::max(std::min(grad[i]*norm, 1.), -1.);
         //const Real DW  = grad[i]*norm;
         const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
         const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
         const Real M1_ = M1;
         const Real M2_ = std::max(M2,epsilon);
-        //const Real DW_ = std::max(eta_*std::min(M1_/std::sqrt(M2_),1.),-1.);
-        const Real DW_ = eta_*M1_/sqrt(M2_);
+        const Real DW_ = std::max(std::min(eta_*M1_/std::sqrt(M2_),eta_),-eta_);
+        //const Real DW_ = eta_*M1_/sqrt(M2_);
         _1stMom[i] = M1_;
         _2ndMom[i] = M2_;
         grad[i] = 0.; //reset grads
@@ -132,6 +133,38 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
         else dest[i] += DW_;
     }
 }
+#else
+void AdamOptimizer::update(Real* const dest, Real* const grad,
+                           Real* const _1stMom, Real* const _2ndMom,
+                           const int N, const int batchsize,
+						   const Real _lambda, const Real _eta)
+{
+    //const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    const Real eta_ = _eta/(1.-beta_t_1);
+    const Real norm = 1./(Real)max(batchsize,1);
+    const Real lambda_ = _lambda*_eta;
+    const Real eps = std::numeric_limits<Real>::epsilon();
+	#pragma omp parallel for
+    for (int i=0; i<N; i++) {
+        //const Real scale = std::max(1.,std::fabs(dest[i]));
+        //const Real DW  = std::max(std::min(grad[i]*norm, scale), -scale);
+        const Real DW  = grad[i]*norm;
+        const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
+        const Real M2_ = std::max(beta_2*_2ndMom[i]+eps, std::fabs(DW));
+        //const Real M1_ = std::max(std::min(M1,M2_),-M2_);
+        const Real M1_ = M1;
+        const Real DW_ = eta_*M1_/M2_;
+        _1stMom[i] = M1_;
+        _2ndMom[i] = M2_;
+        grad[i] = 0.; //reset grads
+
+        if (lambda_>0)
+             //dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);   // L1
+             dest[i] += DW_ - dest[i]*lambda_;                      // L2
+        else dest[i] += DW_;
+    }
+}
+#endif
 
 void Optimizer::init(Real* const dest, const int N, const Real ini)
 {
