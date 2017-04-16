@@ -8,7 +8,7 @@
  */
 
 #include "../StateAction.h"
-#include "ACER.h"
+#include "RACER.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +20,7 @@
 
 
 
-ACER::ACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
+RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2),
 delta(1), truncation(5), generators(settings.generators)
@@ -48,32 +48,38 @@ delta(1), truncation(5), generators(settings.generators)
 	if (not env->predefinedNetwork(net))
 	{ //if that was true, environment created the layers it wanted, else we read the settings:
 		net->addInput(nInputs);
-		const int Nnets = 4;
-		const int outputs[4] = {1,nL,nA,nA};
-   #if 1
-		const int nsplit = lsize.size()>3 ? 2 : 1;
-		for (int i=0; i<lsize.size()-nsplit; i++)
-			net->addLayer(lsize[i], lType);
-		const int firstSplit = lsize.size()-nsplit;
-		const vector<int> lastJointLayer(1,net->getLastLayerID());
-		for (int i=0; i<4; i++) {
-			net->addLayer(lsize[firstSplit], lType, lastJointLayer);
-			for (int j=firstSplit+1; j<lsize.size(); j++)
-				net->addLayer(lsize[j], lType);
-                	net->addOutput(outputs[i], "Normal");
-		}
-   #else
-		const vector<int> lastJointLayer(1,net->getLastLayerID());
-		for (int i=0; i<Nnets; i++) {
-			net->addLayer(lsize[0], lType, lastJointLayer);
-			for (int j=1; j<lsize.size(); j++)
-				net->addLayer(lsize[j], lType);
-         net->addOutput(outputs[i], "Normal");
-		}
-   #endif
+		const int Nnets = 5;
+		const int outputs[Nnets] = {1,nL,nA,nA,nA};
+		#if 1
+			const int nsplit = lsize.size()>3 ? 2 : 1;
+			for (int i=0; i<lsize.size()-nsplit; i++)
+				net->addLayer(lsize[i], lType);
+
+			const int firstSplit = lsize.size()-nsplit;
+			const vector<int> lastJointLayer(1,net->getLastLayerID());
+
+			for (int i=0; i<Nnets; i++)
+			{
+				net->addLayer(lsize[firstSplit], lType, lastJointLayer);
+
+				for (int j=firstSplit+1; j<lsize.size(); j++)
+					net->addLayer(lsize[j], lType);
+
+				net->addOutput(outputs[i], "Normal");
+			}
+		#else
+			const vector<int> lastJointLayer(1,net->getLastLayerID());
+			for (int i=0; i<Nnets; i++) {
+				net->addLayer(lsize[0], lType, lastJointLayer);
+				for (int j=1; j<lsize.size(); j++)
+					net->addLayer(lsize[j], lType);
+	         net->addOutput(outputs[i], "Normal");
+			}
+		#endif
 	}
 	net->build();
-	assert(1+nL+2*nA == net->getnOutputs() && nInputs == net->getnInputs());
+	assert(1+nL+3*nA == net->getnOutputs());
+	assert(nInputs == net->getnInputs());
 
 	opt = new AdamOptimizer(net, profiler, settings);
 	data->bRecurrent = bRecurrent = true;
@@ -118,6 +124,17 @@ delta(1), truncation(5), generators(settings.generators)
       const Real diffi = (Q_2-Q_1)/0.0002;
       printf("Value Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
    }
+	 for(int i = 0; i<nA; i++) {
+      vector<Real> out_1 = out_0;
+      vector<Real> out_2 = out_0;
+      out_1[1+nL+2*nA+i] -= 0.0001;
+      out_2[1+nL+2*nA+i] += 0.0001;
+      const Real Q_1 = computeQ(act, out_0, out_1);
+      const Real Q_2 = computeQ(act, out_0, out_2);
+      const Real gradi = grad_0[1+nL+2*nA+i];
+      const Real diffi = (Q_2-Q_1)/0.0002;
+      printf("Value Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
+   }
 
   #endif
 
@@ -130,7 +147,7 @@ static void printselection(const int iA,const int nA,const int i,vector<Real> s)
 	printf("\n"); fflush(0);
 }
 
-void ACER::select(const int agentId, State& s, Action& a, State& sOld,
+void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 								 Action& aOld, const int info, Real r)
 {
 		if (info == 2) { //no need for action, just pass terminal s & r
@@ -211,7 +228,7 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 }
 
 /*
-void ACER::dumpNetworkInfo(const int agentId)
+void RACER::dumpNetworkInfo(const int agentId)
 {
 	net->dump(agentId);
 	vector<Real> output(nOutputs);
@@ -274,12 +291,12 @@ static inline string printVec(const vector<Real> vals)
   return o.str();
 }
 
-void ACER::Train(const int seq, const int samp, const int thrID) const
+void RACER::Train(const int seq, const int samp, const int thrID) const
 {
-    die("ACER only works by sampling entire trajectories.\n");
+    die("RACER only works by sampling entire trajectories.\n");
 }
 
-void ACER::Train_BPTT(const int seq, const int thrID) const
+void RACER::Train_BPTT(const int seq, const int thrID) const
 {
 		//this should go to gamma rather quick:
 		const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
@@ -288,11 +305,11 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 		//const Real rGamma = gamma;
     assert(net->allocatedFrozenWeights && bTrain);
     const int ndata = data->Set[seq]->tuples.size();
-		vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2,0));
-		vector<vector<Real>> out_hat(ndata-1, vector<Real>(1+nL+nA*2,0));
+		vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*3,0));
+		vector<vector<Real>> out_hat(ndata-1, vector<Real>(1+nL+nA*3,0));
 		vector<Real> rho_cur(ndata-1), rho_pol(ndata-1);
-		//vector<Real> rho_hat(ndata-1), c_hat(ndata-1);
-		vector<Real> c_cur(ndata-1);
+		vector<Real> rho_hat(ndata-1), c_hat(ndata-1);
+		//vector<Real> c_cur(ndata-1);
 		vector<vector<Real>> act(ndata-1, vector<Real>(nA,0)), pol(ndata-1, vector<Real>(nA,0));
     vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
     vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata);
@@ -321,21 +338,21 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 
 			rho_cur[k] = std::exp(std::min(9.,std::max(-32.,actProbOnPolicy-actProbBehavior)));
 			rho_pol[k] = std::exp(std::min(9.,std::max(-32.,polProbOnPolicy-polProbBehavior)));
-			//rho_hat[k] = std::exp(std::min(9.,std::max(-32.,actProbOnTarget-actProbBehavior)));
-			c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
-			//c_hat[k] = std::min((Real)1.,std::pow(rho_hat[k],1./nA));
+			rho_hat[k] = std::exp(std::min(9.,std::max(-32.,actProbOnTarget-actProbBehavior)));
+			//c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
+			c_hat[k] = std::min((Real)1.,std::pow(rho_hat[k],1./nA));
 		}
 
 		Real Q_RET = 0, Q_OPC = 0;
 		if(not data->Set[seq]->ended)
 		{
-			const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
-      vector<Real> S_T = data->standardize(_t->s); //last state
-			vector<Real> out_T(1+nL+nA*2, 0);
-      //net->predict(S_T, out_T, series_hat, ndata-1, net->tgt_weights, net->tgt_biases);
-      net->predict(S_T, out_T, series_cur.back(), series_hat.back());
-			Q_RET = out_T[0]; //V(s_T) computed with tgt weights
-			Q_OPC = out_T[0]; //V(s_T) computed with tgt weights
+				const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
+				vector<Real> S_T = data->standardize(_t->s); //last state
+				vector<Real> out_T(1+nL+nA*3, 0);
+				net->predict(S_T, out_T, series_hat, ndata-1, net->tgt_weights, net->tgt_biases);
+				Q_RET = out_T[0]; //V(s_T) computed with tgt weights
+				net->predict(S_T, out_T, series_cur.back(), series_hat.back());
+				Q_OPC = out_T[0]; //V(s_T) computed with tgt weights
 		}
 		#ifndef NDEBUG
 		else {
@@ -352,9 +369,9 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			Q_OPC = t_->r + rGamma*Q_OPC;
 			//compute Q using target net for pi and C, for consistency of derivatives
 			//Q(s,a)                     v a		 v policy    v quadratic Q parameters
-			const Real Q_cur = computeQ(act[k], out_cur[k], out_cur[k]);
-			//const Real Q_hat = computeQ(act[k], out_cur[k], out_hat[k]);
-			const Real Q_pol = computeQ(pol[k], out_cur[k], out_cur[k]);
+			const Real Q_cur = computeQ(act[k], out_hat[k], out_cur[k]);
+			const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
+			const Real Q_pol = computeQ(pol[k], out_hat[k], out_cur[k]);
 			//compute quantities needed for trunc import sampl with bias correction
 			const Real importance = std::min(rho_cur[k], truncation);
 			const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
@@ -368,13 +385,13 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 			const vector<Real> gradAcer = gradAcerTrpo(gradAcer_1,gradAcer_2,gradDivKL);
 
 			const Real Qerror = (Q_RET - Q_cur);
-			const Real Verror = (Q_RET - Q_cur) * std::min(1.,rho_cur[k]); //unclear usefulness
+			const Real Verror = (Q_RET - Q_cur)*std::min(1.,rho_hat[k]);//  //unclear usefulness
 			//prepare rolled Q with off policy corrections for next step:
-			Q_RET = .5*c_cur[k]*(Q_RET - Q_cur) + out_cur[k][0];
-			Q_OPC = 			  .5*(Q_OPC - Q_cur) + out_cur[k][0];
+			Q_RET = c_hat[k]*.5*(Q_RET - Q_hat) + out_hat[k][0];
+			Q_OPC = 				 .5*(Q_OPC - Q_cur) + out_cur[k][0];
 
-			const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k],
-				act[k], gradAcer);
+			const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k],
+																								out_hat[k], act[k], gradAcer);
 			//#ifndef NDEBUG
 			//printf("Applying gradient %s\n",printVec(grad).c_str());
 			//fflush(0);

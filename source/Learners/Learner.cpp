@@ -243,9 +243,10 @@ void Learner::TrainTasking(Master* const master)
       				#pragma omp task firstprivate(sequence)
       				{
       					const int thrID = omp_get_thread_num();
-#ifndef NDEBUG
-printf("Thread %d to %d\n",thrID,sequence); fflush(0);
-#endif
+                //#ifndef NDEBUG
+                //printf("Thread %d to %d\n",thrID,sequence);
+                //fflush(0);
+                //#endif
       					Train_BPTT(sequence, thrID);
 
       					#pragma omp atomic
@@ -402,7 +403,7 @@ bool Learner::checkBatch(unsigned long mastersNiter)
     if (env->cheaperThanNetwork &&
 	mastersNiter > opt->nepoch + mastersNiter_b4PolUpdates)
       return true;
-    
+
       return taskCounter >= batchSize;
 }
 
