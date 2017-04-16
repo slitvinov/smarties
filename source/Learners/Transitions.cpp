@@ -230,7 +230,7 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
     if (ret) curr_transition_id[agentId] = 0;
 
     ofstream fout;
-    
+
     if (bWriteToFile)
     {
       fout.open("history.txt",ios::app); //safety
@@ -528,37 +528,34 @@ void Transitions::synchronize()
   #if 1==1
 	assert(nSequences==Set.size() && maxTotSeqNum == nSequences);
 	uniform_real_distribution<Real> dis(0.,1.);
-	 if (dis(*(gen->g))>0.01) {
-	#pragma omp parallel for schedule(dynamic)
-	for(int i=0; i<Set.size(); i++) {
-		Set[i]->MSE = 0.;
-		#if 1
-		for(const auto & t : Set[i]->tuples)
-			Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
-		#else
-		unsigned count = 0;
-		for(const auto & t : Set[i]->tuples) {
-			//assert(t->SquaredError>0); //last one has error 0
-                        Set[i]->MSE += t->SquaredError;
-                        count++;
-                }
-		assert(count);
-		Set[i]->MSE /= (Real)(count-1);
-		#endif
-		/*
-		for(const auto & t : Set[i]->tuples)
-		for (int i=0; i<sI.dimUsed; i++)
-		  Set[i]->MSE += std::pow((t->s[i] - mean[i])/std[i], 2);
-	   */
-	}
-  const auto compare=[this](Sequence* a, Sequence* b){return a->MSE<b->MSE;};
-  std::sort(Set.begin(), Set.end(), compare);
-  if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
-	}
-	else
-	{
-	random_shuffle(Set.begin(), Set.end(), *(gen));
-	}
+  //if (dis(*(gen->g))>0.01) {
+    #pragma omp parallel for schedule(dynamic)
+    for(int i=0; i<Set.size(); i++) {
+      Set[i]->MSE = 0.;
+      #if 0
+        for(const auto & t : Set[i]->tuples)
+        Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
+      #else
+        unsigned count = 0;
+        for(const auto & t : Set[i]->tuples) {
+        //assert(t->SquaredError>0); //last one has error 0
+        Set[i]->MSE += t->SquaredError;
+        count++;
+        }
+        assert(count);
+        Set[i]->MSE /= (Real)(count-1);
+      #endif
+      /*
+      for(const auto & t : Set[i]->tuples)
+      for (int i=0; i<sI.dimUsed; i++)
+      Set[i]->MSE += std::pow((t->s[i] - mean[i])/std[i], 2);
+      */
+    }
+    const auto compare=[this](Sequence* a, Sequence* b){return a->MSE<b->MSE;};
+    std::sort(Set.begin(), Set.end(), compare);
+    if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
+  //} else random_shuffle(Set.begin(), Set.end(), *(gen));
+
   iOldestSaved = 0;
   #endif
 
@@ -589,13 +586,13 @@ void Transitions::updateSamples(const Real alpha)
   bool update_meanstd_needed = false;
 	if(Buffered.size()>0) {
     printf("nSequences %d > maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
-             nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
+        nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
     synchronize();
     update_meanstd_needed = true;
     old_ndata = nTransitions;
   } else {
     printf("nSequences %d < maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
-             nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
+        nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
     const int ndata = nTransitions;
     update_meanstd_needed = ndata!=old_ndata;
     old_ndata = ndata;
@@ -606,7 +603,7 @@ void Transitions::updateSamples(const Real alpha)
 
   const int ndata = (bRecurrent) ? nSequences : nTransitions;
   inds.resize(ndata);
-  #if 1
+  #if 0
   if (bRecurrent) {
     delete dist;
     assert(nSequences==Set.size());
@@ -634,7 +631,7 @@ int Transitions::sample()
 {
   const int ind = inds.back();
   inds.pop_back();
-  #if 1
+  #if 0
   if (bRecurrent) {
     const int sampid = dist->operator()(*(gen->g));
     //printf("Choosing %d with length %lu\n", sampid, Set[sampid]->tuples.size());

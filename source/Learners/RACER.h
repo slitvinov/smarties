@@ -13,7 +13,7 @@
 
 using namespace std;
 
-class ACER : public Learner
+class RACER : public Learner
 {
     const int nA, nL;
     const Real delta, truncation;
@@ -24,24 +24,24 @@ class ACER : public Learner
     //void dumpNetworkInfo(const int agentId);
 
 public:
-    ACER(MPI_Comm comm, Environment*const env, Settings & settings);
+    RACER(MPI_Comm comm, Environment*const env, Settings & settings);
     void select(const int agentId, State& s,Action& a, State& sOld,
                 Action& aOld, const int info, Real r) override;
 
 private:
 
-  inline Real evaluateLogProbability(const vector<Real>& a, const vector<Real>& out) const
-  {
-    assert(a.size()==nA);
-    assert(out.size()==1+nL+2*nA);
-    Real p = 0;
-    for(int i=0; i<nA; i++) {
-	     assert(out[1+nL+nA+i]>0);
-      p -= 0.5*out[1+nL+nA+i]*std::pow(a[i]-out[1+nL+i],2);
-      p += 0.5*std::log(0.5*out[1+nL+nA+i]/M_PI);
-	   }
-    return p;
-  }
+   inline Real evaluateLogProbability(const vector<Real>& a, const vector<Real>& out) const
+   {
+      assert(a.size()==nA);
+      assert(out.size()==1+nL+3*nA);
+      Real p = 0;
+      for(int i=0; i<nA; i++) {
+         assert(out[1+nL+nA+i]>0);
+         p -= 0.5*out[1+nL+nA+i]*std::pow(a[i]-out[1+nL+i],2);
+         p += 0.5*std::log(0.5*out[1+nL+nA+i]/M_PI);
+      }
+      return p;
+   }
 
   inline Real evaluateLogBehavioralPolicy(const vector<Real>& a, const vector<Real>& mu) const
   {
@@ -59,7 +59,7 @@ private:
   inline vector<Real> preparePmatrix(const vector<Real>& out) const
   {
     vector<Real> _L(nA*nA, 0), _P(nA*nA, 0);
-    assert(out.size() == 1+nL+2*nA);
+    assert(out.size() == 1+nL+3*nA);
     { //fill lower diag matrix L
         int kL = 1;
         for (int j=0; j<nA; j++)
@@ -116,8 +116,8 @@ private:
     therefore divKL assumes shape
     0.5*(\sum_i( Sigma_1_i*(Sigma_2_i)^-1 + (m_2_i - m_1_i)^2*(Sigma_2_i)^-1 -M +ln(Sigma_2_i) -ln(Sigma_1_i))
     */
-    assert(out.size() == 1+nL+2*nA);
-    assert(hat.size() == 1+nL+2*nA);
+    assert(out.size() == 1+nL+3*nA);
+    assert(hat.size() == 1+nL+3*nA);
     const vector<Real> pi_cur(&out[1+nL],&out[1+nL]+nA), C_cur(&out[1+nL+nA],&out[1+nL+nA]+nA);
     const vector<Real> pi_hat(&hat[1+nL],&hat[1+nL]+nA), C_hat(&hat[1+nL+nA],&hat[1+nL+nA]+nA);
     vector<Real> ret(2*nA);
@@ -145,9 +145,9 @@ private:
     }
     const Real proj = std::max((Real)0., (dot - delta)/norm);
 
-	//#ifndef NDEBUG
-		//if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
-	//#endif
+  	//#ifndef NDEBUG
+  		//if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
+  	//#endif
 
     for (int j=0; j<nA*2; j++) {
       gradAcer[j] = (DA1[j]+DA2[j]) - proj*DKL[j];
@@ -187,20 +187,23 @@ private:
   }
 
   inline Real advantageExpectation(const vector<Real>& pi, const vector<Real>& C,
-                                  const vector<Real>& P, const vector<Real>& act) const
+    const vector<Real>& P, const vector<Real>& mu, const vector<Real>& act) const
   {
     assert(pi.size() == nA);
+    assert(mu.size() == nA);
     assert(C.size() == nA);
     assert(P.size() == nA*nA);
     assert(act.size() == nA);
-    const Real A_s_a = computeAdvantage(P, pi, act);
+    const Real A_s_a = computeAdvantage(P, mu, act);
     /*
     computing expectation under policy of (a-pi)'*P*(a-pi) (P non diagonal)
     where policy is defined by mean pi and diagonal covariance matrix
     which is equal to trace[(-0.5*P) * Sigma] (since E(a-pi)=0)
     */
     Real expectation = 0;
-    for(int i=0; i<nA; i++) expectation -= 0.5*P[nA*i+i]/C[i];
+    for(int i=0; i<nA; i++) expectation += -.5*P[nA*i+i]/C[i];
+    expectation += computeAdvantage(P, mu, pi);
+
     return A_s_a - expectation; //subtract expectation from advantage of action
   }
 
@@ -208,20 +211,21 @@ private:
   {
     const vector<Real> pi(&pol_out[1+nL], &pol_out[1+nL]+nA);
     const vector<Real> C(&pol_out[1+nL+nA], &pol_out[1+nL+nA]+nA);
+    const vector<Real> mu(&val_out[1+nL+2*nA], &val_out[1+nL+2*nA]+nA);
     const vector<Real> P = preparePmatrix(val_out);
-    return val_out[0] + advantageExpectation(pi, C, P, act);
+    return val_out[0] + advantageExpectation(pi, C, P, mu, act);
   }
 
   inline vector<Real> computeGradient(const Real Qerror, const Real Verror,
     const vector<Real>& out, const vector<Real>& hat, const vector<Real>& act,
     const vector<Real>& gradAcer) const
   {
-    assert(out.size() == 1+nL+2*nA);
-    assert(hat.size() == 1+nL+2*nA);
+    assert(out.size() == 1+nL+3*nA);
+    assert(hat.size() == 1+nL+3*nA);
     assert(gradAcer.size() == 2*nA);
     assert(act.size() == nA);
     //assert(P.size() == 2*nA);
-    vector<Real> grad(1+nL+nA*2);
+    vector<Real> grad(1+nL+nA*3);
     grad[0] = Qerror+Verror;
 
     for (int j=0; j<nA*2; j++)
@@ -230,14 +234,16 @@ private:
 
     {
         //these are used to compute Q, so only involved in value gradient
-        //const vector<Real> pi_hat(&hat[1+nL], &hat[1+nL]+nA);
-        //const vector<Real> C_hat(&hat[1+nL+nA], &hat[1+nL+nA]+nA);
-        const vector<Real> pi_hat(&out[1+nL], &out[1+nL]+nA);
-        const vector<Real> C_hat(&out[1+nL+nA], &out[1+nL+nA]+nA);
-        vector<Real> _L(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA);
+        const vector<Real> pi_hat(&hat[1+nL], &hat[1+nL]+nA);
+        const vector<Real> C_hat(&hat[1+nL+nA], &hat[1+nL+nA]+nA);
+        //const vector<Real> pi_hat(&out[1+nL], &out[1+nL]+nA);
+        //const vector<Real> C_hat(&out[1+nL+nA], &out[1+nL+nA]+nA);
+        const vector<Real> mu_cur(&out[1+nL+2*nA], &out[1+nL+2*nA]+nA);
+        vector<Real> _L(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _m(nA);
         int kL = 1;
         for (int j=0; j<nA; j++) {
-          _u[j] = act[j] - pi_hat[j];
+          _u[j] = act[j] - mu_cur[j];
+          _m[j] = pi_hat[j] - mu_cur[j];
           for (int i=0; i<nA; i++)
             if (i<=j)
               _L[nA*j + i] = out[kL++];
@@ -270,6 +276,7 @@ private:
             for (int i=0; i<nA; i++) {
                 const int ind = nA*j + i;
                 grad[1+il] -= 0.5*_dPdl[ind]*_u[i]*_u[j];
+                grad[1+il] += 0.5*_dPdl[ind]*_m[i]*_m[j];
             }
 
             //add the term dependent on the estimate: applies only to diagonal terms
@@ -278,21 +285,21 @@ private:
 
             grad[1+il] *= Qerror;
         }
-         #if 0
-         const Real anneal = annealingFactor();
-         if (anneal) {
+
          const vector<Real> P = preparePmatrix(out);
-         const Real fac = Qerror*anneal;
-         //const Real fac = Qerror;//*anneal;
+         const Real fac = Qerror;
          for (int ia=0; ia<nA; ia++) {
+            grad[1+nL+2*nA+ia] = 0.;
             for (int i=0; i<nA; i++) {
                 const int ind = nA*ia + i;
-                grad[1+nL+ia] += fac*P[ind]*_u[i];
+                grad[1+nL+2*nA+ia] += P[ind]*(_u[i]-_m[i]);
             }
+            grad[1+nL+2*nA+ia] *= Qerror;
          }
-         }
-         #endif
     }
+    //for (int j=0; j<nA; j++)
+    //  grad[1+nL+j] = 0.01*(hat[1+nL+2*nA+j]-out[1+nL+j]);
+
     return grad;
   }
 
@@ -320,14 +327,14 @@ private:
   */
   inline void prepareVariance(vector<Real>& out) const
   {
-  	assert(out.size()==1+nL+2*nA);
+  	assert(out.size()==1+nL+3*nA);
   	for (int j=0; j<nA; j++)
   	out[1+nL+nA+j] =.5*(out[1+nL+nA+j]+std::sqrt(std::pow(out[1+nL+nA+j],2)+1));
   }
   inline void finalizeVarianceGrad(vector<Real>& grad, const vector<Real>& out) const
   {
-  	assert(grad.size()==1+nL+2*nA);
-  	assert(out.size()==1+nL+2*nA);
+  	assert(grad.size()==1+nL+3*nA);
+  	assert(out.size()==1+nL+3*nA);
   	for (int j=0; j<nA; j++)
   	grad[1+nL+nA+j]*=.5*(1+out[1+nL+nA+j]/std::sqrt(1.+std::pow(out[1+nL+nA+j],2)));
   }
