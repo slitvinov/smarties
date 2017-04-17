@@ -61,7 +61,7 @@ int main(int argc, const char * argv[])
 
 	// Load the ROM file. (Also resets the system for new settings to
     // take effect.)
-    ale.loadROM("../../../ROMS/breakout.bin");//path to rom
+    ale.loadROM("../../../ROMS/Breakout.bin");//path to rom
 
 	// Get the vector of legal actions
     ActionVect legal_actions = ale.getLegalActionSet();

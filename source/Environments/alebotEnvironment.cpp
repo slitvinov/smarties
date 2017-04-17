@@ -20,7 +20,7 @@ Environment(_nAgents, _execpath, _rank, settings)
 {
 }
 
-const int legalActions=3;
+const int legalActions=18; //should be 18
 bool alebotEnvironment::predefinedNetwork(Network* const net) const
 {
 	//indices are: feature map (color), height, width
@@ -49,7 +49,7 @@ bool alebotEnvironment::predefinedNetwork(Network* const net) const
 	//	512 rectifier units
 	
 	//output layer (fully connected), linear
-	//	1 output per valid action (4-18)
+	//	1 output per valid action (4-18) assume 18
 	{
 		const int inputsize[3] = {84,84,4};
 		net->add2DInput(inputsize);
