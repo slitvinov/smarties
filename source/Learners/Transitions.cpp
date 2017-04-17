@@ -46,7 +46,7 @@ void Transitions::restartSamplesNew()
     {
         int Ndata=0, thisId=0, oldSampID=-1, oldInfo=2, info=2, sampID=-1;
         vector<Real> vecSold(sI.dim), vecSnew(sI.dim);
-        vector<Real> vecAct(aI.dim), policy(aI.dim*2);
+        vector<Real> vecAct(aI.dim), policy(aI.dim*2), empty_policy(0);
         State oldState(sI), newState(sI);
         Action action(aI, gen->g);
         Real reward = 0;
@@ -79,7 +79,7 @@ void Transitions::restartSamplesNew()
                     for(int i=0; i<sI.dim; i++) line_in >> vecSnew[i];
                     for(int i=0; i<aI.dim; i++) line_in >> vecAct[i];
                     line_in >> reward;
-  
+
                     if(info!=2)
                     for(int i=0; i<aI.dim*2; i++) line_in >> policy[i];
 
@@ -87,7 +87,10 @@ void Transitions::restartSamplesNew()
                     newState.set(vecSnew);
                     action.set(vecAct);
 
-                    passData(0, info, oldState, action, policy, newState, reward);
+                    if(info==2)
+                    add(0, info, oldState, action, empty_policy, newState, reward);
+                    else
+                    add(0, info, oldState, action, policy, newState, reward);
                 }
             }
 
