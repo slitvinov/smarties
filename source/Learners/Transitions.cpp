@@ -79,6 +79,8 @@ void Transitions::restartSamplesNew()
                     for(int i=0; i<sI.dim; i++) line_in >> vecSnew[i];
                     for(int i=0; i<aI.dim; i++) line_in >> vecAct[i];
                     line_in >> reward;
+  
+                    if(info!=2)
                     for(int i=0; i<aI.dim*2; i++) line_in >> policy[i];
 
                     oldState.set(vecSold);
@@ -88,7 +90,10 @@ void Transitions::restartSamplesNew()
                     passData(0, info, oldState, action, policy, newState, reward);
                 }
             }
-            if (Ndata==0 && agentId++>maxAgentID) break;
+
+            if (Tmp[0]->tuples.size()!=0) push_back(0);
+            if (Ndata==0 && agentId>maxAgentID) break;
+            agentId++;
         } else {
             printf("WTF couldnt open file history.txt!\n");
             break;
@@ -129,7 +134,8 @@ void Transitions::restartSamples()
                   int len = std::distance(std::istream_iterator<std::string>(testline),
                                           std::istream_iterator<std::string>());
                   if(len != 2 + sI.dim*2 + aI.dim + 1) {
-                    assert(len == 3 + sI.dim + aI.dim*3 + 1);
+                    if(len != 3 + sI.dim + aI.dim*3 + 1) die("Wrong history file\n");
+                    printf("Reading data from stochastic policy\n");
                     in.close();
                     return restartSamplesNew();
                   }
