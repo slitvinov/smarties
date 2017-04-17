@@ -74,7 +74,7 @@ int main(int argc, const char * argv[])
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
     //second and 3rd arguments are dimensions, not correct yet
     const int inputdim=28224; //dimension to which input gets resampled, this is for 4x84x84, uses last 4 images since dynamic is relevant
-    Communicator comm(sock,inputdim,/*legal_actions.size()*/18); 
+    Communicator comm(sock,inputdim,1);//3rd argument is actions per turn or available actions? 
 
 	std::vector<double> actions;
 	std::vector<unsigned char> curscreen;
@@ -89,7 +89,7 @@ int main(int argc, const char * argv[])
 	int originalsize[2]={210,160};
 	int newsize[2]={84,84};
 
-	for(int i=0;i<18;++i)
+	for(int i=0;i<1;++i)
 	{
 		actions.push_back(0);
 	}
