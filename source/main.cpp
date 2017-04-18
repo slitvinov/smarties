@@ -12,6 +12,8 @@
 #include "Learners/NFQ.h"
 #include "Learners/NAF.h"
 #include "Learners/DPG.h"
+#include "Learners/ACER.h"
+#include "Learners/RACER.h"
 #include "ObjectFactory.h"
 #include "Settings.h"
 #include "Scheduler.h"
@@ -31,9 +33,52 @@ using namespace std;
 
 void runClient();
 void runSlave(MPI_Comm slavesComm);
+Learner* createLearner(MPI_Comm mastersComm, Environment*const env);
 void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm);
 Settings settings;
 int ErrorHandling::debugLvl;
+
+Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
+{
+  if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
+      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+      settings.nnOutputs = env->aI.maxLabel;
+      return new NFQ(mastersComm, env, settings);
+  }
+  else if (settings.learner == "RACER") {
+      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+      const int nA = env->aI.dim;
+      const int nL = (nA*nA+nA)/2;
+      //settings.nnOutputs = 1+nL+3*nA;
+      settings.nnOutputs = 1+nL+3*nA;
+      settings.bSeparateOutputs = true; //else it does not really work
+      return new RACER(mastersComm, env, settings);
+  }
+  else if (settings.learner == "ACER") {
+      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+      const int nA = env->aI.dim;
+      const int nL = (nA*nA+nA)/2;
+      //settings.nnOutputs = 1+nL+3*nA;
+      settings.nnOutputs = 1+nL+2*nA;
+      settings.bSeparateOutputs = true; //else it does not really work
+      return new ACER(mastersComm, env, settings);
+  }
+  else if (settings.learner == "NA" || settings.learner == "NAF") {
+      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+      const int nA = env->aI.dim;
+      const int nL = (nA*nA+nA)/2;
+      settings.nnOutputs = 1+nL+nA;
+      settings.bSeparateOutputs = true; //else it does not really work
+      return new NAF(mastersComm, env, settings);
+  }
+  else if (settings.learner == "DP" || settings.learner == "DPG") {
+      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS) + env->aI.dim;
+      settings.nnOutputs = 1;
+      return new DPG(mastersComm, env, settings);
+  } else die("Learning algorithm not recognized\n");
+  assert(false);
+  return new NFQ(mastersComm, env, settings); //fake, to silence warnings
+}
 
 void runSlave(MPI_Comm slavesComm)
 {
@@ -86,6 +131,7 @@ void runSlave(MPI_Comm slavesComm)
       Slave simulation(&comm, env, settings);
       simulation.run();
     }
+	die("Slave returning?\n");
 }
 
 void runClient()
@@ -95,29 +141,7 @@ void runClient()
     Environment* env = factory.createEnvironment(1, 0);
     settings.nAgents = env->agents.size();
 
-    Learner* learner = nullptr;
-    if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ")
-    {
-        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-        settings.nnOutputs = env->aI.maxLabel;
-        learner = new NFQ(MPI_COMM_WORLD, env, settings);
-    }
-    else if (settings.learner == "NA" || settings.learner == "NAF")
-    {
-        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-        const int nA = env->aI.dim;
-        const int nL = (nA*nA+nA)/2;
-        settings.nnOutputs = 1+nL+nA;
-        settings.bSeparateOutputs = true; //else it does not really work
-        learner = new NAF(MPI_COMM_WORLD, env, settings);
-    }
-    else if (settings.learner == "DP" || settings.learner == "DPG")
-    {
-        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS) + env->aI.dim;
-        settings.nnOutputs = 1;
-        learner = new DPG(MPI_COMM_WORLD, env, settings);
-    } else die("Learning algorithm not recognized\n");
-    assert(learner not_eq nullptr);
+    Learner* learner = createLearner(MPI_COMM_WORLD, env);
 
     const bool isSpawner = false;
     const bool verbose = 0;
@@ -169,32 +193,14 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
       //no need to free this
     }
 
-    Learner* learner = nullptr;
-    if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
-        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-        settings.nnOutputs = env->aI.maxLabel;
-        learner = new NFQ(mastersComm, env, settings);
-    }
-    else if (settings.learner == "NA" || settings.learner == "NAF") {
-        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-        const int nA = env->aI.dim;
-        const int nL = (nA*nA+nA)/2;
-        settings.nnOutputs = 1+nL+nA;
-        settings.bSeparateOutputs = true; //else it does not really work
-        learner = new NAF(mastersComm, env, settings);
-    }
-    else if (settings.learner == "DP" || settings.learner == "DPG") {
-        settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS) + env->aI.dim;
-        settings.nnOutputs = 1;
-        learner = new DPG(mastersComm, env, settings);
-    } else die("Learning algorithm not recognized\n");
-    assert(learner not_eq nullptr);
+    Learner* learner = createLearner(mastersComm, env);
 
     Master master(slavesComm, learner, env, settings);
     if (settings.restart != "none") master.restart(settings.restart);
-
+    printf("nthreads %d\n",settings.nThreads); fflush(0);
     if (settings.nThreads > 1) learner->TrainTasking(&master);
     else master.run();
+	 die("Master returning?\n");
 }
 
 int main (int argc, char** argv)

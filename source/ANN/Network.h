@@ -104,7 +104,7 @@ public:
     void moveFrozenWeights(const Real alpha);
     void loadMemory(Mem * _M, Activation * _N) const;
     void clearErrors(vector<Activation*>& timeSeries) const;
-    void setOutputDeltas(vector<Real>& _errors, Activation* const _N) const;
+    void setOutputDeltas(const vector<Real>& _errors, Activation* const _N) const;
 
     Activation* allocateActivation() const;
     vector<Activation*> allocateUnrolledActivations(int length) const;

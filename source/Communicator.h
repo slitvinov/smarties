@@ -9,7 +9,7 @@
 #include "Settings.h"
 #endif
 #include <vector>
-
+#include <cstring>
 #define _AGENT_STATUS   int
 #define _AGENT_FIRSTCOMM  1
 #define _AGENT_NORMALCOMM 0

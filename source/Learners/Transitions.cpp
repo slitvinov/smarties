@@ -9,6 +9,8 @@
 
 #include "Transitions.h"
 #include <fstream>
+#include <dirent.h>
+#include <iterator>
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
 mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
@@ -25,9 +27,89 @@ nSequences(0), aI(_env->aI), sI(_env->sI), generators(settings.generators), old_
     for (int i=0; i<max(settings.nAgents,1); i++)
         Tmp[i] = new Sequence();
 
+    curr_transition_id.resize(max(settings.nAgents,1));
     dist = new discrete_distribution<int> (1,2); //dummy
     gen = new Gen(&generators[0]);
     Set.reserve(maxTotSeqNum);
+}
+
+void Transitions::restartSamplesNew()
+{
+    /*
+      This guy only reads using env state and action info
+      If states need to be packed, this is performed by add
+    */
+    printf("About to read from %s...\n",path.c_str());
+    int agentId=0, maxAgentID=0;
+
+    while(true)
+    {
+        int Ndata=0, thisId=0, oldSampID=-1, oldInfo=2, info=2, sampID=-1;
+        vector<Real> vecSold(sI.dim), vecSnew(sI.dim);
+        vector<Real> vecAct(aI.dim), policy(aI.dim*2), empty_policy(0);
+        State oldState(sI), newState(sI);
+        Action action(aI, gen->g);
+        Real reward = 0;
+
+        ifstream in(path.c_str());
+        std::string line;
+        if(in.good())
+        {
+            while (getline(in, line))
+            {
+                istringstream line_in(line);
+                line_in >> thisId;
+                maxAgentID = std::max(thisId, maxAgentID);
+                if (thisId==agentId)
+                {
+                    Ndata++;
+                    oldInfo = info;
+                    oldSampID = sampID;
+                    line_in >> info >> sampID;
+
+                    if((sampID==0) != (info==1))
+                      die("Mismatch in transition counter\n");
+                    if(sampID != oldSampID+1) {
+                      if(info!=1) die("Mismatch in transition change\n");
+                      if(oldInfo!=2) nBroken++;
+                    }
+                    if (info == 1) vecSold = vector<Real>(sI.dim);
+                    else vecSold = vecSnew;
+
+                    for(int i=0; i<sI.dim; i++) line_in >> vecSnew[i];
+                    for(int i=0; i<aI.dim; i++) line_in >> vecAct[i];
+                    line_in >> reward;
+
+                    if(info!=2)
+                    for(int i=0; i<aI.dim*2; i++) line_in >> policy[i];
+
+                    oldState.set(vecSold);
+                    newState.set(vecSnew);
+                    action.set(vecAct);
+
+                    if(info==2)
+                    add(0, info, oldState, action, empty_policy, newState, reward);
+                    else
+                    add(0, info, oldState, action, policy, newState, reward);
+                }
+            }
+
+            if (Tmp[0]->tuples.size()!=0) push_back(0);
+            if (Ndata==0 && agentId>maxAgentID) break;
+            agentId++;
+        } else {
+            printf("WTF couldnt open file history.txt!\n");
+            break;
+        }
+        in.close();
+    }
+
+    printf("Found %d broken chains out of %d / %d.\n",
+            nBroken, nSequences, nTransitions);
+    const bool update_meanstd_needed = nTransitions>0;
+    if(syncBoolOr(update_meanstd_needed))
+      update_samples_mean(1.0);
+    old_ndata = nTransitions;
 }
 
 void Transitions::restartSamples()
@@ -45,11 +127,23 @@ void Transitions::restartSamples()
     printf("About to read from %s...\n",path.c_str());
     while(true) {
         Ndata=0;
-        ifstream in(path.c_str());
+        std::ifstream in(path.c_str());
         std::string line;
         if(in.good()) {
             while (getline(in, line))  {
-                istringstream line_in(line);
+                std::istringstream line_in(line);
+                if(agentId==0 && thisId==-1) {
+		  std::istringstream testline(line);
+                  int len = std::distance(std::istream_iterator<std::string>(testline),
+                                          std::istream_iterator<std::string>());
+                  if(len != 2 + sI.dim*2 + aI.dim + 1) {
+                    if(len != 3 + sI.dim + aI.dim*3 + 1) die("Wrong history file\n");
+                    printf("Reading data from stochastic policy\n");
+                    in.close();
+                    return restartSamplesNew();
+                  }
+                }
+
                 line_in >> thisId;
                 if (thisId==agentId) {
                     Ndata++;
@@ -130,6 +224,99 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
     return add(agentId, info, sOld, a, sNew, reward);
 }
 
+static inline string printVec(const vector<Real> vals)
+{
+  ostringstream o;
+  for (int i=0; i<vals.size(); i++) o << " " << vals[i];
+  return o.str();
+}
+
+int Transitions::passData(const int agentId, const int info, const State& sOld,
+   const Action& a, const vector<Real>& mu, const State& s, const Real reward)
+{
+    assert(agentId<curr_transition_id.size());
+    const int ret = add(agentId, info, sOld, a, mu, s, reward);
+    if (ret) curr_transition_id[agentId] = 0;
+
+    ofstream fout;
+
+    if (bWriteToFile)
+    {
+      fout.open("history.txt",ios::app); //safety
+      fout << agentId << " " << info << " " << curr_transition_id[agentId] << " "
+       << s.printClean().c_str() << a.printClean().c_str() << reward << printVec(mu);
+      fout << endl;
+      fout.flush();
+      fout.close();
+    }
+    {
+      const std::string fname = "obs_agent_"+std::to_string(agentId)+".dat";
+      fout.open(fname.c_str(),ios::app); //safety
+      fout << agentId << " " << info << " " << curr_transition_id[agentId] << " "
+       << s.printClean().c_str() << a.printClean().c_str() << reward << printVec(mu);
+      fout << endl;
+      fout.flush();
+      fout.close();
+    }
+
+	  curr_transition_id[agentId]++;
+    return ret;
+}
+
+int Transitions::add(const int agentId, const int info, const State & sOld,
+   const Action& aNew, const vector<Real>& mu, const State& sNew, Real rNew)
+{
+    //return value is 1 if the agent states buffer is empty or on initial state
+    int ret = 0;
+    const int sApp = nAppended*sI.dimUsed;
+    if (Tmp[agentId]->tuples.size()!=0 && info == 1) {
+      push_back(agentId); //create new sequence
+      ret = 1;
+    } else if(Tmp[agentId]->tuples.size()==0) {
+      assert(info == 1);
+      ret = 1; //new Sequence
+    }
+
+    if (Tmp[agentId]->tuples.size() >= maxSeqLen) {
+      //upper limit to how long a sequence can be
+      //printf("Sequence is too long!\n");
+      const Tuple * const l = Tmp[agentId]->tuples.back();
+      Tuple * t = new Tuple(); //backup last state
+      t->s = l->s; t->a = l->a; t->r = l->r, t->mu = l->mu;
+      t->SquaredError = l->SquaredError;
+
+      push_back(agentId); //create new sequence
+      Tmp[agentId]->tuples.push_back(t);
+    }
+
+    //we can add sNew:
+    Tuple * t = new Tuple();
+    t->s = sNew.copy_observed();
+    if (sApp>0) {
+        if(Tmp[agentId]->tuples.size()==0)
+          t->s.insert(t->s.end(),sApp,0.);
+        else {
+          const Tuple * const last = Tmp[agentId]->tuples.back();
+          t->s.insert(t->s.end(),last->s.begin(),last->s.begin()+sApp);
+          assert(last->s.size()==t->s.size());
+        }
+    }
+
+    const bool end_seq = env->pickReward(sOld,aNew,sNew,rNew,info);
+    assert((info==2)==end_seq); //alternative not supported
+    t->a = aNew.vals;
+    t->r = rNew;
+    t->mu = mu;
+
+    Tmp[agentId]->tuples.push_back(t);
+    if (end_seq) {
+        Tmp[agentId]->ended = true;
+        push_back(agentId);
+    }
+
+    return ret;
+}
+
 int Transitions::add(const int agentId, const int info, const State& sOld,
       const Action& a, const State& sNew, Real reward)
 {
@@ -138,8 +325,8 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
     //is the stored s does not match sold
     int ret = 0;
     const int sApp = nAppended*sI.dimUsed;
-
     const vector<Real> vecSold = sOld.copy_observed();
+
     if(Tmp[agentId]->tuples.size()!=0) {
         bool same(true);
         const Tuple * const last = Tmp[agentId]->tuples.back();
@@ -202,7 +389,6 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
         Tmp[agentId]->ended = true;
         push_back(agentId);
     }
-
     return ret;
 }
 
@@ -350,25 +536,35 @@ void Transitions::synchronize()
 {
   #if 1==1
 	assert(nSequences==Set.size() && maxTotSeqNum == nSequences);
-	#pragma omp parallel for schedule(dynamic)
-	for(int i=0; i<Set.size(); i++) {
-		//int count = 0;
-		Set[i]->MSE = 0.;
+	uniform_real_distribution<Real> dis(0.,1.);
+  //if (dis(*(gen->g))>0.01) {
+    #pragma omp parallel for schedule(dynamic)
+    for(int i=0; i<Set.size(); i++) {
+      Set[i]->MSE = 0.;
+      #if 1
+        for(const auto & t : Set[i]->tuples)
+        Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
+      #else
+        unsigned count = 0;
+        for(const auto & t : Set[i]->tuples) {
+        //assert(t->SquaredError>0); //last one has error 0
+        Set[i]->MSE += t->SquaredError;
+        count++;
+        }
+        assert(count);
+        Set[i]->MSE /= (Real)(count-1);
+      #endif
+      /*
+      for(const auto & t : Set[i]->tuples)
+      for (int i=0; i<sI.dimUsed; i++)
+      Set[i]->MSE += std::pow((t->s[i] - mean[i])/std[i], 2);
+      */
+    }
+    const auto compare=[this](Sequence* a, Sequence* b){return a->MSE<b->MSE;};
+    std::sort(Set.begin(), Set.end(), compare);
+    if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
+  //} else random_shuffle(Set.begin(), Set.end(), *(gen));
 
-		for(const auto & t : Set[i]->tuples) {
-			Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
-			//count++;
-		}
-		//Set[i]->MSE /= (Real)(count-1);
-		/*
-		for(const auto & t : Set[i]->tuples)
-		for (int i=0; i<sI.dimUsed; i++)
-		  Set[i]->MSE += std::pow((t->s[i] - mean[i])/std[i], 2);
-	   */
-	}
-  const auto compare=[this](Sequence* a, Sequence* b){return a->MSE<b->MSE;};
-  std::sort(Set.begin(), Set.end(), compare);
-  if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
   iOldestSaved = 0;
   #endif
 
@@ -394,28 +590,29 @@ void Transitions::synchronize()
   Buffered.resize(0); //no clear?
 }
 
-void Transitions::updateSamples()
+void Transitions::updateSamples(const Real alpha)
 {
   bool update_meanstd_needed = false;
 	if(Buffered.size()>0) {
     printf("nSequences %d > maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
-             nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
+        nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
     synchronize();
     update_meanstd_needed = true;
     old_ndata = nTransitions;
   } else {
     printf("nSequences %d < maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
-             nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
+        nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
     const int ndata = nTransitions;
     update_meanstd_needed = ndata!=old_ndata;
     old_ndata = ndata;
   }
+	update_meanstd_needed = update_meanstd_needed && alpha;
   if(syncBoolOr(update_meanstd_needed))
-    update_samples_mean();
+    update_samples_mean(alpha);
 
   const int ndata = (bRecurrent) ? nSequences : nTransitions;
   inds.resize(ndata);
-  #if 1
+  #if 0
   if (bRecurrent) {
     delete dist;
     assert(nSequences==Set.size());
@@ -443,7 +640,7 @@ int Transitions::sample()
 {
   const int ind = inds.back();
   inds.pop_back();
-  #if 1
+  #if 0
   if (bRecurrent) {
     const int sampid = dist->operator()(*(gen->g));
     //printf("Choosing %d with length %lu\n", sampid, Set[sampid]->tuples.size());

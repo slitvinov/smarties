@@ -21,6 +21,7 @@ class TwoActFishEnvironment;
 class CMAEnvironment;
 class TestEnvironment;
 class alebotEnvironment;
+class GliderEnvironment;
 
 #include "Environments/AcrobotEnvironment.h"
 #include "Environments/CMAEnvironment.h"
@@ -31,3 +32,4 @@ class alebotEnvironment;
 #include "Environments/TwoActFishEnvironment.h"
 #include "Environments/DeadFishEnvironment.h"
 #include "Environments/alebotEnvironment.h"
+#include "Environments/GliderEnvironment.h"

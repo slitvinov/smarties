@@ -25,7 +25,7 @@ Master::Master(MPI_Comm _c, Learner*const _l, Environment*const _e, Settings&_s)
   inSize((3+_e->sI.dim)*sizeof(double)), outSize(_e->aI.dim*sizeof(double)),
   inbuf(_alloc(inSize)), outbuf(_alloc(outSize)),
   sOld(_e->sI), sNew(_e->sI), aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]),
-  totR(0), iter(0), status(_e->agents.size(),1)
+  meanR(0), varR(0),  iter(0), status(_e->agents.size(),1)
 {
   //the following Irecv will be sent after sending the action
   MPI_Irecv(inbuf, inSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
@@ -47,10 +47,9 @@ void Master::save()
 {
     ofstream filestats;
     filestats.open("master_rewards.dat", ios::app);
-    filestats<<iter<<" "<<totR<<endl;
+    filestats<<iter<<" "<<meanR<<" "<<varR<<endl;
     filestats.close();
-    printf("Iter %lu, Reward: %f\n", iter, totR);
-    totR = 0.;
+    printf("Iter %lu, Mean reward: %f variance:%f \n", iter, meanR, varR);
 
     FILE * f = fopen("master.status", "w");
     if (f != NULL)
@@ -91,7 +90,12 @@ void Master::run()
          agent, sOld.print().c_str(), sNew.print().c_str(), aOld.print().c_str(), reward, aNew.print().c_str());
          fflush(0);
         #endif
-        if (agentStatus != _AGENT_FIRSTCOMM) totR += reward;
+        if (agentStatus != _AGENT_FIRSTCOMM) {
+		const Real alpha = 1./saveFreq;// + std::min(0.,1-iter/(Real)saveFreq);
+		const Real oldMean = meanR;
+		meanR = (1.-alpha)*meanR + alpha*reward;
+		varR = (1.-alpha)*varR + alpha*(reward-meanR)*(reward-oldMean);
+	}
         if (agentStatus != _AGENT_LASTCOMM)  {
           sendAction(slave, agent);
         } else { //if terminal, no action required
@@ -118,7 +122,6 @@ void Slave::run()
     while(true)
     {
         if (comm->recvStateFromApp()) break; //sim crashed
-
         comm->unpackState(iAgent, agentStatus, state, reward);
         comm->sendStateMPI();
 
@@ -144,7 +147,7 @@ void Slave::run()
     }
     //if here, a crash happened:
     //if we are training, then launch again, otherwise exit
-    if (!bTrain) return;
+    //if (!bTrain) return;
   }
 }
 

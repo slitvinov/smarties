@@ -203,8 +203,7 @@ void Learner::TrainTasking(Master* const master)
     int nAddedGradients = 0, countElapsed = 0;
     Real sumElapsed = 0;
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-
-  	if (ndata <= batchSize || !bTrain) {
+  	if (ndata <= 5*batchSize || !bTrain) {
       if(nAgents<1) die("Nothing to do, nowhere to go.\n");
       master->run();
     }
@@ -244,6 +243,10 @@ void Learner::TrainTasking(Master* const master)
       				#pragma omp task firstprivate(sequence)
       				{
       					const int thrID = omp_get_thread_num();
+                //#ifndef NDEBUG
+                //printf("Thread %d to %d\n",thrID,sequence);
+                //fflush(0);
+                //#endif
       					Train_BPTT(sequence, thrID);
 
       					#pragma omp atomic
@@ -400,7 +403,7 @@ bool Learner::checkBatch(unsigned long mastersNiter)
     if (env->cheaperThanNetwork &&
 	mastersNiter > opt->nepoch + mastersNiter_b4PolUpdates)
       return true;
-    else
+
       return taskCounter >= batchSize;
 }
 
@@ -502,7 +505,8 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     }
     //sumWeights *= opt->lambda;
 
-    stats.MSE/=(stats.dumpCount-1);
+    stats.MSE=std::sqrt(stats.MSE/stats.dumpCount);
+    //stats.MSE/=(stats.dumpCount-1);
     stats.avgQ/=stats.dumpCount;
     stats.relE/=stats.dumpCount;
     net->printRunning();
@@ -511,7 +515,7 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     ofstream filestats;
     filestats.open("stats.txt", ios::app);
     printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, "
-            "min_Q %f, max_Q %f, errWeights [%f %f %f], N %d, steps %d, dT %f\n",
+            "min_Q %f, max_Q %f, errWeights [%f %f %f], N %d, steps %lu, dT %f\n",
           stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ,
           stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dumpCount,
 	  opt->nepoch, avgTime);
