@@ -95,6 +95,7 @@ public:
     virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;
     void clearFailedSim(const int agentOne, const int agentEnd);
     void pushBackEndedSim(const int agentOne, const int agentEnd);
+    virtual void dumpPolicy(const vector<Real> lower, const vector<Real>& upper, const vector<int>& nbins);
     bool checkBatch(unsigned long mastersNiter);
     void TrainBatch();
     void TrainTasking(Master* const master);

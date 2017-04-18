@@ -27,7 +27,8 @@ public:
     RACER(MPI_Comm comm, Environment*const env, Settings & settings);
     void select(const int agentId, State& s,Action& a, State& sOld,
                 Action& aOld, const int info, Real r) override;
-
+    void dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+                    const vector<int>& nbins) override;
 private:
 
    inline Real evaluateLogProbability(const vector<Real>& a, const vector<Real>& out) const
