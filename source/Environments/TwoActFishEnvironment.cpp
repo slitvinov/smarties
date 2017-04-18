@@ -117,38 +117,38 @@ void TwoActFishEnvironment::setDims()
             // ToD 19
             sI.inUse.push_back(false);
         }
-        const int nSensors = 20;
+        const int nSensors = 10;
         for (int i=0; i<nSensors; i++) {
             // (VelNAbove  ) x 5 [20]
-            sI.inUse.push_back(lline);
+            sI.inUse.push_back(lline && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTAbove  ) x 5 [25]
-            sI.inUse.push_back(lline);
+            sI.inUse.push_back(lline && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelNBelow  ) x 5 [30]
-            sI.inUse.push_back(lline);
+            sI.inUse.push_back(lline && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTBelow  ) x 5 [35]
-            sI.inUse.push_back(lline);
+            sI.inUse.push_back(lline && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPAbove  ) x 5 [40]
-            sI.inUse.push_back(press);
+            sI.inUse.push_back(press && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVAbove  ) x 5 [45]
-            sI.inUse.push_back(press);
+            sI.inUse.push_back(press && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPBelow  ) x 5 [50]
-            sI.inUse.push_back(press);
+            sI.inUse.push_back(press && nSensors<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(press);
+            sI.inUse.push_back(press && nSensors<4);
         }
         for (int i=0; i<2*nSensors; i++) {
             // (FVBelow ) x 5 [55]
@@ -185,6 +185,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
     //if(t_sO.vals[4] == 0) {
 //		t_sO.vals[5] = 0; t_sN.vals[6] = 0;
 //	}
+/*
     if (fabs(t_sN.vals[4] -t_a.vals[0])>0.00001) {
         printf("Mismatch state and action!!! %s === %s\n",
          t_sN.print().c_str(),t_a.print().c_str());
@@ -195,6 +196,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
          t_sN.print().c_str(),t_a.print().c_str());
         abort();
     }
+*/
     if(info!=1)
     if (fabs(t_sO.vals[4] -t_sN.vals[5])>0.00001) {
         printf("Mismatch state two states!!! %s === %s\n",

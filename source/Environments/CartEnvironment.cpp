@@ -26,6 +26,7 @@ CartEnvironment::CartEnvironment(const int _nAgents, const string _execpath,
 																 const int _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings)
 {
+   //cheaperThanNetwork=false;
 }
 
 bool CartEnvironment::predefinedNetwork(Network* const net) const
@@ -73,13 +74,13 @@ void CartEnvironment::setDims() //this environment is for the cart pole test
             //just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
             //i added the 0.1 is just to be extra safe when converting a float to an integer
 
-            aI.values[i].push_back(-20.); //here the app accepts real numbers
+            aI.values[i].push_back(-10.); //here the app accepts real numbers
             aI.values[i].push_back(-5.);
             aI.values[i].push_back(-1.);
             aI.values[i].push_back(0.0);
             aI.values[i].push_back(1.0);
             aI.values[i].push_back(5.0);
-            aI.values[i].push_back(20.);
+            aI.values[i].push_back(10.);
             //the number of components must be ==nOptions
         }
     }
@@ -99,7 +100,8 @@ bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a,
     //here i can change the reward: instead of -1 or 0, i can give a positive reward if angle is small
     reward = 1>fabs(t_sN.vals[0]) ? 1 - fabs(t_sN.vals[3])/0.2 : 0;    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
     if (new_sample)
-			reward = -2./(1.-gamma); // = - max cumulative reward
+//			reward = -10.; // = - max cumulative reward
+			reward = -1./(1.-gamma); // = - max cumulative reward
     //was is the last state of the sequence?
 
     //this must be set: was it the last episode? you can get it from reward?

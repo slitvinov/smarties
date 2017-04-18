@@ -505,7 +505,7 @@ void Network::clearErrors(vector<Activation*>& timeSeries) const
 	for (int k=0; k<timeSeries.size(); k--) timeSeries[k]->clearErrors();
 }
 
-void Network::setOutputDeltas(vector<Real>& _errors, Activation* const net) const
+void Network::setOutputDeltas(const vector<Real>& _errors, Activation* const net) const
 {
     assert(bBuilt);
     assert(static_cast<int>(_errors.size())==nOutputs);

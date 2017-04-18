@@ -294,6 +294,23 @@ struct ActionInfo
 		assert(ret>=0);
 		return ret;
 	}
+
+	Real getUniformProbability() const
+	{
+		Real P = 1;
+		for (int i=0; i<dim; i++) {
+			const Real lB = getActMinVal(i);
+			const Real uB = getActMaxVal(i);
+			assert(uB-lB > std::numeric_limits<Real>::epsilon());
+			P /= (uB-lB);
+		}
+		return P;
+	}
+	Real addedVariance(const Real i) const
+	{
+	    if (bounded[i]) return 1; //enough to sample sigmoid
+	    else return getActMaxVal(i) - getActMinVal(i);
+	}
 };
 
 class Action
@@ -361,6 +378,7 @@ public:
 
     void getRandom(const int iRand = -1)
     {
+			/*
         std::normal_distribution<Real> dist(0.,0.5);
 
         if ( iRand<0 || iRand >= actInfo.dim ) {
@@ -374,6 +392,20 @@ public:
 					const Real uB = actInfo.getActMinVal(iRand);
 					const Real lB = actInfo.getActMaxVal(iRand);
 					vals[iRand] = lB+.5*(std::tanh(dist(*gen))+1.)*(uB-lB);
+        }
+				*/
+				std::uniform_real_distribution<Real> dist(0,1);
+				if ( iRand<0 || iRand >= actInfo.dim ) {
+        	//select all random actions
+            for (int i=0; i<actInfo.dim; i++) {
+							const Real lB = actInfo.getActMinVal(i);
+							const Real uB = actInfo.getActMaxVal(i);
+            	vals[i] = lB + dist(*gen)*(uB-lB);
+            }
+        } else {  //select just one
+					const Real lB = actInfo.getActMinVal(iRand);
+					const Real uB = actInfo.getActMaxVal(iRand);
+					vals[iRand] = lB + dist(*gen)*(uB-lB);
         }
     }
 

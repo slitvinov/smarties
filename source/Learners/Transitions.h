@@ -21,6 +21,7 @@ struct Tuple
 {
     vector<Real> s;
     vector<Real> a;
+    vector<Real> mu;
     Real r;
 
     Real SquaredError;
@@ -59,12 +60,14 @@ protected:
     Environment * const env;
     const int nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
     int iOldestSaved;
-    const bool bSampleSeq, bRecurrent, bWriteToFile, bNormalize, bTrain;
+    const bool bSampleSeq, bWriteToFile, bNormalize, bTrain;
     const string path;
     vector<Real> std, mean;
+    vector<int> curr_transition_id;
     vector<Sequence*> Buffered;
     discrete_distribution<int> * dist;
-
+    int add(const int agentId, const int info, const State & sOld,
+      const Action & a, const vector<Real>& mu, const State& s, Real r);
     int add(const int agentId, const int info, const State& sOld,
              const Action& a, const State& sNew, const Real reward);
 
@@ -73,6 +76,7 @@ protected:
     void synchronize();
 
 public:
+    bool bRecurrent;
     int anneal, nBroken, nTransitions, nSequences, old_ndata;
     const StateInfo sI;
     const ActionInfo aI;
@@ -101,10 +105,14 @@ public:
 #endif
     void save(std::string fname);
     void restart(std::string fname);
-    void updateSamples();
+    void updateSamples(const Real alpha = 0.01);
     int sample();
     void restartSamples();
+    void restartSamplesNew();
     void saveSamples();
-    int passData(const int agentId, const int info, const State & sOld,
-                  const Action & a, const State & sNew, const Real reward);
+
+    int passData(const int agentId, const int info, const State& sOld,
+      const Action & a, const vector<Real>& mu, const State & s, const Real r);
+    int passData(const int agentId, const int info, const State& sOld,
+                  const Action & a, const State & sNew, const Real r);
 };
