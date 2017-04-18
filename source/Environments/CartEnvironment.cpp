@@ -26,7 +26,7 @@ CartEnvironment::CartEnvironment(const int _nAgents, const string _execpath,
 																 const int _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings)
 {
-   cheaperThanNetwork=false;
+   //cheaperThanNetwork=false;
 }
 
 bool CartEnvironment::predefinedNetwork(Network* const net) const
@@ -100,7 +100,7 @@ bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a,
     //here i can change the reward: instead of -1 or 0, i can give a positive reward if angle is small
     reward = 1>fabs(t_sN.vals[0]) ? 1 - fabs(t_sN.vals[3])/0.2 : 0;    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
     if (new_sample)
-			reward = -10.; // = - max cumulative reward
+//			reward = -10.; // = - max cumulative reward
 			reward = -1./(1.-gamma); // = - max cumulative reward
     //was is the last state of the sequence?
 
