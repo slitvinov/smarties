@@ -529,6 +529,10 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     if (stats.epochCount % 100==0) save("policy");
 }
 
+void Learner::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+                        const vector<int>& nbins)
+{}
+
 /*
 void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
 {

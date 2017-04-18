@@ -302,10 +302,10 @@ vector<Real> pickState(const vector<vector<Real>>& bins, int k)
 {
 	vector<Real> state(bins.size());
 	for (int i=0; i<bins.size(); i++) {
-		bin[i] = bins[i][ k % bins[i].size() ];
+		state[i] = bins[i][ k % bins[i].size() ];
 		k /= bins[i].size();
 	}
-	return bin;
+	return state;
 }
 
 void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
@@ -323,13 +323,11 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 			bins[i] = vector<Real>(nbins[i]);
 			for (int j=0; j<nbins[i]; j++) {
 				const Real l = j/(Real)(nbins[i]-1);
-				bins[i][j] = lower + (upper-lower)*l;
+				bins[i][j] = lower[i] + (upper[i]-lower[i])*l;
 			}
 		}
 
 		FILE * pFile = fopen ("dump.txt", "ab");
-	  fwrite (buf, sizeof(double), size/sizeof(double), pFile);
-	  fclose (pFile);
 		vector<Real> Vs(nDumpPoints), Pi(nDumpPoints), Co(nDumpPoints);
 		vector<Real> Mu(nDumpPoints), output(nOutputs);
 		for (int i=0; i<nDumpPoints; i++) {
@@ -344,7 +342,7 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 				vector<Real> dump(state.size()+4);
 				dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i]; dump[3] = Mu[i];
 				for (int i=0; i<nDumpPoints; i++) dump[i+4] = state[i];
-				fwrite(dump.data(), sizeof(Real), size/sizeof(Real), pFile);
+				fwrite(dump.data(),sizeof(Real),(state.size()+4)/sizeof(Real),pFile);
 		}
 		fclose (pFile);
 }
