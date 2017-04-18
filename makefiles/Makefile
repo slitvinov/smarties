@@ -54,6 +54,9 @@ CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 #-DNDEBUG
 CPPFLAGS += -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
 CPPFLAGS += -ffast-math
 
+ifeq "$(app)" "cubism"
+	CPPFLAGS += -D__Cubism3D
+endif
 ifeq "$(config)" "debug"
 CPPFLAGS+= -g -O2
 endif

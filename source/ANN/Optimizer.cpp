@@ -111,12 +111,12 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
     //const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
     const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
     const Real norm = 1./(Real)max(batchsize,1);
-    const Real lambda_ = _lambda*_eta;
+    const Real lambda_ = _lambda*eta_;
 
 	#pragma omp parallel for
     for (int i=0; i<N; i++) {
-        const Real DW  = std::max(std::min(grad[i]*norm, 10.), -10.);
-        //const Real DW  = grad[i]*norm;
+        //const Real DW  = std::max(std::min(grad[i]*norm, 1.), -1.);
+        const Real DW  = grad[i]*norm;
         const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
         const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
         const Real M1_ = M1;
@@ -128,8 +128,8 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
         grad[i] = 0.; //reset grads
 
         if (lambda_>0)
-             //dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);   // L1
-             dest[i] += DW_ - dest[i]*lambda_;                      // L2
+             dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);   // L1
+             //dest[i] += DW_ - dest[i]*lambda_;                      // L2
         else dest[i] += DW_;
     }
 }
@@ -159,8 +159,8 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
         grad[i] = 0.; //reset grads
 
         if (lambda_>0)
-             //dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);   // L1
-             dest[i] += DW_ - dest[i]*lambda_;                      // L2
+             dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);   // L1
+             //dest[i] += DW_ - dest[i]*lambda_;                      // L2
         else dest[i] += DW_;
     }
 }

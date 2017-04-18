@@ -120,35 +120,35 @@ void TwoActFishEnvironment::setDims()
         const int nSensors = 10;
         for (int i=0; i<nSensors; i++) {
             // (VelNAbove  ) x 5 [20]
-            sI.inUse.push_back(lline && nSensors<4);
+            sI.inUse.push_back(lline && i<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTAbove  ) x 5 [25]
-            sI.inUse.push_back(lline && nSensors<4);
+            sI.inUse.push_back(lline && i<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelNBelow  ) x 5 [30]
-            sI.inUse.push_back(lline && nSensors<4);
+            sI.inUse.push_back(lline && i<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (VelTBelow  ) x 5 [35]
-            sI.inUse.push_back(lline && nSensors<4);
+            sI.inUse.push_back(lline && i<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPAbove  ) x 5 [40]
-            sI.inUse.push_back(press && nSensors<4);
+            sI.inUse.push_back(press && i<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVAbove  ) x 5 [45]
-            sI.inUse.push_back(press && nSensors<4);
+            sI.inUse.push_back(press && i<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FPBelow  ) x 5 [50]
-            sI.inUse.push_back(press && nSensors<4);
+            sI.inUse.push_back(press && i<4);
         }
         for (int i=0; i<nSensors; i++) {
             // (FVBelow ) x 5 [55]
-            sI.inUse.push_back(press && nSensors<4);
+            sI.inUse.push_back(press && i<4);
         }
         for (int i=0; i<2*nSensors; i++) {
             // (FVBelow ) x 5 [55]
@@ -215,11 +215,11 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 
     if (study == 0) {
         #ifdef __Cubism3D
-          reward = (t_sN.vals[18]-.6)/(.8-.6);
+          reward = (t_sN.vals[18]-.3)/(.8-.6);
           if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
         #else
-          reward = (t_sN.vals[18]-.4)/(1.-.4);
-          if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
+          reward = (t_sN.vals[18]-.3)/(1.-.3);
+          if (new_sample) reward = -10.; // = - max cumulative reward
         #endif
     }
     else if (study == 1) {

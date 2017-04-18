@@ -541,7 +541,7 @@ void Transitions::synchronize()
     #pragma omp parallel for schedule(dynamic)
     for(int i=0; i<Set.size(); i++) {
       Set[i]->MSE = 0.;
-      #if 0
+      #if 1
         for(const auto & t : Set[i]->tuples)
         Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
       #else
