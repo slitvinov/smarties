@@ -48,9 +48,9 @@ delta(1), truncation(5), generators(settings.generators)
 	if (not env->predefinedNetwork(net))
 	{ //if that was true, environment created the layers it wanted, else we read the settings:
 		net->addInput(nInputs);
-		const int Nnets = 5;
-		const int outputs[Nnets] = {1,nL,nA,nA,nA};
 		#if 1
+			const int Nnets = 5;
+			const int outputs[Nnets] = {1,nL,nA,nA,nA};
 			const int nsplit = lsize.size()>3 ? 2 : 1;
 			for (int i=0; i<lsize.size()-nsplit; i++)
 				net->addLayer(lsize[i], lType);
@@ -68,12 +68,14 @@ delta(1), truncation(5), generators(settings.generators)
 				net->addOutput(outputs[i], "Normal");
 			}
 		#else
+			const int Nnets = 5;
+                        const int outputs[Nnets] = {1,nL,nA,nA,nA};
 			const vector<int> lastJointLayer(1,net->getLastLayerID());
 			for (int i=0; i<Nnets; i++) {
 				net->addLayer(lsize[0], lType, lastJointLayer);
 				for (int j=1; j<lsize.size(); j++)
 					net->addLayer(lsize[j], lType);
-	         net->addOutput(outputs[i], "Normal");
+	         		net->addOutput(outputs[i], "Normal");
 			}
 		#endif
 	}
@@ -317,7 +319,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		for (int k=0; k<ndata-1; k++)
 		{
 			const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
-			vector<Real> scaledSold = data->standardize(_t->s);
+			const vector<Real> scaledSold = data->standardize(_t->s);
+			//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
 			net->predict(scaledSold, out_cur[k], series_cur, k);
 			net->predict(scaledSold, out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
 			prepareVariance(out_cur[k]); //pass through softplus to make it pos def
@@ -371,12 +374,13 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			//Q(s,a)                     v a		 v policy    v quadratic Q parameters
 			const Real Q_cur = computeQ(act[k], out_hat[k], out_cur[k]);
 			const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
-			const Real Q_pol = computeQ(pol[k], out_hat[k], out_cur[k]);
+			const Real Q_pol = computeQ(pol[k], out_hat[k], out_hat[k]);
 			//compute quantities needed for trunc import sampl with bias correction
 			const Real importance = std::min(rho_cur[k], truncation);
 			const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
-			const Real gain1 = (Q_OPC - out_cur[k][0]) * importance;
-			const Real gain2 = (Q_pol - out_cur[k][0]) * correction;
+			//const Real correction = 0; 
+			const Real gain1 = (Q_OPC - out_hat[k][0]) * importance;
+			const Real gain2 = (Q_pol - out_hat[k][0]) * correction;
 			//derivative wrt to statistics
 			const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1);
 			const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2);
@@ -387,11 +391,12 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			const Real Qerror = (Q_RET - Q_cur);
 			const Real Verror = (Q_RET - Q_cur)*std::min(1.,rho_hat[k]);//  //unclear usefulness
 			//prepare rolled Q with off policy corrections for next step:
-			Q_RET = c_hat[k]*.5*(Q_RET - Q_hat) + out_hat[k][0];
-			Q_OPC = 				 .5*(Q_OPC - Q_cur) + out_cur[k][0];
+			Q_RET = c_hat[k]*1.*(Q_RET - Q_hat) + out_hat[k][0];
+			Q_OPC = c_hat[k]*1.*(Q_OPC - Q_hat) + out_hat[k][0];
+			//Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
+			//Q_OPC = Q_RET;
 
-			const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k],
-																								out_hat[k], act[k], gradAcer);
+			const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k], act[k], gradAcer);
 			//#ifndef NDEBUG
 			//printf("Applying gradient %s\n",printVec(grad).c_str());
 			//fflush(0);
