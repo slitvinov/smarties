@@ -312,10 +312,11 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 								const vector<int>& nbins)
 {
 		//a fail in any of these amounts to a big and fat TODO
-		if(nAppended || bRecurrent || nA!=1)
+		if(nAppended || nA!=1)
 			die("TODO missing features\n");
 		assert(lower.size() == upper.size());
 		assert(nbins.size() == upper.size());
+		assert(nbins.size() == nInputs);
 		vector<vector<Real>> bins(nbins.size());
 		int nDumpPoints = 1;
 		for (int i=0; i<nbins.size(); i++) {
@@ -341,8 +342,8 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 				Mu[i] = output[1+nL+2*nA];
 				vector<Real> dump(state.size()+4);
 				dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i]; dump[3] = Mu[i];
-				for (int i=0; i<nDumpPoints; i++) dump[i+4] = state[i];
-				fwrite(dump.data(),sizeof(Real),(state.size()+4)/sizeof(Real),pFile);
+				for (int i=0; i<state.size(); i++) dump[i+4] = state[i];
+				fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
 		}
 		fclose (pFile);
 }

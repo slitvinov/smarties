@@ -156,12 +156,7 @@ void runClient()
       learner->restart(settings.restart);
       //comm.restart(settings.restart);
     }
-#if 0
-    vector<int> nbins;
-    vector<Real> lower, upper;
-    env->stateBounds(lower, upper, nbins);
-    learner->dumpPolicy(lower, upper, nbins);
-#endif
+
     Client simulation(learner, &comm, env, settings);
     simulation.run();
 }
@@ -203,6 +198,17 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
     Master master(slavesComm, learner, env, settings);
     if (settings.restart != "none") master.restart(settings.restart);
     printf("nthreads %d\n",settings.nThreads); fflush(0);
+
+#if 1
+    if (settings.restart != "none" && !nSlaves) {
+    printf("No slaves, just dumping the policy\n");
+    vector<int> nbins(env->stateDumpNBins());
+    vector<Real> lower(env->stateDumpLowerBound()), upper(env->stateDumpUpperBound());
+    learner->dumpPolicy(lower, upper, nbins);
+    abort();
+    }
+#endif
+
     if (settings.nThreads > 1) learner->TrainTasking(&master);
     else master.run();
 	 die("Master returning?\n");
