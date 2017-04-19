@@ -156,7 +156,12 @@ void runClient()
       learner->restart(settings.restart);
       //comm.restart(settings.restart);
     }
-
+#if 0
+    vector<int> nbins;
+    vector<Real> lower, upper;
+    env->stateBounds(lower, upper, nbins);
+    learner->dumpPolicy(lower, upper, nbins);
+#endif
     Client simulation(learner, &comm, env, settings);
     simulation.run();
 }

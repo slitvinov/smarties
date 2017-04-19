@@ -68,6 +68,12 @@ bool Environment::pickReward(const State& t_sO, const Action& t_a,
     return info == 2;
 }
 
+void Environment::stateBounds(vector<Real>& lower, vector<Real>& upper, vector<int>& nbins)
+{
+  lower = vector<Real>(0);
+  upper = vector<Real>(0);
+  nbins = vector<int> (0);
+}
 /*
  void GlideEnvironment::setDims()
  {
