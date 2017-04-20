@@ -20,6 +20,7 @@ mpi_ranks_per_env(0), paramsfile(string())
     for (int i=0; i<nAgents; i++) agents.push_back(new Agent(i));
 }
 
+
 Environment::~Environment()
 {
     for (auto & trash : agents)
