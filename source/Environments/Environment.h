@@ -44,5 +44,7 @@ public:
                             const State& t_sN, Real& reward, const int info);
     virtual bool predefinedNetwork(Network* const net) const;
 
-    virtual void stateBounds(vector<Real>& lower, vector<Real>& upper, vector<int>& nbins);
+    virtual vector<Real> stateDumpUpperBound();
+    virtual vector<Real> stateDumpLowerBound();
+    virtual vector<int> stateDumpNBins();
 };

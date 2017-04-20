@@ -53,10 +53,6 @@ bool GliderEnvironment::pickReward(const State & t_sO, const Action & t_a,
     return new_sample; //cart pole has failed if r = -1, need to clean this shit and rely only on info
 }
 
-
-void GliderEnvironment::stateBounds(vector<Real>& lower, vector<Real>& upper, vector<int>& nbins)
-{
-  lower = vector<Real>{-1,-1,-.5  -5,-50,     0};
-  upper = vector<Real>{ 1, 1, .5,125,  0,2*M_PI};
-	nbins = vector<int> { 9, 9,  9, 53, 21,     9};
-}
+vector<Real> GliderEnvironment::stateDumpUpperBound() {return vector<Real>{ 1, 1, .5,125,  0,2*M_PI};}
+vector<Real> GliderEnvironment::stateDumpLowerBound() {return vector<Real>{-1,-1,-.5, -5,-50,     0};}
+vector<int> GliderEnvironment::stateDumpNBins() {return vector<int> { 9, 9,  9, 53, 21,     9};}
