@@ -50,7 +50,7 @@ void addframetostate(const std::vector<double>& newframe, std::vector<double>& s
 Communicator * comm;
 int main(int argc, const char * argv[])
 {
-	/*
+	
 	ALEInterface ale;
 	
     //Settings
@@ -66,7 +66,7 @@ int main(int argc, const char * argv[])
 
 	// Get the vector of legal actions
     ActionVect legal_actions = ale.getLegalActionSet();
-		*/
+		
     const int n = 1; //n agents
     //communication:
     const int sock = std::stoi(argv[1]);
@@ -88,7 +88,7 @@ int main(int argc, const char * argv[])
 	int k=0;
 	int originalsize[2]={210,160};
 	int newsize[2]={84,84};
-
+/*
 	for(int i=0;i<1;++i)
 	{
 		actions.push_back(0);
@@ -97,19 +97,19 @@ int main(int argc, const char * argv[])
 	{
 		state.push_back(0);
 	}
-    
+  */  
     while (true) {
 		
 		//preprocess state
-		//ale.getScreenGrayscale(curscreen);
-		//resampleimage(curscreen, originalsize, resampledscreen, newsize);
-		//addframetostate(resampledscreen, state);
+		ale.getScreenGrayscale(curscreen);
+		resampleimage(curscreen, originalsize, resampledscreen, newsize);
+		addframetostate(resampledscreen, state);
 		comm.sendState(k,info, state, reward);
 		comm.recvAction(actions);
-		//Action a=legal_actions[actions[0]];
-		//reward+=ale.act(a);
+		Action a=legal_actions[actions[0]];
+		reward+=ale.act(a);
 		info=0;
-		/*if(ale.game_over())
+		if(ale.game_over())
 		{
 			ale.getScreenGrayscale(curscreen);
 			resampleimage(curscreen, originalsize, resampledscreen, newsize);
@@ -119,7 +119,7 @@ int main(int argc, const char * argv[])
 			ale.reset_game();
 			info=1;
 			reward=0;
-		}*/
+		}
 			
 
 
