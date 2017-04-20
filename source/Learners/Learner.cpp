@@ -203,7 +203,7 @@ void Learner::TrainTasking(Master* const master)
     int nAddedGradients = 0, countElapsed = 0;
     Real sumElapsed = 0;
     int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-  	if (ndata <= 5*batchSize || !bTrain) {
+  	if (ndata <= 10*batchSize || !bTrain) {
       if(nAgents<1) die("Nothing to do, nowhere to go.\n");
       master->run();
     }
@@ -390,7 +390,7 @@ void Learner::updateTargetNetwork()
 bool Learner::checkBatch(unsigned long mastersNiter)
 {
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    if (ndata<batchSize*5 || !bTrain) {
+    if (ndata<batchSize*10 || !bTrain) {
       mastersNiter_b4PolUpdates = mastersNiter;
       return false;
     }  //do we have enough data? TODO k*ndata?
@@ -528,6 +528,10 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     fflush(0);
     if (stats.epochCount % 100==0) save("policy");
 }
+
+void Learner::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+                        const vector<int>& nbins)
+{}
 
 /*
 void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)

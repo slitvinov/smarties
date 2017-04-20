@@ -298,6 +298,55 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
     die("RACER only works by sampling entire trajectories.\n");
 }
 
+vector<Real> pickState(const vector<vector<Real>>& bins, int k)
+{
+	vector<Real> state(bins.size());
+	for (int i=0; i<bins.size(); i++) {
+		state[i] = bins[i][ k % bins[i].size() ];
+		k /= bins[i].size();
+	}
+	return state;
+}
+
+void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+								const vector<int>& nbins)
+{
+		//a fail in any of these amounts to a big and fat TODO
+		if(nAppended || bRecurrent || nA!=1)
+			die("TODO missing features\n");
+		assert(lower.size() == upper.size());
+		assert(nbins.size() == upper.size());
+		vector<vector<Real>> bins(nbins.size());
+		int nDumpPoints = 1;
+		for (int i=0; i<nbins.size(); i++) {
+			nDumpPoints *= nbins[i];
+			bins[i] = vector<Real>(nbins[i]);
+			for (int j=0; j<nbins[i]; j++) {
+				const Real l = j/(Real)(nbins[i]-1);
+				bins[i][j] = lower[i] + (upper[i]-lower[i])*l;
+			}
+		}
+
+		FILE * pFile = fopen ("dump.txt", "ab");
+		vector<Real> Vs(nDumpPoints), Pi(nDumpPoints), Co(nDumpPoints);
+		vector<Real> Mu(nDumpPoints), output(nOutputs);
+		for (int i=0; i<nDumpPoints; i++) {
+				vector<Real> state = pickState(bins, i);
+				Activation* act = net->allocateActivation();
+				net->predict(data->standardize(state), output, act);
+				_dispose_object(act);
+				Vs[i] = output[0];
+				Co[i] = output[1+nL];
+				Pi[i] = output[1+nL+nA];
+				Mu[i] = output[1+nL+2*nA];
+				vector<Real> dump(state.size()+4);
+				dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i]; dump[3] = Mu[i];
+				for (int i=0; i<nDumpPoints; i++) dump[i+4] = state[i];
+				fwrite(dump.data(),sizeof(Real),(state.size()+4)/sizeof(Real),pFile);
+		}
+		fclose (pFile);
+}
+
 void RACER::Train_BPTT(const int seq, const int thrID) const
 {
 		//this should go to gamma rather quick:

@@ -43,4 +43,6 @@ public:
     virtual bool pickReward(const State& t_sO, const Action& t_a,
                             const State& t_sN, Real& reward, const int info);
     virtual bool predefinedNetwork(Network* const net) const;
+
+    virtual void stateBounds(vector<Real>& lower, vector<Real>& upper, vector<int>& nbins);
 };
