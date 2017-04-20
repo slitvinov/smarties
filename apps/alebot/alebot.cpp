@@ -62,7 +62,7 @@ int main(int argc, const char * argv[])
 
 	// Load the ROM file. (Also resets the system for new settings to
     // take effect.)
-    ale.loadROM(std::stoi(argv[2]));//path to rom
+    ale.loadROM(argv[2]);//path to rom
 
 	// Get the vector of legal actions
     ActionVect legal_actions = ale.getLegalActionSet();
