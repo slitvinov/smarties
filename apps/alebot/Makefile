@@ -1,6 +1,7 @@
 CC = g++
 
 OBJ_FILES = 	alebot.o Communicator.o
+#OBJ_FILES =	aletest.o
 SRC_DIR = ./
 COM_DIR = ../../source
 ALE = ./Arcade-Learning-Environment
@@ -11,9 +12,13 @@ LDFLAGS := -lale -lz
 
 
 .DEFAULT_GOAL := alebot
+#.DEFAULT_GOAL := aletest
 
 alebot: $(OBJ_FILES)
 	$(CC) $(LIBS) $^ $(LDFLAGS) -o $@
+
+#aletest: $(OBJ_FILES)
+#	 $(CC) $(LIBS) $^ $(LDFLAGS) -o $@
 
 %.o: %.cpp
 	$(CC) $(extra) $(CPPFLAGS) -c $< -o $@
