@@ -335,10 +335,11 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		Activation* act = net->allocateActivation();
 		net->predict(data->standardize(state), output, act);
 		_dispose_object(act);
+		prepareVariance(output);
 		Vs[i] = output[0];
-		Co[i] = output[1+nL];
-		Pi[i] = output[1+nL+nA];
-		Mu[i] = output[1+nL+2*nA];
+		Pi[i] = aInfo.getScaled(output[1+nL], 0);
+		Co[i] = 1./std::sqrt(output[1+nL+nA]);
+		Mu[i] = aInfo.getScaled(output[1+nL+2*nA], 0);
 		vector<Real> dump(state.size()+4);
 		dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i]; dump[3] = Mu[i];
 		for (int i=0; i<state.size(); i++) dump[i+4] = state[i];

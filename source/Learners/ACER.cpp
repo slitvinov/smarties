@@ -268,6 +268,45 @@ void ACER::dumpNetworkInfo(const int agentId)
 }
  */
 
+ void ACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+ 		const vector<int>& nbins)
+ {
+ 	//a fail in any of these amounts to a big and fat TODO
+ 	if(nAppended || nA!=1)
+ 		die("TODO missing features\n");
+ 	assert(lower.size() == upper.size());
+ 	assert(nbins.size() == upper.size());
+ 	assert(nbins.size() == nInputs);
+ 	vector<vector<Real>> bins(nbins.size());
+ 	int nDumpPoints = 1;
+ 	for (int i=0; i<nbins.size(); i++) {
+ 		nDumpPoints *= nbins[i];
+ 		bins[i] = vector<Real>(nbins[i]);
+ 		for (int j=0; j<nbins[i]; j++) {
+ 			const Real l = j/(Real)(nbins[i]-1);
+ 			bins[i][j] = lower[i] + (upper[i]-lower[i])*l;
+ 		}
+ 	}
+
+ 	FILE * pFile = fopen ("dump.txt", "ab");
+ 	vector<Real> Vs(nDumpPoints), Pi(nDumpPoints), Co(nDumpPoints), output(nOutputs);
+ 	for (int i=0; i<nDumpPoints; i++) {
+ 		vector<Real> state = pickState(bins, i);
+ 		Activation* act = net->allocateActivation();
+ 		net->predict(data->standardize(state), output, act);
+ 		_dispose_object(act);
+ 		prepareVariance(output);
+ 		Vs[i] = output[0];
+ 		Pi[i] = aInfo.getScaled(output[1+nL], 0);
+ 		Co[i] = 1./std::sqrt(output[1+nL+nA]);
+ 		vector<Real> dump(state.size()+3);
+ 		dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i];
+ 		for (int i=0; i<state.size(); i++) dump[i+3] = state[i];
+ 		fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
+ 	}
+ 	fclose (pFile);
+ }
+
 static inline string printVec(const vector<Real> vals)
 {
 	ostringstream o;
