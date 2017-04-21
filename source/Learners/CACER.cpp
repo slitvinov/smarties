@@ -278,7 +278,7 @@ void CACER::Train(const int seq, const int samp, const int thrID) const
 	die("RACER only works by sampling entire trajectories.\n");
 }
 
-vector<Real> pickState(const vector<vector<Real>>& bins, int k)
+static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
 		{
 	vector<Real> state(bins.size());
 	for (int i=0; i<bins.size(); i++) {
@@ -340,7 +340,7 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 	vector<vector<Real>> out_hat(ndata-1, vector<Real>(1+nL+nA*2,0));
 	vector<Real> rho_cur(ndata-1), rho_pol(ndata-1);
 	vector<Real> rho_hat(ndata-1), c_hat(ndata-1);
-	//vector<Real> c_cur(ndata-1);
+	vector<Real> c_cur(ndata-1);
 	vector<vector<Real>> act(ndata-1, vector<Real>(nA,0));
 	vector<vector<Real>> pol(ndata-1, vector<Real>(nA,0));
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
@@ -372,7 +372,7 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		rho_cur[k] = std::exp(std::min(9.,std::max(-32.,actProbOnPolicy-actProbBehavior)));
 		rho_pol[k] = std::exp(std::min(9.,std::max(-32.,polProbOnPolicy-polProbBehavior)));
 		rho_hat[k] = std::exp(std::min(9.,std::max(-32.,actProbOnTarget-actProbBehavior)));
-		//c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
+		c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
 		c_hat[k] = std::min((Real)1.,std::pow(rho_hat[k],1./nA));
 	}
 
@@ -412,7 +412,7 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		//compute Q using tgt net for pi and C, for consistency of derivatives
 		//Q(s,a)                     v a	v policy    v quadratic Q parameters
 		const Real A_cur = computeAdvantage(act[k], polCur, varCur, P_Cur);
-		const Real A_tgt = computeAdvantage(act[k], polHat, varHat, P_Cur);
+		//const Real A_tgt = computeAdvantage(act[k], polHat, varHat, P_Cur);
 		const Real A_hat = computeAdvantage(act[k], polHat, varHat, P_Hat);
 		const Real A_pol = computeAdvantage(pol[k], polHat, varHat, P_Hat);
 		const Real varCritic = advantageVariance(polCur, varCur, P_Cur);
@@ -421,7 +421,7 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		const Real importance = std::min(rho_cur[k], truncation);
 		const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
 		const Real A_OPC = Q_OPC - out_hat[k][0];
-		const Real eta = std::min(std::max(-1., A_OPC*A_critic/varCritic), 0.);
+		const Real eta = std::min(std::max(-1., A_OPC*A_cur/varCritic), 0.);
 		//const Real eta = A_OPC*A_cur/varCritic;
 
 		const Real gain1 = A_OPC * importance - eta * rho_cur[k] * A_cur;
@@ -443,7 +443,7 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		const Real Verror = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat[k]);
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat[k]*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
-		//Q_OPC = c_hat[k]*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
+		//Q_OPC = c_cur[k]*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
 		Q_OPC = .5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
 
 		const vector<Real> critic_grad =
