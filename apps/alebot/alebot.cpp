@@ -88,7 +88,7 @@ int main(int argc, const char * argv[])
 	int k=0;
 	int originalsize[2]={210,160};
 	int newsize[2]={84,84};
-/*
+	
 	for(int i=0;i<1;++i)
 	{
 		actions.push_back(0);
@@ -96,8 +96,8 @@ int main(int argc, const char * argv[])
 	for (int i=0;i<inputdim;++i)
 	{
 		state.push_back(0);
-	}
-  */  
+	}  
+	
     while (true) {
 		
 		//preprocess state
