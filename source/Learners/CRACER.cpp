@@ -316,7 +316,7 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 {
 	//this should go to gamma rather quick:
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
-	const Real rGamma = annealedGamma();
+	const Real rGamma = anneal*gamma;
 	//const Real rGamma=std::min(1.,Real(opt->nepoch)/epsAnneal)*gamma;
 	//const Real rGamma = gamma;
 	assert(net->allocatedFrozenWeights && bTrain);
