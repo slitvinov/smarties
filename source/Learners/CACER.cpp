@@ -67,7 +67,7 @@ delta(1), truncation(5), generators(settings.generators)
 		}
 	}
 	net->build();
-	assert(1+nL+2*nA == net->getnOutputs());
+	assert(1+nL+2*nA+1 == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
 
 	opt = new AdamOptimizer(net, profiler, settings);
@@ -424,10 +424,10 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
 		const Real A_OPC = Q_OPC - out_hat[k][0];
 		const Real err_Cov = A_OPC*A_cur - cov_A_A[k];
-		const Real eta = std::min(std::max(-1., anneal*cov_A_A[k]/varCritic), 0.);
+		const Real eta = 0.;//std::min(std::max(-1., anneal*cov_A_A[k]/varCritic), 0.);
 		//const Real eta = A_OPC*A_cur/varCritic;
 
-		const Real gain1 = A_OPC * importance - eta * rho_cur[k] * A_cur;
+		const Real gain1 = A_OPC * importance;// - eta * importance * A_cur;
 		const Real gain2 = A_pol * correction;
 		meanGain1[thrID+1] = 0.99999*meanGain1[thrID+1] + 0.00001*gain1;
 		meanGain2[thrID+1] = 0.99999*meanGain2[thrID+1] + 0.00001*gain2;

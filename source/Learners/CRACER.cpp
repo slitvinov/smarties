@@ -444,7 +444,7 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 		const Real importance = std::min(rho_cur[k], truncation);
 		const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
 		const Real A_OPC = Q_OPC - out_hat[k][0];
-		const Real eta = std::max(std::min(A_OPC*A_cur/varCritic, 1.), -1.);
+		const Real eta = 0;//std::max(std::min(A_OPC*A_cur/varCritic, 1.), -1.);
 		//const Real eta = A_OPC*A_cur/varCritic;
 		//const Real eta = A_OPC*A_cur < 0 ? A_OPC*A_cur/varCritic : 0;
 		//const Real eta = A_OPC*A_cur < 0 ? -A_OPC*A_cur/varCritic : 0;
