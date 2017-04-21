@@ -443,3 +443,15 @@ void SACER::Train_BPTT(const int seq, const int thrID) const
 	net->deallocateUnrolledActivations(&series_cur);
 	net->deallocateUnrolledActivations(&series_hat);
 }
+
+void SACER::processStats(vector<trainData*> _stats, const Real avgTime)
+{
+	std = 0.1 + 10*annealingFactor();
+	variance = std*std;
+	precision = 1/variance;
+	
+	setVecMean(meanGain1); setVecMean(meanGain2);
+	printf("Gain terms of policy grad means: [%f] [%f]\n",
+	meanGain1[0], meanGain2[0]);
+	Learner::processStats(_stats, avgTime);
+}

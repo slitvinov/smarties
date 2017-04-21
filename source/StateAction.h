@@ -219,7 +219,7 @@ struct ActionInfo
 		//see per-component getScaled
 		vector<Real> ret(dim);
 		assert(unscaled.size()==dim);
-		for (int i=0; i<dim; i++) ret[i] = getScaled(unscaled[i], const int i)
+		for (int i=0; i<dim; i++) ret[i] = getScaled(unscaled[i], i);
 
 		return ret;
 	}
@@ -230,9 +230,9 @@ struct ActionInfo
 		vector<Real> ret = scaled;
 		assert(ret.size()==dim);
 		for (int i=0; i<dim; i++) {
-				assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
 				const Real min_a = getActMinVal(i);
 				const Real max_a = getActMaxVal(i);
+				assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
 				if (bounded[i]) {
 					assert(scaled[i]>min_a && scaled[i]<max_a);
 					const Real y = 2*(scaled[i] - min_a)/(max_a - min_a) -1;
@@ -311,7 +311,7 @@ struct ActionInfo
 	}
 	Real addedVariance(const Real i) const
 	{
-			return 1.;
+			return 0.5;
 	    //if (bounded[i]) return 1; //enough to sample sigmoid
 	    //else return getActMaxVal(i) - getActMinVal(i);
 	}

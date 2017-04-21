@@ -59,7 +59,7 @@ protected:
     int sampleTransitions(vector<int>& sequences, vector<int>& transitions);
     void dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs);
     void dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs) const;
-    void processStats(vector<trainData*> _stats, const Real avgTime);
+    virtual void processStats(vector<trainData*> _stats, const Real avgTime);
     virtual void updateTargetNetwork();
     virtual void stackAndUpdateNNWeights(const int nAddedGradients);
     virtual void updateNNWeights(const int nAddedGradients);

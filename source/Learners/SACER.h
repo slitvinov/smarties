@@ -17,11 +17,12 @@ class SACER : public Learner
 {
 	const int nA, nL;
 
-	const Real std = 0.1;
-	const Real variance = std*std; //std == 0.1
-	const Real precision = 1./variance;
+	Real std = 0.1;
+	Real variance = 0.01; //std == 0.1
+	Real precision = 100;
 	const Real delta, truncation;
 	std::vector<std::mt19937>& generators;
+	void processStats(vector<trainData*> _stats, const Real avgTime) override;
 
 	void Train_BPTT(const int seq, const int thrID=0) const override;
 	void Train(const int seq, const int samp, const int thrID=0) const override;
