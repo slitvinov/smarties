@@ -34,7 +34,7 @@ private:
 	inline Real evaluateLogProbability(const vector<Real>& a, const vector<Real>& out) const
 	{
 		assert(a.size()==nA);
-		assert(out.size()==1+nL+2*nA);
+		assert(out.size()==1+nL+2*nA+1);
 		Real p = 0;
 		for(int i=0; i<nA; i++) {
 			assert(out[1+nL+nA+i]>0);
@@ -60,7 +60,7 @@ private:
 	inline vector<Real> preparePmatrix(const vector<Real>& out) const
 	{
 		vector<Real> _L(nA*nA, 0), _P(nA*nA, 0);
-		assert(out.size() == 1+nL+2*nA);
+		assert(out.size() == 1+nL+2*nA+1);
 		{ //fill lower diag matrix L
 			int kL = 1;
 			for (int j=0; j<nA; j++)
@@ -150,8 +150,8 @@ private:
     therefore divKL assumes shape
     0.5*(\sum_i( Sigma_1_i*(Sigma_2_i)^-1 + (m_2_i - m_1_i)^2*(Sigma_2_i)^-1 -M +ln(Sigma_2_i) -ln(Sigma_1_i))
 		 */
-		assert(out.size() == 1+nL+2*nA);
-		assert(hat.size() == 1+nL+2*nA);
+		assert(out.size() == 1+nL+2*nA+1);
+		assert(hat.size() == 1+nL+2*nA+1);
 		const vector<Real> pi_cur(&out[1+nL],&out[1+nL]+nA), C_cur(&out[1+nL+nA],&out[1+nL+nA]+nA);
 		const vector<Real> pi_hat(&hat[1+nL],&hat[1+nL]+nA), C_hat(&hat[1+nL+nA],&hat[1+nL+nA]+nA);
 		vector<Real> ret(2*nA);
@@ -303,12 +303,12 @@ private:
 
 	inline vector<Real> finalizeGradient(const Real Qerror, const Real Verror,
 			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
-			const vector<Real>& out) const
+			const vector<Real>& out, const Real err_Cov) const
 	{
 		assert(gradCritic.size() == 1+nL);
 		assert(gradPolicy.size() == 2*nA);
-		assert(out.size() == 1+nL+nA*2);
-		vector<Real> grad(1+nL+nA*2);
+		assert(out.size() == 1+nL+nA*2+1);
+		vector<Real> grad(1+nL+nA*2+1);
 
 		grad[0] = Qerror+Verror;
 		for (int j=1; j<nL+1; j++)
@@ -318,6 +318,8 @@ private:
 			grad[1+nL+j] = gradPolicy[j];
 
 		finalizeVarianceGrad(grad, out);
+
+		grad[1+nL+nA*2] = err_Cov;
 
 		return grad;
 	}
@@ -346,7 +348,7 @@ private:
 	 */
 	inline void prepareVariance(vector<Real>& out) const
 	{
-		assert(out.size()==1+nL+2*nA);
+		assert(out.size()==1+nL+2*nA+1);
 		for (int j=0; j<nA; j++) {
 			const Real x = out[1+nL+nA+j];
 			out[1+nL+nA+j] = .5*(x + std::sqrt(x*x + 1.));
@@ -354,8 +356,8 @@ private:
 	}
 	inline void finalizeVarianceGrad(vector<Real>& grad, const vector<Real>& out) const
 	{
-		assert(grad.size()==1+nL+2*nA);
-		assert(out.size()==1+nL+2*nA);
+		assert(grad.size()==1+nL+2*nA+1);
+		assert(out.size()==1+nL+2*nA+1);
 		for (int j=0; j<nA; j++) {
 			const Real ysq = out[1+nL+nA+j]*out[1+nL+nA+j];
 			const Real diff = ysq/(ysq + 0.25);

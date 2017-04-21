@@ -59,7 +59,7 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
       settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
       const int nA = env->aI.dim;
       const int nL = (nA*nA+nA)/2;
-      settings.nnOutputs = 1+nL+2*nA;
+      settings.nnOutputs = 1+nL+2*nA+1;
       settings.bSeparateOutputs = true; //else it does not really work
       return new CACER(mastersComm, env, settings);
   }

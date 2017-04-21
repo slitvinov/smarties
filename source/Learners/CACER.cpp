@@ -47,8 +47,8 @@ delta(1), truncation(5), generators(settings.generators)
 	if (not env->predefinedNetwork(net))
 	{ //if that was true, environment created the layers it wanted, else we read the settings:
 		net->addInput(nInputs);
-		const int Nnets = 4;
-		const int outputs[Nnets] = {1,nL,nA,nA};
+		const int Nnets = 5;
+		const int outputs[Nnets] = {1,nL,nA,nA,1};
 		const int nsplit = lsize.size()>3 ? 2 : 1;
 		for (int i=0; i<lsize.size()-nsplit; i++)
 			net->addLayer(lsize[i], lType);
@@ -279,14 +279,14 @@ void CACER::Train(const int seq, const int samp, const int thrID) const
 }
 
 static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
-		{
+{
 	vector<Real> state(bins.size());
 	for (int i=0; i<bins.size(); i++) {
 		state[i] = bins[i][ k % bins[i].size() ];
 		k /= bins[i].size();
 	}
 	return state;
-		}
+}
 
 void CACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 	 const vector<int>& nbins)
@@ -336,11 +336,11 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 	//const Real rGamma = gamma;
 	assert(net->allocatedFrozenWeights && bTrain);
 	const int ndata = data->Set[seq]->tuples.size();
-	vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2,0));
-	vector<vector<Real>> out_hat(ndata-1, vector<Real>(1+nL+nA*2,0));
+	vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2+1,0));
+	vector<vector<Real>> out_hat(ndata-1, vector<Real>(1+nL+nA*2+1,0));
 	vector<Real> rho_cur(ndata-1), rho_pol(ndata-1);
 	vector<Real> rho_hat(ndata-1), c_hat(ndata-1);
-	vector<Real> c_cur(ndata-1);
+	vector<Real> c_cur(ndata-1), cov_A_A(ndata-1);
 	vector<vector<Real>> act(ndata-1, vector<Real>(nA,0));
 	vector<vector<Real>> pol(ndata-1, vector<Real>(nA,0));
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
@@ -374,6 +374,8 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		rho_hat[k] = std::exp(std::min(9.,std::max(-32.,actProbOnTarget-actProbBehavior)));
 		c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
 		c_hat[k] = std::min((Real)1.,std::pow(rho_hat[k],1./nA));
+
+		cov_A_A[k] = out_cur[k][1+nL+nA*2];
 	}
 
 	Real Q_RET = 0, Q_OPC = 0;
@@ -421,7 +423,8 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		const Real importance = std::min(rho_cur[k], truncation);
 		const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
 		const Real A_OPC = Q_OPC - out_hat[k][0];
-		const Real eta = std::min(std::max(-1., A_OPC*A_cur/varCritic), 0.);
+		const Real err_Cov = A_OPC*A_cur - cov_A_A[k];
+		const Real eta = std::min(std::max(-1., anneal*cov_A_A[k]/varCritic), 0.);
 		//const Real eta = A_OPC*A_cur/varCritic;
 
 		const Real gain1 = A_OPC * importance - eta * rho_cur[k] * A_cur;
@@ -438,9 +441,9 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		const vector<Real> gradDivKL = gradDKL(out_cur[k], out_hat[k]);
 		const vector<Real> gradAcer = gradAcerTrpo(policy_grad, gradDivKL);
 
-		const Real Qerror = (Q_RET -A_cur -out_cur[k][0]);
+		const Real Qer = (Q_RET -A_cur -out_cur[k][0]);
 		//unclear usefulness:
-		const Real Verror = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat[k]);
+		const Real Ver = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat[k]);
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat[k]*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
 		//Q_OPC = c_cur[k]*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
@@ -449,7 +452,7 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		const vector<Real> critic_grad =
 			criticGradient(P_Cur, polCur, varCur, out_cur[k], act[k]);
 		const vector<Real> grad =
-			finalizeGradient(Qerror, Verror, critic_grad, policy_grad, out_cur[k]);
+			finalizeGradient(Qer, Ver, critic_grad, policy_grad, out_cur[k], err_Cov);
 		//#ifndef NDEBUG
 		//printf("Applying gradient %s\n",printVec(grad).c_str());
 		//fflush(0);
@@ -457,9 +460,9 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		net->setOutputDeltas(grad, series_cur[k]);
 		//bookkeeping:
 		vector<Real> fake{A_cur, 100};
-		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qerror, fake);
+		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
 		if(thrID == 1) net->updateRunning(series_cur[k]);
-		data->Set[seq]->tuples[k]->SquaredError = Qerror*Qerror;
+		data->Set[seq]->tuples[k]->SquaredError = Qer*Qer;
 	}
 
 	if (thrID==0) net->backProp(series_cur, net->grad);
