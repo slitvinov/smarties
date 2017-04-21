@@ -83,6 +83,15 @@ public:
     	else return 1 - opt->nepoch/epsAnneal;
     }
 
+    inline Real annealedGamma() const
+    {
+      if (opt->nepoch>epsAnneal) return gamma;
+
+      const Real anneal = Real(opt->nepoch)/epsAnneal;
+      const Real fac = 1 + anneal*(1./(1-gamma) -1);
+      return 1 - 1./fac;
+    }
+
     inline Real sequenceR(const int t0, const int seq) const
     {
       Real R = 0, G = 1;
