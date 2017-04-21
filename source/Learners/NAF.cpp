@@ -90,12 +90,14 @@ nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2)
   #endif
 }
 
+/*
 static void printselection(const int iA,const int nA,const int i,vector<Real> s)
 {
 	printf("%d/%d s=%d : ", iA, nA, i);
 	for(int k=0; k<s.size(); k++) printf("%g ", s[k]);
 	printf("\n"); fflush(0);
 }
+*/
 
 void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 								 Action& aOld, const int info, Real r)
@@ -292,14 +294,14 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
     {
         vector<Real> Q(3,0), _L(nA*nA,0), _A(nA*nA,0), _dLdl(nA*nA);
         vector<Real> _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
-        
+
         {
             int kL = 1;
             for (int j=0; j<nA; j++)
                 for (int i=0; i<nA; i++) if (i<=j) _L[nA*j + i] = out[kL++];
             assert(kL==1+nL);
         }
-        
+
         for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
             const Real min_a = aInfo.getActMinVal(j);
             const Real max_a = aInfo.getActMaxVal(j);
@@ -334,10 +336,10 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
         Q[0] = out[0] -2.*std::pow(Q[0],0.25);  //Q = V - 2*Adv^.25
         Q[1] = out[0];
 #endif
-        
+
         const Real error = Vnext - Q[0];
         grad[0] = error;
-        
+
         for (int il=0; il<nL; il++) {
             int kD=0;
             for (int j=0; j<nA; j++)
@@ -377,15 +379,15 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
             }
             grad[1+nL+ia] *= dQdA*error;
         }
-        
+
         for (int j=0; j<nA; j++)
             grad[1+nL+j] *= aInfo.getDactDscale(out[1+nL+j], j);
-        
+
         Real meangrad = 0;
         for (int i=0; i<nA+nL+1; i++)
             meangrad += std::fabs(grad[i]);
         meangrad/=(1+nA+nL);
-        
+
         if(grad[0]>0 && grad[0]> meangrad)
             grad[0] = meangrad;
         if(grad[0]<0 && grad[0]<-meangrad)

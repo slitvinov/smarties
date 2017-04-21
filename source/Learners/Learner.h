@@ -79,9 +79,10 @@ public:
     {
       //number that goes from 1 to 0 with optimizer's steps
       assert(epsAnneal>1.);
-	if(opt->nepoch >= epsAnneal) return 0;
-	else return 1 - opt->nepoch/epsAnneal;
+    	if(opt->nepoch >= epsAnneal) return 0;
+    	else return 1 - opt->nepoch/epsAnneal;
     }
+
     inline Real sequenceR(const int t0, const int seq) const
     {
       Real R = 0, G = 1;
@@ -91,6 +92,16 @@ public:
         G *= gamma;
       }
       return R;
+    }
+
+    vector<Real> pickState(const vector<vector<Real>>& bins, int k)
+    {
+    	vector<Real> state(bins.size());
+    	for (int i=0; i<bins.size(); i++) {
+    		state[i] = bins[i][ k % bins[i].size() ];
+    		k /= bins[i].size();
+    	}
+    	return state;
     }
 
     virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;

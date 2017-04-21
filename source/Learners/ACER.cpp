@@ -123,13 +123,6 @@ delta(1), truncation(5), generators(settings.generators)
 
 }
 
-static void printselection(const int iA,const int nA,const int i,vector<Real> s)
-{
-	printf("%d/%d s=%d : ", iA, nA, i);
-	for(int k=0; k<s.size(); k++) printf("%g ", s[k]);
-	printf("\n"); fflush(0);
-}
-
 void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
@@ -267,17 +260,7 @@ void ACER::dumpNetworkInfo(const int agentId)
 }
  */
 
-static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
-{
-	vector<Real> state(bins.size());
-	for (int i=0; i<bins.size(); i++) {
-		state[i] = bins[i][ k % bins[i].size() ];
-		k /= bins[i].size();
-	}
-	return state;
-}
-
- void ACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+void ACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
  		const vector<int>& nbins)
  {
  	//a fail in any of these amounts to a big and fat TODO

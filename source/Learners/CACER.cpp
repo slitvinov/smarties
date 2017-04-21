@@ -129,13 +129,6 @@ delta(0.1), truncation(5), generators(settings.generators)
 
 }
 
-static void printselection(const int iA,const int nA,const int i,vector<Real> s)
-{
-	printf("%d/%d s=%d : ", iA, nA, i);
-	for(int k=0; k<s.size(); k++) printf("%g ", s[k]);
-	printf("\n"); fflush(0);
-}
-
 void CACER::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
@@ -276,16 +269,6 @@ void RACER::dumpNetworkInfo(const int agentId)
 void CACER::Train(const int seq, const int samp, const int thrID) const
 {
 	die("RACER only works by sampling entire trajectories.\n");
-}
-
-static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
-{
-	vector<Real> state(bins.size());
-	for (int i=0; i<bins.size(); i++) {
-		state[i] = bins[i][ k % bins[i].size() ];
-		k /= bins[i].size();
-	}
-	return state;
 }
 
 void CACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
@@ -432,7 +415,7 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		//const Real gain1 = A_OPC * importance;// - eta * importance * A_cur;
 		//const Real gain2 = A_pol * correction;
 		const Real gain1 = rho_cur[k] * (A_OPC - eta * A_cur);
-		const Real gain2 = 0; 
+		const Real gain2 = 0;
 		meanGain1[thrID+1] = 0.99999*meanGain1[thrID+1] + 0.00001*gain1;
 		meanGain2[thrID+1] = 0.99999*meanGain2[thrID+1] + 0.00001*gain2;
 		//derivative wrt to statistics
