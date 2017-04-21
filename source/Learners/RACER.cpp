@@ -96,15 +96,22 @@ delta(1), truncation(5), generators(settings.generators)
 		uniform_real_distribution<Real> dis(-10,10);
 		act[i] = dis(*gen);
 	}
-	prepareVariance(out_0);
+   vector<Real> out_0_f = out_0;
+	prepareVariance(out_0_f);
 
-	const vector<Real> polGrad = policyGradient(out_0, act, 1.0);
+	vector<Real> polGrad = policyGradient(out_0_f, act, 1.0);
+   vector<Real> fullgrad(1+nL+3*nA);
+   for(int i=0;i<2*nA;i++) fullgrad[1+nL+i] = polGrad[i];
+   finalizeVarianceGrad(fullgrad, out_0_f);
+   for(int i=0;i<2*nA;i++) polGrad[i] = fullgrad[1+nL+i];
 	for(int i = 0; i<2*nA; i++) {
 		vector<Real> grad_1(nOutputs), grad_2(nOutputs);
 		vector<Real> out_1 = out_0;
 		vector<Real> out_2 = out_0;
 		out_1[1+nL+i] -= 0.0001;
 		out_2[1+nL+i] += 0.0001;
+      prepareVariance(out_1);
+      prepareVariance(out_2);
 		const Real p1 = evaluateLogProbability(act, out_1);
 		const Real p2 = evaluateLogProbability(act, out_2);
 
@@ -112,7 +119,7 @@ delta(1), truncation(5), generators(settings.generators)
 		const Real diffi = (p2-p1)/0.0002;
 		printf("LogPol Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
 	}
-
+   out_0 = out_0_f;
 	vector<Real> grad_0 = computeGradient(1., 0., out_0, out_0, act, polGrad);
 	for(int i = 0; i<1+nL; i++) {
 		vector<Real> out_1 = out_0;
@@ -341,7 +348,7 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		Mu[i] = output[1+nL+2*nA];
 		vector<Real> dump(state.size()+4);
 		dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i]; dump[3] = Mu[i];
-		for (int i=0; i<state.size(); i++) dump[i+4] = state[i];
+		for (int j=0; j<state.size(); j++) dump[j+4] = state[j];
 		fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
 	}
 	fclose (pFile);
@@ -442,8 +449,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const Real Verror = (Q_RET - Q_cur)*std::min(1.,rho_hat[k]);//  //unclear usefulness
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat[k]*1.*(Q_RET - Q_hat) + out_hat[k][0];
-		Q_OPC = c_hat[k]*1.*(Q_OPC - Q_hat) + out_hat[k][0];
-		//Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
+		//Q_OPC = c_hat[k]*1.*(Q_OPC - Q_hat) + out_hat[k][0];
+		Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
 
 		const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k], act[k], gradAcer);
 		//#ifndef NDEBUG
