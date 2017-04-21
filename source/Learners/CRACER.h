@@ -250,7 +250,7 @@ private:
 		return -0.5*quadraticTerm(P, mean, act) + 0.5*expectation; //subtract expectation from advantage of action
 	}
 
-	inline Real sum3Grads(const vector<Real>& f, const vector<Real>& g,
+	inline vector<Real> sum3Grads(const vector<Real>& f, const vector<Real>& g,
 		const vector<Real>& h) const
 	{
 		assert(f.size() == 2*nA);
@@ -320,7 +320,7 @@ private:
 	}
 
 	inline vector<Real> finalizeGradient(const Real Qerror, const Real Verror,
-			const vector<Real>& gradPolicy, const vector<Real>& gradCritic,
+			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
 			const vector<Real>& out) const
 	{
 		assert(gradCritic.size() == 1+nL+nA);

@@ -288,7 +288,6 @@ private:
 			}
 
 			const vector<Real> P = preparePmatrix(out);
-			const Real fac = Qerror;
 			for (int ia=0; ia<nA; ia++) {
 				grad[1+nL+2*nA+ia] = 0.;
 				for (int i=0; i<nA; i++) {

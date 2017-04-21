@@ -112,7 +112,7 @@ delta(1), truncation(5), generators(settings.generators)
 		const Real diffi = (p2-p1)/0.0002;
 		printf("LogPol Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
 	}
-
+	/*
 	vector<Real> grad_0 = computeGradient(1., 0., out_0, out_0, act, polGrad);
 	for(int i = 0; i<1+nL; i++) {
 		vector<Real> out_1 = out_0;
@@ -136,7 +136,7 @@ delta(1), truncation(5), generators(settings.generators)
 		const Real diffi = (Q_2-Q_1)/0.0002;
 		printf("Value Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
 	}
-
+	*/
 #endif
 
 }
@@ -476,8 +476,8 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 		//#endif
 		net->setOutputDeltas(grad, series_cur[k]);
 		//bookkeeping:
-		vector<Real> fake{Q_cur, 100};
-		dumpStats(Vstats[thrID], Q_cur, Qerror, fake);
+		vector<Real> fake{A_cur, 100};
+		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qerror, fake);
 		if(thrID == 1) net->updateRunning(series_cur[k]);
 		data->Set[seq]->tuples[k]->SquaredError = Qerror*Qerror;
 	}

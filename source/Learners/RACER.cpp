@@ -285,19 +285,12 @@ void RACER::dumpNetworkInfo(const int agentId)
 }
  */
 
-static inline string printVec(const vector<Real> vals)
-{
-	ostringstream o;
-	for (int i=0; i<vals.size(); i++) o << " " << vals[i];
-	return o.str();
-}
-
 void RACER::Train(const int seq, const int samp, const int thrID) const
 {
 	die("RACER only works by sampling entire trajectories.\n");
 }
 
-vector<Real> pickState(const vector<vector<Real>>& bins, int k)
+static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
 		{
 	vector<Real> state(bins.size());
 	for (int i=0; i<bins.size(); i++) {
@@ -342,7 +335,7 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		Mu[i] = aInfo.getScaled(output[1+nL+2*nA], 0);
 		vector<Real> dump(state.size()+4);
 		dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i]; dump[3] = Mu[i];
-		for (int i=0; i<state.size(); i++) dump[i+4] = state[i];
+		for (int j=0; j<state.size(); j++) dump[j+4] = state[j];
 		fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
 	}
 	fclose (pFile);
@@ -432,9 +425,13 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		//const Real correction = 0;
 		const Real gain1 = (Q_OPC - out_hat[k][0]) * importance;
 		const Real gain2 = (Q_pol - out_hat[k][0]) * correction;
+		meanGain1[thrID] = 0.99999*meanGain1[thrID] + 0.00001*gain1;
+		meanGain2[thrID] = 0.99999*meanGain2[thrID] + 0.00001*gain2;
 		//derivative wrt to statistics
 		const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1);
 		const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2);
+		//const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1-meanGain1[0]);
+		//const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2-meanGain2[0]);
 		//trust region updating
 		const vector<Real> gradDivKL= gradDKL(out_cur[k], out_hat[k]);
 		const vector<Real> gradAcer = gradAcerTrpo(gradAcer_1,gradAcer_2,gradDivKL);
@@ -443,7 +440,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const Real Verror = (Q_RET - Q_cur)*std::min(1.,rho_hat[k]);//  //unclear usefulness
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat[k]*1.*(Q_RET - Q_hat) + out_hat[k][0];
-		Q_OPC = c_hat[k]*1.*(Q_OPC - Q_hat) + out_hat[k][0];
+		Q_OPC = c_hat[k]*(Q_OPC - Q_hat) + out_hat[k][0];
 		//Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
 
 		const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k], act[k], gradAcer);
