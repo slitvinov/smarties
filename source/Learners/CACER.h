@@ -95,7 +95,7 @@ private:
 	inline Real advantageVariance(const vector<Real>& pol, const vector<Real>& var,
 		const vector<Real>&P) const
 	{
-		vector<Real> PvarP(nA*2, 0);
+		vector<Real> PvarP(nA*nA, 0);
 
 		for (int j=0; j<nA; j++)
 		for (int i=0; i<nA; i++) {
