@@ -190,9 +190,8 @@ private:
 		where policy is defined by mean pi and diagonal covariance matrix
 		which is equal to trace[(-0.5*P) * Sigma] (since E(a-pi)=0)
 		 */
-		Real expectation = 0;
+		Real expectation = computeAdvantage(P, mu, pi);
 		for(int i=0; i<nA; i++) expectation -= 0.5*P[nA*i+i]*variance;
-		expectation += computeAdvantage(P, mu, pi);
 
 		return computeAdvantage(P, mu, act) - expectation; //subtract expectation from advantage of action
 	}
@@ -214,7 +213,7 @@ private:
 		assert(gradAcer.size() == nA);
 		assert(act.size() == nA);
 		//assert(P.size() == 2*nA);
-		vector<Real> grad(1+nL+nA*2);
+		vector<Real> grad(1+nL+nA*2, 0);
 		grad[0] = Qerror+Verror;
 
 		for (int j=0; j<nA; j++) grad[1+nL+j] = gradAcer[j];
@@ -224,8 +223,7 @@ private:
 			//these are used to compute Q, so only involved in value gradient
 			const vector<Real> pi_hat(&hat[1+nL], &hat[1+nL]+nA);
 			//const vector<Real> pi_hat(&out[1+nL], &out[1+nL]+nA);
-			//const vector<Real> C_hat(&out[1+nL+nA], &out[1+nL+nA]+nA);
-			const vector<Real> mu_cur(&out[1+nL+2*nA], &out[1+nL+2*nA]+nA);
+			const vector<Real> mu_cur(&out[1+nL+nA], &out[1+nL+nA]+nA);
 			vector<Real> _L(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _m(nA);
 			int kL = 1;
 			for (int j=0; j<nA; j++) {

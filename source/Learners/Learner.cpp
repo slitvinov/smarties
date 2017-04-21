@@ -525,9 +525,7 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
              <<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"
              <<stats.dumpCount<<"\t"<<opt->nepoch<<"\t"<<avgTime<<endl;
     filestats.close();
-	setVecMean(meanGain1); setVecMean(meanGain2);
-	printf("Gain terms of policy grad means: [%f] [%f]\n",
-	meanGain1[0], meanGain2[0]);
+    
     fflush(0);
     if (stats.epochCount % 100==0) save("policy");
 }
