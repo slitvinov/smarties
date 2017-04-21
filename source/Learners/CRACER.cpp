@@ -47,7 +47,7 @@ delta(0.1), truncation(5), generators(settings.generators)
 	if (not env->predefinedNetwork(net))
 	{ //if that was true, environment created the layers it wanted, else we read the settings:
 		net->addInput(nInputs);
-		const int Nnets = 5;
+		const int Nnets = 6;
 		const int outputs[Nnets] = {1,nL,nA,nA,nA,1};
 		const int nsplit = lsize.size()>3 ? 2 : 1;
 		for (int i=0; i<lsize.size()-nsplit; i++)
@@ -366,7 +366,7 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 	{
 		const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
 		vector<Real> S_T = data->standardize(_t->s); //last state
-		vector<Real> out_T(1+nL+nA*3, 0);
+		vector<Real> out_T(1+nL+nA*3+1, 0);
 		net->predict(S_T, out_T, series_hat, ndata-1, net->tgt_weights, net->tgt_biases);
 		Q_RET = out_T[0]; //V(s_T) computed with tgt weights
 		//net->predict(S_T, out_T, series_cur.back(), series_hat.back());
@@ -409,7 +409,7 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 		const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
 		const Real A_OPC = Q_OPC - out_hat[k][0];
 		const Real err_Cov = A_OPC*A_cur - cov_A_A[k];
-		const Real eta = 0;//std::max(std::min(A_OPC*A_cur/varCritic, 1.), -1.);
+		//const Real eta = 0;//std::max(std::min(A_OPC*A_cur/varCritic, 1.), -1.);
 		const Real estimate = anneal*cov_A_A[k] + (1-anneal)*A_OPC*A_cur;
 		const Real eta = std::min(std::max(-.5, estimate/varCritic), .5);
 
