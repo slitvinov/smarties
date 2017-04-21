@@ -72,7 +72,8 @@ delta(1), truncation(5), generators(settings.generators)
 #endif
 	}
 	net->build();
-	assert(1+nL+2*nA == net->getnOutputs() && nInputs == net->getnInputs());
+	assert(1+nL+2*nA == net->getnOutputs());
+	assert(nInputs == net->getnInputs());
 
 	opt = new AdamOptimizer(net, profiler, settings);
 	data->bRecurrent = bRecurrent = true;
