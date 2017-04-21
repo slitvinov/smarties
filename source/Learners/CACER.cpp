@@ -23,7 +23,7 @@
 CACER::CACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2),
-delta(1), truncation(5), generators(settings.generators)
+delta(0.1), truncation(5), generators(settings.generators)
 {
 	printf("Running (R)ACER! Fancy banner here\n");
 	string lType = bRecurrent ? "LSTM" : "Normal";
@@ -182,7 +182,7 @@ void CACER::select(const int agentId, State& s, Action& a, State& sOld,
 		for(int i=0; i<nA; i++) {
 			const Real varscale = aInfo.addedVariance(i);
 			const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
-			Real anneal_var = eps*varscale*greedyEps + policy_var;
+			Real anneal_var = eps*varscale*greedyEps + policy_var*(1-eps);
 			//				anneal_var = anneal_var>varscale ? varscale : anneal_var;
 			const Real annealed_mean = (1-eps)*output[1+nL+i];
 			//const Real annealed_mean = output[1+nL+i];
@@ -424,11 +424,15 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
 		const Real A_OPC = Q_OPC - out_hat[k][0];
 		const Real err_Cov = A_OPC*A_cur - cov_A_A[k];
-		const Real eta = 0.;//std::min(std::max(-1., anneal*cov_A_A[k]/varCritic), 0.);
+		//const Real eta = 0.;//std::min(std::max(-1., anneal*cov_A_A[k]/varCritic), 0.);
+		const Real estimate = anneal*cov_A_A[k] + (1-anneal)*A_OPC*A_cur;
+		const Real eta = std::min(std::max(-.5, estimate/varCritic), .5);
 		//const Real eta = A_OPC*A_cur/varCritic;
 
-		const Real gain1 = A_OPC * importance;// - eta * importance * A_cur;
-		const Real gain2 = A_pol * correction;
+		//const Real gain1 = A_OPC * importance;// - eta * importance * A_cur;
+		//const Real gain2 = A_pol * correction;
+		const Real gain1 = rho_cur[k] * (A_OPC - eta * A_cur);
+		const Real gain2 = 0; 
 		meanGain1[thrID+1] = 0.99999*meanGain1[thrID+1] + 0.00001*gain1;
 		meanGain2[thrID+1] = 0.99999*meanGain2[thrID+1] + 0.00001*gain2;
 		//derivative wrt to statistics
@@ -446,8 +450,8 @@ void CACER::Train_BPTT(const int seq, const int thrID) const
 		const Real Ver = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat[k]);
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat[k]*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
-		//Q_OPC = c_cur[k]*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
-		Q_OPC = .5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
+		Q_OPC = c_cur[k]*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
+		//Q_OPC = .5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
 
 		const vector<Real> critic_grad =
 			criticGradient(P_Cur, polCur, varCur, out_cur[k], act[k]);
