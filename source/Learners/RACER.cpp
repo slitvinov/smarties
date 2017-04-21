@@ -292,19 +292,12 @@ void RACER::dumpNetworkInfo(const int agentId)
 }
  */
 
-static inline string printVec(const vector<Real> vals)
-{
-	ostringstream o;
-	for (int i=0; i<vals.size(); i++) o << " " << vals[i];
-	return o.str();
-}
-
 void RACER::Train(const int seq, const int samp, const int thrID) const
 {
 	die("RACER only works by sampling entire trajectories.\n");
 }
 
-vector<Real> pickState(const vector<vector<Real>>& bins, int k)
+static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
 		{
 	vector<Real> state(bins.size());
 	for (int i=0; i<bins.size(); i++) {
@@ -342,10 +335,11 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		Activation* act = net->allocateActivation();
 		net->predict(data->standardize(state), output, act);
 		_dispose_object(act);
+		prepareVariance(output);
 		Vs[i] = output[0];
-		Co[i] = output[1+nL];
-		Pi[i] = output[1+nL+nA];
-		Mu[i] = output[1+nL+2*nA];
+		Pi[i] = aInfo.getScaled(output[1+nL], 0);
+		Co[i] = 1./std::sqrt(output[1+nL+nA]);
+		Mu[i] = aInfo.getScaled(output[1+nL+2*nA], 0);
 		vector<Real> dump(state.size()+4);
 		dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i]; dump[3] = Mu[i];
 		for (int j=0; j<state.size(); j++) dump[j+4] = state[j];
@@ -438,9 +432,13 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		//const Real correction = 0;
 		const Real gain1 = (Q_OPC - out_hat[k][0]) * importance;
 		const Real gain2 = (Q_pol - out_hat[k][0]) * correction;
+		meanGain1[thrID] = 0.99999*meanGain1[thrID] + 0.00001*gain1;
+		meanGain2[thrID] = 0.99999*meanGain2[thrID] + 0.00001*gain2;
 		//derivative wrt to statistics
 		const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1);
 		const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2);
+		//const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1-meanGain1[0]);
+		//const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2-meanGain2[0]);
 		//trust region updating
 		const vector<Real> gradDivKL= gradDKL(out_cur[k], out_hat[k]);
 		const vector<Real> gradAcer = gradAcerTrpo(gradAcer_1,gradAcer_2,gradDivKL);

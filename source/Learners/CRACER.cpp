@@ -8,7 +8,7 @@
  */
 
 #include "../StateAction.h"
-#include "ACER.h"
+#include "CRACER.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +20,7 @@
 
 
 
-ACER::ACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
+CRACER::CRACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2),
 delta(1), truncation(5), generators(settings.generators)
@@ -48,20 +48,27 @@ delta(1), truncation(5), generators(settings.generators)
 	{ //if that was true, environment created the layers it wanted, else we read the settings:
 		net->addInput(nInputs);
 #if 1
-		const int outputs[4] = {1,nL,nA,nA};
+		const int Nnets = 5;
+		const int outputs[Nnets] = {1,nL,nA,nA,nA};
 		const int nsplit = lsize.size()>3 ? 2 : 1;
 		for (int i=0; i<lsize.size()-nsplit; i++)
 			net->addLayer(lsize[i], lType);
+
 		const int firstSplit = lsize.size()-nsplit;
 		const vector<int> lastJointLayer(1,net->getLastLayerID());
-		for (int i=0; i<4; i++) {
+
+		for (int i=0; i<Nnets; i++)
+		{
 			net->addLayer(lsize[firstSplit], lType, lastJointLayer);
+
 			for (int j=firstSplit+1; j<lsize.size(); j++)
 				net->addLayer(lsize[j], lType);
+
 			net->addOutput(outputs[i], "Normal");
 		}
 #else
-		const int outputs[4] = {1,nL,nA,nA};
+		const int Nnets = 5;
+		const int outputs[Nnets] = {1,nL,nA,nA,nA};
 		const vector<int> lastJointLayer(1,net->getLastLayerID());
 		for (int i=0; i<Nnets; i++) {
 			net->addLayer(lsize[0], lType, lastJointLayer);
@@ -72,7 +79,7 @@ delta(1), truncation(5), generators(settings.generators)
 #endif
 	}
 	net->build();
-	assert(1+nL+2*nA == net->getnOutputs());
+	assert(1+nL+3*nA == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
 
 	opt = new AdamOptimizer(net, profiler, settings);
@@ -105,7 +112,7 @@ delta(1), truncation(5), generators(settings.generators)
 		const Real diffi = (p2-p1)/0.0002;
 		printf("LogPol Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
 	}
-
+	/*
 	vector<Real> grad_0 = computeGradient(1., 0., out_0, out_0, act, polGrad);
 	for(int i = 0; i<1+nL; i++) {
 		vector<Real> out_1 = out_0;
@@ -118,7 +125,18 @@ delta(1), truncation(5), generators(settings.generators)
 		const Real diffi = (Q_2-Q_1)/0.0002;
 		printf("Value Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
 	}
-
+	for(int i = 0; i<nA; i++) {
+		vector<Real> out_1 = out_0;
+		vector<Real> out_2 = out_0;
+		out_1[1+nL+2*nA+i] -= 0.0001;
+		out_2[1+nL+2*nA+i] += 0.0001;
+		const Real Q_1 = computeQ(act, out_0, out_1);
+		const Real Q_2 = computeQ(act, out_0, out_2);
+		const Real gradi = grad_0[1+nL+2*nA+i];
+		const Real diffi = (Q_2-Q_1)/0.0002;
+		printf("Value Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
+	}
+	*/
 #endif
 
 }
@@ -130,7 +148,7 @@ static void printselection(const int iA,const int nA,const int i,vector<Real> s)
 	printf("\n"); fflush(0);
 }
 
-void ACER::select(const int agentId, State& s, Action& a, State& sOld,
+void CRACER::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
 	if (info == 2) { //no need for action, just pass terminal s & r
@@ -211,7 +229,7 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 }
 
 /*
-void ACER::dumpNetworkInfo(const int agentId)
+void RACER::dumpNetworkInfo(const int agentId)
 {
 	net->dump(agentId);
 	vector<Real> output(nOutputs);
@@ -267,62 +285,70 @@ void ACER::dumpNetworkInfo(const int agentId)
 }
  */
 
-static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
+static inline string printVec(const vector<Real> vals)
 {
+	ostringstream o;
+	for (int i=0; i<vals.size(); i++) o << " " << vals[i];
+	return o.str();
+}
+
+void CRACER::Train(const int seq, const int samp, const int thrID) const
+{
+	die("RACER only works by sampling entire trajectories.\n");
+}
+
+vector<Real> pickState(const vector<vector<Real>>& bins, int k)
+		{
 	vector<Real> state(bins.size());
 	for (int i=0; i<bins.size(); i++) {
 		state[i] = bins[i][ k % bins[i].size() ];
 		k /= bins[i].size();
 	}
 	return state;
-}
+		}
 
- void ACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
- 		const vector<int>& nbins)
- {
- 	//a fail in any of these amounts to a big and fat TODO
- 	if(nAppended || nA!=1)
- 		die("TODO missing features\n");
- 	assert(lower.size() == upper.size());
- 	assert(nbins.size() == upper.size());
- 	assert(nbins.size() == nInputs);
- 	vector<vector<Real>> bins(nbins.size());
- 	int nDumpPoints = 1;
- 	for (int i=0; i<nbins.size(); i++) {
- 		nDumpPoints *= nbins[i];
- 		bins[i] = vector<Real>(nbins[i]);
- 		for (int j=0; j<nbins[i]; j++) {
- 			const Real l = j/(Real)(nbins[i]-1);
- 			bins[i][j] = lower[i] + (upper[i]-lower[i])*l;
- 		}
- 	}
-
- 	FILE * pFile = fopen ("dump.txt", "ab");
- 	vector<Real> Vs(nDumpPoints), Pi(nDumpPoints), Co(nDumpPoints), output(nOutputs);
- 	for (int i=0; i<nDumpPoints; i++) {
- 		vector<Real> state = pickState(bins, i);
- 		Activation* act = net->allocateActivation();
- 		net->predict(data->standardize(state), output, act);
- 		_dispose_object(act);
- 		prepareVariance(output);
- 		Vs[i] = output[0];
- 		Pi[i] = aInfo.getScaled(output[1+nL], 0);
- 		Co[i] = 1./std::sqrt(output[1+nL+nA]);
- 		vector<Real> dump(state.size()+3);
- 		dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i];
- 		for (int j=0; j<state.size(); j++) dump[j+3] = state[j];
- 		fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
- 	}
- 	fclose (pFile);
- }
-
-
-void ACER::Train(const int seq, const int samp, const int thrID) const
+void CRACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+		const vector<int>& nbins)
 {
-	die("ACER only works by sampling entire trajectories.\n");
+	//a fail in any of these amounts to a big and fat TODO
+	if(nAppended || nA!=1)
+		die("TODO missing features\n");
+	assert(lower.size() == upper.size());
+	assert(nbins.size() == upper.size());
+	assert(nbins.size() == nInputs);
+	vector<vector<Real>> bins(nbins.size());
+	int nDumpPoints = 1;
+	for (int i=0; i<nbins.size(); i++) {
+		nDumpPoints *= nbins[i];
+		bins[i] = vector<Real>(nbins[i]);
+		for (int j=0; j<nbins[i]; j++) {
+			const Real l = j/(Real)(nbins[i]-1);
+			bins[i][j] = lower[i] + (upper[i]-lower[i])*l;
+		}
+	}
+
+	FILE * pFile = fopen ("dump.txt", "ab");
+	vector<Real> Vs(nDumpPoints), Pi(nDumpPoints), Co(nDumpPoints);
+	vector<Real> Mu(nDumpPoints), output(nOutputs);
+	for (int i=0; i<nDumpPoints; i++) {
+		vector<Real> state = pickState(bins, i);
+		Activation* act = net->allocateActivation();
+		net->predict(data->standardize(state), output, act);
+		_dispose_object(act);
+		prepareVariance(output);
+		Vs[i] = output[0];
+		Pi[i] = aInfo.getScaled(output[1+nL], 0);
+		Co[i] = 1./std::sqrt(output[1+nL+nA]);
+		Mu[i] = aInfo.getScaled(output[1+nL+2*nA], 0);
+		vector<Real> dump(state.size()+4);
+		dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i]; dump[3] = Mu[i];
+		for (int i=0; i<state.size(); i++) dump[i+4] = state[i];
+		fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
+	}
+	fclose (pFile);
 }
 
-void ACER::Train_BPTT(const int seq, const int thrID) const
+void CRACER::Train_BPTT(const int seq, const int thrID) const
 {
 	//this should go to gamma rather quick:
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
@@ -331,8 +357,8 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 	//const Real rGamma = gamma;
 	assert(net->allocatedFrozenWeights && bTrain);
 	const int ndata = data->Set[seq]->tuples.size();
-	vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2,0));
-	vector<vector<Real>> out_hat(ndata-1, vector<Real>(1+nL+nA*2,0));
+	vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*3,0));
+	vector<vector<Real>> out_hat(ndata-1, vector<Real>(1+nL+nA*3,0));
 	vector<Real> rho_cur(ndata-1), rho_pol(ndata-1);
 	vector<Real> rho_hat(ndata-1), c_hat(ndata-1);
 	//vector<Real> c_cur(ndata-1);
@@ -345,6 +371,7 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 	{
 		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
 		const vector<Real> scaledSold = data->standardize(_t->s);
+		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
 		net->predict(scaledSold, out_cur[k], series_cur, k);
 		net->predict(scaledSold, out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
 		prepareVariance(out_cur[k]); //pass through softplus to make it pos def
@@ -375,7 +402,7 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 	{
 		const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
 		vector<Real> S_T = data->standardize(_t->s); //last state
-		vector<Real> out_T(1+nL+nA*2, 0);
+		vector<Real> out_T(1+nL+nA*3, 0);
 		net->predict(S_T, out_T, series_hat, ndata-1, net->tgt_weights, net->tgt_biases);
 		Q_RET = out_T[0]; //V(s_T) computed with tgt weights
 		//net->predict(S_T, out_T, series_cur.back(), series_hat.back());
@@ -394,44 +421,65 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 		const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //this contains a, r, sNew
 		Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
 		Q_OPC = t_->r + rGamma*Q_OPC;
+		//get everybody camera ready:
+		const vector<Real> polCur(&(out_cur[k][1+nL]),     &(out_cur[k][1+nL])     +nA);
+		const vector<Real> polHat(&(out_hat[k][1+nL]),     &(out_hat[k][1+nL])     +nA);
+		const vector<Real> preCur(&(out_cur[k][1+nL+nA]),  &(out_cur[k][1+nL+nA])  +nA);
+		const vector<Real> preHat(&(out_hat[k][1+nL+nA]),  &(out_hat[k][1+nL+nA])  +nA);
+		const vector<Real> mu_Cur(&(out_cur[k][1+nL+2*nA]),&(out_cur[k][1+nL+2*nA])+nA);
+		const vector<Real> mu_Hat(&(out_hat[k][1+nL+2*nA]),&(out_hat[k][1+nL+2*nA])+nA);
+		const vector<Real> varCur = computeVariance(preCur);
+		const vector<Real> varHat = computeVariance(preHat);
+		const vector<Real> P_Cur = preparePmatrix(out_cur[k]);
+		const vector<Real> P_Hat = preparePmatrix(out_hat[k]);
 		//compute Q using tgt net for pi and C, for consistency of derivatives
 		//Q(s,a)                     v a	v policy    v quadratic Q parameters
-		const Real Q_cur = computeQ(act[k], out_hat[k], out_cur[k]);
-		const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
-		const Real Q_pol = computeQ(pol[k], out_hat[k], out_hat[k]);
+		const Real A_cur = computeAdvantage(act[k], polCur, varCur, P_Cur, mu_Cur);
+		const Real A_tgt = computeAdvantage(act[k], polHat, varHat, P_Cur, mu_Cur);
+		const Real A_hat = computeAdvantage(act[k], polHat, varHat, P_Hat, mu_Hat);
+		const Real A_pol = computeAdvantage(pol[k], polHat, varHat, P_Hat, mu_Hat);
+		const Real varCritic = advantageVariance(polCur, varCur, P_Cur, mu_Cur);
+
 		//compute quantities needed for trunc import sampl with bias correction
 		const Real importance = std::min(rho_cur[k], truncation);
 		const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
-		//const Real correction = 0;
-		const Real gain1 = (Q_OPC - out_hat[k][0]) * importance;
-		const Real gain2 = (Q_pol - out_hat[k][0]) * correction;
-		meanGain1[thrID+1] = 0.99999*meanGain1[thrID+1] + 0.00001*gain1;
-		meanGain2[thrID+1] = 0.99999*meanGain2[thrID+1] + 0.00001*gain2;
+		const Real A_OPC = Q_OPC - out_hat[k][0];
+		const Real eta = 0;//std::max(std::min(A_OPC*A_cur/varCritic, 1.), -1.);
+		//const Real eta = A_OPC*A_cur/varCritic;
+		//const Real eta = A_OPC*A_cur < 0 ? A_OPC*A_cur/varCritic : 0;
+		//const Real eta = A_OPC*A_cur < 0 ? -A_OPC*A_cur/varCritic : 0;
+
+		const Real gain1 = A_OPC * importance - eta * rho_cur[k] * A_cur;
+		const Real gain2 = A_pol * correction;
 		//derivative wrt to statistics
 		const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1);
 		const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2);
-		//const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1-meanGain1[0]);
-		//const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2-meanGain2[0]);
+		const vector<Real> gradC = controlGradient(polCur, varCur, P_Cur, mu_Cur, eta);
+		const vector<Real> policy_grad = sum3Grads(gradAcer_1, gradAcer_2, gradC);
+
 		//trust region updating
-		const vector<Real> gradDivKL= gradDKL(out_cur[k], out_hat[k]);
-		const vector<Real> gradAcer = gradAcerTrpo(gradAcer_1,gradAcer_2,gradDivKL);
+		const vector<Real> gradDivKL = gradDKL(out_cur[k], out_hat[k]);
+		const vector<Real> gradAcer = gradAcerTrpo(policy_grad, gradDivKL);
 
-		const Real Qerror = (Q_RET - Q_cur);
-		const Real Verror = (Q_RET - Q_cur) * std::min(1.,rho_hat[k]); //unclear usefulness
+		const Real Qerror = (Q_RET -A_cur -out_cur[k][0]);
+		//unclear usefulness:
+		const Real Verror = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat[k]);
 		//prepare rolled Q with off policy corrections for next step:
-		Q_RET = c_hat[k]*1.*(Q_RET - Q_hat) + out_hat[k][0];
-		//Q_OPC = c_hat[k]*1.*(Q_OPC - Q_hat) + out_hat[k][0];
-		Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
-
-		const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k], act[k], gradAcer);
+		Q_RET = c_hat[k]*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
+		//Q_OPC = c_hat[k]*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
+		Q_OPC = .5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
+		const vector<Real> critic_grad = criticGradient(P_Cur, polCur, varCur,
+			out_cur[k], mu_Cur, act[k]);
+		const vector<Real> grad = finalizeGradient(Qerror, Verror, critic_grad,
+			policy_grad, out_cur[k]);
 		//#ifndef NDEBUG
 		//printf("Applying gradient %s\n",printVec(grad).c_str());
 		//fflush(0);
 		//#endif
 		net->setOutputDeltas(grad, series_cur[k]);
 		//bookkeeping:
-		vector<Real> fake{Q_cur, 100};
-		dumpStats(Vstats[thrID], Q_cur, Qerror, fake);
+		vector<Real> fake{A_cur, 100};
+		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qerror, fake);
 		if(thrID == 1) net->updateRunning(series_cur[k]);
 		data->Set[seq]->tuples[k]->SquaredError = Qerror*Qerror;
 	}

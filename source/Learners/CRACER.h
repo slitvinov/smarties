@@ -13,7 +13,7 @@
 
 using namespace std;
 
-class ACER : public Learner
+class CRACER : public Learner
 {
 	const int nA, nL;
 	const Real delta, truncation;
@@ -24,7 +24,7 @@ class ACER : public Learner
 	//void dumpNetworkInfo(const int agentId);
 
 public:
-	ACER(MPI_Comm comm, Environment*const env, Settings & settings);
+	CRACER(MPI_Comm comm, Environment*const env, Settings & settings);
 	void select(const int agentId, State& s,Action& a, State& sOld,
 			Action& aOld, const int info, Real r) override;
 	void dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
@@ -34,7 +34,7 @@ private:
 	inline Real evaluateLogProbability(const vector<Real>& a, const vector<Real>& out) const
 	{
 		assert(a.size()==nA);
-		assert(out.size()==1+nL+2*nA);
+		assert(out.size()==1+nL+3*nA);
 		Real p = 0;
 		for(int i=0; i<nA; i++) {
 			assert(out[1+nL+nA+i]>0);
@@ -60,7 +60,7 @@ private:
 	inline vector<Real> preparePmatrix(const vector<Real>& out) const
 	{
 		vector<Real> _L(nA*nA, 0), _P(nA*nA, 0);
-		assert(out.size() == 1+nL+2*nA);
+		assert(out.size() == 1+nL+3*nA);
 		{ //fill lower diag matrix L
 			int kL = 1;
 			for (int j=0; j<nA; j++)
@@ -81,7 +81,48 @@ private:
 		return _P;
 	}
 
-	inline Real computeAdvantage(const vector<Real>& P, const vector<Real>& pi, const vector<Real>& a) const
+	inline vector<Real> controlGradient(const vector<Real>& pol, const vector<Real>& var,
+		const vector<Real>& P, const vector<Real>& mean, const Real eta) const
+	{
+		vector<Real> gradCC(nA*2, 0);
+
+		for (int j=0; j<nA; j++)
+			for (int i=0; i<nA; i++)
+				gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);
+
+		for (int j=0; j<nA; j++)
+				gradCC[j+nA] = eta * P[nA*j +j] * var[j] * var[j];
+
+		return gradCC;
+	}
+
+	inline Real advantageVariance(const vector<Real>& pol, const vector<Real>& var,
+		const vector<Real>&P, const vector<Real>&mean) const
+	{
+		vector<Real> PvarP(nA*2, 0);
+
+		for (int j=0; j<nA; j++)
+		for (int i=0; i<nA; i++) {
+			const int ind = nA*j + i;
+			for (int k=0; k<nA; k++) {
+				const int k1 = nA*j + k;
+				const int k2 = nA*k + i;
+				PvarP[ind] += P[k1]*var[k]*P[k2];
+			}
+		}
+
+		Real ret = 0;
+		for (int i=0; i<nA; i++)
+			ret += 0.5*PvarP[nA*i+i]*var[i];
+
+		for (int j=0; j<nA; j++)
+			for (int i=0; i<nA; i++)
+				ret += (pol[j]-mean[j])*(pol[i]-mean[i])*PvarP[nA*j+i];
+
+		return ret;
+	}
+
+	inline Real quadraticTerm(const vector<Real>& P, const vector<Real>& pi, const vector<Real>& a) const
 	{
 		/*
     this function returns the advantage for a given action = -.5 * (a-pi)' P (a-pi)
@@ -97,7 +138,7 @@ private:
 				const int ind = nA*j + i;
 				Q += P[ind]*(a[i]-pi[i])*(a[j]-pi[j]);
 			}
-		return -0.5*Q;
+		return Q;
 	}
 
 	inline vector<Real> gradDKL(const vector<Real>& out, const vector<Real>& hat) const
@@ -117,8 +158,8 @@ private:
     therefore divKL assumes shape
     0.5*(\sum_i( Sigma_1_i*(Sigma_2_i)^-1 + (m_2_i - m_1_i)^2*(Sigma_2_i)^-1 -M +ln(Sigma_2_i) -ln(Sigma_1_i))
 		 */
-		assert(out.size() == 1+nL+2*nA);
-		assert(hat.size() == 1+nL+2*nA);
+		assert(out.size() == 1+nL+3*nA);
+		assert(hat.size() == 1+nL+3*nA);
 		const vector<Real> pi_cur(&out[1+nL],&out[1+nL]+nA), C_cur(&out[1+nL+nA],&out[1+nL+nA]+nA);
 		const vector<Real> pi_hat(&hat[1+nL],&hat[1+nL]+nA), C_hat(&hat[1+nL+nA],&hat[1+nL+nA]+nA);
 		vector<Real> ret(2*nA);
@@ -132,17 +173,16 @@ private:
 		return ret;
 	}
 
-	inline vector<Real> gradAcerTrpo(const vector<Real>& DA1, const vector<Real>& DA2, const vector<Real>& DKL) const
+	inline vector<Real> gradAcerTrpo(const vector<Real>& DA, const vector<Real>& DKL) const
 	{
-		assert(DA1.size() == nA*2);
-		assert(DA2.size() == nA*2);
+		assert(DA.size() == nA*2);
 		assert(DKL.size() == nA*2);
 
 		vector<Real> gradAcer(nA*2);
 		Real dot=0, norm=0;
 		for (int j=0; j<nA*2; j++) {
 			norm += DKL[j] * DKL[j];
-			dot +=  DKL[j] * (DA1[j] + DA2[j]);
+			dot +=  DKL[j] * DA[j];
 		}
 		const Real proj = std::max((Real)0., (dot - delta)/norm);
 
@@ -150,12 +190,8 @@ private:
 		//if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
 		//#endif
 
-		for (int j=0; j<nA*2; j++) {
-			gradAcer[j] = (DA1[j]+DA2[j]) - proj*DKL[j];
-			//if(gradAcer[j] * (DA1[j]+DA2[j]) < 0) printf("Hit DKL\n");
-			//else printf("Not hit DKL\n");
-			//if(gradAcer[j] * (DA1[j]+DA2[j]) < 0) gradAcer[j] = 0;
-		}
+		for (int j=0; j<nA*2; j++)
+			gradAcer[j] = DA[j] - proj*DKL[j];
 
 		return gradAcer;
 	}
@@ -187,113 +223,124 @@ private:
 		return ret;
 	}
 
-	inline Real advantageExpectation(const vector<Real>& pi, const vector<Real>& C,
-			const vector<Real>& P, const vector<Real>& act) const
+	inline vector<Real> computeVariance(const vector<Real>& precision) const
 	{
-		assert(pi.size() == nA);
-		assert(C.size() == nA);
+		assert(precision.size() == nA);
+		vector<Real> var(nA);
+		for(int i=0; i<nA; i++) var[i] = 1./precision[i];  //>0 by design
+		return var;
+	}
+
+	inline Real computeAdvantage(const vector<Real>& act, const vector<Real>& pol,
+		const vector<Real>&var, const vector<Real>&P, const vector<Real>&mean) const
+	{
+		assert(pol.size() == nA);
+		assert(mean.size() == nA);
+		assert(var.size() == nA);
 		assert(P.size() == nA*nA);
 		assert(act.size() == nA);
-		const Real A_s_a = computeAdvantage(P, pi, act);
 		/*
 		computing expectation under policy of (a-pi)'*P*(a-pi) (P non diagonal)
 		where policy is defined by mean pi and diagonal covariance matrix
 		which is equal to trace[(-0.5*P) * Sigma] (since E(a-pi)=0)
 		 */
-		Real expectation = 0;
-		for(int i=0; i<nA; i++) expectation -= 0.5*P[nA*i+i]/C[i];
-		return A_s_a - expectation; //subtract expectation from advantage of action
+		Real expectation = quadraticTerm(P, mean, pol);
+		for(int i=0; i<nA; i++) expectation += P[nA*i+i]*var[i];
+
+		return -0.5*quadraticTerm(P, mean, act) + 0.5*expectation; //subtract expectation from advantage of action
 	}
 
-	inline Real computeQ(const vector<Real>& act, const vector<Real>& pol_out, const vector<Real>& val_out) const
+	inline vector<Real> sum3Grads(const vector<Real>& f, const vector<Real>& g,
+		const vector<Real>& h) const
 	{
-		const vector<Real> pi(&pol_out[1+nL], &pol_out[1+nL]+nA);
-		const vector<Real> C(&pol_out[1+nL+nA], &pol_out[1+nL+nA]+nA);
-		const vector<Real> P = preparePmatrix(val_out);
-		return val_out[0] + advantageExpectation(pi, C, P, act);
+		assert(f.size() == 2*nA);
+		assert(g.size() == 2*nA);
+		assert(h.size() == 2*nA);
+		vector<Real> ret(nA*2,0);
+		for(int i=0; i<nA*2; i++)
+			ret[i] = f[i]+g[i]+h[i];
+		return ret;
 	}
 
-	inline vector<Real> computeGradient(const Real Qerror, const Real Verror,
-			const vector<Real>& out, const vector<Real>& hat, const vector<Real>& act,
-			const vector<Real>& gradAcer) const
-				  {
-		assert(out.size() == 1+nL+2*nA);
-		assert(hat.size() == 1+nL+2*nA);
-		assert(gradAcer.size() == 2*nA);
-		assert(act.size() == nA);
-		//assert(P.size() == 2*nA);
-		vector<Real> grad(1+nL+nA*2);
-		grad[0] = Qerror+Verror;
+	inline vector<Real> criticGradient(const vector<Real>& P,
+		const vector<Real>& pol, const vector<Real>& var, const vector<Real>& out,
+		const vector<Real>& mean, const vector<Real>& act) const
+	{
+		vector<Real> grad(1+nL+nA, 0);
+		vector<Real> _L(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _m(nA);
+		int kL = 1;
+		for (int j=0; j<nA; j++) {
+			_u[j] = act[j] - mean[j];
+			_m[j] = pol[j] - mean[j];
+			for (int i=0; i<nA; i++)
+				if (i<=j)
+					_L[nA*j + i] = out[kL++];
+		}
+		assert(kL==1+nL);
 
-		for (int j=0; j<nA*2; j++)
-			grad[1+nL+j] = gradAcer[j];
-		finalizeVarianceGrad(grad, out);
+		for (int il=0; il<nL; il++) {
+			int kD = 0;
+			for (int j=0; j<nA; j++)
+				for (int i=0; i<nA; i++) {
+					const int ind = nA*j + i;
+					_dLdl[ind] = 0;
+					if(i<=j) { if(kD++==il) _dLdl[ind]=1; }
+				}
+			assert(kD==nL);
 
-		{
-			//these are used to compute Q, so only involved in value gradient
-			const vector<Real> pi_hat(&hat[1+nL], &hat[1+nL]+nA);
-			const vector<Real> C_hat(&hat[1+nL+nA], &hat[1+nL+nA]+nA);
-			//const vector<Real> pi_hat(&out[1+nL], &out[1+nL]+nA);
-			//const vector<Real> C_hat(&out[1+nL+nA], &out[1+nL+nA]+nA);
-			vector<Real> _L(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA);
-			int kL = 1;
-			for (int j=0; j<nA; j++) {
-				_u[j] = act[j] - pi_hat[j];
-				for (int i=0; i<nA; i++)
-					if (i<=j)
-						_L[nA*j + i] = out[kL++];
-			}
-			assert(kL==1+nL);
-
-			for (int il=0; il<nL; il++) {
-				int kD = 0;
-				for (int j=0; j<nA; j++)
-					for (int i=0; i<nA; i++) {
-						const int ind = nA*j + i;
-						_dLdl[ind] = 0;
-						if(i<=j) { if(kD++==il) _dLdl[ind]=1; }
-					}
-				assert(kD==nL);
-
-				for (int j=0; j<nA; j++)
-					for (int i=0; i<nA; i++) {
-						const int ind = nA*j + i;
-						_dPdl[ind] = 0;
-						for (int k=0; k<nA; k++) {
-							const int k1 = nA*j + k;
-							const int k2 = nA*i + k;
-							_dPdl[ind] += _dLdl[k1]*_L[k2] + _L[k1]*_dLdl[k2];
-						}
-					}
-
-				grad[1+il] = 0.;
-				for (int j=0; j<nA; j++)
-					for (int i=0; i<nA; i++) {
-						const int ind = nA*j + i;
-						grad[1+il] -= 0.5*_dPdl[ind]*_u[i]*_u[j];
-					}
-
-				//add the term dependent on the estimate: applies only to diagonal terms
-				for (int i=0; i<nA; i++)
-					grad[1+il] += 0.5*_dPdl[nA*i+i]/C_hat[i];
-
-				grad[1+il] *= Qerror;
-			}
-			#if 0
-				const Real anneal = annealingFactor();
-				if (anneal) {
-					const vector<Real> P = preparePmatrix(out);
-					const Real fac = Qerror*anneal;
-					//const Real fac = Qerror;//*anneal;
-					for (int ia=0; ia<nA; ia++) {
-						for (int i=0; i<nA; i++) {
-							const int ind = nA*ia + i;
-							grad[1+nL+ia] += fac*P[ind]*_u[i];
-						}
+			for (int j=0; j<nA; j++)
+				for (int i=0; i<nA; i++) {
+					const int ind = nA*j + i;
+					_dPdl[ind] = 0;
+					for (int k=0; k<nA; k++) {
+						const int k1 = nA*j + k;
+						const int k2 = nA*i + k;
+						_dPdl[ind] += _dLdl[k1]*_L[k2] + _L[k1]*_dLdl[k2];
 					}
 				}
-			#endif
+
+			grad[1+il] = 0.;
+			for (int j=0; j<nA; j++)
+				for (int i=0; i<nA; i++) {
+					const int ind = nA*j + i;
+					grad[1+il] -= 0.5*_dPdl[ind]*_u[i]*_u[j];
+					grad[1+il] += 0.5*_dPdl[ind]*_m[i]*_m[j];
+				}
+
+			//add the term dependent on the estimate: applies only to diagonal terms
+			for (int i=0; i<nA; i++)
+				grad[1+il] += 0.5*_dPdl[nA*i+i]*var[i];
 		}
+
+		for (int ia=0; ia<nA; ia++)
+			for (int i=0; i<nA; i++)
+				grad[1+nL+ia] += P[nA*ia + i]*(_u[i]-_m[i]);
+
+		return grad;
+	}
+
+	inline vector<Real> finalizeGradient(const Real Qerror, const Real Verror,
+			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
+			const vector<Real>& out) const
+	{
+		assert(gradCritic.size() == 1+nL+nA);
+		assert(gradPolicy.size() == 2*nA);
+		assert(out.size() == 1+nL+nA*3);
+		//assert(P.size() == 2*nA);
+		vector<Real> grad(1+nL+nA*3);
+
+		grad[0] = Qerror+Verror;
+		for (int j=1; j<nL+1; j++)
+			grad[j] = Qerror*gradCritic[j];
+
+		for (int j=0; j<nA*2; j++)
+			grad[1+nL+j] = gradPolicy[j];
+
+		finalizeVarianceGrad(grad, out);
+
+		for (int j=nL+1; j<nA+nL+1; j++)
+			grad[j+nA*2] = Qerror*gradCritic[j];
+
 		return grad;
 	}
 
@@ -329,8 +376,8 @@ private:
 	}
 	inline void finalizeVarianceGrad(vector<Real>& grad, const vector<Real>& out) const
 	{
-		assert(grad.size()==1+nL+2*nA);
-		assert(out.size()==1+nL+2*nA);
+		assert(grad.size()==1+nL+3*nA);
+		assert(out.size()==1+nL+3*nA);
 		for (int j=0; j<nA; j++) {
 			const Real ysq = out[1+nL+nA+j]*out[1+nL+nA+j];
 			const Real diff = ysq/(ysq + 0.25);

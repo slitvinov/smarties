@@ -142,7 +142,8 @@ nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), nAppended(settings.dqn
 bRecurrent(settings.nnType==1), bTrain(settings.bTrain==1),
 tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma), greedyEps(settings.greedyEps),
 epsAnneal(settings.epsAnneal), cntUpdateDelay(-1), taskCounter(batchSize),
-aInfo(env->aI), sInfo(env->sI), gen(&settings.generators[0]), mastersNiter_b4PolUpdates(0)
+aInfo(env->aI), sInfo(env->sI), gen(&settings.generators[0]), mastersNiter_b4PolUpdates(0),
+meanGain1(nThreads+1,0), meanGain2(nThreads+1,0)
 {
     for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
     profiler = new Profiler();
@@ -524,7 +525,9 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
              <<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"
              <<stats.dumpCount<<"\t"<<opt->nepoch<<"\t"<<avgTime<<endl;
     filestats.close();
-
+	setVecMean(meanGain1); setVecMean(meanGain2);
+	printf("Gain terms of policy grad means: [%f] [%f]\n",
+	meanGain1[0], meanGain2[0]);
     fflush(0);
     if (stats.epochCount % 100==0) save("policy");
 }

@@ -16,6 +16,7 @@ using namespace std;
 #include <string>
 #include <random>
 #include <vector>
+#include <sstream>
 #include <cstdlib>
 #include <cstdio>
 #include <cstdarg>
@@ -45,6 +46,24 @@ void _dispose_object(T *const& ptr)
 {
     if(ptr == nullptr) return;
     delete ptr;
+}
+
+template <typename T>
+inline string printVec(const vector<T> vals)
+{
+  std::ostringstream o;
+  for (int i=0; i<vals.size(); i++) o << " " << vals[i];
+  return o.str();
+}
+
+inline void setVecMean(vector<Real>& vals)
+{
+	Real mean = 0;
+	for (int i=1; i<vals.size(); i++) //assume 0 is empty
+		mean += vals[i];
+	mean /= (Real)(vals.size()-1);
+	for (int i=0; i<vals.size(); i++)
+		vals[i] = mean;
 }
 
 struct Settings
