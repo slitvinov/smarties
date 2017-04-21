@@ -13,6 +13,7 @@
 #include "Learners/NAF.h"
 #include "Learners/DPG.h"
 #include "Learners/ACER.h"
+#include "Learners/SACER.h"
 #include "Learners/RACER.h"
 #include "Learners/CACER.h"
 #include "Learners/CRACER.h"
@@ -46,6 +47,14 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
       settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
       settings.nnOutputs = env->aI.maxLabel;
       return new NFQ(mastersComm, env, settings);
+  }
+  else if (settings.learner == "SACER") {
+      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+      const int nA = env->aI.dim;
+      const int nL = (nA*nA+nA)/2;
+      settings.nnOutputs = 1+nL+2*nA;
+      settings.bSeparateOutputs = true; //else it does not really work
+      return new SACER(mastersComm, env, settings);
   }
   else if (settings.learner == "RACER") {
       settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
