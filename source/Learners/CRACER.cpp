@@ -444,9 +444,11 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 		const Real importance = std::min(rho_cur[k], truncation);
 		const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
 		const Real A_OPC = Q_OPC - out_hat[k][0];
-		//const Real eta = std::min(std::max(-1., A_OPC*A_critic/varCritic), 1.);
-		const Real eta = A_OPC*A_cur/varCritic;
-
+		const Real eta = importance*std::max(std::min(A_OPC*A_cur/varCritic, 1.), -1.);
+		//const Real eta = A_OPC*A_cur/varCritic;
+		//const Real eta = A_OPC*A_cur < 0 ? A_OPC*A_cur/varCritic : 0;
+		//const Real eta = A_OPC*A_cur < 0 ? -A_OPC*A_cur/varCritic : 0;
+		
 		const Real gain1 = A_OPC * importance - eta * A_cur;
 		const Real gain2 = A_pol * correction;
 		//derivative wrt to statistics
@@ -464,8 +466,8 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 		const Real Verror = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat[k]);
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat[k]*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
-		Q_OPC = c_hat[k]*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
-		//Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
+		//Q_OPC = c_hat[k]*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
+		Q_OPC = .5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
 		const vector<Real> critic_grad = criticGradient(P_Cur, polCur, varCur,
 			out_cur[k], mu_Cur, act[k]);
 		const vector<Real> grad = finalizeGradient(Qerror, Verror, critic_grad,
