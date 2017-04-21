@@ -321,7 +321,7 @@ private:
 	 */
 	inline void prepareVariance(vector<Real>& out) const
 	{
-		assert(out.size()==1+nL+3*nA);
+		assert(out.size()==1+nL+2*nA);
 		for (int j=0; j<nA; j++) {
 			const Real x = out[1+nL+nA+j];
 			out[1+nL+nA+j] = .5*(x + std::sqrt(x*x + 1.));
