@@ -48,7 +48,6 @@ delta(1), truncation(5), generators(settings.generators)
 	{ //if that was true, environment created the layers it wanted, else we read the settings:
 		net->addInput(nInputs);
 #if 1
-		const int Nnets = 4;
 		const int outputs[4] = {1,nL,nA,nA};
 		const int nsplit = lsize.size()>3 ? 2 : 1;
 		for (int i=0; i<lsize.size()-nsplit; i++)
@@ -62,7 +61,6 @@ delta(1), truncation(5), generators(settings.generators)
 			net->addOutput(outputs[i], "Normal");
 		}
 #else
-		const int Nnets = 4;
 		const int outputs[4] = {1,nL,nA,nA};
 		const vector<int> lastJointLayer(1,net->getLastLayerID());
 		for (int i=0; i<Nnets; i++) {
@@ -268,12 +266,55 @@ void ACER::dumpNetworkInfo(const int agentId)
 }
  */
 
-static inline string printVec(const vector<Real> vals)
+static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
 {
-	ostringstream o;
-	for (int i=0; i<vals.size(); i++) o << " " << vals[i];
-	return o.str();
+	vector<Real> state(bins.size());
+	for (int i=0; i<bins.size(); i++) {
+		state[i] = bins[i][ k % bins[i].size() ];
+		k /= bins[i].size();
+	}
+	return state;
 }
+
+ void ACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+ 		const vector<int>& nbins)
+ {
+ 	//a fail in any of these amounts to a big and fat TODO
+ 	if(nAppended || nA!=1)
+ 		die("TODO missing features\n");
+ 	assert(lower.size() == upper.size());
+ 	assert(nbins.size() == upper.size());
+ 	assert(nbins.size() == nInputs);
+ 	vector<vector<Real>> bins(nbins.size());
+ 	int nDumpPoints = 1;
+ 	for (int i=0; i<nbins.size(); i++) {
+ 		nDumpPoints *= nbins[i];
+ 		bins[i] = vector<Real>(nbins[i]);
+ 		for (int j=0; j<nbins[i]; j++) {
+ 			const Real l = j/(Real)(nbins[i]-1);
+ 			bins[i][j] = lower[i] + (upper[i]-lower[i])*l;
+ 		}
+ 	}
+
+ 	FILE * pFile = fopen ("dump.txt", "ab");
+ 	vector<Real> Vs(nDumpPoints), Pi(nDumpPoints), Co(nDumpPoints), output(nOutputs);
+ 	for (int i=0; i<nDumpPoints; i++) {
+ 		vector<Real> state = pickState(bins, i);
+ 		Activation* act = net->allocateActivation();
+ 		net->predict(data->standardize(state), output, act);
+ 		_dispose_object(act);
+ 		prepareVariance(output);
+ 		Vs[i] = output[0];
+ 		Pi[i] = aInfo.getScaled(output[1+nL], 0);
+ 		Co[i] = 1./std::sqrt(output[1+nL+nA]);
+ 		vector<Real> dump(state.size()+3);
+ 		dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i];
+ 		for (int j=0; j<state.size(); j++) dump[j+3] = state[j];
+ 		fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
+ 	}
+ 	fclose (pFile);
+ }
+
 
 void ACER::Train(const int seq, const int samp, const int thrID) const
 {
@@ -363,9 +404,13 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 		//const Real correction = 0;
 		const Real gain1 = (Q_OPC - out_hat[k][0]) * importance;
 		const Real gain2 = (Q_pol - out_hat[k][0]) * correction;
+		meanGain1[thrID+1] = 0.99999*meanGain1[thrID+1] + 0.00001*gain1;
+		meanGain2[thrID+1] = 0.99999*meanGain2[thrID+1] + 0.00001*gain2;
 		//derivative wrt to statistics
 		const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1);
 		const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2);
+		//const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1-meanGain1[0]);
+		//const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2-meanGain2[0]);
 		//trust region updating
 		const vector<Real> gradDivKL= gradDKL(out_cur[k], out_hat[k]);
 		const vector<Real> gradAcer = gradAcerTrpo(gradAcer_1,gradAcer_2,gradDivKL);
@@ -374,8 +419,8 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 		const Real Verror = (Q_RET - Q_cur) * std::min(1.,rho_hat[k]); //unclear usefulness
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat[k]*1.*(Q_RET - Q_hat) + out_hat[k][0];
-		Q_OPC = c_hat[k]*1.*(Q_OPC - Q_hat) + out_hat[k][0];
-		//Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
+		//Q_OPC = c_hat[k]*1.*(Q_OPC - Q_hat) + out_hat[k][0];
+		Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
 
 		const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k], act[k], gradAcer);
 		//#ifndef NDEBUG

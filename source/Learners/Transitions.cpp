@@ -224,13 +224,6 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
     return add(agentId, info, sOld, a, sNew, reward);
 }
 
-static inline string printVec(const vector<Real> vals)
-{
-  ostringstream o;
-  for (int i=0; i<vals.size(); i++) o << " " << vals[i];
-  return o.str();
-}
-
 int Transitions::passData(const int agentId, const int info, const State& sOld,
    const Action& a, const vector<Real>& mu, const State& s, const Real reward)
 {
@@ -534,7 +527,7 @@ vector<Real> Transitions::standardize(const vector<Real>& state, const Real nois
 
 void Transitions::synchronize()
 {
-  #if 1==1
+  #if 1==0
 	assert(nSequences==Set.size() && maxTotSeqNum == nSequences);
 	uniform_real_distribution<Real> dis(0.,1.);
   //if (dis(*(gen->g))>0.01) {

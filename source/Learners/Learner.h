@@ -51,7 +51,8 @@ protected:
     Transitions* data;
     trainData stats;
     vector<trainData*> Vstats;
-
+	mutable vector<Real> meanGain1;
+	mutable vector<Real> meanGain2;
     virtual void Train_BPTT(const int seq, const int thrID=0) const = 0;
     virtual void Train(const int seq, const int samp, const int thrID=0) const = 0;
     int sampleSequences(vector<int>& sequences);
@@ -77,7 +78,7 @@ public:
     inline Real annealingFactor() const
     {
       //number that goes from 1 to 0 with optimizer's steps
-      assert(epsAnneal>1. && opt->nepoch >= 0);
+      assert(epsAnneal>1.);
 	if(opt->nepoch >= epsAnneal) return 0;
 	else return 1 - opt->nepoch/epsAnneal;
     }

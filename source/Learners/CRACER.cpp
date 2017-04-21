@@ -8,7 +8,7 @@
  */
 
 #include "../StateAction.h"
-#include "RACER.h"
+#include "CRACER.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +20,7 @@
 
 
 
-RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
+CRACER::CRACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2),
 delta(1), truncation(5), generators(settings.generators)
@@ -112,7 +112,7 @@ delta(1), truncation(5), generators(settings.generators)
 		const Real diffi = (p2-p1)/0.0002;
 		printf("LogPol Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
 	}
-
+	/*
 	vector<Real> grad_0 = computeGradient(1., 0., out_0, out_0, act, polGrad);
 	for(int i = 0; i<1+nL; i++) {
 		vector<Real> out_1 = out_0;
@@ -136,7 +136,7 @@ delta(1), truncation(5), generators(settings.generators)
 		const Real diffi = (Q_2-Q_1)/0.0002;
 		printf("Value Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
 	}
-
+	*/
 #endif
 
 }
@@ -148,7 +148,7 @@ static void printselection(const int iA,const int nA,const int i,vector<Real> s)
 	printf("\n"); fflush(0);
 }
 
-void RACER::select(const int agentId, State& s, Action& a, State& sOld,
+void CRACER::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
 	if (info == 2) { //no need for action, just pass terminal s & r
@@ -285,12 +285,19 @@ void RACER::dumpNetworkInfo(const int agentId)
 }
  */
 
-void RACER::Train(const int seq, const int samp, const int thrID) const
+static inline string printVec(const vector<Real> vals)
+{
+	ostringstream o;
+	for (int i=0; i<vals.size(); i++) o << " " << vals[i];
+	return o.str();
+}
+
+void CRACER::Train(const int seq, const int samp, const int thrID) const
 {
 	die("RACER only works by sampling entire trajectories.\n");
 }
 
-static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
+vector<Real> pickState(const vector<vector<Real>>& bins, int k)
 		{
 	vector<Real> state(bins.size());
 	for (int i=0; i<bins.size(); i++) {
@@ -300,7 +307,7 @@ static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
 	return state;
 		}
 
-void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+void CRACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		const vector<int>& nbins)
 {
 	//a fail in any of these amounts to a big and fat TODO
@@ -335,13 +342,13 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		Mu[i] = aInfo.getScaled(output[1+nL+2*nA], 0);
 		vector<Real> dump(state.size()+4);
 		dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i]; dump[3] = Mu[i];
-		for (int j=0; j<state.size(); j++) dump[j+4] = state[j];
+		for (int i=0; i<state.size(); i++) dump[i+4] = state[i];
 		fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
 	}
 	fclose (pFile);
 }
 
-void RACER::Train_BPTT(const int seq, const int thrID) const
+void CRACER::Train_BPTT(const int seq, const int thrID) const
 {
 	//this should go to gamma rather quick:
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
@@ -414,44 +421,63 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //this contains a, r, sNew
 		Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
 		Q_OPC = t_->r + rGamma*Q_OPC;
+		//get everybody camera ready:
+		const vector<Real> polCur(&(out_cur[k][1+nL]),     &(out_cur[k][1+nL])     +nA);
+		const vector<Real> polHat(&(out_hat[k][1+nL]),     &(out_hat[k][1+nL])     +nA);
+		const vector<Real> preCur(&(out_cur[k][1+nL+nA]),  &(out_cur[k][1+nL+nA])  +nA);
+		const vector<Real> preHat(&(out_hat[k][1+nL+nA]),  &(out_hat[k][1+nL+nA])  +nA);
+		const vector<Real> mu_Cur(&(out_cur[k][1+nL+2*nA]),&(out_cur[k][1+nL+2*nA])+nA);
+		const vector<Real> mu_Hat(&(out_hat[k][1+nL+2*nA]),&(out_hat[k][1+nL+2*nA])+nA);
+		const vector<Real> varCur = computeVariance(preCur);
+		const vector<Real> varHat = computeVariance(preHat);
+		const vector<Real> P_Cur = preparePmatrix(out_cur[k]);
+		const vector<Real> P_Hat = preparePmatrix(out_hat[k]);
 		//compute Q using tgt net for pi and C, for consistency of derivatives
 		//Q(s,a)                     v a	v policy    v quadratic Q parameters
-		const Real Q_cur = computeQ(act[k], out_hat[k], out_cur[k]);
-		const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
-		const Real Q_pol = computeQ(pol[k], out_hat[k], out_hat[k]);
+		const Real A_cur = computeAdvantage(act[k], polCur, varCur, P_Cur, mu_Cur);
+		const Real A_tgt = computeAdvantage(act[k], polHat, varHat, P_Cur, mu_Cur);
+		const Real A_hat = computeAdvantage(act[k], polHat, varHat, P_Hat, mu_Hat);
+		const Real A_pol = computeAdvantage(pol[k], polHat, varHat, P_Hat, mu_Hat);
+		const Real varCritic = advantageVariance(polCur, varCur, P_Cur, mu_Cur);
+
 		//compute quantities needed for trunc import sampl with bias correction
 		const Real importance = std::min(rho_cur[k], truncation);
 		const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
-		//const Real correction = 0;
-		const Real gain1 = (Q_OPC - out_hat[k][0]) * importance;
-		const Real gain2 = (Q_pol - out_hat[k][0]) * correction;
-		meanGain1[thrID] = 0.99999*meanGain1[thrID] + 0.00001*gain1;
-		meanGain2[thrID] = 0.99999*meanGain2[thrID] + 0.00001*gain2;
+		const Real A_OPC = Q_OPC - out_hat[k][0];
+		//const Real eta = std::min(std::max(-1., A_OPC*A_critic/varCritic), 1.);
+		const Real eta = A_OPC*A_cur/varCritic;
+
+		const Real gain1 = A_OPC * importance - eta * A_cur;
+		const Real gain2 = A_pol * correction;
 		//derivative wrt to statistics
 		const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1);
 		const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2);
-		//const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1-meanGain1[0]);
-		//const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2-meanGain2[0]);
+		const vector<Real> gradC = controlGradient(polCur, varCur, P_Cur, mu_Cur, eta);
+		const vector<Real> policy_grad = sum3Grads(gradAcer_1, gradAcer_2, gradC);
+
 		//trust region updating
-		const vector<Real> gradDivKL= gradDKL(out_cur[k], out_hat[k]);
-		const vector<Real> gradAcer = gradAcerTrpo(gradAcer_1,gradAcer_2,gradDivKL);
+		const vector<Real> gradDivKL = gradDKL(out_cur[k], out_hat[k]);
+		const vector<Real> gradAcer = gradAcerTrpo(policy_grad, gradDivKL);
 
-		const Real Qerror = (Q_RET - Q_cur);
-		const Real Verror = (Q_RET - Q_cur)*std::min(1.,rho_hat[k]);//  //unclear usefulness
+		const Real Qerror = (Q_RET -A_cur -out_cur[k][0]);
+		//unclear usefulness:
+		const Real Verror = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat[k]);
 		//prepare rolled Q with off policy corrections for next step:
-		Q_RET = c_hat[k]*1.*(Q_RET - Q_hat) + out_hat[k][0];
-		Q_OPC = c_hat[k]*(Q_OPC - Q_hat) + out_hat[k][0];
+		Q_RET = c_hat[k]*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
+		Q_OPC = c_hat[k]*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
 		//Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
-
-		const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k], act[k], gradAcer);
+		const vector<Real> critic_grad = criticGradient(P_Cur, polCur, varCur,
+			out_cur[k], mu_Cur, act[k]);
+		const vector<Real> grad = finalizeGradient(Qerror, Verror, critic_grad,
+			policy_grad, out_cur[k]);
 		//#ifndef NDEBUG
 		//printf("Applying gradient %s\n",printVec(grad).c_str());
 		//fflush(0);
 		//#endif
 		net->setOutputDeltas(grad, series_cur[k]);
 		//bookkeeping:
-		vector<Real> fake{Q_cur, 100};
-		dumpStats(Vstats[thrID], Q_cur, Qerror, fake);
+		vector<Real> fake{A_cur, 100};
+		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qerror, fake);
 		if(thrID == 1) net->updateRunning(series_cur[k]);
 		data->Set[seq]->tuples[k]->SquaredError = Qerror*Qerror;
 	}
