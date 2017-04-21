@@ -8,7 +8,7 @@
  */
 
 #include "../StateAction.h"
-#include "CACER.h"
+#include "SACER.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,9 +18,7 @@
 #include <algorithm>
 #include <cmath>
 
-
-
-CACER::CACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
+SACER::SACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2),
 delta(1), truncation(5), generators(settings.generators)
@@ -136,7 +134,7 @@ static void printselection(const int iA,const int nA,const int i,vector<Real> s)
 	printf("\n"); fflush(0);
 }
 
-void CACER::select(const int agentId, State& s, Action& a, State& sOld,
+void SACER::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
 	if (info == 2) { //no need for action, just pass terminal s & r
@@ -174,8 +172,6 @@ void CACER::select(const int agentId, State& s, Action& a, State& sOld,
 	net->loadMemory(net->mem[agentId], currActivation);
 	_dispose_object(currActivation);
 	//variance is pos def: transform linear output layer with softplus
-	prepareVariance(output);
-
 
 	const Real eps = annealingFactor();
 	vector<Real> behavior(2*nA, 0);
@@ -220,7 +216,7 @@ void CACER::select(const int agentId, State& s, Action& a, State& sOld,
 }
 
 /*
-void CACER::dumpNetworkInfo(const int agentId)
+void SACER::dumpNetworkInfo(const int agentId)
 {
 	net->dump(agentId);
 	vector<Real> output(nOutputs);
@@ -276,9 +272,9 @@ void CACER::dumpNetworkInfo(const int agentId)
 }
  */
 
-void CACER::Train(const int seq, const int samp, const int thrID) const
+void SACER::Train(const int seq, const int samp, const int thrID) const
 {
-	die("CACER only works by sampling entire trajectories.\n");
+	die("SACER only works by sampling entire trajectories.\n");
 }
 
 static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
@@ -291,7 +287,7 @@ static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
 	return state;
 		}
 
-void CACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+void SACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		const vector<int>& nbins)
 {
 	//a fail in any of these amounts to a big and fat TODO
@@ -319,7 +315,6 @@ void CACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		Activation* act = net->allocateActivation();
 		net->predict(data->standardize(state), output, act);
 		_dispose_object(act);
-		prepareVariance(output);
 		Vs[i] = output[0];
 		Pi[i] = aInfo.getScaled(output[1+nL], 0);
 		Mu[i] = aInfo.getScaled(output[1+nL+nA], 0);
@@ -331,7 +326,7 @@ void CACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 	fclose (pFile);
 }
 
-void CACER::Train_BPTT(const int seq, const int thrID) const
+void SACER::Train_BPTT(const int seq, const int thrID) const
 {
 	//this should go to gamma rather quick:
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;

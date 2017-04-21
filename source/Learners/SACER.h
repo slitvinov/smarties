@@ -13,7 +13,7 @@
 
 using namespace std;
 
-class CACER : public Learner
+class SACER : public Learner
 {
 	const int nA, nL;
 
@@ -28,7 +28,7 @@ class CACER : public Learner
 	//void dumpNetworkInfo(const int agentId);
 
 public:
-	CACER(MPI_Comm comm, Environment*const env, Settings & settings);
+	SACER(MPI_Comm comm, Environment*const env, Settings & settings);
 	void select(const int agentId, State& s,Action& a, State& sOld,
 			Action& aOld, const int info, Real r) override;
 	void dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
@@ -305,3 +305,4 @@ private:
 	{
 		a.vals = aInfo.getScaled(a.vals);
 	}
+};
