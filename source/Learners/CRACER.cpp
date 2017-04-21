@@ -342,7 +342,7 @@ void CRACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		Mu[i] = aInfo.getScaled(output[1+nL+2*nA], 0);
 		vector<Real> dump(state.size()+4);
 		dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i]; dump[3] = Mu[i];
-		for (int i=0; i<state.size(); i++) dump[i+4] = state[i];
+		for (int j=0; j<state.size(); j++) dump[j+4] = state[j];
 		fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
 	}
 	fclose (pFile);
