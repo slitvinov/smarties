@@ -86,12 +86,28 @@ private:
 	{
 		vector<Real> gradCC(nA*2, 0);
 
-		for (int j=0; j<nA; j++)
-			for (int i=0; i<nA; i++)
-				gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);
+	#ifdef __A_VARIATE
+			for (int j=0; j<nA; j++)
+				for (int i=0; i<nA; i++)
+					gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);
 
-		for (int j=0; j<nA; j++)
-				gradCC[j+nA] = eta * P[nA*j +j] * var[j] * var[j];
+			for (int j=0; j<nA; j++)
+			#if __out_Var
+						gradCC[j+nA] = - eta * 0.5 * P[nA*j +j];
+			#else
+						gradCC[j+nA] = eta * 0.5 * P[nA*j +j] * var[j] * var[j];
+			#endif
+	#else
+			for (int i=0; i<nA; i++)
+					gradCC[i] = eta * 2 * (mean[i] - pol[i]) / var[i];
+
+			for (int j=0; j<nA; j++)
+			#if __out_Var
+						die("TODO");
+			#else
+						gradCC[j+nA] = eta * var[j];
+			#endif
+	#endif
 
 		return gradCC;
 	}
@@ -120,6 +136,16 @@ private:
 				ret += (pol[j]-mean[j])*(pol[i]-mean[i])*PvarP[nA*j+i];
 
 		return ret;
+	}
+
+	inline Real diagTerm(const vector<Real>& S, const vector<Real>& a, const vector<Real>& m) const
+	{
+		assert(S.size() == nA);
+		assert(a.size() == nA);
+		assert(m.size() == nA);
+		Real Q = 0;
+		for (int j=0; j<nA; j++) Q += S[j]*std::pow(a[j]-m[j],2);
+		return Q;
 	}
 
 	inline Real quadraticTerm(const vector<Real>& P, const vector<Real>& pi, const vector<Real>& a) const
@@ -163,13 +189,24 @@ private:
 		const vector<Real> pi_cur(&out[1+nL],&out[1+nL]+nA), C_cur(&out[1+nL+nA],&out[1+nL+nA]+nA);
 		const vector<Real> pi_hat(&hat[1+nL],&hat[1+nL]+nA), C_hat(&hat[1+nL+nA],&hat[1+nL+nA]+nA);
 		vector<Real> ret(2*nA);
-		for (int i=0; i<nA; i++) {
-			ret[i]    = (pi_cur[i]-pi_hat[i])*C_cur[i];
-		}
+
+	#if __out_Var
+		for (int i=0; i<nA; i++)
+			ret[i]    = (pi_cur[i]-pi_hat[i])/C_cur[i];
+
 		for (int i=0; i<nA; i++) {
 			//               v from trace    v from quadratic term   v from normalization
-			ret[i+nA] = 0.5*(1/C_hat[i] +pow(pi_cur[i]-pi_hat[i],2) -1/C_cur[i]);
+			const Real prec = 1./C_cur[i];
+			ret[i+nA] = -.5*((C_hat[i]+std::pow(pi_cur[i]-pi_hat[i],2))*prec +1)*prec;
 		}
+	#else
+		for (int i=0; i<nA; i++)
+			ret[i]    = (pi_cur[i]-pi_hat[i])*C_cur[i];
+
+		for (int i=0; i<nA; i++)
+			//               v from trace    v from quadratic term   v from normalization
+			ret[i+nA] = 0.5*(1/C_hat[i] +std::pow(pi_cur[i]-pi_hat[i],2) -1/C_cur[i]);
+	#endif
 		return ret;
 	}
 

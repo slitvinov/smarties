@@ -7,6 +7,7 @@
  *
  */
 
+
 #include "../StateAction.h"
 #include "CRACER.h"
 
@@ -415,7 +416,12 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 
 		//const Real gain1 = A_OPC * importance - eta * rho_cur[k] * A_cur;
 		//const Real gain2 = A_pol * correction;
-		const Real gain1 = rho_cur[k] * (A_OPC - eta * A_cur);
+		#ifdef __A_VARIATE
+		const Real cotrolVar = nA+diagTerm(varCur,polCur,mu_Cur)-diagTerm(varCur,act[k],mu_Cur);
+		#else
+		const Real cotrolVar = A_cur;
+		#endif
+		const Real gain1 = rho_cur[k] * (A_OPC - eta * cotrolVar);
 		const Real gain2 = 0;
 		meanGain1[thrID+1] = 0.99999*meanGain1[thrID+1] + 0.00001*gain1;
 		meanGain2[thrID+1] = 0.99999*meanGain2[thrID+1] + 0.00001*gain2;
