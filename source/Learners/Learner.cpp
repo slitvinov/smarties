@@ -382,8 +382,9 @@ void Learner::updateTargetNetwork()
         cntUpdateDelay = tgtUpdateDelay;
 
         //2 options: either move tgt_wght = (1-a)*tgt_wght + a*wght
-        if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
-        else net->updateFrozenWeights(); //or copy tgt_wghts = wghts
+        //if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
+        //else net->updateFrozenWeights(); //or copy tgt_wghts = wghts
+        opt->moveFrozenWeights(tgtUpdateAlpha);
     }
     cntUpdateDelay--;
 }
@@ -434,7 +435,7 @@ void Learner::restart(string name)
   _info("Restarting from saved policy...\n");
 
   data->restartSamples();
-	if (name == "none") return;	
+	if (name == "none") return;
 
   if ( opt->restart(name) )
       _info("Restart successful, moving on...\n")
@@ -527,7 +528,7 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
              <<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"
              <<stats.dumpCount<<"\t"<<opt->nepoch<<"\t"<<avgTime<<endl;
     filestats.close();
-    
+
     fflush(0);
     if (stats.epochCount % 100==0) save("policy");
 }

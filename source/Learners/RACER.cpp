@@ -408,13 +408,13 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		//Q(s,a)                     v a	v policy    v quadratic Q parameters
 		const Real Q_cur = computeQ(act[k], out_hat[k], out_cur[k]);
 		const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
-		const Real Q_pol = computeQ(pol[k], out_hat[k], out_hat[k]);
+		const Real Q_pol = computeQ(pol[k], out_cur[k], out_cur[k]);
 		//compute quantities needed for trunc import sampl with bias correction
 		const Real importance = std::min(rho_cur[k], truncation);
 		const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
 		//const Real correction = 0;
-		const Real gain1 = (Q_OPC - out_hat[k][0]) * importance;
-		const Real gain2 = (Q_pol - out_hat[k][0]) * correction;
+		const Real gain1 = (Q_OPC - out_cur[k][0]) * importance;
+		const Real gain2 = (Q_pol - out_cur[k][0]) * correction;
 		meanGain1[thrID] = 0.99999*meanGain1[thrID] + 0.00001*gain1;
 		meanGain2[thrID] = 0.99999*meanGain2[thrID] + 0.00001*gain2;
 		//derivative wrt to statistics
@@ -430,8 +430,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const Real Verror = (Q_RET - Q_cur)*std::min(1.,rho_hat[k]);//  //unclear usefulness
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat[k]*1.*(Q_RET - Q_hat) + out_hat[k][0];
-		//Q_OPC = c_hat[k]*1.*(Q_OPC - Q_hat) + out_hat[k][0];
-		Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
+		//Q_OPC = c_cur[k]*1.*(Q_OPC - Q_cur) + out_cur[k][0];
+		Q_OPC = .5*(Q_OPC - Q_cur) + out_cur[k][0];
 
 		const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k], act[k], gradAcer);
 		//#ifndef NDEBUG
