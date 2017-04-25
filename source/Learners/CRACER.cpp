@@ -412,14 +412,15 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 		const Real err_Cov = A_OPC*A_cur - cov_A_A[k];
 		//const Real eta = 0;//std::max(std::min(A_OPC*A_cur/varCritic, 1.), -1.);
 		const Real estimate = anneal*cov_A_A[k] + (1-anneal)*A_OPC*A_cur;
-		const Real eta = std::min(std::max(-.5, estimate/varCritic), .5);
 
 		//const Real gain1 = A_OPC * importance - eta * rho_cur[k] * A_cur;
 		//const Real gain2 = A_pol * correction;
 		#ifdef __A_VARIATE
-		const Real cotrolVar = nA+diagTerm(varCur,polCur,mu_Cur)-diagTerm(varCur,act[k],mu_Cur);
-		#else
 		const Real cotrolVar = A_cur;
+		const Real eta = std::min(std::max(-.5, estimate/varCritic), .5);
+		#else
+		const Real cotrolVar = nA+diagTerm(varCur,polCur,mu_Cur)-diagTerm(varCur,act[k],mu_Cur);
+		const Real eta = std::min(std::max(-.5, estimate/varCritic), .5);
 		#endif
 		const Real gain1 = rho_cur[k] * (A_OPC - eta * cotrolVar);
 		const Real gain2 = 0;
