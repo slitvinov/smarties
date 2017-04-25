@@ -273,6 +273,7 @@ int main (int argc, char** argv)
       {'I',"isServer", INT,   "Whether smarites launches apps or is launched by app (then cannot train)", &settings.isLauncher,  (int)1},
       {'P',"sockPrefix",INT,  "Number prefix for socket: >0 if launched by app", &settings.sockPrefix,  (int)-1},
       {'H',"fileSamp", STRING,"Location of transitions log for restart",   &settings.samplesFile,(string)"obs_master.txt"}
+      {'R',"restart", STRING,"Location of policy file for restart",   &settings.restart,(string)"policy"}
     });
 
     int provided, rank, nranks;
