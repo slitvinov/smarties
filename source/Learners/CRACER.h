@@ -11,6 +11,7 @@
 
 #include "Learner.h"
 #define __out_Var 0
+#define __A_VARIATE
 using namespace std;
 
 class CRACER : public Learner
@@ -22,6 +23,7 @@ class CRACER : public Learner
 	void Train_BPTT(const int seq, const int thrID=0) const override;
 	void Train(const int seq, const int samp, const int thrID=0) const override;
 	//void dumpNetworkInfo(const int agentId);
+	void processStats(vector<trainData*> _stats, const Real avgTime) override;
 
 public:
 	CRACER(MPI_Comm comm, Environment*const env, Settings & settings);

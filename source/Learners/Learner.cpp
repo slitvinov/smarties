@@ -434,6 +434,8 @@ void Learner::restart(string name)
   _info("Restarting from saved policy...\n");
 
   data->restartSamples();
+	if (name == "none") return;	
+
   if ( opt->restart(name) )
       _info("Restart successful, moving on...\n")
   else

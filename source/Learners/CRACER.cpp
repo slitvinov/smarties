@@ -360,9 +360,11 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 		rho_hat[k] = std::exp(std::min(9.,std::max(-32.,actProbOnTarget-actProbBehavior)));
 		c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
 		c_hat[k] = std::min((Real)1.,std::pow(rho_hat[k],1./nA));
+		cov_A_A[k] = out_cur[k].back();
 	}
 
 	Real Q_RET = 0, Q_OPC = 0;
+	//if partial sequence then compute value of last state (=! R_end)
 	if(not data->Set[seq]->ended)
 	{
 		const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
@@ -410,22 +412,22 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 		const Real correction = std::max(0., 1.-truncation/rho_pol[k]);
 		const Real A_OPC = Q_OPC - out_hat[k][0];
 		const Real err_Cov = A_OPC*A_cur - cov_A_A[k];
-		//const Real eta = 0;//std::max(std::min(A_OPC*A_cur/varCritic, 1.), -1.);
-		const Real estimate = anneal*cov_A_A[k] + (1-anneal)*A_OPC*A_cur;
 
 		//const Real gain1 = A_OPC * importance - eta * rho_cur[k] * A_cur;
 		//const Real gain2 = A_pol * correction;
+		const Real eta = anneal*std::min(std::max(-1., cov_A_A[k]/varCritic), 1.);
+
 		#ifdef __A_VARIATE
 		const Real cotrolVar = A_cur;
-		const Real eta = std::min(std::max(-.5, estimate/varCritic), .5);
 		#else
+		//other ppossible control variate with zero exp. value under policy
 		const Real cotrolVar = nA+diagTerm(varCur,polCur,mu_Cur)-diagTerm(varCur,act[k],mu_Cur);
-		const Real eta = std::min(std::max(-.5, estimate/varCritic), .5);
 		#endif
+
 		const Real gain1 = rho_cur[k] * (A_OPC - eta * cotrolVar);
-		const Real gain2 = 0;
-		meanGain1[thrID+1] = 0.99999*meanGain1[thrID+1] + 0.00001*gain1;
-		meanGain2[thrID+1] = 0.99999*meanGain2[thrID+1] + 0.00001*gain2;
+		const Real gain2 = 0; //no trunctation and bias reduction
+		meanGain1[thrID+1] = 0.9999*meanGain1[thrID+1] + 0.0001*gain1;
+		meanGain2[thrID+1] = 0.9999*meanGain2[thrID+1] + 0.0001*eta;
 		//derivative wrt to statistics
 		const vector<Real> gradAcer_1 = policyGradient(out_cur[k], act[k], gain1);
 		const vector<Real> gradAcer_2 = policyGradient(out_cur[k], pol[k], gain2);
@@ -441,17 +443,22 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 		const Real Ver = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat[k]);
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat[k]*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
+		//TODO: now Q_OPC ios actually Q_RET, which is better?
 		Q_OPC = c_cur[k]*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
 		//Q_OPC = .5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
+		
 		const vector<Real> critic_grad =
 		criticGradient(P_Cur, polCur, varCur, out_cur[k], mu_Cur, act[k]);
 		const vector<Real> grad =
 		finalizeGradient(Qer, Ver, critic_grad, policy_grad, out_cur[k], err_Cov);
+		//write gradient onto output layer
+		net->setOutputDeltas(grad, series_cur[k]);
+		
 		//#ifndef NDEBUG
 		//printf("Applying gradient %s\n",printVec(grad).c_str());
 		//fflush(0);
 		//#endif
-		net->setOutputDeltas(grad, series_cur[k]);
+		
 		//bookkeeping:
 		vector<Real> fake{A_cur, 100};
 		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
@@ -464,3 +471,12 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 	net->deallocateUnrolledActivations(&series_cur);
 	net->deallocateUnrolledActivations(&series_hat);
 }
+
+void CRACER::processStats(vector<trainData*> _stats, const Real avgTime)
+{
+	setVecMean(meanGain1); setVecMean(meanGain2);
+	printf("Gain terms of policy grad means: [%f] [%f]\n",
+	meanGain1[0], meanGain2[0]);
+	Learner::processStats(_stats, avgTime);
+}
+

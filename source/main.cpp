@@ -221,7 +221,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
     Learner* learner = createLearner(mastersComm, env);
 
     Master master(slavesComm, learner, env, settings);
-    if (settings.restart != "none") master.restart(settings.restart);
+	master.restart(settings.restart);
     printf("nthreads %d\n",settings.nThreads); fflush(0);
 
 #if 1
