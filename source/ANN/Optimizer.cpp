@@ -25,7 +25,7 @@ eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), nepoch(0)
 
 AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
   Settings& settings) : Optimizer(_net, _prof, settings),
-  beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.999)
+  beta_1(0.8), beta_2(0.999), epsilon(1e-8), beta_t_1(0.8), beta_t_2(0.999)
 {
     _allocateClean(_2ndMomW, nWeights)
     _allocateClean(_2ndMomB, nBiases)
@@ -68,7 +68,8 @@ void Optimizer::update(Grads* const G, const int batchsize)
 
 void AdamOptimizer::update(Grads* const G, const int batchsize)
 {
-  const Real _eta = eta/(1.+std::log(1. + (double)nepoch));
+  //const Real _eta = eta/(1.+std::log(1. + (double)nepoch));
+  const Real _eta = eta/(1.+(Real)nepoch/1e4);
   update(net->weights,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,lambda,_eta);
   update(net->biases, G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,     0,_eta);
   //Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);

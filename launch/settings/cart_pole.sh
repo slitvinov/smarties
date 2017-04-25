@@ -9,7 +9,7 @@ SETTINGS+=" --fileSamp none"
 SETTINGS+=" --gamma 0.99"
 
 #network update learning rate
-SETTINGS+=" --learnrate 0.001"
+SETTINGS+=" --learnrate 0.0001"
 
 #size of network layers
 SETTINGS+=" --nnl1 64"
@@ -26,7 +26,7 @@ SETTINGS+=" --nnType 0"
 SETTINGS+=" --nnL 0.0"
 
 #chance of taking random actions
-SETTINGS+=" --greedyeps 0.1"
+SETTINGS+=" --greedyeps 0.5"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -38,9 +38,9 @@ SETTINGS+=" --senses 0"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 #SETTINGS+=" --learn DQN"
 #SETTINGS+=" --learn NAF"
-SETTINGS+=" --learn ACER"
+#SETTINGS+=" --learn SACER"
 #SETTINGS+=" --learn CACER"
-#SETTINGS+=" --learn CRACER"
+SETTINGS+=" --learn CRACER"
 #SETTINGS+=" --learn RACER"
 #SETTINGS+=" --learn DPG"
 
@@ -50,12 +50,12 @@ SETTINGS+=" --dqnNs 0"
 #maximum allowed lenth for a sequence (from first to terminal state)
 #if a sequence is longer is just cut after #number of transitions
 SETTINGS+=" --dqnSeqMax 1000"
-SETTINGS+=" --maxTotSeqNum 1000"
+SETTINGS+=" --maxTotSeqNum 5000"
 
 #batch size for network gradients compute
-SETTINGS+=" --dqnBatch 32"
+SETTINGS+=" --dqnBatch 44"
 
-SETTINGS+=" --epsAnneal 10000" 
+SETTINGS+=" --epsAnneal 100000" 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w

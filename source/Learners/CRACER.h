@@ -10,7 +10,7 @@
 #pragma once
 
 #include "Learner.h"
-
+#define __out_Var 0
 using namespace std;
 
 class CRACER : public Learner
