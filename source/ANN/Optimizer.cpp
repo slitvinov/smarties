@@ -43,7 +43,7 @@ EntropySGD::EntropySGD(Network* const _net, Profiler* const _prof,
 
 void Optimizer::moveFrozenWeights(const Real alpha)
 {
-  if (allocatedFrozenWeights==false || alpha>1)
+  if (net->allocatedFrozenWeights==false || alpha>1)
       return net->updateFrozenWeights();
 
   #pragma omp parallel
@@ -64,7 +64,7 @@ void EntropySGD::moveFrozenWeights(const Real alpha)
 {
     assert(alpha>1);
 
-    if (allocatedFrozenWeights==false) return net->updateFrozenWeights();
+    if (net->allocatedFrozenWeights==false) return net->updateFrozenWeights();
 
     #pragma omp parallel
     {

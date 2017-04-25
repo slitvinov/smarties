@@ -95,7 +95,7 @@ public:
   void update(Grads* const G, const int batchsize) override;
   bool restart(const string fname) override;
   void moveFrozenWeights(const Real alpha) override;
-}
+};
 /*
 class LMOptimizer: public Optimizer
 { //for now just Adam...
