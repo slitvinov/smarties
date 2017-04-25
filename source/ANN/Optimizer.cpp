@@ -39,30 +39,31 @@ EntropySGD::EntropySGD(Network* const _net, Profiler* const _prof,
     assert(L_eSGD>0);
     _allocateClean(_muW_eSGD, nWeights)
     _allocateClean(_muB_eSGD, nBiases)
+
+	for (int i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights[i];
+  for (int i=0; i<nBiases; i++)  _muB_eSGD[i] = net->biases[i];
 }
 
-void Optimizer::moveFrozenWeights(const Real alpha)
+void Optimizer::moveFrozenWeights(const Real _alpha)
 {
-  if (net->allocatedFrozenWeights==false || alpha>1)
+  if (net->allocatedFrozenWeights==false || _alpha>1)
       return net->updateFrozenWeights();
 
   #pragma omp parallel
   {
-      const Real _alpha = 1. - alpha;
-
       #pragma omp for nowait
       for (int j=0; j<nWeights; j++)
-          net->tgt_weights[j] += alpha*(net->weights[j] - net->tgt_weights[j]);
+          net->tgt_weights[j] += _alpha*(net->weights[j] - net->tgt_weights[j]);
 
       #pragma omp for nowait
       for (int j=0; j<nBiases; j++)
-          net->tgt_biases[j] += alpha*(net->biases[j] - net->tgt_biases[j]);
+          net->tgt_biases[j] += _alpha*(net->biases[j] - net->tgt_biases[j]);
   }
 }
 
-void EntropySGD::moveFrozenWeights(const Real alpha)
+void EntropySGD::moveFrozenWeights(const Real _alpha)
 {
-    assert(alpha>1);
+    assert(_alpha>1);
 
     if (net->allocatedFrozenWeights==false) return net->updateFrozenWeights();
 
@@ -98,7 +99,7 @@ void EntropySGD::update(Real* const dest, const Real* const target, Real* const 
 	#pragma omp parallel
   {
     const int thrID = omp_get_thread_num();
-    Saru gen(nepoch, thrID, net->generators[thrID]);
+    Saru gen(nepoch, thrID, net->generators[thrID]());
 
     #pragma omp for
     for (int i=0; i<N; i++)
@@ -332,11 +333,13 @@ void Optimizer::save(const string fname)
   }
 }
 
-void EntropySGD::restart(const string fname)
+bool EntropySGD::restart(const string fname)
 {
-  AdamOptimizer::restart(fname);
+  const bool ret = AdamOptimizer::restart(fname);
+  if (!ret) return ret; 
   for (int i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights[i];
-  for (int i=0; i<nBiases; i++)  _muD_eSGD[i] = net->biases[i];
+  for (int i=0; i<nBiases; i++)  _muB_eSGD[i] = net->biases[i];
+  return ret;
 }
 
 void AdamOptimizer::save(const string fname)

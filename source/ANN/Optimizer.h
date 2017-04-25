@@ -45,7 +45,7 @@ public:
 
     virtual void save(const string fname);
     virtual bool restart(const string fname);
-    virtual void moveFrozenWeights(const Real alpha);
+    virtual void moveFrozenWeights(const Real _alpha);
 };
 
 class AdamOptimizer: public Optimizer
@@ -94,7 +94,7 @@ public:
   }
   void update(Grads* const G, const int batchsize) override;
   bool restart(const string fname) override;
-  void moveFrozenWeights(const Real alpha) override;
+  void moveFrozenWeights(const Real _alpha) override;
 };
 /*
 class LMOptimizer: public Optimizer
