@@ -13,6 +13,7 @@
 
 class CartEnvironment : public Environment
 {
+   const bool allSenses;
 public:
     CartEnvironment(const int nAgents, const string execpath,
                     const int _rank, Settings & settings);

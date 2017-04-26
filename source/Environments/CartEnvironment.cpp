@@ -24,9 +24,9 @@ using namespace std;
 
 CartEnvironment::CartEnvironment(const int _nAgents, const string _execpath,
 																 const int _rank, Settings & settings) :
-Environment(_nAgents, _execpath, _rank, settings)
+Environment(_nAgents, _execpath, _rank, settings), allSenses(settings.senses==0)
 {
-   //cheaperThanNetwork=false;
+   cheaperThanNetwork=false;
 }
 
 bool CartEnvironment::predefinedNetwork(Network* const net) const
@@ -46,12 +46,10 @@ void CartEnvironment::setDims() //this environment is for the cart pole test
         sI.inUse.push_back(true); //ignore, leave as is
 
         // ...velocity...
-		//sI.inUse.push_back(false); //ignore, leave as is
-		sI.inUse.push_back(true); //ignore, leave as is
+		sI.inUse.push_back(allSenses); //ignore, leave as is
 
         // ...and angular velocity
-		sI.inUse.push_back(true); //ignore, leave as is
-		//sI.inUse.push_back(false); //ignore, leave as is
+		sI.inUse.push_back(allSenses); //ignore, leave as is
 
         // ...angle...
 		sI.inUse.push_back(true); //ignore, leave as is

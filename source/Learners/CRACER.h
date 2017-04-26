@@ -10,8 +10,10 @@
 #pragma once
 
 #include "Learner.h"
-#define __out_Var 0
 #define __A_VARIATE
+#ifdef __out_Var
+#warn Defined __out_Var
+#endif
 using namespace std;
 
 class CRACER : public Learner
@@ -94,7 +96,7 @@ private:
 					gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);
 
 			for (int j=0; j<nA; j++)
-			#if __out_Var
+			#ifdef __out_Var
 						gradCC[j+nA] = - eta * 0.5 * P[nA*j +j];
 			#else
 						gradCC[j+nA] = eta * 0.5 * P[nA*j +j] * var[j] * var[j];
@@ -104,7 +106,7 @@ private:
 					gradCC[i] = eta * 2 * (mean[i] - pol[i]) / var[i];
 
 			for (int j=0; j<nA; j++)
-			#if __out_Var
+			#ifdef __out_Var
 						die("TODO");
 			#else
 						gradCC[j+nA] = eta * var[j];
@@ -192,7 +194,7 @@ private:
 		const vector<Real> pi_hat(&hat[1+nL],&hat[1+nL]+nA), C_hat(&hat[1+nL+nA],&hat[1+nL+nA]+nA);
 		vector<Real> ret(2*nA);
 
-	#if __out_Var
+	#ifdef __out_Var
 		for (int i=0; i<nA; i++)
 			ret[i]    = (pi_cur[i]-pi_hat[i])/C_cur[i];
 

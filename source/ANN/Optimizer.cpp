@@ -26,7 +26,7 @@ eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), nepoch(0)
 
 AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
   Settings& settings) : Optimizer(_net, _prof, settings),
-  beta_1(0.8), beta_2(0.999), epsilon(1e-8), beta_t_1(0.8), beta_t_2(0.999)
+  beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.999)
 {
     _allocateClean(_2ndMomW, nWeights)
     _allocateClean(_2ndMomB, nBiases)
@@ -34,7 +34,7 @@ AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
 
 EntropySGD::EntropySGD(Network* const _net, Profiler* const _prof,
   Settings& settings) : AdamOptimizer(_net, _prof, settings), alpha_eSGD(0.75),
-  gamma_eSGD(0.01), eta_eSGD(1./settings.dqnUpdateC), eps_eSGD(1e-4), L_eSGD(settings.dqnUpdateC)
+  gamma_eSGD(0.1), eta_eSGD(0.1/settings.dqnUpdateC), eps_eSGD(1e-4), L_eSGD(settings.dqnUpdateC)
 {
     assert(L_eSGD>0);
     _allocateClean(_muW_eSGD, nWeights)
