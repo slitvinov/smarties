@@ -65,7 +65,7 @@ int main(int argc, const char * argv[])
     ale.loadROM(argv[2]);//path to rom
 
 	// Get the vector of legal actions
-    ActionVect legal_actions = ale.getLegalActionSet();
+    ActionVect legal_actions = ale.getMinimalActionSet();
 		
     const int n = 1; //n agents
     //communication:

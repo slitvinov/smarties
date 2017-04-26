@@ -14,13 +14,12 @@
 
 using namespace std;
 
-alebotEnvironment::alebotEnvironment(const int _nAgents, const string _execpath,
+alebotEnvironment::alebotEnvironment(const int _nAgents, const int _nActions, const string _execpath,
 																 const int _rank, Settings & settings) :
-Environment(_nAgents, _execpath, _rank, settings)
+Environment(_nAgents, _execpath, _rank, settings), legalActions(_nActions)
 {
 }
 
-const int legalActions=18; //should be 18
 bool alebotEnvironment::predefinedNetwork(Network* const net) const
 {
 	//indices are: feature map (color), height, width

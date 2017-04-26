@@ -118,6 +118,7 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
     {
         string execpath = _parse(envStr, "exec", true);
         int n = _parseInt(envStr, "n", true);
+        int nactions = _parseInt(envStr, "nActions", true);
         env = new alebotEnvironment(n, execpath, rank, *settings);
     }
     else if (envStr.find("TestEnvironment ") != envStr.npos)
