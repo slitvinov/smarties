@@ -72,7 +72,8 @@ delta(1), truncation(5), generators(settings.generators)
 #endif
 	}
 	net->build();
-	assert(1+nL+2*nA == net->getnOutputs() && nInputs == net->getnInputs());
+	assert(1+nL+2*nA == net->getnOutputs());
+	assert(nInputs == net->getnInputs());
 
 	opt = new AdamOptimizer(net, profiler, settings);
 	data->bRecurrent = bRecurrent = true;
@@ -122,13 +123,6 @@ delta(1), truncation(5), generators(settings.generators)
 
 }
 
-static void printselection(const int iA,const int nA,const int i,vector<Real> s)
-{
-	printf("%d/%d s=%d : ", iA, nA, i);
-	for(int k=0; k<s.size(); k++) printf("%g ", s[k]);
-	printf("\n"); fflush(0);
-}
-
 void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
@@ -175,7 +169,7 @@ void ACER::select(const int agentId, State& s, Action& a, State& sOld,
 		for(int i=0; i<nA; i++) {
 			const Real varscale = aInfo.addedVariance(i);
 			const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
-			Real anneal_var = eps*varscale*greedyEps + policy_var;
+			Real anneal_var = eps*varscale*greedyEps + (1-eps)*policy_var;
 			//				anneal_var = anneal_var>varscale ? varscale : anneal_var;
 			const Real annealed_mean = (1-eps)*output[1+nL+i];
 			//const Real annealed_mean = output[1+nL+i];
@@ -266,17 +260,7 @@ void ACER::dumpNetworkInfo(const int agentId)
 }
  */
 
-static vector<Real> pickState(const vector<vector<Real>>& bins, int k)
-{
-	vector<Real> state(bins.size());
-	for (int i=0; i<bins.size(); i++) {
-		state[i] = bins[i][ k % bins[i].size() ];
-		k /= bins[i].size();
-	}
-	return state;
-}
-
- void ACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+void ACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
  		const vector<int>& nbins)
  {
  	//a fail in any of these amounts to a big and fat TODO
@@ -419,8 +403,8 @@ void ACER::Train_BPTT(const int seq, const int thrID) const
 		const Real Verror = (Q_RET - Q_cur) * std::min(1.,rho_hat[k]); //unclear usefulness
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat[k]*1.*(Q_RET - Q_hat) + out_hat[k][0];
-		//Q_OPC = c_hat[k]*1.*(Q_OPC - Q_hat) + out_hat[k][0];
-		Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
+		Q_OPC = c_hat[k]*1.*(Q_OPC - Q_hat) + out_hat[k][0];
+		//Q_OPC = .5*(Q_OPC - Q_hat) + out_hat[k][0];
 
 		const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k], act[k], gradAcer);
 		//#ifndef NDEBUG

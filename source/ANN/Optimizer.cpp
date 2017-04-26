@@ -11,6 +11,7 @@
 #include <iomanip>      // std::setprecision
 #include <iostream>     // std::cout, std::fixed
 #include <cassert>
+#include "saruprng.h"
 
 using namespace ErrorHandling;
 
@@ -25,10 +26,116 @@ eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), nepoch(0)
 
 AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
   Settings& settings) : Optimizer(_net, _prof, settings),
-  beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.999)
+  beta_1(0.8), beta_2(0.999), epsilon(1e-8), beta_t_1(0.8), beta_t_2(0.999)
 {
     _allocateClean(_2ndMomW, nWeights)
     _allocateClean(_2ndMomB, nBiases)
+}
+
+EntropySGD::EntropySGD(Network* const _net, Profiler* const _prof,
+  Settings& settings) : AdamOptimizer(_net, _prof, settings), alpha_eSGD(0.75),
+  gamma_eSGD(0.01), eta_eSGD(1./settings.dqnUpdateC), eps_eSGD(1e-4), L_eSGD(settings.dqnUpdateC)
+{
+    assert(L_eSGD>0);
+    _allocateClean(_muW_eSGD, nWeights)
+    _allocateClean(_muB_eSGD, nBiases)
+
+	for (int i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights[i];
+  for (int i=0; i<nBiases; i++)  _muB_eSGD[i] = net->biases[i];
+}
+
+void Optimizer::moveFrozenWeights(const Real _alpha)
+{
+  if (net->allocatedFrozenWeights==false || _alpha>1)
+      return net->updateFrozenWeights();
+
+  #pragma omp parallel
+  {
+      #pragma omp for nowait
+      for (int j=0; j<nWeights; j++)
+          net->tgt_weights[j] += _alpha*(net->weights[j] - net->tgt_weights[j]);
+
+      #pragma omp for nowait
+      for (int j=0; j<nBiases; j++)
+          net->tgt_biases[j] += _alpha*(net->biases[j] - net->tgt_biases[j]);
+  }
+}
+
+void EntropySGD::moveFrozenWeights(const Real _alpha)
+{
+    assert(_alpha>1);
+
+    if (net->allocatedFrozenWeights==false) return net->updateFrozenWeights();
+
+    #pragma omp parallel
+    {
+        const Real fac = eta_eSGD * gamma_eSGD;
+
+        #pragma omp for nowait
+        for (int j=0; j<nWeights; j++) {
+          net->tgt_weights[j] += fac * (_muW_eSGD[j] - net->tgt_weights[j]);
+          net->weights[j] = net->tgt_weights[j];
+          _muW_eSGD[j] = net->tgt_weights[j];
+        }
+
+        #pragma omp for nowait
+        for (int j=0; j<nBiases; j++){
+          net->tgt_biases[j] += fac * (_muB_eSGD[j] - net->tgt_biases[j]);
+          net->biases[j] = net->tgt_biases[j];
+          _muB_eSGD[j] = net->tgt_biases[j];
+        }
+    }
+}
+
+void EntropySGD::update(Real* const dest, const Real* const target, Real* const grad,
+  Real* const _1stMom, Real* const _2ndMom, Real* const _mu, const int N,
+  const int batchsize, const Real _lambda, const Real _eta)
+{
+    //const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    const Real norm = 1./(Real)max(batchsize,1);
+    // TODO const Real lambda_ = _lambda*eta_;
+
+	#pragma omp parallel
+  {
+    const int thrID = omp_get_thread_num();
+    Saru gen(nepoch, thrID, net->generators[thrID]());
+
+    #pragma omp for
+    for (int i=0; i<N; i++)
+    {
+        const Real DW  = grad[i]*norm;
+        const Real M1_ = beta_1* _1stMom[i] +(1.-beta_1) *DW;
+        const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
+        const Real M2_ = std::max(M2,epsilon);
+
+        const Real RNG = std::sqrt(eta_) * eps_eSGD * gen.d_mean0_var1();
+        const Real DW_ = eta_*M1_/std::sqrt(M2_);
+
+        _1stMom[i] = M1_;
+        _2ndMom[i] = M2_;
+        grad[i] = 0.; //reset grads
+
+        dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
+        _mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
+    }
+  }
+
+}
+
+void EntropySGD::update(Grads* const G, const int batchsize)
+{
+  //const Real _eta = eta/(1.+std::log(1. + (double)nepoch));
+  update(net->weights,net->tgt_weights,G->_W,_1stMomW,_2ndMomW,_muW_eSGD,nWeights,batchsize,lambda,eta);
+  update(net->biases, net->tgt_biases, G->_B,_1stMomB,_2ndMomB,_muB_eSGD,nBiases, batchsize,     0,eta);
+  //Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
+  //Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
+	beta_t_1 *= beta_1;
+  if (beta_t_1<2.2e-16) beta_t_1 = 0;
+
+	beta_t_2 *= beta_2;
+  if (beta_t_2<2.2e-16) beta_t_2 = 0;
+	//printf("%d %f %f\n",nepoch, beta_t_1,beta_t_2);
 }
 
 void Optimizer::stackGrads(Grads* const G, const Grads* const g) const
@@ -68,7 +175,8 @@ void Optimizer::update(Grads* const G, const int batchsize)
 
 void AdamOptimizer::update(Grads* const G, const int batchsize)
 {
-  const Real _eta = eta/(1.+std::log(1. + (double)nepoch));
+  //const Real _eta = eta/(1.+std::log(1. + (double)nepoch));
+  const Real _eta = eta/(1.+(Real)nepoch/1e4);
   update(net->weights,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,lambda,_eta);
   update(net->biases, G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,     0,_eta);
   //Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
@@ -223,6 +331,15 @@ void Optimizer::save(const string fname)
     string command = "cp " + nameBackup + " " + fname + "_mems";
     system(command.c_str());
   }
+}
+
+bool EntropySGD::restart(const string fname)
+{
+  const bool ret = AdamOptimizer::restart(fname);
+  if (!ret) return ret; 
+  for (int i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights[i];
+  for (int i=0; i<nBiases; i++)  _muB_eSGD[i] = net->biases[i];
+  return ret;
 }
 
 void AdamOptimizer::save(const string fname)

@@ -46,10 +46,12 @@ void CartEnvironment::setDims() //this environment is for the cart pole test
         sI.inUse.push_back(true); //ignore, leave as is
 
         // ...velocity...
+		//sI.inUse.push_back(false); //ignore, leave as is
 		sI.inUse.push_back(true); //ignore, leave as is
 
         // ...and angular velocity
 		sI.inUse.push_back(true); //ignore, leave as is
+		//sI.inUse.push_back(false); //ignore, leave as is
 
         // ...angle...
 		sI.inUse.push_back(true); //ignore, leave as is

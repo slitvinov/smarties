@@ -10,7 +10,8 @@
 #pragma once
 
 #include "Learner.h"
-
+#define __out_Var 0
+#define __A_VARIATE
 using namespace std;
 
 class CRACER : public Learner
@@ -22,6 +23,7 @@ class CRACER : public Learner
 	void Train_BPTT(const int seq, const int thrID=0) const override;
 	void Train(const int seq, const int samp, const int thrID=0) const override;
 	//void dumpNetworkInfo(const int agentId);
+	void processStats(vector<trainData*> _stats, const Real avgTime) override;
 
 public:
 	CRACER(MPI_Comm comm, Environment*const env, Settings & settings);
@@ -34,7 +36,7 @@ private:
 	inline Real evaluateLogProbability(const vector<Real>& a, const vector<Real>& out) const
 	{
 		assert(a.size()==nA);
-		assert(out.size()==1+nL+3*nA);
+		assert(out.size()==1+nL+3*nA+1);
 		Real p = 0;
 		for(int i=0; i<nA; i++) {
 			assert(out[1+nL+nA+i]>0);
@@ -60,7 +62,7 @@ private:
 	inline vector<Real> preparePmatrix(const vector<Real>& out) const
 	{
 		vector<Real> _L(nA*nA, 0), _P(nA*nA, 0);
-		assert(out.size() == 1+nL+3*nA);
+		assert(out.size() == 1+nL+3*nA+1);
 		{ //fill lower diag matrix L
 			int kL = 1;
 			for (int j=0; j<nA; j++)
@@ -86,12 +88,28 @@ private:
 	{
 		vector<Real> gradCC(nA*2, 0);
 
-		for (int j=0; j<nA; j++)
-			for (int i=0; i<nA; i++)
-				gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);
+	#ifdef __A_VARIATE
+			for (int j=0; j<nA; j++)
+				for (int i=0; i<nA; i++)
+					gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);
 
-		for (int j=0; j<nA; j++)
-				gradCC[j+nA] = eta * P[nA*j +j] * var[j] * var[j];
+			for (int j=0; j<nA; j++)
+			#if __out_Var
+						gradCC[j+nA] = - eta * 0.5 * P[nA*j +j];
+			#else
+						gradCC[j+nA] = eta * 0.5 * P[nA*j +j] * var[j] * var[j];
+			#endif
+	#else
+			for (int i=0; i<nA; i++)
+					gradCC[i] = eta * 2 * (mean[i] - pol[i]) / var[i];
+
+			for (int j=0; j<nA; j++)
+			#if __out_Var
+						die("TODO");
+			#else
+						gradCC[j+nA] = eta * var[j];
+			#endif
+	#endif
 
 		return gradCC;
 	}
@@ -120,6 +138,16 @@ private:
 				ret += (pol[j]-mean[j])*(pol[i]-mean[i])*PvarP[nA*j+i];
 
 		return ret;
+	}
+
+	inline Real diagTerm(const vector<Real>& S, const vector<Real>& a, const vector<Real>& m) const
+	{
+		assert(S.size() == nA);
+		assert(a.size() == nA);
+		assert(m.size() == nA);
+		Real Q = 0;
+		for (int j=0; j<nA; j++) Q += S[j]*std::pow(a[j]-m[j],2);
+		return Q;
 	}
 
 	inline Real quadraticTerm(const vector<Real>& P, const vector<Real>& pi, const vector<Real>& a) const
@@ -158,18 +186,29 @@ private:
     therefore divKL assumes shape
     0.5*(\sum_i( Sigma_1_i*(Sigma_2_i)^-1 + (m_2_i - m_1_i)^2*(Sigma_2_i)^-1 -M +ln(Sigma_2_i) -ln(Sigma_1_i))
 		 */
-		assert(out.size() == 1+nL+3*nA);
-		assert(hat.size() == 1+nL+3*nA);
+		assert(out.size() == 1+nL+3*nA+1);
+		assert(hat.size() == 1+nL+3*nA+1);
 		const vector<Real> pi_cur(&out[1+nL],&out[1+nL]+nA), C_cur(&out[1+nL+nA],&out[1+nL+nA]+nA);
 		const vector<Real> pi_hat(&hat[1+nL],&hat[1+nL]+nA), C_hat(&hat[1+nL+nA],&hat[1+nL+nA]+nA);
 		vector<Real> ret(2*nA);
-		for (int i=0; i<nA; i++) {
-			ret[i]    = (pi_cur[i]-pi_hat[i])*C_cur[i];
-		}
+
+	#if __out_Var
+		for (int i=0; i<nA; i++)
+			ret[i]    = (pi_cur[i]-pi_hat[i])/C_cur[i];
+
 		for (int i=0; i<nA; i++) {
 			//               v from trace    v from quadratic term   v from normalization
-			ret[i+nA] = 0.5*(1/C_hat[i] +pow(pi_cur[i]-pi_hat[i],2) -1/C_cur[i]);
+			const Real prec = 1./C_cur[i];
+			ret[i+nA] = -.5*((C_hat[i]+std::pow(pi_cur[i]-pi_hat[i],2))*prec +1)*prec;
 		}
+	#else
+		for (int i=0; i<nA; i++)
+			ret[i]    = (pi_cur[i]-pi_hat[i])*C_cur[i];
+
+		for (int i=0; i<nA; i++)
+			//               v from trace    v from quadratic term   v from normalization
+			ret[i+nA] = 0.5*(1/C_hat[i] +std::pow(pi_cur[i]-pi_hat[i],2) -1/C_cur[i]);
+	#endif
 		return ret;
 	}
 
@@ -321,13 +360,13 @@ private:
 
 	inline vector<Real> finalizeGradient(const Real Qerror, const Real Verror,
 			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
-			const vector<Real>& out) const
+			const vector<Real>& out, const Real err_Cov) const
 	{
 		assert(gradCritic.size() == 1+nL+nA);
 		assert(gradPolicy.size() == 2*nA);
-		assert(out.size() == 1+nL+nA*3);
+		assert(out.size() == 1+nL+nA*3+1);
 		//assert(P.size() == 2*nA);
-		vector<Real> grad(1+nL+nA*3);
+		vector<Real> grad(1+nL+nA*3+1);
 
 		grad[0] = Qerror+Verror;
 		for (int j=1; j<nL+1; j++)
@@ -340,6 +379,8 @@ private:
 
 		for (int j=nL+1; j<nA+nL+1; j++)
 			grad[j+nA*2] = Qerror*gradCritic[j];
+
+		grad[1+nL+nA*3] = err_Cov;
 
 		return grad;
 	}
@@ -368,7 +409,7 @@ private:
 	 */
 	inline void prepareVariance(vector<Real>& out) const
 	{
-		assert(out.size()==1+nL+3*nA);
+		assert(out.size()==1+nL+3*nA+1);
 		for (int j=0; j<nA; j++) {
 			const Real x = out[1+nL+nA+j];
 			out[1+nL+nA+j] = .5*(x + std::sqrt(x*x + 1.));
@@ -376,8 +417,8 @@ private:
 	}
 	inline void finalizeVarianceGrad(vector<Real>& grad, const vector<Real>& out) const
 	{
-		assert(grad.size()==1+nL+3*nA);
-		assert(out.size()==1+nL+3*nA);
+		assert(grad.size()==1+nL+3*nA+1);
+		assert(out.size()==1+nL+3*nA+1);
 		for (int j=0; j<nA; j++) {
 			const Real ysq = out[1+nL+nA+j]*out[1+nL+nA+j];
 			const Real diff = ysq/(ysq + 0.25);

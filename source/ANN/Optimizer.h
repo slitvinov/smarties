@@ -43,9 +43,9 @@ public:
     virtual void stackGrads(Grads* const G, const Grads* const g) const;
     virtual void stackGrads(Grads* const G, const vector<Grads*> g) const;
 
-
     virtual void save(const string fname);
     virtual bool restart(const string fname);
+    virtual void moveFrozenWeights(const Real _alpha);
 };
 
 class AdamOptimizer: public Optimizer
@@ -73,6 +73,29 @@ public:
     bool restart(const string fname) override;
 };
 
+class EntropySGD: public AdamOptimizer
+{
+protected:
+    const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD;
+    const int L_eSGD;
+    Real *_muW_eSGD, *_muB_eSGD;
+
+    void update(Real* const dest, const Real* const target, Real* const grad,
+      Real* const _1stMom, Real* const _2ndMom, Real* const _mu, const int N,
+      const int batchsize, const Real _lambda, const Real _eta);
+public:
+
+  EntropySGD(Network* const _net,Profiler* const _prof,Settings& settings);
+
+  ~EntropySGD()
+  {
+      _myfree(_muW_eSGD);
+      _myfree(_muB_eSGD);
+  }
+  void update(Grads* const G, const int batchsize) override;
+  bool restart(const string fname) override;
+  void moveFrozenWeights(const Real _alpha) override;
+};
 /*
 class LMOptimizer: public Optimizer
 { //for now just Adam...

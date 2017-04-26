@@ -99,19 +99,19 @@ struct Glider
     const double piinv = 1/3.14159265359;
     const double CR = 3.14159265359;
 
-    //const double II  = 20.0;
-    //const double beta= 0.1;
-    const double II  = 3.; //we have to multiply *2 all moments by Anderson
-    const double beta= 0;
+    const double II  = 20.0;
+    const double beta= 0.1;
+    //const double II  = 3.; //we have to multiply *2 all moments by Anderson
+    //const double beta= 0;
 
-    double Jerk, oldDistance, oldAngle, oldEnergySpent, time; //angular jerk
+    double Jerk, oldDistance, oldTorque, oldAngle, oldEnergySpent, time; //angular jerk
     int info;
     Vec7 _s;
-    Glider(): Jerk(0), time(0), info(1), oldAngle(0),  oldEnergySpent(0), oldDistance(0) {}
+    Glider(): Jerk(0), time(0), info(1), oldAngle(0), oldTorque(0), oldEnergySpent(0), oldDistance(0) {}
 
     void reset()
     {
-      info=1; oldDistance=0; oldEnergySpent=0; Jerk=0; time=0;
+      info=1; oldDistance=0; oldEnergySpent=0; Jerk=0; time=0; oldTorque=0;
     }
 
     Vec7 D(const Vec7& s, const double t)
@@ -186,6 +186,7 @@ struct Glider
       _s.a = std::fmod( _s.a, 2*M_PI);
       _s.a = _s.a < 0 ? _s.a +2*M_PI : _s.a;
       oldAngle = _s.a;
+      oldTorque = _s.T;
     }
 };
 #ifdef __SMARTIES_
@@ -233,11 +234,25 @@ int main(int argc, const char * argv[])
         //const int k = 0; //agent ID, for now == 0
         for (auto& a : agents) { //assume we have only one agent per application for now...
             const double dist_gain = a.oldDistance - a.getDistance();
-	    const double rotation = std::fabs(a.oldAngle-a._s.a);
+            const double rotation = std::fabs(a.oldAngle-a._s.a);
+            const double jerk = std::fabs(a.oldTorque - a._s.T);
             const double performamce = a._s.E - a.oldEnergySpent + eps;
             //reward clipping: what are the proper scaled? TODO
             //const double reward=std::min(std::max(-1.,dist_gain/performamce),1.);
-            const double reward=dist_gain -rotation;// -performamce;
+#if 1
+            double reward = dist_gain;
+#else
+            double reward = dist_gain/performamce; //JUST NOPE
+#endif
+#if 0
+            reward -= rotation;
+#endif
+#if 1
+            reward -= performamce;
+#endif
+#if 1
+            reward -= jerk;       
+#endif
             a.updateOldDistanceAndEnergy();
             //load state:
             a.prepareState(state);
@@ -270,12 +285,23 @@ int main(int argc, const char * argv[])
                     double final_reward = 0;
                     //these rewards will then be multiplied by 1/(1-gamma)
                     //in RL algorithm, so that internal RL scales make sense
+#if 0
+                    final_reward += got_there ? 1 : -a.getDistance()/10.;
+                    final_reward += landing && got_there ? 1. : 0;
+#elif 1
                     final_reward += got_there ? 10 : -a.getDistance();
-                    final_reward += landing && got_there ? 10. : 0;
+                    final_reward += landing && got_there ? 10 : 0;
+#elif 0
+                    final_reward += got_there ? 100 : -a.getDistance();
+                    final_reward += landing && got_there ? 100 : 0;
+#endif
+
                     if(max_torque||way_too_far||wrong_xdir)
                         final_reward = -100;
                     a.prepareState(state);
-                    //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
+                    //printf("Sending term state %f %f %f %f\n",
+                    //state[0],state[1],state[2],state[3]); 
+                    //fflush(0);
                     comm.sendState(0, a.info, state, final_reward);
 
                     a.reset(); //set info back to 0

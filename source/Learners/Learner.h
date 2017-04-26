@@ -59,7 +59,7 @@ protected:
     int sampleTransitions(vector<int>& sequences, vector<int>& transitions);
     void dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs);
     void dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs) const;
-    void processStats(vector<trainData*> _stats, const Real avgTime);
+    virtual void processStats(vector<trainData*> _stats, const Real avgTime);
     virtual void updateTargetNetwork();
     virtual void stackAndUpdateNNWeights(const int nAddedGradients);
     virtual void updateNNWeights(const int nAddedGradients);
@@ -79,9 +79,19 @@ public:
     {
       //number that goes from 1 to 0 with optimizer's steps
       assert(epsAnneal>1.);
-	if(opt->nepoch >= epsAnneal) return 0;
-	else return 1 - opt->nepoch/epsAnneal;
+    	if(opt->nepoch >= epsAnneal) return 0;
+    	else return 1 - opt->nepoch/epsAnneal;
     }
+
+    inline Real annealedGamma() const
+    {
+      if (opt->nepoch>epsAnneal) return gamma;
+
+      const Real anneal = Real(opt->nepoch)/epsAnneal;
+      const Real fac = 1 + anneal*(1./(1-gamma) -1);
+      return 1 - 1./fac;
+    }
+
     inline Real sequenceR(const int t0, const int seq) const
     {
       Real R = 0, G = 1;
@@ -91,6 +101,16 @@ public:
         G *= gamma;
       }
       return R;
+    }
+
+    vector<Real> pickState(const vector<vector<Real>>& bins, int k)
+    {
+    	vector<Real> state(bins.size());
+    	for (int i=0; i<bins.size(); i++) {
+    		state[i] = bins[i][ k % bins[i].size() ];
+    		k /= bins[i].size();
+    	}
+    	return state;
     }
 
     virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;

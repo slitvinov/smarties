@@ -34,6 +34,7 @@ Master::Master(MPI_Comm _c, Learner*const _l, Environment*const _e, Settings&_s)
 void Master::restart(string fname)
 {
     learner->restart(fname);
+	if (fname == "none") return;
     FILE * f = fopen("master.status", "r");
     unsigned long iter_fake = 0;
     if (f == NULL) return;

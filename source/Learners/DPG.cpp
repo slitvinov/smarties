@@ -293,6 +293,7 @@ void DPG::updateTargetNetwork()
         cntUpdateDelay = tgtUpdateDelay;
 
         //2 options: either move tgt_wght = (1-a)*tgt_wght + a*wght
+	/*
         if (tgtUpdateDelay==0) {
             net->moveFrozenWeights(tgtUpdateAlpha);
             net_policy->moveFrozenWeights(tgtUpdateAlpha);
@@ -300,6 +301,9 @@ void DPG::updateTargetNetwork()
             net->updateFrozenWeights(); //or copy tgt_wghts = wghts
             net_policy->updateFrozenWeights(); //or copy tgt_wghts = wghts
         }
+	*/
+	opt->moveFrozenWeights(tgtUpdateAlpha);
+	opt_policy->moveFrozenWeights(tgtUpdateAlpha);
     }
 
     cntUpdateDelay--;

@@ -186,12 +186,15 @@ struct ActionInfo
 		//if action space is bounded, return the scaled component, else return unscaled
 		//scaling is between max and min of values vector (user specified in environment)
 		//scaling function is x/(1+abs(x)) (between -1 and 1 for x in -inf, inf)
-		Real ret = unscaled;
+		Real ret;
+		const Real min_a = getActMinVal(i);
+		const Real max_a = getActMaxVal(i);
+		assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
 		if (bounded[i]) {
-			const Real min_a = getActMinVal(i);
-			const Real max_a = getActMaxVal(i);
 			const Real soft_sign = unscaled/(1. + std::fabs(unscaled));
 			ret = min_a + 0.5*(max_a - min_a)*(soft_sign + 1);
+		} else {
+			ret = min_a + 0.5*(max_a - min_a)*(unscaled + 1);
 		}
 		return ret;
 	}
@@ -200,28 +203,24 @@ struct ActionInfo
 	{
 		//derivative of scaled action wrt to unscaled action, see getScaled()
 		Real ret = 1;
+		const Real min_a = getActMinVal(i);
+		const Real max_a = getActMaxVal(i);
 		if (bounded[i]) {
-			const Real min_a = getActMinVal(i);
-			const Real max_a = getActMaxVal(i);
 			const Real denom = 1. + std::fabs(unscaled);
 			ret = 0.5*(max_a-min_a)/denom/denom;
-    }
+    } else {
+			ret = 0.5*(max_a-min_a);
+		}
 		return ret;
 	}
 
 	inline vector<Real> getScaled(vector<Real> unscaled) const
 	{
 		//see per-component getScaled
-		vector<Real> ret = unscaled;
-		assert(ret.size()==dim);
-		for (int i=0; i<dim; i++)
-		if (bounded[i]) {
-			const Real min_a = getActMinVal(i);
-			const Real max_a = getActMaxVal(i);
-			assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
-			const Real soft_sign = unscaled[i]/(1. + std::fabs(unscaled[i]));
-			ret[i] = min_a + 0.5*(soft_sign + 1)*(max_a - min_a);
-		}
+		vector<Real> ret(dim);
+		assert(unscaled.size()==dim);
+		for (int i=0; i<dim; i++) ret[i] = getScaled(unscaled[i], i);
+
 		return ret;
 	}
 
@@ -230,16 +229,20 @@ struct ActionInfo
 		//opposite operation
 		vector<Real> ret = scaled;
 		assert(ret.size()==dim);
-		for (int i=0; i<dim; i++)
-		if (bounded[i]) {
-			const Real min_a = getActMinVal(i);
-			const Real max_a = getActMaxVal(i);
-			assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
-			assert(scaled[i]>min_a && scaled[i]<max_a);
-			const Real y = 2*(scaled[i] - min_a)/(max_a - min_a) -1;
-			assert(std::fabs(y) < 1);
-			ret[i] =  y/(1.-std::fabs(y));
+		for (int i=0; i<dim; i++) {
+				const Real min_a = getActMinVal(i);
+				const Real max_a = getActMaxVal(i);
+				assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
+				if (bounded[i]) {
+					assert(scaled[i]>min_a && scaled[i]<max_a);
+					const Real y = 2*(scaled[i] - min_a)/(max_a - min_a) -1;
+					assert(std::fabs(y) < 1);
+					ret[i] =  y/(1.-std::fabs(y));
+				} else {
+					ret[i] = 2*(scaled[i] - min_a)/(max_a - min_a) -1;
+				}
 		}
+
 		return ret;
 	}
 
@@ -308,8 +311,9 @@ struct ActionInfo
 	}
 	Real addedVariance(const Real i) const
 	{
-	    if (bounded[i]) return 1; //enough to sample sigmoid
-	    else return getActMaxVal(i) - getActMinVal(i);
+			return 1;
+	    //if (bounded[i]) return 1; //enough to sample sigmoid
+	    //else return getActMaxVal(i) - getActMinVal(i);
 	}
 };
 

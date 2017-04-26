@@ -8,7 +8,7 @@
  */
 
 #include "../StateAction.h"
-#include "RACER.h"
+#include "SACER.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,12 +18,10 @@
 #include <algorithm>
 #include <cmath>
 
-
-
-RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
+SACER::SACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2),
-delta(1), truncation(5), generators(settings.generators)
+delta(0.1), truncation(5), generators(settings.generators)
 {
 	printf("Running (R)ACER! Fancy banner here\n");
 	string lType = bRecurrent ? "LSTM" : "Normal";
@@ -47,9 +45,8 @@ delta(1), truncation(5), generators(settings.generators)
 	if (not env->predefinedNetwork(net))
 	{ //if that was true, environment created the layers it wanted, else we read the settings:
 		net->addInput(nInputs);
-#if 1
-		const int Nnets = 5;
-		const int outputs[Nnets] = {1,nL,nA,nA,nA};
+		const int Nnets = 4;
+		const int outputs[Nnets] = {1,nL,nA,nA};
 		const int nsplit = lsize.size()>3 ? 2 : 1;
 		for (int i=0; i<lsize.size()-nsplit; i++)
 			net->addLayer(lsize[i], lType);
@@ -66,20 +63,9 @@ delta(1), truncation(5), generators(settings.generators)
 
 			net->addOutput(outputs[i], "Normal");
 		}
-#else
-		const int Nnets = 5;
-		const int outputs[Nnets] = {1,nL,nA,nA,nA};
-		const vector<int> lastJointLayer(1,net->getLastLayerID());
-		for (int i=0; i<Nnets; i++) {
-			net->addLayer(lsize[0], lType, lastJointLayer);
-			for (int j=1; j<lsize.size(); j++)
-				net->addLayer(lsize[j], lType);
-			net->addOutput(outputs[i], "Normal");
-		}
-#endif
 	}
 	net->build();
-	assert(1+nL+3*nA == net->getnOutputs());
+	assert(1+nL+2*nA == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
 
 	opt = new AdamOptimizer(net, profiler, settings);
@@ -96,22 +82,15 @@ delta(1), truncation(5), generators(settings.generators)
 		uniform_real_distribution<Real> dis(-10,10);
 		act[i] = dis(*gen);
 	}
-   vector<Real> out_0_f = out_0;
-	prepareVariance(out_0_f);
 
-	vector<Real> polGrad = policyGradient(out_0_f, act, 1.0);
-   vector<Real> fullgrad(1+nL+3*nA);
-   for(int i=0;i<2*nA;i++) fullgrad[1+nL+i] = polGrad[i];
-   finalizeVarianceGrad(fullgrad, out_0_f);
-   for(int i=0;i<2*nA;i++) polGrad[i] = fullgrad[1+nL+i];
-	for(int i = 0; i<2*nA; i++) {
+	vector<Real> polGrad = policyGradient(out_0, act, 1.0);
+
+	for(int i = 0; i<nA; i++) {
 		vector<Real> grad_1(nOutputs), grad_2(nOutputs);
 		vector<Real> out_1 = out_0;
 		vector<Real> out_2 = out_0;
 		out_1[1+nL+i] -= 0.0001;
 		out_2[1+nL+i] += 0.0001;
-      prepareVariance(out_1);
-      prepareVariance(out_2);
 		const Real p1 = evaluateLogProbability(act, out_1);
 		const Real p2 = evaluateLogProbability(act, out_2);
 
@@ -119,7 +98,7 @@ delta(1), truncation(5), generators(settings.generators)
 		const Real diffi = (p2-p1)/0.0002;
 		printf("LogPol Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
 	}
-   out_0 = out_0_f;
+
 	vector<Real> grad_0 = computeGradient(1., 0., out_0, out_0, act, polGrad);
 	for(int i = 0; i<1+nL; i++) {
 		vector<Real> out_1 = out_0;
@@ -135,12 +114,12 @@ delta(1), truncation(5), generators(settings.generators)
 	for(int i = 0; i<nA; i++) {
 		vector<Real> out_1 = out_0;
 		vector<Real> out_2 = out_0;
-		out_1[1+nL+2*nA+i] -= 0.0001;
-		out_2[1+nL+2*nA+i] += 0.0001;
+		out_1[1+nL+nA+i] -= 0.0001;
+		out_2[1+nL+nA+i] += 0.0001;
 		const Real Q_1 = computeQ(act, out_0, out_1);
 		const Real Q_2 = computeQ(act, out_0, out_2);
-		const Real gradi = grad_0[1+nL+2*nA+i];
-		const Real diffi = (Q_2-Q_1)/0.0002;
+		const Real gradi = grad_0[1+nL+nA+i];
+		const Real diffi = (Q_2 - Q_1)/.0002;
 		printf("Value Gradient %d: finite differences %g analytic %g \n", i, diffi, gradi);
 	}
 
@@ -148,7 +127,7 @@ delta(1), truncation(5), generators(settings.generators)
 
 }
 
-void RACER::select(const int agentId, State& s, Action& a, State& sOld,
+void SACER::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
 	if (info == 2) { //no need for action, just pass terminal s & r
@@ -186,39 +165,40 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 	net->loadMemory(net->mem[agentId], currActivation);
 	_dispose_object(currActivation);
 	//variance is pos def: transform linear output layer with softplus
-	prepareVariance(output);
-
 
 	const Real eps = annealingFactor();
+	vector<Real> behavior(2*nA, 0);
 	if(bTrain && eps) {
 		for(int i=0; i<nA; i++) {
 			const Real varscale = aInfo.addedVariance(i);
-			const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
-			Real anneal_var = eps*varscale*greedyEps + policy_var;
+			Real anneal_var = eps*varscale*greedyEps + std;
 			//				anneal_var = anneal_var>varscale ? varscale : anneal_var;
 			const Real annealed_mean = (1-eps)*output[1+nL+i];
 			//const Real annealed_mean = output[1+nL+i];
 			std::normal_distribution<Real> dist_cur(annealed_mean, anneal_var);
-			output[1+nL+i] = annealed_mean; //to save correct mu
-			output[1+nL+nA+i] = 1./std::pow(anneal_var, 2); //to save correct mu
+			behavior[i] = annealed_mean; //to save correct mu
+			behavior[nA+i] = 1./std::pow(anneal_var, 2); //to save correct mu
 			a.vals[i] = dist_cur(*gen);
 		}
 	}
 	else if (greedyEps || bTrain) { //still want to sample policy.
 		for(int i=0; i<nA; i++) {
-			const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
-			std::normal_distribution<Real> dist_cur(output[1+nL+i], policy_var);
+			behavior[i] = output[1+nL+i]; //to save correct mu
+			behavior[nA+i] = precision; //to save correct mu
+			std::normal_distribution<Real> dist_cur(output[1+nL+i], std);
 			a.vals[i] = dist_cur(*gen);
 		}
 	}
 	else {//load computed policy into a
-		const vector<Real> pi(&output[1+nL], &output[1+nL]+nA);
-		a.set(pi);
+		for(int i=0; i<nA; i++) {
+			behavior[i] = output[1+nL+i]; //to save correct mu
+			behavior[nA+i] = precision; //to save correct mu
+			a.vals[i] = output[1+nL+i];
+		}
 	}
 
-	const vector<Real> mu(&output[1+nL], &output[1+nL]+2*nA);
 	finalizePolicy(a); //if bounded action space: scale
-	data->passData(agentId, info, sOld, a, mu, s, r);
+	data->passData(agentId, info, sOld, a, behavior, s, r);
 
 	/*
 			#ifdef _dumpNet_
@@ -229,7 +209,7 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 }
 
 /*
-void RACER::dumpNetworkInfo(const int agentId)
+void SACER::dumpNetworkInfo(const int agentId)
 {
 	net->dump(agentId);
 	vector<Real> output(nOutputs);
@@ -285,12 +265,12 @@ void RACER::dumpNetworkInfo(const int agentId)
 }
  */
 
-void RACER::Train(const int seq, const int samp, const int thrID) const
+void SACER::Train(const int seq, const int samp, const int thrID) const
 {
-	die("RACER only works by sampling entire trajectories.\n");
+	die("SACER only works by sampling entire trajectories.\n");
 }
 
-void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
+void SACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		const vector<int>& nbins)
 {
 	//a fail in any of these amounts to a big and fat TODO
@@ -318,20 +298,18 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		Activation* act = net->allocateActivation();
 		net->predict(data->standardize(state), output, act);
 		_dispose_object(act);
-		prepareVariance(output);
 		Vs[i] = output[0];
 		Pi[i] = aInfo.getScaled(output[1+nL], 0);
-		Co[i] = 1./std::sqrt(output[1+nL+nA]);
-		Mu[i] = aInfo.getScaled(output[1+nL+2*nA], 0);
-		vector<Real> dump(state.size()+4);
-		dump[0] = Vs[i]; dump[1] = Co[i]; dump[2] = Pi[i]; dump[3] = Mu[i];
-		for (int j=0; j<state.size(); j++) dump[j+4] = state[j];
+		Mu[i] = aInfo.getScaled(output[1+nL+nA], 0);
+		vector<Real> dump(state.size()+3);
+		dump[0] = Vs[i]; dump[1] = Pi[i]; dump[2] = Mu[i];
+		for (int j=0; j<state.size(); j++) dump[j+3] = state[j];
 		fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
 	}
 	fclose (pFile);
 }
 
-void RACER::Train_BPTT(const int seq, const int thrID) const
+void SACER::Train_BPTT(const int seq, const int thrID) const
 {
 	//this should go to gamma rather quick:
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
@@ -340,11 +318,11 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 	//const Real rGamma = gamma;
 	assert(net->allocatedFrozenWeights && bTrain);
 	const int ndata = data->Set[seq]->tuples.size();
-	vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*3,0));
-	vector<vector<Real>> out_hat(ndata-1, vector<Real>(1+nL+nA*3,0));
+	vector<vector<Real>> out_cur(ndata-1, vector<Real>(1+nL+nA*2,0));
+	vector<vector<Real>> out_hat(ndata-1, vector<Real>(1+nL+nA*2,0));
 	vector<Real> rho_cur(ndata-1), rho_pol(ndata-1);
 	vector<Real> rho_hat(ndata-1), c_hat(ndata-1);
-	//vector<Real> c_cur(ndata-1);
+	vector<Real> c_cur(ndata-1);
 	vector<vector<Real>> act(ndata-1, vector<Real>(nA,0));
 	vector<vector<Real>> pol(ndata-1, vector<Real>(nA,0));
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
@@ -357,13 +335,10 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
 		net->predict(scaledSold, out_cur[k], series_cur, k);
 		net->predict(scaledSold, out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
-		prepareVariance(out_cur[k]); //pass through softplus to make it pos def
-		prepareVariance(out_hat[k]); //grad correction in computeGradient
 
 		act[k] = aInfo.getInvScaled(_t->a); //needs to be unbounded action space
 		for(int i=0; i<nA; i++) { //sample current policy
-			const Real pol_var = 1./std::sqrt(out_cur[k][1+nL+nA+i]);
-			std::normal_distribution<Real> dist_cur(out_cur[k][1+nL+i], pol_var);
+			std::normal_distribution<Real> dist_cur(out_cur[k][1+nL+i], std);
 			pol[k][i] = dist_cur(generators[thrID]);
 		}
 
@@ -376,7 +351,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		rho_cur[k] = std::exp(std::min(9.,std::max(-32.,actProbOnPolicy-actProbBehavior)));
 		rho_pol[k] = std::exp(std::min(9.,std::max(-32.,polProbOnPolicy-polProbBehavior)));
 		rho_hat[k] = std::exp(std::min(9.,std::max(-32.,actProbOnTarget-actProbBehavior)));
-		//c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
+		c_cur[k] = std::min((Real)1.,std::pow(rho_cur[k],1./nA));
 		c_hat[k] = std::min((Real)1.,std::pow(rho_hat[k],1./nA));
 	}
 
@@ -406,8 +381,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		Q_OPC = t_->r + rGamma*Q_OPC;
 		//compute Q using tgt net for pi and C, for consistency of derivatives
 		//Q(s,a)                     v a	v policy    v quadratic Q parameters
-		const Real Q_cur = computeQ(act[k], out_hat[k], out_cur[k]);
-		const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
+		const Real Q_cur = computeQ(act[k], out_cur[k], out_cur[k]);
+		//const Real Q_hat = computeQ(act[k], out_hat[k], out_hat[k]);
 		const Real Q_pol = computeQ(pol[k], out_cur[k], out_cur[k]);
 		//compute quantities needed for trunc import sampl with bias correction
 		const Real importance = std::min(rho_cur[k], truncation);
@@ -427,10 +402,10 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const vector<Real> gradAcer = gradAcerTrpo(gradAcer_1,gradAcer_2,gradDivKL);
 
 		const Real Qerror = (Q_RET - Q_cur);
-		const Real Verror = (Q_RET - Q_cur)*std::min(1.,rho_hat[k]);//  //unclear usefulness
+		const Real Verror = (Q_RET - Q_cur)*std::min(1.,rho_cur[k]);//  //unclear usefulness
 		//prepare rolled Q with off policy corrections for next step:
-		Q_RET = c_hat[k]*1.*(Q_RET - Q_hat) + out_hat[k][0];
-		//Q_OPC = c_cur[k]*1.*(Q_OPC - Q_cur) + out_cur[k][0];
+		Q_RET = c_cur[k]*1.*(Q_RET - Q_cur) + out_cur[k][0];
+		//Q_OPC = c_hat[k]*1.*(Q_OPC - Q_hat) + out_hat[k][0];
 		Q_OPC = .5*(Q_OPC - Q_cur) + out_cur[k][0];
 
 		const vector<Real> grad = computeGradient(Qerror, Verror, out_cur[k], out_hat[k], act[k], gradAcer);
@@ -450,4 +425,16 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 	else net->backProp(series_cur, net->Vgrad[thrID]);
 	net->deallocateUnrolledActivations(&series_cur);
 	net->deallocateUnrolledActivations(&series_hat);
+}
+
+void SACER::processStats(vector<trainData*> _stats, const Real avgTime)
+{
+	std = 0.1 + annealingFactor();
+	variance = std*std;
+	precision = 1/variance;
+
+	setVecMean(meanGain1); setVecMean(meanGain2);
+	printf("Gain terms of policy grad means: [%f] [%f]\n",
+	meanGain1[0], meanGain2[0]);
+	Learner::processStats(_stats, avgTime);
 }

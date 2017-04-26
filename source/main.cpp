@@ -13,7 +13,9 @@
 #include "Learners/NAF.h"
 #include "Learners/DPG.h"
 #include "Learners/ACER.h"
+#include "Learners/SACER.h"
 #include "Learners/RACER.h"
+#include "Learners/CACER.h"
 #include "Learners/CRACER.h"
 #include "ObjectFactory.h"
 #include "Settings.h"
@@ -46,21 +48,35 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
       settings.nnOutputs = env->aI.maxLabel;
       return new NFQ(mastersComm, env, settings);
   }
+  else if (settings.learner == "SACER") {
+      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+      const int nA = env->aI.dim;
+      const int nL = (nA*nA+nA)/2;
+      settings.nnOutputs = 1+nL+2*nA;
+      settings.bSeparateOutputs = true; //else it does not really work
+      return new SACER(mastersComm, env, settings);
+  }
   else if (settings.learner == "RACER") {
       settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
       const int nA = env->aI.dim;
       const int nL = (nA*nA+nA)/2;
-      //settings.nnOutputs = 1+nL+3*nA;
       settings.nnOutputs = 1+nL+3*nA;
       settings.bSeparateOutputs = true; //else it does not really work
       return new RACER(mastersComm, env, settings);
+  }
+  else if (settings.learner == "CACER") {
+      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+      const int nA = env->aI.dim;
+      const int nL = (nA*nA+nA)/2;
+      settings.nnOutputs = 1+nL+2*nA+1;
+      settings.bSeparateOutputs = true; //else it does not really work
+      return new CACER(mastersComm, env, settings);
   }
   else if (settings.learner == "CRACER") {
       settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
       const int nA = env->aI.dim;
       const int nL = (nA*nA+nA)/2;
-      //settings.nnOutputs = 1+nL+3*nA;
-      settings.nnOutputs = 1+nL+3*nA;
+      settings.nnOutputs = 1+nL+3*nA+1;
       settings.bSeparateOutputs = true; //else it does not really work
       return new CRACER(mastersComm, env, settings);
   }
@@ -68,7 +84,6 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
       settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
       const int nA = env->aI.dim;
       const int nL = (nA*nA+nA)/2;
-      //settings.nnOutputs = 1+nL+3*nA;
       settings.nnOutputs = 1+nL+2*nA;
       settings.bSeparateOutputs = true; //else it does not really work
       return new ACER(mastersComm, env, settings);
@@ -206,7 +221,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
     Learner* learner = createLearner(mastersComm, env);
 
     Master master(slavesComm, learner, env, settings);
-    if (settings.restart != "none") master.restart(settings.restart);
+	master.restart(settings.restart);
     printf("nthreads %d\n",settings.nThreads); fflush(0);
 
 #if 1
@@ -257,7 +272,8 @@ int main (int argc, char** argv)
       {'p',"nThreads", INT,   "Number of threads on master ranks",&settings.nThreads,  (int)-1},
       {'I',"isServer", INT,   "Whether smarites launches apps or is launched by app (then cannot train)", &settings.isLauncher,  (int)1},
       {'P',"sockPrefix",INT,  "Number prefix for socket: >0 if launched by app", &settings.sockPrefix,  (int)-1},
-      {'H',"fileSamp", STRING,"Location of transitions log for restart",   &settings.samplesFile,(string)"obs_master.txt"}
+      {'H',"fileSamp", STRING,"Location of transitions log for restart",   &settings.samplesFile,(string)"obs_master.txt"},
+      {'R',"restart", STRING,"Location of policy file for restart",   &settings.restart,(string)"policy"}
     });
 
     int provided, rank, nranks;
