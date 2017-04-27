@@ -6,21 +6,26 @@ colors = [0 .447 .741; .85 .325 .098; .929 .694 .125; .494 .184 .556;
 %D = D.data;
 %plot_data(D, 0, colors(1,:), '--')
 %D=importdata('/Volumes/Apps/smarties/apps/CMA/orig_params_2/cma_perf_00.dat',' ',1);
-D=importdata('/Users/novatig/Desktop/euler/smarties/apps/CMA/cma_perf_NL.dat',' ',1);
+%D=importdata('/Users/novatig/Desktop/euler/smarties/apps/CMA/cma_perf_NL.dat',' ',1);
+D = importdata('~/mnt/euler/smarties/run_0/simulation_558960_0/cma_perf_00.dat',' ',1);
 D = D.data;
 plot_data(D, 0, colors(1,:), '.-')
 nD = size(D,1);
-%D1=importdata(['/Volumes/Apps/smarties/runs/CMA_naf_lambda_smallpenal_2'...
-D1=importdata(['/Users/novatig/Desktop/euler/smarties/apps/CMA/cma_perf_RL.dat'],' ',1);
-D = D1.data;
-D = D(end-nD:end,:);
-% D1=importdata('/Volumes/Apps/smarties/runs/CMA_naf_prod/simulation_1_259/cma_perf_00.dat',' ',1);
-% D = [D; D1.data];
-% D1=importdata('/Volumes/Apps/smarties/runs/CMA_naf_prod/simulation_1_260/cma_perf_00.dat',' ',1);
-% D = [D; D1.data];
-%D = D(floor(length(D)/2):end,:);
-plot_data(D, 1, colors(2,:), '-')
-% end
+
+% 
+% %D1=importdata(['/Volumes/Apps/smarties/runs/CMA_naf_lambda_smallpenal_2'...
+% D1=importdata(['/Users/novatig/Desktop/euler/smarties/apps/CMA/cma_perf_RL.dat'],' ',1);
+% D = D1.data;
+% D = D(end-nD:end,:);
+% % D1=importdata('/Volumes/Apps/smarties/runs/CMA_naf_prod/simulation_1_259/cma_perf_00.dat',' ',1);
+% % D = [D; D1.data];
+% % D1=importdata('/Volumes/Apps/smarties/runs/CMA_naf_prod/simulation_1_260/cma_perf_00.dat',' ',1);
+% % D = [D; D1.data];
+% %D = D(floor(length(D)/2):end,:);
+% plot_data(D, 1, colors(2,:), '-')
+% % end
+
+
 
 function plot_data(D, bHold, color, line)
 maxdim = max(D(:,1));
@@ -79,16 +84,24 @@ for i = 1:16
     else hold off
     end
     title(titles(i));
+    
     yyaxis left
-    errorbar(dims,avg_iter(i,2:10),std_iter(i,2:10),line,'Color',color)
-    hold on
-    yyaxis right
-    plot(dims, conv_prob(i,[2:10]),line,'Color',color)
-    yyaxis left
-    xlabel('Function dimensionality')
+    errorbar(dims,avg_iter(i,2:10),std_iter(i,2:10),line)
     ylabel('Number of iterations to convergence')
-
+    hold on
+ 
     yyaxis right
+    plot(dims, conv_prob(i,[2:10]),line)
     ylabel('P of finding optimum (up to 1e-3)')
+    
+    xlabel('Function dimensionality')
+    
+    grid on
+    
+    ax=gca;
+    ax.FontSize = 15;
+    
+    
+    
 end
 end
