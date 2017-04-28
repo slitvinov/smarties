@@ -19,7 +19,7 @@
 #include <cmath>
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
-PolicyAlgorithm(comm,_env,settings), delta(0.1), truncation(5)
+PolicyAlgorithm(comm,_env,settings, 0.1), truncation(5)
 {
 	#if defined __RELAX
 		// I output V(s), P(s), pol(s), prec(s) (and variate)
@@ -61,15 +61,16 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
 	vector<Real> output = basicNetOut(agentId, s, a, sOld, aOld, info, r);
-
+	if (output.size() == 0) return;
 	//variance is pos def: transform linear output layer with softplus
-	prepareVariance(output);
 
 	const vector<Real> mu = extractPolicy(output);
 	const vector<Real> prec = extractPrecision(output);
 	const vector<Real> var = extractVariance(output);
 
 	basicNetOut(a, mu, var);
+
+	data->passData(agentId, info, sOld, a, beta, s, r);
 }
 
 void RACER::Train(const int seq, const int samp, const int thrID) const
@@ -120,8 +121,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 
 	for (int k=ndata-2; k>=0; k--)
 	{
-		//const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains sOld
-		const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //this contains a, r, sNew
+		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains sOld, a
+		const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //this contains r, sNew
 		Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
 		Q_OPC = t_->r + rGamma*Q_OPC;
 		//get everybody camera ready:
@@ -133,7 +134,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const vector<Real> P_Hat = preparePmatrix(out_hat[k]);
 		//off policy stored action and on-policy sample:
 		const vector<Real> act = aInfo.getInvScaled(_t->a); //unbounded action space
-		const vector<Real> pol = samplePolicy(polCur, varCur);
+		const vector<Real> pol = samplePolicy(polCur, varCur, thrID);
 
 		#ifndef __RELAX
 			//location of max of quadratic Q
@@ -177,16 +178,18 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 
 		#ifdef __VARIATE
 			const Real cov_A_A = out_cur[k][nOutputs-1];
+			const vector<Real> smp = samplePolicy(polCur, varCur, thrID);
 			const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
-			const Real err_Cov = A_OPC*A_pol - cov_A_A;
-			const Real cotrolVar = A_pol;
+			const Real A_tgt = computeAdvantage(smp, polCur, varCur, P_Hat, mu_Hat);
+			const Real err_Cov = A_OPC*A_hat - cov_A_A;
+			const Real cotrolVar = A_tgt;
 			//const Real cotrolVar = nA+diagTerm(varCur,polCur,mu_Hat)
 			//												 -diagTerm(varCur,   pol,mu_Hat);
 
 			const Real eta = anneal*std::min(std::max(-.5, cov_A_A/varCritic), 0.5);
 			//const Real eta = 0;
 		#else
-			const Real eta = 0, cotrolVar = err_Cov = 0;
+			const Real eta = 0, cotrolVar = 0, err_Cov = 0;
 		#endif
 
 		//compute quantities needed for trunc import sampl with bias correction
@@ -278,7 +281,7 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 	}
 
 	FILE * pFile = fopen ("dump.txt", "ab");
-	vector<Real> output(nOutputs), dump(state.size()+4);
+	vector<Real> output(nOutputs), dump(nInputs+4);
 
 	for (int i=0; i<nDumpPoints; i++)
 	{
@@ -287,10 +290,10 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		net->predict(data->standardize(state), output, act);
 		_dispose_object(act);
 
-		vector<Real> mu = extractPolicy(out);
+		vector<Real> mu = extractPolicy(output);
 		int cnt = 0;
 		dump[cnt++] = output[0];
-		dump[cnt++] = aInfo.getScaled(mu, 0);
+		dump[cnt++] = aInfo.getScaled(mu[0], 0);
 
 		#ifndef __SAFE
 			vector<Real> var =  extractVariance(output);
@@ -301,9 +304,9 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 
 		#ifndef __RELAX
 			vector<Real> mean = extractQmean(output);
-			dump[cnt++] = aInfo.getScaled(mean, 0);
+			dump[cnt++] = aInfo.getScaled(mean[0], 0);
 		#else
-			dump[cnt++] = aInfo.getScaled(mean, 0);
+			dump[cnt++] = aInfo.getScaled(mean[0], 0);
 		#endif
 
 		for (int j=0; j<state.size(); j++) dump[cnt++] = state[j];

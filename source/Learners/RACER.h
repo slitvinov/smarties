@@ -22,7 +22,7 @@ using namespace std;
 
 class RACER : public PolicyAlgorithm
 {
-	const Real delta, truncation;
+	const Real truncation;
 	#ifdef __SAFE
 	//Real stdev = 0.1;
 	Real variance = 0.01;
@@ -31,14 +31,14 @@ class RACER : public PolicyAlgorithm
 
 	void Train_BPTT(const int seq, const int thrID=0) const override;
 	void Train(const int seq, const int samp, const int thrID=0) const override;
-	void processStats(vector<trainData*> _stats, const Real avgTime) override
+	void processStats(vector<trainData*> _stats, const Real avgTime) override;
 
 	vector<Real> basicNetOut(const int agentId, State& s, Action& a,
 		State& sOld, Action& aOld, const int info, Real r)
 	{
 		if (info == 2) { //no need for action, just pass terminal s & r
 			data->passData(agentId, info, sOld, a, vector<Real>(), s, r);
-			return;
+			return vector<Real>(0);
 		}
 
 		Activation* currActivation = net->allocateActivation();
@@ -119,7 +119,6 @@ class RACER : public PolicyAlgorithm
 		}
 
 		finalizePolicy(a); //if bounded action space: scale
-		data->passData(agentId, info, sOld, a, beta, s, r);
 	}
 
 public:
@@ -156,7 +155,7 @@ public:
 private:
 
 	inline vector<Real> finalizeGradient(const Real Qerror, const Real Verror,
-			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
+			vector<Real>& gradCritic, const vector<Real>& gradPolicy,
 			const vector<Real>& out, const Real err_Cov) const
 	{
 		assert(out.size() == nOutputs);

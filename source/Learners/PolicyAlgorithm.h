@@ -18,12 +18,13 @@ using namespace std;
 class PolicyAlgorithm : public Learner
 {
 protected:
+	const Real delta;
 	const int nA, nL;
 	std::vector<std::mt19937>& generators;
 
 public:
-	PolicyAlgorithm(MPI_Comm comm, Environment*const _env, Settings & settings) :
-	Learner(comm,_env,settings), nA(_env->aI.dim),
+	PolicyAlgorithm(MPI_Comm comm, Environment*const _env, Settings & settings
+	const Real _delta) : Learner(comm,_env,settings), nA(_env->aI.dim), delta(_delta),
 	nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
 	{}
 
@@ -56,10 +57,10 @@ protected:
 
 		#ifndef __SAFE //then if Qmean exists, it is always after Precision
 			assert(out.size()>=1+nL+3*nA);
-			return vector<Real>(&(output[1+nL+2*nA]),&(output[1+nL+2*nA])+nA);
+			return vector<Real>(&(out[1+nL+2*nA]),&(out[1+nL+2*nA])+nA);
 		#else //then there is no precision and it is after mean of policy
 			assert(out.size()>=1+nL+2*nA);
-			return vector<Real>(&(output[1+nL+1*nA]),&(output[1+nL+1*nA])+nA);
+			return vector<Real>(&(out[1+nL+1*nA]),&(out[1+nL+1*nA])+nA);
 		#endif
 	}
 
@@ -90,7 +91,7 @@ protected:
 
 	inline vector<Real> extractPolicy(const vector<Real>& out) const
 	{
-		return vector<Real>(&(output[1+nL]),&(output[1+nL])+nA);
+		return vector<Real>(&(out[1+nL]),&(out[1+nL])+nA);
 	}
 
 	inline Real evaluateLogBehavioralPolicy(const vector<Real>& a,
@@ -116,7 +117,7 @@ protected:
 		Real p = 0;
 		for(int i=0; i<nA; i++) {
 			assert(prec[i]>0);
-			p -= 0.5*prec[i]*(a[i]-mu[i])*(a[i]-mu[i]);
+			p -= 0.5*prec[i]*(act[i]-mu[i])*(act[i]-mu[i]);
 			p += 0.5*std::log(0.5*prec[i]/M_PI);
 		}
 		return p;
@@ -151,8 +152,8 @@ protected:
 			#endif
 
 			for(int i = 0; i<ncheck; i++) {
-				vector<Real> out_1 = out_0;
-				vector<Real> out_2 = out_0;
+				vector<Real> out_1 = out;
+				vector<Real> out_2 = out;
 				out_1[1+nL+i] -= 0.0001;
 				out_2[1+nL+i] += 0.0001;
 				vector<Real> mu_1 = extractPolicy(out_1);
@@ -175,35 +176,36 @@ protected:
 			vector<Real> cgrad = criticGradient(P, mu, var, out, mean, act);
 			for(int i = 1; i<1+nL; i++)
 			{
-					vector<Real> out_1 = out_0;
-					vector<Real> out_2 = out_0;
+					vector<Real> out_1 = out;
+					vector<Real> out_2 = out;
 					out_1[i] -= 0.0001;
 					out_2[i] += 0.0001;
 					vector<Real> P_1 = preparePmatrix(out_1);
 					vector<Real> P_2 = preparePmatrix(out_2);
-					const Real A_1 = computeAdvantage(act, pol, var, P_1, mean);
-					const Real A_2 = computeAdvantage(act, pol, var, P_2, mean);
+					const Real A_1 = computeAdvantage(act, mu, var, P_1, mean);
+					const Real A_2 = computeAdvantage(act, mu, var, P_2, mean);
 					printf("Value Gradient %d: finite differences %g analytic %g \n",
-					i, (A_2-A_1)/0.0002, grad_0[i]);
+					i, (A_2-A_1)/0.0002, cgrad[i]);
 			}
 			#ifndef __RELAX
 			for(int i = 0; i<nA; i++)
 			{
-					vector<Real> out_1 = out_0;
-					vector<Real> out_2 = out_0;
+					vector<Real> out_1 = out;
+					vector<Real> out_2 = out;
 					out_1[1+nL+2*nA+i] -= 0.0001;
 					out_2[1+nL+2*nA+i] += 0.0001;
 					vector<Real> mean_1 =  extractQmean(out);
 					vector<Real> mean_2 =  extractQmean(out);
-					const Real A_1 = computeAdvantage(act, pol, var, P, mean_1);
-					const Real A_2 = computeAdvantage(act, pol, var, P, mean_2);
+					const Real A_1 = computeAdvantage(act, mu, var, P, mean_1);
+					const Real A_2 = computeAdvantage(act, mu, var, P, mean_2);
 					printf("MeanAct Gradient %d: finite differences %g analytic %g \n",
-					i, (A_2-A_1)/0.0002, grad_0[1+nL+2*nA+i]);
+					i, (A_2-A_1)/0.0002, cgrad[1+nL+i]);
 			}
 			#endif
 	}
 
-	inline vector<Real> samplePolicy(const vector<Real>& pi, const vector<Real>& var) const
+	inline vector<Real> samplePolicy(const vector<Real>& pi,
+		const vector<Real>& var, const int thrID) const
 	{
 		assert(pi.size()==nA);
 		assert(var.size()==nA);
@@ -369,7 +371,7 @@ protected:
 	}
 
 	inline vector<Real> policyGradient(const vector<Real>& mu,
-		const vector<Real>& prec, const vector<Real>& a, const Real factor) const
+		const vector<Real>& prec, const vector<Real>& act, const Real factor) const
 	{
 		/*
 		this function returns the off policy corrected gradient
@@ -388,10 +390,10 @@ protected:
 
 		vector<Real> ret(2*nA);
 		for (int i=0; i<nA; i++) {
-			ret[i]    = factor*(a[i]-pi[i])*prec_cur[i];
+			ret[i]    = factor*(act[i]-mu[i])*prec[i];
 		}
 		for (int i=0; i<nA; i++) {
-			ret[i+nA] = factor*(.5/prec_cur[i] -0.5*pow(a[i]-pi[i],2));
+			ret[i+nA] = factor*(.5/prec[i] -0.5*pow(act[i]-mu[i],2));
 		}
 		return ret;
 	}
