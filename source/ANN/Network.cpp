@@ -645,7 +645,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         const Real scale = std::max(std::fabs(testG->_W[w]),
                                     std::fabs(testg->_W[w]));
         const Real err = (testG->_W[w] - testg->_W[w])/scale;
-        if (fabs(err)>tol || !testG->_W[w]) {
+        if (fabs(err)>tol || !nonZero(testG->_W[w])) {
         //if (1) {
 
               cout <<"W"<<w<<" analytical:"<<testG->_W[w]
@@ -684,7 +684,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         const Real scale = std::max(std::fabs(testG->_B[w]),
                                     std::fabs(testg->_B[w]));
         const Real err = (testG->_B[w] - testg->_B[w])/scale;
-        if (fabs(err)>tol || !testG->_B[w]) {
+        if (fabs(err)>tol || !nonZero(testG->_B[w])) {
         //if (1) {
 
               cout <<"B"<<w<<" analytical:"<<testG->_B[w]

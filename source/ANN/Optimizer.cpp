@@ -219,7 +219,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
     //const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
     const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
     const Real norm = 1./(Real)max(batchsize,1);
-    const Real lambda_ = _lambda*eta_;
+    //const Real lambda_ = _lambda*eta_;
 
 	#pragma omp parallel for
     for (int i=0; i<N; i++) {
@@ -336,7 +336,7 @@ void Optimizer::save(const string fname)
 bool EntropySGD::restart(const string fname)
 {
   const bool ret = AdamOptimizer::restart(fname);
-  if (!ret) return ret; 
+  if (!ret) return ret;
   for (int i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights[i];
   for (int i=0; i<nBiases; i++)  _muB_eSGD[i] = net->biases[i];
   return ret;
