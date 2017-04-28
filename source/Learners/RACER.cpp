@@ -82,7 +82,9 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 void RACER::Train_BPTT(const int seq, const int thrID) const
 {
 	//this should go to gamma rather quick:
+	#ifdef __VARIATE
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
+	#endif
 	const Real rGamma = annealedGamma();
 
 	assert(net->allocatedFrozenWeights && bTrain);
