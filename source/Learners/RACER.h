@@ -82,7 +82,7 @@ class RACER : public PolicyAlgorithm
 		return output;
 	}
 
-	void basicNetOut(Action& a, const vector<Real> mu, const vector<Real> var)
+	vector<Real> basicNetOut(Action& a, const vector<Real> mu, const vector<Real> var)
 	{
 		assert(mu.size()==nA);
 		assert(var.size()==nA);
@@ -119,6 +119,7 @@ class RACER : public PolicyAlgorithm
 		}
 
 		finalizePolicy(a); //if bounded action space: scale
+		return beta;
 	}
 
 public:
@@ -155,7 +156,7 @@ public:
 private:
 
 	inline vector<Real> finalizeGradient(const Real Qerror, const Real Verror,
-			vector<Real>& gradCritic, const vector<Real>& gradPolicy,
+			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
 			const vector<Real>& out, const Real err_Cov) const
 	{
 		assert(out.size() == nOutputs);
@@ -171,13 +172,14 @@ private:
 		for (int j=1; j<nL+1; j++)
 			grad[j] = Qerror*gradCritic[j];
 
+		for (int j=0; j<nA; j++)
+			grad[1+nL+j] = gradPolicy[j];
+
 		#ifndef __SAFE
-			finalizeVarianceGrad(gradPolicy, out);
-			for (int j=0; j<nA*2; j++)
-				grad[1+nL+j] = gradPolicy[j];
-		#else
+			const vector<Real> gradVar = finalizeVarianceGrad(gradPolicy, out);
 			for (int j=0; j<nA; j++)
-				grad[1+nL+j] = gradPolicy[j];
+				grad[1+nL+nA+j] = gradVar[j];
+		#else
 		#endif
 
 		#ifndef __RELAX
