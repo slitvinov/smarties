@@ -178,9 +178,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		#ifdef __VARIATE
 			const Real cov_A_A = out_cur[k][nOutputs-1];
 			const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
-			const Real A_tgt = computeAdvantage(pol, polCur, varCur, P_Hat, mu_Hat);
-			const Real err_Cov = A_OPC*A_tgt - cov_A_A;
-			const Real cotrolVar = A_tgt;
+			const Real err_Cov = A_OPC*A_pol - cov_A_A;
+			const Real cotrolVar = A_pol;
 			//const Real cotrolVar = nA+diagTerm(varCur,polCur,mu_Hat)
 			//												 -diagTerm(varCur,   pol,mu_Hat);
 
