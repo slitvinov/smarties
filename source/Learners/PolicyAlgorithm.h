@@ -89,7 +89,7 @@ protected:
 			//const Real ysq = out[1+nL+nA+j]*out[1+nL+nA+j];
 			//const Real diff = ysq/(ysq + 0.25);
 			const Real diff = .5*(1+x/std::sqrt(x*x+1.));
-			vargrad[j] = pgrad[1+nL+nA+j]*diff;
+			vargrad[j] = pgrad[nA+j]*diff;
 		}
 		return vargrad;
 	}
