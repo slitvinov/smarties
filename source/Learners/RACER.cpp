@@ -62,14 +62,15 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 {
 	vector<Real> output = basicNetOut(agentId, s, a, sOld, aOld, info, r);
 	if (output.size() == 0) return;
+	assert(output.size() == nOutputs);
 	//variance is pos def: transform linear output layer with softplus
 
 	const vector<Real> mu = extractPolicy(output);
 	const vector<Real> prec = extractPrecision(output);
 	const vector<Real> var = extractVariance(output);
 
-	basicNetOut(a, mu, var);
-
+	const vector<Real> beta = basicNetOut(a, mu, var);
+	assert(beta.size() == 2*nA);
 	data->passData(agentId, info, sOld, a, beta, s, r);
 }
 
@@ -132,14 +133,11 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		//pos def matrix for quadratic Q:
 		const vector<Real> P_Cur = preparePmatrix(out_cur[k]);
 		const vector<Real> P_Hat = preparePmatrix(out_hat[k]);
-		//off policy stored action and on-policy sample:
-		const vector<Real> act = aInfo.getInvScaled(_t->a); //unbounded action space
-		const vector<Real> pol = samplePolicy(polCur, varCur, thrID);
 
 		#ifndef __RELAX
 			//location of max of quadratic Q
-			const vector<Real> mu_Cur = extractQmax(out_cur[k]);
-			const vector<Real> mu_Hat = extractQmax(out_hat[k]);
+			const vector<Real> mu_Cur = extractQmean(out_cur[k]);
+			const vector<Real> mu_Hat = extractQmean(out_hat[k]);
 		#else
 			const vector<Real> mu_Cur = polCur;
 			const vector<Real> mu_Hat = polHat;
@@ -156,6 +154,9 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			const vector<Real> varCur = varHat = vector<Real>(nA, variance);
 		#endif
 
+		//off policy stored action and on-policy sample:
+		const vector<Real> act = aInfo.getInvScaled(_t->a); //unbounded action space
+		const vector<Real> pol = samplePolicy(polCur, varCur, thrID);
 
 		const Real actProbOnPolicy = evaluateLogProbability(act, polCur, preCur);
 		const Real polProbOnPolicy = evaluateLogProbability(pol, polCur, preCur);

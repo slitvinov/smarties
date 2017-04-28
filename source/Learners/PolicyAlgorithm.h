@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "Learner.h"=
+#include "Learner.h"
 #ifdef __out_Var
 #error Defined __out_Var
 #endif
@@ -23,8 +23,8 @@ protected:
 	std::vector<std::mt19937>& generators;
 
 public:
-	PolicyAlgorithm(MPI_Comm comm, Environment*const _env, Settings & settings
-	const Real _delta) : Learner(comm,_env,settings), nA(_env->aI.dim), delta(_delta),
+	PolicyAlgorithm(MPI_Comm comm, Environment*const _env, Settings & settings,
+	const Real _delta): Learner(comm,_env,settings),delta(_delta),nA(_env->aI.dim),
 	nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
 	{}
 
@@ -72,21 +72,23 @@ protected:
 			return ret;
 	}
 
-	inline void finalizeVarianceGrad(vector<Real>& pgrad, const vector<Real>& out) const
+	inline vector<Real> finalizeVarianceGrad(const vector<Real>& pgrad,
+		const vector<Real>& out) const
 	{
 		#ifdef __SAFE
 			die("Attempted to get variance grad from safe Racer\n");
 		#endif
-
+		vector<Real> vargrad(nA);
 		assert(out.size()>=1+nL+2*nA);
 		assert(pgrad.size()==2*nA);
 		for (int j=0; j<nA; j++) {
 			const Real x = out[1+nL+nA+j];
 			//const Real ysq = out[1+nL+nA+j]*out[1+nL+nA+j];
 			//const Real diff = ysq/(ysq + 0.25);
-			//pgrad[nA+j] *= diff;
-			pgrad[nA+j] *= .5*(1+x/std::sqrt(x*x+1.));
+			//vargrad[j] *= diff;
+			vargrad[j] *= .5*(1+x/std::sqrt(x*x+1.));
 		}
+		return vargrad;
 	}
 
 	inline vector<Real> extractPolicy(const vector<Real>& out) const
@@ -144,28 +146,34 @@ protected:
 			vector<Real> P = preparePmatrix(out);
 			vector<Real> polGrad = policyGradient(mu, prec, act, 1);
 
-			#ifndef __SAFE
-			finalizeVarianceGrad(polGrad, out);
-			const int ncheck = 2*nA;
-			#else
-			const int ncheck = nA;
-			#endif
-
-			for(int i = 0; i<ncheck; i++) {
+			for(int i = 0; i<nA; i++) {
 				vector<Real> out_1 = out;
 				vector<Real> out_2 = out;
 				out_1[1+nL+i] -= 0.0001;
 				out_2[1+nL+i] += 0.0001;
 				vector<Real> mu_1 = extractPolicy(out_1);
 				vector<Real> mu_2 = extractPolicy(out_2);
-				vector<Real> prec_1 = ncheck > nA ? extractPrecision(out_1) : prec;
-				vector<Real> prec_2 = ncheck > nA ? extractPrecision(out_2) : prec;
-				const Real p1 = evaluateLogProbability(act, mu_1, prec_1);
-			 	const Real p2 = evaluateLogProbability(act, mu_2, prec_2);
+				const Real p1 = evaluateLogProbability(act, mu_1, prec);
+			 	const Real p2 = evaluateLogProbability(act, mu_2, prec);
 				printf("LogPol Gradient %d: finite differences %g analytic %g \n",
 				i, (p2-p1)/0.0002, polGrad[i]);
 			}
 
+			#ifndef __SAFE
+			vector<Real> varGrad= finalizeVarianceGrad(polGrad, out);
+			for(int i = 0; i<nA; i++) {
+				vector<Real> out_1 = out;
+				vector<Real> out_2 = out;
+				out_1[1+nL+nA+i] -= 0.0001;
+				out_2[1+nL+nA+i] += 0.0001;
+				vector<Real> prec_1 = extractPrecision(out_1);
+				vector<Real> prec_2 = extractPrecision(out_2);
+				const Real p1 = evaluateLogProbability(act, mu, prec_1);
+			 	const Real p2 = evaluateLogProbability(act, mu, prec_2);
+				printf("LogPol Gradient %d: finite differences %g analytic %g \n",
+				i, (p2-p1)/0.0002, varGrad[i]);
+			}
+			#endif
 
 			#ifndef __RELAX
 			vector<Real> mean =  extractQmean(out);
