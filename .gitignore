@@ -46,6 +46,6 @@ Temporary Items
 test.dSYM
 *.dSYM
 
-launch/settings*
+launch/settings/*
 policies/*
 test_*
