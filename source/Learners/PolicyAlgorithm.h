@@ -158,7 +158,7 @@ protected:
 				vector<Real> mu_2 = extractPolicy(out_2);
 				const Real p1 = evaluateLogProbability(act, mu_1, prec);
 			 	const Real p2 = evaluateLogProbability(act, mu_2, prec);
-				printf("LogPol Gradient %d: finite differences %g analytic %g \n",
+				printf("LogPol mu Gradient %d: finite differences %g analytic %g \n",
 				i, (p2-p1)/0.0002, polGrad[i]);
 			}
 
@@ -173,7 +173,7 @@ protected:
 				vector<Real> prec_2 = extractPrecision(out_2);
 				const Real p1 = evaluateLogProbability(act, mu, prec_1);
 			 	const Real p2 = evaluateLogProbability(act, mu, prec_2);
-				printf("LogPol Gradient %d: finite differences %g analytic %g \n",
+				printf("LogPol var Gradient %d: finite differences %g analytic %g \n",
 				i, (p2-p1)/0.0002, varGrad[i]);
 			}
 			#endif
@@ -203,10 +203,15 @@ protected:
 			{
 					vector<Real> out_1 = out;
 					vector<Real> out_2 = out;
+					#ifndef __ACER_SAFE
 					out_1[1+nL+2*nA+i] -= 0.0001;
 					out_2[1+nL+2*nA+i] += 0.0001;
-					vector<Real> mean_1 =  extractQmean(out);
-					vector<Real> mean_2 =  extractQmean(out);
+					#else
+					out_1[1+nL+1*nA+i] -= 0.0001;
+					out_2[1+nL+2*nA+i] += 0.0001;
+					#endif
+					vector<Real> mean_1 = extractQmean(out_1);
+					vector<Real> mean_2 = extractQmean(out_2);
 					const Real A_1 = computeAdvantage(act, mu, var, P, mean_1);
 					const Real A_2 = computeAdvantage(act, mu, var, P, mean_2);
 					printf("MeanAct Gradient %d: finite differences %g analytic %g \n",
@@ -404,7 +409,7 @@ protected:
 			ret[i]    = factor*(act[i]-mu[i])*prec[i];
 		}
 		for (int i=0; i<nA; i++) {
-			ret[i+nA] = factor*(.5/prec[i] -0.5*pow(act[i]-mu[i],2));
+			ret[i+nA] = factor*(.5/prec[i] -0.5*(act[i]-mu[i])*(act[i]-mu[i]));
 		}
 		return ret;
 	}
