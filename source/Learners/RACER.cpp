@@ -179,6 +179,11 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const Real A_hat = computeAdvantage(act, polHat, varHat, P_Hat, mu_Hat);
 		const Real A_pol = computeAdvantage(pol, polCur, varCur, P_Hat, mu_Hat);
 
+		//compute quantities needed for trunc import sampl with bias correction
+		const Real importance = std::min(rho_cur, truncation);
+		const Real correction = std::max(0., 1.-truncation/rho_pol);
+		const Real A_OPC = Q_OPC - out_hat[k][0];
+
 		#ifdef __ACER_VARIATE
 			const Real cov_A_A = out_cur[k][nOutputs-1];
 			const vector<Real> smp = samplePolicy(polCur, varCur, thrID);
@@ -194,11 +199,6 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		#else
 			const Real eta = 0, cotrolVar = 0, err_Cov = 0;
 		#endif
-
-		//compute quantities needed for trunc import sampl with bias correction
-		const Real importance = std::min(rho_cur, truncation);
-		const Real correction = std::max(0., 1.-truncation/rho_pol);
-		const Real A_OPC = Q_OPC - out_hat[k][0];
 
 		//const Real gain1 = A_OPC * importance - eta * rho_cur * cotrolVar;
 		const Real gain1 = A_OPC * importance - eta * cotrolVar;
