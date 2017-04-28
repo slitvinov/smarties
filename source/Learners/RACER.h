@@ -273,6 +273,7 @@ private:
 				bins[i][j] = lower[i] + (upper[i]-lower[i])*l;
 			}
 		}
+		return bins;
 	}
 
 	void dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
