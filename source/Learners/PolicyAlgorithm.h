@@ -88,8 +88,8 @@ protected:
 			const Real x = out[1+nL+nA+j];
 			//const Real ysq = out[1+nL+nA+j]*out[1+nL+nA+j];
 			//const Real diff = ysq/(ysq + 0.25);
-			//vargrad[j] *= diff;
-			vargrad[j] *= .5*(1+x/std::sqrt(x*x+1.));
+			const Real diff = .5*(1+x/std::sqrt(x*x+1.));
+			vargrad[j] = pgrad[1+nL+nA+j]*diff;
 		}
 		return vargrad;
 	}
@@ -163,7 +163,7 @@ protected:
 			}
 
 			#ifndef __ACER_SAFE
-			vector<Real> varGrad= finalizeVarianceGrad(polGrad, out);
+			vector<Real> varGrad = finalizeVarianceGrad(polGrad, out);
 			for(int i = 0; i<nA; i++) {
 				vector<Real> out_1 = out;
 				vector<Real> out_2 = out;
