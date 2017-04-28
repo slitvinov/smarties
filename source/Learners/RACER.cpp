@@ -152,8 +152,10 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			const vector<Real> varCur = extractVariance(out_cur[k]);
 			const vector<Real> varHat = extractVariance(out_hat[k]);
 		#else
-			const vector<Real> preCur = preHat = vector<Real>(nA, precision);
-			const vector<Real> varCur = varHat = vector<Real>(nA, variance);
+			const vector<Real> preCur = vector<Real>(nA, precision);
+			const vector<Real> preHat = vector<Real>(nA, precision);
+			const vector<Real> varCur = vector<Real>(nA, variance);
+			const vector<Real> varHat = vector<Real>(nA, variance);
 		#endif
 
 		//off policy stored action and on-policy sample:
@@ -309,7 +311,7 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 			vector<Real> mean = extractQmean(output);
 			dump[cnt++] = aInfo.getScaled(mean[0], 0);
 		#else
-			dump[cnt++] = aInfo.getScaled(mean[0], 0);
+			dump[cnt++] = aInfo.getScaled(mu[0], 0);
 		#endif
 
 		for (int j=0; j<state.size(); j++) dump[cnt++] = state[j];

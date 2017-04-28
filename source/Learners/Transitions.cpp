@@ -603,7 +603,7 @@ void Transitions::updateSamples(const Real alpha)
     update_meanstd_needed = ndata!=old_ndata;
     old_ndata = ndata;
   }
-	update_meanstd_needed = update_meanstd_needed && alpha;
+	update_meanstd_needed = update_meanstd_needed && positive(alpha);
   if(syncBoolOr(update_meanstd_needed))
     update_samples_mean(alpha);
 
