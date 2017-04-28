@@ -560,9 +560,12 @@ void Transitions::synchronize()
 
   iOldestSaved = 0;
   #endif
-
+   int cnt =0;
   int nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
-  for(auto & bufTransition : Buffered) {
+//  for(auto & bufTransition : Buffered) {
+   for(int i=bufferSize-1; i>=0; i--) {
+      cnt++;
+      auto bufTransition = Buffered[i];
       const int ind = iOldestSaved++;
       iOldestSaved = (iOldestSaved >= maxTotSeqNum) ? 0 : iOldestSaved;
 
@@ -576,11 +579,12 @@ void Transitions::synchronize()
       nTransitions += bufTransition->tuples.size()-1;
       if (not bufTransition->ended) ++nBroken;
       Set[ind] = bufTransition;
+      Buffered.pop_back();
+      if(cnt==10) break;
   } //number of sequences remains constant
   printf("Removing %lu sequences (avg length %f) associated with small MSE"
     "error in favor of new ones (avg lendth %f)\n", Buffered.size(),
-    nTransitionsDeleted/(Real)bufferSize, nTransitionsInBuf/(Real)bufferSize);
-  Buffered.resize(0); //no clear?
+    nTransitionsDeleted/(Real)cnt, nTransitionsInBuf/(Real)cnt);
 }
 
 void Transitions::updateSamples(const Real alpha)
