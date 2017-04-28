@@ -12,11 +12,7 @@
 #include "Learners/NFQ.h"
 #include "Learners/NAF.h"
 #include "Learners/DPG.h"
-#include "Learners/ACER.h"
-#include "Learners/SACER.h"
 #include "Learners/RACER.h"
-#include "Learners/CACER.h"
-#include "Learners/CRACER.h"
 #include "ObjectFactory.h"
 #include "Settings.h"
 #include "Scheduler.h"
@@ -48,45 +44,13 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
       settings.nnOutputs = env->aI.maxLabel;
       return new NFQ(mastersComm, env, settings);
   }
-  else if (settings.learner == "SACER") {
-      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-      const int nA = env->aI.dim;
-      const int nL = (nA*nA+nA)/2;
-      settings.nnOutputs = 1+nL+2*nA;
-      settings.bSeparateOutputs = true; //else it does not really work
-      return new SACER(mastersComm, env, settings);
-  }
   else if (settings.learner == "RACER") {
       settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
       const int nA = env->aI.dim;
       const int nL = (nA*nA+nA)/2;
-      settings.nnOutputs = 1+nL+3*nA;
+      settings.nnOutputs = RACER::getnOutputs(nL, nA);
       settings.bSeparateOutputs = true; //else it does not really work
       return new RACER(mastersComm, env, settings);
-  }
-  else if (settings.learner == "CACER") {
-      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-      const int nA = env->aI.dim;
-      const int nL = (nA*nA+nA)/2;
-      settings.nnOutputs = 1+nL+2*nA+1;
-      settings.bSeparateOutputs = true; //else it does not really work
-      return new CACER(mastersComm, env, settings);
-  }
-  else if (settings.learner == "CRACER") {
-      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-      const int nA = env->aI.dim;
-      const int nL = (nA*nA+nA)/2;
-      settings.nnOutputs = 1+nL+3*nA+1;
-      settings.bSeparateOutputs = true; //else it does not really work
-      return new CRACER(mastersComm, env, settings);
-  }
-  else if (settings.learner == "ACER") {
-      settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-      const int nA = env->aI.dim;
-      const int nL = (nA*nA+nA)/2;
-      settings.nnOutputs = 1+nL+2*nA;
-      settings.bSeparateOutputs = true; //else it does not really work
-      return new ACER(mastersComm, env, settings);
   }
   else if (settings.learner == "NA" || settings.learner == "NAF") {
       settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
