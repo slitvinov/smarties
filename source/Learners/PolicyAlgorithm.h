@@ -198,6 +198,7 @@ protected:
 					printf("Value Gradient %d: finite differences %g analytic %g \n",
 					i, (A_2-A_1)/0.0002, cgrad[i]);
 			}
+
 			#ifndef __ACER_RELAX
 			for(int i = 0; i<nA; i++)
 			{
@@ -208,7 +209,7 @@ protected:
 					out_2[1+nL+2*nA+i] += 0.0001;
 					#else
 					out_1[1+nL+1*nA+i] -= 0.0001;
-					out_2[1+nL+2*nA+i] += 0.0001;
+					out_2[1+nL+1*nA+i] += 0.0001;
 					#endif
 					vector<Real> mean_1 = extractQmean(out_1);
 					vector<Real> mean_2 = extractQmean(out_2);
