@@ -56,6 +56,16 @@ inline string printVec(const vector<T> vals)
   return o.str();
 }
 
+inline bool nonZero(const Real vals)
+{
+  return std::fabs(vals) > std::numeric_limits<Real>::epsilon();
+}
+
+inline bool positive(const Real vals)
+{
+  return vals > std::numeric_limits<Real>::epsilon();
+}
+
 inline void setVecMean(vector<Real>& vals)
 {
 	Real mean = 0;

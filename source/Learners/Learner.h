@@ -86,10 +86,10 @@ public:
     inline Real annealedGamma() const
     {
       if (opt->nepoch>epsAnneal) return gamma;
-
       const Real anneal = Real(opt->nepoch)/epsAnneal;
-      const Real fac = 1 + anneal*(1./(1-gamma) -1);
-      return 1 - 1./fac;
+      //const Real fac = 1 + anneal*(1./(1-gamma) -1);
+      //return 1 - 1./fac;
+      return anneal*gamma;
     }
 
     inline Real sequenceR(const int t0, const int seq) const
@@ -103,7 +103,7 @@ public:
       return R;
     }
 
-    vector<Real> pickState(const vector<vector<Real>>& bins, int k)
+    inline vector<Real> pickState(const vector<vector<Real>>& bins, int k)
     {
     	vector<Real> state(bins.size());
     	for (int i=0; i<bins.size(); i++) {
