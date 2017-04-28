@@ -13,7 +13,10 @@
 #ifdef __out_Var
 #error Defined __out_Var
 #endif
-using namespace std;
+#ifdef __ACER_VARIATE
+#define __A_ACER_VARIATE
+//#define __I_VARIATE
+#endif
 
 class PolicyAlgorithm : public Learner
 {
@@ -36,7 +39,7 @@ protected:
 	inline vector<Real> extractPrecision(const vector<Real>& out) const
 	{
 		//if it exists, it is always after guassian mean
-		#ifdef __SAFE
+		#ifdef __ACER_SAFE
 			die("Attempted to extract Precision from safe Racer\n");
 		#endif
 
@@ -51,11 +54,11 @@ protected:
 
 	inline vector<Real> extractQmean(const vector<Real>& out) const
 	{
-		#ifdef __RELAX
+		#ifdef __ACER_RELAX
 			die("Attempted to extract Precision from relaxed Racer\n");
 		#endif
 
-		#ifndef __SAFE //then if Qmean exists, it is always after Precision
+		#ifndef __ACER_SAFE //then if Qmean exists, it is always after Precision
 			assert(out.size()>=1+nL+3*nA);
 			return vector<Real>(&(out[1+nL+2*nA]),&(out[1+nL+2*nA])+nA);
 		#else //then there is no precision and it is after mean of policy
@@ -75,7 +78,7 @@ protected:
 	inline vector<Real> finalizeVarianceGrad(const vector<Real>& pgrad,
 		const vector<Real>& out) const
 	{
-		#ifdef __SAFE
+		#ifdef __ACER_SAFE
 			die("Attempted to get variance grad from safe Racer\n");
 		#endif
 		vector<Real> vargrad(nA);
@@ -135,7 +138,7 @@ protected:
 			for(int i = 0; i<nA; i++) act[i] = act_dis(*gen);
 
 			vector<Real> mu = extractPolicy(out);
-			#ifndef __SAFE
+			#ifndef __ACER_SAFE
 				vector<Real> var = extractVariance(out);
 				vector<Real> prec = extractPrecision(out);
 			#else
@@ -159,7 +162,7 @@ protected:
 				i, (p2-p1)/0.0002, polGrad[i]);
 			}
 
-			#ifndef __SAFE
+			#ifndef __ACER_SAFE
 			vector<Real> varGrad= finalizeVarianceGrad(polGrad, out);
 			for(int i = 0; i<nA; i++) {
 				vector<Real> out_1 = out;
@@ -175,7 +178,7 @@ protected:
 			}
 			#endif
 
-			#ifndef __RELAX
+			#ifndef __ACER_RELAX
 			vector<Real> mean =  extractQmean(out);
 			#else
 			vector<Real> mean =  mu;
@@ -195,7 +198,7 @@ protected:
 					printf("Value Gradient %d: finite differences %g analytic %g \n",
 					i, (A_2-A_1)/0.0002, cgrad[i]);
 			}
-			#ifndef __RELAX
+			#ifndef __ACER_RELAX
 			for(int i = 0; i<nA; i++)
 			{
 					vector<Real> out_1 = out;
@@ -277,7 +280,7 @@ protected:
 		for (int j=0; j<nA; j++)
 			for (int i=0; i<nA; i++) {
 				ret += (pol[j]-mean[j])*(pol[i]-mean[i])*PvarP[nA*j+i];
-				#ifdef __RELAX
+				#ifdef __ACER_RELAX
 					assert(std::fabs(pol[i]-mean[i]) < 2.2e-16);
 				#endif
 			}
@@ -421,7 +424,7 @@ protected:
 		 */
 		Real expectation = quadraticTerm(P, mean, pol);
 			assert(expectation > 0); //must be pos def
-		#ifdef __RELAX
+		#ifdef __ACER_RELAX
 			assert(std::fabs(expectation) < 2.2e-16);
 		#endif
 		for(int i=0; i<nA; i++) expectation += P[nA*i+i]*var[i];
@@ -455,7 +458,7 @@ protected:
 	{
 		assert(out.size()>=1+nL+nA);
 		vector<Real> _L(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _m(nA);
-		#ifndef __RELAX
+		#ifndef __ACER_RELAX
 			vector<Real> grad(1+nL+nA, 0);
 		#else
 			vector<Real> grad(1+nL, 0);
@@ -465,7 +468,7 @@ protected:
 		for (int j=0; j<nA; j++) {
 			_u[j] = act[j] - mean[j];
 			_m[j] = pol[j] - mean[j];
-			#ifdef __RELAX
+			#ifdef __ACER_RELAX
 				assert(std::fabs(_m[j]) < 2.2e-16);
 			#endif
 
@@ -508,7 +511,7 @@ protected:
 				grad[1+il] += 0.5*_dPdl[nA*i+i]*var[i];
 		}
 
-		#ifndef __RELAX
+		#ifndef __ACER_RELAX
 		for (int ia=0; ia<nA; ia++)
 			for (int i=0; i<nA; i++)
 				grad[1+nL+ia] += P[nA*ia+i]*(_u[i]-_m[i]);
@@ -542,7 +545,7 @@ protected:
 
 		for (int j=0; j<nA; j++)
 			for (int i=0; i<nA; i++) {
-				#ifdef __RELAX //then Qmean and pol must be the same
+				#ifdef __ACER_RELAX //then Qmean and pol must be the same
 					assert(std::fabs(mean[i]-pol[i]) < 2.2e-16);
 				#endif
 				gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);

@@ -10,20 +10,13 @@
 #pragma once
 
 #include "PolicyAlgorithm.h"
-#ifdef __VARIATE
-#define __A_VARIATE
-//#define __I_VARIATE
-#endif
-#ifdef __out_Var
-#warn Defined __out_Var
-#endif
 
 using namespace std;
 
 class RACER : public PolicyAlgorithm
 {
 	const Real truncation;
-	#ifdef __SAFE
+	#ifdef __ACER_SAFE
 	//Real stdev = 0.1;
 	Real variance = 0.01;
 	Real precision = 100;
@@ -129,23 +122,23 @@ public:
 
 	static int getnOutputs(const int NL, const int NA)
 	{
-		#if defined __RELAX
+		#if defined __ACER_RELAX
 			// I output V(s), P(s), pol(s), prec(s) (and variate)
-			#ifdef __VARIATE
+			#ifdef __ACER_VARIATE
 				return 1+NL+NA+NA+1;
 			#else
 				return 1+NL+NA+NA;
 			#endif
-		#elif defined __SAFE
+		#elif defined __ACER_SAFE
 			// I output V(s), P(s), pol(s), mu(s) (and variate)
-			#ifdef __VARIATE
+			#ifdef __ACER_VARIATE
 				return 1+NL+NA+NA+1;
 			#else
 				return 1+NL+NA+NA;
 			#endif
 		#else //full formulation
 			// I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
-			#ifdef __VARIATE
+			#ifdef __ACER_VARIATE
 				return 1+NL+NA+NA+NA+1;
 			#else
 				return 1+NL+NA+NA+NA;
@@ -162,7 +155,7 @@ private:
 		assert(out.size() == nOutputs);
 		assert(gradPolicy.size() == 2*nA); //no matter what
 		vector<Real> grad(nOutputs);
-		#if defined __RELAX
+		#if defined __ACER_RELAX
 			assert(gradCritic.size() == 1+nL);
 		#else
 			assert(gradCritic.size() == 1+nL+nA);
@@ -175,15 +168,15 @@ private:
 		for (int j=0; j<nA; j++)
 			grad[1+nL+j] = gradPolicy[j];
 
-		#ifndef __SAFE
+		#ifndef __ACER_SAFE
 			const vector<Real> gradVar = finalizeVarianceGrad(gradPolicy, out);
 			for (int j=0; j<nA; j++)
 				grad[1+nL+nA+j] = gradVar[j];
 		#else
 		#endif
 
-		#ifndef __RELAX
-			#ifndef __SAFE
+		#ifndef __ACER_RELAX
+			#ifndef __ACER_SAFE
 				for (int j=nL+1; j<nA+nL+1; j++)
 					grad[j+nA*2] = Qerror*gradCritic[j];
 			#else
@@ -194,7 +187,7 @@ private:
 			//no gradient for mean of critic, ofc
 		#endif
 
-		#ifdef __VARIATE
+		#ifdef __ACER_VARIATE
 			grad[nOutputs-1] = err_Cov;
 		#endif
 
