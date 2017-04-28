@@ -155,7 +155,7 @@ private:
 		assert(out.size() == nOutputs);
 		assert(gradPolicy.size() == 2*nA); //no matter what
 		vector<Real> grad(nOutputs);
-		#if defined __ACER_RELAX
+		#ifdef __ACER_RELAX
 			assert(gradCritic.size() == 1+nL);
 		#else
 			assert(gradCritic.size() == 1+nL+nA);
@@ -172,7 +172,6 @@ private:
 			const vector<Real> gradVar = finalizeVarianceGrad(gradPolicy, out);
 			for (int j=0; j<nA; j++)
 				grad[1+nL+nA+j] = gradVar[j];
-		#else
 		#endif
 
 		#ifndef __ACER_RELAX

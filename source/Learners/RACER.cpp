@@ -196,12 +196,13 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			const vector<Real> smp = samplePolicy(polCur, varCur, thrID);
 			const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
 			const Real A_tgt = computeAdvantage(smp, polCur, varCur, P_Hat, mu_Hat);
-			const Real err_Cov = A_OPC*A_hat - cov_A_A;
+			const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
+			const Real err_Cov = A_OPC*A_cov - cov_A_A;
 			const Real cotrolVar = A_tgt;
 			//const Real cotrolVar = nA+diagTerm(varCur,polCur,mu_Hat)
 			//												 -diagTerm(varCur,   pol,mu_Hat);
 
-			const Real eta = anneal*std::min(std::max(-.5, cov_A_A/varCritic), 0.5);
+			const Real eta = anneal*std::min(std::max(-.1, cov_A_A/varCritic), 0.1);
 			//const Real eta = 0;
 		#else
 			const Real eta = 0, cotrolVar = 0, err_Cov = 0;
