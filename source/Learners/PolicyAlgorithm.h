@@ -179,9 +179,9 @@ protected:
 			#endif
 
 			#ifndef __ACER_RELAX
-			vector<Real> mean =  extractQmean(out);
+			vector<Real> mean = extractQmean(out);
 			#else
-			vector<Real> mean =  mu;
+			vector<Real> mean = mu;
 			#endif
 
 			vector<Real> cgrad = criticGradient(P, mu, var, out, mean, act);
@@ -429,7 +429,7 @@ protected:
 		which is equal to trace[(-0.5*P) * Sigma] (since E(a-pi)=0)
 		 */
 		Real expectation = quadraticTerm(P, mean, pol);
-			assert(expectation > 0); //must be pos def
+			assert(expectation > -2.2e-16); //must be pos def
 		#ifdef __ACER_RELAX
 			assert(std::fabs(expectation) < 2.2e-16);
 		#endif
