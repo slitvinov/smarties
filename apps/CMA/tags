@@ -5,42 +5,44 @@
 !_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
 !_TAG_PROGRAM_VERSION	5.8	//
 .DEFAULT_GOAL	Makefile	/^.DEFAULT_GOAL := engine_cmaes$/;"	m
-ACKLEY	fitfun.c	/^	ACKLEY,  \/* [-32.768, 32.768]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7	file:
+ACKLEY	fitfun.h	/^	ACKLEY,  \/* [-32.768, 32.768]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7
 Adapt_C2	cmaes.c	/^Adapt_C2(cmaes_t * const t, int hsig)$/;"	f	file:
 B	cmaes.h	/^  double **B;  \/* matrix with normalize eigenvectors in columns *\/$/;"	m	struct:__anon6
 C	cmaes.h	/^  double **C;  \/* lower triangular matrix: i>=j for C[i][j] *\/$/;"	m	struct:__anon6
 CC	Makefile	/^CC = gcc$/;"	m
+CMAES_LEARN_H	cmaes_learn.h	5;"	d
 COM_DIR	Makefile	/^COM_DIR = ..\/..\/source\/$/;"	m
 CPP	Makefile	/^CPP = g++$/;"	m
 Check_Eigen	cmaes.c	/^Check_Eigen( int N,  double ** const C, double * const diag, double ** const Q)$/;"	f	file:
-DIXON_PRICE	fitfun.c	/^	DIXON_PRICE,  \/* [-10, 10]; f(x*) = 0, x*[i] = pow(2, -1.+1.\/pow(2, i)) *\/$/;"	e	enum:__anon7	file:
+DIXON_PRICE	fitfun.h	/^	DIXON_PRICE,  \/* [-10, 10]; f(x*) = 0, x*[i] = pow(2, -1.+1.\/pow(2, i)) *\/$/;"	e	enum:__anon7
 ERRORMESSAGE	cmaes.c	/^	static void ERRORMESSAGE( char const *s1, char const *s2,$/;"	f	file:
 Eigen	cmaes.c	/^Eigen( int N,  double ** const C, double* const diag, double ** const  Q, double * const rgtmp)$/;"	f	file:
 FATAL	cmaes.c	/^		FATAL(char const *s1, char const *s2, char const *s3,$/;"	f	file:
-GRIEWANK	fitfun.c	/^	GRIEWANK,  \/* [-600, 600]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7	file:
+FITFUN_H	fitfun.h	3;"	d
+GRIEWANK	fitfun.h	/^	GRIEWANK,  \/* [-600, 600]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7
 Householder2	cmaes.c	/^		Householder2(int n, double ** const V, double * const d, double * const e) {$/;"	f	file:
 JOBMAXTIME	cmaes_learn.cpp	16;"	d	file:
 JOBMAXTIME	engine_cmaes.cpp	26;"	d	file:
 JOBMAXTIME	engine_cmaes_omp.cpp	22;"	d	file:
-LEVY	fitfun.c	/^	LEVY,  \/* [-10, 10]; f(x*) = 0, x*[i] = 1 *\/$/;"	e	enum:__anon7	file:
+LEVY	fitfun.h	/^	LEVY,  \/* [-10, 10]; f(x*) = 0, x*[i] = 1 *\/$/;"	e	enum:__anon7
 MaxIdx	cmaes.c	/^		MaxIdx( const double *rgd, int len)$/;"	f	file:
 MinIdx	cmaes.c	/^		MinIdx( const double *rgd, int len)$/;"	f	file:
 N	cmaes.h	/^  int N; \/* problem dimension, must stay constant, should be unsigned or long? *\/$/;"	m	struct:__anon3
 NH_cmaes_h	cmaes.h	16;"	d
 OBJ_FILES	Makefile	/^OBJ_FILES =    cmaes.o$/;"	m
-OBJ_FILES_PP	Makefile	/^OBJ_FILES_PP = engine_cmaes.o cmaes_learn.o Communicator.o$/;"	m
-PERM	fitfun.c	/^	PERM,  \/* [-N, N]; f(x*) = 0, x*[i] = i+1. *\/$/;"	e	enum:__anon7	file:
-PERM0	fitfun.c	/^	PERM0,  \/* [-N, N]; f(x*) = 0, x*[i] = 1.\/(i+1.) *\/$/;"	e	enum:__anon7	file:
+OBJ_FILES_PP	Makefile	/^OBJ_FILES_PP = engine_cmaes.o cmaes_learn.o fitfun.o Communicator.o$/;"	m
+PERM	fitfun.h	/^	PERM,  \/* [-N, N]; f(x*) = 0, x*[i] = i+1. *\/$/;"	e	enum:__anon7
+PERM0	fitfun.h	/^	PERM0,  \/* [-N, N]; f(x*) = 0, x*[i] = 1.\/(i+1.) *\/$/;"	e	enum:__anon7
 QLalgo2	cmaes.c	/^QLalgo2 (int n, double* const d, double* const e, double ** const V) {$/;"	f	file:
-RASTRIGIN	fitfun.c	/^	RASTRIGIN,  \/* [-5.12, 5.12]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7	file:
-ROSENBROCK	fitfun.c	/^	ROSENBROCK,  \/* [-5, 10]; f(x*) = 0, x*[i] = 1 *\/$/;"	e	enum:__anon7	file:
-ROTATED_HYPER_ELLIPSOID	fitfun.c	/^	ROTATED_HYPER_ELLIPSOID,  \/* [-65.536, 65.536]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7	file:
-SCHWEFEL	fitfun.c	/^	SCHWEFEL,  \/* [-500, 500]; f(x*) = 0, x*[i] = 420.9687 *\/$/;"	e	enum:__anon7	file:
-SPHERE	fitfun.c	/^	SPHERE,  \/* [-5.12, 5.12]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7	file:
+RASTRIGIN	fitfun.h	/^	RASTRIGIN,  \/* [-5.12, 5.12]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7
+ROSENBROCK	fitfun.h	/^	ROSENBROCK,  \/* [-5, 10]; f(x*) = 0, x*[i] = 1 *\/$/;"	e	enum:__anon7
+ROTATED_HYPER_ELLIPSOID	fitfun.h	/^	ROTATED_HYPER_ELLIPSOID,  \/* [-65.536, 65.536]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7
+SCHWEFEL	fitfun.h	/^	SCHWEFEL,  \/* [-500, 500]; f(x*) = 0, x*[i] = 420.9687 *\/$/;"	e	enum:__anon7
+SPHERE	fitfun.h	/^	SPHERE,  \/* [-5.12, 5.12]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7
 SRC_DIR	Makefile	/^SRC_DIR = .\/$/;"	m
-STYBLINSKI_TANG	fitfun.c	/^	STYBLINSKI_TANG,  \/* [-5, 5]; f(x*) = 0, x*[i] = -2.903534 *\/$/;"	e	enum:__anon7	file:
-SUM_OF_POWER	fitfun.c	/^	SUM_OF_POWER,  \/* [-1, 1]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7	file:
-SUM_OF_SQUARES	fitfun.c	/^	SUM_OF_SQUARES, \/* [-10, 10]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7	file:
+STYBLINSKI_TANG	fitfun.h	/^	STYBLINSKI_TANG,  \/* [-5, 5]; f(x*) = 0, x*[i] = -2.903534 *\/$/;"	e	enum:__anon7
+SUM_OF_POWER	fitfun.h	/^	SUM_OF_POWER,  \/* [-1, 1]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7
+SUM_OF_SQUARES	fitfun.h	/^	SUM_OF_SQUARES, \/* [-10, 10]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7
 SignOfDiff	cmaes.c	/^	static int SignOfDiff(const void *d1, const void * d2)$/;"	f	file:
 Sorted_index	cmaes.c	/^	static void Sorted_index(const double *rgFunVal, int *iindex, int n)$/;"	f	file:
 TestMinStdDevs	cmaes.c	/^TestMinStdDevs(cmaes_t * const t)$/;"	f	file:
@@ -49,10 +51,10 @@ VERBOSE	engine_cmaes.cpp	23;"	d	file:
 VERBOSE	engine_cmaes_omp.cpp	19;"	d	file:
 VPATH	Makefile	/^VPATH := $(SRC_DIR):$(COM_DIR)$/;"	m
 WARNINGS	Makefile	/^WARNINGS = -Wall -Wextra -Wredundant-decls -Wshadow -Woverloaded-virtual$/;"	m
-ZAKHAROV	fitfun.c	/^	ZAKHAROV,  \/* [-5, 10]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7	file:
+ZAKHAROV	fitfun.h	/^	ZAKHAROV,  \/* [-5, 10]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7
 _BSD_SOURCE	engine_cmaes.cpp	6;"	d	file:
 _BSD_SOURCE	engine_cmaes_omp.cpp	6;"	d	file:
-_COUNT	fitfun.c	/^	_COUNT$/;"	e	enum:__anon7	file:
+_COUNT	fitfun.h	/^	_COUNT$/;"	e	enum:__anon7
 _CRT_SECURE_NO_WARNINGS	cmaes.c	146;"	d	file:
 _GSL_HEADERS_	gsl_headers.h	11;"	d
 _IODUMP_	cmaes_learn.cpp	15;"	d	file:
@@ -75,7 +77,7 @@ ccov	cmaes.h	/^  double ccov;         \/* <- mucov, <- N *\/$/;"	m	struct:__anon
 ccov1	cmaes.h	/^  double ccov1;$/;"	m	struct:__anon3
 ccovmu	cmaes.h	/^  double ccovmu;$/;"	m	struct:__anon3
 ccumcov	cmaes.h	/^  double ccumcov;      \/* <- N *\/$/;"	m	struct:__anon3
-check_for_nan_inf	cmaes_learn.cpp	/^void check_for_nan_inf(cmaes_t* const evo, double* const* pop, int lambda, int func_dim ){$/;"	f
+check_for_nan_inf	cmaes_learn.cpp	/^bool check_for_nan_inf(cmaes_t* const evo, double* const* pop ){$/;"	f
 chiN	cmaes.h	/^  double chiN;$/;"	m	struct:__anon6
 cmaes_ChangePopSize	cmaes.c	/^double * cmaes_ChangePopSize(cmaes_t * const t,const int newlambda)$/;"	f
 cmaes_FATAL	cmaes.c	/^		cmaes_FATAL(char const *s1, char const *s2, char const *s3,$/;"	f
@@ -137,6 +139,7 @@ douSquare	cmaes.c	/^		douSquare(double d)$/;"	f	file:
 dump_curgen	cmaes_learn.cpp	/^void dump_curgen( double* const* pop, double *arFunvals, int step, int lambda, int func_dim ){$/;"	f
 eigenTimings	cmaes.h	/^  cmaes_timings_t eigenTimings;$/;"	m	struct:__anon6
 eval_distance_from_optimum	fitfun.c	/^double eval_distance_from_optimum(const double* const found_optimum,$/;"	f
+evaluate_and_update	cmaes_learn.cpp	/^bool evaluate_and_update( cmaes_t* const evo, double* const*  pop, double *arFunvals, int* const info  ){$/;"	f
 facmaxeval	cmaes.h	/^  double facmaxeval;$/;"	m	struct:__anon3
 facupdateCmode	cmaes.h	/^  double facupdateCmode;$/;"	m	struct:__anon3
 filename	cmaes.h	/^  char * filename;  \/* keep record of the file that was taken to read parameters *\/$/;"	m	struct:__anon3
@@ -153,17 +156,17 @@ flgresumedone	cmaes.h	/^  short flgresumedone;$/;"	m	struct:__anon6
 flgstored	cmaes.h	/^  short flgstored;$/;"	m	struct:__anon1
 flgsupplemented	cmaes.h	/^  short flgsupplemented;$/;"	m	struct:__anon3
 funcID	cmaes.h	/^  int funcID;$/;"	m	struct:__anon3
-function	fitfun.c	/^} function;$/;"	t	typeref:enum:__anon7	file:
+function	fitfun.h	/^} function;$/;"	t	typeref:enum:__anon7
 gen	cmaes.h	/^  long gen; \/* Generation number *\/$/;"	m	struct:__anon6
 genOfEigensysUpdate	cmaes.h	/^  double genOfEigensysUpdate;$/;"	m	struct:__anon6
 getTimeStr	cmaes.c	/^getTimeStr(void) {$/;"	f	file:
-get_upper_lower_bounds	fitfun.c	/^void get_upper_lower_bounds(double* const lower_bound,$/;"	f
+get_upper_lower_bounds	fitfun.c	/^void get_upper_lower_bounds(double* const lower_bound, double* const upper_bound,$/;"	f
 hold	cmaes.h	/^  double hold;$/;"	m	struct:__anon1
 index	cmaes.h	/^  int *index;       \/* sorting index of sample pop. *\/$/;"	m	struct:__anon6
 intMin	cmaes.c	/^		intMin( int i, int j)$/;"	f	file:
 isNoneStr	cmaes.c	/^		isNoneStr(const char * filename)$/;"	f	file:
 isStuck	cmaes.h	/^  int isStuck;$/;"	m	struct:__anon6
-is_feasible	cmaes_learn.cpp	/^int is_feasible(double* const pop, double* const lower_bound,$/;"	f
+is_feasible	cmaes_learn.cpp	/^int is_feasible(double* const pop, double* const lower_bound, double* const upper_bound, int dim)$/;"	f
 is_feasible	engine_cmaes_omp.cpp	/^int is_feasible(double *pop, double*lower_bound, double*upper_bound, int dim)$/;"	f
 isstarted	cmaes.h	/^  short isstarted;$/;"	m	struct:__anon2
 istic	cmaes.h	/^  short istic;$/;"	m	struct:__anon2
@@ -193,10 +196,11 @@ new_double	cmaes.c	/^	static double * new_double(int n)$/;"	f	file:
 new_string	cmaes.c	/^	static char * new_string(const char *ins)$/;"	f	file:
 new_void	cmaes.c	/^	static void * new_void(int n, size_t size)$/;"	f	file:
 plot_data	outputlookup.m	/^function plot_data(D, bHold, color, line)$/;"	f
-print_best_ever	cmaes_learn.cpp	/^void print_best_ever( cmaes_t* const evo, int func_dim, int step ){$/;"	f
+print_best_ever	cmaes_learn.cpp	/^void print_best_ever( cmaes_t* const evo,  int step ){$/;"	f
 printtime	cmaes.h	/^  time_t printtime;$/;"	m	struct:__anon6
 publicFitness	cmaes.h	/^  double *publicFitness; \/* returned by cmaes_init() *\/$/;"	m	struct:__anon6
 rand	cmaes.h	/^  cmaes_random_t rand; \/* random number generator *\/$/;"	m	struct:__anon6
+resample	cmaes_learn.cpp	/^bool resample( cmaes_t* const evo, double* const* pop, double* const lower_bound, double* const upper_bound){$/;"	f
 resumefile	cmaes.h	/^  char resumefile[99];$/;"	m	struct:__anon3
 rgBDz	cmaes.h	/^  double *rgBDz;   \/* for B*D*z *\/$/;"	m	struct:__anon6
 rgD	cmaes.h	/^  double *rgD; \/* axis lengths *\/$/;"	m	struct:__anon6
@@ -244,11 +248,14 @@ typicalX	cmaes.h	/^  double * typicalX;$/;"	m	struct:__anon3
 typicalXcase	cmaes.h	/^  int typicalXcase;$/;"	m	struct:__anon3
 updateCmode	cmaes.h	/^  struct { int flgalways; double modulo; double maxtime; } updateCmode;$/;"	m	struct:__anon3	typeref:struct:__anon3::__anon5
 update_damps	cmaes_learn.cpp	/^void update_damps(cmaes_t* const evo,const int N, const int lambda)$/;"	f
-update_state	cmaes_learn.cpp	/^void update_state(cmaes_t* const evo, double* const state, double* oldFmedian,$/;"	f
+update_state	cmaes_learn.cpp	/^void update_state(cmaes_t* const evo, double* const state, double* oldFmedian, double* oldXmean)$/;"	f
 update_state	engine_cmaes_omp.cpp	/^void update_state(cmaes_t * evo, double * const state, double* oldFmedian, double* oldXmean, const int func_dim)$/;"	f
 val	cmaes.h	/^  struct { int flg; double val; } stStopFitness;$/;"	m	struct:__anon3::__anon4
 version	cmaes.h	/^  const char *version;$/;"	m	struct:__anon6
 weights	cmaes.h	/^  double *weights;     \/* <- mu, -> mueff, mucov, ccov *\/$/;"	m	struct:__anon3
 weigkey	cmaes.h	/^  char *weigkey;$/;"	m	struct:__anon3
+write	cmaes_learn.cpp	/^void write_cmaes_perf::write( const int thrid ){$/;"	f	class:write_cmaes_perf
+write	cmaes_learn.cpp	/^void write_cmaes_perf::write( const int thrid, const int func_dim, int func_id, int step, const double final_dist, double ffinal ){$/;"	f	class:write_cmaes_perf
+write_cmaes_perf	cmaes_learn.h	/^class write_cmaes_perf{$/;"	c
 writetime	cmaes.h	/^  time_t writetime; \/* ideally should keep track for each output file *\/$/;"	m	struct:__anon6
 xstart	cmaes.h	/^  double * xstart;$/;"	m	struct:__anon3

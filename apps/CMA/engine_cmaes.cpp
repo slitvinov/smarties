@@ -69,7 +69,7 @@ int main(int argn, char **args)
 	std::vector<double> state(state_dim);
 	std::vector<double> actions(act_dim);
 
-	std::vector<double> from_state1(act_dim);
+	std::vector<double> from_state1(act_dim); // initial state
 	std::vector<double> from_state2(act_dim);
 
 	const int thrid = 0; //omp_get_thread_num();
@@ -82,7 +82,7 @@ int main(int argn, char **args)
 	while (true) {
 		int step = 0; // cmaes stepping
 		int info[4]; //legacy: gen, chain, step, task
-		cmaes_t * const evo = new cmaes_t(); /* an CMA-ES type struct or "object" */
+		cmaes_t * const evo = new cmaes_t(); /* a CMA-ES type struct or "object" */
 		double oldFmedian, *oldXmean = nullptr; //related to RL rewards
 		double *lower_bound, *upper_bound, *init_x, *init_std; //IC for cmaes
 		double *arFunvals, *const*pop;  //cma current function values and samples
@@ -96,9 +96,9 @@ int main(int argn, char **args)
 
 		info[0] = func_ID_distribution(*generators[thrid]);
 		
-		const int lambda_0 = 4+floor(3*std::log(func_dim));
-		double lambda_fac = 1.001;
-		int lambda = floor(lambda_0*lambda_fac);
+		const int 	lambda_0 	= 4+floor(3*std::log(func_dim));
+		double		lambda_frac = 1.001;
+		int 		lambda 		= floor(lambda_0*lambda_frac);
 		
 		evo->sp.funcID = info[0];
 		printf("Selected function %d with dimensionality %d\n", info[0], func_dim);
@@ -126,7 +126,7 @@ int main(int argn, char **args)
 			copy_state(state, from_state1);
 			comm.sendState(thrid, 1, state, 0);
 			comm.recvAction(actions);
-			actions_to_cma( actions.data(), act_dim, evo, &lambda, &lambda_fac, lambda_0, func_dim, &arFunvals );
+			actions_to_cma( actions.data(), act_dim, evo, &lambda, &lambda_frac, lambda_0, &arFunvals );
 		}
 
 
@@ -151,35 +151,16 @@ int main(int argn, char **args)
 				/* generate lambda new search points, check for nans */
 				pop = cmaes_SamplePopulation(evo);
 
-				check_for_nan_inf( evo, pop, lambda, func_dim );
-
-				/* 	Here we resample each solution point pop[i] until it is feasible.
-					Assumptions:
-					the feasible domain is convex,
-					the optimum is not on (very close to) the domain boundary,
-					initialX is feasible and
-					initialSTD are small enough to prevent infinite looping.	*/
-				if(evo->isStuck == 1) bConverged = true;
+				bConverged = check_for_nan_inf( evo, pop );
 				
 				// re-sample if not feasible, check if stuck
-				int safety = 0;
-				if(!bConverged)
-					for (int i = 0; i < lambda; ++i){
-						while (!is_feasible(pop[i],lower_bound,upper_bound,func_dim) && safety++ < 1e3)
-							cmaes_ReSampleSingle(evo, i);
-					if(evo->isStuck == 1) bConverged = true;
-				}
+				if( !bConverged)
+					bConverged = resample( evo, pop, lower_bound, upper_bound );
 
 				/* evaluate current pop and update distribution */
-				if(!bConverged){
-					for (int i = 0; i < lambda; i++)
-						fitfun(pop[i], func_dim, &arFunvals[i], info);
+				if(!bConverged)
+					bConverged = evaluate_and_update(evo, pop, arFunvals, info  );
 
-					cmaes_UpdateDistribution(evo, arFunvals);
-					if(evo->isStuck == 1) bConverged = true;
-				}
-				
-				
 				if(!bConverged){
 					if (step == 0){ //need an initial state
 						oldFmedian = cmaes_Get(evo, "fmedian");
@@ -198,7 +179,7 @@ int main(int argn, char **args)
 				if(bConverged) break;
 
 #if VERBOSE
-				print_best_ever( evo, func_dim, step );
+				print_best_ever( evo, step );
 #endif
 
 #if _IODUMP_
@@ -212,11 +193,11 @@ int main(int argn, char **args)
 			if (bConverged) break; //go to send terminal state
 #if __RLON
 			{
-				update_state(evo, state.data(), &oldFmedian, oldXmean, func_dim);
-				const double r = -.01*lambda_fac;
+				update_state(evo, state.data(), &oldFmedian, oldXmean );
+				const double r = -.01*lambda_frac;
 				comm.sendState(thrid, 0, state, r);
 				comm.recvAction(actions);
-				actions_to_cma( actions.data(), act_dim, evo, &lambda, &lambda_fac, lambda_0, func_dim, &arFunvals );
+				actions_to_cma( actions.data(), act_dim, evo, &lambda, &lambda_frac, lambda_0, &arFunvals );
 			
 			}
 #elif __RANDACT
@@ -250,15 +231,15 @@ int main(int argn, char **args)
 			comm.sendState(thrid, 2, state, -1.); // final state: info is 2
 #endif
 		} 
-		else {
-			update_state(evo, state.data(), &oldFmedian, oldXmean, func_dim);
+		else{
+			update_state(evo, state.data(), &oldFmedian, oldXmean);
 			double* xfinal = cmaes_GetNew(evo, "xmean");
 			double ffinal;
 			
 			fitfun(xfinal, func_dim, &ffinal, info);
 			
 			const double final_dist = eval_distance_from_optimum(xfinal, func_dim, info);
-			const double r_end = std::max(-1., 1-1e2*final_dist);
+			const double r_end 		= std::max(-1., 1-1e2*final_dist);
 
 			//printf("Sending %f %f %f %f %f %f\n",
 			//		state[0],state[1],state[2],state[3],state[4],r_end);

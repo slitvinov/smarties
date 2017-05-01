@@ -16,6 +16,7 @@
 #define JOBMAXTIME	0
 
 #include "cmaes_learn.h"
+#include "fitfun.h"
 
 void write_cmaes_perf::write( const int thrid ){
 	char filename[256];
@@ -36,9 +37,35 @@ void write_cmaes_perf::write( const int thrid, const int func_dim, int func_id, 
 
 
 
+bool evaluate_and_update( cmaes_t* const evo, double* const*  pop, double *arFunvals, int* const info  ){
+	
+	int lambda = evo->sp.lambda;
+	int func_dim = evo->sp.N;
 
 
-void check_for_nan_inf(cmaes_t* const evo, double* const* pop, int lambda, int func_dim ){
+	printf("%lf\n",arFunvals[0]);
+
+	for (int i = 0; i < lambda; i++)
+		fitfun(pop[i], func_dim, &arFunvals[i], info);
+
+	printf("%lf\n",arFunvals[0]);
+
+	cmaes_UpdateDistribution(evo, arFunvals);
+	
+	if(evo->isStuck == 1) return true;
+
+	return false;
+				
+}
+				
+
+
+
+bool check_for_nan_inf(cmaes_t* const evo, double* const* pop ){
+	
+	int lambda   = evo->sp.lambda;
+	int func_dim = evo->sp.N;
+
 	bool foundnan = false;
 	
 	for (int i = 0; i < lambda; ++i)
@@ -49,7 +76,10 @@ void check_for_nan_inf(cmaes_t* const evo, double* const* pop, int lambda, int f
 	if(foundnan){
 		fprintf(stderr, "It was nan all along!!!\n");
 		evo->isStuck = 1;
+		return true;
 	}
+
+	return false;
 }
 
 
@@ -58,7 +88,9 @@ void check_for_nan_inf(cmaes_t* const evo, double* const* pop, int lambda, int f
 
 
 void actions_to_cma( double* const actions, int act_dim,  cmaes_t* const evo, 
-					int *lambda, double *lambda_fac, const int lambda_0, int func_dim, double **arFunvals ){
+					int *lambda, double *lambda_fac, const int lambda_0, double **arFunvals ){
+	
+	int func_dim = evo->sp.N;
 
 	evo->sp.ccov1   = actions[0]; //rank 1 covariance update
 	
@@ -112,7 +144,8 @@ void dump_curgen( double* const* pop, double *arFunvals, int step, int lambda, i
 }
 
 
-void print_best_ever( cmaes_t* const evo, int func_dim, int step ){
+void print_best_ever( cmaes_t* const evo,  int step ){
+	int func_dim = evo->sp.N;
 	const double *xbever = cmaes_GetPtr(evo, "xbestever");
 	double fbever = cmaes_Get(evo, "fbestever");
 	
@@ -135,14 +168,32 @@ void update_damps(cmaes_t* const evo,const int N, const int lambda)
 
 
 
+bool resample( cmaes_t* const evo, double* const* pop, double* const lower_bound, double* const upper_bound){
+	int lambda = evo->sp.lambda;
+	int func_dim = evo->sp.N;
+	int safety = 0;
+	for (int i = 0; i < lambda; ++i){
+		while (!is_feasible(pop[i],lower_bound,upper_bound,func_dim) && safety++ < 1e3){
+			cmaes_ReSampleSingle(evo, i);
+			if(evo->isStuck == 1) return true;
+		}
+	}
 
-int is_feasible(double* const pop, double* const lower_bound,
-		double* const upper_bound, int dim)
+	return false;
+}
+
+
+
+
+int is_feasible(double* const pop, double* const lower_bound, double* const upper_bound, int dim)
 {
 	int good;
 	for (int i = 0; i < dim; i++) {
-		if (std::isnan(pop[i]) || std::isinf(pop[i]))
-		{ printf("Sampled nan: FU cmaes \n"); abort(); }
+		if (std::isnan(pop[i]) || std::isinf(pop[i])){
+			printf("Sampled nan: FU cmaes \n"); 
+			abort(); 
+		}
+		
 		good = (lower_bound[i] <= pop[i]) && (pop[i] <= upper_bound[i]);
 		if (!good) return 0;
 	}
@@ -152,9 +203,9 @@ int is_feasible(double* const pop, double* const lower_bound,
 
 
 
-void update_state(cmaes_t* const evo, double* const state, double* oldFmedian,
-		double* oldXmean, const int func_dim)
+void update_state(cmaes_t* const evo, double* const state, double* oldFmedian, double* oldXmean)
 {
+	int func_dim = evo->sp.N;
 	double eps = 1e-16;
 	double* xMean = cmaes_GetNew(evo, "xmean");
 	
