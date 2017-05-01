@@ -18,7 +18,7 @@ WARNINGS+= -Wmissing-declarations
 CPPFLAGS+= -std=c++11 -O0 $(WARNINGS) -I$(COM_DIR)# -fopenmp
 CFLAGS+= -O0 $(WARNINGS)
 
-OBJ_FILES_PP = engine_cmaes.o Communicator.o
+OBJ_FILES_PP = engine_cmaes.o cmaes_learn.o fitfun.o Communicator.o
 OBJ_FILES =    cmaes.o
 
 .DEFAULT_GOAL := engine_cmaes
@@ -34,6 +34,12 @@ communicator.o: communicator.cpp
 
 cmaes.o: cmaes.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+cmaes_learn.o: cmaes_learn.cpp
+	$(CPP) $(CPPFLAGS) -c $< -o $@
+	
+fitfun.o: fitfun.c
+	$(CPP) $(CPPFLAGS) -c $< -o $@
 
 clean:
 	rm -f *.o

@@ -49,3 +49,4 @@ test.dSYM
 launch/settings/
 policies/*
 test_*
+runs/
