@@ -565,7 +565,9 @@ void Transitions::synchronize()
 //  for(auto & bufTransition : Buffered) {
    for(int i=bufferSize-1; i>=0; i--) {
       cnt++;
-      auto bufTransition = Buffered[i];
+      //auto bufTransition = Buffered[i];
+      assert(Buffered.size() == i);
+      auto bufTransition = Buffered.back();
       const int ind = iOldestSaved++;
       iOldestSaved = (iOldestSaved >= maxTotSeqNum) ? 0 : iOldestSaved;
 
