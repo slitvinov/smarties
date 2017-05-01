@@ -19,7 +19,7 @@
 #include <cmath>
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
-PolicyAlgorithm(comm,_env,settings, 0.1), truncation(5)
+PolicyAlgorithm(comm,_env,settings, 1), truncation(5)
 {
 	#if defined __ACER_RELAX
 		// I output V(s), P(s), pol(s), prec(s) (and variate)
@@ -203,7 +203,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			//const Real cotrolVar = nA+diagTerm(varCur,polCur,mu_Hat)
 			//												 -diagTerm(varCur,   pol,mu_Hat);
 
-			const Real eta = anneal*std::min(std::max(-.1, cov_A_A/varCritic), 0.1);
+			const Real eta = anneal*std::min(std::max(-.5, cov_A_A/varCritic), 0.5);
 			//const Real eta = 0;
 		#else
 			const Real eta = 0, cotrolVar = 0, err_Cov = 0;
@@ -243,7 +243,9 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		finalizeGradient(Qer, Ver, critic_grad, policy_grad, out_cur[k], err_Cov);
 		//write gradient onto output layer
 		net->setOutputDeltas(grad, series_cur[k]);
-
+      //printf("Applying gradient %s\n",printVec(grad).c_str());
+      //fflush(0);
+      //
 		//bookkeeping:
 		meanGain1[thrID+1] = 0.9999*meanGain1[thrID+1] + 0.0001*gain1;
 		meanGain2[thrID+1] = 0.9999*meanGain2[thrID+1] + 0.0001*eta;

@@ -8,7 +8,7 @@ viz ?= 0
 config ?= prod
 extra ?=
 app ?= test
-cvariate ?= on
+cvariate ?= off
 acer ?= full
 mpi_lib ?= default
 
