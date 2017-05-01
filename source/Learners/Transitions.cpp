@@ -582,7 +582,7 @@ void Transitions::synchronize()
       Buffered.pop_back();
       if(cnt==10) break;
   } //number of sequences remains constant
-  printf("Removing %lu sequences (avg length %f) associated with small MSE"
+  printf("Removing %d sequences (avg length %f) associated with small MSE"
     "error in favor of new ones (avg lendth %f). %lu left in Buffer\n", cnt,
     nTransitionsDeleted/(Real)cnt, nTransitionsInBuf/(Real)cnt,Buffered.size());
 }
