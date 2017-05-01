@@ -193,12 +193,13 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 
 		#ifdef __ACER_VARIATE
 			const Real cov_A_A = out_cur[k][nOutputs-1];
-			const vector<Real> smp = samplePolicy(polCur, varCur, thrID);
+			//const vector<Real> smp = samplePolicy(polCur, varCur, thrID);
 			const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
-			const Real A_tgt = computeAdvantage(smp, polCur, varCur, P_Hat, mu_Hat);
+			//const Real A_tgt = computeAdvantage(smp, polCur, varCur, P_Hat, mu_Hat);
 			const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
 			const Real err_Cov = A_OPC*A_cov - cov_A_A;
-			const Real cotrolVar = A_tgt;
+			//const Real cotrolVar = A_tgt;
+			const Real cotrolVar = A_cov;
 			//const Real cotrolVar = nA+diagTerm(varCur,polCur,mu_Hat)
 			//												 -diagTerm(varCur,   pol,mu_Hat);
 
@@ -208,13 +209,13 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			const Real eta = 0, cotrolVar = 0, err_Cov = 0;
 		#endif
 
-		//const Real gain1 = A_OPC * importance - eta * rho_cur * cotrolVar;
-		const Real gain1 = A_OPC * importance - eta * cotrolVar;
+		const Real gain1 = A_OPC * importance - eta * rho_cur * cotrolVar;
+		//const Real gain1 = A_OPC * importance - eta * cotrolVar;
 		const Real gain2 = A_pol * correction;
 
 		//derivative wrt to statistics
-		const vector<Real> gradAcer_1 = policyGradient(mu_Cur, preCur, act, gain1);
-		const vector<Real> gradAcer_2 = policyGradient(mu_Cur, preCur, pol, gain2);
+		const vector<Real> gradAcer_1 = policyGradient(polCur, preCur, act, gain1);
+		const vector<Real> gradAcer_2 = policyGradient(polCur, preCur, pol, gain2);
 
 		#ifdef __ACER_VARIATE
 		const vector<Real> gradC = controlGradient(polCur, varCur, P_Hat, mu_Hat, eta);
@@ -224,7 +225,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		#endif
 
 		//trust region updating
-		const vector<Real> gradDivKL = gradDKL(mu_Cur, preCur, mu_Hat, preHat);
+		const vector<Real> gradDivKL = gradDKL(polCur, polHat, preCur, preHat);
 		const vector<Real> gradAcer = gradAcerTrpo(policy_grad, gradDivKL);
 
 		const Real Qer = (Q_RET -A_cur -out_cur[k][0]);
