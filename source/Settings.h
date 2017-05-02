@@ -102,7 +102,7 @@ inline void statsVector(vector<vector<Real>>& sum, vector<vector<Real>>& sqr,
   }
 }
 
-inline void statsGrad(vector<Real>& sum, vector<Real>& sqr, Real& cnt, vector<Real>& grad)
+inline void statsGrad(vector<Real>& sum, vector<Real>& sqr, Real& cnt, vector<Real> grad)
 {
   assert(sum.size() == grad.size() && sqr.size() == grad.size());
   cnt += 1;

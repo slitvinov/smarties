@@ -222,7 +222,8 @@ private:
 			//if that was true, environment created the layers it wanted
 			// else we read the settings:
 			net->addInput(nInputs);
-			const int nsplit = lsize.size()>3 ? 2 : 1;
+			//const int nsplit = lsize.size()>3 ? 2 : 1;
+			const int nsplit = lsize.size();
 			for (int i=0; i<lsize.size()-nsplit; i++)
 				net->addLayer(lsize[i], lType);
 

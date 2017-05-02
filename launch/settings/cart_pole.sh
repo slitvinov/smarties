@@ -9,13 +9,12 @@ SETTINGS+=" --fileSamp none"
 SETTINGS+=" --gamma 0.99"
 
 #network update learning rate
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.001"
 
 #size of network layers
 SETTINGS+=" --nnl1 64"
-SETTINGS+=" --nnl2 64"
-SETTINGS+=" --nnl3 32"
-SETTINGS+=" --nnl4 16"
+SETTINGS+=" --nnl2 32"
+SETTINGS+=" --nnl3 16"
 
 #0 means feed forward neural nets
 #1 means LSTM
@@ -26,7 +25,7 @@ SETTINGS+=" --nnType 0"
 SETTINGS+=" --nnL 0.0"
 
 #chance of taking random actions
-SETTINGS+=" --greedyeps 0.5"
+SETTINGS+=" --greedyeps 0.1"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -40,8 +39,8 @@ SETTINGS+=" --senses 0"
 #SETTINGS+=" --learn NAF"
 #SETTINGS+=" --learn SACER"
 #SETTINGS+=" --learn CACER"
-SETTINGS+=" --learn CRACER"
-#SETTINGS+=" --learn RACER"
+#SETTINGS+=" --learn CRACER"
+SETTINGS+=" --learn RACER"
 #SETTINGS+=" --learn DPG"
 
 #number of state vectors received from env to be chained together to form input to net (faux RNN?)
@@ -50,15 +49,16 @@ SETTINGS+=" --dqnNs 0"
 #maximum allowed lenth for a sequence (from first to terminal state)
 #if a sequence is longer is just cut after #number of transitions
 SETTINGS+=" --dqnSeqMax 1000"
-SETTINGS+=" --maxTotSeqNum 5000"
+SETTINGS+=" --maxTotSeqNum 1000"
 
 #batch size for network gradients compute
-SETTINGS+=" --dqnBatch 44"
+#SETTINGS+=" --dqnBatch 22"
+SETTINGS+=" --dqnBatch 22"
 
-SETTINGS+=" --epsAnneal 100000" 
+SETTINGS+=" --epsAnneal 20000" 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w
 #the first option is markedly safer
-#SETTINGS+=" --dqnT 1000"
-SETTINGS+=" --dqnT 0.01"
+SETTINGS+=" --dqnT 100"
+#SETTINGS+=" --dqnT 0.01"
