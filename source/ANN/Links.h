@@ -217,7 +217,9 @@ public:
 	{
 		printf("Initializing LSTM\n");
 #ifndef __posDef_layers_
-		const Real range = std::sqrt(6./(nO + nI));
+		//const Real range = std::sqrt(6./(nO + nI));
+		const Real width = 2*std::max(nO,nI);
+		const Real range = std::sqrt(6./(nO + width));
 #else
 		const Real range = 2./nI;
 #endif

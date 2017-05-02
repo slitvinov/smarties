@@ -266,9 +266,11 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
       //fflush(0);
       //
 		//bookkeeping:
+      #ifndef NDEBUG
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
 		meanGain1[thrID+1] = 0.9999*meanGain1[thrID+1] + 0.0001*gain1;
 		meanGain2[thrID+1] = 0.9999*meanGain2[thrID+1] + 0.0001*eta;
+      #endif
 		vector<Real> fake{A_cur, 100};
 		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
 		if(thrID == 1) net->updateRunning(series_cur[k]);
@@ -288,11 +290,13 @@ void RACER::processStats(vector<trainData*> _stats, const Real avgTime)
 		variance = stdev*stdev;
 		precision = 1./variance;
 	#endif
+   #ifndef NDEBUG
 	statsVector(avgGrad, stdGrad, cntGrad);
 	setVecMean(meanGain1); setVecMean(meanGain2);
 	printf("Gain of policy grad means: [%f] [%f]. Avg grad [%s] - std [%s]\n",
 	meanGain1[0], meanGain2[0], printVec(avgGrad[0]).c_str(), printVec(stdGrad[0]).c_str());
 	fflush(0);
+   #endif
 	Learner::processStats(_stats, avgTime);
 }
 
