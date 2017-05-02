@@ -123,8 +123,6 @@ int main(int argn, char **args)
 			comm.recvAction(actions);
 			actions_to_cma( actions.data(), act_dim, evo, &lambda, &lambda_frac, lambda_0, &arFunvals );
 		}
-
-
 #elif __RANDACT
 		random_action(evo, *generators[thrid] )
 #endif

@@ -57,13 +57,8 @@ bool evaluate_and_update( cmaes_t* const evo, double* const*  pop, double *arFun
 	int lambda = evo->sp.lambda;
 	int func_dim = evo->sp.N;
 
-
-	printf("%lf\n",arFunvals[0]);
-
 	for (int i = 0; i < lambda; i++)
 		fitfun(pop[i], func_dim, &arFunvals[i], info);
-
-	printf("%lf\n",arFunvals[0]);
 
 	cmaes_UpdateDistribution(evo, arFunvals);
 	
