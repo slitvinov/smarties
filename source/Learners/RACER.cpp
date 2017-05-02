@@ -107,6 +107,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const vector<Real> scaledSold = data->standardize(_t->s);
 		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
 		net->predict(scaledSold, out_cur[k], series_cur, k);
+      net->predict(scaledSold, out_hat[k], k ? series_cur[k-1] : nullptr,
+         series_hat[k], net->tgt_weights, net->tgt_biases);
 		net->predict(scaledSold, out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
 	}
 #else
@@ -117,11 +119,11 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		net->seqPredict_inputs(scaledSold, series_cur[k]);
 		net->seqPredict_inputs(scaledSold, series_hat[k]);
 	}
-	net->seqPredict_inputs(series_cur, series_cur);
-	net->seqPredict_inputs(series_cur, series_hat, net->tgt_weights, net->tgt_biases);
+	net->seqPredict_execute(series_cur, series_cur);
+	net->seqPredict_execute(series_cur, series_hat, net->tgt_weights, net->tgt_biases);
 	for (int k=0; k<ndata-1; k++) {
-		net->seqPredict_inputs(out_cur[k], series_cur[k]);
-		net->seqPredict_inputs(out_hat[k], series_hat[k]);
+		net->seqPredict_output(out_cur[k], series_cur[k]);
+		net->seqPredict_output(out_hat[k], series_hat[k]);
 	}
 #endif
 

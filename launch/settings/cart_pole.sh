@@ -37,9 +37,6 @@ SETTINGS+=" --senses 0"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 #SETTINGS+=" --learn DQN"
 #SETTINGS+=" --learn NAF"
-#SETTINGS+=" --learn SACER"
-#SETTINGS+=" --learn CACER"
-#SETTINGS+=" --learn CRACER"
 SETTINGS+=" --learn RACER"
 #SETTINGS+=" --learn DPG"
 

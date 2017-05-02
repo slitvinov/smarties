@@ -10,6 +10,7 @@ extra ?=
 app ?= test
 cvariate ?= off
 acer ?= full
+entropy ?= off
 mpi_lib ?= default
 
 ifeq "$(viz)" "1"
@@ -68,6 +69,9 @@ endif #!full
 endif #relax
 endif #safe
 
+ifeq "$(entropy)" "on"
+CPPFLAGS+= -D__EntropySGD
+endif
 ifeq "$(cvariate)" "on"
 CPPFLAGS+= -D__ACER_VARIATE
 endif

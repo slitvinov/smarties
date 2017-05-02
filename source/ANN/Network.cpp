@@ -419,7 +419,7 @@ void Network::seqPredict_execute(
 	}
 }
 
-void Network::seqPredict_output(const vector<Real>& _output, Activation* const currActivation) const
+void Network::seqPredict_output(vector<Real>& _output, Activation* const currActivation) const
 {
     for (int i=0; i<nOutputs; i++)
         _output[i] = *(currActivation->outvals + iOut[i]);

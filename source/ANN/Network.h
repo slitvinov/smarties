@@ -113,10 +113,10 @@ public:
 																	 int length=1) const;
 
     void seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const;
-    void seqPredict_output(const vector<Real>&_output, Activation* const currActivation) const;
+    void seqPredict_output(vector<Real>&_output, Activation* const currActivation) const;
     void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2,
     		const Real* const _weights, const Real* const _biases, const Real noise=0) const;
-    void seqPredict_execute(vector<Activation*>& series_1, vector<Activation*>& series_2,
+    void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2,
     		const Real noise=0) const
     {
     	seqPredict_execute(series_1, series_2, weights, biases, noise);
