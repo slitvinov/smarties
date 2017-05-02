@@ -89,9 +89,7 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 void RACER::Train_BPTT(const int seq, const int thrID) const
 {
 	//this should go to gamma rather quick:
-	#ifdef __ACER_VARIATE
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
-	#endif
 	const Real rGamma = annealedGamma();
 
 	assert(net->allocatedFrozenWeights && bTrain);
@@ -225,7 +223,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			const Real eta = anneal*std::min(std::max(-.5, cov_A_A/varCritic), 0.5);
 			//const Real eta = 0;
 		#else
-			#if 0
+			#if 1
 				const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
 				const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
 				const Real threshold = A_cov * A_cov / varCritic;
