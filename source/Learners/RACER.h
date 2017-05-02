@@ -16,6 +16,8 @@ using namespace std;
 class RACER : public PolicyAlgorithm
 {
 	const Real truncation;
+	mutable vector<vector<Real>> stdGrad, avgGrad;
+	mutable vector<Real> cntGrad;
 	#ifdef __ACER_SAFE
 	//Real stdev = 0.1;
 	Real variance = 0.01;

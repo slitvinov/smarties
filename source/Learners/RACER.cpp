@@ -19,7 +19,9 @@
 #include <cmath>
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
-PolicyAlgorithm(comm,_env,settings, 1), truncation(5)
+PolicyAlgorithm(comm,_env,settings, 1), truncation(5), cntGrad(nThreads+1,0),
+stdGrad(nThreads+1,vector<Real>(nOutputs,0)),
+avgGrad(nThreads+1,vector<Real>(nOutputs,0))
 {
 	#if defined __ACER_RELAX
 		// I output V(s), P(s), pol(s), prec(s) (and variate)
@@ -247,6 +249,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
       //fflush(0);
       //
 		//bookkeeping:
+		statsGrad(avgGrad[thrID+1], stsGrad[thrID+1], cntGrad[thrID+1], grad);
 		meanGain1[thrID+1] = 0.9999*meanGain1[thrID+1] + 0.0001*gain1;
 		meanGain2[thrID+1] = 0.9999*meanGain2[thrID+1] + 0.0001*eta;
 		vector<Real> fake{A_cur, 100};
@@ -268,10 +271,11 @@ void RACER::processStats(vector<trainData*> _stats, const Real avgTime)
 		variance = stdev*stdev;
 		precision = 1./variance;
 	#endif
-
+	statsVector(avgGrad, stdGrad, cntGrad);
 	setVecMean(meanGain1); setVecMean(meanGain2);
-	printf("Gain terms of policy grad means: [%f] [%f]\n",
-	meanGain1[0], meanGain2[0]);
+	printf("Gain of policy grad means: [%f] [%f]. Avg grad [%s] - std [%s]\n",
+	meanGain1[0], meanGain2[0], printVec(avgGrad[0]).c_str(), printVec(stdGrad[0]).c_str());
+	fflush(0);
 	Learner::processStats(_stats, avgTime);
 }
 

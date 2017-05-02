@@ -76,6 +76,37 @@ inline void setVecMean(vector<Real>& vals)
 		vals[i] = mean;
 }
 
+inline void statsVector(vector<vector<Real>>& sum, vector<vector<Real>>& sqr,
+  vector<Real>& cnt)
+{
+  for (int i=0; i<sum[0].size(); i++)
+    sum[0][i] = sqr[0][i] = 0;
+  cnt[0] = 0
+
+  for (int i=1; i<sum.size(); i++) {
+    cnt[0] += cnt[i]; cnt[i] = 0;
+    for (int j=0; j<sum[0].size(); j++) {
+      sum[0][j] += sum[i][j]; sum[i][j] = 0;
+      sqr[0][j] += sqr[i][j]; sqr[i][j] = 0;
+    }
+  }
+
+  for (int j=0; j<sum[0].size(); j++)
+  {
+    sqr[0][j] = std::sqrt((sqr[0][j]-sum[0][j]*sum[0][j]/cnt[0])/cnt[0]);
+    sum[0][j] /= cnt[0];
+  }
+}
+
+inline void statsGrad(vector<Real>& sum, vector<Real>& sqr, Real& cnt, vector<Real>& grad)
+{
+  cnt += 1;
+  for (int i=0; i<grad.size(); i++) {
+    sum[i] += grad[i];
+    sqr[i] += grad[i]*grad[i];
+  }
+}
+
 struct Settings
 {
     Settings() : saveFreq(1e3), randSeed(0), rewardType(0), senses(0),
