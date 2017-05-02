@@ -18,7 +18,7 @@ else
     WCLOCK=$6
 fi
 
-NTHREADSPERNODE=6
+NTHREADSPERNODE=24
 NPROCESSORS=$((${NNODES}*${NTHREADSPERNODE}))
 
 #this must handle all app-side setup (as well as copying the factory)
