@@ -249,7 +249,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
       //fflush(0);
       //
 		//bookkeeping:
-		statsGrad(avgGrad[thrID+1], stsGrad[thrID+1], cntGrad[thrID+1], grad);
+		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
 		meanGain1[thrID+1] = 0.9999*meanGain1[thrID+1] + 0.0001*gain1;
 		meanGain2[thrID+1] = 0.9999*meanGain2[thrID+1] + 0.0001*eta;
 		vector<Real> fake{A_cur, 100};

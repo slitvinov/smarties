@@ -79,13 +79,16 @@ inline void setVecMean(vector<Real>& vals)
 inline void statsVector(vector<vector<Real>>& sum, vector<vector<Real>>& sqr,
   vector<Real>& cnt)
 {
+  assert(sum.size() == grad.size() && sqr.size() == cnt.size());
+
   for (int i=0; i<sum[0].size(); i++)
     sum[0][i] = sqr[0][i] = 0;
-  cnt[0] = 0
+  cnt[0] = 0;
 
   for (int i=1; i<sum.size(); i++) {
     cnt[0] += cnt[i]; cnt[i] = 0;
-    for (int j=0; j<sum[0].size(); j++) {
+    for (int j=0; j<sum[0].size(); j++)
+    {
       sum[0][j] += sum[i][j]; sum[i][j] = 0;
       sqr[0][j] += sqr[i][j]; sqr[i][j] = 0;
     }
@@ -100,6 +103,7 @@ inline void statsVector(vector<vector<Real>>& sum, vector<vector<Real>>& sqr,
 
 inline void statsGrad(vector<Real>& sum, vector<Real>& sqr, Real& cnt, vector<Real>& grad)
 {
+  assert(sum.size() == grad.size() && sqr.size() == grad.size());
   cnt += 1;
   for (int i=0; i<grad.size(); i++) {
     sum[i] += grad[i];
