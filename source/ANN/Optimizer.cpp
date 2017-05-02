@@ -25,8 +25,9 @@ Optimizer::Optimizer(Network* const _net, Profiler* const _prof,
 }
 
 AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
-	Settings& settings) : Optimizer(_net, _prof, settings),
-	beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.999)
+	Settings& settings, const Real B1, const Real B2) :
+			Optimizer(_net, _prof, settings),
+	beta_1(B1), beta_2(B2), epsilon(1e-8), beta_t_1(B1), beta_t_2(B2)
 //beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.99)
 {
 	_allocateClean(_2ndMomW, nWeights)
@@ -34,8 +35,9 @@ AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
 }
 
 EntropySGD::EntropySGD(Network* const _net, Profiler* const _prof,
-	Settings& settings) : AdamOptimizer(_net, _prof, settings), alpha_eSGD(0.75),
-	gamma_eSGD(0.1), eta_eSGD(0.1/settings.dqnUpdateC), eps_eSGD(1e-4), L_eSGD(settings.dqnUpdateC)
+	Settings& settings) : AdamOptimizer(_net, _prof, settings, 0.8),
+	alpha_eSGD(0.75), gamma_eSGD(0.01), eta_eSGD(10./settings.dqnUpdateC),
+	eps_eSGD(1e-4), L_eSGD(settings.dqnUpdateC)
 {
 	assert(L_eSGD>0);
 	_allocateClean(_muW_eSGD, nWeights)
@@ -96,6 +98,7 @@ void EntropySGD::update(Real* const dest, const Real* const target, Real* const 
 	const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
 	const Real norm = 1./(Real)max(batchsize,1);
 	// TODO const Real lambda_ = _lambda*eta_;
+	const Real noise = std::sqrt(eta_) * eps_eSGD;
 
 #pragma omp parallel
 	{
@@ -110,7 +113,7 @@ void EntropySGD::update(Real* const dest, const Real* const target, Real* const 
 			const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
 			const Real M2_ = std::max(M2,epsilon);
 
-			const Real RNG = std::sqrt(eta_) * eps_eSGD * gen.d_mean0_var1();
+			const Real RNG = noise * gen.d_mean0_var1();
 			const Real DW_ = eta_*M1_/std::sqrt(M2_);
 
 			_1stMom[i] = M1_;

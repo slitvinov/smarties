@@ -60,7 +60,8 @@ protected:
 			const Real _lambda, const Real _eta);
 
 public:
-	AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings);
+	AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings,
+			const Real B1 = 0.99, const Real B2 = 0.999);
 
 	~AdamOptimizer()
 	{
