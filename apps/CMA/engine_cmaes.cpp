@@ -54,11 +54,6 @@ int main(int argn, char **args)
 	std::uniform_int_distribution<int> 		func_ID_distribution(0, _COUNT-1);
 	std::uniform_int_distribution<int> 		cma_seed_distribution(0,std::numeric_limits<int>::max());
 	
-	std::uniform_real_distribution<double> act0dist(.02,0.1);
-	std::uniform_real_distribution<double> act1dist(.02,0.1);
-	std::uniform_real_distribution<double> act2dist(.2,.8);
-	std::uniform_real_distribution<double> act3dist(.2,.8);
-
 
 #if __RLON
 	//communicator class, it needs a socket number sock, given by RL as first argument of execution
@@ -131,13 +126,7 @@ int main(int argn, char **args)
 
 
 #elif __RANDACT
-		{
-			evo->sp.ccov1   = act0dist(*generators[thrid]);
-			evo->sp.ccovmu  = act1dist(*generators[thrid]);
-			evo->sp.ccumcov = act2dist(*generators[thrid]);
-			evo->sp.cs      = act3dist(*generators[thrid]);
-			update_damps(evo,func_dim, lambda);
-		}
+		random_action(evo, *generators[thrid] )
 #endif
 
 
@@ -200,15 +189,9 @@ int main(int argn, char **args)
 			
 			}
 #elif __RANDACT
-			{
-				evo->sp.ccov1   = act0dist(*generators[thrid]);
-				evo->sp.ccovmu  = act1dist(*generators[thrid]);
-				evo->sp.ccumcov = act2dist(*generators[thrid]);
-				evo->sp.cs      = act3dist(*generators[thrid]);
-				update_damps(evo,func_dim, lambda);
-
-			}
+		random_action(evo, *generators[thrid] )
 #endif
+		
 		} // end of single function optimization
 
 		if (evo->isStuck == 1) {

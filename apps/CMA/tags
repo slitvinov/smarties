@@ -10,7 +10,7 @@ Adapt_C2	cmaes.c	/^Adapt_C2(cmaes_t * const t, int hsig)$/;"	f	file:
 B	cmaes.h	/^  double **B;  \/* matrix with normalize eigenvectors in columns *\/$/;"	m	struct:__anon6
 C	cmaes.h	/^  double **C;  \/* lower triangular matrix: i>=j for C[i][j] *\/$/;"	m	struct:__anon6
 CC	Makefile	/^CC = gcc$/;"	m
-CMAES_LEARN_H	cmaes_learn.h	5;"	d
+CMAES_LEARN_H	cmaes_learn.h	12;"	d
 COM_DIR	Makefile	/^COM_DIR = ..\/..\/source\/$/;"	m
 CPP	Makefile	/^CPP = g++$/;"	m
 Check_Eigen	cmaes.c	/^Check_Eigen( int N,  double ** const C, double * const diag, double ** const Q)$/;"	f	file:
@@ -21,7 +21,6 @@ FATAL	cmaes.c	/^		FATAL(char const *s1, char const *s2, char const *s3,$/;"	f	fi
 FITFUN_H	fitfun.h	3;"	d
 GRIEWANK	fitfun.h	/^	GRIEWANK,  \/* [-600, 600]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7
 Householder2	cmaes.c	/^		Householder2(int n, double ** const V, double * const d, double * const e) {$/;"	f	file:
-JOBMAXTIME	cmaes_learn.cpp	16;"	d	file:
 JOBMAXTIME	engine_cmaes.cpp	26;"	d	file:
 JOBMAXTIME	engine_cmaes_omp.cpp	22;"	d	file:
 LEVY	fitfun.h	/^	LEVY,  \/* [-10, 10]; f(x*) = 0, x*[i] = 1 *\/$/;"	e	enum:__anon7
@@ -46,7 +45,6 @@ SUM_OF_SQUARES	fitfun.h	/^	SUM_OF_SQUARES, \/* [-10, 10]; f(x*) = 0, x*[i] = 0 *
 SignOfDiff	cmaes.c	/^	static int SignOfDiff(const void *d1, const void * d2)$/;"	f	file:
 Sorted_index	cmaes.c	/^	static void Sorted_index(const double *rgFunVal, int *iindex, int n)$/;"	f	file:
 TestMinStdDevs	cmaes.c	/^TestMinStdDevs(cmaes_t * const t)$/;"	f	file:
-VERBOSE	cmaes_learn.cpp	13;"	d	file:
 VERBOSE	engine_cmaes.cpp	23;"	d	file:
 VERBOSE	engine_cmaes_omp.cpp	19;"	d	file:
 VPATH	Makefile	/^VPATH := $(SRC_DIR):$(COM_DIR)$/;"	m
@@ -57,7 +55,6 @@ _BSD_SOURCE	engine_cmaes_omp.cpp	6;"	d	file:
 _COUNT	fitfun.h	/^	_COUNT$/;"	e	enum:__anon7
 _CRT_SECURE_NO_WARNINGS	cmaes.c	146;"	d	file:
 _GSL_HEADERS_	gsl_headers.h	11;"	d
-_IODUMP_	cmaes_learn.cpp	15;"	d	file:
 _IODUMP_	engine_cmaes.cpp	25;"	d	file:
 _IODUMP_	engine_cmaes_omp.cpp	21;"	d	file:
 _XOPEN_SOURCE	engine_cmaes.cpp	5;"	d	file:
@@ -200,6 +197,7 @@ print_best_ever	cmaes_learn.cpp	/^void print_best_ever( cmaes_t* const evo,  int
 printtime	cmaes.h	/^  time_t printtime;$/;"	m	struct:__anon6
 publicFitness	cmaes.h	/^  double *publicFitness; \/* returned by cmaes_init() *\/$/;"	m	struct:__anon6
 rand	cmaes.h	/^  cmaes_random_t rand; \/* random number generator *\/$/;"	m	struct:__anon6
+random_action	cmaes_learn.cpp	/^void random_action( cmaes_t* const evo, std::mt19937 gen ){$/;"	f
 resample	cmaes_learn.cpp	/^bool resample( cmaes_t* const evo, double* const* pop, double* const lower_bound, double* const upper_bound){$/;"	f
 resumefile	cmaes.h	/^  char resumefile[99];$/;"	m	struct:__anon3
 rgBDz	cmaes.h	/^  double *rgBDz;   \/* for B*D*z *\/$/;"	m	struct:__anon6

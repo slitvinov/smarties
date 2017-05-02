@@ -1,5 +1,6 @@
 *.o
 *.d
+*.a
 
 *.bbl
 *.bcf
@@ -50,5 +51,6 @@ launch/settings/
 policies/*
 test_*
 runs/
+engine_cmaes
 
 *.swp

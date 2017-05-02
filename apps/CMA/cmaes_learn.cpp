@@ -10,13 +10,28 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
-#define VERBOSE 0
-/*#define _RESTART_*/
-#define _IODUMP_ 0
-#define JOBMAXTIME	0
 
 #include "cmaes_learn.h"
 #include "fitfun.h"
+
+
+void random_action( cmaes_t* const evo, std::mt19937 gen ){
+
+	std::uniform_real_distribution<double> act0dist(.02,0.1);
+	std::uniform_real_distribution<double> act1dist(.02,0.1);
+	std::uniform_real_distribution<double> act2dist(.2,.8);
+	std::uniform_real_distribution<double> act3dist(.2,.8);
+
+
+	evo->sp.ccov1   = act0dist(gen);
+	evo->sp.ccovmu  = act1dist(gen);
+	evo->sp.ccumcov = act2dist(gen);
+	evo->sp.cs      = act3dist(gen);
+	update_damps( evo );
+
+}
+
+
 
 void write_cmaes_perf::write( const int thrid ){
 	char filename[256];
@@ -85,13 +100,9 @@ bool check_for_nan_inf(cmaes_t* const evo, double* const* pop ){
 
 
 
-
-
 void actions_to_cma( double* const actions, int act_dim,  cmaes_t* const evo, 
 					int *lambda, double *lambda_fac, const int lambda_0, double **arFunvals ){
 	
-	int func_dim = evo->sp.N;
-
 	evo->sp.ccov1   = actions[0]; //rank 1 covariance update
 	
 	if (act_dim>1) evo->sp.ccovmu  = actions[1]; //rank mu covariance update
@@ -99,7 +110,7 @@ void actions_to_cma( double* const actions, int act_dim,  cmaes_t* const evo,
 	if (act_dim>3) evo->sp.cs      = actions[3]; //step size control c_sigmai
 	
 	if (act_dim>4)	evo->sp.damps   = actions[4]; //step size control c_sigmai
-	else 			update_damps(evo, func_dim, *lambda);
+	else 			update_damps( evo );
 	
 	if (act_dim>5){ 
 		*lambda_fac	= actions[5]; //pop size ratio
@@ -113,11 +124,6 @@ void actions_to_cma( double* const actions, int act_dim,  cmaes_t* const evo,
 	//evo->sp.ccov1,evo->sp.ccovmu,evo->sp.ccumcov,evo->sp.cs,lambda_fac);
 	//fflush(0);
 }
-
-
-
-
-
 
 
 
@@ -157,8 +163,11 @@ void print_best_ever( cmaes_t* const evo,  int step ){
 
 
 
-void update_damps(cmaes_t* const evo,const int N, const int lambda)
+void update_damps( cmaes_t* const evo )
 {
+	int lambda = evo->sp.lambda;
+	int N = evo->sp.N;
+
 	evo->sp.damps =
 		(1 + 2*std::max(0., sqrt((evo->sp.mueff-1.)/(N+1.)) - 1 ) )     /* basic factor */
 		* std::max(0.3, 1. -                                       /* modify for short runs */
@@ -260,3 +269,8 @@ void update_state(cmaes_t* const evo, double* const state, double* oldFmedian, d
 	for (int i=0; i<func_dim; i++) oldXmean[i] = xMean[i];
 	free(xMean);
 }
+
+
+
+
+

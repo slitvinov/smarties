@@ -1,5 +1,12 @@
 #include <stdio.h>
 #include "cmaes.h"
+#include <random>
+
+#include <string.h>
+#include <chrono>
+#include <algorithm>
+#include <iostream>
+#include <sstream>
 
 #ifndef CMAES_LEARN_H
 #define CMAES_LEARN_H
@@ -18,10 +25,9 @@ void dump_curgen( double* const* pop, double *arFunvals, int step, int lambda, i
 
 void print_best_ever( cmaes_t* const evo, int func_dim );
 
-void update_damps(cmaes_t* const evo,const int N, const int lambda);
+void update_damps( cmaes_t* const evo );
 
-int is_feasible(double* const pop, double* const lower_bound,
-							double* const upper_bound, int dim);
+int is_feasible(double* const pop, double* const lower_bound, double* const upper_bound, int dim);
 
 void update_state(cmaes_t* const evo, double* const state, double* oldFmedian, double* oldXmean);
 
@@ -37,5 +43,7 @@ bool resample( cmaes_t* const evo, double* const* pop, double* const lower_bound
 
 bool evaluate_and_update( cmaes_t* const evo, double* const*  pop, double *arFunvals, int* const info  );
 
+
+void random_action( cmaes_t* const evo, std::mt19937 gen );
 
 #endif
