@@ -189,7 +189,6 @@ int main(int argn, char **args)
 			} // end of constant action loop
 
 
-
 			if (bConverged) break; //go to send terminal state
 #if __RLON
 			{

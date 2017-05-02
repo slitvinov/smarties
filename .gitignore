@@ -50,3 +50,5 @@ launch/settings/
 policies/*
 test_*
 runs/
+
+*.swp
