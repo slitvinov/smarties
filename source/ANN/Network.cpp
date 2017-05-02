@@ -595,7 +595,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
     vector<Real> res(nOutputs); //allocate net output
 
     const Real incr = 1e-6;
-    const Real tol  = 1e-8;
+    const Real tol  = 1e-5;
     uniform_real_distribution<Real> dis(0.,1.);
     //figure out where to place some errors at random in outputs
     for (int i=0; i<seq_len; i++) {
@@ -645,7 +645,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         const Real scale = std::max(std::fabs(testG->_W[w]),
                                     std::fabs(testg->_W[w]));
         const Real err = (testG->_W[w] - testg->_W[w])/scale;
-        if (fabs(err)>tol || !testG->_W[w]) {
+        if (fabs(err)>tol || !nonZero(testG->_W[w])) {
         //if (1) {
 
               cout <<"W"<<w<<" analytical:"<<testG->_W[w]
@@ -684,7 +684,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
         const Real scale = std::max(std::fabs(testG->_B[w]),
                                     std::fabs(testg->_B[w]));
         const Real err = (testG->_B[w] - testg->_B[w])/scale;
-        if (fabs(err)>tol || !testG->_B[w]) {
+        if (fabs(err)>tol || !nonZero(testG->_B[w])) {
         //if (1) {
 
               cout <<"B"<<w<<" analytical:"<<testG->_B[w]

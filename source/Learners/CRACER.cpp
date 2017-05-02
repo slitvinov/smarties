@@ -71,7 +71,12 @@ delta(0.1), truncation(5), generators(settings.generators)
 	assert(1+nL+3*nA+1 == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
 
+#ifndef __EntropySGD
 	opt = new AdamOptimizer(net, profiler, settings);
+#else
+	opt = new EntropySGD(net, profiler, settings);
+#endif
+
 	data->bRecurrent = bRecurrent = true;
 
 #if 1//ndef NDEBUG
@@ -156,11 +161,19 @@ void CRACER::select(const int agentId, State& s, Action& a, State& sOld,
 	}
 
 	if(info==1) {
-		net->predict(data->standardize(input), output, currActivation);
+		net->predict(data->standardize(input), output, currActivation
+#ifdef __EntropySGD //then we sample from target weights
+      , net->tgt_weights, net->tgt_biases
+#endif
+      );
 	} else { //then if i'm using RNN i need to load recurrent connections (else no effect)
 		Activation* prevActivation = net->allocateActivation();
 		net->loadMemory(net->mem[agentId], prevActivation);
-		net->predict(data->standardize(input), output, prevActivation, currActivation);
+		net->predict(data->standardize(input), output, prevActivation, currActivation
+#ifdef __EntropySGD
+      , net->tgt_weights, net->tgt_biases
+#endif
+      );
 		_dispose_object(prevActivation);
 	}
 
@@ -176,9 +189,9 @@ void CRACER::select(const int agentId, State& s, Action& a, State& sOld,
 		for(int i=0; i<nA; i++) {
 			const Real varscale = aInfo.addedVariance(i);
 			const Real policy_var = 1./std::sqrt(output[1+nL+nA+i]); //output: 1/S^2
-			Real anneal_var = varscale*greedyEps + policy_var;
+			Real anneal_var = eps*varscale*greedyEps + (1-eps)*policy_var;
 			//				anneal_var = anneal_var>varscale ? varscale : anneal_var;
-			const Real annealed_mean = output[1+nL+i];
+			const Real annealed_mean = (1-eps)*output[1+nL+i];
 			//const Real annealed_mean = output[1+nL+i];
 			std::normal_distribution<Real> dist_cur(annealed_mean, anneal_var);
 			output[1+nL+i] = annealed_mean; //to save correct mu
@@ -415,12 +428,15 @@ void CRACER::Train_BPTT(const int seq, const int thrID) const
 
 		//const Real gain1 = A_OPC * importance - eta * rho_cur[k] * A_cur;
 		//const Real gain2 = A_pol * correction;
-		const Real eta = anneal*std::min(std::max(-1., cov_A_A[k]/varCritic), 1.);
+		//const Real eta = anneal*std::min(std::max(-1., cov_A_A[k]/varCritic), 1.);
+		const Real eta = anneal*std::min(std::max(0., cov_A_A[k]/varCritic), 0.5);
+		//const Real eta = anneal*std::min(std::max(-.5, cov_A_A[k]/varCritic), .5);
+		//const Real eta = 0;
 
 		#ifdef __A_VARIATE
 		const Real cotrolVar = A_cur;
 		#else
-		//other ppossible control variate with zero exp. value under policy
+		//other possible control variate with zero exp. value under policy
 		const Real cotrolVar = nA+diagTerm(varCur,polCur,mu_Cur)-diagTerm(varCur,act[k],mu_Cur);
 		#endif
 

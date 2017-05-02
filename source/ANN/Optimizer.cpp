@@ -26,7 +26,8 @@ eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), nepoch(0)
 
 AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
   Settings& settings) : Optimizer(_net, _prof, settings),
-  beta_1(0.8), beta_2(0.999), epsilon(1e-8), beta_t_1(0.8), beta_t_2(0.999)
+  //beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.999)
+  beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.99)
 {
     _allocateClean(_2ndMomW, nWeights)
     _allocateClean(_2ndMomB, nBiases)
@@ -34,7 +35,7 @@ AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
 
 EntropySGD::EntropySGD(Network* const _net, Profiler* const _prof,
   Settings& settings) : AdamOptimizer(_net, _prof, settings), alpha_eSGD(0.75),
-  gamma_eSGD(0.01), eta_eSGD(1./settings.dqnUpdateC), eps_eSGD(1e-4), L_eSGD(settings.dqnUpdateC)
+  gamma_eSGD(0.1), eta_eSGD(0.1/settings.dqnUpdateC), eps_eSGD(1e-4), L_eSGD(settings.dqnUpdateC)
 {
     assert(L_eSGD>0);
     _allocateClean(_muW_eSGD, nWeights)
@@ -219,26 +220,22 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
     //const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
     const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
     const Real norm = 1./(Real)max(batchsize,1);
-    const Real lambda_ = _lambda*eta_;
-
+    //const Real lambda_ = _lambda*eta_;
+    const Real eps = std::numeric_limits<Real>::epsilon();
 	#pragma omp parallel for
     for (int i=0; i<N; i++) {
         //const Real DW  = std::max(std::min(grad[i]*norm, 1.), -1.);
         const Real DW  = grad[i]*norm;
         const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
         const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
-        const Real M1_ = M1;
-        const Real M2_ = std::max(M2,epsilon);
         //const Real DW_ = std::max(std::min(eta_*M1_/std::sqrt(M2_),eta_),-eta_);
-        const Real DW_ = eta_*M1_/std::sqrt(M2_);
-        _1stMom[i] = M1_;
+        const Real M2_ = std::max(M2, eps);
+        _1stMom[i] = M1;
         _2ndMom[i] = M2_;
         grad[i] = 0.; //reset grads
 
-        if (lambda_>0)
-             dest[i] += DW_ + (dest[i]<0 ? lambda_ : -lambda_);   // L1
-             //dest[i] += DW_ - dest[i]*lambda_;                      // L2
-        else dest[i] += DW_;
+        //dest[i] += eta_*M1_/std::sqrt(M2_); 
+        dest[i] += eta_*((1-beta_1)*DW + beta_1*M1)/std::sqrt(M2_); 
     }
 }
 #else
@@ -336,7 +333,7 @@ void Optimizer::save(const string fname)
 bool EntropySGD::restart(const string fname)
 {
   const bool ret = AdamOptimizer::restart(fname);
-  if (!ret) return ret; 
+  if (!ret) return ret;
   for (int i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights[i];
   for (int i=0; i<nBiases; i++)  _muB_eSGD[i] = net->biases[i];
   return ret;

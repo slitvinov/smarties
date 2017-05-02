@@ -24,9 +24,9 @@ using namespace std;
 
 CartEnvironment::CartEnvironment(const int _nAgents, const string _execpath,
 																 const int _rank, Settings & settings) :
-Environment(_nAgents, _execpath, _rank, settings)
+Environment(_nAgents, _execpath, _rank, settings), allSenses(settings.senses==0)
 {
-   //cheaperThanNetwork=false;
+   cheaperThanNetwork=false;
 }
 
 bool CartEnvironment::predefinedNetwork(Network* const net) const
@@ -46,12 +46,10 @@ void CartEnvironment::setDims() //this environment is for the cart pole test
         sI.inUse.push_back(true); //ignore, leave as is
 
         // ...velocity...
-		//sI.inUse.push_back(false); //ignore, leave as is
-		sI.inUse.push_back(true); //ignore, leave as is
+		sI.inUse.push_back(allSenses); //ignore, leave as is
 
         // ...and angular velocity
-		sI.inUse.push_back(true); //ignore, leave as is
-		//sI.inUse.push_back(false); //ignore, leave as is
+		sI.inUse.push_back(allSenses); //ignore, leave as is
 
         // ...angle...
 		sI.inUse.push_back(true); //ignore, leave as is
@@ -100,7 +98,7 @@ bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a,
     if (reward<-0.9) new_sample=true; //in cart pole example, if reward from the app is -1 then I failed
 
     //here i can change the reward: instead of -1 or 0, i can give a positive reward if angle is small
-    reward = 1>fabs(t_sN.vals[0]) ? 1 - fabs(t_sN.vals[3])/0.2 : 0;    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
+    reward = 1 - fabs(t_sN.vals[3])/0.2 - fabs(t_sN.vals[0])/2.4;    //max cumulative reward = sum gamma^t r < 1/(1-gamma)
     if (new_sample)
 //			reward = -10.; // = - max cumulative reward
 			reward = -1./(1.-gamma); // = - max cumulative reward

@@ -5,10 +5,12 @@ hn ?= $(shell hostname)
 username ?= $(shell whoami)
 UNAME_S := $(shell uname -s)
 viz ?= 0
-config ?= "prod"
+config ?= prod
 extra ?=
-app ?= "test"
-mpi_lib ?= "default"
+app ?= test
+cvariate ?= off
+acer ?= full
+mpi_lib ?= default
 
 ifeq "$(viz)" "1"
 CPPFLAGS+= -D_RL_VIZ
@@ -45,7 +47,7 @@ endif
 CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wno-reorder -Wno-deprecated
-CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter
+CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter -Wunused-variable
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
 
 CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
@@ -54,8 +56,24 @@ CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 #-DNDEBUG
 CPPFLAGS += -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
 CPPFLAGS += -ffast-math
 
+ifeq "$(acer)" "safe"
+CPPFLAGS += -D__ACER_SAFE
+else
+ifeq "$(acer)" "relax"
+CPPFLAGS += -D__ACER_RELAX
+else
+ifneq "$(acer)" "full"
+#$(error acer flag is not recognized: safe, relax or full)
+endif #!full
+endif #relax
+endif #safe
+
+ifeq "$(cvariate)" "on"
+CPPFLAGS+= -D__ACER_VARIATE
+endif
+
 ifeq "$(app)" "cubism"
-	CPPFLAGS += -D__Cubism3D
+CPPFLAGS+= -D__Cubism3D
 endif
 ifeq "$(config)" "debug"
 CPPFLAGS+= -g -O2
