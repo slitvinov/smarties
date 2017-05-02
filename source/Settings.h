@@ -16,6 +16,7 @@ using namespace std;
 #include <string>
 #include <random>
 #include <vector>
+#include <cassert>
 #include <sstream>
 #include <cstdlib>
 #include <cstdio>
@@ -79,7 +80,7 @@ inline void setVecMean(vector<Real>& vals)
 inline void statsVector(vector<vector<Real>>& sum, vector<vector<Real>>& sqr,
   vector<Real>& cnt)
 {
-  assert(sum.size() == grad.size() && sqr.size() == cnt.size());
+  assert(sum.size() == cnt.size() && sqr.size() == cnt.size());
 
   for (int i=0; i<sum[0].size(); i++)
     sum[0][i] = sqr[0][i] = 0;
