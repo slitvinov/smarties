@@ -37,7 +37,7 @@ AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
 EntropySGD::EntropySGD(Network* const _net, Profiler* const _prof,
 	Settings& settings) : AdamOptimizer(_net, _prof, settings, 0.8),
 	alpha_eSGD(0.75), gamma_eSGD(0.01), eta_eSGD(10./settings.dqnUpdateC),
-	eps_eSGD(1e-4), L_eSGD(settings.dqnUpdateC)
+	eps_eSGD(1e-6), L_eSGD(settings.dqnUpdateC)
 {
 	assert(L_eSGD>0);
 	_allocateClean(_muW_eSGD, nWeights)
