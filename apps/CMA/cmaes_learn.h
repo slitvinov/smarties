@@ -17,7 +17,8 @@ class write_cmaes_perf{
 	
 	public:
 		void write( const int thrid );
-		void write( const int thrid, const int func_dim, int func_id, int step, const double final_dist, double ffinal );
+		//void write( cmaes_t* const evo, const int thrid, int func_id, int step, const double final_dist, double ffinal );
+		void write( cmaes_t* const evo,const int thrid, const int func_dim, int func_id, int step, const double final_dist, double ffinal );
 };
 
 

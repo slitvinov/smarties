@@ -2,12 +2,8 @@
 close all
 colors = [0 .447 .741; .85 .325 .098; .929 .694 .125; .494 .184 .556;
             .466 .674 .188; .301 .745 .933; .635 .078 .184];
-%D=importdata('/Volumes/Apps/smarties/apps/CMA/test/cma_perf_00.dat',' ',1);
-%D = D.data;
-%plot_data(D, 0, colors(1,:), '--')
-%D=importdata('/Volumes/Apps/smarties/apps/CMA/orig_params_2/cma_perf_00.dat',' ',1);
-%D=importdata('/Users/novatig/Desktop/euler/smarties/apps/CMA/cma_perf_NL.dat',' ',1);
-D = importdata('~/mnt/euler/smarties/run_0/simulation_558960_0/cma_perf_00.dat',' ',1);
+
+D = importdata('./simulation_453745_0/cma_perf_00.dat',' ',1);
 D = D.data;
 plot_data(D, 0, colors(1,:), '.-')
 nD = size(D,1);
@@ -40,7 +36,7 @@ sum2step_dim = zeros(1, maxdim);
 sum1conv_dim = zeros(1, maxdim);
 
 titles={'Average', 'ACKLEY', 'DIXON PRICE', 'GRIEWANK', 'LEVY', 'PERM', 'PERM0', ...
-        'RASTRIGIN', 'GRIEWANK', 'ROSENBROCK', 'ROTATED HYPER ELLIPSOID', ...
+        'RASTRIGIN', 'ROSENBROCK', 'ROTATED HYPER ELLIPSOID', ...
         'SCHWEFEL', 'SPHERE', 'STYBLINSKI TANG', 'SUM OF POWER', 'SUM OF SQUARES', 'ZAKHAROV'};
 
 %func_dim, info[0], step, final_dist, ffinal
@@ -105,3 +101,4 @@ for i = 1:16
     
 end
 end
+

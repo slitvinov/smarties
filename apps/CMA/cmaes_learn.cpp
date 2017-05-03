@@ -41,12 +41,25 @@ void write_cmaes_perf::write( const int thrid ){
 	fclose(fp);
 }
 
-void write_cmaes_perf::write( const int thrid, const int func_dim, int func_id, int step, const double final_dist, double ffinal ){
+void write_cmaes_perf::write( cmaes_t* const evo, const int thrid, const int func_dim, int func_id, int step, const double final_dist, double ffinal ){
 	//print to file dim, function ID, nsteps, distance from opt, function value
 	char filename[256];
+	FILE *fp;
+
 	sprintf(filename, "cma_perf_%02d.dat", thrid);
-	FILE *fp = fopen(filename, "a");
+	fp = fopen(filename, "a");
 	fprintf(fp, "%d %d %d %e %e\n", func_dim, func_id, step, final_dist, ffinal);
+	fclose(fp);
+
+
+	const double *xbever = cmaes_GetPtr(evo, "xbestever");
+
+	sprintf(filename, "cma_xbever_%02d.dat", thrid);
+	fp = fopen(filename, "a");
+	for(int i=0; i<func_dim; i++)
+		fprintf(fp,"%lf  ",xbever[i]);
+	fprintf(fp,"\n");
+
 	fclose(fp);
 }
 

@@ -48,7 +48,9 @@ int main(int argn, char **args)
 	std::vector<std::mt19937*> generators(nthreads);
 	for (int i=0; i<nthreads; i++) generators[i] = new std::mt19937(seeds[i]);
 
+	//std::normal_distribution<double>  		func_dim_distribution(0, 3);
 	std::uniform_int_distribution<int> 		func_dim_distribution(1,10);
+
 	std::uniform_real_distribution<double> 	start_x_distribution(.3,.7);
 	std::uniform_real_distribution<double> 	start_std_distribution(.2,.5);
 	std::uniform_int_distribution<int> 		func_ID_distribution(0, _COUNT-1);
@@ -89,7 +91,7 @@ int main(int argn, char **args)
 		from_state1 = {1,1,1,1,0,0,(double)func_dim,0};
 		from_state2 = {0,0,0,0,0,0,(double)func_dim,0};
 
-		info[0] = func_ID_distribution(*generators[thrid]);
+		info[0] = 8; //func_ID_distribution(*generators[thrid]);
 		
 		const int 	lambda_0 	= 4+floor(3*std::log(func_dim));
 		double		lambda_frac = 1.001;
@@ -228,7 +230,7 @@ int main(int argn, char **args)
 			comm.sendState(thrid, 2, state, r_end); // final state: info is 2
 #endif
 
-			wcp.write( thrid, func_dim, info[0], step, final_dist, ffinal );
+			wcp.write( evo, thrid,func_dim, info[0], step, final_dist, ffinal );
 
 			free(xfinal);
 		}

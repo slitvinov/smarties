@@ -19,7 +19,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 	//std::cout << std::endl;
 
 	switch (rnd) {
-		case ACKLEY: {
+		case ACKLEY: { // 0
 						 double a = 20, b = .2, c = 2.*M_PI, s1 = 0., s2 = 0.;
 						 for (i = 0; i < N; ++i) {
 							 s1 += x[i]*x[i];
@@ -29,7 +29,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 						 break;
 					 }
 
-		case DIXON_PRICE: {
+		case DIXON_PRICE: { // 1
 							  double s = 0.;
 							  for (i = 1; i < N; ++i)
 								  s += (i+1.)*pow(2*x[i]*x[i]-x[i-1], 2);
@@ -37,7 +37,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 							  break;
 						  }
 
-		case GRIEWANK: {
+		case GRIEWANK: { // 2
 						   double s = 0., p = 1.;
 						   for (i = 0; i < N; ++i) {
 							   s += x[i]*x[i];
@@ -47,7 +47,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 						   break;
 					   }
 
-		case LEVY: {
+		case LEVY: { // 3
 					   double s = 0.;
 					   for (i = 0; i < N-1; ++i) {
 						   s += .0625*pow(x[i]-1, 2)
@@ -58,7 +58,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 					   break;
 				   }
 
-		case PERM: {
+		case PERM: { // 4
 					   double beta = .5;
 					   double s2 = 0.;
 					   int j;
@@ -72,7 +72,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 					   break;
 				   }
 
-		case PERM0: {
+		case PERM0: {// 5
 						double beta = 10.;
 						double s2 = 0.;
 						int j;
@@ -86,7 +86,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 						break;
 					}
 
-		case RASTRIGIN: {
+		case RASTRIGIN: {// 6
 							double s = 0.;
 							for (i = 0; i < N; ++i)
 								s += x[i]*x[i] - 10.*cos(2.*M_PI*x[i]);
@@ -94,7 +94,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 							break;
 						}
 
-		case ROSENBROCK: {
+		case ROSENBROCK: {// 7
 							 double s = 0.;
 							 for (i = 0; i < N-1; ++i)
 								 s += 100.*pow(x[i+1]-x[i]*x[i], 2) + pow(x[i]-1., 2);
@@ -102,17 +102,18 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 							 break;
 						 }
 
-		case ROTATED_HYPER_ELLIPSOID: {
-										  int j;
-										  double s = 0.;
-										  for (i = 0; i < N; ++i)
-											  for (j = 0; j < i; ++j)
-												  s += x[j]*x[j];
+		case ROTATED_HYPER_ELLIPSOID: {// 8
+										double s = 0.;
+										double tmp=0.;
+										for (i = 0; i < N; i++){
+											tmp += x[i];
+											s += pow(tmp,2);
+										  }
 										  f = s;
 										  break;
 									  }
-
-		case SCHWEFEL: {
+ 
+		case SCHWEFEL: { // 9
 						   double s = 0.;
 						   for (i = 0; i < N; ++i)
 							   s += x[i]*sin(sqrt(fabs(x[i])));
@@ -120,7 +121,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 						   break;
 					   }
 
-		case SPHERE: {
+		case SPHERE: {// 10
 						 double s = 0.;
 						 for (i = 0; i < N; ++i)
 							 s += x[i]*x[i];
@@ -128,7 +129,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 						 break;
 					 }
 
-		case STYBLINSKI_TANG: {
+		case STYBLINSKI_TANG: { // 11
 								  double s = 0.;
 								  for (i = 0; i < N; ++i)
 									  s += pow(x[i], 4) - 16.*x[i]*x[i] + 5.*x[i];
@@ -136,7 +137,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 								  break;
 							  }
 
-		case SUM_OF_POWER: {
+		case SUM_OF_POWER: { // 12
 							   double s = 0.;
 							   for (i = 0; i < N; ++i)
 								   s += pow(fabs(x[i]), i+2);
@@ -144,7 +145,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 							   break;
 						   }
 
-		case SUM_OF_SQUARES: {
+		case SUM_OF_SQUARES: { // 13
 								 double s = 0.;
 								 for (i = 0; i < N; ++i)
 									 s += (i+1.)*x[i]*x[i];
@@ -152,7 +153,7 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 								 break;
 							 }
 
-		case ZAKHAROV: {
+		case ZAKHAROV: {// 14
 						   double s1 = 0., s2 = 0.;
 						   for (i = 0; i < N; ++i) {
 							   s1 += x[i]*x[i];
