@@ -518,11 +518,14 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
 
     ofstream filestats;
     filestats.open("stats.txt", ios::app);
-    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, "
-            "min_Q %f, max_Q %f, errWeights [%f %f %f], N %d, steps %lu, dT %f\n",
-          stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ,
-          stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dumpCount,
-	  opt->nepoch, avgTime);
+    //printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, "
+    //        "min_Q %f, max_Q %f, errWeights [%f %f %f], N %d, steps %lu, dT %f\n",
+    //      stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ,
+    //      stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dumpCount,
+	 // opt->nepoch, avgTime);
+    printf("%d, mse:%f, avg_Q:%f, min_Q:%f, max_Q:%f, errWeights [%f %f], steps %lu, dT %f\n",
+          stats.epochCount, stats.MSE, stats.avgQ, stats.minQ,
+          stats.maxQ, sumWeights, distTarget, opt->nepoch, avgTime);
     filestats<<stats.epochCount<<"\t"<<stats.MSE<<"\t" <<stats.relE<<"\t"
              <<stats.avgQ<<"\t"<<stats.maxQ<<"\t"<<stats.minQ<<"\t"
              <<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"

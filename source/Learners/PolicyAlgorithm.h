@@ -86,10 +86,12 @@ protected:
 		assert(out.size()>=1+nL+2*nA);
 		assert(pgrad.size()==2*nA);
 		for (int j=0; j<nA; j++) {
-         //if(out[1+nL+nA+j] > __ACER_MAX_PREC) {
-         //   vargrad[j] = __ACER_MAX_PREC - out[1+nL+nA+j];
-         //   continue;
-         //}
+         /*
+         if(out[1+nL+nA+j] > __ACER_MAX_PREC) {
+            vargrad[j] = __ACER_MAX_PREC - out[1+nL+nA+j];
+            continue;
+         }
+         */
 			const Real x = out[1+nL+nA+j];
 			//const Real ysq = out[1+nL+nA+j]*out[1+nL+nA+j];
 			//const Real diff = ysq/(ysq + 0.25);
@@ -193,7 +195,7 @@ protected:
 				vector<Real> var_1 = extractVariance(out_1);
 				vector<Real> var_2 = extractVariance(out_2);
 				const Real A_1 = computeAdvantage(act, mu, var_1, P, mean);
-				const Real A_2 = computeAdvantage(act, mu, var_1, P, mean);
+				const Real A_2 = computeAdvantage(act, mu, var_2, P, mean);
 				const Real p1 = evaluateLogProbability(act, mu, prec_1);
 			 	const Real p2 = evaluateLogProbability(act, mu, prec_2);
 				printf("LogPol var Gradient %d: finite differences %g analytic %g \n",

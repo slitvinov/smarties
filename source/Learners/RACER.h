@@ -88,7 +88,7 @@ class RACER : public PolicyAlgorithm
 			for(int i=0; i<nA; i++) {
 				const Real varscale = aInfo.addedVariance(i);
 				const Real policy_std = std::sqrt(var[i]); //output: 1/S^2
-				Real anneal_std = eps*varscale*greedyEps + (1-eps)*policy_std;
+				const Real anneal_std = eps*varscale*greedyEps + (1-eps)*policy_std;
 				const Real annealed_mean = (1-eps*eps)*mu[i];
 				//const Real annealed_mean = output[1+nL+i];
 				std::normal_distribution<Real> dist_cur(annealed_mean, anneal_std);
@@ -154,6 +154,7 @@ private:
 			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
 			const vector<Real>& out, const Real err_Cov) const
 	{
+      const Real anneal = std::pow(annealingFactor(), 2); 
 		assert(out.size() == nOutputs);
 		assert(gradPolicy.size() == 2*nA); //no matter what
 		vector<Real> grad(nOutputs);
@@ -168,7 +169,7 @@ private:
 			grad[j] = Qerror*gradCritic[j];
 
 		for (int j=0; j<nA; j++)
-			grad[1+nL+j] = gradPolicy[j];
+			grad[1+nL+j] = gradPolicy[j] -anneal*out[1+nL+j];
 
 		#ifndef __ACER_SAFE
 			const vector<Real> gradVar = finalizeVarianceGrad(gradPolicy, out);
@@ -179,10 +180,10 @@ private:
 		#ifndef __ACER_RELAX
 			#ifndef __ACER_SAFE
 				for (int j=nL+1; j<nA+nL+1; j++)
-					grad[j+nA*2] = Qerror*gradCritic[j];
+					grad[j+nA*2] = Qerror*gradCritic[j] -anneal*out[j+nA*2];
 			#else
 				for (int j=nL+1; j<nA+nL+1; j++)
-					grad[j+nA] = Qerror*gradCritic[j];
+					grad[j+nA] = Qerror*gradCritic[j] -anneal*out[j+nA];
 			#endif
 		#else
 			//no gradient for mean of critic, ofc
