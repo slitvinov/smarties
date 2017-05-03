@@ -6,11 +6,13 @@
 !_TAG_PROGRAM_VERSION	5.8	//
 .DEFAULT_GOAL	Makefile	/^.DEFAULT_GOAL := engine_cmaes$/;"	m
 ACKLEY	fitfun.h	/^	ACKLEY,  \/* [-32.768, 32.768]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7
+Action	cmaes_learn.h	/^		Action(){$/;"	f	class:Action
+Action	cmaes_learn.h	/^class Action{$/;"	c
 Adapt_C2	cmaes.c	/^Adapt_C2(cmaes_t * const t, int hsig)$/;"	f	file:
 B	cmaes.h	/^  double **B;  \/* matrix with normalize eigenvectors in columns *\/$/;"	m	struct:__anon6
 C	cmaes.h	/^  double **C;  \/* lower triangular matrix: i>=j for C[i][j] *\/$/;"	m	struct:__anon6
 CC	Makefile	/^CC = gcc$/;"	m
-CMAES_LEARN_H	cmaes_learn.h	12;"	d
+CMAES_LEARN_H	cmaes_learn.h	13;"	d
 COM_DIR	Makefile	/^COM_DIR = ..\/..\/source\/$/;"	m
 CPP	Makefile	/^CPP = g++$/;"	m
 Check_Eigen	cmaes.c	/^Check_Eigen( int N,  double ** const C, double * const diag, double ** const Q)$/;"	f	file:
@@ -44,6 +46,8 @@ SUM_OF_POWER	fitfun.h	/^	SUM_OF_POWER,  \/* [-1, 1]; f(x*) = 0, x*[i] = 0 *\/$/;
 SUM_OF_SQUARES	fitfun.h	/^	SUM_OF_SQUARES, \/* [-10, 10]; f(x*) = 0, x*[i] = 0 *\/$/;"	e	enum:__anon7
 SignOfDiff	cmaes.c	/^	static int SignOfDiff(const void *d1, const void * d2)$/;"	f	file:
 Sorted_index	cmaes.c	/^	static void Sorted_index(const double *rgFunVal, int *iindex, int n)$/;"	f	file:
+State	cmaes_learn.h	/^		State( ){$/;"	f	class:State
+State	cmaes_learn.h	/^class State{$/;"	c
 TestMinStdDevs	cmaes.c	/^TestMinStdDevs(cmaes_t * const t)$/;"	f	file:
 VERBOSE	engine_cmaes.cpp	23;"	d	file:
 VERBOSE	engine_cmaes_omp.cpp	19;"	d	file:
@@ -64,7 +68,6 @@ __NGENSKIP	engine_cmaes_omp.cpp	8;"	d	file:
 __RANDACT	engine_cmaes.cpp	8;"	d	file:
 __RLON	engine_cmaes.cpp	7;"	d	file:
 __RLON	engine_cmaes_omp.cpp	7;"	d	file:
-actions_to_cma	cmaes_learn.cpp	/^void actions_to_cma( double* const actions, int act_dim,  cmaes_t* const evo, $/;"	f
 aktrand	cmaes.h	/^  long int aktrand;$/;"	m	struct:__anon1
 aktseed	cmaes.h	/^  long int aktseed;$/;"	m	struct:__anon1
 arFuncValueHist	cmaes.h	/^  double *arFuncValueHist;$/;"	m	struct:__anon6
@@ -123,13 +126,16 @@ cmaes_timings_t	cmaes.h	/^} cmaes_timings_t;$/;"	t	typeref:struct:__anon2
 cmaes_timings_tic	cmaes.c	/^		cmaes_timings_tic(cmaes_timings_t *t) {$/;"	f
 cmaes_timings_toc	cmaes.c	/^		cmaes_timings_toc(cmaes_timings_t *t) {$/;"	f
 cmaes_timings_update	cmaes.c	/^		cmaes_timings_update(cmaes_timings_t *t)$/;"	f
-copy_state	cmaes_learn.cpp	/^void copy_state( std::vector<double>& state, std::vector<double> from_state ){$/;"	f
 countevals	cmaes.h	/^  double countevals;$/;"	m	struct:__anon6
 cs	cmaes.h	/^  double cs;           \/* -> damps, <- N *\/$/;"	m	struct:__anon3
 dLastMinEWgroesserNull	cmaes.h	/^  double dLastMinEWgroesserNull;$/;"	m	struct:__anon6
 dMaxSignifKond	cmaes.h	/^  double dMaxSignifKond;$/;"	m	struct:__anon6
 damps	cmaes.h	/^  double damps;        \/* <- cs, maxeval, lambda *\/$/;"	m	struct:__anon3
+data	cmaes_learn.h	/^		std::vector<double> data;$/;"	m	class:Action
+data	cmaes_learn.h	/^		std::vector<double> data;$/;"	m	class:State
 diagonalCov	cmaes.h	/^  long diagonalCov;  \/* number of initial iterations *\/$/;"	m	struct:__anon3
+dim	cmaes_learn.h	/^		const int dim   = 6;$/;"	m	class:Action
+dim	cmaes_learn.h	/^		const int dim = 8;$/;"	m	class:State
 douMax	cmaes.c	/^		douMax( double i, double j)$/;"	f	file:
 douMin	cmaes.c	/^		douMin( double i, double j)$/;"	f	file:
 douSquare	cmaes.c	/^		douSquare(double d)$/;"	f	file:
@@ -140,6 +146,7 @@ evaluate_and_update	cmaes_learn.cpp	/^bool evaluate_and_update( cmaes_t* const e
 facmaxeval	cmaes.h	/^  double facmaxeval;$/;"	m	struct:__anon3
 facupdateCmode	cmaes.h	/^  double facupdateCmode;$/;"	m	struct:__anon3
 filename	cmaes.h	/^  char * filename;  \/* keep record of the file that was taken to read parameters *\/$/;"	m	struct:__anon3
+final_state	cmaes_learn.h	/^		void final_state( int func_dim ){$/;"	f	class:State
 firstprinttime	cmaes.h	/^  time_t firstprinttime;$/;"	m	struct:__anon6
 firstwritetime	cmaes.h	/^  time_t firstwritetime;$/;"	m	struct:__anon6
 fitfun	fitfun.c	/^void fitfun(double * const x, int N, double*const output, int * const info)  {$/;"	f
@@ -160,6 +167,8 @@ getTimeStr	cmaes.c	/^getTimeStr(void) {$/;"	f	file:
 get_upper_lower_bounds	fitfun.c	/^void get_upper_lower_bounds(double* const lower_bound, double* const upper_bound,$/;"	f
 hold	cmaes.h	/^  double hold;$/;"	m	struct:__anon1
 index	cmaes.h	/^  int *index;       \/* sorting index of sample pop. *\/$/;"	m	struct:__anon6
+initial_state	cmaes_learn.h	/^		void initial_state( int func_dim ){$/;"	f	class:State
+initialize	cmaes_learn.h	/^		void initialize( int func_dim ){$/;"	f	class:Action
 intMin	cmaes.c	/^		intMin( int i, int j)$/;"	f	file:
 isNoneStr	cmaes.c	/^		isNoneStr(const char * filename)$/;"	f	file:
 isStuck	cmaes.h	/^  int isStuck;$/;"	m	struct:__anon6
@@ -168,6 +177,9 @@ is_feasible	engine_cmaes_omp.cpp	/^int is_feasible(double *pop, double*lower_bou
 isstarted	cmaes.h	/^  short isstarted;$/;"	m	struct:__anon2
 istic	cmaes.h	/^  short istic;$/;"	m	struct:__anon2
 lambda	cmaes.h	/^  int lambda;          \/* -> mu, <- N *\/$/;"	m	struct:__anon3
+lambda	cmaes_learn.h	/^		int 	lambda;$/;"	m	class:Action
+lambda_0	cmaes_learn.h	/^		int 	lambda_0;$/;"	m	class:Action
+lambda_frac	cmaes_learn.h	/^		double	lambda_frac;$/;"	m	class:Action
 lastclock	cmaes.h	/^  clock_t lastclock;$/;"	m	struct:__anon2
 lastdiff	cmaes.h	/^  double lastdiff;$/;"	m	struct:__anon2
 lasttictoctime	cmaes.h	/^  double lasttictoctime;$/;"	m	struct:__anon2
@@ -244,16 +256,17 @@ totaltotaltime	cmaes.h	/^  double totaltotaltime;$/;"	m	struct:__anon2
 trace	cmaes.h	/^  double trace;$/;"	m	struct:__anon6
 typicalX	cmaes.h	/^  double * typicalX;$/;"	m	struct:__anon3
 typicalXcase	cmaes.h	/^  int typicalXcase;$/;"	m	struct:__anon3
+update	cmaes_learn.cpp	/^void Action::update(  cmaes_t* const evo, double **arFunvals ){$/;"	f	class:Action
 updateCmode	cmaes.h	/^  struct { int flgalways; double modulo; double maxtime; } updateCmode;$/;"	m	struct:__anon3	typeref:struct:__anon3::__anon5
-update_damps	cmaes_learn.cpp	/^void update_damps(cmaes_t* const evo,const int N, const int lambda)$/;"	f
-update_state	cmaes_learn.cpp	/^void update_state(cmaes_t* const evo, double* const state, double* oldFmedian, double* oldXmean)$/;"	f
+update_damps	cmaes_learn.cpp	/^void update_damps( cmaes_t* const evo )$/;"	f
+update_state	cmaes_learn.cpp	/^void State::update_state( cmaes_t* const evo, double* oldFmedian, double* oldXmean )$/;"	f	class:State
 update_state	engine_cmaes_omp.cpp	/^void update_state(cmaes_t * evo, double * const state, double* oldFmedian, double* oldXmean, const int func_dim)$/;"	f
 val	cmaes.h	/^  struct { int flg; double val; } stStopFitness;$/;"	m	struct:__anon3::__anon4
 version	cmaes.h	/^  const char *version;$/;"	m	struct:__anon6
 weights	cmaes.h	/^  double *weights;     \/* <- mu, -> mueff, mucov, ccov *\/$/;"	m	struct:__anon3
 weigkey	cmaes.h	/^  char *weigkey;$/;"	m	struct:__anon3
+write	cmaes_learn.cpp	/^void write_cmaes_perf::write( cmaes_t* const evo, const int thrid, const int func_dim, int func_id, int step, const double final_dist, double ffinal ){$/;"	f	class:write_cmaes_perf
 write	cmaes_learn.cpp	/^void write_cmaes_perf::write( const int thrid ){$/;"	f	class:write_cmaes_perf
-write	cmaes_learn.cpp	/^void write_cmaes_perf::write( const int thrid, const int func_dim, int func_id, int step, const double final_dist, double ffinal ){$/;"	f	class:write_cmaes_perf
 write_cmaes_perf	cmaes_learn.h	/^class write_cmaes_perf{$/;"	c
 writetime	cmaes.h	/^  time_t writetime; \/* ideally should keep track for each output file *\/$/;"	m	struct:__anon6
 xstart	cmaes.h	/^  double * xstart;$/;"	m	struct:__anon3

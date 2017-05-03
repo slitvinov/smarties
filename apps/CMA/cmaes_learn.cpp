@@ -108,24 +108,23 @@ bool check_for_nan_inf(cmaes_t* const evo, double* const* pop ){
 
 
 
-void actions_to_cma( double* const actions, int act_dim,  cmaes_t* const evo, 
-					int *lambda, double *lambda_fac, const int lambda_0, double **arFunvals ){
+void Action::update(  cmaes_t* const evo, double **arFunvals ){
 	
-	evo->sp.ccov1   = actions[0]; //rank 1 covariance update
+	evo->sp.ccov1   = data[0]; //rank 1 covariance update
 	
-	if (act_dim>1) evo->sp.ccovmu  = actions[1]; //rank mu covariance update
-	if (act_dim>2) evo->sp.ccumcov = actions[2]; //path update c_c
-	if (act_dim>3) evo->sp.cs      = actions[3]; //step size control c_sigmai
+	if (dim>1) evo->sp.ccovmu  = data[1]; //rank mu covariance update
+	if (dim>2) evo->sp.ccumcov = data[2]; //path update c_c
+	if (dim>3) evo->sp.cs      = data[3]; //step size control c_sigmai
 	
-	if (act_dim>4)	evo->sp.damps   = actions[4]; //step size control c_sigmai
-	else 			update_damps( evo );
+	if (dim>4)	evo->sp.damps   = data[4]; //step size control c_sigmai
+	else 		update_damps( evo );
 	
-	if (act_dim>5){ 
-		*lambda_fac	= actions[5]; //pop size ratio
-		*lambda 	= floor( lambda_0*(*lambda_fac) );
-		*lambda 	= *lambda < 4 ? 4 : *lambda;
-		*lambda_fac = *lambda/(double) lambda_0;
-		*arFunvals 	= cmaes_ChangePopSize(evo, *lambda);
+	if (dim>5){ 
+		lambda_frac	= data[5]; //pop size ratio
+		lambda 	= floor( lambda_0 * lambda_frac );
+		lambda 	= lambda < 4 ? 4 : lambda;
+		lambda_frac = lambda/(double) lambda_0;
+		*arFunvals 	= cmaes_ChangePopSize(evo, lambda);
 	}
 
 	//printf("selected action %f %f %f %f %f\n",
@@ -133,15 +132,6 @@ void actions_to_cma( double* const actions, int act_dim,  cmaes_t* const evo,
 	//fflush(0);
 }
 
-
-
-void copy_state( std::vector<double>& state, std::vector<double> from_state ){
-	
-	for( unsigned int i=0; i< state.size(); i++)
-		state[i]=from_state[i];
-
-
-}
 
 
 void dump_curgen( double* const* pop, double *arFunvals, int step, int lambda, int func_dim ){
@@ -220,7 +210,8 @@ int is_feasible(double* const pop, double* const lower_bound, double* const uppe
 
 
 
-void update_state(cmaes_t* const evo, double* const state, double* oldFmedian, double* oldXmean)
+ 
+void State::update_state( cmaes_t* const evo, double* oldFmedian, double* oldXmean )
 {
 	int func_dim = evo->sp.N;
 	double* xMean = cmaes_GetNew(evo, "xmean");
@@ -240,11 +231,6 @@ void update_state(cmaes_t* const evo, double* const state, double* oldFmedian, d
 	//const double d1 = evo->meandiagC < 0 ? evo->meandiagC-eps : evo->meandiagC+eps;
 	//const double d2 = evo->meanEW < 0 ? evo->meanEW-eps : evo->meanEW+eps;
 	
-	/*printf("%g %g %g %g %g %g\n",
-	  d1,d2,
-	  evo->mindiagC, evo->maxdiagC,
-	  evo->minEW, evo->maxEW);
-	  fflush(0);*/
 	const double ratio1 = d1>eps ? (evo->mindiagC/d1) : 1e-12;
 	const double ratio2 = d2>eps ? (evo->minEW/d2)    : 1e-12;
 	const double ratio3 = d1>eps ? (evo->maxdiagC/d1) : 1e-12;
@@ -263,14 +249,14 @@ void update_state(cmaes_t* const evo, double* const state, double* oldFmedian, d
 	if (std::isnan(evo->trace) || std::isinf(evo->trace))
 	{ perror("evo->trace is nan, FU CMAES \n"); abort(); }
 
-	state[0] = ratio1;
-	state[1] = ratio2;
-	state[2] = ratio3;
-	state[3] = ratio4;
-	state[4] = sqrt(xProgress);
-	state[5] = fProgress;
-	state[6] = (double)func_dim;
-	state[7] = evo->trace;
+	data[0] = ratio1;
+	data[1] = ratio2;
+	data[2] = ratio3;
+	data[3] = ratio4;
+	data[4] = sqrt(xProgress);
+	data[5] = fProgress;
+	data[6] = (double)func_dim;
+	data[7] = evo->trace;
 
 	//advance:
 	*oldFmedian = fmedian;

@@ -14,26 +14,53 @@
 
 
 
+class Action{
+
+	public:
+		const int dim   = 6;
+		std::vector<double> data;
+		
+		int 	lambda_0;
+		double	lambda_frac;
+		int 	lambda;
+
+		Action(){
+			data.resize(dim);
+		}
+
+		void initialize( int func_dim ){
+			lambda_0 	= 4+floor(3*std::log(func_dim));
+			lambda_frac = 1.001;
+			lambda 		= floor(lambda_0*lambda_frac);
+		}
+
+		void update(  cmaes_t* const evo, double **arFunvals );
+
+};
+
+
+
 
 class State{
+
+	public:	
+		
+		const int dim = 8;
+		std::vector<double> data;
+
+		State( ){
+			data.resize(dim);
+		}
+
+		void initial_state( int func_dim ){
+			data = {1,1,1,1,0,0,(double)func_dim,0};
+		}
 	
-	const int state_dim = 8;
-	std::vector<double> data;
+		void final_state( int func_dim ){
+			data = {0,0,0,0,0,0,(double)func_dim,0};
+		}
 
-	int func_dim;
-
-	State( int N ){
-		data.resize(state_dim);
-		func_dim = N;
-	}
-
-	void initial_state( ){
-		data = {1,1,1,1,0,0,(double)func_dim,0};
-	}
-	
-	void final_state(){
-		data = {0,0,0,0,0,0,(double)func_dim,0};
-	}
+		void update_state( cmaes_t* const evo, double* oldFmedian, double* oldXmean );
 
 };
 

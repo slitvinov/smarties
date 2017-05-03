@@ -40,8 +40,6 @@ int main(int argn, char **args)
 
 	const int sock      = std::stoi(args[1]);
 	const int nthreads  = 1;
-	const int act_dim   = 6;
-	const int state_dim = 8;
 
 	std::seed_seq seq{sock};
 	std::vector<int> seeds(nthreads);
@@ -57,18 +55,17 @@ int main(int argn, char **args)
 	std::uniform_int_distribution<int> 		func_ID_distribution(0, _COUNT-1);
 	std::uniform_int_distribution<int> 		cma_seed_distribution(0,std::numeric_limits<int>::max());
 	
+	//vectors of states and actions
+	State states;
+	Action actions;
+	
 
 #if __RLON
 	//communicator class, it needs a socket number sock, given by RL as first argument of execution
-	Communicator comm(sock, state_dim, act_dim);
+	Communicator comm(sock, states.dim, actions.dim);
 #endif
 
-	//vectors of states and actions
-	std::vector<double> state(state_dim);
-	std::vector<double> actions(act_dim);
 
-	std::vector<double> from_state1(act_dim); // initial state
-	std::vector<double> from_state2(act_dim);
 
 	const int thrid = 0; //omp_get_thread_num();
 
@@ -88,15 +85,12 @@ int main(int argn, char **args)
 		//const int func_dim = 1 + ceil(std::fabs(func_dim_distribution(*generators[thrid])));
 		const int func_dim = func_dim_distribution( *generators[thrid] );
 		const int runseed  = cma_seed_distribution( *generators[thrid] );
+
 				
-		from_state1 = {1,1,1,1,0,0,(double)func_dim,0};
-		from_state2 = {0,0,0,0,0,0,(double)func_dim,0};
 
 		info[0] = 8; //func_ID_distribution(*generators[thrid]);
 		
-		const int 	lambda_0 	= 4+floor(3*std::log(func_dim));
-		double		lambda_frac = 1.001;
-		int 		lambda 		= floor(lambda_0*lambda_frac);
+		actions.initialize(func_dim);
 		
 		evo->sp.funcID = info[0];
 		printf("Selected function %d with dimensionality %d\n", info[0], func_dim);
@@ -115,16 +109,16 @@ int main(int argn, char **args)
 							*(upper_bound[i]-lower_bound[i]);
 		}
 
-		arFunvals = cmaes_init(evo, func_dim, init_x, init_std, runseed, lambda, "../cmaes_initials.par");
+		arFunvals = cmaes_init(evo, func_dim, init_x, init_std, runseed, actions.lambda, "../cmaes_initials.par");
 		printf("%s\n", cmaes_SayHello(evo));
 		cmaes_ReadSignals(evo, "cmaes_signals.par");  /* write header and initial values */
 
 #if __RLON
 		{   
-			copy_state(state, from_state1);
-			comm.sendState(thrid, 1, state, 0);
-			comm.recvAction(actions);
-			actions_to_cma( actions.data(), act_dim, evo, &lambda, &lambda_frac, lambda_0, &arFunvals );
+			states.initial_state(func_dim);
+			comm.sendState(thrid, 1, states.data, 0);
+			comm.recvAction(actions.data);
+			actions.update( evo, &arFunvals );
 		}
 #elif __RANDACT
 		random_action(evo, *generators[thrid] )
@@ -162,7 +156,7 @@ int main(int argn, char **args)
 					}
 				}
 				
-				step += lambda;
+				step += actions.lambda;
 
 				fflush(stdout); /* useful in MinGW */
 				
@@ -173,7 +167,7 @@ int main(int argn, char **args)
 #endif
 
 #if _IODUMP_
-				dump_curgen( pop, arFunvals, step, lambda, func_dim );
+				dump_curgen( pop, arFunvals, step, actions.lambda, func_dim );
 #endif
 
 			} // end of constant action loop
@@ -182,24 +176,25 @@ int main(int argn, char **args)
 			if (bConverged) break; //go to send terminal state
 #if __RLON
 			{
-				update_state(evo, state.data(), &oldFmedian, oldXmean );
-				const double r = -.01*lambda_frac;
-				comm.sendState(thrid, 0, state, r);
-				comm.recvAction(actions);
-				actions_to_cma( actions.data(), act_dim, evo, &lambda, &lambda_frac, lambda_0, &arFunvals );
+				states.update_state( evo, &oldFmedian, oldXmean );
+				const double r = -.01*actions.lambda_frac;
+				comm.sendState(thrid, 0, states.data, r);
+				comm.recvAction(actions.data);
+				actions.update( evo, &arFunvals );
 			
 			}
 #elif __RANDACT
-		random_action(evo, *generators[thrid] )
+		random_action(evo, *generators[thrid] );
 #endif
 		
 		} // end of single function optimization
 
 		if (evo->isStuck == 1) {
 			fprintf(stderr, "Stopping becoz stuck\n");
-			copy_state(state, from_state2);
 			
-			for (int i = 0; i < lambda; ++i) {
+			states.final_state(func_dim);
+			
+			for (int i = 0; i < actions.lambda; ++i) {
 				std::ostringstream o;
 				o << "[";
 				for (int j=0; j<func_dim; j++) {
@@ -211,11 +206,12 @@ int main(int argn, char **args)
 						o.str().c_str(), arFunvals[i]);
 			}
 #if __RLON
-			comm.sendState(thrid, 2, state, -1.); // final state: info is 2
+			comm.sendState(thrid, 2, states.data, -1.); // final state: info is 2
 #endif
 		} 
 		else{
-			update_state(evo, state.data(), &oldFmedian, oldXmean);
+			states.update_state( evo, &oldFmedian, oldXmean);
+
 			double* xfinal = cmaes_GetNew(evo, "xmean");
 			double ffinal;
 			
@@ -224,11 +220,8 @@ int main(int argn, char **args)
 			const double final_dist = eval_distance_from_optimum(xfinal, func_dim, info);
 			const double r_end 		= std::max(-1., 1-1e2*final_dist);
 
-			//printf("Sending %f %f %f %f %f %f\n",
-			//		state[0],state[1],state[2],state[3],state[4],r_end);
-			//fflush(0);
 #if __RLON
-			comm.sendState(thrid, 2, state, r_end); // final state: info is 2
+			comm.sendState(thrid, 2, states.data, r_end); // final state: info is 2
 #endif
 
 			wcp.write( evo, thrid,func_dim, info[0], step, final_dist, ffinal );
