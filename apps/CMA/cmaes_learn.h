@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h> /* free() */
 #include "cmaes.h"
 #include <random>
 
@@ -10,6 +11,32 @@
 
 #ifndef CMAES_LEARN_H
 #define CMAES_LEARN_H
+
+
+
+
+class State{
+	
+	const int state_dim = 8;
+	std::vector<double> data;
+
+	int func_dim;
+
+	State( int N ){
+		data.resize(state_dim);
+		func_dim = N;
+	}
+
+	void initial_state( ){
+		data = {1,1,1,1,0,0,(double)func_dim,0};
+	}
+	
+	void final_state(){
+		data = {0,0,0,0,0,0,(double)func_dim,0};
+	}
+
+};
+
 
 
 

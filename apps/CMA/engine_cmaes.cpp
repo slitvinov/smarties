@@ -42,6 +42,7 @@ int main(int argn, char **args)
 	const int nthreads  = 1;
 	const int act_dim   = 6;
 	const int state_dim = 8;
+
 	std::seed_seq seq{sock};
 	std::vector<int> seeds(nthreads);
 	seq.generate(seeds.begin(), seeds.end());

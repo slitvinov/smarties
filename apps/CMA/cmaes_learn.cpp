@@ -223,7 +223,6 @@ int is_feasible(double* const pop, double* const lower_bound, double* const uppe
 void update_state(cmaes_t* const evo, double* const state, double* oldFmedian, double* oldXmean)
 {
 	int func_dim = evo->sp.N;
-	double eps = 1e-16;
 	double* xMean = cmaes_GetNew(evo, "xmean");
 	
 	double xProgress = 0.;
@@ -231,24 +230,25 @@ void update_state(cmaes_t* const evo, double* const state, double* oldFmedian, d
 		xProgress += pow(xMean[i]-oldXmean[i],2);
 	
 	const double fmedian = cmaes_Get(evo, "fmedian");
-	const double fProgress = (fmedian - *oldFmedian)
-		/(fabs(fmedian) + fabs(*oldFmedian));
+	const double fProgress = (fmedian - *oldFmedian) /(fabs(fmedian) + fabs(*oldFmedian));
 
 
 	//ratio between standard deviations
-	const double d1 = evo->meandiagC < 0 ? evo->meandiagC-eps : evo->meandiagC+eps;
-	const double d2 = evo->meanEW < 0 ? evo->meanEW-eps : evo->meanEW+eps;
+	double eps = 1e-16;
+	const double d1 = evo->maxdiagC - evo->mindiagC;
+	const double d2 = evo->maxEW - evo->minEW;
+	//const double d1 = evo->meandiagC < 0 ? evo->meandiagC-eps : evo->meandiagC+eps;
+	//const double d2 = evo->meanEW < 0 ? evo->meanEW-eps : evo->meanEW+eps;
+	
 	/*printf("%g %g %g %g %g %g\n",
 	  d1,d2,
 	  evo->mindiagC, evo->maxdiagC,
 	  evo->minEW, evo->maxEW);
 	  fflush(0);*/
-	const double ratio1 = (evo->mindiagC/d1);
-	//ratio between eigenvalues
-	const double ratio2 = (evo->minEW/d2);
-	const double ratio3 = (evo->maxdiagC/d1);
-	//ratio between eigenvalues
-	const double ratio4 = (evo->maxEW/d2);
+	const double ratio1 = d1>eps ? (evo->mindiagC/d1) : 1e-12;
+	const double ratio2 = d2>eps ? (evo->minEW/d2)    : 1e-12;
+	const double ratio3 = d1>eps ? (evo->maxdiagC/d1) : 1e-12;
+	const double ratio4 = d2>eps ? (evo->maxEW/d2)    : 1e-12;
 	//distinction makes sense if function is rotated
 
 	//prevent nans/infs from infecting the delicate snowflake that is the RL code
