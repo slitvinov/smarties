@@ -112,8 +112,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 #else
 	for (int k=0; k<ndata-1; k++) {
 		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
-		const vector<Real> scaledSold = data->standardize(_t->s);
-		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
+		//const vector<Real> scaledSold = data->standardize(_t->s);
+		const vector<Real> scaledSold = data->standardize(_t->s, 0.001, thrID);
 		net->seqPredict_inputs(scaledSold, series_cur[k]);
 		net->seqPredict_inputs(scaledSold, series_hat[k]);
 	}
