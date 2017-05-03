@@ -86,15 +86,18 @@ protected:
 		assert(out.size()>=1+nL+2*nA);
 		assert(pgrad.size()==2*nA);
 		for (int j=0; j<nA; j++) {
-         if(out[1+nL+nA+j] > __ACER_MAX_PREC) {
-            vargrad[j] = __ACER_MAX_PREC - out[1+nL+nA+j];
-            continue;
-         }
+         //if(out[1+nL+nA+j] > __ACER_MAX_PREC) {
+         //   vargrad[j] = __ACER_MAX_PREC - out[1+nL+nA+j];
+         //   continue;
+         //}
 			const Real x = out[1+nL+nA+j];
 			//const Real ysq = out[1+nL+nA+j]*out[1+nL+nA+j];
 			//const Real diff = ysq/(ysq + 0.25);
 			const Real diff = .5*(1+x/std::sqrt(x*x+1.));
 			vargrad[j] = pgrad[nA+j]*diff;
+         #ifdef __ACER_MAX_PREC
+         vargrad[j] = std::min(vargrad[j], __ACER_MAX_PREC-out[1+nL+nA+j]);
+         #endif
 		}
 		return vargrad;
 	}
