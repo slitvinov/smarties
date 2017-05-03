@@ -17,6 +17,7 @@
 #define __A_ACER_VARIATE
 //#define __I_VARIATE
 #endif
+#define __ACER_MAX_PREC 2500.
 
 class PolicyAlgorithm : public Learner
 {
@@ -85,6 +86,10 @@ protected:
 		assert(out.size()>=1+nL+2*nA);
 		assert(pgrad.size()==2*nA);
 		for (int j=0; j<nA; j++) {
+         if(out[1+nL+nA+j] > __ACER_MAX_PREC) {
+            vargrad[j] = __ACER_MAX_PREC - out[1+nL+nA+j];
+            continue;
+         }
 			const Real x = out[1+nL+nA+j];
 			//const Real ysq = out[1+nL+nA+j]*out[1+nL+nA+j];
 			//const Real diff = ysq/(ysq + 0.25);
