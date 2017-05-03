@@ -168,8 +168,16 @@ private:
 		for (int j=1; j<nL+1; j++)
 			grad[j] = Qerror*gradCritic[j];
 
-		for (int j=0; j<nA; j++)
-			grad[1+nL+j] = gradPolicy[j] -anneal*out[1+nL+j];
+		for (int j=0; j<nA; j++) {
+      #ifdef __ACER_MAX_ACT //clip derivative
+			const Real g = gradPolicy[j];
+         const Real m = out[1+nL+j];
+         const Real s = __ACER_MAX_ACT;
+			grad[1+nL+j] = std::max(std::min(g, s-m), -s-m);
+      #else
+          grad[1+nL+j] = gradPolicy[j] -anneal*out[1+nL+j];
+      #endif
+      }
 
 		#ifndef __ACER_SAFE
 			const vector<Real> gradVar = finalizeVarianceGrad(gradPolicy, out);
@@ -178,13 +186,27 @@ private:
 		#endif
 
 		#ifndef __ACER_RELAX
-			#ifndef __ACER_SAFE
-				for (int j=nL+1; j<nA+nL+1; j++)
-					grad[j+nA*2] = Qerror*gradCritic[j] -anneal*out[j+nA*2];
-			#else
-				for (int j=nL+1; j<nA+nL+1; j++)
-					grad[j+nA] = Qerror*gradCritic[j] -anneal*out[j+nA];
-			#endif
+			for (int j=nL+1; j<nA+nL+1; j++) {
+			   #ifndef __ACER_SAFE
+               #ifdef __ACER_MAX_ACT //clip derivative
+			         const Real g = Qerror*gradCritic[j];
+                  const Real m = out[j+nA*2];
+                  const Real s = __ACER_MAX_ACT;
+			         grad[j+nA*2] = std::max(std::min(g, s-m), -s-m);
+               #else
+					   grad[j+nA*2] = Qerror*gradCritic[j] -anneal*out[j+nA*2];
+               #endif
+			   #else
+               #ifdef __ACER_MAX_ACT //clip derivative
+			         const Real g = Qerror*gradCritic[j];
+                  const Real m = out[j+nA];
+                  const Real s = __ACER_MAX_ACT;
+			         grad[j+nA] = std::max(std::min(g, s-m), -s-m);
+               #else
+					   grad[j+nA] = Qerror*gradCritic[j] -anneal*out[j+nA];
+               #endif
+			   #endif
+         }
 		#else
 			//no gradient for mean of critic, ofc
 		#endif

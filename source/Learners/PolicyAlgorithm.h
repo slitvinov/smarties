@@ -18,6 +18,7 @@
 //#define __I_VARIATE
 #endif
 #define __ACER_MAX_PREC 2500.
+#define __ACER_MAX_ACT 10.
 
 class PolicyAlgorithm : public Learner
 {
@@ -141,8 +142,8 @@ protected:
 	void checkGradient()
 	{
 			vector<Real> out(nOutputs), act(nA);
-			uniform_real_distribution<Real> out_dis(-5,5);
-			uniform_real_distribution<Real> act_dis(-10,10);
+			uniform_real_distribution<Real> out_dis(-.5,.5);
+			uniform_real_distribution<Real> act_dis(-1,1);
 
 			for(int i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
 			for(int i = 0; i<nA; i++) act[i] = act_dis(*gen);
