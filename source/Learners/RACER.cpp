@@ -283,8 +283,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		vector<Real> fake{A_cur, 100};
 		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
 		if(thrID == 1) net->updateRunning(series_cur[k]);
-		//data->Set[seq]->tuples[k]->SquaredError = Qer*Qer;
-		data->Set[seq]->tuples[k]->SquaredError = std::pow(A_OPC*rho_cur,2);
+		data->Set[seq]->tuples[k]->SquaredError = Qer*Qer;
+		//data->Set[seq]->tuples[k]->SquaredError = std::pow(A_OPC*rho_cur,2);
 	}
 
 	if (thrID==0) net->backProp(series_cur, net->grad);

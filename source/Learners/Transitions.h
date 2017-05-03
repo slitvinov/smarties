@@ -58,13 +58,11 @@ class Transitions
 protected:
     const MPI_Comm mastersComm;
     Environment * const env;
-    const int nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
     int iOldestSaved;
     const bool bSampleSeq, bWriteToFile, bNormalize, bTrain;
     const string path;
     vector<Real> std, mean;
     vector<int> curr_transition_id;
-    vector<Sequence*> Buffered;
     discrete_distribution<int> * dist;
     int add(const int agentId, const int info, const State & sOld,
       const Action & a, const vector<Real>& mu, const State& s, Real r);
@@ -76,13 +74,14 @@ protected:
     void synchronize();
 
 public:
+    const int nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
     bool bRecurrent;
     int anneal, nBroken, nTransitions, nSequences, old_ndata;
     const StateInfo sI;
     const ActionInfo aI;
     std::vector<std::mt19937>& generators;
     Gen * gen;
-    vector<Sequence*> Set, Tmp;
+    vector<Sequence*> Set, Tmp, Buffered;
     vector<int> inds;
 
     Transitions(MPI_Comm comm, Environment*const env, Settings & settings);
