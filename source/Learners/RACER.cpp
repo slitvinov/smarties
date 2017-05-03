@@ -226,8 +226,9 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			#if 1
 				const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
 				const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
-				const Real threshold = A_cov * A_cov / varCritic;
-				const Real smoothing = threshold>.5 ? .5/threshold : 2*(1 - threshold);
+				static const Real L = 0.1, eps = 2.2e-16;
+				const Real threshold = A_cov * A_cov / (varCritic+eps);
+				const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
 				const Real eta = anneal * smoothing * A_cov * A_OPC / varCritic;
 				const Real cotrolVar = A_cov, err_Cov = 0;
 			#else

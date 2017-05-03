@@ -135,7 +135,7 @@ protected:
 		}
 		return p;
 	}
-
+	
 	void checkGradient()
 	{
 			vector<Real> out(nOutputs), act(nA);
@@ -153,9 +153,15 @@ protected:
 				vector<Real> var = vector<Real>(nA,.01); //std=.1
 				vector<Real> prec = vector<Real>(nA,100); //std=.1
 			#endif
+			#ifndef __ACER_RELAX
+				vector<Real> mean = extractQmean(out);
+			#else
+				vector<Real> mean = mu;
+			#endif
 
 			vector<Real> P = preparePmatrix(out);
 			vector<Real> polGrad = policyGradient(mu, prec, act, 1);
+			vector<Real> cntGrad = controlGradient(mu, var, P, mean, 1);
 
 			for(int i = 0; i<nA; i++) {
 				vector<Real> out_1 = out;
@@ -164,14 +170,19 @@ protected:
 				out_2[1+nL+i] += 0.0001;
 				vector<Real> mu_1 = extractPolicy(out_1);
 				vector<Real> mu_2 = extractPolicy(out_2);
+				const Real A_1 = computeAdvantage(act, mu_1, var, P, mean);
+				const Real A_2 = computeAdvantage(act, mu_2, var, P, mean);
 				const Real p1 = evaluateLogProbability(act, mu_1, prec);
 			 	const Real p2 = evaluateLogProbability(act, mu_2, prec);
 				printf("LogPol mu Gradient %d: finite differences %g analytic %g \n",
 				i, (p2-p1)/0.0002, polGrad[i]);
+				printf("Control mu Gradient %d: finite differences %g analytic %g \n",
+				i, (A_1-A_2)/0.0002, cntGrad[i]);
 			}
 
 			#ifndef __ACER_SAFE
 			vector<Real> varGrad = finalizeVarianceGrad(polGrad, out);
+			vector<Real> trlGrad = finalizeVarianceGrad(cntGrad, out);
 			for(int i = 0; i<nA; i++) {
 				vector<Real> out_1 = out;
 				vector<Real> out_2 = out;
@@ -179,17 +190,17 @@ protected:
 				out_2[1+nL+nA+i] += 0.0001;
 				vector<Real> prec_1 = extractPrecision(out_1);
 				vector<Real> prec_2 = extractPrecision(out_2);
+				vector<Real> var_1 = extractVariance(out_1);
+				vector<Real> var_2 = extractVariance(out_2);
+				const Real A_1 = computeAdvantage(act, mu, var_1, P, mean);
+				const Real A_2 = computeAdvantage(act, mu, var_1, P, mean);
 				const Real p1 = evaluateLogProbability(act, mu, prec_1);
 			 	const Real p2 = evaluateLogProbability(act, mu, prec_2);
 				printf("LogPol var Gradient %d: finite differences %g analytic %g \n",
 				i, (p2-p1)/0.0002, varGrad[i]);
+				printf("Control var Gradient %d: finite differences %g analytic %g \n",
+				i, (A_1-A_2)/0.0002, trlGrad[i]);
 			}
-			#endif
-
-			#ifndef __ACER_RELAX
-			vector<Real> mean = extractQmean(out);
-			#else
-			vector<Real> mean = mu;
 			#endif
 
 			vector<Real> cgrad = criticGradient(P, mu, var, out, mean, act);
