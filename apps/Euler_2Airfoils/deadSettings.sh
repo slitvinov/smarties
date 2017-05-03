@@ -50,5 +50,5 @@ SETTINGS+=" -rho 1.0"
 SETTINGS+=" -dumpfreq 0"
 SETTINGS+=" -savefreq 0"
 
-SETTINGS+=" -DumpTFreq 8"
+SETTINGS+=" -DumpTFreq 30"
 SETTINGS+=" -SaveTFreq 0"

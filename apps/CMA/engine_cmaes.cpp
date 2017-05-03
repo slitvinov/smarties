@@ -77,8 +77,12 @@ void update_state(cmaes_t* const evo, double* const state, double* oldFmedian,
 
 
   //ratio between standard deviations
-  const double d1 = evo->meandiagC < 0 ? evo->meandiagC-eps : evo->meandiagC+eps;
-  const double d2 = evo->meanEW < 0 ? evo->meanEW-eps : evo->meanEW+eps;
+  //const double d1 = evo->meandiagC < 0 ? evo->meandiagC-eps : evo->meandiagC+eps;
+  //const double d2 = evo->meanEW < 0 ? evo->meanEW-eps : evo->meanEW+eps;
+
+  const double d1 = evo->maxdiagC - evo->mindiagC;
+  const double d2 = evo->maxEW - evo->minEW;
+
   /*printf("%g %g %g %g %g %g\n",
   d1,d2,
   evo->mindiagC, evo->maxdiagC,

@@ -391,13 +391,38 @@ allocatedDroputWeights(false), generators(settings.generators), bDump(not settin
 bBuilt(false), bAddedInput(false), counter(0), batch_counter(0)
 { }
 
-
 vector<Real> Network::getOutputs(const Activation* const act)
 {
   vector<Real> _output(nOutputs);
   for (int i=0; i<nOutputs; i++)
       _output[i] = *(act->outvals + iOut[i]);
   return _output;
+}
+
+void Network::seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const
+{
+	assert(bBuilt);
+    for (int j=0; j<nInputs; j++) *(currActivation->outvals +j) = _input[j];
+}
+
+void Network::seqPredict_execute(
+		const vector<Activation*>& series_1, vector<Activation*>& series_2,
+		const Real* const _weights, const Real* const _biases, const Real noise) const
+{
+	assert( bBuilt );
+	const int T = std::min(series_1.size(), series_2.size());
+    for (int j=0; j<nLayers; j++)
+	for (int t=0; t<T; t++)  {
+		Activation* const currActivation = series_2[t];
+		const Activation* const prevActivation = t ? series_1[t-1] : nullptr;
+        layers[j]->propagate(prevActivation,currActivation,_weights,_biases,noise);
+	}
+}
+
+void Network::seqPredict_output(vector<Real>& _output, Activation* const currActivation) const
+{
+    for (int i=0; i<nOutputs; i++)
+        _output[i] = *(currActivation->outvals + iOut[i]);
 }
 
 void Network::predict(const vector<Real>& _input, vector<Real>& _output,

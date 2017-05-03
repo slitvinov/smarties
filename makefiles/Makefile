@@ -10,6 +10,7 @@ extra ?=
 app ?= test
 cvariate ?= off
 acer ?= full
+entropy ?= off
 mpi_lib ?= default
 
 ifeq "$(viz)" "1"
@@ -47,7 +48,7 @@ endif
 CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wno-reorder -Wno-deprecated
-CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter -Wunused-variable
+CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter -Wno-unused-variable
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
 
 CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
@@ -68,6 +69,9 @@ endif #!full
 endif #relax
 endif #safe
 
+ifeq "$(entropy)" "on"
+CPPFLAGS+= -D__EntropySGD
+endif
 ifeq "$(cvariate)" "on"
 CPPFLAGS+= -D__ACER_VARIATE
 endif

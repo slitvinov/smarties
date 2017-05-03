@@ -582,7 +582,7 @@ void Transitions::synchronize()
       if (not bufTransition->ended) ++nBroken;
       Set[ind] = bufTransition;
       Buffered.pop_back();
-      if(cnt==10) break;
+      if(cnt == maxTotSeqNum/20) break; //don't change buffer too much
   } //number of sequences remains constant
   printf("Removing %d sequences (avg length %f) associated with small MSE"
     "error in favor of new ones (avg lendth %f). %lu left in Buffer\n", cnt,

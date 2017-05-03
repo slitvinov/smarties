@@ -25,7 +25,7 @@ SETTINGS+=" --nnType 0"
 SETTINGS+=" --nnL 0.0"
 
 #chance of taking random actions
-SETTINGS+=" --greedyeps 0.1"
+SETTINGS+=" --greedyeps 0.5"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -37,9 +37,6 @@ SETTINGS+=" --senses 0"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 #SETTINGS+=" --learn DQN"
 #SETTINGS+=" --learn NAF"
-#SETTINGS+=" --learn SACER"
-#SETTINGS+=" --learn CACER"
-#SETTINGS+=" --learn CRACER"
 SETTINGS+=" --learn RACER"
 #SETTINGS+=" --learn DPG"
 
@@ -55,7 +52,7 @@ SETTINGS+=" --maxTotSeqNum 1000"
 #SETTINGS+=" --dqnBatch 22"
 SETTINGS+=" --dqnBatch 22"
 
-SETTINGS+=" --epsAnneal 20000" 
+SETTINGS+=" --epsAnneal 10000" 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w

@@ -26,17 +26,17 @@ restarts 0                    # read by example_restarts.c, remark that restarts
 
 # stop-Parameters can be changed online via cmaes_signals.par
 
-stopMaxFunEvals   1e5     # max number of f-evaluations, 900*(N+3)*(N+3) is default
+stopMaxFunEvals   1e6     # max number of f-evaluations, 900*(N+3)*(N+3) is default
 # fac*maxFunEvals   1e0     # multiplies stopMaxFunEvals by read number, default is 1
-stopMaxIter       1e4     # max number of iterations (generations), inf is default
+stopMaxIter       1e5     # max number of iterations (generations), inf is default
 
 # stopFitness 1e-9   # stop if function value is smaller than stopFitness
                      # commented == never stop on function value (default)
-stopTolFun 1e-9     # stop if function value differences are
+stopTolFun 1e-10     # stop if function value differences are
                      # smaller than stopTolFun, default=1e-12
-stopTolFunHist 1e-10 # stop if function value differences of best values are
+stopTolFunHist 0 # stop if function value differences of best values are
                      # smaller than stopTolFunHist, default was 0
-stopTolX 1e-9   # stop if step sizes/steps in x-space are
+stopTolX 0   # stop if step sizes/steps in x-space are
                  # smaller than TolX, default=0
 stopTolUpXFactor 1e3 # stop if std dev increases more than by TolUpXFactor, default 1e3
 

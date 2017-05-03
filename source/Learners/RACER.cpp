@@ -89,9 +89,7 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 void RACER::Train_BPTT(const int seq, const int thrID) const
 {
 	//this should go to gamma rather quick:
-	#ifdef __ACER_VARIATE
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
-	#endif
 	const Real rGamma = annealedGamma();
 
 	assert(net->allocatedFrozenWeights && bTrain);
@@ -100,15 +98,32 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 	vector<vector<Real>> out_hat(ndata-1, vector<Real>(nOutputs,0));
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
 	vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata);
-
+#if 0
 	for (int k=0; k<ndata-1; k++)
 	{
 		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
 		const vector<Real> scaledSold = data->standardize(_t->s);
 		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
 		net->predict(scaledSold, out_cur[k], series_cur, k);
+      net->predict(scaledSold, out_hat[k], k ? series_cur[k-1] : nullptr,
+         series_hat[k], net->tgt_weights, net->tgt_biases);
 		net->predict(scaledSold, out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
 	}
+#else
+	for (int k=0; k<ndata-1; k++) {
+		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
+		const vector<Real> scaledSold = data->standardize(_t->s);
+		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
+		net->seqPredict_inputs(scaledSold, series_cur[k]);
+		net->seqPredict_inputs(scaledSold, series_hat[k]);
+	}
+	net->seqPredict_execute(series_cur, series_cur);
+	net->seqPredict_execute(series_cur, series_hat, net->tgt_weights, net->tgt_biases);
+	for (int k=0; k<ndata-1; k++) {
+		net->seqPredict_output(out_cur[k], series_cur[k]);
+		net->seqPredict_output(out_hat[k], series_hat[k]);
+	}
+#endif
 
 	Real Q_RET = 0, Q_OPC = 0;
 	//if partial sequence then compute value of last state (=! R_end)
@@ -208,7 +223,16 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			const Real eta = anneal*std::min(std::max(-.5, cov_A_A/varCritic), 0.5);
 			//const Real eta = 0;
 		#else
-			const Real eta = 0, cotrolVar = 0, err_Cov = 0;
+			#if 1
+				const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
+				const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
+				const Real threshold = A_cov * A_cov / varCritic;
+				const Real smoothing = threshold>.5 ? .5/threshold : 2*(1 - threshold);
+				const Real eta = anneal * smoothing * A_cov * A_OPC / varCritic;
+				const Real cotrolVar = A_cov, err_Cov = 0;
+			#else
+				const Real eta = 0, cotrolVar = 0, err_Cov = 0;
+			#endif
 		#endif
 
 		const Real gain1 = A_OPC * importance - eta * rho_cur * cotrolVar;
@@ -249,9 +273,11 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
       //fflush(0);
       //
 		//bookkeeping:
+      #ifndef NDEBUG
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
 		meanGain1[thrID+1] = 0.9999*meanGain1[thrID+1] + 0.0001*gain1;
 		meanGain2[thrID+1] = 0.9999*meanGain2[thrID+1] + 0.0001*eta;
+      #endif
 		vector<Real> fake{A_cur, 100};
 		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
 		if(thrID == 1) net->updateRunning(series_cur[k]);
@@ -271,11 +297,13 @@ void RACER::processStats(vector<trainData*> _stats, const Real avgTime)
 		variance = stdev*stdev;
 		precision = 1./variance;
 	#endif
+   #ifndef NDEBUG
 	statsVector(avgGrad, stdGrad, cntGrad);
 	setVecMean(meanGain1); setVecMean(meanGain2);
 	printf("Gain of policy grad means: [%f] [%f]. Avg grad [%s] - std [%s]\n",
 	meanGain1[0], meanGain2[0], printVec(avgGrad[0]).c_str(), printVec(stdGrad[0]).c_str());
 	fflush(0);
+   #endif
 	Learner::processStats(_stats, avgTime);
 }
 
