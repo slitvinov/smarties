@@ -5,5 +5,5 @@ cp ../apps/CMA/cmaes_signals.par ${BASEPATH}${RUNFOLDER}/
 cp ../apps/CMA/launch.sh ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
 
-cp ../apps/CMA/outputlookup.m ${BASEPATH}${RUNFOLDER}/
+cp ../apps/CMA/plot_performance.m ${BASEPATH}${RUNFOLDER}/
 cp ../apps/CMA/plot_statistics.m ${BASEPATH}${RUNFOLDER}/

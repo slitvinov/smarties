@@ -37,7 +37,7 @@ void write_cmaes_perf::write( const int thrid ){
 	char filename[256];
 	sprintf(filename, "cma_perf_%02d.dat", thrid);
 	FILE *fp = fopen(filename, "a");
-	fprintf(fp, "dim func nstep dist feval\n");
+	fprintf(fp, "func_id dim nstep dist feval\n");
 	fclose(fp);
 }
 
@@ -48,7 +48,7 @@ void write_cmaes_perf::write( cmaes_t* const evo, const int thrid, const int fun
 
 	sprintf(filename, "cma_perf_%02d.dat", thrid);
 	fp = fopen(filename, "a");
-	fprintf(fp, "%d %d %d %e %e\n", func_dim, func_id, step, final_dist, ffinal);
+	fprintf(fp, "%d %d %d %e %e\n", func_id, func_dim, step, final_dist, ffinal);
 	fclose(fp);
 
 

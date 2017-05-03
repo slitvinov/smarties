@@ -96,8 +96,12 @@ void fitfun(double * const x, int N, double*const output, int * const info)  {
 
 		case ROSENBROCK: {// 7
 							 double s = 0.;
-							 for (i = 0; i < N-1; ++i)
-								 s += 100.*pow(x[i+1]-x[i]*x[i], 2) + pow(x[i]-1., 2);
+							 if( N==1 )
+								 s=pow(x[0]-1., 2);
+							 else
+							 	for (i = 0; i < N-1; ++i)
+								 	s += 100.*pow(x[i+1]-x[i]*x[i], 2) + pow(x[i]-1., 2);
+							 
 							 f = s;
 							 break;
 						 }

@@ -52,7 +52,8 @@ int main(int argn, char **args)
 
 	std::uniform_real_distribution<double> 	start_x_distribution(.3,.7);
 	std::uniform_real_distribution<double> 	start_std_distribution(.2,.5);
-	std::uniform_int_distribution<int> 		func_ID_distribution(0, _COUNT-1);
+	//std::uniform_int_distribution<int> 		func_ID_distribution(0, _COUNT-1);
+	std::uniform_int_distribution<int> 		func_ID_distribution(7,8);
 	std::uniform_int_distribution<int> 		cma_seed_distribution(0,std::numeric_limits<int>::max());
 	
 	//vectors of states and actions
@@ -88,7 +89,7 @@ int main(int argn, char **args)
 
 				
 
-		info[0] = 8; //func_ID_distribution(*generators[thrid]);
+		info[0] = func_ID_distribution(*generators[thrid]);
 		
 		actions.initialize(func_dim);
 		
