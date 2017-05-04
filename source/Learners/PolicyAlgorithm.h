@@ -18,6 +18,7 @@
 //#define __I_VARIATE
 #endif
 #define __ACER_MAX_PREC 2500.
+//#define __ACER_MAX_PREC 625.
 #define __ACER_MAX_ACT 10.
 
 class PolicyAlgorithm : public Learner
@@ -138,7 +139,7 @@ protected:
 		}
 		return p;
 	}
-	
+
 	void checkGradient()
 	{
 			vector<Real> out(nOutputs), act(nA);
@@ -327,6 +328,22 @@ protected:
 		return Q;
 	}
 
+	inline Real quadraticNoise(const vector<Real>& P, const vector<Real>& var) const
+	{
+		vector<Real> q(nA,0);
+		for (int j=0; j<nA; j++)
+		{
+			const Real scale = 0.1*std::sqrt(3)*std::sqrt(var[j]);
+			std::uniform_real_distribution<Real> distn(-scale, scale);
+			q[j] = distn(generators[thrID]);
+		}
+
+		Real Q = 0;
+		for (int j=0; j<nA; j++) for (int i=0; i<nA; i++)
+			Q += P[nA*j+i]*q[i]*q[j];
+
+		return Q;
+	}
 	inline Real quadraticTerm(const vector<Real>& P, const vector<Real>& mu,
 		const vector<Real>& a) const
 	{
