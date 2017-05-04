@@ -407,12 +407,12 @@ bool Learner::checkBatch(unsigned long mastersNiter)
     const long unsigned learnerNiter = opt->nepoch + mastersNiter_b4PolUpdates;
     if (env->cheaperThanNetwork && mastersNiter > learnerNiter)
       return true;
-    
+
     //If the transition buffer is already backed up, train and pause communicating
     if(data->Buffered.size() >= data->maxTotSeqNum/20)
       return true;
-      
-    //Very lax constraint on over-using stale data too much   
+
+    //Very lax constraint on over-using stale data too much
     if(dataUsage > mastersNiter) return false;
 
     return taskCounter >= batchSize;
@@ -518,8 +518,8 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     }
     //sumWeights *= opt->lambda;
 
-    stats.MSE=std::sqrt(stats.MSE/stats.dumpCount);
-    //stats.MSE/=(stats.dumpCount-1);
+    //stats.MSE=std::sqrt(stats.MSE/stats.dumpCount);
+    stats.MSE/=(stats.dumpCount-1);
     stats.avgQ/=stats.dumpCount;
     stats.relE/=stats.dumpCount;
     net->printRunning();
@@ -532,9 +532,9 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     //      stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ,
     //      stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dumpCount,
 	 // opt->nepoch, avgTime);
-    printf("%d, mse:%f, avg_Q:%f, min_Q:%f, max_Q:%f, errWeights [%f %f], steps %lu, dT %f\n",
-          stats.epochCount, stats.MSE, stats.avgQ, stats.minQ,
-          stats.maxQ, sumWeights, distTarget, opt->nepoch, avgTime);
+    printf("%d (%lu), mse:%f, avg_Q:%f, min_Q:%f, max_Q:%f, errWeights [%f %f %f], dT %f\n",
+          stats.epochCount, opt->nepoch, stats.MSE, stats.avgQ, stats.minQ,
+          stats.maxQ, sumWeights, sumWeightsSq, distTarget, avgTime);
     filestats<<stats.epochCount<<"\t"<<stats.MSE<<"\t" <<stats.relE<<"\t"
              <<stats.avgQ<<"\t"<<stats.maxQ<<"\t"<<stats.minQ<<"\t"
              <<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"
