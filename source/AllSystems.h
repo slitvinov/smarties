@@ -20,6 +20,7 @@ class DeadFishEnvironment;
 class TwoActFishEnvironment;
 class CMAEnvironment;
 class TestEnvironment;
+class alebotEnvironment;
 class GliderEnvironment;
 
 #include "Environments/AcrobotEnvironment.h"
@@ -30,4 +31,5 @@ class GliderEnvironment;
 #include "Environments/NewFishEnvironment.h"
 #include "Environments/TwoActFishEnvironment.h"
 #include "Environments/DeadFishEnvironment.h"
+#include "Environments/alebotEnvironment.h"
 #include "Environments/GliderEnvironment.h"

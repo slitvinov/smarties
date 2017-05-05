@@ -100,7 +100,7 @@ DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = Communicator.o ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
 		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o \
 		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
-		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
+		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o alebotEnvironment.o\
 		Learner.o RACER.o NAF.o NFQ.o DPG.o Transitions.o \
 		Scheduler.o LSTMNet.o Network.o Optimizer.o #Links.o Layers.o
 #ExternalAgent.o
