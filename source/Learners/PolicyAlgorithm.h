@@ -10,9 +10,7 @@
 #pragma once
 
 #include "Learner.h"
-#ifdef __out_Var
-#error Defined __out_Var
-#endif
+
 #ifdef __ACER_VARIATE
 #define __A_ACER_VARIATE
 //#define __I_VARIATE
@@ -100,9 +98,6 @@ protected:
 			//const Real diff = ysq/(ysq + 0.25);
 			const Real diff = .5*(1+x/std::sqrt(x*x+1.));
 			vargrad[j] = pgrad[nA+j]*diff;
-         #ifdef __ACER_MAX_PREC
-         vargrad[j] = std::min(vargrad[j], __ACER_MAX_PREC-out[1+nL+nA+j]);
-         #endif
 		}
 		return vargrad;
 	}
@@ -385,22 +380,13 @@ protected:
 
 		vector<Real> ret(2*nA);
 
-		#ifdef __out_Var
-			for (int i=0; i<nA; i++)
-				ret[i]    = (mu_cur[i]-mu_hat[i])*prec_cur[i];
+		for (int i=0; i<nA; i++)
+			ret[i]    = (mu_cur[i]-mu_hat[i])*prec_cur[i];
 
-			for (int i=0; i<nA; i++)
-				//               v from trace    v from quadratic term   v from normalization
-				ret[i+nA] = -.5*((1/prec_hat[i]+std::pow(mu_cur[i]-mu_hat[i],2))*prec_cur[i] +1)*prec_cur[i];
+		for (int i=0; i<nA; i++)
+			//               v from trace    v from quadratic term   v from normalization
+			ret[i+nA] = .5*(1/prec_hat[i]-1/prec_cur[i] +std::pow(mu_cur[i]-mu_hat[i],2));
 
-		#else
-			for (int i=0; i<nA; i++)
-				ret[i]    = (mu_cur[i]-mu_hat[i])*prec_cur[i];
-
-			for (int i=0; i<nA; i++)
-				//               v from trace    v from quadratic term   v from normalization
-				ret[i+nA] = .5*(1/prec_hat[i]-1/prec_cur[i] +std::pow(mu_cur[i]-mu_hat[i],2));
-		#endif
 		return ret;
 	}
 
@@ -444,15 +430,62 @@ protected:
 		a is action at which grad is evaluated
 		factor is the advantage gain
 		 */
-
 		vector<Real> ret(2*nA);
-		for (int i=0; i<nA; i++) {
+		
+		for (int i=0; i<nA; i++)
+		{
 			ret[i]    = factor*(act[i]-mu[i])*prec[i];
+
+			#ifdef __ACER_MAX_ACT //clip derivative
+				 const Real m = mu[i];
+				 const Real s = __ACER_MAX_ACT;
+				 ret[i] = std::max(std::min(ret[i], s-m), -s-m);
+			#endif
 		}
-		for (int i=0; i<nA; i++) {
+
+		for (int i=0; i<nA; i++)
+		{
 			ret[i+nA] = factor*(.5/prec[i] -0.5*(act[i]-mu[i])*(act[i]-mu[i]));
+			#ifdef __ACER_MAX_PREC
+				ret[i+nA] = std::min(ret[i+nA], __ACER_MAX_PREC-prec[i]);
+			#endif
 		}
+
 		return ret;
+	}
+
+	inline vector<Real> controlGradient(const vector<Real>& pol, const vector<Real>& var,
+		const vector<Real>& P, const vector<Real>& mean, const Real eta) const
+	{
+		vector<Real> gradCC(nA*2, 0);
+
+		for (int j=0; j<nA; j++)
+		{
+			for (int i=0; i<nA; i++)
+			{
+				#ifdef __ACER_RELAX //then Qmean and pol must be the same
+					assert(std::fabs(mean[i]-pol[i]) < 2.2e-16);
+				#endif
+				gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);
+			}
+
+			#ifdef __ACER_MAX_ACT //clip derivative
+				 const Real m = pol[j];
+				 const Real s = __ACER_MAX_ACT;
+				 gradCC[j] = std::max(std::min(gradCC[j], s-m), -s-m);
+			#endif
+		}
+
+		for (int j=0; j<nA; j++)
+		{
+			gradCC[j+nA] = eta * 0.5 * P[nA*j +j] * var[j] * var[j];
+			#ifdef __ACER_MAX_PREC
+					gradCC[i+nA] = std::min(gradCC[i+nA], __ACER_MAX_PREC-1/var[j]);
+			#endif
+		}
+		//for (int i=0; i<nA; i++) gradCC[i] = eta * 2 * (mean[i]-pol[i]) / var[i];
+		//for (int j=0; j<nA; j++) gradCC[j+nA] = eta * var[j];
+		return gradCC;
 	}
 
 	inline Real computeAdvantage(const vector<Real>& act, const vector<Real>& pol,
@@ -583,31 +616,5 @@ protected:
 	inline void finalizePolicy(Action& a) const
 	{
 		a.vals = aInfo.getScaled(a.vals);
-	}
-
-	inline vector<Real> controlGradient(const vector<Real>& pol, const vector<Real>& var,
-		const vector<Real>& P, const vector<Real>& mean, const Real eta) const
-	{
-		vector<Real> gradCC(nA*2, 0);
-
-		for (int j=0; j<nA; j++)
-			for (int i=0; i<nA; i++) {
-				#ifdef __ACER_RELAX //then Qmean and pol must be the same
-					assert(std::fabs(mean[i]-pol[i]) < 2.2e-16);
-				#endif
-				gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);
-			}
-
-		for (int j=0; j<nA; j++)
-		#ifdef __out_Var
-					gradCC[j+nA] = - eta * 0.5 * P[nA*j +j];
-		#else
-					gradCC[j+nA] = eta * 0.5 * P[nA*j +j] * var[j] * var[j];
-		#endif
-
-		//for (int i=0; i<nA; i++) gradCC[i] = eta * 2 * (mean[i]-pol[i]) / var[i];
-		//for (int j=0; j<nA; j++) gradCC[j+nA] = eta * var[j];
-
-		return gradCC;
 	}
 };
