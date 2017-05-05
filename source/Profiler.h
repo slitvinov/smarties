@@ -29,7 +29,7 @@ class ProfileAgent
 {
 //	typedef tbb::tick_count ClockTime;
 	typedef timeval ClockTime;
-	
+
 	enum ProfileAgentState{ ProfileAgentState_Created, ProfileAgentState_Started, ProfileAgentState_Stopped};
 
 	ClockTime m_tStart, m_tEnd;
@@ -93,7 +93,7 @@ struct ProfileSummaryItem
 	int nSamples;
 
 	ProfileSummaryItem(string sName_, double dTime_, int nMoney_, int nSamples_):
-		sName(sName_), dTime(dTime_), nMoney(nMoney_),nSamples(nSamples_), dAverageTime(dTime_/nSamples_){}
+		sName(sName_),dTime(dTime_),dAverageTime(dTime_/nSamples_),nMoney(nMoney_),nSamples(nSamples_){}
 };
 
 
@@ -103,28 +103,28 @@ protected:
 
 	map<string, ProfileAgent*> m_mapAgents;
 	stack<string> m_mapStoppedAgents;
-		
+
 public:
 	void push_start(string sAgentName)
 	{
 		if (m_mapStoppedAgents.size() > 0)
 			getAgent(m_mapStoppedAgents.top()).stop();
-			
+
 		m_mapStoppedAgents.push(sAgentName);
 		getAgent(sAgentName).start();
 	}
-	
+
 	void pop_stop()
 	{
 		string sCurrentAgentName = m_mapStoppedAgents.top();
 		getAgent(sCurrentAgentName).stop();
 		m_mapStoppedAgents.pop();
-		
+
 		if (m_mapStoppedAgents.size() == 0) return;
-		
+
 		getAgent(m_mapStoppedAgents.top()).start();
 	}
-	
+
 	void clear()
 	{
 		for(map<string, ProfileAgent*>::iterator it = m_mapAgents.begin(); it != m_mapAgents.end(); it++)
@@ -215,6 +215,3 @@ public:
 
 	friend class ProfileAgent;
 };
-
-
-

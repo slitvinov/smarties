@@ -402,6 +402,7 @@ vector<Real> Network::getOutputs(const Activation* const act)
 void Network::seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const
 {
 	assert(bBuilt);
+  assert(static_cast<int>(_input.size())==nInputs);
     for (int j=0; j<nInputs; j++) *(currActivation->outvals +j) = _input[j];
 }
 
@@ -421,6 +422,7 @@ void Network::seqPredict_execute(
 
 void Network::seqPredict_output(vector<Real>& _output, Activation* const currActivation) const
 {
+    assert(static_cast<int>(_output.size())==nOutputs);
     for (int i=0; i<nOutputs; i++)
         _output[i] = *(currActivation->outvals + iOut[i]);
 }

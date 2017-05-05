@@ -70,10 +70,10 @@ inline bool positive(const Real vals)
 inline void setVecMean(vector<Real>& vals)
 {
 	Real mean = 0;
-	for (int i=1; i<vals.size(); i++) //assume 0 is empty
+	for (unsigned int i=1; i<vals.size(); i++) //assume 0 is empty
 		mean += vals[i];
 	mean /= (Real)(vals.size()-1);
-	for (int i=0; i<vals.size(); i++)
+	for (unsigned int i=0; i<vals.size(); i++)
 		vals[i] = mean;
 }
 
@@ -82,20 +82,20 @@ inline void statsVector(vector<vector<Real>>& sum, vector<vector<Real>>& sqr,
 {
   assert(sum.size() == cnt.size() && sqr.size() == cnt.size());
 
-  for (int i=0; i<sum[0].size(); i++)
+  for (unsigned int i=0; i<sum[0].size(); i++)
     sum[0][i] = sqr[0][i] = 0;
   cnt[0] = 0;
 
-  for (int i=1; i<sum.size(); i++) {
+  for (unsigned int i=1; i<sum.size(); i++) {
     cnt[0] += cnt[i]; cnt[i] = 0;
-    for (int j=0; j<sum[0].size(); j++)
+    for (unsigned int j=0; j<sum[0].size(); j++)
     {
       sum[0][j] += sum[i][j]; sum[i][j] = 0;
       sqr[0][j] += sqr[i][j]; sqr[i][j] = 0;
     }
   }
 
-  for (int j=0; j<sum[0].size(); j++)
+  for (unsigned int j=0; j<sum[0].size(); j++)
   {
     sqr[0][j] = std::sqrt((sqr[0][j]-sum[0][j]*sum[0][j]/cnt[0])/cnt[0]);
     sum[0][j] /= cnt[0];
@@ -106,7 +106,7 @@ inline void statsGrad(vector<Real>& sum, vector<Real>& sqr, Real& cnt, vector<Re
 {
   assert(sum.size() == grad.size() && sqr.size() == grad.size());
   cnt += 1;
-  for (int i=0; i<grad.size(); i++) {
+  for (unsigned int i=0; i<grad.size(); i++) {
     sum[i] += grad[i];
     sqr[i] += grad[i]*grad[i];
   }

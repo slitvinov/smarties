@@ -26,8 +26,10 @@ public:
 	virtual void initialize(mt19937* const gen, Real* const _weights) const = 0;
 	virtual void restart(std::istringstream & buf, Real* const _weights) const = 0;
 	virtual void save(std::ostringstream & buf, Real* const _weights) const = 0;
-	//virtual void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const = 0;
-	//virtual void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const =0;
+	//virtual void propagate(const Activation* const netFrom, Activation* const netTo,
+	//const Real* const weights) const = 0;
+	//virtual void backPropagate(Activation* const netFrom, const Activation* const netTo,
+	//const Real* const weights, Real* const gradW) const =0;
 	void orthogonalize(const int n0, Real* const _weights, int nOut, int nIn, int n_simd) const
 	{
 		if (nIn<nOut) return;
@@ -130,31 +132,33 @@ public:
 			out << _weights[iW + nO_simd*i + o]  << "\n";
 	}
 
-	inline void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
+	inline void propagate(const Activation* const netFrom, Activation* const netTo,
+		const Real* const weights) const
 	{
 		const Real* __restrict__ const link_input = netFrom->outvals +iI;
 		Real* __restrict__ const link_outputs = netTo->in_vals +iO;
 		__builtin_assume_aligned(link_outputs, __vec_width__);
 		__builtin_assume_aligned(link_input, __vec_width__);
-#if 1
-for (int i = 0; i < nI; i++) {
-	const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
-	__builtin_assume_aligned(link_weights, __vec_width__);
-	for (int o = 0; o < nO; o++) {
-		link_outputs[o] += link_input[i] * link_weights[o];
-	}
-}
-#else
-	for (int o = 0; o < nO; o++) {
-		const Real* __restrict__ const link_weights = weights +iW +nI*o;
-		for (int i = 0; i < nI; i++) {
-			link_outputs[o] += link_input[i] * link_weights[i];
-		}
-	}
-#endif
+		#if 1
+			for (int i = 0; i < nI; i++) {
+				const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
+				__builtin_assume_aligned(link_weights, __vec_width__);
+				for (int o = 0; o < nO; o++) {
+					link_outputs[o] += link_input[i] * link_weights[o];
+				}
+			}
+		#else
+			for (int o = 0; o < nO; o++) {
+				const Real* __restrict__ const link_weights = weights +iW +nI*o;
+				for (int i = 0; i < nI; i++) {
+					link_outputs[o] += link_input[i] * link_weights[i];
+				}
+			}
+		#endif
 	}
 
-	inline void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
+	inline void backPropagate(Activation* const netFrom, const Activation* const netTo,
+		const Real* const weights, Real* const gradW) const
 	{
 		const Real* __restrict__ const layer_input = netFrom->outvals + iI;
 		const Real* __restrict__ const deltas = netTo->errvals + iO;
@@ -189,8 +193,10 @@ public:
 	 */
 	const int iW, nI, iI, nO, iO, iC, iWI, iWF, iWO, nO_simd, nW;
 
-	LinkToLSTM(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW, int _iWI, int _iWF, int _iWO, int _nO_simd) :
-		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), iC(_iC), iWI(_iWI), iWF(_iWF), iWO(_iWO), nO_simd(_nO_simd), nW(_nI*_nO_simd) //i care nW per neuron, just for the asserts
+	LinkToLSTM(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW,
+		int _iWI, int _iWF, int _iWO, int _nO_simd) :
+		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), iC(_iC),
+		iWI(_iWI), iWF(_iWF), iWO(_iWO), nO_simd(_nO_simd), nW(_nI*_nO_simd) //i care nW per neuron, just for the asserts
 	{
 		assert(iW  % (__vec_width__/sizeof(Real)) == 0);
 		assert(iWI % (__vec_width__/sizeof(Real)) == 0);
@@ -209,7 +215,9 @@ public:
 
 	void print() const override
 			{
-		cout << "LSTM link: nInputs="<< nI << " IDinput=" << iI << " nOutputs=" << nO << " IDoutput" << iO << " IDcell" << iC << " IDweight" << iW << " nWeights" << nW << " nO_simd"<<nO_simd << endl;
+		cout << "LSTM link: nInputs="<< nI << " IDinput=" << iI
+		<< " nOutputs=" << nO << " IDoutput" << iO << " IDcell" << iC
+		<< " IDweight" << iW << " nWeights" << nW << " nO_simd"<<nO_simd << endl;
 		fflush(0);
 			}
 
@@ -233,10 +241,10 @@ public:
 				_weights[iWF + nO_simd*i + o] = dis(*gen);
 				_weights[iWO + nO_simd*i + o] = dis(*gen);
 			}
-		orthogonalize(iW,  _weights, nO, nI, nO_simd);
-		orthogonalize(iWI, _weights, nO, nI, nO_simd);
-		orthogonalize(iWF, _weights, nO, nI, nO_simd);
-		orthogonalize(iWO, _weights, nO, nI, nO_simd);
+		//orthogonalize(iW,  _weights, nO, nI, nO_simd);
+		//orthogonalize(iWI, _weights, nO, nI, nO_simd);
+		//orthogonalize(iWF, _weights, nO, nI, nO_simd);
+		//orthogonalize(iWO, _weights, nO, nI, nO_simd);
 	}
 
 	void restart(std::istringstream & buf, Real* const _weights) const override
@@ -280,7 +288,8 @@ public:
 			out << _weights[iWO + nO_simd*i + o] << "\n";
 	}
 
-	void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
+	void propagate(const Activation* const netFrom, Activation* const netTo,
+		const Real* const weights) const
 	{
 		const Real* __restrict__ const link_input = netFrom->outvals + iI;
 		Real* __restrict__ const inputs = netTo->in_vals + iO;
@@ -312,7 +321,8 @@ public:
 		}
 	}
 
-	void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
+	void backPropagate(Activation* const netFrom, const Activation* const netTo,
+		const Real* const weights, Real* const gradW) const
 	{
 		const Real* __restrict__ const layer_input = netFrom->outvals + iI;
 		Real* __restrict__ const link_errors = netFrom->errvals + iI;
@@ -369,11 +379,12 @@ public:
 	const int nW;
 
 	LinkToConv2D(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd,
-			int _inW, int _inH, int _inD,
-			int _fW, int _fH, int _fN, int _outW, int _outH,
-			int _sX=1, int _sY=1, int _pX=0, int _pY=0) :
-				iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), outputDepth_simd(_nO_simd), inputWidth(_inW), inputHeight(_inH), inputDepth(_inD), filterWidth(_fW), filterHeight(_fH),
-				outputWidth(_outW), outputHeight(_outH), outputDepth(_fN), strideX(_sX), strideY(_sY), padX(_pX), padY(_pY), nW(_fW*_fH*_nO_simd*_inD)
+		int _inW, int _inH, int _inD, int _fW, int _fH, int _fN, int _outW,
+		int _outH, int _sX=1, int _sY=1, int _pX=0, int _pY=0) :
+		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), outputDepth_simd(_nO_simd),
+		inputWidth(_inW), inputHeight(_inH), inputDepth(_inD), filterWidth(_fW),
+		filterHeight(_fH), outputWidth(_outW), outputHeight(_outH), outputDepth(_fN),
+		strideX(_sX), strideY(_sY), padX(_pX), padY(_pY), nW(_fW*_fH*_nO_simd*_inD)
 	{
 		assert(iW % (__vec_width__/sizeof(Real)) == 0);
 		assert(iI % (__vec_width__/sizeof(Real)) == 0);
@@ -396,14 +407,17 @@ public:
 	}
 
 	void print() const override
-			{
-		printf("iW=%d, nI=%d, iI=%d, nO=%d, iO=%d, nW=%d\n",iW,nI,iI,nO,iO,nW);
-		printf("inputWidth=%d, inputHeight=%d, inputDepth=%d\n",inputWidth, inputHeight, inputDepth);
-		printf("outputWidth=%d, outputHeight=%d, outputDepth=%d (%d)\n",outputWidth, outputHeight, outputDepth, outputDepth_simd);
+	{
+		printf("iW=%d, nI=%d, iI=%d, nO=%d, iO=%d, nW=%d\n",
+		iW,nI,iI,nO,iO,nW);
+		printf("inputWidth=%d, inputHeight=%d, inputDepth=%d\n",
+		inputWidth, inputHeight, inputDepth);
+		printf("outputWidth=%d, outputHeight=%d, outputDepth=%d (%d)\n",
+		outputWidth, outputHeight, outputDepth, outputDepth_simd);
 		printf("filterWidth=%d, filterHeight=%d, strideX=%d, strideY=%d, padX=%d, padY=%d\n",
 				filterWidth, filterHeight, strideX, strideY, padX, padY);
 		fflush(0);
-			}
+	}
 
 	void initialize(mt19937* const gen, Real* const _weights) const override
 	{
@@ -421,7 +435,7 @@ public:
 	}
 
 	void restart(std::istringstream & buf, Real* const _weights) const override
-			{
+	{
 		const int nAdded = filterWidth*filterHeight*inputDepth;
 		for (int i = 0; i < nAdded; i++)
 			for (int o = 0; o < nO; o++) {
@@ -430,7 +444,7 @@ public:
 				assert(not std::isnan(tmp) & not std::isinf(tmp));
 				*(_weights +iW + outputDepth_simd*i + o) = tmp;
 			}
-			}
+	}
 
 	void save(std::ostringstream & out, Real* const _weights) const override
 	{
@@ -476,7 +490,8 @@ public:
 			}
 	}
 
-	void backPropagate(Activation* const netFrom, const Activation* const netTo, const Real* const weights, Real* const gradW) const
+	void backPropagate(Activation* const netFrom, const Activation* const netTo,
+		const Real* const weights, Real* const gradW) const
 	{
 		for(int ox=0; ox<outputWidth;  ox++)
 			for(int oy=0; oy<outputHeight; oy++) {
@@ -530,14 +545,14 @@ public:
 	}
 
 	void initialize(mt19937* const gen, Real* const _weights) const override
-			{
+	{
 		for (int p=0 ; p<2; p++)
 			for (int o=0 ; o<nO; o++)
 				*(_weights +iW +p*nO_simd +o) = 1==p ? 1. : 0.; //set to 1 the scaling factor
-			}
+	}
 
 	void restart(std::istringstream & buf, Real* const _weights) const override
-			{
+	{
 		for (int p=0 ; p<2; p++)
 			for (int o=0 ; o<nO; o++) {
 				Real tmp;
@@ -545,38 +560,42 @@ public:
 				assert(not std::isnan(tmp) & not std::isinf(tmp));
 				*(_weights +iW +p*nO_simd +o) = tmp;
 			}
-			}
+	}
 
 	void save(std::ostringstream & out, Real* const _weights) const override
-			{
+	{
 		out << std::setprecision(10);
 		for (int p=0; p<2; p++) for (int o=0; o<nO; o++)
 			out << *(_weights +iW +p*nO_simd +o) << "\n";
-			}
+	}
 
 	void print() const override
-			{
-		cout << "Whitening link: nInputs="<< nI << " IDinput=" << iI << " nOutputs=" << nO << " IDoutput" << iO << " IDweight" << iW << " nO_simd"<<nO_simd<<endl;
+	{
+		cout << "Whitening link: nInputs="<< nI << " IDinput=" << iI << " nOutputs="
+		<< nO << " IDoutput" << iO << " IDweight" << iW << " nO_simd"<<nO_simd<<endl;
 		fflush(0);
-			}
+	}
 
-	void resetRunning() override {
-		if(runningAvg.size() != nO) runningAvg.resize(nO);
-		if(runningStd.size() != nO) runningStd.resize(nO);
+	void resetRunning() override
+	{
+		if(static_cast<int>(runningAvg.size()) != nO) runningAvg.resize(nO);
+		if(static_cast<int>(runningStd.size()) != nO) runningStd.resize(nO);
 		for (int k=0; k<nO; k++) {
 			runningAvg[k] = 0;
 			runningStd[k] = 0;
 		}
 	}
 
-	void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) override {
+	void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) override
+	{
 		counter = std::max(counter,2);
 		const Real invNm1 = 1./(counter-1);
 		for (int i=0; i<nO; i++)  oa << runningAvg[i] << " ";
 		for (int i=0; i<nO; i++)  os << runningStd[i]*invNm1 << " ";
 	}
 
-	void updateRunning(Activation* const act, const int counter) override {
+	void updateRunning(Activation* const act, const int counter) override
+	{
 		assert(runningAvg.size() == nO && runningStd.size() == nO && counter>0);
 		const Real invN = 1./counter;
 

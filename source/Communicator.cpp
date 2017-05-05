@@ -583,7 +583,7 @@ void Communicator::ext_app_run()
 	char line[1024];
 	int largc = jobs_init(line, largv);
 
-	char initd[256], newd[256];
+	char initd[256], newd[1024];
 	getcwd(initd,256);
 	sprintf(newd,"%s/%s_%d_%d",initd,"simulation",slaveGroup,iter);
 	if(!app_rank)
@@ -699,7 +699,7 @@ static int parse2(char *line, char **argv)
 				*line != '\t' && *line != '\n')
 			line++; /* skip the argument until ...*/
 	}
-	*argv = '\0';   /* mark the end of argument list */
+	*argv = NULL;//'\0';   /* mark the end of argument list */
 
 	return argc;
 }
@@ -780,7 +780,7 @@ static int copy_from_dir(const std::string name)
 		while ((ent = readdir (dir)) != NULL) {
 			//if (ent->d_type == DT_REG) {
 			//printf ("%s (%d)\n", ent->d_name, ent->d_type);
-			char source[256], dest[256];
+			char source[1025], dest[1026];
 
 			sprintf(source, "%s/%s", name.c_str(), ent->d_name);
 			sprintf(dest, "./%s", ent->d_name);
