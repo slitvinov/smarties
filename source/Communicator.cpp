@@ -100,7 +100,7 @@ void Communicator::sendStateClient()
 			MPI_Abort(appComm, 1);
 		else
 #endif
-			abort();
+			close(0);
 	}
 }
 
@@ -436,7 +436,7 @@ int Communicator::recvStateFromApp()
 		if (bytes == 0) printf("socket %d hung up\n", Socket);
 		else perror("(1) recv");
 		close(Socket);
-		close(ServerSocket);
+		//close(ServerSocket);
 		intToDoublePtr(0, dataout+0);
 		intToDoublePtr(_AGENT_FAILCOMM, dataout+1);
 		iter++;
