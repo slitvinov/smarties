@@ -208,7 +208,7 @@ protected:
 			}
 			#endif
 
-			vector<Real> cgrad = criticGradient(P, mu, var, out, mean, act);
+			vector<Real> cgrad = criticGradient(P, mu, var, out, mean, act, 1);
 			for(int i = 1; i<1+nL; i++)
 			{
 					vector<Real> out_1 = out;
@@ -552,7 +552,7 @@ protected:
 			//add the term dependent on the estimate: applies only to diagonal terms
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {
-					const Real dOdPij = .5*(_m[i]*_m[j] -_u[i]*_u[j] +(i==j ? var[i] : 0);
+					const Real dOdPij = .5*(_m[i]*_m[j] -_u[i]*_u[j] +(i==j?var[i]:0));
 					const Real dEdPij = std::min(maxP-P[nA*j+i],Qer*dOdPij);
 					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
@@ -566,7 +566,7 @@ protected:
 
 		//gradient clipping
 		for (unsigned int i=0; i<grad.size(); i++)
-			grad[i] = std::max(-10.std::min(10.,grad[i]));
+			grad[i] = std::max(-10.,std::min(10.,grad[i]));
 		return grad;
 	}
 

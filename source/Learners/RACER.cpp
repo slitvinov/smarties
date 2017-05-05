@@ -231,7 +231,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 				const Real threshold = A_cov * A_cov / (varCritic+eps);
 				const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
 				const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
-				//eta = eta > 0 ? 0 : eta;
+				//eta = eta > 1 ? 1 : (eta < -1 ? -1 : eta);
 				const Real cotrolVar = A_cov, err_Cov = 0;
 			#else
 				const Real eta = 0, cotrolVar = 0, err_Cov = 0;
@@ -259,12 +259,13 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 
 		const Real Qer = (Q_RET -A_cur -out_cur[k][0]);
 		//unclear usefulness:
-		const Real Ver = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat);
+		//const Real Ver = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat);
+		const Real Ver = 0; 
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
 		//TODO: now Q_OPC ios actually Q_RET, which is better?
 		//Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
-		Q_OPC = .5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
+		Q_OPC = (Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
 
 		const vector<Real> critic_grad =
 		criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act, Qer);
@@ -276,11 +277,11 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
       //fflush(0);
       //
 		//bookkeeping:
-      #ifndef NDEBUG
+      //#ifndef NDEBUG
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
 		meanGain1[thrID+1] = 0.9999*meanGain1[thrID+1] + 0.0001*gain1;
 		meanGain2[thrID+1] = 0.9999*meanGain2[thrID+1] + 0.0001*eta;
-      #endif
+      //#endif
 		vector<Real> fake{A_cur, 100};
 		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
 		if(thrID == 1) net->updateRunning(series_cur[k]);
@@ -301,13 +302,13 @@ void RACER::processStats(vector<trainData*> _stats, const Real avgTime)
 		variance = stdev*stdev;
 		precision = 1./variance;
 	#endif
-   #ifndef NDEBUG
+   //#ifndef NDEBUG
 	statsVector(avgGrad, stdGrad, cntGrad);
 	setVecMean(meanGain1); setVecMean(meanGain2);
 	printf("Gain of policy grad means: [%f] [%f]. Avg grad [%s] - std [%s]\n",
 	meanGain1[0], meanGain2[0], printVec(avgGrad[0]).c_str(), printVec(stdGrad[0]).c_str());
 	fflush(0);
-   #endif
+   //#endif
 	Learner::processStats(_stats, avgTime);
 }
 
