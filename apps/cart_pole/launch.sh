@@ -1,3 +1,1 @@
-SOCK=$1
-
-../cart-pole ${SOCK}
+../cart-pole $1
