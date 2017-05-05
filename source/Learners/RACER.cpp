@@ -112,8 +112,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 #else
 	for (int k=0; k<ndata-1; k++) {
 		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
-		//const vector<Real> scaledSold = data->standardize(_t->s);
-		const vector<Real> scaledSold = data->standardize(_t->s, 0.001, thrID);
+		const vector<Real> scaledSold = data->standardize(_t->s);
+		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
 		net->seqPredict_inputs(scaledSold, series_cur[k]);
 		net->seqPredict_inputs(scaledSold, series_hat[k]);
 	}
@@ -231,6 +231,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 				const Real threshold = A_cov * A_cov / (varCritic+eps);
 				const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
 				const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
+				//eta = eta > 0 ? 0 : eta;
 				const Real cotrolVar = A_cov, err_Cov = 0;
 			#else
 				const Real eta = 0, cotrolVar = 0, err_Cov = 0;

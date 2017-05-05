@@ -175,9 +175,9 @@ void Optimizer::update(Grads* const G, const int batchsize)
 {
 	update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
 	update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
-	if(lambda>0) {
-		applyL2(net->weights, nWeights, lambda*_eta);
-		applyL1(net->weights, nWeights, lambda*_eta);
+	if(lambda>2.2e-16) {
+		applyL2(net->weights, nWeights, lambda*eta);
+		applyL1(net->weights, nWeights, lambda*eta);
 	}
 }
 
@@ -195,7 +195,7 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
 	if (beta_t_2<2.2e-16) beta_t_2 = 0;
 	//printf("%d %f %f\n",nepoch, beta_t_1,beta_t_2);
 
-	if(lambda>0) {
+	if(lambda>2.2e-16) {
 		applyL2(net->weights, nWeights, lambda*_eta);
 		applyL1(net->weights, nWeights, lambda*_eta);
 	}

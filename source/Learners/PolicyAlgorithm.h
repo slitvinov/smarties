@@ -17,8 +17,8 @@
 #define __A_ACER_VARIATE
 //#define __I_VARIATE
 #endif
-#define __ACER_MAX_PREC 2500.
-//#define __ACER_MAX_PREC 625.
+//#define __ACER_MAX_PREC 2500.
+#define __ACER_MAX_PREC 625.
 #define __ACER_MAX_ACT 10.
 
 class PolicyAlgorithm : public Learner
@@ -328,7 +328,7 @@ protected:
 		return Q;
 	}
 
-	inline Real quadraticNoise(const vector<Real>& P, const vector<Real>& var) const
+	inline Real quadraticNoise(const vector<Real>& P, const vector<Real>& var, const int thrID) const
 	{
 		vector<Real> q(nA,0);
 		for (int j=0; j<nA; j++)
