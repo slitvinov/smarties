@@ -213,9 +213,13 @@ private:
 			grad[nOutputs-1] = err_Cov;
 		#endif
 
+		//gradient clipping
+		for (unsigned int i=0; i<grad.size(); i++)
+			grad[i] = std::max(-10.,std::min(10.,grad[i]));
+
 		return grad;
 	}
-	
+
 	void buildNetwork(const vector<int> nouts, Settings & settings)
 	{
 		string lType = bRecurrent ? "LSTM" : "Normal";

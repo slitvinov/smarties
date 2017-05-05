@@ -564,9 +564,6 @@ protected:
 				grad[1+nL+ia] += Qer*P[nA*ia+i]*(_u[i]-_m[i]);
 		#endif
 
-		//gradient clipping
-		for (unsigned int i=0; i<grad.size(); i++)
-			grad[i] = std::max(-10.,std::min(10.,grad[i]));
 		return grad;
 	}
 
