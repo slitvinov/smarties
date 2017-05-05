@@ -265,7 +265,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
 		//TODO: now Q_OPC ios actually Q_RET, which is better?
 		//Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
-		Q_OPC = (Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
+		Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
 
 		const vector<Real> critic_grad =
 		criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act, Qer);
