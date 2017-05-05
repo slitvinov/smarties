@@ -20,6 +20,7 @@
 //#define __ACER_MAX_PREC 2500.
 #define __ACER_MAX_PREC 625.
 #define __ACER_MAX_ACT 10.
+#define __ENV_MAX_REW 10.
 
 class PolicyAlgorithm : public Learner
 {
@@ -499,7 +500,7 @@ protected:
 
 	inline vector<Real> criticGradient(const vector<Real>& P,
 		const vector<Real>& pol, const vector<Real>& var, const vector<Real>& out,
-		const vector<Real>& mean, const vector<Real>& act) const
+		const vector<Real>& mean, const vector<Real>& act, const Real Qer) const
 	{
 		assert(out.size()>=1+nL+nA);
 		vector<Real> _L(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _m(nA);
@@ -508,6 +509,8 @@ protected:
 		#else
 			vector<Real> grad(1+nL, 0);
 		#endif
+
+		grad[0] = Qer;
 
 		int kL = 1;
 		for (int j=0; j<nA; j++) {
@@ -545,23 +548,25 @@ protected:
 				}
 
 			grad[1+il] = 0.;
+			const Real maxP = __ENV_MAX_REW/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
+			//add the term dependent on the estimate: applies only to diagonal terms
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {
-					grad[1+il] -= 0.5*_dPdl[nA*j+i]*_u[i]*_u[j];
-					grad[1+il] += 0.5*_dPdl[nA*j+i]*_m[i]*_m[j];
+					const Real dOdPij = .5*(_m[i]*_m[j] -_u[i]*_u[j] +(i==j ? var[i] : 0);
+					const Real dEdPij = std::min(maxP-P[nA*j+i],Qer*dOdPij);
+					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
-
-			//add the term dependent on the estimate: applies only to diagonal terms
-			for (int i=0; i<nA; i++)
-				grad[1+il] += 0.5*_dPdl[nA*i+i]*var[i];
 		}
 
 		#ifndef __ACER_RELAX
 		for (int ia=0; ia<nA; ia++)
 			for (int i=0; i<nA; i++)
-				grad[1+nL+ia] += P[nA*ia+i]*(_u[i]-_m[i]);
+				grad[1+nL+ia] += Qer*P[nA*ia+i]*(_u[i]-_m[i]);
 		#endif
 
+		//gradient clipping
+		for (unsigned int i=0; i<grad.size(); i++)
+			grad[i] = std::max(-10.std::min(10.,grad[i]));
 		return grad;
 	}
 

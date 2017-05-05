@@ -150,11 +150,11 @@ public:
 
 private:
 
-	inline vector<Real> finalizeGradient(const Real Qerror, const Real Verror,
+	inline vector<Real> finalizeGradient(const Real Verror,
 			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
 			const vector<Real>& out, const Real err_Cov) const
 	{
-      const Real anneal = std::pow(annealingFactor(), 2); 
+      const Real anneal = std::pow(annealingFactor(), 2);
 		assert(out.size() == nOutputs);
 		assert(gradPolicy.size() == 2*nA); //no matter what
 		vector<Real> grad(nOutputs);
@@ -164,16 +164,16 @@ private:
 			assert(gradCritic.size() == 1+nL+nA);
 		#endif
 
-		grad[0] = Qerror+Verror;
+		grad[0] = gradCritic[0]+Verror;
 		for (int j=1; j<nL+1; j++)
-			grad[j] = Qerror*gradCritic[j];
+			grad[j] = gradCritic[j];
 
 		for (int j=0; j<nA; j++) {
       #ifdef __ACER_MAX_ACT //clip derivative
 			const Real g = gradPolicy[j];
          const Real m = out[1+nL+j];
          const Real s = __ACER_MAX_ACT;
-			grad[1+nL+j] = std::max(std::min(g, s-m), -s-m);
+				 grad[1+nL+j] = std::max(std::min(g, s-m), -s-m);
       #else
           grad[1+nL+j] = gradPolicy[j] -anneal*out[1+nL+j];
       #endif
@@ -188,23 +188,21 @@ private:
 		#ifndef __ACER_RELAX
 			for (int j=nL+1; j<nA+nL+1; j++) {
 			   #ifndef __ACER_SAFE
-               #ifdef __ACER_MAX_ACT //clip derivative
-			         const Real g = Qerror*gradCritic[j];
-                  const Real m = out[j+nA*2];
-                  const Real s = __ACER_MAX_ACT;
-			         grad[j+nA*2] = std::max(std::min(g, s-m), -s-m);
-               #else
-					   grad[j+nA*2] = Qerror*gradCritic[j] -anneal*out[j+nA*2];
-               #endif
+             #ifdef __ACER_MAX_ACT //clip derivative
+                const Real m = out[j+nA*2];
+                const Real s = __ACER_MAX_ACT;
+		         		grad[j+nA*2] = std::max(std::min(gradCritic[j], s-m), -s-m);
+             #else
+				   			grad[j+nA*2] = gradCritic[j] -anneal*out[j+nA*2];
+             #endif
 			   #else
-               #ifdef __ACER_MAX_ACT //clip derivative
-			         const Real g = Qerror*gradCritic[j];
-                  const Real m = out[j+nA];
-                  const Real s = __ACER_MAX_ACT;
-			         grad[j+nA] = std::max(std::min(g, s-m), -s-m);
-               #else
-					   grad[j+nA] = Qerror*gradCritic[j] -anneal*out[j+nA];
-               #endif
+             #ifdef __ACER_MAX_ACT //clip derivative
+                const Real m = out[j+nA];
+                const Real s = __ACER_MAX_ACT;
+		         		grad[j+nA] = std::max(std::min(gradCritic[j], s-m), -s-m);
+             #else
+				   			grad[j+nA] = gradCritic[j] -anneal*out[j+nA];
+             #endif
 			   #endif
          }
 		#else
@@ -217,7 +215,7 @@ private:
 
 		return grad;
 	}
-
+	
 	void buildNetwork(const vector<int> nouts, Settings & settings)
 	{
 		string lType = bRecurrent ? "LSTM" : "Normal";

@@ -267,9 +267,9 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		Q_OPC = .5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
 
 		const vector<Real> critic_grad =
-		criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act);
+		criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act, Qer);
 		const vector<Real> grad =
-		finalizeGradient(Qer, Ver, critic_grad, policy_grad, out_cur[k], err_Cov);
+		finalizeGradient(Ver, critic_grad, policy_grad, out_cur[k], err_Cov);
 		//write gradient onto output layer
 		net->setOutputDeltas(grad, series_cur[k]);
       //printf("Applying gradient %s\n",printVec(grad).c_str());
