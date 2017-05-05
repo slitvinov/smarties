@@ -26,7 +26,7 @@ CartEnvironment::CartEnvironment(const int _nAgents, const string _execpath,
 																 const int _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings), allSenses(settings.senses==0)
 {
-   cheaperThanNetwork=false;
+//   cheaperThanNetwork=false;
 }
 
 bool CartEnvironment::predefinedNetwork(Network* const net) const
