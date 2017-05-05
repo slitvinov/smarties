@@ -168,41 +168,23 @@ private:
 		for (int j=1; j<nL+1; j++)
 			grad[j] = gradCritic[j];
 
-		for (int j=0; j<nA; j++) {
-      #ifdef __ACER_MAX_ACT //clip derivative
-			const Real g = gradPolicy[j];
-         const Real m = out[1+nL+j];
-         const Real s = __ACER_MAX_ACT;
-				 grad[1+nL+j] = std::max(std::min(g, s-m), -s-m);
-      #else
-          grad[1+nL+j] = gradPolicy[j] -anneal*out[1+nL+j];
-      #endif
-      }
+		for (int j=0; j<nA; j++)
+			grad[1+nL+j] = gradPolicy[j];
+			//grad[1+nL+j] = gradPolicy[j] -anneal*out[1+nL+j];
 
 		#ifndef __ACER_SAFE
 			const vector<Real> gradVar = finalizeVarianceGrad(gradPolicy, out);
-			for (int j=0; j<nA; j++)
-				grad[1+nL+nA+j] = gradVar[j];
+			for (int j=0; j<nA; j++) grad[1+nL+nA+j] = gradVar[j];
 		#endif
 
 		#ifndef __ACER_RELAX
 			for (int j=nL+1; j<nA+nL+1; j++) {
 			   #ifndef __ACER_SAFE
-             #ifdef __ACER_MAX_ACT //clip derivative
-                const Real m = out[j+nA*2];
-                const Real s = __ACER_MAX_ACT;
-		         		grad[j+nA*2] = std::max(std::min(gradCritic[j], s-m), -s-m);
-             #else
-				   			grad[j+nA*2] = gradCritic[j] -anneal*out[j+nA*2];
-             #endif
+         		grad[j+nA*2] = gradCritic[j];
+		   			//grad[j+nA*2] = gradCritic[j] -anneal*out[j+nA*2];
 			   #else
-             #ifdef __ACER_MAX_ACT //clip derivative
-                const Real m = out[j+nA];
-                const Real s = __ACER_MAX_ACT;
-		         		grad[j+nA] = std::max(std::min(gradCritic[j], s-m), -s-m);
-             #else
-				   			grad[j+nA] = gradCritic[j] -anneal*out[j+nA];
-             #endif
+         		grad[j+nA] = gradCritic[j];
+		   			//grad[j+nA] = gradCritic[j] -anneal*out[j+nA];
 			   #endif
          }
 		#else
