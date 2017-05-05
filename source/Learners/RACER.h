@@ -1,4 +1,4 @@
-source/Learners/RACER.h /*
+/*
  *  NAF.h
  *  rl
  *

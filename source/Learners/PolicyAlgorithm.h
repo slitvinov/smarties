@@ -431,7 +431,7 @@ protected:
 		factor is the advantage gain
 		 */
 		vector<Real> ret(2*nA);
-		
+
 		for (int i=0; i<nA; i++)
 		{
 			ret[i]    = factor*(act[i]-mu[i])*prec[i];
@@ -480,7 +480,7 @@ protected:
 		{
 			gradCC[j+nA] = eta * 0.5 * P[nA*j +j] * var[j] * var[j];
 			#ifdef __ACER_MAX_PREC
-					gradCC[i+nA] = std::min(gradCC[i+nA], __ACER_MAX_PREC-1/var[j]);
+					gradCC[j+nA] = std::min(gradCC[j+nA], __ACER_MAX_PREC-1/var[j]);
 			#endif
 		}
 		//for (int i=0; i<nA; i++) gradCC[i] = eta * 2 * (mean[i]-pol[i]) / var[i];
@@ -592,9 +592,16 @@ protected:
 		}
 
 		#ifndef __ACER_RELAX
-		for (int ia=0; ia<nA; ia++)
+		for (int ia=0; ia<nA; ia++) {
 			for (int i=0; i<nA; i++)
 				grad[1+nL+ia] += Qer*P[nA*ia+i]*(_u[i]-_m[i]);
+
+			#ifdef __ACER_MAX_ACT //clip derivative
+				const Real m = mean[ia];
+			 	const Real s = __ACER_MAX_ACT;
+				grad[1+nL+ia] = std::max(std::min(grad[1+nL+ia], s-m), -s-m);
+			#endif
+		}
 		#endif
 
 		return grad;
