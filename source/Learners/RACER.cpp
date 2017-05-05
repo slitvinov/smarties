@@ -226,9 +226,12 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			#if 1
 				const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
 				const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
-				const Real threshold = A_cov * A_cov / varCritic;
-				const Real smoothing = threshold>.5 ? .5/threshold : 2*(1 - threshold);
-				const Real eta = anneal * smoothing * A_cov * A_OPC / varCritic;
+				static const Real L = 0.25, eps = 2.2e-16;
+				//static const Real L = 2.2e-16, eps = 2.2e-16;
+				const Real threshold = A_cov * A_cov / (varCritic+eps);
+				const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
+				const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
+				//eta = eta > 0 ? 0 : eta;
 				const Real cotrolVar = A_cov, err_Cov = 0;
 			#else
 				const Real eta = 0, cotrolVar = 0, err_Cov = 0;
@@ -282,6 +285,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
 		if(thrID == 1) net->updateRunning(series_cur[k]);
 		data->Set[seq]->tuples[k]->SquaredError = Qer*Qer;
+		//data->Set[seq]->tuples[k]->SquaredError = std::pow(A_OPC*rho_cur,2);
 	}
 
 	if (thrID==0) net->backProp(series_cur, net->grad);

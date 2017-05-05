@@ -219,7 +219,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
           if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
         #else
           reward = (t_sN.vals[18]-.3)/(1.-.3);
-          if (new_sample) reward = -10.; // = - max cumulative reward
+          if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
         #endif
     }
     else if (study == 1) {

@@ -46,6 +46,20 @@ public:
 	virtual void save(const string fname);
 	virtual bool restart(const string fname);
 	virtual void moveFrozenWeights(const Real _alpha);
+
+	inline void applyL1(Real* const dest, const int N, const Real lambda_)
+	{
+		#pragma omp parallel for
+		for (int i=0; i<N; i++)
+		dest[i] += (dest[i]<0 ? lambda_ : -lambda_);
+	}
+
+	inline void applyL2(Real* const dest, const int N, const Real lambda_)
+	{
+		#pragma omp parallel for
+		for (int i=0; i<N; i++)
+		dest[i] -= dest[i]*lambda_;
+	}
 };
 
 class AdamOptimizer: public Optimizer
@@ -61,7 +75,7 @@ protected:
 
 public:
 	AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings,
-			const Real B1 = 0.99, const Real B2 = 0.999);
+			const Real B1 = 0.8, const Real B2 = 0.999);
 
 	~AdamOptimizer()
 	{

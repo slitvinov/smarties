@@ -17,6 +17,9 @@
 #define __A_ACER_VARIATE
 //#define __I_VARIATE
 #endif
+//#define __ACER_MAX_PREC 2500.
+#define __ACER_MAX_PREC 625.
+#define __ACER_MAX_ACT 10.
 
 class PolicyAlgorithm : public Learner
 {
@@ -85,11 +88,20 @@ protected:
 		assert(out.size()>=1+nL+2*nA);
 		assert(pgrad.size()==2*nA);
 		for (int j=0; j<nA; j++) {
+         /*
+         if(out[1+nL+nA+j] > __ACER_MAX_PREC) {
+            vargrad[j] = __ACER_MAX_PREC - out[1+nL+nA+j];
+            continue;
+         }
+         */
 			const Real x = out[1+nL+nA+j];
 			//const Real ysq = out[1+nL+nA+j]*out[1+nL+nA+j];
 			//const Real diff = ysq/(ysq + 0.25);
 			const Real diff = .5*(1+x/std::sqrt(x*x+1.));
 			vargrad[j] = pgrad[nA+j]*diff;
+         #ifdef __ACER_MAX_PREC
+         vargrad[j] = std::min(vargrad[j], __ACER_MAX_PREC-out[1+nL+nA+j]);
+         #endif
 		}
 		return vargrad;
 	}
@@ -131,8 +143,8 @@ protected:
 	void checkGradient()
 	{
 			vector<Real> out(nOutputs), act(nA);
-			uniform_real_distribution<Real> out_dis(-5,5);
-			uniform_real_distribution<Real> act_dis(-10,10);
+			uniform_real_distribution<Real> out_dis(-.5,.5);
+			uniform_real_distribution<Real> act_dis(-1,1);
 
 			for(int i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
 			for(int i = 0; i<nA; i++) act[i] = act_dis(*gen);
@@ -145,9 +157,15 @@ protected:
 				vector<Real> var = vector<Real>(nA,.01); //std=.1
 				vector<Real> prec = vector<Real>(nA,100); //std=.1
 			#endif
+			#ifndef __ACER_RELAX
+				vector<Real> mean = extractQmean(out);
+			#else
+				vector<Real> mean = mu;
+			#endif
 
 			vector<Real> P = preparePmatrix(out);
 			vector<Real> polGrad = policyGradient(mu, prec, act, 1);
+			vector<Real> cntGrad = controlGradient(mu, var, P, mean, 1);
 
 			for(int i = 0; i<nA; i++) {
 				vector<Real> out_1 = out;
@@ -156,14 +174,19 @@ protected:
 				out_2[1+nL+i] += 0.0001;
 				vector<Real> mu_1 = extractPolicy(out_1);
 				vector<Real> mu_2 = extractPolicy(out_2);
+				const Real A_1 = computeAdvantage(act, mu_1, var, P, mean);
+				const Real A_2 = computeAdvantage(act, mu_2, var, P, mean);
 				const Real p1 = evaluateLogProbability(act, mu_1, prec);
 			 	const Real p2 = evaluateLogProbability(act, mu_2, prec);
 				printf("LogPol mu Gradient %d: finite differences %g analytic %g \n",
 				i, (p2-p1)/0.0002, polGrad[i]);
+				printf("Control mu Gradient %d: finite differences %g analytic %g \n",
+				i, (A_1-A_2)/0.0002, cntGrad[i]);
 			}
 
 			#ifndef __ACER_SAFE
 			vector<Real> varGrad = finalizeVarianceGrad(polGrad, out);
+			vector<Real> trlGrad = finalizeVarianceGrad(cntGrad, out);
 			for(int i = 0; i<nA; i++) {
 				vector<Real> out_1 = out;
 				vector<Real> out_2 = out;
@@ -171,17 +194,17 @@ protected:
 				out_2[1+nL+nA+i] += 0.0001;
 				vector<Real> prec_1 = extractPrecision(out_1);
 				vector<Real> prec_2 = extractPrecision(out_2);
+				vector<Real> var_1 = extractVariance(out_1);
+				vector<Real> var_2 = extractVariance(out_2);
+				const Real A_1 = computeAdvantage(act, mu, var_1, P, mean);
+				const Real A_2 = computeAdvantage(act, mu, var_2, P, mean);
 				const Real p1 = evaluateLogProbability(act, mu, prec_1);
 			 	const Real p2 = evaluateLogProbability(act, mu, prec_2);
 				printf("LogPol var Gradient %d: finite differences %g analytic %g \n",
 				i, (p2-p1)/0.0002, varGrad[i]);
+				printf("Control var Gradient %d: finite differences %g analytic %g \n",
+				i, (A_1-A_2)/0.0002, trlGrad[i]);
 			}
-			#endif
-
-			#ifndef __ACER_RELAX
-			vector<Real> mean = extractQmean(out);
-			#else
-			vector<Real> mean = mu;
 			#endif
 
 			vector<Real> cgrad = criticGradient(P, mu, var, out, mean, act);
@@ -305,6 +328,22 @@ protected:
 		return Q;
 	}
 
+	inline Real quadraticNoise(const vector<Real>& P, const vector<Real>& var, const int thrID) const
+	{
+		vector<Real> q(nA,0);
+		for (int j=0; j<nA; j++)
+		{
+			const Real scale = 0.1*std::sqrt(3)*std::sqrt(var[j]);
+			std::uniform_real_distribution<Real> distn(-scale, scale);
+			q[j] = distn(generators[thrID]);
+		}
+
+		Real Q = 0;
+		for (int j=0; j<nA; j++) for (int i=0; i<nA; i++)
+			Q += P[nA*j+i]*q[i]*q[j];
+
+		return Q;
+	}
 	inline Real quadraticTerm(const vector<Real>& P, const vector<Real>& mu,
 		const vector<Real>& a) const
 	{

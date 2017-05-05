@@ -518,7 +518,8 @@ vector<Real> Transitions::standardize(const vector<Real>& state, const Real nois
 
     if (noise>0) {
       assert(generators.size()>thrID);
-      std::normal_distribution<Real> distn(0.,noise);
+      //std::normal_distribution<Real> distn(0.,noise);
+      std::uniform_real_distribution<Real> distn(-std::sqrt(3)*noise,std::sqrt(3)*noise);
       for (int i=0; i<sI.dimUsed*(1+nAppended); i++)
         tmp[i] += distn(generators[thrID]);
     }

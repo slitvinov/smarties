@@ -40,6 +40,7 @@ protected:
     bool bRecurrent;
     const bool bTrain;
     const Real tgtUpdateAlpha, gamma, greedyEps, epsAnneal;
+    Real dataUsage;
     int cntUpdateDelay, taskCounter;
     unsigned long mastersNiter_b4PolUpdates;
     ActionInfo aInfo;

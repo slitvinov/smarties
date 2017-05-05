@@ -143,7 +143,7 @@ bRecurrent(settings.nnType==1), bTrain(settings.bTrain==1),
 tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma), greedyEps(settings.greedyEps),
 epsAnneal(settings.epsAnneal), cntUpdateDelay(-1), taskCounter(batchSize),
 aInfo(env->aI), sInfo(env->sI), gen(&settings.generators[0]), mastersNiter_b4PolUpdates(0),
-meanGain1(nThreads+1,0), meanGain2(nThreads+1,0)
+dataUsage(0), meanGain1(nThreads+1,0), meanGain2(nThreads+1,0)
 {
     for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
     profiler = new Profiler();
@@ -193,6 +193,7 @@ void Learner::TrainBatch()
           Train(seq[i], samp[i]);
     }
 
+    dataUsage += 1./nAddedGradients;
     updateNNWeights(nAddedGradients);
     updateTargetNetwork();
 }
@@ -283,6 +284,7 @@ void Learner::TrainTasking(Master* const master)
         sumElapsed += len/nAddedGradients;
         countElapsed++;
 
+         dataUsage += 1./nAddedGradients;
         //this needs to be compatible with multiple servers
       	stackAndUpdateNNWeights(nAddedGradients);
         // this can be handled node wise
@@ -405,8 +407,15 @@ bool Learner::checkBatch(unsigned long mastersNiter)
     const long unsigned learnerNiter = opt->nepoch + mastersNiter_b4PolUpdates;
     if (env->cheaperThanNetwork && mastersNiter > learnerNiter)
       return true;
-    else
-      return taskCounter >= batchSize;
+
+    //If the transition buffer is already backed up, train and pause communicating
+    if(data->Buffered.size() >= data->maxTotSeqNum/20)
+      return true;
+
+    //Very lax constraint on over-using stale data too much
+    if(dataUsage > mastersNiter) return false;
+
+    return taskCounter >= batchSize;
 }
 
 void Learner::save(string name)
@@ -509,8 +518,8 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     }
     //sumWeights *= opt->lambda;
 
-    stats.MSE=std::sqrt(stats.MSE/stats.dumpCount);
-    //stats.MSE/=(stats.dumpCount-1);
+    //stats.MSE=std::sqrt(stats.MSE/stats.dumpCount);
+    stats.MSE/=(stats.dumpCount-1);
     stats.avgQ/=stats.dumpCount;
     stats.relE/=stats.dumpCount;
     net->printRunning();
@@ -518,11 +527,14 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
 
     ofstream filestats;
     filestats.open("stats.txt", ios::app);
-    printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, "
-            "min_Q %f, max_Q %f, errWeights [%f %f %f], N %d, steps %lu, dT %f\n",
-          stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ,
-          stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dumpCount,
-	  opt->nepoch, avgTime);
+    //printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, "
+    //        "min_Q %f, max_Q %f, errWeights [%f %f %f], N %d, steps %lu, dT %f\n",
+    //      stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ,
+    //      stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dumpCount,
+	 // opt->nepoch, avgTime);
+    printf("%d (%lu), mse:%f, avg_Q:%f, min_Q:%f, max_Q:%f, errWeights [%f %f %f], dT %f\n",
+          stats.epochCount, opt->nepoch, stats.MSE, stats.avgQ, stats.minQ,
+          stats.maxQ, sumWeights, sumWeightsSq, distTarget, avgTime);
     filestats<<stats.epochCount<<"\t"<<stats.MSE<<"\t" <<stats.relE<<"\t"
              <<stats.avgQ<<"\t"<<stats.maxQ<<"\t"<<stats.minQ<<"\t"
              <<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"
