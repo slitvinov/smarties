@@ -112,8 +112,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 #else
 	for (int k=0; k<ndata-1; k++) {
 		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
-		const vector<Real> scaledSold = data->standardize(_t->s);
-		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
+		//const vector<Real> scaledSold = data->standardize(_t->s);
+		const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
 		net->seqPredict_inputs(scaledSold, series_cur[k]);
 		net->seqPredict_inputs(scaledSold, series_hat[k]);
 	}
@@ -256,16 +256,16 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		//trust region updating
 		const vector<Real> gradDivKL = gradDKL(polCur, polHat, preCur, preHat);
 		const vector<Real> gradAcer = gradAcerTrpo(policy_grad, gradDivKL);
-
+		const Real Vs  = stateValue(out_cur[k][0],out_hat[k][0]); 
 		const Real Qer = (Q_RET -A_cur -out_cur[k][0]);
 		//unclear usefulness:
 		//const Real Ver = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat);
 		const Real Ver = 0; 
 		//prepare rolled Q with off policy corrections for next step:
-		Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
+		Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +Vs;
 		//TODO: now Q_OPC ios actually Q_RET, which is better?
-		//Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
-		Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
+		Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
+		//Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
 
 		const vector<Real> critic_grad =
 		criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act, Qer);
