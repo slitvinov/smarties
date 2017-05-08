@@ -488,20 +488,20 @@ void Transitions::update_samples_mean(const Real alpha)
   }
 
    if(count<batchSize) return;
-   /*std::cout << "States stds: [";
+   //std::cout << "States stds: [";
 	for (int i=0; i<sI.dimUsed; i++) {
     newStd[i] = std::sqrt((newStd[i] - newMean[i]*newMean[i]/Real(count))/Real(count));
     newStd[i] = std::max(newStd[i],1e-8);
     std[i] = std[i]*(1.-alpha) + alpha*newStd[i];
-    std::cout << std[i] << " ";
+    //std::cout << std[i] << " ";
   }
-  std::cout << "]. States means: [";
+  //std::cout << "]. States means: [";
 	for (int i=0; i<sI.dimUsed; i++) {
     newMean[i] /= Real(count);
     mean[i] = mean[i]*(1.-alpha) + alpha*newMean[i];
-    std::cout << mean[i] << " ";
+    //std::cout << mean[i] << " ";
   }
-  std::cout << "]" << std::endl;*/
+  //std::cout << "]" << std::endl;
 }
 
 vector<Real> Transitions::standardize(const vector<Real>& state, const Real noise, const int thrID) const

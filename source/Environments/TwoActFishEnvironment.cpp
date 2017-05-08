@@ -229,12 +229,18 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
         	reward = (t_sN.vals[21]-.3)/(.6-.3);
         #endif
 
-        if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
+        if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
     }
     else if (study == 2) {
         reward =  1.-2*sqrt(fabs(t_sN.vals[1])); //-goalDY
         if (new_sample) reward = -2./(1.-gamma);
     }
+    else if (study == 4) {
+      const Real x=t_sN.vals[0], y=t_sN.vals[1];
+      //Fish should stay 1.5 body lengths behind leader at y=0
+      reward = 1 - std::sqrt((x-1.5)*(x-1.5) + y*y);
+      if (new_sample) reward = -1./(1.-gamma);
+    } 
     else if (study == 5) {
       reward = (t_sN.vals[18]-.4)/.5;
       if (t_sN.vals[0] > 0.5) reward = std::min(0.,reward);
