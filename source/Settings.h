@@ -69,6 +69,7 @@ inline bool positive(const Real vals)
 
 inline void setVecMean(vector<Real>& vals)
 {
+   assert(vals.size()>1);
 	Real mean = 0;
 	for (unsigned int i=1; i<vals.size(); i++) //assume 0 is empty
 		mean += vals[i];
@@ -80,6 +81,7 @@ inline void setVecMean(vector<Real>& vals)
 inline void statsVector(vector<vector<Real>>& sum, vector<vector<Real>>& sqr,
   vector<Real>& cnt)
 {
+   assert(sum.size()>1);
   assert(sum.size() == cnt.size() && sqr.size() == cnt.size());
 
   for (unsigned int i=0; i<sum[0].size(); i++)
@@ -94,7 +96,7 @@ inline void statsVector(vector<vector<Real>>& sum, vector<vector<Real>>& sqr,
       sqr[0][j] += sqr[i][j]; sqr[i][j] = 0;
     }
   }
-
+  cnt[0] = std::max(2.2e-16, cnt[0]);
   for (unsigned int j=0; j<sum[0].size(); j++)
   {
     sqr[0][j] = std::sqrt((sqr[0][j]-sum[0][j]*sum[0][j]/cnt[0])/cnt[0]);

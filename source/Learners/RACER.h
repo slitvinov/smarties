@@ -169,8 +169,8 @@ private:
 			grad[j] = gradCritic[j];
 
 		for (int j=0; j<nA; j++)
-			grad[1+nL+j] = gradPolicy[j];
-			//grad[1+nL+j] = gradPolicy[j] -anneal*out[1+nL+j];
+			//grad[1+nL+j] = gradPolicy[j];
+			grad[1+nL+j] = gradPolicy[j] -anneal*out[1+nL+j];
 
 		#ifndef __ACER_SAFE
 			const vector<Real> gradVar = finalizeVarianceGrad(gradPolicy, out);
@@ -180,11 +180,11 @@ private:
 		#ifndef __ACER_RELAX
 			for (int j=nL+1; j<nA+nL+1; j++) {
 			   #ifndef __ACER_SAFE
-         		grad[j+nA*2] = gradCritic[j];
-		   			//grad[j+nA*2] = gradCritic[j] -anneal*out[j+nA*2];
+         		//grad[j+nA*2] = gradCritic[j];
+		   	grad[j+nA*2] = gradCritic[j] -anneal*out[j+nA*2];
 			   #else
-         		grad[j+nA] = gradCritic[j];
-		   			//grad[j+nA] = gradCritic[j] -anneal*out[j+nA];
+         		//grad[j+nA] = gradCritic[j];
+		   	grad[j+nA] = gradCritic[j] -anneal*out[j+nA];
 			   #endif
          }
 		#else

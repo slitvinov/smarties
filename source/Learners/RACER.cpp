@@ -19,7 +19,7 @@
 #include <cmath>
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
-PolicyAlgorithm(comm,_env,settings, 1), truncation(5), cntGrad(nThreads+1,0),
+PolicyAlgorithm(comm,_env,settings, 1), truncation(100), cntGrad(nThreads+1,0),
 stdGrad(nThreads+1,vector<Real>(nOutputs,0)),
 avgGrad(nThreads+1,vector<Real>(nOutputs,0))
 {
@@ -264,8 +264,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +Vs;
 		//TODO: now Q_OPC ios actually Q_RET, which is better?
-		Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
-		//Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
+		//Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
+		Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
 
 		const vector<Real> critic_grad =
 		criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act, Qer);
