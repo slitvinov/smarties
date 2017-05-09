@@ -223,7 +223,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			const Real eta = anneal*std::min(std::max(-.5, cov_A_A/varCritic), 0.5);
 			//const Real eta = 0;
 		#else
-			#if 0
+			#if 1
 				const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
 				const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
 				static const Real L = 0.25, eps = 2.2e-16;

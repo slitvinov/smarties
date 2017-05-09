@@ -15,10 +15,10 @@
 #define __A_ACER_VARIATE
 //#define __I_VARIATE
 #endif
-#define __ACER_MAX_PREC 2500.
-//#define __ACER_MAX_PREC 625.
-#define __ACER_MAX_ACT 20.
-#define __ENV_MAX_REW 100.
+//#define __ACER_MAX_PREC 2500.
+#define __ACER_MAX_PREC 625.
+#define __ACER_MAX_ACT 10.
+#define __ENV_MAX_REW 10.
 
 class PolicyAlgorithm : public Learner
 {
