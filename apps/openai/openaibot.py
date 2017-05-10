@@ -33,15 +33,17 @@ print(sys.argv[3])
 print("ntimesteps:")
 print(sys.argv[4])
 while True:
-	status=np.array(1, dtype=np.float64)
-	agent_id=np.array(0, dtype=np.float64) #assume only 1 exist for now
-	reward=np.array(0,dtype=np.float64)
+	status=1
+	agent_id=0 #assume only 1 exist for now
+	reward=0
 	observation=np.zeros_like(env.reset(), dtype=np.float64)
 	for i_episode in range(int(float(sys.argv[3]))):
 		print("env.reset()")
 		observation = env.reset()
 		for t in range(int(float(sys.argv[4]))):
-			state=np.concatenate((agent_id, status, observation, reward),axis=0)
+			temparr=np.array([agent_id, status])
+			state=np.concatenate((temparr, observation),axis=0)
+			state.append(reward)
 			conn.send(state.tobytes())
 			status[0]=0
 			buf=conn.recv(nActions*8)
