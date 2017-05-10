@@ -37,7 +37,7 @@ while True:
 	agent_id=0 #assume only 1 exist for now
 	reward=0
 	observation=np.zeros_like(env.reset(), dtype=np.float64)
-	state=np.zeros(obeservation.size+3)
+	state=np.zeros(observation.size+3)
 	for i_episode in range(int(float(sys.argv[3]))):
 		print("env.reset()")
 		observation = env.reset()
