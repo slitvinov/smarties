@@ -55,14 +55,14 @@ while True:
 			if done:
 				print("Episode finished after {} timesteps".format(t+1))
 				break
-		info[0]=2
+		info=2
 		state[0]=agent_id
 		state[1]=status
 		state[2:observation.size+2]
 		state[observation.size+2]=reward
 		conn.send(state.tobytes())
-		info[0]=1
-		reward[0]=0
+		info=1
+		reward=0
 
 
 
