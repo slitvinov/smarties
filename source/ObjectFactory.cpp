@@ -121,6 +121,12 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
         int nactions = _parseInt(envStr, "nActions", true);
         env = new alebotEnvironment(n, nactions, execpath, rank, *settings);
     }
+    else if (envStr.find("openAICartEnvironment")!=envStr.npos)
+    {
+		string execpath=_parse(envStr, "exec", true);
+		int n = _parseInt(envStr, "n", true);
+        env = new openAICartEnvironment(n, execpath, rank, *settings);
+	}
     else if (envStr.find("TestEnvironment ") != envStr.npos)
     {
         string execpath = _parse(envStr, "exec", true);
