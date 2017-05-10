@@ -24,7 +24,7 @@ NPROCESSORS=$((${NNODES}*${NTHREADSPERNODE}))
 #this must handle all app-side setup (as well as copying the factory)
 source ../apps/${APP}/setup.sh ${BASEPATH}${RUNFOLDER}
 cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
-#cp ${POLICY}_mems ${BASEPATH}${RUNFOLDER}/policy_mems
+cp ${POLICY}_mems ${BASEPATH}${RUNFOLDER}/policy_mems
 cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
 cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
@@ -35,5 +35,5 @@ cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}"/simulation"
 
-#../launchSim.sh 0
-bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -W ${WCLOCK} ../launchSim.sh 0
+../launchSim.sh 0
+#bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -W ${WCLOCK} ../launchSim.sh 0

@@ -51,6 +51,8 @@ Communicator * comm;
 int main(int argc, const char * argv[])
 {
 	
+	std::cout<<"alebot launched"<<std::endl;
+	
 	ALEInterface ale;
 	
     //Settings
@@ -62,6 +64,7 @@ int main(int argc, const char * argv[])
 
 	// Load the ROM file. (Also resets the system for new settings to
     // take effect.)
+    std::cout<<"loading ROM"<<std::endl;
     ale.loadROM(argv[2]);//path to rom
 
 	// Get the vector of legal actions
@@ -70,12 +73,13 @@ int main(int argc, const char * argv[])
     const int n = 1; //n agents
     //communication:
     const int sock = std::stoi(argv[1]);
-   
+   std::cout<<"init comm"<<std::endl;
     //communicator class, it needs a socket number sock, given by RL as first argument of execution
     //second and 3rd arguments are dimensions, not correct yet
     const int inputdim=28224; //dimension to which input gets resampled, this is for 4x84x84, uses last 4 images since dynamic is relevant
     Communicator comm(sock,inputdim,1);//3rd argument is actions per turn or available actions? 
 
+	std::cout<<"init states"<<std::endl;
 	std::vector<double> actions;
 	std::vector<unsigned char> curscreen;
 	curscreen.reserve(inputdim);
@@ -107,10 +111,11 @@ int main(int argc, const char * argv[])
 		comm.sendState(k,info, state, reward);
 		comm.recvAction(actions);
 		Action a=legal_actions[actions[0]];
-		reward+=ale.act(a);
+		reward+=ale.act(a); //should probably be = instead of +=
 		info=0;
 		if(ale.game_over())
 		{
+			std::cout<<"restarting game"<<std::endl;
 			ale.getScreenGrayscale(curscreen);
 			resampleimage(curscreen, originalsize, resampledscreen, newsize);
 			addframetostate(resampledscreen, state);
