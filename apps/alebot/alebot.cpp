@@ -111,7 +111,7 @@ int main(int argc, const char * argv[])
 		comm.sendState(k,info, state, reward);
 		comm.recvAction(actions);
 		Action a=legal_actions[actions[0]];
-		reward+=ale.act(a);
+		reward+=ale.act(a); //should probably be = instead of +=
 		info=0;
 		if(ale.game_over())
 		{
