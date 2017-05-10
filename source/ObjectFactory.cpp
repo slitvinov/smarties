@@ -123,10 +123,10 @@ Environment* ObjectFactory::createEnvironment(int rank, int index)
     }
     else if (envStr.find("openAICartEnvironment")!=envStr.npos)
     {
-		string execpath=_parse(envStr, "exec", true);
-		int n = _parseInt(envStr, "n", true);
-        env = new openAICartEnvironment(n, execpath, rank, *settings);
-	}
+	string execpath=_parse(envStr, "exec", true);
+	int n = _parseInt(envStr, "n", true);
+       	env = new openAICartEnvironment(n, execpath, rank, *settings);
+    }
     else if (envStr.find("TestEnvironment ") != envStr.npos)
     {
         string execpath = _parse(envStr, "exec", true);

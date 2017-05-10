@@ -50,7 +50,8 @@ while True:
 			status=0
 			buf=conn.recv(nActions*8)
 			action=np.frombuffer(buf,dtype=np.float64)
-			observation, reward, done, info = env.step(action)
+			print(action)
+			observation, reward, done, info = env.step(int(action[0]))
 			if done:
 				print("Episode finished after {} timesteps".format(t+1))
 				break

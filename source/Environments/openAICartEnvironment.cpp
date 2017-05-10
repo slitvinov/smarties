@@ -74,8 +74,8 @@ void openAICartEnvironment::setDims() //this environment is for the cart pole te
             //just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
             //i added the 0.1 is just to be extra safe when converting a float to an integer
 
-            aI.values[i].push_back(0.0);
-            aI.values[i].push_back(1.0);
+            aI.values[i].push_back(0.1);
+            aI.values[i].push_back(1.1);
             //the number of components must be ==nOptions
         }
     }

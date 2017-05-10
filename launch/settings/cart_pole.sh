@@ -35,9 +35,9 @@ SETTINGS+=" --rType 0"
 SETTINGS+=" --senses 0"
 
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
-#SETTINGS+=" --learn DQN"
+SETTINGS+=" --learn DQN"
 #SETTINGS+=" --learn NAF"
-SETTINGS+=" --learn RACER"
+#SETTINGS+=" --learn RACER"
 #SETTINGS+=" --learn DPG"
 
 #number of state vectors received from env to be chained together to form input to net (faux RNN?)
