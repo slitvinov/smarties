@@ -38,7 +38,7 @@ protected:
     {
       //int*const buf = (int*)ptr;
       //*buf = i;
-      *buf = (double)i+0.1;
+      *ptr = (double)i+0.1;
     }
     int doublePtrToInt(const double*const ptr) const
     {
