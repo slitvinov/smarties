@@ -125,20 +125,22 @@ void Communicator::recvActionClient()
 void Communicator::printLog(const std::string o)
 {
 	if (! verbose || app_rank) return;
-	const std::string fname = logfile+std::to_string(iter)+".txt";
+	/*const std::string fname = logfile+std::to_string(iter)+".txt";
 	FILE * f = fopen(fname.c_str(), "a");
 	if (f != NULL)
 		fprintf(f, "%s\n", o.c_str());
-	fclose(f);
+	fclose(f);*/
+	return;
 }
 
 void Communicator::printBuf(const double*const buf, const int size)
 {
 	if (app_rank) return;
-	const std::string fname = logfile+std::to_string(iter)+".raw";
+	/*const std::string fname = logfile+std::to_string(iter)+".raw";
 	FILE * pFile = fopen (fname.c_str(), "ab");
 	fwrite (buf, sizeof(double), size/sizeof(double), pFile);
-	fclose (pFile);
+	fclose (pFile);*/
+	return;
 }
 
 void Communicator::synchronizeApp()
