@@ -36,12 +36,13 @@ protected:
 
     void intToDoublePtr(const int i, double*const ptr) const
     {
-      int*const buf = (int*)ptr;
-      *buf = i;
+      //int*const buf = (int*)ptr;
+      //*buf = i;
+      *buf = (double)i+0.1;
     }
     int doublePtrToInt(const double*const ptr) const
     {
-      return *((int*)ptr);
+      return (int)*ptr;//*((int*)ptr);
     }
     double* _alloc(const int size) const
     {

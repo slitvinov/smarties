@@ -142,7 +142,7 @@ void Slave::run()
             comm->answerTerminateReq(-1);
             return;
           }
-          else 
+          else
 				 */
 				comm->answerTerminateReq(1);
 			}
@@ -261,5 +261,5 @@ void Client::prepareAction(const int iAgent)
 
 static int doublePtrToInt(const double*const ptr)
 {
-	return *((int*)ptr);
+	return (int)*ptr;//*((int*)ptr);
 }

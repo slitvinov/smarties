@@ -297,6 +297,7 @@ int Learner::sampleTransitions(vector<int>& sequences, vector<int>& transitions)
 {
   assert(sequences.size() == batchSize && transitions.size() == batchSize);
   assert(!bRecurrent);
+  vector<int> load(batchSize), sorting(batchSize), s(batchSize), t(batchSize);
   for (int i=0; i<batchSize; i++)
   {
     const int ind = data->sample();
@@ -307,11 +308,21 @@ int Learner::sampleTransitions(vector<int>& sequences, vector<int>& transitions)
       indT += data->Set[++k]->tuples.size()-1;
     }
 
-    sequences[i] = k;
-    transitions[i] = ind-back;
-    //index[i] = ind;
+    s[i] = k;
+    t[i] = ind-back;
+    sorting[i] = i;
+    load[i] = data->Set[k]->tuples.size()-1 - t[i];
   }
 
+  //sort elements of sorting according to load for each transition:
+  const auto compare = [&] (int a, int b) { return load[a] > load[b]; };
+  std::sort(sorting.begin(), sorting.end(), compare);
+  assert(load[sorting[0]] > load[sorting[batchSize-1]]);
+  //sort vectors passed to learning algo:
+  for (int i=0; i<batchSize; i++) {
+    transitions[i] = t[sorting[i]];
+    sequences[i] = s[sorting[i]];
+  }
   return batchSize; //always add one grad per transition
 }
 
