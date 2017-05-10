@@ -28,16 +28,19 @@ print (sys.argv[2])
 env = gym.make(sys.argv[2])
 
 nActions=1
- 
+print("nepisodes:")
+print(sys.argv[3])
+print("ntimesteps:")
+print(sys.argv[4])
 while True:
 	status=np.array(1, dtype=np.float64)
 	agent_id=np.array(0, dtype=np.float64) #assume only 1 exist for now
 	reward=np.array(0,dtype=np.float64)
 	observation=np.zeros_like(env.reset(), dtype=np.float64)
-	for i_episode in range(sys.argv[3]):
+	for i_episode in range(int(float(sys.argv[3]))):
 		print("env.reset()")
 		observation = env.reset()
-		for t in range(sys.argv[4]):
+		for t in range(int(float(sys.argv[4]))):
 			state=np.concatenate((agent_id, status, observation, reward),axis=0)
 			conn.send(state.tobytes())
 			status[0]=0
