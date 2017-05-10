@@ -20,8 +20,8 @@
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 PolicyAlgorithm(comm,_env,settings, 1), truncation(100), cntGrad(nThreads+1,0),
-stdGrad(nThreads+1,vector<Real>(nOutputs,0)),
-avgGrad(nThreads+1,vector<Real>(nOutputs,0))
+stdGrad(nThreads+1,vector<Real>(nOutputs+2,0)),
+avgGrad(nThreads+1,vector<Real>(nOutputs+2,0))
 {
 	#if defined __ACER_RELAX
 		// I output V(s), P(s), pol(s), prec(s) (and variate)
@@ -112,8 +112,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 #else
 	for (int k=0; k<ndata-1; k++) {
 		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
-		//const vector<Real> scaledSold = data->standardize(_t->s);
-		const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
+		const vector<Real> scaledSold = data->standardize(_t->s);
+		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
 		net->seqPredict_inputs(scaledSold, series_cur[k]);
 		net->seqPredict_inputs(scaledSold, series_hat[k]);
 	}
@@ -265,7 +265,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +Vs;
 		//TODO: now Q_OPC ios actually Q_RET, which is better?
 		//Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
-		Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) + out_hat[k][0];
+		Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
 
 		const vector<Real> critic_grad =
 		criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act, Qer);
@@ -278,9 +278,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
       //
 		//bookkeeping:
       //#ifndef NDEBUG
-		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
-		meanGain1[thrID+1] = 0.9999*meanGain1[thrID+1] + 0.0001*gain1;
-		meanGain2[thrID+1] = 0.9999*meanGain2[thrID+1] + 0.0001*eta;
+      		vector<Real> _dump = grad; _dump.push_back(gain1); _dump.push_back(eta);	
+		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
       //#endif
 		vector<Real> fake{A_cur, 100};
 		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
@@ -304,9 +303,9 @@ void RACER::processStats(vector<trainData*> _stats, const Real avgTime)
 	#endif
    //#ifndef NDEBUG
 	statsVector(avgGrad, stdGrad, cntGrad);
-	setVecMean(meanGain1); setVecMean(meanGain2);
-	printf("Gain of policy grad means: [%f] [%f]. Avg grad [%s] - std [%s]\n",
-	meanGain1[0], meanGain2[0], printVec(avgGrad[0]).c_str(), printVec(stdGrad[0]).c_str());
+	//setVecMean(meanGain1); setVecMean(meanGain2);
+	printf("Avg grad [%s] - std [%s]\n",
+	printVec(avgGrad[0]).c_str(), printVec(stdGrad[0]).c_str());
 	fflush(0);
    //#endif
 	Learner::processStats(_stats, avgTime);
