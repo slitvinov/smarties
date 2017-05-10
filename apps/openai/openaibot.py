@@ -47,7 +47,7 @@ while True:
 			state[2:observation.size+2]
 			state[observation.size+2]=reward
 			conn.send(state.tobytes())
-			status[0]=0
+			status=0
 			buf=conn.recv(nActions*8)
 			action=np.frombuffer(buf,dtype=np.float64)
 			observation, reward, done, info = env.step(action)
