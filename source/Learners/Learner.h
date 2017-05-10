@@ -52,8 +52,10 @@ protected:
     Transitions* data;
     trainData stats;
     vector<trainData*> Vstats;
-	mutable vector<Real> meanGain1;
-	mutable vector<Real> meanGain2;
+	//mutable vector<Real> meanGain1;
+	//mutable vector<Real> meanGain2;
+	//mutable vector<Real>  stdGain1;
+	//mutable vector<Real>  stdGain2;
     virtual void Train_BPTT(const int seq, const int thrID=0) const = 0;
     virtual void Train(const int seq, const int samp, const int thrID=0) const = 0;
     int sampleSequences(vector<int>& sequences);

@@ -9,7 +9,7 @@ config ?= prod
 extra ?=
 app ?= test
 cvariate ?= off
-acer ?= relax
+acer ?= full 
 entropy ?= off
 mpi_lib ?= default
 

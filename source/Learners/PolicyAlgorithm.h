@@ -138,20 +138,24 @@ protected:
 
 	void checkGradient()
 	{
-			vector<Real> out(nOutputs), act(nA);
+			vector<Real> hat(nOutputs), out(nOutputs), act(nA);
 			uniform_real_distribution<Real> out_dis(-.5,.5);
-			uniform_real_distribution<Real> act_dis(-1,1);
+			uniform_real_distribution<Real> act_dis(-.5,.5);
 
 			for(int i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
+			for(int i = 0; i<nOutputs; i++) hat[i] = out_dis(*gen);
 			for(int i = 0; i<nA; i++) act[i] = act_dis(*gen);
 
 			vector<Real> mu = extractPolicy(out);
+			vector<Real> mu_hat = extractPolicy(hat);
 			#ifndef __ACER_SAFE
 				vector<Real> var = extractVariance(out);
 				vector<Real> prec = extractPrecision(out);
+				vector<Real> prec_hat = extractPrecision(hat);
 			#else
 				vector<Real> var = vector<Real>(nA,.01); //std=.1
 				vector<Real> prec = vector<Real>(nA,100); //std=.1
+				vector<Real> prec_hat = vector<Real>(nA,100); //std=.1
 			#endif
 			#ifndef __ACER_RELAX
 				vector<Real> mean = extractQmean(out);
@@ -162,7 +166,7 @@ protected:
 			vector<Real> P = preparePmatrix(out);
 			vector<Real> polGrad = policyGradient(mu, prec, act, 1);
 			vector<Real> cntGrad = controlGradient(mu, var, P, mean, 1);
-
+			vector<Real> gradDivKL = gradDKL(mu, mu_hat, prec, prec_hat);
 			for(int i = 0; i<nA; i++) {
 				vector<Real> out_1 = out;
 				vector<Real> out_2 = out;
@@ -174,15 +178,20 @@ protected:
 				const Real A_2 = computeAdvantage(act, mu_2, var, P, mean);
 				const Real p1 = evaluateLogProbability(act, mu_1, prec);
 			 	const Real p2 = evaluateLogProbability(act, mu_2, prec);
+				const Real d1 = DivKL(mu_1, mu_hat, prec, prec_hat);
+				const Real d2 = DivKL(mu_2, mu_hat, prec, prec_hat);
 				printf("LogPol mu Gradient %d: finite differences %g analytic %g \n",
 				i, (p2-p1)/0.0002, polGrad[i]);
 				printf("Control mu Gradient %d: finite differences %g analytic %g \n",
-				i, (A_1-A_2)/0.0002, cntGrad[i]);
+				i, (A_2-A_1)/0.0002, -cntGrad[i]); //the function returns -grad
+				printf("DivKL mu Gradient %d: finite differences %g analytic %g \n",
+				i, (d2-d1)/0.0002, gradDivKL[i]);
 			}
 
 			#ifndef __ACER_SAFE
 			vector<Real> varGrad = finalizeVarianceGrad(polGrad, out);
 			vector<Real> trlGrad = finalizeVarianceGrad(cntGrad, out);
+			vector<Real> dklGrad = finalizeVarianceGrad(gradDivKL, out);
 			for(int i = 0; i<nA; i++) {
 				vector<Real> out_1 = out;
 				vector<Real> out_2 = out;
@@ -196,10 +205,14 @@ protected:
 				const Real A_2 = computeAdvantage(act, mu, var_2, P, mean);
 				const Real p1 = evaluateLogProbability(act, mu, prec_1);
 			 	const Real p2 = evaluateLogProbability(act, mu, prec_2);
+				const Real d1 = DivKL(mu, mu_hat, prec_1, prec_hat);
+				const Real d2 = DivKL(mu, mu_hat, prec_2, prec_hat);
 				printf("LogPol var Gradient %d: finite differences %g analytic %g \n",
 				i, (p2-p1)/0.0002, varGrad[i]);
 				printf("Control var Gradient %d: finite differences %g analytic %g \n",
-				i, (A_1-A_2)/0.0002, trlGrad[i]);
+				i, (A_2-A_1)/0.0002, -trlGrad[i]); //the function returns -grad
+				printf("DivKL var Gradient %d: finite differences %g analytic %g \n",
+				i, (d2-d1)/0.0002, dklGrad[i]);
 			}
 			#endif
 
@@ -358,7 +371,18 @@ protected:
 
 		return Q;
 	}
-
+	
+	inline Real DivKL(const vector<Real>& mu_cur, const vector<Real>& mu_hat,
+        const vector<Real>& prec_cur, const vector<Real>& prec_hat) const
+	{
+		Real ret = 0;
+		for (int i=0; i<nA; i++) {
+			ret += prec_cur[i]/prec_hat[i] - 1;
+			ret += std::pow(mu_cur[i]-mu_hat[i],2)*prec_cur[i];
+			ret += std::log(prec_hat[i]) - std::log(prec_cur[i]);
+		}
+		return 0.5*ret;
+ 	}
 	inline vector<Real> gradDKL(const vector<Real>& mu_cur, const vector<Real>& mu_hat,
 	const vector<Real>& prec_cur, const vector<Real>& prec_hat) const
 	{

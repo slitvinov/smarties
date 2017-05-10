@@ -143,7 +143,8 @@ bRecurrent(settings.nnType==1), bTrain(settings.bTrain==1),
 tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma), greedyEps(settings.greedyEps),
 epsAnneal(settings.epsAnneal), cntUpdateDelay(-1), taskCounter(batchSize),
 aInfo(env->aI), sInfo(env->sI), gen(&settings.generators[0]), mastersNiter_b4PolUpdates(0),
-dataUsage(0), meanGain1(nThreads+1,0), meanGain2(nThreads+1,0)
+dataUsage(0)
+//, meanGain1(nThreads+1,0), meanGain2(nThreads+1,0), stdGain1(nThreads+1,0), stdGain2(nThreads+1,0)
 {
     for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
     profiler = new Profiler();
