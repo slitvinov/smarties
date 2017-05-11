@@ -10,7 +10,6 @@
 #pragma once
 
 #include "PolicyAlgorithm.h"
-
 using namespace std;
 
 class RACER : public PolicyAlgorithm
@@ -196,8 +195,8 @@ private:
 		#endif
 
 		//gradient clipping
-		for (unsigned int i=0; i<grad.size(); i++)
-			grad[i] = std::max(-10.,std::min(10.,grad[i]));
+//		for (unsigned int i=0; i<grad.size(); i++)
+//			grad[i] = std::max(-10.,std::min(10.,grad[i]));
 
 		return grad;
 	}
@@ -254,7 +253,6 @@ private:
 		#else
 			opt = new EntropySGD(net, profiler, settings);
 		#endif
-		data->bRecurrent = bRecurrent = true;
 	}
 
 	inline Real stateValue(const Real v, const Real w) const

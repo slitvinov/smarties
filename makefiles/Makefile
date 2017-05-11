@@ -8,7 +8,7 @@ viz ?= 0
 config ?= prod
 extra ?=
 app ?= test
-cvariate ?= off
+cvar ?= simple
 acer ?= full 
 entropy ?= off
 mpi_lib ?= default
@@ -72,7 +72,10 @@ endif #safe
 ifeq "$(entropy)" "on"
 CPPFLAGS+= -D__EntropySGD
 endif
-ifeq "$(cvariate)" "on"
+ifeq "$(cvar)" "simple"
+CPPFLAGS+= -D__ACER__PENALIZER
+endif
+ifeq "$(cvar)" "full"
 CPPFLAGS+= -D__ACER_VARIATE
 endif
 

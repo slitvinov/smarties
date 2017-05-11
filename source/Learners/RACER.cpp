@@ -19,7 +19,7 @@
 #include <cmath>
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
-PolicyAlgorithm(comm,_env,settings, 1), truncation(100), cntGrad(nThreads+1,0),
+PolicyAlgorithm(comm,_env,settings, 0.1), truncation(100), cntGrad(nThreads+1,0),
 stdGrad(nThreads+1,vector<Real>(nOutputs+2,0)),
 avgGrad(nThreads+1,vector<Real>(nOutputs+2,0))
 {
@@ -53,6 +53,7 @@ avgGrad(nThreads+1,vector<Real>(nOutputs+2,0))
 	#endif
 
 	buildNetwork(noutputs, settings);
+   data->bRecurrent = bRecurrent = true;
 	assert(nOutputs == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
 
@@ -89,16 +90,14 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 
 		assert(net->allocatedFrozenWeights && bTrain);
 		const int ndata = data->Set[seq]->tuples.size();
-		const int nwork = ndata-1-samp;
 		const bool bEnd = data->Set[seq]->ended;
+		const int nhats = bEnd ? ndata-samp-1 : ndata-samp;
 		vector<vector<Real>> out_cur(1, vector<Real>(nOutputs,0));
-		vector<vector<Real>> out_hat(bEnd ? nwork+1 : nwork, vector<Real>(nOutputs,0));
+		vector<vector<Real>> out_hat(nhats, vector<Real>(nOutputs,0));
 		vector<Activation*> series_cur = net->allocateUnrolledActivations(1);
-		vector<Activation*> series_hat = net->allocateUnrolledActivations(bEnd ? nwork+1 : nwork);
+		vector<Activation*> series_hat = net->allocateUnrolledActivations(nhats);
 
-		for (int k=0; k<nwork+1; k++) {
-			if(k==nwork && not bEnd) continue; //(break)
-
+		for (int k=0; k<nhats; k++) {
 			const Tuple * const _t = data->Set[seq]->tuples[k+samp]; //this tuple contains s, a, mu
 			const vector<Real> scaledSold = data->standardize(_t->s);
 			//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
@@ -108,8 +107,7 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 		}
 		net->seqPredict_execute(series_cur, series_cur);
 		net->seqPredict_execute(series_hat, series_hat, net->tgt_weights, net->tgt_biases);
-		for (int k=0; k<nwork+1; k++) {
-			if(k==nwork && not bEnd) continue;
+		for (int k=0; k<nhats; k++) {
 			if(!k)
 				net->seqPredict_output(out_cur[k], series_cur[k]);
 			net->seqPredict_output(out_hat[k], series_hat[k]);
@@ -118,19 +116,17 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 		Real Q_RET = 0, Q_OPC = 0;
 		//if partial sequence then compute value of last state (=! R_end)
 		if(not bEnd) {
-			Q_RET = out_hat[nwork][0]; //V(s_T) computed with tgt weights
-			Q_OPC = out_hat[nwork][0]; //V(s_T) computed with tgt weights
-			assert(_t->mu.size() == 2*nA);
+		   #ifndef NDEBUG
+			   assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 2*nA);
+         #endif
+			Q_RET = out_hat[nhats-1][0]; //V(s_T) computed with tgt weights
+			Q_OPC = out_hat[nhats-1][0]; //V(s_T) computed with tgt weights
 		}
 		#ifndef NDEBUG
-			else
-			{
-				const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
-				assert(_t->mu.size() == 0);
-			}
+			else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
 		#endif
 
-		for (int k=nwork-1; k>0; k--) //just propagate Q_RET / Q_OPC to k=0
+		for (int k=ndata-samp-2; k>0; k--) //just propagate Q_RET / Q_OPC to k=0
 		{
 			const Tuple * const _t = data->Set[seq]->tuples[k+samp]; //this tuple contains sOld, a
 			const Tuple * const t_ = data->Set[seq]->tuples[k+1+samp]; //this contains r, sNew
@@ -168,13 +164,11 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 			//compute Q using tgt net for pi and C, for consistency of derivatives
 			//Q(s,a)                     v a	v policy    v quadratic Q parameters
 			const Real A_hat = computeAdvantage(act, polHat, varHat, P_Hat, mu_Hat);
-			const Real Vs  = out_hat[k][0];
 			//prepare rolled Q with off policy corrections for next step:
-			Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +Vs;
+			Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
 			//TODO: now Q_OPC ios actually Q_RET, which is better?
 			//Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
-			Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
-			//data->Set[seq]->tuples[k]->SquaredError = std::pow(A_OPC*rho_cur,2);
+			Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
 		}
 
 		{
