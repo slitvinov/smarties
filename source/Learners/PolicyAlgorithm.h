@@ -496,7 +496,7 @@ protected:
 				 const Real s = __ACER_MAX_ACT;
 				 gradCC[j] = std::max(std::min(gradCC[j], s-m), -s-m);
 			#endif
-			//if(eta<0) gradCC[j] = 0;
+			if(eta<0) gradCC[j] = 0;
 		}
 
 		for (int j=0; j<nA; j++)
