@@ -59,13 +59,14 @@ void TwoActFishEnvironment::setDims()
             sI.inUse.push_back(true);
 
             // VxInst
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
+            //sI.inUse.push_back(true);
 
             // VyInst
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
 
             // AvInst
-            sI.inUse.push_back(true);
+            sI.inUse.push_back(false);
         }
         #if 0
             //Xabs 6
