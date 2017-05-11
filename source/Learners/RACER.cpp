@@ -482,7 +482,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const vector<Real> gradAcer_1 = policyGradient(polCur, preCur, act, gain1);
 		const vector<Real> gradAcer_2 = policyGradient(polCur, preCur, pol, gain2);
 
-		#ifdef __ACER_VARIATE
+		#if defined(__ACER_VARIATE) || defined(__ACER__PENALIZER)
 		const vector<Real> gradC = controlGradient(polCur, varCur, P_Hat, mu_Hat, eta);
 		const vector<Real> policy_grad = sum3Grads(gradAcer_1, gradAcer_2, gradC);
 		#else
