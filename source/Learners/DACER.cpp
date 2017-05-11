@@ -141,7 +141,7 @@ void DACER::Train_BPTT(const int seq, const int thrID) const
 		const vector<Real> gradAcer_1 = policyGradient(polCur, act, gain1);
 		const vector<Real> gradAcer_2 = policyGradient(polCur, pol, gain2);
 
-		#ifdef __ACER_VARIATE
+		#ifdef __ACER__PENALIZER
 		const vector<Real> gradC = controlGradient(polCur, valHat, eta);
 		const vector<Real> policy_grad = sum3Grads(gradAcer_1, gradAcer_2, gradC);
 		#else
