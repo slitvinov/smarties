@@ -8,7 +8,7 @@ SETTINGSNAME=$4
 MYNAME=`whoami`
 BASEPATH="../runs/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
-rm /tmp/smarties_sock_
+#rm /tmp/smarties_sock_
 if [ $# -gt 4 ] ; then
     POLICY=$5
     cp $5 ${BASEPATH}${RUNFOLDER}/policy.net

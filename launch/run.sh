@@ -1,4 +1,5 @@
 #!/bin/bash
+export MPICH_MAX_THREAD_SAFETY=funneled
 NPROCESS=$1
 NTHREADS=$2
 TASKPERN=$3

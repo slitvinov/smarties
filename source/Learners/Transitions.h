@@ -107,7 +107,7 @@ public:
     void updateSamples(const Real alpha = 0.01);
     int sample();
     void restartSamples();
-    void restartSamplesNew();
+    void restartSamplesNew(const bool bContinuous);
     void saveSamples();
 
     int passData(const int agentId, const int info, const State& sOld,

@@ -33,7 +33,7 @@ nSequences(0), aI(_env->aI), sI(_env->sI), generators(settings.generators), old_
     Set.reserve(maxTotSeqNum);
 }
 
-void Transitions::restartSamplesNew()
+void Transitions::restartSamplesNew(const bool bContinuous)
 {
     /*
       This guy only reads using env state and action info
@@ -41,7 +41,7 @@ void Transitions::restartSamplesNew()
     */
     printf("About to read from %s...\n",path.c_str());
     int agentId=0, maxAgentID=0;
-
+    const int nBeta = bContinuous ? 2*aI.dim : aI.dim;
     while(true)
     {
         int Ndata=0, thisId=0, oldSampID=-1, oldInfo=2, info=2, sampID=-1;
@@ -81,7 +81,7 @@ void Transitions::restartSamplesNew()
                     line_in >> reward;
 
                     if(info!=2)
-                    for(int i=0; i<aI.dim*2; i++) line_in >> policy[i];
+                    for(int i=0; i<nBeta; i++) line_in >> policy[i];
 
                     oldState.set(vecSold);
                     newState.set(vecSnew);
@@ -136,11 +136,15 @@ void Transitions::restartSamples()
 		  std::istringstream testline(line);
                   int len = std::distance(std::istream_iterator<std::string>(testline),
                                           std::istream_iterator<std::string>());
-                  if(len != 2 + sI.dim*2 + aI.dim + 1) {
-                    if(len != 3 + sI.dim + aI.dim*3 + 1) die("Wrong history file\n");
+                    if(len != 2 + sI.dim*2 + aI.dim + 1) {
+
+                    if(len != (3+sI.dim+aI.dim*3+1) &&  //continuous
+                       len != (3+sI.dim+aI.dim*2+1))    //discrete
+                      die("Wrong history file\n");
+
                     printf("Reading data from stochastic policy\n");
                     in.close();
-                    return restartSamplesNew();
+                    return restartSamplesNew(len == (3+sI.dim+aI.dim*3+1));
                   }
                 }
 

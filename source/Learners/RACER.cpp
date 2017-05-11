@@ -120,14 +120,10 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 		if(not bEnd) {
 			Q_RET = out_hat[nwork][0]; //V(s_T) computed with tgt weights
 			Q_OPC = out_hat[nwork][0]; //V(s_T) computed with tgt weights
-			assert(_t->mu.size() == 2*nA);
+			assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 2*nA);
 		}
 		#ifndef NDEBUG
-			else
-			{
-				const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
-				assert(_t->mu.size() == 0);
-			}
+			else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
 		#endif
 
 		for (int k=nwork-1; k>0; k--) //just propagate Q_RET / Q_OPC to k=0

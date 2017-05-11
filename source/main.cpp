@@ -13,6 +13,7 @@
 #include "Learners/NAF.h"
 #include "Learners/DPG.h"
 #include "Learners/RACER.h"
+#include "Learners/DACER.h"
 #include "ObjectFactory.h"
 #include "Settings.h"
 #include "Scheduler.h"
@@ -51,6 +52,14 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
 		settings.nnOutputs = RACER::getnOutputs(nL, nA);
 		settings.bSeparateOutputs = true; //else it does not really work
 		return new RACER(mastersComm, env, settings);
+	}
+	else if (settings.learner == "DACER") {
+		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+		const int nA = env->aI.maxLabel;
+		printf("Read %d outputs\n",nA);
+		settings.nnOutputs = DACER::getnOutputs(nA);
+		settings.bSeparateOutputs = true; //else it does not really work
+		return new DACER(mastersComm, env, settings);
 	}
 	else if (settings.learner == "NA" || settings.learner == "NAF") {
 		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
