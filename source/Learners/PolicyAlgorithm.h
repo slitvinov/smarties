@@ -11,14 +11,12 @@
 
 #include "Learner.h"
 
-#ifdef __ACER_VARIATE
-#define __A_ACER_VARIATE
-//#define __I_VARIATE
-#endif
 //#define __ACER_MAX_PREC 2500.
-#define __ACER_MAX_PREC 625.
+#define __ACER_MAX_PREC 100.
 #define __ACER_MAX_ACT 10.
-#define __ENV_MAX_REW 10.
+#define __ENV_MAX_REW 100.
+//#define __ENV_MAX_REW 10.
+//#define __ENV_MAX_REW 1.
 
 class PolicyAlgorithm : public Learner
 {
@@ -498,6 +496,7 @@ protected:
 				 const Real s = __ACER_MAX_ACT;
 				 gradCC[j] = std::max(std::min(gradCC[j], s-m), -s-m);
 			#endif
+			//if(eta<0) gradCC[j] = 0;
 		}
 
 		for (int j=0; j<nA; j++)
@@ -605,7 +604,11 @@ protected:
 				}
 
 			grad[1+il] = 0.;
+			#ifdef  __ENV_MAX_REW
 			const Real maxP = __ENV_MAX_REW/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
+			#else
+			const Real maxP = 1e6;
+			#endif
 			//add the term dependent on the estimate: applies only to diagonal terms
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {

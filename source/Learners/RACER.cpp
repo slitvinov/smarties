@@ -253,7 +253,7 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 				#ifdef __ACER__PENALIZER
 					const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
 					const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
-					static const Real L = 0.25, eps = 2.2e-16;
+					static const Real L = 0.5, eps = 2.2e-16;
 					//static const Real L = 2.2e-16, eps = 2.2e-16;
 					const Real threshold = A_cov * A_cov / (varCritic+eps);
 					const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
@@ -462,7 +462,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 				const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
 				const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
 				//static const Real L = 0.25, eps = 2.2e-16;
-				static const Real L = 0.5, eps = 2.2e-16;
+				static const Real L = 0.25, eps = 2.2e-16;
 				//static const Real L = 2.2e-16, eps = 2.2e-16;
 				const Real threshold = A_cov * A_cov / (varCritic+eps);
 				const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
@@ -501,6 +501,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +Vs;
 		//TODO: now Q_OPC ios actually Q_RET, which is better?
 		//Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
+		//Q_OPC = c_hat*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
 		Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
 
 		const vector<Real> critic_grad =

@@ -195,8 +195,8 @@ private:
 		#endif
 
 		//gradient clipping
-//		for (unsigned int i=0; i<grad.size(); i++)
-//			grad[i] = std::max(-10.,std::min(10.,grad[i]));
+		//for (unsigned int i=0; i<grad.size(); i++)
+		//	grad[i] = std::max(-10.,std::min(10.,grad[i]));
 
 		return grad;
 	}
@@ -228,8 +228,8 @@ private:
 			//if that was true, environment created the layers it wanted
 			// else we read the settings:
 			net->addInput(nInputs);
-			//const int nsplit = lsize.size()>3 ? 2 : 1;
-			const int nsplit = lsize.size();
+			const int nsplit = lsize.size()>3 ? 2 : 1;
+			//const int nsplit = lsize.size();
 			for (int i=0; i<lsize.size()-nsplit; i++)
 				net->addLayer(lsize[i], lType);
 

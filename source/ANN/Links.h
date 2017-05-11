@@ -110,7 +110,7 @@ public:
 			for (int o = 0; o < nO; o++)
 				_weights[iW + nO_simd*i + o] = dis(*gen);
 
-		//orthogonalize(iW, _weights, nO, nI, nO_simd);
+		orthogonalize(iW, _weights, nO, nI, nO_simd);
 	}
 
 	void restart(std::istringstream & buf, Real* const _weights) const override
@@ -241,10 +241,10 @@ public:
 				_weights[iWF + nO_simd*i + o] = dis(*gen);
 				_weights[iWO + nO_simd*i + o] = dis(*gen);
 			}
-		//orthogonalize(iW,  _weights, nO, nI, nO_simd);
-		//orthogonalize(iWI, _weights, nO, nI, nO_simd);
-		//orthogonalize(iWF, _weights, nO, nI, nO_simd);
-		//orthogonalize(iWO, _weights, nO, nI, nO_simd);
+		orthogonalize(iW,  _weights, nO, nI, nO_simd);
+		orthogonalize(iWI, _weights, nO, nI, nO_simd);
+		orthogonalize(iWF, _weights, nO, nI, nO_simd);
+		orthogonalize(iWO, _weights, nO, nI, nO_simd);
 	}
 
 	void restart(std::istringstream & buf, Real* const _weights) const override

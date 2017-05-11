@@ -284,7 +284,7 @@ int main (int argc, char** argv)
 				&settings.maxSeqLen, (int)200},
 		{'M',"dqnSeqMin",INT,
 				"min seq length. if less the sequence is ignored",
-				&settings.minSeqLen, (int)4},
+				&settings.minSeqLen, (int)2},
 		{'U',"maxTotSeqNum",INT,
 				"maximum number of stored sequences: if exceeded the easier ones are removed",
 				&settings.maxTotSeqNum, (int)5000},
