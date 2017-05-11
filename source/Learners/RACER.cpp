@@ -461,7 +461,8 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 			#ifdef __ACER__PENALIZER
 				const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
 				const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
-				static const Real L = 0.25, eps = 2.2e-16;
+				//static const Real L = 0.25, eps = 2.2e-16;
+				static const Real L = 0.5, eps = 2.2e-16;
 				//static const Real L = 2.2e-16, eps = 2.2e-16;
 				const Real threshold = A_cov * A_cov / (varCritic+eps);
 				const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
