@@ -79,8 +79,19 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 	const vector<Real> var = vector<Real>(nA, variance);
 	#endif
 
-	const vector<Real> beta = basicNetOut(a, mu, var);
+	vector<Real> beta = basicNetOut(a, mu, var);
 	assert(beta.size() == 2*nA);
+	const vector<Real> P = preparePmatrix(output);
+
+	#ifndef __ACER_RELAX
+		const vector<Real> mean = extractQmean(output);
+	#else
+		const vector<Real> mean = mu;
+	#endif
+	#if 0
+	beta.insert(beta.end(), P.begin(), P.end());
+	beta.insert(beta.end(), mu.begin(), mu.end());
+	#endif
 	data->passData(agentId, info, sOld, a, beta, s, r);
 }
 

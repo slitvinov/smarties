@@ -46,7 +46,7 @@ void Transitions::restartSamplesNew(const bool bContinuous)
     {
         int Ndata=0, thisId=0, oldSampID=-1, oldInfo=2, info=2, sampID=-1;
         vector<Real> vecSold(sI.dim), vecSnew(sI.dim);
-        vector<Real> vecAct(aI.dim), policy(aI.dim*2), empty_policy(0);
+        vector<Real> vecAct(aI.dim), policy(nBeta), empty_policy(0);
         State oldState(sI), newState(sI);
         Action action(aI, gen->g);
         Real reward = 0;
