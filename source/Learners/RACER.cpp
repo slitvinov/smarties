@@ -88,7 +88,7 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 	#else
 		const vector<Real> mean = mu;
 	#endif
-	#if 0
+	#if 1
 	beta.insert(beta.end(), P.begin(), P.end());
 	beta.insert(beta.end(), mu.begin(), mu.end());
 	#endif

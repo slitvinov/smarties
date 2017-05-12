@@ -277,8 +277,13 @@ protected:
 		{ //fill lower diag matrix L
 			int kL = 1;
 			for (int j=0; j<nA; j++)
-				for (int i=0; i<nA; i++)
-					if (i<=j) _L[nA*j + i] = out[kL++];
+				for (int i=0; i<nA; i++) {
+					if (i<j)
+						_L[nA*j + i] = out[kL++];
+					else if (i==j)
+						_L[nA*j + i] = std::exp(out[kL++]);
+				}
+
 			assert(kL==1+nL);
 		}
 		//fill positive definite matrix P == L * L'
@@ -576,9 +581,12 @@ protected:
 				assert(std::fabs(_m[j]) < 2.2e-16);
 			#endif
 
-			for (int i=0; i<nA; i++)
-				if (i<=j)
+			for (int i=0; i<nA; i++) {
+				if (i<j)
 					_L[nA*j + i] = out[kL++];
+				else if (i==j)
+					_L[nA*j + i] = std::exp(out[kL++]);
+			}
 		}
 		assert(kL==1+nL);
 
@@ -604,19 +612,31 @@ protected:
 				}
 
 			grad[1+il] = 0.;
+			/*
 			#ifdef  __ENV_MAX_REW
 			const Real maxP = __ENV_MAX_REW/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
+			const Real minP = 1./__ACER_MAX_ACT/__ACER_MAX_ACT;
 			#else
 			const Real maxP = 1e6;
 			#endif
+			*/
 			//add the term dependent on the estimate: applies only to diagonal terms
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {
-					const Real dOdPij = .5*(_m[i]*_m[j] -_u[i]*_u[j] +(i==j?var[i]:0));
-					const Real dEdPij = std::min(maxP-P[nA*j+i],Qer*dOdPij);
+					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j ? var[i] : 0));
+					//const Real dEdPij = std::min(maxP-P[nA*j+i],Qer*dOdPij);
+					const Real dEdPij = Qer*dOdPij;
 					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
-			grad[1+il] = std::min(std::max(grad[1+il],-maxP),maxP);
+		//	grad[1+il] = std::min(std::max(grad[1+il],-maxP),maxP);
+
+			int kl = 1;
+			for (int j=0; j<nA; j++)
+				for (int i=0; i<nA; i++) {
+					if (i==j) grad[kl] *= std::exp(out[kl]);
+					if (i<=j) kl++;
+				}
+			assert(kl==1+nL);
 		}
 
 		#ifndef __ACER_RELAX

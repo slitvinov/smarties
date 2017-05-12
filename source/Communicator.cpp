@@ -177,7 +177,7 @@ void Communicator::recvActionMPI()
 	//if (cnt>10) lag++;
 	//else if (cnt<10) lag--;
 	lag = std::max(lag,1);
-	printf("%d\n",cnt); fflush(0);
+	//printf("%d\n",cnt); fflush(0);
 #else
 	abort();
 #endif
