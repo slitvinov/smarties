@@ -108,7 +108,7 @@ protected:
 	inline Real evaluateLogBehavioralPolicy(const vector<Real>& a,
 		const vector<Real>& beta) const
 	{
-		assert(beta.size()==nA*2);
+		//assert(beta.size()==nA*2);
 		assert(a.size()==nA);
 		Real p = 0;
 		for(int i=0; i<nA; i++) {
@@ -369,7 +369,7 @@ protected:
 
 		return Q;
 	}
-	
+
 	inline Real DivKL(const vector<Real>& mu_cur, const vector<Real>& mu_hat,
         const vector<Real>& prec_cur, const vector<Real>& prec_hat) const
 	{
