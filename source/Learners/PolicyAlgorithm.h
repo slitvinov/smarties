@@ -45,10 +45,8 @@ protected:
 
 		vector<Real> ret(nA);
 		assert(out.size()>=1+nL+2*nA);
-		for (int j=0; j<nA; j++) {
-			const Real x = out[1+nL+nA+j];
-			ret[j] = .5*(x + std::sqrt(x*x + 1.));
-		}
+		for (int j=0; j<nA; j++)
+			ret[j] = softPlus(out[1+nL+nA+j]);
 		return ret;
 	}
 
@@ -84,19 +82,9 @@ protected:
 		vector<Real> vargrad(nA);
 		assert(out.size()>=1+nL+2*nA);
 		assert(pgrad.size()==2*nA);
-		for (int j=0; j<nA; j++) {
-         /*
-         if(out[1+nL+nA+j] > __ACER_MAX_PREC) {
-            vargrad[j] = __ACER_MAX_PREC - out[1+nL+nA+j];
-            continue;
-         }
-         */
-			const Real x = out[1+nL+nA+j];
-			//const Real ysq = out[1+nL+nA+j]*out[1+nL+nA+j];
-			//const Real diff = ysq/(ysq + 0.25);
-			const Real diff = .5*(1+x/std::sqrt(x*x+1.));
-			vargrad[j] = pgrad[nA+j]*diff;
-		}
+		for (int j=0; j<nA; j++)
+			vargrad[j] = pgrad[nA+j]*diffSoftPlus(out[1+nL+nA+j]);
+
 		return vargrad;
 	}
 
@@ -281,7 +269,7 @@ protected:
 					if (i<j)
 						_L[nA*j + i] = out[kL++];
 					else if (i==j)
-						_L[nA*j + i] = std::exp(out[kL++]);
+						_L[nA*j + i] = softPlus(out[kL++]);
 				}
 
 			assert(kL==1+nL);
@@ -356,6 +344,7 @@ protected:
 
 		return Q;
 	}
+
 	inline Real quadraticTerm(const vector<Real>& P, const vector<Real>& mu,
 		const vector<Real>& a) const
 	{
@@ -386,6 +375,7 @@ protected:
 		}
 		return 0.5*ret;
  	}
+
 	inline vector<Real> gradDKL(const vector<Real>& mu_cur, const vector<Real>& mu_hat,
 	const vector<Real>& prec_cur, const vector<Real>& prec_hat) const
 	{
@@ -466,7 +456,7 @@ protected:
 			#ifdef __ACER_MAX_ACT //clip derivative
 				 const Real m = mu[i];
 				 const Real s = __ACER_MAX_ACT;
-				 ret[i] = std::max(std::min(ret[i], s-m), -s-m);
+				 ret[i] = clip(ret[i], s-m, -s-m);
 			#endif
 		}
 
@@ -499,7 +489,7 @@ protected:
 			#ifdef __ACER_MAX_ACT //clip derivative
 				 const Real m = pol[j];
 				 const Real s = __ACER_MAX_ACT;
-				 gradCC[j] = std::max(std::min(gradCC[j], s-m), -s-m);
+				 gradCC[j] = clip(gradCC[j], s-m, -s-m);
 			#endif
 			//if(eta<0) gradCC[j] = 0;
 		}
@@ -585,7 +575,7 @@ protected:
 				if (i<j)
 					_L[nA*j + i] = out[kL++];
 				else if (i==j)
-					_L[nA*j + i] = std::exp(out[kL++]);
+					_L[nA*j + i] = softPlus(out[kL++]);
 			}
 		}
 		assert(kL==1+nL);
@@ -612,28 +602,28 @@ protected:
 				}
 
 			grad[1+il] = 0.;
-			/*
+
 			#ifdef  __ENV_MAX_REW
-			const Real maxP = __ENV_MAX_REW/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
-			const Real minP = 1./__ACER_MAX_ACT/__ACER_MAX_ACT;
+				const Real maxP = __ENV_MAX_REW/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
+				const Real minP = 1./__ACER_MAX_ACT/__ACER_MAX_ACT;
 			#else
-			const Real maxP = 1e6;
+				const Real maxP = 1e6;
+				const Real maxP = 1e-6;
 			#endif
-			*/
+
 			//add the term dependent on the estimate: applies only to diagonal terms
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {
-					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j ? var[i] : 0));
-					//const Real dEdPij = std::min(maxP-P[nA*j+i],Qer*dOdPij);
-					const Real dEdPij = Qer*dOdPij;
+					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j?var[i]:0));
+					const Real dEdPij = clip(Qer*dOdPij, maxP-P[nA*j+i], minP-P[nA*j+i]);
 					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
-		//	grad[1+il] = std::min(std::max(grad[1+il],-maxP),maxP);
+				//	grad[1+il] = std::min(std::max(grad[1+il],-maxP),maxP);
 
 			int kl = 1;
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {
-					if (i==j) grad[kl] *= std::exp(out[kl]);
+					if (i==j) grad[kl] *= diffSoftPlus(out[kl]);
 					if (i<=j) kl++;
 				}
 			assert(kl==1+nL);
@@ -647,7 +637,7 @@ protected:
 			#ifdef __ACER_MAX_ACT //clip derivative
 				const Real m = mean[ia];
 			 	const Real s = __ACER_MAX_ACT;
-				grad[1+nL+ia] = std::max(std::min(grad[1+nL+ia], s-m), -s-m);
+				grad[1+nL+ia] = clip(grad[1+nL+ia], s-m, -s-m);
 			#endif
 		}
 		#endif
@@ -671,5 +661,21 @@ protected:
 	inline void finalizePolicy(Action& a) const
 	{
 		a.vals = aInfo.getScaled(a.vals);
+	}
+
+	inline Real softPlus(const Real val) const
+	{
+		return 0.5*(val + std::sqrt(val*val+1));
+	}
+
+	inline Real diffSoftPlus(const Real val) const
+	{
+		return 0.5*(1 + val/std::sqrt(val*val+1));
+	}
+
+	inline Real clip(const Real val, const Real ub, const Real lb) const
+	{
+		assert(ub>lb);
+		return std::max(std::min(val, ub), lb);
 	}
 };
