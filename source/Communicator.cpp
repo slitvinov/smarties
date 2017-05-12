@@ -160,7 +160,24 @@ void Communicator::recvActionMPI()
 {
 	if(app_rank) return;
 #ifdef MPI_INCLUDED
-	MPI_Recv(datain, sizein, MPI_BYTE, 0, 0, masterComm, MPI_STATUS_IGNORE);
+	//MPI_Recv(datain, sizein, MPI_BYTE, 0, 0, masterComm, MPI_STATUS_IGNORE);
+	MPI_Request request;
+	MPI_Irecv(datain, sizein, MPI_BYTE, 0, 0, masterComm, &request);
+	int cnt=0;
+	while(true) {
+		usleep(lag);
+		cnt++;
+		int completed=0;
+		MPI_Test(&request, &completed, MPI_STATUS_IGNORE);
+		if (completed) break;
+	}
+	//avoid wasting a cpu only for communication in case we are using a busy-wait MPI
+	//note that non-MPI send and recv usually already have a yield-wait policy
+	lag += std::floor((cnt-10)/10.);
+	//if (cnt>10) lag++;
+	//else if (cnt<10) lag--;
+	lag = std::max(lag,1);
+	printf("%d\n",cnt); fflush(0);
 #else
 	abort();
 #endif
@@ -171,7 +188,10 @@ void Communicator::sendStateMPI()
 	assert(!app_rank);
 #ifdef MPI_INCLUDED
 	fflush(0);
-	MPI_Ssend(dataout, sizeout, MPI_BYTE, 0, 1, masterComm);
+	//MPI_Ssend(dataout, sizeout, MPI_BYTE, 0, 1, masterComm);
+	MPI_Request dummyreq;
+	MPI_Isend(dataout, sizeout, MPI_BYTE, 0, 1, masterComm, &dummyreq);
+	MPI_Request_free(&dummyreq); //Not my problem?
 #else
 	abort();
 #endif

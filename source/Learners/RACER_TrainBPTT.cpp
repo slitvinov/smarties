@@ -11,8 +11,8 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 {
 		//this should go to gamma rather quick:
 		const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
-		//const Real rGamma = annealedGamma();
-		const Real rGamma = gamma;
+		const Real rGamma = annealedGamma();
+		//const Real rGamma = gamma;
 
 		assert(net->allocatedFrozenWeights && bTrain);
 		const int ndata = data->Set[seq]->tuples.size();
@@ -46,8 +46,8 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 			//do all the rest, including sT if sequence is not terminal, with tgt net
 			const Tuple * const _t = data->Set[seq]->tuples[k];
 			const vector<Real> inp = data->standardize(_t->s);
-			//net->predict(inp, out_hat[k-samp], series_hat, k-samp, net->tgt_weights, net->tgt_biases);
-			net->predict(inp, out_hat[k-samp], series_hat, k-samp);
+			net->predict(inp, out_hat[k-samp], series_hat, k-samp, net->tgt_weights, net->tgt_biases);
+			//net->predict(inp, out_hat[k-samp], series_hat, k-samp);
 		}
 
 		Real Q_RET = 0, Q_OPC = 0;
@@ -95,14 +95,15 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 			const Real A_hat = computeAdvantage(act, polHat, varHat, P_Hat, mu_Hat);
 			//prepare rolled Q with off policy corrections for next step:
 			Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
-			//Q_OPC = c_hat*1.*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
-			Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
+			//const Real lambda = std::max(c_hat, 0.1);
+			const Real lambda = 0.5; 
+			Q_OPC = lambda*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
 		}
 
 		{
 			const Real k = 0; ///just to make it easier to check with BPTT
-			const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains sOld, a
-			const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //this contains r, sNew
+			const Tuple * const _t = data->Set[seq]->tuples[samp]; //this tuple contains sOld, a
+			const Tuple * const t_ = data->Set[seq]->tuples[samp+1]; //this contains r, sNew
 			Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
 			Q_OPC = t_->r + rGamma*Q_OPC;
 			//get everybody camera ready:
@@ -239,7 +240,7 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 			vector<Real> fake{A_cur, 100};
 			dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
 			if(thrID == 1) net->updateRunning(series_cur[k]);
-			data->Set[seq]->tuples[k]->SquaredError = Qer*Qer;
+			data->Set[seq]->tuples[samp]->SquaredError = Qer*Qer;
 			//data->Set[seq]->tuples[k]->SquaredError = std::pow(A_OPC*rho_cur,2);
 		}
 
