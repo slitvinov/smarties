@@ -30,7 +30,7 @@ protected:
     int msg_id, iter, socket_id, Socket, ServerSocket;
     int fd;
     fpos_t pos;
-
+    int lag = 1;
     char SOCK_PATH[256];
     struct sockaddr_un serverAddress, clientAddress;
 
