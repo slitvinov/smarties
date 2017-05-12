@@ -46,7 +46,8 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 			//do all the rest, including sT if sequence is not terminal, with tgt net
 			const Tuple * const _t = data->Set[seq]->tuples[k];
 			const vector<Real> inp = data->standardize(_t->s);
-			net->predict(inp, out_hat[k-samp], series_hat, k-samp, net->tgt_weights, net->tgt_biases);
+			//net->predict(inp, out_hat[k-samp], series_hat, k-samp, net->tgt_weights, net->tgt_biases);
+			net->predict(inp, out_hat[k-samp], series_hat, k-samp);
 		}
 
 		Real Q_RET = 0, Q_OPC = 0;
