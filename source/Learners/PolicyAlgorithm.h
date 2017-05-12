@@ -13,7 +13,7 @@
 
 //#define __ACER_MAX_PREC 2500.
 #define __ACER_MAX_PREC 100.
-#define __ACER_MIN_PREC 0.01
+#define __ACER_MIN_PREC 0.1
 #define __ACER_MAX_ACT 10.
 #define __ENV_MAX_REW 100.
 //#define __ENV_MAX_REW 10.
@@ -624,7 +624,8 @@ protected:
 					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
 				//	grad[1+il] = std::min(std::max(grad[1+il],-maxP),maxP);
-
+		}
+      {
 			int kl = 1;
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {
@@ -632,8 +633,7 @@ protected:
 					if (i<=j) kl++;
 				}
 			assert(kl==1+nL);
-		}
-
+      }
 		#ifndef __ACER_RELAX
 		for (int ia=0; ia<nA; ia++) {
 			for (int i=0; i<nA; i++)
