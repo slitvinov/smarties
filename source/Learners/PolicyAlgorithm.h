@@ -13,6 +13,7 @@
 
 //#define __ACER_MAX_PREC 2500.
 #define __ACER_MAX_PREC 100.
+#define __ACER_MIN_PREC 0.01
 #define __ACER_MAX_ACT 10.
 #define __ENV_MAX_REW 100.
 //#define __ENV_MAX_REW 10.
@@ -464,7 +465,7 @@ protected:
 		{
 			ret[i+nA] = factor*(.5/prec[i] -0.5*(act[i]-mu[i])*(act[i]-mu[i]));
 			#ifdef __ACER_MAX_PREC
-				ret[i+nA] = std::min(ret[i+nA], __ACER_MAX_PREC-prec[i]);
+			ret[i+nA] = clip(ret[i+nA], __ACER_MAX_PREC-prec[i], __ACER_MIN_PREC-prec[i]);
 			#endif
 		}
 
@@ -498,7 +499,7 @@ protected:
 		{
 			gradCC[j+nA] = eta * 0.5 * P[nA*j +j] * var[j] * var[j];
 			#ifdef __ACER_MAX_PREC
-					gradCC[j+nA] = std::min(gradCC[j+nA], __ACER_MAX_PREC-1/var[j]);
+			gradCC[j+nA] = clip(gradCC[j+nA], __ACER_MAX_PREC-1/var[j], __ACER_MIN_PREC-1/var[j]);
 			#endif
 		}
 		//for (int i=0; i<nA; i++) gradCC[i] = eta * 2 * (mean[i]-pol[i]) / var[i];
@@ -605,7 +606,7 @@ protected:
 
 			#ifdef  __ENV_MAX_REW
 				const Real maxP = __ENV_MAX_REW/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
-				const Real minP = 1./__ACER_MAX_ACT/__ACER_MAX_ACT;
+				const Real minP = 0.01/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
 			#else
 				const Real maxP = 1e6;
 				const Real maxP = 1e-6;
@@ -614,8 +615,12 @@ protected:
 			//add the term dependent on the estimate: applies only to diagonal terms
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {
+					//not necessary, but maxP constraint should be very lax
+					const Real maxPij = maxP - P[nA*j+i];
+					//necessary: if on the Q stops depending on P then learning diverges
+					const Real minPij = ((i==j) ? minP : -maxP) - P[nA*j+i];
 					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j?var[i]:0));
-					const Real dEdPij = clip(Qer*dOdPij, maxP-P[nA*j+i], minP-P[nA*j+i]);
+					const Real dEdPij = clip(Qer*dOdPij, maxPij, minPij);
 					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
 				//	grad[1+il] = std::min(std::max(grad[1+il],-maxP),maxP);
@@ -665,12 +670,15 @@ protected:
 
 	inline Real softPlus(const Real val) const
 	{
-		return 0.5*(val + std::sqrt(val*val+1));
+		//return 0.5*(val + std::sqrt(val*val+1));
+		return sqrt(val + std::sqrt(val*val+1));
 	}
 
 	inline Real diffSoftPlus(const Real val) const
 	{
-		return 0.5*(1 + val/std::sqrt(val*val+1));
+		//return 0.5*(1 + val/std::sqrt(val*val+1));
+		const Real den = std::sqrt(val*val+1);
+		return 0.5*std::sqrt(den+val)/den;
 	}
 
 	inline Real clip(const Real val, const Real ub, const Real lb) const

@@ -55,7 +55,7 @@ avgGrad(nThreads+1,vector<Real>(nOutputs+2,0))
 	#endif
 
 	buildNetwork(noutputs, settings);
-   data->bRecurrent = bRecurrent = true;
+   	data->bRecurrent = bRecurrent = true;
 	assert(nOutputs == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
 
@@ -318,6 +318,10 @@ void RACER::processStats(vector<trainData*> _stats, const Real avgTime)
 	printf("Avg grad [%s] - std [%s]\n",
 	printVec(avgGrad[0]).c_str(), printVec(stdGrad[0]).c_str());
 	fflush(0);
+	ofstream filestats;
+    	filestats.open("grads.txt", ios::app);
+	filestats<<printVec(avgGrad[0]).c_str()<<" "<<printVec(stdGrad[0]).c_str()<<endl;
+	filestats.close();
    //#endif
 	Learner::processStats(_stats, avgTime);
 }

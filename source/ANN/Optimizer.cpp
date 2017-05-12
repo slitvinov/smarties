@@ -263,7 +263,8 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 		//const Real DW  = std::max(std::min(grad[i]*norm, 1.), -1.);
 		const Real DW  = grad[i]*norm;
 		const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
-		const Real M2_ = std::max(beta_2*_2ndMom[i]+eps, std::fabs(DW));
+		const Real M2  = std::max(beta_2*_2ndMom[i], std::fabs(DW));
+		const Real M2_ = std::max(M2,eps);
 		//const Real M1_ = std::max(std::min(M1,M2_),-M2_);
 		const Real M1_ = M1;
 		const Real DW_ = eta_*M1_/M2_;
