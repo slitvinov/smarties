@@ -616,6 +616,7 @@ protected:
 					const Real dEdPij = std::min(maxP-P[nA*j+i],Qer*dOdPij);
 					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
+			grad[1+il] = std::min(std::max(grad[1+il],-maxP),maxP);
 		}
 
 		#ifndef __ACER_RELAX
