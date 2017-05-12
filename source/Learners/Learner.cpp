@@ -173,7 +173,7 @@ void Learner::TrainBatch()
     { //uniform sampling
         data->updateSamples();
         processStats(Vstats, 0 ); //dump info about convergence
-        #if 1==0 // ndef NDEBUG //check gradients with finite differences, just for debug
+        #ifdef __CHECK_DIFF //check gradients with finite differences, just for debug
         if (stats.epochCount == 0) { //% 100
             vector<vector<Real>> inputs;
             const int ind = data->Set.size()-1;
@@ -222,7 +222,7 @@ void Learner::TrainTasking(Master* const master)
             processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
             sumElapsed = 0; countElapsed=0;
             //print_memory_usage();
-            #if 1==0 // ndef NDEBUG //check gradients with finite differences, just for debug
+            #ifdef __CHECK_DIFF //check gradients with finite differences, just for debug
             if (stats.epochCount == 0) { //% 100
                 vector<vector<Real>> inputs;
                 const int ind = data->Set.size()-1;

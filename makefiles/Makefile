@@ -10,6 +10,7 @@ extra ?=
 app ?= test
 cvar ?= simple
 acer ?= full 
+testdiff ?= no 
 entropy ?= off
 mpi_lib ?= default
 
@@ -84,7 +85,10 @@ CPPFLAGS+= -D__Cubism3D
 endif
 ifeq "$(config)" "debug"
 CPPFLAGS+= -g -O2
-endif
+ifeq "$(testdiff)" "yes"
+CPPFLAGS+= -D__CHECK_DIFF
+endif 
+endif 
 ifeq "$(config)" "prod"
 CPPFLAGS += -DNDEBUG -O2
 endif
