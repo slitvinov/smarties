@@ -16,6 +16,7 @@
 #define __ACER_MIN_PREC 0.1
 #define __ACER_MAX_ACT 10.
 #define __ENV_MAX_REW 100.
+#define __ENV_TOL_REW 0.01
 //#define __ENV_MAX_REW 10.
 //#define __ENV_MAX_REW 1.
 
@@ -47,7 +48,7 @@ protected:
 		vector<Real> ret(nA);
 		assert(out.size()>=1+nL+2*nA);
 		for (int j=0; j<nA; j++)
-			ret[j] = softPlus(out[1+nL+nA+j]);
+			ret[j] = hardPlus(out[1+nL+nA+j]);
 		return ret;
 	}
 
@@ -84,7 +85,7 @@ protected:
 		assert(out.size()>=1+nL+2*nA);
 		assert(pgrad.size()==2*nA);
 		for (int j=0; j<nA; j++)
-			vargrad[j] = pgrad[nA+j]*diffSoftPlus(out[1+nL+nA+j]);
+			vargrad[j] = pgrad[nA+j]*diffHardPlus(out[1+nL+nA+j]);
 
 		return vargrad;
 	}
@@ -413,7 +414,7 @@ protected:
 		assert(DA.size() == nA*2);
 		assert(DKL.size() == nA*2);
 
-		vector<Real> gradAcer(nA*2);
+		vector<Real> gradAcer(nA*2,0);
 		Real dot=0, norm=0;
 		for (int j=0; j<nA*2; j++) {
 			norm += DKL[j] * DKL[j];
@@ -427,6 +428,10 @@ protected:
 
 		for (int j=0; j<nA*2; j++)
 			gradAcer[j] = DA[j] - proj*DKL[j];
+
+      for (int j=0; j<nA*2; j++) 
+         if(gradAcer[j]*DA[j]<0) 
+            gradAcer[j] = 0;
 
 		return gradAcer;
 	}
@@ -606,10 +611,10 @@ protected:
 
 			#ifdef  __ENV_MAX_REW
 				const Real maxP = __ENV_MAX_REW/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
-				const Real minP = 0.01/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
+				const Real minP = __ENV_TOL_REW/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
 			#else
 				const Real maxP = 1e6;
-				const Real maxP = 1e-6;
+				const Real minP = 1e-6;
 			#endif
 
 			//add the term dependent on the estimate: applies only to diagonal terms
@@ -667,7 +672,19 @@ protected:
 	{
 		a.vals = aInfo.getScaled(a.vals);
 	}
+   
+   inline Real hardPlus(const Real val) const
+   {
+      //return std::exp(val);
+      return 0.5*(val + std::sqrt(val*val+1));
+   }
 
+   inline Real diffHardPlus(const Real val) const
+   {
+      //return std::exp(val);
+      return 0.5*(1.+val/std::sqrt(val*val+1));
+   }
+   
 	inline Real softPlus(const Real val) const
 	{
 		//return 0.5*(val + std::sqrt(val*val+1));
