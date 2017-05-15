@@ -198,7 +198,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 	printf("nthreads %d\n",settings.nThreads); fflush(0);
 
 #if 1
-	if (settings.restart != "none" && !nSlaves) {
+	if (settings.restart != "none" && !nSlaves && !learner->nData()) {
 		printf("No slaves, just dumping the policy\n");
 		vector<int> nbins(env->stateDumpNBins());
 		vector<Real> lower(env->stateDumpLowerBound()), upper(env->stateDumpUpperBound());
