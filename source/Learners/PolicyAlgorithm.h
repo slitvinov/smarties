@@ -11,14 +11,14 @@
 
 #include "Learner.h"
 
-//#define __ACER_MAX_PREC 2500.
-#define __ACER_MAX_PREC 100.
-#define __ACER_MIN_PREC 1.
-#define __ACER_MAX_ACT 10.
-#define __ENV_MAX_REW 100.
-#define __ENV_TOL_REW 0.01
-//#define __ENV_MAX_REW 10.
-//#define __ENV_MAX_REW 1.
+//#define ACER_MAX_PREC 2500.
+#define ACER_MAX_PREC 100.
+#define ACER_MIN_PREC 1.
+#define ACER_MAX_ACT 10.
+#define ACER_MAX_REW 100.
+#define ACER_TOL_REW 0.01
+//#define ACER_MAX_REW 10.
+//#define ACER_MAX_REW 1.
 
 class PolicyAlgorithm : public Learner
 {
@@ -41,7 +41,7 @@ protected:
 	inline vector<Real> extractPrecision(const vector<Real>& out) const
 	{
 		//if it exists, it is always after guassian mean
-		#ifdef __ACER_SAFE
+		#ifdef ACER_SAFE
 			die("Attempted to extract Precision from safe Racer\n");
 		#endif
 
@@ -54,11 +54,11 @@ protected:
 
 	inline vector<Real> extractQmean(const vector<Real>& out) const
 	{
-		#ifdef __ACER_RELAX
+		#ifdef ACER_RELAX
 			die("Attempted to extract Precision from relaxed Racer\n");
 		#endif
 
-		#ifndef __ACER_SAFE //then if Qmean exists, it is always after Precision
+		#ifndef ACER_SAFE //then if Qmean exists, it is always after Precision
 			assert(out.size()>=1+nL+3*nA);
 			return vector<Real>(&(out[1+nL+2*nA]),&(out[1+nL+2*nA])+nA);
 		#else //then there is no precision and it is after mean of policy
@@ -78,7 +78,7 @@ protected:
 	inline vector<Real> finalizeVarianceGrad(const vector<Real>& pgrad,
 		const vector<Real>& out) const
 	{
-		#ifdef __ACER_SAFE
+		#ifdef ACER_SAFE
 			die("Attempted to get variance grad from safe Racer\n");
 		#endif
 		vector<Real> vargrad(nA);
@@ -136,7 +136,7 @@ protected:
 
 			vector<Real> mu = extractPolicy(out);
 			vector<Real> mu_hat = extractPolicy(hat);
-			#ifndef __ACER_SAFE
+			#ifndef ACER_SAFE
 				vector<Real> var = extractVariance(out);
 				vector<Real> prec = extractPrecision(out);
 				vector<Real> prec_hat = extractPrecision(hat);
@@ -145,7 +145,7 @@ protected:
 				vector<Real> prec = vector<Real>(nA,100); //std=.1
 				vector<Real> prec_hat = vector<Real>(nA,100); //std=.1
 			#endif
-			#ifndef __ACER_RELAX
+			#ifndef ACER_RELAX
 				vector<Real> mean = extractQmean(out);
 			#else
 				vector<Real> mean = mu;
@@ -176,7 +176,7 @@ protected:
 				i, (d2-d1)/0.0002, gradDivKL[i]);
 			}
 
-			#ifndef __ACER_SAFE
+			#ifndef ACER_SAFE
 			vector<Real> varGrad = finalizeVarianceGrad(polGrad, out);
 			vector<Real> trlGrad = finalizeVarianceGrad(cntGrad, out);
 			vector<Real> dklGrad = finalizeVarianceGrad(gradDivKL, out);
@@ -219,12 +219,12 @@ protected:
 					i, (A_2-A_1)/0.0002, cgrad[i]);
 			}
 
-			#ifndef __ACER_RELAX
+			#ifndef ACER_RELAX
 			for(int i = 0; i<nA; i++)
 			{
 					vector<Real> out_1 = out;
 					vector<Real> out_2 = out;
-					#ifndef __ACER_SAFE
+					#ifndef ACER_SAFE
 					out_1[1+nL+2*nA+i] -= 0.0001;
 					out_2[1+nL+2*nA+i] += 0.0001;
 					#else
@@ -311,7 +311,7 @@ protected:
 		for (int j=0; j<nA; j++)
 			for (int i=0; i<nA; i++) {
 				ret += (pol[j]-mean[j])*(pol[i]-mean[i])*PvarP[nA*j+i];
-				#ifdef __ACER_RELAX
+				#ifdef ACER_RELAX
 					//assert(std::fabs(pol[i]-mean[i]) < 2.2e-16);
 				#endif
 			}
@@ -429,8 +429,8 @@ protected:
 		for (int j=0; j<nA*2; j++)
 			gradAcer[j] = DA[j] - proj*DKL[j];
 
-      for (int j=0; j<nA*2; j++) 
-         if(gradAcer[j]*DA[j]<0) 
+      for (int j=0; j<nA*2; j++)
+         if(gradAcer[j]*DA[j]<0)
             gradAcer[j] = 0;
 
 		return gradAcer;
@@ -459,18 +459,16 @@ protected:
 		{
 			ret[i]    = factor*(act[i]-mu[i])*prec[i];
 
-			#ifdef __ACER_MAX_ACT //clip derivative
-				 const Real m = mu[i];
-				 const Real s = __ACER_MAX_ACT;
-				 ret[i] = clip(ret[i], s-m, -s-m);
+			#ifdef ACER_MAX_ACT //clip derivative
+				 ret[i] = clip(ret[i], ACER_MAX_ACT-mu[i], -ACER_MAX_ACT-mu[i]);
 			#endif
 		}
 
 		for (int i=0; i<nA; i++)
 		{
 			ret[i+nA] = factor*(.5/prec[i] -0.5*(act[i]-mu[i])*(act[i]-mu[i]));
-			#ifdef __ACER_MAX_PREC
-			ret[i+nA] = clip(ret[i+nA], __ACER_MAX_PREC-prec[i], __ACER_MIN_PREC-prec[i]);
+			#ifdef ACER_MAX_PREC
+			ret[i+nA] = clip(ret[i+nA], ACER_MAX_PREC-prec[i], ACER_MIN_PREC-prec[i]);
 			#endif
 		}
 
@@ -486,16 +484,14 @@ protected:
 		{
 			for (int i=0; i<nA; i++)
 			{
-				#ifdef __ACER_RELAX //then Qmean and pol must be the same
+				#ifdef ACER_RELAX //then Qmean and pol must be the same
 					//assert(std::fabs(mean[i]-pol[i]) < 2.2e-16);
 				#endif
 				gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);
 			}
 
-			#ifdef __ACER_MAX_ACT //clip derivative
-				 const Real m = pol[j];
-				 const Real s = __ACER_MAX_ACT;
-				 gradCC[j] = clip(gradCC[j], s-m, -s-m);
+			#ifdef ACER_MAX_ACT //clip derivative
+				 gradCC[j] = clip(gradCC[j], ACER_MAX_ACT-pol[j], -ACER_MAX_ACT-pol[j]);
 			#endif
 			//if(eta<0) gradCC[j] = 0;
 		}
@@ -503,8 +499,9 @@ protected:
 		for (int j=0; j<nA; j++)
 		{
 			gradCC[j+nA] = eta * 0.5 * P[nA*j +j] * var[j] * var[j];
-			#ifdef __ACER_MAX_PREC
-			gradCC[j+nA] = clip(gradCC[j+nA], __ACER_MAX_PREC-1/var[j], __ACER_MIN_PREC-1/var[j]);
+			#ifdef ACER_MAX_PREC
+			const Real prec = 1/var[j];
+			gradCC[j+nA] = clip(gradCC[j+nA], ACER_MAX_PREC-prec, ACER_MIN_PREC-prec);
 			#endif
 		}
 		//for (int i=0; i<nA; i++) gradCC[i] = eta * 2 * (mean[i]-pol[i]) / var[i];
@@ -527,7 +524,7 @@ protected:
 		 */
 		Real expectation = quadraticTerm(P, mean, pol);
 			assert(expectation > -2.2e-16); //must be pos def
-		#ifdef __ACER_RELAX
+		#ifdef ACER_RELAX
 			//assert(std::fabs(expectation) < 2.2e-16);
 		#endif
 		for(int i=0; i<nA; i++) expectation += P[nA*i+i]*var[i];
@@ -561,7 +558,7 @@ protected:
 	{
 		assert(out.size()>=1+nL+nA);
 		vector<Real> _L(nA*nA,0), _dLdl(nA*nA), _dPdl(nA*nA), _u(nA), _m(nA);
-		#ifndef __ACER_RELAX
+		#ifndef ACER_RELAX
 			vector<Real> grad(1+nL+nA, 0);
 		#else
 			vector<Real> grad(1+nL, 0);
@@ -573,7 +570,7 @@ protected:
 		for (int j=0; j<nA; j++) {
 			_u[j] = act[j] - mean[j];
 			_m[j] = pol[j] - mean[j];
-			#ifdef __ACER_RELAX
+			#ifdef ACER_RELAX
 				//assert(std::fabs(_m[j]) < 2.2e-16);
 			#endif
 
@@ -609,9 +606,9 @@ protected:
 
 			grad[1+il] = 0.;
 
-			#ifdef  __ENV_MAX_REW
-				const Real maxP = __ENV_MAX_REW/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
-				const Real minP = __ENV_TOL_REW/__ACER_MAX_ACT/__ACER_MAX_ACT/(1-gamma);
+			#ifdef  ACER_MAX_REW
+				const Real maxP = ACER_MAX_REW/ACER_MAX_ACT/ACER_MAX_ACT/(1-gamma);
+				const Real minP = ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT/(1-gamma);
 			#else
 				const Real maxP = 1e6;
 				const Real minP = 1e-6;
@@ -626,7 +623,7 @@ protected:
 					const Real minPij = ((i==j) ? minP : -maxP) - P[nA*j+i];
 					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j?var[i]:0));
 					const Real dEdPij = clip(Qer*dOdPij, maxPij, minPij);
-               //const Real smoother = P[nA*j+i]>0 ? -anneal : anneal; 
+               //const Real smoother = P[nA*j+i]>0 ? -anneal : anneal;
 					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
 				//	grad[1+il] = std::min(std::max(grad[1+il],-maxP),maxP);
@@ -637,18 +634,18 @@ protected:
 				for (int i=0; i<nA; i++) {
 					if (i==j) grad[kl] *= diffSoftPlus(out[kl]);
                if (i<j)  grad[kl] *= diffSoftSign(out[kl]);
-               if (i<=j) kl++; 
+               if (i<=j) kl++;
 				}
 			assert(kl==1+nL);
       }
-		#ifndef __ACER_RELAX
+		#ifndef ACER_RELAX
 		for (int ia=0; ia<nA; ia++) {
 			for (int i=0; i<nA; i++)
 				grad[1+nL+ia] += Qer*P[nA*ia+i]*(_u[i]-_m[i]);
 
-			#ifdef __ACER_MAX_ACT //clip derivative
+			#ifdef ACER_MAX_ACT //clip derivative
 				const Real m = mean[ia];
-			 	const Real s = __ACER_MAX_ACT;
+			 	const Real s = ACER_MAX_ACT;
 				grad[1+nL+ia] = clip(grad[1+nL+ia], s-m, -s-m);
 			#endif
 		}
@@ -674,7 +671,7 @@ protected:
 	{
 		a.vals = aInfo.getScaled(a.vals);
 	}
-   
+
    inline Real hardPlus(const Real val) const
    {
       //return std::exp(val);
@@ -686,14 +683,14 @@ protected:
       //return std::exp(val);
       return 0.5*(1.+val/std::sqrt(val*val+1));
    }
-   
+
 	inline Real softPlus(const Real val) const
 	{
       //return std::exp(val);
 		return 0.5*(val + std::sqrt(val*val+1));
 		//return sqrt(val + std::sqrt(val*val+1));
 	}
-   
+
 	inline Real diffSoftPlus(const Real val) const
 	{
       //return std::exp(val);

@@ -33,7 +33,8 @@ void GliderEnvironment::setDims() //this environment is for the cart pole test
 {
 	sI.inUse.clear();
 	for (int i=0; i<6; i++) sI.inUse.push_back(true);
-	sI.inUse.push_back(false);
+	sI.inUse.push_back(true);
+	//sI.inUse.push_back(false);
 	sI.inUse.push_back(false);
 	sI.inUse.push_back(false);
 

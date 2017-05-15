@@ -119,7 +119,7 @@ void DACER::Train_BPTT(const int seq, const int thrID) const
 		const Real correction = std::max(0., 1.-truncation/rho_pol);
 		const Real A_OPC = Q_OPC - out_hat[k][0];
 
-		#ifdef __ACER__PENALIZER
+		#ifdef ACER_PENALIZER
 			const Real varCritic = advantageVariance(polCur, valHat);
 			const Real A_cov = computeAdvantage(act, polCur, valHat);
 			static const Real L = 0.25, eps = 2.2e-16;
@@ -141,7 +141,7 @@ void DACER::Train_BPTT(const int seq, const int thrID) const
 		const vector<Real> gradAcer_1 = policyGradient(polCur, act, gain1);
 		const vector<Real> gradAcer_2 = policyGradient(polCur, pol, gain2);
 
-		#ifdef __ACER__PENALIZER
+		#ifdef ACER_PENALIZER
 		const vector<Real> gradC = controlGradient(act, polCur, valHat, eta);
 		const vector<Real> policy_grad = sum3Grads(gradAcer_1, gradAcer_2, gradC);
 		#else
@@ -184,7 +184,7 @@ void DACER::Train_BPTT(const int seq, const int thrID) const
 
 void DACER::processStats(vector<trainData*> _stats, const Real avgTime)
 {
-	#ifdef __ACER_SAFE
+	#ifdef ACER_SAFE
 		const Real stdev = 0.1 + annealingFactor();
 		variance = stdev*stdev;
 		precision = 1./variance;
@@ -234,14 +234,14 @@ void DACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		dump[cnt++] = output[0];
 		dump[cnt++] = aInfo.getScaled(mu[0], 0);
 
-		#ifndef __ACER_SAFE
+		#ifndef ACER_SAFE
 			vector<Real> var =  extractVariance(output);
 			dump[cnt++] = std::sqrt(var[0]);
 		#else
 			dump[cnt++] = std::sqrt(variance);
 		#endif
 
-		#ifndef __ACER_RELAX
+		#ifndef ACER_RELAX
 			vector<Real> mean = extractQmean(output);
 			dump[cnt++] = aInfo.getScaled(mean[0], 0);
 		#else

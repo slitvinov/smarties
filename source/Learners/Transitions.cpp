@@ -138,13 +138,13 @@ void Transitions::restartSamples()
                                           std::istream_iterator<std::string>());
                     if(len != 2 + sI.dim*2 + aI.dim + 1) {
 
-                    if(len != (3+sI.dim+aI.dim*3+1) &&  //continuous
-                       len != (3+sI.dim+aI.dim*2+1))    //discrete
-                      die("Wrong history file\n");
+                    //if(len != (3+sI.dim+aI.dim*3+1) &&  //continuous
+                    //   len != (3+sI.dim+aI.dim*2+1))    //discrete
+                    //  die("Wrong history file\n");
 
                     printf("Reading data from stochastic policy\n");
                     in.close();
-                    return restartSamplesNew(len == (3+sI.dim+aI.dim*3+1));
+                    return restartSamplesNew(len != (3+sI.dim+aI.dim*2+1));
                   }
                 }
 

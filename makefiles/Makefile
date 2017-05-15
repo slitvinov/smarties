@@ -59,10 +59,10 @@ CPPFLAGS += -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
 CPPFLAGS += -ffast-math
 
 ifeq "$(acer)" "safe"
-CPPFLAGS += -D__ACER_SAFE
+CPPFLAGS += -DACER_SAFE
 else
 ifeq "$(acer)" "relax"
-CPPFLAGS += -D__ACER_RELAX
+CPPFLAGS += -DACER_RELAX
 else
 ifneq "$(acer)" "full"
 #$(error acer flag is not recognized: safe, relax or full)
@@ -74,10 +74,10 @@ ifeq "$(entropy)" "on"
 CPPFLAGS+= -D__EntropySGD
 endif
 ifeq "$(cvar)" "simple"
-CPPFLAGS+= -D__ACER__PENALIZER
+CPPFLAGS+= -DACER_PENALIZER
 endif
 ifeq "$(cvar)" "full"
-CPPFLAGS+= -D__ACER_VARIATE
+CPPFLAGS+= -DACER_VARIATE
 endif
 
 ifeq "$(app)" "cubism"

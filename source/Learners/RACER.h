@@ -17,7 +17,7 @@ class RACER : public PolicyAlgorithm
 	const Real truncation;
 	mutable vector<vector<Real>> stdGrad, avgGrad;
 	mutable vector<Real> cntGrad;
-	#ifdef __ACER_SAFE
+	#ifdef ACER_SAFE
 	//Real stdev = 0.1;
 	Real variance = 0.01;
 	Real precision = 100;
@@ -123,23 +123,23 @@ public:
 
 	static int getnOutputs(const int NL, const int NA)
 	{
-		#if defined __ACER_RELAX
+		#if defined ACER_RELAX
 			// I output V(s), P(s), pol(s), prec(s) (and variate)
-			#ifdef __ACER_VARIATE
+			#ifdef ACER_VARIATE
 				return 1+NL+NA+NA+1;
 			#else
 				return 1+NL+NA+NA;
 			#endif
-		#elif defined __ACER_SAFE
+		#elif defined ACER_SAFE
 			// I output V(s), P(s), pol(s), mu(s) (and variate)
-			#ifdef __ACER_VARIATE
+			#ifdef ACER_VARIATE
 				return 1+NL+NA+NA+1;
 			#else
 				return 1+NL+NA+NA;
 			#endif
 		#else //full formulation
 			// I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
-			#ifdef __ACER_VARIATE
+			#ifdef ACER_VARIATE
 				return 1+NL+NA+NA+NA+1;
 			#else
 				return 1+NL+NA+NA+NA;
@@ -157,7 +157,7 @@ private:
 		assert(out.size() == nOutputs);
 		assert(gradPolicy.size() == 2*nA); //no matter what
 		vector<Real> grad(nOutputs);
-		#ifdef __ACER_RELAX
+		#ifdef ACER_RELAX
 			assert(gradCritic.size() == 1+nL);
 		#else
 			assert(gradCritic.size() == 1+nL+nA);
@@ -171,14 +171,14 @@ private:
 			//grad[1+nL+j] = gradPolicy[j];
 			grad[1+nL+j] = gradPolicy[j] -anneal*out[1+nL+j];
 
-		#ifndef __ACER_SAFE
+		#ifndef ACER_SAFE
 			const vector<Real> gradVar = finalizeVarianceGrad(gradPolicy, out);
 			for (int j=0; j<nA; j++) grad[1+nL+nA+j] = gradVar[j];
 		#endif
 
-		#ifndef __ACER_RELAX
+		#ifndef ACER_RELAX
 			for (int j=nL+1; j<nA+nL+1; j++) {
-			   #ifndef __ACER_SAFE
+			   #ifndef ACER_SAFE
          		//grad[j+nA*2] = gradCritic[j];
 		   	grad[j+nA*2] = gradCritic[j] -anneal*out[j+nA*2];
 			   #else
@@ -190,7 +190,7 @@ private:
 			//no gradient for mean of critic, ofc
 		#endif
 
-		#ifdef __ACER_VARIATE
+		#ifdef ACER_VARIATE
 			grad[nOutputs-1] = err_Cov;
 		#endif
 
