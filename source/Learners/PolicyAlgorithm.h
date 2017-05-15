@@ -13,7 +13,7 @@
 
 //#define __ACER_MAX_PREC 2500.
 #define __ACER_MAX_PREC 100.
-#define __ACER_MIN_PREC 0.1
+#define __ACER_MIN_PREC 1.
 #define __ACER_MAX_ACT 10.
 #define __ENV_MAX_REW 100.
 #define __ENV_TOL_REW 0.01
@@ -269,7 +269,7 @@ protected:
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {
 					if (i<j)
-						_L[nA*j + i] = out[kL++];
+						_L[nA*j + i] = softSign(out[kL++]);//out[kL++];
 					else if (i==j)
 						_L[nA*j + i] = softPlus(out[kL++]);
 				}
@@ -312,7 +312,7 @@ protected:
 			for (int i=0; i<nA; i++) {
 				ret += (pol[j]-mean[j])*(pol[i]-mean[i])*PvarP[nA*j+i];
 				#ifdef __ACER_RELAX
-					assert(std::fabs(pol[i]-mean[i]) < 2.2e-16);
+					//assert(std::fabs(pol[i]-mean[i]) < 2.2e-16);
 				#endif
 			}
 
@@ -487,7 +487,7 @@ protected:
 			for (int i=0; i<nA; i++)
 			{
 				#ifdef __ACER_RELAX //then Qmean and pol must be the same
-					assert(std::fabs(mean[i]-pol[i]) < 2.2e-16);
+					//assert(std::fabs(mean[i]-pol[i]) < 2.2e-16);
 				#endif
 				gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);
 			}
@@ -528,7 +528,7 @@ protected:
 		Real expectation = quadraticTerm(P, mean, pol);
 			assert(expectation > -2.2e-16); //must be pos def
 		#ifdef __ACER_RELAX
-			assert(std::fabs(expectation) < 2.2e-16);
+			//assert(std::fabs(expectation) < 2.2e-16);
 		#endif
 		for(int i=0; i<nA; i++) expectation += P[nA*i+i]*var[i];
 
@@ -566,7 +566,7 @@ protected:
 		#else
 			vector<Real> grad(1+nL, 0);
 		#endif
-
+      //const Real anneal = std::pow(annealingFactor(), 2);
 		grad[0] = Qer;
 
 		int kL = 1;
@@ -574,12 +574,12 @@ protected:
 			_u[j] = act[j] - mean[j];
 			_m[j] = pol[j] - mean[j];
 			#ifdef __ACER_RELAX
-				assert(std::fabs(_m[j]) < 2.2e-16);
+				//assert(std::fabs(_m[j]) < 2.2e-16);
 			#endif
 
 			for (int i=0; i<nA; i++) {
 				if (i<j)
-					_L[nA*j + i] = out[kL++];
+					_L[nA*j + i] = softSign(out[kL++]);//out[kL++];
 				else if (i==j)
 					_L[nA*j + i] = softPlus(out[kL++]);
 			}
@@ -626,6 +626,7 @@ protected:
 					const Real minPij = ((i==j) ? minP : -maxP) - P[nA*j+i];
 					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j?var[i]:0));
 					const Real dEdPij = clip(Qer*dOdPij, maxPij, minPij);
+               //const Real smoother = P[nA*j+i]>0 ? -anneal : anneal; 
 					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
 				//	grad[1+il] = std::min(std::max(grad[1+il],-maxP),maxP);
@@ -635,7 +636,8 @@ protected:
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {
 					if (i==j) grad[kl] *= diffSoftPlus(out[kl]);
-					if (i<=j) kl++;
+               if (i<j)  grad[kl] *= diffSoftSign(out[kl]);
+               if (i<=j) kl++; 
 				}
 			assert(kl==1+nL);
       }
@@ -687,16 +689,30 @@ protected:
    
 	inline Real softPlus(const Real val) const
 	{
-		//return 0.5*(val + std::sqrt(val*val+1));
-		return sqrt(val + std::sqrt(val*val+1));
+      //return std::exp(val);
+		return 0.5*(val + std::sqrt(val*val+1));
+		//return sqrt(val + std::sqrt(val*val+1));
 	}
-
+   
 	inline Real diffSoftPlus(const Real val) const
 	{
-		//return 0.5*(1 + val/std::sqrt(val*val+1));
-		const Real den = std::sqrt(val*val+1);
-		return 0.5*std::sqrt(den+val)/den;
+      //return std::exp(val);
+	   return 0.5*(1 + val/std::sqrt(val*val+1));
+		//const Real den = std::sqrt(val*val+1);
+		//return 0.5*std::sqrt(den+val)/den;
 	}
+
+   inline Real softSign(const Real val) const
+   {
+      return val/sqrt(1+std::fabs(val));
+   }
+
+   inline Real diffSoftSign(Real val) const
+   {
+      if(val<0) val = -val; //symmetric
+      const Real denom = std::sqrt(val+1);
+      return (.5*val+1)/(denom*denom*denom);
+   }
 
 	inline Real clip(const Real val, const Real ub, const Real lb) const
 	{
