@@ -16,7 +16,7 @@
 #define ACER_MAX_PREC 100.
 #define ACER_MAX_ACT 10.
 #define ACER_MAX_REW 100.
-#define ACER_TOL_REW 0.01
+#define ACER_TOL_REW 0.001
 #endif
 
 class PolicyAlgorithm : public Learner
@@ -683,10 +683,11 @@ protected:
 	inline Real softPlus(const Real val) const
 	{
 		//return val;
-      		//return std::exp(val) + tol_diagL;
       		#ifdef ACER_MAX_ACT
+      		//return std::exp(val) + tol_diagL;
 		return 0.5*(val + std::sqrt(val*val+1)) + tol_diagL;
 		#else
+      		//return std::exp(val);
 		return 0.5*(val + std::sqrt(val*val+1));
 		#endif
 		//return sqrt(val + std::sqrt(val*val+1)) +tol_diagL;
@@ -694,7 +695,7 @@ protected:
 
 	inline Real diffSoftPlus(const Real val) const
 	{
-	      //return std::exp(val);
+		//return std::exp(val);
 		//return 1.;
 		return 0.5*(1 + val/std::sqrt(val*val+1));
 		//const Real den = std::sqrt(val*val+1);
