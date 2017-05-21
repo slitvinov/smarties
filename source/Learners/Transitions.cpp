@@ -23,6 +23,15 @@ nSequences(0), aI(_env->aI), sI(_env->sI), generators(settings.generators), old_
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
+    int k = 0;
+    if (sI.mean.size())
+    for (int i=0; i<sI.dim; i++)
+        if (sI.inUse[i]) {
+          mean[k] = sI.mean[i];
+          std[k] = sI.scale[i];
+          k++;
+        }
+    assert(k == sI.dimUsed);
     Tmp.resize(max(settings.nAgents,1));
     for (int i=0; i<max(settings.nAgents,1); i++)
         Tmp[i] = new Sequence();
@@ -107,7 +116,7 @@ void Transitions::restartSamplesNew(const bool bContinuous)
     printf("Found %d broken chains out of %d / %d.\n",
             nBroken, nSequences, nTransitions);
     const bool update_meanstd_needed = nTransitions>0;
-    if(syncBoolOr(update_meanstd_needed))
+    if(!sI.mean.size() && bNormalize  && syncBoolOr(update_meanstd_needed))
       update_samples_mean(1.0);
     old_ndata = nTransitions;
 }
@@ -175,7 +184,7 @@ void Transitions::restartSamples()
     printf("Found %d broken chains out of %d / %d.\n",
             nBroken, nSequences, nTransitions);
     const bool update_meanstd_needed = nTransitions>0;
-    if(syncBoolOr(update_meanstd_needed))
+    if(!sI.mean.size() && bNormalize  && syncBoolOr(update_meanstd_needed))
       update_samples_mean(1.0);
     old_ndata = nTransitions;
 }
@@ -511,14 +520,15 @@ void Transitions::update_samples_mean(const Real alpha)
 vector<Real> Transitions::standardize(const vector<Real>& state, const Real noise, const int thrID) const
 {
     if(!bNormalize) return state;
-    vector<Real> tmp(sI.dimUsed*(1+nAppended));
-    assert(state.size() == sI.dimUsed*(1+nAppended));
-    for (int j=0; j<1+nAppended; j++)
-    for (int i=0; i<sI.dimUsed; i++) {
-      const int k = j*sI.dimUsed + i;
-      tmp[k] = (state[k] - mean[i])/(std[i]+1e-8);
-      //tmp[k] = state[k]/(std[i]+1e-8);
-    }
+
+      vector<Real> tmp(sI.dimUsed*(1+nAppended));
+      assert(state.size() == sI.dimUsed*(1+nAppended));
+      for (int j=0; j<1+nAppended; j++)
+      for (int i=0; i<sI.dimUsed; i++) {
+        const int k = j*sI.dimUsed + i;
+        tmp[k] = (state[k] - mean[i])/(std[i]+1e-8);
+        //tmp[k] = state[k]/(std[i]+1e-8);
+      }
 
     if (noise>0) {
       assert(generators.size()>thrID);
@@ -611,7 +621,7 @@ void Transitions::updateSamples(const Real alpha)
     old_ndata = ndata;
   }
 	update_meanstd_needed = update_meanstd_needed && positive(alpha);
-  if(syncBoolOr(update_meanstd_needed))
+  if(!sI.mean.size() && bNormalize && syncBoolOr(update_meanstd_needed))
     update_samples_mean(alpha);
 
   const int ndata = (bRecurrent) ? nSequences : nTransitions;

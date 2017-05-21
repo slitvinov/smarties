@@ -33,11 +33,33 @@ void GliderEnvironment::setDims() //this environment is for the cart pole test
 {
 	sI.inUse.clear();
 	for (int i=0; i<6; i++) sI.inUse.push_back(true);
+
 	sI.inUse.push_back(true);
 	//sI.inUse.push_back(false);
 	sI.inUse.push_back(false);
 	sI.inUse.push_back(false);
-
+	{
+		sI.mean.push_back(0); //u
+		sI.mean.push_back(0); //v
+		sI.mean.push_back(0); //omega
+		sI.mean.push_back(50); //x
+		sI.mean.push_back(-25); //y
+		sI.mean.push_back(M_PI); //theta
+		sI.mean.push_back(0); //T
+		sI.mean.push_back(0); //vx
+		sI.mean.push_back(0); //vy
+	}
+	{
+		sI.scale.push_back(1); //u
+		sI.scale.push_back(1); //v
+		sI.scale.push_back(1); //omega
+		sI.scale.push_back(50); //x
+		sI.scale.push_back(25); //y
+		sI.scale.push_back(M_PI/2); //theta
+		sI.scale.push_back(1); //T
+		sI.scale.push_back(1); //vx
+		sI.scale.push_back(1); //vy
+	}
 	aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
 	aI.values.resize(aI.dim);
 	aI.values[0].push_back(-1.); //here the app accepts real numbers

@@ -25,6 +25,7 @@ struct StateInfo
 {
 	int dim, dimUsed;
 	vector<bool> inUse;
+	vector<Real> mean, scale;
 
     StateInfo& operator= (const StateInfo& stateInfo)
     {
