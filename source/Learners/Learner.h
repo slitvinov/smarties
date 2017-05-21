@@ -77,7 +77,10 @@ public:
         _dispose_object(data);
         for (auto & trash : Vstats) _dispose_object(trash);
     }
-
+    inline unsigned nData()
+	{
+		return data->nTransitions;
+	}
     inline Real annealingFactor() const
     {
       //number that goes from 1 to 0 with optimizer's steps

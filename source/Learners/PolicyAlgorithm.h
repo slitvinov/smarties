@@ -11,14 +11,13 @@
 
 #include "Learner.h"
 
-//#define ACER_MAX_PREC 2500.
+#define ACER_BOUNDED //increased safety, TODO move to makefile
+#ifdef ACER_BOUNDED
 #define ACER_MAX_PREC 100.
-#define ACER_MIN_PREC 1.
 #define ACER_MAX_ACT 10.
 #define ACER_MAX_REW 100.
-#define ACER_TOL_REW 0.01
-//#define ACER_MAX_REW 10.
-//#define ACER_MAX_REW 1.
+#define ACER_TOL_REW 0.001
+#endif
 
 class PolicyAlgorithm : public Learner
 {
@@ -26,12 +25,20 @@ protected:
 	const Real delta;
 	const int nA, nL;
 	std::vector<std::mt19937>& generators;
-
+	#ifdef ACER_MAX_ACT
+	const Real tol_diagL, max_abs_P;
+	#endif
 public:
 	PolicyAlgorithm(MPI_Comm comm, Environment*const _env, Settings & settings,
 	const Real _delta): Learner(comm,_env,settings),delta(_delta),nA(_env->aI.dim),
 	nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
-	{}
+	#ifdef ACER_MAX_ACT
+		, tol_diagL(std::sqrt(ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT/(1-gamma)))
+		, max_abs_P(ACER_MAX_REW/ACER_MAX_ACT/ACER_MAX_ACT/(1-gamma))
+	#endif
+	{
+		
+	}
 
 protected:
 	/*
@@ -468,7 +475,7 @@ protected:
 		{
 			ret[i+nA] = factor*(.5/prec[i] -0.5*(act[i]-mu[i])*(act[i]-mu[i]));
 			#ifdef ACER_MAX_PREC
-			ret[i+nA] = clip(ret[i+nA], ACER_MAX_PREC-prec[i], ACER_MIN_PREC-prec[i]);
+			ret[i+nA] = std::min(ret[i+nA], ACER_MAX_PREC-prec[i]);
 			#endif
 		}
 
@@ -501,7 +508,7 @@ protected:
 			gradCC[j+nA] = eta * 0.5 * P[nA*j +j] * var[j] * var[j];
 			#ifdef ACER_MAX_PREC
 			const Real prec = 1/var[j];
-			gradCC[j+nA] = clip(gradCC[j+nA], ACER_MAX_PREC-prec, ACER_MIN_PREC-prec);
+			gradCC[j+nA] = std::min(gradCC[j+nA], ACER_MAX_PREC-prec);
 			#endif
 		}
 		//for (int i=0; i<nA; i++) gradCC[i] = eta * 2 * (mean[i]-pol[i]) / var[i];
@@ -606,27 +613,18 @@ protected:
 
 			grad[1+il] = 0.;
 
-			#ifdef  ACER_MAX_REW
-				const Real maxP = ACER_MAX_REW/ACER_MAX_ACT/ACER_MAX_ACT/(1-gamma);
-				const Real minP = ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT/(1-gamma);
-			#else
-				const Real maxP = 1e6;
-				const Real minP = 1e-6;
-			#endif
-
 			//add the term dependent on the estimate: applies only to diagonal terms
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {
-					//not necessary, but maxP constraint should be very lax
-					const Real maxPij = maxP - P[nA*j+i];
 					//necessary: if on the Q stops depending on P then learning diverges
-					const Real minPij = ((i==j) ? minP : -maxP) - P[nA*j+i];
 					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j?var[i]:0));
-					const Real dEdPij = clip(Qer*dOdPij, maxPij, minPij);
-               //const Real smoother = P[nA*j+i]>0 ? -anneal : anneal;
+					#ifdef ACER_MAX_ACT
+					const Real dEdPij = clip(Qer*dOdPij, max_abs_P-P[nA*j+i],-max_abs_P-P[nA*j+i]);
+					#else
+					const Real dEdPij = Qer*dOdPij;
+					#endif
 					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
-				//	grad[1+il] = std::min(std::max(grad[1+il],-maxP),maxP);
 		}
       {
 			int kl = 1;
@@ -644,9 +642,7 @@ protected:
 				grad[1+nL+ia] += Qer*P[nA*ia+i]*(_u[i]-_m[i]);
 
 			#ifdef ACER_MAX_ACT //clip derivative
-				const Real m = mean[ia];
-			 	const Real s = ACER_MAX_ACT;
-				grad[1+nL+ia] = clip(grad[1+nL+ia], s-m, -s-m);
+				grad[1+nL+ia] = clip(grad[1+nL+ia], ACER_MAX_ACT-mean[ia], -ACER_MAX_ACT-mean[ia]);
 			#endif
 		}
 		#endif
@@ -686,29 +682,38 @@ protected:
 
 	inline Real softPlus(const Real val) const
 	{
-      //return std::exp(val);
+		//return val;
+      		#ifdef ACER_MAX_ACT
+      		//return std::exp(val) + tol_diagL;
+		return 0.5*(val + std::sqrt(val*val+1)) + tol_diagL;
+		#else
+      		//return std::exp(val);
 		return 0.5*(val + std::sqrt(val*val+1));
-		//return sqrt(val + std::sqrt(val*val+1));
+		#endif
+		//return sqrt(val + std::sqrt(val*val+1)) +tol_diagL;
 	}
 
 	inline Real diffSoftPlus(const Real val) const
 	{
-      //return std::exp(val);
-	   return 0.5*(1 + val/std::sqrt(val*val+1));
+		//return std::exp(val);
+		//return 1.;
+		return 0.5*(1 + val/std::sqrt(val*val+1));
 		//const Real den = std::sqrt(val*val+1);
 		//return 0.5*std::sqrt(den+val)/den;
 	}
 
    inline Real softSign(const Real val) const
    {
-      return val/sqrt(1+std::fabs(val));
+	return val;
+      //return val/sqrt(1+std::fabs(val));
    }
 
    inline Real diffSoftSign(Real val) const
    {
-      if(val<0) val = -val; //symmetric
-      const Real denom = std::sqrt(val+1);
-      return (.5*val+1)/(denom*denom*denom);
+	return 1.;
+      //if(val<0) val = -val; //symmetric
+      //const Real denom = std::sqrt(val+1);
+      //return (.5*val+1)/(denom*denom*denom);
    }
 
 	inline Real clip(const Real val, const Real ub, const Real lb) const
