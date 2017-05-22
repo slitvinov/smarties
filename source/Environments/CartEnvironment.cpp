@@ -58,7 +58,7 @@ void CartEnvironment::setDims() //this environment is for the cart pole test
 				sI.mean.push_back(0);    //x
 				sI.mean.push_back(0);    //v
 				sI.mean.push_back(0);    //omega
-				sI.mean.push_back(50);   //theta
+				sI.mean.push_back(0);    //theta
 
 				sI.scale.push_back(.5);  //x
 				sI.scale.push_back(1);   //v

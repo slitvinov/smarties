@@ -14,7 +14,7 @@
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
 #define ACER_MAX_PREC 625.
-#define ACER_MAX_ACT 20.
+#define ACER_MAX_ACT 10.
 #define ACER_MAX_REW 100.
 #define ACER_TOL_REW 0.1
 #endif
@@ -618,12 +618,14 @@ protected:
 				for (int i=0; i<nA; i++) {
 					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j?var[i]:0));
 					//#ifdef ACER_MAX_ACT
-					//const Real dEdPij = clip(Qer*dOdPij, max_abs_P-P[nA*j+i],-max_abs_P-P[nA*j+i]);
+					const Real dEdPij = clip(Qer*dOdPij, max_abs_P-P[nA*j+i],-max_abs_P-P[nA*j+i]);
 					//#else
+					const Real penalized = dEdPij +(j==i && P[nA*j+i]<tol_diagP ? 1e3*(tol_diagP-P[nA*j+i]) : 0);
 					//necessary: if on the Q stops depending on P then learning is meaningless
-					const Real dEdPij = Qer*dOdPij + (j==i && P[nA*j+i]<tol_diagP ? tol_diagP-P[nA*j+i] : 0);
+					//const Real dEdPij = Qer*dOdPij + (j==i && P[nA*j+i]<tol_diagP ? 1e5*(tol_diagP-P[nA*j+i]) : 0);
 					//#endif
-					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
+					grad[1+il] += _dPdl[nA*j+i]*penalized;
+					//grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
 		}
       {
