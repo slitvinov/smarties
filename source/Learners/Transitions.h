@@ -61,7 +61,7 @@ protected:
     int iOldestSaved;
     const bool bSampleSeq, bWriteToFile, bNormalize, bTrain;
     const string path;
-    vector<Real> std, mean;
+    vector<Real> std, mean, invstd;
     vector<int> curr_transition_id;
     discrete_distribution<int> * dist;
     int add(const int agentId, const int info, const State & sOld,
@@ -72,6 +72,16 @@ protected:
     void push_back(const int & agentId);
     void clear(const int & agentId);
     void synchronize();
+
+    inline bool needed_samples_mean(const bool something_changed)
+    {
+      //if env has specified scale and mean of state components, do not compute from data
+      if(sI.mean.size()) return false;
+      //user can still specify in settings if state should be standardized
+      if(!bNormalize) return false;
+      //else, if something changed in any of the Master ranks, then update is needed
+      return syncBoolOr(something_changed);
+    }
 
 public:
     const int nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;

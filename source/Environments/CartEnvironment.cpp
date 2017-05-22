@@ -39,52 +39,61 @@ bool CartEnvironment::predefinedNetwork(Network* const net) const
 
 void CartEnvironment::setDims() //this environment is for the cart pole test
 {
-    {
-        sI.inUse.clear();
-        //for each state variable:
-        // State: coordinate...
-        sI.inUse.push_back(true); //ignore, leave as is
-
-        // ...velocity...
-		sI.inUse.push_back(allSenses); //ignore, leave as is
-
-        // ...and angular velocity
-		sI.inUse.push_back(allSenses); //ignore, leave as is
-
-        // ...angle...
+		sI.inUse.clear();
+		//for each state variable:
+		// State: coordinate...
 		sI.inUse.push_back(true); //ignore, leave as is
 
-        /*
-         * also valid:
-         *
-         * for (int i=0; i<some_number_of_vars; i++)
-         * {
-         * 		sI.top.push_back(MAXVAL); sI.bottom.push_back(MINVAL);
-         * 		sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
-         * }
-         */
-    }
-    {
-        aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
-        aI.values.resize(aI.dim);
-        for (int i=0; i<aI.dim; i++) {
+		// ...velocity...
+		sI.inUse.push_back(allSenses); //ignore, leave as is
 
-            //this framework sends a real number to the application
-            //if you want to receive an integer number between 0 and nOptions (eg action option)
-            //just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
-            //i added the 0.1 is just to be extra safe when converting a float to an integer
+		// ...and angular velocity
+		sI.inUse.push_back(allSenses); //ignore, leave as is
 
-            aI.values[i].push_back(-10.); //here the app accepts real numbers
-            aI.values[i].push_back(-5.);
-            aI.values[i].push_back(-1.);
-            aI.values[i].push_back(0.0);
-            aI.values[i].push_back(1.0);
-            aI.values[i].push_back(5.0);
-            aI.values[i].push_back(10.);
-            //the number of components must be ==nOptions
-        }
-    }
-    commonSetup(); //required
+		// ...angle...
+		sI.inUse.push_back(true); //ignore, leave as is
+
+		if(1)
+		{
+				sI.mean.push_back(0);    //x
+				sI.mean.push_back(0);    //v
+				sI.mean.push_back(0);    //omega
+				sI.mean.push_back(50);   //theta
+
+				sI.scale.push_back(.5);  //x
+				sI.scale.push_back(1);   //v
+				sI.scale.push_back(1);   //omega
+				sI.scale.push_back(0.2); //theta
+		}
+
+		/*
+		* also valid:
+		*
+		* for (int i=0; i<some_number_of_vars; i++)
+		* {
+		* 		sI.top.push_back(MAXVAL); sI.bottom.push_back(MINVAL);
+		* 		sI.isLabel.push_back(false); sI.inUse.push_back(true); sI.bounds.push_back(1); //ignore, leave as is
+		* }
+		*/
+		aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
+		aI.values.resize(aI.dim);
+		for (int i=0; i<aI.dim; i++)
+		{
+				//this framework sends a real number to the application
+				//if you want to receive an integer number between 0 and nOptions (eg action option)
+				//just write aI.values[i].push_back(0.1); ... aI.values[i].push_back((nOptions-1) + 0.1);
+				//i added the 0.1 is just to be extra safe when converting a float to an integer
+
+				aI.values[i].push_back(-10.); //here the app accepts real numbers
+				aI.values[i].push_back(-5.);
+				aI.values[i].push_back(-1.);
+				aI.values[i].push_back(0.0);
+				aI.values[i].push_back(1.0);
+				aI.values[i].push_back(5.0);
+				aI.values[i].push_back(10.);
+				//the number of components must be ==nOptions
+		}
+		commonSetup(); //required
 }
 
 bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a,

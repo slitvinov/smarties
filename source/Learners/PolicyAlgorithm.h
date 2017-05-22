@@ -13,10 +13,10 @@
 
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
-#define ACER_MAX_PREC 100.
-#define ACER_MAX_ACT 10.
+#define ACER_MAX_PREC 625.
+#define ACER_MAX_ACT 20.
 #define ACER_MAX_REW 100.
-#define ACER_TOL_REW 0.001
+#define ACER_TOL_REW 0.1
 #endif
 
 class PolicyAlgorithm : public Learner
@@ -26,18 +26,18 @@ protected:
 	const int nA, nL;
 	std::vector<std::mt19937>& generators;
 	#ifdef ACER_MAX_ACT
-	const Real tol_diagL, max_abs_P;
+	const Real tol_diagP, max_abs_P;
 	#endif
 public:
 	PolicyAlgorithm(MPI_Comm comm, Environment*const _env, Settings & settings,
 	const Real _delta): Learner(comm,_env,settings),delta(_delta),nA(_env->aI.dim),
 	nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
 	#ifdef ACER_MAX_ACT
-		, tol_diagL(std::sqrt(ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT/(1-gamma)))
-		, max_abs_P(ACER_MAX_REW/ACER_MAX_ACT/ACER_MAX_ACT/(1-gamma))
+		, tol_diagP(ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT)
+		, max_abs_P(ACER_MAX_REW/(1-gamma))
 	#endif
 	{
-		
+
 	}
 
 protected:
@@ -616,13 +616,13 @@ protected:
 			//add the term dependent on the estimate: applies only to diagonal terms
 			for (int j=0; j<nA; j++)
 				for (int i=0; i<nA; i++) {
-					//necessary: if on the Q stops depending on P then learning diverges
 					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j?var[i]:0));
-					#ifdef ACER_MAX_ACT
-					const Real dEdPij = clip(Qer*dOdPij, max_abs_P-P[nA*j+i],-max_abs_P-P[nA*j+i]);
-					#else
-					const Real dEdPij = Qer*dOdPij;
-					#endif
+					//#ifdef ACER_MAX_ACT
+					//const Real dEdPij = clip(Qer*dOdPij, max_abs_P-P[nA*j+i],-max_abs_P-P[nA*j+i]);
+					//#else
+					//necessary: if on the Q stops depending on P then learning is meaningless
+					const Real dEdPij = Qer*dOdPij + (j==i && P[nA*j+i]<tol_diagP ? tol_diagP-P[nA*j+i] : 0);
+					//#endif
 					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
 		}
@@ -683,14 +683,9 @@ protected:
 	inline Real softPlus(const Real val) const
 	{
 		//return val;
-      		#ifdef ACER_MAX_ACT
-      		//return std::exp(val) + tol_diagL;
-		return 0.5*(val + std::sqrt(val*val+1)) + tol_diagL;
-		#else
-      		//return std::exp(val);
+		//return std::exp(val);
 		return 0.5*(val + std::sqrt(val*val+1));
-		#endif
-		//return sqrt(val + std::sqrt(val*val+1)) +tol_diagL;
+		//return sqrt(val + std::sqrt(val*val+1);
 	}
 
 	inline Real diffSoftPlus(const Real val) const
@@ -704,16 +699,16 @@ protected:
 
    inline Real softSign(const Real val) const
    {
-	return val;
+		 	return val;
       //return val/sqrt(1+std::fabs(val));
    }
 
    inline Real diffSoftSign(Real val) const
    {
-	return 1.;
-      //if(val<0) val = -val; //symmetric
-      //const Real denom = std::sqrt(val+1);
-      //return (.5*val+1)/(denom*denom*denom);
+		 	return 1.;
+			//if(val<0) val = -val; //symmetric
+			//const Real denom = std::sqrt(val+1);
+			//return (.5*val+1)/(denom*denom*denom);
    }
 
 	inline Real clip(const Real val, const Real ub, const Real lb) const
