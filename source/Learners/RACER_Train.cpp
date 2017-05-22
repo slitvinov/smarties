@@ -15,8 +15,10 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 
 		assert(net->allocatedFrozenWeights && bTrain);
 		const int ndata = data->Set[seq]->tuples.size();
+		assert(samp<ndata-1);
 		const bool bEnd = data->Set[seq]->ended;
-		const int nhats = bEnd ? ndata-samp-1 : ndata-samp;
+		const int npredicts = bEnd ? ndata-1 : ndata;
+		const int nhats = npredicts - samp;
 		vector<vector<Real>> out_cur(1, vector<Real>(nOutputs,0));
 		vector<vector<Real>> out_hat(nhats, vector<Real>(nOutputs,0));
 		vector<Activation*> series_cur = net->allocateUnrolledActivations(1);
@@ -24,7 +26,7 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 
 		for (int k=0; k<nhats; k++) {
 			const Tuple * const _t = data->Set[seq]->tuples[k+samp]; //this tuple contains s, a, mu
-			const vector<Real> scaledSold = data->standardize(_t->s);
+			const vector<Real> inp = data->standardize(_t->s);
 			//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
 			if(!k)
 				net->seqPredict_inputs(scaledSold, series_cur[k]);
@@ -41,15 +43,9 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 		Real Q_RET = 0, Q_OPC = 0;
 		//if partial sequence then compute value of last state (=! R_end)
 		if(not bEnd) {
-		   #ifndef NDEBUG
-			   assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 2*nA);
-         #endif
-			Q_RET = out_hat[nhats-1][0]; //V(s_T) computed with tgt weights
-			Q_OPC = out_hat[nhats-1][0]; //V(s_T) computed with tgt weights
-		}
-		#ifndef NDEBUG
-			else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
-		#endif
+			assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 2*nA);
+			Q_RET = Q_OPC = out_hat[nhats-1][0]; //V(s_T) computed with tgt weights
+		} else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
 
 		for (int k=ndata-samp-2; k>0; k--) //just propagate Q_RET / Q_OPC to k=0
 		{
@@ -98,8 +94,8 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 
 		{
 			const Real k = 0; ///just to make it easier to check with BPTT
-			const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains sOld, a
-			const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //this contains r, sNew
+			const Tuple * const _t = data->Set[seq]->tuples[samp]; //this tuple contains sOld, a
+			const Tuple * const t_ = data->Set[seq]->tuples[samp+1]; //this contains r, sNew
 			Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
 			Q_OPC = t_->r + rGamma*Q_OPC;
 			//get everybody camera ready:
@@ -236,7 +232,7 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 			vector<Real> fake{A_cur, 100};
 			dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
 			if(thrID == 1) net->updateRunning(series_cur[k]);
-			data->Set[seq]->tuples[k]->SquaredError = Qer*Qer;
+			data->Set[seq]->tuples[samp]->SquaredError = Qer*Qer;
 			//data->Set[seq]->tuples[k]->SquaredError = std::pow(A_OPC*rho_cur,2);
 		}
 

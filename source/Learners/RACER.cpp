@@ -18,7 +18,8 @@
 #include <algorithm>
 #include <cmath>
 
-#include "RACER_TrainBPTT.cpp"
+//#include "RACER_TrainBPTT.cpp"
+#include "RACER_Train.cpp"
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 PolicyAlgorithm(comm,_env,settings, 0.1), truncation(100), cntGrad(nThreads+1,0),
