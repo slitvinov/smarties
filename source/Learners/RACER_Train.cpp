@@ -29,8 +29,8 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 			const vector<Real> inp = data->standardize(_t->s);
 			//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
 			if(!k)
-				net->seqPredict_inputs(scaledSold, series_cur[k]);
-			net->seqPredict_inputs(scaledSold, series_hat[k]);
+				net->seqPredict_inputs(inp, series_cur[k]);
+			net->seqPredict_inputs(inp, series_hat[k]);
 		}
 		net->seqPredict_execute(series_cur, series_cur);
 		net->seqPredict_execute(series_hat, series_hat, net->tgt_weights, net->tgt_biases);
