@@ -23,12 +23,14 @@ nSequences(0), aI(_env->aI), sI(_env->sI), generators(settings.generators), old_
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
+    invstd.resize(sI.dimUsed, 1);
     int k = 0;
     if (sI.mean.size())
     for (int i=0; i<sI.dim; i++)
         if (sI.inUse[i]) {
           mean[k] = sI.mean[i];
           std[k] = sI.scale[i];
+          invstd[k] = 1./sI.scale[i];
           k++;
         }
     assert(k == sI.dimUsed);
@@ -116,8 +118,7 @@ void Transitions::restartSamplesNew(const bool bContinuous)
     printf("Found %d broken chains out of %d / %d.\n",
             nBroken, nSequences, nTransitions);
     const bool update_meanstd_needed = nTransitions>0;
-    if(!sI.mean.size() && bNormalize  && syncBoolOr(update_meanstd_needed))
-      update_samples_mean(1.0);
+    if(needed_samples_mean(update_meanstd_needed)) update_samples_mean(1.0);
     old_ndata = nTransitions;
 }
 
@@ -184,8 +185,7 @@ void Transitions::restartSamples()
     printf("Found %d broken chains out of %d / %d.\n",
             nBroken, nSequences, nTransitions);
     const bool update_meanstd_needed = nTransitions>0;
-    if(!sI.mean.size() && bNormalize  && syncBoolOr(update_meanstd_needed))
-      update_samples_mean(1.0);
+    if(needed_samples_mean(update_meanstd_needed)) update_samples_mean(1.0);
     old_ndata = nTransitions;
 }
 
@@ -514,6 +514,8 @@ void Transitions::update_samples_mean(const Real alpha)
     mean[i] = mean[i]*(1.-alpha) + alpha*newMean[i];
     //std::cout << mean[i] << " ";
   }
+  for (int i=0; i<sI.dimUsed; i++)
+    invstd[i] = 1./(std[i]+1e-8);
   //std::cout << "]" << std::endl;
 }
 
@@ -526,8 +528,8 @@ vector<Real> Transitions::standardize(const vector<Real>& state, const Real nois
       for (int j=0; j<1+nAppended; j++)
       for (int i=0; i<sI.dimUsed; i++) {
         const int k = j*sI.dimUsed + i;
-        tmp[k] = (state[k] - mean[i])/(std[i]+1e-8);
-        //tmp[k] = state[k]/(std[i]+1e-8);
+        //tmp[k] = (state[k] - mean[i])/(std[i]+1e-8);
+        tmp[k] = (state[k] - mean[i])*invstd[i];
       }
 
     if (noise>0) {
@@ -577,7 +579,7 @@ void Transitions::synchronize()
   #endif
    int cnt =0;
   int nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
-//  for(auto & bufTransition : Buffered) {
+  //  for(auto & bufTransition : Buffered) {
    for(int i=bufferSize-1; i>=0; i--) {
       cnt++;
       //auto bufTransition = Buffered[i];
@@ -621,28 +623,27 @@ void Transitions::updateSamples(const Real alpha)
     old_ndata = ndata;
   }
 	update_meanstd_needed = update_meanstd_needed && positive(alpha);
-  if(!sI.mean.size() && bNormalize && syncBoolOr(update_meanstd_needed))
-    update_samples_mean(alpha);
+  if(needed_samples_mean(update_meanstd_needed)) update_samples_mean(1.0);
 
   const int ndata = (bRecurrent) ? nSequences : nTransitions;
   inds.resize(ndata);
   #if 0
-  if (bRecurrent) {
-    delete dist;
-    assert(nSequences==Set.size());
-    #ifndef NDEBUG
-    int recount_Transitions = 0;
-    #endif
-    for(int i=0; i<nSequences; i++) {
+    if (bRecurrent) {
+      delete dist;
+      assert(nSequences==Set.size());
       #ifndef NDEBUG
-      recount_Transitions += Set[i]->tuples.size()-1;
+      int recount_Transitions = 0;
       #endif
-  		inds[i] = Set[i]->tuples.size()-1;
+      for(int i=0; i<nSequences; i++) {
+        #ifndef NDEBUG
+        recount_Transitions += Set[i]->tuples.size()-1;
+        #endif
+    		inds[i] = Set[i]->tuples.size()-1;
+      }
+      assert(recount_Transitions==nTransitions);
+      dist = new discrete_distribution<int>(inds.begin(), inds.end());
     }
-    assert(recount_Transitions==nTransitions);
-    dist = new discrete_distribution<int>(inds.begin(), inds.end());
-  }
-  else
+    else
   #endif
   {
     std::iota(inds.begin(), inds.end(), 0);
@@ -655,12 +656,12 @@ int Transitions::sample()
   const int ind = inds.back();
   inds.pop_back();
   #if 0
-  if (bRecurrent) {
-    const int sampid = dist->operator()(*(gen->g));
-    //printf("Choosing %d with length %lu\n", sampid, Set[sampid]->tuples.size());
-    return sampid;
-  }
-  else
+    if (bRecurrent) {
+      const int sampid = dist->operator()(*(gen->g));
+      //printf("Choosing %d with length %lu\n", sampid, Set[sampid]->tuples.size());
+      return sampid;
+    }
+    else
   #endif
     return ind;
 }
