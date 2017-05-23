@@ -197,6 +197,9 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const Real A_cur = computeAdvantage(act, polHat, varHat, P_Cur, mu_Cur);
 		const Real A_hat = computeAdvantage(act, polHat, varHat, P_Hat, mu_Hat);
 		const Real A_pol = computeAdvantage(pol, polCur, varCur, P_Hat, mu_Hat);
+		const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
+		const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
+
 		const Real V_cur = out_cur[k][0];
 		const Real V_hat = out_hat[k][0];
 
@@ -205,23 +208,19 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const Real correction = std::max(0., 1.-truncation/rho_pol);
 		const Real A_OPC = Q_OPC - V_hat;
 
+		static const Real L = 0.25, eps = 2.2e-16;
+		//static const Real L = 2.2e-16, eps = 2.2e-16;
+		const Real threshold = A_cov * A_cov / (varCritic+eps);
+		const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
+		const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
+
 		#ifdef ACER_PENALIZER
-			const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
-			const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
-			//static const Real L = 0.25, eps = 2.2e-16;
-			static const Real L = 0.25, eps = 2.2e-16;
-			//static const Real L = 2.2e-16, eps = 2.2e-16;
-			const Real threshold = A_cov * A_cov / (varCritic+eps);
-			const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
-			const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
-			//eta = eta > 1 ? 1 : (eta < -1 ? -1 : eta);
 			const Real cotrolVar = A_cov;
 		#else
-			const Real eta = 0, cotrolVar = 0;
+			const Real cotrolVar = 0;
 		#endif
 
 		const Real gain1 = A_OPC * importance - eta * rho_cur * cotrolVar;
-		//const Real gain1 = A_OPC * importance - eta * cotrolVar;
 		const Real gain2 = A_pol * correction;
 
 		//derivative wrt to statistics
