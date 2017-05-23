@@ -10,6 +10,7 @@
 #pragma once
 
 #include "PolicyAlgorithm.h"
+#define ACER_GRAD_CUT 3
 using namespace std;
 
 class RACER : public PolicyAlgorithm
@@ -184,14 +185,14 @@ private:
 		_dump.push_back(gain1);
 		_dump.push_back(eta);
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
-		//2) clip the gradient wrt previous epoch to 6 sigma
+		//2) clip the gradient wrt previous epoch to ACER_GRAD_CUT sigma
 		for (unsigned int i=0; i<grad.size(); i++)
 		{
-			if(grad[i] >  6*stdGrad[0][i] && stdGrad[0][i]>2.2e-16)
-				grad[i] =  6*stdGrad[0][i];
+			if(grad[i] >  ACER_GRAD_CUT*stdGrad[0][i] && stdGrad[0][i]>2.2e-16)
+				grad[i] =  ACER_GRAD_CUT*stdGrad[0][i];
 			else
-			if(grad[i] < -6*stdGrad[0][i] && stdGrad[0][i]>2.2e-16)
-				grad[i] = -6*stdGrad[0][i];
+			if(grad[i] < -ACER_GRAD_CUT*stdGrad[0][i] && stdGrad[0][i]>2.2e-16)
+				grad[i] = -ACER_GRAD_CUT*stdGrad[0][i];
 		}
 
 		return grad;
