@@ -56,7 +56,7 @@ avgGrad(nThreads+1,vector<Real>(nOutputs+2,0))
 	#endif
 
 	buildNetwork(noutputs, settings);
-   	data->bRecurrent = bRecurrent = true;
+   data->bRecurrent = bRecurrent = true;
 	assert(nOutputs == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
 
@@ -91,7 +91,7 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 	#endif
 	#if 1
 	beta.insert(beta.end(), P.begin(), P.end());
-	beta.insert(beta.end(), mu.begin(), mu.end());
+	beta.insert(beta.end(), mean.begin(), mean.end());
 	#endif
 	data->passData(agentId, info, sOld, a, beta, s, r);
 }

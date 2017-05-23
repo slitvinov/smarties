@@ -14,9 +14,10 @@
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
 #define ACER_MAX_PREC 625.
+#define ACER_MIN_PREC 1./ACER_MAX_ACT/ACER_MAX_ACT
 #define ACER_MAX_ACT 10.
 #define ACER_MAX_REW 100.
-#define ACER_TOL_REW 0.1
+#define ACER_TOL_REW 0.01
 #endif
 
 class PolicyAlgorithm : public Learner
@@ -26,13 +27,14 @@ protected:
 	const int nA, nL;
 	std::vector<std::mt19937>& generators;
 	#ifdef ACER_MAX_ACT
-	const Real tol_diagP, max_abs_P;
+	const Real tol_diagL, tol_diagP, max_abs_P;
 	#endif
 public:
 	PolicyAlgorithm(MPI_Comm comm, Environment*const _env, Settings & settings,
 	const Real _delta): Learner(comm,_env,settings),delta(_delta),nA(_env->aI.dim),
 	nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2), generators(settings.generators)
 	#ifdef ACER_MAX_ACT
+		, tol_diagL(sqrt(ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT))
 		, tol_diagP(ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT)
 		, max_abs_P(ACER_MAX_REW/(1-gamma))
 	#endif
@@ -619,13 +621,14 @@ protected:
 					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j?var[i]:0));
 					//#ifdef ACER_MAX_ACT
 					const Real dEdPij = clip(Qer*dOdPij, max_abs_P-P[nA*j+i],-max_abs_P-P[nA*j+i]);
+					//const Real dEdPij = Qer*dOdPij;
 					//#else
-					const Real penalized = dEdPij +(j==i && P[nA*j+i]<tol_diagP ? 1e3*(tol_diagP-P[nA*j+i]) : 0);
+					//const Real penalized = dEdPij +(j==i && P[nA*j+i]<tol_diagP ? 1 : 0);
 					//necessary: if on the Q stops depending on P then learning is meaningless
 					//const Real dEdPij = Qer*dOdPij + (j==i && P[nA*j+i]<tol_diagP ? 1e5*(tol_diagP-P[nA*j+i]) : 0);
 					//#endif
-					grad[1+il] += _dPdl[nA*j+i]*penalized;
-					//grad[1+il] += _dPdl[nA*j+i]*dEdPij;
+					//grad[1+il] += _dPdl[nA*j+i]*penalized;
+					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
 		}
       {
@@ -673,7 +676,7 @@ protected:
    inline Real hardPlus(const Real val) const
    {
       //return std::exp(val);
-      return 0.5*(val + std::sqrt(val*val+1));
+      return 0.5*(val + std::sqrt(val*val+1)) + ACER_MIN_PREC;
    }
 
    inline Real diffHardPlus(const Real val) const
@@ -686,17 +689,17 @@ protected:
 	{
 		//return val;
 		//return std::exp(val);
-		return 0.5*(val + std::sqrt(val*val+1));
-		//return sqrt(val + std::sqrt(val*val+1);
+		//return 0.5*(val + std::sqrt(val*val+1)) +tol_diagL;
+		return sqrt(val + std::sqrt(val*val+1)) +tol_diagL;
 	}
 
 	inline Real diffSoftPlus(const Real val) const
 	{
 		//return std::exp(val);
 		//return 1.;
-		return 0.5*(1 + val/std::sqrt(val*val+1));
-		//const Real den = std::sqrt(val*val+1);
-		//return 0.5*std::sqrt(den+val)/den;
+		//return 0.5*(1 + val/std::sqrt(val*val+1));
+		const Real den = std::sqrt(val*val+1);
+		return 0.5*std::sqrt(den+val)/den;
 	}
 
    inline Real softSign(const Real val) const
