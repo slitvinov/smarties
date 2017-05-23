@@ -151,7 +151,7 @@ private:
 
 	inline vector<Real> finalizeGradient(const Real Verror,
 			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
-			const vector<Real>& out, const Real err_Cov, const Real gain1, const Real eta) const
+			const vector<Real>& out, const Real err_Cov) const
 	{
       const Real anneal = std::pow(annealingFactor(), 2);
 		assert(out.size() == nOutputs);
@@ -195,20 +195,8 @@ private:
 		#endif
 
 		//gradient clipping
-		//1) update stats about the gradient
-		vector<Real> _dump = grad;
-		_dump.push_back(gain1);
-		_dump.push_back(eta);
-		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
-		//2) clip the gradient wrt previous epoch to 6 sigma
-		for (unsigned int i=0; i<grad.size(); i++)
-		{
-			if(grad[i] >  6*stdGrad[0][i] && stdGrad[0][i]>2.2e-16)
-				grad[i] =  6*stdGrad[0][i];
-			else
-			if(grad[i] < -6*stdGrad[0][i] && stdGrad[0][i]>2.2e-16)
-				grad[i] = -6*stdGrad[0][i];
-		}
+		//for (unsigned int i=0; i<grad.size(); i++)
+		//	grad[i] = std::max(-10.,std::min(10.,grad[i]));
 
 		return grad;
 	}
@@ -240,8 +228,7 @@ private:
 			//if that was true, environment created the layers it wanted
 			// else we read the settings:
 			net->addInput(nInputs);
-			//const int nsplit = std::min(static_cast<int>(lsize.size()),2);
-			const int nsplit = 1;
+			const int nsplit = lsize.size()>3 ? 2 : 1;
 			//const int nsplit = lsize.size();
 			for (int i=0; i<lsize.size()-nsplit; i++)
 				net->addLayer(lsize[i], lType);
@@ -272,7 +259,6 @@ private:
 	{
 		return std::fabs(v)<std::fabs(w) ? v : w;
 	}
-
 	vector<vector<Real>> prepareBins(const vector<Real> lower, const vector<Real>& upper,
 			const vector<int>& nbins)
 	{

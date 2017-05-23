@@ -96,7 +96,7 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 			//prepare rolled Q with off policy corrections for next step:
 			Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +out_hat[k][0];
 			//const Real lambda = std::max(c_hat, 0.1);
-			const Real lambda = 0.5; 
+			const Real lambda = 0.5;
 			Q_OPC = lambda*(Q_OPC -A_hat -out_hat[k][0]) +out_hat[k][0];
 		}
 
@@ -226,17 +226,11 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 			const vector<Real> critic_grad =
 			criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act, Qer);
 			const vector<Real> grad =
-			finalizeGradient(Ver, critic_grad, policy_grad, out_cur[k], err_Cov);
+			finalizeGradient(Ver, critic_grad, policy_grad, out_cur[k], err_Cov, gain1, eta);
 			//write gradient onto output layer
 			net->setOutputDeltas(grad, series_cur[k]);
-	      //printf("Applying gradient %s\n",printVec(grad).c_str());
-	      //fflush(0);
-	      //
+
 			//bookkeeping:
-	      //#ifndef NDEBUG
-	      		vector<Real> _dump = grad; _dump.push_back(gain1); _dump.push_back(eta);
-			statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
-	      //#endif
 			vector<Real> fake{A_cur, 100};
 			dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
 			if(thrID == 1) net->updateRunning(series_cur[k]);

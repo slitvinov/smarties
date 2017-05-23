@@ -18,8 +18,7 @@
 #include <algorithm>
 #include <cmath>
 
-//#include "RACER_TrainBPTT.cpp"
-#include "RACER_Train.cpp"
+#include "RACER_TrainBPTT.cpp"
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 PolicyAlgorithm(comm,_env,settings, 0.1), truncation(100), cntGrad(nThreads+1,0),
@@ -89,9 +88,9 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 	#else
 		const vector<Real> mean = mu;
 	#endif
-	#if 1
+	#if 0
 	beta.insert(beta.end(), P.begin(), P.end());
-	beta.insert(beta.end(), mean.begin(), mean.end());
+	beta.insert(beta.end(), mu.begin(), mu.end());
 	#endif
 	data->passData(agentId, info, sOld, a, beta, s, r);
 }
@@ -212,13 +211,11 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const Real A_cur = computeAdvantage(act, polHat, varHat, P_Cur, mu_Cur);
 		const Real A_hat = computeAdvantage(act, polHat, varHat, P_Hat, mu_Hat);
 		const Real A_pol = computeAdvantage(pol, polCur, varCur, P_Hat, mu_Hat);
-		const Real V_cur = out_cur[k][0];
-		const Real V_hat = out_hat[k][0];
 
 		//compute quantities needed for trunc import sampl with bias correction
 		const Real importance = std::min(rho_cur, truncation);
 		const Real correction = std::max(0., 1.-truncation/rho_pol);
-		const Real A_OPC = Q_OPC - V_hat;
+		const Real A_OPC = Q_OPC - out_hat[k][0];
 
 		#ifdef ACER_VARIATE
 			const Real cov_A_A = out_cur[k][nOutputs-1];
@@ -269,34 +266,36 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		//trust region updating
 		const vector<Real> gradDivKL = gradDKL(polCur, polHat, preCur, preHat);
 		const vector<Real> gradAcer = gradAcerTrpo(policy_grad, gradDivKL);
-		const Real Vs  = stateValue(V_hat, V_cur);
-		const Real RET = stateValue(Q_RET-A_hat-V_hat, Q_RET-A_cur-V_cur);
-		const Real OPC = stateValue(Q_OPC-A_hat-V_hat, Q_OPC-A_cur-V_cur);
-		const Real Qer = (Q_RET -A_cur -V_cur);
+		const Real Vs  = stateValue(out_cur[k][0],out_hat[k][0]);
+		const Real Qer = (Q_RET -A_cur -out_cur[k][0]);
 		//unclear usefulness:
 		//const Real Ver = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat);
 		const Real Ver = 0;
 		//prepare rolled Q with off policy corrections for next step:
-		Q_RET = c_hat*RET +Vs;
+		Q_RET = c_hat*1.*(Q_RET -A_hat -out_hat[k][0]) +Vs;
 		//TODO: now Q_OPC ios actually Q_RET, which is better?
 		//Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
 		//Q_OPC = c_hat*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
-		Q_OPC = 0.5*OPC +Vs;
+		Q_OPC = 0.5*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
 
 		const vector<Real> critic_grad =
 		criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act, Qer);
 		const vector<Real> grad =
-		finalizeGradient(Ver, critic_grad, policy_grad, out_cur[k], err_Cov, gain1, eta);
+		finalizeGradient(Ver, critic_grad, policy_grad, out_cur[k], err_Cov);
 		//write gradient onto output layer
 		net->setOutputDeltas(grad, series_cur[k]);
       //printf("Applying gradient %s\n",printVec(grad).c_str());
       //fflush(0);
-
+      //
 		//bookkeeping:
+      //#ifndef NDEBUG
+      		vector<Real> _dump = grad; _dump.push_back(gain1); _dump.push_back(eta);
+		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
+      //#endif
 		vector<Real> fake{A_cur, 100};
-		dumpStats(Vstats[thrID], A_cur+V_cur, Qer, fake);
+		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
 		if(thrID == 1) net->updateRunning(series_cur[k]);
-		data->Set[seq]->tuples[k]->SquaredError =Qer*Qer;
+		data->Set[seq]->tuples[k]->SquaredError = Qer*Qer;
 		//data->Set[seq]->tuples[k]->SquaredError = std::pow(A_OPC*rho_cur,2);
 	}
 
@@ -319,10 +318,6 @@ void RACER::processStats(vector<trainData*> _stats, const Real avgTime)
 	printf("Avg grad [%s] - std [%s]\n",
 	printVec(avgGrad[0]).c_str(), printVec(stdGrad[0]).c_str());
 	fflush(0);
-	ofstream filestats;
-    	filestats.open("grads.txt", ios::app);
-	filestats<<printVec(avgGrad[0]).c_str()<<" "<<printVec(stdGrad[0]).c_str()<<endl;
-	filestats.close();
    //#endif
 	Learner::processStats(_stats, avgTime);
 }
