@@ -15,11 +15,10 @@
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
 mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
 maxSeqLen(settings.maxSeqLen), minSeqLen(settings.minSeqLen),
-maxTotSeqNum(settings.maxTotSeqNum), iOldestSaved(0), bSampleSeq(settings.nnType),
+maxTotSeqNum(settings.maxTotSeqNum), bSampleSeq(settings.nnType),
 bRecurrent(settings.nnType), bWriteToFile(!(settings.samplesFile=="none")),
 bNormalize(settings.nnTypeInput), bTrain(settings.bTrain==1),
-path(settings.samplesFile), anneal(0), nBroken(0), nTransitions(0),
-nSequences(0), aI(_env->aI), sI(_env->sI), generators(settings.generators), old_ndata(0)
+path(settings.samplesFile), aI(_env->aI), sI(_env->sI), generators(settings.generators)
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
@@ -423,6 +422,7 @@ void Transitions::push_back(const int & agentId)
             Set.push_back(Tmp[agentId]);
             nTransitions+=Tmp[agentId]->tuples.size()-1;
         }
+	nSeenSequences++;
     } else {
         //for (int i(0); i<Tmp[agentId]->tuples.size(); i++) {
         //    _dispose_object(Tmp[agentId]->tuples[i]);
@@ -544,10 +544,10 @@ vector<Real> Transitions::standardize(const vector<Real>& state, const Real nois
 
 void Transitions::synchronize()
 {
-  #if 1==0
+  #if 1==1
 	assert(nSequences==Set.size() && maxTotSeqNum == nSequences);
-	uniform_real_distribution<Real> dis(0.,1.);
-  //if (dis(*(gen->g))>0.01) {
+	//uniform_real_distribution<Real> dis(0.,1.);
+  	//if (dis(*(gen->g))>0.01) {
     #pragma omp parallel for schedule(dynamic)
     for(int i=0; i<Set.size(); i++) {
       Set[i]->MSE = 0.;
@@ -572,14 +572,14 @@ void Transitions::synchronize()
     }
     const auto compare=[this](Sequence* a, Sequence* b){return a->MSE<b->MSE;};
     std::sort(Set.begin(), Set.end(), compare);
-    if(Set.front()->MSE > Set.back()->MSE) die("WRONG\n");
-  //} else random_shuffle(Set.begin(), Set.end(), *(gen));
+    assert(Set.front()->MSE > Set.back()->MSE);
+  	//} else random_shuffle(Set.begin(), Set.end(), *(gen));
 
-  iOldestSaved = 0;
-  #endif
+    iOldestSaved = 0;
+    #endif
    int cnt =0;
-  int nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
-  //  for(auto & bufTransition : Buffered) {
+   int nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
+   //  for(auto & bufTransition : Buffered) {
    for(int i=bufferSize-1; i>=0; i--) {
       cnt++;
       //auto bufTransition = Buffered[i];

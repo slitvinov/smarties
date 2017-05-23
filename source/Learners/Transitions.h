@@ -58,7 +58,7 @@ class Transitions
 protected:
     const MPI_Comm mastersComm;
     Environment * const env;
-    int iOldestSaved;
+    int iOldestSaved=0;
     const bool bSampleSeq, bWriteToFile, bNormalize, bTrain;
     const string path;
     vector<Real> std, mean, invstd;
@@ -86,7 +86,7 @@ protected:
 public:
     const int nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
     bool bRecurrent;
-    int anneal, nBroken, nTransitions, nSequences, old_ndata;
+    int anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0, nSeenSequences=0;
     const StateInfo sI;
     const ActionInfo aI;
     std::vector<std::mt19937>& generators;

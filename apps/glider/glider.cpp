@@ -245,7 +245,7 @@ int main(int argc, const char * argv[])
 #else
             double reward = dist_gain/performamce; //JUST NOPE
 #endif
-#if 0
+#if 1
             reward -= rotation;
 #endif
 #if 1
@@ -286,19 +286,12 @@ int main(int argc, const char * argv[])
                     double final_reward = 0;
                     //these rewards will then be multiplied by 1/(1-gamma)
                     //in RL algorithm, so that internal RL scales make sense
-#if 0
-                    final_reward += got_there ? 1 : -a.getDistance()/10.;
-                    final_reward += landing && got_there ? 1. : 0;
-#elif 1
-                    final_reward += got_there ? TERM_REW_FAC : -TERM_REW_FAC*a.getDistance();
+                    final_reward  = got_there ? TERM_REW_FAC : -TERM_REW_FAC*a.getDistance();
                     final_reward += (landing && got_there) ? TERM_REW_FAC : 0;
-#elif 0
-                    final_reward += got_there ? 10 : -a.getDistance();
-                    final_reward += landing && got_there ? 10 : 0;
-#endif
 
-                    if(max_torque||way_too_far||wrong_xdir)
-                        final_reward = -TERM_REW_FAC*(a.getDistance() + 50+a._s.y);
+		    if(wrong_xdir || max_torque || way_too_far) 
+			final_reward -= TERM_REW_FAC*pow(50+a._s.y,2); 
+
                     a.prepareState(state);
                     //printf("Sending term state %f %f %f %f\n",
                     //state[0],state[1],state[2],state[3]); 

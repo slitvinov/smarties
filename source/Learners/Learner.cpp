@@ -406,9 +406,10 @@ void Learner::updateTargetNetwork()
 
 bool Learner::checkBatch(unsigned long mastersNiter)
 {
+    const unsigned long dataNiter = bRecurrent ? data->nSeenSequences : mastersNiter;
     const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
     if (ndata<batchSize*10 || !bTrain) {
-      mastersNiter_b4PolUpdates = mastersNiter;
+      mastersNiter_b4PolUpdates = dataNiter;
       return false;
     }  //do we have enough data? TODO k*ndata?
 
@@ -418,7 +419,7 @@ bool Learner::checkBatch(unsigned long mastersNiter)
     //then let master thread go to help other threads finish the batch
     //otherwise only go to communicate if batch is over
     const long unsigned learnerNiter = opt->nepoch + mastersNiter_b4PolUpdates;
-    if (env->cheaperThanNetwork && mastersNiter > learnerNiter)
+    if (env->cheaperThanNetwork && dataNiter > learnerNiter)
       return true;
 
     //If the transition buffer is already backed up, train and pause communicating

@@ -25,7 +25,7 @@ using namespace std;
 GliderEnvironment::GliderEnvironment(const int _nAgents, const string _execpath,
 																 const int _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings) {
-	cheaperThanNetwork=false;
+	//cheaperThanNetwork=false;
 	settings.saveFreq = 1e5;
 }
 
