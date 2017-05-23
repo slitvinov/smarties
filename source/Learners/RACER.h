@@ -125,25 +125,13 @@ public:
 	{
 		#if defined ACER_RELAX
 			// I output V(s), P(s), pol(s), prec(s) (and variate)
-			#ifdef ACER_VARIATE
-				return 1+NL+NA+NA+1;
-			#else
 				return 1+NL+NA+NA;
-			#endif
 		#elif defined ACER_SAFE
 			// I output V(s), P(s), pol(s), mu(s) (and variate)
-			#ifdef ACER_VARIATE
-				return 1+NL+NA+NA+1;
-			#else
 				return 1+NL+NA+NA;
-			#endif
 		#else //full formulation
 			// I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
-			#ifdef ACER_VARIATE
-				return 1+NL+NA+NA+NA+1;
-			#else
 				return 1+NL+NA+NA+NA;
-			#endif
 		#endif
 	}
 
@@ -151,7 +139,7 @@ private:
 
 	inline vector<Real> finalizeGradient(const Real Verror,
 			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
-			const vector<Real>& out, const Real err_Cov, const Real gain1, const Real eta) const
+			const vector<Real>& out, const int thrID, const Real gain1, const Real eta) const
 	{
       const Real anneal = std::pow(annealingFactor(), 2);
 		assert(out.size() == nOutputs);
@@ -188,10 +176,6 @@ private:
          }
 		#else
 			//no gradient for mean of critic, ofc
-		#endif
-
-		#ifdef ACER_VARIATE
-			grad[nOutputs-1] = err_Cov;
 		#endif
 
 		//gradient clipping

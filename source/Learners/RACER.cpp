@@ -28,31 +28,16 @@ avgGrad(nThreads+1,vector<Real>(nOutputs+2,0))
 {
 	#if defined ACER_RELAX
 		// I output V(s), P(s), pol(s), prec(s) (and variate)
-		#ifdef ACER_VARIATE
-			const vector<int> noutputs = {1,nL,nA,nA,1};
-			assert(nOutputs == 1+nL+nA+nA+1);
-		#else
 			const vector<int> noutputs = {1,nL,nA,nA};
 			assert(nOutputs == 1+nL+nA+nA);
-		#endif
 	#elif defined ACER_SAFE
 		// I output V(s), P(s), pol(s), mu(s) (and variate)
-		#ifdef ACER_VARIATE
-			const vector<int> noutputs = {1,nL,nA,nA,1};
-			assert(nOutputs == 1+nL+nA+nA+1);
-		#else
 			const vector<int> noutputs = {1,nL,nA,nA};
 			assert(nOutputs == 1+nL+nA+nA);
-		#endif
 	#else //full formulation
 		// I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
-		#ifdef ACER_VARIATE
-			const vector<int> noutputs = {1,nL,nA,nA,nA,1};
-			assert(nOutputs == 1+nL+nA+nA+nA+1);
-		#else
 			const vector<int> noutputs = {1,nL,nA,nA,nA};
 			assert(nOutputs == 1+nL+nA+nA+nA);
-		#endif
 	#endif
 
 	buildNetwork(noutputs, settings);
@@ -220,35 +205,19 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const Real correction = std::max(0., 1.-truncation/rho_pol);
 		const Real A_OPC = Q_OPC - V_hat;
 
-		#ifdef ACER_VARIATE
-			const Real cov_A_A = out_cur[k][nOutputs-1];
-			//const vector<Real> smp = samplePolicy(polCur, varCur, thrID);
+		#ifdef ACER_PENALIZER
 			const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
-			//const Real A_tgt = computeAdvantage(smp, polCur, varCur, P_Hat, mu_Hat);
 			const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
-			const Real err_Cov = A_OPC*A_cov - cov_A_A;
-			//const Real cotrolVar = A_tgt;
+			//static const Real L = 0.25, eps = 2.2e-16;
+			static const Real L = 0.25, eps = 2.2e-16;
+			//static const Real L = 2.2e-16, eps = 2.2e-16;
+			const Real threshold = A_cov * A_cov / (varCritic+eps);
+			const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
+			const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
+			//eta = eta > 1 ? 1 : (eta < -1 ? -1 : eta);
 			const Real cotrolVar = A_cov;
-			//const Real cotrolVar = nA+diagTerm(varCur,polCur,mu_Hat)
-			//												 -diagTerm(varCur,   pol,mu_Hat);
-
-			const Real eta = anneal*std::min(std::max(-.5, cov_A_A/varCritic), 0.5);
-			//const Real eta = 0;
 		#else
-			#ifdef ACER_PENALIZER
-				const Real varCritic = advantageVariance(polCur, varCur, P_Hat, mu_Hat);
-				const Real A_cov = computeAdvantage(act, polCur, varCur, P_Hat, mu_Hat);
-				//static const Real L = 0.25, eps = 2.2e-16;
-				static const Real L = 0.25, eps = 2.2e-16;
-				//static const Real L = 2.2e-16, eps = 2.2e-16;
-				const Real threshold = A_cov * A_cov / (varCritic+eps);
-				const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
-				const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
-				//eta = eta > 1 ? 1 : (eta < -1 ? -1 : eta);
-				const Real cotrolVar = A_cov, err_Cov = 0;
-			#else
-				const Real eta = 0, cotrolVar = 0, err_Cov = 0;
-			#endif
+			const Real eta = 0, cotrolVar = 0;
 		#endif
 
 		const Real gain1 = A_OPC * importance - eta * rho_cur * cotrolVar;
@@ -259,7 +228,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const vector<Real> gradAcer_1 = policyGradient(polCur, preCur, act, gain1);
 		const vector<Real> gradAcer_2 = policyGradient(polCur, preCur, pol, gain2);
 
-		#if defined(ACER_VARIATE) || defined(ACER_PENALIZER)
+		#ifdef ACER_PENALIZER
 		const vector<Real> gradC = controlGradient(polCur, varCur, P_Hat, mu_Hat, eta);
 		const vector<Real> policy_grad = sum3Grads(gradAcer_1, gradAcer_2, gradC);
 		#else
@@ -286,7 +255,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		const vector<Real> critic_grad =
 		criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act, Qer);
 		const vector<Real> grad =
-		finalizeGradient(Ver, critic_grad, policy_grad, out_cur[k], err_Cov, gain1, eta);
+		finalizeGradient(Ver, critic_grad, policy_grad, out_cur[k], thrID, gain1, eta);
 		//write gradient onto output layer
 		net->setOutputDeltas(grad, series_cur[k]);
       //printf("Applying gradient %s\n",printVec(grad).c_str());
