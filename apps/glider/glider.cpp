@@ -9,7 +9,8 @@
 #include "Communicator.h"
 #endif
 //#define __SMART_
-#define __PRINT_
+//#define __PRINT_
+#define TERM_REW_FAC 10
 using namespace std;
 
 struct Vec7
@@ -289,15 +290,15 @@ int main(int argc, const char * argv[])
                     final_reward += got_there ? 1 : -a.getDistance()/10.;
                     final_reward += landing && got_there ? 1. : 0;
 #elif 1
+                    final_reward += got_there ? TERM_REW_FAC : -TERM_REW_FAC*a.getDistance();
+                    final_reward += (landing && got_there) ? TERM_REW_FAC : 0;
+#elif 0
                     final_reward += got_there ? 10 : -a.getDistance();
                     final_reward += landing && got_there ? 10 : 0;
-#elif 0
-                    final_reward += got_there ? 100 : -a.getDistance();
-                    final_reward += landing && got_there ? 100 : 0;
 #endif
 
                     if(max_torque||way_too_far||wrong_xdir)
-                        final_reward = -100;
+                        final_reward = -TERM_REW_FAC*(a.getDistance() + 50+a._s.y);
                     a.prepareState(state);
                     //printf("Sending term state %f %f %f %f\n",
                     //state[0],state[1],state[2],state[3]); 

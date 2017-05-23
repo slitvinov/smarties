@@ -8,7 +8,8 @@ viz ?= 0
 config ?= prod
 extra ?=
 app ?= test
-cvar ?= simple
+#cvar ?= simple
+cvar ?= off
 acer ?= full 
 testdiff ?= no 
 entropy ?= off
@@ -73,11 +74,8 @@ endif #safe
 ifeq "$(entropy)" "on"
 CPPFLAGS+= -D__EntropySGD
 endif
-ifeq "$(cvar)" "simple"
+ifeq "$(cvar)" "on"
 CPPFLAGS+= -DACER_PENALIZER
-endif
-ifeq "$(cvar)" "full"
-CPPFLAGS+= -DACER_VARIATE
 endif
 
 ifeq "$(app)" "cubism"
