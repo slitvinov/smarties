@@ -237,8 +237,8 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
     assert(timeSeries.size() == seq_len);
     vector<Real> res(nOutputs); //allocate net output
 
-    const Real incr = 1e-6;
-    const Real tol  = 1e-4;
+    const Real incr = 1e-7;
+    const Real tol  = 1e-3;
     uniform_real_distribution<Real> dis(0.,1.);
     //figure out where to place some errors at random in outputs
     for (int i=0; i<seq_len; i++) {

@@ -220,17 +220,6 @@ class LinkToLSTM : public Link
 		fflush(0);
 			}
 
-	void initialize(mt19937* const gen, Real* const _weights) const override
-	{
-		//#ifndef __posDef_layers_
-		//const Real range = std::sqrt(6./(nO + nI));
-
-		const Real range =
-		//#else
-		//const Real range =
-		//#endif
-		_initialize(gen, _weights, range, iW,  nO, nI, nO_simd);
-	}
   void initialize(mt19937*const gen, Real*const _weights, const Function*const func) const
 	{
     const Real width = 2*std::max(nO,nI); //stupid workaround...
