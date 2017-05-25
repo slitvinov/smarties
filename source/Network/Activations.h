@@ -152,7 +152,7 @@ struct Linear : public Function
 {
 	Real initFactor(const int inps, const int outs) const override
 	{
-		return 2./inps;
+		return std::sqrt(2./inps);// 2./inps;
 	}
 	Real eval(const Real in) const override
 	{

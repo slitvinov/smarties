@@ -374,8 +374,8 @@ class LinkToConv2D : public Link
 	}
   void initialize(mt19937*const gen, Real*const _weights, const Function*const func) const
 	{
-		assert(outputDepth_simd*nAdded == nW);
     const int nAdded = filterWidth*filterHeight*inputDepth;
+		assert(outputDepth_simd*nAdded == nW);
 		_initialize(gen, _weights, func->initFactor(nAdded,outputDepth), iW, nO, nAdded, outputDepth_simd);
 	}
 	void save(vector<Real> & out, Real* const _weights) const override

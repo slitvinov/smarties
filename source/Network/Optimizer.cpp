@@ -307,23 +307,23 @@ void AdamOptimizer::save(const string fname)
 	ofstream out(nameBackup.c_str());
 	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
 
-	vector<Real> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2tMomB;
+	vector<Real> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2MomB;
 	outWeights.reserve(nWeights); out1MomW.reserve(nWeights); out2MomW.reserve(nWeights);
-	outBiases.reserve(nBiases); out1MomB.reserve(nBiases); out2tMomB.reserve(nBiases);
+	outBiases.reserve(nBiases);   out1MomB.reserve(nBiases);  out2MomB.reserve(nBiases);
 	out.precision(20);
 
 	net->save(outWeights, outBiases, net->weights, net->biases);
-	net->save(out1MomW, out1MomB, _1stMomW, _1stMomB);
-	net->save(out2MomW, out2tMomB, _2ndMomW, _2ndMomB);
+	net->save(out1MomW,   out1MomB,  _1stMomW,     _1stMomB);
+	net->save(out2MomW,   out2MomB,  _2ndMomW,     _2ndMomB);
 
 	out<<outWeights.size()<<" "<<outBiases.size()<<" "<<nLayers<<" "<<nNeurons<<endl;
 	assert(outWeights.size() == out1MomW.size() && outWeights.size() == out2MomW.size());
-	assert(outBiases.size() == out1MomB.size() && outBiases.size() == out2tMomB.size());
+	assert(outBiases.size() == out1MomB.size() && outBiases.size() == out2MomB.size());
 
 	for(int i=0;i<outWeights.size();i++)
 		out<<outWeights[i]<<" "<<out1MomW[i]<<" "<<out2MomW[i]<<"\n";
 	for(int i=0;i<outBiases.size();i++)
-		out<<outBiases[i] <<" "<<out1MomB[i]<<" "<<out2tMomB[i]<<"\n";
+		out<<outBiases[i] <<" "<<out1MomB[i]<<" "<<out2MomB[i]<<"\n";
 	out.flush();
 	out.close();
 	string command = "cp " + nameBackup + " " + fname + "_net";
@@ -356,8 +356,8 @@ bool Optimizer::restart(const string fname)
 		//readTotWeights != nWeights || readTotBiases != nBiases || TODO
 
 	vector<Real> outWeights, outBiases, outMomW, outMomB;
-	outWeights.reserve(nWeights); outMomW.reserve(nWeights);
-	outBiases.reserve(nBiases); outMomB.reserve(nBiases);
+	outWeights.resize(nWeights); outMomW.resize(nWeights);
+	outBiases.resize(nBiases); outMomB.resize(nBiases);
 	for (int i=0;i<readTotWeights;i++)
 		in >> outWeights[i] >> outMomW[i];
 	for (int i=0;i<readTotBiases; i++)
@@ -392,18 +392,18 @@ bool AdamOptimizer::restart(const string fname)
 		die("Network parameters differ!");
 		//readTotWeights != nWeights || readTotBiases != nBiases || TODO
 
-	vector<Real> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2tMomB;
-	outWeights.reserve(nWeights); out1MomW.reserve(nWeights); out2MomW.reserve(nWeights);
-	outBiases.reserve(nBiases); out1MomB.reserve(nBiases); out2tMomB.reserve(nBiases);
+	vector<Real> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2MomB;
+	outWeights.resize(nWeights); out1MomW.resize(nWeights); out2MomW.resize(nWeights);
+	outBiases.resize(nBiases);   out1MomB.resize(nBiases);  out2MomB.resize(nBiases);
 
 	for (int i=0;i<readTotWeights;i++)
 		in >> outWeights[i] >> out1MomW[i] >> out2MomW[i];
 	for (int i=0;i<readTotBiases; i++)
-		in >> outBiases[i]  >> out1MomB[i] >> out2tMomB[i];
+		in >> outBiases[i]  >> out1MomB[i] >> out2MomB[i];
 
 	net->restart(outWeights, outBiases, net->weights, net->biases);
-	net->restart(out1MomW, out1MomB, _1stMomW, _1stMomB);
-	net->restart(out2MomW, out2tMomB, _2ndMomW, _2ndMomB);
+	net->restart(out1MomW,   out1MomB,  _1stMomW,     _1stMomB);
+	net->restart(out2MomW,   out2MomB,  _2ndMomW,     _2ndMomB);
 	in.close();
 	net->updateFrozenWeights();
 	return restart_recurrent_connections(fname);

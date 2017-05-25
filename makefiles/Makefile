@@ -60,7 +60,6 @@ CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
 CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 #-DNDEBUG
 #CPPFLAGS += -funsafe-math-optimizations
 CPPFLAGS += -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
-CPPFLAGS += -ffast-math
 
 ifeq "$(acer)" "safe"
 CPPFLAGS += -DACER_SAFE
@@ -85,16 +84,16 @@ ifeq "$(app)" "cubism"
 CPPFLAGS+= -D__Cubism3D
 endif
 ifeq "$(config)" "debug"
-CPPFLAGS+= -g -O2
+CPPFLAGS+= -g -O2 -ffast-math 
 ifeq "$(testdiff)" "yes"
 CPPFLAGS+= -D__CHECK_DIFF
 endif 
 endif 
 ifeq "$(config)" "prod"
-CPPFLAGS += -DNDEBUG -O2
+CPPFLAGS += -DNDEBUG -O2 -ffast-math
 endif
 ifeq "$(config)" "fit"
-CPPFLAGS += -DNDEBUG -O3
+CPPFLAGS += -DNDEBUG -O3 -ffast-math
 endif
 
 ifeq "$(CC)" "icc"
