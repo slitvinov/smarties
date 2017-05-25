@@ -209,17 +209,28 @@ class LinkToLSTM : public Link
 		assert(iWI==iW +nW);
 		assert(iWF==iWI+nW);
 		assert(iWO==iWF+nW);
-		assert(iC>=0 && iWI>=0 && iWF>=0 && iWO>=0);
+		assert(iC>=0 && iWI>0 && iWF>0 && iWO>0);
 	}
 
 	void print() const override
-	{
+			{
 		cout << "LSTM link: nInputs="<< nI << " IDinput=" << iI
 		<< " nOutputs=" << nO << " IDoutput" << iO << " IDcell" << iC
 		<< " IDweight" << iW << " nWeights" << nW << " nO_simd"<<nO_simd << endl;
 		fflush(0);
-	}
+			}
 
+	void initialize(mt19937* const gen, Real* const _weights) const override
+	{
+		//#ifndef __posDef_layers_
+		//const Real range = std::sqrt(6./(nO + nI));
+
+		const Real range =
+		//#else
+		//const Real range =
+		//#endif
+		_initialize(gen, _weights, range, iW,  nO, nI, nO_simd);
+	}
   void initialize(mt19937*const gen, Real*const _weights, const Function*const func) const
 	{
     const Real width = 2*std::max(nO,nI); //stupid workaround...

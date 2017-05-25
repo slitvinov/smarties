@@ -175,14 +175,20 @@ struct Tanh : public Function
 	{
 			if(in >  8) return  1;
 			if(in < -8) return -1;
-			const Real e2x = std::exp(-2*in);
-			return (1-e2x)/(1+e2x);
+			if(in>0) {
+				const Real e2x = std::exp(-2*in);
+				return (1-e2x)/(1+e2x);
+			} else {
+				const Real e2x = std::exp( 2*in);
+				return (e2x-1)/(1+e2x);
+			}
 	}
 
 	Real evalDiff(const Real in) const override
 	{
 		const Real arg = in < 0 ? -in : in;
-		const Real e2x = arg > 8 ? std::exp(-16) : std::exp(-2.*arg);
+		const Real e2x = std::exp(-2.*arg);
+		if (arg > 8) return 4*e2x;
 		return 4*e2x/((1+e2x)*(1+e2x));
 	}
 };
@@ -197,8 +203,13 @@ struct TwoTanh : public Function
 	{
 			if(in >  8) return  2;
 			if(in < -8) return -2;
-			const Real e2x = std::exp(-2*in);
-			return 2*(1-e2x)/(1+e2x);
+			if(in>0) {
+				const Real e2x = std::exp(-2*in);
+				return 2*(1-e2x)/(1+e2x);
+			} else {
+				const Real e2x = std::exp( 2*in);
+				return 2*(e2x-1)/(1+e2x);
+			}
 	}
 
 	Real evalDiff(const Real in) const override
@@ -217,15 +228,16 @@ struct Sigm : public Function
 	}
 	Real eval(const Real in) const override
 	{
-			if(in >  8) return 1;
-			if(in < -8) return 0;
+			if(in >  16) return 1;
+			if(in < -16) return 0;
 			return 1/(1+std::exp(-in));
 	}
 
 	Real evalDiff(const Real in) const override
 	{
 		const Real arg = in < 0 ? -in : in;
-		const Real e2x = arg > 8 ? std::exp(-8) : std::exp(-arg);
+		const Real e2x = std::exp(-arg);
+		if (arg > 16) return e2x;
 		return e2x/((1+e2x)*(1+e2x));
 	}
 };
@@ -240,7 +252,6 @@ struct SoftSign : public Function
 	{
 			return in/(1+std::fabs(in));
 	}
-
 	Real evalDiff(const Real in) const override
 	{
 		const Real denom = 1+std::fabs(in);
@@ -327,15 +338,15 @@ struct ExpPlus : public Function
 	}
 	Real eval(const Real in) const override
 	{
-			if(in >  8) return in;
-			if(in < -8) return 0;
+			if(in >  16) return in;
+			if(in < -16) return 0;
 			return std::log(1+std::exp(in));
 	}
 
 	Real evalDiff(const Real in) const override
 	{
-		if(in >  8) return 1;
-		if(in < -8) return std::exp(-in); //neglect denom
+		if(in >  16) return 1;
+		if(in < -16) return std::exp(in); //neglect denom
 		return 1/(1+std::exp(-in));
 	}
 };
