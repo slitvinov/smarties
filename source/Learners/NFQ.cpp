@@ -21,33 +21,7 @@
 NFQ::NFQ(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings)
 {
-	string lType = bRecurrent ? "LSTM" : "Normal";
-	vector<int> lsize;
-	lsize.push_back(settings.nnLayer1);
-	if (settings.nnLayer2>1) {
-		lsize.push_back(settings.nnLayer2);
-		if (settings.nnLayer3>1) {
-			lsize.push_back(settings.nnLayer3);
-			if (settings.nnLayer4>1) {
-				lsize.push_back(settings.nnLayer4);
-				if (settings.nnLayer5>1) {
-					lsize.push_back(settings.nnLayer5);
-				}
-			}
-		}
-	}
-
-    net = new Network(settings);
-    //check if environment wants a particular network structure
-	if (not env->predefinedNetwork(net))
-	{ //if that was true, environment created the layers it wanted, else we read the settings:
-		net->addInput(nInputs);
-		for (int i=0; i<lsize.size(); i++) net->addLayer(lsize[i], lType);
-		net->addOutput(nOutputs, "Normal");
-	}
-    net->build();
-    //opt = new Optimizer(net, profiler, settings);
-    opt = new AdamOptimizer(net, profiler, settings);
+	buildNetwork(net, opt, vector<int>(1,nOutputs), settings);
 }
 
 void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
@@ -200,7 +174,6 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
         net->setOutputDeltas(errs, timeSeries[k]);
         dumpStats(Vstats[thrID], Qs[action], err, Qs);
         data->Set[seq]->tuples[k]->SquaredError = err*err;
-        if(thrID == 1) net->updateRunning(timeSeries[k]);
     }
 
     if (thrID==0) net->backProp(timeSeries, net->grad);
@@ -248,7 +221,6 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
     errs[action] = err;
 
     dumpStats(Vstats[thrID], Qs[action], err, Qs);
-    if(thrID == 1) net->updateRunning(sOldActivation);
     data->Set[seq]->tuples[samp]->SquaredError = err*err;
 
     if (thrID==0) net->backProp(errs, sOldActivation, net->grad);

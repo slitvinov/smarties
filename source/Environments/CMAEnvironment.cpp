@@ -28,14 +28,6 @@ Environment(settings.nThreads, _execpath, _rank, settings)
 {
 }
 
-bool CMAEnvironment::predefinedNetwork(Network* const net) const
-{
-	//this function can be used if environment requires particular network settings
-	//i.e. not fully connected LSTM/FF network
-	//i.e. if you want to use convolutions
-	return false;
-}
-
 void CMAEnvironment::setDims() //this environment is for the cart pole test
 {
     {

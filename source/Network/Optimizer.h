@@ -13,8 +13,6 @@
 #include "Network.h"
 #include "../Profiler.h"
 
-using namespace std;
-
 class Optimizer
 { //basic momentum update
 protected:
@@ -25,7 +23,7 @@ protected:
 
 	void init(Real* const dest, const int N, const Real ini=0);
 	void update(Real* const dest, Real* const grad, Real* const _1stMom,
-			const int N, const int batchsize, const Real _lambda=0) const;
+			const int N, const int batchsize) const;
 
 public:
 	const Real eta, lambda, alpha;
@@ -70,8 +68,7 @@ protected:
 	Real *_2ndMomW, *_2ndMomB;
 
 	void update(Real* const dest, Real* const grad, Real* const _1stMom,
-			Real* const _2ndMom, const int N, const int batchsize,
-			const Real _lambda, const Real _eta);
+			Real* const _2ndMom, const int N, const int batchsize, const Real _eta);
 
 public:
 	AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings,
@@ -97,7 +94,7 @@ protected:
 
 	void update(Real* const dest, const Real* const target, Real* const grad,
 			Real* const _1stMom, Real* const _2ndMom, Real* const _mu, const int N,
-			const int batchsize, const Real _lambda, const Real _eta);
+			const int batchsize, const Real _eta);
 public:
 
 	EntropySGD(Network* const _net,Profiler* const _prof,Settings& settings);

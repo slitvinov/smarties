@@ -29,7 +29,7 @@ Environment(_nAgents, _execpath, _rank, settings), allSenses(settings.senses==0)
 //   cheaperThanNetwork=false;
 }
 
-bool CartEnvironment::predefinedNetwork(Network* const net) const
+bool CartEnvironment::predefinedNetwork(Builder* const net) const
 {
 	//this function can be used if environment requires particular network settings
 	//i.e. not fully connected LSTM/FF network

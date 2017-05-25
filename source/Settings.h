@@ -114,33 +114,84 @@ inline void statsGrad(vector<Real>& sum, vector<Real>& sqr, Real& cnt, vector<Re
   }
 }
 
+inline void Lpenalization(Real* const weights, const int start, const int N, const Real lambda)
+{
+  for (int i=start; i<start+N; i++) weights[i]+= (weights[i]<0 ? lambda : -lambda);
+  //for (int i=start; i<start+N; i++) weights[i]-= weights[i]*lambda;
+}
+
 struct Settings
 {
-    Settings() : saveFreq(1e3), randSeed(0), rewardType(0), senses(0),
-    nAgents(1), nSlaves(1), nThreads(-1), nnInputs(-1), nnOutputs(-1),
-    nnLayer1(32), nnLayer2(32), nnLayer3(0), nnLayer4(0), nnLayer5(0), nnType(1),
-    dqnAppendS(0), dqnBatch(1), bTrain(1), maxSeqLen(200), minSeqLen(5),
-    maxTotSeqNum(5000), nMasters(1), isLauncher(1),
-    lRate(.0001), greedyEps(.1), gamma(.9), lambda(0), goalDY(0), nnPdrop(0),
-    nnLambda(0), dqnUpdateC(1000.), epsAnneal(1e4), learner((string)"NFQ"),
-    restart((string)"policy"), configFile((string)"factory"), prefix((string)"./"),
-    samplesFile((string)"../obs_master.txt"), bSeparateOutputs(false),
-    nnTypeInput(true), bIsMaster(true)
-    {}
-
-    int saveFreq, randSeed, rewardType, senses, nAgents, nSlaves, nThreads;
-    int nnInputs, nnOutputs, nnLayer1, nnLayer2, nnLayer3, nnLayer4, nnLayer5;
-    int nnType, dqnAppendS, dqnBatch, bTrain, maxSeqLen, minSeqLen;
-    int maxTotSeqNum, nMasters, isLauncher, sockPrefix;
-    Real lRate, greedyEps, gamma, lambda, goalDY, nnPdrop, nnLambda, dqnUpdateC, epsAnneal;
-    string learner, restart, configFile, prefix, samplesFile;
-    bool bSeparateOutputs, nnTypeInput, bIsMaster;
+    Settings() {}
+    int saveFreq = 1e3;
+    int randSeed = 0;
+    int rewardType = 0;
+    int senses = 0;
+    int nAgents = -1;
+    int nSlaves = -1;
+    int nThreads = -1;
+    int nnInputs = -1;
+    int nnOutputs = -1;
+    int nnLayer1 = -1;
+    int nnLayer2 = -1;
+    int nnLayer3 = -1;
+    int nnLayer4 = -1;
+    int nnLayer5 = -1;
+    int dqnAppendS = 0;
+    int dqnBatch = 1;
+    int maxSeqLen = 1000;
+    int minSeqLen = 3;
+    int maxTotSeqNum = 5000;
+    int nMasters = 1;
+    int isLauncher = 1;
+    int sockPrefix = 0;
+    int separateOutputs = 1;
+    Real lRate = 0;
+    Real greedyEps = 0.1;
+    Real gamma = 0.9;
+    Real lambda = 0;
+    Real goalDY = 0;
+    Real nnPdrop = 0;
+    Real nnLambda = 0;
+    Real dqnUpdateC = 10000;
+    Real epsAnneal = 1e4;
+    string learner = "NFQ";
+    string restart = "policy";
+    string configFile = "factory";
+    string prefix = "./";
+    string samplesFile = "history.txt";
+    string netType = "Feedforward";
+    string funcType = "PRelu";
+    bool normalizeInput = true;
+    bool bIsMaster = true;
+    bool bRecurrent = false;
+    int bTrain = 1;
     //std::mt19937* gen;
     std::vector<std::mt19937> generators;
 
     ~Settings()
     {
     	//_dispose_object(gen);
+    }
+
+    vector<int> readNetSettingsSize()
+    {
+      vector<int> ret;
+      assert(nnLayer1>0);
+      ret.push_back(nnLayer1);
+      if (nnLayer2>0) {
+        ret.push_back(nnLayer2);
+        if (nnLayer3>0) {
+          ret.push_back(nnLayer3);
+          if (nnLayer4>0) {
+            ret.push_back(nnLayer4);
+            if (nnLayer5>0) {
+              ret.push_back(nnLayer5);
+            }
+          }
+        }
+      }
+      return ret;
     }
 };
 

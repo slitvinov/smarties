@@ -10,7 +10,6 @@
 #pragma once
 #include "Activations.h"
 
-using namespace std;
 //typedef int st;
 
 class Approximator

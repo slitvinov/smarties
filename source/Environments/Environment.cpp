@@ -27,7 +27,7 @@ Environment::~Environment()
       _dispose_object(trash);
 }
 
-bool Environment::predefinedNetwork(Network* const net) const
+bool Environment::predefinedNetwork(Builder* const net) const
 {
 	//this function can be used if environment requires particular network settings
 	//i.e. not fully connected LSTM/FF network

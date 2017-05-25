@@ -40,7 +40,7 @@ avgGrad(nThreads+1,vector<Real>(nOutputs+2,0))
 			assert(nOutputs == 1+nL+nA+nA+nA);
 	#endif
 
-	buildNetwork(noutputs, settings);
+	buildNetwork(net, opt, noutputs, settings);
    data->bRecurrent = bRecurrent = true;
 	assert(nOutputs == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
@@ -263,7 +263,6 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		//bookkeeping:
 		vector<Real> fake{A_cur, 100};
 		dumpStats(Vstats[thrID], A_cur+V_cur, Qer, fake);
-		if(thrID == 1) net->updateRunning(series_cur[k]);
 		data->Set[seq]->tuples[k]->SquaredError =Qer*Qer;
 		//data->Set[seq]->tuples[k]->SquaredError = std::pow(A_OPC*rho_cur,2);
 	}

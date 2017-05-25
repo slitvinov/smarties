@@ -15,9 +15,9 @@
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
 mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
 maxSeqLen(settings.maxSeqLen), minSeqLen(settings.minSeqLen),
-maxTotSeqNum(settings.maxTotSeqNum), bSampleSeq(settings.nnType),
-bRecurrent(settings.nnType), bWriteToFile(!(settings.samplesFile=="none")),
-bNormalize(settings.nnTypeInput), bTrain(settings.bTrain==1),
+maxTotSeqNum(settings.maxTotSeqNum), bSampleSeq(settings.bRecurrent),
+bRecurrent(settings.bRecurrent), bWriteToFile(!(settings.samplesFile=="none")),
+bNormalize(settings.normalizeInput), bTrain(settings.bTrain),
 path(settings.samplesFile), aI(_env->aI), sI(_env->sI), generators(settings.generators)
 {
     mean.resize(sI.dimUsed, 0);

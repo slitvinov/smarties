@@ -10,7 +10,7 @@
 #pragma once
 
 #include "PolicyAlgorithm.h"
-#define ACER_GRAD_CUT 3
+#define ACER_GRAD_CUT 5
 using namespace std;
 
 class RACER : public PolicyAlgorithm
@@ -122,17 +122,17 @@ public:
 	void select(const int agentId, State& s,Action& a, State& sOld,
 			Action& aOld, const int info, Real r) override;
 
-	static int getnOutputs(const int NL, const int NA)
+	static int getnOutputs(const int NA)
 	{
 		#if defined ACER_RELAX
 			// I output V(s), P(s), pol(s), prec(s) (and variate)
-				return 1+NL+NA+NA;
+				return 1+(NA*NA+NA)/2+NA+NA;
 		#elif defined ACER_SAFE
 			// I output V(s), P(s), pol(s), mu(s) (and variate)
-				return 1+NL+NA+NA;
+				return 1+(NA*NA+NA)/2+NA+NA;
 		#else //full formulation
 			// I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
-				return 1+NL+NA+NA+NA;
+				return 1+(NA*NA+NA)/2+NA+NA+NA;
 		#endif
 	}
 
@@ -196,61 +196,6 @@ private:
 		}
 
 		return grad;
-	}
-
-	void buildNetwork(const vector<int> nouts, Settings & settings)
-	{
-		string lType = bRecurrent ? "LSTM" : "Normal";
-		vector<int> lsize;
-		assert(nouts.size()>0);
-
-		lsize.push_back(settings.nnLayer1);
-		if (settings.nnLayer2>1) {
-			lsize.push_back(settings.nnLayer2);
-			if (settings.nnLayer3>1) {
-				lsize.push_back(settings.nnLayer3);
-				if (settings.nnLayer4>1) {
-					lsize.push_back(settings.nnLayer4);
-					if (settings.nnLayer5>1) {
-						lsize.push_back(settings.nnLayer5);
-					}
-				}
-			}
-		}
-
-		net = new Network(settings);
-		//check if environment wants a particular network structure
-		if (not env->predefinedNetwork(net))
-		{
-			//if that was true, environment created the layers it wanted
-			// else we read the settings:
-			net->addInput(nInputs);
-			//const int nsplit = std::min(static_cast<int>(lsize.size()),2);
-			const int nsplit = 1;
-			//const int nsplit = lsize.size();
-			for (int i=0; i<lsize.size()-nsplit; i++)
-				net->addLayer(lsize[i], lType);
-
-			const int firstSplit = lsize.size()-nsplit;
-			const vector<int> lastJointLayer(1,net->getLastLayerID());
-
-			for (int i=0; i<nouts.size(); i++)
-			{
-				net->addLayer(lsize[firstSplit], lType, lastJointLayer);
-
-				for (int j=firstSplit+1; j<lsize.size(); j++)
-					net->addLayer(lsize[j], lType);
-
-				net->addOutput(nouts[i], "Normal");
-			}
-		}
-		net->build();
-
-		#ifndef __EntropySGD
-			opt = new AdamOptimizer(net, profiler, settings);
-		#else
-			opt = new EntropySGD(net, profiler, settings);
-		#endif
 	}
 
 	inline Real stateValue(const Real v, const Real w) const

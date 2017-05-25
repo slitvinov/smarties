@@ -13,7 +13,7 @@
 #include "../Communicator.h"
 #include "../Agent.h"
 #include "../StateAction.h"
-#include "../ANN/Network.h"
+#include "../Network/Builder.h"
 
 #include <map>
 
@@ -42,7 +42,7 @@ public:
 
     virtual bool pickReward(const State& t_sO, const Action& t_a,
                             const State& t_sN, Real& reward, const int info);
-    virtual bool predefinedNetwork(Network* const net) const;
+    virtual bool predefinedNetwork(Builder* const net) const;
 
     virtual vector<Real> stateDumpUpperBound();
     virtual vector<Real> stateDumpLowerBound();

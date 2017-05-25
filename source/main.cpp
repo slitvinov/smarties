@@ -47,10 +47,8 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
 	}
 	else if (settings.learner == "RACER") {
 		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-		const int nA = env->aI.dim;
-		const int nL = (nA*nA+nA)/2;
-		settings.nnOutputs = RACER::getnOutputs(nL, nA);
-		settings.bSeparateOutputs = true; //else it does not really work
+		settings.nnOutputs = RACER::getnOutputs(env->aI.dim);
+		settings.separateOutputs = true; //else it does not really work
 		return new RACER(mastersComm, env, settings);
 	}
 	else if (settings.learner == "DACER") {
@@ -58,7 +56,7 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
 		const int nA = env->aI.maxLabel;
 		printf("Read %d outputs\n",nA);
 		settings.nnOutputs = DACER::getnOutputs(nA);
-		settings.bSeparateOutputs = true; //else it does not really work
+		settings.separateOutputs = true; //else it does not really work
 		return new DACER(mastersComm, env, settings);
 	}
 	else if (settings.learner == "NA" || settings.learner == "NAF") {
@@ -66,7 +64,7 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
 		const int nA = env->aI.dim;
 		const int nL = (nA*nA+nA)/2;
 		settings.nnOutputs = 1+nL+nA;
-		settings.bSeparateOutputs = true; //else it does not really work
+		settings.separateOutputs = true; //else it does not really work
 		return new NAF(mastersComm, env, settings);
 	}
 	else if (settings.learner == "DP" || settings.learner == "DPG") {
@@ -267,9 +265,12 @@ int main (int argc, char** argv)
 		{'V',"nnl5",     INT,
 				"NN layer 5",
 				&settings.nnLayer5,  (int)0},
-		{'T',"nnType",   INT,
-				"Network Type: LSTM (1) Feed forward (0)",
-				&settings.nnType,    (int)1},
+		{'T',"nnType",   STRING,
+				"Network Type: LSTM, RNN, any other means Feedforward",
+				&settings.netType, (string)"Feedforward"},
+		{'F',"funcType",   STRING,
+				"Activation (Relu, Tanh, Linear, etc) of non-ouput layers (which are always linear)",
+				&settings.funcType, (string)"SoftSign"},
 		{'C',"dqnT",     REAL,
 				"Delay for target network weight update",
 				&settings.dqnUpdateC,(Real)1000},
@@ -316,6 +317,7 @@ int main (int argc, char** argv)
 	Parser parser(opts);
 	parser.parse(argc, argv, rank == 0);
 
+	settings.bRecurrent = settings.netType=="LSTM" || settings.netType=="RNN";
 
 	if (not settings.isLauncher) {
 		if (settings.sockPrefix<0)

@@ -20,7 +20,7 @@ Environment(_nAgents, _execpath, _rank, settings), legalActions(_nActions)
 {
 }
 
-bool alebotEnvironment::predefinedNetwork(Network* const net) const
+bool alebotEnvironment::predefinedNetwork(Builder* const net) const
 {
 	//indices are: feature map (color), height, width
 	//this function can be used if environment requires particular network settings
@@ -28,25 +28,25 @@ bool alebotEnvironment::predefinedNetwork(Network* const net) const
 	//i.e. if you want to use convolutions
 	//CNN should be:
 	//input 84x84x4
-	
+
 	//1st layer (Convolution):
 	//	32 filters (8x8)
 	//	stride 4
 	//	applies a rectifier nonlinearity
-	
+
 	//2nd layer (Convolution):
 	//	64 filters (4x4)
 	//	stride 2
 	//	applies a rectifier nonlinearity
-	
+
 	//3rd layer (Convolution)
 	//	64 filters (3x3)
 	//	stride 1
 	//	applies a rectifier
-	
+
 	//4th layer (fully connected)
 	//	512 rectifier units
-	
+
 	//output layer (fully connected), linear
 	//	1 output per valid action (4-18) assume 18
 	{
@@ -58,22 +58,25 @@ bool alebotEnvironment::predefinedNetwork(Network* const net) const
 		const int padding[2] = {0,0};
 		const int outSize[3] = {20,20,32};
 		const int stride[2] = {4,4};
-		net->addConv2DLayer(filterSize, outSize, padding, stride);
+		net->addConv2DLayer(filterSize, outSize, padding, stride, "Relu");
 	}
 	{
 		const int filterSize[3] = {4,4,64};
 		const int padding[2] = {0,0};
 		const int outSize[3] = {9,9,64};
 		const int stride[2] = {2,2};
-		net->addConv2DLayer(filterSize, outSize, padding, stride);
+		net->addConv2DLayer(filterSize, outSize, padding, stride, "Relu");
 	}
 	{
 		const int filterSize[3] = {3,3,64};
 		const int padding[2] = {0,0};
 		const int outSize[3] = {7,7,64};
 		const int stride[2] = {1,1};
-		net->addConv2DLayer(filterSize, outSize, padding, stride);
+		net->addConv2DLayer(filterSize, outSize, padding, stride, "Relu");
 	}
+
+	//AFTER CONV LAYERS, LAYER SHAPE IS CREATED BY LEARNER BY READING SETTINGS
+	/*
 	{
 		 //add fully connected layer with 512 rectifier units
 		 const int nunits=512;
@@ -81,7 +84,7 @@ bool alebotEnvironment::predefinedNetwork(Network* const net) const
 	}
 
 	net->addOutput(legalActions, "Normal");
-
+	*/
 	return true;
 }
 

@@ -12,8 +12,9 @@
 #include "../Agent.h"
 #include "../Environments/Environment.h"
 #include "Transitions.h"
-#include "../ANN/Network.h"
-#include "../ANN/Optimizer.h"
+#include "../Network/Builder.h"
+#include "../Network/Network.h"
+#include "../Network/Optimizer.h"
 
 class Master;
 #define __NOISE 0.01
@@ -40,9 +41,9 @@ protected:
     bool bRecurrent;
     const bool bTrain;
     const Real tgtUpdateAlpha, gamma, greedyEps, epsAnneal;
-    Real dataUsage;
-    int cntUpdateDelay, taskCounter;
-    unsigned long mastersNiter_b4PolUpdates;
+    Real dataUsage = 0;
+    int cntUpdateDelay = -1, taskCounter;
+    unsigned long mastersNiter_b4PolUpdates = 0;
     ActionInfo aInfo;
     StateInfo  sInfo;
     mt19937* const gen;  //only ok if only thread 0 accesses
@@ -128,4 +129,6 @@ public:
     void TrainTasking(Master* const master);
     void save(string name);
     void restart(string fname);
+    void buildNetwork(Network*& _net , Optimizer*& _opt, const vector<int> nouts,
+      Settings & settings, const vector<int> addedInputs = vector<int>(0));
 };

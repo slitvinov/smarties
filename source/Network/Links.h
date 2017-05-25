@@ -9,14 +9,11 @@
 
 #pragma once
 
-#include "../Settings.h"
 #include "Activations.h"
 #include <iostream>
 #include <cassert>
 #include <sstream>
 #include <iomanip>
-
-using namespace std;
 
 class Link
 {
@@ -62,9 +59,6 @@ public:
 				*(_weights+n0+k*n_simd+i) *= std::sqrt(v_d_v_pre/v_d_v_post);
 		}
 	}
-	virtual void resetRunning() {};
-	virtual void updateRunning(Activation* const act, const int counter) {};
-	virtual void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) {};
 };
 
 class NormalLink: public Link
@@ -137,12 +131,12 @@ public:
 	{
 		const Real* __restrict__ const link_input = netFrom->outvals +iI;
 		Real* __restrict__ const link_outputs = netTo->in_vals +iO;
-		__builtin_assume_aligned(link_outputs, __vec_width__);
-		__builtin_assume_aligned(link_input, __vec_width__);
+		//__builtin_assume_aligned(link_outputs, __vec_width__);
+		//__builtin_assume_aligned(link_input, __vec_width__);
 		#if 1
 			for (int i = 0; i < nI; i++) {
 				const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
-				__builtin_assume_aligned(link_weights, __vec_width__);
+				//__builtin_assume_aligned(link_weights, __vec_width__);
 				for (int o = 0; o < nO; o++) {
 					link_outputs[o] += link_input[i] * link_weights[o];
 				}
@@ -163,26 +157,31 @@ public:
 		const Real* __restrict__ const layer_input = netFrom->outvals + iI;
 		const Real* __restrict__ const deltas = netTo->errvals + iO;
 		Real* __restrict__ const link_errors = netFrom->errvals + iI;
-		__builtin_assume_aligned(link_errors, __vec_width__);
-		__builtin_assume_aligned(layer_input, __vec_width__);
-		__builtin_assume_aligned(deltas, __vec_width__);
+		//__builtin_assume_aligned(link_errors, __vec_width__);
+		//__builtin_assume_aligned(layer_input, __vec_width__);
+		//__builtin_assume_aligned(deltas, __vec_width__);
 
 		for (int i = 0; i < nI; i++) {
 			const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
 			Real* __restrict__ const link_dEdW = gradW +iW +nO_simd*i;
-			__builtin_assume_aligned(link_weights, __vec_width__);
-			__builtin_assume_aligned(link_dEdW, __vec_width__);
+			//__builtin_assume_aligned(link_weights, __vec_width__);
+			//__builtin_assume_aligned(link_dEdW, __vec_width__);
 			for (int o = 0; o < nO; o++) {
 				link_dEdW[o] += layer_input[i] * deltas[o];
 				link_errors[i] += deltas[o] * link_weights[o];
 			}
 		}
 	}
+
+	inline void regularize(Real* const weights, const Real lambda) const
+	{
+		Lpenalization(weights, iW, nW, lambda);
+	}
 };
 
 class LinkToLSTM : public Link
 {
-public:
+ public:
 	/*
      if link is TO lstm, then the rules change a bit
      each LSTM block contains 4 neurons, one is the proper cell and then there are the 3 gates
@@ -224,13 +223,13 @@ public:
 	void initialize(mt19937* const gen, Real* const _weights) const override
 	{
 		printf("Initializing LSTM\n");
-#ifndef __posDef_layers_
+		//#ifndef __posDef_layers_
 		//const Real range = std::sqrt(6./(nO + nI));
 		const Real width = 2*std::max(nO,nI);
 		const Real range = std::sqrt(6./(nO + width));
-#else
-		const Real range = 2./nI;
-#endif
+		//#else
+		//const Real range = 2./nI;
+		//#endif
 		uniform_real_distribution<Real> dis(-range,range);
 		//normal_distribution<Real> dis(0.,range);
 
@@ -296,21 +295,21 @@ public:
 		Real* __restrict__ const inputI = netTo->iIGates + iC;
 		Real* __restrict__ const inputF = netTo->iFGates + iC;
 		Real* __restrict__ const inputO = netTo->iOGates + iC;
-		__builtin_assume_aligned(inputs, __vec_width__);
-		__builtin_assume_aligned(inputI, __vec_width__);
-		__builtin_assume_aligned(inputF, __vec_width__);
-		__builtin_assume_aligned(inputO, __vec_width__);
-		__builtin_assume_aligned(link_input, __vec_width__);
+		//__builtin_assume_aligned(inputs, __vec_width__);
+		//__builtin_assume_aligned(inputI, __vec_width__);
+		//__builtin_assume_aligned(inputF, __vec_width__);
+		//__builtin_assume_aligned(inputO, __vec_width__);
+		//__builtin_assume_aligned(link_input, __vec_width__);
 
 		for (int i = 0; i < nI; i++) {
 			const Real* __restrict__ const weights_toCell  = weights + iW  + nO_simd*i;
 			const Real* __restrict__ const weights_toIgate = weights + iWI + nO_simd*i;
 			const Real* __restrict__ const weights_toFgate = weights + iWF + nO_simd*i;
 			const Real* __restrict__ const weights_toOgate = weights + iWO + nO_simd*i;
-			__builtin_assume_aligned(weights_toCell, __vec_width__);
-			__builtin_assume_aligned(weights_toIgate, __vec_width__);
-			__builtin_assume_aligned(weights_toFgate, __vec_width__);
-			__builtin_assume_aligned(weights_toOgate, __vec_width__);
+			//__builtin_assume_aligned(weights_toCell, __vec_width__);
+			//__builtin_assume_aligned(weights_toIgate, __vec_width__);
+			//__builtin_assume_aligned(weights_toFgate, __vec_width__);
+			//__builtin_assume_aligned(weights_toOgate, __vec_width__);
 
 			for (int o = 0; o < nO; o++) {
 				inputs[o] += link_input[i] * weights_toCell[o];
@@ -330,12 +329,12 @@ public:
 		const Real* __restrict__ const deltaF = netTo->eFGates +iC;
 		const Real* __restrict__ const deltaO = netTo->eOGates +iC;
 		const Real* __restrict__ const deltaC = netTo->eMCell +iC;
-		__builtin_assume_aligned(layer_input, __vec_width__);
-		__builtin_assume_aligned(link_errors, __vec_width__);
-		__builtin_assume_aligned(deltaI, __vec_width__);
-		__builtin_assume_aligned(deltaF, __vec_width__);
-		__builtin_assume_aligned(deltaO, __vec_width__);
-		__builtin_assume_aligned(deltaC, __vec_width__);
+		//__builtin_assume_aligned(layer_input, __vec_width__);
+		//__builtin_assume_aligned(link_errors, __vec_width__);
+		//__builtin_assume_aligned(deltaI, __vec_width__);
+		//__builtin_assume_aligned(deltaF, __vec_width__);
+		//__builtin_assume_aligned(deltaO, __vec_width__);
+		//__builtin_assume_aligned(deltaC, __vec_width__);
 
 		for (int i = 0; i < nI; i++) {
 			const Real* __restrict__ const w_toOgate = weights +iWO +nO_simd*i;
@@ -346,14 +345,14 @@ public:
 			Real* __restrict__ const dw_toFgate = gradW +iWF +nO_simd*i;
 			Real* __restrict__ const dw_toIgate = gradW +iWI +nO_simd*i;
 			Real* __restrict__ const dw_toCell  = gradW +iW  +nO_simd*i;
-			__builtin_assume_aligned(dw_toOgate, __vec_width__);
-			__builtin_assume_aligned(dw_toFgate, __vec_width__);
-			__builtin_assume_aligned(dw_toIgate, __vec_width__);
-			__builtin_assume_aligned(dw_toCell,  __vec_width__);
-			__builtin_assume_aligned(w_toOgate, __vec_width__);
-			__builtin_assume_aligned(w_toFgate, __vec_width__);
-			__builtin_assume_aligned(w_toIgate, __vec_width__);
-			__builtin_assume_aligned(w_toCell,  __vec_width__);
+			//__builtin_assume_aligned(dw_toOgate, __vec_width__);
+			//__builtin_assume_aligned(dw_toFgate, __vec_width__);
+			//__builtin_assume_aligned(dw_toIgate, __vec_width__);
+			//__builtin_assume_aligned(dw_toCell,  __vec_width__);
+			//__builtin_assume_aligned(w_toOgate, __vec_width__);
+			//__builtin_assume_aligned(w_toFgate, __vec_width__);
+			//__builtin_assume_aligned(w_toIgate, __vec_width__);
+			//__builtin_assume_aligned(w_toCell,  __vec_width__);
 
 			for (int o = 0; o < nO; o++) {
 				dw_toOgate[o] += layer_input[i] * deltaO[o];
@@ -365,12 +364,18 @@ public:
 			}
 		}
 	}
+
+	inline void regularize(Real* const weights, const Real lambda) const
+	{
+		//not the gates, they are never safe for regularizers
+		Lpenalization(weights, iW, nW, lambda);
+	}
 };
 
 
 class LinkToConv2D : public Link
 {
-public:
+ public:
 	const int iW, nI, iI, nO, iO, outputDepth_simd;
 	const int inputWidth, inputHeight, inputDepth;
 	const int filterWidth, filterHeight;
@@ -404,6 +409,12 @@ public:
 		assert((outputHeight-1)*strideY + filterHeight - (inputHeight+padY) < filterHeight);
 		assert(padX < filterWidth && padY < filterHeight);
 		print();
+	}
+
+	inline void regularize(Real* const weights, const Real lambda) const
+	{
+		//not sure:
+		Lpenalization(weights, iW, nW, lambda);
 	}
 
 	void print() const override
@@ -471,13 +482,13 @@ public:
 								netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
 						Real* __restrict__ const link_outputs =
 								netTo->in_vals +iO+outputDepth*(oy+outputHeight*ox);
-						__builtin_assume_aligned(link_outputs, __vec_width__);
-						__builtin_assume_aligned(link_inputs, __vec_width__);
+						//__builtin_assume_aligned(link_outputs, __vec_width__);
+						//__builtin_assume_aligned(link_inputs, __vec_width__);
 
 						for(int iz=0; iz<inputDepth; iz++) {
 							const Real* __restrict__ const link_weights =
 									weights +iW +outputDepth*(iz +inputDepth*(fy +filterHeight*fx));
-							__builtin_assume_aligned(link_weights, __vec_width__);
+							//__builtin_assume_aligned(link_weights, __vec_width__);
 
 							for(int fz=0; fz<outputDepth; fz++) {
 								//printf("oz %d \n",iO +outputDepth*(oy +outputHeight*ox)+fz);
@@ -510,17 +521,17 @@ public:
 								netFrom->errvals +iI +inputDepth*(cy +inputHeight*cx);
 						const Real* __restrict__ const deltas =
 								netTo->errvals +iO+outputDepth*(oy+outputHeight*ox);
-						__builtin_assume_aligned(link_inputs, __vec_width__);
-						__builtin_assume_aligned(link_errors, __vec_width__);
-						__builtin_assume_aligned(deltas, __vec_width__);
+						//__builtin_assume_aligned(link_inputs, __vec_width__);
+						//__builtin_assume_aligned(link_errors, __vec_width__);
+						//__builtin_assume_aligned(deltas, __vec_width__);
 
 						for(int iz=0; iz<inputDepth; iz++) {
 							const Real* __restrict__ const link_weights =
 									weights +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
 							Real* __restrict__ const link_dEdW    =
 									gradW +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
-							__builtin_assume_aligned(link_weights, __vec_width__);
-							__builtin_assume_aligned(link_dEdW, __vec_width__);
+							//__builtin_assume_aligned(link_weights, __vec_width__);
+							//__builtin_assume_aligned(link_dEdW, __vec_width__);
 
 							for(int fz=0; fz<outputDepth; fz++) {
 								link_errors[iz] += link_weights[fz]*deltas[fz];
@@ -532,219 +543,90 @@ public:
 	}
 };
 
-class WhiteningLink : public Link
-{
-	vector<Real> runningAvg, runningStd;
-public:
-	const int iW, nI, iI, nO, iO, nW, nO_simd;
-	WhiteningLink(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd) :
-		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nW(2*_nI), nO_simd(_nO_simd)
-	{
-		print();
-		assert(nI==nO && iI+nO_simd==iO);
-	}
-
-	void initialize(mt19937* const gen, Real* const _weights) const override
-	{
-		for (int p=0 ; p<2; p++)
-			for (int o=0 ; o<nO; o++)
-				*(_weights +iW +p*nO_simd +o) = 1==p ? 1. : 0.; //set to 1 the scaling factor
-	}
-
-	void restart(std::istringstream & buf, Real* const _weights) const override
-	{
-		for (int p=0 ; p<2; p++)
-			for (int o=0 ; o<nO; o++) {
-				Real tmp;
-				buf >> tmp;
-				assert(not std::isnan(tmp) & not std::isinf(tmp));
-				*(_weights +iW +p*nO_simd +o) = tmp;
-			}
-	}
-
-	void save(std::ostringstream & out, Real* const _weights) const override
-	{
-		out << std::setprecision(10);
-		for (int p=0; p<2; p++) for (int o=0; o<nO; o++)
-			out << *(_weights +iW +p*nO_simd +o) << "\n";
-	}
-
-	void print() const override
-	{
-		cout << "Whitening link: nInputs="<< nI << " IDinput=" << iI << " nOutputs="
-		<< nO << " IDoutput" << iO << " IDweight" << iW << " nO_simd"<<nO_simd<<endl;
-		fflush(0);
-	}
-
-	void resetRunning() override
-	{
-		if(static_cast<int>(runningAvg.size()) != nO) runningAvg.resize(nO);
-		if(static_cast<int>(runningStd.size()) != nO) runningStd.resize(nO);
-		for (int k=0; k<nO; k++) {
-			runningAvg[k] = 0;
-			runningStd[k] = 0;
-		}
-	}
-
-	void printRunning(int counter, std::ostringstream & oa, std::ostringstream & os) override
-	{
-		counter = std::max(counter,2);
-		const Real invNm1 = 1./(counter-1);
-		for (int i=0; i<nO; i++)  oa << runningAvg[i] << " ";
-		for (int i=0; i<nO; i++)  os << runningStd[i]*invNm1 << " ";
-	}
-
-	void updateRunning(Activation* const act, const int counter) override
-	{
-		assert(runningAvg.size() == nO && runningStd.size() == nO && counter>0);
-		const Real invN = 1./counter;
-
-		for (int k=0; k<nO; k++) {
-			const Real delta = act->in_vals[k+iO] - runningAvg[k];
-			runningAvg[k] += delta*invN;
-			runningStd[k] += delta*(act->in_vals[k+iO] - runningAvg[k]);
-		}
-	}
-};
-
 struct Graph //misleading, this is just the graph for a single layer
 {
-	//TODO SIMD safety
-	bool input, output, RNN, LSTM, Conv2D, normalize;
-	int layerSize, layerSize_simd;
-	int firstNeuron_ID; //recurrPos, normalPos;
-	int firstState_ID;
-	int firstBias_ID;
-	int firstBiasWhiten;
-	int firstBiasIG_ID, firstBiasFG_ID, firstBiasOG_ID;
-	int layerWidth, layerHeight, layerDepth, layerDepth_simd;
-	int padWidth, padHeight, featsWidth, featsHeight, featsNumber, strideWidth, strideHeight;
+	bool written = false; //is this graph already used?
+	bool built = false; //is this graph already used?
+
+	bool input = false;
+	bool input2D = false;
+	bool output = false;
+	bool RNN = false;
+	bool LSTM = false;
+	bool Conv2D = false;
+
+	int layerSize = -1;
+	int layerSize_simd = -1;
+	int firstNeuron_ID = -1;
+	int firstState_ID = -1;
+	int firstBias_ID = -1;
+
+	//LSTM gates:
+	int firstBiasIG_ID = -1, firstBiasFG_ID = -1, firstBiasOG_ID = -1;
+	//Convolutions: feature map size:
+	int layerWidth = -1, layerHeight = -1, layerDepth = -1;
+	int layerDepth_simd = -1;
+	//Convolutions: padding on bottom side of map:
+	int padWidth = -1, padHeight = -1;
+	//Convolutions: kernel size
+	int featsWidth = -1, featsHeight = -1, featsNumber = -1;
+	int featsNumber_simd = -1;
+	//Convolutions: padding on bottom side of map:
+	int strideWidth = -1, strideHeight = -1;
+
 	vector<int> linkedTo;
 	vector<Link*> * links;
 
-	Graph() :
-		input(false), output(false), RNN(false), LSTM(false), Conv2D(false), normalize(false),
-		layerSize(0), layerSize_simd(0), firstNeuron_ID(0), firstState_ID(0), firstBias_ID(0), firstBiasWhiten(-1),
-		firstBiasIG_ID(-1), firstBiasFG_ID(-1), firstBiasOG_ID(-1), //LSTM
-		layerWidth(-1), layerHeight(-1), layerDepth(-1), layerDepth_simd(-1), padWidth(-1), padHeight(-1), //Conv2D
-		featsWidth(-1), featsHeight(-1), featsNumber(-1), strideWidth(-1), strideHeight(-1)
+	Function* func = nullptr;
+	Function* cell = nullptr;
+	Function* gate = nullptr;
+
+	Graph()
 	{
 		links = new vector<Link*>();
 	}
 
-	~Graph()
+	~Graph() { }
+
+	void check() const
 	{
-		for (auto& link : *links)
-			_dispose_object(link);
-		_dispose_object(links);
-	}
+		assert(built);
+		assert(written);
+		assert(layerSize>0);
+		assert(layerSize_simd>=layerSize);
 
-	void restart(std::istringstream & bufWeights,
-			std::istringstream & bufBiases,
-			Real* const _weights,
-			Real* const _biases) const
-	{
-		for (const auto & l : *(links))
-			if(l not_eq nullptr) l->restart(bufWeights, _weights);
+		assert((input && func == nullptr) || (!input && func not_eq nullptr));
+		assert((input && firstNeuron_ID>=0) || (!input && firstNeuron_ID>0));
+		assert((input && firstBias_ID<0)   || (!input && firstBias_ID>=0));
 
-		Real tmp;
+		assert(!input2D || (input2D && input));
+		if(input) assert(!RNN);
+		if(input) assert(!LSTM);
+		if(input) assert(!Conv2D);
+		if(input) assert(!output);
 
-		for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++) {
-			bufBiases >> tmp;
-			assert(not std::isnan(tmp) & not std::isinf(tmp));
-			*(_biases +w) = tmp;
-		}
+		assert((!LSTM && cell == nullptr) || (LSTM && cell not_eq nullptr));
+		assert((!LSTM && gate == nullptr) || (LSTM && gate not_eq nullptr));
+		assert((!LSTM && firstBiasIG_ID<0) || (LSTM && firstBiasIG_ID>=0));
+		assert((!LSTM && firstBiasFG_ID<0) || (LSTM && firstBiasFG_ID>=0));
+		assert((!LSTM && firstBiasOG_ID<0) || (LSTM && firstBiasOG_ID>=0));
+		assert((!LSTM && firstState_ID<0) || (LSTM && firstState_ID>=0));
 
-		if (LSTM) { //let all gates be biased towards open: better backprop
-			for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize; w++){
-				bufBiases >> tmp;
-				assert(not std::isnan(tmp) & not std::isinf(tmp));
-				*(_biases +w) = tmp;
-			}
+		const bool layer2D = Conv2D || input2D;
+		assert((!layer2D && layerWidth<0) || (layer2D && layerWidth>=0));
+		assert((!layer2D && layerHeight<0) || (layer2D && layerHeight>=0));
+		assert((!layer2D && layerDepth<0) || (layer2D && layerDepth>=0));
+		assert((!layer2D && layerDepth_simd<0) || (layer2D && layerDepth_simd>=0));
 
-			for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize; w++){
-				bufBiases >> tmp;
-				assert(not std::isnan(tmp) & not std::isinf(tmp));
-				*(_biases +w) = tmp;
-			}
+		assert((!Conv2D && padWidth<0) || (Conv2D && padWidth>=0));
+		assert((!Conv2D && padHeight<0) || (Conv2D && padHeight>=0));
+		assert((!Conv2D && strideWidth<0) || (Conv2D && strideWidth>=0));
+		assert((!Conv2D && strideHeight<0) || (Conv2D && strideHeight>=0));
 
-			for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize; w++){
-				bufBiases >> tmp;
-				assert(not std::isnan(tmp) & not std::isinf(tmp));
-				*(_biases +w) = tmp;
-			}
-		}
+		assert((!Conv2D && featsWidth<0) || (Conv2D && featsWidth>=0));
+		assert((!Conv2D && featsHeight<0) || (Conv2D && featsHeight>=0));
+		assert((!Conv2D && featsNumber<0) || (Conv2D && featsNumber>=0));
+		assert((!Conv2D && featsNumber_simd<0) || (Conv2D && featsNumber_simd>=0));
 
-		if (firstBiasWhiten>=0)
-			for (int p=0 ; p<2; p++) for (int o=0 ; o<layerSize; o++){
-				bufBiases >> tmp;
-				assert(not std::isnan(tmp) & not std::isinf(tmp));
-				_biases[firstBiasWhiten + p*layerSize_simd+o] = tmp;
-			}
-	}
-
-	void save(std::ostringstream & outWeights,
-			std::ostringstream & outBiases,
-			Real* const _weights,
-			Real* const _biases) const
-	{
-		for (const auto & l : *(links))
-			if(l not_eq nullptr)
-				l->save(outWeights, _weights);
-
-		for (int w=firstBias_ID; w<firstBias_ID+layerSize; w++)
-			outBiases << *(_biases +w) << "\n";
-
-		if (LSTM) { //let all gates be biased towards open: better backprop
-			for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize; w++)
-				outBiases << *(_biases +w) << "\n";
-
-			for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize; w++)
-				outBiases << *(_biases +w) << "\n";
-
-			for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize; w++)
-				outBiases << *(_biases +w) << "\n";
-		}
-
-		if (firstBiasWhiten>=0)
-			for (int p=0 ; p<2; p++) for (int o=0 ; o<layerSize; o++)
-				outBiases << _biases[firstBiasWhiten + p*layerSize_simd+o] << "\n";
-	}
-
-	void initializeWeights(mt19937* const gen, Real* const _weights, Real* const _biases) const
-	{
-		uniform_real_distribution<Real> dis(-sqrt(6./layerSize),sqrt(6./layerSize));
-
-		if (firstBiasWhiten>=0) {
-			for (int p=0 ; p<2; p++)
-				for (int o=0 ; o<layerSize; o++)
-					_biases[firstBiasWhiten + p*layerSize_simd+o] = Real(1==p);
-		}
-
-		if (input) return;
-
-		printf("Initializing biases 1stBias %d (whitening %d) lS %d simd %d \n",
-				firstBias_ID, firstBiasWhiten, layerSize, layerSize_simd);
-		assert(layerSize>0 && layerSize_simd>0 && firstNeuron_ID>=0);
-
-		for (const auto & l : *(links))
-			if(l not_eq nullptr) l->initialize(gen, _weights);
-
-		if (not output) //let's try not having bias on output layer
-			for (int w=firstBias_ID; w<firstBias_ID+layerSize_simd; w++)
-				*(_biases +w) = dis(*gen);
-
-		if (LSTM) { //let all gates be biased towards open: better backprop
-			assert(firstState_ID>=0 && firstBiasIG_ID>0 && firstBiasFG_ID>0 && firstBiasOG_ID>0);
-
-			for (int w=firstBiasIG_ID; w<firstBiasIG_ID+layerSize_simd; w++)
-				*(_biases +w) = dis(*gen) - 1.0;
-
-			for (int w=firstBiasFG_ID; w<firstBiasFG_ID+layerSize_simd; w++)
-				*(_biases +w) = dis(*gen) + 1.0;
-
-			for (int w=firstBiasOG_ID; w<firstBiasOG_ID+layerSize_simd; w++)
-				*(_biases +w) = dis(*gen) - 1.0;
-		}
 	}
 };

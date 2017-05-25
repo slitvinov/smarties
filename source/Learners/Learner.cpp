@@ -14,137 +14,19 @@
 #include <string.h>
 #include <stdio.h>      /* printf, fgets */
 #include <stdlib.h>     /* atol */
-/*
- static void print_memory_usage()
- {
-     char pidstatus[256];
-     char *line;
-     char *vmsize;
-     char *vmpeak;
-     char *vmrss;
-     char *vmhwm;
-
-     size_t len;
-
-     FILE *f;
-     static int times = 0;
-
-     if (times % 100 != 0)
-     {
-         //return;
-     }
-     times++;
-
-     sprintf(pidstatus, "/proc/%d/status", getpid());
-     vmsize = NULL;
-     vmpeak = NULL;
-     vmrss = NULL;
-     vmhwm = NULL;
-     //line = malloc(128);
-     line = static_cast<char*>(malloc(128));
-     len = 128;
-
-     f = fopen(pidstatus, "r");
-     if (!f) return;
-
-     // Read memory size data from /proc/pid/status
-     while (!vmsize || !vmpeak || !vmrss || !vmhwm)
-     {
-         if (getline(&line, &len, f) == -1)
-         {
-             // Some of the information isn't there, die
-             return;
-         }
-
-         // Find VmPeak
-         if (!strncmp(line, "VmPeak:", 7))
-         {
-             vmpeak = strdup(&line[7]);
-         }
-
-         // Find VmSize
-         else if (!strncmp(line, "VmSize:", 7))
-         {
-             vmsize = strdup(&line[7]);
-         }
-
-
-         // Find VmRSS
-         else if (!strncmp(line, "VmRSS:", 6))
-         {
-             vmrss = strdup(&line[7]);
-         }
-
-         // Find VmHWM
-         else if (!strncmp(line, "VmHWM:", 6))
-         {
-             vmhwm = strdup(&line[7]);
-         }
-     }
-     free(line);
-
-     fclose(f);
-
-
-     // Get rid of " kB\n"
-     len = strlen(vmsize);
-     vmsize[len - 4] = 0;
-     len = strlen(vmpeak);
-     vmpeak[len - 4] = 0;
-     len = strlen(vmrss);
-     vmrss[len - 4] = 0;
-     len = strlen(vmhwm);
-     vmhwm[len - 4] = 0;
-
-     // Output results to stderr
-
-     #if 0
-      VmPeak: Peak virtual memory usage
-      VmSize: Current virtual memory usage
-      VmLck:  Current mlocked memory
-      VmHWM:  Peak resident set size
-      VmRSS:  Resident set size
-      VmData: Size of "data" segment
-      VmStk:  Size of stack
-      VmExe:  Size of "text" segment
-      VmLib:  Shared library usage
-      VmPTE:  Pagetable entries size
-      VmSwap: Swap space used
-      #endif
-
-     long _vmsize, _vmpeak, _vmrss, _vmhwm;
-
-     _vmsize = atol(vmsize);
-     _vmpeak = atol(vmpeak);
-     _vmrss = atol(vmrss);
-     _vmhwm = atol(vmhwm);
-
-     //      fprintf(stderr, "(PID=%d) VmSize:%s\tVmPeak:%s\tVmRSS:%s\tVmHWM:%s\n", getpid(), vmsize, vmpeak, vmrss, vmhwm);
-     printf("(PID=%d) VmSize:%8.1fMB, VmPeak:%8.1fMB, VmRSS:%8.1fMB, VmHWM:%8.1fMB\n",
-            getpid(), _vmsize/1024., _vmpeak/1024., _vmrss/1024., _vmhwm/1024.);
-
-     free(vmpeak);
-     free(vmsize);
-     free(vmrss);
-     free(vmhwm);
-
-     // Success
-     return;
- }
-*/
-
 #include "Learner.h"
 #include <chrono>
+
 Learner::Learner(MPI_Comm comm, Environment*const _env, Settings & settings) :
-mastersComm(comm), env(_env), nAgents(settings.nAgents), batchSize(settings.dqnBatch),
-tgtUpdateDelay((int)settings.dqnUpdateC), nThreads(settings.nThreads),
-nInputs(settings.nnInputs), nOutputs(settings.nnOutputs), nAppended(settings.dqnAppendS),
-bRecurrent(settings.nnType==1), bTrain(settings.bTrain==1),
-tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma), greedyEps(settings.greedyEps),
-epsAnneal(settings.epsAnneal), cntUpdateDelay(-1), taskCounter(batchSize),
-aInfo(env->aI), sInfo(env->sI), gen(&settings.generators[0]), mastersNiter_b4PolUpdates(0),
-dataUsage(0)
-//, meanGain1(nThreads+1,0), meanGain2(nThreads+1,0), stdGain1(nThreads+1,0), stdGain2(nThreads+1,0)
+mastersComm(comm), env(_env), nAgents(settings.nAgents),
+batchSize(settings.dqnBatch), tgtUpdateDelay((int)settings.dqnUpdateC),
+nThreads(settings.nThreads), nInputs(settings.nnInputs),
+nOutputs(settings.nnOutputs), nAppended(settings.dqnAppendS),
+bRecurrent(settings.bRecurrent), bTrain(settings.bTrain),
+tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma),
+greedyEps(settings.greedyEps), epsAnneal(settings.epsAnneal),
+taskCounter(batchSize), aInfo(env->aI), sInfo(env->sI),
+gen(&settings.generators[0])
 {
     for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
     profiler = new Profiler();
@@ -365,8 +247,6 @@ void Learner::stackAndUpdateNNWeights(const int nAddedGradients)
       MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
                     MPI_VALUE_TYPE, MPI_SUM, mastersComm);
     }
-
-    net->updateWhiten(nAddedGradients*nMasters);
     //update is deterministic: can be handled independently by each node
     //communication overhead is probably greater than a parallelised sum
     assert(nMasters>0);
@@ -525,7 +405,7 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
 
 
     Real sumWeights = 0, distTarget = 0, sumWeightsSq = 0;
-    for (int w=0; w<net->nWeights; w++){
+    for (int w=0; w<net->getnWeights(); w++){
     	sumWeights += std::fabs(net->weights[w]);
       sumWeightsSq += net->weights[w]*net->weights[w];
       distTarget += std::pow(net->weights[w]-net->tgt_weights[w],2);
@@ -536,8 +416,6 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     stats.MSE/=(stats.dumpCount-1);
     stats.avgQ/=stats.dumpCount;
     stats.relE/=stats.dumpCount;
-    net->printRunning();
-    net->resetRunning();
 
     ofstream filestats;
     filestats.open("stats.txt", ios::app);
@@ -563,43 +441,48 @@ void Learner::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
                         const vector<int>& nbins)
 {}
 
-/*
-void Learner::dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs)
+void Learner::buildNetwork(Network*& _net , Optimizer*& _opt,
+  const vector<int> nouts, Settings & settings, const vector<int> addedInputs)
 {
-    //ostringstream o;
-    //o << "[";
-    //for (int i=0; i<Qs.size(); i++) o << Qs[i] << " ";
-    //o << "]";
-    //printf("Process %f - %f : %s\n", tgt, Q, string(o.str()).c_str());
+  const string netType = settings.netType;
+  const string funcType = settings.funcType;
+  const vector<int> lsize = settings.readNetSettingsSize();
+  assert(nouts.size()>0);
 
-    const Real max_Q = *max_element(Qs.begin(), Qs.end());
-    const Real min_Q = *min_element(Qs.begin(), Qs.end());
-    stats.MSE  += err*err;
-    stats.relE += fabs(err)/(max_Q-min_Q);
-    stats.avgQ += Q;
-    stats.minQ = std::min(stats.minQ,Q);
-    stats.maxQ = std::max(stats.maxQ,Q);
-    stats.dumpCount++;
+  Builder build(settings);
+  //check if environment wants a particular network structure
+  if (not env->predefinedNetwork(&build))
+    build.addInput(nInputs);
 
-    if (data->nTransitions==stats.dumpCount && data->nTransitions>1) {
-        stats.MSE /=(stats.dumpCount-1);
-        stats.avgQ/=stats.dumpCount;
-        stats.relE/=stats.dumpCount;
+  for (int i=0; i<addedInputs.size(); i++)
+    build.addInput(addedInputs[i]);
 
-        ofstream filestats;
-        filestats.open("stats.txt", ios::app);
-        printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, min_Q %f, max_Q %f, N %d\n",
-               stats.epochCount,      stats.MSE,      stats.relE,      stats.avgQ,      stats.minQ,      stats.maxQ, stats.dumpCount);
-        filestats<<
-               stats.epochCount<<" "<<stats.MSE<<" "<<stats.relE<<" "<<stats.avgQ<<" "<<stats.maxQ<<" "<<stats.minQ<<endl;
-        filestats.close();
+  {
+    //const int nsplit = std::min(static_cast<int>(lsize.size()),2);
+    //const int nsplit = lsize.size()>3 ? 2 : 1;
+    const int nsplit = 1;
+    //const int nsplit = lsize.size();
+    for (int i=0; i<lsize.size()-nsplit; i++)
+      build.addLayer(lsize[i], netType, funcType);
 
-        stats.dumpCount = 0;
-        stats.epochCount++;
-        data->anneal++;
-        if (stats.epochCount % 100==0) save("policy");
+    const int firstSplit = lsize.size()-nsplit;
+    const vector<int> lastJointLayer(1, build.getLastLayerID());
 
-        stats.minQ=1e5; stats.maxQ=-1e5; stats.MSE=0; stats.avgQ=0; stats.relE=0;
+    for (int i=0; i<nouts.size(); i++)
+    {
+      build.addLayer(lsize[firstSplit], netType, funcType, lastJointLayer);
+
+      for (int j=firstSplit+1; j<lsize.size(); j++)
+        build.addLayer(lsize[j], netType, funcType);
+
+      build.addOutput(nouts[i], "Normal");
     }
+  }
+  _net = build.build();
+
+  #ifndef __EntropySGD
+    _opt = new AdamOptimizer(net, profiler, settings);
+  #else
+    _opt = new EntropySGD(net, profiler, settings);
+  #endif
 }
-*/

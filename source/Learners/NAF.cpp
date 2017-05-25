@@ -24,41 +24,8 @@ NAF::NAF(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2)
 {
-	string lType = bRecurrent ? "LSTM" : "Normal";
-	vector<int> lsize;
-	lsize.push_back(settings.nnLayer1);
-	if (settings.nnLayer2>1) {
-		lsize.push_back(settings.nnLayer2);
-		if (settings.nnLayer3>1) {
-			lsize.push_back(settings.nnLayer3);
-			if (settings.nnLayer4>1) {
-				lsize.push_back(settings.nnLayer4);
-				if (settings.nnLayer5>1) {
-					lsize.push_back(settings.nnLayer5);
-				}
-			}
-		}
-	}
-
-	net = new Network(settings);
-	//check if environment wants a particular network structure
-	if (not env->predefinedNetwork(net))
-	{ //if that was true, environment created the layers it wanted, else we read the settings:
-		net->addInput(nInputs);
-		for (int i=0; i<lsize.size()-1; i++) net->addLayer(lsize[i], lType);
-		const int splitLayer = lsize.size()-1;
-		const vector<int> lastJointLayer(1,net->getLastLayerID());
-		net->addLayer(lsize[splitLayer], lType, lastJointLayer);
-		net->addOutput(1, "Normal");
-		net->addLayer(lsize[splitLayer], lType, lastJointLayer);
-		net->addOutput(nL, "Normal");
-		net->addLayer(lsize[splitLayer], lType, lastJointLayer);
-		net->addOutput(nA, "Normal");
-	}
-	net->build();
-	assert(1+nL+nA == net->getnOutputs() && nInputs == net->getnInputs());
-
-	opt = new AdamOptimizer(net, profiler, settings);
+	const vector<int> noutputs = {1,nL,nA};
+	buildNetwork(net, opt, noutputs, settings);
 
 	#if 1//ndef NDEBUG
    vector<Real> out_0(nOutputs, 0.1), grad_0(nOutputs);
@@ -240,7 +207,6 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
       data->Set[seq]->tuples[k]->SquaredError = err*err;
       net->setOutputDeltas(gradient, timeSeries[k]);
       dumpStats(Vstats[thrID], Q[0], err, Q);
-      if(thrID==1) net->updateRunning(timeSeries[k]);
     }
 
     if (thrID==0) net->backProp(timeSeries, net->grad);
@@ -279,7 +245,6 @@ void NAF::Train(const int seq, const int samp, const int thrID) const
     const vector<Real> Q = computeQandGrad(gradient, _t->a, output, Vnext);
     const Real err = Vnext - Q[0];
     dumpStats(Vstats[thrID], Q[0], err, Q);
-    if(thrID == 1) net->updateRunning(sOldActivation);
     data->Set[seq]->tuples[samp]->SquaredError = err*err;
 
     if (thrID==0) net->backProp(gradient, sOldActivation, net->grad);

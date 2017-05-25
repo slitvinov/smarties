@@ -25,10 +25,10 @@ avgGrad(nThreads+1,vector<Real>(nOutputs+2,0))
 {
 	const vector<int> noutputs = {1,nA,nA};
 	assert(nOutputs == 1+nA+nA);
-	buildNetwork(noutputs, settings);
+	buildNetwork(net, opt, noutputs, settings);
 	assert(nOutputs == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
-
+	data->bRecurrent = bRecurrent = true;
 	checkGradient();
 }
 
@@ -171,7 +171,6 @@ void DACER::Train_BPTT(const int seq, const int thrID) const
       //#endif
 		vector<Real> fake{A_cur, 100};
 		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
-		if(thrID == 1) net->updateRunning(series_cur[k]);
 		data->Set[seq]->tuples[k]->SquaredError = Qer*Qer;
 		//data->Set[seq]->tuples[k]->SquaredError = std::pow(A_OPC*rho_cur,2);
 	}

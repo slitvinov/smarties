@@ -126,61 +126,6 @@ private:
 		return grad;
 	}
 
-	void buildNetwork(const vector<int> nouts, Settings & settings)
-	{
-		string lType = bRecurrent ? "LSTM" : "Normal";
-		vector<int> lsize;
-		assert(nouts.size()>0);
-
-		lsize.push_back(settings.nnLayer1);
-		if (settings.nnLayer2>1) {
-			lsize.push_back(settings.nnLayer2);
-			if (settings.nnLayer3>1) {
-				lsize.push_back(settings.nnLayer3);
-				if (settings.nnLayer4>1) {
-					lsize.push_back(settings.nnLayer4);
-					if (settings.nnLayer5>1) {
-						lsize.push_back(settings.nnLayer5);
-					}
-				}
-			}
-		}
-
-		net = new Network(settings);
-		//check if environment wants a particular network structure
-		if (not env->predefinedNetwork(net))
-		{
-			//if that was true, environment created the layers it wanted
-			// else we read the settings:
-			net->addInput(nInputs);
-			//const int nsplit = lsize.size()>3 ? 2 : 1;
-			const int nsplit = lsize.size();
-			for (int i=0; i<lsize.size()-nsplit; i++)
-				net->addLayer(lsize[i], lType);
-
-			const int firstSplit = lsize.size()-nsplit;
-			const vector<int> lastJointLayer(1,net->getLastLayerID());
-
-			for (int i=0; i<nouts.size(); i++)
-			{
-				net->addLayer(lsize[firstSplit], lType, lastJointLayer);
-
-				for (int j=firstSplit+1; j<lsize.size(); j++)
-					net->addLayer(lsize[j], lType);
-
-				net->addOutput(nouts[i], "Normal");
-			}
-		}
-		net->build();
-
-		#ifndef __EntropySGD
-			opt = new AdamOptimizer(net, profiler, settings);
-		#else
-			opt = new EntropySGD(net, profiler, settings);
-		#endif
-		data->bRecurrent = bRecurrent = true;
-	}
-
 	inline Real stateValue(const Real v, const Real w) const
 	{
 		return std::fabs(v)<std::fabs(w) ? v : w;

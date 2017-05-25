@@ -241,7 +241,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
       //Fish should stay 1.5 body lengths behind leader at y=0
       reward = 1 - std::sqrt((x-1.5)*(x-1.5) + y*y);
       if (new_sample) reward = -1./(1.-gamma);
-    } 
+    }
     else if (study == 5) {
       reward = (t_sN.vals[18]-.4)/.5;
       if (t_sN.vals[0] > 0.5) reward = std::min(0.,reward);
@@ -259,7 +259,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 }
 
 #ifdef __DBG_CNN
-bool TwoActFishEnvironment::predefinedNetwork(Network* const net) const
+bool TwoActFishEnvironment::predefinedNetwork(Builder* const net) const
 {
   if(!sight || !press || rcast || lline || sI.dimUsed != 90 )
     die("Pick correct state\n");

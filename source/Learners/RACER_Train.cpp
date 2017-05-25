@@ -209,7 +209,6 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 			//bookkeeping:
 			vector<Real> fake{A_cur, 100};
 			dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
-			if(thrID == 1) net->updateRunning(series_cur[k]);
 			data->Set[seq]->tuples[samp]->SquaredError = Qer*Qer;
 			//data->Set[seq]->tuples[k]->SquaredError = std::pow(A_OPC*rho_cur,2);
 		}
