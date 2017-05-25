@@ -49,8 +49,11 @@ endif
 
 CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
-CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wno-reorder -Wno-deprecated
+CPPFLAGS+= -Woverloaded-virtual -std=c++11 
+CPPFLAGS+= -Wno-unused-parameter -Wno-reorder
 CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter -Wno-unused-variable
+#-Wno-reorder -Wno-deprecated
+#CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter -Wno-unused-variable
 #CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
 
 CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
@@ -107,7 +110,7 @@ OBJ_FILES = Communicator.o ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
 		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
 		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o alebotEnvironment.o\
 		Learner.o RACER.o DACER.o NAF.o NFQ.o DPG.o Transitions.o \
-		Scheduler.o LSTMNet.o Network.o Optimizer.o #Links.o Layers.o
+		Scheduler.o  Network.o Optimizer.o #Links.o Layers.o
 #ExternalAgent.o
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
