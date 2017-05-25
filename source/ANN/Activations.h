@@ -595,6 +595,42 @@ struct HardSigm
 		}
 	}
 };
+struct PRelu
+{
+	inline static void eval(const Real* __restrict__ const in,
+			Real* __restrict__ const out, const int& N)
+	{
+		__builtin_assume_aligned(in,  __vec_width__);
+		__builtin_assume_aligned(out, __vec_width__);
+		for (int o=0; o<N; o++) out[o] = in[o]>0 ? in[o] : 0.01*in[o];
+	}
+
+	inline static void evalDiff(const Real* __restrict__ const in,
+			Real* __restrict__ const out, const int& N)
+	{
+		__builtin_assume_aligned(in,  __vec_width__);
+		__builtin_assume_aligned(out, __vec_width__);
+		for (int o=0; o<N; o++) out[o] = in[o]>0 ? 1.0 : 0.01;
+	}
+
+	inline static void mulDiff(const Real* __restrict__ const in,
+			Real* __restrict__ const out, const int& N)
+	{
+		__builtin_assume_aligned(in,  __vec_width__);
+		__builtin_assume_aligned(out, __vec_width__);
+		for (int o=0; o<N; o++) out[o] = in[o]>0 ? out[o] : 0.01*out[o];
+	}
+
+	inline static void evalDiff(const Real* __restrict__ const in,
+			Real* __restrict__ const out,
+			const Real* __restrict__ const err, const int& N)
+	{
+		__builtin_assume_aligned(in,  __vec_width__);
+		__builtin_assume_aligned(out, __vec_width__);
+		__builtin_assume_aligned(err, __vec_width__);
+		for (int o=0; o<N; o++) out[o] = in[o]>0 ? err[o] : 0.01*err[o];
+	}
+};
 struct Relu
 {
 	inline static void eval(const Real* __restrict__ const in,

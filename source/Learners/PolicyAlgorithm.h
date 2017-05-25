@@ -13,7 +13,7 @@
 
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
-#define ACER_MAX_PREC 625.
+#define ACER_MAX_PREC 100.
 #define ACER_MIN_PREC 1./ACER_MAX_ACT/ACER_MAX_ACT
 #define ACER_MAX_ACT 10.
 #define ACER_MAX_REW 100.
@@ -675,31 +675,32 @@ protected:
 
    inline Real hardPlus(const Real val) const
    {
-      //return std::exp(val);
-      return 0.5*(val + std::sqrt(val*val+1)) + ACER_MIN_PREC;
+      return std::exp(val) + ACER_MIN_PREC;
+      //return 0.5*(val + std::sqrt(val*val+1)) + ACER_MIN_PREC;
    }
 
    inline Real diffHardPlus(const Real val) const
    {
-      //return std::exp(val);
-      return 0.5*(1.+val/std::sqrt(val*val+1));
+      return std::exp(val);
+      //return 0.5*(1.+val/std::sqrt(val*val+1));
    }
 
 	inline Real softPlus(const Real val) const
 	{
 		//return val;
 		//return std::exp(val);
-		//return 0.5*(val + std::sqrt(val*val+1)) +tol_diagL;
-		return sqrt(val + std::sqrt(val*val+1)) +tol_diagL;
+		return 0.5*(val + std::sqrt(val*val+1)) +tol_diagL;
+		//return sqrt(val + std::sqrt(val*val+1)) +tol_diagL;
+		//return std::exp(val) +tol_diagL; 
 	}
 
 	inline Real diffSoftPlus(const Real val) const
 	{
 		//return std::exp(val);
 		//return 1.;
-		//return 0.5*(1 + val/std::sqrt(val*val+1));
-		const Real den = std::sqrt(val*val+1);
-		return 0.5*std::sqrt(den+val)/den;
+		return 0.5*(1 + val/std::sqrt(val*val+1));
+		//const Real den = std::sqrt(val*val+1);
+		//return 0.5*std::sqrt(den+val)/den;
 	}
 
    inline Real softSign(const Real val) const

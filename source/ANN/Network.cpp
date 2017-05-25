@@ -61,7 +61,8 @@ void Network::build_normal_layer(Graph* const graph)
 	l = new NormalLayer<Linear>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
     else
     //l = new NormalLayer<Tanh>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
-    l = new NormalLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
+    //l = new NormalLayer<SoftSign>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
+    l = new NormalLayer<PRelu>(layerSize, firstNeuron_ID, graph->firstBias_ID, input_links, recurrent_link, graph->layerSize_simd);
 
     if (graph->output) printf( "Linear output\n");
     layers.push_back(l);
@@ -203,6 +204,7 @@ void Network::build_LSTM_layer(Graph* const graph)
 	l = new LSTMLayer<Linear,SoftSigm,SoftSign>(
   #else
 	l = new LSTMLayer<Linear,SoftSigm,SoftPlus>(
+	//l = new LSTMLayer<PRelu,SoftSigm,SoftPlus>(
   #endif
 					layerSize, firstNeuron_ID, firstCell_ID, graph->firstBias_ID,
 					graph->firstBiasIG_ID, graph->firstBiasFG_ID, graph->firstBiasOG_ID,

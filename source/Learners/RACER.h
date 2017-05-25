@@ -10,7 +10,7 @@
 #pragma once
 
 #include "PolicyAlgorithm.h"
-#define ACER_GRAD_CUT 3
+#define ACER_GRAD_CUT 6
 using namespace std;
 
 class RACER : public PolicyAlgorithm
