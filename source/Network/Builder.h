@@ -404,11 +404,12 @@ public:
 			if (layerType == "LSTM") g->LSTM = true;
 
 			assert(!funcType.empty());
-		  if(g->LSTM) {
-		    g->func = new Linear();
-		    g->cell = new SoftSigm();
-		    g->gate = readFunction(funcType, bOutput);
-		  } else g->func = readFunction(funcType, bOutput);
+		  if(g->LSTM)
+			{
+		    g->cell = new Linear();   //in original paper is Tanh (Tanh)
+		    g->gate = new SoftSigm(); //in original paper is Sigm (Sigmoid)
+		  }														//g->func is TwoTanh (2*Tanh)
+			g->func = readFunction(funcType, bOutput);
 
 			g->layerSize = size;
 			const int nPrevLayers = G.size();

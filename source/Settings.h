@@ -26,7 +26,7 @@ struct Settings
         Real goalDY = 0;
       //number of threads from threaded training on each master rank
         int nThreads = -1;
-      //network shape
+      //network shape for the non conv-2d layers
         int nnLayer1 = -1;
         int nnLayer2 = -1;
         int nnLayer3 = -1;
@@ -100,7 +100,7 @@ struct Settings
       bool bIsMaster = true;
       // whether Recurrent network (figured out in main)
       bool bRecurrent = false;
-    // number of inputs of the policy, depends on env and learning algorithm
+      // number of inputs of the policy, depends on env and learning algorithm
       int nnInputs = -1;
       int nnOutputs = -1;
       //whether have separate output layers... depends on learner algorithm

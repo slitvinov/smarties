@@ -143,12 +143,17 @@ struct Mem //Memory light recipient for prediction on agents
 
 struct Function
 {
+	virtual Real initFactor(const int inps, const int outs) const = 0;
 	virtual Real eval(const Real in) const = 0;
 	virtual Real evalDiff(const Real in) const = 0;
 };
 
 struct Linear : public Function
 {
+	Real initFactor(const int inps, const int outs) const override
+	{
+		return 2./inps;
+	}
 	Real eval(const Real in) const override
 	{
 		return in;
@@ -162,6 +167,10 @@ struct Linear : public Function
 
 struct Tanh : public Function
 {
+	Real initFactor(const int inps, const int outs) const override
+	{
+		return std::sqrt(6./(inps + outs));
+	}
 	Real eval(const Real in) const override
 	{
 			if(in >  8) return  1;
@@ -180,6 +189,10 @@ struct Tanh : public Function
 
 struct TwoTanh : public Function
 {
+	Real initFactor(const int inps, const int outs) const override
+	{
+		return std::sqrt(6./(inps + outs));
+	}
 	Real eval(const Real in) const override
 	{
 			if(in >  8) return  2;
@@ -198,6 +211,10 @@ struct TwoTanh : public Function
 
 struct Sigm : public Function
 {
+	Real initFactor(const int inps, const int outs) const override
+	{
+		return std::sqrt(6./(inps + outs));
+	}
 	Real eval(const Real in) const override
 	{
 			if(in >  8) return 1;
@@ -215,6 +232,10 @@ struct Sigm : public Function
 
 struct SoftSign : public Function
 {
+	Real initFactor(const int inps, const int outs) const override
+	{
+		return std::sqrt(6./(inps + outs));
+	}
 	Real eval(const Real in) const override
 	{
 			return in/(1+std::fabs(in));
@@ -229,6 +250,10 @@ struct SoftSign : public Function
 
 struct TwoSoftSign : public Function
 {
+	Real initFactor(const int inps, const int outs) const override
+	{
+		return std::sqrt(6./(inps + outs));
+	}
 	Real eval(const Real in) const override
 	{
 			return 2*in/(1+std::fabs(in));
@@ -243,6 +268,10 @@ struct TwoSoftSign : public Function
 
 struct SoftSigm : public Function
 {
+	Real initFactor(const int inps, const int outs) const override
+	{
+		return std::sqrt(6./(inps + outs));
+	}
 	Real eval(const Real in) const override
 	{
 			const Real sign = in/(1+std::fabs(in));
@@ -258,6 +287,10 @@ struct SoftSigm : public Function
 
 struct Relu : public Function
 {
+	Real initFactor(const int inps, const int outs) const override
+	{
+		return 2./inps;
+	}
 	Real eval(const Real in) const override
 	{
 			return in>0 ? in : 0;
@@ -271,6 +304,10 @@ struct Relu : public Function
 
 struct PRelu : public Function
 {
+	Real initFactor(const int inps, const int outs) const override
+	{
+		return 2./inps;
+	}
 	Real eval(const Real in) const override
 	{
 			return in>0 ? in : PRELU_FAC*in;
@@ -284,6 +321,10 @@ struct PRelu : public Function
 
 struct ExpPlus : public Function
 {
+	Real initFactor(const int inps, const int outs) const override
+	{
+		return 2./inps;
+	}
 	Real eval(const Real in) const override
 	{
 			if(in >  8) return in;
@@ -301,6 +342,10 @@ struct ExpPlus : public Function
 
 struct SoftPlus : public Function
 {
+	Real initFactor(const int inps, const int outs) const override
+	{
+		return 2./inps;
+	}
 	Real eval(const Real in) const override
 	{
 		return .5*(in + std::sqrt(1+in*in));

@@ -129,13 +129,14 @@ class BaseLayer: public Layer
     virtual void initialize(mt19937* const gen, Real* const weights,
         Real* const biases) const override
     {
-      uniform_real_distribution<Real> dis(-sqrt(6./nNeurons),sqrt(6./nNeurons));
+      //uniform_real_distribution<Real> dis(-sqrt(6./nNeurons),sqrt(6./nNeurons));
+      uniform_real_distribution<Real> dis(-2./nNeurons, 2./nNeurons);
 
       for (const auto & link : input_links)
-        if(link not_eq nullptr) link->initialize(gen,weights);
+        if(link not_eq nullptr) link->initialize(gen,weights,func);
 
       if(recurrent_link not_eq nullptr)
-        recurrent_link->initialize(gen,weights);
+        recurrent_link->initialize(gen,weights,func);
 
       for (int w=n1stBias; w<n1stBias+nNeurons_simd; w++)
 				biases[w] = dis(*gen);
@@ -215,8 +216,8 @@ class Conv2DLayer : public BaseLayer<LinkToConv2D>
 class LSTMLayer: public BaseLayer<LinkToLSTM>
 {
     const int n1stCell, n1stBiasIG, n1stBiasFG, n1stBiasOG;
-    const Function* const gateFunc;
-    const Function* const cellFunc;
+    const Function* const gate;
+    const Function* const cell;
 
  public:
 
@@ -228,7 +229,7 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
               const int nn_simd, const bool bOut = false) :
     BaseLayer(_nNeurons, _n1stNeuron, _n1stBias, rl_il, rl_rl, f, nn_simd, bOut),
     n1stCell(_indState), n1stBiasIG(_n1stBiasIG), n1stBiasFG(_n1stBiasFG),
-    n1stBiasOG(_n1stBiasOG), gateFunc(g), cellFunc(c)
+    n1stBiasOG(_n1stBiasOG), gate(g), cell(c)
     {
 	       printf("LSTM Layer of size %d, with first ID %d, first cell ID %d, and first bias ID %d\n",
          nNeurons, n1stNeuron, n1stCell, n1stBias);
@@ -279,11 +280,11 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
             recurrent_link->propagate(prev,curr,weights);
 
         for (int n=0; n<nNeurons; n++) {
-          outputC[n] = cellFunc->eval(inputs[n]);
-          outputI[n] = gateFunc->eval(inputI[n]);
-          outputF[n] = gateFunc->eval(inputF[n]);
+          outputC[n] = func->eval(inputs[n]);
+          outputI[n] = gate->eval(inputI[n]);
+          outputF[n] = gate->eval(inputF[n]);
           //#ifndef __posDef_layers_
-          outputO[n] = gateFunc->eval(inputO[n]);
+          outputO[n] = gate->eval(inputO[n]);
           //#else
           //outputO[n] = SoftSign::eval(inputO[n]);
           //#endif
@@ -292,7 +293,7 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
                   (prev==nullptr ?  0 : prev->ostates[n1stCell+n] * outputF[n]);
 
           curr->outvals[n1stNeuron+n] =outputO[n] *
-                                       func->eval(curr->ostates[n1stCell+n]);
+                                          cell->eval(curr->ostates[n1stCell+n]);
         }
     }
 	  void backPropagate( Activation* const prev,  Activation* const curr, const Activation* const next,
@@ -334,22 +335,22 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
         //__builtin_assume_aligned(gradbiasO, __vec_width__);
 
         for (int n=0; n<nNeurons; n++) {
-          deltaC[n] = outputI[n] * cellFunc->evalDiff(inputs[n]);
-          deltaI[n] = outputC[n] * gateFunc->evalDiff(inputI[n]);
+          deltaC[n] = outputI[n] * func->evalDiff(inputs[n]);
+          deltaI[n] = outputC[n] * gate->evalDiff(inputI[n]);
           //#ifndef __posDef_layers_
-          deltaO[n] =  deltas[n] * gateFunc->evalDiff(inputO[n]);
+          deltaO[n] =  deltas[n] * gate->evalDiff(inputO[n]);
           //#else
           //deltaO[n] =  deltas[n] * SoftSign::evalDiff(inputO[n]);
           //#endif
 
-          const Real outState = func->eval(curr->ostates[n1stCell+n]);
-          const Real diffState = func->evalDiff(curr->ostates[n1stCell+n]);
+          const Real outState  = cell->eval(curr->ostates[n1stCell+n]);
+          const Real diffState = cell->evalDiff(curr->ostates[n1stCell+n]);
 
           deltas[n] = deltas[n] * outputO[n] * diffState +
             (next==nullptr ? 0 : next->errvals[n1stNeuron+n]*next->oFGates[n1stCell+n]);
 
           deltaF[n] = (prev==nullptr) ? 0
-                      : prev->ostates[n1stCell+n] * gateFunc->evalDiff(inputF[n]);
+                      : prev->ostates[n1stCell+n] * gate->evalDiff(inputF[n]);
 
           deltaC[n] *= deltas[n];
           deltaI[n] *= deltas[n];
@@ -373,7 +374,8 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
 
     void initialize(mt19937* const gen, Real* const weights, Real* const biases) const override
     {
-      uniform_real_distribution<Real> dis(-sqrt(6./nNeurons),sqrt(6./nNeurons));
+      //uniform_real_distribution<Real> dis(-sqrt(6./nNeurons),sqrt(6./nNeurons));
+      uniform_real_distribution<Real> dis(-2./nNeurons, 2./nNeurons);
       BaseLayer::initialize(gen, weights, biases);
       for (int w=n1stBiasIG; w<n1stBiasIG+nNeurons_simd; w++)
 				biases[w] = dis(*gen) - 1.0;

@@ -21,7 +21,6 @@ class Link
 	virtual ~Link() {}
 	virtual void print() const = 0;
 
-	virtual void initialize(mt19937* const gen, Real* const _weights) const = 0;
 	void _initialize(mt19937* const gen, Real* const _weights, const Real scale,
 		int n0, int nOut, int nIn, int n_simd) const
 	{
@@ -136,10 +135,9 @@ class NormalLink: public Link
 	{
 		_restart(buf, _weights, iW, nO, nI, nO_simd);
 	}
-	void initialize(mt19937* const gen, Real* const _weights) const override
+	void initialize(mt19937*const gen, Real*const _weights, const Function*const func) const
 	{
-		const Real range = std::sqrt(6./(nO + nI));
-		_initialize(gen, _weights, range, iW, nO, nI, nO_simd);
+		_initialize(gen, _weights, func->initFactor(nI,nO), iW, nO, nI, nO_simd);
 	}
 
 	inline void propagate(const Activation* const netFrom, Activation* const netTo,
@@ -215,26 +213,21 @@ class LinkToLSTM : public Link
 	}
 
 	void print() const override
-			{
+	{
 		cout << "LSTM link: nInputs="<< nI << " IDinput=" << iI
 		<< " nOutputs=" << nO << " IDoutput" << iO << " IDcell" << iC
 		<< " IDweight" << iW << " nWeights" << nW << " nO_simd"<<nO_simd << endl;
 		fflush(0);
-			}
+	}
 
-	void initialize(mt19937* const gen, Real* const _weights) const override
+  void initialize(mt19937*const gen, Real*const _weights, const Function*const func) const
 	{
-		//#ifndef __posDef_layers_
-		//const Real range = std::sqrt(6./(nO + nI));
-		const Real width = 2*std::max(nO,nI);
-		const Real range = std::sqrt(6./(nO + width));
-		//#else
-		//const Real range = 2./nI;
-		//#endif
-		_initialize(gen, _weights, range, iW,  nO, nI, nO_simd);
-		_initialize(gen, _weights, range, iWI, nO, nI, nO_simd);
-		_initialize(gen, _weights, range, iWF, nO, nI, nO_simd);
-		_initialize(gen, _weights, range, iWO, nO, nI, nO_simd);
+    const Real width = 2*std::max(nO,nI); //stupid workaround...
+    const Real gatesFac = std::sqrt(6./(width + nO));
+		_initialize(gen, _weights, func->initFactor(width,nO),iW,  nO, nI, nO_simd);
+		_initialize(gen, _weights, gatesFac,                  iWI, nO, nI, nO_simd);
+		_initialize(gen, _weights, gatesFac,                  iWF, nO, nI, nO_simd);
+		_initialize(gen, _weights, gatesFac,                  iWO, nO, nI, nO_simd);
 	}
 	void save(vector<Real> & out, Real* const _weights) const override
 	{
@@ -379,15 +372,12 @@ class LinkToConv2D : public Link
 				filterWidth, filterHeight, strideX, strideY, padX, padY);
 		fflush(0);
 	}
-
-	void initialize(mt19937* const gen, Real* const _weights) const override
+  void initialize(mt19937*const gen, Real*const _weights, const Function*const func) const
 	{
-		const int nAdded = filterWidth*filterHeight*inputDepth;
 		assert(outputDepth_simd*nAdded == nW);
-		const Real range = std::sqrt(6./(nAdded+outputDepth));
-		_initialize(gen, _weights, range, iW, nO, nAdded, outputDepth_simd);
+    const int nAdded = filterWidth*filterHeight*inputDepth;
+		_initialize(gen, _weights, func->initFactor(nAdded,outputDepth), iW, nO, nAdded, outputDepth_simd);
 	}
-
 	void save(vector<Real> & out, Real* const _weights) const override
 	{
 		const int nAdded = filterWidth*filterHeight*inputDepth;
