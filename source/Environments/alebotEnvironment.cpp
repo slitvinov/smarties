@@ -1,18 +1,4 @@
 #include "alebotEnvironment.h"
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <cstdio>
-#include <unistd.h>
-#include <errno.h>
-#include <math.h>
-#include <signal.h>
-#include <iostream>
-#include <algorithm>
-#include <stdio.h>
-
-
-using namespace std;
 
 alebotEnvironment::alebotEnvironment(const int _nAgents, const int _nActions, const string _execpath,
 																 const int _rank, Settings & settings) :

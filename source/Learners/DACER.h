@@ -11,8 +11,6 @@
 
 #include "DiscreteAlgorithm.h"
 
-using namespace std;
-
 class DACER : public DiscreteAlgorithm
 {
 	const Real truncation;

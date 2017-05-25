@@ -8,13 +8,11 @@
 
 #include "Misc.h"
 #include "Scheduler.h"
-
-#include <unistd.h>
+//#include <unistd.h>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <algorithm>
-#include <cassert>
 
 static int doublePtrToInt(const double* const ptr);
 

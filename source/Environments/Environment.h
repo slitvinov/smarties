@@ -8,11 +8,7 @@
  */
 
 #pragma once
-
-#include <sys/un.h>
-#include "../Communicator.h"
 #include "../Agent.h"
-#include "../StateAction.h"
 #include "../Network/Builder.h"
 
 #include <map>

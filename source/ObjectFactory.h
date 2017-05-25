@@ -8,7 +8,6 @@
  */
 
 #pragma once
-#include <getopt.h>
 #include "Agent.h"
 #include "Environments/Environment.h"
 

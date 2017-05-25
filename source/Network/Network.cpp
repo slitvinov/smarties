@@ -9,11 +9,6 @@
 
 #include "Builder.h"
 #include "Network.h"
-#include <cmath>
-#include <algorithm>
-#include <iostream>
-#include <fstream>
-#include <cassert>
 using namespace ErrorHandling;
 
 void Network::seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const
@@ -206,12 +201,9 @@ nWeights(B->nWeights), nBiases(B->nBiases),   nStates(B->nStates),
 bDump(not settings.bTrain), iOut(B->iOut), iInp(B->iInp),
 layers(B->layers), links(B->links), weights(B->weights), biases(B->biases),
 tgt_weights(B->tgt_weights), tgt_biases(B->tgt_biases), grad(B->grad),
-Vgrad(B->Vgrad), generators(settings.generators)
+Vgrad(B->Vgrad), generators(settings.generators), mem(B->mem)
 {
   dump_ID.resize(nAgents);
-  mem.resize(nAgents);
-  for (int i=0; i<nAgents; ++i)
-    mem[i] = new Mem(nNeurons, nStates);
   updateFrozenWeights();
 }
 
@@ -221,7 +213,7 @@ Real* Network::assignDropoutMask(unsigned int s2, unsigned int s3)
     if (Pdrop > 0) {
     	die("You are probably using dropout wrong anyway\n");
       Real * dropW;
-      _allocateClean(dropW, nWeights)
+      _allocateClean(dropW, nWeights);
       s2 += 2*nWeights; //not sure whether it is required that seeds
       s3 += 4*nWeights; //should be sorted from smallest to biggest... be safe
 
@@ -352,7 +344,7 @@ void Network::checkGrads(const vector<vector<Real>>& inputs, int seq_len)
     fclose(f);
     fflush(0);
 }
-
+#if 0
 void Network::save(const string fname)
 {
   {
@@ -405,7 +397,7 @@ void Network::save(const string fname)
     system(command.c_str());
   }
 }
-
+#endif
 void Network::dump(const int agentID)
 {
     if (not bDump) return;
@@ -438,7 +430,7 @@ void Network::dump(const int agentID)
     }
     dump_ID[agentID]++;
 }
-
+#if 0
 bool Network::restart(const string fname)
 {
     {
@@ -497,3 +489,4 @@ bool Network::restart(const string fname)
     }
     return true;
 }
+#endif

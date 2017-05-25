@@ -10,7 +10,6 @@
 
 #pragma once
 //#define __DBG_CNN
-#include "../Util/util.h"
 #include "Environment.h"
 
 class TwoActFishEnvironment: public Environment

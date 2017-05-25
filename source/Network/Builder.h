@@ -8,17 +8,8 @@
  */
 
 #pragma once
-
-#include <vector>
-#include <functional>
-#include <cmath>
-#include <algorithm>
-#include <iostream>
-#include <fstream>
-#include <cassert>
 #include "Network.h"
 #include "Graph.h"
-
 #include <fstream>
 
 class Builder
@@ -50,7 +41,7 @@ class Builder
 		die("Activation function not recognized\n");
 		return (Function*)nullptr;
 	}
-	static const int simdWidth = __vec_width__/sizeof(Real);
+
 	int roundUpSimd(const int size) const
 	{
 		return std::ceil(size/(Real)simdWidth)*simdWidth;
@@ -256,8 +247,12 @@ public:
 		Real* biases;
 		Real* tgt_weights;
 		Real* tgt_biases;
+		vector<Mem*> mem;
 
-
+		~Builder()
+		{
+			for (auto & trash : G) _dispose_object(trash);
+		}
 		Builder(Settings & _settings): settings(_settings), nAgents(_settings.nAgents),
 		nThreads(_settings.nThreads), generators(_settings.generators) {}
 
@@ -312,15 +307,19 @@ public:
 		 	 	assert(iOut.size() == nOutputs);
 			}
 
-			_allocateQuick(tgt_weights, nWeights)
-		  _allocateQuick(tgt_biases, nBiases)
-			_allocateClean(weights, nWeights)
-			_allocateClean(biases, nBiases)
+			_allocateClean(tgt_weights, nWeights);
+		  _allocateClean(tgt_biases, nBiases);
+			_allocateClean(weights, nWeights);
+			_allocateClean(biases, nBiases);
 
 			grad = new Grads(nWeights,nBiases);
 			Vgrad.resize(nThreads);
 			for (int i=0; i<nThreads; ++i)
 				Vgrad[i] = new Grads(nWeights, nBiases);
+
+			mem.resize(nAgents);
+		  for (int i=0; i<nAgents; ++i)
+		    mem[i] = new Mem(nNeurons, nStates);
 
 			for (const auto & l : layers)
 				l->initialize(&generators[0], weights, biases);

@@ -8,7 +8,6 @@
  */
 
 #pragma once
-
 #include "Learner.h"
 
 using namespace std;

@@ -9,9 +9,8 @@
 #pragma once
 
 class Learner;
-
+#include "Communicator.h"
 #include "Learners/Learner.h"
-
 
 class Master
 {

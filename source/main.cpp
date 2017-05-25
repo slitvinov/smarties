@@ -7,74 +7,19 @@
  *
  */
 
-#include "ArgumentParser.h"
-#include "Learners/Learner.h"
-#include "Learners/NFQ.h"
-#include "Learners/NAF.h"
-#include "Learners/DPG.h"
-#include "Learners/RACER.h"
-#include "Learners/DACER.h"
-#include "ObjectFactory.h"
-#include "Settings.h"
+#include "allLearners.h"
 #include "Scheduler.h"
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <fstream>
+#include "ObjectFactory.h"
 
 using namespace ErrorHandling;
-using namespace ArgumentParser;
 using namespace std;
 
 void runClient();
 void runSlave(MPI_Comm slavesComm);
-Learner* createLearner(MPI_Comm mastersComm, Environment*const env);
 void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm);
+
 Settings settings;
 int ErrorHandling::debugLvl;
-
-Learner* createLearner(MPI_Comm mastersComm, Environment*const env)
-{
-	if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
-		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-		settings.nnOutputs = env->aI.maxLabel;
-		return new NFQ(mastersComm, env, settings);
-	}
-	else if (settings.learner == "RACER") {
-		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-		settings.nnOutputs = RACER::getnOutputs(env->aI.dim);
-		settings.separateOutputs = true; //else it does not really work
-		return new RACER(mastersComm, env, settings);
-	}
-	else if (settings.learner == "DACER") {
-		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-		const int nA = env->aI.maxLabel;
-		printf("Read %d outputs\n",nA);
-		settings.nnOutputs = DACER::getnOutputs(nA);
-		settings.separateOutputs = true; //else it does not really work
-		return new DACER(mastersComm, env, settings);
-	}
-	else if (settings.learner == "NA" || settings.learner == "NAF") {
-		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
-		const int nA = env->aI.dim;
-		const int nL = (nA*nA+nA)/2;
-		settings.nnOutputs = 1+nL+nA;
-		settings.separateOutputs = true; //else it does not really work
-		return new NAF(mastersComm, env, settings);
-	}
-	else if (settings.learner == "DP" || settings.learner == "DPG") {
-		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS) + env->aI.dim;
-		settings.nnOutputs = 1;
-		return new DPG(mastersComm, env, settings);
-	} else die("Learning algorithm not recognized\n");
-	assert(false);
-	return new NFQ(mastersComm, env, settings); //fake, to silence warnings
-}
 
 void runSlave(MPI_Comm slavesComm)
 {
@@ -82,14 +27,11 @@ void runSlave(MPI_Comm slavesComm)
 	MPI_Comm_rank(slavesComm, &rank);
 	MPI_Comm_size(slavesComm, &nranks);
 	if(rank==0) die("Slave is master?\n")
-    		if(nranks==1) die("Slave has no master?\n");
+	if(nranks==1) die("Slave has no master?\n");
 
-	//////// TODO
 	int wRank, wSize;
 	MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
 	MPI_Comm_size(MPI_COMM_WORLD, &wSize);
-	//if(rank!=wRank || wSize!=nranks)
-	//die("Not ready for multiple masters!\n");
 
 	settings.nSlaves = 1;
 	ObjectFactory factory(settings);
@@ -137,7 +79,7 @@ void runClient()
 	Environment* env = factory.createEnvironment(1, 0);
 	settings.nAgents = env->agents.size();
 
-	Learner* learner = createLearner(MPI_COMM_WORLD, env);
+	Learner* learner = createLearner(MPI_COMM_WORLD, env, settings);
 
 	const bool isSpawner = false;
 	const bool verbose = 0;
@@ -168,12 +110,9 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 	if(isSlave) die("Master is slave?\n")
     		//if(nSlaves==0) die("Master has no slaves?\n");
 
-    		//////// TODO
     		int wRank, wSize;
 	MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
 	MPI_Comm_size(MPI_COMM_WORLD, &wSize);
-	//if(isSlave!=wRank || wSize!=nSlaves+1 || nMasters!=1 || masterRank)
-	//    die("Not ready for multiple masters!\n");
 
 	settings.nSlaves = nSlaves;
 
@@ -189,21 +128,21 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 		//no need to free this
 	}
 
-	Learner* learner = createLearner(mastersComm, env);
+	Learner* learner = createLearner(mastersComm, env, settings);
 
 	Master master(slavesComm, learner, env, settings);
 	master.restart(settings.restart);
 	printf("nthreads %d\n",settings.nThreads); fflush(0);
 
-#if 1
-	if (settings.restart != "none" && !nSlaves && !learner->nData()) {
-		printf("No slaves, just dumping the policy\n");
-		vector<int> nbins(env->stateDumpNBins());
-		vector<Real> lower(env->stateDumpLowerBound()), upper(env->stateDumpUpperBound());
-		learner->dumpPolicy(lower, upper, nbins);
-		abort();
-	}
-#endif
+	#if 1
+		if (settings.restart != "none" && !nSlaves && !learner->nData()) {
+			printf("No slaves, just dumping the policy\n");
+			vector<int> nbins(env->stateDumpNBins());
+			vector<Real> lower(env->stateDumpLowerBound()), upper(env->stateDumpUpperBound());
+			learner->dumpPolicy(lower, upper, nbins);
+			abort();
+		}
+	#endif
 
 	if (settings.nThreads > 1) learner->TrainTasking(&master);
 	else master.run();
@@ -216,95 +155,7 @@ int main (int argc, char** argv)
 	gettimeofday(&clock, NULL);
 	debugLvl=10;
 
-	vector<OptionStruct> opts ({
-		{'N',"nMasters", INT,
-			"number of masters (policy-updating ranks)",
-			&settings.nMasters, (int)1},
-		{'g',"gamma",    REAL,
-				"Gamma parameter",
-				&settings.gamma,     (Real)0.9},
-		{'e',"greedyeps",REAL,
-				"fraction of actions chosen randomly",
-				&settings.greedyEps, (Real)0.1},
-		{'E',"epsAnneal",REAL,
-				"number of grad steps over which eps is annealed to 0",
-				&settings.epsAnneal, (Real)1e4},
-		{'l',"learnrate",REAL,
-				"Networks learning rate",
-				&settings.lRate,     (Real)0.001},
-		{'a',"learn",    STRING,
-				"RL algorithm",
-				&settings.learner,   (string)"DQ"},
-		{'r',"rType",    INT,
-				"Reward: see env",
-				&settings.rewardType,(int)-1},
-		{'i',"senses",   INT,
-				"State: see env",
-				&settings.senses,   (int)0},
-		{'y',"goalDY",   REAL,
-				"goalDY: see env",
-				&settings.goalDY,    (Real)0.},
-		{'t',"bTrain",   INT,
-				"Whether training (1) or evaluating a policy (0)",
-				&settings.bTrain,    (int)1},
-		{'K',"nnL",      REAL,
-				"Network's weight decay",
-				&settings.nnLambda,  (Real)0.0},
-		{'Z',"nnl1",     INT,
-				"NN layer 1",
-				&settings.nnLayer1,  (int)0},
-		{'Y',"nnl2",     INT,
-				"NN layer 2",
-				&settings.nnLayer2,  (int)0},
-		{'X',"nnl3",     INT,
-				"NN layer 3",
-				&settings.nnLayer3,  (int)0},
-		{'W',"nnl4",     INT,
-				"NN layer 4",
-				&settings.nnLayer4,  (int)0},
-		{'V',"nnl5",     INT,
-				"NN layer 5",
-				&settings.nnLayer5,  (int)0},
-		{'T',"nnType",   STRING,
-				"Network Type: LSTM, RNN, any other means Feedforward",
-				&settings.netType, (string)"Feedforward"},
-		{'F',"funcType",   STRING,
-				"Activation (Relu, Tanh, Linear, etc) of non-ouput layers (which are always linear)",
-				&settings.funcType, (string)"SoftSign"},
-		{'C',"dqnT",     REAL,
-				"Delay for target network weight update",
-				&settings.dqnUpdateC,(Real)1000},
-		{'B',"dqnBatch", INT,
-				"Network update batch size",
-				&settings.dqnBatch,  (int)10},
-		{'A',"dqnNs",    INT,
-				"Number of previous states chained together to form NN input",
-				&settings.dqnAppendS,(int)0},
-		{'L',"dqnSeqMax",INT,
-				"max seq length. if greater the sequence is cut",
-				&settings.maxSeqLen, (int)200},
-		{'M',"dqnSeqMin",INT,
-				"min seq length. if less the sequence is ignored",
-				&settings.minSeqLen, (int)2},
-		{'U',"maxTotSeqNum",INT,
-				"maximum number of stored sequences: if exceeded the easier ones are removed",
-				&settings.maxTotSeqNum, (int)5000},
-		{'p',"nThreads", INT,
-				"Number of threads on master ranks",
-				&settings.nThreads,  (int)-1},
-		{'I',"isServer", INT,
-				"Whether smarties launches apps or is launched by app (then cannot train)",
-				&settings.isLauncher,  (int)1},
-		{'P',"sockPrefix",INT,
-				"Number prefix for socket: >0 if launched by app",
-				&settings.sockPrefix,  (int)-1},
-		{'H',"fileSamp", STRING,
-				"Location of transitions log for restart",
-				&settings.samplesFile,(string)"obs_master.txt"},
-		{'R',"restart", STRING,
-				"Location of policy file for restart",
-				&settings.restart,(string)"policy"}
-	});
+	vector<ArgumentParser::OptionStruct> opts = settings.initializeOpts();
 
 	int provided, rank, nranks;
 	MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
@@ -314,7 +165,7 @@ int main (int argc, char** argv)
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &nranks);
 
-	Parser parser(opts);
+	ArgumentParser::Parser parser(opts);
 	parser.parse(argc, argv, rank == 0);
 
 	settings.bRecurrent = settings.netType=="LSTM" || settings.netType=="RNN";

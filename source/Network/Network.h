@@ -8,13 +8,8 @@
  */
 
 #pragma once
-
 #include "Layers.h"
-#include <vector>
-#include <functional>
 #include "../Profiler.h"
-
-#include <fstream>
 class Builder;
 
 class Network
@@ -36,7 +31,7 @@ public:
 		const vector<Grads*> Vgrad;
 		vector<std::mt19937>& generators;
 		vector<int> dump_ID;
-    vector<Mem*> mem;
+    const vector<Mem*> mem;
 		const bool allocatedFrozenWeights = true;
 
     int getnWeights() const {return nWeights;}
@@ -60,14 +55,14 @@ public:
 
     ~Network()
     {
-        for (auto & trash : layers) _dispose_object( trash);
-        for (auto & trash : mem) _dispose_object( trash);
-				for (auto & trash : Vgrad) _dispose_object( trash);
+        for (auto & trash : layers) _dispose_object(trash);
+        for (auto & trash : mem) _dispose_object(trash);
+				for (auto & trash : Vgrad) _dispose_object(trash);
         _dispose_object( grad);
-        _myfree( weights )
-        _myfree( biases )
-        _myfree( tgt_weights )
-        _myfree( tgt_biases )
+        _myfree( weights );
+        _myfree( biases );
+        _myfree( tgt_weights );
+        _myfree( tgt_biases );
     }
 
     void updateFrozenWeights();
@@ -144,7 +139,19 @@ public:
 	        layers[j]->regularize(weights, biases, lambda);
 		}
 
-    void save(const string fname);
+		void save(vector<Real> & outWeights, vector<Real> & outBiases,
+  			Real* const _weights, Real* const _biases) const
+		{
+			for (const auto &l : layers)
+				l->save(outWeights,outBiases, _weights, _biases);
+		}
+		void restart(vector<Real> & outWeights, vector<Real> & outBiases,
+  			Real* const _weights, Real* const _biases) const
+		{
+			for (const auto &l : layers)
+				l->restart(outWeights,outBiases, _weights, _biases);
+		}
+    //void save(const string fname);
     void dump(const int agentID);
-    bool restart(const string fname);
+    //bool restart(const string fname);
 };

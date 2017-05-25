@@ -8,19 +8,6 @@
  */
 
 #include "AcrobotEnvironment.h"
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <cstdio>
-#include <unistd.h>
-#include <errno.h>
-#include <math.h>
-#include <signal.h>
-#include <iostream>
-#include <algorithm>
-#include <stdio.h>
-
-using namespace std;
 
 AcrobotEnvironment::AcrobotEnvironment(const int _nAgents, const string _execpath,
 		 const int _rank, Settings & settings) :
@@ -78,12 +65,12 @@ bool AcrobotEnvironment::pickReward(const State & t_sO, const Action & t_a,
 				const State& t_sN, Real& reward,const int info)
 {
     bool new_sample(false);
-    
+
     //Compute the reward. If you do not do anything, reward will be whatever was set already to reward.
     //this means that reward will be one sent by the app
-    
+
     if (info==2) new_sample=true; //in cart pole example, if reward from the app is -1 then I failed
-        
+
         //here i can change the reward: instead of -1 or 0, i can give a positive reward if angle is small
    // if ((fabs(t_sN.vals[0]) - M_PI)<=0.2*M_PI)
    // {
@@ -91,7 +78,7 @@ bool AcrobotEnvironment::pickReward(const State & t_sO, const Action & t_a,
    // }
     if (new_sample) reward = -2./(1.-gamma); // = - max cumulative reward
             //was is the last state of the sequence?
-            
+
             //this must be set: was it the last episode? you can get it from reward?
     return new_sample; //cart pole has failed if r = -1, need to clean this shit and rely only on info
 }

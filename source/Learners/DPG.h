@@ -8,10 +8,7 @@
  */
 
 #pragma once
-
 #include "Learner.h"
-
-using namespace std;
 
 class DPG : public Learner
 {

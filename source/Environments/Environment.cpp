@@ -9,8 +9,6 @@
 
 #include "Environment.h"
 
-using namespace std;
-
 Environment::Environment(const int nA,const string exe,const int _rank,Settings& _s) :
 execpath(exe), rank(_rank), nAgents(nA*_s.nSlaves), nAgentsPerRank(nA),
 gamma(_s.gamma), g(&_s.generators[0]), resetAll(false), cheaperThanNetwork(true),

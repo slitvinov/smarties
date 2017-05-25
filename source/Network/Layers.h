@@ -8,11 +8,7 @@
  */
 
 #pragma once
-
-#include "../Settings.h"
 #include "Links.h"
-//#include <cblas.h>
-#include <iostream>
 
 class Layer
 {
@@ -37,10 +33,10 @@ class Layer
     virtual void initialize(mt19937* const gen, Real* const weights,
         Real* const biases) const = 0;
 
-    virtual void save(ostringstream & outWeights, ostringstream & outBiases,
+    virtual void save(vector<Real> & outWeights, vector<Real> & outBiases,
   			Real* const _weights, Real* const _biases) const = 0;
 
-    virtual void restart(istringstream & bufWeights, istringstream & bufBiases,
+    virtual void restart(vector<Real> & bufWeights, vector<Real> & bufBiases,
   			Real* const _weights, Real* const _biases) const = 0;
 
     virtual void regularize(Real* const weights, Real* const biases,
@@ -145,7 +141,7 @@ class BaseLayer: public Layer
 				biases[w] = dis(*gen);
     }
 
-    virtual void save(ostringstream & outWeights, ostringstream & outBiases,
+    virtual void save(vector<Real> & outWeights, vector<Real> & outBiases,
   			Real* const _weights, Real* const _biases) const override
   	{
   		for (const auto & l : input_links)
@@ -155,10 +151,10 @@ class BaseLayer: public Layer
         recurrent_link->save(outWeights, _weights);
 
   		for (int w=n1stBias; w<n1stBias+nNeurons; w++)
-  			outBiases << _biases[w] << "\n";
+  			outBiases.push_back(_biases[w]);
   	}
 
-    virtual void restart(istringstream & bufWeights, istringstream & bufBiases,
+    virtual void restart(vector<Real>& bufWeights, vector<Real>& bufBiases,
   			Real* const _weights, Real* const _biases) const override
   	{
       for (const auto & l : input_links)
@@ -169,8 +165,9 @@ class BaseLayer: public Layer
 
   		for (int w=n1stBias; w<n1stBias+nNeurons; w++)
       {
-  			bufBiases >> _biases[w];
-  			assert(not std::isnan(_biases[w]) && not std::isinf(_biases[w]));
+        _biases[w] = bufBiases.front();
+        bufBiases.erase(bufBiases.begin(),bufBiases.begin()+1);
+				assert(!std::isnan(_biases[w]) && !std::isinf(_biases[w]));
   		}
   	}
 
@@ -386,36 +383,36 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
 				biases[w] = dis(*gen) - 1.0;
     }
 
-    void save(std::ostringstream & outWeights, std::ostringstream & outBiases,
+    void save(std::vector<Real> & outWeights, std::vector<Real> & outBiases,
   			Real* const _weights, Real* const _biases) const override
   	{
       BaseLayer::save(outWeights, outBiases, _weights, _biases);
       for (int w=n1stBiasIG; w<n1stBiasIG+nNeurons; w++)
-				outBiases << _biases[w] << "\n";
+				outBiases.push_back(_biases[w]);
 			for (int w=n1stBiasFG; w<n1stBiasFG+nNeurons; w++)
-				outBiases << _biases[w] << "\n";
+				outBiases.push_back(_biases[w]);
 			for (int w=n1stBiasOG; w<n1stBiasOG+nNeurons; w++)
-				outBiases << _biases[w] << "\n";
+				outBiases.push_back(_biases[w]);
   	}
 
-    void restart(std::istringstream & bufWeights, std::istringstream & bufBiases,
+    void restart(std::vector<Real> & bufWeights, std::vector<Real> & bufBiases,
   			Real* const _weights, Real* const _biases) const override
   	{
       BaseLayer::restart(bufWeights, bufBiases, _weights, _biases);
-      for (int w=n1stBiasIG; w<n1stBiasIG+nNeurons; w++)
-      {
-				bufBiases >> _biases[w];
-				assert(not std::isnan(_biases[w]) && not std::isinf(_biases[w]));
+      for (int w=n1stBiasIG; w<n1stBiasIG+nNeurons; w++) {
+        _biases[w] = bufBiases.front();
+        bufBiases.erase(bufBiases.begin(),bufBiases.begin()+1);
+				assert(!std::isnan(_biases[w]) && !std::isinf(_biases[w]));
 			}
-			for (int w=n1stBiasFG; w<n1stBiasFG+nNeurons; w++)
-      {
-				bufBiases >> _biases[w];
-				assert(not std::isnan(_biases[w]) && not std::isinf(_biases[w]));
+			for (int w=n1stBiasFG; w<n1stBiasFG+nNeurons; w++) {
+        _biases[w] = bufBiases.front();
+        bufBiases.erase(bufBiases.begin(),bufBiases.begin()+1);
+				assert(!std::isnan(_biases[w]) && !std::isinf(_biases[w]));
 			}
-			for (int w=n1stBiasOG; w<n1stBiasOG+nNeurons; w++)
-      {
-				bufBiases >> _biases[w];
-				assert(not std::isnan(_biases[w]) && not std::isinf(_biases[w]));
+			for (int w=n1stBiasOG; w<n1stBiasOG+nNeurons; w++) {
+        _biases[w] = bufBiases.front();
+        bufBiases.erase(bufBiases.begin(),bufBiases.begin()+1);
+				assert(!std::isnan(_biases[w]) && !std::isinf(_biases[w]));
 			}
   	}
 

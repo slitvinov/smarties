@@ -8,10 +8,9 @@
  */
 
 #pragma once
-
 #include "Links.h"
 
-struct Graph //misleading, this is just the graph for a single layer
+struct Graph
 {
 	bool written = false; //is this graph already used?
 	bool built = false; //is this graph already used?

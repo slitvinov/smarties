@@ -124,7 +124,6 @@ class State
   }
 };
 
-
 struct ActionInfo
 {
 	int dim, maxLabel; //number of actions per turn
@@ -320,7 +319,7 @@ struct ActionInfo
 
 class Action
 {
-public:
+ public:
 	ActionInfo actInfo;
   vector<Real> vals;
   mt19937 * gen;

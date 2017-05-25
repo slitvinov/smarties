@@ -10,16 +10,6 @@
 #include "../StateAction.h"
 #include "NAF.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include <fstream>
-#include <assert.h>
-#include <algorithm>
-#include <cmath>
-
-
-
 NAF::NAF(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2)

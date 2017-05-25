@@ -10,8 +10,6 @@
 #pragma once
 #include "Activations.h"
 
-//typedef int st;
-
 class Approximator
 {
 public:

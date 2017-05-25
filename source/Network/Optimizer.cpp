@@ -8,41 +8,30 @@
  */
 
 #include "Optimizer.h"
-#include <iomanip>      // std::setprecision
-#include <iostream>     // std::cout, std::fixed
+#include <iomanip>
+#include <iostream>   
 #include <cassert>
 #include "saruprng.h"
-
-using namespace ErrorHandling;
 
 Optimizer::Optimizer(Network* const _net, Profiler* const _prof,
 	Settings& settings) : nWeights(_net->getnWeights()),
 	nBiases(_net->getnBiases()), bTrain(settings.bTrain), net(_net), profiler(_prof),
-	eta(settings.lRate), lambda(settings.nnLambda), alpha(0.5), nepoch(0)
-{
-	_allocateClean(_1stMomW, nWeights)
-    _allocateClean(_1stMomB, nBiases)
-}
+	_1stMomW(init(nWeights)), _1stMomB(init(nBiases)), eta(settings.lRate),
+	lambda(settings.nnLambda), alpha(0.5), nepoch(0) { }
 
 AdamOptimizer::AdamOptimizer(Network* const _net, Profiler* const _prof,
 	Settings& settings, const Real B1, const Real B2) :
-			Optimizer(_net, _prof, settings),
-	beta_1(B1), beta_2(B2), epsilon(1e-8), beta_t_1(B1), beta_t_2(B2)
+	Optimizer(_net, _prof, settings), _2ndMomW(init(nWeights)), _2ndMomB(init(nBiases)),
+	beta_1(B1), beta_2(B2), epsilon(1e-8), beta_t_1(B1), beta_t_2(B2) { }
 //beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.99)
-{
-	_allocateClean(_2ndMomW, nWeights)
-    _allocateClean(_2ndMomB, nBiases)
-}
 
 EntropySGD::EntropySGD(Network* const _net, Profiler* const _prof,
 	Settings& settings) : AdamOptimizer(_net, _prof, settings, 0.8),
 	alpha_eSGD(0.75), gamma_eSGD(1.), eta_eSGD(1./settings.dqnUpdateC),
-	eps_eSGD(1e-6), L_eSGD(settings.dqnUpdateC)
+	eps_eSGD(1e-6), L_eSGD(settings.dqnUpdateC),
+	_muW_eSGD(init(nWeights)), _muB_eSGD(init(nBiases))
 {
 	assert(L_eSGD>0);
-	_allocateClean(_muW_eSGD, nWeights)
-	_allocateClean(_muB_eSGD, nBiases)
-
 	for (int i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights[i];
 	for (int i=0; i<nBiases; i++)  _muB_eSGD[i] = net->biases[i];
 }
@@ -162,7 +151,7 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 				g[k]->_W[j] = 0.;
 			}
 
-			#pragma omp for nowait
+		#pragma omp for nowait
 		for (int j=0; j<nBiases; j++)
 			for (int k=0; k<nThreads; k++) {
 				//G->_B[j] += std::max(std::min(g[k]->_B[j], 10.), -10.);
@@ -183,6 +172,7 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
 {
 	//const Real _eta = eta/(1.+std::log(1. + (double)nepoch));
 	const Real _eta = eta/(1.+(Real)nepoch/1e4);
+
 	update(net->weights,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,_eta);
 	update(net->biases, G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);
 	//Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize);
@@ -191,7 +181,6 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
 	if (beta_t_1<2.2e-16) beta_t_1 = 0;
 	beta_t_2 *= beta_2;
 	if (beta_t_2<2.2e-16) beta_t_2 = 0;
-	//printf("%d %f %f\n",nepoch, beta_t_1,beta_t_2);
 
 	if(lambda>2.2e-16) net->regularize(lambda*_eta);
 }
@@ -205,7 +194,6 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
 
 	#pragma omp parallel for
 	for (int i=0; i<N; i++) {
-		//const Real W = fabs(dest[i]);
 		const Real M1 = alpha * _1stMom[i] + eta_ * grad[i];
 		_1stMom[i] = std::max(std::min(M1,eta_),-eta_);
 		grad[i] = 0.; //reset grads
@@ -225,7 +213,6 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 	const Real eps = std::numeric_limits<Real>::epsilon();
 	#pragma omp parallel for
 	for (int i=0; i<N; i++) {
-		//const Real DW  = std::max(std::min(grad[i]*norm, 1.), -1.);
 		const Real DW  = grad[i]*norm;
 		const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
 		const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
@@ -236,6 +223,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 		grad[i] = 0.; //reset grads
 
 		//dest[i] += eta_*M1_/std::sqrt(M2_);
+		//nesterov:
 		dest[i] += eta_*((1-beta_1)*DW + beta_1*M1)/std::sqrt(M2_);
 	}
 }
@@ -267,63 +255,36 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 }
 #endif
 
-void Optimizer::init(Real* const dest, const int N, const Real ini)
-{
-	for (int j=0; j<N; j++) dest[j] = ini;
-}
-
 void Optimizer::save(const string fname)
 {
 	const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
 	const int nAgents(net->getnAgents()), nStates(net->getnStates());
 
-	{
-		printf("Saving into %s\n", fname.c_str());
-		fflush(0);
-		string nameBackup = fname + "_net_tmp";
-		ofstream out(nameBackup.c_str());
+	printf("Saving into %s\n", fname.c_str());
+	fflush(0);
+	string nameBackup = fname + "_net_tmp";
+	ofstream out(nameBackup.c_str());
+	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
 
-		if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+	vector<Real> outWeights, outBiases, outMomW, outMomB;
+	outWeights.reserve(nWeights); outMomW.reserve(nWeights);
+	outBiases.reserve(nBiases); outMomB.reserve(nBiases);
+	out.precision(20);
 
-		out.precision(20);
-		out << nWeights << " " << nBiases << " " << nLayers  << " " << nNeurons << endl;
+	net->save(outWeights, outBiases, net->weights, net->biases);
+	net->save(outMomW, outMomB, _1stMomW, _1stMomB);
 
-		for (int i=0; i<nWeights; i++) {
-			if (std::isnan(net->weights[i]) || std::isinf(net->weights[i]))
-				die("Caught a nan\n")
-				else
-					out << net->weights[i] <<" "<< _1stMomW[i] << "\n";
-		}
+	out<<outWeights.size()<<" "<<outBiases.size()<<" "<<nLayers<<" "<<nNeurons<<endl;
+	assert(outWeights.size() == outMomW.size());
+	assert(outBiases.size() == outMomB.size());
+	for(int i=0;i<outMomW.size();i++) out<<outWeights[i]<<" "<<outMomW[i]<<"\n";
+	for(int i=0;i<outMomB.size();i++) out<<outBiases[i] <<" "<<outMomB[i]<<"\n";
+	out.flush();
+	out.close();
+	string command = "cp " + nameBackup + " " + fname + "_net";
+	system(command.c_str());
 
-		for (int i=0; i<nBiases; i++) {
-			if (std::isnan(net->biases[i]) || std::isinf(net->biases[i]))
-				die("Caught a nan\n")
-				else
-					out << net->biases[i] <<" "<< _1stMomB[i] << "\n";
-		}
-
-		out.flush();
-		out.close();
-		string command = "cp " + nameBackup + " " + fname + "_net";
-		system(command.c_str());
-	}
-	{
-		string nameBackup = fname + "_mems_tmp";
-		ofstream out(nameBackup.c_str());
-
-		if (!out.good())
-			die("Unable to open save into file %s\n", nameBackup.c_str());
-
-		for(int agentID=0; agentID<nAgents; agentID++) {
-			for (int j=0; j<nNeurons; j++) out << net->mem[agentID]->outvals[j] << "\n";
-			for (int j=0; j<nStates;  j++) out << net->mem[agentID]->ostates[j] << "\n";
-		}
-
-		out.flush();
-		out.close();
-		string command = "cp " + nameBackup + " " + fname + "_mems";
-		system(command.c_str());
-	}
+	save_recurrent_connections(fname);
 }
 
 bool EntropySGD::restart(const string fname)
@@ -340,53 +301,35 @@ void AdamOptimizer::save(const string fname)
 	const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
 	const int nAgents(net->getnAgents()), nStates(net->getnStates());
 
-	{
-		printf("Saving into %s\n", fname.c_str());
-		fflush(0);
-		string nameBackup = fname + "_net_tmp";
-		ofstream out(nameBackup.c_str());
+	printf("Saving into %s\n", fname.c_str());
+	fflush(0);
+	string nameBackup = fname + "_net_tmp";
+	ofstream out(nameBackup.c_str());
+	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
 
-		if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+	vector<Real> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2tMomB;
+	outWeights.reserve(nWeights); out1MomW.reserve(nWeights); out2MomW.reserve(nWeights);
+	outBiases.reserve(nBiases); out1MomB.reserve(nBiases); out2tMomB.reserve(nBiases);
+	out.precision(20);
 
-		out.precision(20);
-		out << nWeights << " " << nBiases << " " << nLayers  << " " << nNeurons << endl;
+	net->save(outWeights, outBiases, net->weights, net->biases);
+	net->save(out1MomW, out1MomB, _1stMomW, _1stMomB);
+	net->save(out2MomW, out2tMomB, _2ndMomW, _2ndMomB);
 
-		for (int i=0; i<nWeights; i++) {
-			if (std::isnan(net->weights[i]) || std::isinf(net->weights[i]))
-				die("Caught a nan\n")
-				else
-					out<<net->weights[i]<<" "<<_1stMomW[i]<<" "<<_2ndMomW[i]<<"\n";
-		}
+	out<<outWeights.size()<<" "<<outBiases.size()<<" "<<nLayers<<" "<<nNeurons<<endl;
+	assert(outWeights.size() == out1MomW.size() && outWeights.size() == out2MomW.size());
+	assert(outBiases.size() == out1MomB.size() && outBiases.size() == out2tMomB.size());
 
-		for (int i=0; i<nBiases; i++) {
-			if (std::isnan(net->biases[i]) || std::isinf(net->biases[i]))
-				die("Caught a nan\n")
-				else
-					out<<net->biases[i]<<" "<<_1stMomB[i]<<" "<<_2ndMomB[i]<<"\n";
-		}
+	for(int i=0;i<outWeights.size();i++)
+		out<<outWeights[i]<<" "<<out1MomW[i]<<" "<<out2MomW[i]<<"\n";
+	for(int i=0;i<outBiases.size();i++)
+		out<<outBiases[i] <<" "<<out1MomB[i]<<" "<<out2tMomB[i]<<"\n";
+	out.flush();
+	out.close();
+	string command = "cp " + nameBackup + " " + fname + "_net";
+	system(command.c_str());
 
-		out.flush();
-		out.close();
-		string command = "cp " + nameBackup + " " + fname + "_net";
-		system(command.c_str());
-	}
-	{
-		string nameBackup = fname + "_mems_tmp";
-		ofstream out(nameBackup.c_str());
-
-		if (!out.good())
-			die("Unable to open save into file %s\n", nameBackup.c_str());
-
-		for(int agentID=0; agentID<nAgents; agentID++) {
-			for (int j=0; j<nNeurons; j++) out << net->mem[agentID]->outvals[j] << "\n";
-			for (int j=0; j<nStates;  j++) out << net->mem[agentID]->ostates[j] << "\n";
-		}
-
-		out.flush();
-		out.close();
-		string command = "cp " + nameBackup + " " + fname + "_mems";
-		system(command.c_str());
-	}
+	save_recurrent_connections(fname);
 }
 
 bool Optimizer::restart(const string fname)
@@ -394,305 +337,74 @@ bool Optimizer::restart(const string fname)
 	const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
 	const int nAgents(net->getnAgents()), nStates(net->getnStates());
 
+	string nameBackup = fname + "_net";
+	ifstream in(nameBackup.c_str());
+	debug1("Reading from %s\n", nameBackup.c_str());
+	if (!in.good())
 	{
-		string nameBackup = fname + "_net";
-		ifstream in(nameBackup.c_str());
-		debug1("Reading from %s\n", nameBackup.c_str());
-		if (!in.good()) {
-			error("Couldnt open file %s \n", nameBackup.c_str());
-			#ifndef NDEBUG //if debug, you might want to do this
-			if(!bTrain) {die("...and I'm not training\n");}
-			#endif
-			return false;
-		}
-
-		int readTotWeights, readTotBiases, readNNeurons, readNLayers;
-		in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
-
-		if (readTotWeights != nWeights || readTotBiases != nBiases || readNLayers != nLayers || readNNeurons != nNeurons)
-			die("Network parameters differ!");
-
-		Real tmp, tmp1;
-		for (int i=0; i<nWeights; i++) {
-			in >> tmp >> tmp1;
-			if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-			net->weights[i] = tmp;
-			_1stMomW[i] = tmp1;
-		}
-
-		for (int i=0; i<nBiases; i++) {
-			in >> tmp >> tmp1;
-			if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-			net->biases[i] = tmp;
-			_1stMomB[i] = tmp1;
-		}
-		in.close();
-		net->updateFrozenWeights();
+		error("Couldnt open file %s \n", nameBackup.c_str());
+		#ifndef NDEBUG //if debug, you might want to do this
+		if(!bTrain) {die("...and I'm not training\n");}
+		#endif
+		return false;
 	}
-	{
-		string nameBackup = fname + "_mems";
-		ifstream in(nameBackup.c_str());
-		debug1("Reading from %s\n", nameBackup.c_str());
-		if (!in.good()) {
-			error("Couldnt open file %s \n", nameBackup.c_str());
-			return false;
-		}
 
-		Real tmp;
-		for(int agentID=0; agentID<nAgents; agentID++) {
-			for (int j=0; j<nNeurons; j++) {
-				in >> tmp;
-				if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-				net->mem[agentID]->outvals[j] = tmp;
-			}
-			for (int j=0; j<nStates; j++) {
-				in >> tmp;
-				if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-				net->mem[agentID]->ostates[j] = tmp;
-			}
-		}
-		in.close();
-	}
-	return true;
+	int readTotWeights, readTotBiases, readNNeurons, readNLayers;
+	in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
+	if (readNLayers != nLayers || readNNeurons != nNeurons)
+		die("Network parameters differ!");
+		//readTotWeights != nWeights || readTotBiases != nBiases || TODO
+
+	vector<Real> outWeights, outBiases, outMomW, outMomB;
+	outWeights.reserve(nWeights); outMomW.reserve(nWeights);
+	outBiases.reserve(nBiases); outMomB.reserve(nBiases);
+	for (int i=0;i<readTotWeights;i++)
+		in >> outWeights[i] >> outMomW[i];
+	for (int i=0;i<readTotBiases; i++)
+		in >> outBiases[i]  >> outMomB[i];
+
+	net->restart(outWeights, outBiases, net->weights, net->biases);
+	net->restart(outMomW, outMomB, _1stMomW, _1stMomB);
+	in.close();
+	net->updateFrozenWeights();
+	return restart_recurrent_connections(fname);
 }
-
 
 bool AdamOptimizer::restart(const string fname)
 {
 	const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
 	const int nAgents(net->getnAgents()), nStates(net->getnStates());
-
+	string nameBackup = fname + "_net";
+	ifstream in(nameBackup.c_str());
+	debug1("Reading from %s\n", nameBackup.c_str());
+	if (!in.good())
 	{
-		string nameBackup = fname + "_net";
-		ifstream in(nameBackup.c_str());
-		debug1("Reading from %s\n", nameBackup.c_str());
-		if (!in.good()) {
-			error("Couldnt open file %s \n", nameBackup.c_str());
-			#ifndef NDEBUG //if debug, you might want to do this
+		error("Couldnt open file %s \n", nameBackup.c_str());
+		#ifndef NDEBUG //if debug, you might want to do this
 			if(!bTrain) {die("...and I'm not training\n");}
-			#endif
-			return false;
-		}
-
-		int readTotWeights, readTotBiases, readNNeurons, readNLayers;
-		in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
-
-		if (readTotWeights != nWeights || readTotBiases != nBiases ||
-				readNLayers != nLayers  || readNNeurons  != nNeurons )
-			die("Network parameters differ!");
-
-		Real tmp, tmp1, tmp2;
-		for (int i=0; i<nWeights; i++) {
-			in >> tmp >> tmp1 >> tmp2;
-			if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-			net->weights[i] = tmp;
-			_1stMomW[i] = tmp1;
-			_2ndMomW[i] = tmp2;
-		}
-
-		for (int i=0; i<nBiases; i++) {
-			in >> tmp >> tmp1 >> tmp2;
-			if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-			net->biases[i] = tmp;
-			_1stMomB[i] = tmp1;
-			_2ndMomB[i] = tmp2;
-		}
-		in.close();
-		net->updateFrozenWeights();
+		#endif
+		return false;
 	}
-	{
-		string nameBackup = fname + "_mems";
-		ifstream in(nameBackup.c_str());
-		debug1("Reading from %s\n", nameBackup.c_str());
-		if (!in.good()) {
-			error("Couldnt open file %s \n", nameBackup.c_str());
-			return false;
-		}
 
-		Real tmp;
-		for(int agentID=0; agentID<nAgents; agentID++) {
-			for (int j=0; j<nNeurons; j++) {
-				in >> tmp;
-				if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-				net->mem[agentID]->outvals[j] = tmp;
-			}
-			for (int j=0; j<nStates; j++) {
-				in >> tmp;
-				if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-				net->mem[agentID]->ostates[j] = tmp;
-			}
-		}
-		in.close();
-	}
-	return true;
+	int readTotWeights, readTotBiases, readNNeurons, readNLayers;
+	in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
+	if (readNLayers != nLayers || readNNeurons != nNeurons)
+		die("Network parameters differ!");
+		//readTotWeights != nWeights || readTotBiases != nBiases || TODO
+
+	vector<Real> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2tMomB;
+	outWeights.reserve(nWeights); out1MomW.reserve(nWeights); out2MomW.reserve(nWeights);
+	outBiases.reserve(nBiases); out1MomB.reserve(nBiases); out2tMomB.reserve(nBiases);
+
+	for (int i=0;i<readTotWeights;i++)
+		in >> outWeights[i] >> out1MomW[i] >> out2MomW[i];
+	for (int i=0;i<readTotBiases; i++)
+		in >> outBiases[i]  >> out1MomB[i] >> out2tMomB[i];
+
+	net->restart(outWeights, outBiases, net->weights, net->biases);
+	net->restart(out1MomW, out1MomB, _1stMomW, _1stMomB);
+	net->restart(out2MomW, out2tMomB, _2ndMomW, _2ndMomB);
+	in.close();
+	net->updateFrozenWeights();
+	return restart_recurrent_connections(fname);
 }
-
-/*
-LMOptimizer::LMOptimizer(Network * _net, Profiler * _prof, Settings  & settings) : muMax(1e10), muMin(1e-6), muFactor(10), net(_net), profiler(_prof), nInputs(net->nInputs), nOutputs(net->nOutputs), iOutputs(net->iOutputs), nWeights(net->nWeights), nBiases(net->nBiases), totWeights(net->nWeights+net->nBiases), mu(0.1)
-{
-    dw.set_size(totWeights);
-    Je.set_size(totWeights);
-    diagJtJ.eye(totWeights, totWeights);
-}
-
-void LMOptimizer::stackGrads(Grads * g, const int k, const int i)
-{
-    #pragma omp parallel for nowait
-    for (int j=0; j<nWeights; j++)
-        J(i + k*nOutputs, j) = -*(g->_W + j);
-
-    #pragma omp parallel for
-    for (int j=0; j<nBiases; j++)
-        J(i + k*nOutputs, j+nWeights) = -*(g->_B + j);
-}
-
-void LMOptimizer::tryNew()
-{
-    #pragma omp parallel for nowait
-    for (int j=0; j<nWeights; j++)
- *(net->weights +j) += dw(j);
-
-    #pragma omp parallel for
-    for (int j=0; j<nBiases; j++)
- *(net->biases +j) += dw(j+nWeights);
-}
-
-void LMOptimizer::goBack()
-{
-    #pragma omp parallel for nowait
-    for (int j=0; j<nWeights; j++)
- *(net->weights +j) -= dw(j);
-
-    #pragma omp parallel for
-    for (int j=0; j<nBiases; j++)
- *(net->biases +j) -= dw(j+nWeights);
-}
-
-void LMOptimizer::trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE)
-{
-    trainMSE = 0.0;
-    vector<Real> res;
-    int nseries = inputs.size();
-    net->allocateSeries(nseries+1);
-    net->clearMemory(net->series[0]->outvals, net->series[0]->ostates);
-
-    J.set_size(nOutputs*nseries, totWeights);
-    e.set_size(nOutputs*nseries);
-
-    #pragma omp parallel
-    {
-        //STEP 1: go through the data to compute predictions
-        #pragma omp master
-            profiler->start("F");
-
-        for (int k=0; k<nseries; k++)
-        {
-            net->predict(inputs[k], res, net->series[k], net->series[k+1]);
-
-            #pragma omp master
-            for (int i=0; i<nOutputs; i++)
-            { //put this loop here to slightly reduce overhead on second step
-                Real err = *(net->series[k+1]->outvals+iOutputs+i) - targets[k][i];
-                e(i + k*nOutputs) = err;
- *(net->series[k+1]->errvals +iOutputs+i) = 0.0;
-                trainMSE += err*err;
-            }
-        }
-
-        #pragma omp master
-            profiler->stop("F");
-
-        //STEP 2: go backwards to backpropagate deltas (errors)
-        #pragma omp master
-            profiler->start("B");
-
-        net->clearErrors(net->series[nseries+1]); //there is a omp for in here
-        for (int i=0; i<nOutputs; i++)
-        {
-            for (int k=nseries; k>=1; k--)
-            {
-                #pragma omp single
-                for (int j=0; j<nOutputs; j++)
- *(net->series[k]->errvals +iOutputs+i) = j==i;
-
-                net->computeDeltasSeries(net->series, k);
-            }
-
-            net->clearDsdw();
-            for (int k=1; k<=nseries; k++)
-            {
-                net->computeGradsSeries(net->series, k, net->grad);
-                stackGrads(net->grad, k-1, i);
-            }
-        }
-        #pragma omp master
-            profiler->stop("B");
-    }
-
-    {
-        Real Q = trainMSE+1.;
-
-        JtJ = J.t() * J;
-        Je  = J.t() * e;
-        //diagJtJ = diagmat(JtJ);
-
-        while (Q > trainMSE)
-        {
-            profiler->start("S");
-            tmp = chol( JtJ + mu*diagJtJ );
-            dw = solve(tmp, Je, arma::solve_opts::fast);
-            profiler->stop("S");
-            bool _nan = false;
-            for (int w=0; w<totWeights; w++)
-                if (std::isnan((dw(w))) || std::isinf((dw(w))))
-                    _nan = true;
-            if (_nan)
-            {
-                printf("Found nans :( \n");
-                mu *= muFactor;
-                Q = trainMSE+1.;
-                continue;
-            }
-            //printf("Solved?\n");
-            profiler->start("N");
-            tryNew();
-            profiler->stop("N");
-            Q = 0;
-
-            profiler->start("T");
-            #pragma omp parallel
-            for (int k=0; k<nseries; k++)
-            {
-                net->predict(inputs[k], res, net->series[k], net->series[k+1]);
-
-                #pragma omp master
-                for (int i=0; i<nOutputs; i++)
-                { //put this loop here to slightly reduce overhead on second step
-                    Real err = targets[k][i]- *(net->series[k+1]->outvals+iOutputs+i);
-                    Q += err*err;
-                }
-            }
-            profiler->stop("T");
-
-            if (Q > trainMSE)
-            {
-                profiler->start("O");
-                goBack();
-                profiler->stop("O");
-
-                printf("Nope \n");
-                if (mu < muMax)
-                    mu *= muFactor;
-                else
-                    break;
-            }
-            else
-            printf("Yeap \n");
-        }
-
-        if (mu > muMin) mu /= muFactor;
-
-    }
-
-}
- */

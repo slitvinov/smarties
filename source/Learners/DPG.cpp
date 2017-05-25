@@ -10,14 +10,6 @@
 #include "../StateAction.h"
 #include "DPG.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include <fstream>
-#include <assert.h>
-#include <algorithm>
-#include <cmath>
-
 DPG::DPG(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nS(_env->sI.dimUsed*(1+settings.dqnAppendS)), nA(_env->aI.dim)
 {

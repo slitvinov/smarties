@@ -9,7 +9,6 @@
 
 #include "TwoActFishEnvironment.h"
 //#define __Cubism3D
-using namespace std;
 
 TwoActFishEnvironment::TwoActFishEnvironment(const int _nAgents,
   const string _execpath, const int _rank, Settings & settings) :

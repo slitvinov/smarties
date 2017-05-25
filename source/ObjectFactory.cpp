@@ -7,7 +7,6 @@
  *
  */
 
-#include "Settings.h"
 #include "ObjectFactory.h"
 #include "AllSystems.h"
 

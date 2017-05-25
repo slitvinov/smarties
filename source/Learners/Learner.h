@@ -17,8 +17,6 @@
 #include "../Network/Optimizer.h"
 
 class Master;
-#define __NOISE 0.01
-#define __LAG 10
 
 #include "../Scheduler.h"
 #include <list>

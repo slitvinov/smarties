@@ -8,12 +8,8 @@
  */
 
 #pragma once
-
 #include "Activations.h"
 #include <iostream>
-#include <cassert>
-#include <sstream>
-#include <iomanip>
 
 class Link
 {
@@ -37,23 +33,23 @@ class Link
 		//orthogonalize(n0, _weights, nOut, nAdded, n_simd);
 	}
 
-	virtual void save(ostringstream & out, Real* const _weights) const = 0;
-	void _save(ostringstream& out, Real*const _weights, int n0, int nOut, int nIn, int n_simd) const
+	virtual void save(vector<Real>& out, Real* const _weights) const = 0;
+	void _save(vector<Real>& out, Real*const _weights, int n0, int nOut, int nIn, int n_simd) const
 	{
-		out << std::setprecision(10);
 		for (int i = 0; i < nIn; i++) for (int o = 0; o < nOut; o++) {
 				const int w = n0 + n_simd*i + o;
-				out << _weights[w]  << "\n";
+				out.push_back(_weights[w]);
 				assert(!std::isnan(_weights[w]) && !std::isinf(_weights[w]));
 			}
 	}
 
-	virtual void restart(std::istringstream & buf, Real* const _weights) const = 0;
-	void _restart(istringstream& buf, Real*const _weights, int n0, int nOut, int nIn, int n_simd) const
+	virtual void restart(vector<Real>& buf, Real* const _weights) const = 0;
+	void _restart(vector<Real>& buf, Real*const _weights, int n0, int nOut, int nIn, int n_simd) const
 	{
 		for (int i = 0; i < nIn; i++) for (int o = 0; o < nOut; o++) {
 				const int w = n0 + n_simd*i + o;
-				buf >> _weights[w];
+        _weights[w] = buf.front();
+        buf.erase(buf.begin(),buf.begin()+1);
 				assert(!std::isnan(_weights[w]) && !std::isinf(_weights[w]));
 			}
 	}
@@ -132,11 +128,11 @@ class NormalLink: public Link
 			<< " nWeights" << nW << " nO_simd"<<nO_simd << endl;
 		fflush(0);
 	}
-	void save(ostringstream & out, Real* const _weights) const override
+	void save(vector<Real> & out, Real* const _weights) const override
 	{
 		_save(out, _weights, iW, nO, nI, nO_simd);
 	}
-	void restart(istringstream & buf, Real* const _weights) const override
+	void restart(vector<Real> & buf, Real* const _weights) const override
 	{
 		_restart(buf, _weights, iW, nO, nI, nO_simd);
 	}
@@ -240,14 +236,14 @@ class LinkToLSTM : public Link
 		_initialize(gen, _weights, range, iWF, nO, nI, nO_simd);
 		_initialize(gen, _weights, range, iWO, nO, nI, nO_simd);
 	}
-	void save(ostringstream & out, Real* const _weights) const override
+	void save(vector<Real> & out, Real* const _weights) const override
 	{
 		_save(out, _weights, iW,  nO, nI, nO_simd);
 		_save(out, _weights, iWI, nO, nI, nO_simd);
 		_save(out, _weights, iWF, nO, nI, nO_simd);
 		_save(out, _weights, iWO, nO, nI, nO_simd);
 	}
-	void restart(istringstream & buf, Real* const _weights) const override
+	void restart(vector<Real> & buf, Real* const _weights) const override
 	{
 		_restart(buf, _weights, iW,  nO, nI, nO_simd);
 		_restart(buf, _weights, iWI, nO, nI, nO_simd);
@@ -392,12 +388,12 @@ class LinkToConv2D : public Link
 		_initialize(gen, _weights, range, iW, nO, nAdded, outputDepth_simd);
 	}
 
-	void save(ostringstream & out, Real* const _weights) const override
+	void save(vector<Real> & out, Real* const _weights) const override
 	{
 		const int nAdded = filterWidth*filterHeight*inputDepth;
 		_save(out, _weights, iW, nO, nAdded, outputDepth_simd);
 	}
-	void restart(istringstream & buf, Real* const _weights) const override
+	void restart(vector<Real> & buf, Real* const _weights) const override
 	{
 		const int nAdded = filterWidth*filterHeight*inputDepth;
 		_restart(buf, _weights, iW, nO, nAdded, outputDepth_simd);

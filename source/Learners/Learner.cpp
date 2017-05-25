@@ -7,13 +7,6 @@
  *
  */
 
- #include <sys/time.h>
- #include <sys/resource.h>
- #include <unistd.h>
- #include <cstdlib>
-#include <string.h>
-#include <stdio.h>      /* printf, fgets */
-#include <stdlib.h>     /* atol */
 #include "Learner.h"
 #include <chrono>
 

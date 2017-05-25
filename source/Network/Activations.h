@@ -10,62 +10,62 @@
 
 #include <cmath>
 #include "../Settings.h"
-#include <cstring>
 using namespace std;
+#ifndef PRELU_FAC
 #define PRELU_FAC 0.001
-
-#define _allocateClean(name, size) { const int nsimd = __vec_width__/sizeof(Real); const int sizeSIMD=std::ceil(size/(Real)nsimd)*nsimd*sizeof(Real); posix_memalign((void **)& name, __vec_width__, sizeSIMD); memset(name, 0, sizeSIMD); }
-#define _allocateQuick(name, size) { const int nsimd = __vec_width__/sizeof(Real); const int sizeSIMD=std::ceil(size/(Real)nsimd)*nsimd*sizeof(Real); posix_memalign((void **)& name, __vec_width__, sizeSIMD); }
-#define _myfree( name ) free( name );
+#endif
+//#define _allocateClean(name, size) { const int nsimd = __vec_width__/sizeof(Real); const int sizeSIMD=std::ceil(size/(Real)nsimd)*nsimd*sizeof(Real); posix_memalign((void **)& name, __vec_width__, sizeSIMD); memset(name, 0, sizeSIMD); }
+//#define _allocateQuick(name, size) { const int nsimd = __vec_width__/sizeof(Real); const int sizeSIMD=std::ceil(size/(Real)nsimd)*nsimd*sizeof(Real); posix_memalign((void **)& name, __vec_width__, sizeSIMD); }
+//#define _myfree( name ) free( name );
 
 struct Activation //All the network signals
 {
 	Activation(int _nNeurons,int _nStates):nNeurons(_nNeurons),nStates(_nStates)
 	{
 		//contains all inputs to each neuron (inputs to network input layer is empty)
-		_allocateQuick(in_vals, nNeurons)
+		_allocateQuick(in_vals, nNeurons);
 		//contains all neuron outputs that will be the incoming signal to linked layers (outputs of input layer is network inputs)
-		_allocateQuick(outvals, nNeurons)
+		_allocateQuick(outvals, nNeurons);
 		//deltas for each neuron
-		_allocateClean(errvals, nNeurons)
+		_allocateClean(errvals, nNeurons);
 		//memory of LSTM
-		_allocateQuick(ostates, nStates)
+		_allocateQuick(ostates, nStates);
 		//inputs to gates (cell into in_vals)
-		_allocateQuick(iIGates, nStates)
-		_allocateQuick(iFGates, nStates)
-		_allocateQuick(iOGates, nStates)
+		_allocateQuick(iIGates, nStates);
+		_allocateQuick(iFGates, nStates);
+		_allocateQuick(iOGates, nStates);
 		//output of gates and LSTM cell
-		_allocateQuick(oMCell, nStates)
-		_allocateQuick(oIGates, nStates)
-		_allocateQuick(oFGates, nStates)
-		_allocateQuick(oOGates, nStates)
+		_allocateQuick(oMCell, nStates);
+		_allocateQuick(oIGates, nStates);
+		_allocateQuick(oFGates, nStates);
+		_allocateQuick(oOGates, nStates);
 		//errors of gates and LSTM cell
-		_allocateClean(eMCell, nStates)
-		_allocateClean(eIGates, nStates)
-		_allocateClean(eFGates, nStates)
-		_allocateClean(eOGates, nStates)
+		_allocateClean(eMCell, nStates);
+		_allocateClean(eIGates, nStates);
+		_allocateClean(eFGates, nStates);
+		_allocateClean(eOGates, nStates);
 	}
 
 	~Activation()
 	{
-		_myfree(in_vals)
-		_myfree(outvals)
-		_myfree(errvals)
-		_myfree(ostates)
+		_myfree(in_vals);
+		_myfree(outvals);
+		_myfree(errvals);
+		_myfree(ostates);
 
-		_myfree(iIGates)
-		_myfree(iFGates)
-		_myfree(iOGates)
+		_myfree(iIGates);
+		_myfree(iFGates);
+		_myfree(iOGates);
 
-		_myfree(oMCell)
-		_myfree(oIGates)
-		_myfree(oFGates)
-		_myfree(oOGates)
+		_myfree(oMCell);
+		_myfree(oIGates);
+		_myfree(oFGates);
+		_myfree(oOGates);
 
-		_myfree(eMCell)
-		_myfree(eIGates)
-		_myfree(eFGates)
-		_myfree(eOGates)
+		_myfree(eMCell);
+		_myfree(eIGates);
+		_myfree(eFGates);
+		_myfree(eOGates);
 	}
 
 	void clearOutput()
@@ -106,14 +106,14 @@ struct Grads
 {
 	Grads(int _nWeights, int _nBiases): nWeights(_nWeights), nBiases(_nBiases)
 	{
-		_allocateClean(_W, nWeights)
-        		_allocateClean(_B, nBiases)
+		_allocateClean(_W, nWeights);
+        		_allocateClean(_B, nBiases);
 	}
 
 	~Grads()
 	{
-		_myfree(_W)
-        		_myfree(_B)
+		_myfree(_W);
+        		_myfree(_B);
 	}
 	void clear()
 	{
@@ -128,8 +128,8 @@ struct Mem //Memory light recipient for prediction on agents
 {
 	Mem(int _nNeurons, int _nStates): nNeurons(_nNeurons), nStates(_nStates)
 	{
-		_allocateClean(outvals, nNeurons)
-        		_allocateClean(ostates, nStates)
+		_allocateClean(outvals, nNeurons);
+        		_allocateClean(ostates, nStates);
 	}
 
 	~Mem()

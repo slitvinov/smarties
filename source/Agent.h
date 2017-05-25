@@ -8,17 +8,8 @@
  */
 
 #pragma once
-
 #include "StateAction.h"
 #include "Settings.h"
-
-#ifdef _RL_VIZ
-#ifdef __APPLE__
-#include "GLUT/glut.h"
-#endif
-#endif
-
-using namespace std;
 
 class Agent
 {

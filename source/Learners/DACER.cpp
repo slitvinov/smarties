@@ -10,14 +10,6 @@
 #include "../StateAction.h"
 #include "DACER.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include <fstream>
-#include <assert.h>
-#include <algorithm>
-#include <cmath>
-
 DACER::DACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 DiscreteAlgorithm(comm,_env,settings, 1), truncation(100), cntGrad(nThreads+1,0),
 stdGrad(nThreads+1,vector<Real>(nOutputs+2,0)),

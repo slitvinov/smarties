@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include "../Util/util.h"
 #include "Environment.h"
 
 class DeadFishEnvironment: public Environment

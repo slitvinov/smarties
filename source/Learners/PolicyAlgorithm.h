@@ -8,7 +8,6 @@
  */
 
 #pragma once
-
 #include "Learner.h"
 
 #define ACER_BOUNDED //increased safety, TODO move to makefile
@@ -18,6 +17,7 @@
 #define ACER_MAX_ACT 10.
 #define ACER_MAX_REW 100.
 #define ACER_TOL_REW 0.01
+#define ACER_GRAD_CUT 5
 #endif
 
 class PolicyAlgorithm : public Learner

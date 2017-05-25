@@ -8,10 +8,7 @@
  */
 
 #pragma once
-
 #include "PolicyAlgorithm.h"
-#define ACER_GRAD_CUT 5
-using namespace std;
 
 class RACER : public PolicyAlgorithm
 {

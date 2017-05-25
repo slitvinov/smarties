@@ -7,16 +7,7 @@
  *
  */
 
-#include "../StateAction.h"
 #include "NFQ.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include <fstream>
-#include <assert.h>
-#include <algorithm>
-#include <cmath>
 
 NFQ::NFQ(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings)
@@ -141,7 +132,8 @@ void NFQ::Train_BPTT(const int seq, const int thrID) const
 
         if (not terminal) {
 					{
-        	vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
+        	//vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
+					vector<Real> scaledSnew = data->standardize(_t->s);
     			net->predict(scaledSnew, Qtildes, timeSeries[k], tgtActivation,
 																			net->tgt_weights, net->tgt_biases);
 					}
@@ -197,7 +189,8 @@ void NFQ::Train(const int seq, const int samp, const int thrID) const
 
     const bool terminal = samp+2==ndata && data->Set[seq]->ended;
     if (not terminal) {
-    	vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
+			vector<Real> scaledSnew = data->standardize(_t->s);
+    	//vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
         Activation* sNewActivation = net->allocateActivation();
         net->predict(scaledSnew, Qhats,   sNewActivation);
         net->predict(scaledSnew, Qtildes, sNewActivation,

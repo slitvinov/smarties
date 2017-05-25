@@ -8,24 +8,33 @@
  */
 
 #pragma once
-
-//#include <armadillo>
+#include <fstream>
 #include "Network.h"
 #include "../Profiler.h"
 
+using namespace ErrorHandling;
+
 class Optimizer
 { //basic momentum update
-protected:
+ protected:
 	const int nWeights, nBiases, bTrain;
-	Network * net;
-	Profiler * profiler;
-	Real *_1stMomW, *_1stMomB;
+	Network * const net;
+	Profiler * const profiler;
+	Real* const _1stMomW;
+	Real* const _1stMomB;
 
-	void init(Real* const dest, const int N, const Real ini=0);
+	inline Real* init(const int N, const Real ini=0) const
+	{
+		Real* ret;
+		_allocateClean(ret, N);
+		for (int j=0; j<N; j++) ret[j] = ini;
+		return ret;
+	}
+
 	void update(Real* const dest, Real* const grad, Real* const _1stMom,
 			const int N, const int batchsize) const;
 
-public:
+ public:
 	const Real eta, lambda, alpha;
 	long unsigned nepoch;
 
@@ -58,19 +67,71 @@ public:
 		for (int i=0; i<N; i++)
 		dest[i] -= dest[i]*lambda_;
 	}
+
+	void save_recurrent_connections(const string fname)
+	{
+		const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
+		const int nAgents(net->getnAgents()), nStates(net->getnStates());
+		string nameBackup = fname + "_mems_tmp";
+		ofstream out(nameBackup.c_str());
+		if (!out.good())
+			die("Unable to open save into file %s\n", nameBackup.c_str());
+
+		for(int agentID=0; agentID<nAgents; agentID++) {
+			for (int j=0; j<nNeurons; j++)
+			out << net->mem[agentID]->outvals[j] << "\n";
+			for (int j=0; j<nStates;  j++)
+			out << net->mem[agentID]->ostates[j] << "\n";
+		}
+		out.flush();
+		out.close();
+		string command = "cp " + nameBackup + " " + fname + "_mems";
+		system(command.c_str());
+	}
+
+	bool restart_recurrent_connections(const string fname)
+	{
+		const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
+		const int nAgents(net->getnAgents()), nStates(net->getnStates());
+
+		string nameBackup = fname + "_mems";
+		ifstream in(nameBackup.c_str());
+		debug1("Reading from %s\n", nameBackup.c_str());
+		if (!in.good()) {
+			error("Couldnt open file %s \n", nameBackup.c_str());
+			return false;
+		}
+
+		Real tmp;
+		for(int agentID=0; agentID<nAgents; agentID++) {
+			for (int j=0; j<nNeurons; j++) {
+				in >> tmp;
+				if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+				net->mem[agentID]->outvals[j] = tmp;
+			}
+			for (int j=0; j<nStates; j++) {
+				in >> tmp;
+				if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+				net->mem[agentID]->ostates[j] = tmp;
+			}
+		}
+		in.close();
+		return true;
+	}
 };
 
 class AdamOptimizer: public Optimizer
 { //Adam optimizer
-protected:
+ protected:
 	const Real beta_1, beta_2, epsilon;
 	Real beta_t_1, beta_t_2;
-	Real *_2ndMomW, *_2ndMomB;
+	Real* const _2ndMomW;
+	Real* const _2ndMomB;
 
 	void update(Real* const dest, Real* const grad, Real* const _1stMom,
 			Real* const _2ndMom, const int N, const int batchsize, const Real _eta);
 
-public:
+ public:
 	AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings,
 			const Real B1 = 0.9, const Real B2 = 0.999);
 
@@ -87,15 +148,16 @@ public:
 
 class EntropySGD: public AdamOptimizer
 {
-protected:
+ protected:
 	const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD;
 	const int L_eSGD;
-	Real *_muW_eSGD, *_muB_eSGD;
+	Real* const _muW_eSGD;
+	Real* const _muB_eSGD;
 
 	void update(Real* const dest, const Real* const target, Real* const grad,
 			Real* const _1stMom, Real* const _2ndMom, Real* const _mu, const int N,
 			const int batchsize, const Real _eta);
-public:
+ public:
 
 	EntropySGD(Network* const _net,Profiler* const _prof,Settings& settings);
 
@@ -108,31 +170,3 @@ public:
 	bool restart(const string fname) override;
 	void moveFrozenWeights(const Real _alpha) override;
 };
-/*
-class LMOptimizer: public Optimizer
-{ //for now just Adam...
-    const Real muMax, muMin, muFactor;
-    Network * net;
-    Profiler * profiler;
-    const int nInputs, nOutputs, iOutputs, nWeights, nBiases, totWeights;
-    int batchsize;
-    Real mu;
-
-    arma::mat J;
-    arma::mat JtJ;
-    arma::mat diagJtJ;
-    arma::mat tmp;
-
-    arma::vec e;
-    arma::vec dw;
-    arma::vec Je;
-
-    void stackGrads(Grads * g, const int k, const int i);
-    void tryNew();
-    void goBack();
-public:
-    LMOptimizer(Network * _net, Profiler * _prof, Settings  & settings);
-
-    void trainSeries(const vector<vector<Real>>& inputs, const vector<vector<Real>>& targets, Real & trainMSE);
-};
- */
