@@ -676,31 +676,31 @@ protected:
    inline Real hardPlus(const Real val) const
    {
       //return std::exp(val);
-			return safeExp(val) + ACER_MIN_PREC;
-      //return 0.5*(val + std::sqrt(val*val+1)) + ACER_MIN_PREC;
+	   //return safeExp(val) + ACER_MIN_PREC;
+      return 0.5*(val + std::sqrt(val*val+1)) + ACER_MIN_PREC;
    }
 
    inline Real diffHardPlus(const Real val) const
    {
-      return safeExp(val);
-      //return 0.5*(1.+val/std::sqrt(val*val+1));
+      //return safeExp(val);
+      return 0.5*(1.+val/std::sqrt(val*val+1));
    }
 
 	inline Real softPlus(const Real val) const
 	{
 		//return val;
 		//return std::exp(val);
-		return 0.5*(val + std::sqrt(val*val+1)) +tol_diagL;
-		//return sqrt(val + std::sqrt(val*val+1)) +tol_diagL;
+		//return 0.5*(val + std::sqrt(val*val+1)) +tol_diagL;
+		return sqrt(val + std::sqrt(val*val+1)) +tol_diagL;
 	}
 
 	inline Real diffSoftPlus(const Real val) const
 	{
 		//return std::exp(val);
 		//return 1.;
-		return 0.5*(1 + val/std::sqrt(val*val+1));
-		//const Real den = std::sqrt(val*val+1);
-		//return 0.5*std::sqrt(den+val)/den;
+		//return 0.5*(1 + val/std::sqrt(val*val+1));
+		const Real den = std::sqrt(val*val+1);
+		return 0.5*std::sqrt(den+val)/den;
 	}
 
    inline Real softSign(const Real val) const

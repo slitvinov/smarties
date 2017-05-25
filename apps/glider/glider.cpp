@@ -10,7 +10,8 @@
 #endif
 //#define __SMART_
 //#define __PRINT_
-#define TERM_REW_FAC 10
+#define TERM_REW_FAC 50
+#define HEIGHT_PENAL 10
 using namespace std;
 
 struct Vec7
@@ -286,11 +287,11 @@ int main(int argc, const char * argv[])
                     double final_reward = 0;
                     //these rewards will then be multiplied by 1/(1-gamma)
                     //in RL algorithm, so that internal RL scales make sense
-                    final_reward  = got_there ? TERM_REW_FAC : -TERM_REW_FAC*a.getDistance();
+                    final_reward  = got_there ? TERM_REW_FAC : -a.getDistance();
                     final_reward += (landing && got_there) ? TERM_REW_FAC : 0;
 
-		    if(wrong_xdir || max_torque || way_too_far) 
-			final_reward -= TERM_REW_FAC*pow(50+a._s.y,2); 
+		               if(wrong_xdir || max_torque || way_too_far) 
+			               final_reward = -100 -HEIGHT_PENAL*pow(50+a._s.y,2); 
 
                     a.prepareState(state);
                     //printf("Sending term state %f %f %f %f\n",
