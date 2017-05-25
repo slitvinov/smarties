@@ -572,7 +572,7 @@ void Transitions::synchronize()
     }
     const auto compare=[this](Sequence* a, Sequence* b){return a->MSE<b->MSE;};
     std::sort(Set.begin(), Set.end(), compare);
-    assert(Set.front()->MSE > Set.back()->MSE);
+    assert(Set.front()->MSE < Set.back()->MSE);
   	//} else random_shuffle(Set.begin(), Set.end(), *(gen));
 
     iOldestSaved = 0;

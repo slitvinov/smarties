@@ -356,8 +356,8 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
 
           deltaC[n] *= deltas[n];
           deltaI[n] *= deltas[n];
-          deltaF[n] *= outState;
-          deltaO[n] *= deltas[n];
+          deltaF[n] *= deltas[n];
+          deltaO[n] *= outState;
         }
 
     	for (const auto & link : input_links)
