@@ -26,12 +26,7 @@ protected:
     const vector<int> iOut;
     const vector<int> iInp;
     const vector<Layer*> layers;
-
-    void build_LSTM_layer(Graph* const graph);
-    void build_normal_layer(Graph* const graph);
-    void build_whitening_layer(Graph* const graph);
-    void build_conv2d_layer(Graph* const graph);
-
+		const vector<Link*> links;
 public:
 		Real* const weights;
 		Real* const biases;

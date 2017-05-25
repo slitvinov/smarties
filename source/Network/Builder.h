@@ -17,6 +17,7 @@
 #include <fstream>
 #include <cassert>
 #include "Network.h"
+#include "Graph.h"
 
 #include <fstream>
 
@@ -59,10 +60,10 @@ class Builder
 	{
 	  assert(graph->written == true && !graph->built);
 		assert(nNeurons%simdWidth==0 && nBiases%simdWidth==0 && nWeights%simdWidth==0);
-		vector<LinkToLSTM*>* input_links = new vector<LinkToLSTM*>();
+		vector<LinkToLSTM*> input_links;
 		LinkToLSTM* recurrent_link = nullptr;
 
-	  graph->layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
+	  graph->layerSize_simd = roundUpSimd(graph->layerSize);
 	  assert(graph->layerSize>0 && graph->layerSize_simd>=graph->layerSize);
 	  assert(graph->linkedTo.size()>0 && nNeurons>0 && nStates>=0);
 
@@ -96,8 +97,8 @@ class Builder
 	      graph->layerSize_simd
 	    );
 
-	  	input_links->push_back(tmp);
-			graph->links->push_back(tmp);
+	  	input_links.push_back(tmp);
+			graph->links.push_back(tmp);
 			nWeights += layerFrom->layerSize*graph->layerSize_simd*4;
 		}
 		{ //connected  to past realization of current recurrent layer
@@ -112,7 +113,7 @@ class Builder
 	      graph->layerSize_simd
 	    );
 
-			graph->links->push_back(recurrent_link);
+			graph->links.push_back(recurrent_link);
 			nWeights += graph->layerSize * graph->layerSize_simd*4;
 		}
 
@@ -131,7 +132,7 @@ class Builder
 	{
 	    assert(graph->written == true && !graph->built);
 	  	assert(nNeurons%simdWidth==0 && nBiases%simdWidth==0 && nWeights%simdWidth==0);
-	  	vector<NormalLink*>* input_links = new vector<NormalLink*>();
+	  	vector<NormalLink*> input_links;
 	  	NormalLink* recurrent_link = nullptr;
 
 	    graph->layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
@@ -158,8 +159,8 @@ class Builder
 	        nWeights, graph->layerSize_simd
 	      );
 
-	    	input_links->push_back(tmp);
-			  graph->links->push_back(tmp);
+	    	input_links.push_back(tmp);
+			  graph->links.push_back(tmp);
 	    	nWeights += layerFrom->layerSize*graph->layerSize_simd;
 	    }
 
@@ -171,7 +172,7 @@ class Builder
 	        nWeights, graph->layerSize_simd
 				);
 
-			  graph->links->push_back(recurrent_link);
+			  graph->links.push_back(recurrent_link);
 	    	nWeights += graph->layerSize * graph->layerSize_simd;
 	    }
 
@@ -190,7 +191,7 @@ class Builder
 	{
 	    assert(graph->written == true && !graph->built);
 	  	assert(nNeurons%simdWidth==0 && nBiases%simdWidth==0 && nWeights%simdWidth==0);
-	  	vector<LinkToConv2D*>* input_links = new vector<LinkToConv2D*>();
+	  	vector<LinkToConv2D*> input_links;
 
 	    assert(graph->featsNumber==graph->layerDepth);
 	    graph->layerDepth_simd = std::ceil(graph->layerDepth/(Real)simdWidth)*simdWidth;
@@ -221,8 +222,8 @@ class Builder
 	      graph->padWidth, graph->padHeight
 	    );
 
-			input_links->push_back(tmp);
-			graph->links->push_back(tmp);
+			input_links.push_back(tmp);
+			graph->links.push_back(tmp);
 			nWeights += graph->featsWidth*graph->featsHeight*graph->featsNumber_simd
 	                * layerFrom->layerDepth;
 
@@ -247,6 +248,7 @@ public:
 		vector<int> iInp;
 		vector<Graph*> G;
 		vector<Layer*> layers;
+		vector<Link*> links;
 		Settings & settings;
 		Grads* grad;
 		vector<Grads*> Vgrad;
@@ -270,7 +272,7 @@ public:
 			{
 				if(graph->input)
 				{
-					assert(graph->written == true && !graph->built);
+					assert(graph->written && !graph->built);
 		      graph->firstNeuron_ID = nNeurons;
 		      graph->layerSize_simd = roundUpSimd(graph->layerSize);
 		      nNeurons += graph->layerSize_simd;
@@ -286,6 +288,8 @@ public:
 					build_normal_layer(graph);
 
 				graph->check();
+				for (auto & l : graph->links)
+					links.push_back(l);
 			}
 			printf("nInputs:%d, nOutputs:%d, nLayers:%d, nNeurons:%d, nWeights:%d, nBiases:%d, nStates:%d\n",
 				nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates);

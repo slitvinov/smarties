@@ -17,16 +17,47 @@
 
 class Link
 {
-public:
+ public:
+	const int iW, nI, iI, nO, iO, nO_simd, nW;
+	Link(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd, int _nW)
+	: iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nO_simd(_nO_simd), nW(_nW) {}
+
 	virtual ~Link() {}
 	virtual void print() const = 0;
+
 	virtual void initialize(mt19937* const gen, Real* const _weights) const = 0;
+	void _initialize(mt19937* const gen, Real* const _weights, const Real scale,
+		int n0, int nOut, int nIn, int n_simd) const
+	{
+		uniform_real_distribution<Real> dis(-scale,scale);
+		//normal_distribution<Real> dis(0.,range);
+		for (int i = 0; i < nIn; i++)
+			for (int o = 0; o < nOut; o++)
+				_weights[n0 + n_simd*i + o] = dis(*gen);
+		//orthogonalize(n0, _weights, nOut, nAdded, n_simd);
+	}
+
+	virtual void save(ostringstream & out, Real* const _weights) const = 0;
+	void _save(ostringstream& out, Real*const _weights, int n0, int nOut, int nIn, int n_simd) const
+	{
+		out << std::setprecision(10);
+		for (int i = 0; i < nIn; i++) for (int o = 0; o < nOut; o++) {
+				const int w = n0 + n_simd*i + o;
+				out << _weights[w]  << "\n";
+				assert(!std::isnan(_weights[w]) && !std::isinf(_weights[w]));
+			}
+	}
+
 	virtual void restart(std::istringstream & buf, Real* const _weights) const = 0;
-	virtual void save(std::ostringstream & buf, Real* const _weights) const = 0;
-	//virtual void propagate(const Activation* const netFrom, Activation* const netTo,
-	//const Real* const weights) const = 0;
-	//virtual void backPropagate(Activation* const netFrom, const Activation* const netTo,
-	//const Real* const weights, Real* const gradW) const =0;
+	void _restart(istringstream& buf, Real*const _weights, int n0, int nOut, int nIn, int n_simd) const
+	{
+		for (int i = 0; i < nIn; i++) for (int o = 0; o < nOut; o++) {
+				const int w = n0 + n_simd*i + o;
+				buf >> _weights[w];
+				assert(!std::isnan(_weights[w]) && !std::isinf(_weights[w]));
+			}
+	}
+
 	void orthogonalize(const int n0, Real* const _weights, int nOut, int nIn, int n_simd) const
 	{
 		if (nIn<nOut) return;
@@ -35,7 +66,8 @@ public:
 			Real v_d_v_pre = 0.;
 			for (int k=0; k<nIn; k++)
 				v_d_v_pre += *(_weights+n0+k*n_simd+i)* *(_weights+n0+k*n_simd+i);
-			if(v_d_v_pre<std::numeric_limits<Real>::epsilon()) die("Initialization problem\n");
+			if(v_d_v_pre<std::numeric_limits<Real>::epsilon())
+        die("Initialization problem\n");
 
 			for (int j=0; j<i;  j++) {
 				Real u_d_u = 0.0;
@@ -44,7 +76,8 @@ public:
 					u_d_u += *(_weights+n0+k*n_simd+j)* *(_weights+n0+k*n_simd+j);
 					v_d_u += *(_weights+n0+k*n_simd+j)* *(_weights+n0+k*n_simd+i);
 				}
-				if(u_d_u<std::numeric_limits<Real>::epsilon()) die("Initialization problem\n");
+				if(u_d_u<std::numeric_limits<Real>::epsilon())
+          die("Initialization problem\n");
 
 				for (int k=0; k<nIn; k++)
 					*(_weights+n0+k*n_simd+i) -= v_d_u/u_d_u * *(_weights+n0+k*n_simd+j);
@@ -53,18 +86,25 @@ public:
 			Real v_d_v_post = 0.0;
 			for (int k=0; k<nIn; k++)
 				v_d_v_post += *(_weights+n0+k*n_simd+i)* *(_weights+n0+k*n_simd+i);
-			if(v_d_v_post<std::numeric_limits<Real>::epsilon()) die("Initialization problem\n");
+
+			if(v_d_v_post<std::numeric_limits<Real>::epsilon())
+        die("Initialization problem\n");
 
 			for (int k=0; k<nIn; k++)
 				*(_weights+n0+k*n_simd+i) *= std::sqrt(v_d_v_pre/v_d_v_post);
 		}
 	}
+
+	inline void regularize(Real* const weights, const Real lambda) const
+	{
+		//not sure:
+		Lpenalization(weights, iW, nW, lambda);
+	}
 };
 
 class NormalLink: public Link
 {
-public:
-	const int iW, nI, iI, nO, iO, nO_simd, nW;
+ public:
 	/*
      a link here is defined as link layer to layer:
      index iI along the network activation outvals representing the index of the first neuron of input layer
@@ -75,7 +115,7 @@ public:
      the weights are all to all: so this link occupies space iW to (iW + nI*nO) along weight vector
 	 */
 	NormalLink(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd) :
-		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nO_simd(_nO_simd), nW(_nI*_nO_simd)
+	Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, _nI*_nO_simd)
 	{
 		assert(iW % (__vec_width__/sizeof(Real)) == 0);
 		assert(iI % (__vec_width__/sizeof(Real)) == 0);
@@ -92,38 +132,18 @@ public:
 			<< " nWeights" << nW << " nO_simd"<<nO_simd << endl;
 		fflush(0);
 	}
-
+	void save(ostringstream & out, Real* const _weights) const override
+	{
+		_save(out, _weights, iW, nO, nI, nO_simd);
+	}
+	void restart(istringstream & buf, Real* const _weights) const override
+	{
+		_restart(buf, _weights, iW, nO, nI, nO_simd);
+	}
 	void initialize(mt19937* const gen, Real* const _weights) const override
 	{
-		//printf("Initializing normal\n");
 		const Real range = std::sqrt(6./(nO + nI));
-		uniform_real_distribution<Real> dis(-range,range);
-		//normal_distribution<Real> dis(0.,range);
-
-		for (int i = 0; i < nI; i++)
-			for (int o = 0; o < nO; o++)
-				_weights[iW + nO_simd*i + o] = dis(*gen);
-
-		orthogonalize(iW, _weights, nO, nI, nO_simd);
-	}
-
-	void restart(std::istringstream & buf, Real* const _weights) const override
-	{
-		for (int i = 0; i < nI; i++)
-			for (int o = 0; o < nO; o++) {
-				const int w = iW + nO_simd*i + o;
-				Real tmp;
-				buf >> tmp;
-				assert(not std::isnan(tmp) & not std::isinf(tmp));
-				_weights[w] = tmp;
-			}
-	}
-
-	void save(std::ostringstream & out, Real* const _weights) const override
-	{
-		out << std::setprecision(10);
-		for (int i=0; i<nI; i++) for (int o=0; o<nO; o++)
-			out << _weights[iW + nO_simd*i + o]  << "\n";
+		_initialize(gen, _weights, range, iW, nO, nI, nO_simd);
 	}
 
 	inline void propagate(const Activation* const netFrom, Activation* const netTo,
@@ -133,22 +153,13 @@ public:
 		Real* __restrict__ const link_outputs = netTo->in_vals +iO;
 		//__builtin_assume_aligned(link_outputs, __vec_width__);
 		//__builtin_assume_aligned(link_input, __vec_width__);
-		#if 1
-			for (int i = 0; i < nI; i++) {
-				const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
-				//__builtin_assume_aligned(link_weights, __vec_width__);
-				for (int o = 0; o < nO; o++) {
-					link_outputs[o] += link_input[i] * link_weights[o];
-				}
-			}
-		#else
+		for (int i = 0; i < nI; i++) {
+			const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
+			//__builtin_assume_aligned(link_weights, __vec_width__);
 			for (int o = 0; o < nO; o++) {
-				const Real* __restrict__ const link_weights = weights +iW +nI*o;
-				for (int i = 0; i < nI; i++) {
-					link_outputs[o] += link_input[i] * link_weights[i];
-				}
+				link_outputs[o] += link_input[i] * link_weights[o];
 			}
-		#endif
+		}
 	}
 
 	inline void backPropagate(Activation* const netFrom, const Activation* const netTo,
@@ -172,11 +183,6 @@ public:
 			}
 		}
 	}
-
-	inline void regularize(Real* const weights, const Real lambda) const
-	{
-		Lpenalization(weights, iW, nW, lambda);
-	}
 };
 
 class LinkToLSTM : public Link
@@ -190,12 +196,12 @@ class LinkToLSTM : public Link
      additionally the LSTM contains a memory, contained in Activation->ostate
      memory and gates are treated differently than normal neurons, therefore are contained in separate array, and i keep track of the position with iC
 	 */
-	const int iW, nI, iI, nO, iO, iC, iWI, iWF, iWO, nO_simd, nW;
+	const int iC, iWI, iWF, iWO;
 
 	LinkToLSTM(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW,
 		int _iWI, int _iWF, int _iWO, int _nO_simd) :
-		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), iC(_iC),
-		iWI(_iWI), iWF(_iWF), iWO(_iWO), nO_simd(_nO_simd), nW(_nI*_nO_simd) //i care nW per neuron, just for the asserts
+		Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, _nI*_nO_simd), iC(_iC),
+		iWI(_iWI), iWF(_iWF), iWO(_iWO) //i care nW per neuron, just for the asserts
 	{
 		assert(iW  % (__vec_width__/sizeof(Real)) == 0);
 		assert(iWI % (__vec_width__/sizeof(Real)) == 0);
@@ -222,7 +228,6 @@ class LinkToLSTM : public Link
 
 	void initialize(mt19937* const gen, Real* const _weights) const override
 	{
-		printf("Initializing LSTM\n");
 		//#ifndef __posDef_layers_
 		//const Real range = std::sqrt(6./(nO + nI));
 		const Real width = 2*std::max(nO,nI);
@@ -230,61 +235,24 @@ class LinkToLSTM : public Link
 		//#else
 		//const Real range = 2./nI;
 		//#endif
-		uniform_real_distribution<Real> dis(-range,range);
-		//normal_distribution<Real> dis(0.,range);
-
-		for (int i = 0; i < nI; i++)
-			for (int o = 0; o < nO; o++) {
-				_weights[iW  + nO_simd*i + o] = dis(*gen);
-				_weights[iWI + nO_simd*i + o] = dis(*gen);
-				_weights[iWF + nO_simd*i + o] = dis(*gen);
-				_weights[iWO + nO_simd*i + o] = dis(*gen);
-			}
-		orthogonalize(iW,  _weights, nO, nI, nO_simd);
-		orthogonalize(iWI, _weights, nO, nI, nO_simd);
-		orthogonalize(iWF, _weights, nO, nI, nO_simd);
-		orthogonalize(iWO, _weights, nO, nI, nO_simd);
+		_initialize(gen, _weights, range, iW,  nO, nI, nO_simd);
+		_initialize(gen, _weights, range, iWI, nO, nI, nO_simd);
+		_initialize(gen, _weights, range, iWF, nO, nI, nO_simd);
+		_initialize(gen, _weights, range, iWO, nO, nI, nO_simd);
 	}
-
-	void restart(std::istringstream & buf, Real* const _weights) const override
+	void save(ostringstream & out, Real* const _weights) const override
 	{
-		Real tmp;
-		for (int i=0; i<nI; i++) for (int o=0; o<nO; o++) {
-			buf >> tmp;
-			assert(not std::isnan(tmp) & not std::isinf(tmp));
-			_weights[iW + nO_simd*i + o] = tmp;
-		}
-		for (int i=0; i<nI; i++) for (int o=0; o<nO; o++) {
-			buf >> tmp;
-			assert(not std::isnan(tmp) & not std::isinf(tmp));
-			_weights[iWI + nO_simd*i + o] = tmp;
-		}
-		for (int i=0; i<nI; i++) for (int o=0; o<nO; o++) {
-			buf >> tmp;
-			assert(not std::isnan(tmp) & not std::isinf(tmp));
-			_weights[iWF + nO_simd*i + o] = tmp;
-		}
-		for (int i=0; i<nI; i++) for (int o=0; o<nO; o++) {
-			buf >> tmp;
-			assert(not std::isnan(tmp) & not std::isinf(tmp));
-			_weights[iWO + nO_simd*i + o] = tmp;
-		}
+		_save(out, _weights, iW,  nO, nI, nO_simd);
+		_save(out, _weights, iWI, nO, nI, nO_simd);
+		_save(out, _weights, iWF, nO, nI, nO_simd);
+		_save(out, _weights, iWO, nO, nI, nO_simd);
 	}
-
-	void save(std::ostringstream & out, Real* const _weights) const override
+	void restart(istringstream & buf, Real* const _weights) const override
 	{
-		out << std::setprecision(10);
-		for (int i=0; i<nI; i++) for (int o=0; o<nO; o++)
-			out << _weights[iW  + nO_simd*i + o] << "\n";
-
-		for (int i=0; i<nI; i++) for (int o=0; o<nO; o++)
-			out << _weights[iWI + nO_simd*i + o] << "\n";
-
-		for (int i=0; i<nI; i++) for (int o=0; o<nO; o++)
-			out << _weights[iWF + nO_simd*i + o] << "\n";
-
-		for (int i=0; i<nI; i++) for (int o=0; o<nO; o++)
-			out << _weights[iWO + nO_simd*i + o] << "\n";
+		_restart(buf, _weights, iW,  nO, nI, nO_simd);
+		_restart(buf, _weights, iWI, nO, nI, nO_simd);
+		_restart(buf, _weights, iWF, nO, nI, nO_simd);
+		_restart(buf, _weights, iWO, nO, nI, nO_simd);
 	}
 
 	void propagate(const Activation* const netFrom, Activation* const netTo,
@@ -364,32 +332,24 @@ class LinkToLSTM : public Link
 			}
 		}
 	}
-
-	inline void regularize(Real* const weights, const Real lambda) const
-	{
-		//not the gates, they are never safe for regularizers
-		Lpenalization(weights, iW, nW, lambda);
-	}
 };
-
 
 class LinkToConv2D : public Link
 {
  public:
-	const int iW, nI, iI, nO, iO, outputDepth_simd;
 	const int inputWidth, inputHeight, inputDepth;
-	const int filterWidth, filterHeight;
+	const int filterWidth, filterHeight, outputDepth_simd;
 	const int outputWidth, outputHeight, outputDepth;
 	const int strideX, strideY, padX, padY;
-	const int nW;
 
 	LinkToConv2D(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd,
 		int _inW, int _inH, int _inD, int _fW, int _fH, int _fN, int _outW,
 		int _outH, int _sX=1, int _sY=1, int _pX=0, int _pY=0) :
-		iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), outputDepth_simd(_nO_simd),
-		inputWidth(_inW), inputHeight(_inH), inputDepth(_inD), filterWidth(_fW),
-		filterHeight(_fH), outputWidth(_outW), outputHeight(_outH), outputDepth(_fN),
-		strideX(_sX), strideY(_sY), padX(_pX), padY(_pY), nW(_fW*_fH*_nO_simd*_inD)
+		Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, _fW*_fH*_nO_simd*_inD),
+		inputWidth(_inW), inputHeight(_inH), inputDepth(_inD),
+		filterWidth(_fW), filterHeight(_fH), outputDepth_simd(_nO_simd),
+		outputWidth(_outW), outputHeight(_outH), outputDepth(_fN),
+		strideX(_sX), strideY(_sY), padX(_pX), padY(_pY)
 	{
 		assert(iW % (__vec_width__/sizeof(Real)) == 0);
 		assert(iI % (__vec_width__/sizeof(Real)) == 0);
@@ -411,12 +371,6 @@ class LinkToConv2D : public Link
 		print();
 	}
 
-	inline void regularize(Real* const weights, const Real lambda) const
-	{
-		//not sure:
-		Lpenalization(weights, iW, nW, lambda);
-	}
-
 	void print() const override
 	{
 		printf("iW=%d, nI=%d, iI=%d, nO=%d, iO=%d, nW=%d\n",
@@ -432,38 +386,21 @@ class LinkToConv2D : public Link
 
 	void initialize(mt19937* const gen, Real* const _weights) const override
 	{
-		printf("Initializing conv\n");
 		const int nAdded = filterWidth*filterHeight*inputDepth;
-		const Real range = std::sqrt(6./(nAdded+outputDepth));
-		uniform_real_distribution<Real> dis(-range,range);
-		//normal_distribution<Real> dis(0.,range);
 		assert(outputDepth_simd*nAdded == nW);
-		for (int i = 0; i < nAdded; i++)
-			for (int o = 0; o < nO; o++)
-				_weights[iW + outputDepth_simd*i + o] = dis(*gen);
-
-		orthogonalize(iW, _weights, outputDepth, nAdded, outputDepth_simd);
+		const Real range = std::sqrt(6./(nAdded+outputDepth));
+		_initialize(gen, _weights, range, iW, nO, nAdded, outputDepth_simd);
 	}
 
-	void restart(std::istringstream & buf, Real* const _weights) const override
+	void save(ostringstream & out, Real* const _weights) const override
 	{
 		const int nAdded = filterWidth*filterHeight*inputDepth;
-		for (int i = 0; i < nAdded; i++)
-			for (int o = 0; o < nO; o++) {
-				Real tmp;
-				buf >> tmp;
-				assert(not std::isnan(tmp) & not std::isinf(tmp));
-				*(_weights +iW + outputDepth_simd*i + o) = tmp;
-			}
+		_save(out, _weights, iW, nO, nAdded, outputDepth_simd);
 	}
-
-	void save(std::ostringstream & out, Real* const _weights) const override
+	void restart(istringstream & buf, Real* const _weights) const override
 	{
-		out << std::setprecision(10);
 		const int nAdded = filterWidth*filterHeight*inputDepth;
-		for (int i = 0; i < nAdded; i++)
-			for (int o = 0; o < nO; o++)
-				out << _weights[iW + outputDepth_simd*i + o] << "\n";
+		_restart(buf, _weights, iW, nO, nAdded, outputDepth_simd);
 	}
 
 	void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
@@ -474,9 +411,11 @@ class LinkToConv2D : public Link
 				const int iy = oy*strideY - padY;
 				for(int fx=0; fx<filterWidth; fx++)
 					for(int fy=0; fy<filterHeight; fy++) {
-						const int cx=ix+fx, cy=iy+fy;
+						const int cx=ix+fx;
+						const int cy=iy+fy;
 						//padding: skip addition if outside input boundaries
-						if (cx < 0 || cy < 0 || cx >= inputWidth || cy >= inputHeight) continue;
+						if (cx < 0 || cy < 0 || cx >= inputWidth || cy >= inputHeight)
+							continue;
 
 						const Real* __restrict__ const link_inputs =
 								netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
@@ -491,9 +430,6 @@ class LinkToConv2D : public Link
 							//__builtin_assume_aligned(link_weights, __vec_width__);
 
 							for(int fz=0; fz<outputDepth; fz++) {
-								//printf("oz %d \n",iO +outputDepth*(oy +outputHeight*ox)+fz);
-								//printf("iz %d \n",iI +inputDepth*(cy +inputHeight*cx)+iz);
-								//printf("wz %d \n",iW +outputDepth*(iz +inputDepth*(fy +filterHeight*fx))+fz);
 								link_outputs[fz] += link_inputs[iz] * link_weights[fz];
 							}
 						}
@@ -513,7 +449,8 @@ class LinkToConv2D : public Link
 						const int cx = ix+fx;
 						const int cy = iy+fy;
 						//padding: skip addition if outside input boundaries
-						if (cx < 0 || cy < 0 || cx >= inputWidth || cy >= inputHeight) continue;
+						if (cx < 0 || cy < 0 || cx >= inputWidth || cy >= inputHeight)
+							continue;
 
 						const Real* __restrict__ const link_inputs =
 								netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
@@ -540,93 +477,5 @@ class LinkToConv2D : public Link
 						}
 					}
 			}
-	}
-};
-
-struct Graph //misleading, this is just the graph for a single layer
-{
-	bool written = false; //is this graph already used?
-	bool built = false; //is this graph already used?
-
-	bool input = false;
-	bool input2D = false;
-	bool output = false;
-	bool RNN = false;
-	bool LSTM = false;
-	bool Conv2D = false;
-
-	int layerSize = -1;
-	int layerSize_simd = -1;
-	int firstNeuron_ID = -1;
-	int firstState_ID = -1;
-	int firstBias_ID = -1;
-
-	//LSTM gates:
-	int firstBiasIG_ID = -1, firstBiasFG_ID = -1, firstBiasOG_ID = -1;
-	//Convolutions: feature map size:
-	int layerWidth = -1, layerHeight = -1, layerDepth = -1;
-	int layerDepth_simd = -1;
-	//Convolutions: padding on bottom side of map:
-	int padWidth = -1, padHeight = -1;
-	//Convolutions: kernel size
-	int featsWidth = -1, featsHeight = -1, featsNumber = -1;
-	int featsNumber_simd = -1;
-	//Convolutions: padding on bottom side of map:
-	int strideWidth = -1, strideHeight = -1;
-
-	vector<int> linkedTo;
-	vector<Link*> * links;
-
-	Function* func = nullptr;
-	Function* cell = nullptr;
-	Function* gate = nullptr;
-
-	Graph()
-	{
-		links = new vector<Link*>();
-	}
-
-	~Graph() { }
-
-	void check() const
-	{
-		assert(built);
-		assert(written);
-		assert(layerSize>0);
-		assert(layerSize_simd>=layerSize);
-
-		assert((input && func == nullptr) || (!input && func not_eq nullptr));
-		assert((input && firstNeuron_ID>=0) || (!input && firstNeuron_ID>0));
-		assert((input && firstBias_ID<0)   || (!input && firstBias_ID>=0));
-
-		assert(!input2D || (input2D && input));
-		if(input) assert(!RNN);
-		if(input) assert(!LSTM);
-		if(input) assert(!Conv2D);
-		if(input) assert(!output);
-
-		assert((!LSTM && cell == nullptr) || (LSTM && cell not_eq nullptr));
-		assert((!LSTM && gate == nullptr) || (LSTM && gate not_eq nullptr));
-		assert((!LSTM && firstBiasIG_ID<0) || (LSTM && firstBiasIG_ID>=0));
-		assert((!LSTM && firstBiasFG_ID<0) || (LSTM && firstBiasFG_ID>=0));
-		assert((!LSTM && firstBiasOG_ID<0) || (LSTM && firstBiasOG_ID>=0));
-		assert((!LSTM && firstState_ID<0) || (LSTM && firstState_ID>=0));
-
-		const bool layer2D = Conv2D || input2D;
-		assert((!layer2D && layerWidth<0) || (layer2D && layerWidth>=0));
-		assert((!layer2D && layerHeight<0) || (layer2D && layerHeight>=0));
-		assert((!layer2D && layerDepth<0) || (layer2D && layerDepth>=0));
-		assert((!layer2D && layerDepth_simd<0) || (layer2D && layerDepth_simd>=0));
-
-		assert((!Conv2D && padWidth<0) || (Conv2D && padWidth>=0));
-		assert((!Conv2D && padHeight<0) || (Conv2D && padHeight>=0));
-		assert((!Conv2D && strideWidth<0) || (Conv2D && strideWidth>=0));
-		assert((!Conv2D && strideHeight<0) || (Conv2D && strideHeight>=0));
-
-		assert((!Conv2D && featsWidth<0) || (Conv2D && featsWidth>=0));
-		assert((!Conv2D && featsHeight<0) || (Conv2D && featsHeight>=0));
-		assert((!Conv2D && featsNumber<0) || (Conv2D && featsNumber>=0));
-		assert((!Conv2D && featsNumber_simd<0) || (Conv2D && featsNumber_simd>=0));
-
 	}
 };

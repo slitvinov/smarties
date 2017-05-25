@@ -11,7 +11,7 @@
 #include <iomanip>      // std::setprecision
 #include <iostream>     // std::cout, std::fixed
 #include <cassert>
-//#include "saruprng.h"
+#include "saruprng.h"
 
 using namespace ErrorHandling;
 
@@ -52,13 +52,13 @@ void Optimizer::moveFrozenWeights(const Real _alpha)
 	if (net->allocatedFrozenWeights==false || _alpha>1)
 		return net->updateFrozenWeights();
 
-#pragma omp parallel
+	#pragma omp parallel
 	{
-#pragma omp for nowait
+		#pragma omp for nowait
 		for (int j=0; j<nWeights; j++)
 			net->tgt_weights[j] += _alpha*(net->weights[j] - net->tgt_weights[j]);
 
-#pragma omp for nowait
+			#pragma omp for nowait
 		for (int j=0; j<nBiases; j++)
 			net->tgt_biases[j] += _alpha*(net->biases[j] - net->tgt_biases[j]);
 	}
@@ -70,18 +70,18 @@ void EntropySGD::moveFrozenWeights(const Real _alpha)
 
 	if (net->allocatedFrozenWeights==false) return net->updateFrozenWeights();
 
-#pragma omp parallel
+	#pragma omp parallel
 	{
 		const Real fac = eta_eSGD * gamma_eSGD;
 
-#pragma omp for nowait
+		#pragma omp for nowait
 		for (int j=0; j<nWeights; j++) {
 			net->tgt_weights[j] += fac * (_muW_eSGD[j] - net->tgt_weights[j]);
 			net->weights[j] = net->tgt_weights[j];
 			_muW_eSGD[j] = net->tgt_weights[j];
 		}
 
-#pragma omp for nowait
+		#pragma omp for nowait
 		for (int j=0; j<nBiases; j++){
 			net->tgt_biases[j] += fac * (_muB_eSGD[j] - net->tgt_biases[j]);
 			net->biases[j] = net->tgt_biases[j];
@@ -100,12 +100,12 @@ void EntropySGD::update(Real* const dest, const Real* const target, Real* const 
 	// TODO const Real lambda_ = _lambda*eta_;
 	const Real noise = std::sqrt(eta_) * eps_eSGD;
 
-#pragma omp parallel
+	#pragma omp parallel
 	{
 		const int thrID = omp_get_thread_num();
-		//Saru gen(nepoch, thrID, net->generators[thrID]());
+		Saru gen(nepoch, thrID, net->generators[thrID]());
 
-#pragma omp for
+		#pragma omp for
 		for (int i=0; i<N; i++)
 		{
 			const Real DW  = grad[i]*norm;
@@ -113,7 +113,7 @@ void EntropySGD::update(Real* const dest, const Real* const target, Real* const 
 			const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
 			const Real M2_ = std::max(M2,epsilon);
 
-			const Real RNG = 0;//noise * gen.d_mean0_var1();
+			const Real RNG = noise * gen.d_mean0_var1();
 			const Real DW_ = eta_*M1_/std::sqrt(M2_);
 
 			_1stMom[i] = M1_;
@@ -139,7 +139,8 @@ void EntropySGD::update(Grads* const G, const int batchsize)
 
 	beta_t_2 *= beta_2;
 	if (beta_t_2<2.2e-16) beta_t_2 = 0;
-	//printf("%d %f %f\n",nepoch, beta_t_1,beta_t_2);
+
+	if(lambda>2.2e-16) net->regularize(lambda*eta);
 }
 
 void Optimizer::stackGrads(Grads* const G, const Grads* const g) const
@@ -151,9 +152,9 @@ void Optimizer::stackGrads(Grads* const G, const Grads* const g) const
 void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 {
 	const int nThreads = g.size();
-#pragma omp parallel
+	#pragma omp parallel
 	{
-#pragma omp for nowait
+		#pragma omp for nowait
 		for (int j=0; j<nWeights; j++)
 			for (int k=0; k<nThreads; k++) {
 				//G->_W[j] += std::max(std::min(g[k]->_W[j], 10.), -10.);
@@ -161,7 +162,7 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 				g[k]->_W[j] = 0.;
 			}
 
-#pragma omp for nowait
+			#pragma omp for nowait
 		for (int j=0; j<nBiases; j++)
 			for (int k=0; k<nThreads; k++) {
 				//G->_B[j] += std::max(std::min(g[k]->_B[j], 10.), -10.);
@@ -175,10 +176,7 @@ void Optimizer::update(Grads* const G, const int batchsize)
 {
 	update(net->weights, G->_W, _1stMomW, nWeights, batchsize);
 	update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
-	if(lambda>2.2e-16) {
-		applyL2(net->weights, nWeights, lambda*eta);
-		applyL1(net->weights, nWeights, lambda*eta);
-	}
+	if(lambda>2.2e-16) net->regularize(lambda*eta);
 }
 
 void AdamOptimizer::update(Grads* const G, const int batchsize)
@@ -195,11 +193,7 @@ void AdamOptimizer::update(Grads* const G, const int batchsize)
 	if (beta_t_2<2.2e-16) beta_t_2 = 0;
 	//printf("%d %f %f\n",nepoch, beta_t_1,beta_t_2);
 
-	if(lambda>2.2e-16) {
-		net->regularize(lambda*_eta);
-		//applyL2(net->weights, nWeights, lambda*_eta);
-		//applyL1(net->weights, nWeights, lambda*_eta);
-	}
+	if(lambda>2.2e-16) net->regularize(lambda*_eta);
 }
 
 void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
@@ -406,9 +400,9 @@ bool Optimizer::restart(const string fname)
 		debug1("Reading from %s\n", nameBackup.c_str());
 		if (!in.good()) {
 			error("Couldnt open file %s \n", nameBackup.c_str());
-#ifndef NDEBUG //if debug, you might want to do this
+			#ifndef NDEBUG //if debug, you might want to do this
 			if(!bTrain) {die("...and I'm not training\n");}
-#endif
+			#endif
 			return false;
 		}
 
@@ -474,9 +468,9 @@ bool AdamOptimizer::restart(const string fname)
 		debug1("Reading from %s\n", nameBackup.c_str());
 		if (!in.good()) {
 			error("Couldnt open file %s \n", nameBackup.c_str());
-#ifndef NDEBUG //if debug, you might want to do this
+			#ifndef NDEBUG //if debug, you might want to do this
 			if(!bTrain) {die("...and I'm not training\n");}
-#endif
+			#endif
 			return false;
 		}
 
