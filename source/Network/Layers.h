@@ -71,6 +71,9 @@ class NormalLayer: public Layer
       for (const auto & link : *input_links)
         if(link not_eq nullptr) link->initialize(gen,weights);
 
+      if(recurrent_link not_eq nullptr)
+        recurrent_link->initialize(gen,weights);
+
       for (int w=n1stBias; w<n1stBias+nNeurons_simd; w++)
 				biases[w] = dis(*gen);
     }
@@ -447,6 +450,9 @@ class LSTMLayer: public Layer
 
       for (const auto & link : *input_links)
         if(link not_eq nullptr) link->initialize(gen,weights);
+
+      if(recurrent_link not_eq nullptr) 
+          recurrent_link->initialize(gen,weights);
 
       for (int w=n1stBias; w<n1stBias+nNeurons_simd; w++)
 				biases[w] = dis(*gen);
