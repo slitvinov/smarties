@@ -14,8 +14,8 @@
 class TestEnvironment : public Environment
 {
 public:
-    TestEnvironment(const int nAgents, const string execpath,
-                    const int _rank, Settings & settings);
+    TestEnvironment(const Uint nAgents, const string execpath,
+                    const Uint _rank, Settings & settings);
 
     void setDims() override;
 };

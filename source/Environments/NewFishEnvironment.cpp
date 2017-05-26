@@ -9,14 +9,14 @@
 
 #include "NewFishEnvironment.h"
 
-NewFishEnvironment::NewFishEnvironment(const int _nAgents,
-                const string _execpath, const int _rank, Settings & settings) :
+NewFishEnvironment::NewFishEnvironment(const Uint _nAgents,
+                const string _execpath, const Uint _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings),
 sight( settings.senses    ==0),
 rcast( settings.senses    % 2), //if eq {1,  3,  5,  7}
 lline((settings.senses/2) % 2), //if eq {  2,3,    6,7}
 press((settings.senses/4) % 2), //if eq {      4,5,6,7}
-study(settings.rewardType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
+study(settings.rType), goalDY((settings.goalDY>1.)? 1.-settings.goalDY : settings.goalDY)
 {
   cheaperThanNetwork = false; //this environment is more expensive to simulate than updating net. todo: think it over?
   assert(settings.senses<8);
@@ -92,40 +92,40 @@ void NewFishEnvironment::setDims()
             sI.inUse.push_back(false);
         }
 
-        const int nSensors = 20;
-        for (int i=0; i<nSensors; i++) {
+        const Uint nSensors = 20;
+        for (Uint i=0; i<nSensors; i++) {
             // (VelNAbove  ) x 5 [20]
             sI.inUse.push_back(lline);
         }
-        for (int i=0; i<nSensors; i++) {
+        for (Uint i=0; i<nSensors; i++) {
             // (VelTAbove  ) x 5 [25]
             sI.inUse.push_back(lline);
         }
-        for (int i=0; i<nSensors; i++) {
+        for (Uint i=0; i<nSensors; i++) {
             // (VelNBelow  ) x 5 [30]
             sI.inUse.push_back(lline);
         }
-        for (int i=0; i<nSensors; i++) {
+        for (Uint i=0; i<nSensors; i++) {
             // (VelTBelow  ) x 5 [35]
             sI.inUse.push_back(lline);
         }
-        for (int i=0; i<nSensors; i++) {
+        for (Uint i=0; i<nSensors; i++) {
             // (FPAbove  ) x 5 [40]
             sI.inUse.push_back(press);
         }
-        for (int i=0; i<nSensors; i++) {
+        for (Uint i=0; i<nSensors; i++) {
             // (FVAbove  ) x 5 [45]
             sI.inUse.push_back(press);
         }
-        for (int i=0; i<nSensors; i++) {
+        for (Uint i=0; i<nSensors; i++) {
             // (FPBelow  ) x 5 [50]
             sI.inUse.push_back(press);
         }
-        for (int i=0; i<nSensors; i++) {
+        for (Uint i=0; i<nSensors; i++) {
             // (FVBelow ) x 5 [55]
             sI.inUse.push_back(press);
         }
-        for (int i=0; i<2*nSensors; i++) {
+        for (Uint i=0; i<2*nSensors; i++) {
             // (FVBelow ) x 5 [55]
             sI.inUse.push_back(rcast);
         }
@@ -141,7 +141,7 @@ void NewFishEnvironment::setDims()
         aI.dim = 1;
         aI.values.resize(aI.dim);
         aI.bounded.push_back(1);
-        for (int i=0; i<aI.dim; i++) {
+        for (Uint i=0; i<aI.dim; i++) {
 
             aI.values[i].push_back(-.75);
             aI.values[i].push_back(-.50);

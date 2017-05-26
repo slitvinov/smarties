@@ -31,7 +31,7 @@ void Profiler::start(string name)
 		tm = &timings[name];
 		tm->started = true;
 	}
-	
+
 	tm->start = mach_absolute_time();
 	ongoing = name;
 }
@@ -71,7 +71,7 @@ Real Profiler::elapsed(string name)
 string Profiler::printStat()
 {
 	Real total = 0;
-	int longest = 0;
+	Uint longest = 0;
 	ostringstream out;
 	map<string, Timings>::iterator it;
 	Real now = mach_absolute_time();
@@ -82,7 +82,7 @@ string Profiler::printStat()
 			it->second.started = false;
 			it->second.total += now - it->second.start;
 		}
-		
+
 		total += it->second.total / it->second.iterations;
 		if (longest < it->first.length())
 			longest = it->first.length();
@@ -90,7 +90,7 @@ string Profiler::printStat()
 
 	Real factor;
 	string unit;
-	if (mode == SEC) 
+	if (mode == SEC)
 	{
 		factor = 1e-9;
 		unit = "sec";
@@ -106,7 +106,7 @@ string Profiler::printStat()
 		unit = "microsec";
 	}
 	longest = max(longest, 6);
-	
+
 	out << "Average total time: " << total*factor << " " << unit << endl;
 	out << left << "[" << setw(longest) << "Kernel" << "]    " << setw(20) << "Time, "+unit << setw(20) << "Percentage" << endl;
 	for (it = timings.begin(); it != timings.end(); it++)
@@ -115,8 +115,6 @@ string Profiler::printStat()
 			<< fixed << setprecision(3) << setw(20) << it->second.total * factor / it->second.iterations
 			<< fixed << setprecision(1) << setw(20) << it->second.total / total * 100 / it->second.iterations << endl;
 	}
-	
+
 	return out.str();
 }
-
-

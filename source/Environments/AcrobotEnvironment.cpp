@@ -9,8 +9,8 @@
 
 #include "AcrobotEnvironment.h"
 
-AcrobotEnvironment::AcrobotEnvironment(const int _nAgents, const string _execpath,
-		 const int _rank, Settings & settings) :
+AcrobotEnvironment::AcrobotEnvironment(const Uint _nAgents, const string _execpath,
+		 const Uint _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings)
 {
 }
@@ -46,7 +46,7 @@ void AcrobotEnvironment::setDims() //this environment is for the cart pole test
     {
         aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
-        for (int i=0; i<aI.dim; i++) {
+        for (Uint i=0; i<aI.dim; i++) {
 
             //this framework sends a real number to the application
             //if you want to receive an integer number between 0 and nOptions (eg action option)

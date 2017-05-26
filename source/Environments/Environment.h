@@ -22,15 +22,15 @@ protected:
 public:
     const string execpath;
     string paramsfile;
-    const int rank, nAgents, nAgentsPerRank;
+    const Uint rank, nAgents, nAgentsPerRank;
     const double gamma;
     bool resetAll, cheaperThanNetwork;
-    int mpi_ranks_per_env;
+    Uint mpi_ranks_per_env;
     vector<Agent*> agents;
     StateInfo  sI;
     ActionInfo aI;
-    Environment(const int nAgents, const string execpath,
-                const int _rank, Settings & settings);
+    Environment(const Uint nAgents, const string execpath,
+                const Uint _rank, Settings & settings);
 
     virtual ~Environment();
 
@@ -42,5 +42,5 @@ public:
 
     virtual vector<Real> stateDumpUpperBound();
     virtual vector<Real> stateDumpLowerBound();
-    virtual vector<int> stateDumpNBins();
+    virtual vector<Uint> stateDumpNBins();
 };

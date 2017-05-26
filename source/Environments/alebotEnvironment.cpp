@@ -1,7 +1,7 @@
 #include "alebotEnvironment.h"
 
-alebotEnvironment::alebotEnvironment(const int _nAgents, const int _nActions, const string _execpath,
-																 const int _rank, Settings & settings) :
+alebotEnvironment::alebotEnvironment(const Uint _nAgents, const Uint _nActions, const string _execpath,
+																 const Uint _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings), legalActions(_nActions)
 {
 }
@@ -79,7 +79,7 @@ void alebotEnvironment::setDims() //this environment is for the cart pole test
     {
 		//this tells which part of the input are relevant (in this case all)
         sI.inUse.clear();
-        for(int i=0;i<84*84*4;++i)
+        for(Uint i=0;i<84*84*4;++i)
         {
 			sI.inUse.push_back(true); //ignore, leave as is
 
@@ -88,8 +88,8 @@ void alebotEnvironment::setDims() //this environment is for the cart pole test
     {
         aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
-        for (int i=0; i<aI.dim; i++) {
-        	for (int j=0;j<legalActions;++j) //should be something like: actionvec=ale.getLeagalActionSet() actionvec.length: Pass aleInterface without recreating it?
+        for (Uint i=0; i<aI.dim; i++) {
+        	for (Uint j=0;j<legalActions;++j) //should be something like: actionvec=ale.getLeagalActionSet() actionvec.length: Pass aleInterface without recreating it?
         	{
 				aI.values[i].push_back(j+0.1);
 			}

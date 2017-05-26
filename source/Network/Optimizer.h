@@ -17,22 +17,22 @@ using namespace ErrorHandling;
 class Optimizer
 { //basic momentum update
  protected:
-	const int nWeights, nBiases, bTrain;
+	const Uint nWeights, nBiases, bTrain;
 	Network * const net;
 	Profiler * const profiler;
 	Real* const _1stMomW;
 	Real* const _1stMomB;
 
-	inline Real* init(const int N, const Real ini=0) const
+	inline Real* init(const Uint N, const Real ini=0) const
 	{
 		Real* ret;
 		_allocateClean(ret, N);
-		for (int j=0; j<N; j++) ret[j] = ini;
+		for (Uint j=0; j<N; j++) ret[j] = ini;
 		return ret;
 	}
 
 	void update(Real* const dest, Real* const grad, Real* const _1stMom,
-			const int N, const int batchsize) const;
+			const Uint N, const Uint batchsize) const;
 
  public:
 	const Real eta, lambda, alpha;
@@ -45,7 +45,7 @@ class Optimizer
 		_myfree(_1stMomW);
 		_myfree(_1stMomB);
 	}
-	virtual void update(Grads* const G, const int batchsize);
+	virtual void update(Grads* const G, const Uint batchsize);
 
 	virtual void stackGrads(Grads* const G, const Grads* const g) const;
 	virtual void stackGrads(Grads* const G, const vector<Grads*> g) const;
@@ -54,33 +54,33 @@ class Optimizer
 	virtual bool restart(const string fname);
 	virtual void moveFrozenWeights(const Real _alpha);
 
-	inline void applyL1(Real* const dest, const int N, const Real lambda_)
+	inline void applyL1(Real* const dest, const Uint N, const Real lambda_)
 	{
 		#pragma omp parallel for
-		for (int i=0; i<N; i++)
+		for (Uint i=0; i<N; i++)
 		dest[i] += (dest[i]<0 ? lambda_ : -lambda_);
 	}
 
-	inline void applyL2(Real* const dest, const int N, const Real lambda_)
+	inline void applyL2(Real* const dest, const Uint N, const Real lambda_)
 	{
 		#pragma omp parallel for
-		for (int i=0; i<N; i++)
+		for (Uint i=0; i<N; i++)
 		dest[i] -= dest[i]*lambda_;
 	}
 
 	void save_recurrent_connections(const string fname)
 	{
-		const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
-		const int nAgents(net->getnAgents()), nStates(net->getnStates());
+		const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
+		const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
 		string nameBackup = fname + "_mems_tmp";
 		ofstream out(nameBackup.c_str());
 		if (!out.good())
 			die("Unable to open save into file %s\n", nameBackup.c_str());
 
-		for(int agentID=0; agentID<nAgents; agentID++) {
-			for (int j=0; j<nNeurons; j++)
+		for(Uint agentID=0; agentID<nAgents; agentID++) {
+			for (Uint j=0; j<nNeurons; j++)
 			out << net->mem[agentID]->outvals[j] << "\n";
-			for (int j=0; j<nStates;  j++)
+			for (Uint j=0; j<nStates;  j++)
 			out << net->mem[agentID]->ostates[j] << "\n";
 		}
 		out.flush();
@@ -91,8 +91,8 @@ class Optimizer
 
 	bool restart_recurrent_connections(const string fname)
 	{
-		const int nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
-		const int nAgents(net->getnAgents()), nStates(net->getnStates());
+		const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
+		const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
 
 		string nameBackup = fname + "_mems";
 		ifstream in(nameBackup.c_str());
@@ -103,13 +103,13 @@ class Optimizer
 		}
 
 		Real tmp;
-		for(int agentID=0; agentID<nAgents; agentID++) {
-			for (int j=0; j<nNeurons; j++) {
+		for(Uint agentID=0; agentID<nAgents; agentID++) {
+			for (Uint j=0; j<nNeurons; j++) {
 				in >> tmp;
 				if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
 				net->mem[agentID]->outvals[j] = tmp;
 			}
-			for (int j=0; j<nStates; j++) {
+			for (Uint j=0; j<nStates; j++) {
 				in >> tmp;
 				if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
 				net->mem[agentID]->ostates[j] = tmp;
@@ -129,7 +129,7 @@ class AdamOptimizer: public Optimizer
 	Real* const _2ndMomB;
 
 	void update(Real* const dest, Real* const grad, Real* const _1stMom,
-			Real* const _2ndMom, const int N, const int batchsize, const Real _eta);
+			Real* const _2ndMom, const Uint N, const Uint batchsize, const Real _eta);
 
  public:
 	AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings,
@@ -140,7 +140,7 @@ class AdamOptimizer: public Optimizer
 		_myfree(_2ndMomW);
 		_myfree(_2ndMomB);
 	}
-	void update(Grads* const G, const int batchsize) override;
+	void update(Grads* const G, const Uint batchsize) override;
 
 	void save(const string fname) override;
 	bool restart(const string fname) override;
@@ -150,13 +150,13 @@ class EntropySGD: public AdamOptimizer
 {
  protected:
 	const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD;
-	const int L_eSGD;
+	const Uint L_eSGD;
 	Real* const _muW_eSGD;
 	Real* const _muB_eSGD;
 
 	void update(Real* const dest, const Real* const target, Real* const grad,
-			Real* const _1stMom, Real* const _2ndMom, Real* const _mu, const int N,
-			const int batchsize, const Real _eta);
+			Real* const _1stMom, Real* const _2ndMom, Real* const _mu, const Uint N,
+			const Uint batchsize, const Real _eta);
  public:
 
 	EntropySGD(Network* const _net,Profiler* const _prof,Settings& settings);
@@ -166,7 +166,7 @@ class EntropySGD: public AdamOptimizer
 		_myfree(_muW_eSGD);
 		_myfree(_muB_eSGD);
 	}
-	void update(Grads* const G, const int batchsize) override;
+	void update(Grads* const G, const Uint batchsize) override;
 	bool restart(const string fname) override;
 	void moveFrozenWeights(const Real _alpha) override;
 };

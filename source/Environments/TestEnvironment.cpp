@@ -9,8 +9,8 @@
 
 #include "TestEnvironment.h"
 
-TestEnvironment::TestEnvironment(const int _nAgents, const string _execpath,
-																 const int _rank, Settings & settings) :
+TestEnvironment::TestEnvironment(const Uint _nAgents, const string _execpath,
+																 const Uint _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings)
 {
 }
@@ -38,7 +38,7 @@ void TestEnvironment::setDims() //this environment is for the cart pole test
     {
       aI.dim = 2; //number of action that agent can perform per turn: usually 1 (eg DQN)
       aI.values.resize(aI.dim);
-      for (int i=0; i<aI.dim; i++) {
+      for (Uint i=0; i<aI.dim; i++) {
       	//used if discrete actions: options available to agent for acting
 				//otherwise can be used for scaling
           aI.values[i].push_back(-1.);

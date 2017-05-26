@@ -19,15 +19,15 @@ avgGrad(nThreads+1,vector<Real>(nOutputs+2,0))
 {
 	#if defined ACER_RELAX
 		// I output V(s), P(s), pol(s), prec(s) (and variate)
-			const vector<int> noutputs = {1,nL,nA,nA};
+			const vector<Uint> noutputs = {1,nL,nA,nA};
 			assert(nOutputs == 1+nL+nA+nA);
 	#elif defined ACER_SAFE
 		// I output V(s), P(s), pol(s), mu(s) (and variate)
-			const vector<int> noutputs = {1,nL,nA,nA};
+			const vector<Uint> noutputs = {1,nL,nA,nA};
 			assert(nOutputs == 1+nL+nA+nA);
 	#else //full formulation
 		// I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
-			const vector<int> noutputs = {1,nL,nA,nA,nA};
+			const vector<Uint> noutputs = {1,nL,nA,nA,nA};
 			assert(nOutputs == 1+nL+nA+nA+nA);
 	#endif
 
@@ -72,14 +72,14 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 	data->passData(agentId, info, sOld, a, beta, s, r);
 }
 
-void RACER::Train_BPTT(const int seq, const int thrID) const
+void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 {
 	//this should go to gamma rather quick:
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
 	const Real rGamma = annealedGamma();
 
 	assert(net->allocatedFrozenWeights && bTrain);
-	const int ndata = data->Set[seq]->tuples.size();
+	const Uint ndata = data->Set[seq]->tuples.size();
 	vector<vector<Real>> out_cur(ndata-1, vector<Real>(nOutputs,0));
 	vector<vector<Real>> out_hat(ndata-1, vector<Real>(nOutputs,0));
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
@@ -96,7 +96,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		net->predict(scaledSold, out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
 	}
 	#else
-	for (int k=0; k<ndata-1; k++) {
+	for (Uint k=0; k<ndata-1; k++) {
 		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
 		const vector<Real> scaledSold = data->standardize(_t->s);
 		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
@@ -105,7 +105,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 	}
 	net->seqPredict_execute(series_cur, series_cur);
 	net->seqPredict_execute(series_cur, series_hat, net->tgt_weights, net->tgt_biases);
-	for (int k=0; k<ndata-1; k++) {
+	for (Uint k=0; k<ndata-1; k++) {
 		net->seqPredict_output(out_cur[k], series_cur[k]);
 		net->seqPredict_output(out_hat[k], series_hat[k]);
 	}
@@ -130,7 +130,7 @@ void RACER::Train_BPTT(const int seq, const int thrID) const
 		}
 	#endif
 
-	for (int k=ndata-2; k>=0; k--)
+	for (int k=static_cast<int>(ndata)-2; k>=0; k--)
 	{
 		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains sOld, a
 		const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //this contains r, sNew
@@ -286,7 +286,7 @@ void RACER::processStats(vector<trainData*> _stats, const Real avgTime)
 }
 
 void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-		const vector<int>& nbins)
+		const vector<Uint>& nbins)
  {
 	//a fail in any of these amounts to a big and fat TODO
 	if(nAppended || nA!=1) die("TODO missing features\n");
@@ -294,11 +294,11 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 	assert(nbins.size() == upper.size());
 	assert(nbins.size() == nInputs);
 	vector<vector<Real>> bins(nbins.size());
-	int nDumpPoints = 1;
-	for (int i=0; i<nbins.size(); i++) {
+	Uint nDumpPoints = 1;
+	for (Uint i=0; i<nbins.size(); i++) {
 		nDumpPoints *= nbins[i];
 		bins[i] = vector<Real>(nbins[i]);
-		for (int j=0; j<nbins[i]; j++) {
+		for (Uint j=0; j<nbins[i]; j++) {
 			const Real l = j/(Real)(nbins[i]-1);
 			bins[i][j] = lower[i] + (upper[i]-lower[i])*l;
 		}
@@ -307,7 +307,7 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 	FILE * pFile = fopen ("dump.txt", "ab");
 	vector<Real> output(nOutputs), dump(nInputs+4);
 
-	for (int i=0; i<nDumpPoints; i++)
+	for (Uint i=0; i<nDumpPoints; i++)
 	{
 		vector<Real> state = pickState(bins, i);
 		Activation* act = net->allocateActivation();
@@ -315,7 +315,7 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		_dispose_object(act);
 
 		vector<Real> mu = extractPolicy(output);
-		int cnt = 0;
+		Uint cnt = 0;
 		dump[cnt++] = output[0];
 		dump[cnt++] = aInfo.getScaled(mu[0], 0);
 
@@ -333,7 +333,7 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 			dump[cnt++] = aInfo.getScaled(mu[0], 0);
 		#endif
 
-		for (int j=0; j<state.size(); j++) dump[cnt++] = state[j];
+		for (Uint j=0; j<state.size(); j++) dump[cnt++] = state[j];
 		assert(cnt == dump.size());
 		fwrite(dump.data(),sizeof(Real),state.size()+4,pFile);
 	}

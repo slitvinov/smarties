@@ -22,26 +22,26 @@ struct Graph
 	bool LSTM = false;
 	bool Conv2D = false;
 
-	int layerSize = -1;
-	int layerSize_simd = -1;
-	int firstNeuron_ID = -1;
-	int firstState_ID = -1;
-	int firstBias_ID = -1;
+	Uint layerSize = -1;
+	Uint layerSize_simd = -1;
+	Uint firstNeuron_ID = -1;
+	Uint firstState_ID = -1;
+	Uint firstBias_ID = -1;
 
 	//LSTM gates:
-	int firstBiasIG_ID = -1, firstBiasFG_ID = -1, firstBiasOG_ID = -1;
+	Uint firstBiasIG_ID = -1, firstBiasFG_ID = -1, firstBiasOG_ID = -1;
 	//Convolutions: feature map size:
-	int layerWidth = -1, layerHeight = -1, layerDepth = -1;
-	int layerDepth_simd = -1;
+	Uint layerWidth = -1, layerHeight = -1, layerDepth = -1;
+	Uint layerDepth_simd = -1;
 	//Convolutions: padding on bottom side of map:
-	int padWidth = -1, padHeight = -1;
+	Uint padWidth = -1, padHeight = -1;
 	//Convolutions: kernel size
-	int featsWidth = -1, featsHeight = -1, featsNumber = -1;
-	int featsNumber_simd = -1;
+	Uint featsWidth = -1, featsHeight = -1, featsNumber = -1;
+	Uint featsNumber_simd = -1;
 	//Convolutions: strides:
-	int strideWidth = -1, strideHeight = -1;
+	Uint strideWidth = -1, strideHeight = -1;
 
-	vector<int> linkedTo;
+	vector<Uint> linkedTo;
 	vector<Link*> links;
 
 	Function* func = nullptr;
@@ -60,7 +60,7 @@ struct Graph
 
 		assert((input && func == nullptr) || (!input && func not_eq nullptr));
 		assert((input && firstNeuron_ID>=0) || (!input && firstNeuron_ID>0));
-		assert((input && firstBias_ID<0)   || (!input && firstBias_ID>=0));
+		//assert((input && firstBias_ID<0)   || (!input && firstBias_ID>=0));
 
 		assert(!input2D || (input2D && input));
 		if(input) assert(!RNN);
@@ -70,26 +70,23 @@ struct Graph
 
 		assert((!LSTM && cell == nullptr) || (LSTM && cell not_eq nullptr));
 		assert((!LSTM && gate == nullptr) || (LSTM && gate not_eq nullptr));
-		assert((!LSTM && firstBiasIG_ID<0) || (LSTM && firstBiasIG_ID>=0));
-		assert((!LSTM && firstBiasFG_ID<0) || (LSTM && firstBiasFG_ID>=0));
-		assert((!LSTM && firstBiasOG_ID<0) || (LSTM && firstBiasOG_ID>=0));
-		assert((!LSTM && firstState_ID<0) || (LSTM && firstState_ID>=0));
+		assert((!LSTM && firstBiasIG_ID==0) || (LSTM && firstBiasIG_ID>0));
+		assert((!LSTM && firstBiasFG_ID==0) || (LSTM && firstBiasFG_ID>0));
+		assert((!LSTM && firstBiasOG_ID==0) || (LSTM && firstBiasOG_ID>0));
 		#ifndef NDEBUG
 		const bool layer2D = Conv2D || input2D;
 		#endif
-		assert((!layer2D && layerWidth<0) || (layer2D && layerWidth>=0));
-		assert((!layer2D && layerHeight<0) || (layer2D && layerHeight>=0));
-		assert((!layer2D && layerDepth<0) || (layer2D && layerDepth>=0));
-		assert((!layer2D && layerDepth_simd<0) || (layer2D && layerDepth_simd>=0));
+		assert((!layer2D && layerWidth==0) || (layer2D && layerWidth>0));
+		assert((!layer2D && layerHeight==0) || (layer2D && layerHeight>0));
+		assert((!layer2D && layerDepth==0) || (layer2D && layerDepth>0));
+		assert((!layer2D && layerDepth_simd==0) || (layer2D && layerDepth_simd>0));
 
-		assert((!Conv2D && padWidth<0) || (Conv2D && padWidth>=0));
-		assert((!Conv2D && padHeight<0) || (Conv2D && padHeight>=0));
-		assert((!Conv2D && strideWidth<0) || (Conv2D && strideWidth>=0));
-		assert((!Conv2D && strideHeight<0) || (Conv2D && strideHeight>=0));
+		assert((!Conv2D && strideWidth==0) || (Conv2D && strideWidth>0));
+		assert((!Conv2D && strideHeight==0) || (Conv2D && strideHeight>0));
 
-		assert((!Conv2D && featsWidth<0) || (Conv2D && featsWidth>=0));
-		assert((!Conv2D && featsHeight<0) || (Conv2D && featsHeight>=0));
-		assert((!Conv2D && featsNumber<0) || (Conv2D && featsNumber>=0));
-		assert((!Conv2D && featsNumber_simd<0) || (Conv2D && featsNumber_simd>=0));
+		assert((!Conv2D && featsWidth==0) || (Conv2D && featsWidth>0));
+		assert((!Conv2D && featsHeight==0) || (Conv2D && featsHeight>0));
+		assert((!Conv2D && featsNumber==0) || (Conv2D && featsNumber>0));
+		assert((!Conv2D && featsNumber_simd==0) || (Conv2D && featsNumber_simd>0));
 	}
 };

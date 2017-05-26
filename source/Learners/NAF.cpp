@@ -14,17 +14,17 @@ NAF::NAF(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner(comm,_env,settings), nA(_env->aI.dim),
 nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2)
 {
-	const vector<int> noutputs = {1,nL,nA};
+	const vector<Uint> noutputs = {1,nL,nA};
 	buildNetwork(net, opt, noutputs, settings);
 
 	#if 1//ndef NDEBUG
    vector<Real> out_0(nOutputs, 0.1), grad_0(nOutputs);
-   for(int i = 0; i<nOutputs; i++) {
+   for(Uint i = 0; i<nOutputs; i++) {
       uniform_real_distribution<Real> dis(-10,10);
       out_0[i] = dis(*gen);
    }
    vector<Real> act(nA,0.25);
-   for(int i = 0; i<nA; i++) {
+   for(Uint i = 0; i<nA; i++) {
       uniform_real_distribution<Real> dis(-0.5,0.5);
       act[i] = dis(*gen);
    }
@@ -32,7 +32,7 @@ nL((_env->aI.dim*_env->aI.dim+_env->aI.dim)/2)
    const Real V = dis(*gen);
 
    vector<Real> Q_0 = computeQandGrad(grad_0, act, out_0, V);
-   for(int i = 0; i<1+nL+nA; i++) {
+   for(Uint i = 0; i<1+nL+nA; i++) {
       vector<Real> grad_1(nOutputs), grad_2(nOutputs);
       vector<Real> out_1 = out_0;
       vector<Real> out_2 = out_0;
@@ -91,7 +91,7 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 
     //load computed policy into a
     vector<Real> scaledAct(nA);
-		for (int j=0; j<nA; j++) scaledAct[j] = output[1+nL+j];
+		for (Uint j=0; j<nA; j++) scaledAct[j] = output[1+nL+j];
     a.set(aInfo.getScaled(scaledAct));
 
     //random action?
@@ -110,24 +110,24 @@ void NAF::dumpNetworkInfo(const int agentId)
 	net->dump(agentId);
 	vector<Real> output(nOutputs);
 
-	const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
+	const Uint ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
 	if (ndata == 0) return;
 
 	vector<Activation*> timeSeries_base = net->allocateUnrolledActivations(ndata);
 	net->clearErrors(timeSeries_base);
 
-	for (int k=0; k<ndata; k++) {
+	for (Uint k=0; k<ndata; k++) {
 		const Tuple * const _t = data->Tmp[agentId]->tuples[k];
 		vector<Real> scaledSnew = data->standardize(_t->s);
 		net->predict(scaledSnew, output, timeSeries_base, k);
 	}
 
 	//sensitivity of value for this action in this state wrt all previous inputs
-	for (int ii=0; ii<ndata; ii++)
-	for (int i=0; i<nInputs; i++) {
+	for (Uint ii=0; ii<ndata; ii++)
+	for (Uint i=0; i<nInputs; i++) {
 		vector<Activation*> series =net->allocateUnrolledActivations(ndata);
 
-		for (int k=0; k<ndata; k++) {
+		for (Uint k=0; k<ndata; k++) {
 			const Tuple* const _t = data->Tmp[agentId]->tuples[k];
 			vector<Real> scaledSnew = data->standardize(_t->s);
 			if (k==ii) scaledSnew[i] = 0;
@@ -140,7 +140,7 @@ void NAF::dumpNetworkInfo(const int agentId)
 
 		//assert(nA==1); //TODO ask Sid for muldi-dim actions?
 		double dAct = 0;
-		for (int j=0; j<nA; j++)
+		for (Uint j=0; j<nA; j++)
 			dAct+=pow(oDiff[1+nL+j]-oBase[1+nL+j],2);
 
 		timeSeries_base[ii]->errvals[i]=sqrt(dAct)/sSnew[i];
@@ -150,8 +150,8 @@ void NAF::dumpNetworkInfo(const int agentId)
 	string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
 	ofstream out(fname.c_str());
 	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
-	for (int k=0; k<ndata; k++) {
-		for (int j=0; j<nInputs; j++)
+	for (Uint k=0; k<ndata; k++) {
+		for (Uint j=0; j<nInputs; j++)
 		out << timeSeries_base[k]->errvals[j] << " ";
 		out << "\n";
 	}
@@ -160,16 +160,16 @@ void NAF::dumpNetworkInfo(const int agentId)
 	net->deallocateUnrolledActivations(&timeSeries_base);
 }
 
-void NAF::Train_BPTT(const int seq, const int thrID) const
+void NAF::Train_BPTT(const Uint seq, const Uint thrID) const
 {
     assert(net->allocatedFrozenWeights && bTrain);
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
-    const int ndata = data->Set[seq]->tuples.size();
+    const Uint ndata = data->Set[seq]->tuples.size();
     vector<Activation*> timeSeries = net->allocateUnrolledActivations(ndata-1);
     Activation* tgtActivation = net->allocateActivation();
     net->clearErrors(timeSeries);
 
-    for (int k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
+    for (Uint k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
       const Tuple * const _t    = data->Set[seq]->tuples[k+1]; //this tuple contains a, sNew, reward
       const Tuple * const _tOld = data->Set[seq]->tuples[k]; //this tuple contains sOld
       vector<Real> scaledSold = data->standardize(_tOld->s);
@@ -205,10 +205,10 @@ void NAF::Train_BPTT(const int seq, const int thrID) const
     _dispose_object(tgtActivation);
 }
 
-void NAF::Train(const int seq, const int samp, const int thrID) const
+void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
     assert(net->allocatedFrozenWeights && bTrain);
-    const int ndata = data->Set[seq]->tuples.size();
+    const Uint ndata = data->Set[seq]->tuples.size();
     vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
 
     const Tuple* const _tOld = data->Set[seq]->tuples[samp]; //this tuple contains a, sNew, reward:
@@ -251,13 +251,13 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
         vector<Real> _dPdl(nA*nA), _u(nA), _uL(nA), _uU(nA);
 
         {
-            int kL = 1;
-            for (int j=0; j<nA; j++)
-                for (int i=0; i<nA; i++) if (i<=j) _L[nA*j + i] = out[kL++];
+            Uint kL = 1;
+            for (Uint j=0; j<nA; j++)
+                for (Uint i=0; i<nA; i++) if (i<=j) _L[nA*j + i] = out[kL++];
             assert(kL==1+nL);
         }
 
-        for (int j=0; j<nA; j++) { //compute u = act-pi and matrix L
+        for (Uint j=0; j<nA; j++) { //compute u = act-pi and matrix L
             const Real min_a = aInfo.getActMinVal(j);
             const Real max_a = aInfo.getActMaxVal(j);
             const Real pi = aInfo.getScaled(out[1+nL+j], j);
@@ -265,12 +265,12 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
             _uL[j] = min_a - pi;
             _uU[j] = max_a - pi;
         }
-        for (int j=0; j<nA; j++)
-            for (int i=0; i<nA; i++) { //A = L * L'
-                const int ind = nA*j + i;
-                for (int k=0; k<nA; k++) {
-                    const int k1 = nA*j + k;
-                    const int k2 = nA*i + k;
+        for (Uint j=0; j<nA; j++)
+            for (Uint i=0; i<nA; i++) { //A = L * L'
+                const Uint ind = nA*j + i;
+                for (Uint k=0; k<nA; k++) {
+                    const Uint k1 = nA*j + k;
+                    const Uint k2 = nA*i + k;
                     _A[ind] += _L[k1] * _L[k2];
                 }
                 Q[0] += _A[ind]*_u[i]*_u[j]; //Advantage = u' * A * u
@@ -295,51 +295,51 @@ vector<Real> NAF::computeQandGrad(vector<Real>& grad, const vector<Real>& act,
         const Real error = Vnext - Q[0];
         grad[0] = error;
 
-        for (int il=0; il<nL; il++) {
-            int kD=0;
-            for (int j=0; j<nA; j++)
-            for (int i=0; i<nA; i++) {
-                const int ind = nA*j + i;
+        for (Uint il=0; il<nL; il++) {
+            Uint kD=0;
+            for (Uint j=0; j<nA; j++)
+            for (Uint i=0; i<nA; i++) {
+                const Uint ind = nA*j + i;
                 _dLdl[ind] = 0;
                 if(i<=j) { if(kD++==il) _dLdl[ind]=1; }
             }
             assert(kD==nL);
 
-            for (int j=0; j<nA; j++)
-            for (int i=0; i<nA; i++) {
-                const int ind = nA*j + i;
+            for (Uint j=0; j<nA; j++)
+            for (Uint i=0; i<nA; i++) {
+                const Uint ind = nA*j + i;
                 _dPdl[ind] = 0;
-                for (int k=0; k<nA; k++) {
-                    const int k1 = nA*j + k;
-                    const int k2 = nA*i + k;
+                for (Uint k=0; k<nA; k++) {
+                    const Uint k1 = nA*j + k;
+                    const Uint k2 = nA*i + k;
                     _dPdl[ind] += _dLdl[k1]*_L[k2] + _L[k1]*_dLdl[k2];
                 }
             }
 
             grad[1+il] = 0.;
-            for (int j=0; j<nA; j++)
-            for (int i=0; i<nA; i++) {
-                const int ind = nA*j + i;
+            for (Uint j=0; j<nA; j++)
+            for (Uint i=0; i<nA; i++) {
+                const Uint ind = nA*j + i;
                 grad[1+il] += _dPdl[ind]*_u[i]*_u[j];
             }
 
             grad[1+il] *= dQdA*error;
         }
 
-        for (int ia=0; ia<nA; ia++) {
+        for (Uint ia=0; ia<nA; ia++) {
             grad[1+nL+ia] = 0.;
-            for (int i=0; i<nA; i++) {
-                const int ind = nA*ia + i;
+            for (Uint i=0; i<nA; i++) {
+                const Uint ind = nA*ia + i;
                 grad[1+nL+ia] -= 2.*_A[ind]*_u[i];
             }
             grad[1+nL+ia] *= dQdA*error;
         }
 
-        for (int j=0; j<nA; j++)
+        for (Uint j=0; j<nA; j++)
             grad[1+nL+j] *= aInfo.getDactDscale(out[1+nL+j], j);
 
         Real meangrad = 0;
-        for (int i=0; i<nA+nL+1; i++)
+        for (Uint i=0; i<nA+nL+1; i++)
             meangrad += std::fabs(grad[i]);
         meangrad/=(1+nA+nL);
 

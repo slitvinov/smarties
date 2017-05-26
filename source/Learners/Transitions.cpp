@@ -12,19 +12,20 @@
 #include <iterator>
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
-mastersComm(comm), env(_env), nAppended(settings.dqnAppendS), batchSize(settings.dqnBatch),
-maxSeqLen(settings.maxSeqLen), minSeqLen(settings.minSeqLen),
-maxTotSeqNum(settings.maxTotSeqNum), bSampleSeq(settings.bRecurrent),
-bRecurrent(settings.bRecurrent), bWriteToFile(!(settings.samplesFile=="none")),
-bNormalize(settings.normalizeInput), bTrain(settings.bTrain),
-path(settings.samplesFile), aI(_env->aI), sI(_env->sI), generators(settings.generators)
+mastersComm(comm), env(_env), nAppended(settings.appendedObs),
+batchSize(settings.batchSize), maxSeqLen(settings.maxSeqLen),
+minSeqLen(settings.minSeqLen), maxTotSeqNum(settings.maxTotSeqNum),
+bSampleSeq(settings.bRecurrent), bRecurrent(settings.bRecurrent),
+bWriteToFile(!(settings.samplesFile=="none")), bNormalize(settings.bNormalize),
+bTrain(settings.bTrain), path(settings.samplesFile), aI(_env->aI), sI(_env->sI),
+generators(settings.generators)
 {
     mean.resize(sI.dimUsed, 0);
     std.resize(sI.dimUsed, 1);
     invstd.resize(sI.dimUsed, 1);
-    int k = 0;
+    Uint k = 0;
     if (sI.mean.size())
-    for (int i=0; i<sI.dim; i++)
+    for (Uint i=0; i<sI.dim; i++)
         if (sI.inUse[i]) {
           mean[k] = sI.mean[i];
           std[k] = sI.scale[i];
@@ -32,12 +33,13 @@ path(settings.samplesFile), aI(_env->aI), sI(_env->sI), generators(settings.gene
           k++;
         }
     assert(k == sI.dimUsed);
-    Tmp.resize(max(settings.nAgents,1));
-    for (int i=0; i<max(settings.nAgents,1); i++)
+    assert(settings.nAgents>0);
+    Tmp.resize(settings.nAgents);
+    for (Uint i=0; i<static_cast<Uint>(settings.nAgents); i++)
         Tmp[i] = new Sequence();
 
     curr_transition_id.resize(max(settings.nAgents,1));
-    dist = new discrete_distribution<int> (1,2); //dummy
+    dist = new discrete_distribution<Uint> (1,2); //dummy
     gen = new Gen(&generators[0]);
     Set.reserve(maxTotSeqNum);
 }
@@ -50,7 +52,7 @@ void Transitions::restartSamplesNew(const bool bContinuous)
     */
     printf("About to read from %s...\n",path.c_str());
     int agentId=0, maxAgentID=0;
-    const int nBeta = bContinuous ? 2*aI.dim : aI.dim;
+    const Uint nBeta = bContinuous ? 2*aI.dim : aI.dim;
     while(true)
     {
         int Ndata=0, thisId=0, oldSampID=-1, oldInfo=2, info=2, sampID=-1;
@@ -85,12 +87,12 @@ void Transitions::restartSamplesNew(const bool bContinuous)
                     if (info == 1) vecSold = vector<Real>(sI.dim);
                     else vecSold = vecSnew;
 
-                    for(int i=0; i<sI.dim; i++) line_in >> vecSnew[i];
-                    for(int i=0; i<aI.dim; i++) line_in >> vecAct[i];
+                    for(Uint i=0; i<sI.dim; i++) line_in >> vecSnew[i];
+                    for(Uint i=0; i<aI.dim; i++) line_in >> vecAct[i];
                     line_in >> reward;
 
                     if(info!=2)
-                    for(int i=0; i<nBeta; i++) line_in >> policy[i];
+                    for(Uint i=0; i<nBeta; i++) line_in >> policy[i];
 
                     oldState.set(vecSold);
                     newState.set(vecSnew);
@@ -142,7 +144,7 @@ void Transitions::restartSamples()
                 std::istringstream line_in(line);
                 if(agentId==0 && thisId==-1) {
 		  std::istringstream testline(line);
-                  int len = std::distance(std::istream_iterator<std::string>(testline),
+                  Uint len = std::distance(std::istream_iterator<std::string>(testline),
                                           std::istream_iterator<std::string>());
                     if(len != 2 + sI.dim*2 + aI.dim + 1) {
 
@@ -160,9 +162,9 @@ void Transitions::restartSamples()
                 if (thisId==agentId) {
                     Ndata++;
                     line_in >> info;
-                    for(int i=0; i<sI.dim; i++) line_in >> d_sO[i];
-                    for(int i=0; i<sI.dim; i++) line_in >> d_sN[i];
-                    for(int i=0; i<aI.dim; i++) line_in >> d_a[i];
+                    for(Uint i=0; i<sI.dim; i++) line_in >> d_sO[i];
+                    for(Uint i=0; i<sI.dim; i++) line_in >> d_sN[i];
+                    for(Uint i=0; i<aI.dim; i++) line_in >> d_a[i];
                     line_in >> reward;
 
                     t_sO.set(d_sO);
@@ -272,7 +274,7 @@ int Transitions::add(const int agentId, const int info, const State & sOld,
 {
     //return value is 1 if the agent states buffer is empty or on initial state
     int ret = 0;
-    const int sApp = nAppended*sI.dimUsed;
+    const Uint sApp = nAppended*sI.dimUsed;
     if (Tmp[agentId]->tuples.size()!=0 && info == 1) {
       push_back(agentId); //create new sequence
       ret = 1;
@@ -328,14 +330,14 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
     //if the agent states buffer is empty
     //is the stored s does not match sold
     int ret = 0;
-    const int sApp = nAppended*sI.dimUsed;
+    const Uint sApp = nAppended*sI.dimUsed;
     const vector<Real> vecSold = sOld.copy_observed();
 
     if(Tmp[agentId]->tuples.size()!=0) {
         bool same(true);
         const Tuple * const last = Tmp[agentId]->tuples.back();
         //scaled vec only has used dims:
-        for (int i=0; i<sI.dimUsed; i++)
+        for (Uint i=0; i<sI.dimUsed; i++)
             same = same && fabs(last->s[i] - vecSold[i])<1e-4;
 
         if (!same) {
@@ -374,7 +376,7 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
     if (sApp>0) {
         const Tuple * const last = Tmp[agentId]->tuples.back();
         vector<Real> prev(sApp);
-        for(int i=0; i<sApp; i++) prev[i] = last->s[i];
+        for(Uint i=0; i<sApp; i++) prev[i] = last->s[i];
         t->s.insert(t->s.end(),prev.begin(),prev.end());
     }
 
@@ -457,21 +459,21 @@ void Transitions::update_samples_mean(const Real alpha)
 {
   if(!bTrain) return; //if not training, keep the stored values
   if(!bNormalize) return;
-	int count = 0;
+	Uint count = 0;
   vector<Real> newStd(sI.dimUsed,0), newMean(sI.dimUsed,0);
 
 	#pragma omp parallel
 	{
 		//local sum and counter
 		vector<Real> sum(sI.dimUsed,0), sum2(sI.dimUsed,0);
-		int cnt = 0;
+		Uint cnt = 0;
 
 		#pragma omp for schedule(dynamic)
-		for(int i=0; i<Set.size(); i++)
+		for(Uint i=0; i<Set.size(); i++)
 		for(const auto & t : Set[i]->tuples) {
 			assert(t->s.size() == sI.dimUsed*(1+nAppended));
 			cnt++;
-			for (int j=0; j<sI.dimUsed; j++) {
+			for (Uint j=0; j<sI.dimUsed; j++) {
 				sum2[j] += t->s[j]*t->s[j];
 				sum[j]  += t->s[j];
 			}
@@ -480,7 +482,7 @@ void Transitions::update_samples_mean(const Real alpha)
 		#pragma omp critical
 		{
 			count += cnt;
-			for (int i=0; i<sI.dimUsed; i++) {
+			for (Uint i=0; i<sI.dimUsed; i++) {
 				newMean[i] += sum[i];
 				newStd[i] += sum2[i];
 			}
@@ -492,7 +494,7 @@ void Transitions::update_samples_mean(const Real alpha)
   MPI_Comm_size(mastersComm, &nMasters);
   if (nMasters > 1) {
     MPI_Allreduce(MPI_IN_PLACE, &count, 1,
-                  MPI_INT, MPI_SUM, mastersComm);
+                  MPI_UNSIGNED, MPI_SUM, mastersComm);
     MPI_Allreduce(MPI_IN_PLACE, newMean.data(), sI.dimUsed,
                   MPI_VALUE_TYPE, MPI_SUM, mastersComm);
     MPI_Allreduce(MPI_IN_PLACE, newStd.data(), sI.dimUsed,
@@ -501,32 +503,32 @@ void Transitions::update_samples_mean(const Real alpha)
 
    if(count<batchSize) return;
    //std::cout << "States stds: [";
-	for (int i=0; i<sI.dimUsed; i++) {
+	for (Uint i=0; i<sI.dimUsed; i++) {
     newStd[i] = std::sqrt((newStd[i] - newMean[i]*newMean[i]/Real(count))/Real(count));
     newStd[i] = std::max(newStd[i],1e-8);
     std[i] = std[i]*(1.-alpha) + alpha*newStd[i];
     //std::cout << std[i] << " ";
   }
   //std::cout << "]. States means: [";
-	for (int i=0; i<sI.dimUsed; i++) {
+	for (Uint i=0; i<sI.dimUsed; i++) {
     newMean[i] /= Real(count);
     mean[i] = mean[i]*(1.-alpha) + alpha*newMean[i];
     //std::cout << mean[i] << " ";
   }
-  for (int i=0; i<sI.dimUsed; i++)
+  for (Uint i=0; i<sI.dimUsed; i++)
     invstd[i] = 1./(std[i]+1e-8);
   //std::cout << "]" << std::endl;
 }
 
-vector<Real> Transitions::standardize(const vector<Real>& state, const Real noise, const int thrID) const
+vector<Real> Transitions::standardize(const vector<Real>& state, const Real noise, const Uint thrID) const
 {
     if(!bNormalize) return state;
 
       vector<Real> tmp(sI.dimUsed*(1+nAppended));
       assert(state.size() == sI.dimUsed*(1+nAppended));
-      for (int j=0; j<1+nAppended; j++)
-      for (int i=0; i<sI.dimUsed; i++) {
-        const int k = j*sI.dimUsed + i;
+      for (Uint j=0; j<1+nAppended; j++)
+      for (Uint i=0; i<sI.dimUsed; i++) {
+        const Uint k = j*sI.dimUsed + i;
         //tmp[k] = (state[k] - mean[i])/(std[i]+1e-8);
         tmp[k] = (state[k] - mean[i])*invstd[i];
       }
@@ -535,7 +537,7 @@ vector<Real> Transitions::standardize(const vector<Real>& state, const Real nois
       assert(generators.size()>thrID);
       //std::normal_distribution<Real> distn(0.,noise);
       std::uniform_real_distribution<Real> distn(-std::sqrt(3)*noise,std::sqrt(3)*noise);
-      for (int i=0; i<sI.dimUsed*(1+nAppended); i++)
+      for (Uint i=0; i<sI.dimUsed*(1+nAppended); i++)
         tmp[i] += distn(generators[thrID]);
     }
     return tmp;
@@ -548,7 +550,7 @@ void Transitions::synchronize()
 	//uniform_real_distribution<Real> dis(0.,1.);
   	//if (dis(*(gen->g))>0.01) {
     #pragma omp parallel for schedule(dynamic)
-    for(int i=0; i<Set.size(); i++) {
+    for(Uint i=0; i<Set.size(); i++) {
       Set[i]->MSE = 0.;
       #if 1
         for(const auto & t : Set[i]->tuples)
@@ -576,15 +578,16 @@ void Transitions::synchronize()
 
     iOldestSaved = 0;
     #endif
-   int cnt =0;
-   int nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
+   Uint cnt =0;
+   Uint nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
    //  for(auto & bufTransition : Buffered) {
-   for(int i=bufferSize-1; i>=0; i--) {
+   if(!bufferSize) return;
+   for(Uint k=bufferSize; k>0; k--) {
       cnt++;
       //auto bufTransition = Buffered[i];
       assert(Buffered.size() == i+1);
       auto bufTransition = Buffered.back();
-      const int ind = iOldestSaved++;
+      const Uint ind = iOldestSaved++;
       iOldestSaved = (iOldestSaved >= maxTotSeqNum) ? 0 : iOldestSaved;
 
       if (not Set[ind]->ended) --nBroken;
@@ -617,14 +620,14 @@ void Transitions::updateSamples(const Real alpha)
   } else {
     printf("nSequences %d < maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
         nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
-    const int ndata = nTransitions;
+    const Uint ndata = nTransitions;
     update_meanstd_needed = ndata!=old_ndata;
     old_ndata = ndata;
   }
 	update_meanstd_needed = update_meanstd_needed && positive(alpha);
   if(needed_samples_mean(update_meanstd_needed)) update_samples_mean(1.0);
 
-  const int ndata = (bRecurrent) ? nSequences : nTransitions;
+  const Uint ndata = (bRecurrent) ? nSequences : nTransitions;
   inds.resize(ndata);
   #if 0
     if (bRecurrent) {
@@ -650,9 +653,9 @@ void Transitions::updateSamples(const Real alpha)
   }
 }
 
-int Transitions::sample()
+Uint Transitions::sample()
 {
-  const int ind = inds.back();
+  const Uint ind = inds.back();
   inds.pop_back();
   #if 0
     if (bRecurrent) {
@@ -670,7 +673,7 @@ void Transitions::save(std::string fname)
     string nameBackup = fname + "_data_stats";
     FILE * f = fopen(nameBackup.c_str(), "w");
     if (f != NULL)
-      for (int i=0; i<sI.dimUsed; i++)
+      for (Uint i=0; i<sI.dimUsed; i++)
         fprintf(f, "%9.9e %9.9e\n", mean[i], std[i]);
     fclose(f);
 }
@@ -688,7 +691,7 @@ void Transitions::restart(std::string fname)
       return;
     }
 
-    for (int i=0; i<sI.dimUsed; i++) {
+    for (Uint i=0; i<sI.dimUsed; i++) {
       in >> mean[i] >> std[i];
       printf("Read: %9.9e %9.9e\n", mean[i], std[i]);
     }

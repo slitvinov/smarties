@@ -14,8 +14,8 @@
 class GliderEnvironment : public Environment
 {
 public:
-    GliderEnvironment(const int nAgents, const string execpath,
-                    const int _rank, Settings & settings);
+    GliderEnvironment(const Uint nAgents, const string execpath,
+                    const Uint _rank, Settings & settings);
 
     void setDims() override;
     bool pickReward(const State& t_sO, const Action& t_a,
@@ -23,5 +23,5 @@ public:
 
      vector<Real> stateDumpUpperBound() override;
      vector<Real> stateDumpLowerBound() override;
-     vector<int> stateDumpNBins() override;
+     vector<Uint> stateDumpNBins() override;
 };

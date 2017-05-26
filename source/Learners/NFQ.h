@@ -14,16 +14,16 @@ using namespace std;
 
 class NFQ : public Learner
 {
-    void Train_BPTT(const int seq, const int thrID=0) const override;
-    void Train(const int seq, const int samp, const int thrID=0) const override;
+    void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
+    void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
     void dumpNetworkInfo(const int agentId);
-    inline int maxInd(const vector<Real>& Qs) const
+    inline Uint maxInd(const vector<Real>& Qs) const
     {
       assert(Qs.size() == nOutputs);
       Real Val = -1e6;
       //let's just assume that if the best is less than -1e6, something is wrong
-      int Nbest = -1;
-      for (int i=0; i<nOutputs; ++i) {
+      Uint Nbest = -1;
+      for (Uint i=0; i<nOutputs; ++i) {
           if (Qs[i]>Val) {
             Val = Qs[i];
             Nbest = i;

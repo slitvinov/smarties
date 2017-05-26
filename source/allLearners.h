@@ -22,22 +22,23 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fstream>
+Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Settings&settings);
 
 Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Settings&settings)
 {
 	if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
-		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+		settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
 		settings.nnOutputs = env->aI.maxLabel;
 		return new NFQ(mastersComm, env, settings);
 	}
 	else if (settings.learner == "RACER") {
-		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+		settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
 		settings.nnOutputs = RACER::getnOutputs(env->aI.dim);
 		settings.separateOutputs = true; //else it does not really work
 		return new RACER(mastersComm, env, settings);
 	}
 	else if (settings.learner == "DACER") {
-		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+		settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
 		const int nA = env->aI.maxLabel;
 		printf("Read %d outputs\n",nA);
 		settings.nnOutputs = DACER::getnOutputs(nA);
@@ -45,7 +46,7 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Settings&set
 		return new DACER(mastersComm, env, settings);
 	}
 	else if (settings.learner == "NA" || settings.learner == "NAF") {
-		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS);
+		settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
 		const int nA = env->aI.dim;
 		const int nL = (nA*nA+nA)/2;
 		settings.nnOutputs = 1+nL+nA;
@@ -53,7 +54,7 @@ Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Settings&set
 		return new NAF(mastersComm, env, settings);
 	}
 	else if (settings.learner == "DP" || settings.learner == "DPG") {
-		settings.nnInputs = env->sI.dimUsed*(1+settings.dqnAppendS) + env->aI.dim;
+		settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs) + env->aI.dim;
 		settings.nnOutputs = 1;
 		return new DPG(mastersComm, env, settings);
 	} else die("Learning algorithm not recognized\n");

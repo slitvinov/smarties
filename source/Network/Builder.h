@@ -42,7 +42,7 @@ class Builder
 		return (Function*)nullptr;
 	}
 
-	int roundUpSimd(const int size) const
+	Uint roundUpSimd(const Uint size) const
 	{
 		return std::ceil(size/(Real)simdWidth)*simdWidth;
 	}
@@ -68,7 +68,7 @@ class Builder
 		graph->firstBiasOG_ID = graph->firstBiasFG_ID + graph->layerSize_simd;
 		nBiases += 4*graph->layerSize_simd; //one bias per neuron
 
-		for(int i=0; i<graph->linkedTo.size(); i++)
+		for(Uint i=0; i<graph->linkedTo.size(); i++)
 	  {
 	    assert(graph->linkedTo[i]>=0 || graph->linkedTo[i]<G.size());
 	    const Graph* const layerFrom = G[graph->linkedTo[i]];
@@ -77,9 +77,9 @@ class Builder
 	    assert(layerFrom->firstNeuron_ID>=0);
 	    assert(layerFrom->layerSize>0);
 
-	  	int firstWeightIG =nWeights      +layerFrom->layerSize*graph->layerSize_simd;
-	  	int firstWeightFG =firstWeightIG +layerFrom->layerSize*graph->layerSize_simd;
-	  	int firstWeightOG =firstWeightFG +layerFrom->layerSize*graph->layerSize_simd;
+	  	Uint firstWeightIG =nWeights      +layerFrom->layerSize*graph->layerSize_simd;
+	  	Uint firstWeightFG =firstWeightIG +layerFrom->layerSize*graph->layerSize_simd;
+	  	Uint firstWeightOG =firstWeightFG +layerFrom->layerSize*graph->layerSize_simd;
 
 	  	LinkToLSTM* tmp = new LinkToLSTM(
 	      layerFrom->layerSize, layerFrom->firstNeuron_ID,
@@ -93,9 +93,9 @@ class Builder
 			nWeights += layerFrom->layerSize*graph->layerSize_simd*4;
 		}
 		{ //connected  to past realization of current recurrent layer
-			int firstWeightIG = nWeights 		  +graph->layerSize*graph->layerSize_simd;
-			int firstWeightFG = firstWeightIG +graph->layerSize*graph->layerSize_simd;
-			int firstWeightOG = firstWeightFG +graph->layerSize*graph->layerSize_simd;
+			Uint firstWeightIG = nWeights 		 +graph->layerSize*graph->layerSize_simd;
+			Uint firstWeightFG = firstWeightIG +graph->layerSize*graph->layerSize_simd;
+			Uint firstWeightOG = firstWeightFG +graph->layerSize*graph->layerSize_simd;
 
 			recurrent_link = new LinkToLSTM(
 	      graph->layerSize, graph->firstNeuron_ID,
@@ -135,7 +135,7 @@ class Builder
 	    graph->firstBias_ID = nBiases;
 	    nBiases += graph->layerSize_simd; //one bias per neuron
 
-	    for(int i = 0; i<graph->linkedTo.size(); i++)
+	    for(Uint i = 0; i<graph->linkedTo.size(); i++)
 	    {
 	    	assert(graph->linkedTo[i]>=0 || graph->linkedTo[i]<G.size());
 	    	const Graph* const layerFrom = G[graph->linkedTo[i]];
@@ -229,14 +229,14 @@ class Builder
 	}
 
 public:
-		int nAgents, nThreads;
-		int nInputs=0,  nOutputs=0, nLayers=0;
-		int nNeurons=0, nWeights=0, nBiases=0, nStates=0;
+		Uint nAgents, nThreads;
+		Uint nInputs=0,  nOutputs=0, nLayers=0;
+		Uint nNeurons=0, nWeights=0, nBiases=0, nStates=0;
 		std::vector<std::mt19937>& generators;
 		bool bAddedInput = false;
 		bool bBuilt = false;
-		vector<int> iOut;
-		vector<int> iInp;
+		vector<Uint> iOut;
+		vector<Uint> iInp;
 		vector<Graph*> G;
 		vector<Layer*> layers;
 		vector<Link*> links;
@@ -253,8 +253,10 @@ public:
 		{
 			for (auto & trash : G) _dispose_object(trash);
 		}
-		Builder(Settings & _settings): settings(_settings), nAgents(_settings.nAgents),
-		nThreads(_settings.nThreads), generators(_settings.generators) {}
+		Builder(Settings & _settings): settings(_settings),
+		nAgents(static_cast<Uint>(_settings.nAgents)),
+		nThreads(static_cast<Uint>(_settings.nThreads)),
+		generators(_settings.generators) {}
 
     Network* build()
 		{
@@ -293,8 +295,8 @@ public:
 				assert(!iInp.size());
 				for (const auto & g : G)
 					if(g->input)
-						for(int i=0; i<g->layerSize; i++)
-							iInp.push_back(i + g->firstNeuron_ID);
+						for(Uint i=0; i<g->layerSize; i++)
+							iInp.push_back(i+g->firstNeuron_ID);
 		 	 	assert(iInp.size() == nInputs);
 				assert(iInp[0] == 0);
 			}
@@ -302,8 +304,8 @@ public:
 				assert(!iOut.size());
 				for (const auto & g : G)
 					if(g->output)
-						for(int i=0; i<g->layerSize; i++)
-							iOut.push_back(i + g->firstNeuron_ID);
+						for(Uint i=0; i<g->layerSize; i++)
+							iOut.push_back(i+g->firstNeuron_ID);
 		 	 	assert(iOut.size() == nOutputs);
 			}
 
@@ -314,11 +316,11 @@ public:
 
 			grad = new Grads(nWeights,nBiases);
 			Vgrad.resize(nThreads);
-			for (int i=0; i<nThreads; ++i)
+			for (Uint i=0; i<nThreads; ++i)
 				Vgrad[i] = new Grads(nWeights, nBiases);
 
 			mem.resize(nAgents);
-		  for (int i=0; i<nAgents; ++i)
+		  for (Uint i=0; i<nAgents; ++i)
 		    mem[i] = new Mem(nNeurons, nStates);
 
 			for (const auto & l : layers)
@@ -327,7 +329,10 @@ public:
 			return new Network(this, settings);
 		}
 
-    int getLastLayerID() const {return G.size()-1;}
+    int getLastLayerID() const
+		{
+			return static_cast<int>(G.size())-1;
+		}
 
 		void addConv2DLayer(const int filterSize[3], const int outSize[3],
 		  const int padding[2], const int stride[2], const string funcType,
@@ -338,9 +343,11 @@ public:
 
 		  assert(filterSize[2]==outSize[2]);
 			if(filterSize[0]<=0 || filterSize[1]<=0 || filterSize[2]<=0)
-		    die("Bad request for conv2D layer\n");
+		    die("Bad request for conv2D layer: filterSize\n");
 			if(outSize[0]<=0 || outSize[1]<=0 || outSize[2]<=0)
-		    die("Bad request for conv2D layer\n");
+		    die("Bad request for conv2D layer: outSize\n");
+			if(padding[0]<0 || padding[1]<0 || stride[0]<0 || stride[1]<0)
+				die("Bad request for conv2D layer: padding or stride\n");
 			assert(filterSize[0] >= stride[0] && filterSize[1] >= stride[1]);
 			assert(padding[0] < filterSize[0] && padding[1] < filterSize[1]);
 
@@ -350,17 +357,17 @@ public:
 		  assert(!funcType.empty());
 			g->Conv2D = true;
 		  g->func = readFunction(funcType, bOutput);
-		  g->layerSize = outSize[0] * outSize[1] * outSize[2];
-			g->layerWidth = outSize[0];
-		  g->layerHeight = outSize[1];
-		  g->layerDepth = outSize[2];
-			g->featsWidth = filterSize[0];
-		  g->featsHeight = filterSize[1];
-		  g->featsNumber = filterSize[2];
-			g->padWidth = padding[0];
-		  g->padHeight = padding[1];
-		  g->strideWidth = stride[0];
-		  g->strideHeight = stride[1];
+		  g->layerSize = static_cast<Uint>(outSize[0] * outSize[1] * outSize[2]);
+			g->layerWidth = static_cast<Uint>(outSize[0]);
+		  g->layerHeight = static_cast<Uint>(outSize[1]);
+		  g->layerDepth = static_cast<Uint>(outSize[2]);
+			g->featsWidth = static_cast<Uint>(filterSize[0]);
+		  g->featsHeight = static_cast<Uint>(filterSize[1]);
+		  g->featsNumber = static_cast<Uint>(filterSize[2]);
+			g->padWidth = static_cast<Uint>(padding[0]);
+		  g->padHeight = static_cast<Uint>(padding[1]);
+		  g->strideWidth = static_cast<Uint>(stride[0]);
+		  g->strideHeight = static_cast<Uint>(stride[1]);
 
 			{
 		    // link only to previous layer:
@@ -406,29 +413,30 @@ public:
 			assert(!funcType.empty());
 		  if(g->LSTM)
 			{
-		    g->cell = new Linear();   //in original paper is Tanh (Tanh)
+		    g->cell = new Linear();   //in original paper is Tanh (Tanh), but is in general unnecessary
 		    g->gate = new SoftSigm(); //in original paper is Sigm (Sigmoid)
 		  }														//g->func is TwoTanh (2*Tanh)
 			g->func = readFunction(funcType, bOutput);
 
 			g->layerSize = size;
-			const int nPrevLayers = G.size();
+			if(!G.size()) die("Proposed link not available: graph empty\n");
+			const Uint nPrevLayers = G.size();
 			//default link is to previous layer:
 			if(linkedTo.size() == 0)
-		    linkedTo.push_back(nPrevLayers-1);
+		    linkedTo.push_back(static_cast<int>(nPrevLayers)-1);
 
-			const int inputLinks = linkedTo.size();
-			assert(inputLinks > 0 && g->linkedTo.size() == 0);
+			const Uint inputLinks = linkedTo.size();
+			assert(g->linkedTo.size() == 0);
 
-			for(int i = 0; i<inputLinks; i++) {
-				g->linkedTo.push_back(linkedTo[i]);
-				if(linkedTo[i]<0 || linkedTo[i]>=nPrevLayers)
+			for(Uint i = 0; i<inputLinks; i++) {
+				g->linkedTo.push_back(static_cast<Uint>(linkedTo[i]));
+				if(g->linkedTo.back() >= nPrevLayers)
 					die("Proposed link not available\n");
 			}
 
 		  if (bOutput) {
 				g->output = true;
-				nOutputs += size;
+				nOutputs += static_cast<Uint>(size);
 			}
 
 		  g->written = true;
@@ -456,11 +464,11 @@ public:
 
 			bAddedInput = true;
 
-			nInputs += size;
+			nInputs += static_cast<Uint>(size);
 
 			Graph * g = new Graph();
 
-			g->layerSize = size;
+			g->layerSize = static_cast<Uint>(size);
 			g->input = true;
 		  g->written = true;
 			G.push_back(g);
@@ -474,16 +482,16 @@ public:
 
 		  bAddedInput = true;
 
-			const int flatSize = size[0] * size[1] * size[2];
+			const Uint flatSize = static_cast<Uint> (size[0] * size[1] * size[2]);
 			nInputs += flatSize;
 
 			Graph * g = new Graph();
 
 			g->layerSize = flatSize;
 			//2d input: depth is actually num of color channels: todo standard notation for eventual 3d?
-			g->layerWidth = size[0];
-			g->layerHeight = size[1];
-			g->layerDepth = size[2];
+			g->layerWidth = static_cast<Uint>(size[0]);
+			g->layerHeight = static_cast<Uint>(size[1]);
+			g->layerDepth = static_cast<Uint>(size[2]);
 			g->input = true;
 		  g->input2D = true;
 		  g->written = true;

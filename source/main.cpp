@@ -19,7 +19,7 @@ void runSlave(MPI_Comm slavesComm);
 void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm);
 
 Settings settings;
-int ErrorHandling::debugLvl;
+Uint ErrorHandling::debugLvl;
 
 void runSlave(MPI_Comm slavesComm)
 {
@@ -27,7 +27,7 @@ void runSlave(MPI_Comm slavesComm)
 	MPI_Comm_rank(slavesComm, &rank);
 	MPI_Comm_size(slavesComm, &nranks);
 	if(rank==0) die("Slave is master?\n")
-	if(nranks==1) die("Slave has no master?\n");
+	if(nranks<=1) die("Slave has no master?\n");
 
 	int wRank, wSize;
 	MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
@@ -40,13 +40,13 @@ void runSlave(MPI_Comm slavesComm)
 
 	const bool isSpawner = true;
 	const bool verbose = 0;
-	const int sdim = env->sI.dim;
-	const int adim = env->aI.dim;
-	const int socket = settings.sockPrefix;
+	const Uint sdim = env->sI.dim;
+	const Uint adim = env->aI.dim;
+	const Uint socket = static_cast<Uint>(settings.sockPrefix);
 	const std::string exec = env->execpath;
 	const std::string flog = "log_"+std::to_string(wRank)+"_";
-	int available_ranks = nranks-1; //one is the master
-	const int ranks_per = env->mpi_ranks_per_env;
+	Uint available_ranks = static_cast<Uint>(nranks)-1; //one is the master
+	const Uint ranks_per = env->mpi_ranks_per_env;
 
 	if(ranks_per) // if 0 then it's supposed to be run as a forked process
 	{
@@ -83,9 +83,9 @@ void runClient()
 
 	const bool isSpawner = false;
 	const bool verbose = 0;
-	const int sdim = env->sI.dim;
-	const int adim = env->aI.dim;
-	const int socket = settings.sockPrefix;
+	const Uint sdim = env->sI.dim;
+	const Uint adim = env->aI.dim;
+	const Uint socket = static_cast<Uint>(settings.sockPrefix);
 	const std::string exec = env->execpath;
 	const std::string flog = "log_0_";
 
@@ -137,7 +137,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 	#if 1
 		if (settings.restart != "none" && !nSlaves && !learner->nData()) {
 			printf("No slaves, just dumping the policy\n");
-			vector<int> nbins(env->stateDumpNBins());
+			vector<Uint> nbins(env->stateDumpNBins());
 			vector<Real> lower(env->stateDumpLowerBound()), upper(env->stateDumpUpperBound());
 			learner->dumpPolicy(lower, upper, nbins);
 			abort();
@@ -168,9 +168,9 @@ int main (int argc, char** argv)
 	ArgumentParser::Parser parser(opts);
 	parser.parse(argc, argv, rank == 0);
 
-	settings.bRecurrent = settings.netType=="LSTM" || settings.netType=="RNN";
+	settings.bRecurrent = settings.nnType=="LSTM" || settings.nnType=="RNN";
 
-	if (not settings.isLauncher) {
+	if (not settings.isServer) {
 		if (settings.sockPrefix<0)
 			die("Not received a prefix for the socket\n");
 		settings.generators.push_back(mt19937(settings.sockPrefix));
@@ -196,6 +196,7 @@ int main (int argc, char** argv)
 	settings.sockPrefix = runSeed+rank;
 	settings.generators.reserve(settings.nThreads);
 	settings.generators.push_back(mt19937(settings.sockPrefix));
+	if(settings.nThreads<1) die("Error: nThreads\n");
 	for(int i=1; i<settings.nThreads; i++)
 		settings.generators.push_back(mt19937(settings.generators[0]));
 

@@ -15,7 +15,7 @@ DiscreteAlgorithm(comm,_env,settings, 1), truncation(100), cntGrad(nThreads+1,0)
 stdGrad(nThreads+1,vector<Real>(nOutputs+2,0)),
 avgGrad(nThreads+1,vector<Real>(nOutputs+2,0))
 {
-	const vector<int> noutputs = {1,nA,nA};
+	const vector<Uint> noutputs = {1,nA,nA};
 	assert(nOutputs == 1+nA+nA);
 	buildNetwork(net, opt, noutputs, settings);
 	assert(nOutputs == net->getnOutputs());
@@ -37,22 +37,22 @@ void DACER::select(const int agentId, State& s, Action& a, State& sOld,
 	data->passData(agentId, info, sOld, a, beta, s, r);
 }
 
-void DACER::Train(const int seq, const int samp, const int thrID) const { }
+void DACER::Train(const Uint seq, const Uint samp, const Uint thrID) const { }
 
-void DACER::Train_BPTT(const int seq, const int thrID) const
+void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 {
 	//this should go to gamma rather quick:
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
 	const Real rGamma = annealedGamma();
 
 	assert(net->allocatedFrozenWeights && bTrain);
-	const int ndata = data->Set[seq]->tuples.size();
+	const Uint ndata = data->Set[seq]->tuples.size();
 	vector<vector<Real>> out_cur(ndata-1, vector<Real>(nOutputs,0));
 	vector<vector<Real>> out_hat(ndata-1, vector<Real>(nOutputs,0));
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
 	vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata);
 
-	for (int k=0; k<ndata-1; k++) {
+	for (Uint k=0; k<ndata-1; k++) {
 		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
 		const vector<Real> scaledSold = data->standardize(_t->s);
 		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
@@ -61,7 +61,7 @@ void DACER::Train_BPTT(const int seq, const int thrID) const
 	}
 	net->seqPredict_execute(series_cur, series_cur);
 	net->seqPredict_execute(series_cur, series_hat, net->tgt_weights, net->tgt_biases);
-	for (int k=0; k<ndata-1; k++) {
+	for (Uint k=0; k<ndata-1; k++) {
 		net->seqPredict_output(out_cur[k], series_cur[k]);
 		net->seqPredict_output(out_hat[k], series_hat[k]);
 	}
@@ -81,7 +81,7 @@ void DACER::Train_BPTT(const int seq, const int thrID) const
 		else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
 	#endif
 
-	for (int k=ndata-2; k>=0; k--)
+	for (int k=static_cast<int>(ndata)-2; k>=0; k--)
 	{
 		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains sOld, a
 		const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //this contains r, sNew
@@ -93,8 +93,8 @@ void DACER::Train_BPTT(const int seq, const int thrID) const
 		const vector<Real> polCur = extractPolicy(out_cur[k]);
 		const vector<Real> polHat = extractPolicy(out_hat[k]);
 		//off policy stored action and on-policy sample:
-		const int act = aInfo.actionToLabel(_t->a); //unbounded action space
-		const int pol = samplePolicy(polCur, thrID);
+		const Uint act = aInfo.actionToLabel(_t->a); //unbounded action space
+		const Uint pol = samplePolicy(polCur, thrID);
 
 		const Real rho_cur = polCur[act]/_t->mu[act];
 		const Real rho_pol = polCur[pol]/_t->mu[pol];
@@ -191,7 +191,7 @@ void DACER::processStats(vector<trainData*> _stats, const Real avgTime)
 }
 
 void DACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-		const vector<int>& nbins)
+		const vector<Uint>& nbins)
  {
 	 /*
 	//a fail in any of these amounts to a big and fat TODO

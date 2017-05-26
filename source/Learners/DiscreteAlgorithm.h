@@ -15,7 +15,7 @@ class DiscreteAlgorithm : public Learner
 {
 protected:
 	const Real delta;
-	const int nA;
+	const Uint nA;
 	std::vector<std::mt19937>& generators;
 
 public:
@@ -35,7 +35,7 @@ protected:
 	{
 		assert(out.size()==1+2*nA);
 		vector<Real> ret(nA);
-		for (int j=0; j<nA; j++) ret[j] = safeExp(out[1+j]);
+		for (Uint j=0; j<nA; j++) ret[j] = safeExp(out[1+j]);
 		return ret;
 	}
 
@@ -45,11 +45,11 @@ protected:
 		const vector<Real> unpol = extractUnnormPolicy(out);
 		assert(unpol.size()==nA);
 		Real base = 0;
-		for (int j=0; j<nA; j++)
+		for (Uint j=0; j<nA; j++)
 			base += unpol[j];
 
 		vector<Real> ret(nA);
-		for (int j=0; j<nA; j++)
+		for (Uint j=0; j<nA; j++)
 			ret[j] = unpol[j]/base;
 		return ret;
 	}
@@ -60,9 +60,9 @@ protected:
 			vector<Real> hat(nOutputs), out(nOutputs);
 			uniform_real_distribution<Real> out_dis(-.5,.5);
 			uniform_real_distribution<Real> act_dis(0,1);
-			for(int i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
-			for(int i = 0; i<nOutputs; i++) hat[i] = out_dis(*gen);
-			const int act = nA*act_dis(*gen);
+			for(Uint i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
+			for(Uint i = 0; i<nOutputs; i++) hat[i] = out_dis(*gen);
+			const Uint act = nA*act_dis(*gen);
 
 			vector<Real> mu = extractPolicy(out);
 			vector<Real> mu_hat = extractPolicy(hat);
@@ -74,7 +74,7 @@ protected:
 			vector<Real> gradDivKL = gradDKL(mu, mu_hat);
 			vector<Real> cgrad = criticGradient(act, mu, val, 1);
 
-			for(int i = 0; i<nA; i++)
+			for(Uint i = 0; i<nA; i++)
 			{
 				vector<Real> out_1 = out;
 				vector<Real> out_2 = out;
@@ -96,7 +96,7 @@ protected:
 				i, (d2-d1)/0.0002, gradDivKL[i]);
 			}
 
-			for(int i = 0; i<nA; i++)
+			for(Uint i = 0; i<nA; i++)
 			{
 					vector<Real> out_1 = out;
 					vector<Real> out_2 = out;
@@ -111,10 +111,10 @@ protected:
 			}
 	}
 
-	inline int samplePolicy(const vector<Real>& pol, const int thrID) const
+	inline Uint samplePolicy(const vector<Real>& pol, const Uint thrID) const
 	{
 		assert(pol.size()==nA);
-		std::discrete_distribution<int> dist(pol.begin(),pol.end());
+		std::discrete_distribution<Uint> dist(pol.begin(),pol.end());
 		return dist(generators[thrID]);
 	}
 
@@ -126,7 +126,7 @@ protected:
 	inline Real expectedAdvantage(const vector<Real>& pol, const vector<Real>& val) const
 	{
 		Real ret = 0;
-		for (int j=0; j<nA; j++) ret += pol[j]*val[j];
+		for (Uint j=0; j<nA; j++) ret += pol[j]*val[j];
 		return ret;
 	}
 
@@ -134,14 +134,14 @@ protected:
 	{
 		const Real base = expectedAdvantage(pol, val);
 		Real ret = 0;
-		for (int j=0; j<nA; j++) ret += pol[j]*(val[j]-base)*(val[j]-base);
+		for (Uint j=0; j<nA; j++) ret += pol[j]*(val[j]-base)*(val[j]-base);
 		return ret;
 	}
 
 	inline Real DivKL(const vector<Real>& pol, const vector<Real>& pol_hat) const
 	{
 		Real ret = 0;
-		for (int i=0; i<nA; i++)
+		for (Uint i=0; i<nA; i++)
 			ret += pol_hat[i]*(std::log(pol_hat[i])-std::log(pol[i]));
 		return ret;
  	}
@@ -150,7 +150,7 @@ protected:
 	inline vector<Real> gradDKL(const vector<Real>& pol, const vector<Real>& pol_hat) const
 	{
 		vector<Real> ret(nA);
-		for (int i=0; i<nA; i++) ret[i] = pol[i]-pol_hat[i];
+		for (Uint i=0; i<nA; i++) ret[i] = pol[i]-pol_hat[i];
 		return ret;
 	}
 
@@ -160,32 +160,32 @@ protected:
 		assert(DKL.size() == nA);
 		vector<Real> gradAcer(nA);
 		Real dot=0, norm=0;
-		for (int j=0; j<nA; j++) {
+		for (Uint j=0; j<nA; j++) {
 			norm += DKL[j] * DKL[j];
 			dot +=  DKL[j] * DA[j];
 		}
 		const Real proj = std::max((Real)0., (dot - delta)/norm);
-		for (int j=0; j<nA; j++) gradAcer[j] = DA[j] - proj*DKL[j];
+		for (Uint j=0; j<nA; j++) gradAcer[j] = DA[j] - proj*DKL[j];
 		return gradAcer;
 	}
 
-	inline vector<Real> policyGradient(const vector<Real>& pol, const int act, const Real factor) const
+	inline vector<Real> policyGradient(const vector<Real>& pol, const Uint act, const Real factor) const
 	{
 		vector<Real> ret(nA);
-		for (int i=0; i<nA; i++) ret[i] = factor*(((i==act) ? 1 : 0) - pol[i]);
+		for (Uint i=0; i<nA; i++) ret[i] = factor*(((i==act) ? 1 : 0) - pol[i]);
 		return ret;
 	}
 
-	inline vector<Real> controlGradient(const int act, const vector<Real>& pol, const vector<Real>& val, const Real eta) const
+	inline vector<Real> controlGradient(const Uint act, const vector<Real>& pol, const vector<Real>& val, const Real eta) const
 	{
 		vector<Real> gradCC(nA, 0);
-		for (int j=0; j<nA; j++)
-		for (int i=0; i<nA; i++)
+		for (Uint j=0; j<nA; j++)
+		for (Uint i=0; i<nA; i++)
 			gradCC[i] += eta * ((i==j) ? pol[i]*(1-pol[i]) : -pol[i]*pol[j]) * val[j];
 		return gradCC;
 	}
 
-	inline Real computeAdvantage(const int act, const vector<Real>& pol, const vector<Real>& val) const
+	inline Real computeAdvantage(const Uint act, const vector<Real>& pol, const vector<Real>& val) const
 	{
 		assert(pol.size() == nA);
 		assert(val.size() == nA);
@@ -199,7 +199,7 @@ protected:
 		assert(g.size() == nA);
 		assert(h.size() == nA);
 		vector<Real> ret(nA,0);
-		for(int i=0; i<nA; i++) ret[i] = f[i]+g[i]+h[i];
+		for(Uint i=0; i<nA; i++) ret[i] = f[i]+g[i]+h[i];
 		return ret;
 	}
 
@@ -208,27 +208,27 @@ protected:
 		assert(f.size() == nA);
 		assert(g.size() == nA);
 		vector<Real> ret(nA,0);
-		for(int i=0; i<nA; i++) ret[i] = f[i]+g[i];
+		for(Uint i=0; i<nA; i++) ret[i] = f[i]+g[i];
 		return ret;
 	}
 
-	inline vector<Real> criticGradient(const int act, const vector<Real>& pol, const vector<Real>& val, const Real Qer) const
+	inline vector<Real> criticGradient(const Uint act, const vector<Real>& pol, const vector<Real>& val, const Real Qer) const
 	{
 		assert(pol.size()==nA);
 		assert(val.size()==nA);
 		vector<Real> grad(1+nA, 0);
 		grad[0] = Qer;
-		for (int j=0; j<nA; j++)
+		for (Uint j=0; j<nA; j++)
 			grad[j+1] = Qer*((j==act ? 1 : 0) - pol[j]);
 		return grad;
 	}
 
-	inline int maxInd(const vector<Real>& pol) const
+	inline Uint maxInd(const vector<Real>& pol) const
 	{
 		assert(pol.size()==nA);
 		Real Val = -1;
-		int Nbest = -1;
-		for (int i=0; i<nA; ++i) {
+		Uint Nbest = -1;
+		for (Uint i=0; i<nA; ++i) {
 				if (pol[i]>Val) {
 					Val = pol[i];
 					Nbest = i;

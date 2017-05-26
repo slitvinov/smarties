@@ -20,7 +20,7 @@ using namespace std;
 
 inline string ObjectFactory::_parse(string source, string pattern, bool req)
 {
-    int pos = source.find(((string)" ")+pattern);
+    size_t pos = source.find(((string)" ")+pattern);
     if (pos == string::npos) {
         if (req)
             die("Parse factory file failed: required argument '%s' line '%s'\n",
@@ -36,7 +36,7 @@ inline string ObjectFactory::_parse(string source, string pattern, bool req)
     while (source[pos] == ' ') pos++;
 
     pos++;
-    int stpos = pos;
+    size_t stpos = pos;
     while (source[pos] != ' ' && pos < source.length()) pos++;
 
     return source.substr(stpos, pos - stpos);

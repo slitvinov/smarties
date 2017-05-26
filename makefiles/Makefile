@@ -51,10 +51,7 @@ CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Woverloaded-virtual -std=c++11 
 CPPFLAGS+= -Wno-unused-parameter -Wno-reorder
-CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter -Wno-unused-variable
-#-Wno-reorder -Wno-deprecated
-#CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter -Wno-unused-variable
-#CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
+CPPFLAGS+= -Wno-unused-value -Wno-unused-variable
 
 CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
 CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 #-DNDEBUG

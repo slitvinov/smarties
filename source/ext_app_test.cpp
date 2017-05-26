@@ -10,14 +10,16 @@
 #include <sstream>
 
 #include <random>
+std::string printableTuple(std::vector<double> s,double r,std::vector<double> a);
+int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv);
 
 std::string printableTuple(std::vector<double> s,double r,std::vector<double> a)
 {
   std::ostringstream o;
   o << "[";
-  for (int i=0; i<s.size()-1; i++) o << s[i] << " ";
+  for (int i=0; i<static_cast<int>(s.size())-1; i++) o << s[i] << " ";
   o << s[s.size()-1] << "] " << r << " [";
-  for (int i=0; i<a.size()-1; i++) o << a[i] << " ";
+  for (int i=0; i<static_cast<int>(a.size())-1; i++) o << a[i] << " ";
   o << a[a.size()-1] << "]";
   return o.str();
 }

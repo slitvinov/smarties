@@ -9,13 +9,13 @@
 
 #include "DeadFishEnvironment.h"
 
-DeadFishEnvironment::DeadFishEnvironment(const int _nAgents, const string _execpath, const int _rank, Settings & settings):
+DeadFishEnvironment::DeadFishEnvironment(const Uint _nAgents, const string _execpath, const Uint _rank, Settings & settings):
 Environment(_nAgents, _execpath, _rank, settings),
 sight( settings.senses    ==0),
 rcast( settings.senses    % 2), //if eq {1,  3,  5,  7}
 lline((settings.senses/2) % 2), //if eq {  2,3,    6,7}
 press((settings.senses/4) % 2), //if eq {      4,5,6,7}
-study(settings.rewardType)
+study(settings.rType)
 {
 	cheaperThanNetwork = false; //this environment is more expensive to simulate than updating net. todo: think it over?
 }
@@ -79,16 +79,16 @@ void DeadFishEnvironment::setDims()
 				// two guys miles per gallon 26
 				sI.inUse.push_back(false);
 		}
-		const int nSensors = 20;
+		const Uint nSensors = 20;
 
 		//velocity sensors
-		for (int i=0; i<4*nSensors; i++) sI.inUse.push_back(press);
+		for (Uint i=0; i<4*nSensors; i++) sI.inUse.push_back(press);
 
 		//force sensors
-		for (int i=0; i<4*nSensors; i++) sI.inUse.push_back(press);
+		for (Uint i=0; i<4*nSensors; i++) sI.inUse.push_back(press);
 
 		//sight rays
-		for (int i=0; i<2*nSensors; i++) sI.inUse.push_back(rcast);
+		for (Uint i=0; i<2*nSensors; i++) sI.inUse.push_back(rcast);
 
     aI.dim = 1;
     aI.values.resize(aI.dim);

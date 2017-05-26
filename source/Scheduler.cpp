@@ -21,8 +21,8 @@ Master::Master(MPI_Comm _c, Learner*const _l, Environment*const _e, Settings&_s)
 		  agents(_e->agents), bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank),
 		  nSlaves(_s.nSlaves), saveFreq(_s.saveFreq), nThreads(_s.nThreads),
 		  inSize((3+_e->sI.dim)*sizeof(double)), outSize(_e->aI.dim*sizeof(double)),
-		  inbuf(_alloc(inSize)), outbuf(_alloc(outSize)),
-		  sOld(_e->sI), sNew(_e->sI), aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]),
+		  inbuf(_alloc(inSize)), outbuf(_alloc(outSize)), sOld(_e->sI),sNew(_e->sI),
+			aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]),
 		  meanR(0), varR(0),  iter(0), status(_e->agents.size(),1)
 {
 	//the following Irecv will be sent after sending the action
@@ -132,7 +132,7 @@ void Slave::run()
 				comm->sendActionToApp();
 			} else {
 				bool bDone = true; //did all agents reach terminal state?
-				for (int i=0; i<status.size(); i++)
+				for (Uint i=0; i<status.size(); i++)
 					bDone = bDone && status[i] == _AGENT_LASTCOMM;
 				bDone = bDone || env->resetAll; //does env end is any terminates?
 				/*
@@ -153,9 +153,9 @@ void Slave::run()
 
 Client::Client(Learner*const _l, Communicator*const _c, Environment*const _e,
 		Settings& _s):
-		  learner(_l), comm(_c), env(_e), aI(_e->aI), sI(_e->sI), agents(_e->agents),
-		  sOld(_e->sI), sNew(_e->sI), aOld(_e->aI, &_s.generators[0]), aNew(_e->aI, &_s.generators[0]),
-		  status(_e->agents.size(),1)
+	  learner(_l), comm(_c), env(_e), aI(_e->aI), sI(_e->sI), agents(_e->agents),
+	  sOld(_e->sI), sNew(_e->sI), aOld(_e->aI, &_s.generators[0]),
+		aNew(_e->aI, &_s.generators[0]), status(_e->agents.size(),1)
 {}
 
 void Client::run()
@@ -183,7 +183,7 @@ void Client::run()
 			comm->sendActionToApp();
 		} else {
 			bool bDone = true; //did all agents reach terminal state?
-			for (int i=0; i<status.size(); i++)
+			for (Uint i=0; i<status.size(); i++)
 				bDone = bDone && status[i] == _AGENT_LASTCOMM;
 			bDone = bDone || env->resetAll; //or does env end is any terminates?
 

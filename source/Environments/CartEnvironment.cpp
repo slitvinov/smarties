@@ -9,8 +9,8 @@
 
 #include "CartEnvironment.h"
 
-CartEnvironment::CartEnvironment(const int _nAgents, const string _execpath,
-																 const int _rank, Settings & settings) :
+CartEnvironment::CartEnvironment(const Uint _nAgents, const string _execpath,
+																 const Uint _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings), allSenses(settings.senses==0)
 {
 //   cheaperThanNetwork=false;
@@ -64,7 +64,7 @@ void CartEnvironment::setDims() //this environment is for the cart pole test
 		*/
 		aI.dim = 1; //number of action that agent can perform per turn: usually 1 (eg DQN)
 		aI.values.resize(aI.dim);
-		for (int i=0; i<aI.dim; i++)
+		for (Uint i=0; i<aI.dim; i++)
 		{
 				//this framework sends a real number to the application
 				//if you want to receive an integer number between 0 and nOptions (eg action option)
@@ -116,7 +116,7 @@ NEED TO
 
 2) define this function (iAgent is zero if only one agent per simulation is present)
 
-	void Environment::setAction(const int & iAgent)
+	void Environment::setAction(const Uint & iAgent)
 	{
 	 	 for (int i=0; i<aI.dim; i++) agents[iAgent]->a->valsContinuous[i]... do something
 

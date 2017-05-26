@@ -9,8 +9,8 @@
 
 #include "CMAEnvironment.h"
 
-CMAEnvironment::CMAEnvironment(const int _nAgents, const string _execpath,
-															 const int _rank, Settings & settings) :
+CMAEnvironment::CMAEnvironment(const Uint _nAgents, const string _execpath,
+															 const Uint _rank, Settings & settings) :
 Environment(settings.nThreads, _execpath, _rank, settings)
 {
 }
@@ -47,12 +47,12 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
         aI.dim = 6; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
 				//not interested in DQN: just max and min
-        for (int i=0; i<2; i++) {
+        for (Uint i=0; i<2; i++) {
 						aI.bounded.push_back(1);
             aI.values[i].push_back(.0); //here the app accepts real numbers
             aI.values[i].push_back(.2);
         }
-        for (int i=2; i<4; i++) {
+        for (Uint i=2; i<4; i++) {
 						aI.bounded.push_back(1);
             aI.values[i].push_back(.0); //here the app accepts real numbers
             aI.values[i].push_back(.9);

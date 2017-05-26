@@ -9,13 +9,13 @@
 
 #include "Environment.h"
 
-Environment::Environment(const int nA,const string exe,const int _rank,Settings& _s) :
+Environment::Environment(const Uint nA,const string exe,const Uint _rank,Settings& _s) :
 execpath(exe), rank(_rank), nAgents(nA*_s.nSlaves), nAgentsPerRank(nA),
 gamma(_s.gamma), g(&_s.generators[0]), resetAll(false), cheaperThanNetwork(true),
 mpi_ranks_per_env(0), paramsfile(string())
 {
     assert(_s.bIsMaster || nAgentsPerRank == nAgents);
-    for (int i=0; i<nAgents; i++) agents.push_back(new Agent(i));
+    for (Uint i=0; i<nAgents; i++) agents.push_back(new Agent(i));
 }
 
 
@@ -38,7 +38,7 @@ void Environment::commonSetup()
     int wRank;
     MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
     sI.dim = 0; sI.dimUsed = 0;
-    for (int i=0; i<sI.inUse.size(); i++) {
+    for (Uint i=0; i<sI.inUse.size(); i++) {
         sI.dim++;
         if (sI.inUse[i]) sI.dimUsed++;
     }
@@ -61,7 +61,7 @@ void Environment::commonSetup()
     }
     assert(sI.scale.size() == sI.mean.size());
     assert(sI.mean.size()==0 || sI.mean.size()==sI.dim);
-    for (int i=0; i<sI.dim; i++) assert(positive(sI.scale[i]));
+    for (Uint i=0; i<sI.dim; i++) assert(positive(sI.scale[i]));
 }
 
 bool Environment::pickReward(const State& t_sO, const Action& t_a,
@@ -72,7 +72,7 @@ bool Environment::pickReward(const State& t_sO, const Action& t_a,
 
 vector<Real> Environment::stateDumpUpperBound() {return vector<Real>(0);}
 vector<Real> Environment::stateDumpLowerBound() {return vector<Real>(0);}
-vector<int> Environment::stateDumpNBins() {return vector<int>(0);}
+vector<Uint> Environment::stateDumpNBins() {return vector<Uint>(0);}
 
 /*
  void GlideEnvironment::setDims()

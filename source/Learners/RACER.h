@@ -21,8 +21,8 @@ class RACER : public PolicyAlgorithm
 	Real precision = 100;
 	#endif
 
-	void Train_BPTT(const int seq, const int thrID=0) const override;
-	void Train(const int seq, const int samp, const int thrID=0) const override;
+	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
+	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
 	void processStats(vector<trainData*> _stats, const Real avgTime) override;
 
 	vector<Real> basicNetOut(const int agentId, State& s, Action& a,
@@ -39,7 +39,7 @@ class RACER : public PolicyAlgorithm
 		vector<Real> input = s.copy_observed();
 		//if required, chain together nAppended obs to compose state
 		if (nAppended>0) {
-			const int sApp = nAppended*sInfo.dimUsed;
+			const Uint sApp = nAppended*sInfo.dimUsed;
 			if(info==1)
 				input.insert(input.end(),sApp, 0);
 			else {
@@ -82,7 +82,7 @@ class RACER : public PolicyAlgorithm
 		const Real eps = annealingFactor();
 
 		if(bTrain && positive(eps)) {
-			for(int i=0; i<nA; i++) {
+			for(Uint i=0; i<nA; i++) {
 				const Real varscale = aInfo.addedVariance(i);
 				const Real policy_std = std::sqrt(var[i]); //output: 1/S^2
 				const Real anneal_std = eps*varscale*greedyEps + (1-eps)*policy_std;
@@ -95,7 +95,7 @@ class RACER : public PolicyAlgorithm
 			}
 		}
 		else if (positive(greedyEps) || bTrain) { //still want to sample policy.
-			for(int i=0; i<nA; i++) {
+			for(Uint i=0; i<nA; i++) {
 				std::normal_distribution<Real> dist_cur(mu[i], std::sqrt(var[i]));
 				a.vals[i] = dist_cur(*gen);
 				beta[i] = mu[i]; //to save correct mu
@@ -103,7 +103,7 @@ class RACER : public PolicyAlgorithm
 			}
 		}
 		else {//load computed policy into a
-			for(int i=0; i<nA; i++) {
+			for(Uint i=0; i<nA; i++) {
 				a.vals[i] = mu[i];
 				beta[i] = mu[i]; //to save correct mu
 				beta[nA+i] = 1./var[i]; //to save correct mu
@@ -119,7 +119,7 @@ public:
 	void select(const int agentId, State& s,Action& a, State& sOld,
 			Action& aOld, const int info, Real r) override;
 
-	static int getnOutputs(const int NA)
+	static Uint getnOutputs(const Uint NA)
 	{
 		#if defined ACER_RELAX
 			// I output V(s), P(s), pol(s), prec(s) (and variate)
@@ -137,7 +137,7 @@ private:
 
 	inline vector<Real> finalizeGradient(const Real Verror,
 			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
-			const vector<Real>& out, const int thrID, const Real gain1, const Real eta) const
+			const vector<Real>& out, const Uint thrID, const Real gain1, const Real eta) const
 	{
       const Real anneal = std::pow(annealingFactor(), 2);
 		assert(out.size() == nOutputs);
@@ -150,20 +150,20 @@ private:
 		#endif
 
 		grad[0] = gradCritic[0]+Verror;
-		for (int j=1; j<nL+1; j++)
+		for (Uint j=1; j<nL+1; j++)
 			grad[j] = gradCritic[j];
 
-		for (int j=0; j<nA; j++)
+		for (Uint j=0; j<nA; j++)
 			//grad[1+nL+j] = gradPolicy[j];
 			grad[1+nL+j] = gradPolicy[j] -anneal*out[1+nL+j];
 
 		#ifndef ACER_SAFE
 			const vector<Real> gradVar = finalizeVarianceGrad(gradPolicy, out);
-			for (int j=0; j<nA; j++) grad[1+nL+nA+j] = gradVar[j];
+			for (Uint j=0; j<nA; j++) grad[1+nL+nA+j] = gradVar[j];
 		#endif
 
 		#ifndef ACER_RELAX
-			for (int j=nL+1; j<nA+nL+1; j++) {
+			for (Uint j=nL+1; j<nA+nL+1; j++) {
 			   #ifndef ACER_SAFE
          		//grad[j+nA*2] = gradCritic[j];
 		   	grad[j+nA*2] = gradCritic[j] -anneal*out[j+nA*2];
@@ -183,7 +183,7 @@ private:
 		_dump.push_back(eta);
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
 		//2) clip the gradient wrt previous epoch to ACER_GRAD_CUT sigma
-		for (unsigned int i=0; i<grad.size(); i++)
+		for (Uint i=0; i<grad.size(); i++)
 		{
 			if(grad[i] >  ACER_GRAD_CUT*stdGrad[0][i] && stdGrad[0][i]>2.2e-16)
 				grad[i] =  ACER_GRAD_CUT*stdGrad[0][i];
@@ -201,7 +201,7 @@ private:
 	}
 
 	vector<vector<Real>> prepareBins(const vector<Real> lower, const vector<Real>& upper,
-			const vector<int>& nbins)
+			const vector<Uint>& nbins)
 	{
 		if(nAppended || nA!=1)
 			die("TODO missing features\n");
@@ -209,11 +209,11 @@ private:
 		assert(nbins.size() == upper.size());
 		assert(nbins.size() == nInputs);
 		vector<vector<Real>> bins(nbins.size());
-		int nDumpPoints = 1;
-		for (int i=0; i<nbins.size(); i++) {
+		Uint nDumpPoints = 1;
+		for (Uint i=0; i<nbins.size(); i++) {
 			nDumpPoints *= nbins[i];
 			bins[i] = vector<Real>(nbins[i]);
-			for (int j=0; j<nbins[i]; j++) {
+			for (Uint j=0; j<nbins[i]; j++) {
 				const Real l = j/(Real)(nbins[i]-1);
 				bins[i][j] = lower[i] + (upper[i]-lower[i])*l;
 			}
@@ -222,7 +222,7 @@ private:
 	}
 
 	void dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-	 		const vector<int>& nbins) override;
+	 		const vector<Uint>& nbins) override;
 	 /*
 	 void dumpNetworkInfo(const int agentId)
 	 {

@@ -29,8 +29,9 @@ using namespace std;
 #define _dumpNet_
 
 typedef double Real;
+typedef unsigned Uint;
 #define MPI_VALUE_TYPE MPI_DOUBLE
-static const int simdWidth = __vec_width__/sizeof(Real);
+static const Uint simdWidth = __vec_width__/sizeof(Real);
 
 template <typename T>
 void _myfree(T *const& ptr)
@@ -40,16 +41,16 @@ void _myfree(T *const& ptr)
 }
 
 template <typename T>
-void _allocateQuick(T *const& ptr, const int size)
+void _allocateQuick(T *const& ptr, const Uint size)
 {
-    const int sizeSIMD=std::ceil(size/(Real)simdWidth)*simdWidth*sizeof(Real);
+    const Uint sizeSIMD=std::ceil(size/(Real)simdWidth)*simdWidth*sizeof(Real);
     posix_memalign((void **)& ptr, __vec_width__, sizeSIMD);
 }
 
 template <typename T>
-void _allocateClean(T *const& ptr, const int size)
+void _allocateClean(T *const& ptr, const Uint size)
 {
-    const int sizeSIMD=std::ceil(size/(Real)simdWidth)*simdWidth*sizeof(Real);
+    const Uint sizeSIMD=std::ceil(size/(Real)simdWidth)*simdWidth*sizeof(Real);
     posix_memalign((void **)& ptr, __vec_width__, sizeSIMD);
     memset(ptr, 0, sizeSIMD);
 }
@@ -73,7 +74,7 @@ template <typename T>
 inline string printVec(const vector<T> vals)
 {
   std::ostringstream o;
-  for (int i=0; i<vals.size(); i++) o << " " << vals[i];
+  for (Uint i=0; i<vals.size(); i++) o << " " << vals[i];
   return o.str();
 }
 
@@ -91,10 +92,10 @@ inline void setVecMean(vector<Real>& vals)
 {
    assert(vals.size()>1);
 	Real mean = 0;
-	for (unsigned int i=1; i<vals.size(); i++) //assume 0 is empty
+	for (Uint i=1; i<vals.size(); i++) //assume 0 is empty
 		mean += vals[i];
 	mean /= (Real)(vals.size()-1);
-	for (unsigned int i=0; i<vals.size(); i++)
+	for (Uint i=0; i<vals.size(); i++)
 		vals[i] = mean;
 }
 
@@ -104,20 +105,20 @@ inline void statsVector(vector<vector<Real>>& sum, vector<vector<Real>>& sqr,
    assert(sum.size()>1);
   assert(sum.size() == cnt.size() && sqr.size() == cnt.size());
 
-  for (unsigned int i=0; i<sum[0].size(); i++)
+  for (Uint i=0; i<sum[0].size(); i++)
     sum[0][i] = sqr[0][i] = 0;
   cnt[0] = 0;
 
-  for (unsigned int i=1; i<sum.size(); i++) {
+  for (Uint i=1; i<sum.size(); i++) {
     cnt[0] += cnt[i]; cnt[i] = 0;
-    for (unsigned int j=0; j<sum[0].size(); j++)
+    for (Uint j=0; j<sum[0].size(); j++)
     {
       sum[0][j] += sum[i][j]; sum[i][j] = 0;
       sqr[0][j] += sqr[i][j]; sqr[i][j] = 0;
     }
   }
   cnt[0] = std::max(2.2e-16, cnt[0]);
-  for (unsigned int j=0; j<sum[0].size(); j++)
+  for (Uint j=0; j<sum[0].size(); j++)
   {
     sqr[0][j] = std::sqrt((sqr[0][j]-sum[0][j]*sum[0][j]/cnt[0])/cnt[0]);
     sum[0][j] /= cnt[0];
@@ -128,14 +129,14 @@ inline void statsGrad(vector<Real>& sum, vector<Real>& sqr, Real& cnt, vector<Re
 {
   assert(sum.size() == grad.size() && sqr.size() == grad.size());
   cnt += 1;
-  for (unsigned int i=0; i<grad.size(); i++) {
+  for (Uint i=0; i<grad.size(); i++) {
     sum[i] += grad[i];
     sqr[i] += grad[i]*grad[i];
   }
 }
 
-inline void Lpenalization(Real* const weights, const int start, const int N, const Real lambda)
+inline void Lpenalization(Real* const weights, const Uint start, const Uint N, const Real lambda)
 {
-  for (int i=start; i<start+N; i++) weights[i]+= (weights[i]<0 ? lambda : -lambda);
+  for (Uint i=start; i<start+N; i++) weights[i]+= (weights[i]<0 ? lambda : -lambda);
   //for (int i=start; i<start+N; i++) weights[i]-= weights[i]*lambda;
 }

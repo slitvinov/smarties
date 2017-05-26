@@ -9,8 +9,8 @@
 
 #include "GliderEnvironment.h"
 
-GliderEnvironment::GliderEnvironment(const int _nAgents, const string _execpath,
-																 const int _rank, Settings & settings) :
+GliderEnvironment::GliderEnvironment(const Uint _nAgents, const string _execpath,
+																 const Uint _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings) {
 	//cheaperThanNetwork=false;
 	settings.saveFreq = 1e5;
@@ -19,7 +19,7 @@ Environment(_nAgents, _execpath, _rank, settings) {
 void GliderEnvironment::setDims() //this environment is for the cart pole test
 {
 	sI.inUse.clear();
-	for (int i=0; i<6; i++) sI.inUse.push_back(true);
+	for (Uint i=0; i<6; i++) sI.inUse.push_back(true);
 
 	sI.inUse.push_back(true);
 	//sI.inUse.push_back(false);
@@ -65,4 +65,4 @@ bool GliderEnvironment::pickReward(const State & t_sO, const Action & t_a,
 
 vector<Real> GliderEnvironment::stateDumpUpperBound() {return vector<Real>{ 1, 1, .5,125,  0,2*M_PI};}
 vector<Real> GliderEnvironment::stateDumpLowerBound() {return vector<Real>{-1,-1,-.5, -5,-50,     0};}
-vector<int> GliderEnvironment::stateDumpNBins() {return vector<int> { 9, 9,  9, 53, 21,     9};}
+vector<Uint> GliderEnvironment::stateDumpNBins() {return vector<Uint> { 9, 9,  9, 53, 21,     9};}

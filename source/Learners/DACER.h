@@ -17,8 +17,8 @@ class DACER : public DiscreteAlgorithm
 	mutable vector<vector<Real>> stdGrad, avgGrad;
 	mutable vector<Real> cntGrad;
 
-	void Train_BPTT(const int seq, const int thrID=0) const override;
-	void Train(const int seq, const int samp, const int thrID=0) const override;
+	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
+	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
 	void processStats(vector<trainData*> _stats, const Real avgTime) override;
 
 	vector<Real> basicNetOut(const int agentId, State& s, Action& a,
@@ -35,7 +35,7 @@ class DACER : public DiscreteAlgorithm
 		vector<Real> input = s.copy_observed();
 		//if required, chain together nAppended obs to compose state
 		if (nAppended>0) {
-			const int sApp = nAppended*sInfo.dimUsed;
+			const Uint sApp = nAppended*sInfo.dimUsed;
 			if(info==1)
 				input.insert(input.end(),sApp, 0);
 			else {
@@ -75,13 +75,13 @@ class DACER : public DiscreteAlgorithm
 		assert(pol.size()==nA);
 		vector<Real> beta = pol;
 		const Real eps = annealingFactor();
-		int iAct = -1;
+		Uint iAct = 0;
 		const Real addedVar = greedyEps*eps/nA, trunc = (1-greedyEps*eps);
 
 		if(bTrain && positive(eps))
-			for(int i=0; i<nA; i++) beta[i] = trunc*beta[i] + addedVar;
+			for(Uint i=0; i<nA; i++) beta[i] = trunc*beta[i] + addedVar;
 
-		std::discrete_distribution<int> dist(beta.begin(),beta.end());
+		std::discrete_distribution<Uint> dist(beta.begin(),beta.end());
 
 		if (positive(greedyEps) || bTrain)
 			iAct = dist(*gen);
@@ -97,7 +97,7 @@ public:
 	void select(const int agentId, State& s,Action& a, State& sOld,
 			Action& aOld, const int info, Real r) override;
 
-	static int getnOutputs(const int NA)
+	static Uint getnOutputs(const Uint NA)
 	{
 		return 1+NA+NA;
 	}
@@ -112,9 +112,9 @@ private:
 		vector<Real> grad(nOutputs);
 
 		grad[0] = gradCritic[0]+Verror;
-		for (int j=0; j<nA; j++)
+		for (Uint j=0; j<nA; j++)
 			grad[j+1] = gradPolicy[j];
-		for (int j=1; j<nA+1; j++)
+		for (Uint j=1; j<nA+1; j++)
 			grad[j+nA] = gradCritic[j];
 
 		//gradient clipping
@@ -130,7 +130,7 @@ private:
 	}
 
 	vector<vector<Real>> prepareBins(const vector<Real> lower, const vector<Real>& upper,
-			const vector<int>& nbins)
+			const vector<Uint>& nbins)
 	{
 		if(nAppended || nA!=1)
 			die("TODO missing features\n");
@@ -139,10 +139,10 @@ private:
 		assert(nbins.size() == nInputs);
 		vector<vector<Real>> bins(nbins.size());
 		int nDumpPoints = 1;
-		for (int i=0; i<nbins.size(); i++) {
+		for (Uint i=0; i<nbins.size(); i++) {
 			nDumpPoints *= nbins[i];
 			bins[i] = vector<Real>(nbins[i]);
-			for (int j=0; j<nbins[i]; j++) {
+			for (Uint j=0; j<nbins[i]; j++) {
 				const Real l = j/(Real)(nbins[i]-1);
 				bins[i][j] = lower[i] + (upper[i]-lower[i])*l;
 			}
@@ -151,7 +151,7 @@ private:
 	}
 
 	void dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-	 		const vector<int>& nbins) override;
+	 		const vector<Uint>& nbins) override;
 	 /*
 	 void dumpNetworkInfo(const int agentId)
 	 {

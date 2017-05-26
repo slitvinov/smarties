@@ -9,12 +9,12 @@
 
 #include "TwoFishEnvironment.h"
 
-TwoFishEnvironment::TwoFishEnvironment(const int _nAgents,
-            const string _execpath, const int _rank, Settings & settings) :
+TwoFishEnvironment::TwoFishEnvironment(const Uint _nAgents,
+            const string _execpath, const Uint _rank, Settings & settings) :
 Environment(_nAgents, _execpath, _rank, settings),
 sight(settings.senses==0 || settings.senses==2),
 l_line(settings.senses==1 || settings.senses==2),
-study(settings.rewardType), goalDY(settings.goalDY)
+study(settings.rType), goalDY(settings.goalDY)
 {
     if (goalDY > 1.) goalDY = 1. - goalDY; //poor man's sign
 }
@@ -85,18 +85,18 @@ void TwoFishEnvironment::setDims()
         // angvel 13
         sI.inUse.push_back(false);
     }
-    for (int i=0; i<10; i++) { // >=14
+    for (Uint i=0; i<10; i++) { // >=14
         // (p_above  ) x 10
         sI.inUse.push_back(false);
     }
 
-    for (int i=0; i<10; i++) // >=24
+    for (Uint i=0; i<10; i++) // >=24
     {
         // ( p_below ) x 10
         sI.inUse.push_back(false);
     }
 
-    for (int i=0; i<10; i++) // >=34
+    for (Uint i=0; i<10; i++) // >=34
     {
         // ( curvature) x 10
         sI.inUse.push_back(false);
@@ -110,7 +110,7 @@ void TwoFishEnvironment::setDims()
 
     aI.dim = 1;
     aI.values.resize(aI.dim);
-    for (int i=0; i<aI.dim; i++) {
+    for (Uint i=0; i<aI.dim; i++) {
         aI.values[i].push_back(-.5);
         aI.values[i].push_back(-.25);
         aI.values[i].push_back(0.0);

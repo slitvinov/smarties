@@ -12,16 +12,17 @@
 
 Learner::Learner(MPI_Comm comm, Environment*const _env, Settings & settings) :
 mastersComm(comm), env(_env), nAgents(settings.nAgents),
-batchSize(settings.dqnBatch), tgtUpdateDelay((int)settings.dqnUpdateC),
+batchSize(settings.batchSize), tgtUpdateDelay((Uint)settings.targetDelay),
 nThreads(settings.nThreads), nInputs(settings.nnInputs),
-nOutputs(settings.nnOutputs), nAppended(settings.dqnAppendS),
+nOutputs(settings.nnOutputs), nAppended(settings.appendedObs),
 bRecurrent(settings.bRecurrent), bTrain(settings.bTrain),
-tgtUpdateAlpha(settings.dqnUpdateC), gamma(settings.gamma),
+tgtUpdateAlpha(settings.targetDelay), gamma(settings.gamma),
 greedyEps(settings.greedyEps), epsAnneal(settings.epsAnneal),
 taskCounter(batchSize), aInfo(env->aI), sInfo(env->sI),
 gen(&settings.generators[0])
 {
-    for (int i=0; i<max(nThreads,1); i++) Vstats.push_back(new trainData());
+    assert(nThreads>0);
+    for (Uint i=0; i<nThreads; i++) Vstats.push_back(new trainData());
     profiler = new Profiler();
     data = new Transitions(mastersComm, env, settings);
 }
@@ -38,11 +39,11 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 
 void Learner::TrainBatch()
 {
-    const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-    vector<int> seq(batchSize), samp(batchSize);
+    const Uint ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+    vector<Uint> seq(batchSize), samp(batchSize);
     if (ndata<batchSize) return; //do we have enough data?
     if (!bTrain) return; //are we training?
-    int nAddedGradients=0;
+    Uint nAddedGradients=0;
 
     if(data->syncBoolOr(data->inds.size()<batchSize))
     { //uniform sampling
@@ -51,8 +52,8 @@ void Learner::TrainBatch()
         #ifdef __CHECK_DIFF //check gradients with finite differences, just for debug
         if (stats.epochCount == 0) { //% 100
             vector<vector<Real>> inputs;
-            const int ind = data->Set.size()-1;
-            for (int k=0; k<data->Set[ind]->tuples.size(); k++)
+            const Uint ind = data->Set.size()-1;
+            for (Uint k=0; k<data->Set[ind]->tuples.size(); k++)
                 inputs.push_back(data->Set[ind]->tuples[k]->s);
             net->checkGrads(inputs, data->Set[ind]->tuples.size()-1);
         }
@@ -61,11 +62,11 @@ void Learner::TrainBatch()
 
     if(bRecurrent) {
         nAddedGradients = sampleSequences(seq);
-        for (int i=0; i<batchSize; i++)
+        for (Uint i=0; i<batchSize; i++)
           Train_BPTT(seq[i]);
     } else {
         nAddedGradients = sampleTransitions(seq, samp);
-        for (int i=0; i<batchSize; i++)
+        for (Uint i=0; i<batchSize; i++)
           Train(seq[i], samp[i]);
     }
 
@@ -77,10 +78,10 @@ void Learner::TrainBatch()
 void Learner::TrainTasking(Master* const master)
 {
     std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
-    vector<int> seq(batchSize), samp(batchSize);//, index(batchSize);
-    int nAddedGradients = 0, countElapsed = 0;
+    vector<Uint> seq(batchSize), samp(batchSize);//, index(batchSize);
+    Uint nAddedGradients = 0, countElapsed = 0;
     Real sumElapsed = 0;
-    int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+    Uint ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
   	if (ndata <= 10*batchSize || !bTrain) {
       if(nAgents<1) die("Nothing to do, nowhere to go.\n");
       master->run();
@@ -100,8 +101,8 @@ void Learner::TrainTasking(Master* const master)
             #ifdef __CHECK_DIFF //check gradients with finite differences, just for debug
             if (stats.epochCount == 0) { //% 100
                 vector<vector<Real>> inputs;
-                const int ind = data->Set.size()-1;
-                for (int k=0; k<data->Set[ind]->tuples.size(); k++)
+                const Uint ind = data->Set.size()-1;
+                for (Uint k=0; k<data->Set[ind]->tuples.size(); k++)
                     inputs.push_back(data->Set[ind]->tuples[k]->s);
                 net->checkGrads(inputs, data->Set[ind]->tuples.size()-1);
             }
@@ -116,16 +117,17 @@ void Learner::TrainTasking(Master* const master)
             nAddedGradients = sampleSequences(seq);
       			#pragma omp flush
 
-      			for (int i=0; i<batchSize; i++) {
-              const int sequence = seq[i];
+      			for (Uint i=0; i<batchSize; i++) {
+              const Uint sequence = seq[i];
       				#pragma omp task firstprivate(sequence)
       				{
       					const int thrID = omp_get_thread_num();
+                assert(!thrID<0);
                 //#ifndef NDEBUG
                 //printf("Thread %d to %d\n",thrID,sequence);
                 //fflush(0);
                 //#endif
-      					Train_BPTT(sequence, thrID);
+      					Train_BPTT(sequence, static_cast<Uint>(thrID));
 
       					#pragma omp atomic
       					taskCounter++;
@@ -135,13 +137,14 @@ void Learner::TrainTasking(Master* const master)
       			nAddedGradients = sampleTransitions(seq, samp);
       			#pragma omp flush
 
-      			for (int i=0; i<batchSize; i++) {
-              const int sequence = seq[i];
-              const int transition = samp[i];
+      			for (Uint i=0; i<batchSize; i++) {
+              const Uint sequence = seq[i];
+              const Uint transition = samp[i];
       				#pragma omp task firstprivate(sequence,transition)
       				{
       					const int thrID = omp_get_thread_num();
-      					Train(sequence, transition, thrID);
+                assert(!thrID<0);
+      					Train(sequence, transition, static_cast<Uint>(thrID));
 
       					#pragma omp atomic
       					taskCounter++;
@@ -168,16 +171,16 @@ void Learner::TrainTasking(Master* const master)
     }
 }
 
-int Learner::sampleTransitions(vector<int>& sequences, vector<int>& transitions)
+Uint Learner::sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitions)
 {
   assert(sequences.size() == batchSize && transitions.size() == batchSize);
   assert(!bRecurrent);
-  vector<int> load(batchSize), sorting(batchSize), s(batchSize), t(batchSize);
-  for (int i=0; i<batchSize; i++)
+  vector<Uint> load(batchSize), sorting(batchSize), s(batchSize), t(batchSize);
+  for (Uint i=0; i<batchSize; i++)
   {
-    const int ind = data->sample();
+    const Uint ind = data->sample();
 
-    int k=0, back=0, indT=data->Set[0]->tuples.size()-1;
+    Uint k=0, back=0, indT=data->Set[0]->tuples.size()-1;
     while (ind >= indT) {
       back = indT;
       indT += data->Set[++k]->tuples.size()-1;
@@ -191,32 +194,32 @@ int Learner::sampleTransitions(vector<int>& sequences, vector<int>& transitions)
   }
 
   //sort elements of sorting according to load for each transition:
-  const auto compare = [&] (int a, int b) { return load[a] > load[b]; };
+  const auto compare = [&] (Uint a, Uint b) { return load[a] > load[b]; };
   std::sort(sorting.begin(), sorting.end(), compare);
   assert(load[sorting[0]] > load[sorting[batchSize-1]]);
   //sort vectors passed to learning algo:
-  for (int i=0; i<batchSize; i++) {
+  for (Uint i=0; i<batchSize; i++) {
     transitions[i] = t[sorting[i]];
     sequences[i] = s[sorting[i]];
   }
   return batchSize; //always add one grad per transition
 }
 
-int Learner::sampleSequences(vector<int>& sequences)
+Uint Learner::sampleSequences(vector<Uint>& sequences)
 {
   assert(sequences.size() == batchSize && bRecurrent);
-  int nAddedGradients = 0;
-  for (int i=0; i<batchSize; i++)
+  Uint nAddedGradients = 0;
+  for (Uint i=0; i<batchSize; i++)
   {
-    const int ind = data->sample();
+    const Uint ind = data->sample();
     sequences[i]  = ind;
     //index[i] = ind;
-    const int seqSize = data->Set[ind]->tuples.size();
+    const Uint seqSize = data->Set[ind]->tuples.size();
     //to normalize mean gradient for update:
     nAddedGradients += seqSize-1; //last state = terminal, no next reward
   }
   //sort them such that longer ones are started first, reducing overhead!
-  const auto compare = [this] (int a, int b) {
+  const auto compare = [this] (Uint a, Uint b) {
     return data->Set[a]->tuples.size() > data->Set[b]->tuples.size();
   };
   std::sort(sequences.begin(), sequences.end(), compare);
@@ -224,7 +227,7 @@ int Learner::sampleSequences(vector<int>& sequences)
   return nAddedGradients;
 }
 
-void Learner::stackAndUpdateNNWeights(const int nAddedGradients)
+void Learner::stackAndUpdateNNWeights(const Uint nAddedGradients)
 {
     assert(bTrain);
     opt->nepoch++;
@@ -246,7 +249,7 @@ void Learner::stackAndUpdateNNWeights(const int nAddedGradients)
     opt->update(net->grad, nAddedGradients*nMasters);
 }
 
-void Learner::updateNNWeights(const int nAddedGradients)
+void Learner::updateNNWeights(const Uint nAddedGradients)
 {
     assert(bTrain && nAddedGradients>0);
     //add up gradients across nodes (masters)
@@ -266,7 +269,7 @@ void Learner::updateNNWeights(const int nAddedGradients)
 void Learner::updateTargetNetwork()
 {
     assert(bTrain);
-    if (cntUpdateDelay <= 0) { //DQN-style frozen weight
+    if (cntUpdateDelay == 0) { //DQN-style frozen weight
         cntUpdateDelay = tgtUpdateDelay;
 
         //2 options: either move tgt_wght = (1-a)*tgt_wght + a*wght
@@ -280,7 +283,7 @@ void Learner::updateTargetNetwork()
 bool Learner::checkBatch(unsigned long mastersNiter)
 {
     const unsigned long dataNiter = bRecurrent ? data->nSeenSequences : mastersNiter;
-    const int ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+    const Uint ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
     if (ndata<batchSize*10 || !bTrain) {
       mastersNiter_b4PolUpdates = dataNiter;
       return false;
@@ -382,7 +385,7 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
     stats.minQ= 1e5; stats.maxQ=-1e5; stats.MSE=0;
     stats.avgQ=0; stats.relE=0; stats.dumpCount=0;
 
-    for (int i=0; i<_stats.size(); i++) {
+    for (Uint i=0; i<_stats.size(); i++) {
         stats.MSE += _stats[i]->MSE;
         stats.relE += _stats[i]->relE;
         stats.avgQ += _stats[i]->avgQ;
@@ -398,7 +401,7 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
 
 
     Real sumWeights = 0, distTarget = 0, sumWeightsSq = 0;
-    for (int w=0; w<net->getnWeights(); w++){
+    for (Uint w=0; w<net->getnWeights(); w++){
     	sumWeights += std::fabs(net->weights[w]);
       sumWeightsSq += net->weights[w]*net->weights[w];
       distTarget += std::pow(net->weights[w]-net->tgt_weights[w],2);
@@ -431,14 +434,14 @@ void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
 }
 
 void Learner::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-                        const vector<int>& nbins)
+                        const vector<Uint>& nbins)
 {}
 
 void Learner::buildNetwork(Network*& _net , Optimizer*& _opt,
-  const vector<int> nouts, Settings & settings, const vector<int> addedInputs)
+  const vector<Uint> nouts, Settings & settings, const vector<Uint> addedInputs)
 {
-  const string netType = settings.netType;
-  const string funcType = settings.funcType;
+  const string netType = settings.nnType;
+  const string funcType = settings.nnFunc;
   const vector<int> lsize = settings.readNetSettingsSize();
   assert(nouts.size()>0);
 
@@ -447,28 +450,28 @@ void Learner::buildNetwork(Network*& _net , Optimizer*& _opt,
   if (not env->predefinedNetwork(&build))
     build.addInput(nInputs);
 
-  for (int i=0; i<addedInputs.size(); i++)
+  for (Uint i=0; i<addedInputs.size(); i++)
     build.addInput(addedInputs[i]);
 
   {
     //const int nsplit = std::min(static_cast<int>(lsize.size()),2);
     //const int nsplit = lsize.size()>3 ? 2 : 1;
-    const int nsplit = 1;
+    const Uint nsplit = 1;
     //const int nsplit = lsize.size();
-    for (int i=0; i<lsize.size()-nsplit; i++)
+    for (Uint i=0; i<lsize.size()-nsplit; i++)
       build.addLayer(lsize[i], netType, funcType);
 
-    const int firstSplit = lsize.size()-nsplit;
+    const Uint firstSplit = lsize.size()-nsplit;
     const vector<int> lastJointLayer(1, build.getLastLayerID());
 
-    for (int i=0; i<nouts.size(); i++)
+    for (Uint i=0; i<nouts.size(); i++)
     {
       build.addLayer(lsize[firstSplit], netType, funcType, lastJointLayer);
 
-      for (int j=firstSplit+1; j<lsize.size(); j++)
+      for (Uint j=firstSplit+1; j<lsize.size(); j++)
         build.addLayer(lsize[j], netType, funcType);
 
-      build.addOutput(nouts[i], "Normal");
+      build.addOutput(static_cast<int>(nouts[i]) , "Normal");
     }
   }
   _net = build.build();

@@ -58,12 +58,12 @@ class Transitions
 protected:
     const MPI_Comm mastersComm;
     Environment * const env;
-    int iOldestSaved=0;
+    Uint iOldestSaved=0;
     const bool bSampleSeq, bWriteToFile, bNormalize, bTrain;
     const string path;
     vector<Real> std, mean, invstd;
-    vector<int> curr_transition_id;
-    discrete_distribution<int> * dist;
+    vector<Uint> curr_transition_id;
+    discrete_distribution<Uint> * dist;
     int add(const int agentId, const int info, const State & sOld,
       const Action & a, const vector<Real>& mu, const State& s, Real r);
     int add(const int agentId, const int info, const State& sOld,
@@ -84,15 +84,15 @@ protected:
     }
 
 public:
-    const int nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
+    const Uint nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
     bool bRecurrent;
-    int anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0, nSeenSequences=0;
+    Uint anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0, nSeenSequences=0;
     const StateInfo sI;
     const ActionInfo aI;
     std::vector<std::mt19937>& generators;
     Gen * gen;
     vector<Sequence*> Set, Tmp, Buffered;
-    vector<int> inds;
+    vector<Uint> inds;
 
     Transitions(MPI_Comm comm, Environment*const env, Settings & settings);
 
@@ -108,14 +108,14 @@ public:
     void pushBackEndedSim(const int agentOne, const int agentEnd);
     void update_samples_mean(const Real alpha = 0.01);
     int syncBoolOr(int needed) const;
-    vector<Real> standardize(const vector<Real>& state, const Real noise=-1, const int thrID=0) const;
+    vector<Real> standardize(const vector<Real>& state, const Real noise=-1, const Uint thrID=0) const;
 #ifdef _Priority_
     void updateP();
 #endif
     void save(std::string fname);
     void restart(std::string fname);
     void updateSamples(const Real alpha = 0.01);
-    int sample();
+    Uint sample();
     void restartSamples();
     void restartSamplesNew(const bool bContinuous);
     void saveSamples();

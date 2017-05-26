@@ -10,11 +10,11 @@
 #include "../StateAction.h"
 #include "DPG.h"
 
-DPG::DPG(MPI_Comm comm, Environment*const _env, Settings & settings) :
-Learner(comm,_env,settings), nS(_env->sI.dimUsed*(1+settings.dqnAppendS)), nA(_env->aI.dim)
+DPG::DPG(MPI_Comm comm, Environment*const _env, Settings & _s) :
+Learner(comm,_env,_s), nS(_env->sI.dimUsed*(1+_s.appendedObs)), nA(_env->aI.dim)
 {
-	buildNetwork(net, opt, vector<int>(1,1), settings);
-	buildNetwork(net_policy, opt_policy, vector<int>(1,nA), settings, vector<int>(1,nA));
+	buildNetwork(net, opt, vector<Uint>(1,1), _s);
+	buildNetwork(net_policy, opt_policy, vector<Uint>(1,nA),_s, vector<Uint>(1,nA));
 }
 
 void DPG::select(const int agentId, State& s, Action& a,
@@ -58,10 +58,10 @@ void DPG::select(const int agentId, State& s, Action& a,
     if(dis(*gen) < annealedEps)  a.getRandom();
 }
 
-void DPG::Train_BPTT(const int seq, const int thrID) const
+void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
 {
   assert(net->allocatedFrozenWeights && net_policy->allocatedFrozenWeights);
-	const int ndata = data->Set[seq]->tuples.size();
+	const Uint ndata = data->Set[seq]->tuples.size();
 	vector<Activation*>valSeries=       net->allocateUnrolledActivations(ndata-1);
 	vector<Activation*>polSeries=net_policy->allocateUnrolledActivations(ndata);
 	net->clearErrors(valSeries);
@@ -74,7 +74,7 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 		net_policy->predict(scaledSnew, policy, polSeries, 0,
 												net_policy->tgt_weights, net_policy->tgt_biases);
 
-		for (int k=0; k<ndata-1; k++)
+		for (Uint k=0; k<ndata-1; k++)
 		{ //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
 			const Tuple*const _t   =data->Set[seq]->tuples[k+1]; //contains a, sNew, r
 			scaledSold = scaledSnew;
@@ -126,7 +126,7 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 	polSeries.pop_back(); //im done using the term state for the policy, and i want to bptt
 	net->clearErrors(valSeries); net_policy->clearErrors(polSeries);
 	{
-		for (int k=0; k<ndata-1; k++) {
+		for (Uint k=0; k<ndata-1; k++) {
 		  //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
 			const Tuple*const _tOld=data->Set[seq]->tuples[k]; //this tuple contains sOld
 
@@ -146,9 +146,9 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 									//net->tgt_weights, net->tgt_biases,
 									tmp_grad);
 
-		for (int k=0; k<ndata-1; k++) {
+		for (Uint k=0; k<ndata-1; k++) {
 			vector<Real> pol_gradient(nA);
-			for(int i=0;i<nA;i++)
+			for(Uint i=0;i<nA;i++)
 				pol_gradient[i] = valSeries[k]->errvals[nS+i];
 
 			net_policy->setOutputDeltas(pol_gradient, polSeries[k]);
@@ -164,7 +164,7 @@ void DPG::Train_BPTT(const int seq, const int thrID) const
 	_dispose_object(tmp_grad);
 }
 
-void DPG::Train(const int seq, const int samp, const int thrID) const
+void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
     assert(net->allocatedFrozenWeights && net_policy->allocatedFrozenWeights);
 
@@ -269,7 +269,7 @@ void DPG::updateTargetNetwork()
     cntUpdateDelay--;
 }
 
-void DPG::stackAndUpdateNNWeights(const int nAddedGradients)
+void DPG::stackAndUpdateNNWeights(const Uint nAddedGradients)
 {
 		assert(nAddedGradients>0 && bTrain);
     opt->nepoch ++;
@@ -281,7 +281,7 @@ void DPG::stackAndUpdateNNWeights(const int nAddedGradients)
     opt_policy->update(net_policy->grad,nAddedGradients); //update
 }
 
-void DPG::updateNNWeights(const int nAddedGradients)
+void DPG::updateNNWeights(const Uint nAddedGradients)
 {
 		assert(nAddedGradients>0 && bTrain);
     opt->nepoch ++;

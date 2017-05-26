@@ -24,7 +24,7 @@ class PolicyAlgorithm : public Learner
 {
 protected:
 	const Real delta;
-	const int nA, nL;
+	const Uint nA, nL;
 	std::vector<std::mt19937>& generators;
 	#ifdef ACER_MAX_ACT
 	const Real tol_diagL, tol_diagP, max_abs_P;
@@ -56,7 +56,7 @@ protected:
 
 		vector<Real> ret(nA);
 		assert(out.size()>=1+nL+2*nA);
-		for (int j=0; j<nA; j++)
+		for (Uint j=0; j<nA; j++)
 			ret[j] = hardPlus(out[1+nL+nA+j]);
 		return ret;
 	}
@@ -80,7 +80,7 @@ protected:
 	{
 			const vector<Real> prec = extractPrecision(out);
 			vector<Real> ret(nA);
-			for(int i=0; i<nA; i++) ret[i] = 1./prec[i];
+			for(Uint i=0; i<nA; i++) ret[i] = 1./prec[i];
 			return ret;
 	}
 
@@ -93,7 +93,7 @@ protected:
 		vector<Real> vargrad(nA);
 		assert(out.size()>=1+nL+2*nA);
 		assert(pgrad.size()==2*nA);
-		for (int j=0; j<nA; j++)
+		for (Uint j=0; j<nA; j++)
 			vargrad[j] = pgrad[nA+j]*diffHardPlus(out[1+nL+nA+j]);
 
 		return vargrad;
@@ -110,7 +110,7 @@ protected:
 		//assert(beta.size()==nA*2);
 		assert(a.size()==nA);
 		Real p = 0;
-		for(int i=0; i<nA; i++) {
+		for(Uint i=0; i<nA; i++) {
 			assert(beta[nA+i]>0);
 			p -= 0.5*beta[nA+i]*std::pow(a[i]-beta[i],2);
 			p += 0.5*std::log(0.5*beta[nA+i]/M_PI);
@@ -125,7 +125,7 @@ protected:
 		assert(act.size()==nA);
 		assert(prec.size()==nA);
 		Real p = 0;
-		for(int i=0; i<nA; i++) {
+		for(Uint i=0; i<nA; i++) {
 			assert(prec[i]>0);
 			p -= 0.5*prec[i]*(act[i]-mu[i])*(act[i]-mu[i]);
 			p += 0.5*std::log(0.5*prec[i]/M_PI);
@@ -139,9 +139,9 @@ protected:
 			uniform_real_distribution<Real> out_dis(-.5,.5);
 			uniform_real_distribution<Real> act_dis(-.5,.5);
 
-			for(int i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
-			for(int i = 0; i<nOutputs; i++) hat[i] = out_dis(*gen);
-			for(int i = 0; i<nA; i++) act[i] = act_dis(*gen);
+			for(Uint i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
+			for(Uint i = 0; i<nOutputs; i++) hat[i] = out_dis(*gen);
+			for(Uint i = 0; i<nA; i++) act[i] = act_dis(*gen);
 
 			vector<Real> mu = extractPolicy(out);
 			vector<Real> mu_hat = extractPolicy(hat);
@@ -164,7 +164,7 @@ protected:
 			vector<Real> polGrad = policyGradient(mu, prec, act, 1);
 			vector<Real> cntGrad = controlGradient(mu, var, P, mean, 1);
 			vector<Real> gradDivKL = gradDKL(mu, mu_hat, prec, prec_hat);
-			for(int i = 0; i<nA; i++) {
+			for(Uint i = 0; i<nA; i++) {
 				vector<Real> out_1 = out;
 				vector<Real> out_2 = out;
 				out_1[1+nL+i] -= 0.0001;
@@ -189,7 +189,7 @@ protected:
 			vector<Real> varGrad = finalizeVarianceGrad(polGrad, out);
 			vector<Real> trlGrad = finalizeVarianceGrad(cntGrad, out);
 			vector<Real> dklGrad = finalizeVarianceGrad(gradDivKL, out);
-			for(int i = 0; i<nA; i++) {
+			for(Uint i = 0; i<nA; i++) {
 				vector<Real> out_1 = out;
 				vector<Real> out_2 = out;
 				out_1[1+nL+nA+i] -= 0.0001;
@@ -214,7 +214,7 @@ protected:
 			#endif
 
 			vector<Real> cgrad = criticGradient(P, mu, var, out, mean, act, 1);
-			for(int i = 1; i<1+nL; i++)
+			for(Uint i = 1; i<1+nL; i++)
 			{
 					vector<Real> out_1 = out;
 					vector<Real> out_2 = out;
@@ -229,7 +229,7 @@ protected:
 			}
 
 			#ifndef ACER_RELAX
-			for(int i = 0; i<nA; i++)
+			for(Uint i = 0; i<nA; i++)
 			{
 					vector<Real> out_1 = out;
 					vector<Real> out_2 = out;
@@ -251,12 +251,12 @@ protected:
 	}
 
 	inline vector<Real> samplePolicy(const vector<Real>& pi,
-		const vector<Real>& var, const int thrID) const
+		const vector<Real>& var, const Uint thrID) const
 	{
 		assert(pi.size()==nA);
 		assert(var.size()==nA);
 		std::vector<Real> ret(nA);
-		for(int i=0; i<nA; i++) { //sample current policy
+		for(Uint i=0; i<nA; i++) { //sample current policy
 			std::normal_distribution<Real> dist(pi[i], std::sqrt(var[i]));
 			ret[i] = dist(generators[thrID]);
 		}
@@ -274,9 +274,9 @@ protected:
 		vector<Real> _L(nA*nA, 0), _P(nA*nA, 0);
 		assert(out.size() >= 1+nL);
 		{ //fill lower diag matrix L
-			int kL = 1;
-			for (int j=0; j<nA; j++)
-				for (int i=0; i<nA; i++) {
+			Uint kL = 1;
+			for (Uint j=0; j<nA; j++)
+				for (Uint i=0; i<nA; i++) {
 					if (i<j)
 						_L[nA*j + i] = softSign(out[kL++]);//out[kL++];
 					else if (i==j)
@@ -286,12 +286,12 @@ protected:
 			assert(kL==1+nL);
 		}
 		//fill positive definite matrix P == L * L'
-		for (int j=0; j<nA; j++)
-			for (int i=0; i<nA; i++) {
-				const int ind = nA*j + i;
-				for (int k=0; k<nA; k++) {
-					const int k1 = nA*j + k;
-					const int k2 = nA*i + k;
+		for (Uint j=0; j<nA; j++)
+			for (Uint i=0; i<nA; i++) {
+				const Uint ind = nA*j + i;
+				for (Uint k=0; k<nA; k++) {
+					const Uint k1 = nA*j + k;
+					const Uint k2 = nA*i + k;
 					_P[ind] += _L[k1] * _L[k2];
 				}
 			}
@@ -303,22 +303,22 @@ protected:
 	{
 		vector<Real> PvarP(nA*nA, 0);
 
-		for (int j=0; j<nA; j++)
-		for (int i=0; i<nA; i++) {
-			const int ind = nA*j + i;
-			for (int k=0; k<nA; k++) {
-				const int k1 = nA*j + k;
-				const int k2 = nA*k + i;
+		for (Uint j=0; j<nA; j++)
+		for (Uint i=0; i<nA; i++) {
+			const Uint ind = nA*j + i;
+			for (Uint k=0; k<nA; k++) {
+				const Uint k1 = nA*j + k;
+				const Uint k2 = nA*k + i;
 				PvarP[ind] += P[k1]*var[k]*P[k2];
 			}
 		}
 
 		Real ret = 0;
-		for (int i=0; i<nA; i++)
+		for (Uint i=0; i<nA; i++)
 			ret += 0.5*PvarP[nA*i+i]*var[i];
 
-		for (int j=0; j<nA; j++)
-			for (int i=0; i<nA; i++) {
+		for (Uint j=0; j<nA; j++)
+			for (Uint i=0; i<nA; i++) {
 				ret += (pol[j]-mean[j])*(pol[i]-mean[i])*PvarP[nA*j+i];
 				#ifdef ACER_RELAX
 					//assert(std::fabs(pol[i]-mean[i]) < 2.2e-16);
@@ -335,14 +335,14 @@ protected:
 		assert(a.size() == nA);
 		assert(mu.size() == nA);
 		Real Q = 0;
-		for (int j=0; j<nA; j++) Q += S[j]*std::pow(mu[j]-a[j],2);
+		for (Uint j=0; j<nA; j++) Q += S[j]*std::pow(mu[j]-a[j],2);
 		return Q;
 	}
 
 	inline Real quadraticNoise(const vector<Real>& P, const vector<Real>& var, const int thrID) const
 	{
 		vector<Real> q(nA,0);
-		for (int j=0; j<nA; j++)
+		for (Uint j=0; j<nA; j++)
 		{
 			const Real scale = 0.1*std::sqrt(3)*std::sqrt(var[j]);
 			std::uniform_real_distribution<Real> distn(-scale, scale);
@@ -350,7 +350,7 @@ protected:
 		}
 
 		Real Q = 0;
-		for (int j=0; j<nA; j++) for (int i=0; i<nA; i++)
+		for (Uint j=0; j<nA; j++) for (Uint i=0; i<nA; i++)
 			Q += P[nA*j+i]*q[i]*q[j];
 
 		return Q;
@@ -368,8 +368,8 @@ protected:
 		assert(mu.size() == nA);
 		assert(a.size() == nA);
 		Real Q = 0;
-		for (int j=0; j<nA; j++)
-			for (int i=0; i<nA; i++)  //A = L * L'
+		for (Uint j=0; j<nA; j++)
+			for (Uint i=0; i<nA; i++)  //A = L * L'
 				Q += P[nA*j+i]*(a[i]-mu[i])*(a[j]-mu[j]);
 
 		return Q;
@@ -379,7 +379,7 @@ protected:
         const vector<Real>& prec_cur, const vector<Real>& prec_hat) const
 	{
 		Real ret = 0;
-		for (int i=0; i<nA; i++) {
+		for (Uint i=0; i<nA; i++) {
 			ret += prec_cur[i]/prec_hat[i] - 1;
 			ret += std::pow(mu_cur[i]-mu_hat[i],2)*prec_cur[i];
 			ret += std::log(prec_hat[i]) - std::log(prec_cur[i]);
@@ -408,10 +408,10 @@ protected:
 
 		vector<Real> ret(2*nA);
 
-		for (int i=0; i<nA; i++)
+		for (Uint i=0; i<nA; i++)
 			ret[i]    = (mu_cur[i]-mu_hat[i])*prec_cur[i];
 
-		for (int i=0; i<nA; i++)
+		for (Uint i=0; i<nA; i++)
 			//               v from trace    v from quadratic term   v from normalization
 			ret[i+nA] = .5*(1/prec_hat[i]-1/prec_cur[i] +std::pow(mu_cur[i]-mu_hat[i],2));
 
@@ -425,7 +425,7 @@ protected:
 
 		vector<Real> gradAcer(nA*2,0);
 		Real dot=0, norm=0;
-		for (int j=0; j<nA*2; j++) {
+		for (Uint j=0; j<nA*2; j++) {
 			norm += DKL[j] * DKL[j];
 			dot +=  DKL[j] * DA[j];
 		}
@@ -435,10 +435,10 @@ protected:
 		//if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
 		//#endif
 
-		for (int j=0; j<nA*2; j++)
+		for (Uint j=0; j<nA*2; j++)
 			gradAcer[j] = DA[j] - proj*DKL[j];
 
-      for (int j=0; j<nA*2; j++)
+      for (Uint j=0; j<nA*2; j++)
          if(gradAcer[j]*DA[j]<0)
             gradAcer[j] = 0;
 
@@ -464,7 +464,7 @@ protected:
 		 */
 		vector<Real> ret(2*nA);
 
-		for (int i=0; i<nA; i++)
+		for (Uint i=0; i<nA; i++)
 		{
 			ret[i]    = factor*(act[i]-mu[i])*prec[i];
 
@@ -473,7 +473,7 @@ protected:
 			#endif
 		}
 
-		for (int i=0; i<nA; i++)
+		for (Uint i=0; i<nA; i++)
 		{
 			ret[i+nA] = factor*(.5/prec[i] -0.5*(act[i]-mu[i])*(act[i]-mu[i]));
 			#ifdef ACER_MAX_PREC
@@ -489,9 +489,9 @@ protected:
 	{
 		vector<Real> gradCC(nA*2, 0);
 
-		for (int j=0; j<nA; j++)
+		for (Uint j=0; j<nA; j++)
 		{
-			for (int i=0; i<nA; i++)
+			for (Uint i=0; i<nA; i++)
 			{
 				#ifdef ACER_RELAX //then Qmean and pol must be the same
 					//assert(std::fabs(mean[i]-pol[i]) < 2.2e-16);
@@ -505,7 +505,7 @@ protected:
 			//if(eta<0) gradCC[j] = 0;
 		}
 
-		for (int j=0; j<nA; j++)
+		for (Uint j=0; j<nA; j++)
 		{
 			gradCC[j+nA] = eta * 0.5 * P[nA*j +j] * var[j] * var[j];
 			#ifdef ACER_MAX_PREC
@@ -536,7 +536,7 @@ protected:
 		#ifdef ACER_RELAX
 			//assert(std::fabs(expectation) < 2.2e-16);
 		#endif
-		for(int i=0; i<nA; i++) expectation += P[nA*i+i]*var[i];
+		for(Uint i=0; i<nA; i++) expectation += P[nA*i+i]*var[i];
 
 		return -0.5*quadraticTerm(P, mean, act) + 0.5*expectation; //subtract expectation from advantage of action
 	}
@@ -548,7 +548,7 @@ protected:
 		assert(g.size() == 2*nA);
 		assert(h.size() == 2*nA);
 		vector<Real> ret(nA*2,0);
-		for(int i=0; i<nA*2; i++) ret[i] = f[i]+g[i]+h[i];
+		for(Uint i=0; i<nA*2; i++) ret[i] = f[i]+g[i]+h[i];
 		return ret;
 	}
 
@@ -557,7 +557,7 @@ protected:
 		assert(f.size() == 2*nA);
 		assert(g.size() == 2*nA);
 		vector<Real> ret(nA*2,0);
-		for(int i=0; i<nA*2; i++) ret[i] = f[i]+g[i];
+		for(Uint i=0; i<nA*2; i++) ret[i] = f[i]+g[i];
 		return ret;
 	}
 
@@ -575,15 +575,15 @@ protected:
       //const Real anneal = std::pow(annealingFactor(), 2);
 		grad[0] = Qer;
 
-		int kL = 1;
-		for (int j=0; j<nA; j++) {
+		Uint kL = 1;
+		for (Uint j=0; j<nA; j++) {
 			_u[j] = act[j] - mean[j];
 			_m[j] = pol[j] - mean[j];
 			#ifdef ACER_RELAX
 				//assert(std::fabs(_m[j]) < 2.2e-16);
 			#endif
 
-			for (int i=0; i<nA; i++) {
+			for (Uint i=0; i<nA; i++) {
 				if (i<j)
 					_L[nA*j + i] = softSign(out[kL++]);//out[kL++];
 				else if (i==j)
@@ -592,23 +592,23 @@ protected:
 		}
 		assert(kL==1+nL);
 
-		for (int il=0; il<nL; il++) {
-			int kD = 0;
-			for (int j=0; j<nA; j++)
-				for (int i=0; i<nA; i++) {
-					const int ind = nA*j + i;
+		for (Uint il=0; il<nL; il++) {
+			Uint kD = 0;
+			for (Uint j=0; j<nA; j++)
+				for (Uint i=0; i<nA; i++) {
+					const Uint ind = nA*j + i;
 					_dLdl[ind] = 0;
 					if(i<=j) if(kD++==il) _dLdl[ind]=1;
 				}
 			assert(kD==nL);
 
-			for (int j=0; j<nA; j++)
-				for (int i=0; i<nA; i++) {
-					const int ind = nA*j + i;
+			for (Uint j=0; j<nA; j++)
+				for (Uint i=0; i<nA; i++) {
+					const Uint ind = nA*j + i;
 					_dPdl[ind] = 0;
-					for (int k=0; k<nA; k++) {
-						const int k1 = nA*j + k;
-						const int k2 = nA*i + k;
+					for (Uint k=0; k<nA; k++) {
+						const Uint k1 = nA*j + k;
+						const Uint k2 = nA*i + k;
 						_dPdl[ind] += _dLdl[k1]*_L[k2] + _L[k1]*_dLdl[k2];
 					}
 				}
@@ -616,8 +616,8 @@ protected:
 			grad[1+il] = 0.;
 
 			//add the term dependent on the estimate: applies only to diagonal terms
-			for (int j=0; j<nA; j++)
-				for (int i=0; i<nA; i++) {
+			for (Uint j=0; j<nA; j++)
+				for (Uint i=0; i<nA; i++) {
 					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j?var[i]:0));
 					//#ifdef ACER_MAX_ACT
 					const Real dEdPij = clip(Qer*dOdPij, max_abs_P-P[nA*j+i],-max_abs_P-P[nA*j+i]);
@@ -632,9 +632,9 @@ protected:
 				}
 		}
       {
-			int kl = 1;
-			for (int j=0; j<nA; j++)
-				for (int i=0; i<nA; i++) {
+			Uint kl = 1;
+			for (Uint j=0; j<nA; j++)
+				for (Uint i=0; i<nA; i++) {
 					if (i==j) grad[kl] *= diffSoftPlus(out[kl]);
                if (i<j)  grad[kl] *= diffSoftSign(out[kl]);
                if (i<=j) kl++;
@@ -642,8 +642,8 @@ protected:
 			assert(kl==1+nL);
       }
 		#ifndef ACER_RELAX
-		for (int ia=0; ia<nA; ia++) {
-			for (int i=0; i<nA; i++)
+		for (Uint ia=0; ia<nA; ia++) {
+			for (Uint i=0; i<nA; i++)
 				grad[1+nL+ia] += Qer*P[nA*ia+i]*(_u[i]-_m[i]);
 
 			#ifdef ACER_MAX_ACT //clip derivative

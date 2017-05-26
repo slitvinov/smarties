@@ -14,13 +14,10 @@ using namespace std;
 #ifndef PRELU_FAC
 #define PRELU_FAC 0.001
 #endif
-//#define _allocateClean(name, size) { const int nsimd = __vec_width__/sizeof(Real); const int sizeSIMD=std::ceil(size/(Real)nsimd)*nsimd*sizeof(Real); posix_memalign((void **)& name, __vec_width__, sizeSIMD); memset(name, 0, sizeSIMD); }
-//#define _allocateQuick(name, size) { const int nsimd = __vec_width__/sizeof(Real); const int sizeSIMD=std::ceil(size/(Real)nsimd)*nsimd*sizeof(Real); posix_memalign((void **)& name, __vec_width__, sizeSIMD); }
-//#define _myfree( name ) free( name );
 
 struct Activation //All the network signals
 {
-	Activation(int _nNeurons,int _nStates):nNeurons(_nNeurons),nStates(_nStates)
+	Activation(Uint _nNeurons,Uint _nStates):nNeurons(_nNeurons),nStates(_nStates)
 	{
 		//contains all inputs to each neuron (inputs to network input layer is empty)
 		_allocateQuick(in_vals, nNeurons);
@@ -95,7 +92,7 @@ struct Activation //All the network signals
 		std::memset(iOGates,0.,nStates);
 	}
 
-	const int nNeurons, nStates;
+	const Uint nNeurons, nStates;
 	Real *in_vals, *outvals, *errvals, *ostates;
 	Real *iIGates, *iFGates, *iOGates;
 	Real *oMCell, *oIGates, *oFGates, *oOGates;
@@ -104,7 +101,7 @@ struct Activation //All the network signals
 
 struct Grads
 {
-	Grads(int _nWeights, int _nBiases): nWeights(_nWeights), nBiases(_nBiases)
+	Grads(Uint _nWeights, Uint _nBiases): nWeights(_nWeights), nBiases(_nBiases)
 	{
 		_allocateClean(_W, nWeights);
         		_allocateClean(_B, nBiases);
@@ -120,13 +117,13 @@ struct Grads
 		std::memset(_W,0.,nWeights);
 		std::memset(_B,0.,nBiases);
 	}
-	const int nWeights, nBiases;
+	const Uint nWeights, nBiases;
 	Real *_W, *_B;
 };
 
 struct Mem //Memory light recipient for prediction on agents
 {
-	Mem(int _nNeurons, int _nStates): nNeurons(_nNeurons), nStates(_nStates)
+	Mem(Uint _nNeurons, Uint _nStates): nNeurons(_nNeurons), nStates(_nStates)
 	{
 		_allocateClean(outvals, nNeurons);
         		_allocateClean(ostates, nStates);
@@ -137,20 +134,20 @@ struct Mem //Memory light recipient for prediction on agents
 		_myfree(outvals);
 		_myfree(ostates);
 	}
-	const int nNeurons, nStates;
+	const Uint nNeurons, nStates;
 	Real *outvals, *ostates;
 };
 
 struct Function
 {
-	virtual Real initFactor(const int inps, const int outs) const = 0;
+	virtual Real initFactor(const Uint inps, const Uint outs) const = 0;
 	virtual Real eval(const Real in) const = 0;
 	virtual Real evalDiff(const Real in) const = 0;
 };
 
 struct Linear : public Function
 {
-	Real initFactor(const int inps, const int outs) const override
+	Real initFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./inps);// 2./inps;
 	}
@@ -167,7 +164,7 @@ struct Linear : public Function
 
 struct Tanh : public Function
 {
-	Real initFactor(const int inps, const int outs) const override
+	Real initFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -195,7 +192,7 @@ struct Tanh : public Function
 
 struct TwoTanh : public Function
 {
-	Real initFactor(const int inps, const int outs) const override
+	Real initFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -222,7 +219,7 @@ struct TwoTanh : public Function
 
 struct Sigm : public Function
 {
-	Real initFactor(const int inps, const int outs) const override
+	Real initFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -244,7 +241,7 @@ struct Sigm : public Function
 
 struct SoftSign : public Function
 {
-	Real initFactor(const int inps, const int outs) const override
+	Real initFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -261,7 +258,7 @@ struct SoftSign : public Function
 
 struct TwoSoftSign : public Function
 {
-	Real initFactor(const int inps, const int outs) const override
+	Real initFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -279,7 +276,7 @@ struct TwoSoftSign : public Function
 
 struct SoftSigm : public Function
 {
-	Real initFactor(const int inps, const int outs) const override
+	Real initFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -298,7 +295,7 @@ struct SoftSigm : public Function
 
 struct Relu : public Function
 {
-	Real initFactor(const int inps, const int outs) const override
+	Real initFactor(const Uint inps, const Uint outs) const override
 	{
 		return 2./inps;
 	}
@@ -315,7 +312,7 @@ struct Relu : public Function
 
 struct PRelu : public Function
 {
-	Real initFactor(const int inps, const int outs) const override
+	Real initFactor(const Uint inps, const Uint outs) const override
 	{
 		return 2./inps;
 	}
@@ -332,7 +329,7 @@ struct PRelu : public Function
 
 struct ExpPlus : public Function
 {
-	Real initFactor(const int inps, const int outs) const override
+	Real initFactor(const Uint inps, const Uint outs) const override
 	{
 		return 2./inps;
 	}
@@ -353,7 +350,7 @@ struct ExpPlus : public Function
 
 struct SoftPlus : public Function
 {
-	Real initFactor(const int inps, const int outs) const override
+	Real initFactor(const Uint inps, const Uint outs) const override
 	{
 		return 2./inps;
 	}

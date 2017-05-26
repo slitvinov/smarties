@@ -11,7 +11,7 @@
 
 namespace ErrorHandling
 {
-extern int debugLvl;
+extern Uint debugLvl;
 #define    die(format, ...) {fprintf(stderr, format, ##__VA_ARGS__); MPI_Abort(MPI_COMM_WORLD, 1);}
 #define  error(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
 

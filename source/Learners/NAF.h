@@ -12,10 +12,10 @@
 
 class NAF : public Learner
 {
-    const int nA, nL;
+    const Uint nA, nL;
 
-    void Train_BPTT(const int seq, const int thrID=0) const override;
-    void Train(const int seq, const int samp, const int thrID=0) const override;
+    void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
+    void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
     void dumpNetworkInfo(const int agentId);
     vector<Real> computeQandGrad(vector<Real>& grad, const vector<Real>& act,
 						   const vector<Real>& out, const Real Vnext) const;

@@ -14,78 +14,78 @@
 class Link
 {
  public:
-	const int iW, nI, iI, nO, iO, nO_simd, nW;
-	Link(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd, int _nW)
+	const Uint iW, nI, iI, nO, iO, nO_simd, nW;
+	Link(Uint _nI, Uint _iI, Uint _nO, Uint _iO, Uint _iW, Uint _nO_simd, Uint _nW)
 	: iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nO_simd(_nO_simd), nW(_nW) {}
 
 	virtual ~Link() {}
 	virtual void print() const = 0;
 
 	void _initialize(mt19937* const gen, Real* const _weights, const Real scale,
-		int n0, int nOut, int nIn, int n_simd) const
+		Uint n0, Uint nOut, Uint nIn, Uint n_simd) const
 	{
 		uniform_real_distribution<Real> dis(-scale,scale);
 		//normal_distribution<Real> dis(0.,range);
-		for (int i = 0; i < nIn; i++)
-			for (int o = 0; o < nOut; o++)
+		for (Uint i = 0; i < nIn; i++)
+			for (Uint o = 0; o < nOut; o++)
 				_weights[n0 + n_simd*i + o] = dis(*gen);
 		//orthogonalize(n0, _weights, nOut, nAdded, n_simd);
 	}
 
 	virtual void save(vector<Real>& out, Real* const _weights) const = 0;
-	void _save(vector<Real>& out, Real*const _weights, int n0, int nOut, int nIn, int n_simd) const
+	void _save(vector<Real>& out, Real*const _weights, Uint n0, Uint nOut, Uint nIn, Uint n_simd) const
 	{
-		for (int i = 0; i < nIn; i++) for (int o = 0; o < nOut; o++) {
-				const int w = n0 + n_simd*i + o;
+		for (Uint i = 0; i < nIn; i++) for (Uint o = 0; o < nOut; o++) {
+				const Uint w = n0 + n_simd*i + o;
 				out.push_back(_weights[w]);
 				assert(!std::isnan(_weights[w]) && !std::isinf(_weights[w]));
 			}
 	}
 
 	virtual void restart(vector<Real>& buf, Real* const _weights) const = 0;
-	void _restart(vector<Real>& buf, Real*const _weights, int n0, int nOut, int nIn, int n_simd) const
+	void _restart(vector<Real>& buf, Real*const _weights, Uint n0, Uint nOut, Uint nIn, Uint n_simd) const
 	{
-		for (int i = 0; i < nIn; i++) for (int o = 0; o < nOut; o++) {
-				const int w = n0 + n_simd*i + o;
+		for (Uint i = 0; i < nIn; i++) for (Uint o = 0; o < nOut; o++) {
+				const Uint w = n0 + n_simd*i + o;
         _weights[w] = buf.front();
         buf.erase(buf.begin(),buf.begin()+1);
 				assert(!std::isnan(_weights[w]) && !std::isinf(_weights[w]));
 			}
 	}
 
-	void orthogonalize(const int n0, Real* const _weights, int nOut, int nIn, int n_simd) const
+	void orthogonalize(const Uint n0, Real* const _weights, Uint nOut, Uint nIn, Uint n_simd) const
 	{
 		if (nIn<nOut) return;
 
-		for (int i=1; i<nOut; i++) {
+		for (Uint i=1; i<nOut; i++) {
 			Real v_d_v_pre = 0.;
-			for (int k=0; k<nIn; k++)
+			for (Uint k=0; k<nIn; k++)
 				v_d_v_pre += *(_weights+n0+k*n_simd+i)* *(_weights+n0+k*n_simd+i);
 			if(v_d_v_pre<std::numeric_limits<Real>::epsilon())
         die("Initialization problem\n");
 
-			for (int j=0; j<i;  j++) {
+			for (Uint j=0; j<i;  j++) {
 				Real u_d_u = 0.0;
 				Real v_d_u = 0.0;
-				for (int k=0; k<nIn; k++) {
+				for (Uint k=0; k<nIn; k++) {
 					u_d_u += *(_weights+n0+k*n_simd+j)* *(_weights+n0+k*n_simd+j);
 					v_d_u += *(_weights+n0+k*n_simd+j)* *(_weights+n0+k*n_simd+i);
 				}
 				if(u_d_u<std::numeric_limits<Real>::epsilon())
           die("Initialization problem\n");
 
-				for (int k=0; k<nIn; k++)
+				for (Uint k=0; k<nIn; k++)
 					*(_weights+n0+k*n_simd+i) -= v_d_u/u_d_u * *(_weights+n0+k*n_simd+j);
 			}
 
 			Real v_d_v_post = 0.0;
-			for (int k=0; k<nIn; k++)
+			for (Uint k=0; k<nIn; k++)
 				v_d_v_post += *(_weights+n0+k*n_simd+i)* *(_weights+n0+k*n_simd+i);
 
 			if(v_d_v_post<std::numeric_limits<Real>::epsilon())
         die("Initialization problem\n");
 
-			for (int k=0; k<nIn; k++)
+			for (Uint k=0; k<nIn; k++)
 				*(_weights+n0+k*n_simd+i) *= std::sqrt(v_d_v_pre/v_d_v_post);
 		}
 	}
@@ -109,7 +109,7 @@ class NormalLink: public Link
      the index of the first weight iW along the weight vector
      the weights are all to all: so this link occupies space iW to (iW + nI*nO) along weight vector
 	 */
-	NormalLink(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd) :
+	NormalLink(Uint _nI, Uint _iI, Uint _nO, Uint _iO, Uint _iW, Uint _nO_simd) :
 	Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, _nI*_nO_simd)
 	{
 		assert(iW % (__vec_width__/sizeof(Real)) == 0);
@@ -147,10 +147,10 @@ class NormalLink: public Link
 		Real* __restrict__ const link_outputs = netTo->in_vals +iO;
 		//__builtin_assume_aligned(link_outputs, __vec_width__);
 		//__builtin_assume_aligned(link_input, __vec_width__);
-		for (int i = 0; i < nI; i++) {
+		for (Uint i = 0; i < nI; i++) {
 			const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
 			//__builtin_assume_aligned(link_weights, __vec_width__);
-			for (int o = 0; o < nO; o++) {
+			for (Uint o = 0; o < nO; o++) {
 				link_outputs[o] += link_input[i] * link_weights[o];
 			}
 		}
@@ -166,12 +166,12 @@ class NormalLink: public Link
 		//__builtin_assume_aligned(layer_input, __vec_width__);
 		//__builtin_assume_aligned(deltas, __vec_width__);
 
-		for (int i = 0; i < nI; i++) {
+		for (Uint i = 0; i < nI; i++) {
 			const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
 			Real* __restrict__ const link_dEdW = gradW +iW +nO_simd*i;
 			//__builtin_assume_aligned(link_weights, __vec_width__);
 			//__builtin_assume_aligned(link_dEdW, __vec_width__);
-			for (int o = 0; o < nO; o++) {
+			for (Uint o = 0; o < nO; o++) {
 				link_dEdW[o] += layer_input[i] * deltas[o];
 				link_errors[i] += deltas[o] * link_weights[o];
 			}
@@ -190,10 +190,10 @@ class LinkToLSTM : public Link
      additionally the LSTM contains a memory, contained in Activation->ostate
      memory and gates are treated differently than normal neurons, therefore are contained in separate array, and i keep track of the position with iC
 	 */
-	const int iC, iWI, iWF, iWO;
+	const Uint iC, iWI, iWF, iWO;
 
-	LinkToLSTM(int _nI, int _iI, int _nO, int _iO, int _iC, int _iW,
-		int _iWI, int _iWF, int _iWO, int _nO_simd) :
+	LinkToLSTM(Uint _nI, Uint _iI, Uint _nO, Uint _iO, Uint _iC, Uint _iW,
+		Uint _iWI, Uint _iWF, Uint _iWO, Uint _nO_simd) :
 		Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, _nI*_nO_simd), iC(_iC),
 		iWI(_iWI), iWF(_iWF), iWO(_iWO) //i care nW per neuron, just for the asserts
 	{
@@ -258,7 +258,7 @@ class LinkToLSTM : public Link
 		//__builtin_assume_aligned(inputO, __vec_width__);
 		//__builtin_assume_aligned(link_input, __vec_width__);
 
-		for (int i = 0; i < nI; i++) {
+		for (Uint i = 0; i < nI; i++) {
 			const Real* __restrict__ const weights_toCell  = weights + iW  + nO_simd*i;
 			const Real* __restrict__ const weights_toIgate = weights + iWI + nO_simd*i;
 			const Real* __restrict__ const weights_toFgate = weights + iWF + nO_simd*i;
@@ -268,7 +268,7 @@ class LinkToLSTM : public Link
 			//__builtin_assume_aligned(weights_toFgate, __vec_width__);
 			//__builtin_assume_aligned(weights_toOgate, __vec_width__);
 
-			for (int o = 0; o < nO; o++) {
+			for (Uint o = 0; o < nO; o++) {
 				inputs[o] += link_input[i] * weights_toCell[o];
 				inputI[o] += link_input[i] * weights_toIgate[o];
 				inputF[o] += link_input[i] * weights_toFgate[o];
@@ -293,7 +293,7 @@ class LinkToLSTM : public Link
 		//__builtin_assume_aligned(deltaO, __vec_width__);
 		//__builtin_assume_aligned(deltaC, __vec_width__);
 
-		for (int i = 0; i < nI; i++) {
+		for (Uint i = 0; i < nI; i++) {
 			const Real* __restrict__ const w_toOgate = weights +iWO +nO_simd*i;
 			const Real* __restrict__ const w_toFgate = weights +iWF +nO_simd*i;
 			const Real* __restrict__ const w_toIgate = weights +iWI +nO_simd*i;
@@ -311,7 +311,7 @@ class LinkToLSTM : public Link
 			//__builtin_assume_aligned(w_toIgate, __vec_width__);
 			//__builtin_assume_aligned(w_toCell,  __vec_width__);
 
-			for (int o = 0; o < nO; o++) {
+			for (Uint o = 0; o < nO; o++) {
 				dw_toOgate[o] += layer_input[i] * deltaO[o];
 				dw_toCell[o]  += layer_input[i] * deltaC[o];
 				dw_toIgate[o] += layer_input[i] * deltaI[o];
@@ -326,14 +326,14 @@ class LinkToLSTM : public Link
 class LinkToConv2D : public Link
 {
  public:
-	const int inputWidth, inputHeight, inputDepth;
-	const int filterWidth, filterHeight, outputDepth_simd;
-	const int outputWidth, outputHeight, outputDepth;
-	const int strideX, strideY, padX, padY;
+	const Uint inputWidth, inputHeight, inputDepth;
+	const Uint filterWidth, filterHeight, outputDepth_simd;
+	const Uint outputWidth, outputHeight, outputDepth;
+	const Uint strideX, strideY, padX, padY;
 
-	LinkToConv2D(int _nI, int _iI, int _nO, int _iO, int _iW, int _nO_simd,
-		int _inW, int _inH, int _inD, int _fW, int _fH, int _fN, int _outW,
-		int _outH, int _sX=1, int _sY=1, int _pX=0, int _pY=0) :
+	LinkToConv2D(Uint _nI, Uint _iI, Uint _nO, Uint _iO, Uint _iW, Uint _nO_simd,
+		Uint _inW, Uint _inH, Uint _inD, Uint _fW, Uint _fH, Uint _fN, Uint _outW,
+		Uint _outH, Uint _sX=1, Uint _sY=1, Uint _pX=0, Uint _pY=0) :
 		Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, _fW*_fH*_nO_simd*_inD),
 		inputWidth(_inW), inputHeight(_inH), inputDepth(_inD),
 		filterWidth(_fW), filterHeight(_fH), outputDepth_simd(_nO_simd),
@@ -374,33 +374,34 @@ class LinkToConv2D : public Link
 	}
   void initialize(mt19937*const gen, Real*const _weights, const Function*const func) const
 	{
-    const int nAdded = filterWidth*filterHeight*inputDepth;
+    const Uint nAdded = filterWidth*filterHeight*inputDepth;
 		assert(outputDepth_simd*nAdded == nW);
 		_initialize(gen, _weights, func->initFactor(nAdded,outputDepth), iW, nO, nAdded, outputDepth_simd);
 	}
 	void save(vector<Real> & out, Real* const _weights) const override
 	{
-		const int nAdded = filterWidth*filterHeight*inputDepth;
+		const Uint nAdded = filterWidth*filterHeight*inputDepth;
 		_save(out, _weights, iW, nO, nAdded, outputDepth_simd);
 	}
 	void restart(vector<Real> & buf, Real* const _weights) const override
 	{
-		const int nAdded = filterWidth*filterHeight*inputDepth;
+		const Uint nAdded = filterWidth*filterHeight*inputDepth;
 		_restart(buf, _weights, iW, nO, nAdded, outputDepth_simd);
 	}
 
 	void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
 	{
-		for(int ox=0; ox<outputWidth;  ox++)
-			for(int oy=0; oy<outputHeight; oy++) {
-				const int ix = ox*strideX - padX;
-				const int iy = oy*strideY - padY;
-				for(int fx=0; fx<filterWidth; fx++)
-					for(int fy=0; fy<filterHeight; fy++) {
-						const int cx=ix+fx;
-						const int cy=iy+fy;
+		for(Uint ox=0; ox<outputWidth;  ox++)
+			for(Uint oy=0; oy<outputHeight; oy++) {
+				const int ix = static_cast<int>(ox*strideX) -  static_cast<int>(padX);
+				const int iy = static_cast<int>(oy*strideY) -  static_cast<int>(padY);
+				for(Uint fx=0; fx<filterWidth; fx++)
+					for(Uint fy=0; fy<filterHeight; fy++) {
+						const int cx=ix+static_cast<int>(fx);
+						const int cy=iy+static_cast<int>(fy);
 						//padding: skip addition if outside input boundaries
-						if (cx < 0 || cy < 0 || cx >= inputWidth || cy >= inputHeight)
+            if ( cx < 0 || static_cast<Uint>(cx) >= inputWidth
+              || cy < 0 || static_cast<Uint>(cy) >= inputHeight)
 							continue;
 
 						const Real* __restrict__ const link_inputs =
@@ -410,12 +411,12 @@ class LinkToConv2D : public Link
 						//__builtin_assume_aligned(link_outputs, __vec_width__);
 						//__builtin_assume_aligned(link_inputs, __vec_width__);
 
-						for(int iz=0; iz<inputDepth; iz++) {
+						for(Uint iz=0; iz<inputDepth; iz++) {
 							const Real* __restrict__ const link_weights =
 									weights +iW +outputDepth*(iz +inputDepth*(fy +filterHeight*fx));
 							//__builtin_assume_aligned(link_weights, __vec_width__);
 
-							for(int fz=0; fz<outputDepth; fz++) {
+							for(Uint fz=0; fz<outputDepth; fz++) {
 								link_outputs[fz] += link_inputs[iz] * link_weights[fz];
 							}
 						}
@@ -426,16 +427,17 @@ class LinkToConv2D : public Link
 	void backPropagate(Activation* const netFrom, const Activation* const netTo,
 		const Real* const weights, Real* const gradW) const
 	{
-		for(int ox=0; ox<outputWidth;  ox++)
-			for(int oy=0; oy<outputHeight; oy++) {
-				const int ix = ox*strideX - padX;
-				const int iy = oy*strideY - padY;
-				for(int fx=0; fx<filterWidth; fx++)
-					for(int fy=0; fy<filterHeight; fy++) {
-						const int cx = ix+fx;
-						const int cy = iy+fy;
+		for(Uint ox=0; ox<outputWidth;  ox++)
+			for(Uint oy=0; oy<outputHeight; oy++) {
+				const int ix = static_cast<int>(ox*strideX) -  static_cast<int>(padX);
+				const int iy = static_cast<int>(oy*strideY) -  static_cast<int>(padY);
+				for(Uint fx=0; fx<filterWidth; fx++)
+					for(Uint fy=0; fy<filterHeight; fy++) {
+						const int cx=ix+static_cast<int>(fx);
+						const int cy=iy+static_cast<int>(fy);
 						//padding: skip addition if outside input boundaries
-						if (cx < 0 || cy < 0 || cx >= inputWidth || cy >= inputHeight)
+						if ( cx < 0 || static_cast<Uint>(cx) >= inputWidth
+              || cy < 0 || static_cast<Uint>(cy) >= inputHeight)
 							continue;
 
 						const Real* __restrict__ const link_inputs =
@@ -448,7 +450,7 @@ class LinkToConv2D : public Link
 						//__builtin_assume_aligned(link_errors, __vec_width__);
 						//__builtin_assume_aligned(deltas, __vec_width__);
 
-						for(int iz=0; iz<inputDepth; iz++) {
+						for(Uint iz=0; iz<inputDepth; iz++) {
 							const Real* __restrict__ const link_weights =
 									weights +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
 							Real* __restrict__ const link_dEdW    =
@@ -456,7 +458,7 @@ class LinkToConv2D : public Link
 							//__builtin_assume_aligned(link_weights, __vec_width__);
 							//__builtin_assume_aligned(link_dEdW, __vec_width__);
 
-							for(int fz=0; fz<outputDepth; fz++) {
+							for(Uint fz=0; fz<outputDepth; fz++) {
 								link_errors[iz] += link_weights[fz]*deltas[fz];
 								link_dEdW[fz] += link_inputs[iz]*deltas[fz];
 							}

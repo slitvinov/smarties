@@ -7,24 +7,24 @@
  *
  */
 
-void RACER::Train(const int seq, const int samp, const int thrID) const
+void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
 		//this should go to gamma rather quick:
 		const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
 		const Real rGamma = annealedGamma();
 
 		assert(net->allocatedFrozenWeights && bTrain);
-		const int ndata = data->Set[seq]->tuples.size();
+		const Uint ndata = data->Set[seq]->tuples.size();
 		assert(samp<ndata-1);
 		const bool bEnd = data->Set[seq]->ended;
-		const int npredicts = bEnd ? ndata-1 : ndata;
-		const int nhats = npredicts - samp;
+		const Uint npredicts = bEnd ? ndata-1 : ndata;
+		const Uint nhats = npredicts - samp;
 		vector<vector<Real>> out_cur(1, vector<Real>(nOutputs,0));
 		vector<vector<Real>> out_hat(nhats, vector<Real>(nOutputs,0));
 		vector<Activation*> series_cur = net->allocateUnrolledActivations(1);
 		vector<Activation*> series_hat = net->allocateUnrolledActivations(nhats);
 
-		for (int k=0; k<nhats; k++) {
+		for (Uint k=0; k<nhats; k++) {
 			const Tuple * const _t = data->Set[seq]->tuples[k+samp]; //this tuple contains s, a, mu
 			const vector<Real> inp = data->standardize(_t->s);
 			//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
@@ -34,7 +34,7 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 		}
 		net->seqPredict_execute(series_cur, series_cur);
 		net->seqPredict_execute(series_hat, series_hat, net->tgt_weights, net->tgt_biases);
-		for (int k=0; k<nhats; k++) {
+		for (Uint k=0; k<nhats; k++) {
 			if(!k)
 				net->seqPredict_output(out_cur[k], series_cur[k]);
 			net->seqPredict_output(out_hat[k], series_hat[k]);
@@ -47,7 +47,7 @@ void RACER::Train(const int seq, const int samp, const int thrID) const
 			Q_RET = Q_OPC = out_hat[nhats-1][0]; //V(s_T) computed with tgt weights
 		} else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
 
-		for (int k=ndata-samp-2; k>0; k--) //just propagate Q_RET / Q_OPC to k=0
+		for (int k=static_cast<int>(ndata-samp)-2; k>0; k--) //just propagate Q_RET / Q_OPC to k=0
 		{
 			const Tuple * const _t = data->Set[seq]->tuples[k+samp]; //this tuple contains sOld, a
 			const Tuple * const t_ = data->Set[seq]->tuples[k+1+samp]; //this contains r, sNew

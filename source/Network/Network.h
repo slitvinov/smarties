@@ -15,11 +15,11 @@ class Builder;
 class Network
 {
 protected:
-		const int nAgents, nThreads, nInputs, nOutputs, nLayers;
-		const int nNeurons, nWeights, nBiases, nStates;
+		const Uint nAgents, nThreads, nInputs, nOutputs, nLayers;
+		const Uint nNeurons, nWeights, nBiases, nStates;
 		const bool bDump;
-    const vector<int> iOut;
-    const vector<int> iInp;
+    const vector<Uint> iOut;
+    const vector<Uint> iInp;
     const vector<Layer*> layers;
 		const vector<Link*> links;
 public:
@@ -30,23 +30,23 @@ public:
 		Grads* const grad;
 		const vector<Grads*> Vgrad;
 		vector<std::mt19937>& generators;
-		vector<int> dump_ID;
+		vector<Uint> dump_ID;
     const vector<Mem*> mem;
 		const bool allocatedFrozenWeights = true;
 
-    int getnWeights() const {return nWeights;}
-    int getnBiases() const {return nBiases;}
-    int getnOutputs() const {return nOutputs;}
-    int getnInputs() const {return nInputs;}
-    int getnNeurons() const {return nNeurons;}
-    int getnStates() const {return nStates;}
-    int getnLayers() const {return nLayers;}
-    int getnAgents() const {return nAgents;}
+    Uint getnWeights() const {return nWeights;}
+    Uint getnBiases() const {return nBiases;}
+    Uint getnOutputs() const {return nOutputs;}
+    Uint getnInputs() const {return nInputs;}
+    Uint getnNeurons() const {return nNeurons;}
+    Uint getnStates() const {return nStates;}
+    Uint getnLayers() const {return nLayers;}
+    Uint getnAgents() const {return nAgents;}
 
     vector<Real> getOutputs(const Activation* const act)
 		{
 		  vector<Real> _output(nOutputs);
-		  for (int i=0; i<nOutputs; i++)
+		  for (Uint i=0; i<nOutputs; i++)
 		      _output[i] = *(act->outvals + iOut[i]);
 		  return _output;
 		}
@@ -72,10 +72,10 @@ public:
     void setOutputDeltas(const vector<Real>& _errors, Activation* const _N) const;
 
     Activation* allocateActivation() const;
-    vector<Activation*> allocateUnrolledActivations(int length) const;
+    vector<Activation*> allocateUnrolledActivations(Uint length) const;
     void deallocateUnrolledActivations(vector<Activation*>* const ret) const;
     void appendUnrolledActivations(vector<Activation*>* const ret,
-																	 int length=1) const;
+																	 Uint length=1) const;
 
     void seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const;
     void seqPredict_output(vector<Real>&_output, Activation* const currActivation) const;
@@ -87,10 +87,10 @@ public:
     }
 
     void predict(const vector<Real>& _input, vector<Real>& _output,
-  							 vector<Activation*>& timeSeries, const int n_step,
+  							 vector<Activation*>& timeSeries, const Uint n_step,
 							 	 const Real* const _weights, const Real* const _biases) const;
     void predict(const vector<Real>& _input, vector<Real>& _output,
-    						 vector<Activation*>& timeSeries, const int n_step) const
+    						 vector<Activation*>& timeSeries, const Uint n_step) const
     {
         predict(_input, _output, timeSeries, n_step, weights, biases);
     }
@@ -135,7 +135,7 @@ public:
 		void regularize(const Real lambda)
 		{
 			#pragma omp parallel for
-			for (int j=0; j<nLayers; j++)
+			for (Uint j=0; j<nLayers; j++)
 	        layers[j]->regularize(weights, biases, lambda);
 		}
 
