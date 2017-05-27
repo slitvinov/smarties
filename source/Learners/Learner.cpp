@@ -325,9 +325,9 @@ void Learner::restart(string name)
 	if (name == "none") return;
 
   if ( opt->restart(name) )
-      printf("Restart successful, moving on...\n")
+      printf("Restart successful, moving on...\n");
   else
-      printf("Not all policies restarted. \n")
+      printf("Not all policies restarted. \n");
   data->restart(name);
 
   const string stuff = name+".status";
