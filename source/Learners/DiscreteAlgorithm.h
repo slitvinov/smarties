@@ -118,11 +118,6 @@ protected:
 		return dist(generators[thrID]);
 	}
 
-	inline Real safeExp(const Real val) const
-	{
-			return std::exp( std::min(9., std::max(-32.,val) ) );
-	}
-
 	inline Real expectedAdvantage(const vector<Real>& pol, const vector<Real>& val) const
 	{
 		Real ret = 0;
@@ -192,26 +187,6 @@ protected:
 		return val[act]-expectedAdvantage(pol,val); //subtract expectation from advantage of action
 	}
 
-	inline vector<Real> sum3Grads(const vector<Real>& f, const vector<Real>& g,
-		const vector<Real>& h) const
-	{
-		assert(f.size() == nA);
-		assert(g.size() == nA);
-		assert(h.size() == nA);
-		vector<Real> ret(nA,0);
-		for(Uint i=0; i<nA; i++) ret[i] = f[i]+g[i]+h[i];
-		return ret;
-	}
-
-	inline vector<Real> sum2Grads(const vector<Real>& f, const vector<Real>& g) const
-	{
-		assert(f.size() == nA);
-		assert(g.size() == nA);
-		vector<Real> ret(nA,0);
-		for(Uint i=0; i<nA; i++) ret[i] = f[i]+g[i];
-		return ret;
-	}
-
 	inline vector<Real> criticGradient(const Uint act, const vector<Real>& pol, const vector<Real>& val, const Real Qer) const
 	{
 		assert(pol.size()==nA);
@@ -221,19 +196,5 @@ protected:
 		for (Uint j=0; j<nA; j++)
 			grad[j+1] = Qer*((j==act ? 1 : 0) - pol[j]);
 		return grad;
-	}
-
-	inline Uint maxInd(const vector<Real>& pol) const
-	{
-		assert(pol.size()==nA);
-		Real Val = -1;
-		Uint Nbest = -1;
-		for (Uint i=0; i<nA; ++i) {
-				if (pol[i]>Val) {
-					Val = pol[i];
-					Nbest = i;
-				}
-		}
-		return Nbest;
 	}
 };

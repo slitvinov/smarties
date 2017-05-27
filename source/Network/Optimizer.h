@@ -46,20 +46,6 @@ class Optimizer
 	virtual bool restart(const string fname);
 	virtual void moveFrozenWeights(const Real _alpha);
 
-	inline void applyL1(Real* const dest, const Uint N, const Real lambda_)
-	{
-		#pragma omp parallel for
-		for (Uint i=0; i<N; i++)
-		dest[i] += (dest[i]<0 ? lambda_ : -lambda_);
-	}
-
-	inline void applyL2(Real* const dest, const Uint N, const Real lambda_)
-	{
-		#pragma omp parallel for
-		for (Uint i=0; i<N; i++)
-		dest[i] -= dest[i]*lambda_;
-	}
-
 	void save_recurrent_connections(const string fname)
 	{
 		const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
@@ -67,7 +53,7 @@ class Optimizer
 		string nameBackup = fname + "_mems_tmp";
 		ofstream out(nameBackup.c_str());
 		if (!out.good())
-			die("Unable to open save into file %s\n", nameBackup.c_str());
+			_die("Unable to open save into file %s\n", nameBackup.c_str());
 
 		for(Uint agentID=0; agentID<nAgents; agentID++) {
 			for (Uint j=0; j<nNeurons; j++)

@@ -92,6 +92,55 @@ inline Real* init(const Uint N)
   return ret;
 }
 
+inline Real safeExp(const Real val)
+{
+    return std::exp( std::min(9., std::max(-32.,val) ) );
+}
+
+inline vector<Real> sum3Grads(const vector<Real>& f, const vector<Real>& g,
+  const vector<Real>& h)
+{
+  assert(g.size() == f.size());
+  assert(h.size() == f.size());
+  vector<Real> ret(f.size());
+  for(Uint i=0; i<f.size(); i++) ret[i] = f[i]+g[i]+h[i];
+  return ret;
+}
+
+inline vector<Real> sum2Grads(const vector<Real>& f, const vector<Real>& g)
+{
+  assert(g.size() == f.size());
+  vector<Real> ret(f.size());
+  for(Uint i=0; i<f.size(); i++) ret[i] = f[i]+g[i];
+  return ret;
+}
+
+inline Real clip(const Real val, const Real ub, const Real lb)
+{
+  assert(!isnan(val));
+  assert(!isinf(val));
+  assert(ub>lb);
+  return std::max(std::min(val, ub), lb);
+}
+
+inline Uint maxInd(const vector<Real>& pol)
+{
+  Real Val = -1e9;
+  Uint Nbest = 0;
+  for (Uint i=0; i<pol.size(); ++i) {
+      if (pol[i]>Val) {
+        Val = pol[i];
+        Nbest = i;
+      }
+  }
+  return Nbest;
+}
+
+inline Real minAbsValue(const Real v, const Real w)
+{
+  return std::fabs(v)<std::fabs(w) ? v : w;
+}
+
 template <typename T>
 inline string printVec(const vector<T> vals)
 {

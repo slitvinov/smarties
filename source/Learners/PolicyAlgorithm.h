@@ -263,11 +263,6 @@ protected:
 		return ret;
 	}
 
-	inline Real safeExp(const Real val) const
-	{
-			return std::exp( std::min(9., std::max(-32.,val) ) );
-	}
-
 	inline vector<Real> preparePmatrix(const vector<Real>& out) const
 	{
 		//assume out[0] is V(state), followed by P coeffs
@@ -541,26 +536,6 @@ protected:
 		return -0.5*quadraticTerm(P, mean, act) + 0.5*expectation; //subtract expectation from advantage of action
 	}
 
-	inline vector<Real> sum3Grads(const vector<Real>& f, const vector<Real>& g,
-		const vector<Real>& h) const
-	{
-		assert(f.size() == 2*nA);
-		assert(g.size() == 2*nA);
-		assert(h.size() == 2*nA);
-		vector<Real> ret(nA*2,0);
-		for(Uint i=0; i<nA*2; i++) ret[i] = f[i]+g[i]+h[i];
-		return ret;
-	}
-
-	inline vector<Real> sum2Grads(const vector<Real>& f, const vector<Real>& g) const
-	{
-		assert(f.size() == 2*nA);
-		assert(g.size() == 2*nA);
-		vector<Real> ret(nA*2,0);
-		for(Uint i=0; i<nA*2; i++) ret[i] = f[i]+g[i];
-		return ret;
-	}
-
 	inline vector<Real> criticGradient(const vector<Real>& P,
 		const vector<Real>& pol, const vector<Real>& var, const vector<Real>& out,
 		const vector<Real>& mean, const vector<Real>& act, const Real Qer) const
@@ -716,12 +691,4 @@ protected:
 			//const Real denom = std::sqrt(val+1);
 			//return (.5*val+1)/(denom*denom*denom);
    }
-
-	inline Real clip(const Real val, const Real ub, const Real lb) const
-	{
-		assert(!isnan(val));
-		assert(!isinf(val));
-		assert(ub>lb);
-		return std::max(std::min(val, ub), lb);
-	}
 };

@@ -319,15 +319,15 @@ void Learner::restart(string name)
 {
   int masterRank;
   MPI_Comm_rank(mastersComm, &masterRank);
-  _info("Restarting from saved policy...\n");
+  printf("Restarting from saved policy...\n");
 
   data->restartSamples();
 	if (name == "none") return;
 
   if ( opt->restart(name) )
-      _info("Restart successful, moving on...\n")
+      printf("Restart successful, moving on...\n")
   else
-      _info("Not all policies restarted. \n")
+      printf("Not all policies restarted. \n")
   data->restart(name);
 
   const string stuff = name+".status";

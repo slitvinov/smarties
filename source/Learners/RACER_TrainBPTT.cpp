@@ -196,7 +196,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 			//trust region updating
 			const vector<Real> gradDivKL = gradDKL(polCur, polHat, preCur, preHat);
 			const vector<Real> gradAcer = gradAcerTrpo(policy_grad, gradDivKL);
-			const Real Vs  = stateValue(out_cur[k][0],out_hat[k][0]);
+			const Real Vs  = minAbsValue(out_cur[k][0],out_hat[k][0]);
 			const Real Qer = (Q_RET -A_cur -out_cur[k][0]);
 			//unclear usefulness:
 			//const Real Ver = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat);

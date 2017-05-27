@@ -265,7 +265,7 @@ void Optimizer::save(const string fname)
 	fflush(0);
 	string nameBackup = fname + "_net_tmp";
 	ofstream out(nameBackup.c_str());
-	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+	if (!out.good()) _die("Unable to open save into file %s\n", fname.c_str());
 
 	vector<Real> outWeights, outBiases, outMomW, outMomB;
 	outWeights.reserve(nWeights); outMomW.reserve(nWeights);
@@ -306,7 +306,7 @@ void AdamOptimizer::save(const string fname)
 	fflush(0);
 	string nameBackup = fname + "_net_tmp";
 	ofstream out(nameBackup.c_str());
-	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+	if (!out.good()) _die("Unable to open save into file %s\n", fname.c_str());
 
 	vector<Real> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2MomB;
 	outWeights.reserve(nWeights); out1MomW.reserve(nWeights); out2MomW.reserve(nWeights);

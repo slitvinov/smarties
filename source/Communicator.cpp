@@ -631,11 +631,11 @@ int Communicator::jobs_init(char *line, char **largv)
 	FILE * cmdfp = fopen(paramfile.c_str(), "r");
 
 	if (cmdfp == NULL)
-		die("Missing %s\n", execpath.c_str());
+		_die("Missing %s\n", execpath.c_str());
 	if(fgets(line, 1024, cmdfp)== NULL)
-		die("Empty %s\n",   execpath.c_str());
+		_die("Empty %s\n",   execpath.c_str());
 	if (strstr(line,      execpath.c_str()) == NULL)
-		die("Invalid %s\n", execpath.c_str());
+		_die("Invalid %s\n", execpath.c_str());
 
 	fclose(cmdfp);
 

@@ -228,9 +228,9 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		//trust region updating
 		const vector<Real> gradDivKL = gradDKL(polCur, polHat, preCur, preHat);
 		const vector<Real> gradAcer = gradAcerTrpo(policy_grad, gradDivKL);
-		const Real Vs  = stateValue(V_hat, V_cur);
-		const Real RET = stateValue(Q_RET-A_hat-V_hat, Q_RET-A_cur-V_cur);
-		const Real OPC = stateValue(Q_OPC-A_hat-V_hat, Q_OPC-A_cur-V_cur);
+		const Real Vs  = minAbsValue(V_hat, V_cur);
+		const Real RET = minAbsValue(Q_RET-A_hat-V_hat, Q_RET-A_cur-V_cur);
+		const Real OPC = minAbsValue(Q_OPC-A_hat-V_hat, Q_OPC-A_cur-V_cur);
 		const Real Qer = (Q_RET -A_cur -V_cur);
 		//unclear usefulness:
 		//const Real Ver = (Q_RET -A_cur -out_cur[k][0])*std::min(1.,rho_hat);

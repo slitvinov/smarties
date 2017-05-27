@@ -99,7 +99,7 @@ void NFQ::dumpNetworkInfo(const int agentId)
 
 	string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
 	ofstream out(fname.c_str());
-	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
+	if (!out.good()) _die("Unable to open save into file %s\n", fname.c_str());
 	for (Uint k=0; k<ndata; k++) {
 		for (Uint j=0; j<nInputs; j++)
 			out << timeSeries_base[k]->errvals[j] << " ";

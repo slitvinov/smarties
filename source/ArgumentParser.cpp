@@ -59,18 +59,18 @@ namespace ArgumentParser
 			if (verbose)
 			if (optsMap.find(c) == optsMap.end())
 			{
-				_info("Available options:\n");
+				printf("Available options:\n");
 
 				for (int i=0; i<nOpt; i++)
 				{
 					OptionStruct& myOpt = opts[i];
 					if (myOpt.longOpt.length() > 4)
 					{
-						_info("-%c  or  --%s \t: %s\n", myOpt.shortOpt, myOpt.longOpt.c_str(), myOpt.description.c_str());
+						printf("-%c  or  --%s \t: %s\n", myOpt.shortOpt, myOpt.longOpt.c_str(), myOpt.description.c_str());
 					}
 					else
 					{
-						_info("-%c  or  --%s \t\t: %s\n", myOpt.shortOpt, myOpt.longOpt.c_str(), myOpt.description.c_str());
+						printf("-%c  or  --%s \t\t: %s\n", myOpt.shortOpt, myOpt.longOpt.c_str(), myOpt.description.c_str());
 					}
 				}
 
@@ -105,32 +105,32 @@ namespace ArgumentParser
 		if (verbose)
 		for (int i=0; i<nOpt; i++) {
 			OptionStruct& myOpt = opts[i];
-			warn("%s: ", myOpt.description.c_str());
+			printf("%s: ", myOpt.description.c_str());
 
 			switch (myOpt.type)
 			{
 					case NONE:
-					warn( ( *((bool*)myOpt.value)) ? "enabled" : "disabled" );
+					printf( ( *((bool*)myOpt.value)) ? "enabled" : "disabled" );
 					break;
 
 					case INT:
-					warn("%d", *((int*)myOpt.value));
+					printf("%d", *((int*)myOpt.value));
 					break;
 
 					case REAL:
-					warn("%f", *((Real*)myOpt.value));
+					printf("%f", *((Real*)myOpt.value));
 					break;
 
 					case CHAR:
-					warn("%c", *((char*)myOpt.value));
+					printf("%c", *((char*)myOpt.value));
 					break;
 
 					case STRING:
-					warn("%s", ((string*)myOpt.value)->c_str());
+					printf("%s", ((string*)myOpt.value)->c_str());
 					break;
 			}
 
-			warn("\n");
+			printf("\n");
 		}
 
 	}

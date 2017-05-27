@@ -195,11 +195,6 @@ private:
 		return grad;
 	}
 
-	inline Real stateValue(const Real v, const Real w) const
-	{
-		return std::fabs(v)<std::fabs(w) ? v : w;
-	}
-
 	vector<vector<Real>> prepareBins(const vector<Real> lower, const vector<Real>& upper,
 			const vector<Uint>& nbins)
 	{

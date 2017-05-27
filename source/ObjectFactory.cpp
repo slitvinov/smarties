@@ -23,7 +23,7 @@ inline string ObjectFactory::_parse(string source, string pattern, bool req)
     size_t pos = source.find(((string)" ")+pattern);
     if (pos == string::npos) {
         if (req)
-            die("Parse factory file failed: required argument '%s' line '%s'\n",
+            _die("Parse factory file failed: required argument '%s' line '%s'\n",
                 pattern.c_str(), source.c_str())
         else     return "";
     }
@@ -31,7 +31,7 @@ inline string ObjectFactory::_parse(string source, string pattern, bool req)
     pos += pattern.length()+1;
     while (source[pos] == ' ') pos++;
     if (source[pos] != '=')
-          die("Parse factory file failed: argument '%s' line '%s'\n",
+          _die("Parse factory file failed: argument '%s' line '%s'\n",
               pattern.c_str(), source.c_str())
     while (source[pos] == ' ') pos++;
 
@@ -64,7 +64,7 @@ Environment* ObjectFactory::createEnvironment(int _rank, int index)
     getline(inFile, envStr);
 
     if (!inFile.good())
-      die("Unable to open file '%s'!\n", filename.c_str());
+      _die("Unable to open file '%s'!\n", filename.c_str());
 
     const string execpath = _parse(envStr, "exec", true);
     int _n = _parseInt(envStr, "n", true);
@@ -114,7 +114,7 @@ Environment* ObjectFactory::createEnvironment(int _rank, int index)
         printf("TestEnvironment with %u agents per slave.\n",n);
         env = new TestEnvironment(1, execpath, rank, *settings);
     }
-    else die("Unsupported environment type in line %s\n", envStr.c_str());
+    else _die("Unsupported environment type in line %s\n", envStr.c_str());
 
     //getline(inFile, s); used to be a while loop, but env vectors are not supported...
 
