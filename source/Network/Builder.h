@@ -56,7 +56,7 @@ class Builder
 
 	  graph->layerSize_simd = roundUpSimd(graph->layerSize);
 	  assert(graph->layerSize>0 && graph->layerSize_simd>=graph->layerSize);
-	  assert(graph->linkedTo.size()>0 && nNeurons>0 && nStates>=0);
+	  assert(graph->linkedTo.size()>0 && nNeurons>0);
 
 	  graph->firstNeuron_ID = nNeurons;
 	  nNeurons += graph->layerSize_simd; //move the counter
@@ -70,11 +70,9 @@ class Builder
 
 		for(Uint i=0; i<graph->linkedTo.size(); i++)
 	  {
-	    assert(graph->linkedTo[i]>=0 || graph->linkedTo[i]<G.size());
 	    const Graph* const layerFrom = G[graph->linkedTo[i]];
 	    assert(layerFrom->firstNeuron_ID<graph->firstNeuron_ID);
 	    assert(layerFrom->written && layerFrom->built);
-	    assert(layerFrom->firstNeuron_ID>=0);
 	    assert(layerFrom->layerSize>0);
 
 	  	Uint firstWeightIG =nWeights      +layerFrom->layerSize*graph->layerSize_simd;
@@ -137,11 +135,9 @@ class Builder
 
 	    for(Uint i = 0; i<graph->linkedTo.size(); i++)
 	    {
-	    	assert(graph->linkedTo[i]>=0 || graph->linkedTo[i]<G.size());
 	    	const Graph* const layerFrom = G[graph->linkedTo[i]];
 	      assert(layerFrom->firstNeuron_ID<graph->firstNeuron_ID);
 	      assert(layerFrom->written && layerFrom->built);
-	    	assert(layerFrom->firstNeuron_ID>=0);
 	      assert(layerFrom->layerSize>0);
 
 	    	NormalLink* tmp = new NormalLink(
@@ -199,7 +195,6 @@ class Builder
 			const Graph* const layerFrom = G[graph->linkedTo[0]];
 	    assert(layerFrom->firstNeuron_ID < graph->firstNeuron_ID);
 	    assert(layerFrom->written && layerFrom->built);
-	  	assert(layerFrom->firstNeuron_ID>=0);
 	    assert(layerFrom->layerSize>0);
 
 			LinkToConv2D* tmp = new LinkToConv2D(
@@ -379,10 +374,10 @@ public:
 				if(layerFrom->layerWidth<=0 || layerFrom->layerHeight<=0 || layerFrom->layerDepth<=0)
 					die("Incompatible with 1D input, place 2D input or resize to 2D... how?\n");
 
-				assert((outSize[0]-1)*stride[0]+filterSize[0]-(layerFrom->layerWidth +padding[0])>=0);
-				assert((outSize[0]-1)*stride[0]+filterSize[0]-(layerFrom->layerWidth +padding[0])<filterSize[0]);
-				assert((outSize[1]-1)*stride[1]+filterSize[1]-(layerFrom->layerHeight+padding[1])>=0);
-				assert((outSize[1]-1)*stride[1]+filterSize[1]-(layerFrom->layerHeight+padding[1])<filterSize[1]);
+				assert((g->layerWidth-1) *g->strideWidth +g->featsWidth >=layerFrom->layerWidth +g->padWidth);
+				assert((g->layerWidth-1) *g->strideWidth +g->featsWidth < g->featsWidth+layerFrom->layerWidth +g->padWidth);
+				assert((g->layerHeight-1)*g->strideHeight+g->featsHeight>=layerFrom->layerHeight+g->padHeight);
+				assert((g->layerHeight-1)*g->strideHeight+g->featsHeight< g->featsHeight+layerFrom->layerHeight+g->padHeight);
 			}
 
 			if (bOutput) {

@@ -22,24 +22,24 @@ struct Graph
 	bool LSTM = false;
 	bool Conv2D = false;
 
-	Uint layerSize = -1;
-	Uint layerSize_simd = -1;
-	Uint firstNeuron_ID = -1;
-	Uint firstState_ID = -1;
-	Uint firstBias_ID = -1;
+	Uint layerSize = 0;
+	Uint layerSize_simd = 0;
+	Uint firstNeuron_ID = 0;
+	Uint firstState_ID = 0;
+	Uint firstBias_ID = 0;
 
 	//LSTM gates:
-	Uint firstBiasIG_ID = -1, firstBiasFG_ID = -1, firstBiasOG_ID = -1;
+	Uint firstBiasIG_ID = 0, firstBiasFG_ID = 0, firstBiasOG_ID = 0;
 	//Convolutions: feature map size:
-	Uint layerWidth = -1, layerHeight = -1, layerDepth = -1;
-	Uint layerDepth_simd = -1;
+	Uint layerWidth = 0, layerHeight = 0, layerDepth = 0;
+	Uint layerDepth_simd = 0;
 	//Convolutions: padding on bottom side of map:
-	Uint padWidth = -1, padHeight = -1;
+	Uint padWidth = 0, padHeight = 0;
 	//Convolutions: kernel size
-	Uint featsWidth = -1, featsHeight = -1, featsNumber = -1;
-	Uint featsNumber_simd = -1;
+	Uint featsWidth = 0, featsHeight = 0, featsNumber = 0;
+	Uint featsNumber_simd = 0;
 	//Convolutions: strides:
-	Uint strideWidth = -1, strideHeight = -1;
+	Uint strideWidth = 0, strideHeight = 0;
 
 	vector<Uint> linkedTo;
 	vector<Link*> links;
@@ -59,7 +59,7 @@ struct Graph
 		assert(layerSize_simd>=layerSize);
 
 		assert((input && func == nullptr) || (!input && func not_eq nullptr));
-		assert((input && firstNeuron_ID>=0) || (!input && firstNeuron_ID>0));
+		assert((input) || (!input && firstNeuron_ID>0));
 		//assert((input && firstBias_ID<0)   || (!input && firstBias_ID>=0));
 
 		assert(!input2D || (input2D && input));

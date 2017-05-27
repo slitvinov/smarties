@@ -234,7 +234,6 @@ protected:
 					Nbest = i;
 				}
 		}
-		assert(Nbest>=0 && Nbest<nA);
 		return Nbest;
 	}
 };

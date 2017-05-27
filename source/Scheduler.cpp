@@ -200,7 +200,8 @@ void Client::prepareState(int& iAgent, int& istatus, Real& reward)
 {
 	const double*const buf = comm->getDataout();
 	iAgent = doublePtrToInt(buf+0);
-	assert(iAgent >= 0 && iAgent < agents.size());
+	if(iAgent<0) die("Error in iAgent number in Client::prepareState\n");
+	assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
 
 	istatus = doublePtrToInt(buf+1);
 	agents[iAgent]->Status = istatus;
@@ -223,7 +224,8 @@ void Master::recvState(const int slave, int& iAgent, int& istatus, Real& reward)
 
 	const int recv_iAgent = doublePtrToInt(buf+0);
 	iAgent = (slave-1) * nPerRank + recv_iAgent;
-	assert(iAgent >= 0 && iAgent < agents.size());
+	if(iAgent<0) die("Error in iAgent number in Master::recvState\n");
+	assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
 
 	istatus = doublePtrToInt(buf+1);
 	agents[iAgent]->Status = istatus;
@@ -244,7 +246,8 @@ void Master::recvState(const int slave, int& iAgent, int& istatus, Real& reward)
 
 void Master::sendAction(const int slave, const int iAgent)
 {
-	assert(iAgent >= 0 && iAgent < agents.size());
+	if(iAgent<0) die("Error in iAgent number in Master::sendAction\n");
+	assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
 	agents[iAgent]->act(aNew);
 	aNew.pack(outbuf);
 	MPI_Send(outbuf, outSize, MPI_BYTE, slave, 0, slavesComm);
@@ -252,7 +255,8 @@ void Master::sendAction(const int slave, const int iAgent)
 
 void Client::prepareAction(const int iAgent)
 {
-	assert(iAgent >= 0 && iAgent < agents.size());
+	if(iAgent<0) die("Error in iAgent number in Client::prepareAction\n");
+	assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
 	agents[iAgent]->act(aNew);
 	aNew.pack(comm->getDatain());
 }

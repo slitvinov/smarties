@@ -34,21 +34,21 @@ typedef unsigned Uint;
 static const Uint simdWidth = __vec_width__/sizeof(Real);
 
 template <typename T>
-void _myfree(T *const& ptr)
+inline void _myfree(T *const& ptr)
 {
   if(ptr == nullptr) return;
   free(ptr);
 }
 
 template <typename T>
-void _allocateQuick(T *const& ptr, const Uint size)
+inline void _allocateQuick(T *const& ptr, const Uint size)
 {
     const Uint sizeSIMD=std::ceil(size/(Real)simdWidth)*simdWidth*sizeof(Real);
     posix_memalign((void **)& ptr, __vec_width__, sizeSIMD);
 }
 
 template <typename T>
-void _allocateClean(T *const& ptr, const Uint size)
+inline void _allocateClean(T *const& ptr, const Uint size)
 {
     const Uint sizeSIMD=std::ceil(size/(Real)simdWidth)*simdWidth*sizeof(Real);
     posix_memalign((void **)& ptr, __vec_width__, sizeSIMD);
@@ -68,6 +68,28 @@ void _dispose_object(T *const& ptr)
 {
     if(ptr == nullptr) return;
     delete ptr;
+}
+
+inline Real* init(const Uint N, const Real ini)
+{
+  Real* ret;
+  _allocateQuick(ret, N);
+  for (Uint j=0; j<N; j++) ret[j] = ini;
+  return ret;
+}
+
+inline Real* initClean(const Uint N)
+{
+  Real* ret;
+  _allocateClean(ret, N);
+  return ret;
+}
+
+inline Real* init(const Uint N)
+{
+  Real* ret;
+  _allocateQuick(ret, N);
+  return ret;
 }
 
 template <typename T>

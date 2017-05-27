@@ -10,6 +10,12 @@
 #pragma once
 #include "Links.h"
 
+#ifdef __CHECK_DIFF
+#define LSTM_PRIME_FAC 0 //otherwise finite differences are small
+#else
+#define LSTM_PRIME_FAC 1 //input/output gates start closed, forget starts open
+#endif
+
 class Layer
 {
     public:
@@ -129,9 +135,7 @@ class BaseLayer: public Layer
     virtual void initialize(mt19937* const gen, Real* const weights,
         Real* const biases) const override
     {
-      //uniform_real_distribution<Real> dis(-sqrt(6./nNeurons),sqrt(6./nNeurons));
-      uniform_real_distribution<Real> dis(-2./nNeurons, 2./nNeurons);
-
+      uniform_real_distribution<Real> dis(-sqrt(6./nNeurons),sqrt(6./nNeurons));
       for (const auto & link : input_links)
         if(link not_eq nullptr) link->initialize(gen,weights,func);
 
@@ -370,15 +374,14 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
     void initialize(mt19937*const gen, Real*const weights, Real*const biases)
     const override
     {
-      //uniform_real_distribution<Real> dis(-sqrt(6./nNeurons),sqrt(6./nNeurons));
-      uniform_real_distribution<Real> dis(-2./nNeurons, 2./nNeurons);
+      uniform_real_distribution<Real> dis(-sqrt(6./nNeurons),sqrt(6./nNeurons));
       BaseLayer::initialize(gen, weights, biases);
       for (Uint w=n1stBiasIG; w<n1stBiasIG+nNeurons_simd; w++)
-				biases[w] = dis(*gen) - 1.0;
+				biases[w] = dis(*gen) - LSTM_PRIME_FAC;
 			for (Uint w=n1stBiasFG; w<n1stBiasFG+nNeurons_simd; w++)
-				biases[w] = dis(*gen) + 1.0;
+				biases[w] = dis(*gen) + LSTM_PRIME_FAC;
 			for (Uint w=n1stBiasOG; w<n1stBiasOG+nNeurons_simd; w++)
-				biases[w] = dis(*gen) - 1.0;
+				biases[w] = dis(*gen) - LSTM_PRIME_FAC;
     }
 
     void save(std::vector<Real> & outWeights, std::vector<Real> & outBiases,

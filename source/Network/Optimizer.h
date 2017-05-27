@@ -23,14 +23,6 @@ class Optimizer
 	Real* const _1stMomW;
 	Real* const _1stMomB;
 
-	inline Real* init(const Uint N, const Real ini=0) const
-	{
-		Real* ret;
-		_allocateClean(ret, N);
-		for (Uint j=0; j<N; j++) ret[j] = ini;
-		return ret;
-	}
-
 	void update(Real* const dest, Real* const grad, Real* const _1stMom,
 			const Uint N, const Uint batchsize) const;
 

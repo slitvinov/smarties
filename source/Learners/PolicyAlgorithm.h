@@ -719,6 +719,8 @@ protected:
 
 	inline Real clip(const Real val, const Real ub, const Real lb) const
 	{
+		assert(!isnan(val));
+		assert(!isinf(val));
 		assert(ub>lb);
 		return std::max(std::min(val, ub), lb);
 	}

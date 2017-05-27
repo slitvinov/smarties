@@ -34,13 +34,13 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
 				const Tuple* const last = data->Tmp[agentId]->tuples.back();
 				vector<Real> scaledSold = data->standardize(last->s);
         Activation* prevActivation = net->allocateActivation();
-        net->loadMemory(net->mem[agentId], prevActivation);
+        prevActivation->loadMemory(net->mem[agentId]);
         net->predict(scaledSold, output, prevActivation, currActivation);
         _dispose_object(prevActivation);
     }
 
     //save network transition
-    net->loadMemory(net->mem[agentId], currActivation);
+		currActivation->storeMemory(net->mem[agentId]);
     _dispose_object(currActivation);
 
     //load computed policy into a

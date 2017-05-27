@@ -168,14 +168,14 @@ struct ActionInfo
 
 	inline Real getActMaxVal(const Uint i) const
 	{
-		assert(i>=0 && i<dim && dim==values.size());
+		assert(i<dim && dim==values.size());
 		assert(values[i].size()>1); //otherwise scaling is impossible
 		return *std::max_element(std::begin(values[i]), std::end(values[i]));
 	}
 
 	inline Real getActMinVal(const Uint i) const
 	{
-		assert(i>=0 && i<dim && dim==values.size());
+		assert(i<dim && dim==values.size());
 		assert(values[i].size()>1); //otherwise scaling is impossible
 		return *std::min_element(std::begin(values[i]), std::end(values[i]));
 	}
@@ -252,7 +252,6 @@ struct ActionInfo
       Uint lab=0;
       for (Uint i=0; i<dim; i++)
 				lab += shifts[i]*realActionToIndex(vals[i],i);
-      assert(lab>=0);
       return lab;
 
 		#ifndef NDEBUG
@@ -281,7 +280,7 @@ struct ActionInfo
 
   inline Real indexToRealAction(const Uint lab, const Uint i) const
 	{
-    	assert(lab>=0 && i>=0 && i<values.size() && lab<values[i].size());
+    	assert(i<values.size() && lab<values[i].size());
 			return values[i][lab];
 	}
 

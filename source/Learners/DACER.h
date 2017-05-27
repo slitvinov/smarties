@@ -54,7 +54,7 @@ class DACER : public DiscreteAlgorithm
 	      );
 		} else { //then if i'm using RNN i need to load recurrent connections (else no effect)
 			Activation* prevActivation = net->allocateActivation();
-			net->loadMemory(net->mem[agentId], prevActivation);
+			prevActivation->loadMemory(net->mem[agentId]);
 			net->predict(data->standardize(input), output, prevActivation, currActivation
 			#ifdef __EntropySGD //then we sample from target weights
 			      , net->tgt_weights, net->tgt_biases
@@ -64,7 +64,7 @@ class DACER : public DiscreteAlgorithm
 		}
 
 		//save network transition
-		net->loadMemory(net->mem[agentId], currActivation);
+		currActivation->storeMemory(net->mem[agentId]);
 		_dispose_object(currActivation);
 
 		return output;
@@ -87,7 +87,7 @@ class DACER : public DiscreteAlgorithm
 			iAct = dist(*gen);
 		else
 			iAct = maxInd(pol);
-		assert(iAct>=0 && iAct<nA);
+		assert(iAct<nA);
 		a.set(iAct);
 		return beta;
 	}

@@ -117,7 +117,7 @@ class NormalLink: public Link
 		assert(iO % (__vec_width__/sizeof(Real)) == 0);
 		assert(nO_simd % (__vec_width__/sizeof(Real)) == 0);
 		print();
-		assert(nI>0 && nO>0 && iI>=0 && iO>=0 && iW>=0);
+		assert(nI>0 && nO>0);
 	}
 
 	void print() const
@@ -209,7 +209,6 @@ class LinkToLSTM : public Link
 		assert(iWI==iW +nW);
 		assert(iWF==iWI+nW);
 		assert(iWO==iWF+nW);
-		assert(iC>=0 && iWI>0 && iWF>0 && iWO>0);
 	}
 
 	void print() const override
@@ -350,12 +349,12 @@ class LinkToConv2D : public Link
 		//this class prescribes the bottom padding, let's figure out if the top one makes sense
 		// inW_withPadding = inputWidth + bottomPad + topPad (where bottomPad = padX,padY)
 		//first: All pixels of input are covered. topPad must be >=0, and stride leq than filter size
-		assert((outputWidth -1)*strideX + filterWidth  - (inputWidth+padX)  >= 0);
-		assert((outputHeight-1)*strideY + filterHeight - (inputHeight+padY) >= 0);
+		assert((outputWidth -1)*strideX + filterWidth  >= inputWidth+padX);
+		assert((outputHeight-1)*strideY + filterHeight >= inputHeight+padY);
 		assert(filterWidth >= strideX && filterHeight >= strideY);
 		//second condition: do not feed an output pixel only with padding
-		assert((outputWidth -1)*strideX + filterWidth  - (inputWidth+padX)  < filterWidth);
-		assert((outputHeight-1)*strideY + filterHeight - (inputHeight+padY) < filterHeight);
+		assert((outputWidth -1)*strideX+filterWidth <filterWidth +inputWidth+padX);
+		assert((outputHeight-1)*strideY+filterHeight<filterHeight+inputHeight+padY);
 		assert(padX < filterWidth && padY < filterHeight);
 		print();
 	}

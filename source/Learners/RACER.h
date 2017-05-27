@@ -58,7 +58,7 @@ class RACER : public PolicyAlgorithm
 	      );
 		} else { //then if i'm using RNN i need to load recurrent connections (else no effect)
 			Activation* prevActivation = net->allocateActivation();
-			net->loadMemory(net->mem[agentId], prevActivation);
+			prevActivation->loadMemory(net->mem[agentId]);
 			net->predict(data->standardize(input), output, prevActivation, currActivation
 			#ifdef __EntropySGD //then we sample from target weights
 			      , net->tgt_weights, net->tgt_biases
@@ -68,7 +68,7 @@ class RACER : public PolicyAlgorithm
 		}
 
 		//save network transition
-		net->loadMemory(net->mem[agentId], currActivation);
+		currActivation->storeMemory(net->mem[agentId]);
 		_dispose_object(currActivation);
 
 		return output;

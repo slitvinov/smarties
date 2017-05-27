@@ -42,7 +42,7 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output,
 						vector<Activation*>& timeSeries, const Uint n_step,
 						const Real* const _weights, const Real* const _biases) const
 {
-	assert(n_step<timeSeries.size() && n_step>=0);
+	assert(n_step<timeSeries.size());
 
 	Activation* const currActivation = timeSeries[n_step];
 	Activation* const prevActivation = n_step==0 ? nullptr : timeSeries[n_step-1];
@@ -54,7 +54,7 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output,
   for (Uint j=0; j<nLayers; j++)
       layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
 
-  assert(soutput.size()==nOutputs);
+  assert(_output.size()==nOutputs);
 
   for (Uint i=0; i<nOutputs; i++)
       _output[i] = *(currActivation->outvals + iOut[i]);
@@ -71,7 +71,7 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output,
     for (Uint j=0; j<nLayers; j++)
         layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
 
-    assert(soutput.size()==nOutputs);
+    assert(_output.size()==nOutputs);
 
     for (Uint i=0; i<nOutputs; i++)
         _output[i] = *(currActivation->outvals + iOut[i]);
@@ -87,7 +87,7 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output,
     for (Uint j=0; j<nLayers; j++)
         layers[j]->propagate(net,_weights,_biases);
 
-    assert(soutput.size()==nOutputs);
+    assert(_output.size()==nOutputs);
 
     for (Uint i=0; i<nOutputs; i++)
         _output[i] = net->outvals[iOut[i]];
@@ -141,7 +141,7 @@ void Network::backProp(const vector<Real>& _errors,
 
 void Network::clearErrors(vector<Activation*>& timeSeries) const
 {
-	for (Uint k=0; k<timeSeries.size(); k--) timeSeries[k]->clearErrors();
+	for (Uint k=0; k<timeSeries.size(); k++) timeSeries[k]->clearErrors();
 }
 
 void Network::setOutputDeltas(const vector<Real>& _errors, Activation* const net) const
@@ -163,12 +163,6 @@ void Network::updateFrozenWeights()
         for (Uint j=0; j<nBiases; j++)
             *(tgt_biases + j) = *(biases + j);
     }
-}
-
-void Network::loadMemory(Mem * _M, Activation * _N) const
-{
-    std::swap(_N->outvals,_M->outvals);
-    std::swap(_N->ostates,_M->ostates);
 }
 
 Activation* Network::allocateActivation() const
@@ -208,198 +202,148 @@ Vgrad(B->Vgrad), generators(settings.generators), mem(B->mem)
   updateFrozenWeights();
 }
 
-/*
-Real* Network::assignDropoutMask(unsigned int s2, unsigned int s3)
+void Network::checkGrads()
 {
-    if (Pdrop > 0) {
-    	die("You are probably using dropout wrong anyway\n");
-      Real * dropW;
-      _allocateClean(dropW, nWeights);
-      s2 += 2*nWeights; //not sure whether it is required that seeds
-      s3 += 4*nWeights; //should be sorted from smallest to biggest... be safe
-
-      for (int w=0; w<nWeights; w++) {
-
-      }
-        const Real Pkeep = 1. - Pdrop;
-        Real fac = 1./Pkeep; //the others have to compensate
-
-    } else return weights;
-}
-*/
-
-void Network::checkGrads(const vector<vector<Real>>& inputs, int inp_seq_len)
-{
-    Uint seq_len = inp_seq_len<0 ? inputs.size() : static_cast<Uint>(inp_seq_len);
-
     printf("Checking gradients\n");
-    vector<Uint> errorPlacements(seq_len);
-    vector<Real> partialResults(seq_len);
-    vector<Activation*> timeSeries = allocateUnrolledActivations(seq_len);
-    assert(timeSeries.size() == seq_len);
-    vector<Real> res(nOutputs); //allocate net output
-
-    const Real incr = 1e-7;
-    const Real tol  = 1e-3;
-    uniform_real_distribution<Real> dis(0.,1.);
-    //figure out where to place some errors at random in outputs
-    for (Uint i=0; i<seq_len; i++) {
-      errorPlacements[i] = nOutputs*dis(generators[0]);
-      std::cout << "Placing error in "<< errorPlacements[i]<<std::endl;
-    }
-
+    const Uint seq_len = 3;
+    const Real incr = 1./32./32./32./8.;
+    const Real tol  = 1e-4;
     Grads * testg = new Grads(nWeights,nBiases);
-    Grads * testG = new Grads(nWeights,nBiases);
-    clearErrors(timeSeries);
+    Grads * check = new Grads(nWeights,nBiases);
+    Grads * error = new Grads(nWeights,nBiases);
+    for (Uint j=0; j<nWeights; j++) check->_W[j] = 0;
+    for (Uint j=0; j<nBiases; j++)  check->_B[j] = 0;
+    for (Uint j=0; j<nWeights; j++) error->_W[j] = 0;
+    for (Uint j=0; j<nBiases; j++)  error->_B[j] = 0;
+    vector<Activation*> timeSeries = allocateUnrolledActivations(seq_len);
 
-    for (Uint k=0; k<seq_len; k++) {
-    	predict(inputs[k], res, timeSeries, k);
-      vector<Real> errs(nOutputs,0);
-      //for (Uint i=0; i<nOutputs; i++) errs[i] = -1.;
-      errs[errorPlacements[k]] = -1.;
-      setOutputDeltas(errs, timeSeries[k]);
+    for (Uint t=0; t<seq_len; t++)
+    for (Uint o=0; o<nOutputs; o++)
+    {
+        vector<Real> res(nOutputs);
+        Grads * testG = new Grads(nWeights,nBiases);
+        vector<vector<Real>> inputs(seq_len,vector<Real>(nInputs,0));
+        for (Uint k=0; k<timeSeries.size(); k++) timeSeries[k]->clearErrors();
+        //for (Uint k=0; k<timeSeries.size(); k++) timeSeries[k]->clearOutput();
+        //for (Uint k=0; k<timeSeries.size(); k++) timeSeries[k]->clearInputs();
+
+        normal_distribution<Real> dis_inp(0,2);
+        for(Uint i=0;i<seq_len;i++)
+        for(Uint j=0;j<nInputs;j++)
+        inputs[i][j]=dis_inp(generators[0]);
+
+        for (Uint k=0; k<seq_len; k++)
+        {
+        	predict(inputs[k], res, timeSeries, k);
+          vector<Real> errs(nOutputs,0);
+          if(k==t) errs[o] = -1.;
+          setOutputDeltas(errs, timeSeries[k]);
+        }
+        backProp(timeSeries, testG);
+
+        Real diff;
+        for (Uint w=0; w<nWeights; w++) {
+            //1
+            weights[w] += incr;
+            for (Uint k=0; k<seq_len; k++) {
+            	predict(inputs[k], res, timeSeries, k);
+              if(k==t) diff = -res[o]/(2*incr);
+            }
+            //2
+            weights[w] -= 2*incr;
+            for (Uint k=0; k<seq_len; k++) {
+            	predict(inputs[k], res, timeSeries, k);
+              if(k==t) diff += res[o]/(2*incr);
+            }
+            //0
+            weights[w] += incr;
+
+            const Real scale = max(fabs(testG->_W[w]), fabs(diff));
+            if (scale < 2.2e-16) continue;
+            const Real err = fabs(testG->_W[w]-diff);
+            const Real relerr = err/scale;
+            //if(relerr>check->_W[w])
+            if(err>error->_W[w])
+            {
+              testg->_W[w] = testG->_W[w];
+              check->_W[w] = relerr;
+              error->_W[w] = err;
+            }
+        }
+        for (Uint w=0; w<nBiases; w++) {
+            //1
+            biases[w] += incr;
+            for (Uint k=0; k<seq_len; k++) {
+            	predict(inputs[k], res, timeSeries, k);
+              if(k==t) diff = -res[o]/(2*incr);
+            }
+            //2
+            biases[w] -= 2*incr;
+            for (Uint k=0; k<seq_len; k++) {
+            	predict(inputs[k], res, timeSeries, k);
+              if(k==t) diff += res[o]/(2*incr);
+            }
+            //0
+            biases[w] += incr;
+
+            const Real scale = max(fabs(testG->_B[w]), fabs(diff));
+            if (scale < 2.2e-16) continue;
+            const Real err = fabs(testG->_B[w] -diff);
+            const Real relerr = err/scale;
+            //if(relerr>check->_B[w])
+            if(err>error->_B[w])
+            {
+              testg->_B[w] = testG->_B[w];
+              check->_B[w] = relerr;
+              error->_B[w] = err;
+            }
+        }
+
+        _dispose_object(testG);
     }
 
-    backProp(timeSeries, testG);
-
-    FILE * f;
-    f = fopen("weights_finite_diffs.txt", "w");
-    if (f == NULL) die("check grads fail\n");
-
+    long double sum1 = 0, sumsq1 = 0, sum2 = 0, sumsq2 = 0, sum3 = 0, sumsq3 = 0;
     for (Uint w=0; w<nWeights; w++) {
-        //1
-        weights[w] += incr;
-        for (Uint k=0; k<seq_len; k++) {
-        	predict(inputs[k], res, timeSeries, k);
-            partialResults[k] = -res[errorPlacements[k]];
-        }
-        //2
-        weights[w] -= 2*incr;
-        for (Uint k=0; k<seq_len; k++) {
-        	predict(inputs[k], res, timeSeries, k);
-            partialResults[k] += res[errorPlacements[k]];
-        }
-        //0
-        weights[w] += incr;
-
-        Real diff(0);
-        for (Uint k=0; k<seq_len; k++) diff += partialResults[k];
-        testg->_W[w] = diff/(2.*incr);
-
-        //const Real scale = fabs(*(biases+w));
-        const Real scale = std::max(std::fabs(testG->_W[w]),
-                                    std::fabs(testg->_W[w]));
-        const Real err = (testG->_W[w] - testg->_W[w])/scale;
-        if (fabs(err)>tol || !nonZero(testG->_W[w])) {
-        //if (1) {
-
-              cout <<"W"<<w<<" analytical:"<<testG->_W[w]
-                           <<" finite:"<<testg->_W[w]
-                           <<" error:"<<err<<endl;
-
-          fprintf(f, "%d %g %g %g\n", w, testG->_W[w], testg->_W[w], err);
-        }
+      if (check->_W[w]>tol && testg->_W[w] > 2.2e-16) {
+            cout <<"W"<<w<<" relative error:"<<check->_W[w]
+                         <<" analytical:"<<testg->_W[w]<<endl;
+      }
+      sum1   += fabs(testg->_W[w]);
+      sum2   += fabs(check->_W[w]);
+      sum3   += fabs(error->_W[w]);
+      sumsq1 += testg->_W[w]*testg->_W[w];
+      sumsq2 += check->_W[w]*check->_W[w];
+      sumsq3 += error->_W[w]*error->_W[w];
     }
-
-    fclose(f);
-    f = fopen("biases_finite_diffs.txt", "w");
-    if (f == NULL) die("check grads fail 2\n");
 
     for (Uint w=0; w<nBiases; w++) {
-        //1
-        *(biases+w) += incr;
-        for (Uint k=0; k<seq_len; k++) {
-			predict(inputs[k], res, timeSeries, k);
-			partialResults[k] = -res[errorPlacements[k]];
-		}
-        //2
-        *(biases+w) -= 2*incr;
-        for (Uint k=0; k<seq_len; k++) {
-			predict(inputs[k], res, timeSeries, k);
-			partialResults[k] += res[errorPlacements[k]];
-		}
-        //0
-        *(biases+w) += incr;
-
-        Real diff(0);
-        for (Uint k=0; k<seq_len; k++) diff += partialResults[k];
-        testg->_B[w] = diff/(2.*incr);
-
-        //const Real scale = fabs(*(biases+w));
-        const Real scale = std::max(std::fabs(testG->_B[w]),
-                                    std::fabs(testg->_B[w]));
-        const Real err = (testG->_B[w] - testg->_B[w])/scale;
-        if (fabs(err)>tol || !nonZero(testG->_B[w])) {
-        //if (1) {
-
-              cout <<"B"<<w<<" analytical:"<<testG->_B[w]
-                           <<" finite:"<<testg->_B[w]
-                           <<" error:"<<err<<endl;
-
-          fprintf(f, "%d %g %g %g\n", w, testG->_B[w], testg->_B[w], err);
-        }
+      if (check->_B[w]>tol && testg->_B[w] > 2.2e-16) {
+            cout <<"B"<<w<<" relative error:"<<check->_B[w]
+                         <<" analytical:"<<testg->_B[w]<<endl;
+      }
+      sum1   += fabs(testg->_B[w]);
+      sum2   += fabs(check->_B[w]);
+      sum3   += fabs(error->_B[w]);
+      sumsq1 += testg->_B[w]*testg->_B[w];
+      sumsq2 += check->_B[w]*check->_B[w];
+      sumsq3 += error->_B[w]*error->_B[w];
     }
+    const long double NW = nWeights + nBiases;
+    const long double mean1 = sum1/NW;
+    const long double mean2 = sum2/NW;
+    const long double mean3 = sum3/NW;
+    const long double std1 = sqrt((sumsq1 - sum1*sum1/NW)/NW);
+    const long double std2 = sqrt((sumsq2 - sum2*sum2/NW)/NW);
+    const long double std3 = sqrt((sumsq3 - sum3*sum3/NW)/NW);
+    printf("Mean relative error:%Le (std:%Le). Mean absolute error:%Le (std:%Le). Mean absolute gradient:%Le (std:%Le).\n",
+      mean2, std2, mean3, std3, mean1, std1);
     _dispose_object(testg);
-    _dispose_object(testG);
+    _dispose_object(check);
+    _dispose_object(error);
     deallocateUnrolledActivations(&timeSeries);
-    printf("\n");
-    fclose(f);
     fflush(0);
 }
-#if 0
-void Network::save(const string fname)
-{
-  {
-    printf("Saving into %s\n", fname.c_str());
-    fflush(0);
-    string nameBackup = fname + "_tmp";
-    ofstream out(nameBackup.c_str());
 
-    if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
-
-    out.precision(20);
-    out << nWeights << " "  << nBiases << " " << nLayers  << " " << nNeurons << endl;
-
-    for (int i=0; i<nWeights; i++) {
-        if (std::isnan(*(weights + i)) || std::isinf(*(weights + i))) {
-            die("Caught a nan\n");
-        } else {
-            out << *(weights + i) << "\n";
-        }
-    }
-
-    for (int i=0; i<nBiases; i++) {
-       if (std::isnan(*(biases + i)) || std::isinf(*(biases + i))) {
-            die("Caught a nan\n");
-        } else {
-            out << *(biases + i) << "\n";
-        }
-    }
-
-    out.flush();
-    out.close();
-    string command = "cp " + nameBackup + " " + fname;
-    system(command.c_str());
-  }
-  {
-    string nameBackup = fname + "_mems_tmp";
-    ofstream out(nameBackup.c_str());
-
-    if (!out.good())
-      die("Unable to open save into file %s\n", nameBackup.c_str());
-
-    for(int agentID=0; agentID<nAgents; agentID++) {
-      for (int j=0; j<nNeurons; j++) out << mem[agentID]->outvals[j] << "\n";
-      for (int j=0; j<nStates;  j++) out << mem[agentID]->ostates[j] << "\n";
-    }
-
-    out.flush();
-    out.close();
-    string command = "cp " + nameBackup + " " + fname + "_mems";
-    system(command.c_str());
-  }
-}
-#endif
 void Network::dump(const int agentID)
 {
     if (not bDump) return;
@@ -432,63 +376,3 @@ void Network::dump(const int agentID)
     }
     dump_ID[agentID]++;
 }
-#if 0
-bool Network::restart(const string fname)
-{
-    {
-      string nameBackup = fname;
-      ifstream in(nameBackup.c_str());
-      debug1("Reading from %s\n", nameBackup.c_str());
-      if (!in.good()) {
-          error("Couldnt open file %s \n", nameBackup.c_str());
-          return false;
-      }
-
-      int readTotWeights, readTotBiases, readNNeurons, readNLayers;
-      in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
-
-      if (readTotWeights != nWeights || readTotBiases != nBiases || readNLayers != nLayers || readNNeurons != nNeurons)
-      die("Network parameters differ!");
-
-      Real tmp;
-      for (int i=0; i<nWeights; i++) {
-          in >> tmp;
-          if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-          weights[i] = tmp;
-      }
-
-      for (int i=0; i<nBiases; i++) {
-          in >> tmp;
-          if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-          biases[i] = tmp;
-      }
-      in.close();
-      updateFrozenWeights();
-    }
-    {
-      string nameBackup = fname + "_mems";
-      ifstream in(nameBackup.c_str());
-      debug1("Reading from %s\n", nameBackup.c_str());
-      if (!in.good()) {
-          error("Couldnt open file %s \n", nameBackup.c_str());
-          return false;
-      }
-
-      Real tmp;
-      for(int agentID=0; agentID<nAgents; agentID++) {
-        for (int j=0; j<nNeurons; j++) {
-          in >> tmp;
-          if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-          mem[agentID]->outvals[j] = tmp;
-        }
-        for (int j=0; j<nStates; j++) {
-          in >> tmp;
-          if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-          mem[agentID]->ostates[j] = tmp;
-        }
-      }
-      in.close();
-    }
-    return true;
-}
-#endif

@@ -174,10 +174,7 @@ void Communicator::recvActionMPI()
 	//avoid wasting a cpu only for communication in case we are using a busy-wait MPI
 	//note that non-MPI send and recv usually already have a yield-wait policy
 	lag += std::floor((cnt-10)/10.);
-	//if (cnt>10) lag++;
-	//else if (cnt<10) lag--;
 	lag = std::max(lag,1);
-	//printf("%d\n",cnt); fflush(0);
 #else
 	abort();
 #endif

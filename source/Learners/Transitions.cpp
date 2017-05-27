@@ -240,7 +240,7 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
 int Transitions::passData(const int agentId, const int info, const State& sOld,
    const Action& a, const vector<Real>& mu, const State& s, const Real reward)
 {
-    assert(agentId<curr_transition_id.size());
+    assert(agentId<static_cast<int>(curr_transition_id.size()));
     const int ret = add(agentId, info, sOld, a, mu, s, reward);
     if (ret) curr_transition_id[agentId] = 0;
 
@@ -582,15 +582,18 @@ void Transitions::synchronize()
    Uint nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
    //  for(auto & bufTransition : Buffered) {
    if(!bufferSize) return;
-   for(Uint k=bufferSize; k>0; k--) {
+   for(Uint j=bufferSize; j>0; j--) {
       cnt++;
       //auto bufTransition = Buffered[i];
-      assert(Buffered.size() == i+1);
+      assert(Buffered.size() == j);
       auto bufTransition = Buffered.back();
       const Uint ind = iOldestSaved++;
       iOldestSaved = (iOldestSaved >= maxTotSeqNum) ? 0 : iOldestSaved;
 
-      if (not Set[ind]->ended) --nBroken;
+      if (not Set[ind]->ended) {
+        if(nBroken==0) die("Error in nBroken counter.\n");
+        --nBroken;
+      }
       nTransitionsDeleted += Set[ind]->tuples.size()-1;
       nTransitionsInBuf += bufTransition->tuples.size()-1;
 

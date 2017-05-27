@@ -29,7 +29,6 @@ class NFQ : public Learner
             Nbest = i;
           }
       }
-      assert(Nbest>=0);
       return Nbest;
     }
 public:

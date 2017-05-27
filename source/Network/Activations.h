@@ -15,33 +15,43 @@ using namespace std;
 #define PRELU_FAC 0.001
 #endif
 
+struct Mem //Memory light recipient for prediction on agents
+{
+	Mem(Uint _nNeurons, Uint _nStates):
+	nNeurons(_nNeurons), nStates(_nStates),
+	outvals(initClean(nNeurons)), ostates(init(nStates))
+	{	}
+
+	~Mem()
+	{
+		_myfree(outvals);
+		_myfree(ostates);
+	}
+	const Uint nNeurons, nStates;
+	Real*const outvals;
+	Real*const ostates;
+};
+
 struct Activation //All the network signals
 {
-	Activation(Uint _nNeurons,Uint _nStates):nNeurons(_nNeurons),nStates(_nStates)
-	{
-		//contains all inputs to each neuron (inputs to network input layer is empty)
-		_allocateQuick(in_vals, nNeurons);
-		//contains all neuron outputs that will be the incoming signal to linked layers (outputs of input layer is network inputs)
-		_allocateQuick(outvals, nNeurons);
-		//deltas for each neuron
-		_allocateClean(errvals, nNeurons);
-		//memory of LSTM
-		_allocateQuick(ostates, nStates);
-		//inputs to gates (cell into in_vals)
-		_allocateQuick(iIGates, nStates);
-		_allocateQuick(iFGates, nStates);
-		_allocateQuick(iOGates, nStates);
-		//output of gates and LSTM cell
-		_allocateQuick(oMCell, nStates);
-		_allocateQuick(oIGates, nStates);
-		_allocateQuick(oFGates, nStates);
-		_allocateQuick(oOGates, nStates);
-		//errors of gates and LSTM cell
-		_allocateClean(eMCell, nStates);
-		_allocateClean(eIGates, nStates);
-		_allocateClean(eFGates, nStates);
-		_allocateClean(eOGates, nStates);
-	}
+	Activation(Uint _nNeurons,Uint _nStates):
+	nNeurons(_nNeurons),nStates(_nStates),
+	//contains all inputs to each neuron (inputs to network input layer is empty)
+	in_vals(init(nNeurons)),
+	//contains all neuron outputs that will be the incoming signal to linked layers (outputs of input layer is network inputs)
+	outvals(init(nNeurons)),
+	//deltas for each neuron
+	errvals(initClean(nNeurons)),
+	//memory and inputs to gates (cell into in_vals)
+	ostates(init(nNeurons)), iIGates(init(nNeurons)),
+	iFGates(init(nNeurons)), iOGates(init(nNeurons)),
+	//output of gates and LSTM cell
+	oMCell(init(nNeurons)), oIGates(init(nNeurons)),
+	oFGates(init(nNeurons)), oOGates(init(nNeurons)),
+	//errors of gates and LSTM cell
+	eMCell(init(nNeurons)), eIGates(init(nNeurons)),
+	eFGates(init(nNeurons)), eOGates(init(nNeurons))
+	{ }
 
 	~Activation()
 	{
@@ -67,75 +77,85 @@ struct Activation //All the network signals
 
 	void clearOutput()
 	{
-		std::memset(outvals,0.,nNeurons);
-		std::memset(ostates,0.,nStates);
-		std::memset(oMCell, 0.,nStates);
-		std::memset(oIGates,0.,nStates);
-		std::memset(oFGates,0.,nStates);
-		std::memset(oOGates,0.,nStates);
+		std::memset(outvals,0.,nNeurons*sizeof(Real));
+		std::memset(ostates,0.,nStates*sizeof(Real));
+		std::memset(oMCell, 0.,nStates*sizeof(Real));
+		std::memset(oIGates,0.,nStates*sizeof(Real));
+		std::memset(oFGates,0.,nStates*sizeof(Real));
+		std::memset(oOGates,0.,nStates*sizeof(Real));
 	}
 
 	void clearErrors()
 	{
-		std::memset(errvals,0.,nNeurons);
-		std::memset(eOGates,0.,nStates);
-		std::memset(eIGates,0.,nStates);
-		std::memset(eFGates,0.,nStates);
-		std::memset(eMCell,0.,nStates);
+		std::memset(errvals,0.,nNeurons*sizeof(Real));
+		std::memset(eOGates,0.,nStates*sizeof(Real));
+		std::memset(eIGates,0.,nStates*sizeof(Real));
+		std::memset(eFGates,0.,nStates*sizeof(Real));
+		std::memset(eMCell,0.,nStates*sizeof(Real));
 	}
 
 	void clearInputs()
 	{
-		std::memset(in_vals,0.,nNeurons);
-		std::memset(iIGates,0.,nStates);
-		std::memset(iFGates,0.,nStates);
-		std::memset(iOGates,0.,nStates);
+		std::memset(in_vals,0.,nNeurons*sizeof(Real));
+		std::memset(iIGates,0.,nStates*sizeof(Real));
+		std::memset(iFGates,0.,nStates*sizeof(Real));
+		std::memset(iOGates,0.,nStates*sizeof(Real));
+	}
+
+	void loadMemory(Mem*const _M)
+	{
+			assert(_M->nNeurons == nNeurons);
+			assert(_M->nStates == nStates);
+	    for (Uint j=0; j<nNeurons; j++) outvals[j] = _M->outvals[j];
+	    for (Uint j=0; j<nStates;  j++) ostates[j] = _M->ostates[j];
+	}
+
+	void storeMemory(Mem*const _M)
+	{
+			assert(_M->nNeurons == nNeurons);
+			assert(_M->nStates == nStates);
+	    for (Uint j=0; j<nNeurons; j++) _M->outvals[j] = outvals[j];
+	    for (Uint j=0; j<nStates;  j++) _M->ostates[j] = ostates[j];
 	}
 
 	const Uint nNeurons, nStates;
-	Real *in_vals, *outvals, *errvals, *ostates;
-	Real *iIGates, *iFGates, *iOGates;
-	Real *oMCell, *oIGates, *oFGates, *oOGates;
-	Real *eMCell, *eIGates, *eFGates, *eOGates;
+	Real*const in_vals;
+	Real*const outvals;
+	Real*const errvals;
+	Real*const ostates;
+	Real*const iIGates;
+	Real*const iFGates;
+	Real*const iOGates;
+	Real*const oMCell;
+	Real*const oIGates;
+	Real*const oFGates;
+	Real*const oOGates;
+	Real*const eMCell;
+	Real*const eIGates;
+	Real*const eFGates;
+	Real*const eOGates;
 };
 
 struct Grads
 {
-	Grads(Uint _nWeights, Uint _nBiases): nWeights(_nWeights), nBiases(_nBiases)
-	{
-		_allocateClean(_W, nWeights);
-        		_allocateClean(_B, nBiases);
-	}
+	Grads(Uint _nWeights, Uint _nBiases):
+	nWeights(_nWeights), nBiases(_nBiases),
+	_W(initClean(_nWeights)), _B(initClean(_nBiases))
+	{ }
 
 	~Grads()
 	{
 		_myfree(_W);
-        		_myfree(_B);
+    _myfree(_B);
 	}
 	void clear()
 	{
-		std::memset(_W,0.,nWeights);
-		std::memset(_B,0.,nBiases);
+		std::memset(_W,0.,nWeights*sizeof(Real));
+		std::memset(_B,0.,nBiases*sizeof(Real));
 	}
 	const Uint nWeights, nBiases;
-	Real *_W, *_B;
-};
-
-struct Mem //Memory light recipient for prediction on agents
-{
-	Mem(Uint _nNeurons, Uint _nStates): nNeurons(_nNeurons), nStates(_nStates)
-	{
-		_allocateClean(outvals, nNeurons);
-        		_allocateClean(ostates, nStates);
-	}
-
-	~Mem()
-	{
-		_myfree(outvals);
-		_myfree(ostates);
-	}
-	const Uint nNeurons, nStates;
-	Real *outvals, *ostates;
+	Real*const _W;
+	Real*const _B;
 };
 
 struct Function

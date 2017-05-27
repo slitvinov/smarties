@@ -37,13 +37,13 @@ void DPG::select(const int agentId, State& s, Action& a,
 				const Tuple* const last = data->Tmp[agentId]->tuples.back();
 				vector<Real> scaledSold = data->standardize(last->s);
         Activation* prevActivation = net_policy->allocateActivation();
-        net_policy->loadMemory(net_policy->mem[agentId], prevActivation);
+				prevActivation->loadMemory(net_policy->mem[agentId]);
         net_policy->predict(scaledSold, output, prevActivation, currActivation);
         _dispose_object(prevActivation);
     }
 
     //save network transition
-    net_policy->loadMemory(net_policy->mem[agentId], currActivation);
+		currActivation->storeMemory(net_policy->mem[agentId]);
     _dispose_object(currActivation);
 
 		#ifdef _dumpNet_
@@ -265,8 +265,7 @@ void DPG::updateTargetNetwork()
 	opt->moveFrozenWeights(tgtUpdateAlpha);
 	opt_policy->moveFrozenWeights(tgtUpdateAlpha);
     }
-
-    cntUpdateDelay--;
+    if(cntUpdateDelay>0) cntUpdateDelay--;
 }
 
 void DPG::stackAndUpdateNNWeights(const Uint nAddedGradients)

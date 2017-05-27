@@ -131,7 +131,7 @@ public:
     	backProp(_errors, net, weights, biases, _grads);
     }
 
-    void checkGrads(const vector<vector<Real>>& inputs, int lastn=-1);
+    void checkGrads();
 		void regularize(const Real lambda)
 		{
 			#pragma omp parallel for

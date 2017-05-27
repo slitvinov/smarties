@@ -107,6 +107,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 	MPI_Comm_rank(slavesComm, &isSlave);
 	MPI_Comm_size(slavesComm, &nSlaves);
 	nSlaves--; //minus master
+	assert(nSlaves>=0);
 	if(isSlave) die("Master is slave?\n")
     		//if(nSlaves==0) die("Master has no slaves?\n");
 

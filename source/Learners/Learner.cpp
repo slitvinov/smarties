@@ -50,13 +50,7 @@ void Learner::TrainBatch()
         data->updateSamples();
         processStats(Vstats, 0 ); //dump info about convergence
         #ifdef __CHECK_DIFF //check gradients with finite differences, just for debug
-        if (stats.epochCount == 0) { //% 100
-            vector<vector<Real>> inputs;
-            const Uint ind = data->Set.size()-1;
-            for (Uint k=0; k<data->Set[ind]->tuples.size(); k++)
-                inputs.push_back(data->Set[ind]->tuples[k]->s);
-            net->checkGrads(inputs, data->Set[ind]->tuples.size()-1);
-        }
+        if (stats.epochCount % 1000 == 0) net->checkGrads();
         #endif
     }
 
@@ -99,13 +93,7 @@ void Learner::TrainTasking(Master* const master)
             sumElapsed = 0; countElapsed=0;
             //print_memory_usage();
             #ifdef __CHECK_DIFF //check gradients with finite differences, just for debug
-            if (stats.epochCount == 0) { //% 100
-                vector<vector<Real>> inputs;
-                const Uint ind = data->Set.size()-1;
-                for (Uint k=0; k<data->Set[ind]->tuples.size(); k++)
-                    inputs.push_back(data->Set[ind]->tuples[k]->s);
-                net->checkGrads(inputs, data->Set[ind]->tuples.size()-1);
-            }
+            if (stats.epochCount % 1000 == 0) net->checkGrads();
             #endif
         }
         start = std::chrono::high_resolution_clock::now();
@@ -122,7 +110,7 @@ void Learner::TrainTasking(Master* const master)
       				#pragma omp task firstprivate(sequence)
       				{
       					const int thrID = omp_get_thread_num();
-                assert(!thrID<0);
+                assert(thrID>=0);
                 //#ifndef NDEBUG
                 //printf("Thread %d to %d\n",thrID,sequence);
                 //fflush(0);
@@ -143,7 +131,7 @@ void Learner::TrainTasking(Master* const master)
       				#pragma omp task firstprivate(sequence,transition)
       				{
       					const int thrID = omp_get_thread_num();
-                assert(!thrID<0);
+                assert(thrID>=0);
       					Train(sequence, transition, static_cast<Uint>(thrID));
 
       					#pragma omp atomic
@@ -277,7 +265,7 @@ void Learner::updateTargetNetwork()
         //else net->updateFrozenWeights(); //or copy tgt_wghts = wghts
         opt->moveFrozenWeights(tgtUpdateAlpha);
     }
-    cntUpdateDelay--;
+    if(cntUpdateDelay>0) cntUpdateDelay--;
 }
 
 bool Learner::checkBatch(unsigned long mastersNiter)
