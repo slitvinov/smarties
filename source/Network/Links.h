@@ -143,37 +143,30 @@ class NormalLink: public Link
 	inline void propagate(const Activation* const netFrom, Activation* const netTo,
 		const Real* const weights) const
 	{
-		const Real* __restrict__ const link_input = netFrom->outvals +iI;
-		Real* __restrict__ const link_outputs = netTo->in_vals +iO;
-		//__builtin_assume_aligned(link_outputs, __vec_width__);
-		//__builtin_assume_aligned(link_input, __vec_width__);
+		const Real* __restrict__ const inp = netFrom->outvals +iI;
+		Real* __restrict__ const out = netTo->in_vals +iO;
+
 		for (Uint i = 0; i < nI; i++) {
-			const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
-			//__builtin_assume_aligned(link_weights, __vec_width__);
-			for (Uint o = 0; o < nO; o++) {
-				link_outputs[o] += link_input[i] * link_weights[o];
-			}
+			const Real* __restrict__ const w = weights +iW +nO_simd*i;
+#pragma omp simd aligned(inp,out,w : __vec_width__) safelen(simdWidth)
+			for (Uint o = 0; o < nO; o++) out[o] += inp[i] * w[o];
 		}
 	}
 
 	inline void backPropagate(Activation* const netFrom, const Activation* const netTo,
 		const Real* const weights, Real* const gradW) const
 	{
-		const Real* __restrict__ const layer_input = netFrom->outvals + iI;
-		const Real* __restrict__ const deltas = netTo->errvals + iO;
-		Real* __restrict__ const link_errors = netFrom->errvals + iI;
-		//__builtin_assume_aligned(link_errors, __vec_width__);
-		//__builtin_assume_aligned(layer_input, __vec_width__);
-		//__builtin_assume_aligned(deltas, __vec_width__);
+		const Real* __restrict__ const inp = netFrom->outvals + iI;
+		const Real* __restrict__ const delta = netTo->errvals + iO;
+		Real* __restrict__ const err = netFrom->errvals + iI;
 
 		for (Uint i = 0; i < nI; i++) {
-			const Real* __restrict__ const link_weights = weights +iW +nO_simd*i;
-			Real* __restrict__ const link_dEdW = gradW +iW +nO_simd*i;
-			//__builtin_assume_aligned(link_weights, __vec_width__);
-			//__builtin_assume_aligned(link_dEdW, __vec_width__);
+			const Real* __restrict__ const w = weights +iW +nO_simd*i;
+			Real* __restrict__ const g = gradW +iW +nO_simd*i;
+#pragma omp simd aligned(g,inp,delta,err,w: __vec_width__) safelen(simdWidth)
 			for (Uint o = 0; o < nO; o++) {
-				link_dEdW[o] += layer_input[i] * deltas[o];
-				link_errors[i] += deltas[o] * link_weights[o];
+				g[o] += inp[i] * delta[o];
+				err[i] += delta[o] * w[o];
 			}
 		}
 	}
@@ -246,32 +239,24 @@ class LinkToLSTM : public Link
 	void propagate(const Activation* const netFrom, Activation* const netTo,
 		const Real* const weights) const
 	{
-		const Real* __restrict__ const link_input = netFrom->outvals + iI;
-		Real* __restrict__ const inputs = netTo->in_vals + iO;
-		Real* __restrict__ const inputI = netTo->iIGates + iC;
-		Real* __restrict__ const inputF = netTo->iFGates + iC;
-		Real* __restrict__ const inputO = netTo->iOGates + iC;
-		//__builtin_assume_aligned(inputs, __vec_width__);
-		//__builtin_assume_aligned(inputI, __vec_width__);
-		//__builtin_assume_aligned(inputF, __vec_width__);
-		//__builtin_assume_aligned(inputO, __vec_width__);
-		//__builtin_assume_aligned(link_input, __vec_width__);
+		const Real* __restrict__ const inp = netFrom->outvals + iI;
+		Real* __restrict__ const inC = netTo->in_vals + iO;
+		Real* __restrict__ const inI = netTo->iIGates + iC;
+		Real* __restrict__ const inF = netTo->iFGates + iC;
+		Real* __restrict__ const inO = netTo->iOGates + iC;
 
 		for (Uint i = 0; i < nI; i++) {
-			const Real* __restrict__ const weights_toCell  = weights + iW  + nO_simd*i;
-			const Real* __restrict__ const weights_toIgate = weights + iWI + nO_simd*i;
-			const Real* __restrict__ const weights_toFgate = weights + iWF + nO_simd*i;
-			const Real* __restrict__ const weights_toOgate = weights + iWO + nO_simd*i;
-			//__builtin_assume_aligned(weights_toCell, __vec_width__);
-			//__builtin_assume_aligned(weights_toIgate, __vec_width__);
-			//__builtin_assume_aligned(weights_toFgate, __vec_width__);
-			//__builtin_assume_aligned(weights_toOgate, __vec_width__);
+			const Real* __restrict__ const wC  = weights + iW  + nO_simd*i;
+			const Real* __restrict__ const wI = weights + iWI + nO_simd*i;
+			const Real* __restrict__ const wF = weights + iWF + nO_simd*i;
+			const Real* __restrict__ const wO = weights + iWO + nO_simd*i;
 
+#pragma omp simd aligned(inp,inC,inI,inF,inO,wC,wI,wF,wO:__vec_width__) safelen(simdWidth)
 			for (Uint o = 0; o < nO; o++) {
-				inputs[o] += link_input[i] * weights_toCell[o];
-				inputI[o] += link_input[i] * weights_toIgate[o];
-				inputF[o] += link_input[i] * weights_toFgate[o];
-				inputO[o] += link_input[i] * weights_toOgate[o];
+				inC[o] += inp[i] * wC[o];
+				inI[o] += inp[i] * wI[o];
+				inF[o] += inp[i] * wF[o];
+				inO[o] += inp[i] * wO[o];
 			}
 		}
 	}
@@ -279,44 +264,30 @@ class LinkToLSTM : public Link
 	void backPropagate(Activation* const netFrom, const Activation* const netTo,
 		const Real* const weights, Real* const gradW) const
 	{
-		const Real* __restrict__ const layer_input = netFrom->outvals + iI;
-		Real* __restrict__ const link_errors = netFrom->errvals + iI;
-		const Real* __restrict__ const deltaI = netTo->eIGates +iC;
-		const Real* __restrict__ const deltaF = netTo->eFGates +iC;
-		const Real* __restrict__ const deltaO = netTo->eOGates +iC;
-		const Real* __restrict__ const deltaC = netTo->eMCell +iC;
-		//__builtin_assume_aligned(layer_input, __vec_width__);
-		//__builtin_assume_aligned(link_errors, __vec_width__);
-		//__builtin_assume_aligned(deltaI, __vec_width__);
-		//__builtin_assume_aligned(deltaF, __vec_width__);
-		//__builtin_assume_aligned(deltaO, __vec_width__);
-		//__builtin_assume_aligned(deltaC, __vec_width__);
+		const Real* __restrict__ const inp = netFrom->outvals + iI;
+		Real* __restrict__ const err = netFrom->errvals + iI;
+		const Real* __restrict__ const dC = netTo->eMCell  +iC;
+		const Real* __restrict__ const dI = netTo->eIGates +iC;
+		const Real* __restrict__ const dF = netTo->eFGates +iC;
+		const Real* __restrict__ const dO = netTo->eOGates +iC;
 
 		for (Uint i = 0; i < nI; i++) {
-			const Real* __restrict__ const w_toOgate = weights +iWO +nO_simd*i;
-			const Real* __restrict__ const w_toFgate = weights +iWF +nO_simd*i;
-			const Real* __restrict__ const w_toIgate = weights +iWI +nO_simd*i;
-			const Real* __restrict__ const w_toCell  = weights +iW  +nO_simd*i;
-			Real* __restrict__ const dw_toOgate = gradW +iWO +nO_simd*i;
-			Real* __restrict__ const dw_toFgate = gradW +iWF +nO_simd*i;
-			Real* __restrict__ const dw_toIgate = gradW +iWI +nO_simd*i;
-			Real* __restrict__ const dw_toCell  = gradW +iW  +nO_simd*i;
-			//__builtin_assume_aligned(dw_toOgate, __vec_width__);
-			//__builtin_assume_aligned(dw_toFgate, __vec_width__);
-			//__builtin_assume_aligned(dw_toIgate, __vec_width__);
-			//__builtin_assume_aligned(dw_toCell,  __vec_width__);
-			//__builtin_assume_aligned(w_toOgate, __vec_width__);
-			//__builtin_assume_aligned(w_toFgate, __vec_width__);
-			//__builtin_assume_aligned(w_toIgate, __vec_width__);
-			//__builtin_assume_aligned(w_toCell,  __vec_width__);
+			const Real* __restrict__ const wO = weights +iWO +nO_simd*i;
+			const Real* __restrict__ const wF = weights +iWF +nO_simd*i;
+			const Real* __restrict__ const wI = weights +iWI +nO_simd*i;
+			const Real* __restrict__ const wC = weights +iW  +nO_simd*i;
+			Real* __restrict__ const gO = gradW +iWO +nO_simd*i;
+			Real* __restrict__ const gF = gradW +iWF +nO_simd*i;
+			Real* __restrict__ const gI = gradW +iWI +nO_simd*i;
+			Real* __restrict__ const gC = gradW +iW  +nO_simd*i;
 
+#pragma omp simd aligned(inp,err,dC,dI,dF,dO,wC,wI,wF,wO,gC,gI,gF,gO:__vec_width__) safelen(simdWidth)
 			for (Uint o = 0; o < nO; o++) {
-				dw_toOgate[o] += layer_input[i] * deltaO[o];
-				dw_toCell[o]  += layer_input[i] * deltaC[o];
-				dw_toIgate[o] += layer_input[i] * deltaI[o];
-				dw_toFgate[o] += layer_input[i] * deltaF[o];
-				link_errors[i] += deltaO[o]*w_toOgate[o] + deltaC[o]*w_toCell[o] +
-						deltaI[o]*w_toIgate[o] + deltaF[o]*w_toFgate[o];
+				gC[o] += inp[i] * dC[o];
+				gI[o] += inp[i] * dI[o];
+				gF[o] += inp[i] * dF[o];
+	      gO[o] += inp[i] * dO[o];
+				err[i]+= dO[o]*wO[o] + dC[o]*wC[o] + dI[o]*wI[o] + dF[o]*wF[o];
 			}
 		}
 	}
@@ -400,24 +371,20 @@ class LinkToConv2D : public Link
 						const int cy=iy+static_cast<int>(fy);
 						//padding: skip addition if outside input boundaries
             if ( cx < 0 || static_cast<Uint>(cx) >= inputWidth
-              || cy < 0 || static_cast<Uint>(cy) >= inputHeight)
-							continue;
+              || cy < 0 || static_cast<Uint>(cy) >= inputHeight) continue;
 
-						const Real* __restrict__ const link_inputs =
-								netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
-						Real* __restrict__ const link_outputs =
-								netTo->in_vals +iO+outputDepth*(oy+outputHeight*ox);
-						//__builtin_assume_aligned(link_outputs, __vec_width__);
-						//__builtin_assume_aligned(link_inputs, __vec_width__);
+						const Real* __restrict__ const inp =
+								          netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
+						Real* __restrict__ const out =
+								            netTo->in_vals +iO+outputDepth*(oy+outputHeight*ox);
 
 						for(Uint iz=0; iz<inputDepth; iz++) {
-							const Real* __restrict__ const link_weights =
-									weights +iW +outputDepth*(iz +inputDepth*(fy +filterHeight*fx));
-							//__builtin_assume_aligned(link_weights, __vec_width__);
+							const Real* __restrict__ const w =
+								weights +iW +outputDepth*(iz +inputDepth*(fy +filterHeight*fx));
 
-							for(Uint fz=0; fz<outputDepth; fz++) {
-								link_outputs[fz] += link_inputs[iz] * link_weights[fz];
-							}
+#pragma omp simd aligned(out, inp, w : __vec_width__) safelen(simdWidth)
+							for(Uint fz=0; fz<outputDepth; fz++)
+								out[fz] += inp[iz] * w[fz];
 						}
 					}
 			}
@@ -436,30 +403,25 @@ class LinkToConv2D : public Link
 						const int cy=iy+static_cast<int>(fy);
 						//padding: skip addition if outside input boundaries
 						if ( cx < 0 || static_cast<Uint>(cx) >= inputWidth
-              || cy < 0 || static_cast<Uint>(cy) >= inputHeight)
-							continue;
+              || cy < 0 || static_cast<Uint>(cy) >= inputHeight) continue;
 
-						const Real* __restrict__ const link_inputs =
-								netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
-						Real* __restrict__ const link_errors =
-								netFrom->errvals +iI +inputDepth*(cy +inputHeight*cx);
-						const Real* __restrict__ const deltas =
-								netTo->errvals +iO+outputDepth*(oy+outputHeight*ox);
-						//__builtin_assume_aligned(link_inputs, __vec_width__);
-						//__builtin_assume_aligned(link_errors, __vec_width__);
-						//__builtin_assume_aligned(deltas, __vec_width__);
+						const Real* __restrict__ const inp =
+								          netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
+						Real* __restrict__ const err =
+								          netFrom->errvals +iI +inputDepth*(cy +inputHeight*cx);
+						const Real* __restrict__ const delta =
+								            netTo->errvals +iO+outputDepth*(oy+outputHeight*ox);
 
 						for(Uint iz=0; iz<inputDepth; iz++) {
-							const Real* __restrict__ const link_weights =
+							const Real* __restrict__ const w =
 									weights +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
-							Real* __restrict__ const link_dEdW    =
-									gradW +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
-							//__builtin_assume_aligned(link_weights, __vec_width__);
-							//__builtin_assume_aligned(link_dEdW, __vec_width__);
+							Real* __restrict__ const g =
+									  gradW +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
 
+#pragma omp simd aligned(err, w, delta, g, inp : __vec_width__) safelen(simdWidth)
 							for(Uint fz=0; fz<outputDepth; fz++) {
-								link_errors[iz] += link_weights[fz]*deltas[fz];
-								link_dEdW[fz] += link_inputs[iz]*deltas[fz];
+								err[iz] += w[fz]*delta[fz];
+								g[fz] += inp[iz]*delta[fz];
 							}
 						}
 					}

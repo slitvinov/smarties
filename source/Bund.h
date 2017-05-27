@@ -22,8 +22,8 @@ using namespace std;
 
 #include <omp.h>
 #include <mpi.h>
-//#define __vec_width__ 32
-#define __vec_width__ 8
+#define __vec_width__ 32
+//#define __vec_width__ 8
 
 #define _BPTT_
 #define _dumpNet_

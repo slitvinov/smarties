@@ -50,7 +50,7 @@ endif
 CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
 CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wpedantic 
-CPPFLAGS+= -Wno-unused-parameter -Wno-reorder
+CPPFLAGS+= -Wno-unused-parameter -Wno-reorder -Wno-unknown-pragmas
 CPPFLAGS+= -Wno-unused-value -Wno-unused-variable
 
 CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
