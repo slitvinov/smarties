@@ -2,7 +2,8 @@ SETTINGS=
 #file that stores every observtion (log of states and actions)
 #if none then no output
 SETTINGS+=" --samplesFile none" 
-SETTINGS+=" --restart none" 
+#SETTINGS+=" --restart none" 
+SETTINGS+=" --restart history.txt" 
 
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
@@ -13,7 +14,9 @@ SETTINGS+=" --gamma 0.99"
 SETTINGS+=" --learnrate 0.001"
 
 #size of network layers
-SETTINGS+=" --nnl1 16"
+SETTINGS+=" --nnl1 128"
+SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnl3 64"
 #SETTINGS+=" --nnl2 16"
 #SETTINGS+=" --nnl3 16"
 #SETTINGS+=" --nnl3 16"
@@ -26,7 +29,7 @@ SETTINGS+=" --nnType FFNN"
 #SETTINGS+=" --nnType LSTM"
 SETTINGS+=" --nnFunc PRelu"
 # L2 regularization of the weights
-SETTINGS+=" --nnLambda 0.001"
+SETTINGS+=" --nnLambda 0.01"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.5"
@@ -53,7 +56,7 @@ SETTINGS+=" --maxTotSeqNum 5000"
 
 #batch size for network gradients compute
 #SETTINGS+=" --dqnBatch 22"
-SETTINGS+=" --batchSize 24"
+SETTINGS+=" --batchSize 48"
 
 SETTINGS+=" --epsAnneal 10000" 
 #lag of target network.
