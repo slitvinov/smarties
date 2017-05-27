@@ -85,9 +85,6 @@ class BaseLayer: public Layer
         Real* __restrict__ const outputs = curr->outvals +n1stNeuron;
         Real* __restrict__ const inputs = curr->in_vals +n1stNeuron;
         const Real* __restrict__ const bias = biases +n1stBias;
-        //__builtin_assume_aligned(outputs,  __vec_width__);
-        //__builtin_assume_aligned(inputs, __vec_width__);
-        //__builtin_assume_aligned(bias, __vec_width__);
 
         for (Uint n=0; n<nNeurons; n++) inputs[n] = bias[n];
 
@@ -117,9 +114,6 @@ class BaseLayer: public Layer
         const Real* __restrict__ const inputs = curr->in_vals +n1stNeuron;
         Real* __restrict__ const deltas = curr->errvals +n1stNeuron;
         Real* __restrict__ const gradbias = grad->_B +n1stBias;
-        //__builtin_assume_aligned(deltas,  __vec_width__);
-        //__builtin_assume_aligned(inputs, __vec_width__);
-        //__builtin_assume_aligned(gradbias, __vec_width__);
 
         for (Uint n=0; n<nNeurons; n++) deltas[n] *= func->evalDiff(inputs[n]);
 
@@ -257,18 +251,6 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
         const Real* __restrict__ const biasI = biases +n1stBiasIG;
         const Real* __restrict__ const biasF = biases +n1stBiasFG;
         const Real* __restrict__ const biasO = biases +n1stBiasOG;
-        //__builtin_assume_aligned(outputI,  __vec_width__);
-        //__builtin_assume_aligned(outputF, __vec_width__);
-        //__builtin_assume_aligned(outputO, __vec_width__);
-        //__builtin_assume_aligned(outputC,  __vec_width__);
-        //__builtin_assume_aligned(inputs, __vec_width__);
-        //__builtin_assume_aligned(inputI, __vec_width__);
-        //__builtin_assume_aligned(inputF,  __vec_width__);
-        //__builtin_assume_aligned(inputO, __vec_width__);
-        //__builtin_assume_aligned(biasC, __vec_width__);
-        //__builtin_assume_aligned(biasI, __vec_width__);
-        //__builtin_assume_aligned(biasF, __vec_width__);
-        //__builtin_assume_aligned(biasO, __vec_width__);
 
         for (Uint n=0; n<nNeurons; n++) {
             inputs[n] = biasC[n];
@@ -318,23 +300,6 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
         Real* __restrict__ const gradbiasI = grad->_B +n1stBiasIG;
         Real* __restrict__ const gradbiasF = grad->_B +n1stBiasFG;
         Real* __restrict__ const gradbiasO = grad->_B +n1stBiasOG;
-          //__builtin_assume_aligned(outputI,  __vec_width__);
-          //__builtin_assume_aligned(outputF, __vec_width__);
-          //__builtin_assume_aligned(outputO, __vec_width__);
-          //__builtin_assume_aligned(outputC,  __vec_width__);
-          //__builtin_assume_aligned(inputs, __vec_width__);
-          //__builtin_assume_aligned(inputI, __vec_width__);
-          //__builtin_assume_aligned(inputF,  __vec_width__);
-          //__builtin_assume_aligned(inputO, __vec_width__);
-          //__builtin_assume_aligned(deltas, __vec_width__);
-          //__builtin_assume_aligned(deltaI, __vec_width__);
-          //__builtin_assume_aligned(deltaF, __vec_width__);
-          //__builtin_assume_aligned(deltaO, __vec_width__);
-          //__builtin_assume_aligned(deltaC, __vec_width__);
-          //__builtin_assume_aligned(gradbiasC, __vec_width__);
-          //__builtin_assume_aligned(gradbiasI, __vec_width__);
-          //__builtin_assume_aligned(gradbiasF, __vec_width__);
-          //__builtin_assume_aligned(gradbiasO, __vec_width__);
 
         for (Uint n=0; n<nNeurons; n++)
         {
