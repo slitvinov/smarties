@@ -119,8 +119,8 @@ class State
 
   inline void set(const vector<Real> data)
   {
-      for (Uint i=0; i<sInfo.dim; i++)
-          vals[i] = data[i];
+		assert(data.size() == sInfo.dim);
+      for (Uint i=0; i<sInfo.dim; i++) vals[i] = data[i];
   }
 };
 

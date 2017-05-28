@@ -37,39 +37,10 @@ void runSlave(MPI_Comm slavesComm)
 	ObjectFactory factory(settings);
 	Environment* env = factory.createEnvironment(rank, 0);
 	settings.nAgents = env->agents.size();
+	Communicator comm = env->create_communicator(slavesComm, settings.sockPrefix, true);
 
-	const bool isSpawner = true;
-	const bool verbose = 0;
-	const Uint sdim = env->sI.dim;
-	const Uint adim = env->aI.dim;
-	const Uint socket = static_cast<Uint>(settings.sockPrefix);
-	const std::string exec = env->execpath;
-	const std::string flog = "log_"+std::to_string(wRank)+"_";
-	Uint available_ranks = static_cast<Uint>(nranks)-1; //one is the master
-	const Uint ranks_per = env->mpi_ranks_per_env;
-
-	if(ranks_per) // if 0 then it's supposed to be run as a forked process
-	{
-		if(available_ranks%ranks_per)
-			die("Number of ranks does not match app\n");
-		int slaveGroup = (rank-1) / ranks_per;
-		MPI_Comm app_com;
-		MPI_Comm_split(slavesComm, slaveGroup, rank, &app_com);
-
-		Communicator comm(sdim,adim,slavesComm,app_com,slaveGroup,exec,env->paramsfile,flog,verbose);
-		do
-			comm.ext_app_run();
-		while (settings.bTrain);
-	}
-	else
-	{
-		Communicator comm(socket,sdim,adim,isSpawner,exec,slavesComm,flog,verbose);
-		//if (settings.restart != "none") comm.restart(settings.restart);
-
-		Slave simulation(&comm, env, settings);
-		simulation.run();
-	}
-	die("Slave returning?\n");
+	Slave simulation(&comm, env, settings);
+	simulation.run();
 }
 
 void runClient()
@@ -80,21 +51,11 @@ void runClient()
 	settings.nAgents = env->agents.size();
 
 	Learner* learner = createLearner(MPI_COMM_WORLD, env, settings);
-
-	const bool isSpawner = false;
-	const bool verbose = 0;
-	const Uint sdim = env->sI.dim;
-	const Uint adim = env->aI.dim;
-	const Uint socket = static_cast<Uint>(settings.sockPrefix);
-	const std::string exec = env->execpath;
-	const std::string flog = "log_0_";
-
-	Communicator comm(socket,sdim,adim,isSpawner,exec,MPI_COMM_WORLD,flog,verbose);
+	Communicator comm = env->create_communicator(MPI_COMM_NULL, settings.sockPrefix, false);
 	if (settings.restart != "none") {
 		learner->restart(settings.restart);
 		//comm.restart(settings.restart);
 	}
-
 	Client simulation(learner, &comm, env, settings);
 	simulation.run();
 }

@@ -11,14 +11,46 @@
 
 Environment::Environment(const Uint nA,const string exe,const Uint _rank,Settings& _s) :
 execpath(exe), rank(_rank), nAgents(nA*_s.nSlaves), nAgentsPerRank(nA),
-gamma(_s.gamma), g(&_s.generators[0]), resetAll(false), cheaperThanNetwork(true),
-mpi_ranks_per_env(0), paramsfile(string())
+gamma(_s.gamma), g(&_s.generators[0])
+
 {
     assert(_s.bIsMaster || nAgentsPerRank == nAgents);
     for (Uint i=0; i<nAgents; i++) agents.push_back(new Agent(i));
 }
 
+Communicator Environment::create_communicator(
+  const MPI_Comm slavesComm,
+  const int socket,
+  const bool bSpawn)
+{
+  assert(socket>0);
+  Communicator comm(slavesComm, socket, bSpawn);
+  comm.update_state_action_dims(sI.dim, aI.dim);
+  comm.set_exec_path(execpath);
 
+  if(mpi_ranks_per_env>0)
+  {
+    assert(bSpawn);
+    assert(paramsfile != string());
+    int numslaves, slaverank;
+  	MPI_Comm_rank(slavesComm, &slaverank);
+  	MPI_Comm_size(slavesComm, &numslaves);
+    numslaves--; //one is the master
+    if(numslaves%mpi_ranks_per_env)
+			die("Number of ranks does not match app\n");
+
+    int slaveGroup = (slaverank-1) / mpi_ranks_per_env;
+		MPI_Comm app_com;
+		MPI_Comm_split(slavesComm, slaveGroup, slaverank, &app_com);
+
+    comm.set_params_file(paramsfile);
+    comm.set_application_mpicom(app_com, slaveGroup);
+    while(true)
+      comm.ext_app_run();
+  }
+
+  return comm;
+}
 Environment::~Environment()
 {
     for (auto & trash : agents)

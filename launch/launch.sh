@@ -14,7 +14,7 @@ if [ $# -gt 4 ] ; then
     cp $5 ${BASEPATH}${RUNFOLDER}/policy.net
 fi
 if [ $# -lt 7 ] ; then
-    NTASK=2 #n tasks per node
+    NTASK=1 #n tasks per node
     NTHREADS=4 #n threads per task
 else
     NTASK=$6

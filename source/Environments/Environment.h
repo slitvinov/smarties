@@ -10,7 +10,7 @@
 #pragma once
 #include "../Agent.h"
 #include "../Network/Builder.h"
-
+#include "../Communicator.h"
 #include <map>
 
 class Environment
@@ -21,11 +21,14 @@ protected:
 
 public:
     const string execpath;
-    string paramsfile;
     const Uint rank, nAgents, nAgentsPerRank;
     const double gamma;
-    bool resetAll, cheaperThanNetwork;
-    Uint mpi_ranks_per_env;
+
+    bool resetAll = false;
+    bool cheaperThanNetwork = false;
+    Uint mpi_ranks_per_env = 0;
+    string paramsfile = string();
+
     vector<Agent*> agents;
     StateInfo  sI;
     ActionInfo aI;
@@ -39,6 +42,7 @@ public:
     virtual bool pickReward(const State& t_sO, const Action& t_a,
                             const State& t_sN, Real& reward, const int info);
     virtual bool predefinedNetwork(Builder* const net) const;
+    Communicator create_communicator( const MPI_Comm slavesComm, const int socket, const bool bSpawn);
 
     virtual vector<Real> stateDumpUpperBound();
     virtual vector<Real> stateDumpLowerBound();

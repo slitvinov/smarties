@@ -1,61 +1,85 @@
 #include "Communicator.h"
+#include "Communicator_utils.cpp"
+//#define COMM_REDIRECT_OUT
+//APPLICATION SIDE CONSTRUCTOR
+Communicator::Communicator(const int socket, const int sdim, const int adim)
+{
+	update_state_action_dims(sdim, adim);
+	spawner = socket==0; // if app gets socket prefix 0, then it spawns smarties
+	socket_id = socket;
+	called_by_app = true;
+	launch();
+}
 
-#include <iostream>
-#include <cmath>
-#include <cassert>
-#include <dirent.h>
+void Communicator::update_state_action_dims(const int sdim, const int adim)
+{
+	defined_spaces = true;
+	nStates = sdim;
+	nActions = adim;
+	// agent number, initial/normal/terminal indicator, state,  reward
+	size_state = (3+sdim)*sizeof(double);
+	size_action = adim*sizeof(double);
+	_dealloc(data_action);
+	_dealloc(data_state);
+	data_action = _alloc(size_action);
+	data_state = _alloc(size_state);
+}
 
-#include <netdb.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <fcntl.h>
-#include <limits>
-
-static int send_all(int fd, void *buffer, unsigned int size);
-static int recv_all(int fd, void *buffer, unsigned int size);
-static int parse2(char *line, char **argv);
-static int copy_from_dir(const std::string name);
+#ifdef MPI_INCLUDED
+//MPI APPLICATION SIDE CONSTRUCTOR
+Communicator::Communicator(const int socket, const int sdim, const int adim, const MPI_Comm app)
+{
+	comm_inside_app = app;
+	update_rank_size();
+	update_state_action_dims(sdim, adim);
+	spawner = socket==0; // if app gets socket prefix 0, then it spawns smarties
+	socket_id = socket;
+	called_by_app = true;
+	if (rank_inside_app == 0) //only rank 0 of the app talks with smarties
+	launch();
+}
+#endif
 
 void Communicator::sendState(const int iAgent, const _AGENT_STATUS status,
 		const std::vector<double> state, const double reward)
 {
-	if(app_rank) return; //only rank 0 of the app sends state
-	assert(state.size() == (std::size_t) nStates);
-	std::ostringstream o;
+	if(rank_inside_app>0) return; //only rank 0 of the app sends state
+	assert(state.size()==(std::size_t)nStates && data_state not_eq nullptr && iAgent>=0);
 
-	o <<"Send: "<<iAgent<<" "<<msg_id++<<" "<<status<<" ";
-	assert(iAgent>=0);
-	intToDoublePtr(iAgent, dataout+0);
-	intToDoublePtr(status, dataout+1);
+	intToDoublePtr(iAgent, data_state+0);
+	intToDoublePtr(status, data_state+1);
 	for (int j=0; j<nStates; j++) {
-		dataout[j+2] = state[j];
-		o << state[j] << " ";
-		assert(not std::isnan(state[j]));
-		assert(not std::isinf(state[j]));
+		data_state[j+2] = state[j];
+		assert(not std::isnan(state[j]) && not std::isinf(state[j]));
 	}
-	dataout[nStates+2] = reward;
-	o << reward;
-	assert(not std::isnan(reward));
-	assert(not std::isinf(reward));
+	data_state[nStates+2] = reward;
+	assert(not std::isnan(reward) && not std::isinf(reward));
 
 	if (logfile != std::string()) {
-		if(verbose) printLog(o.str());
-		else  printBuf(dataout, sizeout);
+		if(verbose) printLog(data_state, size_state);
+		else  printBuf(data_state, size_state);
 	}
 
-	//std::cout << o.str() << std::endl; fflush(0);
-	if (smarties_rank) sendStateMPI();
-	else sendStateClient();
+	#ifdef MPI_INCLUDED
+	if (rank_learn_pool>0) send_MPI(data_state, size_state, comm_learn_pool);
+	else
+	#endif
+	comm_sock(Socket, true, data_state, size_state);
 
 	if (status == _AGENT_LASTCOMM) {
 		//receive continue/abort
-		if(!smarties_rank) {//temporary: add continue command to master
-			recvActionClient();
-			synchronizeApp();
-			if (datain[0]<0) abort();
+		if(rank_learn_pool<1) { //TODO: add continue command to master
+			comm_sock(Socket, false, data_action, size_action);
+			if(data_action[0]<0) {
+				printf("Received end of training signal. Aborting...\n"); fflush(0);
+				#ifdef MPI_INCLUDED
+					if(size_inside_app>0) MPI_Abort(comm_inside_app, 1);
+					else
+				#endif
+				abort();
+			}
 		}
+		seq_id++;
 		msg_id = 0;
 	}
 }
@@ -63,143 +87,59 @@ void Communicator::sendState(const int iAgent, const _AGENT_STATUS status,
 void Communicator::recvAction(std::vector<double>& actions)
 {
 	assert(actions.size() == (std::size_t) nActions);
-
-	if (smarties_rank) recvActionMPI();
-	else recvActionClient();
-
-	synchronizeApp();
-
-	double*const buf = (double*) datain;
-	std::ostringstream o;
-
-	o <<"Recv: "<<msg_id<<" ";
+	#ifdef MPI_INCLUDED
+		if(rank_inside_app <= 0)
+		{
+			if (rank_learn_pool>0)
+				recv_MPI(data_action, size_action, comm_learn_pool, lag);
+			else
+	#endif
+				comm_sock(Socket, false, data_action, size_action);
+	#ifdef MPI_INCLUDED
+			for (int i=1; i<size_inside_app; ++i)
+				MPI_Send(data_action, size_action, MPI_BYTE, i, 42, comm_inside_app);
+		} else {
+				MPI_Recv(data_action, size_action, MPI_BYTE, 0, 42, comm_inside_app, MPI_STATUS_IGNORE);
+		}
+	#endif
 
 	for (int j=0; j<nActions; j++) {
-		actions[j] = buf[j];
-		o << actions[j] << " ";
-		assert(not std::isnan(actions[j]));
+		actions[j] = data_action[j];
+		assert(not std::isnan(actions[j]) && not std::isinf(actions[j]));
 	}
 
-	//std::cout << o.str() << std::endl; fflush(0);
-	if (logfile == std::string()) return;
-	if(verbose) printLog(o.str());
-	else  printBuf(datain, sizein);
-}
-
-void Communicator::sendStateClient()
-{
-	if(app_rank) return;
-
-	const int bytes = send_all(Socket, dataout, sizeout);
-
-	if(bytes <= 0) {
-		printf("Lost contact with smarties, aborting...\n");
-		fflush(0);
-#ifdef MPI_INCLUDED
-		if(app_size)
-			MPI_Abort(appComm, 1);
-		else
-#endif
-			close(0);
+	if (logfile != std::string() && rank_inside_app <= 0) {
+		if(verbose) printLog(data_action, size_action);
+		else  printBuf(data_action, size_action);
 	}
 }
 
-void Communicator::recvActionClient()
+void Communicator::printLog(const double*const buf, const int size)
 {
-	if(app_rank) return;
-
-	int bytes = recv_all(Socket, datain, sizein);
-
-	if (bytes <= 0) {
-		printf("Lost contact with smarties, aborting..\n");
-		fflush(0);
-#ifdef MPI_INCLUDED
-		if(app_size)
-			MPI_Abort(appComm, 1);
-		else
-#endif
-			abort();
-	}
-}
-
-void Communicator::printLog(const std::string o)
-{
-	if (! verbose || app_rank) return;
-	/*const std::string fname = logfile+std::to_string(iter)+".txt";
+	std::ostringstream o;
+	o << "seq_id:" << seq_id << " msg_id:"  << msg_id << " ";
+	for (unsigned j=0; j<size/sizeof(double); j++) o << buf[j] << " ";
+	const std::string fname = logfile+std::to_string(iter)+".txt";
 	FILE * f = fopen(fname.c_str(), "a");
 	if (f != NULL)
-		fprintf(f, "%s\n", o.c_str());
-	fclose(f);*/
-	return;
+		fprintf(f, "%s\n", o.str().c_str());
+	fclose(f);
 }
 
 void Communicator::printBuf(const double*const buf, const int size)
 {
-	if (app_rank) return;
-	/*const std::string fname = logfile+std::to_string(iter)+".raw";
+	const std::string fname = logfile+std::to_string(iter)+".raw";
 	FILE * pFile = fopen (fname.c_str(), "ab");
 	fwrite (buf, sizeof(double), size/sizeof(double), pFile);
-	fclose (pFile);*/
-	return;
-}
-
-void Communicator::synchronizeApp()
-{
-	if(!app_size) return;
-	//send same action to all ranks of the sim
-#ifdef MPI_INCLUDED
-	if(!app_rank)
-		for (int i=1; i<app_size; ++i)
-			MPI_Send(datain, sizein, MPI_BYTE, i, 42, appComm);
-	else
-		MPI_Recv(datain, sizein, MPI_BYTE, 0, 42, appComm, MPI_STATUS_IGNORE);
-#endif
-}
-
-void Communicator::recvActionMPI()
-{
-	if(app_rank) return;
-#ifdef MPI_INCLUDED
-	//MPI_Recv(datain, sizein, MPI_BYTE, 0, 0, masterComm, MPI_STATUS_IGNORE);
-	MPI_Request request;
-	MPI_Irecv(datain, sizein, MPI_BYTE, 0, 0, masterComm, &request);
-	int cnt=0;
-	while(true) {
-		usleep(lag);
-		cnt++;
-		int completed=0;
-		MPI_Test(&request, &completed, MPI_STATUS_IGNORE);
-		if (completed) break;
-	}
-	//avoid wasting a cpu only for communication in case we are using a busy-wait MPI
-	//note that non-MPI send and recv usually already have a yield-wait policy
-	lag += std::floor((cnt-10)/10.);
-	lag = std::max(lag,1);
-#else
-	abort();
-#endif
-}
-
-void Communicator::sendStateMPI()
-{
-	assert(!app_rank);
-#ifdef MPI_INCLUDED
-	fflush(0);
-	//MPI_Ssend(dataout, sizeout, MPI_BYTE, 0, 1, masterComm);
-	MPI_Request dummyreq;
-	MPI_Isend(dataout, sizeout, MPI_BYTE, 0, 1, masterComm, &dummyreq);
-	MPI_Request_free(&dummyreq); //Not my problem?
-#else
-	abort();
-#endif
+	fclose (pFile);
 }
 
 void Communicator::launch_smarties()
 {
-#ifdef __Smarties_
+	#ifdef __Smarties_
 	printf("launch_smarties\n"); fflush(0);
 	abort();
-#else
+	#else
 	//go up til a file runClient is found: shaky
 	struct stat buffer;
 	while(stat("runClient.sh", &buffer))
@@ -214,21 +154,23 @@ void Communicator::launch_smarties()
 	redirect_stdout_stderr();
 
 	launch_exec("./runClient.sh");
-#endif
+	#endif
 	abort(); //if app returns: TODO
 }
 
-void Communicator::redirect_stdout_stderr()
+void Communicator::launch()
 {
-#if 1
-	fflush(0);
-	char output[256];
-	sprintf(output, "output");
-	fd = open(output, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-	dup2(fd, 1);    // make stdout go to file
-	dup2(fd, 2);    // make stderr go to file
-	close(fd);      // fd no longer needed
-#endif
+	assert(rank_inside_app<1);
+	if (spawner && called_by_app)
+	{ //cheap way to ensure multiple sockets can exist on same node
+		struct timeval clock;
+		gettimeofday(&clock, NULL);
+		socket_id = abs(clock.tv_usec % std::numeric_limits<int>::max());
+	}
+	sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock_", socket_id);
+
+	if (spawner) setupClient();
+	else setupServer();
 }
 
 void Communicator::launch_exec(const std::string exec)
@@ -245,7 +187,7 @@ void Communicator::launch_exec(const std::string exec)
 
 void Communicator::launch_app()
 {
-#ifdef __Smarties_
+	#ifdef __Smarties_
 	mkdir(("simulation_"+std::to_string(socket_id)+"_"
 			+std::to_string(iter)+"/").c_str(),
 			S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -255,10 +197,10 @@ void Communicator::launch_app()
 	redirect_stdout_stderr();
 
 	launch_exec(execpath);
-#else
+	#else
 	printf("launch_app\n");
 	fflush(0);
-#endif
+	#endif
 	abort(); //if app returns: TODO
 }
 
@@ -305,20 +247,6 @@ void Communicator::setupClient()
 		printf("Connected to server\n");
 		fflush(0);
 	}
-	/*
-  int check = -1;
-  int bytes = recv_all(Socket, &check, sizeof(int));
-  if (bytes <= 0) {
-      printf("selectserver: socket hung up\n");
-      fflush(0);
-      abort();
-  }
-  if (check) {
-      printf("handshake failed\n");
-      fflush(0);
-      abort();
-  }
-	 */
 }
 
 void Communicator::setupServer()
@@ -368,159 +296,104 @@ void Communicator::setupServer()
 	fflush(0);
 }
 
-void Communicator::launch()
-{
-	if (spawner) setupClient();
-	else setupServer();
-}
-
-//forked comm, single node job, constructor by app
-//only rule: if app gets socket=0, then it is the spawner
-Communicator::Communicator(const int socket, const int sdim, const int adim,
-		const std::string log, const int verb) :
-#ifdef MPI_INCLUDED
-appComm( MPI_COMM_NULL ), masterComm( MPI_COMM_NULL ),
-#endif
-sizeout((3+sdim)*sizeof(double)), sizein(adim*sizeof(double)), nActions(adim),
-nStates(sdim), spawner(socket==0), slaveGroup(-1), app_rank(0),
-smarties_rank(0), app_size(0), smarties_size(0), verbose(verb),
-dataout(_alloc(sizeout)), datain(_alloc(sizein)), execpath(std::string()),
-paramfile(std::string()), logfile(log), msg_id(0), iter(0), socket_id(socket)
-{
-	if (spawner) //cheap way to ensure multiple sockets can exist on same node
-	{
-		struct timeval clock;
-		gettimeofday(&clock, NULL);
-		socket_id = abs(clock.tv_usec % std::numeric_limits<int>::max());
-	}
-	sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock_", socket_id);
-
-	printf("App seq: nS:%d nA:%d sin:%d sout:%d spawn:%d, socket:%d PATH=%s\n",
-			nStates, nActions, sizein, sizeout, spawner, socket_id, SOCK_PATH);
-
-	launch();
-}
-
-//forked comm, mpi job, constructor by app
-//only rule: if app gets socket=0, then it is the spawner
-#ifdef MPI_INCLUDED
-Communicator::Communicator(const int socket, const int sdim,const int adim,
-		const MPI_Comm app, const std::string log, const int verb) :
-		  appComm(app), masterComm(MPI_COMM_NULL),
-		  sizeout((3+sdim)*sizeof(double)), sizein(adim*sizeof(double)), nActions(adim),
-		  nStates(sdim), spawner(socket==0), slaveGroup(-1), app_rank(getRank(app)),
-		  smarties_rank(0), app_size(getSize(app)), smarties_size(0), verbose(verb),
-		  dataout(_alloc(sizeout)), datain(_alloc(sizein)), execpath(std::string()),
-		  paramfile(std::string()), logfile(log), msg_id(0), iter(0), socket_id(socket)
-{
-	if (app_rank) return;
-
-	if (spawner) //cheap way to ensure multiple sockets can exist on same node
-	{
-		struct timeval clock;
-		gettimeofday(&clock, NULL);
-		socket_id = abs(clock.tv_usec % std::numeric_limits<int>::max());
-	}
-	sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock_", socket_id);
-
-	printf("App mpi: nS:%d nA:%d sin:%d sout:%d spawn:%d, socket:%d PATH=%s\n",
-			nStates, nActions, sizein, sizeout, spawner, socket_id, SOCK_PATH);
-
-	launch();
-}
-#endif
-
 Communicator::~Communicator()
 {
-	if (!smarties_rank) {
+	if (rank_learn_pool>0) {
 		if (spawner)
 			close(ServerSocket);
 		else
 			close(Socket);
 	} //if with forked process paradigm
 
-	free(datain);
-	free(dataout);
+	if(data_state not_eq nullptr) free(data_state);
+	if(data_action not_eq nullptr) free(data_action);
 }
 
 #ifdef __Smarties_
+Communicator::Communicator(const MPI_Comm scom, const int socket, const bool spawn)
+{
+	spawner = spawn;
+	socket_id = socket;
+	comm_learn_pool = scom;
+	update_rank_size();
+}
+
+void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_values,
+	std::vector<double>& state_upper_bound, std::vector<double>& state_lower_bound)
+{
+	Real* sketchy_ptr;
+	sketchy_ptr = _alloc(2);
+	comm_sock(Socket, false, sketchy_ptr, 2);
+	nStates = doublePtrToInt(sketchy_ptr+0);
+	nActions = doublePtrToInt(sketchy_ptr+1);
+	assert(nStates>=0 && nActions>=0);
+	state_upper_bound.resize(nStates);
+	state_lower_bound.resize(nStates);
+	action_values.resize(nActions);
+	_dealloc(sketchy_ptr);
+
+	sketchy_ptr = _alloc(nActions+2*nStates);
+	comm_sock(Socket, false, sketchy_ptr, nActions+2*nStates);
+	Real* sketchier_ptr = sketchy_ptr;
+	int n_action_vals = 0;
+	for(int i=0; i<nActions; i++) {
+		n_action_vals += doublePtrToInt(sketchier_ptr);
+		action_values[i].resize(doublePtrToInt(sketchier_ptr++));
+	}
+
+	for(int i=0; i<nStates; i++)
+		state_upper_bound[i] = *sketchier_ptr++;
+
+	for(int i=0; i<nStates; i++)
+		state_lower_bound[i] = *sketchier_ptr++;
+	_dealloc(sketchy_ptr);
+
+	sketchy_ptr = _alloc(n_action_vals);
+	comm_sock(Socket, false, sketchy_ptr, n_action_vals);
+	sketchier_ptr = sketchy_ptr;
+	for(int i=0; i<nActions; i++)
+		for(unsigned j=0; j<action_values[i].size(); j++)
+			action_values[i][j] = *sketchier_ptr++;
+	_dealloc(sketchy_ptr);
+
+	update_state_action_dims(nStates, nActions);
+}
+
 extern int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv);
 
 int Communicator::recvStateFromApp()
 {
-	int bytes = recv_all(Socket, dataout, sizeout);
+	int bytes = recv_all(Socket, data_state, size_state);
 
 	if (bytes <= 0)
 	{
 		if (bytes == 0) printf("socket %d hung up\n", Socket);
 		else perror("(1) recv");
 		close(Socket);
-		//close(ServerSocket);
-		intToDoublePtr(0, dataout+0);
-		intToDoublePtr(_AGENT_FAILCOMM, dataout+1);
+
+		intToDoublePtr(0, data_state+0);
+		intToDoublePtr(_AGENT_FAILCOMM, data_state+1);
 		iter++;
-		sendStateMPI();
 	}
-	else assert(bytes == sizeout);
+	else assert(bytes == size_state);
+
+	if(comm_learn_pool != MPI_COMM_NULL)
+		send_MPI(data_state, size_state, comm_learn_pool);
 
 	return bytes <= 0;
 }
 
 void Communicator::sendActionToApp()
 {
-	send_all(Socket, datain, sizein);
+	if(comm_learn_pool != MPI_COMM_NULL)
+		recv_MPI(data_action, size_action, comm_learn_pool, lag);
+	send_all(Socket, data_action, size_action);
 }
 
 void Communicator::answerTerminateReq(const double answer)
 {
-	datain[0] = answer;
-	sendActionToApp();
-}
-
-void Communicator::unpackAction(std::vector<double>& action)
-{
-	assert(action.size() == (std::size_t) nActions);
-	std::ostringstream o;
-	o <<"Send: ";
-	for (int j=0; j<nActions; j++) {
-		action[j] = datain[j];
-		o << action[j] << " ";
-		assert(not std::isnan(action[j]));
-		assert(not std::isinf(action[j]));
-	}
-	//std::cout << o.str() << std::endl;
-	if (logfile == std::string()) return;
-	if(verbose) printLog(o.str());
-	else  printBuf(datain, sizein);
-}
-
-void Communicator::unpackState(int& iAgent, _AGENT_STATUS& status,
-		std::vector<double>& state, double& reward)
-{
-	assert(state.size() == (std::size_t) nStates);
-	std::ostringstream o;
-
-	iAgent = doublePtrToInt(dataout+0);
-	status = doublePtrToInt(dataout+1);
-	o <<"Recv: "<<iAgent<<" "<<msg_id++<<" "<<status<<" ";
-	{
-		for (int j=0; j<nStates; j++) {
-			state[j] = dataout[j+2];
-			o << state[j] << " ";
-			assert(not std::isnan(state[j]));
-			assert(not std::isinf(state[j]));
-		}
-		reward = dataout[nStates+2];
-		o << reward;
-		assert(not std::isnan(reward));
-		assert(not std::isinf(reward));
-	}
-
-	if (logfile != std::string()) {
-		if(verbose) printLog(o.str());
-		else  printBuf(dataout, sizeout);
-	}
-	//std::cout << o.str() << std::endl;
+	data_action[0] = answer;
+	send_all(Socket, data_action, size_action);
 }
 
 void Communicator::restart(std::string fname)
@@ -529,16 +402,16 @@ void Communicator::restart(std::string fname)
 	FILE * f = fopen(("comm_"+to_string(wrank)+".status").c_str(), "r");
 	if (f == NULL) return;
 	{
-		int ret = -1;
-		fscanf(f, "sim number: %d\n", &ret);
-		if(ret>=0) iter = ret;
-		printf("sim number: %d\n", iter);
+		long unsigned ret = 0;
+		fscanf(f, "sim number: %lu\n", &ret);
+		iter = ret;
+		printf("sim number: %lu\n", iter);
 	}
 	{
-		int ret = -1;
-		fscanf(f, "message ID: %d\n", &ret);
-		if(ret>=0) msg_id = ret;
-		printf("message ID: %d\n", msg_id);
+		long unsigned ret = 0;
+		fscanf(f, "message ID: %lu\n", &ret);
+		msg_id = ret;
+		printf("message ID: %lu\n", msg_id);
 	}
 	{
 		int ret = -1;
@@ -555,71 +428,39 @@ void Communicator::save() const
 	FILE * f = fopen(("comm_"+to_string(wrank)+".status").c_str(), "w");
 	if (f != NULL)
 	{
-		fprintf(f, "sim number: %d\n", iter);
-		fprintf(f, "message ID: %d\n", msg_id);
+		fprintf(f, "sim number: %lu\n", iter);
+		fprintf(f, "message ID: %lu\n", msg_id);
 		fprintf(f, "socket  ID: %d\n", socket_id);
 		fclose(f);
 	}
 	//printf( "sim number: %d\n", env->iter);
 }
 
-//comm directly with master, constructor by smarties, pass this to app
-Communicator::Communicator(const int sdim, const int adim, const MPI_Comm scom,
-		const MPI_Comm acom, const int _slaveGroup, const std::string exec,
-		const std::string params, const std::string log, const int verb):
-		appComm(acom), masterComm(scom),
-		sizeout((3+sdim)*sizeof(double)), sizein(adim*sizeof(double)),
-		nActions(adim), nStates(sdim), spawner(0), slaveGroup(_slaveGroup),
-		app_rank(getRank(acom)), smarties_rank(getRank(scom)),
-		app_size(getSize(acom)), smarties_size(getSize(scom)),
-		verbose(verb), dataout(_alloc(sizeout)), datain(_alloc(sizein)),
-		execpath(exec), paramfile(params), logfile(log), msg_id(0), iter(0), socket_id(0)
-{
-	printf("Smarties: nS:%d nA:%d sin:%d sout:%d\n",
-			nStates, nActions, sizein, sizeout);
-}
-
-//construtor by smarties side of fork
-Communicator::Communicator(const int socket, const int sdim, const int adim,
-		const bool spawn, const std::string exe, const MPI_Comm scom,
-		const std::string log, const int verb):
-		appComm(MPI_COMM_NULL), masterComm(scom),
-		sizeout((3+sdim)*sizeof(double)), sizein(adim*sizeof(double)),
-		nActions(adim), nStates(sdim), spawner(spawn), slaveGroup(-1), app_rank(0),
-		smarties_rank(getRank(scom)), app_size(0), smarties_size(getSize(scom)),
-		verbose(verb), dataout(_alloc(sizeout)), datain(_alloc(sizein)), execpath(exe),
-		paramfile(std::string()), logfile(log), msg_id(0), iter(0), socket_id(socket)
-{
-	sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock_", socket_id);
-	printf("Smarties: nS:%d nA:%d sin:%d sout:%d spawn:%d, socket:%d PATH=%s\n",
-			nStates, nActions, sizein, sizeout, spawner, socket_id, SOCK_PATH);
-}
-
 void Communicator::ext_app_run()
 {
-	assert(slaveGroup>=0);
 	char *largv[256];
 	char line[1024];
 	int largc = jobs_init(line, largv);
 
 	char initd[256], newd[1024];
 	getcwd(initd,256);
-	sprintf(newd,"%s/%s_%d_%d",initd,"simulation",slaveGroup,iter);
-	if(!app_rank)
+	assert(slaveGroup>=0 && rank_inside_app >= 0 && comm_inside_app != MPI_COMM_NULL);
+	sprintf(newd,"%s/%s_%d_%lu",initd,"simulation",slaveGroup,iter);
+	if(rank_inside_app == 0)
 		mkdir(newd, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-	MPI_Barrier(appComm);
+	MPI_Barrier(comm_inside_app);
 	chdir(newd);	// go to the task private directory
 
 	//copy any additional file
-	if(!app_rank)
+	if(!rank_inside_app)
 		if (copy_from_dir("../bin") !=0 )  {
 			printf("Error in copy from dir\n");
 			MPI_Abort(MPI_COMM_WORLD, 1);
 		}
-	MPI_Barrier(appComm);
+	MPI_Barrier(comm_inside_app);
 
 	redirect_stdout_init();
-	app_main(this, appComm, largc, largv);
+	app_main(this, comm_inside_app, largc, largv);
 	redirect_stdout_finalize();
 
 	chdir(initd);	// go up one level
@@ -631,11 +472,11 @@ int Communicator::jobs_init(char *line, char **largv)
 	FILE * cmdfp = fopen(paramfile.c_str(), "r");
 
 	if (cmdfp == NULL)
-		_die("Missing %s\n", execpath.c_str());
+		_die("Missing %s\n", paramfile.c_str());
 	if(fgets(line, 1024, cmdfp)== NULL)
-		_die("Empty %s\n",   execpath.c_str());
-	if (strstr(line,      execpath.c_str()) == NULL)
-		_die("Invalid %s\n", execpath.c_str());
+		_die("Empty %s\n",   paramfile.c_str());
+	if (strstr(line,       paramfile.c_str()) == NULL)
+		_die("Invalid %s\n", paramfile.c_str());
 
 	fclose(cmdfp);
 
@@ -648,7 +489,8 @@ void Communicator::redirect_stdout_init()
 	fgetpos(stdout, &pos);
 	fd = dup(fileno(stdout));
 	char buf[500];
-	sprintf(buf, "output_%d_%d",getRank(MPI_COMM_WORLD),iter);
+	int wrank = getRank(MPI_COMM_WORLD);
+	sprintf(buf, "output_%d_%lu",wrank,iter);
 	freopen(buf, "w", stdout);
 }
 
@@ -661,157 +503,16 @@ void Communicator::redirect_stdout_finalize()
 }
 #endif
 
-/*************************************************************************/
-/**************************   HELPER ROUTINES   **************************/
-/*************************************************************************/
 
-static int recv_all(int fd, void *buffer, unsigned int size)
+void Communicator::redirect_stdout_stderr()
 {
-	int result;
-	unsigned int s=size;
-	char *pos = (char*)buffer;
-
-
-	do {
-		result=recv(fd,pos,s,0);
-		if((result!=-1)&&(result>0)) {
-			s -= result;
-			pos += result;
-		}
-		else
-			return result; /*-1;*/
-	} while (s>0);
-	//printf("recver %f\n",*((double*)buffer));
-	return size;
-}
-
-static int send_all(int fd, void *buffer, unsigned int size)
-{
-	int result;
-	unsigned int s=size;
-	char *pos = (char*)buffer;
-
-	do {
-		result=send(fd,pos,s,0);
-		if((result!=-1)&&(result>0)) {
-			s -= result;
-			pos += result;
-		}
-		else return result; /*-1;*/
-	} while (s>0);
-	return size;
-}
-
-static int parse2(char *line, char **argv)
-{
-	int argc = 0;
-
-	while (*line != '\0') {         /* if not the end of line ....... */
-		while (*line == ' ' || *line == '\t' || *line == '\n')
-			*line++ = '\0';         /* replace white spaces with 0 */
-		*argv++ = line;         /* save the argument position */
-
-		if (*line != '\0' && *line != ' ' && *line != '\t' && *line != '\n')
-			argc++;
-
-		while (*line != '\0' && *line != ' ' &&
-				*line != '\t' && *line != '\n')
-			line++; /* skip the argument until ...*/
-	}
-	*argv = NULL;//'\0';   /* mark the end of argument list */
-
-	return argc;
-}
-
-static int cp(const char *from, const char *to)
-{
-	int fd_to, fd_from;
-	char buf[4096];
-	ssize_t nread;
-	int saved_errno;
-	struct stat sb;
-
-	fd_from = open(from, O_RDONLY);
-	if (fd_from < 0)
-		return -1;
-
-	fstat(fd_from, &sb);
-	if (S_ISDIR(sb.st_mode)) {	/* more supported than DT_REG */
-		//printf("It is a directory!\n");
-		fd_to = -1;
-		goto out_error;
-	}
-
-	fd_to = open(to, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
-	if (fd_to < 0)
-		goto out_error;
-
-	while (nread = read(fd_from, buf, sizeof buf), nread > 0) {
-		char *out_ptr = buf;
-		ssize_t nwritten;
-
-		do {
-			nwritten = write(fd_to, out_ptr, nread);
-			if (nwritten >= 0) {
-				nread -= nwritten;
-				out_ptr += nwritten;
-			}
-			else if (errno != EINTR) {
-				goto out_error;
-			}
-		} while (nread > 0);
-	}
-
-	if (nread == 0) {
-		if (close(fd_to) < 0) {
-			fd_to = -1;
-			goto out_error;
-		}
-		else {	// peh: added due to some issues on monte rosa
-			fsync(fd_to);
-		}
-		close(fd_from);
-
-		/* Success! */
-		return 0;
-	}
-
-	out_error:
-	saved_errno = errno;
-
-	close(fd_from);
-	if (fd_to >= 0)
-		close(fd_to);
-
-	errno = saved_errno;
-	return -1;
-}
-
-static int copy_from_dir(const std::string name)
-{
-	DIR *dir;
-	struct dirent *ent;
-	//struct stat sb;
-
-	dir = opendir (name.c_str());
-	if (dir != NULL) {
-		/* print all the files and directories within directory */
-		while ((ent = readdir (dir)) != NULL) {
-			//if (ent->d_type == DT_REG) {
-			//printf ("%s (%d)\n", ent->d_name, ent->d_type);
-			char source[1025], dest[1026];
-
-			sprintf(source, "%s/%s", name.c_str(), ent->d_name);
-			sprintf(dest, "./%s", ent->d_name);
-			cp(source, dest);
-			//}
-
-		}
-		closedir (dir);
-	} else {
-		/* could not open directory */
-		perror ("oops!");
-		return 1;
-	}
-	return 0;
+	#ifdef COMM_REDIRECT_OUT
+	fflush(0);
+	char output[256];
+	sprintf(output, "output");
+	fd = open(output, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+	dup2(fd, 1);    // make stdout go to file
+	dup2(fd, 2);    // make stderr go to file
+	close(fd);      // fd no longer needed
+	#endif
 }

@@ -58,7 +58,7 @@ SETTINGS+=" --maxTotSeqNum 5000"
 #SETTINGS+=" --dqnBatch 22"
 SETTINGS+=" --batchSize 48"
 
-SETTINGS+=" --epsAnneal 10000" 
+SETTINGS+=" --epsAnneal 1000" 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w

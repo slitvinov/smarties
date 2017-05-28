@@ -14,7 +14,8 @@
 #include <fstream>
 #include <algorithm>
 
-static int doublePtrToInt(const double* const ptr);
+static void unpackState(double* const data, int& agent, _AGENT_STATUS& info,
+	std::vector<double>& state, double& reward);
 
 Master::Master(MPI_Comm _c, Learner*const _l, Environment*const _e, Settings&_s):
 		  slavesComm(_c), learner(_l), env(_e), aI(_e->aI), sI(_e->sI),
@@ -122,13 +123,11 @@ void Slave::run()
 		while(true)
 		{
 			if (comm->recvStateFromApp()) break; //sim crashed
-			comm->unpackState(iAgent, agentStatus, state, reward);
-			comm->sendStateMPI();
-
+			unpackState(comm->getDataState(), iAgent, agentStatus, state, reward);
+			
 			status[iAgent] = agentStatus;
 			if(agentStatus != _AGENT_LASTCOMM)
 			{
-				comm->recvActionMPI();
 				comm->sendActionToApp();
 			} else {
 				bool bDone = true; //did all agents reach terminal state?
@@ -198,47 +197,38 @@ void Client::run()
 
 void Client::prepareState(int& iAgent, int& istatus, Real& reward)
 {
-	const double*const buf = comm->getDataout();
-	iAgent = doublePtrToInt(buf+0);
-	if(iAgent<0) die("Error in iAgent number in Client::prepareState\n");
-	assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
+	vector<Real> recv_state(sNew.sInfo.dim);
 
-	istatus = doublePtrToInt(buf+1);
-	agents[iAgent]->Status = istatus;
+	unpackState(comm->getDataState(), iAgent, istatus, recv_state, reward);
+	assert(iAgent>=0 && iAgent<static_cast<int>(agents.size()));
 
-	sNew.unpack(buf+2);
-
+	sNew.set(recv_state);
 	//agent's s is stored in sOld
+	agents[iAgent]->Status = istatus;
 	agents[iAgent]->swapStates();
 	agents[iAgent]->setState(sNew);
 	agents[iAgent]->getOldState(sOld);
 	agents[iAgent]->getAction(aOld);
-
-	reward = buf[env->sI.dim+2];
 	agents[iAgent]->r = reward;
 }
 
 void Master::recvState(const int slave, int& iAgent, int& istatus, Real& reward)
 {
-	const double*const buf = inbuf;
+	vector<Real> recv_state(sNew.sInfo.dim);
 
-	const int recv_iAgent = doublePtrToInt(buf+0);
+	int recv_iAgent = -1;
+	unpackState(inbuf, recv_iAgent, istatus, recv_state, reward);
+	assert(recv_iAgent>=0 && iAgent>=0 && iAgent<static_cast<int>(agents.size()));
+
 	iAgent = (slave-1) * nPerRank + recv_iAgent;
-	if(iAgent<0) die("Error in iAgent number in Master::recvState\n");
-	assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
-
-	istatus = doublePtrToInt(buf+1);
-	agents[iAgent]->Status = istatus;
-
-	sNew.unpack(buf+2);
+	sNew.set(recv_state);
 
 	//agent's s is stored in sOld
+	agents[iAgent]->Status = istatus;
 	agents[iAgent]->swapStates();
 	agents[iAgent]->setState(sNew);
 	agents[iAgent]->getOldState(sOld);
 	agents[iAgent]->getAction(aOld);
-
-	reward = buf[env->sI.dim+2];
 	agents[iAgent]->r = reward;
 
 	MPI_Irecv(inbuf, inSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
@@ -258,10 +248,21 @@ void Client::prepareAction(const int iAgent)
 	if(iAgent<0) die("Error in iAgent number in Client::prepareAction\n");
 	assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
 	agents[iAgent]->act(aNew);
-	aNew.pack(comm->getDatain());
+	aNew.pack(comm->getDataAction());
 }
 
-static int doublePtrToInt(const double*const ptr)
+static void unpackState(double* const data, int& agent, _AGENT_STATUS& info,
+	std::vector<double>& state, double& reward)
 {
-	return (int)*ptr;//*((int*)ptr);
+	assert(data not_eq nullptr);
+	agent = doublePtrToInt(data+0);
+	info  = doublePtrToInt(data+1);
+	for (unsigned j=0; j<state.size(); j++) {
+		state[j] = data[j+2];
+		assert(not std::isnan(state[j]));
+		assert(not std::isinf(state[j]));
+	}
+	reward = data[state.size()+2];
+	assert(not std::isnan(reward));
+	assert(not std::isinf(reward));
 }
