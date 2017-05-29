@@ -15,7 +15,6 @@
 #include <algorithm>
 #include <iostream>
 
-using namespace ErrorHandling;
 using namespace std;
 
 inline string ObjectFactory::_parse(string source, string pattern, bool req)

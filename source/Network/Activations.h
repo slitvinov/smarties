@@ -32,7 +32,7 @@ struct Mem //Memory light recipient for prediction on agents
 	Real*const ostates;
 };
 
-struct Activation //All the network signals
+struct Activation //All the network signals. TODO: vector of activations, one per layer, allowing classes of activations
 {
 	Activation(Uint _nNeurons,Uint _nStates):
 	nNeurons(_nNeurons),nStates(_nStates),
@@ -160,9 +160,10 @@ struct Grads
 
 struct Function
 {
+	//weights are initialized with uniform distrib [-initFactor, initFactor]
 	virtual Real initFactor(const Uint inps, const Uint outs) const = 0;
-	virtual Real eval(const Real in) const = 0;
-	virtual Real evalDiff(const Real in) const = 0;
+	virtual Real eval(const Real in) const = 0; // f(in)
+	virtual Real evalDiff(const Real in) const = 0; // f'(in)
 };
 
 struct Linear : public Function

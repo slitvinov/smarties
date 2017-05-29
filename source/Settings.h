@@ -21,7 +21,7 @@ struct Settings
 
 //To modify from default value any of these settings, run executable with either
 //- the ascii symbol of the setting (denoted by CHARARG) followed by the value (ie. -# $value)
-//- the name of the setting variable solloweb dy the value (ie. -setting $value)
+//- the name of the setting variable followed by the value (ie. -setting $value)
 
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO ENVIRONMENT: NUMBER

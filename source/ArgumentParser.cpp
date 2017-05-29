@@ -13,8 +13,6 @@
 #include "Warnings.h"
 #include "Bund.h"
 
-using namespace ErrorHandling;
-
 namespace ArgumentParser
 {
 	Parser::Parser(const std::vector<OptionStruct> optionsMap):opts(optionsMap)

@@ -11,22 +11,25 @@
 
 namespace ErrorHandling
 {
-extern Uint debugLvl;
-#define    die(format) {fprintf(stderr, format); MPI_Abort(MPI_COMM_WORLD, 1);}
-#define   _die(format, ...) {fprintf(stderr, format, ##__VA_ARGS__); MPI_Abort(MPI_COMM_WORLD, 1);}
-#define  error(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
+ enum Debug_level { SILENT, WARNINGS, SCHEDULER, ENVIRONMENT, NETWORK, COMMUNICATOR, LEARNERS, TRANSITIONS };
 
-#define   warn(format, ...)	{if (debugLvl > 0) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
-#define  _info(format, ...)	{if (debugLvl > 1) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#if defined(NDEBUG)
+	static const Debug_level level = SILENT;
+#elif defined(SMARTIES_DEBUG)
+	static const Debug_level level = SMARTIES_DEBUG;
+#else
+	static const Debug_level level = WARNINGS;
+#endif
 
-#define  debug(format, ...)	{if (debugLvl > 2) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
-#define debug1(format, ...)	{if (debugLvl > 3) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
-#define debug2(format, ...)	{if (debugLvl > 4) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
-#define debug3(format, ...)	{if (debugLvl > 5) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
-#define debug4(format, ...)	{if (debugLvl > 6) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
-#define debug5(format, ...)	{if (debugLvl > 7) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
-#define debug6(format, ...)	{if (debugLvl > 8) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
-#define debug7(format, ...)	{if (debugLvl > 9) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
-#define debug8(format, ...)	{if (debugLvl >10) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
-#define debug9(format, ...)	{if (debugLvl >11) fprintf(stderr, format, ##__VA_ARGS__); fflush(0);}
+#define    die(format)      {fprintf(stderr,format);                fflush(stdout); fflush(stderr); MPI_Abort(MPI_COMM_WORLD, 1);}
+#define   _die(format, ...) {fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); MPI_Abort(MPI_COMM_WORLD, 1);}
+#define  error(format, ...) {fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr);}
+
+#define   warn(format, ...)	{if(ErrorHandling::level >= ErrorHandling::WARNINGS)     fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr);}
+#define debugS(format, ...)	{if(ErrorHandling::level == ErrorHandling::SCHEDULER)    fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr);}
+#define debugE(format, ...)	{if(ErrorHandling::level == ErrorHandling::ENVIRONMENT)  fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr);}
+#define debugN(format, ...)	{if(ErrorHandling::level == ErrorHandling::NETWORK)      fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr);}
+#define debugC(format, ...)	{if(ErrorHandling::level == ErrorHandling::COMMUNICATOR) fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr);}
+#define debugL(format, ...)	{if(ErrorHandling::level == ErrorHandling::LEARNERS)     fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr);}
+#define debugT(format, ...)	{if(ErrorHandling::level == ErrorHandling::TRANSITIONS)  fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr);}
 }

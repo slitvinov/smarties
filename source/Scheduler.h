@@ -26,8 +26,8 @@ private:
     double*const outbuf;
     State  sOld, sNew;
     Action aOld, aNew;
-    Real meanR, varR;
-    unsigned long iter;
+    Real meanR = 0, varR = 0;
+    unsigned long iter = 0;
     vector<int> status;
 
     MPI_Request request;

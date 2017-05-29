@@ -55,8 +55,6 @@ void EntropySGD::moveFrozenWeights(const Real _alpha)
 {
 	assert(_alpha>1);
 
-	if (net->allocatedFrozenWeights==false) return net->updateFrozenWeights();
-
 	#pragma omp parallel
 	{
 		const Real fac = eta_eSGD * gamma_eSGD;
@@ -120,8 +118,7 @@ void EntropySGD::update(Grads* const G, const Uint batchsize)
 	//const Real _eta = eta/(1.+std::log(1. + (double)nepoch));
 	update(net->weights,net->tgt_weights,G->_W,_1stMomW,_2ndMomW,_muW_eSGD,nWeights,batchsize,eta);
 	update(net->biases, net->tgt_biases, G->_B,_1stMomB,_2ndMomB,_muB_eSGD,nBiases, batchsize,eta);
-	//Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize, lambda);
-	//Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
+
 	beta_t_1 *= beta_1;
 	if (beta_t_1<2.2e-16) beta_t_1 = 0;
 
@@ -145,7 +142,6 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 		#pragma omp for nowait
 		for (Uint j=0; j<nWeights; j++)
 			for (Uint k=0; k<nThreads; k++) {
-				//G->_W[j] += std::max(std::min(g[k]->_W[j], 10.), -10.);
 				G->_W[j] += g[k]->_W[j];
 				g[k]->_W[j] = 0.;
 			}
@@ -153,7 +149,6 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 		#pragma omp for nowait
 		for (Uint j=0; j<nBiases; j++)
 			for (Uint k=0; k<nThreads; k++) {
-				//G->_B[j] += std::max(std::min(g[k]->_B[j], 10.), -10.);
 				G->_B[j] += g[k]->_B[j];
 				g[k]->_B[j] = 0.;
 			}
@@ -169,13 +164,11 @@ void Optimizer::update(Grads* const G, const Uint batchsize)
 
 void AdamOptimizer::update(Grads* const G, const Uint batchsize)
 {
-	//const Real _eta = eta/(1.+std::log(1. + (double)nepoch));
 	const Real _eta = eta/(1.+(Real)nepoch/1e4);
 
 	update(net->weights,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,_eta);
 	update(net->biases, G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);
-	//Optimizer::update(net->weights, G->_W, _1stMomW, nWeights, batchsize);
-	//Optimizer::update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
+
 	beta_t_1 *= beta_1;
 	if (beta_t_1<2.2e-16) beta_t_1 = 0;
 	beta_t_2 *= beta_2;
@@ -217,7 +210,6 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 		const Real DW  = grad[i]*norm;
 		const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
 		const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
-		//const Real DW_ = std::max(std::min(eta_*M1_/std::sqrt(M2_),eta_),-eta_);
 		const Real M2_ = std::max(M2, eps);
 		_1stMom[i] = M1;
 		_2ndMom[i] = M2_;
@@ -340,7 +332,7 @@ bool Optimizer::restart(const string fname)
 
 	string nameBackup = fname + "_net";
 	ifstream in(nameBackup.c_str());
-	debug1("Reading from %s\n", nameBackup.c_str());
+	debugN("Reading from %s\n", nameBackup.c_str());
 	if (!in.good())
 	{
 		error("Couldnt open file %s \n", nameBackup.c_str());
@@ -377,7 +369,7 @@ bool AdamOptimizer::restart(const string fname)
 	const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
 	string nameBackup = fname + "_net";
 	ifstream in(nameBackup.c_str());
-	debug1("Reading from %s\n", nameBackup.c_str());
+	debugN("Reading from %s\n", nameBackup.c_str());
 	if (!in.good())
 	{
 		error("Couldnt open file %s \n", nameBackup.c_str());

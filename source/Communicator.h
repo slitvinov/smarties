@@ -11,10 +11,11 @@
 #include <vector>
 #include <cstring>
 #define _AGENT_STATUS   int
-#define _AGENT_FIRSTCOMM  1
 #define _AGENT_NORMALCOMM 0
+#define _AGENT_FIRSTCOMM  1
 #define _AGENT_LASTCOMM   2
-#define _AGENT_FAILCOMM   3
+#define _AGENT_CLEARALL   3
+#define _AGENT_FAILCOMM   4
 #include "Communicator_utils.h"
 
 class Communicator

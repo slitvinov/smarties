@@ -7,19 +7,15 @@
  *
  */
 
-#include "allLearners.h"
+#include "AllLearners.h"
 #include "Scheduler.h"
 #include "ObjectFactory.h"
-
-using namespace ErrorHandling;
 using namespace std;
 
 void runClient();
 void runSlave(MPI_Comm slavesComm);
 void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm);
-
 Settings settings;
-Uint ErrorHandling::debugLvl;
 
 void runSlave(MPI_Comm slavesComm)
 {
@@ -54,7 +50,6 @@ void runClient()
 
 void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 {
-	//int masterRank, nMasters, nSlaves, isSlave;
 	MPI_Comm_rank(slavesComm, &settings.slaves_rank);
 	MPI_Comm_size(slavesComm, &settings.slaves_size);
 	MPI_Comm_rank(mastersComm, &settings.learner_rank);
@@ -98,7 +93,6 @@ int main (int argc, char** argv)
 {
 	struct timeval clock;
 	gettimeofday(&clock, NULL);
-	debugLvl=10;
 
 	vector<ArgumentParser::OptionStruct> opts = settings.initializeOpts();
 

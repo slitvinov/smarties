@@ -35,7 +35,7 @@ int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv)
   int rank, size, wrank;
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::normal_distribution<double> dist(0, 1);
+  std::uniform_real_distribution<double> dist(-1.73205, 1.73205); //mean0 var1
   MPI_Comm_rank(mpicom, &rank);
   MPI_Comm_rank(MPI_COMM_WORLD, &wrank);
   MPI_Comm_size(mpicom, &size);

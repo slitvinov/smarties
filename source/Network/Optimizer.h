@@ -12,8 +12,6 @@
 #include "Network.h"
 #include "../Profiler.h"
 
-using namespace ErrorHandling;
-
 class Optimizer
 { //basic momentum update
  protected:
@@ -74,7 +72,7 @@ class Optimizer
 
 		string nameBackup = fname + "_mems";
 		ifstream in(nameBackup.c_str());
-		debug1("Reading from %s\n", nameBackup.c_str());
+		debugN("Reading from %s\n", nameBackup.c_str());
 		if (!in.good()) {
 			error("Couldnt open file %s \n", nameBackup.c_str());
 			return false;

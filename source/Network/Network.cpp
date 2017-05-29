@@ -9,7 +9,6 @@
 
 #include "Builder.h"
 #include "Network.h"
-using namespace ErrorHandling;
 
 void Network::seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const
 {
@@ -217,6 +216,7 @@ void Network::checkGrads()
     for (Uint j=0; j<nBiases; j++)  error->_B[j] = 0;
     vector<Activation*> timeSeries = allocateUnrolledActivations(seq_len);
 
+//TODO: check with #pragma omp parallel for collapse(2): add a critical/atomic region and give each thread a copy of weights for finite diff
     for (Uint t=0; t<seq_len; t++)
     for (Uint o=0; o<nOutputs; o++)
     {
@@ -241,7 +241,7 @@ void Network::checkGrads()
         }
         backProp(timeSeries, testG);
 
-        Real diff;
+        Real diff = 0;
         for (Uint w=0; w<nWeights; w++) {
             //1
             weights[w] += incr;
@@ -335,7 +335,7 @@ void Network::checkGrads()
     const long double std1 = sqrt((sumsq1 - sum1*sum1/NW)/NW);
     const long double std2 = sqrt((sumsq2 - sum2*sum2/NW)/NW);
     const long double std3 = sqrt((sumsq3 - sum3*sum3/NW)/NW);
-    printf("Mean relative error:%Le (std:%Le). Mean absolute error:%Le (std:%Le). Mean absolute gradient:%Le (std:%Le).\n",
+    printf("Mean rel err:%Le (std:%Le). Mean abs err:%Le (std:%Le). Mean abs grad:%Le (std:%Le).\n",
       mean2, std2, mean3, std3, mean1, std1);
     _dispose_object(testg);
     _dispose_object(check);

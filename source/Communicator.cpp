@@ -13,7 +13,6 @@ Communicator::Communicator(const int socket, const int sdim, const int adim)
 
 void Communicator::update_state_action_dims(const int sdim, const int adim)
 {
-	printf("%d %d\n",sdim,adim); fflush(0);
 	defined_spaces = true;
 	nStates = sdim;
 	nActions = adim;

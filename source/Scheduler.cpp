@@ -6,9 +6,7 @@
 //
 //
 
-#include "Misc.h"
 #include "Scheduler.h"
-//#include <unistd.h>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -23,8 +21,7 @@ Master::Master(MPI_Comm _c, Learner*const _l, Environment*const _e, Settings&_s)
 		  nSlaves(_s.nSlaves), saveFreq(_s.saveFreq), nThreads(_s.nThreads),
 		  inSize((3+_e->sI.dim)*sizeof(double)), outSize(_e->aI.dim*sizeof(double)),
 		  inbuf(_alloc(inSize)), outbuf(_alloc(outSize)), sOld(_e->sI),sNew(_e->sI),
-			aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]),
-		  meanR(0), varR(0),  iter(0), status(_e->agents.size(),1)
+			aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]), status(_e->agents.size(),1)
 {
 	//the following Irecv will be sent after sending the action
 	MPI_Irecv(inbuf, inSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
@@ -75,7 +72,7 @@ void Master::run()
 			//if single thread master: process a batch
 			if (nThreads == 1) learner->TrainBatch();
 		}
-		//printf("Master receives from %d\n", mpistatus.MPI_SOURCE);
+		debugS("Master receives from %d\n", mpistatus.MPI_SOURCE);
 		const int slave = mpistatus.MPI_SOURCE;
 		recvState(slave, agent, agentStatus, reward);
 
@@ -85,12 +82,11 @@ void Master::run()
 		}
 
 		learner->select(agent, sNew, aNew, sOld, aOld, agentStatus, reward);
-		#if 0
-		printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
+		debugS("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
 				agent, sOld.print().c_str(), sNew.print().c_str(),
 				aOld.print().c_str(), reward, aNew.print().c_str());
-		fflush(0);
-		#endif
+
+
 		if (agentStatus != _AGENT_FIRSTCOMM) {
 			const Real alpha = 1./saveFreq;// + std::min(0.,1-iter/(Real)saveFreq);
 			const Real oldMean = meanR;
@@ -169,7 +165,7 @@ void Client::run()
 		prepareState(iAgent, agentStatus, reward);
 		learner->select(iAgent, sNew, aNew, sOld, aOld, agentStatus, reward);
 
-		printf("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
+		debugS("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
 				iAgent, sOld.print().c_str(), sNew.print().c_str(),
 				aOld.print().c_str(), reward, aNew.print().c_str());
 		status[iAgent] = agentStatus;

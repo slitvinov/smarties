@@ -685,9 +685,9 @@ void Transitions::restart(std::string fname)
 {
     string nameBackup = fname + "_data_stats";
     ifstream in(nameBackup.c_str());
-    debug1("Reading from %s\n", nameBackup.c_str());
+    debugT("Reading from %s\n", nameBackup.c_str());
     if (!in.good()) {
-      debug1("File not found %s\n", nameBackup.c_str());
+      debugT("File not found %s\n", nameBackup.c_str());
       #ifndef NDEBUG //if debug, you might want to do this
       if(!bTrain) {die("...and I'm not training\n");}
       #endif

@@ -182,7 +182,7 @@ void recv_MPI(double*const data, const int size, const MPI_Comm comm, unsigned l
 	}
 	//avoid wasting a cpu only for communication in case we are using a busy-wait MPI
 	//note that non-MPI send and recv usually already have a yield-wait policy
-	wait = std::max(static_cast<int>(wait)+std::floor((cnt-10)/10.), 1.1);
+	wait = std::max(static_cast<double>(wait)+std::floor((cnt-10)/10.), 1.1);
 }
 
 void send_MPI(double*const data, const int size, const MPI_Comm comm)

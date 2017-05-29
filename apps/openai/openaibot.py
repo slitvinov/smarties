@@ -92,7 +92,7 @@ while True:
         else: action = int(buf[0])
 
     	#print(action)
-        for i in range(5):
+        for i in range(4):
             observation, reward, done, info = env.step(action)
             if done: break
         if done: break

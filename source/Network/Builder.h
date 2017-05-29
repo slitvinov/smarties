@@ -14,6 +14,7 @@
 
 class Builder
 {
+	bool bAddedInput = false, bBuilt = false;
 	Function* readFunction(const string name, const bool bOutput=false) const
 	{
 		if (bOutput || name == "Linear") return new Linear();
@@ -228,8 +229,6 @@ public:
 		Uint nInputs=0,  nOutputs=0, nLayers=0;
 		Uint nNeurons=0, nWeights=0, nBiases=0, nStates=0;
 		std::vector<std::mt19937>& generators;
-		bool bAddedInput = false;
-		bool bBuilt = false;
 		vector<Uint> iOut;
 		vector<Uint> iInp;
 		vector<Graph*> G;
@@ -251,7 +250,10 @@ public:
 		Builder(Settings & _settings): settings(_settings),
 		nAgents(static_cast<Uint>(_settings.nAgents)),
 		nThreads(static_cast<Uint>(_settings.nThreads)),
-		generators(_settings.generators) {}
+		generators(_settings.generators)
+		{
+			assert(nAgents>0 && nThreads>0);
+		}
 
     Network* build()
 		{
@@ -293,7 +295,7 @@ public:
 						for(Uint i=0; i<g->layerSize; i++)
 							iInp.push_back(i+g->firstNeuron_ID);
 		 	 	assert(iInp.size() == nInputs);
-				assert(iInp[0] == 0);
+				assert(iInp[0] == 0); //first ''neuron'' must be part of input
 			}
 			{
 				assert(!iOut.size());
@@ -381,7 +383,7 @@ public:
 			}
 
 			if (bOutput) {
-		    assert(false);
+		    assert(false); //i dont see a reason why for now...
 				g->output = true;
 				nOutputs += g->layerSize;
 			}

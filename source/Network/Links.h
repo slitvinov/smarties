@@ -236,7 +236,7 @@ class LinkToLSTM : public Link
 		_restart(buf, _weights, iWO, nO, nI, nO_simd);
 	}
 
-	void propagate(const Activation* const netFrom, Activation* const netTo,
+	inline void propagate(const Activation* const netFrom, Activation* const netTo,
 		const Real* const weights) const
 	{
 		const Real* __restrict__ const inp = netFrom->outvals + iI;
@@ -261,7 +261,7 @@ class LinkToLSTM : public Link
 		}
 	}
 
-	void backPropagate(Activation* const netFrom, const Activation* const netTo,
+	inline void backPropagate(Activation* const netFrom, const Activation* const netTo,
 		const Real* const weights, Real* const gradW) const
 	{
 		const Real* __restrict__ const inp = netFrom->outvals + iI;
@@ -359,7 +359,7 @@ class LinkToConv2D : public Link
 		_restart(buf, _weights, iW, nO, nAdded, outputDepth_simd);
 	}
 
-	void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
+	inline void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
 	{
 		for(Uint ox=0; ox<outputWidth;  ox++)
 			for(Uint oy=0; oy<outputHeight; oy++) {
@@ -390,7 +390,7 @@ class LinkToConv2D : public Link
 			}
 	}
 
-	void backPropagate(Activation* const netFrom, const Activation* const netTo,
+	inline void backPropagate(Activation* const netFrom, const Activation* const netTo,
 		const Real* const weights, Real* const gradW) const
 	{
 		for(Uint ox=0; ox<outputWidth;  ox++)

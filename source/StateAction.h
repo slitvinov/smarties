@@ -10,16 +10,12 @@
 #pragma once
 
 #include "Settings.h"
-#include "Misc.h"
-
 #include <cassert>
 #include <algorithm>
 #include <sstream>
 #include <math.h>
 
 using namespace std;
-using namespace ErrorHandling;
-
 
 struct StateInfo
 {
