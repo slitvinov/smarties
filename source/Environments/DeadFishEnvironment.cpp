@@ -9,13 +9,13 @@
 
 #include "DeadFishEnvironment.h"
 
-DeadFishEnvironment::DeadFishEnvironment(const Uint _nAgents, const string _execpath, const Uint _rank, Settings & settings):
-Environment(_nAgents, _execpath, _rank, settings),
-sight( settings.senses    ==0),
-rcast( settings.senses    % 2), //if eq {1,  3,  5,  7}
-lline((settings.senses/2) % 2), //if eq {  2,3,    6,7}
-press((settings.senses/4) % 2), //if eq {      4,5,6,7}
-study(settings.rType)
+DeadFishEnvironment::DeadFishEnvironment(const Uint _nAgents, const string _execpath, Settings & _s):
+Environment(_nAgents, _execpath, _s),
+sight( _s.senses    ==0),
+rcast( _s.senses    % 2), //if eq {1,  3,  5,  7}
+lline((_s.senses/2) % 2), //if eq {  2,3,    6,7}
+press((_s.senses/4) % 2), //if eq {      4,5,6,7}
+study(_s.rType)
 {
 	cheaperThanNetwork = false; //this environment is more expensive to simulate than updating net. todo: think it over?
 }

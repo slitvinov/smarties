@@ -17,4 +17,5 @@ echo ${NPROCESS} ${NTHREADS}
 
 
 mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none ./exec ${SETTINGS}
+#mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none valgrind --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes --show-reachable=yes  ./exec ${SETTINGS}
 

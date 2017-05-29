@@ -11,6 +11,8 @@
 
 #include "Learner.h"
 
+//#define ACER_MIN_PROB 0
+
 class DiscreteAlgorithm : public Learner
 {
 protected:
@@ -48,9 +50,14 @@ protected:
 		for (Uint j=0; j<nA; j++)
 			base += unpol[j];
 
-		vector<Real> ret(nA);
-		for (Uint j=0; j<nA; j++)
-			ret[j] = unpol[j]/base;
+		#ifdef ACER_MIN_PROB
+			const Real norm = (1-ACER_MIN_PROB)/base;
+			vector<Real> ret(nA);
+			for (Uint j=0; j<nA; j++) ret[j] = unpol[j]*norm + ACER_MIN_PROB/nA;
+		#else
+			vector<Real> ret(nA);
+			for (Uint j=0; j<nA; j++) ret[j] = unpol[j]/base;
+		#endif
 		return ret;
 	}
 
@@ -69,9 +76,9 @@ protected:
 			vector<Real> val = extractValues(out);
 			vector<Real> val_hat = extractValues(hat);
 
-			vector<Real> polGrad = policyGradient(mu, act, 1);
+			vector<Real> polGrad = policyGradient(out, mu, act, 1);
 			vector<Real> cntGrad = controlGradient(act, mu, val, 1);
-			vector<Real> gradDivKL = gradDKL(mu, mu_hat);
+			vector<Real> gradDivKL = gradDKL(out, hat, mu, mu_hat);
 			vector<Real> cgrad = criticGradient(act, mu, val, 1);
 
 			for(Uint i = 0; i<nA; i++)
@@ -137,15 +144,38 @@ protected:
 	{
 		Real ret = 0;
 		for (Uint i=0; i<nA; i++)
-			ret += pol_hat[i]*(std::log(pol_hat[i])-std::log(pol[i]));
+			ret += pol_hat[i]*(std::log(pol_hat[i]/pol[i]));
 		return ret;
  	}
 
 	//warning: return grad in terms of outputs
-	inline vector<Real> gradDKL(const vector<Real>& pol, const vector<Real>& pol_hat) const
+	inline vector<Real> gradDKL(const vector<Real>& out, const vector<Real>& hat,
+		const vector<Real>& pol, const vector<Real>& pol_hat) const
 	{
-		vector<Real> ret(nA);
-		for (Uint i=0; i<nA; i++) ret[i] = pol[i]-pol_hat[i];
+		vector<Real> ret(nA, 0);
+
+		#ifdef ACER_MIN_PROB
+			const vector<Real> unpol = extractUnnormPolicy(out);
+			const vector<Real> unhat = extractUnnormPolicy(hat);
+			Real normA = 0, normB = 0;
+			for (Uint j=0; j<nA; j++) normA += unpol[j];
+			for (Uint j=0; j<nA; j++) normB += unhat[j];
+			const Real fac1 = ACER_MIN_PROB, fac2 = 1-ACER_MIN_PROB;
+
+			for (Uint j=0; j<nA; j++)
+			{
+				const Real mul1 = fac2*unhat[j]/normB + fac1/nA;
+				const Real mul2 = fac2*unpol[j]/(fac2*unpol[j] + normA*fac1/nA);
+
+				for (Uint i=0; i<nA; i++)
+					ret[i] += unpol[i]*mul1*mul2/normA;
+
+				ret[j] -= mul1*mul2;
+			}
+		#else
+			for (Uint i=0; i<nA; i++) ret[i] = (pol[i]-pol_hat[i]);
+		#endif
+
 		return ret;
 	}
 
@@ -164,10 +194,23 @@ protected:
 		return gradAcer;
 	}
 
-	inline vector<Real> policyGradient(const vector<Real>& pol, const Uint act, const Real factor) const
+	inline vector<Real> policyGradient(const vector<Real>& out, const vector<Real>& pol, const Uint act, const Real factor) const
 	{
 		vector<Real> ret(nA);
-		for (Uint i=0; i<nA; i++) ret[i] = factor*(((i==act) ? 1 : 0) - pol[i]);
+
+		#ifdef ACER_MIN_PROB
+			const vector<Real> unpol = extractUnnormPolicy(out);
+			Real base = 0;
+			for (Uint j=0; j<nA; j++) base += unpol[j];
+			const Real denom = unpol[act] + base*ACER_MIN_PROB/(1.-ACER_MIN_PROB)/nA;
+
+			for (Uint i=0; i<nA; i++)
+				ret[i] = -factor*unpol[act]*unpol[i]/denom/base;
+			ret[act] += factor*unpol[act]/denom;
+		#else
+			for (Uint i=0; i<nA; i++) ret[i] = factor*(((i==act) ? 1 : 0) - pol[i]);
+		#endif
+
 		return ret;
 	}
 

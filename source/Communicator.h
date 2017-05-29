@@ -57,7 +57,7 @@ protected:
       o <<" size_action:"<<size_action<< " size_state:"<< size_state<<"\n";
       o <<"MPI comm: size_s"<<size_learn_pool<<" rank_s:"<<rank_learn_pool;
       o <<" size_a:"<<size_inside_app<< " rank_a:"<< rank_inside_app<<"\n";
-      o <<"Socket comm: prefix:"<<socket_id<<" PATH"<<SOCK_PATH<<"\n";
+      o <<"Socket comm: prefix:"<<socket_id<<" PATH:"<<SOCK_PATH<<"\n";
       std::cout<<o.str()<<std::endl;
     }
 

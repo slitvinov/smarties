@@ -22,6 +22,7 @@ class CMAEnvironment;
 class TestEnvironment;
 class alebotEnvironment;
 class GliderEnvironment;
+class openAICartEnvironment;
 
 #include "Environments/AcrobotEnvironment.h"
 #include "Environments/CMAEnvironment.h"
@@ -33,3 +34,4 @@ class GliderEnvironment;
 #include "Environments/DeadFishEnvironment.h"
 #include "Environments/alebotEnvironment.h"
 #include "Environments/GliderEnvironment.h"
+#include "Environments/openAICartEnvironment.h"

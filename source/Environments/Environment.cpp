@@ -9,13 +9,13 @@
 
 #include "Environment.h"
 
-Environment::Environment(const Uint nA,const string exe,const Uint _rank,Settings& _s) :
-execpath(exe), rank(_rank), nAgents(nA*_s.nSlaves), nAgentsPerRank(nA),
-gamma(_s.gamma), g(&_s.generators[0])
-
+Environment::Environment(const Uint nA, const string exe, Settings& _s) :
+execpath(exe), nAgents(nA*_s.nSlaves), nAgentsPerRank(nA),
+gamma(_s.gamma), g(&_s.generators[0]), settings(_s)
 {
-    assert(_s.bIsMaster || nAgentsPerRank == nAgents);
+    assert(!_s.slaves_rank || nAgentsPerRank == nAgents);
     for (Uint i=0; i<nAgents; i++) agents.push_back(new Agent(i));
+    _s.nAgents = agents.size();
 }
 
 Communicator Environment::create_communicator(
@@ -25,23 +25,25 @@ Communicator Environment::create_communicator(
 {
   assert(socket>0);
   Communicator comm(slavesComm, socket, bSpawn);
-  comm.update_state_action_dims(sI.dim, aI.dim);
   comm.set_exec_path(execpath);
+  comm_ptr = &comm;
+  if(mpi_ranks_per_env==0 && settings.slaves_rank>0)
+    comm_ptr->launch();
+  setDims();
+  comm.update_state_action_dims(sI.dim, aI.dim);
 
-  if(mpi_ranks_per_env>0)
+  if(mpi_ranks_per_env>0 && settings.slaves_rank>0)
   {
     assert(bSpawn);
     assert(paramsfile != string());
-    int numslaves, slaverank;
-  	MPI_Comm_rank(slavesComm, &slaverank);
-  	MPI_Comm_size(slavesComm, &numslaves);
-    numslaves--; //one is the master
-    if(numslaves%mpi_ranks_per_env)
+    settings.nSlaves = settings.slaves_size-1; //one is the master
+
+    if(settings.nSlaves % mpi_ranks_per_env != 0)
 			die("Number of ranks does not match app\n");
 
-    int slaveGroup = (slaverank-1) / mpi_ranks_per_env;
+    int slaveGroup = (settings.slaves_rank-1) / mpi_ranks_per_env;
 		MPI_Comm app_com;
-		MPI_Comm_split(slavesComm, slaveGroup, slaverank, &app_com);
+		MPI_Comm_split(slavesComm, slaveGroup, settings.slaves_rank, &app_com);
 
     comm.set_params_file(paramsfile);
     comm.set_application_mpicom(app_com, slaveGroup);
@@ -67,21 +69,19 @@ bool Environment::predefinedNetwork(Builder* const net) const
 
 void Environment::commonSetup()
 {
-    int wRank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
     sI.dim = 0; sI.dimUsed = 0;
     for (Uint i=0; i<sI.inUse.size(); i++) {
         sI.dim++;
         if (sI.inUse[i]) sI.dimUsed++;
     }
-    if(!wRank)
+    if(!settings.world_rank)
     printf("State has %d component, %d in use\n", sI.dim, sI.dimUsed);
 
     aI.updateShifts();
 
     if(! aI.bounded.size()) {
       aI.bounded.resize(aI.dim, 0);
-      if(!wRank)
+      if(!settings.world_rank)
       printf("Unspecified whether action space is bounded: assumed not\n");
     } else assert(aI.bounded.size() == aI.dim);
 

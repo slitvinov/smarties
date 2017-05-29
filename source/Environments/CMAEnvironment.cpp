@@ -9,9 +9,8 @@
 
 #include "CMAEnvironment.h"
 
-CMAEnvironment::CMAEnvironment(const Uint _nAgents, const string _execpath,
-															 const Uint _rank, Settings & settings) :
-Environment(settings.nThreads, _execpath, _rank, settings)
+CMAEnvironment::CMAEnvironment(const Uint _nAgents, const string _execpath, Settings & _s) :
+Environment(settings.nThreads, _execpath, _s)
 {
 }
 

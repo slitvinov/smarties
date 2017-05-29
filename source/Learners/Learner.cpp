@@ -184,7 +184,7 @@ Uint Learner::sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitio
   //sort elements of sorting according to load for each transition:
   const auto compare = [&] (Uint a, Uint b) { return load[a] > load[b]; };
   std::sort(sorting.begin(), sorting.end(), compare);
-  assert(load[sorting[0]] > load[sorting[batchSize-1]]);
+  assert(load[sorting[0]] >= load[sorting[batchSize-1]]);
   //sort vectors passed to learning algo:
   for (Uint i=0; i<batchSize; i++) {
     transitions[i] = t[sorting[i]];

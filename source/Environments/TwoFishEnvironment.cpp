@@ -9,12 +9,11 @@
 
 #include "TwoFishEnvironment.h"
 
-TwoFishEnvironment::TwoFishEnvironment(const Uint _nAgents,
-            const string _execpath, const Uint _rank, Settings & settings) :
-Environment(_nAgents, _execpath, _rank, settings),
-sight(settings.senses==0 || settings.senses==2),
-l_line(settings.senses==1 || settings.senses==2),
-study(settings.rType), goalDY(settings.goalDY)
+TwoFishEnvironment::TwoFishEnvironment(const Uint _nAgents, const string _execpath, Settings & _s) :
+Environment(_nAgents, _execpath, _s),
+sight(_s.senses==0 || _s.senses==2),
+l_line(_s.senses==1 || _s.senses==2),
+study(_s.rType), goalDY(_s.goalDY)
 {
     if (goalDY > 1.) goalDY = 1. - goalDY; //poor man's sign
 }

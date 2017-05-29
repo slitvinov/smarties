@@ -11,10 +11,11 @@
 
 #include "Environment.h"
 
-class TestEnvironment : public Environment
+class openAICartEnvironment : public Environment
 {
+   const bool allSenses;
 public:
-    TestEnvironment(const Uint nAgents, const string execpath, Settings & settings);
+    openAICartEnvironment(const int nAgents, const string execpath, Settings & settings);
 
     void setDims() override;
 };

@@ -117,14 +117,12 @@ void Slave::run()
 	int iAgent, agentStatus;
 	double reward;
 
-	while(true)
-	{
-		comm->launch();
-		while(true)
-		{
+	while(true) {
+
+		while(true) {
 			if (comm->recvStateFromApp()) break; //sim crashed
 			unpackState(comm->getDataState(), iAgent, agentStatus, state, reward);
-			
+
 			status[iAgent] = agentStatus;
 			if(agentStatus != _AGENT_LASTCOMM)
 			{
@@ -147,6 +145,7 @@ void Slave::run()
 		//if here, a crash happened:
 		//if we are training, then launch again, otherwise exit
 		//if (!bTrain) return;
+		comm->launch();
 	}
 }
 
@@ -162,8 +161,6 @@ void Client::run()
 	vector<double> state(env->sI.dim);
 	int iAgent, agentStatus;
 	double reward;
-
-	comm->launch();
 
 	while(true)
 	{
@@ -215,12 +212,14 @@ void Client::prepareState(int& iAgent, int& istatus, Real& reward)
 void Master::recvState(const int slave, int& iAgent, int& istatus, Real& reward)
 {
 	vector<Real> recv_state(sNew.sInfo.dim);
-
 	int recv_iAgent = -1;
 	unpackState(inbuf, recv_iAgent, istatus, recv_state, reward);
-	assert(recv_iAgent>=0 && iAgent>=0 && iAgent<static_cast<int>(agents.size()));
-
+	assert(recv_iAgent>=0);
 	iAgent = (slave-1) * nPerRank + recv_iAgent;
+	//printf("%d, %lu\n",iAgent,agents.size()); fflush(0);
+	assert(iAgent>=0);
+	assert(iAgent<static_cast<int>(agents.size()));
+
 	sNew.set(recv_state);
 
 	//agent's s is stored in sOld

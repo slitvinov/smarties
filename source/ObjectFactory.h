@@ -26,5 +26,5 @@ private:
 public:
 	ObjectFactory(Settings & _settings) :
   settings(&_settings), filename(_settings.factory) {};
-	Environment* createEnvironment(int rank, int index);
+	Environment* createEnvironment();
 };

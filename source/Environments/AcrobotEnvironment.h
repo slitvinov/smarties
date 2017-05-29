@@ -14,8 +14,7 @@
 class AcrobotEnvironment : public Environment
 {
 public:
-    AcrobotEnvironment(const Uint nAgents, const string execpath,
-                    const Uint _rank, Settings & settings);
+    AcrobotEnvironment(const Uint nAgents, const string execpath, Settings & settings);
 
     void setDims() override;
     bool pickReward(const State& t_sO, const Action& t_a,

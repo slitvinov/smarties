@@ -9,9 +9,8 @@
 
 #include "GliderEnvironment.h"
 
-GliderEnvironment::GliderEnvironment(const Uint _nAgents, const string _execpath,
-																 const Uint _rank, Settings & settings) :
-Environment(_nAgents, _execpath, _rank, settings) {
+GliderEnvironment::GliderEnvironment(const Uint _nAgents, const string _execpath, Settings & _s) :
+Environment(_nAgents, _execpath, _s) {
 	//cheaperThanNetwork=false;
 	settings.saveFreq = 1e5;
 }

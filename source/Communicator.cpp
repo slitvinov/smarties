@@ -13,6 +13,7 @@ Communicator::Communicator(const int socket, const int sdim, const int adim)
 
 void Communicator::update_state_action_dims(const int sdim, const int adim)
 {
+	printf("%d %d\n",sdim,adim); fflush(0);
 	defined_spaces = true;
 	nStates = sdim;
 	nActions = adim;
@@ -167,7 +168,7 @@ void Communicator::launch()
 		gettimeofday(&clock, NULL);
 		socket_id = abs(clock.tv_usec % std::numeric_limits<int>::max());
 	}
-	sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock_", socket_id);
+	sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock", socket_id);
 
 	if (spawner) setupClient();
 	else setupServer();
@@ -206,18 +207,18 @@ void Communicator::launch_app()
 
 void Communicator::setupClient()
 {
+	unlink(SOCK_PATH);
+	print();
+	fflush(0);
 	const int rf = fork();
+
 	if (rf == 0) {  //child spawns server
 		if (execpath == std::string())
 			launch_smarties();
 		else
 			launch_app();
-	} else {  //parent
-		printf("waiting for server to setup everything..\n");
-		sleep(2); //pause is not safe with MPI
-		printf("ok, I continue...\n");
-		fflush(0);
-
+	} else
+	{  //parent
 		Socket = socket(AF_UNIX, SOCK_STREAM, 0);
 
 		int _true = 1;
@@ -227,23 +228,17 @@ void Communicator::setupClient()
 		}
 		printf("Created socket\n");
 		fflush(0);
-
 		/* Specify the server */
 		bzero((char *)&serverAddress, sizeof(serverAddress));
 		serverAddress.sun_family = AF_UNIX;
 		strcpy(serverAddress.sun_path, SOCK_PATH);
 		const int servlen = sizeof(serverAddress.sun_family)
-                    		   + strlen(serverAddress.sun_path);
+													 + strlen(serverAddress.sun_path)+1;
 
-		char hostname[1024];
-		hostname[1023] = '\0';
-		gethostname(hostname, 1023);
-		//printf("Specify the server %s\n", hostname);
-		fflush(0);
 		/* Connect to the server */
-		while (connect(Socket, (struct sockaddr *)&serverAddress, servlen) < 0) {
-			//perror("connecting...\n");
-		}
+		while (connect(Socket, (struct sockaddr *)&serverAddress, servlen) < 0)
+			usleep(1);
+
 		printf("Connected to server\n");
 		fflush(0);
 	}
@@ -251,34 +246,33 @@ void Communicator::setupClient()
 
 void Communicator::setupServer()
 {
-	/* Create a socket */
-	fflush(0);
 	if ((ServerSocket = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 	{
 		perror("socket");
 		exit(1);
 	}
-	unlink(SOCK_PATH);
 
 	bzero(&serverAddress, sizeof(serverAddress));
 	serverAddress.sun_family = AF_UNIX;
 	strcpy(serverAddress.sun_path, SOCK_PATH);
+	printf("%s %s\n",serverAddress.sun_path,SOCK_PATH);
+	fflush(0);
 	const int servlen = sizeof(serverAddress.sun_family)
-                    		+ strlen(serverAddress.sun_path);
+												+ strlen(serverAddress.sun_path) +1;
 
 	if (bind(ServerSocket, (struct sockaddr *)&serverAddress, servlen) < 0)
 	{
 		perror("bind");
 		exit(1);
 	}
-
+/*
 	int _true = 1;
 	if(setsockopt(ServerSocket, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int))<0)
 	{
 		perror("Sockopt failed\n");
 		exit(1);
 	}
-
+*/
 	/* listen (only 1)*/
 	if (listen(ServerSocket, 1) == -1)
 	{
@@ -321,39 +315,79 @@ Communicator::Communicator(const MPI_Comm scom, const int socket, const bool spa
 void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_values,
 	std::vector<double>& state_upper_bound, std::vector<double>& state_lower_bound)
 {
-	Real* sketchy_ptr;
-	sketchy_ptr = _alloc(2);
-	comm_sock(Socket, false, sketchy_ptr, 2);
-	nStates = doublePtrToInt(sketchy_ptr+0);
+	unsigned long dummy = 1;
+	double* sketchy_ptr;
+	sketchy_ptr = _alloc(2*sizeof(double));
+	if (rank_learn_pool==0)
+		MPI_Recv(sketchy_ptr, 2*sizeof(double), MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
+	else {
+		comm_sock(Socket, false, sketchy_ptr, 2*sizeof(double));
+		if (rank_learn_pool==1)
+		MPI_Ssend(sketchy_ptr, 2*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
+	}
+
+	nStates  = doublePtrToInt(sketchy_ptr+0);
 	nActions = doublePtrToInt(sketchy_ptr+1);
+
 	assert(nStates>=0 && nActions>=0);
 	state_upper_bound.resize(nStates);
 	state_lower_bound.resize(nStates);
 	action_values.resize(nActions);
 	_dealloc(sketchy_ptr);
 
-	sketchy_ptr = _alloc(nActions+2*nStates);
-	comm_sock(Socket, false, sketchy_ptr, nActions+2*nStates);
-	Real* sketchier_ptr = sketchy_ptr;
+	sketchy_ptr = _alloc(2*nStates*sizeof(double));
+	if (rank_learn_pool==0)
+		MPI_Recv(sketchy_ptr, 2*nStates*sizeof(double), MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
+	else {
+		comm_sock(Socket, false, sketchy_ptr, 2*nStates*sizeof(double));
+		if (rank_learn_pool==1)
+		MPI_Ssend(sketchy_ptr, 2*nStates*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
+	}
+
+	double* sketchier_ptr = sketchy_ptr;
+	for(int i=0; i<nStates; i++) {
+		state_upper_bound[i] = *sketchier_ptr++;
+		state_lower_bound[i] = *sketchier_ptr++;
+		//printf("%d %f %f\n",i,state_lower_bound[i], state_upper_bound[i]);
+	}
+
+
+	_dealloc(sketchy_ptr);
+
+	sketchy_ptr = _alloc(nActions*sizeof(double));
+	if (rank_learn_pool==0)
+		MPI_Recv(sketchy_ptr, nActions*sizeof(double), MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
+	else {
+		comm_sock(Socket, false, sketchy_ptr, nActions*sizeof(double));
+		if (rank_learn_pool==1)
+		MPI_Ssend(sketchy_ptr, nActions*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
+	}
+
+	sketchier_ptr = sketchy_ptr;
 	int n_action_vals = 0;
 	for(int i=0; i<nActions; i++) {
 		n_action_vals += doublePtrToInt(sketchier_ptr);
 		action_values[i].resize(doublePtrToInt(sketchier_ptr++));
 	}
-
-	for(int i=0; i<nStates; i++)
-		state_upper_bound[i] = *sketchier_ptr++;
-
-	for(int i=0; i<nStates; i++)
-		state_lower_bound[i] = *sketchier_ptr++;
 	_dealloc(sketchy_ptr);
 
-	sketchy_ptr = _alloc(n_action_vals);
-	comm_sock(Socket, false, sketchy_ptr, n_action_vals);
+	sketchy_ptr = _alloc(n_action_vals*sizeof(double));
+	if (rank_learn_pool==0)
+		MPI_Recv(sketchy_ptr, n_action_vals*sizeof(double), MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
+	else {
+		comm_sock(Socket, false, sketchy_ptr, n_action_vals*sizeof(double));
+		if (rank_learn_pool==1)
+		MPI_Ssend(sketchy_ptr, n_action_vals*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
+	}
+
 	sketchier_ptr = sketchy_ptr;
 	for(int i=0; i<nActions; i++)
 		for(unsigned j=0; j<action_values[i].size(); j++)
+		{
 			action_values[i][j] = *sketchier_ptr++;
+			//printf("%d %u %f\n",i,j,action_values[i][j]); fflush(0);
+		}
+
 	_dealloc(sketchy_ptr);
 
 	update_state_action_dims(nStates, nActions);

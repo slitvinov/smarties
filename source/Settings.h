@@ -19,6 +19,10 @@ struct Settings
     Settings() {}
     ~Settings() {}
 
+//To modify from default value any of these settings, run executable with either
+//- the ascii symbol of the setting (denoted by CHARARG) followed by the value (ie. -# $value)
+//- the name of the setting variable solloweb dy the value (ie. -setting $value)
+
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO ENVIRONMENT: NUMBER
 ///////////////////////////////////////////////////////////////////////////////
@@ -293,10 +297,14 @@ struct Settings
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS THAT ARE NOT READ FROM FILE
 ///////////////////////////////////////////////////////////////////////////////
-      // whether master
-      bool bIsMaster = true;
+      int world_rank = 0;
+      int world_size = 0;
+      int slaves_rank = 0;
+      int slaves_size = 0;
+      int learner_rank = 0;
+      int learner_size = 0;
       // number of slaves (usually per master)
-      int nSlaves = -1;
+      int nSlaves = 1;
       //number of agents that:
       // in case of slave: are contained in an environment
       // in case of master: nSlaves * are contained in an environment

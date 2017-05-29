@@ -9,11 +9,8 @@
 
 #include "AcrobotEnvironment.h"
 
-AcrobotEnvironment::AcrobotEnvironment(const Uint _nAgents, const string _execpath,
-		 const Uint _rank, Settings & settings) :
-Environment(_nAgents, _execpath, _rank, settings)
-{
-}
+AcrobotEnvironment::AcrobotEnvironment(const Uint _nAgents, const string _execpath, Settings & _s) :
+Environment(_nAgents, _execpath, _s) {}
 
 
 void AcrobotEnvironment::setDims() //this environment is for the cart pole test

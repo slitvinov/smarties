@@ -17,11 +17,13 @@ class Environment
 {
 protected:
     mt19937 * const g; //only ok if only thread 0 accesses
+    Settings & settings;
+    Communicator* comm_ptr = nullptr;
     void commonSetup();
 
 public:
     const string execpath;
-    const Uint rank, nAgents, nAgentsPerRank;
+    const Uint nAgents, nAgentsPerRank;
     const double gamma;
 
     bool resetAll = false;
@@ -32,8 +34,7 @@ public:
     vector<Agent*> agents;
     StateInfo  sI;
     ActionInfo aI;
-    Environment(const Uint nAgents, const string execpath,
-                const Uint _rank, Settings & settings);
+    Environment(const Uint nAgents, const string execpath, Settings & settings);
 
     virtual ~Environment();
 

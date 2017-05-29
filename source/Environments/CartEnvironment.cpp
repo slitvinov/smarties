@@ -9,9 +9,8 @@
 
 #include "CartEnvironment.h"
 
-CartEnvironment::CartEnvironment(const Uint _nAgents, const string _execpath,
-																 const Uint _rank, Settings & settings) :
-Environment(_nAgents, _execpath, _rank, settings), allSenses(settings.senses==0)
+CartEnvironment::CartEnvironment(const Uint _nAgents, const string _execpath, Settings & _s) :
+Environment(_nAgents, _execpath, _s), allSenses(_s.senses==0)
 {
 //   cheaperThanNetwork=false;
 }

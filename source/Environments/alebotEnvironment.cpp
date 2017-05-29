@@ -1,10 +1,7 @@
 #include "alebotEnvironment.h"
 
-alebotEnvironment::alebotEnvironment(const Uint _nAgents, const Uint _nActions, const string _execpath,
-																 const Uint _rank, Settings & settings) :
-Environment(_nAgents, _execpath, _rank, settings), legalActions(_nActions)
-{
-}
+alebotEnvironment::alebotEnvironment(const Uint _nAgents, const Uint _nActions, const string _execpath, Settings & _s) :
+Environment(_nAgents, _execpath, _s), legalActions(_nActions) { }
 
 bool alebotEnvironment::predefinedNetwork(Builder* const net) const
 {

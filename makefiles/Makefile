@@ -81,7 +81,8 @@ ifeq "$(app)" "cubism"
 CPPFLAGS+= -D__Cubism3D
 endif
 ifeq "$(config)" "debug"
-CPPFLAGS+= -g -O2 -ffast-math 
+CPPFLAGS+= -g -O2 -ffast-math -dynamic -fsanitize=address
+LIBS += -dynamic -fsanitize=address 
 ifeq "$(testdiff)" "yes"
 CPPFLAGS+= -D__CHECK_DIFF
 endif 
@@ -104,7 +105,7 @@ DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = Communicator.o ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
 		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o \
 		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
-		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o alebotEnvironment.o\
+		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o alebotEnvironment.o openAICartEnvironment.o\
 		Learner.o RACER.o DACER.o NAF.o NFQ.o DPG.o Transitions.o \
 		Scheduler.o  Network.o Optimizer.o #Links.o Layers.o
 #ExternalAgent.o

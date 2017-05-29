@@ -112,6 +112,7 @@ void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		const Real A_OPC = Q_OPC - out_hat[k][0];
 
 		#ifdef ACER_PENALIZER
+			#warning "Wrong analytic derivatives for ACER_PENALIZER with DACER"
 			const Real varCritic = advantageVariance(polCur, valHat);
 			const Real A_cov = computeAdvantage(act, polCur, valHat);
 			static const Real L = 0.25, eps = 2.2e-16;
@@ -130,8 +131,8 @@ void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		const Real gain2 = A_pol * correction;
 
 		//derivative wrt to statistics
-		const vector<Real> gradAcer_1 = policyGradient(polCur, act, gain1);
-		const vector<Real> gradAcer_2 = policyGradient(polCur, pol, gain2);
+		const vector<Real> gradAcer_1 = policyGradient(out_cur[k], polCur, act, gain1);
+		const vector<Real> gradAcer_2 = policyGradient(out_cur[k], polCur, pol, gain2);
 
 		#ifdef ACER_PENALIZER
 		const vector<Real> gradC = controlGradient(act, polCur, valHat, eta);
@@ -141,7 +142,7 @@ void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		#endif
 
 		//trust region updating
-		const vector<Real> gradDivKL = gradDKL(polCur, polHat);
+		const vector<Real> gradDivKL = gradDKL(out_cur[k],out_hat[k], polCur, polHat);
 		const vector<Real> gradAcer = gradAcerTrpo(policy_grad, gradDivKL);
 		const Real Vs  = stateValue(out_cur[k][0],out_hat[k][0]);
 		const Real Qer = (Q_RET -A_cur -out_cur[k][0]);

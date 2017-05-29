@@ -74,19 +74,15 @@ class DACER : public DiscreteAlgorithm
 	{
 		assert(pol.size()==nA);
 		vector<Real> beta = pol;
-		const Real eps = annealingFactor();
-		Uint iAct = 0;
-		const Real addedVar = greedyEps*eps/nA, trunc = (1-greedyEps*eps);
+		const Real eps = max(annealingFactor(), greedyEps);
+		const Real addedVar = eps/nA, trunc = (1-eps);
 
 		if(bTrain && positive(eps))
 			for(Uint i=0; i<nA; i++) beta[i] = trunc*beta[i] + addedVar;
 
 		std::discrete_distribution<Uint> dist(beta.begin(),beta.end());
 
-		if (positive(greedyEps) || bTrain)
-			iAct = dist(*gen);
-		else
-			iAct = maxInd(pol);
+		const Uint iAct = (positive(greedyEps)||bTrain) ? dist(*gen) : maxInd(pol);
 		assert(iAct<nA);
 		a.set(iAct);
 		return beta;
