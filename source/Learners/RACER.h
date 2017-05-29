@@ -79,21 +79,21 @@ class RACER : public PolicyAlgorithm
 		assert(mu.size()==nA);
 		assert(var.size()==nA);
 		vector<Real> beta(2*nA, 0);
-		const Real eps = annealingFactor();
+		const Real anneal = annealingFactor();
+		const Real eps = max(anneal, greedyEps);
 
-		if(bTrain && positive(eps)) {
+		if(positive(anneal)|| bTrain) {
 			for(Uint i=0; i<nA; i++) {
-				const Real policy_std = std::sqrt(var[i]); //output: 1/S^2
-				const Real anneal_std = eps*greedyEps + (1-eps)*policy_std;
-				const Real annealed_mean = (1-eps*eps)*mu[i];
-				//const Real annealed_mean = output[1+nL+i];
+				const Real policy_std = std::sqrt(var[i]);
+				const Real anneal_std = eps +(1-anneal)*policy_std;
+				const Real annealed_mean = (1-anneal*anneal)*mu[i];
 				std::normal_distribution<Real> dist_cur(annealed_mean, anneal_std);
 				beta[i] = annealed_mean; //to save correct mu
 				beta[nA+i] = 1./std::pow(anneal_std, 2); //to save correct mu
 				a.vals[i] = dist_cur(*gen);
 			}
 		}
-		else if (positive(greedyEps) || bTrain) { //still want to sample policy.
+		else if (!bTrain && positive(greedyEps) ) { //still want to sample policy.
 			for(Uint i=0; i<nA; i++) {
 				std::normal_distribution<Real> dist_cur(mu[i], std::sqrt(var[i]));
 				a.vals[i] = dist_cur(*gen);

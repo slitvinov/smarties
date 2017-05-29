@@ -84,12 +84,13 @@ public:
     {
       //number that goes from 1 to 0 with optimizer's steps
       assert(epsAnneal>1.);
-    	if(opt->nepoch >= epsAnneal) return 0;
+    	if(opt->nepoch >= epsAnneal || !bTrain) return 0;
     	else return 1 - opt->nepoch/epsAnneal;
     }
 
     inline Real annealedGamma() const
     {
+      assert(epsAnneal>1. && !bTrain);
       if (opt->nepoch>epsAnneal) return gamma;
       const Real anneal = Real(opt->nepoch)/epsAnneal;
       //const Real fac = 1 + anneal*(1./(1-gamma) -1);

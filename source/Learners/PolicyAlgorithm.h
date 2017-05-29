@@ -12,7 +12,7 @@
 
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
-#define ACER_MAX_PREC 10.
+#define ACER_MAX_PREC 100.
 #define ACER_MIN_PREC 1./ACER_MAX_ACT/ACER_MAX_ACT
 #define ACER_MAX_ACT 10.
 #define ACER_MAX_REW 100.
