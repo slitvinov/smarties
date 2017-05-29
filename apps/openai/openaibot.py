@@ -47,8 +47,7 @@ elif hasattr(env.action_space, 'n'):
     nActions_i = env.action_space.n
     actionOptions = np.append(actionOptions, nActions_i)
     actionValues = np.append(actionValues,np.arange(0,nActions_i)+.1)
-else:
-    assert(False)
+else: assert(False)
 
 if hasattr(env.observation_space, 'shape'):
     nStates = 1
@@ -61,12 +60,13 @@ if hasattr(env.observation_space, 'shape'):
         else: #no scaling
             state_bounds = np.append(state_bounds, 1)
             state_bounds = np.append(state_bounds, -1)
-else:
-    assert(False)
+elif hasattr(env.observation_space, 'n'):
+    nStates = 1
+    state_bounds = np.append(state_bounds, env.observation_space.n)
+    state_bounds = np.append(state_bounds, 0)
+else: assert(False)
 
 conn.send(np.array([nStates+.1,nActions+.1],np.float64).tobytes())
-print(state_bounds.shape)
-sys.stdout.flush()
 conn.send(state_bounds.tobytes())
 conn.send(actionOptions.tobytes())
 conn.send(actionValues.tobytes())
@@ -78,7 +78,9 @@ while True:
     while True:
     	state[0]=0
     	state[1]=status
-    	state[2:nStates+2]=observation.ravel()
+        if hasattr(env.observation_space, 'shape'):
+    	       state[2:nStates+2]=observation.ravel()
+        else: state[2] = observation
     	state[nStates+2]=reward
     	conn.send(state.tobytes())
     	status=0
@@ -88,17 +90,19 @@ while True:
         if hasattr(env.action_space, 'shape'):
             action = buf
         elif hasattr(env.action_space, 'spaces'):
-            action = np.array(buf,dtype=np.int)
+            action = [int(buf[0])]
+            for i in range(1, nActions): action = action + [int(buf[i])]
         else: action = int(buf[0])
 
-    	#print(action)
         for i in range(4):
             observation, reward, done, info = env.step(action)
             if done: break
         if done: break
     state[0]=0
     state[1]=2
-    state[2:nStates+2]=observation.ravel()
+    if hasattr(env.observation_space, 'shape'):
+           state[2:nStates+2]=observation.ravel()
+    else: state[2] = observation
     state[nStates+2]=reward
     conn.send(state.tobytes())
     buf = np.frombuffer(conn.recv(nActions*8),dtype=np.float64)

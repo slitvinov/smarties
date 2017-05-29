@@ -75,7 +75,7 @@ struct Activation //All the network signals. TODO: vector of activations, one pe
 		_myfree(eOGates);
 	}
 
-	void clearOutput()
+	inline void clearOutput()
 	{
 		std::memset(outvals,0.,nNeurons*sizeof(Real));
 		std::memset(ostates,0.,nStates*sizeof(Real));
@@ -85,7 +85,7 @@ struct Activation //All the network signals. TODO: vector of activations, one pe
 		std::memset(oOGates,0.,nStates*sizeof(Real));
 	}
 
-	void clearErrors()
+	inline void clearErrors()
 	{
 		std::memset(errvals,0.,nNeurons*sizeof(Real));
 		std::memset(eOGates,0.,nStates*sizeof(Real));
@@ -94,7 +94,7 @@ struct Activation //All the network signals. TODO: vector of activations, one pe
 		std::memset(eMCell,0.,nStates*sizeof(Real));
 	}
 
-	void clearInputs()
+	inline void clearInputs()
 	{
 		std::memset(in_vals,0.,nNeurons*sizeof(Real));
 		std::memset(iIGates,0.,nStates*sizeof(Real));
@@ -102,7 +102,7 @@ struct Activation //All the network signals. TODO: vector of activations, one pe
 		std::memset(iOGates,0.,nStates*sizeof(Real));
 	}
 
-	void loadMemory(Mem*const _M)
+	inline void loadMemory(Mem*const _M)
 	{
 			assert(_M->nNeurons == nNeurons);
 			assert(_M->nStates == nStates);
@@ -110,7 +110,7 @@ struct Activation //All the network signals. TODO: vector of activations, one pe
 	    for (Uint j=0; j<nStates;  j++) ostates[j] = _M->ostates[j];
 	}
 
-	void storeMemory(Mem*const _M)
+	inline void storeMemory(Mem*const _M)
 	{
 			assert(_M->nNeurons == nNeurons);
 			assert(_M->nStates == nStates);
@@ -148,7 +148,7 @@ struct Grads
 		_myfree(_W);
     _myfree(_B);
 	}
-	void clear()
+	inline void clear()
 	{
 		std::memset(_W,0.,nWeights*sizeof(Real));
 		std::memset(_B,0.,nBiases*sizeof(Real));
@@ -165,6 +165,7 @@ struct Function
 	virtual Real eval(const Real in) const = 0; // f(in)
 	virtual Real evalDiff(const Real in) const = 0; // f'(in)
 };
+//If adding a new function, edit this function readFunction at end of file
 
 struct Linear : public Function
 {
@@ -385,3 +386,31 @@ struct SoftPlus : public Function
 		return .5*(1 + in/std::sqrt(1+in*in));
 	}
 };
+
+inline Function* readFunction(const string name, const bool bOutput)
+{
+	if (bOutput || name == "Linear") return new Linear();
+	else
+	if (name == "Tanh") 	return new Tanh();
+	else
+	if (name == "TwoTanh") return new TwoTanh();
+	else
+	if (name == "Sigm") return new Sigm();
+	else
+	if (name == "SoftSign") return new SoftSign();
+	else
+	if (name == "TwoSoftSign") return new TwoSoftSign();
+	else
+	if (name == "SoftSigm") return new SoftSigm();
+	else
+	if (name == "Relu") return new Relu();
+	else
+	if (name == "PRelu") return new PRelu();
+	else
+	if (name == "ExpPlus") return new ExpPlus();
+	else
+	if (name == "SoftPlus") return new SoftPlus();
+	else
+	die("Activation function not recognized\n");
+	return (Function*)nullptr;
+}

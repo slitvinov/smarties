@@ -83,9 +83,8 @@ class RACER : public PolicyAlgorithm
 
 		if(bTrain && positive(eps)) {
 			for(Uint i=0; i<nA; i++) {
-				const Real varscale = aInfo.addedVariance(i);
 				const Real policy_std = std::sqrt(var[i]); //output: 1/S^2
-				const Real anneal_std = eps*varscale*greedyEps + (1-eps)*policy_std;
+				const Real anneal_std = eps*greedyEps + (1-eps)*policy_std;
 				const Real annealed_mean = (1-eps*eps)*mu[i];
 				//const Real annealed_mean = output[1+nL+i];
 				std::normal_distribution<Real> dist_cur(annealed_mean, anneal_std);

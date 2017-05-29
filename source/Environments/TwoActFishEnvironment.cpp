@@ -198,8 +198,8 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 */
     if(info!=1)
     if (fabs(t_sO.vals[4] -t_sN.vals[5])>0.00001) {
-        printf("Mismatch state two states!!! %s === %s\n",
-         t_sN.print().c_str(),t_a.print().c_str());
+        printf("Mismatch state two states!!! [%s] === [%s]\n",
+         t_sN._print().c_str(),t_a._print().c_str());
         abort();
     }
     /*

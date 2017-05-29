@@ -219,16 +219,16 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
     {
       const std::string fname = "obs_agent_"+std::to_string(agentId)+".dat";
       fout.open(fname.c_str(),ios::app); //safety
-      fout << agentId << " "<< info << " " << sOld.printClean().c_str() <<
-              sNew.printClean().c_str() << a.printClean().c_str() << reward;
+      fout << agentId<<" "<<info<<" "<<sOld._print().c_str()<<" "<<
+              sNew._print().c_str()<<" "<<a._print().c_str()<<" "<<reward;
       fout << endl;
       fout.close();
     }
 
     if (bWriteToFile) {
         fout.open("history.txt",ios::app);
-        fout << agentId << " "<< info << " " << sOld.printClean().c_str() <<
-                sNew.printClean().c_str() << a.printClean().c_str() << reward;
+        fout << agentId<<" "<<info<<" "<<sOld._print().c_str()<<" "<<
+                sNew._print().c_str()<<" "<<a._print().c_str()<<" "<<reward;
         fout << endl;
         fout.flush();
         fout.close();
@@ -249,8 +249,8 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
     if (bWriteToFile)
     {
       fout.open("history.txt",ios::app); //safety
-      fout << agentId << " " << info << " " << curr_transition_id[agentId] << " "
-       << s.printClean().c_str() << a.printClean().c_str() << reward << printVec(mu);
+      fout << agentId<<" "<<info<<" "<<curr_transition_id[agentId]<<" "<<
+      s._print().c_str()<<" "<<a._print().c_str()<<" "<<reward<<" "<<print(mu);
       fout << endl;
       fout.flush();
       fout.close();
@@ -258,8 +258,8 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
     {
       const std::string fname = "obs_agent_"+std::to_string(agentId)+".dat";
       fout.open(fname.c_str(),ios::app); //safety
-      fout << agentId << " " << info << " " << curr_transition_id[agentId] << " "
-       << s.printClean().c_str() << a.printClean().c_str() << reward << printVec(mu);
+      fout<<agentId<<" "<<info<<" "<<curr_transition_id[agentId]<<" "<<
+      s._print().c_str()<<" "<<a._print().c_str()<<" "<<reward<<" "<<print(mu);
       fout << endl;
       fout.flush();
       fout.close();
@@ -341,7 +341,7 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
             same = same && fabs(last->s[i] - vecSold[i])<1e-4;
 
         if (!same) {
-            printf("Broken chain %s, %g\n", sNew.print().c_str(), reward);
+            printf("Broken chain [%s], %g\n", sNew._print().c_str(), reward);
             push_back(agentId); //create new sequence
             ret = 1;
         }

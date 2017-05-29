@@ -160,19 +160,20 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 {
 
     if (fabs(t_sN.vals[5] -t_sO.vals[4])>0.001) {
-        printf("Mismatch new and old state!!! \n %s \n %s \n",
-                t_sO.print().c_str(),t_sN.print().c_str());
+        printf("Mismatch new and old state!!! \n [%s] \n [%s] \n",
+                t_sO._print().c_str(),t_sN._print().c_str());
         abort();
     }
     if (fabs(t_sN.vals[4] -t_a.vals[0])>0.001) {
-        printf("Mismatch state and action!!! \n %s \n %s \n",
-                t_a.print().c_str(),t_sN.print().c_str());
+        printf("Mismatch state and action!!! \n [%s] \n [%s] \n",
+                t_a._print().c_str(),t_sN._print().c_str());
         abort();
     }
 
 
     if ( fabs(t_sN.vals[3] -t_sO.vals[3])<1e-2 && reward>0 ) {
-        printf("Same time for two states!!! \n %s \n %s \n",t_sO.print().c_str(),t_sN.print().c_str());
+        printf("Same time for two states!!! \n [%s] \n [%s] \n",
+                t_sO._print().c_str(),t_sN._print().c_str());
         abort();
     }
     /*

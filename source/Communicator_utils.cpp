@@ -167,6 +167,8 @@ void comm_sock(int fd, const bool bsend, double*const data, const int size)
 }
 
 #ifdef MPI_INCLUDED
+//these commands only work to send to master, matching command is defined in Scheduler.cpp
+//this is messy, expect changes
 void recv_MPI(double*const data, const int size, const MPI_Comm comm, unsigned long &wait)
 {
 	assert(comm != MPI_COMM_NULL);
@@ -180,7 +182,7 @@ void recv_MPI(double*const data, const int size, const MPI_Comm comm, unsigned l
 		MPI_Test(&request, &completed, MPI_STATUS_IGNORE);
 		if (completed) break;
 	}
-	//avoid wasting a cpu only for communication in case we are using a busy-wait MPI
+	//avoid wasting cpu for communication if MPI implementation does busy-wait
 	//note that non-MPI send and recv usually already have a yield-wait policy
 	wait = std::max(static_cast<double>(wait)+std::floor((cnt-10)/10.), 1.1);
 }
@@ -188,7 +190,6 @@ void recv_MPI(double*const data, const int size, const MPI_Comm comm, unsigned l
 void send_MPI(double*const data, const int size, const MPI_Comm comm)
 {
 	assert(comm != MPI_COMM_NULL);
-	fflush(0);
 	MPI_Request dummyreq;
 	MPI_Isend(data, size, MPI_BYTE, 0, 1, comm, &dummyreq);
 	MPI_Request_free(&dummyreq); //Not my problem?

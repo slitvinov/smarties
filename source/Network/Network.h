@@ -43,7 +43,7 @@ public:
     Uint getnLayers() const {return nLayers;}
     Uint getnAgents() const {return nAgents;}
 
-    vector<Real> getOutputs(const Activation* const act)
+    inline  vector<Real> getOutputs(const Activation* const act)
 		{
 		  vector<Real> _output(nOutputs);
 		  for (Uint i=0; i<nOutputs; i++)
@@ -132,7 +132,7 @@ public:
     }
 
     void checkGrads();
-		void regularize(const Real lambda)
+		inline void regularize(const Real lambda)
 		{
 			#pragma omp parallel for
 			for (Uint j=0; j<nLayers; j++)

@@ -185,7 +185,7 @@ void DACER::processStats(vector<trainData*> _stats, const Real avgTime)
 	statsVector(avgGrad, stdGrad, cntGrad);
 	//setVecMean(meanGain1); setVecMean(meanGain2);
 	printf("Avg grad [%s] - std [%s]\n",
-	printVec(avgGrad[0]).c_str(), printVec(stdGrad[0]).c_str());
+	print(avgGrad[0]).c_str(), print(stdGrad[0]).c_str());
 	fflush(0);
    //#endif
 	Learner::processStats(_stats, avgTime);

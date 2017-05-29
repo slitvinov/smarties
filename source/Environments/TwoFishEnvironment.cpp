@@ -126,20 +126,20 @@ bool TwoFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 
      if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001)
      {
-     printf("ASSUMING 2F: mismatch between state and reported action!!! %s \n",
-            t_sN.printClean().c_str());
+     printf("ASSUMING 2F: mismatch between state and reported action!!! [%s] \n",
+            t_sN._print().c_str());
      abort();
      }
      if (fabs(t_sN.vals[5] - t_sO.vals[4])>0.001)
      {
-     printf("ASSUMING 2F: mismatch between new state and old state!!! %s \n",
-            t_sN.printClean().c_str());
+     printf("ASSUMING 2F: mismatch between new state and old state!!! [%s] \n",
+            t_sN._print().c_str());
      abort();
      }
      if ( fabs(t_sN.vals[3] - t_sO.vals[3])<1e-2 )
      {
-     printf("ASSUMING 2F: same time for two states!!! %s \n",
-            t_sN.printClean().c_str());
+     printf("ASSUMING 2F: same time for two states!!! [%s] \n",
+            t_sN._print().c_str());
      abort();
      }
 

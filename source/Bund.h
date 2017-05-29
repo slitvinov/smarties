@@ -127,12 +127,8 @@ inline Uint maxInd(const vector<Real>& pol)
 {
   Real Val = -1e9;
   Uint Nbest = 0;
-  for (Uint i=0; i<pol.size(); ++i) {
-      if (pol[i]>Val) {
-        Val = pol[i];
-        Nbest = i;
-      }
-  }
+  for (Uint i=0; i<pol.size(); ++i)
+      if (pol[i]>Val) { Val = pol[i]; Nbest = i; }
   return Nbest;
 }
 
@@ -142,10 +138,12 @@ inline Real minAbsValue(const Real v, const Real w)
 }
 
 template <typename T>
-inline string printVec(const vector<T> vals)
+inline string print(const vector<T> vals)
 {
   std::ostringstream o;
-  for (Uint i=0; i<vals.size(); i++) o << " " << vals[i];
+  if(!vals.size()) return o.str();
+  for (Uint i=0; i<vals.size()-1; i++) o << vals[i] << " ";
+  o << vals[vals.size()-1];
   return o.str();
 }
 

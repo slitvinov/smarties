@@ -15,33 +15,6 @@
 class Builder
 {
 	bool bAddedInput = false, bBuilt = false;
-	Function* readFunction(const string name, const bool bOutput=false) const
-	{
-		if (bOutput || name == "Linear") return new Linear();
-		else
-		if (name == "Tanh") 	return new Tanh();
-		else
-		if (name == "TwoTanh") return new TwoTanh();
-		else
-		if (name == "Sigm") return new Sigm();
-		else
-		if (name == "SoftSign") return new SoftSign();
-		else
-		if (name == "TwoSoftSign") return new TwoSoftSign();
-		else
-		if (name == "SoftSigm") return new SoftSigm();
-		else
-		if (name == "Relu") return new Relu();
-		else
-		if (name == "PRelu") return new PRelu();
-		else
-		if (name == "ExpPlus") return new ExpPlus();
-		else
-		if (name == "SoftPlus") return new SoftPlus();
-		else
-		die("Activation function not recognized\n");
-		return (Function*)nullptr;
-	}
 
 	Uint roundUpSimd(const Uint size) const
 	{

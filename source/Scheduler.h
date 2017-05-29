@@ -35,7 +35,7 @@ private:
     void recvState(const int slave, int& iAgent, int& istatus, Real& reward);
     void sendAction(const int slave, const int iAgent);
     void save();
-
+/*
     double * _alloc(const int size) {
       //return new byte[size];
       double* ret = (double*) malloc(size);
@@ -49,7 +49,7 @@ private:
             ptr=nullptr;
         }
     }
-
+*/
 public:
     Master(MPI_Comm comm, Learner*const learner, Environment*const env, Settings& settings);
     ~Master()

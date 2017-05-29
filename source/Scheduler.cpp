@@ -82,10 +82,9 @@ void Master::run()
 		}
 
 		learner->select(agent, sNew, aNew, sOld, aOld, agentStatus, reward);
-		debugS("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
-				agent, sOld.print().c_str(), sNew.print().c_str(),
-				aOld.print().c_str(), reward, aNew.print().c_str());
-
+		debugS("Agent %d: [%s] -> [%s] with [%s] rewarded with %f going to [%s]\n",
+				agent, sOld._print().c_str(), sNew._print().c_str(),
+				aOld._print().c_str(), reward, aNew._print().c_str());
 
 		if (agentStatus != _AGENT_FIRSTCOMM) {
 			const Real alpha = 1./saveFreq;// + std::min(0.,1-iter/(Real)saveFreq);
@@ -165,9 +164,9 @@ void Client::run()
 		prepareState(iAgent, agentStatus, reward);
 		learner->select(iAgent, sNew, aNew, sOld, aOld, agentStatus, reward);
 
-		debugS("To learner %d: %s --> %s with %s rewarded with %f going to %s\n",
-				iAgent, sOld.print().c_str(), sNew.print().c_str(),
-				aOld.print().c_str(), reward, aNew.print().c_str());
+		debugS("Agent %d: [%s] -> [%s] with [%s] rewarded with %f going to [%s]\n",
+				iAgent, sOld._print().c_str(), sNew._print().c_str(),
+				aOld._print().c_str(), reward, aNew._print().c_str());
 		status[iAgent] = agentStatus;
 
 		if(agentStatus != _AGENT_LASTCOMM) {
@@ -234,7 +233,7 @@ void Master::sendAction(const int slave, const int iAgent)
 	if(iAgent<0) die("Error in iAgent number in Master::sendAction\n");
 	assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
 	agents[iAgent]->act(aNew);
-	aNew.pack(outbuf);
+	for (Uint i=0; i<aI.dim; i++) outbuf[i] = aNew.vals[i];
 	MPI_Send(outbuf, outSize, MPI_BYTE, slave, 0, slavesComm);
 }
 
@@ -243,7 +242,8 @@ void Client::prepareAction(const int iAgent)
 	if(iAgent<0) die("Error in iAgent number in Client::prepareAction\n");
 	assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
 	agents[iAgent]->act(aNew);
-	aNew.pack(comm->getDataAction());
+	double* const buf = comm->getDataAction();
+	for (Uint i=0; i<aI.dim; i++) buf[i] = aNew.vals[i];
 }
 
 static void unpackState(double* const data, int& agent, _AGENT_STATUS& info,

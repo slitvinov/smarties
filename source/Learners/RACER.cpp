@@ -275,11 +275,11 @@ void RACER::processStats(vector<trainData*> _stats, const Real avgTime)
 	statsVector(avgGrad, stdGrad, cntGrad);
 	//setVecMean(meanGain1); setVecMean(meanGain2);
 	printf("Avg grad [%s] - std [%s]\n",
-	printVec(avgGrad[0]).c_str(), printVec(stdGrad[0]).c_str());
+		print(avgGrad[0]).c_str(), print(stdGrad[0]).c_str());
 	fflush(0);
 	ofstream filestats;
     	filestats.open("grads.txt", ios::app);
-	filestats<<printVec(avgGrad[0]).c_str()<<" "<<printVec(stdGrad[0]).c_str()<<endl;
+	filestats<<print(avgGrad[0]).c_str()<<" "<<print(stdGrad[0]).c_str()<<endl;
 	filestats.close();
    //#endif
 	Learner::processStats(_stats, avgTime);
@@ -287,7 +287,7 @@ void RACER::processStats(vector<trainData*> _stats, const Real avgTime)
 
 void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		const vector<Uint>& nbins)
- {
+{
 	//a fail in any of these amounts to a big and fat TODO
 	if(nAppended || nA!=1) die("TODO missing features\n");
 	assert(lower.size() == upper.size());
