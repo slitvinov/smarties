@@ -84,18 +84,7 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 	vector<vector<Real>> out_hat(ndata-1, vector<Real>(nOutputs,0));
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
 	vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata);
-	#if 0
-	for (int k=0; k<ndata-1; k++)
-	{
-		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
-		const vector<Real> scaledSold = data->standardize(_t->s);
-		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
-		net->predict(scaledSold, out_cur[k], series_cur, k);
-      net->predict(scaledSold, out_hat[k], k ? series_cur[k-1] : nullptr,
-         series_hat[k], net->tgt_weights, net->tgt_biases);
-		net->predict(scaledSold, out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
-	}
-	#else
+
 	for (Uint k=0; k<ndata-1; k++) {
 		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
 		const vector<Real> scaledSold = data->standardize(_t->s);
@@ -109,7 +98,6 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		net->seqPredict_output(out_cur[k], series_cur[k]);
 		net->seqPredict_output(out_hat[k], series_hat[k]);
 	}
-	#endif
 
 	Real Q_RET = 0, Q_OPC = 0;
 	//if partial sequence then compute value of last state (=! R_end)
@@ -123,11 +111,7 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		Q_OPC = out_T[0]; //V(s_T) computed with tgt weights
 	}
 	#ifndef NDEBUG
-		else
-		{
-			const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
-			assert(_t->mu.size() == 0);
-		}
+		else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
 	#endif
 
 	for (int k=static_cast<int>(ndata)-2; k>=0; k--)

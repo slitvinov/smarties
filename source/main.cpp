@@ -37,9 +37,9 @@ void runClient()
 	settings.nSlaves = 1;
 	ObjectFactory factory(settings);
 	Environment* env = factory.createEnvironment();
+	Communicator comm = env->create_communicator(MPI_COMM_NULL, settings.sockPrefix, false);
 
 	Learner* learner = createLearner(MPI_COMM_WORLD, env, settings);
-	Communicator comm = env->create_communicator(MPI_COMM_NULL, settings.sockPrefix, false);
 	if (settings.restart != "none") {
 		learner->restart(settings.restart);
 		//comm.restart(settings.restart);
