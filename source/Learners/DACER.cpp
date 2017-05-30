@@ -77,9 +77,9 @@ void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		//net->predict(S_T, out_T, series_cur.back(), series_hat.back());
 		Q_OPC = out_T[0]; //V(s_T) computed with tgt weights
 	}
-	#ifndef NDEBUG
-		else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
-	#endif
+#ifndef NDEBUG
+	else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
+#endif
 
 	for (int k=static_cast<int>(ndata)-2; k>=0; k--)
 	{
@@ -111,20 +111,20 @@ void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		const Real correction = std::max(0., 1.-truncation/rho_pol);
 		const Real A_OPC = Q_OPC - out_hat[k][0];
 
-		#ifdef ACER_PENALIZER
-			#warning "Wrong analytic derivatives for ACER_PENALIZER with DACER"
-			const Real varCritic = advantageVariance(polCur, valHat);
-			const Real A_cov = computeAdvantage(act, polCur, valHat);
-			static const Real L = 0.25, eps = 2.2e-16;
-			//static const Real L = 2.2e-16, eps = 2.2e-16;
-			const Real threshold = A_cov * A_cov / (varCritic+eps);
-			const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
-			const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
-			//eta = eta > 1 ? 1 : (eta < -1 ? -1 : eta);
-			const Real cotrolVar = A_cov, err_Cov = 0;
-		#else
-			const Real eta = 0, cotrolVar = 0, err_Cov = 0;
-		#endif
+#ifdef ACER_PENALIZER
+#warning "Wrong analytic derivatives for ACER_PENALIZER with DACER"
+		const Real varCritic = advantageVariance(polCur, valHat);
+		const Real A_cov = computeAdvantage(act, polCur, valHat);
+		static const Real L = 0.25, eps = 2.2e-16;
+		//static const Real L = 2.2e-16, eps = 2.2e-16;
+		const Real threshold = A_cov * A_cov / (varCritic+eps);
+		const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
+		const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
+		//eta = eta > 1 ? 1 : (eta < -1 ? -1 : eta);
+		const Real cotrolVar = A_cov, err_Cov = 0;
+#else
+		const Real eta = 0, cotrolVar = 0, err_Cov = 0;
+#endif
 
 		const Real gain1 = A_OPC * importance - eta * rho_cur * cotrolVar;
 		//const Real gain1 = A_OPC * importance - eta * cotrolVar;
@@ -134,12 +134,12 @@ void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		const vector<Real> gradAcer_1 = policyGradient(out_cur[k], polCur, act, gain1);
 		const vector<Real> gradAcer_2 = policyGradient(out_cur[k], polCur, pol, gain2);
 
-		#ifdef ACER_PENALIZER
+#ifdef ACER_PENALIZER
 		const vector<Real> gradC = controlGradient(act, polCur, valHat, eta);
 		const vector<Real> policy_grad = sum3Grads(gradAcer_1, gradAcer_2, gradC);
-		#else
+#else
 		const vector<Real> policy_grad = sum2Grads(gradAcer_1, gradAcer_2);
-		#endif
+#endif
 
 		//trust region updating
 		const vector<Real> gradDivKL = gradDKL(out_cur[k],out_hat[k], polCur, polHat);
@@ -161,7 +161,7 @@ void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 
 		vector<Real> _dump = grad; _dump.push_back(gain1); _dump.push_back(eta);
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
-      //#endif
+		//#endif
 		vector<Real> fake{A_cur, 100};
 		dumpStats(Vstats[thrID], A_cur+out_cur[k][0], Qer, fake);
 		data->Set[seq]->tuples[k]->SquaredError = Qer*Qer;
@@ -176,25 +176,25 @@ void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 
 void DACER::processStats(vector<trainData*> _stats, const Real avgTime)
 {
-	#ifdef ACER_SAFE
-		const Real stdev = 0.1 + annealingFactor();
-		variance = stdev*stdev;
-		precision = 1./variance;
-	#endif
-   //#ifndef NDEBUG
+#ifdef ACER_SAFE
+	const Real stdev = 0.1 + annealingFactor();
+	variance = stdev*stdev;
+	precision = 1./variance;
+#endif
+	//#ifndef NDEBUG
 	statsVector(avgGrad, stdGrad, cntGrad);
 	//setVecMean(meanGain1); setVecMean(meanGain2);
 	printf("Avg grad [%s] - std [%s]\n",
-	print(avgGrad[0]).c_str(), print(stdGrad[0]).c_str());
+			print(avgGrad[0]).c_str(), print(stdGrad[0]).c_str());
 	fflush(0);
-   //#endif
+	//#endif
 	Learner::processStats(_stats, avgTime);
 }
 
 void DACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		const vector<Uint>& nbins)
- {
-	 /*
+{
+	/*
 	//a fail in any of these amounts to a big and fat TODO
 	if(nAppended || nA!=1) die("TODO missing features\n");
 	assert(lower.size() == upper.size());
@@ -245,5 +245,5 @@ void DACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		fwrite(dump.data(),sizeof(Real),state.size()+4,pFile);
 	}
 	fclose (pFile);
-	*/
- }
+	 */
+}

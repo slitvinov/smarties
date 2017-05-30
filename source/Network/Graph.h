@@ -73,9 +73,9 @@ struct Graph
 		assert((!LSTM && firstBiasIG_ID==0) || (LSTM && firstBiasIG_ID>0));
 		assert((!LSTM && firstBiasFG_ID==0) || (LSTM && firstBiasFG_ID>0));
 		assert((!LSTM && firstBiasOG_ID==0) || (LSTM && firstBiasOG_ID>0));
-		#ifndef NDEBUG
+#ifndef NDEBUG
 		const bool layer2D = Conv2D || input2D;
-		#endif
+#endif
 		assert((!layer2D && layerWidth==0) || (layer2D && layerWidth>0));
 		assert((!layer2D && layerHeight==0) || (layer2D && layerHeight>0));
 		assert((!layer2D && layerDepth==0) || (layer2D && layerDepth>0));

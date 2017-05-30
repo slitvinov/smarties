@@ -18,9 +18,9 @@
 #ifndef __APPLE__
 inline long int mach_absolute_time()
 {
-    struct timeval clock;
-    gettimeofday(&clock, NULL);
-    /*
+	struct timeval clock;
+	gettimeofday(&clock, NULL);
+	/*
 	timespec t;
 	clock_gettime(CLOCK_MONOTONIC, &t);*/
 	return (long int) (clock.tv_usec*1e6);
@@ -34,32 +34,32 @@ class Timer
 {
 private:
 	long int _start, _end;
-	
+
 public:
-	
+
 	Timer()
-	{
+{
 		_start = 0;
 		_end = 0;
-	}
-	
+}
+
 	void start()
 	{
 		_start = mach_absolute_time();
 		_end = 0;
 	}
-	
+
 	void stop()
 	{
 		_end = mach_absolute_time();
 	}
-	
+
 	long int elapsed()
 	{
 		if (_end == 0) _end = mach_absolute_time();
 		return _end - _start;
 	}
-	
+
 	long int elapsedAndReset()
 	{
 		if (_end == 0) _end = mach_absolute_time();
@@ -68,5 +68,5 @@ public:
 		_end = 0;
 		return t;
 	}
-	
+
 };

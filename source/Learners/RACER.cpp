@@ -17,22 +17,22 @@ PolicyAlgorithm(comm,_env,settings, 0.1), truncation(100), cntGrad(nThreads+1,0)
 stdGrad(nThreads+1,vector<Real>(nOutputs+2,0)),
 avgGrad(nThreads+1,vector<Real>(nOutputs+2,0))
 {
-	#if defined ACER_RELAX
-		// I output V(s), P(s), pol(s), prec(s) (and variate)
-			const vector<Uint> noutputs = {1,nL,nA,nA};
-			assert(nOutputs == 1+nL+nA+nA);
-	#elif defined ACER_SAFE
-		// I output V(s), P(s), pol(s), mu(s) (and variate)
-			const vector<Uint> noutputs = {1,nL,nA,nA};
-			assert(nOutputs == 1+nL+nA+nA);
-	#else //full formulation
-		// I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
-			const vector<Uint> noutputs = {1,nL,nA,nA,nA};
-			assert(nOutputs == 1+nL+nA+nA+nA);
-	#endif
+#if defined ACER_RELAX
+	// I output V(s), P(s), pol(s), prec(s) (and variate)
+	const vector<Uint> noutputs = {1,nL,nA,nA};
+	assert(nOutputs == 1+nL+nA+nA);
+#elif defined ACER_SAFE
+	// I output V(s), P(s), pol(s), mu(s) (and variate)
+	const vector<Uint> noutputs = {1,nL,nA,nA};
+	assert(nOutputs == 1+nL+nA+nA);
+#else //full formulation
+	// I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
+	const vector<Uint> noutputs = {1,nL,nA,nA,nA};
+	assert(nOutputs == 1+nL+nA+nA+nA);
+#endif
 
 	buildNetwork(net, opt, noutputs, settings);
-   data->bRecurrent = bRecurrent = true;
+	data->bRecurrent = bRecurrent = true;
 	assert(nOutputs == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
 
@@ -48,27 +48,27 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 	//variance is pos def: transform linear output layer with softplus
 
 	const vector<Real> mu = extractPolicy(output);
-	#ifndef ACER_SAFE
+#ifndef ACER_SAFE
 	const vector<Real> prec = extractPrecision(output);
 	const vector<Real> var = extractVariance(output);
-	#else
+#else
 	const vector<Real> prec = vector<Real>(nA, precision);
 	const vector<Real> var = vector<Real>(nA, variance);
-	#endif
+#endif
 
 	vector<Real> beta = basicNetOut(a, mu, var);
 	assert(beta.size() == 2*nA);
 	const vector<Real> P = preparePmatrix(output);
 
-	#ifndef ACER_RELAX
-		const vector<Real> mean = extractQmean(output);
-	#else
-		const vector<Real> mean = mu;
-	#endif
-	#if 1
+#ifndef ACER_RELAX
+	const vector<Real> mean = extractQmean(output);
+#else
+	const vector<Real> mean = mu;
+#endif
+#if 1
 	beta.insert(beta.end(), P.begin(), P.end());
 	beta.insert(beta.end(), mean.begin(), mean.end());
-	#endif
+#endif
 	data->passData(agentId, info, sOld, a, beta, s, r);
 }
 
@@ -110,9 +110,9 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		//net->predict(S_T, out_T, series_cur.back(), series_hat.back());
 		Q_OPC = out_T[0]; //V(s_T) computed with tgt weights
 	}
-	#ifndef NDEBUG
-		else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
-	#endif
+#ifndef NDEBUG
+	else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
+#endif
 
 	for (int k=static_cast<int>(ndata)-2; k>=0; k--)
 	{
@@ -128,27 +128,27 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		const vector<Real> P_Cur = preparePmatrix(out_cur[k]);
 		const vector<Real> P_Hat = preparePmatrix(out_hat[k]);
 
-		#ifndef ACER_RELAX
-			//location of max of quadratic Q
-			const vector<Real> mu_Cur = extractQmean(out_cur[k]);
-			const vector<Real> mu_Hat = extractQmean(out_hat[k]);
-		#else
-			const vector<Real> mu_Cur = polCur;
-			const vector<Real> mu_Hat = polHat;
-		#endif
+#ifndef ACER_RELAX
+		//location of max of quadratic Q
+		const vector<Real> mu_Cur = extractQmean(out_cur[k]);
+		const vector<Real> mu_Hat = extractQmean(out_hat[k]);
+#else
+		const vector<Real> mu_Cur = polCur;
+		const vector<Real> mu_Hat = polHat;
+#endif
 
-		#ifndef ACER_SAFE
-			//pass through softplus to make it pos def:
-			const vector<Real> preCur = extractPrecision(out_cur[k]);
-			const vector<Real> preHat = extractPrecision(out_hat[k]);
-			const vector<Real> varCur = extractVariance(out_cur[k]);
-			const vector<Real> varHat = extractVariance(out_hat[k]);
-		#else
-			const vector<Real> preCur = vector<Real>(nA, precision);
-			const vector<Real> preHat = vector<Real>(nA, precision);
-			const vector<Real> varCur = vector<Real>(nA, variance);
-			const vector<Real> varHat = vector<Real>(nA, variance);
-		#endif
+#ifndef ACER_SAFE
+		//pass through softplus to make it pos def:
+		const vector<Real> preCur = extractPrecision(out_cur[k]);
+		const vector<Real> preHat = extractPrecision(out_hat[k]);
+		const vector<Real> varCur = extractVariance(out_cur[k]);
+		const vector<Real> varHat = extractVariance(out_hat[k]);
+#else
+		const vector<Real> preCur = vector<Real>(nA, precision);
+		const vector<Real> preHat = vector<Real>(nA, precision);
+		const vector<Real> varCur = vector<Real>(nA, variance);
+		const vector<Real> varHat = vector<Real>(nA, variance);
+#endif
 
 		//off policy stored action and on-policy sample:
 		const vector<Real> act = aInfo.getInvScaled(_t->a); //unbounded action space
@@ -189,11 +189,11 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
 		const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
 
-		#ifdef ACER_PENALIZER
-			const Real cotrolVar = A_cov;
-		#else
-			const Real cotrolVar = 0;
-		#endif
+#ifdef ACER_PENALIZER
+		const Real cotrolVar = A_cov;
+#else
+		const Real cotrolVar = 0;
+#endif
 
 		const Real gain1 = A_OPC * importance - eta * rho_cur * cotrolVar;
 		const Real gain2 = A_pol * correction;
@@ -202,12 +202,12 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		const vector<Real> gradAcer_1 = policyGradient(polCur, preCur, act, gain1);
 		const vector<Real> gradAcer_2 = policyGradient(polCur, preCur, pol, gain2);
 
-		#ifdef ACER_PENALIZER
+#ifdef ACER_PENALIZER
 		const vector<Real> gradC = controlGradient(polCur, varCur, P_Hat, mu_Hat, eta);
 		const vector<Real> policy_grad = sum3Grads(gradAcer_1, gradAcer_2, gradC);
-		#else
+#else
 		const vector<Real> policy_grad = sum2Grads(gradAcer_1, gradAcer_2);
-		#endif
+#endif
 
 		//trust region updating
 		const vector<Real> gradDivKL = gradDKL(polCur, polHat, preCur, preHat);
@@ -227,13 +227,13 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		Q_OPC = 0.5*OPC +Vs;
 
 		const vector<Real> critic_grad =
-		criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act, Qer);
+				criticGradient(P_Cur, polHat, varHat, out_cur[k], mu_Cur, act, Qer);
 		const vector<Real> grad =
-		finalizeGradient(Ver, critic_grad, policy_grad, out_cur[k], thrID, gain1, eta);
+				finalizeGradient(Ver, critic_grad, policy_grad, out_cur[k], thrID, gain1, eta);
 		//write gradient onto output layer
 		net->setOutputDeltas(grad, series_cur[k]);
-      //printf("Applying gradient %s\n",printVec(grad).c_str());
-      //fflush(0);
+		//printf("Applying gradient %s\n",printVec(grad).c_str());
+		//fflush(0);
 
 		//bookkeeping:
 		vector<Real> fake{A_cur, 100};
@@ -250,22 +250,22 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 
 void RACER::processStats(vector<trainData*> _stats, const Real avgTime)
 {
-	#ifdef ACER_SAFE
-		const Real stdev = 0.1 + annealingFactor();
-		variance = stdev*stdev;
-		precision = 1./variance;
-	#endif
-   //#ifndef NDEBUG
+#ifdef ACER_SAFE
+	const Real stdev = 0.1 + annealingFactor();
+	variance = stdev*stdev;
+	precision = 1./variance;
+#endif
+	//#ifndef NDEBUG
 	statsVector(avgGrad, stdGrad, cntGrad);
 	//setVecMean(meanGain1); setVecMean(meanGain2);
 	printf("Avg grad [%s] - std [%s]\n",
-		print(avgGrad[0]).c_str(), print(stdGrad[0]).c_str());
+			print(avgGrad[0]).c_str(), print(stdGrad[0]).c_str());
 	fflush(0);
 	ofstream filestats;
-    	filestats.open("grads.txt", ios::app);
+	filestats.open("grads.txt", ios::app);
 	filestats<<print(avgGrad[0]).c_str()<<" "<<print(stdGrad[0]).c_str()<<endl;
 	filestats.close();
-   //#endif
+	//#endif
 	Learner::processStats(_stats, avgTime);
 }
 
@@ -303,23 +303,23 @@ void RACER::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
 		dump[cnt++] = output[0];
 		dump[cnt++] = aInfo.getScaled(mu[0], 0);
 
-		#ifndef ACER_SAFE
-			vector<Real> var =  extractVariance(output);
-			dump[cnt++] = std::sqrt(var[0]);
-		#else
-			dump[cnt++] = std::sqrt(variance);
-		#endif
+#ifndef ACER_SAFE
+		vector<Real> var =  extractVariance(output);
+		dump[cnt++] = std::sqrt(var[0]);
+#else
+		dump[cnt++] = std::sqrt(variance);
+#endif
 
-		#ifndef ACER_RELAX
-			vector<Real> mean = extractQmean(output);
-			dump[cnt++] = aInfo.getScaled(mean[0], 0);
-		#else
-			dump[cnt++] = aInfo.getScaled(mu[0], 0);
-		#endif
+#ifndef ACER_RELAX
+		vector<Real> mean = extractQmean(output);
+		dump[cnt++] = aInfo.getScaled(mean[0], 0);
+#else
+		dump[cnt++] = aInfo.getScaled(mu[0], 0);
+#endif
 
 		for (Uint j=0; j<state.size(); j++) dump[cnt++] = state[j];
 		assert(cnt == dump.size());
 		fwrite(dump.data(),sizeof(Real),state.size()+4,pFile);
 	}
 	fclose (pFile);
- }
+}

@@ -73,16 +73,16 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 	master.restart(settings.restart);
 	printf("nthreads %d\n",settings.nThreads); fflush(0);
 
-	#if 1
-		if (settings.restart != "none" && !settings.nSlaves && !learner->nData())
-		{
-			printf("No slaves, just dumping the policy\n");
-			vector<Uint> nbins(env->stateDumpNBins());
-			vector<Real> lower(env->stateDumpLowerBound()), upper(env->stateDumpUpperBound());
-			learner->dumpPolicy(lower, upper, nbins);
-			abort();
-		}
-	#endif
+#if 1
+	if (settings.restart != "none" && !settings.nSlaves && !learner->nData())
+	{
+		printf("No slaves, just dumping the policy\n");
+		vector<Uint> nbins(env->stateDumpNBins());
+		vector<Real> lower(env->stateDumpLowerBound()), upper(env->stateDumpUpperBound());
+		learner->dumpPolicy(lower, upper, nbins);
+		abort();
+	}
+#endif
 
 	if (settings.nThreads > 1) learner->TrainTasking(&master);
 	else master.run();
@@ -109,7 +109,8 @@ int main (int argc, char** argv)
 	settings.bRecurrent = settings.nnType=="LSTM" || settings.nnType=="RNN";
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	if (not settings.isServer) {
+	if (not settings.isServer)
+	{
 		if (settings.sockPrefix<0)
 			die("Not received a prefix for the socket\n");
 		settings.generators.push_back(mt19937(settings.sockPrefix));

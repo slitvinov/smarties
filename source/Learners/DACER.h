@@ -22,7 +22,7 @@ class DACER : public DiscreteAlgorithm
 	void processStats(vector<trainData*> _stats, const Real avgTime) override;
 
 	vector<Real> basicNetOut(const int agentId, State& s, Action& a,
-		State& sOld, Action& aOld, const int info, Real r)
+			State& sOld, Action& aOld, const int info, Real r)
 	{
 		if (info == 2) { //no need for action, just pass terminal s & r
 			data->passData(agentId, info, sOld, a, vector<Real>(), s, r);
@@ -48,18 +48,18 @@ class DACER : public DiscreteAlgorithm
 
 		if(info==1) {
 			net->predict(data->standardize(input), output, currActivation
-			#ifdef __EntropySGD //then we sample from target weights
-			      , net->tgt_weights, net->tgt_biases
-			#endif
-	      );
+#ifdef __EntropySGD //then we sample from target weights
+					, net->tgt_weights, net->tgt_biases
+#endif
+			);
 		} else { //then if i'm using RNN i need to load recurrent connections (else no effect)
 			Activation* prevActivation = net->allocateActivation();
 			prevActivation->loadMemory(net->mem[agentId]);
 			net->predict(data->standardize(input), output, prevActivation, currActivation
-			#ifdef __EntropySGD //then we sample from target weights
-			      , net->tgt_weights, net->tgt_biases
-			#endif
-	      );
+#ifdef __EntropySGD //then we sample from target weights
+					, net->tgt_weights, net->tgt_biases
+#endif
+			);
 			_dispose_object(prevActivation);
 		}
 
@@ -147,8 +147,8 @@ private:
 	}
 
 	void dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-	 		const vector<Uint>& nbins) override;
-	 /*
+			const vector<Uint>& nbins) override;
+	/*
 	 void dumpNetworkInfo(const int agentId)
 	 {
 	 	net->dump(agentId);

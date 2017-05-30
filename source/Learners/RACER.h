@@ -15,18 +15,18 @@ class RACER : public PolicyAlgorithm
 	const Real truncation;
 	mutable vector<vector<Real>> stdGrad, avgGrad;
 	mutable vector<Real> cntGrad;
-	#ifdef ACER_SAFE
+#ifdef ACER_SAFE
 	//Real stdev = 0.1;
 	Real variance = 0.01;
 	Real precision = 100;
-	#endif
+#endif
 
 	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
 	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
 	void processStats(vector<trainData*> _stats, const Real avgTime) override;
 
 	vector<Real> basicNetOut(const int agentId, State& s, Action& a,
-		State& sOld, Action& aOld, const int info, Real r)
+			State& sOld, Action& aOld, const int info, Real r)
 	{
 		if (info == 2) { //no need for action, just pass terminal s & r
 			data->passData(agentId, info, sOld, a, vector<Real>(), s, r);
@@ -52,18 +52,18 @@ class RACER : public PolicyAlgorithm
 
 		if(info==1) {
 			net->predict(data->standardize(input), output, currActivation
-			#ifdef __EntropySGD //then we sample from target weights
-			      , net->tgt_weights, net->tgt_biases
-			#endif
-	      );
+#ifdef __EntropySGD //then we sample from target weights
+					, net->tgt_weights, net->tgt_biases
+#endif
+			);
 		} else { //then if i'm using RNN i need to load recurrent connections (else no effect)
 			Activation* prevActivation = net->allocateActivation();
 			prevActivation->loadMemory(net->mem[agentId]);
 			net->predict(data->standardize(input), output, prevActivation, currActivation
-			#ifdef __EntropySGD //then we sample from target weights
-			      , net->tgt_weights, net->tgt_biases
-			#endif
-	      );
+#ifdef __EntropySGD //then we sample from target weights
+					, net->tgt_weights, net->tgt_biases
+#endif
+			);
 			_dispose_object(prevActivation);
 		}
 
@@ -120,16 +120,16 @@ public:
 
 	static Uint getnOutputs(const Uint NA)
 	{
-		#if defined ACER_RELAX
-			// I output V(s), P(s), pol(s), prec(s) (and variate)
-				return 1+(NA*NA+NA)/2+NA+NA;
-		#elif defined ACER_SAFE
-			// I output V(s), P(s), pol(s), mu(s) (and variate)
-				return 1+(NA*NA+NA)/2+NA+NA;
-		#else //full formulation
-			// I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
-				return 1+(NA*NA+NA)/2+NA+NA+NA;
-		#endif
+#if defined ACER_RELAX
+		// I output V(s), P(s), pol(s), prec(s) (and variate)
+		return 1+(NA*NA+NA)/2+NA+NA;
+#elif defined ACER_SAFE
+		// I output V(s), P(s), pol(s), mu(s) (and variate)
+		return 1+(NA*NA+NA)/2+NA+NA;
+#else //full formulation
+		// I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
+		return 1+(NA*NA+NA)/2+NA+NA+NA;
+#endif
 	}
 
 private:
@@ -138,15 +138,15 @@ private:
 			const vector<Real>& gradCritic, const vector<Real>& gradPolicy,
 			const vector<Real>& out, const Uint thrID, const Real gain1, const Real eta) const
 	{
-      const Real anneal = std::pow(annealingFactor(), 2);
+		const Real anneal = std::pow(annealingFactor(), 2);
 		assert(out.size() == nOutputs);
 		assert(gradPolicy.size() == 2*nA); //no matter what
 		vector<Real> grad(nOutputs);
-		#ifdef ACER_RELAX
-			assert(gradCritic.size() == 1+nL);
-		#else
-			assert(gradCritic.size() == 1+nL+nA);
-		#endif
+#ifdef ACER_RELAX
+		assert(gradCritic.size() == 1+nL);
+#else
+		assert(gradCritic.size() == 1+nL+nA);
+#endif
 
 		grad[0] = gradCritic[0]+Verror;
 		for (Uint j=1; j<nL+1; j++)
@@ -156,24 +156,24 @@ private:
 			//grad[1+nL+j] = gradPolicy[j];
 			grad[1+nL+j] = gradPolicy[j] -anneal*out[1+nL+j];
 
-		#ifndef ACER_SAFE
-			const vector<Real> gradVar = finalizeVarianceGrad(gradPolicy, out);
-			for (Uint j=0; j<nA; j++) grad[1+nL+nA+j] = gradVar[j];
-		#endif
+#ifndef ACER_SAFE
+		const vector<Real> gradVar = finalizeVarianceGrad(gradPolicy, out);
+		for (Uint j=0; j<nA; j++) grad[1+nL+nA+j] = gradVar[j];
+#endif
 
-		#ifndef ACER_RELAX
-			for (Uint j=nL+1; j<nA+nL+1; j++) {
-			   #ifndef ACER_SAFE
-         		//grad[j+nA*2] = gradCritic[j];
-		   	grad[j+nA*2] = gradCritic[j] -anneal*out[j+nA*2];
-			   #else
-         		//grad[j+nA] = gradCritic[j];
-		   	grad[j+nA] = gradCritic[j] -anneal*out[j+nA];
-			   #endif
-         }
-		#else
-			//no gradient for mean of critic, ofc
-		#endif
+#ifndef ACER_RELAX
+		for (Uint j=nL+1; j<nA+nL+1; j++) {
+#ifndef ACER_SAFE
+			//grad[j+nA*2] = gradCritic[j];
+			grad[j+nA*2] = gradCritic[j] -anneal*out[j+nA*2];
+#else
+			//grad[j+nA] = gradCritic[j];
+			grad[j+nA] = gradCritic[j] -anneal*out[j+nA];
+#endif
+		}
+#else
+		//no gradient for mean of critic, ofc
+#endif
 
 		//gradient clipping
 		//1) update stats about the gradient
@@ -187,8 +187,8 @@ private:
 			if(grad[i] >  ACER_GRAD_CUT*stdGrad[0][i] && stdGrad[0][i]>2.2e-16)
 				grad[i] =  ACER_GRAD_CUT*stdGrad[0][i];
 			else
-			if(grad[i] < -ACER_GRAD_CUT*stdGrad[0][i] && stdGrad[0][i]>2.2e-16)
-				grad[i] = -ACER_GRAD_CUT*stdGrad[0][i];
+				if(grad[i] < -ACER_GRAD_CUT*stdGrad[0][i] && stdGrad[0][i]>2.2e-16)
+					grad[i] = -ACER_GRAD_CUT*stdGrad[0][i];
 		}
 
 		return grad;
@@ -216,8 +216,8 @@ private:
 	}
 
 	void dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-	 		const vector<Uint>& nbins) override;
-	 /*
+			const vector<Uint>& nbins) override;
+	/*
 	 void dumpNetworkInfo(const int agentId)
 	 {
 	 	net->dump(agentId);

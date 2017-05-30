@@ -14,20 +14,20 @@
 #include "saruprng.h"
 
 Optimizer::Optimizer(Network* const _net, Profiler* const _prof, Settings& _s) :
-	nWeights(_net->getnWeights()), nBiases(_net->getnBiases()), bTrain(_s.bTrain),
-	net(_net), profiler(_prof), _1stMomW(init(nWeights)), _1stMomB(init(nBiases)),
-	eta(_s.learnrate), lambda(_s.nnLambda), alpha(0.5), nepoch(0) { }
+nWeights(_net->getnWeights()), nBiases(_net->getnBiases()), bTrain(_s.bTrain),
+net(_net), profiler(_prof), _1stMomW(init(nWeights)), _1stMomB(init(nBiases)),
+eta(_s.learnrate), lambda(_s.nnLambda), alpha(0.5), nepoch(0) { }
 
 AdamOptimizer::AdamOptimizer(Network*const _net, Profiler*const _prof,
-	Settings& _s, const Real B1, const Real B2) :
-	Optimizer(_net, _prof, _s), _2ndMomW(init(nWeights)), _2ndMomB(init(nBiases)),
-	beta_1(B1), beta_2(B2), epsilon(1e-8), beta_t_1(B1), beta_t_2(B2) { }
+		Settings& _s, const Real B1, const Real B2) :
+			Optimizer(_net, _prof, _s), _2ndMomW(init(nWeights)), _2ndMomB(init(nBiases)),
+			beta_1(B1), beta_2(B2), epsilon(1e-8), beta_t_1(B1), beta_t_2(B2) { }
 //beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.99)
 
 EntropySGD::EntropySGD(Network*const _net, Profiler*const _prof, Settings&_s) :
-AdamOptimizer(_net, _prof, _s, 0.8), alpha_eSGD(0.75), gamma_eSGD(1.),
-eta_eSGD(1./_s.targetDelay), eps_eSGD(1e-6), L_eSGD(_s.targetDelay),
-_muW_eSGD(init(nWeights)), _muB_eSGD(init(nBiases))
+		AdamOptimizer(_net, _prof, _s, 0.8), alpha_eSGD(0.75), gamma_eSGD(1.),
+		eta_eSGD(1./_s.targetDelay), eps_eSGD(1e-6), L_eSGD(_s.targetDelay),
+		_muW_eSGD(init(nWeights)), _muB_eSGD(init(nBiases))
 {
 	assert(L_eSGD>0);
 	for (Uint i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights[i];
@@ -39,13 +39,13 @@ void Optimizer::moveFrozenWeights(const Real _alpha)
 	if (net->allocatedFrozenWeights==false || _alpha>1)
 		return net->updateFrozenWeights();
 
-	#pragma omp parallel
+#pragma omp parallel
 	{
-		#pragma omp for nowait
+#pragma omp for nowait
 		for (Uint j=0; j<nWeights; j++)
 			net->tgt_weights[j] += _alpha*(net->weights[j] - net->tgt_weights[j]);
 
-			#pragma omp for nowait
+#pragma omp for nowait
 		for (Uint j=0; j<nBiases; j++)
 			net->tgt_biases[j] += _alpha*(net->biases[j] - net->tgt_biases[j]);
 	}
@@ -55,18 +55,18 @@ void EntropySGD::moveFrozenWeights(const Real _alpha)
 {
 	assert(_alpha>1);
 
-	#pragma omp parallel
+#pragma omp parallel
 	{
 		const Real fac = eta_eSGD * gamma_eSGD;
 
-		#pragma omp for nowait
+#pragma omp for nowait
 		for (Uint j=0; j<nWeights; j++) {
 			net->tgt_weights[j] += fac * (_muW_eSGD[j] - net->tgt_weights[j]);
 			net->weights[j] = net->tgt_weights[j];
 			_muW_eSGD[j] = net->tgt_weights[j];
 		}
 
-		#pragma omp for nowait
+#pragma omp for nowait
 		for (Uint j=0; j<nBiases; j++){
 			net->tgt_biases[j] += fac * (_muB_eSGD[j] - net->tgt_biases[j]);
 			net->biases[j] = net->tgt_biases[j];
@@ -86,12 +86,12 @@ void EntropySGD::update(Real* const dest, const Real* const target, Real* const 
 	// TODO const Real lambda_ = _lambda*eta_;
 	const Real noise = std::sqrt(eta_) * eps_eSGD;
 
-	#pragma omp parallel
+#pragma omp parallel
 	{
 		const Uint thrID = static_cast<Uint>(omp_get_thread_num());
 		Saru gen(nepoch, thrID, net->generators[thrID]());
 
-		#pragma omp for
+#pragma omp for
 		for (Uint i=0; i<N; i++)
 		{
 			const Real DW  = grad[i]*norm;
@@ -137,16 +137,16 @@ void Optimizer::stackGrads(Grads* const G, const Grads* const g) const
 void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 {
 	const Uint nThreads = g.size();
-	#pragma omp parallel
+#pragma omp parallel
 	{
-		#pragma omp for nowait
+#pragma omp for nowait
 		for (Uint j=0; j<nWeights; j++)
 			for (Uint k=0; k<nThreads; k++) {
 				G->_W[j] += g[k]->_W[j];
 				g[k]->_W[j] = 0.;
 			}
 
-		#pragma omp for nowait
+#pragma omp for nowait
 		for (Uint j=0; j<nBiases; j++)
 			for (Uint k=0; k<nThreads; k++) {
 				G->_B[j] += g[k]->_B[j];
@@ -185,7 +185,7 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
 	//const Real eta_ = eta*norm/std::log((double)nepoch/1.);
 	const Real eta_ = eta*norm/(1.+std::log(1. + (double)nepoch/1e3));
 
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (Uint i=0; i<N; i++) {
 		const Real M1 = alpha * _1stMom[i] + eta_ * grad[i];
 		_1stMom[i] = std::max(std::min(M1,eta_),-eta_);
@@ -205,7 +205,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 	const Real norm = 1./batchsize;
 	//const Real lambda_ = _lambda*eta_;
 	const Real eps = std::numeric_limits<Real>::epsilon();
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (Uint i=0; i<N; i++) {
 		const Real DW  = grad[i]*norm;
 		const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
@@ -229,7 +229,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 	const Real eta_ = _eta/(1.-beta_t_1);
 	const Real norm = 1./(Real)max(batchsize,1);
 	const Real eps = std::numeric_limits<Real>::epsilon();
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (int i=0; i<N; i++) {
 		//const Real scale = std::max(1.,std::fabs(dest[i]));
 		//const Real DW  = std::max(std::min(grad[i]*norm, 1.), -1.);
@@ -336,9 +336,9 @@ bool Optimizer::restart(const string fname)
 	if (!in.good())
 	{
 		error("Couldnt open file %s \n", nameBackup.c_str());
-		#ifndef NDEBUG //if debug, you might want to do this
+#ifndef NDEBUG //if debug, you might want to do this
 		if(!bTrain) {die("...and I'm not training\n");}
-		#endif
+#endif
 		return false;
 	}
 
@@ -346,7 +346,7 @@ bool Optimizer::restart(const string fname)
 	in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
 	if (readNLayers != nLayers || readNNeurons != nNeurons)
 		die("Network parameters differ!");
-		//readTotWeights != nWeights || readTotBiases != nBiases || TODO
+	//readTotWeights != nWeights || readTotBiases != nBiases || TODO
 
 	vector<Real> outWeights, outBiases, outMomW, outMomB;
 	outWeights.resize(nWeights); outMomW.resize(nWeights);
@@ -373,9 +373,9 @@ bool AdamOptimizer::restart(const string fname)
 	if (!in.good())
 	{
 		error("Couldnt open file %s \n", nameBackup.c_str());
-		#ifndef NDEBUG //if debug, you might want to do this
-			if(!bTrain) {die("...and I'm not training\n");}
-		#endif
+#ifndef NDEBUG //if debug, you might want to do this
+		if(!bTrain) {die("...and I'm not training\n");}
+#endif
 		return false;
 	}
 
@@ -383,7 +383,7 @@ bool AdamOptimizer::restart(const string fname)
 	in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
 	if (readNLayers != nLayers || readNNeurons != nNeurons)
 		die("Network parameters differ!");
-		//readTotWeights != nWeights || readTotBiases != nBiases || TODO
+	//readTotWeights != nWeights || readTotBiases != nBiases || TODO
 
 	vector<Real> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2MomB;
 	outWeights.resize(nWeights); out1MomW.resize(nWeights); out2MomW.resize(nWeights);

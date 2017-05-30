@@ -18,8 +18,8 @@ using namespace std;
 struct Mem //Memory light recipient for prediction on agents
 {
 	Mem(Uint _nNeurons, Uint _nStates):
-	nNeurons(_nNeurons), nStates(_nStates),
-	outvals(initClean(nNeurons)), ostates(init(nStates))
+		nNeurons(_nNeurons), nStates(_nStates),
+		outvals(initClean(nNeurons)), ostates(init(nStates))
 	{	}
 
 	~Mem()
@@ -35,22 +35,22 @@ struct Mem //Memory light recipient for prediction on agents
 struct Activation //All the network signals. TODO: vector of activations, one per layer, allowing classes of activations
 {
 	Activation(Uint _nNeurons,Uint _nStates):
-	nNeurons(_nNeurons),nStates(_nStates),
-	//contains all inputs to each neuron (inputs to network input layer is empty)
-	in_vals(init(nNeurons)),
-	//contains all neuron outputs that will be the incoming signal to linked layers (outputs of input layer is network inputs)
-	outvals(init(nNeurons)),
-	//deltas for each neuron
-	errvals(initClean(nNeurons)),
-	//memory and inputs to gates (cell into in_vals)
-	ostates(init(nNeurons)), iIGates(init(nNeurons)),
-	iFGates(init(nNeurons)), iOGates(init(nNeurons)),
-	//output of gates and LSTM cell
-	oMCell(init(nNeurons)), oIGates(init(nNeurons)),
-	oFGates(init(nNeurons)), oOGates(init(nNeurons)),
-	//errors of gates and LSTM cell
-	eMCell(init(nNeurons)), eIGates(init(nNeurons)),
-	eFGates(init(nNeurons)), eOGates(init(nNeurons))
+		nNeurons(_nNeurons),nStates(_nStates),
+		//contains all inputs to each neuron (inputs to network input layer is empty)
+		in_vals(init(nNeurons)),
+		//contains all neuron outputs that will be the incoming signal to linked layers (outputs of input layer is network inputs)
+		outvals(init(nNeurons)),
+		//deltas for each neuron
+		errvals(initClean(nNeurons)),
+		//memory and inputs to gates (cell into in_vals)
+		ostates(init(nNeurons)), iIGates(init(nNeurons)),
+		iFGates(init(nNeurons)), iOGates(init(nNeurons)),
+		//output of gates and LSTM cell
+		oMCell(init(nNeurons)), oIGates(init(nNeurons)),
+		oFGates(init(nNeurons)), oOGates(init(nNeurons)),
+		//errors of gates and LSTM cell
+		eMCell(init(nNeurons)), eIGates(init(nNeurons)),
+		eFGates(init(nNeurons)), eOGates(init(nNeurons))
 	{ }
 
 	~Activation()
@@ -104,18 +104,18 @@ struct Activation //All the network signals. TODO: vector of activations, one pe
 
 	inline void loadMemory(Mem*const _M)
 	{
-			assert(_M->nNeurons == nNeurons);
-			assert(_M->nStates == nStates);
-	    for (Uint j=0; j<nNeurons; j++) outvals[j] = _M->outvals[j];
-	    for (Uint j=0; j<nStates;  j++) ostates[j] = _M->ostates[j];
+		assert(_M->nNeurons == nNeurons);
+		assert(_M->nStates == nStates);
+		for (Uint j=0; j<nNeurons; j++) outvals[j] = _M->outvals[j];
+		for (Uint j=0; j<nStates;  j++) ostates[j] = _M->ostates[j];
 	}
 
 	inline void storeMemory(Mem*const _M)
 	{
-			assert(_M->nNeurons == nNeurons);
-			assert(_M->nStates == nStates);
-	    for (Uint j=0; j<nNeurons; j++) _M->outvals[j] = outvals[j];
-	    for (Uint j=0; j<nStates;  j++) _M->ostates[j] = ostates[j];
+		assert(_M->nNeurons == nNeurons);
+		assert(_M->nStates == nStates);
+		for (Uint j=0; j<nNeurons; j++) _M->outvals[j] = outvals[j];
+		for (Uint j=0; j<nStates;  j++) _M->ostates[j] = ostates[j];
 	}
 
 	const Uint nNeurons, nStates;
@@ -139,14 +139,14 @@ struct Activation //All the network signals. TODO: vector of activations, one pe
 struct Grads
 {
 	Grads(Uint _nWeights, Uint _nBiases):
-	nWeights(_nWeights), nBiases(_nBiases),
-	_W(initClean(_nWeights)), _B(initClean(_nBiases))
+		nWeights(_nWeights), nBiases(_nBiases),
+		_W(initClean(_nWeights)), _B(initClean(_nBiases))
 	{ }
 
 	~Grads()
 	{
 		_myfree(_W);
-    _myfree(_B);
+		_myfree(_B);
 	}
 	inline void clear()
 	{
@@ -173,6 +173,7 @@ struct Linear : public Function
 	{
 		return std::sqrt(6./inps);// 2./inps;
 	}
+
 	Real eval(const Real in) const override
 	{
 		return in;
@@ -190,17 +191,18 @@ struct Tanh : public Function
 	{
 		return std::sqrt(6./(inps + outs));
 	}
+
 	Real eval(const Real in) const override
 	{
-			if(in >  8) return  1;
-			if(in < -8) return -1;
-			if(in>0) {
-				const Real e2x = std::exp(-2*in);
-				return (1-e2x)/(1+e2x);
-			} else {
-				const Real e2x = std::exp( 2*in);
-				return (e2x-1)/(1+e2x);
-			}
+		if(in >  8) return  1;
+		if(in < -8) return -1;
+		if(in>0) {
+			const Real e2x = std::exp(-2*in);
+			return (1-e2x)/(1+e2x);
+		} else {
+			const Real e2x = std::exp( 2*in);
+			return (e2x-1)/(1+e2x);
+		}
 	}
 
 	Real evalDiff(const Real in) const override
@@ -218,17 +220,18 @@ struct TwoTanh : public Function
 	{
 		return std::sqrt(6./(inps + outs));
 	}
+
 	Real eval(const Real in) const override
 	{
-			if(in >  8) return  2;
-			if(in < -8) return -2;
-			if(in>0) {
-				const Real e2x = std::exp(-2*in);
-				return 2*(1-e2x)/(1+e2x);
-			} else {
-				const Real e2x = std::exp( 2*in);
-				return 2*(e2x-1)/(1+e2x);
-			}
+		if(in >  8) return  2;
+		if(in < -8) return -2;
+		if(in>0) {
+			const Real e2x = std::exp(-2*in);
+			return 2*(1-e2x)/(1+e2x);
+		} else {
+			const Real e2x = std::exp( 2*in);
+			return 2*(e2x-1)/(1+e2x);
+		}
 	}
 
 	Real evalDiff(const Real in) const override
@@ -245,11 +248,12 @@ struct Sigm : public Function
 	{
 		return std::sqrt(6./(inps + outs));
 	}
+
 	Real eval(const Real in) const override
 	{
-			if(in >  16) return 1;
-			if(in < -16) return 0;
-			return 1/(1+std::exp(-in));
+		if(in >  16) return 1;
+		if(in < -16) return 0;
+		return 1/(1+std::exp(-in));
 	}
 
 	Real evalDiff(const Real in) const override
@@ -269,7 +273,7 @@ struct SoftSign : public Function
 	}
 	Real eval(const Real in) const override
 	{
-			return in/(1+std::fabs(in));
+		return in/(1+std::fabs(in));
 	}
 	Real evalDiff(const Real in) const override
 	{
@@ -284,9 +288,10 @@ struct TwoSoftSign : public Function
 	{
 		return std::sqrt(6./(inps + outs));
 	}
+
 	Real eval(const Real in) const override
 	{
-			return 2*in/(1+std::fabs(in));
+		return 2*in/(1+std::fabs(in));
 	}
 
 	Real evalDiff(const Real in) const override
@@ -302,10 +307,11 @@ struct SoftSigm : public Function
 	{
 		return std::sqrt(6./(inps + outs));
 	}
+
 	Real eval(const Real in) const override
 	{
-			const Real sign = in/(1+std::fabs(in));
-			return 0.5*(1+sign);
+		const Real sign = in/(1+std::fabs(in));
+		return 0.5*(1+sign);
 	}
 
 	Real evalDiff(const Real in) const override
@@ -321,14 +327,15 @@ struct Relu : public Function
 	{
 		return 2./inps;
 	}
+
 	Real eval(const Real in) const override
 	{
-			return in>0 ? in : 0;
+		return in>0 ? in : 0;
 	}
 
 	Real evalDiff(const Real in) const override
 	{
-			return in>0 ? 1 : 0;
+		return in>0 ? 1 : 0;
 	}
 };
 
@@ -338,14 +345,15 @@ struct PRelu : public Function
 	{
 		return 2./inps;
 	}
+
 	Real eval(const Real in) const override
 	{
-			return in>0 ? in : PRELU_FAC*in;
+		return in>0 ? in : PRELU_FAC*in;
 	}
 
 	Real evalDiff(const Real in) const override
 	{
-			return in>0 ? 1 : PRELU_FAC;
+		return in>0 ? 1 : PRELU_FAC;
 	}
 };
 
@@ -355,11 +363,12 @@ struct ExpPlus : public Function
 	{
 		return 2./inps;
 	}
+
 	Real eval(const Real in) const override
 	{
-			if(in >  16) return in;
-			if(in < -16) return 0;
-			return std::log(1+std::exp(in));
+		if(in >  16) return in;
+		if(in < -16) return 0;
+		return std::log(1+std::exp(in));
 	}
 
 	Real evalDiff(const Real in) const override
@@ -411,6 +420,6 @@ inline Function* readFunction(const string name, const bool bOutput)
 	else
 	if (name == "SoftPlus") return new SoftPlus();
 	else
-	die("Activation function not recognized\n");
+		die("Activation function not recognized\n");
 	return (Function*)nullptr;
 }
