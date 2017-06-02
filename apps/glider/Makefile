@@ -3,8 +3,8 @@ smart ?= 1
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-LD=g++-6
-CC=g++-6
+LD=g++-7
+CC=g++-7
 endif
 
 ifeq "$(smart)" "0"

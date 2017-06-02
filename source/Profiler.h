@@ -27,7 +27,7 @@ const bool bVerboseProfiling = false;
 
 class ProfileAgent
 {
-//	typedef tbb::tick_count ClockTime;
+	//	typedef tbb::tick_count ClockTime;
 	typedef timeval ClockTime;
 
 	enum ProfileAgentState{ ProfileAgentState_Created, ProfileAgentState_Started, ProfileAgentState_Stopped};
@@ -154,7 +154,7 @@ public:
 			dTotalTime += it->dTime;
 
 		for(vector<ProfileSummaryItem>::const_iterator it = v.begin(); it!= v.end(); it++)
-		dTotalTime2 += it->dTime - it->nSamples*1.30e-6;
+			dTotalTime2 += it->dTime - it->nSamples*1.30e-6;
 
 		for(vector<ProfileSummaryItem>::const_iterator it = v.begin(); it!= v.end(); it++)
 		{
@@ -162,10 +162,10 @@ public:
 			const double avgTime = item.dAverageTime;
 
 			printf("[%15s]: \t%02.0f-%02.0f%%\t%03.3e (%03.3e) s\t%03.3f (%03.3f) s\t(%d samples)\n",
-				   item.sName.data(), 100*item.dTime/dTotalTime, 100*(item.dTime- item.nSamples*1.3e-6)/dTotalTime2, avgTime,avgTime-1.30e-6,  item.dTime, item.dTime- item.nSamples*1.30e-6, item.nSamples);
+					item.sName.data(), 100*item.dTime/dTotalTime, 100*(item.dTime- item.nSamples*1.3e-6)/dTotalTime2, avgTime,avgTime-1.30e-6,  item.dTime, item.dTime- item.nSamples*1.30e-6, item.nSamples);
 			if (outFile) fprintf(outFile,"[%15s]: \t%02.2f%%\t%03.3f s\t(%d samples)\n",
 
-				   item.sName.data(), 100*item.dTime/dTotalTime, avgTime, item.nSamples);
+					item.sName.data(), 100*item.dTime/dTotalTime, avgTime, item.nSamples);
 		}
 
 		printf("[Total time]: \t%f\n", dTotalTime);
@@ -175,7 +175,7 @@ public:
 	}
 
 	vector<ProfileSummaryItem> createSummary(bool bSkipIrrelevantEntries=true) const
-	{
+			{
 		vector<ProfileSummaryItem> result;
 		result.reserve(m_mapAgents.size());
 
@@ -187,7 +187,7 @@ public:
 		}
 
 		return result;
-	}
+			}
 
 	void reset()
 	{

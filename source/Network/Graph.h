@@ -12,6 +12,7 @@
 
 struct Graph
 {
+	const int layer_ID;
 	bool written = false; //is this graph already used?
 	bool built = false; //is this graph already used?
 
@@ -47,12 +48,15 @@ struct Graph
 	Function* func = nullptr;
 	Function* cell = nullptr;
 	Function* gate = nullptr;
+	
+	Real weight_init_factor = -1;
 
-	Graph() { }
+	Graph(const int layerid = -1) : layer_ID(static_cast<int>(layerid)) { }
 	~Graph() { }
 
 	void check() const
 	{
+		assert(layer_ID>=0);
 		assert(built);
 		assert(written);
 		assert(layerSize>0);
@@ -73,9 +77,9 @@ struct Graph
 		assert((!LSTM && firstBiasIG_ID==0) || (LSTM && firstBiasIG_ID>0));
 		assert((!LSTM && firstBiasFG_ID==0) || (LSTM && firstBiasFG_ID>0));
 		assert((!LSTM && firstBiasOG_ID==0) || (LSTM && firstBiasOG_ID>0));
-		#ifndef NDEBUG
+#ifndef NDEBUG
 		const bool layer2D = Conv2D || input2D;
-		#endif
+#endif
 		assert((!layer2D && layerWidth==0) || (layer2D && layerWidth>0));
 		assert((!layer2D && layerHeight==0) || (layer2D && layerHeight>0));
 		assert((!layer2D && layerDepth==0) || (layer2D && layerDepth>0));

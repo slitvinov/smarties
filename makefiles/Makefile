@@ -10,8 +10,8 @@ extra ?=
 app ?= test
 #cvar ?= simple
 cvar ?= off
-acer ?= full 
-testdiff ?= no 
+acer ?= full
+testdiff ?= no
 entropy ?= off
 mpi_lib ?= default
 
@@ -49,7 +49,7 @@ endif
 
 CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
-CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wpedantic 
+CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wpedantic
 CPPFLAGS+= -Wno-unused-parameter -Wno-reorder -Wno-unknown-pragmas
 CPPFLAGS+= -Wno-unused-value -Wno-unused-variable
 
@@ -76,17 +76,17 @@ endif
 ifeq "$(cvar)" "on"
 CPPFLAGS+= -DACER_PENALIZER
 endif
+ifeq "$(testdiff)" "yes"
+CPPFLAGS+= -D__CHECK_DIFF
+endif
 
 ifeq "$(app)" "cubism"
 CPPFLAGS+= -D__Cubism3D
 endif
 ifeq "$(config)" "debug"
 CPPFLAGS+= -g -O2 -ffast-math -dynamic -fsanitize=address
-LIBS += -dynamic -fsanitize=address 
-ifeq "$(testdiff)" "yes"
-CPPFLAGS+= -D__CHECK_DIFF
-endif 
-endif 
+LIBS += -dynamic -fsanitize=address
+endif
 ifeq "$(config)" "prod"
 CPPFLAGS += -DNDEBUG -O2 -ffast-math
 endif
@@ -102,12 +102,13 @@ CPPFLAGS+= -I/usr/local/include -fopenmp -D__Smarties_
 LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
-OBJ_FILES = Communicator.o ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
+OBJ_FILES = Profiler.o ArgumentParser.o main.o ObjectFactory.o \
 		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o \
 		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
-		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o alebotEnvironment.o openAICartEnvironment.o\
+		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
+		alebotEnvironment.o openAICartEnvironment.o Communicator.o \
 		Learner.o RACER.o DACER.o NAF.o NFQ.o DPG.o Transitions.o \
-		Scheduler.o  Network.o Optimizer.o #Links.o Layers.o
+		Scheduler.o  Network.o Optimizer.o Math_tests.o Learner_utils.o
 #ExternalAgent.o
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 

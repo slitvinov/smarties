@@ -27,7 +27,7 @@ public:
     const double gamma;
 
     bool resetAll = false;
-    bool cheaperThanNetwork = false;
+    bool cheaperThanNetwork = true;
     Uint mpi_ranks_per_env = 0;
     string paramsfile = string();
 

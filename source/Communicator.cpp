@@ -36,7 +36,7 @@ Communicator::Communicator(const int socket, const int sdim, const int adim, con
 	socket_id = socket;
 	called_by_app = true;
 	if (rank_inside_app == 0) //only rank 0 of the app talks with smarties
-	launch();
+		launch();
 }
 #endif
 
@@ -60,11 +60,11 @@ void Communicator::sendState(const int iAgent, const _AGENT_STATUS status,
 		else  printBuf(data_state, size_state);
 	}
 
-	#ifdef MPI_INCLUDED
+#ifdef MPI_INCLUDED
 	if (rank_learn_pool>0) send_MPI(data_state, size_state, comm_learn_pool);
 	else
-	#endif
-	comm_sock(Socket, true, data_state, size_state);
+#endif
+		comm_sock(Socket, true, data_state, size_state);
 
 	if (status == _AGENT_LASTCOMM) {
 		//receive continue/abort
@@ -72,11 +72,11 @@ void Communicator::sendState(const int iAgent, const _AGENT_STATUS status,
 			comm_sock(Socket, false, data_action, size_action);
 			if(data_action[0]<0) {
 				printf("Received end of training signal. Aborting...\n"); fflush(0);
-				#ifdef MPI_INCLUDED
-					if(size_inside_app>0) MPI_Abort(comm_inside_app, 1);
-					else
-				#endif
-				abort();
+#ifdef MPI_INCLUDED
+				if(size_inside_app>0) MPI_Abort(comm_inside_app, 1);
+				else
+#endif
+					abort();
 			}
 		}
 		seq_id++;
@@ -87,21 +87,21 @@ void Communicator::sendState(const int iAgent, const _AGENT_STATUS status,
 void Communicator::recvAction(std::vector<double>& actions)
 {
 	assert(actions.size() == (std::size_t) nActions);
-	#ifdef MPI_INCLUDED
-		if(rank_inside_app <= 0)
-		{
-			if (rank_learn_pool>0)
-				recv_MPI(data_action, size_action, comm_learn_pool, lag);
-			else
-	#endif
-				comm_sock(Socket, false, data_action, size_action);
-	#ifdef MPI_INCLUDED
-			for (int i=1; i<size_inside_app; ++i)
-				MPI_Send(data_action, size_action, MPI_BYTE, i, 42, comm_inside_app);
-		} else {
-				MPI_Recv(data_action, size_action, MPI_BYTE, 0, 42, comm_inside_app, MPI_STATUS_IGNORE);
-		}
-	#endif
+#ifdef MPI_INCLUDED
+	if(rank_inside_app <= 0)
+	{
+		if (rank_learn_pool>0)
+			recv_MPI(data_action, size_action, comm_learn_pool, lag);
+		else
+#endif
+			comm_sock(Socket, false, data_action, size_action);
+#ifdef MPI_INCLUDED
+		for (int i=1; i<size_inside_app; ++i)
+			MPI_Send(data_action, size_action, MPI_BYTE, i, 42, comm_inside_app);
+	} else {
+		MPI_Recv(data_action, size_action, MPI_BYTE, 0, 42, comm_inside_app, MPI_STATUS_IGNORE);
+	}
+#endif
 
 	for (int j=0; j<nActions; j++) {
 		actions[j] = data_action[j];
@@ -136,10 +136,10 @@ void Communicator::printBuf(const double*const buf, const int size)
 
 void Communicator::launch_smarties()
 {
-	#ifdef __Smarties_
+#ifdef __Smarties_
 	printf("launch_smarties\n"); fflush(0);
 	abort();
-	#else
+#else
 	//go up til a file runClient is found: shaky
 	struct stat buffer;
 	while(stat("runClient.sh", &buffer))
@@ -154,7 +154,7 @@ void Communicator::launch_smarties()
 	redirect_stdout_stderr();
 
 	launch_exec("./runClient.sh");
-	#endif
+#endif
 	abort(); //if app returns: TODO
 }
 
@@ -187,7 +187,7 @@ void Communicator::launch_exec(const std::string exec)
 
 void Communicator::launch_app()
 {
-	#ifdef __Smarties_
+#ifdef __Smarties_
 	mkdir(("simulation_"+std::to_string(socket_id)+"_"
 			+std::to_string(iter)+"/").c_str(),
 			S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -197,10 +197,10 @@ void Communicator::launch_app()
 	redirect_stdout_stderr();
 
 	launch_exec(execpath);
-	#else
+#else
 	printf("launch_app\n");
 	fflush(0);
-	#endif
+#endif
 	abort(); //if app returns: TODO
 }
 
@@ -216,8 +216,7 @@ void Communicator::setupClient()
 			launch_smarties();
 		else
 			launch_app();
-	} else
-	{  //parent
+	} else {  //parent
 		Socket = socket(AF_UNIX, SOCK_STREAM, 0);
 
 		int _true = 1;
@@ -232,7 +231,7 @@ void Communicator::setupClient()
 		serverAddress.sun_family = AF_UNIX;
 		strcpy(serverAddress.sun_path, SOCK_PATH);
 		const int servlen = sizeof(serverAddress.sun_family)
-													 + strlen(serverAddress.sun_path)+1;
+											+ strlen(serverAddress.sun_path)+1;
 
 		/* Connect to the server */
 		while (connect(Socket, (struct sockaddr *)&serverAddress, servlen) < 0)
@@ -257,21 +256,21 @@ void Communicator::setupServer()
 	printf("%s %s\n",serverAddress.sun_path,SOCK_PATH);
 	fflush(0);
 	const int servlen = sizeof(serverAddress.sun_family)
-												+ strlen(serverAddress.sun_path) +1;
+										+ strlen(serverAddress.sun_path) +1;
 
 	if (bind(ServerSocket, (struct sockaddr *)&serverAddress, servlen) < 0)
 	{
 		perror("bind");
 		exit(1);
 	}
-/*
+	/*
 	int _true = 1;
 	if(setsockopt(ServerSocket, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int))<0)
 	{
 		perror("Sockopt failed\n");
 		exit(1);
 	}
-*/
+	 */
 	/* listen (only 1)*/
 	if (listen(ServerSocket, 1) == -1)
 	{
@@ -312,7 +311,7 @@ Communicator::Communicator(const MPI_Comm scom, const int socket, const bool spa
 }
 
 void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_values,
-	std::vector<double>& state_upper_bound, std::vector<double>& state_lower_bound)
+		std::vector<double>& state_upper_bound, std::vector<double>& state_lower_bound)
 {
 	unsigned long dummy = 1;
 	double* sketchy_ptr;
@@ -322,7 +321,7 @@ void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_v
 	else {
 		comm_sock(Socket, false, sketchy_ptr, 2*sizeof(double));
 		if (rank_learn_pool==1)
-		MPI_Ssend(sketchy_ptr, 2*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
+			MPI_Ssend(sketchy_ptr, 2*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
 	}
 
 	nStates  = doublePtrToInt(sketchy_ptr+0);
@@ -340,7 +339,7 @@ void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_v
 	else {
 		comm_sock(Socket, false, sketchy_ptr, 2*nStates*sizeof(double));
 		if (rank_learn_pool==1)
-		MPI_Ssend(sketchy_ptr, 2*nStates*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
+			MPI_Ssend(sketchy_ptr, 2*nStates*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
 	}
 
 	double* sketchier_ptr = sketchy_ptr;
@@ -359,7 +358,7 @@ void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_v
 	else {
 		comm_sock(Socket, false, sketchy_ptr, nActions*sizeof(double));
 		if (rank_learn_pool==1)
-		MPI_Ssend(sketchy_ptr, nActions*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
+			MPI_Ssend(sketchy_ptr, nActions*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
 	}
 
 	sketchier_ptr = sketchy_ptr;
@@ -376,7 +375,7 @@ void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_v
 	else {
 		comm_sock(Socket, false, sketchy_ptr, n_action_vals*sizeof(double));
 		if (rank_learn_pool==1)
-		MPI_Ssend(sketchy_ptr, n_action_vals*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
+			MPI_Ssend(sketchy_ptr, n_action_vals*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
 	}
 
 	sketchier_ptr = sketchy_ptr;
@@ -539,7 +538,7 @@ void Communicator::redirect_stdout_finalize()
 
 void Communicator::redirect_stdout_stderr()
 {
-	#ifdef COMM_REDIRECT_OUT
+#ifdef COMM_REDIRECT_OUT
 	fflush(0);
 	char output[256];
 	sprintf(output, "output");
@@ -547,5 +546,5 @@ void Communicator::redirect_stdout_stderr()
 	dup2(fd, 1);    // make stdout go to file
 	dup2(fd, 2);    // make stderr go to file
 	close(fd);      // fd no longer needed
-	#endif
+#endif
 }

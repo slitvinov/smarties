@@ -14,7 +14,7 @@
 
 class Optimizer
 { //basic momentum update
- protected:
+protected:
 	const Uint nWeights, nBiases, bTrain;
 	Network * const net;
 	Profiler * const profiler;
@@ -24,7 +24,7 @@ class Optimizer
 	void update(Real* const dest, Real* const grad, Real* const _1stMom,
 			const Uint N, const Uint batchsize) const;
 
- public:
+public:
 	const Real eta, lambda, alpha;
 	long unsigned nepoch;
 
@@ -55,9 +55,9 @@ class Optimizer
 
 		for(Uint agentID=0; agentID<nAgents; agentID++) {
 			for (Uint j=0; j<nNeurons; j++)
-			out << net->mem[agentID]->outvals[j] << "\n";
+				out << net->mem[agentID]->outvals[j] << "\n";
 			for (Uint j=0; j<nStates;  j++)
-			out << net->mem[agentID]->ostates[j] << "\n";
+				out << net->mem[agentID]->ostates[j] << "\n";
 		}
 		out.flush();
 		out.close();
@@ -98,7 +98,7 @@ class Optimizer
 
 class AdamOptimizer: public Optimizer
 { //Adam optimizer
- protected:
+protected:
 	const Real beta_1, beta_2, epsilon;
 	Real beta_t_1, beta_t_2;
 	Real* const _2ndMomW;
@@ -107,7 +107,7 @@ class AdamOptimizer: public Optimizer
 	void update(Real* const dest, Real* const grad, Real* const _1stMom,
 			Real* const _2ndMom, const Uint N, const Uint batchsize, const Real _eta);
 
- public:
+public:
 	AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings,
 			const Real B1 = 0.9, const Real B2 = 0.999);
 
@@ -124,7 +124,7 @@ class AdamOptimizer: public Optimizer
 
 class EntropySGD: public AdamOptimizer
 {
- protected:
+protected:
 	const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD;
 	const Uint L_eSGD;
 	Real* const _muW_eSGD;
@@ -133,7 +133,7 @@ class EntropySGD: public AdamOptimizer
 	void update(Real* const dest, const Real* const target, Real* const grad,
 			Real* const _1stMom, Real* const _2ndMom, Real* const _mu, const Uint N,
 			const Uint batchsize, const Real _eta);
- public:
+public:
 
 	EntropySGD(Network* const _net,Profiler* const _prof,Settings& settings);
 

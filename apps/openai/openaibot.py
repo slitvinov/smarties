@@ -41,8 +41,8 @@ elif hasattr(env.action_space, 'shape'):
     nActions = env.action_space.shape[0]
     for i in range(nActions):
         actionOptions = np.append(actionOptions, 2.1)
-        actionValues = np.append(actionValues,env.action_space.low[i])
-        actionValues = np.append(actionValues,env.action_space.high[i])
+        actionValues = np.append(actionValues,max(env.action_space.low[i],-1e3))
+        actionValues = np.append(actionValues,min(env.action_space.high[i],1e3))
 elif hasattr(env.action_space, 'n'):
     nActions_i = env.action_space.n
     actionOptions = np.append(actionOptions, nActions_i)
@@ -70,6 +70,7 @@ conn.send(np.array([nStates+.1,nActions+.1],np.float64).tobytes())
 conn.send(state_bounds.tobytes())
 conn.send(actionOptions.tobytes())
 conn.send(actionValues.tobytes())
+bRender = np.frombuffer(conn.recv(8), dtype=np.float64)
 
 state=np.zeros(nStates+3)
 while True:
@@ -84,7 +85,8 @@ while True:
     	state[nStates+2]=reward
     	conn.send(state.tobytes())
     	status=0
-        env.render()
+        if bRender>0:
+			env.render()
     	buf = np.frombuffer(conn.recv(nActions*8),dtype=np.float64)
 
         if hasattr(env.action_space, 'shape'):
