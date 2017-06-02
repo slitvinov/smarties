@@ -83,15 +83,22 @@ public:
 		if(opt->nepoch >= epsAnneal || !bTrain) return 0;
 		else return 1 - opt->nepoch/epsAnneal;
 	}
-
+	/*
 	inline Real annealedGamma() const
 	{
 		assert(epsAnneal>1. && bTrain);
 		if (opt->nepoch*10 > epsAnneal) return gamma;
 		const Real anneal = opt->nepoch*10./epsAnneal;
-		//const Real fac = 1 + anneal*(1./(1-gamma) -1);
-		//return 1 - 1./fac;
 		return anneal*gamma;
+	}
+	*/
+	inline Real annealedGamma() const
+	{
+		assert(epsAnneal>1. && bTrain);
+		if (opt->nepoch > epsAnneal) return gamma;
+		const Real anneal = opt->nepoch/epsAnneal;
+		const Real fac = 1 + anneal*(1./(1-gamma) -1);
+		return 1 - 1./fac;
 	}
 
 	virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;
