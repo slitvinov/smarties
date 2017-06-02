@@ -101,7 +101,8 @@ struct Glider
     const double piinv = 1/3.14159265359;
     const double CR = 3.14159265359;
 
-    const double II  = 20.0;
+    //const double II  = 20.0;
+    const double II  = 1.0;
     const double beta= 0.1;
     //const double II  = 3.; //we have to multiply *2 all moments by Anderson
     //const double beta= 0;
@@ -237,7 +238,7 @@ int main(int argc, const char * argv[])
         for (auto& a : agents) { //assume we have only one agent per application for now...
             const double dist_gain = a.oldDistance - a.getDistance();
             const double rotation = std::fabs(a.oldAngle-a._s.a);
-            const double jerk = std::fabs(a.oldTorque - a._s.T);
+            const double jerk = std::fabs(a.oldTorque - a._s.T)/.5;
             const double performamce = a._s.E - a.oldEnergySpent + eps;
             //reward clipping: what are the proper scaled? TODO
             //const double reward=std::min(std::max(-1.,dist_gain/performamce),1.);
@@ -246,10 +247,10 @@ int main(int argc, const char * argv[])
 #else
             double reward = dist_gain/performamce; //JUST NOPE
 #endif
-#if 1
+#if 0
             reward -= rotation;
 #endif
-#if 1
+#if 0
             reward -= performamce;
 #endif
 #if 1
@@ -291,7 +292,7 @@ int main(int argc, const char * argv[])
                     final_reward += (landing && got_there) ? TERM_REW_FAC : 0;
 
 		               if(wrong_xdir || max_torque || way_too_far) 
-			               final_reward = -100 -HEIGHT_PENAL*pow(50+a._s.y,2); 
+			               final_reward = -100 -HEIGHT_PENAL*fabs(50+a._s.y); 
 
                     a.prepareState(state);
                     //printf("Sending term state %f %f %f %f\n",
