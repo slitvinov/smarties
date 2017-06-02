@@ -246,10 +246,10 @@ int main(int argc, const char * argv[])
 #else
             double reward = dist_gain/performamce; //JUST NOPE
 #endif
-#if 1
+#if 0
             reward -= rotation;
 #endif
-#if 1
+#if 0
             reward -= performamce;
 #endif
 #if 1
@@ -291,7 +291,7 @@ int main(int argc, const char * argv[])
                     final_reward += (landing && got_there) ? TERM_REW_FAC : 0;
 
 		               if(wrong_xdir || max_torque || way_too_far) 
-			               final_reward = -100 -HEIGHT_PENAL*pow(50+a._s.y,2); 
+			               final_reward = -100 -HEIGHT_PENAL*fabs(50+a._s.y); 
 
                     a.prepareState(state);
                     //printf("Sending term state %f %f %f %f\n",

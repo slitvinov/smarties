@@ -18,8 +18,6 @@ protected:
 	const Uint nAgents, nThreads, nInputs, nOutputs, nLayers;
 	const Uint nNeurons, nWeights, nBiases, nStates;
 	const bool bDump;
-	const vector<Uint> iOut;
-	const vector<Uint> iInp;
 	const vector<Layer*> layers;
 	const vector<Link*> links;
 public:
@@ -33,6 +31,8 @@ public:
 	vector<Uint> dump_ID;
 	const vector<Mem*> mem;
 	const bool allocatedFrozenWeights = true;
+	const vector<Uint> iOut;
+	const vector<Uint> iInp;
 
 	Uint getnWeights() const {return nWeights;}
 	Uint getnBiases() const {return nBiases;}
@@ -43,13 +43,18 @@ public:
 	Uint getnLayers() const {return nLayers;}
 	Uint getnAgents() const {return nAgents;}
 
-	inline  vector<Real> getOutputs(const Activation* const act)
-				{
+	inline vector<Real> getOutputs(const Activation* const act) const
+	{
 		vector<Real> _output(nOutputs);
-		for (Uint i=0; i<nOutputs; i++)
-			_output[i] = *(act->outvals + iOut[i]);
+		for(Uint i=0; i<nOutputs; i++) _output[i] = *(act->outvals + iOut[i]);
 		return _output;
-				}
+	}
+	inline vector<Real> getInputGradient(const Activation* const act) const
+	{
+		vector<Real> ret(nInputs);
+		for(Uint j=0; j<nInputs; j++) ret[j]= act->errvals[iInp[j]];
+		return ret;
+	}
 
 	Network(Builder* const B, Settings & settings) ;
 
@@ -123,7 +128,7 @@ public:
 	}
 
 	void backProp(const vector<Real>& _errors, Activation* const net,
-			const Real* const _weights, const Real* const biases,
+			const Real* const _weights, const Real* const _biases,
 			Grads* const _grads) const;
 	void backProp(const vector<Real>& _errors, Activation* const net,
 			Grads* const _grads) const
@@ -132,7 +137,7 @@ public:
 	}
 
 	void checkGrads();
-	inline void regularize(const Real lambda)
+	inline void regularize(const Real lambda) const
 	{
 #pragma omp parallel for
 		for (Uint j=0; j<nLayers; j++)

@@ -12,6 +12,7 @@
 
 struct Graph
 {
+	const int layer_ID;
 	bool written = false; //is this graph already used?
 	bool built = false; //is this graph already used?
 
@@ -47,12 +48,15 @@ struct Graph
 	Function* func = nullptr;
 	Function* cell = nullptr;
 	Function* gate = nullptr;
+	
+	Real weight_init_factor = -1;
 
-	Graph() { }
+	Graph(const int layerid = -1) : layer_ID(static_cast<int>(layerid)) { }
 	~Graph() { }
 
 	void check() const
 	{
+		assert(layer_ID>=0);
 		assert(built);
 		assert(written);
 		assert(layerSize>0);

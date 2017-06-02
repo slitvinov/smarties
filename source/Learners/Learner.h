@@ -39,7 +39,7 @@ protected:
 	bool bRecurrent;
 	const bool bTrain;
 	const Real tgtUpdateAlpha, gamma, greedyEps, epsAnneal;
-	Real dataUsage = 0;
+	unsigned long batchUsage = 0, dataUsage = 0;
 	Uint cntUpdateDelay = 0, taskCounter;
 	unsigned long mastersNiter_b4PolUpdates = 0;
 	ActionInfo aInfo;
@@ -49,22 +49,17 @@ protected:
 	Network* net;
 	Optimizer* opt;
 	Transitions* data;
-	trainData stats;
-	vector<trainData*> Vstats;
-	//mutable vector<Real> meanGain1;
-	//mutable vector<Real> meanGain2;
-	//mutable vector<Real>  stdGain1;
-	//mutable vector<Real>  stdGain2;
+
 	virtual void Train_BPTT(const Uint seq, const Uint thrID=0) const = 0;
 	virtual void Train(const Uint seq, const Uint samp, const Uint thrID=0) const = 0;
+	virtual void processStats(const Real avgTime) = 0;
+	virtual void stackAndUpdateNNWeights(const Uint nAddedGradients) = 0;
+	virtual void updateNNWeights(const Uint nAddedGradients) = 0;
+	virtual void updateTargetNetwork() = 0;
+
 	Uint sampleSequences(vector<Uint>& sequences);
 	Uint sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitions);
-	void dumpStats(const Real& Q, const Real& err, const vector<Real>& Qs);
-	void dumpStats(trainData* const _stats, const Real& Q, const Real& err, const vector<Real>& Qs) const;
-	virtual void processStats(vector<trainData*> _stats, const Real avgTime);
-	virtual void updateTargetNetwork();
-	virtual void stackAndUpdateNNWeights(const Uint nAddedGradients);
-	virtual void updateNNWeights(const Uint nAddedGradients);
+
 public:
 	Learner(MPI_Comm mastersComm, Environment*const env, Settings & settings);
 
@@ -74,12 +69,13 @@ public:
 		_dispose_object(net);
 		_dispose_object(opt);
 		_dispose_object(data);
-		for (auto & trash : Vstats) _dispose_object(trash);
 	}
+
 	inline unsigned nData()
 	{
 		return data->nTransitions;
 	}
+
 	inline Real annealingFactor() const
 	{
 		//number that goes from 1 to 0 with optimizer's steps
@@ -90,34 +86,13 @@ public:
 
 	inline Real annealedGamma() const
 	{
-		assert(epsAnneal>1. && !bTrain);
-		if (opt->nepoch>epsAnneal) return gamma;
-		const Real anneal = Real(opt->nepoch)/epsAnneal;
+		assert(epsAnneal>1. && bTrain);
+		if (opt->nepoch*10 > epsAnneal) return gamma;
+		const Real anneal = opt->nepoch*10./epsAnneal;
 		//const Real fac = 1 + anneal*(1./(1-gamma) -1);
 		//return 1 - 1./fac;
 		return anneal*gamma;
 	}
-
-	inline Real sequenceR(const Uint t0, const Uint seq) const
-	{
-		Real R = 0, G = 1;
-		assert(t0+1 < data->Set[seq]->tuples.size());
-		for(Uint i=t0+1; i<data->Set[seq]->tuples.size(); i++) {
-			R += G*data->Set[seq]->tuples[i]->r;
-			G *= gamma;
-		}
-		return R;
-	}
-
-	inline vector<Real> pickState(const vector<vector<Real>>& bins, Uint k)
-  {
-		vector<Real> state(bins.size());
-		for (Uint i=0; i<bins.size(); i++) {
-			state[i] = bins[i][ k % bins[i].size() ];
-			k /= bins[i].size();
-		}
-		return state;
-  }
 
 	virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;
 	void clearFailedSim(const int agentOne, const int agentEnd);

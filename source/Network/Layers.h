@@ -37,7 +37,7 @@ public:
 			const Real* const biases) const = 0;
 
 	virtual void initialize(mt19937* const gen, Real* const weights,
-			Real* const biases) const = 0;
+			Real* const biases, Real initializationFac) const = 0;
 
 	virtual void save(vector<Real> & outWeights, vector<Real> & outBiases,
 			Real* const _weights, Real* const _biases) const = 0;
@@ -127,17 +127,20 @@ public:
 	}
 
 	virtual void initialize(mt19937* const gen, Real* const weights,
-			Real* const biases) const override
+			Real* const biases, Real initializationFac) const override
 	{
-		uniform_real_distribution<Real> dis(-sqrt(6./nNeurons),sqrt(6./nNeurons));
-		for (const auto & link : input_links)
-			if(link not_eq nullptr) link->initialize(gen,weights,func);
-
-		if(recurrent_link not_eq nullptr)
-			recurrent_link->initialize(gen,weights,func);
+		const Real prefac = (initializationFac>0) ? initializationFac : 1;
+		const Real biasesInit = prefac*func->biasesInitFactor(nNeurons);//usually 0
+		uniform_real_distribution<Real> dis(-biasesInit, biasesInit);
 
 		for (Uint w=n1stBias; w<n1stBias+nNeurons_simd; w++)
 			biases[w] = dis(*gen);
+
+		for (const auto & link : input_links)
+			if(link not_eq nullptr) link->initialize(gen,weights,func,prefac);
+
+		if(recurrent_link not_eq nullptr)
+			recurrent_link->initialize(gen,weights,func,prefac);
 	}
 
 	virtual void save(vector<Real> & outWeights, vector<Real> & outBiases,
@@ -192,8 +195,8 @@ public:
 			const Function* const f, const Uint nn_simd, const bool bOut = false) :
 				BaseLayer(_nNeurons, _n1stNeuron, _n1stBias, nl_il, nl_rl, f, nn_simd, bOut)
 	{
-		printf("Normal Layer of size %d, with first ID %d and first bias ID %d\n",
-				nNeurons, n1stNeuron, n1stBias);
+		printf("%s layer of size %d, with first ID %d and first bias ID %d\n",
+				bOut?"Output":"Normal", nNeurons, n1stNeuron, n1stBias);
 	}
 };
 
@@ -336,11 +339,13 @@ public:
 		}
 	}
 
-	void initialize(mt19937*const gen, Real*const weights, Real*const biases)
-	const override
+	void initialize(mt19937*const gen, Real*const weights,
+				Real* const biases, Real initializationFac) const override
 	{
-		uniform_real_distribution<Real> dis(-sqrt(6./nNeurons),sqrt(6./nNeurons));
-		BaseLayer::initialize(gen, weights, biases);
+		const Real biasesInit = ((initializationFac>0) ? initializationFac : 1)
+								* func->biasesInitFactor(nNeurons); //usually 0
+		uniform_real_distribution<Real> dis(-biasesInit, biasesInit);
+		BaseLayer::initialize(gen, weights, biases, initializationFac);
 		for (Uint w=n1stBiasIG; w<n1stBiasIG+nNeurons_simd; w++)
 			biases[w] = dis(*gen) - LSTM_PRIME_FAC;
 		for (Uint w=n1stBiasFG; w<n1stBiasFG+nNeurons_simd; w++)

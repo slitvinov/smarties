@@ -22,7 +22,6 @@ taskCounter(batchSize), aInfo(env->aI), sInfo(env->sI),
 gen(&settings.generators[0])
 {
 	assert(nThreads>0);
-	for (Uint i=0; i<nThreads; i++) Vstats.push_back(new trainData());
 	profiler = new Profiler();
 	data = new Transitions(mastersComm, env, settings);
 }
@@ -48,9 +47,9 @@ void Learner::TrainBatch()
 	if(data->syncBoolOr(data->inds.size()<batchSize))
 	{ //uniform sampling
 		data->updateSamples();
-		processStats(Vstats, 0 ); //dump info about convergence
+		processStats( 0 ); //dump info about convergence
 #ifdef __CHECK_DIFF //check gradients with finite differences, just for debug
-		if (stats.epochCount % 1000 == 0) net->checkGrads();
+		if (opt->nepoch % 100000 == 0) net->checkGrads();
 #endif
 	}
 
@@ -64,7 +63,9 @@ void Learner::TrainBatch()
 			Train(seq[i], samp[i]);
 	}
 
-	dataUsage += 1./nAddedGradients;
+	batchUsage += 1;
+	dataUsage += nAddedGradients;
+
 	updateNNWeights(nAddedGradients);
 	updateTargetNetwork();
 }
@@ -89,11 +90,11 @@ void Learner::TrainTasking(Master* const master)
 		if(data->syncBoolOr(data->inds.size()<batchSize))
 		{ //reset sampling
 			data->updateSamples();
-			processStats(Vstats, sumElapsed/countElapsed); //dump info about convergence
+			processStats(sumElapsed/countElapsed); //dump info about convergence
 			sumElapsed = 0; countElapsed=0;
 			//print_memory_usage();
 #ifdef __CHECK_DIFF //check gradients with finite differences, just for debug
-			if (stats.epochCount % 1000 == 0) net->checkGrads();
+			if (opt->nepoch % 100000 == 0) net->checkGrads();
 #endif
 		}
 		start = std::chrono::high_resolution_clock::now();
@@ -141,9 +142,7 @@ void Learner::TrainTasking(Master* const master)
 			}
 
 			//TODO: can add task to update sampling probabilities for prioritized exp replay
-
-			if(nAgents>0)
-				master->run(); //master goes to communicate with slaves
+			if(nAgents>0) master->run(); //master goes to communicate with slaves
 		}
 
 		end = std::chrono::high_resolution_clock::now();
@@ -151,7 +150,8 @@ void Learner::TrainTasking(Master* const master)
 		sumElapsed += len/nAddedGradients;
 		countElapsed++;
 
-		dataUsage += 1./nAddedGradients;
+		batchUsage += 1;
+		dataUsage += nAddedGradients;
 		//this needs to be compatible with multiple servers
 		stackAndUpdateNNWeights(nAddedGradients);
 		// this can be handled node wise
@@ -215,59 +215,6 @@ Uint Learner::sampleSequences(vector<Uint>& sequences)
 	return nAddedGradients;
 }
 
-void Learner::stackAndUpdateNNWeights(const Uint nAddedGradients)
-{
-	assert(bTrain);
-	opt->nepoch++;
-	//add up gradients across threads
-	opt->stackGrads(net->grad, net->Vgrad);
-
-	//add up gradients across nodes (masters)
-	int nMasters;
-	MPI_Comm_size(mastersComm, &nMasters);
-	if (nMasters > 1) {
-		MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
-				MPI_VALUE_TYPE, MPI_SUM, mastersComm);
-		MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
-				MPI_VALUE_TYPE, MPI_SUM, mastersComm);
-	}
-	//update is deterministic: can be handled independently by each node
-	//communication overhead is probably greater than a parallelised sum
-	assert(nMasters>0);
-	opt->update(net->grad, nAddedGradients*nMasters);
-}
-
-void Learner::updateNNWeights(const Uint nAddedGradients)
-{
-	assert(bTrain && nAddedGradients>0);
-	//add up gradients across nodes (masters)
-	int nMasters;
-	MPI_Comm_size(mastersComm, &nMasters);
-	if (nMasters > 1) {
-		MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
-				MPI_VALUE_TYPE, MPI_SUM, mastersComm);
-		MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
-				MPI_VALUE_TYPE, MPI_SUM, mastersComm);
-	}
-
-	opt->nepoch++;
-	opt->update(net->grad, nAddedGradients);
-}
-
-void Learner::updateTargetNetwork()
-{
-	assert(bTrain);
-	if (cntUpdateDelay == 0) { //DQN-style frozen weight
-		cntUpdateDelay = tgtUpdateDelay;
-
-		//2 options: either move tgt_wght = (1-a)*tgt_wght + a*wght
-		//if (tgtUpdateDelay==0) net->moveFrozenWeights(tgtUpdateAlpha);
-		//else net->updateFrozenWeights(); //or copy tgt_wghts = wghts
-		opt->moveFrozenWeights(tgtUpdateAlpha);
-	}
-	if(cntUpdateDelay>0) cntUpdateDelay--;
-}
-
 bool Learner::checkBatch(unsigned long mastersNiter)
 {
 	const unsigned long dataNiter = bRecurrent ? data->nSeenSequences : mastersNiter;
@@ -281,17 +228,15 @@ bool Learner::checkBatch(unsigned long mastersNiter)
 	//if optimizer has done less updates than master has done communications
 	// ratio is 1 : 1 in DQN paper
 	//then let master thread go to help other threads finish the batch
-	//otherwise only go to communicate if batch is over
 	const long unsigned learnerNiter = opt->nepoch + mastersNiter_b4PolUpdates;
-	if (env->cheaperThanNetwork && dataNiter > learnerNiter)
-		return true;
+	if (env->cheaperThanNetwork && dataNiter > learnerNiter) return true;
 
 	//If the transition buffer is already backed up, train and pause communicating
 	if(data->Buffered.size() >= data->maxTotSeqNum/20)
 		return true;
 
 	//Very lax constraint on over-using stale data too much
-	if(dataUsage > mastersNiter) return false;
+	if(dataUsage>mastersNiter || batchUsage>data->nSeenSequences) return false;
 
 	return taskCounter >= batchSize;
 }
@@ -310,7 +255,7 @@ void Learner::save(string name)
 		if (f == NULL) die("Save fail\n");
 		fprintf(f, "policy iter: %d\n", data->anneal);
 		fprintf(f, "optimize epoch: %lu\n", opt->nepoch);
-		fprintf(f, "epoch count: %d\n", stats.epochCount);
+		//fprintf(f, "epoch count: %d\n", stats.epochCount);
 		fclose(f);
 	}
 }
@@ -344,10 +289,10 @@ void Learner::restart(string name)
 			if(ret>0) opt->nepoch = ret;
 			printf("optimize epoch: %lu\n", opt->nepoch);
 		}{
-			int val=-1;
-			fscanf(f, "epoch count: %d\n", &val);
-			if(val>=0) stats.epochCount = val;
-			printf("epoch count: %d\n", stats.epochCount);
+			//int val=-1;
+			//fscanf(f, "epoch count: %d\n", &val);
+			//if(val>=0) stats.epochCount = val;
+			//printf("epoch count: %d\n", stats.epochCount);
 		}
 		fclose(f);
 	}
@@ -355,118 +300,5 @@ void Learner::restart(string name)
 	save("restarted_policy");
 }
 
-void Learner::dumpStats(trainData* const _stats, const Real& Q,
-		const Real& err, const vector<Real>& Qs) const
-{
-	const Real max_Q = *max_element(Qs.begin(), Qs.end());
-	const Real min_Q = *min_element(Qs.begin(), Qs.end());
-	_stats->MSE += err*err;
-	_stats->relE += fabs(err)/(max_Q-min_Q);
-	_stats->avgQ += Q;
-	_stats->minQ = std::min(_stats->minQ,Q);
-	_stats->maxQ = std::max(_stats->maxQ,Q);
-	_stats->dumpCount++;
-}
-
-void Learner::processStats(vector<trainData*> _stats, const Real avgTime)
-{
-	stats.minQ= 1e5; stats.maxQ=-1e5; stats.MSE=0;
-	stats.avgQ=0; stats.relE=0; stats.dumpCount=0;
-
-	for (Uint i=0; i<_stats.size(); i++) {
-		stats.MSE += _stats[i]->MSE;
-		stats.relE += _stats[i]->relE;
-		stats.avgQ += _stats[i]->avgQ;
-		stats.dumpCount += _stats[i]->dumpCount;
-		stats.minQ = std::min(stats.minQ,_stats[i]->minQ);
-		stats.maxQ = std::max(stats.maxQ,_stats[i]->maxQ);
-		_stats[i]->minQ= 1e5; _stats[i]->maxQ=-1e5; _stats[i]->MSE=0;
-		_stats[i]->avgQ=0; _stats[i]->relE=0; _stats[i]->dumpCount=0;
-	}
-
-	if (stats.dumpCount<2) return;
-	stats.epochCount++;
-
-
-	Real sumWeights = 0, distTarget = 0, sumWeightsSq = 0;
-	for (Uint w=0; w<net->getnWeights(); w++){
-		sumWeights += std::fabs(net->weights[w]);
-		sumWeightsSq += net->weights[w]*net->weights[w];
-		distTarget += std::pow(net->weights[w]-net->tgt_weights[w],2);
-	}
-	//sumWeights *= opt->lambda;
-
-	//stats.MSE=std::sqrt(stats.MSE/stats.dumpCount);
-	stats.MSE/=(stats.dumpCount-1);
-	stats.avgQ/=stats.dumpCount;
-	stats.relE/=stats.dumpCount;
-
-	ofstream filestats;
-	filestats.open("stats.txt", ios::app);
-	//printf("epoch %d, avg_mse %f, avg_rel_err %f, avg_Q %f, "
-	//        "min_Q %f, max_Q %f, errWeights [%f %f %f], N %d, steps %lu, dT %f\n",
-	//      stats.epochCount, stats.MSE, stats.relE, stats.avgQ, stats.minQ,
-	//      stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dumpCount,
-	// opt->nepoch, avgTime);
-	printf("%d (%lu), mse:%f, avg_Q:%f, min_Q:%f, max_Q:%f, errWeights [%f %f %f], dT %f\n",
-			stats.epochCount, opt->nepoch, stats.MSE, stats.avgQ, stats.minQ,
-			stats.maxQ, sumWeights, sumWeightsSq, distTarget, avgTime);
-	filestats<<stats.epochCount<<"\t"<<stats.MSE<<"\t" <<stats.relE<<"\t"
-			<<stats.avgQ<<"\t"<<stats.maxQ<<"\t"<<stats.minQ<<"\t"
-			<<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"
-			<<stats.dumpCount<<"\t"<<opt->nepoch<<"\t"<<avgTime<<endl;
-	filestats.close();
-
-	fflush(0);
-	if (stats.epochCount % 100==0) save("policy");
-}
-
 void Learner::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-		const vector<Uint>& nbins)
-{}
-
-void Learner::buildNetwork(Network*& _net , Optimizer*& _opt,
-		const vector<Uint> nouts, Settings & settings, const vector<Uint> addedInputs)
-{
-	const string netType = settings.nnType;
-	const string funcType = settings.nnFunc;
-	const vector<int> lsize = settings.readNetSettingsSize();
-	assert(nouts.size()>0);
-
-	Builder build(settings);
-	//check if environment wants a particular network structure
-	if (not env->predefinedNetwork(&build))
-		build.addInput(nInputs);
-
-	for (Uint i=0; i<addedInputs.size(); i++)
-		build.addInput(addedInputs[i]);
-
-	{
-		//const int nsplit = std::min(static_cast<int>(lsize.size()),2);
-		//const int nsplit = lsize.size()>3 ? 2 : 1;
-		const Uint nsplit = 1;
-		//const int nsplit = lsize.size();
-		for (Uint i=0; i<lsize.size()-nsplit; i++)
-			build.addLayer(lsize[i], netType, funcType);
-
-		const Uint firstSplit = lsize.size()-nsplit;
-		const vector<int> lastJointLayer(1, build.getLastLayerID());
-
-		for (Uint i=0; i<nouts.size(); i++)
-		{
-			build.addLayer(lsize[firstSplit], netType, funcType, lastJointLayer);
-
-			for (Uint j=firstSplit+1; j<lsize.size(); j++)
-				build.addLayer(lsize[j], netType, funcType);
-
-			build.addOutput(static_cast<int>(nouts[i]) , "Normal");
-		}
-	}
-	_net = build.build();
-
-#ifndef __EntropySGD
-	_opt = new AdamOptimizer(net, profiler, settings);
-#else
-	_opt = new EntropySGD(net, profiler, settings);
-#endif
-}
+		const vector<Uint>& nbins) {}

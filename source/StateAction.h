@@ -313,16 +313,6 @@ public:
 		vals = actInfo.labelToAction(label);
 	}
 
-	inline void getRandom() //select all random actions
-	{
-		std::uniform_real_distribution<Real> dist(0,1);
-		for (Uint i=0; i<actInfo.dim; i++) {
-			const Real lB = actInfo.getActMinVal(i);
-			const Real uB = actInfo.getActMaxVal(i);
-			vals[i] = lB + dist(*gen)*(uB-lB);
-		}
-	}
-
 	inline Uint getActionLabel() const
 	{
 		return actInfo.actionToLabel(vals);

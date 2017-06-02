@@ -19,7 +19,7 @@
 #include <iostream>
 #include <algorithm>
 #include <stdio.h>
-
+#define GYM_ONERENDER
 using namespace std;
 
 openAICartEnvironment::openAICartEnvironment(const int _nAgents, const string _execpath, Settings & _s) :
@@ -30,16 +30,46 @@ Environment(_nAgents, _execpath, _s), allSenses(_s.senses==0)
 
 void openAICartEnvironment::setDims() //this environment is for the cart pole test
 {
-    comm_ptr->getStateActionShape(aI.values, sI.mean, sI.scale);
-    vector<Real> upper = sI.mean;
-    vector<Real> lower = sI.scale;
-    for (unsigned i=0; i<upper.size(); i++) {
-      sI.mean[i]  = 0.5*(upper[i]+lower[i]);
-      sI.scale[i] = 0.5*(upper[i]-lower[i]);
-      assert(sI.scale[i]>0);
-    }
-    aI.dim = aI.values.size();
-    sI.inUse.resize(sI.mean.size(), true);
-    aI.bounded.resize(aI.dim,1);
-    commonSetup(); //required
+  comm_ptr->getStateActionShape(aI.values, sI.mean, sI.scale);
+  vector<Real> upper = sI.mean;
+  vector<Real> lower = sI.scale;
+	bool scaleState = true, scaleAction = true;
+  for (unsigned i=0; i<upper.size(); i++) {
+    sI.mean[i]  = 0.5*(upper[i]+lower[i]);
+    sI.scale[i] = 0.5*(upper[i]-lower[i]);
+    assert(sI.scale[i]>0);
+		if(sI.scale[i]>=1e3) scaleState = false;
+		if(!settings.world_rank)
+		printf("State %u: mean:%f scale %f\n", i, sI.mean[i], sI.scale[i]);
+  }
+	if(!scaleState) {
+		sI.scale = vector<Real>();
+		sI.mean = vector<Real>();
+	}
+
+	sI.inUse.resize(sI.mean.size(), 1);
+  aI.dim = aI.values.size();
+  aI.bounded.resize(aI.dim,1);
+
+	for (Uint i=0; i<aI.dim; i++) {
+		const Real amax = aI.getActMaxVal(i), amin = aI.getActMinVal(i);
+		const Real scale = 0.5*(amax - amin), mean = 0.5*(amax + amin);
+		if(!settings.world_rank)
+		printf("Action %u: mean:%f scale %f\n", i, mean, scale);
+		if(scale>=1e3) aI.bounded[i] = 0;
+	}
+  commonSetup(); //required
+
+	if(settings.slaves_rank==0) return;
+
+	#if   defined(GYM_ALLRENDER)
+		double bRender[1] = {1};
+		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
+	#elif defined(GYM_ONERENDER)
+		double bRender[1] = {settings.slaves_rank>1 ? -1. : 1.};
+		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
+	#else
+		double bRender[1] = {-1};
+		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
+	#endif
 }

@@ -15,19 +15,21 @@
 
 Optimizer::Optimizer(Network* const _net, Profiler* const _prof, Settings& _s) :
 nWeights(_net->getnWeights()), nBiases(_net->getnBiases()), bTrain(_s.bTrain),
-net(_net), profiler(_prof), _1stMomW(init(nWeights)), _1stMomB(init(nBiases)),
+net(_net), profiler(_prof),
+_1stMomW(initClean(nWeights)), _1stMomB(initClean(nBiases)),
 eta(_s.learnrate), lambda(_s.nnLambda), alpha(0.5), nepoch(0) { }
 
 AdamOptimizer::AdamOptimizer(Network*const _net, Profiler*const _prof,
 		Settings& _s, const Real B1, const Real B2) :
-			Optimizer(_net, _prof, _s), _2ndMomW(init(nWeights)), _2ndMomB(init(nBiases)),
+			Optimizer(_net, _prof, _s),
+			_2ndMomW(initClean(nWeights)), _2ndMomB(initClean(nBiases)),
 			beta_1(B1), beta_2(B2), epsilon(1e-8), beta_t_1(B1), beta_t_2(B2) { }
 //beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.99)
 
 EntropySGD::EntropySGD(Network*const _net, Profiler*const _prof, Settings&_s) :
 		AdamOptimizer(_net, _prof, _s, 0.8), alpha_eSGD(0.75), gamma_eSGD(1.),
 		eta_eSGD(1./_s.targetDelay), eps_eSGD(1e-6), L_eSGD(_s.targetDelay),
-		_muW_eSGD(init(nWeights)), _muB_eSGD(init(nBiases))
+		_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
 {
 	assert(L_eSGD>0);
 	for (Uint i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights[i];
@@ -164,7 +166,7 @@ void Optimizer::update(Grads* const G, const Uint batchsize)
 
 void AdamOptimizer::update(Grads* const G, const Uint batchsize)
 {
-	const Real _eta = eta/(1.+(Real)nepoch/1e4);
+	const Real _eta = eta/(1.+(Real)nepoch/1e5);
 
 	update(net->weights,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,_eta);
 	update(net->biases, G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);
@@ -200,11 +202,10 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 		const Uint N, const Uint batchsize, const Real _eta)
 {
 	assert(batchsize>0);
-	//const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
 	const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
-	const Real norm = 1./batchsize;
-	//const Real lambda_ = _lambda*eta_;
 	const Real eps = std::numeric_limits<Real>::epsilon();
+	const Real norm = 1./batchsize;
+
 #pragma omp parallel for
 	for (Uint i=0; i<N; i++) {
 		const Real DW  = grad[i]*norm;
@@ -216,34 +217,29 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 		grad[i] = 0.; //reset grads
 
 		//dest[i] += eta_*M1_/std::sqrt(M2_);
-		//nesterov:
-		dest[i] += eta_*((1-beta_1)*DW + beta_1*M1)/std::sqrt(M2_);
+		dest[i] += eta_*((1-beta_1)*DW + beta_1*M1)/std::sqrt(M2_); //nesterov
 	}
 }
 #else
 void AdamOptimizer::update(Real* const dest, Real* const grad,
 		Real* const _1stMom, Real* const _2ndMom,
-		const int N, const int batchsize, const Real _eta)
+		const Uint N, const Uint batchsize, const Real eta_)
 {
-	//const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
-	const Real eta_ = _eta/(1.-beta_t_1);
-	const Real norm = 1./(Real)max(batchsize,1);
+	assert(batchsize>0);
 	const Real eps = std::numeric_limits<Real>::epsilon();
+	const Real norm = 1./batchsize;
 #pragma omp parallel for
-	for (int i=0; i<N; i++) {
-		//const Real scale = std::max(1.,std::fabs(dest[i]));
-		//const Real DW  = std::max(std::min(grad[i]*norm, 1.), -1.);
+	for (Uint i=0; i<N; i++) {
 		const Real DW  = grad[i]*norm;
 		const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
 		const Real M2  = std::max(beta_2*_2ndMom[i], std::fabs(DW));
 		const Real M2_ = std::max(M2,eps);
-		//const Real M1_ = std::max(std::min(M1,M2_),-M2_);
 		const Real M1_ = M1;
-		dest[i] += eta_*M1_/M2_;
+		//dest[i] += eta_*M1_/M2_;
+		dest[i] += eta_*((1-beta_1)*DW + beta_1*M1_)/M2_; //nesterov
 		_1stMom[i] = M1_;
 		_2ndMom[i] = M2_;
 		grad[i] = 0.; //reset grads
-
 	}
 }
 #endif

@@ -14,6 +14,250 @@
 
 class Builder
 {
+public:
+
+	Network* build()
+	{
+		if(bBuilt) die("Cannot build the network multiple times\n");
+		bBuilt = true;
+		if(nLayers<2) die("Put at least one hidden layer.\n");
+
+		nNeurons = nBiases = nWeights = nStates = 0;
+		for (auto & graph : G)
+		{
+			if(graph->input)
+			{
+				assert(graph->written && !graph->built);
+				graph->firstNeuron_ID = nNeurons;
+				graph->layerSize_simd = roundUpSimd(graph->layerSize);
+				nNeurons += graph->layerSize_simd;
+				graph->built = true;
+				continue; //input layer is not a layer
+			}
+			assert(!graph->input);
+			if      (graph->LSTM)
+				build_LSTM_layer(graph);
+			else if (graph->Conv2D)
+				build_conv2d_layer(graph);
+			else
+				build_normal_layer(graph);
+
+			graph->check();
+			for (auto & l : graph->links)
+				links.push_back(l);
+		}
+		printf("nInputs:%d, nOutputs:%d, nLayers:%d, nNeurons:%d, nWeights:%d, nBiases:%d, nStates:%d\n",
+				nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates);
+		assert(layers.size() == nLayers);
+		{
+			assert(!iInp.size());
+			for (const auto & g : G)
+				if(g->input)
+					for(Uint i=0; i<g->layerSize; i++)
+						iInp.push_back(i+g->firstNeuron_ID);
+			assert(iInp.size() == nInputs);
+			assert(iInp[0] == 0); //first ''neuron'' must be part of input
+		}
+		{
+			assert(!iOut.size());
+			for (const auto & g : G)
+				if(g->output)
+					for(Uint i=0; i<g->layerSize; i++)
+						iOut.push_back(i+g->firstNeuron_ID);
+			assert(iOut.size() == nOutputs);
+		}
+
+		_allocateClean(tgt_weights, nWeights);
+		_allocateClean(tgt_biases, nBiases);
+		_allocateClean(weights, nWeights);
+		_allocateClean(biases, nBiases);
+
+		grad = new Grads(nWeights,nBiases);
+		Vgrad.resize(nThreads);
+		for (Uint i=0; i<nThreads; ++i)
+			Vgrad[i] = new Grads(nWeights, nBiases);
+
+		mem.resize(nAgents);
+		for (Uint i=0; i<nAgents; ++i)
+			mem[i] = new Mem(nNeurons, nStates);
+
+		//initialize weights:
+		for (auto & graph : G)
+			if(graph->layer_ID>=0) { //else it is an input layer, so no weights
+				const Layer*const l = layers[graph->layer_ID];
+				l->initialize(&generators[0],weights,biases,graph->weight_init_factor);
+			}
+
+		return new Network(this, settings);
+	}
+
+	int getLastLayerID() const
+	{
+		return static_cast<int>(G.size())-1;
+	}
+
+	void addConv2DLayer(const int filterSize[3], const int outSize[3],
+			const int padding[2], const int stride[2], const string funcType,
+			const bool bOutput = false)
+	{
+		if(not bAddedInput) die("First specify an input\n");
+		if(bBuilt) die("Cannot build the network multiple times\n");
+
+		assert(filterSize[2]==outSize[2]);
+		if(filterSize[0]<=0 || filterSize[1]<=0 || filterSize[2]<=0)
+			die("Bad request for conv2D layer: filterSize\n");
+		if(outSize[0]<=0 || outSize[1]<=0 || outSize[2]<=0)
+			die("Bad request for conv2D layer: outSize\n");
+		if(padding[0]<0 || padding[1]<0 || stride[0]<0 || stride[1]<0)
+			die("Bad request for conv2D layer: padding or stride\n");
+		assert(filterSize[0] >= stride[0] && filterSize[1] >= stride[1]);
+		assert(padding[0] < filterSize[0] && padding[1] < filterSize[1]);
+
+		Graph * g = new Graph(nLayers++);
+
+		assert(!funcType.empty());
+		g->Conv2D = true;
+		g->func = readFunction(funcType, bOutput);
+		g->layerSize = static_cast<Uint>(outSize[0] * outSize[1] * outSize[2]);
+		g->layerWidth = static_cast<Uint>(outSize[0]);
+		g->layerHeight = static_cast<Uint>(outSize[1]);
+		g->layerDepth = static_cast<Uint>(outSize[2]);
+		g->featsWidth = static_cast<Uint>(filterSize[0]);
+		g->featsHeight = static_cast<Uint>(filterSize[1]);
+		g->featsNumber = static_cast<Uint>(filterSize[2]);
+		g->padWidth = static_cast<Uint>(padding[0]);
+		g->padHeight = static_cast<Uint>(padding[1]);
+		g->strideWidth = static_cast<Uint>(stride[0]);
+		g->strideHeight = static_cast<Uint>(stride[1]);
+
+		{
+			// link only to previous layer:
+			if(G.size()<1) die("Conv2D link not available\n");
+			g->linkedTo.push_back(G.size()-1);
+			assert(g->linkedTo.size() == 1);
+			const Graph* const layerFrom = G[g->linkedTo[0]];
+
+			if(layerFrom->layerWidth<=0 || layerFrom->layerHeight<=0 || layerFrom->layerDepth<=0)
+				die("Incompatible with 1D input, place 2D input or resize to 2D... how?\n");
+
+			assert((g->layerWidth-1) *g->strideWidth +g->featsWidth >=layerFrom->layerWidth +g->padWidth);
+			assert((g->layerWidth-1) *g->strideWidth +g->featsWidth < g->featsWidth+layerFrom->layerWidth +g->padWidth);
+			assert((g->layerHeight-1)*g->strideHeight+g->featsHeight>=layerFrom->layerHeight+g->padHeight);
+			assert((g->layerHeight-1)*g->strideHeight+g->featsHeight< g->featsHeight+layerFrom->layerHeight+g->padHeight);
+		}
+
+		if (bOutput) {
+			assert(false); //i dont see a reason why for now...
+			g->output = true;
+			nOutputs += g->layerSize;
+		}
+
+		g->written = true;
+		G.push_back(g);
+	}
+
+	void addLayer(const int size, const string layerType, const string funcType,
+			vector<int> linkedTo, const bool bOutput=false)
+	{
+		if(bBuilt) die("Cannot build the network multiple times\n");
+		if(not bAddedInput) die("First specify an input\n");
+		if(size<=0) die("Requested an empty layer\n");
+
+		Graph * g = new Graph(nLayers++);
+
+		assert(!layerType.empty());
+		if (layerType == "RNN")  g->RNN = true; //non-LSTM recurrent neural network
+		else
+			if (layerType == "LSTM") g->LSTM = true;
+
+		assert(!funcType.empty());
+		if(g->LSTM)
+		{
+			g->cell = new Linear();   //in original paper is Tanh (Tanh), but is in general unnecessary
+			g->gate = new SoftSigm(); //in original paper is Sigm (Sigmoid)
+		}														//g->func is TwoTanh (2*Tanh)
+		g->func = readFunction(funcType, bOutput);
+
+		g->layerSize = size;
+		if(!G.size()) die("Proposed link not available: graph empty\n");
+		const Uint nPrevLayers = G.size();
+		//default link is to previous layer:
+		if(linkedTo.size() == 0)
+			linkedTo.push_back(static_cast<int>(nPrevLayers)-1);
+
+		const Uint inputLinks = linkedTo.size();
+		assert(g->linkedTo.size() == 0);
+
+		for(Uint i = 0; i<inputLinks; i++) {
+			g->linkedTo.push_back(static_cast<Uint>(linkedTo[i]));
+			if(g->linkedTo.back() >= nPrevLayers)
+				die("Proposed link not available\n");
+		}
+
+		if (bOutput) {
+			g->output = true;
+			nOutputs += static_cast<Uint>(size);
+		}
+
+		g->written = true;
+		G.push_back(g);
+	}
+
+	void addLayer(const int size, const string layerType, const string funcType,
+			const bool bOutput=false)
+	{
+		addLayer(size, layerType, funcType, vector<int>(), bOutput);
+	}
+	void addOutput(const int size, const string layerType,
+		vector<int> linkedTo,  const Real initFac = -1)
+	{
+		addLayer(size, layerType, "Linear", linkedTo, true);
+		G.back()->weight_init_factor = initFac;
+	}
+	void addOutput(const int size, const string layerType, const Real initFac=-1)
+	{
+		addLayer(size, layerType, "Linear", vector<int>(), true);
+		G.back()->weight_init_factor = initFac;
+	}
+
+	void addInput(const int size)
+	{
+		if(bBuilt) die("Cannot build the network multiple times\n");
+		if(size<=0) die("Requested an empty input layer\n");
+
+		bAddedInput = true;
+		nInputs += static_cast<Uint>(size);
+		Graph * g = new Graph();
+
+		g->layerSize = static_cast<Uint>(size);
+		g->input = true;
+		g->written = true;
+		G.push_back(g);
+	}
+
+	void add2DInput(const int size[3])
+	{
+		if(bBuilt) die("Cannot build the network multiple times\n");
+		if(size[0]<=0 || size[1]<=0 || size[2]<=0)
+			die("Requested an empty input layer\n");
+
+		bAddedInput = true;
+		const Uint flatSize = static_cast<Uint> (size[0] * size[1] * size[2]);
+		nInputs += flatSize;
+		Graph * g = new Graph();
+
+		g->layerSize = flatSize;
+		//2d input: depth is actually num of color channels: todo standard notation for eventual 3d?
+		g->layerWidth = static_cast<Uint>(size[0]);
+		g->layerHeight = static_cast<Uint>(size[1]);
+		g->layerDepth = static_cast<Uint>(size[2]);
+		g->input = true;
+		g->input2D = true;
+		g->written = true;
+		G.push_back(g);
+	}
+
+private:
 	bool bAddedInput = false, bBuilt = false;
 
 	Uint roundUpSimd(const Uint size) const
@@ -226,245 +470,5 @@ public:
 			generators(_settings.generators)
 	{
 		assert(nAgents>0 && nThreads>0);
-	}
-
-	Network* build()
-	{
-		if(bBuilt) die("Cannot build the network multiple times\n");
-		bBuilt = true;
-		if(nLayers<2) die("Put at least one hidden layer.\n");
-
-		nNeurons = nBiases = nWeights = nStates = 0;
-		for (auto & graph : G)
-		{
-			if(graph->input)
-			{
-				assert(graph->written && !graph->built);
-				graph->firstNeuron_ID = nNeurons;
-				graph->layerSize_simd = roundUpSimd(graph->layerSize);
-				nNeurons += graph->layerSize_simd;
-				graph->built = true;
-				continue; //input layer is not a layer
-			}
-			assert(!graph->input);
-			if      (graph->LSTM)
-				build_LSTM_layer(graph);
-			else if (graph->Conv2D)
-				build_conv2d_layer(graph);
-			else
-				build_normal_layer(graph);
-
-			graph->check();
-			for (auto & l : graph->links)
-				links.push_back(l);
-		}
-		printf("nInputs:%d, nOutputs:%d, nLayers:%d, nNeurons:%d, nWeights:%d, nBiases:%d, nStates:%d\n",
-				nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates);
-		assert(layers.size() == nLayers);
-		{
-			assert(!iInp.size());
-			for (const auto & g : G)
-				if(g->input)
-					for(Uint i=0; i<g->layerSize; i++)
-						iInp.push_back(i+g->firstNeuron_ID);
-			assert(iInp.size() == nInputs);
-			assert(iInp[0] == 0); //first ''neuron'' must be part of input
-		}
-		{
-			assert(!iOut.size());
-			for (const auto & g : G)
-				if(g->output)
-					for(Uint i=0; i<g->layerSize; i++)
-						iOut.push_back(i+g->firstNeuron_ID);
-			assert(iOut.size() == nOutputs);
-		}
-
-		_allocateClean(tgt_weights, nWeights);
-		_allocateClean(tgt_biases, nBiases);
-		_allocateClean(weights, nWeights);
-		_allocateClean(biases, nBiases);
-
-		grad = new Grads(nWeights,nBiases);
-		Vgrad.resize(nThreads);
-		for (Uint i=0; i<nThreads; ++i)
-			Vgrad[i] = new Grads(nWeights, nBiases);
-
-		mem.resize(nAgents);
-		for (Uint i=0; i<nAgents; ++i)
-			mem[i] = new Mem(nNeurons, nStates);
-
-		for (const auto & l : layers)
-			l->initialize(&generators[0], weights, biases);
-
-		return new Network(this, settings);
-	}
-
-	int getLastLayerID() const
-	{
-		return static_cast<int>(G.size())-1;
-	}
-
-	void addConv2DLayer(const int filterSize[3], const int outSize[3],
-			const int padding[2], const int stride[2], const string funcType,
-			const bool bOutput = false)
-	{
-		if(not bAddedInput) die("First specify an input\n");
-		if(bBuilt) die("Cannot build the network multiple times\n");
-
-		assert(filterSize[2]==outSize[2]);
-		if(filterSize[0]<=0 || filterSize[1]<=0 || filterSize[2]<=0)
-			die("Bad request for conv2D layer: filterSize\n");
-		if(outSize[0]<=0 || outSize[1]<=0 || outSize[2]<=0)
-			die("Bad request for conv2D layer: outSize\n");
-		if(padding[0]<0 || padding[1]<0 || stride[0]<0 || stride[1]<0)
-			die("Bad request for conv2D layer: padding or stride\n");
-		assert(filterSize[0] >= stride[0] && filterSize[1] >= stride[1]);
-		assert(padding[0] < filterSize[0] && padding[1] < filterSize[1]);
-
-		nLayers++;
-		Graph * g = new Graph();
-
-		assert(!funcType.empty());
-		g->Conv2D = true;
-		g->func = readFunction(funcType, bOutput);
-		g->layerSize = static_cast<Uint>(outSize[0] * outSize[1] * outSize[2]);
-		g->layerWidth = static_cast<Uint>(outSize[0]);
-		g->layerHeight = static_cast<Uint>(outSize[1]);
-		g->layerDepth = static_cast<Uint>(outSize[2]);
-		g->featsWidth = static_cast<Uint>(filterSize[0]);
-		g->featsHeight = static_cast<Uint>(filterSize[1]);
-		g->featsNumber = static_cast<Uint>(filterSize[2]);
-		g->padWidth = static_cast<Uint>(padding[0]);
-		g->padHeight = static_cast<Uint>(padding[1]);
-		g->strideWidth = static_cast<Uint>(stride[0]);
-		g->strideHeight = static_cast<Uint>(stride[1]);
-
-		{
-			// link only to previous layer:
-			if(G.size()<1) die("Conv2D link not available\n");
-			g->linkedTo.push_back(G.size()-1);
-			assert(g->linkedTo.size() == 1);
-			const Graph* const layerFrom = G[g->linkedTo[0]];
-
-			if(layerFrom->layerWidth<=0 || layerFrom->layerHeight<=0 || layerFrom->layerDepth<=0)
-				die("Incompatible with 1D input, place 2D input or resize to 2D... how?\n");
-
-			assert((g->layerWidth-1) *g->strideWidth +g->featsWidth >=layerFrom->layerWidth +g->padWidth);
-			assert((g->layerWidth-1) *g->strideWidth +g->featsWidth < g->featsWidth+layerFrom->layerWidth +g->padWidth);
-			assert((g->layerHeight-1)*g->strideHeight+g->featsHeight>=layerFrom->layerHeight+g->padHeight);
-			assert((g->layerHeight-1)*g->strideHeight+g->featsHeight< g->featsHeight+layerFrom->layerHeight+g->padHeight);
-		}
-
-		if (bOutput) {
-			assert(false); //i dont see a reason why for now...
-			g->output = true;
-			nOutputs += g->layerSize;
-		}
-
-		g->written = true;
-		G.push_back(g);
-	}
-
-	void addLayer(const int size, const string layerType, const string funcType,
-			vector<int> linkedTo, const bool bOutput=false)
-	{
-		if(bBuilt) die("Cannot build the network multiple times\n");
-		if(not bAddedInput) die("First specify an input\n");
-		if(size<=0) die("Requested an empty layer\n");
-
-		nLayers++;
-		Graph * g = new Graph();
-
-		assert(!layerType.empty());
-		if (layerType == "RNN")  g->RNN = true; //non-LSTM recurrent neural network
-		else
-			if (layerType == "LSTM") g->LSTM = true;
-
-		assert(!funcType.empty());
-		if(g->LSTM)
-		{
-			g->cell = new Linear();   //in original paper is Tanh (Tanh), but is in general unnecessary
-			g->gate = new SoftSigm(); //in original paper is Sigm (Sigmoid)
-		}														//g->func is TwoTanh (2*Tanh)
-		g->func = readFunction(funcType, bOutput);
-
-		g->layerSize = size;
-		if(!G.size()) die("Proposed link not available: graph empty\n");
-		const Uint nPrevLayers = G.size();
-		//default link is to previous layer:
-		if(linkedTo.size() == 0)
-			linkedTo.push_back(static_cast<int>(nPrevLayers)-1);
-
-		const Uint inputLinks = linkedTo.size();
-		assert(g->linkedTo.size() == 0);
-
-		for(Uint i = 0; i<inputLinks; i++) {
-			g->linkedTo.push_back(static_cast<Uint>(linkedTo[i]));
-			if(g->linkedTo.back() >= nPrevLayers)
-				die("Proposed link not available\n");
-		}
-
-		if (bOutput) {
-			g->output = true;
-			nOutputs += static_cast<Uint>(size);
-		}
-
-		g->written = true;
-		G.push_back(g);
-	}
-
-	void addLayer(const int size, const string layerType, const string funcType,
-			const bool bOutput=false)
-	{
-		addLayer(size,layerType,funcType,vector<int>(),bOutput);
-	}
-	void addOutput(const int size, const string layerType, vector<int> linkedTo)
-	{
-		addLayer(size,layerType,"Linear",linkedTo,true);
-	}
-	void addOutput(const int size, const string layerType)
-	{
-		addLayer(size,layerType,"Linear",vector<int>(),true);
-	}
-
-	void addInput(const int size)
-	{
-		if(bBuilt) die("Cannot build the network multiple times\n");
-		if(size<=0) die("Requested an empty input layer\n");
-
-		bAddedInput = true;
-
-		nInputs += static_cast<Uint>(size);
-
-		Graph * g = new Graph();
-
-		g->layerSize = static_cast<Uint>(size);
-		g->input = true;
-		g->written = true;
-		G.push_back(g);
-	}
-
-	void add2DInput(const int size[3])
-	{
-		if(bBuilt) die("Cannot build the network multiple times\n");
-		if(size[0]<=0 || size[1]<=0 || size[2]<=0)
-			die("Requested an empty input layer\n");
-
-		bAddedInput = true;
-
-		const Uint flatSize = static_cast<Uint> (size[0] * size[1] * size[2]);
-		nInputs += flatSize;
-
-		Graph * g = new Graph();
-
-		g->layerSize = flatSize;
-		//2d input: depth is actually num of color channels: todo standard notation for eventual 3d?
-		g->layerWidth = static_cast<Uint>(size[0]);
-		g->layerHeight = static_cast<Uint>(size[1]);
-		g->layerDepth = static_cast<Uint>(size[2]);
-		g->input = true;
-		g->input2D = true;
-		g->written = true;
-		G.push_back(g);
 	}
 };

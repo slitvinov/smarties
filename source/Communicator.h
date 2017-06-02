@@ -138,5 +138,15 @@ public:
 	void redirect_stdout_finalize();
 	//called by smarties
 	Communicator(const MPI_Comm scom, const int socket, const bool spawn);
+
+	//tmp:
+	void send_buffer_to_app(double*const buf, const int size) const
+	{
+		comm_sock(Socket, true, buf, size);
+	}
+	void recv_buffer_to_app(double*const buf, const int size) const
+	{
+		comm_sock(Socket, false, buf, size);
+	}
 #endif
 };

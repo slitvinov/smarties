@@ -313,9 +313,6 @@ protected:
 		for (Uint j=0; j<nA; j++)
 			for (Uint i=0; i<nA; i++) {
 				ret += (pol[j]-mean[j])*(pol[i]-mean[i])*PvarP[nA*j+i];
-#ifdef ACER_RELAX
-				//assert(std::fabs(pol[i]-mean[i]) < 2.2e-16);
-#endif
 			}
 
 		return ret;
@@ -486,9 +483,6 @@ protected:
 		{
 			for (Uint i=0; i<nA; i++)
 			{
-#ifdef ACER_RELAX //then Qmean and pol must be the same
-				//assert(std::fabs(mean[i]-pol[i]) < 2.2e-16);
-#endif
 				gradCC[j] += eta * P[nA*j +i] * (mean[i] - pol[i]);
 			}
 
@@ -592,15 +586,11 @@ protected:
 			for (Uint j=0; j<nA; j++)
 				for (Uint i=0; i<nA; i++) {
 					const Real dOdPij = .5*(_m[i]*_m[j]-_u[i]*_u[j] +(i==j?var[i]:0));
-					//#ifdef ACER_MAX_ACT
+#ifdef ACER_MAX_ACT
 					const Real dEdPij = clip(Qer*dOdPij, max_abs_P-P[nA*j+i],-max_abs_P-P[nA*j+i]);
-					//const Real dEdPij = Qer*dOdPij;
-					//#else
-					//const Real penalized = dEdPij +(j==i && P[nA*j+i]<tol_diagP ? 1 : 0);
-					//necessary: if on the Q stops depending on P then learning is meaningless
-					//const Real dEdPij = Qer*dOdPij + (j==i && P[nA*j+i]<tol_diagP ? 1e5*(tol_diagP-P[nA*j+i]) : 0);
-					//#endif
-					//grad[1+il] += _dPdl[nA*j+i]*penalized;
+#else
+					const Real dEdPij = Qer*dOdPij;
+#endif
 					grad[1+il] += _dPdl[nA*j+i]*dEdPij;
 				}
 		}
@@ -678,15 +668,15 @@ protected:
 
 	inline Real softSign(const Real val) const
 	{
-		return val;
-		//return val/sqrt(1+std::fabs(val));
+		//return val;
+		return val/sqrt(1+std::fabs(val));
 	}
 
 	inline Real diffSoftSign(Real val) const
 	{
-		return 1.;
-		//if(val<0) val = -val; //symmetric
-		//const Real denom = std::sqrt(val+1);
-		//return (.5*val+1)/(denom*denom*denom);
+		//return 1.;
+		if(val<0) val = -val; //symmetric
+		const Real denom = std::sqrt(val+1);
+		return (.5*val+1)/(denom*denom*denom);
 	}
 };

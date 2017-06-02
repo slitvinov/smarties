@@ -15,6 +15,7 @@ sight(_s.senses==0 || _s.senses==2),
 l_line(_s.senses==1 || _s.senses==2),
 study(_s.rType), goalDY(_s.goalDY)
 {
+	cheaperThanNetwork=false;
     if (goalDY > 1.) goalDY = 1. - goalDY; //poor man's sign
 }
 

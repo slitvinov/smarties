@@ -8,9 +8,6 @@
  */
 #pragma once
 #include <getopt.h>
-#include <string>
-#include <random>
-
 #include "ArgumentParser.h"
 #include "Warnings.h"
 
@@ -252,6 +249,25 @@ struct Settings
 #define DEFAULT_nnl6 0
 	int nnl6 = DEFAULT_nnl6;
 
+#define CHARARG_splitLayers 'S'
+#define COMMENT_splitLayers "Number of split layers, description in Settings.h"
+	//"For each output required by algorithm (ie. value, policy, std, ...) " \/
+	//"how many non-conv layers should be devoted only to one o the outputs. " \/
+	//"For example if there 2 FF layers of size Z and Y and this arg is set to 1, " \/
+	//"then each of the outputs is connected to a separate layer of size Y. " \/
+	//"Each of these Y-sized layers are in turn connected to the first layer of size Z."
+#define TYPEVAL_splitLayers int
+#define TYPENUM_splitLayers INT
+#define DEFAULT_splitLayers 1
+	int splitLayers = DEFAULT_splitLayers;
+
+#define CHARARG_outWeightsPrefac 'O'
+#define COMMENT_outWeightsPrefac "Output weights initialization factor (will be multiplied by default fan-in factor). Picking 1 leads to treating output layers with normal initialization."
+#define TYPEVAL_outWeightsPrefac Real
+#define TYPENUM_outWeightsPrefac REAL
+#define DEFAULT_outWeightsPrefac 0.01
+	Real outWeightsPrefac = DEFAULT_outWeightsPrefac;
+
 #define CHARARG_batchSize 'B'
 #define COMMENT_batchSize "Network training batch size."
 #define TYPEVAL_batchSize int
@@ -325,6 +341,8 @@ struct Settings
   { //  //{ CHARARG_, "", TYPENUM_, COMMENT_, &, (TYPEVAL_) DEFAULT_ },
 		//AVERT YOUR EYES!
 		return vector<ArgumentParser::OptionStruct> ({
+			{ CHARARG_splitLayers, "splitLayers", TYPENUM_splitLayers, COMMENT_splitLayers, &splitLayers, (TYPEVAL_splitLayers) DEFAULT_splitLayers },
+			{ CHARARG_outWeightsPrefac, "outWeightsPrefac", TYPENUM_outWeightsPrefac, COMMENT_outWeightsPrefac, &outWeightsPrefac, (TYPEVAL_outWeightsPrefac) DEFAULT_outWeightsPrefac },
 			{ CHARARG_rType, "rType", TYPENUM_rType, COMMENT_rType, &rType, (TYPEVAL_rType) DEFAULT_rType },
 			{ CHARARG_senses, "senses", TYPENUM_senses, COMMENT_senses, &senses, (TYPEVAL_senses) DEFAULT_senses },
 			{ CHARARG_goalDY, "goalDY", TYPENUM_goalDY, COMMENT_goalDY, &goalDY, (TYPEVAL_goalDY) DEFAULT_goalDY },

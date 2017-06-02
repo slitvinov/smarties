@@ -126,8 +126,8 @@ void Network::backProp(vector<Activation*>& timeSeries, const Real* const _weigh
 	}
 }
 
-void Network::backProp(const vector<Real>& _errors,
-		Activation* const net, const Real* const _weights, const Real* const _biases, Grads* const _grads) const
+void Network::backProp(const vector<Real>& _errors, Activation* const net,
+	const Real* const _weights, const Real* const _biases, Grads* const _grads) const
 {
 	net->clearErrors();
 	assert(_errors.size()==nOutputs);

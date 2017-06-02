@@ -20,10 +20,10 @@ public:
 
 	virtual ~Link() {}
 	virtual void print() const = 0;
-
 	void _initialize(mt19937* const gen, Real* const _weights, const Real scale,
 			Uint n0, Uint nOut, Uint nIn, Uint n_simd) const
 	{
+		assert(scale>0);
 		uniform_real_distribution<Real> dis(-scale,scale);
 		//normal_distribution<Real> dis(0.,range);
 		for (Uint i = 0; i < nIn; i++)
@@ -31,28 +31,27 @@ public:
 				_weights[n0 + n_simd*i + o] = dis(*gen);
 		//orthogonalize(n0, _weights, nOut, nAdded, n_simd);
 	}
-
 	virtual void save(vector<Real>& out, Real* const _weights) const = 0;
 	void _save(vector<Real>& out, Real*const _weights, Uint n0, Uint nOut, Uint nIn, Uint n_simd) const
 	{
-		for (Uint i = 0; i < nIn; i++) for (Uint o = 0; o < nOut; o++) {
+		for (Uint i = 0; i < nIn; i++)
+		for (Uint o = 0; o < nOut; o++) {
 			const Uint w = n0 + n_simd*i + o;
 			out.push_back(_weights[w]);
 			assert(!std::isnan(_weights[w]) && !std::isinf(_weights[w]));
 		}
 	}
-
 	virtual void restart(vector<Real>& buf, Real* const _weights) const = 0;
 	void _restart(vector<Real>& buf, Real*const _weights, Uint n0, Uint nOut, Uint nIn, Uint n_simd) const
 	{
-		for (Uint i = 0; i < nIn; i++) for (Uint o = 0; o < nOut; o++) {
+		for (Uint i = 0; i < nIn; i++)
+		for (Uint o = 0; o < nOut; o++) {
 			const Uint w = n0 + n_simd*i + o;
 			_weights[w] = buf.front();
 			buf.erase(buf.begin(),buf.begin()+1);
 			assert(!std::isnan(_weights[w]) && !std::isinf(_weights[w]));
 		}
 	}
-
 	void orthogonalize(const Uint n0, Real* const _weights, Uint nOut, Uint nIn, Uint n_simd) const
 	{
 		if (nIn<nOut) return;
@@ -89,7 +88,6 @@ public:
 				*(_weights+n0+k*n_simd+i) *= std::sqrt(v_d_v_pre/v_d_v_post);
 		}
 	}
-
 	inline void regularize(Real* const weights, const Real lambda) const
 	{
 		//not sure:
@@ -135,16 +133,18 @@ public:
 	{
 		_restart(buf, _weights, iW, nO, nI, nO_simd);
 	}
-	void initialize(mt19937*const gen, Real*const _weights, const Function*const func) const
+	void initialize(mt19937*const gen, Real*const _weights,
+					const Function*const func, const Real fac) const
 	{
-		_initialize(gen, _weights, func->initFactor(nI,nO), iW, nO, nI, nO_simd);
+		const Real init = func->weightsInitFactor(nI, nO)*fac;
+		_initialize(gen, _weights, init, iW, nO, nI, nO_simd);
 	}
-
 	inline void propagate(const Activation* const netFrom, Activation* const netTo,
 			const Real* const weights) const
 	{
 		const Real* __restrict__ const inp = netFrom->outvals +iI;
 		Real* __restrict__ const out = netTo->in_vals +iO;
+		//const Real* __restrict__ const w = weights +iW;
 
 		for (Uint i = 0; i < nI; i++) {
 			const Real* __restrict__ const w = weights +iW +nO_simd*i;
@@ -152,14 +152,13 @@ public:
 			for (Uint o = 0; o < nO; o++) out[o] += inp[i] * w[o];
 		}
 	}
-
 	inline void backPropagate(Activation* const netFrom, const Activation* const netTo,
 			const Real* const weights, Real* const gradW) const
 	{
 		const Real* __restrict__ const inp = netFrom->outvals + iI;
 		const Real* __restrict__ const delta = netTo->errvals + iO;
 		Real* __restrict__ const err = netFrom->errvals + iI;
-
+#if 0
 		for (Uint i = 0; i < nI; i++) {
 			const Real* __restrict__ const w = weights +iW +nO_simd*i;
 			Real* __restrict__ const g = gradW +iW +nO_simd*i;
@@ -169,6 +168,16 @@ public:
 				err[i] += delta[o] * w[o];
 			}
 		}
+#else
+		const Real* __restrict__ const w = weights +iW;
+		Real* __restrict__ const g = gradW +iW;
+#pragma omp simd aligned(inp,delta,err: __vec_width__) safelen(simdWidth)
+		for (Uint i = 0; i < nI; i++)
+			for (Uint o = 0; o < nO; o++) {
+				g[o+nO_simd*i] += inp[i] * delta[o];
+				err[i] += delta[o] * w[o+nO_simd*i];
+			}
+#endif
 	}
 };
 
@@ -177,8 +186,7 @@ class LinkToLSTM : public Link
 public:
 	/*
      if link is TO lstm, then the rules change a bit
-     each LSTM block contains 4 neurons, one is the proper cell and then there are the 3 gates
-     if a input signal is connected to one of the four, is also connected to the others
+     if a input signal is connected to one of the gates, is also connected to the others
      thus we just need the index of the first weight for the 3 gates (could have skipped this, iWi = iW + nO*nI and so forth)
      additionally the LSTM contains a memory, contained in Activation->ostate
      memory and gates are treated differently than normal neurons, therefore are contained in separate array, and i keep track of the position with iC
@@ -212,15 +220,18 @@ public:
 		fflush(0);
 	}
 
-	void initialize(mt19937*const gen, Real*const _weights, const Function*const func) const
+	void initialize(mt19937*const gen, Real*const _weights,
+				const Function*const func, const Real fac) const
 	{
 		const Real width = 2*std::max(nO,nI); //stupid workaround...
-		const Real gatesFac = std::sqrt(6./(width + nO));
-		_initialize(gen, _weights, func->initFactor(width,nO),iW,  nO, nI, nO_simd);
-		_initialize(gen, _weights, gatesFac,                  iWI, nO, nI, nO_simd);
-		_initialize(gen, _weights, gatesFac,                  iWF, nO, nI, nO_simd);
-		_initialize(gen, _weights, gatesFac,                  iWO, nO, nI, nO_simd);
+		const Real gateInit = std::sqrt(6./(width + nO));
+		const Real funcInit = func->weightsInitFactor(width,nO)*fac;
+		_initialize(gen, _weights, funcInit, iW,  nO, nI, nO_simd);
+		_initialize(gen, _weights, gateInit, iWI, nO, nI, nO_simd);
+		_initialize(gen, _weights, gateInit, iWF, nO, nI, nO_simd);
+		_initialize(gen, _weights, gateInit, iWO, nO, nI, nO_simd);
 	}
+
 	void save(vector<Real> & out, Real* const _weights) const override
 	{
 		_save(out, _weights, iW,  nO, nI, nO_simd);
@@ -247,7 +258,7 @@ public:
 		Real* __restrict__ const inO = netTo->iOGates + iC;
 
 		for (Uint i = 0; i < nI; i++) {
-			const Real* __restrict__ const wC  = weights + iW  + nO_simd*i;
+			const Real* __restrict__ const wC = weights + iW  + nO_simd*i;
 			const Real* __restrict__ const wI = weights + iWI + nO_simd*i;
 			const Real* __restrict__ const wF = weights + iWF + nO_simd*i;
 			const Real* __restrict__ const wO = weights + iWO + nO_simd*i;
@@ -311,6 +322,8 @@ public:
 				outputWidth(_outW), outputHeight(_outH), outputDepth(_fN),
 				strideX(_sX), strideY(_sY), padX(_pX), padY(_pY)
 	{
+		assert(inputDepth % (__vec_width__/sizeof(Real)) == 0);
+		//assert(outputDepth % (__vec_width__/sizeof(Real)) == 0);
 		assert(iW % (__vec_width__/sizeof(Real)) == 0);
 		assert(iI % (__vec_width__/sizeof(Real)) == 0);
 		assert(iO % (__vec_width__/sizeof(Real)) == 0);
@@ -330,7 +343,6 @@ public:
 		assert(padX < filterWidth && padY < filterHeight);
 		print();
 	}
-
 	void print() const override
 	{
 		printf("iW=%d, nI=%d, iI=%d, nO=%d, iO=%d, nW=%d\n",
@@ -343,92 +355,89 @@ public:
 				filterWidth, filterHeight, strideX, strideY, padX, padY);
 		fflush(0);
 	}
-
-	void initialize(mt19937*const gen, Real*const _weights, const Function*const func) const
+	void initialize(mt19937*const gen, Real*const _weights,
+			const Function*const func, const Real fac) const
 	{
 		const Uint nAdded = filterWidth*filterHeight*inputDepth;
 		assert(outputDepth_simd*nAdded == nW);
-		_initialize(gen, _weights, func->initFactor(nAdded,outputDepth), iW, nO, nAdded, outputDepth_simd);
+		const Real init = func->weightsInitFactor(nAdded, outputDepth)*fac;
+		_initialize(gen, _weights, init, iW, outputDepth, nAdded, outputDepth_simd);
 	}
-
 	void save(vector<Real> & out, Real* const _weights) const override
 	{
 		const Uint nAdded = filterWidth*filterHeight*inputDepth;
-		_save(out, _weights, iW, nO, nAdded, outputDepth_simd);
+		_save(out, _weights, iW, outputDepth, nAdded, outputDepth_simd);
 	}
-
 	void restart(vector<Real> & buf, Real* const _weights) const override
 	{
 		const Uint nAdded = filterWidth*filterHeight*inputDepth;
-		_restart(buf, _weights, iW, nO, nAdded, outputDepth_simd);
+		_restart(buf, _weights, iW, outputDepth, nAdded, outputDepth_simd);
 	}
-
 	inline void propagate(const Activation* const netFrom, Activation* const netTo, const Real* const weights) const
 	{
 		for(Uint ox=0; ox<outputWidth;  ox++)
-			for(Uint oy=0; oy<outputHeight; oy++) {
-				const int ix = static_cast<int>(ox*strideX) -  static_cast<int>(padX);
-				const int iy = static_cast<int>(oy*strideY) -  static_cast<int>(padY);
-				for(Uint fx=0; fx<filterWidth; fx++)
-					for(Uint fy=0; fy<filterHeight; fy++) {
-						const int cx=ix+static_cast<int>(fx);
-						const int cy=iy+static_cast<int>(fy);
-						//padding: skip addition if outside input boundaries
-						if (   cx < 0 || static_cast<Uint>(cx) >= inputWidth
-						  	|| cy < 0 || static_cast<Uint>(cy) >= inputHeight) continue;
+		for(Uint oy=0; oy<outputHeight; oy++) {
+			const int ix = static_cast<int>(ox*strideX) -  static_cast<int>(padX);
+			const int iy = static_cast<int>(oy*strideY) -  static_cast<int>(padY);
+			for(Uint fx=0; fx<filterWidth; fx++)
+			for(Uint fy=0; fy<filterHeight; fy++) {
+				const int cx=ix+static_cast<int>(fx);
+				const int cy=iy+static_cast<int>(fy);
+				//padding: skip addition if outside input boundaries
+				if (   cx < 0 || static_cast<Uint>(cx) >= inputWidth
+					|| cy < 0 || static_cast<Uint>(cy) >= inputHeight) continue;
 
-						const Real* __restrict__ const inp =
-								netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
-						Real* __restrict__ const out =
-								netTo->in_vals +iO+outputDepth*(oy+outputHeight*ox);
+				const Real* __restrict__ const inp =
+						netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
+				Real* __restrict__ const out =
+						netTo->in_vals +iO+outputDepth_simd*(oy+outputHeight*ox);
 
-						for(Uint iz=0; iz<inputDepth; iz++) {
-							const Real* __restrict__ const w =
-									weights +iW +outputDepth*(iz +inputDepth*(fy +filterHeight*fx));
+				for(Uint iz=0; iz<inputDepth; iz++) {
+					const Real* __restrict__ const w =
+							weights +iW +outputDepth_simd*(iz +inputDepth*(fy +filterHeight*fx));
 
 #pragma omp simd aligned(out, inp, w : __vec_width__) safelen(simdWidth)
-							for(Uint fz=0; fz<outputDepth; fz++)
-								out[fz] += inp[iz] * w[fz];
-						}
-					}
+					for(Uint fz=0; fz<outputDepth; fz++)
+						out[fz] += inp[iz] * w[fz];
+				}
 			}
+		}
 	}
-
 	inline void backPropagate(Activation* const netFrom, const Activation* const netTo,
 			const Real* const weights, Real* const gradW) const
 	{
 		for(Uint ox=0; ox<outputWidth;  ox++)
-			for(Uint oy=0; oy<outputHeight; oy++) {
-				const int ix = static_cast<int>(ox*strideX) -  static_cast<int>(padX);
-				const int iy = static_cast<int>(oy*strideY) -  static_cast<int>(padY);
-				for(Uint fx=0; fx<filterWidth; fx++)
-					for(Uint fy=0; fy<filterHeight; fy++) {
-						const int cx=ix+static_cast<int>(fx);
-						const int cy=iy+static_cast<int>(fy);
-						//padding: skip addition if outside input boundaries
-						if (   cx < 0 || static_cast<Uint>(cx) >= inputWidth
-								|| cy < 0 || static_cast<Uint>(cy) >= inputHeight) continue;
+		for(Uint oy=0; oy<outputHeight; oy++) {
+			const int ix = static_cast<int>(ox*strideX) -  static_cast<int>(padX);
+			const int iy = static_cast<int>(oy*strideY) -  static_cast<int>(padY);
+			for(Uint fx=0; fx<filterWidth; fx++)
+			for(Uint fy=0; fy<filterHeight; fy++) {
+				const int cx=ix+static_cast<int>(fx);
+				const int cy=iy+static_cast<int>(fy);
+				//padding: skip addition if outside input boundaries
+				if (   cx < 0 || static_cast<Uint>(cx) >= inputWidth
+					|| cy < 0 || static_cast<Uint>(cy) >= inputHeight) continue;
 
-						const Real* __restrict__ const inp =
-								netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
-						Real* __restrict__ const err =
-								netFrom->errvals +iI +inputDepth*(cy +inputHeight*cx);
-						const Real* __restrict__ const delta =
-								netTo->errvals +iO+outputDepth*(oy+outputHeight*ox);
+				const Real* __restrict__ const inp =
+						netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
+				Real* __restrict__ const err =
+						netFrom->errvals +iI +inputDepth*(cy +inputHeight*cx);
+				const Real* __restrict__ const delta =
+						netTo->errvals +iO+outputDepth_simd*(oy+outputHeight*ox);
 
-						for(Uint iz=0; iz<inputDepth; iz++) {
-							const Real* __restrict__ const w =
-									weights +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
-							Real* __restrict__ const g =
-									gradW +iW +outputDepth*(iz+inputDepth*(fy+filterHeight*fx));
+				for(Uint iz=0; iz<inputDepth; iz++) {
+					const Real* __restrict__ const w =
+							weights +iW +outputDepth_simd*(iz+inputDepth*(fy+filterHeight*fx));
+					Real* __restrict__ const g =
+							gradW +iW +outputDepth_simd*(iz+inputDepth*(fy+filterHeight*fx));
 
 #pragma omp simd aligned(err, w, delta, g, inp : __vec_width__) safelen(simdWidth)
-							for(Uint fz=0; fz<outputDepth; fz++) {
-								err[iz] += w[fz]*delta[fz];
-								g[fz] += inp[iz]*delta[fz];
-							}
-						}
+					for(Uint fz=0; fz<outputDepth; fz++) {
+						err[iz] += w[fz]*delta[fz];
+						g[fz] += inp[iz]*delta[fz];
 					}
+				}
 			}
+		}
 	}
 };

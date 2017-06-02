@@ -9,6 +9,7 @@
 
 void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
+	/*
 	//this should go to gamma rather quick:
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
 	const Real rGamma = annealedGamma();
@@ -225,4 +226,5 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	else net->backProp(series_cur, net->Vgrad[thrID]);
 	net->deallocateUnrolledActivations(&series_cur);
 	net->deallocateUnrolledActivations(&series_hat);
+	*/
 }

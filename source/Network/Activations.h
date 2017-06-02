@@ -158,10 +158,25 @@ struct Grads
 	Real*const _B;
 };
 
+static inline void Lpenalization(Real* const weights,
+	const Uint start, const Uint N, const Real lambda)
+{
+	for (Uint i=start; i<start+N; i++)
+	#ifdef NET_L1_PENAL
+		weights[i] += (weights[i]<0 ? lambda : -lambda);
+	#else
+		weights[i] -= weights[i]*lambda;
+	#endif
+}
+
 struct Function
 {
-	//weights are initialized with uniform distrib [-initFactor, initFactor]
-	virtual Real initFactor(const Uint inps, const Uint outs) const = 0;
+	//weights are initialized with uniform distrib [-weightsInitFactor, weightsInitFactor]
+	virtual Real weightsInitFactor(const Uint inps, const Uint outs) const = 0;
+	virtual Real biasesInitFactor(const Uint outs) const
+	{
+		return std::numeric_limits<Real>::epsilon();
+	}
 	virtual Real eval(const Real in) const = 0; // f(in)
 	virtual Real evalDiff(const Real in) const = 0; // f'(in)
 };
@@ -169,16 +184,14 @@ struct Function
 
 struct Linear : public Function
 {
-	Real initFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
-		return std::sqrt(6./inps);// 2./inps;
+		return std::sqrt(2./inps);// 2./inps;
 	}
-
 	Real eval(const Real in) const override
 	{
 		return in;
 	}
-
 	Real evalDiff(const Real in) const override
 	{
 		return 1;
@@ -187,11 +200,10 @@ struct Linear : public Function
 
 struct Tanh : public Function
 {
-	Real initFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
-
 	Real eval(const Real in) const override
 	{
 		if(in >  8) return  1;
@@ -204,7 +216,6 @@ struct Tanh : public Function
 			return (e2x-1)/(1+e2x);
 		}
 	}
-
 	Real evalDiff(const Real in) const override
 	{
 		const Real arg = in < 0 ? -in : in;
@@ -216,11 +227,10 @@ struct Tanh : public Function
 
 struct TwoTanh : public Function
 {
-	Real initFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
-
 	Real eval(const Real in) const override
 	{
 		if(in >  8) return  2;
@@ -233,7 +243,6 @@ struct TwoTanh : public Function
 			return 2*(e2x-1)/(1+e2x);
 		}
 	}
-
 	Real evalDiff(const Real in) const override
 	{
 		const Real arg = in < 0 ? -in : in;
@@ -244,18 +253,16 @@ struct TwoTanh : public Function
 
 struct Sigm : public Function
 {
-	Real initFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
-
 	Real eval(const Real in) const override
 	{
 		if(in >  16) return 1;
 		if(in < -16) return 0;
 		return 1/(1+std::exp(-in));
 	}
-
 	Real evalDiff(const Real in) const override
 	{
 		const Real arg = in < 0 ? -in : in;
@@ -267,7 +274,7 @@ struct Sigm : public Function
 
 struct SoftSign : public Function
 {
-	Real initFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -284,16 +291,14 @@ struct SoftSign : public Function
 
 struct TwoSoftSign : public Function
 {
-	Real initFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
-
 	Real eval(const Real in) const override
 	{
 		return 2*in/(1+std::fabs(in));
 	}
-
 	Real evalDiff(const Real in) const override
 	{
 		const Real denom = 1+std::fabs(in);
@@ -303,17 +308,15 @@ struct TwoSoftSign : public Function
 
 struct SoftSigm : public Function
 {
-	Real initFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
-
 	Real eval(const Real in) const override
 	{
 		const Real sign = in/(1+std::fabs(in));
 		return 0.5*(1+sign);
 	}
-
 	Real evalDiff(const Real in) const override
 	{
 		const Real denom = 1+std::fabs(in);
@@ -323,16 +326,14 @@ struct SoftSigm : public Function
 
 struct Relu : public Function
 {
-	Real initFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
-		return 2./inps;
+		return std::sqrt(2./inps);
 	}
-
 	Real eval(const Real in) const override
 	{
 		return in>0 ? in : 0;
 	}
-
 	Real evalDiff(const Real in) const override
 	{
 		return in>0 ? 1 : 0;
@@ -341,16 +342,14 @@ struct Relu : public Function
 
 struct PRelu : public Function
 {
-	Real initFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
-		return 2./inps;
+		return std::sqrt(2./inps);
 	}
-
 	Real eval(const Real in) const override
 	{
 		return in>0 ? in : PRELU_FAC*in;
 	}
-
 	Real evalDiff(const Real in) const override
 	{
 		return in>0 ? 1 : PRELU_FAC;
@@ -359,18 +358,16 @@ struct PRelu : public Function
 
 struct ExpPlus : public Function
 {
-	Real initFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
-		return 2./inps;
+		return std::sqrt(2./inps);
 	}
-
 	Real eval(const Real in) const override
 	{
 		if(in >  16) return in;
 		if(in < -16) return 0;
 		return std::log(1+std::exp(in));
 	}
-
 	Real evalDiff(const Real in) const override
 	{
 		if(in >  16) return 1;
@@ -381,15 +378,14 @@ struct ExpPlus : public Function
 
 struct SoftPlus : public Function
 {
-	Real initFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
-		return 2./inps;
+		return std::sqrt(2./inps);
 	}
 	Real eval(const Real in) const override
 	{
 		return .5*(in + std::sqrt(1+in*in));
 	}
-
 	Real evalDiff(const Real in) const override
 	{
 		return .5*(1 + in/std::sqrt(1+in*in));
