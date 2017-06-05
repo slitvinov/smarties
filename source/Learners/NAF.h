@@ -10,6 +10,7 @@
 #pragma once
 #include "Learner_utils.h"
 #include "../Math/Quadratic_advantage.h"
+#include "../Math/FeatureControlTasks.h"
 
 class NAF : public Learner_utils
 {
@@ -17,8 +18,11 @@ class NAF : public Learner_utils
 	//Network produces a vector. The two following vectors specify:
 	// - the sizes of the elements that compose the vector
 	// - the starting indices along the output vector of each
-	const vector<Uint> net_outputs = {1, nL, nA};
-	const vector<Uint> net_indices = {0, 1, 1+nL};
+	vector<Uint> net_outputs = {1, nL, nA};
+	vector<Uint> net_indices = {0, 1, 1+nL};
+	#ifdef FEAT_CONTROL
+	const ContinuousFeatureControl* task;
+	#endif
 
 	inline Quadratic_advantage prepare_advantage(const vector<Real>& out) const
 	{

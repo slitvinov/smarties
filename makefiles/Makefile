@@ -13,6 +13,7 @@ cvar ?= off
 acer ?= full
 testdiff ?= no
 entropy ?= off
+auxtask ?= off
 mpi_lib ?= default
 
 ifeq "$(viz)" "1"
@@ -70,6 +71,9 @@ endif #!full
 endif #relax
 endif #safe
 
+ifeq "$(auxtask)" "on"
+CPPFLAGS+= -DFEAT_CONTROL
+endif
 ifeq "$(entropy)" "on"
 CPPFLAGS+= -D__EntropySGD
 endif

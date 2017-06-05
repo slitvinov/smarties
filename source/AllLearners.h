@@ -32,6 +32,9 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
 	else if (settings.learner == "RACER") {
 		settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
 		settings.nnOutputs = RACER::getnOutputs(env->aI.dim);
+		#ifdef FEAT_CONTROL
+		settings.nnOutputs += 1+RACER::compute_nL(env->aI.dim)+env->aI.dim;
+		#endif
 		return new RACER(mastersComm, env, settings);
 	}
 	else if (settings.learner == "DACER") {

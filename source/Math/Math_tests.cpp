@@ -33,15 +33,15 @@ void Gaussian_policy::test(const vector<Real>& act,
  		const Real d_1 = p1.kl_divergence(pol_hat);
  		const Real d_2 = p2.kl_divergence(pol_hat);
  		finalize_grad(policygrad, _grad);
-		if(fabs(_grad[index]-(p_2-p_1)/.0002)>1e-8)
+		if(fabs(_grad[index]-(p_2-p_1)/.0002)>1e-7)
  		_die("LogPol var grad %d: finite differences %g analytic %g error %g \n",
  			i,(p_2-p_1)/.0002,_grad[index],fabs(_grad[index]-(p_2-p_1)/.0002));
  		finalize_grad(cntrolgrad, _grad);
-		if(fabs(_grad[index]-(A_2-A_1)/.0002)>1e-8)
+		if(fabs(_grad[index]-(A_2-A_1)/.0002)>1e-7)
  		_die("Control var grad %d: finite differences %g analytic %g error %g \n",
 			i,(A_2-A_1)/.0002,_grad[index],fabs(_grad[index]-(A_2-A_1)/.0002));
  		finalize_grad(div_klgrad, _grad);
-		if(fabs(_grad[index]-(d_2-d_1)/.0002)>1e-8)
+		if(fabs(_grad[index]-(d_2-d_1)/.0002)>1e-7)
  		_die("DivKL var grad %d: finite differences %g analytic %g error %g \n",
 			i,(d_2-d_1)/.0002,_grad[index],fabs(_grad[index]-(d_2-d_1)/.0002));
  	}
@@ -70,17 +70,17 @@ void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat)
  		const Real d_2 = p2.kl_divergence(pol_hat);
 
  		finalize_grad(div_klgrad, _grad);
-		if(fabs(_grad[index]-(d_2-d_1)/.0002)>1e-8 && i>=nA) //not for values
+		if(fabs(_grad[index]-(d_2-d_1)/.0002)>1e-7 && i>=nA) //not for values
  		_die("DivKL grad %u %u: finite differences %g analytic %g error %g \n",
 		i,act,(d_2-d_1)/.0002,_grad[index],fabs(_grad[index]-(d_2-d_1)/.0002));
 
  		finalize_grad(cntrolgrad, _grad);
-		if(fabs(_grad[index]-(A_2-A_1)/.0002)>1e-8)
+		if(fabs(_grad[index]-(A_2-A_1)/.0002)>1e-7)
  		_die("Control grad %u %u: finite differences %g analytic %g error %g \n",
 		i,act,(A_2-A_1)/.0002,_grad[index],fabs(_grad[index]-(A_2-A_1)/.0002));
 
  		finalize_grad(policygrad, _grad);
-		if(fabs(_grad[index]-(p_2-p_1)/.0002)>1e-8 && i>=nA) //not for values
+		if(fabs(_grad[index]-(p_2-p_1)/.0002)>1e-7 && i>=nA) //not for values
  		_die("LogPol grad %u %u: finite differences %g analytic %g error %g \n",
 		i,act,(p_2-p_1)/.0002,_grad[index],fabs(_grad[index]-(p_2-p_1)/.0002));
  	}
@@ -101,7 +101,7 @@ void Quadratic_advantage::test(const vector<Real>& act)
  		Quadratic_advantage a2(start_matrix,start_mean,nA,nL,out_2,policy);
  		const Real A_1 = a1.computeAdvantage(act);
  		const Real A_2 = a2.computeAdvantage(act);
-		if(fabs(_grad[index]-(A_2-A_1)/.0002)>1e-8)
+		if(fabs(_grad[index]-(A_2-A_1)/.0002)>1e-7)
  		_die("Advantage grad %d: finite differences %g analytic %g error %g \n",
  			i,(A_2-A_1)/.0002,_grad[index],fabs(_grad[index]-(A_2-A_1)/.0002));
  	}

@@ -17,17 +17,34 @@ Learner_utils(comm,_env,settings,settings.nnOutputs+2),
 truncation(100), delta(0.1),
 generators(settings.generators), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim))
 {
-	#if defined ACER_RELAX 	//output V(s), P(s), pol(s), prec(s)
-	const vector<Real>out_weight_inits={-1,-1,settings.outWeightsPrefac,-1};
-	#elif defined ACER_SAFE //output V(s), P(s), pol(s), mu(s)
-	const vector<Real>out_weight_inits={-1,-1,settings.outWeightsPrefac,settings.outWeightsPrefac};
-	#else 									// output V(s), P(s), pol(s), prec(s), mu(s)
-	const vector<Real>out_weight_inits={-1,-1,settings.outWeightsPrefac,-1,settings.outWeightsPrefac};
+	vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
+	#ifndef ACER_SAFE
+	out_weight_inits.push_back(-1);
+	#endif
+	#ifndef ACER_RELAX
+	out_weight_inits.push_back(settings.outWeightsPrefac);
+	#endif
+	#ifdef FEAT_CONTROL
+	net_indices.push_back(net_indices.back()+net_outputs.back());
+	net_outputs.push_back(1);
+	out_weight_inits.push_back(-1);
+	const Uint task_out0 = net_indices.back();
+
+	net_indices.push_back(net_indices.back()+net_outputs.back());
+	net_outputs.push_back(nL);
+	out_weight_inits.push_back(-1);
+
+	net_indices.push_back(net_indices.back()+net_outputs.back());
+	net_outputs.push_back(nA);
+	out_weight_inits.push_back(settings.outWeightsPrefac);
 	#endif
 
 	buildNetwork(net, opt, net_outputs, settings, out_weight_inits);
 	assert(nOutputs == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
+	#ifdef FEAT_CONTROL
+	task = new ContinuousFeatureControl(task_out0, nA, net, data);
+	#endif
 	data->bRecurrent =bRecurrent =true;
 	test();
 }
@@ -45,9 +62,9 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 	const Real anneal = annealingFactor();
 	vector<Real> beta_mean=pol.getMean(), beta_std=pol.getStdev(), beta(2*nA,0);
 
-	if(positive(anneal) || bTrain)
+	if(bTrain)
 	for(Uint i=0; i<nA; i++) {
-		beta_std[i] = greedyEps + beta_std[i];
+		beta_std[i] = greedyEps + anneal + beta_std[i];
 		beta_mean[i] = (1-anneal)*beta_mean[i];
 	}
 
@@ -58,14 +75,15 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 		a.vals[i] = positive(greedyEps) ? dist_cur(*gen) : beta_mean[i];
 	}
 
+	//scale back to action space size:
+	a.set(aInfo.getScaled(a.vals));
+
 	#if 1
 	beta.insert(beta.end(), adv.matrix.begin(), adv.matrix.end());
 	beta.insert(beta.end(), adv.mean.begin(),   adv.mean.end());
 	#endif
 	data->passData(agentId, info, sOld, a, beta, s, r);
 
-	//scale back to action space size:
-	a.set(aInfo.getScaled(a.vals));
 	dumpNetworkInfo(agentId);
 }
 
@@ -171,14 +189,20 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		//const Real Ver = (Q_RET -A_cur -V_cur)*std::min(1.,rho_hat); //unclear usefulness
 
 		//prepare rolled Q with off policy corrections for next step:
-		Q_RET = c_hat* minAbsValue(Q_RET-A_hat-V_hat,Q_RET-A_cur-V_cur)+minAbsValue(V_hat,V_cur);
+		Q_RET = c_hat * minAbsValue(Q_RET-A_hat-V_hat,Q_RET-A_cur-V_cur) +
+										minAbsValue(V_hat,V_cur);
 		//Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
-		Q_OPC =   0.5* minAbsValue(Q_OPC-A_hat-V_hat,Q_OPC-A_cur-V_cur)+minAbsValue(V_hat,V_cur);
+		Q_OPC =   0.5 * minAbsValue(Q_OPC-A_hat-V_hat,Q_OPC-A_cur-V_cur) +
+										minAbsValue(V_hat,V_cur);
 
 		vector<Real> gradient(nOutputs,0);
 		gradient[net_indices[0]]= Qer;
 		adv_cur.grad(act, Qer, gradient);
 		pol_cur.finalize_grad(trust_grad, gradient);
+		#ifdef FEAT_CONTROL
+		const bool terminal = k+2==static_cast<int>(ndata) && data->Set[seq]->ended;
+		task->Train(series_cur[k],series_hat[k+1],act,_t,t_,rGamma,terminal,gradient);
+		#endif
 
 		//bookkeeping:
 		dumpStats(Vstats[thrID], A_cur+V_cur, Qer);

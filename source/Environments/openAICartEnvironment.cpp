@@ -36,13 +36,13 @@ void openAICartEnvironment::setDims() //this environment is for the cart pole te
 	bool scaleState = true, scaleAction = true;
   for (unsigned i=0; i<upper.size(); i++) {
     sI.mean[i]  = 0.5*(upper[i]+lower[i]);
-    sI.scale[i] = 0.5*(upper[i]-lower[i]);
+    sI.scale[i] = 0.5*(upper[i]-lower[i])/std::sqrt(3.); //approximate std=1
     assert(sI.scale[i]>0);
 		if(sI.scale[i]>=1e3) scaleState = false;
 		if(!settings.world_rank)
 		printf("State %u: mean:%f scale %f\n", i, sI.mean[i], sI.scale[i]);
   }
-	if(!scaleState) {
+	if(!scaleState) { //if empty then mean and scale computed from data
 		sI.scale = vector<Real>();
 		sI.mean = vector<Real>();
 	}

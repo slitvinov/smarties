@@ -546,29 +546,28 @@ vector<Real> Transitions::standardize(const vector<Real>& state,
 	return tmp;
 }
 
-void Transitions::synchronize()
+void Transitions::sortSequences()
 {
-#if 1==1
 	assert(nSequences==Set.size() && maxTotSeqNum == nSequences);
 	//uniform_real_distribution<Real> dis(0.,1.);
-	//if (dis(*(gen->g))>0.01) {
-#pragma omp parallel for schedule(dynamic)
+	//if (dis(*(gen->g))>0.01) { //small chance to shuffle
+	#pragma omp parallel for schedule(dynamic)
 	for(Uint i=0; i<Set.size(); i++) {
 		Set[i]->MSE = 0.;
-#if 1
-		for(const auto & t : Set[i]->tuples)
-			Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
-#else
-		unsigned count = 0;
-		for(const auto & t : Set[i]->tuples) {
-			//assert(t->SquaredError>0); //last one has error 0
-			Set[i]->MSE += t->SquaredError;
-			count++;
-		}
-		assert(count);
-		Set[i]->MSE /= (Real)(count-1);
-#endif
-		/*
+		#if 1 //sort by max error
+				for(const auto & t : Set[i]->tuples)
+					Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
+		#else //sort by mean error: penalizes long sequences
+				unsigned count = 0;
+				for(const auto & t : Set[i]->tuples) {
+					//assert(t->SquaredError>0); //last one has error 0
+					Set[i]->MSE += t->SquaredError;
+					count++;
+				}
+				assert(count);
+				Set[i]->MSE /= (Real)(count-1);
+		#endif
+		/* //sort by distance from mean of observations statistics?
       for(const auto & t : Set[i]->tuples)
       for (int i=0; i<sI.dimUsed; i++)
       Set[i]->MSE += std::pow((t->s[i] - mean[i])/std[i], 2);
@@ -578,9 +577,14 @@ void Transitions::synchronize()
 	std::sort(Set.begin(), Set.end(), compare);
 	assert(Set.front()->MSE < Set.back()->MSE);
 	//} else random_shuffle(Set.begin(), Set.end(), *(gen));
-
 	iOldestSaved = 0;
-#endif
+}
+
+void Transitions::synchronize()
+{
+	//comment out to always delete oldest sequences:
+	sortSequences();
+
 	Uint cnt =0;
 	Uint nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
 	//  for(auto & bufTransition : Buffered) {
@@ -632,28 +636,28 @@ void Transitions::updateSamples(const Real alpha)
 		old_ndata = ndata;
 	}
 	update_meanstd_needed = update_meanstd_needed && positive(alpha);
-	if(needed_samples_mean(update_meanstd_needed)) update_samples_mean(1.0);
+	if(needed_samples_mean(update_meanstd_needed)) update_samples_mean(alpha);
 
 	const Uint ndata = (bRecurrent) ? nSequences : nTransitions;
 	inds.resize(ndata);
-#if 0
-	if (bRecurrent) {
-		delete dist;
-		assert(nSequences==Set.size());
-#ifndef NDEBUG
-		int recount_Transitions = 0;
-#endif
-		for(int i=0; i<nSequences; i++) {
-#ifndef NDEBUG
-			recount_Transitions += Set[i]->tuples.size()-1;
-#endif
-			inds[i] = Set[i]->tuples.size()-1;
+	#if 0
+		if (bRecurrent) {
+			delete dist;
+			assert(nSequences==Set.size());
+			#ifndef NDEBUG
+					int recount_Transitions = 0;
+			#endif
+					for(int i=0; i<nSequences; i++) {
+			#ifndef NDEBUG
+						recount_Transitions += Set[i]->tuples.size()-1;
+			#endif
+				inds[i] = Set[i]->tuples.size()-1;
+			}
+			assert(recount_Transitions==nTransitions);
+			dist = new discrete_distribution<int>(inds.begin(), inds.end());
 		}
-		assert(recount_Transitions==nTransitions);
-		dist = new discrete_distribution<int>(inds.begin(), inds.end());
-	}
-	else
-#endif
+		else
+	#endif
 	{
 		std::iota(inds.begin(), inds.end(), 0);
 		random_shuffle(inds.begin(), inds.end(), *(gen));
@@ -664,15 +668,15 @@ Uint Transitions::sample()
 {
 	const Uint ind = inds.back();
 	inds.pop_back();
-#if 0
-	if (bRecurrent) {
-		const int sampid = dist->operator()(*(gen->g));
-		//printf("Choosing %d with length %lu\n",
-		//sampid, Set[sampid]->tuples.size());
-		return sampid;
-	}
-	else
-#endif
+	#if 0
+		if (bRecurrent) {
+			const int sampid = dist->operator()(*(gen->g));
+			//printf("Choosing %d with length %lu\n",
+			//sampid, Set[sampid]->tuples.size());
+			return sampid;
+		}
+		else
+	#endif
 		return ind;
 }
 
@@ -693,9 +697,9 @@ void Transitions::restart(std::string fname)
 	debugT("Reading from %s\n", nameBackup.c_str());
 	if (!in.good()) {
 		debugT("File not found %s\n", nameBackup.c_str());
-#ifndef NDEBUG //if debug, you might want to do this
-		if(!bTrain) {die("...and I'm not training\n");}
-#endif
+		#ifndef NDEBUG //if debug, you might want to do this
+			if(!bTrain) {die("...and I'm not training\n");}
+		#endif
 		return;
 	}
 

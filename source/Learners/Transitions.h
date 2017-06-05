@@ -72,7 +72,7 @@ protected:
 	void push_back(const int & agentId);
 	void clear(const int & agentId);
 	void synchronize();
-
+	void sortSequences();
 	inline bool needed_samples_mean(const bool something_changed)
 	{
 		//if env has specified scale and mean of state components, do not compute from data
