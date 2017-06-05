@@ -17,10 +17,29 @@ nA(_env->aI.dim), nL(compute_nL(_env->aI.dim))
 	#ifdef NDEBUG
 	if(bRecurrent) die("NAF recurrent not tested!\n");
 	#endif
-	const vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
+	vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
+
+	#ifdef FEAT_CONTROL
+	net_indices.push_back(net_indices.back()+net_outputs.back());
+	net_outputs.push_back(1);
+	out_weight_inits.push_back(-1);
+	const Uint task_out0 = net_indices.back();
+
+	net_indices.push_back(net_indices.back()+net_outputs.back());
+	net_outputs.push_back(nL);
+	out_weight_inits.push_back(-1);
+
+	net_indices.push_back(net_indices.back()+net_outputs.back());
+	net_outputs.push_back(nA);
+	out_weight_inits.push_back(settings.outWeightsPrefac);
+	#endif
+
 	buildNetwork(net, opt, net_outputs, settings, out_weight_inits);
 	assert(nOutputs == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
+	#ifdef FEAT_CONTROL
+	task = new ContinuousFeatureControl(task_out0, nA, net, data);
+	#endif
 	test();
 }
 
@@ -36,14 +55,12 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 
 	//load computed policy into a
 	vector<Real> policy = advantage.getMean();
-
 	const Real anneal = annealingFactor();
-	const Real annealedVar = bTrain ? anneal+greedyEps : greedyEps;
-	if(positive(annealedVar))
-	{
+	const Real annealedVar = bTrain ? anneal + greedyEps : greedyEps;
+
+	if(positive(annealedVar)) {
 		std::normal_distribution<Real> dist(0, annealedVar);
-		for(Uint i=0; i<nA; i++)
-			policy[i] += dist(*gen);
+		for(Uint i=0; i<nA; i++) policy[i] += dist(*gen);
 	}
 
 	//scale back to action space size:
@@ -84,6 +101,9 @@ void NAF::Train_BPTT(const Uint seq, const Uint thrID) const
 		const Real error = value - Qsold;
 		gradient[net_indices[0]] = error;
 		adv_sold.grad(act, error, gradient);
+		#ifdef FEAT_CONTROL
+		task->Train(timeSeries[k],tgtActivation,act,_tOld,_t,rGamma,terminal,gradient);
+		#endif
 
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
 		clip_gradient(gradient, stdGrad[0]);
@@ -104,6 +124,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	const Uint ndata = data->Set[seq]->tuples.size();
 	vector<Real> target(nOutputs), output(nOutputs), gradient(nOutputs);
 	Activation* sOldActivation = net->allocateActivation();
+	Activation* sNewActivation = net->allocateActivation();
 	//this tuple contains sOld:
 	const Tuple* const _tOld = data->Set[seq]->tuples[samp];
 	//this tuple contains a, sNew, reward:
@@ -115,13 +136,10 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	Quadratic_advantage adv_sold = prepare_advantage(output);
 
 	const bool terminal = samp+2==ndata && data->Set[seq]->ended;
-	if (not terminal)
-	{
-		Activation* sNewActivation = net->allocateActivation();
+	if (not terminal) {
 		//vector<Real> scaledSnew = data->standardize(_t->s, __NOISE, thrID);
 		vector<Real> snew = data->standardize(_t->s);
 		net->predict(snew, target, sNewActivation,net->tgt_weights,net->tgt_biases);
-		_dispose_object(sNewActivation);
 	}
 
 	const Real Vsold = output[net_indices[0]];
@@ -131,6 +149,9 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	const Real error = value - Qsold;
 	gradient[net_indices[0]] = error;
 	adv_sold.grad(act, error, gradient);
+	#ifdef FEAT_CONTROL
+	task->Train(sOldActivation,sNewActivation,act,_tOld,_t,rGamma,terminal,gradient);
+	#endif
 
 	statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
 	clip_gradient(gradient, stdGrad[0]);
@@ -139,6 +160,4 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
 	if (thrID==0) net->backProp(gradient, sOldActivation, net->grad);
 	else net->backProp(gradient, sOldActivation, net->Vgrad[thrID]);
-
-	_dispose_object(sOldActivation);
 }

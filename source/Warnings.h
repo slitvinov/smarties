@@ -18,8 +18,8 @@ namespace ErrorHandling
 #elif defined(SMARTIES_DEBUG)
 	static const Debug_level level = SMARTIES_DEBUG;
 #else
-	//static const Debug_level level = WARNINGS;
-	static const Debug_level level = SCHEDULER;
+	static const Debug_level level = WARNINGS;
+	//static const Debug_level level = SCHEDULER;
 #endif
 
 #define    die(format)      {fprintf(stderr,format);                fflush(stdout); fflush(stderr); MPI_Abort(MPI_COMM_WORLD, 1);}

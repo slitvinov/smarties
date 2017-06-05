@@ -59,7 +59,7 @@ void Learner_utils::updateTargetNetwork()
 
 void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 		const vector<Uint> nouts, Settings & settings,
-		vector<Real> weightInitFactors, const vector<Uint> addedInputs)
+		vector<Real> weightInitFac, const vector<Uint> addedInputs)
 {
 	const string netType = settings.nnType;
 	const string funcType = settings.nnFunc;
@@ -69,8 +69,9 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 	//edit to multiply the init factor for weights to output layers (one val per layer)
 	// negative value (or 1) means normal initialization
 	//why on earth would this be needed? policy outputs are better if initialized to be small
-	if(!weightInitFactors.size()) weightInitFactors.resize(nouts.size(),-1);
-	if(weightInitFactors.size()!=nouts.size()) die("Err in output weights factors size\n");
+	if(!weightInitFac.size()) weightInitFac.resize(nouts.size(),-1);
+	if(weightInitFac.size()!=nouts.size())
+		die("Err in output weights factors size\n");
 
 	Builder build(settings);
 	//check if environment wants a particular network structure
@@ -102,11 +103,11 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 			for (Uint j=firstSplit+1; j<lsize.size(); j++)
 				build.addLayer(lsize[j], netType, funcType);
 
-			build.addOutput(static_cast<int>(nouts[i]) , "FFNN", weightInitFactors[i]);
+			build.addOutput(static_cast<int>(nouts[i]) , "FFNN", weightInitFac[i]);
 		}
 	} else {
 		const int sum =static_cast<int>(accumulate(nouts.begin(),nouts.end(),0));
-		const Real fac = *max_element(nouts.begin(), nouts.end());
+		const Real fac=*max_element(weightInitFac.begin(),weightInitFac.end());
 		build.addOutput(sum, "FFNN", lastJointLayer, fac);
 		assert(fac<=1.);
 	}
