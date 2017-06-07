@@ -151,7 +151,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
 		//bookkeeping:
 		dumpStats(Vstats[thrID], A_cur+V_cur, Qer);
-		data->Set[seq]->tuples[samp]->SquaredError =Qer*Qer;
+		data->Set[seq]->tuples[samp]->SquaredError = Qer*Qer;
 		vector<Real> _dump = gradient; _dump.push_back(gain1); _dump.push_back(eta);
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
 

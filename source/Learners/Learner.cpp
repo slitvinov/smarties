@@ -231,8 +231,8 @@ bool Learner::checkBatch(unsigned long mastersNiter)
 	//if optimizer has done less updates than master has done communications
 	// ratio is 1 : 1 in DQN paper
 	//then let master thread go to help other threads finish the batch
-	const long unsigned learnerNiter = opt->nepoch + mastersNiter_b4PolUpdates;
-	if (env->cheaperThanNetwork && dataNiter > learnerNiter) return true;
+	//const long unsigned learnerNiter = opt->nepoch + mastersNiter_b4PolUpdates;
+	//if (env->cheaperThanNetwork && dataNiter > learnerNiter) return true;
 
 	//If the transition buffer is already backed up, train and pause communicating
 	if(data->Buffered.size() >= data->maxTotSeqNum/20)

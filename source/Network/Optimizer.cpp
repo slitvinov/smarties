@@ -202,7 +202,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 		const Uint N, const Uint batchsize, const Real _eta)
 {
 	assert(batchsize>0);
-	const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
+	const Real eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
 	const Real eps = std::numeric_limits<Real>::epsilon();
 	const Real norm = 1./batchsize;
 
