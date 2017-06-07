@@ -25,27 +25,19 @@ generators(settings.generators), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim))
 	out_weight_inits.push_back(settings.outWeightsPrefac);
 	#endif
 	#ifdef FEAT_CONTROL
-	net_indices.push_back(net_indices.back()+net_outputs.back());
-	net_outputs.push_back(1);
-	out_weight_inits.push_back(-1);
-	const Uint task_out0 = net_indices.back();
-
-	net_indices.push_back(net_indices.back()+net_outputs.back());
-	net_outputs.push_back(nL);
-	out_weight_inits.push_back(-1);
-
-	net_indices.push_back(net_indices.back()+net_outputs.back());
-	net_outputs.push_back(nA);
-	out_weight_inits.push_back(settings.outWeightsPrefac);
+		const Uint task_out0 = ContinuousSignControl::addRequestedLayers(nA,
+			 env->sI.dimUsed, net_indices, net_outputs, out_weight_inits);
 	#endif
 
 	buildNetwork(net, opt, net_outputs, settings, out_weight_inits);
+	printf("RACER: Built network with outputs: %s %s\n",
+		print(net_indices).c_str(),print(net_outputs).c_str());
 	assert(nOutputs == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
 	#ifdef FEAT_CONTROL
-	task = new ContinuousFeatureControl(task_out0, nA, net, data);
+	task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net, data);
 	#endif
-	data->bRecurrent =bRecurrent =true;
+	//data->bRecurrent =bRecurrent =true;
 	test();
 }
 
@@ -65,7 +57,7 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 	if(bTrain)
 	for(Uint i=0; i<nA; i++) {
 		beta_std[i] = greedyEps + anneal + beta_std[i];
-		beta_mean[i] = (1-anneal)*beta_mean[i];
+		//beta_mean[i] = (1-anneal*anneal)*beta_mean[i];
 	}
 
 	for(Uint i=0; i<nA; i++) {
@@ -92,7 +84,7 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 	//this should go to gamma rather quick:
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
 	const Real rGamma = annealedGamma();
-	assert(net->allocatedFrozenWeights && bTrain);
+
 	const Uint ndata = data->Set[seq]->tuples.size();
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
 	vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata);
@@ -199,9 +191,9 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		gradient[net_indices[0]]= Qer;
 		adv_cur.grad(act, Qer, gradient);
 		pol_cur.finalize_grad(trust_grad, gradient);
+
 		#ifdef FEAT_CONTROL
-		const bool terminal = k+2==static_cast<int>(ndata) && data->Set[seq]->ended;
-		task->Train(series_cur[k],series_hat[k+1],act,_t,t_,rGamma,terminal,gradient);
+		task->Train(series_cur[k],series_hat[k+1],act,seq,k,rGamma,gradient);
 		#endif
 
 		//bookkeeping:

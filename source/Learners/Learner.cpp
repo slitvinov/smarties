@@ -93,7 +93,7 @@ void Learner::TrainTasking(Master* const master)
 			processStats(sumElapsed/countElapsed); //dump info about convergence
 			sumElapsed = 0; countElapsed=0;
 			//print_memory_usage();
-#ifdef __CHECK_DIFF //check gradients with finite differences, just for debug
+#ifdef __CHECK_DIFF //check gradients with finite differences
 			if (opt->nepoch % 100000 == 0) net->checkGrads();
 #endif
 		}
@@ -224,6 +224,9 @@ bool Learner::checkBatch(unsigned long mastersNiter)
 		return false;
 	}  //do we have enough data? TODO k*ndata?
 
+	//Constraint on over-using stale data too much
+	if(epochCounter>data->nSeenSequences) return false;//dataUsage>mastersNiter||
+
 	//if we are using a cheap to simulate env, we want to prioritize networks
 	//if optimizer has done less updates than master has done communications
 	// ratio is 1 : 1 in DQN paper
@@ -234,9 +237,6 @@ bool Learner::checkBatch(unsigned long mastersNiter)
 	//If the transition buffer is already backed up, train and pause communicating
 	if(data->Buffered.size() >= data->maxTotSeqNum/20)
 		return true;
-
-	//Very lax constraint on over-using stale data too much
-	if(dataUsage>mastersNiter || batchUsage>data->nSeenSequences) return false;
 
 	return taskCounter >= batchSize;
 }

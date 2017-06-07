@@ -17,7 +17,7 @@ nS(_env->sI.dimUsed*(1+_s.appendedObs)), cntValGrad(nThreads+1,0),
 avgValGrad(nThreads+1,vector<Real>(1,0)), stdValGrad(nThreads+1,vector<Real>(1,0))
 {
 	#ifdef NDEBUG
-	die("DPG is Not ready!\n");
+	if(bRecurrent) die("DPG with RNN is Not ready!\n");
 	#endif
 	const vector<Real> out_weight_inits = {_s.outWeightsPrefac};
 	buildNetwork(net_value, opt_value, vector<Uint>(1,1), _s, vector<Real>(), vector<Uint>(1,nA));
@@ -27,7 +27,7 @@ avgValGrad(nThreads+1,vector<Real>(1,0)), stdValGrad(nThreads+1,vector<Real>(1,0
 void DPG::select(const int agentId, State& s, Action& a,
 		State& sOld, Action& aOld, const int info, Real r)
 {
-	vector<Real> output = output_value_iteration(agentId, s, a, sOld, aOld, info, r);
+	vector<Real> output = output_value_iteration(agentId,s,a,sOld,aOld,info,r);
 	if(!output.size()) {
 		assert(info==2);
 		return;
@@ -48,14 +48,13 @@ void DPG::select(const int agentId, State& s, Action& a,
 
 void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
 {
-	assert(bTrain);
 	const Real rGamma = annealedGamma();
 	const Uint ndata = data->Set[seq]->tuples.size();
 	const Uint ntgts = data->Set[seq]->ended ? ndata-1 : ndata;
 	Grads* tmp_grad = new Grads(net_value->getnWeights(),net_value->getnBiases());
 	vector<Activation*>valSeries=net_value->allocateUnrolledActivations(ndata-1);
 	vector<Activation*>polSeries=net->allocateUnrolledActivations(ndata);
-	Activation* tgtAct = net->allocateActivation();
+	Activation* tgtAct = net_value->allocateActivation();
 	vector<Real> qcurrs(ndata-1), vnexts(ndata-1);
 
 	for (Uint k=0; k<ntgts; k++)
@@ -117,7 +116,6 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
 
 void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
-	assert(bTrain);
 	const Real rGamma = annealedGamma();
 	const Uint ndata = data->Set[seq]->tuples.size();
 	const bool terminal = samp+2==ndata && data->Set[seq]->ended;

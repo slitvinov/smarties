@@ -169,16 +169,17 @@ struct Glider
 
     void prepareState(vector<double>& state) const
     {
-      assert(state.size() == 9);
+      assert(state.size() == 10);
       state[0] = _s.u;
       state[1] = _s.v;
       state[2] = _s.w;
       state[3] = _s.x;
       state[4] = _s.y;
-      state[5] = _s.a;
-      state[6] = _s.T;
-      state[7] = _s.vx();
-      state[8] = _s.vy();
+      state[5] = std::cos(_s.a);
+      state[6] = std::sin(_s.a);
+      state[7] = _s.T;
+      state[8] = _s.vx();
+      state[9] = _s.vy();
     }
 
     void updateOldDistanceAndEnergy()
@@ -211,9 +212,9 @@ int main(int argc, const char * argv[])
     std::mt19937 gen(sock);
     std::uniform_real_distribution<double> d1(-.1,.1); //to be used for vels, angle
     std::uniform_real_distribution<double> d2(-1.,1.); //to be used for position
-    Communicator comm(sock,9,1);
+    Communicator comm(sock,10,1);
     #endif
-    vector<double> state(9);
+    vector<double> state(10);
     vector<double> actions(1);
 
     //random initial conditions:
@@ -254,7 +255,7 @@ int main(int argc, const char * argv[])
             reward -= performamce;
 #endif
 #if 1
-            reward -= jerk;       
+            reward -= jerk;
 #endif
             a.updateOldDistanceAndEnergy();
             //load state:
@@ -291,12 +292,12 @@ int main(int argc, const char * argv[])
                     final_reward  = got_there ? TERM_REW_FAC : -a.getDistance();
                     final_reward += (landing && got_there) ? TERM_REW_FAC : 0;
 
-		               if(wrong_xdir || max_torque || way_too_far) 
-			               final_reward = -100 -HEIGHT_PENAL*fabs(50+a._s.y); 
+		               if(wrong_xdir || max_torque || way_too_far)
+			               final_reward = -100 -HEIGHT_PENAL*fabs(50+a._s.y);
 
                     a.prepareState(state);
                     //printf("Sending term state %f %f %f %f\n",
-                    //state[0],state[1],state[2],state[3]); 
+                    //state[0],state[1],state[2],state[3]);
                     //fflush(0);
                     comm.sendState(0, a.info, state, final_reward);
 

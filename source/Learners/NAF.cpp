@@ -15,30 +15,22 @@ Learner_utils(comm,_env,settings,settings.nnOutputs),
 nA(_env->aI.dim), nL(compute_nL(_env->aI.dim))
 {
 	#ifdef NDEBUG
-	if(bRecurrent) die("NAF recurrent not tested!\n");
+	//if(bRecurrent) die("NAF recurrent not tested!\n");
 	#endif
 	vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
 
 	#ifdef FEAT_CONTROL
-	net_indices.push_back(net_indices.back()+net_outputs.back());
-	net_outputs.push_back(1);
-	out_weight_inits.push_back(-1);
-	const Uint task_out0 = net_indices.back();
-
-	net_indices.push_back(net_indices.back()+net_outputs.back());
-	net_outputs.push_back(nL);
-	out_weight_inits.push_back(-1);
-
-	net_indices.push_back(net_indices.back()+net_outputs.back());
-	net_outputs.push_back(nA);
-	out_weight_inits.push_back(settings.outWeightsPrefac);
+	const Uint task_out0 = ContinuousSignControl::addRequestedLayers(nA,
+		 env->sI.dimUsed, net_indices, net_outputs, out_weight_inits);
 	#endif
 
 	buildNetwork(net, opt, net_outputs, settings, out_weight_inits);
+	printf("NAF: Built network with outputs: %s %s\n",
+		print(net_indices).c_str(), print(net_outputs).c_str());
 	assert(nOutputs == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
 	#ifdef FEAT_CONTROL
-	task = new ContinuousFeatureControl(task_out0, nA, net, data);
+	task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net, data);
 	#endif
 	test();
 }
@@ -102,7 +94,7 @@ void NAF::Train_BPTT(const Uint seq, const Uint thrID) const
 		gradient[net_indices[0]] = error;
 		adv_sold.grad(act, error, gradient);
 		#ifdef FEAT_CONTROL
-		task->Train(timeSeries[k],tgtActivation,act,_tOld,_t,rGamma,terminal,gradient);
+		task->Train(timeSeries[k],tgtActivation,act,seq,k,rGamma,gradient);
 		#endif
 
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
@@ -150,7 +142,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	gradient[net_indices[0]] = error;
 	adv_sold.grad(act, error, gradient);
 	#ifdef FEAT_CONTROL
-	task->Train(sOldActivation,sNewActivation,act,_tOld,_t,rGamma,terminal,gradient);
+	task->Train(sOldActivation,sNewActivation,act,seq,samp,rGamma,gradient);
 	#endif
 
 	statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
@@ -160,4 +152,6 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
 	if (thrID==0) net->backProp(gradient, sOldActivation, net->grad);
 	else net->backProp(gradient, sOldActivation, net->Vgrad[thrID]);
+	_dispose_object(sNewActivation);
+	_dispose_object(sOldActivation);
 }

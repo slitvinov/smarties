@@ -219,6 +219,7 @@ void Learner_utils::processStats(const Real avgTime)
 	}
 	if (stats.dumpCount<2) return;
 	stats.epochCount++;
+	epochCounter = stats.epochCount;
 	stats.MSE/=(stats.dumpCount-1); //=std::sqrt(stats.MSE/stats.dumpCount);
 	stats.avgQ/=stats.dumpCount; //stats.relE/=stats.dumpCount;
 
@@ -248,10 +249,10 @@ void Learner_utils::processStats(const Real avgTime)
 void Learner_utils::processGrads()
 {
 	statsVector(avgGrad, stdGrad, cntGrad);
-	std::ostringstream o; o << "Grads avg (std): ";
-	for (Uint i=0; i<avgGrad[0].size(); i++)
-		o<<avgGrad[0][i]<<" ("<<stdGrad[0][i]<<") ";
-	cout<<o.str()<<endl;
+	//std::ostringstream o; o << "Grads avg (std): ";
+	//for (Uint i=0; i<avgGrad[0].size(); i++)
+	//	o<<avgGrad[0][i]<<" ("<<stdGrad[0][i]<<") ";
+	//cout<<o.str()<<endl;
 	ofstream filestats;
 	filestats.open("grads.txt", ios::app);
 	filestats<<print(avgGrad[0]).c_str()<<" "<<print(stdGrad[0]).c_str()<<endl;

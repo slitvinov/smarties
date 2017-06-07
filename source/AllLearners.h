@@ -33,7 +33,7 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
 		settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
 		settings.nnOutputs = RACER::getnOutputs(env->aI.dim);
 		#ifdef FEAT_CONTROL
-		settings.nnOutputs += 1+RACER::compute_nL(env->aI.dim)+env->aI.dim;
+		settings.nnOutputs +=  ContinuousSignControl::addRequestedOutputs(env->aI.dim,env->sI.dimUsed);
 		#endif
 		return new RACER(mastersComm, env, settings);
 	}
@@ -45,6 +45,9 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
 	else if (settings.learner == "NA" || settings.learner == "NAF") {
 		settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
 		settings.nnOutputs = 1 + NAF::compute_nL(env->aI.dim) + env->aI.dim;
+		#ifdef FEAT_CONTROL
+		settings.nnOutputs +=  ContinuousSignControl::addRequestedOutputs(env->aI.dim,env->sI.dimUsed);
+		#endif
 		return new NAF(mastersComm, env, settings);
 	}
 	else if (settings.learner == "DP" || settings.learner == "DPG") {

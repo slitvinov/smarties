@@ -60,13 +60,13 @@ private:
 	}
 	static inline Real precision_func(const Real val)
 	{
-		//return safeExp(val) + ACER_MIN_PREC;
-		return 0.5*(val + std::sqrt(val*val+1)) + ACER_MIN_PREC;
+		return safeExp(val) + ACER_MIN_PREC;
+		//return 0.5*(val + std::sqrt(val*val+1)) + ACER_MIN_PREC;
 	}
 	static inline Real precision_func_diff(const Real val)
 	{
-		//return safeExp(val);
-		return 0.5*(1.+val/std::sqrt(val*val+1));
+		return safeExp(val);
+		//return 0.5*(1.+val/std::sqrt(val*val+1));
 	}
 
 public:

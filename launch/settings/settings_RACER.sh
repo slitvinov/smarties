@@ -17,10 +17,9 @@ SETTINGS+=" --nnl3 256"
 #subject to changes
 SETTINGS+=" --nnType FFNN"
 #SETTINGS+=" --nnType RNN"
-#SETTINGS+=" --nnType LSTM"
 SETTINGS+=" --nnFunc PRelu"
 # L2 regularization of the weights
-SETTINGS+=" --nnLambda 0.0000"
+SETTINGS+=" --nnLambda 0.00"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -47,7 +46,7 @@ SETTINGS+=" --maxTotSeqNum 5000"
 
 #chance of taking random actions
 #SETTINGS+=" --greedyEps 0.5"
-SETTINGS+=" --greedyEps 0.05"
+SETTINGS+=" --greedyEps 0.01"
 SETTINGS+=" --epsAnneal 10000"
 
 #lag of target network.
@@ -56,6 +55,6 @@ SETTINGS+=" --epsAnneal 10000"
 #the first option is markedly safer
 SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 24"
+SETTINGS+=" --batchSize 128"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0002"

@@ -41,7 +41,7 @@ protected:
 	const bool bTrain;
 	const Real tgtUpdateAlpha, gamma, greedyEps, epsAnneal;
 	unsigned long batchUsage = 0, dataUsage = 0;
-	Uint cntUpdateDelay = 0, taskCounter;
+	Uint cntUpdateDelay = 0, taskCounter, epochCounter = 0;
 	unsigned long mastersNiter_b4PolUpdates = 0;
 	ActionInfo aInfo;
 	StateInfo  sInfo;
