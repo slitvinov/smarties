@@ -17,14 +17,19 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	const Uint ndata = data->Set[seq]->tuples.size();
 	assert(samp<ndata-1);
 	const bool bEnd = data->Set[seq]->ended;
-	const Uint npredicts = bEnd ? ndata-1 : ndata;
-	const Uint nhats = npredicts - samp;
+	const Uint nMaxTargets = MAX_UNROLL_AFTER+1;
+	//for off policy correction we need reward and action, therefore not last one:
+	const Uint nSUnroll = min(ndata-1-samp, nMaxTargets);
+	//if we do not have a terminal reward, then we compute value of last state:
+	const Uint nSValues = min(bEnd? ndata-1-samp :ndata-samp, nMaxTargets);
+	//to prevent silly overflow on aux tasks:
+	const Uint nSalloc = max(nSValues, ndata-samp);
 	vector<vector<Real>> out_cur(1, vector<Real>(nOutputs,0));
-	vector<vector<Real>> out_hat(nhats, vector<Real>(nOutputs,0));
+	vector<vector<Real>> out_hat(nSValues, vector<Real>(nOutputs,0));
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(1);
-	vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata-1);
+	vector<Activation*> series_hat = net->allocateUnrolledActivations(nSalloc);
 
-	for (Uint k=0; k<nhats; k++) {
+	for (Uint k=0; k<nSValues; k++) {
 		const Tuple * const _t = data->Set[seq]->tuples[k+samp]; //this tuple contains s, a, mu
 		const vector<Real> inp = data->standardize(_t->s);
 		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
@@ -33,18 +38,19 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	}
 	net->seqPredict_execute(series_cur, series_cur);
 	net->seqPredict_execute(series_hat, series_hat, net->tgt_weights, net->tgt_biases);
-	for (Uint k=0; k<nhats; k++) {
+	for (Uint k=0; k<nSValues; k++) {
 		if(!k) net->seqPredict_output(out_cur[k], series_cur[k]);
 		net->seqPredict_output(out_hat[k], series_hat[k]);
 	}
 
 	Real Q_RET = 0, Q_OPC = 0;
 	//if partial sequence then compute value of last state (=! R_end)
-	if(not bEnd) {
-		Q_RET = Q_OPC = out_hat[nhats-1][net_indices[0]]; //V(s_T) with tgt weights
+	if(nSValues != nSUnroll) {
+		assert(nSValues>nSUnroll && !bEnd);
+		Q_RET=Q_OPC= out_hat[nSValues-1][net_indices[0]]; //V(s_T) with tgt weights
 	} else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
 
-	for (int k=static_cast<int>(ndata-samp)-2; k>0; k--) //propagate Q to k=0
+	for (int k=static_cast<int>(nSUnroll)-1; k>0; k--) //propagate Q to k=0
 	{
 		const Tuple*const _t=data->Set[seq]->tuples[k+samp]; //contains sOld, a
 		const Tuple*const t_=data->Set[seq]->tuples[k+1+samp]; //contains r, sNew
@@ -63,8 +69,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 		const Real A_hat = adv_hat.computeAdvantage(act);
 		const Real lambda = 0.5;
 		//prepare rolled Q with off policy corrections for next step:
-		Q_RET = c_hat*lambda*(Q_RET -A_hat -V_hat) +V_hat;
-		//const Real lambda = std::max(c_hat, 0.1);
+		Q_RET = c_hat*(Q_RET -A_hat -V_hat) +V_hat;
 		Q_OPC = lambda*(Q_OPC -A_hat -V_hat) +V_hat;
 	}
 
