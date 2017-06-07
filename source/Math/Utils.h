@@ -71,6 +71,15 @@ inline Uint maxInd(const vector<Real>& pol)
   return Nbest;
 }
 
+inline Uint maxInd(const vector<Real>& pol, const Uint start, const Uint N)
+{
+  Real Val = -1e9;
+  Uint Nbest = 0;
+  for (Uint i=start; i<start+N; ++i)
+      if (pol[i]>Val) { Val = pol[i]; Nbest = i-start; }
+  return Nbest;
+}
+
 inline Real minAbsValue(const Real v, const Real w)
 {
   return std::fabs(v)<std::fabs(w) ? v : w;
