@@ -20,7 +20,7 @@ SETTINGS+=" --nnType FFNN"
 #SETTINGS+=" --nnType LSTM"
 SETTINGS+=" --nnFunc PRelu"
 # L2 regularization of the weights
-SETTINGS+=" --nnLambda 0.0000"
+SETTINGS+=" --nnLambda 0.000"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -56,6 +56,6 @@ SETTINGS+=" --epsAnneal 100000"
 #the first option is markedly safer
 SETTINGS+=" --targetDelay 0.001"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 128"
+SETTINGS+=" --batchSize 256"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0002"

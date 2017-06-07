@@ -21,7 +21,7 @@ class NAF : public Learner_utils
 	vector<Uint> net_outputs = {1, nL, nA};
 	vector<Uint> net_indices = {0, 1, 1+nL};
 	#ifdef FEAT_CONTROL
-	const ContinuousFeatureControl* task;
+	const ContinuousSignControl* task;
 	#endif
 
 	inline Quadratic_advantage prepare_advantage(const vector<Real>& out) const

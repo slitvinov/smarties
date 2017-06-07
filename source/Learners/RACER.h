@@ -28,7 +28,7 @@ class RACER : public Learner_utils
 		vector<Uint> net_indices = {0,  1, 1+nL, 1+nL+nA, 1+nL+2*nA};
 	#endif
 	#ifdef FEAT_CONTROL
-	const ContinuousFeatureControl* task;
+	const ContinuousSignControl* task;
 	#endif
 
 	inline Gaussian_policy prepare_policy(const vector<Real>& out) const

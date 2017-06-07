@@ -135,7 +135,7 @@ void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		const Real eta = anneal * smoothing * A_cur * A_OPC / (varCritic+eps);
 
 #ifdef ACER_PENALIZER
-		const Real cotrolVar = A_cov;
+		const Real cotrolVar = A_pol;
 #else
 		const Real cotrolVar = 0;
 #endif

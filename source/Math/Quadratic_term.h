@@ -132,15 +132,15 @@ protected:
 	}
 	static inline Real offdiag_func(const Real val)
 	{
-		//return val;
-		return val/sqrt(1+std::fabs(val));
+		return val;
+		//return val/sqrt(1+std::fabs(val));
 	}
 	static inline Real offdiag_func_diff(Real val)
 	{
-		//return 1.;
-		if(val<0) val = -val; //symmetric
-		const Real denom = std::sqrt(val+1);
-		return (.5*val+1)/(denom*denom*denom);
+		return 1.;
+		//if(val<0) val = -val; //symmetric
+		//const Real denom = std::sqrt(val+1);
+		//return (.5*val+1)/(denom*denom*denom);
 	}
 };
 

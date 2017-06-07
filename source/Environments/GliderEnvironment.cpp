@@ -18,7 +18,7 @@ Environment(_nAgents, _execpath, _s) {
 void GliderEnvironment::setDims() //this environment is for the cart pole test
 {
 	sI.inUse.clear();
-	for (Uint i=0; i<6; i++) sI.inUse.push_back(true);
+	for (Uint i=0; i<7; i++) sI.inUse.push_back(true);
 
 	sI.inUse.push_back(true);
 	//sI.inUse.push_back(false);
@@ -30,7 +30,8 @@ void GliderEnvironment::setDims() //this environment is for the cart pole test
 		sI.mean.push_back(0); //omega
 		sI.mean.push_back(50); //x
 		sI.mean.push_back(-25); //y
-		sI.mean.push_back(M_PI); //theta
+		sI.mean.push_back(0); //cos theta
+		sI.mean.push_back(0); //sin theta
 		sI.mean.push_back(0); //T
 		sI.mean.push_back(0); //vx
 		sI.mean.push_back(0); //vy
@@ -41,7 +42,8 @@ void GliderEnvironment::setDims() //this environment is for the cart pole test
 		sI.scale.push_back(1); //omega
 		sI.scale.push_back(50); //x
 		sI.scale.push_back(25); //y
-		sI.scale.push_back(M_PI/2); //theta
+		sI.scale.push_back(1); //cos theta
+		sI.scale.push_back(1); //sin theta
 		sI.scale.push_back(1); //T
 		sI.scale.push_back(1); //vx
 		sI.scale.push_back(1); //vy
