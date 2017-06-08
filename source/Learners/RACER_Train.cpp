@@ -13,7 +13,6 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
 	const Real rGamma = annealedGamma();
 
-	assert(net->allocatedFrozenWeights && bTrain);
 	const Uint ndata = data->Set[seq]->tuples.size();
 	assert(samp<ndata-1);
 	const bool bEnd = data->Set[seq]->ended;
