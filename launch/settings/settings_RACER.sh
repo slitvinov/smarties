@@ -47,7 +47,7 @@ SETTINGS+=" --maxTotSeqNum 5000"
 #chance of taking random actions
 #SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --greedyEps 0.01"
-SETTINGS+=" --epsAnneal 500000"
+SETTINGS+=" --epsAnneal 1000000"
 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
