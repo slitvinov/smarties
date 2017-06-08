@@ -177,8 +177,8 @@ Uint Learner::sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitio
 		s[i] = k;
 		t[i] = ind-back;
 		sorting[i] = i;
-		//load[i] = data->Set[k]->tuples.size()-1 - t[i];
-		load[i] = data->Set[k]->tuples.size()-1;
+		load[i] = data->Set[k]->tuples.size()-1 - t[i];
+		//load[i] = data->Set[k]->tuples.size()-1;
 	}
 
 	//sort elements of sorting according to load for each transition:
