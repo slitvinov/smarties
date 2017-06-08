@@ -16,43 +16,53 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	const Uint ndata = data->Set[seq]->tuples.size();
 	assert(samp<ndata-1);
 	const bool bEnd = data->Set[seq]->ended;
-	const Uint npredicts = bEnd ? ndata-1 : ndata;
-	const Uint nhats = npredicts - samp;
-	vector<vector<Real>> out_cur(1,     vector<Real>(nOutputs,0));
-	vector<vector<Real>> out_hat(nhats, vector<Real>(nOutputs,0));
-	vector<Activation*> series_cur = net->allocateUnrolledActivations(samp+1);
-	vector<Activation*> series_hat = net->allocateUnrolledActivations(nhats);
 
-	for (Uint k=0; k<samp+1; k++) {
+	const Uint nMaxTargets = MAX_UNROLL_AFTER+1, nMaxBPTT = MAX_UNROLL_BFORE;
+	//for off policy correction we need reward and action, therefore not last one:
+	const Uint nSUnroll = min(ndata-1-samp, nMaxTargets);
+	//if we do not have a terminal reward, then we compute value of last state:
+	const Uint nSValues = min(bEnd? ndata-1-samp :ndata-samp, nMaxTargets);
+	//to prevent silly overflow on aux tasks:
+	const Uint nSalloc = max(nSValues, ndata-samp);
+	const Uint nRecurr = min(nMaxBPTT,samp)+1;
+	const Uint iRecurr = samp>nMaxBPTT ? samp-nMaxBPTT : 0;
+	vector<vector<Real>> out_cur(1,     vector<Real>(nOutputs,0));
+	vector<vector<Real>> out_hat(nSValues, vector<Real>(nOutputs,0));
+	vector<Activation*> series_cur = net->allocateUnrolledActivations(nRecurr);
+	vector<Activation*> series_hat = net->allocateUnrolledActivations(nSalloc);
+
+	for (Uint k=iRecurr, j=0; k<samp+1; k++, j++) {
 		const Tuple * const _t = data->Set[seq]->tuples[k];
 		const vector<Real> inp = data->standardize(_t->s);
-		net->seqPredict_inputs(inp, series_cur[k]);
+		net->seqPredict_inputs(inp, series_cur[j]);
 		if(k==samp) {
+			assert(j==nRecurr-1);
 			//all are loaded: execute the whole loop:
 			net->seqPredict_execute(series_cur, series_cur);
 			//extract the only output we actually correct:
-			net->seqPredict_output(out_cur[0], series_cur[k]); //the humanity!
+			net->seqPredict_output(out_cur[0], series_cur[j]); //the humanity!
 			//predict samp with target weight using curr recurrent inputs as estimate:
 			if(samp>0)
-				net->predict(inp, out_hat[0], series_cur[k-1], series_hat[0], net->tgt_weights, net->tgt_biases);
+				net->predict(inp, out_hat[0], series_cur[j-1], series_hat[0], net->tgt_weights, net->tgt_biases);
 			else
 				net->predict(inp, out_hat[0], series_hat[0], net->tgt_weights, net->tgt_biases);
 		}
 	}
-	for (Uint k=samp+1; k<npredicts; k++) {
+	for (Uint k=1; k<nSValues; k++) {
 		//do all the rest, including sT if sequence is not terminal, with tgt net
-		const Tuple * const _t = data->Set[seq]->tuples[k];
+		const Tuple * const _t = data->Set[seq]->tuples[k+samp];
 		const vector<Real> inp = data->standardize(_t->s);
-		net->predict(inp, out_hat[k-samp], series_hat, k-samp, net->tgt_weights, net->tgt_biases);
+		net->predict(inp,out_hat[k],series_hat,k,net->tgt_weights,net->tgt_biases);
 	}
 
 	Real Q_RET = 0, Q_OPC = 0;
 	//if partial sequence then compute value of last state (=! R_end)
-	if(not bEnd) {
-		Q_RET = Q_OPC = out_hat[nhats-1][0]; //V(s_T) computed with tgt weights
+	if(nSValues != nSUnroll) {
+		assert(nSValues>nSUnroll && !bEnd);
+		Q_RET = Q_OPC=out_hat[nSValues-1][net_indices[0]]; //V(s_T) with tgt weights
 	} else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
 
-	for (int k=static_cast<int>(ndata-samp)-2; k>0; k--) //just propagate Q_RET / Q_OPC to k=0
+	for (int k=static_cast<int>(nSUnroll)-1; k>0; k--) //just propagate Q_RET / Q_OPC to k=0
 	{
 		const Tuple * const _t = data->Set[seq]->tuples[k+samp]; //this tuple contains sOld, a
 		const Tuple * const t_ = data->Set[seq]->tuples[k+1+samp]; //this contains r, sNew

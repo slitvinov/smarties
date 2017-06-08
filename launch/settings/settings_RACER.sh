@@ -19,7 +19,7 @@ SETTINGS+=" --nnType FFNN"
 #SETTINGS+=" --nnType RNN"
 SETTINGS+=" --nnFunc PRelu"
 # L2 regularization of the weights
-SETTINGS+=" --nnLambda 0.0001"
+SETTINGS+=" --nnLambda 0.000"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -47,7 +47,7 @@ SETTINGS+=" --maxTotSeqNum 5000"
 #chance of taking random actions
 #SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --greedyEps 0.01"
-SETTINGS+=" --epsAnneal 100000"
+SETTINGS+=" --epsAnneal 500000"
 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
@@ -57,4 +57,4 @@ SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 64"
 #network update learning rate
-SETTINGS+=" --learnrate 0.001"
+SETTINGS+=" --learnrate 0.0002"

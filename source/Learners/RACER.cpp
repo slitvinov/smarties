@@ -38,6 +38,7 @@ generators(settings.generators), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim))
 	task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net, data);
 	#endif
 	//data->bRecurrent =bRecurrent =true;
+	//data->bRecurrent =bRecurrent =false;
 	test();
 }
 
