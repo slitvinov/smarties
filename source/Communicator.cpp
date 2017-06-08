@@ -1,6 +1,6 @@
 #include "Communicator.h"
 #include "Communicator_utils.cpp"
-//#define COMM_REDIRECT_OUT
+#define COMM_REDIRECT_OUT
 //APPLICATION SIDE CONSTRUCTOR
 Communicator::Communicator(const int socket, const int sdim, const int adim)
 {

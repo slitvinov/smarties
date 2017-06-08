@@ -22,12 +22,12 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	//if we do not have a terminal reward, then we compute value of last state:
 	const Uint nSValues = min(bEnd? ndata-1-samp :ndata-samp, nMaxTargets);
 	//to prevent silly overflow on aux tasks:
-	const Uint nSalloc = max(nSValues, ndata-samp);
+	const Uint nSalloc = max(nSValues, static_cast<Uint>(2));
 	vector<vector<Real>> out_cur(1, vector<Real>(nOutputs,0));
 	vector<vector<Real>> out_hat(nSValues, vector<Real>(nOutputs,0));
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(1);
 	vector<Activation*> series_hat = net->allocateUnrolledActivations(nSalloc);
-
+	//printf("%d %u %u %u %u %u \n", bEnd, samp, ndata, nSUnroll, nSValues, nSalloc); fflush(0);
 	for (Uint k=0; k<nSValues; k++) {
 		const Tuple * const _t = data->Set[seq]->tuples[k+samp]; //this tuple contains s, a, mu
 		const vector<Real> inp = data->standardize(_t->s);
@@ -68,8 +68,8 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 		const Real A_hat = adv_hat.computeAdvantage(act);
 		const Real lambda = 0.5;
 		//prepare rolled Q with off policy corrections for next step:
-		Q_RET = c_hat*(Q_RET -A_hat -V_hat) +V_hat;
-		Q_OPC = lambda*(Q_OPC -A_hat -V_hat) +V_hat;
+		Q_RET = c_hat*lambda*(Q_RET -A_hat -V_hat) +V_hat;
+		Q_OPC = 			lambda*(Q_OPC -A_hat -V_hat) +V_hat;
 	}
 
 	{
