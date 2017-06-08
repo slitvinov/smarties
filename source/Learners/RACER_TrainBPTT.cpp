@@ -23,7 +23,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	//if we do not have a terminal reward, then we compute value of last state:
 	const Uint nSValues = min(bEnd? ndata-1-samp :ndata-samp, nMaxTargets);
 	//to prevent silly overflow on aux tasks:
-	const Uint nSalloc = max(nSValues, ndata-samp);
+	const Uint nSalloc = max(nSValues, 2);
 	const Uint nRecurr = min(nMaxBPTT,samp)+1;
 	const Uint iRecurr = samp>nMaxBPTT ? samp-nMaxBPTT : 0;
 	vector<vector<Real>> out_cur(1,     vector<Real>(nOutputs,0));
