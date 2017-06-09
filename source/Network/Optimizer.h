@@ -25,8 +25,8 @@ protected:
 			const Uint N, const Uint batchsize) const;
 
 public:
-	const Real eta, lambda, alpha;
-	long unsigned nepoch;
+	const Real eta, lambda, alpha = 0.5;
+	long unsigned nepoch = 0;
 
 	Optimizer(Network* const _net, Profiler* const _prof, Settings & settings);
 
@@ -46,7 +46,7 @@ public:
 
 	void save_recurrent_connections(const string fname)
 	{
-		const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
+		const Uint nNeurons(net->getnNeurons());
 		const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
 		string nameBackup = fname + "_mems_tmp";
 		ofstream out(nameBackup.c_str());
@@ -67,7 +67,7 @@ public:
 
 	bool restart_recurrent_connections(const string fname)
 	{
-		const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
+		const Uint nNeurons(net->getnNeurons());
 		const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
 
 		string nameBackup = fname + "_mems";

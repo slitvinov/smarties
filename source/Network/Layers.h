@@ -291,7 +291,7 @@ public:
 		const Real* __restrict__ const inputF = curr->iFGates +n1stCell;
 		const Real* __restrict__ const inputO = curr->iOGates +n1stCell;
 		const Real* __restrict__ const outputI = curr->oIGates +n1stCell;
-		const Real* __restrict__ const outputF = curr->oFGates +n1stCell;
+		//const Real* __restrict__ const outputF = curr->oFGates +n1stCell;
 		const Real* __restrict__ const outputO = curr->oOGates +n1stCell;
 		const Real* __restrict__ const outputC = curr->oMCell +n1stCell;
 		Real* __restrict__ const deltas = curr->errvals +n1stNeuron;

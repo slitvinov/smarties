@@ -464,10 +464,10 @@ public:
 	{
 		for (auto & trash : G) _dispose_object(trash);
 	}
-	Builder(Settings & _settings): settings(_settings),
+	Builder(Settings & _settings):
 			nAgents(static_cast<Uint>(_settings.nAgents)),
 			nThreads(static_cast<Uint>(_settings.nThreads)),
-			generators(_settings.generators)
+			generators(_settings.generators), settings(_settings)
 	{
 		assert(nAgents>0 && nThreads>0);
 	}

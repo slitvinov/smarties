@@ -17,7 +17,9 @@ mkdir -p ${BASEPATH}${RUNFOLDER}
 #rm /tmp/smarties_sock_
 if [ $# -gt 5 ] ; then
     POLICY=$6
-    cp $6 ${BASEPATH}${RUNFOLDER}/policy.net
+		cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
+    cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
+    cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
 fi
 if [ $# -gt 6] ; then
     NTASK=$7
@@ -36,6 +38,7 @@ chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
+cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/policy_settings.sh
 cp run.sh ${BASEPATH}${RUNFOLDER}/run.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 

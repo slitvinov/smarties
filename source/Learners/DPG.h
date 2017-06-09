@@ -13,10 +13,10 @@
 class DPG : public Learner_utils
 {
 	const Uint nA, nS;
+	mutable vector<Real> cntValGrad;
+	mutable vector<vector<Real>> avgValGrad, stdValGrad;
 	Network* net_value;
 	Optimizer* opt_value;
-	mutable vector<vector<Real>> stdValGrad, avgValGrad;
-	mutable vector<Real> cntValGrad;
 
 	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
 	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
@@ -25,7 +25,7 @@ class DPG : public Learner_utils
 	void stackAndUpdateNNWeights(const Uint nAddedGradients) override;
 	void updateNNWeights(const Uint nAddedGradients) override;
 	void processGrads() override;
-	
+
 public:
 	DPG(MPI_Comm comm, Environment*const env, Settings & settings);
 	void select(const int agentId, State& s, Action& a, State& sOld,

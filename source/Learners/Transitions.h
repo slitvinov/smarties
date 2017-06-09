@@ -58,12 +58,13 @@ class Transitions
 protected:
 	const MPI_Comm mastersComm;
 	Environment * const env;
-	Uint iOldestSaved=0;
-	const bool bSampleSeq, bWriteToFile, bNormalize, bTrain;
+	const bool bSampleSeq, bTrain, bWriteToFile, bNormalize;
 	const string path;
+	Uint iOldestSaved=0;
 	vector<Real> std, mean, invstd;
 	vector<Uint> curr_transition_id;
 	discrete_distribution<Uint> * dist;
+
 	int add(const int agentId, const int info, const State & sOld,
 			const Action & a, const vector<Real>& mu, const State& s, Real r);
 	int add(const int agentId, const int info, const State& sOld,

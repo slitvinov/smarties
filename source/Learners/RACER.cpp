@@ -14,8 +14,8 @@
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs+2),
-truncation(100), delta(0.1),
-generators(settings.generators), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim))
+truncation(100), delta(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
+generators(settings.generators)
 {
 	vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
 	#ifndef ACER_SAFE
@@ -144,7 +144,7 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		const Real rho_cur = safeExp(actProbOnPolicy-actProbBehavior);
 		const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
 		const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
-		const Real c_cur = std::min((Real)1.,std::pow(rho_cur,1./nA));
+		//const Real c_cur = std::min((Real)1.,std::pow(rho_cur,1./nA));
 		const Real c_hat = std::min((Real)1.,std::pow(rho_hat,1./nA));
 		const Real varCritic = adv_pol.advantageVariance();
 		const Real A_cur = adv_cur.computeAdvantage(act);

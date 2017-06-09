@@ -98,17 +98,17 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
 		const Real actProbOnPolicy = pol_cur.evalLogProbability(act);
 		const Real polProbOnPolicy = pol_cur.evalLogProbability(pol);
-		const Real actProbOnTarget = pol_hat.evalLogProbability(act);
+		//const Real actProbOnTarget = pol_hat.evalLogProbability(act);
 		const Real actProbBehavior = Gaussian_policy::evalBehavior(act,_t->mu);
 		const Real polProbBehavior = Gaussian_policy::evalBehavior(pol,_t->mu);
 		const Real rho_cur = safeExp(actProbOnPolicy-actProbBehavior);
 		const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
-		const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
-		const Real c_cur = std::min((Real)1.,std::pow(rho_cur,1./nA));
-		const Real c_hat = std::min((Real)1.,std::pow(rho_hat,1./nA));
+		//const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
+		//const Real c_cur = std::min((Real)1.,std::pow(rho_cur,1./nA));
+		//const Real c_hat = std::min((Real)1.,std::pow(rho_hat,1./nA));
 		const Real varCritic = adv_pol.advantageVariance();
 		const Real A_cur = adv_cur.computeAdvantage(act);
-		const Real A_hat = adv_hat.computeAdvantage(act);
+		//const Real A_hat = adv_hat.computeAdvantage(act);
 		const Real A_pol = adv_pol.computeAdvantage(pol);
 		const Real A_cov = adv_pol.computeAdvantage(act);
 		//compute quantities needed for trunc import sampl with bias correction

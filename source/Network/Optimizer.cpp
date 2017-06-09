@@ -17,13 +17,12 @@ Optimizer::Optimizer(Network* const _net, Profiler* const _prof, Settings& _s) :
 nWeights(_net->getnWeights()), nBiases(_net->getnBiases()), bTrain(_s.bTrain),
 net(_net), profiler(_prof),
 _1stMomW(initClean(nWeights)), _1stMomB(initClean(nBiases)),
-eta(_s.learnrate), lambda(_s.nnLambda), alpha(0.5), nepoch(0) { }
+eta(_s.learnrate), lambda(_s.nnLambda) { }
 
 AdamOptimizer::AdamOptimizer(Network*const _net, Profiler*const _prof,
-		Settings& _s, const Real B1, const Real B2) :
-			Optimizer(_net, _prof, _s),
-			_2ndMomW(initClean(nWeights)), _2ndMomB(initClean(nBiases)),
-			beta_1(B1), beta_2(B2), epsilon(1e-8), beta_t_1(B1), beta_t_2(B2) { }
+		Settings& _s, const Real B1, const Real B2) : Optimizer(_net, _prof, _s),
+		beta_1(B1), beta_2(B2), epsilon(1e-8), beta_t_1(B1), beta_t_2(B2),
+		_2ndMomW(initClean(nWeights)), _2ndMomB(initClean(nBiases)) { }
 //beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.99)
 
 EntropySGD::EntropySGD(Network*const _net, Profiler*const _prof, Settings&_s) :
@@ -247,7 +246,7 @@ void AdamOptimizer::update(Real* const dest, Real* const grad,
 void Optimizer::save(const string fname)
 {
 	const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
-	const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
+	//const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
 
 	printf("Saving into %s\n", fname.c_str());
 	fflush(0);
@@ -288,7 +287,7 @@ bool EntropySGD::restart(const string fname)
 void AdamOptimizer::save(const string fname)
 {
 	const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
-	const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
+	//const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
 
 	printf("Saving into %s\n", fname.c_str());
 	fflush(0);
@@ -324,7 +323,7 @@ void AdamOptimizer::save(const string fname)
 bool Optimizer::restart(const string fname)
 {
 	const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
-	const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
+	//const Uint nAgents(net->getnAgents()); // , nStates(net->getnStates()) TODO
 
 	string nameBackup = fname + "_net";
 	ifstream in(nameBackup.c_str());
@@ -362,7 +361,7 @@ bool Optimizer::restart(const string fname)
 bool AdamOptimizer::restart(const string fname)
 {
 	const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
-	const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
+	
 	string nameBackup = fname + "_net";
 	ifstream in(nameBackup.c_str());
 	debugN("Reading from %s\n", nameBackup.c_str());

@@ -35,7 +35,7 @@ void openAICartEnvironment::setDims() //this environment is for the cart pole te
   comm_ptr->getStateActionShape(aI.values, sI.mean, sI.scale);
   vector<Real> upper = sI.mean;
   vector<Real> lower = sI.scale;
-	bool scaleState = true, scaleAction = true;
+	bool scaleState = true;
   for (unsigned i=0; i<upper.size(); i++) {
     sI.mean[i]  = 0.5*(upper[i]+lower[i]);
     sI.scale[i] = 0.5*(upper[i]-lower[i])/std::sqrt(3.); //approximate std=1
@@ -65,16 +65,16 @@ void openAICartEnvironment::setDims() //this environment is for the cart pole te
 	if(settings.slaves_rank==0) return;
 
 	#if   GYM_RENDEROPT==0
-		double bRender[1] = {-1};
+		double bRender[1] = {-1.};
 		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
 	#elif GYM_RENDEROPT==1
-		double bRender[1] = {settings.slaves_rank>1 ? -1 : 1};
+		double bRender[1] = {settings.slaves_rank>1 ? -1. : 1.};
 		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
 	#elif GYM_RENDEROPT==2
-		double bRender[1] = {settings.slaves_rank>1 ? -1 : 2};
+		double bRender[1] = {settings.slaves_rank>1 ? -1. : 2.};
 		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
 	#else
-		double bRender[1] = {1};
+		double bRender[1] = {1.};
 		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
 	#endif
 }

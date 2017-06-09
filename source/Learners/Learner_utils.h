@@ -12,15 +12,16 @@
 class Learner_utils: public Learner
 {
 protected:
-	mutable vector<vector<Real>> stdGrad, avgGrad;
-	mutable vector<Real> cntGrad;
+mutable vector<Real> cntGrad;
+	mutable vector<vector<Real>> avgGrad, stdGrad;
 	trainData stats;
 	vector<trainData*> Vstats;
 
 public:
 	Learner_utils(MPI_Comm mcom,Environment*const _e, Settings&sett, Uint ngrads)
-	: Learner(mcom, _e, sett), avgGrad(nThreads+1,vector<Real>(ngrads,0)),
-	cntGrad(nThreads+1,0), stdGrad(nThreads+1,vector<Real>(ngrads,0))
+	: Learner(mcom, _e, sett), cntGrad(nThreads+1,0),
+	avgGrad(nThreads+1,vector<Real>(ngrads,0)),
+	stdGrad(nThreads+1,vector<Real>(ngrads,0))
 	{
 		assert(avgGrad.size()==nThreads+1 && cntGrad.size()==nThreads+1);
 		for (Uint i=0; i<nThreads; i++) Vstats.push_back(new trainData());

@@ -313,7 +313,7 @@ Communicator::Communicator(const MPI_Comm scom, const int socket, const bool spa
 void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_values,
 		std::vector<double>& state_upper_bound, std::vector<double>& state_lower_bound)
 {
-	unsigned long dummy = 1;
+	//unsigned long dummy = 1;
 	double* sketchy_ptr;
 	sketchy_ptr = _alloc(2*sizeof(double));
 	if (rank_learn_pool==0)

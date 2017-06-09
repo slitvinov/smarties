@@ -10,20 +10,17 @@
 #include "Learner.h"
 #include <chrono>
 
-Learner::Learner(MPI_Comm comm, Environment*const _env, Settings & settings) :
-mastersComm(comm), env(_env), nAgents(settings.nAgents),
-batchSize(settings.batchSize), tgtUpdateDelay((Uint)settings.targetDelay),
-nThreads(settings.nThreads), nInputs(settings.nnInputs),
-nOutputs(settings.nnOutputs), nAppended(settings.appendedObs),
-bRecurrent(settings.bRecurrent), bTrain(settings.bTrain),
-tgtUpdateAlpha(settings.targetDelay), gamma(settings.gamma),
-greedyEps(settings.greedyEps), epsAnneal(settings.epsAnneal),
-taskCounter(batchSize), aInfo(env->aI), sInfo(env->sI),
-gen(&settings.generators[0])
+Learner::Learner(MPI_Comm comm, Environment*const _env, Settings & _s) :
+mastersComm(comm), env(_env), tgtUpdateDelay((Uint)_s.targetDelay),
+nAgents(_s.nAgents), batchSize(_s.batchSize), nThreads(_s.nThreads),
+nAppended(_s.appendedObs), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
+bRecurrent(_s.bRecurrent), bTrain(_s.bTrain), tgtUpdateAlpha(_s.targetDelay),
+gamma(_s.gamma), greedyEps(_s.greedyEps), epsAnneal(_s.epsAnneal),
+taskCounter(batchSize), aInfo(env->aI), sInfo(env->sI), gen(&_s.generators[0])
 {
 	assert(nThreads>0);
 	profiler = new Profiler();
-	data = new Transitions(mastersComm, env, settings);
+	data = new Transitions(mastersComm, env, _s);
 }
 
 void Learner::clearFailedSim(const int agentOne, const int agentEnd)

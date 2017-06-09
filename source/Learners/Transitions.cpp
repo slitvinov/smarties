@@ -11,14 +11,12 @@
 #include <dirent.h>
 #include <iterator>
 
-Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & settings):
-mastersComm(comm), env(_env), nAppended(settings.appendedObs),
-batchSize(settings.batchSize), maxSeqLen(settings.maxSeqLen),
-minSeqLen(settings.minSeqLen), maxTotSeqNum(settings.maxTotSeqNum),
-bSampleSeq(settings.bRecurrent), bRecurrent(settings.bRecurrent),
-bWriteToFile(!(settings.samplesFile=="none")), bNormalize(settings.bNormalize),
-bTrain(settings.bTrain), path(settings.samplesFile), aI(_env->aI), sI(_env->sI),
-generators(settings.generators)
+Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
+	mastersComm(comm), env(_env), bSampleSeq(_s.bRecurrent), bTrain(_s.bTrain),
+	bWriteToFile(!(_s.samplesFile=="none")), bNormalize(_s.bNormalize),
+	path(_s.samplesFile), nAppended(_s.appendedObs), batchSize(_s.batchSize),
+	maxSeqLen(_s.maxSeqLen),minSeqLen(_s.minSeqLen),maxTotSeqNum(_s.maxTotSeqNum),
+	bRecurrent(_s.bRecurrent),sI(_env->sI),aI(_env->aI), generators(_s.generators)
 {
 	mean.resize(sI.dimUsed, 0);
 	std.resize(sI.dimUsed, 1);
@@ -33,12 +31,12 @@ generators(settings.generators)
 				k++;
 			}
 	assert(k == sI.dimUsed);
-	assert(settings.nAgents>0);
-	Tmp.resize(settings.nAgents);
-	for (Uint i=0; i<static_cast<Uint>(settings.nAgents); i++)
+	assert(_s.nAgents>0);
+	Tmp.resize(_s.nAgents);
+	for (Uint i=0; i<static_cast<Uint>(_s.nAgents); i++)
 		Tmp[i] = new Sequence();
 
-	curr_transition_id.resize(max(settings.nAgents,1));
+	curr_transition_id.resize(max(_s.nAgents,1));
 	dist = new discrete_distribution<Uint> (1,2); //dummy
 	gen = new Gen(&generators[0]);
 	Set.reserve(maxTotSeqNum);

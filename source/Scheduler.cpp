@@ -15,13 +15,13 @@
 static void unpackState(double* const data, int& agent, _AGENT_STATUS& info,
 		std::vector<double>& state, double& reward);
 
-Master::Master(MPI_Comm _c, Learner*const _l, Environment*const _e, Settings&_s):
-				  slavesComm(_c), learner(_l), env(_e), aI(_e->aI), sI(_e->sI),
-				  agents(_e->agents), bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank),
-				  nSlaves(_s.nSlaves), saveFreq(_s.saveFreq), nThreads(_s.nThreads),
-				  inSize((3+_e->sI.dim)*sizeof(double)), outSize(_e->aI.dim*sizeof(double)),
-				  inbuf(_alloc(inSize)), outbuf(_alloc(outSize)), sOld(_e->sI),sNew(_e->sI),
-				  aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]), status(_e->agents.size(),1)
+Master::Master(MPI_Comm _c,Learner*const _l, Environment*const _e, Settings&_s):
+	  slavesComm(_c), learner(_l), env(_e), aI(_e->aI), sI(_e->sI),
+	  agents(_e->agents), bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank),
+	  nSlaves(_s.nSlaves), nThreads(_s.nThreads), saveFreq(_s.saveFreq),
+	  inSize((3+_e->sI.dim)*sizeof(double)), outSize(_e->aI.dim*sizeof(double)),
+	  inbuf(_alloc(inSize)), outbuf(_alloc(outSize)), sOld(_e->sI),sNew(_e->sI),
+	  aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]), status(_e->agents.size(),1)
 {
 	//the following Irecv will be sent after sending the action
 	MPI_Irecv(inbuf, inSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
@@ -146,9 +146,9 @@ void Slave::run()
 
 Client::Client(Learner*const _l, Communicator*const _c, Environment*const _e,
 		Settings& _s):
-			  learner(_l), comm(_c), env(_e), aI(_e->aI), sI(_e->sI), agents(_e->agents),
-			  sOld(_e->sI), sNew(_e->sI), aOld(_e->aI, &_s.generators[0]),
-			  aNew(_e->aI, &_s.generators[0]), status(_e->agents.size(),1)
+	  learner(_l), comm(_c), env(_e), agents(_e->agents), aI(_e->aI), sI(_e->sI), 
+	  sOld(_e->sI), sNew(_e->sI), aOld(_e->aI, &_s.generators[0]),
+	  aNew(_e->aI, &_s.generators[0]), status(_e->agents.size(),1)
 {}
 
 void Client::run()

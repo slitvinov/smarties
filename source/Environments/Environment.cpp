@@ -10,8 +10,8 @@
 #include "Environment.h"
 
 Environment::Environment(const Uint nA, const string exe, Settings& _s) :
-execpath(exe), nAgents(nA*_s.nSlaves), nAgentsPerRank(nA),
-gamma(_s.gamma), g(&_s.generators[0]), settings(_s)
+g(&_s.generators[0]), settings(_s), execpath(exe),
+nAgents(nA*_s.nSlaves), nAgentsPerRank(nA), gamma(_s.gamma)
 {
     assert(!_s.slaves_rank || nAgentsPerRank == nAgents);
     for (Uint i=0; i<nAgents; i++) agents.push_back(new Agent(i));

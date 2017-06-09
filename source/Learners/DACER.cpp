@@ -117,7 +117,7 @@ void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		const Real rho_cur = pol_cur.probability(act)/_t->mu[act];
 		const Real rho_pol = pol_cur.probability(pol)/_t->mu[pol];
 		const Real rho_hat = pol_hat.probability(act)/_t->mu[act];
-		const Real c_cur = std::min((Real)1.,rho_cur);
+		//const Real c_cur = std::min((Real)1.,rho_cur);
 		const Real c_hat = std::min((Real)1.,rho_hat);
 		const Real varCritic = pol_cur.advantageVariance();
 

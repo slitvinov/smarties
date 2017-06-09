@@ -192,10 +192,10 @@ Network::Network(Builder* const B, Settings & settings) :
 		nAgents(B->nAgents),   nThreads(B->nThreads), nInputs(B->nInputs),
 		nOutputs(B->nOutputs), nLayers(B->nLayers),   nNeurons(B->nNeurons),
 		nWeights(B->nWeights), nBiases(B->nBiases),   nStates(B->nStates),
-		bDump(not settings.bTrain), iOut(B->iOut), iInp(B->iInp),
-		layers(B->layers), links(B->links), weights(B->weights), biases(B->biases),
-		tgt_weights(B->tgt_weights), tgt_biases(B->tgt_biases), grad(B->grad),
-		Vgrad(B->Vgrad), generators(settings.generators), mem(B->mem)
+		bDump(not settings.bTrain), layers(B->layers), links(B->links),
+		weights(B->weights), biases(B->biases), tgt_weights(B->tgt_weights),
+		tgt_biases(B->tgt_biases), grad(B->grad), Vgrad(B->Vgrad), mem(B->mem),
+		generators(settings.generators), iOut(B->iOut), iInp(B->iInp)
 {
 	dump_ID.resize(nAgents);
 	updateFrozenWeights();

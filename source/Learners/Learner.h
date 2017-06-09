@@ -35,7 +35,7 @@ class Learner
 protected:
 	const MPI_Comm mastersComm;
 	Environment * const env;
-	const Uint nAgents, batchSize, tgtUpdateDelay, nThreads, nAppended;
+	const Uint tgtUpdateDelay, nAgents, batchSize, nThreads, nAppended;
 	Uint nInputs, nOutputs;
 	bool bRecurrent;
 	const bool bTrain;

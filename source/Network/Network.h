@@ -27,12 +27,11 @@ public:
 	Real* const tgt_biases;
 	Grads* const grad;
 	const vector<Grads*> Vgrad;
-	vector<std::mt19937>& generators;
-	vector<Uint> dump_ID;
 	const vector<Mem*> mem;
+	vector<std::mt19937>& generators;
+	const vector<Uint> iOut, iInp;
+	vector<Uint> dump_ID;
 	const bool allocatedFrozenWeights = true;
-	const vector<Uint> iOut;
-	const vector<Uint> iInp;
 
 	Uint getnWeights() const {return nWeights;}
 	Uint getnBiases() const {return nBiases;}
