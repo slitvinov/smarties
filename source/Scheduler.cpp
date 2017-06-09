@@ -211,7 +211,7 @@ void Master::recvState(const int slave, int& iAgent, int& istatus, Real& reward)
 	unpackState(inbuf, recv_iAgent, istatus, recv_state, reward);
 	assert(recv_iAgent>=0);
 	iAgent = (slave-1) * nPerRank + recv_iAgent;
-	//printf("%d, %lu\n",iAgent,agents.size()); fflush(0);
+	//printf("%d %d %d, %lu\n",recv_iAgent,slave,iAgent,agents.size()); fflush(0);
 	assert(iAgent>=0);
 	assert(iAgent<static_cast<int>(agents.size()));
 

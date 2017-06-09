@@ -19,7 +19,9 @@
 #include <iostream>
 #include <algorithm>
 #include <stdio.h>
-#define GYM_ONERENDER
+#ifndef GYM_RENDEROPT
+#define GYM_RENDEROPT 2
+#endif
 using namespace std;
 
 openAICartEnvironment::openAICartEnvironment(const int _nAgents, const string _execpath, Settings & _s) :
@@ -62,14 +64,17 @@ void openAICartEnvironment::setDims() //this environment is for the cart pole te
 
 	if(settings.slaves_rank==0) return;
 
-	#if   defined(GYM_ALLRENDER)
-		double bRender[1] = {1};
+	#if   GYM_RENDEROPT==0
+		double bRender[1] = {-1};
 		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
-	#elif defined(GYM_ONERENDER)
-		double bRender[1] = {settings.slaves_rank>1 ? -1. : 1.};
+	#elif GYM_RENDEROPT==1
+		double bRender[1] = {settings.slaves_rank>1 ? -1 : 1};
+		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
+	#elif GYM_RENDEROPT==2
+		double bRender[1] = {settings.slaves_rank>1 ? -1 : 2};
 		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
 	#else
-		double bRender[1] = {-1};
+		double bRender[1] = {1};
 		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
 	#endif
 }

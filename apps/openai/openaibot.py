@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import gym
+from gym import wrappers
 import sys
 import socket
 import os, os.path
@@ -71,8 +72,13 @@ conn.send(state_bounds.tobytes())
 conn.send(actionOptions.tobytes())
 conn.send(actionValues.tobytes())
 bRender = np.frombuffer(conn.recv(8), dtype=np.float64)
+print(bRender)
+bRender = round(bRender)
+print(bRender)
 
-state=np.zeros(nStates+3)
+if bRender==2: env = gym.wrappers.Monitor(env, './', force=True)
+
+state=np.zeros(nStates+3, dtype=np.float64)
 while True:
     info,reward,status=1,0,1
     observation = env.reset()
@@ -83,10 +89,11 @@ while True:
     	       state[2:nStates+2]=observation.ravel()
         else: state[2] = observation
     	state[nStates+2]=reward
+        #print(state)
     	conn.send(state.tobytes())
     	status=0
-        if bRender>0:
-			env.render()
+        if bRender==1: env.render()
+
     	buf = np.frombuffer(conn.recv(nActions*8),dtype=np.float64)
 
         if hasattr(env.action_space, 'shape'):
@@ -106,9 +113,11 @@ while True:
            state[2:nStates+2]=observation.ravel()
     else: state[2] = observation
     state[nStates+2]=reward
+    #print(state)
     conn.send(state.tobytes())
     buf = np.frombuffer(conn.recv(nActions*8),dtype=np.float64)
     if(buf[0]<0):
         print("Received end of training signal. Aborting...");
         break
+
 conn.close()
