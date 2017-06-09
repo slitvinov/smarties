@@ -21,9 +21,9 @@ void Learner_utils::stackAndUpdateNNWeights(const Uint nAddedGradients)
 	MPI_Comm_size(mastersComm, &nMasters);
 	if (nMasters > 1) {
 		MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
-				MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
 		MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
-				MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
 	}
 	//update is deterministic: can be handled independently by each node
 	//communication overhead is probably greater than a parallelised sum
@@ -39,9 +39,9 @@ void Learner_utils::updateNNWeights(const Uint nAddedGradients)
 	MPI_Comm_size(mastersComm, &nMasters);
 	if (nMasters > 1) {
 		MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
-				MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
 		MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
-				MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
 	}
 	opt->nepoch++;
 	opt->update(net->grad, nAddedGradients);

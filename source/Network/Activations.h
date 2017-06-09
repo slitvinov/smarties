@@ -173,8 +173,8 @@ static inline void Lpenalization(nnReal* const weights,
 struct Function
 {
 	//weights are initialized with uniform distrib [-weightsInitFactor, weightsInitFactor]
-	virtual nnReal weightsInitFactor(const Uint inps, const Uint outs) const = 0;
-	virtual nnReal biasesInitFactor(const Uint outs) const
+	virtual Real weightsInitFactor(const Uint inps, const Uint outs) const = 0;
+	virtual Real biasesInitFactor(const Uint outs) const
 	{
 		return std::numeric_limits<nnReal>::epsilon();
 	}
@@ -185,7 +185,7 @@ struct Function
 
 struct Linear : public Function
 {
-	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(2./inps);// 2./inps;
 	}
@@ -201,7 +201,7 @@ struct Linear : public Function
 
 struct Tanh : public Function
 {
-	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -228,7 +228,7 @@ struct Tanh : public Function
 
 struct TwoTanh : public Function
 {
-	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -254,7 +254,7 @@ struct TwoTanh : public Function
 
 struct Sigm : public Function
 {
-	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -275,7 +275,7 @@ struct Sigm : public Function
 
 struct SoftSign : public Function
 {
-	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -292,7 +292,7 @@ struct SoftSign : public Function
 
 struct TwoSoftSign : public Function
 {
-	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -309,7 +309,7 @@ struct TwoSoftSign : public Function
 
 struct SoftSigm : public Function
 {
-	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
@@ -327,7 +327,7 @@ struct SoftSigm : public Function
 
 struct Relu : public Function
 {
-	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(2./inps);
 	}
@@ -343,7 +343,7 @@ struct Relu : public Function
 
 struct PRelu : public Function
 {
-	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(2./inps);
 	}
@@ -359,7 +359,7 @@ struct PRelu : public Function
 
 struct ExpPlus : public Function
 {
-	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(2./inps);
 	}
@@ -379,7 +379,7 @@ struct ExpPlus : public Function
 
 struct SoftPlus : public Function
 {
-	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
+	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(2./inps);
 	}

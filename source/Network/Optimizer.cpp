@@ -216,7 +216,7 @@ void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
 		grad[i] = 0.; //reset grads
 
 		//dest[i] += eta_*M1_/std::sqrt(M2_);
-		dest[i] += eta_*(f12*DW + beta_1*M1)/std::sqrt(M2_); //nesterov
+		dest[i] += eta_*(f12*DW + f11*M1)/std::sqrt(M2_); //nesterov
 	}
 }
 #else
