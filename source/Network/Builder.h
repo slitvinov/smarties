@@ -454,10 +454,10 @@ public:
 	Settings & settings;
 	Grads* grad;
 	vector<Grads*> Vgrad;
-	Real* weights;
-	Real* biases;
-	Real* tgt_weights;
-	Real* tgt_biases;
+	nnReal* weights;
+	nnReal* biases;
+	nnReal* tgt_weights;
+	nnReal* tgt_biases;
 	vector<Mem*> mem;
 
 	~Builder()

@@ -21,10 +21,10 @@ protected:
 	const vector<Layer*> layers;
 	const vector<Link*> links;
 public:
-	Real* const weights;
-	Real* const biases;
-	Real* const tgt_weights;
-	Real* const tgt_biases;
+	nnReal* const weights;
+	nnReal* const biases;
+	nnReal* const tgt_weights;
+	nnReal* const tgt_biases;
 	Grads* const grad;
 	const vector<Grads*> Vgrad;
 	const vector<Mem*> mem;
@@ -84,7 +84,7 @@ public:
 	void seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const;
 	void seqPredict_output(vector<Real>&_output, Activation* const currActivation) const;
 	void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2,
-			const Real* const _weights, const Real* const _biases) const;
+			const nnReal* const _weights, const nnReal* const _biases) const;
 	void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2) const
 	{
 		seqPredict_execute(series_1, series_2, weights, biases);
@@ -92,7 +92,7 @@ public:
 
 	void predict(const vector<Real>& _input, vector<Real>& _output,
 			vector<Activation*>& timeSeries, const Uint n_step,
-			const Real* const _weights, const Real* const _biases) const;
+			const nnReal* const _weights, const nnReal* const _biases) const;
 	void predict(const vector<Real>& _input, vector<Real>& _output,
 			vector<Activation*>& timeSeries, const Uint n_step) const
 	{
@@ -101,7 +101,7 @@ public:
 
 	void predict(const vector<Real>& _input, vector<Real>& _output,
 			Activation* const prevActivation, Activation* const currActivation,
-			const Real* const _weights, const Real* const _biases) const;
+			const nnReal* const _weights, const nnReal* const _biases) const;
 	void predict(const vector<Real>& _input, vector<Real>& _output,
 			Activation* const prevActivation, Activation* const currActivation) const
 	{
@@ -110,8 +110,8 @@ public:
 	}
 
 	void predict(const vector<Real>& _input, vector<Real>& _output,
-			Activation* const net, const Real* const _weights,
-			const Real* const _biases) const;
+			Activation* const net, const nnReal* const _weights,
+			const nnReal* const _biases) const;
 	void predict(const vector<Real>& _input, vector<Real>& _output,
 			Activation* const net) const
 	{
@@ -119,7 +119,7 @@ public:
 	}
 
 	void backProp(vector<Activation*>& timeSeries,
-			const Real* const _weights, const Real* const biases,
+			const nnReal* const _weights, const nnReal* const biases,
 			Grads* const _grads) const;
 	void backProp(vector<Activation*>& timeSeries, Grads* const _grads) const
 	{
@@ -127,7 +127,7 @@ public:
 	}
 
 	void backProp(const vector<Real>& _errors, Activation* const net,
-			const Real* const _weights, const Real* const _biases,
+			const nnReal* const _weights, const nnReal* const _biases,
 			Grads* const _grads) const;
 	void backProp(const vector<Real>& _errors, Activation* const net,
 			Grads* const _grads) const
@@ -143,14 +143,14 @@ public:
 			layers[j]->regularize(weights, biases, lambda);
 	}
 
-	void save(vector<Real> & outWeights, vector<Real> & outBiases,
-			Real* const _weights, Real* const _biases) const
+	void save(vector<nnReal> & outWeights, vector<nnReal> & outBiases,
+			nnReal* const _weights, nnReal* const _biases) const
 	{
 		for (const auto &l : layers)
 			l->save(outWeights,outBiases, _weights, _biases);
 	}
-	void restart(vector<Real> & outWeights, vector<Real> & outBiases,
-			Real* const _weights, Real* const _biases) const
+	void restart(vector<nnReal> & outWeights, vector<nnReal> & outBiases,
+			nnReal* const _weights, nnReal* const _biases) const
 	{
 		for (const auto &l : layers)
 			l->restart(outWeights,outBiases, _weights, _biases);

@@ -58,7 +58,7 @@ void EntropySGD::moveFrozenWeights(const Real _alpha)
 
 #pragma omp parallel
 	{
-		const Real fac = eta_eSGD * gamma_eSGD;
+		const nnReal fac = eta_eSGD * gamma_eSGD;
 
 #pragma omp for nowait
 		for (Uint j=0; j<nWeights; j++) {
@@ -76,16 +76,16 @@ void EntropySGD::moveFrozenWeights(const Real _alpha)
 	}
 }
 
-void EntropySGD::update(Real* const dest, const Real* const target, Real* const grad,
-		Real* const _1stMom, Real* const _2ndMom, Real* const _mu, const Uint N,
-		const Uint batchsize, const Real _eta)
+void EntropySGD::update(nnReal*const dest,const nnReal*const target,
+	nnReal*const grad, nnReal*const _1stMom, nnReal*const _2ndMom,
+	nnReal*const _mu, const Uint N, const Uint batchsize, const Real _eta)
 {
 	//const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
 	assert(batchsize>0);
-	const Real eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
-	const Real norm = 1./batchsize;
+	const nnReal eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
+	const nnReal norm = 1./batchsize;
 	// TODO const Real lambda_ = _lambda*eta_;
-	const Real noise = std::sqrt(eta_) * eps_eSGD;
+	const nnReal noise = std::sqrt(eta_) * eps_eSGD;
 
 #pragma omp parallel
 	{
@@ -95,13 +95,13 @@ void EntropySGD::update(Real* const dest, const Real* const target, Real* const 
 #pragma omp for
 		for (Uint i=0; i<N; i++)
 		{
-			const Real DW  = grad[i]*norm;
-			const Real M1_ = beta_1* _1stMom[i] +(1.-beta_1) *DW;
-			const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
-			const Real M2_ = std::max(M2,epsilon);
+			const nnReal DW  = grad[i]*norm;
+			const nnReal M1_ = beta_1* _1stMom[i] +(1.-beta_1) *DW;
+			const nnReal M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
+			const nnReal M2_ = std::max(M2, (nnReal)epsilon);
 
-			const Real RNG = noise * gen.d_mean0_var1();
-			const Real DW_ = eta_*M1_/std::sqrt(M2_);
+			const nnReal RNG = noise * gen.d_mean0_var1();
+			const nnReal DW_ = eta_*M1_/std::sqrt(M2_);
 
 			_1stMom[i] = M1_;
 			_2ndMom[i] = M2_;
@@ -178,17 +178,17 @@ void AdamOptimizer::update(Grads* const G, const Uint batchsize)
 	if(lambda>2.2e-16) net->regularize(lambda*_eta);
 }
 
-void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
+void Optimizer::update(nnReal*const dest,nnReal*const grad,nnReal*const _1stMom,
 		const Uint N, const Uint batchsize) const
 {
 	assert(batchsize>0);
-	const Real norm = 1./batchsize;
+	const nnReal norm = 1./batchsize;
 	//const Real eta_ = eta*norm/std::log((double)nepoch/1.);
-	const Real eta_ = eta*norm/(1.+std::log(1. + (double)nepoch/1e3));
+	const nnReal eta_ = eta*norm/(1.+std::log(1. + (double)nepoch/1e3));
 
 #pragma omp parallel for
 	for (Uint i=0; i<N; i++) {
-		const Real M1 = alpha * _1stMom[i] + eta_ * grad[i];
+		const nnReal M1 = alpha * _1stMom[i] + eta_ * grad[i];
 		_1stMom[i] = std::max(std::min(M1,eta_),-eta_);
 		grad[i] = 0.; //reset grads
 		dest[i] += _1stMom[i];
@@ -196,27 +196,27 @@ void Optimizer::update(Real* const dest, Real* const grad, Real* const _1stMom,
 }
 
 #if 1
-void AdamOptimizer::update(Real* const dest, Real* const grad,
-		Real* const _1stMom, Real* const _2ndMom,
+void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
+		nnReal*const _1stMom, nnReal*const _2ndMom,
 		const Uint N, const Uint batchsize, const Real _eta)
 {
 	assert(batchsize>0);
-	const Real eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
-	const Real eps = std::numeric_limits<Real>::epsilon();
-	const Real norm = 1./batchsize;
-
+	const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
+	const nnReal eps = std::numeric_limits<nnReal>::epsilon();
+	const nnReal norm = 1./batchsize;
+	const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2, f22=1-beta_2;
 #pragma omp parallel for
 	for (Uint i=0; i<N; i++) {
-		const Real DW  = grad[i]*norm;
-		const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
-		const Real M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
-		const Real M2_ = std::max(M2, eps);
+		const nnReal DW  = grad[i]*norm;
+		const nnReal M1  = f11* _1stMom[i] +f12* DW;
+		const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
+		const nnReal M2_ = std::max(M2, eps);
 		_1stMom[i] = M1;
 		_2ndMom[i] = M2_;
 		grad[i] = 0.; //reset grads
 
 		//dest[i] += eta_*M1_/std::sqrt(M2_);
-		dest[i] += eta_*((1-beta_1)*DW + beta_1*M1)/std::sqrt(M2_); //nesterov
+		dest[i] += eta_*(f12*DW + beta_1*M1)/std::sqrt(M2_); //nesterov
 	}
 }
 #else
@@ -254,7 +254,7 @@ void Optimizer::save(const string fname)
 	ofstream out(nameBackup.c_str());
 	if (!out.good()) _die("Unable to open save into file %s\n", fname.c_str());
 
-	vector<Real> outWeights, outBiases, outMomW, outMomB;
+	vector<nnReal> outWeights, outBiases, outMomW, outMomB;
 	outWeights.reserve(nWeights); outMomW.reserve(nWeights);
 	outBiases.reserve(nBiases); outMomB.reserve(nBiases);
 	out.precision(20);
@@ -295,7 +295,7 @@ void AdamOptimizer::save(const string fname)
 	ofstream out(nameBackup.c_str());
 	if (!out.good()) _die("Unable to open save into file %s\n", fname.c_str());
 
-	vector<Real> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2MomB;
+	vector<nnReal> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2MomB;
 	outWeights.reserve(nWeights); out1MomW.reserve(nWeights); out2MomW.reserve(nWeights);
 	outBiases.reserve(nBiases);   out1MomB.reserve(nBiases);  out2MomB.reserve(nBiases);
 	out.precision(20);
@@ -343,7 +343,7 @@ bool Optimizer::restart(const string fname)
 		die("Network parameters differ!");
 	//readTotWeights != nWeights || readTotBiases != nBiases || TODO
 
-	vector<Real> outWeights, outBiases, outMomW, outMomB;
+	vector<nnReal> outWeights, outBiases, outMomW, outMomB;
 	outWeights.resize(nWeights); outMomW.resize(nWeights);
 	outBiases.resize(nBiases); outMomB.resize(nBiases);
 	for (Uint i=0;i<readTotWeights;i++)
@@ -361,7 +361,7 @@ bool Optimizer::restart(const string fname)
 bool AdamOptimizer::restart(const string fname)
 {
 	const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
-	
+
 	string nameBackup = fname + "_net";
 	ifstream in(nameBackup.c_str());
 	debugN("Reading from %s\n", nameBackup.c_str());
@@ -380,7 +380,7 @@ bool AdamOptimizer::restart(const string fname)
 		die("Network parameters differ!");
 	//readTotWeights != nWeights || readTotBiases != nBiases || TODO
 
-	vector<Real> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2MomB;
+	vector<nnReal> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2MomB;
 	outWeights.resize(nWeights); out1MomW.resize(nWeights); out2MomW.resize(nWeights);
 	outBiases.resize(nBiases);   out1MomB.resize(nBiases);  out2MomB.resize(nBiases);
 

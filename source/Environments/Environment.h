@@ -24,7 +24,7 @@ protected:
 public:
     const string execpath;
     const Uint nAgents, nAgentsPerRank;
-    const double gamma;
+    const Real gamma;
 
     bool resetAll = false;
     bool cheaperThanNetwork = true;

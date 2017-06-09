@@ -18,10 +18,10 @@ protected:
 	const Uint nWeights, nBiases, bTrain;
 	Network * const net;
 	Profiler * const profiler;
-	Real* const _1stMomW;
-	Real* const _1stMomB;
+	nnReal* const _1stMomW;
+	nnReal* const _1stMomB;
 
-	void update(Real* const dest, Real* const grad, Real* const _1stMom,
+	void update(nnReal* const dest, nnReal* const grad, nnReal* const _1stMom,
 			const Uint N, const Uint batchsize) const;
 
 public:
@@ -78,7 +78,7 @@ public:
 			return false;
 		}
 
-		Real tmp;
+		nnReal tmp;
 		for(Uint agentID=0; agentID<nAgents; agentID++) {
 			for (Uint j=0; j<nNeurons; j++) {
 				in >> tmp;
@@ -101,11 +101,11 @@ class AdamOptimizer: public Optimizer
 protected:
 	const Real beta_1, beta_2, epsilon;
 	Real beta_t_1, beta_t_2;
-	Real* const _2ndMomW;
-	Real* const _2ndMomB;
+	nnReal* const _2ndMomW;
+	nnReal* const _2ndMomB;
 
-	void update(Real* const dest, Real* const grad, Real* const _1stMom,
-			Real* const _2ndMom, const Uint N, const Uint batchsize, const Real _eta);
+	void update(nnReal* const dest, nnReal* const grad, nnReal* const _1stMom,
+		nnReal* const _2ndMom, const Uint N, const Uint batchsize, const Real _eta);
 
 public:
 	AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings,
@@ -127,12 +127,12 @@ class EntropySGD: public AdamOptimizer
 protected:
 	const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD;
 	const Uint L_eSGD;
-	Real* const _muW_eSGD;
-	Real* const _muB_eSGD;
+	nnReal* const _muW_eSGD;
+	nnReal* const _muB_eSGD;
 
-	void update(Real* const dest, const Real* const target, Real* const grad,
-			Real* const _1stMom, Real* const _2ndMom, Real* const _mu, const Uint N,
-			const Uint batchsize, const Real _eta);
+	void update(nnReal*const dest, const nnReal*const target, nnReal*const grad,
+		nnReal*const _1stMom, nnReal*const _2ndMom, nnReal*const _mu, const Uint N,
+		const Uint batchsize, const Real _eta);
 public:
 
 	EntropySGD(Network* const _net,Profiler* const _prof,Settings& settings);

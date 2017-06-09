@@ -19,7 +19,7 @@ void Network::seqPredict_inputs(const vector<Real>& _input, Activation* const cu
 
 void Network::seqPredict_execute(
 		const vector<Activation*>& series_1, vector<Activation*>& series_2,
-		const Real* const _weights, const Real* const _biases) const
+		const nnReal* const _weights, const nnReal* const _biases) const
 {
 	const Uint T = std::min(series_1.size(), series_2.size());
 	for (Uint j=0; j<nLayers; j++)
@@ -39,7 +39,7 @@ void Network::seqPredict_output(vector<Real>& _output, Activation* const currAct
 
 void Network::predict(const vector<Real>& _input, vector<Real>& _output,
 		vector<Activation*>& timeSeries, const Uint n_step,
-		const Real* const _weights, const Real* const _biases) const
+		const nnReal* const _weights, const nnReal* const _biases) const
 {
 	assert(n_step<timeSeries.size());
 
@@ -61,7 +61,7 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output,
 
 void Network::predict(const vector<Real>& _input, vector<Real>& _output,
 		Activation* const prevActivation, Activation* const currActivation,
-		const Real* const _weights, const Real* const _biases) const
+		const nnReal* const _weights, const nnReal* const _biases) const
 {
 	assert(_input.size()==nInputs);
 	for (Uint j=0; j<nInputs; j++)
@@ -77,7 +77,7 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output,
 }
 
 void Network::predict(const vector<Real>& _input, vector<Real>& _output,
-		Activation* const net, const Real* const _weights, const Real* const _biases) const
+		Activation* const net, const nnReal* const _weights, const nnReal* const _biases) const
 {
 	assert(_input.size()==nInputs);
 	for (Uint j=0; j<nInputs; j++)
@@ -92,8 +92,8 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output,
 		_output[i] = net->outvals[iOut[i]];
 }
 
-void Network::backProp(vector<Activation*>& timeSeries, const Real* const _weights,
-		const Real* const _biases, Grads* const _grads) const
+void Network::backProp(vector<Activation*>& timeSeries, const nnReal* const _weights,
+		const nnReal* const _biases, Grads* const _grads) const
 {
 	assert(timeSeries.size()>0);
 	const Uint last = timeSeries.size()-1;
@@ -127,7 +127,7 @@ void Network::backProp(vector<Activation*>& timeSeries, const Real* const _weigh
 }
 
 void Network::backProp(const vector<Real>& _errors, Activation* const net,
-	const Real* const _weights, const Real* const _biases, Grads* const _grads) const
+	const nnReal* const _weights, const nnReal* const _biases, Grads* const _grads) const
 {
 	net->clearErrors();
 	assert(_errors.size()==nOutputs);
@@ -205,8 +205,8 @@ void Network::checkGrads()
 {
 	printf("Checking gradients\n");
 	const Uint seq_len = 3;
-	const Real incr = 1./32./32./32./8.;
-	const Real tol  = 1e-4;
+	const nnReal incr = 1./32./32./32./8.;
+	const nnReal tol  = 1e-4;
 	Grads * testg = new Grads(nWeights,nBiases);
 	Grads * check = new Grads(nWeights,nBiases);
 	Grads * error = new Grads(nWeights,nBiases);
@@ -241,7 +241,7 @@ void Network::checkGrads()
 			}
 			backProp(timeSeries, testG);
 
-			Real diff = 0;
+			nnReal diff = 0;
 			for (Uint w=0; w<nWeights; w++) {
 				//1
 				weights[w] += incr;
@@ -258,10 +258,10 @@ void Network::checkGrads()
 				//0
 				weights[w] += incr;
 
-				const Real scale = max(fabs(testG->_W[w]), fabs(diff));
+				const nnReal scale = max(fabs(testG->_W[w]), fabs(diff));
 				if (scale < 2.2e-16) continue;
-				const Real err = fabs(testG->_W[w]-diff);
-				const Real relerr = err/scale;
+				const nnReal err = fabs(testG->_W[w]-diff);
+				const nnReal relerr = err/scale;
 				//if(relerr>check->_W[w])
 				if(err>error->_W[w])
 				{
@@ -286,10 +286,10 @@ void Network::checkGrads()
 				//0
 				biases[w] += incr;
 
-				const Real scale = max(fabs(testG->_B[w]), fabs(diff));
+				const nnReal scale = max(fabs(testG->_B[w]), fabs(diff));
 				if (scale < 2.2e-16) continue;
-				const Real err = fabs(testG->_B[w] -diff);
-				const Real relerr = err/scale;
+				const nnReal err = fabs(testG->_B[w] -diff);
+				const nnReal relerr = err/scale;
 				//if(relerr>check->_B[w])
 				if(err>error->_B[w])
 				{

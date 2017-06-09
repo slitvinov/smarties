@@ -10,6 +10,7 @@
 
 #include <cmath>
 #include "../Settings.h"
+#include "Utils.h"
 using namespace std;
 #ifndef PRELU_FAC
 #define PRELU_FAC 0.001
@@ -28,8 +29,8 @@ struct Mem //Memory light recipient for prediction on agents
 		_myfree(ostates);
 	}
 	const Uint nNeurons, nStates;
-	Real*const outvals;
-	Real*const ostates;
+	nnReal*const outvals;
+	nnReal*const ostates;
 };
 
 struct Activation //All the network signals. TODO: vector of activations, one per layer, allowing classes of activations
@@ -77,29 +78,29 @@ struct Activation //All the network signals. TODO: vector of activations, one pe
 
 	inline void clearOutput()
 	{
-		std::memset(outvals,0.,nNeurons*sizeof(Real));
-		std::memset(ostates,0.,nStates*sizeof(Real));
-		std::memset(oMCell, 0.,nStates*sizeof(Real));
-		std::memset(oIGates,0.,nStates*sizeof(Real));
-		std::memset(oFGates,0.,nStates*sizeof(Real));
-		std::memset(oOGates,0.,nStates*sizeof(Real));
+		std::memset(outvals,0.,nNeurons*sizeof(nnReal));
+		std::memset(ostates,0.,nStates*sizeof(nnReal));
+		std::memset(oMCell, 0.,nStates*sizeof(nnReal));
+		std::memset(oIGates,0.,nStates*sizeof(nnReal));
+		std::memset(oFGates,0.,nStates*sizeof(nnReal));
+		std::memset(oOGates,0.,nStates*sizeof(nnReal));
 	}
 
 	inline void clearErrors()
 	{
-		std::memset(errvals,0.,nNeurons*sizeof(Real));
-		std::memset(eOGates,0.,nStates*sizeof(Real));
-		std::memset(eIGates,0.,nStates*sizeof(Real));
-		std::memset(eFGates,0.,nStates*sizeof(Real));
-		std::memset(eMCell,0.,nStates*sizeof(Real));
+		std::memset(errvals,0.,nNeurons*sizeof(nnReal));
+		std::memset(eOGates,0.,nStates*sizeof(nnReal));
+		std::memset(eIGates,0.,nStates*sizeof(nnReal));
+		std::memset(eFGates,0.,nStates*sizeof(nnReal));
+		std::memset(eMCell,0.,nStates*sizeof(nnReal));
 	}
 
 	inline void clearInputs()
 	{
-		std::memset(in_vals,0.,nNeurons*sizeof(Real));
-		std::memset(iIGates,0.,nStates*sizeof(Real));
-		std::memset(iFGates,0.,nStates*sizeof(Real));
-		std::memset(iOGates,0.,nStates*sizeof(Real));
+		std::memset(in_vals,0.,nNeurons*sizeof(nnReal));
+		std::memset(iIGates,0.,nStates*sizeof(nnReal));
+		std::memset(iFGates,0.,nStates*sizeof(nnReal));
+		std::memset(iOGates,0.,nStates*sizeof(nnReal));
 	}
 
 	inline void loadMemory(Mem*const _M)
@@ -119,21 +120,21 @@ struct Activation //All the network signals. TODO: vector of activations, one pe
 	}
 
 	const Uint nNeurons, nStates;
-	Real*const in_vals;
-	Real*const outvals;
-	Real*const errvals;
-	Real*const ostates;
-	Real*const iIGates;
-	Real*const iFGates;
-	Real*const iOGates;
-	Real*const oMCell;
-	Real*const oIGates;
-	Real*const oFGates;
-	Real*const oOGates;
-	Real*const eMCell;
-	Real*const eIGates;
-	Real*const eFGates;
-	Real*const eOGates;
+	nnReal*const in_vals;
+	nnReal*const outvals;
+	nnReal*const errvals;
+	nnReal*const ostates;
+	nnReal*const iIGates;
+	nnReal*const iFGates;
+	nnReal*const iOGates;
+	nnReal*const oMCell;
+	nnReal*const oIGates;
+	nnReal*const oFGates;
+	nnReal*const oOGates;
+	nnReal*const eMCell;
+	nnReal*const eIGates;
+	nnReal*const eFGates;
+	nnReal*const eOGates;
 };
 
 struct Grads
@@ -150,16 +151,16 @@ struct Grads
 	}
 	inline void clear()
 	{
-		std::memset(_W,0.,nWeights*sizeof(Real));
-		std::memset(_B,0.,nBiases*sizeof(Real));
+		std::memset(_W,0.,nWeights*sizeof(nnReal));
+		std::memset(_B,0.,nBiases*sizeof(nnReal));
 	}
 	const Uint nWeights, nBiases;
-	Real*const _W;
-	Real*const _B;
+	nnReal*const _W;
+	nnReal*const _B;
 };
 
-static inline void Lpenalization(Real* const weights,
-	const Uint start, const Uint N, const Real lambda)
+static inline void Lpenalization(nnReal* const weights,
+	const Uint start, const Uint N, const nnReal lambda)
 {
 	for (Uint i=start; i<start+N; i++)
 	#ifdef NET_L1_PENAL
@@ -172,27 +173,27 @@ static inline void Lpenalization(Real* const weights,
 struct Function
 {
 	//weights are initialized with uniform distrib [-weightsInitFactor, weightsInitFactor]
-	virtual Real weightsInitFactor(const Uint inps, const Uint outs) const = 0;
-	virtual Real biasesInitFactor(const Uint outs) const
+	virtual nnReal weightsInitFactor(const Uint inps, const Uint outs) const = 0;
+	virtual nnReal biasesInitFactor(const Uint outs) const
 	{
-		return std::numeric_limits<Real>::epsilon();
+		return std::numeric_limits<nnReal>::epsilon();
 	}
-	virtual Real eval(const Real in) const = 0; // f(in)
-	virtual Real evalDiff(const Real in) const = 0; // f'(in)
+	virtual nnReal eval(const nnReal in) const = 0; // f(in)
+	virtual nnReal evalDiff(const nnReal in) const = 0; // f'(in)
 };
 //If adding a new function, edit this function readFunction at end of file
 
 struct Linear : public Function
 {
-	Real weightsInitFactor(const Uint inps, const Uint outs) const override
+	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(2./inps);// 2./inps;
 	}
-	Real eval(const Real in) const override
+	nnReal eval(const nnReal in) const override
 	{
 		return in;
 	}
-	Real evalDiff(const Real in) const override
+	nnReal evalDiff(const nnReal in) const override
 	{
 		return 1;
 	}
@@ -200,26 +201,26 @@ struct Linear : public Function
 
 struct Tanh : public Function
 {
-	Real weightsInitFactor(const Uint inps, const Uint outs) const override
+	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
-	Real eval(const Real in) const override
+	nnReal eval(const nnReal in) const override
 	{
 		if(in >  8) return  1;
 		if(in < -8) return -1;
 		if(in>0) {
-			const Real e2x = std::exp(-2*in);
+			const nnReal e2x = std::exp(-2*in);
 			return (1-e2x)/(1+e2x);
 		} else {
-			const Real e2x = std::exp( 2*in);
+			const nnReal e2x = std::exp( 2*in);
 			return (e2x-1)/(1+e2x);
 		}
 	}
-	Real evalDiff(const Real in) const override
+	nnReal evalDiff(const nnReal in) const override
 	{
-		const Real arg = in < 0 ? -in : in;
-		const Real e2x = std::exp(-2.*arg);
+		const nnReal arg = in < 0 ? -in : in;
+		const nnReal e2x = std::exp(-2.*arg);
 		if (arg > 8) return 4*e2x;
 		return 4*e2x/((1+e2x)*(1+e2x));
 	}
@@ -227,46 +228,46 @@ struct Tanh : public Function
 
 struct TwoTanh : public Function
 {
-	Real weightsInitFactor(const Uint inps, const Uint outs) const override
+	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
-	Real eval(const Real in) const override
+	nnReal eval(const nnReal in) const override
 	{
 		if(in >  8) return  2;
 		if(in < -8) return -2;
 		if(in>0) {
-			const Real e2x = std::exp(-2*in);
+			const nnReal e2x = std::exp(-2*in);
 			return 2*(1-e2x)/(1+e2x);
 		} else {
-			const Real e2x = std::exp( 2*in);
+			const nnReal e2x = std::exp( 2*in);
 			return 2*(e2x-1)/(1+e2x);
 		}
 	}
-	Real evalDiff(const Real in) const override
+	nnReal evalDiff(const nnReal in) const override
 	{
-		const Real arg = in < 0 ? -in : in;
-		const Real e2x = arg > 8 ? std::exp(-16) : std::exp(-2.*arg);
+		const nnReal arg = in < 0 ? -in : in;
+		const nnReal e2x = arg > 8 ? std::exp(-16) : std::exp(-2.*arg);
 		return 8*e2x/((1+e2x)*(1+e2x));
 	}
 };
 
 struct Sigm : public Function
 {
-	Real weightsInitFactor(const Uint inps, const Uint outs) const override
+	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
-	Real eval(const Real in) const override
+	nnReal eval(const nnReal in) const override
 	{
 		if(in >  16) return 1;
 		if(in < -16) return 0;
 		return 1/(1+std::exp(-in));
 	}
-	Real evalDiff(const Real in) const override
+	nnReal evalDiff(const nnReal in) const override
 	{
-		const Real arg = in < 0 ? -in : in;
-		const Real e2x = std::exp(-arg);
+		const nnReal arg = in < 0 ? -in : in;
+		const nnReal e2x = std::exp(-arg);
 		if (arg > 16) return e2x;
 		return e2x/((1+e2x)*(1+e2x));
 	}
@@ -274,67 +275,67 @@ struct Sigm : public Function
 
 struct SoftSign : public Function
 {
-	Real weightsInitFactor(const Uint inps, const Uint outs) const override
+	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
-	Real eval(const Real in) const override
+	nnReal eval(const nnReal in) const override
 	{
 		return in/(1+std::fabs(in));
 	}
-	Real evalDiff(const Real in) const override
+	nnReal evalDiff(const nnReal in) const override
 	{
-		const Real denom = 1+std::fabs(in);
+		const nnReal denom = 1+std::fabs(in);
 		return 1/(denom*denom);
 	}
 };
 
 struct TwoSoftSign : public Function
 {
-	Real weightsInitFactor(const Uint inps, const Uint outs) const override
+	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
-	Real eval(const Real in) const override
+	nnReal eval(const nnReal in) const override
 	{
 		return 2*in/(1+std::fabs(in));
 	}
-	Real evalDiff(const Real in) const override
+	nnReal evalDiff(const nnReal in) const override
 	{
-		const Real denom = 1+std::fabs(in);
+		const nnReal denom = 1+std::fabs(in);
 		return 2/(denom*denom);
 	}
 };
 
 struct SoftSigm : public Function
 {
-	Real weightsInitFactor(const Uint inps, const Uint outs) const override
+	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(6./(inps + outs));
 	}
-	Real eval(const Real in) const override
+	nnReal eval(const nnReal in) const override
 	{
-		const Real sign = in/(1+std::fabs(in));
+		const nnReal sign = in/(1+std::fabs(in));
 		return 0.5*(1+sign);
 	}
-	Real evalDiff(const Real in) const override
+	nnReal evalDiff(const nnReal in) const override
 	{
-		const Real denom = 1+std::fabs(in);
+		const nnReal denom = 1+std::fabs(in);
 		return 0.5/(denom*denom);
 	}
 };
 
 struct Relu : public Function
 {
-	Real weightsInitFactor(const Uint inps, const Uint outs) const override
+	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(2./inps);
 	}
-	Real eval(const Real in) const override
+	nnReal eval(const nnReal in) const override
 	{
 		return in>0 ? in : 0;
 	}
-	Real evalDiff(const Real in) const override
+	nnReal evalDiff(const nnReal in) const override
 	{
 		return in>0 ? 1 : 0;
 	}
@@ -342,15 +343,15 @@ struct Relu : public Function
 
 struct PRelu : public Function
 {
-	Real weightsInitFactor(const Uint inps, const Uint outs) const override
+	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(2./inps);
 	}
-	Real eval(const Real in) const override
+	nnReal eval(const nnReal in) const override
 	{
 		return in>0 ? in : PRELU_FAC*in;
 	}
-	Real evalDiff(const Real in) const override
+	nnReal evalDiff(const nnReal in) const override
 	{
 		return in>0 ? 1 : PRELU_FAC;
 	}
@@ -358,17 +359,17 @@ struct PRelu : public Function
 
 struct ExpPlus : public Function
 {
-	Real weightsInitFactor(const Uint inps, const Uint outs) const override
+	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(2./inps);
 	}
-	Real eval(const Real in) const override
+	nnReal eval(const nnReal in) const override
 	{
 		if(in >  16) return in;
 		if(in < -16) return 0;
 		return std::log(1+std::exp(in));
 	}
-	Real evalDiff(const Real in) const override
+	nnReal evalDiff(const nnReal in) const override
 	{
 		if(in >  16) return 1;
 		if(in < -16) return std::exp(in); //neglect denom
@@ -378,15 +379,15 @@ struct ExpPlus : public Function
 
 struct SoftPlus : public Function
 {
-	Real weightsInitFactor(const Uint inps, const Uint outs) const override
+	nnReal weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(2./inps);
 	}
-	Real eval(const Real in) const override
+	nnReal eval(const nnReal in) const override
 	{
 		return .5*(in + std::sqrt(1+in*in));
 	}
-	Real evalDiff(const Real in) const override
+	nnReal evalDiff(const nnReal in) const override
 	{
 		return .5*(1 + in/std::sqrt(1+in*in));
 	}

@@ -10,7 +10,6 @@
 
 using namespace std;
 
-//#define __posDef_layers_
 #include <random>
 #include <vector>
 #include <cassert>
@@ -52,30 +51,6 @@ using namespace std;
 typedef double Real;
 typedef unsigned Uint;
 #define MPI_VALUE_TYPE MPI_DOUBLE
-#define __vec_width__ 8
-static const Uint simdWidth = __vec_width__/sizeof(Real);
-
-template <typename T>
-inline void _myfree(T *const& ptr)
-{
-  if(ptr == nullptr) return;
-  free(ptr);
-}
-
-template <typename T>
-inline void _allocateQuick(T *const& ptr, const Uint size)
-{
-    const Uint sizeSIMD=std::ceil(size/(Real)simdWidth)*simdWidth*sizeof(Real);
-    posix_memalign((void **)& ptr, __vec_width__, sizeSIMD);
-}
-
-template <typename T>
-inline void _allocateClean(T *const& ptr, const Uint size)
-{
-    const Uint sizeSIMD=std::ceil(size/(Real)simdWidth)*simdWidth*sizeof(Real);
-    posix_memalign((void **)& ptr, __vec_width__, sizeSIMD);
-    memset(ptr, 0, sizeSIMD);
-}
 
 template <typename T>
 void _dispose_object(T *& ptr)
@@ -90,28 +65,6 @@ void _dispose_object(T *const& ptr)
 {
     if(ptr == nullptr) return;
     delete ptr;
-}
-
-inline Real* init(const Uint N, const Real ini)
-{
-  Real* ret;
-  _allocateQuick(ret, N);
-  for (Uint j=0; j<N; j++) ret[j] = ini;
-  return ret;
-}
-
-inline Real* initClean(const Uint N)
-{
-  Real* ret;
-  _allocateClean(ret, N);
-  return ret;
-}
-
-inline Real* init(const Uint N)
-{
-  Real* ret;
-  _allocateQuick(ret, N);
-  return ret;
 }
 
 template <typename T>

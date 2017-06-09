@@ -30,31 +30,31 @@ public:
 				nNeurons_simd(nn_simd), func(f), bOutput(bOut) {}
 
 	virtual void propagate(const Activation* const prev, Activation* const curr,
-			const Real* const weights, const Real* const biases) const = 0;
+			const nnReal* const weights, const nnReal* const biases) const = 0;
 
 	virtual void backPropagate(Activation* const prev,  Activation* const curr,
-			const Activation* const next, Grads* const grad, const Real* const weights,
-			const Real* const biases) const = 0;
+			const Activation* const next, Grads* const grad,
+			const nnReal* const weights, const nnReal* const biases) const = 0;
 
-	virtual void initialize(mt19937* const gen, Real* const weights,
-			Real* const biases, Real initializationFac) const = 0;
+	virtual void initialize(mt19937* const gen, nnReal* const weights,
+			nnReal* const biases, Real initializationFac) const = 0;
 
-	virtual void save(vector<Real> & outWeights, vector<Real> & outBiases,
-			Real* const _weights, Real* const _biases) const = 0;
+	virtual void save(vector<nnReal> & outWeights, vector<nnReal> & outBiases,
+			nnReal* const _weights, nnReal* const _biases) const = 0;
 
-	virtual void restart(vector<Real> & bufWeights, vector<Real> & bufBiases,
-			Real* const _weights, Real* const _biases) const = 0;
+	virtual void restart(vector<nnReal> & bufWeights, vector<nnReal> & bufBiases,
+			nnReal* const _weights, nnReal* const _biases) const = 0;
 
-	virtual void regularize(Real* const weights, Real* const biases,
+	virtual void regularize(nnReal* const weights, nnReal* const biases,
 			const Real lambda) const = 0;
 
-	void propagate(Activation* const curr, const Real* const weights,
-			const Real* const biases) const
+	void propagate(Activation* const curr, const nnReal* const weights,
+			const nnReal* const biases) const
 	{
 		return propagate(nullptr, curr, weights, biases);
 	}
 	void backPropagate( Activation* const curr, Grads* const grad,
-			const Real* const weights, const Real* const biases) const
+			const nnReal* const weights, const nnReal* const biases) const
 	{
 		return backPropagate(nullptr, curr, nullptr, grad, weights, biases);
 	}
@@ -80,11 +80,11 @@ public:
 				input_links(nl_il), recurrent_link(nl_rl) {}
 
 	virtual void propagate(const Activation* const prev, Activation* const curr,
-			const Real* const weights, const Real* const biases) const override
+			const nnReal* const weights, const nnReal* const biases) const override
 	{
-		Real* __restrict__ const outputs = curr->outvals +n1stNeuron;
-		Real* __restrict__ const inputs = curr->in_vals +n1stNeuron;
-		const Real* __restrict__ const bias = biases +n1stBias;
+		nnReal* __restrict__ const outputs = curr->outvals +n1stNeuron;
+		nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
+		const nnReal* __restrict__ const bias = biases +n1stBias;
 
 		for (Uint n=0; n<nNeurons; n++) inputs[n] = bias[n];
 
@@ -108,12 +108,12 @@ public:
 	}
 
 	virtual void backPropagate(Activation*const prev,  Activation*const curr,
-			const Activation*const next, Grads*const grad, const Real*const weights,
-			const Real*const biases) const override
+			const Activation*const next, Grads*const grad, const nnReal*const weights,
+			const nnReal*const biases) const override
 	{
-		const Real* __restrict__ const inputs = curr->in_vals +n1stNeuron;
-		Real* __restrict__ const deltas = curr->errvals +n1stNeuron;
-		Real* __restrict__ const gradbias = grad->_B +n1stBias;
+		const nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
+		nnReal* __restrict__ const deltas = curr->errvals +n1stNeuron;
+		nnReal* __restrict__ const gradbias = grad->_B +n1stBias;
 
 		for (Uint n=0; n<nNeurons; n++) deltas[n] *= func->evalDiff(inputs[n]);
 
@@ -126,12 +126,12 @@ public:
 		for (Uint n=0; n<nNeurons; n++) gradbias[n] += deltas[n];
 	}
 
-	virtual void initialize(mt19937* const gen, Real* const weights,
-			Real* const biases, Real initializationFac) const override
+	virtual void initialize(mt19937* const gen, nnReal* const weights,
+			nnReal* const biases, Real initializationFac) const override
 	{
-		const Real prefac = (initializationFac>0) ? initializationFac : 1;
-		const Real biasesInit = prefac*func->biasesInitFactor(nNeurons);//usually 0
-		uniform_real_distribution<Real> dis(-biasesInit, biasesInit);
+		const nnReal prefac = (initializationFac>0) ? initializationFac : 1;
+		const nnReal biasesInit = prefac*func->biasesInitFactor(nNeurons);//usually 0
+		uniform_real_distribution<nnReal> dis(-biasesInit, biasesInit);
 
 		for (Uint w=n1stBias; w<n1stBias+nNeurons_simd; w++)
 			biases[w] = dis(*gen);
@@ -143,8 +143,8 @@ public:
 			recurrent_link->initialize(gen,weights,func,prefac);
 	}
 
-	virtual void save(vector<Real> & outWeights, vector<Real> & outBiases,
-			Real* const _weights, Real* const _biases) const override
+	virtual void save(vector<nnReal> & outWeights, vector<nnReal> & outBiases,
+			nnReal* const _weights, nnReal* const _biases) const override
 	{
 		for (const auto & l : input_links)
 			if(l not_eq nullptr) l->save(outWeights, _weights);
@@ -156,8 +156,8 @@ public:
 			outBiases.push_back(_biases[w]);
 	}
 
-	virtual void restart(vector<Real>& bufWeights, vector<Real>& bufBiases,
-			Real* const _weights, Real* const _biases) const override
+	virtual void restart(vector<nnReal>& bufWeights, vector<nnReal>& bufBiases,
+			nnReal* const _weights, nnReal* const _biases) const override
 	{
 		for (const auto & l : input_links)
 			if(l not_eq nullptr) l->restart(bufWeights, _weights);
@@ -173,7 +173,7 @@ public:
 		}
 	}
 
-	virtual void regularize(Real* const weights, Real* const biases,
+	virtual void regularize(nnReal* const weights, nnReal* const biases,
 			const Real lambda) const override
 	{
 		if(bOutput) return;
@@ -239,20 +239,20 @@ public:
 	}
 
 	void propagate(const Activation* const prev, Activation* const curr,
-			const Real* const weights, const Real* const biases) const override
+			const nnReal* const weights, const nnReal* const biases) const override
 	{
-		Real* __restrict__ const outputI = curr->oIGates +n1stCell;
-		Real* __restrict__ const outputF = curr->oFGates +n1stCell;
-		Real* __restrict__ const outputO = curr->oOGates +n1stCell;
-		Real* __restrict__ const outputC = curr->oMCell +n1stCell;
-		Real* __restrict__ const inputs = curr->in_vals +n1stNeuron;
-		Real* __restrict__ const inputI = curr->iIGates +n1stCell;
-		Real* __restrict__ const inputF = curr->iFGates +n1stCell;
-		Real* __restrict__ const inputO = curr->iOGates +n1stCell;
-		const Real* __restrict__ const biasC = biases +n1stBias;
-		const Real* __restrict__ const biasI = biases +n1stBiasIG;
-		const Real* __restrict__ const biasF = biases +n1stBiasFG;
-		const Real* __restrict__ const biasO = biases +n1stBiasOG;
+		nnReal* __restrict__ const outputI = curr->oIGates +n1stCell;
+		nnReal* __restrict__ const outputF = curr->oFGates +n1stCell;
+		nnReal* __restrict__ const outputO = curr->oOGates +n1stCell;
+		nnReal* __restrict__ const outputC = curr->oMCell +n1stCell;
+		nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
+		nnReal* __restrict__ const inputI = curr->iIGates +n1stCell;
+		nnReal* __restrict__ const inputF = curr->iFGates +n1stCell;
+		nnReal* __restrict__ const inputO = curr->iOGates +n1stCell;
+		const nnReal* __restrict__ const biasC = biases +n1stBias;
+		const nnReal* __restrict__ const biasI = biases +n1stBiasIG;
+		const nnReal* __restrict__ const biasF = biases +n1stBiasFG;
+		const nnReal* __restrict__ const biasO = biases +n1stBiasOG;
 
 		for (Uint n=0; n<nNeurons; n++) {
 			inputs[n] = biasC[n];
@@ -283,32 +283,32 @@ public:
 	}
 
 	void backPropagate(Activation*const prev, Activation*const curr,
-			const Activation*const next, Grads* const grad, const Real* const weights,
-			const Real* const biases) const  override
+			const Activation*const next, Grads* const grad,
+			const nnReal* const weights, const nnReal* const biases) const override
 	{
-		const Real* __restrict__ const inputs = curr->in_vals +n1stNeuron;
-		const Real* __restrict__ const inputI = curr->iIGates +n1stCell;
-		const Real* __restrict__ const inputF = curr->iFGates +n1stCell;
-		const Real* __restrict__ const inputO = curr->iOGates +n1stCell;
-		const Real* __restrict__ const outputI = curr->oIGates +n1stCell;
-		//const Real* __restrict__ const outputF = curr->oFGates +n1stCell;
-		const Real* __restrict__ const outputO = curr->oOGates +n1stCell;
-		const Real* __restrict__ const outputC = curr->oMCell +n1stCell;
-		Real* __restrict__ const deltas = curr->errvals +n1stNeuron;
-		Real* __restrict__ const deltaI = curr->eIGates +n1stCell;
-		Real* __restrict__ const deltaF = curr->eFGates +n1stCell;
-		Real* __restrict__ const deltaO = curr->eOGates +n1stCell;
-		Real* __restrict__ const deltaC = curr->eMCell +n1stCell;
-		Real* __restrict__ const gradbiasC = grad->_B +n1stBias;
-		Real* __restrict__ const gradbiasI = grad->_B +n1stBiasIG;
-		Real* __restrict__ const gradbiasF = grad->_B +n1stBiasFG;
-		Real* __restrict__ const gradbiasO = grad->_B +n1stBiasOG;
+		const nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
+		const nnReal* __restrict__ const inputI = curr->iIGates +n1stCell;
+		const nnReal* __restrict__ const inputF = curr->iFGates +n1stCell;
+		const nnReal* __restrict__ const inputO = curr->iOGates +n1stCell;
+		const nnReal* __restrict__ const outputI = curr->oIGates +n1stCell;
+		//const nnReal* __restrict__ const outputF = curr->oFGates +n1stCell;
+		const nnReal* __restrict__ const outputO = curr->oOGates +n1stCell;
+		const nnReal* __restrict__ const outputC = curr->oMCell +n1stCell;
+		nnReal* __restrict__ const deltas = curr->errvals +n1stNeuron;
+		nnReal* __restrict__ const deltaI = curr->eIGates +n1stCell;
+		nnReal* __restrict__ const deltaF = curr->eFGates +n1stCell;
+		nnReal* __restrict__ const deltaO = curr->eOGates +n1stCell;
+		nnReal* __restrict__ const deltaC = curr->eMCell +n1stCell;
+		nnReal* __restrict__ const gradbiasC = grad->_B +n1stBias;
+		nnReal* __restrict__ const gradbiasI = grad->_B +n1stBiasIG;
+		nnReal* __restrict__ const gradbiasF = grad->_B +n1stBiasFG;
+		nnReal* __restrict__ const gradbiasO = grad->_B +n1stBiasOG;
 
 		for (Uint n=0; n<nNeurons; n++)
 		{
-			const Real deltaOut = deltas[n];
-			const Real outState  = cell->eval(curr->ostates[n1stCell+n]);
-			const Real diffState = cell->evalDiff(curr->ostates[n1stCell+n]);
+			const nnReal deltaOut = deltas[n];
+			const nnReal outState  = cell->eval(curr->ostates[n1stCell+n]);
+			const nnReal diffState = cell->evalDiff(curr->ostates[n1stCell+n]);
 
 			deltaC[n] = func->evalDiff(inputs[n]) * outputI[n];
 			deltaI[n] = gate->evalDiff(inputI[n]) * outputC[n];
@@ -339,12 +339,12 @@ public:
 		}
 	}
 
-	void initialize(mt19937*const gen, Real*const weights,
-				Real* const biases, Real initializationFac) const override
+	void initialize(mt19937*const gen, nnReal*const weights,
+				nnReal* const biases, Real initializationFac) const override
 	{
 		const Real biasesInit = ((initializationFac>0) ? initializationFac : 1)
 								* func->biasesInitFactor(nNeurons); //usually 0
-		uniform_real_distribution<Real> dis(-biasesInit, biasesInit);
+		uniform_real_distribution<nnReal> dis(-biasesInit, biasesInit);
 		BaseLayer::initialize(gen, weights, biases, initializationFac);
 		for (Uint w=n1stBiasIG; w<n1stBiasIG+nNeurons_simd; w++)
 			biases[w] = dis(*gen) - LSTM_PRIME_FAC;
@@ -354,8 +354,8 @@ public:
 			biases[w] = dis(*gen) - LSTM_PRIME_FAC;
 	}
 
-	void save(std::vector<Real> & outWeights, std::vector<Real> & outBiases,
-			Real* const _weights, Real* const _biases) const override
+	void save(std::vector<nnReal> & outWeights, std::vector<nnReal> & outBiases,
+			nnReal* const _weights, nnReal* const _biases) const override
 	{
 		BaseLayer::save(outWeights, outBiases, _weights, _biases);
 		for (Uint w=n1stBiasIG; w<n1stBiasIG+nNeurons; w++)
@@ -366,8 +366,8 @@ public:
 			outBiases.push_back(_biases[w]);
 	}
 
-	void restart(std::vector<Real> & bufWeights, std::vector<Real> & bufBiases,
-			Real* const _weights, Real* const _biases) const override
+	void restart(vector<nnReal> & bufWeights, vector<nnReal> & bufBiases,
+			nnReal* const _weights, nnReal* const _biases) const override
 	{
 		BaseLayer::restart(bufWeights, bufBiases, _weights, _biases);
 		for (Uint w=n1stBiasIG; w<n1stBiasIG+nNeurons; w++) {
@@ -387,7 +387,7 @@ public:
 		}
 	}
 
-	void regularize(Real* const weights, Real* const biases, const Real lambda)
+	void regularize(nnReal* const weights, nnReal* const biases, const Real lambda)
 	const override
 	{
 		BaseLayer::regularize(weights, biases, lambda);
