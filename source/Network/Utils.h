@@ -9,9 +9,11 @@
 #pragma once
 
 #include <cstring>
-#define __vec_width__ 8
-typedef float nnReal;
-#define MPI_NNVALUE_TYPE MPI_FLOAT
+#define __vec_width__ 32
+//typedef float nnReal;
+typedef double nnReal;
+//#define MPI_NNVALUE_TYPE MPI_FLOAT
+#define MPI_NNVALUE_TYPE MPI_DOUBLE
 static const int simdWidth = __vec_width__/sizeof(nnReal);
 
 template <typename T>
