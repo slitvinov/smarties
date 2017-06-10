@@ -216,13 +216,14 @@ void Learner_utils::processStats(const Real avgTime)
 		stats.minQ = std::min(stats.minQ,Vstats[i]->minQ);
 		stats.maxQ = std::max(stats.maxQ,Vstats[i]->maxQ);
 		Vstats[i]->minQ= 1e5; Vstats[i]->maxQ=-1e5; Vstats[i]->MSE=0;
-		Vstats[i]->avgQ=0; Vstats[i]->relE=0; Vstats[i]->dumpCount=0;
+		Vstats[i]->avgQ=0; Vstats[i]->stdQ=0; Vstats[i]->dumpCount=0;
 	}
 	if (stats.dumpCount<2) return;
 	stats.epochCount++;
 	epochCounter = stats.epochCount;
 	const long double sum=stats.avgQ, sumsq=stats.stdQ, cnt=stats.dumpCount;
-	stats.MSE  /= cnt-1; //=std::sqrt(stats.MSE/stats.dumpCount);
+	//stats.MSE  /= cnt-1; 
+	stats.MSE   = std::sqrt(stats.MSE/cnt);
 	stats.avgQ /= cnt; //stats.relE/=stats.dumpCount;
 	stats.stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
 
@@ -236,7 +237,7 @@ void Learner_utils::processStats(const Real avgTime)
 	processGrads();
 	ofstream filestats;
 	filestats.open("stats.txt", ios::app);
-	printf("%d (%lu), mse:%Lg, avg_Q:%Lg, std_Q:%Lg, min_Q:%Lg, max_Q:%Lg, weight:[%Lg %Lg %Lg], dT %f\n",
+	printf("%d (%lu), rmse:%Lg, avg_Q:%Lg, std_Q:%Lg, min_Q:%Lg, max_Q:%Lg, weight:[%Lg %Lg %Lg], dT %f\n",
 		stats.epochCount, opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
 		stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget, avgTime);
 	filestats<<stats.epochCount<<"\t"<<stats.MSE<<"\t" <<stats.relE<<"\t"
