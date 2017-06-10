@@ -14,7 +14,7 @@
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs+2),
-truncation(100), delta(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
+truncation(10), delta(1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
 generators(settings.generators)
 {
 	vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};

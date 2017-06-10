@@ -56,8 +56,9 @@ public:
 		_st->MSE += err*err;
 		//_st->relE += fabs(err)/(max_Q-min_Q);
 		_st->avgQ += Q;
-		_st->minQ = std::min(_st->minQ,Q);
-		_st->maxQ = std::max(_st->maxQ,Q);
+		_st->stdQ += Q*Q;
+		_st->minQ = std::min(_st->minQ,static_cast<long double>(Q));
+		_st->maxQ = std::max(_st->maxQ,static_cast<long double>(Q));
 		_st->dumpCount++;
 	}
 

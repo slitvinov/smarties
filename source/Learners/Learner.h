@@ -25,8 +25,8 @@ using namespace std;
 
 struct trainData
 {
-	trainData() : weight(1), MSE(0), avgQ(0), minQ(1e5), maxQ(-1e5), relE(0), dumpCount(0), epochCount(0) {}
-	Real weight, MSE, avgQ, minQ, maxQ, relE;
+	trainData() : weight(1), MSE(0), avgQ(0), stdQ(0), minQ(1e5), maxQ(-1e5), relE(0), dumpCount(0), epochCount(0) {}
+	long double weight, MSE, avgQ, stdQ, minQ, maxQ, relE;
 	Uint dumpCount, epochCount;
 };
 

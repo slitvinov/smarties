@@ -211,6 +211,7 @@ void Learner_utils::processStats(const Real avgTime)
 	for (Uint i=0; i<Vstats.size(); i++) {
 		stats.MSE += Vstats[i]->MSE; //stats.relE += Vstats[i]->relE;
 		stats.avgQ += Vstats[i]->avgQ;
+		stats.stdQ += Vstats[i]->stdQ;
 		stats.dumpCount += Vstats[i]->dumpCount;
 		stats.minQ = std::min(stats.minQ,Vstats[i]->minQ);
 		stats.maxQ = std::max(stats.maxQ,Vstats[i]->maxQ);
@@ -220,10 +221,12 @@ void Learner_utils::processStats(const Real avgTime)
 	if (stats.dumpCount<2) return;
 	stats.epochCount++;
 	epochCounter = stats.epochCount;
-	stats.MSE/=(stats.dumpCount-1); //=std::sqrt(stats.MSE/stats.dumpCount);
-	stats.avgQ/=stats.dumpCount; //stats.relE/=stats.dumpCount;
+	const long double sum=stats.avgQ, sumsq=stats.stdQ, cnt=stats.dumpCount;
+	stats.MSE  /= cnt-1; //=std::sqrt(stats.MSE/stats.dumpCount);
+	stats.avgQ /= cnt; //stats.relE/=stats.dumpCount;
+	stats.stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
 
-	Real sumWeights = 0, distTarget = 0, sumWeightsSq = 0;
+	long double sumWeights = 0, distTarget = 0, sumWeightsSq = 0;
 #pragma omp parallel for reduction(+:sumWeights,distTarget,sumWeightsSq)
 	for (Uint w=0; w<net->getnWeights(); w++){
 		sumWeights += std::fabs(net->weights[w]);
@@ -233,11 +236,11 @@ void Learner_utils::processStats(const Real avgTime)
 	processGrads();
 	ofstream filestats;
 	filestats.open("stats.txt", ios::app);
-	printf("%d (%lu), mse:%f, avg_Q:%f, min_Q:%f, max_Q:%f, errWeights [%f %f %f], dT %f\n",
-			stats.epochCount, opt->nepoch, stats.MSE, stats.avgQ, stats.minQ,
-			stats.maxQ, sumWeights, sumWeightsSq, distTarget, avgTime);
+	printf("%d (%lu), mse:%Lg, avg_Q:%Lg, std_Q:%Lg, min_Q:%Lg, max_Q:%Lg, weight:[%Lg %Lg %Lg], dT %f\n",
+		stats.epochCount, opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
+		stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget, avgTime);
 	filestats<<stats.epochCount<<"\t"<<stats.MSE<<"\t" <<stats.relE<<"\t"
-			<<stats.avgQ<<"\t"<<stats.maxQ<<"\t"<<stats.minQ<<"\t"
+			<<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<stats.maxQ<<"\t"<<stats.minQ<<"\t"
 			<<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"
 			<<stats.dumpCount<<"\t"<<opt->nepoch<<"\t"<<avgTime<<endl;
 	filestats.close();

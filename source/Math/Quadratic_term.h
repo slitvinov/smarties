@@ -119,14 +119,14 @@ protected:
 
 	static inline Real diag_func(const Real val)
 	{
-		return std::exp(val) +ACER_TOL_DIAG;
-		//return 0.5*(val + std::sqrt(val*val+1)) +ACER_TOL_DIAG;
+		//return std::exp(val) +ACER_TOL_DIAG;
+		return 0.5*(val + std::sqrt(val*val+1)) +ACER_TOL_DIAG;
 		//return sqrt(val + std::sqrt(val*val+1)) +ACER_TOL_DIAG;
 	}
 	static inline Real diag_func_diff(const Real val)
 	{
-		return std::exp(val);
-		//return 0.5*(1 + val/std::sqrt(val*val+1));
+		//return std::exp(val);
+		return 0.5*(1 + val/std::sqrt(val*val+1));
 		//const Real den = std::sqrt(val*val+1);
 		//return 0.5*std::sqrt(den+val)/den;
 	}
