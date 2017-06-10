@@ -211,12 +211,14 @@ void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
 		const nnReal M1  = f11* _1stMom[i] +f12* DW;
 		const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
 		const nnReal M2_ = std::max(M2, eps);
-		_1stMom[i] = M1;
+		const nnReal _M2 = std::sqrt(M2_);
+		const nnReal M1_ = std::max(std::min(M1, _M2), -_M2);
+		_1stMom[i] = M1_;
 		_2ndMom[i] = M2_;
 		grad[i] = 0.; //reset grads
 
 		//dest[i] += eta_*M1_/std::sqrt(M2_);
-		dest[i] += eta_*(f12*DW + f11*M1)/std::sqrt(M2_); //nesterov
+		dest[i] += eta_*(f12*DW + f11*M1_)/_M2; //nesterov
 	}
 }
 #else

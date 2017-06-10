@@ -1,6 +1,3 @@
-#CC = /opt/mpich/bin/mpicxx
-#CC = g++
-#CC = CC
 hn ?= $(shell hostname)
 username ?= $(shell whoami)
 UNAME_S := $(shell uname -s)
@@ -16,10 +13,8 @@ entropy ?= off
 auxtask ?= off
 mpi_lib ?= default
 
-ifeq "$(viz)" "1"
-CPPFLAGS+= -D_RL_VIZ
-OPENGL_LIB=-framework OpenGL -framework GLUT /opt/local/lib/libGLEW.a
-endif
+CPPFLAGS+= -std=c++11 -D__Smarties_ -fopenmp
+LIBS += -fopenmp -lstdc++ -lm 
 
 ifeq ($(UNAME_S),Darwin)
 include make.macos
@@ -48,9 +43,8 @@ ifeq "$(findstring panda,$(shell hostname))" "panda"
 include make.falcon
 endif
 
-CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings
-CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
-CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wpedantic
+CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wpedantic -Woverloaded-virtual 
+CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrite-strings
 CPPFLAGS+= -Wno-unused-parameter # does not make sense with function overloading
 CPPFLAGS+= -Wno-maybe-uninitialized #to switch on and check that only triggered by std random
 
@@ -98,12 +92,9 @@ ifeq "$(config)" "fit"
 CPPFLAGS += -DNDEBUG -O3 -ffast-math
 endif
 
-ifeq "$(CC)" "icc"
-CPPFLAGSOPT+= -diag-disable remark -wd68 -xHOST -ansi-alias -fno-fnalias -fno-alias
-endif
-
-CPPFLAGS+= -I/usr/local/include -fopenmp -D__Smarties_
-LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
+#ifeq "$(CC)" "icc"
+#CPPFLAGSOPT+= -diag-disable remark -wd68 -xHOST -ansi-alias -fno-fnalias -fno-alias
+#endif
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = Profiler.o ArgumentParser.o main.o ObjectFactory.o \

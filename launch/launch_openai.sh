@@ -7,8 +7,8 @@ APP=$4
 SETTINGSNAME=$5
 
 if [ $# -lt 5 ] ; then
-	echo "Usage: ./launch_openai.sh RUNFOLDER OMP_THREADS MPI_NODES APP SETTINGS_PATH (POLICY_PATH) (N_MPI_TASK_PER_NODE)"
-	exit 1
+echo "Usage: ./launch_openai.sh RUNFOLDER OMP_THREADS MPI_NODES APP SETTINGS_PATH (POLICY_PATH) (N_MPI_TASK_PER_NODE)"
+exit 1
 fi
 
 MYNAME=`whoami`
@@ -16,15 +16,16 @@ BASEPATH="../runs/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 #rm /tmp/smarties_sock_
 if [ $# -gt 5 ] ; then
-    POLICY=$6
-		cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
-    cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
-    cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
+POLICY=$6
+cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
+cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
+cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
 fi
-if [ $# -gt 6] ; then
-    NTASK=$7
+
+if [ $# -gt 6 ] ; then
+NTASK=$7
 else
-		NTASK=1 #n tasks per node
+NTASK=1 #n tasks per node
 fi
 
 NPROCESS=$((${NNODES}*${NTASK}))

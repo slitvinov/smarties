@@ -45,7 +45,7 @@ using namespace std;
 #define ACER_CONST_PREC 50
 #define ACER_GRAD_CUT 5
 
-#define NET_L1_PENAL
+//#define NET_L1_PENAL
 #define _dumpNet_
 
 typedef double Real;
