@@ -86,6 +86,7 @@ void Learner::TrainTasking(Master* const master)
 
 		if(data->syncBoolOr(data->inds.size()<batchSize))
 		{ //reset sampling
+			profiler->push_start("SRT");
 			data->updateSamples();
 			processStats(sumElapsed/countElapsed); //dump info about convergence
 			sumElapsed = 0; countElapsed=0;
@@ -93,36 +94,33 @@ void Learner::TrainTasking(Master* const master)
 #ifdef __CHECK_DIFF //check gradients with finite differences
 			if (opt->nepoch % 100000 == 0) net->checkGrads();
 #endif
+			profiler->pop_stop();
 		}
 		start = std::chrono::high_resolution_clock::now();
 
 #pragma omp parallel num_threads(nThreads)
 #pragma omp master
 		{
-			if(bRecurrent) {//we are using an LSTM: do BPTT
-				nAddedGradients = sampleSequences(seq);
+			profiler->push_start("SMP");
+			nAddedGradients = bRecurrent ? sampleSequences(seq) :
+				sampleTransitions(seq,samp);
 #pragma omp flush
+			profiler->pop_stop();
 
+			profiler->push_start("TSK");
+			if(bRecurrent) {//we are using an LSTM: do BPTT
 				for (Uint i=0; i<batchSize; i++) {
 					const Uint sequence = seq[i];
 #pragma omp task firstprivate(sequence)
 					{
 						const int thrID = omp_get_thread_num();
 						assert(thrID>=0);
-						//#ifndef NDEBUG
-						//printf("Thread %d to %d\n",thrID,sequence);
-						//fflush(0);
-						//#endif
 						Train_BPTT(sequence, static_cast<Uint>(thrID));
-
 #pragma omp atomic
 						taskCounter++;
 					}
 				}
 			} else {
-				nAddedGradients = sampleTransitions(seq, samp);
-#pragma omp flush
-
 				for (Uint i=0; i<batchSize; i++) {
 					const Uint sequence = seq[i];
 					const Uint transition = samp[i];
@@ -131,7 +129,6 @@ void Learner::TrainTasking(Master* const master)
 						const int thrID = omp_get_thread_num();
 						assert(thrID>=0);
 						Train(sequence, transition, static_cast<Uint>(thrID));
-
 #pragma omp atomic
 						taskCounter++;
 					}
@@ -140,6 +137,7 @@ void Learner::TrainTasking(Master* const master)
 
 			//TODO: can add task to update sampling probabilities for prioritized exp replay
 			if(nAgents>0) master->run(); //master goes to communicate with slaves
+			profiler->pop_stop();
 		}
 
 		end = std::chrono::high_resolution_clock::now();
@@ -149,10 +147,12 @@ void Learner::TrainTasking(Master* const master)
 
 		batchUsage += 1;
 		dataUsage += nAddedGradients;
+		profiler->push_start("UPW");
 		//this needs to be compatible with multiple servers
 		stackAndUpdateNNWeights(nAddedGradients);
 		// this can be handled node wise
 		updateTargetNetwork();
+		profiler->pop_stop();
 	}
 }
 

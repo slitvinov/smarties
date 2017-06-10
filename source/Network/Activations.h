@@ -159,17 +159,6 @@ struct Grads
 	nnReal*const _B;
 };
 
-static inline void Lpenalization(nnReal* const weights,
-	const Uint start, const Uint N, const nnReal lambda)
-{
-	for (Uint i=start; i<start+N; i++)
-	#ifdef NET_L1_PENAL
-		weights[i] += (weights[i]<0 ? lambda : -lambda);
-	#else
-		weights[i] -= weights[i]*lambda;
-	#endif
-}
-
 struct Function
 {
 	//weights are initialized with uniform distrib [-weightsInitFactor, weightsInitFactor]
