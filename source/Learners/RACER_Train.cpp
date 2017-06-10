@@ -24,7 +24,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	//to prevent silly overflow on aux tasks:
 	const Uint nSalloc = max(nSValues, static_cast<Uint>(2));
 
-	if(thrID==1) profiler->push_start("F");
+	if(thrID==1) profiler->push_start("FWD");
 
 	vector<vector<Real>> out_cur(1, vector<Real>(nOutputs,0));
 	vector<vector<Real>> out_hat(nSValues, vector<Real>(nOutputs,0));
@@ -47,7 +47,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
 	if(thrID==1) {
 		profiler->pop_stop();
-		profiler->push_start("A");
+		profiler->push_start("ADV");
 	}
 	Real Q_RET = 0, Q_OPC = 0;
 	//if partial sequence then compute value of last state (=! R_end)
@@ -82,7 +82,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	}
 	if(thrID==1) {
 		profiler->pop_stop();
-		profiler->push_start("C");
+		profiler->push_start("CMP");
 	}
 	{
 		const Uint k = 0; ///just to make it easier to check with BPTT
@@ -172,7 +172,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	}
 	if(thrID==1) {
 		profiler->pop_stop();
-		profiler->push_start("B");
+		profiler->push_start("BCK");
 	}
 	if (thrID==0) net->backProp(series_cur, net->grad);
 	else net->backProp(series_cur, net->Vgrad[thrID]);

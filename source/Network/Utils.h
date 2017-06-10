@@ -16,6 +16,17 @@ typedef double nnReal;
 #define MPI_NNVALUE_TYPE MPI_DOUBLE
 static const int simdWidth = __vec_width__/sizeof(nnReal);
 
+static inline void Lpenalization(nnReal* const weights,
+	const Uint start, const Uint N, const nnReal lambda)
+{
+	for (Uint i=start; i<start+N; i++)
+	#ifdef NET_L1_PENAL
+		weights[i] += (weights[i]<0 ? lambda : -lambda);
+	#else
+		weights[i] -= weights[i]*lambda;
+	#endif
+}
+
 template <typename T>
 inline void _myfree(T *const& ptr)
 {
