@@ -82,8 +82,9 @@ ifeq "$(app)" "cubism"
 CPPFLAGS+= -D__Cubism3D
 endif
 ifeq "$(config)" "debug"
-CPPFLAGS+= -g -O2 -ffast-math -dynamic -fsanitize=address
-LIBS += -dynamic -fsanitize=address
+CPPFLAGS+= -g -O2 -ffast-math 
+#CPPFLAGS+= -fsanitize=address
+#LIBS += -fsanitize=address
 endif
 ifeq "$(config)" "prod"
 CPPFLAGS += -DNDEBUG -O2 -ffast-math

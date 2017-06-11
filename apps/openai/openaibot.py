@@ -79,8 +79,8 @@ if bRender==3: env = gym.wrappers.Monitor(env, './', force=True)
 seq_id, frame_id = 0, 0
 state=np.zeros(nStates+3, dtype=np.float64)
 while True:
-	seq_id += 1
-    reward, status, frame_id = 1, 0, 0
+    seq_id += 1
+    reward, status, frame_id = 0, 1, 0
     observation = env.reset()
     while True:
     	state[0]=0
@@ -93,10 +93,10 @@ while True:
     	conn.send(state.tobytes())
     	status=0
         if bRender==1: env.render()
-		if bRender==2:
-			fname = 'state_seq%04d_frame%07d' % (seq_id, frame_id)
-			plt.imshow(env.render(mode='rgb_array'))
-			plt.savefig(fname, dpi=100)
+        if bRender==2:
+            fname = 'state_seq%04d_frame%07d' % (seq_id, frame_id)
+            plt.imshow(env.render(mode='rgb_array'))
+            plt.savefig(fname, dpi=100)
 
     	buf = np.frombuffer(conn.recv(nActions*8),dtype=np.float64)
 
@@ -107,17 +107,17 @@ while True:
             for i in range(1, nActions): action = action + [int(buf[i])]
         else: action = int(buf[0])
 
-        for i in range(4):
+        for i in range(1):
             observation, reward, done, info = env.step(action)
             if done: break
         if done:
-			if bRender==1: env.render()
-			if bRender==2:
-				fname = 'state_seq%04d_frame%07d' % (seq_id, frame_id)
-				plt.imshow(env.render(mode='rgb_array'))
-				plt.savefig(fname, dpi=100)
-			break
-		frame_id += 1
+            if bRender==1: env.render()
+            if bRender==2:
+                fname = 'state_seq%04d_frame%07d' % (seq_id, frame_id)
+                plt.imshow(env.render(mode='rgb_array'))
+                plt.savefig(fname, dpi=100)
+            break
+    frame_id += 1
     state[0]=0
     state[1]=2
     if hasattr(env.observation_space, 'shape'):
