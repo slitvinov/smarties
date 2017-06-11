@@ -124,6 +124,7 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 	_opt->restart("initial");
 	_opt->save("restarted");
 #endif
+	//for (const auto & l : _net->layers) l->profiler = profiler;
 }
 
 vector<Real> Learner_utils::output_stochastic_policy(const int agentId, State& s, Action& a,
@@ -222,7 +223,7 @@ void Learner_utils::processStats(const Real avgTime)
 	stats.epochCount++;
 	epochCounter = stats.epochCount;
 	const long double sum=stats.avgQ, sumsq=stats.stdQ, cnt=stats.dumpCount;
-	//stats.MSE  /= cnt-1; 
+	//stats.MSE  /= cnt-1;
 	stats.MSE   = std::sqrt(stats.MSE/cnt);
 	stats.avgQ /= cnt; //stats.relE/=stats.dumpCount;
 	stats.stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
@@ -245,7 +246,6 @@ void Learner_utils::processStats(const Real avgTime)
 			<<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"
 			<<stats.dumpCount<<"\t"<<opt->nepoch<<"\t"<<avgTime<<endl;
 	filestats.close();
-	if (stats.epochCount % 100==0) profiler->printSummary();
 	fflush(0);
 	if (stats.epochCount % 100==0) save("policy");
 }

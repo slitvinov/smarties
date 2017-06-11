@@ -20,7 +20,7 @@
 #include <algorithm>
 #include <stdio.h>
 #ifndef GYM_RENDEROPT
-#define GYM_RENDEROPT 2
+#define GYM_RENDEROPT 0
 #endif
 using namespace std;
 
@@ -65,7 +65,7 @@ void openAICartEnvironment::setDims() //this environment is for the cart pole te
 	if(settings.slaves_rank==0) return;
 
 	#if   GYM_RENDEROPT==0
-		double bRender[1] = {!settings.bTrain && settings.slaves_rank==1 ?-1.:2.};
+		double bRender[1] = {settings.bTrain||settings.slaves_rank>1 ? -1.:2.};
 		comm_ptr->send_buffer_to_app(bRender, sizeof(double));
 	#elif GYM_RENDEROPT==1
 		double bRender[1] = {settings.slaves_rank>1 ? -1. : 1.};

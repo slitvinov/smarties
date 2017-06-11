@@ -9,6 +9,7 @@
 
 #pragma once
 #include "Links.h"
+#include "../Profiler.h"
 
 #ifdef __CHECK_DIFF
 #define LSTM_PRIME_FAC 0 //otherwise finite differences are small
@@ -21,6 +22,7 @@ class Layer
 public:
 	const Uint nNeurons, n1stNeuron, n1stBias, nNeurons_simd;
 	const Function* const func;
+	//Profiler* profiler;
 	const bool bOutput;
 
 	virtual ~Layer() {}
@@ -85,26 +87,20 @@ public:
 		nnReal* __restrict__ const outputs = curr->outvals +n1stNeuron;
 		nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
 		const nnReal* __restrict__ const bias = biases +n1stBias;
-
+		//const int thrID = omp_get_thread_num();
+		//if(thrID==1) profiler->push_start("FB");
+		#pragma omp simd aligned(inputs,bias : __vec_width__) safelen(simdWidth)
 		for (Uint n=0; n<nNeurons; n++) inputs[n] = bias[n];
-
+		//if(thrID==1)  profiler->stop_start("FP");
 		for (const auto & link : input_links)
 			link->propagate(curr,curr,weights);
-		/* //actually slower:
-        	cblas_dgemv(CblasRowMajor, CblasTrans, link->nI, nNeurons_simd,
-        				1.0, weights  + link->iW, nNeurons_simd,
-						curr->outvals + link->iI, 1,
-						1.0, inputs, 1);
-		 */
 		if(recurrent_link not_eq nullptr && prev not_eq nullptr)
 			recurrent_link->propagate(prev,curr,weights);
-		/*
-        	cblas_dgemv(CblasRowMajor, CblasTrans, nNeurons, nNeurons_simd,
-        				1.0, weights  +recurrent_link->iW, nNeurons_simd,
-						prev->outvals +n1stNeuron, 1,
-						1.0, inputs, 1);
-		 */
-		for (Uint n=0; n<nNeurons; n++) outputs[n] = func->eval(inputs[n]);
+
+		//if(thrID==1)  profiler->stop_start("FD");
+		//for (Uint n=0; n<nNeurons; n++) outputs[n] = func->eval(inputs[n]);
+		func->eval(inputs,outputs,nNeurons_simd);
+		//if(thrID==1) profiler->pop_stop();
 	}
 
 	virtual void backPropagate(Activation*const prev,  Activation*const curr,
@@ -114,16 +110,21 @@ public:
 		const nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
 		nnReal* __restrict__ const deltas = curr->errvals +n1stNeuron;
 		nnReal* __restrict__ const gradbias = grad->_B +n1stBias;
-
+		//const int thrID = omp_get_thread_num();
+		//if(thrID==1) profiler->push_start("BD");
 		for (Uint n=0; n<nNeurons; n++) deltas[n] *= func->evalDiff(inputs[n]);
 
+		//if(thrID==1)  profiler->stop_start("BP");
 		for (const auto & link : input_links)
 			link->backPropagate(curr,curr,weights,grad->_W);
 
 		if(recurrent_link not_eq nullptr && prev not_eq nullptr)
 			recurrent_link->backPropagate(prev,curr,weights,grad->_W);
 
+		//if(thrID==1)  profiler->stop_start("BB");
+#pragma omp simd aligned(gradbias,deltas: __vec_width__) safelen(simdWidth)
 		for (Uint n=0; n<nNeurons; n++) gradbias[n] += deltas[n];
+		//if(thrID==1) profiler->pop_stop();
 	}
 
 	virtual void initialize(mt19937* const gen, nnReal* const weights,
@@ -253,7 +254,11 @@ public:
 		const nnReal* __restrict__ const biasI = biases +n1stBiasIG;
 		const nnReal* __restrict__ const biasF = biases +n1stBiasFG;
 		const nnReal* __restrict__ const biasO = biases +n1stBiasOG;
+		const nnReal* __restrict__ const oldState = (prev==nullptr ? curr->ostates : prev->ostates) +n1stCell; //if nullptr then unused, but assigned for safety
+		nnReal* __restrict__ const state = curr->ostates +n1stCell;
+		nnReal* __restrict__ const output = curr->outvals +n1stNeuron;
 
+#pragma omp simd aligned(inputs, inputI, inputF, inputO, biasC, biasI, biasF, biasO: __vec_width__) safelen(simdWidth)
 		for (Uint n=0; n<nNeurons; n++) {
 			inputs[n] = biasC[n];
 			inputI[n] = biasI[n];
@@ -267,18 +272,15 @@ public:
 		if(recurrent_link not_eq nullptr && prev not_eq nullptr)
 			recurrent_link->propagate(prev,curr,weights);
 
-		for (Uint n=0; n<nNeurons; n++)
-		{
-			outputC[n] = func->eval(inputs[n]);
-			outputI[n] = gate->eval(inputI[n]);
-			outputF[n] = gate->eval(inputF[n]);
-			outputO[n] = gate->eval(inputO[n]);
+		func->eval(inputs,outputC,nNeurons_simd);
+		gate->eval(inputI,outputI,nNeurons_simd);
+		gate->eval(inputF,outputF,nNeurons_simd);
+		gate->eval(inputO,outputO,nNeurons_simd);
 
-			curr->ostates[n1stCell+n] = outputC[n] * outputI[n] +
-					(prev==nullptr ?  0 : prev->ostates[n1stCell+n] * outputF[n]);
-
-			curr->outvals[n1stNeuron+n] = outputO[n] *
-					cell->eval(curr->ostates[n1stCell+n]);
+#pragma omp simd aligned(state, outputC, outputI, oldState, outputF, output, outputO: __vec_width__) safelen(simdWidth)
+		for (Uint n=0; n<nNeurons; n++) {
+			state[n]=outputC[n]*outputI[n] +(prev==nullptr?0:oldState[n]*outputF[n]);
+			output[n] = outputO[n] * state[n];
 		}
 	}
 
@@ -307,16 +309,14 @@ public:
 		for (Uint n=0; n<nNeurons; n++)
 		{
 			const nnReal deltaOut = deltas[n];
-			const nnReal outState  = cell->eval(curr->ostates[n1stCell+n]);
-			const nnReal diffState = cell->evalDiff(curr->ostates[n1stCell+n]);
 
 			deltaC[n] = func->evalDiff(inputs[n]) * outputI[n];
 			deltaI[n] = gate->evalDiff(inputI[n]) * outputC[n];
 			deltaF[n] = (prev==nullptr) ? 0 :
 					gate->evalDiff(inputF[n]) * prev->ostates[n1stCell+n];
-			deltaO[n] = gate->evalDiff(inputO[n]) * deltaOut * outState;
+			deltaO[n] = gate->evalDiff(inputO[n]) * deltaOut * curr->ostates[n1stCell+n];
 
-			deltas[n] = deltaOut * outputO[n] * diffState +
+			deltas[n] = deltaOut * outputO[n] +
 					(next==nullptr ? 0
 							: next->errvals[n1stNeuron+n]*next->oFGates[n1stCell+n]);
 

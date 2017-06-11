@@ -159,6 +159,7 @@ struct Grads
 	nnReal*const _B;
 };
 
+#define ary nnReal*__restrict__ const
 struct Function
 {
 	//weights are initialized with uniform distrib [-weightsInitFactor, weightsInitFactor]
@@ -167,6 +168,8 @@ struct Function
 	{
 		return std::numeric_limits<nnReal>::epsilon();
 	}
+
+	virtual void eval(const ary in, ary out, const Uint N) const = 0; // f(in)
 	virtual nnReal eval(const nnReal in) const = 0; // f(in)
 	virtual nnReal evalDiff(const nnReal in) const = 0; // f'(in)
 };
@@ -174,6 +177,11 @@ struct Function
 
 struct Linear : public Function
 {
+	void eval(const ary in, ary out, const Uint N) const
+	{
+#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+		for (Uint i=0;i<N; i++) out[i] = in[i];
+	}
 	Real weightsInitFactor(const Uint inps, const Uint outs) const override
 	{
 		return std::sqrt(2./inps);// 2./inps;
@@ -196,8 +204,8 @@ struct Tanh : public Function
 	}
 	nnReal eval(const nnReal in) const override
 	{
-		if(in >  8) return  1;
-		if(in < -8) return -1;
+		if(in >   EXP_CUT) return  1;
+		if(in < - EXP_CUT) return -1;
 		if(in>0) {
 			const nnReal e2x = std::exp(-2*in);
 			return (1-e2x)/(1+e2x);
@@ -210,8 +218,16 @@ struct Tanh : public Function
 	{
 		const nnReal arg = in < 0 ? -in : in;
 		const nnReal e2x = std::exp(-2.*arg);
-		if (arg > 8) return 4*e2x;
+		if (arg > EXP_CUT) return 4*e2x;
 		return 4*e2x/((1+e2x)*(1+e2x));
+	}
+	void eval(const ary in, ary out, const Uint N) const
+	{
+#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+		for (Uint i=0;i<N; i++) {
+			const nnReal e2x = std::exp(2*in[i]);
+			out[i] = (e2x-1)/(1+e2x);
+		}
 	}
 };
 
@@ -223,8 +239,8 @@ struct TwoTanh : public Function
 	}
 	nnReal eval(const nnReal in) const override
 	{
-		if(in >  8) return  2;
-		if(in < -8) return -2;
+		if(in >  EXP_CUT) return  2;
+		if(in < -EXP_CUT) return -2;
 		if(in>0) {
 			const nnReal e2x = std::exp(-2*in);
 			return 2*(1-e2x)/(1+e2x);
@@ -236,8 +252,16 @@ struct TwoTanh : public Function
 	nnReal evalDiff(const nnReal in) const override
 	{
 		const nnReal arg = in < 0 ? -in : in;
-		const nnReal e2x = arg > 8 ? std::exp(-16) : std::exp(-2.*arg);
+		const nnReal e2x = arg > EXP_CUT ? std::exp(-2*EXP_CUT) : std::exp(-2.*arg);
 		return 8*e2x/((1+e2x)*(1+e2x));
+	}
+	void eval(const ary in, ary out, const Uint N) const
+	{
+#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+		for (Uint i=0;i<N; i++) {
+			const nnReal e2x = std::exp(2*in[i]);
+			out[i] = 2*(e2x-1)/(1+e2x);
+		}
 	}
 };
 
@@ -249,16 +273,21 @@ struct Sigm : public Function
 	}
 	nnReal eval(const nnReal in) const override
 	{
-		if(in >  16) return 1;
-		if(in < -16) return 0;
+		if(in >  2*EXP_CUT) return 1;
+		if(in < -2*EXP_CUT) return 0;
 		return 1/(1+std::exp(-in));
 	}
 	nnReal evalDiff(const nnReal in) const override
 	{
 		const nnReal arg = in < 0 ? -in : in;
 		const nnReal e2x = std::exp(-arg);
-		if (arg > 16) return e2x;
+		if (arg > 2*EXP_CUT) return e2x;
 		return e2x/((1+e2x)*(1+e2x));
+	}
+	void eval(const ary in, ary out, const Uint N) const
+	{
+#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+		for (Uint i=0;i<N; i++) out[i] = 1/(1+std::exp(-in[i]));
 	}
 };
 
@@ -277,6 +306,11 @@ struct SoftSign : public Function
 		const nnReal denom = 1+std::fabs(in);
 		return 1/(denom*denom);
 	}
+	void eval(const ary in, ary out, const Uint N) const
+	{
+#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+		for (Uint i=0;i<N; i++) out[i] = in[i]/(1+std::fabs(in[i]));
+	}
 };
 
 struct TwoSoftSign : public Function
@@ -293,6 +327,11 @@ struct TwoSoftSign : public Function
 	{
 		const nnReal denom = 1+std::fabs(in);
 		return 2/(denom*denom);
+	}
+	void eval(const ary in, ary out, const Uint N) const
+	{
+#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+		for (Uint i=0;i<N; i++) out[i] = 2*in[i]/(1+std::fabs(in[i]));
 	}
 };
 
@@ -312,6 +351,11 @@ struct SoftSigm : public Function
 		const nnReal denom = 1+std::fabs(in);
 		return 0.5/(denom*denom);
 	}
+	void eval(const ary in, ary out, const Uint N) const
+	{
+#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+		for (Uint i=0;i<N; i++) out[i] = 0.5*(1+in[i]/(1+std::fabs(in[i])));
+	}
 };
 
 struct Relu : public Function
@@ -327,6 +371,11 @@ struct Relu : public Function
 	nnReal evalDiff(const nnReal in) const override
 	{
 		return in>0 ? 1 : 0;
+	}
+	void eval(const ary in, ary out, const Uint N) const
+	{
+#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+		for (Uint i=0;i<N; i++) out[i] = in[i]>0 ? in[i] : 0;
 	}
 };
 
@@ -344,6 +393,11 @@ struct PRelu : public Function
 	{
 		return in>0 ? 1 : PRELU_FAC;
 	}
+	void eval(const ary in, ary out, const Uint N) const
+	{
+#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+		for (Uint i=0;i<N; i++) out[i] = in[i]>0 ? in[i] : PRELU_FAC*in[i];
+	}
 };
 
 struct ExpPlus : public Function
@@ -354,15 +408,20 @@ struct ExpPlus : public Function
 	}
 	nnReal eval(const nnReal in) const override
 	{
-		if(in >  16) return in;
-		if(in < -16) return 0;
+		if(in >  2*EXP_CUT) return in;
+		if(in < -2*EXP_CUT) return 0;
 		return std::log(1+std::exp(in));
 	}
 	nnReal evalDiff(const nnReal in) const override
 	{
-		if(in >  16) return 1;
-		if(in < -16) return std::exp(in); //neglect denom
+		if(in >  2*EXP_CUT) return 1;
+		if(in < -2*EXP_CUT) return std::exp(in); //neglect denom
 		return 1/(1+std::exp(-in));
+	}
+	void eval(const ary in, ary out, const Uint N) const
+	{
+#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+		for (Uint i=0;i<N; i++) out[i] = std::log(1+std::exp(in[i]));
 	}
 };
 
@@ -379,6 +438,11 @@ struct SoftPlus : public Function
 	nnReal evalDiff(const nnReal in) const override
 	{
 		return .5*(1 + in/std::sqrt(1+in*in));
+	}
+	void eval(const ary in, ary out, const Uint N) const
+	{
+#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+		for (Uint i=0;i<N; i++) out[i] = .5*(in[i]+std::sqrt(1+in[i]*in[i]));
 	}
 };
 

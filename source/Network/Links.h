@@ -158,7 +158,7 @@ public:
 		const nnReal* __restrict__ const inp = netFrom->outvals + iI;
 		const nnReal* __restrict__ const delta = netTo->errvals + iO;
 		nnReal* __restrict__ const err = netFrom->errvals + iI;
-#if 0
+#if 1
 		for (Uint i = 0; i < nI; i++) {
 			const nnReal* __restrict__ const w = weights +iW +nO_simd*i;
 			nnReal* __restrict__ const g = gradW +iW +nO_simd*i;

@@ -10,10 +10,15 @@
 
 #include <cstring>
 #define __vec_width__ 32
-//typedef float nnReal;
+#if 0
 typedef double nnReal;
-//#define MPI_NNVALUE_TYPE MPI_FLOAT
 #define MPI_NNVALUE_TYPE MPI_DOUBLE
+#define EXP_CUT 8
+#else
+#define MPI_NNVALUE_TYPE MPI_FLOAT
+typedef float nnReal;
+#define EXP_CUT 4
+#endif
 static const int simdWidth = __vec_width__/sizeof(nnReal);
 
 static inline void Lpenalization(nnReal* const weights,

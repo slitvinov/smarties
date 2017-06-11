@@ -18,9 +18,9 @@ protected:
 	const Uint nAgents, nThreads, nInputs, nOutputs, nLayers;
 	const Uint nNeurons, nWeights, nBiases, nStates;
 	const bool bDump;
+public:
 	const vector<Layer*> layers;
 	const vector<Link*> links;
-public:
 	nnReal* const weights;
 	nnReal* const biases;
 	nnReal* const tgt_weights;

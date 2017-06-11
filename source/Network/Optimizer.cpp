@@ -212,16 +212,16 @@ void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
 		const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
 		const nnReal M2_ = std::max(M2, eps);
 		const nnReal _M2 = std::sqrt(M2_);
-		const nnReal M1_ = std::max(std::min(M1, _M2), -_M2);
+		const nnReal M1_ = std::max(std::min(M1, _M2), -_M2); //grad clip -1:1
 		_1stMom[i] = M1_;
 		_2ndMom[i] = M2_;
 		grad[i] = 0.; //reset grads
 
-		//dest[i] += eta_*M1_/std::sqrt(M2_);
-		dest[i] += eta_*(f12*DW + f11*M1_)/_M2; //nesterov
+		//dest[i] += eta_*M1_/_M2; //Adam
+		dest[i] += eta_*(f12*DW + f11*M1_)/_M2; //Nesterov Adam
 	}
 }
-#else
+#else // Adamax:
 void AdamOptimizer::update(Real* const dest, Real* const grad,
 		Real* const _1stMom, Real* const _2ndMom,
 		const Uint N, const Uint batchsize, const Real eta_)

@@ -105,24 +105,35 @@ protected:
 	stack<string> m_mapStoppedAgents;
 
 public:
-	void push_start(string sAgentName)
+	inline void push_start(string sAgentName)
 	{
-		if (m_mapStoppedAgents.size() > 0)
-			getAgent(m_mapStoppedAgents.top()).stop();
+		//if (m_mapStoppedAgents.size() > 0)
+		//	getAgent(m_mapStoppedAgents.top()).stop();
 
 		m_mapStoppedAgents.push(sAgentName);
 		getAgent(sAgentName).start();
 	}
 
-	void pop_stop()
+	inline void stop_start(string sAgentName)
+	{
+		if (m_mapStoppedAgents.size() > 0) {
+			getAgent(m_mapStoppedAgents.top()).stop();
+			m_mapStoppedAgents.pop();
+		}
+
+		m_mapStoppedAgents.push(sAgentName);
+		getAgent(sAgentName).start();
+	}
+
+	inline void pop_stop()
 	{
 		string sCurrentAgentName = m_mapStoppedAgents.top();
 		getAgent(sCurrentAgentName).stop();
 		m_mapStoppedAgents.pop();
 
-		if (m_mapStoppedAgents.size() == 0) return;
+		//if (m_mapStoppedAgents.size() == 0) return;
 
-		getAgent(m_mapStoppedAgents.top()).start();
+		//getAgent(m_mapStoppedAgents.top()).start();
 	}
 
 	void clear()
