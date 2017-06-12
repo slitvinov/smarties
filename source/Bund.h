@@ -39,11 +39,11 @@ using namespace std;
 #define ACER_MIN_PROB 0
 #endif
 
-#define MAX_UNROLL_AFTER 16
+#define MAX_UNROLL_AFTER 1000
 //#define MAX_UNROLL_AFTER 700
 #define MAX_UNROLL_BFORE 16
 #define ACER_CONST_PREC 50
-#define ACER_GRAD_CUT 5
+#define ACER_GRAD_CUT 1000
 
 //#define NET_L1_PENAL
 #define _dumpNet_

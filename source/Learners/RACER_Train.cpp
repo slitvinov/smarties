@@ -24,7 +24,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	//to prevent silly overflow on aux tasks:
 	const Uint nSalloc = max(nSValues, static_cast<Uint>(2));
 
-	if(thrID==1) profiler->push_start("FWD");
+	//if(thrID==1) profiler->push_start("FWD");
 
 	vector<vector<Real>> out_cur(1, vector<Real>(nOutputs,0));
 	vector<vector<Real>> out_hat(nSValues, vector<Real>(nOutputs,0));
@@ -45,7 +45,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 		net->seqPredict_output(out_hat[k], series_hat[k]);
 	}
 
-	if(thrID==1)  profiler->stop_start("ADV");
+	//if(thrID==1)  profiler->stop_start("ADV");
 
 	Real Q_RET = 0, Q_OPC = 0;
 	//if partial sequence then compute value of last state (=! R_end)
@@ -71,15 +71,15 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 		const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
 		const Real c_hat = std::min((Real)1.,std::pow(rho_hat,1./nA));
 		const Real A_hat = adv_hat.computeAdvantage(act);
-		const Real lambda = 0.5;
-		//const Real lambda = 1.0;
+		//const Real lambda = 0.5;
+		const Real lambda = 1.0;
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat*lambda*(Q_RET -A_hat -V_hat) +V_hat;
 		Q_OPC =       lambda*(Q_OPC -A_hat -V_hat) +V_hat;
 		//Q_OPC = Q_RET;
 	}
 
-	if(thrID==1)  profiler->stop_start("CMP");
+	//if(thrID==1)  profiler->stop_start("CMP");
 	{
 		const Uint k = 0; ///just to make it easier to check with BPTT
 		const Tuple * const _t = data->Set[seq]->tuples[samp]; //contains sOld, a
@@ -166,12 +166,12 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 		clip_gradient(gradient, stdGrad[0]);
 		net->setOutputDeltas(gradient, series_cur[k]);
 	}
-	
-	if(thrID==1)  profiler->stop_start("BCK");
+
+	//if(thrID==1)  profiler->stop_start("BCK");
 
 	if (thrID==0) net->backProp(series_cur, net->grad);
 	else net->backProp(series_cur, net->Vgrad[thrID]);
 	net->deallocateUnrolledActivations(&series_cur);
 	net->deallocateUnrolledActivations(&series_hat);
-	if(thrID==1)  profiler->pop_stop();
+	//if(thrID==1)  profiler->pop_stop();
 }

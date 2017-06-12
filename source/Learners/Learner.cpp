@@ -86,9 +86,9 @@ void Learner::TrainTasking(Master* const master)
 
 		if(data->syncBoolOr(data->inds.size()<batchSize))
 		{ //reset sampling
-			if (batchUsage % 10==0) profiler->printSummary();
+			//if (batchUsage % 100==0) profiler->printSummary();
 
-			profiler->push_start("SRT");
+			//profiler->push_start("SRT");
 			processStats(sumElapsed/countElapsed);// dump info about
 			data->updateSamples();
 			sumElapsed = 0; countElapsed=0;
@@ -102,11 +102,11 @@ void Learner::TrainTasking(Master* const master)
 #pragma omp parallel num_threads(nThreads)
 #pragma omp master
 		{
-			profiler->stop_start("SMP");
+			//profiler->stop_start("SMP");
 			nAddedGradients = bRecurrent ? sampleSequences(seq) :
 				sampleTransitions(seq,samp);
 #pragma omp flush
-			profiler->stop_start("TSK");
+			//profiler->stop_start("TSK");
 			if(bRecurrent) {//we are using an LSTM: do BPTT
 				for (Uint i=0; i<batchSize; i++) {
 					const Uint sequence = seq[i];
@@ -145,12 +145,12 @@ void Learner::TrainTasking(Master* const master)
 
 		batchUsage += 1;
 		dataUsage += nAddedGradients;
-		profiler->stop_start("UPW");
+		//profiler->stop_start("UPW");
 		//this needs to be compatible with multiple servers
 		stackAndUpdateNNWeights(nAddedGradients);
 		// this can be handled node wise
 		updateTargetNetwork();
-		profiler->pop_stop();
+		//profiler->pop_stop();
 	}
 }
 
@@ -218,7 +218,7 @@ bool Learner::checkBatch(unsigned long mastersNiter)
 		mastersNiter_b4PolUpdates = dataNiter;
 		return false;
 	}  //do we have enough data? TODO k*ndata?
-	
+
 	//Constraint on over-using stale data too much
 	if(epochCounter>data->nSeenSequences) return false;//dataUsage>mastersNiter||
 
