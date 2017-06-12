@@ -71,8 +71,8 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 		const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
 		const Real c_hat = std::min((Real)1.,std::pow(rho_hat,1./nA));
 		const Real A_hat = adv_hat.computeAdvantage(act);
-		//const Real lambda = 0.5;
-		const Real lambda = 1.0;
+		const Real lambda = 0.5;
+		//const Real lambda = 1.0;
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat*lambda*(Q_RET -A_hat -V_hat) +V_hat;
 		Q_OPC =       lambda*(Q_OPC -A_hat -V_hat) +V_hat;
