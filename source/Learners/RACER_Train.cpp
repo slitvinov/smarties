@@ -121,7 +121,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 		const Real importance = std::min(rho_cur, truncation);
 		const Real correction = std::max(0., 1.-truncation/rho_pol);
 		const Real A_OPC = Q_OPC - V_hat;
-		static const Real L = 0.25, eps = 2.2e-16;
+		static const Real L = 0.1, eps = 2.2e-16;
 		const Real threshold = A_cov * A_cov / (varCritic+eps);
 		const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
 		const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);

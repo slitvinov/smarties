@@ -101,8 +101,8 @@ struct Glider
     const double piinv = 1/3.14159265359;
     const double CR = 3.14159265359;
 
-    //const double II  = 20.0;
-    const double II  = 1.0;
+    const double II  = 20.0;
+    //const double II  = 1.0;
     const double beta= 0.1;
     //const double II  = 3.; //we have to multiply *2 all moments by Anderson
     //const double beta= 0;
