@@ -378,8 +378,8 @@ bool AdamOptimizer::restart(const string fname)
 
 	Uint readTotWeights, readTotBiases, readNNeurons, readNLayers;
 	in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
-	if (readNLayers != nLayers || readNNeurons != nNeurons)
-		die("Network parameters differ!");
+//	if (readNLayers != nLayers || readNNeurons != nNeurons)
+//		die("Network parameters differ!");
 	//readTotWeights != nWeights || readTotBiases != nBiases || TODO
 
 	vector<nnReal> outWeights, outBiases, out1MomW, out1MomB, out2MomW, out2MomB;
