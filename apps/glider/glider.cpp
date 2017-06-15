@@ -12,6 +12,7 @@
 //#define __PRINT_
 #define TERM_REW_FAC 50
 #define HEIGHT_PENAL 10
+#define RANDOM_START 1
 using namespace std;
 
 struct Vec7
@@ -101,8 +102,8 @@ struct Glider
     const double piinv = 1/3.14159265359;
     const double CR = 3.14159265359;
 
-    //const double II  = 20.0;
-    const double II  = 1.0;
+    const double II  = 20.0;
+    //const double II  = 1.0;
     const double beta= 0.1;
     //const double II  = 3.; //we have to multiply *2 all moments by Anderson
     //const double beta= 0;
@@ -221,7 +222,11 @@ int main(int argc, const char * argv[])
     vector<Glider> agents(n);
     for (auto& a : agents) {
       #ifdef __SMARTIES_ //u,v,w,x,y,a,T
-        a._s = Vec7(d1(gen), d1(gen), d1(gen), d2(gen), d2(gen), d1(gen), 0, 0);
+			#ifdef RANDOM_START
+			a._s = Vec7(d1(gen), d1(gen), d1(gen), d2(gen), d2(gen), d1(gen), 0, 0);
+			#else
+			a._s = Vec7(0, 0, 0, 0, 0, 0, 0, 0);
+			#endif
       #else
         //a._s = Vec7(0, 0, 0, 0, 0, 0, 1.,    0);
         //a._s = Vec7(0, 0, 0, 0, 0, 0, 0.105, 0);
