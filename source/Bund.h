@@ -39,9 +39,9 @@ using namespace std;
 #define ACER_MIN_PROB 0
 #endif
 
-#define MAX_UNROLL_AFTER 1000
-//#define MAX_UNROLL_AFTER 700
-#define MAX_UNROLL_BFORE 16
+//#define MAX_UNROLL_AFTER 1000
+#define MAX_UNROLL_AFTER 20
+#define MAX_UNROLL_BFORE 20
 #define ACER_CONST_PREC 50
 #define ACER_GRAD_CUT 1000
 
