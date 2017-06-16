@@ -14,7 +14,7 @@
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs+2),
-truncation(10), delta(1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
+truncation(1000), delta(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
 generators(settings.generators)
 {
 	vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
@@ -57,7 +57,7 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 
 	if(bTrain)
 	for(Uint i=0; i<nA; i++) {
-		beta_std[i] = max(0.5*anneal, greedyEps + beta_std[i]);
+		beta_std[i] = max(0.2*anneal, greedyEps + beta_std[i]);
 		//beta_mean[i] = (1-anneal*anneal)*beta_mean[i];
 	}
 

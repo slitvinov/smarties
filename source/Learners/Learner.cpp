@@ -16,7 +16,8 @@ nAgents(_s.nAgents), batchSize(_s.batchSize), nThreads(_s.nThreads),
 nAppended(_s.appendedObs), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
 bRecurrent(_s.bRecurrent), bTrain(_s.bTrain), tgtUpdateAlpha(_s.targetDelay),
 gamma(_s.gamma), greedyEps(_s.greedyEps), epsAnneal(_s.epsAnneal),
-taskCounter(batchSize), aInfo(env->aI), sInfo(env->sI), gen(&_s.generators[0])
+obsPerStep(_s.obsPerStep), taskCounter(batchSize), 
+aInfo(env->aI), sInfo(env->sI), gen(&_s.generators[0])
 {
 	assert(nThreads>0);
 	profiler = new Profiler();
@@ -218,9 +219,19 @@ bool Learner::checkBatch(unsigned long mastersNiter)
 		mastersNiter_b4PolUpdates = dataNiter;
 		return false;
 	}  //do we have enough data? TODO k*ndata?
+	
+	//If the transition buffer is already backed up, train and pause communicating
+	if(data->Buffered.size() >= data->maxTotSeqNum/20) return true;
+
+	//If we have not observed enough data, pause training (avoid over using stale data)
+	if(mastersNiter/obsPerStep < opt->nepoch) return false;
+	if(0.5*mastersNiter/obsPerStep > opt->nepoch) return true;
+
+	//else, complete the gradient step if threads have finished processing data:
+	return taskCounter >= batchSize;
 
 	//Constraint on over-using stale data too much
-	if(epochCounter>data->nSeenSequences) return false;//dataUsage>mastersNiter||
+	//if(epochCounter>data->nSeenSequences) return false;//dataUsage>mastersNiter||
 
 	//if we are using a cheap to simulate env, we want to prioritize networks
 	//if optimizer has done less updates than master has done communications
@@ -229,11 +240,7 @@ bool Learner::checkBatch(unsigned long mastersNiter)
 	//const long unsigned learnerNiter = opt->nepoch + mastersNiter_b4PolUpdates;
 	//if (env->cheaperThanNetwork && dataNiter > learnerNiter) return true;
 
-	//If the transition buffer is already backed up, train and pause communicating
-	if(data->Buffered.size() >= data->maxTotSeqNum/20)
-		return true;
 
-	return taskCounter >= batchSize;
 }
 
 void Learner::save(string name)

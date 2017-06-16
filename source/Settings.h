@@ -204,6 +204,13 @@ struct Settings
 #define DEFAULT_maxTotSeqNum 5000
 	int maxTotSeqNum = DEFAULT_maxTotSeqNum;
 
+#define CHARARG_obsPerStep 'r'
+#define COMMENT_obsPerStep "Minimum ratio of observed transitions to gradient steps"
+#define TYPEVAL_obsPerStep  Real
+#define TYPENUM_obsPerStep  REAL
+#define DEFAULT_obsPerStep  10
+	Real obsPerStep = DEFAULT_obsPerStep;
+
 	///////////////////////////////////////////////////////////////////////////////
 	//SETTINGS PERTAINING TO NETWORK: CAPITAL LETTER
 	///////////////////////////////////////////////////////////////////////////////
@@ -265,7 +272,7 @@ struct Settings
 #define COMMENT_outWeightsPrefac "Output weights initialization factor (will be multiplied by default fan-in factor). Picking 1 leads to treating output layers with normal initialization."
 #define TYPEVAL_outWeightsPrefac Real
 #define TYPENUM_outWeightsPrefac REAL
-#define DEFAULT_outWeightsPrefac 0.01
+#define DEFAULT_outWeightsPrefac 0.001
 	Real outWeightsPrefac = DEFAULT_outWeightsPrefac;
 
 #define CHARARG_batchSize 'B'
@@ -367,6 +374,7 @@ struct Settings
 			{ CHARARG_lambda, "lambda", TYPENUM_lambda, COMMENT_lambda, &lambda, (TYPEVAL_lambda) DEFAULT_lambda },
 			{ CHARARG_learner, "learner", TYPENUM_learner, COMMENT_learner, &learner, (TYPEVAL_learner) DEFAULT_learner },
 			{ CHARARG_restart, "restart", TYPENUM_restart, COMMENT_restart, &restart, (TYPEVAL_restart) DEFAULT_restart },
+			{ CHARARG_obsPerStep, "obsPerStep", TYPENUM_obsPerStep, COMMENT_obsPerStep, &obsPerStep, (TYPEVAL_obsPerStep) DEFAULT_obsPerStep },
 			{ CHARARG_samplesFile, "samplesFile", TYPENUM_samplesFile, COMMENT_samplesFile, &samplesFile, (TYPEVAL_samplesFile) DEFAULT_samplesFile },
 			{ CHARARG_nnl1, "nnl1", TYPENUM_nnl1, COMMENT_nnl1, &nnl1, (TYPEVAL_nnl1) DEFAULT_nnl1 },
 			{ CHARARG_nnl2, "nnl2", TYPENUM_nnl2, COMMENT_nnl2, &nnl2, (TYPEVAL_nnl2) DEFAULT_nnl2 },

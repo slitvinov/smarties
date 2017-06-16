@@ -39,7 +39,7 @@ protected:
 	Uint nInputs, nOutputs;
 	bool bRecurrent;
 	const bool bTrain;
-	const Real tgtUpdateAlpha, gamma, greedyEps, epsAnneal;
+	const Real tgtUpdateAlpha, gamma, greedyEps, epsAnneal, obsPerStep;
 	unsigned long batchUsage = 0, dataUsage = 0;
 	Uint cntUpdateDelay = 0, taskCounter, epochCounter = 0;
 	unsigned long mastersNiter_b4PolUpdates = 0;
@@ -87,9 +87,9 @@ public:
 	/*
 	inline Real annealedGamma() const
 	{
-		assert(epsAnneal>1. && bTrain);
+		assert(epsAnneal>1. && bTrain && gamma>0.5);
 		if (opt->nepoch > epsAnneal) return gamma;
-		const Real anneal = opt->nepoch/epsAnneal;
+		const Real anneal = 0.5 + 0.5*opt->nepoch/epsAnneal;
 		return anneal*gamma;
 	}
 	/*/
@@ -98,7 +98,7 @@ public:
 		assert(epsAnneal>1. && bTrain);
 		if (opt->nepoch > epsAnneal) return gamma;
 		const Real anneal = opt->nepoch/epsAnneal;
-		const Real fac = 1 + anneal*(1./(1-gamma) -1);
+		const Real fac = 10 + anneal*(1./(1-gamma) -10);
 		return 1 - 1./fac;
 	}
 	//*/

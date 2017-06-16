@@ -10,7 +10,7 @@
 #include "GliderEnvironment.h"
 
 GliderEnvironment::GliderEnvironment(const Uint _nAgents, const string _execpath, Settings & _s) :
-Environment(_nAgents, _execpath, _s) {
+Environment(_nAgents, _execpath, _s), sensevel(_s.senses==0) {
 	//cheaperThanNetwork=false;
 	settings.saveFreq = 1e5;
 }
@@ -18,7 +18,9 @@ Environment(_nAgents, _execpath, _s) {
 void GliderEnvironment::setDims() //this environment is for the cart pole test
 {
 	sI.inUse.clear();
-	for (Uint i=0; i<7; i++) sI.inUse.push_back(true);
+	//if !sensevel then skip u v omega
+	for (Uint i=0; i<7; i++) 
+		sI.inUse.push_back(sensevel || i>2);
 
 	sI.inUse.push_back(true);
 	//sI.inUse.push_back(false);

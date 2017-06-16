@@ -13,6 +13,7 @@
 
 class GliderEnvironment : public Environment
 {
+    const bool sensevel;
 public:
     GliderEnvironment(const Uint nAgents, const string execpath, Settings & settings);
 
