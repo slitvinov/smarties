@@ -248,6 +248,7 @@ void Learner_utils::processStats(const Real avgTime)
 
 void Learner_utils::processGrads()
 {
+	const vector<Real> oldsum = avgGrad[0], oldstd = stdGrad[0];
 	statsVector(avgGrad, stdGrad, cntGrad);
 	//std::ostringstream o; o << "Grads avg (std): ";
 	//for (Uint i=0; i<avgGrad[0].size(); i++)
@@ -257,6 +258,10 @@ void Learner_utils::processGrads()
 	filestats.open("grads.txt", ios::app);
 	filestats<<print(avgGrad[0]).c_str()<<" "<<print(stdGrad[0]).c_str()<<endl;
 	filestats.close();
+	for (Uint i=0; i<avgGrad[0].size(); i++) {
+		avgGrad[0][i] = 0.99*oldsum[i] + 0.01*avgGrad[0][i];
+		stdGrad[0][i] = 0.99*stdGrad[i] + 0.01*stdGrad[0][i];
+	}
 }
 
 void Learner_utils::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
