@@ -83,9 +83,8 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 		abort();
 	}
 #endif
-
-	if (settings.nThreads > 1) learner->TrainTasking(&master);
-	else master.run();
+	assert(settings.nThreads > 1);
+	learner->run(&master);
 	die("Master returning?\n");
 }
 

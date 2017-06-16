@@ -16,7 +16,7 @@ nAgents(_s.nAgents), batchSize(_s.batchSize), nThreads(_s.nThreads),
 nAppended(_s.appendedObs), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
 bRecurrent(_s.bRecurrent), bTrain(_s.bTrain), tgtUpdateAlpha(_s.targetDelay),
 gamma(_s.gamma), greedyEps(_s.greedyEps), epsAnneal(_s.epsAnneal),
-obsPerStep(_s.obsPerStep), taskCounter(batchSize), 
+obsPerStep(_s.obsPerStep), taskCounter(batchSize),
 aInfo(env->aI), sInfo(env->sI), gen(&_s.generators[0])
 {
 	assert(nThreads>0);
@@ -34,6 +34,7 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 	data->pushBackEndedSim(agentOne, agentEnd);
 }
 
+/*
 void Learner::TrainBatch()
 {
 	const Uint ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
@@ -67,13 +68,16 @@ void Learner::TrainBatch()
 	updateNNWeights(nAddedGradients);
 	updateTargetNetwork();
 }
+*/
 
-void Learner::TrainTasking(Master* const master)
+void Learner::run(Master* const master)
 {
 	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
 	vector<Uint> seq(batchSize), samp(batchSize);//, index(batchSize);
 	Uint nAddedGradients = 0, countElapsed = 0;
 	Real sumElapsed = 0;
+	int nMasters;
+	MPI_Comm_size(mastersComm, &nMasters);
 	Uint ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
 	if (ndata <= 10*batchSize || !bTrain) {
 		if(nAgents<1) die("Nothing to do, nowhere to go.\n");
@@ -84,20 +88,24 @@ void Learner::TrainTasking(Master* const master)
 		ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
 		taskCounter = 0;
 		nAddedGradients = 0;
+		const Real annealFac = annealingFactor();
 
-		if(data->syncBoolOr(data->inds.size()<batchSize))
-		{ //reset sampling
-			//if (batchUsage % 100==0) profiler->printSummary();
-
+		Uint syncDataStats = 0;
+		if(opt->nepoch % 1000 == 0) { //reset sampling
 			//profiler->push_start("SRT");
 			processStats(sumElapsed/countElapsed);// dump info about
-			data->updateSamples();
+			syncDataStats = data->updateSamples(annealFac);
 			sumElapsed = 0; countElapsed=0;
-			//print_memory_usage();
-#ifdef __CHECK_DIFF //check gradients with finite differences
-			if (opt->nepoch % 100000 == 0) net->checkGrads();
-#endif
 		}
+		#ifdef __CHECK_DIFF //check gradients with finite differences
+			if (opt->nepoch % 100000 == 0) net->checkGrads();
+		#endif
+		if (nMasters > 1) {
+			MPI_Allreduce(MPI_IN_PLACE, &syncDataStats, 1,
+					MPI_UNSIGNED, MPI_SUM, mastersComm);
+		}
+		if(syncDataStats) data->update_samples_mean(annealFac);
+
 		start = std::chrono::high_resolution_clock::now();
 
 #pragma omp parallel num_threads(nThreads)
@@ -219,7 +227,6 @@ bool Learner::checkBatch(unsigned long mastersNiter)
 		mastersNiter_b4PolUpdates = dataNiter;
 		return false;
 	}  //do we have enough data? TODO k*ndata?
-	
 	//If the transition buffer is already backed up, train and pause communicating
 	if(data->Buffered.size() >= data->maxTotSeqNum/20) return true;
 

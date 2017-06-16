@@ -27,13 +27,14 @@ avgValGrad(nThreads+1,vector<Real>(1,0)), stdValGrad(nThreads+1,vector<Real>(1,0
 void DPG::select(const int agentId, State& s, Action& a,
 		State& sOld, Action& aOld, const int info, Real r)
 {
+	if (info!=1)
+		data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
+	if(info == 2) return;
+
 	vector<Real> output = output_value_iteration(agentId,s,a,sOld,aOld,info,r);
-	if(!output.size()) {
-		assert(info==2);
-		return;
-	}
+
 	const Real anneal = annealingFactor();
-	const Real annealedVar = bTrain ? anneal+greedyEps : greedyEps;
+	const Real annealedVar = bTrain ? 0.2*anneal+greedyEps : greedyEps;
 	if(positive(annealedVar))
 	{
 		std::normal_distribution<Real> dist(0, annealedVar);

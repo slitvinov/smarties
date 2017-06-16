@@ -38,25 +38,33 @@ nA(_env->aI.dim), nL(compute_nL(_env->aI.dim))
 void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
-	vector<Real> output = output_value_iteration(agentId,s,a,sOld,aOld,info,r);
-	if(!output.size()) {
-		assert(info==2);
+	//if (info!=1)
+	//	data->passData(agentId, info, sOld, aOld, s, r);
+	if(info == 2) {
+		data->passData(agentId, info, sOld, a, vector<Real>(), s, r);
 		return;
 	}
-	const Quadratic_advantage advantage = prepare_advantage(output);
 
+	vector<Real> output = output_value_iteration(agentId,s,a,sOld,aOld,info,r);
+	const Quadratic_advantage advantage = prepare_advantage(output);
 	//load computed policy into a
 	vector<Real> policy = advantage.getMean();
 	const Real anneal = annealingFactor();
-	const Real annealedVar = bTrain ? anneal + greedyEps : greedyEps;
+	const Real annealedVar = bTrain ? 0.2*anneal + greedyEps : greedyEps;
 
+	vector<Real> beta(2*nA,0);
 	if(positive(annealedVar)) {
 		std::normal_distribution<Real> dist(0, annealedVar);
-		for(Uint i=0; i<nA; i++) policy[i] += dist(*gen);
+		for(Uint i=0; i<nA; i++) {
+			beta[i] = policy[i];
+			beta[i+nA] = 1/annealedVar/annealedVar;
+			policy[i] += dist(*gen);
+		}
 	}
 
 	//scale back to action space size:
 	a.set(aInfo.getScaled(policy));
+	data->passData(agentId, info, sOld, a, beta, s, r);
 	dumpNetworkInfo(agentId);
 }
 
@@ -75,7 +83,7 @@ void NAF::Train_BPTT(const Uint seq, const Uint thrID) const
 		//this tuple contains sOld
 		const Tuple * const _tOld = data->Set[seq]->tuples[k];
 		const vector<Real> sold = data->standardize(_tOld->s);
-		const vector<Real> act = aInfo.getInvScaled(_t->a); //unbounded action space
+		const vector<Real> act = aInfo.getInvScaled(_tOld->a); //unbounded action space
 		net->predict(sold, output, timeSeries, k);
 		Quadratic_advantage adv_sold = prepare_advantage(output);
 
@@ -123,7 +131,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	const Tuple* const _t = data->Set[seq]->tuples[samp+1];
 
 	const vector<Real> sold = data->standardize(_tOld->s);
-	const vector<Real> act = aInfo.getInvScaled(_t->a); //unbounded action space
+	const vector<Real> act = aInfo.getInvScaled(_tOld->a); //unbounded action space
 	net->predict(sold, output, sOldActivation); //sOld in previous tuple
 	Quadratic_advantage adv_sold = prepare_advantage(output);
 

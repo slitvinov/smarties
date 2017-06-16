@@ -37,17 +37,26 @@ if hasattr(env.action_space, 'spaces'):
     nActions = len(env.action_space.spaces)
     for i in range(nActions):
         nActions_i = env.action_space.spaces[i].n
-        actionOptions = np.append(actionOptions, nActions_i+.1)
+        actionOptions = np.append(actionOptions, [nActions_i+.1, 1])
         actionValues = np.append(actionValues,np.arange(0,nActions_i)+.1)
 elif hasattr(env.action_space, 'shape'):
     nActions = env.action_space.shape[0]
     for i in range(nActions):
-        actionOptions = np.append(actionOptions, 2.1)
-        actionValues = np.append(actionValues,max(env.action_space.low[i],-1e3))
-        actionValues = np.append(actionValues,min(env.action_space.high[i],1e3))
+		bounded = 0
+		#figure out if environment is strict about the bounds on action:
+		test = env.reset()
+		test_act = 0.5*(env.action_space.low + env.action_space.high)
+		test_act[i] = env.action_space.high[i]+1
+		try:
+			test = env.step(test_act)
+		except:
+			bounded = 1.1
+		actionOptions = np.append(actionOptions, [2.1, bounded])
+		actionValues = np.append(actionValues,max(env.action_space.low[i],-1e3))
+		actionValues = np.append(actionValues,min(env.action_space.high[i],1e3))
 elif hasattr(env.action_space, 'n'):
     nActions_i = env.action_space.n
-    actionOptions = np.append(actionOptions, nActions_i)
+    actionOptions = np.append(actionOptions, [nActions_i, 1])
     actionValues = np.append(actionValues,np.arange(0,nActions_i)+.1)
 else: assert(False)
 
@@ -107,7 +116,7 @@ while True:
             for i in range(1, nActions): action = action + [int(buf[i])]
         else: action = int(buf[0])
 
-        for i in range(1):
+        for i in range(4):
             observation, reward, done, info = env.step(action)
             if done: break
         if done:

@@ -12,7 +12,7 @@
 
 DACER::DACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs+2), nA(env->aI.maxLabel),
-truncation(1000), delta(1), generators(settings.generators)
+truncation(10), delta(1), generators(settings.generators)
 {
 	assert(nOutputs == 1+nA+nA);
 	buildNetwork(net, opt, net_outputs, settings);

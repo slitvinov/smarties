@@ -310,8 +310,11 @@ Communicator::Communicator(const MPI_Comm scom, const int socket, const bool spa
 	update_rank_size();
 }
 
-void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_values,
-		std::vector<double>& state_upper_bound, std::vector<double>& state_lower_bound)
+void Communicator::getStateActionShape(
+	std::vector<std::vector<double>>&action_values,
+	std::vector<double>& state_upper_bound,
+	std::vector<double>& state_lower_bound,
+	std::vector<bool>&bounded)
 {
 	//unsigned long dummy = 1;
 	double* sketchy_ptr;
@@ -331,6 +334,7 @@ void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_v
 	state_upper_bound.resize(nStates);
 	state_lower_bound.resize(nStates);
 	action_values.resize(nActions);
+	bounded.resize(nActions);
 	_dealloc(sketchy_ptr);
 
 	sketchy_ptr = _alloc(2*nStates*sizeof(double));
@@ -352,13 +356,13 @@ void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_v
 
 	_dealloc(sketchy_ptr);
 
-	sketchy_ptr = _alloc(nActions*sizeof(double));
+	sketchy_ptr = _alloc(2*nActions*sizeof(double));
 	if (rank_learn_pool==0)
-		MPI_Recv(sketchy_ptr, nActions*sizeof(double), MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
+		MPI_Recv(sketchy_ptr, 2*nActions*sizeof(double), MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
 	else {
-		comm_sock(Socket, false, sketchy_ptr, nActions*sizeof(double));
+		comm_sock(Socket, false, sketchy_ptr, 2*nActions*sizeof(double));
 		if (rank_learn_pool==1)
-			MPI_Ssend(sketchy_ptr, nActions*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
+			MPI_Ssend(sketchy_ptr, 2*nActions*sizeof(double), MPI_BYTE, 0, 3, comm_learn_pool);
 	}
 
 	sketchier_ptr = sketchy_ptr;
@@ -366,6 +370,7 @@ void Communicator::getStateActionShape(std::vector<std::vector<double>>&action_v
 	for(int i=0; i<nActions; i++) {
 		n_action_vals += doublePtrToInt(sketchier_ptr);
 		action_values[i].resize(doublePtrToInt(sketchier_ptr++));
+		bounded[i] = doublePtrToInt(sketchier_ptr++);
 	}
 	_dealloc(sketchy_ptr);
 

@@ -22,11 +22,10 @@ Learner_utils(comm,_env,settings,settings.nnOutputs)
 void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
+	if (info!=1)
+		data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
+	if(info == 2) return;
 	vector<Real> output = output_value_iteration(agentId, s, a, sOld, aOld, info, r);
-	if(!output.size()) {
-		assert(info==2);
-		return;
-	}
 	//load computed policy into a
 	const Uint indBest = maxInd(output);
 	a.set(indBest);

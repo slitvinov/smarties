@@ -115,9 +115,6 @@ void Transitions::restartSamplesNew(const bool bContinuous)
 
 	printf("Found %d broken chains out of %d / %d.\n",
 			nBroken, nSequences, nTransitions);
-	const bool update_meanstd_needed = nTransitions>0;
-	if(needed_samples_mean(update_meanstd_needed)) update_samples_mean(1.0);
-	old_ndata = nTransitions;
 }
 
 void Transitions::restartSamples()
@@ -184,9 +181,6 @@ void Transitions::restartSamples()
 
 	printf("Found %d broken chains out of %d / %d.\n",
 			nBroken, nSequences, nTransitions);
-	const bool update_meanstd_needed = nTransitions>0;
-	if(needed_samples_mean(update_meanstd_needed)) update_samples_mean(1.0);
-	old_ndata = nTransitions;
 }
 
 /*
@@ -438,34 +432,17 @@ void Transitions::push_back(const int & agentId)
 	Tmp[agentId] = new Sequence();
 }
 
-int Transitions::syncBoolOr(int needed) const
-{
-	assert(needed>=0);
-	//if for any rank needed !=0 then return needed !=0
-	//used in two cases:
-	// - check if any rank needs to update means and std of dataset
-	// - check if any rank needs to reset the index array for sampling
-
-	int nMasters;
-	MPI_Comm_size(mastersComm, &nMasters);
-	if (nMasters > 1) {
-		MPI_Allreduce(MPI_IN_PLACE, &needed, 1,
-				MPI_INT, MPI_SUM, mastersComm);
-	}
-	return needed;
-}
-
 void Transitions::update_samples_mean(const Real alpha)
 {
-	if(!bTrain) return; //if not training, keep the stored values
-	if(!bNormalize) return;
-	Real count = 0;
-	vector<Real> newStd(sI.dimUsed,0), newMean(sI.dimUsed,0);
+	if(!bTrain || !bNormalize) return; //if not training, keep the stored values
+
+	long double count = 0;
+	vector<long double> newStd(sI.dimUsed,0), newMean(sI.dimUsed,0);
 
 #pragma omp parallel
 	{
 		//local sum and counter
-		vector<Real> sum(sI.dimUsed,0), sum2(sI.dimUsed,0);
+		vector<long double> sum(sI.dimUsed,0), sum2(sI.dimUsed,0);
 		Uint cnt = 0;
 
 #pragma omp for schedule(dynamic)
@@ -494,30 +471,37 @@ void Transitions::update_samples_mean(const Real alpha)
 	MPI_Comm_size(mastersComm, &nMasters);
 	if (nMasters > 1) {
 		MPI_Allreduce(MPI_IN_PLACE, &count, 1,
-				MPI_UNSIGNED, MPI_SUM, mastersComm);
+				MPI_LONG_DOUBLE, MPI_SUM, mastersComm);
 		MPI_Allreduce(MPI_IN_PLACE, newMean.data(), sI.dimUsed,
-				MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+				MPI_LONG_DOUBLE, MPI_SUM, mastersComm);
 		MPI_Allreduce(MPI_IN_PLACE, newStd.data(), sI.dimUsed,
-				MPI_VALUE_TYPE, MPI_SUM, mastersComm);
+				MPI_LONG_DOUBLE, MPI_SUM, mastersComm);
 	}
 
 	if(count<batchSize) return;
-	//std::cout << "States stds: [";
 	for (Uint i=0; i<sI.dimUsed; i++) {
 		newStd[i] = std::sqrt((newStd[i]-newMean[i]*newMean[i]/count)/count);
-		newStd[i] = std::max(newStd[i],1e-8);
-		std[i] = std[i]*(1.-alpha) + alpha*newStd[i];
-		//std::cout << std[i] << " ";
+		newStd[i] = std::max(newStd[i],(long double)1e-8);
+		newMean[i] /= count;
 	}
-	//std::cout << "]. States means: [";
-	for (Uint i=0; i<sI.dimUsed; i++) {
-		newMean[i] /= Real(count);
-		mean[i] = mean[i]*(1.-alpha) + alpha*newMean[i];
-		//std::cout << mean[i] << " ";
+
+	if (sI.mean.size()) {
+		Uint k=0;
+		for (Uint i=0; i<sI.dim; i++)
+			if (sI.inUse[i]) {
+				mean[k] = sI.mean[i]*(1-alpha) + alpha*newMean[k];
+				std[k] = sI.scale[i]*(1-alpha) + alpha*newStd[k];
+				invstd[k] = 1./(std[i]+1e-8);
+				k++;
+			}
+		assert(k==sI.dimUsed);
+	} else {
+		for (Uint i=0; i<sI.dimUsed; i++) {
+			mean[i] = mean[i]*(1.-alpha) + alpha*newMean[i];
+			std[i] = std[i]*(1.-alpha) + alpha*newStd[i];
+			invstd[i] = 1./(std[i]+1e-8);
+		}
 	}
-	for (Uint i=0; i<sI.dimUsed; i++)
-		invstd[i] = 1./(std[i]+1e-8);
-	//std::cout << "]" << std::endl;
 }
 
 vector<Real> Transitions::standardize(const vector<Real>& state,
@@ -617,7 +601,7 @@ void Transitions::synchronize()
 			nTransitionsInBuf/(Real)cnt, Buffered.size());
 }
 
-void Transitions::updateSamples(const Real alpha)
+Uint Transitions::updateSamples(const Real annealFac)
 {
 	bool update_meanstd_needed = false;
 	if(Buffered.size()>0) {
@@ -633,8 +617,7 @@ void Transitions::updateSamples(const Real alpha)
 		update_meanstd_needed = ndata!=old_ndata;
 		old_ndata = ndata;
 	}
-	update_meanstd_needed = update_meanstd_needed && positive(alpha);
-	if(needed_samples_mean(update_meanstd_needed)) update_samples_mean(alpha);
+	update_meanstd_needed = update_meanstd_needed && bNormalize && annealFac>0;
 
 	const Uint ndata = (bRecurrent) ? nSequences : nTransitions;
 	inds.resize(ndata);
@@ -660,6 +643,7 @@ void Transitions::updateSamples(const Real alpha)
 		std::iota(inds.begin(), inds.end(), 0);
 		random_shuffle(inds.begin(), inds.end(), *(gen));
 	}
+	return update_meanstd_needed ? 1 : 0;
 }
 
 Uint Transitions::sample()
@@ -713,48 +697,44 @@ void Transitions::updateP()
 {
 	die("Not correctly implemented. Go away!\n")
     		anneal++;
-	const int ndata = (bRecurrent) ? nSequences : nTransitions;
+	const int ndata = nTransitions;
 	Ps.resize(ndataN); Ws.resize(ndata); inds.resize(ndata);
 	std::iota(inds.begin(), inds.end(), 0);
 
-	//sort in decreasing order of the error
-	if (bRecurrent) {
-		for(auto & samp : Set) {
-			int count(0);
-			samp->MSE = 0.;
-			for(const auto & t : samp->tuples) {
-				samp->MSE += t->SquaredError;
-				count++;
-			}
-			samp->MSE /= count;
-		}
-		const auto compare=[this](int a,int b){return Set[a]->MSE>Set[b]->MSE;};
-		std::sort(inds.begin(), inds.end(), compare);
-	} else {
-		const auto comparator=[this](int a,int b){
-			int k=0, back=0, indT=Set[0]->tuples.size()-1;
+	//sort in decreasing order of the error, all points with zero error
+	//which means that they are not yet processed
+	//are put at the top
+	const auto comparator=[this](const Uint a, const Uint b) {
+		Uint seqa=0, sampa=0, seqb=0, sampb=0;
+		{
+			Uint k=0, back=0, indT=Set[0]->tuples.size()-1;
 			while (a >= indT) {
 				back = indT;
 				indT += Set[++k]->tuples.size()-1;
 			}
-
-			int k(0), back(0), indT(Set[0]->tuples.size()-1);
+			seqa = k;
+			sampa = a-back;
+		}
+		{
+			Uint k=0, back=0, indT=Set[0]->tuples.size()-1;
 			while (b >= indT) {
 				back = indT;
 				indT += Set[++k]->tuples.size()-1;
 			}
-
-			seq[i]  = k;
-			samp[i] = ind-back;
-			index[i] = ind;
-			return Set[ka]->tuples[]->SquaredError > MSE>Set[b]->MSE;
-		};
-		std::sort(inds.begin(), inds.end(), comparator);
+			seqb = k;
+			sampb = b-back;
+		}
+		return Set[seqa]->tuples[sampa]->SquaredError >
+					 Set[seqb]->tuples[sampb]->SquaredError;
+	};
+	__gnu_parallel::sort(inds.begin(), inds.end(), comparator);
+	#pragma omp parallel for
+	for(int i=0;i<N;i++)
+	{
+		Ps[i]=pow(1./Real(inds[i]+1),0.5);
 	}
 
-	for(int i=0;i<N;i++) Ps[i]=pow(1./Real(inds[i]+1),0.5);
 
-	const Real mean_err = accumulate(Errs.begin(), Errs.end(), 0.)/N;
 	const Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
 
 	printf("Avg MSE %f %d\n",mean_err,N);

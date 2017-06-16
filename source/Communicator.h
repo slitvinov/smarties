@@ -95,7 +95,7 @@ public:
 	}
 
 	void getStateActionShape(std::vector<std::vector<double>>& action_values,
-			std::vector<double>&state_upper_bound, std::vector<double>&state_lower_bound);
+			std::vector<double>&state_upper_bound, std::vector<double>&state_lower_bound, std::vector<bool>&bounded);
 
 	int getStateDim()  {return nStates;}
 	int getActionDim() {return nActions;}

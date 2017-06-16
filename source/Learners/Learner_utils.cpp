@@ -175,11 +175,7 @@ vector<Real> Learner_utils::output_stochastic_policy(const int agentId, State& s
 vector<Real> Learner_utils::output_value_iteration(const int agentId, State& s, Action& a,
 	State& sOld, Action& aOld, const int info, Real r)
 {
-	if (info!=1)
-		data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
-	if (info == 2) return vector<Real>();
 	assert(info==1 || data->Tmp[agentId]->tuples.size());
-
 	Activation* currActivation = net->allocateActivation();
 	vector<Real> output(nOutputs);
 	if (info==1) {

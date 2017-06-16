@@ -91,7 +91,7 @@ public:
 struct ActionInfo
 {
 	Uint dim, maxLabel; //number of actions per turn
-	vector<Uint> bounded; //whether action have a lower && upper bounded (bool)
+	vector<bool> bounded; //whether action have a lower && upper bounded (bool)
 	//vector<int> boundedTOP, boundedBOT; TODO
 
 	//each component of action vector has a vector of possible values that action can take with DQN

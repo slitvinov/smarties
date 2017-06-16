@@ -37,7 +37,7 @@ protected:
 	Environment * const env;
 	const Uint tgtUpdateDelay, nAgents, batchSize, nThreads, nAppended;
 	Uint nInputs, nOutputs;
-	bool bRecurrent;
+	bool bRecurrent, bStarted=false;
 	const bool bTrain;
 	const Real tgtUpdateAlpha, gamma, greedyEps, epsAnneal, obsPerStep;
 	unsigned long batchUsage = 0, dataUsage = 0;
@@ -108,8 +108,8 @@ public:
 	void pushBackEndedSim(const int agentOne, const int agentEnd);
 	virtual void dumpPolicy(const vector<Real> lower, const vector<Real>& upper, const vector<Uint>& nbins);
 	bool checkBatch(unsigned long mastersNiter);
-	void TrainBatch();
-	void TrainTasking(Master* const master);
+	//void TrainBatch();
+	void run(Master* const master);
 	void save(string name);
 	void restart(string fname);
 	void buildNetwork(Network*& _net , Optimizer*& _opt, const vector<Uint> nouts,

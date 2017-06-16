@@ -74,15 +74,6 @@ protected:
 	void clear(const int & agentId);
 	void synchronize();
 	void sortSequences();
-	inline bool needed_samples_mean(const bool something_changed)
-	{
-		//if env has specified scale and mean of state components, do not compute from data
-		if(sI.mean.size()) return false;
-		//user can still specify in settings if state should be standardized
-		if(!bNormalize) return false;
-		//else, if something changed in any of the Master ranks, then update is needed
-		return syncBoolOr(something_changed);
-	}
 
 public:
 	const Uint nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
@@ -108,14 +99,14 @@ public:
 	void clearFailedSim(const int agentOne, const int agentEnd);
 	void pushBackEndedSim(const int agentOne, const int agentEnd);
 	void update_samples_mean(const Real alpha = 0.01);
-	int syncBoolOr(int needed) const;
+
 	vector<Real> standardize(const vector<Real>& state, const Real noise=-1, const Uint thrID=0) const;
 #ifdef _Priority_
 	void updateP();
 #endif
 	void save(std::string fname);
 	void restart(std::string fname);
-	void updateSamples(const Real alpha = 0.01);
+	Uint updateSamples(const Real annealFac);
 	Uint sample();
 	void restartSamples();
 	void restartSamplesNew(const bool bContinuous);

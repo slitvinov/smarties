@@ -63,14 +63,11 @@ void Master::run()
 	double reward;
 	while (true) {
 		while (true) {
-			//if threaded: check on the guys, synchronize, apply gradient
-			if (nThreads > 1 && learner->checkBatch(iter)) return;
+			//check on the threads, synchronize, apply gradient
+			if (learner->checkBatch(iter)) return;
 
 			MPI_Test(&request, &completed, &mpistatus);
 			if (completed) break;
-
-			//if single thread master: process a batch
-			if (nThreads == 1) learner->TrainBatch();
 		}
 		debugS("Master receives from %d\n", mpistatus.MPI_SOURCE);
 		const int slave = mpistatus.MPI_SOURCE;
@@ -146,7 +143,7 @@ void Slave::run()
 
 Client::Client(Learner*const _l, Communicator*const _c, Environment*const _e,
 		Settings& _s):
-	  learner(_l), comm(_c), env(_e), agents(_e->agents), aI(_e->aI), sI(_e->sI), 
+	  learner(_l), comm(_c), env(_e), agents(_e->agents), aI(_e->aI), sI(_e->sI),
 	  sOld(_e->sI), sNew(_e->sI), aOld(_e->aI, &_s.generators[0]),
 	  aNew(_e->aI, &_s.generators[0]), status(_e->agents.size(),1)
 {}
