@@ -259,8 +259,8 @@ void Learner_utils::processGrads()
 	filestats<<print(avgGrad[0]).c_str()<<" "<<print(stdGrad[0]).c_str()<<endl;
 	filestats.close();
 	for (Uint i=0; i<avgGrad[0].size(); i++) {
-		avgGrad[0][i] = 0.99*oldsum[i] + 0.01*avgGrad[0][i];
-		stdGrad[0][i] = 0.99*oldstd[i] + 0.01*stdGrad[0][i];
+		avgGrad[0][i] = .999*oldsum[i] +.001*avgGrad[0][i];
+		stdGrad[0][i] = max(0.999*oldstd[i], stdGrad[0][i]);
 	}
 }
 

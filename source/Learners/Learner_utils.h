@@ -21,8 +21,9 @@ public:
 	Learner_utils(MPI_Comm mcom,Environment*const _e, Settings&sett, Uint ngrads)
 	: Learner(mcom, _e, sett), cntGrad(nThreads+1,0),
 	avgGrad(nThreads+1,vector<Real>(ngrads,0)),
-	stdGrad(nThreads+1,vector<Real>(ngrads,1000))
+	stdGrad(nThreads+1,vector<Real>(ngrads,0))
 	{
+		stdGrad[0] = vector<Real>(ngrads,1000);
 		assert(avgGrad.size()==nThreads+1 && cntGrad.size()==nThreads+1);
 		for (Uint i=0; i<nThreads; i++) Vstats.push_back(new trainData());
 	}
