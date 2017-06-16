@@ -260,7 +260,7 @@ void Learner_utils::processGrads()
 	filestats.close();
 	for (Uint i=0; i<avgGrad[0].size(); i++) {
 		avgGrad[0][i] = 0.99*oldsum[i] + 0.01*avgGrad[0][i];
-		stdGrad[0][i] = 0.99*stdGrad[i] + 0.01*stdGrad[0][i];
+		stdGrad[0][i] = 0.99*oldstd[i] + 0.01*stdGrad[0][i];
 	}
 }
 
