@@ -106,7 +106,7 @@ void NAF::Train_BPTT(const Uint seq, const Uint thrID) const
 		#endif
 
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
-		clip_gradient(gradient, stdGrad[0]);
+		clip_gradient(gradient, stdGrad[0], seq, k);
 		dumpStats(Vstats[thrID], Qsold, error);
 		data->Set[seq]->tuples[k]->SquaredError = error*error;
 		net->setOutputDeltas(gradient, timeSeries[k]);
@@ -154,7 +154,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	#endif
 
 	statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
-	clip_gradient(gradient, stdGrad[0]);
+	clip_gradient(gradient, stdGrad[0], seq, samp);
 	dumpStats(Vstats[thrID], Qsold, error);
 	data->Set[seq]->tuples[samp]->SquaredError = error*error;
 

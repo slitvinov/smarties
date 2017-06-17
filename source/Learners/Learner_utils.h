@@ -75,5 +75,20 @@ public:
 		return state;
   }
 
+	inline void clip_gradient(vector<Real>& grad, const vector<Real>& std,
+		const Uint seq, const Uint samp) const
+	{
+		for (Uint i=0; i<grad.size(); i++) {
+			assert(data->Set[seq]->tuples[samp]->weight>0);
+			grad[i] *= data->Set[seq]->tuples[samp]->weight;
+
+			if(grad[i] >  ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
+				grad[i] =  ACER_GRAD_CUT*std[i];
+			else
+			if(grad[i] < -ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
+				grad[i] = -ACER_GRAD_CUT*std[i];
+		}
+	}
+
 	void dumpNetworkInfo(const int agentId);
 };

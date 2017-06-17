@@ -43,7 +43,7 @@ using namespace std;
 #define MAX_UNROLL_AFTER 20
 #define MAX_UNROLL_BFORE 20
 #define ACER_CONST_PREC 50
-#define ACER_GRAD_CUT 1000
+#define ACER_GRAD_CUT 100
 
 //#define NET_L1_PENAL
 #define _dumpNet_

@@ -83,7 +83,7 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
 
 		for(Uint j=0; j<nA; j++) polgrad[j]= tgtAct->errvals[net_value->iInp[nS+j]];
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], polgrad);
-		clip_gradient(polgrad, stdGrad[0]);
+		clip_gradient(polgrad, stdGrad[0], seq, k);
 		net->setOutputDeltas(polgrad, polSeries[k]);
 	}
 
@@ -102,7 +102,7 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
 		gradient[0] = target - qcurrs[k];
 		data->Set[seq]->tuples[k]->SquaredError = gradient[0]*gradient[0];
 		statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],gradient);
-		clip_gradient(gradient, stdValGrad[0]);
+		clip_gradient(gradient, stdValGrad[0], seq, k);
 		net_value->setOutputDeltas(gradient, valSeries[k]);
 		dumpStats(Vstats[thrID], qcurrs[k], gradient[0]);
 	}
@@ -157,7 +157,7 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	data->Set[seq]->tuples[samp]->SquaredError = grad_val[0]*grad_val[0];
 	dumpStats(Vstats[thrID], qcurr[0], grad_val[0]);
 	statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],grad_val);
-	clip_gradient(grad_val, stdValGrad[0]);
+	clip_gradient(grad_val, stdValGrad[0], seq, samp);
 
 	if(thrID==0) net_value->backProp(grad_val, Val_Act, net_value->grad);
 	else net_value->backProp(grad_val, Val_Act, net_value->Vgrad[thrID]);
@@ -167,7 +167,7 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
 	for(Uint j=0; j<nA; j++) grad_pol[j]= Val_Act->errvals[net_value->iInp[nS+j]];
 	statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad_pol);
-	clip_gradient(grad_pol, stdGrad[0]);
+	clip_gradient(grad_pol, stdGrad[0], seq, samp);
 
 	if(thrID==0) net->backProp(grad_pol, Pol_Act, net->grad);
 	else net->backProp(grad_pol, Pol_Act, net->Vgrad[thrID]);

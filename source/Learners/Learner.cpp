@@ -85,14 +85,14 @@ void Learner::run(Master* const master)
 	}
 
 	while (true) {
-		ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-		taskCounter = 0;
-		nAddedGradients = 0;
+		nAddedGradients = taskCounter = 0;
 		const Real annealFac = annealingFactor();
+		ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+		if(opt->nepoch % 1000==0 && opt->nepoch) profiler->printSummary();
 
+		profiler->push_start("SRT");
 		Uint syncDataStats = 0;
 		if(opt->nepoch%100==0 || data->inds.size()<batchSize) { 
-			//profiler->push_start("SRT");
 			processStats(sumElapsed/countElapsed);// dump info about
 			syncDataStats = data->updateSamples(annealFac);//reset sampling
 			sumElapsed = 0; countElapsed=0;
@@ -111,11 +111,12 @@ void Learner::run(Master* const master)
 #pragma omp parallel num_threads(nThreads)
 #pragma omp master
 		{
-			//profiler->stop_start("SMP");
+			profiler->stop_start("SMP");
 			nAddedGradients = bRecurrent ? sampleSequences(seq) :
 				sampleTransitions(seq,samp);
 #pragma omp flush
-			//profiler->stop_start("TSK");
+			profiler->stop_start("TSK");
+
 			if(bRecurrent) {//we are using an LSTM: do BPTT
 				for (Uint i=0; i<batchSize; i++) {
 					const Uint sequence = seq[i];
@@ -154,12 +155,13 @@ void Learner::run(Master* const master)
 
 		batchUsage += 1;
 		dataUsage += nAddedGradients;
-		//profiler->stop_start("UPW");
+
+		profiler->stop_start("UPW");
 		//this needs to be compatible with multiple servers
 		stackAndUpdateNNWeights(nAddedGradients);
 		// this can be handled node wise
 		updateTargetNetwork();
-		//profiler->pop_stop();
+		profiler->pop_stop();
 	}
 }
 
@@ -246,8 +248,6 @@ bool Learner::checkBatch(unsigned long mastersNiter)
 	//then let master thread go to help other threads finish the batch
 	//const long unsigned learnerNiter = opt->nepoch + mastersNiter_b4PolUpdates;
 	//if (env->cheaperThanNetwork && dataNiter > learnerNiter) return true;
-
-
 }
 
 void Learner::save(string name)

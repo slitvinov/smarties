@@ -170,7 +170,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
 
 		//write gradient onto output layer:
-		clip_gradient(gradient, stdGrad[0]);
+		clip_gradient(gradient, stdGrad[0], seq, samp);
 		net->setOutputDeltas(gradient, series_cur[k]);
 	}
 

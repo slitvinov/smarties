@@ -362,7 +362,7 @@ bool Optimizer::restart(const string fname)
 
 bool AdamOptimizer::restart(const string fname)
 {
-	const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
+	//const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
 
 	string nameBackup = fname + "_net";
 	ifstream in(nameBackup.c_str());

@@ -641,26 +641,26 @@ Uint Transitions::updateSamples(const Real annealFac)
 		else
 	#endif
 	{
+		#ifndef importanceSampling
 		std::iota(inds.begin(), inds.end(), 0);
 		__gnu_parallel::random_shuffle(inds.begin(), inds.end(), *(gen));
+		#else
+		updateP();
+		#endif
 	}
 	return update_meanstd_needed ? 1 : 0;
 }
 
-Uint Transitions::sample()
+Uint Transitions::sample(const int thrID)
 {
-	const Uint ind = inds.back();
-	inds.pop_back();
-	#if 0
-		if (bRecurrent) {
-			const int sampid = dist->operator()(*(gen->g));
-			//printf("Choosing %d with length %lu\n",
-			//sampid, Set[sampid]->tuples.size());
-			return sampid;
-		}
-		else
+	#ifndef importanceSampling
+		const Uint ind = inds.back();
+		inds.pop_back();
+	#else
+		const Uint ind = (*dist)(generators[thrID]);
 	#endif
-		return ind;
+
+	return ind;
 }
 
 void Transitions::save(std::string fname)
@@ -693,63 +693,58 @@ void Transitions::restart(std::string fname)
 	in.close();
 }
 
-#ifdef _Priority_
+#ifdef importanceSampling
 void Transitions::updateP()
 {
-	die("Not correctly implemented. Go away!\n")
-    		anneal++;
-	const int ndata = nTransitions;
-	Ps.resize(ndataN); Ws.resize(ndata); inds.resize(ndata);
+	inds.resize(nTransitions);
 	std::iota(inds.begin(), inds.end(), 0);
+	vector<Real> errors(nTransitions), Ps(nTransitions), Ws(nTransitions);
 
 	//sort in decreasing order of the error, all points with zero error
 	//which means that they are not yet processed
 	//are put at the top
-	const auto comparator=[this](const Uint a, const Uint b) {
-		Uint seqa=0, sampa=0, seqb=0, sampb=0;
-		{
-			Uint k=0, back=0, indT=Set[0]->tuples.size()-1;
-			while (a >= indT) {
-				back = indT;
-				indT += Set[++k]->tuples.size()-1;
-			}
-			seqa = k;
-			sampa = a-back;
-		}
-		{
-			Uint k=0, back=0, indT=Set[0]->tuples.size()-1;
-			while (b >= indT) {
-				back = indT;
-				indT += Set[++k]->tuples.size()-1;
-			}
-			seqb = k;
-			sampb = b-back;
-		}
-		return Set[seqa]->tuples[sampa]->SquaredError >
-					 Set[seqb]->tuples[sampb]->SquaredError;
-	};
-	__gnu_parallel::sort(inds.begin(), inds.end(), comparator);
-	#pragma omp parallel for
-	for(int i=0;i<N;i++)
 	{
-		Ps[i]=pow(1./Real(inds[i]+1),0.5);
+		Uint k = 0;
+		for(Uint i=0; i<Set.size(); i++)
+		for(Uint j=0; j<Set[i]->tuples.size()-1; j++)
+			errors[k++] = Set[i]->tuples[j]->SquaredError;
+		assert(k==nTransitions);
 	}
 
+	const auto comp=[&](const Uint a,const Uint b) {return errors[a]>errors[b];};
+	__gnu_parallel::sort(inds.begin(), inds.end(), comp);
+	assert(errors[inds.front()] >= errors[inds.back()]);
 
-	const Real sum = accumulate(Ps.begin(), Ps.end(), 0.);
+	#pragma omp parallel for
+	for(Uint i=0; i<nTransitions; i++)
+		Ps[inds[i]] = errors[inds[i]]>0 ? std::sqrt(1/(i+1.)) : 1;
 
-	printf("Avg MSE %f %d\n",mean_err,N);
-
-	const Real beta = .5*(1.+(Real)anneal/(anneal+500)); //TODO
-	for(int i=0;i<N;i++) {
-		Ps[i]/= sum;
-		Ws[i] = pow(N*Ps[i],-beta);
+	//const Real minP = Ps[inds.back()];
+	//const Real sumP = __gnu_parallel::accumulate(Ps.begin(), Ps.end(), 0);
+	Real minP = 2, sumP = 0;
+	#pragma omp parallel for reduction(min: minP) reduction(+: sumP)
+	for(Uint i=0; i<nTransitions; i++) {
+		minP = std::min(minP, Ps[i]);
+		sumP += Ps[i];
 	}
+	assert(minP<=1 && sumP>0);
 
-	Real scale = *max_element(Ws.begin(), Ws.end());
-	for(int i=0;i<N;i++) Ws[i]/=scale;
+	#pragma omp parallel for
+	for(Uint i=0; i<nTransitions; i++) {
+		Ws[i] = minP/Ps[i];
+		Ps[i] = Ps[i]/sumP;
+	}
 
 	delete dist;
-	dist = new discrete_distribution<int>(Ps.begin(), Ps.end());
+	dist = new std::discrete_distribution<Uint>(Ps.begin(), Ps.end());
+
+	{
+		Uint k = 0;
+		for(Uint i=0; i<Set.size(); i++)
+		for(Uint j=0; j<Set[i]->tuples.size()-1; j++)
+			Set[i]->tuples[j]->weight = Ws[k++];
+			//Set[i]->tuples[j]->weight = Ws[inds[k++]];
+		assert(k==nTransitions);
+	}
 }
 #endif

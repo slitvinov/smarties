@@ -204,7 +204,7 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
 
 		//write gradient onto output layer:
-		clip_gradient(gradient, stdGrad[0]);
+		clip_gradient(gradient, stdGrad[0], seq, k);
 		net->setOutputDeltas(gradient, series_cur[k]);
 		//TODO missing  -anneal*out[j+nA*2] on means
 	}

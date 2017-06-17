@@ -79,7 +79,7 @@ void NFQ::Train_BPTT(const Uint seq, const Uint thrID) const
 		for (Uint i=0; i<nOutputs; i++) errs[i] = i==action ? err : 0;
 
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], errs);
-		clip_gradient(errs, stdGrad[0]);
+		clip_gradient(errs, stdGrad[0], seq, k);
 		dumpStats(Vstats[thrID], Qs[action], err);
 		data->Set[seq]->tuples[k]->SquaredError = err*err;
 		net->setOutputDeltas(errs, timeSeries[k]);
@@ -126,7 +126,7 @@ void NFQ::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	for (Uint i=0; i<nOutputs; i++) errs[i] = i==action ? err : 0;
 
 	statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], errs);
-	clip_gradient(errs, stdGrad[0]);
+	clip_gradient(errs, stdGrad[0], seq, samp);
 	dumpStats(Vstats[thrID], Qs[action], err);
 	data->Set[seq]->tuples[samp]->SquaredError = err*err;
 
