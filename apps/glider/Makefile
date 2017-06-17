@@ -10,7 +10,7 @@ endif
 ifeq "$(smart)" "0"
 OBJ_FILES =  glider.o
 else
-CPPFLAGS+= -D__SMARTIES_
+CPPFLAGS+= -D__SMARTIES_ -Wall
 OBJ_FILES = glider.o Communicator.o
 endif
 
