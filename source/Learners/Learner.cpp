@@ -91,10 +91,10 @@ void Learner::run(Master* const master)
 		const Real annealFac = annealingFactor();
 
 		Uint syncDataStats = 0;
-		if(opt->nepoch % 1000 == 0) { //reset sampling
+		if(opt->nepoch%100==0 || data->inds.size()<batchSize) { 
 			//profiler->push_start("SRT");
 			processStats(sumElapsed/countElapsed);// dump info about
-			syncDataStats = data->updateSamples(annealFac);
+			syncDataStats = data->updateSamples(annealFac);//reset sampling
 			sumElapsed = 0; countElapsed=0;
 		}
 		#ifdef __CHECK_DIFF //check gradients with finite differences

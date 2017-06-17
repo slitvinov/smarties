@@ -10,6 +10,7 @@
 #include "Transitions.h"
 #include <dirent.h>
 #include <iterator>
+#include <parallel/algorithm>
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
 	mastersComm(comm), env(_env), bSampleSeq(_s.bRecurrent), bTrain(_s.bTrain),
@@ -565,7 +566,7 @@ void Transitions::sortSequences()
 void Transitions::synchronize()
 {
 	//comment out to always delete oldest sequences:
-	sortSequences();
+	//sortSequences();
 
 	Uint cnt =0;
 	Uint nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
@@ -641,7 +642,7 @@ Uint Transitions::updateSamples(const Real annealFac)
 	#endif
 	{
 		std::iota(inds.begin(), inds.end(), 0);
-		random_shuffle(inds.begin(), inds.end(), *(gen));
+		__gnu_parallel::random_shuffle(inds.begin(), inds.end(), *(gen));
 	}
 	return update_meanstd_needed ? 1 : 0;
 }
