@@ -16,7 +16,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <fstream>
-#define importanceSampling
+
 struct Tuple
 {
 	vector<Real> s, a, mu;

@@ -272,7 +272,7 @@ struct Settings
 #define COMMENT_outWeightsPrefac "Output weights initialization factor (will be multiplied by default fan-in factor). Picking 1 leads to treating output layers with normal initialization."
 #define TYPEVAL_outWeightsPrefac Real
 #define TYPENUM_outWeightsPrefac REAL
-#define DEFAULT_outWeightsPrefac 0.001
+#define DEFAULT_outWeightsPrefac 1
 	Real outWeightsPrefac = DEFAULT_outWeightsPrefac;
 
 #define CHARARG_batchSize 'B'

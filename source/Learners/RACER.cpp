@@ -14,7 +14,7 @@
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs+2),
-truncation(1000), delta(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
+truncation(10), delta(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
 generators(settings.generators)
 {
 	vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
@@ -65,7 +65,7 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 		beta[i] = beta_mean[i]; //first nA contain mean
 		beta[nA+i] = 1/beta_std[i]/beta_std[i]; //next nA contain precision
 		std::normal_distribution<Real> dist_cur(beta_mean[i], beta_std[i]);
-		a.vals[i] = positive(greedyEps) ? dist_cur(*gen) : beta_mean[i];
+		a.vals[i] = positive(greedyEps+anneal) ? dist_cur(*gen) : beta_mean[i];
 	}
 
 	//scale back to action space size:

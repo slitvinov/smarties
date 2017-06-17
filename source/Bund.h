@@ -26,7 +26,7 @@ using namespace std;
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
 //FOR CONTINUOUS ACTIONS RACER:
-#define ACER_MAX_PREC 100.
+#define ACER_MAX_PREC 400.
 #define ACER_MIN_PREC 1./ACER_MAX_ACT/ACER_MAX_ACT
 #define ACER_MAX_ACT 10.
 #define ACER_TOL_REW 0.01
@@ -43,7 +43,8 @@ using namespace std;
 #define MAX_UNROLL_AFTER 20
 #define MAX_UNROLL_BFORE 20
 #define ACER_CONST_PREC 50
-#define ACER_GRAD_CUT 100
+//#define ACER_GRAD_CUT 10
+//#define importanceSampling
 
 //#define NET_L1_PENAL
 #define _dumpNet_

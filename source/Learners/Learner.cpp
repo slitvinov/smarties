@@ -92,9 +92,9 @@ void Learner::run(Master* const master)
 
 		profiler->push_start("SRT");
 		Uint syncDataStats = 0;
-		if(opt->nepoch%100==0 || data->inds.size()<batchSize) { 
+		if(opt->nepoch%100==0 || data->inds.size()<batchSize) {
 			processStats(sumElapsed/countElapsed);// dump info about
-			syncDataStats = data->updateSamples(annealFac);//reset sampling
+			syncDataStats = data->updateSamples(0);//reset sampling annealFac
 			sumElapsed = 0; countElapsed=0;
 		}
 		#ifdef __CHECK_DIFF //check gradients with finite differences
@@ -104,7 +104,7 @@ void Learner::run(Master* const master)
 			MPI_Allreduce(MPI_IN_PLACE, &syncDataStats, 1,
 					MPI_UNSIGNED, MPI_SUM, mastersComm);
 		}
-		if(syncDataStats) data->update_samples_mean(annealFac);
+		if(syncDataStats) data->update_samples_mean(0); //annealFac
 
 		start = std::chrono::high_resolution_clock::now();
 

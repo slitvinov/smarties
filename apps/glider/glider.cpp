@@ -10,8 +10,8 @@
 #endif
 //#define __SMART_
 //#define __PRINT_
-#define TERM_REW_FAC 50
-#define HEIGHT_PENAL 50
+#define TERM_REW_FAC 100
+#define HEIGHT_PENAL 100
 #define RANDOM_START 1
 using namespace std;
 
@@ -36,12 +36,12 @@ struct Vec7
     Vec7(const double _u=0, const double _v=0, const double _w=0, const double _x=0,
       const double _y=0, const double _a=0, const double _T=0, const double _E=0)
     : u(_u), v(_v), w(_w), x(_x), y(_y), a(_a)
-	//, T(_T), E(_E) 
+	//, T(_T), E(_E)
 	{}
 
     Vec7(const Vec7& c) :
       u(c.u), v(c.v), w(c.w), x(c.x), y(c.y), a(c.a)
-	//, T(c.T), E(c.E) 
+	//, T(c.T), E(c.E)
 	{}
 
     Vec7 operator*(double s) const
@@ -115,8 +115,8 @@ struct Glider
     double Jerk, Torque, oldDistance, oldTorque, oldAngle, oldEnergySpent, time; //angular jerk
     int info;
     Vec7 _s;
-    Glider(): Jerk(0), Torque(0), oldDistance(0), oldTorque(0), oldAngle(0), 
-	 oldEnergySpent(0), time(0), info(1) {} 
+    Glider(): Jerk(0), Torque(0), oldDistance(0), oldTorque(0), oldAngle(0),
+	 oldEnergySpent(0), time(0), info(1) {}
 
     void reset()
     {
@@ -290,17 +290,18 @@ int main(int argc, const char * argv[])
                 if (max_torque || hit_bottom || wrong_xdir || way_too_far )
                 {
                     a.info = 2; //tell RL we are in terminal state
-		    const double ang = fmod(a._s.a,2*M_PI)<0 ? fmod(a._s.a,2*M_PI)+2*M_PI : fmod(a._s.a,2*M_PI);
+										const double tmpang = std::fmod(a._s.a,2*M_PI);
+										const double ang = tmpang<0 ? tmpang+2*M_PI : tmpang;
                     //these rewards will then be multiplied by 1/(1-gamma)
                     //in RL algorithm, so that internal RL scales make sense
-                    const double dist = a.getDistance(), rela = std::fabs(ang -.25*M_PI);
-		    const double xrew = dist>5 ? 0 : TERM_REW_FAC*std::exp(-std::pow(dist,2));
-		    const double arew = rela>.25*M_PI || dist>5 ? 0 : 
-						TERM_REW_FAC*std::exp(-std::pow(10*rela,2));
+                    const double dist = a.getDistance();
+										const double rela = std::fabs(ang -.25*M_PI);
+										const double xrew = dist>5 ? 0 : TERM_REW_FAC*std::exp(-std::pow(dist,2));
+										const double arew = rela>.25*M_PI || dist>5 ? 0 : TERM_REW_FAC*std::exp(-std::pow(10*rela,2));
                     double final_reward  = 10 + xrew + arew -a.getDistance();
 
-		               if(wrong_xdir || max_torque || way_too_far)
-			               final_reward = -200 -HEIGHT_PENAL*fabs(50+a._s.y);
+										if(wrong_xdir || max_torque || way_too_far)
+			               final_reward = -500 -HEIGHT_PENAL*fabs(50+a._s.y);
 
                     a.prepareState(state);
                     //printf("Sending term state %f %f %f %f\n",

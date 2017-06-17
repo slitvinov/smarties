@@ -13,7 +13,7 @@
 #include "Utils.h"
 using namespace std;
 #ifndef PRELU_FAC
-#define PRELU_FAC 0.1
+#define PRELU_FAC 0.01
 #endif
 
 struct Mem //Memory light recipient for prediction on agents

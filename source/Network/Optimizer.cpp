@@ -165,7 +165,7 @@ void Optimizer::update(Grads* const G, const Uint batchsize)
 
 void AdamOptimizer::update(Grads* const G, const Uint batchsize)
 {
-	const Real _eta = eta/(1.+(Real)nepoch/1e5);
+	const Real _eta = eta;///(1.+(Real)nepoch/1e5);
 
 	update(net->weights,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,_eta);
 	update(net->biases, G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);
@@ -212,7 +212,8 @@ void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
 		const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
 		const nnReal M2_ = std::max(M2, eps);
 		const nnReal _M2 = std::sqrt(M2_);
-		const nnReal M1_ = std::max(std::min(M1, _M2), -_M2); //grad clip -1:1
+		//const nnReal M1_ = std::max(std::min(M1, _M2), -_M2); //grad clip -1:1
+		const nnReal M1_ = M1;
 		_1stMom[i] = M1_;
 		_2ndMom[i] = M2_;
 		grad[i] = 0.; //reset grads
@@ -222,22 +223,25 @@ void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
 	}
 }
 #else // Adamax:
-void AdamOptimizer::update(Real* const dest, Real* const grad,
-		Real* const _1stMom, Real* const _2ndMom,
-		const Uint N, const Uint batchsize, const Real eta_)
+void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
+		nnReal*const _1stMom, nnReal*const _2ndMom,
+		const Uint N, const Uint batchsize, const Real _eta)
 {
 	assert(batchsize>0);
-	const Real eps = std::numeric_limits<Real>::epsilon();
-	const Real norm = 1./batchsize;
+	const nnReal eps = std::numeric_limits<Real>::epsilon();
+	const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
+	const nnReal norm = 1./batchsize;
+	const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2;
+
 #pragma omp parallel for
 	for (Uint i=0; i<N; i++) {
-		const Real DW  = grad[i]*norm;
-		const Real M1  = beta_1* _1stMom[i] +(1.-beta_1) *DW;
-		const Real M2  = std::max(beta_2*_2ndMom[i], std::fabs(DW));
-		const Real M2_ = std::max(M2,eps);
-		const Real M1_ = M1;
+		const nnReal DW  = grad[i]*norm;
+		const nnReal M1  = f11*_1stMom[i] +f12*DW;
+		const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
+		const nnReal M2_ = std::max(M2,eps);
+		const nnReal M1_ = M1;
 		//dest[i] += eta_*M1_/M2_;
-		dest[i] += eta_*((1-beta_1)*DW + beta_1*M1_)/M2_; //nesterov
+		dest[i] += eta_*(f12*DW + f11*M1_)/M2_; //nesterov
 		_1stMom[i] = M1_;
 		_2ndMom[i] = M2_;
 		grad[i] = 0.; //reset grads
