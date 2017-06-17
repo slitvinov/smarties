@@ -121,18 +121,6 @@ inline void statsGrad(vector<Real>& sum, vector<Real>& sqr, Real& cnt, vector<Re
   }
 }
 
-inline void clip_gradient(vector<Real>& grad, const vector<Real>& std)
-{
-	for (Uint i=0; i<grad.size(); i++)
-	{
-		if(grad[i] >  ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
-			grad[i] =  ACER_GRAD_CUT*std[i];
-		else
-		if(grad[i] < -ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
-			grad[i] = -ACER_GRAD_CUT*std[i];
-	}
-}
-
 /*
 inline void setVecMean(vector<Real>& vals)
 {

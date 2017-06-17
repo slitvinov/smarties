@@ -116,23 +116,17 @@ public:
 
 	inline void stop_start(string sAgentName)
 	{
-		if (m_mapStoppedAgents.size() > 0) {
-			getAgent(m_mapStoppedAgents.top()).stop();
-			m_mapStoppedAgents.pop();
-		}
-
-		m_mapStoppedAgents.push(sAgentName);
-		getAgent(sAgentName).start();
+		pop_stop();
+		push_start(sAgentName);
 	}
 
 	inline void pop_stop()
 	{
+		assert(m_mapStoppedAgents.size() > 0);
 		string sCurrentAgentName = m_mapStoppedAgents.top();
 		getAgent(sCurrentAgentName).stop();
 		m_mapStoppedAgents.pop();
-
 		//if (m_mapStoppedAgents.size() == 0) return;
-
 		//getAgent(m_mapStoppedAgents.top()).start();
 	}
 

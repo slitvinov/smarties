@@ -16,25 +16,21 @@
 #include <iomanip>
 #include <algorithm>
 #include <fstream>
-
+#define importanceSampling
 struct Tuple
 {
-	vector<Real> s;
-	vector<Real> a;
-	vector<Real> mu;
-	Real r;
-
-	Real SquaredError;
-	Tuple(): r(0), SquaredError(0) {}
+	vector<Real> s, a, mu;
+	Real r = 0, SquaredError = 0;
+	#ifdef importanceSampling
+		Real weight = 0;
+	#endif
 };
 
 struct Sequence
 {
-	Sequence() : ended(false), MSE(0.) {}
-
 	vector<Tuple*> tuples;
-	bool ended;
-	Real MSE;
+	bool ended = false;
+	Real MSE = 0;
 
 	~Sequence()
 	{
@@ -64,6 +60,7 @@ protected:
 	vector<Real> std, mean, invstd;
 	vector<Uint> curr_transition_id;
 	discrete_distribution<Uint> * dist;
+	vector<Uint> inds;
 
 	int add(const int agentId, const int info, const State & sOld,
 			const Action & a, const vector<Real>& mu, const State& s, Real r);
@@ -84,7 +81,6 @@ public:
 	std::vector<std::mt19937>& generators;
 	Gen * gen;
 	vector<Sequence*> Set, Tmp, Buffered;
-	vector<Uint> inds;
 
 	Transitions(MPI_Comm comm, Environment*const env, Settings & settings);
 
@@ -101,13 +97,13 @@ public:
 	void update_samples_mean(const Real alpha = 0.01);
 
 	vector<Real> standardize(const vector<Real>& state, const Real noise=-1, const Uint thrID=0) const;
-#ifdef _Priority_
+#ifdef importanceSampling
 	void updateP();
 #endif
 	void save(std::string fname);
 	void restart(std::string fname);
 	Uint updateSamples(const Real annealFac);
-	Uint sample();
+	Uint sample(const int thrID = 0);
 	void restartSamples();
 	void restartSamplesNew(const bool bContinuous);
 	void saveSamples();

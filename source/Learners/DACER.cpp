@@ -174,7 +174,7 @@ void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
 		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
 
 		//write gradient onto output layer:
-		clip_gradient(gradient, stdGrad[0]);
+		clip_gradient(gradient, stdGrad[0], seq, k);
 		net->setOutputDeltas(gradient, series_cur[k]);
 	}
 
