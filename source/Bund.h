@@ -46,7 +46,7 @@ using namespace std;
 //#define ACER_GRAD_CUT 10
 //#define importanceSampling
 
-//#define NET_L1_PENAL
+#define NET_L1_PENAL
 #define _dumpNet_
 
 typedef double Real;

@@ -109,7 +109,7 @@ protected:
 
 public:
 	AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings,
-			const Real B1 = 0.9, const Real B2 = 0.999);
+			const Real B1 = 0.8, const Real B2 = 0.999);
 
 	~AdamOptimizer()
 	{

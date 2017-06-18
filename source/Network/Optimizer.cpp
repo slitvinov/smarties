@@ -212,8 +212,8 @@ void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
 		const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
 		const nnReal M2_ = std::max(M2, eps);
 		const nnReal _M2 = std::sqrt(M2_);
-		//const nnReal M1_ = std::max(std::min(M1, _M2), -_M2); //grad clip -1:1
-		const nnReal M1_ = M1;
+		const nnReal M1_ = std::max(std::min(M1, _M2), -_M2); //grad clip -1:1
+		//const nnReal M1_ = M1;
 		_1stMom[i] = M1_;
 		_2ndMom[i] = M2_;
 		grad[i] = 0.; //reset grads
