@@ -71,12 +71,12 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 		const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
 		const Real c_hat = std::min((Real)1.,std::pow(rho_hat,1./nA));
 		const Real A_hat = adv_hat.computeAdvantage(act);
-		const Real lambda = 0.5;
-		//const Real lambda = 1.0;
+		//const Real lambda = 0.5;
+		const Real lambda = 1.0;
 		//prepare rolled Q with off policy corrections for next step:
 		Q_RET = c_hat*lambda*(Q_RET -A_hat -V_hat) +V_hat;
-		Q_OPC =       lambda*(Q_OPC -A_hat -V_hat) +V_hat;
-		//Q_OPC = Q_RET;
+		//Q_OPC =       lambda*(Q_OPC -A_hat -V_hat) +V_hat;
+		Q_OPC = Q_RET;
 	}
 
 	if(thrID==1)  profiler->stop_start("CMP");
@@ -105,12 +105,12 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
 		const Real actProbOnPolicy = pol_cur.evalLogProbability(act);
 		const Real polProbOnPolicy = pol_cur.evalLogProbability(pol);
-		//const Real actProbOnTarget = pol_hat.evalLogProbability(act);
+		const Real actProbOnTarget = pol_hat.evalLogProbability(act);
 		const Real actProbBehavior = Gaussian_policy::evalBehavior(act,_t->mu);
 		const Real polProbBehavior = Gaussian_policy::evalBehavior(pol,_t->mu);
 		const Real rho_cur = safeExp(actProbOnPolicy-actProbBehavior);
 		const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
-		//const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
+		const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
 		//const Real c_cur = std::min((Real)1.,std::pow(rho_cur,1./nA));
 		//const Real c_hat = std::min((Real)1.,std::pow(rho_hat,1./nA));
 		const Real varCritic = adv_pol.advantageVariance();
@@ -147,9 +147,10 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 		const vector<Real> trust_grad=
 			trust_region_update(policy_grad,gradDivKL,delta);
 		const Real Qer = (Q_RET -A_cur -V_cur);
+		const Real Ver = (Q_RET -A_cur -V_cur)*std::min(1.,rho_hat);
 
 		vector<Real> gradient(nOutputs,0);
-		gradient[net_indices[0]]= Qer;
+		gradient[net_indices[0]]= Qer + Ver;
 		adv_cur.grad(act, Qer, gradient);
 		pol_cur.finalize_grad(trust_grad, gradient);
 
