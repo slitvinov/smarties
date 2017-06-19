@@ -57,7 +57,7 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 
 	if(bTrain)
 	for(Uint i=0; i<nA; i++) {
-		beta_std[i] = max(0.2*anneal, greedyEps + beta_std[i]);
+		beta_std[i] = max(0.2*anneal+greedyEps, beta_std[i]);
 		//beta_mean[i] = (1-anneal*anneal)*beta_mean[i];
 	}
 
