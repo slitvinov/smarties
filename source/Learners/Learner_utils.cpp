@@ -321,10 +321,12 @@ void Learner_utils::dumpNetworkInfo(const int agentId)
 	for(Uint j=0; j<nOutputs; j++) out << output[j] << " ";
 	out << "\n";
 	//sensitivity of value for this action in this state wrt all previous inputs
-	for (Uint ii=0; ii<ndata; ii++) {
+	Uint start0 = ndata > MAX_UNROLL_BFORE ? ndata-MAX_UNROLL_BFORE-1 : 0;
+	for (Uint ii=start0; ii<ndata; ii++) {
+		Uint start1 = ii > MAX_UNROLL_BFORE ? ii-MAX_UNROLL_BFORE-1 : 0;
 		for (Uint i=0; i<nInputs; i++) {
 			vector<Activation*> series =net->allocateUnrolledActivations(ndata);
-			for (Uint k=0; k<ndata; k++) {
+			for (Uint k=start1; k<ndata; k++) {
 				vector<Real> state = data->Tmp[agentId]->tuples[k]->s;
 				if (k==ii) state[i] = 0;
 				net->predict(data->standardize(state), output, series, k);
