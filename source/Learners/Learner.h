@@ -35,13 +35,12 @@ class Learner
 protected:
 	const MPI_Comm mastersComm;
 	Environment * const env;
-	const Uint tgtUpdateDelay, nAgents, batchSize, nThreads, nAppended;
+	const Uint tgtUpdateDelay,nAgents,batchSize,nThreads,nAppended,maxTotSeqNum;
 	Uint nInputs, nOutputs;
-	bool bRecurrent, bStarted=false;
-	const bool bTrain;
+	const bool bRecurrent, bTrain, bSampleSequences;
 	const Real tgtUpdateAlpha, gamma, greedyEps, epsAnneal, obsPerStep;
 	unsigned long batchUsage = 0, dataUsage = 0;
-	Uint cntUpdateDelay = 0, taskCounter, epochCounter = 0;
+	Uint cntUpdateDelay = 0, taskCounter, epochCounter = 0, policyVecDim = 0;
 	unsigned long mastersNiter_b4PolUpdates = 0;
 	ActionInfo aInfo;
 	StateInfo  sInfo;
@@ -106,7 +105,7 @@ public:
 	virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;
 	void clearFailedSim(const int agentOne, const int agentEnd);
 	void pushBackEndedSim(const int agentOne, const int agentEnd);
-	virtual void dumpPolicy(const vector<Real> lower, const vector<Real>& upper, const vector<Uint>& nbins);
+	virtual void dumpPolicy() = 0;
 	bool checkBatch(unsigned long mastersNiter);
 	//void TrainBatch();
 	void run(Master* const master);

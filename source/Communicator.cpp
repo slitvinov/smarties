@@ -422,6 +422,7 @@ int Communicator::recvStateFromApp()
 
 void Communicator::sendActionToApp()
 {
+	//printf("I think im sending action %f\n",data_action[0]);
 	if(comm_learn_pool != MPI_COMM_NULL)
 		recv_MPI(data_action, size_action, comm_learn_pool, lag);
 	send_all(Socket, data_action, size_action);
@@ -430,6 +431,7 @@ void Communicator::sendActionToApp()
 void Communicator::answerTerminateReq(const double answer)
 {
 	data_action[0] = answer;
+ 	//printf("I think im givign the goahead %f\n",data_action[0]);
 	send_all(Socket, data_action, size_action);
 }
 

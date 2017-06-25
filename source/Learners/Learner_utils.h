@@ -32,8 +32,7 @@ public:
 		for (auto & trash : Vstats) _dispose_object(trash);
 	}
 
-	void dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-			const vector<Uint>& nbins) override;
+	void dumpPolicy() override;
 
 	void stackAndUpdateNNWeights(const Uint nAddedGradients) override;
 
@@ -65,15 +64,6 @@ public:
 
 	virtual void processStats(const Real avgTime) override;
 	virtual void processGrads();
-	inline vector<Real> pickState(const vector<vector<Real>>& bins, Uint k)
-  {
-		vector<Real> state(bins.size());
-		for (Uint i=0; i<bins.size(); i++) {
-			state[i] = bins[i][ k % bins[i].size() ];
-			k /= bins[i].size();
-		}
-		return state;
-  }
 
 	inline void clip_gradient(vector<Real>& grad, const vector<Real>& std,
 		const Uint seq, const Uint samp) const
@@ -85,10 +75,17 @@ public:
 			#endif
 			#ifdef ACER_GRAD_CUT
 				if(grad[i] >  ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
+				{
+					//printf("Cut\n");
 					grad[i] =  ACER_GRAD_CUT*std[i];
+				}
 				else
 				if(grad[i] < -ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
+				{
+					//printf("Cut\n");
 					grad[i] = -ACER_GRAD_CUT*std[i];
+				}
+				//else printf("Not cut\n");
 			#endif
 		}
 	}

@@ -13,28 +13,26 @@
 void Network::seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const
 {
 	assert(_input.size()==nInputs);
-	for (Uint j=0; j<nInputs; j++)
-		currActivation->outvals[iInp[j]] = _input[j];
+	for (Uint j=0; j<nInputs; j++) currActivation->outvals[iInp[j]] = _input[j];
 }
 
 void Network::seqPredict_execute(
 		const vector<Activation*>& series_1, vector<Activation*>& series_2,
 		const nnReal* const _weights, const nnReal* const _biases) const
 {
-	const Uint T = std::min(series_1.size(), series_2.size());
+	const Uint T = std::min(series_1.size(),series_2.size()+1)-1;
 	for (Uint j=0; j<nLayers; j++)
-		for (Uint t=0; t<T; t++)  {
-			Activation* const currActivation = series_2[t];
-			const Activation* const prevActivation = t ? series_1[t-1] : nullptr;
-			layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
-		}
+	for (Uint t=0; t<T; t++)  {
+		Activation* const currActivation = series_2[t];
+		const Activation* const prevActivation = t ? series_1[t-1] : nullptr;
+		layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
+	}
 }
 
-void Network::seqPredict_output(vector<Real>& _output, Activation* const currActivation) const
+void Network::seqPredict_output(vector<Real>& _out, Activation* const a) const
 {
-	assert(_output.size()==nOutputs);
-	for (Uint i=0; i<nOutputs; i++)
-		_output[i] = *(currActivation->outvals + iOut[i]);
+	assert(_out.size()==nOutputs);
+	for (Uint i=0; i<nOutputs; i++) _out[i] = a->outvals[iOut[i]];
 }
 
 void Network::predict(const vector<Real>& _input, vector<Real>& _output,
@@ -47,107 +45,77 @@ void Network::predict(const vector<Real>& _input, vector<Real>& _output,
 	Activation* const prevActivation = n_step==0 ? nullptr : timeSeries[n_step-1];
 
 	assert(_input.size()==nInputs);
-	for (Uint j=0; j<nInputs; j++)
-		currActivation->outvals[iInp[j]] = _input[j];
+	for(Uint j=0; j<nInputs; j++) currActivation->outvals[iInp[j]] = _input[j];
 
-	for (Uint j=0; j<nLayers; j++)
+	for(Uint j=0; j<nLayers; j++)
 		layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
 
 	assert(_output.size()==nOutputs);
-
-	for (Uint i=0; i<nOutputs; i++)
-		_output[i] = *(currActivation->outvals + iOut[i]);
+	for(Uint i=0; i<nOutputs; i++) _output[i] = currActivation->outvals[iOut[i]];
 }
 
 void Network::predict(const vector<Real>& _input, vector<Real>& _output,
-		Activation* const prevActivation, Activation* const currActivation,
-		const nnReal* const _weights, const nnReal* const _biases) const
+	const Activation* const prevActivation, Activation* const currActivation,
+	const nnReal* const _weights, const nnReal* const _biases) const
 {
 	assert(_input.size()==nInputs);
-	for (Uint j=0; j<nInputs; j++)
-		currActivation->outvals[iInp[j]] = _input[j];
+	for(Uint j=0; j<nInputs; j++) currActivation->outvals[iInp[j]] = _input[j];
 
-	for (Uint j=0; j<nLayers; j++)
+	for(Uint j=0; j<nLayers; j++)
 		layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
 
 	assert(_output.size()==nOutputs);
-
-	for (Uint i=0; i<nOutputs; i++)
-		_output[i] = *(currActivation->outvals + iOut[i]);
+	for(Uint i=0; i<nOutputs; i++) _output[i] = currActivation->outvals[iOut[i]];
 }
 
 void Network::predict(const vector<Real>& _input, vector<Real>& _output,
-		Activation* const net, const nnReal* const _weights, const nnReal* const _biases) const
+	Activation*const net, const nnReal*const _ws, const nnReal*const _bs) const
 {
 	assert(_input.size()==nInputs);
-	for (Uint j=0; j<nInputs; j++)
-		net->outvals[iInp[j]] = _input[j];
+	for (Uint j=0; j<nInputs; j++) net->outvals[iInp[j]] = _input[j];
 
-	for (Uint j=0; j<nLayers; j++)
-		layers[j]->propagate(net,_weights,_biases);
+	for (Uint j=0; j<nLayers; j++) layers[j]->propagate(net, _ws, _bs);
 
 	assert(_output.size()==nOutputs);
-
-	for (Uint i=0; i<nOutputs; i++)
-		_output[i] = net->outvals[iOut[i]];
+	for (Uint i=0; i<nOutputs; i++) _output[i] = net->outvals[iOut[i]];
 }
 
-void Network::backProp(vector<Activation*>& timeSeries, const nnReal* const _weights,
-		const nnReal* const _biases, Grads* const _grads) const
+void Network::backProp(vector<Activation*>&S, const nnReal*const _ws,
+	const nnReal*const _bs, Grads*const _gs) const
 {
-	assert(timeSeries.size()>0);
-	const Uint last = timeSeries.size()-1;
+	//cache friendly backprop: backprops from terminal layers to first layers
+	//and from last time step to first, with layer being the 'slow index'
+	//maximises reuse of weights in cache by getting each layer done in turn
+	//but a layer cannot have recur connection to upper layer... would be weird
+	assert(S.size()>0);
+	const Uint last = S.size()-1;
 
-	if (last == 0) { //just one activation
+	if (last == 0)  //just one activation
 		for (Uint i=1; i<=nLayers; i++)
-			layers[nLayers-i]->backPropagate((Activation*)nullptr,timeSeries[last],
-					(Activation*)nullptr, _grads, _weights, _biases);
-	} else if (last == 1) {
+			layers[nLayers-i]->backPropagate(nullptr, S[0], nullptr, _gs, _ws, _bs);
+	else
+	{
 		for (Uint i=1; i<=nLayers; i++)
-			layers[nLayers-i]->backPropagate(timeSeries[0],timeSeries[1],
-					(Activation*)nullptr, _grads, _weights, _biases);
-		for (Uint i=1; i<=nLayers; i++)
-			layers[nLayers-i]->backPropagate((Activation*)nullptr,timeSeries[0],
-					timeSeries[1], _grads, _weights, _biases);
-	} else {
-		for (Uint i=1; i<=nLayers; i++)
-			layers[nLayers-i]->backPropagate(timeSeries[last-1],timeSeries[last],
-					(Activation*)nullptr, _grads, _weights, _biases);
+		{
+			layers[nLayers-i]->backPropagate(S[last-1],S[last],nullptr,_gs,_ws,_bs);
 
-		for (Uint k=last-1; k>=1; k--)
-			for (Uint i=1; i<=nLayers; i++)
-				layers[nLayers-i]->backPropagate(timeSeries[k-1],timeSeries[k],timeSeries[k+1],
-						_grads, _weights, _biases);
+			for (Uint k=last-1; k>=1; k--)
+			layers[nLayers-i]->backPropagate(S[k-1], S[k], S[k+1], _gs, _ws, _bs);
 
-		for (Uint i=1; i<=nLayers; i++) {
-			layers[nLayers-i]->backPropagate((Activation*)nullptr, timeSeries[0],
-					timeSeries[1], _grads, _weights, _biases);
+			layers[nLayers-i]->backPropagate(nullptr, S[0], S[1], _gs, _ws, _bs);
 		}
 	}
 }
 
 void Network::backProp(const vector<Real>& _errors, Activation* const net,
-	const nnReal* const _weights, const nnReal* const _biases, Grads* const _grads) const
+	const nnReal*const _weights,const nnReal*const _bias,Grads*const _grad) const
 {
 	net->clearErrors();
 	assert(_errors.size()==nOutputs);
-	for (Uint i=0; i<nOutputs; i++)
-		net->errvals[iOut[i]] = _errors[i];
+	for (Uint i=0; i<nOutputs; i++) net->errvals[iOut[i]] = _errors[i];
 
 	for (Uint i=1; i<=nLayers; i++)
-		layers[nLayers-i]->backPropagate(net, _grads, _weights, _biases);
-}
-
-void Network::clearErrors(vector<Activation*>& timeSeries) const
-{
-	for (Uint k=0; k<timeSeries.size(); k++) timeSeries[k]->clearErrors();
-}
-
-void Network::setOutputDeltas(const vector<Real>& _errors, Activation* const net) const
-{
-	assert(_errors.size()==nOutputs);
-	for (Uint i=0; i<nOutputs; i++)
-		net->errvals[iOut[i]] = _errors[i];
+		layers[nLayers-i]->backPropagate(net, _grad, _weights, _bias);
 }
 
 void Network::updateFrozenWeights()
@@ -164,38 +132,14 @@ void Network::updateFrozenWeights()
 	}
 }
 
-Activation* Network::allocateActivation() const
-{
-	return new Activation(nNeurons,nStates);
-}
-
-vector<Activation*> Network::allocateUnrolledActivations(Uint length) const
-{
-	vector<Activation*> ret(length);
-	for (Uint j=0; j<length; j++)
-		ret[j] = new Activation(nNeurons,nStates);
-	return ret;
-}
-
-void Network::deallocateUnrolledActivations(vector<Activation*>* const ret) const
-{
-	for (auto & trash : *ret) _dispose_object(trash);
-}
-
-void Network::appendUnrolledActivations(vector<Activation*>* const ret, Uint length) const
-{
-	for (Uint j=0; j<=length; j++)
-		ret->push_back(new Activation(nNeurons,nStates));
-}
-
 Network::Network(Builder* const B, Settings & settings) :
-		nAgents(B->nAgents),   nThreads(B->nThreads), nInputs(B->nInputs),
-		nOutputs(B->nOutputs), nLayers(B->nLayers),   nNeurons(B->nNeurons),
-		nWeights(B->nWeights), nBiases(B->nBiases),   nStates(B->nStates),
-		bDump(not settings.bTrain), layers(B->layers), links(B->links),
-		weights(B->weights), biases(B->biases), tgt_weights(B->tgt_weights),
-		tgt_biases(B->tgt_biases), grad(B->grad), Vgrad(B->Vgrad), mem(B->mem),
-		generators(settings.generators), iOut(B->iOut), iInp(B->iInp)
+	nAgents(B->nAgents),   nThreads(B->nThreads), nInputs(B->nInputs),
+	nOutputs(B->nOutputs), nLayers(B->nLayers),   nNeurons(B->nNeurons),
+	nWeights(B->nWeights), nBiases(B->nBiases),   nStates(B->nStates),
+	bDump(not settings.bTrain), layers(B->layers), links(B->links),
+	weights(B->weights), biases(B->biases), tgt_weights(B->tgt_weights),
+	tgt_biases(B->tgt_biases), grad(B->grad), Vgrad(B->Vgrad), mem(B->mem),
+	generators(settings.generators), iOut(B->iOut), iInp(B->iInp)
 {
 	dump_ID.resize(nAgents);
 	updateFrozenWeights();
@@ -210,10 +154,8 @@ void Network::checkGrads()
 	Grads * testg = new Grads(nWeights,nBiases);
 	Grads * check = new Grads(nWeights,nBiases);
 	Grads * error = new Grads(nWeights,nBiases);
-	for (Uint j=0; j<nWeights; j++) check->_W[j] = 0;
-	for (Uint j=0; j<nBiases; j++)  check->_B[j] = 0;
-	for (Uint j=0; j<nWeights; j++) error->_W[j] = 0;
-	for (Uint j=0; j<nBiases; j++)  error->_B[j] = 0;
+	for (Uint j=0; j<nWeights; j++) {check->_W[j] = 0; error->_W[j] = 0;}
+	for (Uint j=0; j<nBiases; j++)  {check->_B[j] = 0; error->_B[j] = 0;}
 	vector<Activation*> timeSeries = allocateUnrolledActivations(seq_len);
 
 	//TODO: check with #pragma omp parallel for collapse(2): add a critical/atomic region and give each thread a copy of weights for finite diff
@@ -304,10 +246,9 @@ void Network::checkGrads()
 
 	long double sum1 = 0, sumsq1 = 0, sum2 = 0, sumsq2 = 0, sum3 = 0, sumsq3 = 0;
 	for (Uint w=0; w<nWeights; w++) {
-		if (check->_W[w]>tol && testg->_W[w] > 2.2e-16) {
-			cout <<"W"<<w<<" relative error:"<<check->_W[w]
-						<<" analytical:"<<testg->_W[w]<<endl;
-		}
+		if (check->_W[w]>tol && testg->_W[w] > 2.2e-16)
+		cout<<"W"<<w<<" rel err:"<<check->_W[w]<<" analytical:"<<testg->_W[w]<<endl;
+
 		sum1   += fabs(testg->_W[w]);
 		sum2   += fabs(check->_W[w]);
 		sum3   += fabs(error->_W[w]);
@@ -317,10 +258,9 @@ void Network::checkGrads()
 	}
 
 	for (Uint w=0; w<nBiases; w++) {
-		if (check->_B[w]>tol && testg->_B[w] > 2.2e-16) {
-			cout <<"B"<<w<<" relative error:"<<check->_B[w]
-						<<" analytical:"<<testg->_B[w]<<endl;
-		}
+		if (check->_B[w]>tol && testg->_B[w] > 2.2e-16)
+		cout<<"B"<<w<<" rel err:"<<check->_B[w]<<" analytical:"<<testg->_B[w]<<endl;
+
 		sum1   += fabs(testg->_B[w]);
 		sum2   += fabs(check->_B[w]);
 		sum3   += fabs(error->_B[w]);
@@ -329,14 +269,11 @@ void Network::checkGrads()
 		sumsq3 += error->_B[w]*error->_B[w];
 	}
 	const long double NW = nWeights + nBiases;
-	const long double mean1 = sum1/NW;
-	const long double mean2 = sum2/NW;
-	const long double mean3 = sum3/NW;
 	const long double std1 = sqrt((sumsq1 - sum1*sum1/NW)/NW);
 	const long double std2 = sqrt((sumsq2 - sum2*sum2/NW)/NW);
 	const long double std3 = sqrt((sumsq3 - sum3*sum3/NW)/NW);
-	printf("Mean rel err:%Le (std:%Le). Mean abs err:%Le (std:%Le). Mean abs grad:%Le (std:%Le).\n",
-			mean2, std2, mean3, std3, mean1, std1);
+	const long double mean1 = sum1/NW, mean2 = sum2/NW, mean3 = sum3/NW;
+	printf("Mean rel err:%Le (std:%Le). Mean abs err:%Le (std:%Le). Mean abs grad:%Le (std:%Le).\n", mean2, std2, mean3, std3, mean1, std1);
 	_dispose_object(testg);
 	_dispose_object(check);
 	_dispose_object(error);
@@ -349,12 +286,12 @@ void Network::dump(const int agentID)
 	if (not bDump) return;
 	char buf[500];
 	sprintf(buf, "%07u", (Uint)dump_ID[agentID]);
-	string nameNeurons  = "neuronOuts_" + to_string(agentID) + "_" + string(buf) + ".dat";
-	string nameMemories = "cellStates_" + to_string(agentID) + "_" + string(buf) + ".dat";
-	string nameOut_Mems = "out_states_" + to_string(agentID) + "_" + string(buf) + ".dat";
+	string nameNeurons  = "neuronOuts_"+to_string(agentID)+"_"+string(buf)+".dat";
+	string nameMemories = "cellStates_"+to_string(agentID)+"_"+string(buf)+".dat";
+	string nameOut_Mems = "out_states_"+to_string(agentID)+"_"+string(buf)+".dat";
 	{
 		ofstream out(nameOut_Mems.c_str());
-		if (!out.good()) _die("Unable to open save into file %s\n", nameOut_Mems.c_str());
+		if(!out.good()) _die("Unable to save into file %s\n", nameOut_Mems.c_str());
 		for (Uint j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << " ";
 		for (Uint j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << " ";
 		out << "\n";
@@ -362,14 +299,14 @@ void Network::dump(const int agentID)
 	}
 	{
 		ofstream out(nameNeurons.c_str());
-		if (!out.good()) _die("Unable to open save into file %s\n", nameNeurons.c_str());
+		if(!out.good()) _die("Unable to save into file %s\n", nameNeurons.c_str());
 		for (Uint j=0; j<nNeurons; j++) out << *(mem[agentID]->outvals +j) << " ";
 		out << "\n";
 		out.close();
 	}
 	{
 		ofstream out(nameMemories.c_str());
-		if (!out.good()) _die("Unable to open save into file %s\n", nameMemories.c_str());
+		if(!out.good()) _die("Unable to save into file %s\n", nameMemories.c_str());
 		for (Uint j=0; j<nStates;  j++) out << *(mem[agentID]->ostates +j) << " ";
 		out << "\n";
 		out.close();

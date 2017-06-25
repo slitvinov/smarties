@@ -54,6 +54,34 @@ public:
 		for(Uint j=0; j<nInputs; j++) ret[j]= act->errvals[iInp[j]];
 		return ret;
 	}
+	inline void appendUnrolledActivations(vector<Activation*>* const ret, const Uint length) const
+	{
+		for(Uint j=0; j<=length; j++)
+			ret->push_back(new Activation(nNeurons,nStates));
+	}
+	inline Activation* allocateActivation() const
+	{
+		return new Activation(nNeurons,nStates);
+	}
+	inline vector<Activation*> allocateUnrolledActivations(Uint length) const
+	{
+		vector<Activation*> ret(length);
+		for (Uint j=0; j<length; j++) ret[j] = new Activation(nNeurons,nStates);
+		return ret;
+	}
+	inline void deallocateUnrolledActivations(vector<Activation*>*const ret) const
+	{
+		for (auto & trash : *ret) _dispose_object(trash);
+	}
+	inline void clearErrors(vector<Activation*>& timeSeries) const
+	{
+		for (Uint k=0; k<timeSeries.size(); k++) timeSeries[k]->clearErrors();
+	}
+	inline void setOutputDeltas(const vector<Real>&_err, Activation*const a) const
+	{
+		assert(_err.size()==nOutputs);
+		for (Uint i=0; i<nOutputs; i++) a->errvals[iOut[i]] = _err[i];
+	}
 
 	Network(Builder* const B, Settings & settings) ;
 
@@ -70,16 +98,6 @@ public:
 	}
 
 	void updateFrozenWeights();
-	void moveFrozenWeights(const Real alpha);
-	void loadMemory(Mem * _M, Activation * _N) const;
-	void clearErrors(vector<Activation*>& timeSeries) const;
-	void setOutputDeltas(const vector<Real>& _errors, Activation* const _N) const;
-
-	Activation* allocateActivation() const;
-	vector<Activation*> allocateUnrolledActivations(Uint length) const;
-	void deallocateUnrolledActivations(vector<Activation*>* const ret) const;
-	void appendUnrolledActivations(vector<Activation*>* const ret,
-			Uint length=1) const;
 
 	void seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const;
 	void seqPredict_output(vector<Real>&_output, Activation* const currActivation) const;
@@ -100,10 +118,10 @@ public:
 	}
 
 	void predict(const vector<Real>& _input, vector<Real>& _output,
-			Activation* const prevActivation, Activation* const currActivation,
-			const nnReal* const _weights, const nnReal* const _biases) const;
+		const Activation* const prevActivation, Activation* const currActivation,
+		const nnReal* const _weights, const nnReal* const _biases) const;
 	void predict(const vector<Real>& _input, vector<Real>& _output,
-			Activation* const prevActivation, Activation* const currActivation) const
+		const Activation*const prevActivation,Activation*const currActivation) const
 	{
 		predict(_input, _output, prevActivation, currActivation,
 				weights, biases);

@@ -27,7 +27,7 @@ using namespace std;
 #ifdef ACER_BOUNDED
 //FOR CONTINUOUS ACTIONS RACER:
 #define ACER_MAX_PREC 400.
-#define ACER_MIN_PREC 1./ACER_MAX_ACT/ACER_MAX_ACT
+#define ACER_MIN_PREC 4./ACER_MAX_ACT/ACER_MAX_ACT
 #define ACER_MAX_ACT 10.
 #define ACER_TOL_REW 0.01
 #define ACER_TOL_DIAG sqrt(ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT)
@@ -39,15 +39,15 @@ using namespace std;
 #define ACER_MIN_PROB 0
 #endif
 
-//#define MAX_UNROLL_AFTER 1000
-#define MAX_UNROLL_AFTER 20
+#define MAX_UNROLL_AFTER 1000
+//#define MAX_UNROLL_AFTER 20
 #define MAX_UNROLL_BFORE 20
 #define ACER_CONST_PREC 50
 //#define ACER_GRAD_CUT 10
 //#define importanceSampling
 
 #define NET_L1_PENAL
-#define _dumpNet_
+//#define _dumpNet_
 
 typedef double Real;
 typedef unsigned Uint;

@@ -13,11 +13,11 @@
 #include <parallel/algorithm>
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
-	mastersComm(comm), env(_env), bSampleSeq(_s.bRecurrent), bTrain(_s.bTrain),
+	mastersComm(comm),env(_env),bSampleSeq(_s.bSampleSequences),bTrain(_s.bTrain),
 	bWriteToFile(!(_s.samplesFile=="none")), bNormalize(_s.bNormalize),
-	path(_s.samplesFile), nAppended(_s.appendedObs), batchSize(_s.batchSize),
-	maxSeqLen(_s.maxSeqLen),minSeqLen(_s.minSeqLen),maxTotSeqNum(_s.maxTotSeqNum),
-	bRecurrent(_s.bRecurrent),sI(_env->sI),aI(_env->aI), generators(_s.generators)
+	nAppended(_s.appendedObs),batchSize(_s.batchSize),maxSeqLen(_s.maxSeqLen),
+	minSeqLen(_s.minSeqLen),maxTotSeqNum(_s.maxTotSeqNum),path(_s.samplesFile),
+	sI(_env->sI),aI(_env->aI),generators(_s.generators)
 {
 	mean.resize(sI.dimUsed, 0);
 	std.resize(sI.dimUsed, 1);
@@ -43,219 +43,138 @@ Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
 	Set.reserve(maxTotSeqNum);
 }
 
-void Transitions::restartSamplesNew(const bool bContinuous)
+Uint Transitions::restartSamples(const Uint polDim)
 {
-	/*
-      This guy only reads using env state and action info
-      If states need to be packed, this is performed by add
-	 */
-	printf("About to read from %s...\n",path.c_str());
-	int agentId=0, maxAgentID=0;
-	const Uint nBeta = bContinuous ? 2*aI.dim : aI.dim;
-	while(true)
-	{
-		int Ndata=0, thisId=0, oldSampID=-1, oldInfo=2, info=2, sampID=-1;
-		vector<Real> vecSold(sI.dim), vecSnew(sI.dim);
-		vector<Real> vecAct(aI.dim), policy(nBeta), empty_policy(0);
-		State oldState(sI), newState(sI);
-		Action action(aI, gen->g);
-		Real reward = 0;
+	vector<State> oldState(curr_transition_id.size(), sI);
+	State newState(sI); Action action(aI, &generators[0]);
+	const Uint sDim=sI.dim, aDim=aI.dim, writesize = 3+sI.dim+aI.dim+polDim;
+	int agentID = 0, info = 0, sampID = 0;
+	vector<Real> policy(polDim);
+	Real reward = 0;
 
-		ifstream in(path.c_str());
-		std::string line;
-		if(in.good())
+	std::ifstream in(path.c_str());
+	std::string line;
+
+	if(in.good())
+	{
+		while (getline(in, line))
 		{
-			while (getline(in, line))
-			{
-				istringstream line_in(line);
-				line_in >> thisId;
-				maxAgentID = std::max(thisId, maxAgentID);
-				if (thisId==agentId)
-				{
-					Ndata++;
-					oldInfo = info;
-					oldSampID = sampID;
-					line_in >> info >> sampID;
+			std::istringstream line_in(line);
+			line_in >> agentID >> info >> sampID;
+			if(oldState.size() <= static_cast<Uint>(agentID))
+				 oldState.resize(1+agentID, sI);
+			if(curr_transition_id.size() <= static_cast<Uint>(agentID))
+				 curr_transition_id.resize(1+agentID,0);
+			assert(agentID>=0);
+			if((sampID==0) != (info==1))
+				die("Mismatch in transition counter\n");
+			if(static_cast<Uint>(sampID)!=curr_transition_id[agentID]+1 && info!=1)
+				die("Mismatch in transition change\n");
+			curr_transition_id[agentID] = sampID;
 
-					if((sampID==0) != (info==1))
-						die("Mismatch in transition counter\n");
-					if(sampID != oldSampID+1) {
-						if(info!=1) die("Mismatch in transition change\n");
-						if(oldInfo!=2) nBroken++;
-					}
-					if (info == 1) vecSold = vector<Real>(sI.dim);
-					else vecSold = vecSnew;
+			for(Uint i=0; i<sDim;   i++) line_in >> newState.vals[i];
+			for(Uint i=0; i<aDim;   i++) line_in >> action.vals[i];
+			line_in >> reward;
+			for(Uint i=0; i<polDim; i++) line_in >> policy[i];
 
-					for(Uint i=0; i<sI.dim; i++) line_in >> vecSnew[i];
-					for(Uint i=0; i<aI.dim; i++) line_in >> vecAct[i];
-					line_in >> reward;
-
-					if(info!=2)
-						for(Uint i=0; i<nBeta; i++) line_in >> policy[i];
-
-					oldState.set(vecSold);
-					newState.set(vecSnew);
-					action.set(vecAct);
-
-					if(info==2)
-						add(0, info, oldState, action, empty_policy, newState, reward);
-					else
-						add(0, info, oldState, action, policy, newState, reward);
-				}
-			}
-
-			if (Tmp[0]->tuples.size()!=0) push_back(0);
-			if (Ndata==0 && agentId>maxAgentID) break;
-			agentId++;
-		} else {
-			printf("WTF couldnt open file history.txt!\n");
-			break;
+			add(agentID, info, oldState[agentID], action, policy, newState, reward);
+			if (info == 2) oldState[agentID].vals = vector<Real>(sDim, 0);
+			else oldState[agentID].vals = newState.vals;
 		}
 		in.close();
+		//_die("Job done %lu\n",Tmp.size());
 	}
-
-	printf("Found %d broken chains out of %d / %d.\n",
-			nBroken, nSequences, nTransitions);
-}
-
-void Transitions::restartSamples()
-{
-	/*
-     This guy only reads using env state and action info
-     If states need to be packed, this is performed by add
-	 */
-	State t_sO(sI), t_sN(sI);
-	vector<Real> d_sO(sI.dim), d_sN(sI.dim);
-	Action t_a(aI, gen->g);
-	vector<Real> d_a(aI.dim);
-	Real reward(0);
-	int thisId(-1), agentId(0), Ndata(0), info(0);
-	printf("About to read from %s...\n",path.c_str());
-	while(true) {
-		Ndata=0;
-		std::ifstream in(path.c_str());
-		std::string line;
-		if(in.good()) {
-			while (getline(in, line))  {
-				std::istringstream line_in(line);
-				if(agentId==0 && thisId==-1) {
-					std::istringstream testline(line);
-					Uint len = std::distance(
-							std::istream_iterator<std::string>(testline),
-							std::istream_iterator<std::string>()
-							);
-					if(len != 2 + sI.dim*2 + aI.dim + 1) {
-
-						//if(len != (3+sI.dim+aI.dim*3+1) &&  //continuous
-								//   len != (3+sI.dim+aI.dim*2+1))    //discrete
-										//  die("Wrong history file\n");
-
-						printf("Reading data from stochastic policy\n");
-						in.close();
-						return restartSamplesNew(len != (3+sI.dim+aI.dim*2+1));
-					}
-				}
-
-				line_in >> thisId;
-				if (thisId==agentId) {
-					Ndata++;
-					line_in >> info;
-					for(Uint i=0; i<sI.dim; i++) line_in >> d_sO[i];
-					for(Uint i=0; i<sI.dim; i++) line_in >> d_sN[i];
-					for(Uint i=0; i<aI.dim; i++) line_in >> d_a[i];
-					line_in >> reward;
-
-					t_sO.set(d_sO);
-					t_sN.set(d_sN);
-					t_a.set(d_a);
-					add(0, info, t_sO, t_a, t_sN, reward);
-				}
-			}
-			if (Ndata==0 && agentId>1) break;
-			agentId++;
-		} else {
-			printf("WTF couldnt open file history.txt!\n");
-			break;
-		}
-		in.close();
-	}
-
-	printf("Found %d broken chains out of %d / %d.\n",
-			nBroken, nSequences, nTransitions);
-}
-
-/*
-void Transitions::saveSamples()
-{
-    ofstream fout;
-    fout.open("obs_clean.dat",ios::app);
-    for(int i=0; i<Set.size(); i++)
-    for(int j=1; j<Set[i].s.size(); j++)
-    {
-        if (Set[i].s[j-1].size() != Set[i].s[j].size()) {
-        die("How did you manage THAT?\n");}
-
-        fout << to_string(0) <<" "<< to_string(j==1) <<" ";
-        for(int k=0; k<Set[i].s[j].size(); k++)
-            fout<<Set[i].s[j-1][k]<<" ";
-        for(int k=0; k<Set[i].s[j].size(); k++)
-            fout<<Set[i].s[j][k]<<" ";
-        fout<<Set[i].a[j]<<" ";
-        fout<<Set[i].r[j];
-        fout<<endl;
-    }
-    fout.close();
-}*/
-
-int Transitions::passData(const int agentId, const int info, const State& sOld,
-		const Action & a, const State & sNew, const Real reward)
-{
-	ofstream fout;
+	else
 	{
-		const std::string fname = "obs_agent_"+std::to_string(agentId)+".dat";
-		fout.open(fname.c_str(),ios::app); //safety
-		fout << agentId<<" "<<info<<" "<<sOld._print().c_str()<<" "<<
-				sNew._print().c_str()<<" "<<a._print().c_str()<<" "<<reward;
-		fout << endl;
-		fout.close();
-	}
+		while (true)
+		{
+			const std::string fname = "obs_agent_"+std::to_string(agentID)+".raw";
+			FILE*pFile = fopen(fname.c_str(), "rb");
+			if(pFile == NULL) {
+				printf("Couldnt open file %s.\n", fname.c_str());
+				//_die("Job done %lu\n",Tmp.size());
+				break;
+			}
+			if(oldState.size() <= static_cast<Uint>(agentID))
+				 oldState.resize(1+agentID, sI);
+			if(curr_transition_id.size() <= static_cast<Uint>(agentID))
+				 curr_transition_id.resize(1+agentID,0);
 
-	if (bWriteToFile) {
-		fout.open("history.txt",ios::app);
-		fout << agentId<<" "<<info<<" "<<sOld._print().c_str()<<" "<<
-				sNew._print().c_str()<<" "<<a._print().c_str()<<" "<<reward;
-		fout << endl;
-		fout.flush();
-		fout.close();
-	}
+			float* buf = (float*) malloc(writesize*sizeof(float));
 
-	return add(agentId, info, sOld, a, sNew, reward);
+			while(true)
+			{
+				size_t ret = fread(buf,sizeof(float),writesize,pFile);
+				if (ret == 0) break;
+				if (ret != writesize) _die("Error reading datafile %s",fname.c_str());
+				int* ibuf = (int*) buf;
+				info = ibuf[0]; sampID = ibuf[1];
+
+				if((sampID==0) != (info==1))
+					die("Mismatch in transition counter\n");
+				if(static_cast<Uint>(sampID)!=curr_transition_id[agentID]+1 && info!=1)
+					die("Mismatch in transition change\n");
+				curr_transition_id[agentID] = sampID;
+
+				Uint k = 2;
+				for(Uint i=0; i<sDim;   i++) newState.vals[i] = buf[k++];
+				for(Uint i=0; i<aDim;   i++) action.vals[i] = buf[k++];
+				reward = buf[k++];
+				for(Uint i=0; i<polDim; i++) policy[i] = buf[k++];
+				assert(k == writesize);
+				add(agentID, info, oldState[agentID], action, policy, newState, reward);
+				if (info == 2) oldState[agentID].vals = vector<Real>(sDim, 0);
+				else oldState[agentID].vals = newState.vals;
+			}
+			fclose(pFile);
+			free(buf);
+			agentID++;
+		}
+	}
+	if(agentID==0)  {
+		printf("Couldn't restart transition data.\n");
+		return 1;
+	}
+	printf("Found %d broken chains out of %d / %d.\n",
+			nBroken, nSequences, nTransitions);
+
+	return 0;
 }
 
 int Transitions::passData(const int agentId, const int info, const State& sOld,
-		const Action& a, const vector<Real>& mu, const State& s, const Real reward)
+	const Action&aNew, const State&sNew, const Real rew, const vector<Real> muNew)
 {
-	assert(agentId<static_cast<int>(curr_transition_id.size()));
-	const int ret = add(agentId, info, sOld, a, mu, s, reward);
+	assert(agentId<static_cast<int>(curr_transition_id.size()) && agentId>=0);
+	const int ret = add(agentId, info, sOld, aNew, muNew, sNew, rew);
 	if (ret) curr_transition_id[agentId] = 0;
 
-	ofstream fout;
+	{
+		const std::string fname = "obs_agent_"+std::to_string(agentId)+".raw";
+		FILE * pFile = fopen (fname.c_str(), "ab");
+		const Uint writesize = (3 + sI.dim + aI.dim + muNew.size())*sizeof(float);
+		float* buf = (float*) malloc(writesize);
+    memset(buf, 0, writesize);
+		int* ibuf = (int*) buf;
+		ibuf[0]=info; ibuf[1]=(int)curr_transition_id[agentId];
+		Uint k=2;
+		for (Uint i=0; i<sI.dim;       i++) buf[k++] = (float) sNew.vals[i];
+		for (Uint i=0; i<aI.dim;       i++) buf[k++] = (float) aNew.vals[i];
+		buf[k++] = rew;
+		for (Uint i=0; i<muNew.size(); i++) buf[k++] = (float) muNew[i];
+		assert(k*sizeof(float) == writesize);
+		fwrite (buf, sizeof(float), writesize/sizeof(float), pFile);
+		fflush(pFile);
+		fclose(pFile);
+		free(buf);
+	}
 
 	if (bWriteToFile)
 	{
-		fout.open("history.txt",ios::app); //safety
-		fout << agentId<<" "<<info<<" "<<curr_transition_id[agentId]<<" "<<
-				s._print().c_str()<<" "<<a._print().c_str()<<" "<<reward<<" "<<print(mu);
-		fout << endl;
-		fout.flush();
-		fout.close();
-	}
-	{
-		const std::string fname = "obs_agent_"+std::to_string(agentId)+".dat";
-		fout.open(fname.c_str(),ios::app); //safety
-		fout<<agentId<<" "<<info<<" "<<curr_transition_id[agentId]<<" "<<
-				s._print().c_str()<<" "<<a._print().c_str()<<" "<<reward<<" "<<print(mu);
-		fout << endl;
+		ofstream fout;
+		fout.open("history.txt",ios::app);
+		fout<<agentId<<" "<<info<<" "<<curr_transition_id[agentId]
+			<<" "<<sNew._print().c_str()<<" "<<aNew._print().c_str()
+			<<" "<<rew<<" "<<print(muNew)<<endl;
 		fout.flush();
 		fout.close();
 	}
@@ -264,28 +183,55 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
 	return ret;
 }
 
-int Transitions::add(const int agentId, const int info, const State & sOld,
-		const Action& aNew, const vector<Real>& mu, const State& sNew, Real rNew)
+int Transitions::add(const int agentId, const int info, const State& sOld,
+		const Action& aNew, const vector<Real> muNew, const State& sNew, Real rNew)
 {
 	//return value is 1 if the agent states buffer is empty or on initial state
 	int ret = 0;
+	while(static_cast<Uint>(agentId)>=Tmp.size()) Tmp.push_back(new Sequence());
+
 	const Uint sApp = nAppended*sI.dimUsed;
 	if (Tmp[agentId]->tuples.size()!=0 && info == 1) {
+		printf("Detected partial sequence\n");
 		push_back(agentId); //create new sequence
 		ret = 1;
 	} else if(Tmp[agentId]->tuples.size()==0) {
-		assert(info == 1);
+		if(info!=1) die("Missing initial state\n");
 		ret = 1; //new Sequence
+	}
+	/*
+		if(Tmp[agentId]->tuples.size()!=0) {
+			const Tuple*const last = Tmp[agentId]->tuples.back();
+			printf("Continue %d[%s]=[%s][%s][%s],%g\n",agentId,sOld._print().c_str(),
+			print(last->s).c_str(),aNew._print().c_str(),sNew._print().c_str(),rNew);
+		}
+		else
+			printf("Start chain %d[%s][%s][%s],%g\n",agentId, sOld._print().c_str(),
+			aNew._print().c_str(),sNew._print().c_str(),rNew);
+	*/
+	if(Tmp[agentId]->tuples.size()!=0) {
+		bool same = true;
+		const vector<Real> vecSold = sOld.copy_observed();
+		const Tuple*const last = Tmp[agentId]->tuples.back();
+		for (Uint i=0; i<sI.dimUsed; i++) //scaled vec only has used dims:
+			same = same && std::fabs(last->s[i]-vecSold[i])<1e-8;
+		if (!same) {
+			printf("Detected partial sequence\n");
+			push_back(agentId); //create new sequence
+			ret = 1;
+		}
 	}
 
 	if (Tmp[agentId]->tuples.size() >= maxSeqLen) {
 		//upper limit to how long a sequence can be
 		//printf("Sequence is too long!\n");
-		const Tuple * const l = Tmp[agentId]->tuples.back();
+		const Tuple* const l = Tmp[agentId]->tuples.back();
 		Tuple * t = new Tuple(); //backup last state
 		t->s = l->s; t->a = l->a; t->r = l->r, t->mu = l->mu;
 		t->SquaredError = l->SquaredError;
-
+		#ifdef importanceSampling
+			t->weight = l->weight;
+		#endif
 		push_back(agentId); //create new sequence
 		Tmp[agentId]->tuples.push_back(t);
 	}
@@ -307,7 +253,7 @@ int Transitions::add(const int agentId, const int info, const State & sOld,
 	assert((info==2)==end_seq); //alternative not supported
 	t->a = aNew.vals;
 	t->r = rNew;
-	t->mu = mu;
+	t->mu = muNew;
 
 	Tmp[agentId]->tuples.push_back(t);
 	if (end_seq) {
@@ -315,81 +261,6 @@ int Transitions::add(const int agentId, const int info, const State & sOld,
 		push_back(agentId);
 	}
 
-	return ret;
-}
-
-int Transitions::add(const int agentId, const int info, const State& sOld,
-		const Action& a, const State& sNew, Real reward)
-{
-	//return value is 1 in two cases:
-	//if the agent states buffer is empty
-	//is the stored s does not match sold
-	int ret = 0;
-	const Uint sApp = nAppended*sI.dimUsed;
-	const vector<Real> vecSold = sOld.copy_observed();
-
-	if(Tmp[agentId]->tuples.size()!=0) {
-		bool same(true);
-		const Tuple * const last = Tmp[agentId]->tuples.back();
-		//scaled vec only has used dims:
-		for (Uint i=0; i<sI.dimUsed; i++)
-			same = same && fabs(last->s[i] - vecSold[i])<1e-4;
-
-		if (!same) {
-			printf("Broken chain [%s], %g\n", sNew._print().c_str(), reward);
-			push_back(agentId); //create new sequence
-			ret = 1;
-		}
-	} else ret = 1;
-
-	if (Tmp[agentId]->tuples.size() >= maxSeqLen) {
-		//upper limit to how long a sequence can be
-		//printf("Sequence is too long!\n");
-		const Tuple * const l = Tmp[agentId]->tuples.back();
-		Tuple * t = new Tuple(); //backup last state
-		t->s =l->s; t->a=l->a; t->r =l->r;
-		t->SquaredError = l->SquaredError;
-
-		push_back(agentId); //create new sequence
-		Tmp[agentId]->tuples.push_back(t);
-	}
-
-	//if first of a new sequence, create slot for sOld = s_0
-	if(Tmp[agentId]->tuples.size()==0) {
-		Tuple * t = new Tuple();
-		t->s = vecSold;
-		//appended states are zeros: suck on that, FFNN!
-		if (sApp>0) t->s.insert(t->s.end(),sApp,0.);
-		Tmp[agentId]->tuples.push_back(t);
-	}
-
-	//at this point we made sure that sOld == s.back() (right?)
-	//we can add sNew:
-	const vector<Real> vecSnew = sNew.copy_observed();
-	Tuple * t = new Tuple();
-	t->s = vecSnew;
-	if (sApp>0) {
-		const Tuple * const last = Tmp[agentId]->tuples.back();
-		vector<Real> prev(sApp);
-		for(Uint i=0; i<sApp; i++) prev[i] = last->s[i];
-		t->s.insert(t->s.end(),prev.begin(),prev.end());
-	}
-
-	const bool end_seq = env->pickReward(sOld,a,sNew,reward,info);
-	t->r = reward;
-	t->a = a.vals;
-	/*
-    ofstream fout;
-    fout.open("rewards.dat",ios::app);
-    fout<<t->s[0]<<" "<<t->s[1]<<" "<<t->s[2]<<" "<<t->s[3]<<" "<<reward<<endl;
-    fout.flush();
-    fout.close();
-	 */
-	Tmp[agentId]->tuples.push_back(t);
-	if (end_seq) {
-		Tmp[agentId]->ended = true;
-		push_back(agentId);
-	}
 	return ret;
 }
 
@@ -440,13 +311,13 @@ void Transitions::update_samples_mean(const Real alpha)
 	long double count = 0;
 	vector<long double> newStd(sI.dimUsed,0), newMean(sI.dimUsed,0);
 
-#pragma omp parallel
+	#pragma omp parallel
 	{
 		//local sum and counter
 		vector<long double> sum(sI.dimUsed,0), sum2(sI.dimUsed,0);
 		Uint cnt = 0;
 
-#pragma omp for schedule(dynamic)
+		#pragma omp for schedule(dynamic)
 		for(Uint i=0; i<Set.size(); i++)
 			for(const auto & t : Set[i]->tuples) {
 				assert(t->s.size() == sI.dimUsed*(1+nAppended));
@@ -457,7 +328,7 @@ void Transitions::update_samples_mean(const Real alpha)
 				}
 			}
 
-#pragma omp critical
+		#pragma omp critical
 		{
 			count += cnt;
 			for (Uint i=0; i<sI.dimUsed; i++) {
@@ -620,7 +491,7 @@ Uint Transitions::updateSamples(const Real annealFac)
 	}
 	update_meanstd_needed = update_meanstd_needed && bNormalize && annealFac>0;
 
-	const Uint ndata = (bRecurrent) ? nSequences : nTransitions;
+	const Uint ndata = (bSampleSeq) ? nSequences : nTransitions;
 	inds.resize(ndata);
 	#if 0
 		if (bRecurrent) {
