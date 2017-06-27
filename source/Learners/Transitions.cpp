@@ -4,7 +4,6 @@
  *
  *  Created by Guido Novati on 24.02.16.
  *  Copyright 2016 ETH Zurich. All rights reserved.
- *
  */
 
 #include "Transitions.h"
@@ -13,11 +12,11 @@
 #include <parallel/algorithm>
 
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
-	mastersComm(comm),env(_env),bSampleSeq(_s.bSampleSequences),bTrain(_s.bTrain),
-	bWriteToFile(!(_s.samplesFile=="none")), bNormalize(_s.bNormalize),
-	nAppended(_s.appendedObs),batchSize(_s.batchSize),maxSeqLen(_s.maxSeqLen),
-	minSeqLen(_s.minSeqLen),maxTotSeqNum(_s.maxTotSeqNum),path(_s.samplesFile),
-	sI(_env->sI),aI(_env->aI),generators(_s.generators)
+	mastersComm(comm), env(_env), bNormalize(_s.bNormalize), bTrain(_s.bTrain),
+	bWriteToFile(!(_s.samplesFile=="none")), bSampleSeq(_s.bSampleSequences),
+	nAppended(_s.appendedObs), batchSize(_s.batchSize), maxSeqLen(_s.maxSeqLen),
+	minSeqLen(_s.minSeqLen), maxTotSeqNum(_s.maxTotSeqNum), path(_s.samplesFile),
+	sI(_env->sI), aI(_env->aI), generators(_s.generators)
 {
 	mean.resize(sI.dimUsed, 0);
 	std.resize(sI.dimUsed, 1);
@@ -130,10 +129,10 @@ Uint Transitions::restartSamples(const Uint polDim)
 			free(buf);
 			agentID++;
 		}
-	}
-	if(agentID==0)  {
-		printf("Couldn't restart transition data.\n");
-		return 1;
+		if(agentID==0)  {
+			printf("Couldn't restart transition data.\n");
+			return 1;
+		}
 	}
 	printf("Found %d broken chains out of %d / %d.\n",
 			nBroken, nSequences, nTransitions);
@@ -485,9 +484,8 @@ Uint Transitions::updateSamples(const Real annealFac)
 	} else {
 		printf("nSequences %d < maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
 			nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
-		const Uint ndata = nTransitions;
-		update_meanstd_needed = ndata!=old_ndata;
-		old_ndata = ndata;
+		update_meanstd_needed = nTransitions!=old_ndata;
+		old_ndata = nTransitions;
 	}
 	update_meanstd_needed = update_meanstd_needed && bNormalize && annealFac>0;
 
@@ -565,29 +563,40 @@ void Transitions::restart(std::string fname)
 }
 
 #ifdef importanceSampling
+//Sample sequences: same procedure with importance weights computed from maximun error?
 void Transitions::updateP()
 {
-	inds.resize(nTransitions);
+	const Uint ndata = bSampleSeq ? nSequences : nTransitions;
+	inds.resize(ndata);
 	std::iota(inds.begin(), inds.end(), 0);
-	vector<Real> errors(nTransitions), Ps(nTransitions), Ws(nTransitions);
+	vector<Real> errors(ndata), Ps(ndata), Ws(ndata);
 
-	//sort in decreasing order of the error, all points with zero error
-	//which means that they are not yet processed
-	//are put at the top
 	{
 		Uint k = 0;
 		for(Uint i=0; i<Set.size(); i++)
-		for(Uint j=0; j<Set[i]->tuples.size()-1; j++)
-			errors[k++] = Set[i]->tuples[j]->SquaredError;
-		assert(k==nTransitions);
+		{
+			Real maxerr = 0;
+			for(Uint j=0; j<Set[i]->tuples.size()-1; j++)
+			{
+				if(bSampleSeq) //sample based on max error of the sequence
+					maxerr = std::max(maxerr,Set[i]->tuples[j]->SquaredError);
+				else //sample based on transition's last error
+					errors[k++] = Set[i]->tuples[j]->SquaredError;
+			}
+			if(bSampleSeq) errors[k++] = maxerr;
+		}
+		assert(k==ndata);
 	}
 
 	const auto comp=[&](const Uint a,const Uint b) {return errors[a]>errors[b];};
 	__gnu_parallel::sort(inds.begin(), inds.end(), comp);
 	assert(errors[inds.front()] >= errors[inds.back()]);
 
+	//sort in decreasing order of the error. Points with zero error
+	//(which means that they are not yet processed)
+	//are put at the top:
 	#pragma omp parallel for
-	for(Uint i=0; i<nTransitions; i++)
+	for(Uint i=0; i<ndata; i++)
 		Ps[inds[i]] = errors[inds[i]]>0 ? std::sqrt(1/(i+1.)) : 1;
 
 	//const Real minP = Ps[inds.back()];
@@ -612,10 +621,17 @@ void Transitions::updateP()
 	{
 		Uint k = 0;
 		for(Uint i=0; i<Set.size(); i++)
-		for(Uint j=0; j<Set[i]->tuples.size()-1; j++)
-			Set[i]->tuples[j]->weight = Ws[k++];
-			//Set[i]->tuples[j]->weight = Ws[inds[k++]];
-		assert(k==nTransitions);
+		{
+			for(Uint j=0; j<Set[i]->tuples.size()-1; j++)
+			{
+				if(bSampleSeq) //sample based on max error of the sequence
+					Set[i]->tuples[j]->weight = Ws[k];
+				else //sample based on transition's last error
+					Set[i]->tuples[j]->weight = Ws[k++];
+			}
+			if(bSampleSeq) k++;
+		}
+		assert(k==ndata);
 	}
 }
 #endif

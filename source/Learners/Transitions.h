@@ -54,7 +54,7 @@ class Transitions
 protected:
 	const MPI_Comm mastersComm;
 	Environment * const env;
-	const bool bSampleSeq, bTrain, bWriteToFile, bNormalize;
+	const bool bNormalize, bTrain, bWriteToFile, bSampleSeq;
 	const Uint nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
 	const string path;
 	const StateInfo sI;

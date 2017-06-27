@@ -141,6 +141,7 @@ void NFQ::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	clip_gradient(gradient, stdGrad[0], seq, samp);
 	dumpStats(Vstats[thrID], Qs[act], error);
 	net->setOutputDeltas(gradient, series_cur.back());
+	//if(thrID==1) {printf("%d %u %u %u %u\n",terminal,samp,ndata,iRecurr,nRecurr);fflush(0);}
 
 	if (thrID==0) net->backProp(series_cur, net->grad);
 	else net->backProp(series_cur, net->Vgrad[thrID]);

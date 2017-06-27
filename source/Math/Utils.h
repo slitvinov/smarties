@@ -57,8 +57,9 @@ inline vector<Real> trust_region_update(const vector<Real>& grad,
 
 inline Real clip(const Real val, const Real ub, const Real lb)
 {
-  assert(!std::isnan(val));
-  assert(!std::isinf(val));
+	//printf("%f %f\n", ub, lb);
+  assert(!std::isnan(val) && !std::isnan(ub) && !std::isnan(lb));
+  assert(!std::isinf(val) && !std::isinf(ub) && !std::isinf(lb));
   assert(ub>lb);
   return std::max(std::min(val, ub), lb);
 }
