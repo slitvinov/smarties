@@ -118,7 +118,11 @@ void Slave::run()
 			status[iAgent] = agentStatus;
 			if(agentStatus != _AGENT_LASTCOMM)
 			{
-				comm->sendActionToApp();
+				if (comm->sendActionToApp()) {
+					printf("Slave exiting\n");
+					fflush(0); 
+					return;
+				}
 			} else {
 				/*
 					bool bDone = true; //did all agents reach terminal state?
@@ -168,8 +172,7 @@ void Client::run()
 
 		if(agentStatus != _AGENT_LASTCOMM) {
 			prepareAction(iAgent);
-			const int bexit = comm->sendActionToApp();
-			if (bexit) return;
+			comm->sendActionToApp();
 		} else {
 			bool bDone = true; //did all agents reach terminal state?
 			for (Uint i=0; i<status.size(); i++)

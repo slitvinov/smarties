@@ -41,9 +41,16 @@ public:
 	~Master()
 	{
 		_dispose_object(env);
-		_dispose_object(inbuf);
-		_dispose_object(outbuf);
+		_dealloc(inbuf);
+		_dealloc(outbuf);
 		_dispose_object(learner);
+	}
+	void sendTerminateReq(const double msg)
+	{	
+		outbuf[0] = msg;
+		printf("nslaves %d\n",nSlaves);
+		for (int slave=1; slave<=nSlaves; slave++) 
+		MPI_Ssend(outbuf, outSize, MPI_BYTE, slave, 0, slavesComm);
 	}
 	void run();
 	void restart(string fname);

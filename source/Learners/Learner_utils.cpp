@@ -124,8 +124,8 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 #endif
 	_opt->save("initial");
 #ifndef NDEBUG
-	_opt->restart("initial");
-	_opt->save("restarted");
+	//_opt->restart("initial");
+	//_opt->save("restarted");
 #endif
 	//for (const auto & l : _net->layers) l->profiler = profiler;
 }
