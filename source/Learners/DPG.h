@@ -13,8 +13,8 @@
 class DPG : public Learner_utils
 {
 	const Uint nA, nS;
-	mutable vector<Real> cntValGrad;
-	mutable vector<vector<Real>> avgValGrad, stdValGrad;
+	mutable vector<long double> cntValGrad;
+	mutable vector<vector<long double>> avgValGrad, stdValGrad;
 	Network* net_value;
 	Optimizer* opt_value;
 

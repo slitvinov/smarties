@@ -172,6 +172,7 @@ struct Function
 	virtual void eval(const ary in, ary out, const Uint N) const = 0; // f(in)
 	virtual nnReal eval(const nnReal in) const = 0; // f(in)
 	virtual nnReal evalDiff(const nnReal in) const = 0; // f'(in)
+	virtual ~Function() {}
 };
 //If adding a new function, edit this function readFunction at end of file
 

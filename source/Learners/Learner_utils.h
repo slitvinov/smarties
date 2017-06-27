@@ -12,18 +12,18 @@
 class Learner_utils: public Learner
 {
 protected:
-mutable vector<Real> cntGrad;
-	mutable vector<vector<Real>> avgGrad, stdGrad;
+mutable vector<long double> cntGrad;
+	mutable vector<vector<long double>> avgGrad, stdGrad;
 	trainData stats;
 	vector<trainData*> Vstats;
 
 public:
 	Learner_utils(MPI_Comm mcom,Environment*const _e, Settings&sett, Uint ngrads)
 	: Learner(mcom, _e, sett), cntGrad(nThreads+1,0),
-	avgGrad(nThreads+1,vector<Real>(ngrads,0)),
-	stdGrad(nThreads+1,vector<Real>(ngrads,0))
+	avgGrad(nThreads+1,vector<long double>(ngrads,0)),
+	stdGrad(nThreads+1,vector<long double>(ngrads,0))
 	{
-		stdGrad[0] = vector<Real>(ngrads,100);
+		stdGrad[0] = vector<long double>(ngrads,100);
 		assert(avgGrad.size()==nThreads+1 && cntGrad.size()==nThreads+1);
 		for (Uint i=0; i<nThreads; i++) Vstats.push_back(new trainData());
 	}
@@ -65,7 +65,7 @@ public:
 	virtual void processStats(const Real avgTime) override;
 	virtual void processGrads();
 
-	inline void clip_gradient(vector<Real>& grad, const vector<Real>& std,
+	inline void clip_gradient(vector<Real>& grad, const vector<long double>& std,
 		const Uint seq, const Uint samp) const
 	{
 		for (Uint i=0; i<grad.size(); i++) {

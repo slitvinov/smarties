@@ -25,7 +25,7 @@ public:
 	//Profiler* profiler;
 	const bool bOutput;
 
-	virtual ~Layer() {}
+	virtual ~Layer() { _dispose_object(func); }
 	Layer(const Uint _nNeurons, const Uint _n1stNeuron, const Uint _n1stBias,
 			const Function* const f, const Uint nn_simd, const bool bOut) :
 				nNeurons(_nNeurons), n1stNeuron(_n1stNeuron), n1stBias(_n1stBias),
@@ -222,7 +222,7 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
 	const Function* const cell;
 
 public:
-
+	~LSTMLayer() {_dispose_object(gate); _dispose_object(cell);}
 	LSTMLayer(Uint _nNeurons, Uint _n1stNeuron, Uint _indState, Uint _n1stBias,
 			Uint _n1stBiasIG, Uint _n1stBiasFG, Uint _n1stBiasOG,
 			const vector<LinkToLSTM*> rl_il, const LinkToLSTM* const rl_rl,

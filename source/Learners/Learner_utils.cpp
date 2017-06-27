@@ -248,7 +248,7 @@ void Learner_utils::processStats(const Real avgTime)
 
 void Learner_utils::processGrads()
 {
-	const vector<Real> oldsum = avgGrad[0], oldstd = stdGrad[0];
+	const vector<long double> oldsum = avgGrad[0], oldstd = stdGrad[0];
 	statsVector(avgGrad, stdGrad, cntGrad);
 	//std::ostringstream o; o << "Grads avg (std): ";
 	//for (Uint i=0; i<avgGrad[0].size(); i++)

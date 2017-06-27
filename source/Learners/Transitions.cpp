@@ -426,9 +426,13 @@ void Transitions::sortSequences()
       Set[i]->MSE += std::pow((t->s[i] - mean[i])/std[i], 2);
 		 */
 	}
-	const auto compare=[this](Sequence* a, Sequence* b){return a->MSE<b->MSE;};
+	const auto compare=[this](Sequence* a, Sequence* b) {
+		return a->MSE < b->MSE;
+		//if a < b returns true. unless a == 0 then false
+		return a->MSE==0 ? false : (b->MSE==0 ? true : (a->MSE<b->MSE) );
+	};
 	std::sort(Set.begin(), Set.end(), compare);
-	assert(Set.front()->MSE < Set.back()->MSE);
+	assert(Set.front()->MSE < Set.back()->MSE || Set.back()->MSE == 0);
 	//} else random_shuffle(Set.begin(), Set.end(), *(gen));
 	iOldestSaved = 0;
 }
@@ -603,14 +607,14 @@ void Transitions::updateP()
 	//const Real sumP = __gnu_parallel::accumulate(Ps.begin(), Ps.end(), 0);
 	Real minP = 2, sumP = 0;
 	#pragma omp parallel for reduction(min: minP) reduction(+: sumP)
-	for(Uint i=0; i<nTransitions; i++) {
+	for(Uint i=0; i<ndata; i++) {
 		minP = std::min(minP, Ps[i]);
 		sumP += Ps[i];
 	}
 	assert(minP<=1 && sumP>0);
 
 	#pragma omp parallel for
-	for(Uint i=0; i<nTransitions; i++) {
+	for(Uint i=0; i<ndata; i++) {
 		Ws[i] = minP/Ps[i];
 		Ps[i] = Ps[i]/sumP;
 	}
