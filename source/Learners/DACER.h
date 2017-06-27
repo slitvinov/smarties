@@ -114,9 +114,8 @@ class DACER : public Learner_utils
 			//prepare rolled Q with off policy corrections for next step:
 			//Q_RET = c_hat * minAbsValue(Q_RET-A_hat-V_hat,Q_RET-A_cur-V_cur) +
 			//								minAbsValue(V_hat,V_cur);
-			const Real lambda = 1.0;
-			Q_RET = c_hat*lambda*(Q_RET -A_hat -V_hat) +V_hat;
-			//Q_OPC = 			lambda*(Q_OPC -A_hat -V_hat) +V_hat;
+			Q_RET = c_hat*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;
+			//Q_OPC = 		ACER_LAMBDA*(Q_OPC -A_hat -V_hat) +V_hat;
 			Q_OPC = Q_RET;
 		}
 
@@ -140,11 +139,9 @@ class DACER : public Learner_utils
 		const Real rho_hat = pol_hat.probability(act)/_t->mu[act];
 		const Real c_hat = std::min((Real)1., std::pow(rho_hat, 1./nA));
 		const Real A_hat = pol_hat.computeAdvantage(act);
-		//const Real lambda = 0.5;
-		const Real lambda = 1.0;
 		//prepare rolled Q with off policy corrections for next step:
-		Q_RET = c_hat*lambda*(Q_RET -A_hat -V_hat) +V_hat;
-		//Q_OPC =       lambda*(Q_OPC -A_hat -V_hat) +V_hat;
+		Q_RET = c_hat*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;
+		//Q_OPC =     ACER_LAMBDA*(Q_OPC -A_hat -V_hat) +V_hat;
 		Q_OPC = Q_RET;
 	}
 

@@ -26,25 +26,31 @@ using namespace std;
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
 //FOR CONTINUOUS ACTIONS RACER:
-#define ACER_MAX_PREC 400.
-#define ACER_MIN_PREC 4./ACER_MAX_ACT/ACER_MAX_ACT
-#define ACER_MAX_ACT 10.
-#define ACER_TOL_REW 0.01
-#define ACER_TOL_DIAG sqrt(ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT)
+	#define ACER_MAX_PREC 400.
+	#define ACER_MIN_PREC 4./ACER_MAX_ACT/ACER_MAX_ACT
+	#define ACER_MAX_ACT 10.
+	#define ACER_TOL_REW 0.01
+	#define ACER_TOL_DIAG sqrt(ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT)
 //FOR DISCRETE ACTIONS DACER:
-#define ACER_MIN_PROB 0.001
+	#define ACER_MIN_PROB 0.001
 #else
-#define ACER_TOL_DIAG 0
-#define ACER_MIN_PREC 0
-#define ACER_MIN_PROB 0
+	#define ACER_TOL_DIAG 0
+	#define ACER_MIN_PREC 0
+	#define ACER_MIN_PROB 0
 #endif
 
-#define MAX_UNROLL_AFTER 1000
-//#define MAX_UNROLL_AFTER 20
+#if 0
+	#define MAX_UNROLL_AFTER 1000
+	#define ACER_LAMBDA 1.0
+#else //lambda 0.5 allows cutting traces
+	#define MAX_UNROLL_AFTER 20
+	#define ACER_LAMBDA 0.5
+#endif
+
 #define MAX_UNROLL_BFORE 20
 #define ACER_CONST_PREC 50
 #define ACER_GRAD_CUT 10
-//#define importanceSampling
+#define importanceSampling
 
 #define NET_L1_PENAL
 //#define _dumpNet_

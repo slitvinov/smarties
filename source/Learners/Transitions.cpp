@@ -37,7 +37,6 @@ Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
 		Tmp[i] = new Sequence();
 
 	curr_transition_id.resize(max(_s.nAgents,1));
-	dist = new discrete_distribution<Uint> (1,2); //dummy
 	gen = new Gen(&generators[0]);
 	Set.reserve(maxTotSeqNum);
 }
@@ -427,12 +426,11 @@ void Transitions::sortSequences()
 		 */
 	}
 	const auto compare=[this](Sequence* a, Sequence* b) {
-		return a->MSE < b->MSE;
-		//if a < b returns true. unless a == 0 then false
 		return a->MSE==0 ? false : (b->MSE==0 ? true : (a->MSE<b->MSE) );
 	};
-	std::sort(Set.begin(), Set.end(), compare);
+	__gnu_parallel::sort(Set.begin(), Set.end(), compare);
 	assert(Set.front()->MSE < Set.back()->MSE || Set.back()->MSE == 0);
+	//for(Uint i=0; i<Set.size(); i++) printf("%u %f\n",i,Set[i]->MSE);
 	//} else random_shuffle(Set.begin(), Set.end(), *(gen));
 	iOldestSaved = 0;
 }
@@ -440,7 +438,7 @@ void Transitions::sortSequences()
 void Transitions::synchronize()
 {
 	//comment out to always delete oldest sequences:
-	//sortSequences();
+	sortSequences();
 
 	Uint cnt =0;
 	Uint nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
@@ -493,34 +491,15 @@ Uint Transitions::updateSamples(const Real annealFac)
 	}
 	update_meanstd_needed = update_meanstd_needed && bNormalize && annealFac>0;
 
-	const Uint ndata = (bSampleSeq) ? nSequences : nTransitions;
-	inds.resize(ndata);
-	#if 0
-		if (bRecurrent) {
-			delete dist;
-			assert(nSequences==Set.size());
-			#ifndef NDEBUG
-					int recount_Transitions = 0;
-			#endif
-					for(int i=0; i<nSequences; i++) {
-			#ifndef NDEBUG
-						recount_Transitions += Set[i]->tuples.size()-1;
-			#endif
-				inds[i] = Set[i]->tuples.size()-1;
-			}
-			assert(recount_Transitions==nTransitions);
-			dist = new discrete_distribution<int>(inds.begin(), inds.end());
-		}
-		else
-	#endif
-	{
-		#ifndef importanceSampling
+	#ifndef importanceSampling
+		const Uint ndata = (bSampleSeq) ? nSequences : nTransitions;
+		inds.resize(ndata);
 		std::iota(inds.begin(), inds.end(), 0);
 		__gnu_parallel::random_shuffle(inds.begin(), inds.end(), *(gen));
-		#else
+	#else
 		updateP();
-		#endif
-	}
+	#endif
+
 	return update_meanstd_needed ? 1 : 0;
 }
 
@@ -619,7 +598,7 @@ void Transitions::updateP()
 		Ps[i] = Ps[i]/sumP;
 	}
 
-	delete dist;
+	if(dist not_eq nullptr) delete dist;
 	dist = new std::discrete_distribution<Uint>(Ps.begin(), Ps.end());
 
 	{

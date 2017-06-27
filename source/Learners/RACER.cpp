@@ -11,7 +11,7 @@
 #include "RACER.h"
 //#include "RACER_TrainBPTT.cpp"
 //#include "RACER_Train.cpp"
-#define DUMP_EXTRA
+//#define DUMP_EXTRA
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs),

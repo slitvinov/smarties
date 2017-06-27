@@ -20,7 +20,7 @@ struct Mem //Memory light recipient for prediction on agents
 {
 	Mem(Uint _nNeurons, Uint _nStates):
 		nNeurons(_nNeurons), nStates(_nStates),
-		outvals(initClean(nNeurons)), ostates(init(nStates))
+		outvals(initClean(nNeurons)), ostates(initClean(nStates))
 	{	}
 
 	~Mem()

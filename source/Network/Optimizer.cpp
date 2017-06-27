@@ -142,14 +142,14 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 	{
 #pragma omp for nowait
 		for (Uint j=0; j<nWeights; j++)
-			for (Uint k=0; k<nThreads; k++) {
+			for (Uint k=1; k<nThreads; k++) {
 				G->_W[j] += g[k]->_W[j];
 				g[k]->_W[j] = 0.;
 			}
 
 #pragma omp for nowait
 		for (Uint j=0; j<nBiases; j++)
-			for (Uint k=0; k<nThreads; k++) {
+			for (Uint k=1; k<nThreads; k++) {
 				G->_B[j] += g[k]->_B[j];
 				g[k]->_B[j] = 0.;
 			}

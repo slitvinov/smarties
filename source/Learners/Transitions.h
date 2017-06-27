@@ -64,7 +64,7 @@ protected:
 	Uint iOldestSaved=0;
 	vector<Real> std, mean, invstd;
 	vector<Uint> curr_transition_id, inds;
-	discrete_distribution<Uint> * dist;
+	discrete_distribution<Uint> * dist = nullptr;
 
 	int add(const int agentId, const int info, const State & sOld,
 			const Action & a, const vector<Real> mu, const State& s, Real r);
