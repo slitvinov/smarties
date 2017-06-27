@@ -56,7 +56,7 @@ public:
 	}
 	inline void appendUnrolledActivations(vector<Activation*>* const ret, const Uint length) const
 	{
-		for(Uint j=0; j<=length; j++)
+		for(Uint j=0; j<length; j++)
 			ret->push_back(new Activation(nNeurons,nStates));
 	}
 	inline Activation* allocateActivation() const

@@ -168,7 +168,8 @@ void Client::run()
 
 		if(agentStatus != _AGENT_LASTCOMM) {
 			prepareAction(iAgent);
-			comm->sendActionToApp();
+			const int bexit = comm->sendActionToApp();
+			if (bexit) return;
 		} else {
 			bool bDone = true; //did all agents reach terminal state?
 			for (Uint i=0; i<status.size(); i++)
