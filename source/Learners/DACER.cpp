@@ -66,12 +66,12 @@ void DACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	const Real rGamma = annealedGamma();
 	const Uint ndata = data->Set[seq]->tuples.size();
 	assert(samp<ndata-1);
-	const bool bEnd = data->Set[seq]->ended;
+	const bool bEnd = data->Set[seq]->ended; //does it have a terminal reward?
 	const Uint nMaxTargets = MAX_UNROLL_AFTER+1, nMaxBPTT = MAX_UNROLL_BFORE;
 	//for off policy correction we need reward and action, therefore not last one:
 	const Uint nSUnroll = min(ndata-1-samp, nMaxTargets);
 	//if we do not have a terminal reward, then we compute value of last state:
-	const Uint nSValues = min(bEnd? ndata-1-samp :ndata-samp, nMaxTargets);
+	const Uint nSValues = min(bEnd? ndata-1-samp : ndata-samp, nMaxTargets);
 
 	const Uint nRecurr = bRecurrent ? min(nMaxBPTT,samp)+1        : 1;
 	const Uint iRecurr = bRecurrent ? max(nMaxBPTT,samp)-nMaxBPTT : samp;

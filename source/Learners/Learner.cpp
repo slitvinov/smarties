@@ -13,8 +13,9 @@
 Learner::Learner(MPI_Comm comm, Environment*const _env, Settings & _s) :
 mastersComm(comm), env(_env), tgtUpdateDelay((Uint)_s.targetDelay),
 nAgents(_s.nAgents), batchSize(_s.batchSize), nThreads(_s.nThreads),
-nAppended(_s.appendedObs), maxTotSeqNum(_s.maxTotSeqNum), nInputs(_s.nnInputs),
-nOutputs(_s.nnOutputs), bRecurrent(_s.bRecurrent), bTrain(_s.bTrain),
+nAppended(_s.appendedObs), maxTotSeqNum(_s.maxTotSeqNum),
+totNumSteps(_s.totNumSteps), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
+bRecurrent(_s.bRecurrent), bTrain(_s.bTrain),
 bSampleSequences(_s.bSampleSequences), tgtUpdateAlpha(_s.targetDelay),
 gamma(_s.gamma), greedyEps(_s.greedyEps), epsAnneal(_s.epsAnneal),
 obsPerStep(_s.obsPerStep), taskCounter(batchSize),
@@ -35,42 +36,6 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 	data->pushBackEndedSim(agentOne, agentEnd);
 }
 
-/*
-void Learner::TrainBatch()
-{
-	const Uint ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-	vector<Uint> seq(batchSize), samp(batchSize);
-	if (ndata<batchSize) return; //do we have enough data?
-	if (!bTrain) return; //are we training?
-	Uint nAddedGradients=0;
-
-	if(data->syncBoolOr(data->inds.size()<batchSize))
-	{ //uniform sampling
-		data->updateSamples();
-		processStats( 0 ); //dump info about convergence
-#ifdef __CHECK_DIFF //check gradients with finite differences, just for debug
-		if (opt->nepoch % 100000 == 0) net->checkGrads();
-#endif
-	}
-
-	if(bRecurrent) {
-		nAddedGradients = sampleSequences(seq);
-		for (Uint i=0; i<batchSize; i++)
-			Train_BPTT(seq[i]);
-	} else {
-		nAddedGradients = sampleTransitions(seq, samp);
-		for (Uint i=0; i<batchSize; i++)
-			Train(seq[i], samp[i]);
-	}
-
-	batchUsage += 1;
-	dataUsage += nAddedGradients;
-
-	updateNNWeights(nAddedGradients);
-	updateTargetNetwork();
-}
-*/
-
 void Learner::run(Master* const master)
 {
 	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
@@ -85,7 +50,7 @@ void Learner::run(Master* const master)
 		master->run();
 	}
 
-	while (true) {
+	while (opt->nepoch < totNumSteps) {
 		nAddedGradients = taskCounter = 0;
 		//const Real annealFac = annealingFactor();
 		ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;

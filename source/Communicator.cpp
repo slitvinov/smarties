@@ -425,7 +425,9 @@ int Communicator::sendActionToApp()
 	//printf("I think im sending action %f\n",data_action[0]);
 	if(comm_learn_pool != MPI_COMM_NULL)
 		recv_MPI(data_action, size_action, comm_learn_pool, lag);
-	//if(fabs(data_action[0]+2)<2.2e-16) return 1;
+
+	if(fabs(data_action[0]+256)<2.2e-16) return 1;
+	
 	send_all(Socket, data_action, size_action);
 	return 0;
 }

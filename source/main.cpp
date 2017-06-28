@@ -83,7 +83,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 #endif
 	assert(settings.nThreads > 1);
 	learner->run(&master);
-	//master.sendTerminateReq(-2.);
+	master.sendTerminateReq();
 }
 
 int main (int argc, char** argv)

@@ -218,6 +218,13 @@ struct Settings
 #define DEFAULT_maxTotSeqNum 5000
 	int maxTotSeqNum = DEFAULT_maxTotSeqNum;
 
+#define CHARARG_totNumSteps 'z'
+#define COMMENT_totNumSteps "Number of gradient steps before end of learning"
+#define TYPEVAL_totNumSteps int
+#define TYPENUM_totNumSteps INT
+#define DEFAULT_totNumSteps 10000000
+	int totNumSteps = DEFAULT_totNumSteps;
+
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -382,6 +389,7 @@ struct Settings
 			{ CHARARG_learner, "learner", TYPENUM_learner, COMMENT_learner, &learner, (TYPEVAL_learner) DEFAULT_learner },
 			{ CHARARG_restart, "restart", TYPENUM_restart, COMMENT_restart, &restart, (TYPEVAL_restart) DEFAULT_restart },
 			{ CHARARG_obsPerStep, "obsPerStep", TYPENUM_obsPerStep, COMMENT_obsPerStep, &obsPerStep, (TYPEVAL_obsPerStep) DEFAULT_obsPerStep },
+			{ CHARARG_totNumSteps, "totNumSteps", TYPENUM_totNumSteps, COMMENT_totNumSteps, &totNumSteps, (TYPEVAL_totNumSteps) DEFAULT_totNumSteps },
 			{ CHARARG_samplesFile, "samplesFile", TYPENUM_samplesFile, COMMENT_samplesFile, &samplesFile, (TYPEVAL_samplesFile) DEFAULT_samplesFile },
 			{ CHARARG_bSampleSequences, "bSampleSequences", TYPENUM_bSampleSequences, COMMENT_bSampleSequences, &bSampleSequences, (TYPEVAL_bSampleSequences) DEFAULT_bSampleSequences },
 			{ CHARARG_nnl1, "nnl1", TYPENUM_nnl1, COMMENT_nnl1, &nnl1, (TYPEVAL_nnl1) DEFAULT_nnl1 },
