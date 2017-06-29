@@ -11,6 +11,7 @@ acer ?= full
 testdiff ?= no
 entropy ?= off
 auxtask ?= off
+tabc ?= off
 mpi_lib ?= default
 
 CPPFLAGS+= -std=c++11 -D__Smarties_ -fopenmp
@@ -65,6 +66,9 @@ endif #!full
 endif #relax
 endif #safe
 
+ifeq "$(tabc)" "on"
+CPPFLAGS+= -DACER_TABC
+endif
 ifeq "$(auxtask)" "on"
 CPPFLAGS+= -DFEAT_CONTROL
 endif
@@ -82,10 +86,10 @@ ifeq "$(app)" "cubism"
 CPPFLAGS+= -D__Cubism3D
 endif
 ifeq "$(config)" "debug"
-CPPFLAGS+= -g -O2 -ffast-math 
+CPPFLAGS+= -g# -O2 -ffast-math 
 endif
 ifeq "$(config)" "segf"
-CPPFLAGS+= -g -O2 -ffast-math 
+CPPFLAGS+= -g# -O2 -ffast-math 
 CPPFLAGS+= -fsanitize=address
 LIBS += -fsanitize=address
 endif
