@@ -124,6 +124,9 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	const bool terminal = samp+2==ndata && data->Set[seq]->ended;
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(nRecurr);
 	Activation* tgtAct = terminal ? nullptr : net->allocateActivation();
+	//if(thrID==1) { printf("%d %u %u %u %u %u\n",terminal,seq,samp,ndata,iRecurr,nRecurr); fflush(0); }
+
+	if(thrID==1) profiler->stop_start("FWD");
 
 	for (Uint k=iRecurr, j=0; k<samp+1; k++, j++) {
 		assert((k==samp)==(j==nRecurr-1));
@@ -132,6 +135,9 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	}
 	//all are loaded: execute the whole loop:
 	net->seqPredict_execute(series_cur, series_cur);
+
+	if(thrID==1)  profiler->stop_start("CMP");
+
 	//extract the only output we actually correct:
 	const vector<Real> output = net->getOutputs(series_cur.back());
 	const Tuple* const t_ = data->Set[seq]->tuples[samp];
@@ -159,8 +165,12 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	dumpStats(Vstats[thrID], Qsold, error);
 	net->setOutputDeltas(gradient, series_cur.back());
 
+	if(thrID==1)  profiler->stop_start("BCK");
+
 	if (thrID==0) net->backProp(series_cur, net->grad);
 	else net->backProp(series_cur, net->Vgrad[thrID]);
 	net->deallocateUnrolledActivations(&series_cur);
 	_dispose_object(tgtAct);
+
+	if(thrID==1)  profiler->stop_start("TSK");
 }

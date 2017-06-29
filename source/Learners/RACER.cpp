@@ -15,7 +15,10 @@
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs),
-truncation(10), delta(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
+#ifdef ACER_TABC
+truncation(10),
+#endif
+delta(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
 generators(settings.generators)
 {
 	vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
@@ -94,7 +97,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	const Real rGamma = annealedGamma();
 	const Uint ndata = data->Set[seq]->tuples.size();
 	assert(samp<ndata-1);
-	const bool bEnd = data->Set[seq]->ended;
+	const bool bEnd = data->Set[seq]->ended; //whether sequence has terminal rew
 	const Uint nMaxTargets = MAX_UNROLL_AFTER+1, nMaxBPTT = MAX_UNROLL_BFORE;
 	//for off policy correction we need reward and action, therefore not last one:
 	const Uint nSUnroll = min(ndata-1-samp, nMaxTargets);
@@ -103,7 +106,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
 	const Uint nRecurr = bRecurrent ? min(nMaxBPTT,samp)+1        : 1;
 	const Uint iRecurr = bRecurrent ? max(nMaxBPTT,samp)-nMaxBPTT : samp;
-	//printf("%d %u %u %u %u\n",bEnd,samp,ndata,nSUnroll,nSValues); fflush(0);
+	//if(thrID==1) { printf("%d %u %u %u %u %u %u\n", bEnd, samp, ndata, nSUnroll, nSValues, nRecurr, iRecurr); fflush(0); }
 	if(thrID==1) profiler->stop_start("FWD");
 
 	vector<vector<Real>> out_cur(1, vector<Real>(nOutputs,0));

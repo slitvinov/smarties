@@ -21,7 +21,7 @@ Master::Master(MPI_Comm _c,Learner*const _l, Environment*const _e, Settings&_s):
 	  nSlaves(_s.nSlaves), nThreads(_s.nThreads), saveFreq(_s.saveFreq),
 	  inSize((3+_e->sI.dim)*sizeof(double)), outSize(_e->aI.dim*sizeof(double)),
 	  inbuf(_alloc(inSize)), outbuf(_alloc(outSize)), sOld(_e->sI),sNew(_e->sI),
-	  aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]), status(_e->agents.size(),1)
+	  aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]), status(_e->agents.size(),1), cumulative_rewards(_e->agents.size(),0)
 {
 	//the following Irecv will be sent after sending the action
 	MPI_Irecv(inbuf, inSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
@@ -75,6 +75,9 @@ void Master::run()
 
 		if (agentStatus == _AGENT_FAILCOMM) {
 			learner->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
+			for (int i = (slave-1)*nPerRank; i<slave*nPerRank; i++) {
+				status[i] = 1; cumulative_rewards[i] = 0;
+			}
 			continue;
 		}
 
@@ -83,12 +86,16 @@ void Master::run()
 				agent, sOld._print().c_str(), sNew._print().c_str(),
 				aOld._print().c_str(), reward, aNew._print().c_str());
 
+		//track performance of agents:
+		trackAgentsPerformance(agentStatus, agent, reward);
 		if (agentStatus != _AGENT_FIRSTCOMM) {
 			const Real alpha = 1./saveFreq;// + std::min(0.,1-iter/(Real)saveFreq);
 			const Real oldMean = meanR;
+			cumulative_rewards[agent] += reward;
 			meanR = (1.-alpha)*meanR + alpha*reward;
 			varR = (1.-alpha)*varR + alpha*(reward-meanR)*(reward-oldMean);
-		}
+		} else cumulative_rewards[agent] = 0;
+
 		if (agentStatus != _AGENT_LASTCOMM)  {
 			sendAction(slave, agent);
 		} else { //if terminal, no action required
@@ -120,7 +127,7 @@ void Slave::run()
 			{
 				if (comm->sendActionToApp()) {
 					printf("Slave exiting\n");
-					fflush(0); 
+					fflush(0);
 					return;
 				}
 			} else {
@@ -261,4 +268,21 @@ static void unpackState(double* const data, int& agent, _AGENT_STATUS& info,
 	reward = data[state.size()+2];
 	assert(not std::isnan(reward));
 	assert(not std::isinf(reward));
+}
+
+void Master::trackAgentsPerformance(const _AGENT_STATUS agentStatus, const int agent, const Real reward)
+{
+	if (agentStatus != _AGENT_FIRSTCOMM) {
+		const Real alpha = 1./saveFreq;// + std::min(0.,1-iter/(Real)saveFreq);
+		const Real oldMean = meanR;
+		cumulative_rewards[agent] += reward;
+		meanR = (1.-alpha)*meanR + alpha*reward;
+		varR = (1.-alpha)*varR + alpha*(reward-meanR)*(reward-oldMean);
+	} else {
+		ofstream filestats;
+		filestats.open("cumulative_rewards.dat", ios::app);
+		filestats<<agent<<" "<<cumulative_rewards[agent]<<endl;
+		filestats.close();
+		cumulative_rewards[agent] = 0;
+	}
 }

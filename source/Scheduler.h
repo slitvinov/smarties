@@ -29,9 +29,10 @@ private:
 	Real meanR = 0, varR = 0;
 	unsigned long iter = 0;
 	vector<int> status;
+	vector<Real> cumulative_rewards;
 
 	MPI_Request request;
-
+	void trackAgentsPerformance(const _AGENT_STATUS agentStatus, const int agent, const Real reward);
 	void recvState(const int slave, int& iAgent, int& istatus, Real& reward);
 	void sendAction(const int slave, const int iAgent);
 	void save();

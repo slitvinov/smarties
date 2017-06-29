@@ -16,6 +16,7 @@ Learner_utils(comm,_env,_s,_s.nnOutputs), nA(_env->aI.dim),
 nS(_env->sI.dimUsed*(1+_s.appendedObs)), cntValGrad(nThreads+1,0),
 avgValGrad(nThreads+1,vector<long double>(1,0)), stdValGrad(nThreads+1,vector<long double>(1,0))
 {
+	stdValGrad[0] = vector<long double>(1,100);
 	#ifdef NDEBUG
 	if(bRecurrent) die("DPG with RNN is Not ready!\n");
 	#endif

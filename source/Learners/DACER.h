@@ -15,7 +15,10 @@
 class DACER : public Learner_utils
 {
 	const Uint nA;
-	const Real truncation, delta;
+	#ifdef ACER_TABC
+	const Real truncation;
+	#endif
+	const Real delta;
 	std::vector<std::mt19937>& generators;
 	const vector<Uint> net_outputs = {1, nA, nA};
 	const vector<Uint> net_indices = {0,  1, 1+nA};

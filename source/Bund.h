@@ -39,7 +39,7 @@ using namespace std;
 	#define ACER_MIN_PROB 0
 #endif
 
-#if 0
+#if 1
 	#define MAX_UNROLL_AFTER 1000
 	#define ACER_LAMBDA 1.0
 #else //lambda 0.5 allows cutting traces
@@ -50,7 +50,7 @@ using namespace std;
 #define MAX_UNROLL_BFORE 20
 #define ACER_CONST_PREC 50
 #define ACER_GRAD_CUT 10
-#define importanceSampling
+//#define importanceSampling
 
 #define NET_L1_PENAL
 //#define _dumpNet_
