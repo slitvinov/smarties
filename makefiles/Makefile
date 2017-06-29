@@ -1,6 +1,3 @@
-#CC = /opt/mpich/bin/mpicxx
-#CC = g++
-#CC = CC
 hn ?= $(shell hostname)
 username ?= $(shell whoami)
 UNAME_S := $(shell uname -s)
@@ -10,15 +7,15 @@ extra ?=
 app ?= test
 #cvar ?= simple
 cvar ?= off
-acer ?= full 
-testdiff ?= no 
+acer ?= full
+testdiff ?= no
 entropy ?= off
+auxtask ?= off
+tabc ?= off
 mpi_lib ?= default
 
-ifeq "$(viz)" "1"
-CPPFLAGS+= -D_RL_VIZ
-OPENGL_LIB=-framework OpenGL -framework GLUT /opt/local/lib/libGLEW.a
-endif
+CPPFLAGS+= -std=c++11 -D__Smarties_ -fopenmp
+LIBS += -fopenmp -lstdc++ -lm 
 
 ifeq ($(UNAME_S),Darwin)
 include make.macos
@@ -47,17 +44,15 @@ ifeq "$(findstring panda,$(shell hostname))" "panda"
 include make.falcon
 endif
 
-CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wwrite-strings
-CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
-CPPFLAGS+= -Woverloaded-virtual -std=c++11 -Wno-reorder -Wno-deprecated
-CPPFLAGS+= -Wno-sign-compare -Wno-unused-value -Wno-unused-parameter -Wno-unused-variable
-#CPPFLAGS+=-Wno-unknown-pragmas -Wno-reorder -Wno-comment -Wno-deprecated
+CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wpedantic -Woverloaded-virtual 
+CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrite-strings
+CPPFLAGS+= -Wno-unused-parameter # does not make sense with function overloading
+CPPFLAGS+= -Wno-maybe-uninitialized #to switch on and check that only triggered by std random
 
 CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
 CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 #-DNDEBUG
 #CPPFLAGS += -funsafe-math-optimizations
 CPPFLAGS += -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
-CPPFLAGS += -ffast-math
 
 ifeq "$(acer)" "safe"
 CPPFLAGS += -DACER_SAFE
@@ -71,43 +66,52 @@ endif #!full
 endif #relax
 endif #safe
 
+ifeq "$(tabc)" "on"
+CPPFLAGS+= -DACER_TABC
+endif
+ifeq "$(auxtask)" "on"
+CPPFLAGS+= -DFEAT_CONTROL
+endif
 ifeq "$(entropy)" "on"
 CPPFLAGS+= -D__EntropySGD
 endif
 ifeq "$(cvar)" "on"
 CPPFLAGS+= -DACER_PENALIZER
 endif
+ifeq "$(testdiff)" "yes"
+CPPFLAGS+= -D__CHECK_DIFF
+endif
 
 ifeq "$(app)" "cubism"
 CPPFLAGS+= -D__Cubism3D
 endif
 ifeq "$(config)" "debug"
-CPPFLAGS+= -g -O2
-ifeq "$(testdiff)" "yes"
-CPPFLAGS+= -D__CHECK_DIFF
-endif 
-endif 
+CPPFLAGS+= -g# -O2 -ffast-math 
+endif
+ifeq "$(config)" "segf"
+CPPFLAGS+= -g# -O2 -ffast-math 
+CPPFLAGS+= -fsanitize=address
+LIBS += -fsanitize=address
+endif
 ifeq "$(config)" "prod"
-CPPFLAGS += -DNDEBUG -O2
+CPPFLAGS += -DNDEBUG -O2 -ffast-math
 endif
 ifeq "$(config)" "fit"
-CPPFLAGS += -DNDEBUG -O3
+CPPFLAGS += -DNDEBUG -O3 -ffast-math
 endif
 
-ifeq "$(CC)" "icc"
-CPPFLAGSOPT+= -diag-disable remark -wd68 -xHOST -ansi-alias -fno-fnalias -fno-alias
-endif
-
-CPPFLAGS+= -I/usr/local/include -fopenmp -D__Smarties_
-LIBS += -L$(MPI_ROOT)/lib -L/opt/local/lib -L/usr/lib64 -lstdc++ -fopenmp
+#ifeq "$(CC)" "icc"
+#CPPFLAGSOPT+= -diag-disable remark -wd68 -xHOST -ansi-alias -fno-fnalias -fno-alias
+#endif
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
-OBJ_FILES = Communicator.o ArgumentParser.o main.o ObjectFactory.o Profiler.o  \
+OBJ_FILES = Profiler.o ArgumentParser.o main.o ObjectFactory.o \
 		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o \
 		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
-		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o alebotEnvironment.o\
+		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
+		alebotEnvironment.o openAICartEnvironment.o Communicator.o \
 		Learner.o RACER.o DACER.o NAF.o NFQ.o DPG.o Transitions.o \
-		Scheduler.o LSTMNet.o Network.o Optimizer.o #Links.o Layers.o
+		Scheduler.o  Network.o Optimizer.o Math_tests.o Learner_utils.o
 #ExternalAgent.o
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 

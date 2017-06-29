@@ -8,325 +8,231 @@
  */
 
 #include "../StateAction.h"
+#include "../Math/Utils.h"
 #include "DPG.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include <fstream>
-#include <assert.h>
-#include <algorithm>
-#include <cmath>
-
-DPG::DPG(MPI_Comm comm, Environment*const _env, Settings & settings) :
-Learner(comm,_env,settings), nS(_env->sI.dimUsed*(1+settings.dqnAppendS)), nA(_env->aI.dim)
+DPG::DPG(MPI_Comm comm, Environment*const _env, Settings & _s) :
+Learner_utils(comm,_env,_s,_s.nnOutputs), nA(_env->aI.dim),
+nS(_env->sI.dimUsed*(1+_s.appendedObs)), cntValGrad(nThreads+1,0),
+avgValGrad(nThreads+1,vector<long double>(1,0)), stdValGrad(nThreads+1,vector<long double>(1,0))
 {
-	string lType = bRecurrent ? "LSTM" : "Normal";
-	vector<int> lsize;
-	lsize.push_back(settings.nnLayer1);
-	if (settings.nnLayer2>1) {
-		lsize.push_back(settings.nnLayer2);
-		if (settings.nnLayer3>1) {
-			lsize.push_back(settings.nnLayer3);
-			if (settings.nnLayer4>1) {
-				lsize.push_back(settings.nnLayer4);
-				if (settings.nnLayer5>1) {
-					lsize.push_back(settings.nnLayer5);
-				}
-			}
-		}
-	}
-	if (env->predefinedNetwork(net))
-		die("Predefined env structure still unsupported for DPG.\n");
-
-	net = new Network(settings);
-	net->addInput(nS+nA);
-	for (int i=0; i<lsize.size(); i++) net->addLayer(lsize[i], lType);
-	net->addOutput(1, "Normal");
-	net->build();
-	opt = new AdamOptimizer(net, profiler, settings);
-
-	net_policy = new Network(settings);
-	net_policy->addInput(nS);
-	for (int i=0; i<lsize.size(); i++) net_policy->addLayer(lsize[i], lType);
-	net_policy->addOutput(nA, "Normal");
-	net_policy->build();
-	opt_policy = new AdamOptimizer(net_policy, profiler, settings);
+	stdValGrad[0] = vector<long double>(1,100);
+	#ifdef NDEBUG
+	if(bRecurrent) die("DPG with RNN is Not ready!\n");
+	#endif
+	const vector<Real> out_weight_inits = {_s.outWeightsPrefac};
+	buildNetwork(net_value, opt_value, vector<Uint>(1,1), _s, vector<Real>(), vector<Uint>(1,nA));
+	buildNetwork(net, opt, vector<Uint>(1,nA), _s, out_weight_inits);
+	policyVecDim = 2*nA;
 }
 
 void DPG::select(const int agentId, State& s, Action& a,
-								 State& sOld, Action& aOld, const int info, Real r)
+		State& sOld, Action& aOld, const int info, Real r)
 {
-		if (info!=1)
-			data->passData(agentId, info, sOld, aOld, s, r);  //store sOld, aOld -> sNew, r
-		if (info == 2) return;
-		assert(info==1 || data->Tmp[agentId]->tuples.size());
+	vector<Real> beta(policyVecDim,0);
+	if(info==2) { data->passData(agentId, info, sOld, a, s, r, beta); return; }
 
-    Activation* currActivation = net_policy->allocateActivation();
-    vector<Real> output(nA);
+	vector<Real> output = output_value_iteration(agentId,s,a,sOld,aOld,info,r);
+	const Real annealedVar = bTrain ? .2*annealingFactor()+greedyEps : greedyEps;
 
-    if (info==1) {// if new sequence, sold, aold and reward are meaningless
-				vector<Real> inputs(nInputs,0);
-		    s.copy_observed(inputs);
-    		vector<Real> scaledSold = data->standardize(inputs);
-        net_policy->predict(scaledSold, output, currActivation);
-    } else { //then if i'm using RNN i need to load recurrent connections
-				const Tuple* const last = data->Tmp[agentId]->tuples.back();
-				vector<Real> scaledSold = data->standardize(last->s);
-        Activation* prevActivation = net_policy->allocateActivation();
-        net_policy->loadMemory(net_policy->mem[agentId], prevActivation);
-        net_policy->predict(scaledSold, output, prevActivation, currActivation);
-        _dispose_object(prevActivation);
-    }
+	if(positive(annealedVar)) {
+		std::normal_distribution<Real> dist(0, annealedVar);
+		for(Uint i=0; i<nA; i++) {
+			beta[i] = output[i];
+			beta[i+nA] = 1/annealedVar/annealedVar;
+			output[i] += dist(*gen);
+		}
+	}
 
-    //save network transition
-    net_policy->loadMemory(net_policy->mem[agentId], currActivation);
-    _dispose_object(currActivation);
-
-		#ifdef _dumpNet_
-    net_policy->dump(agentId);
-		#endif
-
-    //load computed policy into a
-		a.set(aInfo.getScaled(output));
-
-    const Real annealedEps = bTrain ? annealingFactor() + greedyEps : greedyEps;
-    uniform_real_distribution<Real> dis(0.,1.);
-    if(dis(*gen) < annealedEps)  a.getRandom();
+	//scale back to action space size:
+	a.set(aInfo.getScaled(output));
+	data->passData(agentId, info, sOld, a, s, r, beta);
+	dumpNetworkInfo(agentId);
 }
 
-void DPG::Train_BPTT(const int seq, const int thrID) const
+void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
 {
-  assert(net->allocatedFrozenWeights && net_policy->allocatedFrozenWeights);
-	const int ndata = data->Set[seq]->tuples.size();
-	vector<Activation*>valSeries=       net->allocateUnrolledActivations(ndata-1);
-	vector<Activation*>polSeries=net_policy->allocateUnrolledActivations(ndata);
-	net->clearErrors(valSeries);
-	Grads* tmp_grad = new Grads(net->nWeights, net->nBiases);
-	Activation* tgtQAct = net->allocateActivation();
-	//now update value network:
-	{
-		vector<Real> scaledSnew = data->standardize(data->Set[seq]->tuples[0]->s);
-		vector<Real> scaledSold, policy(nA);
-		net_policy->predict(scaledSnew, policy, polSeries, 0,
-												net_policy->tgt_weights, net_policy->tgt_biases);
+	const Real rGamma = annealedGamma();
+	const Uint ndata = data->Set[seq]->tuples.size();
+	const Uint ntgts = data->Set[seq]->ended ? ndata-1 : ndata;
+	Grads* tmp_grad = new Grads(net_value->getnWeights(),net_value->getnBiases());
+	vector<Activation*>valSeries=net_value->allocateUnrolledActivations(ndata-1);
+	vector<Activation*>polSeries=net->allocateUnrolledActivations(ndata);
+	Activation* tgtAct = net_value->allocateActivation();
+	vector<Real> qcurrs(ndata-1), vnexts(ndata-1);
 
-		for (int k=0; k<ndata-1; k++)
-		{ //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
-			const Tuple*const _t   =data->Set[seq]->tuples[k+1]; //contains a, sNew, r
-			scaledSold = scaledSnew;
-			scaledSnew = data->standardize(_t->s);
+	for (Uint k=0; k<ntgts; k++)
+	{ //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
+		const Tuple*const t_  = data->Set[seq]->tuples[k]; //contains sOld
+		vector<Real> s = data->standardize(t_->s);
+		vector<Real> pol(nA), val(1), polgrad(nA);
+		net->predict(s, pol, polSeries, k); //Compute policy with state as input
 
-			vector<Real> vSnew(1), Q(1), gradient(1);
-	    { //join state and rescaled action to predict Q
-	        vector<Real> input = scaledSold;
-					vector<Real> scaledA = aInfo.getInvScaled(_t->a);
-	        input.insert(input.end(), scaledA.begin(), scaledA.end());
-	        net->predict(input, Q, valSeries, k);
-	    }
+		//Advance target network with state and policy
+		s.insert(s.end(), pol.begin(), pol.end());
+		//Prev step action "a" was performed, not policy. Therefore, next target is
+		//computed with recur inputs from value-net computed with cur weights:
+		const Activation*const recur = k>0 ? valSeries[k-1] : nullptr;
+		net_value->predict(s, val, recur, tgtAct, net_value->tgt_weights, net_value->tgt_biases);
+		if(k) vnexts[k-1] = val[0];
 
-			const bool terminal = k+2==ndata && data->Set[seq]->ended;
-			if (not terminal) {
-				//first predict best action with policy NN w/ target weights
-				net_policy->predict(scaledSnew, policy, polSeries, k+1
-					//, net_policy->tgt_weights, net_policy->tgt_biases
-						   );
-				//then predict target value for V(s_new)
-				vector<Real> input = scaledSnew;
-				input.insert(input.end(),policy.begin(),policy.end());
-				net->predict(input, vSnew, valSeries[k], tgtQAct,
-									net->tgt_weights, net->tgt_biases);
-			}
-			{
-				#if 0
-				const Real realxedGamma = gamma * (1. - annealingFactor());
-	      const Real target = (terminal) ? _t->r : _t->r + realxedGamma*vSnew[0];
-				#else
-				const Real anneal = annealingFactor(), seqRew = sequenceR(k, seq);
-	      const Real target = (terminal) ? _t->r :
-													anneal*seqRew + (1-anneal)*( _t->r + gamma*vSnew[0]);
-				#endif
-				gradient[0] = target - Q[0];
-				data->Set[seq]->tuples[k]->SquaredError = gradient[0]*gradient[0];
-			}
+		if(k==ndata-1) continue;
+		//Advance current network with state and action
+		const vector<Real> a = aInfo.getInvScaled(data->Set[seq]->tuples[k]->a);
+		for(Uint i=0; i<nA; i++) s[nInputs+i] = a[i];
+		net_value->predict(s, val, valSeries, k); //Compute value
+		qcurrs[k] = val[0];
 
-			net->setOutputDeltas(gradient, valSeries[k]);
-			vector<Real> dumQ(2, 100); dumQ[0] = Q[0]; //avoid nans in dumpStats
-			dumpStats(Vstats[thrID], Q[0], gradient[0], dumQ);
-			if(thrID==1) net->updateRunning(valSeries[k]);
-		}
+		//only one-step backprop because policy-net tries to maximize Q given past transitions, so cannot affect previous Q
+		net_value->backProp(vector<Real>(1,1), tgtAct, net_value->tgt_weights, net_value->tgt_biases, tmp_grad);
 
-		if (thrID==0) net->backProp(valSeries, net->grad);
-		else net->backProp(valSeries, net->Vgrad[thrID]);
+		for(Uint j=0; j<nA; j++) polgrad[j]= tgtAct->errvals[net_value->iInp[nS+j]];
+		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], polgrad);
+		clip_gradient(polgrad, stdGrad[0], seq, k);
+		net->setOutputDeltas(polgrad, polSeries[k]);
 	}
-	//now update policy network:
+
+	//im done using the term state for the policy, and i want to bptt:
 	delete polSeries.back();
-	polSeries.pop_back(); //im done using the term state for the policy, and i want to bptt
-	net->clearErrors(valSeries); net_policy->clearErrors(polSeries);
+	polSeries.pop_back();
+	if (thrID==0) net->backProp(polSeries, net->grad);
+	else net->backProp(polSeries, net->Vgrad[thrID]);
+
+	for (Uint k=0; k<ndata-1; k++)
 	{
-		for (int k=0; k<ndata-1; k++) {
-		  //state in k=[0:N-2], act&rew in k+1, last state (N-1) not used for Q update
-			const Tuple*const _tOld=data->Set[seq]->tuples[k]; //this tuple contains sOld
-
-			vector<Real> pol(nA), Q(1), scaledSold = data->standardize(_tOld->s);
-			net_policy->predict(scaledSold, pol, polSeries, k);
-
-			vector<Real> input = scaledSold;
-			input.insert(input.end(), pol.begin(), pol.end());
-			net->predict(input, Q, valSeries, k
-									//, net->tgt_weights, net->tgt_biases
-									);
-			Q[0] = 1.; //grad
-			net->setOutputDeltas(Q, valSeries[k]);
-		}
-
-		net->backProp(valSeries,
-									//net->tgt_weights, net->tgt_biases,
-									tmp_grad);
-
-		for (int k=0; k<ndata-1; k++) {
-			vector<Real> pol_gradient(nA);
-			for(int i=0;i<nA;i++)
-				pol_gradient[i] = valSeries[k]->errvals[nS+i];
-
-			net_policy->setOutputDeltas(pol_gradient, polSeries[k]);
-		}
-
-		if (thrID==0) net_policy->backProp(polSeries, net_policy->grad);
-		else net_policy->backProp(polSeries, net_policy->Vgrad[thrID]);
+		vector<Real> gradient(1);
+		const Tuple*const _t  = data->Set[seq]->tuples[k+1];
+		const bool terminal = k+2==ndata && data->Set[seq]->ended;
+		const Real target = (terminal) ? _t->r : _t->r + rGamma*vnexts[k];
+		gradient[0] = target - qcurrs[k];
+		data->Set[seq]->tuples[k]->SquaredError = gradient[0]*gradient[0];
+		statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],gradient);
+		clip_gradient(gradient, stdValGrad[0], seq, k);
+		net_value->setOutputDeltas(gradient, valSeries[k]);
+		dumpStats(Vstats[thrID], qcurrs[k], gradient[0]);
 	}
+	if (thrID==0) net_value->backProp(valSeries, net_value->grad);
+	else net_value->backProp(valSeries, net_value->Vgrad[thrID]);
 
-	net->deallocateUnrolledActivations(&valSeries);
-	net_policy->deallocateUnrolledActivations(&polSeries);
-	_dispose_object(tgtQAct);
+	net_value->deallocateUnrolledActivations(&valSeries);
+	net->deallocateUnrolledActivations(&polSeries);
+	_dispose_object(tgtAct);
 	_dispose_object(tmp_grad);
 }
 
-void DPG::Train(const int seq, const int samp, const int thrID) const
+void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
-    assert(net->allocatedFrozenWeights && net_policy->allocatedFrozenWeights);
+	const Real rGamma = annealedGamma();
+	const Uint ndata = data->Set[seq]->tuples.size(), nMaxBPTT = MAX_UNROLL_BFORE;
+	const Uint iRecurr = bRecurrent ? max(nMaxBPTT,samp)-nMaxBPTT : samp;
+	const Uint nRecurr = bRecurrent ? min(nMaxBPTT,samp)+1 : 1;
+	const bool terminal = samp+2==ndata && data->Set[seq]->ended;
+	vector<Activation*> actPolcur=net->allocateUnrolledActivations(nRecurr);
+	vector<Activation*> actValcur=net_value->allocateUnrolledActivations(nRecurr);
+	Grads*const tmp = new Grads(net_value->getnWeights(),net_value->getnBiases());
+	Activation* tgtVal = net_value->allocateActivation();
+	Activation* tgtPol = net->allocateActivation();
+	vector<Real> vnext(1), vcurr(1), grad_pol(nA), qcurr(1), grad_val(1,1);
+	//number of state inputs to value net, =/= nS in case multiple obs fed
+	const Uint NSIN = net_value->getnInputs()-nA;
 
-    //this tuple contains a, sNew, reward:
-    const Tuple * const _t = data->Set[seq]->tuples[samp+1];
-    //sOld contained in previous tuple
-    const Tuple * const _tOld = data->Set[seq]->tuples[samp];
-    vector<Real> scaledSnew = data->standardize(_t->s);
-    vector<Real> scaledSold = data->standardize(_tOld->s);
-    Activation* sOldAAct = net_policy->allocateActivation();
-    Activation* sOldQAct = net->allocateActivation();
-    Activation* sNewQAct = net->allocateActivation();
-    sOldAAct->clearErrors();
-    sOldQAct->clearErrors();
-    sNewQAct->clearErrors();
-
-    //update Q network:
-    vector<Real> vSnew(1), Q(1), gradient(1);
-    { //join state and rescaled action to predict Q
-        vector<Real> input = scaledSold, scaledA = aInfo.getInvScaled(_t->a);
-        input.insert(input.end(),scaledA.begin(),scaledA.end());
-        net->predict(input, Q, sOldQAct);
-    }
-
-    const bool terminal = samp+2==data->Set[seq]->tuples.size()
-												 && data->Set[seq]->ended;
-    if (not terminal) {
-        Activation* sNewAAct = net_policy->allocateActivation();
-        //first predict best action with policy NN w/ target weights
-        vector<Real> policy(nA);
-        net_policy->predict(scaledSnew, policy, sNewAAct,
-														net_policy->tgt_weights, net_policy->tgt_biases);
-        //then predict target value for V(s_new)
-        vector<Real> input = scaledSnew;
-        input.insert(input.end(),policy.begin(),policy.end());
-        net->predict(input, vSnew, sNewQAct, net->tgt_weights, net->tgt_biases);
-        _dispose_object(sNewAAct);
-    }
-
-		{
-			const Real realxedGamma = gamma * (1. - annealingFactor());
-			const Real target = (terminal) ? _t->r : _t->r + realxedGamma*vSnew[0];
-		  gradient[0] = target - Q[0];
-		  data->Set[seq]->tuples[samp]->SquaredError = gradient[0]*gradient[0];
+	for (Uint k=iRecurr, j=0; k<samp+1; k++, j++) {
+		const vector<Real> a = aInfo.getInvScaled(data->Set[seq]->tuples[k]->a);
+		vector<Real> s = data->standardize(data->Set[seq]->tuples[k]->s);
+		net->seqPredict_inputs(s, actPolcur[j]);
+		s.insert(s.end(), a.begin(), a.end());
+		net_value->seqPredict_inputs(s, actValcur[j]);
+		if(k==samp) {
+			net->seqPredict_execute(actPolcur,actPolcur);
+			net_value->seqPredict_execute(actValcur,actValcur);
+			const vector<Real> pol = net->getOutputs(actPolcur.back());
+			qcurr = net_value->getOutputs(actValcur.back());
+			for(Uint i=0; i<nA; i++) s[NSIN+i] = pol[i];
+			net_value->predict(s, vcurr, actValcur[j-1], tgtVal, net_value->tgt_weights, net_value->tgt_biases);
 		}
+	}
+	net_value->backProp(grad_val, tgtVal, net_value->tgt_weights, net_value->tgt_biases, tmp);
+	for(Uint j=0;j<nA;j++) grad_pol[j] = tgtVal->errvals[net_value->iInp[NSIN+j]];
+	statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad_pol);
+	clip_gradient(grad_pol, stdGrad[0], seq, samp);
+	net->setOutputDeltas(grad_pol, actPolcur.back());
 
-    if (thrID==0) net->backProp(gradient, sOldQAct, net->grad);
-    else net->backProp(gradient, sOldQAct, net->Vgrad[thrID]);
-    dumpStats(Vstats[thrID], Q[0], gradient[0], Q);
+	const Tuple * const _t = data->Set[seq]->tuples[samp+1]; //contains sNew, rew
+	if(!terminal) {
+		vector<Real> snew = data->standardize(_t->s), polnext(nA);
+		net->predict(snew, polnext, tgtPol, net->tgt_weights, net->tgt_biases);
+		snew.insert(snew.end(), polnext.begin(), polnext.end());
+		net_value->predict(snew, vnext, tgtVal, net_value->tgt_weights, net_value->tgt_biases);
+	}
 
-    //now update policy network:
-    { //predict policy for sOld
-        vector<Real> policy(nA), pol_gradient(nA);
-        net_policy->predict(scaledSold, policy, sOldAAct);
+	const Real target = (terminal) ? _t->r : _t->r + rGamma * vnext[0];
+	grad_val[0] = target - qcurr[0];
 
-        //use it to compute activation with frozen weitghts for Q net
-        vector<Real> input = scaledSold;
-        input.insert(input.end(), policy.begin(), policy.end());
-				net->predict(input, Q, sNewQAct
-											, net->tgt_weights, net->tgt_biases
-											);
+	data->Set[seq]->tuples[samp]->SquaredError = grad_val[0]*grad_val[0];
+	dumpStats(Vstats[thrID], qcurr[0], grad_val[0]);
+	statsGrad(avgValGrad[thrID+1], stdValGrad[thrID+1], cntValGrad[thrID+1], grad_val);
+	clip_gradient(grad_val, stdValGrad[0], seq, samp);
+	net_value->setOutputDeltas(grad_val, actValcur.back());
 
-        //now i need to compute dQ/dA, for Q net use tgt weight throughout
-        gradient[0] = 1.; //who to increase Q?
-	    	Grads* tmp_grad = new Grads(net->nWeights, net->nBiases);
-				net->backProp(gradient, sNewQAct,
-											net->tgt_weights, net->tgt_biases,
-											tmp_grad);
-        _dispose_object(tmp_grad);
+	if(thrID==0) net_value->backProp(actValcur, net_value->grad);
+	else net_value->backProp(actValcur, net_value->Vgrad[thrID]);
+	if(thrID==0) net->backProp(actPolcur, net->grad);
+	else net->backProp(actPolcur, net->Vgrad[thrID]);
 
-    		if (thrID==0)
-					net_policy->backProp(pol_gradient, sOldAAct, net_policy->grad);
-    		else
-					net_policy->backProp(pol_gradient, sOldAAct, net_policy->Vgrad[thrID]);
-    }
-
-    if(thrID == 1) net->updateRunning(sOldAAct);
-
-    _dispose_object(sOldAAct);
-    _dispose_object(sOldQAct);
-    _dispose_object(sNewQAct);
+	net->deallocateUnrolledActivations(&actValcur);
+	net->deallocateUnrolledActivations(&actPolcur);
+	_dispose_object(tgtVal);
+	_dispose_object(tgtPol);
+	_dispose_object(tmp);
 }
 
 void DPG::updateTargetNetwork()
 {
-		assert(bTrain);
-    if (cntUpdateDelay <= 0) { //DQN-style frozen weight
-        cntUpdateDelay = tgtUpdateDelay;
-
-        //2 options: either move tgt_wght = (1-a)*tgt_wght + a*wght
-	/*
-        if (tgtUpdateDelay==0) {
-            net->moveFrozenWeights(tgtUpdateAlpha);
-            net_policy->moveFrozenWeights(tgtUpdateAlpha);
-        } else {
-            net->updateFrozenWeights(); //or copy tgt_wghts = wghts
-            net_policy->updateFrozenWeights(); //or copy tgt_wghts = wghts
-        }
-	*/
-	opt->moveFrozenWeights(tgtUpdateAlpha);
-	opt_policy->moveFrozenWeights(tgtUpdateAlpha);
-    }
-
-    cntUpdateDelay--;
+	assert(bTrain);
+	if (cntUpdateDelay <= 0) { //DQN-style frozen weight
+		cntUpdateDelay = tgtUpdateDelay;
+		opt_value->moveFrozenWeights(tgtUpdateAlpha);
+		opt->moveFrozenWeights(tgtUpdateAlpha);
+	}
+	if(cntUpdateDelay>0) cntUpdateDelay--;
 }
 
-void DPG::stackAndUpdateNNWeights(const int nAddedGradients)
+void DPG::stackAndUpdateNNWeights(const Uint nAddedGradients)
 {
-		assert(nAddedGradients>0 && bTrain);
-    opt->nepoch ++;
-    opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads
-    opt->update(net->grad,nAddedGradients); //update
+	assert(nAddedGradients>0 && bTrain);
+	opt_value->nepoch ++;
+	opt_value->stackGrads(net_value->grad, net_value->Vgrad); //add up gradients across threads
+	opt_value->update(net_value->grad, nAddedGradients); //update
 
-    opt_policy->nepoch ++;
-    opt_policy->stackGrads(net_policy->grad, net_policy->Vgrad); //add up gradients across threads
-    opt_policy->update(net_policy->grad,nAddedGradients); //update
+	opt->nepoch ++;
+	opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads
+	opt->update(net->grad, nAddedGradients); //update
 }
 
-void DPG::updateNNWeights(const int nAddedGradients)
+void DPG::updateNNWeights(const Uint nAddedGradients)
 {
-		assert(nAddedGradients>0 && bTrain);
-    opt->nepoch ++;
-    opt->update(net->grad,nAddedGradients);
+	assert(nAddedGradients>0 && bTrain);
+	opt_value->nepoch ++;
+	opt_value->update(net_value->grad, nAddedGradients);
 
-    opt_policy->nepoch ++;
-    opt_policy->update(net_policy->grad,nAddedGradients);
+	opt->nepoch ++;
+	opt->update(net->grad, nAddedGradients);
+}
+
+void DPG::processGrads()
+{
+	statsVector(avgGrad, stdGrad, cntGrad);
+	statsVector(avgValGrad, stdValGrad, cntValGrad);
+	std::ostringstream o1; o1 << "Grads avg (std): ";
+	for (Uint i=0;i<avgGrad[0].size();i++)
+		o1<<avgGrad[0][i]<<" ("<<stdGrad[0][i]<<") ";
+	for (Uint i=0;i<avgValGrad[0].size();i++)
+		o1<<avgValGrad[0][i]<<" ("<<stdValGrad[0][i]<<") ";
+	cout<<o1.str()<<endl;
+
+	ofstream filestats;
+	filestats.open("grads.txt", ios::app);
+	filestats<<print(avgGrad[0]).c_str()<<" "<<print(stdGrad[0]).c_str()<<" "
+				<<print(avgValGrad[0]).c_str()<<" "<<print(stdValGrad[0]).c_str()<<endl;
+	filestats.close();
 }

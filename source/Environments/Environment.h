@@ -8,33 +8,33 @@
  */
 
 #pragma once
-
-#include <sys/un.h>
-#include "../Communicator.h"
 #include "../Agent.h"
-#include "../StateAction.h"
-#include "../ANN/Network.h"
-
+#include "../Network/Builder.h"
+#include "../Communicator.h"
 #include <map>
 
 class Environment
 {
 protected:
     mt19937 * const g; //only ok if only thread 0 accesses
+    Settings & settings;
+    Communicator* comm_ptr = nullptr;
     void commonSetup();
 
 public:
     const string execpath;
-    string paramsfile;
-    const int rank, nAgents, nAgentsPerRank;
-    const double gamma;
-    bool resetAll, cheaperThanNetwork;
-    int mpi_ranks_per_env;
+    const Uint nAgents, nAgentsPerRank;
+    const Real gamma;
+
+    bool resetAll = false;
+    bool cheaperThanNetwork = true;
+    Uint mpi_ranks_per_env = 0;
+    string paramsfile = string();
+
     vector<Agent*> agents;
     StateInfo  sI;
     ActionInfo aI;
-    Environment(const int nAgents, const string execpath,
-                const int _rank, Settings & settings);
+    Environment(const Uint nAgents, const string execpath, Settings & settings);
 
     virtual ~Environment();
 
@@ -42,9 +42,9 @@ public:
 
     virtual bool pickReward(const State& t_sO, const Action& t_a,
                             const State& t_sN, Real& reward, const int info);
-    virtual bool predefinedNetwork(Network* const net) const;
+    virtual bool predefinedNetwork(Builder* const net) const;
+    Communicator create_communicator( const MPI_Comm slavesComm, const int socket, const bool bSpawn);
 
-    virtual vector<Real> stateDumpUpperBound();
-    virtual vector<Real> stateDumpLowerBound();
-    virtual vector<int> stateDumpNBins();
+		virtual Uint getNdumpPoints();
+		virtual vector<Real> getDumpState(Uint k);
 };

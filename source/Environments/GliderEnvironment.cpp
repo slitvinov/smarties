@@ -8,23 +8,9 @@
  */
 
 #include "GliderEnvironment.h"
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <cstdio>
-#include <unistd.h>
-#include <errno.h>
-#include <math.h>
-#include <signal.h>
-#include <iostream>
-#include <algorithm>
-#include <stdio.h>
 
-using namespace std;
-
-GliderEnvironment::GliderEnvironment(const int _nAgents, const string _execpath,
-																 const int _rank, Settings & settings) :
-Environment(_nAgents, _execpath, _rank, settings) {
+GliderEnvironment::GliderEnvironment(const Uint _nAgents, const string _execpath, Settings & _s) :
+Environment(_nAgents, _execpath, _s), sensevel(_s.senses==0) {
 	//cheaperThanNetwork=false;
 	settings.saveFreq = 1e5;
 }
@@ -32,7 +18,9 @@ Environment(_nAgents, _execpath, _rank, settings) {
 void GliderEnvironment::setDims() //this environment is for the cart pole test
 {
 	sI.inUse.clear();
-	for (int i=0; i<6; i++) sI.inUse.push_back(true);
+	//if !sensevel then skip u v omega
+	for (Uint i=0; i<7; i++)
+		sI.inUse.push_back(sensevel || i>2);
 
 	sI.inUse.push_back(true);
 	//sI.inUse.push_back(false);
@@ -44,7 +32,8 @@ void GliderEnvironment::setDims() //this environment is for the cart pole test
 		sI.mean.push_back(0); //omega
 		sI.mean.push_back(50); //x
 		sI.mean.push_back(-25); //y
-		sI.mean.push_back(M_PI); //theta
+		sI.mean.push_back(0); //cos theta
+		sI.mean.push_back(0); //sin theta
 		sI.mean.push_back(0); //T
 		sI.mean.push_back(0); //vx
 		sI.mean.push_back(0); //vy
@@ -55,7 +44,8 @@ void GliderEnvironment::setDims() //this environment is for the cart pole test
 		sI.scale.push_back(1); //omega
 		sI.scale.push_back(50); //x
 		sI.scale.push_back(25); //y
-		sI.scale.push_back(M_PI/2); //theta
+		sI.scale.push_back(1); //cos theta
+		sI.scale.push_back(1); //sin theta
 		sI.scale.push_back(1); //T
 		sI.scale.push_back(1); //vx
 		sI.scale.push_back(1); //vy
@@ -76,6 +66,27 @@ bool GliderEnvironment::pickReward(const State & t_sO, const Action & t_a,
     return new_sample; //cart pole has failed if r = -1, need to clean this shit and rely only on info
 }
 
-vector<Real> GliderEnvironment::stateDumpUpperBound() {return vector<Real>{ 1, 1, .5,125,  0,2*M_PI};}
-vector<Real> GliderEnvironment::stateDumpLowerBound() {return vector<Real>{-1,-1,-.5, -5,-50,     0};}
-vector<int> GliderEnvironment::stateDumpNBins() {return vector<int> { 9, 9,  9, 53, 21,     9};}
+Uint GliderEnvironment::getNdumpPoints()
+{
+	return 7 * 7 * 9 * 53 * 21 * 9 * 7;
+}
+
+vector<Real> GliderEnvironment::getDumpState(Uint k)
+{
+	const vector<Real> ub = {  .5,  .5, 1, 125,   0,      0,  1};
+	const vector<Real> lb = { -.5, -.5, 0,  -5, -50, 2*M_PI, -1};
+	const vector<Uint> nb = {   7,   7, 9,  53,  21,      9,  7};
+	vector<Real> state(7,0);
+	for (Uint i=0; i<7; i++)
+	{
+		const Uint j = k % nb[i];
+		state[i] = lb[i] + (ub[i]-lb[i]) * (j/(Real)(nb[i]-1));
+		k /= nb[i];
+	}
+	//ugliness
+	state.resize(8); state[7] = state[6];
+	const Real cosang = std::cos(state[5]);
+	const Real sinang = std::cos(state[5]);
+	state[5] = cosang; state[6] = sinang;
+	return state;
+}

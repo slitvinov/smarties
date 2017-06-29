@@ -8,25 +8,26 @@
  */
 
 #pragma once
+#include "Learner_utils.h"
 
-#include "Learner.h"
-
-using namespace std;
-
-class DPG : public Learner
+class DPG : public Learner_utils
 {
-    const int nA, nS;
-    Network* net_policy;
-    Optimizer* opt_policy;
-    void Train_BPTT(const int seq, const int thrID=0) const override;
-    void Train(const int seq, const int samp, const int thrID=0) const override;
+	const Uint nA, nS;
+	mutable vector<long double> cntValGrad;
+	mutable vector<vector<long double>> avgValGrad, stdValGrad;
+	Network* net_value;
+	Optimizer* opt_value;
 
-    void updateTargetNetwork() override;
-    void stackAndUpdateNNWeights(const int nAddedGradients) override;
-    void updateNNWeights(const int nAddedGradients) override;
+	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
+	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
+
+	void updateTargetNetwork() override;
+	void stackAndUpdateNNWeights(const Uint nAddedGradients) override;
+	void updateNNWeights(const Uint nAddedGradients) override;
+	void processGrads() override;
 
 public:
 	DPG(MPI_Comm comm, Environment*const env, Settings & settings);
-    void select(const int agentId, State& s, Action& a, State& sOld,
-                Action& aOld, const int info, Real r) override;
+	void select(const int agentId, State& s, Action& a, State& sOld,
+			Action& aOld, const int info, Real r) override;
 };

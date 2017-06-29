@@ -8,33 +8,17 @@
  */
 
 #pragma once
-
-#include "Learner.h"
+#include "Learner_utils.h"
 
 using namespace std;
 
-class NFQ : public Learner
+class NFQ : public Learner_utils
 {
-    void Train_BPTT(const int seq, const int thrID=0) const override;
-    void Train(const int seq, const int samp, const int thrID=0) const override;
-    void dumpNetworkInfo(const int agentId);
-    inline int maxInd(const vector<Real>& Qs) const
-    {
-      assert(Qs.size() == nOutputs);
-      Real Val = -1e6;
-      //let's just assume that if the best is less than -1e6, something is wrong
-      int Nbest = -1;
-      for (int i=0; i<nOutputs; ++i) {
-          if (Qs[i]>Val) {
-            Val = Qs[i];
-            Nbest = i;
-          }
-      }
-      assert(Nbest>=0);
-      return Nbest;
-    }
+	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
+	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
+
 public:
 	NFQ(MPI_Comm comm, Environment*const env, Settings & settings);
-    void select(const int agentId, State& s, Action& a, State& sOld,
-                Action& aOld, const int info, Real r) override;
+	void select(const int agentId, State& s, Action& a, State& sOld,
+			Action& aOld, const int info, Real r) override;
 };

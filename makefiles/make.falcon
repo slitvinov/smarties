@@ -1,4 +1,4 @@
-CC=/opt/mpich/bin/mpicxx
-
-CPPFLAGS+= -mavx -I/opt/mpich/include
+CC=/home/novatig/mpich-3.2/gcc7.1_install/bin/mpicxx
+LIBS+= -L/home/novatig/mpich-3.2/gcc7.1_install/lib 
+CPPFLAGS+= -mavx -I/home/novatig/mpich-3.2/gcc7.1_install/include -DGYM_RENDEROPT=0
 #LIBS+= -lmpi

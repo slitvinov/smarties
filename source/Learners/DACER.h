@@ -9,89 +9,143 @@
 
 #pragma once
 
-#include "DiscreteAlgorithm.h"
+#include "Learner_utils.h"
+#include "../Math/Discrete_policy.h"
 
-using namespace std;
-
-class DACER : public DiscreteAlgorithm
+class DACER : public Learner_utils
 {
+	const Uint nA;
+	#ifdef ACER_TABC
 	const Real truncation;
-	mutable vector<vector<Real>> stdGrad, avgGrad;
-	mutable vector<Real> cntGrad;
+	#endif
+	const Real delta;
+	std::vector<std::mt19937>& generators;
+	const vector<Uint> net_outputs = {1, nA, nA};
+	const vector<Uint> net_indices = {0,  1, 1+nA};
 
-	void Train_BPTT(const int seq, const int thrID=0) const override;
-	void Train(const int seq, const int samp, const int thrID=0) const override;
-	void processStats(vector<trainData*> _stats, const Real avgTime) override;
+	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
+	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
 
-	vector<Real> basicNetOut(const int agentId, State& s, Action& a,
-		State& sOld, Action& aOld, const int info, Real r)
+	inline Discrete_policy prepare_policy(const vector<Real>& out) const
 	{
-		if (info == 2) { //no need for action, just pass terminal s & r
-			data->passData(agentId, info, sOld, a, vector<Real>(), s, r);
-			return vector<Real>(0);
-		}
-
-		Activation* currActivation = net->allocateActivation();
-
-		vector<Real> output(nOutputs);
-		vector<Real> input = s.copy_observed();
-		//if required, chain together nAppended obs to compose state
-		if (nAppended>0) {
-			const int sApp = nAppended*sInfo.dimUsed;
-			if(info==1)
-				input.insert(input.end(),sApp, 0);
-			else {
-				assert(data->Tmp[agentId]->tuples.size()!=0);
-				const Tuple * const last = data->Tmp[agentId]->tuples.back();
-				input.insert(input.end(),last->s.begin(),last->s.begin()+sApp);
-				assert(last->s.size()==input.size());
-			}
-		}
-
-		if(info==1) {
-			net->predict(data->standardize(input), output, currActivation
-			#ifdef __EntropySGD //then we sample from target weights
-			      , net->tgt_weights, net->tgt_biases
-			#endif
-	      );
-		} else { //then if i'm using RNN i need to load recurrent connections (else no effect)
-			Activation* prevActivation = net->allocateActivation();
-			net->loadMemory(net->mem[agentId], prevActivation);
-			net->predict(data->standardize(input), output, prevActivation, currActivation
-			#ifdef __EntropySGD //then we sample from target weights
-			      , net->tgt_weights, net->tgt_biases
-			#endif
-	      );
-			_dispose_object(prevActivation);
-		}
-
-		//save network transition
-		net->loadMemory(net->mem[agentId], currActivation);
-		_dispose_object(currActivation);
-
-		return output;
+		return Discrete_policy(net_indices[1], net_indices[2], nA, out);
 	}
 
-	vector<Real> basicNetOut(Action& a, const vector<Real> pol)
+	template<int bUpdateOPC>
+	inline vector<Real> compute(const Uint seq, const Uint samp, Real& Q_RET,
+		Real& Q_OPC, const vector<Real>& out_cur, const vector<Real>& out_hat,
+		const Real rGamma, const Uint thrID) const
 	{
-		assert(pol.size()==nA);
-		vector<Real> beta = pol;
-		const Real eps = annealingFactor();
-		int iAct = -1;
-		const Real addedVar = greedyEps*eps/nA, trunc = (1-greedyEps*eps);
+		const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
+		const Tuple * const _t = data->Set[seq]->tuples[samp]; //contains sOld, a
+		const Tuple * const t_ = data->Set[seq]->tuples[samp+1]; //contains r, sNew
+		Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
+		Q_OPC = t_->r + rGamma*Q_OPC;
+		//get everybody camera ready:
+		const Real V_cur = out_cur[net_indices[0]];
+		const Real V_hat = out_hat[net_indices[0]];
+		const Discrete_policy pol_cur = prepare_policy(out_cur);
+		const Discrete_policy pol_hat = prepare_policy(out_hat);
 
-		if(bTrain && positive(eps))
-			for(int i=0; i<nA; i++) beta[i] = trunc*beta[i] + addedVar;
+		//off policy stored action and on-policy sample:
+		const Uint act = aInfo.actionToLabel(_t->a);
+		const Real rho_cur = pol_cur.probability(act)/_t->mu[act];
+		const Real varCritic = pol_cur.advantageVariance();
+		const Real A_cur = pol_cur.computeAdvantage(act);
+		const Real Qer = Q_RET - A_cur-V_cur, A_OPC = Q_OPC - V_hat;
 
-		std::discrete_distribution<int> dist(beta.begin(),beta.end());
+		static const Real L = 0.1, eps = 2.2e-16;
+		const Real threshold = A_cur * A_cur / (varCritic+eps);
+		const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
+		const Real eta = anneal * smoothing * A_cur * A_OPC / (varCritic+eps);
 
-		if (positive(greedyEps) || bTrain)
-			iAct = dist(*gen);
-		else
-			iAct = maxInd(pol);
-		assert(iAct>=0 && iAct<nA);
-		a.set(iAct);
-		return beta;
+		#ifdef ACER_PENALIZER
+			const Real cotrolVar = A_cur;
+		#else
+			const Real cotrolVar = 0;
+		#endif
+
+		//compute quantities needed for trunc import sampl with bias correction
+		#ifdef ACER_TABC
+			const Uint pol = pol_cur.sample(&generators[thrID]);
+			const Real rho_pol = pol_cur.probability(pol)/_t->mu[pol];
+			const Real A_pol = pol_cur.computeAdvantage(pol);
+			const Real gain1 = A_OPC*min(rho_cur,truncation) -eta*rho_cur*cotrolVar;
+			const Real gain2 = A_pol*max(0.,1.-truncation/rho_pol);
+
+			const vector<Real> gradAcer_1 = pol_cur.policy_grad(act, gain1);
+			const vector<Real> gradAcer_2 = pol_cur.policy_grad(pol, gain2);
+			const vector<Real> gradAcer = sum2Grads(gradAcer_1, gradAcer_2);
+		#else
+			const Real gain1 = A_OPC * rho_cur - eta * rho_cur * cotrolVar;
+			const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
+		#endif
+
+		#ifdef ACER_PENALIZER
+			const vector<Real> gradC = pol_cur.control_grad(eta);
+			const vector<Real> policy_grad = sum2Grads(gradAcer, gradC);
+		#else
+			const vector<Real> policy_grad = gradAcer;
+		#endif
+
+		//trust region updating
+		const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
+		const vector<Real> trust_grad=
+			trust_region_update(policy_grad,gradDivKL,delta);
+
+		#ifdef ACER_TABC
+			const Real rho_hat = pol_hat.probability(act)/_t->mu[act];
+			const Real Ver = Qer*std::min(1.,rho_hat); //unclear
+		#else
+			const Real Ver = 0;
+		#endif
+
+		vector<Real> gradient(nOutputs,0);
+		gradient[net_indices[0]]= Qer + Ver;
+		pol_cur.values_grad(act, Qer, gradient);
+		pol_cur.finalize_grad(trust_grad, gradient);
+
+		if(bUpdateOPC)
+		{
+			#ifndef ACER_TABC
+				const Real rho_hat = pol_hat.probability(act)/_t->mu[act];
+			#endif
+			//Used as target: target policy, target value
+			const Real A_hat = pol_hat.computeAdvantage(act);
+			//const Real c_cur = std::min((Real)1.,std::pow(rho_cur,1./nA));
+			const Real c_hat = std::min((Real)1.,std::pow(rho_hat,1./nA));
+			//prepare rolled Q with off policy corrections for next step:
+			//Q_RET = c_hat * minAbsValue(Q_RET-A_hat-V_hat,Q_RET-A_cur-V_cur) +
+			//								minAbsValue(V_hat,V_cur);
+			Q_RET = c_hat*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;
+			//Q_OPC = 		ACER_LAMBDA*(Q_OPC -A_hat -V_hat) +V_hat;
+			Q_OPC = Q_RET;
+		}
+
+		//bookkeeping:
+		dumpStats(Vstats[thrID], A_cur+V_cur, Qer);
+		data->Set[seq]->tuples[samp]->SquaredError = Qer*Qer;
+		return gradient;
+	}
+
+	inline void offPolCorrUpdate(const Uint seq, const Uint samp, Real& Q_RET,
+		Real& Q_OPC, const vector<Real>& output_hat, const Real rGamma) const
+	{
+		const Tuple*const _t=data->Set[seq]->tuples[samp]; //contains sOld, a
+		const Tuple*const t_=data->Set[seq]->tuples[samp+1]; //contains r, sNew
+		Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
+		Q_OPC = t_->r + rGamma*Q_OPC;
+		const Real V_hat = output_hat[net_indices[0]];
+		const Discrete_policy pol_hat = prepare_policy(output_hat);
+		//off policy stored action:
+		const Uint act = aInfo.actionToLabel(_t->a);
+		const Real rho_hat = pol_hat.probability(act)/_t->mu[act];
+		const Real c_hat = std::min((Real)1., std::pow(rho_hat, 1./nA));
+		const Real A_hat = pol_hat.computeAdvantage(act);
+		//prepare rolled Q with off policy corrections for next step:
+		Q_RET = c_hat*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;
+		//Q_OPC =     ACER_LAMBDA*(Q_OPC -A_hat -V_hat) +V_hat;
+		Q_OPC = Q_RET;
 	}
 
 public:
@@ -99,170 +153,9 @@ public:
 	void select(const int agentId, State& s,Action& a, State& sOld,
 			Action& aOld, const int info, Real r) override;
 
-	static int getnOutputs(const int NA)
+	void test();
+	static Uint getnOutputs(const Uint NA)
 	{
 		return 1+NA+NA;
 	}
-
-private:
-
-	inline vector<Real> finalizeGradient(const Real Verror,
-			const vector<Real>& gradCritic, const vector<Real>& gradPolicy) const
-	{
-		assert(gradPolicy.size() == nA);
-		assert(gradCritic.size() == 1+nA);
-		vector<Real> grad(nOutputs);
-
-		grad[0] = gradCritic[0]+Verror;
-		for (int j=0; j<nA; j++)
-			grad[j+1] = gradPolicy[j];
-		for (int j=1; j<nA+1; j++)
-			grad[j+nA] = gradCritic[j];
-
-		//gradient clipping
-		//for (unsigned int i=0; i<grad.size(); i++)
-		//	grad[i] = std::max(-10.,std::min(10.,grad[i]));
-
-		return grad;
-	}
-
-	void buildNetwork(const vector<int> nouts, Settings & settings)
-	{
-		string lType = bRecurrent ? "LSTM" : "Normal";
-		vector<int> lsize;
-		assert(nouts.size()>0);
-
-		lsize.push_back(settings.nnLayer1);
-		if (settings.nnLayer2>1) {
-			lsize.push_back(settings.nnLayer2);
-			if (settings.nnLayer3>1) {
-				lsize.push_back(settings.nnLayer3);
-				if (settings.nnLayer4>1) {
-					lsize.push_back(settings.nnLayer4);
-					if (settings.nnLayer5>1) {
-						lsize.push_back(settings.nnLayer5);
-					}
-				}
-			}
-		}
-
-		net = new Network(settings);
-		//check if environment wants a particular network structure
-		if (not env->predefinedNetwork(net))
-		{
-			//if that was true, environment created the layers it wanted
-			// else we read the settings:
-			net->addInput(nInputs);
-			//const int nsplit = lsize.size()>3 ? 2 : 1;
-			const int nsplit = lsize.size();
-			for (int i=0; i<lsize.size()-nsplit; i++)
-				net->addLayer(lsize[i], lType);
-
-			const int firstSplit = lsize.size()-nsplit;
-			const vector<int> lastJointLayer(1,net->getLastLayerID());
-
-			for (int i=0; i<nouts.size(); i++)
-			{
-				net->addLayer(lsize[firstSplit], lType, lastJointLayer);
-
-				for (int j=firstSplit+1; j<lsize.size(); j++)
-					net->addLayer(lsize[j], lType);
-
-				net->addOutput(nouts[i], "Normal");
-			}
-		}
-		net->build();
-
-		#ifndef __EntropySGD
-			opt = new AdamOptimizer(net, profiler, settings);
-		#else
-			opt = new EntropySGD(net, profiler, settings);
-		#endif
-		data->bRecurrent = bRecurrent = true;
-	}
-
-	inline Real stateValue(const Real v, const Real w) const
-	{
-		return std::fabs(v)<std::fabs(w) ? v : w;
-	}
-
-	vector<vector<Real>> prepareBins(const vector<Real> lower, const vector<Real>& upper,
-			const vector<int>& nbins)
-	{
-		if(nAppended || nA!=1)
-			die("TODO missing features\n");
-		assert(lower.size() == upper.size());
-		assert(nbins.size() == upper.size());
-		assert(nbins.size() == nInputs);
-		vector<vector<Real>> bins(nbins.size());
-		int nDumpPoints = 1;
-		for (int i=0; i<nbins.size(); i++) {
-			nDumpPoints *= nbins[i];
-			bins[i] = vector<Real>(nbins[i]);
-			for (int j=0; j<nbins[i]; j++) {
-				const Real l = j/(Real)(nbins[i]-1);
-				bins[i][j] = lower[i] + (upper[i]-lower[i])*l;
-			}
-		}
-		return bins;
-	}
-
-	void dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-	 		const vector<int>& nbins) override;
-	 /*
-	 void dumpNetworkInfo(const int agentId)
-	 {
-	 	net->dump(agentId);
-	 	vector<Real> output(nOutputs);
-
-	 	const int ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
-	 	if (ndata == 0) return;
-
-	 	vector<Activation*> timeSeries_base = net->allocateUnrolledActivations(ndata);
-	 	net->clearErrors(timeSeries_base);
-
-	 	for (int k=0; k<ndata; k++) {
-	 		const Tuple * const _t = data->Tmp[agentId]->tuples[k];
-	 		vector<Real> scaledSnew = data->standardize(_t->s);
-	 		net->predict(scaledSnew, output, timeSeries_base, k);
-	 	}
-
-	 	//sensitivity of value for this action in this state wrt all previous inputs
-	 	for (int ii=0; ii<ndata; ii++)
-	 	for (int i=0; i<nInputs; i++) {
-	 		vector<Activation*> series =net->allocateUnrolledActivations(ndata);
-
-	 		for (int k=0; k<ndata; k++) {
-	 			const Tuple* const _t = data->Tmp[agentId]->tuples[k];
-	 			vector<Real> scaledSnew = data->standardize(_t->s);
-	 			if (k==ii) scaledSnew[i] = 0;
-	 			net->predict(scaledSnew, output, series, k);
-	 		}
-	 		vector<Real> oDiff = net->getOutputs(series.back());
-	 		vector<Real> oBase = net->getOutputs(timeSeries_base.back());
-	 		const Tuple* const _t = data->Tmp[agentId]->tuples[ii];
-	 		vector<Real> sSnew = data->standardize(_t->s);
-
-	 		//assert(nA==1); //TODO ask Sid for muldi-dim actions?
-	 		double dAct = 0;
-	 		for (int j=0; j<nA; j++)
-	 			dAct+=pow(oDiff[1+nL+j]-oBase[1+nL+j],2);
-
-	 		timeSeries_base[ii]->errvals[i]=sqrt(dAct)/sSnew[i];
-	 		net->deallocateUnrolledActivations(&series);
-	 	}
-
-	 	string fname="gradInputs_"+to_string(agentId)+"_"+to_string(ndata)+".dat";
-	 	ofstream out(fname.c_str());
-	 	if (!out.good()) die("Unable to open save into file %s\n", fname.c_str());
-	 	for (int k=0; k<ndata; k++) {
-	 		for (int j=0; j<nInputs; j++)
-	 		out << timeSeries_base[k]->errvals[j] << " ";
-	 		out << "\n";
-	 	}
-	 	out.close();
-
-	 	net->deallocateUnrolledActivations(&timeSeries_base);
-	 }
-	 */
 };

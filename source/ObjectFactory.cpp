@@ -7,7 +7,6 @@
  *
  */
 
-#include "Settings.h"
 #include "ObjectFactory.h"
 #include "AllSystems.h"
 
@@ -16,122 +15,111 @@
 #include <algorithm>
 #include <iostream>
 
-using namespace ErrorHandling;
 using namespace std;
 
 inline string ObjectFactory::_parse(string source, string pattern, bool req)
 {
-    int pos = source.find(((string)" ")+pattern);
-    if (pos == string::npos) {
-        if (req)
-            die("Parse factory file failed: required argument '%s' line '%s'\n",
-                pattern.c_str(), source.c_str())
-        else     return "";
-    }
+	size_t pos = source.find(((string)" ")+pattern);
+	if (pos == string::npos) {
+		if (req)
+			_die("Parse factory file failed: required argument '%s' line '%s'\n",
+					pattern.c_str(), source.c_str())
+		else return "";
+	}
 
-    pos += pattern.length()+1;
-    while (source[pos] == ' ') pos++;
-    if (source[pos] != '=')
-          die("Parse factory file failed: argument '%s' line '%s'\n",
-              pattern.c_str(), source.c_str())
-    while (source[pos] == ' ') pos++;
+	pos += pattern.length()+1;
+	while (source[pos] == ' ') pos++;
+	if (source[pos] != '=')
+		_die("Parse factory file failed: argument '%s' line '%s'\n",
+				pattern.c_str(), source.c_str())
+				while (source[pos] == ' ') pos++;
 
-    pos++;
-    int stpos = pos;
-    while (source[pos] != ' ' && pos < source.length()) pos++;
+	pos++;
+	size_t stpos = pos;
+	while (source[pos] != ' ' && pos < source.length()) pos++;
 
-    return source.substr(stpos, pos - stpos);
+	return source.substr(stpos, pos - stpos);
 }
 
 inline int ObjectFactory::_parseInt(string source, string pattern, bool req)
 {
-    return atoi(_parse(source, pattern, req).c_str());
+	return atoi(_parse(source, pattern, req).c_str());
 }
 
 inline Real ObjectFactory::_parseReal(string source, string pattern, bool req)
 {
-    return atof(_parse(source, pattern, req).c_str());
+	return atof(_parse(source, pattern, req).c_str());
 }
 
-Environment* ObjectFactory::createEnvironment(int rank, int index)
+Environment* ObjectFactory::createEnvironment()
 {
-    ifstream inFile;
-    inFile.open(filename.c_str());
-    Environment* env = nullptr;
+	ifstream inFile;
+	inFile.open(filename.c_str());
+	Environment* env = nullptr;
 
-    string envStr;
-    getline(inFile, envStr);
+	string envStr;
+	getline(inFile, envStr);
 
-    if (!inFile.good())
-      die("Unable to open file '%s'!\n", filename.c_str());
+	if (!inFile.good())
+		_die("Unable to open file '%s'!\n", filename.c_str());
 
-    if (envStr.find("TwoFishEnvironment ") != envStr.npos)
-    {
-        string execpath = _parse(envStr, "exec", true);
-        int n = _parseInt(envStr, "n", true);
-        env = new TwoFishEnvironment(n, execpath, rank, *settings);
-    }
-    else if (envStr.find("TwoActFishEnvironment ") != envStr.npos)
-    {
-        string execpath = _parse(envStr, "exec", true);
-        int n  = _parseInt(envStr, "n", true);
-        printf("TwoActFishEnvironment with %d agents per slave.\n",n);
-        env = new TwoActFishEnvironment(n, execpath, rank, *settings);
-    }
-    else if (envStr.find("NewFishEnvironment ") != envStr.npos)
-    {
-        string execpath = _parse(envStr, "exec", true);
-        int n = _parseInt(envStr, "n", true);
-        env = new NewFishEnvironment(n, execpath, rank, *settings);
-    }
-    else if (envStr.find("DeadFishEnvironment ") != envStr.npos)
-    {
-        string execpath = _parse(envStr, "exec", true);
-        int n = _parseInt(envStr, "n", true);
-        env = new DeadFishEnvironment(n, execpath, rank, *settings);
-    }
-    else if (envStr.find("AcrobotEnvironment ") != envStr.npos)
-    {
-        string execpath = _parse(envStr, "exec", true);
-        int n = _parseInt(envStr, "n", true);
-        env = new AcrobotEnvironment(n, execpath, rank, *settings);
-    }
-    else if (envStr.find("GliderEnvironment ") != envStr.npos)
-    {
-        string execpath = _parse(envStr, "exec", true);
-        int n = _parseInt(envStr, "n", true);
-        env = new GliderEnvironment(n, execpath, rank, *settings);
-    }
-    else if (envStr.find("CartEnvironment ") != envStr.npos)
-    {
-        string execpath = _parse(envStr, "exec", true);
-        int n = _parseInt(envStr, "n", true);
-        env = new CartEnvironment(n, execpath, rank, *settings);
-    }
-    else if (envStr.find("CMAEnvironment ") != envStr.npos)
-    {
-        string execpath = _parse(envStr, "exec", true);
-        int n = _parseInt(envStr, "n", true);
-        env = new CMAEnvironment(n, execpath, rank, *settings);
-    }
-    else if (envStr.find("alebotEnvironment ") != envStr.npos)
-    {
-        string execpath = _parse(envStr, "exec", true);
-        int n = _parseInt(envStr, "n", true);
-        int nactions = _parseInt(envStr, "nActions", true);
-        env = new alebotEnvironment(n, nactions, execpath, rank, *settings);
-    }
-    else if (envStr.find("TestEnvironment ") != envStr.npos)
-    {
-        string execpath = _parse(envStr, "exec", true);
-        env = new TestEnvironment(1, execpath, rank, *settings);
-    }
-    else die("Unsupported environment type in line %s\n", envStr.c_str());
+	const string execpath = _parse(envStr, "exec", true);
+	int _n = _parseInt(envStr, "n", true);
+	if(_n<=0) die("Factory file requested environment without agents\n");
+	const Uint n = static_cast<Uint>(_n);
 
-    //getline(inFile, s); used to be a while loop, but env vectors are not supported...
+	if (envStr.find("TwoFishEnvironment ") != envStr.npos) {
+		printf("TwoFishEnvironment with %u agents per slave.\n",n);
+		env = new TwoFishEnvironment(n, execpath, *settings);
+	}
+	else if (envStr.find("TwoActFishEnvironment ") != envStr.npos) {
+		printf("TwoActFishEnvironment with %u agents per slave.\n",n);
+		env = new TwoActFishEnvironment(n, execpath, *settings);
+	}
+	else if (envStr.find("NewFishEnvironment ") != envStr.npos)  {
+		printf("NewFishEnvironment with %u agents per slave.\n",n);
+		env = new NewFishEnvironment(n, execpath, *settings);
+	}
+	else if (envStr.find("DeadFishEnvironment ") != envStr.npos) {
+		printf("DeadFishEnvironment with %u agents per slave.\n",n);
+		env = new DeadFishEnvironment(n, execpath, *settings);
+	}
+	else if (envStr.find("AcrobotEnvironment ") != envStr.npos) {
+		printf("AcrobotEnvironment with %u agents per slave.\n",n);
+		env = new AcrobotEnvironment(n, execpath, *settings);
+	}
+	else if (envStr.find("GliderEnvironment ") != envStr.npos) {
+		printf("GliderEnvironment with %u agents per slave.\n",n);
+		env = new GliderEnvironment(n, execpath, *settings);
+	}
+	else if (envStr.find("openAIEnvironment ")!=envStr.npos) {
+		printf("openAIEnvironment with %u agents per slave.\n",n);
+		env = new openAICartEnvironment(n, execpath, *settings);
+	}
+	else if (envStr.find("CartEnvironment ") != envStr.npos) {
+		printf("CartEnvironment with %u agents per slave.\n",n);
+		env = new CartEnvironment(n, execpath, *settings);
+	}
+	else if (envStr.find("CMAEnvironment ") != envStr.npos) {
+		printf("CMAEnvironment with %u agents per slave.\n",n);
+		env = new CMAEnvironment(n, execpath, *settings);
+	}
+	else if (envStr.find("alebotEnvironment ") != envStr.npos) {
+		printf("alebotEnvironment with %u agents per slave.\n",n);
+		int _nactions = _parseInt(envStr, "nActions", true);
+		if(_nactions<=0)
+			die("Factory file requested environment without actions\n");
+		const Uint nactions = static_cast<Uint>(_nactions);
+		env = new alebotEnvironment(n, nactions, execpath, *settings);
+	}
+	else if (envStr.find("TestEnvironment ") != envStr.npos) {
+		printf("TestEnvironment with %u agents per slave.\n",n);
+		env = new TestEnvironment(1, execpath, *settings);
+	}
+	else _die("Unsupported environment type in line %s\n", envStr.c_str());
 
-    assert(env not_eq nullptr);
-    env->setDims();
+	//getline(inFile, s); used to be a while loop, but env vectors are not supported...
 
-    return env;
+	if(env == nullptr) die("Env cannot be nullptr\n");
+	return env;
 }

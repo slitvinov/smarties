@@ -3,14 +3,14 @@ smart ?= 1
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-LD=g++-6
-CC=g++-6
+LD=g++-7
+CC=g++-7
 endif
 
 ifeq "$(smart)" "0"
 OBJ_FILES =  glider.o
 else
-CPPFLAGS+= -D__SMARTIES_
+CPPFLAGS+= -D__SMARTIES_ -Wall
 OBJ_FILES = glider.o Communicator.o
 endif
 

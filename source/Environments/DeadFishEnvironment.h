@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include "../Util/util.h"
 #include "Environment.h"
 
 class DeadFishEnvironment: public Environment
@@ -19,8 +18,7 @@ protected:
     const bool sight, rcast, lline, press;
     const int study;
 public:
-    DeadFishEnvironment(const int nAgents, const string execpath,
-                       const int _rank, Settings & settings);
+    DeadFishEnvironment(const Uint nAgents, const string execpath, Settings & settings);
     void setDims() override;
     bool pickReward(const State& t_sO, const Action& t_a,
                     const State& t_sN, Real& reward, const int info) override;
