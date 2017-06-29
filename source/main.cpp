@@ -77,15 +77,13 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 	if (settings.restart != "none" && !settings.nSlaves && !learner->nData())
 	{
 		printf("No slaves, just dumping the policy\n");
-		vector<Uint> nbins(env->stateDumpNBins());
-		vector<Real> lower(env->stateDumpLowerBound()), upper(env->stateDumpUpperBound());
-		learner->dumpPolicy(lower, upper, nbins);
+		learner->dumpPolicy();
 		abort();
 	}
 #endif
 	assert(settings.nThreads > 1);
 	learner->run(&master);
-	die("Master returning?\n");
+	master.sendTerminateReq();
 }
 
 int main (int argc, char** argv)

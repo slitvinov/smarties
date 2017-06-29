@@ -142,14 +142,14 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 	{
 #pragma omp for nowait
 		for (Uint j=0; j<nWeights; j++)
-			for (Uint k=0; k<nThreads; k++) {
+			for (Uint k=1; k<nThreads; k++) {
 				G->_W[j] += g[k]->_W[j];
 				g[k]->_W[j] = 0.;
 			}
 
 #pragma omp for nowait
 		for (Uint j=0; j<nBiases; j++)
-			for (Uint k=0; k<nThreads; k++) {
+			for (Uint k=1; k<nThreads; k++) {
 				G->_B[j] += g[k]->_B[j];
 				g[k]->_B[j] = 0.;
 			}
@@ -212,13 +212,17 @@ void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
 		const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
 		const nnReal M2_ = std::max(M2, eps);
 		const nnReal _M2 = std::sqrt(M2_);
-		const nnReal M1_ = std::max(std::min(M1, _M2), -_M2); //grad clip -1:1
+		const nnReal M1_ = std::max(std::min(M1, _M2), -_M2); //grad clip
+		//printf("batch %u %f %f %f\n",batchsize,DW,M1,M2); fflush(0);
 		//const nnReal M1_ = M1;
 		_1stMom[i] = M1_;
 		_2ndMom[i] = M2_;
 		grad[i] = 0.; //reset grads
-
+		assert(!std::isnan(DW));
+		assert(!std::isnan(dest[i]));
+		//if(DW*M1_>0)
 		//dest[i] += eta_*M1_/_M2; //Adam
+		//else
 		dest[i] += eta_*(f12*DW + f11*M1_)/_M2; //Nesterov Adam
 	}
 }

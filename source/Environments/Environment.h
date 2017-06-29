@@ -45,7 +45,6 @@ public:
     virtual bool predefinedNetwork(Builder* const net) const;
     Communicator create_communicator( const MPI_Comm slavesComm, const int socket, const bool bSpawn);
 
-    virtual vector<Real> stateDumpUpperBound();
-    virtual vector<Real> stateDumpLowerBound();
-    virtual vector<Uint> stateDumpNBins();
+		virtual Uint getNdumpPoints();
+		virtual vector<Real> getDumpState(Uint k);
 };

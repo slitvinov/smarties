@@ -13,8 +13,10 @@
 Learner::Learner(MPI_Comm comm, Environment*const _env, Settings & _s) :
 mastersComm(comm), env(_env), tgtUpdateDelay((Uint)_s.targetDelay),
 nAgents(_s.nAgents), batchSize(_s.batchSize), nThreads(_s.nThreads),
-nAppended(_s.appendedObs), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
-bRecurrent(_s.bRecurrent), bTrain(_s.bTrain), tgtUpdateAlpha(_s.targetDelay),
+nAppended(_s.appendedObs), maxTotSeqNum(_s.maxTotSeqNum),
+totNumSteps(_s.totNumSteps), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
+bRecurrent(_s.bRecurrent), bTrain(_s.bTrain),
+bSampleSequences(_s.bSampleSequences), tgtUpdateAlpha(_s.targetDelay),
 gamma(_s.gamma), greedyEps(_s.greedyEps), epsAnneal(_s.epsAnneal),
 obsPerStep(_s.obsPerStep), taskCounter(batchSize),
 aInfo(env->aI), sInfo(env->sI), gen(&_s.generators[0])
@@ -34,42 +36,6 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 	data->pushBackEndedSim(agentOne, agentEnd);
 }
 
-/*
-void Learner::TrainBatch()
-{
-	const Uint ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
-	vector<Uint> seq(batchSize), samp(batchSize);
-	if (ndata<batchSize) return; //do we have enough data?
-	if (!bTrain) return; //are we training?
-	Uint nAddedGradients=0;
-
-	if(data->syncBoolOr(data->inds.size()<batchSize))
-	{ //uniform sampling
-		data->updateSamples();
-		processStats( 0 ); //dump info about convergence
-#ifdef __CHECK_DIFF //check gradients with finite differences, just for debug
-		if (opt->nepoch % 100000 == 0) net->checkGrads();
-#endif
-	}
-
-	if(bRecurrent) {
-		nAddedGradients = sampleSequences(seq);
-		for (Uint i=0; i<batchSize; i++)
-			Train_BPTT(seq[i]);
-	} else {
-		nAddedGradients = sampleTransitions(seq, samp);
-		for (Uint i=0; i<batchSize; i++)
-			Train(seq[i], samp[i]);
-	}
-
-	batchUsage += 1;
-	dataUsage += nAddedGradients;
-
-	updateNNWeights(nAddedGradients);
-	updateTargetNetwork();
-}
-*/
-
 void Learner::run(Master* const master)
 {
 	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
@@ -78,21 +44,21 @@ void Learner::run(Master* const master)
 	Real sumElapsed = 0;
 	int nMasters;
 	MPI_Comm_size(mastersComm, &nMasters);
-	Uint ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+	Uint ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;
 	if (ndata <= 10*batchSize || !bTrain) {
 		if(nAgents<1) die("Nothing to do, nowhere to go.\n");
 		master->run();
 	}
 
-	while (true) {
+	while (opt->nepoch < totNumSteps) {
 		nAddedGradients = taskCounter = 0;
-		const Real annealFac = annealingFactor();
-		ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+		//const Real annealFac = annealingFactor();
+		ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;
 		if(opt->nepoch % 1000==0 && opt->nepoch) profiler->printSummary();
 
 		profiler->push_start("SRT");
 		Uint syncDataStats = 0;
-		if(opt->nepoch%100==0 || data->inds.size()<batchSize) {
+		if(opt->nepoch%100==0 || data->requestUpdateSamples()) {
 			processStats(sumElapsed/countElapsed);// dump info about
 			syncDataStats = data->updateSamples(0);//reset sampling annealFac
 			sumElapsed = 0; countElapsed=0;
@@ -112,12 +78,12 @@ void Learner::run(Master* const master)
 #pragma omp master
 		{
 			profiler->stop_start("SMP");
-			nAddedGradients = bRecurrent ? sampleSequences(seq) :
+			nAddedGradients = bSampleSequences ? sampleSequences(seq) :
 				sampleTransitions(seq,samp);
 #pragma omp flush
 			profiler->stop_start("TSK");
 
-			if(bRecurrent) {//we are using an LSTM: do BPTT
+			if(bSampleSequences) {//we are using an LSTM: do BPTT
 				for (Uint i=0; i<batchSize; i++) {
 					const Uint sequence = seq[i];
 #pragma omp task firstprivate(sequence)
@@ -168,7 +134,7 @@ void Learner::run(Master* const master)
 Uint Learner::sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitions)
 {
 	assert(sequences.size() == batchSize && transitions.size() == batchSize);
-	assert(!bRecurrent);
+	assert(!bSampleSequences);
 	vector<Uint> load(batchSize), sorting(batchSize), s(batchSize), t(batchSize);
 	for (Uint i=0; i<batchSize; i++)
 	{
@@ -201,7 +167,7 @@ Uint Learner::sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitio
 
 Uint Learner::sampleSequences(vector<Uint>& sequences)
 {
-	assert(sequences.size() == batchSize && bRecurrent);
+	assert(sequences.size() == batchSize && bSampleSequences);
 	Uint nAddedGradients = 0;
 	for (Uint i=0; i<batchSize; i++)
 	{
@@ -223,14 +189,14 @@ Uint Learner::sampleSequences(vector<Uint>& sequences)
 
 bool Learner::checkBatch(unsigned long mastersNiter)
 {
-	const unsigned long dataNiter = bRecurrent ? data->nSeenSequences : mastersNiter;
-	const Uint ndata = (bRecurrent) ? data->nSequences : data->nTransitions;
+	const unsigned long dataNiter = bSampleSequences ? data->nSeenSequences : mastersNiter;
+	const Uint ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;
 	if (ndata<batchSize*10 || !bTrain) {
 		mastersNiter_b4PolUpdates = dataNiter;
 		return false;
 	}  //do we have enough data? TODO k*ndata?
 	//If the transition buffer is already backed up, train and pause communicating
-	if(data->Buffered.size() >= data->maxTotSeqNum/20) return true;
+	if(data->Buffered.size() >= maxTotSeqNum/20) return true;
 
 	//If we have not observed enough data, pause training (avoid over using stale data)
 	if(mastersNiter/obsPerStep < opt->nepoch) return false;
@@ -275,7 +241,7 @@ void Learner::restart(string name)
 	MPI_Comm_rank(mastersComm, &masterRank);
 	printf("Restarting from saved policy...\n");
 
-	data->restartSamples();
+	data->restartSamples(policyVecDim);
 	if (name == "none") return;
 
 	if ( opt->restart(name) )
@@ -308,6 +274,3 @@ void Learner::restart(string name)
 	else printf("No status\n");
 	save("restarted_policy");
 }
-
-void Learner::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-		const vector<Uint>& nbins) {}

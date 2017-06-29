@@ -16,13 +16,13 @@ struct Settings
 	Settings() {}
 	~Settings() {}
 
-	//To modify from default value any of these settings, run executable with either
-	//- the ascii symbol of the setting (denoted by CHARARG) followed by the value (ie. -# $value)
-	//- the name of the setting variable followed by the value (ie. -setting $value)
+//To modify from default value any of these settings, run executable with either
+//- ascii symbol of the setting (CHARARG) followed by the value (ie. -# $value)
+//- the name of the setting variable followed by the value (ie. -setting $value)
 
-	///////////////////////////////////////////////////////////////////////////////
-	//SETTINGS PERTAINING TO ENVIRONMENT: NUMBER
-	///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+//SETTINGS PERTAINING TO ENVIRONMENT: NUMBER
+///////////////////////////////////////////////////////////////////////////////
 #define CHARARG_rType '1'
 #define COMMENT_rType "Reward type (can be defined by user in the environment)."
 #define TYPEVAL_rType int
@@ -58,9 +58,9 @@ struct Settings
 #define DEFAULT_filePrefix "./"
 	string filePrefix = DEFAULT_filePrefix;
 
-	///////////////////////////////////////////////////////////////////////////////
-	//SETTINGS PERTAINING TO PARALLELIZATION/COMMUNICATION: ASCII SYMBOL
-	///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+//SETTINGS PERTAINING TO PARALLELIZATION/COMMUNICATION: ASCII SYMBOL
+///////////////////////////////////////////////////////////////////////////////
 #define CHARARG_nThreads '#'
 #define COMMENT_nThreads "Number of threads from threaded training on each master rank."
 #define TYPEVAL_nThreads int
@@ -89,9 +89,9 @@ struct Settings
 #define DEFAULT_sockPrefix 0
 	int sockPrefix = DEFAULT_sockPrefix;
 
-	///////////////////////////////////////////////////////////////////////////////
-	//SETTINGS PERTAINING TO LEARNING ALGORITHM: lowercase LETTER
-	///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+//SETTINGS PERTAINING TO LEARNING ALGORITHM: lowercase LETTER
+///////////////////////////////////////////////////////////////////////////////
 #define CHARARG_learner 'a'
 #define COMMENT_learner "Algorithm."
 #define TYPEVAL_learner string
@@ -138,7 +138,7 @@ struct Settings
 #define COMMENT_gamma "Discount factor."
 #define TYPEVAL_gamma Real
 #define TYPENUM_gamma REAL
-#define DEFAULT_gamma 0.9
+#define DEFAULT_gamma 0.99
 	Real gamma = DEFAULT_gamma;
 
 #define CHARARG_samplesFile 'h'
@@ -169,7 +169,7 @@ struct Settings
 #define DEFAULT_minSeqLen 3
 	int minSeqLen = DEFAULT_minSeqLen;
 
-#define CHARARG_maxSeqLen 'M'
+#define CHARARG_maxSeqLen 'M' //there is always an exception
 #define COMMENT_maxSeqLen "Maximum length of sequence. if seq is longer it is just split into segments."
 #define TYPEVAL_maxSeqLen int
 #define TYPENUM_maxSeqLen INT
@@ -183,19 +183,33 @@ struct Settings
 #define DEFAULT_bNormalize 1
 	int bNormalize = DEFAULT_bNormalize;
 
-#define CHARARG_restart 'o'
+#define CHARARG_obsPerStep 'o'
+#define COMMENT_obsPerStep "Minimum ratio of observed transitions to gradient steps"
+#define TYPEVAL_obsPerStep  Real
+#define TYPENUM_obsPerStep  REAL
+#define DEFAULT_obsPerStep  10
+	Real obsPerStep = DEFAULT_obsPerStep;
+
+#define CHARARG_restart 'p'
 #define COMMENT_restart "File prefix of policy."
 #define TYPEVAL_restart string
 #define TYPENUM_restart STRING
 #define DEFAULT_restart "policy"
 	string restart = DEFAULT_restart;
 
-#define CHARARG_epsAnneal 'p'
+#define CHARARG_epsAnneal 'r'
 #define COMMENT_epsAnneal "Annealing rate in grad steps of various learning-algorithm-dependent behaviors."
 #define TYPEVAL_epsAnneal Real
 #define TYPENUM_epsAnneal REAL
 #define DEFAULT_epsAnneal 1e4
 	Real epsAnneal = DEFAULT_epsAnneal;
+
+#define CHARARG_bSampleSequences 's'
+#define COMMENT_bSampleSequences "Whether to sample sequences or trajectories."
+#define TYPEVAL_bSampleSequences  int
+#define TYPENUM_bSampleSequences  INT
+#define DEFAULT_bSampleSequences  0
+	int bSampleSequences = DEFAULT_bSampleSequences;
 
 #define CHARARG_maxTotSeqNum 't'
 #define COMMENT_maxTotSeqNum "Maximum number of samples in history buffer"
@@ -204,16 +218,18 @@ struct Settings
 #define DEFAULT_maxTotSeqNum 5000
 	int maxTotSeqNum = DEFAULT_maxTotSeqNum;
 
-#define CHARARG_obsPerStep 'r'
-#define COMMENT_obsPerStep "Minimum ratio of observed transitions to gradient steps"
-#define TYPEVAL_obsPerStep  Real
-#define TYPENUM_obsPerStep  REAL
-#define DEFAULT_obsPerStep  10
-	Real obsPerStep = DEFAULT_obsPerStep;
+#define CHARARG_totNumSteps 'z'
+#define COMMENT_totNumSteps "Number of gradient steps before end of learning"
+#define TYPEVAL_totNumSteps int
+#define TYPENUM_totNumSteps INT
+#define DEFAULT_totNumSteps 10000000
+	int totNumSteps = DEFAULT_totNumSteps;
 
-	///////////////////////////////////////////////////////////////////////////////
-	//SETTINGS PERTAINING TO NETWORK: CAPITAL LETTER
-	///////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////////////////////////////////////////////////////////
+//SETTINGS PERTAINING TO NETWORK: CAPITAL LETTER
+///////////////////////////////////////////////////////////////////////////////
 #define CHARARG_nnl1 'Z'
 #define COMMENT_nnl1 "Size of first non-convolutional layer (LSTM/RNN/FFNN)."
 #define TYPEVAL_nnl1 int
@@ -258,14 +274,14 @@ struct Settings
 
 #define CHARARG_splitLayers 'S'
 #define COMMENT_splitLayers "Number of split layers, description in Settings.h"
-	//"For each output required by algorithm (ie. value, policy, std, ...) " \/
-	//"how many non-conv layers should be devoted only to one o the outputs. " \/
-	//"For example if there 2 FF layers of size Z and Y and this arg is set to 1, " \/
-	//"then each of the outputs is connected to a separate layer of size Y. " \/
-	//"Each of these Y-sized layers are in turn connected to the first layer of size Z."
+//"For each output required by algorithm (ie. value, policy, std, ...) " \/
+//"how many non-conv layers should be devoted only to one o the outputs. " \/
+//"For example if there 2 FF layers of size Z and Y and this arg is set to 1,"\/
+//" then each of the outputs is connected to a separate layer of size Y. " \/
+//"Each of the Y-size layers are then connected to the first layer of size Z."
 #define TYPEVAL_splitLayers int
 #define TYPENUM_splitLayers INT
-#define DEFAULT_splitLayers 1
+#define DEFAULT_splitLayers 0
 	int splitLayers = DEFAULT_splitLayers;
 
 #define CHARARG_outWeightsPrefac 'O'
@@ -286,7 +302,7 @@ struct Settings
 #define COMMENT_learnrate "Learning rate."
 #define TYPEVAL_learnrate Real
 #define TYPENUM_learnrate REAL
-#define DEFAULT_learnrate 1e-3
+#define DEFAULT_learnrate 1e-4
 	Real learnrate = DEFAULT_learnrate;
 
 #define CHARARG_nnPdrop 'D'
@@ -314,12 +330,12 @@ struct Settings
 #define COMMENT_nnFunc "Activation function for non-output layers (which are always linear) which are built from settings. (Relu, Tanh, Sigm, PRelu, softSign, softPlus, ...)"
 #define TYPEVAL_nnFunc string
 #define TYPENUM_nnFunc STRING
-#define DEFAULT_nnFunc "SoftSign"
+#define DEFAULT_nnFunc "PRelu"
 	string nnFunc = DEFAULT_nnFunc;
 
-	///////////////////////////////////////////////////////////////////////////////
-	//SETTINGS THAT ARE NOT READ FROM FILE
-	///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+//SETTINGS THAT ARE NOT READ FROM FILE
+///////////////////////////////////////////////////////////////////////////////
 	int world_rank = 0;
 	int world_size = 0;
 	int slaves_rank = 0;
@@ -337,8 +353,6 @@ struct Settings
 	// number of inputs of the policy, depends on env and learning algorithm
 	int nnInputs = -1;
 	int nnOutputs = -1;
-	//whether have separate output layers... depends on learner algorithm, could be moved to settings in the future
-	int separateOutputs = 1;
 
 	//random number generators (one per thread)
 	//std::mt19937* gen;
@@ -375,7 +389,9 @@ struct Settings
 			{ CHARARG_learner, "learner", TYPENUM_learner, COMMENT_learner, &learner, (TYPEVAL_learner) DEFAULT_learner },
 			{ CHARARG_restart, "restart", TYPENUM_restart, COMMENT_restart, &restart, (TYPEVAL_restart) DEFAULT_restart },
 			{ CHARARG_obsPerStep, "obsPerStep", TYPENUM_obsPerStep, COMMENT_obsPerStep, &obsPerStep, (TYPEVAL_obsPerStep) DEFAULT_obsPerStep },
+			{ CHARARG_totNumSteps, "totNumSteps", TYPENUM_totNumSteps, COMMENT_totNumSteps, &totNumSteps, (TYPEVAL_totNumSteps) DEFAULT_totNumSteps },
 			{ CHARARG_samplesFile, "samplesFile", TYPENUM_samplesFile, COMMENT_samplesFile, &samplesFile, (TYPEVAL_samplesFile) DEFAULT_samplesFile },
+			{ CHARARG_bSampleSequences, "bSampleSequences", TYPENUM_bSampleSequences, COMMENT_bSampleSequences, &bSampleSequences, (TYPEVAL_bSampleSequences) DEFAULT_bSampleSequences },
 			{ CHARARG_nnl1, "nnl1", TYPENUM_nnl1, COMMENT_nnl1, &nnl1, (TYPEVAL_nnl1) DEFAULT_nnl1 },
 			{ CHARARG_nnl2, "nnl2", TYPENUM_nnl2, COMMENT_nnl2, &nnl2, (TYPEVAL_nnl2) DEFAULT_nnl2 },
 			{ CHARARG_nnl3, "nnl3", TYPENUM_nnl3, COMMENT_nnl3, &nnl3, (TYPEVAL_nnl3) DEFAULT_nnl3 },

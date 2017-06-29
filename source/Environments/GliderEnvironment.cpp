@@ -19,7 +19,7 @@ void GliderEnvironment::setDims() //this environment is for the cart pole test
 {
 	sI.inUse.clear();
 	//if !sensevel then skip u v omega
-	for (Uint i=0; i<7; i++) 
+	for (Uint i=0; i<7; i++)
 		sI.inUse.push_back(sensevel || i>2);
 
 	sI.inUse.push_back(true);
@@ -66,6 +66,27 @@ bool GliderEnvironment::pickReward(const State & t_sO, const Action & t_a,
     return new_sample; //cart pole has failed if r = -1, need to clean this shit and rely only on info
 }
 
-vector<Real> GliderEnvironment::stateDumpUpperBound() {return vector<Real>{ 1, 1, .5,125,  0,2*M_PI};}
-vector<Real> GliderEnvironment::stateDumpLowerBound() {return vector<Real>{-1,-1,-.5, -5,-50,     0};}
-vector<Uint> GliderEnvironment::stateDumpNBins() {return vector<Uint> { 9, 9,  9, 53, 21,     9};}
+Uint GliderEnvironment::getNdumpPoints()
+{
+	return 7 * 7 * 9 * 53 * 21 * 9 * 7;
+}
+
+vector<Real> GliderEnvironment::getDumpState(Uint k)
+{
+	const vector<Real> ub = {  .5,  .5, 1, 125,   0,      0,  1};
+	const vector<Real> lb = { -.5, -.5, 0,  -5, -50, 2*M_PI, -1};
+	const vector<Uint> nb = {   7,   7, 9,  53,  21,      9,  7};
+	vector<Real> state(7,0);
+	for (Uint i=0; i<7; i++)
+	{
+		const Uint j = k % nb[i];
+		state[i] = lb[i] + (ub[i]-lb[i]) * (j/(Real)(nb[i]-1));
+		k /= nb[i];
+	}
+	//ugliness
+	state.resize(8); state[7] = state[6];
+	const Real cosang = std::cos(state[5]);
+	const Real sinang = std::cos(state[5]);
+	state[5] = cosang; state[6] = sinang;
+	return state;
+}

@@ -10,11 +10,15 @@
 #include "../StateAction.h"
 #include "RACER.h"
 //#include "RACER_TrainBPTT.cpp"
-#include "RACER_Train.cpp"
+//#include "RACER_Train.cpp"
+//#define DUMP_EXTRA
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
-Learner_utils(comm,_env,settings,settings.nnOutputs+2),
-truncation(10), delta(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
+Learner_utils(comm,_env,settings,settings.nnOutputs),
+#ifdef ACER_TABC
+truncation(10),
+#endif
+delta(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
 generators(settings.generators)
 {
 	vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
@@ -37,6 +41,11 @@ generators(settings.generators)
 	#ifdef FEAT_CONTROL
 	task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net, data);
 	#endif
+	#ifdef DUMP_EXTRA
+		policyVecDim = 3*nA + nL;
+	#else
+		policyVecDim = 2*nA;
+	#endif
 	//data->bRecurrent =bRecurrent =true;
 	//data->bRecurrent =bRecurrent =false;
 	test();
@@ -45,8 +54,11 @@ generators(settings.generators)
 void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
-	vector<Real> output = output_stochastic_policy(agentId, s, a, sOld, aOld, info, r);
-	if (output.size() == 0) return;
+	if (info == 2) { //no need for action, just pass terminal s & r
+		data->passData(agentId, info, sOld, a, s, r, vector<Real>(policyVecDim,0));
+		return;
+	}
+	vector<Real> output = output_stochastic_policy(agentId,s,a,sOld,aOld,info,r);
 	assert(output.size() == nOutputs);
 	//variance is pos def: transform linear output layer with softplus
 
@@ -71,24 +83,99 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 	//scale back to action space size:
 	a.set(aInfo.getScaled(a.vals));
 
-	#if 1
+	#ifdef DUMP_EXTRA
 	beta.insert(beta.end(), adv.matrix.begin(), adv.matrix.end());
 	beta.insert(beta.end(), adv.mean.begin(),   adv.mean.end());
 	#endif
-	data->passData(agentId, info, sOld, a, beta, s, r);
-
+	data->passData(agentId, info, sOld, a, s, r, beta);
 	dumpNetworkInfo(agentId);
+}
+
+void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
+{
+	//this should go to gamma rather quick:
+	const Real rGamma = annealedGamma();
+	const Uint ndata = data->Set[seq]->tuples.size();
+	assert(samp<ndata-1);
+	const bool bEnd = data->Set[seq]->ended; //whether sequence has terminal rew
+	const Uint nMaxTargets = MAX_UNROLL_AFTER+1, nMaxBPTT = MAX_UNROLL_BFORE;
+	//for off policy correction we need reward and action, therefore not last one:
+	const Uint nSUnroll = min(ndata-1-samp, nMaxTargets);
+	//if we do not have a terminal reward, then we compute value of last state:
+	const Uint nSValues = min(bEnd? ndata-1-samp :ndata-samp, nMaxTargets);
+
+	const Uint nRecurr = bRecurrent ? min(nMaxBPTT,samp)+1        : 1;
+	const Uint iRecurr = bRecurrent ? max(nMaxBPTT,samp)-nMaxBPTT : samp;
+	//if(thrID==1) { printf("%d %u %u %u %u %u %u\n", bEnd, samp, ndata, nSUnroll, nSValues, nRecurr, iRecurr); fflush(0); }
+	if(thrID==1) profiler->stop_start("FWD");
+
+	vector<vector<Real>> out_cur(1, vector<Real>(nOutputs,0));
+	vector<vector<Real>> out_hat(nSValues, vector<Real>(nOutputs,0));
+	vector<Activation*> series_cur = net->allocateUnrolledActivations(nRecurr);
+	vector<Activation*> series_hat = net->allocateUnrolledActivations(nSValues);
+
+	for (Uint k=iRecurr, j=0; k<samp+1; k++, j++) {
+		const vector<Real> inp = data->standardize(data->Set[seq]->tuples[k]->s);
+		net->seqPredict_inputs(inp, series_cur[j]);
+		if(k==samp) { //all are loaded: execute the whole loop:
+			assert(j==nRecurr-1);
+			net->seqPredict_execute(series_cur, series_cur);
+			//extract the only output we actually correct:
+			net->seqPredict_output(out_cur[0], series_cur[j]); //the humanity!
+			//predict samp with target weight using curr recurrent inputs as estimate:
+			const Activation*const recur = j ? series_cur[j-1] : nullptr;
+			net->predict(inp, out_hat[0], recur, series_hat[0], net->tgt_weights, net->tgt_biases);
+		}
+	}
+
+	for (Uint k=1; k<nSValues; k++) {
+		const vector<Real>inp= data->standardize(data->Set[seq]->tuples[k+samp]->s);
+		net->predict(inp,out_hat[k],series_hat,k,net->tgt_weights,net->tgt_biases);
+	}
+
+	if(thrID==1)  profiler->stop_start("ADV");
+
+	Real Q_RET = 0, Q_OPC = 0;
+	if(nSValues != nSUnroll) { //partial sequence: compute value of term state
+		assert(nSValues==nSUnroll+1 && !bEnd);
+		Q_RET=Q_OPC= out_hat[nSValues-1][net_indices[0]]; //V(s_T) with tgt weights
+	}
+
+	for (int k=static_cast<int>(nSUnroll)-1; k>0; k--) //propagate Q to k=0
+		offPolCorrUpdate(seq, k+samp, Q_RET, Q_OPC, out_hat[k], rGamma);
+
+	if(thrID==1)  profiler->stop_start("CMP");
+
+	vector<Real> grad = compute<0>(seq, samp, Q_RET, Q_OPC, out_cur[0], out_hat[0], rGamma, thrID);
+
+	#ifdef FEAT_CONTROL
+		const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[samp]->a);
+		const Activation*const recur = nSValues>1 ? series_hat[1] : nullptr;
+		task->Train(series_cur.back(), recur, act, seq, samp, rGamma, grad);
+	#endif
+
+	//write gradient onto output layer:
+	statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
+	clip_gradient(grad, stdGrad[0], seq, samp);
+	net->setOutputDeltas(grad, series_cur.back());
+
+	if(thrID==1)  profiler->stop_start("BCK");
+
+	if (thrID==0) net->backProp(series_cur, net->grad);
+	else net->backProp(series_cur, net->Vgrad[thrID]);
+	net->deallocateUnrolledActivations(&series_cur);
+	net->deallocateUnrolledActivations(&series_hat);
+
+	if(thrID==1)  profiler->stop_start("TSK");
 }
 
 void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 {
 	//this should go to gamma rather quick:
-	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
 	const Real rGamma = annealedGamma();
-
 	const Uint ndata = data->Set[seq]->tuples.size();
 	vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
-	vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata);
+	vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata-1);
 
 	for (Uint k=0; k<ndata-1; k++) {
 		const Tuple * const _t = data->Set[seq]->tuples[k]; // s, a, mu
@@ -103,110 +190,27 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
 	Real Q_RET = 0, Q_OPC = 0;
 	//if partial sequence then compute value of last state (!= R_end)
 	if(not data->Set[seq]->ended) {
+		series_hat.push_back(net->allocateActivation());
 		const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
 		vector<Real> out_T(nOutputs, 0), S_T = data->standardize(_t->s);//last state
 		net->predict(S_T,out_T,series_hat,ndata-1,net->tgt_weights,net->tgt_biases);
 		Q_OPC = Q_RET = out_T[net_indices[0]]; //V(s_T) computed with tgt weights
 	}
-#ifndef NDEBUG
-	else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
-#endif
 
 	for (int k=static_cast<int>(ndata)-2; k>=0; k--)
 	{
-		const Tuple * const _t = data->Set[seq]->tuples[k]; //this contains sOld, a
-		const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //contains r, sNew
-		Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
-		Q_OPC = t_->r + rGamma*Q_OPC;
-		//get everybody camera ready:
 		vector<Real> out_cur = net->getOutputs(series_cur[k]);
 		vector<Real> out_hat = net->getOutputs(series_hat[k]);
-		const Real V_cur = out_cur[net_indices[0]];
-		const Real V_hat = out_hat[net_indices[0]];
-		const Gaussian_policy pol_cur = prepare_policy(out_cur);
-		const Gaussian_policy pol_hat = prepare_policy(out_hat);
-		//Used for update of value: target policy, current value
-		const Quadratic_advantage adv_cur = prepare_advantage(out_cur, &pol_hat);
-		//Used as target: target policy, target value
-		const Quadratic_advantage adv_hat = prepare_advantage(out_hat, &pol_hat);
-		//Used for update of policy: current policy, target value
-		const Quadratic_advantage adv_pol = prepare_advantage(out_hat, &pol_cur);
-
-		//off policy stored action and on-policy sample:
-		const vector<Real> act = aInfo.getInvScaled(_t->a); //unbounded action space
-		const vector<Real> pol = pol_cur.sample(&generators[thrID]);
-
-		const Real actProbOnPolicy = pol_cur.evalLogProbability(act);
-		const Real polProbOnPolicy = pol_cur.evalLogProbability(pol);
-		const Real actProbOnTarget = pol_hat.evalLogProbability(act);
-		const Real actProbBehavior = Gaussian_policy::evalBehavior(act,_t->mu);
-		const Real polProbBehavior = Gaussian_policy::evalBehavior(pol,_t->mu);
-		const Real rho_cur = safeExp(actProbOnPolicy-actProbBehavior);
-		const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
-		const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
-		//const Real c_cur = std::min((Real)1.,std::pow(rho_cur,1./nA));
-		const Real c_hat = std::min((Real)1.,std::pow(rho_hat,1./nA));
-		const Real varCritic = adv_pol.advantageVariance();
-		const Real A_cur = adv_cur.computeAdvantage(act);
-		const Real A_hat = adv_hat.computeAdvantage(act);
-		const Real A_pol = adv_pol.computeAdvantage(pol);
-		const Real A_cov = adv_pol.computeAdvantage(act);
-		//compute quantities needed for trunc import sampl with bias correction
-		const Real importance = std::min(rho_cur, truncation);
-		const Real correction = std::max(0., 1.-truncation/rho_pol);
-		const Real A_OPC = Q_OPC - V_hat;
-		static const Real L = 0.25, eps = 2.2e-16;
-		const Real threshold = A_cov * A_cov / (varCritic+eps);
-		const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
-		const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
-
-#ifdef ACER_PENALIZER
-		const Real cotrolVar = A_cov;
-#else
-		const Real cotrolVar = 0;
-#endif
-		const Real gain1 = A_OPC * importance - eta * rho_cur * cotrolVar;
-		const Real gain2 = A_pol * correction;
-		const vector<Real> gradAcer_1 = pol_cur.policy_grad(act, gain1);
-		const vector<Real> gradAcer_2 = pol_cur.policy_grad(pol, gain2);
-#ifdef ACER_PENALIZER
-		const vector<Real> gradC = pol_cur.control_grad(&adv_pol, eta);
-		const vector<Real> policy_grad = sum3Grads(gradAcer_1, gradAcer_2, gradC);
-#else
-		const vector<Real> policy_grad = sum2Grads(gradAcer_1, gradAcer_2);
-#endif
-		//trust region updating
-		const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
-		const vector<Real> trust_grad=trust_region_update(policy_grad,gradDivKL,delta);
-		const Real Qer = (Q_RET -A_cur -V_cur);
-		//const Real Ver = (Q_RET -A_cur -V_cur)*std::min(1.,rho_hat); //unclear usefulness
-
-		//prepare rolled Q with off policy corrections for next step:
-		Q_RET = c_hat * minAbsValue(Q_RET-A_hat-V_hat,Q_RET-A_cur-V_cur) +
-										minAbsValue(V_hat,V_cur);
-		//Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
-		Q_OPC =   0.5 * minAbsValue(Q_OPC-A_hat-V_hat,Q_OPC-A_cur-V_cur) +
-										minAbsValue(V_hat,V_cur);
-
-		vector<Real> gradient(nOutputs,0);
-		gradient[net_indices[0]]= Qer;
-		adv_cur.grad(act, Qer, gradient);
-		pol_cur.finalize_grad(trust_grad, gradient);
-
+		vector<Real> grad = compute<1>(seq, k, Q_RET, Q_OPC, out_cur, out_hat, rGamma, thrID);
 		#ifdef FEAT_CONTROL
-		task->Train(series_cur[k],series_hat[k+1],act,seq,k,rGamma,gradient);
+		const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[k]->a);
+		task->Train(series_cur[k], series_hat[k+1], act, seq, k, rGamma, grad);
 		#endif
 
-		//bookkeeping:
-		dumpStats(Vstats[thrID], A_cur+V_cur, Qer);
-		data->Set[seq]->tuples[k]->SquaredError =Qer*Qer;
-		vector<Real> _dump = gradient; _dump.push_back(gain1); _dump.push_back(eta);
-		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
-
 		//write gradient onto output layer:
-		clip_gradient(gradient, stdGrad[0], seq, k);
-		net->setOutputDeltas(gradient, series_cur[k]);
-		//TODO missing  -anneal*out[j+nA*2] on means
+		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
+		clip_gradient(grad, stdGrad[0], seq, k);
+		net->setOutputDeltas(grad, series_cur[k]);
 	}
 
 	if (thrID==0) net->backProp(series_cur, net->grad);

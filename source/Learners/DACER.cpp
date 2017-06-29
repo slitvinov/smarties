@@ -9,26 +9,35 @@
 
 #include "../StateAction.h"
 #include "DACER.h"
+//#define DUMP_EXTRA
 
 DACER::DACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
-Learner_utils(comm,_env,settings,settings.nnOutputs+2), nA(env->aI.maxLabel),
-truncation(10), delta(1), generators(settings.generators)
+Learner_utils(comm,_env,settings,settings.nnOutputs), nA(env->aI.maxLabel),
+#ifdef ACER_TABC
+truncation(10),
+#endif
+delta(0.1), generators(settings.generators)
 {
 	assert(nOutputs == 1+nA+nA);
 	buildNetwork(net, opt, net_outputs, settings);
 	assert(nOutputs == net->getnOutputs());
 	assert(nInputs == net->getnInputs());
-	//This algorithm does not require Recurrent nets, but it does require sampling
-	//sequences instead of transitions, so this is a workaround:
-	data->bRecurrent = bRecurrent = true;
+	#ifdef DUMP_EXTRA
+		policyVecDim = 2*nA;
+	#else
+		policyVecDim =   nA;
+	#endif
 	test();
 }
 
 void DACER::select(const int agentId, State& s, Action& a, State& sOld,
 		Action& aOld, const int info, Real r)
 {
+	if (info == 2) { //no need for action, just pass terminal s & r
+		data->passData(agentId, info, sOld, a, s, r, vector<Real>(policyVecDim,0));
+		return;
+	}
 	vector<Real> output = output_stochastic_policy(agentId,s,a,sOld,aOld,info,r);
-	if (output.size() == 0) return;
 	assert(output.size() == nOutputs);
 
 	const Discrete_policy pol = prepare_policy(output);
@@ -47,146 +56,137 @@ void DACER::select(const int agentId, State& s, Action& a, State& sOld,
 	assert(iAct<nA);
 	a.set(iAct);
 
-	#if 1
+	#ifdef DUMP_EXTRA
 	beta.insert(beta.end(), pol.vals.begin(), pol.vals.end());
 	#endif
-	data->passData(agentId, info, sOld, a, beta, s, r);
+	data->passData(agentId, info, sOld, a, s, r, beta);
+	dumpNetworkInfo(agentId);
 }
 
 void DACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
-	die("DACER requires sampling sequences.\n");
-}
-
-void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
-{
 	//this should go to gamma rather quick:
-	const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
 	const Real rGamma = annealedGamma();
-	assert(net->allocatedFrozenWeights && bTrain);
 	const Uint ndata = data->Set[seq]->tuples.size();
+	assert(samp<ndata-1);
+	const bool bEnd = data->Set[seq]->ended; //does it have a terminal reward?
+	const Uint nMaxTargets = MAX_UNROLL_AFTER+1, nMaxBPTT = MAX_UNROLL_BFORE;
+	//for off policy correction we need reward and action, therefore not last one:
+	const Uint nSUnroll = min(ndata-1-samp, nMaxTargets);
+	//if we do not have a terminal reward, then we compute value of last state:
+	const Uint nSValues = min(bEnd? ndata-1-samp : ndata-samp, nMaxTargets);
 
-	if(thrID==1) profiler->push_start("F");
-	vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
-	vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata);
+	const Uint nRecurr = bRecurrent ? min(nMaxBPTT,samp)+1        : 1;
+	const Uint iRecurr = bRecurrent ? max(nMaxBPTT,samp)-nMaxBPTT : samp;
+	//printf("%d %u %u %u %u\n",bEnd,samp,ndata,nSUnroll,nSValues); fflush(0);
+	if(thrID==1) profiler->stop_start("FWD");
 
-	for (Uint k=0; k<ndata-1; k++) {
-		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains s, a, mu
-		const vector<Real> scaledSold = data->standardize(_t->s);
-		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
-		net->seqPredict_inputs(scaledSold, series_cur[k]);
-		net->seqPredict_inputs(scaledSold, series_hat[k]);
+	vector<vector<Real>> out_cur(1, vector<Real>(nOutputs,0));
+	vector<vector<Real>> out_hat(nSValues, vector<Real>(nOutputs,0));
+	vector<Activation*> series_cur = net->allocateUnrolledActivations(nRecurr);
+	vector<Activation*> series_hat = net->allocateUnrolledActivations(nSValues);
+
+	for (Uint k=iRecurr, j=0; k<samp+1; k++, j++) {
+		const vector<Real> inp = data->standardize(data->Set[seq]->tuples[k]->s);
+		net->seqPredict_inputs(inp, series_cur[j]);
+		if(k==samp) { //all are loaded: execute the whole loop:
+			assert(j==nRecurr-1);
+			net->seqPredict_execute(series_cur, series_cur);
+			//extract the only output we actually correct:
+			net->seqPredict_output(out_cur[0], series_cur[j]); //the humanity!
+			//predict samp with target weight using curr recurrent inputs as estimate:
+			const Activation*const recur = j ? series_cur[j-1] : nullptr;
+			net->predict(inp, out_hat[0], recur, series_hat[0], net->tgt_weights, net->tgt_biases);
+		}
 	}
-	net->seqPredict_execute(series_cur, series_cur);
-	net->seqPredict_execute(series_cur, series_hat, net->tgt_weights, net->tgt_biases);
+
+	for (Uint k=1; k<nSValues; k++) {
+		const vector<Real>inp= data->standardize(data->Set[seq]->tuples[k+samp]->s);
+		net->predict(inp,out_hat[k],series_hat,k,net->tgt_weights,net->tgt_biases);
+	}
+
+	if(thrID==1)  profiler->stop_start("ADV");
 
 	Real Q_RET = 0, Q_OPC = 0;
-	//if partial sequence then compute value of last state (=! R_end)
-	if(not data->Set[seq]->ended)
-	{
-		const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
-		vector<Real> out_T(nOutputs, 0), S_T = data->standardize(_t->s); //last state
-		net->predict(S_T, out_T, series_hat, ndata-1, net->tgt_weights, net->tgt_biases);
-		Q_RET = Q_OPC = out_T[0]; //V(s_T) computed with tgt weights
-	}
-#ifndef NDEBUG
-	else assert(data->Set[seq]->tuples[ndata-1]->mu.size() == 0);
-#endif
-
-	if(thrID==1) {
-		profiler->pop_stop();
-		profiler->push_start("L");
-	}
-	for (int k=static_cast<int>(ndata)-2; k>=0; k--)
-	{
-		const Tuple * const _t = data->Set[seq]->tuples[k]; //this tuple contains sOld, a
-		const Tuple * const t_ = data->Set[seq]->tuples[k+1]; //this contains r, sNew
-		Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
-		Q_OPC = t_->r + rGamma*Q_OPC;
-		//get everybody camera ready:
-		vector<Real> out_cur = net->getOutputs(series_cur[k]);
-		vector<Real> out_hat = net->getOutputs(series_hat[k]);
-		const Real V_cur = out_cur[net_indices[0]];
-		const Real V_hat = out_hat[net_indices[0]];
-		const Discrete_policy pol_cur = prepare_policy(out_cur);
-		const Discrete_policy pol_hat = prepare_policy(out_hat);
-		//off policy stored action and on-policy sample:
-		const Uint act = aInfo.actionToLabel(_t->a); //unbounded action space
-		const Uint pol = pol_cur.sample(&generators[thrID]);
-
-		const Real rho_cur = pol_cur.probability(act)/_t->mu[act];
-		const Real rho_pol = pol_cur.probability(pol)/_t->mu[pol];
-		const Real rho_hat = pol_hat.probability(act)/_t->mu[act];
-		//const Real c_cur = std::min((Real)1.,rho_cur);
-		const Real c_hat = std::min((Real)1.,rho_hat);
-		const Real varCritic = pol_cur.advantageVariance();
-
-		//compute Q using tgt net for pi and C, for consistency of derivatives
-		const Real A_cur = pol_cur.computeAdvantage(act);
-		const Real A_pol = pol_cur.computeAdvantage(pol);
-		const Real A_hat = pol_hat.computeAdvantage(act);
-		//compute quantities needed for trunc import sampl with bias correction
-		const Real importance = std::min(rho_cur, truncation);
-		const Real correction = std::max(0., 1.-truncation/rho_pol);
-		const Real A_OPC = Q_OPC - V_hat;
-		static const Real L = 0.25, eps = 2.2e-16;
-		const Real threshold = A_cur * A_cur / (varCritic+eps);
-		const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
-		const Real eta = anneal * smoothing * A_cur * A_OPC / (varCritic+eps);
-
-#ifdef ACER_PENALIZER
-		const Real cotrolVar = A_pol;
-#else
-		const Real cotrolVar = 0;
-#endif
-		const Real gain1 = A_OPC * importance - eta * rho_cur * cotrolVar;
-		//const Real gain1 = A_OPC * importance - eta * cotrolVar;
-		const Real gain2 = A_pol * correction;
-		const vector<Real> gradAcer_1 = pol_cur.policy_grad(act, gain1);
-		const vector<Real> gradAcer_2 = pol_cur.policy_grad(pol, gain2);
-#ifdef ACER_PENALIZER
-		const vector<Real> gradC = pol_cur.control_grad(eta);
-		const vector<Real> policy_grad = sum3Grads(gradAcer_1, gradAcer_2, gradC);
-#else
-		const vector<Real> policy_grad = sum2Grads(gradAcer_1, gradAcer_2);
-#endif
-
-		//trust region updating
-		const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
-		const vector<Real> trust_grad=trust_region_update(policy_grad,gradDivKL,delta);
-		const Real Qer = (Q_RET -A_cur -V_cur);
-		//const Real Ver = (Q_RET-A_cur-V_cur)*std::min(1.,rho_hat); //unclear usefulness:
-
-		//prepare rolled Q with off policy corrections for next step:
-		Q_RET = c_hat* minAbsValue(Q_RET-A_hat-V_hat,Q_RET-A_cur-V_cur)+minAbsValue(V_hat,V_cur);
-		//Q_OPC = c_cur*1.*(Q_OPC -A_hat -out_hat[k][0]) +Vs;
-		Q_OPC =   0.5* minAbsValue(Q_OPC-A_hat-V_hat,Q_OPC-A_cur-V_cur)+minAbsValue(V_hat,V_cur);
-
-		vector<Real> gradient(nOutputs,0);
-		gradient[net_indices[0]]= Qer;
-		pol_cur.values_grad(act, Qer, gradient);
-		pol_cur.finalize_grad(trust_grad, gradient);
-
-		//bookkeeping:
-		dumpStats(Vstats[thrID], A_cur+V_cur, Qer);
-		data->Set[seq]->tuples[k]->SquaredError =Qer*Qer;
-		vector<Real> _dump = gradient; _dump.push_back(gain1); _dump.push_back(eta);
-		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], _dump);
-
-		//write gradient onto output layer:
-		clip_gradient(gradient, stdGrad[0], seq, k);
-		net->setOutputDeltas(gradient, series_cur[k]);
+	if(nSValues != nSUnroll) { //partial sequence: compute value of term state
+		assert(nSValues==nSUnroll+1 && !bEnd);
+		Q_RET=Q_OPC= out_hat[nSValues-1][net_indices[0]]; //V(s_T) with tgt weights
 	}
 
-	if(thrID==1) {
-		profiler->pop_stop();
-		profiler->push_start("B");
-	}
+	for (int k=static_cast<int>(nSUnroll)-1; k>0; k--) //propagate Q to k=0
+		offPolCorrUpdate(seq, k+samp, Q_RET, Q_OPC, out_hat[k], rGamma);
+
+	if(thrID==1)  profiler->stop_start("CMP");
+
+	vector<Real> grad = compute<0>(seq, samp, Q_RET, Q_OPC, out_cur[0], out_hat[0], rGamma, thrID);
+
+	//#ifdef FEAT_CONTROL
+	//const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[samp]->a);
+	//const Activation*const recur = nSValues>1 ? series_hat[1] : nullptr;
+	//task->Train(series_cur.back(), recur, act, seq, samp, rGamma, grad);
+	//#endif
+
+	//write gradient onto output layer:
+	statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
+	clip_gradient(grad, stdGrad[0], seq, samp);
+	net->setOutputDeltas(grad, series_cur.back());
+
+	if(thrID==1)  profiler->stop_start("BCK");
 
 	if (thrID==0) net->backProp(series_cur, net->grad);
 	else net->backProp(series_cur, net->Vgrad[thrID]);
 	net->deallocateUnrolledActivations(&series_cur);
 	net->deallocateUnrolledActivations(&series_hat);
 
-	if(thrID==1) profiler->pop_stop();
+	if(thrID==1)  profiler->stop_start("TSK");
+}
+
+void DACER::Train_BPTT(const Uint seq, const Uint thrID) const
+{
+	//this should go to gamma rather quick:
+	const Real rGamma = annealedGamma();
+	const Uint ndata = data->Set[seq]->tuples.size();
+	vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
+	vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata-1);
+
+	for (Uint k=0; k<ndata-1; k++) {
+		const Tuple * const _t = data->Set[seq]->tuples[k]; // s, a, mu
+		const vector<Real> scaledSold = data->standardize(_t->s);
+		//const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
+		net->seqPredict_inputs(scaledSold, series_cur[k]);
+		net->seqPredict_inputs(scaledSold, series_hat[k]);
+	}
+	net->seqPredict_execute(series_cur,series_cur);
+	net->seqPredict_execute(series_cur,series_hat,net->tgt_weights,net->tgt_biases);
+
+	Real Q_RET = 0, Q_OPC = 0;
+	//if partial sequence then compute value of last state (!= R_end)
+	if(not data->Set[seq]->ended) {
+		series_hat.push_back(net->allocateActivation());
+		const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
+		vector<Real> out_T(nOutputs, 0), S_T = data->standardize(_t->s);//last state
+		net->predict(S_T,out_T,series_hat,ndata-1,net->tgt_weights,net->tgt_biases);
+		Q_OPC = Q_RET = out_T[net_indices[0]]; //V(s_T) computed with tgt weights
+	}
+
+	for (int k=static_cast<int>(ndata)-2; k>=0; k--)
+	{
+		vector<Real> out_cur = net->getOutputs(series_cur[k]);
+		vector<Real> out_hat = net->getOutputs(series_hat[k]);
+		vector<Real> grad = compute<1>(seq, k, Q_RET, Q_OPC, out_cur, out_hat, rGamma, thrID);
+		//#ifdef FEAT_CONTROL
+		//const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[k]->a);
+		//task->Train(series_cur[k], series_hat[k+1], act, seq, k, rGamma, grad);
+		//#endif
+
+		//write gradient onto output layer:
+		statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
+		clip_gradient(grad, stdGrad[0], seq, k);
+		net->setOutputDeltas(grad, series_cur[k]);
+	}
+
+	if (thrID==0) net->backProp(series_cur, net->grad);
+	else net->backProp(series_cur, net->Vgrad[thrID]);
+	net->deallocateUnrolledActivations(&series_cur);
+	net->deallocateUnrolledActivations(&series_hat);
 }

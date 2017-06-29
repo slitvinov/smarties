@@ -5,6 +5,9 @@
  *  Created by Guido Novati on 15.06.16.
  *  Copyright 2013 ETH Zurich. All rights reserved.
  *
+ * TODO:
+ 	- define a virtual func to remove aux tasks from output
+  - fix dump policy to be more general
  */
 
 #include "Learner_utils.h"
@@ -121,19 +124,15 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 #endif
 	_opt->save("initial");
 #ifndef NDEBUG
-	_opt->restart("initial");
-	_opt->save("restarted");
+	//_opt->restart("initial");
+	//_opt->save("restarted");
 #endif
 	//for (const auto & l : _net->layers) l->profiler = profiler;
 }
 
-vector<Real> Learner_utils::output_stochastic_policy(const int agentId, State& s, Action& a,
-		State& sOld, Action& aOld, const int info, Real r)
+vector<Real> Learner_utils::output_stochastic_policy(const int agentId,
+	State& s, Action& a, State& sOld, Action& aOld, const int info, Real r)
 {
-	if (info == 2) { //no need for action, just pass terminal s & r
-		data->passData(agentId, info, sOld, a, vector<Real>(), s, r);
-		return vector<Real>(0);
-	}
 	Activation* currActivation = net->allocateActivation();
 	vector<Real> output(nOutputs);
 	vector<Real> input = s.copy_observed();
@@ -172,28 +171,29 @@ vector<Real> Learner_utils::output_stochastic_policy(const int agentId, State& s
 	return output;
 }
 
-vector<Real> Learner_utils::output_value_iteration(const int agentId, State& s, Action& a,
-	State& sOld, Action& aOld, const int info, Real r)
+vector<Real> Learner_utils::output_value_iteration(const int agentId, State& s,
+	 Action& a, State& sOld, Action& aOld, const int info, Real r)
 {
 	assert(info==1 || data->Tmp[agentId]->tuples.size());
 	Activation* currActivation = net->allocateActivation();
 	vector<Real> output(nOutputs);
+	vector<Real> inputs(nInputs,0);
+	s.copy_observed(inputs);
 	if (info==1) {
-		// if new sequence, sold, aold and reward are meaningless
-		vector<Real> inputs(nInputs,0);
-		s.copy_observed(inputs);
 		vector<Real> scaledSold = data->standardize(inputs);
-		//printselection(agentId,nAgents,info,scaledSold);
 		net->predict(scaledSold, output, currActivation);
 	} else {
 		//then if i'm using RNN i need to load recurrent connections
-		const Tuple* const last = data->Tmp[agentId]->tuples.back();
-		vector<Real> scaledSold = data->standardize(last->s);
-		Activation* prevActivation = net->allocateActivation();
-		prevActivation->loadMemory(net->mem[agentId]);
-		//printselection(agentId,nAgents,info,scaledSold);
-		net->predict(scaledSold, output, prevActivation, currActivation);
-		_dispose_object(prevActivation);
+		if (nAppended>0) {
+			const Tuple * const last = data->Tmp[agentId]->tuples.back();
+			assert(last->s.size()==nInputs);
+			for(Uint i=0; i<nAppended*sInfo.dimUsed; i++)
+				inputs[sInfo.dimUsed + i] = last->s[i];
+		}
+		Activation* prev = net->allocateActivation();
+		prev->loadMemory(net->mem[agentId]);
+		net->predict(data->standardize(inputs), output, prev, currActivation);
+		_dispose_object(prev);
 	}
 	//save network transition
 	currActivation->storeMemory(net->mem[agentId]);
@@ -248,7 +248,7 @@ void Learner_utils::processStats(const Real avgTime)
 
 void Learner_utils::processGrads()
 {
-	const vector<Real> oldsum = avgGrad[0], oldstd = stdGrad[0];
+	const vector<long double> oldsum = avgGrad[0], oldstd = stdGrad[0];
 	statsVector(avgGrad, stdGrad, cntGrad);
 	//std::ostringstream o; o << "Grads avg (std): ";
 	//for (Uint i=0; i<avgGrad[0].size(); i++)
@@ -265,34 +265,27 @@ void Learner_utils::processGrads()
 	}
 }
 
-void Learner_utils::dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-		const vector<Uint>& nbins)
+void Learner_utils::dumpPolicy()
 {
 	//a fail in any of these amounts to a big and fat TODO
 	if(nAppended) die("TODO missing features\n");
-	assert(lower.size()==nInputs&&upper.size()==nInputs&&nbins.size()==nInputs);
-	vector<vector<Real>> bins(nbins.size());
-	Uint nDumpPoints = 1;
-	for (Uint i=0; i<nbins.size(); i++) {
-		nDumpPoints *= nbins[i];
-		bins[i] = vector<Real>(nbins[i]);
-		for (Uint j=0; j<nbins[i]; j++)
-			bins[i][j] = lower[i] + (upper[i]-lower[i]) * (j/(Real)(nbins[i]-1));
-	}
+	const Uint nDumpPoints = env->getNdumpPoints();
 
 	FILE * pFile = fopen ("dump.txt", "ab");
-	vector<Real> output(nOutputs), dump(nInputs+nOutputs);
-	for (Uint i=0; i<nDumpPoints; i++) {
-		vector<Real> state = pickState(bins, i);
-		Activation* act = net->allocateActivation();
+	vector<Real> output(nOutputs), dump(nInputs+5);
+	Activation* act = net->allocateActivation();
+	for (Uint i=0; i<nDumpPoints; i++)
+	{
+		vector<Real> state = env->getDumpState(i);
+		assert(state.size()==nInputs);
 		net->predict(data->standardize(state), output, act);
-		_dispose_object(act);
 		Uint k=0;
 		for (Uint j=0; j<nInputs;  j++) dump[k++] = state[j];
-		for (Uint j=0; j<nOutputs; j++) dump[k++] = output[j];
+		for (Uint j=0; j<5; j++) dump[k++] = output[j];
 		//state.insert(state.end(),output.begin(),output.end()); //unsafe
-		fwrite(dump.data(),sizeof(Real),nInputs+nOutputs,pFile);
+		fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
 	}
+	_dispose_object(act);
 	fclose (pFile);
 }
 
@@ -321,10 +314,12 @@ void Learner_utils::dumpNetworkInfo(const int agentId)
 	for(Uint j=0; j<nOutputs; j++) out << output[j] << " ";
 	out << "\n";
 	//sensitivity of value for this action in this state wrt all previous inputs
-	for (Uint ii=0; ii<ndata; ii++) {
+	Uint start0 = ndata > MAX_UNROLL_BFORE ? ndata-MAX_UNROLL_BFORE-1 : 0;
+	for (Uint ii=start0; ii<ndata; ii++) {
+		Uint start1 = ii > MAX_UNROLL_BFORE ? ii-MAX_UNROLL_BFORE-1 : 0;
 		for (Uint i=0; i<nInputs; i++) {
 			vector<Activation*> series =net->allocateUnrolledActivations(ndata);
-			for (Uint k=0; k<ndata; k++) {
+			for (Uint k=start1; k<ndata; k++) {
 				vector<Real> state = data->Tmp[agentId]->tuples[k]->s;
 				if (k==ii) state[i] = 0;
 				net->predict(data->standardize(state), output, series, k);

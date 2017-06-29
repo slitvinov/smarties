@@ -29,9 +29,10 @@ private:
 	Real meanR = 0, varR = 0;
 	unsigned long iter = 0;
 	vector<int> status;
+	vector<Real> cumulative_rewards;
 
 	MPI_Request request;
-
+	void trackAgentsPerformance(const _AGENT_STATUS agentStatus, const int agent, const Real reward);
 	void recvState(const int slave, int& iAgent, int& istatus, Real& reward);
 	void sendAction(const int slave, const int iAgent);
 	void save();
@@ -41,9 +42,18 @@ public:
 	~Master()
 	{
 		_dispose_object(env);
-		_dispose_object(inbuf);
-		_dispose_object(outbuf);
+		_dealloc(inbuf);
+		_dealloc(outbuf);
 		_dispose_object(learner);
+	}
+	void sendTerminateReq(const double msg = -256)
+	{
+		//it's ugly, i send -256 to kill the slaves... but...
+		//what are the chances that learner sends action -256.(+/- eps) to clients?
+		outbuf[0] = msg;
+		printf("nslaves %d\n",nSlaves);
+		for (int slave=1; slave<=nSlaves; slave++)
+		MPI_Ssend(outbuf, outSize, MPI_BYTE, slave, 0, slavesComm);
 	}
 	void run();
 	void restart(string fname);
