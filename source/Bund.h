@@ -39,8 +39,8 @@ using namespace std;
 	#define ACER_MIN_PROB 0
 #endif
 
-#if 1
-	#define MAX_UNROLL_AFTER 1000
+#ifndef CUT_LAMBDA
+	#define MAX_UNROLL_AFTER 2000
 	#define ACER_LAMBDA 1.0
 #else //lambda 0.5 allows cutting traces
 	#define MAX_UNROLL_AFTER 20
@@ -50,9 +50,13 @@ using namespace std;
 #define MAX_UNROLL_BFORE 20
 #define ACER_CONST_PREC 50
 #define ACER_GRAD_CUT 10
-//#define importanceSampling
+
+#ifdef IMPORTSAMPLE
+	#define importanceSampling
+#endif
 
 #define NET_L1_PENAL
+
 //#define _dumpNet_
 
 typedef double Real;

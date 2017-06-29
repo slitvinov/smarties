@@ -11,7 +11,10 @@ acer ?= full
 testdiff ?= no
 entropy ?= off
 auxtask ?= off
+importance ?= off
+lambda ?= off
 tabc ?= off
+sortseq ?= off
 mpi_lib ?= default
 
 CPPFLAGS+= -std=c++11 -D__Smarties_ -fopenmp
@@ -66,8 +69,17 @@ endif #!full
 endif #relax
 endif #safe
 
+ifeq "$(sortseq)" "on"
+CPPFLAGS+= -DRESORT_SEQS
+endif
 ifeq "$(tabc)" "on"
 CPPFLAGS+= -DACER_TABC
+endif
+ifeq "$(importance)" "on"
+CPPFLAGS+= -DIMPORTSAMPLE
+endif
+ifeq "$(lambda)" "on"
+CPPFLAGS+= -DCUT_LAMBDA
 endif
 ifeq "$(auxtask)" "on"
 CPPFLAGS+= -DFEAT_CONTROL
