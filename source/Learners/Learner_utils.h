@@ -36,8 +36,6 @@ public:
 
 	void stackAndUpdateNNWeights(const Uint nAddedGradients) override;
 
-	void updateNNWeights(const Uint nAddedGradients) override;
-
 	void updateTargetNetwork() override;
 
 	void buildNetwork(Network*& _net , Optimizer*& _opt,

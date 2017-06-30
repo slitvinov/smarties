@@ -38,17 +38,20 @@ using namespace std;
 	#define ACER_MIN_PREC 0
 	#define ACER_MIN_PROB 0
 #endif
+#define ACER_CONST_PREC 50 //uniform precision (1/std^2) in case of ACER_SAFE
 
 #if 1
+	//max number of future time steps for off-policy corrections:
 	#define MAX_UNROLL_AFTER 1000
 	#define ACER_LAMBDA 1.0
 #else //lambda 0.5 allows cutting traces
-	#define MAX_UNROLL_AFTER 20
+	#define MAX_UNROLL_AFTER 20 // since (0.5)^20 is ~1e-6 we can truncate?
 	#define ACER_LAMBDA 0.5
 #endif
 
+// number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20
-#define ACER_CONST_PREC 50
+//clip gradients of network outputs if more than # standard deviations from 0:
 #define ACER_GRAD_CUT 10
 //#define importanceSampling
 

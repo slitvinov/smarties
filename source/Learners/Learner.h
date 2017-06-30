@@ -54,7 +54,6 @@ protected:
 	virtual void Train(const Uint seq, const Uint samp, const Uint thrID=0) const = 0;
 	virtual void processStats(const Real avgTime) = 0;
 	virtual void stackAndUpdateNNWeights(const Uint nAddedGradients) = 0;
-	virtual void updateNNWeights(const Uint nAddedGradients) = 0;
 	virtual void updateTargetNetwork() = 0;
 
 	Uint sampleSequences(vector<Uint>& sequences);

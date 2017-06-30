@@ -23,7 +23,6 @@ class DPG : public Learner_utils
 
 	void updateTargetNetwork() override;
 	void stackAndUpdateNNWeights(const Uint nAddedGradients) override;
-	void updateNNWeights(const Uint nAddedGradients) override;
 	void processGrads() override;
 
 public:

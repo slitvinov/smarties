@@ -143,6 +143,7 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
 		s.insert(s.end(), a.begin(), a.end());
 		net_value->seqPredict_inputs(s, actValcur[j]);
 		if(k==samp) {
+			assert(j==nRecurr-1);
 			net->seqPredict_execute(actPolcur,actPolcur);
 			net_value->seqPredict_execute(actValcur,actValcur);
 			const vector<Real> pol = net->getOutputs(actPolcur.back());
@@ -160,9 +161,9 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	const Tuple * const _t = data->Set[seq]->tuples[samp+1]; //contains sNew, rew
 	if(!terminal) {
 		vector<Real> snew = data->standardize(_t->s), polnext(nA);
-		net->predict(snew, polnext, tgtPol, net->tgt_weights, net->tgt_biases);
+		net->predict(snew, polnext, actPolcur.back(), tgtPol, net->tgt_weights, net->tgt_biases);
 		snew.insert(snew.end(), polnext.begin(), polnext.end());
-		net_value->predict(snew, vnext, tgtVal, net_value->tgt_weights, net_value->tgt_biases);
+		net_value->predict(snew, vnext, actValcur.back(), tgtVal, net_value->tgt_weights, net_value->tgt_biases);
 	}
 
 	const Real target = (terminal) ? _t->r : _t->r + rGamma * vnext[0];
@@ -200,23 +201,28 @@ void DPG::updateTargetNetwork()
 void DPG::stackAndUpdateNNWeights(const Uint nAddedGradients)
 {
 	assert(nAddedGradients>0 && bTrain);
-	opt_value->nepoch ++;
-	opt_value->stackGrads(net_value->grad, net_value->Vgrad); //add up gradients across threads
-	opt_value->update(net_value->grad, nAddedGradients); //update
-
 	opt->nepoch ++;
+	opt_value->nepoch ++;
+	opt_value->stackGrads(net_value->grad, net_value->Vgrad);
 	opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads
-	opt->update(net->grad, nAddedGradients); //update
-}
 
-void DPG::updateNNWeights(const Uint nAddedGradients)
-{
-	assert(nAddedGradients>0 && bTrain);
-	opt_value->nepoch ++;
-	opt_value->update(net_value->grad, nAddedGradients);
-
-	opt->nepoch ++;
-	opt->update(net->grad, nAddedGradients);
+	int nMasters;
+	MPI_Comm_size(mastersComm, &nMasters);
+	if (nMasters > 1) {
+		MPI_Allreduce(MPI_IN_PLACE, net_value->grad->_W, net_value->getnWeights(),
+				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
+		MPI_Allreduce(MPI_IN_PLACE, net_value->grad->_B, net_value->getnBiases(),
+				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
+		MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
+				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
+		MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
+				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
+	}
+	//update is deterministic: can be handled independently by each node
+	//communication overhead is probably greater than a parallelised sum
+	assert(nMasters>0);
+	opt->update(net->grad, nAddedGradients*nMasters);
+	opt_value->update(net_value->grad, nAddedGradients*nMasters); //update
 }
 
 void DPG::processGrads()

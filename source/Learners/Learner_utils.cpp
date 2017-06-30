@@ -34,22 +34,6 @@ void Learner_utils::stackAndUpdateNNWeights(const Uint nAddedGradients)
 	opt->update(net->grad, nAddedGradients*nMasters);
 }
 
-void Learner_utils::updateNNWeights(const Uint nAddedGradients)
-{
-	assert(bTrain && nAddedGradients>0);
-	//add up gradients across nodes (masters)
-	int nMasters;
-	MPI_Comm_size(mastersComm, &nMasters);
-	if (nMasters > 1) {
-		MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
-				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
-		MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
-				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
-	}
-	opt->nepoch++;
-	opt->update(net->grad, nAddedGradients);
-}
-
 void Learner_utils::updateTargetNetwork()
 {
 	assert(bTrain);
@@ -64,8 +48,7 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 		const vector<Uint> nouts, Settings & settings,
 		vector<Real> weightInitFac, const vector<Uint> addedInputs)
 {
-	const string netType = settings.nnType;
-	const string funcType = settings.nnFunc;
+	const string netType = settings.nnType, funcType = settings.nnFunc;
 	const vector<int> lsize = settings.readNetSettingsSize();
 	assert(nouts.size()>0);
 
