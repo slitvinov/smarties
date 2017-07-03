@@ -212,7 +212,7 @@ void Learner_utils::processStats(const Real avgTime)
 	for (Uint w=0; w<net->getnWeights(); w++){
 		sumWeights += std::fabs(net->weights[w]);
 		sumWeightsSq += net->weights[w]*net->weights[w];
-		distTarget += std::pow(net->weights[w]-net->tgt_weights[w],2);
+		distTarget += std::fabs(net->weights[w]-net->tgt_weights[w]);
 	}
 	processGrads();
 	ofstream filestats;

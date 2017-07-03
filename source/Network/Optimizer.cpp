@@ -26,8 +26,8 @@ AdamOptimizer::AdamOptimizer(Network*const _net, Profiler*const _prof,
 //beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.99)
 
 EntropySGD::EntropySGD(Network*const _net, Profiler*const _prof, Settings&_s) :
-		AdamOptimizer(_net, _prof, _s, 0.8), alpha_eSGD(0.75), gamma_eSGD(1.),
-		eta_eSGD(1./_s.targetDelay), eps_eSGD(1e-6), L_eSGD(_s.targetDelay),
+		AdamOptimizer(_net, _prof, _s, 0.5), alpha_eSGD(0.75), gamma_eSGD(10.),
+		eta_eSGD(.1/_s.targetDelay), eps_eSGD(1e-3), L_eSGD(_s.targetDelay),
 		_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
 {
 	assert(L_eSGD>0);
@@ -74,44 +74,6 @@ void EntropySGD::moveFrozenWeights(const Real _alpha)
 			_muB_eSGD[j] = net->tgt_biases[j];
 		}
 	}
-}
-
-void EntropySGD::update(nnReal*const dest,const nnReal*const target,
-	nnReal*const grad, nnReal*const _1stMom, nnReal*const _2ndMom,
-	nnReal*const _mu, const Uint N, const Uint batchsize, const Real _eta)
-{
-	//const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
-	assert(batchsize>0);
-	const nnReal eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
-	const nnReal norm = 1./batchsize;
-	// TODO const Real lambda_ = _lambda*eta_;
-	const nnReal noise = std::sqrt(eta_) * eps_eSGD;
-
-#pragma omp parallel
-	{
-		const Uint thrID = static_cast<Uint>(omp_get_thread_num());
-		Saru gen(nepoch, thrID, net->generators[thrID]());
-
-#pragma omp for
-		for (Uint i=0; i<N; i++)
-		{
-			const nnReal DW  = grad[i]*norm;
-			const nnReal M1_ = beta_1* _1stMom[i] +(1.-beta_1) *DW;
-			const nnReal M2  = beta_2* _2ndMom[i] +(1.-beta_2) *DW*DW;
-			const nnReal M2_ = std::max(M2, (nnReal)epsilon);
-
-			const nnReal RNG = noise * gen.d_mean0_var1();
-			const nnReal DW_ = eta_*M1_/std::sqrt(M2_);
-
-			_1stMom[i] = M1_;
-			_2ndMom[i] = M2_;
-			grad[i] = 0.; //reset grads
-
-			dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
-			_mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
-		}
-	}
-
 }
 
 void EntropySGD::update(Grads* const G, const Uint batchsize)
@@ -192,6 +154,48 @@ void Optimizer::update(nnReal*const dest,nnReal*const grad,nnReal*const _1stMom,
 		_1stMom[i] = std::max(std::min(M1,eta_),-eta_);
 		grad[i] = 0.; //reset grads
 		dest[i] += _1stMom[i];
+	}
+}
+
+void EntropySGD::update(nnReal*const dest,const nnReal*const target,
+	nnReal*const grad, nnReal*const _1stMom, nnReal*const _2ndMom,
+	nnReal*const _mu, const Uint N, const Uint batchsize, const Real _eta)
+{
+	//const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
+	assert(batchsize>0);
+
+#pragma omp parallel
+	{
+		const Uint thrID = static_cast<Uint>(omp_get_thread_num());
+		Saru gen(nepoch, thrID, net->generators[thrID]());
+		const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
+		const nnReal eps = std::numeric_limits<nnReal>::epsilon();
+		const nnReal norm = 1./batchsize, noise = std::sqrt(eta_) * eps_eSGD;
+		const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2, f22=1-beta_2;
+
+#pragma omp for
+		for (Uint i=0; i<N; i++)
+		{
+			const nnReal DW  = grad[i]*norm;
+			const nnReal M1  = f11* _1stMom[i] +f12* DW;
+			const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
+			//const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
+			const nnReal M2_ = std::max(M2, eps);
+			const nnReal _M2 = std::sqrt(M2_);
+			const nnReal M1_ = std::max(std::min(M1, _M2), -_M2); //grad clip
+
+			const nnReal RNG = noise * gen.d_mean0_var1();
+			const nnReal DW_ = eta_*(f12*DW + f11*M1_)/_M2; //Nesterov Adam
+
+			_1stMom[i] = M1_;
+			_2ndMom[i] = M2_;
+			grad[i] = 0.; //reset grads
+			assert(!std::isnan(DW));
+			assert(!std::isnan(dest[i]));
+
+			dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
+			_mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
+		}
 	}
 }
 

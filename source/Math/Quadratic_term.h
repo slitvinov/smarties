@@ -57,9 +57,10 @@ protected:
 		return ret;
 	}
 
-	inline vector<Real> extract_mean(const vector<Real>& tmp) const
+	inline vector<Real> extract_mean(const vector<Real> tmp) const
 	{
-		if(tmp.size() == nA) return tmp;
+		//printf("%lu vec:%s\n", tmp.size(), print(tmp).c_str()); fflush(0);
+		if(tmp.size() == nA) { assert(start_mean==0); return tmp; }
 		assert(start_mean!=0 && netOutputs.size()>=start_mean+nA);
 		return vector<Real>(&(netOutputs[start_mean]),&(netOutputs[start_mean])+nA);
 	}

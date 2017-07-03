@@ -24,10 +24,19 @@ void Gaussian_policy::test(const vector<Real>& act,
  		out_2[index] += 0.0001;
  		Gaussian_policy p1(start_mean,start_prec,nA,out_1);
  		Gaussian_policy p2(start_mean,start_prec,nA,out_2);
- 		Quadratic_advantage a1(a->start_matrix,a->start_mean,a->nA,a->nL,out_1,&p1);
- 		Quadratic_advantage a2(a->start_matrix,a->start_mean,a->nA,a->nL,out_2,&p2);
- 		const Real A_1 = a1.computeAdvantage(act);
- 		const Real A_2 = a2.computeAdvantage(act);
+
+ 		Quadratic_advantage a1 =
+			!a->start_mean ?
+		Quadratic_advantage(a->start_matrix,a->nA,a->nL,out_1,&p1)
+			:
+		Quadratic_advantage(a->start_matrix,a->start_mean,a->nA,a->nL,out_1,&p1);
+
+		Quadratic_advantage a2 =
+			!a->start_mean ?
+		Quadratic_advantage(a->start_matrix,a->nA,a->nL,out_2,&p2)
+			:
+		Quadratic_advantage(a->start_matrix,a->start_mean,a->nA,a->nL,out_2,&p2);
+
  		const Real p_1 = p1.evalLogProbability(act);
  		const Real p_2 = p2.evalLogProbability(act);
  		const Real d_1 = p1.kl_divergence(pol_hat);
@@ -36,10 +45,14 @@ void Gaussian_policy::test(const vector<Real>& act,
 		if(fabs(_grad[index]-(p_2-p_1)/.0002)>1e-7)
  		_die("LogPol var grad %d: finite differences %g analytic %g error %g \n",
  			i,(p_2-p_1)/.0002,_grad[index],fabs(_grad[index]-(p_2-p_1)/.0002));
+		#ifndef ACER_RELAX
+ 		const Real A_1 = a1.computeAdvantage(act);
+ 		const Real A_2 = a2.computeAdvantage(act);
  		finalize_grad(cntrolgrad, _grad);
 		if(fabs(_grad[index]-(A_2-A_1)/.0002)>1e-7)
  		_die("Control var grad %d: finite differences %g analytic %g error %g \n",
 			i,(A_2-A_1)/.0002,_grad[index],fabs(_grad[index]-(A_2-A_1)/.0002));
+		#endif
  		finalize_grad(div_klgrad, _grad);
 		if(fabs(_grad[index]-(d_2-d_1)/.0002)>1e-7)
  		_die("DivKL var grad %d: finite differences %g analytic %g error %g \n",
@@ -97,8 +110,19 @@ void Quadratic_advantage::test(const vector<Real>& act)
  		const Uint index = i>=nL ? start_mean+i-nL : start_matrix+i;
  		out_1[index] -= 0.0001;
  		out_2[index] += 0.0001;
- 		Quadratic_advantage a1(start_matrix,start_mean,nA,nL,out_1,policy);
- 		Quadratic_advantage a2(start_matrix,start_mean,nA,nL,out_2,policy);
+
+		Quadratic_advantage a1 =
+			!start_mean ?
+		Quadratic_advantage(start_matrix,nA,nL,out_1,policy)
+			:
+		Quadratic_advantage(start_matrix,start_mean,nA,nL,out_1,policy);
+
+		Quadratic_advantage a2 =
+			!start_mean ?
+		Quadratic_advantage(start_matrix,nA,nL,out_2,policy)
+			:
+		Quadratic_advantage(start_matrix,start_mean,nA,nL,out_2,policy);
+
  		const Real A_1 = a1.computeAdvantage(act);
  		const Real A_2 = a2.computeAdvantage(act);
 		if(fabs(_grad[index]-(A_2-A_1)/.0002)>1e-7)

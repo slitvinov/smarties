@@ -437,8 +437,10 @@ void Transitions::sortSequences()
 
 void Transitions::synchronize()
 {
+	#ifdef RESORT_SEQS
 	//comment out to always delete oldest sequences:
 	sortSequences();
+	#endif
 
 	Uint cnt =0;
 	Uint nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();

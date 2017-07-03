@@ -40,9 +40,9 @@ using namespace std;
 #endif
 #define ACER_CONST_PREC 50 //uniform precision (1/std^2) in case of ACER_SAFE
 
-#if 1
+#ifndef CUT_LAMBDA
 	//max number of future time steps for off-policy corrections:
-	#define MAX_UNROLL_AFTER 1000
+	#define MAX_UNROLL_AFTER 2000
 	#define ACER_LAMBDA 1.0
 #else //lambda 0.5 allows cutting traces
 	#define MAX_UNROLL_AFTER 20 // since (0.5)^20 is ~1e-6 we can truncate?
@@ -53,9 +53,13 @@ using namespace std;
 #define MAX_UNROLL_BFORE 20
 //clip gradients of network outputs if more than # standard deviations from 0:
 #define ACER_GRAD_CUT 10
-//#define importanceSampling
+
+#ifdef IMPORTSAMPLE
+	#define importanceSampling
+#endif
 
 #define NET_L1_PENAL
+
 //#define _dumpNet_
 
 typedef double Real;

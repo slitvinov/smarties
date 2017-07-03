@@ -11,7 +11,10 @@ acer ?= full
 testdiff ?= no
 entropy ?= off
 auxtask ?= off
+importance ?= off
+lambda ?= off
 tabc ?= off
+sortseq ?= off
 mpi_lib ?= default
 
 CPPFLAGS+= -std=c++11 -D__Smarties_ -fopenmp
@@ -48,6 +51,7 @@ CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wpedantic -Woverloa
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrite-strings
 CPPFLAGS+= -Wno-unused-parameter # does not make sense with function overloading
 CPPFLAGS+= -Wno-maybe-uninitialized #to switch on and check that only triggered by std random
+CPPFLAGS+= -Wno-float-equal #sometimes you just know, do you know what I am saying?
 
 CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
 CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 #-DNDEBUG
@@ -66,8 +70,17 @@ endif #!full
 endif #relax
 endif #safe
 
+ifeq "$(sortseq)" "on"
+CPPFLAGS+= -DRESORT_SEQS
+endif
 ifeq "$(tabc)" "on"
 CPPFLAGS+= -DACER_TABC
+endif
+ifeq "$(importance)" "on"
+CPPFLAGS+= -DIMPORTSAMPLE
+endif
+ifeq "$(lambda)" "on"
+CPPFLAGS+= -DCUT_LAMBDA
 endif
 ifeq "$(auxtask)" "on"
 CPPFLAGS+= -DFEAT_CONTROL

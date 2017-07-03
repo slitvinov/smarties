@@ -46,7 +46,7 @@ void TwoActFishEnvironment::setDims()
 		// ...last action (HAX!)
 		sI.inUse.push_back(true);
 		// ...second last action (HAX!)
-		sI.inUse.push_back(false); //if l_line i have curvature info
+		sI.inUse.push_back(true); //if l_line i have curvature info
 	}
 	{
 		//New T period
@@ -56,14 +56,14 @@ void TwoActFishEnvironment::setDims()
 		sI.inUse.push_back(true);
 
 		// VxInst
-		sI.inUse.push_back(false);
-		//sI.inUse.push_back(true);
+		//sI.inUse.push_back(false);
+		sI.inUse.push_back(true);
 
 		// VyInst
-		sI.inUse.push_back(false);
+		sI.inUse.push_back(true);
 
 		// AvInst
-		sI.inUse.push_back(false);
+		sI.inUse.push_back(true);
 	}
 	#if 0
 		//Xabs 6
