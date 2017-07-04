@@ -12,18 +12,18 @@
 class Learner_utils: public Learner
 {
 protected:
-mutable vector<Real> cntGrad;
-	mutable vector<vector<Real>> avgGrad, stdGrad;
+mutable vector<long double> cntGrad;
+	mutable vector<vector<long double>> avgGrad, stdGrad;
 	trainData stats;
 	vector<trainData*> Vstats;
 
 public:
 	Learner_utils(MPI_Comm mcom,Environment*const _e, Settings&sett, Uint ngrads)
 	: Learner(mcom, _e, sett), cntGrad(nThreads+1,0),
-	avgGrad(nThreads+1,vector<Real>(ngrads,0)),
-	stdGrad(nThreads+1,vector<Real>(ngrads,0))
+	avgGrad(nThreads+1,vector<long double>(ngrads,0)),
+	stdGrad(nThreads+1,vector<long double>(ngrads,0))
 	{
-		stdGrad[0] = vector<Real>(ngrads,100);
+		stdGrad[0] = vector<long double>(ngrads,100);
 		assert(avgGrad.size()==nThreads+1 && cntGrad.size()==nThreads+1);
 		for (Uint i=0; i<nThreads; i++) Vstats.push_back(new trainData());
 	}
@@ -32,8 +32,7 @@ public:
 		for (auto & trash : Vstats) _dispose_object(trash);
 	}
 
-	void dumpPolicy(const vector<Real> lower, const vector<Real>& upper,
-			const vector<Uint>& nbins) override;
+	void dumpPolicy() override;
 
 	void stackAndUpdateNNWeights(const Uint nAddedGradients) override;
 
@@ -65,17 +64,8 @@ public:
 
 	virtual void processStats(const Real avgTime) override;
 	virtual void processGrads();
-	inline vector<Real> pickState(const vector<vector<Real>>& bins, Uint k)
-  {
-		vector<Real> state(bins.size());
-		for (Uint i=0; i<bins.size(); i++) {
-			state[i] = bins[i][ k % bins[i].size() ];
-			k /= bins[i].size();
-		}
-		return state;
-  }
 
-	inline void clip_gradient(vector<Real>& grad, const vector<Real>& std,
+	inline void clip_gradient(vector<Real>& grad, const vector<long double>& std,
 		const Uint seq, const Uint samp) const
 	{
 		for (Uint i=0; i<grad.size(); i++) {
@@ -84,15 +74,15 @@ public:
 				grad[i] *= data->Set[seq]->tuples[samp]->weight;
 			#endif
 			#ifdef ACER_GRAD_CUT
-				if(grad[i] >  ACER_GRAD_CUT*std[i] && std[i]>2.2e-16) 
+				if(grad[i] >  ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
 				{
-					//printf("Cut\n");
+					//printf("Cut! was:%f is:%LG\n",grad[i], ACER_GRAD_CUT*std[i]);
 					grad[i] =  ACER_GRAD_CUT*std[i];
 				}
 				else
 				if(grad[i] < -ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
 				{
-					//printf("Cut\n");
+					//printf("Cut! was:%f is:%LG\n",grad[i],-ACER_GRAD_CUT*std[i]);
 					grad[i] = -ACER_GRAD_CUT*std[i];
 				}
 				//else printf("Not cut\n");

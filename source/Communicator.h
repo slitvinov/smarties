@@ -116,7 +116,7 @@ public:
 
 #ifdef __Smarties_
 	int recvStateFromApp();
-	void sendActionToApp();
+	int sendActionToApp();
 
 	double* getDataAction() { return data_action; }
 	double* getDataState()  { return data_state; }

@@ -18,13 +18,14 @@ protected:
 	ActionInfo aInfo;
 
 public:
-	State *s, *sOld;
-	Action *a;
-	Real r;
+	State *s = nullptr;
+	State *sOld = nullptr;
+	Action *a = nullptr;
+	Real r = 0;
 	const int ID;
-	int Status;
+	int Status = 1;
 
-	Agent(const int _ID = 0) : ID(_ID), Status(1) { }
+	Agent(const int _ID = 0) : ID(_ID) { }
 
 	~Agent()
 	{
@@ -34,6 +35,7 @@ public:
 	}
 	void getState(State& _s) const
 	{
+		assert(s not_eq nullptr);
 		_s = *s;
 	}
 	void setState(State& _s)
@@ -42,14 +44,17 @@ public:
 	}
 	void swapStates()
 	{
+		assert(s not_eq nullptr);
 		std::swap(s, sOld);
 	}
 	void getAction(Action& _a) const
 	{
+		assert(a not_eq nullptr);
 		_a = *a;
 	}
 	void getOldState(State& _s) const
 	{
+		assert(sOld not_eq nullptr);
 		_s = *sOld;
 	}
 	void act(Action& _a)

@@ -42,18 +42,16 @@ if hasattr(env.action_space, 'spaces'):
 elif hasattr(env.action_space, 'shape'):
     nActions = env.action_space.shape[0]
     for i in range(nActions):
-		bounded = 0
-		#figure out if environment is strict about the bounds on action:
-		test = env.reset()
-		test_act = 0.5*(env.action_space.low + env.action_space.high)
-		test_act[i] = env.action_space.high[i]+1
-		try:
-			test = env.step(test_act)
-		except:
-			bounded = 1.1
-		actionOptions = np.append(actionOptions, [2.1, bounded])
-		actionValues = np.append(actionValues,max(env.action_space.low[i],-1e3))
-		actionValues = np.append(actionValues,min(env.action_space.high[i],1e3))
+        bounded = 0 #figure out if environment is strict about the bounds on action:
+        test = env.reset()
+        test_act = 0.5*(env.action_space.low + env.action_space.high)
+        test_act[i] = env.action_space.high[i]+1
+        try: test = env.step(test_act)
+        except: bounded = 1.1
+        env.reset()
+        actionOptions = np.append(actionOptions, [2.1, bounded])
+        actionValues = np.append(actionValues,max(env.action_space.low[i],-1e3))
+        actionValues = np.append(actionValues,min(env.action_space.high[i],1e3))
 elif hasattr(env.action_space, 'n'):
     nActions_i = env.action_space.n
     actionOptions = np.append(actionOptions, [nActions_i, 1])
@@ -81,8 +79,9 @@ conn.send(np.array([nStates+.1,nActions+.1],np.float64).tobytes())
 conn.send(state_bounds.tobytes())
 conn.send(actionOptions.tobytes())
 conn.send(actionValues.tobytes())
-bRender = round(np.frombuffer(conn.recv(8), dtype=np.float64) )
-
+bRender = int(round(np.frombuffer(conn.recv(8), dtype=np.float64)[0]))
+print(bRender)
+sys.stdout.flush()
 if bRender==3: env = gym.wrappers.Monitor(env, './', force=True)
 
 seq_id, frame_id = 0, 0
@@ -92,22 +91,23 @@ while True:
     reward, status, frame_id = 0, 1, 0
     observation = env.reset()
     while True:
-    	state[0]=0
-    	state[1]=status
+        state[0]=0
+        state[1]=status
         if hasattr(env.observation_space, 'shape'):
-    	       state[2:nStates+2]=observation.ravel()
+            state[2:nStates+2]=observation.ravel()
         else: state[2] = observation
-    	state[nStates+2]=reward
+        state[nStates+2]=reward
+        print(state)
 
-    	conn.send(state.tobytes())
-    	status=0
+        conn.send(state.tobytes())
+        status=0
         if bRender==1: env.render()
         if bRender==2:
             fname = 'state_seq%04d_frame%07d' % (seq_id, frame_id)
             plt.imshow(env.render(mode='rgb_array'))
             plt.savefig(fname, dpi=100)
 
-    	buf = np.frombuffer(conn.recv(nActions*8),dtype=np.float64)
+        buf = np.frombuffer(conn.recv(nActions*8),dtype=np.float64)
 
         if hasattr(env.action_space, 'shape'):
             action = buf
@@ -115,8 +115,9 @@ while True:
             action = [int(buf[0])]
             for i in range(1, nActions): action = action + [int(buf[i])]
         else: action = int(buf[0])
+        print(action)
 
-        for i in range(4):
+        for i in range(1):
             observation, reward, done, info = env.step(action)
             if done: break
         if done:
@@ -126,16 +127,18 @@ while True:
                 plt.imshow(env.render(mode='rgb_array'))
                 plt.savefig(fname, dpi=100)
             break
-    frame_id += 1
+        frame_id += 1
+
     state[0]=0
     state[1]=2
     if hasattr(env.observation_space, 'shape'):
-           state[2:nStates+2]=observation.ravel()
+        state[2:nStates+2]=observation.ravel()
     else: state[2] = observation
     state[nStates+2]=reward
-
+    print(state)
     conn.send(state.tobytes())
     buf = np.frombuffer(conn.recv(nActions*8),dtype=np.float64)
+    print(buf)
     if(buf[0]<0):
         print("Received end of training signal. Aborting...");
         break

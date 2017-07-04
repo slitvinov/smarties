@@ -102,6 +102,12 @@ bool Environment::pickReward(const State& t_sO, const Action& t_a,
     return info == 2;
 }
 
-vector<Real> Environment::stateDumpUpperBound() {return vector<Real>(0);}
-vector<Real> Environment::stateDumpLowerBound() {return vector<Real>(0);}
-vector<Uint> Environment::stateDumpNBins() {return vector<Uint>(0);}
+Uint Environment::getNdumpPoints()
+{
+	return 0;
+}
+
+vector<Real> Environment::getDumpState(Uint k)
+{
+	return vector<Real>();
+}

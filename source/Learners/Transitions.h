@@ -54,17 +54,20 @@ class Transitions
 protected:
 	const MPI_Comm mastersComm;
 	Environment * const env;
-	const bool bSampleSeq, bTrain, bWriteToFile, bNormalize;
+	const bool bNormalize, bTrain, bWriteToFile, bSampleSeq;
+	const Uint nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
 	const string path;
+	const StateInfo sI;
+	const ActionInfo aI;
+	std::vector<std::mt19937>& generators;
+
 	Uint iOldestSaved=0;
 	vector<Real> std, mean, invstd;
-	vector<Uint> curr_transition_id;
-	discrete_distribution<Uint> * dist;
+	vector<Uint> curr_transition_id, inds;
+	discrete_distribution<Uint> * dist = nullptr;
 
 	int add(const int agentId, const int info, const State & sOld,
-			const Action & a, const vector<Real>& mu, const State& s, Real r);
-	int add(const int agentId, const int info, const State& sOld,
-			const Action& a, const State& sNew, const Real reward);
+			const Action & a, const vector<Real> mu, const State& s, Real r);
 
 	void push_back(const int & agentId);
 	void clear(const int & agentId);
@@ -72,13 +75,8 @@ protected:
 	void sortSequences();
 
 public:
-	vector<Uint> inds;
-	const Uint nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
-	bool bRecurrent;
+	//bool bRecurrent;
 	Uint anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0, nSeenSequences=0;
-	const StateInfo sI;
-	const ActionInfo aI;
-	std::vector<std::mt19937>& generators;
 	Gen * gen;
 	vector<Sequence*> Set, Tmp, Buffered;
 
@@ -104,12 +102,14 @@ public:
 	void restart(std::string fname);
 	Uint updateSamples(const Real annealFac);
 	Uint sample(const int thrID = 0);
-	void restartSamples();
-	void restartSamplesNew(const bool bContinuous);
+	Uint restartSamples(const Uint polDim = 0);
 	void saveSamples();
 
 	int passData(const int agentId, const int info, const State& sOld,
-			const Action & a, const vector<Real>& mu, const State & s, const Real r);
-	int passData(const int agentId, const int info, const State& sOld,
-			const Action & a, const State & sNew, const Real r);
+		const Action&a, const State&s, const Real r, const vector<Real>mu = vector<Real>());
+
+	inline bool requestUpdateSamples() const
+	{
+		return inds.size()<batchSize;
+	}
 };

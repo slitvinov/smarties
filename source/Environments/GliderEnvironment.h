@@ -21,7 +21,6 @@ public:
     bool pickReward(const State& t_sO, const Action& t_a,
                     const State& t_sN, Real& reward, const int info) override;
 
-     vector<Real> stateDumpUpperBound() override;
-     vector<Real> stateDumpLowerBound() override;
-     vector<Uint> stateDumpNBins() override;
+		Uint getNdumpPoints() override;
+		vector<Real> getDumpState(Uint k) override;
 };
