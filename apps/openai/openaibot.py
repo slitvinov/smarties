@@ -116,9 +116,10 @@ while True:
             for i in range(1, nActions): action = action + [int(buf[i])]
         else: action = int(buf[0])
         print(action)
-
+        reward = 0 
         for i in range(1):
-            observation, reward, done, info = env.step(action)
+            observation, instreward, done, info = env.step(action)
+            reward += instreward
             if done: break
         if done:
             if bRender==1: env.render()

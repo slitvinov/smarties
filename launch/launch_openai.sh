@@ -12,6 +12,7 @@ exit 1
 fi
 
 MYNAME=`whoami`
+HOSTNAME=`hostname`
 BASEPATH="../runs/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 #rm /tmp/smarties_sock_
@@ -30,9 +31,20 @@ fi
 
 NPROCESS=$((${NNODES}*${NTASK}))
 
+#python ../openaibot.py \$1 $APP
+#xvfb-run -s "-screen $DISPLAY 1400x900x24" -- python ../openaibot.py \$1 $APP
+
+if [ ${HOSTNAME:0:5} == 'falco' ] || [ ${HOSTNAME:0:5} == 'panda' ]
+then
+cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
+vglrun -c proxy python ../openaibot.py \$1 $APP
+EOF
+else
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
 python ../openaibot.py \$1 $APP
 EOF
+fi
+
 cp ../apps/openai/factory ${BASEPATH}${RUNFOLDER}/factory
 cp ../apps/openai/openaibot.py ${BASEPATH}${RUNFOLDER}/
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh

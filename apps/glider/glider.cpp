@@ -173,7 +173,7 @@ struct Glider
       return std::sqrt(xx+yy);
     }
 
-    void prepareState(vector<double>& state) const
+    void prepareState(vector<double>& state, std::mt19937& gen) const
     {
       assert(state.size() == 10);
       state[0] = _s.u;
@@ -186,6 +186,10 @@ struct Glider
       state[7] = Torque;
       state[8] = _s.vx();
       state[9] = _s.vy();
+      std::normal_distribution<double> noise(0,.1);
+      state[0] += noise(gen);
+      state[1] += noise(gen);
+      state[2] += noise(gen);
     }
 
     void updateOldDistanceAndEnergy()
@@ -265,7 +269,7 @@ int main(int argc, const char * argv[])
 #endif
             a.updateOldDistanceAndEnergy();
             //load state:
-            a.prepareState(state);
+            a.prepareState(state,gen);
 
 #ifdef __SMARTIES_
             comm.sendState(0, a.info, state, reward);
@@ -303,7 +307,7 @@ int main(int argc, const char * argv[])
 										if(wrong_xdir || max_torque || way_too_far)
 			               final_reward = -500 -HEIGHT_PENAL*fabs(50+a._s.y);
 
-                    a.prepareState(state);
+                    a.prepareState(state,gen);
                     //printf("Sending term state %f %f %f %f\n",
                     //state[0],state[1],state[2],state[3]);
                     //fflush(0);
