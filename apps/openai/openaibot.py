@@ -80,7 +80,7 @@ conn.send(state_bounds.tobytes())
 conn.send(actionOptions.tobytes())
 conn.send(actionValues.tobytes())
 bRender = int(round(np.frombuffer(conn.recv(8), dtype=np.float64)[0]))
-print(bRender)
+#print(bRender)
 sys.stdout.flush()
 if bRender==3: env = gym.wrappers.Monitor(env, './', force=True)
 
@@ -97,7 +97,7 @@ while True:
             state[2:nStates+2]=observation.ravel()
         else: state[2] = observation
         state[nStates+2]=reward
-        print(state)
+        #print(state)
 
         conn.send(state.tobytes())
         status=0
@@ -115,7 +115,7 @@ while True:
             action = [int(buf[0])]
             for i in range(1, nActions): action = action + [int(buf[i])]
         else: action = int(buf[0])
-        print(action)
+        #print(action)
         reward = 0 
         for i in range(1):
             observation, instreward, done, info = env.step(action)
@@ -136,10 +136,10 @@ while True:
         state[2:nStates+2]=observation.ravel()
     else: state[2] = observation
     state[nStates+2]=reward
-    print(state)
+    #print(state)
     conn.send(state.tobytes())
     buf = np.frombuffer(conn.recv(nActions*8),dtype=np.float64)
-    print(buf)
+    #print(buf)
     if(buf[0]<0):
         print("Received end of training signal. Aborting...");
         break

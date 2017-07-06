@@ -164,8 +164,8 @@ class RACER : public Learner_utils
 		}
 
 		//bookkeeping:
-		dumpStats(Vstats[thrID], A_cur+V_cur, Qer);
-		//dumpStats(Vstats[thrID], A_cur+V_cur, A_OPC*rho_cur);
+		//dumpStats(Vstats[thrID], A_cur+V_cur, Qer);
+		dumpStats(Vstats[thrID], A_cur+V_cur, Ver);
 		data->Set[seq]->tuples[samp]->SquaredError = Qer*Qer;
 		return gradient;
 	}
