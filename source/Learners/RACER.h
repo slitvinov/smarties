@@ -165,7 +165,7 @@ class RACER : public Learner_utils
 
 		//bookkeeping:
 		//dumpStats(Vstats[thrID], A_cur+V_cur, Qer);
-		dumpStats(Vstats[thrID], A_cur+V_cur, Ver);
+		dumpStats(Vstats[thrID], A_cur+V_cur, Qer*std::min(1.,rho_hat) );
 		data->Set[seq]->tuples[samp]->SquaredError = Qer*Qer;
 		return gradient;
 	}
