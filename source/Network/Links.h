@@ -168,7 +168,7 @@ public:
 				err[i] += delta[o] * w[o];
 			}
 		}
-#else
+#else // surprisingly slower
 		const nnReal* __restrict__ const w = weights +iW;
 		nnReal* __restrict__ const g = gradW +iW;
 #pragma omp simd aligned(inp,delta,err: __vec_width__) safelen(simdWidth)
@@ -377,27 +377,29 @@ public:
 	{
 		for(Uint ox=0; ox<outputWidth;  ox++)
 		for(Uint oy=0; oy<outputHeight; oy++) {
+			//starting position along input map for convolution with kernel:
 			const int ix = static_cast<int>(ox*strideX) -  static_cast<int>(padX);
 			const int iy = static_cast<int>(oy*strideY) -  static_cast<int>(padY);
 			for(Uint fx=0; fx<filterWidth; fx++)
 			for(Uint fy=0; fy<filterHeight; fy++) {
+				//index along input map of the convolution op:
 				const int cx=ix+static_cast<int>(fx);
 				const int cy=iy+static_cast<int>(fy);
 				//padding: skip addition if outside input boundaries
-				if (   cx < 0 || static_cast<Uint>(cx) >= inputWidth
-					|| cy < 0 || static_cast<Uint>(cy) >= inputHeight) continue;
+				if ( cx < 0 || cx >= static_cast<int>(inputWidth)
+					|| cy < 0 || cy >= static_cast<int>(inputHeight)) continue;
 
 				const nnReal* __restrict__ const inp =
 						netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
 				nnReal* __restrict__ const out =
 						netTo->in_vals +iO+outputDepth_simd*(oy+outputHeight*ox);
 
-				for(Uint iz=0; iz<inputDepth; iz++) {
+				for(Uint iz=0; iz<inputDepth; iz++) { //loop over inp feature maps:
 					const nnReal* __restrict__ const w =
 							weights +iW +outputDepth_simd*(iz +inputDepth*(fy +filterHeight*fx));
 
 #pragma omp simd aligned(out, inp, w : __vec_width__) safelen(simdWidth)
-					for(Uint fz=0; fz<outputDepth; fz++)
+					for(Uint fz=0; fz<outputDepth; fz++) //loop over number of kernels
 						out[fz] += inp[iz] * w[fz];
 				}
 			}

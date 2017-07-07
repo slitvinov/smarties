@@ -16,6 +16,7 @@ void Network::seqPredict_inputs(const vector<Real>& _input, Activation* const cu
 	for (Uint j=0; j<nInputs; j++) currActivation->outvals[iInp[j]] = _input[j];
 }
 
+//cache friendly prop for time series: time is fast index, layer is slow index
 void Network::seqPredict_execute(
 		const vector<Activation*>& series_1, vector<Activation*>& series_2,
 		const nnReal* const _weights, const nnReal* const _biases) const

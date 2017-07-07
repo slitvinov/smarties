@@ -11,10 +11,10 @@
 #include "Links.h"
 #include "../Profiler.h"
 
-#ifdef __CHECK_DIFF
-#define LSTM_PRIME_FAC 0 //otherwise finite differences are small
-#else
+#ifndef __CHECK_DIFF
 #define LSTM_PRIME_FAC 1 //input/output gates start closed, forget starts open
+#else //else we are testing finite diffs
+#define LSTM_PRIME_FAC 0 //otherwise finite differences are small
 #endif
 
 class Layer

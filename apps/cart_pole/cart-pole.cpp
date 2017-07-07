@@ -13,7 +13,7 @@
 #include <vector>
 #include <functional>
 #include "Communicator.h"
-
+#define SWINGUP 1
 using namespace std;
 
 // Julien Berland, Christophe Bogey, Christophe Bailly,
@@ -65,24 +65,55 @@ struct CartPole
     const double mc = 1;
     const double l = 0.5;
     const double g = 9.81;
-    int info;
+    int info, step;
     Vec4 u;
     double F, t;
+		void reset(std::mt19937& gen)
+		{
+			#if SWINGUP
+			    std::uniform_real_distribution<double> dist(-1,1);
+			#else
+			    std::uniform_real_distribution<double> dist(-0.05,0.05);
+			#endif
+			u = Vec4(dist(gen), dist(gen), dist(gen), dist(gen));
+			F = t = step = 0;
+			info = 1;
+		}
+
+		void getStateRew(vector<double>& state, double& rew)
+		{
+			state[0] = u.y1;
+			state[1] = u.y2;
+			state[2] = u.y4;
+			state[3] = u.y3;
+			state[4] = std::cos(u.y3);
+			state[5] = std::sin(u.y3);
+			#if SWINGUP
+			double angle = std::fmod(u.y3, 2*M_PI);
+			angle = angle<0 ? angle+2*M_PI : angle;
+			rew = fabs(angle-M_PI)<M_PI/6 ? 1 : 0;
+			#endif
+		}
 
     Vec4 D(Vec4 u, double t)
     {
         Vec4 res;
 
-        const double cosy = cos(u.y3);
-        const double siny = sin(u.y3);
-
+        const double cosy = std::cos(u.y3);
+        const double siny = std::sin(u.y3);
+        const double w = u.y4;
+#if SWINGUP
+				const double fac1 = 1./(mc + mp * siny*siny);
+				const double fac2 = fac1/l;
+				res.y2 = fac1*(F + mp*siny*(l*w*w + g*cosy));
+				res.y4 = fac2*(-F*cosy -mp*l*w*w*cosy*siny -(mc+mp)*g*siny);
+#else
         const double fac1 = 1./(mp+mc);
         const double fac2 = l*(4./3. - fac1*(mp*cosy*cosy));
-
-        const double F1 = F + mp * l * u.y4 * u.y4 * siny;
-
+        const double F1 = F + mp * l * w * w * siny;
         res.y4 = (g*siny - fac1*F1*cosy)/fac2;
         res.y2 = fac1*(F1 - mp*l*res.y4*cosy);
+#endif
         res.y1 = u.y2;
         res.y3 = u.y4;
         return res;
@@ -92,88 +123,56 @@ struct CartPole
 Communicator * comm;
 int main(int argc, const char * argv[])
 {
-    const int n = 1; //n agents
-    //communication:
-    const int sock = std::stoi(argv[1]);
-    //time stepping
-    const double dt = 1e-3;
-    std::mt19937 gen(sock);
-    std::uniform_real_distribution<double> distribution(-0.05,0.05);
-    //communicator class, it needs a socket number sock, given by RL as first argument of execution
-    Communicator comm(sock,4,1);
-    //vector of state variables: in this case x, v, theta, ang_velocity
-    vector<double> state(4);
-    //vector of actions received by RL
-    vector<double> actions(1);
+  const int n = 1; //n agents
+  //communication:
+  const int sock = std::stoi(argv[1]);
+  //time stepping
+  const double dt = 4e-4;
+	double rew = 0;
+  std::mt19937 gen(sock);
 
-    //random initial conditions:
-    vector<CartPole> agents(n);
-    for (auto& a : agents) {
-        a.u = Vec4(distribution(gen), distribution(gen), distribution(gen), distribution(gen));
-        a.F    = 0;
-        a.info = 1;
-    }
+  //communicator class, it needs a socket number sock, given by RL as first argument of execution
+  Communicator comm(sock,6,1);
+  //vector of state variables: in this case x, v, theta, ang_velocity
+  vector<double> state(6);
+  //vector of actions received by RL
+  vector<double> actions(1);
 
-    while (true) {
+  //random initial conditions:
+  vector<CartPole> agents(n);
+  for (auto& a : agents) a.reset(gen);
 
-        int k(0); //agent ID, for now == 0
-        for (auto& a : agents) { //assume we have only one agent per application for now...
-            double r = 0.;
-            //ntot += 1; sincelast += 1;
-            //load state:
-            state[0] = a.u.y1;
-            state[1] = a.u.y2;
-            state[2] = a.u.y4/M_PI;
-            state[3] = a.u.y3/M_PI;
-            r = 0; //we could give a reward, here i just give 0, and -1 if pole falls
+  while (true) {
 
-            //printf("Sending state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
-            ///////////////////////////////////////////////////////
-            // arguments of comm->sendState(k, a.info, state, r)
+    int k = 0; //agent ID, for now == 0
+    for(auto& a : agents) {
+			a.getStateRew(state, rew);
 
-            //k is agent id, if only one agent in the game: k=0
+      comm.sendState(k, a.info, state, rew);
+      comm.recvAction(actions);
+      a.F = actions[0];
+      a.info = 0; //at least one comm is done, so i set info to 0
+			a.step++;
+  		//advance the sim:
+      for (int i=0; i<50; i++) {
+        a.u = rk46_nl(a.t, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
+        a.t += dt;
 
-        	//info is: 1 for the initial state communicated to the RL
-            //  	   0 for any following communication, except
-        	//		   2 for the terminal state (meaning NO ACTION REQUIRED)
-            ///////////////////////////////////////////////////////
-            comm.sendState(k, a.info, state, r);
-            comm.recvAction(actions);
-
-            //printf("Cart acting %f from state %f %f %f %f\n", actions[0],state[0],state[1],state[2],state[3]); fflush(0);
-
-            a.F = actions[0];
-            a.info = 0; //at least one comm is done, so i set info to 0
-
-            //printf("Received action %f\n", a.F); fflush(0);
-
-        	//advance the sim:
-            for (int i=0; i<50; i++) {
-                a.u = rk46_nl(a.t, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
-                a.t += dt;
-
-                //check if terminal state has been reached:
-                if ((fabs(a.u.y3)>.2*M_PI)||(fabs(a.u.y1)>2.4)) //angle too big = fallen, or x out of bounds
-                {
-                    a.info = 2; //tell RL we are in terminal state
-                    double r = -1.; //give terminal reward (if different problem, this might be a bonus rather than a negative score)
-                    state[0] = a.u.y1;
-                    state[1] = a.u.y2;
-                    state[2] = a.u.y4/M_PI;
-                    state[3] = a.u.y3/M_PI;
-                    //printf("Sending term state %f %f %f %f\n",state[0],state[1],state[2],state[3]); fflush(0);
-                    comm.sendState(k, a.info, state, r);
-
-                    //re-initialize the simulations (random initial conditions):
-                    a.u = Vec4(distribution(gen), distribution(gen), distribution(gen), distribution(gen));
-                    a.t = 0;
-                    a.F = 0;
-                    a.info = 1; //set info back to 0
-                    break;
-                }
-            }
+        //check if terminal state has been reached:
+#if SWINGUP
+        if(a.step>=500||(std::fabs(a.u.y1)>2.4)) {
+#else
+				if ((std::fabs(a.u.y3)>M_PI/15)||(std::fabs(a.u.y1)>2.4)) {
+					rew = -1;
+#endif
+					a.getStateRew(state, rew);
+          comm.sendState(k, 2, state, rew);
+          a.reset(gen); //re-initialize (random initial conditions):
+					rew = 0;
+          break;
         }
+      }
     }
-
-    return 0;
+  }
+  return 0;
 }

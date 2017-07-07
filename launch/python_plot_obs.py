@@ -18,3 +18,4 @@ print(NROW, NCOL,ICOL)
 
 plt.plot(np.arange(0,NROW), DATA[:,ICOL])
 #plt.savefig('prova.png', dpi=100)
+plt.show()
