@@ -71,7 +71,7 @@ struct CartPole
 		void reset(std::mt19937& gen)
 		{
 			#if SWINGUP
-			    std::uniform_real_distribution<double> dist(-1,1);
+			    std::uniform_real_distribution<double> dist(-.1,.1);
 			#else
 			    std::uniform_real_distribution<double> dist(-0.05,0.05);
 			#endif
