@@ -14,9 +14,9 @@
 Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
 	mastersComm(comm), env(_env), bNormalize(_s.bNormalize), bTrain(_s.bTrain),
 	bWriteToFile(!(_s.samplesFile=="none")), bSampleSeq(_s.bSampleSequences),
-	nAppended(_s.appendedObs), batchSize(_s.batchSize), maxSeqLen(_s.maxSeqLen),
-	minSeqLen(_s.minSeqLen), maxTotSeqNum(_s.maxTotSeqNum), path(_s.samplesFile),
-	sI(_env->sI), aI(_env->aI), generators(_s.generators)
+	maxTotSeqNum(_s.maxTotSeqNum),maxSeqLen(_s.maxSeqLen),minSeqLen(_s.minSeqLen),
+	nAppended(_s.appendedObs),batchSize(_s.batchSize),learn_rank(_s.learner_rank),
+	learn_size(_s.learner_size),path(_s.samplesFile),sI(_env->sI), aI(_env->aI), generators(_s.generators)
 {
 	mean.resize(sI.dimUsed, 0);
 	std.resize(sI.dimUsed, 1);
@@ -49,8 +49,9 @@ Uint Transitions::restartSamples(const Uint polDim)
 	int agentID = 0, info = 0, sampID = 0;
 	vector<Real> policy(polDim);
 	Real reward = 0;
-
-	std::ifstream in(path.c_str());
+	char asciipath[256];
+	sprintf(asciipath, "rank%02d_%s", learn_rank, path.c_str());
+	std::ifstream in(asciipath);
 	std::string line;
 
 	if(in.good())
@@ -86,11 +87,10 @@ Uint Transitions::restartSamples(const Uint polDim)
 	{
 		while (true)
 		{
-			const std::string fname = "obs_agent_"+std::to_string(agentID)+".raw";
-			FILE*pFile = fopen(fname.c_str(), "rb");
+			sprintf(asciipath, "obs_rank%02d_agent%03d.raw", learn_rank, agentID);
+			FILE*pFile = fopen(asciipath, "rb");
 			if(pFile == NULL) {
-				printf("Couldnt open file %s.\n", fname.c_str());
-				//_die("Job done %lu\n",Tmp.size());
+				printf("Couldnt open file %s.\n", asciipath);
 				break;
 			}
 			if(oldState.size() <= static_cast<Uint>(agentID))
@@ -104,7 +104,7 @@ Uint Transitions::restartSamples(const Uint polDim)
 			{
 				size_t ret = fread(buf,sizeof(float),writesize,pFile);
 				if (ret == 0) break;
-				if (ret != writesize) _die("Error reading datafile %s",fname.c_str());
+				if (ret != writesize) _die("Error reading datafile %s", asciipath);
 				int* ibuf = (int*) buf;
 				info = ibuf[0]; sampID = ibuf[1];
 
@@ -145,10 +145,10 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
 	assert(agentId<static_cast<int>(curr_transition_id.size()) && agentId>=0);
 	const int ret = add(agentId, info, sOld, aNew, muNew, sNew, rew);
 	if (ret) curr_transition_id[agentId] = 0;
-
+	char asciipath[256];
 	{
-		const std::string fname = "obs_agent_"+std::to_string(agentId)+".raw";
-		FILE * pFile = fopen (fname.c_str(), "ab");
+		sprintf(asciipath, "obs_rank%02d_agent%03d.raw", learn_rank, agentId);
+		FILE * pFile = fopen (asciipath, "ab");
 		const Uint writesize = (3 + sI.dim + aI.dim + muNew.size())*sizeof(float);
 		float* buf = (float*) malloc(writesize);
     memset(buf, 0, writesize);
@@ -168,8 +168,8 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
 
 	if (bWriteToFile)
 	{
-		ofstream fout;
-		fout.open("history.txt",ios::app);
+		sprintf(asciipath, "rank%02d_%s", learn_rank, path.c_str());
+		ofstream fout(asciipath, ios::app);
 		fout<<agentId<<" "<<info<<" "<<curr_transition_id[agentId]
 			<<" "<<sNew._print().c_str()<<" "<<aNew._print().c_str()
 			<<" "<<rew<<" "<<print(muNew)<<endl;
@@ -337,9 +337,7 @@ void Transitions::update_samples_mean(const Real alpha)
 	}
 
 	//add up gradients across nodes (masters)
-	int nMasters;
-	MPI_Comm_size(mastersComm, &nMasters);
-	if (nMasters > 1) {
+	if (learn_size > 1) {
 		MPI_Allreduce(MPI_IN_PLACE, &count, 1,
 				MPI_LONG_DOUBLE, MPI_SUM, mastersComm);
 		MPI_Allreduce(MPI_IN_PLACE, newMean.data(), sI.dimUsed,
@@ -438,7 +436,6 @@ void Transitions::sortSequences()
 void Transitions::synchronize()
 {
 	#ifdef RESORT_SEQS
-	//comment out to always delete oldest sequences:
 	sortSequences();
 	#endif
 
@@ -480,12 +477,14 @@ Uint Transitions::updateSamples(const Real annealFac)
 {
 	bool update_meanstd_needed = false;
 	if(Buffered.size()>0) {
+		if(!learn_rank)
 		printf("nSequences %d > maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
 			nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
 		synchronize();
 		update_meanstd_needed = true;
 		old_ndata = nTransitions;
 	} else {
+		if(!learn_rank)
 		printf("nSequences %d < maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
 			nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
 		update_meanstd_needed = nTransitions!=old_ndata;
@@ -519,6 +518,7 @@ Uint Transitions::sample(const int thrID)
 
 void Transitions::save(std::string fname)
 {
+	if(learn_rank) return;
 	string nameBackup = fname + "_data_stats";
 	FILE * f = fopen(nameBackup.c_str(), "w");
 	if (f != NULL)
@@ -582,7 +582,7 @@ void Transitions::updateP()
 	//are put at the top:
 	#pragma omp parallel for
 	for(Uint i=0; i<ndata; i++)
-		Ps[inds[i]] = errors[inds[i]]>0 ? std::sqrt(1/(i+1.)) : 1;
+		Ps[inds[i]] = errors[inds[i]]>0 ? std::sqrt(1./(i+1.)) : 1;
 
 	//const Real minP = Ps[inds.back()];
 	//const Real sumP = __gnu_parallel::accumulate(Ps.begin(), Ps.end(), 0);

@@ -34,7 +34,7 @@ public:
 
 	void dumpPolicy() override;
 
-	void stackAndUpdateNNWeights(const Uint nAddedGradients) override;
+	void stackAndUpdateNNWeights() override;
 
 	void updateTargetNetwork() override;
 
@@ -52,15 +52,14 @@ public:
 	inline void dumpStats(trainData*const _st, const Real&Q, const Real&err) const
 	{
 		_st->MSE += err*err;
-		//_st->relE += fabs(err)/(max_Q-min_Q);
 		_st->avgQ += Q;
 		_st->stdQ += Q*Q;
 		_st->minQ = std::min(_st->minQ,static_cast<long double>(Q));
 		_st->maxQ = std::max(_st->maxQ,static_cast<long double>(Q));
-		_st->dumpCount++;
+		_st->dCnt++;
 	}
 
-	virtual void processStats(const Real avgTime) override;
+	virtual void processStats() override;
 	virtual void processGrads();
 
 	inline void clip_gradient(vector<Real>& grad, const vector<long double>& std,
@@ -87,6 +86,8 @@ public:
 			#endif
 		}
 	}
+
+	void statsVector(vector<vector<long double>>& sum, vector<vector<long double>>& sqr, vector<long double>& cnt);
 
 	void dumpNetworkInfo(const int agentId);
 };

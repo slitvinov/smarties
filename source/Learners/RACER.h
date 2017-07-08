@@ -56,8 +56,8 @@ class RACER : public Learner_utils
 		#endif
 	}
 
-	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
-	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
+	void Train_BPTT(const Uint seq, const Uint thrID) const override;
+	void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
 	template<int bUpdateOPC>
 	inline vector<Real> compute(const Uint seq, const Uint samp, Real& Q_RET,

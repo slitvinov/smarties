@@ -56,6 +56,12 @@ inline int getRank(const MPI_Comm comm)
 	MPI_Comm_rank(comm, &rank);
   return rank;
 }
+inline int getSize(const MPI_Comm comm)
+{
+  int size;
+	MPI_Comm_size(comm, &size);
+  return size;
+}
 
 void recv_MPI(double*const data, const int size, const MPI_Comm comm, unsigned long &wait);
 

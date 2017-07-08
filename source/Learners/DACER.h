@@ -23,8 +23,8 @@ class DACER : public Learner_utils
 	const vector<Uint> net_outputs = {1, nA, nA};
 	const vector<Uint> net_indices = {0,  1, 1+nA};
 
-	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
-	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
+	void Train_BPTT(const Uint seq, const Uint thrID) const override;
+	void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
 	inline Discrete_policy prepare_policy(const vector<Real>& out) const
 	{

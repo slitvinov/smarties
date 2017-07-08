@@ -198,17 +198,16 @@ void DPG::updateTargetNetwork()
 	if(cntUpdateDelay>0) cntUpdateDelay--;
 }
 
-void DPG::stackAndUpdateNNWeights(const Uint nAddedGradients)
+void DPG::stackAndUpdateNNWeights()
 {
 	assert(nAddedGradients>0 && bTrain);
 	opt->nepoch ++;
 	opt_value->nepoch ++;
+	Uint nTotGrads = nAddedGradients;
 	opt_value->stackGrads(net_value->grad, net_value->Vgrad);
 	opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads
 
-	int nMasters;
-	MPI_Comm_size(mastersComm, &nMasters);
-	if (nMasters > 1) {
+	if (learn_size > 1) {
 		MPI_Allreduce(MPI_IN_PLACE, net_value->grad->_W, net_value->getnWeights(),
 				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
 		MPI_Allreduce(MPI_IN_PLACE, net_value->grad->_B, net_value->getnBiases(),
@@ -217,28 +216,40 @@ void DPG::stackAndUpdateNNWeights(const Uint nAddedGradients)
 				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
 		MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
 				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
+		MPI_Allreduce(MPI_IN_PLACE,&nTotGrads,1,MPI_UNSIGNED,MPI_SUM,mastersComm);
 	}
 	//update is deterministic: can be handled independently by each node
 	//communication overhead is probably greater than a parallelised sum
-	assert(nMasters>0);
-	opt->update(net->grad, nAddedGradients*nMasters);
-	opt_value->update(net_value->grad, nAddedGradients*nMasters); //update
+	opt->update(net->grad, nTotGrads);
+	opt_value->update(net_value->grad, nTotGrads); //update
 }
 
 void DPG::processGrads()
 {
-	statsVector(avgGrad, stdGrad, cntGrad);
+	const vector<long double> oldValSum=avgValGrad[0], oldValStd=stdValGrad[0];
+	const vector<long double> oldsum = avgGrad[0], oldstd = stdGrad[0];
 	statsVector(avgValGrad, stdValGrad, cntValGrad);
-	std::ostringstream o1; o1 << "Grads avg (std): ";
-	for (Uint i=0;i<avgGrad[0].size();i++)
-		o1<<avgGrad[0][i]<<" ("<<stdGrad[0][i]<<") ";
-	for (Uint i=0;i<avgValGrad[0].size();i++)
-		o1<<avgValGrad[0][i]<<" ("<<stdValGrad[0][i]<<") ";
-	cout<<o1.str()<<endl;
+	statsVector(avgGrad, stdGrad, cntGrad);
 
-	ofstream filestats;
-	filestats.open("grads.txt", ios::app);
-	filestats<<print(avgGrad[0]).c_str()<<" "<<print(stdGrad[0]).c_str()<<" "
-				<<print(avgValGrad[0]).c_str()<<" "<<print(stdValGrad[0]).c_str()<<endl;
-	filestats.close();
+	//std::ostringstream o1; o1 << "Grads avg (std): ";
+	//for (Uint i=0;i<avgGrad[0].size();i++)
+	//	o1<<avgGrad[0][i]<<" ("<<stdGrad[0][i]<<") ";
+	//for (Uint i=0;i<avgValGrad[0].size();i++)
+	//	o1<<avgValGrad[0][i]<<" ("<<stdValGrad[0][i]<<") ";
+	//cout<<o1.str()<<endl;
+	if(!learn_rank) {
+		ofstream filestats;
+		filestats.open("grads.txt", ios::app);
+		filestats<<print(avgGrad[0]).c_str()<<" "<<print(stdGrad[0]).c_str()<<" "
+			<<print(avgValGrad[0]).c_str()<<" "<<print(stdValGrad[0]).c_str()<<endl;
+		filestats.close();
+	}
+	for (Uint i=0; i<avgGrad[0].size(); i++) {
+		avgGrad[0][i] = .99*oldsum[i] +.01*avgGrad[0][i];
+		stdGrad[0][i] = max(0.99*oldstd[i], stdGrad[0][i]);
+	}
+	for (Uint i=0; i<avgValGrad[0].size(); i++) {
+		avgValGrad[0][i] = .99*oldValSum[i] +.01*avgValGrad[0][i];
+		stdValGrad[0][i] = max(0.99*oldValStd[i], stdValGrad[0][i]);
+	}
 }

@@ -25,9 +25,9 @@ using namespace std;
 
 struct trainData
 {
-	trainData() : weight(1), MSE(0), avgQ(0), stdQ(0), minQ(1e5), maxQ(-1e5), relE(0), dumpCount(0), epochCount(0) {}
-	long double weight, MSE, avgQ, stdQ, minQ, maxQ, relE;
-	Uint dumpCount, epochCount;
+	trainData() : weight(1), MSE(0), avgQ(0), stdQ(0), minQ(1e9), maxQ(-1e9), relE(0), dCnt(0), epochCount(0) {}
+	long double weight, MSE, avgQ, stdQ, minQ, maxQ, relE, dCnt;
+	Uint epochCount;
 };
 
 class Learner
@@ -36,12 +36,15 @@ protected:
 	const MPI_Comm mastersComm;
 	Environment * const env;
 	const Uint tgtUpdateDelay, nAgents, batchSize, nThreads, nAppended, maxTotSeqNum, totNumSteps;
+	const int learn_rank, learn_size;
 	Uint nInputs, nOutputs;
-	const bool bRecurrent, bTrain, bSampleSequences;
-	const Real tgtUpdateAlpha, gamma, greedyEps, epsAnneal, obsPerStep;
+	const bool bRecurrent, bSampleSequences, bTrain;
+	const Real tgtUpdateAlpha, greedyEps, gamma, epsAnneal, obsPerStep;
 	unsigned long batchUsage = 0, dataUsage = 0;
-	Uint cntUpdateDelay = 0, taskCounter, epochCounter = 0, policyVecDim = 0;
-	unsigned long mastersNiter_b4PolUpdates = 0;
+	Uint cntUpdateDelay = 0, taskCounter = 0, epochCounter = 0, policyVecDim = 0;
+	Uint nAddedGradients = 0, countElapsed = 0;
+	unsigned long nData_b4PolUpdates = 0;
+	Real sumElapsed = 0;
 	ActionInfo aInfo;
 	StateInfo  sInfo;
 	mt19937* const gen;  //only ok if only thread 0 accesses
@@ -50,11 +53,11 @@ protected:
 	Optimizer* opt;
 	Transitions* data;
 
-	virtual void Train_BPTT(const Uint seq, const Uint thrID=0) const = 0;
-	virtual void Train(const Uint seq, const Uint samp, const Uint thrID=0) const = 0;
-	virtual void processStats(const Real avgTime) = 0;
-	virtual void stackAndUpdateNNWeights(const Uint nAddedGradients) = 0;
+	virtual void Train_BPTT(const Uint seq, const Uint thrID) const = 0;
+	virtual void Train(const Uint seq, const Uint samp, const Uint thrID)const=0;
+	virtual void stackAndUpdateNNWeights() = 0;
 	virtual void updateTargetNetwork() = 0;
+	virtual void processStats() = 0;
 
 	Uint sampleSequences(vector<Uint>& sequences);
 	Uint sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitions);
@@ -73,6 +76,10 @@ public:
 	inline unsigned nData()
 	{
 		return data->nTransitions;
+	}
+	inline unsigned iter()
+	{
+		return opt->nepoch;
 	}
 
 	inline Real annealingFactor() const

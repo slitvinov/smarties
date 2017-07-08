@@ -55,13 +55,14 @@ protected:
 	const MPI_Comm mastersComm;
 	Environment * const env;
 	const bool bNormalize, bTrain, bWriteToFile, bSampleSeq;
-	const Uint nAppended, batchSize, maxSeqLen, minSeqLen, maxTotSeqNum;
+	const Uint maxTotSeqNum, maxSeqLen, minSeqLen, nAppended, batchSize;
+	const int learn_rank, learn_size;
 	const string path;
 	const StateInfo sI;
 	const ActionInfo aI;
 	std::vector<std::mt19937>& generators;
 
-	Uint iOldestSaved=0;
+	Uint iOldestSaved = 0;
 	vector<Real> std, mean, invstd;
 	vector<Uint> curr_transition_id, inds;
 	discrete_distribution<Uint> * dist = nullptr;

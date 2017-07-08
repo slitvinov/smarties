@@ -13,25 +13,23 @@
 #include "Learner_utils.h"
 #include "../Math/Utils.h"
 
-void Learner_utils::stackAndUpdateNNWeights(const Uint nAddedGradients)
+void Learner_utils::stackAndUpdateNNWeights()
 {
+	if(!nAddedGradients) die("Error in stackAndUpdateNNWeights\n");
 	assert(bTrain);
 	opt->nepoch++;
-	//add up gradients across threads
-	opt->stackGrads(net->grad, net->Vgrad);
-	//add up gradients across nodes (masters)
-	int nMasters;
-	MPI_Comm_size(mastersComm, &nMasters);
-	if (nMasters > 1) {
+	Uint nTotGrads = nAddedGradients;
+	opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads
+	if (learn_size > 1) { //add up gradients across masters
 		MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
 				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
 		MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
 				MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
+		MPI_Allreduce(MPI_IN_PLACE,&nTotGrads,1,MPI_UNSIGNED,MPI_SUM,mastersComm);
 	}
 	//update is deterministic: can be handled independently by each node
 	//communication overhead is probably greater than a parallelised sum
-	assert(nMasters>0);
-	opt->update(net->grad, nAddedGradients*nMasters);
+	opt->update(net->grad, nTotGrads);
 }
 
 void Learner_utils::updateTargetNetwork()
@@ -99,6 +97,17 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 	}
 
 	_net = build.build();
+	const Uint nW = _net->getnWeights(), nB = _net->getnBiases();
+	if (!learn_rank)
+	for (int i = 1; i < learn_size; i++) {
+		MPI_Send(_net->weights,nW,MPI_NNVALUE_TYPE,i,0,mastersComm);
+		MPI_Send(_net->biases, nB,MPI_NNVALUE_TYPE,i,0,mastersComm);
+	}
+	else {
+	MPI_Recv(_net->weights,nW,MPI_NNVALUE_TYPE,0,0,mastersComm,MPI_STATUS_IGNORE);
+	MPI_Recv(_net->biases, nB,MPI_NNVALUE_TYPE,0,0,mastersComm,MPI_STATUS_IGNORE);
+	}
+	_net->updateFrozenWeights();
 
 #ifndef __EntropySGD
 	_opt = new AdamOptimizer(_net, profiler, settings);
@@ -117,8 +126,7 @@ vector<Real> Learner_utils::output_stochastic_policy(const int agentId,
 	State& s, Action& a, State& sOld, Action& aOld, const int info, Real r)
 {
 	Activation* currActivation = net->allocateActivation();
-	vector<Real> output(nOutputs);
-	vector<Real> input = s.copy_observed();
+	vector<Real> output(nOutputs), input = s.copy_observed();
 	//if required, chain together nAppended obs to compose state
 	if (nAppended>0) {
 		const Uint sApp = nAppended*sInfo.dimUsed;
@@ -159,8 +167,7 @@ vector<Real> Learner_utils::output_value_iteration(const int agentId, State& s,
 {
 	assert(info==1 || data->Tmp[agentId]->tuples.size());
 	Activation* currActivation = net->allocateActivation();
-	vector<Real> output(nOutputs);
-	vector<Real> inputs(nInputs,0);
+	vector<Real> output(nOutputs), inputs(nInputs,0);
 	s.copy_observed(inputs);
 	if (info==1) {
 		vector<Real> scaledSold = data->standardize(inputs);
@@ -184,48 +191,64 @@ vector<Real> Learner_utils::output_value_iteration(const int agentId, State& s,
 	return output;
 }
 
-void Learner_utils::processStats(const Real avgTime)
+void Learner_utils::processStats()
 {
-	stats.minQ= 1e5; stats.maxQ=-1e5; stats.MSE=0;
-	stats.avgQ=0; stats.relE=0; stats.dumpCount=0;
+	stats.minQ= 1e9;stats.MSE =0;stats.dCnt=0;
+	stats.maxQ=-1e9;stats.avgQ=0;stats.relE=0;
+
 	for (Uint i=0; i<Vstats.size(); i++) {
-		stats.MSE += Vstats[i]->MSE; //stats.relE += Vstats[i]->relE;
+		stats.MSE  += Vstats[i]->MSE;
 		stats.avgQ += Vstats[i]->avgQ;
 		stats.stdQ += Vstats[i]->stdQ;
-		stats.dumpCount += Vstats[i]->dumpCount;
-		stats.minQ = std::min(stats.minQ,Vstats[i]->minQ);
-		stats.maxQ = std::max(stats.maxQ,Vstats[i]->maxQ);
-		Vstats[i]->minQ= 1e5; Vstats[i]->maxQ=-1e5; Vstats[i]->MSE=0;
-		Vstats[i]->avgQ=0; Vstats[i]->stdQ=0; Vstats[i]->dumpCount=0;
+		stats.dCnt += Vstats[i]->dCnt;
+		stats.minQ = std::min(stats.minQ, Vstats[i]->minQ);
+		stats.maxQ = std::max(stats.maxQ, Vstats[i]->maxQ);
+		Vstats[i]->minQ= 1e9; Vstats[i]->MSE =0; Vstats[i]->dCnt=0;
+		Vstats[i]->maxQ=-1e9; Vstats[i]->avgQ=0; Vstats[i]->stdQ=0;
 	}
-	if (stats.dumpCount<2) return;
+
+	if (learn_size > 1) {
+	MPI_Allreduce(MPI_IN_PLACE,&stats.MSE, 1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+	MPI_Allreduce(MPI_IN_PLACE,&stats.dCnt,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+	MPI_Allreduce(MPI_IN_PLACE,&stats.avgQ,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+	MPI_Allreduce(MPI_IN_PLACE,&stats.stdQ,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+	MPI_Allreduce(MPI_IN_PLACE,&stats.minQ,1,MPI_LONG_DOUBLE,MPI_MIN,mastersComm);
+	MPI_Allreduce(MPI_IN_PLACE,&stats.maxQ,1,MPI_LONG_DOUBLE,MPI_MAX,mastersComm);
+	}
+
 	stats.epochCount++;
 	epochCounter = stats.epochCount;
-	const long double sum=stats.avgQ, sumsq=stats.stdQ, cnt=stats.dumpCount;
+	const long double sum=stats.avgQ, sumsq=stats.stdQ, cnt=stats.dCnt;
 	//stats.MSE  /= cnt-1;
 	stats.MSE   = std::sqrt(stats.MSE/cnt);
-	stats.avgQ /= cnt; //stats.relE/=stats.dumpCount;
+	stats.avgQ /= cnt; //stats.relE/=stats.dCnt;
 	stats.stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
+	sumElapsed = 0; countElapsed=0;
+	processGrads();
+	if(learn_rank) return;
 
 	long double sumWeights = 0, distTarget = 0, sumWeightsSq = 0;
+
 #pragma omp parallel for reduction(+:sumWeights,distTarget,sumWeightsSq)
-	for (Uint w=0; w<net->getnWeights(); w++){
+	for (Uint w=0; w<net->getnWeights(); w++) {
 		sumWeights += std::fabs(net->weights[w]);
 		sumWeightsSq += net->weights[w]*net->weights[w];
 		distTarget += std::fabs(net->weights[w]-net->tgt_weights[w]);
 	}
-	processGrads();
+
+	printf("%d (%lu), rmse:%Lg, avg_Q:%Lg, std_Q:%Lg, min_Q:%Lg, max_Q:%Lg, weight:[%Lg %Lg %Lg], N:%Lg\n",
+		stats.epochCount, opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
+		stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dCnt);
+		fflush(0);
+
 	ofstream filestats;
 	filestats.open("stats.txt", ios::app);
-	printf("%d (%lu), rmse:%Lg, avg_Q:%Lg, std_Q:%Lg, min_Q:%Lg, max_Q:%Lg, weight:[%Lg %Lg %Lg], dT %f\n",
-		stats.epochCount, opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
-		stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget, avgTime);
-	filestats<<stats.epochCount<<"\t"<<stats.MSE<<"\t" <<stats.relE<<"\t"
-			<<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<stats.maxQ<<"\t"<<stats.minQ<<"\t"
-			<<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"
-			<<stats.dumpCount<<"\t"<<opt->nepoch<<"\t"<<avgTime<<endl;
+	filestats<<stats.epochCount<<"\t"<<opt->nepoch<<"\t"<<stats.MSE<<"\t"
+		<<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<stats.minQ<<"\t"<<stats.maxQ<<"\t"
+		<<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"<<stats.dCnt<<endl;
 	filestats.close();
-	fflush(0);
+	filestats.flush();
+
 	if (stats.epochCount % 100==0) save("policy");
 }
 
@@ -237,15 +260,52 @@ void Learner_utils::processGrads()
 	//for (Uint i=0; i<avgGrad[0].size(); i++)
 	//	o<<avgGrad[0][i]<<" ("<<stdGrad[0][i]<<") ";
 	//cout<<o.str()<<endl;
-	ofstream filestats;
-	filestats.open("grads.txt", ios::app);
-	filestats<<print(avgGrad[0]).c_str()<<" "<<print(stdGrad[0]).c_str()<<endl;
-	filestats.close();
+	if(!learn_rank) {
+		ofstream filestats;
+		filestats.open("grads.txt", ios::app);
+		filestats<<print(avgGrad[0]).c_str()<<" "<<print(stdGrad[0]).c_str()<<endl;
+		filestats.close();
+	}
 	for (Uint i=0; i<avgGrad[0].size(); i++) {
 		avgGrad[0][i] = .99*oldsum[i] +.01*avgGrad[0][i];
 		//stdGrad[0][i] = .99*oldstd[i] +.01*stdGrad[0][i];
 		stdGrad[0][i] = max(0.99*oldstd[i], stdGrad[0][i]);
 	}
+}
+
+void Learner_utils::statsVector(vector<vector<long double>>& sum, vector<vector<long double>>& sqr,
+  vector<long double>& cnt)
+{
+  assert(sum.size()>1);
+  assert(sum.size() == cnt.size() && sqr.size() == cnt.size());
+
+  for (Uint i=0; i<sum[0].size(); i++)
+    sum[0][i] = sqr[0][i] = 0;
+  cnt[0] = 0;
+
+  for (Uint i=1; i<sum.size(); i++) {
+    cnt[0] += cnt[i]; cnt[i] = 0;
+    for (Uint j=0; j<sum[0].size(); j++)
+    {
+      sum[0][j] += sum[i][j]; sum[i][j] = 0;
+      sqr[0][j] += sqr[i][j]; sqr[i][j] = 0;
+    }
+  }
+  cnt[0] = std::max((long double)2.2e-16, cnt[0]);
+
+	if (learn_size > 1) {
+		MPI_Allreduce(MPI_IN_PLACE, &cnt[0], 		1,
+				MPI_LONG_DOUBLE, MPI_SUM, mastersComm);
+		MPI_Allreduce(MPI_IN_PLACE, sum[0].data(), sum[0].size(),
+				MPI_LONG_DOUBLE, MPI_SUM, mastersComm);
+		MPI_Allreduce(MPI_IN_PLACE, sqr[0].data(), sqr[0].size(),
+				MPI_LONG_DOUBLE, MPI_SUM, mastersComm);
+	}
+
+  for (Uint j=0; j<sum[0].size(); j++) {
+    sqr[0][j] = std::sqrt((sqr[0][j]-sum[0][j]*sum[0][j]/cnt[0])/cnt[0]);
+    sum[0][j] /= cnt[0];
+  }
 }
 
 void Learner_utils::dumpPolicy()

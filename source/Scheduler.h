@@ -21,7 +21,7 @@ private:
 	const ActionInfo aI;
 	const StateInfo  sI;
 	const vector<Agent*> agents;
-	const int bTrain, nPerRank, nSlaves, nThreads, saveFreq, inSize, outSize;
+	const int bTrain, nPerRank, nSlaves, nThreads, saveFreq, inSize, outSize, learn_rank, learn_size;
 	double*const inbuf;
 	double*const outbuf;
 	State  sOld, sNew;

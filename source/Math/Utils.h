@@ -87,32 +87,6 @@ inline Real minAbsValue(const Real v, const Real w)
   return std::fabs(v)<std::fabs(w) ? v : w;
 }
 
-inline void statsVector(vector<vector<long double>>& sum, vector<vector<long double>>& sqr,
-  vector<long double>& cnt)
-{
-  assert(sum.size()>1);
-  assert(sum.size() == cnt.size() && sqr.size() == cnt.size());
-
-  for (Uint i=0; i<sum[0].size(); i++)
-    sum[0][i] = sqr[0][i] = 0;
-  cnt[0] = 0;
-
-  for (Uint i=1; i<sum.size(); i++) {
-    cnt[0] += cnt[i]; cnt[i] = 0;
-    for (Uint j=0; j<sum[0].size(); j++)
-    {
-      sum[0][j] += sum[i][j]; sum[i][j] = 0;
-      sqr[0][j] += sqr[i][j]; sqr[i][j] = 0;
-    }
-  }
-  cnt[0] = std::max((long double)2.2e-16, cnt[0]);
-  for (Uint j=0; j<sum[0].size(); j++)
-  {
-    sqr[0][j] = std::sqrt((sqr[0][j]-sum[0][j]*sum[0][j]/cnt[0])/cnt[0]);
-    sum[0][j] /= cnt[0];
-  }
-}
-
 inline void statsGrad(vector<long double>& sum, vector<long double>& sqr, long double& cnt, vector<Real> grad)
 {
   assert(sum.size() == grad.size() && sqr.size() == grad.size());

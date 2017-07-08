@@ -29,8 +29,8 @@ class NAF : public Learner_utils
 		return Quadratic_advantage(net_indices[1], net_indices[2], nA, nL, out);
 	}
 
-	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
-	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
+	void Train_BPTT(const Uint seq, const Uint thrID) const override;
+	void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
 public:
 	NAF(MPI_Comm comm, Environment*const env, Settings & settings);

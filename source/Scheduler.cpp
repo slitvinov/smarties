@@ -20,7 +20,8 @@ Master::Master(MPI_Comm _c,Learner*const _l, Environment*const _e, Settings&_s):
 	  agents(_e->agents), bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank),
 	  nSlaves(_s.nSlaves), nThreads(_s.nThreads), saveFreq(_s.saveFreq),
 	  inSize((3+_e->sI.dim)*sizeof(double)), outSize(_e->aI.dim*sizeof(double)),
-	  inbuf(_alloc(inSize)), outbuf(_alloc(outSize)), sOld(_e->sI),sNew(_e->sI),
+		learn_rank(_s.learner_rank), learn_size(_s.learner_size),
+		inbuf(_alloc(inSize)), outbuf(_alloc(outSize)), sOld(_e->sI),sNew(_e->sI),
 	  aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]), status(_e->agents.size(),1), cumulative_rewards(_e->agents.size(),0)
 {
 	//the following Irecv will be sent after sending the action
@@ -29,11 +30,14 @@ Master::Master(MPI_Comm _c,Learner*const _l, Environment*const _e, Settings&_s):
 
 void Master::restart(string fname)
 {
+	char path[256];
 	learner->restart(fname);
 	if (fname == "none") return;
-	FILE * f = fopen("master.status", "r");
-	unsigned long iter_fake = 0;
+	sprintf(path, "master_rank%02d.status", learn_rank);
+	FILE * f = fopen(path, "r");
 	if (f == NULL) return;
+
+	unsigned long iter_fake = 0;
 	fscanf(f, "master iter: %lu\n", &iter_fake);
 	if(iter_fake) iter = iter_fake;
 	printf("master iter: %lu\n", iter);
@@ -42,17 +46,21 @@ void Master::restart(string fname)
 
 void Master::save()
 {
-	ofstream filestats;
-	filestats.open("master_rewards.dat", ios::app);
-	filestats<<iter<<" "<<meanR<<" "<<varR<<endl;
-	filestats.close();
-	printf("Iter %lu, Mean reward: %f variance:%f \n", iter, meanR, varR);
-
-	FILE * f = fopen("master.status", "w");
-	if (f != NULL)
-		fprintf(f, "master iter: %lu\n", iter);
-	fclose(f);
-
+	std::ofstream fout;
+	char filepath[256];
+	{
+		sprintf(filepath, "rewards_rank%02d.dat", learn_rank);
+		fout.open(filepath, ios::app);
+		fout<<iter<<" "<<meanR<<" "<<varR<<endl;
+		fout.close();
+		printf("Iter %lu, Mean reward: %f variance:%f \n", iter, meanR, varR);
+	}
+	{
+		sprintf(filepath, "master_rank%02d.status", learn_rank);
+		fout.open(filepath, ios::trunc);
+		fout<<"master iter: "<<iter<<endl;
+		fout.close();
+	}
 	learner->save("policy");
 }
 
@@ -279,10 +287,11 @@ void Master::trackAgentsPerformance(const _AGENT_STATUS agentStatus, const int a
 		meanR = (1.-alpha)*meanR + alpha*reward;
 		varR = (1.-alpha)*varR + alpha*(reward-meanR)*(reward-oldMean);
 	} else {
-		ofstream filestats;
-		filestats.open("cumulative_rewards.dat", ios::app);
-		filestats<<agent<<" "<<cumulative_rewards[agent]<<endl;
-		filestats.close();
+		char path[256];
+		sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
+		std::ofstream outf(path, ios::app);
+		outf<<learner->iter()<<" "<<agent<<" "<<cumulative_rewards[agent]<<endl;
 		cumulative_rewards[agent] = 0;
+		outf.close();
 	}
 }

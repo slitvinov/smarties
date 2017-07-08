@@ -61,6 +61,11 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 	Environment* env = factory.createEnvironment();
 	Communicator comm = env->create_communicator(slavesComm, settings.sockPrefix, true);
 
+	const int bs = settings.batchSize, ls = settings.learner_size;
+	settings.batchSize = ceil(bs/(Real)ls);
+	if(bs%ls)
+	printf("Due to nMasters, batchsize (%d) set to %d\n",bs,settings.batchSize);
+
 	if(env->mpi_ranks_per_env) { //unblock creation of app comm if needed
 		MPI_Comm tmp_com;
 		MPI_Comm_split(slavesComm, MPI_UNDEFINED, 0, &tmp_com);
@@ -71,7 +76,6 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 
 	Master master(slavesComm, learner, env, settings);
 	master.restart(settings.restart);
-	printf("nthreads %d\n",settings.nThreads); fflush(0);
 
 #if 1
 	if (settings.restart != "none" && !settings.nSlaves && !learner->nData())
@@ -81,7 +85,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 		abort();
 	}
 #endif
-	assert(settings.nThreads > 1);
+
 	learner->run(&master);
 	master.sendTerminateReq();
 }
@@ -131,14 +135,20 @@ int main (int argc, char** argv)
 	settings.sockPrefix = runSeed+settings.world_rank;
 	settings.generators.reserve(settings.nThreads);
 	settings.generators.push_back(mt19937(settings.sockPrefix));
-	if(settings.nThreads<1) die("Error: nThreads\n");
+
+	if(settings.nThreads<2) die("Error: must have at least 2 threads\n");
 	for(int i=1; i<settings.nThreads; i++)
 		settings.generators.push_back(mt19937(settings.generators[0]));
 
-	const int slavesPerMaster = ceil(settings.world_size/(double)settings.nMasters)-1;
+	if(settings.world_size%settings.nMasters)
+		die("Number of masters not compatible with available ranks.\n");
+
+	const int slavesPerMaster = settings.world_size/settings.nMasters - 1;
+	//Assuming rank distribution is 'block', to improve balacincing
+	//masters and its slaves are adjacent:
 	const int isMaster = settings.world_rank % (slavesPerMaster+1) == 0;
 	const int whichMaster = settings.world_rank / (slavesPerMaster+1);
-	printf("Job size=%d, with %d masters, %d slaves per master. I'm %d: %s part of comm %d.\n",
+	printf("Job size=%d, %d masters, %d slaves per master. I'm %d: %s part of comm %d.\n",
 			settings.world_size,settings.nMasters,slavesPerMaster,settings.world_rank,
 			isMaster?"master":"slave",whichMaster);
 

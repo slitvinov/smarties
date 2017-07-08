@@ -18,11 +18,11 @@ class DPG : public Learner_utils
 	Network* net_value;
 	Optimizer* opt_value;
 
-	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
-	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
+	void Train_BPTT(const Uint seq, const Uint thrID) const override;
+	void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
 	void updateTargetNetwork() override;
-	void stackAndUpdateNNWeights(const Uint nAddedGradients) override;
+	void stackAndUpdateNNWeights() override;
 	void processGrads() override;
 
 public:

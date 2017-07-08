@@ -14,8 +14,8 @@ using namespace std;
 
 class NFQ : public Learner_utils
 {
-	void Train_BPTT(const Uint seq, const Uint thrID=0) const override;
-	void Train(const Uint seq, const Uint samp, const Uint thrID=0) const override;
+	void Train_BPTT(const Uint seq, const Uint thrID) const override;
+	void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
 public:
 	NFQ(MPI_Comm comm, Environment*const env, Settings & settings);

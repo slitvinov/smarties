@@ -14,11 +14,11 @@ Learner::Learner(MPI_Comm comm, Environment*const _env, Settings & _s) :
 mastersComm(comm), env(_env), tgtUpdateDelay((Uint)_s.targetDelay),
 nAgents(_s.nAgents), batchSize(_s.batchSize), nThreads(_s.nThreads),
 nAppended(_s.appendedObs), maxTotSeqNum(_s.maxTotSeqNum),
-totNumSteps(_s.totNumSteps), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
-bRecurrent(_s.bRecurrent), bTrain(_s.bTrain),
-bSampleSequences(_s.bSampleSequences), tgtUpdateAlpha(_s.targetDelay),
-gamma(_s.gamma), greedyEps(_s.greedyEps), epsAnneal(_s.epsAnneal),
-obsPerStep(_s.obsPerStep), taskCounter(batchSize),
+totNumSteps(_s.totNumSteps), learn_rank(_s.learner_rank),
+learn_size(_s.learner_size), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
+bRecurrent(_s.bRecurrent), bSampleSequences(_s.bSampleSequences),
+bTrain(_s.bTrain), tgtUpdateAlpha(_s.targetDelay), greedyEps(_s.greedyEps),
+gamma(_s.gamma), epsAnneal(_s.epsAnneal), obsPerStep(_s.obsPerStep),
 aInfo(env->aI), sInfo(env->sI), gen(&_s.generators[0])
 {
 	assert(nThreads>0);
@@ -39,11 +39,7 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 void Learner::run(Master* const master)
 {
 	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
-	vector<Uint> seq(batchSize), samp(batchSize);//, index(batchSize);
-	Uint nAddedGradients = 0, countElapsed = 0;
-	Real sumElapsed = 0;
-	int nMasters;
-	MPI_Comm_size(mastersComm, &nMasters);
+	vector<Uint> seq(batchSize), samp(batchSize);
 	Uint ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;
 	if (ndata <= 10*batchSize || !bTrain) {
 		if(nAgents<1) die("Nothing to do, nowhere to go.\n");
@@ -51,26 +47,25 @@ void Learner::run(Master* const master)
 	}
 
 	while (opt->nepoch < totNumSteps) {
-		nAddedGradients = taskCounter = 0;
+		assert(taskCounter == 0);
 		//const Real annealFac = annealingFactor();
 		ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;
-		if(opt->nepoch % 1000==0 && opt->nepoch) profiler->printSummary();
 
 		profiler->push_start("SRT");
 		Uint syncDataStats = 0;
-		if(opt->nepoch%100==0 || data->requestUpdateSamples()) {
-			processStats(sumElapsed/countElapsed);// dump info about
-			syncDataStats = data->updateSamples(0);//reset sampling annealFac
-			sumElapsed = 0; countElapsed=0;
-		}
+		if(opt->nepoch%100==0 || data->requestUpdateSamples())
+			syncDataStats = data->updateSamples(0); //update sampling
+
 		#ifdef __CHECK_DIFF //check gradients with finite differences
 			if (opt->nepoch % 100000 == 0) net->checkGrads();
 		#endif
-		if (nMasters > 1) {
-			MPI_Allreduce(MPI_IN_PLACE, &syncDataStats, 1,
-					MPI_UNSIGNED, MPI_SUM, mastersComm);
-		}
-		if(syncDataStats) data->update_samples_mean(0); //annealFac
+
+		//CODE TO DO ONLINE UPDATE OF DATA MEAN/STD: unused
+		//if (learn_size > 1) {
+		//	MPI_Allreduce(MPI_IN_PLACE, &syncDataStats, 1,
+		//			MPI_UNSIGNED, MPI_SUM, mastersComm);
+		//}
+		//if(syncDataStats) data->update_samples_mean(0); //annealFac
 
 		start = std::chrono::high_resolution_clock::now();
 
@@ -109,25 +104,27 @@ void Learner::run(Master* const master)
 					}
 				}
 			}
-
-			//TODO: can add task to update sampling probabilities for prioritized exp replay
 			if(nAgents>0) master->run(); //master goes to communicate with slaves
 		}
 
+		assert(nAddedGradients);
 		end = std::chrono::high_resolution_clock::now();
-		const Real len = std::chrono::duration<Real>(end-start).count();
-		sumElapsed += len/nAddedGradients;
-		countElapsed++;
-
-		batchUsage += 1;
+		sumElapsed+= std::chrono::duration<Real>(end-start).count()/nAddedGradients;
 		dataUsage += nAddedGradients;
+		countElapsed++;
+		batchUsage++;
 
+		assert(taskCounter == batchSize);
 		profiler->stop_start("UPW");
-		//this needs to be compatible with multiple servers
-		stackAndUpdateNNWeights(nAddedGradients);
-		// this can be handled node wise
+		stackAndUpdateNNWeights();
 		updateTargetNetwork();
+		if(opt->nepoch%100 ==0) processStats();
+		taskCounter = 0;
+		profiler->stop_start("DAT");
+		master->run(); //master goes back to comm till enough data is gathered
 		profiler->pop_stop();
+
+		if(opt->nepoch%1000==0 && !learn_rank) profiler->printSummary();
 	}
 }
 
@@ -136,8 +133,7 @@ Uint Learner::sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitio
 	assert(sequences.size() == batchSize && transitions.size() == batchSize);
 	assert(!bSampleSequences);
 	vector<Uint> load(batchSize), sorting(batchSize), s(batchSize), t(batchSize);
-	for (Uint i=0; i<batchSize; i++)
-	{
+	for (Uint i=0; i<batchSize; i++) {
 		const Uint ind = data->sample();
 
 		Uint k=0, back=0, indT=data->Set[0]->tuples.size()-1;
@@ -168,7 +164,7 @@ Uint Learner::sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitio
 Uint Learner::sampleSequences(vector<Uint>& sequences)
 {
 	assert(sequences.size() == batchSize && bSampleSequences);
-	Uint nAddedGradients = 0;
+	Uint _nAddedGradients = 0;
 	for (Uint i=0; i<batchSize; i++)
 	{
 		const Uint ind = data->sample();
@@ -176,7 +172,7 @@ Uint Learner::sampleSequences(vector<Uint>& sequences)
 		//index[i] = ind;
 		const Uint seqSize = data->Set[ind]->tuples.size();
 		//to normalize mean gradient for update:
-		nAddedGradients += seqSize-1; //last state = terminal, no next reward
+		_nAddedGradients += seqSize-1; //last state = terminal, no next reward
 	}
 	//sort them such that longer ones are started first, reducing overhead!
 	const auto compare = [this] (Uint a, Uint b) {
@@ -184,44 +180,28 @@ Uint Learner::sampleSequences(vector<Uint>& sequences)
 	};
 	std::sort(sequences.begin(), sequences.end(), compare);
 
-	return nAddedGradients;
+	return _nAddedGradients;
 }
 
 bool Learner::checkBatch(unsigned long mastersNiter)
 {
-	const unsigned long dataNiter = bSampleSequences ? data->nSeenSequences : mastersNiter;
-	const Uint ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;
-	if (ndata<batchSize*10 || !bTrain) {
-		mastersNiter_b4PolUpdates = dataNiter;
+	const Uint ndata = bSampleSequences ? data->nSequences : data->nTransitions;
+	//if there is noty enough data for training: go back to master
+	if (ndata < batchSize*10 || !bTrain) {
+		nData_b4PolUpdates = data->nSeenSequences;
 		return false;
-	}  //do we have enough data? TODO k*ndata?
-	//If the transition buffer is already backed up, train and pause communicating
-	if(data->Buffered.size() >= maxTotSeqNum/20) return true;
+	}
 
-	//If we have not observed enough data, pause training (avoid over using stale data)
-	if(mastersNiter/obsPerStep < opt->nepoch) return false;
-	if(0.5*mastersNiter/obsPerStep > opt->nepoch) return true;
-
-	//else, complete the gradient step if threads have finished processing data:
-	return taskCounter >= batchSize;
-
-	//Constraint on over-using stale data too much
-	//if(epochCounter>data->nSeenSequences) return false;//dataUsage>mastersNiter||
-
-	//if we are using a cheap to simulate env, we want to prioritize networks
-	//if optimizer has done less updates than master has done communications
-	// ratio is 1 : 1 in DQN paper
-	//then let master thread go to help other threads finish the batch
-	//const long unsigned learnerNiter = opt->nepoch + mastersNiter_b4PolUpdates;
-	//if (env->cheaperThanNetwork && dataNiter > learnerNiter) return true;
+	//if threads finished processing data, unblock other ranks by adding up grad
+	if(taskCounter >= batchSize) return true;
+	//otherwise, either train or communicate depending on number of gradient
+	// steps to number of observed sequences requested by user
+	return data->nSeenSequences - nData_b4PolUpdates > obsPerStep * opt->nepoch;
 }
 
 void Learner::save(string name)
 {
-	int masterRank;
-	MPI_Comm_rank(mastersComm, &masterRank);
-	//    net->save(name);
-	if (!masterRank) {
+	if (!learn_rank) {
 		opt->save(name);
 		data->save(name);
 
@@ -230,7 +210,8 @@ void Learner::save(string name)
 		if (f == NULL) die("Save fail\n");
 		fprintf(f, "policy iter: %d\n", data->anneal);
 		fprintf(f, "optimize epoch: %lu\n", opt->nepoch);
-		//fprintf(f, "epoch count: %d\n", stats.epochCount);
+		//fprintf(f, "epoch count: %lu\n", stats.epochCount);
+		fprintf(f, "nData_b4PolUpdates: %lu\n", nData_b4PolUpdates);
 		fclose(f);
 	}
 }
@@ -263,11 +244,16 @@ void Learner::restart(string name)
 			fscanf(f, "optimize epoch: %lu\n", &ret);
 			if(ret>0) opt->nepoch = ret;
 			printf("optimize epoch: %lu\n", opt->nepoch);
+		//}{
+		//	long unsigned ret = 0;
+		//	fscanf(f, "epoch count: %lu\n", &ret);
+		//	stats.epochCount = ret;
+		//	printf("epoch count: %lu\n", stats.epochCount);
 		}{
-			//int val=-1;
-			//fscanf(f, "epoch count: %d\n", &val);
-			//if(val>=0) stats.epochCount = val;
-			//printf("epoch count: %d\n", stats.epochCount);
+			long unsigned ret = 0;
+			fscanf(f, "nData_b4PolUpdates: %lu\n", &ret);
+			nData_b4PolUpdates = ret;
+			printf("nData_b4PolUpdates: %lu\n", nData_b4PolUpdates);
 		}
 		fclose(f);
 	}
