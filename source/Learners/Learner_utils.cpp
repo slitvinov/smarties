@@ -114,10 +114,13 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 #else
 	_opt = new EntropySGD(_net, profiler, settings);
 #endif
+if (!learn_rank)
 	_opt->save("initial");
 #ifndef NDEBUG
-	//_opt->restart("initial");
-	//_opt->save("restarted");
+	MPI_Barrier(mastersComm);
+	_opt->restart("initial");
+
+	_opt->save("restarted"+to_string(learn_rank));
 #endif
 	//for (const auto & l : _net->layers) l->profiler = profiler;
 }
@@ -273,8 +276,8 @@ void Learner_utils::processGrads()
 	}
 }
 
-void Learner_utils::statsVector(vector<vector<long double>>& sum, vector<vector<long double>>& sqr,
-  vector<long double>& cnt)
+void Learner_utils::statsVector(vector<vector<long double>>& sum,
+	vector<vector<long double>>& sqr, vector<long double>& cnt)
 {
   assert(sum.size()>1);
   assert(sum.size() == cnt.size() && sqr.size() == cnt.size());
