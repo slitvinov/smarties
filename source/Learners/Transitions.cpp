@@ -372,30 +372,6 @@ void Transitions::update_samples_mean(const Real alpha)
 	}
 }
 
-vector<Real> Transitions::standardize(const vector<Real>& state,
-		const Real noise, const Uint thrID) const
-{
-	if(!bNormalize) return state;
-
-	vector<Real> tmp(sI.dimUsed*(1+nAppended));
-	assert(state.size() == sI.dimUsed*(1+nAppended));
-	for (Uint j=0; j<1+nAppended; j++)
-		for (Uint i=0; i<sI.dimUsed; i++) {
-			const Uint k = j*sI.dimUsed + i;
-			//tmp[k] = (state[k] - mean[i])/(std[i]+1e-8);
-			tmp[k] = (state[k] - mean[i])*invstd[i];
-		}
-
-	if (noise>0) {
-		assert(generators.size()>thrID);
-		//std::normal_distribution<Real> distn(0.,noise);
-		std::uniform_real_distribution<Real> distn(-sqrt(3)*noise,sqrt(3)*noise);
-		for (Uint i=0; i<sI.dimUsed*(1+nAppended); i++)
-			tmp[i] += distn(generators[thrID]);
-	}
-	return tmp;
-}
-
 void Transitions::sortSequences()
 {
 	assert(nSequences==Set.size() && maxTotSeqNum == nSequences);

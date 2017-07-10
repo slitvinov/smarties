@@ -97,16 +97,12 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 	}
 
 	_net = build.build();
-	const Uint nW = _net->getnWeights(), nB = _net->getnBiases();
-	if (!learn_rank)
-	for (int i = 1; i < learn_size; i++) {
-		MPI_Send(_net->weights,nW,MPI_NNVALUE_TYPE,i,0,mastersComm);
-		MPI_Send(_net->biases, nB,MPI_NNVALUE_TYPE,i,0,mastersComm);
+
+	if(learn_size>1) {
+		MPI_Bcast(_net->weights,_net->getnWeights(),MPI_NNVALUE_TYPE,0,mastersComm);
+		MPI_Bcast(_net->biases, _net->getnBiases(), MPI_NNVALUE_TYPE,0,mastersComm);
 	}
-	else {
-	MPI_Recv(_net->weights,nW,MPI_NNVALUE_TYPE,0,0,mastersComm,MPI_STATUS_IGNORE);
-	MPI_Recv(_net->biases, nB,MPI_NNVALUE_TYPE,0,0,mastersComm,MPI_STATUS_IGNORE);
-	}
+
 	_net->updateFrozenWeights();
 
 #ifndef __EntropySGD

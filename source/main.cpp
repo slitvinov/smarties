@@ -124,13 +124,8 @@ int main (int argc, char** argv)
 		return 0;
 	}
 
-	int runSeed;
-	if (!settings.world_rank) {
-		runSeed = abs(clock.tv_usec % std::numeric_limits<int>::max());
-		for (int i = 1; i < settings.world_size; i++)
-			MPI_Send(&runSeed, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-	} else
-		MPI_Recv(&runSeed, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	int runSeed =abs(clock.tv_usec%static_cast<long>(std::numeric_limits<int>::max()));
+	MPI_Bcast(&runSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
 	settings.sockPrefix = runSeed+settings.world_rank;
 	settings.generators.reserve(settings.nThreads);
