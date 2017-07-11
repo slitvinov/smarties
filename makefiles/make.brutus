@@ -1,9 +1,0 @@
-CC=/cluster/home03/mavt/novatig/mpich-3.2/bin/mpic++
-
-#export PATH=/cluster/home/mavt/chatzidp/usr/mpich3/bin:$PATH
-
-CPPFLAGS+= -msse3 -I/cluster/home03/mavt/novatig/mpich-3.2/include/ -DREG=5
-
-export LD_LIBRARY_PATH=/cluster/home03/mavt/novatig/mpich-3.2/lib/:$LD_LIBRARY_PATH
-
-LIBS+= -L/cluster/home03/mavt/novatig/mpich-3.2/lib/ -lopenblas -msse3 -lz
