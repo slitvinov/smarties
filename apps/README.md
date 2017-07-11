@@ -1,4 +1,4 @@
-#apps
+# apps
 
 Each folder contains the files required to prepare the run directory for running an application. Multiple folders here might refer to the same environment of smarties.
 

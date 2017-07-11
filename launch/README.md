@@ -1,4 +1,4 @@
-#launch
+# launch
 
 The main files that will be maintained are `launch.sh`, `launch_openai.sh`, `launchDaint.sh`, `run.sh`.
 
@@ -19,7 +19,7 @@ These two scripts set up the launch environment and directory, and then call `ru
 
 * `launchDaint.sh` .. it works on Daint. Main changes are that run folder is in `/scratch/snx3000/${MYNAME}/smarties/`, the number of threads is hardcoded to 24, and `run.sh` is not used.
 
-#misc
+# misc
 
 * The `_client.sh` scripts will temporarily no longer be supported since their usefulness was outweighed by the confusion of the users. Also, by design it was not possible to make it work on Daint out of the box without the user writing its own `launchDaint.sh` for the application.
 
