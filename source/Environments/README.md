@@ -25,6 +25,6 @@ To create an environment within openai gym refer to its documentation. Advantage
 
 * Include your environment in `ObjectFactory.cpp`. The ObjectFactory reads the `factory` in the run directory. The `factory` file must contain
     - a string identifying your environment (eg. `CartEnvironment`)
-		- `exec=` a string of the command to be executed to launch your application (e.g. `./launchSim.sh`)
-		- `n=` the number of active agents within the environment. smarties does not yet support each agent having a different policy.
+    - `exec=` a string of the command to be executed to launch your application (e.g. `./launchSim.sh`)
+    - `n=` the number of active agents within the environment. smarties does not yet support each agent having a different policy.
 * Add your environment to the `Makefile`
