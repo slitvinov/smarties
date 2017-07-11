@@ -1,5 +1,6 @@
 *.o
 *.d
+*.a
 
 *.bbl
 *.bcf
@@ -26,6 +27,12 @@
 
 *.brf
 
+apps/glider/glider
+apps/cart_pole/cart-pole
+apps/acrobot/acrobot
+apps/CMA/engine_cmaes
+makefiles/rl
+
 .DS_Store
 .AppleDouble
 .LSOverride
@@ -46,6 +53,10 @@ Temporary Items
 test.dSYM
 *.dSYM
 
-launch/settings*
+launch/settings/
 policies/*
 test_*
+runs/
+engine_cmaes
+
+*.swp
