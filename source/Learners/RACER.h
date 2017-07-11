@@ -90,10 +90,8 @@ class RACER : public Learner_utils
 		const Real Qer = Q_RET -A_cur -V_cur;
 
 		const Real A_OPC = Q_OPC - V_hat;
-		static const Real L = 0.1, eps = 2.2e-16;
-		const Real threshold = A_cov * A_cov / (varCritic+eps);
-		const Real smoothing = threshold>L ? L/(threshold+eps) : 2-threshold/L;
-		const Real eta = anneal * smoothing * A_cov * A_OPC / (varCritic+eps);
+		const Real iEpsA = A_cov * std::pow((A_OPC-A_cov)/(varCritic+2.2e-16), 2);
+		const Real eta = anneal * iEpsA * A_OPC * safeExp( -iEpsA * A_cov);
 
 		#ifdef ACER_PENALIZER
 			const Real cotrolVar = A_cov;
