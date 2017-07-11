@@ -13,7 +13,7 @@ ulimit -c unlimited
 
 if [ $# -gt 4 ] ; then
     POLICY=$5
-    cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
+    cp ${POLICY}_net* ${BASEPATH}${RUNFOLDER}/policy_net*
     #cp ${POLICY}_mems ${BASEPATH}${RUNFOLDER}/policy_mems
     cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
 fi
@@ -32,7 +32,11 @@ fi
 NPROCESS=$((${NNODES}*${NTASK}))
 
 #this handles app-side setup (incl. copying the factory)
-source ../apps/${APP}/setup.sh
+if [ -d ${APP} ]; then
+	source ${APP}/setup.sh ${BASEPATH}${RUNFOLDER}
+else
+	source ../apps/${APP}/setup.sh ${BASEPATH}${RUNFOLDER}
+fi
 
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh

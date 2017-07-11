@@ -184,10 +184,10 @@ struct Settings
 	int bNormalize = DEFAULT_bNormalize;
 
 #define CHARARG_obsPerStep 'o'
-#define COMMENT_obsPerStep "Minimum ratio of observed transitions to gradient steps"
+#define COMMENT_obsPerStep "Minimum ratio of observed *sequences* to gradient steps. 0.1 means that for every terminal state, learner does 10 gradient steps."
 #define TYPEVAL_obsPerStep  Real
 #define TYPENUM_obsPerStep  REAL
-#define DEFAULT_obsPerStep  10
+#define DEFAULT_obsPerStep  0.1
 	Real obsPerStep = DEFAULT_obsPerStep;
 
 #define CHARARG_restart 'p'

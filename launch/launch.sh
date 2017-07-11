@@ -17,7 +17,7 @@ mkdir -p ${BASEPATH}${RUNFOLDER}
 
 if [ $# -gt 5 ] ; then
 POLICY=$6
-cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
+cp ${POLICY}_net* ${BASEPATH}${RUNFOLDER}/policy_net*
 cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
 cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
 fi
@@ -31,7 +31,11 @@ fi
 NPROCESS=$((${NNODES}*${NTASK}))
 
 #this must handle all app-side setup (as well as copying the factory)
-source ../apps/${APP}/setup.sh ${BASEPATH}${RUNFOLDER}
+if [ -d ${APP} ]; then
+	source ${APP}/setup.sh ${BASEPATH}${RUNFOLDER}
+else
+	source ../apps/${APP}/setup.sh ${BASEPATH}${RUNFOLDER}
+fi
 
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh

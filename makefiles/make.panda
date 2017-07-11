@@ -1,0 +1,2 @@
+CC=/opt/mpich/bin/mpicxx
+CPPFLAGS+=  -I/opt/mpich/include

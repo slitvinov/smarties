@@ -42,8 +42,8 @@ void Learner::run(Master* const master)
 	vector<Uint> seq(batchSize), samp(batchSize);
 	Uint ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;
 	if (ndata <= 10*batchSize || !bTrain) {
-		if(nAgents<1) die("Nothing to do, nowhere to go.\n");
-		master->run();
+		if(nAgents<1) die("Learner::run nAgents<1. Nothing to do.\n");
+		if(master->run()) return;
 	}
 
 	while (opt->nepoch < totNumSteps) {

@@ -16,13 +16,13 @@ static void unpackState(double* const data, int& agent, _AGENT_STATUS& info,
 		std::vector<double>& state, double& reward);
 
 Master::Master(MPI_Comm _c,Learner*const _l, Environment*const _e, Settings&_s):
-	  slavesComm(_c), learner(_l), env(_e), aI(_e->aI), sI(_e->sI),
-	  agents(_e->agents), bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank),
-	  nSlaves(_s.nSlaves), nThreads(_s.nThreads), saveFreq(_s.saveFreq),
-	  inSize((3+_e->sI.dim)*sizeof(double)), outSize(_e->aI.dim*sizeof(double)),
-		learn_rank(_s.learner_rank), learn_size(_s.learner_size),
-		inbuf(_alloc(inSize)), outbuf(_alloc(outSize)), sOld(_e->sI),sNew(_e->sI),
-	  aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]), status(_e->agents.size(),1), cumulative_rewards(_e->agents.size(),0)
+  slavesComm(_c),learner(_l),env(_e),aI(_e->aI),sI(_e->sI),agents(_e->agents),
+	bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank), saveFreq(_s.saveFreq),
+	nSlaves(_s.nSlaves), nThreads(_s.nThreads), learn_rank(_s.learner_rank),
+	learn_size(_s.learner_size), totNumSteps(_s.totNumSteps),
+	outSize(_e->aI.dim*sizeof(double)), inSize((3+_e->sI.dim)*sizeof(double)),
+	inbuf(_alloc(inSize)), outbuf(_alloc(outSize)), sOld(_e->sI),sNew(_e->sI),
+  aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]), status(_e->agents.size(),1), cumulative_rewards(_e->agents.size(),0)
 {
 	//the following Irecv will be sent after sending the action
 	MPI_Irecv(inbuf, inSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
@@ -55,6 +55,7 @@ void Master::save()
 		fout.close();
 		printf("Iter %lu, Mean reward: %f variance:%f \n", iter, meanR, varR);
 	}
+	if(!bTrain) return;
 	{
 		sprintf(filepath, "master_rank%02d.status", learn_rank);
 		fout.open(filepath, ios::trunc);
@@ -64,7 +65,7 @@ void Master::save()
 	learner->save("policy");
 }
 
-void Master::run()
+int Master::run()
 {
 	MPI_Status mpistatus;
 	int completed=0, agentStatus=0, agent;
@@ -72,7 +73,7 @@ void Master::run()
 	while (true) {
 		while (true) {
 			//check on the threads, synchronize, apply gradient
-			if (learner->checkBatch(iter)) return;
+			if (learner->checkBatch(iter)) return 0;
 
 			MPI_Test(&request, &completed, &mpistatus);
 			if (completed) break;
@@ -109,10 +110,14 @@ void Master::run()
 		} else { //if terminal, no action required
 			if(env->resetAll)
 				learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
+
+			if(!bTrain)
+				if(++stepNum == totNumSteps) return 1; //used to terminate
 		}
 		if (++iter % saveFreq == 0) save();
 	}
 	die("How on earth could you possibly get here? \n");
+	return 0;
 }
 
 Slave::Slave(Communicator*const _c, Environment*const _e, Settings& _s):
@@ -286,7 +291,8 @@ void Master::trackAgentsPerformance(const _AGENT_STATUS agentStatus, const int a
 		cumulative_rewards[agent] += reward;
 		meanR = (1.-alpha)*meanR + alpha*reward;
 		varR = (1.-alpha)*varR + alpha*(reward-meanR)*(reward-oldMean);
-	} else {
+	}
+	if (agentStatus == _AGENT_LASTCOMM) {
 		char path[256];
 		sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
 		std::ofstream outf(path, ios::app);

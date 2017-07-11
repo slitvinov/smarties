@@ -42,7 +42,7 @@ SETTINGS+=" --maxTotSeqNum 5000"
 #SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --greedyEps 0.05"
 SETTINGS+=" --epsAnneal 1000000"
-SETTINGS+=" --obsPerStep 10"
+SETTINGS+=" --obsPerStep 0.1"
 SETTINGS+=" --bSampleSequences 0"
 
 #lag of target network.

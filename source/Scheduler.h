@@ -21,13 +21,14 @@ private:
 	const ActionInfo aI;
 	const StateInfo  sI;
 	const vector<Agent*> agents;
-	const int bTrain, nPerRank, nSlaves, nThreads, saveFreq, inSize, outSize, learn_rank, learn_size;
+	const int bTrain, nPerRank, saveFreq, nSlaves, nThreads, learn_rank, learn_size, totNumSteps, outSize, inSize;
 	double*const inbuf;
 	double*const outbuf;
 	State  sOld, sNew;
 	Action aOld, aNew;
 	Real meanR = 0, varR = 0;
 	unsigned long iter = 0;
+	int stepNum = 0;
 	vector<int> status;
 	vector<Real> cumulative_rewards;
 
@@ -55,7 +56,7 @@ public:
 		for (int slave=1; slave<=nSlaves; slave++)
 		MPI_Ssend(outbuf, outSize, MPI_BYTE, slave, 0, slavesComm);
 	}
-	void run();
+	int run();
 	void restart(string fname);
 };
 

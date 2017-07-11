@@ -41,7 +41,7 @@ SETTINGS+=" --maxTotSeqNum 5000"
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.05"
 SETTINGS+=" --epsAnneal 1000000"
-SETTINGS+=" --obsPerStep 10"
+SETTINGS+=" --obsPerStep 0.1"
 SETTINGS+=" --bSampleSequences 0"
 
 #lag of target network.

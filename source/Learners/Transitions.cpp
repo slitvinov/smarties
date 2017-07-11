@@ -105,8 +105,7 @@ Uint Transitions::restartSamples(const Uint polDim)
 				size_t ret = fread(buf,sizeof(float),writesize,pFile);
 				if (ret == 0) break;
 				if (ret != writesize) _die("Error reading datafile %s", asciipath);
-				int* ibuf = (int*) buf;
-				info = ibuf[0]; sampID = ibuf[1];
+				Uint k = 0; info = buf[k++]; sampID = buf[k++];
 
 				if((sampID==0) != (info==1))
 					die("Mismatch in transition counter\n");
@@ -114,7 +113,6 @@ Uint Transitions::restartSamples(const Uint polDim)
 					die("Mismatch in transition change\n");
 				curr_transition_id[agentID] = sampID;
 
-				Uint k = 2;
 				for(Uint i=0; i<sDim;   i++) newState.vals[i] = buf[k++];
 				for(Uint i=0; i<aDim;   i++) action.vals[i] = buf[k++];
 				reward = buf[k++];
@@ -152,9 +150,9 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
 		const Uint writesize = (3 + sI.dim + aI.dim + muNew.size())*sizeof(float);
 		float* buf = (float*) malloc(writesize);
     memset(buf, 0, writesize);
-		int* ibuf = (int*) buf;
-		ibuf[0]=info; ibuf[1]=(int)curr_transition_id[agentId];
-		Uint k=2;
+		Uint k=0;
+		buf[k++]=info + 0.1; 
+		buf[k++]=(int)curr_transition_id[agentId] + 0.1;
 		for (Uint i=0; i<sI.dim;       i++) buf[k++] = (float) sNew.vals[i];
 		for (Uint i=0; i<aI.dim;       i++) buf[k++] = (float) aNew.vals[i];
 		buf[k++] = rew;

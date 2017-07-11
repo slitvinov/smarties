@@ -12,11 +12,10 @@ SETTINGS+=" --gamma 0.99"
 #size of network layers
 #SETTINGS+=" --nnl1 512"
 #SETTINGS+=" --nnl2 512"
-SETTINGS+=" --nnl1 256"
-SETTINGS+=" --nnl2 256"
-#SETTINGS+=" --nnl1 128"
-#SETTINGS+=" --nnl2 128"
-#SETTINGS+=" --nnl3 256"
+SETTINGS+=" --nnl1 128"
+SETTINGS+=" --nnl2 128"
+#SETTINGS+=" --nnl1 256"
+#SETTINGS+=" --nnl2 256"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
@@ -44,9 +43,10 @@ SETTINGS+=" --maxTotSeqNum 5000"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.05"
-SETTINGS+=" --epsAnneal 1000000"
-SETTINGS+=" --obsPerStep 10"
+SETTINGS+=" --epsAnneal 100000"
+SETTINGS+=" --obsPerStep 0.1"
 SETTINGS+=" --bSampleSequences 0"
+SETTINGS+=" --nMasters 1"
 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps

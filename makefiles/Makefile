@@ -18,7 +18,7 @@ sortseq ?= off
 mpi_lib ?= default
 
 CPPFLAGS+= -std=c++11 -D__Smarties_ -fopenmp
-LIBS += -fopenmp -lstdc++ -lm 
+LIBS += -fopenmp -lstdc++ -lm
 
 ifeq ($(UNAME_S),Darwin)
 include make.macos
@@ -44,10 +44,10 @@ ifeq "$(findstring falcon,$(shell hostname))" "falcon"
 include make.falcon
 endif
 ifeq "$(findstring panda,$(shell hostname))" "panda"
-include make.falcon
+include make.panda
 endif
 
-CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wpedantic -Woverloaded-virtual 
+CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wpedantic -Woverloaded-virtual
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrite-strings
 CPPFLAGS+= -Wno-unused-parameter # does not make sense with function overloading
 CPPFLAGS+= -Wno-maybe-uninitialized #to switch on and check that only triggered by std random
@@ -99,10 +99,10 @@ ifeq "$(app)" "cubism"
 CPPFLAGS+= -D__Cubism3D
 endif
 ifeq "$(config)" "debug"
-CPPFLAGS+= -g# -O2 -ffast-math 
+CPPFLAGS+= -g# -O2 -ffast-math
 endif
 ifeq "$(config)" "segf"
-CPPFLAGS+= -g# -O2 -ffast-math 
+CPPFLAGS+= -g# -O2 -ffast-math
 CPPFLAGS+= -fsanitize=address
 LIBS += -fsanitize=address
 endif

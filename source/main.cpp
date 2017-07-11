@@ -124,14 +124,19 @@ int main (int argc, char** argv)
 		return 0;
 	}
 
-	int runSeed =abs(clock.tv_usec%static_cast<long>(std::numeric_limits<int>::max()));
+	const long MAXINT = std::numeric_limits<int>::max();
+	int runSeed = abs(clock.tv_usec % MAXINT);
 	MPI_Bcast(&runSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
 	settings.sockPrefix = runSeed+settings.world_rank;
+
+	if(settings.bTrain && settings.nThreads<2)
+		die("Error: must have at least 2 threads\n");
+	if(!settings.bTrain && settings.nThreads<1)
+		die("Error: must have at least 1 thread even when not training.\n");
+
 	settings.generators.reserve(settings.nThreads);
 	settings.generators.push_back(mt19937(settings.sockPrefix));
-
-	if(settings.nThreads<2) die("Error: must have at least 2 threads\n");
 	for(int i=1; i<settings.nThreads; i++)
 		settings.generators.push_back(mt19937(settings.generators[0]));
 
