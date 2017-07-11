@@ -25,7 +25,7 @@ These two scripts set up the launch environment and directory, and then call `ru
 
 * To evaluate a policy:
     - Make sure `--bTrain 0`
-    - (optional) `-greedyEps 0`
+    - (optional) `--greedyEps 0`
     - Run with at least 1 thread, one mpi-rank for the master plus the number of mpi-ranks for one instance of the application (usually 1).
     - To run a finite number of times, the option `--totNumSteps` is recycled if `bTrain==0` to be the number of sequences that are observed before terminating (instead of the maximum number of gradient steps done for the training if `bTrain==1`)
     - Make sure the policy is read correctly (eg. if code was compiled with different features or run with different algorithms, network might have different shape), by comparing the `restarted_policy...` files and the policy provided as argument of the launch script.
