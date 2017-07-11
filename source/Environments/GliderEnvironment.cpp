@@ -86,7 +86,7 @@ vector<Real> GliderEnvironment::getDumpState(Uint k)
 	//ugliness
 	state.resize(8); state[7] = state[6];
 	const Real cosang = std::cos(state[5]);
-	const Real sinang = std::cos(state[5]);
+	const Real sinang = std::sin(state[5]);
 	state[5] = cosang; state[6] = sinang;
 	return state;
 }

@@ -43,6 +43,7 @@ Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
 
 Uint Transitions::restartSamples(const Uint polDim)
 {
+	if(path == "none" || path == "None" ) return false;
 	vector<State> oldState(curr_transition_id.size(), sI);
 	State newState(sI); Action action(aI, &generators[0]);
 	const Uint sDim=sI.dim, aDim=aI.dim, writesize = 3+sI.dim+aI.dim+polDim;
