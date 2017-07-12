@@ -21,16 +21,19 @@ Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
 	mean.resize(sI.dimUsed, 0);
 	std.resize(sI.dimUsed, 1);
 	invstd.resize(sI.dimUsed, 1);
-	Uint k = 0;
-	if (sI.mean.size())
-		for (Uint i=0; i<sI.dim; i++)
+
+	if (sI.mean.size()){
+		Uint k = 0;
+		for (Uint i=0; i<sI.dim; i++){
 			if (sI.inUse[i]) {
 				mean[k] = sI.mean[i];
 				std[k] = sI.scale[i];
 				invstd[k] = 1./sI.scale[i];
 				k++;
 			}
-	assert(k == sI.dimUsed);
+		}
+		assert(k == sI.dimUsed);
+	}
 	assert(_s.nAgents>0);
 	Tmp.resize(_s.nAgents);
 	for (Uint i=0; i<static_cast<Uint>(_s.nAgents); i++)

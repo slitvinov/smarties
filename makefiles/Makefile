@@ -99,7 +99,7 @@ ifeq "$(app)" "cubism"
 CPPFLAGS+= -D__Cubism3D
 endif
 ifeq "$(config)" "debug"
-CPPFLAGS+= -g# -O2 -ffast-math
+CPPFLAGS+= -g -O0
 endif
 ifeq "$(config)" "segf"
 CPPFLAGS+= -g# -O2 -ffast-math
