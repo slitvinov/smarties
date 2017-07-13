@@ -27,36 +27,27 @@ public:
 
 	virtual ~Layer() { _dispose_object(func); }
 	Layer(const Uint _nNeurons, const Uint _n1stNeuron, const Uint _n1stBias,
-			const Function* const f, const Uint nn_simd, const bool bOut) :
+			const Function*const f, const Uint nn_simd, const bool bOut) :
 				nNeurons(_nNeurons), n1stNeuron(_n1stNeuron), n1stBias(_n1stBias),
 				nNeurons_simd(nn_simd), func(f), bOutput(bOut) {}
 
-	virtual void propagate(const Activation* const prev, Activation* const curr,
-			const nnReal* const weights, const nnReal* const biases) const = 0;
+	virtual void propagate(const Activation*const prev, Activation*const curr, nnOpInp weights, nnOpInp biases) const = 0;
 
-	virtual void backPropagate(Activation* const prev,  Activation* const curr,
-			const Activation* const next, Grads* const grad,
-			const nnReal* const weights, const nnReal* const biases) const = 0;
+	virtual void backPropagate(Activation*const prev, Activation*const curr, const Activation*const next, Grads*const grad, nnOpInp weights, nnOpInp biases) const = 0;
 
-	virtual void initialize(mt19937* const gen, nnReal* const weights,
-			nnReal* const biases, Real initializationFac) const = 0;
+	virtual void initialize(mt19937* const gen, nnOpRet weights, nnOpRet biases, Real initializationFac) const = 0;
 
-	virtual void save(vector<nnReal> & outWeights, vector<nnReal> & outBiases,
-			nnReal* const _weights, nnReal* const _biases) const = 0;
+	virtual void save(vector<nnReal>& outWeights, vector<nnReal>& outBiases, nnOpRet _weights, nnOpRet _biases) const = 0;
 
-	virtual void restart(vector<nnReal> & bufWeights, vector<nnReal> & bufBiases,
-			nnReal* const _weights, nnReal* const _biases) const = 0;
+	virtual void restart(vector<nnReal>& bufWeights, vector<nnReal>& bufBiases, nnOpRet _weights, nnOpRet _biases) const = 0;
 
-	virtual void regularize(nnReal* const weights, nnReal* const biases,
-			const Real lambda) const = 0;
+	virtual void regularize(nnReal*const weights, nnReal*const biases, const Real lambda) const = 0;
 
-	void propagate(Activation* const curr, const nnReal* const weights,
-			const nnReal* const biases) const
+	void propagate(Activation*const curr, nnOpInp weights, nnOpInp biases) const
 	{
 		return propagate(nullptr, curr, weights, biases);
 	}
-	void backPropagate( Activation* const curr, Grads* const grad,
-			const nnReal* const weights, const nnReal* const biases) const
+	void backPropagate(Activation*const curr, Grads*const grad,	nnOpInp weights, nnOpInp biases) const
 	{
 		return backPropagate(nullptr, curr, nullptr, grad, weights, biases);
 	}
@@ -81,12 +72,11 @@ public:
 				Layer(_nNeurons, _n1stNeuron, _n1stBias, f, nn_simd, bOut),
 				input_links(nl_il), recurrent_link(nl_rl) {}
 
-	virtual void propagate(const Activation* const prev, Activation* const curr,
-			const nnReal* const weights, const nnReal* const biases) const override
+	virtual void propagate(const Activation*const prev, Activation*const curr, nnOpInp weights, nnOpInp biases) const override
 	{
-		nnReal* __restrict__ const outputs = curr->outvals +n1stNeuron;
-		nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
-		const nnReal* __restrict__ const bias = biases +n1stBias;
+		nnOpRet outputs = curr->outvals +n1stNeuron;
+		nnOpRet inputs = curr->in_vals +n1stNeuron;
+		nnOpInp bias = biases +n1stBias;
 		//const int thrID = omp_get_thread_num();
 		//if(thrID==1) profiler->push_start("FB");
 		#pragma omp simd aligned(inputs,bias : __vec_width__) safelen(simdWidth)
@@ -103,13 +93,11 @@ public:
 		//if(thrID==1) profiler->pop_stop();
 	}
 
-	virtual void backPropagate(Activation*const prev,  Activation*const curr,
-			const Activation*const next, Grads*const grad, const nnReal*const weights,
-			const nnReal*const biases) const override
+	virtual void backPropagate(Activation*const prev, Activation*const curr, const Activation*const next, Grads*const grad, nnOpInp weights, nnOpInp biases) const override
 	{
-		const nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
-		nnReal* __restrict__ const deltas = curr->errvals +n1stNeuron;
-		nnReal* __restrict__ const gradbias = grad->_B +n1stBias;
+		nnOpInp inputs = curr->in_vals +n1stNeuron;
+		nnOpRet deltas = curr->errvals +n1stNeuron;
+		nnOpRet gradbias = grad->_B +n1stBias;
 		//const int thrID = omp_get_thread_num();
 		//if(thrID==1) profiler->push_start("BD");
 		for (Uint n=0; n<nNeurons; n++) deltas[n] *= func->evalDiff(inputs[n]);
@@ -127,8 +115,7 @@ public:
 		//if(thrID==1) profiler->pop_stop();
 	}
 
-	virtual void initialize(mt19937* const gen, nnReal* const weights,
-			nnReal* const biases, Real initializationFac) const override
+	virtual void initialize(mt19937* const gen, nnOpRet weights, nnOpRet biases, Real initializationFac) const override
 	{
 		const nnReal prefac = (initializationFac>0) ? initializationFac : 1;
 		const nnReal biasesInit = prefac*func->biasesInitFactor(nNeurons);//usually 0
@@ -144,8 +131,7 @@ public:
 			recurrent_link->initialize(gen,weights,func,prefac);
 	}
 
-	virtual void save(vector<nnReal> & outWeights, vector<nnReal> & outBiases,
-			nnReal* const _weights, nnReal* const _biases) const override
+	virtual void save(vector<nnReal>& outWeights, vector<nnReal>& outBiases, nnOpRet _weights, nnOpRet _biases) const override
 	{
 		for (const auto & l : input_links)
 			if(l not_eq nullptr) l->save(outWeights, _weights);
@@ -157,8 +143,7 @@ public:
 			outBiases.push_back(_biases[w]);
 	}
 
-	virtual void restart(vector<nnReal>& bufWeights, vector<nnReal>& bufBiases,
-			nnReal* const _weights, nnReal* const _biases) const override
+	virtual void restart(vector<nnReal>& bufWeights, vector<nnReal>& bufBiases, nnOpRet _weights, nnOpRet _biases) const override
 	{
 		for (const auto & l : input_links)
 			if(l not_eq nullptr) l->restart(bufWeights, _weights);
@@ -174,8 +159,7 @@ public:
 		}
 	}
 
-	virtual void regularize(nnReal* const weights, nnReal* const biases,
-			const Real lambda) const override
+	virtual void regularize(nnOpRet weights, nnOpRet biases, const Real lambda) const override
 	{
 		if(bOutput) return;
 		for (const auto & link : input_links)
@@ -193,7 +177,7 @@ class NormalLayer: public BaseLayer<NormalLink>
 public:
 	NormalLayer(Uint _nNeurons, Uint _n1stNeuron, Uint _n1stBias,
 			const vector<NormalLink*> nl_il, const NormalLink* const nl_rl,
-			const Function* const f, const Uint nn_simd, const bool bOut = false) :
+			const Function*const f, const Uint nn_simd, const bool bOut = false) :
 				BaseLayer(_nNeurons, _n1stNeuron, _n1stBias, nl_il, nl_rl, f, nn_simd, bOut)
 	{
 		printf("%s layer of size %d, with first ID %d and first bias ID %d\n",
@@ -206,7 +190,7 @@ class Conv2DLayer : public BaseLayer<LinkToConv2D>
 public:
 	Conv2DLayer(Uint _nNeurons, Uint _n1stNeuron, Uint _n1stBias,
 			const vector<LinkToConv2D*> nl_il,
-			const Function* const f, const Uint nn_simd, const bool bOut = false) :
+			const Function*const f, const Uint nn_simd, const bool bOut = false) :
 				BaseLayer(_nNeurons, _n1stNeuron, _n1stBias, nl_il,
 						static_cast<LinkToConv2D*>(nullptr), f, nn_simd, bOut)
 	{
@@ -226,8 +210,8 @@ public:
 	LSTMLayer(Uint _nNeurons, Uint _n1stNeuron, Uint _indState, Uint _n1stBias,
 			Uint _n1stBiasIG, Uint _n1stBiasFG, Uint _n1stBiasOG,
 			const vector<LinkToLSTM*> rl_il, const LinkToLSTM* const rl_rl,
-			const Function* const f, const Function* const g,
-			const Function* const c, const Uint nn_simd, const bool bOut=false):
+			const Function*const f, const Function*const g,
+			const Function*const c, const Uint nn_simd, const bool bOut=false):
 				BaseLayer(_nNeurons,_n1stNeuron,_n1stBias,rl_il,rl_rl,f,nn_simd,bOut),
 				n1stCell(_indState), n1stBiasIG(_n1stBiasIG), n1stBiasFG(_n1stBiasFG),
 				n1stBiasOG(_n1stBiasOG), gate(g), cell(c)
@@ -239,24 +223,23 @@ public:
 		assert(n1stBiasOG==n1stBiasFG+nn_simd);
 	}
 
-	void propagate(const Activation* const prev, Activation* const curr,
-			const nnReal* const weights, const nnReal* const biases) const override
+	void propagate(const Activation*const prev, Activation*const curr, nnOpInp weights, nnOpInp biases) const override
 	{
-		nnReal* __restrict__ const outputI = curr->oIGates +n1stCell;
-		nnReal* __restrict__ const outputF = curr->oFGates +n1stCell;
-		nnReal* __restrict__ const outputO = curr->oOGates +n1stCell;
-		nnReal* __restrict__ const outputC = curr->oMCell +n1stCell;
-		nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
-		nnReal* __restrict__ const inputI = curr->iIGates +n1stCell;
-		nnReal* __restrict__ const inputF = curr->iFGates +n1stCell;
-		nnReal* __restrict__ const inputO = curr->iOGates +n1stCell;
-		const nnReal* __restrict__ const biasC = biases +n1stBias;
-		const nnReal* __restrict__ const biasI = biases +n1stBiasIG;
-		const nnReal* __restrict__ const biasF = biases +n1stBiasFG;
-		const nnReal* __restrict__ const biasO = biases +n1stBiasOG;
-		const nnReal* __restrict__ const oldState = (prev==nullptr ? curr->ostates : prev->ostates) +n1stCell; //if nullptr then unused, but assigned for safety
-		nnReal* __restrict__ const state = curr->ostates +n1stCell;
-		nnReal* __restrict__ const output = curr->outvals +n1stNeuron;
+		nnOpRet outputI = curr->oIGates +n1stCell;
+		nnOpRet outputF = curr->oFGates +n1stCell;
+		nnOpRet outputO = curr->oOGates +n1stCell;
+		nnOpRet outputC = curr->oMCell +n1stCell;
+		nnOpRet inputs = curr->in_vals +n1stNeuron;
+		nnOpRet inputI = curr->iIGates +n1stCell;
+		nnOpRet inputF = curr->iFGates +n1stCell;
+		nnOpRet inputO = curr->iOGates +n1stCell;
+		nnOpInp biasC = biases +n1stBias;
+		nnOpInp biasI = biases +n1stBiasIG;
+		nnOpInp biasF = biases +n1stBiasFG;
+		nnOpInp biasO = biases +n1stBiasOG;
+		nnOpInp oldState = (prev==nullptr ? curr->ostates : prev->ostates) +n1stCell; //if nullptr then unused, but assigned for safety
+		nnOpRet state = curr->ostates +n1stCell;
+		nnOpRet output = curr->outvals +n1stNeuron;
 
 #pragma omp simd aligned(inputs, inputI, inputF, inputO, biasC, biasI, biasF, biasO: __vec_width__) safelen(simdWidth)
 		for (Uint n=0; n<nNeurons; n++) {
@@ -284,27 +267,25 @@ public:
 		}
 	}
 
-	void backPropagate(Activation*const prev, Activation*const curr,
-			const Activation*const next, Grads* const grad,
-			const nnReal* const weights, const nnReal* const biases) const override
+	void backPropagate(Activation*const prev, Activation*const curr, const Activation*const next, Grads* const grad, nnOpInp weights, nnOpInp biases) const override
 	{
-		const nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
-		const nnReal* __restrict__ const inputI = curr->iIGates +n1stCell;
-		const nnReal* __restrict__ const inputF = curr->iFGates +n1stCell;
-		const nnReal* __restrict__ const inputO = curr->iOGates +n1stCell;
-		const nnReal* __restrict__ const outputI = curr->oIGates +n1stCell;
-		//const nnReal* __restrict__ const outputF = curr->oFGates +n1stCell;
-		const nnReal* __restrict__ const outputO = curr->oOGates +n1stCell;
-		const nnReal* __restrict__ const outputC = curr->oMCell +n1stCell;
-		nnReal* __restrict__ const deltas = curr->errvals +n1stNeuron;
-		nnReal* __restrict__ const deltaI = curr->eIGates +n1stCell;
-		nnReal* __restrict__ const deltaF = curr->eFGates +n1stCell;
-		nnReal* __restrict__ const deltaO = curr->eOGates +n1stCell;
-		nnReal* __restrict__ const deltaC = curr->eMCell +n1stCell;
-		nnReal* __restrict__ const gradbiasC = grad->_B +n1stBias;
-		nnReal* __restrict__ const gradbiasI = grad->_B +n1stBiasIG;
-		nnReal* __restrict__ const gradbiasF = grad->_B +n1stBiasFG;
-		nnReal* __restrict__ const gradbiasO = grad->_B +n1stBiasOG;
+		nnOpInp inputs = curr->in_vals +n1stNeuron;
+		nnOpInp inputI = curr->iIGates +n1stCell;
+		nnOpInp inputF = curr->iFGates +n1stCell;
+		nnOpInp inputO = curr->iOGates +n1stCell;
+		nnOpInp outputI = curr->oIGates +n1stCell;
+		//nnOpInp outputF = curr->oFGates +n1stCell;
+		nnOpInp outputO = curr->oOGates +n1stCell;
+		nnOpInp outputC = curr->oMCell +n1stCell;
+		nnOpRet deltas = curr->errvals +n1stNeuron;
+		nnOpRet deltaI = curr->eIGates +n1stCell;
+		nnOpRet deltaF = curr->eFGates +n1stCell;
+		nnOpRet deltaO = curr->eOGates +n1stCell;
+		nnOpRet deltaC = curr->eMCell +n1stCell;
+		nnOpRet gradbiasC = grad->_B +n1stBias;
+		nnOpRet gradbiasI = grad->_B +n1stBiasIG;
+		nnOpRet gradbiasF = grad->_B +n1stBiasFG;
+		nnOpRet gradbiasO = grad->_B +n1stBiasOG;
 
 		for (Uint n=0; n<nNeurons; n++)
 		{
@@ -312,13 +293,10 @@ public:
 
 			deltaC[n] = func->evalDiff(inputs[n]) * outputI[n];
 			deltaI[n] = gate->evalDiff(inputI[n]) * outputC[n];
-			deltaF[n] = (prev==nullptr) ? 0 :
-					gate->evalDiff(inputF[n]) * prev->ostates[n1stCell+n];
+			deltaF[n] = (prev==nullptr) ? 0 : gate->evalDiff(inputF[n]) * prev->ostates[n1stCell+n];
 			deltaO[n] = gate->evalDiff(inputO[n]) * deltaOut * curr->ostates[n1stCell+n];
 
-			deltas[n] = deltaOut * outputO[n] +
-					(next==nullptr ? 0
-							: next->errvals[n1stNeuron+n]*next->oFGates[n1stCell+n]);
+			deltas[n] = deltaOut * outputO[n] + (next==nullptr ? 0 : next->errvals[n1stNeuron+n]*next->oFGates[n1stCell+n]);
 
 			deltaC[n] *= deltas[n];
 			deltaI[n] *= deltas[n];
@@ -337,11 +315,9 @@ public:
 			recurrent_link->backPropagate(prev,curr,weights,grad->_W);
 	}
 
-	void initialize(mt19937*const gen, nnReal*const weights,
-				nnReal* const biases, Real initializationFac) const override
+	void initialize(mt19937*const gen, nnOpRet weights, nnOpRet biases, Real initializationFac) const override
 	{
-		const Real biasesInit = ((initializationFac>0) ? initializationFac : 1)
-								* func->biasesInitFactor(nNeurons); //usually 0
+		const Real biasesInit = ((initializationFac>0) ? initializationFac : 1) * func->biasesInitFactor(nNeurons); //usually 0
 		uniform_real_distribution<nnReal> dis(-biasesInit, biasesInit);
 		BaseLayer::initialize(gen, weights, biases, initializationFac);
 		for (Uint w=n1stBiasIG; w<n1stBiasIG+nNeurons_simd; w++)
@@ -352,8 +328,7 @@ public:
 			biases[w] = dis(*gen) - LSTM_PRIME_FAC;
 	}
 
-	void save(std::vector<nnReal> & outWeights, std::vector<nnReal> & outBiases,
-			nnReal* const _weights, nnReal* const _biases) const override
+	void save(std::vector<nnReal>& outWeights, std::vector<nnReal>& outBiases, nnOpRet _weights, nnOpRet _biases) const override
 	{
 		BaseLayer::save(outWeights, outBiases, _weights, _biases);
 		for (Uint w=n1stBiasIG; w<n1stBiasIG+nNeurons; w++)
@@ -364,8 +339,7 @@ public:
 			outBiases.push_back(_biases[w]);
 	}
 
-	void restart(vector<nnReal> & bufWeights, vector<nnReal> & bufBiases,
-			nnReal* const _weights, nnReal* const _biases) const override
+	void restart(vector<nnReal>& bufWeights, vector<nnReal>& bufBiases,	nnOpRet _weights, nnOpRet _biases) const override
 	{
 		BaseLayer::restart(bufWeights, bufBiases, _weights, _biases);
 		for (Uint w=n1stBiasIG; w<n1stBiasIG+nNeurons; w++) {
@@ -385,8 +359,7 @@ public:
 		}
 	}
 
-	void regularize(nnReal* const weights, nnReal* const biases, const Real lambda)
-	const override
+	void regularize(nnOpRet weights, nnOpRet biases, const Real lambda) const override
 	{
 		BaseLayer::regularize(weights, biases, lambda);
 	}
@@ -399,28 +372,27 @@ class IntegrateFireLayer: public BaseLayer<NormalLink>
 public:
 	IntegrateFireLayer(Uint _nNeurons, Uint _iNeuron, Uint _iNoise, Uint _iBias,
 		const vector<NormalLink*> il, const NormalLink* const rl,
-		const Function* const f, const Uint nn_simd, const bool bOut=true):
+		const Function*const f, const Uint nn_simd, const bool bOut=true):
 		BaseLayer(_nNeurons,_iNeuron,_iBias,il,rl,f,nn_simd,bOut),n1stNoise(_iNoise)
 	{
 		printf("IntegrateFireLayer Layer of size %d, with first ID %d, first noise ID %d, and first bias ID %d\n",
 				nNeurons, n1stNeuron, n1stNoise, n1stBias);
 	}
 
-	void propagate(const Activation* const prev, Activation* const curr,
-			const nnReal* const weights, const nnReal* const biases) const override
+	void propagate(const Activation*const prev, Activation*const curr, nnOpInp weights, nnOpInp biases) const override
 	{
-		nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
-		nnReal* __restrict__ const output = curr->outvals +n1stNeuron;
+		nnOpRet inputs = curr->in_vals +n1stNeuron;
+		nnOpRet output = curr->outvals +n1stNeuron;
 		//if noise as part of input?
-		//const nnReal* __restrict__ const sampled_noise = curr->outvals +n1stNoise;
+		//nnOpInp sampled_noise = curr->outvals +n1stNoise;
 
 		//Biases array contains, for each output, the bias of the sigmoid,
 		// the stdev of the noise inside the sigmoid, the inverse time scale
 		// of the exp decay, and the coefficient of the sigmoid
-		const nnReal* __restrict__ const bias   = biases +n1stBias +0*nNeurons;
-		const nnReal* __restrict__ const invTau = biases +n1stBias +1*nNeurons;
-		const nnReal* __restrict__ const excitr = biases +n1stBias +2*nNeurons;
-		//const nnReal* __restrict__ const stDev  = biases +n1stBias +3*nNeurons;
+		nnOpInp bias   = biases +n1stBias +0*nNeurons;
+		nnOpInp invTau = biases +n1stBias +1*nNeurons;
+		nnOpInp excitr = biases +n1stBias +2*nNeurons;
+		//nnOpInp stDev  = biases +n1stBias +3*nNeurons;
 
 		//prepare input to sigmoid: f(weights \cdot inputs + noise + bias )
 		for (Uint n=0; n<nNeurons; n++) inputs[n] = bias[n];// + sampled_noise[n];
@@ -434,32 +406,30 @@ public:
 		//if not first of sequence, add the term depending on previous realization
 		if(prev not_eq nullptr) {
 			assert(recurrent_link not_eq nullptr);
-			const nnReal* __restrict__ const oldOutp = prev->outvals +n1stNeuron;
+			nnOpInp oldOutp = prev->outvals +n1stNeuron;
 			for (Uint n=0; n<nNeurons; n++) output[n] += oldOutp[n] * (1-invTau[n]);
 		}
 	}
 
-	void backPropagate(Activation*const prev, Activation*const curr,
-			const Activation*const next, Grads* const grad,
-			const nnReal* const weights, const nnReal* const biases) const override
+	void backPropagate(Activation*const prev, Activation*const curr, const Activation*const next, Grads* const grad, nnOpInp weights, nnOpInp biases) const override
 	{
-		//const nnReal* __restrict__ const sampled_noise = curr->outvals +n1stNoise;
-		const nnReal* __restrict__ const inputs = curr->in_vals +n1stNeuron;
-		const nnReal* __restrict__ const output = curr->outvals +n1stNeuron;
-		nnReal* __restrict__ const dErr_curr = curr->errvals +n1stNeuron;
+		//nnOpInp sampled_noise = curr->outvals +n1stNoise;
+		nnOpInp inputs = curr->in_vals +n1stNeuron;
+		nnOpInp output = curr->outvals +n1stNeuron;
+		nnOpRet dErr_curr = curr->errvals +n1stNeuron;
 
 		//Biases array contains, for each output, the bias of the sigmoid,
 		// the stdev of the noise inside the sigmoid, the inverse time scale
 		// of the exp decay, and the coefficient of the sigmoid
-		//const nnReal* __restrict__ const bias   = biases +n1stBias +0*nNeurons;
-		const nnReal* __restrict__ const invTau = biases +n1stBias +1*nNeurons;
-		const nnReal* __restrict__ const excitr = biases +n1stBias +2*nNeurons;
-		//const nnReal* __restrict__ const stDev  = biases +n1stBias +3*nNeurons;
+		//nnOpInp bias   = biases +n1stBias +0*nNeurons;
+		nnOpInp invTau = biases +n1stBias +1*nNeurons;
+		nnOpInp excitr = biases +n1stBias +2*nNeurons;
+		//nnOpInp stDev  = biases +n1stBias +3*nNeurons;
 
-		nnReal* __restrict__ const gradBias   = grad->_B+n1stBias +0*nNeurons;
-		nnReal* __restrict__ const gradInvTau = grad->_B+n1stBias +1*nNeurons;
-		nnReal* __restrict__ const gradExcitr = grad->_B+n1stBias +2*nNeurons;
-		//const nnReal* __restrict__ const gradStDev= grad->_B+n1stBias +3*nNeurons;
+		nnOpRet gradBias   = grad->_B+n1stBias +0*nNeurons;
+		nnOpRet gradInvTau = grad->_B+n1stBias +1*nNeurons;
+		nnOpRet gradExcitr = grad->_B+n1stBias +2*nNeurons;
+		//nnOpInp gradStDev= grad->_B+n1stBias +3*nNeurons;
 
 		for (Uint n=0; n<nNeurons; n++) {
 			//gradient of total error wrt to output of neuron depends on
@@ -476,38 +446,35 @@ public:
 			gradBias[n]  += dErr_curr[n];
 		}
 
-		for (const auto & link : input_links)
+		for(const auto& link: input_links)
 			link->backPropagate(curr,curr,weights,grad->_W);
 	}
 
-	void initialize(mt19937*const gen, nnReal*const weights,
-				nnReal* const biases, Real initializationFac) const override
+	void initialize(mt19937*const gen, nnOpRet weights, nnOpRet biases, Real initializationFac) const override
 	{
 		BaseLayer::initialize(gen, weights, biases, initializationFac);
-		nnReal* __restrict__ const bias   = biases +n1stBias +0*nNeurons;
-		nnReal* __restrict__ const invTau = biases +n1stBias +1*nNeurons;
-		nnReal* __restrict__ const excitr = biases +n1stBias +2*nNeurons;
+		nnOpRet bias   = biases +n1stBias +0*nNeurons;
+		nnOpRet invTau = biases +n1stBias +1*nNeurons;
+		nnOpRet excitr = biases +n1stBias +2*nNeurons;
 		for(Uint w=0; w<nNeurons_simd; w++) bias[w]   = -1;
 		for(Uint w=0; w<nNeurons_simd; w++) invTau[w] = 0.5;
 		for(Uint w=0; w<nNeurons_simd; w++) excitr[w] = 0.5;
 	}
 
-	void save(std::vector<nnReal> & outWeights, std::vector<nnReal> & outBiases,
-			nnReal* const _weights, nnReal* const _biases) const override
+	void save(std::vector<nnReal>& outWeights, std::vector<nnReal>& outBiases, nnOpRet _weights, nnOpRet _biases) const override
 	{
 		BaseLayer::save(outWeights, outBiases, _weights, _biases);
-		const nnReal* __restrict__ const invTau = _biases +n1stBias +1*nNeurons;
-		const nnReal* __restrict__ const excitr = _biases +n1stBias +2*nNeurons;
+		nnOpInp invTau = _biases +n1stBias +1*nNeurons;
+		nnOpInp excitr = _biases +n1stBias +2*nNeurons;
 		for(Uint w=0; w<nNeurons_simd; w++)	outBiases.push_back(invTau[w]);
 		for(Uint w=0; w<nNeurons_simd; w++)	outBiases.push_back(excitr[w]);
 	}
 
-	void restart(vector<nnReal> & bufWeights, vector<nnReal> & bufBiases,
-			nnReal* const _weights, nnReal* const _biases) const override
+	void restart(vector<nnReal>& bufWeights, vector<nnReal>& bufBiases,	nnOpRet _weights, nnOpRet _biases) const override
 	{
 		BaseLayer::restart(bufWeights, bufBiases, _weights, _biases);
-		nnReal* __restrict__ const invTau = _biases +n1stBias +1*nNeurons;
-		nnReal* __restrict__ const excitr = _biases +n1stBias +2*nNeurons;
+		nnOpRet invTau = _biases +n1stBias +1*nNeurons;
+		nnOpRet excitr = _biases +n1stBias +2*nNeurons;
 		for(Uint w=0; w<nNeurons_simd; w++){
 			invTau[w] = bufBiases.front();
 			bufBiases.erase(bufBiases.begin(),bufBiases.begin()+1);
@@ -520,7 +487,7 @@ public:
 		}
 	}
 
-	void regularize(nnReal*const weights, nnReal*const biases, const Real lambda)
+	void regularize(nnOpRet weights, nnOpRet biases, const Real lambda)
 	const override
 	{
 		BaseLayer::regularize(weights, biases, lambda);

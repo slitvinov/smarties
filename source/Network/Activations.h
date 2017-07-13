@@ -155,7 +155,6 @@ struct Grads
 	nnReal*const _B;
 };
 
-#define MYARY nnReal*__restrict__ const
 struct Function
 {
 	//weights are initialized with uniform distrib [-weightsInitFactor, weightsInitFactor]
@@ -165,7 +164,7 @@ struct Function
 		return std::numeric_limits<nnReal>::epsilon();
 	}
 
-	virtual void eval(const MYARY in, MYARY out, const Uint N) const = 0; // f(in)
+	virtual void eval(nnOpInp in, nnOpRet out, const Uint N) const = 0; // f(in)
 	virtual nnReal eval(const nnReal in) const = 0; // f(in)
 	virtual nnReal evalDiff(const nnReal in) const = 0; // f'(in)
 	virtual ~Function() {}
@@ -174,7 +173,7 @@ struct Function
 
 struct Linear : public Function
 {
-	void eval(const MYARY in, MYARY out, const Uint N) const
+	void eval(nnOpInp in, nnOpRet out, const Uint N) const
 	{
 #pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
 		for (Uint i=0;i<N; i++) out[i] = in[i];
@@ -218,7 +217,7 @@ struct Tanh : public Function
 		if (arg > EXP_CUT) return 4*e2x;
 		return 4*e2x/((1+e2x)*(1+e2x));
 	}
-	void eval(const MYARY in, MYARY out, const Uint N) const
+	void eval(nnOpInp in, nnOpRet out, const Uint N) const
 	{
 #pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
 		for (Uint i=0;i<N; i++) {
@@ -252,7 +251,7 @@ struct TwoTanh : public Function
 		const nnReal e2x = arg > EXP_CUT ? std::exp(-2*EXP_CUT) : std::exp(-2.*arg);
 		return 8*e2x/((1+e2x)*(1+e2x));
 	}
-	void eval(const MYARY in, MYARY out, const Uint N) const
+	void eval(nnOpInp in, nnOpRet out, const Uint N) const
 	{
 #pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
 		for (Uint i=0;i<N; i++) {
@@ -281,7 +280,7 @@ struct Sigm : public Function
 		if (arg > 2*EXP_CUT) return e2x;
 		return e2x/((1+e2x)*(1+e2x));
 	}
-	void eval(const MYARY in, MYARY out, const Uint N) const
+	void eval(nnOpInp in, nnOpRet out, const Uint N) const
 	{
 #pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
 		for (Uint i=0;i<N; i++) out[i] = 1/(1+std::exp(-in[i]));
@@ -303,7 +302,7 @@ struct SoftSign : public Function
 		const nnReal denom = 1+std::fabs(in);
 		return 1/(denom*denom);
 	}
-	void eval(const MYARY in, MYARY out, const Uint N) const
+	void eval(nnOpInp in, nnOpRet out, const Uint N) const
 	{
 #pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
 		for (Uint i=0;i<N; i++) out[i] = in[i]/(1+std::fabs(in[i]));
@@ -325,7 +324,7 @@ struct TwoSoftSign : public Function
 		const nnReal denom = 1+std::fabs(in);
 		return 2/(denom*denom);
 	}
-	void eval(const MYARY in, MYARY out, const Uint N) const
+	void eval(nnOpInp in, nnOpRet out, const Uint N) const
 	{
 #pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
 		for (Uint i=0;i<N; i++) out[i] = 2*in[i]/(1+std::fabs(in[i]));
@@ -348,7 +347,7 @@ struct SoftSigm : public Function
 		const nnReal denom = 1+std::fabs(in);
 		return 0.5/(denom*denom);
 	}
-	void eval(const MYARY in, MYARY out, const Uint N) const
+	void eval(nnOpInp in, nnOpRet out, const Uint N) const
 	{
 #pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
 		for (Uint i=0;i<N; i++) out[i] = 0.5*(1+in[i]/(1+std::fabs(in[i])));
@@ -369,7 +368,7 @@ struct Relu : public Function
 	{
 		return in>0 ? 1 : 0;
 	}
-	void eval(const MYARY in, MYARY out, const Uint N) const
+	void eval(nnOpInp in, nnOpRet out, const Uint N) const
 	{
 #pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
 		for (Uint i=0;i<N; i++) out[i] = in[i]>0 ? in[i] : 0;
@@ -390,7 +389,7 @@ struct PRelu : public Function
 	{
 		return in>0 ? 1 : PRELU_FAC;
 	}
-	void eval(const MYARY in, MYARY out, const Uint N) const
+	void eval(nnOpInp in, nnOpRet out, const Uint N) const
 	{
 #pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
 		for (Uint i=0;i<N; i++) out[i] = in[i]>0 ? in[i] : PRELU_FAC*in[i];
@@ -415,7 +414,7 @@ struct ExpPlus : public Function
 		if(in < -2*EXP_CUT) return std::exp(in); //neglect denom
 		return 1/(1+std::exp(-in));
 	}
-	void eval(const MYARY in, MYARY out, const Uint N) const
+	void eval(nnOpInp in, nnOpRet out, const Uint N) const
 	{
 #pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
 		for (Uint i=0;i<N; i++) out[i] = std::log(1+std::exp(in[i]));
@@ -436,7 +435,7 @@ struct SoftPlus : public Function
 	{
 		return .5*(1 + in/std::sqrt(1+in*in));
 	}
-	void eval(const MYARY in, MYARY out, const Uint N) const
+	void eval(nnOpInp in, nnOpRet out, const Uint N) const
 	{
 #pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
 		for (Uint i=0;i<N; i++) out[i] = .5*(in[i]+std::sqrt(1+in[i]*in[i]));
