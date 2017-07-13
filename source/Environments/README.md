@@ -10,7 +10,7 @@ To create an environment within openai gym refer to its documentation. Advantage
 
 * Implement `void setDims()`:
     - Fill the vector of booleans `sI.inUse`. The number of elements must be equal to the number of components of the state vector that your application sends to smarties. Each component can be `true` if the state variable communicated to smarties is observed by the agent and therefore is used as input to the learning algorithms or `false` is the state variable is not observed by the agent. For example, in the cart-pole example, you might want to hide the velocities from the agent and train a policy only on position and angle.
-    - (optional) Fill `sI.mean` and `sI.scale` with the the mean and scale (e.g. standard deviation) of each of the quantities received by smarties. Must be of equal size as `sI.inUse`.
+    - (optional) Fill `sI.mean` and `sI.scale` with the the mean and scale (e.g. standard deviation) of each of the quantities received by smarties. Must be either empty or of equal size as `sI.inUse`.
     - Fill `aI.dim`: the dimension of the action vector.
     - (optional, for continuous action algorithms) Fill the vector of booleans `aI.bounded` with `true` for every component of the action vector that should be bounded (see next point).
     - Fill the vector of vectors `aI.values`. It must contain a vector for each dimension of the action vector. The effect of the vector depends on the learning algorithm:
