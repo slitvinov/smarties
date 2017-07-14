@@ -26,13 +26,12 @@ avgValGrad(nThreads+1,vector<long double>(1,0)), stdValGrad(nThreads+1,vector<lo
 	policyVecDim = 2*nA;
 }
 
-void DPG::select(const int agentId, State& s, Action& a,
-		State& sOld, Action& aOld, const int info, Real r)
+void DPG::select(const int agentId, const Agent& agent)
 {
 	vector<Real> beta(policyVecDim,0);
-	if(info==2) { data->passData(agentId, info, sOld, a, s, r, beta); return; }
+	if(agent.Status==2) { data->passData(agentId, agent, beta); return; }
 
-	vector<Real> output = output_value_iteration(agentId,s,a,sOld,aOld,info,r);
+	vector<Real> output = output_value_iteration(agentId, agent);
 	const Real annealedVar = bTrain ? .2*annealingFactor()+greedyEps : greedyEps;
 
 	if(positive(annealedVar)) {
@@ -45,8 +44,8 @@ void DPG::select(const int agentId, State& s, Action& a,
 	}
 
 	//scale back to action space size:
-	a.set(aInfo.getScaled(output));
-	data->passData(agentId, info, sOld, a, s, r, beta);
+	agent.a->set(aInfo.getScaled(output));
+	data->passData(agentId, agent, beta);
 	dumpNetworkInfo(agentId);
 }
 

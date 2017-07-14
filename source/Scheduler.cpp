@@ -21,11 +21,44 @@ Master::Master(MPI_Comm _c,Learner*const _l, Environment*const _e, Settings&_s):
 	nSlaves(_s.nSlaves), nThreads(_s.nThreads), learn_rank(_s.learner_rank),
 	learn_size(_s.learner_size), totNumSteps(_s.totNumSteps),
 	outSize(_e->aI.dim*sizeof(double)), inSize((3+_e->sI.dim)*sizeof(double)),
-	inbuf(_alloc(inSize)), outbuf(_alloc(outSize)), sOld(_e->sI),sNew(_e->sI),
-  aOld(_e->aI,&_s.generators[0]), aNew(_e->aI,&_s.generators[0]), status(_e->agents.size(),1), cumulative_rewards(_e->agents.size(),0)
+	inpBufs(alloc_bufs(inSize,nSlaves)), outBufs(alloc_bufs(outSize,nSlaves)),
+	cumulative_rewards(_e->agents.size(),0), openIrecv(nSlaves, false)
 {
 	//the following Irecv will be sent after sending the action
-	MPI_Irecv(inbuf, inSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
+	requests.resize(nSlaves, MPI_REQUEST_NULL);
+	for(int i=1; i<=nSlaves; i++) {
+		MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, slavesComm, &requests[i-1]);
+		openIrecv[i-1] = true;
+	}
+}
+
+void Master::recvState(const int slave, int& iAgent, int& istatus, Real& reward)
+{
+	vector<Real> recv_state(sI.dim);
+	int recv_iAgent = -1;
+	unpackState(inpBufs[slave-1], recv_iAgent, istatus, recv_state, reward);
+	assert(recv_iAgent>=0);
+	iAgent = (slave-1) * nPerRank + recv_iAgent;
+	//printf("%d %d %d, %lu\n",recv_iAgent,slave,iAgent,agents.size()); fflush(0);
+	assert(iAgent>=0);
+	assert(iAgent<static_cast<int>(agents.size()));
+
+	State s(sI);
+	s.set(recv_state);
+	agents[iAgent]->Status = istatus;
+	agents[iAgent]->swapStates(); //swap sold and snew
+	agents[iAgent]->setState(s);
+	agents[iAgent]->r = reward;
+}
+
+void Master::sendAction(const int slave, const int iAgent)
+{
+	if(iAgent<0) die("Error in iAgent number in Master::sendAction\n");
+	assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
+	for (Uint i=0; i<aI.dim; i++)
+		outBufs[slave-1][i] = agents[iAgent]->a->vals[i];
+
+	MPI_Send(outBufs[slave-1], outSize, MPI_BYTE, slave, 0, slavesComm);
 }
 
 void Master::restart(string fname)
@@ -48,6 +81,7 @@ void Master::save()
 {
 	std::ofstream fout;
 	char filepath[256];
+	/*
 	{
 		sprintf(filepath, "rewards_rank%02d.dat", learn_rank);
 		fout.open(filepath, ios::app);
@@ -55,6 +89,7 @@ void Master::save()
 		fout.close();
 		printf("Iter %lu, Mean reward: %f variance:%f \n", iter, meanR, varR);
 	}
+	*/
 	if(!bTrain) return;
 	{
 		sprintf(filepath, "master_rank%02d.status", learn_rank);
@@ -65,6 +100,63 @@ void Master::save()
 	learner->save("policy");
 }
 
+int Master::run()
+{
+	while (true) {
+		if(!bTrain && stepNum==totNumSteps) return 1; //used to terminate
+		MPI_Status mpistatus;
+		int completed=0;
+		while (true) {
+			//check on the threads, synchronize, apply gradient
+			if (learner->checkBatch(iter)) return 0;
+			for(int i=0; i<nSlaves && !completed; i++)
+				if(openIrecv[i]) //otherwise, slave is being 'served'
+					MPI_Test(&requests[i], &completed, &mpistatus);
+			if (completed) break;
+		}
+		const int slave = mpistatus.MPI_SOURCE;
+		debugS("Master receives from %d\n", slave);
+		openIrecv[slave-1] = false;
+
+#pragma omp task firstprivate(slave)
+		{
+			int agent, agentStatus;
+			double reward;
+			recvState(slave, agent, agentStatus, reward);
+
+			if (agentStatus == _AGENT_FAILCOMM)
+			{
+				learner->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
+				for (int i = (slave-1)*nPerRank; i<slave*nPerRank; i++)
+					cumulative_rewards[i] = 0;
+			}
+			else
+			{
+				learner->select(agent, *agents[agent]);
+				debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]\n", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), reward, agents[agent]->a->_print().c_str()); fflush(0);
+
+				//track performance of agents:
+				trackAgentsPerformance(agentStatus, agent, reward);
+
+				if (agentStatus != _AGENT_LASTCOMM)  {
+					sendAction(slave, agent);
+				} else { //if terminal, no action required
+					if(env->resetAll)
+						learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
+
+#pragma omp atomic
+					++stepNum; //used to terminate
+				}
+			}
+			MPI_Irecv(inpBufs[slave-1], inSize, MPI_BYTE, slave, 1, slavesComm, &requests[slave-1]);
+			openIrecv[slave-1] = true;
+		}
+		//if (++iter % saveFreq == 0) save();
+	}
+	die("How on earth could you possibly get here? \n");
+	return 0;
+}
+/*
 int Master::run()
 {
 	MPI_Status mpistatus;
@@ -119,7 +211,7 @@ int Master::run()
 	die("How on earth could you possibly get here? \n");
 	return 0;
 }
-
+*/
 Slave::Slave(Communicator*const _c, Environment*const _e, Settings& _s):
 				comm(_c), env(_e), bTrain(_s.bTrain), status(_e->agents.size(),1) {}
 
@@ -165,6 +257,44 @@ void Slave::run()
 	}
 }
 
+static void unpackState(double* const data, int& agent, _AGENT_STATUS& info,
+		std::vector<double>& state, double& reward)
+{
+	assert(data not_eq nullptr);
+	agent = doublePtrToInt(data+0);
+	info  = doublePtrToInt(data+1);
+	for (unsigned j=0; j<state.size(); j++) {
+		state[j] = data[j+2];
+		assert(not std::isnan(state[j]));
+		assert(not std::isinf(state[j]));
+	}
+	reward = data[state.size()+2];
+	assert(not std::isnan(reward));
+	assert(not std::isinf(reward));
+}
+
+void Master::trackAgentsPerformance(const _AGENT_STATUS agentStatus, const int agent, const Real reward)
+{
+	if (agentStatus != _AGENT_FIRSTCOMM) {
+		//const Real alpha = 1./saveFreq;// + std::min(0.,1-iter/(Real)saveFreq);
+		//const Real oldMean = meanR;
+		cumulative_rewards[agent] += reward;
+		//meanR = (1.-alpha)*meanR + alpha*reward;
+		//varR = (1.-alpha)*varR + alpha*(reward-meanR)*(reward-oldMean);
+	}
+
+#pragma omp critical
+	if (agentStatus == _AGENT_LASTCOMM) {
+		char path[256];
+		sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
+		std::ofstream outf(path, ios::app);
+		outf<<learner->iter()<<" "<<agent<<" "<<cumulative_rewards[agent]<<endl;
+		cumulative_rewards[agent] = 0;
+		outf.close();
+	}
+}
+
+/*
 Client::Client(Learner*const _l, Communicator*const _c, Environment*const _e,
 		Settings& _s):
 	  learner(_l), comm(_c), env(_e), agents(_e->agents), aI(_e->aI), sI(_e->sI),
@@ -225,39 +355,6 @@ void Client::prepareState(int& iAgent, int& istatus, Real& reward)
 	agents[iAgent]->r = reward;
 }
 
-void Master::recvState(const int slave, int& iAgent, int& istatus, Real& reward)
-{
-	vector<Real> recv_state(sNew.sInfo.dim);
-	int recv_iAgent = -1;
-	unpackState(inbuf, recv_iAgent, istatus, recv_state, reward);
-	assert(recv_iAgent>=0);
-	iAgent = (slave-1) * nPerRank + recv_iAgent;
-	//printf("%d %d %d, %lu\n",recv_iAgent,slave,iAgent,agents.size()); fflush(0);
-	assert(iAgent>=0);
-	assert(iAgent<static_cast<int>(agents.size()));
-
-	sNew.set(recv_state);
-
-	//agent's s is stored in sOld
-	agents[iAgent]->Status = istatus;
-	agents[iAgent]->swapStates();
-	agents[iAgent]->setState(sNew);
-	agents[iAgent]->getOldState(sOld);
-	agents[iAgent]->getAction(aOld);
-	agents[iAgent]->r = reward;
-
-	MPI_Irecv(inbuf, inSize, MPI_BYTE, MPI_ANY_SOURCE, 1, slavesComm, &request);
-}
-
-void Master::sendAction(const int slave, const int iAgent)
-{
-	if(iAgent<0) die("Error in iAgent number in Master::sendAction\n");
-	assert(iAgent >= 0 && iAgent < static_cast<int>(agents.size()));
-	agents[iAgent]->act(aNew);
-	for (Uint i=0; i<aI.dim; i++) outbuf[i] = aNew.vals[i];
-	MPI_Send(outbuf, outSize, MPI_BYTE, slave, 0, slavesComm);
-}
-
 void Client::prepareAction(const int iAgent)
 {
 	if(iAgent<0) die("Error in iAgent number in Client::prepareAction\n");
@@ -266,38 +363,4 @@ void Client::prepareAction(const int iAgent)
 	double* const buf = comm->getDataAction();
 	for (Uint i=0; i<aI.dim; i++) buf[i] = aNew.vals[i];
 }
-
-static void unpackState(double* const data, int& agent, _AGENT_STATUS& info,
-		std::vector<double>& state, double& reward)
-{
-	assert(data not_eq nullptr);
-	agent = doublePtrToInt(data+0);
-	info  = doublePtrToInt(data+1);
-	for (unsigned j=0; j<state.size(); j++) {
-		state[j] = data[j+2];
-		assert(not std::isnan(state[j]));
-		assert(not std::isinf(state[j]));
-	}
-	reward = data[state.size()+2];
-	assert(not std::isnan(reward));
-	assert(not std::isinf(reward));
-}
-
-void Master::trackAgentsPerformance(const _AGENT_STATUS agentStatus, const int agent, const Real reward)
-{
-	if (agentStatus != _AGENT_FIRSTCOMM) {
-		const Real alpha = 1./saveFreq;// + std::min(0.,1-iter/(Real)saveFreq);
-		const Real oldMean = meanR;
-		cumulative_rewards[agent] += reward;
-		meanR = (1.-alpha)*meanR + alpha*reward;
-		varR = (1.-alpha)*varR + alpha*(reward-meanR)*(reward-oldMean);
-	}
-	if (agentStatus == _AGENT_LASTCOMM) {
-		char path[256];
-		sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
-		std::ofstream outf(path, ios::app);
-		outf<<learner->iter()<<" "<<agent<<" "<<cumulative_rewards[agent]<<endl;
-		cumulative_rewards[agent] = 0;
-		outf.close();
-	}
-}
+*/

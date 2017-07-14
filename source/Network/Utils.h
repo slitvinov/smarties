@@ -23,8 +23,7 @@ static const int simdWidth = __vec_width__/sizeof(nnReal);
 typedef nnReal*__restrict__ const				nnOpRet;
 typedef const nnReal*__restrict__ const nnOpInp;
 
-static inline void Lpenalization(nnReal* const weights,
-	const Uint start, const Uint N, const nnReal lambda)
+static inline void Lpenalization(nnReal* const weights, const Uint start, const Uint N, const nnReal lambda)
 {
 	for (Uint i=start; i<start+N; i++)
 	#ifdef NET_L1_PENAL
@@ -32,6 +31,14 @@ static inline void Lpenalization(nnReal* const weights,
 	#else
 		weights[i] -= weights[i]*lambda;
 	#endif
+}
+
+static inline nnReal readCutStart(vector<nnReal>& buf)
+{
+	const Real ret = buf.front();
+	buf.erase(buf.begin(),buf.begin()+1);
+	assert(!std::isnan(ret) && !std::isinf(ret));
+	return ret;
 }
 
 template <typename T>

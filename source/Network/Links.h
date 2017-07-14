@@ -404,10 +404,9 @@ public:
 			const int iy = static_cast<int>(oy*strideY) -  static_cast<int>(padY);
 			for(Uint fx=0; fx<filterWidth; fx++)
 			for(Uint fy=0; fy<filterHeight; fy++) {
-				const int cx=ix+static_cast<int>(fx);
-				const int cy=iy+static_cast<int>(fy);
+				const int cx=ix+static_cast<int>(fx), cy=iy+static_cast<int>(fy);
 				//padding: skip addition if outside input boundaries
-				if (   cx < 0 || static_cast<Uint>(cx) >= inputWidth
+				if ( cx < 0 || static_cast<Uint>(cx) >= inputWidth
 					|| cy < 0 || static_cast<Uint>(cy) >= inputHeight) continue;
 
 				nnOpInp inp = netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
@@ -415,9 +414,8 @@ public:
 				nnOpInp delta= netTo->errvals +iO+outputDepth_simd*(oy+outputHeight*ox);
 
 				for(Uint iz=0; iz<inputDepth; iz++) {
-					nnOpInp w = weights +iW +outputDepth_simd*(iz+inputDepth*(fy+filterHeight*fx));
-					nnOpRet g =
-							gradW +iW +outputDepth_simd*(iz+inputDepth*(fy+filterHeight*fx));
+					nnOpInp w = weights +iW +outputDepth_simd*(iz+ inputDepth*(fy+ filterHeight*fx));
+					nnOpRet g = gradW +iW +outputDepth_simd*(iz +inputDepth*(fy +filterHeight*fx));
 
 #pragma omp simd aligned(err, w, delta, g, inp : __vec_width__) safelen(simdWidth)
 					for(Uint fz=0; fz<outputDepth; fz++) {

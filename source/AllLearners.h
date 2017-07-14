@@ -12,6 +12,7 @@
 #include "Learners/DPG.h"
 #include "Learners/RACER.h"
 #include "Learners/DACER.h"
+#include "Learners/GAE.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -54,6 +55,12 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
 		settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
 		settings.nnOutputs = env->aI.dim;
 		return new DPG(mastersComm, env, settings);
+	}
+	else if (settings.learner == "GAE") {
+		settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
+		settings.nnOutputs = env->aI.dim;
+		settings.bSampleSequences = true;
+		return new GAE(mastersComm, env, settings);
 	} else die("Learning algorithm not recognized\n");
 	assert(false);
 	return new NFQ(mastersComm, env, settings); //fake, to silence warnings

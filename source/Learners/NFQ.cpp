@@ -27,12 +27,12 @@ Learner_utils(comm,_env,settings,settings.nnOutputs)
 	policyVecDim = nOutputs;
 }
 
-void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
-		Action& aOld, const int info, Real r)
+void NFQ::select(const int agentId, const Agent& agent)
 {
 	vector<Real> beta(policyVecDim,0);
-	if(info==2) { data->passData(agentId, info, sOld, a, s, r, beta); return; }
-	vector<Real> output = output_value_iteration(agentId,s,a,sOld,aOld,info,r);
+	if(agent.Status==2) { data->passData(agentId, agent, beta); return; }
+
+	vector<Real> output = output_value_iteration(agentId, agent);
 	//load computed policy into a
 	const Uint indBest = maxInd(output);
 	//random action?
@@ -41,14 +41,14 @@ void NFQ::select(const int agentId, State& s, Action& a, State& sOld,
 	uniform_real_distribution<Real> dis(0.,1.);
 
 	if(dis(*gen) < annealedEps)
-		a.set(nOutputs*dis(*gen));
+		agent.a->set(nOutputs*dis(*gen));
 	else
-		a.set(indBest);
+		agent.a->set(indBest);
 
 	for(Uint k=0; k<nOutputs; k++)
 		beta[k] = annealedEps/nOutputs + (indBest==k ? (1-annealedEps) : 0);
 
-	data->passData(agentId, info, sOld, a, s, r, beta);
+	data->passData(agentId, agent, beta);
 	dumpNetworkInfo(agentId);
 }
 

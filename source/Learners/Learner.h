@@ -108,7 +108,7 @@ public:
 	}
 	//*/
 
-	virtual void select(const int agentId, State& s, Action& a, State& sOld, Action& aOld, const int info, Real r) = 0;
+	virtual void select(const int agentId, const Agent& agent) = 0;
 	void clearFailedSim(const int agentOne, const int agentEnd);
 	void pushBackEndedSim(const int agentOne, const int agentEnd);
 	virtual void dumpPolicy() = 0;

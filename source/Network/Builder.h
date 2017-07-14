@@ -23,10 +23,8 @@ public:
 		if(nLayers<2) die("Put at least one hidden layer.\n");
 
 		nNeurons = nBiases = nWeights = nStates = 0;
-		for (auto & graph : G)
-		{
-			if(graph->input)
-			{
+		for (auto & graph : G) {
+			if(graph->input) {
 				assert(graph->written && !graph->built);
 				graph->firstNeuron_ID = nNeurons;
 				graph->layerSize_simd = roundUpSimd(graph->layerSize);
@@ -35,16 +33,14 @@ public:
 				continue; //input layer is not a layer
 			}
 			assert(!graph->input);
-			if      (graph->LSTM)
-				build_LSTM_layer(graph);
-			else if (graph->Conv2D)
-				build_conv2d_layer(graph);
-			else
-				build_normal_layer(graph);
+			if (graph->LSTM) build_LSTM_layer(graph);
+			else if (graph->Conv2D) build_conv2d_layer(graph);
+			else if (graph->IntegrateFire) build_IntAndFire_layer(graph);
+			else if (graph->Param) build_Param_layer(graph);
+			else build_normal_layer(graph);
 
 			graph->check();
-			for (auto & l : graph->links)
-				links.push_back(l);
+			for (auto & l : graph->links) links.push_back(l);
 		}
 		printf("nInputs:%d, nOutputs:%d, nLayers:%d, nNeurons:%d, nWeights:%d, nBiases:%d, nStates:%d\n",
 				nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates);
@@ -74,12 +70,10 @@ public:
 
 		grad = new Grads(nWeights,nBiases);
 		Vgrad.resize(nThreads);
-		for (Uint i=0; i<nThreads; ++i)
-			Vgrad[i] = new Grads(nWeights, nBiases);
+		for (Uint i=0; i<nThreads; ++i) Vgrad[i] = new Grads(nWeights, nBiases);
 
 		mem.resize(nAgents);
-		for (Uint i=0; i<nAgents; ++i)
-			mem[i] = new Mem(nNeurons, nStates);
+		for (Uint i=0; i<nAgents; ++i) mem[i] = new Mem(nNeurons, nStates);
 
 		//initialize weights:
 		for (auto & graph : G)
@@ -167,12 +161,11 @@ public:
 
 		assert(!layerType.empty());
 		if (layerType == "RNN")  g->RNN = true; //non-LSTM recurrent neural network
-		else
-			if (layerType == "LSTM") g->LSTM = true;
+		else if (layerType == "LSTM") g->LSTM = true;
+		else if (layerType == "IntegrateFire") g->IntegrateFire = true;
 
 		assert(!funcType.empty());
-		if(g->LSTM)
-		{
+		if(g->LSTM) {
 			g->cell = new Linear();   //in original paper is Tanh (Tanh), but is in general unnecessary
 			g->gate = new SoftSigm(); //in original paper is Sigm (Sigmoid)
 		}														//g->func is TwoTanh (2*Tanh)
@@ -203,10 +196,31 @@ public:
 		G.push_back(g);
 	}
 
+	void addParamLayer(const int size, const string funcType,  const Real initFac)
+	{
+		if(bBuilt) die("Cannot build the network multiple times\n");
+		if(size<=0) die("Requested an empty layer\n");
+		Graph * g = new Graph(nLayers++);
+		g->Param = true;
+		g->func = readFunction(funcType);
+		g->layerSize = size;
+		g->output = true;
+		nOutputs += static_cast<Uint>(size);
+		g->written = true;
+		g->weight_init_factor = initFac;
+		G.push_back(g);
+	}
+
 	void addLayer(const int size, const string layerType, const string funcType,
 			const bool bOutput=false)
 	{
 		addLayer(size, layerType, funcType, vector<int>(), bOutput);
+	}
+	void addOutput(const int size, const string layerType, const string funcType,
+		vector<int> linkedTo,  const Real initFac = -1)
+	{
+		addLayer(size, layerType, funcType, linkedTo, true);
+		G.back()->weight_init_factor = initFac;
 	}
 	void addOutput(const int size, const string layerType,
 		vector<int> linkedTo,  const Real initFac = -1)
@@ -435,6 +449,73 @@ private:
 				graph->layerSize, graph->firstNeuron_ID,
 				graph->firstBias_ID, input_links,
 				graph->func, graph->layerSize_simd
+		);
+
+		layers.push_back(l);
+		graph->built = true;
+	}
+
+	void build_IntAndFire_layer(Graph* const graph)
+	{
+		assert(graph->written == true && !graph->built);
+		assert(!nNeurons%simdWidth && !nBiases%simdWidth && !nWeights%simdWidth);
+		vector<NormalLink*> input_links;
+
+		graph->layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
+		assert(graph->layerSize>0 && graph->layerSize_simd>=graph->layerSize);
+		assert(graph->linkedTo.size()>0 && nNeurons>0);
+
+		graph->firstNeuron_ID = nNeurons;
+		nNeurons += graph->layerSize_simd; //move the counter
+		graph->firstBias_ID = nBiases;
+#ifndef INTEGRATEANDFIRESHARED
+		nBiases += 4*graph->layerSize_simd; //bias, threshold, invTau, excitr
+#else //shared parameters
+		nBiases += ceil(4./simdWidth)*simdWidth; //bias, threshold, invTau, excitr
+#endif
+
+		for(Uint i = 0; i<graph->linkedTo.size(); i++)
+		{
+			const Graph* const layerFrom = G[graph->linkedTo[i]];
+			assert(layerFrom->firstNeuron_ID<graph->firstNeuron_ID);
+			assert(layerFrom->written && layerFrom->built);
+			assert(layerFrom->layerSize>0);
+
+			NormalLink* tmp = new NormalLink(
+					layerFrom->layerSize, layerFrom->firstNeuron_ID,
+					graph->layerSize, graph->firstNeuron_ID,
+					nWeights, graph->layerSize_simd
+			);
+
+			input_links.push_back(tmp);
+			graph->links.push_back(tmp);
+			nWeights += layerFrom->layerSize*graph->layerSize_simd;
+		}
+
+		Layer * l = new IntegrateFireLayer(
+			graph->layerSize, graph->firstNeuron_ID, graph->firstBias_ID,
+			input_links, graph->func, graph->layerSize_simd
+		);
+
+		layers.push_back(l);
+		graph->built = true;
+	}
+
+	void build_Param_layer(Graph* const graph)
+	{
+		assert(graph->written == true && !graph->built);
+		assert(!nNeurons%simdWidth && !nBiases%simdWidth && !nWeights%simdWidth);
+		graph->layerSize_simd = ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
+		assert(graph->layerSize>0 && graph->layerSize_simd>=graph->layerSize);
+
+		graph->firstNeuron_ID = nNeurons;
+		nNeurons += graph->layerSize_simd; //move the counter
+		graph->firstBias_ID = nBiases;
+		nBiases += graph->layerSize_simd; //bias, invTau, excitr
+
+		Layer * l = new ParamLayer(
+			graph->layerSize, graph->firstNeuron_ID, graph->firstBias_ID,
+			graph->func, graph->layerSize_simd
 		);
 
 		layers.push_back(l);

@@ -36,13 +36,12 @@ nA(_env->aI.dim), nL(compute_nL(_env->aI.dim))
 	test();
 }
 
-void NAF::select(const int agentId, State& s, Action& a, State& sOld,
-		Action& aOld, const int info, Real r)
+void NAF::select(const int agentId, const Agent& agent)
 {
 	vector<Real> beta(policyVecDim,0);
-	if(info==2) { data->passData(agentId, info, sOld, a, s, r, beta); return; }
+	if(agent.Status==2) { data->passData(agentId, agent, beta); return; }
 
-	vector<Real> output = output_value_iteration(agentId,s,a,sOld,aOld,info,r);
+	vector<Real> output = output_value_iteration(agentId, agent);
 	const Quadratic_advantage advantage = prepare_advantage(output);
 	//load computed policy into a
 	vector<Real> policy = advantage.getMean();
@@ -58,8 +57,8 @@ void NAF::select(const int agentId, State& s, Action& a, State& sOld,
 	}
 
 	//scale back to action space size:
-	a.set(aInfo.getScaled(policy));
-	data->passData(agentId, info, sOld, a, s, r, beta);
+	agent.a->set(aInfo.getScaled(policy));
+	data->passData(agentId, agent, beta);
 	dumpNetworkInfo(agentId);
 }
 

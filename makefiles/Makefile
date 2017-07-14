@@ -123,7 +123,7 @@ OBJ_FILES = Profiler.o ArgumentParser.o main.o ObjectFactory.o \
 		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
 		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
 		alebotEnvironment.o openAICartEnvironment.o Communicator.o \
-		Learner.o RACER.o DACER.o NAF.o NFQ.o DPG.o Transitions.o \
+		Learner.o RACER.o DACER.o NAF.o NFQ.o DPG.o GAE.o Transitions.o \
 		Scheduler.o  Network.o Optimizer.o Math_tests.o Learner_utils.o
 #ExternalAgent.o
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))

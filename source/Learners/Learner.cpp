@@ -41,11 +41,16 @@ void Learner::run(Master* const master)
 	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
 	vector<Uint> seq(batchSize), samp(batchSize);
 	Uint ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;
+
+	int done = 0;
+#pragma omp parallel num_threads(nThreads)
+#pragma omp master
 	if (ndata <= 10*batchSize || !bTrain) {
 		if(nAgents<1) die("Learner::run nAgents<1. Nothing to do.\n");
-		if(master->run()) return;
+		done = master->run();
 	}
-
+	if(done) return;
+	
 	while (opt->nepoch < totNumSteps) {
 		assert(taskCounter == 0);
 		//const Real annealFac = annealingFactor();
@@ -121,6 +126,8 @@ void Learner::run(Master* const master)
 		if(opt->nepoch%100 ==0) processStats();
 		taskCounter = 0;
 		profiler->stop_start("DAT");
+#pragma omp parallel num_threads(nThreads)
+#pragma omp master
 		master->run(); //master goes back to comm till enough data is gathered
 		profiler->pop_stop();
 

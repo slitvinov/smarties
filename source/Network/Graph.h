@@ -22,6 +22,8 @@ struct Graph
 	bool RNN = false;
 	bool LSTM = false;
 	bool Conv2D = false;
+	bool IntegrateFire = false;
+	bool Param = false;
 
 	Uint layerSize = 0;
 	Uint layerSize_simd = 0;
@@ -48,7 +50,7 @@ struct Graph
 	Function* func = nullptr;
 	Function* cell = nullptr;
 	Function* gate = nullptr;
-	
+
 	Real weight_init_factor = -1;
 
 	Graph(const int layerid = -1) : layer_ID(static_cast<int>(layerid)) { }

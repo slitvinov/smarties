@@ -30,14 +30,13 @@ delta(0.1), generators(settings.generators)
 	test();
 }
 
-void DACER::select(const int agentId, State& s, Action& a, State& sOld,
-		Action& aOld, const int info, Real r)
+void DACER::select(const int agentId, const Agent& agent)
 {
-	if (info == 2) { //no need for action, just pass terminal s & r
-		data->passData(agentId, info, sOld, a, s, r, vector<Real>(policyVecDim,0));
+	if(agent.Status==2) { //no need for action, just pass terminal s & r
+		data->passData(agentId,agent,vector<Real>(policyVecDim,0));
 		return;
 	}
-	vector<Real> output = output_stochastic_policy(agentId,s,a,sOld,aOld,info,r);
+	vector<Real> output = output_stochastic_policy(agentId, agent);
 	assert(output.size() == nOutputs);
 
 	const Discrete_policy pol = prepare_policy(output);
@@ -54,12 +53,12 @@ void DACER::select(const int agentId, State& s, Action& a, State& sOld,
 	std::discrete_distribution<Uint> dist(beta.begin(),beta.end());
 	const Uint iAct = (positive(annealedEps)||bTrain) ? dist(*gen) : maxInd(beta);
 	assert(iAct<nA);
-	a.set(iAct);
+	agent.a->set(iAct);
 
 	#ifdef DUMP_EXTRA
 	beta.insert(beta.end(), pol.vals.begin(), pol.vals.end());
 	#endif
-	data->passData(agentId, info, sOld, a, s, r, beta);
+	data->passData(agentId, agent, beta);
 	dumpNetworkInfo(agentId);
 }
 

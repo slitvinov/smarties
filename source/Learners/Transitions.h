@@ -130,6 +130,11 @@ public:
 	Uint restartSamples(const Uint polDim = 0);
 	void saveSamples();
 
+	inline int passData(const int agentId, const Agent& a, const vector<Real>mu = vector<Real>())
+	{
+		return passData(agentId, a.Status, *(a.sOld), *(a.a), *(a.s), a.r, mu);
+	}
+
 	int passData(const int agentId, const int info, const State& sOld,
 		const Action&a, const State&s, const Real r, const vector<Real>mu = vector<Real>());
 

@@ -121,15 +121,14 @@ if (!learn_rank)
 	//for (const auto & l : _net->layers) l->profiler = profiler;
 }
 
-vector<Real> Learner_utils::output_stochastic_policy(const int agentId,
-	State& s, Action& a, State& sOld, Action& aOld, const int info, Real r)
+vector<Real> Learner_utils::output_stochastic_policy(const int agentId, const Agent& agent)
 {
 	Activation* currActivation = net->allocateActivation();
-	vector<Real> output(nOutputs), input = s.copy_observed();
+	vector<Real> output(nOutputs), input = agent.s->copy_observed();
 	//if required, chain together nAppended obs to compose state
 	if (nAppended>0) {
 		const Uint sApp = nAppended*sInfo.dimUsed;
-		if(info==1)
+		if(agent.Status==1)
 			input.insert(input.end(),sApp, 0);
 		else {
 			assert(data->Tmp[agentId]->tuples.size()!=0);
@@ -139,7 +138,7 @@ vector<Real> Learner_utils::output_stochastic_policy(const int agentId,
 		}
 	}
 
-	if(info==1) {
+	if(agent.Status==1) {
 		net->predict(data->standardize(input), output, currActivation
 			#ifdef __EntropySGD //then we sample from target weights
 				, net->tgt_weights, net->tgt_biases
@@ -161,14 +160,13 @@ vector<Real> Learner_utils::output_stochastic_policy(const int agentId,
 	return output;
 }
 
-vector<Real> Learner_utils::output_value_iteration(const int agentId, State& s,
-	 Action& a, State& sOld, Action& aOld, const int info, Real r)
+vector<Real> Learner_utils::output_value_iteration(const int agentId, const Agent& agent)
 {
-	assert(info==1 || data->Tmp[agentId]->tuples.size());
+	assert(agent.Status==1 || data->Tmp[agentId]->tuples.size());
 	Activation* currActivation = net->allocateActivation();
 	vector<Real> output(nOutputs), inputs(nInputs,0);
-	s.copy_observed(inputs);
-	if (info==1) {
+	agent.s->copy_observed(inputs);
+	if (agent.Status==1) {
 		vector<Real> scaledSold = data->standardize(inputs);
 		net->predict(scaledSold, output, currActivation);
 	} else {

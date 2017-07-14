@@ -155,7 +155,7 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
 		float* buf = (float*) malloc(writesize);
     memset(buf, 0, writesize);
 		Uint k=0;
-		buf[k++]=info + 0.1; 
+		buf[k++]=info + 0.1;
 		buf[k++]=(int)curr_transition_id[agentId] + 0.1;
 		for (Uint i=0; i<sI.dim;       i++) buf[k++] = (float) sNew.vals[i];
 		for (Uint i=0; i<aI.dim;       i++) buf[k++] = (float) aNew.vals[i];
@@ -192,7 +192,7 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
 
 	const Uint sApp = nAppended*sI.dimUsed;
 	if (Tmp[agentId]->tuples.size()!=0 && info == 1) {
-		printf("Detected partial sequence\n");
+		warn("Detected partial sequence\n");
 		push_back(agentId); //create new sequence
 		ret = 1;
 	} else if(Tmp[agentId]->tuples.size()==0) {
@@ -216,7 +216,7 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
 		for (Uint i=0; i<sI.dimUsed; i++) //scaled vec only has used dims:
 			same = same && std::fabs(last->s[i]-vecSold[i])<1e-8;
 		if (!same) {
-			printf("Detected partial sequence\n");
+			warn("Detected partial sequence\n");
 			push_back(agentId); //create new sequence
 			ret = 1;
 		}
@@ -280,6 +280,7 @@ void Transitions::pushBackEndedSim(const int agentOne, const int agentEnd)
 
 void Transitions::push_back(const int & agentId)
 {
+	#pragma omp critical
 	if(Tmp[agentId]->tuples.size() > minSeqLen ) {
 		if (nSequences>=maxTotSeqNum) Buffered.push_back(Tmp[agentId]);
 		else {

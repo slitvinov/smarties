@@ -32,22 +32,6 @@ void runSlave(MPI_Comm slavesComm)
 	simulation.run();
 }
 
-void runClient()
-{
-	settings.nSlaves = 1;
-	ObjectFactory factory(settings);
-	Environment* env = factory.createEnvironment();
-	Communicator comm = env->create_communicator(MPI_COMM_NULL, settings.sockPrefix, false);
-
-	Learner* learner = createLearner(MPI_COMM_WORLD, env, settings);
-	if (settings.restart != "none") {
-		learner->restart(settings.restart);
-		//comm.restart(settings.restart);
-	}
-	Client simulation(learner, &comm, env, settings);
-	simulation.run();
-}
-
 void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 {
 	MPI_Comm_rank(slavesComm, &settings.slaves_rank);
@@ -98,8 +82,8 @@ int main (int argc, char** argv)
 	vector<ArgumentParser::OptionStruct> opts = settings.initializeOpts();
 
 	int provided;
-	MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
-	if (provided < MPI_THREAD_FUNNELED)
+	MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+	if (provided < MPI_THREAD_MULTIPLE)
 		die("The MPI implementation does not have required thread support\n");
 
 	MPI_Comm_rank(MPI_COMM_WORLD, &settings.world_rank);
@@ -110,8 +94,9 @@ int main (int argc, char** argv)
 	settings.bRecurrent = settings.nnType=="LSTM" || settings.nnType=="RNN";
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	if (not settings.isServer)
-	{
+	if (not settings.isServer) {
+		die("FATAL: You should not be running the client.sh scripts.\n");
+		/*
 		if (settings.sockPrefix<0)
 			die("Not received a prefix for the socket\n");
 		settings.generators.push_back(mt19937(settings.sockPrefix));
@@ -122,6 +107,7 @@ int main (int argc, char** argv)
 		runClient();
 		MPI_Finalize();
 		return 0;
+		*/
 	}
 
 	const long MAXINT = std::numeric_limits<int>::max();
@@ -167,3 +153,22 @@ int main (int argc, char** argv)
 	MPI_Finalize();
 	return 0;
 }
+
+
+/*
+void runClient()
+{
+	settings.nSlaves = 1;
+	ObjectFactory factory(settings);
+	Environment* env = factory.createEnvironment();
+	Communicator comm = env->create_communicator(MPI_COMM_NULL, settings.sockPrefix, false);
+
+	Learner* learner = createLearner(MPI_COMM_WORLD, env, settings);
+	if (settings.restart != "none") {
+		learner->restart(settings.restart);
+		//comm.restart(settings.restart);
+	}
+	Client simulation(learner, &comm, env, settings);
+	simulation.run();
+}
+*/

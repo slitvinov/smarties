@@ -51,14 +51,13 @@ generators(settings.generators)
 	test();
 }
 
-void RACER::select(const int agentId, State& s, Action& a, State& sOld,
-		Action& aOld, const int info, Real r)
+void RACER::select(const int agentId, const Agent& agent)
 {
-	if (info == 2) { //no need for action, just pass terminal s & r
-		data->passData(agentId, info, sOld, a, s, r, vector<Real>(policyVecDim,0));
+	if(agent.Status==2) { //no need for action, just pass terminal s & r
+		data->passData(agentId,agent,vector<Real>(policyVecDim,0));
 		return;
 	}
-	vector<Real> output = output_stochastic_policy(agentId,s,a,sOld,aOld,info,r);
+	vector<Real> output = output_stochastic_policy(agentId, agent);
 	assert(output.size() == nOutputs);
 	//variance is pos def: transform linear output layer with softplus
 
@@ -73,21 +72,22 @@ void RACER::select(const int agentId, State& s, Action& a, State& sOld,
 		//beta_mean[i] = (1-anneal*anneal)*beta_mean[i];
 	}
 
+	vector<Real> act = vector<Real>(nA,0);
 	for(Uint i=0; i<nA; i++) {
 		beta[i] = beta_mean[i]; //first nA contain mean
 		beta[nA+i] = 1/beta_std[i]/beta_std[i]; //next nA contain precision
 		std::normal_distribution<Real> dist_cur(beta_mean[i], beta_std[i]);
-		a.vals[i] = positive(greedyEps+anneal) ? dist_cur(*gen) : beta_mean[i];
+		act[i] = positive(greedyEps+anneal) ? dist_cur(*gen) : beta_mean[i];
 	}
 
 	//scale back to action space size:
-	a.set(aInfo.getScaled(a.vals));
+	agent.a->set(aInfo.getScaled(act));
 
 	#ifdef DUMP_EXTRA
 	beta.insert(beta.end(), adv.matrix.begin(), adv.matrix.end());
 	beta.insert(beta.end(), adv.mean.begin(),   adv.mean.end());
 	#endif
-	data->passData(agentId, info, sOld, a, s, r, beta);
+	data->passData(agentId, agent, beta);
 	dumpNetworkInfo(agentId);
 }
 

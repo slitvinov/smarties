@@ -442,7 +442,7 @@ struct SoftPlus : public Function
 	}
 };
 
-inline Function* readFunction(const string name, const bool bOutput)
+inline Function* readFunction(const string name, const bool bOutput=false)
 {
 	if (bOutput || name == "Linear") return new Linear();
 	else
@@ -466,6 +466,6 @@ inline Function* readFunction(const string name, const bool bOutput)
 	else
 	if (name == "SoftPlus") return new SoftPlus();
 	else
-		die("Activation function not recognized\n");
+	die("Activation function not recognized\n");
 	return (Function*)nullptr;
 }

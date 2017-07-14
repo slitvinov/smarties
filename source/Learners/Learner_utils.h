@@ -38,16 +38,14 @@ public:
 
 	void updateTargetNetwork() override;
 
-	void buildNetwork(Network*& _net , Optimizer*& _opt,
+	virtual void buildNetwork(Network*& _net , Optimizer*& _opt,
 			const vector<Uint> nouts, Settings & settings,
 			vector<Real> weightInitFactors = vector<Real>(),
 			const vector<Uint> addedInputs = vector<Uint>());
 
-	vector<Real> output_stochastic_policy(const int agentId, State& s, Action& a,
-			State& sOld, Action& aOld, const int info, Real r);
+	vector<Real> output_stochastic_policy(const int agentId, const Agent& agent);
 
-	vector<Real> output_value_iteration(const int agentId, State& s, Action& a,
-		State& sOld, Action& aOld, const int info, Real r);
+	vector<Real> output_value_iteration(const int agentId, const Agent& agent);
 
 	inline void dumpStats(trainData*const _st, const Real&Q, const Real&err) const
 	{
