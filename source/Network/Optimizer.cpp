@@ -140,8 +140,7 @@ void AdamOptimizer::update(Grads* const G, const Uint batchsize)
 	if(lambda>2.2e-16) net->regularize(lambda*_eta);
 }
 
-void Optimizer::update(nnReal*const dest,nnReal*const grad,nnReal*const _1stMom,
-		const Uint N, const Uint batchsize) const
+void Optimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, const Uint N, const Uint batchsize) const
 {
 	assert(batchsize>0);
 	const nnReal norm = 1./batchsize;
@@ -157,9 +156,7 @@ void Optimizer::update(nnReal*const dest,nnReal*const grad,nnReal*const _1stMom,
 	}
 }
 
-void EntropySGD::update(nnReal*const dest,const nnReal*const target,
-	nnReal*const grad, nnReal*const _1stMom, nnReal*const _2ndMom,
-	nnReal*const _mu, const Uint N, const Uint batchsize, const Real _eta)
+void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, nnOpRet _mu, const Uint N, const Uint batchsize, const Real _eta) const
 {
 	//const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
 	assert(batchsize>0);
@@ -171,7 +168,7 @@ void EntropySGD::update(nnReal*const dest,const nnReal*const target,
 		const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
 		const nnReal eps = std::numeric_limits<nnReal>::epsilon();
 		const nnReal norm = 1./batchsize, noise = std::sqrt(eta_) * eps_eSGD;
-		const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2, f22=1-beta_2;
+		const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2;
 
 #pragma omp for
 		for (Uint i=0; i<N; i++)
@@ -200,9 +197,7 @@ void EntropySGD::update(nnReal*const dest,const nnReal*const target,
 }
 
 #if 1
-void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
-		nnReal*const _1stMom, nnReal*const _2ndMom,
-		const Uint N, const Uint batchsize, const Real _eta)
+void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, const Uint N, const Uint batchsize, const Real _eta) const
 {
 	assert(batchsize>0);
 	const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);

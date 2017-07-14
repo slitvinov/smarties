@@ -21,8 +21,7 @@ protected:
 	nnReal* const _1stMomW;
 	nnReal* const _1stMomB;
 
-	void update(nnReal* const dest, nnReal* const grad, nnReal* const _1stMom,
-			const Uint N, const Uint batchsize) const;
+	void update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, const Uint N, const Uint batchsize) const;
 
 public:
 	const Real eta, lambda, alpha = 0.5;
@@ -104,8 +103,7 @@ protected:
 	nnReal* const _2ndMomW;
 	nnReal* const _2ndMomB;
 
-	void update(nnReal* const dest, nnReal* const grad, nnReal* const _1stMom,
-		nnReal* const _2ndMom, const Uint N, const Uint batchsize, const Real _eta);
+	void update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, const Uint N, const Uint batchsize, const Real _eta) const;
 
 public:
 	AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings,
@@ -130,9 +128,8 @@ protected:
 	nnReal* const _muW_eSGD;
 	nnReal* const _muB_eSGD;
 
-	void update(nnReal*const dest, const nnReal*const target, nnReal*const grad,
-		nnReal*const _1stMom, nnReal*const _2ndMom, nnReal*const _mu, const Uint N,
-		const Uint batchsize, const Real _eta);
+	void update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, nnOpRet _mu, const Uint N, const Uint batchsize, const Real _eta) const;
+
 public:
 
 	EntropySGD(Network* const _net,Profiler* const _prof,Settings& settings);

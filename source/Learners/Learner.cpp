@@ -52,9 +52,9 @@ void Learner::run(Master* const master)
 		ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;
 
 		profiler->push_start("SRT");
-		Uint syncDataStats = 0;
+		//Uint syncDataStats = 0;
 		if(opt->nepoch%100==0 || data->requestUpdateSamples())
-			syncDataStats = data->updateSamples(0); //update sampling
+			data->updateSamples(0); //update sampling //syncDataStats =
 
 		#ifdef __CHECK_DIFF //check gradients with finite differences
 			if (opt->nepoch % 100000 == 0) net->checkGrads();
