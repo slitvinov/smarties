@@ -82,8 +82,9 @@ void HingedFishEnvironment::setDims()
 	  aI.values.resize(aI.dim);
 	  //curavture
 	  aI.bounded.push_back(1);
-	  aI.values[0].push_back(-0.25); // Hinge angles can range from -90deg (0.25=90/360) to +90deg
-	  aI.values[0].push_back(0.25);
+	  aI.values[0].push_back(-90.0); // Hinge angles can range from -90deg to +90deg
+	  // Negative values will allow the rudder to deflect in the same direction as done previously, if the fish so desires
+	  aI.values[0].push_back(90.0);
   }
   resetAll=false;
   commonSetup();

@@ -72,6 +72,10 @@ Environment* ObjectFactory::createEnvironment()
 		printf("TwoFishEnvironment with %u agents per slave.\n",n);
 		env = new TwoFishEnvironment(n, execpath, *settings);
 	}
+	else if (envStr.find("HingedFishEnvironment ") != envStr.npos) {
+		printf("HingedFishEnvironment with %u agents per slave.\n",n);
+		env = new HingedFishEnvironment(n, execpath, *settings);
+	}
 	else if (envStr.find("TwoActFishEnvironment ") != envStr.npos) {
 		printf("TwoActFishEnvironment with %u agents per slave.\n",n);
 		env = new TwoActFishEnvironment(n, execpath, *settings);
