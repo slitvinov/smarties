@@ -104,70 +104,82 @@ int Master::run()
 
 		#pragma omp parallel num_threads(nThreads)
 		#pragma omp master
-		while (not learner->batchGradientReady())
 		{
-			//nSlaves tasks are reserved to handle slaves, if comm queue is empty
-			const int availTasks = nThreads -learner->nTasks - (postponed_queue.size() ? 0 : nSlaves);
-			learner->spawnTrainTasks(availTasks);
+			#ifndef FULLTASKING
+			learner->spawnTrainTasks(9999);
+			#endif
 
-			for(int i=0; i<nSlaves; i++) //check all slaves
+			while (not learner->batchGradientReady())
 			{
-				int completed=0;
-				MPI_Status mpistatus;
+				//nSlaves tasks are reserved to handle slaves, if comm queue is empty
+				#ifdef FULLTASKING
+				const int availTasks = nThreads -learner->nTasks - (postponed_queue.size() ? 0 : nSlaves);
+				learner->spawnTrainTasks(availTasks);
+				#endif
+
+				for(int i=0; i<nSlaves; i++) //check all slaves
 				{
-					lock_guard<mutex> lock(mpi_mutex);
-					if(slaveIrecvStatus[i] == OPEN) //otherwise, Irecv not sent
+					int completed=0;
+					MPI_Status mpistatus;
 					{
-						MPI_Test(&requests[i], &completed, &mpistatus);
-					}
-					else if (slaveIrecvStatus[i] == SEND)
-					{
-						vector<Real> _a(outBufs[i], outBufs[i]+aI.dim);
-						MPI_Send(outBufs[i], outSize, MPI_BYTE, i+1, 0, slavesComm);
-						debugS("Sent action to slave %d: [%s]\n", i+1, print(_a).c_str());
-						slaveIrecvStatus[i] = OVER;
-					}
-					else
-					{
-						if(slaveIrecvStatus[i] != OVER && slaveIrecvStatus[i] != DOING)
-						_die("slave status is %d\n",slaveIrecvStatus[i]);
-					}
-
-					if(slaveIrecvStatus[i] == OVER)
-					{
-						MPI_Irecv(inpBufs[i], inSize, MPI_BYTE, i+1, 1, slavesComm, &requests[i]);
-						slaveIrecvStatus[i] = OPEN;
-					}
-				}
-
-				if(completed)
-				{
-					int slave = mpistatus.MPI_SOURCE;
-					assert(slaveIrecvStatus[i] == OPEN && slave==i+1);
-					debugS("Master receives from %d\n", slave);
-					slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
-					const int agent = recvState(slave); //unpack buffer
-
-					if(learnerReadyForAgent(slave, agent))
-					{
+						lock_guard<mutex> lock(mpi_mutex);
+						if(slaveIrecvStatus[i] == OPEN) //otherwise, Irecv not sent
 						{
-							lock_guard<mutex> lock(learner->task_mutex);
-							learner->nTasks++;
+							MPI_Test(&requests[i], &completed, &mpistatus);
 						}
-						#pragma omp task firstprivate(slave, agent) if(learner->nTasks<nThreads)
+						else if (slaveIrecvStatus[i] == SEND)
 						{
-							processRequest(slave, agent);
-							lock_guard<mutex> lock(learner->task_mutex);
-							learner->nTasks--;
+							vector<Real> _a(outBufs[i], outBufs[i]+aI.dim);
+							MPI_Send(outBufs[i], outSize, MPI_BYTE, i+1, 0, slavesComm);
+							debugS("Sent action to slave %d: [%s]\n", i+1, print(_a).c_str());
+							slaveIrecvStatus[i] = OVER;
+						}
+						else
+						{
+							if(slaveIrecvStatus[i] != OVER && slaveIrecvStatus[i] != DOING)
+							_die("slave status is %d\n",slaveIrecvStatus[i]);
+						}
+
+						if(slaveIrecvStatus[i] == OVER)
+						{
+							MPI_Irecv(inpBufs[i], inSize, MPI_BYTE, i+1, 1, slavesComm, &requests[i]);
+							slaveIrecvStatus[i] = OPEN;
 						}
 					}
-					else //never triggered for off-policy algorithms:
+
+					if(completed)
 					{
-						die("Not supposed to be here yet\n");
-						postponed_queue.push_back(make_pair(slave, agent));
+						int slave = mpistatus.MPI_SOURCE;
+						assert(slaveIrecvStatus[i] == OPEN && slave==i+1);
+						debugS("Master receives from %d\n", slave);
+						slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
+						const int agent = recvState(slave); //unpack buffer
+
+						if(learnerReadyForAgent(slave, agent))
+						{
+							#ifdef FULLTASKING
+								{
+									lock_guard<mutex> lock(learner->task_mutex);
+									learner->nTasks++;
+								}
+								#pragma omp task firstprivate(slave, agent) if(learner->nTasks<nThreads)
+								{
+									processRequest(slave, agent);
+									lock_guard<mutex> lock(learner->task_mutex);
+									learner->nTasks--;
+								}
+							#else
+								processRequest(slave, agent);
+							#endif
+						}
+						else //never triggered for off-policy algorithms:
+						{
+							die("Not supposed to be here yet\n");
+							postponed_queue.push_back(make_pair(slave, agent));
+						}
+						debugS("number of tasks %d\n", learner->nTasks);
+						assert(learner->nTasks<nThreads && learner->nTasks>=0);
 					}
-					debugS("number of tasks %d\n", learner->nTasks);
-					assert(learner->nTasks<nThreads && learner->nTasks>=0);
 				}
 			}
 		}

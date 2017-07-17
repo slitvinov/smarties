@@ -44,10 +44,12 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
 	{
 		for (int i=0; i<availTasks && sequences.size(); i++) {
 			const Uint sequence = sequences.back(); sequences.pop_back();
+			#ifdef FULLTASKING
 			{
 				lock_guard<mutex> lock(task_mutex);
 				nTasks++;
 			}
+			#endif
 
 			#pragma omp task firstprivate(sequence) if(nTasks<nSThreads)
 			{
@@ -56,7 +58,9 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
 				Train_BPTT(sequence, static_cast<Uint>(thrID));
 				lock_guard<mutex> lock(task_mutex);
 				taskCounter++;
+				#ifdef FULLTASKING
 				nTasks--;
+				#endif
 			}
 		}
 	}
@@ -65,11 +69,12 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
 		for (int i=0; i<availTasks && sequences.size(); i++) {
 			const Uint sequence = sequences.back(); sequences.pop_back();
 			const Uint transition = transitions.back(); transitions.pop_back();
+			#ifdef FULLTASKING
 			{
 				lock_guard<mutex> lock(task_mutex);
 				nTasks++;
 			}
-
+			#endif
 			#pragma omp task firstprivate(sequence,transition) if(nTasks<nSThreads)
 			{
 				const int thrID = omp_get_thread_num();
@@ -77,7 +82,9 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
 				Train(sequence, transition, static_cast<Uint>(thrID));
 				lock_guard<mutex> lock(task_mutex);
 				taskCounter++;
+				#ifdef FULLTASKING
 				nTasks--;
+				#endif
 			}
 		}
 	}
