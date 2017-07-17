@@ -206,7 +206,7 @@ bool Learner::batchGradientReady()
 
 		//If I have done too many gradient steps on the avail data, go back to comm
 		if(data->nSeenSequences < opt->nepoch * obsPerStep / learn_size) {
-			warn("Not enough sequences\n");
+			debugS("Not enough sequences\n");
 			return false; //-nData_b4PolUpdates
 		}
 	}
