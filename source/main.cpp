@@ -11,6 +11,9 @@
 #include "Scheduler.h"
 #include "ObjectFactory.h"
 using namespace std;
+//TODO: enable app to give a partial sequence
+//example: you have 4 agents, 2 kill each other and therefore reach a
+//terminal state, the other two have not reached it, but app exits.
 
 void runClient();
 void runSlave(MPI_Comm slavesComm);
@@ -70,7 +73,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 	}
 #endif
 
-	learner->run(&master);
+	master.run();
 	master.sendTerminateReq();
 }
 

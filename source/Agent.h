@@ -10,6 +10,7 @@
 #pragma once
 #include "StateAction.h"
 #include "Settings.h"
+#include "Communicator.h"
 
 class Agent
 {
@@ -22,8 +23,10 @@ public:
 	State *sOld = nullptr;
 	Action *a = nullptr;
 	Real r = 0;
+	Real cumulative_rewards = 0;
 	const int ID;
 	int Status = 1;
+	int transitionID = 0;
 
 	Agent(const int _ID = 0) : ID(_ID) { }
 
@@ -45,6 +48,7 @@ public:
 	void swapStates()
 	{
 		assert(s not_eq nullptr);
+		assert(sOld not_eq nullptr);
 		std::swap(s, sOld);
 	}
 	void getAction(Action& _a) const
@@ -70,6 +74,26 @@ public:
 		return r;
 	}
 
+	void reset()
+	{
+		Status = 1; transitionID=0; cumulative_rewards=0; r=0;
+	}
+
+	void update(const _AGENT_STATUS _i, const vector<double>& _s, const double _r)
+	{
+		Status = _i;
+		swapStates(); //swap sold and snew
+		s->set(_s);
+		r = _r;
+		if(_i == _AGENT_FIRSTCOMM) {
+			cumulative_rewards = 0;
+			transitionID = 0;
+		}
+		else {
+			cumulative_rewards += _r;
+			transitionID++;
+		}
+	}
 	StateInfo getStateDims() {return sInfo;}
 	ActionInfo getActionDims() {return aInfo;}
 

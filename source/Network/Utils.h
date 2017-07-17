@@ -40,6 +40,19 @@ static inline nnReal readCutStart(vector<nnReal>& buf)
 	assert(!std::isnan(ret) && !std::isinf(ret));
 	return ret;
 }
+static inline nnReal readBuf(vector<nnReal>& buf)
+{
+	//const Real ret = buf.front();
+	//buf.erase(buf.begin(),buf.begin()+1);
+	const Real ret = buf.back();
+	buf.pop_back();
+	assert(!std::isnan(ret) && !std::isinf(ret));
+	return ret;
+}
+static inline void writeBuf(const nnReal weight, vector<nnReal>& buf)
+{
+	buf.insert(buf.begin(), weight);
+}
 
 template <typename T>
 inline void _myfree(T *const& ptr)

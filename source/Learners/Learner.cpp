@@ -19,7 +19,8 @@ learn_size(_s.learner_size), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
 bRecurrent(_s.bRecurrent), bSampleSequences(_s.bSampleSequences),
 bTrain(_s.bTrain), tgtUpdateAlpha(_s.targetDelay), greedyEps(_s.greedyEps),
 gamma(_s.gamma), epsAnneal(_s.epsAnneal), obsPerStep(_s.obsPerStep),
-aInfo(env->aI), sInfo(env->sI), gen(&_s.generators[0])
+sequences(batchSize,0), transitions(batchSize,0), aInfo(env->aI),
+sInfo(env->sI), gen(&_s.generators[0])
 {
 	assert(nThreads>0);
 	profiler = new Profiler();
@@ -36,108 +37,92 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 	data->pushBackEndedSim(agentOne, agentEnd);
 }
 
-void Learner::run(Master* const master)
+void Learner::spawnTrainTasks() //this must be called from omp parallel region
 {
-	std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
-	vector<Uint> seq(batchSize), samp(batchSize);
-	Uint ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;
+	if (data->nSequences<batchSize || !bTrain) return;
 
-	int done = 0;
-#pragma omp parallel num_threads(nThreads)
-#pragma omp master
-	if (ndata <= 10*batchSize || !bTrain) {
-		if(nAgents<1) die("Learner::run nAgents<1. Nothing to do.\n");
-		done = master->run();
-	}
-	if(done) return;
-	
-	while (opt->nepoch < totNumSteps) {
-		assert(taskCounter == 0);
-		//const Real annealFac = annealingFactor();
-		ndata = (bSampleSequences) ? data->nSequences : data->nTransitions;
+	profiler->stop_start("SMP");
+	taskCounter = 0;
+	nAddedGradients = bSampleSequences ? sampleSequences(sequences) :
+		sampleTransitions(sequences, transitions);
 
-		profiler->push_start("SRT");
-		//Uint syncDataStats = 0;
-		if(opt->nepoch%100==0 || data->requestUpdateSamples())
-			data->updateSamples(0); //update sampling //syncDataStats =
-
-		#ifdef __CHECK_DIFF //check gradients with finite differences
-			if (opt->nepoch % 100000 == 0) net->checkGrads();
-		#endif
-
-		//CODE TO DO ONLINE UPDATE OF DATA MEAN/STD: unused
-		//if (learn_size > 1) {
-		//	MPI_Allreduce(MPI_IN_PLACE, &syncDataStats, 1,
-		//			MPI_UNSIGNED, MPI_SUM, mastersComm);
-		//}
-		//if(syncDataStats) data->update_samples_mean(0); //annealFac
-
-		start = std::chrono::high_resolution_clock::now();
-
-#pragma omp parallel num_threads(nThreads)
-#pragma omp master
-		{
-			profiler->stop_start("SMP");
-			nAddedGradients = bSampleSequences ? sampleSequences(seq) :
-				sampleTransitions(seq,samp);
-#pragma omp flush
-			profiler->stop_start("TSK");
-
-			if(bSampleSequences) {//we are using an LSTM: do BPTT
-				for (Uint i=0; i<batchSize; i++) {
-					const Uint sequence = seq[i];
-#pragma omp task firstprivate(sequence)
-					{
-						const int thrID = omp_get_thread_num();
-						assert(thrID>=0);
-						Train_BPTT(sequence, static_cast<Uint>(thrID));
-#pragma omp atomic
-						taskCounter++;
-					}
-				}
-			} else {
-				for (Uint i=0; i<batchSize; i++) {
-					const Uint sequence = seq[i];
-					const Uint transition = samp[i];
-#pragma omp task firstprivate(sequence,transition)
-					{
-						const int thrID = omp_get_thread_num();
-						assert(thrID>=0);
-						Train(sequence, transition, static_cast<Uint>(thrID));
-#pragma omp atomic
-						taskCounter++;
-					}
-				}
+	profiler->stop_start("TSK");
+	if(bSampleSequences)
+	{
+		for (Uint i=0; i<batchSize; i++) {
+			const Uint sequence = sequences[i];
+			#pragma omp task firstprivate(sequence)
+			{
+				const int thrID = omp_get_thread_num();
+				assert(thrID>=0);
+				Train_BPTT(sequence, static_cast<Uint>(thrID));
+				#pragma omp atomic
+				taskCounter++;
 			}
-			if(nAgents>0) master->run(); //master goes to communicate with slaves
 		}
-
-		assert(nAddedGradients);
-		end = std::chrono::high_resolution_clock::now();
-		sumElapsed+= std::chrono::duration<Real>(end-start).count()/nAddedGradients;
-		dataUsage += nAddedGradients;
-		countElapsed++;
-		batchUsage++;
-
-		assert(taskCounter == batchSize);
-		profiler->stop_start("UPW");
-		stackAndUpdateNNWeights();
-		updateTargetNetwork();
-		if(opt->nepoch%100 ==0) processStats();
-		taskCounter = 0;
-		profiler->stop_start("DAT");
-#pragma omp parallel num_threads(nThreads)
-#pragma omp master
-		master->run(); //master goes back to comm till enough data is gathered
-		profiler->pop_stop();
-
-		if(opt->nepoch%1000==0 && !learn_rank) profiler->printSummary();
+	}
+	else
+	{
+		for (Uint i=0; i<batchSize; i++) {
+			const Uint sequence = sequences[i];
+			const Uint transition = transitions[i];
+			#pragma omp task firstprivate(sequence,transition)
+			{
+				const int thrID = omp_get_thread_num();
+				assert(thrID>=0);
+				Train(sequence, transition, static_cast<Uint>(thrID));
+				#pragma omp atomic
+				taskCounter++;
+			}
+		}
 	}
 }
 
-Uint Learner::sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitions)
+void Learner::prepareData() //this cannot be called from omp parallel region
 {
-	assert(sequences.size() == batchSize && transitions.size() == batchSize);
+	if (data->nSequences<batchSize || !bTrain) return;
+
+	profiler->push_start("PRE");
+
+	if(opt->nepoch%100==0 || data->requestUpdateSamples())
+		data->updateSamples(0); //update sampling //syncDataStats =
+
+	#ifdef __CHECK_DIFF //check gradients with finite differences
+		if (opt->nepoch % 100000 == 0) net->checkGrads();
+	#endif
+
+	//CODE TO DO ONLINE UPDATE OF DATA MEAN/STD: unused
+	//if (learn_size > 1) {
+	//	MPI_Allreduce(MPI_IN_PLACE, &syncDataStats, 1,
+	//			MPI_UNSIGNED, MPI_SUM, mastersComm);
+	//}
+	//if(syncDataStats) data->update_samples_mean(0); //annealFac
+}
+
+void Learner::applyGradient() //this cannot be called from omp parallel region
+{
+	if(!nAddedGradients) return; //then this was called WITHOUT a batch ready
+	assert(nAddedGradients && taskCounter == batchSize);
+
+	profiler->stop_start("UPW");
+	dataUsage += nAddedGradients;
+	batchUsage++;
+
+	stackAndUpdateNNWeights();
+	updateTargetNetwork();
+
+	if(opt->nepoch%100 ==0)
+		processStats();
+
+	profiler->pop_stop();
+
+	if(opt->nepoch%1000==0 && !learn_rank)
+		profiler->printSummary();
+}
+
+Uint Learner::sampleTransitions(vector<Uint>& seq, vector<Uint>& trans)
+{
+	assert(seq.size() == batchSize && trans.size() == batchSize);
 	assert(!bSampleSequences);
 	vector<Uint> load(batchSize), sorting(batchSize), s(batchSize), t(batchSize);
 	for (Uint i=0; i<batchSize; i++) {
@@ -163,20 +148,20 @@ Uint Learner::sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitio
 	assert(load[sorting[0]] >= load[sorting[batchSize-1]]);
 	//sort vectors passed to learning algo:
 	for (Uint i=0; i<batchSize; i++) {
-		transitions[i] = t[sorting[i]];
-		sequences[i] = s[sorting[i]];
+		trans[i] = t[sorting[i]];
+		seq[i] = s[sorting[i]];
 	}
 	return batchSize; //always add one grad per transition
 }
 
-Uint Learner::sampleSequences(vector<Uint>& sequences)
+Uint Learner::sampleSequences(vector<Uint>& seq)
 {
-	assert(sequences.size() == batchSize && bSampleSequences);
+	assert(seq.size() == batchSize && bSampleSequences);
 	Uint _nAddedGradients = 0;
 	for (Uint i=0; i<batchSize; i++)
 	{
 		const Uint ind = data->sample();
-		sequences[i]  = ind;
+		seq[i]  = ind;
 		//index[i] = ind;
 		const Uint seqSize = data->Set[ind]->tuples.size();
 		//to normalize mean gradient for update:
@@ -186,25 +171,37 @@ Uint Learner::sampleSequences(vector<Uint>& sequences)
 	const auto compare = [this] (Uint a, Uint b) {
 		return data->Set[a]->tuples.size() > data->Set[b]->tuples.size();
 	};
-	std::sort(sequences.begin(), sequences.end(), compare);
+	std::sort(seq.begin(), seq.end(), compare);
 
 	return _nAddedGradients;
 }
 
-bool Learner::checkBatch(unsigned long mastersNiter)
+bool Learner::batchGradientReady()
 {
-	const Uint ndata = bSampleSequences ? data->nSequences : data->nTransitions;
 	//if there is noty enough data for training: go back to master
-	if (ndata < batchSize*10 || !bTrain) {
+	if (data->nSequences < batchSize || !bTrain) {
 		nData_b4PolUpdates = data->nSeenSequences;
 		return false;
 	}
 
-	//if threads finished processing data, unblock other ranks by adding up grad
-	if(taskCounter >= batchSize) return true;
-	//otherwise, either train or communicate depending on number of gradient
-	// steps to number of observed sequences requested by user
-	return data->nSeenSequences - nData_b4PolUpdates > obsPerStep * opt->nepoch;
+	//If I have done too many gradient steps on the avail data, go back to comm
+	if(data->nSeenSequences < opt->nepoch * obsPerStep / learn_size) {
+		warn("Not enough sequences\n");
+		return false; //-nData_b4PolUpdates
+	}
+
+
+	//else if threads finished processing data:
+	return taskCounter >= batchSize;
+}
+
+int Learner::readyForAgent(const int slave, const int agent)
+{
+	return 1; //Learner assumes off-policy algorithm. it can always use more data
+}
+int Learner::slaveHasUnfinishedSeqs(const int slave) const
+{
+	return 1; //Learner assumes off-policy algorithm. it can always use more data
 }
 
 void Learner::save(string name)

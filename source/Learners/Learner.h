@@ -41,14 +41,14 @@ protected:
 	const bool bRecurrent, bSampleSequences, bTrain;
 	const Real tgtUpdateAlpha, greedyEps, gamma, epsAnneal, obsPerStep;
 	unsigned long batchUsage = 0, dataUsage = 0;
-	Uint cntUpdateDelay = 0, taskCounter = 0, epochCounter = 0, policyVecDim = 0;
-	Uint nAddedGradients = 0, countElapsed = 0;
+	Uint cntUpdateDelay = 0, taskCounter = batchSize, epochCounter = 0;
+	Uint policyVecDim = 0, nAddedGradients = 0, countElapsed = 0;
 	unsigned long nData_b4PolUpdates = 0;
+	vector<Uint> sequences, transitions;
 	Real sumElapsed = 0;
 	ActionInfo aInfo;
 	StateInfo  sInfo;
 	mt19937* const gen;  //only ok if only thread 0 accesses
-	Profiler* profiler;
 	Network* net;
 	Optimizer* opt;
 	Transitions* data;
@@ -63,6 +63,7 @@ protected:
 	Uint sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitions);
 
 public:
+	Profiler* profiler;
 	Learner(MPI_Comm mastersComm, Environment*const env, Settings & settings);
 
 	virtual ~Learner()
@@ -80,6 +81,10 @@ public:
 	inline unsigned iter()
 	{
 		return opt->nepoch;
+	}
+	inline bool reachedMaxGradStep()
+	{
+		return opt->nepoch > totNumSteps;
 	}
 
 	inline Real annealingFactor() const
@@ -109,14 +114,25 @@ public:
 	//*/
 
 	virtual void select(const int agentId, const Agent& agent) = 0;
+	virtual void dumpPolicy() = 0;
+
+	//main training functions:
+	virtual void spawnTrainTasks();
+	virtual void applyGradient();
+	virtual void prepareData();
+
+	//mass-handing of unfinished sequences from master
 	void clearFailedSim(const int agentOne, const int agentEnd);
 	void pushBackEndedSim(const int agentOne, const int agentEnd);
-	virtual void dumpPolicy() = 0;
-	bool checkBatch(unsigned long mastersNiter);
-	//void TrainBatch();
-	void run(Master* const master);
+
+	//checks on status:
+	virtual bool batchGradientReady();
+	virtual int readyForAgent(const int slave, const int agent);
+	virtual int slaveHasUnfinishedSeqs(const int slave) const;
+
 	void save(string name);
 	void restart(string fname);
+
 	void buildNetwork(Network*& _net , Optimizer*& _opt, const vector<Uint> nouts,
 			Settings & settings, const vector<Uint> addedInputs = vector<Uint>(0));
 };

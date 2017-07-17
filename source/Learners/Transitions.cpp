@@ -122,6 +122,11 @@ Uint Transitions::restartSamples(const Uint polDim)
 				reward = buf[k++];
 				for(Uint i=0; i<polDim; i++) policy[i] = buf[k++];
 				assert(k == writesize);
+
+				//if we are restarting from a run with more mpi processes:
+				while(static_cast<Uint>(agentID)>=Tmp.size())
+					Tmp.push_back(new Sequence());
+
 				add(agentID, info, oldState[agentID], action, policy, newState, reward);
 				if (info == 2) oldState[agentID].vals = vector<Real>(sDim, 0);
 				else oldState[agentID].vals = newState.vals;
@@ -188,7 +193,6 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
 {
 	//return value is 1 if the agent states buffer is empty or on initial state
 	int ret = 0;
-	while(static_cast<Uint>(agentId)>=Tmp.size()) Tmp.push_back(new Sequence());
 
 	const Uint sApp = nAppended*sI.dimUsed;
 	if (Tmp[agentId]->tuples.size()!=0 && info == 1) {
@@ -280,8 +284,8 @@ void Transitions::pushBackEndedSim(const int agentOne, const int agentEnd)
 
 void Transitions::push_back(const int & agentId)
 {
-	#pragma omp critical
 	if(Tmp[agentId]->tuples.size() > minSeqLen ) {
+		lock_guard<mutex> lock(dataset_mutex);
 		if (nSequences>=maxTotSeqNum) Buffered.push_back(Tmp[agentId]);
 		else {
 			nSequences++;

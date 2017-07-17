@@ -60,6 +60,11 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
 		settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
 		settings.nnOutputs = env->aI.dim;
 		settings.bSampleSequences = true;
+
+		const int bs = settings.batchSize, na = env->nAgentsPerRank;
+		settings.batchSize = ceil(bs/(Real)na);
+		if(bs%na)
+		printf("Due to nAgentsPerRank, batchsize (%d) set to %d\n", bs, settings.batchSize);
 		return new GAE(mastersComm, env, settings);
 	} else die("Learning algorithm not recognized\n");
 	assert(false);

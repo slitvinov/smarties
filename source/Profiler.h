@@ -122,10 +122,24 @@ public:
 
 	inline void pop_stop()
 	{
-		assert(m_mapStoppedAgents.size() > 0);
-		string sCurrentAgentName = m_mapStoppedAgents.top();
-		getAgent(sCurrentAgentName).stop();
-		m_mapStoppedAgents.pop();
+		if(m_mapStoppedAgents.size() > 0)
+		{
+			string sCurrentAgentName = m_mapStoppedAgents.top();
+			getAgent(sCurrentAgentName).stop();
+			m_mapStoppedAgents.pop();
+		}
+		//if (m_mapStoppedAgents.size() == 0) return;
+		//getAgent(m_mapStoppedAgents.top()).start();
+	}
+
+	inline void stop_all()
+	{
+		while(m_mapStoppedAgents.size() > 0)
+		{
+			string sCurrentAgentName = m_mapStoppedAgents.top();
+			getAgent(sCurrentAgentName).stop();
+			m_mapStoppedAgents.pop();
+		}
 		//if (m_mapStoppedAgents.size() == 0) return;
 		//getAgent(m_mapStoppedAgents.top()).start();
 	}

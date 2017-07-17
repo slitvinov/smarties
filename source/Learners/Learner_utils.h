@@ -44,8 +44,7 @@ public:
 			const vector<Uint> addedInputs = vector<Uint>());
 
 	vector<Real> output_stochastic_policy(const int agentId, const Agent& agent);
-
-	vector<Real> output_value_iteration(const int agentId, const Agent& agent);
+	vector<Real> output_value_iteration(  const int agentId, const Agent& agent);
 
 	inline void dumpStats(trainData*const _st, const Real&Q, const Real&err) const
 	{

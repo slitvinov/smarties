@@ -18,6 +18,8 @@
 #define _AGENT_FAILCOMM   4
 #include "Communicator_utils.h"
 
+//enum Info { INIT_STATE, CONT_STATE, TERM_STATE, GAME_OVER, FAIL_COMM };
+
 class Communicator
 {
 protected:
@@ -150,3 +152,19 @@ public:
 	}
 #endif
 };
+
+inline void unpackState(double* const data, int& agent, _AGENT_STATUS& info,
+		std::vector<double>& state, double& reward)
+{
+	assert(data not_eq nullptr);
+	agent = doublePtrToInt(data+0);
+	info  = doublePtrToInt(data+1);
+	for (unsigned j=0; j<state.size(); j++) {
+		state[j] = data[j+2];
+		assert(not std::isnan(state[j]));
+		assert(not std::isinf(state[j]));
+	}
+	reward = data[state.size()+2];
+	assert(not std::isnan(reward));
+	assert(not std::isinf(reward));
+}

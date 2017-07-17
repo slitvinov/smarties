@@ -72,6 +72,7 @@ public:
 	inline void deallocateUnrolledActivations(vector<Activation*>*const ret) const
 	{
 		for (auto & trash : *ret) _dispose_object(trash);
+		ret->clear();
 	}
 	inline void clearErrors(vector<Activation*>& timeSeries) const
 	{
