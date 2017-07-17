@@ -86,7 +86,7 @@ void GAE::buildNetwork(Network*& _net , Optimizer*& _opt, const vector<Uint> nou
 	#endif
 }
 
-void GAE::select(const int agentId, const Agent& agent)
+void GAE::select(const int agentId, const Agent& agent) const
 {
 	const int workid = retrieveAssignment(agentId);
 	if(workid<0) die("FATAL: GAE Workspace not allocated.\n");
@@ -94,8 +94,8 @@ void GAE::select(const int agentId, const Agent& agent)
 	if(agent.Status==2)
 	{
 		work_rewards[workid]->push_back(agent.r);
-		work_done[workid] = 1;
-		nAddedGradients += work[workid]->size()-1;
+		//work_done[workid] = 1;
+		//nAddedGradients += work[workid]->size()-1;
 		if(!bTrain) return;
 
 		#pragma omp task firstprivate(workid)

@@ -65,7 +65,7 @@ public:
 	GAE(MPI_Comm comm, Environment*const env, Settings & settings);
 
 	//called by scheduler:
-	void select(const int agentId, const Agent& agent) override;
+	void select(const int agentId, const Agent& agent) const override;
 
 	void buildNetwork(Network*& _net , Optimizer*& _opt, const vector<Uint> nouts, Settings& settings,
 	vector<Real> weightInitFactors = vector<Real>(),

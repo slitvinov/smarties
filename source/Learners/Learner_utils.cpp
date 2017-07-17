@@ -122,7 +122,7 @@ if (!learn_rank)
 	//for (const auto & l : _net->layers) l->profiler = profiler;
 }
 
-vector<Real> Learner_utils::output_stochastic_policy(const int agentId, const Agent& agent)
+vector<Real> Learner_utils::output_stochastic_policy(const int agentId, const Agent& agent) const
 {
 	Activation* currActivation = net->allocateActivation();
 	vector<Real> output(nOutputs), input = agent.s->copy_observed();
@@ -161,7 +161,7 @@ vector<Real> Learner_utils::output_stochastic_policy(const int agentId, const Ag
 	return output;
 }
 
-vector<Real> Learner_utils::output_value_iteration(const int agentId, const Agent& agent)
+vector<Real> Learner_utils::output_value_iteration(const int agentId, const Agent& agent) const
 {
 	assert(agent.Status==1 || data->Tmp[agentId]->tuples.size());
 	Activation* currActivation = net->allocateActivation();
@@ -330,7 +330,7 @@ void Learner_utils::dumpPolicy()
 	fclose (pFile);
 }
 
-void Learner_utils::dumpNetworkInfo(const int agentId)
+void Learner_utils::dumpNetworkInfo(const int agentId) const
 {
 	#ifdef _dumpNet_
 	if (bTrain) return;

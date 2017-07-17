@@ -104,62 +104,69 @@ int Master::run()
 
 		#pragma omp parallel num_threads(nThreads)
 		#pragma omp master
+		while (not learner->batchGradientReady())
 		{
-			learner->spawnTrainTasks();
+			//nSlaves tasks are reserved to handle slaves
+			learner->spawnTrainTasks(nThreads -learner->nTasks -nSlaves);
 
-			while (not learner->batchGradientReady())
+			for(int i=0; i<nSlaves; i++) //check all slaves
 			{
-				for(int i=0; i<nSlaves; i++) //check all slaves
+				int completed=0;
+				MPI_Status mpistatus;
 				{
-					int completed=0;
-					MPI_Status mpistatus;
+					lock_guard<mutex> lock(mpi_mutex);
+					if(slaveIrecvStatus[i] == OPEN) //otherwise, Irecv not sent
 					{
-						lock_guard<mutex> lock(mpi_mutex);
-						if(slaveIrecvStatus[i] == OPEN) //otherwise, Irecv not sent
-						{
-							MPI_Test(&requests[i], &completed, &mpistatus);
-						}
-						else if (slaveIrecvStatus[i] == SEND)
-						{
-							vector<Real> _a(outBufs[i], outBufs[i]+aI.dim);
-							MPI_Send(outBufs[i], outSize, MPI_BYTE, i+1, 0, slavesComm);
-							debugS("Sent action to slave %d: [%s]\n", i+1, print(_a).c_str());
-							slaveIrecvStatus[i] = OVER;
-						}
-						else
-						{
-							if(slaveIrecvStatus[i] != OVER && slaveIrecvStatus[i] != DOING)
-							_die("slave status is %d\n",slaveIrecvStatus[i]);
-						}
-
-						if(slaveIrecvStatus[i] == OVER)
-						{
-							MPI_Irecv(inpBufs[i], inSize, MPI_BYTE, i+1, 1, slavesComm, &requests[i]);
-							slaveIrecvStatus[i] = OPEN;
-						}
+						MPI_Test(&requests[i], &completed, &mpistatus);
+					}
+					else if (slaveIrecvStatus[i] == SEND)
+					{
+						vector<Real> _a(outBufs[i], outBufs[i]+aI.dim);
+						MPI_Send(outBufs[i], outSize, MPI_BYTE, i+1, 0, slavesComm);
+						debugS("Sent action to slave %d: [%s]\n", i+1, print(_a).c_str());
+						slaveIrecvStatus[i] = OVER;
+					}
+					else
+					{
+						if(slaveIrecvStatus[i] != OVER && slaveIrecvStatus[i] != DOING)
+						_die("slave status is %d\n",slaveIrecvStatus[i]);
 					}
 
-					if(completed)
+					if(slaveIrecvStatus[i] == OVER)
 					{
-						int slave = mpistatus.MPI_SOURCE;
-						assert(slaveIrecvStatus[i] == OPEN && slave==i+1);
-						debugS("Master receives from %d\n", slave);
-						slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
-						const int agent = recvState(slave); //unpack buffer
+						MPI_Irecv(inpBufs[i], inSize, MPI_BYTE, i+1, 1, slavesComm, &requests[i]);
+						slaveIrecvStatus[i] = OPEN;
+					}
+				}
 
-						debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]\n", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
+				if(completed)
+				{
+					int slave = mpistatus.MPI_SOURCE;
+					assert(slaveIrecvStatus[i] == OPEN && slave==i+1);
+					debugS("Master receives from %d\n", slave);
+					slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
+					const int agent = recvState(slave); //unpack buffer
 
-						if(learnerReadyForAgent(slave, agent))
+					if(learnerReadyForAgent(slave, agent))
+					{
 						{
-							#pragma omp task firstprivate(slave, agent)
-								processRequest(slave, agent);
+							lock_guard<mutex> lock(learner->task_mutex);
+							learner->nTasks++;
 						}
-						else //never triggered for off-policy algorithms:
+						#pragma omp task firstprivate(slave, agent) if(learner->nTasks<nThreads)
 						{
-							die("Not supposed to be here yet\n");
-							postponed_queue.push_back(make_pair(slave, agent));
+							processRequest(slave, agent);
+							lock_guard<mutex> lock(learner->task_mutex);
+							learner->nTasks--;
 						}
 					}
+					else //never triggered for off-policy algorithms:
+					{
+						die("Not supposed to be here yet\n");
+						postponed_queue.push_back(make_pair(slave, agent));
+					}
+					debugS("number of tasks %d\n", learner->nTasks);
+					assert(learner->nTasks<nThreads && learner->nTasks>=0);
 				}
 			}
 		}
@@ -191,7 +198,7 @@ void Master::processRequest(const int slave, const int agent)
 	if (agents[agent]->Status == _AGENT_FAILCOMM) //it was a crash :sadface:
 	{ //TODO fix for on-pol: if crash clear unfinished workspace assigned to slave
 		learner->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
-		for (int i = (slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
+		for (int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
 		printf("Received an _AGENT_FAILCOMM\n");
 		slaveIrecvStatus[slave-1] = OVER;
 	}

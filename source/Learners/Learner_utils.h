@@ -43,8 +43,8 @@ public:
 			vector<Real> weightInitFactors = vector<Real>(),
 			const vector<Uint> addedInputs = vector<Uint>());
 
-	vector<Real> output_stochastic_policy(const int agentId, const Agent& agent);
-	vector<Real> output_value_iteration(  const int agentId, const Agent& agent);
+	vector<Real> output_stochastic_policy(const int agentId, const Agent& agent) const;
+	vector<Real> output_value_iteration(  const int agentId, const Agent& agent) const;
 
 	inline void dumpStats(trainData*const _st, const Real&Q, const Real&err) const
 	{
@@ -86,5 +86,5 @@ public:
 
 	void statsVector(vector<vector<long double>>& sum, vector<vector<long double>>& sqr, vector<long double>& cnt);
 
-	void dumpNetworkInfo(const int agentId);
+	void dumpNetworkInfo(const int agentId) const;
 };

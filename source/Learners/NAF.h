@@ -34,7 +34,7 @@ class NAF : public Learner_utils
 
 public:
 	NAF(MPI_Comm comm, Environment*const env, Settings & settings);
-	void select(const int agentId, const Agent& agent) override;
+	void select(const int agentId, const Agent& agent) const override;
 	void test();
 	static inline Uint compute_nL(const Uint NA)
 	{

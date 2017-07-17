@@ -13,7 +13,6 @@
 #include "../Environments/Environment.h"
 
 #include <iostream>
-#include <mutex>
 #include <iomanip>
 #include <algorithm>
 #include <fstream>
@@ -62,7 +61,6 @@ protected:
 	const StateInfo sI;
 	const ActionInfo aI;
 	std::vector<std::mt19937>& generators;
-	std::mutex dataset_mutex;
 
 	Uint iOldestSaved = 0;
 	vector<Real> std, mean, invstd;
@@ -82,6 +80,7 @@ public:
 	Uint anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0, nSeenSequences=0;
 	Gen * gen;
 	vector<Sequence*> Set, Tmp, Buffered;
+	std::mutex dataset_mutex;
 
 	Transitions(MPI_Comm comm, Environment*const env, Settings & settings);
 

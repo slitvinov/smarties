@@ -37,45 +37,53 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 	data->pushBackEndedSim(agentOne, agentEnd);
 }
 
-void Learner::spawnTrainTasks() //this must be called from omp parallel region
+int Learner::spawnTrainTasks(const int availTasks) //this must be called from omp parallel region
 {
-	if (data->nSequences<batchSize || !bTrain) return;
+	if (data->nSequences<batchSize || !bTrain || !availTasks) return 0;
 
-	profiler->stop_start("SMP");
-	taskCounter = 0;
-	nAddedGradients = bSampleSequences ? sampleSequences(sequences) :
-		sampleTransitions(sequences, transitions);
-
-	profiler->stop_start("TSK");
 	if(bSampleSequences)
 	{
-		for (Uint i=0; i<batchSize; i++) {
-			const Uint sequence = sequences[i];
+		for (int i=0; i<availTasks && sequences.size(); i++) {
+			const Uint sequence = sequences.back(); sequences.pop_back();
+			{
+				lock_guard<mutex> lock(task_mutex);
+				nTasks++;
+			}
+
 			#pragma omp task firstprivate(sequence)
 			{
 				const int thrID = omp_get_thread_num();
 				assert(thrID>=0);
 				Train_BPTT(sequence, static_cast<Uint>(thrID));
-				#pragma omp atomic
+				lock_guard<mutex> lock(task_mutex);
 				taskCounter++;
+				nTasks--;
 			}
 		}
 	}
 	else
 	{
-		for (Uint i=0; i<batchSize; i++) {
-			const Uint sequence = sequences[i];
-			const Uint transition = transitions[i];
+		for (int i=0; i<availTasks && sequences.size(); i++) {
+			const Uint sequence = sequences.back(); sequences.pop_back();
+			const Uint transition = transitions.back(); transitions.pop_back();
+			{
+				lock_guard<mutex> lock(task_mutex);
+				nTasks++;
+			}
+
 			#pragma omp task firstprivate(sequence,transition)
 			{
 				const int thrID = omp_get_thread_num();
 				assert(thrID>=0);
 				Train(sequence, transition, static_cast<Uint>(thrID));
-				#pragma omp atomic
+				lock_guard<mutex> lock(task_mutex);
 				taskCounter++;
+				nTasks--;
 			}
 		}
 	}
+
+	return 0;
 }
 
 void Learner::prepareData() //this cannot be called from omp parallel region
@@ -97,6 +105,16 @@ void Learner::prepareData() //this cannot be called from omp parallel region
 	//			MPI_UNSIGNED, MPI_SUM, mastersComm);
 	//}
 	//if(syncDataStats) data->update_samples_mean(0); //annealFac
+
+	profiler->stop_start("SMP");
+	taskCounter = 0;
+	sequences.resize(batchSize);
+	transitions.resize(batchSize);
+
+	nAddedGradients = bSampleSequences ? sampleSequences(sequences) :
+		sampleTransitions(sequences, transitions);
+
+	profiler->stop_start("TSK");
 }
 
 void Learner::applyGradient() //this cannot be called from omp parallel region
@@ -143,9 +161,9 @@ Uint Learner::sampleTransitions(vector<Uint>& seq, vector<Uint>& trans)
 	}
 
 	//sort elements of sorting according to load for each transition:
-	const auto compare = [&] (Uint a, Uint b) { return load[a] > load[b]; };
+	const auto compare = [&] (Uint a, Uint b) { return load[a] < load[b]; };
 	std::sort(sorting.begin(), sorting.end(), compare);
-	assert(load[sorting[0]] >= load[sorting[batchSize-1]]);
+	assert(load[sorting[0]] <= load[sorting[batchSize-1]]);
 	//sort vectors passed to learning algo:
 	for (Uint i=0; i<batchSize; i++) {
 		trans[i] = t[sorting[i]];
@@ -169,7 +187,7 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
 	}
 	//sort them such that longer ones are started first, reducing overhead!
 	const auto compare = [this] (Uint a, Uint b) {
-		return data->Set[a]->tuples.size() > data->Set[b]->tuples.size();
+		return data->Set[a]->tuples.size() < data->Set[b]->tuples.size();
 	};
 	std::sort(seq.begin(), seq.end(), compare);
 
@@ -178,19 +196,22 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
 
 bool Learner::batchGradientReady()
 {
-	//if there is noty enough data for training: go back to master
-	if (data->nSequences < batchSize || !bTrain) {
-		nData_b4PolUpdates = data->nSeenSequences;
-		return false;
+	//if there is not enough data for training: go back to master
+	{
+		lock_guard<mutex> lock(data->dataset_mutex);
+		if (data->nSequences < batchSize || !bTrain) {
+			nData_b4PolUpdates = data->nSeenSequences;
+			return false;
+		}
+
+		//If I have done too many gradient steps on the avail data, go back to comm
+		if(data->nSeenSequences < opt->nepoch * obsPerStep / learn_size) {
+			warn("Not enough sequences\n");
+			return false; //-nData_b4PolUpdates
+		}
 	}
 
-	//If I have done too many gradient steps on the avail data, go back to comm
-	if(data->nSeenSequences < opt->nepoch * obsPerStep / learn_size) {
-		warn("Not enough sequences\n");
-		return false; //-nData_b4PolUpdates
-	}
-
-
+	lock_guard<mutex> lock(task_mutex);
 	//else if threads finished processing data:
 	return taskCounter >= batchSize;
 }

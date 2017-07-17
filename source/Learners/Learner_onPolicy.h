@@ -93,7 +93,7 @@ public:
 		for (const auto & dmp : work_rewards) delete dmp;
 	}
 	//main training functions:
-	void spawnTrainTasks() override;
+	int spawnTrainTasks(const int availTasks) override;
 	//void applyGradient() override;
 	void prepareData() override;
 	bool batchGradientReady() override;

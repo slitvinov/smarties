@@ -8,9 +8,11 @@
  */
 #pragma once
 #include "Bund.h"
+#include <mutex>
 
 namespace ErrorHandling
 {
+ static std::mutex warn_mutex;
  enum Debug_level { SILENT, WARNINGS, SCHEDULER, ENVIRONMENT, NETWORK, COMMUNICATOR, LEARNERS, TRANSITIONS };
 
 #if defined(NDEBUG)
@@ -24,14 +26,14 @@ namespace ErrorHandling
 
 #define    die(format)      {fprintf(stderr,format); fflush(stdout); fflush(stderr); fflush(0); MPI_Abort(MPI_COMM_WORLD, 1);}
 #define   _die(format, ...) {fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0); MPI_Abort(MPI_COMM_WORLD, 1);}
-#define  error(format, ...) {fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr);}
+#define  error(format, ...) {lock_guard<mutex> wlock(ErrorHandling::warn_mutex);  fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr);}
 
-#define   warn(format)	{if(ErrorHandling::level >= ErrorHandling::WARNINGS) fprintf(stdout,format); fflush(stdout); fflush(stderr);  fflush(0);}
-#define  _warn(format, ...)	{if(ErrorHandling::level >= ErrorHandling::WARNINGS) fprintf(stdout,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);}
-#define debugS(format, ...)	{if(ErrorHandling::level == ErrorHandling::SCHEDULER) fprintf(stdout,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);}
-#define debugE(format, ...)	{if(ErrorHandling::level == ErrorHandling::ENVIRONMENT) fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);}
-#define debugN(format, ...)	{if(ErrorHandling::level == ErrorHandling::NETWORK) fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);}
-#define debugC(format, ...)	{if(ErrorHandling::level == ErrorHandling::COMMUNICATOR) fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);}
-#define debugL(format, ...)	{if(ErrorHandling::level == ErrorHandling::LEARNERS) fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);}
-#define debugT(format, ...)	{if(ErrorHandling::level == ErrorHandling::TRANSITIONS) fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);}
+#define   warn(format)	{if(ErrorHandling::level >= ErrorHandling::WARNINGS) { lock_guard<mutex> wlock(ErrorHandling::warn_mutex); fprintf(stdout,format); fflush(stdout); fflush(stderr);  fflush(0);} }
+#define  _warn(format, ...)	{if(ErrorHandling::level >= ErrorHandling::WARNINGS) { lock_guard<mutex> wlock(ErrorHandling::warn_mutex); fprintf(stdout,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);} }
+#define debugS(format, ...)	{if(ErrorHandling::level == ErrorHandling::SCHEDULER) { lock_guard<mutex> wlock(ErrorHandling::warn_mutex); fprintf(stdout,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);} }
+#define debugE(format, ...)	{if(ErrorHandling::level == ErrorHandling::ENVIRONMENT) { lock_guard<mutex> wlock(ErrorHandling::warn_mutex); fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);} }
+#define debugN(format, ...)	{if(ErrorHandling::level == ErrorHandling::NETWORK) { lock_guard<mutex> wlock(ErrorHandling::warn_mutex); fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);} }
+#define debugC(format, ...)	{if(ErrorHandling::level == ErrorHandling::COMMUNICATOR) { lock_guard<mutex> wlock(ErrorHandling::warn_mutex); fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);} }
+#define debugL(format, ...)	{if(ErrorHandling::level == ErrorHandling::LEARNERS) { lock_guard<mutex> wlock(ErrorHandling::warn_mutex); fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);} }
+#define debugT(format, ...)	{if(ErrorHandling::level == ErrorHandling::TRANSITIONS) { lock_guard<mutex> wlock(ErrorHandling::warn_mutex); fprintf(stderr,format, ##__VA_ARGS__); fflush(stdout); fflush(stderr); fflush(0);} }
 }

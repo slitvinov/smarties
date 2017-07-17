@@ -9,7 +9,10 @@
 
 #include "Learner_onPolicy.h"
 
-void Learner_onPolicy::spawnTrainTasks() {} //do nothing
+int Learner_onPolicy::spawnTrainTasks(const int availTasks)
+{
+	return 0;
+} //do nothing
 
 void Learner_onPolicy::prepareData() //cannot call from omp parallel region
 {

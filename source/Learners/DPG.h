@@ -27,5 +27,5 @@ class DPG : public Learner_utils
 
 public:
 	DPG(MPI_Comm comm, Environment*const env, Settings & settings);
-	void select(const int agentId, const Agent& agent) override;
+	void select(const int agentId, const Agent& agent) const override;
 };

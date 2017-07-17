@@ -53,6 +53,12 @@ protected:
 	Optimizer* opt;
 	Transitions* data;
 
+public:
+	Profiler* profiler;
+	std::mutex task_mutex;
+	int nTasks = 0;
+
+protected:
 	virtual void Train_BPTT(const Uint seq, const Uint thrID) const = 0;
 	virtual void Train(const Uint seq, const Uint samp, const Uint thrID)const=0;
 	virtual void stackAndUpdateNNWeights() = 0;
@@ -63,7 +69,6 @@ protected:
 	Uint sampleTransitions(vector<Uint>& sequences, vector<Uint>& transitions);
 
 public:
-	Profiler* profiler;
 	Learner(MPI_Comm mastersComm, Environment*const env, Settings & settings);
 
 	virtual ~Learner()
@@ -113,11 +118,11 @@ public:
 	}
 	//*/
 
-	virtual void select(const int agentId, const Agent& agent) = 0;
+	virtual void select(const int agentId, const Agent& agent) const = 0;
 	virtual void dumpPolicy() = 0;
 
 	//main training functions:
-	virtual void spawnTrainTasks();
+	virtual int spawnTrainTasks(const int availTasks);
 	virtual void applyGradient();
 	virtual void prepareData();
 
