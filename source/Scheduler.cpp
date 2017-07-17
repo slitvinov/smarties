@@ -123,7 +123,7 @@ int Master::run()
 						{
 							vector<Real> _a(outBufs[i], outBufs[i]+aI.dim);
 							MPI_Send(outBufs[i], outSize, MPI_BYTE, i+1, 0, slavesComm);
-							//debugS("Sent action to slave %d: [%s]\n", i+1, print(_a).c_str());
+							debugS("Sent action to slave %d: [%s]\n", i+1, print(_a).c_str());
 							slaveIrecvStatus[i] = OVER;
 						}
 						else
@@ -143,15 +143,15 @@ int Master::run()
 					{
 						int slave = mpistatus.MPI_SOURCE;
 						assert(slaveIrecvStatus[i] == OPEN && slave==i+1);
-						//debugS("Master receives from %d\n", slave);
+						debugS("Master receives from %d\n", slave);
 						slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
 						const int agent = recvState(slave); //unpack buffer
 
-						//debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]\n", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
+						debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]\n", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
 
 						if(learnerReadyForAgent(slave, agent))
 						{
-							//#pragma omp task firstprivate(slave, agent)
+							#pragma omp task firstprivate(slave, agent)
 								processRequest(slave, agent);
 						}
 						else //never triggered for off-policy algorithms:
@@ -199,7 +199,7 @@ void Master::processRequest(const int slave, const int agent)
 	{
 		//pick next action and ...do a bunch of other stuff with the data:
 		learner->select(agent, *agents[agent]);
-		//debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]\n", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
+		debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]\n", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
 
 		if (agents[agent]->Status != _AGENT_LASTCOMM)
 		{

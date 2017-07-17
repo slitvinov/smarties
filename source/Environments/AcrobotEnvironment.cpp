@@ -27,8 +27,8 @@ void AcrobotEnvironment::setDims() //this environment is for the cart pole test
   {
     aI.dim = 1;
     aI.values.resize(1);
-    aI.values[0].push_back(-1.); //here the app accepts real numbers
-    aI.values[0].push_back( 1.);
+    aI.values[0].push_back(-2.); //here the app accepts real numbers
+    aI.values[0].push_back( 2.);
 		aI.bounded.push_back(1);
   }
   commonSetup(); //required

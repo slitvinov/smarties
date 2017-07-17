@@ -113,10 +113,11 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 if (!learn_rank)
 	_opt->save("initial");
 #ifndef NDEBUG
-	MPI_Barrier(mastersComm);
-	_opt->restart("initial");
-
-	_opt->save("restarted"+to_string(learn_rank));
+  if(ErrorHandling::level == ErrorHandling::NETWORK) {
+	  MPI_Barrier(mastersComm);
+	  _opt->restart("initial");
+	  _opt->save("restarted"+to_string(learn_rank));
+  }
 #endif
 	//for (const auto & l : _net->layers) l->profiler = profiler;
 }
