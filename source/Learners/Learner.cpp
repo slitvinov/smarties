@@ -12,17 +12,16 @@
 
 Learner::Learner(MPI_Comm comm, Environment*const _env, Settings & _s) :
 mastersComm(comm), env(_env), tgtUpdateDelay((Uint)_s.targetDelay),
-nAgents(_s.nAgents), batchSize(_s.batchSize), nThreads(_s.nThreads),
-nAppended(_s.appendedObs), maxTotSeqNum(_s.maxTotSeqNum),
-totNumSteps(_s.totNumSteps), learn_rank(_s.learner_rank),
-learn_size(_s.learner_size), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
-bRecurrent(_s.bRecurrent), bSampleSequences(_s.bSampleSequences),
+nAgents(_s.nAgents), batchSize(_s.batchSize), nAppended(_s.appendedObs),
+maxTotSeqNum(_s.maxTotSeqNum),totNumSteps(_s.totNumSteps),nThreads(_s.nThreads),
+nSThreads(_s.nThreads),learn_rank(_s.learner_rank),learn_size(_s.learner_size), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),bRecurrent(_s.bRecurrent),
+bSampleSequences(_s.bSampleSequences),
 bTrain(_s.bTrain), tgtUpdateAlpha(_s.targetDelay), greedyEps(_s.greedyEps),
 gamma(_s.gamma), epsAnneal(_s.epsAnneal), obsPerStep(_s.obsPerStep),
 sequences(batchSize,0), transitions(batchSize,0), aInfo(env->aI),
 sInfo(env->sI), gen(&_s.generators[0])
 {
-	assert(nThreads>0);
+	assert(nThreads>1);
 	profiler = new Profiler();
 	data = new Transitions(mastersComm, env, _s);
 }
@@ -50,7 +49,7 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
 				nTasks++;
 			}
 
-			#pragma omp task firstprivate(sequence)
+			#pragma omp task firstprivate(sequence) if(nTasks<nSThreads)
 			{
 				const int thrID = omp_get_thread_num();
 				assert(thrID>=0);
@@ -71,7 +70,7 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
 				nTasks++;
 			}
 
-			#pragma omp task firstprivate(sequence,transition)
+			#pragma omp task firstprivate(sequence,transition) if(nTasks<nSThreads)
 			{
 				const int thrID = omp_get_thread_num();
 				assert(thrID>=0);
@@ -218,7 +217,9 @@ bool Learner::batchGradientReady()
 
 int Learner::readyForAgent(const int slave, const int agent)
 {
-	return 1; //Learner assumes off-policy algorithm. it can always use more data
+	lock_guard<mutex> lock(data->dataset_mutex);
+	return data->nSeenSequences < opt->nepoch * obsPerStep / learn_size;
+	//return 1; //Learner assumes off-policy algorithm. it can always use more data
 }
 int Learner::slaveHasUnfinishedSeqs(const int slave) const
 {

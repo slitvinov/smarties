@@ -17,8 +17,9 @@ echo $SETTINGS > settings.txt
 env > environment.log
 echo ${NPROCESS} ${NTHREADS}
 
+mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none xterm -e gdb --tui --args ./rl ${SETTINGS}
 
-mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none ./rl ${SETTINGS} | tee out.log
+#mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none ./rl ${SETTINGS} | tee out.log
 
 # mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none xterm -hold -e gdb -ex run --args ./rl ${SETTINGS}
 

@@ -106,8 +106,9 @@ int Master::run()
 		#pragma omp master
 		while (not learner->batchGradientReady())
 		{
-			//nSlaves tasks are reserved to handle slaves
-			learner->spawnTrainTasks(nThreads -learner->nTasks -nSlaves);
+			//nSlaves tasks are reserved to handle slaves, if comm queue is empty
+			const int availTasks = nThreads -learner->nTasks - (postponed_queue.size() ? 0 : nSlaves);
+			learner->spawnTrainTasks(availTasks);
 
 			for(int i=0; i<nSlaves; i++) //check all slaves
 			{
@@ -177,6 +178,7 @@ int Master::run()
 
 		if(postponed_queue.size()) //never triggered for off-policy algorithms
 		{
+			debugS("postponed_queue.size(): %lu\n", postponed_queue.size());
 			#pragma omp parallel num_threads(nThreads)
 			#pragma omp master
 			for (const auto& w : postponed_queue) {
