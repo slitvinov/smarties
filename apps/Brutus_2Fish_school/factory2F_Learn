@@ -1,3 +1,0 @@
-IF2D_StefanLearnTurn L=0.1 xpos=0.5 ypos=0.5 phase=0.0 angle=0.866 T=1 Fixed=1 Tstartlearn=1 CompPress=1 Interactive=1 NpLatLine=20 nActions=2
-
-IF2D_StefanLearnTurn L=0.1 xpos=0.5 ypos=0.5 phase=0.0 angle=0.866 T=1 randomStart=1 CompPress=1 Interactive=1 Tstartlearn=1 NpLatLine=20 nActions=2

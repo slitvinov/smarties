@@ -99,7 +99,7 @@ ifeq "$(app)" "cubism"
 CPPFLAGS+= -D__Cubism3D
 endif
 ifeq "$(config)" "debug"
-CPPFLAGS+= -g# -O2 -ffast-math
+CPPFLAGS+= -g -O0
 endif
 ifeq "$(config)" "segf"
 CPPFLAGS+= -g# -O2 -ffast-math
@@ -124,7 +124,7 @@ OBJ_FILES = Profiler.o ArgumentParser.o main.o ObjectFactory.o \
 		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
 		alebotEnvironment.o openAICartEnvironment.o Communicator.o \
 		Learner.o RACER.o DACER.o NAF.o NFQ.o DPG.o Transitions.o \
-		Scheduler.o  Network.o Optimizer.o Math_tests.o Learner_utils.o
+		Scheduler.o  Network.o Optimizer.o Math_tests.o Learner_utils.o HingedFishEnvironment.o
 #ExternalAgent.o
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 

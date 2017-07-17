@@ -20,6 +20,8 @@ typedef float nnReal;
 #define EXP_CUT 4
 #endif
 static const int simdWidth = __vec_width__/sizeof(nnReal);
+typedef nnReal*__restrict__ const				nnOpRet;
+typedef const nnReal*__restrict__ const nnOpInp;
 
 static inline void Lpenalization(nnReal* const weights,
 	const Uint start, const Uint N, const nnReal lambda)

@@ -93,7 +93,8 @@ void Environment::commonSetup()
     }
     assert(sI.scale.size() == sI.mean.size());
     assert(sI.mean.size()==0 || sI.mean.size()==sI.dim);
-    for (Uint i=0; i<sI.dim; i++) assert(positive(sI.scale[i]));
+    for (Uint i=0; i<sI.scale.size(); i++)
+			assert(positive(sI.scale[i]));
 }
 
 bool Environment::pickReward(const State& t_sO, const Action& t_a,
