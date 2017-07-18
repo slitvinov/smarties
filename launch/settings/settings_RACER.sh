@@ -14,6 +14,7 @@ SETTINGS+=" --gamma 0.99"
 #SETTINGS+=" --nnl2 512"
 SETTINGS+=" --nnl1 128"
 SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnl3 128"
 #SETTINGS+=" --nnl1 256"
 #SETTINGS+=" --nnl2 256"
 
