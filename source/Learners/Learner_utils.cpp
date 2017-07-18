@@ -313,7 +313,7 @@ void Learner_utils::dumpPolicy()
 	if(nAppended) die("TODO missing features\n");
 	const Uint nDumpPoints = env->getNdumpPoints();
 
-	FILE * pFile = fopen ("dump.txt", "ab");
+	FILE * pFile = fopen ("dump.txt", "wb");
 	vector<Real> output(nOutputs), dump(nInputs+5);
 	Activation* act = net->allocateActivation();
 	for (Uint i=0; i<nDumpPoints; i++)
