@@ -120,7 +120,7 @@ endif
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = Profiler.o ArgumentParser.o main.o ObjectFactory.o \
 		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o \
-		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
+		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o HingedFishEnvironment.o \
 		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
 		alebotEnvironment.o openAICartEnvironment.o Communicator.o \
 		Learner.o RACER.o DACER.o NAF.o NFQ.o DPG.o GAE.o Transitions.o \

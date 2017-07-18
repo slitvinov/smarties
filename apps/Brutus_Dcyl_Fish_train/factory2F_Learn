@@ -1,3 +1,0 @@
-ForcedDSectionCylinder D=0.05 xpos=0.15 ypos=0.15 thetaPOV=0.7853981634 xvel=0.15 angle=0.7853981634 Ampl=0.0 Fixed=1
-
-IF2D_StefanLearnTurn L=0.2 xpos=0.4 ypos=0.4 phase=0.0 angle=0.866 T=1 LearnFreq=2 randomStart=1 CompPress=1

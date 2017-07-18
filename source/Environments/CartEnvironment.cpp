@@ -95,3 +95,36 @@ bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a,
 	}
   return new_sample;
 }
+
+Uint CartEnvironment::getNdumpPoints()
+{
+	     if( swingup &&  allSenses) return 49 * 15 * 15 * 32; 
+	else if( swingup && !allSenses) return 49 * 32;
+	else if(!swingup &&  allSenses) return 49 * 15 * 15 * 32;
+	else if(!swingup && !allSenses) return 49 * 32;
+	else die("CartEnvironment::getNdumpPoints()\n");
+}
+
+vector<Real> CartEnvironment::getDumpState(Uint k)
+{
+	if(!allSenses) {
+	die("GliderEnvironment::getDumpState\n");
+	}
+
+        const vector<Real> ub = {  2.4,  .5,  .5, 2*M_PI};
+        const vector<Real> lb = { -2.4, -.5, -.5,  0};
+        const vector<Uint> nb = {   49,  15,  15, 32};
+        vector<Real> state(4,0);
+        for (Uint i=0; i<4; i++) {
+                const Uint j = k % nb[i];
+                state[i] = lb[i] + (ub[i]-lb[i]) * (j/(Real)(nb[i]-1));
+                k /= nb[i];
+        }
+	if(swingup) {
+		state.resize(5); 
+        	const Real cosang = std::cos(state[3]);
+        	const Real sinang = std::sin(state[3]);
+        	state[3] = cosang; state[4] = sinang;
+	}
+        return state;
+}

@@ -99,7 +99,7 @@ void Learner::prepareData() //this cannot be called from omp parallel region
 	profiler->push_start("PRE");
 
 	if(opt->nepoch%100==0 || data->requestUpdateSamples())
-		data->updateSamples(0); //update sampling //syncDataStats =
+		data->updateSamples(0); //update sampling //syncDataStats 
 
 	#ifdef __CHECK_DIFF //check gradients with finite differences
 		if (opt->nepoch % 100000 == 0) net->checkGrads();
@@ -211,11 +211,16 @@ bool Learner::batchGradientReady()
 		}
 
 		//If I have done too many gradient steps on the avail data, go back to comm
-		if(data->nSeenSequences < opt->nepoch * obsPerStep / learn_size) {
-			debugS("Not enough sequences\n");
+		if(data->nSeenSequences < opt->nepoch * obsPerStep / learn_size)
 			return false; //-nData_b4PolUpdates
-		}
 	}
+
+	#ifndef FULLTASKING
+	if(data->nSeenSequences >= opt->nepoch * obsPerStep / learn_size)
+	{
+		#pragma omp taskwait
+	}
+	#endif
 
 	lock_guard<mutex> lock(task_mutex);
 	//else if threads finished processing data:
@@ -224,9 +229,9 @@ bool Learner::batchGradientReady()
 
 int Learner::readyForAgent(const int slave, const int agent)
 {
-	lock_guard<mutex> lock(data->dataset_mutex);
-	return data->nSeenSequences < opt->nepoch * obsPerStep / learn_size;
-	//return 1; //Learner assumes off-policy algorithm. it can always use more data
+	//lock_guard<mutex> lock(data->dataset_mutex);
+	//return data->nSeenSequences < opt->nepoch * obsPerStep / learn_size;
+	return 1; //Learner assumes off-policy algorithm. it can always use more data
 }
 int Learner::slaveHasUnfinishedSeqs(const int slave) const
 {

@@ -18,6 +18,7 @@ class TwoFishEnvironment;
 class NewFishEnvironment;
 class DeadFishEnvironment;
 class TwoActFishEnvironment;
+class HingedFishEnvironment;
 class CMAEnvironment;
 class TestEnvironment;
 class alebotEnvironment;
@@ -35,3 +36,4 @@ class openAICartEnvironment;
 #include "Environments/alebotEnvironment.h"
 #include "Environments/GliderEnvironment.h"
 #include "Environments/openAICartEnvironment.h"
+#include "Environments/HingedFishEnvironment.h"

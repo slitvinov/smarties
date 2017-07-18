@@ -106,13 +106,13 @@ int Master::run()
 		#pragma omp master
 		{
 			#ifndef FULLTASKING
-			learner->spawnTrainTasks(9999);
+			learner->spawnTrainTasks(9999); //spawn all tasks
 			#endif
 
 			while (not learner->batchGradientReady())
 			{
-				//nSlaves tasks are reserved to handle slaves, if comm queue is empty
 				#ifdef FULLTASKING
+				//nSlaves tasks are reserved to handle slaves, if comm queue is empty
 				const int availTasks = nThreads -learner->nTasks - (postponed_queue.size() ? 0 : nSlaves);
 				learner->spawnTrainTasks(availTasks);
 				#endif
@@ -174,7 +174,7 @@ int Master::run()
 						}
 						else //never triggered for off-policy algorithms:
 						{
-							die("Not supposed to be here yet\n");
+							//die("Not supposed to be here yet\n");
 							postponed_queue.push_back(make_pair(slave, agent));
 						}
 						debugS("number of tasks %d\n", learner->nTasks);
