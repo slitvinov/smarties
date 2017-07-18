@@ -68,14 +68,14 @@ bool GliderEnvironment::pickReward(const State & t_sO, const Action & t_a,
 
 Uint GliderEnvironment::getNdumpPoints()
 {
-	return 7 * 7 * 9 * 53 * 21 * 9 * 7;
+	return 7 * 7 * 9 * 53 * 21 * 9 * 5;
 }
 
 vector<Real> GliderEnvironment::getDumpState(Uint k)
 {
 	const vector<Real> ub = {  .5,  .5, 1, 125,   0,      0,  1};
 	const vector<Real> lb = { -.5, -.5, 0,  -5, -50, 2*M_PI, -1};
-	const vector<Uint> nb = {   7,   7, 9,  53,  21,      9,  7};
+	const vector<Uint> nb = {   7,   7, 9,  53,  21,      9,  5};
 	vector<Real> state(7,0);
 	for (Uint i=0; i<7; i++)
 	{
