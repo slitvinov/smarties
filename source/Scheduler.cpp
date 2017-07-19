@@ -19,10 +19,12 @@ Master::Master(MPI_Comm _c,Learner*const _l, Environment*const _e, Settings&_s):
 	learn_size(_s.learner_size), totNumSteps(_s.totNumSteps),
 	outSize(_e->aI.dim*sizeof(double)), inSize((3+_e->sI.dim)*sizeof(double)),
 	inpBufs(alloc_bufs(inSize,nSlaves)), outBufs(alloc_bufs(outSize,nSlaves)),
-	slaveIrecvStatus(nSlaves, EMPTY), agentSortingCheck(agents.size(), 0), requests(nSlaves, MPI_REQUEST_NULL), profiler(_l->profiler)
+	slaveIrecvStatus(nSlaves, EMPTY), agentSortingCheck(agents.size(), 0), requests(nSlaves, MPI_REQUEST_NULL)//, profiler(_l->profiler)
 {
+	profiler = new Profiler();
+	learner->profiler_ext = profiler;
 	if(nSlaves*nPerRank != static_cast<int>(agents.size()))
-		die("FATAL: Mismatch in master's nSlaves nPerRank nAgents.\n")
+		die("Mismatch in master's nSlaves nPerRank nAgents.")
 	//the following Irecv will be sent after sending the action
 	for(int i=1; i<=nSlaves; i++) {
 		MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, slavesComm, &requests[i-1]);
@@ -99,8 +101,9 @@ int Master::run()
 	{
 		if(!bTrain && stepNum >= totNumSteps) return 1;
 		if( bTrain && learner->reachedMaxGradStep()) return 1;
-
+		profiler->stop_start("PREP");
 		learner->prepareData(); //sync data, make sure we can sample
+		profiler->stop_start("TASK");
 
 		#pragma omp parallel num_threads(nThreads)
 		#pragma omp master
@@ -109,15 +112,18 @@ int Master::run()
 			learner->spawnTrainTasks(9999); //spawn all tasks
 			#endif
 
-			while (not learner->batchGradientReady())
+			profiler->stop_start("COMM");
+			while (true)
 			{
+				if(learner->batchGradientReady()) break;
+
 				#ifdef FULLTASKING
-				//nSlaves tasks are reserved to handle slaves, if comm queue is empty
-				const int availTasks = nThreads -learner->nTasks - (postponed_queue.size() ? 0 : nSlaves);
+					//nSlaves tasks are reserved to handle slaves, if comm queue is empty
+				const int availTasks = nThreads -learner->readNTasks() - (postponed_queue.size() ? 0 : nSlaves);
 				learner->spawnTrainTasks(availTasks);
 				#endif
 
-				for(int i=0; i<nSlaves; i++) //check all slaves
+				for(int i=0; i<nSlaves; i++) // && not learner->batchGradientReady()
 				{
 					int completed=0;
 					MPI_Status mpistatus;
@@ -129,15 +135,14 @@ int Master::run()
 						}
 						else if (slaveIrecvStatus[i] == SEND)
 						{
-							vector<Real> _a(outBufs[i], outBufs[i]+aI.dim);
 							MPI_Send(outBufs[i], outSize, MPI_BYTE, i+1, 0, slavesComm);
-							debugS("Sent action to slave %d: [%s]\n", i+1, print(_a).c_str());
+							debugS("Sent action to slave %d: [%s]", i+1, print(vector<Real>(outBufs[i], outBufs[i]+aI.dim)).c_str());
 							slaveIrecvStatus[i] = OVER;
 						}
 						else
 						{
 							if(slaveIrecvStatus[i] != OVER && slaveIrecvStatus[i] != DOING)
-							_die("slave status is %d\n",slaveIrecvStatus[i]);
+							_die("slave status is %d",slaveIrecvStatus[i]);
 						}
 
 						if(slaveIrecvStatus[i] == OVER)
@@ -150,23 +155,19 @@ int Master::run()
 					if(completed)
 					{
 						int slave = mpistatus.MPI_SOURCE;
-						assert(slaveIrecvStatus[i] == OPEN && slave==i+1);
-						debugS("Master receives from %d\n", slave);
-						slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
+						assert(slaveIrecvStatus[i]==OPEN && slave==i+1);
+						debugS("Master receives from %d", slave);
 						const int agent = recvState(slave); //unpack buffer
+						slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
 
 						if(learnerReadyForAgent(slave, agent))
 						{
 							#ifdef FULLTASKING
-								{
-									lock_guard<mutex> lock(learner->task_mutex);
-									learner->nTasks++;
-								}
-								#pragma omp task firstprivate(slave, agent) if(learner->nTasks<nThreads)
+								learner->addToNTasks(1);
+#pragma omp task firstprivate(slave, agent) if(learner->readNTasks()<nThreads)
 								{
 									processRequest(slave, agent);
-									lock_guard<mutex> lock(learner->task_mutex);
-									learner->nTasks--;
+									learner->addToNTasks(-1);
 								}
 							#else
 								processRequest(slave, agent);
@@ -176,33 +177,44 @@ int Master::run()
 						{
 							//die("Not supposed to be here yet\n");
 							postponed_queue.push_back(make_pair(slave, agent));
+							//error("queue size %lu", postponed_queue.size());
 						}
-						debugS("number of tasks %d\n", learner->nTasks);
-						assert(learner->nTasks<nThreads && learner->nTasks>=0);
+						#ifdef FULLTASKING
+						//	error("number of tasks %d", learner->readNTasks());
+						//assert(learner->readNTasks()<nThreads && learner->readNTasks()>=0);
+						#endif
 					}
 				}
 			}
 		}
 
-		//for(int i=0; i<nSlaves; i++)
-		//	assert(slaveIrecvStatus[i] == OPEN);
+		profiler->stop_start("TERM");
 		learner->applyGradient(); //tasks have finished, update is ready
 
 		if(postponed_queue.size()) //never triggered for off-policy algorithms
 		{
-			debugS("postponed_queue.size(): %lu\n", postponed_queue.size());
-			#pragma omp parallel num_threads(nThreads)
-			#pragma omp master
-			for (const auto& w : postponed_queue) {
-				const int slave = w.first, agent = w.second;
-				#pragma omp task firstprivate(slave, agent)
-					processRequest(slave, agent);
-			}
+			profiler->stop_start("QUEUE");
+			//error("postponed_queue.size(): %lu", postponed_queue.size());
+
+			#ifdef FULLTASKING
+				#pragma omp parallel num_threads(nThreads)
+				#pragma omp master
+				for (const auto& w : postponed_queue) {
+					const int slave = w.first, agent = w.second;
+					#pragma omp task firstprivate(slave, agent)
+						processRequest(slave, agent);
+				}
+			#else
+				for(const auto& w : postponed_queue) processRequest(w.first, w.second);
+			#endif
 			postponed_queue.clear();
 		}
+
 		profiler->stop_all();
+
+		if(learner->iter()%1000==0 && learner->iter()) profiler->printSummary();
 	}
-	die("FATAL MASTER::run.\n");
+	die(" ");
 	return 0;
 }
 
@@ -220,7 +232,8 @@ void Master::processRequest(const int slave, const int agent)
 	{
 		//pick next action and ...do a bunch of other stuff with the data:
 		learner->select(agent, *agents[agent]);
-		debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]\n", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
+
+		debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
 
 		if (agents[agent]->Status != _AGENT_LASTCOMM)
 		{
@@ -254,9 +267,8 @@ int Master::learnerReadyForAgent(const int slave, const int agent) const
 	//using correct algorithm for the problem or has implemented something wrong.
 	//There is a check on on-policy algo to verify that when new seq from agent
 	//on a slave S begins, all other slave S's agents must have sent term state.
-	const int ready = learner->readyForAgent(slave, agent);
-	assert(ready>=0 || agents[agent]->Status == _AGENT_FIRSTCOMM);
-	return ready>=0;
+	return learner->readyForAgent(slave, agent);
+	//assert(ready || agents[agent]->Status == _AGENT_FIRSTCOMM); //for on pol
 }
 
 Slave::Slave(Communicator*const _c, Environment*const _e, Settings& _s):

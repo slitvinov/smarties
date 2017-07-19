@@ -98,6 +98,6 @@ public:
 	void prepareData() override;
 	bool batchGradientReady() override;
 
-	int readyForAgent(const int slave, const int agentID) override;
-	int slaveHasUnfinishedSeqs(const int slave) const override;
+	bool readyForAgent(const int slave, const int agentID) override;
+	bool slaveHasUnfinishedSeqs(const int slave) const override;
 };

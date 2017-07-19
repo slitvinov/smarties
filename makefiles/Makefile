@@ -118,13 +118,15 @@ endif
 #endif
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
-OBJ_FILES = Profiler.o ArgumentParser.o main.o ObjectFactory.o \
+OBJ_FILES = ArgumentParser.o main.o ObjectFactory.o Communicator.o \
 		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o \
-		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o HingedFishEnvironment.o \
+		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
+		HingedFishEnvironment.o BlowfishEnvironment.o alebotEnvironment.o \
 		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
-		alebotEnvironment.o openAICartEnvironment.o Communicator.o \
+		openAICartEnvironment.o \
 		Learner.o RACER.o DACER.o NAF.o NFQ.o DPG.o GAE.o Transitions.o \
-		Scheduler.o  Network.o Optimizer.o Math_tests.o Learner_utils.o Learner_onPolicy.o
+		Scheduler.o  Network.o Optimizer.o Math_tests.o Learner_utils.o \
+		Learner_onPolicy.o
 #ExternalAgent.o
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 

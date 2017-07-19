@@ -18,6 +18,7 @@
 #include <string>
 #include <stdio.h>
 #include <stack>
+#include <sys/time.h>
 
 using namespace std;
 
@@ -38,9 +39,17 @@ class ProfileAgent
 	int m_nMeasurements;
 	int m_nMoney;
 
-	static void _getTime(ClockTime& time);
+	static inline void _getTime(ClockTime& time)
+	{
+		//time = tick_count::now();
+		gettimeofday(&time, NULL);
+	}
 
-	static double _getElapsedTime(const ClockTime& tS, const ClockTime& tE);
+	static inline double _getElapsedTime(const ClockTime&tS, const ClockTime&tE)
+	{
+		return (tE.tv_sec - tS.tv_sec) + 1e-6 * (tE.tv_usec - tS.tv_usec);
+		//return (tE - tS).seconds();
+	}
 
 	void _reset()
 	{

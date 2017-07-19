@@ -98,11 +98,14 @@ bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a,
 
 Uint CartEnvironment::getNdumpPoints()
 {
-	     if( swingup &&  allSenses) return 49 * 15 * 15 * 32; 
+	     if( swingup &&  allSenses) return 49 * 15 * 15 * 32;
 	else if( swingup && !allSenses) return 49 * 32;
 	else if(!swingup &&  allSenses) return 49 * 15 * 15 * 32;
 	else if(!swingup && !allSenses) return 49 * 32;
-	else die("CartEnvironment::getNdumpPoints()\n");
+	else {
+		die("CartEnvironment::getNdumpPoints()\n");
+		return 0;
+	}
 }
 
 vector<Real> CartEnvironment::getDumpState(Uint k)
@@ -121,7 +124,7 @@ vector<Real> CartEnvironment::getDumpState(Uint k)
                 k /= nb[i];
         }
 	if(swingup) {
-		state.resize(5); 
+		state.resize(5);
         	const Real cosang = std::cos(state[3]);
         	const Real sinang = std::sin(state[3]);
         	state[3] = cosang; state[4] = sinang;

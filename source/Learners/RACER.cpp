@@ -166,7 +166,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 	net->deallocateUnrolledActivations(&series_cur);
 	net->deallocateUnrolledActivations(&series_hat);
 
-	if(thrID==1)  profiler->stop_start("TSK");
+	if(thrID==1)  profiler->pop_stop();
 }
 
 void RACER::Train_BPTT(const Uint seq, const Uint thrID) const

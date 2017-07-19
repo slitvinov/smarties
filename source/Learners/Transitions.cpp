@@ -461,15 +461,15 @@ Uint Transitions::updateSamples(const Real annealFac)
 	bool update_meanstd_needed = false;
 	if(Buffered.size()>0) {
 		if(!learn_rank)
-		printf("nSequences %d > maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
-			nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
+		printf("nSequences %d (%d) > maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
+			nSequences, nSeenSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
 		synchronize();
 		update_meanstd_needed = true;
 		old_ndata = nTransitions;
 	} else {
 		if(!learn_rank)
-		printf("nSequences %d < maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
-			nSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
+		printf("nSequences %d (%d) =< maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
+			nSequences, nSeenSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
 		update_meanstd_needed = nTransitions!=old_ndata;
 		old_ndata = nTransitions;
 	}

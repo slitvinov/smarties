@@ -108,6 +108,10 @@ Environment* ObjectFactory::createEnvironment()
 		printf("CMAEnvironment with %u agents per slave.\n",n);
 		env = new CMAEnvironment(n, execpath, *settings);
 	}
+	else if (envStr.find("BlowfishEnvironment ") != envStr.npos) {
+		printf("BlowfishEnvironment with %u agents per slave.\n",n);
+		env = new BlowfishEnvironment(n, execpath, *settings);
+	}
 	else if (envStr.find("alebotEnvironment ") != envStr.npos) {
 		printf("alebotEnvironment with %u agents per slave.\n",n);
 		int _nactions = _parseInt(envStr, "nActions", true);

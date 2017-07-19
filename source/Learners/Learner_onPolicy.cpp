@@ -39,7 +39,7 @@ bool Learner_onPolicy::batchGradientReady() //are all workspaces filled?
 	return done;
 }
 
-int Learner_onPolicy::readyForAgent(const int slave, const int agent)
+bool Learner_onPolicy::readyForAgent(const int slave, const int agent)
 {
 	int ret   = retrieveAssignment(agent);
 	int avail = checkFirstAvailable();
@@ -64,13 +64,13 @@ int Learner_onPolicy::readyForAgent(const int slave, const int agent)
 		assert(retrieveAssignment(agent) == ret);
 	}
 	//if here avail<0: nothing is left, wait for ones in progress and apply grad
-	return ret;
+	return ret>=0;
 }
 
-int Learner_onPolicy::slaveHasUnfinishedSeqs(const int slave) const
+bool Learner_onPolicy::slaveHasUnfinishedSeqs(const int slave) const
 {
 	for(Uint i=slave*nAgentsPerSlave; i<(slave+1)*nAgentsPerSlave; i++)
 		if(retrieveAssignment(i)>=0)
-			return 1;
-	return 0;
+			return true;
+	return false;
 }

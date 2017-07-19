@@ -98,7 +98,7 @@ int main (int argc, char** argv)
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (not settings.isServer) {
-		die("FATAL: You should not be running the client.sh scripts.\n");
+		die("You should not be running the client.sh scripts.\n");
 		/*
 		if (settings.sockPrefix<0)
 			die("Not received a prefix for the socket\n");
@@ -120,9 +120,9 @@ int main (int argc, char** argv)
 	settings.sockPrefix = runSeed+settings.world_rank;
 
 	if(settings.bTrain && settings.nThreads<2)
-		die("Error: must have at least 2 threads\n");
+		die("must have at least 2 threads\n");
 	if(!settings.bTrain && settings.nThreads<1)
-		die("Error: must have at least 1 thread even when not training.\n");
+		die("must have at least 1 thread even when not training.\n");
 
 	settings.generators.reserve(settings.nThreads);
 	settings.generators.push_back(mt19937(settings.sockPrefix));

@@ -176,15 +176,11 @@ void TwoActFishEnvironment::setDims()
 }
 
 
-bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
-                                const State& t_sN, Real& reward, const int info)
+bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a, const State& t_sN, Real& reward, const int info)
 {
   if(info!=1)
-  if (fabs(t_sO.vals[4] -t_sN.vals[5])>0.00001) {
-      printf("Mismatch state two states!!! [%s] === [%s]\n",
-       t_sN._print().c_str(),t_a._print().c_str());
-      abort();
-  }
+  if (fabs(t_sO.vals[4] -t_sN.vals[5])>0.00001)
+  _die("Mismatch two states [%s]==[%s]\n",t_sN._print().c_str(),t_a._print().c_str());
 
   bool new_sample(false);
   if (reward<-9.9) new_sample=true;
@@ -238,7 +234,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 bool TwoActFishEnvironment::predefinedNetwork(Builder* const net) const
 {
   if(!sight || !press || rcast || lline || sI.dimUsed != 90 )
-    die("Pick correct state\n");
+    die("Pick correct state");
 
   {
 	  const int inputsize[3] = {9,10,1};

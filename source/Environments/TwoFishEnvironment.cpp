@@ -126,23 +126,13 @@ bool TwoFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
 {
 
    if (fabs(t_sN.vals[4] - t_a.vals[0])>0.001)
-   {
-   printf("ASSUMING 2F: mismatch between state and reported action!!! [%s] \n",
-          t_sN._print().c_str());
-   abort();
-   }
+   _die("ASSUMING 2F: mismatch between state and reported action!!! [%s]",t_sN._print().c_str());
+
    if (fabs(t_sN.vals[5] - t_sO.vals[4])>0.001)
-   {
-   printf("ASSUMING 2F: mismatch between new state and old state!!! [%s] \n",
-          t_sN._print().c_str());
-   abort();
-   }
+   _die("ASSUMING 2F: mismatch between new state and old state!!! [%s]", t_sN._print().c_str());
+
    if ( fabs(t_sN.vals[3] - t_sO.vals[3])<1e-2 )
-   {
-   printf("ASSUMING 2F: same time for two states!!! [%s] \n",
-          t_sN._print().c_str());
-   abort();
-   }
+   _die("ASSUMING 2F: same time for two states!!! [%s]", t_sN._print().c_str());
 
   Real ToDmax(2.55764), PoutMax(5.85923e-07), dePowerMax(0.273871);
   Real etaMax(1), effMax(1), etaMin(0.253908), effMin(0.428293);

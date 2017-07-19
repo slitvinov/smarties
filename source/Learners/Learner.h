@@ -55,8 +55,11 @@ protected:
 
 public:
 	Profiler* profiler;
-	std::mutex task_mutex;
+	Profiler* profiler_ext;
+	mutable std::mutex task_mutex;
+	#ifdef FULLTASKING
 	int nTasks = 0;
+	#endif
 
 protected:
 	virtual void Train_BPTT(const Uint seq, const Uint thrID) const = 0;
@@ -77,6 +80,23 @@ public:
 		_dispose_object(net);
 		_dispose_object(opt);
 		_dispose_object(data);
+	}
+
+	inline int readNTasks() const
+	{
+		#ifdef FULLTASKING
+		lock_guard<mutex> lock(task_mutex);
+		return nTasks;
+		#else
+		return 0;
+		#endif
+	}
+	inline void addToNTasks(const int add)
+	{
+		#ifdef FULLTASKING
+		lock_guard<mutex> lock(task_mutex);
+		nTasks += add;
+		#endif
 	}
 
 	inline unsigned nData()
@@ -132,8 +152,8 @@ public:
 
 	//checks on status:
 	virtual bool batchGradientReady();
-	virtual int readyForAgent(const int slave, const int agent);
-	virtual int slaveHasUnfinishedSeqs(const int slave) const;
+	virtual bool readyForAgent(const int slave, const int agent);
+	virtual bool slaveHasUnfinishedSeqs(const int slave) const;
 
 	void save(string name);
 	void restart(string fname);

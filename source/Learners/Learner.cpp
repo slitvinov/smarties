@@ -18,8 +18,7 @@ nSThreads(_s.nThreads),learn_rank(_s.learner_rank),learn_size(_s.learner_size), 
 bSampleSequences(_s.bSampleSequences),
 bTrain(_s.bTrain), tgtUpdateAlpha(_s.targetDelay), greedyEps(_s.greedyEps),
 gamma(_s.gamma), epsAnneal(_s.epsAnneal), obsPerStep(_s.obsPerStep),
-sequences(batchSize,0), transitions(batchSize,0), aInfo(env->aI),
-sInfo(env->sI), gen(&_s.generators[0])
+aInfo(env->aI), sInfo(env->sI), gen(&_s.generators[0])
 {
 	assert(nThreads>1);
 	profiler = new Profiler();
@@ -44,23 +43,16 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
 	{
 		for (int i=0; i<availTasks && sequences.size(); i++) {
 			const Uint sequence = sequences.back(); sequences.pop_back();
-			#ifdef FULLTASKING
-			{
-				lock_guard<mutex> lock(task_mutex);
-				nTasks++;
-			}
-			#endif
-
-			#pragma omp task firstprivate(sequence) if(nTasks<nSThreads)
+			addToNTasks(1);
+#pragma omp task firstprivate(sequence) if(readNTasks()<nSThreads)
 			{
 				const int thrID = omp_get_thread_num();
+				if(!thrID) profiler_ext->stop_start("WORK");
 				assert(thrID>=0);
 				Train_BPTT(sequence, static_cast<Uint>(thrID));
-				lock_guard<mutex> lock(task_mutex);
+				addToNTasks(-1);
+#pragma omp atomic
 				taskCounter++;
-				#ifdef FULLTASKING
-				nTasks--;
-				#endif
 			}
 		}
 	}
@@ -69,22 +61,16 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
 		for (int i=0; i<availTasks && sequences.size(); i++) {
 			const Uint sequence = sequences.back(); sequences.pop_back();
 			const Uint transition = transitions.back(); transitions.pop_back();
-			#ifdef FULLTASKING
-			{
-				lock_guard<mutex> lock(task_mutex);
-				nTasks++;
-			}
-			#endif
-			#pragma omp task firstprivate(sequence,transition) if(nTasks<nSThreads)
+			addToNTasks(1);
+#pragma omp task firstprivate(sequence,transition) if(readNTasks()<nSThreads)
 			{
 				const int thrID = omp_get_thread_num();
+				if(!thrID) profiler_ext->stop_start("WORK");
 				assert(thrID>=0);
 				Train(sequence, transition, static_cast<Uint>(thrID));
-				lock_guard<mutex> lock(task_mutex);
+				addToNTasks(-1);
+#pragma omp atomic
 				taskCounter++;
-				#ifdef FULLTASKING
-				nTasks--;
-				#endif
 			}
 		}
 	}
@@ -99,7 +85,7 @@ void Learner::prepareData() //this cannot be called from omp parallel region
 	profiler->push_start("PRE");
 
 	if(opt->nepoch%100==0 || data->requestUpdateSamples())
-		data->updateSamples(0); //update sampling //syncDataStats 
+		data->updateSamples(0); //update sampling //syncDataStats
 
 	#ifdef __CHECK_DIFF //check gradients with finite differences
 		if (opt->nepoch % 100000 == 0) net->checkGrads();
@@ -120,13 +106,13 @@ void Learner::prepareData() //this cannot be called from omp parallel region
 	nAddedGradients = bSampleSequences ? sampleSequences(sequences) :
 		sampleTransitions(sequences, transitions);
 
-	profiler->stop_start("TSK");
+	profiler->pop_stop();
 }
 
 void Learner::applyGradient() //this cannot be called from omp parallel region
 {
 	if(!nAddedGradients) return; //then this was called WITHOUT a batch ready
-	assert(nAddedGradients && taskCounter == batchSize);
+	assert(taskCounter == batchSize);
 
 	profiler->stop_start("UPW");
 	dataUsage += nAddedGradients;
@@ -138,9 +124,9 @@ void Learner::applyGradient() //this cannot be called from omp parallel region
 	if(opt->nepoch%100 ==0)
 		processStats();
 
-	profiler->pop_stop();
+	profiler->stop_all();
 
-	if(opt->nepoch%1000==0 && !learn_rank)
+	if(opt->nepoch%10000==0 && !learn_rank)
 		profiler->printSummary();
 }
 
@@ -202,40 +188,50 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
 
 bool Learner::batchGradientReady()
 {
+	const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
 	//if there is not enough data for training: go back to master
 	{
-		lock_guard<mutex> lock(data->dataset_mutex);
+		#ifdef FULLTASKING
+			lock_guard<mutex> lock(data->dataset_mutex);
+		#endif
 		if (data->nSequences < batchSize || !bTrain) {
 			nData_b4PolUpdates = data->nSeenSequences;
 			return false;
 		}
 
 		//If I have done too many gradient steps on the avail data, go back to comm
-		if(data->nSeenSequences < opt->nepoch * obsPerStep / learn_size)
-			return false; //-nData_b4PolUpdates
+		if( requestedSequences > data->nSeenSequences ) return false;
 	}
 
 	#ifndef FULLTASKING
-	if(data->nSeenSequences >= opt->nepoch * obsPerStep / learn_size)
-	{
-		#pragma omp taskwait
-	}
+		if(data->nSeenSequences >= requestedSequences) {
+			profiler_ext->stop_start("WORK");
+			#pragma omp taskwait
+		}
 	#endif
 
-	lock_guard<mutex> lock(task_mutex);
 	//else if threads finished processing data:
 	return taskCounter >= batchSize;
 }
 
-int Learner::readyForAgent(const int slave, const int agent)
+bool Learner::readyForAgent(const int slave, const int agent)
 {
-	//lock_guard<mutex> lock(data->dataset_mutex);
-	//return data->nSeenSequences < opt->nepoch * obsPerStep / learn_size;
-	return 1; //Learner assumes off-policy algorithm. it can always use more data
+	#ifdef FULLTASKING
+	const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
+	lock_guard<mutex> lock(data->dataset_mutex);
+
+	if (data->nSequences < batchSize || !bTrain) return true;
+
+	return data->nSeenSequences <= requestedSequences;
+
+	#else
+
+	return true; //Learner assumes off-policy algo. it can always use more data
+	#endif
 }
-int Learner::slaveHasUnfinishedSeqs(const int slave) const
+bool Learner::slaveHasUnfinishedSeqs(const int slave) const
 {
-	return 1; //Learner assumes off-policy algorithm. it can always use more data
+	return true; //Learner assumes off-policy algorithm. it can always use more data
 }
 
 void Learner::save(string name)

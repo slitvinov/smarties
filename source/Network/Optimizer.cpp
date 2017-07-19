@@ -100,6 +100,7 @@ void Optimizer::stackGrads(Grads* const G, const Grads* const g) const
 void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 {
 	const Uint nThreads = g.size();
+
 #pragma omp parallel
 	{
 #pragma omp for nowait
@@ -408,7 +409,7 @@ bool Optimizer::restart(const string fname)
 		return restart_recurrent_connections(fname);
 	}
 
-	error("Couldnt open policy (%s) file\n", fname.c_str());
+	error("Couldnt open policy (%s) file", fname.c_str());
 	#ifndef NDEBUG //if debug, you might want to do this
 		if(!bTrain) {die("...and I'm not training\n");}
 	#endif
@@ -454,17 +455,17 @@ bool AdamOptimizer::restart(const string fname)
 		out1MomW.resize(buf[0]);		out1MomB.resize(buf[1]);
 		out2MomW.resize(buf[0]);		out2MomB.resize(buf[1]);
 		ret = fread(outWeights.data(),	sizeof(nnReal), out1MomW.size(), pFile);
-		if(ret!=out1MomW.size()) die("ERROR: Adam::restart W0.\n");
+		if(ret!=out1MomW.size()) die("Adam::restart W0.\n");
 		ret = fread(outBiases.data(),		sizeof(nnReal), out1MomB.size(), pFile);
-		if(ret!=out1MomB.size()) die("ERROR: Adam::restart B0.\n");
+		if(ret!=out1MomB.size()) die("Adam::restart B0.\n");
 		ret = fread(out1MomW.data(),		sizeof(nnReal), out1MomW.size(), pFile);
-		if(ret!=out1MomW.size()) die("ERROR: Adam::restart W1.\n");
+		if(ret!=out1MomW.size()) die("Adam::restart W1.\n");
 		ret = fread(out1MomB.data(),		sizeof(nnReal), out1MomB.size(), pFile);
-		if(ret!=out1MomB.size()) die("ERROR: Adam::restart B1.\n");
+		if(ret!=out1MomB.size()) die("Adam::restart B1.\n");
 		ret = fread(out2MomW.data(),		sizeof(nnReal), out1MomW.size(), pFile);
-		if(ret!=out1MomW.size()) die("ERROR: Adam::restart W2.\n");
+		if(ret!=out1MomW.size()) die("Adam::restart W2.\n");
 		ret = fread(out2MomB.data(),		sizeof(nnReal), out1MomB.size(), pFile);
-		if(ret!=out1MomB.size()) die("ERROR: Adam::restart B2.\n");
+		if(ret!=out1MomB.size()) die("Adam::restart B2.\n");
 		net->restart(outWeights, outBiases, net->weights, net->biases);
 		net->restart(out1MomW, out1MomB, _1stMomW, _1stMomB);
 		net->restart(out2MomW, out2MomB, _2ndMomW, _2ndMomB);
@@ -473,9 +474,9 @@ bool AdamOptimizer::restart(const string fname)
 		return restart_recurrent_connections(fname);
 	}
 
-	error("Couldnt open policy (%s) file\n", fname.c_str());
+	error("Couldnt open policy (%s) file", fname.c_str());
 	#ifndef NDEBUG //if debug, you might want to do this
-		if(!bTrain) {die("...and I'm not training\n");}
+		if(!bTrain) {die("...and I'm not training");}
 	#endif
 	return false;
 }

@@ -222,7 +222,7 @@ struct ActionInfo
 #ifndef NDEBUG
 		for (Uint i=0; i<maxLabel; i++)
 			if(i!=actionToLabel(labelToAction(i)))
-				_die("label %u, action [%s], ret %u\n",
+				_die("label %u, action [%s], ret %u",
 						i, print(labelToAction(i)).c_str(),
 						actionToLabel(labelToAction(i)));
 #endif
@@ -291,7 +291,7 @@ public:
 	Action& operator= (const Action& a)
 	{
 		if (actInfo.dim != a.actInfo.dim)
-			die("Dimension of actions differ!!!\n");
+			die("Dimension of actions differ!!!");
 		for (Uint i=0; i<actInfo.dim; i++)
 			vals[i] = a.vals[i];
 		return *this;
