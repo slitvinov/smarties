@@ -45,22 +45,22 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
     {
         aI.dim = 6; //number of action that agent can perform per turn: usually 1 (eg DQN)
         aI.values.resize(aI.dim);
-				//not interested in DQN: just max and min
+        //not interested in DQN: just max and min
         for (Uint i=0; i<2; i++) {
-						aI.bounded.push_back(1);
+            aI.bounded.push_back(1);
             aI.values[i].push_back(.0); //here the app accepts real numbers
             aI.values[i].push_back(.2);
         }
         for (Uint i=2; i<4; i++) {
-						aI.bounded.push_back(1);
+            aI.bounded.push_back(1);
             aI.values[i].push_back(.0); //here the app accepts real numbers
             aI.values[i].push_back(.9);
         }
-						aI.bounded.push_back(1);
+            aI.bounded.push_back(1);
             aI.values[4].push_back(1); //here the app accepts real numbers
             aI.values[4].push_back(5);
 
-						aI.bounded.push_back(1);
+            aI.bounded.push_back(1);
             aI.values[5].push_back(0.); //here the app accepts real numbers
             aI.values[5].push_back(5.);
     }
@@ -68,7 +68,7 @@ void CMAEnvironment::setDims() //this environment is for the cart pole test
 }
 
 bool CMAEnvironment::pickReward(const State& t_sO, const Action& t_a,
-															  const State& t_sN, Real& reward, const int info)
+                                const State& t_sN, Real& reward, const int info)
 {
     bool new_sample(info == 2);
 

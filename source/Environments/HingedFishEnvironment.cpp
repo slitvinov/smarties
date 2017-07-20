@@ -16,7 +16,7 @@ sight(_s.senses==0 || _s.senses==2),
 l_line(_s.senses==1 || _s.senses==2),
 study(_s.rType), goalDY(_s.goalDY)
 {
-	cheaperThanNetwork=false;
+  cheaperThanNetwork=false;
     if (goalDY > 1.) goalDY = 1. - goalDY; //poor man's sign
 }
 
@@ -48,43 +48,43 @@ void HingedFishEnvironment::setDims()
   }
 
   {
-	  //Pout 4
-	  sI.inUse.push_back(false);
+    //Pout 4
+    sI.inUse.push_back(false);
 
-	  //defPower 5
-	  sI.inUse.push_back(false);
+    //defPower 5
+    sI.inUse.push_back(false);
 
-	  // EffPDef 6
-	  sI.inUse.push_back(false);
+    // EffPDef 6
+    sI.inUse.push_back(false);
 
-	  // PoutBnd 7
-	  sI.inUse.push_back(false);
+    // PoutBnd 7
+    sI.inUse.push_back(false);
 
-	  // defPowerBnd 8
-	  sI.inUse.push_back(false);
+    // defPowerBnd 8
+    sI.inUse.push_back(false);
 
-	  // EffPDefBnd 9
-	  sI.inUse.push_back(false);
+    // EffPDefBnd 9
+    sI.inUse.push_back(false);
 
-	  // Pthrust 10
-	  sI.inUse.push_back(false);
+    // Pthrust 10
+    sI.inUse.push_back(false);
 
-	  // Pdrag 11
-	  sI.inUse.push_back(false);
+    // Pdrag 11
+    sI.inUse.push_back(false);
 
-	  // ToD 12
-	  sI.inUse.push_back(false);
+    // ToD 12
+    sI.inUse.push_back(false);
   }
 
 
   {
-	  aI.dim = 1; // Single action allowed
-	  aI.values.resize(aI.dim);
-	  //curavture
-	  aI.bounded.push_back(1);
-	  aI.values[0].push_back(-90.0); // Hinge angles can range from -90deg to +90deg
-	  // Negative values will allow the rudder to deflect in the same direction as done previously, if the fish so desires
-	  aI.values[0].push_back(90.0);
+    aI.dim = 1; // Single action allowed
+    aI.values.resize(aI.dim);
+    //curavture
+    aI.bounded.push_back(1);
+    aI.values[0].push_back(-90.0); // Hinge angles can range from -90deg to +90deg
+    // Negative values will allow the rudder to deflect in the same direction as done previously, if the fish so desires
+    aI.values[0].push_back(90.0);
   }
   resetAll=false;
   commonSetup();
@@ -102,7 +102,7 @@ bool HingedFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
   if (study == 0){
     //Real scaled_effic = 2.*(t_sN.vals[10]-effMin)/(effMax-effMin) -1.;
     //reward = scaled_effic*(1.-gamma);
-    reward = (t_sN.vals[6] - effMin)/(effMax-effMin); 
+    reward = (t_sN.vals[6] - effMin)/(effMax-effMin);
   }
   else if (study == 1)
   {

@@ -39,11 +39,11 @@ Communicator Environment::create_communicator(
     settings.nSlaves = settings.slaves_size-1; //one is the master
 
     if(settings.nSlaves % mpi_ranks_per_env != 0)
-			die("Number of ranks does not match app\n");
+      die("Number of ranks does not match app\n");
 
     int slaveGroup = (settings.slaves_rank-1) / mpi_ranks_per_env;
-		MPI_Comm app_com;
-		MPI_Comm_split(slavesComm, slaveGroup, settings.slaves_rank, &app_com);
+    MPI_Comm app_com;
+    MPI_Comm_split(slavesComm, slaveGroup, settings.slaves_rank, &app_com);
 
     comm.set_params_file(paramsfile);
     comm.set_application_mpicom(app_com, slaveGroup);
@@ -61,10 +61,10 @@ Environment::~Environment()
 
 bool Environment::predefinedNetwork(Builder* const net) const
 {
-	//this function can be used if environment requires particular network settings
-	//i.e. not fully connected LSTM/FF network
-	//i.e. if you want to use convolutions
-	return false;
+  //this function can be used if environment requires particular network settings
+  //i.e. not fully connected LSTM/FF network
+  //i.e. if you want to use convolutions
+  return false;
 }
 
 void Environment::commonSetup()
@@ -94,7 +94,7 @@ void Environment::commonSetup()
     assert(sI.scale.size() == sI.mean.size());
     assert(sI.mean.size()==0 || sI.mean.size()==sI.dim);
     for (Uint i=0; i<sI.scale.size(); i++)
-			assert(positive(sI.scale[i]));
+      assert(positive(sI.scale[i]));
 }
 
 bool Environment::pickReward(const State& t_sO, const Action& t_a,
@@ -105,10 +105,10 @@ bool Environment::pickReward(const State& t_sO, const Action& t_a,
 
 Uint Environment::getNdumpPoints()
 {
-	return 0;
+  return 0;
 }
 
 vector<Real> Environment::getDumpState(Uint k)
 {
-	return vector<Real>();
+  return vector<Real>();
 }

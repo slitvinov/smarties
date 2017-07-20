@@ -16,8 +16,8 @@ Environment(_nAgents, _execpath, _s)
 
 void TestEnvironment::setDims() //this environment is for the cart pole test
 {
-		mpi_ranks_per_env = 2;
-		paramsfile="params.txt";
+    mpi_ranks_per_env = 2;
+    paramsfile="params.txt";
     {
       sI.inUse.clear();
       //for each state variable:
@@ -25,21 +25,21 @@ void TestEnvironment::setDims() //this environment is for the cart pole test
       sI.inUse.push_back(true); //ignore, leave as is
 
       // ...velocity...
-			sI.inUse.push_back(true); //ignore, leave as is
+      sI.inUse.push_back(true); //ignore, leave as is
 
       // ...and angular velocity
-			sI.inUse.push_back(true); //ignore, leave as is
+      sI.inUse.push_back(true); //ignore, leave as is
 
       // ...angle...
-			sI.inUse.push_back(true); //ignore, leave as is
+      sI.inUse.push_back(true); //ignore, leave as is
 
     }
     {
       aI.dim = 2; //number of action that agent can perform per turn: usually 1 (eg DQN)
       aI.values.resize(aI.dim);
       for (Uint i=0; i<aI.dim; i++) {
-      	//used if discrete actions: options available to agent for acting
-				//otherwise can be used for scaling
+        //used if discrete actions: options available to agent for acting
+        //otherwise can be used for scaling
           aI.values[i].push_back(-1.);
           aI.values[i].push_back(1.0);
       }

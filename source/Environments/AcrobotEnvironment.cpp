@@ -37,5 +37,5 @@ void AcrobotEnvironment::setDims() //this environment is for the cart pole test
 bool AcrobotEnvironment::pickReward(const State & t_sO, const Action & t_a,
 				const State& t_sN, Real& reward,const int info)
 {
-  return info==2; 
+  return info==2;
 }

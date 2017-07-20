@@ -20,38 +20,38 @@ typedef float nnReal;
 #define EXP_CUT 4
 #endif
 static const int simdWidth = __vec_width__/sizeof(nnReal);
-typedef nnReal*__restrict__ const				nnOpRet;
+typedef nnReal*__restrict__ const        nnOpRet;
 typedef const nnReal*__restrict__ const nnOpInp;
 
 static inline void Lpenalization(nnReal* const weights, const Uint start, const Uint N, const nnReal lambda)
 {
-	for (Uint i=start; i<start+N; i++)
-	#ifdef NET_L1_PENAL
-		weights[i] += (weights[i]<0 ? lambda : -lambda);
-	#else
-		weights[i] -= weights[i]*lambda;
-	#endif
+  for (Uint i=start; i<start+N; i++)
+  #ifdef NET_L1_PENAL
+    weights[i] += (weights[i]<0 ? lambda : -lambda);
+  #else
+    weights[i] -= weights[i]*lambda;
+  #endif
 }
 
 static inline nnReal readCutStart(vector<nnReal>& buf)
 {
-	const Real ret = buf.front();
-	buf.erase(buf.begin(),buf.begin()+1);
-	assert(!std::isnan(ret) && !std::isinf(ret));
-	return ret;
+  const Real ret = buf.front();
+  buf.erase(buf.begin(),buf.begin()+1);
+  assert(!std::isnan(ret) && !std::isinf(ret));
+  return ret;
 }
 static inline nnReal readBuf(vector<nnReal>& buf)
 {
-	//const Real ret = buf.front();
-	//buf.erase(buf.begin(),buf.begin()+1);
-	const Real ret = buf.back();
-	buf.pop_back();
-	assert(!std::isnan(ret) && !std::isinf(ret));
-	return ret;
+  //const Real ret = buf.front();
+  //buf.erase(buf.begin(),buf.begin()+1);
+  const Real ret = buf.back();
+  buf.pop_back();
+  assert(!std::isnan(ret) && !std::isinf(ret));
+  return ret;
 }
 static inline void writeBuf(const nnReal weight, vector<nnReal>& buf)
 {
-	buf.insert(buf.begin(), weight);
+  buf.insert(buf.begin(), weight);
 }
 
 template <typename T>
@@ -65,15 +65,15 @@ template <typename T>
 inline void _allocateQuick(T *const& ptr, const Uint size)
 {
     const Uint sizeSIMD =
-			std::ceil(size/(nnReal)simdWidth) * simdWidth*sizeof(nnReal);
+      std::ceil(size/(nnReal)simdWidth) * simdWidth*sizeof(nnReal);
     posix_memalign((void **)& ptr, __vec_width__, sizeSIMD);
 }
 
 template <typename T>
 inline void _allocateClean(T *const& ptr, const Uint size)
 {
-	const Uint sizeSIMD =
-		std::ceil(size/(nnReal)simdWidth) * simdWidth*sizeof(nnReal);
+  const Uint sizeSIMD =
+    std::ceil(size/(nnReal)simdWidth) * simdWidth*sizeof(nnReal);
     posix_memalign((void **)& ptr, __vec_width__, sizeSIMD);
     memset(ptr, 0, sizeSIMD);
 }

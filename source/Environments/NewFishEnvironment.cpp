@@ -35,7 +35,7 @@ void NewFishEnvironment::setDims()
     sI.inUse.push_back(sight);
     // ..time % Tperiod (phase of the motion, maybe also some info on what is the incoming vortex?)...
     // Will get ~ 0 or 0.5
-		//sI.inUse.push_back(false);
+    //sI.inUse.push_back(false);
     sI.inUse.push_back(sight);
 
     // ...last action (HAX!)
@@ -43,7 +43,7 @@ void NewFishEnvironment::setDims()
     sI.inUse.push_back(sight);
 
     // ...second last action (HAX!)
-		//sI.inUse.push_back(false); //if l_line i have curvature info
+    //sI.inUse.push_back(false); //if l_line i have curvature info
     sI.inUse.push_back(sight); //if l_line i have curvature info
   }
   {
@@ -208,8 +208,8 @@ bool NewFishEnvironment::pickReward(const State& t_sO, const Action& t_a,
       if (new_sample) reward = -1./(1.-gamma);
   }
   else if (study == 3) {
-  	const Real DX_penal = 8*fabs(t_sN.vals[0]-goalDY);  //goalDY actually goalDX
-  	const Real DY_penal = 2*fabs(t_sN.vals[1]);
+    const Real DX_penal = 8*fabs(t_sN.vals[0]-goalDY);  //goalDY actually goalDX
+    const Real DY_penal = 2*fabs(t_sN.vals[1]);
       const Real scaledRew = 1. - min(DX_penal+DY_penal, 2.);
       reward = scaledRew;            //max cumulative reward = sum gamma^t r < 1/(1-gamma)
       if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward

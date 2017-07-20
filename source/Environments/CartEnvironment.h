@@ -20,7 +20,7 @@ public:
     void setDims() override;
     bool pickReward(const State& t_sO, const Action& t_a,
                     const State& t_sN, Real& reward, const int info) override;
-	bool predefinedNetwork(Builder* const net) const override;
-	Uint getNdumpPoints() override;
+  bool predefinedNetwork(Builder* const net) const override;
+  Uint getNdumpPoints() override;
         vector<Real> getDumpState(Uint k) override;
 };

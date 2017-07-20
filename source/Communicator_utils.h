@@ -53,13 +53,13 @@ void comm_sock(int fd, const bool bsend, double*const data, const int size);
 inline int getRank(const MPI_Comm comm)
 {
   int rank;
-	MPI_Comm_rank(comm, &rank);
+  MPI_Comm_rank(comm, &rank);
   return rank;
 }
 inline int getSize(const MPI_Comm comm)
 {
   int size;
-	MPI_Comm_size(comm, &size);
+  MPI_Comm_size(comm, &size);
   return size;
 }
 

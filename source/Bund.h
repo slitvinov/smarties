@@ -26,27 +26,27 @@ using namespace std;
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
 //FOR CONTINUOUS ACTIONS RACER:
-	#define ACER_MAX_PREC 400.
-	#define ACER_MIN_PREC 4./ACER_MAX_ACT/ACER_MAX_ACT
-	#define ACER_MAX_ACT 10.
-	#define ACER_TOL_REW 0.01
-	#define ACER_TOL_DIAG sqrt(ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT)
+  #define ACER_MAX_PREC 400.
+  #define ACER_MIN_PREC 4./ACER_MAX_ACT/ACER_MAX_ACT
+  #define ACER_MAX_ACT 10.
+  #define ACER_TOL_REW 0.01
+  #define ACER_TOL_DIAG sqrt(ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT)
 //FOR DISCRETE ACTIONS DACER:
-	#define ACER_MIN_PROB 0.001
+  #define ACER_MIN_PROB 0.001
 #else
-	#define ACER_TOL_DIAG 0
-	#define ACER_MIN_PREC 0
-	#define ACER_MIN_PROB 0
+  #define ACER_TOL_DIAG 0
+  #define ACER_MIN_PREC 0
+  #define ACER_MIN_PROB 0
 #endif
 #define ACER_CONST_PREC 50 //uniform precision (1/std^2) in case of ACER_SAFE
 
 #ifndef CUT_LAMBDA
-	//max number of future time steps for off-policy corrections:
-	#define MAX_UNROLL_AFTER 2000
-	#define ACER_LAMBDA 1.0
+  //max number of future time steps for off-policy corrections:
+  #define MAX_UNROLL_AFTER 2000
+  #define ACER_LAMBDA 1.0
 #else //lambda 0.5 allows cutting traces
-	#define MAX_UNROLL_AFTER 20 // since (0.5)^20 is ~1e-6 we can truncate?
-	#define ACER_LAMBDA 0.5
+  #define MAX_UNROLL_AFTER 20 // since (0.5)^20 is ~1e-6 we can truncate?
+  #define ACER_LAMBDA 0.5
 #endif
 
 // number of previous time steps to include in back-prop through time:
@@ -55,7 +55,7 @@ using namespace std;
 #define ACER_GRAD_CUT 10
 
 #ifdef IMPORTSAMPLE
-	#define importanceSampling
+  #define importanceSampling
 #endif
 
 #define NET_L1_PENAL
