@@ -217,16 +217,15 @@ bool Learner::batchGradientReady()
 bool Learner::readyForAgent(const int slave, const int agent)
 {
 	#ifdef FULLTASKING
-	const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
-	lock_guard<mutex> lock(data->dataset_mutex);
+		const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
+		lock_guard<mutex> lock(data->dataset_mutex);
 
-	if (data->nSequences < batchSize || !bTrain) return true;
+		if (data->nSequences < batchSize || !bTrain) return true;
 
-	return data->nSeenSequences <= requestedSequences;
+		return data->nSeenSequences <= requestedSequences;
 
 	#else
-
-	return true; //Learner assumes off-policy algo. it can always use more data
+		return true; //Learner assumes off-policy algo. it can always use more data
 	#endif
 }
 bool Learner::slaveHasUnfinishedSeqs(const int slave) const
