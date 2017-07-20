@@ -38,13 +38,12 @@ int Master::recvState(const int slave)
 	int recv_iAgent = -1, istatus;
 	double reward;
 	unpackState(inpBufs[slave-1], recv_iAgent, istatus, recv_state, reward);
-	assert(recv_iAgent>=0);
 	const int iAgent = (slave-1) * nPerRank + recv_iAgent;
-	//printf("%d %d %d, %lu\n",recv_iAgent,slave,iAgent,agents.size()); fflush(0);
-	assert(iAgent>=0);
-	assert(iAgent<static_cast<int>(agents.size()));
+	assert(iAgent>=0 && recv_iAgent>=0 && iAgent<static_cast<int>(agents.size()));
 	agents[iAgent]->update(istatus, recv_state, reward);
-	if (istatus == _AGENT_LASTCOMM) {
+
+	if (istatus == _AGENT_LASTCOMM)
+	{
 		char path[256];
 		sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
 		std::ofstream outf(path, ios::app);
@@ -57,41 +56,10 @@ int Master::recvState(const int slave)
 void Master::restart(string fname)
 {
 	learner->restart(fname);
-	/*
-	if (fname == "none") return;
-	char path[256];
-	sprintf(path, "master_rank%02d.status", learn_rank);
-	FILE * f = fopen(path, "r");
-	if (f == NULL) return;
-
-	unsigned long iter_fake = 0;
-	fscanf(f, "master iter: %lu\n", &iter_fake);
-	if(iter_fake) iter = iter_fake;
-	printf("master iter: %lu\n", iter);
-	fclose(f);
-	*/
 }
 
 void Master::save()
 {
-	/*
-	std::ofstream fout;
-	char filepath[256];
-	{
-		sprintf(filepath, "rewards_rank%02d.dat", learn_rank);
-		fout.open(filepath, ios::app);
-		fout<<iter<<" "<<meanR<<" "<<varR<<endl;
-		fout.close();
-		printf("Iter %lu, Mean reward: %f variance:%f \n", iter, meanR, varR);
-	}
-	if(!bTrain) return;
-	{
-		sprintf(filepath, "master_rank%02d.status", learn_rank);
-		fout.open(filepath, ios::trunc);
-		fout<<"master iter: "<<iter<<endl;
-		fout.close();
-	}
-	*/
 	learner->save("policy");
 }
 

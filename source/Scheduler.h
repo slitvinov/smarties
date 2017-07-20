@@ -7,8 +7,6 @@
 //
 
 #pragma once
-
-class Learner;
 #include "Communicator.h"
 #include <thread>
 #include <mutex>
@@ -58,6 +56,7 @@ public:
 		for(int i=0; i<nSlaves; i++) _dealloc(outBufs[i]);
 		_dispose_object(learner);
 	}
+
 	void sendTerminateReq(const double msg = -256)
 	{
 		//it's awfully ugly, i send -256 to kill the slaves... but...
@@ -68,6 +67,7 @@ public:
 			MPI_Ssend(outBufs[slave-1], outSize, MPI_BYTE, slave, 0, slavesComm);
 		}
 	}
+
 	int run();
 
 	void save();

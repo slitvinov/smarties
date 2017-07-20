@@ -15,10 +15,6 @@
 #include "../Network/Builder.h"
 #include "../Network/Network.h"
 #include "../Network/Optimizer.h"
-
-class Master;
-
-#include "../Scheduler.h"
 #include <list>
 
 using namespace std;
