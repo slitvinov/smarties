@@ -94,7 +94,7 @@ int main (int argc, char** argv)
 
 	ArgumentParser::Parser parser(opts);
 	parser.parse(argc, argv, settings.world_rank == 0);
-	settings.bRecurrent = settings.nnType=="LSTM" || settings.nnType=="RNN";
+	settings.check();
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (not settings.isServer) {

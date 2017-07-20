@@ -225,8 +225,6 @@ struct Settings
 #define DEFAULT_totNumSteps 10000000
 	int totNumSteps = DEFAULT_totNumSteps;
 
-
-
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO NETWORK: CAPITAL LETTER
 ///////////////////////////////////////////////////////////////////////////////
@@ -358,6 +356,35 @@ struct Settings
 	//std::mt19937* gen;
 	std::vector<std::mt19937> generators;
 
+	void check()
+	{
+		bRecurrent = nnType=="LSTM" || nnType=="RNN";
+		#ifdef FORCESAMPSEQ
+		bSampleSequences = 1;
+		#endif
+		if(nThreads<1) die("nThreads<1\n");
+		if(nMasters<1) die("nMasters<1\n");
+		if(sockPrefix<0) die("sockPrefix<0\n");
+		if(appendedObs<0)  die("appendedObs<0\n");
+		if(targetDelay<0)  die("targetDelay<0\n");
+		if(greedyEps<0)  die("greedyEps<0\n");
+		if(gamma<0)  die("gamma<0\n");
+		if(minSeqLen<2)  die("appendedObs<2\n");
+		if(obsPerStep<0)  die("obsPerStep<0\n");
+		if(epsAnneal<0)  die("epsAnneal<0\n");
+		if(maxTotSeqNum<0)  die("maxTotSeqNum<0\n");
+		if(totNumSteps<0)  die("totNumSteps<0\n");
+		if(nnl1<0)  die("nnl1<2\n");
+		if(nnl2<0)  die("nnl2<0\n");
+		if(nnl3<0)  die("nnl3<0\n");
+		if(nnl4<0)  die("nnl4<0\n");
+		if(nnl5<0)  die("nnl5<0\n");
+		if(splitLayers<0)  die("splitLayers<0\n");
+		if(batchSize<0)  die("batchSize<0\n");
+		if(learnrate<0)  die("learnrate<0\n");
+		if(nnLambda<0)  die("nnLambda<0\n");
+	}
+
 	vector<ArgumentParser::OptionStruct> initializeOpts ()
   { //  //{ CHARARG_, "", TYPENUM_, COMMENT_, &, (TYPEVAL_) DEFAULT_ },
 		//AVERT YOUR EYES!
@@ -405,27 +432,6 @@ struct Settings
 			{ CHARARG_nnType, "nnType", TYPENUM_nnType, COMMENT_nnType, &nnType, (TYPEVAL_nnType) DEFAULT_nnType },
 			{ CHARARG_nnFunc, "nnFunc", TYPENUM_nnFunc, COMMENT_nnFunc, &nnFunc, (TYPEVAL_nnFunc) DEFAULT_nnFunc }
 		});
-		if(nThreads<1) die("nThreads<1\n");
-		if(nMasters<1) die("nMasters<1\n");
-		if(sockPrefix<0) die("sockPrefix<0\n");
-		if(appendedObs<0)  die("appendedObs<0\n");
-		if(targetDelay<0)  die("targetDelay<0\n");
-		if(greedyEps<0)  die("greedyEps<0\n");
-		if(gamma<0)  die("gamma<0\n");
-		if(minSeqLen<2)  die("appendedObs<2\n");
-		if(obsPerStep<0)  die("obsPerStep<0\n");
-		if(epsAnneal<0)  die("epsAnneal<0\n");
-		if(maxTotSeqNum<0)  die("maxTotSeqNum<0\n");
-		if(totNumSteps<0)  die("totNumSteps<0\n");
-		if(nnl1<0)  die("nnl1<2\n");
-		if(nnl2<0)  die("nnl2<0\n");
-		if(nnl3<0)  die("nnl3<0\n");
-		if(nnl4<0)  die("nnl4<0\n");
-		if(nnl5<0)  die("nnl5<0\n");
-		if(splitLayers<0)  die("splitLayers<0\n");
-		if(batchSize<0)  die("batchSize<0\n");
-		if(learnrate<0)  die("learnrate<0\n");
-		if(nnLambda<0)  die("nnLambda<0\n");
   }
 
 	vector<int> readNetSettingsSize()

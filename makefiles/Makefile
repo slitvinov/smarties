@@ -16,6 +16,7 @@ lambda ?= off
 tabc ?= off
 sortseq ?= off
 mpi_lib ?= default
+sampseq ?= off
 
 CPPFLAGS+= -std=c++11 -D__Smarties_ -fopenmp
 LIBS += -fopenmp -lstdc++ -lm
@@ -70,6 +71,9 @@ endif #!full
 endif #relax
 endif #safe
 
+ifeq "$(sampseq)" "on"
+CPPFLAGS+= -DFORCESAMPSEQ
+endif
 ifeq "$(sortseq)" "on"
 CPPFLAGS+= -DRESORT_SEQS
 endif

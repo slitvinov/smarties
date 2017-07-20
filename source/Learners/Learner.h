@@ -115,13 +115,14 @@ public:
 		if(opt->nepoch >= epsAnneal || !bTrain) return 0;
 		else return 1 - opt->nepoch/epsAnneal;
 	}
-	/*
+	//*
 	inline Real annealedGamma() const
 	{
-		assert(epsAnneal>1. && bTrain && gamma>0.5);
-		if (opt->nepoch > epsAnneal) return gamma;
-		const Real anneal = 0.5 + 0.5*opt->nepoch/epsAnneal;
-		return anneal*gamma;
+		//assert(epsAnneal>1. && bTrain && gamma>0.5);
+		//if (opt->nepoch > epsAnneal) return gamma;
+		//const Real anneal = 0.5 + 0.5*opt->nepoch/epsAnneal;
+		//return anneal*gamma;
+		return gamma;
 	}
 	/*/
 	inline Real annealedGamma() const
