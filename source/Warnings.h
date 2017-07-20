@@ -9,6 +9,7 @@
 #pragma once
 #include "Bund.h"
 #include <mutex>
+#include <stdarg.h>
 
 namespace ErrorHandling
 {
