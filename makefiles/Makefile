@@ -17,6 +17,7 @@ tabc ?= off
 sortseq ?= off
 mpi_lib ?= default
 sampseq ?= off
+target ?= on
 
 CPPFLAGS+= -std=c++11 -D__Smarties_ -fopenmp
 LIBS += -fopenmp -lstdc++ -lm
@@ -71,6 +72,9 @@ endif #!full
 endif #relax
 endif #safe
 
+ifeq "$(target)" "off"
+CPPFLAGS+= -DNOTARGETNET
+endif
 ifeq "$(sampseq)" "on"
 CPPFLAGS+= -DFORCESAMPSEQ
 endif

@@ -359,9 +359,14 @@ struct Settings
 	void check()
 	{
 		bRecurrent = nnType=="LSTM" || nnType=="RNN";
+		
 		#ifdef FORCESAMPSEQ
 		bSampleSequences = 1;
 		#endif
+		#ifdef NOTARGETNET
+		targetDelay = 1;
+		#endif
+
 		if(nThreads<1) die("nThreads<1\n");
 		if(nMasters<1) die("nMasters<1\n");
 		if(sockPrefix<0) die("sockPrefix<0\n");
