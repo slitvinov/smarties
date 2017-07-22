@@ -16,9 +16,14 @@
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs),
 #ifdef ACER_TABC
-truncation(10),
+truncation(5),
 #endif
-delta(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
+#ifdef ACER_AGGRESSIVE
+delta(1.0),
+#else
+delta(0.1),
+#endif
+nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
 generators(settings.generators)
 {
   vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
@@ -130,7 +135,11 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
   for (Uint k=1; k<nSValues; k++) {
     const vector<Real>inp= data->standardize(data->Set[seq]->tuples[k+samp]->s);
-    net->predict(inp,out_hat[k],series_hat,k,net->tgt_weights,net->tgt_biases);
+    net->predict(inp,out_hat[k],series_hat,k
+    #ifndef ACER_AGGRESSIVE
+      ,net->tgt_weights,net->tgt_biases
+    #endif
+    );
   }
 
   if(thrID==1)  profiler->stop_start("ADV");

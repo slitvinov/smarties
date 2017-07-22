@@ -74,10 +74,18 @@ class RACER : public Learner_utils
     const Real V_hat = out_hat[net_indices[0]];
     const Gaussian_policy pol_cur = prepare_policy(out_cur);
     const Gaussian_policy pol_hat = prepare_policy(out_hat);
-    //Used for update of value: target policy, current value
-    const Quadratic_advantage adv_cur = prepare_advantage(out_cur, &pol_hat);
-    //Used for update of policy: current policy, target value
-    const Quadratic_advantage adv_pol = prepare_advantage(out_hat, &pol_cur);
+
+    #ifndef ACER_AGGRESSIVE
+      //Used for update of value: target policy, current value
+      const Quadratic_advantage adv_cur = prepare_advantage(out_cur, &pol_hat);
+      //Used for update of policy: current policy, target value
+      const Quadratic_advantage adv_pol = prepare_advantage(out_hat, &pol_cur);
+      const Real A_OPC = Q_OPC - V_hat;
+    #else
+      const Quadratic_advantage adv_cur = prepare_advantage(out_cur, &pol_cur);
+      const Quadratic_advantage adv_pol = prepare_advantage(out_cur, &pol_cur);
+      const Real A_OPC = Q_OPC - V_cur;
+    #endif
 
     //off policy stored action and on-policy sample:
     const vector<Real> act = aInfo.getInvScaled(_t->a); //unbounded action space
@@ -88,8 +96,6 @@ class RACER : public Learner_utils
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_cov = adv_pol.computeAdvantage(act);
     const Real Qer = Q_RET -A_cur -V_cur;
-
-    const Real A_OPC = Q_OPC - V_hat;
     const Real iEpsA = A_cov * std::pow((A_OPC-A_cov)/(varCritic+2.2e-16), 2);
     const Real eta = anneal * iEpsA * A_OPC * safeExp( -iEpsA * A_cov);
 
@@ -129,12 +135,12 @@ class RACER : public Learner_utils
     const vector<Real> trust_grad=
       trust_region_update(policy_grad,gradDivKL,delta);
 
-    #ifdef ACER_TABC
+    #ifndef ACER_AGGRESSIVE
       const Real actProbOnTarget = pol_hat.evalLogProbability(act);
       const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
       const Real Ver = Qer*std::min(1.,rho_hat); //unclear
     #else
-      const Real Ver = 0;
+      const Real Ver = Qer*std::min(1.,rho_cur);
     #endif
 
     vector<Real> gradient(nOutputs,0);
@@ -142,29 +148,24 @@ class RACER : public Learner_utils
     adv_cur.grad(act, Qer, gradient);
     pol_cur.finalize_grad(trust_grad, gradient);
 
-    if(bUpdateOPC)
+    if(bUpdateOPC) //prepare Q with off policy corrections for next step:
     {
-      #ifndef ACER_TABC
-        const Real actProbOnTarget = pol_hat.evalLogProbability(act);
-        const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
+      #ifdef ACER_AGGRESSIVE
+        const Real C = std::min((Real)1.,std::pow(rho_cur,1./nA));
+        Q_RET = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_cur;
+      #else
+        //Used as target: target policy, target value
+        const Quadratic_advantage adv_hat = prepare_advantage(out_hat,&pol_hat);
+        const Real C = std::min((Real)1.,std::pow(rho_hat,1./nA));
+        const Real A_hat = adv_hat.computeAdvantage(act);
+        Q_RET = C*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;
       #endif
-      //Used as target: target policy, target value
-      const Quadratic_advantage adv_hat = prepare_advantage(out_hat, &pol_hat);
-      const Real A_hat = adv_hat.computeAdvantage(act);
-      //const Real c_cur = std::min((Real)1.,std::pow(rho_cur,1./nA));
-      const Real c_hat = std::min((Real)1.,std::pow(rho_hat,1./nA));
-      //prepare rolled Q with off policy corrections for next step:
-      //Q_RET = c_hat * minAbsValue(Q_RET-A_hat-V_hat,Q_RET-A_cur-V_cur) +
-      //                minAbsValue(V_hat,V_cur);
-      Q_RET = c_hat*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;
-      //Q_OPC =     ACER_LAMBDA*(Q_OPC -A_hat -V_hat) +V_hat;
       Q_OPC = Q_RET;
     }
 
     //bookkeeping:
-    //dumpStats(Vstats[thrID], A_cur+V_cur, Qer);
-    dumpStats(Vstats[thrID], A_cur+V_cur, Qer*std::min(1.,rho_cur) );
-    data->Set[seq]->tuples[samp]->SquaredError = Qer*Qer;
+    dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Qer
+    data->Set[seq]->tuples[samp]->SquaredError = Ver*Ver;
     return gradient;
   }
 
