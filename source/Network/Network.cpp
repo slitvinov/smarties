@@ -18,12 +18,12 @@ void Network::seqPredict_inputs(const vector<Real>& _input, Activation* const cu
 
 //cache friendly prop for time series: time is fast index, layer is slow index
 void Network::seqPredict_execute(
-    const vector<Activation*>& series_1, vector<Activation*>& series_2,
-    const nnReal* const _weights, const nnReal* const _biases) const
+  const vector<Activation*>& series_1, vector<Activation*>& series_2,
+  const Uint start, const nnReal* const _weights, const nnReal* const _biases) const
 {
   const Uint T = std::min(series_1.size()+1,series_2.size());
   for (Uint j=0; j<nLayers; j++)
-  for (Uint t=0; t<T; t++)  {
+  for (Uint t=start; t<T; t++)  {
     Activation* const currActivation = series_2[t];
     const Activation* const prevActivation = t ? series_1[t-1] : nullptr;
     layers[j]->propagate(prevActivation,currActivation,_weights,_biases);

@@ -49,7 +49,7 @@ cp ../apps/openai/factory ${BASEPATH}${RUNFOLDER}/factory
 cp ../apps/openai/openaibot.py ${BASEPATH}${RUNFOLDER}/
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
-cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
+cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/rl
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/policy_settings.sh
 cp run.sh ${BASEPATH}${RUNFOLDER}/run.sh

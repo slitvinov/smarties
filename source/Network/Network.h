@@ -102,9 +102,12 @@ public:
 
   void seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const;
   void seqPredict_output(vector<Real>&_output, Activation* const currActivation) const;
-  void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2,
-      const nnReal* const _weights, const nnReal* const _biases) const;
-  void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2) const
+  void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2, const Uint start, const nnReal* const _weights, const nnReal* const _biases) const;
+  inline void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2, const nnReal* const _weights, const nnReal* const _biases) const
+  {
+    seqPredict_execute(series_1, series_2, 0, weights, biases);
+  }
+  inline void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2) const
   {
     seqPredict_execute(series_1, series_2, weights, biases);
   }
@@ -112,7 +115,7 @@ public:
   void predict(const vector<Real>& _input, vector<Real>& _output,
       vector<Activation*>& timeSeries, const Uint n_step,
       const nnReal* const _weights, const nnReal* const _biases) const;
-  void predict(const vector<Real>& _input, vector<Real>& _output,
+  inline void predict(const vector<Real>& _input, vector<Real>& _output,
       vector<Activation*>& timeSeries, const Uint n_step) const
   {
     predict(_input, _output, timeSeries, n_step, weights, biases);
@@ -121,7 +124,7 @@ public:
   void predict(const vector<Real>& _input, vector<Real>& _output,
     const Activation* const prevActivation, Activation* const currActivation,
     const nnReal* const _weights, const nnReal* const _biases) const;
-  void predict(const vector<Real>& _input, vector<Real>& _output,
+  inline void predict(const vector<Real>& _input, vector<Real>& _output,
     const Activation*const prevActivation,Activation*const currActivation) const
   {
     predict(_input, _output, prevActivation, currActivation,
@@ -131,7 +134,7 @@ public:
   void predict(const vector<Real>& _input, vector<Real>& _output,
       Activation* const net, const nnReal* const _weights,
       const nnReal* const _biases) const;
-  void predict(const vector<Real>& _input, vector<Real>& _output,
+  inline void predict(const vector<Real>& _input, vector<Real>& _output,
       Activation* const net) const
   {
     predict(_input, _output, net, weights, biases);
@@ -140,7 +143,7 @@ public:
   void backProp(vector<Activation*>& timeSeries,
       const nnReal* const _weights, const nnReal* const biases,
       Grads* const _grads) const;
-  void backProp(vector<Activation*>& timeSeries, Grads* const _grads) const
+  inline void backProp(vector<Activation*>& timeSeries, Grads* const _grads) const
   {
     backProp(timeSeries, weights, biases, _grads);
   }
@@ -148,7 +151,7 @@ public:
   void backProp(const vector<Real>& _errors, Activation* const net,
       const nnReal* const _weights, const nnReal* const _biases,
       Grads* const _grads) const;
-  void backProp(const vector<Real>& _errors, Activation* const net,
+  inline void backProp(const vector<Real>& _errors, Activation* const net,
       Grads* const _grads) const
   {
     backProp(_errors, net, weights, biases, _grads);

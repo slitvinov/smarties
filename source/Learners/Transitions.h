@@ -120,6 +120,10 @@ public:
     */
     return tmp;
   }
+  inline vector<Real> standardized(const Uint seq, const Uint samp) const
+  {
+    return standardize(Set[seq]->tuples[samp]->s);
+  }
 
 #ifdef importanceSampling
   void updateP();

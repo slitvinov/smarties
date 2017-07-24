@@ -133,14 +133,16 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
     }
   }
 
-  for (Uint k=1; k<nSValues; k++) {
-    const vector<Real>inp= data->standardize(data->Set[seq]->tuples[k+samp]->s);
-    net->predict(inp,out_hat[k],series_hat,k
-    #ifndef ACER_AGGRESSIVE
-      ,net->tgt_weights,net->tgt_biases
-    #endif
-    );
-  }
+  for(Uint k=1; k<nSValues; k++)
+    net->seqPredict_inputs(data->standardized(seq, k+samp), series_hat[k]);
+
+  net->seqPredict_execute(series_hat, series_hat, 1
+  #ifndef ACER_AGGRESSIVE
+    , net->tgt_weights, net->tgt_biases
+  #endif
+  );
+  for(Uint k=1;k<nSValues;k++) net->seqPredict_output(out_hat[k],series_hat[k]);
+
 
   if(thrID==1)  profiler->stop_start("ADV");
 
