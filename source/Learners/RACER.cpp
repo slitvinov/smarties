@@ -188,6 +188,8 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
   vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
   vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata-1);
 
+  if(thrID==1) profiler->stop_start("FWD");
+
   for (Uint k=0; k<ndata-1; k++) {
     const Tuple * const _t = data->Set[seq]->tuples[k]; // s, a, mu
     const vector<Real> scaledSold = data->standardize(_t->s);
@@ -197,6 +199,8 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
   }
   net->seqPredict_execute(series_cur,series_cur);
   net->seqPredict_execute(series_cur,series_hat,net->tgt_weights,net->tgt_biases);
+
+  if(thrID==1)  profiler->stop_start("CMP");
 
   Real Q_RET = 0, Q_OPC = 0;
   //if partial sequence then compute value of last state (!= R_end)
@@ -224,8 +228,12 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
     net->setOutputDeltas(grad, series_cur[k]);
   }
 
+  if(thrID==1)  profiler->stop_start("BCK");
+
   if (thrID==0) net->backProp(series_cur, net->grad);
   else net->backProp(series_cur, net->Vgrad[thrID]);
   net->deallocateUnrolledActivations(&series_cur);
   net->deallocateUnrolledActivations(&series_hat);
+
+  if(thrID==1)  profiler->pop_stop();
 }

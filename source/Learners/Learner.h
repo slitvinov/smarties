@@ -51,7 +51,7 @@ protected:
 
 public:
   Profiler* profiler;
-  Profiler* profiler_ext;
+  Profiler* profiler_ext = nullptr;
   mutable std::mutex task_mutex;
   #ifdef FULLTASKING
   int nTasks = 0;

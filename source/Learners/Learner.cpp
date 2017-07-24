@@ -47,7 +47,7 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
 #pragma omp task firstprivate(sequence) if(readNTasks()<nSThreads)
       {
         const int thrID = omp_get_thread_num();
-        if(!thrID) profiler_ext->stop_start("WORK");
+        if(!thrID && profiler_ext != nullptr) profiler_ext->stop_start("WORK");
         assert(thrID>=0);
         Train_BPTT(sequence, static_cast<Uint>(thrID));
         addToNTasks(-1);
@@ -65,7 +65,7 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
 #pragma omp task firstprivate(sequence,transition) if(readNTasks()<nSThreads)
       {
         const int thrID = omp_get_thread_num();
-        if(!thrID) profiler_ext->stop_start("WORK");
+        if(!thrID && profiler_ext != nullptr) profiler_ext->stop_start("WORK");
         assert(thrID>=0);
         Train(sequence, transition, static_cast<Uint>(thrID));
         addToNTasks(-1);
@@ -126,8 +126,10 @@ void Learner::applyGradient() //this cannot be called from omp parallel region
 
   profiler->stop_all();
 
-  if(opt->nepoch%10000==0 && !learn_rank)
+  if(opt->nepoch%100==0 && !learn_rank) {
     profiler->printSummary();
+    profiler->reset();
+  }
 }
 
 Uint Learner::sampleTransitions(vector<Uint>& seq, vector<Uint>& trans)
@@ -205,7 +207,7 @@ bool Learner::batchGradientReady()
 
   #ifndef FULLTASKING
     if(data->nSeenSequences >= requestedSequences) {
-      profiler_ext->stop_start("WORK");
+      if(profiler_ext not_eq nullptr) profiler_ext->stop_start("WORK");
       #pragma omp taskwait
     }
   #endif

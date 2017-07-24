@@ -155,7 +155,6 @@ public:
     nnOpInp inp = netFrom->outvals + iI;
     nnOpInp delta = netTo->errvals + iO;
     nnOpRet err = netFrom->errvals + iI;
-#if 1
     for (Uint i = 0; i < nI; i++) {
       nnOpInp w = weights +iW +nO_simd*i;
       nnOpRet g = gradW +iW +nO_simd*i;
@@ -165,16 +164,6 @@ public:
         err[i] += delta[o] * w[o];
       }
     }
-#else // surprisingly slower
-    nnOpInp w = weights +iW;
-    nnOpRet g = gradW +iW;
-#pragma omp simd aligned(inp,delta,err: __vec_width__) safelen(simdWidth)
-    for (Uint i = 0; i < nI; i++)
-      for (Uint o = 0; o < nO; o++) {
-        g[o+nO_simd*i] += inp[i] * delta[o];
-        err[i] += delta[o] * w[o+nO_simd*i];
-      }
-#endif
   }
 };
 
