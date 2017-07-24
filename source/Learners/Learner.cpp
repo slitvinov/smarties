@@ -184,6 +184,7 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
     return data->Set[a]->tuples.size() < data->Set[b]->tuples.size();
   };
   std::sort(seq.begin(), seq.end(), compare);
+  assert(data->Set[seq.front()]->tuples.size() <= data->Set[seq.back()]->tuples.size());
 
   return _nAddedGradients;
 }
