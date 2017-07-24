@@ -67,7 +67,6 @@ int Master::run()
 {
   while (true)
   {
-    if(!bTrain && stepNum >= totNumSteps) return 1;
     if( bTrain && learner->reachedMaxGradStep()) return 1;
     profiler->stop_start("PREP");
     learner->prepareData(); //sync data, make sure we can sample
@@ -151,6 +150,7 @@ int Master::run()
             //  error("number of tasks %d", learner->readNTasks());
             //assert(learner->readNTasks()<nThreads && learner->readNTasks()>=0);
             #endif
+            if(!bTrain && stepNum >= totNumSteps) return 1;
           }
         }
       }
