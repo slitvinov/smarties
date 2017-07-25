@@ -11,6 +11,7 @@
 #include "Learner_utils.h"
 #include "../Math/FeatureControlTasks.h"
 #include "../Math/Quadratic_advantage.h"
+#define ACER_AGGRESSIVE
 
 class RACER : public Learner_utils
 {

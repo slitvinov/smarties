@@ -1,11 +1,10 @@
 CC = CC
 LIBS+= -mavx
-
+CPPFLAGS+= -DGYM_RENDEROPT=0
 
 ifeq "$(app)" "cubism"
 
 accfft-lib = /users/novatig/accfft/build_dbg/lib/
-
 LIBAPP = -L/users/novatig/CubismUP_3D/makefiles/ -L. -lsim_rl 
 LIBAPP+= -lpthread -lm -lz -fopenmp -lstdc++ -ldl 
 LIBAPP+= -lhdf5 -lfftw3 -lfftw3_threads -lfftw3_mpi

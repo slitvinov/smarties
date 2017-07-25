@@ -51,7 +51,7 @@ if [ ! -f settings.sh ];then
     exit -1
 fi
 source settings.sh
-SETTINGS+=" --nThreads 17"
+SETTINGS+=" --nThreads 22"
 echo $SETTINGS > settings.txt
 echo ${SETTINGS}
 echo ${NPROCESS} ${NNODES} ${NTASK} ${NTHREADS}
