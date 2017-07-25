@@ -153,8 +153,8 @@ int Master::run()
               //error("queue size %lu", postponed_queue.size());
             }
             #ifdef FULLTASKING
-            error("number of tasks %d", learner->readNTasks());
-            assert(learner->readNTasks()<nThreads && learner->readNTasks()>=0);
+            //error("number of tasks %d", learner->readNTasks());
+            //assert(learner->readNTasks()<nThreads && learner->readNTasks()>=0);
             #endif
           }
         }
