@@ -105,7 +105,11 @@ public:
   void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2, const Uint start, const nnReal* const _weights, const nnReal* const _biases) const;
   inline void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2, const nnReal* const _weights, const nnReal* const _biases) const
   {
-    seqPredict_execute(series_1, series_2, 0, weights, biases);
+    seqPredict_execute(series_1, series_2, 0, _weights, _biases);
+  }
+  inline void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2, const Uint start) const
+  {
+    seqPredict_execute(series_1, series_2, start, weights, biases);
   }
   inline void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2) const
   {
