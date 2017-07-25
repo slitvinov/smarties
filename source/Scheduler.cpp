@@ -76,6 +76,20 @@ int Master::run()
     #pragma omp parallel num_threads(nThreads)
     #pragma omp master
     {
+      if(postponed_queue.size()) //never triggered for off-policy algorithms
+      {
+        profiler->stop_start("QUEUE");
+        for (const auto& w : postponed_queue) {
+          const int slave = w.first, agent = w.second;
+          learner->addToNTasks(1);
+          #ifdef FULLTASKING
+          #pragma omp task firstprivate(slave, agent)
+          #endif
+            processRequest(slave, agent);
+        }
+        postponed_queue.clear();
+      }
+
       #ifndef FULLTASKING
       learner->spawnTrainTasks(9999); //spawn all tasks
       #endif
@@ -99,26 +113,21 @@ int Master::run()
           {
             lock_guard<mutex> lock(mpi_mutex);
             if(slaveIrecvStatus[i] == OPEN) //otherwise, Irecv not sent
-            {
               MPI_Test(&requests[i], &completed, &mpistatus);
-            }
             else if (slaveIrecvStatus[i] == SEND)
             {
-              MPI_Send(outBufs[i], outSize, MPI_BYTE, i+1, 0, slavesComm);
+              MPI_Request tmp;
+              MPI_Isend(outBufs[i], outSize, MPI_BYTE, i+1, 0, slavesComm,&tmp);
+              MPI_Request_free(&tmp); //Not my problem
               debugS("Sent action to slave %d: [%s]", i+1, print(vector<Real>(outBufs[i], outBufs[i]+aI.dim)).c_str());
-              slaveIrecvStatus[i] = OVER;
-            }
-            else
-            {
-              if(slaveIrecvStatus[i] != OVER && slaveIrecvStatus[i] != DOING)
-              _die("slave status is %d",slaveIrecvStatus[i]);
-            }
-
-            if(slaveIrecvStatus[i] == OVER)
-            {
               MPI_Irecv(inpBufs[i], inSize, MPI_BYTE, i+1, 1, slavesComm, &requests[i]);
               slaveIrecvStatus[i] = OPEN;
             }
+            else if(slaveIrecvStatus[i] == OVER)
+            {
+              MPI_Irecv(inpBufs[i], inSize, MPI_BYTE, i+1, 1, slavesComm, &requests[i]);
+              slaveIrecvStatus[i] = OPEN;
+            } else assert(slaveIrecvStatus[i] == DOING);
           }
 
           if(completed)
@@ -131,16 +140,11 @@ int Master::run()
 
             if(learnerReadyForAgent(slave, agent))
             {
-              #ifdef FULLTASKING
-                learner->addToNTasks(1);
+            learner->addToNTasks(1);
+            #ifdef FULLTASKING
 #pragma omp task firstprivate(slave, agent) if(learner->readNTasks()<nThreads)
-                {
-                  processRequest(slave, agent);
-                  learner->addToNTasks(-1);
-                }
-              #else
-                processRequest(slave, agent);
-              #endif
+            #endif
+              processRequest(slave, agent);
             }
             else //never triggered for off-policy algorithms:
             {
@@ -149,8 +153,8 @@ int Master::run()
               //error("queue size %lu", postponed_queue.size());
             }
             #ifdef FULLTASKING
-            //  error("number of tasks %d", learner->readNTasks());
-            //assert(learner->readNTasks()<nThreads && learner->readNTasks()>=0);
+            error("number of tasks %d", learner->readNTasks());
+            assert(learner->readNTasks()<nThreads && learner->readNTasks()>=0);
             #endif
           }
         }
@@ -159,26 +163,6 @@ int Master::run()
 
     profiler->stop_start("TERM");
     learner->applyGradient(); //tasks have finished, update is ready
-
-    if(postponed_queue.size()) //never triggered for off-policy algorithms
-    {
-      profiler->stop_start("QUEUE");
-      //error("postponed_queue.size(): %lu", postponed_queue.size());
-
-      #ifdef FULLTASKING
-        #pragma omp parallel num_threads(nThreads)
-        #pragma omp master
-        for (const auto& w : postponed_queue) {
-          const int slave = w.first, agent = w.second;
-          #pragma omp task firstprivate(slave, agent)
-            processRequest(slave, agent);
-        }
-      #else
-        for(const auto& w : postponed_queue) processRequest(w.first, w.second);
-      #endif
-      postponed_queue.clear();
-    }
-
     profiler->stop_all();
 
     if(learner->iter()%1000==0 && learner->iter()) profiler->printSummary();
@@ -222,6 +206,7 @@ void Master::processRequest(const int slave, const int agent)
       ++stepNum; //sequence counter: used to terminate if not training
     }
   }
+  learner->addToNTasks(-1);
 }
 
 int Master::learnerReadyForAgent(const int slave, const int agent) const

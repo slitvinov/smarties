@@ -86,32 +86,43 @@ void GAE::buildNetwork(Network*& _net , Optimizer*& _opt, const vector<Uint> nou
   #endif
 }
 
-void GAE::select(const int agentId, const Agent& agent) const
+void GAE::select(const int agentId, const Agent& agent)
 {
+  const int thrid = omp_get_thread_num();
   const int workid = retrieveAssignment(agentId);
+  //printf("Thread %d working with agent %d on task %d with status %d\n", thrid, agentId, workid, agent.Status);
+  //fflush(0);
   if(workid<0) die("FATAL: GAE Workspace not allocated.\n");
+  //printf("(%lu %lu %lu)\n", work[workid]->series.size(), work[workid]->actions.size(), work[workid]->rewards.size());
+  //fflush(0);
 
   if(agent.Status==2)
   {
-    work_rewards[workid]->push_back(agent.r);
-    //work_done[workid] = 1;
-    //nAddedGradients += work[workid]->size()-1;
+    work[workid]->rewards.push_back(agent.r);
+    work[workid]->done = 1;
+    #pragma omp flush
     if(!bTrain) return;
-
+    addToNTasks(1);
     #pragma omp task firstprivate(workid)
     {
       const int thrID = omp_get_thread_num();
       assert(thrID>=0);
       Train_BPTT(workid, static_cast<Uint>(thrID));
+      nAddedGradients += work[workid]->series.size()-1;
+      addToNTasks(-1);
     }
+    return;
   }
 
-  work[workid]->push_back(net->allocateActivation());
+  if(thrid==1) profiler->stop_start("FWD");
+  if(thrid==0 && profiler_ext != nullptr) profiler_ext->stop_start("WORK");
+
+  work[workid]->series.push_back(net->allocateActivation());
   vector<Real> output(nOutputs), input = agent.s->copy_observed();
   //if required, chain together nAppended obs to compose state
   assert(!nAppended); //not supported
-  const Uint step = work[workid]->size() - 1;
-  net->predict(data->standardize(input), output, *work[workid], step);
+  const Uint step = work[workid]->series.size() - 1;
+  net->predict(data->standardize(input), output, work[workid]->series, step);
 
   const auto pol = prepare_policy(output);
   vector<Real> beta_mean=pol.getMean(), beta_std=pol.getStdev(), beta(2*nA,0);
@@ -119,17 +130,25 @@ void GAE::select(const int agentId, const Agent& agent) const
   for(Uint i=0; i<nA; i++) {
     beta[i] = beta_mean[i];
     beta[nA+i] = beta_std[i];
+    #ifdef INTEGRATEANDFIREMODEL
     std::lognormal_distribution<Real> dist_cur(beta_mean[i], beta_std[i]);
+    #else
+    std::normal_distribution<Real> dist_cur(beta_mean[i], beta_std[i]);
+    #endif
     act[i] = bTrain ? dist_cur(*gen) : beta_mean[i];
   }
 
-  if(agent.Status!=1) work_rewards[workid]->push_back(agent.r);
-  work_actions[workid]->push_back(act);
+  if(agent.Status!=1) work[workid]->rewards.push_back(agent.r);
+  work[workid]->actions.push_back(act);
 
   #ifndef INTEGRATEANDFIREMODEL
-  agent.a->set(aInfo.getScaled(act[i]));
+  agent.a->set(aInfo.getScaled(act));
+  #else
+  agent.a->set(act);
   #endif
 
+  if(thrid==0 && profiler_ext != nullptr) profiler_ext->stop_start("COMM");
+  if(thrid==1) profiler->pop_stop();
   //data->passData(agentId, agent, beta);
   //dumpNetworkInfo(agentId);
 }
@@ -141,24 +160,28 @@ void GAE::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
 void GAE::Train_BPTT(const Uint workid, const Uint thrID) const
 {
-  vector<Activation*> series = *work[workid];
-  const Uint ndata = work[workid]->size();
-  assert(work_actions[workid]->size() == ndata);
-  assert(work_rewards[workid]->size() == ndata);
+  //printf("GAE Train_BPTT %d %d %lu %lu %lu\n", thrID, workid, work[workid]->series.size(), work[workid]->actions.size(), work[workid]->rewards.size());
+  //fflush(0);
+  const Uint ndata = work[workid]->series.size();
+  assert(work[workid]->actions.size() == ndata);
+  assert(work[workid]->rewards.size() == ndata);
 
   Real A_GAE = 0, Vnext = 0, V_MC = 0;
+  if(thrID==1) profiler->stop_start("CMP");
 
   for (int k=static_cast<int>(ndata)-1; k>=0; k--)
   {
-    vector<Real> out = net->getOutputs(series[k]);
+    vector<Real> out = net->getOutputs(work[workid]->series[k]);
     vector<Real> grad = compute(workid, k, A_GAE, Vnext, V_MC, out, thrID);
 
     //write gradient onto output layer:
     statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
     clip_grad(grad, stdGrad[0]);
-    net->setOutputDeltas(grad, series[k]);
+    net->setOutputDeltas(grad, work[workid]->series[k]);
   }
 
-  if (thrID==0) net->backProp(series, net->grad);
-  else net->backProp(series, net->Vgrad[thrID]);
+  if(thrID==1) profiler->stop_start("BCK");
+  if (thrID==0) net->backProp(work[workid]->series, net->grad);
+  else net->backProp(work[workid]->series, net->Vgrad[thrID]);
+  if(thrID==1) profiler->pop_stop();
 }

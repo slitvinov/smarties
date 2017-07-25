@@ -26,7 +26,7 @@ avgValGrad(nThreads+1,vector<long double>(1,0)), stdValGrad(nThreads+1,vector<lo
   policyVecDim = 2*nA;
 }
 
-void DPG::select(const int agentId, const Agent& agent) const
+void DPG::select(const int agentId, const Agent& agent)
 {
   vector<Real> beta(policyVecDim,0);
   if(agent.Status==2) { data->passData(agentId, agent, beta); return; }

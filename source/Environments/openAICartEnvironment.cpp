@@ -20,7 +20,7 @@
 #include <algorithm>
 #include <stdio.h>
 #ifndef GYM_RENDEROPT
-#define GYM_RENDEROPT 1
+#define GYM_RENDEROPT 0
 #endif
 using namespace std;
 

@@ -195,7 +195,7 @@ class RACER : public Learner_utils
 
 public:
   RACER(MPI_Comm comm, Environment*const env, Settings & settings);
-  void select(const int agentId, const Agent& agent) const override;
+  void select(const int agentId, const Agent& agent) override;
 
   void test();
 

@@ -126,7 +126,7 @@ void Learner::applyGradient() //this cannot be called from omp parallel region
 
   profiler->stop_all();
 
-  if(opt->nepoch%100==0 && !learn_rank) {
+  if(opt->nepoch%1000==0 && !learn_rank) {
     profiler->printSummary();
     profiler->reset();
   }

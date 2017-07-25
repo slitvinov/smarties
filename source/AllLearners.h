@@ -58,7 +58,7 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
   }
   else if (settings.learner == "GAE") {
     settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
-    settings.nnOutputs = env->aI.dim;
+    settings.nnOutputs = 1+2*env->aI.dim;
     settings.bSampleSequences = true;
 
     const int bs = settings.batchSize, na = env->nAgentsPerRank;

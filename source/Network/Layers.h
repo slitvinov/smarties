@@ -427,7 +427,7 @@ public:
     // of the exp decay, and the coefficient of the sigmoid
     //nnOpInp bias   = biases +n1stBias +0*nNeurons;
 #ifndef INTEGRATEANDFIRESHARED
-    nnOpInp bias   = biases+n1stBias +0*nNeurons;
+    //nnOpInp bias   = biases+n1stBias +0*nNeurons;
     nnOpInp invTau = biases+n1stBias +1*nNeurons;
     nnOpInp excitr = biases+n1stBias +2*nNeurons;
     nnOpInp thresh = biases+n1stBias +3*nNeurons;

@@ -27,7 +27,7 @@ Learner_utils(comm,_env,settings,settings.nnOutputs)
   policyVecDim = nOutputs;
 }
 
-void NFQ::select(const int agentId, const Agent& agent) const
+void NFQ::select(const int agentId, const Agent& agent)
 {
   vector<Real> beta(policyVecDim,0);
   if(agent.Status==2) { data->passData(agentId, agent, beta); return; }

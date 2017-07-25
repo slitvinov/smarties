@@ -30,7 +30,7 @@ delta(0.1), generators(settings.generators)
   test();
 }
 
-void DACER::select(const int agentId, const Agent& agent) const
+void DACER::select(const int agentId, const Agent& agent)
 {
   if(agent.Status==2) { //no need for action, just pass terminal s & r
     data->passData(agentId,agent,vector<Real>(policyVecDim,0));

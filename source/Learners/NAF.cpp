@@ -36,7 +36,7 @@ nA(_env->aI.dim), nL(compute_nL(_env->aI.dim))
   test();
 }
 
-void NAF::select(const int agentId, const Agent& agent) const
+void NAF::select(const int agentId, const Agent& agent)
 {
   vector<Real> beta(policyVecDim,0);
   if(agent.Status==2) { data->passData(agentId, agent, beta); return; }

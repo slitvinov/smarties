@@ -69,10 +69,10 @@ public:
     for (Uint j=0; j<length; j++) ret[j] = new Activation(nNeurons,nStates);
     return ret;
   }
-  inline void deallocateUnrolledActivations(vector<Activation*>*const ret) const
+  static inline void deallocateUnrolledActivations(vector<Activation*>*const r)
   {
-    for (auto & trash : *ret) _dispose_object(trash);
-    ret->clear();
+    for (auto & trash : *r) _dispose_object(trash);
+    r->clear();
   }
   inline void clearErrors(vector<Activation*>& timeSeries) const
   {

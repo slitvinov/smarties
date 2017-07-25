@@ -59,8 +59,8 @@ using namespace std;
 #endif
 
 #define NET_L1_PENAL
-#define INTEGRATEANDFIREMODEL
-#define INTEGRATEANDFIRESHARED //if IaF parameters are shared by all neurons
+//#define INTEGRATEANDFIREMODEL
+//#define INTEGRATEANDFIRESHARED //if IaF parameters are shared by all neurons
 //#define _dumpNet_
 #define FULLTASKING
 

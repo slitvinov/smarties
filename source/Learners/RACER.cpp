@@ -56,7 +56,7 @@ generators(settings.generators)
   test();
 }
 
-void RACER::select(const int agentId, const Agent& agent) const
+void RACER::select(const int agentId, const Agent& agent)
 {
   if(agent.Status==2) { //no need for action, just pass terminal s & r
     data->passData(agentId,agent,vector<Real>(policyVecDim,0));

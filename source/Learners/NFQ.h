@@ -19,5 +19,5 @@ class NFQ : public Learner_utils
 
 public:
   NFQ(MPI_Comm comm, Environment*const env, Settings & settings);
-  void select(const int agentId, const Agent& agent) const override;
+  void select(const int agentId, const Agent& agent) override;
 };

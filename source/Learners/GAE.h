@@ -14,34 +14,32 @@
 class GAE : public Learner_onPolicy
 {
   const Real lambda = 0.99;
-#ifdef INTEGRATEANDFIRESHARED
-  vector<Uint> net_outputs = {1, nA, 1};
-#else
-  vector<Uint> net_outputs = {1, nA, nA};
-#endif
+  #ifdef INTEGRATEANDFIRESHARED
+    vector<Uint> net_outputs = {1, nA, 1};
+  #else
+    vector<Uint> net_outputs = {1, nA, nA};
+  #endif
   vector<Uint> net_indices = {0,  1, 1+nA};
 
-#ifdef INTEGRATEANDFIREMODEL
-  inline Lognormal_policy prepare_policy(const vector<Real>& out) const
-  {
-    return Lognormal_policy(net_indices[2], net_indices[3], nA, out);
-  }
-#else
-  inline Gaussian_policy prepare_policy(const vector<Real>& out) const
-  {
-    return Gaussian_policy(net_indices[2], net_indices[3], nA, out);
-  }
-#endif
+  #ifdef INTEGRATEANDFIREMODEL
+    inline Lognormal_policy prepare_policy(const vector<Real>& out) const
+    {
+      return Lognormal_policy(net_indices[1], net_indices[2], nA, out);
+    }
+  #else
+    inline Gaussian_policy prepare_policy(const vector<Real>& out) const
+    {
+      return Gaussian_policy(net_indices[1], net_indices[2], nA, out);
+    }
+  #endif
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override;
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
   inline vector<Real> compute(const Uint workid, const Uint samp, Real& A_GAE, Real& Vnext, Real& V_MC, const vector<Real>& out, const Uint thrID) const
   {
-    const vector<vector<Real>> actary = *work_actions[workid];
-    const vector<Real> rewary = *work_rewards[workid];
-    const vector<Real> act = actary[samp];
-    const Real reward = rewary[samp];
+    const vector<Real> act = work[workid]->actions[samp];
+    const Real reward = work[workid]->rewards[samp];
     const Real V_curr = out[net_indices[0]];
     const auto pol = prepare_policy(out);
     //if terminal state was reached then this is r_end, and Vnext==A_GAE==V_MC=0
@@ -65,7 +63,7 @@ public:
   GAE(MPI_Comm comm, Environment*const env, Settings & settings);
 
   //called by scheduler:
-  void select(const int agentId, const Agent& agent) const override;
+  void select(const int agentId, const Agent& agent) override;
 
   void buildNetwork(Network*& _net , Optimizer*& _opt, const vector<Uint> nouts, Settings& settings,
   vector<Real> weightInitFactors = vector<Real>(),

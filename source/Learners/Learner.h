@@ -135,7 +135,7 @@ public:
   }
   //*/
 
-  virtual void select(const int agentId, const Agent& agent) const = 0;
+  virtual void select(const int agentId, const Agent& agent) = 0;
   virtual void dumpPolicy() = 0;
 
   //main training functions:
