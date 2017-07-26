@@ -31,7 +31,7 @@ EntropySGD::EntropySGD(Network*const _net, Profiler*const _prof, Settings&_s) :
     _muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
 {
   assert(L_eSGD>0);
-  for (Uint i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights[i];
+  for (Uint i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights_back[i];
   for (Uint i=0; i<nBiases; i++)  _muB_eSGD[i] = net->biases[i];
 }
 
@@ -63,9 +63,9 @@ void EntropySGD::moveFrozenWeights(const Real _alpha)
 
 #pragma omp for nowait
     for (Uint j=0; j<nWeights; j++) {
-      net->tgt_weights[j] += fac * (_muW_eSGD[j] - net->tgt_weights[j]);
-      net->weights[j] = net->tgt_weights[j];
-      _muW_eSGD[j] = net->tgt_weights[j];
+      net->tgt_weights_back[j] += fac*(_muW_eSGD[j] - net->tgt_weights_back[j]);
+      net->weights_back[j] = net->tgt_weights_back[j];
+      _muW_eSGD[j] = net->tgt_weights_back[j];
     }
 
 #pragma omp for nowait
@@ -75,12 +75,14 @@ void EntropySGD::moveFrozenWeights(const Real _alpha)
       _muB_eSGD[j] = net->tgt_biases[j];
     }
   }
+  net->sort_bck_to_fwd(net->tgt_weights_back, net->tgt_weights);
+  net->sort_bck_to_fwd(net->weights_back, net->weights);
 }
 
 void EntropySGD::update(Grads* const G, const Uint batchsize)
 {
   //const Real _eta = eta/(1.+std::log(1. + (double)nepoch));
-  update(net->weights,net->tgt_weights,G->_W,_1stMomW,_2ndMomW,_muW_eSGD,nWeights,batchsize,eta);
+  update(net->weights_back,net->tgt_weights_back,G->_W,_1stMomW,_2ndMomW,_muW_eSGD,nWeights,batchsize,eta);
   update(net->biases, net->tgt_biases, G->_B,_1stMomB,_2ndMomB,_muB_eSGD,nBiases, batchsize,eta);
 
   beta_t_1 *= beta_1;
@@ -123,8 +125,8 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 
 void Optimizer::update(Grads* const G, const Uint batchsize)
 {
-  update(net->weights, G->_W, _1stMomW, nWeights, batchsize);
-  update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
+  update(net->weights_back, G->_W, _1stMomW, nWeights, batchsize);
+  update(net->biases,       G->_B, _1stMomB, nBiases,  batchsize);
   if(lambda>nnEPS) net->regularize(lambda*eta);
   net->sortWeights_bck_to_fwd();
 }
@@ -133,8 +135,8 @@ void AdamOptimizer::update(Grads* const G, const Uint batchsize)
 {
   const Real _eta = eta;///(1.+(Real)nepoch/1e5);
 
-  update(net->weights,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,_eta);
-  update(net->biases, G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);
+  update(net->weights_back,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,_eta);
+  update(net->biases,      G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);
 
   beta_t_1 *= beta_1;
   if (beta_t_1<nnEPS) beta_t_1 = 0;
@@ -307,7 +309,7 @@ bool EntropySGD::restart(const string fname)
 {
   const bool ret = AdamOptimizer::restart(fname);
   if (!ret) return ret;
-  for (Uint i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights[i];
+  for (Uint i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights_back[i];
   for (Uint i=0; i<nBiases; i++)  _muB_eSGD[i] = net->biases[i];
   return ret;
 }
