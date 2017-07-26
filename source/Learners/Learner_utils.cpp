@@ -264,9 +264,9 @@ void Learner_utils::processGrads()
     filestats.close();
   }
   for (Uint i=0; i<avgGrad[0].size(); i++) {
-    avgGrad[0][i] = .99*oldsum[i] +.01*avgGrad[0][i];
+    avgGrad[0][i] = .999*oldsum[i] +.001*avgGrad[0][i];
     //stdGrad[0][i] = .99*oldstd[i] +.01*stdGrad[0][i];
-    stdGrad[0][i] = max(0.99*oldstd[i], stdGrad[0][i]);
+    stdGrad[0][i] = max(0.999*oldstd[i], stdGrad[0][i]);
   }
 }
 

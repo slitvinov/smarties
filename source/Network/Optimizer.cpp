@@ -200,7 +200,7 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
   }
 }
 
-#if 1
+#if 0
 void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, const Uint N, const Uint batchsize, const Real _eta) const
 {
   assert(batchsize>0);
@@ -242,7 +242,6 @@ void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
     const Uint N, const Uint batchsize, const Real _eta)
 {
   assert(batchsize>0);
-  const nnReal eps = std::numeric_limits<Real>::epsilon();
   const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
   const nnReal norm = 1./batchsize;
   const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2;
@@ -252,8 +251,9 @@ void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
     const nnReal DW  = grad[i]*norm;
     const nnReal M1  = f11*_1stMom[i] +f12*DW;
     const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
-    const nnReal M2_ = std::max(M2,eps);
-    const nnReal M1_ = M1;
+    const nnReal M2_ = std::max(M2, nnEPS);
+    //const nnReal M1_ = M1;
+    const nnReal M1_ = std::max(std::min(M1, M2_), -M2_);
     //dest[i] += eta_*M1_/M2_;
     dest[i] += eta_*(f12*DW + f11*M1_)/M2_; //nesterov
     _1stMom[i] = M1_;
