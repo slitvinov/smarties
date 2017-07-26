@@ -104,20 +104,21 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 
   _net->updateFrozenWeights();
   _net->sortWeights_fwd_to_bck();
-#ifndef __EntropySGD
-  _opt = new AdamOptimizer(_net, profiler, settings);
-#else
-  _opt = new EntropySGD(_net, profiler, settings);
-#endif
-if (!learn_rank)
-  _opt->save("initial");
-#ifndef NDEBUG
-  if(ErrorHandling::level == ErrorHandling::NETWORK) {
-    MPI_Barrier(mastersComm);
-    _opt->restart("initial");
-    _opt->save("restarted"+to_string(learn_rank));
-  }
-#endif
+  #ifndef __EntropySGD
+    _opt = new AdamOptimizer(_net, profiler, settings);
+  #else
+    _opt = new EntropySGD(_net, profiler, settings);
+  #endif
+  if (!learn_rank)
+    _opt->save("initial");
+    
+  #ifndef NDEBUG
+    if(ErrorHandling::level == ErrorHandling::NETWORK) {
+      MPI_Barrier(mastersComm);
+      _opt->restart("initial");
+      _opt->save("restarted"+to_string(learn_rank));
+    }
+  #endif
   //for (const auto & l : _net->layers) l->profiler = profiler;
 }
 
@@ -226,7 +227,7 @@ void Learner_utils::processStats()
 
   long double sumWeights = 0, distTarget = 0, sumWeightsSq = 0;
 
-#pragma omp parallel for reduction(+:sumWeights,distTarget,sumWeightsSq)
+  #pragma omp parallel for reduction(+:sumWeights,distTarget,sumWeightsSq)
   for (Uint w=0; w<net->getnWeights(); w++) {
     sumWeights += std::fabs(net->weights[w]);
     sumWeightsSq += net->weights[w]*net->weights[w];

@@ -62,7 +62,7 @@ protected:
   const ActionInfo aI;
   std::vector<std::mt19937>& generators;
 
-  Uint iOldestSaved = 0;
+  Uint iOldestSaved = 0, printCount = 0;
   vector<Real> std, mean, invstd;
   vector<Uint> curr_transition_id, inds;
   discrete_distribution<Uint> * dist = nullptr;
