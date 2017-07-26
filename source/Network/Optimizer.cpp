@@ -237,9 +237,7 @@ void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet 
   }
 }
 #else // Adamax:
-void AdamOptimizer::update(nnReal*const dest, nnReal*const grad,
-    nnReal*const _1stMom, nnReal*const _2ndMom,
-    const Uint N, const Uint batchsize, const Real _eta)
+void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, const Uint N, const Uint batchsize, const Real _eta) const
 {
   assert(batchsize>0);
   const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
