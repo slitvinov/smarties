@@ -13,7 +13,7 @@
 #include <vector>
 #include <functional>
 #include "Communicator.h"
-#define SWINGUP 1
+#define SWINGUP 0
 using namespace std;
 
 // Julien Berland, Christophe Bogey, Christophe Bailly,
@@ -160,10 +160,10 @@ int main(int argc, const char * argv[])
 
         //check if terminal state has been reached:
         #if SWINGUP
-          if(a.step>=500||(std::fabs(a.u.y1)>2.4)) {
+          if(a.step>=500 || std::fabs(a.u.y1)>2.4 ) {
         #else
-				  if ((std::fabs(a.u.y3)>M_PI/15)||(std::fabs(a.u.y1)>2.4)) {
-					  rew = -1;
+				  if(a.step>=500 || std::fabs(a.u.y1)>2.4 || std::fabs(a.u.y3)>M_PI/15 ) {
+					  rew = -1*( fabs(a.u.y3)>M_PI/15 || fabs(a.u.y1)>2.4 );
         #endif
 					  a.getStateRew(state, rew);
             comm.sendState(k, 2, state, rew);
