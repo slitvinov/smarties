@@ -19,7 +19,7 @@ if [ $# -gt 4 ] ; then
     cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
 fi
 if [ $# -lt 7 ] ; then
-    NTASK=3 #n tasks per node
+    NTASK=5 #n tasks per node
     NTHREADS=12 #n threads per task
 else
     NTASK=$6
