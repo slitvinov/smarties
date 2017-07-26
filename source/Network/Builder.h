@@ -63,10 +63,12 @@ public:
       assert(iOut.size() == nOutputs);
     }
 
-    _allocateClean(tgt_weights, nWeights);
-    _allocateClean(tgt_biases, nBiases);
-    _allocateClean(weights, nWeights);
-    _allocateClean(biases, nBiases);
+    _allocate_clean(tgt_weights_back, nWeights);
+    _allocate_clean(weights_back, nWeights);
+    _allocate_clean(tgt_weights, nWeights);
+    _allocate_clean(tgt_biases, nBiases);
+    _allocate_clean(weights, nWeights);
+    _allocate_clean(biases, nBiases);
 
     grad = new Grads(nWeights,nBiases);
     Vgrad.resize(nThreads);
@@ -274,11 +276,6 @@ public:
 private:
   bool bAddedInput = false, bBuilt = false;
 
-  Uint roundUpSimd(const Uint size) const
-  {
-    return std::ceil(size/(Real)simdWidth)*simdWidth;
-  }
-
   void build_LSTM_layer(Graph* const graph)
   {
     assert(graph->written == true && !graph->built);
@@ -307,35 +304,35 @@ private:
       assert(layerFrom->written && layerFrom->built);
       assert(layerFrom->layerSize>0);
 
-      Uint firstWeightIG =nWeights      +layerFrom->layerSize*graph->layerSize_simd;
-      Uint firstWeightFG =firstWeightIG +layerFrom->layerSize*graph->layerSize_simd;
-      Uint firstWeightOG =firstWeightFG +layerFrom->layerSize*graph->layerSize_simd;
+      Uint firstWeightIG =nWeights      +layerFrom->layerSize_simd*graph->layerSize_simd;
+      Uint firstWeightFG =firstWeightIG +layerFrom->layerSize_simd*graph->layerSize_simd;
+      Uint firstWeightOG =firstWeightFG +layerFrom->layerSize_simd*graph->layerSize_simd;
 
       LinkToLSTM* tmp = new LinkToLSTM(
           layerFrom->layerSize, layerFrom->firstNeuron_ID,
           graph->layerSize, graph->firstNeuron_ID, graph->firstState_ID,
           nWeights, firstWeightIG, firstWeightFG, firstWeightOG,
-          graph->layerSize_simd
+          graph->layerSize_simd, layerFrom->layerSize_simd
       );
 
       input_links.push_back(tmp);
       graph->links.push_back(tmp);
-      nWeights += layerFrom->layerSize*graph->layerSize_simd*4;
+      nWeights += layerFrom->layerSize_simd*graph->layerSize_simd*4;
     }
     { //connected  to past realization of current recurrent layer
-      Uint firstWeightIG = nWeights      +graph->layerSize*graph->layerSize_simd;
-      Uint firstWeightFG = firstWeightIG +graph->layerSize*graph->layerSize_simd;
-      Uint firstWeightOG = firstWeightFG +graph->layerSize*graph->layerSize_simd;
+      Uint firstWeightIG = nWeights      +std::pow(graph->layerSize_simd, 2);
+      Uint firstWeightFG = firstWeightIG +std::pow(graph->layerSize_simd, 2);
+      Uint firstWeightOG = firstWeightFG +std::pow(graph->layerSize_simd, 2);
 
       recurrent_link = new LinkToLSTM(
           graph->layerSize, graph->firstNeuron_ID,
           graph->layerSize, graph->firstNeuron_ID, graph->firstState_ID,
           nWeights, firstWeightIG, firstWeightFG, firstWeightOG,
-          graph->layerSize_simd
+          graph->layerSize_simd, graph->layerSize_simd
       );
 
       graph->links.push_back(recurrent_link);
-      nWeights += graph->layerSize * graph->layerSize_simd*4;
+      nWeights += graph->layerSize_simd * graph->layerSize_simd*4;
     }
 
     Layer * l = new LSTMLayer(
@@ -356,7 +353,7 @@ private:
     vector<NormalLink*> input_links;
     NormalLink* recurrent_link = nullptr;
 
-    graph->layerSize_simd = std::ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
+    graph->layerSize_simd = roundUpSimd(graph->layerSize);
     assert(graph->layerSize>0 && graph->layerSize_simd>=graph->layerSize);
     assert(graph->linkedTo.size()>0 && nNeurons>0);
 
@@ -375,12 +372,12 @@ private:
       NormalLink* tmp = new NormalLink(
           layerFrom->layerSize, layerFrom->firstNeuron_ID,
           graph->layerSize, graph->firstNeuron_ID,
-          nWeights, graph->layerSize_simd
+          nWeights, graph->layerSize_simd, layerFrom->layerSize_simd
       );
 
       input_links.push_back(tmp);
       graph->links.push_back(tmp);
-      nWeights += layerFrom->layerSize*graph->layerSize_simd;
+      nWeights += layerFrom->layerSize_simd*graph->layerSize_simd;
     }
 
     if (graph->RNN)
@@ -388,11 +385,11 @@ private:
       recurrent_link = new NormalLink(
           graph->layerSize, graph->firstNeuron_ID,
           graph->layerSize, graph->firstNeuron_ID,
-          nWeights, graph->layerSize_simd
+          nWeights, graph->layerSize_simd, graph->layerSize_simd
       );
 
       graph->links.push_back(recurrent_link);
-      nWeights += graph->layerSize * graph->layerSize_simd;
+      nWeights += graph->layerSize_simd * graph->layerSize_simd;
     }
 
     Layer * l = new NormalLayer(
@@ -484,12 +481,12 @@ private:
       NormalLink* tmp = new NormalLink(
           layerFrom->layerSize, layerFrom->firstNeuron_ID,
           graph->layerSize, graph->firstNeuron_ID,
-          nWeights, graph->layerSize_simd
+          nWeights, graph->layerSize_simd, layerFrom->layerSize_simd
       );
 
       input_links.push_back(tmp);
       graph->links.push_back(tmp);
-      nWeights += layerFrom->layerSize*graph->layerSize_simd;
+      nWeights += layerFrom->layerSize_simd*graph->layerSize_simd;
     }
 
     Layer * l = new IntegrateFireLayer(
@@ -535,8 +532,10 @@ public:
   Settings & settings;
   Grads* grad;
   vector<Grads*> Vgrad;
+  nnReal* weights_back;
   nnReal* weights;
   nnReal* biases;
+  nnReal* tgt_weights_back;
   nnReal* tgt_weights;
   nnReal* tgt_biases;
   vector<Mem*> mem;

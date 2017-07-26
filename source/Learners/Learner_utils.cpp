@@ -59,8 +59,7 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 
   Builder build(settings);
   //check if environment wants a particular network structure
-  if (not env->predefinedNetwork(&build))
-    build.addInput(nInputs);
+  if (not env->predefinedNetwork(&build)) build.addInput(nInputs);
 
   vector<int> inputToFullyConn = {build.getLastLayerID()};
   for (Uint i=0; i<addedInputs.size(); i++) {
@@ -104,7 +103,7 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
   }
 
   _net->updateFrozenWeights();
-
+  _net->sortWeights_fwd_to_bck();
 #ifndef __EntropySGD
   _opt = new AdamOptimizer(_net, profiler, settings);
 #else

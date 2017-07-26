@@ -75,6 +75,7 @@ void GAE::buildNetwork(Network*& _net , Optimizer*& _opt, const vector<Uint> nou
   }
 
   _net->updateFrozenWeights();
+  _net->sortWeights_fwd_to_bck();
   _opt = new AdamOptimizer(_net, profiler, settings);
 
   if (!learn_rank)

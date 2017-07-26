@@ -72,11 +72,11 @@ class RACER : public Learner_utils
     Q_OPC = t_->r + rGamma*Q_OPC;
     //get everybody camera ready:
     const Real V_cur = out_cur[net_indices[0]];
-    const Real V_hat = out_hat[net_indices[0]];
     const Gaussian_policy pol_cur = prepare_policy(out_cur);
     const Gaussian_policy pol_hat = prepare_policy(out_hat);
 
     #ifndef ACER_AGGRESSIVE
+      const Real V_hat = out_hat[net_indices[0]];
       //Used for update of value: target policy, current value
       const Quadratic_advantage adv_cur = prepare_advantage(out_cur, &pol_hat);
       //Used for update of policy: current policy, target value

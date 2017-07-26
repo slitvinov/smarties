@@ -14,12 +14,19 @@
 class Link
 {
 public:
-  const Uint iW, nI, iI, nO, iO, nO_simd, nW;
-  Link(Uint _nI, Uint _iI, Uint _nO, Uint _iO, Uint _iW, Uint _nO_simd, Uint _nW)
-  : iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nO_simd(_nO_simd), nW(_nW) {}
+  const Uint iW, nI, iI, nO, iO, nO_simd, nI_simd, nW;
+  Link(Uint _nI, Uint _iI, Uint _nO, Uint _iO, Uint _iW, Uint _nO_simd, Uint _nI_simd, Uint _nW) : iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nO_simd(_nO_simd), nI_simd(_nI_simd), nW(_nW) {}
 
   virtual ~Link() {}
   virtual void print() const = 0;
+  virtual inline void sortWeights_bck_to_fwd(nnOpInp w_bck, nnOpRet w_fwd) const
+  {
+    die("Only normal links\n");
+  }
+  virtual inline void sortWeights_fwd_to_bck(nnOpInp w_fwd, nnOpRet w_bck) const
+  {
+    die("Only normal links\n");
+  }
   void _initialize(mt19937* const gen, nnOpRet _weights, const Real scale,
       Uint n0, Uint nOut, Uint nIn, Uint n_simd) const
   {
@@ -107,22 +114,22 @@ public:
      the index of the first weight iW along the weight vector
      the weights are all to all: so this link occupies space iW to (iW + nI*nO) along weight vector
    */
-  NormalLink(Uint _nI, Uint _iI, Uint _nO, Uint _iO, Uint _iW, Uint _nO_simd) :
-    Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, _nI*_nO_simd)
+  NormalLink(Uint _nI, Uint _iI, Uint _nO, Uint _iO, Uint _iW, Uint _nO_simd, Uint _nI_simd) :
+    Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, _nI_simd, _nI_simd*_nO_simd)
   {
-    assert(iW % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(iI % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(iO % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(nO_simd % (__vec_width__/sizeof(nnReal)) == 0);
+    assert(iW % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(iI % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(iO % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(nO_simd % (VEC_WIDTH/sizeof(nnReal)) == 0);
     print();
     assert(nI>0 && nO>0);
   }
 
   void print() const
   {
-    cout << "Normal link: nInputs="<< nI << " IDinput=" << iI
-        << " nOutputs=" << nO << " IDoutput" << iO << " IDweight" << iW
-        << " nWeights" << nW << " nO_simd"<<nO_simd << endl;
+    cout<<"Normal link: nInputs="<<nI<<" IDinput="<<iI<<" nOutputs="<<nO
+        <<" IDoutput"<<iO<<" IDweight"<<iW<<" nWeights"<<nW
+        <<" nO_simd"<<nO_simd<<" nI_simd"<<nI_simd<<endl;
     fflush(0);
   }
   void save(vector<nnReal> & out, nnOpRet _weights) const override
@@ -142,26 +149,45 @@ public:
   {
     nnOpInp inp = netFrom->outvals +iI;
     nnOpRet out = netTo->in_vals +iO;
-    //nnOpInp w = weights +iW;
 
     for (Uint i = 0; i < nI; i++) {
       nnOpInp w = weights +iW +nO_simd*i;
-#pragma omp simd aligned(inp,out,w : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(inp,out,w : VEC_WIDTH) safelen(VEC_WIDTH)
       for (Uint o = 0; o < nO; o++) out[o] += inp[i] * w[o];
     }
+  }
+  inline void sortWeights_bck_to_fwd(nnOpInp w_bck, nnOpRet w_fwd) const override
+  {
+    #pragma omp parallel for collapse(2)
+    for (Uint i = 0; i < nI; i++)
+    for (Uint o = 0; o < nO; o++)
+      w_fwd[iW +nO_simd*i +o] = w_bck[iW +nI_simd*o +i];
+  }
+  inline void sortWeights_fwd_to_bck(nnOpInp w_fwd, nnOpRet w_bck) const override
+  {
+    #pragma omp parallel for collapse(2)
+    for (Uint i = 0; i < nI; i++)
+    for (Uint o = 0; o < nO; o++)
+      w_bck[iW +nI_simd*o +i] = w_fwd[iW +nO_simd*i +o];
   }
   inline void backPropagate(Activation*const netFrom, const Activation*const netTo, nnOpInp weights, nnOpRet gradW) const
   {
     nnOpInp inp = netFrom->outvals + iI;
     nnOpInp delta = netTo->errvals + iO;
     nnOpRet err = netFrom->errvals + iI;
-    for (Uint i = 0; i < nI; i++) {
-      nnOpInp w = weights +iW +nO_simd*i;
-      nnOpRet g = gradW +iW +nO_simd*i;
-#pragma omp simd aligned(g,inp,delta,err,w: __vec_width__) safelen(simdWidth)
-      for (Uint o = 0; o < nO; o++) {
-        g[o] += inp[i] * delta[o];
-        err[i] += delta[o] * w[o];
+    //inp = (nnOpInp)__builtin_assume_aligned(inp, VEC_WIDTH);
+    //err = (nnOpRet)__builtin_assume_aligned(err, VEC_WIDTH);
+    //delta = (nnOpInp)__builtin_assume_aligned(delta, VEC_WIDTH);
+
+    for (Uint o = 0; o < nO; o++) {
+      nnOpInp w = weights +iW +nI_simd*o;
+      nnOpRet g = gradW +iW +nI_simd*o;
+      //g = (nnOpRet)__builtin_assume_aligned(g, VEC_WIDTH);
+      //w = (nnOpInp)__builtin_assume_aligned(w, VEC_WIDTH);
+#pragma omp simd aligned(g,inp,delta,err,w : VEC_WIDTH) safelen(VEC_WIDTH)
+      for (Uint i = 0; i < nI; i++) {
+        g[i] += inp[i] * delta[o];
+        err[i] += delta[o] * w[i];
       }
     }
   }
@@ -180,18 +206,17 @@ public:
   const Uint iC, iWI, iWF, iWO;
 
   LinkToLSTM(Uint _nI, Uint _iI, Uint _nO, Uint _iO, Uint _iC, Uint _iW,
-      Uint _iWI, Uint _iWF, Uint _iWO, Uint _nO_simd) :
-        Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, _nI*_nO_simd), iC(_iC),
-        iWI(_iWI), iWF(_iWF), iWO(_iWO) //i care nW per neuron, just for the asserts
+    Uint _iWI, Uint _iWF, Uint _iWO, Uint _nO_simd, Uint _nI_simd) :
+    Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, _nI_simd, _nI_simd*_nO_simd), iC(_iC),  iWI(_iWI), iWF(_iWF), iWO(_iWO) //i care nW per neuron, just for the asserts
   {
-    assert(iW  % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(iWI % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(iWF % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(iWO % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(iI  % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(iC  % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(iO  % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(nO_simd % (__vec_width__/sizeof(nnReal)) == 0);
+    assert(iW  % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(iWI % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(iWF % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(iWO % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(iI  % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(iC  % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(iO  % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(nO_simd % (VEC_WIDTH/sizeof(nnReal)) == 0);
     print();
     assert(iWI==iW +nW);
     assert(iWF==iWI+nW);
@@ -248,7 +273,7 @@ public:
       nnOpInp wF = weights + iWF + nO_simd*i;
       nnOpInp wO = weights + iWO + nO_simd*i;
 
-#pragma omp simd aligned(inp,inC,inI,inF,inO,wC,wI,wF,wO:__vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(inp,inC,inI,inF,inO,wC,wI,wF,wO:VEC_WIDTH) safelen(VEC_WIDTH)
       for (Uint o = 0; o < nO; o++) {
         inC[o] += inp[i] * wC[o];
         inI[o] += inp[i] * wI[o];
@@ -257,7 +282,26 @@ public:
       }
     }
   }
-
+  inline void sortWeights_bck_to_fwd(nnOpInp w_bck, nnOpRet w_fwd) const override
+  {
+    for (Uint i = 0; i < nI; i++)
+    for (Uint o = 0; o < nO; o++) {
+      w_fwd[iW  +nO_simd*i +o] = w_bck[iW  +nI_simd*o +i];
+      w_fwd[iWI +nO_simd*i +o] = w_bck[iWI +nI_simd*o +i];
+      w_fwd[iWF +nO_simd*i +o] = w_bck[iWF +nI_simd*o +i];
+      w_fwd[iWO +nO_simd*i +o] = w_bck[iWO +nI_simd*o +i];
+    }
+  }
+  inline void sortWeights_fwd_to_bck(nnOpInp w_fwd, nnOpRet w_bck) const override
+  {
+    for (Uint i = 0; i < nI; i++)
+    for (Uint o = 0; o < nO; o++) {
+      w_bck[iW  +nI_simd*o +i] = w_fwd[iW  +nO_simd*i +o];
+      w_bck[iWI +nI_simd*o +i] = w_fwd[iWI +nO_simd*i +o];
+      w_bck[iWF +nI_simd*o +i] = w_fwd[iWF +nO_simd*i +o];
+      w_bck[iWO +nI_simd*o +i] = w_fwd[iWO +nO_simd*i +o];
+    }
+  }
   inline void backPropagate(Activation* const netFrom, const Activation* const netTo, nnOpInp weights, nnOpRet gradW) const
   {
     nnOpInp inp = netFrom->outvals + iI;
@@ -267,23 +311,23 @@ public:
     nnOpInp dF = netTo->eFGates +iC;
     nnOpInp dO = netTo->eOGates +iC;
 
-    for (Uint i = 0; i < nI; i++) {
-      nnOpInp wO = weights +iWO +nO_simd*i;
-      nnOpInp wF = weights +iWF +nO_simd*i;
-      nnOpInp wI = weights +iWI +nO_simd*i;
-      nnOpInp wC = weights +iW  +nO_simd*i;
-      nnOpRet gO = gradW +iWO +nO_simd*i;
-      nnOpRet gF = gradW +iWF +nO_simd*i;
-      nnOpRet gI = gradW +iWI +nO_simd*i;
-      nnOpRet gC = gradW +iW  +nO_simd*i;
+    for (Uint o = 0; o < nO; o++) {
+      nnOpInp wO = weights +iWO +nI_simd*o;
+      nnOpInp wF = weights +iWF +nI_simd*o;
+      nnOpInp wI = weights +iWI +nI_simd*o;
+      nnOpInp wC = weights +iW  +nI_simd*o;
+      nnOpRet gO = gradW +iWO +nI_simd*o;
+      nnOpRet gF = gradW +iWF +nI_simd*o;
+      nnOpRet gI = gradW +iWI +nI_simd*o;
+      nnOpRet gC = gradW +iW  +nI_simd*o;
 
-#pragma omp simd aligned(inp,err,dC,dI,dF,dO,wC,wI,wF,wO,gC,gI,gF,gO:__vec_width__) safelen(simdWidth)
-      for (Uint o = 0; o < nO; o++) {
-        gC[o] += inp[i] * dC[o];
-        gI[o] += inp[i] * dI[o];
-        gF[o] += inp[i] * dF[o];
-        gO[o] += inp[i] * dO[o];
-        err[i]+= dO[o]*wO[o] + dC[o]*wC[o] + dI[o]*wI[o] + dF[o]*wF[o];
+#pragma omp simd aligned(inp,err,dC,dI,dF,dO,wC,wI,wF,wO,gC,gI,gF,gO:VEC_WIDTH) safelen(VEC_WIDTH)
+      for (Uint i = 0; i < nI; i++) {
+        gC[i] += inp[i] * dC[o];
+        gI[i] += inp[i] * dI[o];
+        gF[i] += inp[i] * dF[o];
+        gO[i] += inp[i] * dO[o];
+        err[i]+= dO[o]*wO[i] + dC[o]*wC[i] + dI[o]*wI[i] + dF[o]*wF[i];
       }
     }
   }
@@ -300,18 +344,18 @@ public:
   LinkToConv2D(Uint _nI, Uint _iI, Uint _nO, Uint _iO, Uint _iW, Uint _nO_simd,
       Uint _inW, Uint _inH, Uint _inD, Uint _fW, Uint _fH, Uint _fN, Uint _outW,
       Uint _outH, Uint _sX=1, Uint _sY=1, Uint _pX=0, Uint _pY=0) :
-        Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, _fW*_fH*_nO_simd*_inD),
+        Link(_nI, _iI, _nO, _iO, _iW, _nO_simd, inputDepth, _fW*_fH*_nO_simd*_inD),
         inputWidth(_inW), inputHeight(_inH), inputDepth(_inD),
         filterWidth(_fW), filterHeight(_fH), outputDepth_simd(_nO_simd),
         outputWidth(_outW), outputHeight(_outH), outputDepth(_fN),
         strideX(_sX), strideY(_sY), padX(_pX), padY(_pY)
   {
-    assert(inputDepth % (__vec_width__/sizeof(nnReal)) == 0);
-    //assert(outputDepth % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(iW % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(iI % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(iO % (__vec_width__/sizeof(nnReal)) == 0);
-    assert(outputDepth_simd % (__vec_width__/sizeof(nnReal)) == 0);
+    assert(inputDepth % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    //assert(outputDepth % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(iW % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(iI % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(iO % (VEC_WIDTH/sizeof(nnReal)) == 0);
+    assert(outputDepth_simd % (VEC_WIDTH/sizeof(nnReal)) == 0);
     assert(nW>0);
     assert(inputWidth*inputHeight*inputDepth == nI);
     assert(outputWidth*outputHeight*outputDepth == nO);
@@ -378,12 +422,20 @@ public:
         for(Uint iz=0; iz<inputDepth; iz++) { //loop over inp feature maps:
           nnOpInp w = weights +iW +outputDepth_simd*(iz +inputDepth*(fy +filterHeight*fx));
 
-#pragma omp simd aligned(out, inp, w : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(out, inp, w : VEC_WIDTH) safelen(simdWidth)
           for(Uint fz=0; fz<outputDepth; fz++) //loop over number of kernels
             out[fz] += inp[iz] * w[fz];
         }
       }
     }
+  }
+  inline void sortWeights_bck_to_fwd(nnOpInp w_bck, nnOpRet w_fwd) const override
+  {
+    die("sortWeights_bck_to_fwd");
+  }
+  inline void sortWeights_fwd_to_bck(nnOpInp w_fwd, nnOpRet w_bck) const override
+  {
+    die("sortWeights_bck_to_fwd");
   }
   inline void backPropagate(Activation* const netFrom, const Activation* const netTo, nnOpInp weights, nnOpRet gradW) const
   {
@@ -406,7 +458,7 @@ public:
           nnOpInp w = weights +iW +outputDepth_simd*(iz+ inputDepth*(fy+ filterHeight*fx));
           nnOpRet g = gradW +iW +outputDepth_simd*(iz +inputDepth*(fy +filterHeight*fx));
 
-#pragma omp simd aligned(err, w, delta, g, inp : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(err, w, delta, g, inp : VEC_WIDTH) safelen(simdWidth)
           for(Uint fz=0; fz<outputDepth; fz++) {
             err[iz] += w[fz]*delta[fz];
             g[fz] += inp[iz]*delta[fz];
