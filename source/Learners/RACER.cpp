@@ -18,12 +18,7 @@ Learner_utils(comm,_env,settings,settings.nnOutputs),
 #ifdef ACER_TABC
 truncation(5),
 #endif
-#ifdef ACER_AGGRESSIVE
-delta(1.0),
-#else
-delta(0.1),
-#endif
-nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
+delta(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
 generators(settings.generators)
 {
   vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};

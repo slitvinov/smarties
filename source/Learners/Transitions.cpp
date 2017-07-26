@@ -146,35 +146,39 @@ Uint Transitions::restartSamples(const Uint polDim)
   return 0;
 }
 
+void Transitions::writeData(const int agentId, const int info, const State& sOld, const Action&aNew, const State&sNew, const Real rew, const vector<Real> muNew)
+{
+  char asciipath[256];
+  sprintf(asciipath, "obs_rank%02d_agent%03d.raw", learn_rank, agentId);
+  FILE * pFile = fopen (asciipath, "ab");
+  const Uint writesize = (3 + sI.dim + aI.dim + muNew.size())*sizeof(float);
+  float* buf = (float*) malloc(writesize);
+  memset(buf, 0, writesize);
+  Uint k=0;
+  buf[k++]=info + 0.1;
+  buf[k++]=(int)curr_transition_id[agentId] + 0.1;
+  for (Uint i=0; i<sI.dim;       i++) buf[k++] = (float) sNew.vals[i];
+  for (Uint i=0; i<aI.dim;       i++) buf[k++] = (float) aNew.vals[i];
+  buf[k++] = rew;
+  for (Uint i=0; i<muNew.size(); i++) buf[k++] = (float) muNew[i];
+  assert(k*sizeof(float) == writesize);
+  fwrite (buf, sizeof(float), writesize/sizeof(float), pFile);
+  fflush(pFile);
+  fclose(pFile);
+  free(buf);
+}
+
 int Transitions::passData(const int agentId, const int info, const State& sOld,
   const Action&aNew, const State&sNew, const Real rew, const vector<Real> muNew)
 {
   assert(agentId<static_cast<int>(curr_transition_id.size()) && agentId>=0);
   const int ret = add(agentId, info, sOld, aNew, muNew, sNew, rew);
   if (ret) curr_transition_id[agentId] = 0;
-  char asciipath[256];
-  {
-    sprintf(asciipath, "obs_rank%02d_agent%03d.raw", learn_rank, agentId);
-    FILE * pFile = fopen (asciipath, "ab");
-    const Uint writesize = (3 + sI.dim + aI.dim + muNew.size())*sizeof(float);
-    float* buf = (float*) malloc(writesize);
-    memset(buf, 0, writesize);
-    Uint k=0;
-    buf[k++]=info + 0.1;
-    buf[k++]=(int)curr_transition_id[agentId] + 0.1;
-    for (Uint i=0; i<sI.dim;       i++) buf[k++] = (float) sNew.vals[i];
-    for (Uint i=0; i<aI.dim;       i++) buf[k++] = (float) aNew.vals[i];
-    buf[k++] = rew;
-    for (Uint i=0; i<muNew.size(); i++) buf[k++] = (float) muNew[i];
-    assert(k*sizeof(float) == writesize);
-    fwrite (buf, sizeof(float), writesize/sizeof(float), pFile);
-    fflush(pFile);
-    fclose(pFile);
-    free(buf);
-  }
+  writeData(agentId, info, sOld, aNew, sNew, rew, muNew);
 
   if (bWriteToFile)
   {
+    char asciipath[256];
     sprintf(asciipath, "rank%02d_%s", learn_rank, path.c_str());
     ofstream fout(asciipath, ios::app);
     fout<<agentId<<" "<<info<<" "<<curr_transition_id[agentId]

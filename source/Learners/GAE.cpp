@@ -148,6 +148,7 @@ void GAE::select(const int agentId, const Agent& agent)
   agent.a->set(act);
   #endif
 
+  data->writeData(agentId, a, beta);
   if(thrid==0 && profiler_ext != nullptr) profiler_ext->stop_start("COMM");
   if(thrid==1) profiler->pop_stop();
   //data->passData(agentId, agent, beta);

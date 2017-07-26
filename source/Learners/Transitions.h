@@ -140,6 +140,12 @@ public:
     return passData(agentId, a.Status, *(a.sOld), *(a.a), *(a.s), a.r, mu);
   }
 
+  inline void writeData(const int agentId, const Agent&a, const vector<Real>mu)
+  {
+    return writeData(agentId, a.Status, *(a.sOld), *(a.a), *(a.s), a.r, mu);
+  }
+  void writeData(const int agentId, const int info, const State& sOld, const Action&aNew, const State&sNew, const Real rew, const vector<Real> muNew);
+
   int passData(const int agentId, const int info, const State& sOld,
     const Action&a, const State&s, const Real r, const vector<Real>mu = vector<Real>());
 
