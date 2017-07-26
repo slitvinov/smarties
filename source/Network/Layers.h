@@ -11,12 +11,6 @@
 #include "Links.h"
 #include "../Profiler.h"
 
-#ifndef __CHECK_DIFF
-#define LSTM_PRIME_FAC 1 //input/output gates start closed, forget starts open
-#else //else we are testing finite diffs
-#define LSTM_PRIME_FAC 0 //otherwise finite differences are small
-#endif
-
 class Layer
 {
 public:
@@ -75,7 +69,7 @@ public:
     nnOpInp bias = biases +n1stBias;
     //const int thrID = omp_get_thread_num();
     //if(thrID==1) profiler->push_start("FB");
-    #pragma omp simd aligned(inputs,bias : __vec_width__) safelen(simdWidth)
+    #pragma omp simd aligned(inputs,bias : VEC_WIDTH) safelen(simdWidth)
     for (Uint n=0; n<nNeurons; n++) inputs[n] = bias[n];
     //if(thrID==1)  profiler->stop_start("FP");
     for (const auto & link : input_links)
@@ -106,7 +100,7 @@ public:
       recurrent_link->backPropagate(prev,curr,weights,grad->_W);
 
     //if(thrID==1)  profiler->stop_start("BB");
-#pragma omp simd aligned(gradbias,deltas: __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(gradbias,deltas: VEC_WIDTH) safelen(simdWidth)
     for (Uint n=0; n<nNeurons; n++) gradbias[n] += deltas[n];
     //if(thrID==1) profiler->pop_stop();
   }
@@ -241,7 +235,7 @@ public:
     nnOpRet state = curr->ostates +n1stCell;
     nnOpRet output = curr->outvals +n1stNeuron;
 
-#pragma omp simd aligned(inputs, inputI, inputF, inputO, biasC, biasI, biasF, biasO: __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(inputs, inputI, inputF, inputO, biasC, biasI, biasF, biasO: VEC_WIDTH) safelen(simdWidth)
     for (Uint n=0; n<nNeurons; n++) {
       inputs[n] = biasC[n];
       inputI[n] = biasI[n];
@@ -260,7 +254,7 @@ public:
     gate->eval(inputF,outputF,nNeurons_simd);
     gate->eval(inputO,outputO,nNeurons_simd);
 
-#pragma omp simd aligned(state, outputC, outputI, oldState, outputF, output, outputO: __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(state, outputC, outputI, oldState, outputF, output, outputO: VEC_WIDTH) safelen(simdWidth)
     for (Uint n=0; n<nNeurons; n++) {
       state[n]=outputC[n]*outputI[n] +(prev==nullptr?0:oldState[n]*outputF[n]);
       output[n] = outputO[n] * state[n];

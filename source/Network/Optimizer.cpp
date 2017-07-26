@@ -50,6 +50,7 @@ void Optimizer::moveFrozenWeights(const Real _alpha)
     for (Uint j=0; j<nBiases; j++)
       net->tgt_biases[j] += _alpha*(net->biases[j] - net->tgt_biases[j]);
   }
+  net->sort_fwd_to_bck(net->tgt_weights, net->tgt_weights_back);
 }
 
 void EntropySGD::moveFrozenWeights(const Real _alpha)
@@ -83,12 +84,13 @@ void EntropySGD::update(Grads* const G, const Uint batchsize)
   update(net->biases, net->tgt_biases, G->_B,_1stMomB,_2ndMomB,_muB_eSGD,nBiases, batchsize,eta);
 
   beta_t_1 *= beta_1;
-  if (beta_t_1<2.2e-16) beta_t_1 = 0;
+  if (beta_t_1<nnEPS) beta_t_1 = 0;
 
   beta_t_2 *= beta_2;
-  if (beta_t_2<2.2e-16) beta_t_2 = 0;
+  if (beta_t_2<nnEPS) beta_t_2 = 0;
 
-  if(lambda>2.2e-16) net->regularize(lambda*eta);
+  if(lambda>nnEPS) net->regularize(lambda*eta);
+  net->sortWeights_bck_to_fwd();
 }
 
 void Optimizer::stackGrads(Grads* const G, const Grads* const g) const
@@ -123,7 +125,8 @@ void Optimizer::update(Grads* const G, const Uint batchsize)
 {
   update(net->weights, G->_W, _1stMomW, nWeights, batchsize);
   update(net->biases,  G->_B, _1stMomB, nBiases, batchsize);
-  if(lambda>2.2e-16) net->regularize(lambda*eta);
+  if(lambda>nnEPS) net->regularize(lambda*eta);
+  net->sortWeights_bck_to_fwd();
 }
 
 void AdamOptimizer::update(Grads* const G, const Uint batchsize)
@@ -134,11 +137,12 @@ void AdamOptimizer::update(Grads* const G, const Uint batchsize)
   update(net->biases, G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);
 
   beta_t_1 *= beta_1;
-  if (beta_t_1<2.2e-16) beta_t_1 = 0;
+  if (beta_t_1<nnEPS) beta_t_1 = 0;
   beta_t_2 *= beta_2;
-  if (beta_t_2<2.2e-16) beta_t_2 = 0;
+  if (beta_t_2<nnEPS) beta_t_2 = 0;
 
-  if(lambda>2.2e-16) net->regularize(lambda*_eta);
+  if(lambda>nnEPS) net->regularize(lambda*_eta);
+  net->sortWeights_bck_to_fwd();
 }
 
 void Optimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, const Uint N, const Uint batchsize) const
@@ -167,7 +171,6 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
     const Uint thrID = static_cast<Uint>(omp_get_thread_num());
     Saru gen(nepoch, thrID, net->generators[thrID]());
     const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
-    const nnReal eps = std::numeric_limits<nnReal>::epsilon();
     const nnReal norm = 1./batchsize, noise = std::sqrt(eta_) * eps_eSGD;
     const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2;
 
@@ -178,7 +181,7 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
       const nnReal M1  = f11* _1stMom[i] +f12* DW;
       const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
       //const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
-      const nnReal M2_ = std::max(M2, eps);
+      const nnReal M2_ = std::max(M2, nnEPS);
       const nnReal _M2 = std::sqrt(M2_);
       const nnReal M1_ = std::max(std::min(M1, _M2), -_M2); //grad clip
 
@@ -204,7 +207,6 @@ void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet 
   #pragma omp parallel
   {
     const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
-    const nnReal eps = std::numeric_limits<nnReal>::epsilon();
     const nnReal norm = 1./batchsize;
     const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2, f22=1-beta_2;
 
@@ -213,7 +215,7 @@ void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet 
       const nnReal DW  = grad[i]*norm;
       const nnReal M1  = f11* _1stMom[i] +f12* DW;
       const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
-      const nnReal M2_ = std::max(M2, eps);
+      const nnReal M2_ = std::max(M2, nnEPS);
       const nnReal _M2 = std::sqrt(M2_);
       //this line makes address-sanitizer cry: i have no clue why.
       //const nnReal M1 = std::max(std::min(M1, _M2), -_M2); //grad clip
@@ -383,6 +385,7 @@ bool Optimizer::restart(const string fname)
     net->restart(outMomW, outMomB, _1stMomW, _1stMomB);
     in.close();
     net->updateFrozenWeights();
+    net->sortWeights_fwd_to_bck();
     return restart_recurrent_connections(fname);
   }
 
@@ -406,6 +409,7 @@ bool Optimizer::restart(const string fname)
     net->restart(outMomW, outMomB, _1stMomW, _1stMomB);
     fclose(pFile);
     net->updateFrozenWeights();
+    net->sortWeights_fwd_to_bck();
     return restart_recurrent_connections(fname);
   }
 
@@ -442,6 +446,7 @@ bool AdamOptimizer::restart(const string fname)
     net->restart(out2MomW, out2MomB, _2ndMomW, _2ndMomB);
     in.close();
     net->updateFrozenWeights();
+    net->sortWeights_fwd_to_bck();
     return restart_recurrent_connections(fname);
   }
 
@@ -471,6 +476,7 @@ bool AdamOptimizer::restart(const string fname)
     net->restart(out2MomW, out2MomB, _2ndMomW, _2ndMomB);
     fclose(pFile);
     net->updateFrozenWeights();
+    net->sortWeights_fwd_to_bck();
     return restart_recurrent_connections(fname);
   }
 

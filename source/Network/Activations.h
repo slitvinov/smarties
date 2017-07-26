@@ -175,7 +175,7 @@ struct Linear : public Function
 {
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
     for (Uint i=0;i<N; i++) out[i] = in[i];
   }
   Real weightsInitFactor(const Uint inps, const Uint outs) const override
@@ -219,7 +219,7 @@ struct Tanh : public Function
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
     for (Uint i=0;i<N; i++) {
       const nnReal e2x = std::exp(2*in[i]);
       out[i] = (e2x-1)/(1+e2x);
@@ -253,7 +253,7 @@ struct TwoTanh : public Function
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
     for (Uint i=0;i<N; i++) {
       const nnReal e2x = std::exp(2*in[i]);
       out[i] = 2*(e2x-1)/(1+e2x);
@@ -282,7 +282,7 @@ struct Sigm : public Function
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
     for (Uint i=0;i<N; i++) out[i] = 1/(1+std::exp(-in[i]));
   }
 };
@@ -304,7 +304,7 @@ struct SoftSign : public Function
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
     for (Uint i=0;i<N; i++) out[i] = in[i]/(1+std::fabs(in[i]));
   }
 };
@@ -326,7 +326,7 @@ struct TwoSoftSign : public Function
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
     for (Uint i=0;i<N; i++) out[i] = 2*in[i]/(1+std::fabs(in[i]));
   }
 };
@@ -349,7 +349,7 @@ struct SoftSigm : public Function
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
     for (Uint i=0;i<N; i++) out[i] = 0.5*(1+in[i]/(1+std::fabs(in[i])));
   }
 };
@@ -370,7 +370,7 @@ struct Relu : public Function
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
     for (Uint i=0;i<N; i++) out[i] = in[i]>0 ? in[i] : 0;
   }
 };
@@ -391,7 +391,7 @@ struct PRelu : public Function
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
     for (Uint i=0;i<N; i++) out[i] = in[i]>0 ? in[i] : PRELU_FAC*in[i];
   }
 };
@@ -416,7 +416,7 @@ struct ExpPlus : public Function
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
     for (Uint i=0;i<N; i++) out[i] = std::log(1+std::exp(in[i]));
   }
 };
@@ -437,7 +437,7 @@ struct SoftPlus : public Function
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : __vec_width__) safelen(simdWidth)
+#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
     for (Uint i=0;i<N; i++) out[i] = .5*(in[i]+std::sqrt(1+in[i]*in[i]));
   }
 };

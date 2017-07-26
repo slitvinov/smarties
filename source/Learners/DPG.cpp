@@ -83,7 +83,7 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
     qcurrs[k] = val[0];
 
     //only one-step backprop because policy-net tries to maximize Q given past transitions, so cannot affect previous Q
-    net_value->backProp(vector<Real>(1,1), tgtAct, net_value->tgt_weights, net_value->tgt_biases, tmp_grad);
+    net_value->backProp(vector<Real>(1,1), tgtAct, net_value->tgt_weights_back, net_value->tgt_biases, tmp_grad);
 
     for(Uint j=0; j<nA; j++) polgrad[j]= tgtAct->errvals[net_value->iInp[nS+j]];
     statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], polgrad);
@@ -151,7 +151,7 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
       net_value->predict(s, vcurr, actValcur[j-1], tgtVal, net_value->tgt_weights, net_value->tgt_biases);
     }
   }
-  net_value->backProp(grad_val, tgtVal, net_value->tgt_weights, net_value->tgt_biases, tmp);
+  net_value->backProp(grad_val, tgtVal, net_value->tgt_weights_back, net_value->tgt_biases, tmp);
   for(Uint j=0;j<nA;j++) grad_pol[j] = tgtVal->errvals[net_value->iInp[NSIN+j]];
   statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad_pol);
   clip_gradient(grad_pol, stdGrad[0], seq, samp);

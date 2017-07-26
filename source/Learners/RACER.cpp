@@ -18,12 +18,7 @@ Learner_utils(comm,_env,settings,settings.nnOutputs),
 #ifdef ACER_TABC
 truncation(5),
 #endif
-#ifdef ACER_AGGRESSIVE
-delta(1.0),
-#else
-delta(0.1),
-#endif
-nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
+delta(1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
 generators(settings.generators)
 {
   vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
@@ -208,7 +203,11 @@ void RACER::Train_BPTT(const Uint seq, const Uint thrID) const
     series_hat.push_back(net->allocateActivation());
     const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
     vector<Real> out_T(nOutputs, 0), S_T = data->standardize(_t->s);//last state
-    net->predict(S_T,out_T,series_hat,ndata-1,net->tgt_weights,net->tgt_biases);
+    net->predict(S_T, out_T, series_hat, ndata-1
+    #ifndef ACER_AGGRESSIVE
+      , net->tgt_weights, net->tgt_biases
+    #endif
+    );
     Q_OPC = Q_RET = out_T[net_indices[0]]; //V(s_T) computed with tgt weights
   }
 

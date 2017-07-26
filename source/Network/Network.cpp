@@ -121,16 +121,15 @@ void Network::backProp(const vector<Real>& _errors, Activation* const net,
 
 void Network::updateFrozenWeights()
 {
-#pragma omp parallel
+  #pragma omp parallel
   {
-#pragma omp for nowait
-    for (Uint j=0; j<nWeights; j++)
-      *(tgt_weights + j) = *(weights + j);
+    #pragma omp for nowait
+    for (Uint j=0; j<nWeights; j++) tgt_weights[j] = weights[j];
 
-#pragma omp for nowait
-    for (Uint j=0; j<nBiases; j++)
-      *(tgt_biases + j) = *(biases + j);
+    #pragma omp for nowait
+    for (Uint j=0; j<nBiases; j++)  tgt_biases[j]  = biases[j];
   }
+  sort_fwd_to_bck(tgt_weights, tgt_weights_back);
 }
 
 Network::Network(Builder* const B, Settings & settings) :
@@ -138,7 +137,8 @@ Network::Network(Builder* const B, Settings & settings) :
   nOutputs(B->nOutputs), nLayers(B->nLayers),   nNeurons(B->nNeurons),
   nWeights(B->nWeights), nBiases(B->nBiases),   nStates(B->nStates),
   bDump(not settings.bTrain), layers(B->layers), links(B->links),
-  weights(B->weights), biases(B->biases), tgt_weights(B->tgt_weights),
+  weights(B->weights), weights_back(B->weights_back), biases(B->biases),
+  tgt_weights_back(B->tgt_weights_back), tgt_weights(B->tgt_weights),
   tgt_biases(B->tgt_biases), grad(B->grad), Vgrad(B->Vgrad), mem(B->mem),
   generators(settings.generators), iOut(B->iOut), iInp(B->iInp)
 {
@@ -150,13 +150,11 @@ void Network::checkGrads()
 {
   printf("Checking gradients\n");
   const Uint seq_len = 3;
-  const nnReal incr = 1./32./32./32./8.;
-  const nnReal tol  = 1e-4;
+  const nnReal incr = std::sqrt(nnEPS);
+  const nnReal tol  = std::sqrt(incr);
   Grads * testg = new Grads(nWeights,nBiases);
   Grads * check = new Grads(nWeights,nBiases);
   Grads * error = new Grads(nWeights,nBiases);
-  for (Uint j=0; j<nWeights; j++) {check->_W[j] = 0; error->_W[j] = 0;}
-  for (Uint j=0; j<nBiases; j++)  {check->_B[j] = 0; error->_B[j] = 0;}
   vector<Activation*> timeSeries = allocateUnrolledActivations(seq_len);
 
   //TODO: check with #pragma omp parallel for collapse(2): add a critical/atomic region and give each thread a copy of weights for finite diff
@@ -164,6 +162,7 @@ void Network::checkGrads()
     for (Uint o=0; o<nOutputs; o++)
     {
       vector<Real> res(nOutputs);
+      Grads * testG_bck = new Grads(nWeights,nBiases);
       Grads * testG = new Grads(nWeights,nBiases);
       vector<vector<Real>> inputs(seq_len,vector<Real>(nInputs,0));
       for (Uint k=0; k<timeSeries.size(); k++) timeSeries[k]->clearErrors();
@@ -182,7 +181,9 @@ void Network::checkGrads()
         if(k==t) errs[o] = -1.;
         setOutputDeltas(errs, timeSeries[k]);
       }
-      backProp(timeSeries, testG);
+      backProp(timeSeries, testG_bck);
+      sort_bck_to_fwd(testG_bck->_W, testG->_W);
+      for(Uint j=0; j<nBiases; j++) testG->_B[j] = testG_bck->_B[j];
 
       nnReal diff = 0;
       for (Uint w=0; w<nWeights; w++) {
@@ -202,7 +203,7 @@ void Network::checkGrads()
         weights[w] += incr;
 
         const nnReal scale = max(fabs(testG->_W[w]), fabs(diff));
-        if (scale < 2.2e-16) continue;
+        if (scale < nnEPS) continue;
         const nnReal err = fabs(testG->_W[w]-diff);
         const nnReal relerr = err/scale;
         //if(relerr>check->_W[w])
@@ -230,7 +231,7 @@ void Network::checkGrads()
         biases[w] += incr;
 
         const nnReal scale = max(fabs(testG->_B[w]), fabs(diff));
-        if (scale < 2.2e-16) continue;
+        if (scale < nnEPS) continue;
         const nnReal err = fabs(testG->_B[w] -diff);
         const nnReal relerr = err/scale;
         //if(relerr>check->_B[w])
@@ -243,11 +244,12 @@ void Network::checkGrads()
       }
 
       _dispose_object(testG);
+      _dispose_object(testG_bck);
     }
 
   long double sum1 = 0, sumsq1 = 0, sum2 = 0, sumsq2 = 0, sum3 = 0, sumsq3 = 0;
   for (Uint w=0; w<nWeights; w++) {
-    if (check->_W[w]>tol && testg->_W[w] > 2.2e-16)
+    if (check->_W[w]>tol && testg->_W[w] > nnEPS)
     cout<<"W"<<w<<" rel err:"<<check->_W[w]<<" analytical:"<<testg->_W[w]<<endl;
 
     sum1   += fabs(testg->_W[w]);
@@ -259,7 +261,7 @@ void Network::checkGrads()
   }
 
   for (Uint w=0; w<nBiases; w++) {
-    if (check->_B[w]>tol && testg->_B[w] > 2.2e-16)
+    if (check->_B[w]>tol && testg->_B[w] > nnEPS)
     cout<<"B"<<w<<" rel err:"<<check->_B[w]<<" analytical:"<<testg->_B[w]<<endl;
 
     sum1   += fabs(testg->_B[w]);

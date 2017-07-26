@@ -22,7 +22,9 @@ public:
   const vector<Layer*> layers;
   const vector<Link*> links;
   nnReal* const weights;
+  nnReal* const weights_back;
   nnReal* const biases;
+  nnReal* const tgt_weights_back;
   nnReal* const tgt_weights;
   nnReal* const tgt_biases;
   Grads* const grad;
@@ -41,11 +43,27 @@ public:
   Uint getnStates() const {return nStates;}
   Uint getnLayers() const {return nLayers;}
   Uint getnAgents() const {return nAgents;}
+  inline void sortWeights_bck_to_fwd() const
+  {
+    for (auto & l : links) l->sortWeights_bck_to_fwd(weights_back,weights);
+  }
+  inline void sortWeights_fwd_to_bck() const
+  {
+    for (auto & l : links) l->sortWeights_fwd_to_bck(weights,weights_back);
+  }
+  inline void sort_bck_to_fwd(nnReal*const _bck, nnReal*const _fwd) const
+  {
+    for (auto & l : links) l->sortWeights_bck_to_fwd(_bck, _fwd);
+  }
+  inline void sort_fwd_to_bck(nnReal*const _fwd, nnReal*const _bck) const
+  {
+    for (auto & l : links) l->sortWeights_fwd_to_bck(_fwd, _bck);
+  }
 
   inline vector<Real> getOutputs(const Activation* const act) const
   {
     vector<Real> _output(nOutputs);
-    for(Uint i=0; i<nOutputs; i++) _output[i] = *(act->outvals + iOut[i]);
+    for(Uint i=0; i<nOutputs; i++) _output[i] = act->outvals[iOut[i]];
     return _output;
   }
   inline vector<Real> getInputGradient(const Activation* const act) const
@@ -145,11 +163,11 @@ public:
   }
 
   void backProp(vector<Activation*>& timeSeries,
-      const nnReal* const _weights, const nnReal* const biases,
+      const nnReal* const _weights, const nnReal* const _biases,
       Grads* const _grads) const;
   inline void backProp(vector<Activation*>& timeSeries, Grads* const _grads) const
   {
-    backProp(timeSeries, weights, biases, _grads);
+    backProp(timeSeries, weights_back, biases, _grads);
   }
 
   void backProp(const vector<Real>& _errors, Activation* const net,
@@ -158,7 +176,7 @@ public:
   inline void backProp(const vector<Real>& _errors, Activation* const net,
       Grads* const _grads) const
   {
-    backProp(_errors, net, weights, biases, _grads);
+    backProp(_errors, net, weights_back, biases, _grads);
   }
 
   void checkGrads();

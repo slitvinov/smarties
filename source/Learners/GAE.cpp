@@ -75,6 +75,7 @@ void GAE::buildNetwork(Network*& _net , Optimizer*& _opt, const vector<Uint> nou
   }
 
   _net->updateFrozenWeights();
+  _net->sortWeights_fwd_to_bck();
   _opt = new AdamOptimizer(_net, profiler, settings);
 
   if (!learn_rank)
@@ -147,6 +148,7 @@ void GAE::select(const int agentId, const Agent& agent)
   agent.a->set(act);
   #endif
 
+  data->writeData(agentId, agent, beta);
   if(thrid==0 && profiler_ext != nullptr) profiler_ext->stop_start("COMM");
   if(thrid==1) profiler->pop_stop();
   //data->passData(agentId, agent, beta);
