@@ -13,27 +13,16 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-NS  =int(sys.argv[1])
-NA  =int(sys.argv[2])
-FILE=    sys.argv[3]
-ICOL=int(sys.argv[4])
-NL=(NA*NA+NA)/2
+FILE=    sys.argv[1]
 
-if len(sys.argv) > 5: NP=int(sys.argv[5])
-else: NP = 2*NA
-
-NCOL=3+NS+NA+NP
-
-#np.savetxt(sys.stdout, np.fromfile(sys.argv[1], dtype='i4').reshape(2,10).transpose())
 DATA = np.fromfile(FILE, dtype=np.float32)
-NROW = DATA.size / NCOL
-DATA = DATA.reshape(NROW, NCOL)
-print(NROW, NCOL,ICOL)
+DATA = DATA[4:]
+N = DATA.size/3
+W = DATA[  0:  N]
+M = DATA[  N:2*N]
+S = DATA[2*N:3*N]
 
-terminals = np.argwhere(abs(DATA[:,0]-2.1)<0.1)
-inds = np.arange(0,NROW)
-
-plt.plot(inds, DATA[:,ICOL])
-plt.plot(inds[terminals], DATA[terminals,ICOL], 'ro')
-#plt.savefig('prova.png', dpi=100)
+#plt.semilogy(abs(W),'b.')
+#plt.plot(abs(M),'r.')
+plt.semilogy(abs(M)/np.sqrt(S),'g.')
 plt.show()
