@@ -463,7 +463,7 @@ void Transitions::synchronize()
 Uint Transitions::updateSamples(const Real annealFac)
 {
   bool update_meanstd_needed = false;
-  printCount++
+  printCount++;
   if(Buffered.size()>0 && printCount%10 == 0) {
     if(!learn_rank)
     printf("nSequences %d (%d) > maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",

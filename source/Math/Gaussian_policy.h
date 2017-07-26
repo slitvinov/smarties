@@ -75,8 +75,9 @@ public:
     Real p = 0;
     for(Uint i=0; i<act.size(); i++) {
       assert(beta[act.size()+i]>0);
-      p -= 0.5*beta[act.size()+i]*(act[i]-beta[i])*(act[i]-beta[i]);
-      p += 0.5*std::log(0.5*beta[act.size()+i]/M_PI);
+      const Real stdi = beta[act.size()+i];
+      p -= 0.5*(act[i]-beta[i])*(act[i]-beta[i])/(stdi*stdi);
+      p -= 0.5*std::log(2*M_PI*stdi*stdi);
     }
     return p;
   }

@@ -99,6 +99,7 @@ void GAE::select(const int agentId, const Agent& agent)
 
   if(agent.Status==2)
   {
+    data->writeData(agentId, agent, vector<Real>(2*nA,0));
     work[workid]->rewards.push_back(agent.r);
     work[workid]->done = 1;
     #pragma omp flush

@@ -75,7 +75,7 @@ void RACER::select(const int agentId, const Agent& agent)
   vector<Real> act = vector<Real>(nA,0);
   for(Uint i=0; i<nA; i++) {
     beta[i] = beta_mean[i]; //first nA contain mean
-    beta[nA+i] = 1/beta_std[i]/beta_std[i]; //next nA contain precision
+    beta[nA+i] = beta_std[i]; //next nA contain precision
     std::normal_distribution<Real> dist_cur(beta_mean[i], beta_std[i]);
     act[i] = positive(greedyEps+anneal) ? dist_cur(*gen) : beta_mean[i];
   }
