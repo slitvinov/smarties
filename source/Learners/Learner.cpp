@@ -192,6 +192,7 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
 bool Learner::batchGradientReady()
 {
   const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
+  const Real sequenceCounter = data->nSeenSequences - nData_b4PolUpdates;
   //if there is not enough data for training: go back to master
   {
     #ifdef FULLTASKING
@@ -203,11 +204,11 @@ bool Learner::batchGradientReady()
     }
 
     //If I have done too many gradient steps on the avail data, go back to comm
-    if( requestedSequences > data->nSeenSequences ) return false;
+    if( requestedSequences > sequenceCounter ) return false;
   }
 
   #ifndef FULLTASKING
-    if(data->nSeenSequences >= requestedSequences) {
+    if(sequenceCounter >= requestedSequences) {
       if(profiler_ext not_eq nullptr) profiler_ext->stop_start("WORK");
       #pragma omp taskwait
     }
@@ -225,7 +226,7 @@ bool Learner::readyForAgent(const int slave, const int agent)
 
     if (data->nSequences < batchSize || !bTrain) return true;
 
-    return data->nSeenSequences <= requestedSequences;
+    return data->nSeenSequences - nData_b4PolUpdates <= requestedSequences;
 
   #else
     return true; //Learner assumes off-policy algo. it can always use more data
