@@ -311,9 +311,9 @@ void Learner_utils::dumpPolicy()
   //a fail in any of these amounts to a big and fat TODO
   if(nAppended) die("TODO missing features\n");
   const Uint nDumpPoints = env->getNdumpPoints();
-
+  const Uint n_outs = min(5,nOutputs); printf("n_outs:%u\n",n_outs);
   FILE * pFile = fopen ("dump.txt", "wb");
-  vector<Real> output(nOutputs), dump(nInputs+5);
+  vector<Real> output(nOutputs), dump(nInputs+n_outs);
   Activation* act = net->allocateActivation();
   for (Uint i=0; i<nDumpPoints; i++)
   {
@@ -321,8 +321,8 @@ void Learner_utils::dumpPolicy()
     assert(state.size()==nInputs);
     net->predict(data->standardize(state), output, act);
     Uint k=0;
-    for (Uint j=0; j<nInputs;  j++) dump[k++] = state[j];
-    for (Uint j=0; j<5; j++) dump[k++] = output[j];
+    for (Uint j=0; j<nInputs; j++) dump[k++] = state[j];
+    for (Uint j=0; j<n_outs; j++) dump[k++] = output[j];
     //state.insert(state.end(),output.begin(),output.end()); //unsafe
     fwrite(dump.data(),sizeof(Real),dump.size(),pFile);
   }
