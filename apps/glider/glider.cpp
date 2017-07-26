@@ -11,7 +11,7 @@
 //#define __SMART_
 //#define __PRINT_
 #define TERM_REW_FAC 100
-#define HEIGHT_PENAL 100
+#define HEIGHT_PENAL 10
 #define RANDOM_START 1
 using namespace std;
 
@@ -302,10 +302,10 @@ int main(int argc, const char * argv[])
 										const double rela = std::fabs(ang -.25*M_PI);
 										const double xrew = dist>5 ? 0 : TERM_REW_FAC*std::exp(-std::pow(dist,2));
 										const double arew = rela>.25*M_PI || dist>5 ? 0 : TERM_REW_FAC*std::exp(-std::pow(10*rela,2));
-                    double final_reward  = 10 + xrew + arew -a.getDistance();
+                    double final_reward  = xrew + arew -a.getDistance();
 
 										if(wrong_xdir || max_torque || way_too_far)
-			               final_reward = -500 -HEIGHT_PENAL*fabs(50+a._s.y);
+			               final_reward = -200 -HEIGHT_PENAL*fabs(50+a._s.y);
 
                     a.prepareState(state,gen);
                     //printf("Sending term state %f %f %f %f\n",
