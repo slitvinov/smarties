@@ -74,9 +74,9 @@ class RACER : public Learner_utils
     const Real V_cur = out_cur[net_indices[0]];
     const Gaussian_policy pol_cur = prepare_policy(out_cur);
     const Gaussian_policy pol_hat = prepare_policy(out_hat);
+    const Real V_hat = out_hat[net_indices[0]];
 
     #ifndef ACER_AGGRESSIVE
-      const Real V_hat = out_hat[net_indices[0]];
       //Used for update of value: target policy, current value
       const Quadratic_advantage adv_cur = prepare_advantage(out_cur, &pol_hat);
       //Used for update of policy: current policy, target value
@@ -136,14 +136,7 @@ class RACER : public Learner_utils
     const vector<Real> trust_grad=
       trust_region_update(policy_grad,gradDivKL,delta);
 
-    #ifndef ACER_AGGRESSIVE
-      const Real actProbOnTarget = pol_hat.evalLogProbability(act);
-      const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
-      const Real Ver = Qer*std::min(1.,rho_hat); //unclear
-    #else
-      const Real Ver = Qer*std::min(1.,rho_cur);
-    #endif
-
+    const Real Ver = Qer*std::min(1.,rho_cur);
     vector<Real> gradient(nOutputs,0);
     gradient[net_indices[0]]= Qer + Ver;
     adv_cur.grad(act, Qer, gradient);
@@ -151,17 +144,17 @@ class RACER : public Learner_utils
 
     if(bUpdateOPC) //prepare Q with off policy corrections for next step:
     {
+      const Real C = std::min((Real)1.,std::pow(rho_cur,1./nA));
       #ifdef ACER_AGGRESSIVE
-        const Real C = std::min((Real)1.,std::pow(rho_cur,1./nA));
-        Q_RET = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_cur;
+        Q_RET = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_hat;
+        Q_OPC = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_cur;
       #else
         //Used as target: target policy, target value
         const Quadratic_advantage adv_hat = prepare_advantage(out_hat,&pol_hat);
-        const Real C = std::min((Real)1.,std::pow(rho_hat,1./nA));
         const Real A_hat = adv_hat.computeAdvantage(act);
         Q_RET = C*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;
+        Q_OPC = Q_RET;
       #endif
-      Q_OPC = Q_RET;
     }
 
     //bookkeeping:
