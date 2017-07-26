@@ -12,7 +12,7 @@
 //#define __PRINT_
 #define TERM_REW_FAC 100
 #define HEIGHT_PENAL 100
-#define RANDOM_START 1
+#define RANDOM_START 0
 using namespace std;
 
 struct Vec7
@@ -186,10 +186,12 @@ struct Glider
       state[7] = Torque;
       state[8] = _s.vx();
       state[9] = _s.vy();
+#ifdef NOISY
       std::normal_distribution<double> noise(0,.1);
       state[0] += noise(gen);
       state[1] += noise(gen);
       state[2] += noise(gen);
+#endif
     }
 
     void updateOldDistanceAndEnergy()
@@ -229,7 +231,7 @@ int main(int argc, const char * argv[])
     vector<Glider> agents(n);
     for (auto& a : agents) {
       #ifdef __SMARTIES_ //u,v,w,x,y,a,T
-			#ifdef RANDOM_START
+			#if RANDOM_START
 			a._s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
 			#else
 			a._s = Vec7(0, 0, 0, 0, 0, 0, 0, 0);
@@ -314,7 +316,11 @@ int main(int argc, const char * argv[])
                     comm.sendState(0, a.info, state, final_reward);
 
                     a.reset(); //set info back to 0
-		    a._s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
+                    #if RANDOM_START
+		                a._s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
+                    #else
+                    a._s = Vec7(0, 0, 0, 0, 0, 0, 0, 0);
+                    #endif
                     a.updateOldDistanceAndEnergy();
                     #ifdef __PRINT_
                       a.print(k);
