@@ -454,6 +454,7 @@ void Transitions::synchronize()
     Buffered.pop_back();
     if(cnt == maxTotSeqNum/20) break; //don't change buffer too much
   } //number of sequences remains constant
+  //if(!learn_rank && printCount%10 == 0)
   printf("Removing %d sequences (avg length %f) associated with small MSE"
       "error in favor of new ones (avg lendth %f). %lu left in Buffer\n",
       cnt, nTransitionsDeleted/(Real)cnt,
@@ -464,8 +465,8 @@ Uint Transitions::updateSamples(const Real annealFac)
 {
   bool update_meanstd_needed = false;
   printCount++;
-  if(Buffered.size()>0 && printCount%10 == 0) {
-    if(!learn_rank)
+  if(Buffered.size()>0) {
+    if(!learn_rank && printCount%10 == 0)
     printf("nSequences %d (%d) > maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
       nSequences, nSeenSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
     synchronize();
