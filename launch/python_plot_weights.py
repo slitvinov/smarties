@@ -24,5 +24,6 @@ S = DATA[2*N:3*N]
 
 #plt.semilogy(abs(W),'b.')
 #plt.plot(abs(M),'r.')
-plt.semilogy(abs(M)/np.sqrt(S),'g.')
+#plt.semilogy(abs(M)/np.sqrt(S),'g.')
+plt.semilogy(abs(M)/S,'g.')
 plt.show()

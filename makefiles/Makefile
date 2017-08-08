@@ -7,12 +7,12 @@ extra ?=
 app ?= test
 #cvar ?= simple
 cvar ?= off
-acer ?= full
+acer ?= relax
 testdiff ?= no
 entropy ?= off
 auxtask ?= off
 importance ?= off
-lambda ?= off
+fulltrace ?= off
 tabc ?= off
 sortseq ?= off
 mpi_lib ?= default
@@ -87,8 +87,8 @@ endif
 ifeq "$(importance)" "on"
 CPPFLAGS+= -DIMPORTSAMPLE
 endif
-ifeq "$(lambda)" "on"
-CPPFLAGS+= -DCUT_LAMBDA
+ifeq "$(fulltrace)" "on"
+CPPFLAGS+= -DNO_CUT_TRACES
 endif
 ifeq "$(auxtask)" "on"
 CPPFLAGS+= -DFEAT_CONTROL

@@ -20,7 +20,8 @@ SETTINGS+=" --nnl3 128"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
-SETTINGS+=" --nnFunc PRelu"
+#SETTINGS+=" --nnFunc PRelu"
+SETTINGS+=" --nnFunc Tanh"
 # L2 regularization of the weights
 #SETTINGS+=" --nnLambda 0.0001"
 
@@ -45,8 +46,8 @@ SETTINGS+=" --maxTotSeqNum 5000"
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.05"
 SETTINGS+=" --epsAnneal 100000"
-SETTINGS+=" --obsPerStep 0.1"
-SETTINGS+=" --bSampleSequences 1"
+SETTINGS+=" --obsPerStep 1"
+SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --nMasters 1"
 
 #lag of target network.

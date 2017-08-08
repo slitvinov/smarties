@@ -467,4 +467,52 @@ public:
       }
     }
   }
+  #if 0
+  static inline Uint encode(const Uint j, const Uint i, const Uint stride)
+  {
+    return i + j*stride; //c encoding
+  }
+  inline void enConv(const Activation* const netFrom, Activation* const netTo, nnOpInp weights) const
+  {
+    const int kernel_row = filterWidth * filterHeight * inputDepth;
+    const int kernel_col = outputWidth * outputHeight;
+    nnReal*const inp = initClean(kernel_row * kernel_col); //padding
+    Uint o = 0; // A output size x kernelsize
+    for(Uint ox=0; ox<outputWidth;  ox++)
+    for(Uint oy=0; oy<outputHeight; oy++) {
+      //starting position along input map for convolution with kernel:
+      const int ix = ox*strideX - padX, iy = oy*strideY - padY;
+      Uint f = 0;
+      for(Uint fx=0; fx<filterWidth; fx++)
+      for(Uint fy=0; fy<filterHeight; fy++) {
+        //index along input map of the convolution op:
+        const int cx=ix+fx, cy=iy+fy;
+        //padding: skip addition if outside input boundaries
+        if ( cx < 0 || cx >= inputWidth || cy < 0 || cy >= inputHeight) {
+          f++;
+          continue;
+        }
+
+        for(Uint iz=0; iz<inputDepth; iz++) {
+          const Uint i = encode(o, f++, kernel_size);
+          inp[i] = netFrom->outvals[iI +iz +inputDepth*(cy +inputHeight*cx)];
+        }
+      }
+      o++;
+    }
+
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+      kernel_col, outputDepth, kernel_row,
+      1.0, inp, kernel_row, weights +iW, outputDepth,
+      1.0, biases +n1stBias, outputDepth);
+    _myfree(inp);
+  }
+  nnOpInp inp = netFrom->outvals +iI +inputDepth*(cy +inputHeight*cx);
+  nnOpRet out = netTo->in_vals +iO+outputDepth_simd*(oy+outputHeight*ox);
+
+  for(Uint iz=0; iz<inputDepth; iz++) //loop over inp feature maps:
+    nnOpInp w=weights+iW+outputDepth_simd*(iz+inputDepth*(fy +filterHeight*fx));
+    for(Uint fz=0; fz<outputDepth; fz++) out[fz] += inp[iz] * w[fz];
+
+  #endif
 };

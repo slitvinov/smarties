@@ -252,8 +252,8 @@ void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet 
     const nnReal M1  = f11*_1stMom[i] +f12*DW;
     const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
     const nnReal M2_ = std::max(M2, nnEPS);
-    //const nnReal M1_ = M1;
-    const nnReal M1_ = std::max(std::min(M1, M2_), -M2_);
+    const nnReal M1_ = M1;
+    //const nnReal M1_ = std::max(std::min(M1, M2_), -M2_);
     //dest[i] += eta_*M1_/M2_;
     dest[i] += eta_*(f12*DW + f11*M1_)/M2_; //nesterov
     _1stMom[i] = M1_;
@@ -335,13 +335,13 @@ void AdamOptimizer::save(const string fname)
 
   FILE * pFile = fopen ((fname+"_net_tmp.raw").c_str(), "wb");
   Uint buf[] = {NW, NB, nLayers, nNeurons};
-  fwrite (buf,                 sizeof(Uint), 4,                pFile);
-  fwrite (outWeights.data(),   sizeof(nnReal), out1MomW.size(),   pFile);
-  fwrite (outBiases.data(),   sizeof(nnReal), out1MomB.size(),   pFile);
-  fwrite (out1MomW.data(),     sizeof(nnReal), out1MomW.size(),   pFile);
-  fwrite (out1MomB.data(),     sizeof(nnReal), out1MomB.size(),   pFile);
-  fwrite (out2MomW.data(),     sizeof(nnReal), out1MomW.size(),   pFile);
-  fwrite (out2MomB.data(),     sizeof(nnReal), out1MomB.size(),   pFile);
+  fwrite (buf,               sizeof( Uint ),               4, pFile);
+  fwrite (outWeights.data(), sizeof(nnReal), out1MomW.size(), pFile);
+  fwrite (outBiases.data(),  sizeof(nnReal), out1MomB.size(), pFile);
+  fwrite (out1MomW.data(),   sizeof(nnReal), out1MomW.size(), pFile);
+  fwrite (out1MomB.data(),   sizeof(nnReal), out1MomB.size(), pFile);
+  fwrite (out2MomW.data(),   sizeof(nnReal), out1MomW.size(), pFile);
+  fwrite (out2MomB.data(),   sizeof(nnReal), out1MomB.size(), pFile);
   fflush(pFile);
   fclose(pFile);
 

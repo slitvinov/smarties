@@ -99,11 +99,11 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
   assert(samp<ndata-1);
   const bool bEnd = data->Set[seq]->ended; //whether sequence has terminal rew
   const Uint nMaxTargets = MAX_UNROLL_AFTER+1, nMaxBPTT = MAX_UNROLL_BFORE;
-  //for off policy correction we need reward and action, therefore not last one:
-  const Uint nSUnroll = min(ndata-1-samp, nMaxTargets);
+  //for off policy correction we need reward, therefore not last one:
+  Uint nSUnroll = min(                     ndata-samp-1, nMaxTargets-1);
   //if we do not have a terminal reward, then we compute value of last state:
-  const Uint nSValues = min(bEnd? ndata-1-samp :ndata-samp, nMaxTargets);
-
+  Uint nSValues = min(bEnd? ndata-1-samp : ndata-samp  , nMaxTargets  );
+  //if truncated seq, we cannot compute the OFFPOL correction for the last one
   const Uint nRecurr = bRecurrent ? min(nMaxBPTT,samp)+1        : 1;
   const Uint iRecurr = bRecurrent ? max(nMaxBPTT,samp)-nMaxBPTT : samp;
   //if(thrID==1) { printf("%d %u %u %u %u %u %u\n", bEnd, samp, ndata, nSUnroll, nSValues, nRecurr, iRecurr); fflush(0); }
@@ -128,24 +128,38 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
     }
   }
 
+  Real import_weight = 1;
   for(Uint k=1; k<nSValues; k++)
-    net->seqPredict_inputs(data->standardized(seq, k+samp), series_hat[k]);
+  {
+    net->predict(data->standardized(seq, k+samp), out_hat[k], series_hat, k
+    #ifndef ACER_AGGRESSIVE
+      , net->tgt_weights, net->tgt_biases
+    #endif
+    );
 
-  net->seqPredict_execute(series_hat, series_hat, 1
-  #ifndef ACER_AGGRESSIVE
-    , net->tgt_weights, net->tgt_biases
-  #endif
-  );
-  for(Uint k=1;k<nSValues;k++) net->seqPredict_output(out_hat[k],series_hat[k]);
-
+    #ifndef NO_CUT_TRACES
+    if (k == nSValues-1) break;
+    const Tuple* const _t = data->Set[seq]->tuples[k+samp];
+    //else check if the importance weight is too small to continue:
+    const Gaussian_policy pol_hat = prepare_policy(out_hat[k]);
+    const vector<Real> act = aInfo.getInvScaled(_t->a);//unbounded action space
+    const Real probTrgt = pol_hat.evalLogProbability(act);
+    const Real probBeta = Gaussian_policy::evalBehavior(act, _t->mu);
+    import_weight *= ACER_LAMBDA * rGamma * safeExp(probTrgt-probBeta);
+    if (import_weight < std::numeric_limits<Real>::epsilon()) {
+      nSUnroll = k; //for this last state we do not compute offpol correction
+      nSValues = k+1; //we initialize value of Q_RET to V(state)
+      //printf("Cut trace afert %u samples!\n",k);
+      break;
+    }
+    #endif
+  }
 
   if(thrID==1)  profiler->stop_start("ADV");
 
   Real Q_RET = 0, Q_OPC = 0;
-  if(nSValues != nSUnroll) { //partial sequence: compute value of term state
-    assert(nSValues==nSUnroll+1 && !bEnd);
+  if(nSValues != nSUnroll) //partial sequence: compute value of term state
     Q_RET=Q_OPC= out_hat[nSValues-1][net_indices[0]]; //V(s_T) with tgt weights
-  }
 
   for (int k=static_cast<int>(nSUnroll)-1; k>0; k--) //propagate Q to k=0
     offPolCorrUpdate(seq, k+samp, Q_RET, Q_OPC, out_hat[k], rGamma);
