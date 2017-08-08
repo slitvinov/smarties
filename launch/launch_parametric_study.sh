@@ -1,4 +1,5 @@
-POSTFIX=40
+POSTFIX=sequences_00
+
 
 make -C ../makefiles clean
 make -C ../makefiles config=fit -j
@@ -113,16 +114,32 @@ make -C ../makefiles config=fit sortseq=on -j
 #./launchDaint_openai.sh dblpnd_sortseq_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
 
 make -C ../makefiles clean
-make -C ../makefiles config=prod sampseq=on -j
+make -C ../makefiles config=fit sampseq=on -j
 
-#./launchDaint_openai.sh spider_sortseq_${POSTFIX} 1 Ant-v1                    settings/settings_RACER_bench.sh
-#./launchDaint_openai.sh standu_sortseq_${POSTFIX} 1 HumanoidStandup-v1        settings/settings_RACER_bench.sh
-#./launchDaint_openai.sh humanw_sortseq_${POSTFIX} 1 Humanoid-v1               settings/settings_RACER_bench.sh
-./launchDaint_openai.sh walker_sortseq_${POSTFIX} 1 Walker2d-v1               settings/settings_RACER_bench.sh
-./launchDaint_openai.sh cheeta_sortseq_${POSTFIX} 1 HalfCheetah-v1            settings/settings_RACER_bench.sh
-./launchDaint_openai.sh swimmr_sortseq_${POSTFIX} 1 Swimmer-v1                settings/settings_RACER_bench.sh
-#./launchDaint_openai.sh hopper_sortseq_${POSTFIX} 1 Hopper-v1                 settings/settings_RACER_bench.sh
-./launchDaint_openai.sh reachr_sortseq_${POSTFIX} 1 Reacher-v1                settings/settings_RACER_bench.sh
-./launchDaint_openai.sh invpnd_sortseq_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
-#./launchDaint_openai.sh dblpnd_sortseq_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
+:'
+#./launchDaint_openai.sh spider_sampseq_${POSTFIX} 1 Ant-v1                    settings/settings_RACER_bench.sh
+#./launchDaint_openai.sh standu_sampseq_${POSTFIX} 1 HumanoidStandup-v1        settings/settings_RACER_bench.sh
+#./launchDaint_openai.sh humanw_sampseq_${POSTFIX} 1 Humanoid-v1               settings/settings_RACER_bench.sh
+./launchDaint_openai.sh walker_sampseq_${POSTFIX} 1 Walker2d-v1               settings/settings_RACER_bench.sh
+./launchDaint_openai.sh cheeta_sampseq_${POSTFIX} 1 HalfCheetah-v1            settings/settings_RACER_bench.sh
+./launchDaint_openai.sh swimmr_sampseq_${POSTFIX} 1 Swimmer-v1                settings/settings_RACER_bench.sh
+#./launchDaint_openai.sh hopper_sampseq_${POSTFIX} 1 Hopper-v1                 settings/settings_RACER_bench.sh
+./launchDaint_openai.sh reachr_sampseq_${POSTFIX} 1 Reacher-v1                settings/settings_RACER_bench.sh
+./launchDaint_openai.sh invpnd_sampseq_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
+#./launchDaint_openai.sh dblpnd_sampseq_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
+
+make -C ../makefiles clean
+make -C ../makefiles config=fit target=off -j
+
+#./launchDaint_openai.sh spider_notarget_${POSTFIX} 1 Ant-v1                    settings/settings_RACER_bench.sh
+#./launchDaint_openai.sh standu_notarget_${POSTFIX} 1 HumanoidStandup-v1        settings/settings_RACER_bench.sh
+#./launchDaint_openai.sh humanw_notarget_${POSTFIX} 1 Humanoid-v1               settings/settings_RACER_bench.sh
+./launchDaint_openai.sh walker_notarget_${POSTFIX} 1 Walker2d-v1               settings/settings_RACER_bench.sh
+./launchDaint_openai.sh cheeta_notarget_${POSTFIX} 1 HalfCheetah-v1            settings/settings_RACER_bench.sh
+./launchDaint_openai.sh swimmr_notarget_${POSTFIX} 1 Swimmer-v1                settings/settings_RACER_bench.sh
+#./launchDaint_openai.sh hopper_notarget_${POSTFIX} 1 Hopper-v1                 settings/settings_RACER_bench.sh
+./launchDaint_openai.sh reachr_notarget_${POSTFIX} 1 Reacher-v1                settings/settings_RACER_bench.sh
+./launchDaint_openai.sh invpnd_notarget_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
+#./launchDaint_openai.sh dblpnd_notarget_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
+'
 
