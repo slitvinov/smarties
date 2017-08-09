@@ -45,7 +45,7 @@ SETTINGS+=" --maxTotSeqNum 5000"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.05"
-SETTINGS+=" --epsAnneal 100000"
+SETTINGS+=" --epsAnneal 10000"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --nMasters 1"
@@ -56,6 +56,6 @@ SETTINGS+=" --nMasters 1"
 #the first option is markedly safer
 SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 32"
+SETTINGS+=" --batchSize 64"
 #network update learning rate
 SETTINGS+=" --learnrate 0.001"

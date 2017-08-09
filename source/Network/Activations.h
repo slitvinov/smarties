@@ -166,7 +166,7 @@ struct Function
 
   virtual void eval(nnOpInp in, nnOpRet out, const Uint N) const = 0; // f(in)
   virtual nnReal eval(const nnReal in) const = 0; // f(in)
-  virtual nnReal evalDiff(const nnReal in) const = 0; // f'(in)
+  virtual nnReal evalDiff(const nnReal in, const nnReal d) const = 0; // f'(in)
   virtual ~Function() {}
 };
 //If adding a new function, edit this function readFunction at end of file
@@ -186,7 +186,7 @@ struct Linear : public Function
   {
     return in;
   }
-  nnReal evalDiff(const nnReal in) const override
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
     return 1;
   }
@@ -210,11 +210,11 @@ struct Tanh : public Function
       return (e2x-1)/(1+e2x);
     }
   }
-  nnReal evalDiff(const nnReal in) const override
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
-    const nnReal arg = in < 0 ? -in : in;
+    const nnReal arg = in < 0 ? -in : in; //symmetric
     const nnReal e2x = std::exp(-2.*arg);
-    if (arg > EXP_CUT) return 4*e2x;
+    if (arg > EXP_CUT) return 4*e2x; //in*d > 0 ? 0 : 
     return 4*e2x/((1+e2x)*(1+e2x));
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
@@ -245,7 +245,7 @@ struct TwoTanh : public Function
       return 2*(e2x-1)/(1+e2x);
     }
   }
-  nnReal evalDiff(const nnReal in) const override
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
     const nnReal arg = in < 0 ? -in : in;
     const nnReal e2x = arg > EXP_CUT ? std::exp(-2*EXP_CUT) : std::exp(-2.*arg);
@@ -273,7 +273,7 @@ struct Sigm : public Function
     if(in < -2*EXP_CUT) return 0;
     return 1/(1+std::exp(-in));
   }
-  nnReal evalDiff(const nnReal in) const override
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
     const nnReal arg = in < 0 ? -in : in;
     const nnReal e2x = std::exp(-arg);
@@ -297,7 +297,7 @@ struct SoftSign : public Function
   {
     return in/(1+std::fabs(in));
   }
-  nnReal evalDiff(const nnReal in) const override
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
     const nnReal denom = 1+std::fabs(in);
     return 1/(denom*denom);
@@ -319,7 +319,7 @@ struct TwoSoftSign : public Function
   {
     return 2*in/(1+std::fabs(in));
   }
-  nnReal evalDiff(const nnReal in) const override
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
     const nnReal denom = 1+std::fabs(in);
     return 2/(denom*denom);
@@ -342,7 +342,7 @@ struct SoftSigm : public Function
     const nnReal sign = in/(1+std::fabs(in));
     return 0.5*(1+sign);
   }
-  nnReal evalDiff(const nnReal in) const override
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
     const nnReal denom = 1+std::fabs(in);
     return 0.5/(denom*denom);
@@ -364,7 +364,7 @@ struct Relu : public Function
   {
     return in>0 ? in : 0;
   }
-  nnReal evalDiff(const nnReal in) const override
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
     return in>0 ? 1 : 0;
   }
@@ -385,7 +385,7 @@ struct PRelu : public Function
   {
     return in>0 ? in : PRELU_FAC*in;
   }
-  nnReal evalDiff(const nnReal in) const override
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
     return in>0 ? 1 : PRELU_FAC;
   }
@@ -408,7 +408,7 @@ struct ExpPlus : public Function
     if(in < -2*EXP_CUT) return 0;
     return std::log(1+std::exp(in));
   }
-  nnReal evalDiff(const nnReal in) const override
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
     if(in >  2*EXP_CUT) return 1;
     if(in < -2*EXP_CUT) return std::exp(in); //neglect denom
@@ -431,7 +431,7 @@ struct SoftPlus : public Function
   {
     return .5*(in + std::sqrt(1+in*in));
   }
-  nnReal evalDiff(const nnReal in) const override
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
     return .5*(1 + in/std::sqrt(1+in*in));
   }

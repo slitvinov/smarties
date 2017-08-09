@@ -15,10 +15,7 @@
 
 class RACER : public Learner_utils
 {
-  #ifdef ACER_TABC
-  const Real truncation;
-  #endif
-  const Real delta;
+  const Real truncation, delta;
   const Uint nA, nL;
   std::vector<std::mt19937>& generators;
   #if defined ACER_RELAX // output V(s), P(s), pol(s), prec(s)

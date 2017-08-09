@@ -15,10 +15,7 @@
 
 RACER::RACER(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs),
-#ifdef ACER_TABC
-truncation(5),
-#endif
-delta(1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
+truncation(5), delta(1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
 generators(settings.generators)
 {
   vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
@@ -128,7 +125,7 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
     }
   }
 
-  Real import_weight = 1;
+  Real importanceW = 1, C = ACER_LAMBDA*rGamma;
   for(Uint k=1; k<nSValues; k++)
   {
     net->predict(data->standardized(seq, k+samp), out_hat[k], series_hat, k
@@ -145,11 +142,11 @@ void RACER::Train(const Uint seq, const Uint samp, const Uint thrID) const
     const vector<Real> act = aInfo.getInvScaled(_t->a);//unbounded action space
     const Real probTrgt = pol_hat.evalLogProbability(act);
     const Real probBeta = Gaussian_policy::evalBehavior(act, _t->mu);
-    import_weight *= ACER_LAMBDA * rGamma * safeExp(probTrgt-probBeta);
-    if (import_weight < std::numeric_limits<Real>::epsilon()) {
+    importanceW *= C * std::min(truncation, safeExp(probTrgt-probBeta));
+    if (importanceW < std::numeric_limits<Real>::epsilon()) {
+      //printf("Cut trace afert %u out of %u samples!\n",k,nSValues);
       nSUnroll = k; //for this last state we do not compute offpol correction
       nSValues = k+1; //we initialize value of Q_RET to V(state)
-      //printf("Cut trace afert %u samples!\n",k);
       break;
     }
     #endif

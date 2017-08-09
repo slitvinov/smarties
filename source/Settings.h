@@ -173,7 +173,7 @@ struct Settings
 #define COMMENT_maxSeqLen "Maximum length of sequence. if seq is longer it is just split into segments."
 #define TYPEVAL_maxSeqLen int
 #define TYPENUM_maxSeqLen INT
-#define DEFAULT_maxSeqLen 9000
+#define DEFAULT_maxSeqLen 9999
   int maxSeqLen = DEFAULT_maxSeqLen;
 
 #define CHARARG_bNormalize 'n'
@@ -187,7 +187,7 @@ struct Settings
 #define COMMENT_obsPerStep "Minimum ratio of observed *sequences* to gradient steps. 0.1 means that for every terminal state, learner does 10 gradient steps."
 #define TYPEVAL_obsPerStep  Real
 #define TYPENUM_obsPerStep  REAL
-#define DEFAULT_obsPerStep  0.1
+#define DEFAULT_obsPerStep  1
   Real obsPerStep = DEFAULT_obsPerStep;
 
 #define CHARARG_restart 'p'

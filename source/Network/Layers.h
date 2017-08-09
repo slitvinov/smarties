@@ -90,7 +90,7 @@ public:
     nnOpRet gradbias = grad->_B +n1stBias;
     //const int thrID = omp_get_thread_num();
     //if(thrID==1) profiler->push_start("BD");
-    for (Uint n=0; n<nNeurons; n++) deltas[n] *= func->evalDiff(inputs[n]);
+    for(Uint n=0;n<nNeurons;n++) deltas[n]*=func->evalDiff(inputs[n],deltas[n]);
 
     //if(thrID==1)  profiler->stop_start("BP");
     for (const auto & link : input_links)
@@ -285,10 +285,10 @@ public:
     {
       const nnReal deltaOut = deltas[n];
 
-      deltaC[n] = func->evalDiff(inputs[n]) * outputI[n];
-      deltaI[n] = gate->evalDiff(inputI[n]) * outputC[n];
-      deltaF[n] = (prev==nullptr) ? 0 : gate->evalDiff(inputF[n]) * prev->ostates[n1stCell+n];
-      deltaO[n] = gate->evalDiff(inputO[n]) * deltaOut * curr->ostates[n1stCell+n];
+      deltaC[n] = func->evalDiff(inputs[n], deltaC[n]) * outputI[n];
+      deltaI[n] = gate->evalDiff(inputI[n], deltaI[n]) * outputC[n];
+      deltaF[n] = (prev==nullptr) ? 0 : gate->evalDiff(inputF[n], deltaF[n]) * prev->ostates[n1stCell+n];
+      deltaO[n] = gate->evalDiff(inputO[n], deltaO[n]) * deltaOut * curr->ostates[n1stCell+n];
 
       deltas[n] = deltaOut * outputO[n] + (next==nullptr ? 0 : next->errvals[n1stNeuron+n]*next->oFGates[n1stCell+n]);
 
@@ -444,14 +444,14 @@ public:
       // update the gradient to the parameters of the IaF neuron:
 #ifndef INTEGRATEANDFIRESHARED
       const nnReal boundedInvTau = sigmoid.eval(invTau[n]);
-      const nnReal dBndInvTau = sigmoid.evalDiff(invTau[n]);
+      const nnReal dBndInvTau = sigmoid.evalDiff(invTau[n], 0);
       if(prev!=nullptr) //again, remove threshold from integrated signal
         gradInvTau[n]+= -dErr_curr[n]*(prevOut[n]-thresh[n])*dBndInvTau;
       gradExcitr[n]  +=  dErr_curr[n]*sigmoid.eval(inputs[n]);
       gradThresh[n]  +=  dErr_curr[n];
 #else
       const nnReal boundedInvTau = sigmoid.eval(invTau[0]);
-      const nnReal dBndInvTau = sigmoid.evalDiff(invTau[0]);
+      const nnReal dBndInvTau = sigmoid.evalDiff(invTau[0], 0);
       if(prev!=nullptr)
         gradInvTau[0]+= -dErr_curr[n]*(prevOut[n]-thresh[0])*dBndInvTau;
       gradExcitr[0]  +=  dErr_curr[n]*sigmoid.eval(inputs[n]);
@@ -466,11 +466,11 @@ public:
       //fully connected link expects to find in curr->errvals:
       // dErr_t / dInput_t, which is dErr_t / dOut_t (dot) dSigmoid / dInput_t
       // where Input_t is the input to the sigmoid (contained in inputs[n])
-      dErr_curr[n] *= excitr[n]*sigmoid.evalDiff(inputs[n]);
+      dErr_curr[n] *= excitr[n]*sigmoid.evalDiff(inputs[n], 0);
       //grad of bias: dErr_t / dInput_t * dInput_t /dBias =  dErr_t / dInput_t
       gradBias[n]  += dErr_curr[n];
 #else
-      dErr_curr[n] *= excitr[0]*sigmoid.evalDiff(inputs[n]);
+      dErr_curr[n] *= excitr[0]*sigmoid.evalDiff(inputs[n], 0);
       gradBias[0]  += dErr_curr[n];
 #endif
     }
@@ -565,8 +565,10 @@ public:
     nnOpInp inputs = curr->in_vals +n1stNeuron;
     nnOpRet dErr_curr = curr->errvals +n1stNeuron;
     nnOpRet gradBias = grad->_B +n1stBias;
-    for (Uint n=0; n<nNeurons; n++) dErr_curr[n] *= func->evalDiff(inputs[n]);
-    for (Uint n=0; n<nNeurons; n++) gradBias[n] += dErr_curr[n];
+    for (Uint n=0; n<nNeurons; n++)  {
+      dErr_curr[n] *= func->evalDiff(inputs[n],dErr_curr[n]);
+      gradBias[n] += dErr_curr[n];
+    }
   }
 
   void initialize(mt19937*const gen, nnOpRet weights, nnOpRet biases, Real initializationFac) const override

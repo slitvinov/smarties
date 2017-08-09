@@ -17,7 +17,7 @@ Optimizer::Optimizer(Network* const _net, Profiler* const _prof, Settings& _s) :
 nWeights(_net->getnWeights()), nBiases(_net->getnBiases()), bTrain(_s.bTrain),
 net(_net), profiler(_prof),
 _1stMomW(initClean(nWeights)), _1stMomB(initClean(nBiases)),
-eta(_s.learnrate), lambda(_s.nnLambda) { }
+eta(_s.learnrate), lambda(_s.nnLambda), epsAnneal(_s.epsAnneal) { }
 
 AdamOptimizer::AdamOptimizer(Network*const _net, Profiler*const _prof,
     Settings& _s, const Real B1, const Real B2) : Optimizer(_net, _prof, _s),
@@ -133,7 +133,7 @@ void Optimizer::update(Grads* const G, const Uint batchsize)
 
 void AdamOptimizer::update(Grads* const G, const Uint batchsize)
 {
-  const Real _eta = eta;///(1.+(Real)nepoch/1e5);
+  const Real _eta = eta*std::max(.1, 1-nepoch/epsAnneal);
 
   update(net->weights_back,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,_eta);
   update(net->biases,      G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);

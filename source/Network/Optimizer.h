@@ -24,7 +24,7 @@ protected:
   void update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, const Uint N, const Uint batchsize) const;
 
 public:
-  const Real eta, lambda, alpha = 0.5;
+  const Real eta, lambda, epsAnneal, alpha = 0.5;
   long unsigned nepoch = 0;
 
   Optimizer(Network* const _net, Profiler* const _prof, Settings & settings);
@@ -107,7 +107,7 @@ protected:
 
 public:
   AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings,
-      const Real B1 = 0.8, const Real B2 = 0.999);
+      const Real B1 = 0.9, const Real B2 = 0.999);
 
   ~AdamOptimizer()
   {
