@@ -61,11 +61,12 @@ void RACER::select(const int agentId, const Agent& agent)
   const Gaussian_policy pol = prepare_policy(output);
   const Quadratic_advantage adv = prepare_advantage(output, &pol);
   const Real anneal = annealingFactor();
+  const Real safety_std = std::sqrt(1/ACER_MAX_PREC);
   vector<Real> beta_mean=pol.getMean(), beta_std=pol.getStdev(), beta(2*nA,0);
 
   if(bTrain)
   for(Uint i=0; i<nA; i++) {
-    beta_std[i] = max(anneal+greedyEps, beta_std[i]);
+    beta_std[i] = std::max(safety_std +  anneal*greedyEps, beta_std[i]);
     //beta_mean[i] = (1-anneal*anneal)*beta_mean[i];
   }
 
