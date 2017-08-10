@@ -20,7 +20,8 @@ SETTINGS+=" --nnl3 128"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
-SETTINGS+=" --nnFunc PRelu"
+#SETTINGS+=" --nnFunc PRelu"
+SETTINGS+=" --nnFunc Tanh"
 # L2 regularization of the weights
 #SETTINGS+=" --nnLambda 0.0001"
 
@@ -44,10 +45,10 @@ SETTINGS+=" --maxTotSeqNum 5000"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.05"
-SETTINGS+=" --epsAnneal    100000"
+SETTINGS+=" --epsAnneal     10000"
 SETTINGS+=" --totNumSteps 1000000"
-SETTINGS+=" --obsPerStep 1"
-SETTINGS+=" --bSampleSequences 1"
+SETTINGS+=" --obsPerStep 0.1"
+SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --nMasters 1"
 
 #lag of target network.
@@ -56,6 +57,6 @@ SETTINGS+=" --nMasters 1"
 #the first option is markedly safer
 SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 32"
+SETTINGS+=" --batchSize 128"
 #network update learning rate
 SETTINGS+=" --learnrate 0.001"
