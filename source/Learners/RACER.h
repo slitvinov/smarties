@@ -89,7 +89,7 @@ class RACER : public Learner_utils
     const vector<Real> act = aInfo.getInvScaled(_t->a); //unbounded action space
     const Real actProbOnPolicy = pol_cur.evalLogProbability(act);
     const Real actProbBehavior = Gaussian_policy::evalBehavior(act,_t->mu);
-    const Real rho_cur = safeExp(actProbOnPolicy-actProbBehavior);
+    const Real rho_cur = min(1e3 , safeExp(actProbOnPolicy-actProbBehavior));
     const Real varCritic = adv_pol.advantageVariance();
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_cov = adv_pol.computeAdvantage(act);

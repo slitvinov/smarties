@@ -31,9 +31,23 @@ DATA = DATA.reshape(NROW, NCOL)
 print(NROW, NCOL,ICOL)
 
 terminals = np.argwhere(abs(DATA[:,0]-2.1)<0.1)
+initials  = np.argwhere(abs(DATA[:,0]-1.1)<0.1)
 inds = np.arange(0,NROW)
 
-plt.plot(inds, DATA[:,ICOL])
-plt.plot(inds[terminals], DATA[terminals,ICOL], 'ro')
+for ind in range(0, len(terminals), 10):
+  term = terminals[ind]; term = term[0]
+  init =  initials[ind]; init = init[0]
+  span = range(init, term) 
+  print(init,term)
+  plt.plot(inds[span], DATA[span,ICOL])
+  #plt.plot(inds, DATA[:,ICOL])
+  if ICOL >= NCOL-2:
+    plt.plot(inds[term], DATA[term-1,ICOL], 'ro')
+  else:
+    plt.plot(inds[term], DATA[term,  ICOL], 'ro')
+
+#plt.semilogy(inds, 1/np.sqrt(DATA[:,ICOL]))
+#plt.semilogy(inds[terminals], 1/np.sqrt(DATA[terminals-1,ICOL]), 'ro')
+
 #plt.savefig('prova.png', dpi=100)
 plt.show()

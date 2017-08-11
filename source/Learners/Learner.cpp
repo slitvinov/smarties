@@ -37,7 +37,7 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 
 int Learner::spawnTrainTasks(const int availTasks) //this must be called from omp parallel region
 {
-  if (data->nSequences<batchSize || !bTrain || !availTasks) return 0;
+  if ( !readyForTrain()  || !availTasks ) return 0;
 
   if(bSampleSequences)
   {
@@ -80,7 +80,7 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
 
 void Learner::prepareData() //this cannot be called from omp parallel region
 {
-  if (data->nSequences<batchSize || !bTrain) return;
+  if ( ! readyForTrain() ) return;
 
   profiler->push_start("PRE");
 
@@ -195,10 +195,7 @@ bool Learner::batchGradientReady()
   const Real sequenceCounter = data->nSeenSequences - nData_b4PolUpdates;
   //if there is not enough data for training: go back to master
   {
-    #ifdef FULLTASKING
-      lock_guard<mutex> lock(data->dataset_mutex);
-    #endif
-    if (data->nSequences < batchSize || !bTrain) {
+    if ( ! readyForTrain() ) {
       nData_b4PolUpdates = data->nSeenSequences;
       return false;
     }
@@ -222,10 +219,10 @@ bool Learner::readyForAgent(const int slave, const int agent)
 {
   #ifdef FULLTASKING
     const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
+    
+    if ( ! readyForTrain() ) return true;
+
     lock_guard<mutex> lock(data->dataset_mutex);
-
-    if (data->nSequences < batchSize || !bTrain) return true;
-
     return data->nSeenSequences - nData_b4PolUpdates <= requestedSequences;
 
   #else

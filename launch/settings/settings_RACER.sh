@@ -44,7 +44,7 @@ SETTINGS+=" --splitLayers 0"
 SETTINGS+=" --maxTotSeqNum 5000"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 0.05"
+SETTINGS+=" --greedyEps 0.2"
 SETTINGS+=" --epsAnneal 10000"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
