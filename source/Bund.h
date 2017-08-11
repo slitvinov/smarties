@@ -40,6 +40,7 @@ using namespace std;
 #endif
 #define ACER_CONST_PREC 50 //uniform precision (1/std^2) in case of ACER_SAFE
 #define ACER_LAMBDA 1.0
+#define MAX_IMPW 1e3
 
 //#ifndef CUT_TRACES
 //  //max number of future time steps for off-policy corrections:

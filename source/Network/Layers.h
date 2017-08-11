@@ -558,6 +558,7 @@ public:
     nnOpInp bias   = biases +n1stBias;
     for (Uint n=0; n<nNeurons; n++) inputs[n] = bias[n];
     func->eval(inputs, output, nNeurons_simd);
+    //printf("ParamLayer: %u %f %f %f\n", n1stNeuron, inputs[0], bias[0], output[0]); fflush(0);
   }
 
   void backPropagate(Activation*const prev, Activation*const curr, const Activation*const next, Grads* const grad, nnOpInp weights, nnOpInp biases) const override

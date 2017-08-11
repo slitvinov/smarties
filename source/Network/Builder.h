@@ -380,14 +380,12 @@ private:
       nWeights += layerFrom->layerSize_simd*graph->layerSize_simd;
     }
 
-    if (graph->RNN)
-    { //connected  to past realization of current normal layer
+    if (graph->RNN) { //connected  to past realization of current normal layer
       recurrent_link = new NormalLink(
           graph->layerSize, graph->firstNeuron_ID,
           graph->layerSize, graph->firstNeuron_ID,
           nWeights, graph->layerSize_simd, graph->layerSize_simd
       );
-
       graph->links.push_back(recurrent_link);
       nWeights += graph->layerSize_simd * graph->layerSize_simd;
     }
@@ -465,11 +463,11 @@ private:
     graph->firstNeuron_ID = nNeurons;
     nNeurons += graph->layerSize_simd; //move the counter
     graph->firstBias_ID = nBiases;
-#ifndef INTEGRATEANDFIRESHARED
-    nBiases += 4*graph->layerSize_simd; //bias, threshold, invTau, excitr
-#else //shared parameters
-    nBiases += ceil(4./simdWidth)*simdWidth; //bias, threshold, invTau, excitr
-#endif
+    #ifndef INTEGRATEANDFIRESHARED
+      nBiases += 4*graph->layerSize_simd; //bias, threshold, invTau, excitr
+    #else //shared parameters
+      nBiases += ceil(4./simdWidth)*simdWidth; //bias, threshold, invTau, excitr
+    #endif
 
     for(Uint i = 0; i<graph->linkedTo.size(); i++)
     {
@@ -501,9 +499,12 @@ private:
   void build_Param_layer(Graph* const graph)
   {
     assert(graph->written == true && !graph->built);
-    assert(!nNeurons%simdWidth && !nBiases%simdWidth && !nWeights%simdWidth);
-    graph->layerSize_simd = ceil(graph->layerSize/(Real)simdWidth)*simdWidth;
-    assert(graph->layerSize>0 && graph->layerSize_simd>=graph->layerSize);
+    graph->layerSize_simd = roundUpSimd(graph->layerSize);
+    assert(0==nNeurons%simdWidth);
+    assert(0==nBiases%simdWidth);
+    assert(0==nWeights%simdWidth);
+    assert(graph->layerSize>0);
+    assert(graph->layerSize_simd>=graph->layerSize);
 
     graph->firstNeuron_ID = nNeurons;
     nNeurons += graph->layerSize_simd; //move the counter
