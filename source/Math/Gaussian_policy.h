@@ -143,7 +143,7 @@ public:
     return ret;
   }
 
-  inline vector<Real> div_kl_grad(const Gaussian_policy*const pol_hat) const
+  inline vector<Real> div_kl_grad(const Gaussian_policy*const pol_hat, const Real fac = 1) const
   {  /*
       Div_KL between two multiv. Gaussians N_1 and N_2 of dim=M is
       0.5*( trace(inv(Sigma_2)*Sigma_1) + (m_2 - m_1)'*inv(Sigma_2)*(m_2 - m_1) - M + ln(det(Sigma_2)/det(Sigma_1))
@@ -156,10 +156,10 @@ public:
      */
     vector<Real> ret(2*nA);
     for (Uint i=0; i<nA; i++) {
-      ret[i]    = (mean[i]-pol_hat->mean[i])*precision[i];
+      ret[i]    = fac*(mean[i]-pol_hat->mean[i])*precision[i];
 
       //               v from trace        v from quadratic term
-      ret[i+nA] = .5*(pol_hat->variance[i] - variance[i]
+      ret[i+nA] = .5*fac*(pol_hat->variance[i] - variance[i]
               + std::pow(mean[i] - pol_hat->mean[i], 2) );
       //          ^ from normalization
     }

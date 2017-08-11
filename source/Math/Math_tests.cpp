@@ -45,6 +45,7 @@ void Gaussian_policy::test(const vector<Real>& act,
     if(fabs(_grad[index]-(p_2-p_1)/.0002)>1e-7)
      _die("LogPol var grad %d: finite differences %g analytic %g error %g \n",
        i,(p_2-p_1)/.0002,_grad[index],fabs(_grad[index]-(p_2-p_1)/.0002));
+
     #ifndef ACER_RELAX
      const Real A_1 = a1.computeAdvantage(act);
      const Real A_2 = a2.computeAdvantage(act);
@@ -53,6 +54,7 @@ void Gaussian_policy::test(const vector<Real>& act,
      _die("Control var grad %d: finite differences %g analytic %g error %g \n",
       i,(A_2-A_1)/.0002,_grad[index],fabs(_grad[index]-(A_2-A_1)/.0002));
     #endif
+    
      finalize_grad(div_klgrad, _grad);
     if(fabs(_grad[index]-(d_2-d_1)/.0002)>1e-7)
      _die("DivKL var grad %d: finite differences %g analytic %g error %g \n",
@@ -143,6 +145,21 @@ void NAF::test()
 }
 
 void RACER::test()
+{
+  vector<Real> hat(nOutputs), out(nOutputs), act(nA);
+  uniform_real_distribution<Real> out_dis(-.5,.5);
+  uniform_real_distribution<Real> act_dis(-.5,.5);
+  for(Uint i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
+  for(Uint i = 0; i<nOutputs; i++) hat[i] = out_dis(*gen);
+  for(Uint i = 0; i<nA; i++) act[i] = act_dis(*gen);
+  Gaussian_policy pol_hat = prepare_policy(hat);
+  Gaussian_policy pol_cur = prepare_policy(out);
+  Quadratic_advantage adv = prepare_advantage(out, &pol_cur);
+  pol_cur.test(act,&pol_hat,&adv);
+  adv.test(act);
+}
+
+void POAC::test()
 {
   vector<Real> hat(nOutputs), out(nOutputs), act(nA);
   uniform_real_distribution<Real> out_dis(-.5,.5);

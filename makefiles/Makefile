@@ -131,7 +131,7 @@ OBJ_FILES = ArgumentParser.o main.o ObjectFactory.o Communicator.o \
 		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
 		HingedFishEnvironment.o BlowfishEnvironment.o alebotEnvironment.o \
 		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
-		openAICartEnvironment.o \
+		openAICartEnvironment.o POAC.o \
 		Learner.o RACER.o DACER.o NAF.o NFQ.o DPG.o GAE.o Transitions.o \
 		Scheduler.o  Network.o Optimizer.o Math_tests.o Learner_utils.o \
 		Learner_onPolicy.o

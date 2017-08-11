@@ -13,6 +13,7 @@
 #include "Learners/RACER.h"
 #include "Learners/DACER.h"
 #include "Learners/GAE.h"
+#include "Learners/POAC.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -37,6 +38,14 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
     settings.nnOutputs +=  ContinuousSignControl::addRequestedOutputs(env->aI.dim,env->sI.dimUsed);
     #endif
     return new RACER(mastersComm, env, settings);
+  }
+  else if (settings.learner == "POAC") {
+    settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
+    settings.nnOutputs = POAC::getnOutputs(env->aI.dim);
+    #ifdef FEAT_CONTROL
+    settings.nnOutputs +=  ContinuousSignControl::addRequestedOutputs(env->aI.dim,env->sI.dimUsed);
+    #endif
+    return new POAC(mastersComm, env, settings);
   }
   else if (settings.learner == "DACER") {
     settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);

@@ -214,7 +214,7 @@ struct Tanh : public Function
   {
     const nnReal arg = in < 0 ? -in : in; //symmetric
     const nnReal e2x = std::exp(-2.*arg);
-    if (arg > EXP_CUT) return 4*e2x; //in*d > 0 ? 0 : 
+    if (arg > EXP_CUT) return 4*e2x; //in*d > 0 ? 0 :
     return 4*e2x/((1+e2x)*(1+e2x));
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
@@ -442,6 +442,27 @@ struct SoftPlus : public Function
   }
 };
 
+struct Exp : public Function
+{
+  Real weightsInitFactor(const Uint inps, const Uint outs) const override
+  {
+    return std::sqrt(2./inps);
+  }
+  nnReal eval(const nnReal in) const override
+  {
+    return std::exp(std::min((nnReal)8.,std::max((nnReal)-16., in)));
+  }
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
+  {
+    return std::exp(std::min((nnReal)8.,std::max((nnReal)-16., in)));
+  }
+  void eval(nnOpInp in, nnOpRet out, const Uint N) const
+  {
+    for(Uint i=0;i<N;i++)
+      out[i] = std::exp(std::min((nnReal)8.,std::max((nnReal)-16., in[i])));
+  }
+};
+
 inline Function* readFunction(const string name, const bool bOutput=false)
 {
   if (bOutput || name == "Linear") return new Linear();
@@ -465,6 +486,8 @@ inline Function* readFunction(const string name, const bool bOutput=false)
   if (name == "ExpPlus") return new ExpPlus();
   else
   if (name == "SoftPlus") return new SoftPlus();
+  else
+  if (name == "Exp") return new Exp();
   else
   die("Activation function not recognized\n");
   return (Function*)nullptr;
