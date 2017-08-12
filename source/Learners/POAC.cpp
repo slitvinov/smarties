@@ -12,11 +12,11 @@
 //#include "POAC_TrainBPTT.cpp"
 //#include "POAC_Train.cpp"
 //#define DUMP_EXTRA
-//#define simpleSigma
+#define simpleSigma
 
 POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs),
-truncation(5), DKL_target(0.01), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
+truncation(10), DKL_target(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
 generators(settings.generators)
 {
   #ifndef ACER_RELAX

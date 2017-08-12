@@ -10,7 +10,7 @@
 #endif
 //#define __SMART_
 //#define __PRINT_
-#define TERM_REW_FAC 100
+#define TERM_REW_FAC 200
 #define HEIGHT_PENAL 10
 //#define SPEED_PENAL
 #define RANDOM_START 1
