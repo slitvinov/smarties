@@ -145,7 +145,7 @@ class POAC : public Learner_utils
     //if ( thrID==1 ) printf("%u %u %u : %f %f DivKL:%f grad=[%f %f]\n", nOutputs, QPrecID, PenalID, Qprecision, penalDKL, DivKL, penalty_grad[0], policy_grad[0]);
 
     adv_cur.grad(act, Qer, gradient);
-    pol_cur.finalize_grad(totalPolGrad, gradient);
+    pol_cur.finalize_grad(totalPolGrad, gradient, aInfo.bounded);
 
     if(bUpdateOPC) //prepare Q with off policy corrections for next step:
     {
@@ -182,7 +182,7 @@ class POAC : public Learner_utils
     //off policy stored action:
     const vector<Real> act = aInfo.getInvScaled(_t->a);//unbounded action space
     const Real actProbOnTarget = pol_hat.evalLogProbability(act);
-        const Real actProbBehavior = Gaussian_policy::evalBehavior(act,_t->mu);
+    const Real actProbBehavior = Gaussian_policy::evalBehavior(act,_t->mu);
     const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
     const Real c_hat = std::min((Real)1., std::pow(rho_hat, 1./nA));
     const Real A_hat = adv_hat.computeAdvantage(act);

@@ -52,7 +52,7 @@ class GAE : public Learner_onPolicy
 
     vector<Real> gradient(nOutputs,0);
     gradient[net_indices[0]] = Verr;
-    pol.finalize_grad(pgrad, gradient);
+    pol.finalize_grad(pgrad, gradient, aInfo.bounded);
 
     //bookkeeping:
     dumpStats(Vstats[thrID], V_curr, Verr);

@@ -26,11 +26,10 @@ using namespace std;
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
 //FOR CONTINUOUS ACTIONS RACER:
-  #define ACER_MAX_PREC 2500.
-  #define ACER_MAX_ACT  4.
-  #define ACER_MIN_PREC 1.
-  #define ACER_TOL_REW 0.01
-  #define ACER_TOL_DIAG sqrt(ACER_TOL_REW/ACER_MAX_ACT/ACER_MAX_ACT)
+  #define ACER_MAX_PREC 1e3
+  #define ACER_MAX_ACT  4. //active for bounded action spaces (through tanh)
+  #define ACER_MIN_PREC 1. //active for bounded action spaces (through tanh)
+  #define ACER_TOL_DIAG 0.001
 //FOR DISCRETE ACTIONS DACER:
   #define ACER_MIN_PROB 0.001
 #else
@@ -38,15 +37,17 @@ using namespace std;
   #define ACER_MIN_PREC 0
   #define ACER_MIN_PROB 0
 #endif
-#define ACER_CONST_PREC 50 //uniform precision (1/std^2) in case of ACER_SAFE
+
+//de facto unused:
 #define ACER_LAMBDA 1.0
-#define MAX_IMPW 1e3
 #define MAX_UNROLL_AFTER 2000
+#define ACER_CONST_PREC 50 //uniform precision (1/std^2) in case of ACER_SAFE
 
 // number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20
 //clip gradients of network outputs if more than # standard deviations from 0:
 #define ACER_GRAD_CUT 10
+#define MAX_IMPW 1e3
 
 #ifdef IMPORTSAMPLE
   #define importanceSampling

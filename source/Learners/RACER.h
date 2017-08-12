@@ -137,7 +137,7 @@ class RACER : public Learner_utils
     vector<Real> gradient(nOutputs,0);
     gradient[net_indices[0]]= Qer + Ver;
     adv_cur.grad(act, Qer, gradient);
-    pol_cur.finalize_grad(trust_grad, gradient);
+    pol_cur.finalize_grad(trust_grad, gradient, aInfo.bounded);
 
     if(bUpdateOPC) //prepare Q with off policy corrections for next step:
     {

@@ -12,6 +12,7 @@
 //#include "POAC_TrainBPTT.cpp"
 //#include "POAC_Train.cpp"
 //#define DUMP_EXTRA
+//#define simpleSigma
 
 POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs),
@@ -266,13 +267,21 @@ void POAC::myBuildNetwork(Network*& _net , Optimizer*& _opt,
   const vector<int> lastJointLayer = vector<int>{build.getLastLayerID()};
   //for(Uint i=0;i<lsize.size();i++) build.addLayer(lsize[i],netType,funcType);
 
+
+  #ifdef simpleSigma
   #if defined ACER_RELAX
     const Uint psize=net_outputs[3]+net_outputs[4];
   #else
     const Uint psize=net_outputs[4]+net_outputs[5];
   #endif
+  #else
+  const Uint psize = 2;
+  #endif
 
   if(nsplit) {
+    #ifndef simpleSigma
+    die("");
+    #endif
     for (Uint i=0; i<nouts.size(); i++) {
       #if defined ACER_RELAX
       if(i==3 || i==4) continue;
@@ -290,7 +299,9 @@ void POAC::myBuildNetwork(Network*& _net , Optimizer*& _opt,
     const Uint osize = accumulate(nouts.begin(),nouts.end(),0) - psize;
     build.addOutput(osize, "FFNN", settings.outWeightsPrefac);
   }
+  #ifdef simpleSigma
   build.addParamLayer(psize-2, "Linear", -2*std::log(greedyEps));
+  #endif
   build.addParamLayer(2, "Exp", 0);
   _net = build.build();
 
