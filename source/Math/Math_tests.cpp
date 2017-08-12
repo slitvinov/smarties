@@ -104,7 +104,7 @@ void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat)
 void Quadratic_advantage::test(const vector<Real>& act)
 {
   vector<Real> _grad(netOutputs.size());
-   grad(act, 1, _grad);
+   grad_unb(act, 1, _grad);
    for(Uint i = 0; i<nL+nA; i++)
    {
      vector<Real> out_1 = netOutputs, out_2 = netOutputs;

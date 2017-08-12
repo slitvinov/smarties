@@ -31,6 +31,43 @@ struct Quadratic_advantage: public Quadratic_term
 
 public:
   inline void grad(const vector<Real>&act, const Real Qer,
+    vector<Real>& netGradient, const vector<bool>& bounded) const
+  {
+    assert(act.size()==nA);
+    vector<Real> dErrdP(nA*nA), dPol(nA, 0), dAct(nA);
+    for (Uint j=0; j<nA; j++) dAct[j] = act[j] - mean[j];
+
+    if(policy not_eq nullptr)
+    for (Uint j=0; j<nA; j++) dPol[j] = policy->mean[j] - mean[j];
+
+    for (Uint j=0; j<nA; j++)
+    for (Uint i=0; i<nA; i++) {
+      const Real dOdPij = -.5*dAct[i]*dAct[j] + .5*dPol[i]*dPol[j]
+        +.5*(i==j && policy not_eq nullptr ? policy->variance[i] : 0);
+
+      dErrdP[nA*j+i] = Qer*dOdPij;
+    }
+    grad_matrix(dErrdP, netGradient);
+
+    if(start_mean>0) {
+      assert(netGradient.size() >= start_mean+nA);
+      for (Uint a=0; a<nA; a++) {
+        Real val = 0;
+        for (Uint i=0; i<nA; i++)
+          val += Qer * matrix[nA*a + i] * (dAct[i]-dPol[i]);
+
+        #ifdef ACER_BOUNDED
+        if(bounded[a]) {
+          const Real MAX =ACER_MAX_ACT-mean[a], MIN =-ACER_MAX_ACT-mean[a];
+          netGradient[start_mean+a] = clip(val, MAX, MIN);
+        } else
+        #endif
+        netGradient[start_mean+a] = val;
+      }
+    }
+  }
+
+  inline void grad_unb(const vector<Real>&act, const Real Qer,
     vector<Real>& netGradient) const
   {
     assert(act.size()==nA);
@@ -55,13 +92,8 @@ public:
         Real val = 0;
         for (Uint i=0; i<nA; i++)
           val += Qer * matrix[nA*a + i] * (dAct[i]-dPol[i]);
-#ifdef ACER_BOUNDED
-        const Real maxgrad =  ACER_MAX_ACT -mean[a];
-        const Real mingrad = -ACER_MAX_ACT -mean[a];
-        netGradient[start_mean+a] = clip(val, maxgrad, mingrad);
-#else
+
         netGradient[start_mean+a] = val;
-#endif
       }
     }
   }

@@ -93,7 +93,7 @@ void NAF::Train_BPTT(const Uint seq, const Uint thrID) const
     const Real error = value - Qsold;
     vector<Real> gradient(nOutputs);
     gradient[net_indices[0]] = error;
-    adv_sold.grad(act, error, gradient);
+    adv_sold.grad(act, error, gradient, aInfo.bounded);
 
     #ifdef FEAT_CONTROL
       const Activation* const recur = term ? nullptr : acthat[k+1];
@@ -152,7 +152,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
   const Real value = (terminal) ? _t->r : _t->r + rGamma*Vsnew;
   const Real error = value - Qsold;
   gradient[net_indices[0]] = error;
-  adv_sold.grad(act, error, gradient);
+  adv_sold.grad(act, error, gradient, aInfo.bounded);
 
   #ifdef FEAT_CONTROL
     task->Train(series_cur.back(),tgtAct,act,seq,samp,rGamma,gradient);

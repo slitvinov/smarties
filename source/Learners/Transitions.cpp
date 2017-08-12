@@ -16,7 +16,8 @@ Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
   bWriteToFile(!(_s.samplesFile=="none")), bSampleSeq(_s.bSampleSequences),
   maxTotSeqNum(_s.maxTotSeqNum),maxSeqLen(_s.maxSeqLen),minSeqLen(_s.minSeqLen),
   nAppended(_s.appendedObs),batchSize(_s.batchSize),learn_rank(_s.learner_rank),
-  learn_size(_s.learner_size),path(_s.samplesFile),sI(_env->sI), aI(_env->aI), generators(_s.generators)
+  learn_size(_s.learner_size), path(_s.samplesFile), generators(_s.generators),
+  sI(_env->sI), aI(_env->aI)
 {
   mean.resize(sI.dimUsed, 0);
   std.resize(sI.dimUsed, 1);

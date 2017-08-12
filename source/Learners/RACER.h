@@ -136,7 +136,7 @@ class RACER : public Learner_utils
     const Real Ver = Qer*std::min(1.,rho_cur);
     vector<Real> gradient(nOutputs,0);
     gradient[net_indices[0]]= Qer + Ver;
-    adv_cur.grad(act, Qer, gradient);
+    adv_cur.grad(act, Qer, gradient, aInfo.bounded);
     pol_cur.finalize_grad(trust_grad, gradient, aInfo.bounded);
 
     if(bUpdateOPC) //prepare Q with off policy corrections for next step:

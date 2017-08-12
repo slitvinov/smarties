@@ -89,7 +89,7 @@ public:
       const Real Qsold = outPrev[net_indices[0]+j] + adv.computeAdvantage(act);
       const Real value =(bTerm)? rew : rew + gamma*outNext[net_indices[0]+j];
       grad[net_indices[0]+j] = value-Qsold;
-      adv.grad(act, value-Qsold, grad);
+      adv.grad(act, value-Qsold, grad, data->aI.bounded);
     }
   }
 
