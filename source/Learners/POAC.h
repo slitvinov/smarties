@@ -144,7 +144,7 @@ class POAC : public Learner_utils
 
     //if ( thrID==1 ) printf("%u %u %u : %f %f DivKL:%f grad=[%f %f]\n", nOutputs, QPrecID, PenalID, Qprecision, penalDKL, DivKL, penalty_grad[0], policy_grad[0]);
 
-    adv_cur.grad(act, Qer, gradient);
+    adv_cur.grad(act, Qer, gradient, aInfo.bounded);
     pol_cur.finalize_grad(totalPolGrad, gradient, aInfo.bounded);
 
     if(bUpdateOPC) //prepare Q with off policy corrections for next step:

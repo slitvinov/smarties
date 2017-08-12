@@ -58,8 +58,6 @@ protected:
   const Uint maxTotSeqNum, maxSeqLen, minSeqLen, nAppended, batchSize;
   const int learn_rank, learn_size;
   const string path;
-  const StateInfo sI;
-  const ActionInfo aI;
   std::vector<std::mt19937>& generators;
 
   Uint iOldestSaved = 0, printCount = 0;
@@ -77,6 +75,8 @@ protected:
 
 public:
   //bool bRecurrent;
+  const StateInfo sI;
+  const ActionInfo aI;
   Uint anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0, nSeenSequences=0;
   Gen * gen;
   vector<Sequence*> Set, Tmp, Buffered;
