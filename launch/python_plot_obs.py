@@ -22,6 +22,10 @@ NL=(NA*NA+NA)/2
 if len(sys.argv) > 5: NP=int(sys.argv[5])
 else: NP = 2*NA
 
+if len(sys.argv) > 6: SKIP=int(sys.argv[6])
+else: SKIP = 10
+
+NREW=3+NS+NA
 NCOL=3+NS+NA+NP
 
 #np.savetxt(sys.stdout, np.fromfile(sys.argv[1], dtype='i4').reshape(2,10).transpose())
@@ -34,14 +38,14 @@ terminals = np.argwhere(abs(DATA[:,0]-2.1)<0.1)
 initials  = np.argwhere(abs(DATA[:,0]-1.1)<0.1)
 inds = np.arange(0,NROW)
 
-for ind in range(0, len(terminals), 10):
+for ind in range(0, len(terminals), SKIP):
   term = terminals[ind]; term = term[0]
   init =  initials[ind]; init = init[0]
   span = range(init, term) 
   print(init,term)
   plt.plot(inds[span], DATA[span,ICOL])
   #plt.plot(inds, DATA[:,ICOL])
-  if ICOL >= NCOL-2:
+  if ICOL >= NREW:
     plt.plot(inds[term], DATA[term-1,ICOL], 'ro')
   else:
     plt.plot(inds[term], DATA[term,  ICOL], 'ro')
