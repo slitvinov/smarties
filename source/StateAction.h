@@ -137,7 +137,7 @@ struct ActionInfo
   static Real Dtanh(const Real inp)
   {
     const Real arg = inp < 0 ? -inp : inp; //symmetric
-    const Real e2x = std::exp(-2.*inp);
+    const Real e2x = std::exp(-2.*arg);
     return 4*e2x/((1+e2x)*(1+e2x));
   }
 
@@ -147,8 +147,7 @@ struct ActionInfo
     //if action space is bounded, return the scaled component, else return unscaled
     //scaling is between max and min of values vector (user specified in environment)
     //scaling function is x/(1+abs(x)) (between -1 and 1 for x in -inf, inf)
-    const Real min_a = getActMinVal(i);
-    const Real max_a = getActMaxVal(i);
+    const Real min_a = getActMinVal(i), max_a = getActMaxVal(i);
     assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
     if (bounded[i]) {
       const Real soft_sign = _tanh(unscaled);
@@ -161,8 +160,7 @@ struct ActionInfo
   inline Real getDactDscale(const Real unscaled, const Uint i) const
   {
     //derivative of scaled action wrt to unscaled action, see getScaled()
-    const Real min_a = getActMinVal(i);
-    const Real max_a = getActMaxVal(i);
+    const Real min_a = getActMinVal(i), max_a = getActMaxVal(i);
     if (bounded[i]) {
       return 0.5*(max_a-min_a)*Dtanh(unscaled);
       //const Real denom = 1. + std::fabs(unscaled);
@@ -173,8 +171,7 @@ struct ActionInfo
   inline Real getInvScaled(const Real scaled, const Uint i) const
   {
     //opposite operation
-    const Real min_a = getActMinVal(i);
-    const Real max_a = getActMaxVal(i);
+    const Real min_a = getActMinVal(i), max_a = getActMaxVal(i);
     assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
     if (bounded[i]) {
       assert(scaled>min_a && scaled<max_a);
@@ -208,8 +205,7 @@ struct ActionInfo
   {
     Real P = 1;
     for (Uint i=0; i<dim; i++) {
-      const Real lB = getActMinVal(i);
-      const Real uB = getActMaxVal(i);
+      const Real lB = getActMinVal(i), uB = getActMaxVal(i);
       assert(uB-lB > std::numeric_limits<Real>::epsilon());
       P /= (uB-lB);
     }

@@ -60,8 +60,8 @@ private:
   }
   static inline Real precision_func(const Real val)
   {
-    return safeExp(val) + ACER_MIN_PREC;
-    //return 0.5*(val + std::sqrt(val*val+1)) + ACER_MIN_PREC;
+    return safeExp(val);
+    //return 0.5*(val + std::sqrt(val*val+1));
   }
   static inline Real precision_func_diff(const Real val)
   {
@@ -111,17 +111,13 @@ public:
         ret[j] += eta *adv->matrix[nA*j+i] *(adv->mean[i] - mean[i]);
 
       ret[j+nA] = .5*eta * adv->matrix[nA*j+j]*variance[j]*variance[j];
-
-#ifdef ACER_BOUNDED //clip derivative
-      ret[j] =clip(ret[j], ACER_MAX_ACT-mean[j], -ACER_MAX_ACT-mean[j]);
-      ret[j+nA] = std::min(ret[j+nA], ACER_MAX_PREC-precision[j]);
-#endif
     }
     return ret;
   }
 
   inline vector<Real> policy_grad(const vector<Real>& act, const Real factor) const
-  {   /*
+  {
+    /*
       this function returns factor * grad_phi log(policy(a,s))
       assumptions:
         - we deal with diagonal covariance matrices
@@ -130,21 +126,16 @@ public:
       sum_i( -.5*log(2*M_PI*Sigma_i) -.5*(a-pi)^2*Sigma_i^-1 )
      */
     vector<Real> ret(2*nA);
-    for (Uint i=0; i<nA; i++)
-    {
+    for (Uint i=0; i<nA; i++) {
       ret[i]    = factor*(act[i]-mean[i])*precision[i];
       ret[i+nA] =.5*factor*(variance[i] -std::pow(act[i]-mean[i],2));
-
-#ifdef ACER_BOUNDED //clip derivative
-      ret[i] =clip(ret[i], ACER_MAX_ACT-mean[i], -ACER_MAX_ACT-mean[i]);
-      ret[i+nA] = std::min(ret[i+nA], ACER_MAX_PREC-precision[i]);
-#endif
     }
     return ret;
   }
 
   inline vector<Real> div_kl_grad(const Gaussian_policy*const pol_hat, const Real fac = 1) const
-  {  /*
+  {
+    /*
       Div_KL between two multiv. Gaussians N_1 and N_2 of dim=M is
       0.5*( trace(inv(Sigma_2)*Sigma_1) + (m_2 - m_1)'*inv(Sigma_2)*(m_2 - m_1) - M + ln(det(Sigma_2)/det(Sigma_1))
       assumptions:
@@ -169,14 +160,25 @@ public:
   inline void finalize_grad(const vector<Real>&grad, vector<Real>&netGradient) const
   {
     assert(netGradient.size()>=start_mean+nA && grad.size() == 2*nA);
-    for (Uint j=0; j<nA; j++)
+    for (Uint j=0; j<nA; j++) {
+      #ifdef ACER_BOUNDED //clip derivative
+      const Real MAX = ACER_MAX_ACT-mean[j], MIN = -ACER_MAX_ACT-mean[j];
+      netGradient[start_mean+j] = clip(grad[j], MAX, MIN);
+      #else
       netGradient[start_mean+j] = grad[j];
-    if(start_prec != 0) {
+      #endif
+    }
+
+    if(start_prec != 0)
+    for (Uint j=0; j<nA; j++) {
       assert(netGradient.size()>=start_prec+nA);
-      for (Uint j=0; j<nA; j++) {
-        const Real diff = precision_func_diff(netOutputs[start_prec+j]);
-        netGradient[start_prec+j] = grad[j+nA] * diff;
-      }
+      const Real diff = precision_func_diff(netOutputs[start_prec+j]);
+      #ifdef ACER_BOUNDED //clip derivative
+      const Real MAX=ACER_MAX_PREC-precision[j], MIN=ACER_MIN_PREC-precision[j];
+      netGradient[start_prec+j] = clip(grad[j+nA], MAX, MIN) * diff;
+      #else
+      netGradient[start_prec+j] = grad[j+nA] * diff;
+      #endif
     }
   }
 
