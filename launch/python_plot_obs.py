@@ -25,6 +25,12 @@ else: NP = 2*NA
 if len(sys.argv) > 6: SKIP=int(sys.argv[6])
 else: SKIP = 10
 
+if len(sys.argv) > 7: XAXIS=int(sys.argv[7])
+else: XAXIS = -1
+
+if len(sys.argv) > 8: IND0=int(sys.argv[8])
+else: IND0 = 0
+
 NREW=3+NS+NA
 NCOL=3+NS+NA+NP
 
@@ -32,23 +38,27 @@ NCOL=3+NS+NA+NP
 DATA = np.fromfile(FILE, dtype=np.float32)
 NROW = DATA.size / NCOL
 DATA = DATA.reshape(NROW, NCOL)
-print(NROW, NCOL,ICOL)
 
 terminals = np.argwhere(abs(DATA[:,0]-2.1)<0.1)
 initials  = np.argwhere(abs(DATA[:,0]-1.1)<0.1)
+print(NROW, NCOL,ICOL,len(terminals))
 inds = np.arange(0,NROW)
 
-for ind in range(0, len(terminals), SKIP):
+for ind in range(IND0, len(terminals), SKIP):
   term = terminals[ind]; term = term[0]
   init =  initials[ind]; init = init[0]
   span = range(init, term) 
   print(init,term)
-  plt.plot(inds[span], DATA[span,ICOL])
+  if XAXIS>=0:
+    xes, xtrm = DATA[span,XAXIS], DATA[term,XAXIS]
+  else:
+    xes, xtrm = inds[span], inds[term]
+  plt.plot(xes, DATA[span,ICOL])
   #plt.plot(inds, DATA[:,ICOL])
   if ICOL >= NREW:
-    plt.plot(inds[term], DATA[term-1,ICOL], 'ro')
+    plt.plot(xtrm, DATA[term-1,ICOL], 'ro')
   else:
-    plt.plot(inds[term], DATA[term,  ICOL], 'ro')
+    plt.plot(xtrm, DATA[term,  ICOL], 'ro')
 
 #plt.semilogy(inds, 1/np.sqrt(DATA[:,ICOL]))
 #plt.semilogy(inds[terminals], 1/np.sqrt(DATA[terminals-1,ICOL]), 'ro')

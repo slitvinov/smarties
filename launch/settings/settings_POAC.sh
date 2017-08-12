@@ -7,7 +7,7 @@ SETTINGS+=" --samplesFile none"
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.99"
+SETTINGS+=" --gamma 0.995"
 
 #size of network layers
 #SETTINGS+=" --nnl1 512"
@@ -20,8 +20,8 @@ SETTINGS+=" --nnl2 256"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
-#SETTINGS+=" --nnFunc PRelu"
-SETTINGS+=" --nnFunc Tanh"
+SETTINGS+=" --nnFunc PRelu"
+#SETTINGS+=" --nnFunc Tanh"
 # L2 regularization of the weights
 #SETTINGS+=" --nnLambda 0.0001"
 
@@ -44,9 +44,9 @@ SETTINGS+=" --splitLayers 0"
 SETTINGS+=" --maxTotSeqNum 5000"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 0.2"
+SETTINGS+=" --greedyEps 0.1"
 SETTINGS+=" --epsAnneal 10000"
-SETTINGS+=" --obsPerStep 1"
+SETTINGS+=" --obsPerStep 0.1"
 SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --nMasters 1"
 
@@ -58,4 +58,4 @@ SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 128"
 #network update learning rate
-SETTINGS+=" --learnrate 0.001"
+SETTINGS+=" --learnrate 0.0001"

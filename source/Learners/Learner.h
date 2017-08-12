@@ -115,7 +115,7 @@ public:
     if(opt->nepoch >= epsAnneal || !bTrain) return 0;
     else return 1 - opt->nepoch/epsAnneal;
   }
-  /*
+  //*
   inline Real annealedGamma() const
   {
     //assert(epsAnneal>1. && bTrain && gamma>0.5);
