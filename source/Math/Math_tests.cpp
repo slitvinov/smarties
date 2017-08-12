@@ -41,7 +41,7 @@ void Gaussian_policy::test(const vector<Real>& act,
      const Real p_2 = p2.evalLogProbability(act);
      const Real d_1 = p1.kl_divergence(pol_hat);
      const Real d_2 = p2.kl_divergence(pol_hat);
-     finalize_grad(policygrad, _grad);
+     finalize_grad_unb(policygrad, _grad);
     if(fabs(_grad[index]-(p_2-p_1)/.0002)>1e-7)
      _die("LogPol var grad %d: finite differences %g analytic %g error %g \n",
        i,(p_2-p_1)/.0002,_grad[index],fabs(_grad[index]-(p_2-p_1)/.0002));
@@ -49,13 +49,13 @@ void Gaussian_policy::test(const vector<Real>& act,
     #ifndef ACER_RELAX
      const Real A_1 = a1.computeAdvantage(act);
      const Real A_2 = a2.computeAdvantage(act);
-     finalize_grad(cntrolgrad, _grad);
+     finalize_grad_unb(cntrolgrad, _grad);
     if(fabs(_grad[index]-(A_2-A_1)/.0002)>1e-7)
      _die("Control var grad %d: finite differences %g analytic %g error %g \n",
       i,(A_2-A_1)/.0002,_grad[index],fabs(_grad[index]-(A_2-A_1)/.0002));
     #endif
-    
-     finalize_grad(div_klgrad, _grad);
+
+     finalize_grad_unb(div_klgrad, _grad);
     if(fabs(_grad[index]-(d_2-d_1)/.0002)>1e-7)
      _die("DivKL var grad %d: finite differences %g analytic %g error %g \n",
       i,(d_2-d_1)/.0002,_grad[index],fabs(_grad[index]-(d_2-d_1)/.0002));

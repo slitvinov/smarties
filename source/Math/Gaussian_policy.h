@@ -182,6 +182,19 @@ public:
     }
   }
 
+  inline void finalize_grad_unb(const vector<Real>&grad, vector<Real>&netGradient) const
+  {
+    assert(netGradient.size()>=start_mean+nA && grad.size() == 2*nA);
+    for (Uint j=0; j<nA; j++)  netGradient[start_mean+j] = grad[j];
+    
+    if(start_prec != 0)
+    for (Uint j=0; j<nA; j++) {
+      assert(netGradient.size()>=start_prec+nA);
+      const Real diff = precision_func_diff(netOutputs[start_prec+j]);
+      netGradient[start_prec+j] = grad[j+nA] * diff;
+    }
+  }
+
   inline Real kl_divergence(const Gaussian_policy*const pol_hat) const
   {
     Real ret = 0;
