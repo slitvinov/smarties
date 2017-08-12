@@ -18,6 +18,7 @@ class POAC : public Learner_utils
   const Real truncation, DKL_target;
   const Uint nA, nL;
   std::vector<std::mt19937>& generators;
+
   #if defined ACER_RELAX //  V(s),P(s),pol(s), precA(s), precQ(q)/penal
     vector<Uint> net_outputs = {1, nL,   nA,      nA,         2};
     vector<Uint> net_indices = {0,  1, 1+nL, 1+nL+nA, 1+nL+2*nA};
@@ -27,8 +28,9 @@ class POAC : public Learner_utils
     vector<Uint> net_indices = {0,  1, 1+nL, 1+nL+nA, 1+nL+2*nA, 1+nL+3*nA};
     const Uint QPrecID = net_indices[5], PenalID = net_indices[5]+1;
   #endif
+
   #ifdef FEAT_CONTROL
-  const ContinuousSignControl* task;
+    const ContinuousSignControl* task;
   #endif
 
   inline Gaussian_policy prepare_policy(const vector<Real>& out) const
@@ -144,7 +146,7 @@ class POAC : public Learner_utils
 
     //if ( thrID==1 ) printf("%u %u %u : %f %f DivKL:%f grad=[%f %f]\n", nOutputs, QPrecID, PenalID, Qprecision, penalDKL, DivKL, penalty_grad[0], policy_grad[0]);
 
-    adv_cur.grad(act, Qer, gradient, aInfo.bounded);
+    adv_cur.grad(act, Qer * Qprecision, gradient, aInfo.bounded);
     pol_cur.finalize_grad(totalPolGrad, gradient, aInfo.bounded);
 
     if(bUpdateOPC) //prepare Q with off policy corrections for next step:
