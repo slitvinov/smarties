@@ -10,12 +10,12 @@
 #endif
 //#define __SMART_
 //#define __PRINT_
-#define TERM_REW_FAC 200
+#define TERM_REW_FAC 100
 #define HEIGHT_PENAL 10
-#define SPEED_PENAL
+//#define SPEED_PENAL
 #define RANDOM_START 1
 //#define NOISY 0
-#define INSTREW 1 /* 0 is default, 1 is time optimal, 2 is energy optimal */
+#define INSTREW 0 /* 0 is default, 1 is time optimal, 2 is energy optimal */
 using namespace std;
 
 struct Vec7
@@ -287,7 +287,8 @@ int main(int argc, const char * argv[])
                 //check if terminal state has been reached:
                 const bool max_torque = std::fabs(a.Torque)>5;
                 const bool way_too_far = a._s.x > 125;
-                const bool hit_bottom = a._s.y <= -50;
+                const double slack = 0.5*std::max(0., std::min(a._s.x-50, 100-a._s.x));
+                const bool hit_bottom =  a._s.y <= -50 -slack;
                 const bool wrong_xdir = a._s.x < -50;
                 const bool timeover = a.time > 2000;
 
