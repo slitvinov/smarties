@@ -129,6 +129,18 @@ struct ActionInfo
     return *std::min_element(std::begin(values[i]), std::end(values[i]));
   }
 
+  static Real _tanh(const Real inp)
+  {
+    const nnReal e2x = std::exp(-2*in);
+    return (1-e2x)/(1+e2x);
+  }
+  static Real Dtanh(const Real inp)
+  {
+    const nnReal arg = inp < 0 ? -inp : inp; //symmetric
+    const nnReal e2x = std::exp(-2.*inp);
+    return 4*e2x/((1+e2x)*(1+e2x));
+  }
+
   inline Real getScaled(const Real unscaled, const Uint i) const
   {
     //unscaled value and i is to which component of action vector it corresponds
@@ -140,7 +152,8 @@ struct ActionInfo
     const Real max_a = getActMaxVal(i);
     assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
     if (bounded[i]) {
-      const Real soft_sign = unscaled/(1. + std::fabs(unscaled));
+      const Real soft_sign = _tanh(unscaled);
+      //const Real soft_sign = unscaled/(1. + std::fabs(unscaled));
       ret = min_a + 0.5*(max_a - min_a)*(soft_sign + 1);
     } else {
       ret = min_a + 0.5*(max_a - min_a)*(unscaled + 1);
@@ -151,16 +164,13 @@ struct ActionInfo
   inline Real getDactDscale(const Real unscaled, const Uint i) const
   {
     //derivative of scaled action wrt to unscaled action, see getScaled()
-    Real ret = 1;
     const Real min_a = getActMinVal(i);
     const Real max_a = getActMaxVal(i);
     if (bounded[i]) {
-      const Real denom = 1. + std::fabs(unscaled);
-      ret = 0.5*(max_a-min_a)/denom/denom;
-    } else {
-      ret = 0.5*(max_a-min_a);
-    }
-    return ret;
+      return 0.5*(max_a-min_a)*Dtanh(unscaled)
+      //const Real denom = 1. + std::fabs(unscaled);
+      //return 0.5*(max_a-min_a)/denom/denom;
+    } else return 0.5*(max_a-min_a);
   }
 
   inline Real getInvScaled(const Real scaled, const Uint i) const
@@ -173,7 +183,8 @@ struct ActionInfo
       assert(scaled>min_a && scaled<max_a);
       const Real y = 2*(scaled - min_a)/(max_a - min_a) -1;
       assert(std::fabs(y) < 1);
-      return  y/(1.-std::fabs(y));
+      //return  y/(1.-std::fabs(y));
+      return  0.5*std::log((y+1)/(1-y));
     } else {
       return 2*(scaled - min_a)/(max_a - min_a) -1;
     }
@@ -219,13 +230,13 @@ struct ActionInfo
 
     maxLabel = shifts[dim-1] * values[dim-1].size();
 
-#ifndef NDEBUG
+    #ifndef NDEBUG
     for (Uint i=0; i<maxLabel; i++)
       if(i!=actionToLabel(labelToAction(i)))
         _die("label %u, action [%s], ret %u",
             i, print(labelToAction(i)).c_str(),
             actionToLabel(labelToAction(i)));
-#endif
+    #endif
   }
 
   inline Uint actionToLabel(const vector<Real> vals) const
