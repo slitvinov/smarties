@@ -131,7 +131,7 @@ struct ActionInfo
 
   static Real _tanh(const Real inp)
   {
-    const Real e2x = std::exp(-2*in);
+    const Real e2x = std::exp(-2*inp);
     return (1-e2x)/(1+e2x);
   }
   static Real Dtanh(const Real inp)
