@@ -174,7 +174,8 @@ int Transitions::passData(const int agentId, const int info, const State& sOld,
   assert(agentId<static_cast<int>(curr_transition_id.size()) && agentId>=0);
   const int ret = add(agentId, info, sOld, aNew, muNew, sNew, rew);
   if (ret) curr_transition_id[agentId] = 0;
-  writeData(agentId, info, sOld, aNew, sNew, rew, muNew);
+
+  if(bWriteToFile || !agentId) writeData(agentId,info,sOld,aNew,sNew,rew,muNew);
 
   if (bWriteToFile)
   {

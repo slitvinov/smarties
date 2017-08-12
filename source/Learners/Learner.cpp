@@ -222,7 +222,6 @@ bool Learner::readyForAgent(const int slave, const int agent)
     
     if ( ! readyForTrain() ) return true;
 
-    lock_guard<mutex> lock(data->dataset_mutex);
     return data->nSeenSequences - nData_b4PolUpdates <= requestedSequences;
 
   #else
