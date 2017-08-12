@@ -37,7 +37,7 @@ generators(settings.generators)
   #ifdef DUMP_EXTRA
     policyVecDim = 3*nA + nL;
   #else
-    policyVecDim = 2*nA +2;
+    policyVecDim = 2*nA;// +2;
   #endif
   //data->bRecurrent =bRecurrent =true;
   //data->bRecurrent =bRecurrent =false;
@@ -81,7 +81,7 @@ void POAC::select(const int agentId, const Agent& agent)
   beta.insert(beta.end(), adv.matrix.begin(), adv.matrix.end());
   beta.insert(beta.end(), adv.mean.begin(),   adv.mean.end());
   #else
-  beta.push_back(output[QPrecID]); beta.push_back(output[PenalID]);
+  //beta.push_back(output[QPrecID]); beta.push_back(output[PenalID]);
   #endif
   data->passData(agentId, agent, beta);
   dumpNetworkInfo(agentId);
