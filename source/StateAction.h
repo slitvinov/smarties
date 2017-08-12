@@ -147,18 +147,15 @@ struct ActionInfo
     //if action space is bounded, return the scaled component, else return unscaled
     //scaling is between max and min of values vector (user specified in environment)
     //scaling function is x/(1+abs(x)) (between -1 and 1 for x in -inf, inf)
-    Real ret;
     const Real min_a = getActMinVal(i);
     const Real max_a = getActMaxVal(i);
     assert(max_a-min_a > std::numeric_limits<Real>::epsilon());
     if (bounded[i]) {
       const Real soft_sign = _tanh(unscaled);
       //const Real soft_sign = unscaled/(1. + std::fabs(unscaled));
-      ret = min_a + 0.5*(max_a - min_a)*(soft_sign + 1);
-    } else {
-      ret = min_a + 0.5*(max_a - min_a)*(unscaled + 1);
-    }
-    return ret;
+      return       min_a + 0.5*(max_a - min_a)*(soft_sign + 1);
+    } else  return min_a + 0.5*(max_a - min_a)*(unscaled  + 1);
+
   }
 
   inline Real getDactDscale(const Real unscaled, const Uint i) const
@@ -167,7 +164,7 @@ struct ActionInfo
     const Real min_a = getActMinVal(i);
     const Real max_a = getActMaxVal(i);
     if (bounded[i]) {
-      return 0.5*(max_a-min_a)*Dtanh(unscaled)
+      return 0.5*(max_a-min_a)*Dtanh(unscaled);
       //const Real denom = 1. + std::fabs(unscaled);
       //return 0.5*(max_a-min_a)/denom/denom;
     } else return 0.5*(max_a-min_a);
