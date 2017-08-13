@@ -15,7 +15,7 @@
 
 class POAC : public Learner_utils
 {
-  const Real truncation, DKL_target;
+  const Real truncation, DKL_target, DKL_hardmax;
   const Uint nA, nL;
   std::vector<std::mt19937>& generators;
 
@@ -128,11 +128,15 @@ class POAC : public Learner_utils
 
     //trust region updating
     const vector<Real> penalty_grad = pol_cur.div_kl_grad(&pol_hat, -penalDKL);
-    const vector<Real> totalPolGrad = sum2Grads(penalty_grad, policy_grad);
+    vector<Real> totalPolGrad = sum2Grads(penalty_grad, policy_grad);
 
+    #if 1
+    const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
+    totalPolGrad = trust_region_update(totalPolGrad, gradDivKL, DKL_hardmax);
+    #endif
+    
     const Real Ver = Qer*std::min(1.,rho_cur);
     vector<Real> gradient(nOutputs,0);
-
     gradient[net_indices[0]]= Qer * Qprecision;
 
     //decrease precision if error is large

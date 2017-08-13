@@ -240,16 +240,16 @@ struct ActionInfo
     for (Uint i=0; i<dim; i++)
       lab += shifts[i]*realActionToIndex(vals[i],i);
 
-#ifndef NDEBUG
-    vector<Uint> test(dim);
-    Uint max = 1;
-    for (Uint i=0; i < dim; i++) {
-      test[i] = i==0 ? 1 : test[i-1] * values[i-1].size();
-      assert(test[i] == shifts[i]);
-      max *= values[i].size();
-    }
-    assert(max == maxLabel);
-#endif
+    #ifndef NDEBUG
+      vector<Uint> test(dim);
+      Uint max = 1;
+      for (Uint i=0; i < dim; i++) {
+        test[i] = i==0 ? 1 : test[i-1] * values[i-1].size();
+        assert(test[i] == shifts[i]);
+        max *= values[i].size();
+      }
+      assert(max == maxLabel);
+    #endif
 
     return lab;
   }

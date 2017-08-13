@@ -27,17 +27,17 @@ private:
 
   inline vector<Real> extract_stdev() const
   {
-#ifdef INTEGRATEANDFIRESHARED
-    return vector<Real>(nA, std_func(netOutputs[start_std]));
-#else
-    vector<Real> ret(nA);
-    assert(netOutputs.size() >= start_std + nA);
-    for (Uint j=0; j<nA; j++) {
-      ret[j] = std_func(netOutputs[start_std+j]);
-      assert(ret[j]>0);
-    }
-    return ret;
-#endif
+    #ifdef INTEGRATEANDFIRESHARED
+      return vector<Real>(nA, std_func(netOutputs[start_std]));
+    #else
+      vector<Real> ret(nA);
+      assert(netOutputs.size() >= start_std + nA);
+      for (Uint j=0; j<nA; j++) {
+        ret[j] = std_func(netOutputs[start_std+j]);
+        assert(ret[j]>0);
+      }
+      return ret;
+    #endif
   }
   static inline Real std_func(const Real val)
   {
@@ -76,14 +76,14 @@ public:
   {
     assert(netGrad.size()>=start_mean+nA && grad.size() == 2*nA);
     for (Uint j=0; j<nA; j++) netGrad[start_mean+j] = grad[j];
-#ifdef INTEGRATEANDFIRESHARED
-    netGrad[start_std] = 0;
-    const Real diff = std_func_diff(netOutputs[start_std]);
-    for (Uint j=0; j<nA; j++) netGrad[start_std] += grad[j+nA] * diff;
-#else
-    for (Uint j=0; j<nA; j++)
-      netGrad[start_std+j] = grad[j+nA]*std_func_diff(netOutputs[start_std+j]);
-#endif
+    #ifdef INTEGRATEANDFIRESHARED
+      netGrad[start_std] = 0;
+      const Real diff = std_func_diff(netOutputs[start_std]);
+      for (Uint j=0; j<nA; j++) netGrad[start_std] += grad[j+nA] * diff;
+    #else
+      for (Uint j=0; j<nA; j++)
+        netGrad[start_std+j]=grad[j+nA]*std_func_diff(netOutputs[start_std+j]);
+    #endif
   }
 
   inline vector<Real> getMean() const
