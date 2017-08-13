@@ -19,9 +19,6 @@ POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
   DKL_target(0.01), DKL_hardmax(1), nA(_env->aI.dim),
   nL(compute_nL(_env->aI.dim)), generators(settings.generators)
 {
-  #ifndef ACER_RELAX
-    out_weight_inits.push_back(settings.outWeightsPrefac);
-  #endif
   #ifdef FEAT_CONTROL
     const Uint task_out0 = ContinuousSignControl::addRequestedLayers(nA,
       env->sI.dimUsed, net_indices, net_outputs, out_weight_inits);
