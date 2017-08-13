@@ -10,6 +10,7 @@
 
 #include <cstring>
 #define VEC_WIDTH 32
+
 #if 0
   typedef double nnReal;
   #define MPI_NNVALUE_TYPE MPI_DOUBLE
@@ -19,7 +20,7 @@
   typedef float nnReal;
   #define EXP_CUT 4
 #endif
-//
+
 typedef nnReal* __restrict__       const nnOpRet;
 typedef const nnReal* __restrict__ const nnOpInp;
 

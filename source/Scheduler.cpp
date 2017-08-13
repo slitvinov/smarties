@@ -97,7 +97,7 @@ int Master::run()
       profiler->stop_start("COMM");
       while (true)
       {
-        if(!bTrain && stepNum >= totNumSteps) break;
+        if(!bTrain && stepNum >= totNumSteps) break; //check for termination
         if(learner->batchGradientReady()) break;
 
         #ifdef FULLTASKING
@@ -146,16 +146,10 @@ int Master::run()
             #endif
               processRequest(slave, agent);
             }
-            else //never triggered for off-policy algorithms:
-            {
-              //die("Not supposed to be here yet\n");
-              postponed_queue.push_back(make_pair(slave, agent));
-              //error("queue size %lu", postponed_queue.size());
-            }
-            #ifdef FULLTASKING
+            else postponed_queue.push_back(make_pair(slave, agent));
+
             //error("number of tasks %d", learner->readNTasks());
-            //assert(learner->readNTasks()<nThreads && learner->readNTasks()>=0);
-            #endif
+            assert(learner->readNTasks()<nThreads && learner->readNTasks()>=0);
           }
         }
       }
@@ -174,8 +168,10 @@ int Master::run()
 void Master::processRequest(const int slave, const int agent)
 {
   assert(agent >= 0 && agent < static_cast<int>(agents.size()));
-  if (agents[agent]->Status == _AGENT_FAILCOMM) //it was a crash :sadface:
-  { //TODO fix for on-pol: if crash clear unfinished workspace assigned to slave
+
+  if (agents[agent]->Status == _AGENT_FAILCOMM) //app crashed :sadface:
+  {
+    //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
     learner->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
     for (int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
     printf("Received an _AGENT_FAILCOMM\n");
@@ -202,7 +198,6 @@ void Master::processRequest(const int slave, const int agent)
       slaveIrecvStatus[slave-1] = OVER;
       //if(env->resetAll) TODO
       //  learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
-      #pragma omp atomic
       ++stepNum; //sequence counter: used to terminate if not training
     }
   }

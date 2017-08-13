@@ -15,33 +15,33 @@
 #define simpleSigma
 
 POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
-Learner_utils(comm,_env,settings,settings.nnOutputs),
-truncation(10), DKL_target(0.1), nA(_env->aI.dim), nL(compute_nL(_env->aI.dim)),
-generators(settings.generators)
+  Learner_utils(comm,_env,settings,settings.nnOutputs), truncation(10),
+  DKL_target(0.01), DKL_hardmax(1), nA(_env->aI.dim),
+  nL(compute_nL(_env->aI.dim)), generators(settings.generators)
 {
   #ifndef ACER_RELAX
-  out_weight_inits.push_back(settings.outWeightsPrefac);
+    out_weight_inits.push_back(settings.outWeightsPrefac);
   #endif
   #ifdef FEAT_CONTROL
     const Uint task_out0 = ContinuousSignControl::addRequestedLayers(nA,
-       env->sI.dimUsed, net_indices, net_outputs, out_weight_inits);
+      env->sI.dimUsed, net_indices, net_outputs, out_weight_inits);
   #endif
 
   myBuildNetwork(net, opt, net_outputs, settings);
   printf("POAC: Built network with outputs: %s %s\n",
     print(net_indices).c_str(),print(net_outputs).c_str());
-  assert(nOutputs == net->getnOutputs());
-  assert(nInputs == net->getnInputs());
+  assert(nOutputs == net->getnOutputs() && nInputs == net->getnInputs());
+
   #ifdef FEAT_CONTROL
-  task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net, data);
+    task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net,data);
   #endif
   #ifdef DUMP_EXTRA
     policyVecDim = 3*nA + nL;
   #else
-    policyVecDim = 2*nA;// +2;
+    //policyVecDim = 2*nA +2;
+    policyVecDim = 2*nA;
   #endif
-  //data->bRecurrent =bRecurrent =true;
-  //data->bRecurrent =bRecurrent =false;
+
   test();
 }
 
@@ -142,7 +142,7 @@ void POAC::Train(const Uint seq, const Uint samp, const Uint thrID) const
     const vector<Real> act = aInfo.getInvScaled(_t->a);//unbounded action space
     const Real probTrgt = pol_hat.evalLogProbability(act);
     const Real probBeta = Gaussian_policy::evalBehavior(act, _t->mu);
-    importanceW *= C * std::min(truncation, safeExp(probTrgt-probBeta));
+    importanceW *= C * std::min(MAX_IMPW, safeExp(probTrgt-probBeta));
     if (importanceW < std::numeric_limits<Real>::epsilon()) {
       //printf("Cut trace afert %u out of %u samples!\n",k,nSValues);
       nSUnroll = k; //for this last state we do not compute offpol correction
@@ -280,8 +280,9 @@ void POAC::myBuildNetwork(Network*& _net , Optimizer*& _opt,
 
   if(nsplit) {
     #ifndef simpleSigma
-    die("");
+    die("TODO");
     #endif
+
     for (Uint i=0; i<nouts.size(); i++) {
       #if defined ACER_RELAX
       if(i==3 || i==4) continue;

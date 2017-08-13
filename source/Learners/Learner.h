@@ -140,7 +140,7 @@ public:
     #ifdef FULLTASKING
       lock_guard<mutex> lock(data->dataset_mutex);
     #endif
-    return bTrain && data->nSequences >= batchSize && data->nTransitions >= batchSize;
+    return bTrain&&data->nSequences>=batchSize&&data->nTransitions>=batchSize;
   }
 
   virtual void select(const int agentId, const Agent& agent) = 0;

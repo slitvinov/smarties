@@ -15,9 +15,10 @@
 
 class POAC : public Learner_utils
 {
-  const Real truncation, DKL_target;
+  const Real truncation, DKL_target, DKL_hardmax;
   const Uint nA, nL;
   std::vector<std::mt19937>& generators;
+
   #if defined ACER_RELAX //  V(s),P(s),pol(s), precA(s), precQ(q)/penal
     vector<Uint> net_outputs = {1, nL,   nA,      nA,         2};
     vector<Uint> net_indices = {0,  1, 1+nL, 1+nL+nA, 1+nL+2*nA};
@@ -27,8 +28,9 @@ class POAC : public Learner_utils
     vector<Uint> net_indices = {0,  1, 1+nL, 1+nL+nA, 1+nL+2*nA, 1+nL+3*nA};
     const Uint QPrecID = net_indices[5], PenalID = net_indices[5]+1;
   #endif
+
   #ifdef FEAT_CONTROL
-  const ContinuousSignControl* task;
+    const ContinuousSignControl* task;
   #endif
 
   inline Gaussian_policy prepare_policy(const vector<Real>& out) const
@@ -126,11 +128,15 @@ class POAC : public Learner_utils
 
     //trust region updating
     const vector<Real> penalty_grad = pol_cur.div_kl_grad(&pol_hat, -penalDKL);
-    const vector<Real> totalPolGrad = sum2Grads(penalty_grad, policy_grad);
+    vector<Real> totalPolGrad = sum2Grads(penalty_grad, policy_grad);
 
+    #if 1
+    const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
+    totalPolGrad = trust_region_update(totalPolGrad, gradDivKL, DKL_hardmax);
+    #endif
+    
     const Real Ver = Qer*std::min(1.,rho_cur);
     vector<Real> gradient(nOutputs,0);
-
     gradient[net_indices[0]]= Qer * Qprecision;
 
     //decrease precision if error is large
@@ -144,7 +150,7 @@ class POAC : public Learner_utils
 
     //if ( thrID==1 ) printf("%u %u %u : %f %f DivKL:%f grad=[%f %f]\n", nOutputs, QPrecID, PenalID, Qprecision, penalDKL, DivKL, penalty_grad[0], policy_grad[0]);
 
-    adv_cur.grad(act, Qer, gradient, aInfo.bounded);
+    adv_cur.grad(act, Qer * Qprecision, gradient, aInfo.bounded);
     pol_cur.finalize_grad(totalPolGrad, gradient, aInfo.bounded);
 
     if(bUpdateOPC) //prepare Q with off policy corrections for next step:
