@@ -12,11 +12,11 @@ SETTINGS+=" --gamma 0.995"
 #size of network layers
 #SETTINGS+=" --nnl1 512"
 #SETTINGS+=" --nnl2 512"
-#SETTINGS+=" --nnl1 128"
-#SETTINGS+=" --nnl2 128"
-#SETTINGS+=" --nnl3 128"
-SETTINGS+=" --nnl1 256"
-SETTINGS+=" --nnl2 256"
+SETTINGS+=" --nnl1 128"
+SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnl3 128"
+#SETTINGS+=" --nnl1 256"
+#SETTINGS+=" --nnl2 256"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
@@ -56,6 +56,6 @@ SETTINGS+=" --nMasters 1"
 #the first option is markedly safer
 SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 128"
+SETTINGS+=" --batchSize 256"
 #network update learning rate
 SETTINGS+=" --learnrate 0.001"

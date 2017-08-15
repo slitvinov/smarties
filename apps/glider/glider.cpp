@@ -10,12 +10,19 @@
 #endif
 //#define __SMART_
 //#define __PRINT_
-#define TERM_REW_FAC 200
 #define HEIGHT_PENAL 10
 //#define SPEED_PENAL
 #define RANDOM_START 1
 //#define NOISY 0
-#define INSTREW 0 /* 0 is default, 1 is time optimal, 2 is energy optimal */
+#define INSTREW 2 /* 0 is default, 1 is time optimal, 2 is energy optimal */
+
+#if   INSTREW==1
+#define TERM_REW_FAC 200
+#elif INSTREW==2
+#define TERM_REW_FAC 100
+#elif INSTREW==0
+#define TERM_REW_FAC 100
+#endif
 using namespace std;
 
 struct Vec7
@@ -255,16 +262,16 @@ int main(int argc, const char * argv[])
             const double dist_gain = a.oldDistance - a.getDistance();
             const double rotation = std::fabs(a.oldAngle-a._s.a);
             const double jerk = std::fabs(a.oldTorque - a.Torque)/.5;
-            const double performamce =  (0.5*a.Torque*a.Torque);//a._s.E - a.oldEnergySpent + eps;
+            const double performamce =  std::fabs(a.Torque);//a._s.E - a.oldEnergySpent + eps;
             //reward clipping: what are the proper scaled? TODO
             //const double reward=std::min(std::max(-1.,dist_gain/performamce),1.);
 
             #if INSTREW==0
             const double reward = dist_gain -performamce -jerk;
             #elif INSTREW==1
-            const double reward = -0.5; //DT between actions is 0.5
+            const double reward = dist_gain -0.5; //DT between actions is 0.5
             #elif INSTREW==2
-            const double reward = -performamce;
+            const double reward = dist_gain -performamce;// -jerk;
             #endif
 
             a.updateOldDistanceAndEnergy();
@@ -287,13 +294,14 @@ int main(int argc, const char * argv[])
                 //check if terminal state has been reached:
                 const bool max_torque = std::fabs(a.Torque)>5;
                 const bool way_too_far = a._s.x > 125;
-                const double slack = 0.5*std::max(0., std::min(a._s.x-50, 100-a._s.x));
+                const double slack = 0.4*std::max(0., std::min(a._s.x-50, 100-a._s.x));
                 const bool hit_bottom =  a._s.y <= -50 -slack;
                 const bool wrong_xdir = a._s.x < -50;
                 const bool timeover = a.time > 2000;
 
                 #ifdef __SMARTIES_
                 if (max_torque || hit_bottom || wrong_xdir || way_too_far )
+                //if ( hit_bottom )
                 {
                     a.info = 2; //tell RL we are in terminal state
                     const double tmpang = std::fmod(a._s.a,2*M_PI);
@@ -321,9 +329,6 @@ int main(int argc, const char * argv[])
                     #endif
  
                     a.prepareState(state,gen);
-                    //printf("Sending term state %f %f %f %f\n",
-                    //state[0],state[1],state[2],state[3]);
-                    //fflush(0);
                     comm.sendState(0, a.info, state, final_reward);
 
                     a.reset(); //set info back to 0

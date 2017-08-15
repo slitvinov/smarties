@@ -180,9 +180,9 @@ public:
       //  const Real M=ACER_MAX_PREC-precision[j], m=ACER_MIN_PREC-precision[j];
       //  netGradient[iS] = clip(grad[j+nA], M, m) * diff;
       //} else //minimum precision is unbounded
-        netGradient[iS] = min(grad[j+nA], ACER_MAX_PREC-precision[j]) * diff;
+      //  netGradient[iS] = min(grad[j+nA], ACER_MAX_PREC-precision[j]) * diff;
       //#else
-      //netGradient[iS] = grad[j+nA] * diff;
+      netGradient[iS] = grad[j+nA] * diff;
       //#endif
     }
   }
