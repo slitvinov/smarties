@@ -202,13 +202,13 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
   }
 }
 
-#if 0
+#if 1
 void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, const Uint N, const Uint batchsize, const Real _eta) const
 {
   assert(batchsize>0);
   #pragma omp parallel
   {
-    const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
+    const nnReal eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
     const nnReal norm = 1./batchsize;
     const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2, f22=1-beta_2;
 
@@ -222,10 +222,10 @@ void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet 
       //this line makes address-sanitizer cry: i have no clue why.
       //const nnReal M1 = std::max(std::min(M1, _M2), -_M2); //grad clip
       //this is fine tho: (I DON'T GET COMPUTERS)
-      const nnReal tmp = M1 >  _M2 ?  _M2 : M1;
-      const nnReal M1_ = M1 < -_M2 ? -_M2 : tmp;
+      //const nnReal tmp = M1 >  _M2 ?  _M2 : M1;
+      //const nnReal M1_ = M1 < -_M2 ? -_M2 : tmp;
       //printf("batch %u %f %f %f\n",batchsize,DW,M1,M2); fflush(0);
-      //const nnReal M1_ = M1;
+      const nnReal M1_ = M1;
       _1stMom[i] = M1_;
       _2ndMom[i] = M2_;
       grad[i] = 0.; //reset grads

@@ -1,4 +1,4 @@
-POSTFIX=transitions_05
+POSTFIX=POAC_10
 
 make -C ../makefiles clean
 make -C ../makefiles config=fit -j
@@ -72,7 +72,6 @@ make -C ../makefiles config=fit lambda=on -j
 ./launchDaint_openai.sh reachr_lambda_${POSTFIX} 1 Reacher-v1                settings/settings_RACER_bench.sh
 ./launchDaint_openai.sh invpnd_lambda_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
 #./launchDaint_openai.sh dblpnd_lambda_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
-'
 
 make -C ../makefiles clean
 make -C ../makefiles config=fit cvar=on acer=full -j
@@ -88,7 +87,6 @@ make -C ../makefiles config=fit cvar=on acer=full -j
 #./launchDaint_openai.sh invpnd_cvar_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
 #./launchDaint_openai.sh dblpnd_cvar_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
 
-:'
 make -C ../makefiles clean
 make -C ../makefiles config=fit auxtask=on -j
 
@@ -102,7 +100,6 @@ make -C ../makefiles config=fit auxtask=on -j
 ./launchDaint_openai.sh reachr_auxtask_${POSTFIX} 1 Reacher-v1                settings/settings_RACER_bench.sh
 #./launchDaint_openai.sh invpnd_auxtask_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
 #./launchDaint_openai.sh dblpnd_auxtask_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
-'
 
 make -C ../makefiles clean
 make -C ../makefiles config=fit sortseq=on -j
@@ -118,7 +115,6 @@ make -C ../makefiles config=fit sortseq=on -j
 #./launchDaint_openai.sh invpnd_sortseq_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
 #./launchDaint_openai.sh dblpnd_sortseq_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
 
-:'
 make -C ../makefiles clean
 make -C ../makefiles config=fit sampseq=on -j
 

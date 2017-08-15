@@ -142,7 +142,7 @@ void POAC::Train(const Uint seq, const Uint samp, const Uint thrID) const
     const vector<Real> act = aInfo.getInvScaled(_t->a);//unbounded action space
     const Real probTrgt = pol_hat.evalLogProbability(act);
     const Real probBeta = Gaussian_policy::evalBehavior(act, _t->mu);
-    importanceW *= C * std::min(MAX_IMPW, safeExp(probTrgt-probBeta));
+    importanceW *= C * std::min(1., safeExp(probTrgt-probBeta));
     if (importanceW < std::numeric_limits<Real>::epsilon()) {
       //printf("Cut trace afert %u out of %u samples!\n",k,nSValues);
       nSUnroll = k; //for this last state we do not compute offpol correction

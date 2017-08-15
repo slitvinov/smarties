@@ -7,7 +7,7 @@ SETTINGS+=" --samplesFile none"
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.99"
+SETTINGS+=" --gamma 0.995"
 
 #size of network layers
 #SETTINGS+=" --nnl1 512"
@@ -20,8 +20,8 @@ SETTINGS+=" --nnl3 128"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
-#SETTINGS+=" --nnFunc PRelu"
-SETTINGS+=" --nnFunc Tanh"
+SETTINGS+=" --nnFunc PRelu"
+#SETTINGS+=" --nnFunc Tanh"
 # L2 regularization of the weights
 #SETTINGS+=" --nnLambda 0.0001"
 
@@ -33,7 +33,7 @@ SETTINGS+=" --rType 0"
 SETTINGS+=" --senses 0"
 
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
-SETTINGS+=" --learner RACER"
+SETTINGS+=" --learner POAC"
 
 #number of state vectors received from env to be chained together to form input to net (faux RNN?)
 SETTINGS+=" --appendedObs 0"
@@ -44,7 +44,7 @@ SETTINGS+=" --splitLayers 0"
 SETTINGS+=" --maxTotSeqNum 5000"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 0.05"
+SETTINGS+=" --greedyEps 1"
 SETTINGS+=" --epsAnneal     10000"
 SETTINGS+=" --totNumSteps 1000000"
 SETTINGS+=" --obsPerStep 0.1"
@@ -57,6 +57,6 @@ SETTINGS+=" --nMasters 1"
 #the first option is markedly safer
 SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 128"
+SETTINGS+=" --batchSize 512"
 #network update learning rate
 SETTINGS+=" --learnrate 0.001"
