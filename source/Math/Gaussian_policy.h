@@ -82,6 +82,16 @@ public:
     return p;
   }
 
+  static inline vector<Real> sample(mt19937*const gen, const vector<Real>& mu, const vector<Real>& sd)
+  {
+    std::vector<Real> ret(nA);
+    for(Uint i=0; i<nA; i++) {
+      std::normal_distribution<Real> dist(0, 1);
+      ret[i] = mu[i] + sd[i]*clip(dist(*gen), NORMDIST_MAX, -NORMDIST_MAX);
+    }
+    return ret;
+  }
+
   inline Real evalLogProbability(const vector<Real>& act) const
   {
     Real p = 0;
@@ -96,8 +106,8 @@ public:
   {
     std::vector<Real> ret(nA);
     for(Uint i=0; i<nA; i++) {
-      std::normal_distribution<Real> dist(mean[i], stdev[i]);
-      ret[i] = dist(*gen);
+      std::normal_distribution<Real> dist(0, 1);
+      ret[i] = mean[i] + stdev[i]*clip(dist(*gen), NORMDIST_MAX, -NORMDIST_MAX);
     }
     return ret;
   }
@@ -161,13 +171,17 @@ public:
   {
     assert(netGradient.size()>=start_mean+nA && grad.size() == 2*nA);
     for (Uint j=0; j<nA; j++) {
-      //#ifdef ACER_BOUNDED //clip derivative
-      //if(bounded[j]) {
-      //  const Real MAX = ACER_MAX_ACT-mean[j], MIN = -ACER_MAX_ACT-mean[j];
-      //  netGradient[start_mean+j] = clip(grad[j], MAX, MIN);
-      //} else
-      //#endif
-        netGradient[start_mean+j] = grad[j];
+      netGradient[start_mean+j] = grad[j];
+      //if bounded actions pass through tanh!
+      //helps against NaNs in converting from bounded to unbounded action space:
+      if(bounded[j])
+      {
+        if(mean[j]> BOUNDACT_MAX && netGradient[start_mean+j]>0)
+          netGradient[start_mean+j] = 0;
+        else
+        if(mean[j]<-BOUNDACT_MAX && netGradient[start_mean+j]<0)
+          netGradient[start_mean+j] = 0;
+      }
     }
 
     if(start_prec != 0)
@@ -175,14 +189,14 @@ public:
       const Uint iS = start_prec+j;
       assert(netGradient.size()>=start_prec+nA);
       const Real diff = precision_func_diff(netOutputs[iS]);
+      netGradient[iS] = grad[j+nA] * diff;
+
       //#ifdef ACER_BOUNDED //clip derivative
       //if(bounded[j]) {
       //  const Real M=ACER_MAX_PREC-precision[j], m=ACER_MIN_PREC-precision[j];
       //  netGradient[iS] = clip(grad[j+nA], M, m) * diff;
       //} else //minimum precision is unbounded
       //  netGradient[iS] = min(grad[j+nA], ACER_MAX_PREC-precision[j]) * diff;
-      //#else
-      netGradient[iS] = grad[j+nA] * diff;
       //#endif
     }
   }

@@ -39,6 +39,8 @@ using namespace std;
 #endif
 
 //de facto unused:
+#define NORMDIST_MAX 4 //truncated normal distribution range
+#define BOUNDACT_MAX 8 //for bounded action spaces: range (ie. tanh(8))
 #define ACER_LAMBDA 1.0
 #define MAX_UNROLL_AFTER 2000
 #define ACER_CONST_PREC 50 //uniform precision (1/std^2) in case of ACER_SAFE
@@ -96,4 +98,9 @@ inline bool nonZero(const Real vals)
 inline bool positive(const Real vals)
 {
   return vals > std::numeric_limits<Real>::epsilon();
+}
+
+inline Real safeExp(const Real val)
+{
+    return std::exp( std::min(16., std::max(-32.,val) ) );
 }

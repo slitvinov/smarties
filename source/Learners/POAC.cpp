@@ -67,13 +67,7 @@ void POAC::select(const int agentId, const Agent& agent)
     //beta_mean[i] = (1-anneal*anneal)*beta_mean[i];
   }
 
-  vector<Real> act = vector<Real>(nA,0);
-  for(Uint i=0; i<nA; i++) {
-    beta[i] = beta_mean[i]; //first nA contain mean
-    beta[nA+i] = beta_std[i]; //next nA contain precision
-    std::normal_distribution<Real> dist_cur(beta_mean[i], beta_std[i]);
-    act[i] = positive(greedyEps+anneal) ? dist_cur(*gen) : beta_mean[i];
-  }
+  vector<Real> act = positive(greedyEps+anneal) ? Gaussian_policy::sample(gen, beta_mean, beta_std) : beta_mean;
 
   //scale back to action space size:
   agent.a->set(aInfo.getScaled(act));

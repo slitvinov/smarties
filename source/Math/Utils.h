@@ -9,11 +9,6 @@
 #pragma once
 #include "../Bund.h"
 
-inline Real safeExp(const Real val)
-{
-    return std::exp( std::min(16., std::max(-36.,val) ) );
-}
-
 inline vector<Real> sum3Grads(const vector<Real>& f, const vector<Real>& g,
   const vector<Real>& h)
 {
