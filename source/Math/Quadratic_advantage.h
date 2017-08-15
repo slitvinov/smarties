@@ -56,12 +56,12 @@ public:
         for (Uint i=0; i<nA; i++)
           val += Qer * matrix[nA*a + i] * (dAct[i]-dPol[i]);
 
-        #ifdef ACER_BOUNDED
-        if(bounded[a]) {
-          const Real MAX =ACER_MAX_ACT-mean[a], MIN =-ACER_MAX_ACT-mean[a];
-          netGradient[start_mean+a] = clip(val, MAX, MIN);
-        } else
-        #endif
+        //#ifdef ACER_BOUNDED
+        //if(bounded[a]) {
+        //  const Real MAX =ACER_MAX_ACT-mean[a], MIN =-ACER_MAX_ACT-mean[a];
+        //  netGradient[start_mean+a] = clip(val, MAX, MIN);
+        //} else
+        //#endif
         netGradient[start_mean+a] = val;
       }
     }

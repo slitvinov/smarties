@@ -130,7 +130,7 @@ class POAC : public Learner_utils
     const vector<Real> penalty_grad = pol_cur.div_kl_grad(&pol_hat, -penalDKL);
     vector<Real> totalPolGrad = sum2Grads(penalty_grad, policy_grad);
 
-    #if 1
+    #if 0
     const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
     totalPolGrad = trust_region_update(totalPolGrad, gradDivKL, DKL_hardmax);
     #endif

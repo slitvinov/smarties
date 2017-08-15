@@ -44,6 +44,9 @@ POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
 
 void POAC::select(const int agentId, const Agent& agent)
 {
+  if(!opt->nepoch) net->biases[net->iOut[PenalID]] = 0;
+  if(!opt->nepoch) net->biases[net->iOut[net_indices[3]]] = -2*std::log(greedyEps);
+
   if(agent.Status==2) { //no need for action, just pass terminal s & r
     data->passData(agentId,agent,vector<Real>(policyVecDim,0));
     return;

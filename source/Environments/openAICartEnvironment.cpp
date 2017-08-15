@@ -45,12 +45,12 @@ void openAICartEnvironment::setDims() //this environment is for the cart pole te
     if(!settings.world_rank) printf(" [%u: %f +/- %f]", i, sI.mean[i], sI.scale[i]);
   }
   if(!settings.world_rank) printf("\n");
+  sI.inUse.resize(sI.mean.size(), 1);
   if(!scaleState) { //if empty then mean and scale computed from data
     sI.scale = vector<Real>();
     sI.mean = vector<Real>();
   }
 
-  sI.inUse.resize(sI.mean.size(), 1);
   aI.dim = aI.values.size();
   if(!settings.world_rank) printf("Action dim:");
   for (Uint i=0; i<aI.dim; i++) {
