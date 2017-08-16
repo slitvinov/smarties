@@ -19,7 +19,7 @@
 #if   INSTREW==1
 #define TERM_REW_FAC 200
 #elif INSTREW==2
-#define TERM_REW_FAC 100
+#define TERM_REW_FAC 50
 #elif INSTREW==0
 #define TERM_REW_FAC 100
 #endif
@@ -226,6 +226,7 @@ int main(int argc, const char * argv[])
     //time stepping
     const double dt = 1e-3;
     const int nstep = 500;
+    double startx = -20;
     #ifdef __SMARTIES_
     //communication:
     const int sock = std::stoi(argv[1]);
@@ -241,10 +242,12 @@ int main(int argc, const char * argv[])
     vector<Glider> agents(n);
     for (auto& a : agents) {
       #ifdef __SMARTIES_ //u,v,w,x,y,a,T
-        #if RANDOM_START
-        a._s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
+        #if RANDOM_START == 1
+          a._s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
+        #elif RANDOM_START == 2
+          a._s = Vec7(0, 0, 0, startx, 0, 0, 0, 0);
         #else
-        a._s = Vec7(0, 0, 0, 0, 0, 0, 0, 0);
+          a._s = Vec7(0, 0, 0, 0, 0, 0, 0, 0);
         #endif
       #else
         a._s = Vec7(0.0001, 0.0001, 0.0001, 0, 0, 0, 0.0001,     0);
@@ -262,8 +265,8 @@ int main(int argc, const char * argv[])
             const double dist_gain = a.oldDistance - a.getDistance();
             const double rotation = std::fabs(a.oldAngle-a._s.a);
             const double jerk = std::fabs(a.oldTorque - a.Torque)/.5;
-            const double performamce =  std::fabs(a.Torque);//a._s.E - a.oldEnergySpent + eps;
-            //const double performamce =  std::pow(a.Torque,2);//a._s.E - a.oldEnergySpent + eps;
+            //const double performamce =  std::fabs(a.Torque);//a._s.E - a.oldEnergySpent + eps;
+            const double performamce =  std::pow(a.Torque,2);//a._s.E - a.oldEnergySpent + eps;
             //reward clipping: what are the proper scaled? TODO
             //const double reward=std::min(std::max(-1.,dist_gain/performamce),1.);
 
@@ -335,11 +338,15 @@ int main(int argc, const char * argv[])
                     comm.sendState(0, a.info, state, final_reward);
 
                     a.reset(); //set info back to 0
-                    #if RANDOM_START
-                    a._s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
+                    #if RANDOM_START == 1
+                      a._s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
+                    #elif RANDOM_START == 2
+                      startx += 1;
+                      a._s = Vec7(0, 0, 0, startx, 0, 0, 0, 0);
                     #else
-                    a._s = Vec7(0, 0, 0, 0, 0, 0, 0, 0);
+                      a._s = Vec7(0, 0, 0, 0, 0, 0, 0, 0);
                     #endif
+
                     a.updateOldDistanceAndEnergy();
                     #ifdef __PRINT_
                       a.print(k);

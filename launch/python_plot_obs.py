@@ -46,6 +46,7 @@ DATA = DATA.reshape(NROW, NCOL)
 terminals = np.argwhere(abs(DATA[:,0]-2.1)<0.1)
 initials  = np.argwhere(abs(DATA[:,0]-1.1)<0.1)
 print(np.mean(DATA[terminals,NREW-1]))
+print(np.std(DATA[:,NREW-1]), np.mean(DATA[:,NREW-1]))
 print(NROW, NCOL,ICOL,len(terminals))
 inds = np.arange(0,NROW)
 
