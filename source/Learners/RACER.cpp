@@ -64,10 +64,10 @@ void RACER::select(const int agentId, const Agent& agent)
   const Real safety_std = std::sqrt(1/ACER_MAX_PREC);
   vector<Real> beta_mean=pol.getMean(), beta_std=pol.getStdev(), beta(2*nA,0);
 
-  if(bTrain)
+
   for(Uint i=0; i<nA; i++) {
-    beta_std[i] = std::max(safety_std +  anneal*greedyEps, beta_std[i]);
-    //beta_mean[i] = (1-anneal*anneal)*beta_mean[i];
+    if(bTrain) beta_std[i] = max(safety_std + anneal*greedyEps, beta_std[i]);
+    beta[i] = beta_mean[i];  beta[nA+i] = beta_std[i];
   }
 
   vector<Real> act = positive(greedyEps+anneal) ? Gaussian_policy::sample(gen, beta_mean, beta_std) : beta_mean;
