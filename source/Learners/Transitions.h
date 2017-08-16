@@ -127,7 +127,8 @@ public:
   {
     assert(samp>0 && samp < Set[seq]->tuples.size());
     if(!bNormalize) return Set[seq]->tuples[samp]->r;
-    return 1-gamma + (Set[seq]->tuples[samp]->r - mean_reward) * invstd_reward;
+    return Set[seq]->tuples[samp]->r * invstd_reward;
+    //return 1-gamma +(Set[seq]->tuples[samp]->r - mean_reward) * invstd_reward;
   }
 
 #ifdef importanceSampling

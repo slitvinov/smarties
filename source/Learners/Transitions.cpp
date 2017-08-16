@@ -416,9 +416,10 @@ void Transitions::update_rewards_mean()
   }
 
   if(count<batchSize) return;
-  const Real stdv_reward = std::sqrt((newstdvr-newmeanr*newmeanr/count)/count);
-  invstd_reward = 0.99*invstd_reward + .01/stdv_reward;
-  mean_reward = 0.99*invstd_reward + .01*newmeanr/count;
+  const Real stdev_reward = std::sqrt((newstdvr-newmeanr*newmeanr/count)/count);
+  const Real weight =  Set.size() / (Real) maxTotSeqNum;
+  mean_reward = (1-weight)*mean_reward +weight*newmeanr/count;
+  invstd_reward = (1-weight)*invstd_reward +weight/stdev_reward;
 }
 
 void Transitions::sortSequences()
