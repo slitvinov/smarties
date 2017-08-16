@@ -263,6 +263,7 @@ int main(int argc, const char * argv[])
             const double rotation = std::fabs(a.oldAngle-a._s.a);
             const double jerk = std::fabs(a.oldTorque - a.Torque)/.5;
             const double performamce =  std::fabs(a.Torque);//a._s.E - a.oldEnergySpent + eps;
+            //const double performamce =  std::pow(a.Torque,2);//a._s.E - a.oldEnergySpent + eps;
             //reward clipping: what are the proper scaled? TODO
             //const double reward=std::min(std::max(-1.,dist_gain/performamce),1.);
 
@@ -293,7 +294,7 @@ int main(int argc, const char * argv[])
 
                 //check if terminal state has been reached:
                 const bool max_torque = std::fabs(a.Torque)>5;
-                const bool way_too_far = a._s.x > 125;
+                const bool way_too_far = a._s.x > 200;
                 const double slack = 0.4*std::max(0., std::min(a._s.x-50, 100-a._s.x));
                 const bool hit_bottom =  a._s.y <= -50 -slack;
                 const bool wrong_xdir = a._s.x < -50;
@@ -314,10 +315,10 @@ int main(int argc, const char * argv[])
                     const double arew = (rela>M_PI/4||dist>5)?0:TERM_REW_FAC*exp(-pow(10*rela,2));
                     double final_reward  = xrew + arew;
 
-                    if(wrong_xdir || max_torque || way_too_far)
-                      final_reward = -200 -HEIGHT_PENAL*fabs(50+a._s.y);
+                    //if(wrong_xdir || max_torque || way_too_far)
+                    //  final_reward = -HEIGHT_PENAL*fabs(50+a._s.y);
                     #ifdef SPEED_PENAL
-                    else 
+                    //else 
                     {
                       if (std::fabs(a._s.u) > 0.5) 
                         final_reward *= std::exp(-10*std::pow(std::fabs(a._s.u)-.5,2));
@@ -327,7 +328,9 @@ int main(int argc, const char * argv[])
                         final_reward *= std::exp(-10*std::pow(std::fabs(a._s.w)-.5,2));
                     }
                     #endif
- 
+
+                    final_reward -= dist;
+
                     a.prepareState(state,gen);
                     comm.sendState(0, a.info, state, final_reward);
 

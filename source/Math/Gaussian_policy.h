@@ -84,10 +84,10 @@ public:
 
   static inline vector<Real> sample(mt19937*const gen, const vector<Real>& mu, const vector<Real>& sd)
   {
-    std::vector<Real> ret(nA);
-    for(Uint i=0; i<nA; i++) {
+    std::vector<Real> ret = mu;
+    for(Uint i=0; i<mu.size(); i++) {
       std::normal_distribution<Real> dist(0, 1);
-      ret[i] = mu[i] + sd[i]*clip(dist(*gen), NORMDIST_MAX, -NORMDIST_MAX);
+      ret[i] += sd[i]*clip(dist(*gen), NORMDIST_MAX, -NORMDIST_MAX);
     }
     return ret;
   }

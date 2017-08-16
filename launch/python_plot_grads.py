@@ -24,7 +24,7 @@ NOUTS = DATA.shape[1]/2
 
 for ind in range(0, NOUTS):
   plt.subplot(121)
-  plt.semilogy(DATA[:,ind],label=str(ind))
+  plt.semilogy(abs(DATA[:,ind]),label=str(ind))
   plt.subplot(122)
   plt.semilogy(abs(DATA[:,NOUTS+ind]),'--',  label=str(ind))
   

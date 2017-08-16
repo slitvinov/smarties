@@ -18,6 +18,10 @@ NA  =int(sys.argv[2])
 FILE=    sys.argv[3]
 ICOL=int(sys.argv[4])
 NL=(NA*NA+NA)/2
+#COLMAX = 1e7
+#COLMAX = 8e6
+#COLMAX = 1e6
+COLMAX = -1
 
 if len(sys.argv) > 5: NP=int(sys.argv[5])
 else: NP = 2*NA
@@ -41,26 +45,41 @@ DATA = DATA.reshape(NROW, NCOL)
 
 terminals = np.argwhere(abs(DATA[:,0]-2.1)<0.1)
 initials  = np.argwhere(abs(DATA[:,0]-1.1)<0.1)
+print(np.mean(DATA[terminals,NREW-1]))
 print(NROW, NCOL,ICOL,len(terminals))
 inds = np.arange(0,NROW)
 
 for ind in range(IND0, len(terminals), SKIP):
   term = terminals[ind]; term = term[0]
   init =  initials[ind]; init = init[0]
-  span = range(init, term) 
+  if COLMAX>0 and term>COLMAX: break; 
+  span = range(init, term, 10) 
   print(init,term)
   if XAXIS>=0:
     xes, xtrm = DATA[span,XAXIS], DATA[term,XAXIS]
   else:
-    xes, xtrm = inds[span], inds[term]
-  plt.plot(xes, DATA[span,ICOL])
-  #plt.plot(inds, DATA[:,ICOL])
-  if ICOL >= NREW:
-    plt.plot(xtrm, DATA[term-1,ICOL], 'ro')
-  else:
-    plt.plot(xtrm, DATA[term,  ICOL], 'ro')
+    xes, xtrm = inds[span]      , inds[term]
+  
+  if (ind % 10) == 0:   
+    if ind==IND0:
+      plt.plot(xes, DATA[span,ICOL], 'b-', label='x-trajectory')
+    else:
+      plt.plot(xes, DATA[span,ICOL], 'b-')
 
+  #plt.plot(inds, DATA[:,ICOL])
+  if ICOL >= NREW: plottrm = term-1
+  else: plottrm = term
+
+  if ind==IND0:
+    plt.plot(xtrm, DATA[plottrm, ICOL], 'ro', label='terminal x')
+  else:
+    plt.plot(xtrm, DATA[plottrm,  ICOL], 'ro')
+#plt.legend(loc=4)
+#plt.ylabel('x',fontsize=16)
+#plt.xlabel('t',fontsize=16)
+if COLMAX>0:plt.axis([0, COLMAX, -50, 150])
 #plt.semilogy(inds, 1/np.sqrt(DATA[:,ICOL]))
+plt.tight_layout()
 #plt.semilogy(inds[terminals], 1/np.sqrt(DATA[terminals-1,ICOL]), 'ro')
 
 #plt.savefig('prova.png', dpi=100)
