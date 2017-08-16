@@ -16,8 +16,8 @@ Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
   bWriteToFile(!(_s.samplesFile=="none")), bSampleSeq(_s.bSampleSequences),
   maxTotSeqNum(_s.maxTotSeqNum),maxSeqLen(_s.maxSeqLen),minSeqLen(_s.minSeqLen),
   nAppended(_s.appendedObs),batchSize(_s.batchSize),learn_rank(_s.learner_rank),
-  learn_size(_s.learner_size), path(_s.samplesFile), generators(_s.generators),
-  sI(_env->sI), aI(_env->aI)
+  learn_size(_s.learner_size), path(_s.samplesFile), gamma(_s.gamma),
+  generators(_s.generators), sI(_env->sI), aI(_env->aI)
 {
   mean.resize(sI.dimUsed, 0);
   std.resize(sI.dimUsed, 1);
@@ -315,6 +315,7 @@ void Transitions::push_back(const int & agentId)
   Tmp[agentId] = new Sequence();
 }
 
+/*
 void Transitions::update_samples_mean(const Real alpha)
 {
   if(!bTrain || !bNormalize) return; //if not training, keep the stored values
@@ -383,6 +384,41 @@ void Transitions::update_samples_mean(const Real alpha)
       invstd[i] = 1./(std[i]+1e-8);
     }
   }
+}
+*/
+
+void Transitions::update_rewards_mean()
+{
+  if(!bTrain || !bNormalize) return; //if not training, keep the stored values
+  long double count = 0, newstdvr = 0, newmeanr = 0;
+
+  #pragma omp parallel
+  {
+    long double avgr = 0, stdr = 0, cnt = 0;
+    #pragma omp for schedule(dynamic)
+    for(Uint i=0; i<Set.size(); i++) for(const auto & t : Set[i]->tuples) {
+      cnt++; avgr += t->r; stdr += t->r*t->r;
+    }
+
+    #pragma omp atomic
+    count += cnt;
+    #pragma omp atomic
+    newstdvr += stdr;
+    #pragma omp atomic
+    newmeanr += avgr;
+  }
+
+  //add up gradients across nodes (masters)
+  if (learn_size > 1) {
+    long double global[3] = {count, newstdvr, newmeanr};
+    MPI_Allreduce(MPI_IN_PLACE, global,3,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+    count = global[0]; newstdvr = global[1]; newmeanr = global[2];
+  }
+
+  if(count<batchSize) return;
+  const Real stdv_reward = std::sqrt((newstdvr-newmeanr*newmeanr/count)/count);
+  invstd_reward = 0.99*invstd_reward + .01/stdv_reward;
+  mean_reward = 0.99*invstd_reward + .01*newmeanr/count;
 }
 
 void Transitions::sortSequences()
@@ -512,9 +548,12 @@ void Transitions::save(std::string fname)
   if(learn_rank) return;
   string nameBackup = fname + "_data_stats";
   FILE * f = fopen(nameBackup.c_str(), "w");
-  if (f != NULL)
+  if (f != NULL) {
     for (Uint i=0; i<sI.dimUsed; i++)
       fprintf(f, "%9.9e %9.9e\n", mean[i], std[i]);
+    fprintf(f, "%9.9e %9.9e\n", invstd_reward, mean_reward);
+  }
+
   fclose(f);
 }
 
@@ -535,6 +574,8 @@ void Transitions::restart(std::string fname)
     in >> mean[i] >> std[i];
     printf("Read: %9.9e %9.9e\n", mean[i], std[i]);
   }
+  in >> invstd_reward >> mean_reward;
+  printf("Read: %9.9e %9.9e\n", invstd_reward, mean_reward);
   in.close();
 }
 

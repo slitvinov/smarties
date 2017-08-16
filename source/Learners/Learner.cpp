@@ -97,6 +97,7 @@ void Learner::prepareData() //this cannot be called from omp parallel region
   //      MPI_UNSIGNED, MPI_SUM, mastersComm);
   //}
   //if(syncDataStats) data->update_samples_mean(0); //annealFac
+  data->update_rewards_mean();
 
   profiler->stop_start("SMP");
   taskCounter = 0;
@@ -219,7 +220,7 @@ bool Learner::readyForAgent(const int slave, const int agent)
 {
   #ifdef FULLTASKING
     const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
-    
+
     if ( ! readyForTrain() ) return true;
 
     return data->nSeenSequences - nData_b4PolUpdates <= requestedSequences;

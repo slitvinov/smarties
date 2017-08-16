@@ -61,9 +61,10 @@ class POAC : public Learner_utils
   {
     const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
     const Tuple * const _t = data->Set[seq]->tuples[samp]; //contains sOld, a
-    const Tuple * const t_ = data->Set[seq]->tuples[samp+1]; //contains r, sNew
-    Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
-    Q_OPC = t_->r + rGamma*Q_OPC;
+    //const Tuple * const t_ =data->Set[seq]->tuples[samp+1]; //contains r, sNew
+    const Real reward = data->standardized_reward(seq,samp+1);
+    Q_RET = reward + rGamma*Q_RET; //if k==ndata-2 then this is r_end
+    Q_OPC = reward + rGamma*Q_OPC;
     //get everybody camera ready:
     const Real V_cur = out_cur[net_indices[0]], V_hat = out_hat[net_indices[0]];
     const Real Qprecision = out_cur[QPrecID], penalDKL = out_cur[PenalID];
@@ -134,7 +135,7 @@ class POAC : public Learner_utils
     const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
     totalPolGrad = trust_region_update(totalPolGrad, gradDivKL, DKL_hardmax);
     #endif
-    
+
     const Real Ver = Qer*std::min(1.,rho_cur);
     vector<Real> gradient(nOutputs,0);
     gradient[net_indices[0]]= Qer * Qprecision;
@@ -177,10 +178,11 @@ class POAC : public Learner_utils
   inline void offPolCorrUpdate(const Uint seq, const Uint samp, Real& Q_RET,
     Real& Q_OPC, const vector<Real>& output_hat, const Real rGamma) const
   {
-    const Tuple*const _t=data->Set[seq]->tuples[samp]; //contains sOld, a
-    const Tuple*const t_=data->Set[seq]->tuples[samp+1]; //contains r, sNew
-    Q_RET = t_->r + rGamma*Q_RET; //if k==ndata-2 then this is r_end
-    Q_OPC = t_->r + rGamma*Q_OPC;
+    const Tuple * const _t = data->Set[seq]->tuples[samp]; //contains sOld, a
+    //const Tuple * const t_ = data->Set[seq]->tuples[samp+1];//contains r, sNew
+    const Real reward = data->standardized_reward(seq,samp+1);
+    Q_RET = reward + rGamma*Q_RET; //if k==ndata-2 then this is r_end
+    Q_OPC = reward + rGamma*Q_OPC;
     const Real V_hat = output_hat[net_indices[0]];
     const Gaussian_policy pol_hat = prepare_policy(output_hat);
     //Used as target: target policy, target value
@@ -205,7 +207,7 @@ public:
   void select(const int agentId, const Agent& agent) override;
 
   void test();
-
+  void processStats() override;
   static Uint getnOutputs(const Uint NA)
   {
 #if defined ACER_RELAX

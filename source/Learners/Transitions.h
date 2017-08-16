@@ -58,8 +58,8 @@ protected:
   const Uint maxTotSeqNum, maxSeqLen, minSeqLen, nAppended, batchSize;
   const int learn_rank, learn_size;
   const string path;
+  const Real gamma;
   std::vector<std::mt19937>& generators;
-
   Uint iOldestSaved = 0, printCount = 0;
   vector<Real> std, mean, invstd;
   vector<Uint> curr_transition_id, inds;
@@ -78,6 +78,7 @@ public:
   const StateInfo sI;
   const ActionInfo aI;
   Uint anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0, nSeenSequences=0;
+  Real invstd_reward = 1, mean_reward = 0;
   Gen * gen;
   vector<Sequence*> Set, Tmp, Buffered;
   std::mutex dataset_mutex;
@@ -94,35 +95,39 @@ public:
   }
   void clearFailedSim(const int agentOne, const int agentEnd);
   void pushBackEndedSim(const int agentOne, const int agentEnd);
-  void update_samples_mean(const Real alpha = 0.01);
+  //void update_samples_mean(const Real alpha = 0.01);
 
   //vector<Real> standardize(const vector<Real>& state, const Real noise=-1, const Uint thrID=0) const;
   template<typename T>
   inline vector<Real> standardize(const vector<T>& state) const
   {
-    if(!bNormalize) return state;
+    //if(!bNormalize) return state;
     vector<Real> tmp(sI.dimUsed*(1+nAppended));
     assert(state.size() == sI.dimUsed*(1+nAppended));
     for (Uint j=0; j<1+nAppended; j++)
-      for (Uint i=0; i<sI.dimUsed; i++) {
-        const Uint k = j*sI.dimUsed + i;
-        //tmp[k] = (state[k] - mean[i])/(std[i]+1e-8);
-        tmp[k] = (state[k] - mean[i])*invstd[i];
-      }
+      for (Uint i=0; i<sI.dimUsed; i++)
+        tmp[i + j*sI.dimUsed] = (state[i + j*sI.dimUsed] - mean[i])*invstd[i];
     /*
-    if (noise>0) {
-      assert(generators.size()>thrID);
-      //std::normal_distribution<Real> distn(0.,noise);
-      std::uniform_real_distribution<Real> distn(-sqrt(3)*noise,sqrt(3)*noise);
-      for (Uint i=0; i<sI.dimUsed*(1+nAppended); i++)
-        tmp[i] += distn(generators[thrID]);
-    }
+      if (noise>0) {
+        assert(generators.size()>thrID);
+        std::normal_distribution<Real> distn(0.,noise);
+        for (Uint i=0; i<sI.dimUsed*(1+nAppended); i++)
+          tmp[i] += distn(generators[thrID]);
+      }
     */
     return tmp;
   }
   inline vector<Real> standardized(const Uint seq, const Uint samp) const
   {
     return standardize(Set[seq]->tuples[samp]->s);
+  }
+
+  void update_rewards_mean();
+  inline Real standardized_reward(const Uint seq, const Uint samp) const
+  {
+    assert(samp>0 && samp < Set[seq]->tuples.size());
+    if(!bNormalize) return Set[seq]->tuples[samp]->r;
+    return 1-gamma + (Set[seq]->tuples[samp]->r - mean_reward) * invstd_reward;
   }
 
 #ifdef importanceSampling

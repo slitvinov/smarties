@@ -44,9 +44,6 @@ POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
 
 void POAC::select(const int agentId, const Agent& agent)
 {
-  //if(!opt->nepoch) net->biases[net->iOut[PenalID]] = 0;
-  //if(!opt->nepoch) net->biases[net->iOut[net_indices[3]]] = -2*std::log(greedyEps);
-
   if(agent.Status==2) { //no need for action, just pass terminal s & r
     data->passData(agentId,agent,vector<Real>(policyVecDim,0));
     return;
@@ -313,4 +310,70 @@ void POAC::myBuildNetwork(Network*& _net , Optimizer*& _opt,
     _opt = new EntropySGD(_net, profiler, settings);
   #endif
   if (!learn_rank) _opt->save("initial");
+}
+
+void POAC::processStats()
+{
+  stats.minQ= 1e9;stats.MSE =0;stats.dCnt=0;
+  stats.maxQ=-1e9;stats.avgQ=0;stats.relE=0;
+
+  for (Uint i=0; i<Vstats.size(); i++) {
+    stats.MSE  += Vstats[i]->MSE;
+    stats.avgQ += Vstats[i]->avgQ;
+    stats.stdQ += Vstats[i]->stdQ;
+    stats.dCnt += Vstats[i]->dCnt;
+    stats.minQ = std::min(stats.minQ, Vstats[i]->minQ);
+    stats.maxQ = std::max(stats.maxQ, Vstats[i]->maxQ);
+    Vstats[i]->minQ= 1e9; Vstats[i]->MSE =0; Vstats[i]->dCnt=0;
+    Vstats[i]->maxQ=-1e9; Vstats[i]->avgQ=0; Vstats[i]->stdQ=0;
+  }
+
+  if (learn_size > 1) {
+  MPI_Allreduce(MPI_IN_PLACE,&stats.MSE, 1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+  MPI_Allreduce(MPI_IN_PLACE,&stats.dCnt,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+  MPI_Allreduce(MPI_IN_PLACE,&stats.avgQ,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+  MPI_Allreduce(MPI_IN_PLACE,&stats.stdQ,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+  MPI_Allreduce(MPI_IN_PLACE,&stats.minQ,1,MPI_LONG_DOUBLE,MPI_MIN,mastersComm);
+  MPI_Allreduce(MPI_IN_PLACE,&stats.maxQ,1,MPI_LONG_DOUBLE,MPI_MAX,mastersComm);
+  }
+
+  stats.epochCount++;
+  epochCounter = stats.epochCount;
+  const long double sum=stats.avgQ, sumsq=stats.stdQ, cnt=stats.dCnt;
+  //stats.MSE  /= cnt-1;
+  stats.MSE   = std::sqrt(stats.MSE/cnt);
+  stats.avgQ /= cnt; //stats.relE/=stats.dCnt;
+  stats.stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
+  sumElapsed = 0; countElapsed=0;
+  processGrads();
+  if(learn_rank) return;
+
+  long double sumWeights = 0, distTarget = 0, sumWeightsSq = 0;
+
+  #pragma omp parallel for reduction(+:sumWeights,distTarget,sumWeightsSq)
+  for (Uint w=0; w<net->getnWeights(); w++) {
+    sumWeights += std::fabs(net->weights[w]);
+    sumWeightsSq += net->weights[w]*net->weights[w];
+    distTarget += std::fabs(net->weights[w]-net->tgt_weights[w]);
+  }
+
+  const Real Qprecision = std::exp(net->biases[net->layers.back()->n1stBias]);
+  const Real penalDKL = std::exp(net->biases[net->layers.back()->n1stBias+1]);
+
+  printf("%d (%lu), rmse:%Lg, avg_Q:%Lg, std_Q:%Lg, min_Q:%Lg, max_Q:%Lg, "
+    "weight:[%Lg %Lg %Lg], N:%Lg, Qprec:%f, penalDKL:%f, rewards:[%f %f]\n",
+    stats.epochCount, opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
+    stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dCnt,
+    Qprecision, penalDKL, data->mean_reward, data->invstd_reward);
+    fflush(0);
+
+  ofstream filestats;
+  filestats.open("stats.txt", ios::app);
+  filestats<<stats.epochCount<<"\t"<<opt->nepoch<<"\t"<<stats.MSE<<"\t"
+    <<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<stats.minQ<<"\t"<<stats.maxQ<<"\t"
+    <<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"<<stats.dCnt<<endl;
+  filestats.close();
+  filestats.flush();
+
+  if (stats.epochCount % 100==0) save("policy");
 }
