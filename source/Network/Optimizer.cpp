@@ -133,7 +133,8 @@ void Optimizer::update(Grads* const G, const Uint batchsize)
 
 void AdamOptimizer::update(Grads* const G, const Uint batchsize)
 {
-  const Real _eta = eta*std::max(.1, 1-nepoch/epsAnneal);
+  //const Real _eta = eta*std::max(.1, 1-nepoch/epsAnneal);
+  const Real _eta = eta;
 
   update(net->weights_back,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,_eta);
   update(net->biases,      G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);

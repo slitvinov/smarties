@@ -56,6 +56,6 @@ SETTINGS+=" --nMasters 1"
 #the first option is markedly safer
 SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 64"
+SETTINGS+=" --batchSize 256"
 #network update learning rate
 SETTINGS+=" --learnrate 0.001"

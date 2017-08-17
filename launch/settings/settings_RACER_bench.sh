@@ -44,7 +44,7 @@ SETTINGS+=" --splitLayers 0"
 SETTINGS+=" --maxTotSeqNum 5000"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 1"
+SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --epsAnneal     10000"
 SETTINGS+=" --totNumSteps 1000000"
 SETTINGS+=" --obsPerStep 0.1"
@@ -57,6 +57,6 @@ SETTINGS+=" --nMasters 1"
 #the first option is markedly safer
 SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 512"
+SETTINGS+=" --batchSize 256"
 #network update learning rate
 SETTINGS+=" --learnrate 0.001"

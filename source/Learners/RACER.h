@@ -141,7 +141,8 @@ class RACER : public Learner_utils
 
     if(bUpdateOPC) //prepare Q with off policy corrections for next step:
     {
-      const Real C = std::min((Real)1.,std::pow(rho_cur,1./nA));
+      //const Real C = std::min((Real)1.,std::pow(rho_cur,1./nA));
+      const Real C = std::min((Real)1., rho_cur);
       #ifdef ACER_AGGRESSIVE
         Q_RET = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_hat;
         Q_OPC = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_cur;
@@ -176,7 +177,8 @@ class RACER : public Learner_utils
     const Real actProbOnTarget = pol_hat.evalLogProbability(act);
     const Real actProbBehavior = Gaussian_policy::evalBehavior(act,_t->mu);
     const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
-    const Real c_hat = std::min((Real)1., std::pow(rho_hat, 1./nA));
+    //const Real c_hat = std::min((Real)1., std::pow(rho_hat, 1./nA));
+    const Real c_hat = std::min((Real)1., rho_hat);
     const Real A_hat = adv_hat.computeAdvantage(act);
     //prepare rolled Q with off policy corrections for next step:
     Q_RET = c_hat*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;

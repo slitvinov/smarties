@@ -16,7 +16,7 @@
 
 POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
   Learner_utils(comm,_env,settings,settings.nnOutputs), truncation(10),
-  DKL_target(0.01), DKL_hardmax(1), nA(_env->aI.dim),
+  DKL_target(0.1), DKL_hardmax(1), nA(_env->aI.dim),
   nL(compute_nL(_env->aI.dim)), generators(settings.generators)
 {
   #ifdef FEAT_CONTROL
@@ -296,6 +296,9 @@ void POAC::myBuildNetwork(Network*& _net , Optimizer*& _opt,
   #endif
   build.addParamLayer(2, "Exp", 0);
   _net = build.build();
+  
+  Uint penalparid = _net->layers.back()->n1stBias +1;
+  _net->biases[penalparid] = -std::log(settings.learnrate);
 
   if(learn_size>1) {
     MPI_Bcast(_net->weights,_net->getnWeights(),MPI_NNVALUE_TYPE,0,mastersComm);
