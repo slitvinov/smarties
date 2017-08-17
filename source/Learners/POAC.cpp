@@ -16,7 +16,7 @@
 
 POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
   Learner_utils(comm,_env,settings,settings.nnOutputs), truncation(10),
-  DKL_target(0.1), DKL_hardmax(1), nA(_env->aI.dim),
+  DKL_target(0.01), DKL_hardmax(1), nA(_env->aI.dim),
   nL(compute_nL(_env->aI.dim)), generators(settings.generators)
 {
   #ifdef FEAT_CONTROL
