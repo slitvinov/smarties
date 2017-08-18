@@ -146,11 +146,6 @@ int Master::run()
 
     profiler->stop_start("TERM");
     learner->applyGradient(); //tasks have finished, update is ready
-    profiler->stop_all();
-
-    if(learner->iter()%1000==0 && learner->iter()) {
-        profiler->printSummary(); //cout << avgNbusy << endl;
-      }
   }
   die(" ");
   return 0;
