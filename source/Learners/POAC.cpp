@@ -11,7 +11,7 @@
 #include "POAC.h"
 //#include "POAC_TrainBPTT.cpp"
 //#include "POAC_Train.cpp"
-#define DUMP_EXTRA
+//#define DUMP_EXTRA
 #define simpleSigma
 
 POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
