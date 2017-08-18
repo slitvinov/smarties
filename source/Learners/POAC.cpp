@@ -48,6 +48,16 @@ void POAC::select(const int agentId, const Agent& agent)
     data->passData(agentId,agent,vector<Real>(policyVecDim,0));
     return;
   }
+  /*
+  if(opt->nepoch == 0)
+  {
+    const Uint nlayers = net->layers.size();
+    const Uint penalid = net->layers[nlayers-1]->n1stBias +1;
+    const Uint stdevid = net->layers[nlayers-2]->n1stBias;
+    net->biases[penalid] = -std::log(1e-3);
+    net->biases[stdevid] = -2*std::log(greedyEps);
+  }
+  */
   vector<Real> output = output_stochastic_policy(agentId, agent);
   assert(output.size() == nOutputs);
   //variance is pos def: transform linear output layer with softplus
