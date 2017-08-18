@@ -138,8 +138,8 @@ class POAC : public Learner_utils
 
     const Real Ver = Qer*std::min(1.,rho_cur);
     vector<Real> gradient(nOutputs,0);
-    //gradient[net_indices[0]]= Qer * Qprecision;
-    gradient[net_indices[0]]= Qer;
+    gradient[net_indices[0]]= Qer * Qprecision;
+    //gradient[net_indices[0]]= Qer;
 
     //decrease precision if error is large
     //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
@@ -152,8 +152,8 @@ class POAC : public Learner_utils
 
     //if ( thrID==1 ) printf("%u %u %u : %f %f DivKL:%f grad=[%f %f]\n", nOutputs, QPrecID, PenalID, Qprecision, penalDKL, DivKL, penalty_grad[0], policy_grad[0]);
 
-    //adv_cur.grad(act, Qer * Qprecision, gradient, aInfo.bounded);
-    adv_cur.grad(act, Qer, gradient, aInfo.bounded);
+    //adv_cur.grad(act, Qer, gradient, aInfo.bounded);
+    adv_cur.grad(act, Qer * Qprecision, gradient, aInfo.bounded);
     pol_cur.finalize_grad(totalPolGrad, gradient, aInfo.bounded);
 
     if(bUpdateOPC) //prepare Q with off policy corrections for next step:
