@@ -49,7 +49,7 @@ using namespace std;
 #define MAX_UNROLL_BFORE 20
 //clip gradients of network outputs if more than # standard deviations from 0:
 //#define ACER_GRAD_CUT 10
-#define MAX_IMPW 1e3
+#define MAX_IMPW 1e2
 
 #ifdef IMPORTSAMPLE
   #define importanceSampling

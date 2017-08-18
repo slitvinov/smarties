@@ -15,7 +15,7 @@
 
 class POAC : public Learner_utils
 {
-  const Real truncation, DKL_target, DKL_hardmax;
+  const Real truncation, DKL_target, DKL_hardmax, CmaxRet = 5;
   const Uint nA, nL;
   std::vector<std::mt19937>& generators;
 
@@ -59,10 +59,9 @@ class POAC : public Learner_utils
     Real& Q_OPC, const vector<Real>& out_cur, const vector<Real>& out_hat,
     const Real rGamma, const Uint thrID) const
   {
-    const Real anneal = opt->nepoch>epsAnneal ? 1 : Real(opt->nepoch)/epsAnneal;
     const Tuple * const _t = data->Set[seq]->tuples[samp]; //contains sOld, a
     //const Tuple * const t_ =data->Set[seq]->tuples[samp+1]; //contains r, sNew
-    const Real reward = data->standardized_reward(seq,samp+1);
+    const Real reward = data->standardized_reward(seq, samp+1);
     Q_RET = reward + rGamma*Q_RET; //if k==ndata-2 then this is r_end
     Q_OPC = reward + rGamma*Q_OPC;
     //get everybody camera ready:
@@ -88,16 +87,17 @@ class POAC : public Learner_utils
     const Real actProbOnPolicy = pol_cur.evalLogProbability(act);
     const Real actProbBehavior = Gaussian_policy::evalBehavior(act,_t->mu);
     const Real rho_cur = min(MAX_IMPW,safeExp(actProbOnPolicy-actProbBehavior));
-    const Real varCritic = adv_pol.advantageVariance();
     const Real DivKL = pol_cur.kl_divergence(&pol_hat);
     const Real A_cur = adv_cur.computeAdvantage(act);
-    const Real A_cov = adv_pol.computeAdvantage(act);
     const Real Qer = Q_RET -A_cur -V_cur;
-    const Real iEpsA = A_cov * std::pow((A_OPC-A_cov)/(varCritic+2.2e-16), 2);
-    const Real eta = anneal * iEpsA * A_OPC * safeExp( -iEpsA * A_cov);
 
     #ifdef ACER_PENALIZER
-      const Real cotrolVar = A_cov;
+      const Real anneal = iter()>epsAnneal ? 1 : Real(iter())/epsAnneal;
+      const Real A_cov = adv_pol.computeAdvantage(act);
+      const Real varCritic = adv_pol.advantageVariance();
+      const Real iEpsA = A_cov * std::pow((A_OPC-A_cov)/(varCritic+2.2e-16),2);
+      const Real eta = anneal * iEpsA * A_OPC * safeExp( -iEpsA * A_cov);
+      const Real cotrolVar = eta * rho_cur * A_cov;
     #else
       const Real cotrolVar = 0;
     #endif
@@ -109,14 +109,14 @@ class POAC : public Learner_utils
       const Real polProbBehavior = Gaussian_policy::evalBehavior(pol,_t->mu);
       const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
       const Real A_pol = adv_pol.computeAdvantage(pol);
-      const Real gain1 = A_OPC*min(rho_cur,truncation) -eta*rho_cur*cotrolVar;
+      const Real gain1 = A_OPC*min(rho_cur,truncation) - cotrolVar;
       const Real gain2 = A_pol*max(0.,1.-truncation/rho_pol);
 
       const vector<Real> gradAcer_1 = pol_cur.policy_grad(act, gain1);
       const vector<Real> gradAcer_2 = pol_cur.policy_grad(pol, gain2);
       const vector<Real> gradAcer = sum2Grads(gradAcer_1, gradAcer_2);
     #else
-      const Real gain1 = A_OPC * rho_cur - eta * rho_cur * cotrolVar;
+      const Real gain1 = A_OPC * rho_cur - cotrolVar;
       const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
     #endif
 
@@ -148,7 +148,7 @@ class POAC : public Learner_utils
     //computed as \nabla_{penalDKL} (DivKL - DKL_target)^2
     //with rough approximation that DivKL/penalDKL = penalDKL
     //(distance increases if penalty term increases, similar to PPO )
-    gradient[PenalID] = 4*pow(DivKL - DKL_target, 3)*penalDKL;
+    gradient[PenalID] = 4*std::pow(DivKL - DKL_target, 3)*penalDKL;
 
     //if ( thrID==1 ) printf("%u %u %u : %f %f DivKL:%f grad=[%f %f]\n", nOutputs, QPrecID, PenalID, Qprecision, penalDKL, DivKL, penalty_grad[0], policy_grad[0]);
 
@@ -158,7 +158,7 @@ class POAC : public Learner_utils
 
     if(bUpdateOPC) //prepare Q with off policy corrections for next step:
     {
-      const Real C = std::min((Real)1., rho_cur);
+      const Real C = std::min(CmaxRet, rho_cur);
       #ifdef ACER_AGGRESSIVE
         Q_RET = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_hat;
         Q_OPC = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_cur;
@@ -193,11 +193,10 @@ class POAC : public Learner_utils
     const vector<Real> act = aInfo.getInvScaled(_t->a);//unbounded action space
     const Real actProbOnTarget = pol_hat.evalLogProbability(act);
     const Real actProbBehavior = Gaussian_policy::evalBehavior(act,_t->mu);
-    const Real rho_hat = safeExp(actProbOnTarget-actProbBehavior);
-    const Real c_hat = std::min((Real)1., rho_hat);
+    const Real C = std::min(CmaxRet, safeExp(actProbOnTarget-actProbBehavior));
     const Real A_hat = adv_hat.computeAdvantage(act);
     //prepare rolled Q with off policy corrections for next step:
-    Q_RET = c_hat*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;
+    Q_RET = C*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;
     //Q_OPC =     ACER_LAMBDA*(Q_OPC -A_hat -V_hat) +V_hat;
     Q_OPC = Q_RET;
   }
