@@ -180,7 +180,7 @@ void POAC::Train(const Uint seq, const Uint samp, const Uint thrID) const
   net->deallocateUnrolledActivations(&series_cur);
   net->deallocateUnrolledActivations(&series_hat);
 
-  if(thrID==1)  profiler->pop_stop();
+  if(thrID==1)  profiler->stop_start("SLP");
 }
 
 void POAC::Train_BPTT(const Uint seq, const Uint thrID) const
@@ -238,7 +238,7 @@ void POAC::Train_BPTT(const Uint seq, const Uint thrID) const
   net->deallocateUnrolledActivations(&series_cur);
   net->deallocateUnrolledActivations(&series_hat);
 
-  if(thrID==1)  profiler->pop_stop();
+  if(thrID==1)  profiler->stop_start("SLP");
 }
 
 void POAC::myBuildNetwork(Network*& _net , Optimizer*& _opt,

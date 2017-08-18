@@ -53,9 +53,7 @@ public:
   Profiler* profiler;
   Profiler* profiler_ext = nullptr;
   mutable std::mutex task_mutex;
-  #ifdef FULLTASKING
   int nTasks = 0;
-  #endif
 
 protected:
   virtual void Train_BPTT(const Uint seq, const Uint thrID) const = 0;
@@ -80,19 +78,13 @@ public:
 
   inline int readNTasks() const
   {
-    #ifdef FULLTASKING
     lock_guard<mutex> lock(task_mutex);
     return nTasks;
-    #else
-    return 0;
-    #endif
   }
   inline void addToNTasks(const int add)
   {
-    #ifdef FULLTASKING
     lock_guard<mutex> lock(task_mutex);
     nTasks += add;
-    #endif
   }
 
   inline unsigned nData()
@@ -137,9 +129,7 @@ public:
 
   inline bool readyForTrain() const
   {
-    #ifdef FULLTASKING
-      lock_guard<mutex> lock(data->dataset_mutex);
-    #endif
+    lock_guard<mutex> lock(data->dataset_mutex);
     return bTrain&&data->nSequences>=batchSize&&data->nTransitions>=batchSize;
   }
 

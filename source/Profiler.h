@@ -125,8 +125,16 @@ public:
 
   inline void stop_start(string sAgentName)
   {
-    pop_stop();
+    stop_all();
     push_start(sAgentName);
+  }
+  inline void check_start(string sAgentName)
+  {
+    if(m_mapStoppedAgents.size() > 0)
+    {
+      stop_all();
+      push_start(sAgentName);
+    }
   }
 
   inline void pop_stop()

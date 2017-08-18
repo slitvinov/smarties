@@ -58,4 +58,4 @@ SETTINGS+=" --targetDelay 0.1"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 128"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.001"

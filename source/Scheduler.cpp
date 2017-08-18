@@ -73,26 +73,21 @@ int Master::run()
     learner->prepareData(); //sync data, make sure we can sample
     profiler->stop_start("TASK");
 
+    bool first = true;
     #pragma omp parallel num_threads(nThreads)
     #pragma omp master
     {
-      if(postponed_queue.size()) //never triggered for off-policy algorithms
+      if(postponed_queue.size())
       {
         profiler->stop_start("QUEUE");
         for (const auto& w : postponed_queue) {
           const int slave = w.first, agent = w.second;
-          learner->addToNTasks(1);
-          #ifdef FULLTASKING
+          addToNTasks(1);
           #pragma omp task firstprivate(slave, agent)
-          #endif
             processRequest(slave, agent);
         }
         postponed_queue.clear();
       }
-
-      #ifndef FULLTASKING
-      learner->spawnTrainTasks(9999); //spawn all tasks
-      #endif
 
       profiler->stop_start("COMM");
       while (true)
@@ -100,11 +95,7 @@ int Master::run()
         if(!bTrain && stepNum >= totNumSteps) break; //check for termination
         if(learner->batchGradientReady()) break;
 
-        #ifdef FULLTASKING
-          //nSlaves tasks are reserved to handle slaves, if comm queue is empty
-        const int availTasks = nThreads -learner->readNTasks() - (postponed_queue.size() ? 0 : nSlaves);
-        learner->spawnTrainTasks(availTasks);
-        #endif
+        spawnTrainingTasks(first, postponed_queue.size());
 
         for(int i=0; i<nSlaves; i++) // && not learner->batchGradientReady()
         {
@@ -138,12 +129,10 @@ int Master::run()
             const int agent = recvState(slave); //unpack buffer
             slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
 
-            if(learnerReadyForAgent(slave, agent))
+            if(learner->readyForAgent(slave, agent))
             {
-            learner->addToNTasks(1);
-            #ifdef FULLTASKING
+            addToNTasks(1);
 #pragma omp task firstprivate(slave, agent) if(learner->readNTasks()<nThreads)
-            #endif
               processRequest(slave, agent);
             }
             else postponed_queue.push_back(make_pair(slave, agent));
@@ -159,7 +148,9 @@ int Master::run()
     learner->applyGradient(); //tasks have finished, update is ready
     profiler->stop_all();
 
-    if(learner->iter()%1000==0 && learner->iter()) profiler->printSummary();
+    if(learner->iter()%1000==0 && learner->iter()) {
+        profiler->printSummary(); //cout << avgNbusy << endl;
+      }
   }
   die(" ");
   return 0;
@@ -167,8 +158,9 @@ int Master::run()
 
 void Master::processRequest(const int slave, const int agent)
 {
+  const int thrID = omp_get_thread_num();
   assert(agent >= 0 && agent < static_cast<int>(agents.size()));
-
+  if(thrID==1) learner->profiler->check_start("SERV");
   if (agents[agent]->Status == _AGENT_FAILCOMM) //app crashed :sadface:
   {
     //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
@@ -201,7 +193,8 @@ void Master::processRequest(const int slave, const int agent)
       ++stepNum; //sequence counter: used to terminate if not training
     }
   }
-  learner->addToNTasks(-1);
+  if(thrID==1) learner->profiler->check_start("SLP");
+  addToNTasks(-1);
 }
 
 int Master::learnerReadyForAgent(const int slave, const int agent) const

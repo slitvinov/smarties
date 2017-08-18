@@ -37,18 +37,27 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 
 int Learner::spawnTrainTasks(const int availTasks) //this must be called from omp parallel region
 {
-  if ( !readyForTrain()  || !availTasks ) return 0;
+  if ( !readyForTrain() ) return 0;
+  #ifdef FULLTASKING
+    if ( !availTasks ) return 0;
+    const int nSpawn = availTasks;
+  #else
+  const int nSpawn = sequences.size();
+  #endif
 
   if(bSampleSequences)
   {
-    for (int i=0; i<availTasks && sequences.size(); i++) {
+    for (int i=0; i<nSpawn && sequences.size(); i++) {
       const Uint sequence = sequences.back(); sequences.pop_back();
       addToNTasks(1);
+      #ifdef FULLTASKING
 #pragma omp task firstprivate(sequence) if(readNTasks()<nSThreads)
+      #else
+#pragma omp task firstprivate(sequence) if(!availTasks)
+      #endif
       {
         const int thrID = omp_get_thread_num();
-        if(!thrID && profiler_ext != nullptr) profiler_ext->stop_start("WORK");
-        assert(thrID>=0);
+        if(!thrID) profiler_ext->stop_start("WORK");
         Train_BPTT(sequence, static_cast<Uint>(thrID));
         addToNTasks(-1);
 #pragma omp atomic
@@ -58,15 +67,18 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
   }
   else
   {
-    for (int i=0; i<availTasks && sequences.size(); i++) {
+    for (int i=0; i<nSpawn && sequences.size(); i++) {
       const Uint sequence = sequences.back(); sequences.pop_back();
       const Uint transition = transitions.back(); transitions.pop_back();
       addToNTasks(1);
+      #ifdef FULLTASKING
 #pragma omp task firstprivate(sequence,transition) if(readNTasks()<nSThreads)
+      #else
+#pragma omp task firstprivate(sequence,transition) if(!availTasks)
+      #endif
       {
         const int thrID = omp_get_thread_num();
-        if(!thrID && profiler_ext != nullptr) profiler_ext->stop_start("WORK");
-        assert(thrID>=0);
+        if(!thrID) profiler_ext->stop_start("WORK");
         Train(sequence, transition, static_cast<Uint>(thrID));
         addToNTasks(-1);
 #pragma omp atomic
@@ -75,6 +87,10 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
     }
   }
 
+  #ifndef FULLTASKING
+    if(!availTasks) return 0;
+    #pragma omp taskwait
+  #endif
   return 0;
 }
 
@@ -99,7 +115,6 @@ void Learner::prepareData() //this cannot be called from omp parallel region
   //if(syncDataStats) data->update_samples_mean(0); //annealFac
   data->update_rewards_mean();
 
-  profiler->stop_start("SMP");
   taskCounter = 0;
   sequences.resize(batchSize);
   transitions.resize(batchSize);
@@ -107,7 +122,7 @@ void Learner::prepareData() //this cannot be called from omp parallel region
   nAddedGradients = bSampleSequences ? sampleSequences(sequences) :
     sampleTransitions(sequences, transitions);
 
-  profiler->pop_stop();
+  profiler->stop_start("SLP");
 }
 
 void Learner::applyGradient() //this cannot be called from omp parallel region
@@ -205,29 +220,15 @@ bool Learner::batchGradientReady()
     if( requestedSequences > sequenceCounter ) return false;
   }
 
-  #ifndef FULLTASKING
-    if(sequenceCounter >= requestedSequences) {
-      if(profiler_ext not_eq nullptr) profiler_ext->stop_start("WORK");
-      #pragma omp taskwait
-    }
-  #endif
-
   //else if threads finished processing data:
   return taskCounter >= batchSize;
 }
 
 bool Learner::readyForAgent(const int slave, const int agent)
 {
-  #ifdef FULLTASKING
-    const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
-
-    if ( ! readyForTrain() ) return true;
-
-    return data->nSeenSequences - nData_b4PolUpdates <= requestedSequences;
-
-  #else
-    return true; //Learner assumes off-policy algo. it can always use more data
-  #endif
+  if ( ! readyForTrain() ) return true;
+  const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
+  return data->nSeenSequences - nData_b4PolUpdates <= requestedSequences;
 }
 bool Learner::slaveHasUnfinishedSeqs(const int slave) const
 {
