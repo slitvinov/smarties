@@ -132,20 +132,20 @@ void POAC::Train(const Uint seq, const Uint samp, const Uint thrID) const
     net->predict(data->standardized(seq, k+samp), out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
 
     #ifndef NO_CUT_TRACES
-    if (k == nSValues-1) break;
-    const Tuple* const _t = data->Set[seq]->tuples[k+samp];
-    //else check if the importance weight is too small to continue:
-    const Gaussian_policy pol_hat = prepare_policy(out_hat[k]);
-    const vector<Real> act = aInfo.getInvScaled(_t->a);//unbounded action space
-    const Real probTrgt = pol_hat.evalLogProbability(act);
-    const Real probBeta = Gaussian_policy::evalBehavior(act, _t->mu);
-    importanceW *= C * std::min(CmaxRet, safeExp(probTrgt-probBeta));
-    if (importanceW < std::numeric_limits<nnReal>::epsilon()) {
-      //printf("Cut trace afert %u out of %u samples!\n",k,nSValues);
-      nSUnroll = k; //for this last state we do not compute offpol correction
-      nSValues = k+1; //we initialize value of Q_RET to V(state)
-      break;
-    }
+      if (k == nSValues-1) break;
+      const Tuple* const _t = data->Set[seq]->tuples[k+samp];
+      //else check if the importance weight is too small to continue:
+      const Gaussian_policy pol_hat = prepare_policy(out_hat[k]);
+      const vector<Real> act = aInfo.getInvScaled(_t->a); //to unbounded space
+      const Real probTrgt = pol_hat.evalLogProbability(act);
+      const Real probBeta = Gaussian_policy::evalBehavior(act, _t->mu);
+      importanceW *= C * std::min(CmaxRet, safeExp(probTrgt-probBeta));
+      if (importanceW < std::numeric_limits<nnReal>::epsilon()) {
+        //printf("Cut trace afert %u out of %u samples!\n",k,nSValues);
+        nSUnroll = k; //for last state we do not compute offpol correction
+        nSValues = k+1; //we initialize value of Q_RET to V(state)
+        break;
+      }
     #endif
   }
 
@@ -210,9 +210,9 @@ void POAC::Train_BPTT(const Uint seq, const Uint thrID) const
   if(not data->Set[seq]->ended) {
     series_hat.push_back(net->allocateActivation());
     const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
-    vector<Real> out_T(nOutputs, 0), S_T = data->standardize(_t->s);//last state
-    net->predict(S_T, out_T, series_hat, ndata-1, net->tgt_weights, net->tgt_biases);
-    Q_OPC = Q_RET = out_T[net_indices[0]]; //V(s_T) computed with tgt weights
+    vector<Real> outT(nOutputs, 0), ST = data->standardize(_t->s); //last state
+    net->predict(ST,outT, series_hat,ndata-1, net->tgt_weights,net->tgt_biases);
+    Q_OPC = Q_RET = outT[net_indices[0]]; //V(s_T) computed with tgt weights
   }
 
   for (int k=static_cast<int>(ndata)-2; k>=0; k--)
