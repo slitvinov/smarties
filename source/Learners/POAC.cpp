@@ -11,12 +11,12 @@
 #include "POAC.h"
 //#include "POAC_TrainBPTT.cpp"
 //#include "POAC_Train.cpp"
-//#define DUMP_EXTRA
+#define DUMP_EXTRA
 #define simpleSigma
 
 POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
   Learner_utils(comm,_env,settings,settings.nnOutputs), truncation(10),
-  DKL_target(0.01), DKL_hardmax(1), nA(_env->aI.dim),
+  DKL_target(0.001), DKL_hardmax(1), nA(_env->aI.dim),
   nL(compute_nL(_env->aI.dim)), generators(settings.generators)
 {
   #ifdef FEAT_CONTROL
@@ -129,11 +129,7 @@ void POAC::Train(const Uint seq, const Uint samp, const Uint thrID) const
   Real importanceW = 1, C = ACER_LAMBDA*rGamma;
   for(Uint k=1; k<nSValues; k++)
   {
-    net->predict(data->standardized(seq, k+samp), out_hat[k], series_hat, k
-    #ifndef ACER_AGGRESSIVE
-      , net->tgt_weights, net->tgt_biases
-    #endif
-    );
+    net->predict(data->standardized(seq, k+samp), out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
 
     #ifndef NO_CUT_TRACES
     if (k == nSValues-1) break;
@@ -164,7 +160,7 @@ void POAC::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
   if(thrID==1)  profiler->stop_start("CMP");
 
-  vector<Real> grad = compute<0>(seq, samp, Q_RET, Q_OPC, out_cur[0], out_hat[0], rGamma, thrID);
+  vector<Real> grad = compute(seq, samp, Q_RET, Q_OPC, out_cur[0], out_hat[0], rGamma, thrID);
 
   #ifdef FEAT_CONTROL
     const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[samp]->a);
@@ -215,11 +211,7 @@ void POAC::Train_BPTT(const Uint seq, const Uint thrID) const
     series_hat.push_back(net->allocateActivation());
     const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
     vector<Real> out_T(nOutputs, 0), S_T = data->standardize(_t->s);//last state
-    net->predict(S_T, out_T, series_hat, ndata-1
-    #ifndef ACER_AGGRESSIVE
-      , net->tgt_weights, net->tgt_biases
-    #endif
-    );
+    net->predict(S_T, out_T, series_hat, ndata-1, net->tgt_weights, net->tgt_biases);
     Q_OPC = Q_RET = out_T[net_indices[0]]; //V(s_T) computed with tgt weights
   }
 
@@ -227,7 +219,7 @@ void POAC::Train_BPTT(const Uint seq, const Uint thrID) const
   {
     vector<Real> out_cur = net->getOutputs(series_cur[k]);
     vector<Real> out_hat = net->getOutputs(series_hat[k]);
-    vector<Real> grad = compute<1>(seq, k, Q_RET, Q_OPC, out_cur, out_hat, rGamma, thrID);
+    vector<Real> grad =compute(seq,k,Q_RET,Q_OPC,out_cur,out_hat,rGamma,thrID);
     #ifdef FEAT_CONTROL
     const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[k]->a);
     task->Train(series_cur[k], series_hat[k+1], act, seq, k, rGamma, grad);
@@ -308,7 +300,7 @@ void POAC::myBuildNetwork(Network*& _net , Optimizer*& _opt,
   _net = build.build();
 
   Uint penalparid = _net->layers.back()->n1stBias +1;
-  _net->biases[penalparid] = -std::log(settings.learnrate);
+  _net->biases[penalparid] = -std::log(settings.targetDelay);
 
   if(learn_size>1) {
     MPI_Bcast(_net->weights,_net->getnWeights(),MPI_NNVALUE_TYPE,0,mastersComm);

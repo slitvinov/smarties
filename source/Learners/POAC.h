@@ -11,11 +11,10 @@
 #include "Learner_utils.h"
 #include "../Math/FeatureControlTasks.h"
 #include "../Math/Quadratic_advantage.h"
-#define ACER_AGGRESSIVE
 
 class POAC : public Learner_utils
 {
-  const Real truncation, DKL_target, DKL_hardmax, CmaxRet = 5;
+  const Real truncation, DKL_target, DKL_hardmax, CmaxRet = 1;
   const Uint nA, nL;
   std::vector<std::mt19937>& generators;
 
@@ -54,7 +53,6 @@ class POAC : public Learner_utils
   void Train_BPTT(const Uint seq, const Uint thrID) const override;
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
-  template<int bUpdateOPC>
   inline vector<Real> compute(const Uint seq, const Uint samp, Real& Q_RET,
     Real& Q_OPC, const vector<Real>& out_cur, const vector<Real>& out_hat,
     const Real rGamma, const Uint thrID) const
@@ -69,18 +67,8 @@ class POAC : public Learner_utils
     const Real Qprecision = out_cur[QPrecID], penalDKL = out_cur[PenalID];
     const Gaussian_policy pol_cur = prepare_policy(out_cur);
     const Gaussian_policy pol_hat = prepare_policy(out_hat);
-
-    #ifndef ACER_AGGRESSIVE
-      //Used for update of value: target policy, current value
-      const Quadratic_advantage adv_cur = prepare_advantage(out_cur, &pol_hat);
-      //Used for update of policy: current policy, target value
-      const Quadratic_advantage adv_pol = prepare_advantage(out_hat, &pol_cur);
-      const Real A_OPC = Q_OPC - V_hat;
-    #else
-      const Quadratic_advantage adv_cur = prepare_advantage(out_cur, &pol_cur);
-      const Quadratic_advantage adv_pol = prepare_advantage(out_cur, &pol_cur);
-      const Real A_OPC = Q_OPC - V_cur;
-    #endif
+    const Quadratic_advantage adv_cur = prepare_advantage(out_cur, &pol_cur);
+    const Real A_OPC = Q_OPC - V_cur;
 
     //off policy stored action and on-policy sample:
     const vector<Real> act = aInfo.getInvScaled(_t->a); //unbounded action space
@@ -93,11 +81,10 @@ class POAC : public Learner_utils
 
     #ifdef ACER_PENALIZER
       const Real anneal = iter()>epsAnneal ? 1 : Real(iter())/epsAnneal;
-      const Real A_cov = adv_pol.computeAdvantage(act);
-      const Real varCritic = adv_pol.advantageVariance();
-      const Real iEpsA = A_cov * std::pow((A_OPC-A_cov)/(varCritic+2.2e-16),2);
-      const Real eta = anneal * iEpsA * A_OPC * safeExp( -iEpsA * A_cov);
-      const Real cotrolVar = eta * rho_cur * A_cov;
+      const Real varCritic = adv_cur.advantageVariance();
+      const Real iEpsA = A_cur * std::pow((A_OPC-A_cur)/(varCritic+2.2e-16),2);
+      const Real eta = anneal * iEpsA * A_OPC * safeExp( -iEpsA * A_cur);
+      const Real cotrolVar = eta * rho_cur * A_cur;
     #else
       const Real cotrolVar = 0;
     #endif
@@ -108,7 +95,7 @@ class POAC : public Learner_utils
       const Real polProbOnPolicy = pol_cur.evalLogProbability(pol);
       const Real polProbBehavior = Gaussian_policy::evalBehavior(pol,_t->mu);
       const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
-      const Real A_pol = adv_pol.computeAdvantage(pol);
+      const Real A_pol = adv_cur.computeAdvantage(pol);
       const Real gain1 = A_OPC*min(rho_cur,truncation) - cotrolVar;
       const Real gain2 = A_pol*max(0.,1.-truncation/rho_pol);
 
@@ -121,7 +108,7 @@ class POAC : public Learner_utils
     #endif
 
     #ifdef ACER_PENALIZER
-      const vector<Real> gradC = pol_cur.control_grad(&adv_pol, eta);
+      const vector<Real> gradC = pol_cur.control_grad(&adv_cur, eta);
       const vector<Real> policy_grad = sum2Grads(gradAcer, gradC);
     #else
       const vector<Real> policy_grad = gradAcer;
@@ -136,7 +123,8 @@ class POAC : public Learner_utils
     totalPolGrad = trust_region_update(totalPolGrad, gradDivKL, DKL_hardmax);
     #endif
 
-    const Real Ver = Qer*std::min(1.,rho_cur);
+    const Real C = std::min(CmaxRet, rho_cur);
+    const Real Ver = Qer*C;
     vector<Real> gradient(nOutputs,0);
     gradient[net_indices[0]]= Qer * Qprecision;
     //gradient[net_indices[0]]= Qer;
@@ -156,20 +144,9 @@ class POAC : public Learner_utils
     adv_cur.grad(act, Qer * Qprecision, gradient, aInfo.bounded);
     pol_cur.finalize_grad(totalPolGrad, gradient, aInfo.bounded);
 
-    if(bUpdateOPC) //prepare Q with off policy corrections for next step:
-    {
-      const Real C = std::min(CmaxRet, rho_cur);
-      #ifdef ACER_AGGRESSIVE
-        Q_RET = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_hat;
-        Q_OPC = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_cur;
-      #else
-        //Used as target: target policy, target value
-        const Quadratic_advantage adv_hat = prepare_advantage(out_hat,&pol_hat);
-        const Real A_hat = adv_hat.computeAdvantage(act);
-        Q_RET = C*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;
-        Q_OPC = Q_RET;
-      #endif
-    }
+    //prepare Q with off policy corrections for next step:
+    Q_RET = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_hat;
+    Q_OPC = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_cur;
 
     //bookkeeping:
     dumpStats(Vstats[thrID], A_cur+V_cur, Qer ); //Ver

@@ -54,8 +54,8 @@ SETTINGS+=" --nMasters 1"
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w
 #the first option is markedly safer
-SETTINGS+=" --targetDelay 0.01"
+SETTINGS+=" --targetDelay 0.1"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 256"
+SETTINGS+=" --batchSize 128"
 #network update learning rate
-SETTINGS+=" --learnrate 0.001"
+SETTINGS+=" --learnrate 0.0001"
