@@ -59,6 +59,7 @@ protected:
   const int learn_rank, learn_size;
   const string path;
   const Real gamma;
+  bool first_pass = true;
   std::vector<std::mt19937>& generators;
   Uint iOldestSaved = 0, printCount = 0;
   vector<Real> std, mean, invstd;

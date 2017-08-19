@@ -155,6 +155,13 @@ struct Settings
 #define DEFAULT_randSeed 1
   int randSeed = DEFAULT_randSeed;
 
+#define CHARARG_klDivConstraint 'k'
+#define COMMENT_klDivConstraint "Constraint on max KL div, algo specific."
+#define TYPEVAL_klDivConstraint Real
+#define TYPENUM_klDivConstraint REAL
+#define DEFAULT_klDivConstraint 0.001
+  Real klDivConstraint = DEFAULT_klDivConstraint;
+
 #define CHARARG_lambda 'l'
 #define COMMENT_lambda "Currently unused: lambda for off policy corrections."
 #define TYPEVAL_lambda Real
@@ -435,7 +442,8 @@ struct Settings
       { CHARARG_nnPdrop, "nnPdrop", TYPENUM_nnPdrop, COMMENT_nnPdrop, &nnPdrop, (TYPEVAL_nnPdrop) DEFAULT_nnPdrop },
       { CHARARG_nnLambda, "nnLambda", TYPENUM_nnLambda, COMMENT_nnLambda, &nnLambda, (TYPEVAL_nnLambda) DEFAULT_nnLambda },
       { CHARARG_nnType, "nnType", TYPENUM_nnType, COMMENT_nnType, &nnType, (TYPEVAL_nnType) DEFAULT_nnType },
-      { CHARARG_nnFunc, "nnFunc", TYPENUM_nnFunc, COMMENT_nnFunc, &nnFunc, (TYPEVAL_nnFunc) DEFAULT_nnFunc }
+      { CHARARG_nnFunc, "nnFunc", TYPENUM_nnFunc, COMMENT_nnFunc, &nnFunc, (TYPEVAL_nnFunc) DEFAULT_nnFunc },
+      { CHARARG_klDivConstraint, "klDivConstraint", TYPENUM_klDivConstraint, COMMENT_klDivConstraint, &klDivConstraint, (TYPEVAL_klDivConstraint) DEFAULT_klDivConstraint }
     });
   }
 

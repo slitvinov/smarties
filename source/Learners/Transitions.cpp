@@ -417,7 +417,8 @@ void Transitions::update_rewards_mean()
 
   if(count<batchSize) return;
   const Real stdev_reward = std::sqrt((newstdvr-newmeanr*newmeanr/count)/count);
-  const Real weight =  Set.size() / (Real) maxTotSeqNum;
+  const Real weight = first_pass ? 1 : 0.01;
+  first_pass = false;
   mean_reward = (1-weight)*mean_reward +weight*newmeanr/count;
   invstd_reward = (1-weight)*invstd_reward +weight/stdev_reward;
 }
