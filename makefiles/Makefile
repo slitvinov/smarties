@@ -55,11 +55,6 @@ CPPFLAGS+= -Wno-unused-parameter # does not make sense with function overloading
 CPPFLAGS+= -Wno-maybe-uninitialized #to switch on and check that only triggered by std random
 CPPFLAGS+= -Wno-float-equal #sometimes you just know, do you know what I am saying?
 
-CPPFLAGS += -fstrict-aliasing -march=native -mtune=native
-CPPFLAGS += -ftree-vectorize -ftree-vectorizer-verbose=0 #-DNDEBUG
-#CPPFLAGS += -funsafe-math-optimizations
-CPPFLAGS += -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
-
 ifeq "$(acer)" "safe"
 CPPFLAGS += -DACER_SAFE
 else
@@ -120,6 +115,14 @@ endif
 ifeq "$(config)" "fit"
 CPPFLAGS += -DNDEBUG -O3 -ffast-math
 endif
+
+CPPFLAGS+= -fstrict-aliasing -mavx2 -march=native -mtune=native
+CPPFLAGS+= -ftree-vectorize -ftree-vectorizer-verbose=2 #-DNDEBUG
+CPPFLAGS+= -fmerge-all-constants -fassociative-math 
+#CPPFLAGS+= -funsafe-loop-optimizations 
+CPPFLAGS+= -fprofile-use
+#CPPFLAGS+= -funsafe-math-optimizations
+CPPFLAGS+= -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
 
 #ifeq "$(CC)" "icc"
 #CPPFLAGSOPT+= -diag-disable remark -wd68 -xHOST -ansi-alias -fno-fnalias -fno-alias

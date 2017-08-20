@@ -74,7 +74,7 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
       #ifdef FULLTASKING
 #pragma omp task firstprivate(sequence,transition) if(readNTasks()<nSThreads)
       #else
-#pragma omp task firstprivate(sequence,transition) if(!availTasks)
+#pragma omp task firstprivate(sequence,transition) //if(!availTasks)
       #endif
       {
         const int thrID = omp_get_thread_num();
@@ -145,7 +145,7 @@ void Learner::applyGradient() //this cannot be called from omp parallel region
   if(opt->nepoch%1000==0 && !learn_rank) {
     profiler->printSummary();
     profiler->reset();
-    
+
     profiler_ext->stop_all();
     profiler_ext->printSummary();
     profiler_ext->reset();

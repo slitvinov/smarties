@@ -78,12 +78,13 @@ public:
 
   inline int readNTasks() const
   {
-    lock_guard<mutex> lock(task_mutex);
+    //lock_guard<mutex> lock(task_mutex);
     return nTasks;
   }
   inline void addToNTasks(const int add)
   {
-    lock_guard<mutex> lock(task_mutex);
+    //lock_guard<mutex> lock(task_mutex);
+    #pragma omp atomic
     nTasks += add;
   }
 
