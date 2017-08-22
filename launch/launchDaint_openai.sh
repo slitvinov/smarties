@@ -19,7 +19,7 @@ if [ $# -gt 4 ] ; then
     cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
 fi
 if [ $# -lt 7 ] ; then
-    NTASK=5 #n tasks per node
+    NTASK=4 #n tasks per node
     NTHREADS=12 #n threads per task
 else
     NTASK=$6
@@ -86,3 +86,4 @@ chmod 755 daint_sbatch
 
 
 sbatch daint_sbatch
+cd -

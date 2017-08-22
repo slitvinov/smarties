@@ -1,19 +1,46 @@
-POSTFIX=POAC_20_newhyper_eta0002_batch256
-#POSTFIX=POAC_20_newhyper_eta0010_batch128
+#NMASTERS=$1
+#BATCHNUM=$2
+#TGTALPHA=$3
+#DKLTARGT=$4
+#EPERSTEP=$5
 
 make -C ../makefiles clean
 make -C ../makefiles config=fit -j
 
-./launchDaint_openai.sh spider_vanilla_${POSTFIX} 4 Ant-v1                    settings/settings_RACER_bench.sh
-./launchDaint_openai.sh standu_vanilla_${POSTFIX} 4 HumanoidStandup-v1        settings/settings_RACER_bench.sh
-./launchDaint_openai.sh humanw_vanilla_${POSTFIX} 4 Humanoid-v1               settings/settings_RACER_bench.sh
-./launchDaint_openai.sh walker_vanilla_${POSTFIX} 4 Walker2d-v1               settings/settings_RACER_bench.sh
-./launchDaint_openai.sh cheeta_vanilla_${POSTFIX} 4 HalfCheetah-v1            settings/settings_RACER_bench.sh
-./launchDaint_openai.sh swimmr_vanilla_${POSTFIX} 4 Swimmer-v1                settings/settings_RACER_bench.sh
-./launchDaint_openai.sh hopper_vanilla_${POSTFIX} 4 Hopper-v1                 settings/settings_RACER_bench.sh
-./launchDaint_openai.sh reachr_vanilla_${POSTFIX} 4 Reacher-v1                settings/settings_RACER_bench.sh
-#./launchDaint_openai.sh invpnd_vanilla_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
-#./launchDaint_openai.sh dblpnd_vanilla_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
+for BATCHNUM in "128" "256"; do
+#for DKLTARGT in "0.01" "0.001"; do
+for DKLTARGT in "0.001"; do
+#for TGTALPHA in "0.1" "0.01"; do
+for EPERSTEP in "0.1" "0.01"; do
+for RUNTRIAL in "1" "2" "3"; do
+TGTALPHA="0.1"
+
+if [ $BATCHNUM -eq "128" ]; then
+NMASTERS=2
+else
+NMASTERS=4
+fi
+
+POSTFIX=POPAC_TRIAL${RUNTRIAL}_B${BATCHNUM}_k${DKLTARGT}_o${EPERSTEP}
+
+#source launchDaint_openai.sh spider_vanilla_${POSTFIX} ${NMASTERS} Ant-v1                    settings/settings_bench_args.sh
+#source launchDaint_openai.sh standu_vanilla_${POSTFIX} ${NMASTERS} HumanoidStandup-v1        settings/settings_bench_args.sh
+#source launchDaint_openai.sh humanw_vanilla_${POSTFIX} ${NMASTERS} Humanoid-v1               settings/settings_bench_args.sh
+#source launchDaint_openai.sh walker_vanilla_${POSTFIX} ${NMASTERS} Walker2d-v1               settings/settings_bench_args.sh
+#source launchDaint_openai.sh cheeta_vanilla_${POSTFIX} ${NMASTERS} HalfCheetah-v1            settings/settings_bench_args.sh
+source launchDaint_openai.sh swimmr_vanilla_${POSTFIX} ${NMASTERS} Swimmer-v1                settings/settings_bench_args.sh
+source launchDaint_openai.sh hopper_vanilla_${POSTFIX} ${NMASTERS} Hopper-v1                 settings/settings_bench_args.sh
+source launchDaint_openai.sh reachr_vanilla_${POSTFIX} ${NMASTERS} Reacher-v1                settings/settings_bench_args.sh
+source launchDaint_openai.sh invpnd_vanilla_${POSTFIX} ${NMASTERS} InvertedPendulum-v1       settings/settings_bench_args.sh
+source launchDaint_openai.sh dblpnd_vanilla_${POSTFIX} ${NMASTERS} InvertedDoublePendulum-v1 settings/settings_bench_args.sh
+#source  settings/settings_bench_args.sh
+#echo $SETTINGS $POSTFIX
+
+done
+done
+done
+done
+#done
 
 :'
 make -C ../makefiles clean
@@ -29,6 +56,8 @@ make -C ../makefiles config=fit acer=relax -j
 ./launchDaint_openai.sh reachr_relax_${POSTFIX} 1 Reacher-v1                settings/settings_RACER_bench.sh
 ./launchDaint_openai.sh invpnd_relax_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
 #./launchDaint_openai.sh dblpnd_relax_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
+'
+
 
 make -C ../makefiles clean
 make -C ../makefiles config=fit tabc=on -j
@@ -44,6 +73,8 @@ make -C ../makefiles config=fit tabc=on -j
 #./launchDaint_openai.sh invpnd_tabc_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
 #./launchDaint_openai.sh dblpnd_tabc_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
 
+
+:'
 make -C ../makefiles clean
 make -C ../makefiles config=fit importance=on -j
 
@@ -57,21 +88,9 @@ make -C ../makefiles config=fit importance=on -j
 ./launchDaint_openai.sh reachr_importance_${POSTFIX} 1 Reacher-v1                settings/settings_RACER_bench.sh
 #./launchDaint_openai.sh invpnd_importance_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
 #./launchDaint_openai.sh dblpnd_importance_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
+'
 
-make -C ../makefiles clean
-make -C ../makefiles config=fit lambda=on -j
-
-#./launchDaint_openai.sh spider_lambda_${POSTFIX} 1 Ant-v1                    settings/settings_RACER_bench.sh
-#./launchDaint_openai.sh standu_lambda_${POSTFIX} 1 HumanoidStandup-v1        settings/settings_RACER_bench.sh
-#./launchDaint_openai.sh humanw_lambda_${POSTFIX} 1 Humanoid-v1               settings/settings_RACER_bench.sh
-./launchDaint_openai.sh walker_lambda_${POSTFIX} 1 Walker2d-v1               settings/settings_RACER_bench.sh
-./launchDaint_openai.sh cheeta_lambda_${POSTFIX} 1 HalfCheetah-v1            settings/settings_RACER_bench.sh
-./launchDaint_openai.sh swimmr_lambda_${POSTFIX} 1 Swimmer-v1                settings/settings_RACER_bench.sh
-#./launchDaint_openai.sh hopper_lambda_${POSTFIX} 1 Hopper-v1                 settings/settings_RACER_bench.sh
-./launchDaint_openai.sh reachr_lambda_${POSTFIX} 1 Reacher-v1                settings/settings_RACER_bench.sh
-./launchDaint_openai.sh invpnd_lambda_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
-#./launchDaint_openai.sh dblpnd_lambda_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
-
+;
 make -C ../makefiles clean
 make -C ../makefiles config=fit cvar=on acer=full -j
 
@@ -86,6 +105,7 @@ make -C ../makefiles config=fit cvar=on acer=full -j
 #./launchDaint_openai.sh invpnd_cvar_${POSTFIX} 1 InvertedPendulum-v1       settings/settings_RACER_bench.sh
 #./launchDaint_openai.sh dblpnd_cvar_${POSTFIX} 1 InvertedDoublePendulum-v1 settings/settings_RACER_bench.sh
 
+:'
 make -C ../makefiles clean
 make -C ../makefiles config=fit auxtask=on -j
 
