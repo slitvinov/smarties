@@ -88,15 +88,15 @@ public:
     nTasks += add;
   }
 
-  inline unsigned nData()
+  inline unsigned nData() const
   {
     return data->nTransitions;
   }
-  inline unsigned iter()
+  inline unsigned iter() const
   {
     return opt->nepoch;
   }
-  inline bool reachedMaxGradStep()
+  inline bool reachedMaxGradStep() const
   {
     return opt->nepoch > totNumSteps;
   }
