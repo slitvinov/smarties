@@ -87,7 +87,9 @@ public:
     std::vector<Real> ret = mu;
     for(Uint i=0; i<mu.size(); i++) {
       std::normal_distribution<Real> dist(0, 1);
-      ret[i] += sd[i]*clip(dist(*gen), NORMDIST_MAX, -NORMDIST_MAX);
+      Real samp = 4;
+      while (samp > 3 || samp < -3) samp = dist(*gen);
+      ret[i] = mu[i] + sd[i]*samp;
     }
     return ret;
   }
@@ -107,7 +109,9 @@ public:
     std::vector<Real> ret(nA);
     for(Uint i=0; i<nA; i++) {
       std::normal_distribution<Real> dist(0, 1);
-      ret[i] = mean[i] + stdev[i]*clip(dist(*gen), NORMDIST_MAX, -NORMDIST_MAX);
+      Real samp = 4;
+      while (samp > 3 || samp < -3) samp = dist(*gen);
+      ret[i] = mean[i] + stdev[i]*samp;
     }
     return ret;
   }
@@ -145,26 +149,43 @@ public:
 
   inline vector<Real> div_kl_grad(const Gaussian_policy*const pol_hat, const Real fac = 1) const
   {
-    /*
-      Div_KL between two multiv. Gaussians N_1 and N_2 of dim=M is
-      0.5*( trace(inv(Sigma_2)*Sigma_1) + (m_2 - m_1)'*inv(Sigma_2)*(m_2 - m_1) - M + ln(det(Sigma_2)/det(Sigma_1))
-      assumptions:
-        - we deal with diagonal covariance matrices
-        - network outputs the inverse of diagonal terms of the cov matrix
-
-      therefore divKL assumes shape
-      0.5*(\sum_i( Sigma_1_i*(Sigma_2_i)^-1 + (m_2_i - m_1_i)^2*(Sigma_2_i)^-1 -1 +ln(Sigma_2_i) -ln(Sigma_1_i))
-     */
     vector<Real> ret(2*nA);
     for (Uint i=0; i<nA; i++) {
       ret[i]    = fac*(mean[i]-pol_hat->mean[i])*precision[i];
 
-      //               v from trace        v from quadratic term
       ret[i+nA] = .5*fac*(pol_hat->variance[i] - variance[i]
               + std::pow(mean[i] - pol_hat->mean[i], 2) );
-      //          ^ from normalization
     }
     return ret;
+  }
+  inline vector<Real> div_kl_opp_grad(const Gaussian_policy*const pol_hat, const Real fac = 1) const
+  {
+    vector<Real> ret(2*nA);
+    for (Uint i=0; i<nA; i++) {
+      ret[i]   =fac*(mean[i]-pol_hat->mean[i])*pol_hat->precision[i];
+      ret[i+nA]=.5*fac*(precision[i]-pol_hat->precision[i])*pow(variance[i],2);
+    }
+    return ret;
+  }
+  inline Real kl_divergence(const Gaussian_policy*const pol_hat) const
+  {
+    Real ret = 0;
+    for (Uint i=0; i<nA; i++) {
+      ret += precision[i]*pol_hat->variance[i] - 1;
+      ret += std::pow(mean[i]-pol_hat->mean[i],2)*precision[i];
+      ret += std::log(pol_hat->precision[i]*variance[i]);
+    }
+    return 0.5*ret;
+  }
+  inline Real kl_divergence_opp(const Gaussian_policy*const pol_hat) const
+  {
+    Real ret = 0;
+    for (Uint i=0; i<nA; i++) {
+      ret += pol_hat->precision[i]*variance[i] - 1;
+      ret += std::pow(mean[i]-pol_hat->mean[i],2)*pol_hat->precision[i];
+      ret += std::log(precision[i]*pol_hat->variance[i]);
+    }
+    return 0.5*ret;
   }
 
   inline void finalize_grad(const vector<Real>&grad, vector<Real>&netGradient, const vector<bool>& bounded) const
@@ -189,8 +210,8 @@ public:
       const Uint iS = start_prec+j;
       assert(netGradient.size()>=start_prec+nA);
       const Real diff = precision_func_diff(netOutputs[iS]);
-      netGradient[iS] = grad[j+nA] * diff;
-
+      if(precision[j]>ACER_MAX_PREC && grad[j+nA]>0) netGradient[iS] = 0;
+      else netGradient[iS] = grad[j+nA] * diff;
       //#ifdef ACER_BOUNDED //clip derivative
       //if(bounded[j]) {
       //  const Real M=ACER_MAX_PREC-precision[j], m=ACER_MIN_PREC-precision[j];
@@ -213,18 +234,6 @@ public:
       netGradient[start_prec+j] = grad[j+nA] * diff;
     }
   }
-
-  inline Real kl_divergence(const Gaussian_policy*const pol_hat) const
-  {
-    Real ret = 0;
-    for (Uint i=0; i<nA; i++) {
-      ret += precision[i]/pol_hat->precision[i] - 1;
-      ret += std::pow(mean[i]-pol_hat->mean[i],2)*precision[i];
-      ret += std::log(pol_hat->precision[i])-std::log(precision[i]);
-    }
-    return 0.5*ret;
-  }
-
   inline vector<Real> getMean() const
   {
     return mean;

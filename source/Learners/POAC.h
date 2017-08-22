@@ -75,19 +75,9 @@ class POAC : public Learner_utils
     const Real actProbOnPolicy = pol_cur.evalLogProbability(act);
     const Real actProbBehavior = Gaussian_policy::evalBehavior(act,_t->mu);
     const Real rho_cur = min(MAX_IMPW,safeExp(actProbOnPolicy-actProbBehavior));
-    const Real DivKL = pol_cur.kl_divergence(&pol_hat);
+    const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real Qer = Q_RET -A_cur -V_cur;
-
-    #ifdef ACER_PENALIZER
-      const Real anneal = iter()>epsAnneal ? 1 : Real(iter())/epsAnneal;
-      const Real varCritic = adv_cur.advantageVariance();
-      const Real iEpsA = A_cur * std::pow((A_OPC-A_cur)/(varCritic+2.2e-16),2);
-      const Real eta = anneal * iEpsA * A_OPC * safeExp( -iEpsA * A_cur);
-      const Real cotrolVar = eta * rho_cur * A_cur;
-    #else
-      const Real cotrolVar = 0;
-    #endif
 
     //compute quantities needed for trunc import sampl with bias correction
     #ifdef ACER_TABC
@@ -96,18 +86,23 @@ class POAC : public Learner_utils
       const Real polProbBehavior = Gaussian_policy::evalBehavior(pol,_t->mu);
       const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
       const Real A_pol = adv_cur.computeAdvantage(pol);
-      const Real gain1 = A_OPC*min(rho_cur,truncation) - cotrolVar;
+      const Real gain1 = A_OPC*min(rho_cur,truncation);
       const Real gain2 = A_pol*max(0.,1.-truncation/rho_pol);
 
       const vector<Real> gradAcer_1 = pol_cur.policy_grad(act, gain1);
       const vector<Real> gradAcer_2 = pol_cur.policy_grad(pol, gain2);
       const vector<Real> gradAcer = sum2Grads(gradAcer_1, gradAcer_2);
     #else
-      const Real gain1 = A_OPC * rho_cur - cotrolVar;
+      const Real gain1 = A_OPC * rho_cur;
       const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
     #endif
 
     #ifdef ACER_PENALIZER
+      const Real anneal = iter()>epsAnneal ? 1 : Real(iter())/epsAnneal;
+      const Real varCritic = adv_cur.advantageVariance();
+      const Real iEpsA = std::pow(A_OPC-A_cur,2)/(varCritic+2.2e-16);
+      const Real eta = anneal * safeExp( -0.5*iEpsA);
+
       const vector<Real> gradC = pol_cur.control_grad(&adv_cur, eta);
       const vector<Real> policy_grad = sum2Grads(gradAcer, gradC);
     #else
@@ -115,8 +110,8 @@ class POAC : public Learner_utils
     #endif
 
     //trust region updating
-    const vector<Real> penalty_grad = pol_cur.div_kl_grad(&pol_hat, -penalDKL);
-    vector<Real> totalPolGrad = sum2Grads(penalty_grad, policy_grad);
+    const vector<Real> penal_grad = pol_cur.div_kl_opp_grad(&pol_hat,-penalDKL);
+    vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
 
     #if 0
     const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);

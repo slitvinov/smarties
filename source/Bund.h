@@ -27,19 +27,15 @@ using namespace std;
 #ifdef ACER_BOUNDED
 //FOR CONTINUOUS ACTIONS RACER:
   #define ACER_MAX_PREC 1e3
-  //#define ACER_MAX_ACT  4. //active for bounded action spaces (through tanh)
-  //#define ACER_MIN_PREC 1. //active for bounded action spaces (through tanh)
-  #define ACER_TOL_DIAG 0.001
   //FOR DISCRETE ACTIONS DACER:
   #define ACER_MIN_PROB 0.001
 #else
-  #define ACER_TOL_DIAG 0
-  //#define ACER_MIN_PREC 0
+  #define ACER_MAX_PREC 1e9
   #define ACER_MIN_PROB 0
 #endif
 
 //de facto unused:
-#define NORMDIST_MAX 4 //truncated normal distribution range
+#define NORMDIST_MAX 3 //truncated normal distribution range
 #define BOUNDACT_MAX 8 //for bounded action spaces: range (ie. tanh(8))
 #define ACER_LAMBDA 1.0
 #define MAX_UNROLL_AFTER 2000
@@ -48,7 +44,7 @@ using namespace std;
 // number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20
 //clip gradients of network outputs if more than # standard deviations from 0:
-//#define ACER_GRAD_CUT 10
+#define ACER_GRAD_CUT 10
 #define MAX_IMPW 1e2
 
 #ifdef IMPORTSAMPLE

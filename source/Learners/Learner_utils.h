@@ -23,7 +23,7 @@ public:
   avgGrad(nThreads+1,vector<long double>(ngrads,0)),
   stdGrad(nThreads+1,vector<long double>(ngrads,0))
   {
-    stdGrad[0] = vector<long double>(ngrads,100);
+    stdGrad[0] = vector<long double>(ngrads,1000);
     assert(avgGrad.size()==nThreads+1 && cntGrad.size()==nThreads+1);
     for (Uint i=0; i<nThreads; i++) Vstats.push_back(new trainData());
   }

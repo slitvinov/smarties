@@ -173,7 +173,7 @@ struct Settings
 #define COMMENT_minSeqLen "Minimum length of sequence, if shorter then discarded."
 #define TYPEVAL_minSeqLen int
 #define TYPENUM_minSeqLen INT
-#define DEFAULT_minSeqLen 3
+#define DEFAULT_minSeqLen 2
   int minSeqLen = DEFAULT_minSeqLen;
 
 #define CHARARG_maxSeqLen 'M' //there is always an exception
