@@ -390,29 +390,36 @@ void Transitions::update_samples_mean(const Real alpha)
 void Transitions::update_rewards_mean()
 {
   if(!bTrain || !bNormalize) return; //if not training, keep the stored values
-  long double count = 0, newstdvr = 0, newmeanr = 0;
+  long double count = 0, newstdvr = 0;
 
   #pragma omp parallel
   {
-    long double avgr = 0, stdr = 0, cnt = 0;
+    long double stdr = 0, cnt = 0;
     #pragma omp for schedule(dynamic)
-    for(Uint i=0; i<Set.size(); i++) for(const auto & t : Set[i]->tuples) {
-      cnt++; avgr += t->r; stdr += t->r*t->r;
+    for(Uint i=0; i<Set.size(); i++) {
+      bool first = true;
+      for(const auto & t : Set[i]->tuples) {
+        if(first) { //first state reward is meaningless
+          first = false;
+          continue;
+        }
+        stdr += t->r*t->r;
+        cnt++;
+      }
     }
+
 
     #pragma omp atomic
     count += cnt;
     #pragma omp atomic
     newstdvr += stdr;
-    #pragma omp atomic
-    newmeanr += avgr;
   }
 
   //add up gradients across nodes (masters)
   if (learn_size > 1) {
-    long double global[3] = {count, newstdvr, newmeanr};
-    MPI_Allreduce(MPI_IN_PLACE, global,3,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
-    count = global[0]; newstdvr = global[1]; newmeanr = global[2];
+    long double global[2] = {count, newstdvr};
+    MPI_Allreduce(MPI_IN_PLACE, global,2,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+    count = global[0]; newstdvr = global[1];
   }
 
   if(count<batchSize) return;
@@ -420,7 +427,7 @@ void Transitions::update_rewards_mean()
   const Real stdev_reward = std::sqrt(newstdvr/count);
   const Real weight = first_pass ? 1 : 0.01;
   first_pass = false;
-  mean_reward = (1-weight)*mean_reward +weight*newmeanr/count;
+  //mean_reward = (1-weight)*mean_reward +weight*newmeanr/count;
   invstd_reward = (1-weight)*invstd_reward +weight/stdev_reward;
 }
 

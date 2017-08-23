@@ -192,6 +192,11 @@ struct Linear : public Function
   }
 };
 
+static inline nnReal nnSafeExp(const nnReal val)
+{
+    return std::exp( std::min((nnReal)8., std::max((nnReal)-16.,val) ) );
+}
+
 struct Tanh : public Function
 {
   Real weightsInitFactor(const Uint inps, const Uint outs) const override
@@ -203,27 +208,24 @@ struct Tanh : public Function
     if(in >   EXP_CUT) return  1;
     if(in < - EXP_CUT) return -1;
     if(in>0) {
-      const nnReal e2x = std::exp(-2*in);
+      const nnReal e2x = nnSafeExp(-2*in);
       return (1-e2x)/(1+e2x);
     } else {
-      const nnReal e2x = std::exp( 2*in);
+      const nnReal e2x = nnSafeExp( 2*in);
       return (e2x-1)/(1+e2x);
     }
   }
   nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
     const nnReal arg = in < 0 ? -in : in; //symmetric
-    const nnReal e2x = std::exp(-2.*arg);
+    const nnReal e2x = nnSafeExp(-2.*arg);
+    if (arg > EXP_CUT && d*in > 0) return 0;
     if (arg > EXP_CUT) return 4*e2x; //in*d > 0 ? 0 :
     return 4*e2x/((1+e2x)*(1+e2x));
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-#pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
-    for (Uint i=0;i<N; i++) {
-      const nnReal e2x = std::exp(2*in[i]);
-      out[i] = (e2x-1)/(1+e2x);
-    }
+    for (Uint i=0;i<N; i++)  out[i] = eval(in[i]);
   }
 };
 

@@ -81,11 +81,30 @@ public:
   {
     return new Activation(nNeurons,nStates);
   }
-  inline vector<Activation*> allocateUnrolledActivations(Uint length) const
+  inline vector<Activation*> allocateUnrolledActivations(const Uint len) const
   {
-    vector<Activation*> ret(length);
-    for (Uint j=0; j<length; j++) ret[j] = new Activation(nNeurons,nStates);
+    vector<Activation*> ret(len);
+    for (Uint j=0; j<len; j++) ret[j] = new Activation(nNeurons,nStates);
     return ret;
+  }
+  inline void prepForBackProp(vector<Activation*>* series,const Uint len) const
+  {
+    vector<Activation*>& ref = *series;
+    if(series->size() > len) {
+      for(Uint j=len; j<series->size(); j++) delete ref[j];
+      series->resize(len);
+    }
+    else if (series->size() < len)
+      for(Uint j=series->size(); j<len; j++)
+        series->push_back(new Activation(nNeurons,nStates));
+
+    for(Uint j=0; j<series->size(); j++) ref[j]->clearErrors();
+  }
+  inline void prepForFwdProp(vector<Activation*>* series, Uint len) const
+  {
+    if (series->size() < len)
+      for(Uint j=series->size(); j<len; j++)
+        series->push_back(new Activation(nNeurons,nStates));
   }
   static inline void deallocateUnrolledActivations(vector<Activation*>*const r)
   {

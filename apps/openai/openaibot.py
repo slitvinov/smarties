@@ -97,6 +97,7 @@ while True:
             state[2:nStates+2]=observation.ravel()
         else: state[2] = observation
         state[nStates+2]=reward
+        for i in range(nStates+2): assert(not np.isnan(state[i]))
         #print(state)
 
         conn.send(state.tobytes())
@@ -108,7 +109,7 @@ while True:
             plt.savefig(fname, dpi=100)
 
         buf = np.frombuffer(conn.recv(nActions*8),dtype=np.float64)
-
+        for i in range(nActions): assert(not np.isnan(buf[i]))
         if hasattr(env.action_space, 'shape'):
             action = buf
         elif hasattr(env.action_space, 'spaces'):
@@ -116,7 +117,7 @@ while True:
             for i in range(1, nActions): action = action + [int(buf[i])]
         else: action = int(buf[0])
         #print(action)
-        reward = 0 
+        reward = 0
         for i in range(1):
             observation, instreward, done, info = env.step(action)
             reward += instreward
@@ -136,6 +137,7 @@ while True:
         state[2:nStates+2]=observation.ravel()
     else: state[2] = observation
     state[nStates+2]=reward
+    for i in range(nStates+2): assert(not np.isnan(state[i]))
     #print(state)
     conn.send(state.tobytes())
     buf = np.frombuffer(conn.recv(nActions*8),dtype=np.float64)

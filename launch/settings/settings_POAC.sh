@@ -7,22 +7,23 @@ SETTINGS+=" --samplesFile none"
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.995"
+SETTINGS+=" --gamma 0.99"
 
 #size of network layers
 #SETTINGS+=" --nnl1 64"
 #SETTINGS+=" --nnl2 64"
 #SETTINGS+=" --nnl2 64"
 SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
-SETTINGS+=" --nnl3 128"
+SETTINGS+=" --nnl2 64"
+#SETTINGS+=" --nnl3 128"
 #SETTINGS+=" --nnl1 256"
 #SETTINGS+=" --nnl2 256"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
-SETTINGS+=" --nnFunc PRelu"
-#SETTINGS+=" --nnFunc Tanh"
+#SETTINGS+=" --nnFunc PRelu"
+SETTINGS+=" --nnFunc Tanh"
+#SETTINGS+=" --nnFunc SoftPlus"
 # L2 regularization of the weights
 #SETTINGS+=" --nnLambda 0.0001"
 
@@ -58,6 +59,6 @@ SETTINGS+=" --nMasters 1"
 SETTINGS+=" --klDivConstraint 0.001"
 SETTINGS+=" --targetDelay 0.1"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 256"
+SETTINGS+=" --batchSize 128"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0002"

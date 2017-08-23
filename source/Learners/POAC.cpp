@@ -15,7 +15,7 @@
 #define simpleSigma
 
 POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
-  Learner_utils(comm,_env,settings,settings.nnOutputs), truncation(10),
+  Learner_utils(comm,_env,settings,settings.nnOutputs), truncation(5),
   DKL_target(settings.klDivConstraint), DKL_hardmax(1), nA(_env->aI.dim),
   nL(compute_nL(_env->aI.dim)), generators(settings.generators)
 {
@@ -28,7 +28,10 @@ POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
   printf("POAC: Built network with outputs: %s %s\n",
     print(net_indices).c_str(),print(net_outputs).c_str());
   assert(nOutputs == net->getnOutputs() && nInputs == net->getnInputs());
-
+  for (Uint i = 0; i < nThreads; i++) {
+    series_1.push_back(new vector<Activation*>());
+    series_2.push_back(new vector<Activation*>());
+  }
   #ifdef FEAT_CONTROL
     task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net,data);
   #endif
@@ -109,8 +112,10 @@ void POAC::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
   vector<vector<Real>> out_cur(1, vector<Real>(nOutputs,0));
   vector<vector<Real>> out_hat(nSValues, vector<Real>(nOutputs,0));
-  vector<Activation*> series_cur = net->allocateUnrolledActivations(nRecurr);
-  vector<Activation*> series_hat = net->allocateUnrolledActivations(nSValues);
+  net->prepForBackProp(series_1[thrID], nRecurr);
+  net->prepForFwdProp(series_2[thrID], nSValues);
+  vector<Activation*>& series_cur = *(series_1[thrID]);
+  vector<Activation*>& series_hat = *(series_2[thrID]);
 
   for (Uint k=iRecurr, j=0; k<samp+1; k++, j++) {
     const vector<Real> inp = data->standardize(data->Set[seq]->tuples[k]->s);
@@ -177,8 +182,6 @@ void POAC::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
   if (thrID==0) net->backProp(series_cur, net->grad);
   else net->backProp(series_cur, net->Vgrad[thrID]);
-  net->deallocateUnrolledActivations(&series_cur);
-  net->deallocateUnrolledActivations(&series_hat);
 
   if(thrID==1)  profiler->stop_start("SLP");
 }
@@ -235,10 +238,10 @@ void POAC::Train_BPTT(const Uint seq, const Uint thrID) const
 
   if (thrID==0) net->backProp(series_cur, net->grad);
   else net->backProp(series_cur, net->Vgrad[thrID]);
-  net->deallocateUnrolledActivations(&series_cur);
-  net->deallocateUnrolledActivations(&series_hat);
 
   if(thrID==1)  profiler->stop_start("SLP");
+  net->deallocateUnrolledActivations(&series_cur);
+  net->deallocateUnrolledActivations(&series_hat);
 }
 
 void POAC::myBuildNetwork(Network*& _net , Optimizer*& _opt,
@@ -365,20 +368,20 @@ void POAC::processStats()
   const Real Qprecision = std::exp(net->biases[net->layers.back()->n1stBias]);
   const Real penalDKL = std::exp(net->biases[net->layers.back()->n1stBias+1]);
 
-  printf("%d (%lu), rmse:%Lg, avg_Q:%Lg, std_Q:%Lg, min_Q:%Lg, max_Q:%Lg, "
-    "weight:[%Lg %Lg %Lg], N:%Lg, Qprec:%f, penalDKL:%f, rewards:[%f %f]\n",
-    stats.epochCount, opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
-    stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget, stats.dCnt,
-    Qprecision, penalDKL, data->mean_reward, data->invstd_reward);
+  printf("%lu, rmse:%.2Lg, avg_Q:%.2Lg, std_Q:%.2Lg, min_Q:%.2Lg, max_Q:%.2Lg, "
+    "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%.3f, rewPrec:%f\n",
+    opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
+    stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget,
+    Qprecision, penalDKL, data->invstd_reward);
     fflush(0);
 
-  ofstream filestats;
-  filestats.open("stats.txt", ios::app);
-  filestats<<stats.epochCount<<"\t"<<opt->nepoch<<"\t"<<stats.MSE<<"\t"
-    <<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<stats.minQ<<"\t"<<stats.maxQ<<"\t"
-    <<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<distTarget<<"\t"<<stats.dCnt<<endl;
-  filestats.close();
-  filestats.flush();
+  ofstream fs;
+  fs.open("stats.txt", ios::app);
+  fs<<opt->nepoch<<"\t"<<stats.MSE<<"\t"<<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<
+  stats.minQ<<"\t"<<stats.maxQ<<"\t"<<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<
+  distTarget<<"\t"<<Qprecision<<"\t"<<penalDKL<<"\t"<<data->invstd_reward<<endl;
+  fs.close();
+  fs.flush();
 
   if (stats.epochCount % 100==0) save("policy");
 }

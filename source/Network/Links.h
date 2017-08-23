@@ -178,7 +178,7 @@ public:
     //inp = (nnOpInp)__builtin_assume_aligned(inp, VEC_WIDTH);
     //err = (nnOpRet)__builtin_assume_aligned(err, VEC_WIDTH);
     //delta = (nnOpInp)__builtin_assume_aligned(delta, VEC_WIDTH);
-
+    #if 0
     for (Uint o = 0; o < nO; o++) {
       nnOpInp w = weights +iW +nI_simd*o;
       nnOpRet g = gradW +iW +nI_simd*o;
@@ -190,6 +190,21 @@ public:
         err[i] += delta[o] * w[i];
       }
     }
+    #else
+
+    for (Uint o = 0; o < nO; o++) {
+      nnOpInp w = weights +iW +nI_simd*o;
+      #pragma omp simd aligned(delta,err,w : VEC_WIDTH) safelen(VEC_WIDTH)
+      for (Uint i = 0; i < nI; i++) err[i] += delta[o] * w[i];
+    }
+
+    for (Uint o = 0; o < nO; o++) {
+      nnOpRet g = gradW +iW +nI_simd*o;
+      #pragma omp simd aligned(g,inp,delta : VEC_WIDTH) safelen(VEC_WIDTH)
+      for (Uint i = 0; i < nI; i++) g[i] += inp[i] * delta[o];
+    }
+
+    #endif
   }
 };
 

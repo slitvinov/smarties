@@ -17,6 +17,7 @@ class POAC : public Learner_utils
   const Real truncation, DKL_target, DKL_hardmax, CmaxRet = 1;
   const Uint nA, nL;
   std::vector<std::mt19937>& generators;
+  mutable vector<vector<Activation*>*> series_1, series_2;
 
   #if defined ACER_RELAX //  V(s),P(s),pol(s), precA(s), precQ(q)/penal
     vector<Uint> net_outputs = {1, nL,   nA,      nA,         2};
@@ -93,7 +94,8 @@ class POAC : public Learner_utils
       const vector<Real> gradAcer_2 = pol_cur.policy_grad(pol, gain2);
       const vector<Real> gradAcer = sum2Grads(gradAcer_1, gradAcer_2);
     #else
-      const Real gain1 = A_OPC * rho_cur;
+      //const Real gain1 = A_OPC * rho_cur;
+      const Real gain1 = rho_cur>1 && A_OPC>0 ? A_OPC : A_OPC*rho_cur;
       const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
     #endif
 
@@ -131,7 +133,7 @@ class POAC : public Learner_utils
     //computed as \nabla_{penalDKL} (DivKL - DKL_target)^2
     //with rough approximation that DivKL/penalDKL = penalDKL
     //(distance increases if penalty term increases, similar to PPO )
-    gradient[PenalID] = 4*std::pow(DivKL - DKL_target, 3)*penalDKL;
+    gradient[PenalID] = 2*(DivKL - DKL_target)*penalDKL;
 
     //if ( thrID==1 ) printf("%u %u %u : %f %f DivKL:%f grad=[%f %f]\n", nOutputs, QPrecID, PenalID, Qprecision, penalDKL, DivKL, penalty_grad[0], policy_grad[0]);
 
@@ -177,6 +179,17 @@ class POAC : public Learner_utils
       const vector<Uint> nouts, Settings & settings);
 public:
   POAC(MPI_Comm comm, Environment*const env, Settings & settings);
+  ~POAC()
+  {
+    for(Uint i=0; i<series_1.size(); i++) {
+      net->deallocateUnrolledActivations(series_1[i]);
+      delete series_1[i];
+    }
+    for(Uint i=0; i<series_2.size(); i++) {
+      net->deallocateUnrolledActivations(series_2[i]);
+      delete series_2[i];
+    }
+  }
   void select(const int agentId, const Agent& agent) override;
 
   void test();
