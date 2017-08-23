@@ -111,7 +111,7 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
   #endif
   if (!learn_rank)
     _opt->save("initial");
-    
+
   #ifndef NDEBUG
     if(ErrorHandling::level == ErrorHandling::NETWORK) {
       MPI_Barrier(mastersComm);
@@ -124,7 +124,11 @@ void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
 
 vector<Real> Learner_utils::output_stochastic_policy(const int agentId, const Agent& agent) const
 {
-  Activation* currActivation = net->allocateActivation();
+  const int thrID = omp_get_thread_num();
+  if(currAct.size() < nThreads ) net->prepForFwdProp(&currAct, nThreads);
+  if(prevAct.size() < nThreads ) net->prepForFwdProp(&prevAct, nThreads);
+  Activation* const currActivation = currAct[thrID];
+
   vector<Real> output(nOutputs), input = agent.s->copy_observed();
   //if required, chain together nAppended obs to compose state
   if (nAppended>0) {
@@ -146,18 +150,16 @@ vector<Real> Learner_utils::output_stochastic_policy(const int agentId, const Ag
       #endif
     );
   } else { //then if i'm using RNN i need to load recurrent connections (else no effect)
-    Activation* prevActivation = net->allocateActivation();
+    Activation* const prevActivation = prevAct[thrID];
     prevActivation->loadMemory(net->mem[agentId]);
     net->predict(data->standardize(input), output, prevActivation, currActivation
       #ifdef __EntropySGD //then we sample from target weights
         , net->tgt_weights, net->tgt_biases
       #endif
     );
-    _dispose_object(prevActivation);
   }
   //save network transition
   currActivation->storeMemory(net->mem[agentId]);
-  _dispose_object(currActivation);
   return output;
 }
 
@@ -311,7 +313,7 @@ void Learner_utils::dumpPolicy()
   //a fail in any of these amounts to a big and fat TODO
   if(nAppended) die("TODO missing features\n");
   const Uint nDumpPoints = env->getNdumpPoints();
-  const Uint n_outs = 4; 
+  const Uint n_outs = 4;
   printf("n_outs:%u, nInputs:%u, nDumpPoints:%u\n",n_outs,nInputs, nDumpPoints);
   FILE * pFile = fopen ("dump.raw", "wb");
   vector<Real> output(nOutputs);

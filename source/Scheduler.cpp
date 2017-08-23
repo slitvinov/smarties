@@ -131,7 +131,7 @@ int Master::run()
 
             if(learner->readyForAgent(slave, agent))
             {
-            addToNTasks(1);
+              addToNTasks(1);
 #pragma omp task firstprivate(slave, agent) if(learner->readNTasks()<nThreads)
               processRequest(slave, agent);
             }

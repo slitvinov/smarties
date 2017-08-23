@@ -16,6 +16,7 @@ mutable vector<long double> cntGrad;
   mutable vector<vector<long double>> avgGrad, stdGrad;
   trainData stats;
   vector<trainData*> Vstats;
+  mutable vector<Activation*> currAct, prevAct;
 
 public:
   Learner_utils(MPI_Comm mcom,Environment*const _e, Settings&sett, Uint ngrads)

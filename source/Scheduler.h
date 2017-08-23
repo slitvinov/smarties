@@ -45,22 +45,27 @@ private:
     return ret;
   }
 
-  //mutable std::mutex client_mutex;
-  //Real avgNbusy = nSlaves;
-  //int nServing = 0;
   void processRequest(const int slave, const int agent);
+  #ifdef FULLTASKING
+    mutable std::mutex client_mutex;
+    mutable Real avgNbusy = nSlaves;
+    mutable int nServing = 0;
+    inline int readNServing() const
+    {
+      lock_guard<mutex> lock(client_mutex);
+      return nServing;
+    }
+  #endif
 
-  //inline int readNServing() const
-  //{
-  //  lock_guard<mutex> lock(client_mutex);
-  //  return nServing;
-  //}
   inline void addToNTasks(const int add) const
   {
     learner->addToNTasks(add);
-    //lock_guard<mutex> lock(client_mutex);
-    //nServing += add;
+    #ifdef FULLTASKING
+    lock_guard<mutex> lock(client_mutex);
+    nServing += add;
+    #endif
   }
+
   inline void spawnTrainingTasks(bool& first, const bool slaves_waiting) const
   {
     #ifndef FULLTASKING
@@ -69,7 +74,7 @@ private:
       #if 0
       const int nServerThreads = readNServing();
       const int nTrainTasks = learner->readNTasks() - nServerThreads;
-      nSlaves tasks are reserved to handle slaves, if comm queue is empty
+      //nSlaves tasks are reserved to handle slaves, if comm queue is empty
       if( !first && !postponed_queue.size() )
         avgNbusy += 1e-6 * (nServerThreads-avgNbusy);
       first = false;

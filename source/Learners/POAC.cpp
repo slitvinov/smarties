@@ -32,6 +32,8 @@ POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
     series_1.push_back(new vector<Activation*>());
     series_2.push_back(new vector<Activation*>());
   }
+  if(currAct.size() < nThreads ) net->prepForFwdProp(&currAct, nThreads);
+  if(prevAct.size() < nThreads ) net->prepForFwdProp(&prevAct, nThreads);
   #ifdef FEAT_CONTROL
     task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net,data);
   #endif
