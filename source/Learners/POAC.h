@@ -133,7 +133,8 @@ class POAC : public Learner_utils
     //computed as \nabla_{penalDKL} (DivKL - DKL_target)^2
     //with rough approximation that DivKL/penalDKL = penalDKL
     //(distance increases if penalty term increases, similar to PPO )
-    gradient[PenalID] = 2*(DivKL - DKL_target)*penalDKL;
+    //gradient[PenalID] = 2*(DivKL - DKL_target)*penalDKL;
+    gradient[PenalID] = 4*pow(DivKL - DKL_target,3)*penalDKL;
 
     //if ( thrID==1 ) printf("%u %u %u : %f %f DivKL:%f grad=[%f %f]\n", nOutputs, QPrecID, PenalID, Qprecision, penalDKL, DivKL, penalty_grad[0], policy_grad[0]);
 

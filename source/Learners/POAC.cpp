@@ -12,7 +12,7 @@
 //#include "POAC_TrainBPTT.cpp"
 //#include "POAC_Train.cpp"
 //#define DUMP_EXTRA
-#define simpleSigma
+//#define simpleSigma
 
 POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
   Learner_utils(comm,_env,settings,settings.nnOutputs), truncation(5),
@@ -193,8 +193,10 @@ void POAC::Train_BPTT(const Uint seq, const Uint thrID) const
   //this should go to gamma rather quick:
   const Real rGamma = annealedGamma();
   const Uint ndata = data->Set[seq]->tuples.size();
-  vector<Activation*> series_cur = net->allocateUnrolledActivations(ndata-1);
-  vector<Activation*> series_hat = net->allocateUnrolledActivations(ndata-1);
+  net->prepForBackProp(series_1[thrID], ndata-1);
+  net->prepForFwdProp( series_2[thrID], ndata-1);
+  vector<Activation*>& series_cur = *(series_1[thrID]);
+  vector<Activation*>& series_hat = *(series_2[thrID]);
 
   if(thrID==1) profiler->stop_start("FWD");
 
@@ -242,8 +244,6 @@ void POAC::Train_BPTT(const Uint seq, const Uint thrID) const
   else net->backProp(series_cur, net->Vgrad[thrID]);
 
   if(thrID==1)  profiler->stop_start("SLP");
-  net->deallocateUnrolledActivations(&series_cur);
-  net->deallocateUnrolledActivations(&series_hat);
 }
 
 void POAC::myBuildNetwork(Network*& _net , Optimizer*& _opt,
@@ -305,7 +305,7 @@ void POAC::myBuildNetwork(Network*& _net , Optimizer*& _opt,
   _net = build.build();
 
   Uint penalparid = _net->layers.back()->n1stBias +1;
-  _net->biases[penalparid] = -std::log(settings.targetDelay);
+  _net->biases[penalparid] = -std::log(settings.klDivConstraint);
 
   if(learn_size>1) {
     MPI_Bcast(_net->weights,_net->getnWeights(),MPI_NNVALUE_TYPE,0,mastersComm);

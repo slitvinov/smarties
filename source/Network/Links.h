@@ -178,7 +178,7 @@ public:
     //inp = (nnOpInp)__builtin_assume_aligned(inp, VEC_WIDTH);
     //err = (nnOpRet)__builtin_assume_aligned(err, VEC_WIDTH);
     //delta = (nnOpInp)__builtin_assume_aligned(delta, VEC_WIDTH);
-    #if 0
+    #if 1
     for (Uint o = 0; o < nO; o++) {
       nnOpInp w = weights +iW +nI_simd*o;
       nnOpRet g = gradW +iW +nI_simd*o;
