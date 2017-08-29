@@ -14,7 +14,7 @@
 
 class POAC : public Learner_utils
 {
-  const Real truncation, DKL_target, DKL_hardmax, CmaxRet = 1;
+  const Real truncation, DKL_target, DKL_hardmax, CmaxRet = 5, CmaxRho = 5;
   const Uint nA, nL;
   std::vector<std::mt19937>& generators;
   mutable vector<vector<Activation*>*> series_1, series_2;
@@ -64,7 +64,7 @@ class POAC : public Learner_utils
     Q_RET = reward + rGamma*Q_RET; //if k==ndata-2 then this is r_end
     Q_OPC = reward + rGamma*Q_OPC;
     //get everybody camera ready:
-    const Real V_cur = out_cur[net_indices[0]], V_hat = out_hat[net_indices[0]];
+    const Real V_cur = out_cur[net_indices[0]]; //V_hat = out_hat[net_indices[0]];
     const Real Qprecision = out_cur[QPrecID], penalDKL = out_cur[PenalID];
     const Gaussian_policy pol_cur = prepare_policy(out_cur);
     const Gaussian_policy pol_hat = prepare_policy(out_hat);
@@ -95,7 +95,7 @@ class POAC : public Learner_utils
       const vector<Real> gradAcer = sum2Grads(gradAcer_1, gradAcer_2);
     #else
       //const Real gain1 = A_OPC * rho_cur;
-      const Real gain1 = rho_cur>1 && A_OPC>0 ? A_OPC : A_OPC*rho_cur;
+      const Real gain1 = rho_cur>CmaxRho && A_OPC>0 ? CmaxRho*A_OPC : A_OPC*rho_cur;
       const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
     #endif
 
@@ -116,15 +116,13 @@ class POAC : public Learner_utils
     vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
 
     #if 0
-    const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
-    totalPolGrad = trust_region_update(totalPolGrad, gradDivKL, DKL_hardmax);
+      const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
+      totalPolGrad = trust_region_update(totalPolGrad, gradDivKL, DKL_hardmax);
     #endif
 
-    const Real C = std::min(CmaxRet, rho_cur);
-    const Real Ver = Qer*C;
+    const Real Ver = Qer*std::min((Real)1, rho_cur);
     vector<Real> gradient(nOutputs,0);
     gradient[net_indices[0]]= Qer * Qprecision;
-    //gradient[net_indices[0]]= Qer;
 
     //decrease precision if error is large
     //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
@@ -143,8 +141,8 @@ class POAC : public Learner_utils
     pol_cur.finalize_grad(totalPolGrad, gradient, aInfo.bounded);
 
     //prepare Q with off policy corrections for next step:
-    Q_RET = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_hat;
-    Q_OPC = C*ACER_LAMBDA*(Q_RET -A_cur -V_cur) +V_cur;
+    Q_RET = std::min((Real)1, rho_cur)*(Q_RET -A_cur -V_cur) +V_cur;
+    Q_OPC = std::min(CmaxRet, rho_cur)*(Q_RET -A_cur -V_cur) +V_cur;
 
     //bookkeeping:
     dumpStats(Vstats[thrID], A_cur+V_cur, Qer ); //Ver
@@ -168,12 +166,11 @@ class POAC : public Learner_utils
     const vector<Real> act = aInfo.getInvScaled(_t->a);//unbounded action space
     const Real actProbOnTarget = pol_hat.evalLogProbability(act);
     const Real actProbBehavior = Gaussian_policy::evalBehavior(act,_t->mu);
-    const Real C = std::min(CmaxRet, safeExp(actProbOnTarget-actProbBehavior));
+    const Real C = safeExp(actProbOnTarget-actProbBehavior);
     const Real A_hat = adv_hat.computeAdvantage(act);
     //prepare rolled Q with off policy corrections for next step:
-    Q_RET = C*ACER_LAMBDA*(Q_RET -A_hat -V_hat) +V_hat;
-    //Q_OPC =     ACER_LAMBDA*(Q_OPC -A_hat -V_hat) +V_hat;
-    Q_OPC = Q_RET;
+    Q_RET = std::min((Real)1, C)*(Q_RET -A_hat -V_hat) +V_hat;
+    Q_OPC = std::min(CmaxRet, C)*(Q_RET -A_hat -V_hat) +V_hat;
   }
 
   void myBuildNetwork(Network*& _net , Optimizer*& _opt,
