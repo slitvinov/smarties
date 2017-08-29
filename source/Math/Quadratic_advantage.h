@@ -29,7 +29,7 @@ struct Quadratic_advantage: public Quadratic_term
       const vector<Real>& out) :
       Quadratic_term(_startMat,_startMean,_nA,_nL,out),policy(nullptr) {}
 
-public:
+ public:
   inline void grad(const vector<Real>&act, const Real Qer,
     vector<Real>& netGradient, const vector<bool>& bounded) const
   {
@@ -141,15 +141,105 @@ public:
   void test(const vector<Real>& act);
 };
 
-/*
- inline Real diagTerm(const vector<Real>& S, const vector<Real>& mu,
-      const vector<Real>& a) const
+struct Diagonal_advantage
+{
+  const Uint start_matrix, nA;
+  const vector<Real>& netOutputs;
+  const vector<Real> mean, linear_coefs_pos, linear_coefs_neg;
+  const vector<Real> quadratic_coefs_pos, quadratic_coefs_neg;
+  const Gaussian_policy* const policy;
+  static inline Uint compute_nL(const Uint NA)
   {
-    assert(S.size() == nA);
-    assert(a.size() == nA);
-    assert(mu.size() == nA);
-    Real Q = 0;
-    for (Uint j=0; j<nA; j++) Q += S[j]*std::pow(mu[j]-a[j],2);
-    return Q;
+    return 4*NA;
   }
- */
+
+  Diagonal_advantage(Uint _startMat, Uint _nA, Uint nL, const vector<Real>& out,
+    const Gaussian_policy*const pol) : start_matrix(_startMat), nA(_nA),
+    netOutputs(out), mean(pol->mean), linear_coefs_pos(extract_coefs(0)),
+    linear_coefs_neg(extract_coefs(1)), quadratic_coefs_pos(extract_coefs(2)),
+    quadratic_coefs_neg(extract_coefs(3)), policy(pol) { }
+
+ protected:
+  inline Real diagMatMul(const vector<Real>& act) const
+  {
+    assert(act.size() == nA);
+    Real ret = 0;
+    for (Uint i=0; i<nA; i++) {
+      const Real u = act[i]-mean[i];
+      if(u>0) ret -= u*u*quadratic_coefs_pos[i] + u*linear_coefs_pos[i];
+      else    ret -= u*u*quadratic_coefs_neg[i] - u*linear_coefs_neg[i];
+    }
+    assert(ret<=0);
+    return ret;
+  }
+  inline vector<Real> extract_coefs(const Uint i) const
+  {
+    const Uint start = start_matrix +i*nA;
+    assert(netOutputs.size() >= start+nA);
+    vector<Real> ret( &(netOutputs[start]), &(netOutputs[start+nA]) );
+    for (Uint j=0; j<nA; j++) ret[j] = diag_func(ret[j]);
+    return ret;
+  }
+  static inline Real diag_func(const Real val)
+  {
+    return 0.5*(val + std::sqrt(val*val+1));
+  }
+  static inline Real diag_func_diff(const Real val)
+  {
+    return 0.5*(1 + val/std::sqrt(val*val+1));
+  }
+
+ public:
+  inline void grad(const vector<Real>&act, const Real Qer,
+    vector<Real>& netGradient, const vector<bool>bounded =vector<bool>()) const
+  {
+    assert(act.size()==nA);
+    for (Uint j=0; j<nA; j++)
+    {
+      const Real u = act[j] - mean[j], hvar = 0.5*policy->variance[j];
+      if(u>0) {
+        netGradient[start_matrix+0*nA+j] = -u;
+        netGradient[start_matrix+2*nA+j] = -u*u;
+        netGradient[start_matrix+1*nA+j] = netGradient[start_matrix+3*nA+j] = 0;
+      } else {
+        netGradient[start_matrix+0*nA+j] = netGradient[start_matrix+2*nA+j] = 0;
+        netGradient[start_matrix+1*nA+j] = +u;
+        netGradient[start_matrix+3*nA+j] = -u*u;
+      }
+      netGradient[start_matrix+0*nA+j] += std::sqrt(hvar/M_PI);
+      netGradient[start_matrix+1*nA+j] += std::sqrt(hvar/M_PI);
+      netGradient[start_matrix+2*nA+j] += hvar;
+      netGradient[start_matrix+3*nA+j] += hvar;
+    }
+
+    for (Uint i=start_matrix; i<start_matrix + 4*nA; i++)
+      netGradient[i] *= Qer*diag_func_diff(netOutputs[i]);
+  }
+
+  inline Real computeAdvantage(const vector<Real>& action) const
+  {
+    Real ret = diagMatMul(action);
+    for (Uint i=0; i<nA; i++) { //add expectation from advantage of action
+      const Real hvar = 0.5*policy->variance[i];
+      ret += (quadratic_coefs_pos[i]+quadratic_coefs_neg[i])*hvar;
+      ret += (linear_coefs_pos[i]+linear_coefs_neg[i])*std::sqrt(hvar/M_PI);
+    }
+    return ret;
+  }
+
+  inline Real advantageVariance() const
+  {
+    Real ret = 0;
+    for (Uint i=0; i<nA; i++)
+    {
+      const Real qp = quadratic_coefs_pos[i], lp = linear_coefs_pos[i];
+      const Real qn = quadratic_coefs_neg[i], ln = linear_coefs_neg[i];
+      const Real hvar = 0.5*policy->variance[i];
+      const Real _EQ2 = 6*hvar*hvar*(qp*qp+qn*qn), _2EQ = pow(hvar*(qp+qn), 2);
+      const Real _EL2 = hvar*(lp+ln), _2LQ = pow(sqrt(hvar/M_PI)*(lp+ln), 2);
+      ret += _EQ2-_2EQ + _EL2-_2LQ;
+    }
+    return ret;
+  }
+  void test(const vector<Real>& act);
+};

@@ -17,7 +17,7 @@
 POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
   Learner_utils(comm,_env,settings,settings.nnOutputs), truncation(5),
   DKL_target(settings.klDivConstraint), DKL_hardmax(1), nA(_env->aI.dim),
-  nL(compute_nL(_env->aI.dim)), generators(settings.generators)
+  nL(Advantage::compute_nL(_env->aI.dim)), generators(settings.generators)
 {
   #ifdef FEAT_CONTROL
     const Uint task_out0 = ContinuousSignControl::addRequestedLayers(nA,
@@ -68,7 +68,7 @@ void POAC::select(const int agentId, const Agent& agent)
   //variance is pos def: transform linear output layer with softplus
 
   const Gaussian_policy pol = prepare_policy(output);
-  const Quadratic_advantage adv = prepare_advantage(output, &pol);
+  const Advantage adv = prepare_advantage(output, &pol);
   const Real anneal = annealingFactor();
   const Real safety_std = std::sqrt(1/ACER_MAX_PREC);
   vector<Real> beta_mean=pol.getMean(), beta_std=pol.getStdev(), beta(2*nA,0);

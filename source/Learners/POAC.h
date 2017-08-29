@@ -14,7 +14,9 @@
 
 class POAC : public Learner_utils
 {
-  const Real truncation, DKL_target, DKL_hardmax, CmaxRet = 5, CmaxRho = 5;
+  //typedef Quadratic_advantage Advantage;
+  typedef Diagonal_advantage Advantage;
+  const Real truncation, DKL_target, DKL_hardmax, CmaxRet = 1, CmaxRho = 1;
   const Uint nA, nL;
   std::vector<std::mt19937>& generators;
   mutable vector<vector<Activation*>*> series_1, series_2;
@@ -41,13 +43,13 @@ class POAC : public Learner_utils
     return Gaussian_policy(net_indices[2], net_indices[4], nA, out);
     #endif
   }
-  inline Quadratic_advantage prepare_advantage(const vector<Real>& out,
+  inline Advantage prepare_advantage(const vector<Real>& out,
       const Gaussian_policy*const pol) const
   {
     #if defined ACER_RELAX
-    return Quadratic_advantage(net_indices[1], nA, nL, out, pol);
+    return Advantage(net_indices[1], nA, nL, out, pol);
     #else
-    return Quadratic_advantage(net_indices[1],net_indices[3],nA,nL,out,pol);
+    return Advantage(net_indices[1],net_indices[3],nA,nL,out,pol);
     #endif
   }
 
@@ -68,7 +70,7 @@ class POAC : public Learner_utils
     const Real Qprecision = out_cur[QPrecID], penalDKL = out_cur[PenalID];
     const Gaussian_policy pol_cur = prepare_policy(out_cur);
     const Gaussian_policy pol_hat = prepare_policy(out_hat);
-    const Quadratic_advantage adv_cur = prepare_advantage(out_cur, &pol_cur);
+    const Advantage adv_cur = prepare_advantage(out_cur, &pol_cur);
     const Real A_OPC = Q_OPC - V_cur;
 
     //off policy stored action and on-policy sample:
@@ -161,7 +163,7 @@ class POAC : public Learner_utils
     const Real V_hat = output_hat[net_indices[0]];
     const Gaussian_policy pol_hat = prepare_policy(output_hat);
     //Used as target: target policy, target value
-    const Quadratic_advantage adv_hat = prepare_advantage(output_hat,&pol_hat);
+    const Advantage adv_hat = prepare_advantage(output_hat, &pol_hat);
     //off policy stored action:
     const vector<Real> act = aInfo.getInvScaled(_t->a);//unbounded action space
     const Real actProbOnTarget = pol_hat.evalLogProbability(act);
@@ -194,16 +196,12 @@ public:
   void processStats() override;
   static Uint getnOutputs(const Uint NA)
   {
-#if defined ACER_RELAX
-    // I output V(s), P(s), pol(s), prec(s) (and variate)
-    return 1+compute_nL(NA)+NA+NA+2;
-#else //full formulation
-    // I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
-    return 1+compute_nL(NA)+NA+NA+NA+2;
-#endif
-  }
-  static inline Uint compute_nL(const Uint NA)
-  {
-    return (NA*NA + NA)/2;
+    #if defined ACER_RELAX
+      // I output V(s), P(s), pol(s), prec(s) (and variate)
+      return 1 +Advantage::compute_nL(NA) +NA +NA +2;
+    #else //full formulation
+      // I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
+      return 1 +Advantage::compute_nL(NA) +NA +NA +NA +2;
+    #endif
   }
 };

@@ -15,6 +15,10 @@ struct Quadratic_term
   const Uint start_matrix, start_mean, nA, nL;
   const vector<Real>& netOutputs;
   const vector<Real> L, mean, matrix;
+  static inline Uint compute_nL(const Uint NA)
+  {
+    return (NA*NA + NA)/2;
+  }
 
   Quadratic_term(Uint _startMat, Uint _startMean, Uint _nA, Uint _nL,
       const vector<Real>& out, const vector<Real>_m=vector<Real>()) :
@@ -117,7 +121,6 @@ protected:
       assert(kl==start_matrix+nL);
     }
   }
-
   static inline Real diag_func(const Real val)
   {
     //return std::exp(val) +ACER_TOL_DIAG;
@@ -144,6 +147,8 @@ protected:
     //return (.5*val+1)/(denom*denom*denom);
   }
 };
+
+
 
 /*
  inline Real diagTerm(const vector<Real>& S, const vector<Real>& mu,

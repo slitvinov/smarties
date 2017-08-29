@@ -251,6 +251,6 @@ public:
     return variance;
   }
 
-  void test(const vector<Real>& act, const Gaussian_policy*const pol_hat,
-      const Quadratic_term*const a);
+  void test(const vector<Real>& act, const Gaussian_policy*const pol_hat);//,
+      //const Quadratic_term*const a);
 };
