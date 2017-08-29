@@ -192,11 +192,6 @@ struct Linear : public Function
   }
 };
 
-static inline nnReal nnSafeExp(const nnReal val)
-{
-    return std::exp( std::min((nnReal)8., std::max((nnReal)-16.,val) ) );
-}
-
 struct Tanh : public Function
 {
   Real weightsInitFactor(const Uint inps, const Uint outs) const override

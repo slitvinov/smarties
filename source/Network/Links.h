@@ -59,42 +59,7 @@ public:
       assert(!std::isnan(_weights[w]) && !std::isinf(_weights[w]));
     }
   }
-  void orthogonalize(const Uint n0, nnOpRet _weights, Uint nOut, Uint nIn, Uint n_simd) const
-  {
-    if (nIn<nOut) return;
-
-    for (Uint i=1; i<nOut; i++) {
-      nnReal v_d_v_pre = 0.;
-      for (Uint k=0; k<nIn; k++)
-        v_d_v_pre += *(_weights+n0+k*n_simd+i)* *(_weights+n0+k*n_simd+i);
-      if(v_d_v_pre<std::numeric_limits<nnReal>::epsilon())
-        die("Initialization problem\n");
-
-      for (Uint j=0; j<i;  j++) {
-        nnReal u_d_u = 0.0;
-        nnReal v_d_u = 0.0;
-        for (Uint k=0; k<nIn; k++) {
-          u_d_u += *(_weights+n0+k*n_simd+j)* *(_weights+n0+k*n_simd+j);
-          v_d_u += *(_weights+n0+k*n_simd+j)* *(_weights+n0+k*n_simd+i);
-        }
-        if(u_d_u<std::numeric_limits<nnReal>::epsilon())
-          die("Initialization problem\n");
-
-        for (Uint k=0; k<nIn; k++)
-          *(_weights+n0+k*n_simd+i) -= v_d_u/u_d_u * *(_weights+n0+k*n_simd+j);
-      }
-
-      nnReal v_d_v_post = 0.0;
-      for (Uint k=0; k<nIn; k++)
-        v_d_v_post += *(_weights+n0+k*n_simd+i)* *(_weights+n0+k*n_simd+i);
-
-      if(v_d_v_post<std::numeric_limits<nnReal>::epsilon())
-        die("Initialization problem\n");
-
-      for (Uint k=0; k<nIn; k++)
-        *(_weights+n0+k*n_simd+i) *= std::sqrt(v_d_v_pre/v_d_v_post);
-    }
-  }
+  virtual void orthogonalize(nnOpRet _weights, nnOpInp _biases, const Uint firstBias) const {}
   inline void regularize(nnOpRet weights, const Real lambda) const
   {
     //not sure:
@@ -152,7 +117,7 @@ public:
 
     for (Uint i = 0; i < nI; i++) {
       nnOpInp w = weights +iW +nO_simd*i;
-#pragma omp simd aligned(inp,out,w : VEC_WIDTH) safelen(VEC_WIDTH)
+      #pragma omp simd aligned(inp,out,w : VEC_WIDTH) safelen(VEC_WIDTH)
       for (Uint o = 0; o < nO; o++) out[o] += inp[i] * w[o];
     }
   }
@@ -162,6 +127,23 @@ public:
     for (Uint i = 0; i < nI; i++)
     for (Uint o = 0; o < nO; o++)
       w_fwd[iW +nO_simd*i +o] = w_bck[iW +nI_simd*o +i];
+  }
+  void orthogonalize(nnOpRet _weights, nnOpInp _biases, const Uint firstBias) const override
+  {
+    nnOpRet w = _weights +iW; nnOpInp b = _biases +firstBias;
+    for (Uint i=1; i<nO; i++) {
+      for (Uint j=0; j<i; j++) {
+        nnReal u_d_u = 0.0, v_d_u = 0.0;
+        for (Uint k=0; k<nI; k++) {
+          u_d_u += w[j*nI_simd +k] * w[j*nI_simd +k];
+          v_d_u += w[j*nI_simd +k] * w[i*nI_simd +k];
+        }
+        // || u_d_u<std::numeric_limits<nnReal>::epsilon()
+        if( v_d_u < 0) continue;
+        const nnReal fac = v_d_u/u_d_u * nnSafeExp(-100*std::pow(b[i]-b[j],2));
+        for (Uint k=0; k<nI; k++) w[i*nI_simd +k] -= fac * w[j*nI_simd +k];
+      }
+    }
   }
   inline void sortWeights_fwd_to_bck(nnOpInp w_fwd, nnOpRet w_bck) const override
   {
@@ -184,7 +166,7 @@ public:
       nnOpRet g = gradW +iW +nI_simd*o;
       //g = (nnOpRet)__builtin_assume_aligned(g, VEC_WIDTH);
       //w = (nnOpInp)__builtin_assume_aligned(w, VEC_WIDTH);
-#pragma omp simd aligned(g,inp,delta,err,w : VEC_WIDTH) safelen(VEC_WIDTH)
+      #pragma omp simd aligned(g,inp,delta,err,w : VEC_WIDTH) safelen(VEC_WIDTH)
       for (Uint i = 0; i < nI; i++) {
         g[i] += inp[i] * delta[o];
         err[i] += delta[o] * w[i];
@@ -288,7 +270,8 @@ public:
       nnOpInp wF = weights + iWF + nO_simd*i;
       nnOpInp wO = weights + iWO + nO_simd*i;
 
-#pragma omp simd aligned(inp,inC,inI,inF,inO,wC,wI,wF,wO:VEC_WIDTH) safelen(VEC_WIDTH)
+      #pragma omp simd aligned(inp,inC,inI,inF,inO,wC,wI,wF,wO:VEC_WIDTH) \
+        safelen(VEC_WIDTH)
       for (Uint o = 0; o < nO; o++) {
         inC[o] += inp[i] * wC[o];
         inI[o] += inp[i] * wI[o];
@@ -336,7 +319,8 @@ public:
       nnOpRet gI = gradW +iWI +nI_simd*o;
       nnOpRet gC = gradW +iW  +nI_simd*o;
 
-#pragma omp simd aligned(inp,err,dC,dI,dF,dO,wC,wI,wF,wO,gC,gI,gF,gO:VEC_WIDTH) safelen(VEC_WIDTH)
+      #pragma omp simd aligned(inp, err, dC, dI, dF, dO, wC, wI, wF, wO, gC, \
+       gI, gF, gO : VEC_WIDTH) safelen(VEC_WIDTH)
       for (Uint i = 0; i < nI; i++) {
         gC[i] += inp[i] * dC[o];
         gI[i] += inp[i] * dI[o];
@@ -437,7 +421,7 @@ public:
         for(Uint iz=0; iz<inputDepth; iz++) { //loop over inp feature maps:
           nnOpInp w = weights +iW +outputDepth_simd*(iz +inputDepth*(fy +filterHeight*fx));
 
-#pragma omp simd aligned(out, inp, w : VEC_WIDTH) safelen(simdWidth)
+          #pragma omp simd aligned(out, inp, w : VEC_WIDTH) safelen(simdWidth)
           for(Uint fz=0; fz<outputDepth; fz++) //loop over number of kernels
             out[fz] += inp[iz] * w[fz];
         }

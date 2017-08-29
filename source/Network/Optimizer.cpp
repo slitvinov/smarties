@@ -145,6 +145,7 @@ void AdamOptimizer::update(Grads* const G, const Uint batchsize)
   if (beta_t_2<nnEPS) beta_t_2 = 0;
 
   if(lambda>nnEPS) net->regularize(lambda*_eta);
+  //net->orthogonalize();
   net->sortWeights_bck_to_fwd();
 }
 

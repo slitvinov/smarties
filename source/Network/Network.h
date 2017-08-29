@@ -201,9 +201,15 @@ public:
   void checkGrads();
   inline void regularize(const Real lambda) const
   {
-#pragma omp parallel for
+    #pragma omp parallel for
     for (Uint j=0; j<nLayers; j++)
-      layers[j]->regularize(weights, biases, lambda);
+      layers[j]->regularize(weights_back, biases, lambda);
+  }
+  inline void orthogonalize() const
+  {
+    #pragma omp parallel for
+    for (Uint j=0; j<nLayers; j++)
+      layers[j]->orthogonalize(weights_back, biases);
   }
 
   void save(vector<nnReal> & outWeights, vector<nnReal> & outBiases,

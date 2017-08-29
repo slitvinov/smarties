@@ -39,6 +39,11 @@ inline Uint roundUpSimd(const Uint size)
   return std::ceil(size/(Real)simdWidth)*simdWidth;
 }
 
+static inline nnReal nnSafeExp(const nnReal val)
+{
+    return std::exp( std::min((nnReal)8., std::max((nnReal)-16.,val) ) );
+}
+
 static inline void Lpenalization(nnReal* const weights, const Uint start, const Uint N, const nnReal lambda)
 {
   for (Uint i=start; i<start+N; i++)

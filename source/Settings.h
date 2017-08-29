@@ -381,6 +381,7 @@ struct Settings
     if(targetDelay<0)  die("targetDelay<0\n");
     if(greedyEps<0)  die("greedyEps<0\n");
     if(gamma<0)  die("gamma<0\n");
+    if(gamma>1)  die("gamma>1\n");
     if(minSeqLen<2)  die("appendedObs<2\n");
     if(obsPerStep<0)  die("obsPerStep<0\n");
     if(epsAnneal<0)  die("epsAnneal<0\n");
