@@ -105,7 +105,7 @@ void POAC::Train(const Uint seq, const Uint samp, const Uint thrID) const
   //for off policy correction we need reward, therefore not last one:
   Uint nSUnroll = min(                     ndata-samp-1, nMaxTargets-1);
   //if we do not have a terminal reward, then we compute value of last state:
-  Uint nSValues = min(bEnd? ndata-1-samp : ndata-samp  , nMaxTargets  );
+  Uint nSValues = min(bEnd? ndata-samp-1 : ndata-samp  , nMaxTargets  );
   //if truncated seq, we cannot compute the OFFPOL correction for the last one
   const Uint nRecurr = bRecurrent ? min(nMaxBPTT,samp)+1        : 1;
   const Uint iRecurr = bRecurrent ? max(nMaxBPTT,samp)-nMaxBPTT : samp;
@@ -148,14 +148,27 @@ void POAC::Train(const Uint seq, const Uint samp, const Uint thrID) const
       const Real probTrgt = pol_hat.evalLogProbability(act);
       const Real probBeta = Gaussian_policy::evalBehavior(act, _t->mu);
       importanceW *= C * std::min(CmaxRet, safeExp(probTrgt-probBeta));
-      if (importanceW < std::numeric_limits<nnReal>::epsilon()) {
-        //printf("Cut trace afert %u out of %u samples!\n",k,nSValues);
+      //if (importanceW < std::numeric_limits<nnReal>::epsilon()) {
+      if (importanceW < 1e-2) {
+        //printf("Cut trace after %u out of %u samples!\n",k,nSValues);
+        //fflush(stdout);
         nSUnroll = k; //for last state we do not compute offpol correction
         nSValues = k+1; //we initialize value of Q_RET to V(state)
         break;
       }
     #endif
   }
+  /*
+  if(data->Set.size() == 5000) {
+    char asciipath[256];
+    sprintf(asciipath, "trunc_seqs_%d.txt", thrID);
+    ofstream filestats;
+    filestats.open(asciipath, ios::app);
+    filestats<<data->nSeenSequences-data->Set[seq]->ID<<" "<<nSValues<<" "<<ndata-1-samp<<endl;
+    filestats.close();
+    filestats.flush();
+  }
+  */
 
   if(thrID==1)  profiler->stop_start("ADV");
 

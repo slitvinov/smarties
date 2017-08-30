@@ -95,7 +95,7 @@ int Master::run()
         if(!bTrain && stepNum >= totNumSteps) break; //check for termination
         if(learner->batchGradientReady()) break;
 
-        spawnTrainingTasks(first, postponed_queue.size());
+        spawnTrainingTasks(first, postponed_queue.size()==nSlaves);
 
         for(int i=0; i<nSlaves; i++) // && not learner->batchGradientReady()
         {

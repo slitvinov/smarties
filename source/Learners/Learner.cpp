@@ -14,8 +14,9 @@ Learner::Learner(MPI_Comm comm, Environment*const _env, Settings & _s) :
 mastersComm(comm), env(_env), tgtUpdateDelay((Uint)_s.targetDelay),
 nAgents(_s.nAgents), batchSize(_s.batchSize), nAppended(_s.appendedObs),
 maxTotSeqNum(_s.maxTotSeqNum),totNumSteps(_s.totNumSteps),nThreads(_s.nThreads),
-nSThreads(_s.nThreads),learn_rank(_s.learner_rank),learn_size(_s.learner_size), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),bRecurrent(_s.bRecurrent),
-bSampleSequences(_s.bSampleSequences),
+nSlaves(_s.nSlaves), nSThreads(_s.nThreads), learn_rank(_s.learner_rank),
+learn_size(_s.learner_size), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
+bRecurrent(_s.bRecurrent), bSampleSequences(_s.bSampleSequences),
 bTrain(_s.bTrain), tgtUpdateAlpha(_s.targetDelay), greedyEps(_s.greedyEps),
 gamma(_s.gamma), epsAnneal(_s.epsAnneal), obsPerStep(_s.obsPerStep),
 aInfo(env->aI), sInfo(env->sI), gen(&_s.generators[0])
@@ -42,7 +43,7 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
     if ( !availTasks ) return 0;
     const int nSpawn = availTasks;
   #else
-  const int nSpawn = sequences.size();
+    const int nSpawn = sequences.size();
   #endif
 
   if(bSampleSequences)
@@ -53,7 +54,7 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
       #ifdef FULLTASKING
 #pragma omp task firstprivate(sequence) if(readNTasks()<nSThreads)
       #else
-#pragma omp task firstprivate(sequence) if(!availTasks)
+#pragma omp task firstprivate(sequence) //if(!availTasks)
       #endif
       {
         const int thrID = omp_get_thread_num();
@@ -113,7 +114,6 @@ void Learner::prepareData() //this cannot be called from omp parallel region
   //      MPI_UNSIGNED, MPI_SUM, mastersComm);
   //}
   //if(syncDataStats) data->update_samples_mean(0); //annealFac
-  data->update_rewards_mean();
 
   taskCounter = 0;
   sequences.resize(batchSize);
@@ -137,8 +137,7 @@ void Learner::applyGradient() //this cannot be called from omp parallel region
   stackAndUpdateNNWeights();
   updateTargetNetwork();
 
-  if(opt->nepoch%100 ==0)
-    processStats();
+  if(opt->nepoch%100 ==0) processStats();
 
   profiler->stop_all();
 
@@ -214,14 +213,15 @@ bool Learner::batchGradientReady()
   const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
   const Real sequenceCounter = data->nSeenSequences - nData_b4PolUpdates;
   //if there is not enough data for training: go back to master
-  {
-    if ( ! readyForTrain() ) {
-      nData_b4PolUpdates = data->nSeenSequences;
-      return false;
-    }
+  if ( ! readyForTrain() ) {
+    nData_b4PolUpdates = data->nSeenSequences;
+    return false;
+  }
 
-    //If I have done too many gradient steps on the avail data, go back to comm
-    if( requestedSequences > sequenceCounter ) return false;
+  //If I have done too many gradient steps on the avail data, go back to comm
+  if( requestedSequences > sequenceCounter ) {
+    //profiler_ext->stop_start("STOP");
+    return false;
   }
 
   //else if threads finished processing data:
@@ -231,8 +231,8 @@ bool Learner::batchGradientReady()
 bool Learner::readyForAgent(const int slave, const int agent)
 {
   if ( ! readyForTrain() ) return true;
-  const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
-  return data->nSeenSequences - nData_b4PolUpdates <= requestedSequences;
+  const Real requestedSequences = (opt->nepoch+1) *obsPerStep/(Real)learn_size;
+  return data->nSeenSequences-nData_b4PolUpdates <= requestedSequences+nSlaves;
 }
 bool Learner::slaveHasUnfinishedSeqs(const int slave) const
 {

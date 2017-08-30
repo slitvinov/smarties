@@ -31,7 +31,7 @@ struct Sequence
   vector<Tuple*> tuples;
   bool ended = false;
   Real MSE = 0;
-
+  Uint ID = 0;
   ~Sequence()
   {
     for (auto & trash : tuples) _dispose_object( trash);
@@ -61,7 +61,6 @@ protected:
   const Real gamma;
   bool first_pass = true;
   std::vector<std::mt19937>& generators;
-  Uint iOldestSaved = 0, printCount = 0;
   vector<Real> std, mean, invstd;
   vector<Uint> curr_transition_id, inds;
   discrete_distribution<Uint> * dist = nullptr;
@@ -79,6 +78,7 @@ public:
   const StateInfo sI;
   const ActionInfo aI;
   Uint anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0, nSeenSequences=0;
+  Uint iOldestSaved = 0, printCount = 0;
   Real invstd_reward = 1, mean_reward = 0;
   Gen * gen;
   vector<Sequence*> Set, Tmp, Buffered;

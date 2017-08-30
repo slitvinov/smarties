@@ -292,15 +292,17 @@ void Transitions::push_back(const int & agentId)
 {
   if(Tmp[agentId]->tuples.size() > minSeqLen ) {
     lock_guard<mutex> lock(dataset_mutex);
-    if (nSequences>=maxTotSeqNum) Buffered.push_back(Tmp[agentId]);
-    else {
-      nSequences++;
+    if (nSequences>=maxTotSeqNum) {
+      Buffered.push_back(Tmp[agentId]);
+      Buffered.back()->ID = nSeenSequences++;
+    } else {
       if (not Tmp[agentId]->ended) ++nBroken;
 
       Set.push_back(Tmp[agentId]);
+      Set.back()->ID = nSeenSequences++;
       nTransitions+=Tmp[agentId]->tuples.size()-1;
+      nSequences++;
     }
-    nSeenSequences++;
   } else {
     //for (int i(0); i<Tmp[agentId]->tuples.size(); i++) {
       //    _dispose_object(Tmp[agentId]->tuples[i]);
@@ -527,6 +529,7 @@ Uint Transitions::updateSamples(const Real annealFac)
     update_meanstd_needed = nTransitions!=old_ndata;
     old_ndata = nTransitions;
   }
+  if(update_meanstd_needed) update_rewards_mean();
   update_meanstd_needed = update_meanstd_needed && bNormalize && annealFac>0;
 
   #ifndef importanceSampling
