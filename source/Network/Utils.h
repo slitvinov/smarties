@@ -14,11 +14,11 @@
 #if 0
   typedef double nnReal;
   #define MPI_NNVALUE_TYPE MPI_DOUBLE
-  #define EXP_CUT 8
+  #define EXP_CUT 8 //prevent under/over flow with exponentials
 #else
   #define MPI_NNVALUE_TYPE MPI_FLOAT
   typedef float nnReal;
-  #define EXP_CUT 4
+  #define EXP_CUT 4 //prevent under/over flow with exponentials
 #endif
 
 typedef nnReal* __restrict__       const nnOpRet;

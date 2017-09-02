@@ -13,7 +13,7 @@
 
 class Link
 {
-public:
+ public:
   const Uint iW, nI, iI, nO, iO, nO_simd, nI_simd, nW;
   Link(Uint _nI, Uint _iI, Uint _nO, Uint _iO, Uint _iW, Uint _nO_simd, Uint _nI_simd, Uint _nW) : iW(_iW), nI(_nI), iI(_iI), nO(_nO), iO(_iO), nO_simd(_nO_simd), nI_simd(_nI_simd), nW(_nW) {}
 
@@ -36,7 +36,6 @@ public:
     for (Uint i = 0; i < nIn; i++)
       for (Uint o = 0; o < nOut; o++)
         _weights[n0 + n_simd*i + o] = dis(*gen);
-    //orthogonalize(n0, _weights, nOut, nAdded, n_simd);
   }
   virtual void save(vector<nnReal>& out, nnOpRet _weights) const = 0;
   void _save(vector<nnReal>& out, nnOpRet _weights, Uint n0, Uint nOut, Uint nIn, Uint n_simd) const
@@ -69,7 +68,7 @@ public:
 
 class NormalLink: public Link
 {
-public:
+ public:
   /*
      a link here is defined as link layer to layer:
      index iI along the network activation outvals representing the index of the first neuron of input layer
@@ -97,19 +96,27 @@ public:
         <<" nO_simd"<<nO_simd<<" nI_simd"<<nI_simd<<endl;
     fflush(0);
   }
+
   void save(vector<nnReal> & out, nnOpRet _weights) const override
   {
     _save(out, _weights, iW, nO, nI, nO_simd);
   }
+
   void restart(vector<nnReal> & buf, nnOpRet _weights) const override
   {
     _restart(buf, _weights, iW, nO, nI, nO_simd);
   }
+
   void initialize(mt19937*const gen, nnOpRet _weights, const Function*const func, const Real fac) const
   {
     const Real init = func->weightsInitFactor(nI, nO)*fac;
     _initialize(gen, _weights, init, iW, nO, nI, nO_simd);
   }
+
+  //Links are from specific layer to specific layer:
+  // propagate inp_i = sum_i,j w_i,j out_j ( Layer.h does out_i = f(inp_i) )
+  // netFrom is network state in which out_j of input layer are stored
+  // netTo is network state in which inp_i of output layer are to be computed
   inline void propagate(const Activation*const netFrom, Activation*const netTo, nnOpInp weights) const
   {
     nnOpInp inp = netFrom->outvals +iI;
@@ -121,13 +128,7 @@ public:
       for (Uint o = 0; o < nO; o++) out[o] += inp[i] * w[o];
     }
   }
-  inline void sortWeights_bck_to_fwd(nnOpInp w_bck, nnOpRet w_fwd) const override
-  {
-    #pragma omp parallel for collapse(2)
-    for (Uint i = 0; i < nI; i++)
-    for (Uint o = 0; o < nO; o++)
-      w_fwd[iW +nO_simd*i +o] = w_bck[iW +nI_simd*o +i];
-  }
+
   void orthogonalize(nnOpRet _weights, nnOpInp _biases, const Uint firstBias) const override
   {
     nnOpRet w = _weights +iW; nnOpInp b = _biases +firstBias;
@@ -138,13 +139,23 @@ public:
           u_d_u += w[j*nI_simd +k] * w[j*nI_simd +k];
           v_d_u += w[j*nI_simd +k] * w[i*nI_simd +k];
         }
-        // || u_d_u<std::numeric_limits<nnReal>::epsilon()
         if( v_d_u < 0) continue;
         const nnReal fac = v_d_u/u_d_u * nnSafeExp(-100*std::pow(b[i]-b[j],2));
         for (Uint k=0; k<nI; k++) w[i*nI_simd +k] -= fac * w[j*nI_simd +k];
       }
     }
   }
+
+  //input: weights sorted for fast back prop, ret: weights for fast fwd prop
+  inline void sortWeights_bck_to_fwd(nnOpInp w_bck, nnOpRet w_fwd) const override
+  {
+    #pragma omp parallel for collapse(2)
+    for (Uint i = 0; i < nI; i++)
+    for (Uint o = 0; o < nO; o++)
+      w_fwd[iW +nO_simd*i +o] = w_bck[iW +nI_simd*o +i];
+  }
+
+  //input: weights sorted for fast fwd prop, ret: weights for fast back prop
   inline void sortWeights_fwd_to_bck(nnOpInp w_fwd, nnOpRet w_bck) const override
   {
     #pragma omp parallel for collapse(2)
@@ -152,47 +163,29 @@ public:
     for (Uint o = 0; o < nO; o++)
       w_bck[iW +nI_simd*o +i] = w_fwd[iW +nO_simd*i +o];
   }
+
+  // assumes that layer.h already computed d Error/d inp_i
   inline void backPropagate(Activation*const netFrom, const Activation*const netTo, nnOpInp weights, nnOpRet gradW) const
   {
     nnOpInp inp = netFrom->outvals + iI;
-    nnOpInp delta = netTo->errvals + iO;
-    nnOpRet err = netFrom->errvals + iI;
-    //inp = (nnOpInp)__builtin_assume_aligned(inp, VEC_WIDTH);
-    //err = (nnOpRet)__builtin_assume_aligned(err, VEC_WIDTH);
-    //delta = (nnOpInp)__builtin_assume_aligned(delta, VEC_WIDTH);
-    #if 1
+    nnOpInp delta = netTo->errvals + iO; //contains d Error / d inp_i
+    nnOpRet err = netFrom->errvals + iI; //to compute: d Error / d out_j
+
     for (Uint o = 0; o < nO; o++) {
       nnOpInp w = weights +iW +nI_simd*o;
       nnOpRet g = gradW +iW +nI_simd*o;
-      //g = (nnOpRet)__builtin_assume_aligned(g, VEC_WIDTH);
-      //w = (nnOpInp)__builtin_assume_aligned(w, VEC_WIDTH);
       #pragma omp simd aligned(g,inp,delta,err,w : VEC_WIDTH) safelen(VEC_WIDTH)
       for (Uint i = 0; i < nI; i++) {
         g[i] += inp[i] * delta[o];
         err[i] += delta[o] * w[i];
       }
     }
-    #else
-
-    for (Uint o = 0; o < nO; o++) {
-      nnOpInp w = weights +iW +nI_simd*o;
-      #pragma omp simd aligned(delta,err,w : VEC_WIDTH) safelen(VEC_WIDTH)
-      for (Uint i = 0; i < nI; i++) err[i] += delta[o] * w[i];
-    }
-
-    for (Uint o = 0; o < nO; o++) {
-      nnOpRet g = gradW +iW +nI_simd*o;
-      #pragma omp simd aligned(g,inp,delta : VEC_WIDTH) safelen(VEC_WIDTH)
-      for (Uint i = 0; i < nI; i++) g[i] += inp[i] * delta[o];
-    }
-
-    #endif
   }
 };
 
 class LinkToLSTM : public Link
 {
-public:
+ public:
   /*
      if link is TO lstm, then the rules change a bit
      if a input signal is connected to one of the gates, is also connected to the others
@@ -258,16 +251,16 @@ public:
 
   inline void propagate(const Activation* const netFrom, Activation* const netTo, nnOpInp weights) const
   {
-    nnOpInp inp = netFrom->outvals + iI;
-    nnOpRet inC = netTo->in_vals + iO;
-    nnOpRet inI = netTo->iIGates + iC;
-    nnOpRet inF = netTo->iFGates + iC;
-    nnOpRet inO = netTo->iOGates + iC;
+    nnOpInp inp = netFrom->outvals + iI; //outputs feeding into lstm layer
+    nnOpRet inC = netTo->in_vals + iO; //input to cell's nonlin func
+    nnOpRet inI = netTo->iIGates + iC; //input to input gate's nonlin func
+    nnOpRet inF = netTo->iFGates + iC; //input to forget gate's nonlin func
+    nnOpRet inO = netTo->iOGates + iC; //input to output gate's nonlin func
 
     for (Uint i = 0; i < nI; i++) {
-      nnOpInp wC = weights + iW  + nO_simd*i;
-      nnOpInp wI = weights + iWI + nO_simd*i;
-      nnOpInp wF = weights + iWF + nO_simd*i;
+      nnOpInp wC = weights + iW  + nO_simd*i; //weights that connect
+      nnOpInp wI = weights + iWI + nO_simd*i; //from layers's output
+      nnOpInp wF = weights + iWF + nO_simd*i; // to cell/gates input
       nnOpInp wO = weights + iWO + nO_simd*i;
 
       #pragma omp simd aligned(inp,inC,inI,inF,inO,wC,wI,wF,wO:VEC_WIDTH) \
@@ -282,6 +275,7 @@ public:
   }
   inline void sortWeights_bck_to_fwd(nnOpInp w_bck, nnOpRet w_fwd) const override
   {
+    #pragma omp parallel for collapse(2)
     for (Uint i = 0; i < nI; i++)
     for (Uint o = 0; o < nO; o++) {
       w_fwd[iW  +nO_simd*i +o] = w_bck[iW  +nI_simd*o +i];
@@ -292,6 +286,7 @@ public:
   }
   inline void sortWeights_fwd_to_bck(nnOpInp w_fwd, nnOpRet w_bck) const override
   {
+    #pragma omp parallel for collapse(2)
     for (Uint i = 0; i < nI; i++)
     for (Uint o = 0; o < nO; o++) {
       w_bck[iW  +nI_simd*o +i] = w_fwd[iW  +nO_simd*i +o];
@@ -304,20 +299,14 @@ public:
   {
     nnOpInp inp = netFrom->outvals + iI;
     nnOpRet err = netFrom->errvals + iI;
-    nnOpInp dC = netTo->eMCell  +iC;
-    nnOpInp dI = netTo->eIGates +iC;
-    nnOpInp dF = netTo->eFGates +iC;
-    nnOpInp dO = netTo->eOGates +iC;
+    nnOpInp dC = netTo->eMCell  +iC, dI = netTo->eIGates +iC;
+    nnOpInp dF = netTo->eFGates +iC, dO = netTo->eOGates +iC;
 
     for (Uint o = 0; o < nO; o++) {
-      nnOpInp wO = weights +iWO +nI_simd*o;
-      nnOpInp wF = weights +iWF +nI_simd*o;
-      nnOpInp wI = weights +iWI +nI_simd*o;
-      nnOpInp wC = weights +iW  +nI_simd*o;
-      nnOpRet gO = gradW +iWO +nI_simd*o;
-      nnOpRet gF = gradW +iWF +nI_simd*o;
-      nnOpRet gI = gradW +iWI +nI_simd*o;
-      nnOpRet gC = gradW +iW  +nI_simd*o;
+      nnOpInp wO = weights +iWO +nI_simd*o, wF = weights +iWF +nI_simd*o;
+      nnOpInp wI = weights +iWI +nI_simd*o, wC = weights +iW  +nI_simd*o;
+      nnOpRet gO = gradW +iWO +nI_simd*o, gF = gradW +iWF +nI_simd*o;
+      nnOpRet gI = gradW +iWI +nI_simd*o, gC = gradW +iW  +nI_simd*o;
 
       #pragma omp simd aligned(inp, err, dC, dI, dF, dO, wC, wI, wF, wO, gC, \
        gI, gF, gO : VEC_WIDTH) safelen(VEC_WIDTH)
@@ -334,7 +323,7 @@ public:
 
 class LinkToConv2D : public Link
 {
-public:
+ public:
   const Uint inputWidth, inputHeight, inputDepth;
   const Uint filterWidth, filterHeight, outputDepth_simd;
   const Uint outputWidth, outputHeight, outputDepth;
@@ -454,14 +443,14 @@ public:
         nnOpInp delta= netTo->errvals +iO+outputDepth_simd*(oy+outputHeight*ox);
 
         for(Uint iz=0; iz<inputDepth; iz++) {
-          nnOpInp w = weights +iW +outputDepth_simd*(iz+ inputDepth*(fy+ filterHeight*fx));
           nnOpRet g = gradW +iW +outputDepth_simd*(iz +inputDepth*(fy +filterHeight*fx));
-
-#pragma omp simd aligned(err, w, delta, g, inp : VEC_WIDTH) safelen(simdWidth)
-          for(Uint fz=0; fz<outputDepth; fz++) {
-            err[iz] += w[fz]*delta[fz];
-            g[fz] += inp[iz]*delta[fz];
-          }
+          #pragma omp simd aligned(delta,g,inp:VEC_WIDTH) safelen(simdWidth)
+          for(Uint fz=0; fz<outputDepth; fz++)  g[fz] += inp[iz]*delta[fz];
+        }
+        for(Uint iz=0; iz<inputDepth; iz++) {
+          nnOpInp w = weights +iW +outputDepth_simd*(iz+ inputDepth*(fy+ filterHeight*fx));
+          #pragma omp simd aligned(err,w,delta:VEC_WIDTH) safelen(simdWidth)
+          for(Uint fz=0; fz<outputDepth; fz++)  err[iz] += w[fz]*delta[fz];
         }
       }
     }

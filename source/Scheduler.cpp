@@ -73,14 +73,14 @@ int Master::run()
     learner->prepareData(); //sync data, make sure we can sample
     profiler->stop_start("TASK");
 
-    bool first = true;
     #pragma omp parallel num_threads(nThreads)
     #pragma omp master
     {
       if(postponed_queue.size())
       {
         profiler->stop_start("QUEUE");
-        for (const auto& w : postponed_queue) {
+        for (const auto& w : postponed_queue)
+        {
           const int slave = w.first, agent = w.second;
           addToNTasks(1);
           #pragma omp task firstprivate(slave, agent)
@@ -89,13 +89,14 @@ int Master::run()
         postponed_queue.clear();
       }
 
+      bool first = true;
       profiler->stop_start("COMM");
       while (true)
       {
         if(!bTrain && stepNum >= totNumSteps) break; //check for termination
         if(learner->batchGradientReady()) break;
 
-        spawnTrainingTasks(first, postponed_queue.size()==nSlaves);
+        spawnTrainingTasks(first, postponed_queue.size()==(size_t)nSlaves);
 
         for(int i=0; i<nSlaves; i++) // && not learner->batchGradientReady()
         {
@@ -136,9 +137,8 @@ int Master::run()
               processRequest(slave, agent);
             }
             else postponed_queue.push_back(make_pair(slave, agent));
-
-            //error("number of tasks %d", learner->readNTasks());
-            assert(learner->readNTasks()<nThreads && learner->readNTasks()>=0);
+            debugS("number of tasks %d", learner->readNTasks());
+            assert(learner->readNTasks()>=0);
           }
         }
       }

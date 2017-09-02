@@ -65,9 +65,12 @@ struct CartPole
   const double mc = 1;
   const double l = 0.5;
   const double g = 9.81;
-  int info, step;
+  const double dt = 4e-4;
+  const int nsteps = 50;
+  int info=1, step=0;
   Vec4 u;
-  double F, t;
+  double F=0, t=0;
+
 	void reset(std::mt19937& gen)
 	{
 		#if SWINGUP
@@ -80,22 +83,51 @@ struct CartPole
 		info = 1;
 	}
 
-	void getStateRew(vector<double>& state, double& rew)
+  bool is_over()
+  {
+    #if SWINGUP
+      return step>=500 || std::fabs(u.y1)>2.4;
+    #else
+      return step>=500 || std::fabs(u.y1)>2.4 || std::fabs(u.y3)>M_PI/15;
+    #endif
+  }
+
+  int advance(vector<double> action)
+  {
+    F = action[0];
+    step++;
+    for (int i=0; i<nsteps; i++) {
+      u = rk46_nl(t, dt, u, bind(&CartPole::Diff, this, placeholders::_1, placeholders::_2) );
+      t += dt;
+      if( is_over() ) return 1;
+    }
+    return 0;
+  }
+
+	vector<double> getState()
 	{
+    vector<double> state(6);
 		state[0] = u.y1;
 		state[1] = u.y2;
 		state[2] = u.y4;
 		state[3] = u.y3;
 		state[4] = std::cos(u.y3);
 		state[5] = std::sin(u.y3);
-		#if SWINGUP
-  		double angle = std::fmod(u.y3, 2*M_PI);
-  		angle = angle<0 ? angle+2*M_PI : angle;
-  		rew = fabs(angle-M_PI)<M_PI/6 ? 1 : 0;
-		#endif
+		return state;
 	}
 
-  Vec4 D(Vec4 u, double t)
+  double getReward()
+  {
+    #if SWINGUP
+  		double angle = std::fmod(u.y3, 2*M_PI);
+  		angle = angle<0 ? angle+2*M_PI : angle;
+  		return fabs(angle-M_PI)<M_PI/6 ? 1 : 0;
+    #else
+      return -1*( fabs(u.y3)>M_PI/15 || fabs(u.y1)>2.4 );
+		#endif
+  }
+
+  Vec4 Diff(Vec4 u, double t)
   {
     Vec4 res;
 
@@ -120,59 +152,71 @@ struct CartPole
   }
 };
 
-Communicator * comm;
 int main(int argc, const char * argv[])
 {
-  const int n = 1; //n agents
   //communication:
-  const int sock = std::stoi(argv[1]);
-  //time stepping
-  const double dt = 4e-4;
-	double rew = 0;
-  std::mt19937 gen(sock);
+  const int socket = std::stoi(argv[1]);
 
-  //communicator class, it needs a socket number sock, given by RL as first argument of execution
-  Communicator comm(sock,6,1);
-  //vector of state variables: in this case x, v, theta, ang_velocity
-  vector<double> state(6);
-  //vector of actions received by RL
-  vector<double> actions(1);
+  const int control_vars = 1; // force along x
+  const int state_vars = 6;
+  //  - x position
+  //  - x velocity
+  //  - ang velocity
+  //  - angle
+  //  - cos(angle)
+  //  - sin(angle)
 
-  //random initial conditions:
-  vector<CartPole> agents(n);
-  for (auto& a : agents) a.reset(gen);
+  //socket number is given by RL as first argument of execution
+  Communicator comm(socket, state_vars, control_vars);
 
-  while (true) {
+  //OPTIONAL: action bounds
+  bool bounded = true;
+  vector<double> upper_action_bound{10}, lower_action_bound{-10};
+  comm.set_action_scales(upper_action_bound, lower_action_bound, bounded);
 
-    int k = 0; //agent ID, for now == 0
-    for(auto& a : agents) {
-			a.getStateRew(state, rew);
+  /*
+    // ALTERNATIVE for discrete actions:
+    vector<int> n_options = vector<int>{2};
+    comm.set_action_options(n_options);
+    // will receive either 0 or 1, app chooses resulting outcome
+  */
 
-      comm.sendState(k, a.info, state, rew);
-      comm.recvAction(actions);
-      a.F = actions[0];
-      a.info = 0; //at least one comm is done, so i set info to 0
-			a.step++;
-  		//advance the sim:
-      for (int i=0; i<50; i++) {
-        a.u = rk46_nl(a.t, dt, a.u, bind(&CartPole::D, &a, placeholders::_1, placeholders::_2));
-        a.t += dt;
+  //OPTIONAL: hide state variables.
+  // e.g. show cosine/sine but not angle
+  vector<bool> b_observable = {true, true, true, false, true, true};
+  comm.set_state_observable(b_observable);
 
-        //check if terminal state has been reached:
-        #if SWINGUP
-          if(a.step>=500 || std::fabs(a.u.y1)>2.4 ) {
-        #else
-				  if(a.step>=500 || std::fabs(a.u.y1)>2.4 || std::fabs(a.u.y3)>M_PI/15 ) {
-					  rew = -1*( fabs(a.u.y3)>M_PI/15 || fabs(a.u.y1)>2.4 );
-        #endif
-					  a.getStateRew(state, rew);
-            comm.sendState(k, 2, state, rew);
-            a.reset(gen); //re-initialize (random initial conditions):
-					  rew = 0;
-            break;
-          }
+  //OPTIONAL: set space bounds
+  vector<double> upper_state_bound{ 1,  1,  1,  1,  1,  1};
+  vector<double> lower_state_bound{-1, -1, -1, -1, -1, -1};
+  comm.set_state_scales(upper_state_bound, lower_state_bound);
+
+  CartPole env;
+
+  while(true) //train loop
+  {
+    //reset environment:
+    env.reset(comm.gen); //comm contains rng with different seed on each rank
+
+
+    comm.sendInitState(env.getState()); //send initial state
+
+    while (true) //simulation loop
+    {
+      vector<double> action = comm.recvAction();
+
+      //advance the simulation:
+      bool terminated = env.advance(action);
+
+      vector<double> state = env.getState();
+      double reward = env.getReward();
+
+      if(terminated)  //tell smarties that this is a terminal state
+      {
+        comm.sendTermState(state, reward);
+        break;
       }
+      else comm.sendState(state, reward);
     }
   }
-  return 0;
 }

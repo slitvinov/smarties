@@ -17,5 +17,5 @@ class openAICartEnvironment : public Environment
 public:
     openAICartEnvironment(const int nAgents, const string execpath, Settings & settings);
 
-    void setDims() override;
+    //void setDims() override;
 };

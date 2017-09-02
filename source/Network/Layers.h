@@ -13,7 +13,7 @@
 
 class Layer
 {
-public:
+ public:
   const Uint nNeurons, n1stNeuron, n1stBias, nNeurons_simd;
   const Function* const func;
   //Profiler* profiler;
@@ -51,7 +51,7 @@ public:
 template<typename TLink>
 class BaseLayer: public Layer
 {
-public:
+ public:
   const vector<TLink*> input_links;
   const TLink* const recurrent_link;
 
@@ -167,7 +167,7 @@ public:
 
 class NormalLayer: public BaseLayer<NormalLink>
 {
-public:
+ public:
   NormalLayer(Uint _nNeurons, Uint _n1stNeuron, Uint _n1stBias,
       const vector<NormalLink*> nl_il, const NormalLink* const nl_rl,
       const Function*const f, const Uint nn_simd, const bool bOut = false) :
@@ -190,7 +190,7 @@ public:
 
 class Conv2DLayer : public BaseLayer<LinkToConv2D>
 {
-public:
+ public:
   Conv2DLayer(Uint _nNeurons, Uint _n1stNeuron, Uint _n1stBias, const vector<LinkToConv2D*> nl_il, const Function*const f, const Uint nn_simd, const bool bOut = false) : BaseLayer(_nNeurons, _n1stNeuron, _n1stBias, nl_il, nullptr, f, nn_simd, bOut)
   {
     printf("Conv2D Layer of size %d, with first ID %d and first bias ID %d\n",
@@ -210,7 +210,7 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
   const Function* const gate;
   const Function* const cell;
 
-public:
+ public:
   ~LSTMLayer() {_dispose_object(gate); _dispose_object(cell);}
   LSTMLayer(Uint _nNeurons, Uint _n1stNeuron, Uint _indState, Uint _n1stBias,
       Uint _n1stBiasIG, Uint _n1stBiasFG, Uint _n1stBiasOG,
@@ -230,29 +230,20 @@ public:
 
   void propagate(const Activation*const prev, Activation*const curr, nnOpInp weights, nnOpInp biases) const override
   {
-    nnOpRet outputI = curr->oIGates +n1stCell;
-    nnOpRet outputF = curr->oFGates +n1stCell;
-    nnOpRet outputO = curr->oOGates +n1stCell;
-    nnOpRet outputC = curr->oMCell +n1stCell;
-    nnOpRet inputs = curr->in_vals +n1stNeuron;
-    nnOpRet inputI = curr->iIGates +n1stCell;
-    nnOpRet inputF = curr->iFGates +n1stCell;
-    nnOpRet inputO = curr->iOGates +n1stCell;
-    nnOpInp biasC = biases +n1stBias;
-    nnOpInp biasI = biases +n1stBiasIG;
-    nnOpInp biasF = biases +n1stBiasFG;
-    nnOpInp biasO = biases +n1stBiasOG;
-    nnOpInp oldState = (prev==nullptr ? curr->ostates : prev->ostates) +n1stCell; //if nullptr then unused, but assigned for safety
-    nnOpRet state = curr->ostates +n1stCell;
-    nnOpRet output = curr->outvals +n1stNeuron;
+    nnOpRet outputI = curr->oIGates+n1stCell, outputF = curr->oFGates+n1stCell;
+    nnOpRet outputO = curr->oOGates+n1stCell, outputC = curr->oMCell +n1stCell;
+    nnOpRet inputs = curr->in_vals +n1stNeuron, inputI= curr->iIGates+n1stCell;
+    nnOpRet inputF = curr->iFGates +n1stCell, inputO = curr->iOGates +n1stCell;
+    nnOpInp biasC = biases +n1stBias,   biasI = biases +n1stBiasIG;
+    nnOpInp biasF = biases +n1stBiasFG, biasO = biases +n1stBiasOG;
+    nnOpInp oldState =(prev==nullptr? curr->ostates : prev->ostates) +n1stCell; //if nullptr then unused, but assigned for safety
+    nnOpRet state = curr->ostates +n1stCell, output = curr->outvals +n1stNeuron;
 
     #pragma omp simd aligned(inputs, inputI, inputF, inputO, \
       biasC, biasI, biasF, biasO: VEC_WIDTH) safelen(simdWidth)
     for (Uint n=0; n<nNeurons; n++) {
-      inputs[n] = biasC[n];
-      inputI[n] = biasI[n];
-      inputF[n] = biasF[n];
-      inputO[n] = biasO[n];
+      inputs[n] = biasC[n]; inputI[n] = biasI[n];
+      inputF[n] = biasF[n]; inputO[n] = biasO[n];
     }
 
     for (const auto & link : input_links)
@@ -269,30 +260,24 @@ public:
     #pragma omp simd aligned(state, outputC, outputI, oldState, \
       outputF, output, outputO: VEC_WIDTH) safelen(simdWidth)
     for (Uint n=0; n<nNeurons; n++) {
-      state[n]=outputC[n]*outputI[n] +(prev==nullptr?0:oldState[n]*outputF[n]);
+      const Real oldStateUp = prev==nullptr? 0 : oldState[n]*outputF[n];
+      state[n]=outputC[n]*outputI[n] + oldStateUp;
       output[n] = outputO[n] * state[n];
     }
   }
 
   void backPropagate(Activation*const prev, Activation*const curr, const Activation*const next, Grads* const grad, nnOpInp weights, nnOpInp biases) const override
   {
-    nnOpInp inputs = curr->in_vals +n1stNeuron;
-    nnOpInp inputI = curr->iIGates +n1stCell;
-    nnOpInp inputF = curr->iFGates +n1stCell;
-    nnOpInp inputO = curr->iOGates +n1stCell;
+    nnOpInp inputs = curr->in_vals +n1stNeuron,inputI= curr->iIGates +n1stCell;
+    nnOpInp inputF = curr->iFGates +n1stCell, inputO = curr->iOGates +n1stCell;
     nnOpInp outputI = curr->oIGates +n1stCell;
     //nnOpInp outputF = curr->oFGates +n1stCell;
-    nnOpInp outputO = curr->oOGates +n1stCell;
-    nnOpInp outputC = curr->oMCell +n1stCell;
+    nnOpInp outputO = curr->oOGates +n1stCell, outputC = curr->oMCell +n1stCell;
     nnOpRet deltas = curr->errvals +n1stNeuron;
-    nnOpRet deltaI = curr->eIGates +n1stCell;
-    nnOpRet deltaF = curr->eFGates +n1stCell;
-    nnOpRet deltaO = curr->eOGates +n1stCell;
-    nnOpRet deltaC = curr->eMCell +n1stCell;
-    nnOpRet gradbiasC = grad->_B +n1stBias;
-    nnOpRet gradbiasI = grad->_B +n1stBiasIG;
-    nnOpRet gradbiasF = grad->_B +n1stBiasFG;
-    nnOpRet gradbiasO = grad->_B +n1stBiasOG;
+    nnOpRet deltaI = curr->eIGates +n1stCell, deltaF = curr->eFGates +n1stCell;
+    nnOpRet deltaO = curr->eOGates +n1stCell, deltaC = curr->eMCell +n1stCell;
+    nnOpRet gradbiasC = grad->_B +n1stBias,   gradbiasI = grad->_B +n1stBiasIG;
+    nnOpRet gradbiasF = grad->_B +n1stBiasFG, gradbiasO = grad->_B +n1stBiasOG;
 
     for (Uint n=0; n<nNeurons; n++)
     {
@@ -365,7 +350,7 @@ public:
 class IntegrateFireLayer: public BaseLayer<NormalLink>
 {
   Sigm sigmoid;
-public:
+ public:
   IntegrateFireLayer(Uint _nNeurons, Uint _iNeuron, Uint _iBias, const vector<NormalLink*> il, const Function*const f, const Uint nn_simd, const bool bOut=true): BaseLayer(_nNeurons, _iNeuron, _iBias, il, nullptr, f, nn_simd, bOut)
   {
     printf("IntegrateFireLayer Layer of size %d, with first ID %d, and first bias ID %d\n",
@@ -560,7 +545,7 @@ public:
 
 class ParamLayer: public BaseLayer<NormalLink>
 {
-public:
+ public:
   ParamLayer(Uint _nNeurons, Uint _iNeuron, Uint _iBias, const Function*const f, const Uint nn_simd, const bool bOut=true): BaseLayer(_nNeurons, _iNeuron, _iBias, std::vector<NormalLink*>(), nullptr, f, nn_simd, bOut)
   {
     printf("ParamLayer Layer of size %d, with first ID %d, and first bias ID %d\n", nNeurons, n1stNeuron, n1stBias);

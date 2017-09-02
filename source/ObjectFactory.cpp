@@ -102,7 +102,7 @@ Environment* ObjectFactory::createEnvironment()
   }
   else if (envStr.find("CartEnvironment ") != envStr.npos) {
     printf("CartEnvironment with %u agents per slave.\n",n);
-    env = new CartEnvironment(n, execpath, *settings);
+    env = new Environment(n, execpath, *settings);
   }
   else if (envStr.find("CMAEnvironment ") != envStr.npos) {
     printf("CMAEnvironment with %u agents per slave.\n",n);
@@ -123,6 +123,10 @@ Environment* ObjectFactory::createEnvironment()
   else if (envStr.find("TestEnvironment ") != envStr.npos) {
     printf("TestEnvironment with %u agents per slave.\n",n);
     env = new TestEnvironment(1, execpath, *settings);
+  }
+  else if (envStr.find("Environment ") != envStr.npos) {
+    printf("default Environment with %u agents per slave.\n",n);
+    env = new Environment(n, execpath, *settings);
   }
   else _die("Unsupported environment type in line %s\n", envStr.c_str());
 

@@ -15,7 +15,7 @@ CartEnvironment::CartEnvironment(const Uint _nAgents, const string _execpath,
 {
 //   cheaperThanNetwork=false;
 }
-
+/*
 bool CartEnvironment::predefinedNetwork(Builder* const net) const
 {
   //this function can be used if environment requires particular network settings
@@ -78,7 +78,8 @@ void CartEnvironment::setDims() //this environment is for the cart pole test
   }
   commonSetup(); //required
 }
-
+*/
+/*
 bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a,
                                  const State& t_sN, Real& reward,const int info)
 {
@@ -94,7 +95,7 @@ bool CartEnvironment::pickReward(const State & t_sO, const Action & t_a,
     if (new_sample) reward = -1./(1.-gamma); // = - max cumulative reward
   }
   return new_sample;
-}
+}*/
 
 Uint CartEnvironment::getNdumpPoints()
 {

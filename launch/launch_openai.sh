@@ -37,16 +37,19 @@ NPROCESS=$((${NNODES}*${NTASK}))
 if [ ${HOSTNAME:0:5} == 'falco' ] || [ ${HOSTNAME:0:5} == 'panda' ]
 then
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-vglrun -c proxy python ../openaibot.py \$1 $APP
+vglrun -c proxy python ../Communicator.py \$1 $APP
 EOF
 else
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-python ../openaibot.py \$1 $APP
+python ../Communicator.py \$1 $APP
 EOF
 fi
 
-cp ../apps/openai/factory ${BASEPATH}${RUNFOLDER}/factory
-cp ../apps/openai/openaibot.py ${BASEPATH}${RUNFOLDER}/
+cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
+Environment exec=../launchSim.sh n=1
+EOF
+
+cp ../source/Communicator.py ${BASEPATH}${RUNFOLDER}/
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/rl

@@ -99,13 +99,13 @@ public:
     _dispose_object(learner);
   }
 
-  void sendTerminateReq(const double msg = -256)
+  void sendTerminateReq()
   {
     //it's awfully ugly, i send -256 to kill the slaves... but...
     //what are the chances that learner sends action -256.(+/- eps) to clients?
     printf("nslaves %d\n",nSlaves);
     for (int slave=1; slave<=nSlaves; slave++) {
-      outBufs[slave-1][0] =  msg;
+      outBufs[slave-1][0] = _AGENT_KILLSIGNAL;
       MPI_Ssend(outBufs[slave-1], outSize, MPI_BYTE, slave, 0, slavesComm);
     }
   }
