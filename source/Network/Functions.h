@@ -116,6 +116,28 @@ struct Sigm : public Function
   }
 };
 
+struct SoftSign : public Function
+{
+  Real weightsInitFactor(const Uint inps, const Uint outs) const override
+  {
+    return std::sqrt(6./(inps + outs));
+  }
+  nnReal eval(const nnReal in) const override
+  {
+    return in/(1+std::fabs(in));
+  }
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
+  {
+    const nnReal denom = 1+std::fabs(in);
+    return 1/(denom*denom);
+  }
+  void eval(nnOpInp in, nnOpRet out, const Uint N) const
+  {
+    #pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
+    for (Uint i=0;i<N; i++) out[i] = in[i]/(1+std::fabs(in[i]));
+  }
+};
+
 struct SoftSigm : public Function
 {
   Real weightsInitFactor(const Uint inps, const Uint outs) const override
