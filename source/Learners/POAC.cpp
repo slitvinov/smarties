@@ -28,12 +28,14 @@ POAC::POAC(MPI_Comm comm, Environment*const _env, Settings & settings) :
   printf("POAC: Built network with outputs: %s %s\n",
     print(net_indices).c_str(),print(net_outputs).c_str());
   assert(nOutputs == net->getnOutputs() && nInputs == net->getnInputs());
+
   for (Uint i = 0; i < nThreads; i++) {
     series_1.push_back(new vector<Activation*>());
     series_2.push_back(new vector<Activation*>());
   }
   if(currAct.size() < nThreads ) net->prepForFwdProp(&currAct, nThreads);
   if(prevAct.size() < nThreads ) net->prepForFwdProp(&prevAct, nThreads);
+
   #ifdef FEAT_CONTROL
     task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net,data);
   #endif

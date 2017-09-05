@@ -13,51 +13,35 @@
 
 class GAE : public Learner_onPolicy
 {
-  const Real lambda = 0.99;
-  #ifdef INTEGRATEANDFIRESHARED
-    vector<Uint> net_outputs = {1, nA, 1};
-  #else
-    vector<Uint> net_outputs = {1, nA, nA};
-  #endif
-  vector<Uint> net_indices = {0,  1, 1+nA};
+  const Real lambda = 0.95, DKL_target = 0.01;
+  //#ifdef INTEGRATEANDFIRESHARED
+  //  const vector<Uint> net_outputs = {nA, 1};
+  //#else
+  //if order of this elements is changed class breaks!!
+  //this becoz i use same function also to prepare stored old policy
+  const vector<Uint> net_outputs = {nA,  1,   nA,      1};
+  //#endif
+  const vector<Uint> net_indices = { 0, nA, 1+nA, 1+2*nA};
+  const Uint PenalID = net_indices[3], ValID = net_indices[1];
 
-  #ifdef INTEGRATEANDFIREMODEL
-    inline Lognormal_policy prepare_policy(const vector<Real>& out) const
-    {
-      return Lognormal_policy(net_indices[1], net_indices[2], nA, out);
-    }
-  #else
+  //#ifdef INTEGRATEANDFIREMODEL
+  //  inline Lognormal_policy prepare_policy(const vector<Real>& out) const
+  //  {
+  //    return Lognormal_policy(net_indices[0], net_indices[1], nA, out);
+  //  }
+  //#else
     inline Gaussian_policy prepare_policy(const vector<Real>& out) const
     {
-      return Gaussian_policy(net_indices[1], net_indices[2], nA, out);
+      return Gaussian_policy(net_indices[0], net_indices[2], nA, out);
     }
-  #endif
+    inline Gaussian_policy prepare_behavior(const vector<Real>& out) const
+    {
+      return Gaussian_policy(0, nA, nA, out);
+    }
+  //#endif
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override;
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
-
-  inline vector<Real> compute(const Uint workid, const Uint samp, Real& A_GAE, Real& Vnext, Real& V_MC, const vector<Real>& out, const Uint thrID) const
-  {
-    const vector<Real> act = work[workid]->actions[samp];
-    const Real reward = work[workid]->rewards[samp];
-    const Real V_curr = out[net_indices[0]];
-    const auto pol = prepare_policy(out);
-    //if terminal state was reached then this is r_end, and Vnext==A_GAE==V_MC=0
-    A_GAE = reward +gamma*Vnext -V_curr +gamma*lambda*A_GAE;
-    V_MC  = reward +gamma*V_MC;
-    Vnext = V_curr; //update for previous state which will be processed next
-
-    const Real Verr = V_MC - V_curr;
-    const vector<Real> pgrad = pol.policy_grad(act, A_GAE);
-
-    vector<Real> gradient(nOutputs,0);
-    gradient[net_indices[0]] = Verr;
-    pol.finalize_grad(pgrad, gradient, aInfo.bounded);
-
-    //bookkeeping:
-    dumpStats(Vstats[thrID], V_curr, Verr);
-    return gradient;
-  }
 
 public:
   GAE(MPI_Comm comm, Environment*const env, Settings & settings);
@@ -65,16 +49,12 @@ public:
   //called by scheduler:
   void select(const int agentId, const Agent& agent) override;
 
-  void buildNetwork(Network*& _net , Optimizer*& _opt, const vector<Uint> nouts, Settings& settings,
-  vector<Real> weightInitFactors = vector<Real>(),
-  const vector<Uint> addedInputs = vector<Uint>()) override;
-
   static Uint getnOutputs(const Uint NA)
   {
-#ifdef INTEGRATEANDFIRESHARED
-    return 2+NA;
-#else
-    return 1+NA+NA;
-#endif
+    //#ifdef INTEGRATEANDFIRESHARED
+    //    return 2+NA;
+    //#else
+    return 2+NA+NA;
+    //#endif
   }
 };

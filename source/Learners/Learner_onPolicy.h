@@ -15,45 +15,72 @@ struct Workspace
 {
   int agent = -1;
   int done = 0;
-  vector<vector<Real>> actions;
-  vector<Activation*> series;
-  vector<Real> rewards;
+  vector<vector<Real>> actions, policy;
+  vector<vector<Real>> observations;
+  //vector<Activation*> series;
+  vector<Real> rewards, GAE, Vst;
   ~Workspace()
   {
-    Network::deallocateUnrolledActivations(&series);
+    //Network::deallocateUnrolledActivations(&series);
   }
   void clear()
   {
     agent = -1;
     done = 0;
+    Vst.clear();
+    GAE.clear();
+    policy.clear();
     actions.clear();
     rewards.clear();
-    Network::deallocateUnrolledActivations(&series);
-    assert(series.size() == 0);
+    observations.clear();
+    //Network::deallocateUnrolledActivations(&series);
+    //assert(series.size() == 0);
   }
 };
 
 class Learner_onPolicy: public Learner_utils
 {
 protected:
-  const Uint nAgentsPerSlave, nA;
-  const vector< Workspace *> work;
-
+  const Uint nAgentsPerSlave, nA, nEpochs = 10, nHorizon = 2048;
+  Uint cntHorizon = 0, cntTrajectories = 0, cntEpoch = 0, cntBatch = 0;
+  vector< Workspace *> work;
+  vector< Workspace *> completed;
   std::vector<std::mt19937>& generators;
 
-  vector<Workspace*> alloc_workspace(const Uint nbatch)
+  //vector<Workspace*> alloc_workspace(const Uint nbatch)
+  //{
+  //  vector<Workspace*> ret(nbatch, nullptr);
+  //  for(Uint i=0; i<nbatch; i++) ret[i] = new Workspace();
+  //  return ret;
+  //}
+  mutable std::mutex buffer_mutex;
+  inline void addTasks(Workspace* traj)
   {
-    vector<Workspace*> ret(nbatch, nullptr);
-    for(Uint i=0; i<nbatch; i++) ret[i] = new Workspace();
-    return ret;
+    lock_guard<mutex> lock(buffer_mutex);
+    cntHorizon += traj->GAE.size();
+    completed.push_back(traj);
+    cntTrajectories++;
   }
 
-  inline int checkFirstAvailable() const
+  inline int checkFirstAvailable()
   {
+    //this is called if an agent is starting a new sequence
+    //block creation if we have reached enough data for a batch
+    if(cntHorizon>=nHorizon) return -1;
+
     int avail=-1;
     for(Uint i=0; i<work.size() && avail<0; i++)
       if(work[i]->agent == -1) avail = i; //first available workspace
+
     if(avail>=0) assert(!work[avail]->done);
+
+    //still nothing available, allocate new workspace
+    if(avail<0 && cntHorizon<nHorizon) {
+      avail = work.size();
+      lock_guard<mutex> lock(buffer_mutex);
+      for(Uint i=0; i<nAgentsPerSlave; i++)
+        work.push_back(new Workspace());
+    }
     return avail;
   }
 
@@ -68,82 +95,40 @@ protected:
 
   inline void clip_grad(vector<Real>& grad, const vector<long double>& std) const
   {
+    #ifdef ACER_GRAD_CUT
     for (Uint i=0; i<grad.size(); i++) {
-      #ifdef ACER_GRAD_CUT
         if(grad[i] >  ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
           grad[i] =  ACER_GRAD_CUT*std[i];
         else
         if(grad[i] < -ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
           grad[i] = -ACER_GRAD_CUT*std[i];
-      #endif
     }
+    #endif
   }
 
 public:
   Learner_onPolicy(MPI_Comm mcom,Environment*const _e, Settings&_s, Uint ng):
   Learner_utils(mcom, _e, _s, ng), nAgentsPerSlave(_e->nAgentsPerRank),
-  nA(_e->aI.dim), work(alloc_workspace(batchSize)), generators(_s.generators) {}
+  nA(_e->aI.dim), generators(_s.generators)
+  {
+    work.reserve(nHorizon);
+    completed.reserve(nHorizon/2);
+  }
 
   virtual ~Learner_onPolicy()
   {
     for (const auto & dmp : work) {
-      net->deallocateUnrolledActivations(&(dmp->series));
+      //net->deallocateUnrolledActivations(&(dmp->series));
       delete dmp;
     }
   }
   //main training functions:
+  bool unlockQueue() override;
   int spawnTrainTasks(const int availTasks) override;
+  void sampleTransitions(Uint&seq, Uint&trans, const Uint thrID);
   void applyGradient() override;
   void prepareData() override;
   bool batchGradientReady() override;
-  bool readyForAgent(const int slave, const int agentID) override;
+  bool readyForAgent(const int slave) override;
   bool slaveHasUnfinishedSeqs(const int slave) const override;
 };
-
-/*
-  //TODO should be grouped in a single struct for cleanliness: {
-  //const vector< vector<Activation*> *> work;
-//vector<int> work_assign, work_done;
-//const vector< vector<vector<Real>> *> work_actions;
-//const vector< vector<Real> *> work_rewards;
-// } (all vectors have size batchsize)
-
-vector<vector<Activation*>*> alloc_work(const Uint nagents)
-{
-  vector<vector<Activation*>*> ret(nagents, nullptr);
-  for(Uint i=0; i<nagents; i++) ret[i] = new vector<Activation*>();
-  return ret;
-}
-
-vector<vector<Real>*> alloc_rewards(const Uint nagents)
-{
-  vector<vector<Real>*> ret(nagents, nullptr);
-  for(Uint i=0; i<nagents; i++) ret[i] = new vector<Real>();
-  return ret;
-}
-
-vector<vector<vector<Real>>*> alloc_actions(const Uint nagents)
-{
-  vector<vector<vector<Real>>*> ret(nagents, nullptr);
-  for(Uint i=0; i<nagents; i++) ret[i] = new vector<vector<Real>>();
-  return ret;
-}
-
-inline int checkFirstAvailable() const
-{
-  int avail=-1;
-  for(Uint i=0; i<batchSize && avail<0; i++)
-    if(work_assign[i] == -1) avail = i; //first available workspace
-  assert(!work_done[avail]);
-  return avail;
-}
-
-inline int retrieveAssignment(const int agentID) const
-{
-  int ret = -1;
-  for(Uint i=0; i<batchSize && ret<0; i++)
-    if(work_assign[i] == agentID && not work_done[i])
-      ret = agentID; //write retrieved
-  return ret;
-}
-*/

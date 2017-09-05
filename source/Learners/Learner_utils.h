@@ -12,11 +12,12 @@
 class Learner_utils: public Learner
 {
 protected:
-mutable vector<long double> cntGrad;
+  mutable vector<long double> cntGrad;
   mutable vector<vector<long double>> avgGrad, stdGrad;
   trainData stats;
   vector<trainData*> Vstats;
   mutable vector<Activation*> currAct, prevAct;
+  mutable vector<vector<Activation*>*> series_1, series_2;
 
 public:
   Learner_utils(MPI_Comm mcom,Environment*const _e, Settings&sett, Uint ngrads)
@@ -31,6 +32,14 @@ public:
   virtual ~Learner_utils()
   {
     for (auto & trash : Vstats) _dispose_object(trash);
+    for(Uint i=0; i<series_1.size(); i++) {
+      net->deallocateUnrolledActivations(series_1[i]);
+      delete series_1[i];
+    }
+    for(Uint i=0; i<series_2.size(); i++) {
+      net->deallocateUnrolledActivations(series_2[i]);
+      delete series_2[i];
+    }
   }
 
   void dumpPolicy() override;

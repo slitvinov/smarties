@@ -12,7 +12,7 @@
 #include <mutex>
 #include "Learners/Learner.h"
 
-enum IrecvStatus { OPEN, DOING, SEND, OVER, STALL, EMPTY };
+enum IrecvStatus { OPEN, DOING, EMPTY };
 
 class Master
 {
@@ -30,13 +30,28 @@ private:
   vector<IrecvStatus> slaveIrecvStatus;
   vector<Uint> agentSortingCheck;
   vector<MPI_Request> requests;
-  vector<pair<int,int>> postponed_queue;
+  vector<int> postponed_queue;
   Profiler* profiler;
-  std::mutex mpi_mutex;
-  //to check compatiblity with on-policy learning:
-  int learnerReadyForAgent(const int slave, const int agent) const;
-  int recvState(const int slave);
-  //void sendAction(const int slave, const int iAgent);
+  std::mutex mpi_mutex, dump_mutex;
+
+  inline int learnerReadyForAgent(const int slave) const
+  {
+    //Return whether want more data from an agent on this slave. When is false?
+    //Off Policy algos:
+    // - User specifies a ratio of observed trajectories to gradient steps.
+    //    Comm is restarted or paused to maintain this ratio consant.
+    //On Policy algos:
+    // - if collected enough trajectories for current batch, then comm is paused
+    //    untill gradient is applied (or nepocs are done), then comm restarts
+    //    to obtain fresh on policy samples
+    // Note:
+    // - on policy traj. storage assumes that when agent reaches terminal state
+    //    on a slave, all other agents on that slave must send their term state
+    //    before sending any new initial state
+
+    return learner->readyForAgent(slave);
+    //assert(ready || agents[agent]->Status == _AGENT_FIRSTCOMM); //for on pol
+  }
 
   static inline vector<double*> alloc_bufs(const int size, const int num)
   {
@@ -45,7 +60,8 @@ private:
     return ret;
   }
 
-  void processRequest(const int slave, const int agent);
+  void processRequest(const int slave);
+
   #ifdef FULLTASKING
     mutable std::mutex client_mutex;
     mutable Real avgNbusy = nSlaves;
@@ -57,6 +73,27 @@ private:
     }
   #endif
 
+  inline void sendBuffer(const int i)
+  {
+    lock_guard<mutex> lock(mpi_mutex);
+    MPI_Request tmp;
+    MPI_Isend(outBufs[i-1], outSize, MPI_BYTE, i, 0, slavesComm, &tmp);
+    MPI_Request_free(&tmp); //Not my problem
+    debugS("Sent action to slave %d: [%s]", i,
+      print(vector<Real>(outBufs[i-1], outBufs[i-1]+aI.dim)).c_str());
+  }
+
+  inline void recvBuffer(const int i)
+  {
+    lock_guard<mutex> lock(mpi_mutex);
+    MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, slavesComm, &requests[i-1]);
+    slaveIrecvStatus[i-1] = OPEN;
+  }
+
+  inline int readNTasks() const
+  {
+    return learner->readNTasks();
+  }
   inline void addToNTasks(const int add) const
   {
     learner->addToNTasks(add);

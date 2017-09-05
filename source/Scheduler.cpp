@@ -26,31 +26,7 @@ Master::Master(MPI_Comm _c,Learner*const _l, Environment*const _e, Settings&_s):
   if(nSlaves*nPerRank != static_cast<int>(agents.size()))
     die("Mismatch in master's nSlaves nPerRank nAgents.")
   //the following Irecv will be sent after sending the action
-  for(int i=1; i<=nSlaves; i++) {
-    MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, slavesComm, &requests[i-1]);
-    slaveIrecvStatus[i-1] = OPEN;
-  }
-}
-
-int Master::recvState(const int slave)
-{
-  vector<Real> recv_state(sI.dim);
-  int recv_iAgent = -1, istatus;
-  double reward;
-  unpackState(inpBufs[slave-1], recv_iAgent, istatus, recv_state, reward);
-  const int iAgent = (slave-1) * nPerRank + recv_iAgent;
-  assert(iAgent>=0 && recv_iAgent>=0 && iAgent<static_cast<int>(agents.size()));
-  agents[iAgent]->update(istatus, recv_state, reward);
-
-  if (istatus == _AGENT_LASTCOMM)
-  {
-    char path[256];
-    sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
-    std::ofstream outf(path, ios::app);
-    outf<<learner->iter()<<" "<<iAgent<<" "<<agents[iAgent]->transitionID<<" "<<agents[iAgent]->cumulative_rewards<<endl;
-    outf.close();
-  }
-  return iAgent;
+  for(int i=1; i<=nSlaves; i++) recvBuffer(i);
 }
 
 void Master::restart(string fname)
@@ -76,15 +52,13 @@ int Master::run()
     #pragma omp parallel num_threads(nThreads)
     #pragma omp master
     {
-      if(postponed_queue.size())
+      if(postponed_queue.size() && learner->unlockQueue())
       {
         profiler->stop_start("QUEUE");
-        for (const auto& w : postponed_queue)
-        {
-          const int slave = w.first, agent = w.second;
+        for (const int slave : postponed_queue) {
           addToNTasks(1);
-          #pragma omp task firstprivate(slave, agent)
-            processRequest(slave, agent);
+          #pragma omp task firstprivate(slave) priority(1)
+            processRequest(slave);
         }
         postponed_queue.clear();
       }
@@ -98,7 +72,7 @@ int Master::run()
 
         spawnTrainingTasks(first, postponed_queue.size()==(size_t)nSlaves);
 
-        for(int i=0; i<nSlaves; i++) // && not learner->batchGradientReady()
+        for(int i=0; i<nSlaves; i++)
         {
           int completed=0;
           MPI_Status mpistatus;
@@ -106,37 +80,22 @@ int Master::run()
             lock_guard<mutex> lock(mpi_mutex);
             if(slaveIrecvStatus[i] == OPEN) //otherwise, Irecv not sent
               MPI_Test(&requests[i], &completed, &mpistatus);
-            else if (slaveIrecvStatus[i] == SEND)
-            {
-              MPI_Request tmp;
-              MPI_Isend(outBufs[i], outSize, MPI_BYTE, i+1, 0, slavesComm,&tmp);
-              MPI_Request_free(&tmp); //Not my problem
-              debugS("Sent action to slave %d: [%s]", i+1, print(vector<Real>(outBufs[i], outBufs[i]+aI.dim)).c_str());
-              MPI_Irecv(inpBufs[i], inSize, MPI_BYTE, i+1, 1, slavesComm, &requests[i]);
-              slaveIrecvStatus[i] = OPEN;
-            }
-            else if(slaveIrecvStatus[i] == OVER)
-            {
-              MPI_Irecv(inpBufs[i], inSize, MPI_BYTE, i+1, 1, slavesComm, &requests[i]);
-              slaveIrecvStatus[i] = OPEN;
-            } else assert(slaveIrecvStatus[i] == DOING);
           }
 
           if(completed)
           {
-            int slave = mpistatus.MPI_SOURCE;
+            const int slave = mpistatus.MPI_SOURCE;
             assert(slaveIrecvStatus[i]==OPEN && slave==i+1);
             debugS("Master receives from %d", slave);
-            const int agent = recvState(slave); //unpack buffer
             slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
 
-            if(learner->readyForAgent(slave, agent))
+            if(learnerReadyForAgent(slave))
             {
               addToNTasks(1);
-#pragma omp task firstprivate(slave, agent) if(learner->readNTasks()<nThreads)
-              processRequest(slave, agent);
+              #pragma omp task firstprivate(slave) priority(1) if(readNTasks()<nThreads)
+                processRequest(slave);
             }
-            else postponed_queue.push_back(make_pair(slave, agent));
+            else postponed_queue.push_back(slave);
             debugS("number of tasks %d", learner->readNTasks());
             assert(learner->readNTasks()>=0);
           }
@@ -151,18 +110,40 @@ int Master::run()
   return 0;
 }
 
-void Master::processRequest(const int slave, const int agent)
+void Master::processRequest(const int slave)
 {
   const int thrID = omp_get_thread_num();
-  assert(agent >= 0 && agent < static_cast<int>(agents.size()));
   if(thrID==1) learner->profiler->check_start("SERV");
+
+  vector<Real> recv_state(sI.dim);
+  int recv_iAgent = -1, istatus;
+  double reward;
+  //read from slave's buffer:
+  unpackState(inpBufs[slave-1], recv_iAgent, istatus, recv_state, reward);
+  const int agent = (slave-1) * nPerRank + recv_iAgent;
+  assert(agent>=0 && recv_iAgent>=0 && agent<static_cast<int>(agents.size()));
+  agents[agent]->update(istatus, recv_state, reward);
+  assert(istatus == agents[agent]->Status);
+
+  if (istatus == _AGENT_LASTCOMM)
+  {
+    char path[256];
+    sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
+    lock_guard<mutex> lock(dump_mutex);
+    std::ofstream outf(path, ios::app);
+    outf<<learner->iter()<<" "<<agent<<" "<<agents[agent]->transitionID<<" "<<agents[agent]->cumulative_rewards<<endl;
+    outf.close();
+    //if(env->resetAll) TODO
+    //  learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
+    ++stepNum; //sequence counter: used to terminate if not training
+  }
+
   if (agents[agent]->Status == _AGENT_FAILCOMM) //app crashed :sadface:
   {
     //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
     learner->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
     for (int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
     printf("Received an _AGENT_FAILCOMM\n");
-    slaveIrecvStatus[slave-1] = OVER;
   }
   else
   {
@@ -171,41 +152,16 @@ void Master::processRequest(const int slave, const int agent)
 
     debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
 
-    if (agents[agent]->Status != _AGENT_LASTCOMM)
-    {
+    if (agents[agent]->Status != _AGENT_LASTCOMM) { //if term, no action sent
       for(Uint i=0; i<aI.dim; i++)
         outBufs[slave-1][i] = agents[agent]->a->vals[i];
-
-      lock_guard<mutex> lock(mpi_mutex);
-      slaveIrecvStatus[slave-1] = SEND;
-    }
-    else
-    { //if terminal, no action required
-      lock_guard<mutex> lock(mpi_mutex);
-      slaveIrecvStatus[slave-1] = OVER;
-      //if(env->resetAll) TODO
-      //  learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
-      ++stepNum; //sequence counter: used to terminate if not training
+      sendBuffer(slave);
     }
   }
-  if(thrID==1) learner->profiler->check_start("SLP");
-  addToNTasks(-1);
-}
 
-int Master::learnerReadyForAgent(const int slave, const int agent) const
-{
-  //Return whether we need more data from this agent:
-  //generally will return true. Except when on-policy algorithms (ie. GAE).
-  //  For example: if batch is almost ready and waiting from the last agents to
-  //  finish sequence, getting more data would then be a waste because then the
-  //  gradient will be applied, and data would become off-policy and unusable
-  //However, if I receive data of a brand new seq from agent B on slave S while
-  //waiting for terminal state of agent C, also on slave S, then user is NOT
-  //using correct algorithm for the problem or has implemented something wrong.
-  //There is a check on on-policy algo to verify that when new seq from agent
-  //on a slave S begins, all other slave S's agents must have sent term state.
-  return learner->readyForAgent(slave, agent);
-  //assert(ready || agents[agent]->Status == _AGENT_FIRSTCOMM); //for on pol
+  recvBuffer(slave);
+  addToNTasks(-1);
+  if(thrID==1) learner->profiler->check_start("SLP");
 }
 
 Slave::Slave(Communicator*const _c, Environment*const _e, Settings& _s):

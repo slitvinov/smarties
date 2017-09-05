@@ -19,7 +19,6 @@ class POAC : public Learner_utils
   const Real truncation, DKL_target, DKL_hardmax, CmaxRet = 1, CmaxRho = 1;
   const Uint nA, nL;
   std::vector<std::mt19937>& generators;
-  mutable vector<vector<Activation*>*> series_1, series_2;
 
   #if defined ACER_RELAX //  V(s),P(s),pol(s), precA(s), precQ(q)/penal
     vector<Uint> net_outputs = {1, nL,   nA,      nA,         2};
@@ -179,17 +178,7 @@ class POAC : public Learner_utils
       const vector<Uint> nouts, Settings & settings);
 public:
   POAC(MPI_Comm comm, Environment*const env, Settings & settings);
-  ~POAC()
-  {
-    for(Uint i=0; i<series_1.size(); i++) {
-      net->deallocateUnrolledActivations(series_1[i]);
-      delete series_1[i];
-    }
-    for(Uint i=0; i<series_2.size(); i++) {
-      net->deallocateUnrolledActivations(series_2[i]);
-      delete series_2[i];
-    }
-  }
+
   void select(const int agentId, const Agent& agent) override;
 
   void test();

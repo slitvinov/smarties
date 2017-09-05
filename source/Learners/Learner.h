@@ -147,8 +147,9 @@ public:
   void pushBackEndedSim(const int agentOne, const int agentEnd);
 
   //checks on status:
+  virtual bool unlockQueue();
   virtual bool batchGradientReady();
-  virtual bool readyForAgent(const int slave, const int agent);
+  virtual bool readyForAgent(const int slave);
   virtual bool slaveHasUnfinishedSeqs(const int slave) const;
 
   void save(string name);

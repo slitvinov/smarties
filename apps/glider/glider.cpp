@@ -14,7 +14,7 @@
 //#define SPEED_PENAL
 #define RANDOM_START 1
 //#define NOISY 0
-#define INSTREW 2 /* 0 is default, 1 is time optimal, 2 is energy optimal */
+#define INSTREW 1 /* 0 is default, 1 is time optimal, 2 is energy optimal */
 
 #if   INSTREW==1
 #define TERM_REW_FAC 200
@@ -107,266 +107,271 @@ Vec rk46_nl(double t0, double dt, const Vec u0, Func&& Diff)
 
 struct Glider
 {
-    const double pi  = 3.14159265359;
-    const double CT  = 1.2;
-    const double Aa  = 1.4;
-    const double Bb  = 1.0;
-    const double mut = 0.20;
-    const double nut = 0.20;
-    const double piinv = 1/3.14159265359;
-    const double CR = 3.14159265359;
+  const double CT  = 1.2, Aa  = 1.4, Bb  = 1.0;
+  const double mut = 0.20, nut = 0.20;
+  const double piinv = 1/M_PI, CR = M_PI;
 
-    const double II  = 20.0;
-    //const double II  = 1.0;
-    const double beta= 0.1;
-    //const double II  = 3.; //we have to multiply *2 all moments by Anderson
-    //const double beta= 0;
+  const double II  = 20.0;
+  //const double II  = 1.0;
+  const double beta= 0.1;
+  //const double II  = 3.; //we have to multiply *2 all moments by Anderson
+  //const double beta= 0;
+  //time stepping
+  const double dt = 1e-3;
+  const int nstep = 500;
 
-    double Jerk, Torque, oldDistance, oldTorque, oldAngle, oldEnergySpent, time; //angular jerk
-    int info;
-    Vec7 _s;
-    Glider(): Jerk(0), Torque(0), oldDistance(0), oldTorque(0), oldAngle(0),
-	 oldEnergySpent(0), time(0), info(1) {}
+  double Jerk=0, Torque=0, oldDistance=0, oldTorque=0;
+  double oldAngle=0, oldEnergySpent=0, time=0;
+  double startx = -20; // used only for area bombing
 
-    void reset()
-    {
-      info=1; oldDistance=0; oldEnergySpent=0; Jerk=0; Torque=0, time=0; oldTorque=0;
+  int info=1, step=0;
+  Vec7 _s;
+
+  void reset(std::mt19937& gen)
+	{
+    info=1;
+    std::uniform_real_distribution<double> init(-.1,.1); //for vels, angle
+    std::uniform_real_distribution<double> initx(-10,10); //for position
+    Jerk=Torque=oldDistance=oldTorque=oldAngle=oldEnergySpent=time=step=0;
+
+		#ifdef __SMARTIES_ //u,v,w,x,y,a,T
+      #if RANDOM_START == 1
+        _s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
+      #elif RANDOM_START == 2
+        _s = Vec7(0, 0, 0, startx, 0, 0, 0, 0);
+      #else
+        _s = Vec7(0, 0, 0, 0, 0, 0, 0, 0);
+      #endif
+    #else
+      _s = Vec7(0.0001, 0.0001, 0.0001, 0, 0, 0, 0.0001,     0);
+    #endif
+
+    #ifdef __PRINT_
+      print(0);
+    #endif
+    updateOldDistanceAndEnergy();
+	}
+
+  bool is_over() const
+  {
+    //const bool max_torque = std::fabs(a.Torque)>5;
+    const bool way_too_far = _s.x > 200;
+    const double slack = 0.4*std::max(0., std::min(_s.x-50, 100-_s.x));
+    const bool hit_bottom =  _s.y <= -50 -slack;
+    const bool wrong_xdir = _s.x < -50;
+    //const bool timeover = a.time > 2000;
+
+    return ( hit_bottom || wrong_xdir || way_too_far );
+  }
+
+  int advance(vector<double> action)
+  {
+    updateOldDistanceAndEnergy();
+    Torque = action[0];
+    info = 0; // i received an action!
+    step++;
+    for (int i=0; i<nstep; i++) {
+      _s = rk46_nl(time, dt, _s, bind(&Glider::Diff, this, placeholders::_1, placeholders::_2) );
+      time += dt;
+      if( is_over() ) {
+        info = 2;
+        return 1;
+      }
     }
+    return 0;
+  }
 
-    Vec7 D(const Vec7& s, const double t)
-    {
-        Vec7 res;
-        const double eps = 2.2e-16;
-        const double uv2p = s.u*s.u + s.v*s.v;
-        const double suv2 = sqrt(uv2p);
-        const double uv2n = s.u*s.u - s.v*s.v;
-        const double _f1  = s.u*s.v/(suv2+eps);
-        const double _f2  = uv2n/(uv2p+eps);
-        const double Gamma = (2*piinv)*(-CT*_f1 + CR*s.w);
-        const double F = piinv*(Aa - Bb*_f2)*suv2*s.u;
-        const double G = piinv*(Aa - Bb*_f2)*suv2*s.v;
-        const double M = (mut + nut*std::fabs(s.w))*s.w;
-
-        const double sinth = std::sin(s.a);
-        const double costh = std::cos(s.a);
-        const double betasq= beta*beta;
-        const double fact1 = II + betasq;
-        const double fact2 = II + 1.;
-        const double fact3 = .25*(II*(1+betasq)+.5*std::pow(1-betasq,2));
-
-        res.u = ( fact2*s.v*s.w - Gamma*s.v - sinth - F)/fact1;
-        res.v = (-fact1*s.u*s.w + Gamma*s.u - costh - G)/fact2;
-        res.w = ((betasq-1.0)*s.u*s.v + Torque - M)/fact3;
-        res.x = s.u*costh - s.v*sinth;
-        res.y = s.u*sinth + s.v*costh;
-        res.a = s.w;
-        //res.T = Jerk;
-        //res.E = .5*s.T*s.T; //using performance metric eq 4.9 instead of energy
-
-        return res;
-    }
-
-    void print(const int ID) const
-    {
-        string suff = "trajectory_" + to_string(ID) + ".dat";
-        FILE * f = fopen(suff.c_str(), time==0 ? "w" : "a");
-        fprintf(f,"%e %e %e %e %e %e %e\n",
-                time,_s.u,_s.v,_s.w,_s.x,_s.y,_s.a);//,_s.T,_s.E);
-        fclose(f);
-    }
-
-    double getDistance() const
-    {
-      //goal is {100,-50}
-      const double xx = std::pow(_s.x-100.,2);
-      const double yy = 0;//std::pow(_s.y+ 50.,2);
-      return std::sqrt(xx+yy);
-    }
-
-    void prepareState(vector<double>& state, std::mt19937& gen) const
-    {
-      assert(state.size() == 10);
-      state[0] = _s.u;
-      state[1] = _s.v;
-      state[2] = _s.w;
-      state[3] = _s.x;
-      state[4] = _s.y;
-      state[5] = std::cos(_s.a);
-      state[6] = std::sin(_s.a);
-      state[7] = Torque;
-      state[8] = _s.vx();
-      state[9] = _s.vy();
-#ifdef NOISY
+	vector<double> getState(std::mt19937& gen)
+	{
+    vector<double> state(10);
+    state[0] = _s.u;
+    state[1] = _s.v;
+    state[2] = _s.w;
+    state[3] = _s.x;
+    state[4] = _s.y;
+    state[5] = std::cos(_s.a);
+    state[6] = std::sin(_s.a);
+    state[7] = Torque;
+    state[8] = _s.vx();
+    state[9] = _s.vy();
+    #ifdef NOISY
       std::normal_distribution<double> noise(0,.1);
       state[0] += noise(gen);
       state[1] += noise(gen);
       state[2] += noise(gen);
-#endif
-    }
+    #endif
+		return state;
+	}
 
-    void updateOldDistanceAndEnergy()
+  double getReward()
+  {
+    const double dist_gain = oldDistance - getDistance();
+    const double rotation = std::fabs(oldAngle - _s.a);
+    const double jerk = std::fabs(oldTorque - Torque)/.5;
+    //const double performamce =  std::fabs(a.Torque);//a._s.E - a.oldEnergySpent + eps;
+    const double performamce = std::pow(Torque, 2);
+    //reward clipping: what are the proper scaled? TODO
+    //const double reward=std::min(std::max(-1.,dist_gain/performamce),1.);
+
+    #if INSTREW==0
+      const double reward = dist_gain -performamce -jerk;
+    #elif INSTREW==1
+      const double reward = dist_gain -0.5; //DT between actions is 0.5
+    #elif INSTREW==2
+      const double reward = dist_gain -performamce;// -jerk;
+    #endif
+
+    #ifdef __PRINT_
+      a.print(k);
+    #endif
+    return reward;
+  }
+
+  double getTerminalReward()
+  {
+    info = 2; //tell RL we are in terminal state
+    _s.a = std::fmod(_s.a, 2*M_PI);
+    _s.a = _s.a<0 ? _s.a+2*M_PI : _s.a;
+    //these rewards will then be multiplied by 1/(1-gamma)
+    //in RL algorithm, so that internal RL scales make sense
+    const double dist = getDistance();
+    const double rela = std::fabs(_s.a -.25*M_PI);
+    const double xrew = dist>5 ? 0 : TERM_REW_FAC*std::exp(-std::pow(dist,2));
+    const double arew = (rela>M_PI/4||dist>5) ? 0 : TERM_REW_FAC * std::exp( -std::pow(10*rela, 2) );
+    double final_reward  = xrew + arew;
+
+    //if(wrong_xdir || max_torque || way_too_far)
+    //  final_reward = -HEIGHT_PENAL*fabs(50+a._s.y);
+    #ifdef SPEED_PENAL
+    //else
     {
-      oldDistance = getDistance();
-      oldEnergySpent += 0.5*Torque*Torque;//_s.E;
-      //same time, put angle back in 0, 2*pi
-      _s.a = std::fmod( _s.a, 2*M_PI);
-      _s.a = _s.a < 0 ? _s.a +2*M_PI : _s.a;
-      oldAngle = _s.a;
-      oldTorque = Torque;
+      if (std::fabs(_s.u) > 0.5)
+        final_reward *= std::exp(-10*std::pow(std::fabs(_s.u)-.5,2));
+      if (std::fabs(_s.v) > 0.5)
+        final_reward *= std::exp(-10*std::pow(std::fabs(_s.v)-.5,2));
+      if (std::fabs(_s.w) > 0.5)
+        final_reward *= std::exp(-10*std::pow(std::fabs(_s.w)-.5,2));
     }
+    #endif
+
+    return final_reward - dist;
+  }
+
+  Vec7 Diff(const Vec7& s, const double t)
+  {
+      Vec7 res;
+      const double eps = 2.2e-16;
+      const double uv2p = s.u*s.u + s.v*s.v;
+      const double suv2 = sqrt(uv2p);
+      const double uv2n = s.u*s.u - s.v*s.v;
+      const double _f1  = s.u*s.v/(suv2+eps);
+      const double _f2  = uv2n/(uv2p+eps);
+      const double Gamma = (2*piinv)*(-CT*_f1 + CR*s.w);
+      const double F = piinv*(Aa - Bb*_f2)*suv2*s.u;
+      const double G = piinv*(Aa - Bb*_f2)*suv2*s.v;
+      const double M = (mut + nut*std::fabs(s.w))*s.w;
+
+      const double sinth = std::sin(s.a);
+      const double costh = std::cos(s.a);
+      const double betasq= beta*beta;
+      const double fact1 = II + betasq;
+      const double fact2 = II + 1.;
+      const double fact3 = .25*(II*(1+betasq)+.5*std::pow(1-betasq,2));
+
+      res.u = ( fact2*s.v*s.w - Gamma*s.v - sinth - F)/fact1;
+      res.v = (-fact1*s.u*s.w + Gamma*s.u - costh - G)/fact2;
+      res.w = ((betasq-1.0)*s.u*s.v + Torque - M)/fact3;
+      res.x = s.u*costh - s.v*sinth;
+      res.y = s.u*sinth + s.v*costh;
+      res.a = s.w;
+      //res.T = Jerk;
+      //res.E = .5*s.T*s.T; //using performance metric eq 4.9 instead of energy
+
+      return res;
+  }
+
+  void print(const int ID) const
+  {
+      string suff = "trajectory_" + to_string(ID) + ".dat";
+      FILE * f = fopen(suff.c_str(), time==0 ? "w" : "a");
+      fprintf(f,"%e %e %e %e %e %e %e\n",
+              time,_s.u,_s.v,_s.w,_s.x,_s.y,_s.a);//,_s.T,_s.E);
+      fclose(f);
+  }
+
+  double getDistance() const
+  {
+    //goal is {100,-50}
+    const double xx = std::pow(_s.x-100.,2);
+    const double yy = 0;//std::pow(_s.y+ 50.,2);
+    return std::sqrt(xx+yy);
+  }
+
+  void updateOldDistanceAndEnergy()
+  {
+    oldDistance = getDistance();
+    oldEnergySpent += 0.5*Torque*Torque;//_s.E;
+    //same time, put angle back in 0, 2*pi
+    _s.a = std::fmod( _s.a, 2*M_PI);
+    _s.a = _s.a < 0 ? _s.a +2*M_PI : _s.a;
+    oldAngle = _s.a;
+    oldTorque = Torque;
+  }
 };
-#ifdef __SMARTIES_
-Communicator * comm;
-#endif
+
 int main(int argc, const char * argv[])
 {
-    const int n = 1; //n agents
-    int k = 0;
-    const double eps  = 2.2e-16;
-    //time stepping
-    const double dt = 1e-3;
-    const int nstep = 500;
-    double startx = -20;
-    #ifdef __SMARTIES_
+  #ifdef __SMARTIES_
     //communication:
     const int sock = std::stoi(argv[1]);
     std::mt19937 gen(sock);
-    std::uniform_real_distribution<double> init(-.1,.1); //to be used for vels, angle
-    std::uniform_real_distribution<double> initx(-10,10); //to be used for position
     Communicator comm(sock,10,1);
+
+    bool bounded = true;
+    vector<double> upper_action_bound{1}, lower_action_bound{-1};
+    comm.set_action_scales(upper_action_bound, lower_action_bound, bounded);
+    vector<bool> b_observable = {1, 1, 1, 1, 1, 1, 1, 0, 0, 0};
+    comm.set_state_observable(b_observable);
+  #endif
+
+  //random initial conditions:
+  Glider env;
+
+  while (true) //train loop
+  {
+    //reset environment:
+    env.reset(gen); //comm contains rng with different seed on each rank
+    #ifdef __SMARTIES_
+      //send initial state:
+      comm.sendInitState(env.getState(comm.gen));
     #endif
-    vector<double> state(10);
-    vector<double> actions(1);
 
-    //random initial conditions:
-    vector<Glider> agents(n);
-    for (auto& a : agents) {
-      #ifdef __SMARTIES_ //u,v,w,x,y,a,T
-        #if RANDOM_START == 1
-          a._s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
-        #elif RANDOM_START == 2
-          a._s = Vec7(0, 0, 0, startx, 0, 0, 0, 0);
-        #else
-          a._s = Vec7(0, 0, 0, 0, 0, 0, 0, 0);
-        #endif
+    while (true) //simulation loop
+    {
+      #ifdef __SMARTIES_
+        vector<double> action = comm.recvAction();
       #else
-        a._s = Vec7(0.0001, 0.0001, 0.0001, 0, 0, 0, 0.0001,     0);
+        vector<double> action = {0};
       #endif
-      #ifdef __PRINT_
-        a.print(k);
+
+      //advance the simulation:
+      bool terminated = env.advance(action);
+
+      vector<double> state = env.getState(gen);
+      double reward = env.getReward();
+
+      if(terminated)  //tell smarties that this is a terminal state
+      {
+        #ifdef __SMARTIES_
+          comm.sendTermState(state, env.getTerminalReward());
+        #endif
+
+        break;
+      }
+      #ifdef __SMARTIES_
+      else comm.sendState(state, reward);
       #endif
-        a.updateOldDistanceAndEnergy();
     }
-
-    while (true) {
-
-        //const int k = 0; //agent ID, for now == 0
-        for (auto& a : agents) { //assume we have only one agent per application for now...
-            const double dist_gain = a.oldDistance - a.getDistance();
-            const double rotation = std::fabs(a.oldAngle-a._s.a);
-            const double jerk = std::fabs(a.oldTorque - a.Torque)/.5;
-            //const double performamce =  std::fabs(a.Torque);//a._s.E - a.oldEnergySpent + eps;
-            const double performamce =  std::pow(a.Torque,2);//a._s.E - a.oldEnergySpent + eps;
-            //reward clipping: what are the proper scaled? TODO
-            //const double reward=std::min(std::max(-1.,dist_gain/performamce),1.);
-
-            #if INSTREW==0
-            const double reward = dist_gain -performamce -jerk;
-            #elif INSTREW==1
-            const double reward = dist_gain -0.5; //DT between actions is 0.5
-            #elif INSTREW==2
-            const double reward = dist_gain -performamce;// -jerk;
-            #endif
-
-            a.updateOldDistanceAndEnergy();
-            //load state:
-            a.prepareState(state,gen);
-
-            #ifdef __SMARTIES_
-            comm.sendState(0, a.info, state, reward);
-            comm.recvAction(actions);
-            //a.Jerk = actions[0];
-            a.Torque = actions[0];
-            a.info = 0; //at least one comm is done, so i set info to 0
-            #endif
-
-        	//advance the sim:
-            for (int i=0; i<nstep; i++) {
-                a._s = rk46_nl(a.time, dt, a._s, bind(&Glider::D, &a, placeholders::_1, placeholders::_2));
-                a.time += dt;
-
-                //check if terminal state has been reached:
-                const bool max_torque = std::fabs(a.Torque)>5;
-                const bool way_too_far = a._s.x > 200;
-                const double slack = 0.4*std::max(0., std::min(a._s.x-50, 100-a._s.x));
-                const bool hit_bottom =  a._s.y <= -50 -slack;
-                const bool wrong_xdir = a._s.x < -50;
-                const bool timeover = a.time > 2000;
-
-                #ifdef __SMARTIES_
-                if (max_torque || hit_bottom || wrong_xdir || way_too_far )
-                //if ( hit_bottom )
-                {
-                    a.info = 2; //tell RL we are in terminal state
-                    const double tmpang = std::fmod(a._s.a,2*M_PI);
-                    const double ang = tmpang<0 ? tmpang+2*M_PI : tmpang;
-                    //these rewards will then be multiplied by 1/(1-gamma)
-                    //in RL algorithm, so that internal RL scales make sense
-                    const double dist = a.getDistance();
-                    const double rela = std::fabs(ang -.25*M_PI);
-                    const double xrew = dist>5 ? 0 : TERM_REW_FAC*std::exp(-std::pow(dist,2));
-                    const double arew = (rela>M_PI/4||dist>5)?0:TERM_REW_FAC*exp(-pow(10*rela,2));
-                    double final_reward  = xrew + arew;
-
-                    //if(wrong_xdir || max_torque || way_too_far)
-                    //  final_reward = -HEIGHT_PENAL*fabs(50+a._s.y);
-                    #ifdef SPEED_PENAL
-                    //else 
-                    {
-                      if (std::fabs(a._s.u) > 0.5) 
-                        final_reward *= std::exp(-10*std::pow(std::fabs(a._s.u)-.5,2));
-                      if (std::fabs(a._s.v) > 0.5)
-                        final_reward *= std::exp(-10*std::pow(std::fabs(a._s.v)-.5,2));
-                      if (std::fabs(a._s.w) > 0.5)
-                        final_reward *= std::exp(-10*std::pow(std::fabs(a._s.w)-.5,2));
-                    }
-                    #endif
-
-                    final_reward -= dist;
-
-                    a.prepareState(state,gen);
-                    comm.sendState(0, a.info, state, final_reward);
-
-                    a.reset(); //set info back to 0
-                    #if RANDOM_START == 1
-                      a._s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
-                    #elif RANDOM_START == 2
-                      startx += 1;
-                      a._s = Vec7(0, 0, 0, startx, 0, 0, 0, 0);
-                    #else
-                      a._s = Vec7(0, 0, 0, 0, 0, 0, 0, 0);
-                    #endif
-
-                    a.updateOldDistanceAndEnergy();
-                    #ifdef __PRINT_
-                      a.print(k);
-                    #endif
-                    k++;
-                    break;
-                }
-                #else
-                if (a._s.y <= -500 || timeover)
-                {
-                    a.print(k);
-                    return 0;
-                }
-                #endif
-            }
-            #ifdef __PRINT_
-            a.print(k);
-            #endif
-        }
-    }
-
-    return 0;
+  }
+  return 0;
 }
