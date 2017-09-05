@@ -16,7 +16,10 @@ class POAC : public Learner_utils
 {
   //typedef Quadratic_advantage Advantage;
   typedef Diagonal_advantage Advantage;
-  const Real truncation, DKL_target, DKL_hardmax, CmaxRet = 1, CmaxRho = 1;
+  //const Real CmaxRet = 1, CmaxRho = 1;
+  const Real CmaxRet = 5, CmaxRho = 5;
+  
+  const Real truncation, DKL_target, DKL_hardmax;
   const Uint nA, nL;
   std::vector<std::mt19937>& generators;
 

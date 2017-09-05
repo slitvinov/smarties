@@ -57,7 +57,7 @@ int Master::run()
         profiler->stop_start("QUEUE");
         for (const int slave : postponed_queue) {
           addToNTasks(1);
-          #pragma omp task firstprivate(slave) priority(1)
+          #pragma omp task firstprivate(slave) //priority(1)
             processRequest(slave);
         }
         postponed_queue.clear();
@@ -92,7 +92,7 @@ int Master::run()
             if(learnerReadyForAgent(slave))
             {
               addToNTasks(1);
-              #pragma omp task firstprivate(slave) priority(1) if(readNTasks()<nThreads)
+              #pragma omp task firstprivate(slave) if(readNTasks()<nThreads) //priority(1)
                 processRequest(slave);
             }
             else postponed_queue.push_back(slave);
