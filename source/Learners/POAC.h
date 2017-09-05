@@ -14,10 +14,10 @@
 
 class POAC : public Learner_utils
 {
-  //typedef Quadratic_advantage Advantage;
-  typedef Diagonal_advantage Advantage;
-  //const Real CmaxRet = 1, CmaxRho = 1;
-  const Real CmaxRet = 5, CmaxRho = 5;
+  typedef Quadratic_advantage Advantage;
+  //typedef Diagonal_advantage Advantage;
+  const Real CmaxRet = 1, CmaxRho = 1;
+  //const Real CmaxRet = 5, CmaxRho = 5;
   
   const Real truncation, DKL_target, DKL_hardmax;
   const Uint nA, nL;
@@ -99,6 +99,7 @@ class POAC : public Learner_utils
       const vector<Real> gradAcer = sum2Grads(gradAcer_1, gradAcer_2);
     #else
       //const Real gain1 = A_OPC * rho_cur;
+      //const Real gain1 = A_OPC*std::min(rho_cur, CmaxRho);
       const Real gain1 = rho_cur>CmaxRho && A_OPC>0 ? CmaxRho*A_OPC : A_OPC*rho_cur;
       const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
     #endif
