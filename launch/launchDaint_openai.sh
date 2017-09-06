@@ -33,11 +33,17 @@ fi
 NPROCESS=$((${NNODES}*${NTASK}))
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-python ../openaibot.py \$1 $APP
+python ../Communicator.py \$1 $APP
 EOF
+
+cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
+Environment exec=../launchSim.sh n=1
+EOF
+
 #this handles app-side setup (incl. copying the factory)
-cp ../apps/openai/factory ${BASEPATH}${RUNFOLDER}/factory
-cp ../apps/openai/openaibot.py ${BASEPATH}${RUNFOLDER}/
+#cp ../apps/openai/factory ${BASEPATH}${RUNFOLDER}/factory
+#cp ../apps/openai/openaibot.py ${BASEPATH}${RUNFOLDER}/
+cp ../source/Communicator.py ${BASEPATH}${RUNFOLDER}/
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
 cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
