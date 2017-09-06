@@ -8,6 +8,7 @@
  */
 #include "../StateAction.h"
 #include "GAE.h"
+#define PPO_CLIPPED
 
 GAE::GAE(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_onPolicy(comm, _env, settings, settings.nnOutputs)
@@ -154,9 +155,23 @@ void GAE::Train(const Uint workid, const Uint samp, const Uint thrID) const
   const Real rho_cur = min(MAX_IMPW,safeExp(actProbOnPolicy-actProbBehavior));
   const Real DivKL=pol.kl_divergence_opp(&pol_hat), penalDKL=output[PenalID];
 
-  const vector<Real> policy_grad = pol.policy_grad(act, rho_cur*adv_est);
-  const vector<Real> penal_grad = pol.div_kl_opp_grad(&pol_hat, -penalDKL);
-  vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
+  Real gain = rho_cur*adv_est;
+  #ifdef PPO_CLIPPED
+    if (adv_est > 0 && rho_cur > 1+clip_fac) gain = 0;
+    if (adv_est < 0 && rho_cur < 1-clip_fac) gain = 0;
+  #endif
+
+  #ifdef PPO_PENALKL
+    const vector<Real> policy_grad = pol.policy_grad(act, gain);
+    const vector<Real> penal_grad = pol.div_kl_opp_grad(&pol_hat, -penalDKL);
+    vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
+  #else //we still learn the penal coef, for simplicity, but no effect
+    if(gain==0) {
+      if(thrID==1)  profiler->stop_start("SLP");
+      return; //if 0 pol grad dont backprop
+    }
+    vector<Real> totalPolGrad = pol.policy_grad(act, gain);
+  #endif
 
   grad[ValID] = val_tgt - Vst;
   pol.finalize_grad(totalPolGrad, grad, aInfo.bounded);
@@ -169,10 +184,8 @@ void GAE::Train(const Uint workid, const Uint samp, const Uint thrID) const
   net->setOutputDeltas(grad, series.back());
 
   if(thrID==1)  profiler->stop_start("BCK");
-
   if (thrID==0) net->backProp(series, net->grad);
   else net->backProp(series, net->Vgrad[thrID]);
-
   if(thrID==1)  profiler->stop_start("SLP");
 }
 

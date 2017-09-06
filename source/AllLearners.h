@@ -65,7 +65,7 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
     settings.nnOutputs = env->aI.dim;
     return new DPG(mastersComm, env, settings);
   }
-  else if (settings.learner == "GAE") {
+  else if (settings.learner == "GAE" || settings.learner == "PPO") {
     settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
     settings.nnOutputs = GAE::getnOutputs(env->aI.dim);
     //settings.bSampleSequences = true;

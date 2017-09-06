@@ -13,7 +13,7 @@
 
 class GAE : public Learner_onPolicy
 {
-  const Real lambda = 0.95, DKL_target = 0.01;
+  const Real lambda = 0.95, DKL_target = 0.01, clip_fac = 0.2;
   //#ifdef INTEGRATEANDFIRESHARED
   //  const vector<Uint> net_outputs = {nA, 1};
   //#else
@@ -36,6 +36,7 @@ class GAE : public Learner_onPolicy
     }
     inline Gaussian_policy prepare_behavior(const vector<Real>& out) const
     {
+      //stored policy is vector: {{action}, {stdev}}, so inds are hardcoded:
       return Gaussian_policy(0, nA, nA, out);
     }
   //#endif
