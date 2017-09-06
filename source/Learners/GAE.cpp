@@ -8,6 +8,7 @@
  */
 #include "../StateAction.h"
 #include "GAE.h"
+#define PPO_PENALKL
 #define PPO_CLIPPED
 
 GAE::GAE(MPI_Comm comm, Environment*const _env, Settings & settings) :
