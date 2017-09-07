@@ -8,7 +8,7 @@ SETTINGS+=" --samplesFile none"
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.99"
+SETTINGS+=" --gamma 0.995"
 
 #size of network layers
 SETTINGS+=" --nnl1 64"
@@ -34,9 +34,10 @@ SETTINGS+=" --bTrain 1"
 SETTINGS+=" --learner GAE"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 0.05"
+SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --epsAnneal 1000"
 SETTINGS+=" --nMasters 1"
+SETTINGS+=" --totNumSteps 1000000"
 
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 64"

@@ -134,7 +134,7 @@ struct Glider
     std::uniform_real_distribution<double> initx(-10,10); //for position
     Jerk=Torque=oldDistance=oldTorque=oldAngle=oldEnergySpent=time=step=0;
 
-		#ifdef __SMARTIES_ //u,v,w,x,y,a,T
+    #ifdef __SMARTIES_ //u,v,w,x,y,a,T
       #if RANDOM_START == 1
         _s = Vec7(init(gen), init(gen), 0, initx(gen), 0, init(gen), 0, 0);
       #elif RANDOM_START == 2

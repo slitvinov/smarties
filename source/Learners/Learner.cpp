@@ -228,7 +228,12 @@ bool Learner::batchGradientReady()
   return taskCounter >= batchSize;
 }
 
-bool Learner::unlockQueue() {return true;}
+bool Learner::unlockQueue() 
+{
+  if ( ! readyForTrain() ) return true;
+  const Real requestedSequences = (opt->nepoch+1) *obsPerStep/(Real)learn_size;
+  return data->nSeenSequences-nData_b4PolUpdates <= requestedSequences+nSlaves;
+}
 
 bool Learner::readyForAgent(const int slave)
 {
