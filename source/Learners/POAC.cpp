@@ -138,8 +138,8 @@ void POAC::Train(const Uint seq, const Uint samp, const Uint thrID) const
   Real importanceW = 1, C = ACER_LAMBDA*rGamma;
   for(Uint k=1; k<nSValues; k++)
   {
-    //net->predict(data->standardized(seq, k+samp), out_hat[k], series_hat, k);
-    net->predict(data->standardized(seq, k+samp), out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
+    net->predict(data->standardized(seq, k+samp), out_hat[k], series_hat, k);
+    //net->predict(data->standardized(seq, k+samp), out_hat[k], series_hat, k, net->tgt_weights, net->tgt_biases);
 
     #ifndef NO_CUT_TRACES
       if (k == nSValues-1) break;
