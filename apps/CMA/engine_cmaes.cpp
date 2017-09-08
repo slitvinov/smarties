@@ -53,6 +53,23 @@ int main(int argn, char **args)
 #if __RLON
 	//communicator class, it needs a socket number sock, given by RL as first argument of execution
 	Communicator comm(sock, states.dim, actions.dim);
+
+  //OPTIONAL: action bounds
+  bool bounded = true;
+  std::vector<double> upper_action_bound{.2, .2, .9, .9, 5, 5};
+  std::vector<double> lower_action_bound{ 0,  0,  0,  0, 1, 0};
+  comm.set_action_scales(upper_action_bound, lower_action_bound, bounded);
+
+  //OPTIONAL: hide state variables.
+  // e.g. show cosine/sine but not angle
+  std::vector<bool> b_observable = {1, 1, 1, 1, 1, 1, 1, 1};
+  comm.set_state_observable(b_observable);
+
+  //OPTIONAL: set space bounds
+  std::vector<double> upper_state_bound{ 1,  1,  1,  1,  1,  1,  1,  1};
+  std::vector<double> lower_state_bound{-1, -1, -1, -1, -1, -1, -1, -1};
+  comm.set_state_scales(upper_state_bound, lower_state_bound);
+
 #endif
 
 

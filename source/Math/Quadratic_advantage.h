@@ -236,7 +236,7 @@ struct Diagonal_advantage
       const Real qn = quadratic_coefs_neg[i], ln = linear_coefs_neg[i];
       const Real hvar = 0.5*policy->variance[i];
       const Real _EQ2 = 6*hvar*hvar*(qp*qp+qn*qn), _2EQ = pow(hvar*(qp+qn), 2);
-      const Real _EL2 = hvar*(lp+ln), _2LQ = pow(sqrt(hvar/M_PI)*(lp+ln), 2);
+      const Real _EL2 = hvar*(lp*lp+ln*ln), _2LQ = (hvar/M_PI)*pow(lp+ln, 2);
       ret += _EQ2-_2EQ + _EL2-_2LQ;
     }
     return ret;

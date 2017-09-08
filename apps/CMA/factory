@@ -1,2 +1,1 @@
-CMAEnvironment exec=../launchSim.sh n=1
-
+Environment exec=../launchSim.sh n=1
