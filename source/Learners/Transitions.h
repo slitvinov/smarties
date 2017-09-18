@@ -51,7 +51,7 @@ struct Gen
 
 class Transitions
 {
-protected:
+public:
   const MPI_Comm mastersComm;
   Environment * const env;
   const bool bNormalize, bTrain, bWriteToFile, bSampleSeq;
@@ -64,16 +64,6 @@ protected:
   vector<Real> std, mean, invstd;
   vector<Uint> curr_transition_id, inds;
   discrete_distribution<Uint> * dist = nullptr;
-
-  int add(const int agentId, const int info, const State & sOld,
-      const Action & a, const vector<Real> mu, const State& s, Real r);
-
-  void push_back(const int & agentId);
-  void clear(const int & agentId);
-  void synchronize();
-  void sortSequences();
-
-public:
   //bool bRecurrent;
   const StateInfo sI;
   const ActionInfo aI;
@@ -84,6 +74,16 @@ public:
   vector<Sequence*> Set, Tmp, Buffered;
   std::mutex dataset_mutex;
 
+protected:
+  int add(const int agentId, const int info, const State & sOld,
+      const Action & a, const vector<Real> mu, const State& s, Real r);
+
+  void push_back(const int & agentId);
+  void clear(const int & agentId);
+  void synchronize();
+  void sortSequences();
+
+public:
   Transitions(MPI_Comm comm, Environment*const env, Settings & settings);
 
   ~Transitions()

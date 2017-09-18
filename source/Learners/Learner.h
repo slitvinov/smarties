@@ -130,8 +130,9 @@ public:
 
   inline bool readyForTrain() const
   {
+    const Uint minT = std::min(batchSize, data->maxTotSeqNum-1);
     lock_guard<mutex> lock(data->dataset_mutex);
-    return bTrain&&data->nSequences>=batchSize&&data->nTransitions>=batchSize;
+    return bTrain&&data->nSequences>=minT&&data->nTransitions>=batchSize;
   }
 
   virtual void select(const int agentId, const Agent& agent) = 0;
