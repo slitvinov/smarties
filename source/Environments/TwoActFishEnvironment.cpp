@@ -16,18 +16,17 @@ sight( _s.senses    ==0 ||  _s.senses==8),
 rcast( _s.senses    % 2), //if eq {1,  3,  5,  7}
 lline((_s.senses/2) % 2), //if eq {  2,3,    6,7}
 press((_s.senses/4) % 2 ||  _s.senses==8), //if eq {      4,5,6,7}
-study(_s.rType), goalDY((_s.goalDY>1.)? 1.-_s.goalDY : _s.goalDY)
+study(_s.rType), goalDY((_s.goalDY>1)? 1-_s.goalDY : _s.goalDY)
 {
   cheaperThanNetwork = false; //this environment is more expensive to simulate than updating net. todo: think it over?
-#ifdef __Cubism3D
-  //mpi_ranks_per_env = 1;
-  mpi_ranks_per_env = 8;
-#else
-  mpi_ranks_per_env = 0;
-#endif
-  //paramsfile="settings_32.txt";
-  paramsfile="settings_64.txt";
-
+  #ifdef __Cubism3D
+    //mpi_ranks_per_env = 1;
+    mpi_ranks_per_env = 2;
+  #else
+    mpi_ranks_per_env = 0;
+  #endif
+  paramsfile="settings_32.txt";
+  //paramsfile="settings_64.txt";
   assert(settings.senses<=8);
 }
 
@@ -115,43 +114,17 @@ void TwoActFishEnvironment::setDims()
     // ToD 19
     sI.inUse.push_back(false);
   }
-  const Uint nSensors = 10;
-  for (Uint i=0; i<nSensors; i++) {
-    // (VelNAbove  ) x 5 [20]
-    sI.inUse.push_back(lline && i<4);
-  }
-  for (Uint i=0; i<nSensors; i++) {
-    // (VelTAbove  ) x 5 [25]
-    sI.inUse.push_back(lline && i<4);
-  }
-  for (Uint i=0; i<nSensors; i++) {
-    // (VelNBelow  ) x 5 [30]
-    sI.inUse.push_back(lline && i<4);
-  }
-  for (Uint i=0; i<nSensors; i++) {
-    // (VelTBelow  ) x 5 [35]
-    sI.inUse.push_back(lline && i<4);
-  }
-  for (Uint i=0; i<nSensors; i++) {
-    // (FPAbove  ) x 5 [40]
-    sI.inUse.push_back(press && i<4);
-  }
-  for (Uint i=0; i<nSensors; i++) {
-    //   (FVAbove  ) x 5 [45]
-    sI.inUse.push_back(press && i<4);
-  }
-  for (Uint i=0; i<nSensors; i++) {
-    // (FPBelow  ) x 5 [50]
-    sI.inUse.push_back(press && i<4);
-  }
-  for (Uint i=0; i<nSensors; i++) {
-    // (FVBelow ) x 5 [55]
-    sI.inUse.push_back(press && i<4);
-  }
-  for (Uint i=0; i<2*nSensors; i++) {
-    // (FVBelow ) x 5 [55]
-    sI.inUse.push_back(rcast);
-  }
+
+  const Uint nSens = 10;
+  for(Uint i=0;i<nSens;i++) sI.inUse.push_back(press&&i<4); //(FPAbove)x10 [40]
+  for(Uint i=0;i<nSens;i++) sI.inUse.push_back(press&&i<4); //(FVAbove)x10 [45]
+  for(Uint i=0;i<nSens;i++) sI.inUse.push_back(press&&i<4); //(FPBelow)x10 [50]
+  for(Uint i=0;i<nSens;i++) sI.inUse.push_back(press&&i<4); //(FVBelow)x10 [55]
+
+  //for (Uint i=0; i<2*nSensors; i++) {
+  //  // (FVBelow ) x 5 [55]
+  //  sI.inUse.push_back(rcast);
+  //}
   /*
   sI.values.push_back(-.50);
   sI.values.push_back(-.25);
@@ -171,11 +144,11 @@ void TwoActFishEnvironment::setDims()
     aI.values[1].push_back(-.5);
     aI.values[1].push_back(0.5);
   }
-  resetAll=false;
+
   commonSetup();
 }
 
-
+#if 0
 bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a, const State& t_sN, Real& reward, const int info)
 {
   if(info!=1)
@@ -229,6 +202,7 @@ bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a, con
 
   return new_sample;
 }
+#endif
 
 #ifdef __DBG_CNN
 bool TwoActFishEnvironment::predefinedNetwork(Builder* const net) const

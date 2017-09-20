@@ -11,16 +11,18 @@
 #include <vector>
 #include <cstring>
 #include <random>
-#define _AGENT_STATUS   int
-#define _AGENT_NORMALCOMM 0
-#define _AGENT_FIRSTCOMM  1
-#define _AGENT_LASTCOMM   2
-#define _AGENT_CLEARALL   3
-#define _AGENT_FAILCOMM   4
+#define envInfo  int
+#define CONT_COMM 0
+#define INIT_COMM 1
+#define TERM_COMM 2
+#define GAME_OVER 3
+#define FAIL_COMM 4
 #define _AGENT_KILLSIGNAL -256
+#ifdef OPEN_MPI
+#define MPI_INCLUDED
+#endif
 #include "Communicator_utils.h"
 
-//enum Info { INIT_STATE, CONT_STATE, TERM_STATE, GAME_OVER, FAIL_COMM };
 
 class Communicator
 {
@@ -49,7 +51,7 @@ protected:
 
   void update_rank_size()
   {
-#ifdef MPI_INCLUDED
+    #ifdef MPI_INCLUDED
     if (comm_inside_app != MPI_COMM_NULL) {
       MPI_Comm_rank(comm_inside_app, &rank_inside_app);
       MPI_Comm_size(comm_inside_app, &size_inside_app);
@@ -58,7 +60,7 @@ protected:
       MPI_Comm_rank(comm_learn_pool, &rank_learn_pool);
       MPI_Comm_size(comm_learn_pool, &size_learn_pool);
     }
-#endif
+    #endif
   }
 
   void printLog(const double*const buf, const int size);
@@ -115,20 +117,21 @@ public:
   int getStateDim()  {return nStates;}
   int getActionDim() {return nActions;}
   //called by app to interact with smarties
-  void sendState(const int iAgent, const _AGENT_STATUS status,
+  void sendCompleteTermination();
+  void sendState(const int iAgent, const envInfo status,
     const std::vector<double> state, const double reward);
   //simplified functions:
   inline void sendState(const std::vector<double> state, const double reward, const int iAgent = 0)
   {
-    return sendState(iAgent, _AGENT_NORMALCOMM, state, reward);
+    return sendState(iAgent, CONT_COMM, state, reward);
   }
   inline void sendInitState(const std::vector<double> state, const int iAgent = 0)
   {
-    return sendState(iAgent, _AGENT_FIRSTCOMM, state, 0);
+    return sendState(iAgent, INIT_COMM, state, 0);
   }
   inline void sendTermState(const std::vector<double> state, const double reward, const int iAgent = 0)
   {
-    return sendState(iAgent, _AGENT_LASTCOMM, state, reward);
+    return sendState(iAgent, TERM_COMM, state, reward);
   }
   void recvAction(std::vector<double>& actions);
 
@@ -187,7 +190,7 @@ public:
 #endif
 };
 
-inline void unpackState(double* const data, int& agent, _AGENT_STATUS& info,
+inline void unpackState(double* const data, int& agent, envInfo& info,
     std::vector<double>& state, double& reward)
 {
   assert(data not_eq nullptr);

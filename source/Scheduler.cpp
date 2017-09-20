@@ -122,40 +122,45 @@ void Master::processRequest(const int slave)
   unpackState(inpBufs[slave-1], recv_iAgent, istatus, recv_state, reward);
   const int agent = (slave-1) * nPerRank + recv_iAgent;
   assert(agent>=0 && recv_iAgent>=0 && agent<static_cast<int>(agents.size()));
-  agents[agent]->update(istatus, recv_state, reward);
-  assert(istatus == agents[agent]->Status);
 
-  if (istatus == _AGENT_LASTCOMM)
-  {
-    char path[256];
-    sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
-    lock_guard<mutex> lock(dump_mutex);
-    std::ofstream outf(path, ios::app);
-    outf<<learner->iter()<<" "<<agent<<" "<<agents[agent]->transitionID<<" "<<agents[agent]->cumulative_rewards<<endl;
-    outf.close();
-    //if(env->resetAll) TODO
-    //  learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
-    ++stepNum; //sequence counter: used to terminate if not training
-  }
-
-  if (agents[agent]->Status == _AGENT_FAILCOMM) //app crashed :sadface:
+       if (istatus == FAIL_COMM) //app crashed :sadface:
   {
     //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
     learner->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
     for (int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
-    printf("Received an _AGENT_FAILCOMM\n");
+    printf("Received a FAIL_COMM\n");
+  }
+  else if (istatus == GAME_OVER)
+  {
+    //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
+    learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
+    for (int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
+    //printf("Received a GAME_OVER\n");
   }
   else
   {
+    agents[agent]->update(istatus, recv_state, reward);
+    assert(istatus == agents[agent]->Status);
     //pick next action and ...do a bunch of other stuff with the data:
     learner->select(agent, *agents[agent]);
 
     debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
 
-    if (agents[agent]->Status != _AGENT_LASTCOMM) { //if term, no action sent
+    if(agents[agent]->Status not_eq TERM_COMM) //if term, no action sent
+    {
       for(Uint i=0; i<aI.dim; i++)
         outBufs[slave-1][i] = agents[agent]->a->vals[i];
       sendBuffer(slave);
+    }
+    else
+    {
+      char path[256];
+      sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
+      lock_guard<mutex> lock(dump_mutex);
+      std::ofstream outf(path, ios::app);
+      outf<<learner->iter()<<" "<<agent<<" "<<agents[agent]->transitionID<<" "<<agents[agent]->cumulative_rewards<<endl;
+      outf.close();
+      ++stepNum; //sequence counter: used to terminate if not training
     }
   }
 
@@ -170,36 +175,24 @@ Slave::Slave(Communicator*const _c, Environment*const _e, Settings& _s):
 void Slave::run()
 {
   vector<double> state(env->sI.dim);
-  int iAgent, agentStatus;
+  int iAgent, info;
   double reward;
 
   while(true) {
 
     while(true) {
       if (comm->recvStateFromApp()) break; //sim crashed
-      unpackState(comm->getDataState(), iAgent, agentStatus, state, reward);
+      unpackState(comm->getDataState(), iAgent, info, state, reward);
 
-      status[iAgent] = agentStatus;
-      if(agentStatus != _AGENT_LASTCOMM)
+      status[iAgent] = info;
+      if(info not_eq TERM_COMM && info not_eq GAME_OVER)
       {
+        assert(info not_eq FAIL_COMM); //that one should cause the break
         if (comm->sendActionToApp()) {
           printf("Slave exiting\n");
           fflush(0);
           return;
         }
-      } else {
-        /*
-          bool bDone = true; //did all agents reach terminal state?
-          for (Uint i=0; i<status.size(); i++)
-            bDone = bDone && status[i] == _AGENT_LASTCOMM;
-          bDone = bDone || env->resetAll; //does env end is any terminates?
-          if(bDone && !bTrain) {
-            comm->answerTerminateReq(-1);
-            return;
-          }
-          else
-         */
-        comm->answerTerminateReq(1.);
       }
     }
     //if here, a crash happened:

@@ -285,7 +285,7 @@ void Transitions::clearFailedSim(const int agentOne, const int agentEnd)
 void Transitions::pushBackEndedSim(const int agentOne, const int agentEnd)
 {
   for (int i = agentOne; i<agentEnd; i++)
-    push_back(i);
+    if(Tmp[i]->tuples.size()) push_back(i);
 }
 
 void Transitions::push_back(const int & agentId)

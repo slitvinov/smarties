@@ -1,5 +1,5 @@
 #!/bin/bash
-#export MPICH_MAX_THREAD_SAFETY=funneled #MPICH
+unset LSB_AFFINITY_HOSTFILE
 export MPICH_MAX_THREAD_SAFETY=serialized #MPICH
 export MV2_ENABLE_AFFINITY=0 #MVAPICH
 NPROCESS=$1
@@ -20,7 +20,12 @@ echo ${NPROCESS} ${NTHREADS}
 
 #mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none xterm -e gdb --tui --args ./rl ${SETTINGS}
 
+if [[ $PATH == *"openmpi"* ]]; then
+mpirun -n ${NPROCESS} --map-by ppr:1:socket:pe=12 -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
+else
 mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none ./rl ${SETTINGS} | tee out.log
+fi
+
 
 # mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none xterm -hold -e gdb -ex run --args ./rl ${SETTINGS}
 
