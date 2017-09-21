@@ -420,6 +420,7 @@ Communicator::Communicator(const MPI_Comm scom, const int socket, const bool spa
   spawner = spawn;
   socket_id = socket;
   comm_learn_pool = scom;
+  sentStateActionShape = true; //to avoid mpi apps sending redundant info
   update_rank_size();
 }
 
