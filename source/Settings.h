@@ -399,10 +399,10 @@ struct Settings
     if(nnLambda<0)  die("nnLambda<0\n");
   }
 
-  vector<ArgumentParser::OptionStruct> initializeOpts ()
+  vector<ArgParser::OptionStruct> initializeOpts ()
   { //  //{ CHARARG_, "", TYPENUM_, COMMENT_, &, (TYPEVAL_) DEFAULT_ },
     //AVERT YOUR EYES!
-    return vector<ArgumentParser::OptionStruct> ({
+    return vector<ArgParser::OptionStruct> ({
       { CHARARG_splitLayers, "splitLayers", TYPENUM_splitLayers, COMMENT_splitLayers, &splitLayers, (TYPEVAL_splitLayers) DEFAULT_splitLayers },
       { CHARARG_outWeightsPrefac, "outWeightsPrefac", TYPENUM_outWeightsPrefac, COMMENT_outWeightsPrefac, &outWeightsPrefac, (TYPEVAL_outWeightsPrefac) DEFAULT_outWeightsPrefac },
       { CHARARG_rType, "rType", TYPENUM_rType, COMMENT_rType, &rType, (TYPEVAL_rType) DEFAULT_rType },

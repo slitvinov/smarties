@@ -83,7 +83,7 @@ int main (int argc, char** argv)
   struct timeval clock;
   gettimeofday(&clock, NULL);
 
-  vector<ArgumentParser::OptionStruct> opts = settings.initializeOpts();
+  vector<ArgParser::OptionStruct> opts = settings.initializeOpts();
 
   int provided;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -93,7 +93,7 @@ int main (int argc, char** argv)
   MPI_Comm_rank(MPI_COMM_WORLD, &settings.world_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &settings.world_size);
 
-  ArgumentParser::Parser parser(opts);
+  ArgParser::Parser parser(opts);
   parser.parse(argc, argv, settings.world_rank == 0);
   settings.check();
   MPI_Barrier(MPI_COMM_WORLD);

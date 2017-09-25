@@ -17,7 +17,7 @@
 using namespace std;
 enum argumentTypes { NONE, INT, REAL, CHAR, STRING };
 
-namespace ArgumentParser
+namespace ArgParser
 {
 struct OptionStruct
 {

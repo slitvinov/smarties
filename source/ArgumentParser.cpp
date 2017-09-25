@@ -1,5 +1,5 @@
 /*
- *  ArgumentParser.cpp
+ *  ArgParser.cpp
  *  rl
  *
  *  Created by Dmitry Alexeev on 02.05.13.
@@ -13,7 +13,7 @@
 #include "Warnings.h"
 #include "Bund.h"
 
-namespace ArgumentParser
+namespace ArgParser
 {
 Parser::Parser(const std::vector<OptionStruct> optionsMap):opts(optionsMap)
 {
