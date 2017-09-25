@@ -502,7 +502,7 @@ void Transitions::synchronize()
     if (not bufTransition->ended) ++nBroken;
     Set[ind] = bufTransition;
     Buffered.pop_back();
-    if(cnt == maxTotSeqNum/20) break; //don't change buffer too much
+    //if(cnt == maxTotSeqNum/20) break; //don't change buffer too much
   } //number of sequences remains constant
   //if(!learn_rank && printCount%10 == 0)
   printf("Removing %d sequences (avg length %f) associated with small MSE"
