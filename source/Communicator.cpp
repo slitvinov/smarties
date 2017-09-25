@@ -103,7 +103,7 @@ Communicator::Communicator(const int socket, const int sdim, const int adim, con
 }
 #endif
 
-void Communicator::sendState(const int iAgent, const _AGENT_STATUS status,
+void Communicator::sendState(const int iAgent, const envInfo status,
     const std::vector<double> state, const double reward)
 {
   if(rank_inside_app>0) return; //only rank 0 of the app sends state
@@ -130,22 +130,7 @@ void Communicator::sendState(const int iAgent, const _AGENT_STATUS status,
   #endif
     comm_sock(Socket, true, data_state, size_state);
 
-  if (status == _AGENT_LASTCOMM) {
-    //receive continue/abort
-    if(rank_learn_pool<1) { //TODO: add continue command to master
-      comm_sock(Socket, false, data_action, size_action);
-      if(data_action[0]<0) {
-        printf("Received end of training signal. Aborting...\n"); fflush(0);
-        #ifdef MPI_INCLUDED
-          if(size_inside_app>0) MPI_Abort(comm_inside_app, 1);
-          else
-        #endif
-          abort();
-      }
-    }
-    seq_id++;
-    msg_id = 0;
-  }
+  if (status == TERM_COMM) { seq_id++; msg_id = 0; }
 }
 
 void Communicator::recvAction(std::vector<double>& actions)
@@ -178,6 +163,18 @@ void Communicator::recvAction(std::vector<double>& actions)
     if(verbose) printLog(data_action, size_action);
     else  printBuf(data_action, size_action);
   }
+}
+
+void Communicator::sendCompleteTermination()
+{
+  if(rank_inside_app>0) return;
+  intToDoublePtr(0, data_state+0);
+  intToDoublePtr(GAME_OVER, data_state+1);
+  #ifdef MPI_INCLUDED
+    if (rank_learn_pool>0) send_MPI(data_state, size_state, comm_learn_pool);
+    else
+  #endif
+    comm_sock(Socket, true, data_state, size_state);
 }
 
 void Communicator::printLog(const double*const buf, const int size)
@@ -423,6 +420,7 @@ Communicator::Communicator(const MPI_Comm scom, const int socket, const bool spa
   spawner = spawn;
   socket_id = socket;
   comm_learn_pool = scom;
+  sentStateActionShape = true; //to avoid mpi apps sending redundant info
   update_rank_size();
 }
 
@@ -439,7 +437,7 @@ int Communicator::recvStateFromApp()
     close(Socket);
 
     intToDoublePtr(0, data_state+0);
-    intToDoublePtr(_AGENT_FAILCOMM, data_state+1);
+    intToDoublePtr(FAIL_COMM, data_state+1);
     iter++;
   }
   else assert(bytes == size_state);
@@ -519,22 +517,21 @@ void Communicator::ext_app_run()
   getcwd(initd,256);
   assert(slaveGroup>=0 && rank_inside_app >= 0 && comm_inside_app != MPI_COMM_NULL);
   sprintf(newd,"%s/%s_%d_%lu",initd,"simulation",slaveGroup,iter);
-  if(rank_inside_app == 0)
-    mkdir(newd, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+  if(rank_inside_app==0) mkdir(newd, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
   MPI_Barrier(comm_inside_app);
   chdir(newd);  // go to the task private directory
 
   //copy any additional file
-  if(!rank_inside_app)
+  if (rank_inside_app==0)
     if (copy_from_dir("../bin") !=0 )  {
       printf("Error in copy from dir\n");
       MPI_Abort(MPI_COMM_WORLD, 1);
     }
   MPI_Barrier(comm_inside_app);
 
-  redirect_stdout_init();
+  //redirect_stdout_init();
   app_main(this, comm_inside_app, largc, largv);
-  redirect_stdout_finalize();
+  //redirect_stdout_finalize();
 
   chdir(initd);  // go up one level
   iter++;
@@ -548,8 +545,8 @@ int Communicator::jobs_init(char *line, char **largv)
     _die("Missing %s\n", paramfile.c_str());
   if(fgets(line, 1024, cmdfp)== NULL)
     _die("Empty %s\n",   paramfile.c_str());
-  if (strstr(line,       paramfile.c_str()) == NULL)
-    _die("Invalid %s\n", paramfile.c_str());
+  //if (strstr(line,       paramfile.c_str()) == NULL)
+  //  _die("Invalid %s %s\n", paramfile.c_str(), line);
 
   fclose(cmdfp);
 

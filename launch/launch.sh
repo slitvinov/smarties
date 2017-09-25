@@ -71,10 +71,10 @@ cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/policy_settings.sh
 cd ${BASEPATH}${RUNFOLDER}
 
 NPROCESS=$((${NNODES}*${NTASK}))
-if [ ${HOST:0:5} == 'euler' ] ; then
-	NTHREADSPERNODE=24
-	NPROCESSORS=$((${NNODES}*${NTHREADSPERNODE}))
-	bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -W 24:00 ./run.sh  ${NPROCESS} ${NTHREADS} ${NTASK} #-R span[ptile=48] -sp 100
-else
-	./run.sh ${NPROCESS} ${NTHREADS} ${NTASK}
-fi
+#if [ ${HOST:0:5} == 'euler' ] ; then
+#	NTHREADSPERNODE=24
+#	NPROCESSORS=$((${NNODES}*${NTHREADSPERNODE}))
+#	bsub -J ${RUNFOLDER} -n ${NPROCESSORS} -W 24:00 ./run.sh  ${NPROCESS} ${NTHREADS} ${NTASK} #-R span[ptile=48] -sp 100
+#else
+source run.sh ${NPROCESS} ${NTHREADS} ${NTASK}
+#fi

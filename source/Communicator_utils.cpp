@@ -147,8 +147,8 @@ int copy_from_dir(const std::string name)
     }
     closedir (dir);
   } else {
-    /* could not open directory */
-    perror ("oops!");
+    printf("Could not open directory %s\n",name.c_str());
+    fflush(0);
     return 1;
   }
   return 0;
@@ -158,8 +158,7 @@ void comm_sock(int fd, const bool bsend, double*const data, const int size)
 {
   int bytes = bsend ? send_all(fd, data, size) : recv_all(fd, data, size);
 
-  if (bytes <= 0)
-  {
+  if (bytes <= 0) {
     printf("Lost contact with smarties, aborting..\n");
     fflush(0);
     abort();

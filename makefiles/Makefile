@@ -26,6 +26,9 @@ ifeq ($(UNAME_S),Darwin)
 include make.macos
 endif
 
+ifeq "$(findstring eu-,$(shell hostname))" "eu-"
+include make.euler
+endif
 ifeq "$(findstring euler,$(shell hostname))" "euler"
 include make.euler
 endif
@@ -118,8 +121,8 @@ endif
 
 CPPFLAGS+= -fstrict-aliasing -mavx2 -march=native -mtune=native
 CPPFLAGS+= -ftree-vectorize -ftree-vectorizer-verbose=2 #-DNDEBUG
-CPPFLAGS+= -fmerge-all-constants -fassociative-math 
-#CPPFLAGS+= -funsafe-loop-optimizations 
+CPPFLAGS+= -fmerge-all-constants -fassociative-math
+#CPPFLAGS+= -funsafe-loop-optimizations
 CPPFLAGS+= -fprofile-use
 #CPPFLAGS+= -funsafe-math-optimizations
 CPPFLAGS+= -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
@@ -134,10 +137,10 @@ OBJ_FILES = ArgumentParser.o main.o ObjectFactory.o Communicator.o \
 		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
 		HingedFishEnvironment.o BlowfishEnvironment.o alebotEnvironment.o \
 		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
-		openAICartEnvironment.o POAC.o \
-		Learner.o RACER.o DACER.o NAF.o NFQ.o DPG.o GAE.o Transitions.o \
-		Scheduler.o  Network.o Optimizer.o Math_tests.o Learner_utils.o \
-		Learner_onPolicy.o
+		openAICartEnvironment.o POAC.o Learner.o NAF.o NFQ.o DPG.o RACER.o \
+		DACER.o Learner_onPolicy.o GAE.o Transitions.o Learner_utils.o \
+		Scheduler.o Network.o Optimizer.o Math_tests.o
+
 #ExternalAgent.o
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
@@ -151,8 +154,8 @@ endif
 ifeq "$(app)" "cubism"
 lib:
 	make -C ../../CubismUP_3D/makefiles/ clean
-	make -C ../../CubismUP_3D/makefiles/ train=true librl -j
-	#make -C ../../CubismUP_3D/makefiles/ librl -j
+	#make -C ../../CubismUP_3D/makefiles/ train=true librl -j
+	make -C ../../CubismUP_3D/makefiles/ librl -j
 else
 LIBAPP= -L. -lsimulation
 

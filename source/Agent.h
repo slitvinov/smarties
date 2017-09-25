@@ -79,13 +79,17 @@ public:
     Status = 1; transitionID=0; cumulative_rewards=0; r=0;
   }
 
-  void update(const _AGENT_STATUS _i, const vector<double>& _s, const double _r)
+  void update(const envInfo _i, const vector<double>& _s, const double _r)
   {
+    if(_i == FAIL_COMM) {
+      cumulative_rewards = transitionID = r = 0;
+      return;
+    }
     Status = _i;
     swapStates(); //swap sold and snew
     s->set(_s);
     r = _r;
-    if(_i == _AGENT_FIRSTCOMM) {
+    if(_i == INIT_COMM) {
       cumulative_rewards = 0;
       transitionID = 0;
     }
