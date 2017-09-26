@@ -132,7 +132,7 @@ CPPFLAGS+= -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
 #endif
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
-OBJ_FILES = ArgumentParser.o main.o ObjectFactory.o Communicator.o \
+OBJ_FILES = ArgParser.o main.o ObjectFactory.o Communicator.o \
 		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o \
 		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
 		HingedFishEnvironment.o BlowfishEnvironment.o alebotEnvironment.o \

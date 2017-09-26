@@ -529,9 +529,9 @@ void Communicator::ext_app_run()
     }
   MPI_Barrier(comm_inside_app);
 
-  //redirect_stdout_init();
+  redirect_stdout_init();
   app_main(this, comm_inside_app, largc, largv);
-  //redirect_stdout_finalize();
+  redirect_stdout_finalize();
 
   chdir(initd);  // go up one level
   iter++;

@@ -25,8 +25,8 @@ study(_s.rType), goalDY((_s.goalDY>1)? 1-_s.goalDY : _s.goalDY)
   #else
     mpi_ranks_per_env = 0;
   #endif
-  paramsfile="settings_32.txt";
-  //paramsfile="settings_64.txt";
+  //paramsfile="settings_32.txt";
+  paramsfile="settings_64.txt";
   assert(settings.senses<=8);
 }
 

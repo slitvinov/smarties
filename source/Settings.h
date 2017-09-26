@@ -8,7 +8,7 @@
  */
 #pragma once
 #include <getopt.h>
-#include "ArgumentParser.h"
+#include "ArgParser.h"
 #include "Warnings.h"
 
 struct Settings
