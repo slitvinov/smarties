@@ -155,9 +155,9 @@ class Communicator:
 
         state = np.zeros(self.nStates+3, dtype=np.float64)
         state[0] = 0
-        if terminal:  state[1] = 2
-        elif initial: state[1] = 1
-        else:         state[1] = 0
+        if terminal:  state[1] = 2.1
+        elif initial: state[1] = 1.1
+        else:         state[1] = 0.1
         if hasattr(observation, 'shape'):
             assert( self.nStates == observation.size )
             state[2:self.nStates+2] = observation.ravel()
@@ -174,13 +174,6 @@ class Communicator:
         #    fname = 'state_seq%04d_frame%07d' % (seq_id, frame_id)
         #    plt.imshow(self.gym.render(mode='rgb_array'))
         #    plt.savefig(fname, dpi=100)
-
-        if terminal:
-            buf=np.frombuffer(self.conn.recv(self.nActions*8),dtype=np.float64)
-            #print(buf)
-            if(buf[0]<0):
-                print("Received end of training signal. Aborting...")
-                quit()
 
     def recv_action(self):
         buf = np.frombuffer(self.conn.recv(self.nActions*8), dtype=np.float64)
