@@ -18,7 +18,7 @@ template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_utils
 {
  protected:
-  const Real CmaxRet = 1, CmaxRho = 1;
+  const Real CmaxRet = 1, CmaxRho = 5;
   //const Real CmaxRet = 5, CmaxRho = 5;
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);

@@ -38,6 +38,24 @@ protected:
     die("not allowed");
   }
 
+  void updateGAE(const int workid, const Real reward, const Real delta) const
+  {
+    Real fac_lambda = lambda*gamma, fac_gamma = gamma;
+    work[workid]->rewards.push_back(reward);
+    work[workid]->GAE.push_back(delta);
+    for (Uint i=2; i<=work[workid]->GAE.size(); i++) {
+      const Uint ind = work[workid]->GAE.size() - i;
+      work[workid]->rewards[ind] += fac_gamma*reward;
+      #ifndef IGNORE_CRITIC
+      work[workid]->GAE[ind] += fac_lambda*delta;
+      #else
+      work[workid]->GAE[ind] += fac_gamma*reward;
+      #endif
+      fac_lambda *= lambda*gamma;
+      fac_gamma *= gamma;
+    }
+  }
+
   void Train(const Uint workid,const Uint samp,const Uint thrID) const override
   {
     if(thrID==1)  profiler->stop_start("TRAIN");
@@ -106,24 +124,6 @@ protected:
     if(thrID==1)  profiler->stop_start("SLP");
   }
 
-  void updateGAE(const int workid, const Real reward, const Real delta) const
-  {
-    Real fac_lambda = lambda*gamma, fac_gamma = gamma;
-    work[workid]->rewards.push_back(reward);
-    work[workid]->GAE.push_back(delta);
-    for (Uint i=2; i<=work[workid]->GAE.size(); i++) {
-      const Uint ind = work[workid]->GAE.size() - i;
-      work[workid]->rewards[ind] += fac_gamma*reward;
-      #ifndef IGNORE_CRITIC
-      work[workid]->GAE[ind] += fac_lambda*delta;
-      #else
-      work[workid]->GAE[ind] += fac_gamma*reward;
-      #endif
-      fac_lambda *= lambda*gamma;
-      fac_gamma *= gamma;
-    }
-  }
-
 public:
   GAE(MPI_Comm comm, Environment*const _env, Settings& settings,
   vector<Uint> net_outs, vector<Uint> pol_inds) :
@@ -141,7 +141,7 @@ public:
     if(agent.Status==2) { //terminal state
       data->writeData(agentId, agent, vector<Real>(policyVecDim,0));
       if(work[workid]->Vst.size() == 0) { //empty trajectory
-        work[workid]->clear();
+        work[workid]->clear(); //reset workspace for other trajectory
         return;
       }
       // V_s_term := 0, therefore delta_term = r_t+1 - V(s_t)
