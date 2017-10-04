@@ -12,14 +12,8 @@
 #define GYM_RENDEROPT 0
 #endif
 
-Environment::Environment(const Uint nA, const string exe, Settings& _s) :
-g(&_s.generators[0]), settings(_s), execpath(exe),
-nAgents(nA*_s.nSlaves), nAgentsPerRank(nA), gamma(_s.gamma)
-{
-    assert(!_s.slaves_rank || nAgentsPerRank == nAgents);
-    for (Uint i=0; i<nAgents; i++) agents.push_back(new Agent(i));
-    _s.nAgents = agents.size();
-}
+Environment::Environment(Settings& _settings) :
+g(&_settings.generators[0]), settings(_settings), gamma(_settings.gamma) {}
 
 void Environment::setDims() //this environment is for the cart pole test
 {
@@ -34,7 +28,16 @@ void Environment::setDims() //this environment is for the cart pole test
   #endif
 
   comm_ptr->getStateActionShape();
-  aI.dim = comm_ptr->nActions; sI.dim = comm_ptr->nStates;
+  assert(comm_ptr->nAgents>0);
+  assert(comm_ptr->nStates>0);
+  assert(comm_ptr->nActions>0);
+  assert(comm_ptr->discrete_actions>=0);
+
+  sI.dim = comm_ptr->nStates;
+  aI.dim = comm_ptr->nActions;
+  nAgentsPerRank = comm_ptr->nAgents;
+  aI.discrete = comm_ptr->discrete_actions;
+
   aI.values.resize(aI.dim); aI.bounded.resize(aI.dim, 0);
   sI.mean.resize(sI.dim); sI.scale.resize(sI.dim);
   sI.inUse.resize(sI.dim, 1);
@@ -59,8 +62,11 @@ void Environment::setDims() //this environment is for the cart pole test
   for (Uint i=0; i<aI.dim; i++) {
     aI.bounded[i] = comm_ptr->action_options[i*2+1];
     const int nvals = comm_ptr->action_options[i*2];
+    assert(aI.discrete || nvals == 2);
+    assert(nvals > 1);
     aI.values[i].resize(nvals);
-    for(int j=0; j<nvals; j++) aI.values[i][j] = comm_ptr->action_bounds[k++];
+    for(int j=0; j<nvals; j++)
+      aI.values[i][j] = comm_ptr->action_bounds[k++];
 
     const Real amax = aI.getActMaxVal(i), amin = aI.getActMinVal(i);
     const Real scale = 0.5*(amax - amin), mean = 0.5*(amax + amin);
@@ -72,6 +78,7 @@ void Environment::setDims() //this environment is for the cart pole test
   if(!settings.world_rank) printf("\n");
 
   commonSetup(); //required
+  assert(sI.dim == (Uint) comm_ptr->nStates);
 }
 
 Communicator Environment::create_communicator(
@@ -81,7 +88,7 @@ Communicator Environment::create_communicator(
 {
   assert(socket>0);
   Communicator comm(slavesComm, socket, bSpawn);
-  comm.set_exec_path(execpath);
+  comm.set_exec_path(settings.launchfile);
   comm_ptr = &comm;
   if(mpi_ranks_per_env==0 && settings.slaves_rank>0)
     comm_ptr->launch();
@@ -125,38 +132,43 @@ bool Environment::predefinedNetwork(Builder* const net) const
 
 void Environment::commonSetup()
 {
-    sI.dim = 0; sI.dimUsed = 0;
-    for (Uint i=0; i<sI.inUse.size(); i++) {
-        sI.dim++;
-        if (sI.inUse[i]) sI.dimUsed++;
-    }
+  assert(settings.nSlaves > 0);
+  assert(nAgentsPerRank > 0);
+  nAgents = nAgentsPerRank * settings.nSlaves;
+  agents.resize(std::max(nAgents, (Uint) 1), nullptr);
+  for(Uint i=0; i<nAgents; i++) agents[i] = new Agent(i);
+  settings.nAgents = nAgents;
+
+  sI.dim = 0; sI.dimUsed = 0;
+  for (Uint i=0; i<sI.inUse.size(); i++) {
+      sI.dim++;
+      if (sI.inUse[i]) sI.dimUsed++;
+  }
+  if(!settings.world_rank)
+  printf("State has %d component, %d in use\n", sI.dim, sI.dimUsed);
+
+  aI.updateShifts();
+
+  if(! aI.bounded.size()) {
+    aI.bounded.resize(aI.dim, 0);
     if(!settings.world_rank)
-    printf("State has %d component, %d in use\n", sI.dim, sI.dimUsed);
+    printf("Unspecified whether action space is bounded: assumed not\n");
+  } else assert(aI.bounded.size() == aI.dim);
 
-    aI.updateShifts();
-
-    if(! aI.bounded.size()) {
-      aI.bounded.resize(aI.dim, 0);
-      if(!settings.world_rank)
-      printf("Unspecified whether action space is bounded: assumed not\n");
-    } else assert(aI.bounded.size() == aI.dim);
-
-    for (auto& a : agents) {
-        a->setDims(sI, aI);
-        a->a = new Action(aI, g);
-        a->s = new State(sI);
-        a->sOld = new State(sI);
-    }
-    assert(sI.scale.size() == sI.mean.size());
-    assert(sI.mean.size()==0 || sI.mean.size()==sI.dim);
-    for (Uint i=0; i<sI.scale.size(); i++)
-      assert(positive(sI.scale[i]));
+  for (auto& a : agents) {
+    a->setDims(sI, aI);
+    a->a = new Action(aI, g);
+    a->s = new State(sI);
+    a->sOld = new State(sI);
+  }
+  assert(sI.scale.size() == sI.mean.size());
+  assert(sI.mean.size()==0 || sI.mean.size()==sI.dim);
+  for (Uint i=0; i<sI.scale.size(); i++) assert(positive(sI.scale[i]));
 }
 
-bool Environment::pickReward(const State& t_sO, const Action& t_a,
-                             const State& t_sN, Real& reward, const int info)
+bool Environment::pickReward(const Agent& agent)
 {
-    return info == 2;
+  return agent.Status == 2;
 }
 
 Uint Environment::getNdumpPoints()

@@ -17,22 +17,22 @@ nA(_env->aI.dim), nL(compute_nL(_env->aI.dim))
   #ifdef NDEBUG
   //if(bRecurrent) die("NAF recurrent not tested!\n");
   #endif
-  vector<Real> out_weight_inits = {-1, -1, settings.outWeightsPrefac};
 
-  #ifdef FEAT_CONTROL
-  const Uint task_out0 = ContinuousSignControl::addRequestedLayers(nA,
-     env->sI.dimUsed, net_indices, net_outputs, out_weight_inits);
-  #endif
+  //#ifdef FEAT_CONTROL
+  //const Uint task_out0 = ContinuousSignControl::addRequestedLayers(nA,
+  //   env->sI.dimUsed, net_indices, net_outputs, out_weight_inits);
+  //#endif
 
-  buildNetwork(net, opt, net_outputs, settings, out_weight_inits);
+  buildNetwork(net_outputs, settings);
+
   printf("NAF: Built network with outputs: %s %s\n",
     print(net_indices).c_str(), print(net_outputs).c_str());
   assert(nOutputs == net->getnOutputs());
   assert(nInputs == net->getnInputs());
   policyVecDim = 2*nA;
-  #ifdef FEAT_CONTROL
-  task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net, data);
-  #endif
+  //#ifdef FEAT_CONTROL
+  //task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net, data);
+  //#endif
   test();
 }
 
@@ -93,12 +93,12 @@ void NAF::Train_BPTT(const Uint seq, const Uint thrID) const
     const Real error = value - Qsold;
     vector<Real> gradient(nOutputs);
     gradient[net_indices[0]] = error;
-    adv_sold.grad(act, error, gradient, aInfo.bounded);
+    adv_sold.grad(act, error, gradient);
 
-    #ifdef FEAT_CONTROL
-      const Activation* const recur = term ? nullptr : acthat[k+1];
-      task->Train(actcur[k], recur, act, seq, k, rGamma, gradient);
-    #endif
+    //#ifdef FEAT_CONTROL
+    //  const Activation* const recur = term ? nullptr : acthat[k+1];
+    //  task->Train(actcur[k], recur, act, seq, k, rGamma, gradient);
+    //#endif
 
     statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
     clip_gradient(gradient, stdGrad[0], seq, k);
@@ -152,11 +152,11 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
   const Real value = (terminal) ? _t->r : _t->r + rGamma*Vsnew;
   const Real error = value - Qsold;
   gradient[net_indices[0]] = error;
-  adv_sold.grad(act, error, gradient, aInfo.bounded);
+  adv_sold.grad(act, error, gradient);
 
-  #ifdef FEAT_CONTROL
-    task->Train(series_cur.back(),tgtAct,act,seq,samp,rGamma,gradient);
-  #endif
+  //#ifdef FEAT_CONTROL
+  //  task->Train(series_cur.back(),tgtAct,act,seq,samp,rGamma,gradient);
+  //#endif
 
   statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
   data->Set[seq]->tuples[samp]->SquaredError = error*error;

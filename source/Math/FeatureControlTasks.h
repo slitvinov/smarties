@@ -10,7 +10,7 @@
 #pragma once
 #include "Quadratic_advantage.h"
 #include "../Learners/Learner.h"
-
+/*
 class ContinuousFeatureControl
 {
 protected:
@@ -198,3 +198,4 @@ public:
     return NS*(1+NA);
   }
 };
+*/

@@ -81,7 +81,7 @@ public:
   int size_inside_app = -1, size_learn_pool = -1;
   int slaveGroup = -1;
   int nStates = -1, nActions = -1, size_state = -1, size_action = -1;
-
+  int discrete_actions = 0, nAgents=1;
   // communication buffers:
   double *data_state = nullptr, *data_action = nullptr;
   bool called_by_app = false, defined_spaces = false;
@@ -108,6 +108,7 @@ public:
   void set_action_scales(const std::vector<double> upper,
     const std::vector<double> lower, const bool bound = false);
   void set_action_options(const std::vector<int> options);
+  void set_action_options(const int options);
   void set_state_scales(const std::vector<double> upper,
     const std::vector<double> lower);
   void set_state_observable(const std::vector<bool> observable);
@@ -145,10 +146,10 @@ public:
 
   void launch();
 
-  Communicator(const int socket, const int sdim, const int adim);
+  Communicator(const int socket, const int state_components, const int action_components, const int number_of_agents = 1);
 
 #ifdef MPI_INCLUDED
-  Communicator(const int socket, const int sdim, const int adim, const MPI_Comm app);
+  Communicator(const int socket, const int state_components, const int action_components, const MPI_Comm app, const int number_of_agents);
 #endif
 
   ~Communicator();

@@ -20,7 +20,7 @@ Learner_utils(comm,_env,settings,settings.nnOutputs)
   #ifdef NDEBUG
   //if(bRecurrent) die("NFQ recurrent not tested!\n");
   #endif
-  buildNetwork(net, opt, vector<Uint>(1,nOutputs), settings);
+  buildNetwork(vector<Uint>(1,nOutputs), settings);
   printf("NFQ: Built network\n");
   assert(nOutputs == net->getnOutputs());
   assert(nInputs == net->getnInputs());

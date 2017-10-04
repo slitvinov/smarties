@@ -17,7 +17,7 @@ Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
   maxTotSeqNum(_s.maxTotSeqNum),maxSeqLen(_s.maxSeqLen),minSeqLen(_s.minSeqLen),
   nAppended(_s.appendedObs),batchSize(_s.batchSize),learn_rank(_s.learner_rank),
   learn_size(_s.learner_size), path(_s.samplesFile), gamma(_s.gamma),
-  generators(_s.generators), sI(_env->sI), aI(_env->aI)
+  generators(_s.generators), sI(_env->sI), aI(_env->aI), _agents(_env->agents)
 {
   mean.resize(sI.dimUsed, 0);
   std.resize(sI.dimUsed, 1);
@@ -40,174 +40,103 @@ Transitions::Transitions(MPI_Comm comm, Environment* const _env, Settings & _s):
   for (Uint i=0; i<static_cast<Uint>(_s.nAgents); i++)
     Tmp[i] = new Sequence();
 
-  curr_transition_id.resize(max(_s.nAgents,1));
   gen = new Gen(&generators[0]);
   Set.reserve(maxTotSeqNum);
 }
 
 Uint Transitions::restartSamples(const Uint polDim)
 {
-  if(path == "none" || path == "None" ) return false;
-  vector<State> oldState(curr_transition_id.size(), sI);
-  State newState(sI); Action action(aI, &generators[0]);
-  const Uint sDim=sI.dim, aDim=aI.dim, writesize = 3+sI.dim+aI.dim+polDim;
+  if(path == "none") return false;
+  const Uint writesize = 3+sI.dim+aI.dim+polDim;
   int agentID = 0, info = 0, sampID = 0;
-  vector<Real> policy(polDim);
+  vector<Real> policy(polDim), action(aI.dim);
+  vector<double> state(sI.dim);
   Real reward = 0;
   char asciipath[256];
-  sprintf(asciipath, "rank%02d_%s", learn_rank, path.c_str());
-  std::ifstream in(asciipath);
-  std::string line;
 
-  if(in.good())
+  while (true)
   {
-    while (getline(in, line))
-    {
-      std::istringstream line_in(line);
-      line_in >> agentID >> info >> sampID;
-      if(oldState.size() <= static_cast<Uint>(agentID))
-         oldState.resize(1+agentID, sI);
-      if(curr_transition_id.size() <= static_cast<Uint>(agentID))
-         curr_transition_id.resize(1+agentID,0);
-      assert(agentID>=0);
-      if((sampID==0) != (info==1))
-        die("Mismatch in transition counter\n");
-      if(static_cast<Uint>(sampID)!=curr_transition_id[agentID]+1 && info!=1)
-        die("Mismatch in transition change\n");
-      curr_transition_id[agentID] = sampID;
+    sprintf(asciipath, "obs_rank%02d_agent%03d.raw", learn_rank, agentID);
+    FILE*pFile = fopen(asciipath, "rb");
+    if(pFile==NULL){ printf("Couldnt open file %s.\n",asciipath); break; }
 
-      for(Uint i=0; i<sDim;   i++) line_in >> newState.vals[i];
-      for(Uint i=0; i<aDim;   i++) line_in >> action.vals[i];
-      line_in >> reward;
-      for(Uint i=0; i<polDim; i++) line_in >> policy[i];
+    float* buf = (float*) malloc(writesize*sizeof(float));
 
-      add(agentID, info, oldState[agentID], action, policy, newState, reward);
-      if (info == 2) oldState[agentID].vals = vector<Real>(sDim, 0);
-      else oldState[agentID].vals = newState.vals;
+    while(true) {
+      size_t ret = fread(buf, sizeof(float), writesize, pFile);
+      if (ret == 0) break;
+      if (ret != writesize) _die("Error reading datafile %s", asciipath);
+      Uint k = 0; info = buf[k++]; sampID = buf[k++];
+
+      if((sampID==0) != (info==1)) die("Mismatch in transition counter\n");
+      if(sampID!=_agents[0]->transitionID && info!=1) die(" transitionID");
+
+      for(Uint i=0; i<sI.dim; i++) state[i]  = buf[k++];
+      for(Uint i=0; i<aI.dim; i++) action[i] = buf[k++];
+      reward = buf[k++];
+      for(Uint i=0; i<polDim; i++) policy[i] = buf[k++];
+      assert(k == writesize);
+      _agents[0]->update(info, state, reward);
+      _agents[0]->a->vals = action;
+      add(0, *(_agents[0]), policy);
     }
-    in.close();
-    //_die("Job done %lu\n",Tmp.size());
+    fclose(pFile);
+    free(buf);
+    agentID++;
   }
-  else
-  {
-    while (true)
-    {
-      sprintf(asciipath, "obs_rank%02d_agent%03d.raw", learn_rank, agentID);
-      FILE*pFile = fopen(asciipath, "rb");
-      if(pFile == NULL) {
-        printf("Couldnt open file %s.\n", asciipath);
-        break;
-      }
-      if(oldState.size() <= static_cast<Uint>(agentID))
-         oldState.resize(1+agentID, sI);
-      if(curr_transition_id.size() <= static_cast<Uint>(agentID))
-         curr_transition_id.resize(1+agentID,0);
-
-      float* buf = (float*) malloc(writesize*sizeof(float));
-
-      while(true)
-      {
-        size_t ret = fread(buf,sizeof(float),writesize,pFile);
-        if (ret == 0) break;
-        if (ret != writesize) _die("Error reading datafile %s", asciipath);
-        Uint k = 0; info = buf[k++]; sampID = buf[k++];
-
-        if((sampID==0) != (info==1))
-          die("Mismatch in transition counter\n");
-        if(static_cast<Uint>(sampID)!=curr_transition_id[agentID]+1 && info!=1)
-          die("Mismatch in transition change\n");
-        curr_transition_id[agentID] = sampID;
-
-        for(Uint i=0; i<sDim;   i++) newState.vals[i] = buf[k++];
-        for(Uint i=0; i<aDim;   i++) action.vals[i] = buf[k++];
-        reward = buf[k++];
-        for(Uint i=0; i<polDim; i++) policy[i] = buf[k++];
-        assert(k == writesize);
-
-        //if we are restarting from a run with more mpi processes:
-        while(static_cast<Uint>(agentID)>=Tmp.size())
-          Tmp.push_back(new Sequence());
-
-        add(agentID, info, oldState[agentID], action, policy, newState, reward);
-        if (info == 2) oldState[agentID].vals = vector<Real>(sDim, 0);
-        else oldState[agentID].vals = newState.vals;
-      }
-      fclose(pFile);
-      free(buf);
-      agentID++;
-    }
-    if(agentID==0)  {
-      printf("Couldn't restart transition data.\n");
-      return 1;
-    }
+  if(agentID==0)  {
+    printf("Couldn't restart transition data.\n");
+    return 1;
   }
+  push_back(0);
   printf("Found %d broken chains out of %d / %d.\n",
       nBroken, nSequences, nTransitions);
-
   return 0;
 }
 
-void Transitions::writeData(const int agentId, const int info, const State& sOld, const Action&aNew, const State&sNew, const Real rew, const vector<Real> muNew)
+void Transitions::writeData(const int agentId, const Agent&a, const vector<Real>mu)
 {
   char asciipath[256];
   sprintf(asciipath, "obs_rank%02d_agent%03d.raw", learn_rank, agentId);
   FILE * pFile = fopen (asciipath, "ab");
-  const Uint writesize = (3 + sI.dim + aI.dim + muNew.size())*sizeof(float);
+  const Uint writesize = (3 + sI.dim + aI.dim + mu.size())*sizeof(float);
   float* buf = (float*) malloc(writesize);
   memset(buf, 0, writesize);
   Uint k=0;
-  buf[k++]=info + 0.1;
-  buf[k++]=(int)curr_transition_id[agentId] + 0.1;
-  for (Uint i=0; i<sI.dim;       i++) buf[k++] = (float) sNew.vals[i];
-  for (Uint i=0; i<aI.dim;       i++) buf[k++] = (float) aNew.vals[i];
-  buf[k++] = rew;
-  for (Uint i=0; i<muNew.size(); i++) buf[k++] = (float) muNew[i];
+  buf[k++] = a.Status + 0.1;
+  buf[k++] = a.transitionID + 0.1;
+  for (Uint i=0; i<sI.dim;    i++) buf[k++] = (float) a.s->vals[i];
+  for (Uint i=0; i<aI.dim;    i++) buf[k++] = (float) a.a->vals[i];
+  buf[k++] = a.r;
+  for (Uint i=0; i<mu.size(); i++) buf[k++] = (float) mu[i];
   assert(k*sizeof(float) == writesize);
   fwrite (buf, sizeof(float), writesize/sizeof(float), pFile);
-  fflush(pFile);
-  fclose(pFile);
-  free(buf);
+  fflush(pFile); fclose(pFile);  free(buf);
 }
 
-int Transitions::passData(const int agentId, const int info, const State& sOld,
-  const Action&aNew, const State&sNew, const Real rew, const vector<Real> muNew)
+int Transitions::passData(const int agentId,const Agent&a,const vector<Real>mu)
 {
-  assert(agentId<static_cast<int>(curr_transition_id.size()) && agentId>=0);
-  const int ret = add(agentId, info, sOld, aNew, muNew, sNew, rew);
-  if (ret) curr_transition_id[agentId] = 0;
+  const int ret = add(agentId, a, mu);
 
-  if(bWriteToFile || !agentId) writeData(agentId,info,sOld,aNew,sNew,rew,muNew);
+  if(bWriteToFile || !agentId) writeData(agentId, a, mu);
 
-  if (bWriteToFile)
-  {
-    char asciipath[256];
-    sprintf(asciipath, "rank%02d_%s", learn_rank, path.c_str());
-    ofstream fout(asciipath, ios::app);
-    fout<<agentId<<" "<<info<<" "<<curr_transition_id[agentId]
-      <<" "<<sNew._print().c_str()<<" "<<aNew._print().c_str()
-      <<" "<<rew<<" "<<print(muNew)<<endl;
-    fout.flush();
-    fout.close();
-  }
-
-  curr_transition_id[agentId]++;
   return ret;
 }
 
-int Transitions::add(const int agentId, const int info, const State& sOld,
-    const Action& aNew, const vector<Real> muNew, const State& sNew, Real rNew)
+int Transitions::add(const int agentId, const Agent&a, const vector<Real>mu)
 {
   //return value is 1 if the agent states buffer is empty or on initial state
   int ret = 0;
 
   const Uint sApp = nAppended*sI.dimUsed;
-  if (Tmp[agentId]->tuples.size()!=0 && info == 1) {
+  if (Tmp[agentId]->tuples.size() && a.Status == 1) {
+    //previous sequence not empty, yet received an initial state, push back prev
     warn("Detected partial sequence\n");
-    push_back(agentId); //create new sequence
+    push_back(agentId);
     ret = 1;
   } else if(Tmp[agentId]->tuples.size()==0) {
-    if(info!=1) die("Missing initial state\n");
-    ret = 1; //new Sequence
+    if(a.Status not_eq 1) die("Missing initial state\n");
+    ret = 1; //status is 1
   }
   /*
     if(Tmp[agentId]->tuples.size()!=0) {
@@ -218,15 +147,16 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
     else
       printf("Start chain %d[%s][%s][%s],%g\n",agentId, sOld._print().c_str(),
       aNew._print().c_str(),sNew._print().c_str(),rNew);
-  */
-  if(Tmp[agentId]->tuples.size()!=0) {
+   */
+  if(Tmp[agentId]->tuples.size()) {
+    // check that last new state and new old state are the same
     bool same = true;
-    const vector<Real> vecSold = sOld.copy_observed();
+    const vector<Real> vecSold = a.sOld->copy_observed();
     const Tuple*const last = Tmp[agentId]->tuples.back();
-    for (Uint i=0; i<sI.dimUsed; i++) //scaled vec only has used dims:
+    for (Uint i=0; i<sI.dimUsed && same; i++) //scaled vec only has used dims:
       same = same && std::fabs(last->s[i]-vecSold[i])<1e-8;
     if (!same) {
-      warn("Detected partial sequence\n");
+      warn("Detected partial sequence");
       push_back(agentId); //create new sequence
       ret = 1;
     }
@@ -248,22 +178,22 @@ int Transitions::add(const int agentId, const int info, const State& sOld,
 
   //we can add sNew:
   Tuple * t = new Tuple();
-  t->s = sNew.copy_observed();
+  t->s = a.s->copy_observed();
   if (sApp>0) {
     if(Tmp[agentId]->tuples.size()==0)
-      t->s.insert(t->s.end(),sApp,0.);
+      t->s.insert(t->s.end(), sApp, 0);
     else {
       const Tuple * const last = Tmp[agentId]->tuples.back();
-      t->s.insert(t->s.end(),last->s.begin(),last->s.begin()+sApp);
+      t->s.insert(t->s.end(), last->s.begin(), last->s.begin() +sApp);
       assert(last->s.size()==t->s.size());
     }
   }
 
-  const bool end_seq = env->pickReward(sOld,aNew,sNew,rNew,info);
-  assert((info==2)==end_seq); //alternative not supported
-  t->a = aNew.vals;
-  t->r = rNew;
-  t->mu = muNew;
+  const bool end_seq = env->pickReward(a);
+  assert((a.Status==2)==end_seq); //alternative not supported
+  t->a = a.a->vals;
+  t->r = a.r;
+  t->mu = mu;
 
   Tmp[agentId]->tuples.push_back(t);
   if (end_seq) {
@@ -290,7 +220,8 @@ void Transitions::pushBackEndedSim(const int agentOne, const int agentEnd)
 
 void Transitions::push_back(const int & agentId)
 {
-  if(Tmp[agentId]->tuples.size() > minSeqLen ) {
+  if(Tmp[agentId]->tuples.size() > minSeqLen )
+  {
     lock_guard<mutex> lock(dataset_mutex);
     if (nSequences>=maxTotSeqNum) {
       Buffered.push_back(Tmp[agentId]);
@@ -505,26 +436,36 @@ void Transitions::synchronize()
     //if(cnt == maxTotSeqNum/20) break; //don't change buffer too much
   } //number of sequences remains constant
   //if(!learn_rank && printCount%10 == 0)
-  printf("Removing %d sequences (avg length %f) associated with small MSE"
+
+  const string fname = "transitions.log";
+  FILE * f = fopen(fname.c_str(), "a");
+  if (f == NULL) die("Save fail\n");
+
+  fprintf(f,"Removing %d sequences (avg length %f) associated with small MSE"
       "error in favor of new ones (avg lendth %f). %lu left in Buffer\n",
       cnt, nTransitionsDeleted/(Real)cnt,
       nTransitionsInBuf/(Real)cnt, Buffered.size());
+  fflush(f); fclose(f);
 }
 
 Uint Transitions::updateSamples(const Real annealFac)
 {
   bool update_meanstd_needed = false;
+  const string fname = "transitions.log";
+  FILE * f = fopen(fname.c_str(), "a");
+  if (f == NULL) die("Save fail\n");
+
   printCount++;
   if(Buffered.size()>0) {
-    if(!learn_rank && printCount%10 == 0)
-    printf("nSequences %d (%d) > maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
+    if(!learn_rank) // && printCount%10 == 0
+    fprintf(f,"nSequences %d (%d) > maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
       nSequences, nSeenSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
     synchronize();
     update_meanstd_needed = true;
     old_ndata = nTransitions;
   } else {
-    if(!learn_rank && printCount%100 == 0)
-    printf("nSequences %d (%d) =< maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
+    if(!learn_rank) // && printCount%100 == 0
+    fprintf(f,"nSequences %d (%d) =< maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
       nSequences, nSeenSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
     update_meanstd_needed = nTransitions!=old_ndata;
     old_ndata = nTransitions;
@@ -532,6 +473,7 @@ Uint Transitions::updateSamples(const Real annealFac)
   if(update_meanstd_needed) update_rewards_mean();
   update_meanstd_needed = update_meanstd_needed && bNormalize && annealFac>0;
 
+  fflush(f); fclose(f);
   #ifndef importanceSampling
     const Uint ndata = (bSampleSeq) ? nSequences : nTransitions;
     inds.resize(ndata);

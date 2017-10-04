@@ -15,14 +15,13 @@
 class TwoActFishEnvironment: public Environment
 {
 protected:
-    const bool sight, rcast, lline, press;
-    const int study;
-    const Real goalDY;
+  const int study;
+  const bool sight, rcast, lline, press;
+  const Real goalDY;
 public:
-    TwoActFishEnvironment(const Uint nAgents, const string execpath, Settings & settings);
+    TwoActFishEnvironment(Settings & _settings);
     void setDims() override;
-    //bool pickReward(const State& t_sO, const Action& t_a,
-    //                const State& t_sN, Real& reward, const int info) override;
+    //bool pickReward(const Agent& agent) override;
     #ifdef __DBG_CNN
     bool predefinedNetwork(Builder* const net) const override;
     #endif

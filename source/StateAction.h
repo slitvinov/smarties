@@ -37,7 +37,7 @@ struct StateInfo
 
 class State
 {
-public:
+ public:
   StateInfo sInfo;
   vector<Real> vals;
 
@@ -81,7 +81,7 @@ public:
     for (Uint i=0; i<sInfo.dim; i++) res[i] = vals[i];
   }
 
-  inline void set(const vector<Real> data)
+  inline void set(const vector<Real>& data)
   {
     assert(data.size() == sInfo.dim);
     for (Uint i=0; i<sInfo.dim; i++) vals[i] = data[i];
@@ -93,7 +93,7 @@ struct ActionInfo
   Uint dim, maxLabel; //number of actions per turn
   vector<bool> bounded; //whether action have a lower && upper bounded (bool)
   //vector<int> boundedTOP, boundedBOT; TODO
-
+  bool discrete = false;
   //each component of action vector has a vector of possible values that action can take with DQN
   vector<vector<Real>> values; //max and min of this vector also used for rescaling
   vector<Uint> shifts; //used by DQN to map int to an (entry in each component of values)
@@ -110,6 +110,7 @@ struct ActionInfo
     values = actionInfo.values;
     shifts = actionInfo.shifts;
     bounded = actionInfo.bounded;
+    discrete = actionInfo.discrete;
     return *this;
   }
 
@@ -287,7 +288,7 @@ struct ActionInfo
 
 class Action
 {
-public:
+ public:
   ActionInfo actInfo;
   vector<Real> vals;
   mt19937 * gen;
@@ -312,7 +313,7 @@ public:
     return print(vals);
   }
 
-  inline void set(vector<Real> data)
+  inline void set(const vector<Real>& data)
   {
     assert(data.size() == actInfo.dim);
     vals = data;

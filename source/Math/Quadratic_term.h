@@ -15,22 +15,22 @@ struct Quadratic_term
   const Uint start_matrix, start_mean, nA, nL;
   const vector<Real>& netOutputs;
   const vector<Real> L, mean, matrix;
-  static inline Uint compute_nL(const Uint NA)
+  static inline Uint compute_nL(const ActionInfo* const aI)
   {
-    return (NA*NA + NA)/2;
+    return (aI->dim*aI->dim + aI->dim)/2;
   }
 
   Quadratic_term(Uint _startMat, Uint _startMean, Uint _nA, Uint _nL,
-      const vector<Real>& out, const vector<Real>_m=vector<Real>()) :
-      start_matrix(_startMat), start_mean(_startMean), nA(_nA), nL(_nL),
-      netOutputs(out), L(extract_L()), mean(extract_mean(_m)),
-      matrix(extract_matrix())
-      {
-        //printf("Quadratic_term: %u %u %u %u %lu %lu %lu %lu\n", start_matrix,start_mean,nA,nL,
-        //netOutputs.size(), L.size(), mean.size(), matrix.size());
-        assert(L.size()==nA*nA && mean.size()==nA && matrix.size()==nA*nA);
-        assert(netOutputs.size()>=start_matrix+nL && netOutputs.size()>=start_mean+nA);
-      }
+    const vector<Real>& out, const vector<Real>_m=vector<Real>()) :
+    start_matrix(_startMat), start_mean(_startMean), nA(_nA), nL(_nL),
+    netOutputs(out), L(extract_L()), mean(extract_mean(_m)),
+    matrix(extract_matrix())
+    {
+      //printf("Quadratic_term: %u %u %u %u %lu %lu %lu %lu\n", start_matrix,start_mean,nA,nL,
+      //netOutputs.size(), L.size(), mean.size(), matrix.size());
+      assert(L.size()==nA*nA && mean.size()==nA && matrix.size()==nA*nA);
+      assert(netOutputs.size()>=start_matrix+nL && netOutputs.size()>=start_mean+nA);
+    }
 
 protected:
   inline Real quadMatMul(const vector<Real>& act, const vector<Real>& mat) const

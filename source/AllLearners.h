@@ -11,9 +11,9 @@
 #include "Learners/NAF.h"
 #include "Learners/DPG.h"
 #include "Learners/RACER.h"
-#include "Learners/DACER.h"
+//#include "Learners/DACER.h"
+//#include "Learners/CACER.h"
 #include "Learners/GAE.h"
-#include "Learners/POAC.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -31,26 +31,18 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
     settings.nnOutputs = env->aI.maxLabel;
     return new NFQ(mastersComm, env, settings);
   }
-  else if (settings.learner == "RACER") {
+  else if (settings.learner == "RACER" || settings.learner == "POAC") {
     settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
-    settings.nnOutputs = RACER::getnOutputs(env->aI.dim);
-    #ifdef FEAT_CONTROL
-    settings.nnOutputs +=  ContinuousSignControl::addRequestedOutputs(env->aI.dim,env->sI.dimUsed);
-    #endif
-    return new RACER(mastersComm, env, settings);
-  }
-  else if (settings.learner == "POAC") {
-    settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
-    settings.nnOutputs = POAC::getnOutputs(env->aI.dim);
-    #ifdef FEAT_CONTROL
-    settings.nnOutputs +=  ContinuousSignControl::addRequestedOutputs(env->aI.dim,env->sI.dimUsed);
-    #endif
-    return new POAC(mastersComm, env, settings);
-  }
-  else if (settings.learner == "DACER") {
-    settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
-    settings.nnOutputs = DACER::getnOutputs(env->aI.maxLabel);
-    return new DACER(mastersComm, env, settings);
+    if(env->aI.discrete) {
+      settings.nnOutputs = RACER_disc::getnOutputs(&env->aI);
+      return new RACER_disc(mastersComm, env, settings);
+    } else {
+      settings.nnOutputs = RACER_cont::getnOutputs(&env->aI);
+      return new RACER_cont(mastersComm, env, settings);
+    }
+    ///#ifdef FEAT_CONTROL
+    //settings.nnOutputs +=  //ContinuousSignControl::addRequestedOutputs(env->aI.dim,env->sI.dimUsed);
+    //#endif
   }
   else if (settings.learner == "NA" || settings.learner == "NAF") {
     settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
@@ -66,15 +58,19 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
     return new DPG(mastersComm, env, settings);
   }
   else if (settings.learner == "GAE" || settings.learner == "PPO") {
-    settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
-    settings.nnOutputs = GAE::getnOutputs(env->aI.dim);
-    //settings.bSampleSequences = true;
-
     const int bs = settings.batchSize, na = env->nAgentsPerRank;
     settings.batchSize = ceil(bs/(Real)na);
     if(bs%na)
-    printf("Due to nAgentsPerRank, batchsize (%d) set to %d\n", bs, settings.batchSize);
-    return new GAE(mastersComm, env, settings);
+    printf("Batchsize changed from %d to %d\n",bs,settings.batchSize);
+
+    settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
+    if(env->aI.discrete) {
+      settings.nnOutputs = GAE_disc::getnOutputs(&env->aI);
+      return new GAE_disc(mastersComm, env, settings);
+    } else {
+      settings.nnOutputs = GAE_cont::getnOutputs(&env->aI);
+      return new GAE_cont(mastersComm, env, settings);
+    }
   } else die("Learning algorithm not recognized\n");
   assert(false);
   return new NFQ(mastersComm, env, settings); //fake, to silence warnings

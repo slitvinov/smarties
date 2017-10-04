@@ -17,6 +17,8 @@ class DPG : public Learner_utils
   mutable vector<vector<long double>> avgValGrad, stdValGrad;
   Network* net_value;
   Optimizer* opt_value;
+  mutable vector<Activation*> currAct_value, prevAct_value;
+  mutable vector<vector<Activation*>*> series_1_value, series_2_value;
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override;
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;

@@ -10,15 +10,16 @@
 #include "TwoActFishEnvironment.h"
 //#define __Cubism3D
 
-TwoActFishEnvironment::TwoActFishEnvironment(const Uint _nAgents, const string _execpath, Settings & _s) :
-Environment(_nAgents, _execpath, _s),
-sight( _s.senses    ==0 ||  _s.senses==8),
-rcast( _s.senses    % 2), //if eq {1,  3,  5,  7}
-lline((_s.senses/2) % 2), //if eq {  2,3,    6,7}
-press((_s.senses/4) % 2 ||  _s.senses==8), //if eq {      4,5,6,7}
-study(_s.rType), goalDY((_s.goalDY>1)? 1-_s.goalDY : _s.goalDY)
+TwoActFishEnvironment::TwoActFishEnvironment(Settings& _settings) :
+Environment(_settings), study(_settings.rType),
+sight( _settings.senses    ==0 ||  _settings.senses==8),
+rcast( _settings.senses    % 2), //if eq {1,  3,  5,  7}
+lline((_settings.senses/2) % 2), //if eq {  2,3,    6,7}
+press((_settings.senses/4) % 2 ||  _settings.senses==8), //if eq {      4,5,6,7}
+goalDY((_settings.goalDY>1)? 1-_settings.goalDY : _settings.goalDY)
 {
-  cheaperThanNetwork = false; //this environment is more expensive to simulate than updating net. todo: think it over?
+  printf("TwoActFishEnvironment.\n");
+
   #ifdef __Cubism3D
     //mpi_ranks_per_env = 1;
     mpi_ranks_per_env = 2;
@@ -32,6 +33,9 @@ study(_s.rType), goalDY((_s.goalDY>1)? 1-_s.goalDY : _s.goalDY)
 
 void TwoActFishEnvironment::setDims()
 {
+  nAgentsPerRank = 1;
+  aI.discrete = false;
+
   sI.inUse.clear();
   {
     // State: Horizontal distance from goal point...
@@ -132,24 +136,23 @@ void TwoActFishEnvironment::setDims()
   sI.values.push_back(0.25);
   sI.values.push_back(0.50);
   */
-  {
-    aI.dim = 2;
-    aI.values.resize(aI.dim);
-    //curavture
-    aI.bounded.push_back(1);
-    aI.values[0].push_back(-.75);
-    aI.values[0].push_back(0.75);
-    //period:
-    aI.bounded.push_back(1);
-    aI.values[1].push_back(-.5);
-    aI.values[1].push_back(0.5);
-  }
+
+  aI.dim = 2;
+  aI.values.resize(2);
+  //curavture
+  aI.bounded.push_back(1);
+  aI.values[0].push_back(-.75);
+  aI.values[0].push_back(0.75);
+  //period:
+  aI.bounded.push_back(1);
+  aI.values[1].push_back(-.5);
+  aI.values[1].push_back(0.5);
 
   commonSetup();
 }
 
 #if 0
-bool TwoActFishEnvironment::pickReward(const State& t_sO, const Action& t_a, const State& t_sN, Real& reward, const int info)
+bool TwoActFishEnvironment::pickReward(const Agent& agent)
 {
   if(info!=1)
   if (fabs(t_sO.vals[4] -t_sN.vals[5])>0.00001)

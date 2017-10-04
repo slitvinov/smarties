@@ -2,10 +2,28 @@
 #include "Communicator_utils.cpp"
 #define COMM_REDIRECT_OUT
 //APPLICATION SIDE CONSTRUCTOR
-Communicator::Communicator(const int socket, const int sdim, const int adim)
+Communicator::Communicator(const int socket, const int state_components, const int action_components, const int number_of_agents)
 : gen(std::mt19937(socket))
 {
-  update_state_action_dims(sdim, adim);
+  if(socket<0) {
+    printf("FATAL: Communicator created with socket < 0.\n");
+    abort();
+  }
+  if(state_components<=0) {
+    printf("FATAL: Cannot set negative state space dimensionality.\n");
+    abort();
+  }
+  if(action_components<=0) {
+    printf("FATAL: Cannot set negative number of action degrees of freedom.\n");
+    abort();
+  }
+  if(number_of_agents<=0) {
+    printf("FATAL: Cannot set negative number of agents.\n");
+    abort();
+  }
+  assert(state_components>0 && action_components>0 && number_of_agents>0);
+  nAgents = number_of_agents;
+  update_state_action_dims(state_components, action_components);
   spawner = socket==0; // if app gets socket prefix 0, then it spawns smarties
   socket_id = socket;
   called_by_app = true;
@@ -15,50 +33,70 @@ Communicator::Communicator(const int socket, const int sdim, const int adim)
 void Communicator::set_action_scales(const std::vector<double> upper,
   const std::vector<double> lower, const bool bound)
 {
-  assert(upper.size() == nActions && lower.size() == nActions);
+  assert(discrete_actions == 0);
+  assert(upper.size() == (size_t)nActions && lower.size() == (size_t)nActions);
   for (int i=0; i<nActions; i++) action_bounds[2*i+0] = upper[i];
   for (int i=0; i<nActions; i++) action_bounds[2*i+1] = lower[i];
   for (int i=0; i<nActions; i++) action_options[2*i+0] = 2.1;
   for (int i=0; i<nActions; i++) action_options[2*i+1] = bound ? 1.1 : 0;
 }
 
-void Communicator::set_action_options(const std::vector<int> options)
+void Communicator::set_action_options(const std::vector<int> action_option_num)
 {
-  assert(options.size() == nActions);
+  discrete_actions = 1;
+  assert(action_option_num.size() == (size_t)nActions);
   discrete_action_values = 0;
   for (int i=0; i<nActions; i++) {
-    discrete_action_values += options[i];
-    action_options[2*i+0] = options[i];
+    discrete_action_values += action_option_num[i];
+    action_options[2*i+0] = action_option_num[i];
     action_options[2*i+1] = 1.1;
   }
-  int k = 0;
+
   action_bounds.resize(discrete_action_values);
-  for(int i=0;i<nActions;i++)for(int j=0;j<options[i];j++) action_bounds[k++]=j;
+  for(int i=0, k=0; i<nActions; i++)
+    for(int j=0; j<action_option_num[i]; j++)
+      action_bounds[k++] = j;
+}
+
+void Communicator::set_action_options(const int action_option_num)
+{
+  if(nActions != 1) {
+    printf("FATAL: Communicator::set_action_options perceived more than 1 action degree of freedom, but only one number of actions provided.\n");
+    abort();
+  }
+  assert(1 == nActions);
+  discrete_actions = 1;
+  discrete_action_values = action_option_num;
+  action_options[0] = action_option_num;
+  action_options[1] = 1.1;
+
+  action_bounds.resize(action_option_num);
+  for(int j=0; j<action_option_num; j++) action_bounds[j] = j;
 }
 
 void Communicator::set_state_scales(const std::vector<double> upper,
   const std::vector<double> lower)
 {
-  assert(upper.size() == nStates && lower.size() == nStates);
+  assert(upper.size() == (size_t)nStates && lower.size() == (size_t)nStates);
   for (int i=0; i<nStates; i++) obs_bounds[2*i+0] = upper[i];
   for (int i=0; i<nStates; i++) obs_bounds[2*i+1] = lower[i];
 }
 
 void Communicator::set_state_observable(const std::vector<bool> observable)
 {
-  assert(observable.size() == nStates);
+  assert(observable.size() == (size_t) nStates);
   for (int i=0; i<nStates; i++) obs_inuse[i] = observable[i];
 }
 
 void Communicator::sendStateActionShape()
 {
   if(sentStateActionShape) return;
-  assert(obs_inuse.size() == nStates);
-  assert(obs_bounds.size() == nStates*2);
-  assert(action_bounds.size() == nActions*2);
-  assert(action_options.size() == discrete_action_values);
-  double sizes[2] = {nStates+.1, nActions+.1};
-  comm_sock(Socket, true, sizes, 2 *sizeof(double));
+  assert(obs_inuse.size() == (size_t) nStates);
+  assert(obs_bounds.size() == (size_t) nStates*2);
+  assert(action_bounds.size() == (size_t) nActions*2);
+  assert(action_options.size() == (size_t) discrete_action_values);
+  double sizes[4] = {nStates+.1, nActions+.1, discrete_actions+.1, nAgents+.1};
+  comm_sock(Socket, true, sizes, 4 *sizeof(double));
   comm_sock(Socket, true, obs_inuse.data(),      nStates *1*sizeof(double));
   comm_sock(Socket, true, obs_bounds.data(),     nStates *2*sizeof(double));
   comm_sock(Socket, true, action_options.data(), nActions*2*sizeof(double));
@@ -90,11 +128,29 @@ void Communicator::update_state_action_dims(const int sdim, const int adim)
 
 #ifdef MPI_INCLUDED
 //MPI APPLICATION SIDE CONSTRUCTOR
-Communicator::Communicator(const int socket, const int sdim, const int adim, const MPI_Comm app)
+Communicator::Communicator(const int socket, const int state_components, const int action_components, const MPI_Comm app, const int number_of_agents)
 {
+  if(socket<0) {
+    printf("FATAL: Communicator created with socket < 0.\n");
+    abort();
+  }
+  if(state_components<=0) {
+    printf("FATAL: Cannot set negative state space dimensionality.\n");
+    abort();
+  }
+  if(action_components<=0) {
+    printf("FATAL: Cannot set negative number of action degrees of freedom.\n");
+    abort();
+  }
+  if(number_of_agents<=0) {
+    printf("FATAL: Cannot set negative number of agents.\n");
+    abort();
+  }
+  assert(state_components>0 && action_components>0 && number_of_agents>0);
+  nAgents = number_of_agents;
   comm_inside_app = app;
   update_rank_size();
-  update_state_action_dims(sdim, adim);
+  update_state_action_dims(state_components, action_components);
   spawner = socket==0; // if app gets socket prefix 0, then it spawns smarties
   socket_id = socket;
   called_by_app = true;
@@ -108,7 +164,8 @@ void Communicator::sendState(const int iAgent, const envInfo status,
 {
   if(rank_inside_app>0) return; //only rank 0 of the app sends state
   if(!sentStateActionShape) sendStateActionShape();
-  assert(state.size()==(std::size_t)nStates && data_state not_eq nullptr && iAgent>=0);
+  assert(state.size()==(std::size_t)nStates && data_state not_eq nullptr);
+  assert(iAgent>=0 && iAgent<nAgents);
 
   intToDoublePtr(iAgent, data_state+0);
   intToDoublePtr(status, data_state+1);
@@ -199,6 +256,7 @@ void Communicator::printBuf(const double*const buf, const int size)
 
 void Communicator::launch_smarties()
 {
+  abort();
   #ifdef __Smarties_
     printf("launch_smarties\n"); fflush(0);
     abort();
@@ -259,7 +317,7 @@ void Communicator::launch_app()
 
     redirect_stdout_stderr();
 
-    launch_exec(execpath);
+    launch_exec("../"+execpath);
   #else
     printf("launch_app\n");
     fflush(0);
@@ -373,15 +431,18 @@ Communicator::~Communicator()
 
 void Communicator::getStateActionShape()
 {
-  double sizes[2] = {0, 0};
+  double sizes[4] = {0, 0, 0, 0};
   if (rank_learn_pool==0)
-    MPI_Recv(sizes, 16, MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
+    MPI_Recv(sizes, 32, MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
   else {
-    comm_sock(Socket, false, sizes, 2*sizeof(double));
-    if(rank_learn_pool==1) MPI_Ssend(sizes,16, MPI_BYTE, 0,3, comm_learn_pool);
+    comm_sock(Socket, false, sizes, 4*sizeof(double));
+    if(rank_learn_pool==1) MPI_Ssend(sizes,32, MPI_BYTE, 0,3, comm_learn_pool);
   }
 
-  nStates  = doublePtrToInt(sizes+0); nActions = doublePtrToInt(sizes+1);
+  nStates = doublePtrToInt(sizes+0); nActions = doublePtrToInt(sizes+1);
+  discrete_actions = doublePtrToInt(sizes+2);
+  nAgents = doublePtrToInt(sizes+3);
+  //printf("Discrete? %d\n",discrete_actions);
   assert(nStates>=0 && nActions>=0);
   update_state_action_dims(nStates, nActions);
 

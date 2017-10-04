@@ -21,44 +21,6 @@ struct Settings
 //- the name of the setting variable followed by the value (ie. -setting $value)
 
 ///////////////////////////////////////////////////////////////////////////////
-//SETTINGS PERTAINING TO ENVIRONMENT: NUMBER
-///////////////////////////////////////////////////////////////////////////////
-#define CHARARG_rType '1'
-#define COMMENT_rType "Reward type (can be defined by user in the environment)."
-#define TYPEVAL_rType int
-#define TYPENUM_rType INT
-#define DEFAULT_rType 0
-  int rType = DEFAULT_rType;
-
-#define CHARARG_senses '2'
-#define COMMENT_senses "Perceptions allowed to agent (can be defined by user in the environment)."
-#define TYPEVAL_senses int
-#define TYPENUM_senses INT
-#define DEFAULT_senses 0
-  int senses = DEFAULT_senses;
-
-#define CHARARG_goalDY '3'
-#define COMMENT_goalDY "Parameter (can be defined by user in the environment)."
-#define TYPEVAL_goalDY Real
-#define TYPENUM_goalDY REAL
-#define DEFAULT_goalDY 0
-  Real goalDY = DEFAULT_goalDY;
-
-#define CHARARG_factory '4'
-#define COMMENT_factory "Location of factory file."
-#define TYPEVAL_factory string
-#define TYPENUM_factory STRING
-#define DEFAULT_factory "factory"
-  string factory = DEFAULT_factory;
-
-#define CHARARG_filePrefix '5'
-#define COMMENT_filePrefix "Unused (?)."
-#define TYPEVAL_filePrefix string
-#define TYPENUM_filePrefix STRING
-#define DEFAULT_filePrefix "./"
-  string filePrefix = DEFAULT_filePrefix;
-
-///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO PARALLELIZATION/COMMUNICATION: ASCII SYMBOL
 ///////////////////////////////////////////////////////////////////////////////
 #define CHARARG_nThreads '#'
@@ -339,6 +301,58 @@ struct Settings
   string nnFunc = DEFAULT_nnFunc;
 
 ///////////////////////////////////////////////////////////////////////////////
+//SETTINGS PERTAINING TO ENVIRONMENT: NUMBER
+///////////////////////////////////////////////////////////////////////////////
+#define CHARARG_environment '0'
+#define COMMENT_environment "Environment name, required is action/state space properties are hardcoded in smarties rather than read at runtime."
+#define TYPEVAL_environment string
+#define TYPENUM_environment STRING
+#define DEFAULT_environment "Environment"
+  string environment = DEFAULT_environment;
+
+  #define CHARARG_launchfile '1'
+  #define COMMENT_launchfile "Name of executable or launch script of user application. No arguments can go here. The file must be placed in the base run folder."
+  #define TYPEVAL_launchfile string
+  #define TYPENUM_launchfile STRING
+  #define DEFAULT_launchfile "launchSim.sh"
+    string launchfile = DEFAULT_launchfile;
+
+#define CHARARG_rType '2'
+#define COMMENT_rType "Reward type (can be defined by user in the environment)."
+#define TYPEVAL_rType int
+#define TYPENUM_rType INT
+#define DEFAULT_rType 0
+  int rType = DEFAULT_rType;
+
+#define CHARARG_senses '3'
+#define COMMENT_senses "Perceptions allowed to agent (can be defined by user in the environment)."
+#define TYPEVAL_senses int
+#define TYPENUM_senses INT
+#define DEFAULT_senses 0
+  int senses = DEFAULT_senses;
+
+#define CHARARG_goalDY '4'
+#define COMMENT_goalDY "Parameter (can be defined by user in the environment)."
+#define TYPEVAL_goalDY Real
+#define TYPENUM_goalDY REAL
+#define DEFAULT_goalDY 0
+  Real goalDY = DEFAULT_goalDY;
+
+#define CHARARG_factory '5'
+#define COMMENT_factory "Location of factory file."
+#define TYPEVAL_factory string
+#define TYPENUM_factory STRING
+#define DEFAULT_factory "factory"
+  string factory = DEFAULT_factory;
+
+#define CHARARG_filePrefix '6'
+#define COMMENT_filePrefix "Unused (?)."
+#define TYPEVAL_filePrefix string
+#define TYPENUM_filePrefix STRING
+#define DEFAULT_filePrefix "./"
+  string filePrefix = DEFAULT_filePrefix;
+
+///////////////////////////////////////////////////////////////////////////////
 //SETTINGS THAT ARE NOT READ FROM FILE
 ///////////////////////////////////////////////////////////////////////////////
   MPI_Comm mastersComm;
@@ -351,8 +365,8 @@ struct Settings
   // number of slaves (usually per master)
   int nSlaves = 1;
   //number of agents that:
-  // in case of slave: are contained in an environment
-  // in case of master: nSlaves * are contained in an environment
+  // in case of slave: # of agents that are contained in an environment
+  // in case of master: nSlaves * # are contained in an environment
   int nAgents = -1;
   // whether Recurrent network (figured out in main)
   bool bRecurrent = false;
@@ -402,7 +416,10 @@ struct Settings
   vector<ArgParser::OptionStruct> initializeOpts ()
   { //  //{ CHARARG_, "", TYPENUM_, COMMENT_, &, (TYPEVAL_) DEFAULT_ },
     //AVERT YOUR EYES!
+
     return vector<ArgParser::OptionStruct> ({
+      { CHARARG_environment, "environment", TYPENUM_environment, COMMENT_environment, &environment, (TYPEVAL_environment) DEFAULT_environment },
+      { CHARARG_launchfile, "launchfile", TYPENUM_launchfile, COMMENT_launchfile, &launchfile, (TYPEVAL_launchfile) DEFAULT_launchfile },
       { CHARARG_splitLayers, "splitLayers", TYPENUM_splitLayers, COMMENT_splitLayers, &splitLayers, (TYPEVAL_splitLayers) DEFAULT_splitLayers },
       { CHARARG_outWeightsPrefac, "outWeightsPrefac", TYPENUM_outWeightsPrefac, COMMENT_outWeightsPrefac, &outWeightsPrefac, (TYPEVAL_outWeightsPrefac) DEFAULT_outWeightsPrefac },
       { CHARARG_rType, "rType", TYPENUM_rType, COMMENT_rType, &rType, (TYPEVAL_rType) DEFAULT_rType },

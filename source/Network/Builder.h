@@ -84,7 +84,8 @@ public:
         l->initialize(&generators[0],weights,biases,graph->weight_init_factor);
       }
 
-    return new Network(this, settings);
+    net = new Network(this, settings);
+    return net;
   }
 
   int getLastLayerID() const
@@ -273,6 +274,65 @@ public:
     G.push_back(g);
   }
 
+  void stackSimple(const vector<Uint> ninps, const vector<Uint> nouts)
+  {
+    const int suminp=static_cast<int>(accumulate(ninps.begin(),ninps.end(),0));
+    const int sumout=static_cast<int>(accumulate(nouts.begin(),nouts.end(),0));
+    const string netType = settings.nnType, funcType = settings.nnFunc;
+    const vector<int> lsize = settings.readNetSettingsSize();
+    const Real oWghtFac = settings.outWeightsPrefac;
+    //check if environment wants a particular network structure
+    //if(not env->predefinedNetwork(&build))
+    addInput(suminp);
+
+    Uint nsplit = min(static_cast<size_t>(settings.splitLayers), lsize.size());
+    for(Uint i=0; i<lsize.size()-nsplit; i++)
+      addLayer(lsize[i],netType,funcType);
+
+    const Uint firstSplit = lsize.size()-nsplit;
+    const vector<int> jointLayer = vector<int>{getLastLayerID()};
+
+    if(nsplit) {
+      for (Uint i=0; i<nouts.size(); i++)
+      {
+        addLayer(lsize[firstSplit], netType, funcType, jointLayer);
+
+        for (Uint j=firstSplit+1; j<lsize.size(); j++)
+          addLayer(lsize[j], netType, funcType);
+
+        addOutput(static_cast<int>(nouts[i]) , "FFNN", oWghtFac);
+      }
+    } else {
+      addOutput(sumout, "FFNN", jointLayer, oWghtFac);
+    }
+  }
+
+  Optimizer* finalSimple()
+  {
+    if(settings.learner_size>1) {
+      MPI_Bcast( net->weights, net->getnWeights(), MPI_NNVALUE_TYPE, 0, settings.mastersComm);
+      MPI_Bcast( net->biases,  net->getnBiases(),  MPI_NNVALUE_TYPE, 0, settings.mastersComm);
+    }
+
+    net->updateFrozenWeights();
+    net->sortWeights_fwd_to_bck();
+    #ifndef __EntropySGD
+      opt = new AdamOptimizer(net, nullptr, settings);
+    #else
+      opt = new EntropySGD(net, nullptr, settings);
+    #endif
+
+    if (!settings.learner_rank) opt->save("initial");
+
+    #ifndef NDEBUG
+      MPI_Barrier(settings.mastersComm);
+      opt->restart("initial");
+      opt->save("restarted"+to_string(settings.learner_rank));
+    #endif
+
+    return opt;
+  }
+  /*
   void buildSimple(Network*& _net, Optimizer*& _opt,
     const vector<Uint> ninps, const vector<Uint> nouts,
     const pair<Uint,Real> genparam = pair<Uint,Real>(),
@@ -313,7 +373,7 @@ public:
     if(posparam.size())
       addParamLayer(posparam.size(), "Exp", 0);
 
-    /*
+    #if 0
       addOutput(1, "FFNN", jointLayer, -1.);
       addOutput(nA,"IntegrateFire","Sigm",jointLayer,weightInitFac[1]);
       #ifdef INTEGRATEANDFIRESHARED
@@ -321,7 +381,7 @@ public:
       #else
       addParamLayer(nA, "Linear", 1);
       #endif
-    */
+    #endif
 
     _net = build();
     for(Uint i=0; i<posparam.size(); i++)
@@ -347,6 +407,7 @@ public:
       _opt->save("restarted"+to_string(settings.learner_rank));
     #endif
   }
+  */
 
 private:
   bool bAddedInput = false, bBuilt = false;
@@ -615,6 +676,9 @@ public:
   nnReal* tgt_weights;
   nnReal* tgt_biases;
   vector<Mem*> mem;
+
+  Network* net = nullptr;
+  Optimizer* opt = nullptr;
 
   ~Builder()
   {

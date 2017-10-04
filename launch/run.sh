@@ -16,7 +16,7 @@ SETTINGS+=" --nThreads ${NTHREADS}"
 export OMP_NUM_THREADS=${NTHREADS}
 echo $SETTINGS > settings.txt
 env > environment.log
-echo ${NPROCESS} ${NTHREADS}
+#echo ${NPROCESS} ${NTHREADS}
 
 #mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none xterm -e gdb --tui --args ./rl ${SETTINGS}
 

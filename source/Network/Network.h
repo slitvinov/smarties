@@ -8,8 +8,13 @@
  */
 
 #pragma once
-#include "Layers.h"
-#include "../Profiler.h"
+#include "Layer_Base.h"
+#include "Layer_Conv2D.h"
+#include "Layer_IntFire.h"
+#include "Layer_LSTM.h"
+#include "Layer_Normal.h"
+#include "Layer_Param.h"
+
 class Builder;
 
 class Network
@@ -163,10 +168,10 @@ public:
   }
 
   void predict(const vector<Real>& _input, vector<Real>& _output,
-    const Activation* const prevActivation, Activation* const currActivation,
-    const nnReal* const _weights, const nnReal* const _biases) const;
+   const Activation* const prevActivation, Activation* const currActivation,
+   const nnReal* const _weights, const nnReal* const _biases) const;
   inline void predict(const vector<Real>& _input, vector<Real>& _output,
-    const Activation*const prevActivation,Activation*const currActivation) const
+   const Activation*const prevActivation, Activation*const currActivation) const
   {
     predict(_input, _output, prevActivation, currActivation,
         weights, biases);

@@ -42,83 +42,35 @@ void Learner_utils::updateTargetNetwork()
   if(cntUpdateDelay>0) cntUpdateDelay--;
 }
 
-void Learner_utils::buildNetwork(Network*& _net , Optimizer*& _opt,
-    const vector<Uint> nouts, Settings & settings,
-    vector<Real> weightInitFac, const vector<Uint> addedInputs)
+void Learner_utils::buildNetwork(const vector<Uint> nouts, Settings& settings,
+ vector<Uint> addedInputs)
 {
-  const string netType = settings.nnType, funcType = settings.nnFunc;
-  const vector<int> lsize = settings.readNetSettingsSize();
-  assert(nouts.size()>0);
-
-  //edit to multiply the init factor for weights to output layers (one val per layer)
-  // negative value (or 1) means normal initialization
-  //why on earth would this be needed? policy outputs are better if initialized to be small
-  if(!weightInitFac.size()) weightInitFac.resize(nouts.size(),-1);
-  if(weightInitFac.size()!=nouts.size())
-    die("Err in output weights factors size\n");
-
   Builder build(settings);
   //check if environment wants a particular network structure
-  if (not env->predefinedNetwork(&build)) build.addInput(nInputs);
+  //if (not env->predefinedNetwork(&build)) build.addInput(nInputs);
+  addedInputs.insert( addedInputs.begin(), nInputs);
+  build.stackSimple( addedInputs, nouts );
 
-  vector<int> inputToFullyConn = {build.getLastLayerID()};
-  for (Uint i=0; i<addedInputs.size(); i++) {
-    build.addInput(addedInputs[i]);
-    inputToFullyConn.push_back(build.getLastLayerID());
-  }
+  //vector<int> inputToFullyConn = {build.getLastLayerID()};
+  //for (Uint i=0; i<addedInputs.size(); i++) {
+  //  build.addInput(addedInputs[i]);
+  //  inputToFullyConn.push_back(build.getLastLayerID());
+  //}
 
-  const Uint nsplit = min(static_cast<size_t>(settings.splitLayers),lsize.size());
-  for (Uint i=0; i<lsize.size()-nsplit; i++) {
-    build.addLayer(lsize[i], netType, funcType, inputToFullyConn);
-    inputToFullyConn.resize(0); //when size is 0 it links to last one
-  }
+  //const Uint nsplit = min(static_cast<size_t>(settings.splitLayers),lsize.size());
+  //for (Uint i=0; i<lsize.size()-nsplit; i++) {
+  //  build.addLayer(lsize[i], netType, funcType, inputToFullyConn);
+  //  inputToFullyConn.resize(0); //when size is 0 it links to last one
+  //}
 
-  const Uint firstSplit = lsize.size()-nsplit;
-  const vector<int> lastJointLayer =
-  (inputToFullyConn.size()==0) ? vector<int>{build.getLastLayerID()} : inputToFullyConn;
+  //const Uint firstSplit = lsize.size()-nsplit;
+  //const vector<int> lastJointLayer =
+  //(inputToFullyConn.size()==0) ? vector<int>{build.getLastLayerID()} : inputToFullyConn;
   // ^ were the various inputs already fed to a FC layer? then link to previous
 
-  if(nsplit) {
-    for (Uint i=0; i<nouts.size(); i++)
-    {
-      build.addLayer(lsize[firstSplit], netType, funcType, lastJointLayer);
+  net = build.build();
 
-      for (Uint j=firstSplit+1; j<lsize.size(); j++)
-        build.addLayer(lsize[j], netType, funcType);
-
-      build.addOutput(static_cast<int>(nouts[i]) , "FFNN", weightInitFac[i]);
-    }
-  } else {
-    const int sum =static_cast<int>(accumulate(nouts.begin(),nouts.end(),0));
-    const Real fac=*max_element(weightInitFac.begin(),weightInitFac.end());
-    build.addOutput(sum, "FFNN", lastJointLayer, fac);
-    assert(fac<=1.);
-  }
-
-  _net = build.build();
-
-  if(learn_size>1) {
-    MPI_Bcast(_net->weights,_net->getnWeights(),MPI_NNVALUE_TYPE,0,mastersComm);
-    MPI_Bcast(_net->biases, _net->getnBiases(), MPI_NNVALUE_TYPE,0,mastersComm);
-  }
-
-  _net->updateFrozenWeights();
-  _net->sortWeights_fwd_to_bck();
-  #ifndef __EntropySGD
-    _opt = new AdamOptimizer(_net, profiler, settings);
-  #else
-    _opt = new EntropySGD(_net, profiler, settings);
-  #endif
-  if (!learn_rank)
-    _opt->save("initial");
-
-  #ifndef NDEBUG
-    if(ErrorHandling::level == ErrorHandling::NETWORK) {
-      MPI_Barrier(mastersComm);
-      _opt->restart("initial");
-      _opt->save("restarted"+to_string(learn_rank));
-    }
-  #endif
+  finalize_network(build);
   //for (const auto & l : _net->layers) l->profiler = profiler;
 }
 

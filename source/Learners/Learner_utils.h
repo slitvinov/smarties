@@ -19,6 +19,13 @@ protected:
   mutable vector<Activation*> currAct, prevAct;
   mutable vector<vector<Activation*>*> series_1, series_2;
 
+  static vector<Uint> count_indices(const vector<Uint> outs)
+  {
+    vector<Uint> ret(outs.size(), 0); //index 0 is 0
+    for(Uint i=1; i<outs.size(); i++) ret[i] = ret[i-1] + outs[i-1];
+    return ret;
+  }
+
 public:
   Learner_utils(MPI_Comm mcom,Environment*const _e, Settings&sett, Uint ngrads)
   : Learner(mcom, _e, sett), cntGrad(nThreads+1,0),
@@ -48,10 +55,20 @@ public:
 
   void updateTargetNetwork() override;
 
-  virtual void buildNetwork(Network*& _net , Optimizer*& _opt,
-      const vector<Uint> nouts, Settings & settings,
-      vector<Real> weightInitFactors = vector<Real>(),
-      const vector<Uint> addedInputs = vector<Uint>());
+  virtual void buildNetwork(const vector<Uint> nouts, Settings & settings,
+      vector<Uint> addedInputs = vector<Uint>() );
+
+  void finalize_network(Builder& build)
+  {
+    opt = build.finalSimple();
+    assert(nOutputs == net->getnOutputs() && nInputs == net->getnInputs());
+    for (Uint i = 0; i < nThreads; i++) {
+      series_1.push_back(new vector<Activation*>());
+      series_2.push_back(new vector<Activation*>());
+    }
+    net->prepForFwdProp(&currAct, nThreads);
+    net->prepForFwdProp(&prevAct, nThreads);
+  }
 
   vector<Real> output_stochastic_policy(const int agentId, const Agent& agent) const;
   vector<Real> output_value_iteration(  const int agentId, const Agent& agent) const;

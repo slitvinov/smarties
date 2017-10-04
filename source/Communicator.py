@@ -49,9 +49,11 @@ class Communicator:
         assert(len(observable) == self.nStates)
         for i in range(self.nStates): self.obs_in_use[i] = observable[i]
 
-    def __init__(self, state_components=0, action_components=0):
+    def __init__(self, state_components = 0, action_components = 0, number_of_agents = 1):
         self.start_server()
         self.sent_stateaction_info = False
+        self.discrete_actions = False
+        self.number_of_agents = number_of_agents
         if(state_components==0 or action_components==0):
             self.gym = self.read_gym_env()
         else:
@@ -87,6 +89,7 @@ class Communicator:
 
         if hasattr(env.action_space, 'spaces'):
             nAct = len(env.action_space.spaces)
+            self.discrete_actions = True
             for i in range(nAct):
                 nActions_i = env.action_space.spaces[i].n
                 actOpts = np.append(actOpts, [nActions_i+.1, 1])
@@ -106,6 +109,7 @@ class Communicator:
                 actVals = np.append(actVals, min(env.action_space.high[i],1e3))
         elif hasattr(env.action_space, 'n'):
             nActions_i = env.action_space.n
+            self.discrete_actions = True
             actOpts = np.append(actOpts, [nActions_i, 1])
             actVals = np.append(actVals, np.arange(0,nActions_i)+.1)
         else: assert(False)
@@ -137,7 +141,8 @@ class Communicator:
 
     def send_stateaction_info(self):
         if(not self.sent_stateaction_info):
-            sizes_ary = np.array([self.nStates+.1, self.nActions+.1],np.float64)
+            sizes_ary = np.array([self.nStates+.1, self.nActions+.1, self.discrete_actions+.1, self.number_of_agents+.1],np.float64)
+            print(sizes_ary); sys.stdout.flush()
             self.conn.send(sizes_ary.tobytes())
             self.conn.send(self.obs_in_use.tobytes())
             self.conn.send(self.observation_bounds.tobytes())
@@ -148,13 +153,13 @@ class Communicator:
             #print(bRender); sys.stdout.flush()
             self.sent_stateaction_info = True
 
-    def send_state(self, observation, reward=0, terminal=False, initial=False):
+    def send_state(self, observation, reward=0, terminal=False, initial=False, agent_id = 0):
         if initial: self.seq_id, self.frame_id = self.seq_id+1, 0
         self.frame_id = self.frame_id + 1
         self.send_stateaction_info()
-
+        assert(agent_id<self.number_of_agents)
         state = np.zeros(self.nStates+3, dtype=np.float64)
-        state[0] = 0
+        state[0] = agent_id
         if terminal:  state[1] = 2.1
         elif initial: state[1] = 1.1
         else:         state[1] = 0.1
@@ -166,7 +171,7 @@ class Communicator:
             state[2] = observation
         state[self.nStates+2] = reward
         for i in range(self.nStates+2): assert(not np.isnan(state[i]))
-
+        print(state); sys.stdout.flush()
         self.conn.send(state.tobytes())
         if self.bRender==1 and self.gym is not None: self.gym.render()
         #if self.bRender==2 and self.gym is not None:
@@ -200,10 +205,14 @@ if __name__ == '__main__':
 
     while True: #training loop
         observation = env.reset()
+        #send initial state
         comm.send_state(observation, initial=True)
 
         while True: # simulation loop
+            #receive action from smarties
             action = comm.recv_action()
+            #advance the environment
             observation, reward, done, info = env.step(action)
+            #send the observation to smarties
             comm.send_state(observation, reward=reward, terminal=done)
             if done: break

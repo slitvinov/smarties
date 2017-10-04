@@ -22,8 +22,8 @@ void Gaussian_policy::test(const vector<Real>& act,
      const Uint index = i>=nA ? start_prec+i-nA : start_mean+i;
      out_1[index] -= 0.0001;
      out_2[index] += 0.0001;
-     Gaussian_policy p1(start_mean,start_prec,nA,out_1);
-     Gaussian_policy p2(start_mean,start_prec,nA,out_2);
+     Gaussian_policy p1(vector<Uint>{start_mean, start_prec}, aInfo, out_1);
+     Gaussian_policy p2(vector<Uint>{start_mean, start_prec}, aInfo, out_2);
 
     // Quadratic_advantage a1 =
     //  !a->start_mean ?
@@ -68,40 +68,40 @@ void Gaussian_policy::test(const vector<Real>& act,
 void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat)
 {
   vector<Real> _grad(netOutputs.size());
-   const vector<Real> cntrolgrad = control_grad(-1);
-   const vector<Real> div_klgrad = div_kl_grad(pol_hat);
-   const vector<Real> policygrad = policy_grad(act, 1);
-  values_grad(act, 1, _grad);
-   for(Uint i = 0; i<2*nA; i++)
-   {
-     vector<Real> out_1 = netOutputs, out_2 = netOutputs;
-     const Uint index = i>=nA ? start_prob+i-nA : start_vals+i;
-     out_1[index] -= 0.0001;
-     out_2[index] += 0.0001;
-     Discrete_policy p1(start_prob,start_vals,nA,out_1);
-     Discrete_policy p2(start_prob,start_vals,nA,out_2);
-     const Real A_1 = p1.computeAdvantage(act);
-     const Real A_2 = p2.computeAdvantage(act);
-     const Real p_1 = p1.evalLogProbability(act);
-     const Real p_2 = p2.evalLogProbability(act);
-     const Real d_1 = p1.kl_divergence(pol_hat);
-     const Real d_2 = p2.kl_divergence(pol_hat);
+  //const vector<Real> cntrolgrad = control_grad(-1);
+  const vector<Real> div_klgrad = div_kl_grad(pol_hat);
+  const vector<Real> policygrad = policy_grad(act, 1);
+  //values_grad(act, 1, _grad);
+  for(Uint i = 0; i<nA; i++)
+  {
+    vector<Real> out_1 = netOutputs, out_2 = netOutputs;
+    const Uint index = start_prob+i;
+    out_1[index] -= 0.0001;
+    out_2[index] += 0.0001;
+    Discrete_policy p1(vector<Uint>{start_prob},aInfo,out_1);
+    Discrete_policy p2(vector<Uint>{start_prob},aInfo,out_2);
+    //const Real A_1 = p1.computeAdvantage(act);
+    //const Real A_2 = p2.computeAdvantage(act);
+    const Real p_1 = p1.evalLogProbability(act);
+    const Real p_2 = p2.evalLogProbability(act);
+    const Real d_1 = p1.kl_divergence(pol_hat);
+    const Real d_2 = p2.kl_divergence(pol_hat);
 
-     finalize_grad(div_klgrad, _grad);
+    finalize_grad(div_klgrad, _grad);
     if(fabs(_grad[index]-(d_2-d_1)/.0002)>1e-7 && i>=nA) //not for values
      _die("DivKL grad %u %u: finite differences %g analytic %g error %g \n",
     i,act,(d_2-d_1)/.0002,_grad[index],fabs(_grad[index]-(d_2-d_1)/.0002));
 
-     finalize_grad(cntrolgrad, _grad);
-    if(fabs(_grad[index]-(A_2-A_1)/.0002)>1e-7)
-     _die("Control grad %u %u: finite differences %g analytic %g error %g \n",
-    i,act,(A_2-A_1)/.0002,_grad[index],fabs(_grad[index]-(A_2-A_1)/.0002));
+    // finalize_grad(cntrolgrad, _grad);
+    //if(fabs(_grad[index]-(A_2-A_1)/.0002)>1e-7)
+    // _die("Control grad %u %u: finite differences %g analytic %g error %g \n",
+    //i,act,(A_2-A_1)/.0002,_grad[index],fabs(_grad[index]-(A_2-A_1)/.0002));
 
-     finalize_grad(policygrad, _grad);
+    finalize_grad(policygrad, _grad);
     if(fabs(_grad[index]-(p_2-p_1)/.0002)>1e-7 && i>=nA) //not for values
-     _die("LogPol grad %u %u: finite differences %g analytic %g error %g \n",
+    _die("LogPol grad %u %u: finite differences %g analytic %g error %g \n",
     i,act,(p_2-p_1)/.0002,_grad[index],fabs(_grad[index]-(p_2-p_1)/.0002));
-   }
+  }
 }
 
 void Quadratic_advantage::test(const vector<Real>& act)
@@ -116,17 +116,9 @@ void Quadratic_advantage::test(const vector<Real>& act)
      out_1[index] -= 0.0001;
      out_2[index] += 0.0001;
 
-    Quadratic_advantage a1 =
-      !start_mean ?
-    Quadratic_advantage(start_matrix,nA,nL,out_1,policy)
-      :
-    Quadratic_advantage(start_matrix,start_mean,nA,nL,out_1,policy);
+    Quadratic_advantage a1 = Quadratic_advantage(vector<Uint>{start_matrix, start_mean}, aInfo, out_1, policy);
 
-    Quadratic_advantage a2 =
-      !start_mean ?
-    Quadratic_advantage(start_matrix,nA,nL,out_2,policy)
-      :
-    Quadratic_advantage(start_matrix,start_mean,nA,nL,out_2,policy);
+    Quadratic_advantage a2 = Quadratic_advantage(vector<Uint>{start_matrix, start_mean}, aInfo, out_2, policy);
 
      const Real A_1 = a1.computeAdvantage(act);
      const Real A_2 = a2.computeAdvantage(act);
@@ -147,9 +139,9 @@ void Diagonal_advantage::test(const vector<Real>& act)
     out_1[index] -= 0.0001;
     out_2[index] += 0.0001;
 
-    Diagonal_advantage a1= Diagonal_advantage(start_matrix,nA,0,out_1,policy);
+    Diagonal_advantage a1= Diagonal_advantage(vector<Uint>{start_matrix}, aInfo, out_1, policy);
 
-    Diagonal_advantage a2= Diagonal_advantage(start_matrix,nA,0,out_2,policy);
+    Diagonal_advantage a2= Diagonal_advantage(vector<Uint>{start_matrix}, aInfo, out_1, policy);
 
     const Real A_1 = a1.computeAdvantage(act);
     const Real A_2 = a2.computeAdvantage(act);
@@ -172,7 +164,8 @@ void NAF::test()
   A.test(act);
 }
 
-void RACER::test()
+/*
+void CACER::test()
 {
   vector<Real> hat(nOutputs), out(nOutputs), act(nA);
   uniform_real_distribution<Real> out_dis(-.5,.5);
@@ -186,7 +179,9 @@ void RACER::test()
   pol_cur.test(act, &pol_hat); //,&adv
   adv.test(act);
 }
+*/
 
+/*
 void POAC::test()
 {
   vector<Real> hat(nOutputs), out(nOutputs), act(nA);
@@ -201,7 +196,8 @@ void POAC::test()
   pol_cur.test(act, &pol_hat); //,&adv
   adv.test(act);
 }
-
+*/
+/*
 void DACER::test()
 {
   uniform_real_distribution<Real> out_dis(-.5,.5);
@@ -214,3 +210,4 @@ void DACER::test()
   Discrete_policy pol_cur = prepare_policy(out);
   pol_cur.test(act, &pol_hat);
 }
+*/

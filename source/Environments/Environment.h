@@ -22,26 +22,22 @@ protected:
     void commonSetup();
 
 public:
-    const string execpath;
-    const Uint nAgents, nAgentsPerRank;
+    Uint nAgents, nAgentsPerRank;
     const Real gamma;
 
-    bool resetAll = false;
-    bool cheaperThanNetwork = true;
     Uint mpi_ranks_per_env = 0;
     string paramsfile = string();
 
     vector<Agent*> agents;
     StateInfo  sI;
     ActionInfo aI;
-    Environment(const Uint nAgents, const string execpath, Settings & settings);
+    Environment(Settings & _settings);
 
     virtual ~Environment();
 
     virtual void setDims ();
 
-    virtual bool pickReward(const State& t_sO, const Action& t_a,
-                            const State& t_sN, Real& reward, const int info);
+    virtual bool pickReward(const Agent& agent);
     virtual bool predefinedNetwork(Builder* const net) const;
     Communicator create_communicator( const MPI_Comm slavesComm, const int socket, const bool bSpawn);
 

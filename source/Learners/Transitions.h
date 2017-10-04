@@ -62,11 +62,12 @@ public:
   bool first_pass = true;
   std::vector<std::mt19937>& generators;
   vector<Real> std, mean, invstd;
-  vector<Uint> curr_transition_id, inds;
+  vector<Uint> inds;
   discrete_distribution<Uint> * dist = nullptr;
   //bool bRecurrent;
   const StateInfo sI;
   const ActionInfo aI;
+  const vector<Agent*> _agents;
   Uint anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0, nSeenSequences=0;
   Uint iOldestSaved = 0, printCount = 0;
   Real invstd_reward = 1, mean_reward = 0;
@@ -75,9 +76,7 @@ public:
   std::mutex dataset_mutex;
 
 protected:
-  int add(const int agentId, const int info, const State & sOld,
-      const Action & a, const vector<Real> mu, const State& s, Real r);
-
+  int add(const int agentId, const Agent&a, const vector<Real>mu);
   void push_back(const int & agentId);
   void clear(const int & agentId);
   void synchronize();
@@ -142,19 +141,8 @@ public:
   Uint restartSamples(const Uint polDim = 0);
   void saveSamples();
 
-  inline int passData(const int agentId, const Agent& a, const vector<Real>mu = vector<Real>())
-  {
-    return passData(agentId, a.Status, *(a.sOld), *(a.a), *(a.s), a.r, mu);
-  }
-
-  inline void writeData(const int agentId, const Agent&a, const vector<Real>mu)
-  {
-    return writeData(agentId, a.Status, *(a.sOld), *(a.a), *(a.s), a.r, mu);
-  }
-  void writeData(const int agentId, const int info, const State& sOld, const Action&aNew, const State&sNew, const Real rew, const vector<Real> muNew);
-
-  int passData(const int agentId, const int info, const State& sOld,
-    const Action&a, const State&s, const Real r, const vector<Real>mu = vector<Real>());
+  int passData(const int agentId, const Agent&a, const vector<Real>mu = vector<Real>());
+  void writeData(const int agentId, const Agent&a, const vector<Real>mu);
 
   inline bool requestUpdateSamples() const
   {

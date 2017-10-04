@@ -36,12 +36,24 @@ struct Workspace
     //Network::deallocateUnrolledActivations(&series);
     //assert(series.size() == 0);
   }
+
+  inline void push_back(const vector<Real>& inp, const vector<Real>& act,
+    const vector<Real>&mu, const Real V)
+  {
+    assert(actions.size() == observations.size());
+    assert(actions.size() == policy.size());
+    assert(actions.size() == Vst.size());
+    actions.push_back(act);
+    observations.push_back(inp);
+    policy.push_back(mu);
+    Vst.push_back(V);
+  }
 };
 
 class Learner_onPolicy: public Learner_utils
 {
 protected:
-  const Uint nAgentsPerSlave, nA, nEpochs = 10, nHorizon = 2048;
+  const Uint nAgentsPerSlave, nEpochs = 10, nHorizon = 2048;
   Uint cntHorizon = 0, cntTrajectories = 0, cntEpoch = 0, cntBatch = 0;
   vector< Workspace *> work;
   vector< Workspace *> completed;
@@ -109,7 +121,7 @@ protected:
 public:
   Learner_onPolicy(MPI_Comm mcom,Environment*const _e, Settings&_s, Uint ng):
   Learner_utils(mcom, _e, _s, ng), nAgentsPerSlave(_e->nAgentsPerRank),
-  nA(_e->aI.dim), generators(_s.generators)
+  generators(_s.generators)
   {
     work.reserve(nHorizon);
     completed.reserve(nHorizon/2);

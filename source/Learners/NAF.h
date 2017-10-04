@@ -26,7 +26,7 @@ class NAF : public Learner_utils
 
   inline Quadratic_advantage prepare_advantage(const vector<Real>& out) const
   {
-    return Quadratic_advantage(net_indices[1], net_indices[2], nA, nL, out);
+    return Quadratic_advantage(vector<Uint>{net_indices[1], net_indices[2]}, &aInfo, out);
   }
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override;

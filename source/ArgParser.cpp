@@ -101,35 +101,42 @@ void Parser::parse(int argc, char * const * argv, bool verbose)
   }
 
   if (verbose)
+  {
+    const string fname = "settings.log";
+    FILE * f = fopen(fname.c_str(), "a");
+    if (f == NULL) die("Save fail\n");
+
     for (int i=0; i<nOpt; i++) {
       OptionStruct& myOpt = opts[i];
-      printf("%s: ", myOpt.description.c_str());
+      fprintf(f, "%s: ", myOpt.description.c_str());
 
       switch (myOpt.type)
       {
       case NONE:
-        printf( ( *((bool*)myOpt.value)) ? "enabled" : "disabled" );
+        fprintf(f,( *((bool*)myOpt.value)) ? "enabled" : "disabled" );
         break;
 
       case INT:
-        printf("%d", *((int*)myOpt.value));
+        fprintf(f,"%d", *((int*)myOpt.value));
         break;
 
       case REAL:
-        printf("%f", *((Real*)myOpt.value));
+        fprintf(f,"%f", *((Real*)myOpt.value));
         break;
 
       case CHAR:
-        printf("%c", *((char*)myOpt.value));
+        fprintf(f,"%c", *((char*)myOpt.value));
         break;
 
       case STRING:
-        printf("%s", ((string*)myOpt.value)->c_str());
+        fprintf(f,"%s", ((string*)myOpt.value)->c_str());
         break;
       }
 
-      printf("\n");
+      fprintf(f,"\n");
     }
 
+    fclose(f);
+  }
 }
 }

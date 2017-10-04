@@ -133,17 +133,16 @@ CPPFLAGS+= -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = ArgParser.o main.o ObjectFactory.o Communicator.o \
-		Environment.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o \
-		TwoActFishEnvironment.o GliderEnvironment.o TwoFishEnvironment.o \
-		HingedFishEnvironment.o BlowfishEnvironment.o alebotEnvironment.o \
-		NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o \
-		openAICartEnvironment.o POAC.o Learner.o NAF.o NFQ.o DPG.o RACER.o \
-		DACER.o Learner_onPolicy.o GAE.o Transitions.o Learner_utils.o \
-		Scheduler.o Network.o Optimizer.o Math_tests.o
+		Environment.o TwoActFishEnvironment.o Learner.o NAF.o NFQ.o DPG.o \
+		Learner_onPolicy.o Transitions.o Learner_utils.o \
+		Scheduler.o Network.o Optimizer.o Math_tests.o #POAC.o #CACER.o DACER.o
 
-#ExternalAgent.o
+#ExternalAgent.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o GliderEnvironment.o
+#TwoFishEnvironment.o HingedFishEnvironment.o BlowfishEnvironment.o alebotEnvironment.o
+#NewFishEnvironment.o DeadFishEnvironment.o AcrobotEnvironment.o openAICartEnvironment.o
+
+
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
-
 
 .DEFAULT_GOAL := rl
 

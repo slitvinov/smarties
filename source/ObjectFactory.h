@@ -17,14 +17,12 @@ class ObjectFactory
 {
 private:
   Settings * settings;
-  string filename;
   inline string _parse(string source, string pattern, bool req = true);
   inline int    _parseInt(string source, string pattern, bool req = true);
   inline Real _parseReal(string source, string pattern, bool req = true);
 
 
 public:
-  ObjectFactory(Settings & _settings) :
-    settings(&_settings), filename(_settings.factory) {};
+  ObjectFactory(Settings & _settings) : settings(&_settings) {}
   Environment* createEnvironment();
 };

@@ -8,6 +8,7 @@
  */
 #pragma once
 #include "../Bund.h"
+#include "../StateAction.h"
 
 inline vector<Real> sum3Grads(const vector<Real>& f, const vector<Real>& g,
   const vector<Real>& h)

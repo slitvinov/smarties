@@ -20,9 +20,14 @@ avgValGrad(nThreads+1,vector<long double>(1,0)), stdValGrad(nThreads+1,vector<lo
   #ifdef NDEBUG
   if(bRecurrent) die("DPG with RNN is Not ready!\n");
   #endif
-  const vector<Real> out_weight_inits = {_s.outWeightsPrefac};
-  buildNetwork(net_value, opt_value, vector<Uint>(1,1), _s, vector<Real>(), vector<Uint>(1,nA));
-  buildNetwork(net, opt, vector<Uint>(1,nA), _s, out_weight_inits);
+
+  buildNetwork(vector<Uint>(1,1), _s, vector<Uint>(1,nA));
+  net_value = net; series_1_value = series_1; currAct_value = currAct;
+  opt_value = opt; series_2_value = series_2; prevAct_value = prevAct;
+  //reset containers so that buildNetwork allocates new memory for actor:
+  series_1.resize(0); series_2.resize(0); currAct.resize(0); prevAct.resize(0);
+
+  buildNetwork(vector<Uint>(1,nA), _s);
   policyVecDim = 2*nA;
 }
 

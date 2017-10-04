@@ -12,26 +12,19 @@
 
 struct Quadratic_advantage: public Quadratic_term
 {
+  const ActionInfo* const aInfo;
   const Gaussian_policy* const policy;
 
-  //Normalized quadratic advantage around policy mean
-  Quadratic_advantage(Uint _startMat, Uint _nA, Uint _nL,
-      const vector<Real>& out, const Gaussian_policy*const pol) :
-      Quadratic_term(_startMat,         0,_nA,_nL,out,pol->mean),policy(pol) {}
-
   //Normalized quadratic advantage, with own mean
-  Quadratic_advantage(Uint _startMat, Uint _startMean, Uint _nA, Uint _nL,
-      const vector<Real>& out, const Gaussian_policy*const pol) :
-      Quadratic_term(_startMat,_startMean,_nA,_nL,out),policy(pol) {}
+  Quadratic_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
+   const vector<Real>& out, const Gaussian_policy*const pol = nullptr) :
+   Quadratic_term(starts[0],starts.size()>1?starts[1]:0,aI->dim,compute_nL(aI),
+   out, pol==nullptr ? vector<Real>() : pol->mean), aInfo(aI), policy(pol)
+   {
+     assert(starts.size()==1 || starts.size()==2);
+   }
 
-  //Non-normalized quadratic advantage, with own mean
-  Quadratic_advantage(Uint _startMat, Uint _startMean, Uint _nA, Uint _nL,
-      const vector<Real>& out) :
-      Quadratic_term(_startMat,_startMean,_nA,_nL,out),policy(nullptr) {}
-
- public:
-  inline void grad(const vector<Real>&act, const Real Qer,
-    vector<Real>& netGradient, const vector<bool>& bounded) const
+  inline void grad(const vector<Real>&act, const Real Qer, vector<Real>& netGradient) const
   {
     assert(act.size()==nA);
     vector<Real> dErrdP(nA*nA), dPol(nA, 0), dAct(nA);
@@ -57,7 +50,7 @@ struct Quadratic_advantage: public Quadratic_term
           val += Qer * matrix[nA*a + i] * (dAct[i]-dPol[i]);
 
         netGradient[start_mean+a] = val;
-        if(bounded[a])
+        if(aInfo->bounded[a])
         {
           if(mean[a]> BOUNDACT_MAX && netGradient[start_mean+a]>0)
             netGradient[start_mean+a] = 0;
@@ -143,21 +136,23 @@ struct Quadratic_advantage: public Quadratic_term
 
 struct Diagonal_advantage
 {
+  const ActionInfo* const aInfo;
   const Uint start_matrix, nA;
   const vector<Real>& netOutputs;
-  const vector<Real> mean, linear_coefs_pos, linear_coefs_neg;
-  const vector<Real> quadratic_coefs_pos, quadratic_coefs_neg;
+  const vector<Real> mean, quadratic_coefs_pos, quadratic_coefs_neg;
+  const vector<Real> linear_coefs_pos, linear_coefs_neg;
   const Gaussian_policy* const policy;
-  static inline Uint compute_nL(const Uint NA)
+  static inline Uint compute_nL(const ActionInfo* const aI)
   {
-    return 4*NA;
+    return 4*aI->dim;
   }
 
-  Diagonal_advantage(Uint _startMat, Uint _nA, Uint nL, const vector<Real>& out,
-    const Gaussian_policy*const pol) : start_matrix(_startMat), nA(_nA),
-    netOutputs(out), mean(pol->mean), linear_coefs_pos(extract_coefs(0)),
-    linear_coefs_neg(extract_coefs(1)), quadratic_coefs_pos(extract_coefs(2)),
-    quadratic_coefs_neg(extract_coefs(3)), policy(pol) { }
+  Diagonal_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
+    const vector<Real>& out, const Gaussian_policy*const pol) : aInfo(aI),
+    start_matrix(starts[0]), nA(aI->dim), netOutputs(out), mean(pol->mean),
+    quadratic_coefs_pos(extract(2)), quadratic_coefs_neg(extract(3)),
+    linear_coefs_pos(extract(0)), linear_coefs_neg(extract(1)), policy(pol)
+    { assert(starts.size()==1); }
 
  protected:
   inline Real diagMatMul(const vector<Real>& act) const
@@ -172,7 +167,7 @@ struct Diagonal_advantage
     assert(ret<=0);
     return ret;
   }
-  inline vector<Real> extract_coefs(const Uint i) const
+  inline vector<Real> extract(const Uint i) const
   {
     const Uint start = start_matrix +i*nA;
     assert(netOutputs.size() >= start+nA);
@@ -190,8 +185,7 @@ struct Diagonal_advantage
   }
 
  public:
-  inline void grad(const vector<Real>&act, const Real Qer,
-    vector<Real>& netGradient, const vector<bool>bounded =vector<bool>()) const
+  inline void grad(const vector<Real>&act, const Real Qer, vector<Real>& netGradient) const
   {
     assert(act.size()==nA);
     for (Uint j=0; j<nA; j++)
@@ -229,6 +223,8 @@ struct Diagonal_advantage
 
   inline Real advantageVariance() const
   {
+    assert(policy not_eq nullptr);
+    if(policy == nullptr) return 0;
     Real ret = 0;
     for (Uint i=0; i<nA; i++)
     {
