@@ -214,7 +214,7 @@ class RACER : public Learner_utils
     Q_OPC = reward + gamma*Q_OPC;
     //get everybody camera ready:
     const Real V_cur = out_cur[net_indices[0]]; //V_hat = out_hat[net_indices[0]];
-    const Real Qprecision = out_cur[QPrecID], penalDKL = out_cur[PenalID];
+    const Real Qprecision = out_cur[QPrecID];
     const Policy_t pol_cur = prepare_policy(out_cur);
     const Policy_t pol_hat = prepare_policy(out_hat);
     const Advantage_t adv_cur = prepare_advantage(out_cur, &pol_cur);
@@ -265,39 +265,39 @@ class RACER : public Learner_utils
       const vector<Real> policy_grad = gradAcer;
     #endif
 
-    //trust region updating
-    const vector<Real> penal_grad = pol_cur.div_kl_opp_grad(&pol_hat,-penalDKL);
-    vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
-
-    #if 0
-      const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
-      totalPolGrad = trust_region_update(totalPolGrad, gradDivKL, DKL_hardmax);
-    #endif
-
     const Real Ver = Qer*std::min((Real)1, rho_cur);
     vector<Real> gradient(nOutputs,0);
     gradient[net_indices[0]]= Qer * Qprecision;
 
+    #if defined(ACER_CONSTRAINED)
+      const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
+      const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_hardmax);
+    #elif defined(ACER_ADAPTIVE)
+      gradient[PenalID] = -4*std::pow(DivKL - DKL_target,3)*opt->eta;
+      const vector<Real> totalPolGrad = policy_grad;
+      if (thrID==1) opt->eta = out_cur[PenalID];
+    #else
+      const Real penalDKL = out_cur[PenalID]
+      //increase if DivKL is greater than Target
+      //computed as \nabla_{penalDKL} (DivKL - DKL_target)^2
+      //with rough approximation that DivKL/penalDKL = penalDKL
+      //(distance increases if penalty term increases, similar to PPO )
+      gradient[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
+      //trust region updating
+      const vector<Real>penal_grad= pol_cur.div_kl_opp_grad(&pol_hat,-penalDKL);
+      const vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
+    #endif
+
+
     //decrease precision if error is large
     //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
     gradient[QPrecID] = -.5 * (Qer * Qer - 1/Qprecision);
-    //increase if DivKL is greater than Target
-    //computed as \nabla_{penalDKL} (DivKL - DKL_target)^2
-    //with rough approximation that DivKL/penalDKL = penalDKL
-    //(distance increases if penalty term increases, similar to PPO )
-    //gradient[PenalID] = 2*(DivKL - DKL_target)*penalDKL;
-    gradient[PenalID] = 4*pow(DivKL - DKL_target,3)*penalDKL;
-
-    //if ( thrID==1 ) printf("%u %u %u : %f %f DivKL:%f grad=[%f %f]\n", nOutputs, QPrecID, PenalID, Qprecision, penalDKL, DivKL, penal_grad[0], policy_grad[0]);
-
     //adv_cur.grad(act, Qer, gradient, aInfo.bounded);
     adv_cur.grad(act, Qer * Qprecision, gradient);
     pol_cur.finalize_grad(totalPolGrad, gradient);
-
     //prepare Q with off policy corrections for next step:
     Q_RET = std::min((Real)1, rho_cur)*(Q_RET -A_cur -V_cur) +V_cur;
     Q_OPC = std::min(CmaxRet, rho_cur)*(Q_RET -A_cur -V_cur) +V_cur;
-
     //bookkeeping:
     dumpStats(Vstats[thrID], A_cur+V_cur, Qer ); //Ver
     data->Set[seq]->tuples[samp]->SquaredError = Ver*Ver;
@@ -432,7 +432,7 @@ class RACER : public Learner_utils
     const Real penalDKL = exp(net->biases[net->layers.back()->n1stBias]);
 
     printf("%lu, rmse:%.2Lg, avg_Q:%.2Lg, std_Q:%.2Lg, min_Q:%.2Lg, max_Q:%.2Lg, "
-      "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%.3f, rewPrec:%f\n",
+      "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%f, rewPrec:%f\n",
       opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
       stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget,
       Qprecision, penalDKL, data->invstd_reward);
@@ -445,7 +445,6 @@ class RACER : public Learner_utils
     distTarget<<"\t"<<Qprecision<<"\t"<<penalDKL<<"\t"<<data->invstd_reward<<endl;
     fs.close();
     fs.flush();
-
     if (stats.epochCount % 100==0) save("policy");
   }
 };
@@ -520,10 +519,19 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
 
     net = build.build();
 
+    #if defined(ACER_ADAPTIVE)
+    //set initial value for klDiv penalty coefficient
+    Uint penalparid = net->layers.back()->n1stBias; //(was last added layer)
+    net->biases[penalparid] = std::log(settings.learnrate);
+    #else
     //set initial value for klDiv penalty coefficient
     const Uint penalparid= net->layers.back()->n1stBias;//(was last added layer)
     net->biases[penalparid] = -std::log(settings.klDivConstraint);
     //*tgtUpdateAlpha/settings.learnrate
+    #endif
+    //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
+
+
     finalize_network(build);
 
     #ifdef DUMP_EXTRA
@@ -573,10 +581,17 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
 
     net = build.build();
 
+    #if defined(ACER_ADAPTIVE)
+    //set initial value for klDiv penalty coefficient
+    Uint penalparid = net->layers.back()->n1stBias; //(was last added layer)
+    net->biases[penalparid] = std::log(settings.learnrate);
+    #else
     //set initial value for klDiv penalty coefficient
     Uint penalparid = net->layers.back()->n1stBias; //(was last added layer)
     net->biases[penalparid] = -std::log(1);
+    #endif
     //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
+
     finalize_network(build);
 
     #ifdef DUMP_EXTRA

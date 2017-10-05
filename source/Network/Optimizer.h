@@ -24,7 +24,8 @@ protected:
   void update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, const Uint N, const Uint batchsize) const;
 
 public:
-  const Real eta, lambda, epsAnneal, alpha = 0.5;
+  Real eta;
+  const Real lambda, epsAnneal, alpha = 0.5;
   long unsigned nepoch = 0;
 
   Optimizer(Network* const _net, Profiler* const _prof, Settings & settings);
