@@ -45,9 +45,9 @@ python ../Communicator.py \$1 $APP
 EOF
 fi
 
-cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
-Environment exec=../launchSim.sh n=1
-EOF
+#cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
+#Environment exec=../launchSim.sh n=1
+#EOF
 
 cp ../source/Communicator.py ${BASEPATH}${RUNFOLDER}/
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh

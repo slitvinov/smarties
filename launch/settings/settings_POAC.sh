@@ -10,11 +10,12 @@ SETTINGS+=" --samplesFile none"
 SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-#SETTINGS+=" --nnl1 64"
-#SETTINGS+=" --nnl2 64"
-#SETTINGS+=" --nnl2 64"
-SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
+#SETTINGS+=" --nnl1 32"
+#SETTINGS+=" --nnl2 32"
+SETTINGS+=" --nnl1 64"
+SETTINGS+=" --nnl2 64"
+#SETTINGS+=" --nnl1 128"
+#SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
 #SETTINGS+=" --nnl1 256"
 #SETTINGS+=" --nnl2 256"
@@ -35,11 +36,11 @@ SETTINGS+=" --learner POAC"
 
 #maximum allowed lenth for a sequence (from first to terminal state)
 #if a sequence is longer is just cut after #number of transitions
-SETTINGS+=" --maxTotSeqNum 1000"
+SETTINGS+=" --maxTotSeqNum 100"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.5"
-SETTINGS+=" --epsAnneal 10000"
+SETTINGS+=" --epsAnneal 1000"
 SETTINGS+=" --obsPerStep 0.1"
 SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --nMasters 1"
@@ -49,9 +50,10 @@ SETTINGS+=" --totNumSteps 1000000"
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w
 #the first option is markedly safer
-SETTINGS+=" --klDivConstraint 0.001"
-SETTINGS+=" --targetDelay 0.1"
+SETTINGS+=" --klDivConstraint 0.01"
+SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
+#SETTINGS+=" --batchSize 256"
 SETTINGS+=" --batchSize 128"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0003"

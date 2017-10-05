@@ -9,8 +9,10 @@ SETTINGS+=" --samplesFile none"
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
 SETTINGS+=" --gamma 0.995"
-
+#SETTINGS+=" --gamma 1.0"
 #size of network layers
+#SETTINGS+=" --nnl1 32"
+#SETTINGS+=" --nnl2 32"
 SETTINGS+=" --nnl1 64"
 SETTINGS+=" --nnl2 64"
 #SETTINGS+=" --nnl1 128"
@@ -21,7 +23,8 @@ SETTINGS+=" --nnl2 64"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
-SETTINGS+=" --nnFunc Tanh"
+#SETTINGS+=" --nnFunc Tanh"
+SETTINGS+=" --nnFunc SoftSign"
 # L2 regularization of the weights
 #SETTINGS+=" --nnLambda 0.0001"
 

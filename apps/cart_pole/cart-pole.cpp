@@ -140,11 +140,11 @@ struct CartPole
 			res.y2 = fac1*(F + mp*siny*(l*w*w + g*cosy));
 			res.y4 = fac2*(-F*cosy -mp*l*w*w*cosy*siny -(mc+mp)*g*siny);
     #else
-      const double fac1 = 1./(mp+mc);
-      const double fac2 = l*(4./3. - fac1*(mp*cosy*cosy));
+      const double totMass = mp+mc;
+      const double fac2 = l*(4./3. - (mp*cosy*cosy)/totMass);
       const double F1 = F + mp * l * w * w * siny;
-      res.y4 = (g*siny - fac1*F1*cosy)/fac2;
-      res.y2 = fac1*(F1 - mp*l*res.y4*cosy);
+      res.y4 = (g*siny - F1*cosy/totMass)/fac2;
+      res.y2 = (F1 - mp*l*res.y4*cosy)/totMass;
     #endif
     res.y1 = u.y2;
     res.y3 = u.y4;

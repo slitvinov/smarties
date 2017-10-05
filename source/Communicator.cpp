@@ -2,8 +2,7 @@
 #include "Communicator_utils.cpp"
 #define COMM_REDIRECT_OUT
 //APPLICATION SIDE CONSTRUCTOR
-Communicator::Communicator(const int socket, const int state_components, const int action_components, const int number_of_agents)
-: gen(std::mt19937(socket))
+Communicator::Communicator(const int socket, const int state_components, const int action_components, const int number_of_agents) : gen(std::mt19937(socket))
 {
   if(socket<0) {
     printf("FATAL: Communicator created with socket < 0.\n");
@@ -33,6 +32,7 @@ Communicator::Communicator(const int socket, const int state_components, const i
 void Communicator::set_action_scales(const std::vector<double> upper,
   const std::vector<double> lower, const bool bound)
 {
+  assert(!sentStateActionShape);
   assert(discrete_actions == 0);
   assert(upper.size() == (size_t)nActions && lower.size() == (size_t)nActions);
   for (int i=0; i<nActions; i++) action_bounds[2*i+0] = upper[i];
@@ -43,6 +43,7 @@ void Communicator::set_action_scales(const std::vector<double> upper,
 
 void Communicator::set_action_options(const std::vector<int> action_option_num)
 {
+  assert(!sentStateActionShape);
   discrete_actions = 1;
   assert(action_option_num.size() == (size_t)nActions);
   discrete_action_values = 0;
@@ -60,6 +61,7 @@ void Communicator::set_action_options(const std::vector<int> action_option_num)
 
 void Communicator::set_action_options(const int action_option_num)
 {
+  assert(!sentStateActionShape);
   if(nActions != 1) {
     printf("FATAL: Communicator::set_action_options perceived more than 1 action degree of freedom, but only one number of actions provided.\n");
     abort();
@@ -77,6 +79,7 @@ void Communicator::set_action_options(const int action_option_num)
 void Communicator::set_state_scales(const std::vector<double> upper,
   const std::vector<double> lower)
 {
+  assert(!sentStateActionShape);
   assert(upper.size() == (size_t)nStates && lower.size() == (size_t)nStates);
   for (int i=0; i<nStates; i++) obs_bounds[2*i+0] = upper[i];
   for (int i=0; i<nStates; i++) obs_bounds[2*i+1] = lower[i];
@@ -84,6 +87,7 @@ void Communicator::set_state_scales(const std::vector<double> upper,
 
 void Communicator::set_state_observable(const std::vector<bool> observable)
 {
+  assert(!sentStateActionShape);
   assert(observable.size() == (size_t) nStates);
   for (int i=0; i<nStates; i++) obs_inuse[i] = observable[i];
 }

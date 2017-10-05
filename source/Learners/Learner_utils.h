@@ -9,6 +9,36 @@
 #pragma once
 #include "Learner.h"
 
+#if 0
+class Input_layer
+{
+  /*
+    Skeleton. Class will take user's builder specification and create feature procesing layers. THis will be a common layer between higher network layers and the raw input.
+    Assumptions: no target weights, no recurrencies.
+    Challenges: How to allow an user to specify this from client process. I do not think it makes sense. Should there be a separate settings file for custom network settings? One line per layer, number of features and stride.
+    Unsupervised aux tasks will backprop onto this, higher level network will backprop onto this, dqn two nets will backprop onto this. Threrefore inserting errors and actual backprop should be separate functions. Errors are additive.
+   */
+  Network* net;
+  Optimizer* opt;
+  mutable vector<vector<Activation*>*> series;
+
+  vector<Real> prepare_features(const Uint len, const Uint thrID) const
+  {
+    net->prepForBackProp(series_1[thrID], len);
+  }
+  vector<Real> input_features(const vector<Real>& obs, const Uint thrID, const Uint samp) const
+  {
+    vector<Activation*>& series = *(series_1[thrID]);
+    net->predict(obs, ret, series[samp]);
+  }
+  void backprop(const vector<Real>& error, const Uint thrID, const Uint samp) const
+  {
+    vector<Activation*>& series = *(series_1[thrID]);
+    net->backProp(error, series, net->Vgrad[thrID]);
+  }
+}
+#endif
+
 class Learner_utils: public Learner
 {
 protected:
