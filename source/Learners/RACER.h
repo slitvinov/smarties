@@ -522,8 +522,8 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
 
     //set initial value for klDiv penalty coefficient
     const Uint penalparid= net->layers.back()->n1stBias;//(was last added layer)
-    net->biases[penalparid] = -std::log(settings.klDivConstraint*tgtUpdateAlpha/settings.learnrate);
-    //
+    net->biases[penalparid] = -std::log(settings.klDivConstraint);
+    //*tgtUpdateAlpha/settings.learnrate
     finalize_network(build);
 
     #ifdef DUMP_EXTRA

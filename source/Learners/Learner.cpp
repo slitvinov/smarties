@@ -61,7 +61,7 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
         if(!thrID) profiler_ext->stop_start("WORK");
         Train_BPTT(sequence, static_cast<Uint>(thrID));
         addToNTasks(-1);
-#pragma omp atomic
+        #pragma omp atomic
         taskCounter++;
       }
     }
@@ -82,7 +82,7 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
         if(!thrID) profiler_ext->stop_start("WORK");
         Train(sequence, transition, static_cast<Uint>(thrID));
         addToNTasks(-1);
-#pragma omp atomic
+        #pragma omp atomic
         taskCounter++;
       }
     }
