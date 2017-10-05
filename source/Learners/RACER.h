@@ -18,11 +18,9 @@ template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_utils
 {
  protected:
-  const Real CmaxRet = 1, CmaxRho = 5;
-  //const Real CmaxRet = 5, CmaxRho = 5;
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
-  const Real truncation, DKL_target, DKL_hardmax;
+  const Real CmaxRet, DKL_target;
   vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
   std::vector<std::mt19937>& generators;
@@ -232,22 +230,26 @@ class RACER : public Learner_utils
     const Real Qer = Q_RET -A_cur -V_cur;
 
     //compute quantities needed for trunc import sampl with bias correction
-    #ifdef ACER_TABC
+    #if   defined(ACER_TABC)
       const Action_t pol = pol_cur.sample(&generators[thrID]);
       const Real polProbOnPolicy = pol_cur.evalLogProbability(pol);
       const Real polProbBehavior = Policy_t::evalBehavior(pol,_t->mu);
       const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
       const Real A_pol = adv_cur.computeAdvantage(pol);
-      const Real gain1 = A_OPC*min(rho_cur,truncation);
-      const Real gain2 = A_pol*max(0.,1.-truncation/rho_pol);
+      const Real gain1 = A_OPC*min(rho_cur, 5.);
+      const Real gain2 = A_pol*max(0.,1 - 5./rho_pol);
 
       const vector<Real> gradAcer_1 = pol_cur.policy_grad(act, gain1);
       const vector<Real> gradAcer_2 = pol_cur.policy_grad(pol, gain2);
       const vector<Real> gradAcer = sum2Grads(gradAcer_1, gradAcer_2);
+    #elif defined(ACER_NOCLIP)
+      const Real gain1 = A_OPC * rho_cur;
+      const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
+    #elif defined(ACER_CLIP_1)
+      const Real gain1 = rho_cur>1 && A_OPC>0 ? 1*A_OPC : A_OPC*rho_cur;
+      const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
     #else
-      //const Real gain1 = A_OPC * rho_cur;
-      //const Real gain1 = A_OPC*std::min(rho_cur, CmaxRho);
-      const Real gain1 = rho_cur>CmaxRho && A_OPC>0 ? CmaxRho*A_OPC : A_OPC*rho_cur;
+      const Real gain1 = rho_cur>5 && A_OPC>0 ? 5*A_OPC : A_OPC*rho_cur;
       const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
     #endif
 
@@ -337,8 +339,8 @@ class RACER : public Learner_utils
  public:
   RACER(MPI_Comm comm, Environment*const _env, Settings& sett,
     vector<Uint> net_outs, vector<Uint> pol_inds, vector<Uint> adv_inds) :
-    Learner_utils(comm, _env, sett, sett.nnOutputs), truncation(5),
-    DKL_target(sett.klDivConstraint), DKL_hardmax(1), net_outputs(net_outs),
+    Learner_utils(comm, _env, sett, sett.nnOutputs), CmaxRet(sett.impWeight),
+    DKL_target(sett.klDivConstraint), net_outputs(net_outs),
     net_indices(count_indices(net_outs)), pol_start(pol_inds),
     adv_start(adv_inds), generators(sett.generators)
   {
@@ -520,8 +522,8 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
 
     //set initial value for klDiv penalty coefficient
     const Uint penalparid= net->layers.back()->n1stBias;//(was last added layer)
-    net->biases[penalparid] = -std::log(settings.klDivConstraint);
-
+    net->biases[penalparid] = -std::log(settings.klDivConstraint*tgtUpdateAlpha/settings.learnrate);
+    //
     finalize_network(build);
 
     #ifdef DUMP_EXTRA

@@ -226,12 +226,14 @@ void Transitions::push_back(const int & agentId)
     if (nSequences>=maxTotSeqNum) {
       Buffered.push_back(Tmp[agentId]);
       Buffered.back()->ID = nSeenSequences++;
+      nSeenTransitions += Tmp[agentId]->tuples.size()-1;
     } else {
       if (not Tmp[agentId]->ended) ++nBroken;
 
       Set.push_back(Tmp[agentId]);
       Set.back()->ID = nSeenSequences++;
-      nTransitions+=Tmp[agentId]->tuples.size()-1;
+      nTransitions     += Tmp[agentId]->tuples.size()-1;
+      nSeenTransitions += Tmp[agentId]->tuples.size()-1;
       nSequences++;
     }
   } else {
@@ -458,15 +460,15 @@ Uint Transitions::updateSamples(const Real annealFac)
   printCount++;
   if(Buffered.size()>0) {
     if(!learn_rank) // && printCount%10 == 0
-    fprintf(f,"nSequences %d (%d) > maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
-      nSequences, nSeenSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
+    fprintf(f,"nSequences %d (%lu) > maxTotSeqNum %d (nTransitions=%d (%lu), avgSeqLen=%f).\n",
+      nSequences, nSeenSequences, maxTotSeqNum, nTransitions, nSeenTransitions, nTransitions/(Real)nSequences);
     synchronize();
     update_meanstd_needed = true;
     old_ndata = nTransitions;
   } else {
     if(!learn_rank) // && printCount%100 == 0
-    fprintf(f,"nSequences %d (%d) =< maxTotSeqNum %d (nTransitions=%d, avgSeqLen=%f).\n",
-      nSequences, nSeenSequences, maxTotSeqNum, nTransitions, nTransitions/(Real)nSequences);
+    fprintf(f,"nSequences %d (%lu) =< maxTotSeqNum %d (nTransitions=%d (%lu), avgSeqLen=%f).\n",
+      nSequences, nSeenSequences, maxTotSeqNum, nTransitions, nSeenTransitions, nTransitions/(Real)nSequences);
     update_meanstd_needed = nTransitions!=old_ndata;
     old_ndata = nTransitions;
   }

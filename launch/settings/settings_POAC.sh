@@ -41,7 +41,7 @@ SETTINGS+=" --maxTotSeqNum 100"
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --epsAnneal 1000"
-SETTINGS+=" --obsPerStep 0.1"
+SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 1000000"

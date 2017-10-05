@@ -170,7 +170,7 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
   //const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
   assert(batchsize>0);
 
-#pragma omp parallel
+  #pragma omp parallel
   {
     const Uint thrID = static_cast<Uint>(omp_get_thread_num());
     Saru gen(nepoch, thrID, net->generators[thrID]());
@@ -178,7 +178,7 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
     const nnReal norm = 1./batchsize, noise = std::sqrt(eta_) * eps_eSGD;
     const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2;
 
-#pragma omp for
+    #pragma omp for
     for (Uint i=0; i<N; i++)
     {
       const nnReal DW  = grad[i]*norm;
@@ -210,7 +210,7 @@ void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet 
   assert(batchsize>0);
   #pragma omp parallel
   {
-    const nnReal eta_ = _eta*std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
+    const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
     const nnReal norm = 1./batchsize;
     const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2, f22=1-beta_2;
 

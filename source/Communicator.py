@@ -171,7 +171,7 @@ class Communicator:
             state[2] = observation
         state[self.nStates+2] = reward
         for i in range(self.nStates+2): assert(not np.isnan(state[i]))
-        print(state); sys.stdout.flush()
+        #print(state); sys.stdout.flush()
         self.conn.send(state.tobytes())
         if self.bRender==1 and self.gym is not None: self.gym.render()
         #if self.bRender==2 and self.gym is not None:

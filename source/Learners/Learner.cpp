@@ -211,15 +211,17 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
 bool Learner::batchGradientReady()
 {
   const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
-  const Real sequenceCounter = data->nSeenSequences - nData_b4PolUpdates;
-  //if there is not enough data for training: go back to master
-  if ( ! readyForTrain() ) {
-    nData_b4PolUpdates = data->nSeenSequences;
-    return false;
-  }
 
+  //if there is not enough data for training: go back to master:
+  #ifdef PACE_SEQUENCES
+  const Real dataCounter = data->nSeenSequences   - nData_b4PolUpdates;
+  if(!readyForTrain()){nData_b4PolUpdates=data->nSeenSequences;   return false;}
+  #else
+  const Real dataCounter = data->nSeenTransitions - nData_b4PolUpdates;
+  if(!readyForTrain()){nData_b4PolUpdates=data->nSeenTransitions; return false;}
+  #endif
   //If I have done too many gradient steps on the avail data, go back to comm
-  if( requestedSequences > sequenceCounter ) {
+  if( requestedSequences > dataCounter ) {
     //profiler_ext->stop_start("STOP");
     return false;
   }
@@ -228,18 +230,20 @@ bool Learner::batchGradientReady()
   return taskCounter >= batchSize;
 }
 
-bool Learner::unlockQueue() 
+bool Learner::unlockQueue()
 {
   if ( ! readyForTrain() ) return true;
-  const Real requestedSequences = (opt->nepoch+1) *obsPerStep/(Real)learn_size;
-  return data->nSeenSequences-nData_b4PolUpdates <= requestedSequences+nSlaves;
+  const Real requestedData = (opt->nepoch+1) *obsPerStep/(Real)learn_size;
+  #ifdef PACE_SEQUENCES
+  return data->nSeenSequences  -nData_b4PolUpdates <= requestedData+nSlaves;
+  #else
+  return data->nSeenTransitions-nData_b4PolUpdates <= requestedData+nSlaves;
+  #endif
 }
 
 bool Learner::readyForAgent(const int slave)
 {
-  if ( ! readyForTrain() ) return true;
-  const Real requestedSequences = (opt->nepoch+1) *obsPerStep/(Real)learn_size;
-  return data->nSeenSequences-nData_b4PolUpdates <= requestedSequences+nSlaves;
+  return unlockQueue(); //same: if too much data stop
 }
 bool Learner::slaveHasUnfinishedSeqs(const int slave) const
 {

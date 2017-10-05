@@ -68,7 +68,8 @@ public:
   const StateInfo sI;
   const ActionInfo aI;
   const vector<Agent*> _agents;
-  Uint anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0, nSeenSequences=0;
+  Uint anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0;
+  size_t nSeenSequences=0, nSeenTransitions=0;
   Uint iOldestSaved = 0, printCount = 0;
   Real invstd_reward = 1, mean_reward = 0;
   Gen * gen;

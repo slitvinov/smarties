@@ -187,6 +187,13 @@ struct Settings
 #define DEFAULT_maxTotSeqNum 5000
   int maxTotSeqNum = DEFAULT_maxTotSeqNum;
 
+#define CHARARG_impWeight 'w'
+#define COMMENT_impWeight "Max importance weight for Retrace offpol corrections"
+#define TYPEVAL_impWeight Real
+#define TYPENUM_impWeight REAL
+#define DEFAULT_impWeight 1
+  Real impWeight = DEFAULT_impWeight;
+
 #define CHARARG_totNumSteps 'z'
 #define COMMENT_totNumSteps "Number of gradient steps before end of learning"
 #define TYPEVAL_totNumSteps int
@@ -310,12 +317,12 @@ struct Settings
 #define DEFAULT_environment "Environment"
   string environment = DEFAULT_environment;
 
-  #define CHARARG_launchfile '1'
-  #define COMMENT_launchfile "Name of executable or launch script of user application. No arguments can go here. The file must be placed in the base run folder."
-  #define TYPEVAL_launchfile string
-  #define TYPENUM_launchfile STRING
-  #define DEFAULT_launchfile "launchSim.sh"
-    string launchfile = DEFAULT_launchfile;
+#define CHARARG_launchfile '1'
+#define COMMENT_launchfile "Name of executable or launch script of user application. No arguments can go here. The file must be placed in the base run folder."
+#define TYPEVAL_launchfile string
+#define TYPENUM_launchfile STRING
+#define DEFAULT_launchfile "launchSim.sh"
+  string launchfile = DEFAULT_launchfile;
 
 #define CHARARG_rType '2'
 #define COMMENT_rType "Reward type (can be defined by user in the environment)."
@@ -418,6 +425,7 @@ struct Settings
     //AVERT YOUR EYES!
 
     return vector<ArgParser::OptionStruct> ({
+      { CHARARG_impWeight, "impWeight", TYPENUM_impWeight, COMMENT_impWeight, &impWeight, (TYPEVAL_impWeight) DEFAULT_impWeight },
       { CHARARG_environment, "environment", TYPENUM_environment, COMMENT_environment, &environment, (TYPEVAL_environment) DEFAULT_environment },
       { CHARARG_launchfile, "launchfile", TYPENUM_launchfile, COMMENT_launchfile, &launchfile, (TYPEVAL_launchfile) DEFAULT_launchfile },
       { CHARARG_splitLayers, "splitLayers", TYPENUM_splitLayers, COMMENT_splitLayers, &splitLayers, (TYPEVAL_splitLayers) DEFAULT_splitLayers },
