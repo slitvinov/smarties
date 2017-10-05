@@ -143,6 +143,7 @@ void Master::processRequest(const int slave)
     assert(istatus == agents[agent]->Status);
     //pick next action and ...do a bunch of other stuff with the data:
     learner->select(agent, *agents[agent]);
+    const auto iter = learner->iter();
 
     debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
 
@@ -152,13 +153,14 @@ void Master::processRequest(const int slave)
         outBufs[slave-1][i] = agents[agent]->a->vals[i];
       sendBuffer(slave);
     }
-    else
+    else if ( iter || !bTrain )
     {
       char path[256];
       sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
       lock_guard<mutex> lock(dump_mutex);
       std::ofstream outf(path, ios::app);
-      outf<<learner->iter()<<" "<<agent<<" "<<agents[agent]->transitionID<<" "<<agents[agent]->cumulative_rewards<<endl;
+      outf<<iter<<" "<<agent<<" "<<agents[agent]->transitionID<<" "
+          <<agents[agent]->cumulative_rewards<<endl;
       outf.close();
       ++stepNum; //sequence counter: used to terminate if not training
     }
