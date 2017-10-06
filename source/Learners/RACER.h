@@ -264,7 +264,7 @@ class RACER : public Learner_utils
       const vector<Real> policy_grad = gradAcer;
     #endif
 
-    const Real Qer = actProbOnPolicy>std::log(nnEPS) ? Q_RET-A_cur-V_cur : 0;
+    const Real Qer = actProbOnPolicy>nA*std::log(1e-3) ? Q_RET-A_cur-V_cur : 0;
     const Real Ver = (Q_RET-A_cur-V_cur)*std::min((Real)1, rho_cur);
     vector<Real> gradient(nOutputs,0);
     gradient[net_indices[0]]= (Qer+Ver) * Qprecision;
