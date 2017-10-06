@@ -227,7 +227,6 @@ class RACER : public Learner_utils
     const Real rho_cur = min(MAX_IMPW,safeExp(actProbOnPolicy-actProbBehavior));
     const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
     const Real A_cur = adv_cur.computeAdvantage(act);
-    const Real Qer = Q_RET -A_cur -V_cur;
 
     //compute quantities needed for trunc import sampl with bias correction
     #if   defined(ACER_TABC)
@@ -265,9 +264,10 @@ class RACER : public Learner_utils
       const vector<Real> policy_grad = gradAcer;
     #endif
 
-    const Real Ver = Qer*std::min((Real)1, rho_cur);
+    const Real Qer = actProbOnPolicy>std::log(nnEPS) ? Q_RET-A_cur-V_cur : 0;
+    const Real Ver = (Q_RET-A_cur-V_cur)*std::min((Real)1, rho_cur);
     vector<Real> gradient(nOutputs,0);
-    gradient[net_indices[0]]= Qer * Qprecision;
+    gradient[net_indices[0]]= (Qer+Ver) * Qprecision;
 
     #if defined(ACER_CONSTRAINED)
       const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
@@ -277,7 +277,7 @@ class RACER : public Learner_utils
       const vector<Real> totalPolGrad = policy_grad;
       if (thrID==1) opt->eta = out_cur[PenalID];
     #else
-      const Real penalDKL = out_cur[PenalID]
+      const Real penalDKL = out_cur[PenalID];
       //increase if DivKL is greater than Target
       //computed as \nabla_{penalDKL} (DivKL - DKL_target)^2
       //with rough approximation that DivKL/penalDKL = penalDKL
@@ -291,7 +291,7 @@ class RACER : public Learner_utils
 
     //decrease precision if error is large
     //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
-    gradient[QPrecID] = -.5 * (Qer * Qer - 1/Qprecision);
+    gradient[QPrecID] = -.5*(std::pow(Q_RET - A_cur-V_cur,2) - 1/Qprecision);
     //adv_cur.grad(act, Qer, gradient, aInfo.bounded);
     adv_cur.grad(act, Qer * Qprecision, gradient);
     pol_cur.finalize_grad(totalPolGrad, gradient);
@@ -299,7 +299,7 @@ class RACER : public Learner_utils
     Q_RET = std::min((Real)1, rho_cur)*(Q_RET -A_cur -V_cur) +V_cur;
     Q_OPC = std::min(CmaxRet, rho_cur)*(Q_RET -A_cur -V_cur) +V_cur;
     //bookkeeping:
-    dumpStats(Vstats[thrID], A_cur+V_cur, Qer ); //Ver
+    dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Ver
     data->Set[seq]->tuples[samp]->SquaredError = Ver*Ver;
     return gradient;
   }
