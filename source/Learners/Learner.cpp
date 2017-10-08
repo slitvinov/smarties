@@ -210,7 +210,7 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
 
 bool Learner::batchGradientReady()
 {
-  const Real requestedSequences = opt->nepoch * obsPerStep /(Real)learn_size;
+  const Real requestedData = opt->nepoch * obsPerStep /(Real)learn_size;
 
   //if there is not enough data for training: go back to master:
   #ifdef PACE_SEQUENCES
@@ -221,7 +221,7 @@ bool Learner::batchGradientReady()
   if(!readyForTrain()){nData_b4PolUpdates=data->nSeenTransitions; return false;}
   #endif
   //If I have done too many gradient steps on the avail data, go back to comm
-  if( requestedSequences > dataCounter ) {
+  if( requestedData > dataCounter ) {
     //profiler_ext->stop_start("STOP");
     return false;
   }

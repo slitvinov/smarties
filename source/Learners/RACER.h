@@ -24,6 +24,7 @@ class RACER : public Learner_utils
   vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
   std::vector<std::mt19937>& generators;
+  const Uint VsValID = net_indices[0];
   const Uint PenalID = net_indices.back();
   const Uint QPrecID = net_indices.back()+1;
   //#ifdef FEAT_CONTROL
@@ -213,8 +214,7 @@ class RACER : public Learner_utils
     Q_RET = reward + gamma*Q_RET; //if k==ndata-2 then this is r_end
     Q_OPC = reward + gamma*Q_OPC;
     //get everybody camera ready:
-    const Real V_cur = out_cur[net_indices[0]]; //V_hat = out_hat[net_indices[0]];
-    const Real Qprecision = out_cur[QPrecID];
+    const Real V_cur = out_cur[VsValID], Qprecision = out_cur[QPrecID];
     const Policy_t pol_cur = prepare_policy(out_cur);
     const Policy_t pol_hat = prepare_policy(out_hat);
     const Advantage_t adv_cur = prepare_advantage(out_cur, &pol_cur);
@@ -267,20 +267,22 @@ class RACER : public Learner_utils
     const Real Qer = actProbOnPolicy>nA*std::log(1e-3) ? Q_RET-A_cur-V_cur : 0;
     const Real Ver = (Q_RET-A_cur-V_cur)*std::min((Real)1, rho_cur);
     vector<Real> gradient(nOutputs,0);
-    gradient[net_indices[0]]= (Qer+Ver) * Qprecision;
+    gradient[VsValID]= (Qer+Ver) * Qprecision;
 
     #if defined(ACER_CONSTRAINED)
       const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
       const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_hardmax);
-    #elif defined(ACER_ADAPTIVE)
+    #elif defined(ACER_ADAPTIVE) //adapt learning rate:
       gradient[PenalID] = -4*std::pow(DivKL - DKL_target,3)*opt->eta;
       const vector<Real> totalPolGrad = policy_grad;
-      if (thrID==1) opt->eta = out_cur[PenalID];
+      //avoid races, only one thread updates, should be already redundant:
+      if (thrID==1) //if thrd is here, surely we are not updating weights
+        opt->eta = out_cur[PenalID];
     #else
       const Real penalDKL = out_cur[PenalID];
       //increase if DivKL is greater than Target
-      //computed as \nabla_{penalDKL} (DivKL - DKL_target)^2
-      //with rough approximation that DivKL/penalDKL = penalDKL
+      //computed as \nabla_{penalDKL} (DivKL - DKL_target)^4
+      //with rough approximation that d DivKL/ d penalDKL \propto penalDKL
       //(distance increases if penalty term increases, similar to PPO )
       gradient[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
       //trust region updating
