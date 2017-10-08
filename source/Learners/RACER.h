@@ -150,7 +150,7 @@ class RACER : public Learner_utils
         const Tuple* const _t = data->Set[seq]->tuples[k+samp];
         //else check if the importance weight is too small to continue:
         importanceW *= computeImportanceWeight(out_tmp, _t);
-        if (importanceW < 1e-2) {
+        if (importanceW < 1e-3) {
           //printf("Cut trace after %u out of %u samples!\n",k,nSValues);
           //fflush(stdout);
           nSUnroll = k; //for last state we do not compute offpol correction
@@ -295,9 +295,11 @@ class RACER : public Learner_utils
     //adv_cur.grad(act, Qer, gradient, aInfo.bounded);
     adv_cur.grad(act, Qer * Qprecision, gradient);
     pol_cur.finalize_grad(totalPolGrad, gradient);
+    const Real C = CmaxRet>1 ? safeExp((actProbOnPolicy-actProbBehavior)/nA)
+                             : rho_cur;
     //prepare Q with off policy corrections for next step:
-    Q_RET = std::min((Real)1, rho_cur)*(Q_RET -A_cur -V_cur) +V_cur;
-    Q_OPC = std::min(CmaxRet, rho_cur)*(Q_RET -A_cur -V_cur) +V_cur;
+    Q_RET = std::min((Real)1, C)*(Q_RET -A_cur -V_cur) +V_cur;
+    Q_OPC = std::min((Real)1, C)*(Q_RET -A_cur -V_cur) +V_cur;
     //bookkeeping:
     dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Ver
     data->Set[seq]->tuples[samp]->SquaredError = Ver*Ver;
@@ -320,11 +322,12 @@ class RACER : public Learner_utils
     const Action_t act = pol_hat.map_action(_t->a);//unbounded action space
     const Real actProbOnTarget = pol_hat.evalLogProbability(act);
     const Real actProbBehavior = Policy_t::evalBehavior(act,_t->mu);
-    const Real C = safeExp(actProbOnTarget-actProbBehavior);
+    const Real C = CmaxRet>1 ? safeExp((actProbOnTarget-actProbBehavior)/nA)
+                             : safeExp((actProbOnTarget-actProbBehavior));
     const Real A_hat = adv_hat.computeAdvantage(act);
     //prepare rolled Q with off policy corrections for next step:
     Q_RET = std::min((Real)1, C)*(Q_RET -A_hat -V_hat) +V_hat;
-    Q_OPC = std::min(CmaxRet, C)*(Q_RET -A_hat -V_hat) +V_hat;
+    Q_OPC = std::min((Real)1, C)*(Q_RET -A_hat -V_hat) +V_hat;
   }
 
   inline Real computeImportanceWeight(const vector<Real>& out, const Tuple* const _t) const
@@ -333,7 +336,9 @@ class RACER : public Learner_utils
     const Action_t act = pol_hat.map_action(_t->a); //to unbounded space
     const Real probTrgt = pol_hat.evalLogProbability(act);
     const Real probBeta = Policy_t::evalBehavior(act, _t->mu);
-    return ACER_LAMBDA * gamma * std::min(CmaxRet, safeExp(probTrgt-probBeta));
+    const Real C = CmaxRet>1 ? safeExp((probTrgt-probBeta)/nA)
+                             : safeExp((probTrgt-probBeta));
+    return ACER_LAMBDA * gamma * std::min((Real)1, C);
   }
 
  public:
