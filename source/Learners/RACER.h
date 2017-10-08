@@ -93,8 +93,8 @@ class RACER : public Learner_utils
 
     if(thrID==1)  profiler->stop_start("BCK");
 
-    if (thrID==0) net->backProp(series_cur, net->grad);
-    else net->backProp(series_cur, net->Vgrad[thrID]);
+    if (thrID==0) net->backProp(series_cur, ndata-1, net->grad);
+    else net->backProp(series_cur, ndata-1, net->Vgrad[thrID]);
 
     if(thrID==1)  profiler->stop_start("SLP");
   }

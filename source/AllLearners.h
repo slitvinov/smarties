@@ -33,6 +33,10 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
   }
   else if (settings.learner == "RACER" || settings.learner == "POAC") {
     settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
+    #ifdef PACE_SEQUENCES
+      settings.bSampleSequences = true;
+      printf("Forcing sampling of sequences!\n");
+    #endif
     if(env->aI.discrete) {
       settings.nnOutputs = RACER_disc::getnOutputs(&env->aI);
       return new RACER_disc(mastersComm, env, settings);

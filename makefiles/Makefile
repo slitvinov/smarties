@@ -10,6 +10,7 @@ cvar ?= off
 acer ?= relax
 testdiff ?= no
 entropy ?= off
+paceseq ?= off
 auxtask ?= off
 importance ?= off
 fulltrace ?= off
@@ -90,6 +91,9 @@ CPPFLAGS+= -DNO_CUT_TRACES
 endif
 ifeq "$(auxtask)" "on"
 CPPFLAGS+= -DFEAT_CONTROL
+endif
+ifeq "$(paceseq)" "on"
+CPPFLAGS+= -DPACE_SEQUENCES
 endif
 ifeq "$(entropy)" "on"
 CPPFLAGS+= -D__EntropySGD

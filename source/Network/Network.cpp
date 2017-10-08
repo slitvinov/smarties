@@ -108,6 +108,33 @@ void Network::backProp(vector<Activation*>&S, const nnReal*const _ws,
   }
 }
 
+void Network::backProp(vector<Activation*>&S, const Uint len,
+  const nnReal*const _ws, const nnReal*const _bs, Grads*const _gs) const
+{
+  //cache friendly backprop: backprops from terminal layers to first layers
+  //and from last time step to first, with layer being the 'slow index'
+  //maximises reuse of weights in cache by getting each layer done in turn
+  //but a layer cannot have recur connection to upper layer... would be weird
+  assert(S.size()>0 && S.size() >= len);
+  const Uint last = len-1;
+
+  if (last == 0)  //just one activation
+    for (Uint i=1; i<=nLayers; i++)
+      layers[nLayers-i]->backPropagate(nullptr, S[0], nullptr, _gs, _ws, _bs);
+  else
+  {
+    for (Uint i=1; i<=nLayers; i++)
+    {
+      layers[nLayers-i]->backPropagate(S[last-1],S[last],nullptr,_gs,_ws,_bs);
+
+      for (Uint k=last-1; k>=1; k--)
+      layers[nLayers-i]->backPropagate(S[k-1], S[k], S[k+1], _gs, _ws, _bs);
+
+      layers[nLayers-i]->backPropagate(nullptr, S[0], S[1], _gs, _ws, _bs);
+    }
+  }
+}
+
 void Network::backProp(const vector<Real>& _errors, Activation* const net,
   const nnReal*const _weights,const nnReal*const _bias,Grads*const _grad) const
 {

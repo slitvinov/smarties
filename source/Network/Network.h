@@ -95,15 +95,11 @@ public:
   inline void prepForBackProp(vector<Activation*>* series,const Uint len) const
   {
     vector<Activation*>& ref = *series;
-    if(series->size() > len) {
-      for(Uint j=len; j<series->size(); j++) delete ref[j];
-      series->resize(len);
-    }
-    else if (series->size() < len)
+    if (series->size() < len)
       for(Uint j=series->size(); j<len; j++)
         series->push_back(new Activation(nNeurons,nStates));
 
-    for(Uint j=0; j<series->size(); j++) ref[j]->clearErrors();
+    for(Uint j=0; j<len; j++) ref[j]->clearErrors();
   }
   inline void prepForFwdProp(vector<Activation*>* series, Uint len) const
   {
@@ -192,6 +188,12 @@ public:
   inline void backProp(vector<Activation*>& timeSeries, Grads* const _grads) const
   {
     backProp(timeSeries, weights_back, biases, _grads);
+  }
+
+  void backProp(vector<Activation*>& timeSeries, const Uint len, const nnReal* const _weights, const nnReal* const _biases, Grads* const _grads) const;
+  inline void backProp(vector<Activation*>& timeSeries, const Uint len, Grads* const _grads) const
+  {
+    backProp(timeSeries, len, weights_back, biases, _grads);
   }
 
   void backProp(const vector<Real>& _errors, Activation* const net,

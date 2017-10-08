@@ -29,7 +29,7 @@ class ParamLayer: public BaseLayer<NormalLink>
     nnOpRet output = curr->outvals +n1stNeuron;
     nnOpInp bias   = biases +n1stBias;
     for (Uint n=0; n<nNeurons; n++) inputs[n] = bias[n];
-    func->eval(inputs, output, nNeurons_simd);
+    for (Uint n=0; n<nNeurons; n++) output[n] = func->eval(inputs[n]);
     //printf("ParamLayer: %u %f %f %f\n", n1stNeuron, inputs[0], bias[0], output[0]); fflush(0);
   }
 
