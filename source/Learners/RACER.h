@@ -12,8 +12,13 @@
 #include "../Math/FeatureControlTasks.h"
 #include "../Math/Quadratic_advantage.h"
 
+#ifndef ADV_QUAD
 #include "../Math/Mixture_advantage_prova.h"
-//#include "../Math/Mixture_advantage.h"
+#warning "Using Mixture_advantage with Gaussian advantages"
+#else
+#include "../Math/Mixture_advantage.h"
+#warning "Using Mixture_advantage with Quadratic advantages"
+#endif
 
 #include "../Math/Discrete_policy.h"
 //#define simpleSigma
@@ -595,7 +600,11 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
 };
 
 //template<Uint NEXPERTS> //does not work, my life is a lie!
-#define NEXPERTS 2
+#ifndef NEXPERTS
+#define NEXPERTS 1
+#warning "Using Mixture_advantage with 1 expert"
+#endif
+
 class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, vector<Real>>
 {
   static vector<Uint> count_outputs(const ActionInfo& aI)
