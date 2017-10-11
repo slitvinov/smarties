@@ -11,6 +11,10 @@
 #include "Learner_utils.h"
 #include "../Math/FeatureControlTasks.h"
 #include "../Math/Quadratic_advantage.h"
+
+#include "../Math/Mixture_advantage_prova.h"
+//#include "../Math/Mixture_advantage.h"
+
 #include "../Math/Discrete_policy.h"
 //#define simpleSigma
 
@@ -21,12 +25,12 @@ class RACER : public Learner_utils
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
   const Real CmaxRet, DKL_target;
-  vector<Uint> net_outputs, net_indices;
+  const vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
   std::vector<std::mt19937>& generators;
   const Uint VsValID = net_indices[0];
-  const Uint PenalID = net_indices.back();
-  const Uint QPrecID = net_indices.back()+1;
+  const Uint PenalID = net_indices.back(), QPrecID = net_indices.back()+1;
+  const bool bGeometric = CmaxRet>1 && nA>1;
   //#ifdef FEAT_CONTROL
   //  const ContinuousSignControl* task;
   //#endif
@@ -39,6 +43,10 @@ class RACER : public Learner_utils
       const Policy_t*const pol) const
   {
     return Advantage_t(adv_start, &aInfo, out, pol);
+  }
+  inline Policy_t* new_policy(const vector<Real>& out) const
+  {
+    return new Policy_t(pol_start, &aInfo, out);
   }
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override
@@ -70,16 +78,20 @@ class RACER : public Learner_utils
     if(not data->Set[seq]->ended) {
       series_hat.push_back(net->allocateActivation());
       const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
-      vector<Real> outT(nOutputs, 0), ST = data->standardize(_t->s); //last state
-      net->predict(ST,outT, series_hat,ndata-1, net->tgt_weights,net->tgt_biases);
-      Q_OPC = Q_RET = outT[net_indices[0]]; //V(s_T) computed with tgt weights
+      vector<Real> OT(nOutputs, 0), ST =data->standardize(_t->s); //last state
+      net->predict(ST,OT, series_hat,ndata-1,net->tgt_weights,net->tgt_biases);
+      Q_OPC = Q_RET = OT[net_indices[0]]; //V(s_T) computed with tgt weights
     }
 
     for (int k=static_cast<int>(ndata)-2; k>=0; k--)
     {
-      vector<Real> out_cur = net->getOutputs(series_cur[k]);
-      vector<Real> out_hat = net->getOutputs(series_hat[k]);
-      vector<Real> grad = compute(seq,k,Q_RET,Q_OPC,out_cur,out_hat,thrID);
+      const vector<Real> out_cur = net->getOutputs(series_cur[k]);
+      const vector<Real> out_hat = net->getOutputs(series_hat[k]);
+      Policy_t pol_cur = prepare_policy(out_cur);
+      Policy_t pol_tgt = prepare_policy(out_hat);
+      const Tuple * const _t = data->Set[seq]->tuples[k];
+      pol_cur.prepare(_t->a, _t->mu, bGeometric, &pol_tgt);
+      vector<Real>grad=compute(seq,k,Q_RET,Q_OPC,out_cur,pol_cur,pol_tgt,thrID);
       //#ifdef FEAT_CONTROL
       //const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[k]->a);
       //task->Train(series_cur[k], series_hat[k+1], act, seq, k, grad);
@@ -92,10 +104,8 @@ class RACER : public Learner_utils
     }
 
     if(thrID==1)  profiler->stop_start("BCK");
-
     if (thrID==0) net->backProp(series_cur, ndata-1, net->grad);
     else net->backProp(series_cur, ndata-1, net->Vgrad[thrID]);
-
     if(thrID==1)  profiler->stop_start("SLP");
   }
 
@@ -122,6 +132,8 @@ class RACER : public Learner_utils
     net->prepForFwdProp(series_2[thrID], nSValues);
     vector<Activation*>& series_cur = *(series_1[thrID]);
     vector<Activation*>& series_hat = *(series_2[thrID]);
+    vector<Policy_t*> policies;
+    policies.reserve(nSValues);
 
     //propagation of RNN signals:
     for (Uint k=iRecurr, j=0; k<samp+1; k++, j++) {
@@ -132,60 +144,55 @@ class RACER : public Learner_utils
         net->seqPredict_execute(series_cur, series_cur);
         //extract the only output we actually correct:
         net->seqPredict_output(out_cur, series_cur[j]); //the humanity!
+        policies.push_back(new_policy(out_cur));
         //predict samp with target weight using curr recurrent inputs as estimate:
         const Activation*const recur = j ? series_cur[j-1] : nullptr;
         net->predict(inp, out_hat, recur, series_hat[0], net->tgt_weights, net->tgt_biases);
       }
     }
 
+    const Policy_t pol_target = prepare_policy(out_hat);
+    const Tuple * const t0 = data->Set[seq]->tuples[samp];
+    policies[0]->prepare(t0->a, t0->mu, bGeometric, &pol_target);
+
     //compute network for off-policy corrections:
-    Real importanceW = 1;
+    Real impW = std::min((Real)1, policies[0]->sampImpWeight);
     for(Uint k=1; k<nSValues; k++)
     {
       vector<Real> out_tmp(nOutputs,0);
       net->predict(data->standardized(seq, k+samp), out_tmp, series_hat, k);
-      //net->predict(data->standardized(seq, k+samp), out_tmp, series_hat, k, net->tgt_weights, net->tgt_biases);
+      policies.push_back(new_policy(out_tmp));
+      assert(policies.size() == k+1);
 
       #ifndef NO_CUT_TRACES
-        if (k == nSValues-1) break;
+        if (k == nSValues-1 && nSValues not_eq nSUnroll) break;
         const Tuple* const _t = data->Set[seq]->tuples[k+samp];
-        //else check if the importance weight is too small to continue:
-        importanceW *= computeImportanceWeight(out_tmp, _t);
-        if (importanceW < 1e-3) {
-          //printf("Cut trace after %u out of %u samples!\n",k,nSValues);
-          //fflush(stdout);
+        policies[k]->prepare(_t->a, _t->mu, bGeometric);
+        impW *= ACER_LAMBDA*gamma*std::min((Real)1,policies[k]->sampImpWeight);
+        if (impW < 1e-3) { //then the imp weight is too small to continue
+          //printf("Cut after %u / %u samples!\n", k,nSValues);fflush(stdout);
           nSUnroll = k; //for last state we do not compute offpol correction
           nSValues = k+1; //we initialize value of Q_RET to V(state)
           break;
         }
       #endif
     }
-    /*
-    if(data->Set.size() == 5000) {
-      char asciipath[256];
-      sprintf(asciipath, "trunc_seqs_%d.txt", thrID);
-      ofstream filestats;
-      filestats.open(asciipath, ios::app);
-      filestats<<data->nSeenSequences-data->Set[seq]->ID<<" "<<nSValues<<" "<<ndata-1-samp<<endl;
-      filestats.close();
-      filestats.flush();
-    }
-    */
 
     if(thrID==1)  profiler->stop_start("ADV");
-
     Real Q_RET = 0, Q_OPC = 0;
     if(nSValues != nSUnroll) { //partial sequence: compute value of term state
+      assert(nSUnroll+1 == nSValues);
       const vector<Real> last_out = net->getOutputs(series_hat[nSValues-1]);
       Q_RET = Q_OPC = last_out[net_indices[0]]; //V(s_T) with tgt weights
     }
 
     for (int k=static_cast<int>(nSUnroll)-1; k>0; k--) //propagate Q to k=0
-     offPolCorrUpdate(seq,k+samp, Q_RET,Q_OPC, net->getOutputs(series_hat[k]));
+     offPolCorrUpdate(seq,k+samp, Q_RET,Q_OPC,
+      net->getOutputs(series_hat[k]), *(policies[k]));
 
     if(thrID==1)  profiler->stop_start("CMP");
-
-    vector<Real> grad=compute(seq,samp,Q_RET,Q_OPC,out_cur,out_hat,thrID);
+    vector<Real> grad=compute(seq,samp, Q_RET,Q_OPC,
+      out_cur, *(policies[0]), pol_target, thrID);
 
     //#ifdef FEAT_CONTROL
     // const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[samp]->a);
@@ -202,37 +209,35 @@ class RACER : public Learner_utils
     if (thrID==0) net->backProp(series_cur, net->grad);
     else net->backProp(series_cur, net->Vgrad[thrID]);
     if(thrID==1)  profiler->stop_start("SLP");
+    for(const auto & pol : policies) if(pol not_eq nullptr) delete pol;
   }
 
   inline vector<Real> compute(const Uint seq, const Uint samp, Real& Q_RET,
-    Real& Q_OPC, const vector<Real>& out_cur, const vector<Real>& out_hat,
-    const Uint thrID) const
+    Real& Q_OPC, const vector<Real>& out_cur, const Policy_t& pol_cur, const Policy_t& pol_hat, const Uint thrID) const
   {
-    const Tuple * const _t = data->Set[seq]->tuples[samp]; //contains sOld, a
-    //const Tuple * const t_ =data->Set[seq]->tuples[samp+1]; //contains r, sNew
     const Real reward = data->standardized_reward(seq, samp+1);
     Q_RET = reward + gamma*Q_RET; //if k==ndata-2 then this is r_end
     Q_OPC = reward + gamma*Q_OPC;
     //get everybody camera ready:
     const Real V_cur = out_cur[VsValID], Qprecision = out_cur[QPrecID];
-    const Policy_t pol_cur = prepare_policy(out_cur);
-    const Policy_t pol_hat = prepare_policy(out_hat);
     const Advantage_t adv_cur = prepare_advantage(out_cur, &pol_cur);
-    const Real A_OPC = Q_OPC - V_cur;
-
-    //off policy stored action and on-policy sample:
-    const Action_t act = pol_cur.map_action(_t->a); //unbounded action space
-    const Real actProbOnPolicy = pol_cur.evalLogProbability(act);
-    const Real actProbBehavior = Policy_t::evalBehavior(act,_t->mu);
-    const Real rho_cur = min(MAX_IMPW,safeExp(actProbOnPolicy-actProbBehavior));
+    const Action_t& act = pol_cur.sampAct; //unbounded action space
+    #ifndef NDEBUG
+      adv_cur.test(act, &generators[thrID]);
+      pol_cur.test(act, &pol_hat);
+    #endif
+    const Real rho_cur = not bGeometric ? pol_cur.sampImpWeight :
+      min(MAX_IMPW, safeExp(pol_cur.sampLogPonPolicy-pol_cur.sampLogPBehavior));
     const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
     const Real A_cur = adv_cur.computeAdvantage(act);
+    const Real A_OPC = Q_OPC - V_cur, Q_dist = Q_RET -A_cur-V_cur;
 
     //compute quantities needed for trunc import sampl with bias correction
     #if   defined(ACER_TABC)
+      const Tuple * const _t = data->Set[seq]->tuples[samp];
       const Action_t pol = pol_cur.sample(&generators[thrID]);
       const Real polProbOnPolicy = pol_cur.evalLogProbability(pol);
-      const Real polProbBehavior = Policy_t::evalBehavior(pol,_t->mu);
+      const Real polProbBehavior = Policy_t::evalBehavior(pol, _t->mu);
       const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
       const Real A_pol = adv_cur.computeAdvantage(pol);
       const Real gain1 = A_OPC*min(rho_cur, 5.);
@@ -244,11 +249,11 @@ class RACER : public Learner_utils
     #elif defined(ACER_NOCLIP)
       const Real gain1 = A_OPC * rho_cur;
       const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
-    #elif defined(ACER_CLIP_1)
-      const Real gain1 = rho_cur>1 && A_OPC>0 ? 1*A_OPC : A_OPC*rho_cur;
+    #elif defined(ACER_CLIP_5)
+      const Real gain1 = rho_cur>5 && A_OPC>0 ? 5*A_OPC : A_OPC*rho_cur;
       const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
     #else
-      const Real gain1 = rho_cur>5 && A_OPC>0 ? 5*A_OPC : A_OPC*rho_cur;
+      const Real gain1 = rho_cur>1 && A_OPC>0 ? 1*A_OPC : A_OPC*rho_cur;
       const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
     #endif
 
@@ -261,11 +266,11 @@ class RACER : public Learner_utils
       const vector<Real> gradC = pol_cur.control_grad(&adv_cur, eta);
       const vector<Real> policy_grad = sum2Grads(gradAcer, gradC);
     #else
-      const vector<Real> policy_grad = gradAcer;
+      const vector<Real>& policy_grad = gradAcer;
     #endif
 
-    const Real Qer = actProbOnPolicy>nA*std::log(1e-3) ? Q_RET-A_cur-V_cur : 0;
-    const Real Ver = (Q_RET-A_cur-V_cur)*std::min((Real)1, rho_cur);
+    const Real Ver = Q_dist*min((Real)1,rho_cur), P = pol_cur.sampLogPonPolicy;
+    const Real Qer = P > numeric_limits<Real>::epsilon() ? Q_dist :0;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID]= (Qer+Ver) * Qprecision;
 
@@ -286,22 +291,19 @@ class RACER : public Learner_utils
       //(distance increases if penalty term increases, similar to PPO )
       gradient[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
       //trust region updating
-      const vector<Real>penal_grad= pol_cur.div_kl_opp_grad(&pol_hat,-penalDKL);
+      const vector<Real> penal_grad=pol_cur.div_kl_opp_grad(&pol_hat,-penalDKL);
       const vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
     #endif
 
-
     //decrease precision if error is large
     //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
-    gradient[QPrecID] = -.5*(std::pow(Q_RET - A_cur-V_cur,2) - 1/Qprecision);
+    gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprecision);
     //adv_cur.grad(act, Qer, gradient, aInfo.bounded);
     adv_cur.grad(act, Qer * Qprecision, gradient);
     pol_cur.finalize_grad(totalPolGrad, gradient);
-    const Real C = CmaxRet>1 ? safeExp((actProbOnPolicy-actProbBehavior)/nA)
-                             : rho_cur;
     //prepare Q with off policy corrections for next step:
-    Q_RET = std::min((Real)1, C)*(Q_RET -A_cur -V_cur) +V_cur;
-    Q_OPC = std::min((Real)1, C)*(Q_RET -A_cur -V_cur) +V_cur;
+    Q_RET = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
+    Q_OPC = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
     //bookkeeping:
     dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Ver
     data->Set[seq]->tuples[samp]->SquaredError = Ver*Ver;
@@ -309,38 +311,21 @@ class RACER : public Learner_utils
   }
 
   inline void offPolCorrUpdate(const Uint seq, const Uint samp, Real& Q_RET,
-    Real& Q_OPC, const vector<Real> output_hat) const
+    Real& Q_OPC, const vector<Real> output, const Policy_t& policy) const
   {
-    const Tuple * const _t = data->Set[seq]->tuples[samp]; //contains sOld, a
+    //const Tuple * const _t = data->Set[seq]->tuples[samp]; //contains sOld, a
     //const Tuple * const t_ = data->Set[seq]->tuples[samp+1];//contains r, sNew
-    const Real reward = data->standardized_reward(seq,samp+1);
+    const Real reward = data->standardized_reward(seq, samp+1);
     Q_RET = reward + gamma*Q_RET; //if k==ndata-2 then this is r_end
     Q_OPC = reward + gamma*Q_OPC;
-    const Real V_hat = output_hat[net_indices[0]];
-    const Policy_t pol_hat = prepare_policy(output_hat);
+    const Real V_hat = output[net_indices[0]];
     //Used as target: target policy, target value
-    const Advantage_t adv_hat = prepare_advantage(output_hat, &pol_hat);
-    //off policy stored action:
-    const Action_t act = pol_hat.map_action(_t->a);//unbounded action space
-    const Real actProbOnTarget = pol_hat.evalLogProbability(act);
-    const Real actProbBehavior = Policy_t::evalBehavior(act,_t->mu);
-    const Real C = CmaxRet>1 ? safeExp((actProbOnTarget-actProbBehavior)/nA)
-                             : safeExp((actProbOnTarget-actProbBehavior));
-    const Real A_hat = adv_hat.computeAdvantage(act);
+    const Advantage_t adv_cur = prepare_advantage(output, &policy);
+    const Action_t& act = policy.sampAct; //off policy stored action
+    const Real C = policy.sampImpWeight, A_hat = adv_cur.computeAdvantage(act);
     //prepare rolled Q with off policy corrections for next step:
     Q_RET = std::min((Real)1, C)*(Q_RET -A_hat -V_hat) +V_hat;
     Q_OPC = std::min((Real)1, C)*(Q_RET -A_hat -V_hat) +V_hat;
-  }
-
-  inline Real computeImportanceWeight(const vector<Real>& out, const Tuple* const _t) const
-  {
-    const Policy_t pol_hat = prepare_policy(out);
-    const Action_t act = pol_hat.map_action(_t->a); //to unbounded space
-    const Real probTrgt = pol_hat.evalLogProbability(act);
-    const Real probBeta = Policy_t::evalBehavior(act, _t->mu);
-    const Real C = CmaxRet>1 ? safeExp((probTrgt-probBeta)/nA)
-                             : safeExp((probTrgt-probBeta));
-    return ACER_LAMBDA * gamma * std::min((Real)1, C);
   }
 
  public:
@@ -606,5 +591,63 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
     #else
      policyVecDim = nA;
     #endif
+  }
+};
+
+//template<Uint NEXPERTS> //does not work, my life is a lie!
+#define NEXPERTS 2
+class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, vector<Real>>
+{
+  static vector<Uint> count_outputs(const ActionInfo& aI)
+  {
+    const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(&aI);
+    return vector<Uint>{1, nL, NEXPERTS, NEXPERTS*aI.dim, NEXPERTS*aI.dim, 2};
+  }
+  static vector<Uint> count_pol_starts(const ActionInfo& aI)
+  {
+    const vector<Uint> sizes = count_outputs(aI);
+    const vector<Uint> indices = count_indices(sizes);
+    return vector<Uint>{indices[2], indices[3], indices[4]};
+  }
+  static vector<Uint> count_adv_starts(const ActionInfo& aI)
+  {
+    const vector<Uint> sizes = count_outputs(aI);
+    const vector<Uint> indices = count_indices(sizes);
+    return vector<Uint>{indices[1]};
+  }
+ public:
+  static Uint getnOutputs(const ActionInfo*const aI)
+  {
+    const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(aI);
+    return 1 + nL + NEXPERTS*(1 +2*aI->dim) + 2;
+  }
+
+  RACER_experts(MPI_Comm comm, Environment*const _env, Settings & settings) :
+  RACER(comm, _env, settings, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
+  {
+    printf("Continuous-action RACER: Built network with outputs: %s %s\n",
+      print(net_indices).c_str(),print(net_outputs).c_str());
+    Builder build(settings);
+
+    vector<Uint> outs{1, nL, NEXPERTS, NEXPERTS*nA, NEXPERTS*nA};
+    build.stackSimple( vector<Uint>{nInputs}, outs );
+    //add klDiv penalty coefficient layer, and stdv of Q distribution:
+    build.addParamLayer(2, "Exp", 0);
+    net = build.build();
+
+    #if defined(ACER_ADAPTIVE)
+    //set initial value for klDiv penalty coefficient
+    Uint penalparid = net->layers.back()->n1stBias; //(was last added layer)
+    net->biases[penalparid] = std::log(settings.learnrate);
+    #else
+    //set initial value for klDiv penalty coefficient
+    const Uint penalparid= net->layers.back()->n1stBias;//(was last added layer)
+    net->biases[penalparid] = -std::log(settings.klDivConstraint);
+    //*tgtUpdateAlpha/settings.learnrate
+    #endif
+    //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
+
+    finalize_network(build);
+    policyVecDim = NEXPERTS +2*NEXPERTS*nA;
   }
 };

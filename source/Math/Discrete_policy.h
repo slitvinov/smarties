@@ -19,6 +19,9 @@ struct Discrete_policy
   const Real normalization;
   const vector<Real> probs;
 
+  Uint sampAct;
+  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0;
+
   Discrete_policy(const vector <Uint>& start, const ActionInfo*const aI,
     const vector<Real>& out) : aInfo(aI), start_prob(start[0]), nA(aI->maxLabel), netOutputs(out), unnorm(extract_unnorm()),
     normalization(compute_norm()), probs(extract_probabilities())
@@ -66,14 +69,24 @@ struct Discrete_policy
   }
 
  public:
-  void test(const Uint act, const Discrete_policy*const pol_hat);
+  inline void prepare(const vector<Real>& unbact, const vector<Real>& beta, const bool bGeometric, const Discrete_policy*const pol_hat = nullptr)
+  {
+    sampAct = map_action(unbact);
+    sampLogPonPolicy = evalLogProbability(sampAct);
+    sampLogPBehavior = evalBehavior(sampAct, beta);
+    const Real logW = sampLogPonPolicy - sampLogPBehavior;
+    sampImpWeight = bGeometric ? safeExp(logW/nA) : safeExp(logW);
+    sampImpWeight = std::min(MAX_IMPW, sampImpWeight);
+  }
+
+  void test(const Uint act, const Discrete_policy*const pol_hat) const;
 
   static inline Real evalBehavior(const Uint& act, const vector<Real>& beta)
   {
     return std::log(beta[act]);
   }
 
-  static inline Uint sample(mt19937*const gen, const vector<Real>& beta)
+  inline Uint sample(mt19937*const gen, const vector<Real>& beta) const
   {
     std::discrete_distribution<Uint> dist(beta.begin(), beta.end());
     return dist(*gen);
@@ -141,17 +154,19 @@ struct Discrete_policy
   inline vector<Real> div_kl_opp_grad(const Discrete_policy*const pol_hat, const Real fac = 1) const
   {
     vector<Real> ret(nA, 0);
-    for (Uint j=0; j<nA; j++)
-      ret[j] = fac*(1/normalization -unnorm[j]/normalization/normalization) *
-        (1 + std::log(probs[j]/pol_hat->probs[j]));
+    for (Uint j=0; j<nA; j++){
+      const Real tmp=fac*(1+std::log(probs[j]/pol_hat->probs[j]))/normalization;
+      for (Uint i=0; i<nA; i++) ret[i] += tmp*((i==j)-probs[j]);
+    }
     return ret;
   }
   inline vector<Real> div_kl_opp_grad(const vector<Real>& beta, const Real fac = 1) const
   {
     vector<Real> ret(nA, 0);
-    for (Uint j=0; j<nA; j++)
-      ret[j] = fac*(1/normalization -unnorm[j]/normalization/normalization) *
-        (1 + std::log(probs[j]/beta[j]));
+    for (Uint j=0; j<nA; j++){
+      const Real tmp = fac*(1+std::log(probs[j]/beta[j]))/normalization;
+      for (Uint i=0; i<nA; i++) ret[i] += tmp*((i==j)-probs[j]);
+    }
     return ret;
   }
 
@@ -187,16 +202,6 @@ struct Discrete_policy
   {
     return aInfo->actionToLabel(sent);
   }
-
-  static inline Uint vec2action(const vector<Real>& act)
-  {
-    return act[0];
-  }
-  static inline vector<Real> action2vec(const Uint act)
-  {
-    return vector<Real>{act+0.1};
-  }
-
   static inline Uint compute_nA(const ActionInfo* const aI)
   {
     assert(aI->maxLabel);
@@ -276,5 +281,5 @@ struct Discrete_policy
      return ret;
    }
 
-   void test(const vector<Real>& act) {}
+   void test(const Uint& act, mt19937*const gen) const {}
  };

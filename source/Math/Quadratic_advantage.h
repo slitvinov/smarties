@@ -131,7 +131,7 @@ struct Quadratic_advantage: public Quadratic_term
     return ret;
   }
 
-  void test(const vector<Real>& act);
+  void test(const vector<Real>& act, mt19937*const gen) const;
 };
 
 struct Diagonal_advantage
@@ -237,5 +237,5 @@ struct Diagonal_advantage
     }
     return ret;
   }
-  void test(const vector<Real>& act);
+  void test(const vector<Real>& act, mt19937*const gen) const;
 };

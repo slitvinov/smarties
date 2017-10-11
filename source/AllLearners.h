@@ -41,8 +41,10 @@ inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Setti
       settings.nnOutputs = RACER_disc::getnOutputs(&env->aI);
       return new RACER_disc(mastersComm, env, settings);
     } else {
-      settings.nnOutputs = RACER_cont::getnOutputs(&env->aI);
-      return new RACER_cont(mastersComm, env, settings);
+      //settings.nnOutputs = RACER_cont::getnOutputs(&env->aI);
+      //return new RACER_cont(mastersComm, env, settings);
+      settings.nnOutputs = RACER_experts::getnOutputs(&env->aI);
+      return new RACER_experts(mastersComm, env, settings);
     }
     ///#ifdef FEAT_CONTROL
     //settings.nnOutputs +=  //ContinuousSignControl::addRequestedOutputs(env->aI.dim,env->sI.dimUsed);

@@ -49,13 +49,6 @@ protected:
   mutable vector<Activation*> currAct, prevAct;
   mutable vector<vector<Activation*>*> series_1, series_2;
 
-  static vector<Uint> count_indices(const vector<Uint> outs)
-  {
-    vector<Uint> ret(outs.size(), 0); //index 0 is 0
-    for(Uint i=1; i<outs.size(); i++) ret[i] = ret[i-1] + outs[i-1];
-    return ret;
-  }
-
 public:
   Learner_utils(MPI_Comm mcom,Environment*const _e, Settings&sett, Uint ngrads)
   : Learner(mcom, _e, sett), cntGrad(nThreads+1,0),

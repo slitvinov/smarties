@@ -100,3 +100,10 @@ inline Real safeExp(const Real val)
 {
     return std::exp( std::min(16., std::max(-32.,val) ) );
 }
+
+inline vector<Uint> count_indices(const vector<Uint> outs)
+{
+  vector<Uint> ret(outs.size(), 0); //index 0 is 0
+  for(Uint i=1; i<outs.size(); i++) ret[i] = ret[i-1] + outs[i-1];
+  return ret;
+}

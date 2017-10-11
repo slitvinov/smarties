@@ -9,7 +9,7 @@
 #include "../AllLearners.h"
 
 void Gaussian_policy::test(const vector<Real>& act,
-  const Gaussian_policy*const pol_hat) //, const Quadratic_term*const a
+  const Gaussian_policy*const pol_hat) const //, const Quadratic_term*const a
 {
   vector<Real> _grad(netOutputs.size());
    //const vector<Real> cntrolgrad = control_grad(a, -1);
@@ -65,7 +65,7 @@ void Gaussian_policy::test(const vector<Real>& act,
    }
 }
 
-void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat)
+void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat) const
 {
   vector<Real> _grad(netOutputs.size());
   //const vector<Real> cntrolgrad = control_grad(-1);
@@ -104,7 +104,7 @@ void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat)
   }
 }
 
-void Quadratic_advantage::test(const vector<Real>& act)
+void Quadratic_advantage::test(const vector<Real>& act, mt19937*const gen) const
 {
   vector<Real> _grad(netOutputs.size());
    grad_unb(act, 1, _grad);
@@ -128,7 +128,7 @@ void Quadratic_advantage::test(const vector<Real>& act)
    }
 }
 
-void Diagonal_advantage::test(const vector<Real>& act)
+void Diagonal_advantage::test(const vector<Real>& act, mt19937*const gen) const
 {
   vector<Real> _grad(netOutputs.size());
   grad(act, 1, _grad);
@@ -161,7 +161,7 @@ void NAF::test()
   for(Uint i = 0; i<nA; i++) act[i] = act_dis(*gen);
   for(Uint i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
   Quadratic_advantage A = prepare_advantage(out);
-  A.test(act);
+  A.test(act, gen);
 }
 
 /*

@@ -17,6 +17,9 @@ struct Gaussian_policy
   const vector<Real>& netOutputs;
   const vector<Real> mean, precision, variance, stdev;
 
+  vector<Real> sampAct;
+  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0;
+
   Gaussian_policy(const vector <Uint>& start, const ActionInfo*const aI,
     const vector<Real>&out) : aInfo(aI), start_mean(start[0]),
     start_prec(start.size()>0 ? start[1] : 0), nA(aI->dim), netOutputs(out),
@@ -67,19 +70,29 @@ private:
   }
 
 public:
+  inline void prepare(const vector<Real>& unbact, const vector<Real>& beta, const bool bGeometric, const Gaussian_policy*const pol_hat = nullptr)
+  {
+    sampAct = map_action(unbact);
+    sampLogPonPolicy = evalLogProbability(sampAct);
+    sampLogPBehavior = evalBehavior(sampAct, beta);
+    const Real logW = sampLogPonPolicy - sampLogPBehavior;
+    sampImpWeight = bGeometric ? safeExp(logW/nA) : safeExp(logW);
+    sampImpWeight = std::min(MAX_IMPW, sampImpWeight);
+  }
+
   static inline Real evalBehavior(const vector<Real>& act, const vector<Real>& beta)
   {
     Real p = 0;
     for(Uint i=0; i<act.size(); i++) {
       assert(beta[act.size()+i]>0);
       const Real stdi = beta[act.size()+i];
-      p -= 0.5*(act[i]-beta[i])*(act[i]-beta[i])/(stdi*stdi);
-      p -= 0.5*std::log(2*M_PI*stdi*stdi);
+      p -= (act[i]-beta[i])*(act[i]-beta[i])/(stdi*stdi);
+      p -= std::log(2*M_PI*stdi*stdi);
     }
-    return p;
+    return 0.5*p;
   }
 
-  static inline vector<Real> sample(mt19937*const gen, const vector<Real>& beta)
+  inline vector<Real> sample(mt19937*const gen, const vector<Real>& beta) const
   {
     assert(beta.size() / 2 > 0 && beta.size() % 2 == 0);
     std::vector<Real> ret(beta.size()/2);
@@ -294,22 +307,11 @@ public:
   {
     return aInfo->getInvScaled(sent);
   }
-
-  static inline vector<Real> vec2action(const vector<Real>& act)
-  {
-    return act;
-  }
-  static inline vector<Real> action2vec(const vector<Real>& act)
-  {
-    return act;
-  }
-
   static inline Uint compute_nA(const ActionInfo* const aI)
   {
     assert(aI->dim);
     return aI->dim;
   }
-
-  void test(const vector<Real>& act, const Gaussian_policy*const pol_hat);//,
+  void test(const vector<Real>& act, const Gaussian_policy*const pol_hat) const;//,
       //const Quadratic_term*const a);
 };
