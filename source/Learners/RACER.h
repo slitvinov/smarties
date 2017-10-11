@@ -12,9 +12,10 @@
 #include "../Math/FeatureControlTasks.h"
 #include "../Math/Quadratic_advantage.h"
 
-#include "../Math/Mixture_advantage_prova.h"
-//#include "../Math/Mixture_advantage.h"
+//#include "../Math/Mixture_advantage_prova.h"
+#include "../Math/Mixture_advantage.h"
 
+#define NEXPERTS 1
 #include "../Math/Discrete_policy.h"
 //#define simpleSigma
 
@@ -266,10 +267,10 @@ class RACER : public Learner_utils
       const vector<Real> gradC = pol_cur.control_grad(&adv_cur, eta);
       const vector<Real> policy_grad = sum2Grads(gradAcer, gradC);
     #else
-      const vector<Real>& policy_grad = gradAcer;
+      const vector<Real> policy_grad = gradAcer;
     #endif
 
-    const Real Ver = Q_dist*min((Real)1,rho_cur), P = pol_cur.sampLogPonPolicy;
+    const Real Ver=Q_dist*std::min((Real)1,rho_cur),P=pol_cur.sampLogPonPolicy;
     const Real Qer = P > numeric_limits<Real>::epsilon() ? Q_dist :0;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID]= (Qer+Ver) * Qprecision;
@@ -595,7 +596,6 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
 };
 
 //template<Uint NEXPERTS> //does not work, my life is a lie!
-#define NEXPERTS 2
 class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, vector<Real>>
 {
   static vector<Uint> count_outputs(const ActionInfo& aI)

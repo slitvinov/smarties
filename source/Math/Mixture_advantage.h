@@ -19,20 +19,21 @@ public:
   const array<vector<Real>, nExperts> L, matrix;
   const ActionInfo* const aInfo;
   const Gaussian_mixture<nExperts>* const policy;
-  const array<array<Real,nExperts>, nExperts> overlap;
+  //const array<array<Real,nExperts>, nExperts> overlap;
 
   //Normalized quadratic advantage, with own mean
   Mixture_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
    const vector<Real>& out, const Gaussian_mixture<nExperts>*const pol) :
    start_matrix(starts[0]), nA(aI->dim), nL(compute_nL(aI)), netOutputs(out),
-   L(extract_L()), matrix(extract_matrix()), aInfo(aI), policy(pol),
-   overlap(computeOverlap())
+   L(extract_L()), matrix(extract_matrix()), aInfo(aI), policy(pol)
+   //, overlap(computeOverlap())
    {
      assert(starts.size()==1 || starts.size()==2);
    }
 
 private:
   private:
+    /*
     inline array<array<Real,nExperts>, nExperts> computeOverlap() const
     {
       array<array<Real,nExperts>, nExperts> ret;
@@ -45,6 +46,7 @@ private:
       }
       return ret;
     }
+    */
 
     static inline Real quadMatMul(const Uint nA, const vector<Real>& act,
       const vector<Real>& mat, const vector<Real>& mean)
