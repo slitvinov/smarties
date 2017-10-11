@@ -22,6 +22,7 @@ gamma(_s.gamma), epsAnneal(_s.epsAnneal), obsPerStep(_s.obsPerStep),
 aInfo(env->aI), sInfo(env->sI), gen(&_s.generators[0])
 {
   assert(nThreads>1);
+  if(bSampleSequences) printf("Sampling sequences.\n");
   profiler = new Profiler();
   data = new Transitions(mastersComm, env, _s);
 }
