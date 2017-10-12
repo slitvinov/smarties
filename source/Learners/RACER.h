@@ -22,7 +22,7 @@
 
 //template<Uint NEXPERTS> //does not work, my life is a lie!
 #ifndef NEXPERTS
-#define NEXPERTS 2
+#define NEXPERTS 1
 #warning "Using Mixture_advantage with 1 expert"
 #endif
 

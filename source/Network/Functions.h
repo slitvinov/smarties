@@ -116,6 +116,7 @@ struct Sigm : public Function
   }
 };
 
+#define SMOOTH (nnReal)0.5
 struct HardSign : public Function
 {
   Real weightsInitFactor(const Uint inps, const Uint outs) const override
@@ -124,17 +125,17 @@ struct HardSign : public Function
   }
   nnReal eval(const nnReal in) const override
   {
-    return in/std::sqrt(2+in*in);
+    return in/std::sqrt(SMOOTH+in*in);
   }
   nnReal evalDiff(const nnReal in, const nnReal d) const override
   {
-    const nnReal denom = std::sqrt(2+in*in);
-    return 2/(denom*denom*denom);
+    const nnReal denom = std::sqrt(SMOOTH+in*in);
+    return SMOOTH/(denom*denom*denom);
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
     #pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
-    for (Uint i=0;i<N; i++) out[i] = in[i]/std::sqrt(2+in[i]*in[i]);
+    for (Uint i=0;i<N; i++) out[i] = in[i]/std::sqrt(SMOOTH+in[i]*in[i]);
   }
 };
 

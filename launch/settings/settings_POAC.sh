@@ -7,15 +7,15 @@ SETTINGS+=" --samplesFile none"
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.995"
+SETTINGS+=" --gamma 0.99"
 
 #size of network layers
 #SETTINGS+=" --nnl1 32"
 #SETTINGS+=" --nnl2 32"
-SETTINGS+=" --nnl1 64"
-SETTINGS+=" --nnl2 64"
-#SETTINGS+=" --nnl1 128"
-#SETTINGS+=" --nnl2 128"
+#SETTINGS+=" --nnl1 64"
+#SETTINGS+=" --nnl2 64"
+SETTINGS+=" --nnl1 128"
+SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
 #SETTINGS+=" --nnl1 256"
 #SETTINGS+=" --nnl2 256"
@@ -24,7 +24,8 @@ SETTINGS+=" --nnl2 64"
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc PRelu"
 #SETTINGS+=" --nnFunc Tanh"
-SETTINGS+=" --nnFunc SoftSign"
+#SETTINGS+=" --nnFunc SoftSign"
+SETTINGS+=" --nnFunc HardSign"
 # L2 regularization of the weights
 #SETTINGS+=" --nnLambda 0.0001"
 
@@ -39,10 +40,12 @@ SETTINGS+=" --learner POAC"
 SETTINGS+=" --maxTotSeqNum 100"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 0.5"
+SETTINGS+=" --greedyEps 1"
 SETTINGS+=" --epsAnneal 1000"
+#SETTINGS+=" --obsPerStep 6.4"
 SETTINGS+=" --obsPerStep 1"
-SETTINGS+=" --bSampleSequences 0"
+#SETTINGS+=" --obsPerStep 0.01"
+#SETTINGS+=" --bSampleSequences 1"
 SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 1000000"
 
@@ -54,6 +57,7 @@ SETTINGS+=" --klDivConstraint 0.01"
 SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
 #SETTINGS+=" --batchSize 256"
+#SETTINGS+=" --batchSize 32"
 SETTINGS+=" --batchSize 128"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0003"
+SETTINGS+=" --learnrate 0.0001"
