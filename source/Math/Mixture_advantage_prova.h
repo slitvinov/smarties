@@ -13,6 +13,14 @@
 template<Uint nExperts>
 struct Mixture_advantage
 {
+  template <typename T>
+  static inline string print(const array<T,nExperts> vals)
+  {
+    std::ostringstream o;
+    for (Uint i=0; i<nExperts-1; i++) o << vals[i] << " ";
+    o << vals[nExperts-1];
+    return o.str();
+  }
 public:
   const Uint start_matrix, start_coefs, nA, nL;
   const vector<Real>& netOutputs;
@@ -106,7 +114,7 @@ public:
       const Real shape = -.5 * diagInvMul(a, matrix[e], policy->means[e]);
       const Real orig = policy->experts[e] * std::exp(shape);
       const array<Real, nExperts> expect = expectation(e);
-
+      //printf("val = %g expect: %s\n", orig, print(expect).c_str()); fflush(0);
       netGradient[start_coefs+e] = orig;
       for(Uint E=0;E<nExperts;E++) netGradient[start_coefs+e] += expect[E];
 

@@ -138,7 +138,7 @@ public:
   void save(std::string fname);
   void restart(std::string fname);
   Uint updateSamples(const Real annealFac);
-  Uint sample(const int thrID = 0);
+  int sample(const int thrID = 0);
   Uint restartSamples(const Uint polDim = 0);
   void saveSamples();
 

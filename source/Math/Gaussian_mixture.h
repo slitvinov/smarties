@@ -24,7 +24,7 @@ public:
   //not kosher stuff, but it should work, relies on ordering of operations:
 
   vector<Real> sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0;
+  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0;
   array<Real, nExperts> PactEachExp, DKL_EachExp, logExpBeta;
   Real Pact_Final = 0;
   bool prepared = false;
@@ -42,6 +42,16 @@ public:
     means(extract_mean()), variances(extract_variance()),
     precisions(extract_precision()), stdevs(extract_stdev())
     {assert(starts.size()==3);}
+  /*
+  Gaussian_mixture(const Gaussian_mixture<nExperts>& c) :
+  aInfo(c.aInfo), iExperts(c.iExperts), iMeans(c.iMeans), iPrecs(c.iPrecs),
+  nA(c.nA), nP(c.nP), netOutputs(c.netOutputs), unnorm(c.unnorm),
+  normalization(c.normalization), experts(c.experts), means(c.means),
+  variances(c.variances), precisions(c.precisions), stdevs(c.stdevs)
+  { die("no copyconstructing"); }
+  */
+  Gaussian_mixture& operator= (const Gaussian_mixture<nExperts>& c) { die("no copying"); }
+
 
 private:
   inline array<Real,nExperts> extract_unnorm() const
@@ -136,6 +146,7 @@ public:
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
     sampImpWeight = bGeometric ? std::exp(logW/nA) : std::exp(logW);
     sampImpWeight = std::min(MAX_IMPW, sampImpWeight);
+    sampRhoWeight = bGeometric ? min(MAX_IMPW, std::exp(logW)) : sampImpWeight;
     if(pol_hat == nullptr) return;
     for(Uint j=0; j<nExperts; j++) {
       DKL_EachExp[j] = kl_divergence_exp(j,pol_hat);

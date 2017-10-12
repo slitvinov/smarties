@@ -26,7 +26,6 @@
 #warning "Using Mixture_advantage with 1 expert"
 #endif
 
-#define NEXPERTS 1
 #include "../Math/Discrete_policy.h"
 //#define simpleSigma
 
@@ -43,6 +42,7 @@ class RACER : public Learner_utils
   const Uint VsValID = net_indices[0];
   const Uint PenalID = net_indices.back(), QPrecID = net_indices.back()+1;
   const bool bGeometric = CmaxRet>1 && nA>1;
+  mutable Uint nSkipped = 0;
   //#ifdef FEAT_CONTROL
   //  const ContinuousSignControl* task;
   //#endif
@@ -144,7 +144,7 @@ class RACER : public Learner_utils
     net->prepForFwdProp(series_2[thrID], nSValues);
     vector<Activation*>& series_cur = *(series_1[thrID]);
     vector<Activation*>& series_hat = *(series_2[thrID]);
-    vector<Policy_t*> policies;
+    vector<Policy_t> policies;
     policies.reserve(nSValues);
 
     //propagation of RNN signals:
@@ -156,31 +156,50 @@ class RACER : public Learner_utils
         net->seqPredict_execute(series_cur, series_cur);
         //extract the only output we actually correct:
         net->seqPredict_output(out_cur, series_cur[j]); //the humanity!
-        policies.push_back(new_policy(out_cur));
+        policies.push_back(prepare_policy(out_cur));
         //predict samp with target weight using curr recurrent inputs as estimate:
         const Activation*const recur = j ? series_cur[j-1] : nullptr;
         net->predict(inp, out_hat, recur, series_hat[0], net->tgt_weights, net->tgt_biases);
       }
     }
-
     const Policy_t pol_target = prepare_policy(out_hat);
     const Tuple * const t0 = data->Set[seq]->tuples[samp];
-    policies[0]->prepare(t0->a, t0->mu, bGeometric, &pol_target);
+    policies[0].prepare(t0->a, t0->mu, bGeometric, &pol_target);
+
+    if(policies[0].sampRhoWeight < 0.1) {
+      int newSample = -1;
+      #pragma omp critical
+      {
+        newSample = data->sample(thrID);
+        if(newSample >= 0) nSkipped++;
+      }
+
+      if(newSample >= 0) {
+        int k=0, back=0, indT=data->Set[0]->tuples.size()-1;
+        while (newSample >= indT) {
+          //printf("%u %u %u %u\n",k,back,indT,newSample);
+          assert(k+2<=(int)data->Set.size());
+          back = indT;
+          indT += data->Set[++k]->tuples.size()-1;
+        }
+        return Train(k, newSample-back, thrID);
+      }
+    }
 
     //compute network for off-policy corrections:
-    Real impW = std::min((Real)1, policies[0]->sampImpWeight);
+    Real impW = std::min((Real)1, policies[0].sampRhoWeight);
     for(Uint k=1; k<nSValues; k++)
     {
       vector<Real> out_tmp(nOutputs,0);
       net->predict(data->standardized(seq, k+samp), out_tmp, series_hat, k);
-      policies.push_back(new_policy(out_tmp));
+      policies.push_back(prepare_policy(out_tmp));
       assert(policies.size() == k+1);
 
       #ifndef NO_CUT_TRACES
         if (k == nSValues-1 && nSValues not_eq nSUnroll) break;
         const Tuple* const _t = data->Set[seq]->tuples[k+samp];
-        policies[k]->prepare(_t->a, _t->mu, bGeometric);
-        impW *= ACER_LAMBDA*gamma*std::min((Real)1,policies[k]->sampImpWeight);
+        policies[k].prepare(_t->a, _t->mu, bGeometric);
+        impW *= ACER_LAMBDA*gamma*std::min((Real)1,policies[k].sampImpWeight);
         if (impW < 1e-3) { //then the imp weight is too small to continue
           //printf("Cut after %u / %u samples!\n", k,nSValues);fflush(stdout);
           nSUnroll = k; //for last state we do not compute offpol correction
@@ -199,13 +218,11 @@ class RACER : public Learner_utils
     }
 
     for (int k=static_cast<int>(nSUnroll)-1; k>0; k--) //propagate Q to k=0
-     offPolCorrUpdate(seq,k+samp, Q_RET,Q_OPC,
-      net->getOutputs(series_hat[k]), *(policies[k]));
+     offPolCorrUpdate(seq,k+samp, Q_RET,Q_OPC, net->getOutputs(series_hat[k]), policies[k]);
 
     if(thrID==1)  profiler->stop_start("CMP");
-    vector<Real> grad=compute(seq,samp, Q_RET,Q_OPC,
-      out_cur, *(policies[0]), pol_target, thrID);
-
+    vector<Real> grad=compute(seq,samp, Q_RET,Q_OPC, out_cur, policies[0], pol_target, thrID);
+    //printf("gradient: %s\n", print(grad).c_str()); fflush(0);
     //#ifdef FEAT_CONTROL
     // const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[samp]->a);
     // const Activation*const recur = nSValues>1 ? series_hat[1] : nullptr;
@@ -221,7 +238,6 @@ class RACER : public Learner_utils
     if (thrID==0) net->backProp(series_cur, net->grad);
     else net->backProp(series_cur, net->Vgrad[thrID]);
     if(thrID==1)  profiler->stop_start("SLP");
-    for(const auto & pol : policies) if(pol not_eq nullptr) delete pol;
   }
 
   inline vector<Real> compute(const Uint seq, const Uint samp, Real& Q_RET,
@@ -238,8 +254,7 @@ class RACER : public Learner_utils
       adv_cur.test(act, &generators[thrID]);
       pol_cur.test(act, &pol_hat);
     #endif
-    const Real rho_cur = not bGeometric ? pol_cur.sampImpWeight :
-      min(MAX_IMPW, safeExp(pol_cur.sampLogPonPolicy-pol_cur.sampLogPBehavior));
+    const Real rho_cur = pol_cur.sampRhoWeight;
     const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_OPC = Q_OPC - V_cur, Q_dist = Q_RET -A_cur-V_cur;
@@ -252,8 +267,8 @@ class RACER : public Learner_utils
       const Real polProbBehavior = Policy_t::evalBehavior(pol, _t->mu);
       const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
       const Real A_pol = adv_cur.computeAdvantage(pol);
-      const Real gain1 = A_OPC*min(rho_cur, 5.);
-      const Real gain2 = A_pol*max(0.,1 - 5./rho_pol);
+      const Real gain1 = A_OPC*std::min((Real) 5, rho_cur);
+      const Real gain2 = A_pol*std::max((Real) 0, 1-5/rho_pol);
 
       const vector<Real> gradAcer_1 = pol_cur.policy_grad(act, gain1);
       const vector<Real> gradAcer_2 = pol_cur.policy_grad(pol, gain2);
@@ -280,9 +295,9 @@ class RACER : public Learner_utils
     #else
       const vector<Real> policy_grad = gradAcer;
     #endif
-
-    const Real Ver=Q_dist*std::min((Real)1,rho_cur),P=pol_cur.sampLogPonPolicy;
-    const Real Qer = P > numeric_limits<Real>::epsilon() ? Q_dist :0;
+    const Real logEpsilon = std::log( std::numeric_limits<Real>::epsilon() );
+    const Real Ver = Q_dist * std::min((Real)1,rho_cur);
+    const Real Qer = pol_cur.sampLogPonPolicy > logEpsilon ? Q_dist : 0;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID]= (Qer+Ver) * Qprecision;
 
@@ -318,26 +333,23 @@ class RACER : public Learner_utils
     Q_OPC = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
     //bookkeeping:
     dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Ver
-    data->Set[seq]->tuples[samp]->SquaredError = Ver*Ver;
+    data->Set[seq]->tuples[samp]->SquaredError = std::max(rho_cur,(Real)1e-10);
     return gradient;
   }
 
   inline void offPolCorrUpdate(const Uint seq, const Uint samp, Real& Q_RET,
     Real& Q_OPC, const vector<Real> output, const Policy_t& policy) const
   {
-    //const Tuple * const _t = data->Set[seq]->tuples[samp]; //contains sOld, a
-    //const Tuple * const t_ = data->Set[seq]->tuples[samp+1];//contains r, sNew
     const Real reward = data->standardized_reward(seq, samp+1);
     Q_RET = reward + gamma*Q_RET; //if k==ndata-2 then this is r_end
     Q_OPC = reward + gamma*Q_OPC;
-    const Real V_hat = output[net_indices[0]];
     //Used as target: target policy, target value
     const Advantage_t adv_cur = prepare_advantage(output, &policy);
     const Action_t& act = policy.sampAct; //off policy stored action
-    const Real C = policy.sampImpWeight, A_hat = adv_cur.computeAdvantage(act);
+    const Real V_hat = output[VsValID], A_hat = adv_cur.computeAdvantage(act);
     //prepare rolled Q with off policy corrections for next step:
-    Q_RET = std::min((Real)1, C)*(Q_RET -A_hat -V_hat) +V_hat;
-    Q_OPC = std::min((Real)1, C)*(Q_RET -A_hat -V_hat) +V_hat;
+    Q_RET = std::min((Real)1,policy.sampImpWeight)*(Q_RET -A_hat -V_hat) +V_hat;
+    Q_OPC = std::min((Real)1,policy.sampImpWeight)*(Q_RET -A_hat -V_hat) +V_hat;
   }
 
  public:
@@ -436,12 +448,12 @@ class RACER : public Learner_utils
     const Real penalDKL = exp(net->biases[net->layers.back()->n1stBias]);
 
     printf("%lu, rmse:%.2Lg, avg_Q:%.2Lg, std_Q:%.2Lg, min_Q:%.2Lg, max_Q:%.2Lg, "
-      "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%f, rewPrec:%f\n",
+    "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%f, rewPrec:%f skip:%u\n",
       opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
       stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget,
-      Qprecision, penalDKL, data->invstd_reward);
+      Qprecision, penalDKL, data->invstd_reward, nSkipped);
       fflush(0);
-
+    nSkipped = 0;
     ofstream fs;
     fs.open("stats.txt", ios::app);
     fs<<opt->nepoch<<"\t"<<stats.MSE<<"\t"<<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<

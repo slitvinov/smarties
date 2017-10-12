@@ -395,7 +395,7 @@ struct Settings
     #ifdef NOTARGETNET
     targetDelay = 1;
     #endif
-
+    if(bSampleSequences && maxTotSeqNum<batchSize) die("Increase memory buffer size or decrease batchsize, or switch to sampling by transitions.");
     if(nThreads<1) die("nThreads<1\n");
     if(nMasters<1) die("nMasters<1\n");
     if(sockPrefix<0) die("sockPrefix<0\n");

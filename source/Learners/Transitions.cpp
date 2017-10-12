@@ -343,7 +343,6 @@ void Transitions::update_rewards_mean()
       }
     }
 
-
     #pragma omp atomic
     count += cnt;
     #pragma omp atomic
@@ -387,7 +386,8 @@ void Transitions::sortSequences()
         assert(count);
         Set[i]->MSE /= (Real)(count-1);
     #endif
-    /* //sort by distance from mean of observations statistics?
+
+    /*  //sort by distance from mean of observations statistics?
       for(const auto & t : Set[i]->tuples)
       for (int i=0; i<sI.dimUsed; i++)
       Set[i]->MSE += std::pow((t->s[i] - mean[i])/std[i], 2);
@@ -488,9 +488,10 @@ Uint Transitions::updateSamples(const Real annealFac)
   return update_meanstd_needed ? 1 : 0;
 }
 
-Uint Transitions::sample(const int thrID)
+int Transitions::sample(const int thrID)
 {
   #ifndef importanceSampling
+    if(inds.size() == 0) return -1;
     const Uint ind = inds.back();
     inds.pop_back();
   #else

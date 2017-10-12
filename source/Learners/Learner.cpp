@@ -158,9 +158,10 @@ Uint Learner::sampleTransitions(vector<Uint>& seq, vector<Uint>& trans)
   assert(!bSampleSequences);
   vector<Uint> load(batchSize), sorting(batchSize), s(batchSize), t(batchSize);
   for (Uint i=0; i<batchSize; i++) {
-    const Uint ind = data->sample();
+    const int ind = data->sample();
+    if(ind<0) die("not enough data");
 
-    Uint k=0, back=0, indT=data->Set[0]->tuples.size()-1;
+    int k=0, back=0, indT=data->Set[0]->tuples.size()-1;
     while (ind >= indT) {
       back = indT;
       indT += data->Set[++k]->tuples.size()-1;
@@ -192,7 +193,9 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
   Uint _nAddedGradients = 0;
   for (Uint i=0; i<batchSize; i++)
   {
-    const Uint ind = data->sample();
+    const int ind = data->sample();
+    if(ind<0) die("not enough data");
+
     seq[i]  = ind;
     //index[i] = ind;
     const Uint seqSize = data->Set[ind]->tuples.size();
