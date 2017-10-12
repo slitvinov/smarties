@@ -116,6 +116,28 @@ struct Sigm : public Function
   }
 };
 
+struct HardSign : public Function
+{
+  Real weightsInitFactor(const Uint inps, const Uint outs) const override
+  {
+    return std::sqrt(6./(inps + outs));
+  }
+  nnReal eval(const nnReal in) const override
+  {
+    return in/std::sqrt(2+in*in);
+  }
+  nnReal evalDiff(const nnReal in, const nnReal d) const override
+  {
+    const nnReal denom = std::sqrt(2+in*in);
+    return 2/(denom*denom*denom);
+  }
+  void eval(nnOpInp in, nnOpRet out, const Uint N) const
+  {
+    #pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
+    for (Uint i=0;i<N; i++) out[i] = in[i]/std::sqrt(2+in[i]*in[i]);
+  }
+};
+
 struct SoftSign : public Function
 {
   Real weightsInitFactor(const Uint inps, const Uint outs) const override
@@ -285,6 +307,8 @@ inline Function* readFunction(const string name, const bool bOutput=false)
   if (name == "PRelu") return new PRelu();
   else
   if (name == "ExpPlus") return new ExpPlus();
+  else
+  if (name == "HardSign") return new HardSign();
   else
   if (name == "SoftPlus") return new SoftPlus();
   else
