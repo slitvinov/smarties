@@ -373,20 +373,13 @@ void Transitions::sortSequences()
   #pragma omp parallel for schedule(dynamic)
   for(Uint i=0; i<Set.size(); i++) {
     Set[i]->MSE = 0.;
-    #if 1 //sort by max error
-        for(const auto & t : Set[i]->tuples)
-          Set[i]->MSE = std::max(Set[i]->MSE, t->SquaredError);
-    #else //sort by mean error: penalizes long sequences
-        unsigned count = 0;
-        for(const auto & t : Set[i]->tuples) {
-          //assert(t->SquaredError>0); //last one has error 0
-          Set[i]->MSE += t->SquaredError;
-          count++;
-        }
-        assert(count);
-        Set[i]->MSE /= (Real)(count-1);
-    #endif
-
+    for(Uint j=0; j<Set[i]->tuples.size()-1; j++)
+     #if 0 //sort by max error
+        Set[i]->MSE = std::max(Set[i]->MSE, Set[i]->tuples[j]->SquaredError);
+     #else //sort by mean error: penalizes long sequences
+        Set[i]->MSE += Set[i]->tuples[j]->SquaredError;
+      Set[i]->MSE /= Set[i]->tuples.size()-1;
+     #endif
     /*  //sort by distance from mean of observations statistics?
       for(const auto & t : Set[i]->tuples)
       for (int i=0; i<sI.dimUsed; i++)

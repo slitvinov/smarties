@@ -22,7 +22,7 @@
 
 //template<Uint NEXPERTS> //does not work, my life is a lie!
 #ifndef NEXPERTS
-#define NEXPERTS 1
+#define NEXPERTS 2
 #warning "Using Mixture_advantage with 1 expert"
 #endif
 
@@ -35,7 +35,7 @@ class RACER : public Learner_utils
  protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
-  const Real CmaxRet, DKL_target;
+  const Real CmaxRet, CmaxPol, DKL_target;
   const vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
   std::vector<std::mt19937>& generators;
@@ -43,6 +43,8 @@ class RACER : public Learner_utils
   const Uint PenalID = net_indices.back(), QPrecID = net_indices.back()+1;
   const bool bGeometric = CmaxRet>1 && nA>1;
   mutable Uint nSkipped = 0;
+  mutable vector<long double> cntValGrad;
+  mutable vector<vector<long double>> avgValGrad, stdValGrad;
   //#ifdef FEAT_CONTROL
   //  const ContinuousSignControl* task;
   //#endif
@@ -243,6 +245,7 @@ class RACER : public Learner_utils
   inline vector<Real> compute(const Uint seq, const Uint samp, Real& Q_RET,
     Real& Q_OPC, const vector<Real>& out_cur, const Policy_t& pol_cur, const Policy_t& pol_hat, const Uint thrID) const
   {
+    const Tuple * const _t = data->Set[seq]->tuples[samp];
     const Real reward = data->standardized_reward(seq, samp+1);
     Q_RET = reward + gamma*Q_RET; //if k==ndata-2 then this is r_end
     Q_OPC = reward + gamma*Q_OPC;
@@ -254,14 +257,13 @@ class RACER : public Learner_utils
       adv_cur.test(act, &generators[thrID]);
       pol_cur.test(act, &pol_hat);
     #endif
-    const Real rho_cur = pol_cur.sampRhoWeight;
+    const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = 1/(rho_cur+nnEPS);
     const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_OPC = Q_OPC - V_cur, Q_dist = Q_RET -A_cur-V_cur;
 
     //compute quantities needed for trunc import sampl with bias correction
     #if   defined(ACER_TABC)
-      const Tuple * const _t = data->Set[seq]->tuples[samp];
       const Action_t pol = pol_cur.sample(&generators[thrID]);
       const Real polProbOnPolicy = pol_cur.evalLogProbability(pol);
       const Real polProbBehavior = Policy_t::evalBehavior(pol, _t->mu);
@@ -273,14 +275,8 @@ class RACER : public Learner_utils
       const vector<Real> gradAcer_1 = pol_cur.policy_grad(act, gain1);
       const vector<Real> gradAcer_2 = pol_cur.policy_grad(pol, gain2);
       const vector<Real> gradAcer = sum2Grads(gradAcer_1, gradAcer_2);
-    #elif defined(ACER_NOCLIP)
-      const Real gain1 = A_OPC * rho_cur;
-      const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
-    #elif defined(ACER_CLIP_5)
-      const Real gain1 = rho_cur>5 && A_OPC>0 ? 5*A_OPC : A_OPC*rho_cur;
-      const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
     #else
-      const Real gain1 = rho_cur>1 && A_OPC>0 ? 1*A_OPC : A_OPC*rho_cur;
+      const Real gain1 = A_OPC>0? min(CmaxPol,rho_cur)*A_OPC : A_OPC*rho_cur;
       const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
     #endif
 
@@ -295,8 +291,9 @@ class RACER : public Learner_utils
     #else
       const vector<Real> policy_grad = gradAcer;
     #endif
+
     const Real logEpsilon = std::log( std::numeric_limits<Real>::epsilon() );
-    const Real Ver = Q_dist * std::min((Real)1,rho_cur);
+    const Real Ver = Q_dist * std::min((Real)1, rho_cur);
     const Real Qer = pol_cur.sampLogPonPolicy > logEpsilon ? Q_dist : 0;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID]= (Qer+Ver) * Qprecision;
@@ -322,18 +319,26 @@ class RACER : public Learner_utils
       const vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
     #endif
 
+    const Real penalBeta = std::max(A_OPC, (Real)0)*std::min(rho_inv, CmaxPol);
+    const vector<Real> beta_grad =pol_cur.div_kl_opp_grad(_t->mu, -penalBeta);
+    const vector<Real> finalPolGrad = sum2Grads(totalPolGrad, beta_grad);
+
     //decrease precision if error is large
     //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
     gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprecision);
     //adv_cur.grad(act, Qer, gradient, aInfo.bounded);
     adv_cur.grad(act, Qer * Qprecision, gradient);
-    pol_cur.finalize_grad(totalPolGrad, gradient);
+    pol_cur.finalize_grad(finalPolGrad, gradient);
     //prepare Q with off policy corrections for next step:
     Q_RET = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
     Q_OPC = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
     //bookkeeping:
     dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Ver
-    data->Set[seq]->tuples[samp]->SquaredError = std::max(rho_cur,(Real)1e-10);
+    //{
+    //const vector<Real> info = {std::fabs(gain1), penalBeta, penalDKL};
+    //statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],info);
+    //}
+    data->Set[seq]->tuples[samp]->SquaredError = -rho_inv -rho_cur;
     return gradient;
   }
 
@@ -355,10 +360,12 @@ class RACER : public Learner_utils
  public:
   RACER(MPI_Comm comm, Environment*const _env, Settings& sett,
     vector<Uint> net_outs, vector<Uint> pol_inds, vector<Uint> adv_inds) :
-    Learner_utils(comm, _env, sett, sett.nnOutputs), CmaxRet(sett.impWeight),
-    DKL_target(sett.klDivConstraint), net_outputs(net_outs),
-    net_indices(count_indices(net_outs)), pol_start(pol_inds),
-    adv_start(adv_inds), generators(sett.generators)
+    Learner_utils(comm, _env, sett, sett.nnOutputs), CmaxRet(sett.opcWeight),
+    CmaxPol(sett.impWeight), DKL_target(sett.klDivConstraint),
+    net_outputs(net_outs), net_indices(count_indices(net_outs)),
+    pol_start(pol_inds), adv_start(adv_inds), generators(sett.generators),
+    cntValGrad(nThreads+1,0),
+    avgValGrad(nThreads+1,vector<long double>(3,0)), stdValGrad(nThreads+1,vector<long double>(3,0))
   {
     //#ifdef FEAT_CONTROL
     //  const Uint task_out0 = ContinuousSignControl::addRequestedLayers(nA,
@@ -433,6 +440,10 @@ class RACER : public Learner_utils
     stats.stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
     sumElapsed = 0; countElapsed=0;
     processGrads();
+    //statsVector(avgValGrad, stdValGrad, cntValGrad);
+    //printf("Policy gains: %s (%s)\n", print(avgValGrad[0]).c_str(),
+    //  print(stdValGrad[0]).c_str()); fflush(0);
+
     if(learn_rank) return;
 
     long double sumWeights = 0, distTarget = 0, sumWeightsSq = 0;

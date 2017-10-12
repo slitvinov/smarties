@@ -83,7 +83,7 @@ inline Real minAbsValue(const Real v, const Real w)
   return std::fabs(v)<std::fabs(w) ? v : w;
 }
 
-inline void statsGrad(vector<long double>& sum, vector<long double>& sqr, long double& cnt, vector<Real> grad)
+inline void statsGrad(vector<long double>& sum, vector<long double>& sqr, long double& cnt, const vector<Real>& grad)
 {
   assert(sum.size() == grad.size() && sqr.size() == grad.size());
   cnt += 1;

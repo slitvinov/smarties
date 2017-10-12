@@ -252,6 +252,35 @@ public:
     }
     return ret;
   }
+  inline vector<Real> div_kl_opp_grad(const vector<Real>&beta, const Real fac=1) const
+  {
+    //const Real EPS = std::numeric_limits<Real>::epsilon();
+    vector<Real> ret(nExperts +2*nA*nExperts, 0);
+    for(Uint j=0; j<nExperts; j++) {
+      for (Uint i=0; i<nA; i++) {
+        const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(nA+1)*nExperts;
+        const Real preci = precisions[j][i], prech = 1/std::pow(beta[indS],2);
+        ret[indM]= fac*experts[j]*(means[j][i]-beta[indM])*prech;
+        ret[indS]= fac*experts[j]*(prech-preci)/2;
+      }
+      const Real DKL_ExpBeta = kl_divergence_exp(j, beta);
+      const Real logRhoBeta = std::log(experts[j]/beta[j]);
+      const Real tmp = fac*(DKL_ExpBeta +1 +logRhoBeta)/normalization;
+      for (Uint i=0; i<nExperts; i++) ret[i] += tmp*((i==j)-experts[j]);
+    }
+    return ret;
+  }
+  inline Real kl_divergence_exp(const Uint expi, const vector<Real>&beta) const
+  {
+    Real DKLe = 0;
+    for (Uint i=0; i<nA; i++) {
+      const Real prech = 1/std::pow(beta[i+expi*nA +nExperts*(1+nA)], 2);
+      const Real R =prech*variances[expi][i], meanh = beta[i+expi*nA +nExperts];
+      DKLe += R-1-std::log(R) +std::pow(means[expi][i]-meanh,2)*prech;
+    }
+    assert(DKLe>=0);
+    return 0.5*DKLe;
+  }
   inline Real kl_divergence_exp(const Uint expi, const Gaussian_mixture*const pol) const
   {
     Real DKLe = 0;
