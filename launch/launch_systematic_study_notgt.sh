@@ -1,29 +1,20 @@
-#NMASTERS=$1
-#BATCHNUM=$2
-#TGTALPHA=$3
-#DKLTARGT=$4
-#EPERSTEP=$5
-
-
-#for BATCHNUM in "128" "512"; do
-#for BATCHNUM in "64"; do
-#for BATCHNUM in "256"; do
 #for ALGOFLAG in "ACER_TABC" "ACER_NOCLIP" "ACER_CLIP_1" "ACER_CLIP_5"; do
 
-for ALGOFLAG in "ACER_2gausExp"; do
-export CPPFLAGS=-DNEXPERTS=2 #-DADV_QUAD
-#for ALGOFLAG in "ACER_2quadExp"; do
-#export CPPFLAGS=-DNEXPERTS=2 -DADV_QUAD
+#for ALGOFLAG in "sorting_1gausExp"; do
+#export CPPFLAGS=-DNEXPERTS=1 #-DADV_QUAD
 
-#for ALGOFLAG in "ACER_TABC" "ACER_NOCLIP" "ACER_CLIP_5"; do
-
-make -C ../makefiles clean
-make -C ../makefiles config=fit -j
 #make -C ../makefiles config=debug -j
 
-#for BUFFSIZE in "100 1000"; do
+for EXPTYPE in "QUAD" "GAUS"; do
+for NEXPERTS in "1" "2"; do
+
+export CPPFLAGS=-DNEXPERTS="${NEXPERTS} -DADV_${EXPTYPE}"
+make -C ../makefiles clean
+make -C ../makefiles config=fit -j
+
 for BUFFSIZE in "100"; do
-for IMPSAMPW in "1" "5"; do
+for IMPSAMPV in "1" "5"; do
+for IMPSAMPR in "1" "5"; do
 #for BATCHNUM in "64" "128"; do
 for BATCHNUM in "128"; do
 #for EPERSTEP in "1" "6.4"; do
@@ -32,11 +23,13 @@ for EPERSTEP in "6.4"; do
 #for RUNTRIAL in "13" "14" "15"; do
 for RUNTRIAL in "1" "2" "3"; do
 
+for ALGOFLAG in "sorting_${NEXPERTS}${EXPTYPE}Exp"; do
+
 NMASTERS=1
 
 #POSTFIX=POPACsigmatabc_notgt_p4_t1_i1_TRIAL${RUNTRIAL}_B${BATCHNUM}_O${EPERSTEP}
 #POSTFIX=POPACsigmacap_notgt_p4_t1_i1_TRIAL${RUNTRIAL}_B${BATCHNUM}_O${EPERSTEP}
-POSTFIX=${ALGOFLAG}_M${BUFFSIZE}_C${IMPSAMPW}_B${BATCHNUM}_O${EPERSTEP}_TRIAL${RUNTRIAL}
+POSTFIX=${ALGOFLAG}_M${BUFFSIZE}_R${IMPSAMPR}_C${IMPSAMPV}_B${BATCHNUM}_O${EPERSTEP}_TRIAL${RUNTRIAL}
 
 echo $POSTFIX
 #POSTFIX=POPAC_clip_notgt_p4_t1_i1_TRIAL${RUNTRIAL}_B${BATCHNUM}_O${EPERSTEP}
@@ -61,4 +54,6 @@ done
 done
 done
 done
-
+done
+done
+done

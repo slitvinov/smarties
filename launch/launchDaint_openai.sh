@@ -6,7 +6,8 @@ APP=$3
 SETTINGSNAME=$4
 
 MYNAME=`whoami`
-BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
+#BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
+BASEPATH="/scratch/snx1600/${MYNAME}/smarties/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 ulimit -c unlimited
 #lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
@@ -19,7 +20,7 @@ if [ $# -gt 4 ] ; then
     cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
 fi
 if [ $# -lt 7 ] ; then
-    NTASK=4 #n tasks per node
+    NTASK=5 #n tasks per node
     NTHREADS=12 #n threads per task
 else
     NTASK=$6
@@ -85,7 +86,7 @@ export CRAY_CUDA_MPS=1
 
 srun --ntasks ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --threads-per-core=2 ./exec ${SETTINGS}
 
-#srun --ntasks ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --cpus-per-task=$((${NTHREADS}/2)) --threads-per-core=2 valgrind  --tool=memcheck  --leak-check=full --show-reachable=no --show-possibly-lost=no --track-origins=yes ./exec ${SETTINGS}
+#srun --ntasks ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --threads-per-core=2 valgrind  --tool=memcheck  --leak-check=full --show-reachable=no --show-possibly-lost=no --track-origins=yes ./exec ${SETTINGS}
 EOF
 
 chmod 755 daint_sbatch
