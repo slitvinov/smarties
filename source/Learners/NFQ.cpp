@@ -17,6 +17,7 @@
 NFQ::NFQ(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs)
 {
+  die("Untested for too long\n");
   #ifdef NDEBUG
   //if(bRecurrent) die("NFQ recurrent not tested!\n");
   #endif

@@ -29,6 +29,12 @@ struct Tuple
 struct Sequence
 {
   vector<Tuple*> tuples;
+  inline Uint ndata() const
+  {
+    assert(tuples.size());
+    if(tuples.size()==0) return 0;
+    return tuples.size()-1;
+  }
   bool ended = false;
   Real MSE = 0;
   Uint ID = 0;
@@ -75,7 +81,7 @@ public:
   Real invstd_reward = 1, mean_reward = 0;
   Gen * gen;
   vector<Sequence*> Set, Tmp, Buffered;
-  std::mutex dataset_mutex;
+  mutable std::mutex dataset_mutex;
 
 protected:
   int add(const int agentId, const Agent&a, const vector<Real>mu);
@@ -153,5 +159,34 @@ public:
     // if i have buffered transitions to add to dataset
     // if my desired dataset size is less than what i have
     return inds.size()<batchSize || Buffered.size() || adapt_TotSeqNum<Set.size();
+  }
+
+  inline Uint readNTransitions() const
+  {
+    lock_guard<mutex> lock(dataset_mutex);
+    return nTransitions;
+  }
+  inline void indexToSample(const int nSample, Uint& sequence, Uint& transition) const
+  {
+    int k = 0, back = 0, indT = Set[0]->ndata();
+    while (nSample >= indT) {
+      //printf("%u %u %u %u\n",k,back,indT,newSample);
+      assert(k+2<=(int)Set.size());
+      back = indT;
+      indT += Set[++k]->ndata();
+    }
+    assert(nSample>=back);
+    assert(Set[k]->ndata() > (Uint)nSample-back);
+    sequence = k;
+    transition = nSample-back;
+  }
+  inline Uint readNData() const
+  {
+    lock_guard<mutex> lock(dataset_mutex);
+    #ifdef PACE_SEQUENCES
+    return nSeenSequences;
+    #else
+    return nSeenTransitions;
+    #endif
   }
 };

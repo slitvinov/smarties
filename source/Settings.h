@@ -198,7 +198,7 @@ struct Settings
 #define COMMENT_impWeight "Max importance weight for Policy Gradient"
 #define TYPEVAL_impWeight Real
 #define TYPENUM_impWeight REAL
-#define DEFAULT_impWeight 1
+#define DEFAULT_impWeight 5
   Real impWeight = DEFAULT_impWeight;
 
 #define CHARARG_totNumSteps 'z'

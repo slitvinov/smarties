@@ -35,7 +35,8 @@ class RACER : public Learner_utils
  protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
-  const Real CmaxRet, CmaxPol, DKL_target;
+  const Real CmaxRet, CmaxPol, goalSkipRatio = 0.05;
+  Real DKL_target;
   const vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
   std::vector<std::mt19937>& generators;
@@ -173,24 +174,19 @@ class RACER : public Learner_utils
     #pragma omp atomic
     nTried++;
 
-    if(policies[0].sampRhoWeight < 0.1) {
+    if(policies[0].sampRhoWeight < std::min((Real)0.2, 1/CmaxPol))
+    {
       int newSample = -1;
       #pragma omp critical
       {
         newSample = data->sample(thrID);
-        if(newSample >= 0) nSkipped++;
+        if(newSample >= 0) nSkipped++; //do it inside critical
       }
 
       if(newSample >= 0) {
-        printf("skip\n"); fflush(0);
-        int k=0, back=0, indT=data->Set[0]->tuples.size()-1;
-        while (newSample >= indT) {
-          //printf("%u %u %u %u\n",k,back,indT,newSample);
-          assert(k+2<=(int)data->Set.size());
-          back = indT;
-          indT += data->Set[++k]->tuples.size()-1;
-        }
-        return Train(k, newSample-back, thrID);
+        Uint sequence, transition;
+        data->indexToSample(newSample, sequence, transition);
+        return Train(sequence, transition, thrID);
       }
     }
 
@@ -207,7 +203,8 @@ class RACER : public Learner_utils
         if (k == nSValues-1 && nSValues not_eq nSUnroll) break;
         const Tuple* const _t = data->Set[seq]->tuples[k+samp];
         policies[k].prepare(_t->a, _t->mu, bGeometric);
-        impW *= ACER_LAMBDA*gamma*std::min((Real)1,policies[k].sampImpWeight);
+        const Real clipValW = std::min((Real)1, policies[k].sampImpWeight);
+        impW *= ACER_LAMBDA*gamma*clipValW;
         if (impW < 1e-3) { //then the imp weight is too small to continue
           //printf("Cut after %u / %u samples!\n", k,nSValues);fflush(stdout);
           nSUnroll = k; //for last state we do not compute offpol correction
@@ -315,18 +312,20 @@ class RACER : public Learner_utils
         opt->eta = out_cur[PenalID];
     #else
       const Real penalDKL = out_cur[PenalID];
+      const Real DKLmul1 = - skippedPenal * penalDKL;
       //increase if DivKL is greater than Target
       //computed as \nabla_{penalDKL} (DivKL - DKL_target)^4
       //with rough approximation that d DivKL/ d penalDKL \propto penalDKL
       //(distance increases if penalty term increases, similar to PPO )
       gradient[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
       //trust region updating
-      const vector<Real> penal_grad=pol_cur.div_kl_opp_grad(&pol_hat,-skippedPenal*penalDKL);
+      const vector<Real> penal_grad=pol_cur.div_kl_opp_grad(&pol_hat, DKLmul1);
       const vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
     #endif
 
     const Real penalBeta = std::max(A_OPC, (Real)0)*std::min(rho_inv, CmaxPol);
-    const vector<Real> beta_grad =pol_cur.div_kl_opp_grad(_t->mu, -skippedPenal*penalBeta);
+    const Real DKLmul2 = - skippedPenal * penalBeta;
+    const vector<Real> beta_grad =pol_cur.div_kl_opp_grad(_t->mu, DKLmul2);
     const vector<Real> finalPolGrad = sum2Grads(totalPolGrad, beta_grad);
 
     //decrease precision if error is large
@@ -359,8 +358,8 @@ class RACER : public Learner_utils
     const Action_t& act = policy.sampAct; //off policy stored action
     const Real V_hat = output[VsValID], A_hat = adv_cur.computeAdvantage(act);
     //prepare rolled Q with off policy corrections for next step:
-    Q_RET = std::min((Real)1,policy.sampImpWeight)*(Q_RET -A_hat -V_hat) +V_hat;
-    Q_OPC = std::min((Real)1,policy.sampImpWeight)*(Q_RET -A_hat -V_hat) +V_hat;
+    Q_RET = std::min((Real)1,policy.sampImpWeight)*(Q_RET-A_hat-V_hat) +V_hat;
+    Q_OPC = std::min((Real)1,policy.sampImpWeight)*(Q_RET-A_hat-V_hat) +V_hat;
   }
 
  public:
@@ -464,22 +463,43 @@ class RACER : public Learner_utils
     const Real Qprecision = exp(net->biases[net->layers.back()->n1stBias+1]);
     const Real penalDKL = exp(net->biases[net->layers.back()->n1stBias]);
 
-    const Real ratio = nSkipped/(nTried+1e-7);
-    //goes to 1 if i do not skip any sequecnce
-    //goes to inf if i skipp all sequences that i sample
-    //this is a safety measure, adaptive mem buffer keeps this number around 1
-    skippedPenal = std::exp(ratio/(1-ratio));
-    opt->eta = learnRate/skippedPenal;
-    printf("%g %u %u %g %u\n", ratio, nSkipped, nTried, skippedPenal, data->adapt_TotSeqNum); fflush(0);
-    if(ratio>0.1) data->adapt_TotSeqNum--;
-    else
-      data->adapt_TotSeqNum = min(data->maxTotSeqNum, data->adapt_TotSeqNum+1);
+    //shift counters
+    const Uint nData = read_nData();// nData_0 = nData_b4Train();
+    //const Real dataCounter = nData - (Real)nData_last;
+    const Real stepCounter = opt->nepoch - (Real)nStep_last;
 
-    printf("%lu, rmse:%.2Lg, avg_Q:%.2Lg, std_Q:%.2Lg, min_Q:%.2Lg, max_Q:%.2Lg, "
-    "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%f, rewPrec:%f skip:%g\n",
+    printf("nData_last:%lu nStep_last:%lu nData:%u nStep:%lu\n",
+      nData_last, nStep_last, nData, opt->nepoch); fflush(0);
+    //nData_last = stepCounter*obsPerStep/learn_size;
+    //nStep_last = opt->nepoch;
+
+    const Real ratio = nSkipped/(nTried+nnEPS);
+    const Real invratio = nTried/(nSkipped+nnEPS);
+    if(ratio>goalSkipRatio) {
+      //increase observations per step and reduce buffer size
+      obsPerStep = obsPerStep * ratio/goalSkipRatio;
+      data->adapt_TotSeqNum = (goalSkipRatio*invratio)*data->adapt_TotSeqNum;
+    }
+    else {
+      obsPerStep = obsPerStep*0.99;
+      data->adapt_TotSeqNum = min(data->maxTotSeqNum, data->adapt_TotSeqNum+1);
+    }
+
+    //during normal training this should practically have no effect
+    //(small perturbation on gradient)
+    //added here to make sure that user does not get stuck
+    //if ratio>goalSkipRatio DKL_target is reduced, else is increased
+    // clipped to 1/1e-3
+    DKL_target = clip(DKL_target * goalSkipRatio*invratio, 1, 1e-3);
+
+    printf("%lu, rmse:%.2Lg, avg_Q:%.2Lg, stdQ:%.2Lg, minQ:%.2Lg, maxQ:%.2Lg, "
+    "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%f, rewPrec:%f "
+    "skip:[ratio:%g obsPerStep:%g seqNum:%u DKLtgt:%g penal:%g] %u %lu %lu\n",
       opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
       stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget,
-      Qprecision, penalDKL, data->invstd_reward, skippedPenal);
+      Qprecision, penalDKL, data->invstd_reward, ratio, obsPerStep,
+      data->adapt_TotSeqNum, DKL_target, skippedPenal,
+      nData, nData_last, nStep_last);
       fflush(0);
     nSkipped = nTried = 0;
     ofstream fs;
@@ -490,6 +510,26 @@ class RACER : public Learner_utils
     fs.close();
     fs.flush();
     if (stats.epochCount % 100==0) save("policy");
+  }
+
+  void applyGradient() override
+  {
+    assert(nSkipped<nTried || nTried == 0);
+    const Real ratio = nSkipped/(nTried+nnEPS);
+    //skippedPenal goes to 1 if i do not skip any sequecnce
+    //goes to inf if i skipp all sequences that i sample
+    //this is a safety measure, adaptive mem buffer keeps this number around 1
+    //why needed? because if user selects learn rate that is too high
+    //then you might skip all samples and code looks stuck
+    //because for each skipped sample code computes one network fwd prop
+    skippedPenal = std::exp(ratio/(1-ratio));
+    opt->eta = learnRate/skippedPenal;
+
+    if(skippedPenal>1.5)
+      _warn("Network learn rate is too high, RACER is automatically reducing it to %g. Consider running again with better hyperparameters.\n",opt->eta);
+
+    printf("%g %u %u %g %u %g\n", ratio, nSkipped, nTried, skippedPenal, data->adapt_TotSeqNum, opt->eta); fflush(0);
+    Learner::applyGradient();
   }
 };
 

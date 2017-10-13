@@ -35,13 +35,13 @@ protected:
   const int nSThreads, learn_rank, learn_size;
   Uint nInputs, nOutputs;
   const bool bRecurrent, bSampleSequences, bTrain;
-  const Real tgtUpdateAlpha, greedyEps, gamma, epsAnneal, obsPerStep;
+  const Real tgtUpdateAlpha, greedyEps, gamma, epsAnneal, obsPerStep_orig;
   unsigned long batchUsage = 0, dataUsage = 0;
   Uint cntUpdateDelay = 0, taskCounter = batchSize, epochCounter = 0;
   Uint policyVecDim = 0, nAddedGradients = 0, countElapsed = 0;
-  unsigned long nData_b4PolUpdates = 0;
+  unsigned long nData_last = 0, nStep_last = 0;
   vector<Uint> sequences, transitions;
-  Real sumElapsed = 0;
+  Real sumElapsed = 0, obsPerStep = obsPerStep_orig;
   ActionInfo aInfo;
   StateInfo  sInfo;
   mt19937* const gen;  //only ok if only thread 0 accesses
@@ -130,9 +130,36 @@ public:
 
   inline bool readyForTrain() const
   {
-    const Uint minT = std::min(batchSize, data->maxTotSeqNum-1);
-    lock_guard<mutex> lock(data->dataset_mutex);
-    return bTrain && data->nSequences>=minT && data->nTransitions>=batchSize;
+    if(bSampleSequences)
+    {
+      if(data->adapt_TotSeqNum <= batchSize)
+        die("I do not have enough data for training. Change hyperparameters");
+
+      return bTrain && data->nSequences>=batchSize;
+    }
+    else
+    {
+      const Uint nTransitions = data->readNTransitions();
+      if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<batchSize*16)
+        die("I do not have enough data for training. Change hyperparameters");
+
+      return bTrain && nTransitions >= batchSize*16;
+    }
+  }
+
+  inline Uint read_nData() const
+  {
+    const Uint nData = data->readNData(), nData_0 = nData_b4Train();
+    if(nData < nData_0) return 0;
+    return nData - nData_0;
+  }
+  inline Uint nData_b4Train() const
+  {
+    #ifdef PACE_SEQUENCES
+      return batchSize;
+    #else
+      return batchSize*16;
+    #endif
   }
 
   virtual void select(const int agentId, const Agent& agent) = 0;

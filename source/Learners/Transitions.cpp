@@ -363,6 +363,15 @@ void Transitions::update_rewards_mean()
   first_pass = false;
   //mean_reward = (1-weight)*mean_reward +weight*newmeanr/count;
   invstd_reward = (1-weight)*invstd_reward +weight/stdev_reward;
+  #ifndef NDEBUG
+  Uint cntSamp = 0;
+  for(Uint i=0; i<Set.size(); i++) {
+    assert(Set[i] not_eq nullptr);
+    cntSamp += Set[i]->tuples.size()-1;
+  }
+  assert(cntSamp==nTransitions);
+  #endif
+  //printf("new invstd reward %g\n",invstd_reward);
 }
 
 void Transitions::sortSequences()
@@ -386,19 +395,22 @@ void Transitions::sortSequences()
   //for(Uint i=0; i<Set.size(); i++) printf("%u %f\n",i,Set[i]->MSE);
   assert(nSequences==Set.size());
   while(Set.size() > adapt_TotSeqNum) {
-  printf("%u %u %lu %lu %u\n", nSequences, iOldestSaved, Buffered.size(),
-    Set.size(), adapt_TotSeqNum); fflush(0);
+    //printf("transitions: %u %u %lu %lu %u\n", nSequences, iOldestSaved, Buffered.size(), Set.size(), adapt_TotSeqNum); fflush(0);
     nTransitions -= Set.back()->tuples.size()-1;
     _dispose_object(Set.back());
     Set.pop_back();
     nSequences--;
     assert(nSequences==Set.size());
   }
+  Set.reserve(maxTotSeqNum);
   assert(nSequences==adapt_TotSeqNum);
   iOldestSaved = adapt_TotSeqNum - Buffered.size();
   #ifndef NDEBUG
   Uint cntSamp = 0;
-  for(Uint i=0; i<Set.size(); i++) cntSamp += Set[i]->tuples.size()-1;
+  for(Uint i=0; i<Set.size(); i++) {
+    assert(Set[i] not_eq nullptr);
+    cntSamp += Set[i]->tuples.size()-1;
+  }
   assert(cntSamp==nTransitions);
   #endif
 }

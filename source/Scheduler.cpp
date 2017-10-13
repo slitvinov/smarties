@@ -57,7 +57,7 @@ int Master::run()
         profiler->stop_start("QUEUE");
         for (const int slave : postponed_queue) {
           addToNTasks(1);
-          #pragma omp task firstprivate(slave) //priority(1)
+          //#pragma omp task firstprivate(slave) //priority(1)
             processRequest(slave);
         }
         postponed_queue.clear();
@@ -92,7 +92,7 @@ int Master::run()
             if(learnerReadyForAgent(slave))
             {
               addToNTasks(1);
-              #pragma omp task firstprivate(slave) if(readNTasks()<nThreads)
+              //#pragma omp task firstprivate(slave) if(readNTasks()<nThreads)
               //priority(1)
                 processRequest(slave);
             }
@@ -114,6 +114,7 @@ int Master::run()
 void Master::processRequest(const int slave)
 {
   const int thrID = omp_get_thread_num();
+  //printf("Thread %d doing slave %d\n",thrID,slave);
   if(thrID==1) learner->profiler->check_start("SERV");
 
   vector<Real> recv_state(sI.dim);

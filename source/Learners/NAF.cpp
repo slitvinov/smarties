@@ -14,6 +14,7 @@ NAF::NAF(MPI_Comm comm, Environment*const _env, Settings & settings) :
 Learner_utils(comm,_env,settings,settings.nnOutputs),
 nA(_env->aI.dim), nL(compute_nL(_env->aI.dim))
 {
+  die("Untested for too long\n");
   #ifdef NDEBUG
   //if(bRecurrent) die("NAF recurrent not tested!\n");
   #endif

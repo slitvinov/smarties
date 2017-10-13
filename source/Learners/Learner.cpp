@@ -18,7 +18,7 @@ nSlaves(_s.nSlaves), nSThreads(_s.nThreads), learn_rank(_s.learner_rank),
 learn_size(_s.learner_size), nInputs(_s.nnInputs), nOutputs(_s.nnOutputs),
 bRecurrent(_s.bRecurrent), bSampleSequences(_s.bSampleSequences),
 bTrain(_s.bTrain), tgtUpdateAlpha(_s.targetDelay), greedyEps(_s.greedyEps),
-gamma(_s.gamma), epsAnneal(_s.epsAnneal), obsPerStep(_s.obsPerStep),
+gamma(_s.gamma), epsAnneal(_s.epsAnneal), obsPerStep_orig(_s.obsPerStep),
 aInfo(env->aI), sInfo(env->sI), gen(&_s.generators[0])
 {
   assert(nThreads>1);
@@ -59,11 +59,13 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
       #endif
       {
         const int thrID = omp_get_thread_num();
+        //printf("Thread %d doing %u\n",thrID,sequence); fflush(0);
         if(!thrID) profiler_ext->stop_start("WORK");
         Train_BPTT(sequence, static_cast<Uint>(thrID));
         addToNTasks(-1);
         #pragma omp atomic
         taskCounter++;
+        //printf("Thread %d done with %u\n",thrID,sequence); fflush(0);
       }
     }
   }
@@ -80,11 +82,13 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
       #endif
       {
         const int thrID = omp_get_thread_num();
+        //printf("Thread %d doing %u %u\n",thrID,sequence,transition); fflush(0);
         if(!thrID) profiler_ext->stop_start("WORK");
         Train(sequence, transition, static_cast<Uint>(thrID));
         addToNTasks(-1);
         #pragma omp atomic
         taskCounter++;
+        //printf("Thread %d done with %u %u\n",thrID,sequence,transition); fflush(0);
       }
     }
   }
@@ -160,18 +164,10 @@ Uint Learner::sampleTransitions(vector<Uint>& seq, vector<Uint>& trans)
   for (Uint i=0; i<batchSize; i++) {
     const int ind = data->sample();
     if(ind<0) die("not enough data");
-
-    int k=0, back=0, indT=data->Set[0]->tuples.size()-1;
-    while (ind >= indT) {
-      back = indT;
-      indT += data->Set[++k]->tuples.size()-1;
-    }
-
-    s[i] = k;
-    t[i] = ind-back;
+    data->indexToSample(ind, s[i], t[i]);
     sorting[i] = i;
     //work per transition (applies to algos with off policy corrections):
-    load[i] = data->Set[k]->tuples.size()-1 - t[i];
+    load[i] = data->Set[s[i]]->ndata() - t[i];
     //load[i] = data->Set[k]->tuples.size()-1; // ~ this would be for RNN
   }
 
@@ -195,7 +191,6 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
   {
     const int ind = data->sample();
     if(ind<0) die("not enough data");
-
     seq[i]  = ind;
     //index[i] = ind;
     const Uint seqSize = data->Set[ind]->tuples.size();
@@ -214,19 +209,20 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
 
 bool Learner::batchGradientReady()
 {
-  const Real requestedData = opt->nepoch * obsPerStep /(Real)learn_size;
+  const Uint nData = read_nData();
+  const Real dataCounter = nData - (Real)nData_last;
+  const Real stepCounter = opt->nepoch - (Real)nStep_last;
 
   //if there is not enough data for training: go back to master:
-  #ifdef PACE_SEQUENCES
-  const Real dataCounter = data->nSeenSequences   - nData_b4PolUpdates;
-  if(!readyForTrain()){nData_b4PolUpdates=data->nSeenSequences;   return false;}
-  #else
-  const Real dataCounter = data->nSeenTransitions - nData_b4PolUpdates;
-  if(!readyForTrain()){nData_b4PolUpdates=data->nSeenTransitions; return false;}
-  #endif
+  if ( ! readyForTrain() )  {
+    if(opt->nepoch) { printf("NR4T\n"); fflush(0); }
+    return false;
+  }
+
   //If I have done too many gradient steps on the avail data, go back to comm
-  if( requestedData > dataCounter ) {
+  if( stepCounter*obsPerStep/learn_size > dataCounter ) {
     //profiler_ext->stop_start("STOP");
+    printf("%g %g %u\n", stepCounter, dataCounter, nData); fflush(0);
     return false;
   }
 
@@ -236,13 +232,15 @@ bool Learner::batchGradientReady()
 
 bool Learner::unlockQueue()
 {
-  if ( ! readyForTrain() ) return true;
-  const Real requestedData = (opt->nepoch+1) *obsPerStep/(Real)learn_size;
-  #ifdef PACE_SEQUENCES
-  return data->nSeenSequences  -nData_b4PolUpdates <= requestedData+nSlaves;
-  #else
-  return data->nSeenTransitions-nData_b4PolUpdates <= requestedData+nSlaves;
-  #endif
+  if ( ! readyForTrain() )  {
+    if(opt->nepoch) { printf("NR4T\n"); fflush(0); }
+    return true;
+  }
+  const Real stepCounter = opt->nepoch+1 - (Real)nStep_last;
+  const Real dataCounter = read_nData() - (Real)nData_last;
+  const bool ret = dataCounter <= stepCounter*obsPerStep/learn_size +nSlaves;
+  if(!ret) { printf("%g %g %g %u\n", stepCounter, dataCounter, obsPerStep, learn_size); fflush(0); }
+  return ret;
 }
 
 bool Learner::readyForAgent(const int slave)
@@ -265,8 +263,6 @@ void Learner::save(string name)
     if (f == NULL) die("Save fail\n");
     fprintf(f, "policy iter: %d\n", data->anneal);
     fprintf(f, "optimize epoch: %lu\n", opt->nepoch);
-    //fprintf(f, "epoch count: %lu\n", stats.epochCount);
-    fprintf(f, "nData_b4PolUpdates: %lu\n", nData_b4PolUpdates);
     fclose(f);
   }
 }
@@ -304,11 +300,6 @@ void Learner::restart(string name)
     //  fscanf(f, "epoch count: %lu\n", &ret);
     //  stats.epochCount = ret;
     //  printf("epoch count: %lu\n", stats.epochCount);
-    }{
-      long unsigned ret = 0;
-      fscanf(f, "nData_b4PolUpdates: %lu\n", &ret);
-      nData_b4PolUpdates = ret;
-      printf("nData_b4PolUpdates: %lu\n", nData_b4PolUpdates);
     }
     fclose(f);
   }

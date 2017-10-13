@@ -62,7 +62,8 @@ inline static void printfmt(char*const p, const int N, const char*const a, ... )
 
 #define  _warn(format, ...)  { \
   if(ErrorHandling::level >= ErrorHandling::WARNINGS) { LOCKCOMM \
-    char BUF[256]; ErrorHandling::printfmt(BUF, 256, format, ##__VA_ARGS__ ); \ fprintf(stdout,"%s(%s:%d)%s %s\n",__func__,__FILE__,__LINE__, \
+    char BUF[256]; ErrorHandling::printfmt(BUF, 256, format, ##__VA_ARGS__ ); \
+    fprintf(stdout,"%s(%s:%d)%s %s\n",__func__,__FILE__,__LINE__, \
     " WARNING", BUF); FLUSHALL} }
 
 #define debugS(format, ...)  { \
