@@ -42,7 +42,9 @@ class RACER : public Learner_utils
   const Uint VsValID = net_indices[0];
   const Uint PenalID = net_indices.back(), QPrecID = net_indices.back()+1;
   const bool bGeometric = CmaxRet>1 && nA>1;
-  mutable Uint nSkipped = 0;
+  mutable Uint nSkipped = 0, nTried = 0;
+  const Real learnRate;
+  Real skippedPenal = 1;
   mutable vector<long double> cntValGrad;
   mutable vector<vector<long double>> avgValGrad, stdValGrad;
   //#ifdef FEAT_CONTROL
@@ -168,7 +170,10 @@ class RACER : public Learner_utils
     const Tuple * const t0 = data->Set[seq]->tuples[samp];
     policies[0].prepare(t0->a, t0->mu, bGeometric, &pol_target);
 
-    if(policies[0].sampRhoWeight < 0.1) {
+    #pragma omp atomic
+    nTried++;
+
+    if(policies[0].sampRhoWeight < 0.9) {
       int newSample = -1;
       #pragma omp critical
       {
@@ -315,12 +320,12 @@ class RACER : public Learner_utils
       //(distance increases if penalty term increases, similar to PPO )
       gradient[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
       //trust region updating
-      const vector<Real> penal_grad=pol_cur.div_kl_opp_grad(&pol_hat,-penalDKL);
+      const vector<Real> penal_grad=pol_cur.div_kl_opp_grad(&pol_hat,-skippedPenal*penalDKL);
       const vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
     #endif
 
     const Real penalBeta = std::max(A_OPC, (Real)0)*std::min(rho_inv, CmaxPol);
-    const vector<Real> beta_grad =pol_cur.div_kl_opp_grad(_t->mu, -penalBeta);
+    const vector<Real> beta_grad =pol_cur.div_kl_opp_grad(_t->mu, -skippedPenal*penalBeta);
     const vector<Real> finalPolGrad = sum2Grads(totalPolGrad, beta_grad);
 
     //decrease precision if error is large
@@ -364,7 +369,7 @@ class RACER : public Learner_utils
     CmaxPol(sett.impWeight), DKL_target(sett.klDivConstraint),
     net_outputs(net_outs), net_indices(count_indices(net_outs)),
     pol_start(pol_inds), adv_start(adv_inds), generators(sett.generators),
-    cntValGrad(nThreads+1,0),
+    learnRate(sett.learnrate), cntValGrad(nThreads+1,0),
     avgValGrad(nThreads+1,vector<long double>(3,0)), stdValGrad(nThreads+1,vector<long double>(3,0))
   {
     //#ifdef FEAT_CONTROL
@@ -458,13 +463,24 @@ class RACER : public Learner_utils
     const Real Qprecision = exp(net->biases[net->layers.back()->n1stBias+1]);
     const Real penalDKL = exp(net->biases[net->layers.back()->n1stBias]);
 
+    const Real ratio = nSkipped/(nTried+1e-7);
+    //goes to 1 if i do not skip any sequecnce
+    //goes to inf if i skipp all sequences that i sample
+    //10 is just a coefficient to let it go to 10 if i skip about 20% of samples
+    skippedPenal = std::exp(10*ratio/(1-ratio));
+    //opt->eta = learnRate/skippedPenal;
+    printf("%g %u %u %g %u\n", ratio, nSkipped, nTried, skippedPenal, data->adapt_TotSeqNum); fflush(0);
+    if(ratio>0.1) data->adapt_TotSeqNum--;
+    else
+      data->adapt_TotSeqNum = min(data->maxTotSeqNum, data->adapt_TotSeqNum+1);
+
     printf("%lu, rmse:%.2Lg, avg_Q:%.2Lg, std_Q:%.2Lg, min_Q:%.2Lg, max_Q:%.2Lg, "
-    "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%f, rewPrec:%f skip:%u\n",
+    "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%f, rewPrec:%f skip:%g\n",
       opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
       stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget,
-      Qprecision, penalDKL, data->invstd_reward, nSkipped);
+      Qprecision, penalDKL, data->invstd_reward, skippedPenal);
       fflush(0);
-    nSkipped = 0;
+    nSkipped = nTried = 0;
     ofstream fs;
     fs.open("stats.txt", ios::app);
     fs<<opt->nepoch<<"\t"<<stats.MSE<<"\t"<<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<

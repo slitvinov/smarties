@@ -223,7 +223,7 @@ void Transitions::push_back(const int & agentId)
   if(Tmp[agentId]->tuples.size() > minSeqLen )
   {
     lock_guard<mutex> lock(dataset_mutex);
-    if (nSequences>=maxTotSeqNum) {
+    if (nSequences >= adapt_TotSeqNum) {
       Buffered.push_back(Tmp[agentId]);
       Buffered.back()->ID = nSeenSequences++;
       nSeenTransitions += Tmp[agentId]->tuples.size()-1;
@@ -367,9 +367,7 @@ void Transitions::update_rewards_mean()
 
 void Transitions::sortSequences()
 {
-  assert(nSequences==Set.size() && maxTotSeqNum == nSequences);
-  //uniform_real_distribution<Real> dis(0.,1.);
-  //if (dis(*(gen->g))>0.01) { //small chance to shuffle
+  assert(nSequences==Set.size());
   #pragma omp parallel for schedule(dynamic)
   for(Uint i=0; i<Set.size(); i++) {
     Set[i]->MSE = 0.;
@@ -380,20 +378,23 @@ void Transitions::sortSequences()
         Set[i]->MSE += Set[i]->tuples[j]->SquaredError;
       Set[i]->MSE /= Set[i]->tuples.size()-1;
      #endif
-    /*  //sort by distance from mean of observations statistics?
-      for(const auto & t : Set[i]->tuples)
-      for (int i=0; i<sI.dimUsed; i++)
-      Set[i]->MSE += std::pow((t->s[i] - mean[i])/std[i], 2);
-     */
   }
   const auto compare=[this](Sequence* a, Sequence* b) {
-    return a->MSE==0 ? false : (b->MSE==0 ? true : (a->MSE<b->MSE) );
+    return a->MSE==0 ? true : (b->MSE==0 ? false : (a->MSE>b->MSE) );
   };
   __gnu_parallel::sort(Set.begin(), Set.end(), compare);
-  assert(Set.front()->MSE < Set.back()->MSE || Set.back()->MSE == 0);
+  assert(Set.front()->MSE > Set.back()->MSE || Set.front()->MSE == 0);
   //for(Uint i=0; i<Set.size(); i++) printf("%u %f\n",i,Set[i]->MSE);
-  //} else random_shuffle(Set.begin(), Set.end(), *(gen));
-  iOldestSaved = 0;
+  //printf("%u %u %u %u\n",
+  //iOldestSaved,Buffered.size(),Set.size(),adapt_TotSeqNum);
+  while(Set.size() > adapt_TotSeqNum) {
+    nTransitions -= Set.back()->tuples.size()-1;
+    _dispose_object(Set.back());
+    Set.pop_back();
+    nSequences--;
+  }
+  assert(nSequences==Set.size() && nSequences==adapt_TotSeqNum);
+  iOldestSaved = adapt_TotSeqNum - Buffered.size();
 }
 
 void Transitions::synchronize()
@@ -411,8 +412,8 @@ void Transitions::synchronize()
     //auto bufTransition = Buffered[i];
     assert(Buffered.size() == j);
     auto bufTransition = Buffered.back();
-    const Uint ind = iOldestSaved++;
-    iOldestSaved = (iOldestSaved >= maxTotSeqNum) ? 0 : iOldestSaved;
+    const Uint ind = (iOldestSaved >= Set.size()) ? 0 : iOldestSaved;
+    iOldestSaved = (ind+1 >= Set.size()) ? 0 : ind+1;
 
     if (not Set[ind]->ended) {
       if(nBroken==0) die("Error in nBroken counter.\n");
@@ -428,7 +429,6 @@ void Transitions::synchronize()
     if (not bufTransition->ended) ++nBroken;
     Set[ind] = bufTransition;
     Buffered.pop_back();
-    //if(cnt == maxTotSeqNum/20) break; //don't change buffer too much
   } //number of sequences remains constant
   //if(!learn_rank && printCount%10 == 0)
 
@@ -454,14 +454,16 @@ Uint Transitions::updateSamples(const Real annealFac)
   if(Buffered.size()>0) {
     if(!learn_rank) // && printCount%10 == 0
     fprintf(f,"nSequences %d (%lu) > maxTotSeqNum %d (nTransitions=%d (%lu), avgSeqLen=%f).\n",
-      nSequences, nSeenSequences, maxTotSeqNum, nTransitions, nSeenTransitions, nTransitions/(Real)nSequences);
+      nSequences, nSeenSequences, adapt_TotSeqNum, nTransitions,
+      nSeenTransitions, nTransitions/(Real)nSequences);
     synchronize();
     update_meanstd_needed = true;
     old_ndata = nTransitions;
   } else {
     if(!learn_rank) // && printCount%100 == 0
     fprintf(f,"nSequences %d (%lu) =< maxTotSeqNum %d (nTransitions=%d (%lu), avgSeqLen=%f).\n",
-      nSequences, nSeenSequences, maxTotSeqNum, nTransitions, nSeenTransitions, nTransitions/(Real)nSequences);
+      nSequences, nSeenSequences, adapt_TotSeqNum, nTransitions,
+      nSeenTransitions, nTransitions/(Real)nSequences);
     update_meanstd_needed = nTransitions!=old_ndata;
     old_ndata = nTransitions;
   }
