@@ -70,7 +70,8 @@ public:
   const vector<Agent*> _agents;
   Uint anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0;
   size_t nSeenSequences=0, nSeenTransitions=0;
-  Uint iOldestSaved = 0, printCount = 0, adapt_TotSeqNum = maxTotSeqNum;
+  Uint iOldestSaved = 0, printCount = 0;
+  Uint adapt_TotSeqNum = maxTotSeqNum, old_TotSeqNum = maxTotSeqNum;
   Real invstd_reward = 1, mean_reward = 0;
   Gen * gen;
   vector<Sequence*> Set, Tmp, Buffered;
@@ -147,6 +148,10 @@ public:
 
   inline bool requestUpdateSamples() const
   {
-    return inds.size()<batchSize;
+    //three cases:
+    // if i do not have enough shuffled indices for training a batchSize
+    // if i have buffered transitions to add to dataset
+    // if my desired dataset size is less than what i have
+    return inds.size()<batchSize || Buffered.size() || adapt_TotSeqNum<Set.size();
   }
 };

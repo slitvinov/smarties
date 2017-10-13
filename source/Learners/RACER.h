@@ -173,7 +173,7 @@ class RACER : public Learner_utils
     #pragma omp atomic
     nTried++;
 
-    if(policies[0].sampRhoWeight < 0.9) {
+    if(policies[0].sampRhoWeight < 0.1) {
       int newSample = -1;
       #pragma omp critical
       {
@@ -182,6 +182,7 @@ class RACER : public Learner_utils
       }
 
       if(newSample >= 0) {
+        printf("skip\n"); fflush(0);
         int k=0, back=0, indT=data->Set[0]->tuples.size()-1;
         while (newSample >= indT) {
           //printf("%u %u %u %u\n",k,back,indT,newSample);
@@ -466,9 +467,9 @@ class RACER : public Learner_utils
     const Real ratio = nSkipped/(nTried+1e-7);
     //goes to 1 if i do not skip any sequecnce
     //goes to inf if i skipp all sequences that i sample
-    //10 is just a coefficient to let it go to 10 if i skip about 20% of samples
-    skippedPenal = std::exp(10*ratio/(1-ratio));
-    //opt->eta = learnRate/skippedPenal;
+    //this is a safety measure, adaptive mem buffer keeps this number around 1
+    skippedPenal = std::exp(ratio/(1-ratio));
+    opt->eta = learnRate/skippedPenal;
     printf("%g %u %u %g %u\n", ratio, nSkipped, nTried, skippedPenal, data->adapt_TotSeqNum); fflush(0);
     if(ratio>0.1) data->adapt_TotSeqNum--;
     else

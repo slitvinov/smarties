@@ -367,7 +367,6 @@ void Transitions::update_rewards_mean()
 
 void Transitions::sortSequences()
 {
-  assert(nSequences==Set.size());
   #pragma omp parallel for schedule(dynamic)
   for(Uint i=0; i<Set.size(); i++) {
     Set[i]->MSE = 0.;
@@ -385,31 +384,38 @@ void Transitions::sortSequences()
   __gnu_parallel::sort(Set.begin(), Set.end(), compare);
   assert(Set.front()->MSE > Set.back()->MSE || Set.front()->MSE == 0);
   //for(Uint i=0; i<Set.size(); i++) printf("%u %f\n",i,Set[i]->MSE);
-  //printf("%u %u %u %u\n",
-  //iOldestSaved,Buffered.size(),Set.size(),adapt_TotSeqNum);
+  assert(nSequences==Set.size());
   while(Set.size() > adapt_TotSeqNum) {
+  printf("%u %u %lu %lu %u\n", nSequences, iOldestSaved, Buffered.size(),
+    Set.size(), adapt_TotSeqNum); fflush(0);
     nTransitions -= Set.back()->tuples.size()-1;
     _dispose_object(Set.back());
     Set.pop_back();
     nSequences--;
+    assert(nSequences==Set.size());
   }
-  assert(nSequences==Set.size() && nSequences==adapt_TotSeqNum);
+  assert(nSequences==adapt_TotSeqNum);
   iOldestSaved = adapt_TotSeqNum - Buffered.size();
+  #ifndef NDEBUG
+  Uint cntSamp = 0;
+  for(Uint i=0; i<Set.size(); i++) cntSamp += Set[i]->tuples.size()-1;
+  assert(cntSamp==nTransitions);
+  #endif
 }
 
 void Transitions::synchronize()
 {
-  #ifdef RESORT_SEQS
-  sortSequences();
+  #ifndef RESORT_SEQS
+  if(Set.size() > adapt_TotSeqNum)
   #endif
+    sortSequences();
 
   Uint cnt =0;
   Uint nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
   //  for(auto & bufTransition : Buffered) {
-  if(!bufferSize) return;
+  if(bufferSize == 0) return;
   for(Uint j=bufferSize; j>0; j--) {
     cnt++;
-    //auto bufTransition = Buffered[i];
     assert(Buffered.size() == j);
     auto bufTransition = Buffered.back();
     const Uint ind = (iOldestSaved >= Set.size()) ? 0 : iOldestSaved;
@@ -451,7 +457,10 @@ Uint Transitions::updateSamples(const Real annealFac)
   if (f == NULL) die("Save fail\n");
 
   printCount++;
-  if(Buffered.size()>0) {
+  // when do I need to sort and refresh dataset vector?
+  // 1- if i have buffered sequences
+  // 2- if i have to remove some of the samples
+  if(Buffered.size()>0 || adapt_TotSeqNum < Set.size()) {
     if(!learn_rank) // && printCount%10 == 0
     fprintf(f,"nSequences %d (%lu) > maxTotSeqNum %d (nTransitions=%d (%lu), avgSeqLen=%f).\n",
       nSequences, nSeenSequences, adapt_TotSeqNum, nTransitions,
@@ -464,11 +473,12 @@ Uint Transitions::updateSamples(const Real annealFac)
     fprintf(f,"nSequences %d (%lu) =< maxTotSeqNum %d (nTransitions=%d (%lu), avgSeqLen=%f).\n",
       nSequences, nSeenSequences, adapt_TotSeqNum, nTransitions,
       nSeenTransitions, nTransitions/(Real)nSequences);
-    update_meanstd_needed = nTransitions!=old_ndata;
+    update_meanstd_needed = nTransitions not_eq old_ndata;
     old_ndata = nTransitions;
   }
   if(update_meanstd_needed) update_rewards_mean();
   update_meanstd_needed = update_meanstd_needed && bNormalize && annealFac>0;
+  old_TotSeqNum = adapt_TotSeqNum;
 
   fflush(f); fclose(f);
   #ifndef importanceSampling
