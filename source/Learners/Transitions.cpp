@@ -325,28 +325,18 @@ void Transitions::update_samples_mean(const Real alpha)
 void Transitions::update_rewards_mean()
 {
   if(!bTrain || !bNormalize) return; //if not training, keep the stored values
-  long double count = 0, newstdvr = 0;
 
-  #pragma omp parallel
-  {
-    long double stdr = 0, cnt = 0;
-    #pragma omp for schedule(dynamic)
-    for(Uint i=0; i<Set.size(); i++) {
-      bool first = true;
-      for(const auto & t : Set[i]->tuples) {
-        if(first) { //first state reward is meaningless
-          first = false;
-          continue;
-        }
-        stdr += t->r*t->r;
-        cnt++;
+  #pragma omp parallel for schedule(dynamic) reduction(+ : count, newstdvr)
+  for(Uint i=0; i<Set.size(); i++) {
+    bool first = true;
+    for(const auto & t : Set[i]->tuples) {
+      if(first) { //first state reward is meaningless
+        first = false;
+        continue;
       }
+      newstdvr += t->r*t->r;
+      count++;
     }
-
-    #pragma omp atomic
-    count += cnt;
-    #pragma omp atomic
-    newstdvr += stdr;
   }
 
   //add up gradients across nodes (masters)
