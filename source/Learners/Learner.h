@@ -135,7 +135,7 @@ public:
       if(data->adapt_TotSeqNum <= batchSize)
         die("I do not have enough data for training. Change hyperparameters");
 
-      return bTrain && data->nSequences>=batchSize;
+      return bTrain && data->nSequences >= batchSize;
     }
     else
     {
@@ -156,9 +156,9 @@ public:
   inline Uint nData_b4Train() const
   {
     #ifdef PACE_SEQUENCES
-      return batchSize;
+      return batchSize/learn_size;
     #else
-      return batchSize*16;
+      return batchSize*16/learn_size;
     #endif
   }
 

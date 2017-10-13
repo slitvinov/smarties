@@ -346,7 +346,7 @@ public:
     const Uint bestExp = std::distance(experts.begin(), std::max_element(experts.begin(),experts.end()));
     return means[bestExp];
   }
-  inline vector<Real> finalize(const Real bSample, mt19937*const gen, const vector<Real>& beta) const
+  inline vector<Real> finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta) const
   { //scale back to action space size:
     return aInfo->getScaled(bSample ? sample(gen, beta) : getBest());
   }

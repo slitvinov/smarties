@@ -209,7 +209,7 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
 
 bool Learner::batchGradientReady()
 {
-  const Uint nData = read_nData();
+  const Real nData = read_nData();
   const Real dataCounter = nData - (Real)nData_last;
   const Real stepCounter = opt->nepoch - (Real)nStep_last;
 
@@ -222,7 +222,7 @@ bool Learner::batchGradientReady()
   //If I have done too many gradient steps on the avail data, go back to comm
   if( stepCounter*obsPerStep/learn_size > dataCounter ) {
     //profiler_ext->stop_start("STOP");
-    printf("%g %g %u\n", stepCounter, dataCounter, nData); fflush(0);
+    //printf("%g %g %g\n", stepCounter, dataCounter, nData); fflush(0);
     return false;
   }
 
@@ -236,10 +236,15 @@ bool Learner::unlockQueue()
     if(opt->nepoch) { printf("NR4T\n"); fflush(0); }
     return true;
   }
-  const Real stepCounter = opt->nepoch+1 - (Real)nStep_last;
+  const Real stepCounter = opt->nepoch  - (Real)nStep_last;
   const Real dataCounter = read_nData() - (Real)nData_last;
-  const bool ret = dataCounter <= stepCounter*obsPerStep/learn_size +nSlaves;
-  if(!ret) { printf("%g %g %g %u\n", stepCounter, dataCounter, obsPerStep, learn_size); fflush(0); }
+  #ifdef PACE_SEQUENCES
+  const Real cushionData = nSlaves;
+  #else
+  const Real cushionData = data->readAvgSeqLen()*nSlaves;
+  #endif
+  const bool ret = dataCounter <=stepCounter*obsPerStep/learn_size +cushionData;
+  //if(!ret) { printf("%g %g %g %u\n", stepCounter, dataCounter, obsPerStep, learn_size); fflush(0); }
   return ret;
 }
 

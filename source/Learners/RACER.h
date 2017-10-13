@@ -151,6 +151,7 @@ class RACER : public Learner_utils
     vector<Activation*>& series_hat = *(series_2[thrID]);
     vector<Policy_t> policies;
     policies.reserve(nSValues);
+    //const Real ratio = nSkipped/(nTried+nnEPS);
 
     //propagation of RNN signals:
     for (Uint k=iRecurr, j=0; k<samp+1; k++, j++) {
@@ -174,7 +175,8 @@ class RACER : public Learner_utils
     #pragma omp atomic
     nTried++;
 
-    if(policies[0].sampRhoWeight < std::min((Real)0.2, 1/CmaxPol))
+    const Real tolImpWeight = std::min((Real)0.2, 1/CmaxPol);
+    if(policies[0].sampRhoWeight < tolImpWeight) // && ratio < 0.5
     {
       int newSample = -1;
       #pragma omp critical
@@ -184,6 +186,7 @@ class RACER : public Learner_utils
       }
 
       if(newSample >= 0) {
+        //printf("Skip\n"); fflush(0);
         Uint sequence, transition;
         data->indexToSample(newSample, sequence, transition);
         return Train(sequence, transition, thrID);
@@ -205,8 +208,8 @@ class RACER : public Learner_utils
         policies[k].prepare(_t->a, _t->mu, bGeometric);
         const Real clipValW = std::min((Real)1, policies[k].sampImpWeight);
         impW *= ACER_LAMBDA*gamma*clipValW;
-        if (impW < 1e-3) { //then the imp weight is too small to continue
-          //printf("Cut after %u / %u samples!\n", k,nSValues);fflush(stdout);
+        if (impW < 1e-2) { //then the imp weight is too small to continue
+          //printf("Cut after %u / %u samples!\n",k,nSValues); fflush(stdout);
           nSUnroll = k; //for last state we do not compute offpol correction
           nSValues = k+1; //we initialize value of Q_RET to V(state)
           break;
@@ -465,32 +468,27 @@ class RACER : public Learner_utils
 
     //shift counters
     const Uint nData = read_nData();// nData_0 = nData_b4Train();
-    //const Real dataCounter = nData - (Real)nData_last;
+    const Real dataCounter = nData - (Real)nData_last;
     const Real stepCounter = opt->nepoch - (Real)nStep_last;
 
-    printf("nData_last:%lu nStep_last:%lu nData:%u nStep:%lu\n",
-      nData_last, nStep_last, nData, opt->nepoch); fflush(0);
-    //nData_last = stepCounter*obsPerStep/learn_size;
-    //nStep_last = opt->nepoch;
+    printf("nData_last:%lu nStep_last:%lu nData:%u nStep:%lu cnter:%g\n",
+      nData_last, nStep_last, nData, opt->nepoch, dataCounter); fflush(0);
+    nData_last += stepCounter*obsPerStep/learn_size;
+    nStep_last = opt->nepoch;
 
     const Real ratio = nSkipped/(nTried+nnEPS);
-    const Real invratio = nTried/(nSkipped+nnEPS);
-    if(ratio>goalSkipRatio) {
-      //increase observations per step and reduce buffer size
-      obsPerStep = obsPerStep * ratio/goalSkipRatio;
-      data->adapt_TotSeqNum = (goalSkipRatio*invratio)*data->adapt_TotSeqNum;
-    }
-    else {
-      obsPerStep = obsPerStep*0.99;
-      data->adapt_TotSeqNum = min(data->maxTotSeqNum, data->adapt_TotSeqNum+1);
-    }
-
+    const Real invratio = goalSkipRatio*nTried/(nSkipped+nnEPS);
+    const Real multiplier = std::max(0.99, ratio/goalSkipRatio);
+    obsPerStep = clip(obsPerStep*multiplier, obsPerStep_orig, 0.01);
+    const Real upper = data->maxTotSeqNum;
+    const Real lower = nData_b4Train()/data->readAvgSeqLen();
+    data->adapt_TotSeqNum = clip(data->adapt_TotSeqNum*invratio, upper, lower);
     //during normal training this should practically have no effect
     //(small perturbation on gradient)
     //added here to make sure that user does not get stuck
     //if ratio>goalSkipRatio DKL_target is reduced, else is increased
     // clipped to 1/1e-3
-    DKL_target = clip(DKL_target * goalSkipRatio*invratio, 1, 1e-3);
+    DKL_target = clip(DKL_target * invratio, 1, 1e-3);
 
     printf("%lu, rmse:%.2Lg, avg_Q:%.2Lg, stdQ:%.2Lg, minQ:%.2Lg, maxQ:%.2Lg, "
     "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%f, rewPrec:%f "
@@ -505,10 +503,10 @@ class RACER : public Learner_utils
     ofstream fs;
     fs.open("stats.txt", ios::app);
     fs<<opt->nepoch<<"\t"<<stats.MSE<<"\t"<<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<
-    stats.minQ<<"\t"<<stats.maxQ<<"\t"<<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<
-    distTarget<<"\t"<<Qprecision<<"\t"<<penalDKL<<"\t"<<data->invstd_reward<<endl;
-    fs.close();
-    fs.flush();
+      stats.minQ<<"\t"<<stats.maxQ<<"\t"<<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<
+      distTarget<<"\t"<<Qprecision<<"\t"<<penalDKL<<"\t"<<data->invstd_reward<<
+      "\t"<<ratio<<"\t"<<obsPerStep<<"\t"<<data->adapt_TotSeqNum<<"\t"<<
+      DKL_target<<"\t"<<skippedPenal<<"\t"<<nData<<endl; fs.close(); fs.flush();
     if (stats.epochCount % 100==0) save("policy");
   }
 
@@ -528,7 +526,7 @@ class RACER : public Learner_utils
     if(skippedPenal>1.5)
       _warn("Network learn rate is too high, RACER is automatically reducing it to %g. Consider running again with better hyperparameters.\n",opt->eta);
 
-    printf("%g %u %u %g %u %g\n", ratio, nSkipped, nTried, skippedPenal, data->adapt_TotSeqNum, opt->eta); fflush(0);
+    //printf("%g %u %u %g %u %g\n", ratio, nSkipped, nTried, skippedPenal, data->adapt_TotSeqNum, opt->eta); fflush(0);
     Learner::applyGradient();
   }
 };

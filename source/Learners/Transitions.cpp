@@ -226,14 +226,14 @@ void Transitions::push_back(const int & agentId)
     if (nSequences >= adapt_TotSeqNum) {
       Buffered.push_back(Tmp[agentId]);
       Buffered.back()->ID = nSeenSequences++;
-      nSeenTransitions += Tmp[agentId]->tuples.size()-1;
+      nSeenTransitions += Tmp[agentId]->ndata();
     } else {
       if (not Tmp[agentId]->ended) ++nBroken;
 
       Set.push_back(Tmp[agentId]);
       Set.back()->ID = nSeenSequences++;
-      nTransitions     += Tmp[agentId]->tuples.size()-1;
-      nSeenTransitions += Tmp[agentId]->tuples.size()-1;
+      nTransitions     += Tmp[agentId]->ndata();
+      nSeenTransitions += Tmp[agentId]->ndata();
       nSequences++;
     }
   } else {
@@ -326,18 +326,13 @@ void Transitions::update_rewards_mean()
 {
   if(!bTrain || !bNormalize) return; //if not training, keep the stored values
 
+  long double count = 0, newstdvr = 0;
   #pragma omp parallel for schedule(dynamic) reduction(+ : count, newstdvr)
-  for(Uint i=0; i<Set.size(); i++) {
-    bool first = true;
-    for(const auto & t : Set[i]->tuples) {
-      if(first) { //first state reward is meaningless
-        first = false;
-        continue;
-      }
-      newstdvr += t->r*t->r;
+  for(Uint i=0; i<Set.size(); i++)
+    for(Uint j=1; j<Set[i]->ndata(); j++) {
+      newstdvr += std::pow(Set[i]->tuples[j]->r, 2);
       count++;
     }
-  }
 
   //add up gradients across nodes (masters)
   if (learn_size > 1) {
@@ -357,7 +352,7 @@ void Transitions::update_rewards_mean()
   Uint cntSamp = 0;
   for(Uint i=0; i<Set.size(); i++) {
     assert(Set[i] not_eq nullptr);
-    cntSamp += Set[i]->tuples.size()-1;
+    cntSamp += Set[i]->ndata();
   }
   assert(cntSamp==nTransitions);
   #endif
@@ -369,12 +364,12 @@ void Transitions::sortSequences()
   #pragma omp parallel for schedule(dynamic)
   for(Uint i=0; i<Set.size(); i++) {
     Set[i]->MSE = 0.;
-    for(Uint j=0; j<Set[i]->tuples.size()-1; j++)
+    for(Uint j=0; j<Set[i]->ndata(); j++)
      #if 0 //sort by max error
         Set[i]->MSE = std::max(Set[i]->MSE, Set[i]->tuples[j]->SquaredError);
      #else //sort by mean error: penalizes long sequences
         Set[i]->MSE += Set[i]->tuples[j]->SquaredError;
-      Set[i]->MSE /= Set[i]->tuples.size()-1;
+      Set[i]->MSE /= Set[i]->ndata();
      #endif
   }
   const auto compare=[this](Sequence* a, Sequence* b) {
@@ -384,9 +379,10 @@ void Transitions::sortSequences()
   assert(Set.front()->MSE > Set.back()->MSE || Set.front()->MSE == 0);
   //for(Uint i=0; i<Set.size(); i++) printf("%u %f\n",i,Set[i]->MSE);
   assert(nSequences==Set.size());
+
   while(Set.size() > adapt_TotSeqNum) {
     //printf("transitions: %u %u %lu %lu %u\n", nSequences, iOldestSaved, Buffered.size(), Set.size(), adapt_TotSeqNum); fflush(0);
-    nTransitions -= Set.back()->tuples.size()-1;
+    nTransitions -= Set.back()->ndata();
     _dispose_object(Set.back());
     Set.pop_back();
     nSequences--;
@@ -395,13 +391,14 @@ void Transitions::sortSequences()
   Set.reserve(maxTotSeqNum);
   assert(nSequences==adapt_TotSeqNum);
   iOldestSaved = adapt_TotSeqNum - Buffered.size();
+
   #ifndef NDEBUG
-  Uint cntSamp = 0;
-  for(Uint i=0; i<Set.size(); i++) {
-    assert(Set[i] not_eq nullptr);
-    cntSamp += Set[i]->tuples.size()-1;
-  }
-  assert(cntSamp==nTransitions);
+    Uint cntSamp = 0;
+    for(Uint i=0; i<Set.size(); i++) {
+      assert(Set[i] not_eq nullptr);
+      cntSamp += Set[i]->ndata();
+    }
+    assert(cntSamp==nTransitions);
   #endif
 }
 
@@ -427,13 +424,13 @@ void Transitions::synchronize()
       if(nBroken==0) die("Error in nBroken counter.\n");
       --nBroken;
     }
-    nTransitionsDeleted += Set[ind]->tuples.size()-1;
-    nTransitionsInBuf += bufTransition->tuples.size()-1;
+    nTransitionsDeleted += Set[ind]->ndata();
+    nTransitionsInBuf += bufTransition->ndata();
 
-    nTransitions -= Set[ind]->tuples.size()-1;
+    nTransitions -= Set[ind]->ndata();
     _dispose_object(Set[ind]);
 
-    nTransitions += bufTransition->tuples.size()-1;
+    nTransitions += bufTransition->ndata();
     if (not bufTransition->ended) ++nBroken;
     Set[ind] = bufTransition;
     Buffered.pop_back();
@@ -558,7 +555,7 @@ void Transitions::updateP()
     for(Uint i=0; i<Set.size(); i++)
     {
       Real maxerr = 0;
-      for(Uint j=0; j<Set[i]->tuples.size()-1; j++)
+      for(Uint j=0; j<Set[i]->ndata(); j++)
       {
         if(bSampleSeq) //sample based on max error of the sequence
           maxerr = std::max(maxerr,Set[i]->tuples[j]->SquaredError);
@@ -604,7 +601,7 @@ void Transitions::updateP()
     Uint k = 0;
     for(Uint i=0; i<Set.size(); i++)
     {
-      for(Uint j=0; j<Set[i]->tuples.size()-1; j++)
+      for(Uint j=0; j<Set[i]->ndata(); j++)
       {
         if(bSampleSeq) //sample based on max error of the sequence
           Set[i]->tuples[j]->weight = Ws[k];

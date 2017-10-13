@@ -187,7 +187,7 @@ struct Discrete_policy
     return probs;
   }
 
-  inline Uint finalize(const Real bSample, mt19937*const gen, const vector<Real>& beta) const
+  inline Uint finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta) const
   {
     if(bSample) return sample(gen, beta);
     else return //the index of max Q:

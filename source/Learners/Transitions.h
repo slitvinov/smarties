@@ -180,6 +180,11 @@ public:
     sequence = k;
     transition = nSample-back;
   }
+  inline Real readAvgSeqLen() const
+  {
+    lock_guard<mutex> lock(dataset_mutex);
+    return nTransitions/(nSequences+2.2e-16);
+  }
   inline Uint readNData() const
   {
     lock_guard<mutex> lock(dataset_mutex);
