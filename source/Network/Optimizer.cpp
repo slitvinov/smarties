@@ -40,13 +40,13 @@ void Optimizer::moveFrozenWeights(const Real _alpha)
   if (net->allocatedFrozenWeights==false || _alpha>=1)
     return net->updateFrozenWeights();
 
-#pragma omp parallel
+  #pragma omp parallel
   {
-#pragma omp for nowait
+    #pragma omp for nowait
     for (Uint j=0; j<nWeights; j++)
       net->tgt_weights[j] += _alpha*(net->weights[j] - net->tgt_weights[j]);
 
-#pragma omp for nowait
+    #pragma omp for nowait
     for (Uint j=0; j<nBiases; j++)
       net->tgt_biases[j] += _alpha*(net->biases[j] - net->tgt_biases[j]);
   }
@@ -57,18 +57,18 @@ void EntropySGD::moveFrozenWeights(const Real _alpha)
 {
   assert(_alpha>1);
 
-#pragma omp parallel
+  #pragma omp parallel
   {
     const nnReal fac = eta_eSGD * gamma_eSGD;
 
-#pragma omp for nowait
+    #pragma omp for nowait
     for (Uint j=0; j<nWeights; j++) {
       net->tgt_weights_back[j] += fac*(_muW_eSGD[j] - net->tgt_weights_back[j]);
       net->weights_back[j] = net->tgt_weights_back[j];
       _muW_eSGD[j] = net->tgt_weights_back[j];
     }
 
-#pragma omp for nowait
+    #pragma omp for nowait
     for (Uint j=0; j<nBiases; j++){
       net->tgt_biases[j] += fac * (_muB_eSGD[j] - net->tgt_biases[j]);
       net->biases[j] = net->tgt_biases[j];
@@ -105,16 +105,16 @@ void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
 {
   const Uint nThreads = g.size();
 
-#pragma omp parallel
+  #pragma omp parallel
   {
-#pragma omp for nowait
+    #pragma omp for nowait
     for (Uint j=0; j<nWeights; j++)
       for (Uint k=1; k<nThreads; k++) {
         G->_W[j] += g[k]->_W[j];
         g[k]->_W[j] = 0.;
       }
 
-#pragma omp for nowait
+    #pragma omp for nowait
     for (Uint j=0; j<nBiases; j++)
       for (Uint k=1; k<nThreads; k++) {
         G->_B[j] += g[k]->_B[j];
@@ -134,8 +134,8 @@ void Optimizer::update(Grads* const G, const Uint batchsize)
 void AdamOptimizer::update(Grads* const G, const Uint batchsize)
 {
   //const Real _eta = eta*std::max(.1, 1-nepoch/epsAnneal);
-  //const Real _eta = nepoch<10000 ? 0.01*std::exp(-(Real)nepoch/1000.) + eta : eta;
-  const Real _eta = eta;
+  const Real _eta = nepoch<10000 ? .01/(1.+nepoch) + eta : eta;
+  //const Real _eta = eta;
   update(net->weights_back,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,_eta);
   update(net->biases,      G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);
 
@@ -156,7 +156,7 @@ void Optimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, const Uint N
   //const Real eta_ = eta*norm/std::log((double)nepoch/1.);
   const nnReal eta_ = eta*norm/(1.+std::log(1. + (double)nepoch/1e3));
 
-#pragma omp parallel for
+  #pragma omp parallel for
   for (Uint i=0; i<N; i++) {
     const nnReal M1 = alpha * _1stMom[i] + eta_ * grad[i];
     _1stMom[i] = std::max(std::min(M1,eta_),-eta_);

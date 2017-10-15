@@ -169,13 +169,11 @@ void Learner_utils::processStats()
   }
 
   stats.epochCount++;
-  epochCounter = stats.epochCount;
   const long double sum=stats.avgQ, sumsq=stats.stdQ, cnt=stats.dCnt;
   //stats.MSE  /= cnt-1;
   stats.MSE   = std::sqrt(stats.MSE/cnt);
   stats.avgQ /= cnt; //stats.relE/=stats.dCnt;
   stats.stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
-  sumElapsed = 0; countElapsed=0;
   processGrads();
   if(learn_rank) return;
 

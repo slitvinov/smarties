@@ -141,6 +141,7 @@ public:
     //it's awfully ugly, i send -256 to kill the slaves... but...
     //what are the chances that learner sends action -256.(+/- eps) to clients?
     printf("nslaves %d\n",nSlaves);
+    lock_guard<mutex> lock(mpi_mutex);
     for (int slave=1; slave<=nSlaves; slave++) {
       outBufs[slave-1][0] = _AGENT_KILLSIGNAL;
       MPI_Ssend(outBufs[slave-1], outSize, MPI_BYTE, slave, 0, slavesComm);

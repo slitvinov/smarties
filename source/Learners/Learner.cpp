@@ -136,8 +136,6 @@ void Learner::applyGradient() //this cannot be called from omp parallel region
   assert(taskCounter == batchSize);
 
   profiler->stop_start("UPW");
-  dataUsage += nAddedGradients;
-  batchUsage++;
 
   stackAndUpdateNNWeights();
   updateTargetNetwork();
@@ -154,6 +152,7 @@ void Learner::applyGradient() //this cannot be called from omp parallel region
     profiler_ext->printSummary();
     profiler_ext->reset();
   }
+  nAddedGradients = 0;
 }
 
 Uint Learner::sampleTransitions(vector<Uint>& seq, vector<Uint>& trans)
@@ -216,7 +215,7 @@ bool Learner::batchGradientReady()
 
   //if there is not enough data for training: go back to master:
   if ( ! readyForTrain() )  {
-    //if(opt->nepoch) { printf("NR4T\n"); fflush(0); }
+    nData_b4PolUpdates = data->readNSeen();
     return false;
   }
 
@@ -233,10 +232,8 @@ bool Learner::batchGradientReady()
 
 bool Learner::unlockQueue()
 {
-  if ( ! readyForTrain() )  {
-    //if(opt->nepoch) { printf("NR4T\n"); fflush(0); }
-    return true;
-  }
+  if ( ! readyForTrain() ) return true;
+
   const Real nData = read_nData();
   assert(opt->nepoch >= nStep_last);
   const Real dataCounter = nData - std::min((Real)nData_last, nData);
@@ -257,7 +254,7 @@ bool Learner::readyForAgent(const int slave)
 }
 bool Learner::slaveHasUnfinishedSeqs(const int slave) const
 {
-  return true; //Learner assumes off-policy algorithm. it can always use more data
+  return true;//Learner assumes offpolicy algorithm. it can always use more data
 }
 
 void Learner::save(string name)

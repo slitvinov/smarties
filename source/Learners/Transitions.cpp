@@ -370,7 +370,6 @@ Uint Transitions::prune(const Real maxFrac, const Real CmaxRho)
       ret++;
     }
   }
-  printf("Removed %u sequences\n", ret);
   // sequence is removed if more than maxFrac of samples have importance
   // weight either <1/CmaxRho or >CmaxRho
 

@@ -35,9 +35,9 @@ class RACER : public Learner_utils
  protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
-  const Real CmaxRet, CmaxPol;
+  const Real CmaxRet, CmaxPol, DKL_target_orig;
   const Real goalSkipRatio = CmaxPol > 4 ? 0.05 : 0.1;
-  Real DKL_target;
+  Real DKL_target = DKL_target_orig;
   const vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
   std::vector<std::mt19937>& generators;
@@ -49,7 +49,7 @@ class RACER : public Learner_utils
   Real skippedPenal = 1;
   mutable vector<long double> cntValGrad;
   mutable vector<vector<long double>> avgValGrad, stdValGrad;
-  Real nStoredData_last = 0;
+  Real nStoredSeqs_last = 0;
   //#ifdef FEAT_CONTROL
   //  const ContinuousSignControl* task;
   //#endif
@@ -326,7 +326,7 @@ class RACER : public Learner_utils
       const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
       const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_hardmax);
     #elif defined(ACER_ADAPTIVE) //adapt learning rate:
-      gradient[PenalID] = -4*std::pow(DivKL - DKL_target,3)*opt->eta;
+      gradient[PenalID] = -4*std::pow((DivKL-DKL_target)/DKL_target,3)*opt->eta;
       const vector<Real> totalPolGrad = policy_grad;
       //avoid races, only one thread updates, should be already redundant:
       if (thrID==1) //if thrd is here, surely we are not updating weights
@@ -338,17 +338,15 @@ class RACER : public Learner_utils
       //computed as \nabla_{penalDKL} (DivKL - DKL_target)^4
       //with rough approximation that d DivKL/ d penalDKL \propto penalDKL
       //(distance increases if penalty term increases, similar to PPO )
-      //gradient[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
-      gradient[PenalID] = 2*(DivKL - DKL_target)*penalDKL;
+      //gradient[PenalID] = std::pow((DivKL-DKL_target)/DKL_target,3)*penalDKL;
+      gradient[PenalID] = (DivKL - DKL_target)*penalDKL/DKL_target;
       //trust region updating
       const vector<Real> penal_grad = pol_cur.div_kl_opp_grad(&pol_hat,DKLmul1);
       const vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
       for(Uint i=0; i<nA; i++) meanPena += std::fabs(penal_grad[1+i]);
     #endif
 
-    const Real penalBeta = std::max(A_OPC, (Real)0)*rho_inv;
-    //std::min(rho_inv, CmaxPol);
-    const Real DKLmul2 = - skippedPenal * penalBeta;
+    const Real DKLmul2 = - skippedPenal * std::max(A_OPC, (Real)0)*rho_inv;
     const vector<Real> beta_grad = pol_cur.div_kl_opp_grad(_t->mu, DKLmul2);
     const vector<Real> finalPolGrad = sum2Grads(totalPolGrad, beta_grad);
     for(Uint i=0; i<nA; i++) meanBeta += std::fabs(beta_grad[1+i]);
@@ -391,7 +389,7 @@ class RACER : public Learner_utils
   RACER(MPI_Comm comm, Environment*const _env, Settings& sett,
     vector<Uint> net_outs, vector<Uint> pol_inds, vector<Uint> adv_inds) :
     Learner_utils(comm, _env, sett, sett.nnOutputs), CmaxRet(sett.opcWeight),
-    CmaxPol(sett.impWeight), DKL_target(sett.klDivConstraint),
+    CmaxPol(sett.impWeight), DKL_target_orig(sett.klDivConstraint),
     net_outputs(net_outs), net_indices(count_indices(net_outs)),
     pol_start(pol_inds), adv_start(adv_inds), generators(sett.generators),
     learnRate(sett.learnrate), cntValGrad(nThreads+1,0),
@@ -403,6 +401,8 @@ class RACER : public Learner_utils
     // task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net,data);
     //#endif
     //test();
+    if(sett.maxTotSeqNum < sett.batchSize)
+    die("maxTotSeqNum < batchSize")
   }
 
   void select(const int agentId, const Agent& agent) override
@@ -459,48 +459,34 @@ class RACER : public Learner_utils
     }
 
     stats.epochCount++;
-    epochCounter = stats.epochCount;
     const long double sum=stats.avgQ, sumsq=stats.stdQ, cnt=stats.dCnt;
-    //stats.MSE  /= cnt-1;
-    stats.MSE   = std::sqrt(stats.MSE/cnt);
-    stats.avgQ /= cnt; //stats.relE/=stats.dCnt;
+    stats.MSE   = std::sqrt(stats.MSE/cnt); stats.avgQ /= cnt;
     stats.stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
-    sumElapsed = 0; countElapsed=0;
+
     processGrads();
     statsVector(avgValGrad, stdValGrad, cntValGrad);
     printf("Policy gains: %s (%s)\n", print(avgValGrad[0]).c_str(),
       print(stdValGrad[0]).c_str()); fflush(0);
-
-    //shift data / gradient counters to maintain prescribed
-    //grad stepping to sample collection ratio
-    const Uint nData = read_nData();// nData_0 = nData_b4Train();
-    const Real dataCounter = (Real)nData - (Real)nData_last;
-    const Real stepCounter = (Real)opt->nepoch - (Real)nStep_last;
-
-    assert(nStoredData_last <= data->readNData()); //before pruining
-    const Uint lostData = data->prune(goalSkipRatio, CmaxPol);
-
-    const Real curr_data = data->readNData(); //after pruning
-    const Real change = nStoredData_last/curr_data;
-    nStoredData_last = curr_data; //after pruning
-    obsPerStep = clip(obsPerStep*change, 10, 1);
-    DKL_target = clip(DKL_target/change, 1, 1e-2);
-
-
-    /*
-    if(gainedData > lostData) { //gained data, i can be more spartan
-      obsPerStep = clip(obsPerStep*0.99, obsPerStep_orig, 1);
-      DKL_target = DKL_target * 1.01;
-    } else if (gainedData < lostData) {
-      obsPerStep = clip(obsPerStep*1.01, obsPerStep_orig, 1);
-      DKL_target = clip(DKL_target * 0.99, 1, 1e-2);
+    { //shift data / gradient counters to maintain grad stepping to sample
+      // collection ratio prescirbed by obsPerStep
+      const Uint nData = read_nData();// nData_0 = nData_b4Train();
+      const Real dataCounter = (Real)nData - (Real)nData_last;
+      const Real stepCounter = (Real)opt->nepoch - (Real)nStep_last;
+      printf("nData_last:%lu nData:%u nData_b4PolUpdates:%u cnter:%g\n",
+        nData_last, nData, nData_b4PolUpdates, dataCounter); fflush(0);
+      nData_last += stepCounter*obsPerStep/learn_size;
+      nStep_last = opt->nepoch;
     }
-    */
-    printf("nData_last:%lu nStep_last:%lu nData:%u nStep:%lu cnter:%g\n",
-      nData_last, nStep_last, nData, opt->nepoch, dataCounter); fflush(0);
-    nData_last += stepCounter*obsPerStep/learn_size;
-    nStep_last = opt->nepoch;
+    { //update sequences
+      assert(nStoredSeqs_last <= data->nSequences); //before pruining
+      const Uint lostSeqs = data->prune(goalSkipRatio, CmaxPol);
+      const Real currSeqs = data->nSequences; //after pruning
+      const Real change = (currSeqs+1.)/nStoredSeqs_last;
+      nStoredSeqs_last = currSeqs; //after pruning
+      DKL_target = clip(DKL_target*change, 1, 1e-2);
 
+      printf("Removed %u sequences out of %u\n", lostSeqs, data->nSequences);
+    }
     const Real ratio = nSkipped/(nTried+nnEPS);
     nSkipped = nTried = 0;
 
@@ -518,44 +504,42 @@ class RACER : public Learner_utils
 
     printf("%lu, rmse:%.2Lg, avg_Q:%.2Lg, stdQ:%.2Lg, minQ:%.2Lg, maxQ:%.2Lg, "
       "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%f, rewPrec:%f "
-      "skip:[ratio:%g obsPerStep:%g seqNum:%lu DKLtgt:%g penal:%g] %u %lu\n",
-      opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ,
-      stats.minQ, stats.maxQ, sumWeights, sumWeightsSq, distTarget,
-      Qprecision, penalDKL, data->invstd_reward, ratio, obsPerStep,
-      data->Set.size(), DKL_target, skippedPenal, nData, nData_last); fflush(0);
+      "skip:[ratio:%g DKLtgt:%g penal:%g]\n",
+      opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ, stats.minQ, stats.maxQ,
+      sumWeights, sumWeightsSq, distTarget, Qprecision, penalDKL,
+      data->invstd_reward, ratio, DKL_target, skippedPenal); fflush(0);
 
     ofstream fs;
     fs.open("stats.txt", ios::app);
     fs<<opt->nepoch<<"\t"<<stats.MSE<<"\t"<<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<
       stats.minQ<<"\t"<<stats.maxQ<<"\t"<<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<
       distTarget<<"\t"<<Qprecision<<"\t"<<penalDKL<<"\t"<<data->invstd_reward<<
-      "\t"<<ratio<<"\t"<<obsPerStep<<"\t"<<data->adapt_TotSeqNum<<"\t"<<
-      DKL_target<<"\t"<<skippedPenal<<"\t"<<nData<<endl; fs.close(); fs.flush();
+      "\t"<<ratio<<"\t"<<DKL_target<<"\t"<<skippedPenal<<endl;fs.close(); fs.flush();
     if (stats.epochCount % 100==0) save("policy");
   }
 
   void applyGradient() override
   {
     if(!nAddedGradients) {
-      assert( opt->nepoch == 0 );
-      nStoredData_last = nData_b4Train();
+      nData_last = 0;
+      nStoredSeqs_last = data->nSequences;
       assert(data->Set.size() == data->nSequences);
       return;
     }
 
     assert(nSkipped<nTried || nTried == 0);
-    const Real ratio = nSkipped/(nTried+nnEPS);
+    //const Real ratio = nSkipped/(nTried+nnEPS);
     //skippedPenal goes to 1 if i do not skip any sequecnce
     //goes to inf if i skipp all sequences that i sample
     //this is a safety measure, adaptive mem buffer keeps this number around 1
     //why needed? because if user selects learn rate that is too high
     //then you might skip all samples and code looks stuck
     //because for each skipped sample code computes one network fwd prop
-    skippedPenal = std::exp(ratio/(1-ratio));
-    opt->eta = learnRate/skippedPenal;
+    //skippedPenal = std::exp(ratio/(1-ratio));
+    //opt->eta = learnRate/skippedPenal;
 
-    if(skippedPenal>1.5)
-      _warn("Network learn rate is too high, RACER is automatically reducing it to %g. Consider running again with better hyperparameters.\n",opt->eta);
+    //if(skippedPenal>1.5)
+    //  _warn("Network learn rate is too high, RACER is automatically reducing it to %g. Consider running again with better hyperparameters.\n",opt->eta);
 
     //printf("%g %u %u %g %u %g\n", ratio, nSkipped, nTried, skippedPenal, data->adapt_TotSeqNum, opt->eta); fflush(0);
     Learner::applyGradient();

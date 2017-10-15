@@ -206,14 +206,14 @@ public:
     #endif
   }
 
-  void popBackSequence()
+  inline void popBackSequence()
   {
     removeSequence(nSequences-1);
     Set.pop_back();
     nSequences--;
     assert(nSequences==Set.size());
   }
-  void pushBackSequence(Sequence*const seq)
+  inline void pushBackSequence(Sequence*const seq)
   {
     assert(Set.size() < adapt_TotSeqNum);
     Set.push_back(nullptr);
@@ -221,14 +221,14 @@ public:
     nSequences++;
     assert(nSequences == Set.size());
   }
-  void addSequence(const Uint ind, Sequence*const seq)
+  inline void addSequence(const Uint ind, Sequence*const seq)
   {
     assert(Set[ind] == nullptr && seq not_eq nullptr);
     if (not seq->ended) ++nBroken;
     nTransitions += seq->ndata();
     Set[ind] = seq;
   }
-  void removeSequence(const Uint ind)
+  inline void removeSequence(const Uint ind)
   {
     assert(Set[ind] not_eq nullptr);
     if(not Set[ind]->ended) {

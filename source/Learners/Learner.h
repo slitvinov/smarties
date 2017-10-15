@@ -36,12 +36,15 @@ protected:
   Uint nInputs, nOutputs;
   const bool bRecurrent, bSampleSequences, bTrain;
   const Real tgtUpdateAlpha, greedyEps, gamma, epsAnneal, obsPerStep_orig;
-  unsigned long batchUsage = 0, dataUsage = 0;
-  Uint cntUpdateDelay = 0, taskCounter = batchSize, epochCounter = 0;
-  Uint policyVecDim = 0, nAddedGradients = 0, countElapsed = 0;
-  unsigned long nData_last = 0, nStep_last = 0;
+
   vector<Uint> sequences, transitions;
-  Real sumElapsed = 0, obsPerStep = obsPerStep_orig;
+
+  Uint policyVecDim = 0;
+  Uint cntUpdateDelay = 0, taskCounter = batchSize, nAddedGradients = 0;
+  unsigned long nData_last = 0, nStep_last = 0;
+  Real obsPerStep = obsPerStep_orig;
+  Uint nData_b4PolUpdates = 0;
+
   ActionInfo aInfo;
   StateInfo  sInfo;
   mt19937* const gen;  //only ok if only thread 0 accesses
@@ -90,7 +93,7 @@ public:
 
   inline unsigned nData() const
   {
-    return data->nTransitions;
+    return data->readNTransitions();
   }
   inline unsigned iter() const
   {
@@ -135,31 +138,30 @@ public:
       if(data->adapt_TotSeqNum <= batchSize)
         die("I do not have enough data for training. Change hyperparameters");
 
-      return bTrain && data->nSequences >= batchSize;
+      return bTrain && data->nSequences >= nSequences4Train();
     }
     else
     {
-     const Uint nTransitions = data->readNTransitions();
-     if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
-       die("I do not have enough data for training. Change hyperparameters");
-
-     return bTrain && nTransitions >= nData_b4Train();
+      if(data->adapt_TotSeqNum <= batchSize)
+        die("I do not have enough data for training. Change hyperparameters");
+     //const Uint nTransitions = data->readNTransitions();
+     //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
+     //  die("I do not have enough data for training. Change hyperparameters");
+     //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
+     return bTrain && data->nSequences >= nSequences4Train();
     }
+  }
+
+  inline Uint nSequences4Train() const
+  {
+    return batchSize/learn_size;
   }
 
   inline Uint read_nData() const
   {
-    const Uint nData = data->readNSeen(), nData_0 = nData_b4Train();
-    if(nData < nData_0) return 0;
-    return nData - nData_0;
-  }
-  inline Uint nData_b4Train() const
-  {
-    #ifdef PACE_SEQUENCES
-      return batchSize/learn_size;
-    #else
-      return batchSize*16/learn_size;
-    #endif
+    const Uint nData = data->readNSeen();
+    if(nData < nData_b4PolUpdates) return 0;
+    return nData - nData_b4PolUpdates;
   }
 
   virtual void select(const int agentId, const Agent& agent) = 0;
