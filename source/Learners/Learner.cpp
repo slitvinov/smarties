@@ -210,12 +210,13 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
 bool Learner::batchGradientReady()
 {
   const Real nData = read_nData();
-  const Real dataCounter = nData - (Real)nData_last;
+  assert(opt->nepoch >= nStep_last);
+  const Real dataCounter = nData - std::min((Real)nData_last, nData);
   const Real stepCounter = opt->nepoch - (Real)nStep_last;
 
   //if there is not enough data for training: go back to master:
   if ( ! readyForTrain() )  {
-    if(opt->nepoch) { printf("NR4T\n"); fflush(0); }
+    //if(opt->nepoch) { printf("NR4T\n"); fflush(0); }
     return false;
   }
 
@@ -223,9 +224,9 @@ bool Learner::batchGradientReady()
   if( stepCounter*obsPerStep/learn_size > dataCounter ) {
     //profiler_ext->stop_start("STOP");
     //printf("%g %g %g\n", stepCounter, dataCounter, nData); fflush(0);
+    assert(unlockQueue());
     return false;
   }
-
   //else if threads finished processing data:
   return taskCounter >= batchSize;
 }
@@ -233,19 +234,21 @@ bool Learner::batchGradientReady()
 bool Learner::unlockQueue()
 {
   if ( ! readyForTrain() )  {
-    if(opt->nepoch) { printf("NR4T\n"); fflush(0); }
+    //if(opt->nepoch) { printf("NR4T\n"); fflush(0); }
     return true;
   }
+  const Real nData = read_nData();
+  assert(opt->nepoch >= nStep_last);
+  const Real dataCounter = nData - std::min((Real)nData_last, nData);
   const Real stepCounter = opt->nepoch  - (Real)nStep_last;
-  const Real dataCounter = read_nData() - (Real)nData_last;
   #ifdef PACE_SEQUENCES
   const Real cushionData = nSlaves;
   #else
   const Real cushionData = data->readAvgSeqLen()*nSlaves;
   #endif
-  const bool ret = dataCounter <=stepCounter*obsPerStep/learn_size +cushionData;
+
   //if(!ret) { printf("%g %g %g %u\n", stepCounter, dataCounter, obsPerStep, learn_size); fflush(0); }
-  return ret;
+  return dataCounter <= stepCounter*obsPerStep/learn_size +cushionData;
 }
 
 bool Learner::readyForAgent(const int slave)

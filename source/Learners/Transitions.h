@@ -77,7 +77,7 @@ public:
   Uint anneal=0, nBroken=0, nTransitions=0, nSequences=0, old_ndata=0;
   size_t nSeenSequences=0, nSeenTransitions=0;
   Uint iOldestSaved = 0, printCount = 0;
-  Uint adapt_TotSeqNum = maxTotSeqNum, old_TotSeqNum = maxTotSeqNum;
+  Uint adapt_TotSeqNum = maxTotSeqNum;
   Real invstd_reward = 1, mean_reward = 0;
   Gen * gen;
   vector<Sequence*> Set, Tmp, Buffered;
@@ -152,6 +152,8 @@ public:
   int passData(const int agentId, const Agent&a, const vector<Real>mu = vector<Real>());
   void writeData(const int agentId, const Agent&a, const vector<Real>mu);
 
+  Uint prune(const Real maxFrac, const Real CmaxRho);
+
   inline bool requestUpdateSamples() const
   {
     //three cases:
@@ -185,7 +187,7 @@ public:
     lock_guard<mutex> lock(dataset_mutex);
     return nTransitions/(nSequences+2.2e-16);
   }
-  inline Uint readNData() const
+  inline Uint readNSeen() const
   {
     lock_guard<mutex> lock(dataset_mutex);
     #ifdef PACE_SEQUENCES
@@ -193,5 +195,48 @@ public:
     #else
     return nSeenTransitions;
     #endif
+  }
+  inline Uint readNData() const
+  {
+    lock_guard<mutex> lock(dataset_mutex);
+    #ifdef PACE_SEQUENCES
+    return nSequences;
+    #else
+    return nTransitions;
+    #endif
+  }
+
+  void popBackSequence()
+  {
+    removeSequence(nSequences-1);
+    Set.pop_back();
+    nSequences--;
+    assert(nSequences==Set.size());
+  }
+  void pushBackSequence(Sequence*const seq)
+  {
+    assert(Set.size() < adapt_TotSeqNum);
+    Set.push_back(nullptr);
+    addSequence(nSequences, seq);
+    nSequences++;
+    assert(nSequences == Set.size());
+  }
+  void addSequence(const Uint ind, Sequence*const seq)
+  {
+    assert(Set[ind] == nullptr && seq not_eq nullptr);
+    if (not seq->ended) ++nBroken;
+    nTransitions += seq->ndata();
+    Set[ind] = seq;
+  }
+  void removeSequence(const Uint ind)
+  {
+    assert(Set[ind] not_eq nullptr);
+    if(not Set[ind]->ended) {
+      assert(nBroken>0);
+      --nBroken;
+    }
+    nTransitions -= Set[ind]->ndata();
+    _dispose_object(Set[ind]);
+    Set[ind] = nullptr;
   }
 };

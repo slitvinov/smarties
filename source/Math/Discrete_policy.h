@@ -20,7 +20,7 @@ struct Discrete_policy
   const vector<Real> probs;
 
   Uint sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0;
+  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0, sampInvWeight=0;
 
   Discrete_policy(const vector <Uint>& start, const ActionInfo*const aI,
     const vector<Real>& out) : aInfo(aI), start_prob(start[0]), nA(aI->maxLabel), netOutputs(out), unnorm(extract_unnorm()),
@@ -78,6 +78,7 @@ struct Discrete_policy
     sampImpWeight = bGeometric ? safeExp(logW/nA) : safeExp(logW);
     sampImpWeight = std::min(MAX_IMPW, sampImpWeight);
     sampRhoWeight = bGeometric ? min(MAX_IMPW, std::exp(logW)) : sampImpWeight;
+    sampInvWeight = 1./(sampRhoWeight+nnEPS);
   }
 
   void test(const Uint act, const Discrete_policy*const pol_hat) const;

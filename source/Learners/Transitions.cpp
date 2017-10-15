@@ -222,29 +222,19 @@ void Transitions::push_back(const int & agentId)
 {
   if(Tmp[agentId]->tuples.size() > minSeqLen )
   {
-    lock_guard<mutex> lock(dataset_mutex);
-    if (nSequences >= adapt_TotSeqNum) {
-      Buffered.push_back(Tmp[agentId]);
-      Buffered.back()->ID = nSeenSequences++;
-      nSeenTransitions += Tmp[agentId]->ndata();
-    } else {
-      if (not Tmp[agentId]->ended) ++nBroken;
+    Tmp[agentId]->ID = nSeenSequences++;
+    nSeenTransitions += Tmp[agentId]->ndata();
+    assert(nSequences == Set.size());
 
-      Set.push_back(Tmp[agentId]);
-      Set.back()->ID = nSeenSequences++;
-      nTransitions     += Tmp[agentId]->ndata();
-      nSeenTransitions += Tmp[agentId]->ndata();
-      nSequences++;
-    }
+    lock_guard<mutex> lock(dataset_mutex);
+    if (nSequences >= adapt_TotSeqNum)
+      Buffered.push_back(Tmp[agentId]);
+    else
+      pushBackSequence(Tmp[agentId]);
   } else {
-    //for (int i(0); i<Tmp[agentId]->tuples.size(); i++) {
-      //    _dispose_object(Tmp[agentId]->tuples[i]);
-    //}
     printf("Trashing %lu obs.\n",Tmp[agentId]->tuples.size());
     fflush(0);
     _dispose_object(Tmp[agentId]);
-    //Tmp[agentId]->tuples.clear();
-    //Tmp[agentId]->ended = false;
   }
 
   Tmp[agentId] = new Sequence();
@@ -329,8 +319,8 @@ void Transitions::update_rewards_mean()
   long double count = 0, newstdvr = 0;
   #pragma omp parallel for schedule(dynamic) reduction(+ : count, newstdvr)
   for(Uint i=0; i<Set.size(); i++)
-    for(Uint j=1; j<Set[i]->ndata(); j++) {
-      newstdvr += std::pow(Set[i]->tuples[j]->r, 2);
+    for(Uint j=0; j<Set[i]->ndata(); j++) {
+      newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
       count++;
     }
 
@@ -359,10 +349,56 @@ void Transitions::update_rewards_mean()
   //printf("new invstd reward %g\n",invstd_reward);
 }
 
+Uint Transitions::prune(const Real maxFrac, const Real CmaxRho)
+{
+  //this assumes that sequences with importance weight closer to 1
+  // are places at the beginning of the QUEUE
+  //we use sortSequences() which, due to legacy reasons, sorts by sequences
+  // average MSerror. therefore we placed -max(rho, 1/rho) in MSEfield
+  // (therefore samples with rho = 0.2 are treated same as those with rho=5)
+  // samples with rho farther from 1 are later in the Set vector
+  assert(CmaxRho>1);
+  Uint ret = 0;
+  for(int i = (int)Set.size()-1; i >= 0; i--) {
+    Real numOver = 0;
+    for(Uint j=0; j<Set[i]->ndata(); j++)
+      if( Set[i]->tuples[j]->SquaredError > CmaxRho ) numOver += 1;
+
+    if( numOver/(Real)Set[i]->ndata() > maxFrac ) {
+      std::swap(Set[i], Set.back());
+      popBackSequence();
+      ret++;
+    }
+  }
+  printf("Removed %u sequences\n", ret);
+  // sequence is removed if more than maxFrac of samples have importance
+  // weight either <1/CmaxRho or >CmaxRho
+
+  #ifndef NDEBUG
+  Uint cntSamp = 0;
+  for(Uint i=0; i<Set.size(); i++) {
+    assert(Set[i] not_eq nullptr);
+    cntSamp += Set[i]->ndata();
+  }
+  assert(cntSamp==nTransitions);
+  #endif
+
+  return ret;
+}
+
 void Transitions::sortSequences()
 {
+  #ifndef NDEBUG
+  printf("Sorting %lu sequences\n", Set.size());
+  for(Uint i=0; i<Set.size(); i++) {
+    assert(*(Set.begin()+i) not_eq nullptr);
+    printf("%u %f %u\n",i,Set[i]->MSE, Set[i]->ndata());
+  }
+  #endif
+
   #pragma omp parallel for schedule(dynamic)
   for(Uint i=0; i<Set.size(); i++) {
+    assert(Set[i] not_eq nullptr);
     Set[i]->MSE = 0.;
     for(Uint j=0; j<Set[i]->ndata(); j++)
      #if 0 //sort by max error
@@ -372,25 +408,64 @@ void Transitions::sortSequences()
       Set[i]->MSE /= Set[i]->ndata();
      #endif
   }
-  const auto compare=[this](Sequence* a, Sequence* b) {
-    return a->MSE==0 ? true : (b->MSE==0 ? false : (a->MSE>b->MSE) );
-  };
-  __gnu_parallel::sort(Set.begin(), Set.end(), compare);
-  assert(Set.front()->MSE > Set.back()->MSE || Set.front()->MSE == 0);
-  //for(Uint i=0; i<Set.size(); i++) printf("%u %f\n",i,Set[i]->MSE);
-  assert(nSequences==Set.size());
+  //printf("%lu %u %u %lu %lu\n", Set.size(), adapt_TotSeqNum, maxTotSeqNum, Set.capacity(), Set.end()-Set.begin()); fflush(0);
 
-  while(Set.size() > adapt_TotSeqNum) {
-    //printf("transitions: %u %u %lu %lu %u\n", nSequences, iOldestSaved, Buffered.size(), Set.size(), adapt_TotSeqNum); fflush(0);
-    nTransitions -= Set.back()->ndata();
-    _dispose_object(Set.back());
-    Set.pop_back();
-    nSequences--;
-    assert(nSequences==Set.size());
+  struct Compare
+  {
+    vector<Sequence*> Set;
+    Compare(const vector<Sequence*>& S) : Set(S) {}
+    bool operator()(const Sequence*const a, const Sequence*const b) const {
+      //printf("a:%lu b:%lu\n", a-Set.begin(), b-Set.begin()); fflush(0);
+      assert(a not_eq nullptr);
+      assert(b not_eq nullptr);
+      return a->MSE==0 ? true : (b->MSE==0 ? false : (a->MSE>b->MSE) );
+    }
+  };
+  Compare comparer(Set);
+  assert(Set.size()>0 && Set.size() == nSequences);
+  //__gnu_parallel::
+  std::sort(Set.begin(), Set.begin()+nSequences, comparer);
+  assert(Set.front()->MSE > Set.back()->MSE || Set.front()->MSE == 0);
+
+  #ifndef NDEBUG
+  for(Uint i=0; i<Set.size(); i++) {
+    //printf("%u %f %u\n",i,Set[i]->MSE, Set[i]->ndata());
+    assert(*(Set.begin()+i) not_eq nullptr);
   }
-  Set.reserve(maxTotSeqNum);
-  assert(nSequences==adapt_TotSeqNum);
-  iOldestSaved = adapt_TotSeqNum - Buffered.size();
+  #endif
+}
+
+void Transitions::synchronize()
+{
+  // 4 steps:
+  //1) if Set.size() < adapt_TotSeqNum, add buffer to Set
+  //2) optional, sort transitions in Set
+  //3) if Set.size() > adapt_TotSeqNum remove those at the back
+  //this implies that adaptive Set size is only suppoted if i sort the sequences
+  //4) add the buffered transitions
+  while( (Set.size()<adapt_TotSeqNum) && Buffered.size()>0 )
+  {
+    const auto bufTransition = Buffered.back();
+    assert(bufTransition not_eq nullptr);
+    pushBackSequence(bufTransition);
+
+    Buffered.back() = nullptr;
+    Buffered.pop_back();
+  }
+
+  #ifndef RESORT_SEQS
+  if(Set.size() > adapt_TotSeqNum)
+  #endif
+    sortSequences();
+
+  if(Set.size() > adapt_TotSeqNum)
+  {
+    while(Set.size() > adapt_TotSeqNum) popBackSequence();
+
+    Set.reserve(maxTotSeqNum);
+    assert(nSequences<=adapt_TotSeqNum);
+    iOldestSaved = nSequences - Buffered.size();
+  }
 
   #ifndef NDEBUG
     Uint cntSamp = 0;
@@ -400,51 +475,33 @@ void Transitions::sortSequences()
     }
     assert(cntSamp==nTransitions);
   #endif
-}
 
-void Transitions::synchronize()
-{
-  #ifndef RESORT_SEQS
-  if(Set.size() > adapt_TotSeqNum)
-  #endif
-    sortSequences();
+  if( Buffered.size() == 0 ) return;
 
-  Uint cnt =0;
-  Uint nTransitionsInBuf=0, nTransitionsDeleted=0, bufferSize=Buffered.size();
-  //  for(auto & bufTransition : Buffered) {
-  if(bufferSize == 0) return;
-  for(Uint j=bufferSize; j>0; j--) {
-    cnt++;
+  Uint nTransitionsInBuf=0, nTransitionsDeleted=0;
+  for(Uint j=Buffered.size(); j>0; j--)
+  {
     assert(Buffered.size() == j);
-    auto bufTransition = Buffered.back();
     const Uint ind = (iOldestSaved >= Set.size()) ? 0 : iOldestSaved;
-    iOldestSaved = (ind+1 >= Set.size()) ? 0 : ind+1;
+    iOldestSaved++;
 
-    if (not Set[ind]->ended) {
-      if(nBroken==0) die("Error in nBroken counter.\n");
-      --nBroken;
-    }
     nTransitionsDeleted += Set[ind]->ndata();
-    nTransitionsInBuf += bufTransition->ndata();
+    nTransitionsInBuf += Buffered.back()->ndata();
 
-    nTransitions -= Set[ind]->ndata();
-    _dispose_object(Set[ind]);
-
-    nTransitions += bufTransition->ndata();
-    if (not bufTransition->ended) ++nBroken;
-    Set[ind] = bufTransition;
+    removeSequence(ind);
+    addSequence(ind, Buffered.back());
+    Buffered.back() = nullptr;
     Buffered.pop_back();
-  } //number of sequences remains constant
-  //if(!learn_rank && printCount%10 == 0)
+  }
 
   const string fname = "transitions.log";
   FILE * f = fopen(fname.c_str(), "a");
   if (f == NULL) die("Save fail\n");
 
-  fprintf(f,"Removing %d sequences (avg length %f) associated with small MSE"
-      "error in favor of new ones (avg lendth %f). %lu left in Buffer\n",
-      cnt, nTransitionsDeleted/(Real)cnt,
-      nTransitionsInBuf/(Real)cnt, Buffered.size());
+  fprintf(f,"Removing %lu sequences (avg length %f) associated with small MSE"
+      "error in favor of new ones (avg lendth %f).\n",
+      Buffered.size(), nTransitionsDeleted/(Real)Buffered.size(),
+      nTransitionsInBuf/(Real)Buffered.size());
   fflush(f); fclose(f);
 }
 
@@ -459,32 +516,36 @@ Uint Transitions::updateSamples(const Real annealFac)
   // when do I need to sort and refresh dataset vector?
   // 1- if i have buffered sequences
   // 2- if i have to remove some of the samples
-  if(Buffered.size()>0 || adapt_TotSeqNum < Set.size()) {
+  if(Buffered.size()>0 || adapt_TotSeqNum < Set.size())
+  {
     if(!learn_rank) // && printCount%10 == 0
-    fprintf(f,"nSequences %d (%lu) > maxTotSeqNum %d (nTransitions=%d (%lu), avgSeqLen=%f).\n",
+    fprintf(f,"nSeq %d (%lu)  >maxTotSeqNum %d (nObs=%d/%lu, avgSeqLen=%f).\n",
       nSequences, nSeenSequences, adapt_TotSeqNum, nTransitions,
       nSeenTransitions, nTransitions/(Real)nSequences);
     synchronize();
     update_meanstd_needed = true;
     old_ndata = nTransitions;
-  } else {
+  }
+  else
+  {
     if(!learn_rank) // && printCount%100 == 0
-    fprintf(f,"nSequences %d (%lu) =< maxTotSeqNum %d (nTransitions=%d (%lu), avgSeqLen=%f).\n",
+    fprintf(f,"nSeq %d (%lu) =<maxTotSeqNum %d (nObs=%d/%lu, avgSeqLen=%f).\n",
       nSequences, nSeenSequences, adapt_TotSeqNum, nTransitions,
       nSeenTransitions, nTransitions/(Real)nSequences);
     update_meanstd_needed = nTransitions not_eq old_ndata;
     old_ndata = nTransitions;
   }
+
   if(update_meanstd_needed) update_rewards_mean();
   update_meanstd_needed = update_meanstd_needed && bNormalize && annealFac>0;
-  old_TotSeqNum = adapt_TotSeqNum;
 
   fflush(f); fclose(f);
   #ifndef importanceSampling
     const Uint ndata = (bSampleSeq) ? nSequences : nTransitions;
     inds.resize(ndata);
     std::iota(inds.begin(), inds.end(), 0);
-    __gnu_parallel::random_shuffle(inds.begin(), inds.end(), *(gen));
+    //__gnu_parallel::
+    std::random_shuffle(inds.begin(), inds.end(), *(gen));
   #else
     updateP();
   #endif

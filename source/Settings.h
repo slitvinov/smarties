@@ -184,7 +184,7 @@ struct Settings
 #define COMMENT_maxTotSeqNum "Maximum number of samples in history buffer"
 #define TYPEVAL_maxTotSeqNum int
 #define TYPENUM_maxTotSeqNum INT
-#define DEFAULT_maxTotSeqNum 5000
+#define DEFAULT_maxTotSeqNum 1000
   int maxTotSeqNum = DEFAULT_maxTotSeqNum;
 
 #define CHARARG_opcWeight 'v'

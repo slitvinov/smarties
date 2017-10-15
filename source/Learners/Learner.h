@@ -139,17 +139,17 @@ public:
     }
     else
     {
-      const Uint nTransitions = data->readNTransitions();
-      if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<batchSize*16)
-        die("I do not have enough data for training. Change hyperparameters");
+     const Uint nTransitions = data->readNTransitions();
+     if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
+       die("I do not have enough data for training. Change hyperparameters");
 
-      return bTrain && nTransitions >= batchSize*16;
+     return bTrain && nTransitions >= nData_b4Train();
     }
   }
 
   inline Uint read_nData() const
   {
-    const Uint nData = data->readNData(), nData_0 = nData_b4Train();
+    const Uint nData = data->readNSeen(), nData_0 = nData_b4Train();
     if(nData < nData_0) return 0;
     return nData - nData_0;
   }
