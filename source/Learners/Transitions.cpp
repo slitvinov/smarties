@@ -94,7 +94,7 @@ Uint Transitions::restartSamples(const Uint polDim)
   return 0;
 }
 
-void Transitions::writeData(const int agentId, const Agent&a, const vector<Real>mu)
+void Transitions::writeData(const int agentId, const Agent&a, const vector<Real>mu) const
 {
   char asciipath[256];
   sprintf(asciipath, "obs_rank%02d_agent%03d.raw", learn_rank, agentId);
@@ -222,11 +222,12 @@ void Transitions::push_back(const int & agentId)
 {
   if(Tmp[agentId]->tuples.size() > minSeqLen )
   {
+    lock_guard<mutex> lock(dataset_mutex);
+
     Tmp[agentId]->ID = nSeenSequences++;
     nSeenTransitions += Tmp[agentId]->ndata();
     assert(nSequences == Set.size());
 
-    lock_guard<mutex> lock(dataset_mutex);
     if (nSequences >= adapt_TotSeqNum)
       Buffered.push_back(Tmp[agentId]);
     else
@@ -411,7 +412,7 @@ void Transitions::sortSequences()
 
   struct Compare
   {
-    vector<Sequence*> Set;
+    const vector<Sequence*>& Set;
     Compare(const vector<Sequence*>& S) : Set(S) {}
     bool operator()(const Sequence*const a, const Sequence*const b) const {
       //printf("a:%lu b:%lu\n", a-Set.begin(), b-Set.begin()); fflush(0);

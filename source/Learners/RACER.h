@@ -164,7 +164,7 @@ class RACER : public Learner_utils
         //extract the only output we actually correct:
         net->seqPredict_output(out_cur, series_cur[j]); //the humanity!
         policies.push_back(prepare_policy(out_cur));
-        //predict samp with target weight using curr recurrent inputs as estimate:
+        //predict samp with tgt weight using curr recurrent inputs as estimate:
         const Activation*const recur = j ? series_cur[j-1] : nullptr;
         net->predict(inp, out_hat, recur, series_hat[0], net->tgt_weights, net->tgt_biases);
       }
@@ -346,7 +346,7 @@ class RACER : public Learner_utils
       for(Uint i=0; i<nA; i++) meanPena += std::fabs(penal_grad[1+i]);
     #endif
 
-    const Real DKLmul2 = - skippedPenal * std::max(A_OPC, (Real)0)*rho_inv;
+    const Real DKLmul2 = - skippedPenal * std::max(A_OPC, (Real)0) * rho_inv;
     const vector<Real> beta_grad = pol_cur.div_kl_opp_grad(_t->mu, DKLmul2);
     const vector<Real> finalPolGrad = sum2Grads(totalPolGrad, beta_grad);
     for(Uint i=0; i<nA; i++) meanBeta += std::fabs(beta_grad[1+i]);
