@@ -159,7 +159,6 @@ public:
       DKL_EachExp[j] = kl_divergence_exp(j,pol_hat);
       logExpBeta[j]  = std::log(experts[j])-std::log(pol_hat->experts[j]);
     }
-    prepared = true;
   }
 
   static inline Real evalBehavior(const vector<Real>& act, const vector<Real>& beta)
@@ -220,7 +219,7 @@ public:
   {
     vector<Real> ret(nExperts +2*nA*nExperts, 0);
     const Real EPS = numeric_limits<Real>::epsilon();
-    assert(Pact_Final > 0 && prepared);
+    assert(Pact_Final > 0);
     for(Uint j=0; j<nExperts; j++) {
       const Real normExpert = factor * (PactEachExp[j]/(Pact_Final+EPS));
       assert(PactEachExp[j] > 0);

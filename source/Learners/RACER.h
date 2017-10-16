@@ -73,7 +73,7 @@ class RACER : public Learner_utils
     //this should go to gamma rather quick:
     const Uint ndata = data->Set[seq]->tuples.size();
     net->prepForBackProp(series_1[thrID], ndata-1);
-    net->prepForFwdProp( series_2[thrID], ndata-1);
+    net->prepForFwdProp( series_2[thrID], ndata);
     vector<Activation*>& series_cur = *(series_1[thrID]);
     vector<Activation*>& series_hat = *(series_2[thrID]);
 
@@ -84,33 +84,45 @@ class RACER : public Learner_utils
       const vector<Real> scaledSold = data->standardize(_t->s);
       //const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
       net->seqPredict_inputs(scaledSold, series_cur[k]);
-      net->seqPredict_inputs(scaledSold, series_hat[k]);
+      #ifdef ACER_PENALIZED
+        net->seqPredict_inputs(scaledSold, series_hat[k]);
+      #endif
     }
     net->seqPredict_execute(series_cur, series_cur);
-    net->seqPredict_execute(series_cur, series_hat,
-      net->tgt_weights, net->tgt_biases);
+    #ifdef ACER_PENALIZED
+      net->seqPredict_execute(series_cur, series_hat,
+        net->tgt_weights, net->tgt_biases);
+    #endif
 
     if(thrID==1)  profiler->stop_start("CMP");
 
     Real Q_RET = 0, Q_OPC = 0;
     //if partial sequence then compute value of last state (!= R_end)
-    if(not data->Set[seq]->ended) {
-      series_hat.push_back(net->allocateActivation());
+    if(not data->Set[seq]->ended)
+    {
       const Tuple * const _t = data->Set[seq]->tuples[ndata-1];
       vector<Real> OT(nOutputs, 0), ST =data->standardize(_t->s); //last state
-      net->predict(ST,OT, series_hat,ndata-1,net->tgt_weights,net->tgt_biases);
+      net->predict(ST, OT, series_cur[ndata-2], series_hat[ndata-1],
+          net->tgt_weights, net->tgt_biases);
       Q_OPC = Q_RET = OT[net_indices[0]]; //V(s_T) computed with tgt weights
     }
 
     for (int k=static_cast<int>(ndata)-2; k>=0; k--)
     {
       const vector<Real> out_cur = net->getOutputs(series_cur[k]);
-      const vector<Real> out_hat = net->getOutputs(series_hat[k]);
-      Policy_t pol_cur = prepare_policy(out_cur);
-      Policy_t pol_tgt = prepare_policy(out_hat);
+      Policy_t pol = prepare_policy(out_cur);
+      #ifdef ACER_PENALIZED
+        const vector<Real> out_hat = net->getOutputs(series_hat[k]);
+        Policy_t pol_tgt = prepare_policy(out_hat);
+        const Policy_t* const pPol_tgt = &pol_target;
+      #else
+        const Policy_t* const pPol_tgt = nullptr;
+      #endif
+
       const Tuple * const _t = data->Set[seq]->tuples[k];
-      pol_cur.prepare(_t->a, _t->mu, bGeometric, &pol_tgt);
-      vector<Real>grad=compute(seq,k,Q_RET,Q_OPC,out_cur,pol_cur,&pol_tgt,thrID);
+      pol.prepare(_t->a, _t->mu, bGeometric, pPol_tgt);
+
+      vector<Real>grad=compute(seq,k, Q_RET,Q_OPC, out_cur,pol,pPol_tgt, thrID);
       //#ifdef FEAT_CONTROL
       //const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[k]->a);
       //task->Train(series_cur[k], series_hat[k+1], act, seq, k, grad);
@@ -164,15 +176,24 @@ class RACER : public Learner_utils
         //extract the only output we actually correct:
         net->seqPredict_output(out_cur, series_cur[j]); //the humanity!
         policies.push_back(prepare_policy(out_cur));
-        //predict samp with tgt weight using curr recurrent inputs as estimate:
-        const Activation*const recur = j ? series_cur[j-1] : nullptr;
-        net->predict(inp, out_hat, recur, series_hat[0], net->tgt_weights, net->tgt_biases);
+
+        #ifdef ACER_PENALIZED
+          //predict samp with tgt w using curr recurrent inputs as estimate:
+          const Activation*const recur = j ? series_cur[j-1] : nullptr;
+          net->predict(inp, out_hat, recur, series_hat[0], net->tgt_weights, net->tgt_biases);
+        #endif
       }
     }
 
+    #ifdef ACER_PENALIZED
+      const Policy_t pol_target = prepare_policy(out_hat);
+      const Policy_t* const pPol_tgt = &pol_target;
+    #else
+      const Policy_t* const pPol_tgt = nullptr;
+    #endif
+
     Tuple * const t0 = data->Set[seq]->tuples[samp];
-    const Policy_t pol_target = prepare_policy(out_hat);
-    policies[0].prepare(t0->a, t0->mu, bGeometric, &pol_target);
+    policies[0].prepare(t0->a, t0->mu, bGeometric, pPol_tgt);
     const Real rho_cur = policies[0].sampRhoWeight;
     const Real rho_inv = policies[0].sampInvWeight;
     t0->SquaredError = std::max(rho_inv, rho_cur);
@@ -192,8 +213,7 @@ class RACER : public Learner_utils
         if(newSample >= 0) nSkipped++; //do it inside critical
       }
 
-      if(newSample >= 0) {
-        //printf("Skip\n"); fflush(0);
+      if(newSample >= 0) { // process the other sample
         Uint sequence, transition;
         data->indexToSample(newSample, sequence, transition);
         return Train(sequence, transition, thrID);
@@ -242,7 +262,7 @@ class RACER : public Learner_utils
      offPolCorrUpdate(seq,k+samp, Q_RET,Q_OPC, net->getOutputs(series_hat[k]), policies[k]);
 
     if(thrID==1)  profiler->stop_start("CMP");
-    vector<Real> grad=compute(seq,samp, Q_RET,Q_OPC, out_cur, policies[0], &pol_target, thrID);
+    vector<Real> grad=compute(seq,samp, Q_RET,Q_OPC, out_cur, policies[0], pPol_tgt, thrID);
     //printf("gradient: %s\n", print(grad).c_str()); fflush(0);
 
     //#ifdef FEAT_CONTROL
@@ -322,18 +342,7 @@ class RACER : public Learner_utils
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID]= (Qer+Ver) * Qprecision;
 
-    #if 1// defined(ACER_CONSTRAINED)
-    const Real DivKL = pol_cur.sampRhoWeight; //unused
-      const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
-      const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_target);
-      for(Uint i=0; i<nA; i++) meanPena += std::fabs(gradDivKL[1+i]);
-    #elif defined(ACER_ADAPTIVE) //adapt learning rate:
-      gradient[PenalID] = -4*std::pow((DivKL-DKL_target)/DKL_target,3)*opt->eta;
-      const vector<Real> totalPolGrad = policy_grad;
-      //avoid races, only one thread updates, should be already redundant:
-      if (thrID==1) //if thrd is here, surely we are not updating weights
-        opt->eta = out_cur[PenalID];
-    #elif defined(ACER_PENALIZED)
+    #if defined(ACER_PENALIZED)
       const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
       const Real penalDKL = out_cur[PenalID];
       const Real DKLmul1 = - skippedPenal * penalDKL;
@@ -347,6 +356,17 @@ class RACER : public Learner_utils
       const vector<Real> penal_grad = pol_cur.div_kl_opp_grad(&pol_hat,DKLmul1);
       const vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
       for(Uint i=0; i<nA; i++) meanPena += std::fabs(penal_grad[1+i]);
+    #elif defined(ACER_ADAPTIVE) //adapt learning rate:
+      gradient[PenalID] = -4*std::pow((DivKL-DKL_target)/DKL_target,3)*opt->eta;
+      const vector<Real> totalPolGrad = policy_grad;
+      //avoid races, only one thread updates, should be already redundant:
+      if (thrID==1) //if thrd is here, surely we are not updating weights
+        opt->eta = out_cur[PenalID];
+    #else
+      const Real DivKL = pol_cur.sampRhoWeight; //unused
+      const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
+      const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_target);
+      for(Uint i=0; i<nA; i++) meanPena += std::fabs(gradDivKL[1+i]);
     #endif
 
     const Real DKLmul2 = - skippedPenal * std::max(A_OPC, (Real)0) * rho_inv;
@@ -423,7 +443,7 @@ class RACER : public Learner_utils
     const Advantage_t adv = prepare_advantage(output, &pol);
     const Real anneal = annealingFactor();
     vector<Real> beta = pol.getBeta();
-    if(bTrain) pol.anneal_beta(beta, anneal*greedyEps);
+    //if(bTrain) pol.anneal_beta(beta, anneal*greedyEps);
 
     const Action_t act = pol.finalize(positive(greedyEps+anneal), gen, beta);
     agent.a->set(act);
