@@ -111,7 +111,7 @@ int Master::run()
   return 0;
 }
 
-void Master::processRequest(const int slave)
+inline void Master::processRequest(const int slave)
 {
   const int thrID = omp_get_thread_num();
   //printf("Thread %d doing slave %d\n",thrID,slave);

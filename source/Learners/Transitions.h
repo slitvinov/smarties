@@ -150,7 +150,7 @@ public:
   void saveSamples();
 
   int passData(const int agentId, const Agent&a, const vector<Real>mu = vector<Real>());
-  void writeData(const int agentId, const Agent&a, const vector<Real>mu);
+  void writeData(const int agentId, const Agent&a, const vector<Real>mu) const;
 
   Uint prune(const Real maxFrac, const Real CmaxRho);
 
@@ -165,7 +165,7 @@ public:
 
   inline Uint readNTransitions() const
   {
-    lock_guard<mutex> lock(dataset_mutex);
+    //lock_guard<mutex> lock(dataset_mutex);
     return nTransitions;
   }
   inline void indexToSample(const int nSample, Uint& sequence, Uint& transition) const
@@ -184,12 +184,12 @@ public:
   }
   inline Real readAvgSeqLen() const
   {
-    lock_guard<mutex> lock(dataset_mutex);
+    //lock_guard<mutex> lock(dataset_mutex);
     return nTransitions/(nSequences+2.2e-16);
   }
   inline Uint readNSeen() const
   {
-    lock_guard<mutex> lock(dataset_mutex);
+    //lock_guard<mutex> lock(dataset_mutex);
     #ifdef PACE_SEQUENCES
     return nSeenSequences;
     #else
@@ -198,7 +198,7 @@ public:
   }
   inline Uint readNData() const
   {
-    lock_guard<mutex> lock(dataset_mutex);
+    //lock_guard<mutex> lock(dataset_mutex);
     #ifdef PACE_SEQUENCES
     return nSequences;
     #else

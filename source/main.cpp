@@ -86,8 +86,8 @@ int main (int argc, char** argv)
   vector<ArgParser::OptionStruct> opts = settings.initializeOpts();
 
   int provided;
-  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-  if (provided < MPI_THREAD_MULTIPLE)
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+  if (provided < MPI_THREAD_SERIALIZED)
     die("The MPI implementation does not have required thread support\n");
 
   MPI_Comm_rank(MPI_COMM_WORLD, &settings.world_rank);

@@ -60,15 +60,15 @@ private:
     return ret;
   }
 
-  void processRequest(const int slave);
+  inline void processRequest(const int slave);
 
   #ifdef FULLTASKING
-    mutable std::mutex client_mutex;
+    //mutable std::mutex client_mutex;
     mutable Real avgNbusy = nSlaves;
     mutable int nServing = 0;
     inline int readNServing() const
     {
-      lock_guard<mutex> lock(client_mutex);
+      //lock_guard<mutex> lock(client_mutex);
       return nServing;
     }
   #endif
@@ -98,7 +98,8 @@ private:
   {
     learner->addToNTasks(add);
     #ifdef FULLTASKING
-    lock_guard<mutex> lock(client_mutex);
+    //lock_guard<mutex> lock(client_mutex);
+    #pragma omp atomic
     nServing += add;
     #endif
   }

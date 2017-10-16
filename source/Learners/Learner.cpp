@@ -50,18 +50,18 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
   if(bSampleSequences)
   {
     for (int i=0; i<nSpawn && sequences.size(); i++) {
-      const Uint sequence = sequences.back(); sequences.pop_back();
+      const Uint seq = sequences.back(); sequences.pop_back();
       addToNTasks(1);
       #ifdef FULLTASKING
-#pragma omp task firstprivate(sequence) if(readNTasks()<nSThreads)
+        #pragma omp task firstprivate(seq) if(readNTasks()<nSThreads)
       #else
-#pragma omp task firstprivate(sequence) //if(!availTasks)
+        #pragma omp task firstprivate(seq) //if(!availTasks)
       #endif
       {
         const int thrID = omp_get_thread_num();
         //printf("Thread %d doing %u\n",thrID,sequence); fflush(0);
         if(!thrID) profiler_ext->stop_start("WORK");
-        Train_BPTT(sequence, static_cast<Uint>(thrID));
+        Train_BPTT(seq, static_cast<Uint>(thrID));
         addToNTasks(-1);
         #pragma omp atomic
         taskCounter++;
@@ -72,19 +72,19 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
   else
   {
     for (int i=0; i<nSpawn && sequences.size(); i++) {
-      const Uint sequence = sequences.back(); sequences.pop_back();
-      const Uint transition = transitions.back(); transitions.pop_back();
+      const Uint seq = sequences.back(); sequences.pop_back();
+      const Uint obs = transitions.back(); transitions.pop_back();
       addToNTasks(1);
       #ifdef FULLTASKING
-#pragma omp task firstprivate(sequence,transition) if(readNTasks()<nSThreads)
+        #pragma omp task firstprivate(seq, obs) if(readNTasks()<nSThreads)
       #else
-#pragma omp task firstprivate(sequence,transition) //if(!availTasks)
+        #pragma omp task firstprivate(seq, obs) //if(!availTasks)
       #endif
       {
         const int thrID = omp_get_thread_num();
         //printf("Thread %d doing %u %u\n",thrID,sequence,transition); fflush(0);
         if(!thrID) profiler_ext->stop_start("WORK");
-        Train(sequence, transition, static_cast<Uint>(thrID));
+        Train(seq, obs, static_cast<Uint>(thrID));
         addToNTasks(-1);
         #pragma omp atomic
         taskCounter++;
