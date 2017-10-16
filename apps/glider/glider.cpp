@@ -117,8 +117,9 @@ struct Glider
   //const double II  = 3.; //we have to multiply *2 all moments by Anderson
   //const double beta= 0;
   //time stepping
-  const double dt = 1e-3;
+  const double dt = 5e-4;
   const int nstep = 500;
+  const double DT = dt*nstep;
 
   double Jerk=0, Torque=0, oldDistance=0, oldTorque=0;
   double oldAngle=0, oldEnergySpent=0, time=0;
@@ -128,7 +129,7 @@ struct Glider
   Vec7 _s;
 
   void reset(std::mt19937& gen)
-	{
+  {
     info=1;
     std::uniform_real_distribution<double> init(-.1,.1); //for vels, angle
     std::uniform_real_distribution<double> initx(-10,10); //for position
@@ -150,7 +151,7 @@ struct Glider
       print(0);
     #endif
     updateOldDistanceAndEnergy();
-	}
+  }
 
   bool is_over() const
   {
@@ -159,7 +160,7 @@ struct Glider
     const double slack = 0.4*std::max(0., std::min(_s.x-50, 100-_s.x));
     const bool hit_bottom =  _s.y <= -50 -slack;
     const bool wrong_xdir = _s.x < -50;
-    //const bool timeover = a.time > 2000;
+    const bool timeover = time > 1000;
 
     return ( hit_bottom || wrong_xdir || way_too_far );
   }
@@ -181,8 +182,8 @@ struct Glider
     return 0;
   }
 
-	vector<double> getState(std::mt19937& gen)
-	{
+  vector<double> getState(std::mt19937& gen)
+  {
     vector<double> state(10);
     state[0] = _s.u;
     state[1] = _s.v;
@@ -200,14 +201,14 @@ struct Glider
       state[1] += noise(gen);
       state[2] += noise(gen);
     #endif
-		return state;
-	}
+    return state;
+  }
 
   double getReward()
   {
     const double dist_gain = oldDistance - getDistance();
     const double rotation = std::fabs(oldAngle - _s.a);
-    const double jerk = std::fabs(oldTorque - Torque)/.5;
+    const double jerk = std::fabs(oldTorque - Torque)/DT;
     //const double performamce =  std::fabs(a.Torque);//a._s.E - a.oldEnergySpent + eps;
     const double performamce = std::pow(Torque, 2);
     //reward clipping: what are the proper scaled? TODO
@@ -216,7 +217,7 @@ struct Glider
     #if INSTREW==0
       const double reward = dist_gain -performamce -jerk;
     #elif INSTREW==1
-      const double reward = dist_gain -0.5; //DT between actions is 0.5
+      const double reward = dist_gain -DT; //DT between actions is 0.5
     #elif INSTREW==2
       const double reward = dist_gain -performamce;// -jerk;
     #endif
@@ -237,7 +238,7 @@ struct Glider
     const double dist = getDistance();
     const double rela = std::fabs(_s.a -.25*M_PI);
     const double xrew = dist>5 ? 0 : TERM_REW_FAC*std::exp(-std::pow(dist,2));
-    const double arew = (rela>M_PI/4||dist>5) ? 0 : TERM_REW_FAC * std::exp( -std::pow(10*rela, 2) );
+    const double arew = (rela>M_PI/4||dist>5) ? 0 : TERM_REW_FAC * std::exp( -10*std::pow(rela, 2) );
     double final_reward  = xrew + arew;
 
     //if(wrong_xdir || max_torque || way_too_far)
@@ -310,7 +311,7 @@ struct Glider
   void updateOldDistanceAndEnergy()
   {
     oldDistance = getDistance();
-    oldEnergySpent += 0.5*Torque*Torque;//_s.E;
+    oldEnergySpent += DT*Torque*Torque;//_s.E;
     //same time, put angle back in 0, 2*pi
     _s.a = std::fmod( _s.a, 2*M_PI);
     _s.a = _s.a < 0 ? _s.a +2*M_PI : _s.a;

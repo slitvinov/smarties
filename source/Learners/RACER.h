@@ -43,7 +43,7 @@ class RACER : public Learner_utils
   std::vector<std::mt19937>& generators;
   const Uint VsValID = net_indices[0];
   const Uint PenalID = net_indices.back(), QPrecID = net_indices.back()+1;
-  const bool bGeometric = CmaxRet>1 && nA>1;
+  const bool bGeometric = CmaxRet>1.1 && nA>1;
   mutable Uint nSkipped = 0, nTried = 0;
   const Real learnRate;
   Real skippedPenal = 1;
