@@ -110,7 +110,7 @@ class RACER : public Learner_utils
       Policy_t pol_tgt = prepare_policy(out_hat);
       const Tuple * const _t = data->Set[seq]->tuples[k];
       pol_cur.prepare(_t->a, _t->mu, bGeometric, &pol_tgt);
-      vector<Real>grad=compute(seq,k,Q_RET,Q_OPC,out_cur,pol_cur,pol_tgt,thrID);
+      vector<Real>grad=compute(seq,k,Q_RET,Q_OPC,out_cur,pol_cur,&pol_tgt,thrID);
       //#ifdef FEAT_CONTROL
       //const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[k]->a);
       //task->Train(series_cur[k], series_hat[k+1], act, seq, k, grad);
@@ -206,7 +206,8 @@ class RACER : public Learner_utils
     for(Uint k=1; k<nSValues; k++)
     {
       vector<Real> out_tmp(nOutputs,0);
-      net->predict(data->standardized(seq, k+samp), out_tmp, series_hat, k);
+      const Activation*const recur = k==1 ? series_cur.back() : series_hat[k-1];
+      net->predict(data->standardized(seq,k+samp),out_tmp, recur,series_hat[k]);
       policies.push_back(prepare_policy(out_tmp));
       assert(policies.size() == k+1);
 
@@ -241,7 +242,7 @@ class RACER : public Learner_utils
      offPolCorrUpdate(seq,k+samp, Q_RET,Q_OPC, net->getOutputs(series_hat[k]), policies[k]);
 
     if(thrID==1)  profiler->stop_start("CMP");
-    vector<Real> grad=compute(seq,samp, Q_RET,Q_OPC, out_cur, policies[0], pol_target, thrID);
+    vector<Real> grad=compute(seq,samp, Q_RET,Q_OPC, out_cur, policies[0], &pol_target, thrID);
     //printf("gradient: %s\n", print(grad).c_str()); fflush(0);
 
     //#ifdef FEAT_CONTROL
@@ -262,7 +263,7 @@ class RACER : public Learner_utils
   }
 
   inline vector<Real> compute(const Uint seq, const Uint samp, Real& Q_RET,
-    Real& Q_OPC, const vector<Real>& out_cur, const Policy_t& pol_cur, const Policy_t& pol_hat, const Uint thrID) const
+    Real& Q_OPC, const vector<Real>& out_cur, const Policy_t& pol_cur, const Policy_t* const pol_hat, const Uint thrID) const
   {
     Real meanPena = 0, meanBeta = 0, meanGrad = 0;
     const Tuple * const _t = data->Set[seq]->tuples[samp];
@@ -275,12 +276,11 @@ class RACER : public Learner_utils
     const Action_t& act = pol_cur.sampAct; //unbounded action space
 
     #ifndef NDEBUG
-    //  adv_cur.test(act, &generators[thrID]);
-    //  pol_cur.test(act, &pol_hat);
+      //  adv_cur.test(act, &generators[thrID]);
+      //  pol_cur.test(act, &pol_hat);
     #endif
 
     const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = pol_cur.sampInvWeight;
-    const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_OPC = Q_OPC - V_cur, Q_dist = Q_RET -A_cur-V_cur;
 
@@ -322,16 +322,19 @@ class RACER : public Learner_utils
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID]= (Qer+Ver) * Qprecision;
 
-    #if defined(ACER_CONSTRAINED)
-      const vector<Real> gradDivKL = pol_cur.div_kl_grad(&pol_hat);
-      const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_hardmax);
+    #if 1// defined(ACER_CONSTRAINED)
+    const Real DivKL = pol_cur.sampRhoWeight; //unused
+      const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
+      const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_target);
+      for(Uint i=0; i<nA; i++) meanPena += std::fabs(gradDivKL[1+i]);
     #elif defined(ACER_ADAPTIVE) //adapt learning rate:
       gradient[PenalID] = -4*std::pow((DivKL-DKL_target)/DKL_target,3)*opt->eta;
       const vector<Real> totalPolGrad = policy_grad;
       //avoid races, only one thread updates, should be already redundant:
       if (thrID==1) //if thrd is here, surely we are not updating weights
         opt->eta = out_cur[PenalID];
-    #else
+    #elif defined(ACER_PENALIZED)
+      const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
       const Real penalDKL = out_cur[PenalID];
       const Real DKLmul1 = - skippedPenal * penalDKL;
       //increase if DivKL is greater than Target
@@ -483,7 +486,7 @@ class RACER : public Learner_utils
       const Real currSeqs = data->nSequences; //after pruning
       const Real change = (currSeqs+1.)/nStoredSeqs_last;
       nStoredSeqs_last = currSeqs; //after pruning
-      DKL_target = clip(DKL_target*change, 1, 1e-2);
+      DKL_target = clip(DKL_target*change, 10, 1e-2);
 
       printf("Removed %u sequences out of %u\n", lostSeqs, data->nSequences);
     }
