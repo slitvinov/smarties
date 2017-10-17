@@ -46,7 +46,7 @@ inline vector<Real> trust_region_update(const vector<Real>& grad,
   //#endif
   for (Uint j=0; j<nA; j++) {
     ret[j] = grad[j]-proj*trust[j];
-    //if(ret[j]*grad[j] < 0) ret[j] = 0;
+    if(ret[j]*grad[j] < 0) ret[j] = 0;
   }
   return ret;
 }
