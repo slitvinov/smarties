@@ -13,24 +13,24 @@
 #include <cassert>
 #include "saruprng.h"
 
-Optimizer::Optimizer(Network* const _net, Profiler* const _prof, Settings& _s) :
-nWeights(_net->getnWeights()), nBiases(_net->getnBiases()), bTrain(_s.bTrain),
-net(_net), profiler(_prof),
-_1stMomW(initClean(nWeights)), _1stMomB(initClean(nBiases)),
-eta(_s.learnrate), lambda(_s.nnLambda), epsAnneal(_s.epsAnneal) { }
+Optimizer::Optimizer(Network*const _net, Profiler*const _prof, Settings&_s,
+  const Real B1) : nWeights(_net->getnWeights()), nBiases(_net->getnBiases()),
+  bTrain(_s.bTrain), net(_net), profiler(_prof), _1stMomW(initClean(nWeights)),
+  _1stMomB(initClean(nBiases)), eta(_s.learnrate), beta_1(B1),
+  lambda(_s.nnLambda), epsAnneal(_s.epsAnneal) { }
 
 AdamOptimizer::AdamOptimizer(Network*const _net, Profiler*const _prof,
-    Settings& _s, const Real B1, const Real B2) : Optimizer(_net, _prof, _s),
-    beta_1(B1), beta_2(B2), epsilon(1e-8), beta_t_1(B1), beta_t_2(B2),
-    _2ndMomW(initClean(nWeights)), _2ndMomB(initClean(nBiases)) { }
+  Settings& _s, const Real B1, const Real B2) : Optimizer(_net, _prof, _s, B1),
+  beta_2(B2), epsilon(1e-8), beta_t_1(B1), beta_t_2(B2),
+  _2ndMomW(initClean(nWeights)), _2ndMomB(initClean(nBiases)) { }
 //beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.99)
 
 EntropySGD::EntropySGD(Network*const _net, Profiler*const _prof, Settings&_s) :
-    AdamOptimizer(_net, _prof, _s, 0.5), alpha_eSGD(0.75), gamma_eSGD(10.),
-    eta_eSGD(.1/_s.targetDelay), eps_eSGD(1e-3), L_eSGD(_s.targetDelay),
-    _muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
+  AdamOptimizer(_net, _prof, _s), alpha_eSGD(0.75), gamma_eSGD(10.),
+  eta_eSGD(.1/_s.targetDelay), eps_eSGD(1e-3), delay(_s.targetDelay),
+  L_eSGD(_s.targetDelay), _muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
 {
-  assert(L_eSGD>0);
+  //assert(L_eSGD>0);
   for (Uint i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights_back[i];
   for (Uint i=0; i<nBiases; i++)  _muB_eSGD[i] = net->biases[i];
 }
@@ -53,6 +53,7 @@ void Optimizer::moveFrozenWeights(const Real _alpha)
   net->sort_fwd_to_bck(net->tgt_weights, net->tgt_weights_back);
 }
 
+#if 0
 void EntropySGD::moveFrozenWeights(const Real _alpha)
 {
   assert(_alpha>1);
@@ -78,12 +79,15 @@ void EntropySGD::moveFrozenWeights(const Real _alpha)
   net->sort_bck_to_fwd(net->tgt_weights_back, net->tgt_weights);
   net->sort_bck_to_fwd(net->weights_back, net->weights);
 }
+#endif
 
 void EntropySGD::update(Grads* const G, const Uint batchsize)
 {
+  const Real _eta = eta;
+  //const Real _eta = nepoch<10000 ? .01/(1.+nepoch) + eta : eta;
   //const Real _eta = eta/(1.+std::log(1. + (double)nepoch));
-  update(net->weights_back,net->tgt_weights_back,G->_W,_1stMomW,_2ndMomW,_muW_eSGD,nWeights,batchsize,eta);
-  update(net->biases, net->tgt_biases, G->_B,_1stMomB,_2ndMomB,_muB_eSGD,nBiases, batchsize,eta);
+  update(net->weights_back,net->tgt_weights_back,G->_W,_1stMomW,_2ndMomW,_muW_eSGD,nWeights,batchsize,_eta);
+  update(net->biases, net->tgt_biases, G->_B,_1stMomB,_2ndMomB,_muB_eSGD,nBiases, batchsize,_eta);
 
   beta_t_1 *= beta_1;
   if (beta_t_1<nnEPS) beta_t_1 = 0;
@@ -158,7 +162,7 @@ void Optimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, const Uint N
 
   #pragma omp parallel for
   for (Uint i=0; i<N; i++) {
-    const nnReal M1 = alpha * _1stMom[i] + eta_ * grad[i];
+    const nnReal M1 = beta_1 * _1stMom[i] + eta_ * grad[i];
     _1stMom[i] = std::max(std::min(M1,eta_),-eta_);
     grad[i] = 0.; //reset grads
     dest[i] += _1stMom[i];
@@ -172,34 +176,42 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
 
   #pragma omp parallel
   {
-    const Uint thrID = static_cast<Uint>(omp_get_thread_num());
-    Saru gen(nepoch, thrID, net->generators[thrID]());
-    const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
-    const nnReal norm = 1./batchsize, noise = std::sqrt(eta_) * eps_eSGD;
-    const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2;
+    //const Uint thrID = static_cast<Uint>(omp_get_thread_num());
+    //Saru gen(nepoch, thrID, net->generators[thrID]());
+    #if 1
+      const nnReal eta_ = _eta;
+    #else
+      const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
+    #endif
+    const nnReal norm = 1./batchsize;
+    //const nnReal noise = std::sqrt(eta_) * eps_eSGD;
+    const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2, f22=1-beta_2;
 
     #pragma omp for
-    for (Uint i=0; i<N; i++)
-    {
+    for (Uint i=0; i<N; i++) {
       const nnReal DW  = grad[i]*norm;
-      const nnReal M1  = f11* _1stMom[i] +f12* DW;
-      const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
-      //const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
-      const nnReal M2_ = std::max(M2, nnEPS);
-      const nnReal _M2 = std::sqrt(M2_);
-      const nnReal M1_ = std::max(std::min(M1, _M2), -_M2); //grad clip
+      const nnReal M1_ = f11* _1stMom[i] +f12* DW;
+      #if 1
+        const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
+        //printf("%f %f %f\n",M2, _2ndMom[i], DW); fflush(0);
+        const nnReal M2_ = std::max(M2, nnEPS);
+        const nnReal _M2  = M2_;
+      #else
+        const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
+        const nnReal M2_ = std::max(M2, nnEPS);
+        const nnReal _M2 = std::sqrt(M2_);
+      #endif
+      //const nnReal RNG = noise * gen.d_mean0_var1();
+      dest[i] += eta_*(f12*DW + f11*M1_)/_M2; //Nesterov Adam
+      _1stMom[i] = M1_; _2ndMom[i] = M2_; grad[i] = 0.; //reset grads
+      assert(!std::isnan(DW)); assert(!std::isnan(dest[i]));
 
-      const nnReal RNG = noise * gen.d_mean0_var1();
-      const nnReal DW_ = eta_*(f12*DW + f11*M1_)/_M2; //Nesterov Adam
-
-      _1stMom[i] = M1_;
-      _2ndMom[i] = M2_;
-      grad[i] = 0.; //reset grads
-      assert(!std::isnan(DW));
-      assert(!std::isnan(dest[i]));
-
-      dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
-      _mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
+      //dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
+      #if 1
+        //const nnReal range = std::min((nnReal)1, _M2/(std::fabs(M1_)+nnEPS));
+        dest[i] += delay*(target[i]-dest[i]);
+      #endif
+      //_mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
     }
   }
 }

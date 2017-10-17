@@ -24,11 +24,11 @@ protected:
   void update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, const Uint N, const Uint batchsize) const;
 
 public:
-  Real eta;
-  const Real lambda, epsAnneal, alpha = 0.5;
+  Real eta, beta_1;
+  const Real lambda, epsAnneal;
   long unsigned nepoch = 0;
 
-  Optimizer(Network* const _net, Profiler* const _prof, Settings & settings);
+  Optimizer(Network* const _net, Profiler* const _prof, Settings & settings, const Real B1 = 0.5);
 
   virtual ~Optimizer()
   {
@@ -99,7 +99,7 @@ public:
 class AdamOptimizer: public Optimizer
 { //Adam optimizer
 protected:
-  const Real beta_1, beta_2, epsilon;
+  const Real beta_2, epsilon;
   Real beta_t_1, beta_t_2;
   nnReal* const _2ndMomW;
   nnReal* const _2ndMomB;
@@ -124,7 +124,7 @@ public:
 class EntropySGD: public AdamOptimizer
 {
 protected:
-  const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD;
+  const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD, delay;
   const Uint L_eSGD;
   nnReal* const _muW_eSGD;
   nnReal* const _muB_eSGD;
@@ -142,5 +142,5 @@ public:
   }
   void update(Grads* const G, const Uint batchsize) override;
   bool restart(const string fname) override;
-  void moveFrozenWeights(const Real _alpha) override;
+  //void moveFrozenWeights(const Real _alpha) override;
 };

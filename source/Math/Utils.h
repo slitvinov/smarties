@@ -34,12 +34,12 @@ inline vector<Real> trust_region_update(const vector<Real>& grad,
   assert(grad.size() == trust.size());
   const Uint nA = grad.size();
   vector<Real> ret(nA);
-  Real dot=0, norm=0;
+  Real dot=0, norm = numeric_limits<Real>::epsilon();
   for (Uint j=0; j<nA; j++) {
     norm += trust[j] * trust[j];
     dot +=  trust[j] *  grad[j];
   }
-  const Real proj = std::max((Real)0., (dot - delta)/norm);
+  const Real proj = std::max((Real)0, dot/norm - delta/std::sqrt(norm));
   //#ifndef NDEBUG
   //if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
   //else {printf("Not Hit DKL constraint\n");fflush(0);}
@@ -47,6 +47,22 @@ inline vector<Real> trust_region_update(const vector<Real>& grad,
   for (Uint j=0; j<nA; j++) {
     ret[j] = grad[j]-proj*trust[j];
     //if(ret[j]*grad[j] < 0) ret[j] = 0;
+  }
+  return ret;
+}
+
+inline vector<Real> trust_region_separate(const vector<Real>& grad,
+  const vector<Real>& trust, const Real delta)
+{
+  assert(grad.size() == trust.size());
+  const Uint nA = grad.size();
+  vector<Real> ret(nA);
+  for (Uint j=0; j<nA; j++) {
+    const Real norm = trust[j] * trust[j];
+    const Real dot  = trust[j] *  grad[j];
+    const Real proj = std::max((Real)0., (dot - norm*delta)/norm);
+    ret[j] = grad[j]-proj*trust[j];
+    if(ret[j]*grad[j] < 0) ret[j] = 0;
   }
   return ret;
 }

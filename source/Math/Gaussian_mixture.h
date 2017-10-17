@@ -26,7 +26,7 @@ public:
   vector<Real> sampAct;
   Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0, sampInvWeight=0;
   array<Real, nExperts> PactEachExp, DKL_EachExp, logExpBeta;
-  Real Pact_Final = 0;
+  Real Pact_Final = -1;
   bool prepared = false;
 
   static inline Uint compute_nP(const ActionInfo* const aI)
@@ -147,6 +147,7 @@ public:
         PactEachExp[j] *= oneDnormal(sampAct[i], means[j][i], precisions[j][i]);
       Pact_Final += PactEachExp[j] * experts[j];
     }
+    assert(Pact_Final>0);
     sampLogPonPolicy = std::log(Pact_Final);
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
@@ -193,8 +194,8 @@ public:
     std::discrete_distribution<Uint> dE(&(beta[0]), &(beta[0]) +nExperts);
     const Uint experti = dE(*gen);
     for(Uint i=0; i<nA; i++) {
-      Real samp = 4;
-      while (samp > 3 || samp < -3) samp = dist(*gen);
+      Real samp = 10;
+      while (samp > 4 || samp < -4) samp = dist(*gen);
       const Uint indM = i +experti*nA +nExperts; //after experts come the means
       const Uint indS = i +experti*nA +nExperts*(nA+1); //after means, stdev
       ret[i] = beta[indM] + beta[indS] * samp;
@@ -208,8 +209,8 @@ public:
     std::discrete_distribution<Uint> dE(&(experts[0]),&(experts[0])+nExperts);
     const Uint experti = dE(*gen);
     for(Uint i=0; i<nA; i++) {
-      Real samp = 4;
-      while (samp > 3 || samp < -3) samp = dist(*gen);
+      Real samp = 10;
+      while (samp > 4 || samp < -4) samp = dist(*gen);
       ret[i] = means[experti][i] + stdevs[experti][i] * samp;
     }
     return ret;

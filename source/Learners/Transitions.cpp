@@ -360,8 +360,10 @@ Uint Transitions::prune(const Real maxFrac, const Real CmaxRho)
   // samples with rho farther from 1 are later in the Set vector
   assert(CmaxRho>1);
   Uint ret = 0;
+  Uint minInd = std::numeric_limits<Uint>::max();
   for(int i = (int)Set.size()-1; i >= 0; i--) {
     Real numOver = 0;
+    minInd = std::min(minInd, Set[i]->ID);
     for(Uint j=0; j<Set[i]->ndata(); j++)
       if( Set[i]->tuples[j]->SquaredError > CmaxRho ) numOver += 1;
 
@@ -371,6 +373,7 @@ Uint Transitions::prune(const Real maxFrac, const Real CmaxRho)
       ret++;
     }
   }
+  printf("Minimum sequence id:%u\n",minInd);
   // sequence is removed if more than maxFrac of samples have importance
   // weight either <1/CmaxRho or >CmaxRho
 
@@ -389,11 +392,11 @@ Uint Transitions::prune(const Real maxFrac, const Real CmaxRho)
 void Transitions::sortSequences()
 {
   #ifndef NDEBUG
-  printf("Sorting %lu sequences\n", Set.size());
-  for(Uint i=0; i<Set.size(); i++) {
-    assert(*(Set.begin()+i) not_eq nullptr);
-    printf("%u %f %u\n",i,Set[i]->MSE, Set[i]->ndata());
-  }
+    printf("Sorting %lu sequences\n", Set.size());
+    for(Uint i=0; i<Set.size(); i++) {
+      assert(*(Set.begin()+i) not_eq nullptr);
+      printf("%u %f %u\n",i,Set[i]->MSE, Set[i]->ndata());
+    }
   #endif
 
   #pragma omp parallel for schedule(dynamic)
@@ -418,7 +421,8 @@ void Transitions::sortSequences()
       //printf("a:%lu b:%lu\n", a-Set.begin(), b-Set.begin()); fflush(0);
       assert(a not_eq nullptr);
       assert(b not_eq nullptr);
-      return a->MSE==0 ? true : (b->MSE==0 ? false : (a->MSE>b->MSE) );
+      //return a->MSE==0 ? true : (b->MSE==0 ? false : (a->MSE>b->MSE) );
+      return a->MSE < b->MSE;
     }
   };
   Compare comparer(Set);
@@ -427,6 +431,7 @@ void Transitions::sortSequences()
   std::sort(Set.begin(), Set.begin()+nSequences, comparer);
   assert(Set.front()->MSE > Set.back()->MSE || Set.front()->MSE == 0);
 
+  iOldestSaved = nSequences - Buffered.size();
   #ifndef NDEBUG
   for(Uint i=0; i<Set.size(); i++) {
     //printf("%u %f %u\n",i,Set[i]->MSE, Set[i]->ndata());
@@ -443,7 +448,7 @@ void Transitions::synchronize()
   //3) if Set.size() > adapt_TotSeqNum remove those at the back
   //this implies that adaptive Set size is only suppoted if i sort the sequences
   //4) add the buffered transitions
-  while( (Set.size()<adapt_TotSeqNum) && Buffered.size()>0 )
+  while( Set.size()<adapt_TotSeqNum && Buffered.size()>0 )
   {
     const auto bufTransition = Buffered.back();
     assert(bufTransition not_eq nullptr);
@@ -479,8 +484,7 @@ void Transitions::synchronize()
   if( Buffered.size() == 0 ) return;
 
   Uint nTransitionsInBuf=0, nTransitionsDeleted=0;
-  for(Uint j=Buffered.size(); j>0; j--)
-  {
+  for(Uint j=Buffered.size(); j>0; j--) {
     assert(Buffered.size() == j);
     const Uint ind = (iOldestSaved >= Set.size()) ? 0 : iOldestSaved;
     iOldestSaved++;

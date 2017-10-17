@@ -28,6 +28,10 @@
 
 #include "../Math/Discrete_policy.h"
 //#define simpleSigma
+//#define BONE
+//#define UNBW
+
+//#define UNBR
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_utils
@@ -143,9 +147,8 @@ class RACER : public Learner_utils
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override
   {
     //Code to figure out workload:
-    const Uint ndata = data->Set[seq]->tuples.size();
+    const Uint ndata=data->Set[seq]->tuples.size(), bEnd=data->Set[seq]->ended;
     assert(samp<ndata-1);
-    const bool bEnd = data->Set[seq]->ended; //whether sequence has terminal rew
     const Uint nMaxTargets = MAX_UNROLL_AFTER+1, nMaxBPTT = MAX_UNROLL_BFORE;
     //for off policy correction we need reward, therefore not last one:
     Uint nSUnroll = min(                     ndata-samp-1, nMaxTargets-1);
@@ -198,33 +201,38 @@ class RACER : public Learner_utils
     const Real rho_inv = policies[0].sampInvWeight;
     t0->SquaredError = std::max(rho_inv, rho_cur);
 
-    #pragma omp atomic
-    nTried++;
-
-    const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
-    const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
-    if(policies[0].sampRhoWeight < minImpWeight ||
-       policies[0].sampRhoWeight > maxImpWeight)
-    {
-      int newSample = -1;
-      #pragma omp critical
+    #if 0
+      #pragma omp atomic
+      nTried++;
+      const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
+      const Real maxImpWeight = 10000; //std::max((Real)2.0,    CmaxPol);
+      if(policies[0].sampRhoWeight < minImpWeight ||
+         policies[0].sampRhoWeight > maxImpWeight)
       {
-        newSample = data->sample(thrID);
-        if(newSample >= 0) nSkipped++; //do it inside critical
-      }
+        int newSample = -1;
+        #pragma omp critical
+        {
+          newSample = data->sample(thrID);
+          if(newSample >= 0) nSkipped++; //do it inside critical
+        }
 
-      if(newSample >= 0) { // process the other sample
-        Uint sequence, transition;
-        data->indexToSample(newSample, sequence, transition);
-        return Train(sequence, transition, thrID);
+        if(newSample >= 0) { // process the other sample
+          Uint sequence, transition;
+          data->indexToSample(newSample, sequence, transition);
+          return Train(sequence, transition, thrID);
+        }
       }
-    }
+    #endif
 
     //compute network for off-policy corrections:
-    Real impW = std::min(CmaxPol, policies[0].sampRhoWeight);
+    #ifdef UNBR
+      Real impW = policies[0].sampRhoWeight;
+    #else
+      Real impW = std::min((Real)1, policies[0].sampRhoWeight);
+    #endif
 
-    for(Uint k=1; k<nSValues; k++)
-    {
+
+    for(Uint k=1; k<nSValues; k++) {
       vector<Real> out_tmp(nOutputs,0);
       const Activation*const recur = k==1 ? series_cur.back() : series_hat[k-1];
       net->predict(data->standardized(seq,k+samp),out_tmp, recur,series_hat[k]);
@@ -233,16 +241,18 @@ class RACER : public Learner_utils
 
       Tuple* const _t = data->Set[seq]->tuples[k+samp];
       policies[k].prepare(_t->a, _t->mu, bGeometric);
-      const Real rho_cur_K = policies[k].sampRhoWeight;
-      const Real rho_inv_K = policies[k].sampInvWeight;
-      _t->SquaredError = std::max(rho_inv_K, rho_cur_K);
+      _t->SquaredError=max(policies[k].sampInvWeight,policies[k].sampRhoWeight);
 
       if (k == nSValues-1 && nSValues not_eq nSUnroll) break;
 
-      impW *= ACER_LAMBDA*gamma*std::min((Real)1, policies[k].sampImpWeight);
+      #ifdef UNBW
+        impW *= ACER_LAMBDA*gamma*policies[k].sampImpWeight;
+      #else
+        impW *= ACER_LAMBDA*gamma*std::min((Real)1,policies[k].sampImpWeight);
+      #endif
 
-      if (impW < 1e-2) //then the imp weight is too small to continue
-      {
+
+      if (impW < 1e-3) { //then the imp weight is too small to continue
         //printf("Cut after %u / %u samples!\n",k,nSValues); fflush(stdout);
         nSUnroll = k; //for last state we do not compute offpol correction
         nSValues = k+1; //we initialize value of Q_RET to V(state)
@@ -318,11 +328,27 @@ class RACER : public Learner_utils
       const vector<Real> gradAcer_2 = pol_cur.policy_grad(pol, gain2);
       const vector<Real> gradAcer = sum2Grads(gradAcer_1, gradAcer_2);
     #else
-      //const Real Psi = A_OPC>0? min(CmaxPol,rho_cur)*A_OPC : A_OPC*rho_cur;
-      const Real gain1 = A_OPC*rho_cur / skippedPenal;
-      const vector<Real> gradAcer = pol_cur.policy_grad(act, gain1);
+      #ifdef UNBR
+        const Real gain1 = A_OPC*rho_cur;
+        //, gain2= std::max(A_OPC,(Real)0)*rho_inv;
+      #else
+        const Real gain1 = A_OPC>0? min((Real)1, rho_cur)*A_OPC : A_OPC*rho_cur;
+        //const Real gain2 = std::max(A_OPC,(Real)0)*std::min((Real)1,rho_inv);
+      #endif
+      #ifdef BONE
+        const Real DKLmul2 = - DKL_target * std::max(A_OPC,(Real)0) * rho_inv;
+        //const Real DKLmul2 = - DKL_target;
+      #else
+        const Real DKLmul2 = - std::max(A_OPC, (Real)0) * rho_inv;
+      #endif
+
+      const vector<Real> gradRacer_1 = pol_cur.policy_grad(act, gain1);
+      const vector<Real> gradRacer_2 = pol_cur.div_kl_opp_grad(_t->mu, DKLmul2);
+      const vector<Real> gradAcer = sum2Grads(gradRacer_1, gradRacer_2);
+
+      for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradRacer_1[1+i]);
+      for(Uint i=0; i<nA; i++) meanBeta += std::fabs(gradRacer_2[1+i]);
     #endif
-    for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradAcer[1+i]);
 
     #ifdef ACER_PENALIZER
       const Real anneal = iter()>epsAnneal ? 1 : Real(iter())/epsAnneal;
@@ -333,7 +359,7 @@ class RACER : public Learner_utils
       const vector<Real> gradC = pol_cur.control_grad(&adv_cur, eta);
       const vector<Real> policy_grad = sum2Grads(gradAcer, gradC);
     #else
-      const vector<Real> policy_grad = gradAcer;
+      const vector<Real>& policy_grad = gradAcer;
     #endif
 
     const Real logEpsilon = std::log( std::numeric_limits<Real>::epsilon() );
@@ -345,7 +371,7 @@ class RACER : public Learner_utils
     #if defined(ACER_PENALIZED)
       const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
       const Real penalDKL = out_cur[PenalID];
-      const Real DKLmul1 = - skippedPenal * penalDKL;
+      const Real DKLmul1 = - penalDKL;
       //increase if DivKL is greater than Target
       //computed as \nabla_{penalDKL} (DivKL - DKL_target)^4
       //with rough approximation that d DivKL/ d penalDKL \propto penalDKL
@@ -358,31 +384,35 @@ class RACER : public Learner_utils
       for(Uint i=0; i<nA; i++) meanPena += std::fabs(penal_grad[1+i]);
     #elif defined(ACER_ADAPTIVE) //adapt learning rate:
       gradient[PenalID] = -4*std::pow((DivKL-DKL_target)/DKL_target,3)*opt->eta;
-      const vector<Real> totalPolGrad = policy_grad;
+      const vector<Real>& totalPolGrad = policy_grad;
       //avoid races, only one thread updates, should be already redundant:
       if (thrID==1) //if thrd is here, surely we are not updating weights
         opt->eta = out_cur[PenalID];
     #else
-      const Real DivKL = pol_cur.sampRhoWeight; //unused
-      const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
-      const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_target);
-      for(Uint i=0; i<nA; i++) meanPena += std::fabs(gradDivKL[1+i]);
-    #endif
+      const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
+      #ifdef BONE
+        const vector<Real>& totalPolGrad = policy_grad;
+      #else
+        const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
+        const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_target);
 
-    const Real DKLmul2 = - skippedPenal * std::max(A_OPC, (Real)0) * rho_inv;
-    const vector<Real> beta_grad = pol_cur.div_kl_opp_grad(_t->mu, DKLmul2);
-    const vector<Real> finalPolGrad = sum2Grads(totalPolGrad, beta_grad);
-    for(Uint i=0; i<nA; i++) meanBeta += std::fabs(beta_grad[1+i]);
+       for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
+      #endif
+    #endif
 
     //decrease precision if error is large
     //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
     gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprecision);
     //adv_cur.grad(act, Qer, gradient, aInfo.bounded);
     adv_cur.grad(act, Qer * Qprecision, gradient);
-    pol_cur.finalize_grad(finalPolGrad, gradient);
+    pol_cur.finalize_grad(totalPolGrad, gradient);
     //prepare Q with off policy corrections for next step:
     Q_RET = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
-    Q_OPC = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
+    #ifdef UNBW
+      Q_OPC = pol_cur.sampImpWeight*Q_dist +V_cur;
+    #else
+      Q_OPC = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
+    #endif
     //bookkeeping:
     dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Ver
 
@@ -405,7 +435,11 @@ class RACER : public Learner_utils
     const Real V_hat = output[VsValID], A_hat = adv_cur.computeAdvantage(act);
     //prepare rolled Q with off policy corrections for next step:
     Q_RET = std::min((Real)1,policy.sampImpWeight)*(Q_RET-A_hat-V_hat) +V_hat;
-    Q_OPC = std::min((Real)1,policy.sampImpWeight)*(Q_RET-A_hat-V_hat) +V_hat;
+    #ifdef UNBW
+      Q_OPC = policy.sampImpWeight*(Q_RET-A_hat-V_hat) +V_hat;
+    #else
+      Q_OPC = std::min((Real)1,policy.sampImpWeight)*(Q_RET-A_hat-V_hat)+V_hat;
+    #endif
   }
 
  public:
@@ -461,30 +495,32 @@ class RACER : public Learner_utils
   //void test();
   void processStats() override
   {
-    stats.minQ= 1e9; stats.MSE =0; stats.dCnt=0;
-    stats.maxQ=-1e9; stats.avgQ=0; stats.relE=0;
-    for (Uint i=0; i<Vstats.size(); i++) {
-      stats.MSE  += Vstats[i]->MSE;  stats.avgQ += Vstats[i]->avgQ;
-      stats.stdQ += Vstats[i]->stdQ; stats.dCnt += Vstats[i]->dCnt;
-      stats.minQ = std::min(stats.minQ, Vstats[i]->minQ);
-      stats.maxQ = std::max(stats.maxQ, Vstats[i]->maxQ);
-      Vstats[i]->minQ= 1e9; Vstats[i]->MSE =0; Vstats[i]->dCnt=0;
-      Vstats[i]->maxQ=-1e9; Vstats[i]->avgQ=0; Vstats[i]->stdQ=0;
-    }
+    {
+      stats.minQ= 1e9; stats.MSE =0; stats.dCnt=0;
+      stats.maxQ=-1e9; stats.avgQ=0; stats.relE=0;
+      for (Uint i=0; i<Vstats.size(); i++) {
+        stats.MSE  += Vstats[i]->MSE;  stats.avgQ += Vstats[i]->avgQ;
+        stats.stdQ += Vstats[i]->stdQ; stats.dCnt += Vstats[i]->dCnt;
+        stats.minQ = std::min(stats.minQ, Vstats[i]->minQ);
+        stats.maxQ = std::max(stats.maxQ, Vstats[i]->maxQ);
+        Vstats[i]->minQ= 1e9; Vstats[i]->MSE =0; Vstats[i]->dCnt=0;
+        Vstats[i]->maxQ=-1e9; Vstats[i]->avgQ=0; Vstats[i]->stdQ=0;
+      }
 
-    if (learn_size > 1) {
-      MPI_Allreduce(MPI_IN_PLACE,&stats.MSE, 1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
-      MPI_Allreduce(MPI_IN_PLACE,&stats.dCnt,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
-      MPI_Allreduce(MPI_IN_PLACE,&stats.avgQ,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
-      MPI_Allreduce(MPI_IN_PLACE,&stats.stdQ,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
-      MPI_Allreduce(MPI_IN_PLACE,&stats.minQ,1,MPI_LONG_DOUBLE,MPI_MIN,mastersComm);
-      MPI_Allreduce(MPI_IN_PLACE,&stats.maxQ,1,MPI_LONG_DOUBLE,MPI_MAX,mastersComm);
-    }
+      if (learn_size > 1) {
+        MPI_Allreduce(MPI_IN_PLACE,&stats.MSE, 1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+        MPI_Allreduce(MPI_IN_PLACE,&stats.dCnt,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+        MPI_Allreduce(MPI_IN_PLACE,&stats.avgQ,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+        MPI_Allreduce(MPI_IN_PLACE,&stats.stdQ,1,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
+        MPI_Allreduce(MPI_IN_PLACE,&stats.minQ,1,MPI_LONG_DOUBLE,MPI_MIN,mastersComm);
+        MPI_Allreduce(MPI_IN_PLACE,&stats.maxQ,1,MPI_LONG_DOUBLE,MPI_MAX,mastersComm);
+      }
 
-    stats.epochCount++;
-    const long double sum=stats.avgQ, sumsq=stats.stdQ, cnt=stats.dCnt;
-    stats.MSE   = std::sqrt(stats.MSE/cnt); stats.avgQ /= cnt;
-    stats.stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
+      stats.epochCount++;
+      const long double sum=stats.avgQ, sumsq=stats.stdQ, cnt=stats.dCnt;
+      stats.MSE   = std::sqrt(stats.MSE/cnt); stats.avgQ /= cnt;
+      stats.stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
+    }
 
     processGrads();
     statsVector(avgValGrad, stdValGrad, cntValGrad);
@@ -492,24 +528,29 @@ class RACER : public Learner_utils
       print(stdValGrad[0]).c_str()); fflush(0);
     { //shift data / gradient counters to maintain grad stepping to sample
       // collection ratio prescirbed by obsPerStep
-      const Uint nData = read_nData();// nData_0 = nData_b4Train();
-      const Real dataCounter = (Real)nData - (Real)nData_last;
+      //const Uint nData = read_nData();// nData_0 = nData_b4Train();
+      //const Real dataCounter = (Real)nData - (Real)nData_last;
       const Real stepCounter = (Real)opt->nepoch - (Real)nStep_last;
-      printf("nData_last:%lu nData:%u nData_b4PolUpdates:%u cnter:%g\n",
-        nData_last, nData, nData_b4PolUpdates, dataCounter); fflush(0);
       nData_last += stepCounter*obsPerStep/learn_size;
       nStep_last = opt->nepoch;
     }
     { //update sequences
       assert(nStoredSeqs_last <= data->nSequences); //before pruining
-      const Uint lostSeqs = data->prune(goalSkipRatio, CmaxPol);
+      //const Uint lostSeqs =
+      data->prune(goalSkipRatio, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
-      const Real change = (currSeqs+1.)/nStoredSeqs_last;
+      #ifdef BONE //then DKL_target multiplies beta Dkl, bigger if i lose data
+        const Real change = (currSeqs+1.)/nStoredSeqs_last;
+        DKL_target = clip(DKL_target/change, 1e6, 1e-6);
+        //opt->eta = clip(opt->eta*currSeqs/nStoredSeqs_last, 1e-3, 1e-4);
+      #else
+        DKL_target = clip(DKL_target*(currSeqs+1.)/nStoredSeqs_last, 1e6,1e-6);
+        //opt->eta = clip(opt->eta*(currSeqs+.1)/nStoredSeqs_last, 1e-3,1e-4);
+      #endif
       nStoredSeqs_last = currSeqs; //after pruning
-      DKL_target = clip(DKL_target*change, 10, 1e-2);
-
-      printf("Removed %u sequences out of %u\n", lostSeqs, data->nSequences);
     }
+    printf("nData_last:%lu nData:%u nData_b4Updates:%u Set:%u\n", nData_last,
+      read_nData(), nData_b4PolUpdates, data->nSequences); fflush(0);
     const Real ratio = nSkipped/(nTried+nnEPS);
     nSkipped = nTried = 0;
 
@@ -527,17 +568,19 @@ class RACER : public Learner_utils
 
     printf("%lu, rmse:%.2Lg, avg_Q:%.2Lg, stdQ:%.2Lg, minQ:%.2Lg, maxQ:%.2Lg, "
       "weight:[%.0Lg %.0Lg %.2Lg], Qprec:%.3f, penalDKL:%f, rewPrec:%f "
-      "skip:[ratio:%g DKLtgt:%g penal:%g]\n",
+      "skip:[ratio:%g DKLtgt:%g eta:%f]\n",
       opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ, stats.minQ, stats.maxQ,
       sumWeights, sumWeightsSq, distTarget, Qprecision, penalDKL,
-      data->invstd_reward, ratio, DKL_target, skippedPenal); fflush(0);
+      data->invstd_reward, ratio, DKL_target, opt->eta);
+      fflush(0);
 
     ofstream fs;
     fs.open("stats.txt", ios::app);
     fs<<opt->nepoch<<"\t"<<stats.MSE<<"\t"<<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<
       stats.minQ<<"\t"<<stats.maxQ<<"\t"<<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<
       distTarget<<"\t"<<Qprecision<<"\t"<<penalDKL<<"\t"<<data->invstd_reward<<
-      "\t"<<ratio<<"\t"<<DKL_target<<"\t"<<skippedPenal<<endl;fs.close(); fs.flush();
+      "\t"<<ratio<<"\t"<<DKL_target<<endl;
+      fs.close(); fs.flush();
     if (stats.epochCount % 100==0) save("policy");
   }
 

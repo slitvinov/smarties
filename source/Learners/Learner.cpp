@@ -43,6 +43,7 @@ int Learner::spawnTrainTasks(const int availTasks) //this must be called from om
   #ifdef FULLTASKING
     if ( !availTasks ) return 0;
     const int nSpawn = availTasks;
+    //const int nSpawn = sequences.size();
   #else
     const int nSpawn = sequences.size();
   #endif
