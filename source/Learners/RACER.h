@@ -419,8 +419,8 @@ class RACER : public Learner_utils
     statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],info);
     statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
     int clip = clip_gradient(gradient, stdGrad[0], seq, samp);
-    if(clip) printf("A:%f Aret:%f rho:%f g1:%f %f g2:%f %f\n",A_cur, A_OPC,
-      rho_cur, gradRacer_1[1], gradRacer_1[2], gradRacer_2[1],  gradRacer_2[2]);
+    //if(clip) printf("A:%f Aret:%f rho:%f g1:%f %f g2:%f %f\n",A_cur, A_OPC,
+    //rho_cur, gradRacer_1[1], gradRacer_1[2], gradRacer_2[1],  gradRacer_2[2]);
 
     return gradient;
   }
