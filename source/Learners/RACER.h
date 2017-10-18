@@ -417,8 +417,9 @@ class RACER : public Learner_utils
     //write gradient onto output layer:
     const vector<Real> info = { DivKL, meanPena, meanBeta, meanGrad};
     statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],info);
+    //int clip =
+    clip_gradient(gradient, stdGrad[0], seq, samp);
     statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
-    int clip = clip_gradient(gradient, stdGrad[0], seq, samp);
     //if(clip) printf("A:%f Aret:%f rho:%f g1:%f %f g2:%f %f\n",A_cur, A_OPC,
     //rho_cur, gradRacer_1[1], gradRacer_1[2], gradRacer_2[1],  gradRacer_2[2]);
 
@@ -539,7 +540,8 @@ class RACER : public Learner_utils
     { //update sequences
       assert(nStoredSeqs_last <= data->nSequences); //before pruining
       //const Uint lostSeqs =
-      data->prune(goalSkipRatio, CmaxPol);
+      const Real mul = (Real)nSequences4Train()/(Real)data->nSequences;
+      data->prune(goalSkipRatio*mul, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
       #ifdef BONE //then DKL_target multiplies beta Dkl, bigger if i lose data
         const Real change = (currSeqs+1.)/nStoredSeqs_last;

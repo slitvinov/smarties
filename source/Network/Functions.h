@@ -116,7 +116,7 @@ struct Sigm : public Function
   }
 };
 
-#define SMOOTH (nnReal)0.5
+#define SMOOTH (nnReal)1
 struct HardSign : public Function
 {
   Real weightsInitFactor(const Uint inps, const Uint outs) const override
