@@ -55,7 +55,7 @@ private:
 
   static inline vector<double*> alloc_bufs(const int size, const int num)
   {
-    vector<double*> ret(size, nullptr);
+    vector<double*> ret(num, nullptr);
     for(int i=0; i<num; i++) ret[i] = _alloc(size);
     return ret;
   }
@@ -75,6 +75,7 @@ private:
 
   inline void sendBuffer(const int i)
   {
+    assert(i>0);
     lock_guard<mutex> lock(mpi_mutex);
     MPI_Request tmp;
     MPI_Isend(outBufs[i-1], outSize, MPI_BYTE, i, 0, slavesComm, &tmp);

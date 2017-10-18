@@ -125,9 +125,9 @@ int main (int argc, char** argv)
   if(!settings.bTrain && settings.nThreads<1)
     die("must have at least 1 thread even when not training.\n");
 
-  settings.generators.reserve(settings.nThreads);
+  settings.generators.reserve(omp_get_max_threads());
   settings.generators.push_back(mt19937(settings.sockPrefix));
-  for(int i=1; i<settings.nThreads; i++) {
+  for(int i=1; i<omp_get_max_threads(); i++) {
     const Uint seed = settings.generators[0]();
     settings.generators.push_back(mt19937(seed));
   }

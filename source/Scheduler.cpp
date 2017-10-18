@@ -23,6 +23,8 @@ Master::Master(MPI_Comm _c,Learner*const _l, Environment*const _e, Settings&_s):
 {
   profiler = new Profiler();
   learner->profiler_ext = profiler;
+  printf("%d %d %d %d %d %d\n", nThreads, nSlaves, learn_rank, inSize, outSize, learn_size);
+fflush(0);
   if(nSlaves*nPerRank != static_cast<int>(agents.size()))
     die("Mismatch in master's nSlaves nPerRank nAgents.")
   //the following Irecv will be sent after sending the action
@@ -92,7 +94,7 @@ int Master::run()
             if(learnerReadyForAgent(slave))
             {
               addToNTasks(1);
-              #pragma omp task firstprivate(slave) if(readNTasks()<nThreads) priority(1)
+              #pragma omp task firstprivate(slave) if(readNTasks()<nThreads) //1priority(1)
                 processRequest(slave);
             }
             else postponed_queue.push_back(slave);
