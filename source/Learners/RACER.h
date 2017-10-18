@@ -204,7 +204,10 @@ class RACER : public Learner_utils
       #pragma omp atomic
       nTried++;
 
-      if(policies[0].sampRhoWeight < std::min((Real)0.5, 1./CmaxPol))
+      const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
+      const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
+      if(policies[0].sampRhoWeight < minImpWeight ||
+         policies[0].sampRhoWeight > maxImpWeight)
       {
         int newSample = -1;
         #pragma omp critical
@@ -217,7 +220,7 @@ class RACER : public Learner_utils
           Uint sequence, transition;
           data->indexToSample(newSample, sequence, transition);
           return Train(sequence, transition, thrID);
-        }
+        } else return;
       }
     #endif
 
@@ -410,14 +413,14 @@ class RACER : public Learner_utils
     //bookkeeping:
     dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Ver
 
-    const vector<Real> info = { DivKL, meanPena, meanBeta, meanGrad};
-    statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],info);
     //data->Set[seq]->tuples[samp]->SquaredError=-std::max(rho_inv,(Real)1);
     //write gradient onto output layer:
-    int clip = clip_gradient(gradient, stdGrad[0], seq, samp);
-    if(clip) printf("A:%f Aret:%f rho:%f racer1:%f %f racer2:%f %f\n", A_cur,A_OPC,rho_cur,gradRacer_1[1],gradRacer_1[2],
-gradRacer_2[1],gradRacer_2[2]);
+    const vector<Real> info = { DivKL, meanPena, meanBeta, meanGrad};
+    statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],info);
     statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
+    int clip = clip_gradient(gradient, stdGrad[0], seq, samp);
+    if(clip) printf("A:%f Aret:%f rho:%f g1:%f %f g2:%f %f\n",A_cur, A_OPC,
+      rho_cur, gradRacer_1[1], gradRacer_1[2], gradRacer_2[1],  gradRacer_2[2]);
 
     return gradient;
   }

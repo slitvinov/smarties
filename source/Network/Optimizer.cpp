@@ -197,7 +197,8 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
         const nnReal _M2  = M2_;
       #else
         const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
-        const nnReal M2_ = std::max( std::max(M2, nnEPS), M1_*M1_ );
+        const nnReal M2_ = M2<M1_*M1_? M1_*M1_+nnEPS :(M2<nnEPS? nnEPS : M2);
+        //std::max( std::max(M2, nnEPS), M1_*M1_ );
         const nnReal _M2 = std::sqrt(M2_);
       #endif
       //const nnReal RNG = noise * gen.d_mean0_var1();
