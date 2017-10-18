@@ -44,7 +44,7 @@ using namespace std;
 // number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20
 //clip gradients of network outputs if more than # standard deviations from 0:
-//#define ACER_GRAD_CUT 10
+#define ACER_GRAD_CUT 10
 #define MAX_IMPW 100.
 
 #ifdef IMPORTSAMPLE

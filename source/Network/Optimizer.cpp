@@ -173,12 +173,11 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
 {
   //const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
   assert(batchsize>0);
-
   #pragma omp parallel
   {
-    //const Uint thrID = static_cast<Uint>(omp_get_thread_num());
-    //Saru gen(nepoch, thrID, net->generators[thrID]());
-    #if 1
+    const Uint thrID = static_cast<Uint>(omp_get_thread_num());
+    Saru gen(nepoch, thrID, net->generators[thrID]());
+    #if 0
       const nnReal eta_ = _eta;
     #else
       const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
@@ -191,14 +190,14 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
     for (Uint i=0; i<N; i++) {
       const nnReal DW  = grad[i]*norm;
       const nnReal M1_ = f11* _1stMom[i] +f12* DW;
-      #if 1
+      #if 0
         const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
         //printf("%f %f %f\n",M2, _2ndMom[i], DW); fflush(0);
         const nnReal M2_ = std::max(M2, nnEPS);
         const nnReal _M2  = M2_;
       #else
         const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
-        const nnReal M2_ = std::max(M2, nnEPS);
+        const nnReal M2_ = std::max( std::max(M2, nnEPS), M1_*M1_ );
         const nnReal _M2 = std::sqrt(M2_);
       #endif
       //const nnReal RNG = noise * gen.d_mean0_var1();
@@ -209,7 +208,8 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
       //dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
       #if 1
         //const nnReal range = std::min((nnReal)1, _M2/(std::fabs(M1_)+nnEPS));
-        dest[i] += delay*(target[i]-dest[i]);
+        const Real scale = std::fabs(M1_)/_M2;
+        dest[i] += delay*(target[i]-dest[i] + scale*gen.d_mean0_var1());
       #endif
       //_mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
     }

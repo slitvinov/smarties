@@ -30,8 +30,7 @@
 //#define simpleSigma
 //#define BONE
 //#define UNBW
-
-//#define UNBR
+#define UNBR
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_utils
@@ -201,13 +200,11 @@ class RACER : public Learner_utils
     const Real rho_inv = policies[0].sampInvWeight;
     t0->SquaredError = std::max(rho_inv, rho_cur);
 
-    #if 0
+    #if 1
       #pragma omp atomic
       nTried++;
-      const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
-      const Real maxImpWeight = 10000; //std::max((Real)2.0,    CmaxPol);
-      if(policies[0].sampRhoWeight < minImpWeight ||
-         policies[0].sampRhoWeight > maxImpWeight)
+
+      if(policies[0].sampRhoWeight < std::min((Real)0.5, 1./CmaxPol))
       {
         int newSample = -1;
         #pragma omp critical
@@ -281,9 +278,6 @@ class RACER : public Learner_utils
     // task->Train(series_cur.back(), recur, act, seq, samp, grad);
     //#endif
 
-    //write gradient onto output layer:
-    statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
-    clip_gradient(grad, stdGrad[0], seq, samp);
     net->setOutputDeltas(grad, series_cur.back());
 
     if(thrID==1)  profiler->stop_start("BCK");
@@ -418,7 +412,12 @@ class RACER : public Learner_utils
 
     const vector<Real> info = { DivKL, meanPena, meanBeta, meanGrad};
     statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],info);
-    //data->Set[seq]->tuples[samp]->SquaredError = -std::max(rho_inv, (Real) 1);
+    //data->Set[seq]->tuples[samp]->SquaredError=-std::max(rho_inv,(Real)1);
+    //write gradient onto output layer:
+    int clip = clip_gradient(gradient, stdGrad[0], seq, samp);
+    if(clip) printf("A:%f Aret:%f rho:%f racer1:%f %f racer2:%f %f\n", A_cur,A_OPC,rho_cur,gradRacer_1[1],gradRacer_1[2],
+gradRacer_2[1],gradRacer_2[2]);
+    statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
 
     return gradient;
   }
@@ -545,10 +544,10 @@ class RACER : public Learner_utils
         //opt->eta = clip(opt->eta*currSeqs/nStoredSeqs_last, 1e-3, 1e-4);
       #else
         DKL_target = clip(DKL_target*(currSeqs+1.)/nStoredSeqs_last, 1e6,1e-6);
-        //opt->eta = clip(opt->eta*(currSeqs+.1)/nStoredSeqs_last, 1e-3,1e-4);
       #endif
       nStoredSeqs_last = currSeqs; //after pruning
     }
+    opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
     printf("nData_last:%lu nData:%u nData_b4Updates:%u Set:%u\n", nData_last,
       read_nData(), nData_b4PolUpdates, data->nSequences); fflush(0);
     const Real ratio = nSkipped/(nTried+nnEPS);

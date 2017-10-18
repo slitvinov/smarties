@@ -87,7 +87,7 @@ public:
   bool called_by_app = false, defined_spaces = false;
 
   //internal counters
-  unsigned long seq_id = 0, msg_id = 0, iter = 0, lag = 1;
+  unsigned long seq_id = 0, msg_id = 0, iter = 0, lag = 10;
   bool verbose = false, spawner = false;
   std::string execpath = std::string();
   std::string paramfile = std::string();

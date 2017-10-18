@@ -105,9 +105,9 @@ vector<Real> Learner_utils::output_stochastic_policy(const int agentId, const Ag
     Activation* const prevActivation = prevAct[thrID];
     prevActivation->loadMemory(net->mem[agentId]);
     net->predict(data->standardize(input), output, prevActivation, currActivation
-      #ifdef __EntropySGD //then we sample from target weights
-        , net->tgt_weights, net->tgt_biases
-      #endif
+      //#ifdef __EntropySGD //then we sample from target weights
+      //  , net->tgt_weights, net->tgt_biases
+      //#endif
     );
   }
   //save network transition

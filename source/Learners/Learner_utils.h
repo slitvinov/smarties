@@ -109,9 +109,10 @@ public:
   virtual void processStats() override;
   virtual void processGrads();
 
-  inline void clip_gradient(vector<Real>& grad, const vector<long double>& std,
+  inline int clip_gradient(vector<Real>& grad, const vector<long double>& std,
     const Uint seq, const Uint samp) const
   {
+    int ret = 0;
     for (Uint i=0; i<grad.size(); i++) {
       #ifdef importanceSampling
         assert(data->Set[seq]->tuples[samp]->weight>0);
@@ -120,18 +121,21 @@ public:
       #ifdef ACER_GRAD_CUT
         if(grad[i] >  ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
         {
-          //printf("Cut! was:%f is:%LG\n",grad[i], ACER_GRAD_CUT*std[i]);
+          printf("Cut! %u was:%f is:%LG\n", i, grad[i], ACER_GRAD_CUT*std[i]);
           grad[i] =  ACER_GRAD_CUT*std[i];
+          ret = 1;
         }
         else
         if(grad[i] < -ACER_GRAD_CUT*std[i] && std[i]>2.2e-16)
         {
-          //printf("Cut! was:%f is:%LG\n",grad[i],-ACER_GRAD_CUT*std[i]);
+          printf("Cut! %u was:%f is:%LG\n",i, grad[i],-ACER_GRAD_CUT*std[i]);
           grad[i] = -ACER_GRAD_CUT*std[i];
+          ret = 1;
         }
         //else printf("Not cut\n");
       #endif
     }
+    return ret;
   }
 
   void statsVector(vector<vector<long double>>& sum, vector<vector<long double>>& sqr, vector<long double>& cnt);

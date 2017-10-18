@@ -115,7 +115,7 @@ inline void Master::processRequest(const int slave)
   const int thrID = omp_get_thread_num();
   //printf("Thread %d doing slave %d\n",thrID,slave);
   if(thrID==1) learner->profiler->check_start("SERV");
-
+  //auto start = std::chrono::high_resolution_clock::now();
   vector<Real> recv_state(sI.dim);
   int recv_iAgent = -1, istatus;
   double reward;
@@ -170,6 +170,8 @@ inline void Master::processRequest(const int slave)
   recvBuffer(slave);
   addToNTasks(-1);
   if(thrID==1) learner->profiler->check_start("SLP");
+  //auto elapsed = std::chrono::high_resolution_clock::now() - start;
+  //cout << chrono::duration_cast<chrono::microseconds>(elapsed).count() <<endl;
 }
 
 Slave::Slave(Communicator*const _c, Environment*const _e, Settings& _s):

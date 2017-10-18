@@ -114,7 +114,7 @@ private:
   }
   static inline Real precision_func(const Real val)
   {
-    return std::exp(val);
+    return std::exp(val) + nnEPS; //nan police
     //return 0.5*(val + std::sqrt(val*val+1));
   }
   static inline Real precision_func_diff(const Real val)
