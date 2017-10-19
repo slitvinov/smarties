@@ -340,7 +340,7 @@ class RACER : public Learner_utils
       const vector<Real> gradRacer_1 = pol_cur.policy_grad(act, gain1);
       for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradRacer_1[1+i]);
       #if 1
-        const vector<Real> gradAcer& = gradRacer_1;
+        const vector<Real>& gradAcer = gradRacer_1;
         meanBeta = std::max(A_OPC, (Real)0) * rho_inv; //to see it
       #else
         const vector<Real> gradRacer_2 = pol_cur.div_kl_opp_grad(_t->mu, DKLmul2);
