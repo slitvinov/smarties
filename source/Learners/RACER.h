@@ -39,7 +39,7 @@ class RACER : public Learner_utils
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
   const Real CmaxRet, CmaxPol, DKL_target_orig;
-  const Real goalSkipRatio = CmaxPol > 4 ? 0.05 : 0.1;
+  const Real goalSkipRatio = CmaxPol > 4 ? 0.1 : 0.2;
   Real DKL_target = DKL_target_orig;
   const vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
@@ -132,8 +132,6 @@ class RACER : public Learner_utils
       //#endif
 
       //write gradient onto output layer:
-      statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
-      clip_gradient(grad, stdGrad[0], seq, k);
       net->setOutputDeltas(grad, series_cur[k]);
     }
 
@@ -340,11 +338,15 @@ class RACER : public Learner_utils
       #endif
 
       const vector<Real> gradRacer_1 = pol_cur.policy_grad(act, gain1);
-      const vector<Real> gradRacer_2 = pol_cur.div_kl_opp_grad(_t->mu, DKLmul2);
-      const vector<Real> gradAcer = sum2Grads(gradRacer_1, gradRacer_2);
-
       for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradRacer_1[1+i]);
-      for(Uint i=0; i<nA; i++) meanBeta += std::fabs(gradRacer_2[1+i]);
+      #if 1
+        const vector<Real> gradAcer& = gradRacer_1;
+        meanBeta = std::max(A_OPC, (Real)0) * rho_inv; //to see it
+      #else
+        const vector<Real> gradRacer_2 = pol_cur.div_kl_opp_grad(_t->mu, DKLmul2);
+        const vector<Real> gradAcer = sum2Grads(gradRacer_1, gradRacer_2);
+        for(Uint i=0; i<nA; i++) meanBeta += std::fabs(gradRacer_2[1+i]);
+      #endif
     #endif
 
     #ifdef ACER_PENALIZER
@@ -428,12 +430,11 @@ class RACER : public Learner_utils
     //write gradient onto output layer:
     const vector<Real> info = { DivKL, meanPena, meanBeta, meanGrad};
     statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],info);
+    statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
     //int clip =
     clip_gradient(gradient, stdGrad[0], seq, samp);
-    statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
     //if(clip) printf("A:%f Aret:%f rho:%f g1:%f %f g2:%f %f\n",A_cur, A_OPC,
     //rho_cur, gradRacer_1[1], gradRacer_1[2], gradRacer_2[1],  gradRacer_2[2]);
-
     return gradient;
   }
 

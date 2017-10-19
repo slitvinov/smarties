@@ -160,7 +160,7 @@ public:
     // if i do not have enough shuffled indices for training a batchSize
     // if i have buffered transitions to add to dataset
     // if my desired dataset size is less than what i have
-    return inds.size()<batchSize || Buffered.size() || adapt_TotSeqNum<Set.size();
+    return inds.size()<2*batchSize || Buffered.size() || adapt_TotSeqNum<Set.size();
   }
 
   inline Uint readNTransitions() const
