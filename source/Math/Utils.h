@@ -32,24 +32,25 @@ inline vector<Real> trust_region_split(const vector<Real>& grad, const vector<Re
 {
   assert(grad.size() == trust.size());
   const Uint nA = grad.size();
-  vector<Real> ret(nA);
+  vector<Real> ret(nA), onpolproj(nA);
   const Real EPS = numeric_limits<Real>::epsilon();
-  Real dot_KG=0, dot_KP=0, dot_PG=0, norm_K=EPS, norm_P=EPS;
-  for (Uint j=0; j<nA; j++) {
-    dot_KP += trust[j] *  grad[j]; dot_KG += trust[j] * onpol[j];
-    dot_PG +=  grad[j] * onpol[j]; norm_K += trust[j] * trust[j];
-    norm_P += onpol[j] * onpol[j];
+  Real dot_KG=0,dot_KP=0,dot_KO=0,dot_GP=0,norm_K=EPS,norm_P=EPS,norm_G=EPS;
+  for(Uint j=0;j<nA;j++){dot_KO+=trust[j]*onpol[j]; norm_K+=trust[j]*trust[j];}
+  for(Uint j=0;j<nA;j++){
+    onpolproj[j] = onpol[j]-dot_KO*trust[j]/norm_K; dot_KG += trust[j]*grad[j];
+    dot_KP += trust[j] * onpolproj[j]; dot_GP += grad[j] * onpolproj[j];
+    norm_P += onpolproj[j] * onpolproj[j]; norm_G += grad[j] * grad[j];
   }
-  const Real nK = std::sqrt(norm_K), nP = std::sqrt(norm_P);
+  const Real nK=std::sqrt(norm_K), nP=std::sqrt(norm_P), nG=std::sqrt(norm_G);
   const Real dirDelta = delta/nK * std::max((Real)0, dot_KP/(nK*nP));
-  const Real proj_para = std::min((Real)0, dirDelta - dot_KP/norm_K);
-  const Real proj_orth = std::min((Real)0, dot_PG/norm_P);
+  const Real proj_para = std::min((Real)0, dirDelta - dot_KG/norm_K);
+  const Real proj_orth = std::min((Real)0, dot_GP/norm_P);
   //#ifndef NDEBUG
   //if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
   //else {printf("Not Hit DKL constraint\n");fflush(0);}
   //#endif
   for (Uint j=0; j<nA; j++) {
-    ret[j] = grad[j] + proj_para*trust[j] - proj_orth*onpol[j];
+    ret[j] = grad[j] + proj_para*trust[j] - proj_orth*onpolproj[j];
     if(ret[j]*grad[j] < 0) ret[j] = 0;
   }
   return ret;

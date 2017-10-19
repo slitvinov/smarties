@@ -341,7 +341,7 @@ class RACER : public Learner_utils
       for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradRacer_1[1+i]);
       #if 1
         const vector<Real>& gradAcer = gradRacer_1;
-        meanBeta = std::max(A_OPC, (Real)0) * rho_inv; //to see it
+        meanBeta = - DKLmul2; //to see it
       #else
         const vector<Real> gradRacer_2 = pol_cur.div_kl_opp_grad(_t->mu, DKLmul2);
         const vector<Real> gradAcer = sum2Grads(gradRacer_1, gradRacer_2);

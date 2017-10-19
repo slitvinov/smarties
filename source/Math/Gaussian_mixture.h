@@ -140,7 +140,7 @@ public:
   inline void prepare(const vector<Real>& unbact, const vector<Real>& beta, const bool bGeometric, const Gaussian_mixture*const pol_hat = nullptr)
   {
     sampAct = map_action(unbact);
-    Pact_Final = 0;
+    Pact_Final = numeric_limits<Real>::epsilon();  //nan police
     for(Uint j=0; j<nExperts; j++) {
       PactEachExp[j] = 1;
       for(Uint i=0; i<nA; i++)
