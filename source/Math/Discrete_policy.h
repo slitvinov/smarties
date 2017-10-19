@@ -124,6 +124,16 @@ struct Discrete_policy
     return ret;
   }
 
+  inline vector<Real> policy_grad(const Uint act, const vector<Real>& beta, const Real factor) const
+  {
+    vector<Real> ret(nA);
+    abort(); // what to do here?
+    //for (Uint i=0; i<nA; i++) ret[i] = factor*(((i==act) ? 1 : 0) -probs[i]);
+    for (Uint i=0; i<nA; i++) ret[i] = -factor/normalization;
+    ret[act] += factor/unnorm[act];
+    return ret;
+  }
+
   inline Real kl_divergence(const Discrete_policy*const pol_hat) const
   {
     Real ret = 0;

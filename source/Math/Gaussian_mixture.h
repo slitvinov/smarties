@@ -216,6 +216,36 @@ public:
     return ret;
   }
 
+  inline vector<Real> policy_grad(const vector<Real>& act, const vector<Real>& beta, const Real factor) const
+  {
+    const Uint NA = act.size();
+    vector<Real> ret(nExperts +2*NA*nExperts, 0), PsBeta(nExperts, 1);
+    Real Pact_Beta = numeric_limits<Real>::epsilon(); //nan police
+    for(Uint j=0; j<nExperts; j++) {
+      for(Uint i=0; i<NA; i++) {
+        const Real stdi  = beta[i +j*NA +nExperts*(1+NA)];
+        PsBeta[j] *= oneDnormal(act[i], beta[i +j*NA +nExperts], 1/(stdi*stdi));
+      }
+      assert(PsBeta[j] > 0);
+      Pact_Beta += PsBeta[j] * beta[j]; //beta[j] contains expert
+    }
+
+    for(Uint j=0; j<nExperts; j++) {
+      const Real normExpert = factor * PsBeta[j] / Pact_Beta;
+      for(Uint i=0; i<nExperts; i++)
+        ret[i] += normExpert * ((i==j)-beta[j])/normalization;
+
+      const Real fac = normExpert * beta[j];
+      for (Uint i=0; i<NA; i++) {
+        const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(1+nA)*nExperts;
+        const Real u = act[i]-beta[indM], stdi = beta[indS];
+        ret[indM] = fac*u/(stdi*stdi);
+        ret[indS] = 0.5*fac*(u*u/(stdi*stdi) - 1)/(stdi*stdi);
+      }
+    }
+    return ret;
+  }
+
   inline vector<Real> policy_grad(const vector<Real>& act, const Real factor) const
   {
     vector<Real> ret(nExperts +2*nA*nExperts, 0);

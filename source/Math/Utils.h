@@ -28,6 +28,33 @@ inline vector<Real> sum2Grads(const vector<Real>& f, const vector<Real>& g)
   return ret;
 }
 
+inline vector<Real> trust_region_split(const vector<Real>& grad, const vector<Real>& onpol, const vector<Real>& trust, const Real delta)
+{
+  assert(grad.size() == trust.size());
+  const Uint nA = grad.size();
+  vector<Real> ret(nA);
+  const Real EPS = numeric_limits<Real>::epsilon();
+  Real dot_KG=0, dot_KP=0, dot_PG=0, norm_K=EPS, norm_P=EPS;
+  for (Uint j=0; j<nA; j++) {
+    dot_KP += trust[j] *  grad[j]; dot_KG += trust[j] * onpol[j];
+    dot_PG +=  grad[j] * onpol[j]; norm_K += trust[j] * trust[j];
+    norm_P += onpol[j] * onpol[j];
+  }
+  const Real nK = std::sqrt(norm_K), nP = std::sqrt(norm_P);
+  const Real dirDelta = delta/nK * std::max((Real)0, dot_KP/(nK*nP));
+  const Real proj_para = std::min((Real)0, dirDelta - dot_KP/norm_K);
+  const Real proj_orth = std::min((Real)0, dot_PG/norm_P);
+  //#ifndef NDEBUG
+  //if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
+  //else {printf("Not Hit DKL constraint\n");fflush(0);}
+  //#endif
+  for (Uint j=0; j<nA; j++) {
+    ret[j] = grad[j] + proj_para*trust[j] - proj_orth*onpol[j];
+    if(ret[j]*grad[j] < 0) ret[j] = 0;
+  }
+  return ret;
+}
+
 inline vector<Real> trust_region_update(const vector<Real>& grad,
   const vector<Real>& trust, const Real delta)
 {

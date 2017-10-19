@@ -159,6 +159,25 @@ public:
     return ret;
   }
 
+  inline vector<Real> policy_grad(const vector<Real>& act, const vector<Real>& beta, const Real factor) const
+  {
+    /*
+      this function returns factor * grad_phi log(policy(a,s))
+      assumptions:
+        - we deal with diagonal covariance matrices
+        - network outputs the inverse of diag terms of the cov matrix
+      Therefore log of distrib becomes:
+      sum_i( -.5*log(2*M_PI*Sigma_i) -.5*(a-pi)^2*Sigma_i^-1 )
+     */
+    vector<Real> ret(2*nA);
+    for (Uint i=0; i<nA; i++) {
+      const Real vari = beta[nA + i]*beta[nA + i];
+      ret[i]    = factor*(act[i]-beta[i])/vari;
+      ret[i+nA] =.5*factor*(vari -std::pow(act[i]-beta[i],2));
+    }
+    return ret;
+  }
+
   inline vector<Real> div_kl_grad(const Gaussian_policy*const pol_hat, const Real fac = 1) const
   {
     vector<Real> ret(2*nA);

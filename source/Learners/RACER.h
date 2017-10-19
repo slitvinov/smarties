@@ -385,7 +385,7 @@ class RACER : public Learner_utils
       //avoid races, only one thread updates, should be already redundant:
       if (thrID==1) //if thrd is here, surely we are not updating weights
         opt->eta = out_cur[PenalID];
-    #else
+    #elif defined(ACER_CONSTRAINED)
       const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
       #ifdef BONE
         const vector<Real>& totalPolGrad = policy_grad;
@@ -395,6 +395,17 @@ class RACER : public Learner_utils
 
        for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
       #endif
+    #else
+      const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
+      Real MCreward = 0;
+      for(Uint i=data->Set[seq]->ndata(); i>samp; i--)
+        MCreward = MCreward*gamma + data->standardized_reward(seq, i);
+      const Real MCadv = MCreward - V_cur;
+      const vector<Real> onPolGrad = pol_cur.policy_grad(act, _t->mu, MCadv);
+      const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
+      const vector<Real> totalPolGrad = trust_region_split(policy_grad, onPolGrad, gradDivKL, DKL_target);
+
+      for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
     #endif
 
     //decrease precision if error is large
@@ -821,6 +832,6 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
 
     finalize_network(build);
-    policyVecDim = NEXPERTS +2*NEXPERTS*nA;
+    policyVecDim = NEXPERTS*(1 +2*nA);
   }
 };
