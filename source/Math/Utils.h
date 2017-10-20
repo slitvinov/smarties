@@ -10,6 +10,14 @@
 #include "../Bund.h"
 #include "../StateAction.h"
 
+inline Real clip(const Real val, const Real ub, const Real lb)
+{
+  assert(!std::isnan(val) && !std::isnan(ub) && !std::isnan(lb));
+  assert(!std::isinf(val) && !std::isinf(ub) && !std::isinf(lb));
+  assert(ub>lb);
+  return std::max(std::min(val, ub), lb);
+}
+
 inline vector<Real> sum3Grads(const vector<Real>& f, const vector<Real>& g,
   const vector<Real>& h)
 {
@@ -131,15 +139,6 @@ inline vector<Real> trust_region_separate(const vector<Real>& grad,
     if(ret[j]*grad[j] < 0) ret[j] = 0;
   }
   return ret;
-}
-
-inline Real clip(const Real val, const Real ub, const Real lb)
-{
-  //printf("%f %f\n", ub, lb);
-  assert(!std::isnan(val) && !std::isnan(ub) && !std::isnan(lb));
-  assert(!std::isinf(val) && !std::isinf(ub) && !std::isinf(lb));
-  assert(ub>lb);
-  return std::max(std::min(val, ub), lb);
 }
 
 inline Uint maxInd(const vector<Real>& pol)
