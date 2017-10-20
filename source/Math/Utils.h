@@ -52,18 +52,21 @@ inline vector<Real> trust_region_split(const vector<Real>& grad, const vector<Re
   }
   const Real nO=std::sqrt(norm_O);
   const Real nK=std::sqrt(norm_K), nP=std::sqrt(norm_P), nG=std::sqrt(norm_G);
-  const Real dirDelta = delta * std::max((Real)0, dot_KP/(nK*nP));
-  const Real proj_para = std::min((Real)0, (dirDelta - dot_KG)/norm_K);
-  const Real proj_orth = std::min((Real)0, dot_GP/norm_P);
+  const Real dirDelta = delta/nK * std::max((Real)0, dot_KP/(nK*nP));
+  const Real proj_para = std::min((Real)0, dirDelta - dot_KG/norm_K);
+  const Real proj_orth = 0;//std::min((Real)0, dot_GP/norm_P);
   //#ifndef NDEBUG
   //if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
   //else {printf("Not Hit DKL constraint\n");fflush(0);}
   //#endif
+  Real norm_R = EPS;
   for (Uint j=0; j<nA; j++) {
     ret[j] = grad[j] + proj_para*trust[j] - proj_orth*onpolproj[j];
     if(ret[j]*grad[j] < 0) ret[j] = 0;
-    else ret[j] = ret[j] * std::min((Real)1, nO/nG);
+    norm_R += ret[j]*ret[j];
   }
+  //for (Uint j=0; j<nA; j++) 
+  //  ret[j] = ret[j] * std::min((Real)1, nO/std::sqrt(norm_R));
   return ret;
 }
 
