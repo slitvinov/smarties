@@ -239,11 +239,11 @@ bool Learner::unlockQueue()
   assert(opt->nepoch >= nStep_last);
   const Real dataCounter = nData - std::min((Real)nData_last, nData);
   const Real stepCounter = opt->nepoch  - (Real)nStep_last;
-  #ifdef PACE_SEQUENCES
+  //#ifdef PACE_SEQUENCES
   const Real cushionData = nSlaves;
-  #else
-  const Real cushionData = data->readAvgSeqLen()*nSlaves;
-  #endif
+  //#else
+  //const Real cushionData = data->readAvgSeqLen()*nSlaves;
+  //#endif
 
   //if(!ret) { printf("%g %g %g %u\n", stepCounter, dataCounter, obsPerStep, learn_size); fflush(0); }
   return dataCounter <= stepCounter*obsPerStep/learn_size +cushionData;

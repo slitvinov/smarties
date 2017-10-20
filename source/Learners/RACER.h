@@ -365,7 +365,11 @@ class RACER : public Learner_utils
     const Real Ver = Q_dist * std::min((Real)1, rho_cur);
     const Real Qer = pol_cur.sampLogPonPolicy > logEpsilon ? Q_dist : 0;
     vector<Real> gradient(nOutputs,0);
-    gradient[VsValID]= (Qer+Ver) * Qprecision;
+    gradient[VsValID]= Ver * Qprecision;
+    //decrease precision if error is large
+    //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
+    gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprecision);
+    adv_cur.grad(act, Ver * Qprecision, gradient);
 
     #if defined(ACER_PENALIZED)
       const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
@@ -405,11 +409,6 @@ class RACER : public Learner_utils
       for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
     #endif
 
-    //decrease precision if error is large
-    //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
-    gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprecision);
-    //adv_cur.grad(act, Qer, gradient, aInfo.bounded);
-    adv_cur.grad(act, Qer * Qprecision, gradient);
     pol_cur.finalize_grad(totalPolGrad, gradient);
     //prepare Q with off policy corrections for next step:
     Q_RET = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
@@ -428,8 +427,9 @@ class RACER : public Learner_utils
     statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
     //int clip =
     clip_gradient(gradient, stdGrad[0], seq, samp);
-    //if(clip) printf("A:%f Aret:%f rho:%f g1:%f %f g2:%f %f\n",A_cur, A_OPC,
-    //rho_cur, gradRacer_1[1], gradRacer_1[2], gradRacer_2[1],  gradRacer_2[2]);
+    //if(clip) printf("A:%f Aret:%f rho:%f g1:%f %f\n",// g2:%f %f\n",
+    //A_cur, A_OPC, rho_cur, gradRacer_1[1], gradRacer_1[2]//, gradRacer_2[1],  gradRacer_2[2]
+    //);
     return gradient;
   }
 
