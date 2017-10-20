@@ -28,6 +28,30 @@ inline vector<Real> sum2Grads(const vector<Real>& f, const vector<Real>& g)
   return ret;
 }
 
+inline vector<Real> square_region(const vector<Real>& grad, const vector<Real>& trust, const Real delta)
+{
+  assert(grad.size() == trust.size());
+  const Uint nA = grad.size();
+  vector<Real> ret(nA), gradorth(nA);
+  const Real EPS = numeric_limits<Real>::epsilon();
+  Real dot_KG = 0, norm_K = EPS, norm_O = EPS;
+  for(Uint j=0; j<nA; j++) {
+    norm_K += trust[j]*trust[j];
+    dot_KG += trust[j]* grad[j];
+  }
+  for(Uint j=0; j<nA; j++) {
+    gradorth[j]  = grad[j] - dot_KG*trust[j]/norm_K;
+    norm_O += gradorth[j] * gradorth[j];
+  }
+  const Real nK = std::sqrt(norm_K);
+  for(Uint j=0; j<nA; j++) {
+    const Real clipOrth = gradorth[j]*std::min(delta/std::sqrt(norm_O),(Real)1);
+    const Real clipPara = clip(dot_KG/norm_K, delta-nK, -delta-nK)*trust[j]/nK;
+    ret[j] = clipPara + clipOrth;
+  }
+  return ret;
+}
+
 inline vector<Real> trust_region_split(const vector<Real>& grad, const vector<Real>& onpol, const vector<Real>& trust, const Real delta)
 {
   assert(grad.size() == trust.size());
@@ -65,7 +89,7 @@ inline vector<Real> trust_region_split(const vector<Real>& grad, const vector<Re
     if(ret[j]*grad[j] < 0) ret[j] = 0;
     norm_R += ret[j]*ret[j];
   }
-  //for (Uint j=0; j<nA; j++) 
+  //for (Uint j=0; j<nA; j++)
   //  ret[j] = ret[j] * std::min((Real)1, nO/std::sqrt(norm_R));
   return ret;
 }

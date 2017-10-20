@@ -399,13 +399,8 @@ class RACER : public Learner_utils
       #endif
     #else
       const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
-      Real MCreward = 0;
-      for(Uint i=data->Set[seq]->ndata(); i>samp; i--)
-        MCreward = MCreward*gamma + data->standardized_reward(seq, i);
-      const Real MCadv = MCreward - V_cur;
-      const vector<Real> onPolGrad = pol_cur.policy_grad(act, _t->mu, MCadv);
       const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
-      const vector<Real> totalPolGrad = trust_region_split(policy_grad, onPolGrad, gradDivKL, DKL_target);
+      const vector<Real> totalPolGrad = square_region(policy_grad, gradDivKL, DKL_target);
 
       for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
     #endif
