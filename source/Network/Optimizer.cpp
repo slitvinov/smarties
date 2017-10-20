@@ -212,7 +212,7 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
         //const nnReal range = std::min((nnReal)1, _M2/(std::fabs(M1_)+nnEPS));
         //const Real scale = std::fabs(M1_)/_M2;
         //dest[i] += delay*(target[i]-dest[i] + scale*gen.d_mean0_var1());
-        dest[i] += delay*(target[i]-dest[i]);
+        //dest[i] += delay*(target[i]-dest[i]);
       #endif
       //_mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
     }

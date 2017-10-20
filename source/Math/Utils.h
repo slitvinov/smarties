@@ -51,10 +51,12 @@ inline vector<Real> square_region(const vector<Real>& grad, const vector<Real>& 
     gradorth[j]  = grad[j] - dot_KG*trust[j]/norm_K;
     norm_O += gradorth[j] * gradorth[j];
   }
-  const Real nK = std::sqrt(norm_K), nO = std::sqrt(norm_O), D = delta/nK;
+  const Real nK = std::sqrt(norm_K), nO = std::sqrt(norm_O);//, D = delta/nK;
   for(Uint j=0; j<nA; j++) {
-    const Real clipOrth = gradorth[j]*std::min(delta/nO/nK,(Real)1);
-    const Real clipPara = clip(dot_KG/norm_K, D/nK-1, -D/nK-1)*trust[j];
+    //const Real clipOrth = gradorth[j]*std::min(delta/nO/nK,(Real)1);
+    //const Real clipPara = clip(dot_KG/norm_K, D/nK-1, -D/nK-1)*trust[j];
+    const Real clipOrth = gradorth[j]*std::min(delta/nO,(Real)1);
+    const Real clipPara = clip(dot_KG/norm_K, delta/nK-1, -delta/nK-1)*trust[j];
     ret[j] = clipPara + clipOrth;
   }
   return ret;

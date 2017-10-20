@@ -12,7 +12,7 @@
 #include "../Math/FeatureControlTasks.h"
 #include "../Math/Quadratic_advantage.h"
 
-#ifndef ADV_QUAD
+#ifdef ADV_GAUS
 #include "../Math/Mixture_advantage_prova.h"
 #warning "Using Mixture_advantage with Gaussian advantages"
 #else
