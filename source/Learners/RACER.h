@@ -365,7 +365,7 @@ class RACER : public Learner_utils
     const Real Ver = Q_dist * std::min((Real)1, rho_cur);
     const Real Qer = pol_cur.sampLogPonPolicy > logEpsilon ? Q_dist : 0;
     vector<Real> gradient(nOutputs,0);
-    gradient[VsValID]= Ver * Qprecision;
+    gradient[VsValID] = Ver * Qprecision;
     //decrease precision if error is large
     //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
     gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprecision);
@@ -413,9 +413,9 @@ class RACER : public Learner_utils
     //prepare Q with off policy corrections for next step:
     Q_RET = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
     #ifdef UNBW
-      Q_OPC = pol_cur.sampImpWeight*Q_dist +V_cur;
+      Q_OPC = pol_cur.sampImpWeight*(Q_OPC-A_cur-V_cur) +V_cur;
     #else
-      Q_OPC = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
+      Q_OPC = std::min((Real)1,pol_cur.sampImpWeight)*(Q_OPC-A_cur-V_cur)+V_cur;
     #endif
     //bookkeeping:
     dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Ver
@@ -446,9 +446,9 @@ class RACER : public Learner_utils
     //prepare rolled Q with off policy corrections for next step:
     Q_RET = std::min((Real)1,policy.sampImpWeight)*(Q_RET-A_hat-V_hat) +V_hat;
     #ifdef UNBW
-      Q_OPC = policy.sampImpWeight*(Q_RET-A_hat-V_hat) +V_hat;
+      Q_OPC = policy.sampImpWeight*(Q_OPC-A_hat-V_hat) +V_hat;
     #else
-      Q_OPC = std::min((Real)1,policy.sampImpWeight)*(Q_RET-A_hat-V_hat)+V_hat;
+      Q_OPC = std::min((Real)1,policy.sampImpWeight)*(Q_OPC-A_hat-V_hat)+V_hat;
     #endif
   }
 
