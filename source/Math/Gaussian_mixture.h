@@ -219,7 +219,7 @@ public:
   inline vector<Real> policy_grad(const vector<Real>& act, const vector<Real>& beta, const Real factor) const
   {
     const Uint NA = act.size();
-    vector<Real> ret(nExperts +2*NA*nExperts, 0), PsBeta(nExperts, 1);
+    vector<Real> ret(nExperts*(1+2*NA), 0), PsBeta(nExperts, 1);
     Real Pact_Beta = numeric_limits<Real>::epsilon(); //nan police
     for(Uint j=0; j<nExperts; j++) {
       for(Uint i=0; i<NA; i++) {
@@ -414,7 +414,7 @@ public:
   void test(const vector<Real>& act, const Gaussian_mixture*const pol_hat) const
   {
     vector<Real> _grad(netOutputs.size());
-    const vector<Real> div_klgrad = div_kl_opp_grad(pol_hat);
+    const vector<Real> div_klgrad = pol_hat not_eq nullptr? div_kl_opp_grad(pol_hat) : vector<Real>() ;
     const vector<Real> policygrad = policy_grad(act, 1);
     const Uint NEA = nExperts*(1+nA);
     for(Uint i = 0; i<nP; i++)
@@ -429,8 +429,8 @@ public:
       out_1[ind] -= 0.0001; out_2[ind] += 0.0001;
       Gaussian_mixture p1(vector<Uint>{iExperts, iMeans, iPrecs}, aInfo, out_1);
       Gaussian_mixture p2(vector<Uint>{iExperts, iMeans, iPrecs}, aInfo, out_2);
-      const Real p_1=p1.evalLogProbability(act), d_1=p1.kl_div_opp_new(pol_hat);
-      const Real p_2=p2.evalLogProbability(act), d_2=p2.kl_div_opp_new(pol_hat);
+      const Real p_1=p1.evalLogProbability(act);
+      const Real p_2=p2.evalLogProbability(act);
       {
         finalize_grad(policygrad, _grad);
         const Real fdiff =(p_2-p_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
@@ -440,6 +440,10 @@ public:
         i, fdiff, _grad[ind], abserr,abserr/scale, Pact_Final,PactEachExp[ie]);
         fflush(0);
       }
+      if(pol_hat == nullptr) continue;
+    
+      const Real d_1=p1.kl_div_opp_new(pol_hat);
+      const Real d_2=p2.kl_div_opp_new(pol_hat);
       {
         finalize_grad(div_klgrad, _grad);
         const Real fdiff =(d_2-d_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);

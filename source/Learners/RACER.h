@@ -39,7 +39,7 @@ class RACER : public Learner_utils
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
   const Real CmaxRet, CmaxPol, DKL_target_orig;
-  const Real goalSkipRatio = CmaxPol > 4 ? 0.1 : 0.2;
+  const Real goalSkipRatio = CmaxPol > 4 ? 0.05 : 0.1;
   Real DKL_target = DKL_target_orig;
   const vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
@@ -301,8 +301,8 @@ class RACER : public Learner_utils
     const Action_t& act = pol_cur.sampAct; //unbounded action space
 
     #ifndef NDEBUG
-      //  adv_cur.test(act, &generators[thrID]);
-      //  pol_cur.test(act, &pol_hat);
+      adv_cur.test(act, &generators[thrID]);
+      pol_cur.test(act, pol_hat);
     #endif
 
     const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = pol_cur.sampInvWeight;

@@ -32,15 +32,25 @@ inline vector<Real> trust_region_split(const vector<Real>& grad, const vector<Re
 {
   assert(grad.size() == trust.size());
   const Uint nA = grad.size();
-  vector<Real> ret(nA), onpolproj(nA);
+  vector<Real> ret(nA), onpolproj(nA), offpolproj(nA);
   const Real EPS = numeric_limits<Real>::epsilon();
-  Real dot_KG=0,dot_KP=0,dot_KO=0,dot_GP=0,norm_K=EPS,norm_P=EPS,norm_G=EPS;
-  for(Uint j=0;j<nA;j++){dot_KO+=trust[j]*onpol[j]; norm_K+=trust[j]*trust[j];}
-  for(Uint j=0;j<nA;j++){
-    onpolproj[j] = onpol[j]-dot_KO*trust[j]/norm_K; dot_KG += trust[j]*grad[j];
-    dot_KP += trust[j] * onpolproj[j]; dot_GP += grad[j] * onpolproj[j];
-    norm_P += onpolproj[j] * onpolproj[j]; norm_G += grad[j] * grad[j];
+  Real dot_KG=0, dot_KP=0, dot_KO=0, dot_GP=0;
+  Real norm_K=EPS, norm_P=EPS, norm_G=EPS, norm_O=EPS;
+  for(Uint j=0;j<nA;j++) {
+    dot_KO += trust[j]*onpol[j]; 
+    norm_O += onpol[j]*onpol[j];
+    norm_K += trust[j]*trust[j];
+    dot_KG += trust[j]* grad[j];
   }
+  for(Uint j=0;j<nA;j++){
+    offpolproj[j] =  grad[j] - dot_KG*trust[j]/norm_K;
+    onpolproj[j]  = onpol[j] - dot_KO*trust[j]/norm_K;
+    dot_KP += trust[j] * onpolproj[j]; 
+    dot_GP += offpolproj[j] * onpolproj[j];
+    norm_P += onpolproj[j] * onpolproj[j]; 
+    norm_G += grad[j] * grad[j];
+  }
+  const Real nO=std::sqrt(norm_O);
   const Real nK=std::sqrt(norm_K), nP=std::sqrt(norm_P), nG=std::sqrt(norm_G);
   const Real dirDelta = delta/nK * std::max((Real)0, dot_KP/(nK*nP));
   const Real proj_para = std::min((Real)0, dirDelta - dot_KG/norm_K);
@@ -52,6 +62,7 @@ inline vector<Real> trust_region_split(const vector<Real>& grad, const vector<Re
   for (Uint j=0; j<nA; j++) {
     ret[j] = grad[j] + proj_para*trust[j] - proj_orth*onpolproj[j];
     if(ret[j]*grad[j] < 0) ret[j] = 0;
+    else ret[j] = ret[j] * std::min((Real)1, nO/nG);
   }
   return ret;
 }
