@@ -339,7 +339,7 @@ class RACER : public Learner_utils
 
       const vector<Real> gradRacer_1 = pol_cur.policy_grad(act, gain1);
       for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradRacer_1[1+i]);
-      #if 1
+      #if 0
         const vector<Real>& gradAcer = gradRacer_1;
         meanBeta = - DKLmul2; //to see it
       #else
@@ -547,7 +547,7 @@ class RACER : public Learner_utils
     { //update sequences
       assert(nStoredSeqs_last <= data->nSequences); //before pruining
       //const Uint lostSeqs =
-      const Real mul = (Real)nSequences4Train()/(Real)data->nSequences;
+      const Real mul = 1;//(Real)nSequences4Train()/(Real)data->nSequences;
       data->prune(goalSkipRatio*mul, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
       #ifdef BONE //then DKL_target multiplies beta Dkl, bigger if i lose data
@@ -555,11 +555,18 @@ class RACER : public Learner_utils
         DKL_target = clip(DKL_target/change, 1e6, 1e-6);
         //opt->eta = clip(opt->eta*currSeqs/nStoredSeqs_last, 1e-3, 1e-4);
       #else
-        DKL_target = clip(DKL_target*(currSeqs+1.)/nStoredSeqs_last, 1e6,1e-6);
+        //DKL_target = 10;
+        //if(currSeqs >= nSequences4Train()) 
+        //     opt->eta = opt->eta*1.1;
+        //else i
+        //opt->eta = learnRate;
+        //opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
+        if(currSeqs >= nStoredSeqs_last) DKL_target = 0.2 + DKL_target*0.998;
+        else DKL_target = 0.2 + DKL_target*0.8;
+        //DKL_target = clip(DKL_target*(currSeqs+1.)/nStoredSeqs_last, 10,1e-6);
       #endif
       nStoredSeqs_last = currSeqs; //after pruning
     }
-    opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
     printf("nData_last:%lu nData:%u nData_b4Updates:%u Set:%u\n", nData_last,
       read_nData(), nData_b4PolUpdates, data->nSequences); fflush(0);
     const Real ratio = nSkipped/(nTried+nnEPS);

@@ -45,6 +45,8 @@ python ../Communicator.py \$1 $APP
 EOF
 fi
 
+git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
+
 #cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
 #Environment exec=../launchSim.sh n=1
 #EOF

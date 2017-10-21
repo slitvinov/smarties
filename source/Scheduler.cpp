@@ -94,7 +94,7 @@ int Master::run()
             if(learnerReadyForAgent(slave))
             {
               addToNTasks(1);
-              #pragma omp task firstprivate(slave) if(readNTasks()<nThreads) priority(1)
+              #pragma omp task firstprivate(slave) if(readNTasks()<nThreads) //priority(1)
                 processRequest(slave);
             }
             else postponed_queue.push_back(slave);
