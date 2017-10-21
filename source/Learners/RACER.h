@@ -361,9 +361,9 @@ class RACER : public Learner_utils
       const vector<Real>& policy_grad = gradAcer;
     #endif
 
-    const Real logEpsilon = std::log( std::numeric_limits<Real>::epsilon() );
+    //const Real logEpsilon = std::log( std::numeric_limits<Real>::epsilon() );
     const Real Ver = Q_dist * std::min((Real)1, rho_cur);
-    const Real Qer = pol_cur.sampLogPonPolicy > logEpsilon ? Q_dist : 0;
+    //const Real Qer = pol_cur.sampLogPonPolicy > logEpsilon ? Q_dist : 0;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID] = Ver * Qprecision;
     //decrease precision if error is large
@@ -404,7 +404,8 @@ class RACER : public Learner_utils
     #else
       const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
       const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
-      const vector<Real> totalPolGrad = square_region(policy_grad, gradDivKL, DKL_target);
+      //const vector<Real> totalPolGrad = square_region(policy_grad, gradDivKL, DKL_target);
+      const vector<Real> totalPolGrad = smooth_region(policy_grad, gradDivKL, DKL_target);
 
       for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
     #endif
@@ -556,7 +557,7 @@ class RACER : public Learner_utils
         //opt->eta = clip(opt->eta*currSeqs/nStoredSeqs_last, 1e-3, 1e-4);
       #else
         //DKL_target = 10;
-        //if(currSeqs >= nSequences4Train()) 
+        //if(currSeqs >= nSequences4Train())
         //     opt->eta = opt->eta*1.1;
         //else i
         //opt->eta = learnRate;

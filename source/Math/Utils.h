@@ -62,6 +62,34 @@ inline vector<Real> square_region(const vector<Real>& grad, const vector<Real>& 
   return ret;
 }
 
+inline vector<Real> smooth_region(const vector<Real>& grad, const vector<Real>& trust, const Real delta)
+{
+  assert(grad.size() == trust.size());
+  const Uint nA = grad.size();
+  vector<Real> ret(nA), gradorth(nA);
+  const Real EPS = numeric_limits<Real>::epsilon();
+  Real dot_KG = 0, norm_K = EPS, norm_O = EPS;
+  for(Uint j=0; j<nA; j++) {
+    norm_K += trust[j]*trust[j];
+    dot_KG += trust[j]* grad[j];
+  }
+  for(Uint j=0; j<nA; j++) {
+    gradorth[j]  = grad[j] - dot_KG*trust[j]/norm_K;
+    norm_O += gradorth[j] * gradorth[j];
+  }
+  const Real nK = std::sqrt(norm_K), nO = std::sqrt(norm_O);//, D = delta/nK;
+  for(Uint j=0; j<nA; j++) {
+    //const Real clipOrth = gradorth[j]*std::min(delta/nO/nK,(Real)1);
+    //const Real clipPara = clip(dot_KG/norm_K, D/nK-1, -D/nK-1)*trust[j];
+    const Real compOrth = gradorth[j] * delta/(delta + nO);
+    const Real xPara = dot_KG/nK +nK, clipPara = xPara/(std::fabs(xPara)+delta);
+    const Real compPara = (clipPara*delta/nK - 1)*trust[j];
+    ret[j] = compPara + compOrth;
+  }
+  return ret;
+}
+
+#if 0
 inline vector<Real> trust_region_split(const vector<Real>& grad, const vector<Real>& onpol, const vector<Real>& trust, const Real delta)
 {
   assert(grad.size() == trust.size());
@@ -103,6 +131,7 @@ inline vector<Real> trust_region_split(const vector<Real>& grad, const vector<Re
   //  ret[j] = ret[j] * std::min((Real)1, nO/std::sqrt(norm_R));
   return ret;
 }
+#endif
 
 inline vector<Real> trust_region_update(const vector<Real>& grad,
   const vector<Real>& trust, const Real delta)
