@@ -62,6 +62,20 @@ inline vector<Real> square_region(const vector<Real>& grad, const vector<Real>& 
   return ret;
 }
 
+inline vector<Real> circle_region(const vector<Real>& grad, const vector<Real>& trust, const Real delta)
+{
+  assert(grad.size() == trust.size());
+  const Uint nA = grad.size();
+  vector<Real> ret(nA);
+  Real normKG = 0;
+  for(Uint j=0; j<nA; j++) normKG += std::pow(grad[j]+trust[j],2);
+  const Real nG = std::sqrt(normKG), softclip = delta/(nG+delta);
+  for(Uint j=0; j<nA; j++) {
+    ret[j] = (grad[j]+trust[j])*softclip -trust[j];
+  }
+  return ret;
+}
+
 inline vector<Real> smooth_region(const vector<Real>& grad, const vector<Real>& trust, const Real delta)
 {
   assert(grad.size() == trust.size());
@@ -79,8 +93,6 @@ inline vector<Real> smooth_region(const vector<Real>& grad, const vector<Real>& 
   }
   const Real nK = std::sqrt(norm_K), nO = std::sqrt(norm_O);//, D = delta/nK;
   for(Uint j=0; j<nA; j++) {
-    //const Real clipOrth = gradorth[j]*std::min(delta/nO/nK,(Real)1);
-    //const Real clipPara = clip(dot_KG/norm_K, D/nK-1, -D/nK-1)*trust[j];
     const Real compOrth = gradorth[j] * delta/(delta + nO);
     const Real xPara = dot_KG/nK +nK, clipPara = xPara/(std::fabs(xPara)+delta);
     const Real compPara = (clipPara*delta/nK - 1)*trust[j];
