@@ -226,7 +226,7 @@ class RACER : public Learner_utils
     #ifdef UNBR
       Real impW = policies[0].sampRhoWeight;
     #else
-      Real impW = std::min((Real)1, policies[0].sampRhoWeight);
+      Real impW = std::min(CmaxPol, policies[0].sampRhoWeight);
     #endif
 
 
@@ -306,6 +306,7 @@ class RACER : public Learner_utils
     #endif
 
     const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = pol_cur.sampInvWeight;
+    const Real clipImp = std::min(CmaxPol, rho_cur);
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_OPC = Q_OPC - V_cur, Q_dist = Q_RET -A_cur-V_cur;
 
@@ -325,14 +326,12 @@ class RACER : public Learner_utils
     #else
       #ifdef UNBR
         const Real gain1 = A_OPC*rho_cur;
-        //, gain2= std::max(A_OPC,(Real)0)*rho_inv;
       #else
-        const Real gain1 = A_OPC>0? min((Real)1, rho_cur)*A_OPC : A_OPC*rho_cur;
-        //const Real gain2 = std::max(A_OPC,(Real)0)*std::min((Real)1,rho_inv);
+        const Real gain1 = A_OPC>0? clipImp*A_OPC : A_OPC*rho_cur;
+        //const Real gain1 = clipImp*A_OPC;
       #endif
       #ifdef BONE
         const Real DKLmul2 = - DKL_target * std::max(A_OPC,(Real)0) * rho_inv;
-        //const Real DKLmul2 = - DKL_target;
       #else
         const Real DKLmul2 = - std::max(A_OPC, (Real)0) * rho_inv;
       #endif
@@ -361,14 +360,12 @@ class RACER : public Learner_utils
       const vector<Real>& policy_grad = gradAcer;
     #endif
 
-    //const Real logEpsilon = std::log( std::numeric_limits<Real>::epsilon() );
-    const Real Ver = Q_dist * std::min((Real)1, rho_cur);
-    //const Real Qer = pol_cur.sampLogPonPolicy > logEpsilon ? Q_dist : 0;
+    const Real Ver = Q_dist * clipImp;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID] = Ver * Qprecision;
     //decrease precision if error is large
     //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
-    gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprecision);
+    gradient[QPrecID] = -.5*clipImp*(Q_dist*Q_dist - 1/Qprecision);
     adv_cur.grad(act, Ver * Qprecision, gradient);
 
     #if defined(ACER_PENALIZED)
