@@ -30,7 +30,7 @@
 //#define simpleSigma
 //#define BONE
 //#define UNBW
-#define UNBR
+//#define UNBR
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_utils
@@ -203,7 +203,7 @@ class RACER : public Learner_utils
       nTried++;
 
       const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
-      const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
+      const Real maxImpWeight = 10000;//std::max((Real)2.0,    CmaxPol);
       if(policies[0].sampRhoWeight < minImpWeight ||
          policies[0].sampRhoWeight > maxImpWeight)
       {
@@ -250,7 +250,7 @@ class RACER : public Learner_utils
       #endif
 
 
-      if (impW < 1e-3) { //then the imp weight is too small to continue
+      if (impW < 1e-6) { //then the imp weight is too small to continue
         //printf("Cut after %u / %u samples!\n",k,nSValues); fflush(stdout);
         nSUnroll = k; //for last state we do not compute offpol correction
         nSValues = k+1; //we initialize value of Q_RET to V(state)
@@ -405,7 +405,8 @@ class RACER : public Learner_utils
       const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
       const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
       //const vector<Real> totalPolGrad = square_region(policy_grad, gradDivKL, DKL_target);
-      const vector<Real> totalPolGrad = smooth_region(policy_grad, gradDivKL, DKL_target);
+      //const vector<Real> totalPolGrad = smooth_region(policy_grad, gradDivKL, DKL_target);
+      const vector<Real> totalPolGrad = circle_region(policy_grad, gradDivKL, DKL_target);
 
       for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
     #endif
@@ -548,7 +549,7 @@ class RACER : public Learner_utils
     { //update sequences
       assert(nStoredSeqs_last <= data->nSequences); //before pruining
       //const Uint lostSeqs =
-      const Real mul = 1;//(Real)nSequences4Train()/(Real)data->nSequences;
+      const Real mul = (Real)nSequences4Train()/(Real)data->nSequences;
       data->prune(goalSkipRatio*mul, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
       #ifdef BONE //then DKL_target multiplies beta Dkl, bigger if i lose data
@@ -562,7 +563,7 @@ class RACER : public Learner_utils
         //else i
         //opt->eta = learnRate;
         //opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
-        if(currSeqs >= nStoredSeqs_last) DKL_target = 0.2 + DKL_target*0.998;
+        if(currSeqs >= nSequences4Train()) DKL_target = 0.2 + DKL_target;
         else DKL_target = 0.2 + DKL_target*0.8;
         //DKL_target = clip(DKL_target*(currSeqs+1.)/nStoredSeqs_last, 10,1e-6);
       #endif
