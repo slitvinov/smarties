@@ -122,13 +122,13 @@ private:
     }
     static inline Real diag_func(const Real val)
     {
-      //return 0.5*(val + std::sqrt(val*val+1));
-      return safeExp(val);
+      return 0.5*(val + std::sqrt(val*val+1));
+      //return safeExp(val);
     }
     static inline Real diag_func_diff(const Real val)
     {
-      //return 0.5*(1 + val/std::sqrt(val*val+1));
-      return safeExp(val);
+      return 0.5*(1 + val/std::sqrt(val*val+1));
+      //return safeExp(val);
     }
     static inline Real offdiag_func(const Real val) { return val; }
     static inline Real offdiag_func_diff(Real val) { return 1; }

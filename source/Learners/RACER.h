@@ -203,7 +203,8 @@ class RACER : public Learner_utils
       nTried++;
 
       const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
-      const Real maxImpWeight = 10000;//std::max((Real)2.0,    CmaxPol);
+      const Real maxImpWeight = 10000;
+      //const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
       if(policies[0].sampRhoWeight < minImpWeight ||
          policies[0].sampRhoWeight > maxImpWeight)
       {
@@ -227,6 +228,7 @@ class RACER : public Learner_utils
       Real impW = policies[0].sampRhoWeight;
     #else
       Real impW = std::min(CmaxPol, policies[0].sampRhoWeight);
+      //Real impW = std::min((Real)1, policies[0].sampRhoWeight);
     #endif
 
 
@@ -306,7 +308,8 @@ class RACER : public Learner_utils
     #endif
 
     const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = pol_cur.sampInvWeight;
-    const Real clipImp = std::min(CmaxPol, rho_cur);
+    const Real clipImp = std::min(CmaxPol,rho_cur), oneImp=std::min((Real)1,rho_cur);
+    //const Real clipImp = std::min((Real)1,rho_cur), oneImp=std::min((Real)1,rho_cur);
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_OPC = Q_OPC - V_cur, Q_dist = Q_RET -A_cur-V_cur;
 
@@ -360,12 +363,13 @@ class RACER : public Learner_utils
       const vector<Real>& policy_grad = gradAcer;
     #endif
 
-    const Real Ver = Q_dist * clipImp;
+    const Real Ver = Q_dist * oneImp;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID] = Ver * Qprecision;
     //decrease precision if error is large
     //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
-    gradient[QPrecID] = -.5*clipImp*(Q_dist*Q_dist - 1/Qprecision);
+    //gradient[QPrecID] = -.5*oneImp*(Q_dist*Q_dist - 1/Qprecision);
+    gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprecision);
     adv_cur.grad(act, Ver * Qprecision, gradient);
 
     #if defined(ACER_PENALIZED)
