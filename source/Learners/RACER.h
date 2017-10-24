@@ -205,8 +205,7 @@ class RACER : public Learner_utils
       const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
       //const Real maxImpWeight = 10000;
       const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
-      if(policies[0].sampRhoWeight < minImpWeight ||
-         policies[0].sampRhoWeight > maxImpWeight)
+      if( rho_cur < minImpWeight || rho_cur > maxImpWeight )
       {
         int newSample = -1;
         #pragma omp critical
@@ -364,13 +363,13 @@ class RACER : public Learner_utils
       const vector<Real>& policy_grad = gradAcer;
     #endif
 
-    const Real Ver = Q_dist * oneImp;
+    const Real Ver = Q_dist * clipImp;
     vector<Real> gradient(nOutputs,0);
-    gradient[VsValID] = Ver * Qprecision;
-    adv_cur.grad(act, Ver * Qprecision, gradient);
+    gradient[VsValID] = Ver;
+    adv_cur.grad(act, Ver, gradient);
     //decrease prec if err is large, from d Dkl(Q^RET || Q_th)/dQprec
-    //gradient[QPrecID] = -.5*oneImp*(Q_dist*Q_dist - 1/Qprecision);
-    gradient[QPrecID] = -.5*maxImp*(Q_dist*Q_dist - 1/Qprecision);
+    gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprecision);
+    //gradient[QPrecID] *= gradient[QPrecID] > 0 ? oneImp : maxImp;
 
     #if defined(ACER_PENALIZED)
       const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
@@ -408,6 +407,7 @@ class RACER : public Learner_utils
       //const vector<Real> totalPolGrad = square_region(policy_grad, gradDivKL, DKL_target);
       //const vector<Real> totalPolGrad = smooth_region(policy_grad, gradDivKL, DKL_target);
       const vector<Real> totalPolGrad = circle_region(policy_grad, gradDivKL, DKL_target);
+      circle_region(gradient, 0.1*DKL_target, 0, 1+nL);
 
       for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
     #endif

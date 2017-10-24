@@ -101,6 +101,14 @@ inline vector<Real> smooth_region(const vector<Real>& grad, const vector<Real>& 
   return ret;
 }
 
+inline void circle_region(vector<Real>& grad, const Real delta, const Uint start, const Uint end)
+{
+  Real normKG = 0;
+  for(Uint j=start; j<end; j++) normKG += std::pow(grad[j],2);
+  const Real nG = std::sqrt(normKG), softclip = delta/(nG+delta);
+  for(Uint j=start; j<end; j++) grad[j] = grad[j]*softclip;
+}
+
 #if 0
 inline vector<Real> trust_region_split(const vector<Real>& grad, const vector<Real>& onpol, const vector<Real>& trust, const Real delta)
 {
