@@ -30,7 +30,7 @@
 //#define simpleSigma
 //#define BONE
 //#define UNBW
-//#define UNBR
+#define UNBR
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_utils
@@ -39,7 +39,7 @@ class RACER : public Learner_utils
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
   const Real CmaxRet, CmaxPol, DKL_target_orig;
-  const Real goalSkipRatio = CmaxPol > 4 ? 0.05 : 0.1;
+  const Real goalSkipRatio = CmaxPol > 4 ? 0.02 : 0.05;
   Real DKL_target = DKL_target_orig;
   const vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
@@ -203,8 +203,8 @@ class RACER : public Learner_utils
       nTried++;
 
       const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
-      const Real maxImpWeight = 10000;
-      //const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
+      //const Real maxImpWeight = 10000;
+      const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
       if(policies[0].sampRhoWeight < minImpWeight ||
          policies[0].sampRhoWeight > maxImpWeight)
       {
@@ -252,7 +252,7 @@ class RACER : public Learner_utils
       #endif
 
 
-      if (impW < 1e-6) { //then the imp weight is too small to continue
+      if (impW < 1e-3) { //then the imp weight is too small to continue
         //printf("Cut after %u / %u samples!\n",k,nSValues); fflush(stdout);
         nSUnroll = k; //for last state we do not compute offpol correction
         nSValues = k+1; //we initialize value of Q_RET to V(state)
@@ -308,8 +308,9 @@ class RACER : public Learner_utils
     #endif
 
     const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = pol_cur.sampInvWeight;
-    const Real clipImp = std::min(CmaxPol,rho_cur), oneImp=std::min((Real)1,rho_cur);
-    //const Real clipImp = std::min((Real)1,rho_cur), oneImp=std::min((Real)1,rho_cur);
+    const Real maxImp = std::max((Real)1,rho_cur), oneImp=std::min((Real)1,rho_cur);
+    const Real clipImp = std::min(CmaxPol,rho_cur);
+    //const Real clipImp = std::min((Real)1,rho_cur);
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_OPC = Q_OPC - V_cur, Q_dist = Q_RET -A_cur-V_cur;
 
@@ -366,11 +367,10 @@ class RACER : public Learner_utils
     const Real Ver = Q_dist * oneImp;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID] = Ver * Qprecision;
-    //decrease precision if error is large
-    //computed as \nabla_{Qprecision} Dkl (Q^RET_dist || Q_dist)
-    //gradient[QPrecID] = -.5*oneImp*(Q_dist*Q_dist - 1/Qprecision);
-    gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprecision);
     adv_cur.grad(act, Ver * Qprecision, gradient);
+    //decrease prec if err is large, from d Dkl(Q^RET || Q_th)/dQprec
+    //gradient[QPrecID] = -.5*oneImp*(Q_dist*Q_dist - 1/Qprecision);
+    gradient[QPrecID] = -.5*maxImp*(Q_dist*Q_dist - 1/Qprecision);
 
     #if defined(ACER_PENALIZED)
       const Real DivKL = pol_cur.kl_divergence_opp(&pol_hat);
