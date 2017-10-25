@@ -148,3 +148,24 @@ struct Grads
   nnReal*const _W;
   nnReal*const _B;
 };
+
+inline void circle_region(Grads*const trust, Grads*const grad, const Real delta, const int ngrads)
+{
+  assert(trust->nWeights==grad->nWeights && trust->nBiases==grad->nBiases);
+  Real norm = 0;
+  for(Uint j=0; j<trust->nWeights; j++)
+    norm += std::pow((grad->_W[j]+trust->_W[j])/ngrads, 2);
+  for(Uint j=0; j<trust->nBiases; j++)
+    norm += std::pow((grad->_B[j]+trust->_B[j])/ngrads, 2);
+
+  const Real nG = std::sqrt(norm), softclip = delta/(nG+delta);
+  //printf("grad norm %f\n",nG);
+  for(Uint j=0; j<trust->nWeights; j++) {
+    grad->_W[j] = (grad->_W[j]+trust->_W[j])*softclip -trust->_W[j];
+    trust->_W[j] = 0;
+  }
+  for(Uint j=0; j<trust->nBiases; j++) {
+    grad->_B[j] = (grad->_B[j]+trust->_B[j])*softclip -trust->_B[j];
+    trust->_B[j] = 0;
+  }
+}

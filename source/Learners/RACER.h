@@ -30,7 +30,7 @@
 //#define simpleSigma
 //#define BONE
 //#define UNBW
-#define UNBR
+//#define UNBR
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_utils
@@ -39,7 +39,7 @@ class RACER : public Learner_utils
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
   const Real CmaxRet, CmaxPol, DKL_target_orig;
-  const Real goalSkipRatio = CmaxPol > 4 ? 0.02 : 0.05;
+  const Real goalSkipRatio = 0.25/CmaxPol;
   Real DKL_target = DKL_target_orig;
   const vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
@@ -53,6 +53,7 @@ class RACER : public Learner_utils
   mutable vector<long double> cntValGrad;
   mutable vector<vector<long double>> avgValGrad, stdValGrad;
   Real nStoredSeqs_last = 0;
+  vector<Grads*> Kgrad;
   //#ifdef FEAT_CONTROL
   //  const ContinuousSignControl* task;
   //#endif
@@ -203,8 +204,8 @@ class RACER : public Learner_utils
       nTried++;
 
       const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
-      //const Real maxImpWeight = 10000;
-      const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
+      const Real maxImpWeight = 10000;
+      //const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
       if( rho_cur < minImpWeight || rho_cur > maxImpWeight )
       {
         int newSample = -1;
@@ -251,7 +252,7 @@ class RACER : public Learner_utils
       #endif
 
 
-      if (impW < 1e-3) { //then the imp weight is too small to continue
+      if (impW < 1e-6) { //then the imp weight is too small to continue
         //printf("Cut after %u / %u samples!\n",k,nSValues); fflush(stdout);
         nSUnroll = k; //for last state we do not compute offpol correction
         nSValues = k+1; //we initialize value of Q_RET to V(state)
@@ -280,12 +281,21 @@ class RACER : public Learner_utils
     // task->Train(series_cur.back(), recur, act, seq, samp, grad);
     //#endif
 
-    net->setOutputDeltas(grad, series_cur.back());
-
     if(thrID==1)  profiler->stop_start("BCK");
-    if (thrID==0) net->backProp(series_cur, net->grad);
-    else net->backProp(series_cur, net->Vgrad[thrID]);
+      net->setOutputDeltas(grad, series_cur[nRecurr-1]);
+      if (thrID==0) net->backProp(series_cur, net->grad);
+      else net->backProp(series_cur, nRecurr, net->Vgrad[thrID]);
     if(thrID==1)  profiler->stop_start("SLP");
+
+    #if 1
+      net->prepForBackProp(series_1[thrID], nRecurr);
+      vector<Real> trust = grad_kldiv(seq, samp, policies[0]);
+
+      if(thrID==1)  profiler->stop_start("BCK");
+        net->setOutputDeltas(trust, series_cur[nRecurr-1]);
+        net->backProp(series_cur, nRecurr, Kgrad[thrID]);
+      if(thrID==1)  profiler->stop_start("SLP");
+    #endif
   }
 
   inline vector<Real> compute(const Uint seq, const Uint samp, Real& Q_RET,
@@ -403,13 +413,15 @@ class RACER : public Learner_utils
       #endif
     #else
       const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
-      const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
-      //const vector<Real> totalPolGrad = square_region(policy_grad, gradDivKL, DKL_target);
-      //const vector<Real> totalPolGrad = smooth_region(policy_grad, gradDivKL, DKL_target);
-      const vector<Real> totalPolGrad = circle_region(policy_grad, gradDivKL, DKL_target);
-      circle_region(gradient, 0.1*DKL_target, 0, 1+nL);
-
-      for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
+      #if 0
+        const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
+        //const vector<Real> totalPolGrad = square_region(policy_grad, gradDivKL, DKL_target);
+        //const vector<Real> totalPolGrad = smooth_region(policy_grad, gradDivKL, DKL_target);
+        const vector<Real> totalPolGrad = circle_region(policy_grad, gradDivKL, DKL_target);
+        circle_region(gradient, 0.1*DKL_target, 0, 1+nL);
+        for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
+      #endif
+      const vector<Real>& totalPolGrad = policy_grad;
     #endif
 
     pol_cur.finalize_grad(totalPolGrad, gradient);
@@ -455,6 +467,15 @@ class RACER : public Learner_utils
     #endif
   }
 
+  inline vector<Real> grad_kldiv(const Uint seq, const Uint samp, const Policy_t& pol_cur) const
+  {
+    const Tuple * const _t = data->Set[seq]->tuples[samp];
+    const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
+    vector<Real> gradient(nOutputs,0);
+    pol_cur.finalize_grad(gradDivKL, gradient);
+    return gradient;
+  }
+
  public:
   RACER(MPI_Comm comm, Environment*const _env, Settings& sett,
     vector<Uint> net_outs, vector<Uint> pol_inds, vector<Uint> adv_inds) :
@@ -473,6 +494,10 @@ class RACER : public Learner_utils
     //test();
     if(sett.maxTotSeqNum < sett.batchSize)
     die("maxTotSeqNum < batchSize")
+  }
+  ~RACER()
+  {
+    for (auto & trash : Kgrad) _dispose_object(trash);
   }
 
   void select(const int agentId, const Agent& agent) override
@@ -549,7 +574,6 @@ class RACER : public Learner_utils
     }
     { //update sequences
       assert(nStoredSeqs_last <= data->nSequences); //before pruining
-      //const Uint lostSeqs =
       const Real mul = (Real)nSequences4Train()/(Real)data->nSequences;
       data->prune(goalSkipRatio*mul, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
@@ -558,15 +582,10 @@ class RACER : public Learner_utils
         DKL_target = clip(DKL_target/change, 1e6, 1e-6);
         //opt->eta = clip(opt->eta*currSeqs/nStoredSeqs_last, 1e-3, 1e-4);
       #else
-        //DKL_target = 10;
-        //if(currSeqs >= nSequences4Train())
-        //     opt->eta = opt->eta*1.1;
-        //else i
         //opt->eta = learnRate;
         //opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
         if(currSeqs >= nSequences4Train()) DKL_target = 0.2 + DKL_target;
         else DKL_target = 0.2 + DKL_target*0.8;
-        //DKL_target = clip(DKL_target*(currSeqs+1.)/nStoredSeqs_last, 10,1e-6);
       #endif
       nStoredSeqs_last = currSeqs; //after pruning
     }
@@ -615,21 +634,34 @@ class RACER : public Learner_utils
     }
 
     assert(nSkipped<nTried || nTried == 0);
-    //const Real ratio = nSkipped/(nTried+nnEPS);
-    //skippedPenal goes to 1 if i do not skip any sequecnce
-    //goes to inf if i skipp all sequences that i sample
-    //this is a safety measure, adaptive mem buffer keeps this number around 1
-    //why needed? because if user selects learn rate that is too high
-    //then you might skip all samples and code looks stuck
-    //because for each skipped sample code computes one network fwd prop
-    //skippedPenal = std::exp(ratio/(1-ratio));
-    //opt->eta = learnRate/skippedPenal;
-
-    //if(skippedPenal>1.5)
-    //  _warn("Network learn rate is too high, RACER is automatically reducing it to %g. Consider running again with better hyperparameters.\n",opt->eta);
-
     //printf("%g %u %u %g %u %g\n", ratio, nSkipped, nTried, skippedPenal, data->adapt_TotSeqNum, opt->eta); fflush(0);
     Learner::applyGradient();
+  }
+
+  void stackAndUpdateNNWeights() override
+  {
+    if(!nAddedGradients) die("Error in stackAndUpdateNNWeights\n");
+    assert(bTrain);
+    opt->nepoch++;
+    Uint nTotGrads = nAddedGradients;
+    opt->stackGrads(Kgrad[0], Kgrad);
+    opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads
+    if (learn_size > 1) { //add up gradients across masters
+      MPI_Allreduce(MPI_IN_PLACE, Kgrad[0]->_W, net->getnWeights(),
+          MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
+      MPI_Allreduce(MPI_IN_PLACE, Kgrad[0]->_B, net->getnBiases(),
+          MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
+      MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
+          MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
+      MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
+          MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
+      MPI_Allreduce(MPI_IN_PLACE,&nTotGrads,1,MPI_UNSIGNED,MPI_SUM,mastersComm);
+    }
+
+    circle_region(Kgrad[0], net->grad, DKL_target, nTotGrads);
+    //update is deterministic: can be handled independently by each node
+    //communication overhead is probably greater than a parallelised sum
+    opt->update(net->grad, nTotGrads);
   }
 };
 
@@ -715,8 +747,10 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
     #endif
     //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
 
-
     finalize_network(build);
+    Kgrad.resize(nThreads);
+    for (Uint i=0; i<nThreads; ++i)
+     Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
 
     #ifdef DUMP_EXTRA
      policyVecDim = 2*nA + nL;
@@ -777,6 +811,9 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
     //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
 
     finalize_network(build);
+    Kgrad.resize(nThreads);
+    for (Uint i=0; i<nThreads; ++i)
+     Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
 
     #ifdef DUMP_EXTRA
      policyVecDim = 2*nA;
@@ -838,6 +875,9 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
 
     finalize_network(build);
+    Kgrad.resize(nThreads);
+    for (Uint i=0; i<nThreads; ++i)
+     Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
     policyVecDim = NEXPERTS*(1 +2*nA);
   }
 };
