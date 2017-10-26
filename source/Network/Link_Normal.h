@@ -116,16 +116,15 @@ class NormalLink: public Link
   inline void backPropagate(Activation*const netFrom, const Activation*const netTo, nnOpInp weights, nnOpRet gradW) const
   {
     nnOpInp inp = netFrom->outvals + iI;
-    //nnOpInp out = netTo->in_vals +iO;
+    nnOpInp out = netTo->in_vals +iO;
     nnOpInp delta = netTo->errvals + iO; //contains d Error / d inp_i
     nnOpRet err = netFrom->errvals + iI; //to compute: d Error / d out_j
-    //const Real lambda = 1e-6;
     for (Uint o = 0; o < nO; o++) {
       nnOpInp w = weights +iW +nI_simd*o;
       nnOpRet g = gradW +iW +nI_simd*o;
       #pragma omp simd aligned(g,inp,delta,err,w : VEC_WIDTH) safelen(VEC_WIDTH)
       for (Uint i = 0; i < nI; i++) {
-        g[i] += inp[i] * delta[o];// - lambda*inp[i]*out[o];
+        g[i] += inp[i] * delta[o] -1e-6*inp[i]*out[o];
         err[i] += delta[o] * w[i];
       }
     }

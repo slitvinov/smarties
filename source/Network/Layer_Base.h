@@ -64,7 +64,7 @@ class BaseLayer: public Layer
 
     //if(thrID==1)  profiler->stop_start("BB");
     #pragma omp simd aligned(gradbias,deltas: VEC_WIDTH) safelen(simdWidth)
-    for (Uint n=0; n<nNeurons; n++) gradbias[n] += deltas[n];
+    for (Uint n=0; n<nNeurons; n++) gradbias[n] += deltas[n] -1e-6*inputs[n];
     //if(thrID==1) profiler->pop_stop();
   }
 

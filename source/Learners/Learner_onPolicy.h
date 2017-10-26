@@ -53,7 +53,7 @@ struct Workspace
 class Learner_onPolicy: public Learner_utils
 {
 protected:
-  const Uint nAgentsPerSlave, nEpochs = 10, nHorizon = 2048;
+  const Uint nAgentsPerSlave, nEpochs = 10, nHorizon = 4092;
   Uint cntHorizon = 0, cntTrajectories = 0, cntEpoch = 0, cntBatch = 0;
   vector< Workspace *> work;
   vector< Workspace *> completed;
