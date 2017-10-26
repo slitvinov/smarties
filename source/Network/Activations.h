@@ -151,7 +151,7 @@ struct Grads
 
 inline void circle_region(Grads*const trust, Grads*const grad, const Real delta, const int ngrads)
 {
-  #if 0
+  #if 1
     assert(trust->nWeights==grad->nWeights && trust->nBiases==grad->nBiases);
     Real norm = 0;
     for(Uint j=0; j<trust->nWeights; j++)
@@ -180,6 +180,7 @@ inline void circle_region(Grads*const trust, Grads*const grad, const Real delta,
       dot += grad->_B[j]*trust->_B[j]/(ngrads*ngrads);
     }
     const Real proj = std::max( (Real)0, (dot - delta)/norm );
+    //printf("grad norm %f %f %f\n", proj, dot, norm);
     for(Uint j=0; j<trust->nWeights; j++) {
       grad->_W[j] = grad->_W[j] -proj*trust->_W[j];
       trust->_W[j] = 0;
