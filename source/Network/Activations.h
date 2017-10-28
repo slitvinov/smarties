@@ -161,14 +161,10 @@ inline void circle_region(Grads*const trust, Grads*const grad, const Real delta,
 
     const Real nG = std::sqrt(norm), softclip = delta/(nG+delta);
     //printf("grad norm %f\n",nG);
-    for(Uint j=0; j<trust->nWeights; j++) {
+    for(Uint j=0; j<trust->nWeights; j++)
       grad->_W[j] = (grad->_W[j]+trust->_W[j])*softclip -trust->_W[j];
-      trust->_W[j] = 0;
-    }
-    for(Uint j=0; j<trust->nBiases; j++) {
+    for(Uint j=0; j<trust->nBiases; j++)
       grad->_B[j] = (grad->_B[j]+trust->_B[j])*softclip -trust->_B[j];
-      trust->_B[j] = 0;
-    }
   #else
     Real dot=0, norm = numeric_limits<Real>::epsilon();
     for(Uint j=0; j<trust->nWeights; j++) {
@@ -181,13 +177,27 @@ inline void circle_region(Grads*const trust, Grads*const grad, const Real delta,
     }
     const Real proj = std::max( (Real)0, (dot - delta)/norm );
     //printf("grad norm %f %f %f\n", proj, dot, norm);
-    for(Uint j=0; j<trust->nWeights; j++) {
+    for(Uint j=0; j<trust->nWeights; j++)
       grad->_W[j] = grad->_W[j] -proj*trust->_W[j];
-      trust->_W[j] = 0;
-    }
-    for(Uint j=0; j<trust->nBiases; j++) {
+    for(Uint j=0; j<trust->nBiases; j++)
       grad->_B[j] = grad->_B[j] -proj*trust->_B[j];
-      trust->_B[j] = 0;
-    }
   #endif
+  trust->clear();
+}
+
+inline void circle_region(Grads*const grad, Grads*const trust, Grads*const dest, const Real delta)
+{
+  assert(trust->nWeights==grad->nWeights && trust->nBiases==grad->nBiases);
+  Real norm = 0;
+  for(Uint j=0;j<trust->nWeights;j++) norm+=std::pow(grad->_W[j]+trust->_W[j],2);
+  for(Uint j=0;j<trust->nBiases; j++) norm+=std::pow(grad->_B[j]+trust->_B[j],2);
+  
+  const Real nG = std::sqrt(norm), softclip = delta/(nG+delta);
+  //printf("grad norm %f\n",nG);
+  for(Uint j=0;j<trust->nWeights;j++)
+    dest->_W[j] += (grad->_W[j]+trust->_W[j])*softclip -trust->_W[j];
+  for(Uint j=0;j<trust->nBiases; j++)
+    dest->_B[j] += (grad->_B[j]+trust->_B[j])*softclip -trust->_B[j];
+  trust->clear();
+  grad->clear();
 }

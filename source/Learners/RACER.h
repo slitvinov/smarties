@@ -31,6 +31,7 @@
 //#define BONE
 //#define UNBW
 //#define UNBR
+//#define ExpTrust
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_utils
@@ -54,6 +55,7 @@ class RACER : public Learner_utils
   mutable vector<vector<long double>> avgValGrad, stdValGrad;
   Real nStoredSeqs_last = 0;
   vector<Grads*> Kgrad;
+  vector<Grads*> Ggrad;
   //#ifdef FEAT_CONTROL
   //  const ContinuousSignControl* task;
   //#endif
@@ -283,8 +285,12 @@ class RACER : public Learner_utils
 
     if(thrID==1)  profiler->stop_start("BCK");
       net->setOutputDeltas(grad, series_cur[nRecurr-1]);
+      #ifdef ExpTrust //then trust region is computed on batch
       if (thrID==0) net->backProp(series_cur, net->grad);
       else net->backProp(series_cur, nRecurr, net->Vgrad[thrID]);
+      #else           //else trust region on this temp gradient
+      net->backProp(series_cur, nRecurr, Ggrad[thrID]);
+      #endif
     if(thrID==1)  profiler->stop_start("SLP");
 
     #if 1
@@ -295,6 +301,10 @@ class RACER : public Learner_utils
         net->setOutputDeltas(trust, series_cur[nRecurr-1]);
         net->backProp(series_cur, nRecurr, Kgrad[thrID]);
       if(thrID==1)  profiler->stop_start("SLP");
+      #ifndef ExpTrust
+      if (thrID==0) circle_region(Ggrad[thrID], Kgrad[thrID], net->grad, DKL_target);
+      else circle_region(Ggrad[thrID], Kgrad[thrID], net->Vgrad[thrID], DKL_target);
+      #endif
     #endif
   }
 
@@ -317,7 +327,7 @@ class RACER : public Learner_utils
     #endif
 
     const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = pol_cur.sampInvWeight;
-    const Real maxImp = std::max((Real)1,rho_cur), oneImp=std::min((Real)1,rho_cur);
+    //const Real maxImp = std::max((Real)1,rho_cur), oneImp=std::min((Real)1,rho_cur);
     const Real clipImp = std::min(CmaxPol,rho_cur);
     //const Real clipImp = std::min((Real)1,rho_cur);
     const Real A_cur = adv_cur.computeAdvantage(act);
@@ -343,12 +353,8 @@ class RACER : public Learner_utils
         const Real gain1 = A_OPC>0? clipImp*A_OPC : A_OPC*rho_cur;
         //const Real gain1 = clipImp*A_OPC;
       #endif
-      #ifdef BONE
-        const Real DKLmul2 = - DKL_target * std::max(A_OPC,(Real)0) * rho_inv;
-      #else
-        const Real DKLmul2 = - std::max(A_OPC, (Real)0) * rho_inv;
-      #endif
 
+      const Real DKLmul2 = - std::max(A_OPC, (Real)0) * rho_inv;
       const vector<Real> gradRacer_1 = pol_cur.policy_grad(act, gain1);
       for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradRacer_1[1+i]);
       #if 0
@@ -403,24 +409,12 @@ class RACER : public Learner_utils
         opt->eta = out_cur[PenalID];
     #elif defined(ACER_CONSTRAINED)
       const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
-      #ifdef BONE
-        const vector<Real>& totalPolGrad = policy_grad;
-      #else
-        const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
-        const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_target);
+      const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
+      const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_target);
 
-       for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
-      #endif
+      for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
     #else
       const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
-      #if 0
-        const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
-        //const vector<Real> totalPolGrad = square_region(policy_grad, gradDivKL, DKL_target);
-        //const vector<Real> totalPolGrad = smooth_region(policy_grad, gradDivKL, DKL_target);
-        const vector<Real> totalPolGrad = circle_region(policy_grad, gradDivKL, DKL_target);
-        circle_region(gradient, 0.1*DKL_target, 0, 1+nL);
-        for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
-      #endif
       const vector<Real>& totalPolGrad = policy_grad;
     #endif
 
@@ -435,7 +429,6 @@ class RACER : public Learner_utils
     //bookkeeping:
     dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Ver
 
-    //data->Set[seq]->tuples[samp]->SquaredError=-std::max(rho_inv,(Real)1);
     //write gradient onto output layer:
     const vector<Real> info = { DivKL, meanPena, meanBeta, meanGrad};
     statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],info);
@@ -484,7 +477,8 @@ class RACER : public Learner_utils
     net_outputs(net_outs), net_indices(count_indices(net_outs)),
     pol_start(pol_inds), adv_start(adv_inds), generators(sett.generators),
     learnRate(sett.learnrate), cntValGrad(nThreads+1,0),
-    avgValGrad(nThreads+1,vector<long double>(4, 0)), stdValGrad(nThreads+1,vector<long double>(4, 0))
+    avgValGrad(nThreads+1,vector<long double>(4, 0)), 
+    stdValGrad(nThreads+1,vector<long double>(4, 0))
   {
     //#ifdef FEAT_CONTROL
     //  const Uint task_out0 = ContinuousSignControl::addRequestedLayers(nA,
@@ -577,16 +571,9 @@ class RACER : public Learner_utils
       const Real mul = (Real)nSequences4Train()/(Real)data->nSequences;
       data->prune(goalSkipRatio*mul, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
-      #ifdef BONE //then DKL_target multiplies beta Dkl, bigger if i lose data
-        const Real change = (currSeqs+1.)/nStoredSeqs_last;
-        DKL_target = clip(DKL_target/change, 1e6, 1e-6);
-        //opt->eta = clip(opt->eta*currSeqs/nStoredSeqs_last, 1e-3, 1e-4);
-      #else
-        //opt->eta = learnRate;
-        //opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
-        if(currSeqs >= nSequences4Train()) DKL_target = 0.2 + DKL_target;
-        else DKL_target = 0.2 + DKL_target*0.8;
-      #endif
+      //opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
+      if(currSeqs >= nSequences4Train()) DKL_target = 0.2 + DKL_target;
+      else DKL_target = 0.2 + DKL_target*0.8;
       nStoredSeqs_last = currSeqs; //after pruning
     }
     printf("nData_last:%lu nData:%u nData_b4Updates:%u Set:%u\n", nData_last,
@@ -638,6 +625,7 @@ class RACER : public Learner_utils
     Learner::applyGradient();
   }
 
+  #ifdef ExpTrust
   void stackAndUpdateNNWeights() override
   {
     if(!nAddedGradients) die("Error in stackAndUpdateNNWeights\n");
@@ -663,6 +651,7 @@ class RACER : public Learner_utils
     //communication overhead is probably greater than a parallelised sum
     opt->update(net->grad, nTotGrads);
   }
+  #endif
 };
 
 class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Real> >
@@ -748,10 +737,11 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
     //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
 
     finalize_network(build);
-    Kgrad.resize(nThreads);
-    for (Uint i=0; i<nThreads; ++i)
+    Kgrad.resize(nThreads); Ggrad.resize(nThreads);
+    for (Uint i=0; i<nThreads; ++i) {
      Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
-
+     Ggrad[i] = new Grads(net->getnWeights(), net->getnBiases());
+    }
     #ifdef DUMP_EXTRA
      policyVecDim = 2*nA + nL;
     #else
@@ -811,9 +801,12 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
     //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
 
     finalize_network(build);
-    Kgrad.resize(nThreads);
-    for (Uint i=0; i<nThreads; ++i)
+
+    Kgrad.resize(nThreads); Ggrad.resize(nThreads);
+    for (Uint i=0; i<nThreads; ++i) {
      Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
+     Ggrad[i] = new Grads(net->getnWeights(), net->getnBiases());
+    }
 
     #ifdef DUMP_EXTRA
      policyVecDim = 2*nA;
@@ -875,9 +868,12 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
 
     finalize_network(build);
-    Kgrad.resize(nThreads);
-    for (Uint i=0; i<nThreads; ++i)
+    
+    Kgrad.resize(nThreads); Ggrad.resize(nThreads);
+    for (Uint i=0; i<nThreads; ++i) {
      Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
+     Ggrad[i] = new Grads(net->getnWeights(), net->getnBiases());
+    }
     policyVecDim = NEXPERTS*(1 +2*nA);
   }
 };
