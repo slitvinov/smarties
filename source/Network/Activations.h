@@ -188,12 +188,25 @@ inline void circle_region(Grads*const trust, Grads*const grad, const Real delta,
 inline void circle_region(Grads*const grad, Grads*const trust, Grads*const dest, const Real delta)
 {
   assert(trust->nWeights==grad->nWeights && trust->nBiases==grad->nBiases);
-  Real norm = 0;
-  for(Uint j=0;j<trust->nWeights;j++) norm+=std::pow(grad->_W[j]+trust->_W[j],2);
-  for(Uint j=0;j<trust->nBiases; j++) norm+=std::pow(grad->_B[j]+trust->_B[j],2);
-  
+  Real norm = 0, trustN = 0, gradDot = 0;
+  for(Uint j=0;j<trust->nWeights;j++) {
+    norm += std::pow(grad->_W[j]+trust->_W[j],2);
+    trustN += trust->_W[j]*trust->_W[j];
+    gradDot += grad->_W[j]*trust->_W[j];
+  }
+  for(Uint j=0;j<trust->nBiases; j++) {
+    norm += std::pow(grad->_B[j]+trust->_B[j],2);
+    trustN += trust->_B[j]*trust->_B[j];
+    gradDot += grad->_B[j]*trust->_B[j];
+  }
+
   const Real nG = std::sqrt(norm), softclip = delta/(nG+delta);
-  //printf("grad norm %f\n",nG);
+  if(thrID == 1) {
+    ofstream fs;
+    fs.open("stats.txt", ios::app);
+    fs<<nG<<"\t"<trustN<<"\t"<<gradDot<<endl;
+    fs.close(); fs.flush();
+  }
   for(Uint j=0;j<trust->nWeights;j++)
     dest->_W[j] += (grad->_W[j]+trust->_W[j])*softclip -trust->_W[j];
   for(Uint j=0;j<trust->nBiases; j++)
