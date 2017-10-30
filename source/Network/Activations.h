@@ -189,7 +189,7 @@ inline void circle_region(Grads*const grad, Grads*const trust, Grads*const dest,
 {
   assert(trust->nWeights==grad->nWeights && trust->nBiases==grad->nBiases);
   Real norm = 0;
-  for(Uint j=0;j<trust->nWeights;j++) 
+  for(Uint j=0;j<trust->nWeights;j++)
     norm += std::pow(grad->_W[j]+trust->_W[j],2);
   for(Uint j=0;j<trust->nBiases; j++)
     norm += std::pow(grad->_B[j]+trust->_B[j],2);
@@ -200,6 +200,67 @@ inline void circle_region(Grads*const grad, Grads*const trust, Grads*const dest,
     dest->_W[j] += (grad->_W[j]+trust->_W[j])*softclip -trust->_W[j];
   for(Uint j=0;j<trust->nBiases; j++)
     dest->_B[j] += (grad->_B[j]+trust->_B[j])*softclip -trust->_B[j];
+  trust->clear();
+  grad->clear();
+}
+
+inline void fullstats(Grads*const grad, Grads*const trust, Grads*const dest, const Real delta)
+{
+  assert(trust->nWeights==grad->nWeights && trust->nBiases==grad->nBiases);
+  Real EO1 = 0, EO2 = 0, EO3 = 0, EO4 = 0;
+  Real EL1 = 0, EL2 = 0, EL3 = 0, EL4 = 0;
+  Real EC1 = 0, EC2 = 0, EC3 = 0, EC4 = 0;
+
+  Real dot=0, norm=numeric_limits<Real>::epsilon(), sum=0,  dotL=0, dotC=0;
+  for(Uint j=0; j<trust->nWeights; j++) {
+    sum += std::pow(grad->_W[j]+trust->_W[j],2);
+    norm += trust->_W[j]*trust->_W[j];
+    dot +=   grad->_W[j]*trust->_W[j];
+  }
+  for(Uint j=0; j<trust->nBiases; j++)  {
+    sum += std::pow(grad->_B[j]+trust->_B[j],2);
+    norm += trust->_B[j]*trust->_B[j];
+    dot +=   grad->_B[j]*trust->_B[j];
+  }
+  const Real proj = std::max( (Real)0, (dot - delta)/norm );
+  const Real nG = std::sqrt(sum), clip = delta/(nG+delta);
+
+  for(Uint j=0; j<trust->nWeights; j++) {
+    const long double linear = grad->_W[j] -proj*trust->_W[j];
+    const long double circle = (grad->_W[j]+trust->_W[j])*clip -trust->_W[j];
+    dotL += linear*trust->_W[j];
+    dotC += circle*trust->_W[j];
+    dest->_W[j] += circle;
+  }
+  for(Uint j=0; j<trust->nBiases; j++)  {
+    const long double linear = grad->_B[j] -proj*trust->_B[j];
+    const long double circle = (grad->_B[j]+trust->_B[j])*clip -trust->_B[j];
+    dotL += linear*trust->_B[j];
+    dotC += circle*trust->_B[j];
+    dest->_B[j] += circle;
+  }
+
+  if(omp_get_thread_num() == 1) {
+    EO1 =          dot/std::sqrt(norm);      // to compute E[grad_proj_dkl]
+    EO2 = std::pow(dot/std::sqrt(norm), 2);  //higher order statistics
+    EO3 = std::pow(dot/std::sqrt(norm), 3);
+    EO4 = std::pow(dot/std::sqrt(norm), 4);
+    EL1 =          dotL/std::sqrt(norm);      // to compute E[grad_proj_dkl]
+    EL2 = std::pow(dotL/std::sqrt(norm), 2);  //higher order statistics
+    EL3 = std::pow(dotL/std::sqrt(norm), 3);
+    EL4 = std::pow(dotL/std::sqrt(norm), 4);
+    EC1 =          dotC/std::sqrt(norm);      // to compute E[grad_proj_dkl]
+    EC2 = std::pow(dotC/std::sqrt(norm), 2);  //higher order statistics
+    EC3 = std::pow(dotC/std::sqrt(norm), 3);
+    EC4 = std::pow(dotC/std::sqrt(norm), 4);
+    ofstream fs;
+    fs.open("gradproj_dist.txt", ios::app);
+    fs<<EO1<<"\t"<<EO2<<"\t"<<EO3<<"\t"<<EO4<<"\t"
+      <<EL1<<"\t"<<EL2<<"\t"<<EL3<<"\t"<<EL4<<"\t"
+      <<EC1<<"\t"<<EC2<<"\t"<<EC3<<"\t"<<EC4<<endl;
+    fs.close(); fs.flush();
+  }
+
   trust->clear();
   grad->clear();
 }
