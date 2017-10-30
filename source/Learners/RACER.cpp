@@ -13,6 +13,8 @@
 //#define BONE
 //#define UNBW
 //#define UNBR
+#define REALBND (Real)1
+//#define REALBND CmaxPol
 #define ExpTrust
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
@@ -188,8 +190,8 @@ class RACER : public Learner_utils
       nTried++;
 
       const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
-      const Real maxImpWeight = 10000;
-      //const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
+      //const Real maxImpWeight = 10000;
+      const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
       if( rho_cur < minImpWeight || rho_cur > maxImpWeight )
       {
         int newSample = -1;
@@ -211,8 +213,7 @@ class RACER : public Learner_utils
     #ifdef UNBR
       Real impW = policies[0].sampRhoWeight;
     #else
-      Real impW = std::min(CmaxPol, policies[0].sampRhoWeight);
-      //Real impW = std::min((Real)1, policies[0].sampRhoWeight);
+      Real impW = std::min(REALBND, policies[0].sampRhoWeight);
     #endif
 
 
@@ -288,6 +289,8 @@ class RACER : public Learner_utils
       #ifndef ExpTrust
         if (thrID==0) circle_region(Ggrad[thrID], Kgrad[thrID], net->grad, DKL_target);
         else circle_region(Ggrad[thrID], Kgrad[thrID], net->Vgrad[thrID], DKL_target);
+        //if (thrID==0) fullstats(Ggrad[thrID], Kgrad[thrID], net->grad, DKL_target);
+        //else fullstats(Ggrad[thrID], Kgrad[thrID], net->Vgrad[thrID], DKL_target);
       #endif
     #endif
   }
@@ -312,7 +315,7 @@ class RACER : public Learner_utils
 
     const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = pol_cur.sampInvWeight;
     //const Real maxImp = std::max((Real)1,rho_cur), oneImp=std::min((Real)1,rho_cur);
-    const Real clipImp = std::min(CmaxPol,rho_cur);
+    const Real clipImp = std::min(REALBND, rho_cur);
     //const Real clipImp = std::min((Real)1,rho_cur);
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_OPC = Q_OPC - V_cur, Q_dist = Q_RET -A_cur-V_cur;
@@ -363,7 +366,8 @@ class RACER : public Learner_utils
       const vector<Real>& policy_grad = gradAcer;
     #endif
 
-    const Real Ver = Q_dist * clipImp;
+    const Real Ver = Q_dist * clipImp * std::min((Real)1, Qprecision);
+    //const Real Ver = Q_dist * clipImp;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID] = Ver;
     adv_cur.grad(act, Ver, gradient);
