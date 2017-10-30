@@ -13,7 +13,7 @@
 //#define BONE
 //#define UNBW
 //#define UNBR
-//#define ExpTrust
+#define ExpTrust
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_utils
@@ -225,6 +225,7 @@ class RACER : public Learner_utils
 
       Tuple* const _t = data->Set[seq]->tuples[k+samp];
       policies[k].prepare(_t->a, _t->mu, bGeometric);
+      //race condition:
       _t->SquaredError=max(policies[k].sampInvWeight,policies[k].sampRhoWeight);
 
       if (k == nSValues-1 && nSValues not_eq nSUnroll) break;
@@ -268,10 +269,10 @@ class RACER : public Learner_utils
     if(thrID==1)  profiler->stop_start("BCK");
       net->setOutputDeltas(grad, series_cur[nRecurr-1]);
       #ifdef ExpTrust //then trust region is computed on batch
-      if (thrID==0) net->backProp(series_cur, net->grad);
-      else net->backProp(series_cur, nRecurr, net->Vgrad[thrID]);
+        if (thrID==0) net->backProp(series_cur, net->grad);
+        else net->backProp(series_cur, nRecurr, net->Vgrad[thrID]);
       #else           //else trust region on this temp gradient
-      net->backProp(series_cur, nRecurr, Ggrad[thrID]);
+        net->backProp(series_cur, nRecurr, Ggrad[thrID]);
       #endif
     if(thrID==1)  profiler->stop_start("SLP");
 
@@ -283,9 +284,10 @@ class RACER : public Learner_utils
         net->setOutputDeltas(trust, series_cur[nRecurr-1]);
         net->backProp(series_cur, nRecurr, Kgrad[thrID]);
       if(thrID==1)  profiler->stop_start("SLP");
+
       #ifndef ExpTrust
-      if (thrID==0) circle_region(Ggrad[thrID], Kgrad[thrID], net->grad, DKL_target);
-      else circle_region(Ggrad[thrID], Kgrad[thrID], net->Vgrad[thrID], DKL_target);
+        if (thrID==0) circle_region(Ggrad[thrID], Kgrad[thrID], net->grad, DKL_target);
+        else circle_region(Ggrad[thrID], Kgrad[thrID], net->Vgrad[thrID], DKL_target);
       #endif
     #endif
   }
@@ -397,6 +399,19 @@ class RACER : public Learner_utils
       for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
     #else
       const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
+      if(thrID == 1) {
+        const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
+        Real normG = 0, normT = 0, dot = 0;
+        for(Uint i=0;i<gradDivKL.size();i++) {
+          normG += policy_grad[i]*policy_grad[i];
+          normT += gradDivKL[i]*gradDivKL[i];
+          dot += policy_grad[i]*gradDivKL[i];
+        }
+        ofstream fs;
+        fs.open("grads_dist.txt", ios::app);
+        fs<<normG<<"\t"<<normT<<"\t"<<dot<<endl;
+        fs.close(); fs.flush();
+      }
       const vector<Real>& totalPolGrad = policy_grad;
     #endif
 
@@ -459,7 +474,7 @@ class RACER : public Learner_utils
     net_outputs(net_outs), net_indices(count_indices(net_outs)),
     pol_start(pol_inds), adv_start(adv_inds), generators(sett.generators),
     learnRate(sett.learnrate), cntValGrad(nThreads+1,0),
-    avgValGrad(nThreads+1,vector<long double>(4, 0)), 
+    avgValGrad(nThreads+1,vector<long double>(4, 0)),
     stdValGrad(nThreads+1,vector<long double>(4, 0))
   {
     //#ifdef FEAT_CONTROL

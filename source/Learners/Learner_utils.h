@@ -36,7 +36,7 @@ class Input_layer
     vector<Activation*>& series = *(series_1[thrID]);
     net->backProp(error, series, net->Vgrad[thrID]);
   }
-}
+};
 #endif
 
 class Learner_utils: public Learner

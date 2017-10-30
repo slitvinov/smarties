@@ -173,7 +173,7 @@ class Communicator:
         for i in range(self.nStates+2): assert(not np.isnan(state[i]))
         #print(state); sys.stdout.flush()
         self.conn.send(state.tobytes())
-        #if self.bRender==1 and self.gym is not None: self.gym.render()
+        if self.bRender==1 and self.gym is not None: self.gym.render()
         #if self.bRender==2 and self.gym is not None:
         #    seq_id, frame_id = 0, 0
         #    fname = 'state_seq%04d_frame%07d' % (seq_id, frame_id)
