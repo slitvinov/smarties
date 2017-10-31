@@ -13,8 +13,8 @@
 //#define BONE
 //#define UNBW
 //#define UNBR
-#define REALBND (Real)1
-//#define REALBND CmaxPol
+//#define REALBND (Real)1
+#define REALBND CmaxPol
 #define ExpTrust
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
@@ -183,7 +183,7 @@ class RACER : public Learner_utils
     policies[0].prepare(t0->a, t0->mu, bGeometric, pPol_tgt);
     const Real rho_cur = policies[0].sampRhoWeight;
     const Real rho_inv = policies[0].sampInvWeight;
-    t0->SquaredError = std::max(rho_inv, rho_cur);
+    t0->offPol_weight = std::max(rho_inv, rho_cur);
 
     #if 1
       #pragma omp atomic
@@ -227,7 +227,7 @@ class RACER : public Learner_utils
       Tuple* const _t = data->Set[seq]->tuples[k+samp];
       policies[k].prepare(_t->a, _t->mu, bGeometric);
       //race condition:
-      _t->SquaredError=max(policies[k].sampInvWeight,policies[k].sampRhoWeight);
+      _t->offPol_weight=max(policies[k].sampInvWeight,policies[k].sampRhoWeight);
 
       if (k == nSValues-1 && nSValues not_eq nSUnroll) break;
 
@@ -299,7 +299,7 @@ class RACER : public Learner_utils
     Real& Q_OPC, const vector<Real>& out_cur, const Policy_t& pol_cur, const Policy_t* const pol_hat, const Uint thrID) const
   {
     Real meanPena = 0, meanBeta = 0, meanGrad = 0;
-    const Tuple * const _t = data->Set[seq]->tuples[samp];
+    Tuple * const _t = data->Set[seq]->tuples[samp];
     const Real reward = data->standardized_reward(seq, samp+1);
     Q_RET = reward + gamma*Q_RET; //if k==ndata-2 then this is r_end
     Q_OPC = reward + gamma*Q_OPC;
@@ -316,7 +316,6 @@ class RACER : public Learner_utils
     const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = pol_cur.sampInvWeight;
     //const Real maxImp = std::max((Real)1,rho_cur), oneImp=std::min((Real)1,rho_cur);
     const Real clipImp = std::min(REALBND, rho_cur);
-    //const Real clipImp = std::min((Real)1,rho_cur);
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_OPC = Q_OPC - V_cur, Q_dist = Q_RET -A_cur-V_cur;
 
@@ -439,6 +438,7 @@ class RACER : public Learner_utils
     //if(clip) printf("A:%f Aret:%f rho:%f g1:%f %f\n",// g2:%f %f\n",
     //A_cur, A_OPC, rho_cur, gradRacer_1[1], gradRacer_1[2]//, gradRacer_2[1],  gradRacer_2[2]
     //);
+    _t->SquaredError = std::min(rho_inv, rho_cur)*std::fabs(Q_dist);
     return gradient;
   }
 
@@ -453,12 +453,14 @@ class RACER : public Learner_utils
     const Action_t& act = policy.sampAct; //off policy stored action
     const Real V_hat = output[VsValID], A_hat = adv_cur.computeAdvantage(act);
     //prepare rolled Q with off policy corrections for next step:
-    Q_RET = std::min((Real)1,policy.sampImpWeight)*(Q_RET-A_hat-V_hat) +V_hat;
+      Q_RET = std::min((Real)1,policy.sampImpWeight)*(Q_RET-A_hat-V_hat) +V_hat;
     #ifdef UNBW
       Q_OPC = policy.sampImpWeight*(Q_OPC-A_hat-V_hat) +V_hat;
     #else
-      Q_OPC = std::min((Real)1,policy.sampImpWeight)*(Q_OPC-A_hat-V_hat)+V_hat;
+      Q_OPC = std::min((Real)1,policy.sampImpWeight)*(Q_OPC-A_hat-V_hat) +V_hat;
     #endif
+    data->Set[seq]->tuples[samp]->SquaredError =
+      std::min(policy.sampInvWeight,policy.sampRhoWeight)*std::fabs(Q_RET-A_hat-V_hat);
   }
 
   inline vector<Real> grad_kldiv(const Uint seq, const Uint samp, const Policy_t& pol_cur) const
@@ -467,6 +469,7 @@ class RACER : public Learner_utils
     const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
     vector<Real> gradient(nOutputs,0);
     pol_cur.finalize_grad(gradDivKL, gradient);
+    clip_gradient(gradient, stdGrad[0], seq, samp);
     return gradient;
   }
 

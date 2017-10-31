@@ -168,6 +168,7 @@ int Transitions::add(const int agentId, const Agent&a, const vector<Real>mu)
     const Tuple* const l = Tmp[agentId]->tuples.back();
     Tuple * t = new Tuple(); //backup last state
     t->s = l->s; t->a = l->a; t->r = l->r, t->mu = l->mu;
+    t->offPol_weight = l->offPol_weight;
     t->SquaredError = l->SquaredError;
     #ifdef importanceSampling
       t->weight = l->weight;
@@ -365,7 +366,7 @@ Uint Transitions::prune(const Real maxFrac, const Real CmaxRho)
     Real numOver = 0;
     minInd = std::min(minInd, Set[i]->ID);
     for(Uint j=0; j<Set[i]->ndata(); j++)
-      if( Set[i]->tuples[j]->SquaredError > CmaxRho ) numOver += 1;
+      if( Set[i]->tuples[j]->offPol_weight > CmaxRho ) numOver += 1;
 
     if( numOver/(Real)Set[i]->ndata() > maxFrac ) {
       std::swap(Set[i], Set.back());

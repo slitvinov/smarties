@@ -20,7 +20,9 @@
 struct Tuple
 {
   vector<Real> s, a, mu;
-  Real r = 0, SquaredError = 0;
+  Real r = 0;
+  Real SquaredError = 0;
+  Real offPol_weight = 0;
   #ifdef importanceSampling
     Real weight = 0;
   #endif
