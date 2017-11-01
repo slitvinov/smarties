@@ -15,7 +15,7 @@
 //#define UNBR
 //#define REALBND (Real)1
 #define REALBND CmaxPol
-#define ExpTrust
+//#define ExpTrust
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_utils
@@ -109,7 +109,7 @@ class RACER : public Learner_utils
         const Policy_t* const pPol_tgt = nullptr;
       #endif
 
-      const Tuple * const _t = data->Set[seq]->tuples[k];
+      Tuple * const _t = data->Set[seq]->tuples[k];
       pol.prepare(_t->a, _t->mu, bGeometric, pPol_tgt);
       _t->offPol_weight = std::max(pol.sampRhoWeight, pol.sampInvWeight);
 
@@ -326,7 +326,7 @@ class RACER : public Learner_utils
     //const Real maxImp = std::max((Real)1,rho_cur), oneImp=std::min((Real)1,rho_cur);
     const Real clipImp = std::min(REALBND, rho_cur);
     const Real A_cur = adv_cur.computeAdvantage(act);
-    const Real A_OPC = Q_OPC - V_cur, Q_dist = Q_RET -A_cur-V_cur;
+    const Real A_OPC = Q_OPC - V_cur;
 
     //compute quantities needed for trunc import sampl with bias correction
     #if   defined(ACER_TABC)
@@ -374,6 +374,8 @@ class RACER : public Learner_utils
       const vector<Real>& policy_grad = gradAcer;
     #endif
 
+    //const Real Q_dist = Q_RET -adv_cur.computeAdvantageNoncentral(act)-V_cur;
+    const Real Q_dist = Q_RET -A_cur-V_cur;
     const Real Ver = Q_dist * clipImp * std::min((Real)1, Qprecision);
     //const Real Ver = Q_dist * clipImp;
     vector<Real> gradient(nOutputs,0);
@@ -429,14 +431,15 @@ class RACER : public Learner_utils
 
     pol_cur.finalize_grad(totalPolGrad, gradient);
     //prepare Q with off policy corrections for next step:
-    Q_RET = std::min((Real)1, pol_cur.sampImpWeight)*Q_dist +V_cur;
+      Q_RET = std::min((Real)1,pol_cur.sampImpWeight)*(Q_RET-A_cur-V_cur) +V_cur;
     #ifdef UNBW
       Q_OPC = pol_cur.sampImpWeight*(Q_OPC-A_cur-V_cur) +V_cur;
     #else
       Q_OPC = std::min((Real)1,pol_cur.sampImpWeight)*(Q_OPC-A_cur-V_cur)+V_cur;
     #endif
     //bookkeeping:
-    dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Ver
+    dumpStats(Vstats[thrID], A_cur+V_cur, Q_dist); //Ver
+    //dumpStats(Vstats[thrID], A_cur+V_cur, Ver ); //Ver
 
     //write gradient onto output layer:
     const vector<Real> info = { DivKL, meanPena, meanBeta, meanGrad};
@@ -478,7 +481,7 @@ class RACER : public Learner_utils
     const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
     vector<Real> gradient(nOutputs,0);
     pol_cur.finalize_grad(gradDivKL, gradient);
-    clip_gradient(gradient, stdGrad[0], seq, samp);
+    //clip_gradient(gradient, stdGrad[0], seq, samp);
     return gradient;
   }
 
@@ -581,12 +584,17 @@ class RACER : public Learner_utils
     }
     { //update sequences
       assert(nStoredSeqs_last <= data->nSequences); //before pruining
-      const Real mul = (Real)nSequences4Train()/(Real)data->nSequences;
-      data->prune(goalSkipRatio*mul, CmaxPol);
+      //const Real mul = (Real)nSequences4Train()/(Real)data->nSequences;
+      //data->prune(goalSkipRatio*mul, CmaxPol);
+      data->prune(goalSkipRatio, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
       //opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
-      if(currSeqs >= nSequences4Train()) DKL_target = 0.2 + DKL_target;
-      else DKL_target = 0.2 + DKL_target*0.8;
+      if(currSeqs >= nSequences4Train()) 
+        DKL_target = 1.01*DKL_target;
+      else if(currSeqs < nSequences4Train())
+        DKL_target = 0.95*DKL_target;
+      //if(currSeqs >= nSequences4Train()) DKL_target = 0.2 + DKL_target;
+      //else DKL_target = 0.2 + DKL_target*0.8;
       nStoredSeqs_last = currSeqs; //after pruning
     }
     printf("nData_last:%lu nData:%u nData_b4Updates:%u Set:%u\n", nData_last,

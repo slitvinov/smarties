@@ -11,10 +11,11 @@
 #include <cstring>
 #define VEC_WIDTH 32
 
-#if 0
+#if 1
   typedef double nnReal;
   #define MPI_NNVALUE_TYPE MPI_DOUBLE
-  #define EXP_CUT 8 //prevent under/over flow with exponentials
+  //#define EXP_CUT 8 //prevent under/over flow with exponentials
+  #define EXP_CUT 4 //prevent under/over flow with exponentials
 #else
   #define MPI_NNVALUE_TYPE MPI_FLOAT
   typedef float nnReal;
@@ -25,7 +26,7 @@ typedef nnReal* __restrict__       const nnOpRet;
 typedef const nnReal* __restrict__ const nnOpInp;
 
 static const int simdWidth = VEC_WIDTH/sizeof(nnReal);
-static const nnReal nnEPS = std::numeric_limits<nnReal>::epsilon();
+static const nnReal nnEPS = std::numeric_limits<float>::epsilon();
 
 #ifndef __CHECK_DIFF
   #define LSTM_PRIME_FAC 1 //input/output gates start closed, forget starts open

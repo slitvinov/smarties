@@ -159,9 +159,9 @@ public:
 
   inline Uint read_nData() const
   {
-    const Uint nData = data->readNSeen();
-    if(nData < nData_b4PolUpdates) return 0;
-    return nData - nData_b4PolUpdates;
+    const Uint _nData = data->readNSeen();
+    if(_nData < nData_b4PolUpdates) return 0;
+    return _nData - nData_b4PolUpdates;
   }
 
   virtual void select(const int agentId, const Agent& agent) = 0;

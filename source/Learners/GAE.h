@@ -125,9 +125,9 @@ protected:
   }
 
 public:
-  GAE(MPI_Comm comm, Environment*const _env, Settings& settings,
+  GAE(MPI_Comm comm, Environment*const _env, Settings& set,
   vector<Uint> net_outs, vector<Uint> pol_inds) :
-  Learner_onPolicy(comm, _env, settings, settings.nnOutputs),
+  Learner_onPolicy(comm, _env, set, set.nnOutputs),
   net_outputs(net_outs), net_indices(count_indices(net_outs)),
   pol_start(pol_inds) { }
 

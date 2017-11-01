@@ -209,9 +209,9 @@ Uint Learner::sampleSequences(vector<Uint>& seq)
 
 bool Learner::batchGradientReady()
 {
-  const Real nData = read_nData();
+  const Real _nData = read_nData();
   assert(opt->nepoch >= nStep_last);
-  const Real dataCounter = nData - std::min((Real)nData_last, nData);
+  const Real dataCounter = _nData - std::min((Real)nData_last, _nData);
   const Real stepCounter = opt->nepoch - (Real)nStep_last;
 
   //if there is not enough data for training: go back to master:
@@ -223,7 +223,7 @@ bool Learner::batchGradientReady()
   //If I have done too many gradient steps on the avail data, go back to comm
   if( stepCounter*obsPerStep/learn_size > dataCounter ) {
     //profiler_ext->stop_start("STOP");
-    //printf("%g %g %g\n", stepCounter, dataCounter, nData); fflush(0);
+    //printf("%g %g %g\n", stepCounter, dataCounter, _nData); fflush(0);
     assert(unlockQueue());
     return false;
   }
@@ -235,9 +235,9 @@ bool Learner::unlockQueue()
 {
   if ( ! readyForTrain() ) return true;
 
-  const Real nData = read_nData();
+  const Real _nData = read_nData();
   assert(opt->nepoch >= nStep_last);
-  const Real dataCounter = nData - std::min((Real)nData_last, nData);
+  const Real dataCounter = _nData - std::min((Real)nData_last, _nData);
   const Real stepCounter = opt->nepoch  - (Real)nStep_last;
   //#ifdef PACE_SEQUENCES
   const Real cushionData = nSlaves;

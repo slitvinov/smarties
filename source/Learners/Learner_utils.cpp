@@ -97,9 +97,9 @@ vector<Real> Learner_utils::output_stochastic_policy(const int agentId, const Ag
 
   if(agent.Status==1) {
     net->predict(data->standardize(input), output, currActivation
-      #ifdef __EntropySGD //then we sample from target weights
-        , net->tgt_weights, net->tgt_biases
-      #endif
+      //#ifdef __EntropySGD //then we sample from target weights
+      //  , net->tgt_weights, net->tgt_biases
+      //#endif
     );
   } else { //then if i'm using RNN i need to load recurrent connections (else no effect)
     Activation* const prevActivation = prevAct[thrID];
