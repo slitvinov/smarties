@@ -111,6 +111,7 @@ class RACER : public Learner_utils
 
       const Tuple * const _t = data->Set[seq]->tuples[k];
       pol.prepare(_t->a, _t->mu, bGeometric, pPol_tgt);
+      _t->offPol_weight = std::max(pol.sampRhoWeight, pol.sampInvWeight);
 
       vector<Real>grad=compute(seq,k, Q_RET,Q_OPC, out_cur,pol,pPol_tgt, thrID);
       //#ifdef FEAT_CONTROL
@@ -121,10 +122,18 @@ class RACER : public Learner_utils
       //write gradient onto output layer:
       net->setOutputDeltas(grad, series_cur[k]);
     }
-
+    #ifndef ExpTrust
+      abort(); //TODO
+    #endif
     if(thrID==1)  profiler->stop_start("BCK");
     if (thrID==0) net->backProp(series_cur, ndata-1, net->grad);
     else net->backProp(series_cur, ndata-1, net->Vgrad[thrID]);
+    /*
+    vector<Real> trust = grad_kldiv(seq, samp, policies[0]);
+    net->prepForBackProp(series_1[thrID], ndata-1);
+    net->setOutputDeltas(trust, series_cur[nRecurr-1]);
+    net->backProp(series_cur, nRecurr, Kgrad[thrID]);
+    */
     if(thrID==1)  profiler->stop_start("SLP");
   }
 

@@ -105,6 +105,12 @@ struct Quadratic_advantage: public Quadratic_term
     return 0.5*ret;
   }
 
+  inline Real computeAdvantageNoncentral(const vector<Real>& action) const
+  {
+    Real ret = -quadraticTerm(action);
+    return 0.5*ret;
+  }
+
   inline vector<Real> getMean() const
   {
     return mean;

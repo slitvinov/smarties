@@ -242,6 +242,13 @@ public:
     }
     return 0.5*ret;
   }
+  inline Real computeAdvantageNoncentral(const vector<Real>& action) const
+  {
+    Real ret = 0;
+    for (Uint e=0; e<nExperts; e++)
+    ret -= policy->experts[e]*quadMatMul(nA,action,matrix[e],policy->means[e]);
+    return 0.5*ret;
+  }
   #endif
 
   static inline Uint compute_nL(const ActionInfo* const aI)

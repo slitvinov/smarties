@@ -282,6 +282,12 @@ struct Discrete_policy
      else return advantages[action];
    }
 
+   Real computeAdvantageNoncentral(const Uint action) const
+   {
+     return advantages[action];
+   }
+
+
    inline Real advantageVariance() const
    {
      assert(policy not_eq nullptr);
