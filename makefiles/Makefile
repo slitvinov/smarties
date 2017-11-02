@@ -125,7 +125,7 @@ CPPFLAGS += -DNDEBUG -O3 -ffast-math
 endif
 
 CPPFLAGS+= -fstrict-aliasing -mavx2 -march=native -mtune=native
-CPPFLAGS+= -ftree-vectorize -ftree-vectorizer-verbose=2 #-DNDEBUG
+#CPPFLAGS+= -ftree-vectorize -ftree-vectorizer-verbose=2 #-DNDEBUG
 CPPFLAGS+= -fmerge-all-constants -fassociative-math
 #CPPFLAGS+= -funsafe-loop-optimizations
 CPPFLAGS+= -fprofile-use
