@@ -55,7 +55,7 @@ endif
 
 CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wpedantic -Woverloaded-virtual
 CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrite-strings
-CPPFLAGS+= -Wno-unused-parameter # does not make sense with function overloading
+CPPFLAGS+= -Wno-cpp -Wno-unused-parameter # does not make sense with function overloading
 #CPPFLAGS+= -Wno-maybe-uninitialized #to switch on and check that only triggered by std random
 #CPPFLAGS+= -Wno-float-equal #sometimes you just know, do you know what I am saying?
 

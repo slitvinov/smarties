@@ -138,8 +138,8 @@ void Optimizer::update(Grads* const G, const Uint batchsize)
 void AdamOptimizer::update(Grads* const G, const Uint batchsize)
 {
   //const Real _eta = eta*std::max(.1, 1-nepoch/epsAnneal);
-  const Real _eta = nepoch<10000 ? .01/(1.+nepoch) + eta : eta;
-  //const Real _eta = eta;
+  //const Real _eta = nepoch<10000 ? .01/(1.+nepoch) + eta : eta;
+  const Real _eta = eta;
   update(net->weights_back,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,_eta);
   update(net->biases,      G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);
 
@@ -192,16 +192,12 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
       const nnReal M1_ = f11* _1stMom[i] +f12* DW;
       #if 0
         const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
-        //printf("%f %f %f\n",M2, _2ndMom[i], DW); fflush(0);
         const nnReal M2_ = std::max(M2, nnEPS);
         const nnReal _M2  = M2_;
       #else
         const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
-        //const nnReal M2_ = M2<DW*DW? DW*DW+nnEPS :(M2<nnEPS? nnEPS : M2);
-        //const nnReal M2_ = M2<M1_*M1_? M1_*M1_+nnEPS :(M2<nnEPS? nnEPS : M2);
-        nnReal M2_ = M2<nnEPS? nnEPS : M2; 
-        M2_ = M2_<beta_t_2*DW*DW ? beta_t_2*DW*DW : M2_; 
-        //std::max( std::max(M2, nnEPS), M1_*M1_ );
+        nnReal M2_ = M2<nnEPS? nnEPS : M2;
+        M2_ = M2_<beta_t_2*DW*DW ? beta_t_2*DW*DW : M2_;
         const nnReal _M2 = std::sqrt(M2_);
       #endif
       //const nnReal RNG = noise * gen.d_mean0_var1();
@@ -221,31 +217,35 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
   }
 }
 
-#if 1
 void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, const Uint N, const Uint batchsize, const Real _eta) const
 {
   assert(batchsize>0);
   #pragma omp parallel
   {
-    const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
     const nnReal norm = 1./batchsize;
     const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2, f22=1-beta_2;
+    #if 0
+      const nnReal eta_ = _eta;
+    #else
+      const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
+    #endif
 
     #pragma omp for
     for (Uint i=0; i<N; i++) {
-      const nnReal DW  = grad[i]*norm;
-      const nnReal M1  = f11* _1stMom[i] +f12* DW;
-      const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
-      const nnReal M2_ = std::max(M2, nnEPS);
-      const nnReal _M2 = std::sqrt(M2_);
-      //this line makes address-sanitizer cry: i have no clue why.
-      //const nnReal M1 = std::max(std::min(M1, _M2), -_M2); //grad clip
-      //this is fine tho: (I DON'T GET COMPUTERS)
-      //const nnReal tmp = M1 >  _M2 ?  _M2 : M1;
-      //const nnReal M1_ = M1 < -_M2 ? -_M2 : tmp;
-      //printf("batch %u %f %f %f\n",batchsize,DW,M1,M2); fflush(0);
-      const nnReal M1_ = M1;
-      _1stMom[i] = M1_;
+      const nnReal DW = grad[i]*norm;
+      const nnReal M1 = f11* _1stMom[i] +f12* DW;
+      #if 0
+        const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
+        const nnReal M2_ = std::max(M2, nnEPS);
+        const nnReal _M2  = M2_;
+      #else
+        const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
+        nnReal M2_ = M2<nnEPS? nnEPS : M2;
+        M2_ = M2_<beta_t_2*DW*DW ? beta_t_2*DW*DW : M2_;
+        const nnReal _M2 = std::sqrt(M2_);
+      #endif
+
+      _1stMom[i] = M1;
       _2ndMom[i] = M2_;
       grad[i] = 0.; //reset grads
       assert(!std::isnan(DW));
@@ -253,34 +253,10 @@ void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet 
       //if(DW*M1_>0)
       //dest[i] += eta_*M1_/_M2; //Adam
       //else
-      dest[i] += eta_*(f12*DW + f11*M1_)/_M2; //Nesterov Adam
+      dest[i] += eta_*(f12*DW + f11*M1)/_M2; //Nesterov Adam
     }
   }
 }
-#else // Adamax:
-void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, const Uint N, const Uint batchsize, const Real _eta) const
-{
-  assert(batchsize>0);
-  const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
-  const nnReal norm = 1./batchsize;
-  const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2;
-
-#pragma omp parallel for
-  for (Uint i=0; i<N; i++) {
-    const nnReal DW  = grad[i]*norm;
-    const nnReal M1  = f11*_1stMom[i] +f12*DW;
-    const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
-    const nnReal M2_ = std::max(M2, nnEPS);
-    const nnReal M1_ = M1;
-    //const nnReal M1_ = std::max(std::min(M1, M2_), -M2_);
-    //dest[i] += eta_*M1_/M2_;
-    dest[i] += eta_*(f12*DW + f11*M1_)/M2_; //nesterov
-    _1stMom[i] = M1_;
-    _2ndMom[i] = M2_;
-    grad[i] = 0.; //reset grads
-  }
-}
-#endif
 
 void Optimizer::save(const string fname)
 {

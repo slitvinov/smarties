@@ -1,6 +1,11 @@
 CC = g++
 smart ?= 1
 
+aspectr ?= 0.1
+density ?= 200
+costfun ?= 1
+CPPFLAGS += -DRHORATIO=$(density) -DASPECTRATIO=$(aspectr) -DINSTREW=$(costfun)
+
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
 LD=g++-7
@@ -26,10 +31,10 @@ glider: $(OBJ_FILES)
 
 %.o: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
-	
+
 %.d: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -MD -c $<
-    
+
 #vpath %.cpp $(DIRS)
 #vpath %.h   $(DIRS)
 

@@ -8,61 +8,64 @@
 #ifdef __SMARTIES_
 #include "Communicator.h"
 #endif
-//#define __SMART_
+
 //#define __PRINT_
-#define HEIGHT_PENAL 10
 //#define SPEED_PENAL
 #define RANDOM_START 1
 //#define NOISY 0
+
+#ifndef RHORATIO
+#define RHORATIO 200
+#endif
+#ifndef ASPECTRATIO
+#define ASPECTRATIO 0.1
+#endif
+#ifndef INSTREW
 #define INSTREW 1 /* 0 is default, 1 is time optimal, 2 is energy optimal */
+#endif
 
 #if   INSTREW==1
 #define TERM_REW_FAC 200
-#elif INSTREW==2
-#define TERM_REW_FAC 50
 #elif INSTREW==0
 #define TERM_REW_FAC 100
+#else
+#define TERM_REW_FAC 50
 #endif
 using namespace std;
 
 struct Vec7
 {
-    double u,v,w,x,y,a;//,T,E; //x vel, y vel, ang vel, x pos, y pos, angle (or their time derivatives)
+  double u,v,w,x,y,a;//,T,E; //x vel, y vel, ang vel, x pos, y pos, angle (or their time derivatives)
 
-    double vx() const
-    {
-        const double sina = std::sin(a);
-        const double cosa = std::cos(a);
-        return u*cosa + v*sina;
-    }
+  double vx() const
+  {
+      const double sina = std::sin(a);
+      const double cosa = std::cos(a);
+      return u*cosa + v*sina;
+  }
 
-    double vy() const
-    {
-        const double sina = std::sin(a);
-        const double cosa = std::cos(a);
-        return v*cosa - u*sina;
-    }
+  double vy() const
+  {
+      const double sina = std::sin(a);
+      const double cosa = std::cos(a);
+      return v*cosa - u*sina;
+  }
 
-    Vec7(const double _u=0, const double _v=0, const double _w=0, const double _x=0,
-      const double _y=0, const double _a=0, const double _T=0, const double _E=0)
-    : u(_u), v(_v), w(_w), x(_x), y(_y), a(_a)
-	//, T(_T), E(_E)
-	{}
+  Vec7(const double _u=0,const double _v=0,const double _w=0,const double _x=0,
+    const double _y=0,const double _a=0,const double _T=0,const double _E=0)
+    : u(_u), v(_v), w(_w), x(_x), y(_y), a(_a) {}
 
-    Vec7(const Vec7& c) :
-      u(c.u), v(c.v), w(c.w), x(c.x), y(c.y), a(c.a)
-	//, T(c.T), E(c.E)
-	{}
+  Vec7(const Vec7& c) : u(c.u), v(c.v), w(c.w), x(c.x), y(c.y), a(c.a) {}
 
-    Vec7 operator*(double s) const
-    {
-        return Vec7(u*s, v*s, w*s, x*s, y*s, a*s);//, T*s, E*s);
-    }
+  Vec7 operator*(double s) const
+  {
+      return Vec7(u*s, v*s, w*s, x*s, y*s, a*s);//, T*s, E*s);
+  }
 
-    Vec7 operator+(const Vec7& s) const
-    {
-        return Vec7(u+s.u, v+s.v, w+s.w, x+s.x, y+s.y, a+s.a);//, T+s.T, E+s.E);
-    }
+  Vec7 operator+(const Vec7& s) const
+  {
+      return Vec7(u+s.u, v+s.v, w+s.w, x+s.x, y+s.y, a+s.a);//, T+s.T, E+s.E);
+  }
 };
 
 /*
@@ -75,22 +78,21 @@ struct Vec7
 template <typename Func, typename Vec>
 Vec rk46_nl(double t0, double dt, const Vec u0, Func&& Diff)
 {
-    const double a[] = {0.000000000000, -0.737101392796, -1.634740794341, -0.744739003780, -1.469897351522, -2.813971388035};
-    const double b[] = {0.032918605146,  0.823256998200,  0.381530948900,  0.200092213184,  1.718581042715,  0.270000000000};
-    const double c[] = {0.000000000000,  0.032918605146,  0.249351723343,  0.466911705055,  0.582030414044,  0.847252983783};
+  const double a[] = {0.000000000000, -0.737101392796, -1.634740794341, -0.744739003780, -1.469897351522, -2.813971388035};
+  const double b[] = {0.032918605146,  0.823256998200,  0.381530948900,  0.200092213184,  1.718581042715,  0.270000000000};
+  const double c[] = {0.000000000000,  0.032918605146,  0.249351723343,  0.466911705055,  0.582030414044,  0.847252983783};
 
-    const int s = 6;
-    Vec w; // w(t0) = 0
-    Vec u(u0);
-    double t;
+  const int s = 6;
+  Vec w; // w(t0) = 0
+  Vec u(u0);
+  double t;
 
-    #pragma unroll
-    for (int i=0; i<s; i++) {
-        t = t0 + dt*c[i];
-        w = w*a[i] + Diff(u, t)*dt;
-        u = u + w*b[i];
-    }
-    return u;
+  for (int i=0; i<s; i++) {
+      t = t0 + dt*c[i];
+      w = w*a[i] + Diff(u, t)*dt;
+      u = u + w*b[i];
+  }
+  return u;
 }
 
 /*
@@ -107,15 +109,10 @@ Vec rk46_nl(double t0, double dt, const Vec u0, Func&& Diff)
 
 struct Glider
 {
-  const double CT  = 1.2, Aa  = 1.4, Bb  = 1.0;
-  const double mut = 0.20, nut = 0.20;
-  const double piinv = 1/M_PI, CR = M_PI;
+  const double CT  = 1.2, Aa  = 1.4, Bb  = 1, mut = .2, nut = .2, CR = M_PI;
+  const double II  = RHORATIO * ASPECTRATIO;
+  const double beta = ASPECTRATIO;
 
-  const double II  = 20.0;
-  //const double II  = 1.0;
-  const double beta= 0.1;
-  //const double II  = 3.; //we have to multiply *2 all moments by Anderson
-  //const double beta= 0;
   //time stepping
   const double dt = 5e-4;
   const int nstep = 500;
@@ -160,7 +157,7 @@ struct Glider
     const double slack = 0.4*std::max(0., std::min(_s.x-50, 100-_s.x));
     const bool hit_bottom =  _s.y <= -50 -slack;
     const bool wrong_xdir = _s.x < -50;
-    const bool timeover = time > 1000;
+    //const bool timeover = time > 1000;
 
     return ( hit_bottom || wrong_xdir || way_too_far );
   }
@@ -218,7 +215,7 @@ struct Glider
       const double reward = dist_gain -performamce -jerk;
     #elif INSTREW==1
       const double reward = dist_gain -DT; //DT between actions is 0.5
-    #elif INSTREW==2
+    #else
       const double reward = dist_gain -performamce;// -jerk;
     #endif
 
@@ -235,16 +232,12 @@ struct Glider
     _s.a = _s.a<0 ? _s.a+2*M_PI : _s.a;
     //these rewards will then be multiplied by 1/(1-gamma)
     //in RL algorithm, so that internal RL scales make sense
-    const double dist = getDistance();
-    const double rela = std::fabs(_s.a -.25*M_PI);
-    const double xrew = dist>5 ? 0 : TERM_REW_FAC*std::exp(-std::pow(dist,2));
-    const double arew = (rela>M_PI/4||dist>5) ? 0 : TERM_REW_FAC * std::exp( -10*std::pow(rela, 2) );
-    double final_reward  = xrew + arew;
+    const double dist = getDistance(), rela = std::fabs(_s.a -.25*M_PI);
+    const double xrew = dist>5 ? 0 : std::exp(-dist*dist);
+    const double arew = (rela>M_PI/4||dist>5) ? 0 : std::exp(-10*rela*rela);
+    double final_reward  = TERM_REW_FAC*(xrew + arew);
 
-    //if(wrong_xdir || max_torque || way_too_far)
-    //  final_reward = -HEIGHT_PENAL*fabs(50+a._s.y);
     #ifdef SPEED_PENAL
-    //else
     {
       if (std::fabs(_s.u) > 0.5)
         final_reward *= std::exp(-10*std::pow(std::fabs(_s.u)-.5,2));
@@ -260,35 +253,32 @@ struct Glider
 
   Vec7 Diff(const Vec7& s, const double t)
   {
-      Vec7 res;
-      const double eps = 2.2e-16;
-      const double uv2p = s.u*s.u + s.v*s.v;
-      const double suv2 = sqrt(uv2p);
-      const double uv2n = s.u*s.u - s.v*s.v;
-      const double _f1  = s.u*s.v/(suv2+eps);
-      const double _f2  = uv2n/(uv2p+eps);
-      const double Gamma = (2*piinv)*(-CT*_f1 + CR*s.w);
-      const double F = piinv*(Aa - Bb*_f2)*suv2*s.u;
-      const double G = piinv*(Aa - Bb*_f2)*suv2*s.v;
-      const double M = (mut + nut*std::fabs(s.w))*s.w;
+    Vec7 res;
+    const double eps = 2.2e-16;
+    const double uv2p = s.u*s.u + s.v*s.v;
+    const double uv2n = s.u*s.u - s.v*s.v;
+    const double _f1  = s.u*s.v/(std::sqrt(uv2p)+eps);
+    const double _f2  = uv2n/(uv2p+eps);
+    const double G = (2/M_PI)*(CR*s.w -CT*_f1);
+    const double F = (1/M_PI)*(Aa -Bb*_f2)*std::sqrt(uv2p);
+    const double M = (mut + nut*std::fabs(s.w))*s.w;
 
-      const double sinth = std::sin(s.a);
-      const double costh = std::cos(s.a);
-      const double betasq= beta*beta;
-      const double fact1 = II + betasq;
-      const double fact2 = II + 1.;
-      const double fact3 = .25*(II*(1+betasq)+.5*std::pow(1-betasq,2));
+    const double sinth = std::sin(s.a), costh = std::cos(s.a);
+    const double betasq= beta*beta;
+    const double fact1 = II + betasq;
+    const double fact2 = II + 1.;
+    const double fact3 = .25*(II*(1+betasq)+.5*std::pow(1-betasq,2));
 
-      res.u = ( fact2*s.v*s.w - Gamma*s.v - sinth - F)/fact1;
-      res.v = (-fact1*s.u*s.w + Gamma*s.u - costh - G)/fact2;
-      res.w = ((betasq-1.0)*s.u*s.v + Torque - M)/fact3;
-      res.x = s.u*costh - s.v*sinth;
-      res.y = s.u*sinth + s.v*costh;
-      res.a = s.w;
-      //res.T = Jerk;
-      //res.E = .5*s.T*s.T; //using performance metric eq 4.9 instead of energy
+    res.u = ( fact2*s.v*s.w - G*s.v - sinth - F*s.u)/fact1;
+    res.v = (-fact1*s.u*s.w + G*s.u - costh - F*s.v)/fact2;
+    res.w = ((betasq-1.0)*s.u*s.v + Torque - M)/fact3;
+    res.x = s.u*costh - s.v*sinth;
+    res.y = s.u*sinth + s.v*costh;
+    res.a = s.w;
+    //res.T = Jerk;
+    //res.E = .5*s.T*s.T; //using performance metric eq 4.9 instead of energy
 
-      return res;
+    return res;
   }
 
   void print(const int ID) const
@@ -303,7 +293,7 @@ struct Glider
   double getDistance() const
   {
     //goal is {100,-50}
-    const double xx = std::pow(_s.x-100.,2);
+    const double xx = std::pow(_s.x-100,2);
     const double yy = 0;//std::pow(_s.y+ 50.,2);
     return std::sqrt(xx+yy);
   }
@@ -322,6 +312,13 @@ struct Glider
 
 int main(int argc, const char * argv[])
 {
+  std::cout << "Glider with density ratio " << RHORATIO <<
+   " and aspect ratio = " << ASPECTRATIO << ". Instantaneous reward is " <<
+   (INSTREW == 0 ? "mixed" : (INSTREW == 1 ? "time" : "energy"));
+  #ifdef SPEED_PENAL
+  std::cout << " with penalization on terminal velocity";
+  #endif
+  std::cout << "." << std::endl;
   #ifdef __SMARTIES_
     //communication:
     const int sock = std::stoi(argv[1]);

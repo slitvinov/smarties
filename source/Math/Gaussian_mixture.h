@@ -441,7 +441,7 @@ public:
         fflush(0);
       }
       if(pol_hat == nullptr) continue;
-    
+
       const Real d_1=p1.kl_div_opp_new(pol_hat);
       const Real d_2=p2.kl_div_opp_new(pol_hat);
       {
