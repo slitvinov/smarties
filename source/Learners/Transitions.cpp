@@ -688,8 +688,7 @@ void Transitions::updateP()
   std::iota(inds.begin(), inds.end(), 0);
   vector<Real> Ps(ndata, 0), Ws(ndata, 0);
   {
-    Uint k=0;
-    for(Uint i=0; i<Set.size(); i++)
+    for(Uint i=0, k=0; i<Set.size(); i++)
     for(Uint j=0; j<Set[i]->ndata(); j++)
       if(bSampleSeq) Ps[i] += Set[i]->tuples[j]->SquaredError/Set[i]->ndata();
       else           Ps[k++]= Set[i]->tuples[j]->SquaredError;
@@ -698,24 +697,17 @@ void Transitions::updateP()
 
   Real minP = 2, sumP = 0;
   #pragma omp parallel for reduction(min: minP) reduction(+: sumP)
-  for(Uint i=0; i<ndata; i++) {
-    minP = std::min(minP, Ps[i]);
-    sumP += Ps[i];
-  }
+  for(Uint i=0; i<ndata; i++) { minP = std::min(minP, Ps[i]); sumP += Ps[i]; }
   assert(minP<=1 && sumP>0);
 
   #pragma omp parallel for
-  for(Uint i=0; i<ndata; i++) {
-    Ws[i] = minP/Ps[i];
-    Ps[i] = Ps[i]/sumP;
-  }
+  for(Uint i=0; i<ndata; i++) { Ws[i] = minP / Ps[i]; Ps[i] = Ps[i ] /sumP; }
 
   if(dist not_eq nullptr) delete dist;
   dist = new std::discrete_distribution<Uint>(Ps.begin(), Ps.end());
 
   {
-    Uint k = 0;
-    for(Uint i=0; i<Set.size(); i++)
+    for(Uint i=0, k=0; i<Set.size(); i++)
       for(Uint j=0; j<Set[i]->ndata(); j++)
         if(bSampleSeq) Set[i]->tuples[j]->weight = Ws[i];
         else Set[i]->tuples[j]->weight = Ws[k++];

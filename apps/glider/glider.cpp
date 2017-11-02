@@ -214,9 +214,9 @@ struct Glider
     #if INSTREW==0
       const double reward = dist_gain -performamce -jerk;
     #elif INSTREW==1
-      const double reward = dist_gain -DT; //DT between actions is 0.5
+      const double reward = dist_gain -DT;
     #else
-      const double reward = dist_gain -performamce;// -jerk;
+      const double reward = dist_gain -performamce;
     #endif
 
     #ifdef __PRINT_

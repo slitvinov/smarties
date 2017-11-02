@@ -72,7 +72,10 @@ public:
 
     grad = new Grads(nWeights,nBiases);
     Vgrad.resize(nThreads);
-    for (Uint i=0; i<nThreads; ++i) Vgrad[i] = new Grads(nWeights, nBiases);
+    #pragma omp parallel for
+    for (Uint i=0; i<nThreads; i++)
+    #pragma omp critical
+      Vgrad[i] = new Grads(nWeights, nBiases);
 
     mem.resize(nAgents);
     for (Uint i=0; i<nAgents; ++i) mem[i] = new Mem(nNeurons, nStates);

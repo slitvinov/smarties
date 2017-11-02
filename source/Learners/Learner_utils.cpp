@@ -77,8 +77,8 @@ void Learner_utils::buildNetwork(const vector<Uint> nouts, Settings& settings,
 vector<Real> Learner_utils::output_stochastic_policy(const int agentId, const Agent& agent) const
 {
   const int thrID = omp_get_thread_num();
-  if(currAct.size() < nThreads ) net->prepForFwdProp(&currAct, nThreads);
-  if(prevAct.size() < nThreads ) net->prepForFwdProp(&prevAct, nThreads);
+  assert(currAct.size() >= nThreads );
+  assert(prevAct.size() >= nThreads );
   Activation* const currActivation = currAct[thrID];
 
   vector<Real> output(nOutputs), input = agent.s->copy_observed();

@@ -113,7 +113,10 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
 
     finalize_network(build);
     Kgrad.resize(nThreads); Ggrad.resize(nThreads);
-    for (Uint i=0; i<nThreads; ++i) {
+    #pragma omp parallel for
+    for (Uint i=0; i<nThreads; i++)
+    #pragma omp critical
+    {
      Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
      Ggrad[i] = new Grads(net->getnWeights(), net->getnBiases());
     }
@@ -178,7 +181,10 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
     finalize_network(build);
 
     Kgrad.resize(nThreads); Ggrad.resize(nThreads);
-    for (Uint i=0; i<nThreads; ++i) {
+    #pragma omp parallel for
+    for (Uint i=0; i<nThreads; i++)
+    #pragma omp critical
+    {
      Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
      Ggrad[i] = new Grads(net->getnWeights(), net->getnBiases());
     }
@@ -245,7 +251,10 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     finalize_network(build);
 
     Kgrad.resize(nThreads); Ggrad.resize(nThreads);
-    for (Uint i=0; i<nThreads; ++i) {
+    #pragma omp parallel for
+    for (Uint i=0; i<nThreads; i++)
+    #pragma omp critical
+    {
      Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
      Ggrad[i] = new Grads(net->getnWeights(), net->getnBiases());
     }

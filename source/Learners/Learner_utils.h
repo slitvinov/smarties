@@ -85,12 +85,15 @@ public:
   {
     opt = build.finalSimple();
     assert(nOutputs == net->getnOutputs() && nInputs == net->getnInputs());
-    for (Uint i = 0; i < nThreads; i++) {
+    #pragma omp parallel for
+    for (Uint i=0; i<nThreads; i++)
+     #pragma omp critical
+     {
       series_1.push_back(new vector<Activation*>());
       series_2.push_back(new vector<Activation*>());
-    }
-    net->prepForFwdProp(&currAct, nThreads);
-    net->prepForFwdProp(&prevAct, nThreads);
+      currAct.push_back(new Activation(net->getnNeurons(), net->getnStates()));
+      prevAct.push_back(new Activation(net->getnNeurons(), net->getnStates()));
+     }
   }
 
   vector<Real> output_stochastic_policy(const int agentId, const Agent& agent) const;
