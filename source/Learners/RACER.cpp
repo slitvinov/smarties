@@ -13,8 +13,8 @@
 //#define BONE
 //#define UNBW
 //#define UNBR
-//#define REALBND (Real)1
-#define REALBND CmaxPol
+#define REALBND (Real)1
+//#define REALBND CmaxPol
 //#define ExpTrust
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
@@ -376,7 +376,7 @@ class RACER : public Learner_utils
 
     //const Real Q_dist = Q_RET -adv_cur.computeAdvantageNoncentral(act)-V_cur;
     const Real Q_dist = Q_RET -A_cur-V_cur;
-    const Real Ver = Q_dist * clipImp * std::min((Real)1, Qprecision);
+    const Real Ver = Q_dist * std::min((Real)1,rho_cur) * std::min((Real)1, Qprecision);
     //const Real Ver = Q_dist * clipImp;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID] = Ver;
@@ -589,12 +589,10 @@ class RACER : public Learner_utils
       data->prune(goalSkipRatio, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
       //opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
-      if(currSeqs >= nSequences4Train()) 
-        DKL_target = 1.01*DKL_target;
-      else if(currSeqs < nSequences4Train())
-        DKL_target = 0.95*DKL_target;
-      //if(currSeqs >= nSequences4Train()) DKL_target = 0.2 + DKL_target;
-      //else DKL_target = 0.2 + DKL_target*0.8;
+      //if(currSeqs >= nSequences4Train())     DKL_target = 1.01*DKL_target;
+      //else if(currSeqs < nSequences4Train()) DKL_target = 0.95*DKL_target;
+      if(currSeqs > nSequences4Train()) DKL_target = 0.1 + DKL_target;
+      else DKL_target = DKL_target*0.9;
       nStoredSeqs_last = currSeqs; //after pruning
     }
     printf("nData_last:%lu nData:%u nData_b4Updates:%u Set:%u\n", nData_last,

@@ -28,7 +28,7 @@ SETTINGS+=" --bTrain 1"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner POAC"
 #chance of taking random actions
-SETTINGS+=" --greedyEps 1"
+SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --maxTotSeqNum 10000"
 #SETTINGS+=" --obsPerStep 0.01"
@@ -42,7 +42,7 @@ SETTINGS+=" --opcWeight 1"
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w
 #the first option is markedly safer
-SETTINGS+=" --klDivConstraint 10"
+SETTINGS+=" --klDivConstraint 1"
 SETTINGS+=" --targetDelay 0.0003"
 #batch size for network gradients compute
 #SETTINGS+=" --batchSize 256"
