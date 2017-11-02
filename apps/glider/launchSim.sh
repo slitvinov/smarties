@@ -1,1 +1,1 @@
-../cart-pole $1
+../glider $1
