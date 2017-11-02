@@ -58,6 +58,7 @@ CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrit
 CPPFLAGS+= -Wno-cpp -Wno-unused-parameter # does not make sense with function overloading
 #CPPFLAGS+= -Wno-maybe-uninitialized #to switch on and check that only triggered by std random
 #CPPFLAGS+= -Wno-float-equal #sometimes you just know, do you know what I am saying?
+CPPFLAGS+= -Wno-unknown-pragmas
 
 ifeq "$(acer)" "safe"
 CPPFLAGS += -DACER_SAFE
