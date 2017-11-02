@@ -32,7 +32,6 @@ public:
    }
 
 private:
-  private:
     /*
     inline array<array<Real,nExperts>, nExperts> computeOverlap() const
     {
