@@ -592,7 +592,7 @@ class RACER : public Learner_utils
       //if(currSeqs >= nSequences4Train())     DKL_target = 1.01*DKL_target;
       //else if(currSeqs < nSequences4Train()) DKL_target = 0.95*DKL_target;
       if(currSeqs > nSequences4Train()) DKL_target = 0.1 + DKL_target;
-      else DKL_target = DKL_target*0.9;
+      else if(currSeqs < nSequences4Train()) DKL_target = DKL_target*0.9;
       nStoredSeqs_last = currSeqs; //after pruning
     }
     printf("nData_last:%lu nData:%u nData_b4Updates:%u Set:%u\n", nData_last,
