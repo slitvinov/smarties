@@ -13,8 +13,8 @@
 //#define BONE
 //#define UNBW
 //#define UNBR
-//#define REALBND (Real)1
-#define REALBND CmaxPol
+#define REALBND (Real)1
+//#define REALBND CmaxPol
 //#define ExpTrust
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
@@ -199,7 +199,6 @@ class RACER : public Learner_utils
       nTried++;
 
       const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
-      //const Real maxImpWeight = 10000;
       const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
       if( rho_cur < minImpWeight || rho_cur > maxImpWeight )
       {
@@ -348,8 +347,8 @@ class RACER : public Learner_utils
         const Real gain1 = A_OPC>0? clipImp*A_OPC : A_OPC*rho_cur;
         //const Real gain1 = clipImp*A_OPC;
       #endif
-
-      const Real DKLmul2 = - A_OPC * rho_inv;
+      //const Real DKLmul2 = -std::max((Real)0,A_OPC)*rho_inv -10*annealingFactor();
+      const Real DKLmul2 = -10*annealingFactor();
       const vector<Real> gradRacer_1 = pol_cur.policy_grad(act, gain1);
       for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradRacer_1[1+i]);
       #if 0
@@ -376,7 +375,8 @@ class RACER : public Learner_utils
 
     //const Real Q_dist = Q_RET -adv_cur.computeAdvantageNoncentral(act)-V_cur;
     const Real Q_dist = Q_RET -A_cur-V_cur;
-    const Real Ver = Q_dist * std::min((Real)1,rho_cur) * std::min((Real)1, Qprecision);
+    //const Real Ver = Q_dist * std::min((Real)1,rho_cur) * std::min((Real)1, Qprecision);
+    const Real Ver = Q_dist * std::min((Real)1, Qprecision);
     //const Real Ver = Q_dist * clipImp;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID] = Ver;
@@ -588,11 +588,15 @@ class RACER : public Learner_utils
       //data->prune(goalSkipRatio*mul, CmaxPol);
       data->prune(goalSkipRatio, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
-      opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
       //if(currSeqs >= nSequences4Train())     DKL_target = 1.01*DKL_target;
       //else if(currSeqs < nSequences4Train()) DKL_target = 0.95*DKL_target;
-      if(currSeqs > nSequences4Train()) DKL_target = 0.1 + DKL_target;
-      else if(currSeqs < nSequences4Train()) DKL_target = DKL_target*0.9;
+      if(currSeqs > nSequences4Train()) { 
+        DKL_target = 0.1 + DKL_target;
+        opt->eta = 1e-5 + 0.99*opt->eta;
+      } else if(currSeqs < nSequences4Train()) {
+        DKL_target = DKL_target*0.9;
+        opt->eta = 1e-5 + 0.9*opt->eta;
+      }
       nStoredSeqs_last = currSeqs; //after pruning
     }
     printf("nData_last:%lu nData:%u nData_b4Updates:%u Set:%u\n", nData_last,
