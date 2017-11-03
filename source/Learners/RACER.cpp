@@ -13,8 +13,8 @@
 //#define BONE
 //#define UNBW
 //#define UNBR
-#define REALBND (Real)1
-//#define REALBND CmaxPol
+//#define REALBND (Real)1
+#define REALBND CmaxPol
 //#define ExpTrust
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
