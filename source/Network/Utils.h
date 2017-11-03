@@ -10,7 +10,7 @@
 
 #include <cstring>
 #define VEC_WIDTH 32
-
+#define ACTLAMBDA 1e-6
 #if 1
   typedef double nnReal;
   #define MPI_NNVALUE_TYPE MPI_DOUBLE

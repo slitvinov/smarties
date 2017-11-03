@@ -124,7 +124,7 @@ class NormalLink: public Link
       nnOpRet g = gradW +iW +nI_simd*o;
       #pragma omp simd aligned(g,inp,delta,err,w : VEC_WIDTH) safelen(VEC_WIDTH)
       for (Uint i = 0; i < nI; i++) {
-        g[i] += inp[i] * delta[o] -1e-6*inp[i]*out[o];
+        g[i] += inp[i] * delta[o] -ACTLAMBDA*inp[i]*out[o];
         err[i] += delta[o] * w[i];
       }
     }

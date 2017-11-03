@@ -349,10 +349,10 @@ class RACER : public Learner_utils
         //const Real gain1 = clipImp*A_OPC;
       #endif
 
-      const Real DKLmul2 = - std::max(A_OPC, (Real)0) * rho_inv;
+      const Real DKLmul2 = - A_OPC * rho_inv;
       const vector<Real> gradRacer_1 = pol_cur.policy_grad(act, gain1);
       for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradRacer_1[1+i]);
-      #if 1
+      #if 0
         const vector<Real>& gradAcer = gradRacer_1;
         meanBeta = - DKLmul2; //to see it
       #else
@@ -588,7 +588,7 @@ class RACER : public Learner_utils
       //data->prune(goalSkipRatio*mul, CmaxPol);
       data->prune(goalSkipRatio, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
-      //opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
+      opt->eta = (Real)data->nSequences/(Real)nSequences4Train()*learnRate;
       //if(currSeqs >= nSequences4Train())     DKL_target = 1.01*DKL_target;
       //else if(currSeqs < nSequences4Train()) DKL_target = 0.95*DKL_target;
       if(currSeqs > nSequences4Train()) DKL_target = 0.1 + DKL_target;

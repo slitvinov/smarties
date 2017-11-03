@@ -180,7 +180,7 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
     #if 0
       const nnReal eta_ = _eta;
     #else
-      const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
+      const nnReal eta_ = _eta*std::sqrt(1-beta_t_2)/(1-beta_t_1);
     #endif
     const nnReal norm = 1./batchsize;
     //const nnReal noise = std::sqrt(eta_) * eps_eSGD;
