@@ -322,7 +322,6 @@ class RACER : public Learner_utils
     #endif
 
     const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = pol_cur.sampInvWeight;
-    //const Real maxImp = std::max((Real)1,rho_cur), oneImp=std::min((Real)1,rho_cur);
     const Real clipImp = std::min(REALBND, rho_cur);
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_OPC = Q_OPC - V_cur;
@@ -375,8 +374,8 @@ class RACER : public Learner_utils
 
     //const Real Q_dist = Q_RET -adv_cur.computeAdvantageNoncentral(act)-V_cur;
     const Real Q_dist = Q_RET -A_cur-V_cur;
-    //const Real Ver = Q_dist * std::min((Real)1,rho_cur) * std::min((Real)1, Qprecision);
-    const Real Ver = Q_dist * std::min((Real)1, Qprecision);
+    //const Real Ver = Q_dist*std::min((Real)1,rho_cur)*std::min((Real)1,Qprecision);
+    const Real Ver = Q_dist * std::min((Real)1,Qprecision);
     //const Real Ver = Q_dist * clipImp;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID] = Ver;
@@ -413,7 +412,7 @@ class RACER : public Learner_utils
       for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
     #else
       const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
-      if(thrID == 1) {
+      if(thrID == -1) {
         const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
         Real normG = 0, normT = 0, dot = 0;
         for(Uint i=0;i<gradDivKL.size();i++) {
@@ -445,7 +444,6 @@ class RACER : public Learner_utils
     const vector<Real> info = { DivKL, meanPena, meanBeta, meanGrad};
     statsGrad(avgValGrad[thrID+1],stdValGrad[thrID+1],cntValGrad[thrID+1],info);
     statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
-    //int clip =
     clip_gradient(gradient, stdGrad[0], seq, samp);
     //if(clip) printf("A:%f Aret:%f rho:%f g1:%f %f\n",// g2:%f %f\n",
     //A_cur, A_OPC, rho_cur, gradRacer_1[1], gradRacer_1[2]//, gradRacer_2[1],  gradRacer_2[2]
@@ -576,26 +574,23 @@ class RACER : public Learner_utils
       print(stdValGrad[0]).c_str()); fflush(0);
     { //shift data / gradient counters to maintain grad stepping to sample
       // collection ratio prescirbed by obsPerStep
-      //const Uint nData = read_nData();// nData_0 = nData_b4Train();
-      //const Real dataCounter = (Real)nData - (Real)nData_last;
       const Real stepCounter = (Real)opt->nepoch - (Real)nStep_last;
       nData_last += stepCounter*obsPerStep/learn_size;
       nStep_last = opt->nepoch;
     }
     { //update sequences
       assert(nStoredSeqs_last <= data->nSequences); //before pruining
-      //const Real mul = (Real)nSequences4Train()/(Real)data->nSequences;
-      //data->prune(goalSkipRatio*mul, CmaxPol);
       data->prune(goalSkipRatio, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
       //if(currSeqs >= nSequences4Train())     DKL_target = 1.01*DKL_target;
       //else if(currSeqs < nSequences4Train()) DKL_target = 0.95*DKL_target;
+      //opt->eta = data->nSequences/(Real)nSequences4Train()*learnRate;
       if(currSeqs > nSequences4Train()) { 
         DKL_target = 0.1 + DKL_target;
-        opt->eta = 1e-5 + 0.99*opt->eta;
+        //opt->eta = 1e-5 + 0.99*opt->eta;
       } else if(currSeqs < nSequences4Train()) {
         DKL_target = DKL_target*0.9;
-        opt->eta = 1e-5 + 0.9*opt->eta;
+        //opt->eta = 1e-5 + 0.9*opt->eta;
       }
       nStoredSeqs_last = currSeqs; //after pruning
     }
