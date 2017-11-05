@@ -176,7 +176,7 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
   #pragma omp parallel
   {
     const Uint thrID = static_cast<Uint>(omp_get_thread_num());
-    Saru gen(nepoch, thrID, net->generators[thrID]());
+    //Saru gen(nepoch, thrID, net->generators[thrID]());
     #if 0
       const nnReal eta_ = _eta;
     #else
@@ -241,7 +241,8 @@ void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet 
       #else
         const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
         nnReal M2_ = M2<nnEPS? nnEPS : M2;
-        M2_ = M2_<beta_t_2*DW*DW ? beta_t_2*DW*DW : M2_;
+        //M2_ = M2_<beta_t_2*DW*DW ? beta_t_2*DW*DW : M2_;
+        M2_ = M2_<M1*M1 ? M1*M1 : M2_;
         const nnReal _M2 = std::sqrt(M2_);
       #endif
 

@@ -13,8 +13,8 @@
 //#define BONE
 //#define UNBW
 //#define UNBR
-#define REALBND (Real)1
-//#define REALBND CmaxPol
+//#define REALBND (Real)1
+#define REALBND CmaxPol
 //#define ExpTrust
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
@@ -72,7 +72,6 @@ class RACER : public Learner_utils
     for (Uint k=0; k<ndata-1; k++) {
       const Tuple * const _t = data->Set[seq]->tuples[k]; // s, a, mu
       const vector<Real> scaledSold = data->standardize(_t->s);
-      //const vector<Real> scaledSold = data->standardize(_t->s, 0.01, thrID);
       net->seqPredict_inputs(scaledSold, series_cur[k]);
       #ifdef ACER_PENALIZED
         net->seqPredict_inputs(scaledSold, series_hat[k]);
@@ -346,8 +345,8 @@ class RACER : public Learner_utils
         const Real gain1 = A_OPC>0? clipImp*A_OPC : A_OPC*rho_cur;
         //const Real gain1 = clipImp*A_OPC;
       #endif
-      //const Real DKLmul2 = -std::max((Real)0,A_OPC)*rho_inv -10*annealingFactor();
-      const Real DKLmul2 = -10*annealingFactor();
+      const Real DKLmul2 = -std::max((Real)0,A_OPC)*rho_inv -10*annealingFactor();
+      //const Real DKLmul2 = -10*annealingFactor();
       const vector<Real> gradRacer_1 = pol_cur.policy_grad(act, gain1);
       for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradRacer_1[1+i]);
       #if 0
@@ -372,7 +371,6 @@ class RACER : public Learner_utils
       const vector<Real>& policy_grad = gradAcer;
     #endif
 
-    //const Real Q_dist = Q_RET -adv_cur.computeAdvantageNoncentral(act)-V_cur;
     const Real Q_dist = Q_RET -A_cur-V_cur;
     //const Real Ver = Q_dist*std::min((Real)1,rho_cur)*std::min((Real)1,Qprecision);
     const Real Ver = Q_dist * std::min((Real)1,Qprecision);
