@@ -114,13 +114,13 @@ private:
   }
   static inline Real precision_func(const Real val)
   {
-    return std::exp(val) + nnEPS; //nan police
-    //return 0.5*(val + std::sqrt(val*val+1)) +nnEPS;
+    //return std::exp(val) + nnEPS; //nan police
+    return 0.5*(val + std::sqrt(val*val+1)) +nnEPS;
   }
   static inline Real precision_func_diff(const Real val)
   {
-    return std::exp(val);
-    //return 0.5*(1.+val/std::sqrt(val*val+1));
+    //return std::exp(val);
+    return 0.5*(1.+val/std::sqrt(val*val+1));
   }
   static inline Real oneDnormal(const Real act,const Real mean,const Real prec)
   {
