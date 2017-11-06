@@ -187,6 +187,7 @@ public:
     }
     return std::log(P);
   }
+  const Real threshold = 3;
   inline vector<Real> sample(mt19937*const gen, const vector<Real>& beta) const
   {
     std::vector<Real> ret(nA);
@@ -195,7 +196,7 @@ public:
     const Uint experti = dE(*gen);
     for(Uint i=0; i<nA; i++) {
       Real samp = 10;
-      while (samp > 2 || samp < -2) samp = dist(*gen);
+      while (samp > threshold || samp < -threshold) samp = dist(*gen);
       const Uint indM = i +experti*nA +nExperts; //after experts come the means
       const Uint indS = i +experti*nA +nExperts*(nA+1); //after means, stdev
       ret[i] = beta[indM] + beta[indS] * samp;
@@ -210,7 +211,7 @@ public:
     const Uint experti = dE(*gen);
     for(Uint i=0; i<nA; i++) {
       Real samp = 10;
-      while (samp > 2 || samp < -2) samp = dist(*gen);
+      while (samp > threshold || samp < -threshold) samp = dist(*gen);
       ret[i] = means[experti][i] + stdevs[experti][i] * samp;
     }
     return ret;

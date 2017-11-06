@@ -121,18 +121,31 @@ class RACER : public Learner_utils
       //write gradient onto output layer:
       net->setOutputDeltas(grad, series_cur[k]);
     }
-    #ifndef ExpTrust
-      abort(); //TODO
-    #endif
     if(thrID==1)  profiler->stop_start("BCK");
-    if (thrID==0) net->backProp(series_cur, ndata-1, net->grad);
-    else net->backProp(series_cur, ndata-1, net->Vgrad[thrID]);
-    /*
-    vector<Real> trust = grad_kldiv(seq, samp, policies[0]);
-    net->prepForBackProp(series_1[thrID], ndata-1);
-    net->setOutputDeltas(trust, series_cur[nRecurr-1]);
-    net->backProp(series_cur, nRecurr, Kgrad[thrID]);
-    */
+    #ifdef ExpTrust //then trust region is computed on batch
+      if (thrID==0) net->backProp(series_cur, ndata-1, net->grad);
+      else net->backProp(series_cur, ndata-1, net->Vgrad[thrID]);
+    #else           //else trust region on this temp gradient
+      net->backProp(series_cur, ndata-1, Ggrad[thrID]);
+    #endif
+    
+    #if 1
+      net->prepForBackProp(series_1[thrID], ndata-1);
+      for (int k=static_cast<int>(ndata)-2; k>=0; k--) {
+        const Tuple * const _t = data->Set[seq]->tuples[k];
+        Policy_t pol = prepare_policy(net->getOutputs(series_cur[k]));
+        pol.prepare(_t->a, _t->mu, bGeometric, nullptr);
+        vector<Real> trust = grad_kldiv(seq, k, pol);
+        net->setOutputDeltas(trust, series_cur[k]);
+      }
+
+      net->backProp(series_cur, ndata-1, Kgrad[thrID]);
+
+      #ifndef ExpTrust
+        if (thrID==0) circle_region(Ggrad[thrID], Kgrad[thrID], net->grad, DKL_target);
+        else circle_region(Ggrad[thrID], Kgrad[thrID], net->Vgrad[thrID], DKL_target);
+      #endif
+    #endif
     if(thrID==1)  profiler->stop_start("SLP");
   }
 
@@ -277,21 +290,18 @@ class RACER : public Learner_utils
     if(thrID==1)  profiler->stop_start("BCK");
       net->setOutputDeltas(grad, series_cur[nRecurr-1]);
       #ifdef ExpTrust //then trust region is computed on batch
-        if (thrID==0) net->backProp(series_cur, net->grad);
+        if (thrID==0) net->backProp(series_cur, nRecurr, net->grad);
         else net->backProp(series_cur, nRecurr, net->Vgrad[thrID]);
       #else           //else trust region on this temp gradient
         net->backProp(series_cur, nRecurr, Ggrad[thrID]);
       #endif
-    if(thrID==1)  profiler->stop_start("SLP");
 
     #if 1
       net->prepForBackProp(series_1[thrID], nRecurr);
       vector<Real> trust = grad_kldiv(seq, samp, policies[0]);
 
-      if(thrID==1)  profiler->stop_start("BCK");
         net->setOutputDeltas(trust, series_cur[nRecurr-1]);
         net->backProp(series_cur, nRecurr, Kgrad[thrID]);
-      if(thrID==1)  profiler->stop_start("SLP");
 
       #ifndef ExpTrust
         if (thrID==0) circle_region(Ggrad[thrID], Kgrad[thrID], net->grad, DKL_target);
@@ -300,6 +310,7 @@ class RACER : public Learner_utils
         //else fullstats(Ggrad[thrID], Kgrad[thrID], net->Vgrad[thrID], DKL_target);
       #endif
     #endif
+    if(thrID==1)  profiler->stop_start("SLP");
   }
 
   inline vector<Real> compute(const Uint seq, const Uint samp, Real& Q_RET,
@@ -321,7 +332,7 @@ class RACER : public Learner_utils
     #endif
 
     const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = pol_cur.sampInvWeight;
-    const Real clipImp = std::min(REALBND, rho_cur);
+    const Real clipImp=std::min(REALBND,rho_cur), clipInv=std::min(REALBND,rho_inv);
     const Real A_cur = adv_cur.computeAdvantage(act);
     const Real A_OPC = Q_OPC - V_cur;
 
@@ -345,7 +356,8 @@ class RACER : public Learner_utils
         const Real gain1 = A_OPC>0? clipImp*A_OPC : A_OPC*rho_cur;
         //const Real gain1 = clipImp*A_OPC;
       #endif
-      const Real DKLmul2 = -std::max((Real)0,A_OPC)*rho_inv -10*annealingFactor();
+      const Real DKLmul2 = -std::max((Real)0,A_OPC)*clipInv -10*annealingFactor();
+      //const Real DKLmul2 = -0.1*A_OPC*rho_inv -10*annealingFactor();
       //const Real DKLmul2 = -10*annealingFactor();
       const vector<Real> gradRacer_1 = pol_cur.policy_grad(act, gain1);
       for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradRacer_1[1+i]);
