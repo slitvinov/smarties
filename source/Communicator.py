@@ -86,7 +86,6 @@ class Communicator:
         actVals = np.zeros([0],dtype=np.float64)
         actOpts = np.zeros([0],dtype=np.float64)
         obsBnds = np.zeros([0],dtype=np.float64)
-
         if hasattr(env.action_space, 'spaces'):
             nAct = len(env.action_space.spaces)
             self.discrete_actions = True
@@ -94,6 +93,11 @@ class Communicator:
                 nActions_i = env.action_space.spaces[i].n
                 actOpts = np.append(actOpts, [nActions_i+.1, 1])
                 actVals = np.append(actVals, np.arange(0,nActions_i)+.1)
+        elif hasattr(env.action_space, 'n'):
+            nActions_i = env.action_space.n
+            self.discrete_actions = True
+            actOpts = np.append(actOpts, [nActions_i, 1])
+            actVals = np.append(actVals, np.arange(0,nActions_i)+.1)
         elif hasattr(env.action_space, 'shape'):
             nAct = env.action_space.shape[0]
             for i in range(nAct):
@@ -107,11 +111,6 @@ class Communicator:
                 actOpts = np.append(actOpts, [2.1, bounded])
                 actVals = np.append(actVals, max(env.action_space.low[i],-1e3))
                 actVals = np.append(actVals, min(env.action_space.high[i],1e3))
-        elif hasattr(env.action_space, 'n'):
-            nActions_i = env.action_space.n
-            self.discrete_actions = True
-            actOpts = np.append(actOpts, [nActions_i, 1])
-            actVals = np.append(actVals, np.arange(0,nActions_i)+.1)
         else: assert(False)
 
         if hasattr(env.observation_space, 'shape'):
@@ -185,12 +184,14 @@ class Communicator:
         for i in range(self.nActions): assert(not np.isnan(buf[i]))
 
         if self.gym is not None:
-            if hasattr(self.gym.action_space, 'shape'):
+            if hasattr(self.gym.action_space, 'n'):  
+                action = int(buf[0])
+            elif hasattr(self.gym.action_space, 'shape'):
                 action = buf
             elif hasattr(self.gym.action_space, 'spaces'):
                 action = [int(buf[0])]
                 for i in range(1, self.nActions): action = action+[int(buf[i])]
-            else: action = int(buf[0])
+            else: assert(False)
         else: action = buf
         if abs(buf[0]+256)<2.2e-16: quit()
         return action
