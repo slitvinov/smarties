@@ -29,11 +29,10 @@ class BaseLayer: public Layer
   {
     nnOpRet outputs = curr->outvals +n1stNeuron;
     nnOpRet inputs = curr->in_vals +n1stNeuron;
-    nnOpInp bias = biases +n1stBias;
     //const int thrID = omp_get_thread_num();
     //if(thrID==1) profiler->push_start("FB");
-    #pragma omp simd aligned(inputs,bias : VEC_WIDTH) safelen(simdWidth)
-    for (Uint n=0; n<nNeurons; n++) inputs[n] = bias[n];
+    memcpy(curr->in_vals+n1stNeuron, biases+n1stBias, nNeurons*sizeof(nnReal));
+
     //if(thrID==1)  profiler->stop_start("FP");
     for (const auto & link : input_links)
       link->propagate(curr,curr,weights);

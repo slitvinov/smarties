@@ -333,8 +333,7 @@ class RACER : public Learner_utils
 
     const Real rho_cur = pol_cur.sampRhoWeight, rho_inv = pol_cur.sampInvWeight;
     const Real clipImp=std::min(REALBND,rho_cur), clipInv=std::min(REALBND,rho_inv);
-    const Real A_cur = adv_cur.computeAdvantage(act);
-    const Real A_OPC = Q_OPC - V_cur;
+    const Real A_cur = adv_cur.computeAdvantage(act), A_OPC = Q_OPC-V_cur;
 
     //compute quantities needed for trunc import sampl with bias correction
     #if   defined(ACER_TABC)
@@ -357,7 +356,7 @@ class RACER : public Learner_utils
         //const Real gain1 = clipImp*A_OPC;
       #endif
       const Real DKLmul2 = -std::max((Real)0,A_OPC)*clipInv -10*annealingFactor();
-      //const Real DKLmul2 = -0.1*A_OPC*rho_inv -10*annealingFactor();
+      //const Real DKLmul2 = -A_OPC*clipInv -10*annealingFactor();
       //const Real DKLmul2 = -10*annealingFactor();
       const vector<Real> gradRacer_1 = pol_cur.policy_grad(act, gain1);
       for(Uint i=0; i<nA; i++) meanGrad += std::fabs(gradRacer_1[1+i]);
@@ -596,11 +595,11 @@ class RACER : public Learner_utils
       //if(currSeqs >= nSequences4Train())     DKL_target = 1.01*DKL_target;
       //else if(currSeqs < nSequences4Train()) DKL_target = 0.95*DKL_target;
       //opt->eta = data->nSequences/(Real)nSequences4Train()*learnRate;
-      if(currSeqs > nSequences4Train()) { 
-        DKL_target = 0.1 + DKL_target;
+      if(currSeqs >= nSequences4Train()) { 
+        DKL_target = 0.01 + DKL_target;
         //opt->eta = 1e-5 + 0.99*opt->eta;
       } else if(currSeqs < nSequences4Train()) {
-        DKL_target = DKL_target*0.9;
+        DKL_target = DKL_target*0.95;
         //opt->eta = 1e-5 + 0.9*opt->eta;
       }
       nStoredSeqs_last = currSeqs; //after pruning
