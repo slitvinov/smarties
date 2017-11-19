@@ -15,15 +15,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 FILE=    sys.argv[1]
 
-DATA = np.fromfile(FILE, dtype=np.float32)
-DATA = DATA[4:]
+DATA = np.fromfile(FILE, dtype=np.float)
+#DATA = DATA[4:]
+DATA = DATA[2:]
 N = DATA.size/3
 W = DATA[  0:  N]
 M = DATA[  N:2*N]
 S = DATA[2*N:3*N]
 
-#plt.semilogy(abs(W),'b.')
+plt.subplot(121)
+plt.semilogy(abs(W),'b.')
 #plt.plot(abs(M),'r.')
-#plt.semilogy(abs(M)/np.sqrt(S),'g.')
-plt.semilogy(abs(M)/S,'g.')
+plt.subplot(122)
+plt.semilogy(abs(M)/np.sqrt(S),'g.')
+#plt.semilogy(abs(M)/S,'g.')
 plt.show()

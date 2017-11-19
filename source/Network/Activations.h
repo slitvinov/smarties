@@ -153,16 +153,16 @@ inline void circle_region(Grads*const trust, Grads*const grad, const Real delta,
 {
   #if 1
     assert(trust->nWeights==grad->nWeights && trust->nBiases==grad->nBiases);
-    Real norm = 0;
+    long double norm = 0, fac = 1./(trust->nWeights+trust->nBiases)/ngrads/ngrads;
     for(Uint j=0; j<trust->nWeights; j++)
-      norm += std::pow(grad->_W[j]+trust->_W[j], 2);
+      norm += fac*std::pow(grad->_W[j]+trust->_W[j], 2);
       //norm += std::fabs(grad->_W[j]+trust->_W[j]);
     for(Uint j=0; j<trust->nBiases; j++)
-      norm += std::pow(grad->_B[j]+trust->_B[j], 2);
+      norm += fac*std::pow(grad->_B[j]+trust->_B[j], 2);
       //norm += std::fabs(grad->_B[j]+trust->_B[j]);
 
-    norm /= (trust->nWeights+trust->nBiases)*ngrads*ngrads;
     const Real nG = std::sqrt(norm), softclip = delta/(nG+delta);
+    //printf("%Lg %Lg %g %f\n",fac, norm, nG, softclip);
     //printf("grad norm %f\n",nG);
     for(Uint j=0; j<trust->nWeights; j++)
       grad->_W[j] = (grad->_W[j]+trust->_W[j])*softclip -trust->_W[j];

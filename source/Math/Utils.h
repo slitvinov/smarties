@@ -62,20 +62,6 @@ inline vector<Real> square_region(const vector<Real>& grad, const vector<Real>& 
   return ret;
 }
 
-inline vector<Real> circle_region(const vector<Real>& grad, const vector<Real>& trust, const Real delta)
-{
-  assert(grad.size() == trust.size());
-  const Uint nA = grad.size();
-  vector<Real> ret(nA);
-  Real normKG = 0;
-  for(Uint j=0; j<nA; j++) normKG += std::pow(grad[j]+trust[j],2);
-  const Real nG = std::sqrt(normKG), softclip = delta/(nG+delta);
-  for(Uint j=0; j<nA; j++) {
-    ret[j] = (grad[j]+trust[j])*softclip -trust[j];
-  }
-  return ret;
-}
-
 inline vector<Real> smooth_region(const vector<Real>& grad, const vector<Real>& trust, const Real delta)
 {
   assert(grad.size() == trust.size());
@@ -99,14 +85,6 @@ inline vector<Real> smooth_region(const vector<Real>& grad, const vector<Real>& 
     ret[j] = compPara + compOrth;
   }
   return ret;
-}
-
-inline void circle_region(vector<Real>& grad, const Real delta, const Uint start, const Uint end)
-{
-  Real normKG = 0;
-  for(Uint j=start; j<end; j++) normKG += std::pow(grad[j],2);
-  const Real nG = std::sqrt(normKG), softclip = delta/(nG+delta);
-  for(Uint j=start; j<end; j++) grad[j] = grad[j]*softclip;
 }
 
 #if 0
@@ -174,6 +152,44 @@ inline vector<Real> trust_region_update(const vector<Real>& grad,
     if(ret[j]*grad[j] < 0) ret[j] = 0;
   }
   return ret;
+}
+
+inline vector<Real> circle_region(const vector<Real>& grad, const vector<Real>& trust, const Real delta)
+{
+  assert(grad.size() == trust.size());
+  const Uint nA = grad.size();
+  vector<Real> ret(nA);
+  Real normKG = 0, normK = 1e-16, normG = 1e-16, dot = 0;
+  for(Uint j=0; j<nA; j++) {
+    normKG += std::pow(grad[j]+trust[j],2);
+    normK += trust[j] * trust[j]; 
+    normG += grad[j] * grad[j];
+    dot += trust[j] *  grad[j];
+  }
+  //const Real nG = std::sqrt(normKG), softclip = delta/(nG+delta);
+  //const Real nG = sqrt(normG)*(2*sqrt(normK) + dot/sqrt(normG));
+  const Real nG = sqrt(normG)*(1.2*sqrt(normK) + dot/sqrt(normG));
+  //const Real softclip = delta/std::sqrt(normKG+delta*delta);
+  //const Real denom = std::max((Real)1, nG/delta);
+  const Real denom = (1+ nG/delta);
+  //const Real numer = std::min((Real)0, (delta-nG)/delta);
+  //printf("KG:%f K:%f G:%f dot:%f denom:%f delta:%f\n", 
+  //  normKG,normK,normG,dot,denom,delta);
+  for(Uint j=0; j<nA; j++) {
+    //ret[j] = (grad[j]+trust[j])*softclip -trust[j];
+    //ret[j] = (grad[j] + numer*trust[j])/denom;
+    ret[j] = grad[j]/denom;
+    //if(ret[j]*grad[j] < 0) ret[j] = 0;
+  }
+  return ret;
+}
+
+inline void circle_region(vector<Real>& grad, const Real delta, const Uint start, const Uint end)
+{
+  Real normKG = 0;
+  for(Uint j=start; j<end; j++) normKG += std::pow(grad[j],2);
+  const Real nG = std::sqrt(normKG), softclip = delta/(nG+delta);
+  for(Uint j=start; j<end; j++) grad[j] = grad[j]*softclip;
 }
 
 inline vector<Real> trust_region_separate(const vector<Real>& grad,

@@ -16,6 +16,8 @@
 //#define REALBND (Real)1
 #define REALBND CmaxPol
 //#define ExpTrust
+//#define GradClip
+#define ACER_CONSTRAINED
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_utils
@@ -122,14 +124,14 @@ class RACER : public Learner_utils
       net->setOutputDeltas(grad, series_cur[k]);
     }
     if(thrID==1)  profiler->stop_start("BCK");
-    #ifdef ExpTrust //then trust region is computed on batch
+    #if defined(ExpTrust) || !defined(GradClip)  //then trust region is computed on batch
       if (thrID==0) net->backProp(series_cur, ndata-1, net->grad);
       else net->backProp(series_cur, ndata-1, net->Vgrad[thrID]);
     #else           //else trust region on this temp gradient
       net->backProp(series_cur, ndata-1, Ggrad[thrID]);
     #endif
     
-    #if 1
+    #ifdef GradClip
       net->prepForBackProp(series_1[thrID], ndata-1);
       for (int k=static_cast<int>(ndata)-2; k>=0; k--) {
         const Tuple * const _t = data->Set[seq]->tuples[k];
@@ -211,7 +213,8 @@ class RACER : public Learner_utils
       nTried++;
 
       const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
-      const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
+      //const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
+      const Real maxImpWeight = 1e4; 
       if( rho_cur < minImpWeight || rho_cur > maxImpWeight )
       {
         int newSample = -1;
@@ -289,14 +292,14 @@ class RACER : public Learner_utils
 
     if(thrID==1)  profiler->stop_start("BCK");
       net->setOutputDeltas(grad, series_cur[nRecurr-1]);
-      #ifdef ExpTrust //then trust region is computed on batch
+      #if defined(ExpTrust) || !defined(GradClip) //then trust region is computed on batch
         if (thrID==0) net->backProp(series_cur, nRecurr, net->grad);
         else net->backProp(series_cur, nRecurr, net->Vgrad[thrID]);
       #else           //else trust region on this temp gradient
         net->backProp(series_cur, nRecurr, Ggrad[thrID]);
       #endif
 
-    #if 1
+    #ifdef GradClip
       net->prepForBackProp(series_1[thrID], nRecurr);
       vector<Real> trust = grad_kldiv(seq, samp, policies[0]);
 
@@ -352,8 +355,8 @@ class RACER : public Learner_utils
       #ifdef UNBR
         const Real gain1 = A_OPC*rho_cur;
       #else
-        const Real gain1 = A_OPC>0? clipImp*A_OPC : A_OPC*rho_cur;
-        //const Real gain1 = clipImp*A_OPC;
+        //const Real gain1 = A_OPC>0? clipImp*A_OPC : A_OPC*rho_cur;
+        const Real gain1 = clipImp*A_OPC;
       #endif
       const Real DKLmul2 = -std::max((Real)0,A_OPC)*clipInv -10*annealingFactor();
       //const Real DKLmul2 = -A_OPC*clipInv -10*annealingFactor();
@@ -385,7 +388,8 @@ class RACER : public Learner_utils
     const Real Q_dist = Q_RET -A_cur-V_cur;
     //const Real Ver = Q_dist*std::min((Real)1,rho_cur)*std::min((Real)1,Qprecision);
     //const Real Ver = Q_dist * std::min((Real)1,Qprecision);
-    const Real Ver = 0.1*Q_dist;
+    const Real Ver = 0.1*rho_cur*Q_dist;
+    //const Real Ver = 0.1*Q_dist;
     //const Real Ver = Q_dist * clipImp;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID] = Ver;
@@ -417,9 +421,10 @@ class RACER : public Learner_utils
     #elif defined(ACER_CONSTRAINED)
       const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
       const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
-      const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_target);
+      //const vector<Real> totalPolGrad = trust_region_update(policy_grad, gradDivKL, DKL_target);
+      const vector<Real> totalPolGrad = circle_region(policy_grad, gradDivKL, nA*DKL_target);
 
-      for(Uint i=0;i<nA;i++)meanPena+=fabs(totalPolGrad[1+i]-policy_grad[1+i]);
+      for(Uint i=0;i<nA;i++) meanPena += fabs(totalPolGrad[1+i]-policy_grad[1+i]);
     #else
       const Real DivKL = pol_cur.sampRhoWeight; //unused, just to see it
       if(thrID == -1) {
@@ -589,23 +594,33 @@ class RACER : public Learner_utils
       nStep_last = opt->nepoch;
     }
     { //update sequences
+      //this does not count ones added between updates by exploration 
+      const Real lastSeq = nStoredSeqs_last; 
+      const Real currPre = data->nSequences; //pre pruning
       assert(nStoredSeqs_last <= data->nSequences); //before pruining
-      data->prune(goalSkipRatio, CmaxPol);
+      const Real mul = (Real)nSequences4Train()/(Real)data->nSequences;
+      data->prune(goalSkipRatio * mul, CmaxPol);
       const Real currSeqs = data->nSequences; //after pruning
+      const Real nPruned = currPre - currSeqs;
+      //assuming that pruning has not removed any of the fresh samples
+      //compute how many samples we would have in a purely sequential code:
+      const Real samples_sequential = lastSeq - nPruned;
       //if(currSeqs >= nSequences4Train())     DKL_target = 1.01*DKL_target;
       //else if(currSeqs < nSequences4Train()) DKL_target = 0.95*DKL_target;
       //opt->eta = data->nSequences/(Real)nSequences4Train()*learnRate;
-      if(currSeqs >= nSequences4Train()) { 
-        DKL_target = 0.01 + DKL_target;
-        //opt->eta = 1e-5 + 0.99*opt->eta;
-      } else if(currSeqs < nSequences4Train()) {
-        DKL_target = DKL_target*0.95;
-        //opt->eta = 1e-5 + 0.9*opt->eta;
+      //if(samples_sequential >= nSequences4Train()) { 
+      if(nPruned < 0.5) /* (float) safe == 0 */ { 
+        DKL_target = 0.01 + DKL_target*0.9999;
+        //DKL_target = 1.01 * DKL_target;
+      } else if(samples_sequential < nSequences4Train()) {
+        //DKL_target = DKL_target*0.95;
+        DKL_target = 0.01 + DKL_target*0.95;
       }
       nStoredSeqs_last = currSeqs; //after pruning
+      printf("nData_last:%lu nData:%u nData_b4Up:%u Set:%u (seq:%f)\n", nData_last,
+       read_nData(), nData_b4PolUpdates, data->nSequences, samples_sequential); 
+      fflush(0);
     }
-    printf("nData_last:%lu nData:%u nData_b4Updates:%u Set:%u\n", nData_last,
-      read_nData(), nData_b4PolUpdates, data->nSequences); fflush(0);
     const Real ratio = nSkipped/(nTried+nnEPS);
     nSkipped = nTried = 0;
 

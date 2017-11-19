@@ -187,7 +187,7 @@ public:
     }
     return std::log(P);
   }
-  const Real threshold = 3;
+  const Real threshold = 3; //anti nans
   inline vector<Real> sample(mt19937*const gen, const vector<Real>& beta) const
   {
     std::vector<Real> ret(nA);
