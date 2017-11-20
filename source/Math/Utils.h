@@ -170,8 +170,8 @@ inline vector<Real> circle_region(const vector<Real>& grad, const vector<Real>& 
   //const Real nG = sqrt(normG)*(2*sqrt(normK) + dot/sqrt(normG));
   const Real nG = sqrt(normG)*(1.2*sqrt(normK) + dot/sqrt(normG));
   //const Real softclip = delta/std::sqrt(normKG+delta*delta);
-  //const Real denom = std::max((Real)1, nG/delta);
-  const Real denom = (1+ nG/delta);
+  const Real denom = std::max((Real)1, nG/delta);
+  //const Real denom = (1+ nG/delta);
   //const Real numer = std::min((Real)0, (delta-nG)/delta);
   //printf("KG:%f K:%f G:%f dot:%f denom:%f delta:%f\n", 
   //  normKG,normK,normG,dot,denom,delta);

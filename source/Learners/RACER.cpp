@@ -388,8 +388,8 @@ class RACER : public Learner_utils
     const Real Q_dist = Q_RET -A_cur-V_cur;
     //const Real Ver = Q_dist*std::min((Real)1,rho_cur)*std::min((Real)1,Qprecision);
     //const Real Ver = Q_dist * std::min((Real)1,Qprecision);
-    const Real Ver = 0.1*rho_cur*Q_dist;
-    //const Real Ver = 0.1*Q_dist;
+    //const Real Ver = 0.1*rho_cur*Q_dist;
+    const Real Ver = 0.1*Q_dist;
     //const Real Ver = Q_dist * clipImp;
     vector<Real> gradient(nOutputs,0);
     gradient[VsValID] = Ver;
