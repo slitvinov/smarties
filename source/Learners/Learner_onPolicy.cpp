@@ -54,7 +54,7 @@ void Learner_onPolicy::sampleTransitions(Uint&seq, Uint&trans, const Uint thrID)
 
 int Learner_onPolicy::spawnTrainTasks(const int availTasks)
 {
-  if ( cntHorizon < nHorizon ) return 0;
+  if ( cntHorizon < nHorizon  || ! bTrain) return 0;
 
   for (Uint i=0; i<batchSize; i++) {
     #pragma omp task
@@ -105,7 +105,8 @@ bool Learner_onPolicy::readyForAgent(const int slave)
 
 void Learner_onPolicy::applyGradient()//cannot be called from omp parallel
 {
-  if(!nAddedGradients) return; //then this was called WITHOUT a batch ready
+  if(!nAddedGradients || ! bTrain) return; 
+  //then this was called WITHOUT a batch ready
 
   profiler->stop_start("UPW");
 

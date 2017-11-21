@@ -150,7 +150,8 @@ public:
       assert(work[workid]->GAE.size()+1 == work[workid]->Vst.size());
       updateGAE(workid, agent.r, delta);
       work[workid]->done = 1;
-      addTasks(work[workid]);
+      if(bTrain) addTasks(work[workid]);
+      else work[workid]->clear();
       return;
     }
     if(thrID==1) profiler->stop_start("FWD");
