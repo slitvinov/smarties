@@ -150,7 +150,7 @@ struct StatsTracker
   {
     if(!learn_rank) {
       ofstream filestats;
-      filestats.open(name + "_stats.txt", ios::app);
+      filestats.open(name + ".txt", ios::app);
       filestats<<print(avgVec[0])<<" "<<print(stdVec[0])<<endl;
       filestats.close();
     }

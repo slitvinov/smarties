@@ -105,7 +105,7 @@ void Approximator::build_finalize(Builder& build)
      series_tgt[i] = new vector<Activation*>();
      extra_grads[i] = new Grads(net->getnWeights(), net->getnBiases());
    }
-  gradStats = new StatsTracker(net->getnOutputs(), name, settings);
+  gradStats = new StatsTracker(net->getnOutputs(), name+"_grads", settings);
 }
 
 void Approximator::prepare_opc(const Sequence*const traj, const Uint samp,
@@ -184,6 +184,7 @@ vector<Real> Approximator::relay_backprop(const vector<Real> error,
   const Uint samp, const Uint thrID, const PARAMS USEW) const
 {
   const auto& act_tgt = *(series_tgt[thrID]);
+  act_tgt[ind]->clearErrors();
   const int ind = mapTime2Ind(samp, thrID), nInp = input->nOutputs();
   assert(act_tgt[ind]->written == true && relay not_eq nullptr);
   net->setOutputDeltas(error, act_tgt[ind]);
@@ -191,6 +192,7 @@ vector<Real> Approximator::relay_backprop(const vector<Real> error,
   const nnReal*const B=USEW==CUR? net->biases  :      net->tgt_biases;
   net->backProp(nullptr, act_tgt[ind], nullptr, W, B, extra_grads[thrID]);
   const vector<Real> gradR = net->getInputGradient(act_tgt[ind]);
+  assert(gradR.size() == nInp + relay->nOutputs());
   return vector<Real>(&gradR[0]+nInp, &gradR[0]+nInp+relay->nOutputs());
 }
 
@@ -294,18 +296,17 @@ void Approximator::gradient(const Uint thrID) const
   nAddedGradients++;
 
   vector<Activation*>& act = *(series[thrID]);
-  if (thrID==0) net->backProp(act, error_placements[thrID], net->grad);
-  else net->backProp(act, error_placements[thrID], net->Vgrad[thrID]);
+  const int last_error = error_placements[thrID];
+  if (thrID==0) net->backProp(act, last_error, net->grad);
+  else net->backProp(act, last_error, net->Vgrad[thrID]);
   error_placements[thrID] = -1; //to stop additional backprops
 
   if(input->net == nullptr) return;
-
-  for(int i=0; i<error_placements[thrID]; i++) {
+  for(int i=0; i<last_error; i++) {
     const vector<Real> grad0 = net->getInputGradient(act[i]);
     const Uint inpFeat = input->nOutputs();
     const vector<Real> inpgrad = vector<Real>(&grad0[0], &grad0[0] + inpFeat);
     input->backward(inpgrad, first_sample[thrID] + i, thrID);
-    net->addOutputDeltas(inpgrad, act[i]);
   }
 }
 
