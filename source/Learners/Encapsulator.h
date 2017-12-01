@@ -163,7 +163,7 @@ struct Encapsulator
 
   long double compute_weight_norm()
   {
-    if(net == nullptr) return;
+    if(net == nullptr) 0;
     long double sumWeights = 0;
     #pragma omp parallel for reduction(+:sumWeights)
     for (Uint w=0; w<net->getnWeights(); w++)
