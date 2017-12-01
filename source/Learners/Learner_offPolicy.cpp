@@ -101,8 +101,9 @@ int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be call
       {
         const int thrID = omp_get_thread_num();
         //printf("Thread %d doing %u\n",thrID,sequence); fflush(0);
-        if(!thrID) profiler_ext->stop_start("WORK");
+        if(thrID == 0) profiler_ext->stop_start("WORK");
         Train_BPTT(seq, static_cast<Uint>(thrID));
+        if(thrID == 0) profiler_ext->stop_start("COMM");
         addToNTasks(-1);
         #pragma omp atomic
         taskCounter++;
@@ -124,8 +125,9 @@ int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be call
       {
         const int thrID = omp_get_thread_num();
         //printf("Thread %d doing %u %u\n",thrID,sequence,transition); fflush(0);
-        if(!thrID) profiler_ext->stop_start("WORK");
+        if(thrID == 0) profiler_ext->stop_start("WORK");
         Train(seq, obs, static_cast<Uint>(thrID));
+        if(thrID == 0) profiler_ext->stop_start("COMM");
         addToNTasks(-1);
         #pragma omp atomic
         taskCounter++;
@@ -149,7 +151,7 @@ void Learner_offPolicy::applyGradient()
   } else {
     //shift data / gradient counters to maintain grad stepping to sample
     // collection ratio prescirbed by obsPerStep
-    const Real stepCounter = nStep - (Real)nStep_last;
+    const Real stepCounter = nStep+1 - (Real)nStep_last;
     nData_last += stepCounter*obsPerStep/learn_size;
     nStep_last = nStep + 1; //actual counter advanced by base class
     assert(taskCounter == batchSize);
@@ -157,3 +159,12 @@ void Learner_offPolicy::applyGradient()
 
   Learner::applyGradient();
 }
+
+/*
+void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
+{
+  screenOut<<" DKL:["<<DKL_target<<" "<<penalDKL<<"] prec:"<<Qprec
+      <<" polStats:["<<print(opcInfo->avgVec[0])<<"]";
+  fileOut<<" "<<print(opcInfo->avgVec[0])<<" "<<print(opcInfo->stdVec[0]);
+}
+*/

@@ -30,7 +30,6 @@ void DPG::select(const Agent& agent)
   data->add_state(agent);
 
   if( agent.Status != 2 ) {
-    if(thrID==1) profiler->stop_start("FWD");
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
     vector<Real> pol = F[0]->forward_agent<CUR>(traj, agent, thrID);
@@ -44,10 +43,10 @@ void DPG::select(const Agent& agent)
 
 void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
 {
-  Sequence* const traj = data->Set[seq];
-
   if(thrID==1) profiler->stop_start("FWD");
-  F[0]->prepare_seq(traj, thrID); F[1]->prepare_seq(traj, thrID);
+  Sequence* const traj = data->Set[seq];
+  F[0]->prepare_seq(traj, thrID);
+  F[1]->prepare_seq(traj, thrID);
 
   for (Uint k=0; k<traj->tuples.size()-1; k++)
   {
@@ -88,18 +87,21 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
     }
   }
 
+
+  if(thrID==1)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
   F[1]->gradient(thrID);
+  if(thrID==1)  profiler->stop_start("SLP");
 }
 
 void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
+  if(thrID==1) profiler->stop_start("FWD");
   Sequence* const traj = data->Set[seq];
   const bool terminal = samp+2 == traj->tuples.size() && traj->ended;
-
-  if(thrID==1) profiler->stop_start("FWD");
   F[0]->prepare_one(traj, samp, thrID);
   F[1]->prepare_one(traj, samp, thrID);
+
   relay->prepare(ACT, thrID); // tell relay between two nets to pass actions
   const vector<Real> pol_curr = F[0]->forward<CUR>(traj, samp, thrID);
   const vector<Real> q_curr = F[1]->forward<CUR>(traj, samp, thrID);
@@ -111,7 +113,6 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
     const vector<Real> polGr = F[1]->relay_backprop<TGT>({1}, samp, thrID);
 
     F[0]->backward(polGr, samp, thrID);
-    F[0]->gradient(thrID);
   }
 
   { //code to compute value grad:
@@ -125,8 +126,10 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
     const vector<Real> grad_val = {target - q_curr[0]};
     traj->SquaredError[samp] = grad_val[0]*grad_val[0];
     Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
-
     F[1]->backward(grad_val, samp, thrID);
-    F[1]->gradient(thrID);
   }
+  if(thrID==1)  profiler->stop_start("BCK");
+  F[0]->gradient(thrID);
+  F[1]->gradient(thrID);
+  if(thrID==1)  profiler->stop_start("SLP");
 }

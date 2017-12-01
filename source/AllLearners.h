@@ -36,8 +36,8 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
       settings.policyVecDim = RACER_disc::getnDimPolicy(&env->aI);
       return new RACER_disc(env, settings);
     } else {
-      //typedef RACER_experts RACER_continuous;
-      typedef RACER_cont RACER_continuous;
+      typedef RACER_experts RACER_continuous;
+      //typedef RACER_cont RACER_continuous;
       settings.policyVecDim = RACER_continuous::getnDimPolicy(&env->aI);
       return new RACER_continuous(env, settings);
     }

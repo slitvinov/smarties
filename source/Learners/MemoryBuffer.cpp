@@ -270,6 +270,8 @@ Uint MemoryBuffer::prune(const Real maxFrac, const Real CmaxRho)
   // average MSerror. therefore we placed -max(rho, 1/rho) in MSEfield
   // (therefore samples with rho = 0.2 are treated same as those with rho=5)
   // samples with rho farther from 1 are later in the Set vector
+  // sequence is removed if more than maxFrac of samples have importance
+  // weight either <1/CmaxRho or >CmaxRho
   assert(CmaxRho>1);
   int ret = 0, minInd = std::numeric_limits<int>::max();
   for(int i = (int)Set.size()-1; i >= 0; i--) {
@@ -284,9 +286,8 @@ Uint MemoryBuffer::prune(const Real maxFrac, const Real CmaxRho)
       ret++;
     }
   }
-  printf("Minimum sequence id:%u\n",minInd);
-  // sequence is removed if more than maxFrac of samples have importance
-  // weight either <1/CmaxRho or >CmaxRho
+  printf("Minimum sequence id:%u, pruned %d, nSeq:%u\n",
+    minInd, ret, nSequences);
   return ret;
 }
 

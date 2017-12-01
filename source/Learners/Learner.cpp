@@ -23,6 +23,7 @@ aInfo(env->aI), sInfo(env->sI), generators(_s.generators), Vstats(nThreads)
   profiler = new Profiler();
   data = new MemoryBuffer(env, _s);
   input = new Encapsulator("input", _s, data);
+  profiler->stop_start("SLP");
 }
 
 void Learner::clearFailedSim(const int agentOne, const int agentEnd)
@@ -55,6 +56,7 @@ void Learner::applyGradient() //this cannot be called from omp parallel region
     profiler_ext->printSummary();
     profiler_ext->reset();
   }
+  profiler->stop_start("SLP");
 }
 
 void Learner::processStats()
@@ -65,7 +67,7 @@ void Learner::processStats()
   data->getMetrics(fileOut, screenOut);
   for(auto & net : F) net->getMetrics(fileOut, screenOut);
   getMetrics(fileOut, screenOut);
-  
+
   if(learn_rank) return;
   ofstream fout; fout.open("stats.txt", ios::app);
   fout<<fileOut.str()<<endl; fout.flush(); fout.close();

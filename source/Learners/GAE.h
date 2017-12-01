@@ -67,7 +67,7 @@ protected:
 
   void Train(const Uint seq, const Uint samp,const Uint thrID) const override
   {
-    if(thrID==1)  profiler->stop_start("TRAIN");
+    if(thrID==1)  profiler->stop_start("FWD");
     const Sequence* const traj = data->Set[seq];
     const Real adv_est = traj->action_adv[samp+1];
     const Real val_tgt = traj->tuples[samp+1]->r;
@@ -77,6 +77,8 @@ protected:
     F[1]->prepare_one(traj, samp, thrID);
     const vector<Real> pol_cur = F[0]->forward<CUR>(traj, samp, thrID);
     const vector<Real> val_cur = F[1]->forward<CUR>(traj, samp, thrID);
+
+    if(thrID==1)  profiler->stop_start("CMP");
 
     const Real Vst = val_cur[ValID], penalDKL = pol_cur[PenalID];
     const Policy_t pol = prepare_policy(pol_cur);
@@ -111,11 +113,11 @@ protected:
 
     //bookkeeping:
     Vstats[thrID].dumpStats(Vst, val_tgt - Vst);
+    if(thrID==1)  profiler->stop_start("BCK");
     F[0]->backward(grad, samp, thrID);
     F[1]->backward({val_tgt - Vst}, samp, thrID);
     F[0]->gradient(thrID);
     F[1]->gradient(thrID);
-
     if(thrID==1)  profiler->stop_start("SLP");
   }
 
@@ -129,7 +131,6 @@ public:
   void select(const Agent& agent) override
   {
     const int thrID= omp_get_thread_num();
-    if(thrID==1) profiler->stop_start("SELECT");
     Sequence*const curr_seq = data->inProgress[agent.ID];
     data->add_state(agent);
 
@@ -155,8 +156,6 @@ public:
       cntHorizon += curr_seq->ndata();
       cntTrajectories++;
     }
-    if(thrID==0) profiler_ext->stop_start("COMM");
-    if(thrID==1) profiler->pop_stop();
   }
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const

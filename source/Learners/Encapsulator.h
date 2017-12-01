@@ -134,6 +134,7 @@ struct Encapsulator
 
     opt->nepoch++;
     Uint nTotGrads = nAddedGradients;
+    nAddedGradients = 0;
     opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads
     if (learn_size > 1) { //add up gradients across masters
       MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),

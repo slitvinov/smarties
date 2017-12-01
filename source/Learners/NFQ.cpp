@@ -31,7 +31,6 @@ void NFQ::select(const Agent& agent)
 
   if( agent.Status != 2 )
   {
-    if(thrID==1) profiler->stop_start("FWD");
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
     vector<Real> output = F[0]->forward_agent<CUR>(traj, agent, thrID);
@@ -54,6 +53,7 @@ void NFQ::Train_BPTT(const Uint seq, const Uint thrID) const
   Sequence* const traj = data->Set[seq];
   const Uint ndata = traj->tuples.size();
   F[0]->prepare_seq(traj, thrID);
+  if(thrID==1) profiler->stop_start("FWD");
 
   for (Uint k=0; k<ndata-1; k++) { //state in k=[0:N-2]
     const bool terminal = k+2==ndata && traj->ended;
@@ -75,17 +75,18 @@ void NFQ::Train_BPTT(const Uint seq, const Uint thrID) const
     F[0]->backward(gradient, k, thrID);
   }
 
+  if(thrID==1)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
+  if(thrID==1)  profiler->stop_start("SLP");
 }
 
 void NFQ::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
   Sequence* const traj = data->Set[seq];
-  if(thrID==1) profiler->stop_start("FWD");
   F[0]->prepare_one(traj, samp, thrID);
-  const vector<Real> Qs = F[0]->forward<CUR>(traj, samp, thrID);
-  if(thrID==1)  profiler->stop_start("CMP");
+  if(thrID==1) profiler->stop_start("FWD");
 
+  const vector<Real> Qs = F[0]->forward<CUR>(traj, samp, thrID);
   const bool terminal = samp+2 == traj->tuples.size() && traj->ended;
   const Uint act = aInfo.actionToLabel(traj->tuples[samp]->a);
 

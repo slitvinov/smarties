@@ -26,12 +26,12 @@ public:
   inline bool readyForTrain() const
   {
     if(bSampleSequences) {
-      if(data->adapt_TotSeqNum <= batchSize)
+      if(data->adapt_TotSeqNum <= batchSize/learn_size)
         die("I do not have enough data for training. Change hyperparameters");
 
       return bTrain && data->nSequences >= nSequences4Train();
     } else {
-      if(data->adapt_TotSeqNum <= batchSize)
+      if(data->adapt_TotSeqNum <= batchSize/learn_size)
         die("I do not have enough data for training. Change hyperparameters");
      //const Uint nTransitions = data->readNTransitions();
      //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())

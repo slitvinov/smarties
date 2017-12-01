@@ -81,12 +81,12 @@ struct StatsTracker
   cntVec(nThreads+1,0), avgVec(nThreads+1,vector<long double>()),
   stdVec(nThreads+1,vector<long double>())
   {
-    avgVec[0].resize(n_stats, 0); stdVec[0].resize(n_stats, 1);
+    avgVec[0].resize(n_stats, 0); stdVec[0].resize(n_stats, 1e2);
 
     #pragma omp parallel for
     for (Uint i=0; i<nThreads; i++) // numa aware allocation
      #pragma omp critical
-     { avgVec[i+1].resize(n_stats, 0); stdVec[i+1].resize(n_stats, 1); }
+     { avgVec[i+1].resize(n_stats, 0); stdVec[i+1].resize(n_stats, 0); }
   }
 
   inline void track_vector(const vector<Real> grad, const Uint thrID) const
@@ -108,12 +108,12 @@ struct StatsTracker
       //#endif
       #ifdef ACER_GRAD_CUT
         if(grad[i]>  ACER_GRAD_CUT*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-          //printf("Cut! %u was:%f is:%LG\n", i, grad[i], ACER_GRAD_CUT*std[i]);
+         printf("Cut %u was:%f is:%LG\n",i,grad[i], ACER_GRAD_CUT*stdVec[0][i]);
           grad[i] =  ACER_GRAD_CUT*stdVec[0][i];
           ret = 1;
         } else
         if(grad[i]< -ACER_GRAD_CUT*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-          //printf("Cut! %u was:%f is:%LG\n",i, grad[i],-ACER_GRAD_CUT*std[i]);
+         printf("Cut %u was:%f is:%LG\n",i,grad[i],-ACER_GRAD_CUT*stdVec[0][i]);
           grad[i] = -ACER_GRAD_CUT*stdVec[0][i];
           ret = 1;
         }

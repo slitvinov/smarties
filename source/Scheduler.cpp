@@ -39,7 +39,6 @@ int Master::run()
     if( bTrain && learner->reachedMaxGradStep()) return 1;
     profiler->stop_start("PREP");
     learner->prepareData(); //sync data, make sure we can sample
-    profiler->stop_start("TASK");
 
     #pragma omp parallel num_threads(nThreads)
     #pragma omp master
@@ -106,7 +105,8 @@ inline void Master::processRequest(const int slave)
 {
   const int thrID = omp_get_thread_num();
   //printf("Thread %d doing slave %d\n",thrID,slave);
-  if(thrID==1) learner->profiler->check_start("SERV");
+  if(thrID==1) learner->profiler->stop_start("SERV");
+  if(thrID==0) profiler->stop_start("SERV");
   //auto start = std::chrono::high_resolution_clock::now();
   vector<Real> recv_state(sI.dim);
   int recv_iAgent = -1, istatus;
@@ -161,7 +161,8 @@ inline void Master::processRequest(const int slave)
 
   recvBuffer(slave);
   addToNTasks(-1);
-  if(thrID==1) learner->profiler->check_start("SLP");
+  if(thrID==1) learner->profiler->stop_start("SLP");
+  if(thrID==0) profiler->stop_start("COMM");
   //auto elapsed = std::chrono::high_resolution_clock::now() - start;
   //cout << chrono::duration_cast<chrono::microseconds>(elapsed).count() <<endl;
 }

@@ -54,7 +54,6 @@ class RACER : public Learner_offPolicy
     F[0]->prepare_seq(traj, thrID);
 
     if(thrID==1) profiler->stop_start("FWD");
-
     for (int k=0; k<ndata; k++) {
       F[0]->forward<CUR>(traj, k, thrID);
       #ifdef ACER_TARGETNET
@@ -62,7 +61,6 @@ class RACER : public Learner_offPolicy
       #endif
     }
 
-    if(thrID==1)  profiler->stop_start("CMP");
     //if partial sequence then compute value of last state (!= R_end)
     Real Q_RET = 0;
     if(not traj->ended) {
@@ -70,6 +68,7 @@ class RACER : public Learner_offPolicy
       Q_RET = OT[net_indices[0]];
     }
 
+    if(thrID==1)  profiler->stop_start("POL");
     for(int k=ndata-1; k>=0; k--)
     {
       const vector<Real> out_cur = F[0]->get<CUR>(traj, k, thrID);
@@ -90,6 +89,7 @@ class RACER : public Learner_offPolicy
       //write gradient onto output layer:
       F[0]->backward(grad, k, thrID);
     }
+
     if(thrID==1)  profiler->stop_start("BCK");
     F[0]->gradient(thrID);
     if(thrID==1)  profiler->stop_start("SLP");
@@ -98,12 +98,12 @@ class RACER : public Learner_offPolicy
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override
   {
     Sequence* const traj = data->Set[seq];
-    const Uint maxNPolicy = traj->tuples.size() -samp -1;
     Uint lastTPolicy = traj->tuples.size() -2;
     bool truncated = not traj->ended;
+    if(thrID==1) profiler->stop_start("FWD");
 
     vector<Policy_t> policies;
-    policies.reserve(maxNPolicy);
+    policies.reserve(traj->tuples.size() -samp-1);
 
     F[0]->prepare_opc(traj, samp, thrID);
     const vector<Real> out_cur = F[0]->forward<CUR>(traj, samp, thrID);
@@ -126,6 +126,7 @@ class RACER : public Learner_offPolicy
       const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
       const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
       if( rho_cur < minImpWeight || rho_cur > maxImpWeight ) {
+        if(thrID==1)  profiler->stop_start("SLP");
         int newSample = -1;
         #pragma omp critical
           newSample = data->sample(thrID);
@@ -157,7 +158,6 @@ class RACER : public Learner_offPolicy
       traj->offPol_weight[k] = std::max(rhoK_inv, rhoK_imp); //(race condition)
       //Racer off-pol correction weight: /*lambda*/
       impW *= gamma * std::min((Real)1,rhoK_imp);
-
       if (impW < 1e-4) { //then the imp weight is too small to continue
         lastTPolicy = k-1; //we initialize value of Q_RET to V(state_{k+1})
         truncated = true; //by acting as if sequence is truncated
@@ -251,8 +251,7 @@ class RACER : public Learner_offPolicy
   inline void offPolCorrUpdate(Sequence*const traj, const Uint samp, Real&Q_RET,
     const vector<Real> output, const Policy_t& pol) const
   {
-    const Real reward = data->standardized_reward(traj, samp+1);
-    Q_RET = reward + gamma*Q_RET; //if k==ndata-2 then this is r_end
+    Q_RET = data->standardized_reward(traj, samp+1) + gamma*Q_RET;
     //Used as target: target policy, target value
     const Advantage_t adv_cur = prepare_advantage(output, &pol);
     const Action_t& act = pol.sampAct; //off policy stored action
@@ -332,6 +331,8 @@ class RACER : public Learner_offPolicy
     net_outputs(net_outs), net_indices(count_indices(net_outs)),
     pol_start(pol_inds), adv_start(adv_inds)
   {
+    printf("RACER starts: v:%u pol:%s adv:%s penal:%u prec:%u\n", VsID,
+    print(pol_start).c_str(), print(adv_start).c_str(), PenalID, QPrecID);
     opcInfo = new StatsTracker(4, "racer", sett);
     //test();
     if(sett.maxTotSeqNum < sett.batchSize)
@@ -347,7 +348,6 @@ class RACER : public Learner_offPolicy
 
     if( agent.Status != 2 )
     {
-      if(thrID==1) profiler->stop_start("FWD");
       //Compute policy and value on most recent element of the sequence. If RNN
       // recurrent connection from last call from same agent will be reused
       vector<Real> output = F[0]->forward_agent<CUR>(traj, agent, thrID);
@@ -392,6 +392,7 @@ class RACER : public Learner_offPolicy
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
   {
+    //Learner_offPolicy::getMetrics(fileOut, screenOut);
     opcInfo->reduce_approx();
     Uint params_inds = F[0]->net->layers.back()->n1stBias;
     const Real Qprec = std::exp(F[0]->net->biases[params_inds+1]);
