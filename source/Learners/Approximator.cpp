@@ -184,9 +184,9 @@ vector<Real> Approximator::relay_backprop(const vector<Real> error,
   const Uint samp, const Uint thrID, const PARAMS USEW) const
 {
   const auto& act_tgt = *(series_tgt[thrID]);
-  act_tgt[ind]->clearErrors();
   const int ind = mapTime2Ind(samp, thrID), nInp = input->nOutputs();
   assert(act_tgt[ind]->written == true && relay not_eq nullptr);
+  act_tgt[ind]->clearErrors();
   net->setOutputDeltas(error, act_tgt[ind]);
   const nnReal*const W=USEW==CUR? net->weights_back : net->tgt_weights_back;
   const nnReal*const B=USEW==CUR? net->biases  :      net->tgt_biases;
