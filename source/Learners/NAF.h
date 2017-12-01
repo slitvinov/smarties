@@ -8,21 +8,17 @@
  */
 
 #pragma once
-#include "Learner_utils.h"
+#include "Learner_offPolicy.h"
 #include "../Math/Quadratic_advantage.h"
 #include "../Math/FeatureControlTasks.h"
 
-class NAF : public Learner_utils
+class NAF : public Learner_offPolicy
 {
-  const Uint nA, nL;
   //Network produces a vector. The two following vectors specify:
   // - the sizes of the elements that compose the vector
   // - the starting indices along the output vector of each
-  vector<Uint> net_outputs = {1, nL, nA};
-  vector<Uint> net_indices = {0, 1, 1+nL};
-  #ifdef FEAT_CONTROL
-  const ContinuousSignControl* task;
-  #endif
+  const vector<Uint> net_outputs = {1, compute_nL(aInfo.dim), aInfo.dim};
+  const vector<Uint> net_indices = {0, 1, 1+compute_nL(aInfo.dim)};
 
   inline Quadratic_advantage prepare_advantage(const vector<Real>& out) const
   {
@@ -33,8 +29,8 @@ class NAF : public Learner_utils
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
 public:
-  NAF(MPI_Comm comm, Environment*const env, Settings & settings);
-  void select(const int agentId, const Agent& agent) override;
+  NAF(Environment*const env, Settings & settings);
+  void select(const Agent& agent) override;
   void test();
   static inline Uint compute_nL(const Uint NA)
   {

@@ -31,16 +31,6 @@ fflush(0);
   for(int i=1; i<=nSlaves; i++) recvBuffer(i);
 }
 
-void Master::restart(string fname)
-{
-  learner->restart(fname);
-}
-
-void Master::save()
-{
-  learner->save("policy");
-}
-
 int Master::run()
 {
   while (true)
@@ -145,7 +135,7 @@ inline void Master::processRequest(const int slave)
     agents[agent]->update(istatus, recv_state, reward);
     assert(istatus == agents[agent]->Status);
     //pick next action and ...do a bunch of other stuff with the data:
-    learner->select(agent, *agents[agent]);
+    learner->select(*agents[agent]);
     const auto iter = learner->iter();
 
     debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());

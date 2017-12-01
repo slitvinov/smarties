@@ -60,16 +60,16 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
     //no need to free this
   }
 
-  Learner* learner = createLearner(mastersComm, env, settings);
+  Learner* learner = createLearner(env, settings);
+  learner->restart();
 
   Master master(slavesComm, learner, env, settings);
-  master.restart(settings.restart);
 
 #if 1
-  if (settings.restart != "none" && !settings.nSlaves && !learner->nData())
+  if (!settings.nSlaves && !learner->nData())
   {
     printf("No slaves, just dumping the policy\n");
-    learner->dumpPolicy();
+    //learner->dumpPolicy();
     abort();
   }
 #endif

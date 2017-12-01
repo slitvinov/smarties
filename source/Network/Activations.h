@@ -127,6 +127,7 @@ struct Activation //All the network signals. TODO: vector of activations, one pe
   nnReal*const eIGates;
   nnReal*const eFGates;
   nnReal*const eOGates;
+  bool written = false;
 };
 
 struct Grads

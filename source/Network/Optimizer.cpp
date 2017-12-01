@@ -95,7 +95,7 @@ void EntropySGD::update(Grads* const G, const Uint batchsize)
   beta_t_2 *= beta_2;
   if (beta_t_2<nnEPS) beta_t_2 = 0;
 
-  if(lambda>nnEPS) net->regularize(lambda*eta);
+  if(lambda>nnEPS) net->regularize(lambda);
   net->sortWeights_bck_to_fwd();
 }
 
@@ -198,7 +198,7 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
         const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
         nnReal M2_ = M2<nnEPS? nnEPS : M2;
         //M2_ = M2_<beta_t_2*DW*DW ? beta_t_2*DW*DW : M2_;
-	// gradient clipping to 1:
+	      // gradient clipping to 1:
         M2_ = M2_<M1_*M1_ ? M1_*M1_ : M2_;
         const nnReal _M2 = std::sqrt(M2_);
       #endif
@@ -209,10 +209,8 @@ void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet
 
       //dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
       #if 1
-        //const nnReal range = std::min((nnReal)1, _M2/(std::fabs(M1_)+nnEPS));
-        //const Real scale = 0.01*std::fabs(M1_)/_M2;
-        dest[i] +=  1e-4*gen.d_mean0_var1();
-        //dest[i] += delay*(target[i]-dest[i] + scale*gen.d_mean0_var1());
+        //dest[i] += 1e-6*gen.d_mean0_var1();
+        //dest[i] += delay*(target[i]-dest[i] + gen.d_mean0_var1());
         //dest[i] += delay*(target[i]-dest[i]);
       #endif
       //_mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);

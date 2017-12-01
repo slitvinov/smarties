@@ -151,9 +151,6 @@ public:
   }
 
   int run();
-
-  void save();
-  void restart(string fname);
 };
 
 class Slave

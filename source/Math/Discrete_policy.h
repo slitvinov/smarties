@@ -20,9 +20,9 @@ struct Discrete_policy
   const vector<Real> probs;
 
   Uint sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0, sampInvWeight=0;
+  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampInvWeight=0;
 
-  Discrete_policy(const vector <Uint>& start, const ActionInfo*const aI,
+  Discrete_policy(const vector<Uint>& start, const ActionInfo*const aI,
     const vector<Real>& out) : aInfo(aI), start_prob(start[0]), nA(aI->maxLabel), netOutputs(out), unnorm(extract_unnorm()),
     normalization(compute_norm()), probs(extract_probabilities())
     {
@@ -45,7 +45,7 @@ struct Discrete_policy
     assert(unnorm.size()==nA);
     Real ret = 0;
     for (Uint j=0; j<nA; j++) { ret += unnorm[j]; assert(unnorm[j]>0); }
-    return ret + std::numeric_limits<Real>::epsilon();
+    return ret + numeric_limits<Real>::epsilon();
   }
 
   inline vector<Real> extract_probabilities() const
@@ -77,8 +77,7 @@ struct Discrete_policy
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
     sampImpWeight = bGeometric ? safeExp(logW/nA) : safeExp(logW);
     sampImpWeight = std::min(MAX_IMPW, sampImpWeight);
-    sampRhoWeight = bGeometric ? min(MAX_IMPW, std::exp(logW)) : sampImpWeight;
-    sampInvWeight = 1./(sampRhoWeight+nnEPS);
+    sampInvWeight = 1./(sampImpWeight+nnEPS);
   }
 
   void test(const Uint act, const Discrete_policy*const pol_hat) const;
@@ -88,7 +87,7 @@ struct Discrete_policy
     return std::log(beta[act]);
   }
 
-  inline Uint sample(mt19937*const gen, const vector<Real>& beta) const
+  static inline Uint sample(mt19937*const gen, const vector<Real>& beta)
   {
     std::discrete_distribution<Uint> dist(beta.begin(), beta.end());
     return dist(*gen);
@@ -249,7 +248,7 @@ struct Discrete_policy
 
    Discrete_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
      const vector<Real>& out, const Discrete_policy*const pol = nullptr) : aInfo(aI), start_adv(starts[0]), nA(aI->maxLabel), netOutputs(out),
-     advantages(extract(out)), policy(pol) { assert(starts.size()==1); }
+     advantages(extract(out)), policy(pol) {}
 
   protected:
    inline vector<Real> extract(const vector<Real> & v) const

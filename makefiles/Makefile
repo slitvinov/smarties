@@ -5,20 +5,13 @@ viz ?= 0
 config ?= prod
 extra ?=
 app ?= test
-#cvar ?= simple
-cvar ?= off
 acer ?= relax
 testdiff ?= no
 entropy ?= on
-paceseq ?= off
-auxtask ?= off
 importance ?= off
-fulltrace ?= off
 tabc ?= off
 sortseq ?= on
 mpi_lib ?= default
-sampseq ?= off
-target ?= on
 
 CPPFLAGS+= -std=c++11 -D__Smarties_ -fopenmp
 LIBS += -fopenmp -lstdc++ -lm
@@ -60,9 +53,6 @@ CPPFLAGS+= -Wno-cpp -Wno-unused-parameter # does not make sense with function ov
 #CPPFLAGS+= -Wno-float-equal #sometimes you just know, do you know what I am saying?
 CPPFLAGS+= -Wno-unknown-pragmas
 
-ifeq "$(acer)" "safe"
-CPPFLAGS += -DACER_SAFE
-else
 ifeq "$(acer)" "relax"
 CPPFLAGS += -DACER_RELAX
 else
@@ -70,14 +60,7 @@ ifneq "$(acer)" "full"
 #$(error acer flag is not recognized: safe, relax or full)
 endif #!full
 endif #relax
-endif #safe
 
-ifeq "$(target)" "off"
-CPPFLAGS+= -DNOTARGETNET
-endif
-ifeq "$(sampseq)" "on"
-CPPFLAGS+= -DFORCESAMPSEQ
-endif
 ifeq "$(sortseq)" "on"
 CPPFLAGS+= -DRESORT_SEQS
 endif
@@ -85,22 +68,10 @@ ifeq "$(tabc)" "on"
 CPPFLAGS+= -DACER_TABC
 endif
 ifeq "$(importance)" "on"
-CPPFLAGS+= -DIMPORTSAMPLE
-endif
-ifeq "$(fulltrace)" "on"
-CPPFLAGS+= -DNO_CUT_TRACES
-endif
-ifeq "$(auxtask)" "on"
-CPPFLAGS+= -DFEAT_CONTROL
-endif
-ifeq "$(paceseq)" "on"
-CPPFLAGS+= -DPACE_SEQUENCES
+CPPFLAGS+= -DimportanceSampling
 endif
 ifeq "$(entropy)" "on"
 CPPFLAGS+= -D__EntropySGD
-endif
-ifeq "$(cvar)" "on"
-CPPFLAGS+= -DACER_PENALIZER
 endif
 ifeq "$(testdiff)" "yes"
 CPPFLAGS+= -D__CHECK_DIFF
@@ -126,7 +97,7 @@ endif
 
 CPPFLAGS+= -fstrict-aliasing -mavx2 -march=native -mtune=native
 #CPPFLAGS+= -ftree-vectorize -ftree-vectorizer-verbose=2 #-DNDEBUG
-CPPFLAGS+= -fmerge-all-constants -fassociative-math
+CPPFLAGS+= -fmerge-all-constants #-fassociative-math
 #CPPFLAGS+= -funsafe-loop-optimizations
 CPPFLAGS+= -fprofile-use
 #CPPFLAGS+= -funsafe-math-optimizations
@@ -139,8 +110,8 @@ CPPFLAGS+= -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = ArgParser.o main.o ObjectFactory.o Communicator.o \
 		Environment.o TwoActFishEnvironment.o Learner.o NAF.o NFQ.o DPG.o \
-		Learner_onPolicy.o Transitions.o Learner_utils.o \
-		Scheduler.o Network.o Optimizer.o Math_tests.o #POAC.o #CACER.o DACER.o
+		Learner_onPolicy.o MemoryBuffer.o Learner_offPolicy.o \
+		Scheduler.o Network.o Optimizer.o Math_tests.o Approximator.o
 
 #ExternalAgent.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o GliderEnvironment.o
 #TwoFishEnvironment.o HingedFishEnvironment.o BlowfishEnvironment.o alebotEnvironment.o

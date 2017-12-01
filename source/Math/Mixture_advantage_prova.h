@@ -34,8 +34,7 @@ public:
    const vector<Real>& out, const Gaussian_mixture<nExperts>*const pol) :
    start_matrix(starts[0]+nExperts), start_coefs(starts[0]), nA(aI->dim),
    nL(compute_nL(aI)), netOutputs(out), coef(extract_coefs()),
-   matrix(extract_matrix()), aInfo(aI), policy(pol)
-   {  assert(starts.size()==1); }
+   matrix(extract_matrix()), aInfo(aI), policy(pol) {}
 
 private:
   inline array<vector<Real>, nExperts> extract_matrix() const

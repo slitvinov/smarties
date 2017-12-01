@@ -24,7 +24,7 @@ public:
   //not kosher stuff, but it should work, relies on ordering of operations:
 
   vector<Real> sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0, sampInvWeight=0;
+  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampInvWeight=0;
   array<Real, nExperts> PactEachExp, DKL_EachExp, logExpBeta;
   Real Pact_Final = -1;
   bool prepared = false;
@@ -40,8 +40,7 @@ public:
     nP(compute_nP(aI)), netOutputs(out), unnorm(extract_unnorm()),
     normalization(compute_norm()), experts(extract_experts()),
     means(extract_mean()), variances(extract_variance()),
-    precisions(extract_precision()), stdevs(extract_stdev())
-    {assert(starts.size()==3);}
+    precisions(extract_precision()), stdevs(extract_stdev()) {}
   /*
   Gaussian_mixture(const Gaussian_mixture<nExperts>& c) :
   aInfo(c.aInfo), iExperts(c.iExperts), iMeans(c.iMeans), iPrecs(c.iPrecs),
@@ -153,8 +152,7 @@ public:
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
     sampImpWeight = bGeometric ? std::exp(logW/nA) : std::exp(logW);
     sampImpWeight = std::min(MAX_IMPW, sampImpWeight);
-    sampRhoWeight = bGeometric ? min(MAX_IMPW, std::exp(logW)) : sampImpWeight;
-    sampInvWeight = 1./(sampRhoWeight+nnEPS);
+    sampInvWeight = 1./(sampImpWeight+nnEPS);
     if(pol_hat == nullptr) return;
     for(Uint j=0; j<nExperts; j++) {
       DKL_EachExp[j] = kl_divergence_exp(j,pol_hat);
@@ -195,8 +193,10 @@ public:
     std::discrete_distribution<Uint> dE(&(beta[0]), &(beta[0]) +nExperts);
     const Uint experti = dE(*gen);
     for(Uint i=0; i<nA; i++) {
-      Real samp = 10;
-      while (samp > threshold || samp < -threshold) samp = dist(*gen);
+      Real samp = dist(*gen);
+      if(samp<-threshold) samp = -threshold;
+      if(samp> threshold) samp =  threshold;
+      //while (samp > threshold || samp < -threshold) samp = dist(*gen);
       const Uint indM = i +experti*nA +nExperts; //after experts come the means
       const Uint indS = i +experti*nA +nExperts*(nA+1); //after means, stdev
       ret[i] = beta[indM] + beta[indS] * samp;
@@ -210,8 +210,10 @@ public:
     std::discrete_distribution<Uint> dE(&(experts[0]),&(experts[0])+nExperts);
     const Uint experti = dE(*gen);
     for(Uint i=0; i<nA; i++) {
-      Real samp = 10;
-      while (samp > threshold || samp < -threshold) samp = dist(*gen);
+      Real samp = dist(*gen);
+      if(samp<-threshold) samp = -threshold;
+      if(samp> threshold) samp =  threshold;
+      //while (samp > threshold || samp < -threshold) samp = dist(*gen);
       ret[i] = means[experti][i] + stdevs[experti][i] * samp;
     }
     return ret;
@@ -340,6 +342,13 @@ public:
       ret += experts[j]*(logExpBeta[j] + DKL_EachExp[j]);
     }
     return ret;
+  }
+  inline Real kl_divergence_opp(const vector<Real>&beta) const
+  {
+    Real r = 0;
+    for(Uint j=0; j<nExperts; j++)
+    r += experts[j]*(std::log(experts[j]/beta[j])+kl_divergence_exp(j,beta));
+    return r;
   }
   inline Real kl_div_opp_new(const Gaussian_mixture*const p) const
   {

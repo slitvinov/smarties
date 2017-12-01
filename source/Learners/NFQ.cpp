@@ -6,7 +6,6 @@
  *  Copyright 2013 ETH Zurich. All rights reserved.
  *
  * TODO:
-  - change nOutputs to nA to allow for aux tasks
   - add aux tasks
   - add option to switch between double Q and V-A formulation
  */
@@ -14,138 +13,98 @@
 #include "NFQ.h"
 #include "../Math/Utils.h"
 
-NFQ::NFQ(MPI_Comm comm, Environment*const _env, Settings & settings) :
-Learner_utils(comm,_env,settings,settings.nnOutputs)
+NFQ::NFQ(Environment*const _env, Settings& settings) :
+Learner_offPolicy(_env, settings)
 {
-  die("Untested for too long\n");
-  #ifdef NDEBUG
-  //if(bRecurrent) die("NFQ recurrent not tested!\n");
-  #endif
-  buildNetwork(vector<Uint>(1,nOutputs), settings);
-  printf("NFQ: Built network\n");
-  assert(nOutputs == net->getnOutputs());
-  assert(nInputs == net->getnInputs());
-  policyVecDim = nOutputs;
+  F.push_back(new Approximator("Q", settings, input, data));
+  Builder build_pol = F[0]->buildFromSettings(settings, env->aI.maxLabel);
+  F[0]->build_finalize(build_pol);
 }
 
-void NFQ::select(const int agentId, const Agent& agent)
+void NFQ::select(const Agent& agent)
 {
-  vector<Real> beta(policyVecDim,0);
-  if(agent.Status==2) { data->passData(agentId, agent, beta); return; }
-
-  vector<Real> output = output_value_iteration(agentId, agent);
-  //load computed policy into a
-  const Uint indBest = maxInd(output);
-  //random action?
   const Real anneal = annealingFactor();
   const Real annealedEps = bTrain ? anneal + (1-anneal)*greedyEps : greedyEps;
-  uniform_real_distribution<Real> dis(0.,1.);
+  const int thrID= omp_get_thread_num();
+  Sequence* const traj = data->inProgress[agent.ID];
+  data->add_state(agent);
 
-  if(dis(*gen) < annealedEps)
-    agent.a->set(nOutputs*dis(*gen));
-  else
-    agent.a->set(indBest);
+  if( agent.Status != 2 )
+  {
+    if(thrID==1) profiler->stop_start("FWD");
+    //Compute policy and value on most recent element of the sequence. If RNN
+    // recurrent connection from last call from same agent will be reused
+    vector<Real> output = F[0]->forward_agent<CUR>(traj, agent, thrID);
 
-  for(Uint k=0; k<nOutputs; k++)
-    beta[k] = annealedEps/nOutputs + (indBest==k ? (1-annealedEps) : 0);
+    uniform_real_distribution<Real> dis(0.,1.);
+    if(dis(generators[thrID]) < annealedEps)
+      agent.a->set(env->aI.maxLabel*dis(generators[thrID]));
+    else agent.a->set(maxInd(output));
 
-  data->passData(agentId, agent, beta);
-  dumpNetworkInfo(agentId);
+    vector<Real> beta(policyVecDim, annealedEps/env->aI.maxLabel);
+    beta[maxInd(output)] += 1-annealedEps;
+
+    data->add_action(agent, beta);
+  } else
+    data->terminate_seq(agent);
 }
 
 void NFQ::Train_BPTT(const Uint seq, const Uint thrID) const
 {
-  const Real rGamma = annealedGamma();
-  const Uint ndata = data->Set[seq]->tuples.size();
-  const Uint nValues = data->Set[seq]->ended ? ndata-1 :ndata;
-  vector<Activation*> actcur = net->allocateUnrolledActivations(nValues);
-  vector<Activation*> acthat = net->allocateUnrolledActivations(nValues);
+  Sequence* const traj = data->Set[seq];
+  const Uint ndata = traj->tuples.size();
+  F[0]->prepare_seq(traj, thrID);
 
-  for (Uint k=0; k<nValues; k++) {
-    const vector<Real> inp = data->standardize(data->Set[seq]->tuples[k]->s);
-    net->seqPredict_inputs(inp, actcur[k]);
-    net->seqPredict_inputs(inp, acthat[k]);
-  }
-  net->seqPredict_execute(actcur,actcur);
-  net->seqPredict_execute(actcur,acthat,net->tgt_weights,net->tgt_biases);
+  for (Uint k=0; k<ndata-1; k++) { //state in k=[0:N-2]
+    const bool terminal = k+2==ndata && traj->ended;
+    const vector<Real> Qs = F[0]->forward<CUR>(traj, k, thrID);
+    const Uint action = aInfo.actionToLabel(traj->tuples[k]->a);
 
-  for (Uint k=0; k<ndata-1; k++) { //state in k=[0:N-2], act&rew in k+1
-    const Tuple * const _t = data->Set[seq]->tuples[k+1]; //contains sNew, rew
-    const Tuple * const t_ = data->Set[seq]->tuples[k]; //contains sOld, act
-    const bool term = k+2==ndata && data->Set[seq]->ended;
-    const vector<Real> Qs = net->getOutputs(actcur[k]);
-    const vector<Real>Qhats  =term?vector<Real>():net->getOutputs(actcur[k+1]);
-    const vector<Real>Qtilde =term?vector<Real>():net->getOutputs(acthat[k+1]);
+    Real Vsnew = traj->tuples[k+1]->r;
+    if ( not terminal ) {
+      const vector<Real> Qhats = F[0]->forward<CUR>(traj, k+1, thrID);
+      const vector<Real> Qtildes = F[0]->forward<TGT>(traj, k+1, thrID);
+      Vsnew += gamma * Qtildes[maxInd(Qhats)];
+    }
+    const Real error = Vsnew - Qs[action];
 
-    // find best action for sNew with moving wghts, evaluate it with tgt wgths:
-    // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
-    const Real target = (term) ? _t->r : _t->r + rGamma*Qtilde[maxInd(Qhats)];
-    const Uint action = aInfo.actionToLabel(t_->a);
-    const Real error  = target - Qs[action];
-    vector<Real> gradient(nOutputs,0);
+    vector<Real> gradient(F[0]->nOutputs());
     gradient[action] = error;
-
-    statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
-    data->Set[seq]->tuples[k]->SquaredError = error*error;
-    clip_gradient(gradient, stdGrad[0], seq, k);
-    dumpStats(Vstats[thrID], Qs[action], error);
-    net->setOutputDeltas(gradient, actcur[k]);
+    traj->SquaredError[k] = error*error;
+    Vstats[thrID].dumpStats(Qs[action], error);
+    F[0]->backward(gradient, k, thrID);
   }
 
-  if(not data->Set[seq]->ended) { //terminal value does not get corrected
-    delete actcur.back();
-    actcur.pop_back();
-  }
-  if (thrID==0) net->backProp(actcur, net->grad);
-  else net->backProp(actcur, net->Vgrad[thrID]);
-  net->deallocateUnrolledActivations(&actcur);
-  net->deallocateUnrolledActivations(&acthat);
+  F[0]->gradient(thrID);
 }
 
 void NFQ::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
-  const Real rGamma = annealedGamma();
-  vector<Real> Qhats(nOutputs,0), Qtildes(nOutputs,0), gradient(nOutputs,0);
-  const Uint ndata = data->Set[seq]->tuples.size(), nMaxBPTT = MAX_UNROLL_BFORE;
-  const Uint iRecurr = bRecurrent ? max(nMaxBPTT,samp)-nMaxBPTT : samp;
-  const Uint nRecurr = bRecurrent ? min(nMaxBPTT,samp)+1        : 1;
-  const bool terminal = samp+2==ndata && data->Set[seq]->ended;
-  vector<Activation*> series_cur = net->allocateUnrolledActivations(nRecurr);
-  Activation* tgtAct = terminal ? nullptr : net->allocateActivation();
+  Sequence* const traj = data->Set[seq];
+  if(thrID==1) profiler->stop_start("FWD");
+  F[0]->prepare_one(traj, samp, thrID);
+  const vector<Real> Qs = F[0]->forward<CUR>(traj, samp, thrID);
+  if(thrID==1)  profiler->stop_start("CMP");
 
-  for (Uint k=iRecurr, j=0; k<samp+1; k++, j++) {
-    const Tuple * const _t = data->Set[seq]->tuples[k];
-    net->seqPredict_inputs(data->standardize(_t->s), series_cur[j]);
-  }
-  //all are loaded: execute the whole loop:
-  net->seqPredict_execute(series_cur, series_cur);
-  //extract the only output we actually correct:
-  const vector<Real> Qs = net->getOutputs(series_cur.back());
-  const Tuple* const t_ = data->Set[seq]->tuples[samp];
-  const Tuple* const _t = data->Set[seq]->tuples[samp+1];
-  const Uint act = aInfo.actionToLabel(t_->a);
+  const bool terminal = samp+2 == traj->tuples.size() && traj->ended;
+  const Uint act = aInfo.actionToLabel(traj->tuples[samp]->a);
 
+  Real Vsnew = traj->tuples[samp+1]->r;
   if (not terminal) {
-    const vector<Real> snew = data->standardize(_t->s);
-    net->predict(snew, Qhats,   series_cur.back(), tgtAct);
-    net->predict(snew, Qtildes, series_cur.back(), tgtAct, net->tgt_weights, net->tgt_biases);
+    // find best action for sNew with moving wghts, evaluate it with tgt wgths:
+    // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
+    const vector<Real> Qhats = F[0]->forward<CUR>(traj, samp+1, thrID);
+    const vector<Real> Qtildes = F[0]->forward<TGT>(traj, samp+1, thrID);
+    Vsnew += gamma * Qtildes[maxInd(Qhats)];
   }
-
-  // find best action for sNew with moving wghts, evaluate it with tgt wgths:
-  // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
-  const Real value = (terminal) ? _t->r : _t->r +rGamma*Qtildes[maxInd(Qhats)];
-  const Real error = value - Qs[act];
+  const Real error = Vsnew - Qs[act];
+  vector<Real> gradient(F[0]->nOutputs());
   gradient[act] = error;
 
-  statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], gradient);
-  data->Set[seq]->tuples[samp]->SquaredError = error*error;
-  clip_gradient(gradient, stdGrad[0], seq, samp);
-  dumpStats(Vstats[thrID], Qs[act], error);
-  net->setOutputDeltas(gradient, series_cur.back());
-  //if(thrID==1) {printf("%d %u %u %u %u\n",terminal,samp,ndata,iRecurr,nRecurr);fflush(0);}
-
-  if (thrID==0) net->backProp(series_cur, net->grad);
-  else net->backProp(series_cur, net->Vgrad[thrID]);
-  net->deallocateUnrolledActivations(&series_cur);
-  _dispose_object(tgtAct);
+  traj->SquaredError[samp] = error*error;
+  Vstats[thrID].dumpStats(Qs[act], error);
+  if(thrID==1)  profiler->stop_start("BCK");
+  F[0]->backward(gradient, samp, thrID);
+  F[0]->gradient(thrID);
+  if(thrID==1)  profiler->stop_start("SLP");
 }

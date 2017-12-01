@@ -25,11 +25,7 @@ public:
   Mixture_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
    const vector<Real>& out, const Gaussian_mixture<nExperts>*const pol) :
    start_matrix(starts[0]), nA(aI->dim), nL(compute_nL(aI)), netOutputs(out),
-   L(extract_L()), matrix(extract_matrix()), aInfo(aI), policy(pol)
-   //, overlap(computeOverlap())
-   {
-     assert(starts.size()==1 || starts.size()==2);
-   }
+   L(extract_L()), matrix(extract_matrix()), aInfo(aI), policy(pol) { }
 
 private:
     /*

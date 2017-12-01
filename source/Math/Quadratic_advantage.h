@@ -17,12 +17,9 @@ struct Quadratic_advantage: public Quadratic_term
 
   //Normalized quadratic advantage, with own mean
   Quadratic_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
-   const vector<Real>& out, const Gaussian_policy*const pol = nullptr) :
-   Quadratic_term(starts[0],starts.size()>1?starts[1]:0,aI->dim,compute_nL(aI),
-   out, pol==nullptr ? vector<Real>() : pol->mean), aInfo(aI), policy(pol)
-   {
-     assert(starts.size()==1 || starts.size()==2);
-   }
+  const vector<Real>& out, const Gaussian_policy*const pol = nullptr) :
+  Quadratic_term(starts[0],starts.size()>1? starts[1]:0, aI->dim,compute_nL(aI),
+   out, pol==nullptr? vector<Real>(): pol->mean), aInfo(aI), policy(pol) {}
 
   inline void grad(const vector<Real>&act, const Real Qer, vector<Real>& netGradient) const
   {

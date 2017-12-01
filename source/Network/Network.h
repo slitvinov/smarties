@@ -99,13 +99,18 @@ public:
       for(Uint j=series->size(); j<len; j++)
         series->push_back(new Activation(nNeurons,nStates));
 
-    for(Uint j=0; j<len; j++) ref[j]->clearErrors();
+    for(Uint j=0; j<series->size(); j++) {
+      ref[j]->written = false; ref[j]->clearErrors();
+    }
   }
   inline void prepForFwdProp(vector<Activation*>* series, Uint len) const
   {
+    vector<Activation*>& ref = *series;
     if (series->size() < len)
       for(Uint j=series->size(); j<len; j++)
         series->push_back(new Activation(nNeurons,nStates));
+
+    for(Uint j=0; j<series->size(); j++) ref[j]->written = false;
   }
   static inline void deallocateUnrolledActivations(vector<Activation*>*const r)
   {
@@ -120,6 +125,11 @@ public:
   {
     assert(_err.size()==nOutputs);
     for (Uint i=0; i<nOutputs; i++) a->errvals[iOut[i]] = _err[i];
+  }
+  inline void addOutputDeltas(const vector<Real>&_err, Activation*const a) const
+  {
+    assert(_err.size()==nOutputs);
+    for (Uint i=0; i<nOutputs; i++) a->errvals[iOut[i]] += _err[i];
   }
 
   Network(Builder* const B, Settings & settings) ;
@@ -164,7 +174,7 @@ public:
   }
 
   void predict(const vector<Real>& _input, vector<Real>& _output,
-   const Activation* const prevActivation, Activation* const currActivation,
+   const Activation*const prevActivation, Activation*const currActivation,
    const nnReal* const _weights, const nnReal* const _biases) const;
   inline void predict(const vector<Real>& _input, vector<Real>& _output,
    const Activation*const prevActivation, Activation*const currActivation) const
@@ -190,6 +200,13 @@ public:
     backProp(timeSeries, weights_back, biases, _grads);
   }
 
+  inline void backProp(Activation*const p, Activation*const c,
+    const Activation*const n, const nnReal*const _ws,
+    const nnReal*const _bs, Grads*const _gs) const
+  {
+    for (Uint i=1; i<=nLayers; i++)
+      layers[nLayers-i]->backPropagate(p, c, n, _gs, _ws, _bs);
+  }
   void backProp(vector<Activation*>& timeSeries, const Uint len, const nnReal* const _weights, const nnReal* const _biases, Grads* const _grads) const;
   inline void backProp(vector<Activation*>& timeSeries, const Uint len, Grads* const _grads) const
   {

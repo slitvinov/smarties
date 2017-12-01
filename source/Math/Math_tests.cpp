@@ -155,13 +155,14 @@ void Diagonal_advantage::test(const vector<Real>& act, mt19937*const gen) const
 
 void NAF::test()
 {
-  vector<Real> out(nOutputs), act(nA);
+  vector<Real> out(F[0]->nOutputs()), act(aInfo.dim);
   uniform_real_distribution<Real> out_dis(-.5,.5);
   uniform_real_distribution<Real> act_dis(-.5,.5);
-  for(Uint i = 0; i<nA; i++) act[i] = act_dis(*gen);
-  for(Uint i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
+  const int thrID = omp_get_thread_num();
+  for(Uint i = 0; i<aInfo.dim; i++) act[i] = act_dis(generators[thrID]);
+  for(Uint i = 0; i<F[0]->nOutputs(); i++) out[i] = out_dis(generators[thrID]);
   Quadratic_advantage A = prepare_advantage(out);
-  A.test(act, gen);
+  A.test(act, &generators[thrID]);
 }
 
 /*

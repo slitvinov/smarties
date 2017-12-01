@@ -51,6 +51,20 @@ struct Settings
 #define DEFAULT_sockPrefix 0
   int sockPrefix = DEFAULT_sockPrefix;
 
+#define CHARARG_samplesFile '('
+#define COMMENT_samplesFile "Name of main transition data backup file."
+#define TYPEVAL_samplesFile string
+#define TYPENUM_samplesFile STRING
+#define DEFAULT_samplesFile "history.txt"
+  string samplesFile = DEFAULT_samplesFile;
+
+#define CHARARG_restart '^'
+#define COMMENT_restart "File prefix of policy."
+#define TYPEVAL_restart string
+#define TYPENUM_restart STRING
+#define DEFAULT_restart "policy"
+  string restart = DEFAULT_restart;
+
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO LEARNING ALGORITHM: lowercase LETTER
 ///////////////////////////////////////////////////////////////////////////////
@@ -103,13 +117,6 @@ struct Settings
 #define DEFAULT_gamma 0.99
   Real gamma = DEFAULT_gamma;
 
-#define CHARARG_samplesFile 'h'
-#define COMMENT_samplesFile "Name of main transition data backup file."
-#define TYPEVAL_samplesFile string
-#define TYPENUM_samplesFile STRING
-#define DEFAULT_samplesFile "history.txt"
-  string samplesFile = DEFAULT_samplesFile;
-
 #define CHARARG_randSeed 'i'
 #define COMMENT_randSeed "Random seed."
 #define TYPEVAL_randSeed int
@@ -125,10 +132,10 @@ struct Settings
   Real klDivConstraint = DEFAULT_klDivConstraint;
 
 #define CHARARG_lambda 'l'
-#define COMMENT_lambda "Currently unused: lambda for off policy corrections."
+#define COMMENT_lambda "Lambda for off policy corrections."
 #define TYPEVAL_lambda Real
 #define TYPENUM_lambda REAL
-#define DEFAULT_lambda 0
+#define DEFAULT_lambda 0.99
   Real lambda = DEFAULT_lambda;
 
 #define CHARARG_minSeqLen 'm'
@@ -153,18 +160,11 @@ struct Settings
   int bNormalize = DEFAULT_bNormalize;
 
 #define CHARARG_obsPerStep 'o'
-#define COMMENT_obsPerStep "Minimum ratio of observed *sequences* to gradient steps. 0.1 means that for every terminal state, learner does 10 gradient steps."
+#define COMMENT_obsPerStep "Ratio of observed *sequences* to gradient steps. 0.1 means that for every terminal state, learner does 10 gradient steps."
 #define TYPEVAL_obsPerStep  Real
 #define TYPENUM_obsPerStep  REAL
 #define DEFAULT_obsPerStep  1
   Real obsPerStep = DEFAULT_obsPerStep;
-
-#define CHARARG_restart 'p'
-#define COMMENT_restart "File prefix of policy."
-#define TYPEVAL_restart string
-#define TYPENUM_restart STRING
-#define DEFAULT_restart "policy"
-  string restart = DEFAULT_restart;
 
 #define CHARARG_epsAnneal 'r'
 #define COMMENT_epsAnneal "Annealing rate in grad steps of various learning-algorithm-dependent behaviors."
@@ -384,10 +384,8 @@ struct Settings
   int nAgents = -1;
   // whether Recurrent network (figured out in main)
   bool bRecurrent = false;
-  // number of inputs of the policy, depends on env and learning algorithm
-  int nnInputs = -1;
-  int nnOutputs = -1;
-
+  // number of quantities defining the policy, depends on env and algorithm
+  int policyVecDim = -1;
   //random number generators (one per thread)
   //std::mt19937* gen;
   std::vector<std::mt19937> generators;
@@ -396,12 +394,6 @@ struct Settings
   {
     bRecurrent = nnType=="LSTM" || nnType=="RNN";
 
-    #ifdef FORCESAMPSEQ
-    bSampleSequences = 1;
-    #endif
-    #ifdef NOTARGETNET
-    targetDelay = 1;
-    #endif
     if(bSampleSequences && maxTotSeqNum<batchSize) die("Increase memory buffer size or decrease batchsize, or switch to sampling by transitions.");
     if(nThreads<1) die("nThreads<1\n");
     if(nMasters<1) die("nMasters<1\n");

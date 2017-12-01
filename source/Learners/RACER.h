@@ -8,7 +8,7 @@
  */
 
 #pragma once
-#include "Learner_utils.h"
+#include "Learner_offPolicy.h"
 #include "../Math/FeatureControlTasks.h"
 #include "../Math/Quadratic_advantage.h"
 
@@ -71,60 +71,35 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
       return 1 + nL + aI->dim + aI->dim + aI->dim + 2;
     #endif
   }
+  static Uint getnDimPolicy(const ActionInfo*const aI)
+  {
+    return 2*aI->dim;
+  }
 
-  RACER_cont(MPI_Comm comm, Environment*const _env, Settings & settings) :
-  RACER(comm, _env, settings, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
+  RACER_cont(Environment*const _env, Settings& settings) :
+  RACER(_env, settings, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
   {
     printf("Continuous-action RACER: Built network with outputs: %s %s\n",
       print(net_indices).c_str(),print(net_outputs).c_str());
-    Builder build(settings);
-
-    #if defined ACER_RELAX
-      vector<Uint> outs{1, nL, nA};
-    #else
-      vector<Uint> outs{1, nL, nA, nA};
-    #endif
+    F.push_back(new Approximator("net", settings, input, data));
+    vector<Uint> nouts{1, nL, nA};
     #ifndef simpleSigma
-      outs.push_back(nA);
+      nouts.push_back(nA);
     #endif
-
-    build.stackSimple( vector<Uint>{nInputs}, outs );
-
+    Builder build = F[0]->buildFromSettings(settings, nouts);
     #ifdef simpleSigma
       build.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
     #endif
-
     //add klDiv penalty coefficient layer, and stdv of Q distribution
     build.addParamLayer(2, "Exp", 0);
 
-    net = build.build();
+    F[0]->build_network(build);
 
-    #if defined(ACER_ADAPTIVE)
-    //set initial value for klDiv penalty coefficient
-    Uint penalparid = net->layers.back()->n1stBias; //(was last added layer)
-    net->biases[penalparid] = std::log(settings.learnrate);
-    #else
-    //set initial value for klDiv penalty coefficient
-    const Uint penalparid= net->layers.back()->n1stBias;//(was last added layer)
-    net->biases[penalparid] = -std::log(settings.klDivConstraint);
-    //*tgtUpdateAlpha/settings.learnrate
-    #endif
-    //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
+    //set initial value for klDiv penalty coefficient (was last added layer)
+    const Uint penalparid= F[0]->net->layers.back()->n1stBias;
+    F[0]->net->biases[penalparid] = -std::log(settings.klDivConstraint);
 
-    finalize_network(build);
-    Kgrad.resize(nThreads); Ggrad.resize(nThreads);
-    #pragma omp parallel for
-    for (Uint i=0; i<nThreads; i++)
-    #pragma omp critical
-    {
-     Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
-     Ggrad[i] = new Grads(net->getnWeights(), net->getnBiases());
-    }
-    #ifdef DUMP_EXTRA
-     policyVecDim = 2*nA + nL;
-    #else
-     policyVecDim = 2*nA;
-    #endif
+    F[0]->build_finalize(build);
   }
 };
 
@@ -152,48 +127,33 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
   {
     return 1 + aI->maxLabel + aI->maxLabel + 2;
   }
+  static Uint getnDimPolicy(const ActionInfo*const aI)
+  {
+    return aI->maxLabel;
+  }
 
  public:
-  RACER_disc(MPI_Comm comm, Environment*const _env, Settings & settings) :
-  RACER( comm, _env, settings, count_outputs(&_env->aI), count_pol_starts(&_env->aI), count_adv_starts(&_env->aI) )
+  RACER_disc(Environment*const _env, Settings& settings) :
+  RACER(_env, settings, count_outputs(&_env->aI), count_pol_starts(&_env->aI), count_adv_starts(&_env->aI) )
   {
     printf("Discrete-action RACER: Built network with outputs: %s %s\n",
       print(net_indices).c_str(),print(net_outputs).c_str());
-    Builder build(settings);
-    vector<Uint> outs{1, nL, nA};
-    build.stackSimple( vector<Uint>{nInputs}, outs );
+    F.push_back(new Approximator("net", settings, input, data));
+    vector<Uint> nouts{1, nL, nA};
+    Builder build = F[0]->buildFromSettings(settings, nouts);
+    #ifdef simpleSigma
+      build.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
+    #endif
     //add klDiv penalty coefficient layer, and stdv of Q distribution
     build.addParamLayer(2, "Exp", 0);
 
-    net = build.build();
+    F[0]->build_network(build);
 
-    #if defined(ACER_ADAPTIVE)
-    //set initial value for klDiv penalty coefficient
-    Uint penalparid = net->layers.back()->n1stBias; //(was last added layer)
-    net->biases[penalparid] = std::log(settings.learnrate);
-    #else
-    //set initial value for klDiv penalty coefficient
-    Uint penalparid = net->layers.back()->n1stBias; //(was last added layer)
-    net->biases[penalparid] = -std::log(1);
-    #endif
-    //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
+    //set initial value for klDiv penalty coefficient (was last added layer)
+    const Uint penalparid= F[0]->net->layers.back()->n1stBias;
+    F[0]->net->biases[penalparid] = -std::log(1);
 
-    finalize_network(build);
-
-    Kgrad.resize(nThreads); Ggrad.resize(nThreads);
-    #pragma omp parallel for
-    for (Uint i=0; i<nThreads; i++)
-    #pragma omp critical
-    {
-     Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
-     Ggrad[i] = new Grads(net->getnWeights(), net->getnBiases());
-    }
-
-    #ifdef DUMP_EXTRA
-     policyVecDim = 2*nA;
-    #else
-     policyVecDim = nA;
-    #endif
+    F[0]->build_finalize(build);
   }
 };
 
@@ -222,42 +182,28 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(aI);
     return 1 + nL + NEXPERTS*(1 +2*aI->dim) + 2;
   }
-
-  RACER_experts(MPI_Comm comm, Environment*const _env, Settings & settings) :
-  RACER(comm, _env, settings, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
+  static Uint getnDimPolicy(const ActionInfo*const aI)
   {
-    printf("Continuous-action RACER: Built network with outputs: %s %s\n",
+    return NEXPERTS*(1 +2*aI->dim);
+  }
+
+  RACER_experts(Environment*const _env, Settings& settings) :
+  RACER(_env, settings, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
+  {
+    printf("Mixture-of-experts RACER: Built network with outputs: %s %s\n",
       print(net_indices).c_str(),print(net_outputs).c_str());
-    Builder build(settings);
-
-    vector<Uint> outs{1, nL, NEXPERTS, NEXPERTS*nA, NEXPERTS*nA};
-    build.stackSimple( vector<Uint>{nInputs}, outs );
-    //add klDiv penalty coefficient layer, and stdv of Q distribution:
+    F.push_back(new Approximator("net", settings, input, data));
+    vector<Uint> nouts{1, nL, NEXPERTS, NEXPERTS*aInfo.dim, NEXPERTS*aInfo.dim};
+    Builder build = F[0]->buildFromSettings(settings, nouts);
+    //add klDiv penalty coefficient layer, and stdv of Q distribution
     build.addParamLayer(2, "Exp", 0);
-    net = build.build();
 
-    #if defined(ACER_ADAPTIVE)
-    //set initial value for klDiv penalty coefficient
-    Uint penalparid = net->layers.back()->n1stBias; //(was last added layer)
-    net->biases[penalparid] = std::log(settings.learnrate);
-    #else
-    //set initial value for klDiv penalty coefficient
-    const Uint penalparid= net->layers.back()->n1stBias;//(was last added layer)
-    net->biases[penalparid] = -std::log(settings.klDivConstraint);
-    //*tgtUpdateAlpha/settings.learnrate
-    #endif
-    //printf("Setting bias %d to %f\n",penalparid,net->biases[penalparid]);
+    F[0]->build_network(build);
 
-    finalize_network(build);
+    //set initial value for klDiv penalty coefficient (was last added layer)
+    const Uint penalparid= F[0]->net->layers.back()->n1stBias;
+    F[0]->net->biases[penalparid] = -std::log(settings.klDivConstraint);
 
-    Kgrad.resize(nThreads); Ggrad.resize(nThreads);
-    #pragma omp parallel for
-    for (Uint i=0; i<nThreads; i++)
-    #pragma omp critical
-    {
-     Kgrad[i] = new Grads(net->getnWeights(), net->getnBiases());
-     Ggrad[i] = new Grads(net->getnWeights(), net->getnBiases());
-    }
-    policyVecDim = NEXPERTS*(1 +2*nA);
+    F[0]->build_finalize(build);
   }
 };

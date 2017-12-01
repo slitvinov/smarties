@@ -18,14 +18,13 @@ struct Gaussian_policy
   const vector<Real> mean, precision, variance, stdev;
 
   vector<Real> sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0, sampInvWeight=0;
+  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampInvWeight=0;
 
   Gaussian_policy(const vector <Uint>& start, const ActionInfo*const aI,
     const vector<Real>&out) : aInfo(aI), start_mean(start[0]),
-    start_prec(start.size()>0 ? start[1] : 0), nA(aI->dim), netOutputs(out),
+    start_prec(start.size()>1 ? start[1] : 0), nA(aI->dim), netOutputs(out),
     mean(extract_mean()), precision(extract_precision()),
-    variance(extract_variance()), stdev(extract_stdev())
-    {assert(start.size()==1 || start.size()==2);}
+    variance(extract_variance()), stdev(extract_stdev()) {}
 
 private:
   inline vector<Real> extract_mean() const
@@ -78,8 +77,7 @@ public:
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
     sampImpWeight = bGeometric ? safeExp(logW/nA) : safeExp(logW);
     sampImpWeight = std::min(MAX_IMPW, sampImpWeight);
-    sampRhoWeight = bGeometric ? min(MAX_IMPW, std::exp(logW)) : sampImpWeight;
-    sampInvWeight = 1./(sampRhoWeight+nnEPS);
+    sampInvWeight = 1/(sampImpWeight+numeric_limits<Real>::epsilon());
   }
 
   static inline Real evalBehavior(const vector<Real>& act, const vector<Real>& beta)
@@ -94,7 +92,7 @@ public:
     return 0.5*p;
   }
 
-  inline vector<Real> sample(mt19937*const gen, const vector<Real>& beta) const
+  static inline vector<Real> sample(mt19937*const gen, const vector<Real>& beta)
   {
     assert(beta.size() / 2 > 0 && beta.size() % 2 == 0);
     std::vector<Real> ret(beta.size()/2);

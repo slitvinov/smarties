@@ -24,60 +24,45 @@
 #include <string.h>
 #include <fstream>
 
-inline Learner* createLearner(MPI_Comm mastersComm, Environment*const env, Settings&settings)
+inline Learner* createLearner(Environment*const env, Settings&settings)
 {
-  if(settings.learner=="DQ" || settings.learner=="DQN" || settings.learner=="NFQ") {
-    settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
-    settings.nnOutputs = env->aI.maxLabel;
-    return new NFQ(mastersComm, env, settings);
+  if(settings.learner=="DQN" || settings.learner=="NFQ") {
+    assert(env->aI.discrete);
+    settings.policyVecDim = env->aI.maxLabel;
+    return new NFQ(env, settings);
   }
   else if (settings.learner == "RACER" || settings.learner == "POAC") {
-    settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
-    #ifdef PACE_SEQUENCES
-      settings.bSampleSequences = true;
-      printf("Forcing sampling of sequences!\n");
-    #endif
     if(env->aI.discrete) {
-      settings.nnOutputs = RACER_disc::getnOutputs(&env->aI);
-      return new RACER_disc(mastersComm, env, settings);
+      settings.policyVecDim = RACER_disc::getnDimPolicy(&env->aI);
+      return new RACER_disc(env, settings);
     } else {
-      //settings.nnOutputs = RACER_cont::getnOutputs(&env->aI);
-      //return new RACER_cont(mastersComm, env, settings);
-      settings.nnOutputs = RACER_experts::getnOutputs(&env->aI);
-      return new RACER_experts(mastersComm, env, settings);
+      //typedef RACER_experts RACER_continuous;
+      typedef RACER_cont RACER_continuous;
+      settings.policyVecDim = RACER_continuous::getnDimPolicy(&env->aI);
+      return new RACER_continuous(env, settings);
     }
-    ///#ifdef FEAT_CONTROL
-    //settings.nnOutputs +=  //ContinuousSignControl::addRequestedOutputs(env->aI.dim,env->sI.dimUsed);
-    //#endif
   }
   else if (settings.learner == "NA" || settings.learner == "NAF") {
-    settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
-    settings.nnOutputs = 1 + NAF::compute_nL(env->aI.dim) + env->aI.dim;
-    #ifdef FEAT_CONTROL
-    settings.nnOutputs +=  ContinuousSignControl::addRequestedOutputs(env->aI.dim,env->sI.dimUsed);
-    #endif
-    return new NAF(mastersComm, env, settings);
+    settings.policyVecDim = 2*env->aI.dim;
+    assert(not env->aI.discrete);
+    return new NAF(env, settings);
   }
   else if (settings.learner == "DP" || settings.learner == "DPG") {
-    settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
-    settings.nnOutputs = env->aI.dim;
-    return new DPG(mastersComm, env, settings);
+    settings.policyVecDim = 2*env->aI.dim;
+    return new DPG(env, settings);
   }
   else if (settings.learner == "GAE" || settings.learner == "PPO") {
-    const int bs = settings.batchSize, na = env->nAgentsPerRank;
-    settings.batchSize = ceil(bs/(Real)na);
-    if(bs%na)
-    printf("Batchsize changed from %d to %d\n",bs,settings.batchSize);
+    settings.batchSize = ceil(settings.batchSize/(Real)env->nAgentsPerRank);
+    printf("Batchsize set to %d\n", settings.batchSize);
 
-    settings.nnInputs = env->sI.dimUsed*(1+settings.appendedObs);
     if(env->aI.discrete) {
-      settings.nnOutputs = GAE_disc::getnOutputs(&env->aI);
-      return new GAE_disc(mastersComm, env, settings);
+      settings.policyVecDim = GAE_disc::getnDimPolicy(&env->aI);
+      return new GAE_disc(env, settings);
     } else {
-      settings.nnOutputs = GAE_cont::getnOutputs(&env->aI);
-      return new GAE_cont(mastersComm, env, settings);
+      settings.policyVecDim = GAE_cont::getnDimPolicy(&env->aI);
+      return new GAE_cont(env, settings);
     }
   } else die("Learning algorithm not recognized\n");
   assert(false);
-  return new NFQ(mastersComm, env, settings); //fake, to silence warnings
+  return new NFQ(env, settings); //fake, to silence warnings
 }

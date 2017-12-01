@@ -8,16 +8,15 @@
  */
 
 #pragma once
-#include "Learner_utils.h"
+#include "Learner_offPolicy.h"
 
-using namespace std;
 
-class NFQ : public Learner_utils
+class NFQ : public Learner_offPolicy
 {
   void Train_BPTT(const Uint seq, const Uint thrID) const override;
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
 public:
-  NFQ(MPI_Comm comm, Environment*const env, Settings & settings);
-  void select(const int agentId, const Agent& agent) override;
+  NFQ(Environment*const env, Settings & settings);
+  void select(const Agent& agent) override;
 };

@@ -44,7 +44,7 @@ void Environment::setDims() //this environment is for the cart pole test
 
   if(!settings.world_rank) printf("State dim:");
   for (unsigned i=0; i<sI.dim; i++) {
-    const bool inuse = comm_ptr->obs_inuse[i]!=0;
+    const bool inuse = comm_ptr->obs_inuse[i] > 0.5;
     const Real upper = comm_ptr->obs_bounds[i*2+0];
     const Real lower = comm_ptr->obs_bounds[i*2+1];
     sI.mean[i]  = 0.5*(upper+lower); sI.inUse[i] = inuse;
@@ -54,13 +54,14 @@ void Environment::setDims() //this environment is for the cart pole test
       sI.scale = vector<Real>(); sI.mean = vector<Real>();
       break;
     }
-    if(!settings.world_rank) printf(" [%u(%d): %f-%f]",i,inuse,upper,lower);
+    if(!settings.world_rank) printf(" %u%s:[%f,%f]",i,
+    inuse?"":" (hidden from agent)",upper,lower);
   }
   if(!settings.world_rank) printf("\nAction dim:");
 
   int k = 0;
   for (Uint i=0; i<aI.dim; i++) {
-    aI.bounded[i] = comm_ptr->action_options[i*2+1];
+    aI.bounded[i] = comm_ptr->action_options[i*2+1] > 0.5;
     const int nvals = comm_ptr->action_options[i*2];
     assert(aI.discrete || nvals == 2);
     assert(nvals > 1);

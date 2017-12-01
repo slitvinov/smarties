@@ -36,100 +36,14 @@ inline vector<Real> sum2Grads(const vector<Real>& f, const vector<Real>& g)
   return ret;
 }
 
-inline vector<Real> square_region(const vector<Real>& grad, const vector<Real>& trust, const Real delta)
+inline vector<Real> weightSum2Grads(const vector<Real>& f,
+  const vector<Real>& g, const Real W)
 {
-  assert(grad.size() == trust.size());
-  const Uint nA = grad.size();
-  vector<Real> ret(nA), gradorth(nA);
-  const Real EPS = numeric_limits<Real>::epsilon();
-  Real dot_KG = 0, norm_K = EPS, norm_O = EPS;
-  for(Uint j=0; j<nA; j++) {
-    norm_K += trust[j]*trust[j];
-    dot_KG += trust[j]* grad[j];
-  }
-  for(Uint j=0; j<nA; j++) {
-    gradorth[j]  = grad[j] - dot_KG*trust[j]/norm_K;
-    norm_O += gradorth[j] * gradorth[j];
-  }
-  const Real nK = std::sqrt(norm_K), nO = std::sqrt(norm_O);//, D = delta/nK;
-  for(Uint j=0; j<nA; j++) {
-    //const Real clipOrth = gradorth[j]*std::min(delta/nO/nK,(Real)1);
-    //const Real clipPara = clip(dot_KG/norm_K, D/nK-1, -D/nK-1)*trust[j];
-    const Real clipOrth = gradorth[j]*std::min(delta/nO,(Real)1);
-    const Real clipPara = clip(dot_KG/norm_K, delta/nK-1, -delta/nK-1)*trust[j];
-    ret[j] = clipPara + clipOrth;
-  }
+  assert(g.size() == f.size());
+  vector<Real> ret(f.size());
+  for(Uint i=0; i<f.size(); i++) ret[i] = W*f[i]+ (1-W)*g[i];
   return ret;
 }
-
-inline vector<Real> smooth_region(const vector<Real>& grad, const vector<Real>& trust, const Real delta)
-{
-  assert(grad.size() == trust.size());
-  const Uint nA = grad.size();
-  vector<Real> ret(nA), gradorth(nA);
-  const Real EPS = numeric_limits<Real>::epsilon();
-  Real dot_KG = 0, norm_K = EPS, norm_O = EPS;
-  for(Uint j=0; j<nA; j++) {
-    norm_K += trust[j]*trust[j];
-    dot_KG += trust[j]* grad[j];
-  }
-  for(Uint j=0; j<nA; j++) {
-    gradorth[j]  = grad[j] - dot_KG*trust[j]/norm_K;
-    norm_O += gradorth[j] * gradorth[j];
-  }
-  const Real nK = std::sqrt(norm_K), nO = std::sqrt(norm_O);//, D = delta/nK;
-  for(Uint j=0; j<nA; j++) {
-    const Real compOrth = gradorth[j] * delta/(delta + nO);
-    const Real xPara = dot_KG/nK +nK, clipPara = xPara/(std::fabs(xPara)+delta);
-    const Real compPara = (clipPara*delta/nK - 1)*trust[j];
-    ret[j] = compPara + compOrth;
-  }
-  return ret;
-}
-
-#if 0
-inline vector<Real> trust_region_split(const vector<Real>& grad, const vector<Real>& onpol, const vector<Real>& trust, const Real delta)
-{
-  assert(grad.size() == trust.size());
-  const Uint nA = grad.size();
-  vector<Real> ret(nA), onpolproj(nA), offpolproj(nA);
-  const Real EPS = numeric_limits<Real>::epsilon();
-  Real dot_KG=0, dot_KP=0, dot_KO=0, dot_GP=0;
-  Real norm_K=EPS, norm_P=EPS, norm_G=EPS, norm_O=EPS;
-  for(Uint j=0;j<nA;j++) {
-    dot_KO += trust[j]*onpol[j];
-    norm_O += onpol[j]*onpol[j];
-    norm_K += trust[j]*trust[j];
-    dot_KG += trust[j]* grad[j];
-  }
-  for(Uint j=0;j<nA;j++){
-    offpolproj[j] =  grad[j] - dot_KG*trust[j]/norm_K;
-    onpolproj[j]  = onpol[j] - dot_KO*trust[j]/norm_K;
-    dot_KP += trust[j] * onpolproj[j];
-    dot_GP += offpolproj[j] * onpolproj[j];
-    norm_P += onpolproj[j] * onpolproj[j];
-    norm_G += grad[j] * grad[j];
-  }
-  const Real nO=std::sqrt(norm_O);
-  const Real nK=std::sqrt(norm_K), nP=std::sqrt(norm_P), nG=std::sqrt(norm_G);
-  const Real dirDelta = delta/nK * std::max((Real)0, dot_KP/(nK*nP));
-  const Real proj_para = std::min((Real)0, dirDelta - dot_KG/norm_K);
-  const Real proj_orth = 0;//std::min((Real)0, dot_GP/norm_P);
-  //#ifndef NDEBUG
-  //if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
-  //else {printf("Not Hit DKL constraint\n");fflush(0);}
-  //#endif
-  Real norm_R = EPS;
-  for (Uint j=0; j<nA; j++) {
-    ret[j] = grad[j] + proj_para*trust[j] - proj_orth*onpolproj[j];
-    if(ret[j]*grad[j] < 0) ret[j] = 0;
-    norm_R += ret[j]*ret[j];
-  }
-  //for (Uint j=0; j<nA; j++)
-  //  ret[j] = ret[j] * std::min((Real)1, nO/std::sqrt(norm_R));
-  return ret;
-}
-#endif
 
 inline vector<Real> trust_region_update(const vector<Real>& grad,
   const vector<Real>& trust, const Real delta)
@@ -154,7 +68,8 @@ inline vector<Real> trust_region_update(const vector<Real>& grad,
   return ret;
 }
 
-inline vector<Real> circle_region(const vector<Real>& grad, const vector<Real>& trust, const Real delta)
+inline vector<Real> circle_region(const vector<Real>& grad,
+  const vector<Real>& trust, const Uint nact, const Real delta)
 {
   assert(grad.size() == trust.size());
   const Uint nA = grad.size();
@@ -162,25 +77,26 @@ inline vector<Real> circle_region(const vector<Real>& grad, const vector<Real>& 
   Real normKG = 0, normK = 1e-16, normG = 1e-16, dot = 0;
   for(Uint j=0; j<nA; j++) {
     normKG += std::pow(grad[j]+trust[j],2);
-    normK += trust[j] * trust[j]; 
+    normK += trust[j] * trust[j];
     normG += grad[j] * grad[j];
     dot += trust[j] *  grad[j];
   }
+  #if 1
+    const Real nG = sqrt(normG)/nact *(sqrt(normK)/nact +dot/sqrt(normG)/nact);
+    const Real denom = std::max((Real)1, nG/delta);
+    //const Real denom = (1+ nG/delta);
+    for(Uint j=0; j<nA; j++) ret[j] = grad[j]/denom;
+  #else
+    const Real nG = std::sqrt(normKG)/nact;
+    const Real denom = std::max((Real)1, nG/delta);
+    //const Real denom = (1+ nG/delta);
+    const Real numer = std::min((Real)0, (delta-nG)/delta);
+    for(Uint j=0; j<nA; j++) ret[j] = (grad[j] + numer*trust[j])/denom;
+  #endif
+  //printf("KG:%f K:%f G:%f dot:%f denom:%f delta:%f\n",
+  //       normKG,normK,normG,dot,denom,delta);
   //const Real nG = std::sqrt(normKG), softclip = delta/(nG+delta);
-  //const Real nG = sqrt(normG)*(2*sqrt(normK) + dot/sqrt(normG));
-  const Real nG = sqrt(normG)*(1.2*sqrt(normK) + dot/sqrt(normG));
-  //const Real softclip = delta/std::sqrt(normKG+delta*delta);
-  const Real denom = std::max((Real)1, nG/delta);
-  //const Real denom = (1+ nG/delta);
-  //const Real numer = std::min((Real)0, (delta-nG)/delta);
-  //printf("KG:%f K:%f G:%f dot:%f denom:%f delta:%f\n", 
-  //  normKG,normK,normG,dot,denom,delta);
-  for(Uint j=0; j<nA; j++) {
-    //ret[j] = (grad[j]+trust[j])*softclip -trust[j];
-    //ret[j] = (grad[j] + numer*trust[j])/denom;
-    ret[j] = grad[j]/denom;
-    //if(ret[j]*grad[j] < 0) ret[j] = 0;
-  }
+  //for(Uint j=0; j<nA; j++) ret[j] = (grad[j]+trust[j])*softclip -trust[j];
   return ret;
 }
 
@@ -190,22 +106,6 @@ inline void circle_region(vector<Real>& grad, const Real delta, const Uint start
   for(Uint j=start; j<end; j++) normKG += std::pow(grad[j],2);
   const Real nG = std::sqrt(normKG), softclip = delta/(nG+delta);
   for(Uint j=start; j<end; j++) grad[j] = grad[j]*softclip;
-}
-
-inline vector<Real> trust_region_separate(const vector<Real>& grad,
-  const vector<Real>& trust, const Real delta)
-{
-  assert(grad.size() == trust.size());
-  const Uint nA = grad.size();
-  vector<Real> ret(nA);
-  for (Uint j=0; j<nA; j++) {
-    const Real norm = trust[j] * trust[j];
-    const Real dot  = trust[j] *  grad[j];
-    const Real proj = std::max((Real)0., (dot - norm*delta)/norm);
-    ret[j] = grad[j]-proj*trust[j];
-    if(ret[j]*grad[j] < 0) ret[j] = 0;
-  }
-  return ret;
 }
 
 inline Uint maxInd(const vector<Real>& pol)
@@ -229,16 +129,6 @@ inline Uint maxInd(const vector<Real>& pol, const Uint start, const Uint N)
 inline Real minAbsValue(const Real v, const Real w)
 {
   return std::fabs(v)<std::fabs(w) ? v : w;
-}
-
-inline void statsGrad(vector<long double>& sum, vector<long double>& sqr, long double& cnt, const vector<Real>& grad)
-{
-  assert(sum.size() == grad.size() && sqr.size() == grad.size());
-  cnt += 1;
-  for (Uint i=0; i<grad.size(); i++) {
-    sum[i] += grad[i];
-    sqr[i] += grad[i]*grad[i];
-  }
 }
 
 /*

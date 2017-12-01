@@ -65,6 +65,10 @@ public:
   {
     *a = _a;
   }
+  void act(const vector<Real> action)
+  {
+    a->vals = action;
+  }
   int getStatus() const
   {
     return Status;
@@ -105,5 +109,25 @@ public:
   {
     this->aInfo = actionInfo;
     this->sInfo = stateInfo;
+  }
+
+  void writeData(const int rank, const vector<Real>mu) const
+  {
+    char cpath[256];
+    sprintf(cpath, "obs_rank%02d_agent%03d.raw", rank, ID);
+    FILE * pFile = fopen (cpath, "ab");
+    const Uint writesize = (3 +sInfo.dim +aInfo.dim +mu.size())*sizeof(float);
+    float* buf = (float*) malloc(writesize);
+    memset(buf, 0, writesize);
+    Uint k=0;
+    buf[k++] = Status + 0.1;
+    buf[k++] = transitionID + 0.1;
+    for (Uint i=0; i<sInfo.dim; i++) buf[k++] = (float) s->vals[i];
+    for (Uint i=0; i<aInfo.dim; i++) buf[k++] = (float) a->vals[i];
+    buf[k++] = r;
+    for (Uint i=0; i<mu.size(); i++) buf[k++] = (float) mu[i];
+    assert(k*sizeof(float) == writesize);
+    fwrite (buf, sizeof(float), writesize/sizeof(float), pFile);
+    fflush(pFile); fclose(pFile);  free(buf);
   }
 };

@@ -20,17 +20,13 @@ class GAE : public Learner_onPolicy
 {
 protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
-  const Real lambda = 0.95, DKL_target = 0.01, clip_fac = 0.2;
-  //#ifdef INTEGRATEANDFIRESHARED
-  //  const vector<Uint> net_outputs = {nA, 1};
-  //#else
-  vector<Uint> net_outputs, net_indices;
-  const vector<Uint> pol_start;
-  const Uint PenalID = net_indices.back(), ValID = net_indices[1];
+  const Real lambda, DKL_target, clip_fac = 0.2;
+  const vector<Uint> pol_outputs, pol_indices;
+  const Uint PenalID = pol_indices.back(), ValID = 0;
 
   inline Policy_t prepare_policy(const vector<Real>& out) const
   {
-    return Policy_t(pol_start, &aInfo, out);
+    return Policy_t(pol_indices, &aInfo, out);
   }
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override
@@ -38,56 +34,57 @@ protected:
     die("not allowed");
   }
 
-  void updateGAE(const int workid, const Real reward, const Real delta) const
+  void updateGAE(Sequence*const seq) const
   {
+    //this is only triggered by t = 0 (or truncated trajectories)
+    // at t=0 we do not have a reward, and we cannot compute delta
+    //(if policy was updated after prev action we treat next state as initial)
+    if(seq->state_vals.size() < 2) return;
+    assert(seq->tuples.size() == seq->state_vals.size());
+    assert(seq->tuples.size() == seq->action_adv.size()+1);
+    const Uint N = seq->tuples.size();
+    const Real vSold = seq->state_vals[N-2], vSnew = seq->state_vals[N-1];
+    // delta_t = r_t+1 + gamma V(s_t+1) - V(s_t)  (pedix on r means r_t+1
+    // received with transition to s_t+1, sometimes referred to as r_t)
+    const Real delta = seq->tuples[N-1]->r +gamma*vSnew -vSold;
+    seq->action_adv.push_back(delta);
+
     Real fac_lambda = lambda*gamma, fac_gamma = gamma;
-    work[workid]->rewards.push_back(reward);
-    work[workid]->GAE.push_back(delta);
-    for (Uint i=2; i<=work[workid]->GAE.size(); i++) {
-      const Uint ind = work[workid]->GAE.size() - i;
-      work[workid]->rewards[ind] += fac_gamma*reward;
+    // reward of i=0 is 0, because before any action
+    // adv(0) is also 0, V(0) = V(s_0)
+    for (Uint i=N-2; i>0; i--) { //update all rewards before current step
+      //will contain MC sum of returns:
+      seq->tuples[i]->r += fac_gamma * seq->tuples[N-1]->r;
       #ifndef IGNORE_CRITIC
-      work[workid]->GAE[ind] += fac_lambda*delta;
+        seq->action_adv[i] += fac_lambda * delta;
       #else
-      work[workid]->GAE[ind] += fac_gamma*reward;
+        seq->action_adv[i] += fac_gamma * seq->tuples[N-1]->r;
       #endif
       fac_lambda *= lambda*gamma;
       fac_gamma *= gamma;
     }
   }
 
-  void Train(const Uint workid,const Uint samp,const Uint thrID) const override
+  void Train(const Uint seq, const Uint samp,const Uint thrID) const override
   {
     if(thrID==1)  profiler->stop_start("TRAIN");
-    vector<Real> output(nOutputs), grad(nOutputs,0);
-    const Real adv_est = completed[workid]->GAE[samp];
-    const Real val_tgt = completed[workid]->rewards[samp];
-    const vector<Real>& beta = completed[workid]->policy[samp];
-    const Uint nMaxBPTT = MAX_UNROLL_BFORE;
-    //printf("%u %u %u %f %f \n", workid, samp, thrID, val_tgt, adv_est);
-    const Uint nRecurr = bRecurrent ? min(nMaxBPTT,samp)+1        : 1;
-    const Uint iRecurr = bRecurrent ? max(nMaxBPTT,samp)-nMaxBPTT : samp;
+    const Sequence* const traj = data->Set[seq];
+    const Real adv_est = traj->action_adv[samp+1];
+    const Real val_tgt = traj->tuples[samp+1]->r;
+    const vector<Real>& beta = traj->tuples[samp]->mu;
 
-    net->prepForBackProp(series_1[thrID], nRecurr);
-    vector<Activation*>& series = *(series_1[thrID]);
-    assert(series.size()==nRecurr);
-    for (Uint k=iRecurr, j=0; k<samp+1; k++, j++) {
-      net->seqPredict_inputs(completed[workid]->observations[k], series[j]);
-      if(k==samp) { //all are loaded: execute the whole loop:
-        assert(j==nRecurr-1);
-        net->seqPredict_execute(series, series);
-        //extract the only output we actually correct:
-        net->seqPredict_output(output, series[j]); //the humanity!
-      }
-    }
+    F[0]->prepare_one(traj, samp, thrID);
+    F[1]->prepare_one(traj, samp, thrID);
+    const vector<Real> pol_cur = F[0]->forward<CUR>(traj, samp, thrID);
+    const vector<Real> val_cur = F[1]->forward<CUR>(traj, samp, thrID);
 
-    const Real Vst = output[ValID];
-    const Policy_t pol = prepare_policy(output);
-    const Action_t act = pol.map_action(completed[workid]->actions[samp]);
+    const Real Vst = val_cur[ValID], penalDKL = pol_cur[PenalID];
+    const Policy_t pol = prepare_policy(pol_cur);
+    const Action_t act = pol.map_action(traj->tuples[samp]->a);
     const Real actProbOnPolicy = pol.evalLogProbability(act);
     const Real actProbBehavior = Policy_t::evalBehavior(act, beta);
     const Real rho_cur= min(MAX_IMPW, safeExp(actProbOnPolicy-actProbBehavior));
-    const Real DivKL=pol.kl_divergence_opp(beta), penalDKL=output[PenalID];
+    const Real DivKL=pol.kl_divergence_opp(beta);
     //if ( thrID==1 ) printf("%u %u : %f DivKL:%f %f %f\n", nOutputs, PenalID, penalDKL, DivKL, completed[workid]->policy[samp][1], output[2]);
 
     Real gain = rho_cur*adv_est;
@@ -108,231 +105,155 @@ protected:
       vector<Real> totalPolGrad = pol.policy_grad(act, gain);
     #endif
 
-    grad[ValID] = val_tgt - Vst;
+    vector<Real> grad(F[0]->nOutputs(), 0);
     pol.finalize_grad(totalPolGrad, grad);
     grad[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
 
     //bookkeeping:
-    dumpStats(Vstats[thrID], Vst, val_tgt - Vst);
-    statsGrad(avgGrad[thrID+1], stdGrad[thrID+1], cntGrad[thrID+1], grad);
-    clip_grad(grad, stdGrad[0]);
-    net->setOutputDeltas(grad, series.back());
+    Vstats[thrID].dumpStats(Vst, val_tgt - Vst);
+    F[0]->backward(grad, samp, thrID);
+    F[1]->backward({val_tgt - Vst}, samp, thrID);
+    F[0]->gradient(thrID);
+    F[1]->gradient(thrID);
 
-    if(thrID==1)  profiler->stop_start("BCK");
-    if (thrID==0) net->backProp(series, net->grad);
-    else net->backProp(series, net->Vgrad[thrID]);
     if(thrID==1)  profiler->stop_start("SLP");
   }
 
 public:
-  GAE(MPI_Comm comm, Environment*const _env, Settings& set,
-  vector<Uint> net_outs, vector<Uint> pol_inds) :
-  Learner_onPolicy(comm, _env, set, set.nnOutputs),
-  net_outputs(net_outs), net_indices(count_indices(net_outs)),
-  pol_start(pol_inds) { }
+  GAE(Environment*const _env, Settings& sett, vector<Uint> pol_outs) :
+    Learner_onPolicy(_env, sett), lambda(sett.lambda),
+    DKL_target(sett.klDivConstraint), pol_outputs(pol_outs),
+    pol_indices(count_indices(pol_outs)) { }
 
   //called by scheduler:
-  void select(const int agentId, const Agent& agent) override
+  void select(const Agent& agent) override
   {
-    const int thrID= omp_get_thread_num(), workid= retrieveAssignment(agentId);
-    //printf("Thread %d working with agent %d on task %d with status %d\n", thrid, agentId, workid, agent.Status); fflush(0);
-    if(workid<0) die("workspace not allocated.");
-    //printf("(%lu %lu %lu)\n", work[workid]->series.size(), work[workid]->actions.size(), work[workid]->rewards.size()); fflush(0);
-    if(agent.Status==2) { //terminal state
-      data->writeData(agentId, agent, vector<Real>(policyVecDim,0));
-      if(work[workid]->Vst.size() == 0) { //empty trajectory
-        work[workid]->clear(); //reset workspace for other trajectory
-        return;
-      }
-      // V_s_term := 0, therefore delta_term = r_t+1 - V(s_t)
-      const Real delta = agent.r - work[workid]->Vst.back();
-      assert(work[workid]->GAE.size() == work[workid]->rewards.size());
-      assert(work[workid]->GAE.size()+1 == work[workid]->Vst.size());
-      updateGAE(workid, agent.r, delta);
-      work[workid]->done = 1;
-      if(bTrain) addTasks(work[workid]);
-      else work[workid]->clear();
-      return;
+    const int thrID= omp_get_thread_num();
+    if(thrID==1) profiler->stop_start("SELECT");
+    Sequence*const curr_seq = data->inProgress[agent.ID];
+    data->add_state(agent);
+
+    if(agent.Status != 2) { //non terminal state
+      //Compute policy and value on most recent element of the sequence:
+      const vector<Real> pol=F[0]->forward_agent<CUR>(curr_seq, agent, thrID);
+      const vector<Real> val=F[1]->forward_agent<CUR>(curr_seq, agent, thrID);
+
+      curr_seq->state_vals.push_back(val[0]);
+      const Policy_t policy = prepare_policy(pol);
+      const vector<Real> beta = policy.getBeta();
+      agent.a->set(policy.finalize(bTrain, &generators[thrID], beta));
+      data->add_action(agent, beta);
+    } else
+      curr_seq->state_vals.push_back(0); // Assign value of term state to 0
+
+    updateGAE(curr_seq);
+
+    //advance counters of available data for training
+    if(agent.Status==2) {
+      data->terminate_seq(agent);
+      lock_guard<mutex> lock(buffer_mutex);
+      cntHorizon += curr_seq->ndata();
+      cntTrajectories++;
     }
-    if(thrID==1) profiler->stop_start("FWD");
-    vector<Real> output(nOutputs);
-    const vector<Real> input = data->standardize(agent.s->copy_observed());
-    //if required, chain together nAppended obs to compose state
-    assert(!nAppended); //not supported
-
-    if(agent.Status==1) net->predict(input, output, currAct[thrID]);
-    else { // if i'm using RNN i need to load recur connections (else no effect)
-      prevAct[thrID]->loadMemory(net->mem[agentId]); // prevAct[thrID],
-      net->predict(input, output, prevAct[thrID],currAct[thrID]);
-    }
-    currAct[thrID]->storeMemory(net->mem[agentId]);
-
-    if(thrID==0) profiler_ext->stop_start("WORK");
-    const Real val = output[ValID];
-    const Policy_t pol = prepare_policy(output);
-    const vector<Real> beta = pol.getBeta();
-    const Action_t act = pol.finalize(bTrain, gen, beta);
-    agent.a->set(act);
-
-    //treated as first in two circumstances:
-    // - if actually initial state
-    // - or if policy was updated after prev action
-    // (in PPO T_horizon is not linked to Term. states)
-    if( agent.Status != 1 && work[workid]->Vst.size() != 0 )  {
-      // delta_t = r_t+1 + gamma V(s_t+1) - V(s_t)  (pedix on r means r_t+1
-      // received with transition to s_t+1, sometimes referred to as r_t)
-      const Real delta = agent.r +gamma*val -work[workid]->Vst.back();
-      updateGAE(workid, agent.r, delta);
-    }
-
-    assert(work[workid]->GAE.size() == work[workid]->Vst.size()); //b4 new Vst
-    work[workid]->push_back(input, agent.a->vals, beta, val);
-    data->writeData(agentId, agent, beta);
     if(thrID==0) profiler_ext->stop_start("COMM");
     if(thrID==1) profiler->pop_stop();
   }
 
-  void processStats() override
+  void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
   {
-    stats.minQ= 1e9;stats.MSE =0;stats.dCnt=0;
-    stats.maxQ=-1e9;stats.avgQ=0;stats.relE=0;
-    for (Uint i=0; i<Vstats.size(); i++) {
-      stats.MSE  += Vstats[i]->MSE;
-      stats.avgQ += Vstats[i]->avgQ;
-      stats.stdQ += Vstats[i]->stdQ;
-      stats.dCnt += Vstats[i]->dCnt;
-      stats.minQ = std::min(stats.minQ, Vstats[i]->minQ);
-      stats.maxQ = std::max(stats.maxQ, Vstats[i]->maxQ);
-      Vstats[i]->minQ= 1e9; Vstats[i]->MSE =0; Vstats[i]->dCnt=0;
-      Vstats[i]->maxQ=-1e9; Vstats[i]->avgQ=0; Vstats[i]->stdQ=0;
-    }
-
-    if (learn_size > 1) {
-      long double ary[4] = {stats.MSE, stats.dCnt, stats.avgQ, stats.stdQ};
-      MPI_Allreduce(MPI_IN_PLACE,ary,4,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
-      stats.MSE=ary[0]; stats.dCnt=ary[1]; stats.avgQ=ary[2]; stats.stdQ=ary[3];
-      MPI_Allreduce(MPI_IN_PLACE, &stats.minQ, 1, MPI_LONG_DOUBLE, MPI_MIN, mastersComm);
-      MPI_Allreduce(MPI_IN_PLACE, &stats.maxQ, 1, MPI_LONG_DOUBLE, MPI_MAX, mastersComm);
-    }
-
-    stats.epochCount++;
-    const long double sum = stats.avgQ, sumsq = stats.stdQ, cnt = stats.dCnt;
-    stats.MSE   = std::sqrt(stats.MSE/cnt);
-    stats.avgQ /= cnt; //stats.relE/=stats.dCnt;
-    stats.stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
-    processGrads();
-    if(learn_rank) return;
-
-    long double sumWeights = 0, distTarget = 0, sumWeightsSq = 0;
-    #pragma omp parallel for reduction(+:sumWeights,distTarget,sumWeightsSq)
-    for (Uint w=0; w<net->getnWeights(); w++) {
-      sumWeights += std::fabs(net->weights[w]);
-      sumWeightsSq += net->weights[w]*net->weights[w];
-      distTarget += std::fabs(net->weights[w]-net->tgt_weights[w]);
-    }
-    const Real penalDKL = exp(net->biases[net->layers.back()->n1stBias]);
-
-    printf("%lu, rmse:%.2Lg, avgQ:%.2Lg, stdQ:%.2Lg, minQ:%.2Lg, maxQ:%.2Lg, "\
-      "weight:[%.0Lg %.0Lg %.2Lg], penalDKL:%.3f\n",
-      opt->nepoch, stats.MSE, stats.avgQ, stats.stdQ, stats.minQ, stats.maxQ,
-      sumWeights, sumWeightsSq, distTarget, penalDKL);
-      fflush(0);
-    ofstream fs;
-    fs.open("stats.txt", ios::app);
-    fs<<opt->nepoch<<"\t"<<stats.MSE<<"\t"<<stats.avgQ<<"\t"<<stats.stdQ<<"\t"<<
-      stats.minQ<<"\t"<<stats.maxQ<<"\t"<<sumWeights<<"\t"<<sumWeightsSq<<"\t"<<
-      distTarget<<"\t"<<penalDKL<<endl;
-    fs.close(); fs.flush();
-    if (stats.epochCount % 100==0) save("policy");
+    Uint params_inds = F[0]->net->layers.back()->n1stBias;
+    const Real penalDKL = std::exp(F[0]->net->biases[params_inds]);
+    screenOut<<" penalDKL:"<<penalDKL;
+    fileOut<<" "<<penalDKL;
   }
 };
 
 class GAE_cont : public GAE<Gaussian_policy, vector<Real> >
 {
-  static vector<Uint> count_outputs(const ActionInfo& aI)
+  static vector<Uint> count_pol_outputs(const ActionInfo*const aI)
   {
-    return vector<Uint>{aI.dim, 1, aI.dim, 1};
+    return vector<Uint>{aI->dim, aI->dim, 1};
   }
-  static vector<Uint> count_pol_starts(const ActionInfo& aI)
+  static vector<Uint> count_pol_starts(const ActionInfo*const aI)
   {
-    const vector<Uint> indices = count_indices(count_outputs(aI));
-    return vector<Uint>{indices[0], indices[2]};
+    const vector<Uint> indices = count_indices(count_pol_outputs(aI));
+    return vector<Uint>{indices[0], indices[1]};
   }
 
  public:
-  static Uint getnOutputs(const ActionInfo*const aI)
+  static Uint getnDimPolicy(const ActionInfo*const aI)
   {
-    return 1 + aI->dim + aI->dim + 1;
+    return 2*aI->dim;
   }
 
-  GAE_cont(MPI_Comm comm, Environment*const _env, Settings & settings) :
-  GAE(comm, _env, settings, count_outputs(_env->aI),
-  count_pol_starts(_env->aI))
+  GAE_cont(Environment*const _env, Settings & settings) :
+  GAE(_env, settings, count_pol_outputs(&_env->aI))
   {
-    settings.splitLayers = 9; // all!
-    Builder build(settings);
-
-    vector<Uint> outs{nA, 1};
+    printf("Continuous-action GAE\n");
+    F.push_back(new Approximator("policy", settings, input, data));
+    F.push_back(new Approximator("value", settings, input, data));
     #ifndef simpleSigma
-      outs.push_back(nA);
+      Builder build_pol = F[0]->buildFromSettings(settings, 2*aInfo.dim);
+    #else
+      Builder build_pol = F[0]->buildFromSettings(settings,   aInfo.dim);
     #endif
-    build.stackSimple(vector<Uint>{nInputs}, outs );
+    Builder build_val = F[1]->buildFromSettings(settings, 1 );
+
     #ifdef simpleSigma //add stddev layer
-      build.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
+      build_pol.addParamLayer(aInfo.dim, "Linear", -2*std::log(greedyEps));
     #endif
-    //add klDiv penalty coefficient layer
-    build.addParamLayer(1, "Exp", 0);
+    build_pol.addParamLayer(1, "Exp", 0); //add klDiv penalty coefficient layer
 
-    net = build.build();
-    //set initial value for klDiv penalty coefficient
-    Uint penalparid = net->layers.back()->n1stBias; //(was last added layer)
-    net->biases[penalparid] = -std::log(settings.klDivConstraint);
+    F[0]->build_network(build_pol);
+    F[1]->build_network(build_val);
 
-    finalize_network(build);
-    printf("Continuous-action GAE: Built network with outputs: %s %s\n",
-      print(net_indices).c_str(),print(net_outputs).c_str());
-    policyVecDim = 2*nA;
+    //set initial value for klDiv penalty coefficient (was last added layer)
+    const Uint penalparid = F[0]->net->layers.back()->n1stBias;
+    F[0]->net->biases[penalparid] = 0;
+
+    F[0]->build_finalize(build_pol);
+    F[1]->build_finalize(build_val);
   }
 };
 
 class GAE_disc : public GAE<Discrete_policy, Uint>
 {
-  static vector<Uint> count_outputs(const ActionInfo*const aI)
+  static vector<Uint> count_pol_outputs(const ActionInfo*const aI)
   {
-    return vector<Uint>{aI->maxLabel, 1, 1};
+    return vector<Uint>{aI->maxLabel, 1};
   }
   static vector<Uint> count_pol_starts(const ActionInfo*const aI)
   {
-    const vector<Uint> indices = count_indices(count_outputs(aI));
+    const vector<Uint> indices = count_indices(count_pol_outputs(aI));
     return vector<Uint>{indices[0]};
   }
  public:
-  static Uint getnOutputs(const ActionInfo*const aI)
+  static Uint getnDimPolicy(const ActionInfo*const aI)
   {
-    return 1 + aI->maxLabel + 1;
+    return aI->maxLabel;
   }
 
  public:
-  GAE_disc(MPI_Comm comm, Environment*const _env, Settings & settings) :
-  GAE(comm, _env, settings, count_outputs(&_env->aI),
-  count_pol_starts(&_env->aI))
+  GAE_disc(Environment*const _env, Settings& settings) :
+  GAE(_env, settings, count_pol_outputs(&_env->aI))
   {
-    settings.splitLayers = 9; // all!
-    Builder build(settings);
+    printf("Discrete-action GAE\n");
+    F.push_back(new Approximator("policy", settings, input, data));
+    F.push_back(new Approximator("value", settings, input, data));
+    Builder build_pol = F[0]->buildFromSettings(settings, aInfo.maxLabel);
+    Builder build_val = F[1]->buildFromSettings(settings, 1 );
 
-    build.stackSimple(vector<Uint>{nInputs}, vector<Uint>{nA, 1} );
-    build.addParamLayer(1, "Exp", 0); //add klDiv penalty coefficient layer
+    build_pol.addParamLayer(1, "Exp", 0); //add klDiv penalty coefficient layer
 
-    net = build.build();
+    F[0]->build_network(build_pol);
+    F[1]->build_network(build_val);
 
-    //set initial value for klDiv penalty coefficient
-    Uint penalparid = net->layers.back()->n1stBias; //(was last added layer)
-    net->biases[penalparid] = 0;
+    //set initial value for klDiv penalty coefficient (was last added layer)
+    const Uint penalparid = F[0]->net->layers.back()->n1stBias;
+    F[0]->net->biases[penalparid] = 0;
 
-    finalize_network(build);
-    printf("Discrete-action GAE: Built network with outputs: %s %s\n",
-      print(net_indices).c_str(),print(net_outputs).c_str());
-    policyVecDim = nA;
+    F[0]->build_finalize(build_pol);
+    F[1]->build_finalize(build_val);
   }
 };
 
