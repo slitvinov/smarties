@@ -28,22 +28,22 @@ struct Mem //Memory light recipient for prediction on agents
 struct Activation //All the network signals. TODO: vector of activations, one per layer, allowing classes of activations
 {
   Activation(Uint _nNeurons,Uint _nStates):
-    nNeurons(_nNeurons),nStates(_nStates),
+    nNeurons(_nNeurons), nStates(_nStates),
     //contains all inputs to each neuron (inputs to network input layer is empty)
-    in_vals(init(nNeurons)),
+    in_vals(initClean(nNeurons)),
     //contains all neuron outputs that will be the incoming signal to linked layers (outputs of input layer is network inputs)
-    outvals(init(nNeurons)),
+    outvals(initClean(nNeurons)),
     //deltas for each neuron
     errvals(initClean(nNeurons)),
     //memory and inputs to gates (cell into in_vals)
-    ostates(init(nNeurons)), iIGates(init(nNeurons)),
-    iFGates(init(nNeurons)), iOGates(init(nNeurons)),
+    ostates(initClean(nNeurons)), iIGates(initClean(nNeurons)),
+    iFGates(initClean(nNeurons)), iOGates(initClean(nNeurons)),
     //output of gates and LSTM cell
-    oMCell(init(nNeurons)), oIGates(init(nNeurons)),
-    oFGates(init(nNeurons)), oOGates(init(nNeurons)),
+    oMCell(initClean(nNeurons)), oIGates(initClean(nNeurons)),
+    oFGates(initClean(nNeurons)), oOGates(initClean(nNeurons)),
     //errors of gates and LSTM cell
-    eMCell(init(nNeurons)), eIGates(init(nNeurons)),
-    eFGates(init(nNeurons)), eOGates(init(nNeurons))
+    eMCell(initClean(nNeurons)), eIGates(initClean(nNeurons)),
+    eFGates(initClean(nNeurons)), eOGates(initClean(nNeurons))
   { }
 
   ~Activation()
@@ -97,18 +97,16 @@ struct Activation //All the network signals. TODO: vector of activations, one pe
 
   inline void loadMemory(Mem*const _M)
   {
-    assert(_M->nNeurons == nNeurons);
-    assert(_M->nStates == nStates);
-    for (Uint j=0; j<nNeurons; j++) outvals[j] = _M->outvals[j];
-    for (Uint j=0; j<nStates;  j++) ostates[j] = _M->ostates[j];
+    assert(_M->nNeurons == nNeurons && _M->nStates == nStates);
+    memcpy(outvals, _M->outvals, nNeurons*sizeof(nnReal));
+    memcpy(ostates, _M->ostates, nStates*sizeof(nnReal));
   }
 
   inline void storeMemory(Mem*const _M)
   {
-    assert(_M->nNeurons == nNeurons);
-    assert(_M->nStates == nStates);
-    for (Uint j=0; j<nNeurons; j++) _M->outvals[j] = outvals[j];
-    for (Uint j=0; j<nStates;  j++) _M->ostates[j] = ostates[j];
+    assert(_M->nNeurons == nNeurons && _M->nStates == nStates);
+    memcpy(_M->outvals, outvals, nNeurons*sizeof(nnReal));
+    memcpy(_M->ostates, ostates, nStates*sizeof(nnReal));
   }
 
   const Uint nNeurons, nStates;

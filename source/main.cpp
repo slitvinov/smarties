@@ -46,7 +46,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
   assert(settings.nSlaves>=0 && settings.slaves_rank == 0);
 
   ObjectFactory factory(settings);
-  Environment* env = factory.createEnvironment();
+  Environment*const env = factory.createEnvironment();
   Communicator comm = env->create_communicator(slavesComm, settings.sockPrefix, true);
 
   const int bs = settings.batchSize, ls = settings.learner_size;
@@ -60,7 +60,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
     //no need to free this
   }
 
-  Learner* learner = createLearner(env, settings);
+  Learner*const learner = createLearner(env, settings);
   learner->restart();
 
   Master master(slavesComm, learner, env, settings);

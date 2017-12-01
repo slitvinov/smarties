@@ -41,8 +41,7 @@ struct Linear : public Function
 {
   void eval(nnOpInp in, nnOpRet out, const Uint N) const
   {
-    #pragma omp simd aligned(in,out : VEC_WIDTH) safelen(simdWidth)
-    for (Uint i=0;i<N; i++) out[i] = in[i];
+    memcpy(out, in, N*sizeof(nnReal));
   }
   Real weightsInitFactor(const Uint inps, const Uint outs) const override
   {

@@ -42,8 +42,8 @@ public:
       graph->check();
       for (auto & l : graph->links) links.push_back(l);
     }
-    printf("nInputs:%d, nOutputs:%d, nLayers:%d, nNeurons:%d, nWeights:%d, nBiases:%d, nStates:%d\n",
-        nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates);
+    printf("nInputs:%d, nOutputs:%d, nLayers:%d, nNeurons:%d, nWeights:%d, nBiases:%d, nStates:%d nAgents:%d\n",
+    nInputs, nOutputs, nLayers, nNeurons, nWeights, nBiases, nStates, nAgents);
     assert(layers.size() == nLayers);
     {
       assert(!iInp.size());

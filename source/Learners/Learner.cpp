@@ -65,10 +65,9 @@ void Learner::processStats()
   data->getMetrics(fileOut, screenOut);
   for(auto & net : F) net->getMetrics(fileOut, screenOut);
   getMetrics(fileOut, screenOut);
+  
   if(learn_rank) return;
-
-  ofstream fout;
-  fout.open("stats.txt", ios::app);
+  ofstream fout; fout.open("stats.txt", ios::app);
   fout<<fileOut.str()<<endl; fout.flush(); fout.close();
   printf("%lu %s\n", nStep, screenOut.str().c_str()); fflush(0);
 
