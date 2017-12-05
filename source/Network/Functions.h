@@ -343,8 +343,7 @@ struct Exp : public Function {
   }
 };
 
-inline Function* makeFunction(const string name, const bool bOutput=false)
-{
+inline Function* makeFunction(const string name, const bool bOutput=false) {
   if (bOutput || name == "Linear") return new Linear();
   else
   if (name == "Tanh")   return new Tanh();
@@ -365,6 +364,6 @@ inline Function* makeFunction(const string name, const bool bOutput=false)
   else
   if (name == "Exp") return new Exp();
   else
-  die("Activation function not recognized\n");
+  die("Activation function not recognized");
   return (Function*)nullptr;
 }

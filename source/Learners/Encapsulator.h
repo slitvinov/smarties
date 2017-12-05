@@ -29,7 +29,7 @@ struct Encapsulator
   Optimizer* opt = nullptr;
   Network* net = nullptr;
 
-  inline Uint nOutputs() {
+  inline Uint nOutputs() const {
     if(net==nullptr) return data->sI.dimUsed*(1+nAppended);
     else return net->getnOutputs();
   }

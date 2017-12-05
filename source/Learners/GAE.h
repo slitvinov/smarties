@@ -261,22 +261,24 @@ void Train(const Uint seq, const Uint obs, const Uint thrID) const override
   const vector<Real> out_policy = policyNet->forward(traj, samp, thrID);
   const vector<Real> out_value  =  valueNet->forward(traj, samp, thrID);
 
+  //compute gradient of state-value est. and backpropagate value net
   const Real Vst_est  = out_value[0];           // estimated state value
-  const Policy_t pol = prepare_policy(pol_cur); // current state policy
-  const Action_t act = pol.map_action(action);  // map action to policy space
+  const vector<Real>  value_grad = {value_obs - Vst_est};
+   valueNet->backward(value_grad, samp, thrID);
+
+  //Create action & policy objects: generalize discrete, gaussian, lognorm pols
+  const Policy_t pol = prepare_policy(pol_cur);//current state policy
+  const Action_t act = pol.map_action(action); //map to pol space (eg. discrete)
 
   // compute importance sample rho = pol( a_t | s_t ) / mu( a_t | s_t )
   const Real actProbOnPolicy =       pol.evalLogProbability(act);
   const Real actProbBehavior = Policy_t::evalLogProbability(act, mu);
   const Real rho = std::exp(actProbOnPolicy-actProbBehavior);
 
-  //compute policy and value gradient
+  //compute policy gradient and backpropagate pol net
   const Real gain = rho * advantage_obs;
-  const vector<Real> policy_grad = pol.policy_grad(act, gain);
-  const vector<Real>  value_grad = {value_obs - Vst_est};
-  //backpropagate both networks
+  const vector<Real>  policy_grad = pol.policy_grad(act, gain);
   policyNet->backward(policy_grad, samp, thrID);
-   valueNet->backward( value_grad, samp, thrID);
 }
 
 #endif

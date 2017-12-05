@@ -59,11 +59,13 @@ class InputLayer: public Layer
 
   void requiredParameters(vector<Uint>& nWeight,
                           vector<Uint>& nBiases ) const override {
+    assert(nWeight.size() == 0 && nBiases.size() == 0);
     nWeight.push_back(0);
     nBiases.push_back(0);
   }
   void requiredActivation(vector<Uint>& sizes,
                           vector<Uint>& bOutputs) const override {
+    assert(sizes.size() == 0 && bOutputs.size() == 0);
     sizes.push_back(size);
     bOutputs.push_back(false);
   }
@@ -109,7 +111,8 @@ class ParamLayer: public Layer
   void forward( const Activation*const prev,
                 const Activation*const curr,
                 const Parameters*const para) const override {
-    nnReal* const inputs = curr->X(ID); nnReal* const output = curr->Y(ID);
+          nnReal* const inputs = curr->X(ID);
+          nnReal* const output = curr->Y(ID);
     const nnReal* const bias = para->B(ID);
     for (Uint n=0; n<size; n++) {
       inputs[n] = bias[n]; output[n] = func->eval(bias[n]);

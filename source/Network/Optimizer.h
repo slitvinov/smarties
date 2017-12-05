@@ -130,7 +130,6 @@ class Optimizer
    _dispose_object(gradSum); _dispose_object(_1stMom); _dispose_object(_2ndMom);
   }
 
-
   inline void update(const int batchsize, const vector<Parameters*>& grads) {
     update(batchsize, &grads);
   }

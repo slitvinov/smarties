@@ -39,10 +39,15 @@ struct Activation
     assert(ret>0);
     return ret;
   }
+
   Activation(vector<Uint>_sizes, vector<Uint>_bOut): nLayers(_sizes.size()),
-  nOutputs(_nOuts(_sizes,_bOut)), sizes(_sizes), output(_bOut),
-  suminps(allocate_vec(_sizes)), outvals(allocate_vec(_sizes)),
-  errvals(allocate_vec(_sizes)) {}
+    nOutputs(_nOuts(_sizes,_bOut)), sizes(_sizes), output(_bOut),
+    suminps(allocate_vec(_sizes)), outvals(allocate_vec(_sizes)),
+    errvals(allocate_vec(_sizes)) {
+    assert(suminps.size()==nLayers);
+    assert(outvals.size()==nLayers);
+    assert(errvals.size()==nLayers);
+  }
 
   ~Activation() {
     for(auto& p : suminps) if(p not_eq nullptr) free(p);
@@ -54,6 +59,7 @@ struct Activation
     assert(sizes[0] == inp.size()); //alternative not supported
     memcpy(outvals[0], &inp[0], sizes[0]*sizeof(nnReal));
   }
+
   inline void setOutputDelta(const vector<nnReal> delta) const {
     assert(nOutputs == delta.size()); //alternative not supported
     Uint k=0;
@@ -66,6 +72,7 @@ struct Activation
       memcpy(errvals.back(), &delta[0], nOutputs*sizeof(nnReal));
     } else assert(k == nOutputs);
   }
+
   inline void addOutputDelta(const vector<nnReal> delta) const {
     assert(nOutputs == delta.size()); //alternative not supported
     Uint k=0;
@@ -77,6 +84,7 @@ struct Activation
       for (Uint j=0; j<nOutputs; j++) errvals.back()[j] += delta[j];
     } else assert(k == nOutputs);
   }
+
   inline vector<nnReal> getOutput() const {
     vector<nnReal> ret(nOutputs);
     Uint k=0;
@@ -85,11 +93,12 @@ struct Activation
       k += sizes[i];
     }
     if(k==0) {
-      assert(nOutputs == sizes.back());
+      assert(nOutputs ==sizes.back());
       memcpy(&ret[0], outvals.back(), nOutputs*sizeof(nnReal));
     } else assert(k == nOutputs);
     return ret;
   }
+
   inline vector<nnReal> getInputGradient() const {
     vector<nnReal> ret(sizes[0]);
     memcpy(&ret[0], errvals[0], sizes[0]*sizeof(nnReal));
@@ -103,6 +112,7 @@ struct Activation
       std::memset(outvals[i], 0, sizesimd);
     }
   }
+
   inline void clearErrors() const {
     for(Uint i=0; i<nLayers; i++) {
       const int sizesimd = std::ceil(sizes[i]*sizeof(nnReal)/32.)*32;
@@ -110,6 +120,7 @@ struct Activation
       std::memset(errvals[i], 0, sizesimd);
     }
   }
+
   inline void clearInputs() const {
     for(Uint i=0; i<nLayers; i++) {
       const int sizesimd = std::ceil(sizes[i]*sizeof(nnReal)/32.)*32;
@@ -119,19 +130,21 @@ struct Activation
   }
 
   inline void loadMemory(Memory*const _M) const {
-    for(Uint i=0; i<nLayers; i++)
-      if(outvals[i] not_eq nullptr) {
-        assert(sizes[i] == _M->sizes[i]);
-        memcpy(outvals[i], _M->outvals[i], sizes[i]*sizeof(nnReal));
-      }
+    for(Uint i=0; i<nLayers; i++) {
+      assert(outvals[i] not_eq nullptr);
+      assert(sizes[i] == _M->sizes[i]);
+      memcpy(outvals[i], _M->outvals[i], sizes[i]*sizeof(nnReal));
+    }
   }
+
   inline void storeMemory(Memory*const _M) const {
-    for(Uint i=0; i<nLayers; i++)
-      if(outvals[i] not_eq nullptr) {
-        assert(sizes[i] == _M->sizes[i]);
-        memcpy(_M->outvals[i], outvals[i], sizes[i]*sizeof(nnReal));
-      }
+    for(Uint i=0; i<nLayers; i++) {
+      assert(outvals[i] not_eq nullptr);
+      assert(sizes[i] == _M->sizes[i]);
+      memcpy(_M->outvals[i], outvals[i], sizes[i]*sizeof(nnReal));
+    }
   }
+
   inline nnReal* X(const Uint layerID) const {
     assert(layerID < nLayers);
     return suminps[layerID];

@@ -264,12 +264,6 @@ void MemoryBuffer::updateActiveBuffer()
 
 Uint MemoryBuffer::prune(const Real maxFrac, const Real CmaxRho)
 {
-  //this assumes that sequences with importance weight closer to 1
-  // are places at the beginning of the QUEUE
-  //we use sortSequences() which, due to legacy reasons, sorts by sequences
-  // average MSerror. therefore we placed -max(rho, 1/rho) in MSEfield
-  // (therefore samples with rho = 0.2 are treated same as those with rho=5)
-  // samples with rho farther from 1 are later in the Set vector
   // sequence is removed if more than maxFrac of samples have importance
   // weight either <1/CmaxRho or >CmaxRho
   assert(CmaxRho>1);

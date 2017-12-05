@@ -30,8 +30,9 @@ void Network::backProp( const Activation*const prevStep,
                         const Parameters*const _gradient,
                         const Parameters*const _weights) const
 {
+  const Parameters*const W = _weights == nullptr ? weights : _weights;
   for (Uint i=layers.size()-1; i>0; i--)
-    layers[i]->backward(prevStep, currStep, nextStep, _gradient, _weights);
+    layers[i]->backward(prevStep, currStep, nextStep, _gradient, W);
 }
 
 void Network::backProp(const vector<Activation*>& netSeries,
