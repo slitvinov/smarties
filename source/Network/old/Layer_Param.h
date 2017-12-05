@@ -15,12 +15,7 @@ class ParamLayer: public BaseLayer<NormalLink>
  public:
   ParamLayer(Uint _nNeurons, Uint _iNeuron, Uint _iBias, const Function*const _f, const Uint nn_simd, const bool bOut=true): BaseLayer(_nNeurons, _iNeuron, _iBias, std::vector<NormalLink*>(), nullptr, _f, nn_simd, bOut)
   {
-    const string fname = "network_build.log";
-    FILE * f = fopen(fname.c_str(), "a");
-    if (f == NULL) die("Save fail\n");
-    fprintf(f,"ParamLayer Layer of size %d, with first ID %d, and first bias ID %d\n", nNeurons, n1stNeuron, n1stBias);
-    fflush(f);
-    fclose(f);
+
   }
 
   void propagate(const Activation*const prev, Activation*const curr, nnOpInp weights, nnOpInp biases) const override
@@ -48,14 +43,4 @@ class ParamLayer: public BaseLayer<NormalLink>
   {
     for(Uint w=0; w<nNeurons_simd; w++) biases[w+n1stBias] = initializationFac;
   }
-  void save(std::vector<nnReal>& outWeights, std::vector<nnReal>& outBiases, nnOpRet _weights, nnOpRet _biases) const override
-  {
-    for(Uint w=0; w<nNeurons; w++) outBiases.push_back(_biases[w+n1stBias]);
-  }
-  void restart(vector<nnReal>& bufWeights, vector<nnReal>& bufBiases,  nnOpRet _weights, nnOpRet _biases) const override
-  {
-    for(Uint w=0; w<nNeurons; w++) _biases[w+n1stBias]=readCutStart(bufBiases);
-  }
-  void regularize(nnOpRet weights, nnOpRet biases, const Real lambda) const override { }
-  void orthogonalize(nnOpRet _weights, nnOpInp _biases) const override {}
 };

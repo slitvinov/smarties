@@ -11,7 +11,6 @@
 #include <iomanip>
 #include <iostream>
 #include <cassert>
-#include "saruprng.h"
 
 Optimizer::Optimizer(Network*const _net, Profiler*const _prof, Settings&_s,
   const Real B1) : nWeights(_net->getnWeights()), nBiases(_net->getnBiases()),
@@ -26,9 +25,7 @@ AdamOptimizer::AdamOptimizer(Network*const _net, Profiler*const _prof,
 //beta_1(0.9), beta_2(0.999), epsilon(1e-8), beta_t_1(0.9), beta_t_2(0.99)
 
 EntropySGD::EntropySGD(Network*const _net, Profiler*const _prof, Settings&_s) :
-  AdamOptimizer(_net, _prof, _s), alpha_eSGD(0.75), gamma_eSGD(10.),
-  eta_eSGD(.1/_s.targetDelay), eps_eSGD(1e-3), delay(_s.targetDelay),
-  L_eSGD(_s.targetDelay), _muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
+  AdamOptimizer(_net, _prof, _s),
 {
   //assert(L_eSGD>0);
   for (Uint i=0; i<nWeights; i++) _muW_eSGD[i] = net->weights_back[i];
@@ -37,19 +34,7 @@ EntropySGD::EntropySGD(Network*const _net, Profiler*const _prof, Settings&_s) :
 
 void Optimizer::moveFrozenWeights(const Real _alpha)
 {
-  if (net->allocatedFrozenWeights==false || _alpha>=1)
-    return net->updateFrozenWeights();
 
-  #pragma omp parallel
-  {
-    #pragma omp for nowait
-    for (Uint j=0; j<nWeights; j++)
-      net->tgt_weights[j] += _alpha*(net->weights[j] - net->tgt_weights[j]);
-
-    #pragma omp for nowait
-    for (Uint j=0; j<nBiases; j++)
-      net->tgt_biases[j] += _alpha*(net->biases[j] - net->tgt_biases[j]);
-  }
   net->sort_fwd_to_bck(net->tgt_weights, net->tgt_weights_back);
 }
 
@@ -81,184 +66,6 @@ void EntropySGD::moveFrozenWeights(const Real _alpha)
 }
 #endif
 
-void EntropySGD::update(Grads* const G, const Uint batchsize)
-{
-  const Real _eta = eta;
-  //const Real _eta = nepoch<10000 ? .01/(1.+nepoch) + eta : eta;
-  //const Real _eta = eta/(1.+std::log(1. + (double)nepoch));
-  update(net->weights_back,net->tgt_weights_back,G->_W,_1stMomW,_2ndMomW,_muW_eSGD,nWeights,batchsize,_eta);
-  update(net->biases, net->tgt_biases, G->_B,_1stMomB,_2ndMomB,_muB_eSGD,nBiases, batchsize,_eta);
-
-  beta_t_1 *= beta_1;
-  if (beta_t_1<nnEPS) beta_t_1 = 0;
-
-  beta_t_2 *= beta_2;
-  if (beta_t_2<nnEPS) beta_t_2 = 0;
-
-  if(lambda>nnEPS) net->regularize(lambda);
-  net->sortWeights_bck_to_fwd();
-}
-
-void Optimizer::stackGrads(Grads* const G, const Grads* const g) const
-{
-  for (Uint j=0; j<nWeights; j++) G->_W[j] += g->_W[j];
-  for (Uint j=0; j<nBiases; j++)  G->_B[j] += g->_B[j];
-}
-
-void Optimizer::stackGrads(Grads* const G, const vector<Grads*> g) const
-{
-  const Uint nThreads = g.size();
-
-  #pragma omp parallel
-  {
-    #pragma omp for nowait
-    for (Uint j=0; j<nWeights; j++)
-      for (Uint k=1; k<nThreads; k++) {
-        G->_W[j] += g[k]->_W[j];
-        g[k]->_W[j] = 0.;
-      }
-
-    #pragma omp for nowait
-    for (Uint j=0; j<nBiases; j++)
-      for (Uint k=1; k<nThreads; k++) {
-        G->_B[j] += g[k]->_B[j];
-        g[k]->_B[j] = 0.;
-      }
-  }
-}
-
-void Optimizer::update(Grads* const G, const Uint batchsize)
-{
-  update(net->weights_back, G->_W, _1stMomW, nWeights, batchsize);
-  update(net->biases,       G->_B, _1stMomB, nBiases,  batchsize);
-  if(lambda>nnEPS) net->regularize(lambda*eta);
-  net->sortWeights_bck_to_fwd();
-}
-
-void AdamOptimizer::update(Grads* const G, const Uint batchsize)
-{
-  //const Real _eta = eta*std::max(.1, 1-nepoch/epsAnneal);
-  //const Real _eta = nepoch<10000 ? .01/(1.+nepoch) + eta : eta;
-  const Real _eta = eta;
-  update(net->weights_back,G->_W,_1stMomW,_2ndMomW,nWeights,batchsize,_eta);
-  update(net->biases,      G->_B,_1stMomB,_2ndMomB,nBiases, batchsize,_eta);
-
-  beta_t_1 *= beta_1;
-  if (beta_t_1<nnEPS) beta_t_1 = 0;
-  beta_t_2 *= beta_2;
-  if (beta_t_2<nnEPS) beta_t_2 = 0;
-
-  if(lambda>nnEPS) net->regularize(lambda*_eta);
-  //net->orthogonalize();
-  net->sortWeights_bck_to_fwd();
-}
-
-void Optimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, const Uint N, const Uint batchsize) const
-{
-  assert(batchsize>0);
-  const nnReal norm = 1./batchsize;
-  //const Real eta_ = eta*norm/std::log((double)nepoch/1.);
-  const nnReal eta_ = eta*norm/(1.+std::log(1. + (double)nepoch/1e3));
-
-  #pragma omp parallel for
-  for (Uint i=0; i<N; i++) {
-    const nnReal M1 = beta_1 * _1stMom[i] + eta_ * grad[i];
-    _1stMom[i] = std::max(std::min(M1,eta_),-eta_);
-    grad[i] = 0.; //reset grads
-    dest[i] += _1stMom[i];
-  }
-}
-
-void EntropySGD::update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, nnOpRet _mu, const Uint N, const Uint batchsize, const Real _eta) const
-{
-  //const Real fac_ = std::sqrt(1.-beta_t_2)/(1.-beta_t_1);
-  assert(batchsize>0);
-  #pragma omp parallel
-  {
-    const Uint thrID = static_cast<Uint>(omp_get_thread_num());
-    Saru gen(nepoch, thrID, net->generators[thrID]());
-    #if 0
-      const nnReal eta_ = _eta;
-    #else
-      const nnReal eta_ = _eta*std::sqrt(1-beta_t_2)/(1-beta_t_1);
-    #endif
-    const nnReal norm = 1./batchsize;
-    //const nnReal noise = std::sqrt(eta_) * eps_eSGD;
-    const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2, f22=1-beta_2;
-
-    #pragma omp for
-    for (Uint i=0; i<N; i++) {
-      const nnReal DW  = grad[i]*norm;
-      const nnReal M1_ = f11* _1stMom[i] +f12* DW;
-      #if 0
-        const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
-        const nnReal M2_ = std::max(M2, nnEPS);
-        const nnReal _M2  = M2_;
-      #else
-        const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
-        nnReal M2_ = M2<nnEPS? nnEPS : M2;
-        //M2_ = M2_<beta_t_2*DW*DW ? beta_t_2*DW*DW : M2_;
-	      // gradient clipping to 1:
-        M2_ = M2_<M1_*M1_ ? M1_*M1_ : M2_;
-        const nnReal _M2 = std::sqrt(M2_);
-      #endif
-      //const nnReal RNG = noise * gen.d_mean0_var1();
-      dest[i] += eta_*(f12*DW + f11*M1_)/_M2; //Nesterov Adam
-      _1stMom[i] = M1_; _2ndMom[i] = M2_; grad[i] = 0.; //reset grads
-      assert(!std::isnan(DW)); assert(!std::isnan(dest[i]));
-
-      //dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
-      #if 1
-        //dest[i] += 1e-6*gen.d_mean0_var1();
-        //dest[i] += delay*(target[i]-dest[i] + gen.d_mean0_var1());
-        //dest[i] += delay*(target[i]-dest[i]);
-      #endif
-      //_mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
-    }
-  }
-}
-
-void AdamOptimizer::update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, const Uint N, const Uint batchsize, const Real _eta) const
-{
-  assert(batchsize>0);
-  #pragma omp parallel
-  {
-    const nnReal norm = 1./batchsize;
-    const nnReal f11=beta_1, f12=1-beta_1, f21=beta_2, f22=1-beta_2;
-    #if 0
-      const nnReal eta_ = _eta;
-    #else
-      const nnReal eta_ = _eta*std::sqrt(beta_2-beta_t_2)/(1.-beta_t_1);
-    #endif
-
-    #pragma omp for
-    for (Uint i=0; i<N; i++) {
-      const nnReal DW = grad[i]*norm;
-      const nnReal M1 = f11* _1stMom[i] +f12* DW;
-      #if 0
-        const nnReal M2  = std::max(f21*_2ndMom[i], std::fabs(DW));
-        const nnReal M2_ = std::max(M2, nnEPS);
-        const nnReal _M2  = M2_;
-      #else
-        const nnReal M2  = f21* _2ndMom[i] +f22* DW*DW;
-        nnReal M2_ = M2<nnEPS? nnEPS : M2;
-        //M2_ = M2_<beta_t_2*DW*DW ? beta_t_2*DW*DW : M2_;
-        M2_ = M2_<M1*M1 ? M1*M1 : M2_;
-        const nnReal _M2 = std::sqrt(M2_);
-      #endif
-
-      _1stMom[i] = M1;
-      _2ndMom[i] = M2_;
-      grad[i] = 0.; //reset grads
-      assert(!std::isnan(DW));
-      assert(!std::isnan(dest[i]));
-      //if(DW*M1_>0)
-      //dest[i] += eta_*M1_/_M2; //Adam
-      //else
-      dest[i] += eta_*(f12*DW + f11*M1)/_M2; //Nesterov Adam
-    }
-  }
-}
 
 void Optimizer::save(const string fname)
 {
@@ -362,29 +169,8 @@ void AdamOptimizer::save(const string fname)
 
 bool Optimizer::restart(const string fname)
 {
-  const Uint nNeurons(net->getnNeurons()), nLayers(net->getnLayers());
-  vector<nnReal> outWeights, outBiases, outMomW, outMomB;
-  //const Uint nAgents(net->getnAgents()); // , nStates(net->getnStates()) TODO
 
-  ifstream in((fname + "_net").c_str());
-  if (in.good())
-  {
-    Uint readTotWeights, readTotBiases, readNNeurons, readNLayers;
-    in >> readTotWeights  >> readTotBiases >> readNLayers >> readNNeurons;
-    if (readNLayers != nLayers || readNNeurons != nNeurons)
-      die("Network parameters differ!");
-    //readTotWeights != nWeights || readTotBiases != nBiases || TODO
-    outWeights.resize(readTotWeights); outBiases.resize(readTotBiases);
-    outMomW.resize(readTotWeights);    outMomB.resize(readTotBiases);
-    for (Uint i=0;i<readTotWeights;i++) in>>outWeights[i]>>outMomW[i];
-    for (Uint i=0;i<readTotBiases; i++) in>>outBiases[i] >>outMomB[i];
-    net->restart(outWeights, outBiases, net->weights, net->biases);
-    net->restart(outMomW, outMomB, _1stMomW, _1stMomB);
-    in.close();
-    net->updateFrozenWeights();
-    net->sortWeights_fwd_to_bck();
-    return restart_recurrent_connections(fname);
-  }
+
 
   FILE * pFile = fopen ((fname + "_net.raw").c_str(), "rb");
   if (pFile != NULL)

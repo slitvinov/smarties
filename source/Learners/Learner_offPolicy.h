@@ -23,23 +23,7 @@ protected:
 public:
   Learner_offPolicy(Environment*const env, Settings& _s);
 
-  inline bool readyForTrain() const
-  {
-    if(bSampleSequences) {
-      if(data->adapt_TotSeqNum <= batchSize/learn_size)
-        die("I do not have enough data for training. Change hyperparameters");
-
-      return bTrain && data->nSequences >= nSequences4Train();
-    } else {
-      if(data->adapt_TotSeqNum <= batchSize/learn_size)
-        die("I do not have enough data for training. Change hyperparameters");
-     //const Uint nTransitions = data->readNTransitions();
-     //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
-     //  die("I do not have enough data for training. Change hyperparameters");
-     //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
-     return bTrain && data->nSequences >= nSequences4Train();
-    }
-  }
+  bool readyForTrain() const;
   inline Uint nSequences4Train() const
   {
     return batchSize/learn_size;

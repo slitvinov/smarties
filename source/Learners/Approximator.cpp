@@ -8,6 +8,18 @@
  */
 
 #include "Approximator.h"
+#include "../Network/Builder.h"
+
+void Encapsulator::initializeNetwork(Builder& build)
+{
+  net = build.build();
+  opt = build.opt;
+
+  #pragma omp parallel for
+  for (Uint i=0; i<nThreads; i++) // numa aware allocation
+   #pragma omp critical
+    series.push_back(new vector<Activation*>());
+}
 
 void Aggregator::prepare(const RELAY SET, const Uint thrID) const
 {
@@ -83,19 +95,18 @@ Builder Approximator::buildFromSettings(Settings&sett, const vector<Uint>nouts)
 {
   Builder build(sett);
   Uint nInputs = input->nOutputs() + (relay==nullptr ? 0 : relay->nOutputs());
-  build.stackSimple( {nInputs}, nouts );
+  build.stackSimple( nInputs, nouts );
   return build;
 }
 
-void Approximator::build_network(Builder& build)
-{
-  net = build.build();
+Builder Approximator::buildFromSettings(Settings& _s, const Uint n_outputs) {
+  return buildFromSettings(_s, {n_outputs});
 }
 
-void Approximator::build_finalize(Builder& build)
+void Approximator::initializeNetwork(Builder& build)
 {
-  if(net == nullptr) net = build.build();
-  opt = build.finalSimple();
+  net = build.build();
+  opt = build.opt;
 
   #pragma omp parallel for
   for (Uint i=0; i<nThreads; i++) // numa aware allocation
@@ -103,7 +114,7 @@ void Approximator::build_finalize(Builder& build)
    {
      series[i] = new vector<Activation*>();
      series_tgt[i] = new vector<Activation*>();
-     extra_grads[i] = new Grads(net->getnWeights(), net->getnBiases());
+     extra_grads[i] = net->allocateParameters();
    }
   gradStats = new StatsTracker(net->getnOutputs(), name+"_grads", settings);
 }
@@ -170,11 +181,11 @@ vector<Real> Approximator::forward(const Sequence* const traj, const Uint samp,
 
   //if already computed just give answer
   if(act[ind]->written == true && not overwrite)
-    return net->getOutputs(act[ind]);
+    return act[ind]->getOutput();
 
   // write previous outputs if needed (note: will spawn nested function calls)
-  if(ind) if(act_cur[ind-1]->written not_eq true)
-    this->forward<CUR>(traj, samp-1, thrID);
+  if(ind>0 && act_cur[ind-1]->written not_eq true)
+    this->forward(traj, samp-1, thrID);
 
   const vector<Real> inp = getInput(traj, samp, thrID);
   return getOutput(inp, ind, act[ind], thrID, USE_WEIGHTS);
@@ -187,11 +198,10 @@ vector<Real> Approximator::relay_backprop(const vector<Real> error,
   const int ind = mapTime2Ind(samp, thrID), nInp = input->nOutputs();
   assert(act_tgt[ind]->written == true && relay not_eq nullptr);
   act_tgt[ind]->clearErrors();
-  net->setOutputDeltas(error, act_tgt[ind]);
-  const nnReal*const W=USEW==CUR? net->weights_back : net->tgt_weights_back;
-  const nnReal*const B=USEW==CUR? net->biases  :      net->tgt_biases;
-  net->backProp(nullptr, act_tgt[ind], nullptr, W, B, extra_grads[thrID]);
-  const vector<Real> gradR = net->getInputGradient(act_tgt[ind]);
+  act_tgt[ind]->setOutputDelta(error);
+  const Parameters*const W = USEW==CUR? net->weights : net->tgt_weights;
+  net->backProp(nullptr, act_tgt[ind], nullptr, extra_grads[thrID], W);
+  const vector<Real> gradR = act_tgt[ind]->getInputGradient();
   assert(gradR.size() == nInp + relay->nOutputs());
   return vector<Real>(&gradR[0]+nInp, &gradR[0]+nInp+relay->nOutputs());
 }
@@ -200,33 +210,32 @@ vector<Real> Approximator::forward_agent(const Sequence* const traj,
   const Agent& agent, const Uint thrID, const PARAMS USEW) const
 {
   if(error_placements[thrID] >= 0) gradient(thrID);
-  vector<Real> ret(net->getnOutputs());
+
   const Uint stepid = traj->ndata();
   input->prepare(1, stepid, thrID);
   net->prepForFwdProp(series[thrID], 2);
+
   const vector<Activation*>& act = *(series[thrID]);
   const vector<Real> inp = getInput(traj, stepid, thrID);
-  const nnReal* const W = USEW==CUR ? net->weights : net->tgt_weights;
-  const nnReal* const B = USEW==CUR ? net->biases  : net->tgt_biases;
+  const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
+  const Activation* const prevStep = agent.Status==1? nullptr : act[0];
+  Activation* const currStep = act[1];
+  if(agent.Status not_eq 1)
+    prevStep->loadMemory(net->mem[agent.ID]);
 
-  if(agent.Status==1) net->predict(inp, ret, nullptr, act[1], W, B);
-  else { // if i'm using RNN i need to load recur connections (else no effect)
-    act[0]->loadMemory(net->mem[agent.ID]); // prevAct[thrID],
-    net->predict(inp, ret, act[0], act[1], W, B);
-  }
-  act[1]->storeMemory(net->mem[agent.ID]);
+  const vector<Real> ret = net->predict(inp, prevStep, currStep, W);
+  currStep->storeMemory(net->mem[agent.ID]);
+  currStep->written = true;
   return ret;
 }
 
 vector<Real> Approximator::getOutput(const vector<Real> inp, const int ind,
   Activation*const act, const Uint thrID, const PARAMS USEW) const
 {
-  vector<Real> ret(net->getnOutputs());
   //hardcoded to use time series predicted with cur weights for recurrencies:
   const auto& act_cur = *(series[thrID]);
-  const nnReal* const W = USEW==CUR ? net->weights : net->tgt_weights;
-  const nnReal* const B = USEW==CUR ? net->biases  : net->tgt_biases;
-  net->predict(inp, ret, (ind ? act_cur[ind-1] : nullptr), act, W, B);
+  const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
+  const vector<Real> ret = net->predict(inp,(ind?act_cur[ind-1]:nullptr),act,W);
   act->written = true;
   return ret;
 }
@@ -253,40 +262,18 @@ void Approximator::backward(vector<Real> error, const Uint samp,
   assert(act[ind]->written == true);
   //ind+1 because we use c-style for loops in other places:
   error_placements[thrID] = std::max(ind+1, error_placements[thrID]);
-
-  net->setOutputDeltas(error, act[ind]);
+  act[ind]->setOutputDelta(error);
 }
 
 void Approximator::update()
 {
-  if(!nAddedGradients) die("Error in stackAndUpdateNNWeights\n");
+  if(!nAddedGradients) die("Error in nAddedGradients\n");
 
   #pragma omp parallel for //each thread should still handle its own memory
   for(Uint i=0; i<nThreads; i++) if(error_placements[i] >= 0) gradient(i);
 
-  opt->nepoch++;
-  Uint nTotGrads = nAddedGradients;
+  opt->update(nAddedGradients, net->Vgrad);
   nAddedGradients = 0;
-  opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads
-  if (learn_size > 1)
-  { //add up gradients across masters
-    MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
-        MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
-    MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
-        MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
-    MPI_Allreduce(MPI_IN_PLACE,&nTotGrads,1,MPI_UNSIGNED,MPI_SUM,mastersComm);
-  }
-  //update is deterministic: can be handled independently by each node
-  //communication overhead is probably greater than a parallelised sum
-  opt->update(net->grad, nTotGrads);
-
-  if(tgtUpdateAlpha > 0) {
-    if (cntUpdateDelay == 0) { //DQN-style frozen weight
-      cntUpdateDelay = tgtUpdateAlpha;
-      opt->moveFrozenWeights(tgtUpdateAlpha);
-    }
-    if(cntUpdateDelay>0) cntUpdateDelay--;
-  }
 }
 
 void Approximator::gradient(const Uint thrID) const
@@ -298,13 +285,13 @@ void Approximator::gradient(const Uint thrID) const
 
   vector<Activation*>& act = *(series[thrID]);
   const int last_error = error_placements[thrID];
-  if (thrID==0) net->backProp(act, last_error, net->grad);
-  else net->backProp(act, last_error, net->Vgrad[thrID]);
+  net->backProp(act, last_error, net->Vgrad[thrID]);
   error_placements[thrID] = -1; //to stop additional backprops
 
   if(input->net == nullptr) return;
+
   for(int i=0; i<last_error; i++) {
-    const vector<Real> grad0 = net->getInputGradient(act[i]);
+    const vector<Real> grad0 = act[i]->getInputGradient();
     const Uint inpFeat = input->nOutputs();
     const vector<Real> inpgrad = vector<Real>(&grad0[0], &grad0[0] + inpFeat);
     input->backward(inpgrad, first_sample[thrID] + i, thrID);
@@ -315,12 +302,7 @@ void Approximator::getMetrics(ostringstream&fileOut, ostringstream&screenOut) co
 {
   gradStats->reduce_stats();
   long double sumW = 0, distTgt = 0;
-  #pragma omp parallel for reduction(+:sumW,distTgt)
-  for (Uint w=0; w<net->getnWeights(); w++) {
-    sumW += std::fabs(net->weights[w]);
-    //sumWSq += net->weights[w]*net->weights[w];
-    distTgt += std::fabs(net->weights[w]-net->tgt_weights[w]);
-  }
+  net->weights->compute_dist_norm(sumW, distTgt, net->tgt_weights);
   screenOut<<" "<<name<<":[normW:"<<sumW<<" distW:"<<distTgt<<"]";
   fileOut<<" "<<sumW<<" "<<distTgt;
 }

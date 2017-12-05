@@ -54,6 +54,24 @@ void Learner_offPolicy::prepareData()
   profiler->stop_start("SLP");
 }
 
+bool Learner_offPolicy::readyForTrain() const
+{
+  if(bSampleSequences) {
+    if(data->adapt_TotSeqNum <= batchSize/learn_size)
+      die("I do not have enough data for training. Change hyperparameters");
+
+    return bTrain && data->nSequences >= nSequences4Train();
+  } else {
+    if(data->adapt_TotSeqNum <= batchSize/learn_size)
+      die("I do not have enough data for training. Change hyperparameters");
+   //const Uint nTransitions = data->readNTransitions();
+   //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
+   //  die("I do not have enough data for training. Change hyperparameters");
+   //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
+   return bTrain && data->nSequences >= nSequences4Train();
+  }
+}
+
 bool Learner_offPolicy::batchGradientReady()
 {
   const Real _nData = read_nData();
@@ -80,6 +98,7 @@ bool Learner_offPolicy::batchGradientReady()
 int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be called from omp parallel region
 {
   if ( !readyForTrain() ) return 0;
+
   #ifdef FULLTASKING
     if ( !availTasks ) return 0;
     const int nSpawn = availTasks;

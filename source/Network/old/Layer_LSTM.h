@@ -45,17 +45,13 @@ class LSTMLayer: public BaseLayer<LinkToLSTM>
     nnOpRet outputO = curr->oOGates+n1stCell, outputC = curr->oMCell +n1stCell;
     nnOpRet inputs = curr->in_vals +n1stNeuron, inputI= curr->iIGates+n1stCell;
     nnOpRet inputF = curr->iFGates +n1stCell, inputO = curr->iOGates +n1stCell;
-    nnOpInp biasC = biases +n1stBias,   biasI = biases +n1stBiasIG;
-    nnOpInp biasF = biases +n1stBiasFG, biasO = biases +n1stBiasOG;
     nnOpInp oldState =(prev==nullptr? curr->ostates : prev->ostates) +n1stCell; //if nullptr then unused, but assigned for safety
     nnOpRet state = curr->ostates +n1stCell, output = curr->outvals +n1stNeuron;
 
-    #pragma omp simd aligned(inputs, inputI, inputF, inputO, \
-      biasC, biasI, biasF, biasO: VEC_WIDTH) safelen(simdWidth)
-    for (Uint n=0; n<nNeurons; n++) {
-      inputs[n] = biasC[n]; inputI[n] = biasI[n];
-      inputF[n] = biasF[n]; inputO[n] = biasO[n];
-    }
+    memcpy(inputs, biases+n1stBias  , nNeurons*sizeof(nnReal));
+    memcpy(inputI, biases+n1stBiasIG, nNeurons*sizeof(nnReal));
+    memcpy(inputF, biases+n1stBiasFG, nNeurons*sizeof(nnReal));
+    memcpy(inputO, biases+n1stBiasOG, nNeurons*sizeof(nnReal));
 
     for (const auto & link : input_links)
       link->propagate(curr,curr,weights);

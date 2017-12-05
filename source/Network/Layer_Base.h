@@ -10,118 +10,158 @@
 #pragma once
 #include "Layers.h"
 
-template<typename TLink>
 class BaseLayer: public Layer
 {
  public:
-  const vector<TLink*> input_links;
-  const TLink* const recurrent_link;
+  const Uint nInputs, nNeurons, bRecurrent, link, nInp_simd, nOut_simd;
+  const Function* const func;
+  vector<nnReal> initVals;
 
-  virtual ~BaseLayer()
-  {
-    for (auto & trash : input_links) _dispose_object(trash);
-    _dispose_object(recurrent_link);
+  void requiredParameters(vector<Uint>& nWeight,
+                          vector<Uint>& nBiases ) const override {
+    nWeight.push_back(nNeurons * (bRecurrent? nInputs + nNeurons : nInputs));
+    nBiases.push_back(nNeurons);
+  }
+  void requiredActivation(vector<Uint>& sizes,
+                          vector<Uint>& bOutputs) const override {
+    sizes.push_back(nNeurons);
+    bOutputs.push_back(bOutput);
+  }
+  void biasInitialValues(const vector<nnReal> init) override {
+    if(init.size() != size) _die("size of init:%lu.", init.size());
+    initVals = init;
+  }
+  ~BaseLayer() {
+    _dispose_object(func);
   }
 
-  BaseLayer(const Uint _nNeurons, const Uint _n1stNeuron, const Uint _n1stBias, const vector<TLink*> nl_il, const TLink*const nl_rl, const Function*const _f, const Uint nn_simd, const bool bOut) : Layer(_nNeurons, _n1stNeuron, _n1stBias, _f, nn_simd, bOut), input_links(nl_il), recurrent_link(nl_rl) {}
+  BaseLayer(Uint _ID, Uint _nInputs, Uint _nNeurons, string funcType, bool bRnn,
+    bool bOut, Uint iLink) : Layer(_ID, _nNeurons, bOut), nInputs(_nInputs),
+    nNeurons(_nNeurons), bRecurrent(bRnn), link(iLink),
+    nInp_simd(std::ceil( _nInputs*sizeof(nnReal)/32.)*32/sizeof(nnReal)),
+    nOut_simd(std::ceil(_nNeurons*sizeof(nnReal)/32.)*32/sizeof(nnReal)),
+    func(makeFunction(funcType)) {
+      printf("(%u) %s %s%sInnerProduct Layer of size:%u linked to Layer:%u of size:%u.\n",
+      ID, funcType.c_str(), bOutput? "output ":"", bRecurrent? "Recurrent-":"",
+        nNeurons, ID-link, nInputs);
+      fflush(0);
+    }
 
-  virtual void propagate(const Activation*const prev, Activation*const curr, nnOpInp weights, nnOpInp biases) const override
+  void forward( const Activation*const prev,
+                const Activation*const curr,
+                const Parameters*const para) const override
   {
-    nnOpRet outputs = curr->outvals +n1stNeuron;
-    nnOpRet inputs = curr->in_vals +n1stNeuron;
-    //const int thrID = omp_get_thread_num();
-    //if(thrID==1) profiler->push_start("FB");
-    memcpy(curr->in_vals+n1stNeuron, biases+n1stBias, nNeurons*sizeof(nnReal));
+    nnReal* const suminp = curr->X(ID); //array that contains W * Y_{-1} + B
+    memcpy(suminp, para->B(ID), nNeurons*sizeof(nnReal));
 
-    //if(thrID==1)  profiler->stop_start("FP");
-    for (const auto & link : input_links)
-      link->propagate(curr,curr,weights);
-    if(recurrent_link not_eq nullptr && prev not_eq nullptr)
-      recurrent_link->propagate(prev,curr,weights);
+    {
+      const nnReal* const inputs = curr->Y(ID-link);
+      const nnReal* const weight = para->W(ID);
+      for (Uint i = 0; i < nInputs; i++)
+        for (Uint o = 0; o < nNeurons; o++)
+          suminp[o] += inputs[i] * weight[o +nNeurons*i];
+    }
 
-    //if(thrID==1)  profiler->stop_start("FD");
-    //for (Uint n=0; n<nNeurons; n++) outputs[n] = func->eval(inputs[n]);
-    func->eval(inputs,outputs,nNeurons_simd);
-    //if(thrID==1) profiler->pop_stop();
+    if(bRecurrent && prev not_eq nullptr)
+    {
+      const nnReal* const inputs = prev->Y(ID);
+      const nnReal* const weight = para->W(ID) +nNeurons*nInputs;
+      for (Uint i = 0; i < nNeurons; i++)
+        for (Uint o = 0; o < nNeurons; o++)
+          suminp[o] += inputs[i] * weight[o +nNeurons*i];
+    }
+
+    func->eval(suminp, curr->Y(ID), nNeurons);
   }
 
-  virtual void backPropagate(Activation*const prev, Activation*const curr, const Activation*const next, Grads*const grad, nnOpInp weights, nnOpInp biases) const override
+  void backward(  const Activation*const prev,
+                  const Activation*const curr,
+                  const Activation*const next,
+                  const Parameters*const para,
+                  const Parameters*const grad) const override
   {
-    nnOpInp inputs = curr->in_vals +n1stNeuron;
-    nnOpRet deltas = curr->errvals +n1stNeuron;
-    nnOpRet gradbias = grad->_B +n1stBias;
-    //const int thrID = omp_get_thread_num();
-    //if(thrID==1) profiler->push_start("BD");
-    for(Uint n=0;n<nNeurons;n++) deltas[n]*=func->evalDiff(inputs[n],deltas[n]);
+    nnReal* const deltas = curr->E(ID);
+    {
+            nnReal* const grad_b = grad->B(ID);
+      const nnReal* const suminp = curr->X(ID);
+      for(Uint o=0; o<nNeurons; o++) {
+        deltas[o] *= func->evalDiff(suminp[o], deltas[o]);
+        grad_b[o] += deltas[o];
+      }
+    }
+    {
+      const nnReal* const inputs = curr->Y(ID-link);
+            nnReal* const errors = curr->E(ID-link);
+      const nnReal* const weight = para->W(ID);
+            nnReal* const grad_w = grad->W(ID);
 
-    //if(thrID==1)  profiler->stop_start("BP");
-    for (const auto & link : input_links)
-      link->backPropagate(curr,curr,weights,grad->_W);
+      for(Uint i=0; i<nInputs;  i++)
+        for(Uint o=0; o<nNeurons; o++)
+          grad_w[o +nNeurons*i] += inputs[i] * deltas[o];
 
-    if(recurrent_link not_eq nullptr && prev not_eq nullptr)
-      recurrent_link->backPropagate(prev,curr,weights,grad->_W);
+      for(Uint o=0; o<nNeurons; o++)
+        for(Uint i=0; i<nInputs;  i++)
+          errors[i] += weight[o +nNeurons*i] * deltas[o];
+    }
+    if(bRecurrent && prev not_eq nullptr)
+    {
+      const nnReal* const inputs = prev->Y(ID);
+            nnReal* const errors = prev->E(ID);
+      const nnReal* const weight = para->W(ID) +nNeurons*nInputs;
+            nnReal* const grad_w = grad->W(ID) +nNeurons*nInputs;
 
-    //if(thrID==1)  profiler->stop_start("BB");
-    #pragma omp simd aligned(gradbias,deltas: VEC_WIDTH) safelen(simdWidth)
-    for (Uint n=0; n<nNeurons; n++) gradbias[n] += deltas[n] -ACTLAMBDA*inputs[n];
-    //if(thrID==1) profiler->pop_stop();
+      for(Uint i=0; i<nInputs;  i++)
+        for(Uint o=0; o<nNeurons; o++)
+          grad_w[o +nNeurons*i] += inputs[i] * deltas[o];
+
+      for(Uint o=0; o<nNeurons; o++)
+        for(Uint i=0; i<nInputs;  i++)
+          errors[i] += weight[o +nNeurons*i] * deltas[o];
+    }
   }
 
-  virtual void initialize(mt19937* const gen, nnOpRet weights, nnOpRet biases, Real initializationFac) const override
+  void initialize(mt19937* const gen, const Parameters*const para,
+    Real initializationFac) const override
   {
-    const nnReal prefac = (initializationFac>0) ? initializationFac : 1;
-    const nnReal biasesInit =prefac*func->biasesInitFactor(nNeurons);//usually 0
-    uniform_real_distribution<nnReal> dis(-biasesInit, biasesInit);
-
-    if(biases not_eq nullptr)
-    for (Uint w=n1stBias; w<n1stBias+nNeurons_simd; w++)
-      biases[w] = dis(*gen);
-
-    for (const auto & link : input_links)
-      if(link not_eq nullptr) link->initialize(gen,weights,func,prefac);
-
-    if(recurrent_link not_eq nullptr)
-      recurrent_link->initialize(gen,weights,func,prefac);
+    const nnReal fac = (initializationFac>0) ? initializationFac : 1;
+    const nnReal init = fac * func->initFactor(nInputs, nNeurons);
+    uniform_real_distribution<nnReal> dis(-init, init);
+    {
+      nnReal* const biases = para->B(ID);
+      for(Uint o=0; o<nNeurons; o++)
+        if(initVals.size() != nNeurons) biases[o] = dis(*gen);
+        else biases[o] = func->inverse(initVals[o]);
+    }
+    {
+      nnReal* const weight = para->W(ID);
+      for(Uint i=0; i<nInputs;  i++) for(Uint o=0; o<nNeurons; o++)
+        weight[o +nNeurons*i] = dis(*gen);
+    }
+    if(bRecurrent)
+    {
+      nnReal* const weight = para->W(ID) +nNeurons*nInputs;
+      for(Uint i=0; i<nNeurons;  i++) for(Uint o=0; o<nNeurons; o++)
+        weight[o +nNeurons*i] = dis(*gen);
+    }
   }
 
-  virtual void save(vector<nnReal>& outWeights, vector<nnReal>& outBiases, nnOpRet _weights, nnOpRet _biases) const override
+  void orthogonalize(const Parameters*const para) const
   {
-    for (const auto & l : input_links)
-      if(l not_eq nullptr) l->save(outWeights, _weights);
-
-    if(recurrent_link not_eq nullptr)
-      recurrent_link->save(outWeights, _weights);
-
-    if(_biases not_eq nullptr)
-    for (Uint w=n1stBias; w<n1stBias+nNeurons; w++)
-      outBiases.push_back(_biases[w]);
-  }
-
-  virtual void restart(vector<nnReal>& bufWeights, vector<nnReal>& bufBiases, nnOpRet _weights, nnOpRet _biases) const override
-  {
-    for (const auto & l : input_links)
-      if(l not_eq nullptr) l->restart(bufWeights, _weights);
-
-    if(recurrent_link not_eq nullptr)
-      recurrent_link->restart(bufWeights, _weights);
-
-    if(_biases not_eq nullptr)
-    for(Uint w=0; w<nNeurons; w++) _biases[w+n1stBias]=readCutStart(bufBiases);
-  }
-
-  virtual void regularize(nnOpRet weights, nnOpRet biases, const Real lambda) const override
-  {
-    for (const auto & link : input_links)
-      link->regularize(weights, lambda);
-
-    if(recurrent_link not_eq nullptr)
-      recurrent_link->regularize(weights, lambda);
-
-    if(biases not_eq nullptr)
-    Lpenalization(biases, n1stBias, nNeurons, lambda);
-  }
-  virtual void orthogonalize(nnOpRet weights, nnOpInp bias) const override
-  {
-    for(const auto &link:input_links)link->orthogonalize(weights,bias,n1stBias);
+    nnReal* const weight = para->W(ID);
+    nnReal* const biases = para->B(ID);
+    for(Uint i=1; i<nNeurons; i++) {
+      for(Uint j=0; j<i; j++) {
+        nnReal u_d_u = 0.0, v_d_u = 0.0;
+        for(Uint k=0; k<nInputs; k++) {
+          u_d_u += weight[j +nNeurons*k] * weight[j +nNeurons*k];
+          v_d_u += weight[j +nNeurons*k] * weight[i +nNeurons*k];
+        }
+        if( v_d_u < 0 ) continue;
+        const nnReal overlap = nnSafeExp(-100*std::pow(biases[i]-biases[j],2));
+        const nnReal fac = v_d_u/u_d_u * overlap;
+        for(Uint k=0; k<nInputs; k++)
+          weight[i +nNeurons*k] -= fac * weight[i +nNeurons*k];
+      }
+    }
   }
 };

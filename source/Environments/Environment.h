@@ -9,9 +9,10 @@
 
 #pragma once
 #include "../Agent.h"
-#include "../Network/Builder.h"
 #include "../Communicator.h"
 #include <map>
+
+class Builder;
 
 class Environment
 {

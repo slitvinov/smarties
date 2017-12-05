@@ -10,169 +10,70 @@
 #include "Builder.h"
 #include "Network.h"
 
-void Network::seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const
+vector<Real> Network::predict(const vector<Real>& _inp,
+  const Activation*const prevStep, const Activation*const currStep,
+  const Parameters*const _weights) const
 {
-  assert(_input.size()==nInputs);
-  for (Uint j=0; j<nInputs; j++) currActivation->outvals[iInp[j]] = _input[j];
+  assert(_inp.size()==nInputs);
+  currStep->setInput(_inp);
+
+  const Parameters*const W = _weights == nullptr ? weights : _weights;
+
+  for(Uint j=1; j<nLayers; j++) layers[j]->forward(prevStep, currStep, W);
+
+  return currStep->getOutput();
 }
 
-//cache friendly prop for time series: time is fast index, layer is slow index
-void Network::seqPredict_execute(
-  const vector<Activation*>& series_1, vector<Activation*>& series_2,
-  const Uint start, const nnReal* const _weights, const nnReal* const _biases) const
+void Network::backProp( const Activation*const prevStep,
+                        const Activation*const currStep,
+                        const Activation*const nextStep,
+                        const Parameters*const _gradient,
+                        const Parameters*const _weights) const
 {
-  const Uint T = std::min(series_1.size()+1,series_2.size());
-  for (Uint j=0; j<nLayers; j++)
-  for (Uint t=start; t<T; t++)  {
-    Activation* const currActivation = series_2[t];
-    const Activation* const prevActivation = t ? series_1[t-1] : nullptr;
-    layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
-  }
+  for (Uint i=layers.size()-1; i>0; i--)
+    layers[i]->backward(prevStep, currStep, nextStep, _gradient, _weights);
 }
 
-void Network::seqPredict_output(vector<Real>& _out, Activation* const a) const
+void Network::backProp(const vector<Activation*>& netSeries,
+                       const Uint stepLastError,
+                       const Parameters*const _grad,
+                       const Parameters*const _weights) const
 {
-  assert(_out.size()==nOutputs);
-  for (Uint i=0; i<nOutputs; i++) _out[i] = a->outvals[iOut[i]];
-}
-
-void Network::predict(const vector<Real>& _input, vector<Real>& _output,
-    vector<Activation*>& timeSeries, const Uint n_step,
-    const nnReal* const _weights, const nnReal* const _biases) const
-{
-  assert(n_step<timeSeries.size());
-
-  Activation* const currActivation = timeSeries[n_step];
-  Activation* const prevActivation = n_step==0 ? nullptr : timeSeries[n_step-1];
-
-  assert(_input.size()==nInputs);
-  for(Uint j=0; j<nInputs; j++) currActivation->outvals[iInp[j]] = _input[j];
-
-  for(Uint j=0; j<nLayers; j++)
-    layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
-
-  assert(_output.size()==nOutputs);
-  for(Uint i=0; i<nOutputs; i++) _output[i] = currActivation->outvals[iOut[i]];
-}
-
-void Network::predict(const vector<Real>& _input, vector<Real>& _output,
-  const Activation* const prevActivation, Activation* const currActivation,
-  const nnReal* const _weights, const nnReal* const _biases) const
-{
-  assert(_input.size()==nInputs);
-  for(Uint j=0; j<nInputs; j++) currActivation->outvals[iInp[j]] = _input[j];
-
-  for(Uint j=0; j<nLayers; j++)
-    layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
-
-  assert(_output.size()==nOutputs);
-  for(Uint i=0; i<nOutputs; i++) _output[i] = currActivation->outvals[iOut[i]];
-}
-
-void Network::predict(const vector<Real>& _input, vector<Real>& _output,
-  Activation*const net, const nnReal*const _ws, const nnReal*const _bs) const
-{
-  assert(_input.size()==nInputs);
-  for (Uint j=0; j<nInputs; j++) net->outvals[iInp[j]] = _input[j];
-
-  for (Uint j=0; j<nLayers; j++) layers[j]->propagate(net, _ws, _bs);
-
-  assert(_output.size()==nOutputs);
-  for (Uint i=0; i<nOutputs; i++) _output[i] = net->outvals[iOut[i]];
-}
-
-void Network::backProp(vector<Activation*>&S, const nnReal*const _ws,
-  const nnReal*const _bs, Grads*const _gs) const
-{
-  //cache friendly backprop: backprops from terminal layers to first layers
+  //cache friendly backprop: backprops from upper layers to bottom layers
   //and from last time step to first, with layer being the 'slow index'
   //maximises reuse of weights in cache by getting each layer done in turn
-  //but a layer cannot have recur connection to upper layer... would be weird
-  assert(S.size()>0);
-  const Uint last = S.size()-1;
+  assert(stepLastError <= netSeries.size());
+  const Parameters*const W = _weights == nullptr ? weights : _weights;
 
-  if (last == 0)  //just one activation
-    for (Uint i=1; i<=nLayers; i++)
-      layers[nLayers-i]->backPropagate(nullptr, S[0], nullptr, _gs, _ws, _bs);
+  if (stepLastError == 0) return; //no errors placed
+  else
+  if (stepLastError == 1)  //errors placed at first time step
+    for(Uint i=layers.size()-1; i>0; i--)
+      layers[i]->backward(nullptr, netSeries[0], nullptr, _grad, W);
   else
   {
-    for (Uint i=1; i<=nLayers; i++)
+    const Uint T = stepLastError - 1;
+    for(Uint i=layers.size()-1; i>0; i--)
     {
-      layers[nLayers-i]->backPropagate(S[last-1],S[last],nullptr,_gs,_ws,_bs);
+      layers[i]->backward(netSeries[T-1],netSeries[T],nullptr,        _grad,W);
 
-      for (Uint k=last-1; k>=1; k--)
-      layers[nLayers-i]->backPropagate(S[k-1], S[k], S[k+1], _gs, _ws, _bs);
+      for (Uint k=T-1; k>0; k--)
+      layers[i]->backward(netSeries[k-1],netSeries[k],netSeries[k+1], _grad,W);
 
-      layers[nLayers-i]->backPropagate(nullptr, S[0], S[1], _gs, _ws, _bs);
+      layers[i]->backward(       nullptr,netSeries[0],netSeries[1],   _grad,W);
     }
   }
-}
-
-void Network::backProp(vector<Activation*>&S, const Uint len,
-  const nnReal*const _ws, const nnReal*const _bs, Grads*const _gs) const
-{
-  //cache friendly backprop: backprops from terminal layers to first layers
-  //and from last time step to first, with layer being the 'slow index'
-  //maximises reuse of weights in cache by getting each layer done in turn
-  //but a layer cannot have recur connection to upper layer... would be weird
-  assert(S.size()>0 && S.size() >= len);
-  const Uint last = len-1;
-
-  if (last == 0)  //just one activation
-    for (Uint i=1; i<=nLayers; i++)
-      layers[nLayers-i]->backPropagate(nullptr, S[0], nullptr, _gs, _ws, _bs);
-  else
-  {
-    for (Uint i=1; i<=nLayers; i++)
-    {
-      layers[nLayers-i]->backPropagate(S[last-1],S[last],nullptr,_gs,_ws,_bs);
-
-      for (Uint k=last-1; k>=1; k--)
-      layers[nLayers-i]->backPropagate(S[k-1], S[k], S[k+1], _gs, _ws, _bs);
-
-      layers[nLayers-i]->backPropagate(nullptr, S[0], S[1], _gs, _ws, _bs);
-    }
-  }
-}
-
-void Network::backProp(const vector<Real>& _errors, Activation* const net,
-  const nnReal*const _weights,const nnReal*const _bias,Grads*const _grad) const
-{
-  net->clearErrors();
-  assert(_errors.size()==nOutputs);
-  for (Uint i=0; i<nOutputs; i++) net->errvals[iOut[i]] = _errors[i];
-
-  for (Uint i=1; i<=nLayers; i++)
-    layers[nLayers-i]->backPropagate(net, _grad, _weights, _bias);
-}
-
-void Network::updateFrozenWeights()
-{
-  #pragma omp parallel
-  {
-    #pragma omp for nowait
-    for (Uint j=0; j<nWeights; j++) tgt_weights[j] = weights[j];
-
-    #pragma omp for nowait
-    for (Uint j=0; j<nBiases; j++)  tgt_biases[j]  = biases[j];
-  }
-  sort_fwd_to_bck(tgt_weights, tgt_weights_back);
 }
 
 Network::Network(Builder* const B, Settings & settings) :
-  nAgents(B->nAgents),   nThreads(B->nThreads), nInputs(B->nInputs),
-  nOutputs(B->nOutputs), nLayers(B->nLayers),   nNeurons(B->nNeurons),
-  nWeights(B->nWeights), nBiases(B->nBiases),   nStates(B->nStates),
-  bDump(not settings.bTrain), layers(B->layers), links(B->links),
-  weights(B->weights), weights_back(B->weights_back), biases(B->biases),
-  tgt_weights_back(B->tgt_weights_back), tgt_weights(B->tgt_weights),
-  tgt_biases(B->tgt_biases), grad(B->grad), Vgrad(B->Vgrad), mem(B->mem),
-  generators(settings.generators), iOut(B->iOut), iInp(B->iInp)
-{
-  dump_ID.resize(nAgents);
-  updateFrozenWeights();
+  nAgents(B->nAgents), nThreads(B->nThreads), nInputs(B->nInputs),
+  nOutputs(B->nOutputs), nLayers(B->nLayers), bDump(not settings.bTrain),
+  layers(B->layers), weights(B->weights), tgt_weights(B->tgt_weights),
+  Vgrad(B->Vgrad), mem(B->mem), generators(settings.generators) {
+  dump_ID.resize(nAgents, 0);
 }
 
+#if 0
 void Network::checkGrads()
 {
   printf("Checking gradients\n");
@@ -343,3 +244,4 @@ void Network::dump(const int agentID)
   }
   dump_ID[agentID]++;
 }
+#endif

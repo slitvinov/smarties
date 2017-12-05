@@ -9,6 +9,7 @@
 #include "../StateAction.h"
 #include "../Math/Utils.h"
 #include "../Math/Gaussian_policy.h"
+#include "../Network/Builder.h"
 #include "DPG.h"
 
 DPG::DPG(Environment*const _env, Settings& sett) : Learner_offPolicy(_env, sett)
@@ -18,8 +19,8 @@ DPG::DPG(Environment*const _env, Settings& sett) : Learner_offPolicy(_env, sett)
   F.push_back(new Approximator("value", sett, input, data, relay));
   Builder build_pol = F[0]->buildFromSettings(sett, _env->aI.dim);
   Builder build_val = F[1]->buildFromSettings(sett, 1 );
-  F[0]->build_finalize(build_pol);
-  F[1]->build_finalize(build_val);
+  F[0]->initializeNetwork(build_pol);
+  F[1]->initializeNetwork(build_val);
 }
 
 void DPG::select(const Agent& agent)

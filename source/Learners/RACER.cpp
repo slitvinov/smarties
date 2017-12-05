@@ -394,9 +394,10 @@ class RACER : public Learner_offPolicy
   {
     //Learner_offPolicy::getMetrics(fileOut, screenOut);
     opcInfo->reduce_approx();
-    Uint params_inds = F[0]->net->layers.back()->n1stBias;
-    const Real Qprec = std::exp(F[0]->net->biases[params_inds+1]);
-    const Real penalDKL = std::exp(F[0]->net->biases[params_inds]);
+    const Parameters*const W = F[0]->net->weights;
+    const nnReal*const parameters = W->B(W->nLayers - 1);
+    const Real Qprec=std::exp(parameters[1]), penalDKL=std::exp(parameters[0]);
+    
     screenOut<<" DKL:["<<DKL_target<<" "<<penalDKL<<"] prec:"<<Qprec
         <<" polStats:["<<print(opcInfo->avgVec[0])<<"]";
     fileOut<<" "<<print(opcInfo->avgVec[0])<<" "<<print(opcInfo->stdVec[0]);

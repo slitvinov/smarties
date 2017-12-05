@@ -8,6 +8,7 @@
  */
 
 #pragma once
+#include "../Network/Builder.h"
 #include "Learner_offPolicy.h"
 #include "../Math/FeatureControlTasks.h"
 #include "../Math/Quadratic_advantage.h"
@@ -91,15 +92,8 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
       build.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
     #endif
     //add klDiv penalty coefficient layer, and stdv of Q distribution
-    build.addParamLayer(2, "Exp", 0);
-
-    F[0]->build_network(build);
-
-    //set initial value for klDiv penalty coefficient (was last added layer)
-    const Uint penalparid= F[0]->net->layers.back()->n1stBias;
-    F[0]->net->biases[penalparid] = -std::log(settings.klDivConstraint);
-
-    F[0]->build_finalize(build);
+    build.addParamLayer(2, "Exp", 1/settings.klDivConstraint);
+    F[0]->initializeNetwork(build);
   }
 };
 
@@ -145,15 +139,8 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
       build.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
     #endif
     //add klDiv penalty coefficient layer, and stdv of Q distribution
-    build.addParamLayer(2, "Exp", 0);
-
-    F[0]->build_network(build);
-
-    //set initial value for klDiv penalty coefficient (was last added layer)
-    const Uint penalparid= F[0]->net->layers.back()->n1stBias;
-    F[0]->net->biases[penalparid] = -std::log(1);
-
-    F[0]->build_finalize(build);
+    build.addParamLayer(2, "Exp", 1);
+    F[0]->initializeNetwork(build);
   }
 };
 
@@ -196,14 +183,8 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     vector<Uint> nouts{1, nL, NEXPERTS, NEXPERTS*aInfo.dim, NEXPERTS*aInfo.dim};
     Builder build = F[0]->buildFromSettings(settings, nouts);
     //add klDiv penalty coefficient layer, and stdv of Q distribution
-    build.addParamLayer(2, "Exp", 0);
+    build.addParamLayer(2, "Exp", 1/settings.klDivConstraint);
 
-    F[0]->build_network(build);
-
-    //set initial value for klDiv penalty coefficient (was last added layer)
-    const Uint penalparid= F[0]->net->layers.back()->n1stBias;
-    F[0]->net->biases[penalparid] = -std::log(settings.klDivConstraint);
-
-    F[0]->build_finalize(build);
+    F[0]->initializeNetwork(build);
   }
 };

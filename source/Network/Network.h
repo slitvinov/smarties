@@ -8,12 +8,7 @@
  */
 
 #pragma once
-#include "Layer_Base.h"
-#include "Layer_Conv2D.h"
-#include "Layer_IntFire.h"
-#include "Layer_LSTM.h"
-#include "Layer_Normal.h"
-#include "Layer_Param.h"
+#include "Layers.h"
 
 class Builder;
 
@@ -21,234 +16,160 @@ class Network
 {
 protected:
   const Uint nAgents, nThreads, nInputs, nOutputs, nLayers;
-  const Uint nNeurons, nWeights, nBiases, nStates;
   const bool bDump;
 public:
   const vector<Layer*> layers;
-  const vector<Link*> links;
-  nnReal* const weights;
-  nnReal* const weights_back;
-  nnReal* const biases;
-  nnReal* const tgt_weights_back;
-  nnReal* const tgt_weights;
-  nnReal* const tgt_biases;
-  Grads* const grad;
-  const vector<Grads*> Vgrad;
-  const vector<Mem*> mem;
+  const Parameters* const weights;
+  const Parameters* const tgt_weights;
+  const vector<Parameters*> Vgrad;
+  const vector<Memory*> mem;
   vector<std::mt19937>& generators;
-  const vector<Uint> iOut, iInp;
   vector<Uint> dump_ID;
-  const bool allocatedFrozenWeights = true;
 
-  Uint getnWeights() const {return nWeights;}
-  Uint getnBiases() const {return nBiases;}
   Uint getnOutputs() const {return nOutputs;}
   Uint getnInputs() const {return nInputs;}
-  Uint getnNeurons() const {return nNeurons;}
-  Uint getnStates() const {return nStates;}
   Uint getnLayers() const {return nLayers;}
   Uint getnAgents() const {return nAgents;}
-  inline void sortWeights_bck_to_fwd() const
-  {
-    for (auto & l : links) l->sortWeights_bck_to_fwd(weights_back,weights);
-  }
-  inline void sortWeights_fwd_to_bck() const
-  {
-    for (auto & l : links) l->sortWeights_fwd_to_bck(weights,weights_back);
-  }
-  inline void sort_bck_to_fwd(nnReal*const _bck, nnReal*const _fwd) const
-  {
-    for (auto & l : links) l->sortWeights_bck_to_fwd(_bck, _fwd);
-  }
-  inline void sort_fwd_to_bck(nnReal*const _fwd, nnReal*const _bck) const
-  {
-    for (auto & l : links) l->sortWeights_fwd_to_bck(_fwd, _bck);
+
+  //inline vector<Activation*> allocateUnrolledActivations(const Uint num) const {
+  //  vector<Activation*> ret(num, nullptr);
+  //  for (Uint j=0; j<num; j++) ret[j] = allocate_activation(layers);
+  //  return ret;
+  //}
+  inline Activation* allocateActivation() const {
+    vector<Uint> sizes, output;
+    for(const auto & l : layers) l->requiredParameters(sizes, output);
+    return new Activation(sizes, output);
   }
 
-  inline vector<Real> getOutputs(const Activation* const act) const
-  {
-    vector<Real> _output(nOutputs);
-    for(Uint i=0; i<nOutputs; i++) _output[i] = act->outvals[iOut[i]];
-    return _output;
+  inline Parameters* allocateParameters() const {
+    vector<Uint> nWeight, nBiases;
+    for(const auto & l : layers) l->requiredParameters(nWeight, nBiases);
+    return new Parameters(nWeight, nBiases);
   }
-  inline vector<Real> getInputGradient(const Activation* const act) const
-  {
-    vector<Real> ret(nInputs);
-    for(Uint j=0; j<nInputs; j++) ret[j]= act->errvals[iInp[j]];
-    return ret;
-  }
-  inline void appendUnrolledActivations(vector<Activation*>* const ret, const Uint length) const
-  {
-    for(Uint j=0; j<length; j++)
-      ret->push_back(new Activation(nNeurons,nStates));
-  }
-  inline Activation* allocateActivation() const
-  {
-    return new Activation(nNeurons,nStates);
-  }
-  inline vector<Activation*> allocateUnrolledActivations(const Uint len) const
-  {
-    vector<Activation*> ret(len);
-    for (Uint j=0; j<len; j++) ret[j] = new Activation(nNeurons,nStates);
-    return ret;
-  }
-  inline void prepForBackProp(vector<Activation*>* series,const Uint len) const
-  {
-    vector<Activation*>& ref = *series;
-    if (series->size() < len)
-      for(Uint j=series->size(); j<len; j++)
-        series->push_back(new Activation(nNeurons,nStates));
 
-    for(Uint j=0; j<series->size(); j++) {
-      ref[j]->written = false; ref[j]->clearErrors();
-    }
+  inline void prepForBackProp(vector<Activation*>*series,const Uint num)const {
+    return prepForBackProp(*series, num);
   }
-  inline void prepForFwdProp(vector<Activation*>* series, Uint len) const
-  {
-    vector<Activation*>& ref = *series;
-    if (series->size() < len)
-      for(Uint j=series->size(); j<len; j++)
-        series->push_back(new Activation(nNeurons,nStates));
+  inline void prepForBackProp(vector<Activation*>&series,const Uint num)const {
+    prepForFwdProp(series, num);
+    for(Uint j=0; j<series.size(); j++) series[j]->clearErrors();
+  }
+  inline void prepForFwdProp (vector<Activation*>*series,const Uint num)const {
+    return prepForFwdProp(*series, num);
+  }
+  inline void prepForFwdProp (vector<Activation*>&series,const Uint num)const {
+    if (series.size() < num)
+      for(Uint j=series.size(); j<num; j++)
+        series.push_back(allocateActivation());
 
-    for(Uint j=0; j<series->size(); j++) ref[j]->written = false;
-  }
-  static inline void deallocateUnrolledActivations(vector<Activation*>*const r)
-  {
-    for (auto & trash : *r) _dispose_object(trash);
-    r->clear();
-  }
-  inline void clearErrors(vector<Activation*>& timeSeries) const
-  {
-    for (Uint k=0; k<timeSeries.size(); k++) timeSeries[k]->clearErrors();
-  }
-  inline void setOutputDeltas(const vector<Real>&_err, Activation*const a) const
-  {
-    assert(_err.size()==nOutputs);
-    for (Uint i=0; i<nOutputs; i++) a->errvals[iOut[i]] = _err[i];
-  }
-  inline void addOutputDeltas(const vector<Real>&_err, Activation*const a) const
-  {
-    assert(_err.size()==nOutputs);
-    for (Uint i=0; i<nOutputs; i++) a->errvals[iOut[i]] += _err[i];
+    for(Uint j=0; j<series.size(); j++) series[j]->written = false;
   }
 
   Network(Builder* const B, Settings & settings) ;
 
-  ~Network()
-  {
-    for (auto & trash : layers) _dispose_object(trash);
-    for (auto & trash : mem) _dispose_object(trash);
-    for (auto & trash : Vgrad) _dispose_object(trash);
-    _dispose_object( grad);
-    _myfree( weights );
-    _myfree( biases );
-    _myfree( tgt_weights );
-    _myfree( tgt_biases );
+  ~Network() {
+    for(auto& ptr: layers) _dispose_object(ptr);
+    for(auto& ptr: Vgrad) _dispose_object(ptr);
+    for(auto& ptr: mem) _dispose_object(ptr);
+    _dispose_object(tgt_weights);
+    _dispose_object(weights);
   }
 
-  void updateFrozenWeights();
-
-  void seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const;
-  void seqPredict_output(vector<Real>&_output, Activation* const currActivation) const;
-  void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2, const Uint start, const nnReal* const _weights, const nnReal* const _biases) const;
-  inline void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2, const nnReal* const _weights, const nnReal* const _biases) const
+  inline vector<Real> predict(const vector<Real>& _inp,
+    const vector<Activation*>& timeSeries, const Uint step,
+    const Parameters*const _weights = nullptr) const
   {
-    seqPredict_execute(series_1, series_2, 0, _weights, _biases);
-  }
-  inline void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2, const Uint start) const
-  {
-    seqPredict_execute(series_1, series_2, start, weights, biases);
-  }
-  inline void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2) const
-  {
-    seqPredict_execute(series_1, series_2, weights, biases);
+    assert(timeSeries.size() > step);
+    const Activation*const currStep = timeSeries[step];
+    const Activation*const prevStep = step==0 ? nullptr : timeSeries[step-1];
+    return predict(_inp, prevStep, currStep, _weights);
   }
 
-  void predict(const vector<Real>& _input, vector<Real>& _output,
-      vector<Activation*>& timeSeries, const Uint n_step,
-      const nnReal* const _weights, const nnReal* const _biases) const;
-  inline void predict(const vector<Real>& _input, vector<Real>& _output,
-      vector<Activation*>& timeSeries, const Uint n_step) const
+  inline vector<Real> predict(const vector<Real>& _inp,
+    const Activation* const currStep,
+    const Parameters*const _weights = nullptr) const
   {
-    predict(_input, _output, timeSeries, n_step, weights, biases);
+    return predict(_inp, nullptr, currStep, _weights);
   }
 
-  void predict(const vector<Real>& _input, vector<Real>& _output,
-   const Activation*const prevActivation, Activation*const currActivation,
-   const nnReal* const _weights, const nnReal* const _biases) const;
-  inline void predict(const vector<Real>& _input, vector<Real>& _output,
-   const Activation*const prevActivation, Activation*const currActivation) const
+  vector<Real> predict(const vector<Real>& _inp,
+    const Activation* const prevStep, const Activation* const currStep,
+    const Parameters*const _weights = nullptr) const;
+
+  void backProp(const vector<Activation*>& timeSeries,
+                const Parameters*const _grad,
+                const Parameters*const _weights = nullptr) const
   {
-    predict(_input, _output, prevActivation, currActivation,
-        weights, biases);
+    return backProp(timeSeries, timeSeries.size(), _grad, _weights);
+  }
+  void backProp(const Activation*const currStep, const Parameters*const _grad,
+                const Parameters*const _weights = nullptr) const
+  {
+    return backProp(nullptr, currStep, nullptr, _grad, _weights);
+  }
+  void backProp(const vector<Real>& _errors, const Activation*const currStep,
+    const Parameters*const _grad, const Parameters*const _weights=nullptr) const
+  {
+    currStep->clearErrors();
+    currStep->setOutputDelta(_errors);
+    backProp(nullptr, currStep, nullptr, _grad, _weights);
   }
 
-  void predict(const vector<Real>& _input, vector<Real>& _output,
-      Activation* const net, const nnReal* const _weights,
-      const nnReal* const _biases) const;
-  inline void predict(const vector<Real>& _input, vector<Real>& _output,
-      Activation* const net) const
-  {
-    predict(_input, _output, net, weights, biases);
-  }
+  void backProp(const vector<Activation*>& timeSeries, const Uint stepLastError,
+                const Parameters*const _gradient,
+                const Parameters*const _weights = nullptr) const;
 
-  void backProp(vector<Activation*>& timeSeries,
-      const nnReal* const _weights, const nnReal* const _biases,
-      Grads* const _grads) const;
-  inline void backProp(vector<Activation*>& timeSeries, Grads* const _grads) const
-  {
-    backProp(timeSeries, weights_back, biases, _grads);
-  }
+  void backProp(const Activation*const prevStep,
+                const Activation*const currStep,
+                const Activation*const nextStep,
+                const Parameters*const _gradient,
+                const Parameters*const _weights = nullptr) const;
 
-  inline void backProp(Activation*const p, Activation*const c,
-    const Activation*const n, const nnReal*const _ws,
-    const nnReal*const _bs, Grads*const _gs) const
-  {
-    for (Uint i=1; i<=nLayers; i++)
-      layers[nLayers-i]->backPropagate(p, c, n, _gs, _ws, _bs);
-  }
-  void backProp(vector<Activation*>& timeSeries, const Uint len, const nnReal* const _weights, const nnReal* const _biases, Grads* const _grads) const;
-  inline void backProp(vector<Activation*>& timeSeries, const Uint len, Grads* const _grads) const
-  {
-    backProp(timeSeries, len, weights_back, biases, _grads);
-  }
-
-  void backProp(const vector<Real>& _errors, Activation* const net,
-      const nnReal* const _weights, const nnReal* const _biases,
-      Grads* const _grads) const;
-  inline void backProp(const vector<Real>& _errors, Activation* const net,
-      Grads* const _grads) const
-  {
-    backProp(_errors, net, weights_back, biases, _grads);
-  }
-
-  void checkGrads();
-  inline void regularize(const Real lambda) const
-  {
-    #pragma omp parallel for
-    for (Uint j=0; j<nLayers; j++)
-      layers[j]->regularize(weights_back, biases, lambda);
-  }
-  inline void orthogonalize() const
-  {
-    #pragma omp parallel for
-    for (Uint j=0; j<nLayers; j++)
-      layers[j]->orthogonalize(weights_back, biases);
-  }
-
-  void save(vector<nnReal> & outWeights, vector<nnReal> & outBiases,
-      nnReal* const _weights, nnReal* const _biases) const
-  {
-    for (const auto &l : layers)
-      l->save(outWeights,outBiases, _weights, _biases);
-  }
-  void restart(vector<nnReal> & outWeights, vector<nnReal> & outBiases,
-      nnReal* const _weights, nnReal* const _biases) const
-  {
-    for (const auto &l : layers)
-      l->restart(outWeights,outBiases, _weights, _biases);
-  }
-  //void save(const string fname);
-  void dump(const int agentID);
-  //bool restart(const string fname);
+  //void checkGrads();
+  //void dump(const int agentID);
 };
+
+#if 0
+void seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const;
+void seqPredict_output(vector<Real>&_output, Activation* const currActivation) const;
+void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2, const Uint start, const nnReal* const _weights, const nnReal* const _biases) const;
+inline void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2, const nnReal* const _weights, const nnReal* const _biases) const
+{
+  seqPredict_execute(series_1, series_2, 0, _weights, _biases);
+}
+inline void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2, const Uint start) const
+{
+  seqPredict_execute(series_1, series_2, start, weights, biases);
+}
+inline void seqPredict_execute(const vector<Activation*>& series_1, vector<Activation*>& series_2) const
+{
+  seqPredict_execute(series_1, series_2, weights, biases);
+}
+
+void Network::seqPredict_inputs(const vector<Real>& _input, Activation* const currActivation) const
+{
+  assert(_input.size()==nInputs);
+  for (Uint j=0; j<nInputs; j++) currActivation->outvals[iInp[j]] = _input[j];
+}
+
+//cache friendly prop for time series: time is fast index, layer is slow index
+void Network::seqPredict_execute(
+  const vector<Activation*>& series_1, vector<Activation*>& series_2,
+  const Uint start, const nnReal* const _weights, const nnReal* const _biases) const
+{
+  const Uint T = std::min(series_1.size()+1,series_2.size());
+  for (Uint j=0; j<nLayers; j++)
+  for (Uint t=start; t<T; t++)  {
+    Activation* const currActivation = series_2[t];
+    const Activation* const prevActivation = t ? series_1[t-1] : nullptr;
+    layers[j]->propagate(prevActivation,currActivation,_weights,_biases);
+  }
+}
+
+void Network::seqPredict_output(vector<Real>& _out, Activation* const a) const
+{
+  assert(_out.size()==nOutputs);
+  for (Uint i=0; i<nOutputs; i++) _out[i] = a->outvals[iOut[i]];
+}
+#endif

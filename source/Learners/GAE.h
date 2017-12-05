@@ -10,6 +10,7 @@
 #include "Learner_onPolicy.h"
 #include "../Math/Lognormal_policy.h"
 #include "../Math/Gaussian_policy.h"
+#include "../Network/Builder.h"
 #define PPO_PENALKL
 #define PPO_CLIPPED
 //#define IGNORE_CRITIC
@@ -75,8 +76,8 @@ protected:
 
     F[0]->prepare_one(traj, samp, thrID);
     F[1]->prepare_one(traj, samp, thrID);
-    const vector<Real> pol_cur = F[0]->forward<CUR>(traj, samp, thrID);
-    const vector<Real> val_cur = F[1]->forward<CUR>(traj, samp, thrID);
+    const vector<Real> pol_cur = F[0]->forward(traj, samp, thrID);
+    const vector<Real> val_cur = F[1]->forward(traj, samp, thrID);
 
     if(thrID==1)  profiler->stop_start("CMP");
 
@@ -136,8 +137,8 @@ public:
 
     if(agent.Status != 2) { //non terminal state
       //Compute policy and value on most recent element of the sequence:
-      const vector<Real> pol=F[0]->forward_agent<CUR>(curr_seq, agent, thrID);
-      const vector<Real> val=F[1]->forward_agent<CUR>(curr_seq, agent, thrID);
+      const vector<Real> pol=F[0]->forward_agent(curr_seq, agent, thrID);
+      const vector<Real> val=F[1]->forward_agent(curr_seq, agent, thrID);
 
       curr_seq->state_vals.push_back(val[0]);
       const Policy_t policy = prepare_policy(pol);
@@ -160,8 +161,10 @@ public:
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
   {
-    Uint params_inds = F[0]->net->layers.back()->n1stBias;
-    const Real penalDKL = std::exp(F[0]->net->biases[params_inds]);
+    const Parameters*const W = F[0]->net->weights;
+    const nnReal*const parameters = W->B(W->nLayers - 1);
+    const Real penalDKL = std::exp(parameters[0]);
+
     screenOut<<" penalDKL:"<<penalDKL;
     fileOut<<" "<<penalDKL;
   }
@@ -201,17 +204,11 @@ class GAE_cont : public GAE<Gaussian_policy, vector<Real> >
     #ifdef simpleSigma //add stddev layer
       build_pol.addParamLayer(aInfo.dim, "Linear", -2*std::log(greedyEps));
     #endif
-    build_pol.addParamLayer(1, "Exp", 0); //add klDiv penalty coefficient layer
+    //add klDiv penalty coefficient layer initialized to 1
+    build_pol.addParamLayer(1, "Exp", 1);
 
-    F[0]->build_network(build_pol);
-    F[1]->build_network(build_val);
-
-    //set initial value for klDiv penalty coefficient (was last added layer)
-    const Uint penalparid = F[0]->net->layers.back()->n1stBias;
-    F[0]->net->biases[penalparid] = 0;
-
-    F[0]->build_finalize(build_pol);
-    F[1]->build_finalize(build_val);
+    F[0]->initializeNetwork(build_pol);
+    F[1]->initializeNetwork(build_val);
   }
 };
 
@@ -242,20 +239,47 @@ class GAE_disc : public GAE<Discrete_policy, Uint>
     Builder build_pol = F[0]->buildFromSettings(settings, aInfo.maxLabel);
     Builder build_val = F[1]->buildFromSettings(settings, 1 );
 
-    build_pol.addParamLayer(1, "Exp", 0); //add klDiv penalty coefficient layer
+    build_pol.addParamLayer(1, "Exp", 1); //add klDiv penalty coefficient layer
 
-    F[0]->build_network(build_pol);
-    F[1]->build_network(build_val);
-
-    //set initial value for klDiv penalty coefficient (was last added layer)
-    const Uint penalparid = F[0]->net->layers.back()->n1stBias;
-    F[0]->net->biases[penalparid] = 0;
-
-    F[0]->build_finalize(build_pol);
-    F[1]->build_finalize(build_val);
+    F[0]->initializeNetwork(build_pol);
+    F[1]->initializeNetwork(build_val);
   }
 };
 
+#if 0
+
+// Update network from sampled observation `obs', part of sequence `seq'
+void Train(const Uint seq, const Uint obs, const Uint thrID) const override
+{
+  const Sequence*const traj = data->Set[seq];          // fetch sampled sequence
+  const Real advantage_obs  = traj->action_adv[obs+1];// observed advantage
+  const Real value_obs      = traj->tuples[obs+1]->r; // observed state val
+  const vector<Real> mu     = traj->tuples[obs]->mu;  // policy used for sample
+  const vector<Real> action = traj->tuples[obs]->a;   // sample performed act
+
+  // compute current policy and state-value-estimate for sampled state
+  const vector<Real> out_policy = policyNet->forward(traj, samp, thrID);
+  const vector<Real> out_value  =  valueNet->forward(traj, samp, thrID);
+
+  const Real Vst_est  = out_value[0];           // estimated state value
+  const Policy_t pol = prepare_policy(pol_cur); // current state policy
+  const Action_t act = pol.map_action(action);  // map action to policy space
+
+  // compute importance sample rho = pol( a_t | s_t ) / mu( a_t | s_t )
+  const Real actProbOnPolicy =       pol.evalLogProbability(act);
+  const Real actProbBehavior = Policy_t::evalLogProbability(act, mu);
+  const Real rho = std::exp(actProbOnPolicy-actProbBehavior);
+
+  //compute policy and value gradient
+  const Real gain = rho * advantage_obs;
+  const vector<Real> policy_grad = pol.policy_grad(act, gain);
+  const vector<Real>  value_grad = {value_obs - Vst_est};
+  //backpropagate both networks
+  policyNet->backward(policy_grad, samp, thrID);
+   valueNet->backward( value_grad, samp, thrID);
+}
+
+#endif
 //#ifdef INTEGRATEANDFIREMODEL
 //  inline Lognormal_policy prepare_policy(const vector<Real>& out) const
 //  {

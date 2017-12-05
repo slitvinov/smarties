@@ -9,138 +9,265 @@
 
 #pragma once
 #include <fstream>
-#include "Network.h"
-#include "../Profiler.h"
+#include "Parameters.h"
+#include "saruprng.h"
+#include <iomanip>
+
+
+struct EntropyAdam {
+  const nnReal eta, B1, B2;
+  Saru& gen;
+  EntropyAdam(const nnReal _eta, const nnReal beta1, const nnReal beta2,
+    const nnReal betat1, const nnReal betat2, Saru& _gen) :
+  eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2), gen(_gen) {}
+
+  inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
+    const nnReal DW  = grad * fac;
+    M1 = B1 * M1 + (1-B1) * DW;
+    M2 = B2 * M2 + (1-B2) * DW*DW;
+    M2 = M2<M1*M1? M1*M1 : M2; // gradient clipping to 1
+    const nnReal _M2 = std::sqrt(M2 + nnEPS);
+    //const nnReal ret = eta*M1/_M2;
+    const nnReal ret = eta*(B1*M1 + (1-B1)*DW)/_M2;
+    return ret + 1e-5*gen.d_mean0_var1(); //Adam plus exploratory noise
+    //dest[i] += delay*(target[i]-dest[i]);
+    //dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
+    //_mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
+  }
+};
+
+struct AdaMax {
+  const nnReal eta, B1, B2;
+  AdaMax(const nnReal _eta, const nnReal beta1, const nnReal beta2,
+    const nnReal betat1, const nnReal betat2, Saru& _gen) :
+  eta(_eta), B1(beta1), B2(beta2) {}
+
+  inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
+    const nnReal DW  = grad * fac;
+    M1 = B1 * M1 + (1-B1) * DW;
+    M2 = std::max(B2 * M2, std::fabs(DW));
+    M2 = std::max(M2, nnEPS);
+    //return eta*M1/M2;
+    return eta*(B1*M1 + (1-B1)*DW)/M2;
+  }
+};
+
+struct Adam {
+  const nnReal eta, B1, B2;
+  Adam(const nnReal _eta, const nnReal beta1, const nnReal beta2,
+    const nnReal betat1, const nnReal betat2, Saru& _gen) :
+  eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2) {}
+
+  inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
+    const nnReal DW  = grad * fac;
+    M1 = B1 * M1 + (1-B1) * DW;
+    M2 = B2 * M2 + (1-B2) * DW*DW;
+    M2 = M2<M1*M1? M1*M1 : M2; // gradient clipping to 1
+    const nnReal _M2 = std::sqrt(M2 + nnEPS);
+    //return eta*M1/_M2;
+    return eta*(B1*M1 + (1-B1)*DW)/_M2;
+  }
+};
+
+struct Momentum {
+  const nnReal eta, B1;
+  Momentum(const nnReal _eta, const nnReal beta1, const nnReal beta2,
+    const nnReal betat1, const nnReal betat2, Saru& _gen) :
+  eta(_eta), B1(beta1) {}
+
+  inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
+    const nnReal DW  = grad * fac;
+    M1 = B1 * M1 + eta * DW;
+    return M1;
+  }
+};
+
+struct SGD {
+  const nnReal eta;
+  SGD(const nnReal _eta, const nnReal beta1, const nnReal beta2,
+    const nnReal betat1, const nnReal betat2, Saru& _gen) :
+  eta(_eta) {}
+
+  inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
+    const nnReal DW  = grad * fac;
+    return eta*DW;
+  }
+};
 
 class Optimizer
-{ //basic momentum update
-protected:
-  const Uint nWeights, nBiases, bTrain;
-  Network * const net;
-  Profiler * const profiler;
-  nnReal* const _1stMomW;
-  nnReal* const _1stMomB;
-
-  void update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, const Uint N, const Uint batchsize) const;
-
-public:
-  Real eta, beta_1;
-  const Real lambda, epsAnneal;
-  long unsigned nepoch = 0;
-
-  Optimizer(Network* const _net, Profiler* const _prof, Settings & settings, const Real B1 = 0.5);
-
-  virtual ~Optimizer()
-  {
-    _myfree(_1stMomW);
-    _myfree(_1stMomB);
-  }
-  virtual void update(Grads* const G, const Uint batchsize);
-
-  virtual void stackGrads(Grads* const G, const Grads* const g) const;
-  virtual void stackGrads(Grads* const G, const vector<Grads*> g) const;
-
-  virtual void save(const string fname);
-  virtual bool restart(const string fname);
-  virtual void moveFrozenWeights(const Real _alpha);
-
-  void save_recurrent_connections(const string fname)
-  {
-    const Uint nNeurons(net->getnNeurons());
-    const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
-    string nameBackup = fname + "_mems_tmp";
-    ofstream out(nameBackup.c_str());
-    if (!out.good())
-      _die("Unable to open save into file %s\n", nameBackup.c_str());
-
-    for(Uint agentID=0; agentID<nAgents; agentID++) {
-      for (Uint j=0; j<nNeurons; j++)
-        out << net->mem[agentID]->outvals[j] << "\n";
-      for (Uint j=0; j<nStates;  j++)
-        out << net->mem[agentID]->ostates[j] << "\n";
-    }
-    out.flush();
-    out.close();
-    string command = "cp " + nameBackup + " " + fname + "_mems";
-    system(command.c_str());
-  }
-
-  bool restart_recurrent_connections(const string fname)
-  {
-    const Uint nNeurons(net->getnNeurons());
-    const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
-
-    string nameBackup = fname + "_mems";
-    ifstream in(nameBackup.c_str());
-    debugN("Reading from %s", nameBackup.c_str());
-    if (!in.good()) {
-      error("Couldnt open file %s \n", nameBackup.c_str());
-      return false;
-    }
-
-    nnReal tmp;
-    for(Uint agentID=0; agentID<nAgents; agentID++) {
-      for (Uint j=0; j<nNeurons; j++) {
-        in >> tmp;
-        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-        net->mem[agentID]->outvals[j] = tmp;
-      }
-      for (Uint j=0; j<nStates; j++) {
-        in >> tmp;
-        if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-        net->mem[agentID]->ostates[j] = tmp;
-      }
-    }
-    in.close();
-    return true;
-  }
-};
-
-class AdamOptimizer: public Optimizer
-{ //Adam optimizer
-protected:
-  const Real beta_2, epsilon;
-  Real beta_t_1, beta_t_2;
-  nnReal* const _2ndMomW;
-  nnReal* const _2ndMomB;
-
-  void update(nnOpRet dest, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, const Uint N, const Uint batchsize, const Real _eta) const;
-
-public:
-  AdamOptimizer(Network* const _net,Profiler* const _prof,Settings& settings,
-      const Real B1 = 0.9, const Real B2 = 0.999);
-
-  ~AdamOptimizer()
-  {
-    _myfree(_2ndMomW);
-    _myfree(_2ndMomB);
-  }
-  void update(Grads* const G, const Uint batchsize) override;
-
-  void save(const string fname) override;
-  bool restart(const string fname) override;
-};
-
-class EntropySGD: public AdamOptimizer
 {
-protected:
-  const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD, delay;
-  const Uint L_eSGD;
-  nnReal* const _muW_eSGD;
-  nnReal* const _muB_eSGD;
+ protected:
+  const MPI_Comm mastersComm;
+  const Uint learn_size;
+  const Real eta, beta_1, beta_2;
+  long unsigned nepoch = 0;
+  Real beta_t_1, beta_t_2;
+  const Real lambda, epsAnneal, tgtUpdateAlpha;
+  const Parameters * const weights;
+  const Parameters * const tgt_weights;
+  const Parameters * const gradSum;
+  const Parameters * const _1stMom;
+  const Parameters * const _2ndMom;
+  vector<std::mt19937>& generators;
+  Uint cntUpdateDelay = 0;
+  //const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD, delay;
+  //const Uint L_eSGD;
+  //nnReal *const _muW_eSGD, *const _muB_eSGD;
 
-  void update(nnOpRet dest,const nnOpRet target, nnOpRet grad, nnOpRet _1stMom, nnOpRet _2ndMom, nnOpRet _mu, const Uint N, const Uint batchsize, const Real _eta) const;
+ public:
+  Optimizer(Settings&S, const Parameters*const W, const Parameters*const W_TGT,
+    const Real B1=.9, const Real B2=.999) : mastersComm(S.mastersComm),
+    learn_size(S.learner_size), eta(S.learnrate), beta_1(B1), beta_2(B2),
+    beta_t_1(B1), beta_t_2(B2), lambda(S.nnLambda), epsAnneal(S.epsAnneal),
+    tgtUpdateAlpha(S.targetDelay), weights(W), tgt_weights(W_TGT),
+    gradSum(W->allocateGrad()), _1stMom(W->allocateGrad()),
+    _2ndMom(W->allocateGrad()), generators(S.generators) {  }
+  //alpha_eSGD(0.75), gamma_eSGD(10.), eta_eSGD(.1/_s.targetDelay),
+  //eps_eSGD(1e-3), delay(_s.targetDelay), L_eSGD(_s.targetDelay),
+  //_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
 
-public:
-
-  EntropySGD(Network* const _net,Profiler* const _prof,Settings& settings);
-
-  ~EntropySGD()
-  {
-    _myfree(_muW_eSGD);
-    _myfree(_muB_eSGD);
+  virtual ~Optimizer() {
+   _dispose_object(gradSum); _dispose_object(_1stMom); _dispose_object(_2ndMom);
   }
-  void update(Grads* const G, const Uint batchsize) override;
-  bool restart(const string fname) override;
-  //void moveFrozenWeights(const Real _alpha) override;
+
+
+  inline void update(const int batchsize, const vector<Parameters*>& grads) {
+    update(batchsize, &grads);
+  }
+  void update(const int batchsize, const vector<Parameters*>* grads = nullptr)
+  {
+    using Algorithm = Adam;
+    Uint totGrads = batchsize;
+    if(grads not_eq nullptr) //add up gradients across threads
+      gradSum->reduceThreadsGrad(*grads);
+
+    if (learn_size > 1) { //add up gradients across master ranks
+      gradSum->allReduce(mastersComm);
+      MPI_Allreduce(MPI_IN_PLACE,&totGrads,1, MPI_UNSIGNED,MPI_SUM,mastersComm);
+    }
+
+    //update is deterministic: can be handled independently by each node
+    //communication overhead is probably greater than a parallelised sum
+    assert(totGrads>0);
+    const Real factor = 1./totGrads;
+    nnReal* const paramAry = weights->params;
+
+    #pragma omp parallel
+    {
+      const Uint thrID = static_cast<Uint>(omp_get_thread_num());
+      Saru gen(nepoch, thrID, generators[thrID]());
+      Algorithm algo(eta, beta_1, beta_2, beta_t_1, beta_t_2, gen);
+
+      #pragma omp for
+      for (Uint i=0; i<weights->nParams; i++)
+        paramAry[i] += algo.step(gradSum->params[i], _1stMom->params[i],
+                                 _2ndMom->params[i], factor);
+    }
+
+    gradSum->clear();
+    nepoch++;
+    // Needed by Adam optimization algorithm:
+    beta_t_1 *= beta_1;
+    if (beta_t_1<nnEPS) beta_t_1 = 0;
+    beta_t_2 *= beta_2;
+    if (beta_t_2<nnEPS) beta_t_2 = 0;
+
+    if(lambda>nnEPS) weights->penalization(lambda);
+
+    // update frozen weights:
+    if(tgtUpdateAlpha > 0 && tgt_weights not_eq nullptr) {
+      if (cntUpdateDelay == 0) {
+        cntUpdateDelay = tgtUpdateAlpha;
+
+        if(tgtUpdateAlpha>=1) tgt_weights->copy(weights);
+        else {
+          nnReal* const targetAry = tgt_weights->params;
+          #pragma omp parallel for
+          for(Uint j=0; j<weights->nParams; j++)
+            targetAry[j] += tgtUpdateAlpha*(paramAry[j] - targetAry[j]);
+        }
+      }
+      if(cntUpdateDelay>0) cntUpdateDelay--;
+    }
+  }
+
+  void save(const string fname)
+  {
+    weights->save(fname+"_weights");
+    if(tgt_weights not_eq nullptr) tgt_weights->save(fname+"_tgt_weights");
+    _1stMom->save(fname+"_1stMom");
+    _2ndMom->save(fname+"_2ndMom");
+
+    if(nepoch % 100000 == 0 && nepoch > 0) {
+      ostringstream ss; ss << std::setw(10) << std::setfill('0') << nepoch;
+      weights->save(fname+"_weights"+ss.str());
+      _1stMom->save(fname+"_1stMom" +ss.str());
+      _2ndMom->save(fname+"_2ndMom" +ss.str());
+    }
+  }
+  int restart(const string fname)
+  {
+    int ret = 0;
+    ret = weights->restart(fname+"_weights");
+    if(tgt_weights not_eq nullptr) {
+      int missing_tgt = tgt_weights->restart(fname+"_tgt_weights");
+      if (missing_tgt) tgt_weights->copy(weights);
+    }
+    _1stMom->restart(fname+"_1stMom");
+    _2ndMom->restart(fname+"_2ndMom");
+    return ret;
+  }
 };
+
+#if 0
+void save_recurrent_connections(const string fname)
+{
+  const Uint nNeurons(net->getnNeurons());
+  const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
+  string nameBackup = fname + "_mems_tmp";
+  ofstream out(nameBackup.c_str());
+  if (!out.good())
+    _die("Unable to open save into file %s\n", nameBackup.c_str());
+
+  for(Uint agentID=0; agentID<nAgents; agentID++) {
+    for (Uint j=0; j<nNeurons; j++)
+      out << net->mem[agentID]->outvals[j] << "\n";
+    for (Uint j=0; j<nStates;  j++)
+      out << net->mem[agentID]->ostates[j] << "\n";
+  }
+  out.flush();
+  out.close();
+  string command = "cp " + nameBackup + " " + fname + "_mems";
+  system(command.c_str());
+}
+
+bool restart_recurrent_connections(const string fname)
+{
+  const Uint nNeurons(net->getnNeurons());
+  const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
+
+  string nameBackup = fname + "_mems";
+  ifstream in(nameBackup.c_str());
+  debugN("Reading from %s", nameBackup.c_str());
+  if (!in.good()) {
+    error("Couldnt open file %s \n", nameBackup.c_str());
+    return false;
+  }
+
+  nnReal tmp;
+  for(Uint agentID=0; agentID<nAgents; agentID++) {
+    for (Uint j=0; j<nNeurons; j++) {
+      in >> tmp;
+      if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+      net->mem[agentID]->outvals[j] = tmp;
+    }
+    for (Uint j=0; j<nStates; j++) {
+      in >> tmp;
+      if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
+      net->mem[agentID]->ostates[j] = tmp;
+    }
+  }
+  in.close();
+  return true;
+}
+#endif

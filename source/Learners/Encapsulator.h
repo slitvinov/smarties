@@ -10,16 +10,16 @@
 #pragma once
 
 #include "MemoryBuffer.h"
-#include "../Network/Builder.h"
 #include "../Network/Network.h"
 #include "../Network/Optimizer.h"
 #include <list>
 
+class Builder;
+
 struct Encapsulator
 {
   const string name;
-  const MPI_Comm mastersComm;
-  const Uint nThreads, learn_size, nAppended;
+  const Uint nThreads, nAppended;
   const bool bRecurrent, bSampleSequences;
   vector<vector<Activation*>*> series;
   mutable vector<int> first_sample;
@@ -29,29 +29,18 @@ struct Encapsulator
   Optimizer* opt = nullptr;
   Network* net = nullptr;
 
-  inline Uint nOutputs()
-  {
+  inline Uint nOutputs() {
     if(net==nullptr) return data->sI.dimUsed*(1+nAppended);
     else return net->getnOutputs();
   }
 
   Encapsulator(const string _name, Settings& sett, MemoryBuffer*const data_ptr)
-  : name(_name), mastersComm(sett.mastersComm), nThreads(sett.nThreads),
-  learn_size(sett.learner_size), nAppended(sett.appendedObs),
+  : name(_name), nThreads(sett.nThreads), nAppended(sett.appendedObs),
   bRecurrent(sett.bRecurrent), bSampleSequences(sett.bSampleSequences),
   series(nThreads,nullptr), first_sample(nThreads,-1),
   error_placements(nThreads,-1), data(data_ptr) {}
 
-  void build_network(Builder& build)
-  {
-    net = build.build();
-    opt = build.finalSimple();
-
-    #pragma omp parallel for
-    for (Uint i=0; i<nThreads; i++) // numa aware allocation
-     #pragma omp critical
-      series.push_back(new vector<Activation*>());
-  }
+  void initializeNetwork(Builder& build);
 
   inline void prepare(const Uint len, const Uint samp, const Uint thrID) const
   {
@@ -103,11 +92,10 @@ struct Encapsulator
     const vector<Activation*>& act = *(series[thrID]);
     const int ind = mapTime2Ind(samp, thrID);
     //if already computed just give answer
-    if(act[ind]->written == true) return net->getOutputs(act[ind]);
+    if(act[ind]->written == true) return act[ind]->getOutput();
     const vector<Real> inp = state2Inp(samp, seq);
     assert(inp.size() == net->getnInputs());
-    vector<Real> ret(net->getnOutputs());
-    net->predict(inp, ret, act[ind]);
+    const vector<Real> ret = net->predict(inp, act[ind]);
     act[ind]->written = true;
     return ret;
   }
@@ -121,7 +109,7 @@ struct Encapsulator
     assert(act[ind]->written == true);
     //ind+1 because we use c-style for loops in other places:
     error_placements[thrID] = std::max(ind+1, error_placements[thrID]);
-    net->addOutputDeltas(error, act[ind]);
+    act[ind]->setOutputDelta(error);
   }
 
   void update()
@@ -132,20 +120,8 @@ struct Encapsulator
     #pragma omp parallel for //each thread should still handle its own memory
     for(Uint i=0; i<nThreads; i++) if(error_placements[i] >= 0) gradient(i);
 
-    opt->nepoch++;
-    Uint nTotGrads = nAddedGradients;
+    opt->update(nAddedGradients, net->Vgrad);
     nAddedGradients = 0;
-    opt->stackGrads(net->grad, net->Vgrad); //add up gradients across threads
-    if (learn_size > 1) { //add up gradients across masters
-      MPI_Allreduce(MPI_IN_PLACE, net->grad->_W, net->getnWeights(),
-          MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
-      MPI_Allreduce(MPI_IN_PLACE, net->grad->_B, net->getnBiases(),
-          MPI_NNVALUE_TYPE, MPI_SUM, mastersComm);
-      MPI_Allreduce(MPI_IN_PLACE,&nTotGrads,1,MPI_UNSIGNED,MPI_SUM,mastersComm);
-    }
-    //update is deterministic: can be handled independently by each node
-    //communication overhead is probably greater than a parallelised sum
-    opt->update(net->grad, nTotGrads);
   }
 
   inline void gradient(const Uint thrID) const
@@ -157,21 +133,9 @@ struct Encapsulator
     nAddedGradients++;
 
     vector<Activation*>& act = *(series[thrID]);
-    if (thrID==0) net->backProp(act, error_placements[thrID], net->grad);
-    else net->backProp(act, error_placements[thrID], net->Vgrad[thrID]);
+    const int last_error = error_placements[thrID];
+    net->backProp(act, last_error, net->Vgrad[thrID]);
     error_placements[thrID] = -1; //to stop additional backprops
-  }
-
-  long double compute_weight_norm()
-  {
-    if(net == nullptr) return 0;
-    long double sumWeights = 0;
-    #pragma omp parallel for reduction(+:sumWeights)
-    for (Uint w=0; w<net->getnWeights(); w++)
-      sumWeights += std::fabs(net->weights[w]);
-      //sumWeightsSq += net->weights[w]*net->weights[w];
-      //distTarget += std::fabs(net->weights[w]-net->tgt_weights[w]);
-    return sumWeights;
   }
 
   void save(const string base = string())

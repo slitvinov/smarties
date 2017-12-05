@@ -10,23 +10,36 @@
 
 #include <cstring>
 #define VEC_WIDTH 32
-#define ACTLAMBDA 0//1e-5
 #if 1
   typedef double nnReal;
   #define MPI_NNVALUE_TYPE MPI_DOUBLE
-  //#define EXP_CUT 8 //prevent under/over flow with exponentials
-  #define EXP_CUT 4 //prevent under/over flow with exponentials
+  #define EXP_CUT 8 //prevent under/over flow with exponentials
+  //#define EXP_CUT 4 //prevent under/over flow with exponentials
 #else
   #define MPI_NNVALUE_TYPE MPI_FLOAT
   typedef float nnReal;
   #define EXP_CUT 4 //prevent under/over flow with exponentials
 #endif
 
-typedef nnReal* __restrict__       const nnOpRet;
-typedef const nnReal* __restrict__ const nnOpInp;
-
 static const int simdWidth = VEC_WIDTH/sizeof(nnReal);
 static const nnReal nnEPS = std::numeric_limits<float>::epsilon();
+
+inline nnReal* allocate_ptr(Uint _size)
+{
+  nnReal* ret = nullptr;
+  assert(_size > 0);
+  _size = std::ceil(_size*sizeof(nnReal)/32.) * 32;
+  posix_memalign((void **) &ret, 32, _size);
+  memset(ret, 0, _size);
+  return ret;
+}
+
+inline vector<nnReal*> allocate_vec(vector<Uint> _sizes)
+{
+  vector<nnReal*> ret(_sizes.size(), nullptr);
+  for(Uint i=0; i<_sizes.size(); i++) ret[i] = allocate_ptr(_sizes[i]);
+  return ret;
+}
 
 #ifndef __CHECK_DIFF
   #define LSTM_PRIME_FAC 1 //input/output gates start closed, forget starts open
@@ -40,20 +53,9 @@ inline Uint roundUpSimd(const Uint size)
   return std::ceil(size/(Real)simdWidth)*simdWidth;
 }
 
-static inline nnReal nnSafeExp(const nnReal val)
+inline nnReal nnSafeExp(const nnReal val)
 {
     return std::exp( std::min((nnReal)8., std::max((nnReal)-16.,val) ) );
-}
-
-static inline void Lpenalization(nnReal* const weights, const Uint start, const Uint N, const nnReal lambda)
-{
-  for (Uint i=start; i<start+N; i++)
-  #ifdef NET_L1_PENAL
-    if(std::fabs(weights[i])>lambda)
-      weights[i] += (weights[i]<0 ? lambda : -lambda);
-  #else
-    weights[i] -= weights[i]*lambda;
-  #endif
 }
 
 static inline nnReal readCutStart(vector<nnReal>& buf)

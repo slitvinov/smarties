@@ -12,13 +12,14 @@
 
 #include "NFQ.h"
 #include "../Math/Utils.h"
+#include "../Network/Builder.h"
 
 NFQ::NFQ(Environment*const _env, Settings& settings) :
 Learner_offPolicy(_env, settings)
 {
   F.push_back(new Approximator("Q", settings, input, data));
   Builder build_pol = F[0]->buildFromSettings(settings, env->aI.maxLabel);
-  F[0]->build_finalize(build_pol);
+  F[0]->initializeNetwork(build_pol);
 }
 
 void NFQ::select(const Agent& agent)

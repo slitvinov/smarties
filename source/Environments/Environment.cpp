@@ -8,6 +8,7 @@
  */
 
 #include "Environment.h"
+#include "../Network/Builder.h"
 #ifndef GYM_RENDEROPT
 #define GYM_RENDEROPT 0
 #endif

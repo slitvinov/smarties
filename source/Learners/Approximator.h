@@ -14,21 +14,17 @@
 #include <list>
 
 struct Aggregator;
+class Builder;
 
 enum PARAMS { CUR, TGT }; /* use CUR or TGT weights */
 struct Approximator
 {
   const string name;
-  const MPI_Comm mastersComm;
-  const Uint nThreads, learn_size, nMaxBPTT = MAX_UNROLL_BFORE;
+  const Uint nThreads, nMaxBPTT = MAX_UNROLL_BFORE;
   const bool bRecurrent, bSampleSequences;
-  const Real tgtUpdateAlpha;
   Settings& settings;
-  mutable vector<int> error_placements;
-  mutable vector<int> first_sample;
-
+  mutable vector<int> error_placements, first_sample;
   mutable Uint nAddedGradients=0;
-  Uint cntUpdateDelay = 0;
 
   Encapsulator* const input;
   MemoryBuffer* const data;
@@ -36,7 +32,7 @@ struct Approximator
   Optimizer* opt = nullptr;
   Network* net = nullptr;
   StatsTracker* gradStats = nullptr;
-  vector<Grads*> extra_grads;
+  vector<Parameters*> extra_grads;
   //thread safe memory for prediction with current weights:
   vector<vector<Activation*>*> series;
   //thread safe  memory for prediction with target weights. Rules are that
@@ -45,22 +41,17 @@ struct Approximator
   vector<vector<Activation*>*> series_tgt;
 
   Approximator(const string _name, Settings& sett, Encapsulator*const enc,
-      MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
-  name(_name), mastersComm(sett.mastersComm), nThreads(sett.nThreads),
-  learn_size(sett.learner_size), bRecurrent(sett.bRecurrent),
-  bSampleSequences(sett.bSampleSequences), tgtUpdateAlpha(sett.targetDelay),
-  settings(sett), error_placements(nThreads,-1), first_sample(nThreads,-1),
+    MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
+  name(_name), nThreads(sett.nThreads), bRecurrent(sett.bRecurrent),
+  bSampleSequences(sett.bSampleSequences), settings(sett),
+  error_placements(nThreads, -1), first_sample(nThreads, -1),
   input(enc), data(data_ptr), relay(r), extra_grads(nThreads, nullptr),
   series(nThreads, nullptr), series_tgt(nThreads, nullptr) {}
 
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
-  Builder buildFromSettings(Settings& _s, const Uint n_outputs) {
-    return buildFromSettings(_s, {n_outputs});
-  }
+  Builder buildFromSettings(Settings& _s, const Uint n_outputs);
 
-  void build_network(Builder& build);
-
-  void build_finalize(Builder& build);
+  void initializeNetwork(Builder& build);
 
   void prepare_opc(const Sequence*const traj, const Uint samp,
       const Uint thrID) const;
@@ -127,7 +118,7 @@ struct Approximator
     const Uint thrID)
   {
     const auto& act = USEW==CUR ? *(series[thrID]) : *(series_tgt[thrID]);
-    return net->getOutputs(act[mapTime2Ind(samp, thrID)]);
+    return act[mapTime2Ind(samp, thrID)]->getOutput();
   }
 
   inline void backward(vector<Real> error, const Uint seq, const Uint samp,
