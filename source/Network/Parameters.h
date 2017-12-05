@@ -27,8 +27,8 @@ struct Parameters
     assert(_nWeights.size() == _nBiases.size());
     const Uint nL = _nWeights.size();
     Uint nTotPara = 0;
-    indBiases.resize(nL, 0);
-    indWeights.resize(nL, 0);
+    indBiases = vector<Uint>(nL, 0);
+    indWeights = vector<Uint>(nL, 0);
     for(Uint i=0; i<nL; i++) {
       indWeights[i] = nTotPara;
       nTotPara += std::ceil(_nWeights[i]*sizeof(nnReal)/32.)*32/sizeof(nnReal);
