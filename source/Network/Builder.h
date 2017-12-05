@@ -18,7 +18,7 @@
 
 inline Activation* allocate_activation(const vector<Layer*>& layers) {
   vector<Uint> sizes, output;
-  for(const auto & l : layers) l->requiredParameters(sizes, output);
+  for(const auto & l : layers) l->requiredActivation(sizes, output);
   return new Activation(sizes, output);
 }
 
@@ -30,7 +30,7 @@ inline Parameters* allocate_parameters(const vector<Layer*>& layers) {
 
 inline Memory* allocate_memory(const vector<Layer*>& layers) {
   vector<Uint> sizes, output;
-  for(const auto & l : layers) l->requiredParameters(sizes, output);
+  for(const auto & l : layers) l->requiredActivation(sizes, output);
   return new Memory(sizes, output);
 }
 

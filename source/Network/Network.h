@@ -38,7 +38,7 @@ public:
   //}
   inline Activation* allocateActivation() const {
     vector<Uint> sizes, output;
-    for(const auto & l : layers) l->requiredParameters(sizes, output);
+    for(const auto & l : layers) l->requiredActivation(sizes, output);
     return new Activation(sizes, output);
   }
 

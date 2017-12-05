@@ -12,6 +12,9 @@
 
 struct Parameters
 {
+ private:
+  vector<Uint> indBiases, indWeights;
+  vector<Uint> nBiases, nWeights;
  public:
   const Uint nParams, nLayers;
 
@@ -68,8 +71,9 @@ struct Parameters
     #endif
   }
   Parameters(vector<Uint> _nWeights, vector<Uint> _nBiases) :
+   nBiases(_nBiases), nWeights(_nWeights), 
    nParams(computeNParams(_nWeights, _nBiases)), nLayers(_nWeights.size()),
-   params(allocate_ptr(nParams)), nBiases(_nBiases), nWeights(_nWeights) { }
+   params(allocate_ptr(nParams))  { }
 
   ~Parameters() { if(params not_eq nullptr) free(params); }
 
@@ -142,9 +146,6 @@ struct Parameters
     assert(layerID < nLayers);
     return nBiases[layerID];
   }
- private:
-  vector<Uint> indBiases, indWeights;
-  vector<Uint> nBiases, nWeights;
 };
 
 #if 0
