@@ -175,7 +175,6 @@ void Learner_offPolicy::applyGradient()
     nStep_last = nStep + 1; //actual counter advanced by base class
     assert(taskCounter == batchSize);
   }
-
   Learner::applyGradient();
 }
 

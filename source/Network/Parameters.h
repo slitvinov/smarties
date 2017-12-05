@@ -38,9 +38,9 @@ struct Parameters
       indBiases[i] = nTotPara;
       nTotPara += std::ceil( _nBiases[i]*sizeof(nnReal)/32.)*32/sizeof(nnReal);
     }
-    printf("Weights:%s %s Biases:%s %s Total:%u\n", print(_nWeights).c_str(),
-      print(indWeights).c_str(), print(_nBiases).c_str(),
-      print(indBiases).c_str(), nTotPara);
+    //printf("Weights:%s %s Biases:%s %s Total:%u\n", print(_nWeights).c_str(),
+    //  print(indWeights).c_str(), print(_nBiases).c_str(),
+    //  print(indBiases).c_str(), nTotPara);
     return nTotPara;
   }
   Parameters* allocateGrad() const
@@ -71,7 +71,7 @@ struct Parameters
     #endif
   }
   Parameters(vector<Uint> _nWeights, vector<Uint> _nBiases) :
-   nBiases(_nBiases), nWeights(_nWeights), 
+   nBiases(_nBiases), nWeights(_nWeights),
    nParams(computeNParams(_nWeights, _nBiases)), nLayers(_nWeights.size()),
    params(allocate_ptr(nParams))  { }
 

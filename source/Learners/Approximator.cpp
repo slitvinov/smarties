@@ -267,10 +267,10 @@ void Approximator::backward(vector<Real> error, const Uint samp,
 
 void Approximator::update()
 {
-  if(!nAddedGradients) die("Error in nAddedGradients\n");
-
   #pragma omp parallel for //each thread should still handle its own memory
   for(Uint i=0; i<nThreads; i++) if(error_placements[i] >= 0) gradient(i);
+
+  if(!nAddedGradients) return; //die("Error in nAddedGradients\n");
 
   opt->update(nAddedGradients, net->Vgrad);
   nAddedGradients = 0;
