@@ -349,8 +349,8 @@ void Communicator::setupClient()
       perror("Sockopt failed\n");
       exit(1);
     }
-    printf("Created socket\n");
-    fflush(0);
+    //printf("Created socket\n");
+    //fflush(0);
     /* Specify the server */
     bzero((char *)&serverAddress, sizeof(serverAddress));
     serverAddress.sun_family = AF_UNIX;
@@ -362,8 +362,8 @@ void Communicator::setupClient()
     while (connect(Socket, (struct sockaddr *)&serverAddress, servlen) < 0)
       usleep(1);
 
-    printf("Connected to server\n");
-    fflush(0);
+    //printf("Connected to server\n");
+    //fflush(0);
   }
 }
 

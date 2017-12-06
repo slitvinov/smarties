@@ -95,12 +95,11 @@ ifeq "$(config)" "fit"
 CPPFLAGS += -DNDEBUG -O3 -ffast-math
 endif
 
-CPPFLAGS+= -fstrict-aliasing -mavx2 -march=native -mtune=native
-#CPPFLAGS+= -ftree-vectorize -ftree-vectorizer-verbose=2 #-DNDEBUG
+CPPFLAGS+= -fstrict-aliasing -march=native -mtune=native
+CPPFLAGS+= -ftree-vectorize #-ftree-vectorizer-verbose=2 #-DNDEBUG
 CPPFLAGS+= -fmerge-all-constants #-fassociative-math
 #CPPFLAGS+= -funsafe-loop-optimizations
-CPPFLAGS+= -fprofile-use
-#CPPFLAGS+= -funsafe-math-optimizations
+#CPPFLAGS+= -fprofile-use
 CPPFLAGS+= -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
 
 #ifeq "$(CC)" "icc"
@@ -148,7 +147,7 @@ LSTM: anntest.o ArgumentParser.o Profiler.o Links.o Layers.o Network.o Optimizer
 	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -MD -c $<
+	$(CC) $(extra)  $(CPPFLAGS) -c $< #-MD  
 
 vpath %.cpp $(DIRS)
 vpath %.h   $(DIRS)

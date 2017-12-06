@@ -97,7 +97,7 @@ class BaseLayer: public Layer
             nnReal* const grad_w = grad->W(ID);
 
       for(Uint i=0; i<nInputs;  i++)
-        for(Uint o=0; o<nNeurons; o++)
+        for(Uint o=0; o<nNeurons; o++) 
           grad_w[o +nNeurons*i] += inputs[i] * deltas[o];
 
       for(Uint o=0; o<nNeurons; o++)

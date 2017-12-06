@@ -12,7 +12,7 @@
 
 class LSTMLayer: public Layer
 {
-  const Uint nInputs, nNeurons, link;
+  const Uint nInputs, nCells, link;
   const Function* const cell;
 
  public:
@@ -20,25 +20,43 @@ class LSTMLayer: public Layer
                           vector<Uint>& nBiases ) const override
   {
     //cell, input, forget, output gates all linked to inp and prev LSTM output
-    nWeight.push_back(4*nNeurons * (nInputs + nNeurons) );
-    nBiases.push_back(4*nNeurons);
+    nWeight.push_back(4*nCells * (nInputs + nCells) );
+    nBiases.push_back(4*nCells);
   }
+  /*
+  organization of Activation work memory:
+  `suminps` field  spans 4 blocks each of size nCells. Each contains the result
+    from a mat-vec multiplication: for the cell's input neuron and for each gate
+    Gates during forward overwrite their suminps with the output of the sigmoid
+        nCells               nCells             nCells             nCells
+    |================| |================| |================| |================|
+    cell' Input neuron     input Gate        forget Gate         output Gate
+
+  `outvals` field is more complex, first nCells fields will be read by upper
+   layer and by recurrent connection at next time step, therefore contain cell output. Then we store cell state, input neuron's output, and dErr/dState
+    |================| |================| |================| |================|
+     LSTM layer output    cell states      input neuron's Y   state error signal
+
+   `errvals`: simple again to do backprop with `gemv'
+    |================| |================| |================| |================|
+     dE/dInput Neuron    dE/dInput Gate     dE/dForget Gate    dE/dOutput Gate
+  */
   void requiredActivation(vector<Uint>& sizes,
                           vector<Uint>& bOutputs) const override
   {
-    sizes.push_back(4*nNeurons);
+    sizes.push_back(4*nCells);
     bOutputs.push_back(bOutput);
   }
   virtual void biasInitialValues(const vector<nnReal> init) {}
 
   ~LSTMLayer() { _dispose_object(cell); }
 
-  LSTMLayer(Uint _ID, Uint _nInputs, Uint _nNeurons, string funcType,
-    bool bOut, Uint iLink) :  Layer(_ID, _nNeurons, bOut), nInputs(_nInputs),
-    nNeurons(_nNeurons), link(iLink), cell(makeFunction(funcType))
+  LSTMLayer(Uint _ID, Uint _nInputs, Uint _nCells, string funcType,
+    bool bOut, Uint iLink) :  Layer(_ID, _nCells, bOut), nInputs(_nInputs),
+    nCells(_nCells), link(iLink), cell(makeFunction(funcType))
   {
     printf("(%u) %s %sLSTM Layer of size:%u linked to Layer:%u of size:%u.\n",
-    ID, funcType.c_str(), bOutput? "output ":"", nNeurons, ID-link, nInputs);
+    ID, funcType.c_str(), bOutput? "output ":"", nCells, ID-link, nInputs);
     fflush(0);
   }
 
@@ -49,43 +67,43 @@ class LSTMLayer: public Layer
     // suminp contains input to all cell inputs and gates
     // only one matrix-vector multiplication
     nnReal* const suminp = curr->X(ID);
-    memcpy(suminp, para->B(ID), 4*nNeurons*sizeof(nnReal));
+    memcpy(suminp, para->B(ID), 4*nCells*sizeof(nnReal));
     {
       const nnReal* const inputs = curr->Y(ID-link);
       const nnReal* const weight = para->W(ID);
       for (Uint i = 0; i < nInputs; i++)
-        for (Uint o = 0; o < 4*nNeurons; o++)
-          suminp[o] += inputs[i] * weight[o + (4*nNeurons) * i];
+        for (Uint o = 0; o < 4*nCells; o++)
+          suminp[o] += inputs[i] * weight[o + (4*nCells) * i];
     }
 
     if(prev not_eq nullptr)
     {
       const nnReal* const inputs = prev->Y(ID);
-      const nnReal* const weight = para->W(ID) +(4*nNeurons)*nInputs;
+      const nnReal* const weight = para->W(ID) +(4*nCells)*nInputs;
       //first input loop, here input only prev step LSTM's output
-      for (Uint i = 0; i < nNeurons; i++)
-        for (Uint o = 0; o < 4*nNeurons; o++)
-          suminp[o] += inputs[i] * weight[o + (4*nNeurons) * i];
+      for (Uint i = 0; i < nCells; i++)
+        for (Uint o = 0; o < 4*nCells; o++)
+          suminp[o] += inputs[i] * weight[o + (4*nCells) * i];
     }
     {
       //now we computed prenonlinearity gates and cells first apply nonlinearity
       // cell output is written onto output work memory shifted by 2*nN
-      cell->eval(suminp, curr->Y(ID)+ 2*nNeurons, nNeurons);
+      cell->eval(suminp, curr->Y(ID)+ 2*nCells, nCells);
       // Input, forget, output gates output overwrite their input
-      Sigm::_eval(suminp +1*nNeurons, suminp +1*nNeurons, nNeurons);
-      Sigm::_eval(suminp +2*nNeurons, suminp +2*nNeurons, nNeurons);
-      Sigm::_eval(suminp +3*nNeurons, suminp +3*nNeurons, nNeurons);
+      Sigm::_eval(suminp +1*nCells, suminp +1*nCells, nCells);
+      Sigm::_eval(suminp +2*nCells, suminp +2*nCells, nCells);
+      Sigm::_eval(suminp +3*nCells, suminp +3*nCells, nCells);
 
       // state is placed onto output work mem, shifted by nN
-      const nnReal*const prevSt = prev==nullptr? nullptr : prev->Y(ID)+nNeurons;
-            nnReal*const output = curr->Y(ID)+ 0*nNeurons;
-            nnReal*const currSt = curr->Y(ID)+ 1*nNeurons;
-      const nnReal*const cellOp = curr->Y(ID)+ 2*nNeurons;
-      const nnReal*const inputG = curr->X(ID)+ 1*nNeurons;
-      const nnReal*const forgtG = curr->X(ID)+ 2*nNeurons;
-      const nnReal*const outptG = curr->X(ID)+ 3*nNeurons;
+      const nnReal*const prevSt = prev==nullptr? nullptr : prev->Y(ID)+nCells;
+            nnReal*const output = curr->Y(ID)+ 0*nCells;
+            nnReal*const currSt = curr->Y(ID)+ 1*nCells;
+      const nnReal*const cellOp = curr->Y(ID)+ 2*nCells;
+      const nnReal*const inputG = curr->X(ID)+ 1*nCells;
+      const nnReal*const forgtG = curr->X(ID)+ 2*nCells;
+      const nnReal*const outptG = curr->X(ID)+ 3*nCells;
 
-      for (Uint o=0; o<nNeurons; o++) {
+      for (Uint o=0; o<nCells; o++) {
        const nnReal oldStatePass = prev==nullptr? 0 : prevSt[o] * forgtG[o];
        currSt[o] = cellOp[o] * inputG[o] + oldStatePass;
        output[o] = outptG[o] * currSt[o];
@@ -99,7 +117,7 @@ class LSTMLayer: public Layer
                   const Parameters*const grad,
                   const Parameters*const para) const override
   {
-    const Uint nC = nNeurons; //lighten notation, number of cells
+    const Uint nC = nCells; //lighten notation, number of cells
     const nnReal*const cellIn = curr->X(ID); //cell input before func
           nnReal*const deltas = curr->E(ID); //error signal from above/future
     const nnReal*const currState  = curr->Y(ID) + 1*nC;
@@ -129,7 +147,7 @@ class LSTMLayer: public Layer
     }
     { // now that all is loaded in place, we can treat it like normal RNN layer
       nnReal* const grad_b = grad->B(ID);
-      for(Uint o=0; o<4*nNeurons; o++) grad_b[o] += deltas[o];
+      for(Uint o=0; o<4*nCells; o++) grad_b[o] += deltas[o];
     }
     {
       const nnReal* const inputs = curr->Y(ID-link);
@@ -138,27 +156,27 @@ class LSTMLayer: public Layer
             nnReal* const grad_w = grad->W(ID);
 
       for(Uint i=0; i<nInputs;  i++)
-        for(Uint o=0; o<4*nNeurons; o++)
-          grad_w[o +(4*nNeurons)*i] += inputs[i] * deltas[o];
+        for(Uint o=0; o<4*nCells; o++)
+          grad_w[o +(4*nCells)*i] += inputs[i] * deltas[o];
 
-      for(Uint o=0; o<4*nNeurons; o++)
+      for(Uint o=0; o<4*nCells; o++)
         for(Uint i=0; i<nInputs;  i++)
-          errors[i] += weight[o +(4*nNeurons)*i] * deltas[o];
+          errors[i] += weight[o +(4*nCells)*i] * deltas[o];
     }
     if(prev not_eq nullptr)
     {
       const nnReal* const inputs = prev->Y(ID);
             nnReal* const errors = prev->E(ID);
-      const nnReal* const weight = para->W(ID) +(4*nNeurons)*nInputs;
-            nnReal* const grad_w = grad->W(ID) +(4*nNeurons)*nInputs;
+      const nnReal* const weight = para->W(ID) +(4*nCells)*nInputs;
+            nnReal* const grad_w = grad->W(ID) +(4*nCells)*nInputs;
 
       for(Uint i=0; i<nInputs;  i++)
-        for(Uint o=0; o<4*nNeurons; o++)
-          grad_w[o +(4*nNeurons)*i] += inputs[i] * deltas[o];
+        for(Uint o=0; o<4*nCells; o++)
+          grad_w[o +(4*nCells)*i] += inputs[i] * deltas[o];
 
-      for(Uint o=0; o<4*nNeurons; o++)
+      for(Uint o=0; o<4*nCells; o++)
         for(Uint i=0; i<nInputs;  i++)
-          errors[i] += weight[o +(4*nNeurons)*i] * deltas[o];
+          errors[i] += weight[o +(4*nCells)*i] * deltas[o];
     }
   }
 
@@ -166,18 +184,18 @@ class LSTMLayer: public Layer
     Real initializationFac) const override
   {
     const nnReal fac = (initializationFac>0) ? initializationFac : 1;
-    const nnReal init = fac * cell->initFactor(nInputs, nNeurons);
+    const nnReal init = fac * cell->initFactor(nInputs, nCells);
     uniform_real_distribution<nnReal> dis(-init, init);
     { // forget gate starts open, inp/out gates are closed
      nnReal* const BB = para->B(ID);
-     for(Uint o=0*nNeurons; o<1*nNeurons; o++) BB[o]=dis(*gen);
-     for(Uint o=1*nNeurons; o<2*nNeurons; o++) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
-     for(Uint o=2*nNeurons; o<3*nNeurons; o++) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
-     for(Uint o=3*nNeurons; o<4*nNeurons; o++) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
+     for(Uint o=0*nCells; o<1*nCells; o++) BB[o]=dis(*gen);
+     for(Uint o=1*nCells; o<2*nCells; o++) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
+     for(Uint o=2*nCells; o<3*nCells; o++) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
+     for(Uint o=3*nCells; o<4*nCells; o++) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
     }
     {
      nnReal* const weight = para->W(ID);
-     for(Uint w=0; w<4*nNeurons*(nInputs+nNeurons); w++) weight[w] = dis(*gen);
+     for(Uint w=0; w<4*nCells*(nInputs+nCells); w++) weight[w] = dis(*gen);
     }
   }
 };
