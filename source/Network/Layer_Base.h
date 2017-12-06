@@ -12,11 +12,11 @@
 
 class BaseLayer: public Layer
 {
- public:
   const Uint nInputs, nNeurons, bRecurrent, link, nInp_simd, nOut_simd;
   const Function* const func;
   vector<nnReal> initVals;
 
+ public:
   void requiredParameters(vector<Uint>& nWeight,
                           vector<Uint>& nBiases ) const override {
     nWeight.push_back(nNeurons * (bRecurrent? nInputs + nNeurons : nInputs));

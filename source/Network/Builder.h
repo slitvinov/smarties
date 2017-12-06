@@ -13,7 +13,7 @@
 #include "Layer_Base.h"
 #include "Layer_Conv2D.h"
 //#include "Layer_IntFire.h"
-//#include "Layer_LSTM.h
+#include "Layer_LSTM.h"
 #include <fstream>
 
 class Builder
@@ -55,7 +55,7 @@ public:
 
     Layer* l = nullptr;
            if (layerType == "LSTM") {
-      //l = new LSTMLayer<func>(nInputs, nNeurons, layers.size());
+      l = new LSTMLayer(ID, layInp, nNeurons, funcType, bOutput, iLink);
     } else if (layerType == "IntegrateFire") {
       //l = new IntegrateFireLayer(nInputs, nNeurons, layers.size());
     } else {

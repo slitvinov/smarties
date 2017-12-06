@@ -56,7 +56,7 @@ class Layer
   inline void backward( const Activation*const curr,
                         const Parameters*const grad,
                         const Parameters*const para) const {
-    return backward(nullptr, curr, nullptr, para, grad);
+    return backward(nullptr, curr, nullptr, grad, para);
   }
 
   // Initialize the weights and biases. Probably by sampling.
@@ -89,8 +89,8 @@ class InputLayer: public Layer
   void backward(  const Activation*const prev,
                   const Activation*const curr,
                   const Activation*const next,
-                  const Parameters*const para,
-                  const Parameters*const grad) const override { }
+                  const Parameters*const grad,
+                  const Parameters*const para) const override { }
 
   void initialize(mt19937* const gen, const Parameters*const para,
     Real initializationFac) const override { }
