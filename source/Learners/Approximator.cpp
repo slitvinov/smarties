@@ -118,11 +118,10 @@ void Approximator::initializeNetwork(Builder& build)
   for (Uint i=0; i<nThreads; i++) // numa aware allocation
    #pragma omp critical
    {
-     series[i] = new vector<Activation*>();
-     series[i]->reserve(settings.maxSeqLen);
-     series_tgt[i] = new vector<Activation*>();
-     series_tgt[i]->reserve(settings.maxSeqLen);
-     extra_grads[i] = net->allocateParameters();
+     series[i].reserve(settings.maxSeqLen);
+     series_tgt[i].reserve(settings.maxSeqLen);
+     if(relay not_eq nullptr)
+      extra_grads[i] = net->allocateParameters();
    }
   gradStats = new StatsTracker(net->getnOutputs(), name+"_grads", settings);
 }
@@ -139,8 +138,8 @@ void Approximator::prepare_opc(const Sequence*const traj, const Uint samp,
   const Uint nTotal = nRecurr + nSValues;
   input->prepare(nTotal, samp - nRecurr, thrID);
 
-  net->prepForBackProp(*series[thrID], nTotal);
-  net->prepForFwdProp(*series_tgt[thrID], nTotal);
+  net->prepForBackProp(series[thrID], nTotal);
+  net->prepForFwdProp(series_tgt[thrID], nTotal);
 
   error_placements[thrID] = -1;
   first_sample[thrID] = samp - nRecurr;
@@ -152,8 +151,8 @@ void Approximator::prepare_seq(const Sequence*const traj, const Uint thrID) cons
 
   const Uint nSValues =  traj->tuples.size() - traj->ended;
   input->prepare(nSValues, 0, thrID);
-  net->prepForBackProp(*series[thrID], nSValues);
-  net->prepForFwdProp(*series_tgt[thrID], nSValues);
+  net->prepForBackProp(series[thrID], nSValues);
+  net->prepForFwdProp(series_tgt[thrID], nSValues);
 
   error_placements[thrID] = -1;
   first_sample[thrID] = 0;
@@ -172,8 +171,8 @@ void Approximator::prepare_one(const Sequence*const traj, const Uint samp,
   const Uint nTotal = nRecurr + nSValues;
 
   input->prepare(nTotal, samp - nRecurr, thrID);
-  net->prepForBackProp(*series[thrID], nTotal);
-  net->prepForFwdProp(*series_tgt[thrID], nTotal);
+  net->prepForBackProp(series[thrID], nTotal);
+  net->prepForFwdProp(series_tgt[thrID], nTotal);
 
   error_placements[thrID] = -1;
   first_sample[thrID] = samp - nRecurr;
@@ -183,8 +182,8 @@ vector<Real> Approximator::forward(const Sequence* const traj, const Uint samp,
   const Uint thrID, const PARAMS USE_WEIGHTS, const PARAMS USE_ACT,
   const int overwrite) const
 {
-  const auto& act = (USE_ACT==CUR)? *(series[thrID]) : *(series_tgt[thrID]);
-  const vector<Activation*>&act_cur = *(series[thrID]);
+  const vector<Activation*>& act=USE_ACT==CUR? series[thrID] :series_tgt[thrID];
+  const vector<Activation*>& act_cur = series[thrID];
   const int ind = mapTime2Ind(samp, thrID);
 
   //if already computed just give answer
@@ -202,7 +201,8 @@ vector<Real> Approximator::forward(const Sequence* const traj, const Uint samp,
 vector<Real> Approximator::relay_backprop(const vector<Real> error,
   const Uint samp, const Uint thrID, const PARAMS USEW) const
 {
-  const auto& act_tgt = *(series_tgt[thrID]);
+  if(relay == nullptr) die("Called relay_backprop without a relay.");
+  const vector<Activation*>& act_tgt = series_tgt[thrID];
   const int ind = mapTime2Ind(samp, thrID), nInp = input->nOutputs();
   assert(act_tgt[ind]->written == true && relay not_eq nullptr);
   act_tgt[ind]->clearErrors();
@@ -221,9 +221,9 @@ vector<Real> Approximator::forward_agent(const Sequence* const traj,
 
   const Uint stepid = traj->ndata();
   input->prepare(1, stepid, thrID);
-  net->prepForFwdProp(*series[thrID], 2);
+  net->prepForFwdProp(series[thrID], 2);
 
-  const vector<Activation*>& act = *(series[thrID]);
+  const vector<Activation*>& act = series[thrID];
   const vector<Real> inp = getInput(traj, stepid, thrID);
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
   const Activation* const prevStep = agent.Status==1? nullptr : act[0];
@@ -241,7 +241,7 @@ vector<Real> Approximator::getOutput(const vector<Real> inp, const int ind,
   Activation*const act, const Uint thrID, const PARAMS USEW) const
 {
   //hardcoded to use time series predicted with cur weights for recurrencies:
-  const auto& act_cur = *(series[thrID]);
+  const vector<Activation*>& act_cur = series[thrID];
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
   const vector<Real> ret = net->predict(inp,(ind?act_cur[ind-1]:nullptr),act,W);
   act->written = true;
@@ -266,7 +266,7 @@ void Approximator::backward(vector<Real> error, const Uint samp,
   gradStats->track_vector(error, thrID);
   gradStats->clip_vector(error);
   const int ind = mapTime2Ind(samp, thrID);
-  const vector<Activation*>& act = *(series[thrID]);
+  const vector<Activation*>& act = series[thrID];
   assert(act[ind]->written == true);
   //ind+1 because we use c-style for loops in other places:
   error_placements[thrID] = std::max(ind+1, error_placements[thrID]);
@@ -291,7 +291,7 @@ void Approximator::gradient(const Uint thrID) const
   #pragma omp atomic
   nAddedGradients++;
 
-  vector<Activation*>& act = *(series[thrID]);
+  const vector<Activation*>& act = series[thrID];
   const int last_error = error_placements[thrID];
 
   for (int i=0; i<last_error; i++) assert(act[i]->written == true);

@@ -21,7 +21,7 @@ struct Approximator
 {
   const string name;
   const Uint nThreads, nMaxBPTT = MAX_UNROLL_BFORE;
-  const bool bRecurrent, bSampleSequences;
+  const bool bRecurrent;
   Settings& settings;
   mutable vector<int> error_placements, first_sample;
   mutable Uint nAddedGradients=0;
@@ -34,19 +34,18 @@ struct Approximator
   StatsTracker* gradStats = nullptr;
   vector<Parameters*> extra_grads;
   //thread safe memory for prediction with current weights:
-  vector<vector<Activation*>*> series;
+  mutable vector<vector<Activation*>> series;
   //thread safe  memory for prediction with target weights. Rules are that
   // index along the two alloc vectors is the same for the same sample, and
   // that tgt net (if available) takes recurrent activation from current net:
-  vector<vector<Activation*>*> series_tgt;
+  mutable vector<vector<Activation*>> series_tgt;
 
   Approximator(const string _name, Settings& sett, Encapsulator*const enc,
     MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
   name(_name), nThreads(sett.nThreads), bRecurrent(sett.bRecurrent),
-  bSampleSequences(sett.bSampleSequences), settings(sett),
-  error_placements(nThreads, -1), first_sample(nThreads, -1),
+  settings(sett), error_placements(nThreads, -1), first_sample(nThreads, -1),
   input(enc), data(data_ptr), relay(r), extra_grads(nThreads, nullptr),
-  series(nThreads, nullptr), series_tgt(nThreads, nullptr) {}
+  series(nThreads), series_tgt(nThreads) {}
 
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
   Builder buildFromSettings(Settings& _s, const Uint n_outputs);
@@ -117,7 +116,7 @@ struct Approximator
   inline vector<Real> get(const Sequence*const traj, const Uint samp,
     const Uint thrID)
   {
-    const auto& act = USEW==CUR ? *(series[thrID]) : *(series_tgt[thrID]);
+    const vector<Activation*>&act =USEW==CUR? series[thrID] : series_tgt[thrID];
     return act[mapTime2Ind(samp, thrID)]->getOutput();
   }
 

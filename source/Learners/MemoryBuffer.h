@@ -61,8 +61,8 @@ public:
   {
     vector<Real> ret(sI.dimUsed*(1+nAppended));
     assert(state.size() == sI.dimUsed*(1+nAppended));
-    for (Uint i=0; i<sI.dimUsed; i++)
-      for (Uint j=0; j<1+nAppended; j++)
+    for (Uint j=0; j<1+nAppended; j++)
+      for (Uint i=0; i<sI.dimUsed; i++)
         ret[j +i*(nAppended+1)] =(state[j +i*(nAppended+1)]-mean[i])*invstd[i];
     return ret;
   }

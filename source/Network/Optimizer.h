@@ -101,7 +101,7 @@ class Optimizer
   const Uint learn_size;
   const Real eta, beta_1, beta_2;
   long unsigned nepoch = 0;
-  Real beta_t_1, beta_t_2;
+  Real beta_t_1 = beta_1, beta_t_2 = beta_2;
   const Real lambda, epsAnneal, tgtUpdateAlpha;
   const Parameters * const weights;
   const Parameters * const tgt_weights;
@@ -118,10 +118,10 @@ class Optimizer
   Optimizer(Settings&S, const Parameters*const W, const Parameters*const W_TGT,
     const Real B1=.9, const Real B2=.999) : mastersComm(S.mastersComm),
     learn_size(S.learner_size), eta(S.learnrate), beta_1(B1), beta_2(B2),
-    beta_t_1(B1), beta_t_2(B2), lambda(S.nnLambda), epsAnneal(S.epsAnneal),
-    tgtUpdateAlpha(S.targetDelay), weights(W), tgt_weights(W_TGT),
-    gradSum(W->allocateGrad()), _1stMom(W->allocateGrad()),
-    _2ndMom(W->allocateGrad()), generators(S.generators) {  }
+    lambda(S.nnLambda), epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay),
+    weights(W), tgt_weights(W_TGT), gradSum(W->allocateGrad()),
+    _1stMom(W->allocateGrad()), _2ndMom(W->allocateGrad()),
+    generators(S.generators) {  }
   //alpha_eSGD(0.75), gamma_eSGD(10.), eta_eSGD(.1/_s.targetDelay),
   //eps_eSGD(1e-3), delay(_s.targetDelay), L_eSGD(_s.targetDelay),
   //_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
@@ -192,6 +192,7 @@ class Optimizer
 
   void save(const string fname)
   {
+    /*
     weights->save(fname+"_weights");
     if(tgt_weights not_eq nullptr) tgt_weights->save(fname+"_tgt_weights");
     _1stMom->save(fname+"_1stMom");
@@ -203,10 +204,12 @@ class Optimizer
       _1stMom->save(fname+"_1stMom" +ss.str());
       _2ndMom->save(fname+"_2ndMom" +ss.str());
     }
+    */
   }
   int restart(const string fname)
   {
     int ret = 0;
+    /*
     ret = weights->restart(fname+"_weights");
     if(tgt_weights not_eq nullptr) {
       int missing_tgt = tgt_weights->restart(fname+"_tgt_weights");
@@ -214,6 +217,7 @@ class Optimizer
     }
     _1stMom->restart(fname+"_1stMom");
     _2ndMom->restart(fname+"_2ndMom");
+    */
     return ret;
   }
 };

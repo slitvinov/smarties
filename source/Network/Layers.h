@@ -50,12 +50,12 @@ class Layer
   virtual void backward( const Activation*const prev,
                          const Activation*const curr,
                          const Activation*const next,
-                         const Parameters*const para,
-                         const Parameters*const grad) const = 0;
+                         const Parameters*const grad,
+                         const Parameters*const para) const = 0;
   // forward step without recurrent connection:
   inline void backward( const Activation*const curr,
-                        const Parameters*const para,
-                        const Parameters*const grad) const {
+                        const Parameters*const grad,
+                        const Parameters*const para) const {
     return backward(nullptr, curr, nullptr, para, grad);
   }
 
@@ -137,8 +137,8 @@ class ParamLayer: public Layer
   void backward(  const Activation*const prev,
                   const Activation*const curr,
                   const Activation*const next,
-                  const Parameters*const para,
-                  const Parameters*const grad) const override
+                  const Parameters*const grad,
+                  const Parameters*const para) const override
   {
           nnReal* const deltas = curr->E(ID);
           nnReal* const grad_b = grad->B(ID);

@@ -118,8 +118,8 @@ class ConvLayer : public Layer
   void backward(  const Activation*const prev,
                   const Activation*const curr,
                   const Activation*const next,
-                  const Parameters*const para,
-                  const Parameters*const grad) const override {
+                  const Parameters*const grad,
+                  const Parameters*const para) const override {
     { // premultiply with derivative of non-linearity
             nnReal* const deltas = curr->E(ID);
             nnReal* const grad_b = grad->B(ID);

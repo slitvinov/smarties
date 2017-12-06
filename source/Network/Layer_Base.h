@@ -78,8 +78,8 @@ class BaseLayer: public Layer
   void backward(  const Activation*const prev,
                   const Activation*const curr,
                   const Activation*const next,
-                  const Parameters*const para,
-                  const Parameters*const grad) const override
+                  const Parameters*const grad,
+                  const Parameters*const para) const override
   {
     nnReal* const deltas = curr->E(ID);
     {
