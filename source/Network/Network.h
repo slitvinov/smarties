@@ -26,10 +26,10 @@ public:
   vector<std::mt19937>& generators;
   vector<Uint> dump_ID;
 
-  Uint getnOutputs() const {return nOutputs;}
-  Uint getnInputs() const {return nInputs;}
-  Uint getnLayers() const {return nLayers;}
-  Uint getnAgents() const {return nAgents;}
+  Uint getnOutputs() const { return nOutputs; }
+  Uint getnInputs()  const { return nInputs;  }
+  Uint getnLayers()  const { return nLayers;  }
+  Uint getnAgents()  const { return nAgents;  }
 
   //inline vector<Activation*> allocateUnrolledActivations(const Uint num) const {
   //  vector<Activation*> ret(num, nullptr);
@@ -48,19 +48,13 @@ public:
     return new Parameters(nWeight, nBiases);
   }
 
-  inline void prepForBackProp(vector<Activation*>*series,const Uint num)const {
-    return prepForBackProp(*series, num);
-  }
-  inline void prepForBackProp(vector<Activation*>&series,const Uint num)const {
-    prepForFwdProp(series, num);
+  inline void prepForBackProp(vector<Activation*>& series, const Uint N) const {
+    prepForFwdProp(series, N);
     for(Uint j=0; j<series.size(); j++) series[j]->clearErrors();
   }
-  inline void prepForFwdProp (vector<Activation*>*series,const Uint num)const {
-    return prepForFwdProp(*series, num);
-  }
-  inline void prepForFwdProp (vector<Activation*>&series,const Uint num)const {
-    if (series.size() < num)
-      for(Uint j=series.size(); j<num; j++)
+  inline void prepForFwdProp (vector<Activation*>& series, const Uint N) const {
+    if (series.size() < N)
+      for(Uint j=series.size(); j<N; j++)
         series.push_back(allocateActivation());
 
     for(Uint j=0; j<series.size(); j++) series[j]->written = false;
@@ -90,7 +84,7 @@ public:
     const Activation* const currStep,
     const Parameters*const _weights = nullptr) const
   {
-    return predict(_inp, nullptr, currStep, _weights);
+    return predict(_inp,  nullptr, currStep, _weights);
   }
 
   vector<Real> predict(const vector<Real>& _inp,

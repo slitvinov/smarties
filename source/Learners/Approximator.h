@@ -96,7 +96,7 @@ struct Approximator
   vector<Real> getOutput(const vector<Real> inp, const int ind,
     Activation*const act, const Uint thrID, const PARAMS USEW) const;
 
-  template <PARAMS USEW>
+  template <PARAMS USEW = CUR>
   inline vector<Real> getOutput(const vector<Real> inp, const int ind, Activation*const act, const Uint thrID) const
   {
     return getOutput(inp, ind, act, thrID, USEW);
@@ -113,7 +113,7 @@ struct Approximator
     return ind;
   }
 
-  template <PARAMS USEW>
+  template <PARAMS USEW = CUR>
   inline vector<Real> get(const Sequence*const traj, const Uint samp,
     const Uint thrID)
   {

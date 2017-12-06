@@ -14,11 +14,16 @@ void Encapsulator::initializeNetwork(Builder& build)
 {
   net = build.build();
   opt = build.opt;
+  assert(opt not_eq nullptr && net not_eq nullptr);
 
+  series.resize(nThreads, nullptr);
   #pragma omp parallel for
   for (Uint i=0; i<nThreads; i++) // numa aware allocation
    #pragma omp critical
-    series.push_back(new vector<Activation*>());
+   {
+    series[i] = new vector<Activation*>();
+    series[i]->reserve(build.settings.maxSeqLen);
+   }
 }
 
 void Aggregator::prepare(const RELAY SET, const Uint thrID) const
@@ -107,13 +112,16 @@ void Approximator::initializeNetwork(Builder& build)
 {
   net = build.build();
   opt = build.opt;
+  assert(opt not_eq nullptr && net not_eq nullptr);
 
   #pragma omp parallel for
   for (Uint i=0; i<nThreads; i++) // numa aware allocation
    #pragma omp critical
    {
      series[i] = new vector<Activation*>();
+     series[i]->reserve(settings.maxSeqLen);
      series_tgt[i] = new vector<Activation*>();
+     series_tgt[i]->reserve(settings.maxSeqLen);
      extra_grads[i] = net->allocateParameters();
    }
   gradStats = new StatsTracker(net->getnOutputs(), name+"_grads", settings);
@@ -122,7 +130,7 @@ void Approximator::initializeNetwork(Builder& build)
 void Approximator::prepare_opc(const Sequence*const traj, const Uint samp,
     const Uint thrID) const
 {
-  if(error_placements[thrID] >= 0) gradient(thrID);
+  if(error_placements[thrID] > 0) gradient(thrID);
 
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
@@ -131,8 +139,8 @@ void Approximator::prepare_opc(const Sequence*const traj, const Uint samp,
   const Uint nTotal = nRecurr + nSValues;
   input->prepare(nTotal, samp - nRecurr, thrID);
 
-  net->prepForBackProp(series[thrID], nTotal);
-  net->prepForFwdProp(series_tgt[thrID], nTotal);
+  net->prepForBackProp(*series[thrID], nTotal);
+  net->prepForFwdProp(*series_tgt[thrID], nTotal);
 
   error_placements[thrID] = -1;
   first_sample[thrID] = samp - nRecurr;
@@ -140,12 +148,12 @@ void Approximator::prepare_opc(const Sequence*const traj, const Uint samp,
 
 void Approximator::prepare_seq(const Sequence*const traj, const Uint thrID) const
 {
-  if(error_placements[thrID] >= 0) gradient(thrID);
+  if(error_placements[thrID] > 0) gradient(thrID);
 
   const Uint nSValues =  traj->tuples.size() - traj->ended;
   input->prepare(nSValues, 0, thrID);
-  net->prepForBackProp(series[thrID], nSValues);
-  net->prepForFwdProp(series_tgt[thrID], nSValues);
+  net->prepForBackProp(*series[thrID], nSValues);
+  net->prepForFwdProp(*series_tgt[thrID], nSValues);
 
   error_placements[thrID] = -1;
   first_sample[thrID] = 0;
@@ -154,7 +162,7 @@ void Approximator::prepare_seq(const Sequence*const traj, const Uint thrID) cons
 void Approximator::prepare_one(const Sequence*const traj, const Uint samp,
     const Uint thrID) const
 {
-  if(error_placements[thrID] >= 0) gradient(thrID);
+  if(error_placements[thrID] > 0) gradient(thrID);
 
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
@@ -164,8 +172,8 @@ void Approximator::prepare_one(const Sequence*const traj, const Uint samp,
   const Uint nTotal = nRecurr + nSValues;
 
   input->prepare(nTotal, samp - nRecurr, thrID);
-  net->prepForBackProp(series[thrID], nTotal);
-  net->prepForFwdProp(series_tgt[thrID], nTotal);
+  net->prepForBackProp(*series[thrID], nTotal);
+  net->prepForFwdProp(*series_tgt[thrID], nTotal);
 
   error_placements[thrID] = -1;
   first_sample[thrID] = samp - nRecurr;
@@ -209,11 +217,11 @@ vector<Real> Approximator::relay_backprop(const vector<Real> error,
 vector<Real> Approximator::forward_agent(const Sequence* const traj,
   const Agent& agent, const Uint thrID, const PARAMS USEW) const
 {
-  if(error_placements[thrID] >= 0) gradient(thrID);
+  if(error_placements[thrID] > 0) gradient(thrID);
 
   const Uint stepid = traj->ndata();
   input->prepare(1, stepid, thrID);
-  net->prepForFwdProp(series[thrID], 2);
+  net->prepForFwdProp(*series[thrID], 2);
 
   const vector<Activation*>& act = *(series[thrID]);
   const vector<Real> inp = getInput(traj, stepid, thrID);
@@ -268,7 +276,7 @@ void Approximator::backward(vector<Real> error, const Uint samp,
 void Approximator::update()
 {
   #pragma omp parallel for //each thread should still handle its own memory
-  for(Uint i=0; i<nThreads; i++) if(error_placements[i] >= 0) gradient(i);
+  for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) gradient(i);
 
   if(!nAddedGradients) return; //die("Error in nAddedGradients\n");
 
@@ -278,13 +286,16 @@ void Approximator::update()
 
 void Approximator::gradient(const Uint thrID) const
 {
-  if(error_placements[thrID]<0) return;
+  if(error_placements[thrID]<=0) return;
 
   #pragma omp atomic
   nAddedGradients++;
 
   vector<Activation*>& act = *(series[thrID]);
   const int last_error = error_placements[thrID];
+
+  for (int i=0; i<last_error; i++) assert(act[i]->written == true);
+
   net->backProp(act, last_error, net->Vgrad[thrID]);
   error_placements[thrID] = -1; //to stop additional backprops
 

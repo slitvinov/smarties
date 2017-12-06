@@ -28,6 +28,8 @@ inline nnReal* allocate_ptr(Uint _size)
 {
   nnReal* ret = nullptr;
   assert(_size > 0);
+  //printf("requested %u floats of size %lu, allocating %u bytes\n",
+  //  _size, sizeof(nnReal), (Uint) std::ceil(_size*sizeof(nnReal)/32.) * 32);
   _size = std::ceil(_size*sizeof(nnReal)/32.) * 32;
   posix_memalign((void **) &ret, 32, _size);
   memset(ret, 0, _size);
@@ -48,16 +50,17 @@ inline vector<nnReal*> allocate_vec(vector<Uint> _sizes)
   #define PRELU_FAC 1
 #endif
 
-inline Uint roundUpSimd(const Uint size)
-{
-  return std::ceil(size/(Real)simdWidth)*simdWidth;
-}
 
 inline nnReal nnSafeExp(const nnReal val)
 {
     return std::exp( std::min((nnReal)8., std::max((nnReal)-16.,val) ) );
 }
 
+/*
+inline Uint roundUpSimd(const Uint size)
+{
+  return std::ceil(size/(Real)simdWidth)*simdWidth;
+}
 static inline nnReal readCutStart(vector<nnReal>& buf)
 {
   const Real ret = buf.front();
@@ -122,3 +125,4 @@ inline nnReal* init(const Uint N)
   _allocate_quick(ret, N);
   return ret;
 }
+*/

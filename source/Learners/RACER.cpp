@@ -106,7 +106,7 @@ class RACER : public Learner_offPolicy
     policies.reserve(traj->tuples.size() -samp-1);
 
     F[0]->prepare_opc(traj, samp, thrID);
-    const vector<Real> out_cur = F[0]->forward<CUR>(traj, samp, thrID);
+    const vector<Real> out_cur = F[0]->forward(traj, samp, thrID);
     policies.push_back(prepare_policy(out_cur));
 
     #ifdef ACER_TARGETNET //predict samp with tgt w
@@ -148,7 +148,7 @@ class RACER : public Learner_offPolicy
 
     //Compute off-pol corrections. Skip last state of seq: we need all V(snext)
     for(Uint k=samp+1; k<=lastTPolicy; k++)  {
-      const vector<Real> out_tmp = F[0]->forward<CUR>(traj, k, thrID);
+      const vector<Real> out_tmp = F[0]->forward(traj, k, thrID);
       policies.push_back(prepare_policy(out_tmp));
       assert(policies.size() == k+1-samp);
 
@@ -169,12 +169,12 @@ class RACER : public Learner_offPolicy
     Real Q_RET = 0;
     if(truncated)
     { //initialize Q_RET to value of state after last off policy correction
-      const vector<Real> OT = F[0]->forward<CUR>(traj,lastTPolicy+1,thrID);
+      const vector<Real> OT = F[0]->forward(traj, lastTPolicy+1, thrID);
       Q_RET = OT[net_indices[0]];
     }
 
     for (Uint k=lastTPolicy; k>samp; k--) { //propagate Q to k=0
-     const vector<Real> out_k = F[0]->get<CUR>(traj,k,thrID); // precomputed
+     const vector<Real> out_k = F[0]->get(traj,k,thrID); // precomputed
      offPolCorrUpdate(traj, k, Q_RET, out_k, policies[k-samp]);
     }
 
@@ -397,7 +397,7 @@ class RACER : public Learner_offPolicy
     const Parameters*const W = F[0]->net->weights;
     const nnReal*const parameters = W->B(W->nLayers - 1);
     const Real Qprec=std::exp(parameters[1]), penalDKL=std::exp(parameters[0]);
-    
+
     screenOut<<" DKL:["<<DKL_target<<" "<<penalDKL<<"] prec:"<<Qprec
         <<" polStats:["<<print(opcInfo->avgVec[0])<<"]";
     fileOut<<" "<<print(opcInfo->avgVec[0])<<" "<<print(opcInfo->stdVec[0]);

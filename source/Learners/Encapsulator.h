@@ -20,7 +20,6 @@ struct Encapsulator
 {
   const string name;
   const Uint nThreads, nAppended;
-  const bool bRecurrent, bSampleSequences;
   vector<vector<Activation*>*> series;
   mutable vector<int> first_sample;
   mutable vector<int> error_placements;
@@ -36,9 +35,8 @@ struct Encapsulator
 
   Encapsulator(const string _name, Settings& sett, MemoryBuffer*const data_ptr)
   : name(_name), nThreads(sett.nThreads), nAppended(sett.appendedObs),
-  bRecurrent(sett.bRecurrent), bSampleSequences(sett.bSampleSequences),
-  series(nThreads,nullptr), first_sample(nThreads,-1),
-  error_placements(nThreads,-1), data(data_ptr) {}
+    series(nThreads,nullptr), first_sample(nThreads,-1),
+    error_placements(nThreads,-1), data(data_ptr) {}
 
   void initializeNetwork(Builder& build);
 
@@ -52,10 +50,10 @@ struct Encapsulator
     // instead of creating multiple functions to serve this purpose
     // order to perform backprop in implicit in re-allocation of work memory
     // and in order to advance the weights:
-    if(error_placements[thrID] >= 0) gradient(thrID);
+    if(error_placements[thrID] > 0) gradient(thrID);
     error_placements[thrID] = -1;
     first_sample[thrID] = samp;
-    net->prepForBackProp(series[thrID], len);
+    net->prepForBackProp(*series[thrID], len);
   }
 
   inline int mapTime2Ind(const Uint samp, const Uint thrID) const
@@ -87,7 +85,7 @@ struct Encapsulator
   {
     if(net==nullptr) return state2Inp(samp, seq); //data->Tmp[agentId]);
 
-    if(error_placements[thrID] >= 0) gradient(thrID);
+    if(error_placements[thrID] > 0) gradient(thrID);
 
     const vector<Activation*>& act = *(series[thrID]);
     const int ind = mapTime2Ind(samp, thrID);
@@ -118,7 +116,7 @@ struct Encapsulator
     if(!nAddedGradients) die("Error in stackAndUpdateNNWeights\n");
 
     #pragma omp parallel for //each thread should still handle its own memory
-    for(Uint i=0; i<nThreads; i++) if(error_placements[i] >= 0) gradient(i);
+    for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) gradient(i);
 
     opt->update(nAddedGradients, net->Vgrad);
     nAddedGradients = 0;
@@ -127,13 +125,14 @@ struct Encapsulator
   inline void gradient(const Uint thrID) const
   {
     if(net == nullptr) return;
-    if(error_placements[thrID]<0) return;
+    if(error_placements[thrID]<=0) return;
 
     #pragma omp atomic
     nAddedGradients++;
 
     vector<Activation*>& act = *(series[thrID]);
     const int last_error = error_placements[thrID];
+    for (int i=0; i<last_error; i++) assert(act[i]->written == true);
     net->backProp(act, last_error, net->Vgrad[thrID]);
     error_placements[thrID] = -1; //to stop additional backprops
   }

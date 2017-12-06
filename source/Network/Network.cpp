@@ -10,7 +10,17 @@
 #include "Builder.h"
 #include "Network.h"
 
-vector<Real> Network::predict(const vector<Real>& _inp,
+/*
+  predict output of network given input:
+  - vector<Real> _inp: must be same size as input layer
+  - Activation prevStep: for recurrent connections. Will use field `outvals`.
+  - Activation currStep: work memory where prediction will be computed.
+                         Will overwrite fields `suminps` (containing layer's
+                         W-matrix input-vector + bias in case of MLP) and
+                         `outvals` (containing func(suminps)). No need to clear.
+  - Parameters _weights: network weights to use. If nullptr then we use default.
+*/
+vector<Real> Network::predict(const vector<nnReal>& _inp,
   const Activation*const prevStep, const Activation*const currStep,
   const Parameters*const _weights) const
 {
@@ -19,11 +29,25 @@ vector<Real> Network::predict(const vector<Real>& _inp,
 
   const Parameters*const W = _weights == nullptr ? weights : _weights;
 
-  for(Uint j=1; j<nLayers; j++) layers[j]->forward(prevStep, currStep, W);
+  for(Uint j=1; j<nLayers; j++) //skip 0: input layer
+    layers[j]->forward(prevStep, currStep, W);
 
   return currStep->getOutput();
 }
 
+/*
+  backProp to compute the gradients wrt the errors at step currStep:
+  - Activation prevStep: to backProp gradients to previous step
+  - Activation currStep: where dE/dOut placed (ie. Activation::setOutputDelta
+                         was already used on currStep). This will update all
+                         `errvals` fields with +=, therefore field should first
+                         be cleared to 0 if it contains spurious gradients.
+                         (ie. grads not due to same BPTT loop)
+  - Activation nextStep: next step in the time series. Needed by LSTM and such.
+  - Parameters gradient: will cointain d Err / d Params. Accessed with +=
+                         as minibatch update is implied.
+  - Parameters _weights: network weights to use. If nullptr then we use default.
+*/
 void Network::backProp( const Activation*const prevStep,
                         const Activation*const currStep,
                         const Activation*const nextStep,
@@ -31,18 +55,20 @@ void Network::backProp( const Activation*const prevStep,
                         const Parameters*const _weights) const
 {
   const Parameters*const W = _weights == nullptr ? weights : _weights;
-  for (Uint i=layers.size()-1; i>0; i--)
+  for (Uint i=layers.size()-1; i>0; i--) //skip 0: input layer
     layers[i]->backward(prevStep, currStep, nextStep, _gradient, W);
 }
 
+/*
+  cache friendly backprop for time series: backprops from top layers to bottom
+  layers and from last time step to first, with layer being the 'slow index'
+  maximises reuse of weights in cache by getting each layer done in turn
+*/
 void Network::backProp(const vector<Activation*>& netSeries,
                        const Uint stepLastError,
                        const Parameters*const _grad,
                        const Parameters*const _weights) const
 {
-  //cache friendly backprop: backprops from upper layers to bottom layers
-  //and from last time step to first, with layer being the 'slow index'
-  //maximises reuse of weights in cache by getting each layer done in turn
   assert(stepLastError <= netSeries.size());
   const Parameters*const W = _weights == nullptr ? weights : _weights;
 
@@ -54,7 +80,7 @@ void Network::backProp(const vector<Activation*>& netSeries,
   else
   {
     const Uint T = stepLastError - 1;
-    for(Uint i=layers.size()-1; i>0; i--)
+    for(Uint i=layers.size()-1; i>0; i--) //skip 0: input layer
     {
       layers[i]->backward(netSeries[T-1],netSeries[T],nullptr,        _grad,W);
 

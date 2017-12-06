@@ -43,6 +43,7 @@ struct Parameters
     //  print(indBiases).c_str(), nTotPara);
     return nTotPara;
   }
+
   Parameters* allocateGrad() const
   {
     return new Parameters(nWeights, nBiases);
@@ -52,16 +53,19 @@ struct Parameters
   {
     MPI_Allreduce(MPI_IN_PLACE, params, nParams, MPI_NNVALUE_TYPE,MPI_SUM,comm);
   }
+
   inline void broadcast(const MPI_Comm comm) const
   {
     MPI_Bcast(params, nParams, MPI_NNVALUE_TYPE, 0, comm);
   }
+
   inline void copy(const Parameters* const tgt) const
   {
     assert(nParams == tgt->nParams);
     #pragma omp parallel for
     for (Uint j=0; j<nParams; j++) params[j] = tgt->params[j];
   }
+
   inline void penalization(const nnReal lambda) const {
     for (Uint i=0; i<nParams; i++)
     #ifdef NET_L1_PENAL
@@ -70,6 +74,7 @@ struct Parameters
       params[i] -= params[i]*lambda;
     #endif
   }
+
   Parameters(vector<Uint> _nWeights, vector<Uint> _nBiases) :
    nBiases(_nBiases), nWeights(_nWeights),
    nParams(computeNParams(_nWeights, _nBiases)), nLayers(_nWeights.size()),
@@ -89,6 +94,7 @@ struct Parameters
       g[k]->clear();
     }
   }
+
   long double compute_weight_norm() const
   {
     long double sumWeights = 0;
@@ -99,6 +105,7 @@ struct Parameters
       //distTarget += std::fabs(net->weights[w]-net->tgt_weights[w]);
     return sumWeights;
   }
+
   void compute_dist_norm(long double& norm, long double& dist,
     const Parameters*const TGT) const
   {
@@ -109,9 +116,11 @@ struct Parameters
       dist += std::fabs(params[w] - TGT->params[w]);
     }
   }
+
   inline void clear() const {
     std::memset(params, 0, nParams*sizeof(nnReal));
   }
+
   void save(const std::string fname) const {
     FILE * wFile = fopen((fname+".raw").c_str(), "wb");
     fwrite(params, sizeof(nnReal), nParams, wFile); fflush(wFile);
@@ -130,6 +139,7 @@ struct Parameters
         fname.c_str(), wsize, nParams);
     return 0;
   }
+
   inline nnReal* W(const Uint layerID) const {
     assert(layerID < nLayers);
     return params + indWeights[layerID];

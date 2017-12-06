@@ -52,6 +52,7 @@ class BaseLayer: public Layer
                 const Parameters*const para) const override
   {
     nnReal* const suminp = curr->X(ID); //array that contains W * Y_{-1} + B
+    assert(para->NB(ID) == nNeurons);
     memcpy(suminp, para->B(ID), nNeurons*sizeof(nnReal));
 
     {

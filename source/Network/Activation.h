@@ -35,7 +35,12 @@ struct Activation
     assert(_sizes.size() == _bOut.size());
     Uint ret = 0;
     for(Uint i=0; i<_bOut.size(); i++) if(_bOut[i]) ret += _sizes[i];
-    if(!ret) ret = _sizes.back();
+    if(!ret) {
+      ret = _sizes.back();
+      //warn("had to overwrite nOutputs");
+    }
+    //printf("sizes:%s outputs:%s Total:%u\n", print(_sizes).c_str(),
+    //  print(_bOut).c_str(), ret);
     assert(ret>0);
     return ret;
   }
@@ -132,6 +137,7 @@ struct Activation
   inline void loadMemory(Memory*const _M) const {
     for(Uint i=0; i<nLayers; i++) {
       assert(outvals[i] not_eq nullptr);
+      assert(_M->outvals[i] not_eq nullptr);
       assert(sizes[i] == _M->sizes[i]);
       memcpy(outvals[i], _M->outvals[i], sizes[i]*sizeof(nnReal));
     }
@@ -140,6 +146,7 @@ struct Activation
   inline void storeMemory(Memory*const _M) const {
     for(Uint i=0; i<nLayers; i++) {
       assert(outvals[i] not_eq nullptr);
+      assert(_M->outvals[i] not_eq nullptr);
       assert(sizes[i] == _M->sizes[i]);
       memcpy(_M->outvals[i], outvals[i], sizes[i]*sizeof(nnReal));
     }
@@ -167,7 +174,7 @@ struct Activation
   const vector<nnReal*> outvals;
   //deltas for each neuron
   const vector<nnReal*> errvals;
-  bool written = false;
+  mutable bool written = false;
 };
 
 inline void deallocateUnrolledActivations(vector<Activation*>& r)

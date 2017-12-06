@@ -183,7 +183,7 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     vector<Uint> nouts{1, nL, NEXPERTS, NEXPERTS*aInfo.dim, NEXPERTS*aInfo.dim};
     Builder build = F[0]->buildFromSettings(settings, nouts);
     //add klDiv penalty coefficient layer, and stdv of Q distribution
-    build.addParamLayer(2, "Exp", 1/settings.klDivConstraint);
+    build.addParamLayer(2, "Exp", {1/settings.klDivConstraint, 1});
 
     F[0]->initializeNetwork(build);
   }
