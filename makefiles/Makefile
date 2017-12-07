@@ -147,7 +147,8 @@ LSTM: anntest.o ArgumentParser.o Profiler.o Links.o Layers.o Network.o Optimizer
 	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
-	$(CC) $(extra)  $(CPPFLAGS) -c $< #-MD  
+	$(CC) $(extra)  $(CPPFLAGS) -c $<
+#-MD  
 
 vpath %.cpp $(DIRS)
 vpath %.h   $(DIRS)
