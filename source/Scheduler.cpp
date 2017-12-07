@@ -108,7 +108,7 @@ inline void Master::processRequest(const int slave)
   if(thrID==1) learner->profiler->stop_start("SERV");
   if(thrID==0) profiler->stop_start("SERV");
   //auto start = std::chrono::high_resolution_clock::now();
-  vector<Real> recv_state(sI.dim);
+  vector<double> recv_state(sI.dim);
   int recv_iAgent = -1, istatus;
   double reward;
   //read from slave's buffer:

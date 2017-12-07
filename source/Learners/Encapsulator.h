@@ -16,10 +16,13 @@
 
 class Builder;
 
+enum OUTPUT { STATE, STATEACT }; /* use CUR or TGT weights */
+//template <OUTPUT OUTP = STATE>
 struct Encapsulator
 {
   const string name;
   const Uint nThreads, nAppended;
+  Settings& settings;
   vector<vector<Activation*>*> series;
   mutable vector<int> first_sample;
   mutable vector<int> error_placements;
@@ -35,10 +38,24 @@ struct Encapsulator
 
   Encapsulator(const string _name, Settings& sett, MemoryBuffer*const data_ptr)
   : name(_name), nThreads(sett.nThreads), nAppended(sett.appendedObs),
-    series(nThreads,nullptr), first_sample(nThreads,-1),
+    settings(sett), series(nThreads,nullptr), first_sample(nThreads,-1),
     error_placements(nThreads,-1), data(data_ptr) {}
 
-  void initializeNetwork(Builder& build);
+  void initializeNetwork(Optimizer* _opt, Network* _net)
+  {
+    net = _net;
+    opt = _opt;
+    assert(opt not_eq nullptr && net not_eq nullptr);
+
+    series.resize(nThreads, nullptr);
+    #pragma omp parallel for
+    for (Uint i=0; i<nThreads; i++) // numa aware allocation
+     #pragma omp critical
+     {
+      series[i] = new vector<Activation*>();
+      series[i]->reserve(settings.maxSeqLen);
+     }
+  }
 
   inline void prepare(const Uint len, const Uint samp, const Uint thrID) const
   {

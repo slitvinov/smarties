@@ -54,7 +54,6 @@ class BaseLayer: public Layer
     nnReal* const suminp = curr->X(ID); //array that contains W * Y_{-1} + B
     assert(para->NB(ID) == nNeurons);
     memcpy(suminp, para->B(ID), nNeurons*sizeof(nnReal));
-
     {
       const nnReal* const inputs = curr->Y(ID-link);
       const nnReal* const weight = para->W(ID);
@@ -62,7 +61,6 @@ class BaseLayer: public Layer
         for (Uint o = 0; o < nNeurons; o++)
           suminp[o] += inputs[i] * weight[o +nNeurons*i];
     }
-
     if(bRecurrent && prev not_eq nullptr)
     {
       const nnReal* const inputs = prev->Y(ID);
@@ -71,7 +69,6 @@ class BaseLayer: public Layer
         for (Uint o = 0; o < nNeurons; o++)
           suminp[o] += inputs[i] * weight[o +nNeurons*i];
     }
-
     func->eval(suminp, curr->Y(ID), nNeurons);
   }
 
@@ -97,7 +94,7 @@ class BaseLayer: public Layer
             nnReal* const grad_w = grad->W(ID);
 
       for(Uint i=0; i<nInputs;  i++)
-        for(Uint o=0; o<nNeurons; o++) 
+        for(Uint o=0; o<nNeurons; o++)
           grad_w[o +nNeurons*i] += inputs[i] * deltas[o];
 
       for(Uint o=0; o<nNeurons; o++)
@@ -111,12 +108,12 @@ class BaseLayer: public Layer
       const nnReal* const weight = para->W(ID) +nNeurons*nInputs;
             nnReal* const grad_w = grad->W(ID) +nNeurons*nInputs;
 
-      for(Uint i=0; i<nInputs;  i++)
+      for(Uint i=0; i<nNeurons;  i++)
         for(Uint o=0; o<nNeurons; o++)
           grad_w[o +nNeurons*i] += inputs[i] * deltas[o];
 
       for(Uint o=0; o<nNeurons; o++)
-        for(Uint i=0; i<nInputs;  i++)
+        for(Uint i=0; i<nNeurons;  i++)
           errors[i] += weight[o +nNeurons*i] * deltas[o];
     }
   }

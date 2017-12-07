@@ -98,8 +98,9 @@ public:
     std::vector<Real> ret(beta.size()/2);
     std::normal_distribution<Real> dist(0, 1);
     for(Uint i=0; i<beta.size()/2; i++) {
-      Real samp = 10;
-      while (samp > 4 || samp < -4) samp = dist(*gen);
+      Real samp = dist(*gen);
+      if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
+      if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
       ret[i] = beta[i] + beta[beta.size()/2 + i]*samp;
     }
     return ret;
@@ -109,8 +110,9 @@ public:
     std::vector<Real> ret(nA);
     std::normal_distribution<Real> dist(0, 1);
     for(Uint i=0; i<nA; i++) {
-      Real samp = 10;
-      while (samp > 4 || samp < -4) samp = dist(*gen);
+      Real samp = dist(*gen);
+      if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
+      if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
       ret[i] = mean[i] + stdev[i]*samp;
     }
     return ret;

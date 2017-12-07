@@ -10,22 +10,6 @@
 #include "Approximator.h"
 #include "../Network/Builder.h"
 
-void Encapsulator::initializeNetwork(Builder& build)
-{
-  net = build.build();
-  opt = build.opt;
-  assert(opt not_eq nullptr && net not_eq nullptr);
-
-  series.resize(nThreads, nullptr);
-  #pragma omp parallel for
-  for (Uint i=0; i<nThreads; i++) // numa aware allocation
-   #pragma omp critical
-   {
-    series[i] = new vector<Activation*>();
-    series[i]->reserve(build.settings.maxSeqLen);
-   }
-}
-
 void Aggregator::prepare(const RELAY SET, const Uint thrID) const
 {
   usage[thrID] = SET;
@@ -123,6 +107,10 @@ void Approximator::initializeNetwork(Builder& build)
      if(relay not_eq nullptr)
       extra_grads[i] = net->allocateParameters();
    }
+   
+  #ifdef __CHECK_DIFF //check gradients with finite differences
+    net->checkGrads();
+  #endif
   gradStats = new StatsTracker(net->getnOutputs(), name+"_grads", settings);
 }
 

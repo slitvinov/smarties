@@ -40,10 +40,6 @@ void Learner_offPolicy::prepareData()
   if(nStep%100==0 || data->requestUpdateSamples())
     data->updateActiveBuffer(); //update sampling //syncDataStats
 
-  #ifdef __CHECK_DIFF //check gradients with finite differences
-    if (nStep % 100000 == 0) net->checkGrads();
-  #endif
-
   taskCounter = 0;
   sequences.resize(batchSize);
   transitions.resize(batchSize);

@@ -83,7 +83,8 @@ public:
     Status = 1; transitionID=0; cumulative_rewards=0; r=0;
   }
 
-  void update(const envInfo _i, const vector<double>& _s, const double _r)
+  template<typename T>
+  void update(const envInfo _i, const vector<T>& _s, const double _r)
   {
     if(_i == FAIL_COMM) {
       cumulative_rewards = transitionID = r = 0;

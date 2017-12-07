@@ -102,41 +102,37 @@ void Parser::parse(int argc, char * const * argv, bool verbose)
 
   if (verbose)
   {
-    const string fname = "settings.log";
-    FILE * f = fopen(fname.c_str(), "a");
-    if (f == NULL) die("Save fail\n");
+    ofstream fout("settings.log", ios::app);
+    if( not fout.is_open()) die("Save fail\n");
 
     for (int i=0; i<nOpt; i++) {
       OptionStruct& myOpt = opts[i];
-      fprintf(f, "%s: ", myOpt.description.c_str());
+      fout << myOpt.description.c_str() <<": ";
 
-      switch (myOpt.type)
-      {
+      switch (myOpt.type) {
       case NONE:
-        fprintf(f,( *((bool*)myOpt.value)) ? "enabled" : "disabled" );
+        fout << ((*((bool*)myOpt.value)) ? "enabled" : "disabled");
         break;
 
       case INT:
-        fprintf(f,"%d", *((int*)myOpt.value));
+        fout << (*((int*)myOpt.value));
         break;
 
       case REAL:
-        fprintf(f,"%f", *((Real*)myOpt.value));
+        fout << (*((Real*)myOpt.value));
         break;
 
       case CHAR:
-        fprintf(f,"%c", *((char*)myOpt.value));
+        fout << (*((char*)myOpt.value));
         break;
 
       case STRING:
-        fprintf(f,"%s", ((string*)myOpt.value)->c_str());
+        fout << ((string*)myOpt.value)->c_str();
         break;
       }
-
-      fprintf(f,"\n");
+      fout << endl;
     }
-
-    fclose(f);
+    fout.close();
   }
 }
 }

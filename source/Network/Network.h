@@ -49,7 +49,8 @@ public:
   }
 
   inline void prepForBackProp(vector<Activation*>& series, const Uint N) const {
-    prepForFwdProp(series, N);
+    prepForFwdProp(series,N);
+    assert(series.size()>=N);
     for(Uint j=0; j<series.size(); j++) series[j]->clearErrors();
   }
   inline void prepForFwdProp (vector<Activation*>& series, const Uint N) const {
@@ -91,12 +92,6 @@ public:
     const Activation* const prevStep, const Activation* const currStep,
     const Parameters*const _weights = nullptr) const;
 
-  void backProp(const vector<Activation*>& timeSeries,
-                const Parameters*const _grad,
-                const Parameters*const _weights = nullptr) const
-  {
-    return backProp(timeSeries, timeSeries.size(), _grad, _weights);
-  }
   void backProp(const Activation*const currStep, const Parameters*const _grad,
                 const Parameters*const _weights = nullptr) const
   {
@@ -120,7 +115,7 @@ public:
                 const Parameters*const _gradient,
                 const Parameters*const _weights = nullptr) const;
 
-  //void checkGrads();
+  void checkGrads();
   //void dump(const int agentID);
 };
 

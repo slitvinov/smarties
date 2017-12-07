@@ -19,6 +19,8 @@ using namespace std;
 #include <limits>
 #include <cmath>
 #include <immintrin.h>
+#include <fstream>
+#include <iostream>
 
 #include <omp.h>
 #include <mpi.h>
@@ -37,7 +39,7 @@ using namespace std;
 //de facto unused:
 #define NORMDIST_MAX 3 //truncated normal distribution range
 #define BOUNDACT_MAX 8 //for bounded action spaces: range (ie. tanh(8))
-#define ACER_LAMBDA 1.0
+
 #define MAX_UNROLL_AFTER 2000
 #define ACER_CONST_PREC 50 //uniform precision (1/std^2) in case of ACER_SAFE
 
@@ -45,7 +47,7 @@ using namespace std;
 #define MAX_UNROLL_BFORE 20
 //clip gradients of network outputs if more than # standard deviations from 0:
 #define ACER_GRAD_CUT 10
-#define MAX_IMPW 100.
+#define MAX_IMPW (Real)100
 
 #ifdef IMPORTSAMPLE
   #define importanceSampling
@@ -57,8 +59,11 @@ using namespace std;
 //#define _dumpNet_
 //#define FULLTASKING
 
-typedef double Real;
 typedef unsigned Uint;
+
+//typedef long double Real;
+//#define MPI_VALUE_TYPE MPI_LONG_DOUBLE
+typedef double Real;
 #define MPI_VALUE_TYPE MPI_DOUBLE
 
 template <typename T>
@@ -98,7 +103,7 @@ inline bool positive(const Real vals)
 
 inline Real safeExp(const Real val)
 {
-    return std::exp( std::min(16., std::max(-32.,val) ) );
+  return std::exp( std::min((Real)16, std::max((Real)-32,val) ) );
 }
 
 inline vector<Uint> count_indices(const vector<Uint> outs)

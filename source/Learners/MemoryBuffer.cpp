@@ -50,7 +50,7 @@ void MemoryBuffer::sortSequences()
     printf("Sorting %lu sequences\n", Set.size());
     for(Uint i=0; i<Set.size(); i++) {
       assert(*(Set.begin()+i) not_eq nullptr);
-      printf("%u %f %u\n",i,Set[i]->MSE, Set[i]->ndata());
+      cout<<i<<" "<<Set[i]->MSE<<" "<<Set[i]->ndata()<<endl;
     }
   #endif
 
@@ -152,7 +152,8 @@ void MemoryBuffer::terminate_seq(const Agent&a)
   assert(a.Status==2);
   assert(inProgress[a.ID]->tuples.back()->mu.size() == 0);
   assert(inProgress[a.ID]->tuples.back()->a.size()  == 0);
-  inProgress[a.ID]->add_action(vector<Real>(aI.dim,0), vector<Real>(policyVecDim,0));
+  a.a->set(vector<Real>(aI.dim,0));
+  add_action(a, vector<Real>(policyVecDim, 0) );
   push_back(a.ID);
 }
 
@@ -362,7 +363,7 @@ void MemoryBuffer::restart()
       info = buf[k++]; sampID = buf[k++];
 
       if((sampID==0) != (info==1)) die("Mismatch in transition counter\n");
-      if(sampID!=_agents[0]->transitionID && info!=1) die(" transitionID");
+      //if(sampID!=_agents[0]->transitionID && info!=1) die(" transitionID");
       for(Uint i=0; i<sI.dim; i++) state[i]  = buf[k++];
       for(Uint i=0; i<aI.dim; i++) action[i] = buf[k++];
       Real reward = buf[k++];

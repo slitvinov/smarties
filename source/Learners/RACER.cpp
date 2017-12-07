@@ -123,8 +123,8 @@ class RACER : public Learner_offPolicy
     traj->offPol_weight[samp] = std::max(rho_inv, rho_cur);
 
     #if 1 // in case rho outside bounds, resample:
-      const Real minImpWeight = std::min((Real)0.5, 1./CmaxPol);
-      const Real maxImpWeight = std::max((Real)2.0,    CmaxPol);
+      const Real minImpWeight = std::min((Real)0.5, 1/CmaxPol);
+      const Real maxImpWeight = std::max((Real)2.0,   CmaxPol);
       if( rho_cur < minImpWeight || rho_cur > maxImpWeight ) {
         if(thrID==1)  profiler->stop_start("SLP");
         int newSample = -1;

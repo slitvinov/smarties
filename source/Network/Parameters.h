@@ -38,9 +38,9 @@ struct Parameters
       indBiases[i] = nTotPara;
       nTotPara += std::ceil( _nBiases[i]*sizeof(nnReal)/32.)*32/sizeof(nnReal);
     }
-    //printf("Weights:%s %s Biases:%s %s Total:%u\n", print(_nWeights).c_str(),
-    //  print(indWeights).c_str(), print(_nBiases).c_str(),
-    //  print(indBiases).c_str(), nTotPara);
+    //printf("Weight sizes:[%s] inds:[%s] Bias sizes:[%s] inds[%s] Total:%u\n",
+    //  print(_nWeights).c_str(), print(indWeights).c_str(),
+    //  print(_nBiases).c_str(), print(indBiases).c_str(), nTotPara);
     return nTotPara;
   }
 

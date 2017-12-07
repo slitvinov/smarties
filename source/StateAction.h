@@ -81,7 +81,8 @@ class State
     for (Uint i=0; i<sInfo.dim; i++) res[i] = vals[i];
   }
 
-  inline void set(const vector<Real>& data)
+  template<typename T>
+  inline void set(const vector<T>& data)
   {
     assert(data.size() == sInfo.dim);
     for (Uint i=0; i<sInfo.dim; i++) vals[i] = data[i];
@@ -133,10 +134,10 @@ struct ActionInfo
   static Real _tanh(const Real inp)
   {
     if(inp>0) {
-      const Real e2x = std::exp(-std::min( 16., 2*inp));
+      const Real e2x = std::exp(-std::min((Real) 16, 2*inp));
       return (1-e2x)/(1+e2x);
     } else {
-      const Real e2x = std::exp( std::max(-16., 2*inp));
+      const Real e2x = std::exp( std::max((Real)-16, 2*inp));
       return (e2x-1)/(1+e2x);
     }
   }
@@ -144,7 +145,7 @@ struct ActionInfo
   static Real Dtanh(const Real inp)
   {
     const Real arg = inp < 0 ? -inp : inp; //symmetric
-    const Real e2x = std::exp(-std::min(16., 2*arg));
+    const Real e2x = std::exp(-std::min((Real)16, 2*arg));
     return 4*e2x/((1+e2x)*(1+e2x));
   }
 

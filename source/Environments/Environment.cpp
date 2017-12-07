@@ -46,8 +46,8 @@ void Environment::setDims() //this environment is for the cart pole test
   if(!settings.world_rank) printf("State dim:");
   for (unsigned i=0; i<sI.dim; i++) {
     const bool inuse = comm_ptr->obs_inuse[i] > 0.5;
-    const Real upper = comm_ptr->obs_bounds[i*2+0];
-    const Real lower = comm_ptr->obs_bounds[i*2+1];
+    const double upper = comm_ptr->obs_bounds[i*2+0];
+    const double lower = comm_ptr->obs_bounds[i*2+1];
     sI.mean[i]  = 0.5*(upper+lower); sI.inUse[i] = inuse;
     sI.scale[i] = 0.5*std::fabs(upper-lower)/std::sqrt(3.); //approximate std=1
     if(sI.scale[i]>=1e3 || sI.scale[i] < 1e-7) {
@@ -71,7 +71,7 @@ void Environment::setDims() //this environment is for the cart pole test
       aI.values[i][j] = comm_ptr->action_bounds[k++];
 
     const Real amax = aI.getActMaxVal(i), amin = aI.getActMinVal(i);
-    const Real scale = 0.5*(amax - amin), mean = 0.5*(amax + amin);
+    const double scale = 0.5*(amax - amin), mean = 0.5*(amax + amin);
     if(scale>=1e3 || scale<1e-7) aI.bounded[i] = 0;
     //if(aI.bounded[i]) settings.greedyEps = std::min(settings.greedyEps, 0.2);
     if(!settings.world_rank)

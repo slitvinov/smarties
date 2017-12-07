@@ -185,7 +185,7 @@ public:
     }
     return std::log(P);
   }
-  const Real threshold = 3; //anti nans
+  
   inline vector<Real> sample(mt19937*const gen, const vector<Real>& beta) const
   {
     std::vector<Real> ret(nA);
@@ -194,9 +194,9 @@ public:
     const Uint experti = dE(*gen);
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      if(samp<-threshold) samp = -threshold;
-      if(samp> threshold) samp =  threshold;
-      //while (samp > threshold || samp < -threshold) samp = dist(*gen);
+      if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
+      if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
+      //while (samp > NORMDIST_MAX || samp < -NORMDIST_MAX) samp = dist(*gen);
       const Uint indM = i +experti*nA +nExperts; //after experts come the means
       const Uint indS = i +experti*nA +nExperts*(nA+1); //after means, stdev
       ret[i] = beta[indM] + beta[indS] * samp;
@@ -211,9 +211,9 @@ public:
     const Uint experti = dE(*gen);
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      if(samp<-threshold) samp = -threshold;
-      if(samp> threshold) samp =  threshold;
-      //while (samp > threshold || samp < -threshold) samp = dist(*gen);
+      if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
+      if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
+      //while (samp > NORMDIST_MAX || samp < -NORMDIST_MAX) samp = dist(*gen);
       ret[i] = means[experti][i] + stdevs[experti][i] * samp;
     }
     return ret;

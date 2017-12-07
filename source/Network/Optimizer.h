@@ -8,7 +8,6 @@
  */
 
 #pragma once
-#include <fstream>
 #include "Parameters.h"
 #include "saruprng.h"
 #include <iomanip>

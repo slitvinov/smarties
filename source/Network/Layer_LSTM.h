@@ -32,8 +32,9 @@ class LSTMLayer: public Layer
     |================| |================| |================| |================|
     cell' Input neuron     input Gate        forget Gate         output Gate
 
-  `outvals` field is more complex, first nCells fields will be read by upper
-   layer and by recurrent connection at next time step, therefore contain cell output. Then we store cell state, input neuron's output, and dErr/dState
+  `outvals` field is more complex. First nCells fields will be read by upper
+   layer and by recurrent connection at next time step therefore contain LSTM
+   cell output. Then we store cell state, input neuron's output, and dErr/dState
     |================| |================| |================| |================|
      LSTM layer output    cell states      input neuron's Y   state error signal
 
@@ -42,8 +43,7 @@ class LSTMLayer: public Layer
      dE/dInput Neuron    dE/dInput Gate     dE/dForget Gate    dE/dOutput Gate
   */
   void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs) const override
-  {
+                          vector<Uint>& bOutputs) const override {
     sizes.push_back(4*nCells);
     bOutputs.push_back(bOutput);
   }
@@ -53,8 +53,7 @@ class LSTMLayer: public Layer
 
   LSTMLayer(Uint _ID, Uint _nInputs, Uint _nCells, string funcType,
     bool bOut, Uint iLink) :  Layer(_ID, _nCells, bOut), nInputs(_nInputs),
-    nCells(_nCells), link(iLink), cell(makeFunction(funcType))
-  {
+    nCells(_nCells), link(iLink), cell(makeFunction(funcType)) {
     printf("(%u) %s %sLSTM Layer of size:%u linked to Layer:%u of size:%u.\n",
     ID, funcType.c_str(), bOutput? "output ":"", nCells, ID-link, nInputs);
     fflush(0);
@@ -87,14 +86,14 @@ class LSTMLayer: public Layer
     }
     {
       //now we computed prenonlinearity gates and cells first apply nonlinearity
-      // cell output is written onto output work memory shifted by 2*nN
+      // cell output is written onto output work memory shifted by 2*nCells
       cell->eval(suminp, curr->Y(ID)+ 2*nCells, nCells);
       // Input, forget, output gates output overwrite their input
       Sigm::_eval(suminp +1*nCells, suminp +1*nCells, nCells);
       Sigm::_eval(suminp +2*nCells, suminp +2*nCells, nCells);
       Sigm::_eval(suminp +3*nCells, suminp +3*nCells, nCells);
 
-      // state is placed onto output work mem, shifted by nN
+      // state is placed onto output work mem, shifted by nCells
       const nnReal*const prevSt = prev==nullptr? nullptr : prev->Y(ID)+nCells;
             nnReal*const output = curr->Y(ID)+ 0*nCells;
             nnReal*const currSt = curr->Y(ID)+ 1*nCells;
@@ -121,10 +120,10 @@ class LSTMLayer: public Layer
     const nnReal*const cellIn = curr->X(ID); //cell input before func
           nnReal*const deltas = curr->E(ID); //error signal from above/future
     const nnReal*const currState  = curr->Y(ID) + 1*nC;
-    // Will also need to copy the state's error signal, use last available slot:
-          nnReal*const stateDelta = curr->Y(ID) + 3*nC;
     // Also need output of input cell, and the 3 gates
     const nnReal*const cellInput  = curr->Y(ID) + 2*nC;
+    // Will also need to copy the state's error signal, use last available slot:
+          nnReal*const stateDelta = curr->Y(ID) + 3*nC;
     const nnReal*const IGate = curr->X(ID)+ 1*nC;
     const nnReal*const FGate = curr->X(ID)+ 2*nC;
     const nnReal*const OGate = curr->X(ID)+ 3*nC;
@@ -170,12 +169,12 @@ class LSTMLayer: public Layer
       const nnReal* const weight = para->W(ID) +(4*nCells)*nInputs;
             nnReal* const grad_w = grad->W(ID) +(4*nCells)*nInputs;
 
-      for(Uint i=0; i<nInputs;  i++)
+      for(Uint i=0; i<nCells;  i++)
         for(Uint o=0; o<4*nCells; o++)
           grad_w[o +(4*nCells)*i] += inputs[i] * deltas[o];
 
       for(Uint o=0; o<4*nCells; o++)
-        for(Uint i=0; i<nInputs;  i++)
+        for(Uint i=0; i<nCells;  i++)
           errors[i] += weight[o +(4*nCells)*i] * deltas[o];
     }
   }
@@ -189,9 +188,9 @@ class LSTMLayer: public Layer
     { // forget gate starts open, inp/out gates are closed
      nnReal* const BB = para->B(ID);
      for(Uint o=0*nCells; o<1*nCells; o++) BB[o]=dis(*gen);
-     for(Uint o=1*nCells; o<2*nCells; o++) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
-     for(Uint o=2*nCells; o<3*nCells; o++) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
-     for(Uint o=3*nCells; o<4*nCells; o++) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
+     for(Uint o=1*nCells; o<2*nCells; o++) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
+     for(Uint o=2*nCells; o<3*nCells; o++) BB[o]=dis(*gen)-LSTM_PRIME_FAC;
+     for(Uint o=3*nCells; o<4*nCells; o++) BB[o]=dis(*gen)+LSTM_PRIME_FAC;
     }
     {
      nnReal* const weight = para->W(ID);

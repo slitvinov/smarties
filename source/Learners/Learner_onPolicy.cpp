@@ -39,9 +39,6 @@ bool Learner_onPolicy::readyForAgent(const int slave)
 
 void Learner_onPolicy::prepareData()
 {
-  #ifdef __CHECK_DIFF //check gradients with finite differences
-    if (nStep % 100000 == 0) net->checkGrads();
-  #endif
   return;
 }
 

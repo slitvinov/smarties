@@ -11,8 +11,9 @@
 #include <cstring>
 #define VEC_WIDTH 32
 #if 1
-  typedef double nnReal;
-  #define MPI_NNVALUE_TYPE MPI_DOUBLE
+  using nnReal = Real;
+  #define MPI_NNVALUE_TYPE MPI_VALUE_TYPE
+  //#define MPI_NNVALUE_TYPE MPI_DOUBLE
   #define EXP_CUT 8 //prevent under/over flow with exponentials
   //#define EXP_CUT 4 //prevent under/over flow with exponentials
 #else

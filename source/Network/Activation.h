@@ -32,7 +32,7 @@ struct Memory //Memory light recipient for recurrent connections
 struct Activation
 {
   Uint _nOuts(vector<Uint> _sizes, vector<Uint> _bOut) {
-    assert(_sizes.size() == _bOut.size());
+    assert(_sizes.size() == _bOut.size() && nLayers == _bOut.size());
     Uint ret = 0;
     for(Uint i=0; i<_bOut.size(); i++) if(_bOut[i]) ret += _sizes[i];
     if(!ret) {

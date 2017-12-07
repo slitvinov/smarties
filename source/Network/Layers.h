@@ -67,7 +67,9 @@ class Layer
 class InputLayer: public Layer
 {
  public:
-  InputLayer(Uint _size) : Layer(0, _size, false) {}
+  InputLayer(Uint _size) : Layer(0, _size, false) {
+    printf("(%u) Input Layer of size:%u.\n", ID, size); fflush(0);
+  }
 
   void requiredParameters(vector<Uint>& nWeight,
                           vector<Uint>& nBiases ) const override {
