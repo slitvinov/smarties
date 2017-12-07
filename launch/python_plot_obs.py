@@ -49,25 +49,27 @@ print(np.mean(DATA[terminals,NREW-1]))
 print(np.std(DATA[:,NREW-1]), np.mean(DATA[:,NREW-1]))
 print(NROW, NCOL,ICOL,len(terminals))
 inds = np.arange(0,NROW)
+ST = np.zeros(len(terminals))
 
 for ind in range(IND0, len(terminals), SKIP):
   term = terminals[ind]; term = term[0]
   init =  initials[ind]; init = init[0]
-  if COLMAX>0 and term>COLMAX: break; 
-  span = range(init, term, 10) 
+  if COLMAX>0 and term>COLMAX: break;
+  span = range(init, term, 10)
   print(init,term)
   if XAXIS>=0:
     xes, xtrm = DATA[span,XAXIS], DATA[term,XAXIS]
   else:
     xes, xtrm = inds[span]      , inds[term]
-  
-  if (ind % 10) == 0:   
+
+  if (ind % 10) == 0:
     if ind==IND0:
       plt.plot(xes, DATA[span,ICOL], 'b-', label='x-trajectory')
     else:
       plt.plot(xes, DATA[span,ICOL], 'b-')
 
   #plt.plot(inds, DATA[:,ICOL])
+  ST[ind] = DATA[term, ICOL]
   if ICOL >= NREW: plottrm = term-1
   else: plottrm = term
 
@@ -82,6 +84,6 @@ if COLMAX>0:plt.axis([0, COLMAX, -50, 150])
 #plt.semilogy(inds, 1/np.sqrt(DATA[:,ICOL]))
 plt.tight_layout()
 #plt.semilogy(inds[terminals], 1/np.sqrt(DATA[terminals-1,ICOL]), 'ro')
-
+np.savetxt('terminals.dat', ST, delimiter=',')
 #plt.savefig('prova.png', dpi=100)
 plt.show()
