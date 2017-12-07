@@ -85,6 +85,9 @@ class LSTMLayer: public Layer
           suminp[o] += inputs[i] * weight[o + (4*nCells) * i];
     }
     {
+      //now we computed prenonlinearity gates and cells first apply nonlinearity
+      // cell output is written onto output work memory shifted by 2*nCells
+      cell->eval(suminp, curr->Y(ID)+ 2*nCells, nCells);
       // Input, forget, output gates output overwrite their input
       Sigm::_eval(suminp +1*nCells, suminp +1*nCells, nCells);
       Sigm::_eval(suminp +2*nCells, suminp +2*nCells, nCells);
@@ -94,16 +97,15 @@ class LSTMLayer: public Layer
       const nnReal*const prevSt = prev==nullptr? nullptr : prev->Y(ID)+nCells;
             nnReal*const output = curr->Y(ID)+ 0*nCells;
             nnReal*const currSt = curr->Y(ID)+ 1*nCells;
-            nnReal*const cellOp = curr->Y(ID)+ 2*nCells;
+      const nnReal*const cellOp = curr->Y(ID)+ 2*nCells;
       const nnReal*const inputG = curr->X(ID)+ 1*nCells;
       const nnReal*const forgtG = curr->X(ID)+ 2*nCells;
       const nnReal*const outptG = curr->X(ID)+ 3*nCells;
 
       for (Uint o=0; o<nCells; o++) {
        const nnReal oldStatePass = prev==nullptr? 0 : prevSt[o] * forgtG[o];
-       currSt[o] = suminp[o] * inputG[o] + oldStatePass;
-       cellOp[o] = Tanh::_eval(currSt[o]);
-       output[o] = outptG[o] * cellOp[o];
+       currSt[o] = cellOp[o] * inputG[o] + oldStatePass;
+       output[o] = outptG[o] * currSt[o];
       }
     }
   }
@@ -115,13 +117,13 @@ class LSTMLayer: public Layer
                   const Parameters*const para) const override
   {
     const Uint nC = nCells; //lighten notation, number of cells
+    const nnReal*const cellIn = curr->X(ID); //cell input before func
           nnReal*const deltas = curr->E(ID); //error signal from above/future
-    // Also need pre-outGate cell output
-    const nnReal*const cellOutput = curr->Y(ID) + 2*nC;
+    const nnReal*const currState  = curr->Y(ID) + 1*nC;
+    // Also need output of input cell, and the 3 gates
+    const nnReal*const cellInput  = curr->Y(ID) + 2*nC;
     // Will also need to copy the state's error signal, use last available slot:
           nnReal*const stateDelta = curr->Y(ID) + 3*nC;
-
-    const nnReal*const cellInpt = curr->X(ID);
     const nnReal*const IGate = curr->X(ID)+ 1*nC;
     const nnReal*const FGate = curr->X(ID)+ 2*nC;
     const nnReal*const OGate = curr->X(ID)+ 3*nC;
@@ -132,16 +134,15 @@ class LSTMLayer: public Layer
 
     for (Uint o=0; o<nC; o++) {
       const nnReal D = deltas[o]; //before overwriting it
-      const nnReal diff = deltas[o] * (1 - cellOutput[o]*cellOutput[o]);
       // Compute state's error signal
-      stateDelta[o] = diff*OGate[o] +(next==nullptr?0: nxtStErr[o]*nxtFGate[o]);
+      stateDelta[o] = D * OGate[o] +(next==nullptr? 0: nxtStErr[o]*nxtFGate[o]);
       // Compute deltas for cell input and gates
-      deltas[o+0*nC] = IGate[o] * stateDelta[o];
-      deltas[o+1*nC] = IGate[o]*(1-IGate[o]) * cellInpt[o] * stateDelta[o];
+      deltas[o+0*nC] = cell->evalDiff(cellIn[o],D) * IGate[o] * stateDelta[o];
+      deltas[o+1*nC] = IGate[o]*(1-IGate[o]) * cellInput[o]   * stateDelta[o];
       if(prev not_eq nullptr)
-      deltas[o+2*nC] = FGate[o]*(1-FGate[o]) * prvState[o] * stateDelta[o];
+      deltas[o+2*nC] = FGate[o]*(1-FGate[o]) *  prvState[o]   * stateDelta[o];
       else deltas[o+2*nC] = 0;
-      deltas[o+3*nC] = OGate[o]*(1-OGate[o]) * D * cellOutput[o];
+      deltas[o+3*nC] = OGate[o]*(1-OGate[o]) * D * currState[o];
     }
     { // now that all is loaded in place, we can treat it like normal RNN layer
       nnReal* const grad_b = grad->B(ID);
