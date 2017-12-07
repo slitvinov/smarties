@@ -38,8 +38,8 @@ void NFQ::select(const Agent& agent)
 
     uniform_real_distribution<Real> dis(0.,1.);
     if(dis(generators[thrID]) < annealedEps)
-      agent.a->set(env->aI.maxLabel*dis(generators[thrID]));
-    else agent.a->set(maxInd(output));
+      agent.act(env->aI.maxLabel*dis(generators[thrID]));
+    else agent.act(maxInd(output));
 
     vector<Real> beta(policyVecDim, annealedEps/env->aI.maxLabel);
     beta[maxInd(output)] += 1-annealedEps;

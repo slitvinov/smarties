@@ -30,17 +30,17 @@ class LSTMLayer: public Layer
     Gates during forward overwrite their suminps with the output of the sigmoid
         nCells               nCells             nCells             nCells
     |================| |================| |================| |================|
-    cell' Input neuron     input Gate        forget Gate         output Gate
+       cell' Input        input Gate        forget Gate         output Gate
 
   `outvals` field is more complex. First nCells fields will be read by upper
    layer and by recurrent connection at next time step therefore contain LSTM
-   cell output. Then we store cell state, input neuron's output, and dErr/dState
+   cell output. Then we store states, cell output b4 outpGate, and dErr/dState
     |================| |================| |================| |================|
-     LSTM layer output    cell states      input neuron's Y   state error signal
+     LSTM layer output    cell states      pre-Ogate output   state error signal
 
    `errvals`: simple again to do backprop with `gemv'
     |================| |================| |================| |================|
-     dE/dInput Neuron    dE/dInput Gate     dE/dForget Gate    dE/dOutput Gate
+        dE/dInput        dE/dInput Gate     dE/dForget Gate    dE/dOutput Gate
   */
   void requiredActivation(vector<Uint>& sizes,
                           vector<Uint>& bOutputs) const override {
@@ -86,9 +86,7 @@ class LSTMLayer: public Layer
     }
     {
       // Input, forget, output gates output overwrite their input
-      Sigm::_eval(suminp +1*nCells, suminp +1*nCells, nCells);
-      Sigm::_eval(suminp +2*nCells, suminp +2*nCells, nCells);
-      Sigm::_eval(suminp +3*nCells, suminp +3*nCells, nCells);
+      Sigm::_eval(suminp +nCells, suminp +nCells, 3*nCells);
 
       // state is placed onto output work mem, shifted by nCells
       const nnReal*const prevSt = prev==nullptr? nullptr : prev->Y(ID)+nCells;
@@ -132,7 +130,7 @@ class LSTMLayer: public Layer
 
     for (Uint o=0; o<nC; o++) {
       const nnReal D = deltas[o]; //before overwriting it
-      const nnReal diff = deltas[o] * (1 - cellOutput[o]*cellOutput[o]);
+      const nnReal diff = deltas[o] * (1-cellOutput[o]*cellOutput[o]);
       // Compute state's error signal
       stateDelta[o] = diff*OGate[o] +(next==nullptr?0: nxtStErr[o]*nxtFGate[o]);
       // Compute deltas for cell input and gates

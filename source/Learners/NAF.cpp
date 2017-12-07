@@ -36,7 +36,7 @@ void NAF::select(const Agent& agent)
     vector<Real> pol = advantage.getMean();
     pol.resize(policyVecDim, annealedVar);
     const auto act = Gaussian_policy::sample(&generators[thrID], pol);
-    agent.a->set(aInfo.getScaled(act));
+    agent.act(aInfo.getScaled(act));
     data->add_action(agent, pol);
   } else
     data->terminate_seq(agent);

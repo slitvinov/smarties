@@ -198,8 +198,7 @@ int MemoryBuffer::add_state(const Agent&a)
 
 void MemoryBuffer::add_action(const Agent& a, vector<Real> pol) const
 {
-  if(pol.size() == 0) pol.resize(policyVecDim, 0);
-  assert(pol.size() == policyVecDim);
+  if(pol.size() not_eq policyVecDim) die("add_action");
   inProgress[a.ID]->add_action(a.a->vals, pol);
   if(bWriteToFile || a.ID == 0 ) a.writeData(learn_rank, pol);
 }
@@ -363,16 +362,20 @@ void MemoryBuffer::restart()
       info = buf[k++]; sampID = buf[k++];
 
       if((sampID==0) != (info==1)) die("Mismatch in transition counter\n");
-      //if(sampID!=_agents[0]->transitionID && info!=1) die(" transitionID");
+      if(sampID!=_agents[0]->transitionID+1 && info!=1) die(" transitionID");
+
       for(Uint i=0; i<sI.dim; i++) state[i]  = buf[k++];
       for(Uint i=0; i<aI.dim; i++) action[i] = buf[k++];
       Real reward = buf[k++];
       for(Uint i=0; i<policyVecDim; i++) policy[i] = buf[k++];
       assert(k == writesize);
+
       _agents[0]->update(info, state, reward);
-      _agents[0]->act(action);
-      //add(0, *(_agents[0]), policy);
+      add_state(*_agents[0]);
+      inProgress[0]->add_action(action, policy);
+      if(info == 2) push_back(0);
     }
+    if(_agents[0]->getStatus() not_eq 2) push_back(0); //(agentID is 0)
     fclose(pFile); free(buf);
     agentID++;
   }
@@ -381,6 +384,7 @@ void MemoryBuffer::restart()
   printf("Found %d broken seq out of %d/%d.\n",nBroken,nSequences,nTransitions);
   //return 0;
 }
+
 
 Uint MemoryBuffer::sampleTransitions(vector<Uint>& seq, vector<Uint>& trans)
 {

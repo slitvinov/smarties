@@ -36,49 +36,59 @@ public:
     _dispose_object(sOld);
     _dispose_object(a);
   }
-  void getState(State& _s) const
+
+  inline void getState(State& _s) const
   {
     assert(s not_eq nullptr);
     _s = *s;
   }
-  void setState(State& _s)
+
+  inline void setState(State& _s) const
   {
     *s = _s;
   }
-  void swapStates()
+
+  inline void swapStates()
   {
     assert(s not_eq nullptr);
     assert(sOld not_eq nullptr);
     std::swap(s, sOld);
   }
-  void getAction(Action& _a) const
+
+  inline void getAction(Action& _a) const
   {
     assert(a not_eq nullptr);
     _a = *a;
   }
-  void getOldState(State& _s) const
+
+  inline void getOldState(State& _s) const
   {
     assert(sOld not_eq nullptr);
     _s = *sOld;
   }
-  void act(Action& _a)
+
+  inline void act(Action& _a) const
   {
     *a = _a;
   }
-  void act(const vector<Real> action)
+
+  template<typename T>
+  inline void act(const T action) const
   {
-    a->vals = action;
+    a->set(action);
   }
-  int getStatus() const
+
+  inline int getStatus() const
   {
     return Status;
   }
-  Real getReward()
+
+  inline Real getReward() const
   {
     return r;
   }
 
-  void reset()
+  inline void reset()
   {
     Status = 1; transitionID=0; cumulative_rewards=0; r=0;
   }
