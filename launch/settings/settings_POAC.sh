@@ -10,19 +10,19 @@ SETTINGS+=" --samplesFile none"
 SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-SETTINGS+=" --nnl1 32"
+#SETTINGS+=" --nnl1 32"
 #SETTINGS+=" --nnl2 32"
-#SETTINGS+=" --nnl1 128"
-#SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnl1 128"
+SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
 #SETTINGS+=" --nnl1 256"
 #SETTINGS+=" --nnl2 256"
-#subject to changes
+
 #SETTINGS+=" --nnType RNN"
+#SETTINGS+=" --nnType LSTM"
 #SETTINGS+=" --nnFunc PRelu"
 #SETTINGS+=" --nnFunc SoftSign"
 SETTINGS+=" --nnFunc HardSign"
-#SETTINGS+=" --nnType LSTM"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -35,7 +35,7 @@ SETTINGS+=" --maxTotSeqNum 10000"
 SETTINGS+=" --epsAnneal 1000"
 #SETTINGS+=" --obsPerStep 0.01"
 #SETTINGS+=" --bSampleSequences 1"
-SETTINGS+=" --nMasters 2"
+SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 1000000"
 SETTINGS+=" --impWeight 5"
 SETTINGS+=" --opcWeight 1"

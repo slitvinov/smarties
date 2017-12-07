@@ -142,8 +142,7 @@ class Optimizer
       gradSum->reduceThreadsGrad(*grads);
 
     if (learn_size > 1) { //add up gradients across master ranks
-      nnReal* const paramAry = weights->params;
-      MPI_Iallreduce(MPI_IN_PLACE, paramAry, weights->nParams, MPI_NNVALUE_TYPE, MPI_SUM, mastersComm, &paramRequest);
+      MPI_Iallreduce(MPI_IN_PLACE, gradSum->params, gradSum->nParams, MPI_NNVALUE_TYPE, MPI_SUM, mastersComm, &paramRequest);
       MPI_Iallreduce(MPI_IN_PLACE, &totGrads, 1, MPI_UNSIGNED, MPI_SUM, mastersComm, &batchRequest);
     }
     nStep++;

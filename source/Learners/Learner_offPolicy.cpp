@@ -36,7 +36,7 @@ void Learner_offPolicy::prepareData()
   if(data->adapt_TotSeqNum <= batchSize)
     die("I do not have enough data for training. Change hyperparameters");
 
-  cout<<nStep<<" "<<learn_rank<<" prepareData: " <<data->Set.size()<< " "<<batchSize<<" "<<taskCounter<<" "<<nAddedGradients<<"\n"; fflush(0);
+  //cout<<nStep<<" "<<learn_rank<<" prepareData: " <<data->Set.size()<< " "<<batchSize<<" "<<taskCounter<<" "<<nAddedGradients<<"\n"; fflush(0);
 
   if ( ! readyForTrain() ) {
     nAddedGradients = 0;
@@ -88,9 +88,8 @@ bool Learner_offPolicy::batchGradientReady()
     return false;
   }
   //else if threads finished processing data:
-  if(taskCounter >= batchSize) {
-    cout<<nStep<<" "<<learn_rank<<" return true with: " << nAddedGradients<< " "<<batchSize<<" "<<taskCounter<< endl; fflush(0);
-  }
+  //if(taskCounter >= batchSize) cout<<nStep<<" "<<learn_rank<<" return true with: " << nAddedGradients<< " "<<batchSize<<" "<<taskCounter<< endl; fflush(0);
+
   return taskCounter >= batchSize;
 }
 
@@ -163,7 +162,7 @@ int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be call
 
 void Learner_offPolicy::prepareGradient()
 {
-  cout<<nStep<<" "<<learn_rank<<" prepareGradient: " << nAddedGradients<< " "<<batchSize<<" "<<taskCounter<<" "<<data->nSequences<<endl; fflush(0);
+  //cout<<nStep<<" "<<learn_rank<<" prepareGradient: " << nAddedGradients<< " "<<batchSize<<" "<<taskCounter<<" "<<data->nSequences<<endl; fflush(0);
   if(! nAddedGradients) {
     nData_last = 0;
     nStoredSeqs_last = data->nSequences;

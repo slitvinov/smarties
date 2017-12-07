@@ -313,7 +313,8 @@ Uint MemoryBuffer::prune(const Real maxFrac, const Real CmaxRho)
     if(numOver/(Real)Set[i]->ndata() > maxFrac) {
       Set[i]->MSE = 1;
       ret++;
-    }
+    } else
+      Set[i]->MSE = 0;
   }
 
   assert(_ID>=0);
@@ -328,7 +329,7 @@ Uint MemoryBuffer::prune(const Real maxFrac, const Real CmaxRho)
 
   // If pruned, only safe thing is to shuffle the samples:
   if(ret) shuffle_samples();
-
+  //printf("pruned %u\n",ret);
   return ret;
 }
 
