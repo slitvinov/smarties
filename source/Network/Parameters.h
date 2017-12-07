@@ -49,11 +49,6 @@ struct Parameters
     return new Parameters(nWeights, nBiases);
   }
 
-  inline void allReduce(const MPI_Comm comm) const
-  {
-    MPI_Allreduce(MPI_IN_PLACE, params, nParams, MPI_NNVALUE_TYPE,MPI_SUM,comm);
-  }
-
   inline void broadcast(const MPI_Comm comm) const
   {
     MPI_Bcast(params, nParams, MPI_NNVALUE_TYPE, 0, comm);

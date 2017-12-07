@@ -127,7 +127,8 @@ struct Approximator
   }
   void backward(vector<Real> error, const Uint samp, const Uint thrID) const;
 
-  void update();
+  void prepareUpdate();
+  void applyUpdate();
 
   void gradient(const Uint thrID) const;
 

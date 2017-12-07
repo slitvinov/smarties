@@ -107,7 +107,7 @@ void Approximator::initializeNetwork(Builder& build)
      if(relay not_eq nullptr)
       extra_grads[i] = net->allocateParameters();
    }
-   
+
   #ifdef __CHECK_DIFF //check gradients with finite differences
     net->checkGrads();
   #endif
@@ -261,14 +261,21 @@ void Approximator::backward(vector<Real> error, const Uint samp,
   act[ind]->setOutputDelta(error);
 }
 
-void Approximator::update()
+void Approximator::prepareUpdate()
 {
   #pragma omp parallel for //each thread should still handle its own memory
   for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) gradient(i);
 
-  if(!nAddedGradients) return; //die("Error in nAddedGradients\n");
+  if(!nAddedGradients) die("Error in prepareUpdate\n");
 
-  opt->update(nAddedGradients, net->Vgrad);
+  opt->prepare_update(nAddedGradients, net->Vgrad);
+}
+
+void Approximator::applyUpdate()
+{
+  if(!nAddedGradients) return;
+
+  opt->apply_update();
   nAddedGradients = 0;
 }
 

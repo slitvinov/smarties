@@ -127,15 +127,24 @@ struct Encapsulator
     act[ind]->setOutputDelta(error);
   }
 
-  void update()
+  void prepareUpdate()
   {
     if(net == nullptr) return;
-    if(!nAddedGradients) die("Error in stackAndUpdateNNWeights\n");
 
     #pragma omp parallel for //each thread should still handle its own memory
     for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) gradient(i);
 
-    opt->update(nAddedGradients, net->Vgrad);
+    if(!nAddedGradients) die("Error in prepareUpdate\n");
+
+    opt->prepare_update(nAddedGradients, net->Vgrad);
+  }
+
+  void applyUpdate()
+  {
+    if(net == nullptr) return;
+    if(!nAddedGradients) return;
+    
+    opt->apply_update();
     nAddedGradients = 0;
   }
 

@@ -63,14 +63,14 @@ int Learner_onPolicy::spawnTrainTasks(const int availTasks)
   return 0;
 }
 
-void Learner_onPolicy::applyGradient()
+void Learner_onPolicy::prepareGradient()
 {
   if (nAddedGradients && bTrain) {
-    cntBatch += batchSize;
+    cntBatch += batchSize*learn_size;
     if(cntBatch >= nHorizon) {
       cntBatch = 0;
       cntEpoch++;
     }
   }
-  Learner::applyGradient();
+  Learner::prepareGradient();
 }

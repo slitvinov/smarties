@@ -39,6 +39,7 @@ int Master::run()
     if( bTrain && learner->reachedMaxGradStep()) return 1;
     profiler->stop_start("PREP");
     learner->prepareData(); //sync data, make sure we can sample
+    learner->synchronizeGradients();
 
     #pragma omp parallel num_threads(nThreads)
     #pragma omp master
@@ -95,7 +96,7 @@ int Master::run()
     }
 
     profiler->stop_start("TERM");
-    learner->applyGradient(); //tasks have finished, update is ready
+    learner->prepareGradient(); //tasks have finished, update is ready
   }
   die(" ");
   return 0;

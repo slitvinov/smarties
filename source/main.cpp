@@ -117,7 +117,6 @@ int main (int argc, char** argv)
   const long MAXINT = std::numeric_limits<int>::max();
   int runSeed = abs(clock.tv_usec % MAXINT);
   MPI_Bcast(&runSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
   settings.sockPrefix = runSeed+settings.world_rank;
 
   if(settings.bTrain && settings.nThreads<2)

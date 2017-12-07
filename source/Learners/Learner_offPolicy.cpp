@@ -33,12 +33,24 @@ bool Learner_offPolicy::readyForAgent(const int slave)
 
 void Learner_offPolicy::prepareData()
 {
-  if ( ! readyForTrain() ) return;
+  if(data->adapt_TotSeqNum <= batchSize)
+    die("I do not have enough data for training. Change hyperparameters");
+
+  cout<<nStep<<" "<<learn_rank<<" prepareData: " <<data->Set.size()<< " "<<batchSize<<" "<<taskCounter<<" "<<nAddedGradients<<"\n"; fflush(0);
+
+  if ( ! readyForTrain() ) {
+    nAddedGradients = 0;
+    return;
+  }
 
   profiler->push_start("PRE");
 
-  if(nStep%100==0 || data->requestUpdateSamples())
+  if(data->requestUpdateSamples()) {
     data->updateActiveBuffer(); //update sampling //syncDataStats
+    data->shuffle_samples();
+  }
+
+  if(nStep%100==0) data->updateRewardsStats();
 
   taskCounter = 0;
   sequences.resize(batchSize);
@@ -52,49 +64,39 @@ void Learner_offPolicy::prepareData()
 
 bool Learner_offPolicy::readyForTrain() const
 {
-  if(bSampleSequences) {
-    if(data->adapt_TotSeqNum <= batchSize/learn_size)
-      die("I do not have enough data for training. Change hyperparameters");
-
-    return bTrain && data->nSequences >= nSequences4Train();
-  } else {
-    if(data->adapt_TotSeqNum <= batchSize/learn_size)
-      die("I do not have enough data for training. Change hyperparameters");
    //const Uint nTransitions = data->readNTransitions();
    //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
    //  die("I do not have enough data for training. Change hyperparameters");
    //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
    return bTrain && data->nSequences >= nSequences4Train();
-  }
 }
 
 bool Learner_offPolicy::batchGradientReady()
 {
-  const Real _nData = read_nData();
-  const Real dataCounter = _nData - std::min((Real)nData_last, _nData);
-  const Real stepCounter = nStep - (Real)nStep_last;
-
   //if there is not enough data for training: go back to master:
   if ( ! readyForTrain() )  {
     nData_b4PolUpdates = data->readNSeen();
     return false;
   }
 
+  const Real _nData = read_nData();
+  const Real dataCounter = _nData - std::min((Real)nData_last, _nData);
+  const Real stepCounter = nStep - (Real)nStep_last;
   //If I have done too many gradient steps on the avail data, go back to comm
   if( stepCounter*obsPerStep/learn_size > dataCounter ) {
-    //profiler_ext->stop_start("STOP");
-    //printf("%g %g %g\n", stepCounter, dataCounter, _nData); fflush(0);
     assert(unlockQueue());
     return false;
   }
   //else if threads finished processing data:
+  if(taskCounter >= batchSize) {
+    cout<<nStep<<" "<<learn_rank<<" return true with: " << nAddedGradients<< " "<<batchSize<<" "<<taskCounter<< endl; fflush(0);
+  }
   return taskCounter >= batchSize;
 }
 
 int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be called from omp parallel region
 {
   if ( !readyForTrain() ) return 0;
-
   #ifdef FULLTASKING
     if ( !availTasks ) return 0;
     const int nSpawn = availTasks;
@@ -102,6 +104,7 @@ int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be call
   #else
     const int nSpawn = sequences.size();
   #endif
+  if(sequences.size()) assert(nAddedGradients);
 
   if(bSampleSequences)
   {
@@ -146,7 +149,7 @@ int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be call
         addToNTasks(-1);
         #pragma omp atomic
         taskCounter++;
-        //printf("Thread %d done with %u %u\n",thrID,sequence,transition); fflush(0);
+        //printf("Thread %d done %u %u\n",thrID,sequence,transition); fflush(0);
       }
     }
   }
@@ -158,8 +161,9 @@ int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be call
   return 0;
 }
 
-void Learner_offPolicy::applyGradient()
+void Learner_offPolicy::prepareGradient()
 {
+  cout<<nStep<<" "<<learn_rank<<" prepareGradient: " << nAddedGradients<< " "<<batchSize<<" "<<taskCounter<<" "<<data->nSequences<<endl; fflush(0);
   if(! nAddedGradients) {
     nData_last = 0;
     nStoredSeqs_last = data->nSequences;
@@ -171,14 +175,5 @@ void Learner_offPolicy::applyGradient()
     nStep_last = nStep + 1; //actual counter advanced by base class
     assert(taskCounter == batchSize);
   }
-  Learner::applyGradient();
+  Learner::prepareGradient();
 }
-
-/*
-void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
-{
-  screenOut<<" DKL:["<<DKL_target<<" "<<penalDKL<<"] prec:"<<Qprec
-      <<" polStats:["<<print(opcInfo->avgVec[0])<<"]";
-  fileOut<<" "<<print(opcInfo->avgVec[0])<<" "<<print(opcInfo->stdVec[0]);
-}
-*/

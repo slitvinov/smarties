@@ -24,7 +24,7 @@ public:
   //main training functions:
   bool unlockQueue() override;
   int spawnTrainTasks(const int availTasks) override;
-  void applyGradient() override;
+  void prepareGradient() override;
   void prepareData() override;
   bool batchGradientReady() override;
   bool readyForAgent(const int slave) override;

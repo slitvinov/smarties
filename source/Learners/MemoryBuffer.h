@@ -32,17 +32,22 @@ public:
   Uint nBroken=0, nTransitions=0, nSequences=0, old_ndata=0;
   Uint nTransitionsInBuf=0, nTransitionsDeleted=0;
   size_t nSeenSequences=0, nSeenTransitions=0, iOldestSaved = 0;
-  Uint adapt_TotSeqNum = maxTotSeqNum;
+  Uint adapt_TotSeqNum = maxTotSeqNum, nPruned = 0, minInd = 0;
   Real invstd_reward = 1, mean_reward = 0;
+
 
   Gen* gen;
   vector<Sequence*> Set, inProgress, Buffered;
   mutable std::mutex dataset_mutex;
 
+  MPI_Request rewRequest = MPI_REQUEST_NULL;
+  long double rew_reduce_result[2], partial_sum[2];
+
 protected:
   void sortSequences();
   void insertBufferedSequences();
   void push_back(const int & agentId);
+  void push_back_seq(const int & agentId);
 
 public:
   MemoryBuffer(Environment*const env, Settings & settings);
@@ -96,6 +101,18 @@ public:
       if(inProgress[i]->tuples.size()) push_back(i);
   }
 
+  inline int sample(const int thrID)
+  {
+    #ifndef importanceSampling
+      if(inds.size() == 0) return -1;
+      const Uint ind = inds.back();
+      inds.pop_back();
+    #else
+      const Uint ind = (*dist)(generators[thrID]);
+    #endif
+    return ind;
+  }
+
   void add_action(const Agent& a, vector<Real> pol = vector<Real>()) const;
   void terminate_seq(const Agent&a);
   int add_state(const Agent&a);
@@ -105,28 +122,17 @@ public:
   void updateImportanceWeights();
   Uint prune(const Real maxFrac, const Real CmaxRho);
 
-  void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const;
+  void getMetrics(ostringstream&fileOut, ostringstream&screenOut);
   void restart();
 
-  int sample(const int thrID = 0);
   Uint sampleSequences(vector<Uint>& seq);
   Uint sampleTransitions(vector<Uint>& seq, vector<Uint>& trans);
-  inline void indexToSample(const int nSample, Uint& seq, Uint& obs) const
-  {
-    int k = 0, back = 0, indT = Set[0]->ndata();
-    while (nSample >= indT) {
-      assert(k+2<=(int)Set.size());
-      back = indT;
-      indT += Set[++k]->ndata();
-    }
-    assert(nSample>=back && Set[k]->ndata()>(Uint)nSample-back);
-    seq = k; obs = nSample-back;
-  }
+
+  void indexToSample(const int nSample, Uint& seq, Uint& obs) const;
 
   inline bool requestUpdateSamples() const
   {
     //three cases:
-    // if i do not have enough shuffled indices for training a batchSize
     // if i have buffered transitions to add to dataset
     // if my desired dataset size is less than what i have
     return inds.size()<2*batchSize || Buffered.size() || adapt_TotSeqNum<Set.size();
@@ -207,6 +213,16 @@ public:
       }
       assert(cntSamp==nTransitions);
       assert(Set.size()==nSequences);
+    #endif
+  }
+
+  inline void shuffle_samples()
+  {
+    #ifndef importanceSampling
+    const Uint ndata = (bSampleSeq) ? nSequences : nTransitions;
+    inds.resize(ndata);
+    std::iota(inds.begin(), inds.end(), 0);
+    std::random_shuffle(inds.begin(), inds.end(), *(gen));
     #endif
   }
 };

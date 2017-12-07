@@ -99,7 +99,8 @@ public:
   virtual bool batchGradientReady() = 0;
   virtual bool readyForAgent(const int slave) = 0;
 
-  virtual void applyGradient();
+  virtual void prepareGradient();
+  void synchronizeGradients();
 
   void restart();
 };

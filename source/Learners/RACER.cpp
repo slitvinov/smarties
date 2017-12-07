@@ -30,8 +30,9 @@ class RACER : public Learner_offPolicy
   const Uint PenalID = net_indices.back(), QPrecID = net_indices.back()+1;
   const bool geomAvg = CmaxRet>1.1 && nA>1;
   StatsTracker* opcInfo;
-  //vector<Grads*> Kgrad;
-  //vector<Grads*> Ggrad;
+
+  MPI_Request nData_request = MPI_REQUEST_NULL;
+  double ndata_reduce_result, ndata_partial_sum;
 
   inline Policy_t prepare_policy(const vector<Real>& out) const
   {
@@ -83,7 +84,7 @@ class RACER : public Learner_offPolicy
 
       Tuple * const _t = traj->tuples[k];
       pol.prepare(_t->a, _t->mu, geomAvg, polTgt);
-      traj->offPol_weight[k] = std::max(pol.sampImpWeight, pol.sampInvWeight);
+      traj->offPol_weight[k] = pol.sampImpWeight;
 
       vector<Real>grad=compute(traj,k, Q_RET, out_cur, pol,polTgt, thrID);
       //write gradient onto output layer:
@@ -118,25 +119,14 @@ class RACER : public Learner_offPolicy
     #endif
 
     policies[0].prepare(traj->tuples[samp]->a, traj->tuples[samp]->mu, geomAvg, polTgt);
-    const Real rho_cur = policies[0].sampImpWeight;
-    const Real rho_inv = policies[0].sampInvWeight;
-    traj->offPol_weight[samp] = std::max(rho_inv, rho_cur);
+    traj->offPol_weight[samp] = policies[0].sampImpWeight;
 
     #if 1 // in case rho outside bounds, resample:
-      const Real minImpWeight = std::min((Real)0.5, 1/CmaxPol);
-      const Real maxImpWeight = std::max((Real)2.0,   CmaxPol);
-      if( rho_cur < minImpWeight || rho_cur > maxImpWeight ) {
-        if(thrID==1)  profiler->stop_start("SLP");
-        int newSample = -1;
-        #pragma omp critical
-          newSample = data->sample(thrID);
-
-        if(newSample >= 0) { // process the other sample
-          Uint sequence, transition;
-          data->indexToSample(newSample, sequence, transition);
-          return Train(sequence, transition, thrID);
-        } else return;
-      }
+     if(policies[0].sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
+        policies[0].sampImpWeight > std::max((Real)2.0,   CmaxPol) ) {
+       if(thrID==1)  profiler->stop_start("SLP");
+       return resample(thrID);
+     }
     #endif
 
     // initialize importance sample
@@ -153,11 +143,9 @@ class RACER : public Learner_offPolicy
       assert(policies.size() == k+1-samp);
 
       policies.back().prepare(traj->tuples[k]->a, traj->tuples[k]->mu, geomAvg);
-      const Real rhoK_inv = policies.back().sampInvWeight;
-      const Real rhoK_imp = policies.back().sampImpWeight;
-      traj->offPol_weight[k] = std::max(rhoK_inv, rhoK_imp); //(race condition)
+      traj->offPol_weight[k] = policies.back().sampImpWeight; //(race condition)
       //Racer off-pol correction weight: /*lambda*/
-      impW *= gamma * std::min((Real)1,rhoK_imp);
+      impW *= gamma * std::min((Real)1, policies.back().sampImpWeight);
       if (impW < 1e-4) { //then the imp weight is too small to continue
         lastTPolicy = k-1; //we initialize value of Q_RET to V(state_{k+1})
         truncated = true; //by acting as if sequence is truncated
@@ -335,8 +323,7 @@ class RACER : public Learner_offPolicy
     print(pol_start).c_str(), print(adv_start).c_str(), PenalID, QPrecID);
     opcInfo = new StatsTracker(4, "racer", sett);
     //test();
-    if(sett.maxTotSeqNum < sett.batchSize)
-    die("maxTotSeqNum < batchSize")
+    if(sett.maxTotSeqNum < sett.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() { }
 
@@ -362,8 +349,10 @@ class RACER : public Learner_offPolicy
       data->terminate_seq(agent);
   }
 
-  void processStats() override
+  void prepareGradient()
   {
+    Learner_offPolicy::prepareGradient();
+    if(!nAddedGradients) return;
     //update sequences
     //this does not count ones added between updates by exploration
     const Real lastSeq = nStoredSeqs_last;
@@ -375,19 +364,28 @@ class RACER : public Learner_offPolicy
     const Real nPruned = currPre - currSeqs;
     //assuming that pruning has not removed any of the fresh samples
     //compute how many samples we would have in a purely sequential code:
-    const Real samples_sequential = lastSeq - nPruned;
-    //if(samples_sequential >= nSequences4Train()) {
-    //if(nPruned < 0.5) /* (float) safe == 0 */ {
-    //  DKL_target = 0.01 + DKL_target*0.9999;
-    //  //DKL_target = 1.01 * DKL_target;
-    //} else
-    if(samples_sequential < nSequences4Train()) {
-      DKL_target = DKL_target*0.99;
-      //DKL_target = 0.01 + DKL_target*0.95;
-    } else DKL_target = 0.001 + .999 * DKL_target;
+    Real samples_sequential = lastSeq - nPruned;
     nStoredSeqs_last = currSeqs; //after pruning
 
-    Learner::processStats();
+    if (learn_size > 1)
+    {
+      const bool firstUpdate = nData_request == MPI_REQUEST_NULL;
+      if(not firstUpdate) MPI_Wait(&nData_request, MPI_STATUS_IGNORE);
+
+      // prepare an allreduce with the current data:
+      ndata_partial_sum = samples_sequential;
+      // use result from prev reduce to update rewards (before new reduce)
+      samples_sequential = ndata_reduce_result;
+
+      MPI_Iallreduce(&ndata_partial_sum, &ndata_reduce_result, 1, MPI_DOUBLE, MPI_SUM, mastersComm, &nData_request);
+      // if no reduction done, partial sums are meaningless
+      if(firstUpdate) return;
+    }
+
+    if(samples_sequential < batchSize*learn_size)
+      DKL_target *= 0.99;
+    else
+      DKL_target += 1e-5*(1-DKL_target);
   }
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const

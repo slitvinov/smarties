@@ -75,6 +75,9 @@ struct StatsTracker
   mutable vector<long double> cntVec;
   mutable vector<vector<long double>> avgVec, stdVec;
 
+  MPI_Request request = MPI_REQUEST_NULL;
+  vector<long double> reduce_result, partial_sum;
+
   StatsTracker(const Uint nvars, const string _name, Settings& sett) :
   n_stats(nvars), name(_name), comm(sett.mastersComm), nThreads(sett.nThreads),
   learn_size(sett.learner_size), learn_rank(sett.learner_rank),
@@ -161,13 +164,37 @@ struct StatsTracker
     assert(cntVec.size()>1);
 
     advance();
+
     if (learn_size > 1) {
-      MPI_Allreduce(MPI_IN_PLACE, &cntVec[0], 1,
-          MPI_LONG_DOUBLE, MPI_SUM, comm);
-      MPI_Allreduce(MPI_IN_PLACE, avgVec[0].data(), avgVec[0].size(),
-          MPI_LONG_DOUBLE, MPI_SUM, comm);
-      MPI_Allreduce(MPI_IN_PLACE, stdVec[0].data(), stdVec[0].size(),
-          MPI_LONG_DOUBLE, MPI_SUM, comm);
+      const bool firstUpdate = (request == MPI_REQUEST_NULL);
+      if(not firstUpdate) MPI_Wait(&request, MPI_STATUS_IGNORE);
+
+      // prepare an allreduce with the current data:
+      partial_sum = avgVec[0];
+      partial_sum.insert(partial_sum.end(), stdVec[0].begin(), stdVec[0].end());
+      partial_sum.push_back(cntVec[0]);
+      assert(partial_sum.size() == 2*n_stats +1);
+
+      //use result from prev reduce to update rewards (before new reduce)
+      if(firstUpdate) {
+        reduce_result.resize(2*n_stats +1, 0);
+      } else { //then i have the result ready
+        for (Uint i=0; i<n_stats; i++) {
+          avgVec[0][i] = reduce_result[i];
+          stdVec[0][i] = reduce_result[i+n_stats];
+        }
+        cntVec[0] = reduce_result[2*n_stats];
+      }
+
+      MPI_Iallreduce(partial_sum.data(), reduce_result.data(), 2*n_stats +1,
+        MPI_LONG_DOUBLE, MPI_SUM, comm, &request);
+
+      // if no reduction done partial sums are meaningless. no change applied
+      if(firstUpdate) {
+        avgVec[0] = oldsum;
+        stdVec[0] = oldstd;
+        return;
+      }
     }
     update();
     printToFile();

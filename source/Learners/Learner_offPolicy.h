@@ -26,13 +26,28 @@ public:
   bool readyForTrain() const;
   inline Uint nSequences4Train() const
   {
-    return batchSize/learn_size;
+    return batchSize;
   }
   inline Uint read_nData() const
   {
     const Uint _nData = data->readNSeen();
     if(_nData < nData_b4PolUpdates) return 0;
     return _nData - nData_b4PolUpdates;
+  }
+
+  inline void resample(const Uint thrID) const // TODO resample sequence
+  {
+    int newSample = -1;
+    #pragma omp critical
+    newSample = data->sample(thrID);
+
+    if(newSample >= 0) // process the other sample
+    {
+      Uint sequence, transition;
+      data->indexToSample(newSample, sequence, transition);
+      return Train(sequence, transition, thrID);
+    }
+    else return; // skip element of the batch -> as if added 0 gradient
   }
 
   //main training functions:
@@ -42,5 +57,5 @@ public:
   bool batchGradientReady() override;
   bool readyForAgent(const int slave) override;
 
-  void applyGradient() override;
+  void prepareGradient() override;
 };

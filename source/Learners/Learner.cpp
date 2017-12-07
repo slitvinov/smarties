@@ -36,13 +36,14 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
   data->pushBackEndedSim(agentOne, agentEnd);
 }
 
-void Learner::applyGradient() //this cannot be called from omp parallel region
+void Learner::prepareGradient() //this cannot be called from omp parallel region
 {
+  //cout << "prepareGradient " << nAddedGradients<< endl;
   if(!nAddedGradients) return; //then this was called WITHOUT a batch ready
 
   profiler->stop_start("UPW");
-  for(auto & net : F) net->update();
-  nAddedGradients = 0;
+  for(auto & net : F) net->prepareUpdate();
+  input->prepareUpdate();
   nStep++;
 
   if(nStep%100 ==0) processStats();
@@ -57,6 +58,12 @@ void Learner::applyGradient() //this cannot be called from omp parallel region
     profiler_ext->reset();
   }
   profiler->stop_start("SLP");
+}
+
+void Learner::synchronizeGradients()
+{
+  for(auto & net : F) net->applyUpdate();
+  input->applyUpdate();
 }
 
 void Learner::processStats()

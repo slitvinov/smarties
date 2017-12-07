@@ -99,7 +99,7 @@ class Optimizer
   const MPI_Comm mastersComm;
   const Uint learn_size;
   const Real eta, beta_1, beta_2;
-  long unsigned nepoch = 0;
+  long unsigned nStep = 0;
   Real beta_t_1 = beta_1, beta_t_2 = beta_2;
   const Real lambda, epsAnneal, tgtUpdateAlpha;
   const Parameters * const weights;
@@ -108,7 +108,9 @@ class Optimizer
   const Parameters * const _1stMom;
   const Parameters * const _2ndMom;
   vector<std::mt19937>& generators;
-  Uint cntUpdateDelay = 0;
+  Uint cntUpdateDelay = 0, totGrads = 0;
+  MPI_Request paramRequest = MPI_REQUEST_NULL;
+  MPI_Request batchRequest = MPI_REQUEST_NULL;
   //const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD, delay;
   //const Uint L_eSGD;
   //nnReal *const _muW_eSGD, *const _muB_eSGD;
@@ -129,21 +131,36 @@ class Optimizer
    _dispose_object(gradSum); _dispose_object(_1stMom); _dispose_object(_2ndMom);
   }
 
-  inline void update(const int batchsize, const vector<Parameters*>& grads) {
-    update(batchsize, &grads);
+  inline void prepare_update(const int batchsize, const vector<Parameters*>& grads) {
+    prepare_update(batchsize, &grads);
   }
-  void update(const int batchsize, const vector<Parameters*>* grads = nullptr)
+
+  void prepare_update(const int batchsize, const vector<Parameters*>* grads = nullptr)
   {
-    using Algorithm = Adam;
-    Uint totGrads = batchsize;
+    totGrads = batchsize;
     if(grads not_eq nullptr) //add up gradients across threads
       gradSum->reduceThreadsGrad(*grads);
 
     if (learn_size > 1) { //add up gradients across master ranks
-      gradSum->allReduce(mastersComm);
-      MPI_Allreduce(MPI_IN_PLACE,&totGrads,1, MPI_UNSIGNED,MPI_SUM,mastersComm);
+      nnReal* const paramAry = weights->params;
+      MPI_Iallreduce(MPI_IN_PLACE, paramAry, weights->nParams, MPI_NNVALUE_TYPE, MPI_SUM, mastersComm, &paramRequest);
+      MPI_Iallreduce(MPI_IN_PLACE, &totGrads, 1, MPI_UNSIGNED, MPI_SUM, mastersComm, &batchRequest);
     }
+    nStep++;
+  }
 
+  void apply_update()
+  {
+    if(nStep == 0) die("nStep == 0");
+    if(learn_size > 1) {
+      if(batchRequest == MPI_REQUEST_NULL)
+        die("I am in finalize without having started a reduction");
+      if(paramRequest == MPI_REQUEST_NULL)
+        die("I am in finalize without having started a reduction");
+      MPI_Wait(&paramRequest, MPI_STATUS_IGNORE);
+      MPI_Wait(&batchRequest, MPI_STATUS_IGNORE);
+    }
+    using Algorithm = Adam;
     //update is deterministic: can be handled independently by each node
     //communication overhead is probably greater than a parallelised sum
     assert(totGrads>0);
@@ -153,7 +170,7 @@ class Optimizer
     #pragma omp parallel
     {
       const Uint thrID = static_cast<Uint>(omp_get_thread_num());
-      Saru gen(nepoch, thrID, generators[thrID]());
+      Saru gen(nStep, thrID, generators[thrID]());
       Algorithm algo(eta, beta_1, beta_2, beta_t_1, beta_t_2, gen);
 
       #pragma omp for
@@ -163,7 +180,6 @@ class Optimizer
     }
 
     gradSum->clear();
-    nepoch++;
     // Needed by Adam optimization algorithm:
     beta_t_1 *= beta_1;
     if (beta_t_1<nnEPS) beta_t_1 = 0;
