@@ -62,17 +62,6 @@ private:
 
   inline void processRequest(const int slave);
 
-  #ifdef FULLTASKING
-    //mutable std::mutex client_mutex;
-    mutable Real avgNbusy = nSlaves;
-    mutable int nServing = 0;
-    inline int readNServing() const
-    {
-      //lock_guard<mutex> lock(client_mutex);
-      return nServing;
-    }
-  #endif
-
   inline void sendBuffer(const int i)
   {
     assert(i>0);
@@ -98,22 +87,11 @@ private:
   inline void addToNTasks(const int add) const
   {
     learner->addToNTasks(add);
-    #ifdef FULLTASKING
-    //lock_guard<mutex> lock(client_mutex);
-    #pragma omp atomic
-    nServing += add;
-    #endif
   }
 
-  inline void spawnTrainingTasks(bool& first, const bool slaves_waiting) const
+  inline void spawnTrainingTasks(const bool slaves_waiting) const
   {
-    #ifndef FULLTASKING
-    learner->spawnTrainTasks(slaves_waiting); //spawn all tasks
-    #else
-      //const int nReservedTasks = postponed_queue.size()? 0 : 1;
-      //learner->spawnTrainTasks(nThreads - learner->readNTasks() - nReservedTasks);
-      learner->spawnTrainTasks(postponed_queue.size());
-    #endif
+    learner->spawnTrainTasks(slaves_waiting);
   }
 
 public:

@@ -55,14 +55,13 @@ int Master::run()
         postponed_queue.clear();
       }
 
-      bool first = true;
       profiler->stop_start("COMM");
       while (true)
       {
         if(!bTrain && stepNum >= totNumSteps) break; //check for termination
         if(learner->batchGradientReady()) break;
 
-        spawnTrainingTasks(first, postponed_queue.size()==(size_t)nSlaves);
+        spawnTrainingTasks(postponed_queue.size());
 
         for(int i=0; i<nSlaves; i++)
         {
