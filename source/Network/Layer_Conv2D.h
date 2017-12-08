@@ -105,7 +105,8 @@ class ConvLayer : public Layer
     static const int mm_nInner = Kn_Y * Kn_X * In_C;
     static const int mm_outCol = Kn_C;
 
-    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+    // TODO: code can be compiled in quad precision, but then switch off cblas?
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
       mm_outRow, mm_outCol, mm_nInner, 1, &buf[0][0][0][0][0], mm_nInner,
       para->W(ID), mm_outCol, 1, curr->X(ID), mm_outCol);
 

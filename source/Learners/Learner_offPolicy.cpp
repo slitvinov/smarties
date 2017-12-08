@@ -37,7 +37,6 @@ void Learner_offPolicy::prepareData()
     die("I do not have enough data for training. Change hyperparameters");
 
   //cout<<nStep<<" "<<learn_rank<<" prepareData: " <<data->Set.size()<< " "<<batchSize<<" "<<taskCounter<<" "<<nAddedGradients<<"\n"; fflush(0);
-
   if ( ! readyForTrain() ) {
     nAddedGradients = 0;
     return;
@@ -111,7 +110,7 @@ int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be call
       const Uint seq = sequences.back(); sequences.pop_back();
       addToNTasks(1);
       #ifdef FULLTASKING
-        #pragma omp task firstprivate(seq) if(readNTasks()<nSThreads)
+        #pragma omp task firstprivate(seq) if(readNTasks()<(int)nThreads)
       #else
         #pragma omp task firstprivate(seq) //if(!availTasks)
       #endif
@@ -135,7 +134,7 @@ int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be call
       const Uint obs = transitions.back(); transitions.pop_back();
       addToNTasks(1);
       #ifdef FULLTASKING
-        #pragma omp task firstprivate(seq, obs) if(readNTasks()<nSThreads)
+        #pragma omp task firstprivate(seq, obs) if(readNTasks()<(int)nThreads)
       #else
         #pragma omp task firstprivate(seq, obs) //if(!availTasks)
       #endif

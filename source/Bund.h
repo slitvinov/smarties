@@ -57,7 +57,7 @@ using namespace std;
 //#define INTEGRATEANDFIREMODEL
 //#define INTEGRATEANDFIRESHARED //if IaF parameters are shared by all neurons
 //#define _dumpNet_
-//#define FULLTASKING
+#define FULLTASKING
 
 typedef unsigned Uint;
 

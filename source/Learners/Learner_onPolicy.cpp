@@ -56,9 +56,9 @@ int Learner_onPolicy::spawnTrainTasks(const int availTasks)
   #pragma omp parallel for schedule(dynamic)
   for (Uint i=0; i<batchSize; i++) {
     const int thrID = omp_get_thread_num();
-    if(thrID == 0) profiler_ext->stop_start("WORK");
-    Train(sequences[i], transitions[i], omp_get_thread_num());
-    if(thrID == 0) profiler_ext->stop_start("COMM");
+    if(thrID==0) profiler_ext->stop_start("WORK");
+    Train(sequences[i], transitions[i], thrID);
+    if(thrID==0) profiler_ext->stop_start("COMM");
   }
   return 0;
 }

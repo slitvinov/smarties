@@ -110,21 +110,8 @@ private:
     #ifndef FULLTASKING
     learner->spawnTrainTasks(slaves_waiting); //spawn all tasks
     #else
-      #if 0
-      const int nServerThreads = readNServing();
-      const int nTrainTasks = learner->readNTasks() - nServerThreads;
-      //nSlaves tasks are reserved to handle slaves, if comm queue is empty
-      if( !first && !postponed_queue.size() )
-        avgNbusy += 1e-6 * (nServerThreads-avgNbusy);
-      first = false;
-      const int goodNreserved = max((int) ceil(avgNbusy), 1);
-      const int nReservedTasks = postponed_queue.size()? 0 : goodNreserved;
-      const int availTasks = nThreads - nTrainTasks - nReservedTasks;
-      learner->spawnTrainTasks(availTasks);
-      #else
       const int nReservedTasks = postponed_queue.size()? 0 : 1;
       learner->spawnTrainTasks(nThreads - learner->readNTasks() - nReservedTasks);
-      #endif
     #endif
   }
 

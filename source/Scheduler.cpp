@@ -121,14 +121,14 @@ inline void Master::processRequest(const int slave)
   {
     //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
     learner->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
-    for (int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
-    printf("Received a FAIL_COMM\n");
+    for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
+    warn("Received a FAIL_COMM\n");
   }
   else if (istatus == GAME_OVER)
   {
     //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
     learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
-    for (int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
+    for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
     //printf("Received a GAME_OVER\n");
   }
   else
@@ -144,7 +144,7 @@ inline void Master::processRequest(const int slave)
     if(agents[agent]->Status not_eq TERM_COMM) //if term, no action sent
     {
       for(Uint i=0; i<aI.dim; i++)
-        outBufs[slave-1][i] = agents[agent]->a->vals[i];
+        outBufs[slave-1][i]=agents[agent]->a->vals[i];
       sendBuffer(slave);
     }
     else if ( iter || !bTrain )
