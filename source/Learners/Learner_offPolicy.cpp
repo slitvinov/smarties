@@ -95,13 +95,13 @@ bool Learner_offPolicy::batchGradientReady()
 int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be called from omp parallel region
 {
   if ( !readyForTrain() ) return 0;
-  #ifdef FULLTASKING
-    if ( !availTasks ) return 0;
-    const int nSpawn = availTasks;
+  //#ifdef FULLTASKING
+  //  if ( !availTasks ) return 0;
+  //  const int nSpawn = availTasks;
     //const int nSpawn = sequences.size();
-  #else
+  //#else
     const int nSpawn = sequences.size();
-  #endif
+  //#endif
   if(sequences.size()) assert(nAddedGradients);
 
   if(bSampleSequences)
@@ -109,11 +109,11 @@ int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be call
     for (int i=0; i<nSpawn && sequences.size(); i++) {
       const Uint seq = sequences.back(); sequences.pop_back();
       addToNTasks(1);
-      #ifdef FULLTASKING
-        #pragma omp task firstprivate(seq) if(readNTasks()<(int)nThreads)
-      #else
+      //#ifdef FULLTASKING
+      //  #pragma omp task firstprivate(seq) if(readNTasks()<(int)nThreads)
+      //#else
         #pragma omp task firstprivate(seq) //if(!availTasks)
-      #endif
+      //#endif
       {
         const int thrID = omp_get_thread_num();
         //printf("Thread %d doing %u\n",thrID,sequence); fflush(0);
@@ -133,11 +133,11 @@ int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be call
       const Uint seq = sequences.back(); sequences.pop_back();
       const Uint obs = transitions.back(); transitions.pop_back();
       addToNTasks(1);
-      #ifdef FULLTASKING
+      //#ifdef FULLTASKING
         #pragma omp task firstprivate(seq, obs) if(readNTasks()<(int)nThreads)
-      #else
+      //#else
         #pragma omp task firstprivate(seq, obs) //if(!availTasks)
-      #endif
+      //#endif
       {
         const int thrID = omp_get_thread_num();
         //printf("Thread %d doing %u %u\n",thrID,sequence,transition); fflush(0);
@@ -152,10 +152,10 @@ int Learner_offPolicy::spawnTrainTasks(const int availTasks) //this must be call
     }
   }
 
-  #ifndef FULLTASKING
+  //#ifndef FULLTASKING
     if(!availTasks) return 0;
     #pragma omp taskwait
-  #endif
+  //#endif
   return 0;
 }
 

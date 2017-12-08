@@ -110,8 +110,9 @@ private:
     #ifndef FULLTASKING
     learner->spawnTrainTasks(slaves_waiting); //spawn all tasks
     #else
-      const int nReservedTasks = postponed_queue.size()? 0 : 1;
-      learner->spawnTrainTasks(nThreads - learner->readNTasks() - nReservedTasks);
+      //const int nReservedTasks = postponed_queue.size()? 0 : 1;
+      //learner->spawnTrainTasks(nThreads - learner->readNTasks() - nReservedTasks);
+      learner->spawnTrainTasks(postponed_queue.size());
     #endif
   }
 
