@@ -1,11 +1,6 @@
 #!/usr/bin/env python
-import gym
+import gym, sys, socket, os, os.path, time
 from gym import wrappers
-import matplotlib.pyplot as plt
-import sys
-import socket
-import os, os.path
-import time
 import numpy as np
 
 class Communicator:

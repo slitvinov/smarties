@@ -5,7 +5,7 @@
 
 
 for EXPTYPE in "QUAD" "GAUS"; do
-for NEXPERTS in "1" "2"; do
+for NEXPERTS in "1" "2" "3"; do
 
 export CPPFLAGS=-DNEXPERTS="${NEXPERTS} -DADV_${EXPTYPE}"
 make -C ../makefiles clean
@@ -13,8 +13,10 @@ make -C ../makefiles config=fit -j
 #make -C ../makefiles config=debug -j
 
 for BUFFSIZE in "10000"; do
-for IMPSAMPV in "1" "5"; do
-for IMPSAMPR in "2" "5"; do
+#for IMPSAMPV in "1" "5"; do
+for IMPSAMPV in "1"; do
+#for IMPSAMPR in "2" "5"; do
+for IMPSAMPR in "5"; do
 #for BATCHNUM in "64" "128"; do
 for BATCHNUM in "128"; do
 #for EPERSTEP in "1" "6.4"; do
@@ -23,7 +25,7 @@ for EPERSTEP in "1"; do
 #for RUNTRIAL in "13" "14" "15"; do
 for RUNTRIAL in "1" "2" "3"; do
 
-for ALGOFLAG in "entropy_${NEXPERTS}${EXPTYPE}Exp"; do
+for ALGOFLAG in "alpha_${NEXPERTS}${EXPTYPE}Exp"; do
 
 NMASTERS=1
 

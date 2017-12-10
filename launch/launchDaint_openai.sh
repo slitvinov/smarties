@@ -85,7 +85,7 @@ module load daint-gpu
 export OMP_NUM_THREADS=12
 export CRAY_CUDA_MPS=1
 
-srun --ntasks ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --threads-per-core=2 ./exec ${SETTINGS}
+srun --ntasks ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} ./exec ${SETTINGS}
 
 #srun --ntasks ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --threads-per-core=2 valgrind  --tool=memcheck  --leak-check=full --show-reachable=no --show-possibly-lost=no --track-origins=yes ./exec ${SETTINGS}
 EOF
