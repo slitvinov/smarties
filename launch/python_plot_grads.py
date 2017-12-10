@@ -19,7 +19,7 @@ FILE=    sys.argv[1]
 #np.savetxt(sys.stdout, np.fromfile(sys.argv[1], dtype='i4').reshape(2,10).transpose())
 DATA = np.loadtxt(FILE, delimiter=" ")
 print(DATA.shape)
-NOUTS = DATA.shape[1]/2
+NOUTS = DATA.shape[1]//2
 #DATA = DATA.reshape(NROW, NCOL)
 
 for ind in range(0, NOUTS-2):
@@ -28,7 +28,7 @@ for ind in range(0, NOUTS-2):
   #plt.semilogy(abs(DATA[:,ind]),label=str(ind))
   plt.subplot(122)
   plt.semilogy(abs(DATA[:,NOUTS+ind]),'--',  label=str(ind))
-  
+
 plt.legend(loc=5, bbox_to_anchor=(1.2, 0.5))
 #plt.savefig('prova.png', dpi=100)
 plt.show()

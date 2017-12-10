@@ -38,7 +38,6 @@ SETTINGS+=" --epsAnneal 1000"
 SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 1000000"
 SETTINGS+=" --impWeight 5"
-SETTINGS+=" --opcWeight 1"
 
 #lag of target network
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps

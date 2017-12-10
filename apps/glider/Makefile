@@ -4,7 +4,7 @@ smart ?= 1
 aspectr ?= 0.1
 density ?= 200
 costfun ?= 1
-CPPFLAGS += -DRHORATIO=$(density) -DASPECTRATIO=$(aspectr) -DINSTREW=$(costfun)
+CPPFLAGS += -DRANDOM_START=$(train) -DRHORATIO=$(density) -DASPECTRATIO=$(aspectr) -DINSTREW=$(costfun)
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
@@ -15,14 +15,14 @@ endif
 ifeq "$(smart)" "0"
 OBJ_FILES =  glider.o
 else
-CPPFLAGS+= -D__SMARTIES_ -Wall
+CPPFLAGS+= -D__SMARTIES_
 OBJ_FILES = glider.o Communicator.o
 endif
 
 SRC_DIR = ./
 COM_DIR = ../../source/
 VPATH := $(SRC_DIR):$(COM_DIR)
-CPPFLAGS+=-std=c++11 -O2 -I$(COM_DIR)
+CPPFLAGS+=-std=c++11 -O2 -Wall -I$(COM_DIR)
 
 .DEFAULT_GOAL := glider
 

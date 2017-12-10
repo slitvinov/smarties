@@ -26,7 +26,7 @@ struct Encapsulator
   vector<vector<Activation*>*> series;
   mutable vector<int> first_sample;
   mutable vector<int> error_placements;
-  mutable Uint nAddedGradients=0;
+  mutable Uint nAddedGradients=0, nReducedGradients = 0;
   MemoryBuffer* const data;
   Optimizer* opt = nullptr;
   Network* net = nullptr;
@@ -134,18 +134,20 @@ struct Encapsulator
     #pragma omp parallel for //each thread should still handle its own memory
     for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) gradient(i);
 
-    if(!nAddedGradients) die("Error in prepareUpdate\n");
+    if(nAddedGradients == 0) die("Error in prepareUpdate\n");
 
     opt->prepare_update(nAddedGradients, net->Vgrad);
+    nReducedGradients = nAddedGradients;
+    nAddedGradients = 0;
   }
 
   void applyUpdate()
   {
     if(net == nullptr) return;
-    if(!nAddedGradients) return;
-    
+    if(nReducedGradients == 0) return;
+
     opt->apply_update();
-    nAddedGradients = 0;
+    nReducedGradients = 0;
   }
 
   inline void gradient(const Uint thrID) const

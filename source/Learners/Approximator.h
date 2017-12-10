@@ -24,7 +24,7 @@ struct Approximator
   const bool bRecurrent;
   Settings& settings;
   mutable vector<int> error_placements, first_sample;
-  mutable Uint nAddedGradients=0;
+  mutable Uint nAddedGradients=0, nReducedGradients=0;
 
   Encapsulator* const input;
   MemoryBuffer* const data;

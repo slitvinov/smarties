@@ -18,7 +18,7 @@ class Master
 {
 private:
   const MPI_Comm slavesComm;
-  Learner* const learner;
+  const vector<Learner*> learners;
   Environment* const env;
   const ActionInfo aI;
   const StateInfo  sI;
@@ -31,12 +31,26 @@ private:
   vector<Uint> agentSortingCheck;
   vector<MPI_Request> requests;
   vector<int> postponed_queue;
-  Profiler* profiler;
+  Profiler* profiler     = nullptr;
+  Profiler* profiler_int = nullptr;
   std::mutex mpi_mutex, dump_mutex;
 
-  inline int learnerReadyForAgent(const int slave) const
+  int& nTasks;
+
+  inline void prepareLearners()
   {
-    //Return whether want more data from an agent on this slave. When is false?
+    for(const auto& L : learners)
+      L->prepareData(); //sync data, make sure we can sample
+
+    //this is the last possible time to finish the blocking mpi MPI_Allreduce
+    // and finally perform the actual gradient step
+    for(const auto& L : learners)
+      L->synchronizeGradients();
+  }
+
+  inline bool learnersLockQueue()
+  {
+    //When would a learning algo stop acquiring more data?
     //Off Policy algos:
     // - User specifies a ratio of observed trajectories to gradient steps.
     //    Comm is restarted or paused to maintain this ratio consant.
@@ -49,8 +63,21 @@ private:
     //    on a slave, all other agents on that slave must send their term state
     //    before sending any new initial state
 
-    return learner->readyForAgent(slave);
-    //assert(ready || agents[agent]->Status == _AGENT_FIRSTCOMM); //for on pol
+    // However, no learner can stop others from getting data (vector of algos)
+    bool locked = true;
+    for(const auto& L : learners)
+      locked = locked && not L->unlockQueue(); // if any wants to unlock...
+
+    return locked;
+  }
+
+  inline bool learnersGradientReady()
+  {
+    // can we perform any batch gradient update?
+     bool ready = false;
+     for(const auto& L : learners)
+       ready = ready || L->batchGradientReady();
+     return ready;
   }
 
   static inline vector<double*> alloc_bufs(const int size, const int num)
@@ -82,26 +109,28 @@ private:
 
   inline int readNTasks() const
   {
-    return learner->readNTasks();
+    return nTasks;
   }
   inline void addToNTasks(const int add) const
   {
-    learner->addToNTasks(add);
+    #pragma omp atomic
+    nTasks += add;
   }
 
-  inline void spawnTrainingTasks(const bool slaves_waiting) const
+  inline void spawnTrainingTasks() const
   {
-    learner->spawnTrainTasks(slaves_waiting);
+    for(const auto& L : learners)
+      L->spawnTrainTasks();
   }
 
 public:
-  Master(MPI_Comm comm, Learner*const learner, Environment*const env, Settings& settings);
+  Master(MPI_Comm _c,const vector<Learner*>_l,Environment*const _e,Settings&_s);
   ~Master()
   {
     _dispose_object(env);
     for(int i=0; i<nSlaves; i++) _dealloc(inpBufs[i]);
     for(int i=0; i<nSlaves; i++) _dealloc(outBufs[i]);
-    _dispose_object(learner);
+    for(const auto& L : learners) _dispose_object(L);
   }
 
   void sendTerminateReq()

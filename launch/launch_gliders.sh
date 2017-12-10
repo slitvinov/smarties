@@ -9,7 +9,7 @@ make -C ../apps/glider aspectr=${ASPECT} density=${DRATIO} costfun=${REWARD}
 POSTFIX=${RATIO}_R${ASPECT}_C${REWARD}
 echo $POSTFIX
 
-./launch.sh glider_beta_${ASPECT}_rho_${DRATIO}_cost=${REWARD} 24 1 glider settings/settings_POAC.sh none 24
+./launch.sh glider_dt05_beta_${ASPECT}_rho_${DRATIO}_cost_${REWARD} 24 1 glider settings/settings_POAC.sh none 24
 
 done
 done

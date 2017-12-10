@@ -12,19 +12,24 @@
 #include <fstream>
 #include <algorithm>
 
-Master::Master(MPI_Comm _c,Learner*const _l, Environment*const _e, Settings&_s):
-  slavesComm(_c),learner(_l),env(_e),aI(_e->aI),sI(_e->sI), agents(_e->agents),
-  bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank), saveFreq(_s.saveFreq),
-  nSlaves(_s.nSlaves), nThreads(_s.nThreads), learn_rank(_s.learner_rank),
-  learn_size(_s.learner_size), totNumSteps(_s.totNumSteps),
+Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
+  Settings&_s): slavesComm(_c), learners(_l), env(_e), aI(_e->aI), sI(_e->sI),
+  agents(_e->agents), bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank), saveFreq(_s.saveFreq), nSlaves(_s.nSlaves), nThreads(_s.nThreads), learn_rank(_s.learner_rank), learn_size(_s.learner_size), totNumSteps(_s.totNumSteps),
   outSize(_e->aI.dim*sizeof(double)), inSize((3+_e->sI.dim)*sizeof(double)),
   inpBufs(alloc_bufs(inSize,nSlaves)), outBufs(alloc_bufs(outSize,nSlaves)),
-  slaveIrecvStatus(nSlaves, EMPTY), agentSortingCheck(agents.size(), 0), requests(nSlaves, MPI_REQUEST_NULL)//, profiler(_l->profiler)
+  slaveIrecvStatus(nSlaves, EMPTY), agentSortingCheck(agents.size(), 0), requests(nSlaves, MPI_REQUEST_NULL), nTasks(_s.global_tasking_counter)
 {
   profiler = new Profiler();
-  learner->profiler_ext = profiler;
-  printf("%d %d %d %d %d %d\n", nThreads, nSlaves, learn_rank, inSize, outSize, learn_size);
-fflush(0);
+
+  profiler_int = learners[0]->profiler;
+  for (Uint i=0; i<learners.size(); i++) {
+    learners[i]->profiler_ext = profiler;
+    if(i) {
+      _dispose_object(learners[i]->profiler);
+      learners[i]->profiler = profiler_int;
+    }
+  }
+
   if(nSlaves*nPerRank != static_cast<int>(agents.size()))
     die("Mismatch in master's nSlaves nPerRank nAgents.")
   //the following Irecv will be sent after sending the action
@@ -33,79 +38,88 @@ fflush(0);
 
 int Master::run()
 {
-  while (true)
+while (true)
+{
+  if(!bTrain && stepNum >= totNumSteps) return 1;
+  if( bTrain && learners[0]->reachedMaxGradStep()) return 1;
+
+  profiler->stop_start("PREP");
+  prepareLearners();
+
+  #pragma omp parallel num_threads(nThreads)
+  #pragma omp master
   {
-    if(!bTrain && stepNum >= totNumSteps) return 1;
-    if( bTrain && learner->reachedMaxGradStep()) return 1;
-    profiler->stop_start("PREP");
-    learner->prepareData(); //sync data, make sure we can sample
-    learner->synchronizeGradients();
-
-    #pragma omp parallel num_threads(nThreads)
-    #pragma omp master
+    if( postponed_queue.size() && not learnersLockQueue() )
     {
-      if(postponed_queue.size() && learner->unlockQueue())
-      {
-        profiler->stop_start("QUEUE");
-        for (const int slave : postponed_queue) {
-          addToNTasks(1);
-          #pragma omp task firstprivate(slave) //priority(1)
-            processRequest(slave);
-        }
-        postponed_queue.clear();
-      }
-
-      profiler->stop_start("COMM");
-      while (true)
-      {
-        if(!bTrain && stepNum >= totNumSteps) break; //check for termination
-        if(learner->batchGradientReady()) break;
-
-        spawnTrainingTasks(postponed_queue.size());
-
-        for(int i=0; i<nSlaves; i++)
+      profiler->stop_start("QUEUE");
+      for (const int slave : postponed_queue) {
+        addToNTasks(1);
+        #pragma omp task firstprivate(slave) priority(1)
         {
-          int completed=0;
-          MPI_Status mpistatus;
-          {
-            lock_guard<mutex> lock(mpi_mutex);
-            if(slaveIrecvStatus[i] == OPEN) //otherwise, Irecv not sent
-              MPI_Test(&requests[i], &completed, &mpistatus);
-          }
+          processRequest(slave);
+          addToNTasks(-1);
+        }
+      }
+      postponed_queue.clear();
+    }
 
-          if(completed)
-          {
-            const int slave = mpistatus.MPI_SOURCE;
-            assert(slaveIrecvStatus[i]==OPEN && slave==i+1);
-            debugS("Master receives from %d", slave);
-            slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
+    profiler->stop_start("COMM");
+    while (true)
+    {
+      if(!bTrain && stepNum >= totNumSteps) break; //check for termination
+      if( learnersGradientReady() ) break;
 
-            if(learnerReadyForAgent(slave))
+      spawnTrainingTasks();
+
+      for(int i=0; i<nSlaves; i++)
+      {
+        int completed=0;
+        MPI_Status mpistatus;
+        {
+          lock_guard<mutex> lock(mpi_mutex);
+          if(slaveIrecvStatus[i] == OPEN) //otherwise, Irecv not sent
+            MPI_Test(&requests[i], &completed, &mpistatus);
+        }
+
+        if(completed)
+        {
+          const int slave = mpistatus.MPI_SOURCE;
+          assert(slaveIrecvStatus[i]==OPEN && slave==i+1);
+          debugS("Master receives from %d", slave);
+          slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
+
+          if(not learnersLockQueue()) {
+            addToNTasks(1);
+            #pragma omp task firstprivate(slave) if(nTasks<nThreads) priority(1)
             {
-              addToNTasks(1);
-              #pragma omp task firstprivate(slave) if(readNTasks()<nThreads) priority(1)
-                processRequest(slave);
+              processRequest(slave);
+              addToNTasks(-1);
             }
-            else postponed_queue.push_back(slave);
-            debugS("number of tasks %d", learner->readNTasks());
-            assert(learner->readNTasks()>=0);
+          } else {
+            postponed_queue.push_back(slave);
+            if(postponed_queue.size()==(size_t)nSlaves)
+            {
+              #pragma omp taskwait
+            }
           }
         }
       }
     }
-
-    profiler->stop_start("TERM");
-    learner->prepareGradient(); //tasks have finished, update is ready
   }
-  die(" ");
-  return 0;
+  assert(nTasks==0); // here is outside of tasking region
+  profiler->stop_start("TERM");
+  for(const auto& L : learners)
+    L->prepareGradient(); //tasks have finished, update is ready
+}
+die(" ");
+return 0;
 }
 
 inline void Master::processRequest(const int slave)
 {
   const int thrID = omp_get_thread_num();
   //printf("Thread %d doing slave %d\n",thrID,slave);
-  if(thrID==1) learner->profiler->stop_start("SERV");
+  if(thrID==1) profiler_int->stop_start("SERV");
   if(thrID==0) profiler->stop_start("SERV");
   //auto start = std::chrono::high_resolution_clock::now();
   vector<double> recv_state(sI.dim);
@@ -116,17 +130,22 @@ inline void Master::processRequest(const int slave)
   const int agent = (slave-1) * nPerRank + recv_iAgent;
   assert(agent>=0 && recv_iAgent>=0 && agent<static_cast<int>(agents.size()));
 
+  if(learners.size() > 1)
+    assert((int)learners.size() == nPerRank && recv_iAgent < nPerRank);
+
+  Learner*const aAlgo = learners.size()>1? learners[recv_iAgent] : learners[0];
+
        if (istatus == FAIL_COMM) //app crashed :sadface:
   {
     //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
-    learner->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
+    aAlgo->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
     for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
     warn("Received a FAIL_COMM\n");
   }
   else if (istatus == GAME_OVER)
   {
     //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
-    learner->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
+    aAlgo->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
     for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
     //printf("Received a GAME_OVER\n");
   }
@@ -135,8 +154,8 @@ inline void Master::processRequest(const int slave)
     agents[agent]->update(istatus, recv_state, reward);
     assert(istatus == agents[agent]->Status);
     //pick next action and ...do a bunch of other stuff with the data:
-    learner->select(*agents[agent]);
-    const auto iter = learner->iter();
+    aAlgo->select(*agents[agent]);
+    const auto iter = aAlgo->iter();
 
     debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
 
@@ -160,8 +179,7 @@ inline void Master::processRequest(const int slave)
   }
 
   recvBuffer(slave);
-  addToNTasks(-1);
-  if(thrID==1) learner->profiler->stop_start("SLP");
+  if(thrID==1) profiler_int->stop_start("SLP");
   if(thrID==0) profiler->stop_start("COMM");
   //auto elapsed = std::chrono::high_resolution_clock::now() - start;
   //cout << chrono::duration_cast<chrono::microseconds>(elapsed).count() <<endl;

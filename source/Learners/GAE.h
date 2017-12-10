@@ -40,7 +40,10 @@ protected:
     //this is only triggered by t = 0 (or truncated trajectories)
     // at t=0 we do not have a reward, and we cannot compute delta
     //(if policy was updated after prev action we treat next state as initial)
-    if(seq->state_vals.size() < 2) return;
+    if(seq->state_vals.size() < 2) {
+      seq->action_adv.push_back(0);
+      return;
+    }
     assert(seq->tuples.size() == seq->state_vals.size());
     assert(seq->tuples.size() == seq->action_adv.size()+1);
     const Uint N = seq->tuples.size();
@@ -73,7 +76,7 @@ protected:
     const Real adv_est = traj->action_adv[samp+1];
     const Real val_tgt = traj->tuples[samp+1]->r;
     const vector<Real>& beta = traj->tuples[samp]->mu;
-
+    
     F[0]->prepare_one(traj, samp, thrID);
     F[1]->prepare_one(traj, samp, thrID);
     const vector<Real> pol_cur = F[0]->forward(traj, samp, thrID);
@@ -195,11 +198,11 @@ class GAE_cont : public GAE<Gaussian_policy, vector<Real> >
     F.push_back(new Approximator("policy", settings, input, data));
     F.push_back(new Approximator("value", settings, input, data));
     #ifndef simpleSigma
-      Builder build_pol = F[0]->buildFromSettings(settings, 2*aInfo.dim);
+      Builder build_pol = F[0]->buildFromSettings(settings, {2*aInfo.dim});
     #else
-      Builder build_pol = F[0]->buildFromSettings(settings,   aInfo.dim);
+      Builder build_pol = F[0]->buildFromSettings(settings,   {aInfo.dim});
     #endif
-    Builder build_val = F[1]->buildFromSettings(settings, 1 );
+    Builder build_val = F[1]->buildFromSettings(settings, {1} );
 
     #ifdef simpleSigma //add stddev layer
       build_pol.addParamLayer(aInfo.dim, "Linear", -2*std::log(greedyEps));

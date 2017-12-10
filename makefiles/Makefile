@@ -13,8 +13,8 @@ tabc ?= off
 sortseq ?= on
 mpi_lib ?= default
 
-CPPFLAGS+= -std=c++11 -D__Smarties_ -fopenmp
-LIBS += -fopenmp -lstdc++ -lm
+CPPFLAGS= -std=c++11 -D__Smarties_ -fopenmp
+LIBS= -fopenmp -lstdc++ -lm
 
 ifeq ($(UNAME_S),Darwin)
 include make.macos

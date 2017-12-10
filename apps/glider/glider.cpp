@@ -11,7 +11,9 @@
 
 //#define __PRINT_
 //#define SPEED_PENAL
+#ifndef RANDOM_START
 #define RANDOM_START 1
+#endif
 //#define NOISY 0
 
 #ifndef RHORATIO
@@ -25,9 +27,9 @@
 #endif
 
 #if   INSTREW==1
-#define TERM_REW_FAC 200
-#elif INSTREW==0
 #define TERM_REW_FAC 100
+#elif INSTREW==0
+#define TERM_REW_FAC 50
 #else
 #define TERM_REW_FAC 50
 #endif
@@ -115,7 +117,7 @@ struct Glider
 
   //time stepping
   const double dt = 5e-4;
-  const int nstep = 500;
+  const int nstep = 1000;
   const double DT = dt*nstep;
 
   double Jerk=0, Torque=0, oldDistance=0, oldTorque=0;
@@ -125,12 +127,24 @@ struct Glider
   int info=1, step=0;
   Vec7 _s;
 
+  void set(const std::vector<double> IC)
+  {
+    assert(IC.size() == 6);
+    _s.u = IC[0];
+    _s.v = IC[1];
+    _s.w = IC[2];
+    _s.x = IC[3];
+    _s.y = IC[4];
+    _s.a = IC[5];
+  }
+
   void reset(std::mt19937& gen)
   {
-    info=1;
+    info=1; step=0;
     std::uniform_real_distribution<double> init(-.1,.1); //for vels, angle
     std::uniform_real_distribution<double> initx(-10,10); //for position
-    Jerk=Torque=oldDistance=oldTorque=oldAngle=oldEnergySpent=time=step=0;
+    Jerk=0; Torque=0; oldDistance=0; oldTorque=0;
+    oldAngle=0; oldEnergySpent=0; time=0;
 
     #ifdef __SMARTIES_ //u,v,w,x,y,a,T
       #if RANDOM_START == 1
@@ -330,18 +344,24 @@ int main(int argc, const char * argv[])
     comm.set_action_scales(upper_action_bound, lower_action_bound, bounded);
     vector<bool> b_observable = {1, 1, 1, 1, 1, 1, 1, 0, 0, 0};
     comm.set_state_observable(b_observable);
+  #else
+    std::mt19937 gen(0)
   #endif
 
   //random initial conditions:
   Glider env;
 
+  #ifdef __SMARTIES_
   while (true) //train loop
+  #endif
   {
     //reset environment:
     env.reset(gen); //comm contains rng with different seed on each rank
     #ifdef __SMARTIES_
       //send initial state:
       comm.sendInitState(env.getState(comm.gen));
+    #else
+      env.set({stod(argv[1]), stod(argv[2]), stod(argv[3]), stod(argv[4]), stod(argv[5]), stod(argv[6])});
     #endif
 
     while (true) //simulation loop
@@ -358,12 +378,32 @@ int main(int argc, const char * argv[])
       vector<double> state = env.getState(gen);
       double reward = env.getReward();
 
+      #ifndef __SMARTIES_
+        std::cout<<env._s.u<<" "<<env._s.v<<" "<<env._s.w<<" "<<env._s.x<<" "<<env._s.y<<" "<<env._s.a<<std::endl;
+      #endif
+
       if(terminated)  //tell smarties that this is a terminal state
       {
         #ifdef __SMARTIES_
           comm.sendTermState(state, env.getTerminalReward());
         #endif
-
+        {
+          env.updateOldDistanceAndEnergy();
+          FILE * pFile = fopen ("terminals.raw", "ab");
+          const int writesize = 9*sizeof(float);
+          float* buf = (float*) malloc(writesize);
+          buf[0] = env.time;
+          buf[1] = env.oldEnergySpent;
+          buf[2] = env._s.x;
+          buf[3] = env._s.y;
+          buf[4] = env._s.a;
+          buf[5] = env._s.u;
+          buf[6] = env._s.v;
+          buf[7] = env._s.w;
+          buf[8] = env.getTerminalReward();
+          fwrite (buf, sizeof(float), writesize/sizeof(float), pFile);
+          fflush(pFile); fclose(pFile);  free(buf);
+        }
         break;
       }
       #ifdef __SMARTIES_

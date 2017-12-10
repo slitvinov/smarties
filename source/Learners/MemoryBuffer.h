@@ -29,7 +29,7 @@ public:
   const StateInfo sI;
   const ActionInfo aI;
   const vector<Agent*> _agents;
-  Uint nBroken=0, nTransitions=0, nSequences=0, old_ndata=0;
+  Uint nBroken=0, nTransitions=0, nSequences=0;
   Uint nTransitionsInBuf=0, nTransitionsDeleted=0;
   size_t nSeenSequences=0, nSeenTransitions=0, iOldestSaved = 0;
   Uint adapt_TotSeqNum = maxTotSeqNum, nPruned = 0, minInd = 0;
@@ -59,6 +59,18 @@ public:
     for (auto & trash : Set) _dispose_object( trash);
     for (auto & trash : inProgress) _dispose_object( trash);
     for (auto & trash : Buffered) _dispose_object( trash);
+  }
+
+  void inline clearAll()
+  {
+    for(auto& old_traj: Set) //delete already-used trajectories
+      _dispose_object(old_traj);
+    //for(auto& old_traj: data->inProgress)
+    //  old_traj->clear();//remove from in progress: now off policy
+    Set.clear(); //clear trajectories used for learning
+    nBroken = 0;
+    nSequences = 0;
+    nTransitions = 0;
   }
 
   template<typename T>

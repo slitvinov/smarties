@@ -185,7 +185,7 @@ public:
   // stackSimple reads from the settings file the amount of fully connected
   // layers (nnl1, nnl2, ...) and builds a network with given number of nInputs
   // and nOutputs. Supports LSTM, RNN and MLP (aka InnerProduct or Dense).
-  void stackSimple(Uint ninps,Uint nouts) { return stackSimple(ninps,{nouts}); }
+  //void stackSimple(Uint ninps,Uint nouts) { return stackSimple(ninps,{nouts}); }
   void stackSimple(const Uint ninps, const vector<Uint> nouts)
   {
     const int sumout=static_cast<int>(accumulate(nouts.begin(),nouts.end(),0));

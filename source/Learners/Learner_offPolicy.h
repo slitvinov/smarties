@@ -24,6 +24,7 @@ public:
   Learner_offPolicy(Environment*const env, Settings& _s);
 
   bool readyForTrain() const;
+
   inline Uint nSequences4Train() const
   {
     return batchSize;
@@ -51,11 +52,9 @@ public:
   }
 
   //main training functions:
-  int spawnTrainTasks(const int availTasks) override;
   void prepareData() override;
   bool unlockQueue() override;
-  bool batchGradientReady() override;
-  bool readyForAgent(const int slave) override;
-
+  int spawnTrainTasks() override;
   void prepareGradient() override;
+  bool batchGradientReady() override;
 };

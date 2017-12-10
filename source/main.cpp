@@ -60,19 +60,25 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
     //no need to free this
   }
 
-  Learner*const learner = createLearner(env, settings);
-  learner->restart();
+  const Uint nPols = settings.bSharedPol ? env->nAgentsPerRank : 1;
+  vector<Learner*> learners(nPols, nullptr);
+  for(Uint i = 0; i<nPols; i++) {
+    learners[i] = createLearner(env, settings);
+    stringstream ss; ss << std::setw(2) << std::setfill('0') << i;
+    learners[i]->setLearnerName("agent_"+ss.str()+"_");
+    learners[i]->restart();
+  }
 
-  Master master(slavesComm, learner, env, settings);
+  Master master(slavesComm, learners, env, settings);
 
-#if 1
+  #if 0
   if (!settings.nSlaves && !learner->nData())
   {
     printf("No slaves, just dumping the policy\n");
-    //learner->dumpPolicy();
+    learner->dumpPolicy();
     abort();
   }
-#endif
+  #endif
 
   master.run();
   master.sendTerminateReq();

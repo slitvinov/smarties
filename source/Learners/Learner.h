@@ -27,6 +27,10 @@ protected:
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;
 
+  mutable bool updatePrepared = false;
+  mutable bool updateComplete = false;
+  mutable bool waitingForData = true;
+
   ActionInfo aInfo;
   StateInfo  sInfo;
   std::vector<std::mt19937>& generators;
@@ -41,8 +45,8 @@ protected:
 public:
   Profiler* profiler;
   Profiler* profiler_ext = nullptr;
-  mutable std::mutex task_mutex;
-  int nTasks = 0;
+  int& nTasks;
+  string learner_name;
 
   Learner(Environment*const env, Settings & settings);
 
@@ -51,17 +55,16 @@ public:
     _dispose_object(data);
   }
 
-  inline int readNTasks() const
-  {
-    //lock_guard<mutex> lock(task_mutex);
-    return nTasks;
+  inline void setLearnerName(const string lName) {
+    learner_name = lName;
   }
+
   inline void addToNTasks(const int add)
   {
-    //lock_guard<mutex> lock(task_mutex);
     #pragma omp atomic
     nTasks += add;
   }
+
   inline unsigned iter() const
   {
     return nStep;
@@ -93,11 +96,10 @@ public:
   bool slaveHasUnfinishedSeqs(const int slave) const;
 
   //main training loop functions:
-  virtual int spawnTrainTasks(const int availTasks) = 0;
+  virtual int spawnTrainTasks() = 0;
   virtual void prepareData() = 0;
   virtual bool unlockQueue() = 0;
   virtual bool batchGradientReady() = 0;
-  virtual bool readyForAgent(const int slave) = 0;
 
   virtual void prepareGradient();
   void synchronizeGradients();

@@ -16,7 +16,8 @@ bTrain(_s.bTrain), nAgents(_s.nAgents), batchSize(_s.batchSize),
 totNumSteps(_s.totNumSteps), nThreads(_s.nThreads), nSlaves(_s.nSlaves),
 policyVecDim(_s.policyVecDim), greedyEps(_s.greedyEps), epsAnneal(_s.epsAnneal),
 gamma(_s.gamma), learn_rank(_s.learner_rank), learn_size(_s.learner_size),
-aInfo(env->aI), sInfo(env->sI), generators(_s.generators), Vstats(nThreads)
+aInfo(env->aI), sInfo(env->sI), generators(_s.generators), Vstats(nThreads),
+nTasks(_s.global_tasking_counter)
 {
   assert(nThreads>1);
   if(bSampleSequences) printf("Sampling sequences.\n");
@@ -38,12 +39,19 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 
 void Learner::prepareGradient() //this cannot be called from omp parallel region
 {
-  //cout << "prepareGradient " << nAddedGradients<< endl;
-  if(!nAddedGradients) return; //then this was called WITHOUT a batch ready
+  if(not updateComplete)
+    return; //then this was called WITHOUT a batch ready
+
+  assert(updatePrepared && not waitingForData);
+  // Learner is ready for the update: send the task to the networks and
+  // start preparing the next one
+  updatePrepared = false;
+  updateComplete = false;
 
   profiler->stop_start("UPW");
   for(auto & net : F) net->prepareUpdate();
   input->prepareUpdate();
+
   nStep++;
 
   if(nStep%100 ==0) processStats();
@@ -56,6 +64,9 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
     profiler_ext->stop_all();
     profiler_ext->printSummary();
     profiler_ext->reset();
+
+    for(auto & net : F) net->save(learner_name);
+    input->save(learner_name);
   }
   profiler->stop_start("SLP");
 }
@@ -79,11 +90,6 @@ void Learner::processStats()
   ofstream fout; fout.open("stats.txt", ios::app);
   fout<<fileOut.str()<<endl; fout.flush(); fout.close();
   printf("%lu %s\n", nStep, screenOut.str().c_str()); fflush(0);
-
-  if(nStep % 100==0) {
-    for(auto & net : F) net->save();
-    input->save();
-  }
 }
 
 void Learner::getMetrics(ostringstream&fileOut,ostringstream&screenOut) const {}

@@ -17,7 +17,7 @@ NS  =int(sys.argv[1])
 NA  =int(sys.argv[2])
 FILE=    sys.argv[3]
 ICOL=int(sys.argv[4])
-NL=(NA*NA+NA)/2
+NL=(NA*NA+NA)//2
 #COLMAX = 1e7
 #COLMAX = 8e6
 #COLMAX = 1e6
@@ -40,7 +40,7 @@ NCOL=3+NS+NA+NP
 
 #np.savetxt(sys.stdout, np.fromfile(sys.argv[1], dtype='i4').reshape(2,10).transpose())
 DATA = np.fromfile(FILE, dtype=np.float32)
-NROW = DATA.size / NCOL
+NROW = DATA.size // NCOL
 DATA = DATA.reshape(NROW, NCOL)
 
 terminals = np.argwhere(abs(DATA[:,0]-2.1)<0.1)

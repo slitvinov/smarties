@@ -89,7 +89,10 @@ Builder Approximator::buildFromSettings(Settings&sett, const vector<Uint>nouts)
 }
 
 Builder Approximator::buildFromSettings(Settings& _s, const Uint n_outputs) {
-  return buildFromSettings(_s, {n_outputs});
+  Builder build(_s);
+  Uint nInputs = input->nOutputs() + (relay==nullptr ? 0 : relay->nOutputs());
+  build.stackSimple( nInputs, {n_outputs} );
+  return build;
 }
 
 void Approximator::initializeNetwork(Builder& build)
@@ -266,17 +269,19 @@ void Approximator::prepareUpdate()
   #pragma omp parallel for //each thread should still handle its own memory
   for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) gradient(i);
 
-  if(!nAddedGradients) die("Error in prepareUpdate\n");
+  if(nAddedGradients == 0) die("Error in prepareUpdate\n");
 
   opt->prepare_update(nAddedGradients, net->Vgrad);
+  nReducedGradients = nAddedGradients;
+  nAddedGradients = 0;
 }
 
 void Approximator::applyUpdate()
 {
-  if(!nAddedGradients) return;
+  if(nReducedGradients == 0) return;
 
   opt->apply_update();
-  nAddedGradients = 0;
+  nReducedGradients = 0;
 }
 
 void Approximator::gradient(const Uint thrID) const

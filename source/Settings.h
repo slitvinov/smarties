@@ -187,19 +187,19 @@ struct Settings
 #define DEFAULT_maxTotSeqNum 1000
   int maxTotSeqNum = DEFAULT_maxTotSeqNum;
 
-#define CHARARG_opcWeight 'v'
-#define COMMENT_opcWeight "Max importance weight for Retrace offpol corrections"
-#define TYPEVAL_opcWeight Real
-#define TYPENUM_opcWeight REAL
-#define DEFAULT_opcWeight 1
-  Real opcWeight = DEFAULT_opcWeight;
-
 #define CHARARG_impWeight 'w'
 #define COMMENT_impWeight "Max importance weight for Policy Gradient"
 #define TYPEVAL_impWeight Real
 #define TYPENUM_impWeight REAL
 #define DEFAULT_impWeight 5
   Real impWeight = DEFAULT_impWeight;
+
+#define CHARARG_bSharedPol 'y'
+#define COMMENT_bSharedPol "Have a separate policy per each agent on a sim"
+#define TYPEVAL_bSharedPol int
+#define TYPENUM_bSharedPol INT
+#define DEFAULT_bSharedPol 0
+  int bSharedPol = DEFAULT_bSharedPol;
 
 #define CHARARG_totNumSteps 'z'
 #define COMMENT_totNumSteps "Number of gradient steps before end of learning"
@@ -394,6 +394,9 @@ struct Settings
   //std::mt19937* gen;
   std::vector<std::mt19937> generators;
 
+  //bad practice! but... allows me to speed up things:
+  int global_tasking_counter = 0;
+
   void check()
   {
     bRecurrent = nnType=="LSTM" || nnType=="RNN";
@@ -428,7 +431,7 @@ struct Settings
     //AVERT YOUR EYES!
 
     return vector<ArgParser::OptionStruct> ({
-      { CHARARG_opcWeight, "opcWeight", TYPENUM_opcWeight, COMMENT_opcWeight, &opcWeight, (TYPEVAL_opcWeight) DEFAULT_opcWeight },
+      { CHARARG_bSharedPol, "bSharedPol", TYPENUM_bSharedPol, COMMENT_bSharedPol, &bSharedPol, (TYPEVAL_bSharedPol) DEFAULT_bSharedPol },
       { CHARARG_impWeight, "impWeight", TYPENUM_impWeight, COMMENT_impWeight, &impWeight, (TYPEVAL_impWeight) DEFAULT_impWeight },
       { CHARARG_environment, "environment", TYPENUM_environment, COMMENT_environment, &environment, (TYPEVAL_environment) DEFAULT_environment },
       { CHARARG_launchfile, "launchfile", TYPENUM_launchfile, COMMENT_launchfile, &launchfile, (TYPEVAL_launchfile) DEFAULT_launchfile },

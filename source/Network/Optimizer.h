@@ -206,24 +206,21 @@ class Optimizer
 
   void save(const string fname)
   {
-    /*
     weights->save(fname+"_weights");
     if(tgt_weights not_eq nullptr) tgt_weights->save(fname+"_tgt_weights");
     _1stMom->save(fname+"_1stMom");
     _2ndMom->save(fname+"_2ndMom");
 
-    if(nepoch % 100000 == 0 && nepoch > 0) {
-      ostringstream ss; ss << std::setw(10) << std::setfill('0') << nepoch;
+    if(nStep % 100000 == 0 && nStep > 0) {
+      ostringstream ss; ss << std::setw(10) << std::setfill('0') << nStep;
       weights->save(fname+"_weights"+ss.str());
       _1stMom->save(fname+"_1stMom" +ss.str());
       _2ndMom->save(fname+"_2ndMom" +ss.str());
     }
-    */
   }
   int restart(const string fname)
   {
     int ret = 0;
-    /*
     ret = weights->restart(fname+"_weights");
     if(tgt_weights not_eq nullptr) {
       int missing_tgt = tgt_weights->restart(fname+"_tgt_weights");
@@ -231,7 +228,6 @@ class Optimizer
     }
     _1stMom->restart(fname+"_1stMom");
     _2ndMom->restart(fname+"_2ndMom");
-    */
     return ret;
   }
 };

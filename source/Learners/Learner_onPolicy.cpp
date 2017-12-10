@@ -11,6 +11,24 @@
 
 Learner_onPolicy::Learner_onPolicy(Environment*const _env, Settings&_s): Learner(_env, _s) { }
 
+void Learner_onPolicy::prepareData()
+{
+  if(cntEpoch == nEpochs) {
+    data->clearAll();
+    //reset batch learning counters
+    cntTrajectories = 0; cntHorizon = 0; cntEpoch = 0; cntBatch = 0;
+    waitingForData = true;
+    updateComplete = false;
+    updatePrepared = false;
+  }
+}
+
+bool Learner_onPolicy::batchGradientReady()
+{
+  updateComplete = taskCounter >= batchSize;
+  return updateComplete;
+}
+
 // unlockQueue tells scheduler that has stopped receiving states from slaves
 // whether should start communication again.
 // for on policy learning, when enough data is collected from slaves
@@ -18,54 +36,47 @@ Learner_onPolicy::Learner_onPolicy(Environment*const _env, Settings&_s): Learner
 // when training is concluded collection restarts
 bool Learner_onPolicy::unlockQueue()
 {
-  if(cntEpoch == nEpochs) {
-    for(auto& old_traj: data->Set) //delete already-used trajectories
-      _dispose_object(old_traj);
-    //for(auto& old_traj: data->inProgress)
-    //  old_traj->clear();//remove from in progress: now off policy
-    data->Set.clear(); //clear trajectories used for learning
-    //reset batch learning counters
-    cntTrajectories = 0; cntHorizon = 0; cntEpoch = 0; cntBatch = 0;
-    return true;
-  }
-  return false;
-}
-bool Learner_onPolicy::readyForAgent(const int slave)
-{
-  //block creation if we have reached enough data for a batch
-  if(cntHorizon>=nHorizon) return false;
-  else return true;
+  return waitingForData;
 }
 
-void Learner_onPolicy::prepareData()
+int Learner_onPolicy::spawnTrainTasks()
 {
-  return;
-}
+  if( updateComplete || cntHorizon < nHorizon  || not bTrain )
+    return 0;
+  data->shuffle_samples();
+  waitingForData = false;
+  updateComplete = false;
+  updatePrepared = true;
 
-bool Learner_onPolicy::batchGradientReady()
-{
-  return nAddedGradients == batchSize;
-}
-
-int Learner_onPolicy::spawnTrainTasks(const int availTasks)
-{
-  if ( cntHorizon < nHorizon  || ! bTrain) return 0;
   vector<Uint> sequences(batchSize), transitions(batchSize);
   nAddedGradients = data->sampleTransitions(sequences, transitions);
 
   #pragma omp parallel for schedule(dynamic)
-  for (Uint i=0; i<batchSize; i++) {
-    const int thrID = omp_get_thread_num();
-    if(thrID==0) profiler_ext->stop_start("WORK");
-    Train(sequences[i], transitions[i], thrID);
-    if(thrID==0) profiler_ext->stop_start("COMM");
+  for (Uint i=0; i<batchSize; i++)
+  {
+    const Uint seq = sequences.back(); sequences.pop_back();
+    const Uint obs = transitions.back(); transitions.pop_back();
+    addToNTasks(1);
+    #pragma omp task firstprivate(seq, obs)
+    {
+      const int thrID = omp_get_thread_num();
+      if(thrID==0) profiler_ext->stop_start("WORK");
+      Train(seq, obs, thrID);
+      if(thrID==0) profiler_ext->stop_start("COMM");
+      addToNTasks(-1);
+      #pragma omp atomic
+      taskCounter++;
+      //printf("Thread %d done %u %u\n",thrID,seq,obs); fflush(0);
+      if(taskCounter >= batchSize) updateComplete = true;
+    }
   }
   return 0;
 }
 
 void Learner_onPolicy::prepareGradient()
 {
-  if (nAddedGradients && bTrain) {
+  if (updateComplete && bTrain) {
+    taskCounter = 0;
     cntBatch += batchSize*learn_size;
     if(cntBatch >= nHorizon) {
       cntBatch = 0;
