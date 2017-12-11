@@ -89,7 +89,10 @@ struct StatsTracker
     #pragma omp parallel for
     for (Uint i=0; i<nThreads; i++) // numa aware allocation
      #pragma omp critical
-     { avgVec[i+1].resize(n_stats, 0); stdVec[i+1].resize(n_stats, 0); }
+     {
+       avgVec[i+1].resize(n_stats, 0);
+       stdVec[i+1].resize(n_stats, 0);
+     }
   }
 
   inline void track_vector(const vector<Real> grad, const Uint thrID) const
@@ -128,7 +131,10 @@ struct StatsTracker
 
   void advance()
   {
-    for(Uint i=0; i<n_stats; i++){ avgVec[0][i]=0; stdVec[0][i]=0; }
+    for(Uint i=0; i<n_stats; i++) {
+      avgVec[0][i]=0;
+      stdVec[0][i]=0;
+    }
     cntVec[0] = 0;
 
     for (Uint i=1; i<=nThreads; i++) {
@@ -176,9 +182,8 @@ struct StatsTracker
       assert(partial_sum.size() == 2*n_stats +1);
 
       //use result from prev reduce to update rewards (before new reduce)
-      if(firstUpdate) {
-        reduce_result.resize(2*n_stats +1, 0);
-      } else { //then i have the result ready
+      if(firstUpdate) reduce_result.resize(2*n_stats +1, 0);
+      else { //then i have the result ready
         for (Uint i=0; i<n_stats; i++) {
           avgVec[0][i] = reduce_result[i];
           stdVec[0][i] = reduce_result[i+n_stats];

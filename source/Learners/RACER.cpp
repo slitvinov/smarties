@@ -98,6 +98,7 @@ class RACER : public Learner_offPolicy
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override
   {
     Sequence* const traj = data->Set[seq];
+    //last state for which we compute a policy: T-1
     Uint lastTPolicy = traj->tuples.size() -2;
     bool truncated = not traj->ended;
     if(thrID==1) profiler->stop_start("FWD");
@@ -144,9 +145,9 @@ class RACER : public Learner_offPolicy
       policies[k-samp].prepare(traj->tuples[k]->a, traj->tuples[k]->mu);
       traj->offPol_weight[k] = policies.back().sampImpWeight; //(race condition)
       //Racer off-pol correction weight: /*lambda*/
-      impW *= gamma * std::min((Real)1, policies.back().sampImpWeight);
-      if (impW < 1e-4) { //then the imp weight is too small to continue
-        lastTPolicy = k-1; //we initialize value of Q_RET to V(state_{k+1})
+      impW *= gamma * std::min((Real)1, policies[k-samp].sampImpWeight);
+      if (impW < 1e-3) { //then the imp weight is too small to continue
+        lastTPolicy = k-1; //we initialize value of Q_RET to V(state_{k})
         truncated = true; //by acting as if sequence is truncated
         break;
       }
@@ -221,15 +222,15 @@ class RACER : public Learner_offPolicy
     #if 1
       {
         Real normG=0, normT=numeric_limits<Real>::epsilon(), dot=0, normP=0;
-        for(Uint i=0;i<policyG.size();i++) {
+        for(Uint i = 0; i < policyG.size(); i++) {
           normG += policyG[i] * policyG[i];
           dot   += policyG[i] *  penalG[i];
           normT +=  penalG[i] *  penalG[i];
         }
-        for(Uint i=0;i<policyG.size();i++)
+        for(Uint i = 0; i < policyG.size(); i++)
           normP += std::pow(policyG[i] -dot*penalG[i]/normT, 2);
-
-        vector<float> ret={std::sqrt(normG),std::sqrt(normT),dot/std::sqrt(normT),std::sqrt(normP)};
+        float R1 = sqrt(normG), R2 = sqrt(normT), R3 = dot/R2, R4 = sqrt(normP);
+        vector<float> ret = {R1, R2, R3, R4};
         lock_guard<mutex> lock(buffer_mutex);
         FILE * wFile = fopen("grads_dist.raw", "ab");
         fwrite(ret.data(),sizeof(float),4,wFile); fflush(wFile); fclose(wFile);

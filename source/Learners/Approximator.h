@@ -154,19 +154,24 @@ struct Approximator
 enum RELAY { VEC, ACT, NET};
 struct Aggregator
 {
-  const Uint nThreads, nOuts, nMaxBPTT = MAX_UNROLL_BFORE;
   const bool bRecurrent;
-  mutable vector<int> first_sample;
-  mutable vector<vector<vector<Real>>> inputs; // [thread][time][component]
-  mutable vector<RELAY> usage; // [thread]
+  const Uint nThreads, nOuts, nMaxBPTT = MAX_UNROLL_BFORE;
   const MemoryBuffer* const data;
   const ActionInfo& aI = data->aI;
   const Approximator* const approx;
 
-  Aggregator(Settings& sett, const MemoryBuffer*const d, const Uint nouts,
-    const Approximator*const a = nullptr): nThreads(sett.nThreads),
-    nOuts(nouts), bRecurrent(sett.bRecurrent), first_sample(nThreads, -1),
-    inputs(nThreads), usage(nThreads, ACT), data(d), approx(a) { }
+  mutable vector<int> first_sample;
+  mutable vector<vector<vector<Real>>> inputs; // [thread][time][component]
+  mutable vector<RELAY> usage; // [thread]
+
+  // Settings file, the memory buffer class from which all trajectory pointers
+  // will be drawn from, the number of outputs from the aggregator. If 0 then
+  // 1) output the actions of the sequence (default)
+  // 2) output the result of NN approximator (pointer a)
+  Aggregator(Settings& sett, const MemoryBuffer*const d, const Uint nouts=0,
+    const Approximator*const a = nullptr): bRecurrent(sett.bRecurrent),
+    nThreads(sett.nThreads), nOuts(nouts? nouts: d->aI.dim), data(d), approx(a),
+    first_sample(nThreads, -1), inputs(nThreads), usage(nThreads, ACT) { }
 
   void prepare(const RELAY SET, const Uint thrID) const;
 

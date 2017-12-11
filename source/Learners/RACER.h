@@ -21,7 +21,6 @@
 #warning "Using Mixture_advantage with Quadratic advantages"
 #endif
 
-//template<Uint NEXPERTS> //does not work, my life is a lie!
 #ifndef NEXPERTS
 #define NEXPERTS 1
 #warning "Using Mixture_advantage with 1 expert"

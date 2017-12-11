@@ -233,8 +233,9 @@ vector<Real> Approximator::getOutput(const vector<Real> inp, const int ind,
 {
   //hardcoded to use time series predicted with cur weights for recurrencies:
   const vector<Activation*>& act_cur = series[thrID];
+  const Activation*const recur = ind? act_cur[ind-1] : nullptr;
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
-  const vector<Real> ret = net->predict(inp,(ind?act_cur[ind-1]:nullptr),act,W);
+  const vector<Real> ret = net->predict(inp, recur, act, W);
   act->written = true;
   return ret;
 }
@@ -254,8 +255,8 @@ vector<Real> Approximator::getInput(const Sequence*const traj, const Uint samp, 
 void Approximator::backward(vector<Real> error, const Uint samp,
   const Uint thrID)const
 {
-  gradStats->track_vector(error, thrID);
   gradStats->clip_vector(error);
+  gradStats->track_vector(error, thrID);
   const int ind = mapTime2Ind(samp, thrID);
   const vector<Activation*>& act = series[thrID];
   assert(act[ind]->written == true);

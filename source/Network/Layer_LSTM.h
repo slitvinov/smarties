@@ -26,8 +26,8 @@ class LSTMLayer: public Layer
   /*
   organization of Activation work memory:
   `suminps` field  spans 4 blocks each of size nCells. Each contains the result
-    from a mat-vec multiplication: for the cell's input neuron and for each gate
-    Gates during forward overwrite their suminps with the output of the sigmoid
+    from a matvec multiplication: for the cell's input neuron and for each gate.
+    Gates during forward overwrite their suminps with the output of the sigmoid.
         nCells               nCells             nCells             nCells
     |================| |================| |================| |================|
        cell' Input        input Gate        forget Gate         output Gate
