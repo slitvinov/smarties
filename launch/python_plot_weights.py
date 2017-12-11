@@ -15,18 +15,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 FILE=    sys.argv[1]
 
-DATA = np.fromfile(FILE, dtype=np.float)
-#DATA = DATA[4:]
-DATA = DATA[2:]
-N = DATA.size/3
-W = DATA[  0:  N]
-M = DATA[  N:2*N]
-S = DATA[2*N:3*N]
+W  = np.fromfile(FILE+"weights.raw", dtype=np.float64)
+M1 = np.fromfile(FILE +"1stMom.raw", dtype=np.float64)
+M2 = np.fromfile(FILE +"2ndMom.raw", dtype=np.float64)
 
 plt.subplot(121)
 plt.semilogy(abs(W),'b.')
 #plt.plot(abs(M),'r.')
 plt.subplot(122)
-plt.semilogy(abs(M)/np.sqrt(S),'g.')
+plt.semilogy(abs(M1)/np.sqrt(M2),'g.')
 #plt.semilogy(abs(M)/S,'g.')
 plt.show()
