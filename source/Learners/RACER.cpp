@@ -218,23 +218,21 @@ class RACER : public Learner_offPolicy
       meanProj += policyG[i]*penalG[i];
       meanDist += std::fabs(policyG[i]-finalG[i]);
     }
-    #if 0
+    #if 1
       {
-        Real normG = 0, normT = 0, dot = 0;
+        Real normG=0, normT=numeric_limits<Real>::epsilon(), dot=0, normP=0;
         for(Uint i=0;i<policyG.size();i++) {
           normG += policyG[i] * policyG[i];
           dot   += policyG[i] *  penalG[i];
           normT +=  penalG[i] *  penalG[i];
         }
-        Real normPerp = 0;
         for(Uint i=0;i<policyG.size();i++)
-          normPerp += std::pow(policyG[i] -dot*penalG[i]/normT, 2);
-        ofstream fs;
+          normP += std::pow(policyG[i] -dot*penalG[i]/normT, 2);
+
+        vector<float> ret={std::sqrt(normG),std::sqrt(normT),dot/std::sqrt(normT),std::sqrt(normP)};
         lock_guard<mutex> lock(buffer_mutex);
-        fs.open("grads_dist.txt", ios::app);
-        fs<<std::sqrt(normG)<<"\t"<<std::sqrt(normT)<<"\t"<<dot<<"\t"
-          <<dot/std::sqrt(normT)<<"\t"<<std::sqrt(normPerp)<<"\n";
-        fs.flush(); fs.close();
+        FILE * wFile = fopen("grads_dist.raw", "ab");
+        fwrite(ret.data(),sizeof(float),4,wFile); fflush(wFile); fclose(wFile);
       }
     #endif
 
