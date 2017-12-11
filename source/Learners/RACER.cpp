@@ -139,9 +139,9 @@ class RACER : public Learner_offPolicy
     for(Uint k=samp+1; k<=lastTPolicy; k++)  {
       const vector<Real> out_tmp = F[0]->forward(traj, k, thrID);
       policies.push_back(prepare_policy(out_tmp));
-      assert(policies.size() == k+1-samp);
 
-      policies[k+1-samp].prepare(traj->tuples[k]->a, traj->tuples[k]->mu);
+      assert(policies.size() == k+1-samp);
+      policies[k-samp].prepare(traj->tuples[k]->a, traj->tuples[k]->mu);
       traj->offPol_weight[k] = policies.back().sampImpWeight; //(race condition)
       //Racer off-pol correction weight: /*lambda*/
       impW *= gamma * std::min((Real)1, policies.back().sampImpWeight);
