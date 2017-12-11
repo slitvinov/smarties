@@ -37,7 +37,7 @@ using namespace std;
 #endif
 
 //de facto unused:
-#define NORMDIST_MAX 3 //truncated normal distribution range
+#define NORMDIST_MAX 2 //truncated normal distribution range
 #define BOUNDACT_MAX 8 //for bounded action spaces: range (ie. tanh(8))
 
 #define MAX_UNROLL_AFTER 2000
