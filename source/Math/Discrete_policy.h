@@ -69,14 +69,13 @@ struct Discrete_policy
   }
 
  public:
-  inline void prepare(const vector<Real>& unbact, const vector<Real>& beta, const bool bGeometric, const Discrete_policy*const pol_hat = nullptr)
+  inline void prepare(const vector<Real>& unbact, const vector<Real>& beta)
   {
     sampAct = map_action(unbact);
     sampLogPonPolicy = evalLogProbability(sampAct);
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = bGeometric ? safeExp(logW/nA) : safeExp(logW);
-    sampImpWeight = std::min(MAX_IMPW, sampImpWeight);
+    sampImpWeight = std::min(MAX_IMPW, safeExp(logW) );
     sampInvWeight = 1./(sampImpWeight+nnEPS);
   }
 

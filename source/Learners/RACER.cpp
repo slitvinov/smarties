@@ -28,7 +28,6 @@ class RACER : public Learner_offPolicy
   const vector<Uint> pol_start, adv_start;
   const Uint VsID = net_indices[0];
   const Uint PenalID = net_indices.back(), QPrecID = net_indices.back()+1;
-  const bool geomAvg = false;
   StatsTracker* opcInfo;
 
   MPI_Request nData_request = MPI_REQUEST_NULL;
@@ -58,7 +57,7 @@ class RACER : public Learner_offPolicy
     for (int k=0; k<ndata; k++) {
       F[0]->forward<CUR>(traj, k, thrID);
       #ifdef ACER_TARGETNET
-      F[0]->forward<TGT>(traj, k, thrID);
+        F[0]->forward<TGT>(traj, k, thrID);
       #endif
     }
 
@@ -83,7 +82,7 @@ class RACER : public Learner_offPolicy
       #endif
 
       Tuple * const _t = traj->tuples[k];
-      pol.prepare(_t->a, _t->mu, geomAvg, polTgt);
+      pol.prepare(_t->a, _t->mu);
       traj->offPol_weight[k] = pol.sampImpWeight;
 
       vector<Real>grad=compute(traj,k, Q_RET, out_cur, pol,polTgt, thrID);
@@ -118,7 +117,7 @@ class RACER : public Learner_offPolicy
       const Policy_t* const polTgt = nullptr;
     #endif
 
-    policies[0].prepare(traj->tuples[samp]->a, traj->tuples[samp]->mu, geomAvg, polTgt);
+    policies[0].prepare(traj->tuples[samp]->a, traj->tuples[samp]->mu);
     traj->offPol_weight[samp] = policies[0].sampImpWeight;
 
     #if 1 // in case rho outside bounds, resample:
@@ -142,7 +141,7 @@ class RACER : public Learner_offPolicy
       policies.push_back(prepare_policy(out_tmp));
       assert(policies.size() == k+1-samp);
 
-      policies.back().prepare(traj->tuples[k]->a, traj->tuples[k]->mu, geomAvg);
+      policies[k+1-samp].prepare(traj->tuples[k]->a, traj->tuples[k]->mu);
       traj->offPol_weight[k] = policies.back().sampImpWeight; //(race condition)
       //Racer off-pol correction weight: /*lambda*/
       impW *= gamma * std::min((Real)1, policies.back().sampImpWeight);

@@ -25,7 +25,7 @@ public:
 
   vector<Real> sampAct;
   Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampInvWeight=0;
-  array<Real, nExperts> PactEachExp, DKL_EachExp, logExpBeta;
+  array<Real, nExperts> PactEachExp;
   Real Pact_Final = -1;
   bool prepared = false;
 
@@ -136,7 +136,7 @@ public:
     return o.str();
   }
 
-  inline void prepare(const vector<Real>& unbact, const vector<Real>& beta, const bool bGeometric, const Gaussian_mixture*const pol_hat = nullptr)
+  inline void prepare(const vector<Real>& unbact, const vector<Real>& beta)
   {
     sampAct = map_action(unbact);
     Pact_Final = numeric_limits<Real>::epsilon();  //nan police
@@ -150,19 +150,13 @@ public:
     sampLogPonPolicy = std::log(Pact_Final);
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = bGeometric ? std::exp(logW/nA) : std::exp(logW);
-    sampImpWeight = std::min(MAX_IMPW, sampImpWeight);
+    sampImpWeight = std::min(MAX_IMPW, std::exp(logW) );
     sampInvWeight = 1./(sampImpWeight+nnEPS);
-    if(pol_hat == nullptr) return;
-    for(Uint j=0; j<nExperts; j++) {
-      DKL_EachExp[j] = kl_divergence_exp(j,pol_hat);
-      logExpBeta[j]  = std::log(experts[j])-std::log(pol_hat->experts[j]);
-    }
   }
 
   static inline Real evalBehavior(const vector<Real>& act, const vector<Real>& beta)
   {
-    Real p = 0;
+    Real p = numeric_limits<Real>::epsilon(); //nan police
     const Uint NA = act.size();
     for(Uint j=0; j<nExperts; j++) {
       Real pi = 1;
@@ -185,7 +179,7 @@ public:
     }
     return std::log(P);
   }
-  
+
   inline vector<Real> sample(mt19937*const gen, const vector<Real>& beta) const
   {
     std::vector<Real> ret(nA);
@@ -284,10 +278,9 @@ public:
         ret[indM]= fac*experts[j]*(meani-meanh)*prech;
         ret[indS]= fac*experts[j]*(prech-preci)/2;
       }
-      assert(prepared && DKL_EachExp[j] >= 0);
-      assert(DKL_EachExp[j] == kl_divergence_exp(j,pol_hat));
-      assert(logExpBeta[j] == log(experts[j])-log(pol_hat->experts[j]) );
-      const Real tmp = fac*(DKL_EachExp[j] +1 +logExpBeta[j])/normalization;
+      const Real DKL_ExpJ = kl_divergence_exp(j,pol_hat);
+      const Real logExpJ = std::log( experts[j]/pol_hat->experts[j] );
+      const Real tmp = fac*(DKL_ExpJ +1 +logExpJ)/normalization;
       for (Uint i=0; i<nExperts; i++) ret[i] += tmp*((i==j)-experts[j]);
     }
     return ret;
@@ -336,10 +329,9 @@ public:
   {
     Real ret = 0;
     for(Uint j=0; j<nExperts; j++) {
-      assert(prepared && DKL_EachExp[j] >= 0 && experts[j] > 0);
-      assert(DKL_EachExp[j] == kl_divergence_exp(j,pol_hat));
-      assert(logExpBeta[j] == log(experts[j])-log(pol_hat->experts[j]) );
-      ret += experts[j]*(logExpBeta[j] + DKL_EachExp[j]);
+      const Real DKL_ExpJ = kl_divergence_exp(j,pol_hat);
+      const Real logExpJ = std::log( experts[j]/pol_hat->experts[j] );
+      ret += experts[j]*(logExpJ + DKL_ExpJ);
     }
     return ret;
   }
@@ -354,7 +346,7 @@ public:
   {
     Real r = 0;
     for(Uint j=0; j<nExperts; j++)
-      r+=experts[j]*(log(experts[j])-log(p->experts[j])+kl_divergence_exp(j,p));
+      r+=experts[j]*(std::log(experts[j]/p->experts[j])+kl_divergence_exp(j,p));
     return r;
   }
 
