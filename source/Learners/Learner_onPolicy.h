@@ -17,7 +17,6 @@ protected:
   const Uint nEpochs = 10, nHorizon = 4092;
   Uint cntHorizon = 0, cntTrajectories = 0, cntEpoch = 0, cntBatch = 0;
   Uint taskCounter = 0;
-  mutable std::mutex buffer_mutex;
 
 public:
   Learner_onPolicy(Environment*const _env, Settings&_s);

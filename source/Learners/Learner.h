@@ -37,6 +37,7 @@ protected:
   MemoryBuffer* data;
   Encapsulator* input;
   vector<Approximator*> F;
+  mutable std::mutex buffer_mutex;
 
   trainData stats;
   mutable vector<trainData> Vstats;
