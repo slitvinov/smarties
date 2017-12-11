@@ -12,7 +12,8 @@
 #include "../Communicator.h"
 #include <map>
 
-class Builder;
+class Network;
+class Optimizer;
 
 class Environment
 {
@@ -39,7 +40,7 @@ public:
     virtual void setDims ();
 
     virtual bool pickReward(const Agent& agent);
-    virtual bool predefinedNetwork(Builder* const net) const;
+    virtual void predefinedNetwork(Network* &net, Optimizer* &opt) const;
     Communicator create_communicator( const MPI_Comm slavesComm, const int socket, const bool bSpawn);
 
     virtual Uint getNdumpPoints();

@@ -124,12 +124,10 @@ Environment::~Environment()
       _dispose_object(trash);
 }
 
-bool Environment::predefinedNetwork(Builder* const net) const
+void Environment::predefinedNetwork(Network* &net, Optimizer* &opt) const
 {
-  //this function can be used if environment requires particular network settings
-  //i.e. not fully connected LSTM/FF network
-  //i.e. if you want to use convolutions
-  return false;
+  // this function is to be filled by child classes
+  // to implement convolutional models
 }
 
 void Environment::commonSetup()

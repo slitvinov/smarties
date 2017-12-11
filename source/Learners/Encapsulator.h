@@ -41,7 +41,7 @@ struct Encapsulator
     settings(sett), series(nThreads,nullptr), first_sample(nThreads,-1),
     error_placements(nThreads,-1), data(data_ptr) {}
 
-  void initializeNetwork(Optimizer* _opt, Network* _net)
+  void initializeNetwork(Network* _net, Optimizer* _opt)
   {
     net = _net;
     opt = _opt;

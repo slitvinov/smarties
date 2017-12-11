@@ -25,6 +25,11 @@ nTasks(_s.global_tasking_counter)
   data = new MemoryBuffer(env, _s);
   input = new Encapsulator("input", _s, data);
   profiler->stop_start("SLP");
+
+  Network* _net = nullptr;
+  Optimizer* _opt = nullptr;
+  env->predefinedNetwork(_net, _opt);
+  if(_net not_eq nullptr) input->initializeNetwork(_net, _opt);
 }
 
 void Learner::clearFailedSim(const int agentOne, const int agentEnd)
