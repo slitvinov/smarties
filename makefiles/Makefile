@@ -14,7 +14,7 @@ sortseq ?= on
 mpi_lib ?= default
 
 CPPFLAGS= -std=c++11 -D__Smarties_ -fopenmp
-LIBS= -fopenmp -lstdc++ -lm
+LIBS= -fopenmp -lstdc++ -lm -dynamic -ldl -lc -lgomp
 
 ifeq ($(UNAME_S),Darwin)
 include make.macos
@@ -138,7 +138,7 @@ lib: ext_app_test.o
 endif
 
 rl: $(OBJ_FILES) lib
-	$(CC) $(LIBS) $(OBJ_FILES) $(LIBAPP) -o $@
+	$(CC) $(OBJ_FILES) $(LIBAPP) $(LIBS) -o $@
 
 LSTM: anntest.o ArgumentParser.o Profiler.o Links.o Layers.o Network.o Optimizer.o LSTMNet.o
 	g++ $(LIBS) $^ -o $@
