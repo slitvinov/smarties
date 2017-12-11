@@ -41,6 +41,9 @@ struct Linear : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(2./inps);
   }
+  static Real _initFactor(const Uint inps, const Uint outs) {
+    return std::sqrt(2./inps);
+  }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
     memcpy(out, in, N*sizeof(nnReal));
   }
@@ -66,6 +69,9 @@ struct Linear : public Function {
 
 struct Tanh : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
+    return std::sqrt(6./(inps + outs));
+  }
+  static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(6./(inps + outs));
   }
   static inline nnReal _eval(const nnReal in) {
@@ -108,6 +114,9 @@ struct Sigm : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(6./(inps + outs));
   }
+  static Real _initFactor(const Uint inps, const Uint outs) {
+    return std::sqrt(6./(inps + outs));
+  }
   static inline nnReal _eval(const nnReal in) {
     if(in >  2*EXP_CUT) return 1;
     if(in < -2*EXP_CUT) return 0;
@@ -145,6 +154,9 @@ struct HardSign : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(6./(inps + outs));
   }
+  static Real _initFactor(const Uint inps, const Uint outs) {
+    return std::sqrt(6./(inps + outs));
+  }
   static inline nnReal _eval(const nnReal in) {
     return in/std::sqrt(1+in*in);
   }
@@ -173,6 +185,9 @@ struct HardSign : public Function {
 
 struct SoftSign : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
+    return std::sqrt(6./(inps + outs));
+  }
+  static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(6./(inps + outs));
   }
   static inline nnReal _eval(const nnReal in) {
@@ -205,6 +220,9 @@ struct Relu : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(2./inps);
   }
+  static Real _initFactor(const Uint inps, const Uint outs) {
+    return std::sqrt(2./inps);
+  }
   static inline nnReal _eval(const nnReal in) {
     return in>0 ? in : 0;
   }
@@ -232,6 +250,9 @@ struct Relu : public Function {
 
 struct PRelu : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
+    return std::sqrt(2./inps);
+  }
+  static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(2./inps);
   }
   static inline nnReal _eval(const nnReal in) {
@@ -263,6 +284,9 @@ struct ExpPlus : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(2./inps);
   }
+  static Real _initFactor(const Uint inps, const Uint outs) {
+    return std::sqrt(2./inps);
+  }
   static inline nnReal _eval(const nnReal in) {
     return std::log(1+std::exp(in));
   }
@@ -288,6 +312,9 @@ struct ExpPlus : public Function {
 
 struct SoftPlus : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
+    return std::sqrt(2./inps);
+  }
+  static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(2./inps);
   }
   static inline nnReal _eval(const nnReal in) {
@@ -317,6 +344,9 @@ struct SoftPlus : public Function {
 
 struct Exp : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
+    return std::sqrt(2./inps);
+  }
+  static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(2./inps);
   }
   static inline nnReal _eval(const nnReal in) {

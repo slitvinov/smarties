@@ -166,14 +166,14 @@ class ConvLayer : public Layer
     Real initializationFac) const override {
     const nnReal fac = (initializationFac>0) ? initializationFac : 1;
     const int nAdded = Kn_X*Kn_Y*In_C;
-    const nnReal init = fac * func::initFactor(nAdded, Kn_C);
+    const nnReal init = fac * func::_initFactor(nAdded, Kn_C);
     uniform_real_distribution<nnReal> dis(-init, init);
     nnReal* const biases = para->B(ID);
     nnReal* const weight = para->W(ID);
     assert(para->NB(ID) == OutX * OutY * Kn_C);
     assert(para->NW(ID) == Kn_X * Kn_Y * Kn_C * In_C);
-    for(int o=0; o<para->NB(ID); o++) biases[o] = dis(*gen);
-    for(int o=0; o<para->NW(ID); o++) weight[o] = dis(*gen);
+    for(Uint o=0; o<para->NB(ID); o++) biases[o] = dis(*gen);
+    for(Uint o=0; o<para->NW(ID); o++) weight[o] = dis(*gen);
   }
 
   void orthogonalize(const Parameters*const para) const {}

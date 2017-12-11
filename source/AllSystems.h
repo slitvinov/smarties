@@ -28,6 +28,7 @@ class openAICartEnvironment;
 class BlowfishEnvironment;
  */
 #include "Environments/TwoActFishEnvironment.h"
+#include "Environments/AtariEnvironment.h"
 /*
 #include "Environments/AcrobotEnvironment.h"
 #include "Environments/CMAEnvironment.h"

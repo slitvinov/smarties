@@ -110,7 +110,7 @@ DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = ArgParser.o main.o ObjectFactory.o Communicator.o \
 		Environment.o TwoActFishEnvironment.o Learner.o NAF.o NFQ.o DPG.o \
 		Learner_onPolicy.o MemoryBuffer.o Learner_offPolicy.o \
-		Scheduler.o Network.o Math_tests.o Approximator.o
+		Scheduler.o Network.o Math_tests.o Approximator.o AtariEnvironment.o
 
 #ExternalAgent.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o GliderEnvironment.o
 #TwoFishEnvironment.o HingedFishEnvironment.o BlowfishEnvironment.o alebotEnvironment.o

@@ -56,6 +56,7 @@ Environment* ObjectFactory::createEnvironment()
   Environment* env = nullptr;
   string envStr = settings->environment;
   if(envStr=="TwoActFishEnvironment") env=new TwoActFishEnvironment(*settings);
+  if(envStr=="AtariEnvironment")      env=new AtariEnvironment(*settings);
   else env = new Environment(*settings);
   if(env == nullptr) die("Env cannot be nullptr\n");
   return env;
