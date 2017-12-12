@@ -285,6 +285,9 @@ struct Discrete_policy
      return advantages[action];
    }
 
+   vector<Real> getParam() const {
+     return advantages;
+   }
 
    inline Real advantageVariance() const
    {

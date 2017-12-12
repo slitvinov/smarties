@@ -20,6 +20,15 @@ struct Quadratic_term
     return (aI->dim*aI->dim + aI->dim)/2;
   }
 
+  vector<Real> getParam() const {
+     vector<Real> ret(nL, 0);
+     for (Uint ind=0, j=0; j<nA; j++)
+       for (Uint i=0; i<nA; i++)
+         if (i<j)       ret[ind++] = matrix[nA*j +i];
+         else if (i==j) ret[ind++] = matrix[nA*j +i];
+     return ret;
+  }
+
   Quadratic_term(Uint _startMat, Uint _startMean, Uint _nA, Uint _nL,
     const vector<Real>& out, const vector<Real>_m=vector<Real>()) :
     start_matrix(_startMat), start_mean(_startMean), nA(_nA), nL(_nL),

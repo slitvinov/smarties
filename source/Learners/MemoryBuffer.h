@@ -43,13 +43,12 @@ public:
   MPI_Request rewRequest = MPI_REQUEST_NULL;
   long double rew_reduce_result[2], partial_sum[2];
 
-protected:
+public:
   void sortSequences();
   void insertBufferedSequences();
   void push_back(const int & agentId);
   void push_back_seq(const int & agentId);
 
-public:
   MemoryBuffer(Environment*const env, Settings & settings);
 
   ~MemoryBuffer()

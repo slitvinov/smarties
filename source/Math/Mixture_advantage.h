@@ -21,6 +21,16 @@ public:
   const Gaussian_mixture<nExperts>* const policy;
   //const array<array<Real,nExperts>, nExperts> overlap;
 
+  vector<Real> getParam() const {
+    vector<Real> ret(nL, 0);
+    for(Uint ind=0, e=0; e<nExperts; e++)
+      for (Uint j=0; j<nA; j++)
+        for (Uint i=0; i<nA; i++)
+          if (i<j)       ret[ind++] = matrix[e][nA*j +i];
+          else if (i==j) ret[ind++] = matrix[e][nA*j +i];
+    return ret;
+  }
+
   //Normalized quadratic advantage, with own mean
   Mixture_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
    const vector<Real>& out, const Gaussian_mixture<nExperts>*const pol) :

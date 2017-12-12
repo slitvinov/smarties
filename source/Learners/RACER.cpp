@@ -9,7 +9,7 @@
 
 #pragma once
 
-//#define simpleSigma
+//#define dumpExtra
 //#define UNBR
 #define REALBND (Real)1
 //#define REALBND CmaxPol
@@ -354,13 +354,22 @@ class RACER : public Learner_offPolicy
       //Compute policy and value on most recent element of the sequence. If RNN
       // recurrent connection from last call from same agent will be reused
       vector<Real> output = F[0]->forward_agent(traj, agent, thrID);
-      //const Advantage_t adv = prepare_advantage(output, &pol);
       const Policy_t pol = prepare_policy(output);
       vector<Real> beta = pol.getBeta();
       //const Real anneal = annealingFactor();
       const Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
       agent.a->set(act);
-      data->add_action(agent, beta);
+
+      #ifdef dumpExtra
+        data->inProgress[agent.ID]->add_action(agent.a->vals, beta);
+        const Advantage_t adv = prepare_advantage(output, &pol);
+        vector<Real> param = adv.getParam();
+        assert(param.size() == nL);
+        beta.insert(beta.end(), param.begin(), param.end());
+        agent.writeData(learn_rank, beta);
+      #else
+        data->add_action(agent, beta);
+      #endif
 
       #ifndef NDEBUG
       {
@@ -369,8 +378,19 @@ class RACER : public Learner_offPolicy
         assert(fabs(dbg.sampImpWeight-1) < 10*numeric_limits<Real>::epsilon());
       }
       #endif
-    } else
-      data->terminate_seq(agent);
+    }
+    else
+    {
+      #ifdef dumpExtra
+        agent.a->set(vector<Real>(nA,0));
+        data->inProgress[agent.ID]->add_action(agent.a->vals, vector<Real>(policyVecDim, 0));
+        agent.writeData(learn_rank, vector<Real>(policyVecDim+nL, 0));
+        data->push_back(agent.ID);
+      #else
+        data->terminate_seq(agent);
+      #endif
+    }
+
   }
 
   void prepareGradient()
