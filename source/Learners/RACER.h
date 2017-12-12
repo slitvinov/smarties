@@ -28,6 +28,7 @@
 
 #include "../Math/Discrete_policy.h"
 #include "RACER.cpp"
+//#define simpleSigma
 
 class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Real> >
 {
@@ -134,9 +135,6 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
     F.push_back(new Approximator("net", settings, input, data));
     vector<Uint> nouts{1, nL, nA};
     Builder build = F[0]->buildFromSettings(settings, nouts);
-    #ifdef simpleSigma
-      build.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
-    #endif
     //add klDiv penalty coefficient layer, and stdv of Q distribution
     build.addParamLayer(2, "Exp", 1);
     F[0]->initializeNetwork(build);
@@ -179,8 +177,14 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     printf("Mixture-of-experts RACER: Built network with outputs: %s %s\n",
       print(net_indices).c_str(),print(net_outputs).c_str());
     F.push_back(new Approximator("net", settings, input, data));
-    vector<Uint> nouts{1, nL, NEXPERTS, NEXPERTS*aInfo.dim, NEXPERTS*aInfo.dim};
+    vector<Uint> nouts{1, nL, NEXPERTS, NEXPERTS * nA};
+    #ifndef simpleSigma
+      nouts.push_back(NEXPERTS * nA);
+    #endif
     Builder build = F[0]->buildFromSettings(settings, nouts);
+    #ifdef simpleSigma
+      build.addParamLayer(NEXPERTS * nA, "Linear", -2*std::log(greedyEps));
+    #endif
     //add klDiv penalty coefficient layer, and stdv of Q distribution
     build.addParamLayer(2, "Exp", {1/settings.klDivConstraint, 1});
 

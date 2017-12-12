@@ -353,7 +353,7 @@ class RACER : public Learner_offPolicy
     {
       //Compute policy and value on most recent element of the sequence. If RNN
       // recurrent connection from last call from same agent will be reused
-      vector<Real> output = F[0]->forward_agent<CUR>(traj, agent, thrID);
+      vector<Real> output = F[0]->forward_agent(traj, agent, thrID);
       //const Advantage_t adv = prepare_advantage(output, &pol);
       const Policy_t pol = prepare_policy(output);
       vector<Real> beta = pol.getBeta();
@@ -361,6 +361,14 @@ class RACER : public Learner_offPolicy
       const Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
       agent.a->set(act);
       data->add_action(agent, beta);
+
+      #ifndef NDEBUG
+      {
+        Policy_t dbg = prepare_policy(output);
+        dbg.prepare(traj->tuples.back()->a, traj->tuples.back()->mu);
+        assert(fabs(dbg.sampImpWeight-1) < 10*numeric_limits<Real>::epsilon());
+      }
+      #endif
     } else
       data->terminate_seq(agent);
   }

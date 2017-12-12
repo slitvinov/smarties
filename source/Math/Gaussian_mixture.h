@@ -102,13 +102,17 @@ private:
   inline array<vector<Real>,nExperts> extract_precision() const
   {
     array<vector<Real>,nExperts> ret = variances; //take inverse of precision
-    for(Uint i=0;i<nExperts;i++)for(Uint j=0;j<nA;j++)ret[i][j]=1/ret[i][j];
+    for(Uint i=0; i<nExperts; i++)
+      for(Uint j=0; j<nA; j++)
+        ret[i][j] = 1/(variances[i][j] + std::numeric_limits<Real>::epsilon());
     return ret;
   }
   inline array<vector<Real>,nExperts> extract_stdev() const
   {
     array<vector<Real>,nExperts> ret = variances; //take sqrt of variance
-    for(Uint i=0;i<nExperts;i++)for(Uint j=0;j<nA;j++)ret[i][j]=sqrt(ret[i][j]);
+    for(Uint i=0; i<nExperts; i++)
+      for(Uint j=0; j<nA; j++)
+        ret[i][j] = std::sqrt(variances[i][j]);
     return ret;
   }
   static inline Real precision_func(const Real val)
@@ -170,7 +174,7 @@ public:
   }
   inline Real evalLogProbability(const vector<Real>& act) const
   {
-    Real P = 0;
+    Real P = numeric_limits<Real>::epsilon(); //nan police
     for(Uint j=0; j<nExperts; j++) {
       Real pi  = 1;
       for(Uint i=0; i<nA; i++)
@@ -185,7 +189,7 @@ public:
     std::vector<Real> ret(nA);
     std::normal_distribution<Real> dist(0, 1);
     std::discrete_distribution<Uint> dE(&(beta[0]), &(beta[0]) +nExperts);
-    const Uint experti = dE(*gen);
+    const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
       #ifdef TRUNC_SAMPLING
@@ -205,7 +209,7 @@ public:
     std::vector<Real> ret(nA);
     std::normal_distribution<Real> dist(0, 1);
     std::discrete_distribution<Uint> dE(&(experts[0]),&(experts[0])+nExperts);
-    const Uint experti = dE(*gen);
+    const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
       #ifdef TRUNC_SAMPLING

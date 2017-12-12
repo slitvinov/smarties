@@ -63,8 +63,8 @@ struct Adam {
     M2 = B2 * M2 + (1-B2) * DW*DW;
     M2 = M2<M1*M1? M1*M1 : M2; // gradient clipping to 1
     const nnReal _M2 = std::sqrt(M2 + nnEPS);
-    //return eta*M1/_M2;
-    return eta*(B1*M1 + (1-B1)*DW)/_M2;
+    return eta*M1/_M2;
+    //return eta*(B1*M1 + (1-B1)*DW)/_M2;
   }
 };
 
