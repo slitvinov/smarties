@@ -114,12 +114,12 @@ struct StatsTracker
       //#endif
       #ifdef ACER_GRAD_CUT
         if(grad[i]>  ACER_GRAD_CUT*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-        printf("Cut %u was:%f is:%LG\n",i,grad[i], ACER_GRAD_CUT*stdVec[0][i]);
+        //printf("Cut %u was:%f is:%LG\n",i,grad[i], ACER_GRAD_CUT*stdVec[0][i]);
           grad[i] =  ACER_GRAD_CUT*stdVec[0][i];
           ret = 1;
         } else
         if(grad[i]< -ACER_GRAD_CUT*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-        printf("Cut %u was:%f is:%LG\n",i,grad[i],-ACER_GRAD_CUT*stdVec[0][i]);
+        //printf("Cut %u was:%f is:%LG\n",i,grad[i],-ACER_GRAD_CUT*stdVec[0][i]);
           grad[i] = -ACER_GRAD_CUT*stdVec[0][i];
           ret = 1;
         }
