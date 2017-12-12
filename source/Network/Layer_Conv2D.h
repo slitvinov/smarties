@@ -111,7 +111,7 @@ class ConvLayer : public Layer
       para->W(ID), mm_outCol, 1, curr->X(ID), mm_outCol);
 
     //apply per-pixel non-linearity:
-    func::eval(curr->X(ID), curr->Y(ID), OutX*OutY*Kn_C);
+    func::_eval(curr->X(ID), curr->Y(ID), OutX*OutY*Kn_C);
   }
 
   #endif

@@ -98,8 +98,12 @@ public:
     std::normal_distribution<Real> dist(0, 1);
     for(Uint i=0; i<beta.size()/2; i++) {
       Real samp = dist(*gen);
-      if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
-      if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
+      #ifdef TRUNC_SAMPLING
+        if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
+        if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
+      #else
+        while (samp > NORMDIST_MAX || samp < -NORMDIST_MAX) samp = dist(*gen);
+      #endif
       ret[i] = beta[i] + beta[beta.size()/2 + i]*samp;
     }
     return ret;
@@ -110,8 +114,12 @@ public:
     std::normal_distribution<Real> dist(0, 1);
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
-      if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
+      #ifdef TRUNC_SAMPLING
+        if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
+        if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
+      #else
+        while (samp > NORMDIST_MAX || samp < -NORMDIST_MAX) samp = dist(*gen);
+      #endif
       ret[i] = mean[i] + stdev[i]*samp;
     }
     return ret;
