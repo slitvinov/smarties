@@ -19,12 +19,10 @@ class Builder;
 enum PARAMS { CUR, TGT }; /* use CUR or TGT weights */
 struct Approximator
 {
-  const string name;
-  const Uint nThreads, nMaxBPTT = MAX_UNROLL_BFORE;
-  const bool bRecurrent;
   Settings& settings;
-  mutable vector<int> error_placements, first_sample;
-  mutable Uint nAddedGradients=0, nReducedGradients=0;
+  const string name;
+  const Uint nThreads, mpisize, nMaxBPTT = MAX_UNROLL_BFORE;
+  const bool bRecurrent;
 
   Encapsulator* const input;
   MemoryBuffer* const data;
@@ -33,6 +31,10 @@ struct Approximator
   Network* net = nullptr;
   StatsTracker* gradStats = nullptr;
   vector<Parameters*> extra_grads;
+
+  mutable vector<int> error_placements, first_sample;
+  mutable Uint nAddedGradients=0, nReducedGradients=0;
+
   //thread safe memory for prediction with current weights:
   mutable vector<vector<Activation*>> series;
   //thread safe  memory for prediction with target weights. Rules are that
@@ -40,12 +42,12 @@ struct Approximator
   // that tgt net (if available) takes recurrent activation from current net:
   mutable vector<vector<Activation*>> series_tgt;
 
-  Approximator(const string _name, Settings& sett, Encapsulator*const enc,
+  Approximator(const string _name, Settings& S, Encapsulator*const enc,
     MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
-  name(_name), nThreads(sett.nThreads), bRecurrent(sett.bRecurrent),
-  settings(sett), error_placements(nThreads, -1), first_sample(nThreads, -1),
-  input(enc), data(data_ptr), relay(r), extra_grads(nThreads, nullptr),
-  series(nThreads), series_tgt(nThreads) {}
+  settings(S), name(_name), nThreads(S.nThreads), mpisize(S.learner_size),
+  bRecurrent(S.bRecurrent), input(enc), data(data_ptr), relay(r),
+  extra_grads(nThreads, nullptr), error_placements(nThreads, -1),
+  first_sample(nThreads, -1), series(nThreads), series_tgt(nThreads) {}
 
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
   Builder buildFromSettings(Settings& _s, const Uint n_outputs);
@@ -152,6 +154,7 @@ struct Approximator
 };
 
 enum RELAY { VEC, ACT, NET};
+//TODO stepid
 struct Aggregator
 {
   const bool bRecurrent;
@@ -168,9 +171,9 @@ struct Aggregator
   // will be drawn from, the number of outputs from the aggregator. If 0 then
   // 1) output the actions of the sequence (default)
   // 2) output the result of NN approximator (pointer a)
-  Aggregator(Settings& sett, const MemoryBuffer*const d, const Uint nouts=0,
-    const Approximator*const a = nullptr): bRecurrent(sett.bRecurrent),
-    nThreads(sett.nThreads), nOuts(nouts? nouts: d->aI.dim), data(d), approx(a),
+  Aggregator(Settings& S, const MemoryBuffer*const d, const Uint nOut=0,
+    const Approximator*const a = nullptr): bRecurrent(S.bRecurrent),
+    nThreads(S.nThreads), nOuts(nOut? nOut: d->aI.dim), data(d), approx(a),
     first_sample(nThreads, -1), inputs(nThreads), usage(nThreads, ACT) { }
 
   void prepare(const RELAY SET, const Uint thrID) const;

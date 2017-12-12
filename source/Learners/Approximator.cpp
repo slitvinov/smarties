@@ -275,6 +275,8 @@ void Approximator::prepareUpdate()
   opt->prepare_update(nAddedGradients, net->Vgrad);
   nReducedGradients = nAddedGradients;
   nAddedGradients = 0;
+
+  if(mpisize<=1) applyUpdate();
 }
 
 void Approximator::applyUpdate()
