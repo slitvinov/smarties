@@ -61,10 +61,13 @@ using namespace std;
 
 typedef unsigned Uint;
 
-//typedef long double Real;
-//#define MPI_VALUE_TYPE MPI_LONG_DOUBLE
+#if 0
+typedef long double Real;
+#define MPI_VALUE_TYPE MPI_LONG_DOUBLE
+#else
 typedef double Real;
 #define MPI_VALUE_TYPE MPI_DOUBLE
+#endif
 
 template <typename T>
 void _dispose_object(T *& ptr)

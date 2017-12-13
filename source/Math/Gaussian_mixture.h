@@ -20,7 +20,7 @@ public:
   const array<Real, nExperts> unnorm;
   const Real normalization;
   const array<Real, nExperts> experts;
-  const array<vector<Real>, nExperts> means, variances, precisions, stdevs;
+  const array<vector<Real>, nExperts> means, stdevs, variances, precisions;
   //not kosher stuff, but it should work, relies on ordering of operations:
 
   vector<Real> sampAct;
@@ -39,8 +39,8 @@ public:
     iExperts(starts[0]), iMeans(starts[1]), iPrecs(starts[2]), nA(aI->dim),
     nP(compute_nP(aI)), netOutputs(out), unnorm(extract_unnorm()),
     normalization(compute_norm()), experts(extract_experts()),
-    means(extract_mean()), variances(extract_variance()),
-    precisions(extract_precision()), stdevs(extract_stdev()) {}
+    means(extract_mean()), stdevs(extract_stdev()),
+    variances(extract_variance()), precisions(extract_precision())  {}
   /*
   Gaussian_mixture(const Gaussian_mixture<nExperts>& c) :
   aInfo(c.aInfo), iExperts(c.iExperts), iMeans(c.iMeans), iPrecs(c.iPrecs),
@@ -88,7 +88,7 @@ private:
     }
     return ret;
   }
-  inline array<vector<Real>,nExperts> extract_variance() const
+  inline array<vector<Real>,nExperts> extract_stdev() const
   {
     array<vector<Real>,nExperts> ret;
     for(Uint i=0; i<nExperts; i++) {
@@ -107,12 +107,12 @@ private:
         ret[i][j] = 1/(variances[i][j] + std::numeric_limits<Real>::epsilon());
     return ret;
   }
-  inline array<vector<Real>,nExperts> extract_stdev() const
+  inline array<vector<Real>,nExperts> extract_variance() const
   {
-    array<vector<Real>,nExperts> ret = variances; //take sqrt of variance
+    array<vector<Real>,nExperts> ret = stdevs; //take sqrt of variance
     for(Uint i=0; i<nExperts; i++)
       for(Uint j=0; j<nA; j++)
-        ret[i][j] = std::sqrt(variances[i][j]);
+        ret[i][j] = stdevs[i][j] * stdevs[i][j];
     return ret;
   }
   static inline Real precision_func(const Real val)
@@ -247,7 +247,7 @@ public:
         const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(1+nA)*nExperts;
         const Real u = act[i]-beta[indM], stdi = beta[indS];
         ret[indM] = fac*u/(stdi*stdi);
-        ret[indS] = 0.5*fac*(u*u/(stdi*stdi) - 1)/(stdi*stdi);
+        ret[indS] = fac*(u*u/(stdi*stdi) - 1)/stdi;
       }
     }
     return ret;
@@ -271,7 +271,7 @@ public:
         const Real u = act[i]-means[j][i];
         //const Real P=sqrt(.5*preci/M_PI)*safeExp(-pow(act[i]-meani,2)*preci);
         ret[indM] = fac*precisions[j][i]*u;
-        ret[indS] = 0.5*fac*(u*u*precisions[j][i]-1)*precisions[j][i];
+        ret[indS] = fac*(u*u*precisions[j][i]-1)/stdevs[j][i];
       }
     }
     return ret;
@@ -286,7 +286,7 @@ public:
         const Real meani = means[j][i], preci = precisions[j][i];
         const Real meanh=pol_hat->means[j][i], prech=pol_hat->precisions[j][i];
         ret[indM]= fac*experts[j]*(meani-meanh)*prech;
-        ret[indS]= fac*experts[j]*(prech-preci)/2;
+        ret[indS]= fac*experts[j]*(prech-preci)*stdevs[j][i];
       }
       const Real DKL_ExpJ = kl_divergence_exp(j,pol_hat);
       const Real logExpJ = std::log( experts[j]/pol_hat->experts[j] );
@@ -304,7 +304,7 @@ public:
         const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(nA+1)*nExperts;
         const Real preci = precisions[j][i], prech = 1/std::pow(beta[indS],2);
         ret[indM]= fac*experts[j]*(means[j][i]-beta[indM])*prech;
-        ret[indS]= fac*experts[j]*(prech-preci)/2;
+        ret[indS]= fac*experts[j]*(prech-preci)*stdevs[j][i];
       }
       const Real DKL_ExpBeta = kl_divergence_exp(j, beta);
       const Real logRhoBeta = std::log(experts[j]/beta[j]);
