@@ -19,7 +19,7 @@ class BaseLayer: public Layer
  public:
   void requiredParameters(vector<Uint>& nWeight,
                           vector<Uint>& nBiases ) const override {
-    nWeight.push_back(nNeurons * (bRecurrent? nInputs + nNeurons : nInputs));
+    nWeight.push_back(nOut_simd * (bRecurrent? nInputs + nNeurons : nInputs));
     nBiases.push_back(nNeurons);
   }
   void requiredActivation(vector<Uint>& sizes,
@@ -58,16 +58,24 @@ class BaseLayer: public Layer
       const nnReal* const inputs = curr->Y(ID-link);
       const nnReal* const weight = para->W(ID);
       for (Uint i = 0; i < nInputs; i++)
+      {
+        const nnReal* const W = weight + nOut_simd*i;
+        #pragma omp simd aligned(suminp, inputs, W : VEC_WIDTH) 
         for (Uint o = 0; o < nNeurons; o++)
-          suminp[o] += inputs[i] * weight[o +nNeurons*i];
+          suminp[o] += inputs[i] * W[o];
+      }
     }
     if(bRecurrent && prev not_eq nullptr)
     {
       const nnReal* const inputs = prev->Y(ID);
-      const nnReal* const weight = para->W(ID) +nNeurons*nInputs;
+      const nnReal* const weight = para->W(ID) +nOut_simd*nInputs;
       for (Uint i = 0; i < nNeurons; i++)
+      {
+        const nnReal* const W = weight + nOut_simd*i;
+        #pragma omp simd aligned(suminp, inputs, W : VEC_WIDTH)
         for (Uint o = 0; o < nNeurons; o++)
-          suminp[o] += inputs[i] * weight[o +nNeurons*i];
+          suminp[o] += inputs[i] * W[o];
+      }
     }
     func->eval(suminp, curr->Y(ID), nNeurons);
   }
@@ -94,27 +102,37 @@ class BaseLayer: public Layer
             nnReal* const grad_w = grad->W(ID);
 
       for(Uint i=0; i<nInputs;  i++)
-        for(Uint o=0; o<nNeurons; o++)
-          grad_w[o +nNeurons*i] += inputs[i] * deltas[o];
+      {
+        nnReal* const G = grad_w + nOut_simd*i;
+        #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH)
+        for (Uint o = 0; o < nNeurons; o++)
+          G[o] += inputs[i] * deltas[o];
+      }
 
+      #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
       for(Uint o=0; o<nNeurons; o++)
         for(Uint i=0; i<nInputs;  i++)
-          errors[i] += weight[o +nNeurons*i] * deltas[o];
+          errors[i] += weight[o +nOut_simd*i] * deltas[o];
     }
     if(bRecurrent && prev not_eq nullptr)
     {
       const nnReal* const inputs = prev->Y(ID);
             nnReal* const errors = prev->E(ID);
-      const nnReal* const weight = para->W(ID) +nNeurons*nInputs;
-            nnReal* const grad_w = grad->W(ID) +nNeurons*nInputs;
+      const nnReal* const weight = para->W(ID) +nOut_simd*nInputs;
+            nnReal* const grad_w = grad->W(ID) +nOut_simd*nInputs;
 
       for(Uint i=0; i<nNeurons;  i++)
-        for(Uint o=0; o<nNeurons; o++)
-          grad_w[o +nNeurons*i] += inputs[i] * deltas[o];
+      {
+        nnReal* const G = grad_w + nOut_simd*i;
+        #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH) 
+        for (Uint o = 0; o < nNeurons; o++)
+          G[o] += inputs[i] * deltas[o];
+      }
 
+      #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
       for(Uint o=0; o<nNeurons; o++)
         for(Uint i=0; i<nNeurons;  i++)
-          errors[i] += weight[o +nNeurons*i] * deltas[o];
+          errors[i] += weight[o +nOut_simd*i] * deltas[o];
     }
   }
 
@@ -133,13 +151,13 @@ class BaseLayer: public Layer
     {
       nnReal* const weight = para->W(ID);
       for(Uint i=0; i<nInputs;  i++) for(Uint o=0; o<nNeurons; o++)
-        weight[o +nNeurons*i] = dis(*gen);
+        weight[o +nOut_simd*i] = dis(*gen);
     }
     if(bRecurrent)
     {
-      nnReal* const weight = para->W(ID) +nNeurons*nInputs;
+      nnReal* const weight = para->W(ID) +nOut_simd*nInputs;
       for(Uint i=0; i<nNeurons;  i++) for(Uint o=0; o<nNeurons; o++)
-        weight[o +nNeurons*i] = dis(*gen);
+        weight[o +nOut_simd*i] = dis(*gen);
     }
   }
 

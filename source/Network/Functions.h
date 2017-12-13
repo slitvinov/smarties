@@ -165,7 +165,7 @@ struct HardSign : public Function {
     return 1/(denom*denom*denom);
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
-    #pragma omp simd aligned(in,out : VEC_WIDTH) safelen(VEC_WIDTH)
+    #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0; i<N; i++) out[i] = in[i]/std::sqrt(1+in[i]*in[i]);
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
@@ -198,7 +198,7 @@ struct SoftSign : public Function {
     return 1/(denom*denom);
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
-    #pragma omp simd aligned(in,out : VEC_WIDTH) safelen(VEC_WIDTH)
+    #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; i++) out[i] = in[i]/(1+std::fabs(in[i]));
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
@@ -230,7 +230,7 @@ struct Relu : public Function {
     return in>0 ? 1 : 0;
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
-    #pragma omp simd aligned(in,out : VEC_WIDTH) safelen(VEC_WIDTH)
+    #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; i++) out[i] = in[i]>0 ? in[i] : 0;
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
@@ -262,7 +262,7 @@ struct PRelu : public Function {
     return in>0 ? 1 : PRELU_FAC;
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
-    #pragma omp simd aligned(in,out : VEC_WIDTH) safelen(VEC_WIDTH)
+    #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; i++) out[i] = in[i]>0 ? in[i] : PRELU_FAC*in[i];
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
@@ -324,7 +324,7 @@ struct SoftPlus : public Function {
     return .5*(1 + in/std::sqrt(1+in*in));
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
-    #pragma omp simd aligned(in,out : VEC_WIDTH) safelen(VEC_WIDTH)
+    #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; i++) out[i] = .5*(in[i]+std::sqrt(1+in[i]*in[i]));
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
