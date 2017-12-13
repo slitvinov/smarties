@@ -62,8 +62,9 @@ struct Adam {
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
     M2 = M2<M1*M1? M1*M1 : M2; // gradient clipping to 1
-    const nnReal _M2 = std::sqrt(M2 + nnEPS);
-    return eta*M1/_M2;
+    //const nnReal _M2 = std::sqrt(M2 + nnEPS);
+    //return eta*M1/_M2;
+    return eta*M1/(nnEPS + std::sqrt(M2));
     //return eta*(B1*M1 + (1-B1)*DW)/_M2;
   }
 };
@@ -164,13 +165,15 @@ class Optimizer
     //communication overhead is probably greater than a parallelised sum
     assert(totGrads>0);
     const Real factor = 1./totGrads;
-    nnReal* const paramAry = weights->params;
+    nnReal* const paramAry = weights->params;    
+    assert(eta < 2e-3); //super upper bound for NN, srsly
+    const Real _eta =eta +1e-3*std::max(5-std::log10((Real)nStep),(Real)0)/5;
 
     #pragma omp parallel
     {
       const Uint thrID = static_cast<Uint>(omp_get_thread_num());
       Saru gen(nStep, thrID, generators[thrID]());
-      Algorithm algo(eta, beta_1, beta_2, beta_t_1, beta_t_2, gen);
+      Algorithm algo(_eta, beta_1, beta_2, beta_t_1, beta_t_2, gen);
 
       #pragma omp for
       for (Uint i=0; i<weights->nParams; i++)

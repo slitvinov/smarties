@@ -9,6 +9,7 @@
 
 #pragma once
 
+#define impSampVal
 //#define dumpExtra
 //#define UNBR
 #define REALBND (Real)1
@@ -192,8 +193,15 @@ class RACER : public Learner_offPolicy
     const Real Qprec = outVec[QPrecID];
     const Real penalDKL = outVec[PenalID];
     const Real Q_dist = Q_RET -A_cur-V_cur, A_RET = Q_RET-V_cur;
-    const Real Ver = 0.1*pol_cur.sampImpWeight*Q_dist;
-    //const Real Ver = 0.1*Q_dist;
+    #ifdef impSampVal
+      #ifdef UNBR
+        const Real Ver = .1*         pol_cur.sampImpWeight          *Q_dist;
+      #else
+        const Real Ver = .1*std::min(pol_cur.sampImpWeight, REALBND)*Q_dist;
+      #endif
+    #else
+      const Real Ver = 0.1*Q_dist;
+    #endif
 
     const vector<Real> policyG = policyGradient(traj->tuples[samp], pol_cur,
       adv_cur, A_RET, thrID);
@@ -219,7 +227,7 @@ class RACER : public Learner_offPolicy
       meanProj += policyG[i]*penalG[i];
       meanDist += std::fabs(policyG[i]-finalG[i]);
     }
-    #if 1
+    #ifdef dumpExtra
       {
         Real normG=0, normT=numeric_limits<Real>::epsilon(), dot=0, normP=0;
         for(Uint i = 0; i < policyG.size(); i++) {
