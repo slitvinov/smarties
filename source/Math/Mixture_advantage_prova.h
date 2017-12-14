@@ -22,9 +22,18 @@ struct Mixture_advantage
     return o.str();
   }
 
+  vector<Real> getParam() const {
+    vector<Real> ret = matrix[0];
+    for(Uint e=1; e<nExperts; e++) 
+      ret.insert(ret.end(), matrix[e].begin(), matrix[e].end());
+    for(Uint e=0; e<nExperts; e++) ret.push_back(coef[e]); 
+    return ret;
+  }
+
   static void setInitial(const ActionInfo* const aI, vector<Real>& initBias)
   {
-    for(Uint e=0; e<compute_nL(aI); e++) initBias.push_back(-1);
+    for(Uint e=0; e<nExperts; e++) initBias.push_back(-1);
+    for(Uint e=nExperts; e<compute_nL(aI); e++) initBias.push_back(1);
   }
 
   const Uint start_matrix, start_coefs, nA, nL;
