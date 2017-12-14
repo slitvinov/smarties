@@ -406,6 +406,7 @@ void MemoryBuffer::getMetrics(ostringstream&fileOut, ostringstream&screenOut)
 
 void MemoryBuffer::restart()
 {
+  return;
   const Uint writesize = 3 +sI.dim +aI.dim +policyVecDim;
   int agentID = 0, info = 0, sampID = 0;
   vector<Real> policy(policyVecDim), action(aI.dim), state(sI.dim);

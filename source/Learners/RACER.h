@@ -199,5 +199,27 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     build.addParamLayer(2, "Exp", {1/settings.klDivConstraint, 1});
 
     F[0]->initializeNetwork(build);
+
+    {
+      vector<Real> output(F[0]->nOutputs()),beta(getnDimPolicy(&aInfo)),act(nA);
+      std::normal_distribution<Real> dist(0, 1);
+      for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
+      for(Uint i=0; i<beta.size(); i++) beta[i] = dist(generators[0]);
+      Real norm = 0;
+      for(Uint i=0; i<NEXPERTS; i++) {
+        beta[i] = std::exp(beta[i]);
+        norm += beta[i];
+      }
+      for(Uint i=0; i<NEXPERTS; i++) beta[i] = beta[i]/norm;
+      for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) beta[i]=exp(beta[i]);
+
+      for(Uint i=0; i<act.size(); i++) act[i] = dist(generators[0]);
+
+      Gaussian_mixture<NEXPERTS>  pol = prepare_policy(output);
+      Mixture_advantage<NEXPERTS> adv = prepare_advantage(output, &pol);
+      adv.test(act, &generators[0]);
+      pol.prepare(act, beta);
+      pol.test(act, beta);
+    }
   }
 };

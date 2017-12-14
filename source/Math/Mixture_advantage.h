@@ -219,7 +219,7 @@ public:
     assert(act.size()==nA);
     vector<Real> dErrdP(nExperts*nA*nA, 0);
     for (Uint e=0; e<nExperts; e++) {
-      if(policy->PactEachExp[e]<nnEPS) continue; //nan police
+      //if(policy->PactEachExp[e]<nnEPS) continue; //nan police
 
       for (Uint j=0; j<nA; j++)
       for (Uint i=0; i<nA; i++) {
@@ -288,7 +288,8 @@ public:
       const Real A_1 = a1.computeAdvantage(act), A_2 = a2.computeAdvantage(act);
       const Real fdiff =(A_2-A_1)/.0002, abserr = std::fabs(_grad[index]-fdiff);
       const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[index]));
-      if((abserr>1e-4 || abserr/scale>1e-1) && policy->PactEachExp[ie]>nnEPS) {
+      //if((abserr>1e-4 || abserr/scale>1e-1) && policy->PactEachExp[ie]>nnEPS)
+      {
         printf("Adv grad %d: finite diff %g analytic %g error %g/%g (%g %g) \n",
         i,fdiff, _grad[index],abserr,abserr/scale,policy->PactEachExp[ie],A_1);
         fflush(0);

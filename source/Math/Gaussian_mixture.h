@@ -362,13 +362,6 @@ public:
     r += experts[j]*(std::log(experts[j]/beta[j])+kl_divergence_exp(j,beta));
     return r;
   }
-  inline Real kl_div_opp_new(const Gaussian_mixture*const p) const
-  {
-    Real r = 0;
-    for(Uint j=0; j<nExperts; j++)
-      r+=experts[j]*(std::log(experts[j]/p->experts[j])+kl_divergence_exp(j,p));
-    return r;
-  }
 
   inline void finalize_grad(const vector<Real>&grad, vector<Real>&netGradient) const
   {
@@ -464,13 +457,58 @@ public:
       }
       if(pol_hat == nullptr) continue;
 
-      const Real d_1=p1.kl_div_opp_new(pol_hat);
-      const Real d_2=p2.kl_div_opp_new(pol_hat);
+      const Real d_1=p1.kl_divergence_opp(pol_hat);
+      const Real d_2=p2.kl_divergence_opp(pol_hat);
       {
         finalize_grad(div_klgrad, _grad);
         const Real fdiff =(d_2-d_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
         const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
         if((abserr>1e-7 && abserr/scale>1e-4) && d_1>1e-8)
+        printf("DivKL grad %d: fin-diff %g analytic %g error %g/%g (%g %g)\n",
+        i, fdiff, _grad[ind], abserr,abserr/scale, Pact_Final,PactEachExp[ie]);
+        fflush(0);
+      }
+    }
+  }
+
+  void test(const vector<Real>& act, const vector<Real>& beta) const
+  {
+    vector<Real> _grad(netOutputs.size());
+    const vector<Real> div_klgrad = div_kl_opp_grad(beta);
+    const vector<Real> policygrad = policy_grad(act, 1);
+    const Uint NEA = nExperts*(1+nA);
+    for(Uint i = 0; i<nP; i++)
+    {
+      vector<Real> out_1 = netOutputs, out_2 = netOutputs;
+      const Uint ind = i<nExperts? iExperts+i :
+        (i<NEA? iMeans +i-nExperts : iPrecs +i-NEA);
+      const Uint ie = i<nExperts? i : (i<NEA? (i-nExperts)/nA : (i-NEA)/nA);
+      assert(ie<nExperts);
+      cout << ind << " " << ie << "\n";
+      //if(PactEachExp[ie]<1e-12 && ind >= nExperts) continue;
+
+      out_1[ind] -= 0.0001; out_2[ind] += 0.0001;
+      Gaussian_mixture p1(vector<Uint>{iExperts, iMeans, iPrecs}, aInfo, out_1);
+      Gaussian_mixture p2(vector<Uint>{iExperts, iMeans, iPrecs}, aInfo, out_2);
+      const Real p_1=p1.evalLogProbability(act);
+      const Real p_2=p2.evalLogProbability(act);
+      {
+        finalize_grad(policygrad, _grad);
+        const Real fdiff =(p_2-p_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
+        const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
+        //if((abserr>1e-7 && abserr/scale>1e-4) && PactEachExp[ie]>nnEPS)
+        printf("LogPol grad %d: fin-diff %g analytic %g error %g/%g (%g %g)\n",
+        i, fdiff, _grad[ind], abserr,abserr/scale, Pact_Final,PactEachExp[ie]);
+        fflush(0);
+      }
+
+      const Real d_1=p1.kl_divergence_opp(beta);
+      const Real d_2=p2.kl_divergence_opp(beta);
+      {
+        finalize_grad(div_klgrad, _grad);
+        const Real fdiff =(d_2-d_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
+        const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
+        //if((abserr>1e-7 && abserr/scale>1e-4) && d_1>1e-8)
         printf("DivKL grad %d: fin-diff %g analytic %g error %g/%g (%g %g)\n",
         i, fdiff, _grad[ind], abserr,abserr/scale, Pact_Final,PactEachExp[ie]);
         fflush(0);

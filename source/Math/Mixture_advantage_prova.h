@@ -24,9 +24,9 @@ struct Mixture_advantage
 
   vector<Real> getParam() const {
     vector<Real> ret = matrix[0];
-    for(Uint e=1; e<nExperts; e++) 
+    for(Uint e=1; e<nExperts; e++)
       ret.insert(ret.end(), matrix[e].begin(), matrix[e].end());
-    for(Uint e=0; e<nExperts; e++) ret.push_back(coef[e]); 
+    for(Uint e=0; e<nExperts; e++) ret.push_back(coef[e]);
     return ret;
   }
 
@@ -167,7 +167,8 @@ public:
       const Real A_1 = a1.computeAdvantage(act), A_2 = a2.computeAdvantage(act);
       const Real fdiff =(A_2-A_1)/.0002, abserr = std::fabs(_grad[index]-fdiff);
       const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[index]));
-      if(abserr>1e-7 && abserr/scale>1e-4) {
+      //if(abserr>1e-7 && abserr/scale>1e-4)
+      {
         printf("Adv grad %d: finite diff %g analytic %g error %g/%g (%g) \n",
         i,fdiff, _grad[index],abserr,abserr/scale,A_1); fflush(0);
       }
