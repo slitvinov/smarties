@@ -215,10 +215,10 @@ class Optimizer
     _2ndMom->save(fname+"_2ndMom");
 
     if(nStep % 100000 == 0 && nStep > 0) {
-      ostringstream ss; ss << std::setw(10) << std::setfill('0') << nStep;
-      weights->save(fname+"_weights"+ss.str());
-      _1stMom->save(fname+"_1stMom" +ss.str());
-      _2ndMom->save(fname+"_2ndMom" +ss.str());
+      ostringstream ss; ss << std::setw(9) << std::setfill('0') << nStep;
+      weights->save(fname+"_"+ss.str()+"_weights");
+      _1stMom->save(fname+"_"+ss.str()+"_1stMom" );
+      _2ndMom->save(fname+"_"+ss.str()+"_2ndMom" );
     }
   }
   int restart(const string fname)

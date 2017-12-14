@@ -15,10 +15,12 @@ norm2 = M ** 0.25
 for i in range(0, (N//M)*M, M):
   start = i
   end = start + M
+  #x = np.random.normal(0, 1, M) # debug, must print (0, 1)
   x = DATA[start:end, ICOL]
   mean_1 = np.mean(x)
+  stdv_1 = np.std(x)
   numer =  np.sum( ((x-mean_1)/norm2)**4 )  
   denom = (np.sum( ((x-mean_1)/norm1)**2 ) )**2
-  print numer/denom- 3
+  print (numer/denom- 3, stdv_1)
   
 

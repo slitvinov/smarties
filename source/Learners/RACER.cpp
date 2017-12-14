@@ -10,10 +10,10 @@
 #pragma once
 
 #define impSampVal
-//#define dumpExtra
+#define dumpExtra
 //#define UNBR
-#define REALBND (Real)1
-//#define REALBND CmaxPol
+//#define REALBND (Real)1
+#define REALBND CmaxPol
 //#define ACER_TRUSTREGION
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
