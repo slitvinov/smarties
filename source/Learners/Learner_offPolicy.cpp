@@ -29,7 +29,7 @@ void Learner_offPolicy::prepareData()
   // Anything that messes with MemoryBuffer can only happen on prepareGradient
   if(not waitingForData && not readyForTrain()) {
     nData_b4PolUpdates = data->readNSeen();
-    nStoredSeqs_last = batchSize; //RACER
+    nStoredSeqs_last = nSequences4Train(); //RACER
     nData_last = 0;
   }
 

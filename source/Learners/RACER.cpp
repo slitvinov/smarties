@@ -86,9 +86,19 @@ class RACER : public Learner_offPolicy
       pol.prepare(_t->a, _t->mu);
       traj->offPol_weight[k] = pol.sampImpWeight;
 
-      vector<Real>grad=compute(traj,k, Q_RET, out_cur, pol,polTgt, thrID);
-      //write gradient onto output layer:
-      F[0]->backward(grad, k, thrID);
+      #if 1 // in case rho outside bounds, do not compute gradient
+      if(pol.sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
+         pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) )
+      {
+        offPolCorrUpdate(traj, k, Q_RET, out_cur, pol);
+      }
+      else
+      #endif
+      {
+        vector<Real> G = compute(traj,k, Q_RET, out_cur, pol,polTgt, thrID);
+        //write gradient onto output layer:
+        F[0]->backward(G, k, thrID);
+      }
     }
 
     if(thrID==1)  profiler->stop_start("BCK");
@@ -438,7 +448,7 @@ class RACER : public Learner_offPolicy
       if(firstUpdate) return;
     }
 
-    if(samples_sequential < batchSize*learn_size)
+    if(samples_sequential < nSequences4Train()*learn_size)
       DKL_target *= 0.99;
     else
       DKL_target += 1e-5*(1-DKL_target);
