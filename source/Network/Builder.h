@@ -68,6 +68,11 @@ public:
     if(bOutput) nOutputs += l->nOutputs();
   }
 
+  void setLastLayersBias(vector<Real> init_vals)
+  {
+    layers.back()->biasInitialValues(init_vals);
+  }
+
   void addParamLayer(int size, string funcType = "Linear", Real init_vals = 0)
   {
     addParamLayer(size, funcType, vector<Real>(size, init_vals) );

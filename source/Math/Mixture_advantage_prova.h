@@ -21,7 +21,12 @@ struct Mixture_advantage
     o << vals[nExperts-1];
     return o.str();
   }
-public:
+
+  static void setInitial(const ActionInfo* const aI, vector<Real>& initBias)
+  {
+    for(Uint e=0; e<compute_nL(aI); e++) initBias.push_back(-1);
+  }
+
   const Uint start_matrix, start_coefs, nA, nL;
   const vector<Real>& netOutputs;
   const array<Real, nExperts> coef;

@@ -182,8 +182,18 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
       nouts.push_back(NEXPERTS * nA);
     #endif
     Builder build = F[0]->buildFromSettings(settings, nouts);
+
+    vector<Real> initBias;
+    initBias.push_back(0);
+    Mixture_advantage<NEXPERTS>::setInitial(&aInfo, initBias);
+    Gaussian_mixture<NEXPERTS>::setInitial_noStdev(&aInfo, initBias);
+
     #ifdef simpleSigma
-      build.addParamLayer(NEXPERTS * nA, "Linear", -2*std::log(greedyEps));
+      build.setLastLayersBias(initBias);
+      build.addParamLayer(NEXPERTS * nA, "Linear", std::log(greedyEps));
+    #else
+      Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, greedyEps);
+      build.setLastLayersBias(initBias);
     #endif
     //add klDiv penalty coefficient layer, and stdv of Q distribution
     build.addParamLayer(2, "Exp", {1/settings.klDivConstraint, 1});

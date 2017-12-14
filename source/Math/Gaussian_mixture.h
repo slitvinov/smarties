@@ -33,6 +33,16 @@ public:
   {
     return nExperts*(1 + 2*aI->dim);
   }
+  static void setInitial_noStdev(const ActionInfo* const aI, vector<Real>& initBias)
+  {
+    for(Uint e=0; e<nExperts*(1 + aI->dim); e++)
+      initBias.push_back(0);
+  }
+  static void setInitial_Stdev(const ActionInfo* const aI, vector<Real>& initBias, const Real greedyEps)
+  {
+    for(Uint e=0; e<nExperts*aI->dim; e++)
+      initBias.push_back(std::log(greedyEps));
+  }
 
   Gaussian_mixture(const vector <Uint> starts, const ActionInfo*const aI,
     const vector<Real>&out) : aInfo(aI),

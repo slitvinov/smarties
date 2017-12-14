@@ -30,6 +30,14 @@ public:
           else if (i==j) ret[ind++] = matrix[e][nA*j +i];
     return ret;
   }
+  static void setInitial(const ActionInfo* const aI, vector<Real>& initBias)
+  {
+    for(Uint e=0; e<nExperts; e++)
+      for (Uint j=0; j<aI->dim; j++)
+        for (Uint i=0; i<aI->dim; i++)
+          if (i<j)       initBias.push_back( 0);
+          else if (i==j) initBias.push_back(-1);
+  }
 
   //Normalized quadratic advantage, with own mean
   Mixture_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
