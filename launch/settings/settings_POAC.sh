@@ -23,7 +23,7 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnFunc PRelu"
 #SETTINGS+=" --nnFunc SoftSign"
 SETTINGS+=" --nnFunc HardSign"
-SETTINGS+=" --nnLambda 0.00001"
+SETTINGS+=" --nnLambda 0.000001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -35,9 +35,8 @@ SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --maxTotSeqNum 10000"
 SETTINGS+=" --epsAnneal 1000"
 #SETTINGS+=" --obsPerStep 0.01"
-#SETTINGS+=" --bSampleSequences 1"
 SETTINGS+=" --nMasters 1"
-SETTINGS+=" --totNumSteps 1000000"
+SETTINGS+=" --totNumSteps 2000000"
 SETTINGS+=" --impWeight 5"
 
 #lag of target network
@@ -47,8 +46,8 @@ SETTINGS+=" --impWeight 5"
 SETTINGS+=" --klDivConstraint 0.2"
 SETTINGS+=" --targetDelay 0.0001"
 #batch size for network gradients compute
-#SETTINGS+=" --batchSize 256"
-#SETTINGS+=" --batchSize 32"
-SETTINGS+=" --batchSize 128"
+SETTINGS+=" --batchSize 256"
+#SETTINGS+=" --batchSize 16"
+#SETTINGS+=" --bSampleSequences 1"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"
