@@ -113,7 +113,7 @@ class BaseLayer: public Layer
           G[o] += inputs[i] * deltas[o];
         }
       }
-      #if 0
+      #if 1
       cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1, weight, nOut_simd, deltas, 1, 1, errors, 1);
       #else
       #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)

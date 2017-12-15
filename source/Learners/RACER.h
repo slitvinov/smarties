@@ -28,7 +28,7 @@
 
 #include "../Math/Discrete_policy.h"
 #include "RACER.cpp"
-//#define simpleSigma
+#define simpleSigma
 
 class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Real> >
 {

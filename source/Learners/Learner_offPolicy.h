@@ -28,7 +28,7 @@ public:
   inline Uint nSequences4Train() const
   {
     if(bSampleSequences) return 8*batchSize;
-    else                 return   batchSize;
+    else                 return   batchSize/2;
   }
   inline Uint read_nData() const
   {

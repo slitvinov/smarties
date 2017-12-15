@@ -397,7 +397,7 @@ class RACER : public Learner_offPolicy
     const Real currPre = data->nSequences; //pre pruning
     assert(nStoredSeqs_last <= data->nSequences); //before pruining
     const Real mul = (Real)nSequences4Train()/(Real)data->nSequences;
-    data->prune(goalSkipRatio * mul, CmaxPol);
+    data->prune(goalSkipRatio * mul*mul, CmaxPol);
     const Real currSeqs = data->nSequences; //after pruning
     const Real nPruned = currPre - currSeqs;
     //assuming that pruning has not removed any of the fresh samples
