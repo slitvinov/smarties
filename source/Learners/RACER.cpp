@@ -115,7 +115,9 @@ class RACER : public Learner_offPolicy
 
     #if 1 // in case rho outside bounds, resample:
      if(pol.sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
-        pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) ) {
+        pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) )
+     {
+       offPolCorrUpdate(traj, samp, out_cur, pol);
        if(thrID==1)  profiler->stop_start("SLP");
        return resample(thrID);
      }
@@ -222,6 +224,20 @@ class RACER : public Learner_offPolicy
     opcInfo->track_vector({meanGrad, meanPena, meanProj, meanDist}, thrID);
     traj->SquaredError[samp]= min(pol_cur.sampInvWeight, pol_cur.sampImpWeight);
     return gradient;
+  }
+
+  inline void offPolCorrUpdate(Sequence*const traj, const Uint samp,
+    const vector<Real> output, const Policy_t& pol) const
+  {
+    const Real Q_RET = traj->state_vals[samp+1];
+    const Advantage_t adv_cur = prepare_advantage(output, &pol);
+    const Action_t& act = pol.sampAct; //off policy stored action
+    const Real V_cur = output[VsID], A_cur = adv_cur.computeAdvantage(act);
+    //prepare rolled Q with off policy corrections for next step:
+    const Real R = data->standardized_reward(traj, samp);
+    const Real W = std::min((Real)1, pol.sampImpWeight);
+    traj->state_vals[samp] = R +gamma*(W*(Q_RET-A_cur-V_cur) +V_cur);
+    traj->SquaredError[samp] = std::min(pol.sampInvWeight, pol.sampImpWeight); //*std::fabs(Q_RET-A_hat-V_hat);
   }
 
   inline vector<Real> policyGradient(const Tuple*const _t, const Policy_t& POL, const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
