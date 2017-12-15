@@ -150,9 +150,9 @@ public:
     return o.str();
   }
 
-  inline void prepare(const vector<Real>& unbact, const vector<Real>& beta)
+  inline void prepare(const vector<Real>& unscal_act, const vector<Real>& beta)
   {
-    sampAct = map_action(unbact);
+    sampAct = map_action(unscal_act);
     Pact_Final = numeric_limits<Real>::epsilon();  //nan police
     for(Uint j=0; j<nExperts; j++) {
       PactEachExp[j] = 1;
@@ -398,9 +398,10 @@ public:
     const Uint bestExp = std::distance(experts.begin(), std::max_element(experts.begin(),experts.end()));
     return means[bestExp];
   }
-  inline vector<Real> finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta) const
+  inline vector<Real> finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta)
   { //scale back to action space size:
-    return aInfo->getScaled(bSample ? sample(gen, beta) : getBest());
+    sampAct = bSample ? sample(gen, beta) : getBest();
+    return aInfo->getScaled(sampAct);
   }
 
   inline vector<Real> getBeta() const

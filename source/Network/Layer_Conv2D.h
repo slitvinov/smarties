@@ -45,43 +45,6 @@ class ConvLayer : public Layer
   }
   void biasInitialValues(const vector<nnReal> init) override { }
 
-  #ifndef CONVBLAS
-
-  void forward( const Activation*const prev,
-                const Activation*const curr,
-                const Parameters*const para) const override {
-    //prepare arrays:
-    __attribute__((aligned(32)))       nnReal (&convOut)[OutY][OutX][Kn_C] =
-         * reinterpret_cast < nnReal ( * __restrict__ ) [OutY][OutX][Kn_C]> (
-      curr->X(ID));
-
-    __attribute__((aligned(32))) const nnReal (&convInp)[In_Y][In_X][In_C] =
-         * reinterpret_cast < nnReal ( * __restrict__ ) [In_Y][In_X][In_C]> (
-      curr->Y(ID-link));
-
-    __attribute__((aligned(32))) const nnReal (&K)[Kn_Y][Kn_X][In_C][Kn_C] =
-     * reinterpret_cast <nnReal( * __restrict__ ) [Kn_Y][Kn_X][In_C][Kn_C]> (
-      para->W(ID));
-
-    memcpy(curr->X(ID), para->B(ID), OutX*OutY*Kn_C*sizeof(nnReal));
-
-    for(int oy=0, iy0= -Py; oy<OutY; oy++, iy0+=Sy) //2loops over output images
-    for(int ox=0, ix0= -Px; ox<OutX; ox++, ix0+=Sx)
-     for(int fy=0, iy=iy0; fy<Kn_Y; fy++, iy++) //2loops for filter width/height
-     for(int fx=0, ix=ix0; fx<Kn_X; fx++, ix++)
-       //padding: skip addition if outside input boundaries
-       if ( ix < 0 || ix >= In_X || iy < 0 || iy >= In_Y) continue;
-       else
-        for(int ic=0; ic<In_C; ic++) //loop over inp feature maps
-         for(int fc=0; fc<Kn_C; fc++)
-          convOut[oy][ox][fc] += convInp[iy][ix][ic] * K[fy][fx][ic][fc];
-
-    //apply per-pixel non-linearity:
-    func::_eval(curr->X(ID), curr->Y(ID), OutX*OutY*Kn_C);
-  }
-
-  #else
-
   void forward( const Activation*const prev,
                 const Activation*const curr,
                 const Parameters*const para) const override {
@@ -99,7 +62,7 @@ class ConvLayer : public Layer
       //padding: skip addition if outside input boundaries
       if ( ix < 0 || ix >= In_X || iy < 0 || iy >= In_Y) continue;
       else
-      memcpy(&buf[oy][ox][fy][fx][0],&conv_inp[iy][ix][0], In_C*sizeof(nnReal));
+      memcpy(&buf[oy][ox][fy][fx][0],&convInp[iy][ix][0], In_C*sizeof(nnReal));
 
     static const int mm_outRow = OutY * OutX;
     static const int mm_nInner = Kn_Y * Kn_X * In_C;
@@ -113,8 +76,6 @@ class ConvLayer : public Layer
     //apply per-pixel non-linearity:
     func::_eval(curr->X(ID), curr->Y(ID), OutX*OutY*Kn_C);
   }
-
-  #endif
 
   void backward(  const Activation*const prev,
                   const Activation*const curr,
@@ -177,4 +138,40 @@ class ConvLayer : public Layer
   }
 
   void orthogonalize(const Parameters*const para) const {}
+
+
+  #if 0
+  void forward( const Activation*const prev,
+                const Activation*const curr,
+                const Parameters*const para) const override {
+    //prepare arrays:
+    __attribute__((aligned(32)))       nnReal (&convOut)[OutY][OutX][Kn_C] =
+         * reinterpret_cast < nnReal ( * __restrict__ ) [OutY][OutX][Kn_C]> (
+      curr->X(ID));
+
+    __attribute__((aligned(32))) const nnReal (&convInp)[In_Y][In_X][In_C] =
+         * reinterpret_cast < nnReal ( * __restrict__ ) [In_Y][In_X][In_C]> (
+      curr->Y(ID-link));
+
+    __attribute__((aligned(32))) const nnReal (&K)[Kn_Y][Kn_X][In_C][Kn_C] =
+     * reinterpret_cast <nnReal( * __restrict__ ) [Kn_Y][Kn_X][In_C][Kn_C]> (
+      para->W(ID));
+
+    memcpy(curr->X(ID), para->B(ID), OutX*OutY*Kn_C*sizeof(nnReal));
+
+    for(int oy=0, iy0= -Py; oy<OutY; oy++, iy0+=Sy) //2loops over output images
+    for(int ox=0, ix0= -Px; ox<OutX; ox++, ix0+=Sx)
+     for(int fy=0, iy=iy0; fy<Kn_Y; fy++, iy++) //2loops for filter width/height
+     for(int fx=0, ix=ix0; fx<Kn_X; fx++, ix++)
+       //padding: skip addition if outside input boundaries
+       if ( ix < 0 || ix >= In_X || iy < 0 || iy >= In_Y) continue;
+       else
+        for(int ic=0; ic<In_C; ic++) //loop over inp feature maps
+         for(int fc=0; fc<Kn_C; fc++)
+          convOut[oy][ox][fc] += convInp[iy][ix][ic] * K[fy][fx][ic][fc];
+
+    //apply per-pixel non-linearity:
+    func::_eval(curr->X(ID), curr->Y(ID), OutX*OutY*Kn_C);
+  }
+  #endif
 };

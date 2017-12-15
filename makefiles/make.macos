@@ -2,6 +2,8 @@
 CC=mpic++
 LD=mpic++
 LIBS += -lmpi -lmpicxx -lmpich -mavx
+LIBS += -L/usr/local/Cellar/openblas/0.2.20/lib/ 
+CPPFLAGS += -I/usr/local/Cellar/openblas/0.2.20/include/ 
 
 #CPPFLAGS+= -DGYM_RENDEROPT=3 
 #CPPFLAGS+= -I/opt/local/include/openmpi -mavx

@@ -312,9 +312,10 @@ public:
   {
     return mean;
   }
-  inline vector<Real> finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta) const
+  inline vector<Real> finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta)
   { //scale back to action space size:
-    return aInfo->getScaled(bSample ? sample(gen, beta) : mean);
+    sampAct = bSample ? sample(gen, beta) : mean;
+    return aInfo->getScaled(sampAct);
   }
 
   inline vector<Real> getBeta() const

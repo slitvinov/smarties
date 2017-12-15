@@ -76,7 +76,7 @@ protected:
     const Real adv_est = traj->action_adv[samp+1];
     const Real val_tgt = traj->tuples[samp+1]->r;
     const vector<Real>& beta = traj->tuples[samp]->mu;
-    
+
     F[0]->prepare_one(traj, samp, thrID);
     F[1]->prepare_one(traj, samp, thrID);
     const vector<Real> pol_cur = F[0]->forward(traj, samp, thrID);
@@ -144,7 +144,7 @@ public:
       const vector<Real> val=F[1]->forward_agent(curr_seq, agent, thrID);
 
       curr_seq->state_vals.push_back(val[0]);
-      const Policy_t policy = prepare_policy(pol);
+      Policy_t policy = prepare_policy(pol);
       const vector<Real> beta = policy.getBeta();
       agent.a->set(policy.finalize(bTrain, &generators[thrID], beta));
       data->add_action(agent, beta);

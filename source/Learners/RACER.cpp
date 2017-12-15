@@ -10,7 +10,7 @@
 #pragma once
 
 #define impSampVal
-#define dumpExtra
+//#define dumpExtra
 //#define UNBR
 //#define REALBND (Real)1
 #define REALBND CmaxPol
@@ -63,11 +63,8 @@ class RACER : public Learner_offPolicy
     }
 
     //if partial sequence then compute value of last state (!= R_end)
-    Real Q_RET = 0;
-    if(not traj->ended) {
-      vector<Real> OT = F[0]->forward<CUR>(traj, ndata, thrID);
-      Q_RET = OT[net_indices[0]];
-    }
+    assert(traj->ended);
+    traj->state_vals[ndata] = data->standardized_reward(traj, ndata);
 
     if(thrID==1)  profiler->stop_start("POL");
     for(int k=ndata-1; k>=0; k--)
@@ -88,17 +85,12 @@ class RACER : public Learner_offPolicy
 
       #if 1 // in case rho outside bounds, do not compute gradient
       if(pol.sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
-         pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) )
-      {
-        offPolCorrUpdate(traj, k, Q_RET, out_cur, pol);
-      }
-      else
+         pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) )  continue;
       #endif
-      {
-        vector<Real> G = compute(traj,k, Q_RET, out_cur, pol,polTgt, thrID);
-        //write gradient onto output layer:
-        F[0]->backward(G, k, thrID);
-      }
+
+      vector<Real> G = compute(traj,k, out_cur, pol,polTgt, thrID);
+      //write gradient onto output layer:
+      F[0]->backward(G, k, thrID);
     }
 
     if(thrID==1)  profiler->stop_start("BCK");
@@ -109,17 +101,25 @@ class RACER : public Learner_offPolicy
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override
   {
     Sequence* const traj = data->Set[seq];
-    //last state for which we compute a policy: T-1
-    Uint lastTPolicy = traj->tuples.size() -2;
-    bool truncated = not traj->ended;
+    assert(samp+1 < traj->tuples.size());
+    if( samp+2 == traj->tuples.size() )
+      traj->state_vals[samp+1] = data->standardized_reward(traj, samp+1);
+
     if(thrID==1) profiler->stop_start("FWD");
-
-    vector<Policy_t> policies;
-    policies.reserve(traj->tuples.size() -samp-1);
-
-    F[0]->prepare_opc(traj, samp, thrID);
+    F[0]->prepare_one(traj, samp, thrID);
     const vector<Real> out_cur = F[0]->forward(traj, samp, thrID);
-    policies.push_back(prepare_policy(out_cur));
+    Policy_t pol = prepare_policy(out_cur);
+
+    pol.prepare(traj->tuples[samp]->a, traj->tuples[samp]->mu);
+    traj->offPol_weight[samp] = pol.sampImpWeight;
+
+    #if 1 // in case rho outside bounds, resample:
+     if(pol.sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
+        pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) ) {
+       if(thrID==1)  profiler->stop_start("SLP");
+       return resample(thrID);
+     }
+    #endif
 
     #ifdef ACER_TARGETNET //predict samp with tgt w
       const vector<Real> out_hat = F[0]->forward<TGT>(traj, samp, thrID);
@@ -129,58 +129,8 @@ class RACER : public Learner_offPolicy
       const Policy_t* const polTgt = nullptr;
     #endif
 
-    policies[0].prepare(traj->tuples[samp]->a, traj->tuples[samp]->mu);
-    traj->offPol_weight[samp] = policies[0].sampImpWeight;
-
-    #if 1 // in case rho outside bounds, resample:
-     if(policies[0].sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
-        policies[0].sampImpWeight > std::max((Real)2.0,   CmaxPol) ) {
-       if(thrID==1)  profiler->stop_start("SLP");
-       return resample(thrID);
-     }
-    #endif
-
-    // initialize importance sample
-    #ifdef UNBR
-      Real impW = policies[0].sampImpWeight;
-    #else
-      Real impW = std::min(REALBND, policies[0].sampImpWeight);
-    #endif
-
-    //Compute off-pol corrections. Skip last state of seq: we need all V(snext)
-    for(Uint k=samp+1; k<=lastTPolicy; k++)  {
-      const vector<Real> out_tmp = F[0]->forward(traj, k, thrID);
-      policies.push_back(prepare_policy(out_tmp));
-
-      assert(policies.size() == k+1-samp);
-      policies[k-samp].prepare(traj->tuples[k]->a, traj->tuples[k]->mu);
-      traj->offPol_weight[k] = policies.back().sampImpWeight; //(race condition)
-      //Racer off-pol correction weight: /*lambda*/
-      impW *= gamma * std::min((Real)1, policies[k-samp].sampImpWeight);
-      if (impW < 1e-3) { //then the imp weight is too small to continue
-        lastTPolicy = k-1; //we initialize value of Q_RET to V(state_{k})
-        truncated = true; //by acting as if sequence is truncated
-        break;
-      }
-    }
-
-    if(thrID==1)  profiler->stop_start("ADV");
-    Real Q_RET = 0;
-    if(truncated)
-    { //initialize Q_RET to value of state after last off policy correction
-      const vector<Real> OT = F[0]->forward(traj, lastTPolicy+1, thrID);
-      Q_RET = OT[net_indices[0]];
-    }
-
-    for (Uint k=lastTPolicy; k>samp; k--) { //propagate Q to k=0
-     const vector<Real> out_k = F[0]->get(traj,k,thrID); // precomputed
-     offPolCorrUpdate(traj, k, Q_RET, out_k, policies[k-samp]);
-    }
-
     if(thrID==1)  profiler->stop_start("CMP");
-    const Policy_t& pol = policies[0];
-    vector<Real> grad=compute(traj,samp, Q_RET, out_cur,pol, polTgt,thrID);
-    //printf("gradient: %s\n", print(grad).c_str()); fflush(0);
+    vector<Real> grad = compute(traj, samp, out_cur, pol, polTgt, thrID);
 
     if(thrID==1)  profiler->stop_start("BCK");
     F[0]->backward(grad, samp, thrID);
@@ -188,21 +138,22 @@ class RACER : public Learner_offPolicy
     if(thrID==1)  profiler->stop_start("SLP");
   }
 
-  inline vector<Real> compute(Sequence*const traj, const Uint samp, Real& Q_RET,
+  inline vector<Real> compute(Sequence*const traj, const Uint samp,
     const vector<Real>& outVec, const Policy_t& pol_cur,
     const Policy_t* const pol_hat, const Uint thrID) const
   {
     Real meanPena=0, meanGrad=0, meanProj=0, meanDist=0;
     vector<Real> gradient(F[0]->nOutputs(), 0);
-    Q_RET = data->standardized_reward(traj, samp+1) + gamma*Q_RET;
     const Advantage_t adv_cur = prepare_advantage(outVec, &pol_cur);
     const Action_t& act = pol_cur.sampAct; //unbounded action space
     const Real A_cur = adv_cur.computeAdvantage(act);
 
+    const Real Q_RET = traj->state_vals[samp+1];
     const Real V_cur = outVec[VsID];
     const Real Qprec = outVec[QPrecID];
     const Real penalDKL = outVec[PenalID];
     const Real Q_dist = Q_RET -A_cur-V_cur, A_RET = Q_RET-V_cur;
+
     #ifdef impSampVal
       #ifdef UNBR
         const Real Ver = .1*         pol_cur.sampImpWeight          *Q_dist;
@@ -262,26 +213,15 @@ class RACER : public Learner_offPolicy
     gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprec);
 
     //prepare Q with off policy corrections for next step:
-    Q_RET = std::min((Real)1,pol_cur.sampImpWeight)*(Q_RET-A_cur-V_cur)+V_cur;
+    const Real R = data->standardized_reward(traj, samp);
+    const Real W = std::min((Real)1, pol_cur.sampImpWeight);
+    traj->state_vals[samp] = R +gamma*(W*(Q_RET-A_cur-V_cur) +V_cur);
 
     //bookkeeping:
     Vstats[thrID].dumpStats(A_cur+V_cur, Q_dist);
     opcInfo->track_vector({meanGrad, meanPena, meanProj, meanDist}, thrID);
     traj->SquaredError[samp]= min(pol_cur.sampInvWeight, pol_cur.sampImpWeight);
     return gradient;
-  }
-
-  inline void offPolCorrUpdate(Sequence*const traj, const Uint samp, Real&Q_RET,
-    const vector<Real> output, const Policy_t& pol) const
-  {
-    Q_RET = data->standardized_reward(traj, samp+1) + gamma*Q_RET;
-    //Used as target: target policy, target value
-    const Advantage_t adv_cur = prepare_advantage(output, &pol);
-    const Action_t& act = pol.sampAct; //off policy stored action
-    const Real V_hat = output[VsID], A_hat = adv_cur.computeAdvantage(act);
-    //prepare rolled Q with off policy corrections for next step:
-    Q_RET = std::min((Real)1,pol.sampImpWeight)*(Q_RET -A_hat-V_hat) +V_hat;
-    traj->SquaredError[samp] = std::min(pol.sampInvWeight, pol.sampImpWeight); //*std::fabs(Q_RET-A_hat-V_hat);
   }
 
   inline vector<Real> policyGradient(const Tuple*const _t, const Policy_t& POL, const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
@@ -364,7 +304,7 @@ class RACER : public Learner_offPolicy
   void select(const Agent& agent) override
   {
     const int thrID= omp_get_thread_num();
-    const Sequence* const traj = data->inProgress[agent.ID];
+    Sequence* const traj = data->inProgress[agent.ID];
     data->add_state(agent);
 
     if( agent.Status != 2 )
@@ -372,15 +312,16 @@ class RACER : public Learner_offPolicy
       //Compute policy and value on most recent element of the sequence. If RNN
       // recurrent connection from last call from same agent will be reused
       vector<Real> output = F[0]->forward_agent(traj, agent, thrID);
-      const Policy_t pol = prepare_policy(output);
+      Policy_t pol = prepare_policy(output);
+      const Advantage_t adv = prepare_advantage(output, &pol);
       vector<Real> beta = pol.getBeta();
-      //const Real anneal = annealingFactor();
+
       const Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
+      traj->action_adv.push_back(adv.computeAdvantage(pol.sampAct));
       agent.a->set(act);
 
       #ifdef dumpExtra
         data->inProgress[agent.ID]->add_action(agent.a->vals, beta);
-        const Advantage_t adv = prepare_advantage(output, &pol);
         vector<Real> param = adv.getParam();
         assert(param.size() == nL);
         beta.insert(beta.end(), param.begin(), param.end());
@@ -390,15 +331,15 @@ class RACER : public Learner_offPolicy
       #endif
 
       #ifndef NDEBUG
-      {
         Policy_t dbg = prepare_policy(output);
         dbg.prepare(traj->tuples.back()->a, traj->tuples.back()->mu);
         assert(fabs(dbg.sampImpWeight-1) < 10*numeric_limits<Real>::epsilon());
-      }
       #endif
     }
     else
     {
+      writeOnPolRetrace(traj);
+
       #ifdef dumpExtra
         agent.a->set(vector<Real>(nA,0));
         data->inProgress[agent.ID]->add_action(agent.a->vals, vector<Real>(policyVecDim, 0));
@@ -408,7 +349,22 @@ class RACER : public Learner_offPolicy
         data->terminate_seq(agent);
       #endif
     }
+  }
 
+  void writeOnPolRetrace(Sequence*const seq) const
+  {
+    assert(seq->tuples.size() == seq->action_adv.size()+1);
+    assert(seq->state_vals.size() == 0);
+    const Uint N = seq->tuples.size();
+    //within Retrace, we use the state_vals vetor to write the Q retrace values
+    seq->state_vals.resize(N, 0);
+    //terminal Q_ret = term reward with state val = 0:
+    seq->state_vals[N-1] = data->standardized_reward(seq, N-1);
+
+    for (Uint i=N-1; i>0; i--) { //update all q_ret before terminal step
+      const Real R = data->standardized_reward(seq, i-1);
+      seq->state_vals[i-1] = R+gamma*(seq->state_vals[i]-seq->action_adv[i-1]);
+    }
   }
 
   void prepareGradient()
@@ -467,3 +423,102 @@ class RACER : public Learner_offPolicy
     fileOut<<" "<<print(opcInfo->avgVec[0])<<" "<<print(opcInfo->stdVec[0]);
   }
 };
+
+#if 0
+void Train(const Uint seq, const Uint samp, const Uint thrID) const override
+{
+  Sequence* const traj = data->Set[seq];
+  //last state for which we compute a policy: T-1
+  Uint lastTPolicy = traj->tuples.size() -2;
+  bool truncated = not traj->ended;
+  if(thrID==1) profiler->stop_start("FWD");
+
+  vector<Policy_t> policies;
+  policies.reserve(traj->tuples.size() -samp-1);
+
+  F[0]->prepare_opc(traj, samp, thrID);
+  const vector<Real> out_cur = F[0]->forward(traj, samp, thrID);
+  policies.push_back(prepare_policy(out_cur));
+
+  #ifdef ACER_TARGETNET //predict samp with tgt w
+    const vector<Real> out_hat = F[0]->forward<TGT>(traj, samp, thrID);
+    const Policy_t pol_target = prepare_policy(out_hat);
+    const Policy_t* const polTgt = &pol_target;
+  #else
+    const Policy_t* const polTgt = nullptr;
+  #endif
+
+  policies[0].prepare(traj->tuples[samp]->a, traj->tuples[samp]->mu);
+  traj->offPol_weight[samp] = policies[0].sampImpWeight;
+
+  #if 1 // in case rho outside bounds, resample:
+   if(policies[0].sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
+      policies[0].sampImpWeight > std::max((Real)2.0,   CmaxPol) ) {
+     if(thrID==1)  profiler->stop_start("SLP");
+     return resample(thrID);
+   }
+  #endif
+
+  // initialize importance sample
+  #ifdef UNBR
+    Real impW = policies[0].sampImpWeight;
+  #else
+    Real impW = std::min(REALBND, policies[0].sampImpWeight);
+  #endif
+
+  //Compute off-pol corrections. Skip last state of seq: we need all V(snext)
+  for(Uint k=samp+1; k<=lastTPolicy; k++)  {
+    const vector<Real> out_tmp = F[0]->forward(traj, k, thrID);
+    policies.push_back(prepare_policy(out_tmp));
+
+    assert(policies.size() == k+1-samp);
+    policies[k-samp].prepare(traj->tuples[k]->a, traj->tuples[k]->mu);
+    traj->offPol_weight[k] = policies.back().sampImpWeight; //(race condition)
+    //Racer off-pol correction weight: /*lambda*/
+    impW *= gamma * std::min((Real)1, policies[k-samp].sampImpWeight);
+    if (impW < 1e-3) { //then the imp weight is too small to continue
+      lastTPolicy = k-1; //we initialize value of Q_RET to V(state_{k})
+      truncated = true; //by acting as if sequence is truncated
+      break;
+    }
+  }
+
+  if(thrID==1)  profiler->stop_start("ADV");
+  Real Q_RET = 0;
+  if(truncated)
+  { //initialize Q_RET to value of state after last off policy correction
+    const vector<Real> OT = F[0]->forward(traj, lastTPolicy+1, thrID);
+    Q_RET = OT[net_indices[0]];
+  }
+
+  for (Uint k=lastTPolicy; k>samp; k--) { //propagate Q to k=0
+   const vector<Real> out_k = F[0]->get(traj,k,thrID); // precomputed
+   offPolCorrUpdate(traj, k, Q_RET, out_k, policies[k-samp]);
+  }
+
+  if(thrID==1)  profiler->stop_start("CMP");
+  const Policy_t& pol = policies[0];
+  vector<Real> grad=compute(traj,samp, Q_RET, out_cur,pol, polTgt,thrID);
+  //printf("gradient: %s\n", print(grad).c_str()); fflush(0);
+
+  if(thrID==1)  profiler->stop_start("BCK");
+  F[0]->backward(grad, samp, thrID);
+  F[0]->gradient(thrID);
+  if(thrID==1)  profiler->stop_start("SLP");
+}
+
+
+inline void offPolCorrUpdate(Sequence*const traj, const Uint samp, Real&Q_RET,
+  const vector<Real> output, const Policy_t& pol) const
+{
+  Q_RET = data->standardized_reward(traj, samp+1) + gamma*Q_RET;
+  //Used as target: target policy, target value
+  const Advantage_t adv_cur = prepare_advantage(output, &pol);
+  const Action_t& act = pol.sampAct; //off policy stored action
+  const Real V_hat = output[VsID], A_hat = adv_cur.computeAdvantage(act);
+  //prepare rolled Q with off policy corrections for next step:
+  Q_RET = std::min((Real)1,pol.sampImpWeight)*(Q_RET -A_hat-V_hat) +V_hat;
+  traj->SquaredError[samp] = std::min(pol.sampInvWeight, pol.sampImpWeight); //*std::fabs(Q_RET-A_hat-V_hat);
+}
+
+#endif

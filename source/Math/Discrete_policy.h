@@ -196,11 +196,11 @@ struct Discrete_policy
     return probs;
   }
 
-  inline Uint finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta) const
+  inline Uint finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta)
   {
-    if(bSample) return sample(gen, beta);
-    else return //the index of max Q:
+    sampAct = bSample? sample(gen, beta) :
       std::distance(probs.begin(), std::max_element(probs.begin(),probs.end()));
+    return sampAct; //the index of max Q
   }
 
   static inline void anneal_beta(vector<Real>& beta, const Real eps)
