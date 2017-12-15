@@ -9,6 +9,7 @@
 
 #pragma once
 #include "Layers.h"
+#include "cblas.h"
 
 class BaseLayer: public Layer
 {
@@ -103,16 +104,17 @@ class BaseLayer: public Layer
 
       for(Uint i=0; i<nInputs;  i++)
       {
-        nnReal* const G = grad_w + nOut_simd*i;
-        #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH)
-        for (Uint o = 0; o < nNeurons; o++)
+              nnReal* const G = grad_w + nOut_simd*i;
+        #pragma omp simd aligned(deltas,inputs,G : VEC_WIDTH)
+        for (Uint o = 0; o < nNeurons; o++) {
           G[o] += inputs[i] * deltas[o];
+        }
       }
-
-      #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
-      for(Uint o=0; o<nNeurons; o++)
-        for(Uint i=0; i<nInputs;  i++)
-          errors[i] += weight[o +nOut_simd*i] * deltas[o];
+      cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1, weight, nOut_simd, deltas, 1, 1, errors, 1);
+      //#pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
+      //for(Uint o=0; o<nNeurons; o++)
+      //  for(Uint i=0; i<nInputs;  i++)
+      //    errors[i] += weight[o +nOut_simd*i] * deltas[o];
     }
     if(bRecurrent && prev not_eq nullptr)
     {

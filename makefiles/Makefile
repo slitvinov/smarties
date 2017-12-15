@@ -14,7 +14,7 @@ sortseq ?= on
 mpi_lib ?= default
 
 CPPFLAGS= -std=c++11 -D__Smarties_ -fopenmp
-LIBS= -fopenmp -lstdc++ -lm -dynamic -ldl -lc -lgomp
+LIBS= -fopenmp -lstdc++ -lm -dynamic -ldl -lc -lgomp -lopenblas
 
 ifeq ($(UNAME_S),Darwin)
 include make.macos
