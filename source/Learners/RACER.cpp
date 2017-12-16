@@ -397,7 +397,7 @@ class RACER : public Learner_offPolicy
     //const Real currPre = data->nSequences; //pre pruning
     //assert(nStoredSeqs_last <= data->nSequences); //before pruining
     const Real fracOffPol = data->prune2(CmaxPol, 256*batchSize);
-    if(fracOffPol > 0.02) DKL_target = 0.9999*DKL_target;
+    if(fracOffPol > 0.01) DKL_target = 0.9999*DKL_target;
     else DKL_target = 1e-4 + 0.9999*DKL_target;
 
     //const Real nPruned = currPre - currSeqs;

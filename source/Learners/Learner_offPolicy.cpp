@@ -66,7 +66,7 @@ bool Learner_offPolicy::readyForTrain() const
    //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
    //  die("I do not have enough data for training. Change hyperparameters");
    //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
-   return bTrain && data->nSequences >= nSequences4Train();
+   return bTrain && data->nTransitions >= 6e4;//data->nSequences >= nSequences4Train();
 }
 
 bool Learner_offPolicy::batchGradientReady()
