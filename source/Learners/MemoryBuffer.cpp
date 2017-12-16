@@ -345,6 +345,56 @@ Uint MemoryBuffer::prune(const Real maxFrac, const Real CmaxRho)
   return ret;
 }
 
+Real MemoryBuffer::prune2(const Real CmaxRho, const Uint maxN)
+{
+  assert(CmaxRho>1);
+
+  #pragma omp parallel for schedule(dynamic)
+  for(Uint i = 0; i < Set.size(); i++) {
+    Real numOver = 0, opcW = 0;
+    for(Uint j=0; j<Set[i]->ndata(); j++) {
+      const Real obsOpcW = Set[i]->offPol_weight[j];
+      const Real obsDist = std::max(obsOpcW, 1/obsOpcW);
+      assert(obsOpcW > 0 && obsDist >= 1);
+      if( obsDist > CmaxRho ) numOver += 1;
+      opcW += obsDist;
+    }
+
+    Set[i]->OPW = opcW/Set[i]->ndata();
+    Set[i]->MSE = numOver;
+  }
+
+  const auto isAbeforeB = [&] (const Sequence*const a, const Sequence*const b) {
+    return a->OPW < b->OPW;
+  };
+  std::sort(Set.begin(), Set.end(), isAbeforeB);
+  assert(Set.front()->OPW <= Set.back()->OPW);
+
+  const Uint nB4 = Set.size();
+  Uint cntN = 0;
+  Real nOffPol = 0;
+  int _ID = Set[0]->ID;
+
+  for(Uint i = 0; i < Set.size(); i++) {
+    if(cntN<maxN) {
+      cntN += Set[i]->ndata();
+      nOffPol += Set[i]->MSE;
+      _ID = std::min(Set[i]->ID, _ID);
+    } else { //not really smart
+      std::swap(Set[i], Set.back());
+      popBackSequence();
+    }
+  }
+
+  assert(_ID>=0 && cntN == nTransitions);
+  minInd = _ID;
+  nPruned += nB4-Set.size();
+  // If pruned, only safe thing is to shuffle the samples:
+  if(nB4>Set.size()) shuffle_samples();
+
+  return nOffPol/cntN;
+}
+
 void MemoryBuffer::updateImportanceWeights()
 {
   const Uint ndata = bSampleSeq ? nSequences : nTransitions;

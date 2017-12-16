@@ -94,7 +94,7 @@ public:
   }
   inline Real standardized_reward(const Sequence*const seq,const Uint samp)const
   {
-    assert(samp>0 && samp < seq->tuples.size());
+    assert(samp < seq->tuples.size()); // samp>0 &&
     if(!bNormalize) return seq->tuples[samp]->r;
     return seq->tuples[samp]->r * invstd_reward;
   }
@@ -132,6 +132,7 @@ public:
   void updateRewardsStats();
   void updateImportanceWeights();
   Uint prune(const Real maxFrac, const Real CmaxRho);
+  Real prune2(const Real CmaxRho, const Uint maxN);
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut);
   void restart();

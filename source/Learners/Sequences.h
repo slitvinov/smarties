@@ -34,7 +34,7 @@ struct Sequence
 {
   vector<Tuple*> tuples;
   int ended = 0, ID = -1;
-  Real MSE = 0;
+  Real MSE = 0, OPW = 1;
   //Used by on-pol algorithms:
   vector<Real> action_adv;
   vector<Real> state_vals;
@@ -51,7 +51,7 @@ struct Sequence
   void clear()
   {
     for(auto &t : tuples) _dispose_object(t);
-    tuples.clear(); ended = 0; ID = -1; MSE = 0;
+    tuples.clear(); ended = 0; ID = -1; MSE = 0; OPW = 1;
     SquaredError.clear(); offPol_weight.clear();
     action_adv.clear(); state_vals.clear();
     imp_weight.clear();

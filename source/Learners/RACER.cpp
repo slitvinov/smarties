@@ -298,7 +298,7 @@ class RACER : public Learner_offPolicy
     //const Real DKLmul= -max((Real)0, A_RET) * min(POL.sampInvWeight, REALBND);
     #endif
     //grad[PenalID] = (DivKL - 0.1)*penalDKL/0.1;
-    grad[PenalID] = std::pow((DivKL - 0.1)/0.1, 3)*penalDKL;
+    //grad[PenalID] = std::pow((DivKL - 0.1)/0.1, 3)*penalDKL;
     return POL.div_kl_opp_grad(_t->mu, DKLmul);
   }
 
@@ -393,18 +393,20 @@ class RACER : public Learner_offPolicy
 
     // update sequences
     // this does not count ones added between updates by exploration
-    const Real lastSeq = nStoredSeqs_last;
-    const Real currPre = data->nSequences; //pre pruning
-    assert(nStoredSeqs_last <= data->nSequences); //before pruining
-    const Real mul = (Real)nSequences4Train()/(Real)data->nSequences;
-    data->prune(goalSkipRatio * mul*mul, CmaxPol);
-    const Real currSeqs = data->nSequences; //after pruning
-    const Real nPruned = currPre - currSeqs;
+    //const Real lastSeq = nStoredSeqs_last;
+    //const Real currPre = data->nSequences; //pre pruning
+    //assert(nStoredSeqs_last <= data->nSequences); //before pruining
+    const Real fracOffPol = data->prune2(CmaxPol, 256*batchSize);
+    if(fracOffPol > 0.02) DKL_target = 0.9999*DKL_target;
+    else DKL_target = 1e-4 + 0.9999*DKL_target;
+
+    //const Real nPruned = currPre - currSeqs;
     //assuming that pruning has not removed any of the fresh samples
     //compute how many samples we would have in a purely sequential code:
-    Real samples_sequential = lastSeq - nPruned;
-    nStoredSeqs_last = currSeqs; //after pruning
+    //Real samples_sequential = lastSeq - nPruned;
+    nStoredSeqs_last = data->nSequences; //after pruning
 
+    /*
     if (learn_size > 1)
     {
       const bool firstUpdate = nData_request == MPI_REQUEST_NULL;
@@ -419,11 +421,13 @@ class RACER : public Learner_offPolicy
       // if no reduction done, partial sums are meaningless
       if(firstUpdate) return;
     }
-
-    if(samples_sequential < nSequences4Train()*learn_size)
-      DKL_target *= 0.99;
-    else
-      DKL_target += 1e-5*(1-DKL_target);
+    */
+    //if(nPruned>0.5) DKL_target *= std::pow(0.999, nPruned);
+    //else            DKL_target += 1e-3*(1-DKL_target); //0.001 + 0.999*DKL_target;
+    //if(samples_sequential < nSequences4Train()*learn_size)
+    //  DKL_target *= 0.99;
+    //else
+    //  DKL_target += 1e-5*(1-DKL_target);
   }
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
