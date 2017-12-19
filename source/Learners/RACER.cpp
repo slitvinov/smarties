@@ -23,7 +23,6 @@ class RACER : public Learner_offPolicy
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
   const Real CmaxPol, DKL_target_orig;
-  const Real goalSkipRatio = 0.25/CmaxPol;
   Real DKL_target = DKL_target_orig;
   const vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
@@ -215,7 +214,8 @@ class RACER : public Learner_offPolicy
 
     //prepare Q with off policy corrections for next step:
     const Real R = data->standardized_reward(traj, samp);
-    const Real W = std::min((Real)1, pol_cur.sampImpWeight);
+    //const Real W = std::min((Real)1, pol_cur.sampImpWeight);
+    const Real W = std::min((Real)1, pol_cur.sampRhoWeight);
     traj->state_vals[samp] = R +gamma*(W*(Q_RET-A_cur-V_cur) +V_cur);
 
     //bookkeeping:
@@ -234,7 +234,8 @@ class RACER : public Learner_offPolicy
     const Real V_cur = output[VsID], A_cur = adv_cur.computeAdvantage(act);
     //prepare rolled Q with off policy corrections for next step:
     const Real R = data->standardized_reward(traj, samp);
-    const Real W = std::min((Real)1, pol.sampImpWeight);
+    //const Real W = std::min((Real)1, pol.sampImpWeight);
+    const Real W = std::min((Real)1, pol.sampRhoWeight);
     traj->state_vals[samp] = R +gamma*(W*(Q_RET-A_cur-V_cur) +V_cur);
     traj->SquaredError[samp]=min(1/pol.sampImpWeight, pol.sampImpWeight); //*std::fabs(Q_RET-A_hat-V_hat);
   }

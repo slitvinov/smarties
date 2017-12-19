@@ -18,7 +18,7 @@ struct Gaussian_policy
   const vector<Real> mean, precision, variance, stdev;
 
   vector<Real> sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampInvWeight=0;
+  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0;
 
   Gaussian_policy(const vector <Uint>& start, const ActionInfo*const aI,
     const vector<Real>&out) : aInfo(aI), start_mean(start[0]),
@@ -76,7 +76,11 @@ public:
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
     sampImpWeight = std::min(MAX_IMPW, safeExp(logW) );
-    sampInvWeight = 1/(sampImpWeight+numeric_limits<Real>::epsilon());
+    #ifdef RETRACE_TRICK
+    sampRhoWeight = std::exp(logW / std::sqrt(nA));
+    #else
+    sampRhoWeight = sampImpWeight;
+    #endif
   }
 
   static inline Real evalBehavior(const vector<Real>& act, const vector<Real>& beta)

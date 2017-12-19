@@ -24,7 +24,7 @@ using namespace std;
 
 #include <omp.h>
 #include <mpi.h>
-
+#define RETRACE_TRICK
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
 //FOR CONTINUOUS ACTIONS RACER:

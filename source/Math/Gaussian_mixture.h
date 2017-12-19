@@ -25,7 +25,7 @@ public:
 
   vector<Real> sampAct;
   long double sampLogPonPolicy=0, sampLogPBehavior=0;
-  Real sampImpWeight=0;
+  Real sampImpWeight=0, sampRhoWeight = 0;
   array<long double, nExperts> PactEachExp;
   long double Pact_Final = -1;
   bool prepared = false;
@@ -167,6 +167,11 @@ public:
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const long double logW = sampLogPonPolicy - sampLogPBehavior;
     sampImpWeight = std::min((long double) MAX_IMPW, std::exp(logW) );
+    #ifdef RETRACE_TRICK
+    sampRhoWeight = std::exp(logW / std::sqrt(nA));
+    #else
+    sampRhoWeight = sampImpWeight;
+    #endif
   }
 
   static inline long double evalBehavior(const vector<Real>& act, const vector<Real>& beta)
