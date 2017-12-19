@@ -37,7 +37,7 @@ using namespace std;
 #endif
 
 //de facto unused:
-#define NORMDIST_MAX 2.5 //truncated normal distribution range
+#define NORMDIST_MAX 2 //truncated normal distribution range
 #define BOUNDACT_MAX 8 //for bounded action spaces: range (ie. tanh(8))
 
 #define MAX_UNROLL_AFTER 2000
@@ -46,7 +46,7 @@ using namespace std;
 // number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20
 //clip gradients of network outputs if more than # standard deviations from 0:
-#define ACER_GRAD_CUT 10
+#define ACER_GRAD_CUT 100
 #define MAX_IMPW (Real)100
 
 #ifdef IMPORTSAMPLE

@@ -14,7 +14,8 @@ SETTINGS+=" --gamma 0.995"
 #SETTINGS+=" --nnl2 32"
 SETTINGS+=" --nnl1 128"
 SETTINGS+=" --nnl2 128"
-#SETTINGS+=" --nnl3 128"
+SETTINGS+=" --nnl3 128"
+#SETTINGS+=" --nnl3 64"
 #SETTINGS+=" --nnl1 256"
 #SETTINGS+=" --nnl2 256"
 
@@ -30,13 +31,13 @@ SETTINGS+=" --bTrain 1"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner POAC"
 #chance of taking random actions
-SETTINGS+=" --greedyEps 1"
+SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --obsPerStep 1"
-SETTINGS+=" --maxTotSeqNum 10000"
+SETTINGS+=" --maxTotSeqNum 100000"
 SETTINGS+=" --epsAnneal 1000"
 #SETTINGS+=" --obsPerStep 0.01"
 SETTINGS+=" --nMasters 1"
-SETTINGS+=" --totNumSteps 2000000"
+SETTINGS+=" --totNumSteps 5000000"
 SETTINGS+=" --impWeight 5"
 
 #lag of target network

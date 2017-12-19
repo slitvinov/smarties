@@ -10,7 +10,7 @@
 
 #include "Sequences.h"
 #include "../Environments/Environment.h"
-
+#include <parallel/algorithm>
 class MemoryBuffer
 {
 public:
@@ -234,7 +234,7 @@ public:
     const Uint ndata = (bSampleSeq) ? nSequences : nTransitions;
     inds.resize(ndata);
     std::iota(inds.begin(), inds.end(), 0);
-    std::random_shuffle(inds.begin(), inds.end(), *(gen));
+    __gnu_parallel::random_shuffle(inds.begin(), inds.end(), *(gen));
     #endif
   }
 };

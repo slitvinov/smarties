@@ -7,10 +7,10 @@ extra ?=
 app ?= test
 acer ?= relax
 testdiff ?= no
-entropy ?= on
+entropy ?= off
 importance ?= off
 tabc ?= off
-sortseq ?= on
+sortseq ?= off
 mpi_lib ?= default
 
 CPPFLAGS= -std=c++11 -D__Smarties_ -fopenmp
