@@ -25,7 +25,7 @@ public:
     vector<Real> ret(nL, 0);
     for(Uint ind=0, e=0; e<nExperts; e++)
       for (Uint j=0; j<nA; j++)
-        for (Uint i=0; i<nA; i++)
+        for (Uint i=0; i<=j; i++)
           if (i<j)       ret[ind++] = matrix[e][nA*j +i];
           else if (i==j) ret[ind++] = matrix[e][nA*j +i];
     return ret;
@@ -34,7 +34,7 @@ public:
   {
     for(Uint e=0; e<nExperts; e++)
       for (Uint j=0; j<aI->dim; j++)
-        for (Uint i=0; i<aI->dim; i++)
+        for (Uint i=0; i<=j; i++)
           if (i<j)       initBias.push_back( 0);
           else if (i==j) initBias.push_back(-1);
   }
@@ -66,8 +66,11 @@ private:
     {
       assert(act.size()==nA);assert(mean.size()==nA);assert(mat.size()==nA*nA);
       Real ret = 0;
-      for (Uint j=0; j<nA; j++) for (Uint i=0; i<nA; i++)
-        ret += (act[i]-mean[i])*mat[nA*j+i]*(act[j]-mean[j]);
+      for (Uint j=0; j<nA; j++) {
+        ret += std::pow(act[j]-mean[j],2)*mat[nA*j+j];
+        for (Uint i=0; i<j; i++)
+          ret += 2*(act[i]-mean[i])*mat[nA*j+i]*(act[j]-mean[j]);
+      }
       return ret;
     }
 
@@ -78,7 +81,7 @@ private:
       for (Uint e=0; e<nExperts; e++) {
         ret[e] = vector<Real>(nA*nA, 0);
         for (Uint j=0; j<nA; j++)
-        for (Uint i=0; i<nA; i++)
+        for (Uint i=0; i<=j; i++)
           if (i<j) ret[e][nA*j +i] = offdiag_func(netOutputs[kL++]);
           else if (i==j) ret[e][nA*j +i] = diag_func(netOutputs[kL++]);
       }
@@ -91,48 +94,18 @@ private:
       array<vector<Real>,nExperts> ret;
       for (Uint e=0; e<nExperts; e++) {
         ret[e] = vector<Real>(nA*nA, 0);
-        for (Uint j=0; j<nA; j++) for (Uint i=0; i<nA; i++)
-        for (Uint k=0; k<nA; k++)
-          ret[e][nA*j +i] += L[e][nA*j +k] * L[e][nA*i +k];
+        for (Uint j=0; j<nA; j++)
+          for (Uint i=0; i<=j; i++) //exploit symmetry
+          {
+            for (Uint k=0; k<=j; k++)
+              ret[e][nA*j +i] += L[e][nA*j +k] * L[e][nA*i +k];
+
+            ret[e][nA*i +j] = ret[e][nA*j +i]; //exploit symmetry
+          }
       }
       return ret;
     }
-    inline void grad_matrix(const vector<Real>&dErrdP, vector<Real>&netGradient) const
-    {
-      assert(netGradient.size() >= start_matrix+nL);
-      for(Uint k=0; k<nL; k++) netGradient[start_matrix+k] = 0;
-      const Uint nL1 = (nA*nA+nA)/2; //nL for 1 advantage
-      assert(nL1*nExperts == nL);
-      for (Uint il=0; il<nL1; il++)
-      {
-        Uint kL = 0;
-        vector<Real> _dLdl(nA*nA, 0);
-        for (Uint j=0; j<nA; j++) for (Uint i=0; i<nA; i++)
-          if(i<=j) if(kL++==il) _dLdl[nA*j+i]=1;
 
-        //_dPdl = dLdl' * L + L' * dLdl
-        for (Uint e=0; e<nExperts; e++)
-        for (Uint j=0; j<nA; j++) for (Uint i=0; i<nA; i++) {
-          Real dPijdl = 0;
-          for (Uint k=0; k<nA; k++) {
-            const Uint k1 = nA*j + k, k2 = nA*i + k;
-            dPijdl += _dLdl[k1]*L[e][k2] + L[e][k1]*_dLdl[k2];
-          }
-          const Uint ind = start_matrix +e*nL1 +il;
-          netGradient[ind] += dPijdl * dErrdP[e*nA*nA +j*nA +i];
-        }
-      }
-      {
-        Uint kl = start_matrix;
-        for (Uint e=0; e<nExperts; e++)
-        for (Uint j=0; j<nA; j++) for (Uint i=0; i<nA; i++) {
-          if (i==j) netGradient[kl] *= diag_func_diff(netOutputs[kl]);
-          if (i<j)  netGradient[kl] *= offdiag_func_diff(netOutputs[kl]);
-          if (i<=j) kl++;
-        }
-        assert(kl==start_matrix+nL);
-      }
-    }
     static inline Real diag_func(const Real val)
     {
       return 0.5*(val + std::sqrt(val*val+1));
@@ -147,82 +120,15 @@ private:
     static inline Real offdiag_func_diff(Real val) { return 1; }
 
 public:
-  #if 0
-  inline void grad(const vector<Real>&a, const Real Qer, vector<Real>& netGradient) const
-  {
-    assert(a.size()==nA);
-    vector<Real> ret(nExperts*nA*nA, 0);
-    for (Uint e=0; e<nExperts; e++)
-    {
-      const Real W = Qer/2 * policy->experts[e] * policy->PactEachExp[e];
-      //if(policy->PactEachExp[e]>nnEPS)
-        for (Uint j=0; j<nA; j++) for (Uint i=0; i<nA; i++) {
-          const Uint ind = e*nA*nA +nA*j +i;
-          ret[ind] -= W *(a[j]-policy->means[e][j])*(a[i]-policy->means[e][i]);
-        }
-      #if 1 // remove expectation
-      const vector<Real> s=mix2vars(policy->variances[e],policy->variances[e]);
-      for(Uint j=0;j<nA;j++) ret[e*nA*nA +nA*j +j]+= Qer/2*overlap[e][e] *s[j];
-
-      for (Uint E=0; E<e; E++) {
-        const Real O = Qer/2 * overlap[e][E];
-        const vector<Real>S=mix2vars(policy->variances[e],policy->variances[E]);
-        const vector<Real>M=mix2mean(policy->means[e], policy->variances[e],
-                                     policy->means[E], policy->variances[E]);
-        for(Uint j=0; j<nA; j++) {
-          ret[e*nA*nA +nA*j+j] += O*s[j];
-          ret[E*nA*nA +nA*j+j] += O*s[j];
-          for(Uint i=0; i<nA; i++) {
-            const Uint k = e*nA*nA +nA*j +i, K = E*nA*nA +nA*j +i;
-            ret[k] += O*(M[j]-policy->means[e][j])*(M[i]-policy->means[e][i]);
-            ret[K] += O*(M[j]-policy->means[E][j])*(M[i]-policy->means[E][i]);
-          }
-        }
-      }
-      #endif
-    }
-    grad_matrix(ret, netGradient);
-  }
-
-  inline Real expectationTwoCritics(const Uint e1, const Uint e2) const
-  {
-    const vector<Real> S =mix2vars(policy->variances[e1],policy->variances[e2]);
-    if(e1==e2) return overlap[e1][e2] * matrixDotVar(matrix[e1],S);
-    // else return expectation for both critic e1 under policy e2
-    // and critic e2 under policy e1
-    const Real term0 = (matrixDotVar(matrix[e1],S)+matrixDotVar(matrix[e2],S));
-    const vector<Real> M = mix2mean(policy->means[e1], policy->variances[e1],
-                                    policy->means[e2], policy->variances[e2]);
-    const Real term1e = quadMatMul(nA, M, matrix[e1], policy->means[e1]);
-    const Real term2e = quadMatMul(nA, M, matrix[e2], policy->means[e2]);
-    return overlap[e1][e2] * (term0 + term1e + term2e);
-  }
-
-  inline Real computeAdvantage(const vector<Real>& act) const
-  {
-    Real ret = 0;
-    for (Uint e=0; e<nExperts; e++) {
-      const Real weight = policy->experts[e] * policy->PactEachExp[e];
-      //if(policy->PactEachExp[e]>nnEPS)
-        ret -= weight * quadMatMul(nA, act, matrix[e], policy->means[e]);
-
-      #if 1 //remove expctn of critic e w/ policy ee and critic ee w/ pol e
-      for (Uint ee=0; ee <= e; ee++) // therefore, only do triangular loop
-        ret += expectationTwoCritics(e, ee);
-      #endif
-    }
-    return 0.5*ret;
-  }
-  #else
   inline void grad(const vector<Real>&act, const Real Qer, vector<Real>& netGradient) const
   {
     assert(act.size()==nA);
-    vector<Real> dErrdP(nExperts*nA*nA, 0);
-    for (Uint e=0; e<nExperts; e++) {
-      //if(policy->PactEachExp[e]<nnEPS) continue; //nan police
+    for (Uint e=0, kl = start_matrix; e<nExperts; e++)
+    {
+      vector<Real> dErrdP(nA*nA, 0);
 
-      for (Uint j=0; j<nA; j++)
-      for (Uint i=0; i<nA; i++) {
+      for (Uint i=0; i<nA; i++)
+      for (Uint j=0; j<=i; j++) {
         Real dOdPij = -policy->experts[e] *(act[j]-policy->means[e][j])
                                           *(act[i]-policy->means[e][i]);
         #if 1
@@ -233,10 +139,23 @@ public:
           if(i==j) dOdPij += wght * policy->variances[ee][i];
         }
         #endif
-        dErrdP[e*nA*nA +nA*j +i] = Qer*dOdPij/2;
+
+        dErrdP[nA*j +i] = Qer*dOdPij;
+        dErrdP[nA*i +j] = Qer*dOdPij; //if j==i overwrite, avoid `if'
+      }
+
+      for (Uint j=0; j<nA; j++)
+      for (Uint i=0; i<=j; i++) {
+        Real dErrdL = 0;
+        for (Uint k=i; k<nA; k++)
+          dErrdL += dErrdP[nA*j +k] * L[e][nA*k +i];
+
+        if(i==j) netGradient[kl] = dErrdL * diag_func_diff(netOutputs[kl]);
+        else
+        if(i<j)  netGradient[kl] = dErrdL * offdiag_func_diff(netOutputs[kl]);
+        kl++;
       }
     }
-    grad_matrix(dErrdP, netGradient);
   }
   inline Real computeAdvantage(const vector<Real>& action) const
   {
@@ -262,7 +181,6 @@ public:
     ret -= policy->experts[e]*quadMatMul(nA,action,matrix[e],policy->means[e]);
     return 0.5*ret;
   }
-  #endif
 
   static inline Uint compute_nL(const ActionInfo* const aI)
   {

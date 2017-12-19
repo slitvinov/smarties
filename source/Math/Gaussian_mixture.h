@@ -310,15 +310,17 @@ public:
     //const Real EPS = std::numeric_limits<Real>::epsilon();
     vector<Real> ret(nExperts +2*nA*nExperts, 0);
     for(Uint j=0; j<nExperts; j++) {
+      Real DKLe = 0;
       for (Uint i=0; i<nA; i++) {
         const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(nA+1)*nExperts;
         const Real preci = precisions[j][i], prech = 1/std::pow(beta[indS],2);
         ret[indM]= fac*experts[j]*(means[j][i]-beta[indM])*prech;
         ret[indS]= fac*experts[j]*(prech-preci)*stdevs[j][i];
+        const Real R = prech*variances[j][i];
+        DKLe += R-1-std::log(R) +std::pow(means[j][i]-beta[indM],2)*prech;
       }
-      const Real DKL_ExpBeta = kl_divergence_exp(j, beta);
       const Real logRhoBeta = std::log(experts[j]/beta[j]);
-      const Real tmp = fac*(DKL_ExpBeta +1 +logRhoBeta)/normalization;
+      const Real tmp = fac*(DKLe +1 +logRhoBeta)/normalization;
       for (Uint i=0; i<nExperts; i++) ret[i] += tmp*((i==j)-experts[j]);
     }
     return ret;

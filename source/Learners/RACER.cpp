@@ -102,7 +102,7 @@ class RACER : public Learner_offPolicy
   {
     Sequence* const traj = data->Set[seq];
     assert(samp+1 < traj->tuples.size());
-    if( samp+2 == traj->tuples.size() )
+    if(samp+2 == traj->tuples.size()) // if sampled S_{T-1}, update qRet of s_T
       traj->state_vals[samp+1] = data->standardized_reward(traj, samp+1);
 
     if(thrID==1) profiler->stop_start("FWD");
@@ -178,8 +178,7 @@ class RACER : public Learner_offPolicy
       const vector<Real> penalG = pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu, 1);
       const vector<Real> finalG =circle_region(policyG, penalG, nA, DKL_target);
     #else
-      const Real DivKL = pol_cur.kl_divergence_opp(traj->tuples[samp]->mu);
-      const vector<Real> penalG = penalSample(traj->tuples[samp], pol_cur, A_RET, DivKL, penalDKL, gradient);
+      const vector<Real> penalG = penalSample(traj->tuples[samp], pol_cur, A_RET, penalDKL, gradient);
       //const vector<Real> finalG = sum2Grads(penalG, policyG);
       const vector<Real> finalG = weightSum2Grads(policyG, penalG, DKL_target);
     #endif
@@ -288,7 +287,7 @@ class RACER : public Learner_offPolicy
   }
 
   inline vector<Real> penalSample(const Tuple*const _t, const Policy_t& POL,
-  const Real A_RET,const Real DivKL,const Real penalDKL,vector<Real>&grad) const
+  const Real A_RET, const Real penalDKL, vector<Real>& grad) const
   {
     const Real DKLmul = -1;
     //const Real DKLmul = -10*annealingFactor();

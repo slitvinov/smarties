@@ -214,7 +214,7 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
       for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) beta[i]=exp(beta[i]);
 
       for(Uint i=0; i<act.size(); i++) act[i] = dist(generators[0]);
-
+      act = aInfo.getScaled(act);
       Gaussian_mixture<NEXPERTS>  pol = prepare_policy(output);
       Mixture_advantage<NEXPERTS> adv = prepare_advantage(output, &pol);
       adv.test(act, &generators[0]);
