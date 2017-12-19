@@ -203,12 +203,12 @@ public:
       Mixture_advantage a1(vector<Uint>{start_matrix}, aInfo, out_1, policy);
       Mixture_advantage a2(vector<Uint>{start_matrix}, aInfo, out_2, policy);
 
-      const Real A_1 = a1.computeAdvantage(act), A_2 = a2.computeAdvantage(act);
-      const Real fdiff =(A_2-A_1)/.0002, abserr = std::fabs(_grad[index]-fdiff);
-      const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[index]));
+      const double A_1 = a1.computeAdvantage(act), A_2 = a2.computeAdvantage(act);
+      const double fdiff =(A_2-A_1)/.0002, abserr = std::fabs(_grad[index]-fdiff);
+      const double scale = std::max(std::fabs(fdiff), std::fabs(_grad[index]));
       //if((abserr>1e-4 || abserr/scale>1e-1) && policy->PactEachExp[ie]>nnEPS)
       {
-        printf("Adv grad %d: finite diff %g analytic %g error %g/%g (%g %g) \n",
+        printf("Adv grad %d: finite diff %g analytic %g error %g/%g (%Lg %g) \n",
         i,fdiff, _grad[index],abserr,abserr/scale,policy->PactEachExp[ie],A_1);
         fflush(0);
       }

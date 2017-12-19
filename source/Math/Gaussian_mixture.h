@@ -24,9 +24,10 @@ public:
   //not kosher stuff, but it should work, relies on ordering of operations:
 
   vector<Real> sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampInvWeight=0;
-  array<Real, nExperts> PactEachExp;
-  Real Pact_Final = -1;
+  long double sampLogPonPolicy=0, sampLogPBehavior=0;
+  Real sampImpWeight=0;
+  array<long double, nExperts> PactEachExp;
+  long double Pact_Final = -1;
   bool prepared = false;
 
   static inline Uint compute_nP(const ActionInfo* const aI)
@@ -135,9 +136,10 @@ private:
     return std::exp(val);
     //return 0.5*(1.+val/std::sqrt(val*val+1));
   }
-  static inline Real oneDnormal(const Real act,const Real mean,const Real prec)
+  static inline long double oneDnormal(const Real act, const Real mean, const Real prec)
   {
-    return std::sqrt(prec/M_PI/2)*std::exp(-std::pow(act-mean,2)*prec/2);
+    const long double arg = .5 * std::pow(act-mean,2) * prec;
+    return std::sqrt(prec/M_PI/2)*std::exp(-arg);
   }
 
 public:
@@ -153,7 +155,7 @@ public:
   inline void prepare(const vector<Real>& unscal_act, const vector<Real>& beta)
   {
     sampAct = map_action(unscal_act);
-    Pact_Final = numeric_limits<Real>::epsilon();  //nan police
+    Pact_Final = 0;
     for(Uint j=0; j<nExperts; j++) {
       PactEachExp[j] = 1;
       for(Uint i=0; i<nA; i++)
@@ -163,17 +165,16 @@ public:
     assert(Pact_Final>0);
     sampLogPonPolicy = std::log(Pact_Final);
     sampLogPBehavior = evalBehavior(sampAct, beta);
-    const Real logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = std::min(MAX_IMPW, std::exp(logW) );
-    sampInvWeight = 1./(sampImpWeight+nnEPS);
+    const long double logW = sampLogPonPolicy - sampLogPBehavior;
+    sampImpWeight = std::min((long double) MAX_IMPW, std::exp(logW) );
   }
 
-  static inline Real evalBehavior(const vector<Real>& act, const vector<Real>& beta)
+  static inline long double evalBehavior(const vector<Real>& act, const vector<Real>& beta)
   {
-    Real p = numeric_limits<Real>::epsilon(); //nan police
+    long double p = 0;
     const Uint NA = act.size();
     for(Uint j=0; j<nExperts; j++) {
-      Real pi = 1;
+      long double pi = 1;
       for(Uint i=0; i<NA; i++) {
         const Real stdi  = beta[i +j*NA +nExperts*(1+NA)]; //then stdevs
         pi *= oneDnormal(act[i], beta[i +j*NA +nExperts], 1/(stdi*stdi));
@@ -184,9 +185,9 @@ public:
   }
   inline Real evalLogProbability(const vector<Real>& act) const
   {
-    Real P = numeric_limits<Real>::epsilon(); //nan police
+    long double P = 0;
     for(Uint j=0; j<nExperts; j++) {
-      Real pi  = 1;
+      long double pi  = 1;
       for(Uint i=0; i<nA; i++)
         pi *= oneDnormal(act[i], means[j][i], precisions[j][i]);
       P += pi * experts[j];
@@ -266,16 +267,15 @@ public:
   inline vector<Real> policy_grad(const vector<Real>& act, const Real factor) const
   {
     vector<Real> ret(nExperts +2*nA*nExperts, 0);
-    const Real EPS = numeric_limits<Real>::epsilon();
     assert(Pact_Final > 0);
     for(Uint j=0; j<nExperts; j++) {
-      const Real normExpert = factor * (PactEachExp[j]/(Pact_Final+EPS));
+      const long double normExpert = factor * PactEachExp[j]/Pact_Final;
       assert(PactEachExp[j] > 0);
       for(Uint i=0; i<nExperts; i++)
         ret[i] += normExpert * ((i==j)-experts[j])/normalization;
 
       //if(PactEachExp[j]<EPS) continue; // NaN police
-      const Real fac = normExpert * experts[j];
+      const long double fac = normExpert * experts[j];
       for (Uint i=0; i<nA; i++) {
         const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(1+nA)*nExperts;
         const Real u = act[i]-means[j][i];
@@ -497,10 +497,10 @@ public:
       const Real p_2=p2.evalLogProbability(act);
       {
         finalize_grad(policygrad, _grad);
-        const Real fdiff =(p_2-p_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
-        const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
+        const double fdiff =(p_2-p_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
+        const double scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
         //if((abserr>1e-7 && abserr/scale>1e-4) && PactEachExp[ie]>nnEPS)
-        printf("LogPol grad %d: fin-diff %g analytic %g error %g/%g (%g %g)\n",
+        printf("LogPol grad %d: fin-diff %g analytic %g error %g/%g (%Lg %Lg)\n",
         i, fdiff, _grad[ind], abserr,abserr/scale, Pact_Final,PactEachExp[ie]);
         fflush(0);
       }
@@ -509,10 +509,10 @@ public:
       const Real d_2=p2.kl_divergence_opp(beta);
       {
         finalize_grad(div_klgrad, _grad);
-        const Real fdiff =(d_2-d_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
-        const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
+        const double fdiff =(d_2-d_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
+        const double scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
         //if((abserr>1e-7 && abserr/scale>1e-4) && d_1>1e-8)
-        printf("DivKL grad %d: fin-diff %g analytic %g error %g/%g (%g %g)\n",
+        printf("DivKL grad %d: fin-diff %g analytic %g error %g/%g (%Lg %Lg)\n",
         i, fdiff, _grad[ind], abserr,abserr/scale, Pact_Final,PactEachExp[ie]);
         fflush(0);
       }

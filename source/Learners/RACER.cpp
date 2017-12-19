@@ -221,7 +221,7 @@ class RACER : public Learner_offPolicy
     //bookkeeping:
     Vstats[thrID].dumpStats(A_cur+V_cur, Q_dist);
     opcInfo->track_vector({meanGrad, meanPena, meanProj, meanDist}, thrID);
-    traj->SquaredError[samp]= min(pol_cur.sampInvWeight, pol_cur.sampImpWeight);
+    traj->SquaredError[samp]=min(1/pol_cur.sampImpWeight,pol_cur.sampImpWeight);
     return gradient;
   }
 
@@ -236,7 +236,7 @@ class RACER : public Learner_offPolicy
     const Real R = data->standardized_reward(traj, samp);
     const Real W = std::min((Real)1, pol.sampImpWeight);
     traj->state_vals[samp] = R +gamma*(W*(Q_RET-A_cur-V_cur) +V_cur);
-    traj->SquaredError[samp] = std::min(pol.sampInvWeight, pol.sampImpWeight); //*std::fabs(Q_RET-A_hat-V_hat);
+    traj->SquaredError[samp]=min(1/pol.sampImpWeight, pol.sampImpWeight); //*std::fabs(Q_RET-A_hat-V_hat);
   }
 
   inline vector<Real> policyGradient(const Tuple*const _t, const Policy_t& POL, const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
@@ -348,7 +348,8 @@ class RACER : public Learner_offPolicy
       #ifndef NDEBUG
         Policy_t dbg = prepare_policy(output);
         dbg.prepare(traj->tuples.back()->a, traj->tuples.back()->mu);
-        assert(fabs(dbg.sampImpWeight-1) < 10*numeric_limits<Real>::epsilon());
+        const double err = fabs(dbg.sampImpWeight-1);
+        if(err>1e-10) _die("Imp W err %20.20e", err);
       #endif
     }
     else
