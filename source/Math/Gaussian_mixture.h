@@ -325,7 +325,7 @@ public:
         DKLe += R-1-std::log(R) +std::pow(means[j][i]-beta[indM],2)*prech;
       }
       const Real logRhoBeta = std::log(experts[j]/beta[j]);
-      const Real tmp = fac*(DKLe +1 +logRhoBeta)/normalization;
+      const Real tmp = fac*(.5*DKLe +1 +logRhoBeta)/normalization;
       for (Uint i=0; i<nExperts; i++) ret[i] += tmp*((i==j)-experts[j]);
     }
     return ret;
