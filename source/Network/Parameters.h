@@ -82,14 +82,20 @@ struct Parameters
   void reduceThreadsGrad(const vector<Parameters*>& g) const
   {
     #pragma omp parallel
-    for(Uint k=0; k<g.size(); k++) {
-      assert(nParams == g[k]->nParams);
-      const nnReal* const src = g[k]->params;    
-      nnReal* const dst = params;    
-      #pragma omp for simd aligned(dst, src : VEC_WIDTH) 
-      for(Uint j=0; j<nParams; j++) dst[j] += src[j];
+    {
+      const Uint thrID = static_cast<Uint>(omp_get_thread_num());
+      assert(nParams == g[thrID]->nParams);
+      const nnReal* const src = g[thrID]->params;    
+      nnReal* const dst = params; 
+      // every thread starts staggered to avoid race conditions:  
+      const Uint shift = thrID*((nParams/g.size())/ARY_WIDTH)*ARY_WIDTH;
+      #pragma omp simd aligned(dst, src : VEC_WIDTH) 
+      for(Uint j=0; j<nParams; j++) {
+        const Uint ind = (j + shift) % nParams;
+        dst[ind] += src[ind];
+      }
+      g[thrID]->clear(); 
     }
-    for(Uint k=0; k<g.size(); k++) g[k]->clear();
   }
 
   long double compute_weight_norm() const
