@@ -57,6 +57,7 @@ struct Adam {
     const nnReal betat1, const nnReal betat2, Saru& _gen) :
   eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2) {}
 
+  #pragma omp declare simd notinbranch simdlen(VEC_WIDTH)
   inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
     const nnReal DW  = grad * fac;
     M1 = B1 * M1 + (1-B1) * DW;
@@ -174,11 +175,13 @@ class Optimizer
       const Uint thrID = static_cast<Uint>(omp_get_thread_num());
       Saru gen(nStep, thrID, generators[thrID]());
       Algorithm algo(_eta, beta_1, beta_2, beta_t_1, beta_t_2, gen);
+      nnReal* const mom1 = _1stMom->params;    
+      nnReal* const mom2 = _2ndMom->params;    
+      nnReal* const grad = gradSum->params;    
 
-      #pragma omp for
+      #pragma omp for simd aligned(paramAry, mom1, mom2, grad : VEC_WIDTH)
       for (Uint i=0; i<weights->nParams; i++)
-        paramAry[i] += algo.step(gradSum->params[i], _1stMom->params[i],
-                                 _2ndMom->params[i], factor);
+        paramAry[i] += algo.step(grad[i], mom1[i], mom2[i], factor);
     }
 
     gradSum->clear();
@@ -198,7 +201,7 @@ class Optimizer
         if(tgtUpdateAlpha>=1) tgt_weights->copy(weights);
         else {
           nnReal* const targetAry = tgt_weights->params;
-          #pragma omp parallel for
+          #pragma omp parallel for simd aligned(paramAry, targetAry : VEC_WIDTH) 
           for(Uint j=0; j<weights->nParams; j++)
             targetAry[j] += tgtUpdateAlpha*(paramAry[j] - targetAry[j]);
         }

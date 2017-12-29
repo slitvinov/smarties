@@ -62,11 +62,13 @@ struct Parameters
   }
 
   inline void penalization(const nnReal lambda) const {
+    nnReal* const dst = params;    
+    #pragma omp parallel for simd aligned(dst : VEC_WIDTH) 
     for (Uint i=0; i<nParams; i++)
     #ifdef NET_L1_PENAL
-      params[i] += (params[i]<0 ? lambda : -lambda);
+      dst[i] += (dst[i]<0 ? lambda : -lambda);
     #else
-      params[i] -= params[i]*lambda;
+      dst[i] -= dst[i]*lambda;
     #endif
   }
 
@@ -79,15 +81,15 @@ struct Parameters
 
   void reduceThreadsGrad(const vector<Parameters*>& g) const
   {
-    #pragma omp parallel for
-    for(Uint j=0; j<nParams; j++)
-      for(Uint k=0; k<g.size(); k++)
-        params[j] += g[k]->params[j];
-
+    #pragma omp parallel
     for(Uint k=0; k<g.size(); k++) {
       assert(nParams == g[k]->nParams);
-      g[k]->clear();
+      const nnReal* const src = g[k]->params;    
+      nnReal* const dst = params;    
+      #pragma omp for simd aligned(dst, src : VEC_WIDTH) 
+      for(Uint j=0; j<nParams; j++) dst[j] += src[j];
     }
+    for(Uint k=0; k<g.size(); k++) g[k]->clear();
   }
 
   long double compute_weight_norm() const

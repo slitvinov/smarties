@@ -53,13 +53,16 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
   updatePrepared = false;
   updateComplete = false;
 
-  profiler->stop_start("UPW");
+  profiler->stop_start("ADDW");
   for(auto & net : F) net->prepareUpdate();
   input->prepareUpdate();
 
   nStep++;
 
-  if(nStep%100 ==0) processStats();
+  if(nStep%100 ==0) {
+    profiler->stop_start("STAT");
+    processStats();
+  }
   profiler->stop_all();
 
   if(nStep%1000==0 && !learn_rank) {
@@ -78,8 +81,10 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
 
 void Learner::synchronizeGradients()
 {
+  profiler->stop_start("UPW");
   for(auto & net : F) net->applyUpdate();
   input->applyUpdate();
+  profiler->stop_start("SLP");
 }
 
 void Learner::processStats()

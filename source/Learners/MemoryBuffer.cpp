@@ -504,26 +504,16 @@ Uint MemoryBuffer::sampleTransitions(vector<Uint>& seq, vector<Uint>& trans)
 {
   const int thrID = omp_get_thread_num();
   const Uint batch_size = seq.size(); assert(trans.size() == batch_size);
-  vector<Uint> load(batch_size), sort(batch_size), s(batch_size), t(batch_size);
   for (Uint i=0; i<batch_size; i++) {
     const int ind = sample(thrID);
     if(ind<0) die("not enough data");
-    indexToSample(ind, s[i], t[i]);
-    sort[i] = i;
-    //work per transition (applies to algos with off policy corrections):
-    load[i] = Set[s[i]]->ndata() - t[i];
-    //load[i] = data->Set[k]->tuples.size()-1; // ~ this would be for RNN
+    seq[i] = ind;
   }
 
-  //sort elements of sorting according to load for each transition:
-  const auto compare = [&] (Uint a, Uint b) { return load[a] < load[b]; };
-  std::sort(sort.begin(), sort.end(), compare);
-  assert(load[sort[0]] <= load[sort[batch_size-1]]);
-  //sort vectors passed to learning algo:
-  for (Uint i=0; i<batch_size; i++) {
-    trans[i] = t[sort[i]];
-    seq[i] = s[sort[i]];
-  }
+  #pragma omp parallel for
+  for (Uint i=0; i<batch_size; i++) // seq[i] stores random obs id
+    indexToSample(seq[i], seq[i], trans[i]); 
+  // now seq[i] stored seq id!
   return batch_size; //always add one grad per transition
 }
 

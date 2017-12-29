@@ -39,19 +39,24 @@ void Learner_offPolicy::prepareData()
     return;
   }
 
-  profiler->push_start("PRE");
 
   if(data->requestUpdateSamples()) {
+  profiler->stop_start("PRE1");
     data->updateActiveBuffer(); //update sampling //syncDataStats
+  profiler->stop_start("PRE2");
     data->shuffle_samples();
   }
 
-  if(nStep%100==0) data->updateRewardsStats();
+  if(nStep%100==0) {
+    profiler->stop_start("PRE3");
+    data->updateRewardsStats();
+  }
 
   taskCounter = 0;
   sequences.resize(batchSize);
   transitions.resize(batchSize);
 
+    profiler->stop_start("PRE4");
   nAddedGradients = bSampleSequences ? data->sampleSequences(sequences) :
     data->sampleTransitions(sequences, transitions);
 
