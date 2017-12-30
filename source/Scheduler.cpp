@@ -97,7 +97,8 @@ while (true)
             }
           } else {
             postponed_queue.push_back(slave);
-            if(postponed_queue.size()==(size_t)nSlaves)
+            //if(postponed_queue.size()==(size_t)nSlaves)
+            if(postponed_queue.size())
             {
               #pragma omp taskwait
             }

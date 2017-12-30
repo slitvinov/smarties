@@ -28,6 +28,7 @@ void Learner_offPolicy::prepareData()
   // of the dataset, and therefore i need to reset how counters advance.
   // Anything that messes with MemoryBuffer can only happen on prepareGradient
   if(not waitingForData && not readyForTrain()) {
+    abort();
     nData_b4PolUpdates = data->readNSeen();
     nStoredSeqs_last = nSequences4Train(); //RACER
     nData_last = 0;

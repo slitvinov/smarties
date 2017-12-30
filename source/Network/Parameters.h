@@ -57,8 +57,7 @@ struct Parameters
   inline void copy(const Parameters* const tgt) const
   {
     assert(nParams == tgt->nParams);
-    #pragma omp parallel for
-    for (Uint j=0; j<nParams; j++) params[j] = tgt->params[j];
+    memcpy(params, tgt->params, nParams*sizeof(nnReal));
   }
 
   inline void penalization(const nnReal lambda) const {
