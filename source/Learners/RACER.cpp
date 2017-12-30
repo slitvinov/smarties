@@ -398,7 +398,7 @@ class RACER : public Learner_offPolicy
     //const Real currPre = data->nSequences; //pre pruning
     //assert(nStoredSeqs_last <= data->nSequences); //before pruining
     profiler->stop_start("PRNE");
-    const Real fracOffPol = data->prune2(CmaxPol, 256*batchSize);
+    const Real fracOffPol = data->prune2(CmaxPol, 256*256);
     profiler->stop_start("SLP");
 
     if(fracOffPol>.01*std::sqrt(nA)) DKL_target = 0.9999*DKL_target;
