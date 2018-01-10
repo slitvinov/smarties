@@ -12,8 +12,7 @@
 #include <parallel/algorithm>
 
 MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
-  mastersComm(_s.mastersComm), env(_env), bNormalize(_s.bNormalize),
-  bTrain(_s.bTrain), bWriteToFile(!(_s.samplesFile=="none")),
+  mastersComm(_s.mastersComm), env(_env), bTrain(_s.bTrain), bWriteToFile(!(_s.samplesFile=="none")),
   bSampleSeq(_s.bSampleSequences), maxTotSeqNum(_s.maxTotSeqNum),
   maxSeqLen(_s.maxSeqLen),minSeqLen(_s.minSeqLen), nAppended(_s.appendedObs),
   batchSize(_s.batchSize), policyVecDim(_s.policyVecDim),
@@ -108,7 +107,7 @@ void MemoryBuffer::terminate_seq(const Agent&a)
 // update the second order moment of the rewards in the memory buffer
 void MemoryBuffer::updateRewardsStats()
 {
-  if(!bTrain || !bNormalize) return; //if not training, keep the stored values
+  if(!bTrain) return; //if not training, keep the stored values
 
   long double count = 0, newstdvr = 0;
   #pragma omp parallel for schedule(dynamic) reduction(+ : count, newstdvr)

@@ -16,7 +16,7 @@ class MemoryBuffer
 public:
   const MPI_Comm mastersComm;
   Environment * const env;
-  const bool bNormalize, bTrain, bWriteToFile, bSampleSeq;
+  const bool bTrain, bWriteToFile, bSampleSeq;
   const Uint maxTotSeqNum,maxSeqLen,minSeqLen,nAppended,batchSize,policyVecDim;
   const int learn_rank, learn_size;
   std::vector<std::mt19937>& generators;
@@ -89,13 +89,11 @@ public:
   inline Real standardized_reward(const Uint seq, const Uint samp) const
   {
     assert(samp>0 && samp < Set[seq]->tuples.size());
-    if(!bNormalize) return Set[seq]->tuples[samp]->r;
     return Set[seq]->tuples[samp]->r * invstd_reward;
   }
   inline Real standardized_reward(const Sequence*const seq,const Uint samp)const
   {
     assert(samp < seq->tuples.size()); // samp>0 &&
-    if(!bNormalize) return seq->tuples[samp]->r;
     return seq->tuples[samp]->r * invstd_reward;
   }
 

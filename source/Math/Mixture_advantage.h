@@ -68,7 +68,7 @@ private:
       Real ret = 0;
       for (Uint j=0; j<nA; j++) {
         ret += std::pow(act[j]-mean[j],2)*mat[nA*j+j];
-        for (Uint i=0; i<j; i++)
+        for (Uint i=0; i<j; i++) //exploit symmetry
           ret += 2*(act[i]-mean[i])*mat[nA*j+i]*(act[j]-mean[j]);
       }
       return ret;

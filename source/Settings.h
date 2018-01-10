@@ -152,15 +152,15 @@ struct Settings
 #define DEFAULT_maxSeqLen 9999
   int maxSeqLen = DEFAULT_maxSeqLen;
 
-#define CHARARG_bNormalize 'n'
-#define COMMENT_bNormalize "Whether state should be normalized before feeding it into network (=1). Scale and mean are read from environment or if not defined there they are computed from history buffer."
-#define TYPEVAL_bNormalize int
-#define TYPENUM_bNormalize INT
-#define DEFAULT_bNormalize 1
-  int bNormalize = DEFAULT_bNormalize;
+#define CHARARG_maxTotObsNum 'n'
+#define COMMENT_maxTotObsNum "Max number of transitions in training buffer."
+#define TYPEVAL_maxTotObsNum int
+#define TYPENUM_maxTotObsNum INT
+#define DEFAULT_maxTotObsNum 100000
+  int maxTotObsNum = DEFAULT_maxTotObsNum;
 
 #define CHARARG_obsPerStep 'o'
-#define COMMENT_obsPerStep "Ratio of observed *sequences* to gradient steps. 0.1 means that for every terminal state, learner does 10 gradient steps."
+#define COMMENT_obsPerStep "Ratio of observed *transitions* to gradient steps. 1 means that for every state, learner does 10 gradient steps."
 #define TYPEVAL_obsPerStep  Real
 #define TYPENUM_obsPerStep  REAL
 #define DEFAULT_obsPerStep  1
@@ -181,7 +181,7 @@ struct Settings
   int bSampleSequences = DEFAULT_bSampleSequences;
 
 #define CHARARG_maxTotSeqNum 't'
-#define COMMENT_maxTotSeqNum "Maximum number of samples in history buffer"
+#define COMMENT_maxTotSeqNum "Maximum number of sequences in training buffer"
 #define TYPEVAL_maxTotSeqNum int
 #define TYPENUM_maxTotSeqNum INT
 #define DEFAULT_maxTotSeqNum 1000
@@ -451,7 +451,7 @@ struct Settings
       { CHARARG_minSeqLen, "minSeqLen", TYPENUM_minSeqLen, COMMENT_minSeqLen, &minSeqLen, (TYPEVAL_minSeqLen) DEFAULT_minSeqLen },
       { CHARARG_maxTotSeqNum, "maxTotSeqNum", TYPENUM_maxTotSeqNum, COMMENT_maxTotSeqNum, &maxTotSeqNum, (TYPEVAL_maxTotSeqNum) DEFAULT_maxTotSeqNum },
       { CHARARG_bTrain, "bTrain", TYPENUM_bTrain, COMMENT_bTrain, &bTrain, (TYPEVAL_bTrain) DEFAULT_bTrain },
-      { CHARARG_bNormalize, "bNormalize", TYPENUM_bNormalize, COMMENT_bNormalize, &bNormalize, (TYPEVAL_bNormalize) DEFAULT_bNormalize },
+      { CHARARG_maxTotObsNum, "maxTotObsNum", TYPENUM_maxTotObsNum, COMMENT_maxTotObsNum, &maxTotObsNum, (TYPEVAL_maxTotObsNum) DEFAULT_maxTotObsNum },
       { CHARARG_saveFreq, "saveFreq", TYPENUM_saveFreq, COMMENT_saveFreq, &saveFreq, (TYPEVAL_saveFreq) DEFAULT_saveFreq },
       { CHARARG_randSeed, "randSeed", TYPENUM_randSeed, COMMENT_randSeed, &randSeed, (TYPEVAL_randSeed) DEFAULT_randSeed },
       { CHARARG_epsAnneal, "epsAnneal", TYPENUM_epsAnneal, COMMENT_epsAnneal, &epsAnneal, (TYPEVAL_epsAnneal) DEFAULT_epsAnneal },
