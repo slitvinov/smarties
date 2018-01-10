@@ -22,12 +22,11 @@ class RACER : public Learner_offPolicy
  protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
-  const Real CmaxPol, DKL_target_orig;
-  Real DKL_target = DKL_target_orig;
+  const Real CmaxPol, DKL_param;
+  Real DKL_coef = 0.2;
   const vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
   const Uint VsID = net_indices[0];
-  const Uint PenalID = net_indices.back(), QPrecID = net_indices.back()+1;
   StatsTracker* opcInfo;
 
   MPI_Request nData_request = MPI_REQUEST_NULL;
@@ -70,13 +69,6 @@ class RACER : public Learner_offPolicy
     {
       const vector<Real> out_cur = F[0]->get<CUR>(traj, k, thrID);
       Policy_t pol = prepare_policy(out_cur);
-      #ifdef ACER_TARGETNET //predict samp with tgt w
-        const vector<Real> out_hat = F[0]->get<TGT>(traj, k, thrID);
-        const Policy_t pol_target = prepare_policy(out_hat);
-        const Policy_t* const polTgt = &pol_target;
-      #else
-        const Policy_t* const polTgt = nullptr;
-      #endif
 
       Tuple * const _t = traj->tuples[k];
       pol.prepare(_t->a, _t->mu);
@@ -90,7 +82,7 @@ class RACER : public Learner_offPolicy
       }
       #endif
 
-      vector<Real> G = compute(traj,k, out_cur, pol,polTgt, thrID);
+      vector<Real> G = compute(traj,k, out_cur, pol, thrID);
       //write gradient onto output layer:
       F[0]->backward(G, k, thrID);
     }
@@ -125,16 +117,8 @@ class RACER : public Learner_offPolicy
      }
     #endif
 
-    #ifdef ACER_TARGETNET //predict samp with tgt w
-      const vector<Real> out_hat = F[0]->forward<TGT>(traj, samp, thrID);
-      const Policy_t pol_target = prepare_policy(out_hat);
-      const Policy_t* const polTgt = &pol_target;
-    #else
-      const Policy_t* const polTgt = nullptr;
-    #endif
-
     if(thrID==1)  profiler->stop_start("CMP");
-    vector<Real> grad = compute(traj, samp, out_cur, pol, polTgt, thrID);
+    vector<Real> grad = compute(traj, samp, out_cur, pol, thrID);
 
     if(thrID==1)  profiler->stop_start("BCK");
     F[0]->backward(grad, samp, thrID);
@@ -143,8 +127,7 @@ class RACER : public Learner_offPolicy
   }
 
   inline vector<Real> compute(Sequence*const traj, const Uint samp,
-    const vector<Real>& outVec, const Policy_t& pol_cur,
-    const Policy_t* const pol_hat, const Uint thrID) const
+    const vector<Real>& outVec, const Policy_t& pol_cur, const Uint thrID) const
   {
     Real meanPena=0, meanGrad=0, meanProj=0, meanDist=0;
     vector<Real> gradient(F[0]->nOutputs(), 0);
@@ -152,10 +135,7 @@ class RACER : public Learner_offPolicy
     const Action_t& act = pol_cur.sampAct; //unbounded action space
     const Real A_cur = adv_cur.computeAdvantage(act);
 
-    const Real Q_RET = traj->state_vals[samp+1];
-    const Real V_cur = outVec[VsID];
-    const Real Qprec = outVec[QPrecID];
-    const Real penalDKL = outVec[PenalID];
+    const Real Q_RET = traj->state_vals[samp+1], V_cur = outVec[VsID];
     const Real Q_dist = Q_RET -A_cur-V_cur, A_RET = Q_RET-V_cur;
 
     #ifdef impSampVal
@@ -171,24 +151,13 @@ class RACER : public Learner_offPolicy
     const vector<Real> policyG = policyGradient(traj->tuples[samp], pol_cur,
       adv_cur, A_RET, thrID);
 
-    #if   defined(ACER_TARGETNET)
-      const Real DivKL = pol_cur.kl_divergence_opp(pol_hat);
-      const vector<Real> penalG = penalTarget(pol_cur, pol_hat, penalDKL, DivKL, gradient);
-      const vector<Real> finalG = sum2Grads(policyG, penalG);
-    #elif defined(ACER_TRUSTREGION)
-      const Real DivKL = pol_cur.kl_divergence_opp(traj->tuples[samp]->mu);
-      const vector<Real> penalG = pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu, 1);
-      const vector<Real> finalG =circle_region(policyG, penalG, nA, DKL_target);
-    #else
-      const vector<Real> penalG = penalSample(traj->tuples[samp], pol_cur, A_RET, penalDKL, gradient);
-      //const vector<Real> finalG = sum2Grads(penalG, policyG);
-      const vector<Real> finalG = weightSum2Grads(policyG, penalG, DKL_target);
-    #endif
+    const vector<Real> penal=pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu,-1);
+    const vector<Real> finalG = weightSum2Grads(policyG, penal, DKL_coef);
 
     for(Uint i=0; i<policyG.size(); i++) {
       meanGrad += std::fabs(policyG[i]);
-      meanPena += std::fabs(penalG[i]);
-      meanProj += policyG[i]*penalG[i];
+      meanPena += std::fabs(penal[i]);
+      meanProj += policyG[i]*penal[i];
       meanDist += std::fabs(policyG[i]-finalG[i]);
     }
     #ifdef dumpExtra
@@ -196,11 +165,11 @@ class RACER : public Learner_offPolicy
         Real normG=0, normT=numeric_limits<Real>::epsilon(), dot=0, normP=0;
         for(Uint i = 0; i < policyG.size(); i++) {
           normG += policyG[i] * policyG[i];
-          dot   += policyG[i] *  penalG[i];
-          normT +=  penalG[i] *  penalG[i];
+          dot   += policyG[i] *  penal[i];
+          normT +=  penal[i] *  penal[i];
         }
         for(Uint i = 0; i < policyG.size(); i++)
-          normP += std::pow(policyG[i] -dot*penalG[i]/normT, 2);
+          normP += std::pow(policyG[i] -dot*penal[i]/normT, 2);
         float R1 = sqrt(normG), R2 = sqrt(normT), R3 = dot/R2, R4 = sqrt(normP);
         vector<float> ret = {R1, R2, R3, R4};
         lock_guard<mutex> lock(buffer_mutex);
@@ -212,8 +181,6 @@ class RACER : public Learner_offPolicy
     gradient[VsID] = Ver;
     adv_cur.grad(act, Ver, gradient);
     pol_cur.finalize_grad(finalG, gradient);
-    //decrease prec if err is large, from d Dkl(Q^RET || Q_th)/dQprec
-    gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprec);
 
     //prepare Q with off policy corrections for next step:
     const Real R = data->standardized_reward(traj, samp);
@@ -278,42 +245,15 @@ class RACER : public Learner_offPolicy
     return POL.control_grad(&ADV, eta);
   }
 
-  inline vector<Real> penalTarget(const Policy_t&POL, const Policy_t*const TGT,
-    const Real penalDKL, const Real DivKL, vector<Real>&grad) const
-  {
-    //increase if DivKL is greater than Target
-    //computed as \nabla_{penalDKL} (DivKL - DKL_target)^4
-    //with rough approximation that d DivKL/ d penalDKL \propto penalDKL
-    //(distance increases if penalty term increases, similar to PPO )
-    grad[PenalID] = std::pow((DivKL-DKL_target)/DKL_target,3)*penalDKL;
-    //gradient[PenalID] = (DivKL - DKL_target)*penalDKL/DKL_target;
-    return POL.div_kl_opp_grad(TGT, -penalDKL);
-  }
-
-  inline vector<Real> penalSample(const Tuple*const _t, const Policy_t& POL,
-  const Real A_RET, const Real penalDKL, vector<Real>& grad) const
-  {
-    const Real DKLmul = -1;
-    //const Real DKLmul = -10*annealingFactor();
-    #ifdef UNBR
-    //const Real DKLmul= -max((Real)0, A_RET) *     POL.sampInvWeight;
-    #else
-    //const Real DKLmul= -max((Real)0, A_RET) * min(POL.sampInvWeight, REALBND);
-    #endif
-    //grad[PenalID] = (DivKL - 0.1)*penalDKL/0.1;
-    //grad[PenalID] = std::pow((DivKL - 0.1)/0.1, 3)*penalDKL;
-    return POL.div_kl_opp_grad(_t->mu, DKLmul);
-  }
-
  public:
   RACER(Environment*const _env, Settings& sett, vector<Uint> net_outs,
     vector<Uint> pol_inds, vector<Uint> adv_inds) :
     Learner_offPolicy(_env, sett), CmaxPol(sett.impWeight),
-    DKL_target_orig(sett.klDivConstraint), net_outputs(net_outs),
+    DKL_param(sett.klDivConstraint), net_outputs(net_outs),
     net_indices(count_indices(net_outs)), pol_start(pol_inds), adv_start(adv_inds)
   {
-    printf("RACER starts: v:%u pol:%s adv:%s penal:%u prec:%u\n", VsID,
-    print(pol_start).c_str(), print(adv_start).c_str(), PenalID, QPrecID);
+    printf("RACER starts: v:%u pol:%s adv:%s\n", VsID,
+    print(pol_start).c_str(), print(adv_start).c_str());
     opcInfo = new StatsTracker(4, "racer", sett);
     //test();
     if(sett.maxTotSeqNum < sett.batchSize)  die("maxTotSeqNum < batchSize")
@@ -422,9 +362,9 @@ class RACER : public Learner_offPolicy
       // if no reduction done, partial sums are meaningless
       if(firstUpdate) return;
     }
-
-    if(fracOffPol>std::sqrt(nA)/CmaxPol/20) DKL_target = 0.9999*DKL_target;
-    else DKL_target = 1e-4 + 0.9999*DKL_target;
+    const Real tgtFrac = DKL_param*std::sqrt(nA)/CmaxPol;
+    if(fracOffPol>tgtFrac) DKL_coef = .9999*DKL_coef;
+    else DKL_coef = 1e-4 + .9999*DKL_coef;
 
   }
 
@@ -432,13 +372,7 @@ class RACER : public Learner_offPolicy
   {
     //Learner_offPolicy::getMetrics(fileOut, screenOut);
     opcInfo->reduce_approx();
-    const Parameters*const W = F[0]->net->weights;
-    const nnReal*const parameters = W->B(W->nLayers - 1);
-    const Real Qprec=std::exp(parameters[1]), penalDKL=std::exp(parameters[0]);
-
-    screenOut<<" DKL:["<<DKL_target<<" "<<penalDKL<<"] prec:"<<Qprec
-        <<" polStats:["<<print(opcInfo->avgVec[0])<<"]";
-    fileOut<<" "<<print(opcInfo->avgVec[0])<<" "<<print(opcInfo->stdVec[0]);
+    screenOut<<" DKL:"<<DKL_coef<<" polStats:["<<print(opcInfo->avgVec[0])<<"]";
+    fileOut<<" "<<DKL_coef<<" "<<print(opcInfo->avgVec[0])<<" "<<print(opcInfo->stdVec[0]);
   }
 };
-

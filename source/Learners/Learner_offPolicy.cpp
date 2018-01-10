@@ -10,7 +10,8 @@
 #include "Learner_offPolicy.h"
 
 Learner_offPolicy::Learner_offPolicy(Environment*const _env, Settings & _s) :
-Learner(_env,_s), obsPerStep_orig(_s.obsPerStep) { }
+Learner(_env,_s), nObsPerTraining(_s.maxTotObsNum/_s.learner_size),
+obsPerStep_orig(_s.obsPerStep) { }
 
 void Learner_offPolicy::prepareData()
 {
@@ -39,7 +40,6 @@ void Learner_offPolicy::prepareData()
     waitingForData = true;
     return;
   }
-
 
   if(data->requestUpdateSamples()) {
   profiler->stop_start("PRE1");
@@ -72,7 +72,7 @@ bool Learner_offPolicy::readyForTrain() const
    //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
    //  die("I do not have enough data for training. Change hyperparameters");
    //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
-   return bTrain && data->nTransitions >= nSequences4Train(); 
+   return bTrain && data->nTransitions >= nSequences4Train();
 }
 
 bool Learner_offPolicy::batchGradientReady()

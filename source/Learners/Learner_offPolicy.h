@@ -14,6 +14,7 @@
 class Learner_offPolicy: public Learner
 {
 protected:
+  const Uint nObsPerTraining;
   const Real obsPerStep_orig;
   vector<Uint> sequences, transitions;
   Uint taskCounter = batchSize, nData_b4PolUpdates = 0;
@@ -27,7 +28,7 @@ public:
 
   inline Uint nSequences4Train() const
   {
-    return 256*256 / learn_size; 
+    return nObsPerTraining;
     //if(bSampleSequences) return 8*batchSize;
     //else                 return   batchSize/2;
   }

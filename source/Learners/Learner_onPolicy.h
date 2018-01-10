@@ -14,7 +14,7 @@
 class Learner_onPolicy: public Learner
 {
 protected:
-  const Uint nEpochs = 10, nHorizon = 4096;
+  const Uint nHorizon, nEpochs;
   Uint cntHorizon = 0, cntTrajectories = 0, cntEpoch = 0, cntBatch = 0;
   Uint taskCounter = 0;
 

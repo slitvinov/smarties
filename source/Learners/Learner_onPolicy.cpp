@@ -9,7 +9,12 @@
 
 #include "Learner_onPolicy.h"
 
-Learner_onPolicy::Learner_onPolicy(Environment*const _env, Settings&_s): Learner(_env, _s) { }
+Learner_onPolicy::Learner_onPolicy(Environment*const _env, Settings&_s): Learner(_env, _s), nHorizon(_s.maxTotObsNum),
+nEpochs(_s.obsPerStep * _s.batchSize) { }
+// nHorizon is number of obs in buffer during training
+// steps per epoch = nEpochs * nHorizon / batchSize
+// obs per step = nHorizon / (steps per epoch)
+// this leads to formula used to compute nEpochs 
 
 void Learner_onPolicy::prepareData()
 {

@@ -91,8 +91,6 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
     #ifdef simpleSigma
       build.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
     #endif
-    //add klDiv penalty coefficient layer, and stdv of Q distribution
-    build.addParamLayer(2, "Exp", 1/settings.klDivConstraint);
     F[0]->initializeNetwork(build);
   }
 };
@@ -135,8 +133,6 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
     F.push_back(new Approximator("net", settings, input, data));
     vector<Uint> nouts{1, nL, nA};
     Builder build = F[0]->buildFromSettings(settings, nouts);
-    //add klDiv penalty coefficient layer, and stdv of Q distribution
-    build.addParamLayer(2, "Exp", 1);
     F[0]->initializeNetwork(build);
   }
 };
@@ -195,9 +191,6 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
       Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, greedyEps);
       build.setLastLayersBias(initBias);
     #endif
-    //add klDiv penalty coefficient layer, and stdv of Q distribution
-    build.addParamLayer(2, "Exp", {1/settings.klDivConstraint, 1});
-
     F[0]->initializeNetwork(build);
 
     {
