@@ -362,7 +362,7 @@ class RACER : public Learner_offPolicy
       // if no reduction done, partial sums are meaningless
       if(firstUpdate) return;
     }
-    const Real tgtFrac = DKL_param*std::sqrt(nA)/CmaxPol;
+    const Real tgtFrac = DKL_param/CmaxPol;
     if(fracOffPol>tgtFrac) DKL_coef = .9999*DKL_coef;
     else DKL_coef = 1e-4 + .9999*DKL_coef;
 
