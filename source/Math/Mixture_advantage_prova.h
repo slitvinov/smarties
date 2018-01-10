@@ -156,6 +156,7 @@ public:
     const Uint numNetOutputs = netOutputs.size();
     vector<Real> _grad(numNetOutputs, 0);
     grad(act, 1, _grad);
+    ofstream fout("mathtest.log", ios::app);
     for(Uint i = 0; i<nL; i++)
     {
       vector<Real> out_1 = netOutputs, out_2 = netOutputs;
@@ -169,10 +170,11 @@ public:
       const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[index]));
       //if(abserr>1e-7 && abserr/scale>1e-4)
       {
-        printf("Adv grad %d: finite diff %g analytic %g error %g/%g (%g) \n",
-        i,fdiff, _grad[index],abserr,abserr/scale,A_1); fflush(0);
+        fout<<"Adv grad "<<i<<" finite differences "<<fdiff<<" analytic "
+          <<_grad[index]<<" error "<<abserr<<" "<<abserr/scale<<endl;
       }
     }
+    fout.close();
     #if 0
     Real expect = 0, expect2 = 0;
     for(Uint i = 0; i<1e6; i++) {
