@@ -347,7 +347,6 @@ Uint MemoryBuffer::prune(const Real maxFrac, const Real CmaxRho)
 Real MemoryBuffer::prune2(const Real CmaxRho, const Uint maxN)
 {
   assert(CmaxRho>1);
-
   #pragma omp parallel for schedule(dynamic)
   for(Uint i = 0; i < Set.size(); i++) {
     Real numOver = 0, opcW = 0;
@@ -358,7 +357,6 @@ Real MemoryBuffer::prune2(const Real CmaxRho, const Uint maxN)
       if( obsDist > CmaxRho ) numOver += 1;
       opcW += obsDist;
     }
-
     Set[i]->OPW = opcW/Set[i]->ndata();
     Set[i]->MSE = numOver;
   }
@@ -391,7 +389,49 @@ Real MemoryBuffer::prune2(const Real CmaxRho, const Uint maxN)
   // If pruned, only safe thing is to shuffle the samples:
   if(nB4>Set.size()) shuffle_samples();
 
-  return nOffPol/cntN;
+  return nOffPol;
+}
+
+Real MemoryBuffer::prune3(const Real CmaxRho, const Uint maxN)
+{
+  assert(CmaxRho>1);
+  #pragma omp parallel for schedule(dynamic)
+  for(Uint i = 0; i < Set.size(); i++) {
+    Real numOver = 0;
+    for(Uint j=0; j<Set[i]->ndata(); j++) {
+      const Real obsOpcW = Set[i]->offPol_weight[j];
+      const Real obsDist = std::max(obsOpcW, 1/obsOpcW);
+      assert(obsOpcW > 0 && obsDist >= 1);
+      if( obsDist > CmaxRho ) numOver += 1;
+    }
+    Set[i]->MSE = numOver;
+  }
+
+  const auto isAbeforeB = [&] (const Sequence*const a, const Sequence*const b) {
+    return a->ID > b->ID;
+  };
+  std::sort(Set.begin(), Set.end(), isAbeforeB);
+
+  const Uint nB4 = Set.size();
+  Uint cntN = 0;
+  Real nOffPol = 0;
+
+  for(Uint i = 0; i < Set.size(); i++)
+    if(cntN<maxN) {
+      cntN += Set[i]->ndata();
+      nOffPol += Set[i]->MSE;
+    } else { //not really smart
+      std::swap(Set[i], Set.back());
+      popBackSequence();
+    }
+
+  assert(cntN == nTransitions);
+  minInd = Set.back()->ID;
+  nPruned += nB4-Set.size();
+  // If pruned, only safe thing is to shuffle the samples:
+  if(nB4>Set.size()) shuffle_samples();
+
+  return nOffPol;
 }
 
 void MemoryBuffer::updateImportanceWeights()
@@ -503,26 +543,16 @@ Uint MemoryBuffer::sampleTransitions(vector<Uint>& seq, vector<Uint>& trans)
 {
   const int thrID = omp_get_thread_num();
   const Uint batch_size = seq.size(); assert(trans.size() == batch_size);
-  vector<Uint> load(batch_size), sort(batch_size), s(batch_size), t(batch_size);
   for (Uint i=0; i<batch_size; i++) {
     const int ind = sample(thrID);
     if(ind<0) die("not enough data");
-    indexToSample(ind, s[i], t[i]);
-    sort[i] = i;
-    //work per transition (applies to algos with off policy corrections):
-    load[i] = Set[s[i]]->ndata() - t[i];
-    //load[i] = data->Set[k]->tuples.size()-1; // ~ this would be for RNN
+    seq[i] = ind;
   }
 
-  //sort elements of sorting according to load for each transition:
-  const auto compare = [&] (Uint a, Uint b) { return load[a] < load[b]; };
-  std::sort(sort.begin(), sort.end(), compare);
-  assert(load[sort[0]] <= load[sort[batch_size-1]]);
-  //sort vectors passed to learning algo:
-  for (Uint i=0; i<batch_size; i++) {
-    trans[i] = t[sort[i]];
-    seq[i] = s[sort[i]];
-  }
+  #pragma omp parallel for
+  for (Uint i=0; i<batch_size; i++) // seq[i] stores random obs id
+    indexToSample(seq[i], seq[i], trans[i]); 
+  // now seq[i] stored seq id!
   return batch_size; //always add one grad per transition
 }
 

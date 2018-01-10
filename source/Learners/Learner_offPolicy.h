@@ -27,8 +27,9 @@ public:
 
   inline Uint nSequences4Train() const
   {
-    if(bSampleSequences) return 8*batchSize;
-    else                 return   batchSize/2;
+    return 256*256 / learn_size; 
+    //if(bSampleSequences) return 8*batchSize;
+    //else                 return   batchSize/2;
   }
   inline Uint read_nData() const
   {

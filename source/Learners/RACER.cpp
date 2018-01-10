@@ -31,7 +31,7 @@ class RACER : public Learner_offPolicy
   StatsTracker* opcInfo;
 
   MPI_Request nData_request = MPI_REQUEST_NULL;
-  double ndata_reduce_result, ndata_partial_sum;
+  double ndata_reduce_result[2], ndata_partial_sum[2];
 
   inline Policy_t prepare_policy(const vector<Real>& out) const
   {
@@ -84,7 +84,10 @@ class RACER : public Learner_offPolicy
 
       #if 1 // in case rho outside bounds, do not compute gradient
       if(pol.sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
-         pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) )  continue;
+         pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) )  {
+        offPolCorrUpdate(traj, k, out_cur, pol);
+        continue;
+      }
       #endif
 
       vector<Real> G = compute(traj,k, out_cur, pol,polTgt, thrID);
@@ -397,38 +400,32 @@ class RACER : public Learner_offPolicy
     //const Real lastSeq = nStoredSeqs_last;
     //const Real currPre = data->nSequences; //pre pruning
     //assert(nStoredSeqs_last <= data->nSequences); //before pruining
-    const Real fracOffPol = data->prune2(CmaxPol, 256*batchSize);
-    if(fracOffPol>.01*std::sqrt(nA)) DKL_target = 0.9999*DKL_target;
-    else DKL_target = 1e-4 + 0.9999*DKL_target;
-
-    //const Real nPruned = currPre - currSeqs;
-    //assuming that pruning has not removed any of the fresh samples
-    //compute how many samples we would have in a purely sequential code:
-    //Real samples_sequential = lastSeq - nPruned;
+    profiler->stop_start("PRNE");
+    Real numOffPol = data->prune3(CmaxPol, nSequences4Train());
+    Real fracOffPol = numOffPol / data->nTransitions;
     nStoredSeqs_last = data->nSequences; //after pruning
+    profiler->stop_start("SLP");
 
-    /*
     if (learn_size > 1)
     {
       const bool firstUpdate = nData_request == MPI_REQUEST_NULL;
       if(not firstUpdate) MPI_Wait(&nData_request, MPI_STATUS_IGNORE);
 
       // prepare an allreduce with the current data:
-      ndata_partial_sum = samples_sequential;
+      ndata_partial_sum[0] = numOffPol;
+      ndata_partial_sum[1] = data->nTransitions;
       // use result from prev reduce to update rewards (before new reduce)
-      samples_sequential = ndata_reduce_result;
+      numOffPol = ndata_reduce_result[0];
+      fracOffPol = ndata_reduce_result[0] / ndata_reduce_result[1];
 
-      MPI_Iallreduce(&ndata_partial_sum, &ndata_reduce_result, 1, MPI_DOUBLE, MPI_SUM, mastersComm, &nData_request);
+      MPI_Iallreduce(ndata_partial_sum, ndata_reduce_result, 2, MPI_DOUBLE, MPI_SUM, mastersComm, &nData_request);
       // if no reduction done, partial sums are meaningless
       if(firstUpdate) return;
     }
-    */
-    //if(nPruned>0.5) DKL_target *= std::pow(0.999, nPruned);
-    //else            DKL_target += 1e-3*(1-DKL_target); //0.001 + 0.999*DKL_target;
-    //if(samples_sequential < nSequences4Train()*learn_size)
-    //  DKL_target *= 0.99;
-    //else
-    //  DKL_target += 1e-5*(1-DKL_target);
+
+    if(fracOffPol>std::sqrt(nA)/CmaxPol/20) DKL_target = 0.9999*DKL_target;
+    else DKL_target = 1e-4 + 0.9999*DKL_target;
+
   }
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
@@ -445,101 +442,3 @@ class RACER : public Learner_offPolicy
   }
 };
 
-#if 0
-void Train(const Uint seq, const Uint samp, const Uint thrID) const override
-{
-  Sequence* const traj = data->Set[seq];
-  //last state for which we compute a policy: T-1
-  Uint lastTPolicy = traj->tuples.size() -2;
-  bool truncated = not traj->ended;
-  if(thrID==1) profiler->stop_start("FWD");
-
-  vector<Policy_t> policies;
-  policies.reserve(traj->tuples.size() -samp-1);
-
-  F[0]->prepare_opc(traj, samp, thrID);
-  const vector<Real> out_cur = F[0]->forward(traj, samp, thrID);
-  policies.push_back(prepare_policy(out_cur));
-
-  #ifdef ACER_TARGETNET //predict samp with tgt w
-    const vector<Real> out_hat = F[0]->forward<TGT>(traj, samp, thrID);
-    const Policy_t pol_target = prepare_policy(out_hat);
-    const Policy_t* const polTgt = &pol_target;
-  #else
-    const Policy_t* const polTgt = nullptr;
-  #endif
-
-  policies[0].prepare(traj->tuples[samp]->a, traj->tuples[samp]->mu);
-  traj->offPol_weight[samp] = policies[0].sampImpWeight;
-
-  #if 1 // in case rho outside bounds, resample:
-   if(policies[0].sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
-      policies[0].sampImpWeight > std::max((Real)2.0,   CmaxPol) ) {
-     if(thrID==1)  profiler->stop_start("SLP");
-     return resample(thrID);
-   }
-  #endif
-
-  // initialize importance sample
-  #ifdef UNBR
-    Real impW = policies[0].sampImpWeight;
-  #else
-    Real impW = std::min(REALBND, policies[0].sampImpWeight);
-  #endif
-
-  //Compute off-pol corrections. Skip last state of seq: we need all V(snext)
-  for(Uint k=samp+1; k<=lastTPolicy; k++)  {
-    const vector<Real> out_tmp = F[0]->forward(traj, k, thrID);
-    policies.push_back(prepare_policy(out_tmp));
-
-    assert(policies.size() == k+1-samp);
-    policies[k-samp].prepare(traj->tuples[k]->a, traj->tuples[k]->mu);
-    traj->offPol_weight[k] = policies.back().sampImpWeight; //(race condition)
-    //Racer off-pol correction weight: /*lambda*/
-    impW *= gamma * std::min((Real)1, policies[k-samp].sampImpWeight);
-    if (impW < 1e-3) { //then the imp weight is too small to continue
-      lastTPolicy = k-1; //we initialize value of Q_RET to V(state_{k})
-      truncated = true; //by acting as if sequence is truncated
-      break;
-    }
-  }
-
-  if(thrID==1)  profiler->stop_start("ADV");
-  Real Q_RET = 0;
-  if(truncated)
-  { //initialize Q_RET to value of state after last off policy correction
-    const vector<Real> OT = F[0]->forward(traj, lastTPolicy+1, thrID);
-    Q_RET = OT[net_indices[0]];
-  }
-
-  for (Uint k=lastTPolicy; k>samp; k--) { //propagate Q to k=0
-   const vector<Real> out_k = F[0]->get(traj,k,thrID); // precomputed
-   offPolCorrUpdate(traj, k, Q_RET, out_k, policies[k-samp]);
-  }
-
-  if(thrID==1)  profiler->stop_start("CMP");
-  const Policy_t& pol = policies[0];
-  vector<Real> grad=compute(traj,samp, Q_RET, out_cur,pol, polTgt,thrID);
-  //printf("gradient: %s\n", print(grad).c_str()); fflush(0);
-
-  if(thrID==1)  profiler->stop_start("BCK");
-  F[0]->backward(grad, samp, thrID);
-  F[0]->gradient(thrID);
-  if(thrID==1)  profiler->stop_start("SLP");
-}
-
-
-inline void offPolCorrUpdate(Sequence*const traj, const Uint samp, Real&Q_RET,
-  const vector<Real> output, const Policy_t& pol) const
-{
-  Q_RET = data->standardized_reward(traj, samp+1) + gamma*Q_RET;
-  //Used as target: target policy, target value
-  const Advantage_t adv_cur = prepare_advantage(output, &pol);
-  const Action_t& act = pol.sampAct; //off policy stored action
-  const Real V_hat = output[VsID], A_hat = adv_cur.computeAdvantage(act);
-  //prepare rolled Q with off policy corrections for next step:
-  Q_RET = std::min((Real)1,pol.sampImpWeight)*(Q_RET -A_hat-V_hat) +V_hat;
-  traj->SquaredError[samp] = std::min(pol.sampInvWeight, pol.sampImpWeight); //*std::fabs(Q_RET-A_hat-V_hat);
-}
-
-#endif

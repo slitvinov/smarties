@@ -191,13 +191,11 @@ public:
   {
     const Uint numNetOutputs = netOutputs.size();
     vector<Real> _grad(numNetOutputs, 0);
-    const Uint nL1 = (nA*nA+nA)/2;
     grad(act, 1, _grad);
     for(Uint i = 0; i<nL; i++)
     {
       vector<Real> out_1 = netOutputs, out_2 = netOutputs;
       const Uint index = start_matrix+i;
-      const Uint ie = i/nL1;
       out_1[index] -= 0.0001; out_2[index] += 0.0001;
 
       Mixture_advantage a1(vector<Uint>{start_matrix}, aInfo, out_1, policy);
@@ -208,8 +206,8 @@ public:
       const double scale = std::max(std::fabs(fdiff), std::fabs(_grad[index]));
       //if((abserr>1e-4 || abserr/scale>1e-1) && policy->PactEachExp[ie]>nnEPS)
       {
-        printf("Adv grad %d: finite diff %g analytic %g error %g/%g (%Lg %g) \n",
-        i,fdiff, _grad[index],abserr,abserr/scale,policy->PactEachExp[ie],A_1);
+        printf("Adv grad %d: finite diff %g analytic %g error %g/%g \n",
+        i, fdiff, _grad[index], abserr, abserr/scale);
         fflush(0);
       }
     }

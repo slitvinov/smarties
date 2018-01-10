@@ -28,6 +28,7 @@ void Learner_offPolicy::prepareData()
   // of the dataset, and therefore i need to reset how counters advance.
   // Anything that messes with MemoryBuffer can only happen on prepareGradient
   if(not waitingForData && not readyForTrain()) {
+    abort();
     nData_b4PolUpdates = data->readNSeen();
     nStoredSeqs_last = nSequences4Train(); //RACER
     nData_last = 0;
@@ -39,19 +40,24 @@ void Learner_offPolicy::prepareData()
     return;
   }
 
-  profiler->push_start("PRE");
 
   if(data->requestUpdateSamples()) {
+  profiler->stop_start("PRE1");
     data->updateActiveBuffer(); //update sampling //syncDataStats
+  profiler->stop_start("PRE2");
     data->shuffle_samples();
   }
 
-  if(nStep%100==0) data->updateRewardsStats();
+  if(nStep%100==0) {
+    profiler->stop_start("PRE3");
+    data->updateRewardsStats();
+  }
 
   taskCounter = 0;
   sequences.resize(batchSize);
   transitions.resize(batchSize);
 
+    profiler->stop_start("PRE4");
   nAddedGradients = bSampleSequences ? data->sampleSequences(sequences) :
     data->sampleTransitions(sequences, transitions);
 
@@ -66,7 +72,7 @@ bool Learner_offPolicy::readyForTrain() const
    //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
    //  die("I do not have enough data for training. Change hyperparameters");
    //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
-   return bTrain && data->nTransitions >= 6e4;//data->nSequences >= nSequences4Train();
+   return bTrain && data->nTransitions >= nSequences4Train(); 
 }
 
 bool Learner_offPolicy::batchGradientReady()

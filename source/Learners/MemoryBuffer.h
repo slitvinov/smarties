@@ -131,6 +131,7 @@ public:
   void updateImportanceWeights();
   Uint prune(const Real maxFrac, const Real CmaxRho);
   Real prune2(const Real CmaxRho, const Uint maxN);
+  Real prune3(const Real CmaxRho, const Uint maxN);
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut);
   void restart();

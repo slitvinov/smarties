@@ -57,16 +57,17 @@ struct Parameters
   inline void copy(const Parameters* const tgt) const
   {
     assert(nParams == tgt->nParams);
-    #pragma omp parallel for
-    for (Uint j=0; j<nParams; j++) params[j] = tgt->params[j];
+    memcpy(params, tgt->params, nParams*sizeof(nnReal));
   }
 
   inline void penalization(const nnReal lambda) const {
+    nnReal* const dst = params;    
+    #pragma omp parallel for simd aligned(dst : VEC_WIDTH) 
     for (Uint i=0; i<nParams; i++)
     #ifdef NET_L1_PENAL
-      params[i] += (params[i]<0 ? lambda : -lambda);
+      dst[i] += (dst[i]<0 ? lambda : -lambda);
     #else
-      params[i] -= params[i]*lambda;
+      dst[i] -= dst[i]*lambda;
     #endif
   }
 
@@ -79,14 +80,20 @@ struct Parameters
 
   void reduceThreadsGrad(const vector<Parameters*>& g) const
   {
-    #pragma omp parallel for
-    for(Uint j=0; j<nParams; j++)
-      for(Uint k=0; k<g.size(); k++)
-        params[j] += g[k]->params[j];
-
-    for(Uint k=0; k<g.size(); k++) {
-      assert(nParams == g[k]->nParams);
-      g[k]->clear();
+    #pragma omp parallel
+    {
+      const Uint thrID = static_cast<Uint>(omp_get_thread_num());
+      assert(nParams == g[thrID]->nParams);
+      const nnReal* const src = g[thrID]->params;    
+      nnReal* const dst = params; 
+      // every thread starts staggered to avoid race conditions:  
+      const Uint shift = thrID*((nParams/g.size())/ARY_WIDTH)*ARY_WIDTH;
+      #pragma omp simd aligned(dst, src : VEC_WIDTH) 
+      for(Uint j=0; j<nParams; j++) {
+        const Uint ind = (j + shift) % nParams;
+        dst[ind] += src[ind];
+      }
+      g[thrID]->clear(); 
     }
   }
 
