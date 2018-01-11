@@ -95,13 +95,29 @@ Builder Approximator::buildFromSettings(Settings& _s, const Uint n_outputs) {
   return build;
 }
 
+void Approximator::allocMorePerThread(const Uint nAlloc)
+{
+  assert(opt not_eq nullptr && net not_eq nullptr);
+  net->Vgrad.resize(nThreads*(1+nAlloc), nullptr);
+  series.resize(nThreads*(1+nAlloc));
+
+  for (Uint j=1; j<=nAlloc; j++)
+    #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
+      for (Uint i = j*nThreads; i<(1+j)*nThreads; i++)
+        #pragma omp critical
+        {
+          net->Vgrad[i] = allocate_parameters(net->layers);
+          series[i].reserve(settings.maxSeqLen);
+        }
+}
+
 void Approximator::initializeNetwork(Builder& build)
 {
   net = build.build();
   opt = build.opt;
   assert(opt not_eq nullptr && net not_eq nullptr);
 
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
   for (Uint i=0; i<nThreads; i++) // numa aware allocation
    #pragma omp critical
    {

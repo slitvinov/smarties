@@ -147,7 +147,7 @@ public:
 
     // Allocate a gradient for each thread.
     Vgrad.resize(nThreads, nullptr);
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
     for (Uint i=0; i<nThreads; i++)
       #pragma omp critical // numa-aware allocation if OMP_PROC_BIND is TRUE
         Vgrad[i] = allocate_parameters(layers);

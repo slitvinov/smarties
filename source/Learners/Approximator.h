@@ -53,7 +53,8 @@ struct Approximator
   Builder buildFromSettings(Settings& _s, const Uint n_outputs);
 
   void initializeNetwork(Builder& build);
-
+  void allocMorePerThread(const Uint nAlloc);
+  
   void prepare_opc(const Sequence*const traj, const Uint samp,
       const Uint thrID) const;
 

@@ -29,16 +29,8 @@ class ACER : public Learner_offPolicy
   using Action_t = vector<Real>;
   const Uint nA = Policy_t::compute_nA(&aInfo);
 
-  const Real CmaxPol, delta;
-  const vector<Uint> net_outputs, net_indices, pol_start;
-
-  StatsTracker* opcInfo;
-
   inline Policy_t prepare_policy(const vector<Real>& out) const {
-    return Policy_t(pol_start, &aInfo, out);
-  }
-  inline Policy_t* new_policy(const vector<Real>& out) const {
-    return new Policy_t(pol_start, &aInfo, out);
+    return Policy_t({0}, &aInfo, out);
   }
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override
@@ -50,12 +42,9 @@ class ACER : public Learner_offPolicy
     if(thrID==1) profiler->stop_start("FWD");
     for (int k=0; k<ndata; k++) {
       F[0]->forward<CUR>(traj, k, thrID);
-      #ifdef ACER_TARGETNET
-        F[0]->forward<TGT>(traj, k, thrID);
-      #endif
+      F[0]->forward<TGT>(traj, k, thrID);
     }
 
-    //if partial sequence then compute value of last state (!= R_end)
     assert(traj->ended);
     traj->state_vals[ndata] = data->standardized_reward(traj, ndata);
 
@@ -64,22 +53,12 @@ class ACER : public Learner_offPolicy
     {
       const vector<Real> out_cur = F[0]->get<CUR>(traj, k, thrID);
       Policy_t pol = prepare_policy(out_cur);
-      #ifdef ACER_TARGETNET //predict samp with tgt w
-        const vector<Real> out_hat = F[0]->get<TGT>(traj, k, thrID);
-        const Policy_t pol_target = prepare_policy(out_hat);
-        const Policy_t* const polTgt = &pol_target;
-      #else
-        const Policy_t* const polTgt = nullptr;
-      #endif
+      const vector<Real> out_hat = F[0]->get<TGT>(traj, k, thrID);
+      const Policy_t pol_target = prepare_policy(out_hat);
 
       Tuple * const _t = traj->tuples[k];
       pol.prepare(_t->a, _t->mu);
       traj->offPol_weight[k] = pol.sampImpWeight;
-
-      #if 1 // in case rho outside bounds, do not compute gradient
-      if(pol.sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
-         pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) )  continue;
-      #endif
 
       vector<Real> G = compute(traj,k, out_cur, pol,polTgt, thrID);
       //write gradient onto output layer:
@@ -93,7 +72,7 @@ class ACER : public Learner_offPolicy
 
   inline vector<Real> compute(Sequence*const traj, const Uint samp,
     const vector<Real>& outVec, const Policy_t& pol_cur,
-    const Policy_t* const pol_hat, const Uint thrID) const
+    const Policy_t& pol_hat, const Uint thrID) const
   {
     Real meanPena=0, meanGrad=0, meanProj=0, meanDist=0;
     vector<Real> gradient(F[0]->nOutputs(), 0);
@@ -107,59 +86,12 @@ class ACER : public Learner_offPolicy
     const Real penalDKL = outVec[PenalID];
     const Real Q_dist = Q_RET -A_cur-V_cur, A_RET = Q_RET-V_cur;
 
-    #ifdef impSampVal
-      #ifdef UNBR
-        const Real Ver = .1*         pol_cur.sampImpWeight          *Q_dist;
-      #else
-        const Real Ver = .1*std::min(pol_cur.sampImpWeight, REALBND)*Q_dist;
-      #endif
-    #else
-      const Real Ver = 0.1*Q_dist;
-    #endif
-
     const vector<Real> policyG = policyGradient(traj->tuples[samp], pol_cur,
       adv_cur, A_RET, thrID);
-
-    #if   defined(ACER_TARGETNET)
-      const Real DivKL = pol_cur.kl_divergence_opp(pol_hat);
-      const vector<Real> penalG = penalTarget(pol_cur, pol_hat, penalDKL, DivKL, gradient);
-      const vector<Real> finalG = sum2Grads(policyG, penalG);
-    #elif defined(ACER_TRUSTREGION)
-      const Real DivKL = pol_cur.kl_divergence_opp(traj->tuples[samp]->mu);
-      const vector<Real> penalG = pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu, 1);
-      const vector<Real> finalG =circle_region(policyG, penalG, nA, DKL_target);
-    #else
-      const vector<Real> penalG = penalSample(traj->tuples[samp], pol_cur, A_RET, penalDKL, gradient);
-      //const vector<Real> finalG = sum2Grads(penalG, policyG);
-      const vector<Real> finalG = weightSum2Grads(policyG, penalG, DKL_target);
-    #endif
-
-    for(Uint i=0; i<policyG.size(); i++) {
-      meanGrad += std::fabs(policyG[i]);
-      meanPena += std::fabs(penalG[i]);
-      meanProj += policyG[i]*penalG[i];
-      meanDist += std::fabs(policyG[i]-finalG[i]);
-    }
-    #ifdef dumpExtra
-      {
-        Real normG=0, normT=numeric_limits<Real>::epsilon(), dot=0, normP=0;
-        for(Uint i = 0; i < policyG.size(); i++) {
-          normG += policyG[i] * policyG[i];
-          dot   += policyG[i] *  penalG[i];
-          normT +=  penalG[i] *  penalG[i];
-        }
-        for(Uint i = 0; i < policyG.size(); i++)
-          normP += std::pow(policyG[i] -dot*penalG[i]/normT, 2);
-        float R1 = sqrt(normG), R2 = sqrt(normT), R3 = dot/R2, R4 = sqrt(normP);
-        vector<float> ret = {R1, R2, R3, R4};
-        lock_guard<mutex> lock(buffer_mutex);
-        FILE * wFile = fopen("grads_dist.raw", "ab");
-        fwrite(ret.data(),sizeof(float),4,wFile); fflush(wFile); fclose(wFile);
-      }
-    #endif
+    const vector<Real> penalG = pol_cur.div_kl_opp_grad(&pol_hat, -1);
+    const vector<Real> finalG =trust_region_update(policyG, penalG, nA, 1);
 
     gradient[VsID] = Ver;
-    adv_cur.grad(act, Ver, gradient);
     pol_cur.finalize_grad(finalG, gradient);
     //decrease prec if err is large, from d Dkl(Q^RET || Q_th)/dQprec
     gradient[QPrecID] = -.5*(Q_dist*Q_dist - 1/Qprec);
@@ -180,36 +112,18 @@ class ACER : public Learner_offPolicy
   inline vector<Real> policyGradient(const Tuple*const _t, const Policy_t& POL, const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
   {
     const Real rho_cur = POL.sampImpWeight;
-    #if   defined(ACER_TABC)
-      //compute quantities needed for trunc import sampl with bias correction
-      const Action_t sample = POL.sample(&generators[thrID]);
-      const Real polProbOnPolicy = POL.evalLogProbability(sample);
-      const Real polProbBehavior = Policy_t::evalBehavior(sample, _t->mu);
-      const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
-      const Real A_pol = ADV.computeAdvantage(sample);
-      const Real gain1 = A_RET*std::min((Real) 5, rho_cur);
-      const Real gain2 = A_pol*std::max((Real) 0, 1-5/rho_pol);
+    //compute quantities needed for trunc import sampl with bias correction
+    const Action_t sample = POL.sample(&generators[thrID]);
+    const Real polProbOnPolicy = POL.evalLogProbability(sample);
+    const Real polProbBehavior = Policy_t::evalBehavior(sample, _t->mu);
+    const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
+    const Real A_pol = ADV.computeAdvantage(sample);
+    const Real gain1 = A_RET*std::min((Real) 5, rho_cur);
+    const Real gain2 = A_pol*std::max((Real) 0, 1-5/rho_pol);
 
-      const vector<Real> gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
-      const vector<Real> gradAcer_2 = POL.policy_grad(sample,      gain2);
-      return sum2Grads(gradAcer_1, gradAcer_2);
-    #else
-      #ifdef UNBR
-        return POL.policy_grad(POL.sampAct, A_RET * rho_cur);
-      #else
-        return POL.policy_grad(POL.sampAct, A_RET * std::min(REALBND,rho_cur));
-      #endif
-    #endif
-  }
-
-  inline vector<Real> criticGrad(const Policy_t& POL, const Advantage_t& ADV,
-    const Real A_RET, const Real A_critic) const
-  {
-    const Real anneal = iter()>epsAnneal ? 1 : Real(iter())/epsAnneal;
-    const Real varCritic = ADV.advantageVariance();
-    const Real iEpsA = std::pow(A_RET-A_critic,2)/(varCritic+2.2e-16);
-    const Real eta = anneal * safeExp( -0.5*iEpsA);
-    return POL.control_grad(&ADV, eta);
+    const vector<Real> gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
+    const vector<Real> gradAcer_2 = POL.policy_grad(sample,      gain2);
+    return sum2Grads(gradAcer_1, gradAcer_2);
   }
 
   inline vector<Real> penalTarget(const Policy_t&POL, const Policy_t*const TGT,
@@ -224,21 +138,6 @@ class ACER : public Learner_offPolicy
     return POL.div_kl_opp_grad(TGT, -penalDKL);
   }
 
-  inline vector<Real> penalSample(const Tuple*const _t, const Policy_t& POL,
-  const Real A_RET, const Real penalDKL, vector<Real>& grad) const
-  {
-    const Real DKLmul = -1;
-    //const Real DKLmul = -10*annealingFactor();
-    #ifdef UNBR
-    //const Real DKLmul= -max((Real)0, A_RET) *     POL.sampInvWeight;
-    #else
-    //const Real DKLmul= -max((Real)0, A_RET) * min(POL.sampInvWeight, REALBND);
-    #endif
-    //grad[PenalID] = (DivKL - 0.1)*penalDKL/0.1;
-    //grad[PenalID] = std::pow((DivKL - 0.1)/0.1, 3)*penalDKL;
-    return POL.div_kl_opp_grad(_t->mu, DKLmul);
-  }
-
  public:
   ACER(Environment*const _env, Settings& sett, vector<Uint> net_outs,
     vector<Uint> pol_inds, vector<Uint> adv_inds) :
@@ -246,13 +145,18 @@ class ACER : public Learner_offPolicy
     DKL_target_orig(sett.klDivConstraint), net_outputs(net_outs),
     net_indices(count_indices(net_outs)), pol_start(pol_inds), adv_start(adv_inds)
   {
-    printf("RACER starts: v:%u pol:%s adv:%s penal:%u prec:%u\n", VsID,
-    print(pol_start).c_str(), print(adv_start).c_str(), PenalID, QPrecID);
-    opcInfo = new StatsTracker(4, "racer", sett);
+    F.push_back(new Approximator("policy", sett, input, data));
+    relay = new Aggregator(sett, data, _env->aI.dim, F[0]);
+    F.push_back(new Approximator("value", sett, input, data, relay));
+    Builder build_pol = F[0]->buildFromSettings(sett, nA);
+    Builder build_val = F[1]->buildFromSettings(sett, 2 ); // A and V
+    F[0]->initializeNetwork(build_pol);
+    F[1]->initializeNetwork(build_val);
+    printf("ACER\n");
     //test();
     if(sett.maxTotSeqNum < sett.batchSize)  die("maxTotSeqNum < batchSize")
   }
-  ~RACER() { }
+  ~ACER() { }
 
   void select(const Agent& agent) override
   {
@@ -260,49 +164,17 @@ class ACER : public Learner_offPolicy
     Sequence* const traj = data->inProgress[agent.ID];
     data->add_state(agent);
 
-    if( agent.Status != 2 )
-    {
+    if( agent.Status != 2 ) {
       //Compute policy and value on most recent element of the sequence. If RNN
       // recurrent connection from last call from same agent will be reused
       vector<Real> output = F[0]->forward_agent(traj, agent, thrID);
       Policy_t pol = prepare_policy(output);
-      const Advantage_t adv = prepare_advantage(output, &pol);
       vector<Real> beta = pol.getBeta();
-
       const Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
-      traj->action_adv.push_back(adv.computeAdvantage(pol.sampAct));
       agent.a->set(act);
-
-      #ifdef dumpExtra
-        data->inProgress[agent.ID]->add_action(agent.a->vals, beta);
-        vector<Real> param = adv.getParam();
-        assert(param.size() == nL);
-        beta.insert(beta.end(), param.begin(), param.end());
-        agent.writeData(learn_rank, beta);
-      #else
-        data->add_action(agent, beta);
-      #endif
-
-      #ifndef NDEBUG
-        Policy_t dbg = prepare_policy(output);
-        dbg.prepare(traj->tuples.back()->a, traj->tuples.back()->mu);
-        const double err = fabs(dbg.sampImpWeight-1);
-        if(err>1e-10) _die("Imp W err %20.20e", err);
-      #endif
+      data->add_action(agent, beta);
     }
-    else
-    {
-      writeOnPolRetrace(traj);
-
-      #ifdef dumpExtra
-        agent.a->set(vector<Real>(nA,0));
-        data->inProgress[agent.ID]->add_action(agent.a->vals, vector<Real>(policyVecDim, 0));
-        agent.writeData(learn_rank, vector<Real>(policyVecDim+nL, 0));
-        data->push_back(agent.ID);
-      #else
-        data->terminate_seq(agent);
-      #endif
-    }
+    else data->terminate_seq(agent);
   }
 };
 

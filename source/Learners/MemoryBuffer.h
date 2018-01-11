@@ -121,6 +121,15 @@ public:
     return ind;
   }
 
+  // not a good way to sample: biased in favor of short sequences
+  inline void sample_emergency(Uint& seq, Uint& obs, const int thrID)
+  {
+    std::uniform_int_distribution<int> distSeq(0, nSequences-1);
+    seq = distSeq(generators[thrID]);
+    std::uniform_int_distribution<int> distObs(0, Set[seq]->ndata()-1);
+    obs = distObs(generators[thrID]);
+  }
+
   void add_action(const Agent& a, vector<Real> pol = vector<Real>()) const;
   void terminate_seq(const Agent&a);
   int add_state(const Agent&a);

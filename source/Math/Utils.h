@@ -56,14 +56,14 @@ inline vector<Real> trust_region_update(const vector<Real>& grad,
     norm += trust[j] * trust[j];
     dot +=  trust[j] *  grad[j];
   }
-  const Real proj = std::max((Real)0, dot/norm - delta/std::sqrt(norm));
+  const Real proj = std::max((Real)0, (dot-delta)/norm);
   //#ifndef NDEBUG
   //if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
   //else {printf("Not Hit DKL constraint\n");fflush(0);}
   //#endif
   for (Uint j=0; j<nA; j++) {
     ret[j] = grad[j]-proj*trust[j];
-    if(ret[j]*grad[j] < 0) ret[j] = 0;
+    //if(ret[j]*grad[j] < 0) ret[j] = 0;
   }
   return ret;
 }

@@ -107,15 +107,13 @@ class RACER : public Learner_offPolicy
     pol.prepare(traj->tuples[samp]->a, traj->tuples[samp]->mu);
     traj->offPol_weight[samp] = pol.sampImpWeight;
 
-    #if 1 // in case rho outside bounds, resample:
-     if(pol.sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
-        pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) )
-     {
-       offPolCorrUpdate(traj, samp, out_cur, pol);
-       if(thrID==1)  profiler->stop_start("SLP");
-       return resample(thrID);
-     }
-    #endif
+   if(pol.sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
+      pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) )
+   {
+     offPolCorrUpdate(traj, samp, out_cur, pol);
+     if(thrID==1)  profiler->stop_start("SLP");
+     return resample(thrID);
+   }
 
     if(thrID==1)  profiler->stop_start("CMP");
     vector<Real> grad = compute(traj, samp, out_cur, pol, thrID);

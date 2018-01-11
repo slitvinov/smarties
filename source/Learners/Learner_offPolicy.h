@@ -44,14 +44,13 @@ public:
     int newSample = -1;
     #pragma omp critical
     newSample = data->sample(thrID);
-
+    
+    Uint sequence, transition;
     if(newSample >= 0) // process the other sample
-    {
-      Uint sequence, transition;
       data->indexToSample(newSample, sequence, transition);
-      return Train(sequence, transition, thrID);
-    }
-    else return; // skip element of the batch -> as if added 0 gradient
+    else //we ran out of pre-shuffled stuff: pick one at random
+      data->sample_emergency(sequence, transition, thrID);
+    return Train(sequence, transition, thrID);
   }
 
   //main training functions:

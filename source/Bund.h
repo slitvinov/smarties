@@ -41,7 +41,8 @@ using namespace std;
 #define BOUNDACT_MAX 8 //for bounded action spaces: range (ie. tanh(8))
 
 #define MAX_UNROLL_AFTER 2000
-#define ACER_CONST_PREC 50 //uniform precision (1/std^2) in case of ACER_SAFE
+//uniform precision (1/std^2) in case of Acer:
+#define ACER_CONST_PREC (1/0.09)
 
 // number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20

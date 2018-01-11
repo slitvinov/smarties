@@ -14,14 +14,13 @@ class Builder;
 
 class Network
 {
-protected:
+public:
   const Uint nAgents, nThreads, nInputs, nOutputs, nLayers;
   const bool bDump;
-public:
   const vector<Layer*> layers;
   const Parameters* const weights;
   const Parameters* const tgt_weights;
-  const vector<Parameters*> Vgrad;
+  vector<Parameters*> Vgrad;
   const vector<Memory*> mem;
   vector<std::mt19937>& generators;
   vector<Uint> dump_ID;
