@@ -139,6 +139,7 @@ inline void Master::processRequest(const int slave)
        if (istatus == FAIL_COMM) //app crashed :sadface:
   {
     //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
+    //TODO FIX MULTIPLE ALGOS
     aAlgo->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
     for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
     warn("Received a FAIL_COMM\n");
@@ -146,6 +147,7 @@ inline void Master::processRequest(const int slave)
   else if (istatus == GAME_OVER)
   {
     //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
+    //TODO FIX MULTIPLE ALGOS, ALSO FIX SENDING "action" AFTER TERM STATE
     aAlgo->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
     for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
     //printf("Received a GAME_OVER\n");
@@ -160,13 +162,10 @@ inline void Master::processRequest(const int slave)
 
     debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
 
-    if(agents[agent]->Status not_eq TERM_COMM) //if term, no action sent
-    {
-      for(Uint i=0; i<aI.dim; i++)
-        outBufs[slave-1][i]=agents[agent]->a->vals[i];
-      sendBuffer(slave);
-    }
-    else if ( iter || !bTrain )
+    for(Uint i=0; i<aI.dim; i++) outBufs[slave-1][i]=agents[agent]->a->vals[i];
+    sendBuffer(slave);
+
+    if ( agents[agent]->Status == TERM_COMM && (iter || !bTrain) )
     {
       char path[256];
       sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
@@ -202,7 +201,7 @@ void Slave::run()
       unpackState(comm->getDataState(), iAgent, info, state, reward);
 
       status[iAgent] = info;
-      if(info not_eq TERM_COMM && info not_eq GAME_OVER)
+      if(info not_eq GAME_OVER)
       {
         assert(info not_eq FAIL_COMM); //that one should cause the break
         if (comm->sendActionToApp()) {

@@ -173,6 +173,7 @@ class Communicator:
         #    fname = 'state_seq%04d_frame%07d' % (seq_id, frame_id)
         #    plt.imshow(self.gym.render(mode='rgb_array'))
         #    plt.savefig(fname, dpi=100)
+        if(terminal): self.recv_action()
 
     def recv_action(self):
         buf = np.frombuffer(self.conn.recv(self.nActions*8), dtype=np.float64)
