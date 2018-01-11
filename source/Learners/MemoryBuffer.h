@@ -106,8 +106,7 @@ public:
   }
   void pushBackEndedSim(const int agentOne, const int agentEnd)
   {
-    for (int i = agentOne; i<agentEnd; i++)
-      if(inProgress[i]->tuples.size()) push_back(i);
+    for(int i=agentOne; i<agentEnd; i++) if(inProgress[i]->ndata()) push_back(i);
   }
 
   inline int sample(const int thrID)

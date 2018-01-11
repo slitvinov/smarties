@@ -36,9 +36,9 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
   {
     const Uint nL = Quadratic_term::compute_nL(&aI);
     #if defined ACER_RELAX
-      return vector<Uint>{1, nL, aI.dim, aI.dim, 2};
+      return vector<Uint>{1, nL, aI.dim, aI.dim};
     #else
-      return vector<Uint>{1, nL, aI.dim, aI.dim, aI.dim, 2};
+      return vector<Uint>{1, nL, aI.dim, aI.dim, aI.dim};
     #endif
   }
   static vector<Uint> count_pol_starts(const ActionInfo& aI)
@@ -67,9 +67,9 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
   {
     const Uint nL = Quadratic_advantage::compute_nL(aI);
     #if defined ACER_RELAX // I output V(s), P(s), pol(s), prec(s) (and variate)
-      return 1 + nL + aI->dim + aI->dim + 2;
+      return 1 + nL + aI->dim + aI->dim;
     #else // I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
-      return 1 + nL + aI->dim + aI->dim + aI->dim + 2;
+      return 1 + nL + aI->dim + aI->dim + aI->dim;
     #endif
   }
   static Uint getnDimPolicy(const ActionInfo*const aI)
@@ -99,7 +99,7 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
 {
   static vector<Uint> count_outputs(const ActionInfo*const aI)
   {
-    return vector<Uint>{1, aI->maxLabel, aI->maxLabel, 2};
+    return vector<Uint>{1, aI->maxLabel, aI->maxLabel};
   }
   static vector<Uint> count_pol_starts(const ActionInfo*const aI)
   {
@@ -117,7 +117,7 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
  public:
   static Uint getnOutputs(const ActionInfo*const aI)
   {
-    return 1 + aI->maxLabel + aI->maxLabel + 2;
+    return 1 + aI->maxLabel + aI->maxLabel;
   }
   static Uint getnDimPolicy(const ActionInfo*const aI)
   {
@@ -142,7 +142,7 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
   static vector<Uint> count_outputs(const ActionInfo& aI)
   {
     const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(&aI);
-    return vector<Uint>{1, nL, NEXPERTS, NEXPERTS*aI.dim, NEXPERTS*aI.dim, 2};
+    return vector<Uint>{1, nL, NEXPERTS, NEXPERTS*aI.dim, NEXPERTS*aI.dim};
   }
   static vector<Uint> count_pol_starts(const ActionInfo& aI)
   {
@@ -160,7 +160,7 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
   static Uint getnOutputs(const ActionInfo*const aI)
   {
     const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(aI);
-    return 1 + nL + NEXPERTS*(1 +2*aI->dim) + 2;
+    return 1 + nL + NEXPERTS*(1 +2*aI->dim);
   }
   static Uint getnDimPolicy(const ActionInfo*const aI)
   {

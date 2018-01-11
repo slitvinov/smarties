@@ -73,12 +73,6 @@ int MemoryBuffer::add_state(const Agent&a)
   }
   #endif
 
-  if(inProgress[a.ID]->tuples.size() >= maxSeqLen) { //upper limit to seq length
-    const Tuple* const last = inProgress[a.ID]->tuples.back();
-    Tuple * t = new Tuple(last); //copy last state
-    push_back(a.ID); //create new sequence
-    inProgress[a.ID]->tuples.push_back(t);
-  }
   env->pickReward(a);
   inProgress[a.ID]->ended = a.Status==2;
   inProgress[a.ID]->add_state(a.s->copy_observed(), a.r);
@@ -236,7 +230,7 @@ void MemoryBuffer::insertBufferedSequences()
   }
 
   #ifndef RESORT_SEQS
-  if(Set.size() > adapt_TotSeqNum)
+  if(Set.size() > adapt_TotSeqNum) 
   #endif
     sortSequences();
 
@@ -252,7 +246,6 @@ void MemoryBuffer::insertBufferedSequences()
   }
 
   if( Buffered.size() == 0 ) return;
-
   nTransitionsInBuf=0; nTransitionsDeleted=0;
   for(Uint j=Buffered.size(); j>0; j--) {
     assert(Buffered.size() == j);
@@ -416,15 +409,14 @@ Real MemoryBuffer::prune3(const Real CmaxRho, const Uint maxN)
   Uint cntN = 0;
   Real nOffPol = 0;
 
-  for(Uint i = 0; i < Set.size(); i++)
+  Uint i = 0; 
+  for(i=0; i < Set.size(); i++)
     if(cntN<maxN) {
       cntN += Set[i]->ndata();
       nOffPol += Set[i]->MSE;
-    } else { //not really smart
-      std::swap(Set[i], Set.back());
-      popBackSequence();
-    }
-
+    } else break;
+  assert(i<=Set.size());
+  while(i not_eq Set.size()) popBackSequence();
   assert(cntN == nTransitions);
   minInd = Set.back()->ID;
   nPruned += nB4-Set.size();
