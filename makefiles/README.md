@@ -1,7 +1,7 @@
 # Dependencies
 * **Euler** :
   ```
-  module load new modules gcc/6.3.0 mvapich2/2.2 binutils/2.25 hwloc/1.11.0
+  module load new modules gcc/6.3.0 mvapich2/2.2 binutils/2.25 hwloc/1.11.0 openblas/0.2.13_seq
   ```
 * **Falcon** Have in the bashrc:
 	```
@@ -24,4 +24,4 @@
     export HOMEBREW_CC=gcc-7
     export HOMEBREW_CXX=g++-7
     ```
-    Then `brew install mpich --build-from-source`
+    Then `brew install mpich --build-from-source` and `brew install openblas` (without openmp).
