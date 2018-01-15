@@ -11,8 +11,7 @@
 #include "Learners/NAF.h"
 #include "Learners/DPG.h"
 #include "Learners/RACER.h"
-//#include "Learners/DACER.h"
-//#include "Learners/CACER.h"
+#include "Learners/ACER.h"
 #include "Learners/GAE.h"
 
 #include <sys/types.h>
@@ -41,6 +40,11 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
       settings.policyVecDim = RACER_continuous::getnDimPolicy(&env->aI);
       return new RACER_continuous(env, settings);
     }
+  }
+  else if (settings.learner == "ACER") {
+    assert(env->aI.discrete == false);
+    settings.policyVecDim = ACER::getnDimPolicy(&env->aI);
+    return new ACER(env, settings);
   }
   else if (settings.learner == "NA" || settings.learner == "NAF") {
     settings.policyVecDim = 2*env->aI.dim;

@@ -77,17 +77,17 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Rea
     return 2*aI->dim;
   }
 
-  RACER_cont(Environment*const _env, Settings& settings) :
-  RACER(_env, settings, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
+  RACER_cont(Environment*const _env, Settings& _set) :
+  RACER(_env, _set, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
   {
     printf("Continuous-action RACER: Built network with outputs: %s %s\n",
       print(net_indices).c_str(),print(net_outputs).c_str());
-    F.push_back(new Approximator("net", settings, input, data));
+    F.push_back(new Approximator("net", _set, input, data));
     vector<Uint> nouts{1, nL, nA};
     #ifndef simpleSigma
       nouts.push_back(nA);
     #endif
-    Builder build = F[0]->buildFromSettings(settings, nouts);
+    Builder build = F[0]->buildFromSettings(_set, nouts);
     #ifdef simpleSigma
       build.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
     #endif
@@ -125,14 +125,14 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
   }
 
  public:
-  RACER_disc(Environment*const _env, Settings& settings) :
-  RACER(_env, settings, count_outputs(&_env->aI), count_pol_starts(&_env->aI), count_adv_starts(&_env->aI) )
+  RACER_disc(Environment*const _env, Settings& _set) :
+  RACER(_env, _set, count_outputs(&_env->aI), count_pol_starts(&_env->aI), count_adv_starts(&_env->aI) )
   {
     printf("Discrete-action RACER: Built network with outputs: %s %s\n",
       print(net_indices).c_str(),print(net_outputs).c_str());
-    F.push_back(new Approximator("net", settings, input, data));
+    F.push_back(new Approximator("net", _set, input, data));
     vector<Uint> nouts{1, nL, nA};
-    Builder build = F[0]->buildFromSettings(settings, nouts);
+    Builder build = F[0]->buildFromSettings(_set, nouts);
     F[0]->initializeNetwork(build);
   }
 };
@@ -167,7 +167,7 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     return NEXPERTS*(1 +2*aI->dim);
   }
 
-  RACER_experts(Environment*const _env, Settings& settings) :
+  RACER_experts(Environment*const _env, Settings& _set) :
   RACER(_env, settings, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
   {
     printf("Mixture-of-experts RACER: Built network with outputs: %s %s\n",

@@ -47,7 +47,7 @@ public:
   void sortSequences();
   void insertBufferedSequences();
   void push_back(const int & agentId);
-  void push_back_seq(const int & agentId);
+  void push_back_sequential(const int & agentId);
 
   MemoryBuffer(Environment*const env, Settings & settings);
 
@@ -109,27 +109,6 @@ public:
     for(int i=agentOne; i<agentEnd; i++) if(inProgress[i]->ndata()) push_back(i);
   }
 
-  inline int sample(const int thrID)
-  {
-    #ifndef importanceSampling
-      if(inds.size() == 0) return -1;
-      const Uint ind = inds.back();
-      inds.pop_back();
-    #else
-      const Uint ind = (*dist)(generators[thrID]);
-    #endif
-    return ind;
-  }
-
-  // not a good way to sample: biased in favor of short sequences
-  inline void sample_emergency(Uint& seq, Uint& obs, const int thrID)
-  {
-    std::uniform_int_distribution<int> distSeq(0, nSequences-1);
-    seq = distSeq(generators[thrID]);
-    std::uniform_int_distribution<int> distObs(0, Set[seq]->ndata()-1);
-    obs = distObs(generators[thrID]);
-  }
-
   void add_action(const Agent& a, vector<Real> pol = vector<Real>()) const;
   void terminate_seq(const Agent&a);
   int add_state(const Agent&a);
@@ -144,17 +123,15 @@ public:
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut);
   void restart();
 
-  Uint sampleSequences(vector<Uint>& seq);
-  Uint sampleTransitions(vector<Uint>& seq, vector<Uint>& trans);
-
+  void sampleTransition(Uint& seq, Uint& obs, const int thrID);
+  void sampleSequence(Uint& seq, const int thrID);
   void indexToSample(const int nSample, Uint& seq, Uint& obs) const;
 
-  inline bool requestUpdateSamples() const
-  {
-    //three cases:
+  inline bool requestUpdateSamples() const {
+    //2 cases:
     // if i have buffered transitions to add to dataset
     // if my desired dataset size is less than what i have
-    return inds.size()<2*batchSize || Buffered.size() || adapt_TotSeqNum<Set.size();
+    return Buffered.size() || adapt_TotSeqNum<Set.size();
   }
 
   inline Uint readNTransitions() const
@@ -232,16 +209,6 @@ public:
       }
       assert(cntSamp==nTransitions);
       assert(Set.size()==nSequences);
-    #endif
-  }
-
-  inline void shuffle_samples()
-  {
-    #ifndef importanceSampling
-    const Uint ndata = (bSampleSeq) ? nSequences : nTransitions;
-    inds.resize(ndata);
-    std::iota(inds.begin(), inds.end(), 0);
-    __gnu_parallel::random_shuffle(inds.begin(), inds.end(), *(gen));
     #endif
   }
 };

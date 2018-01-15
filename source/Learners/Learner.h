@@ -48,6 +48,7 @@ public:
   Profiler* profiler_ext = nullptr;
   int& nTasks;
   string learner_name;
+  Settings& settings;
 
   Learner(Environment*const env, Settings & settings);
 
@@ -91,6 +92,7 @@ public:
   virtual void Train(const Uint seq, const Uint samp, const Uint thrID) const=0;
 
   virtual void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const;
+  virtual bool predefinedNetwork(Builder & input_net);
   //mass-handing of unfinished sequences from master
   void clearFailedSim(const int agentOne, const int agentEnd);
   void pushBackEndedSim(const int agentOne, const int agentEnd);

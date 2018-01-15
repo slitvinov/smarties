@@ -126,9 +126,9 @@ protected:
   }
 
 public:
-  GAE(Environment*const _env, Settings& sett, vector<Uint> pol_outs) :
-    Learner_onPolicy(_env, sett), lambda(sett.lambda),
-    DKL_target(sett.klDivConstraint), pol_outputs(pol_outs),
+  GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
+    Learner_onPolicy(_env, _set), lambda(_set.lambda),
+    DKL_target(_set.klDivConstraint), pol_outputs(pol_outs),
     pol_indices(count_indices(pol_outs)) { }
 
   //called by scheduler:
@@ -191,18 +191,18 @@ class GAE_cont : public GAE<Gaussian_policy, vector<Real> >
     return 2*aI->dim;
   }
 
-  GAE_cont(Environment*const _env, Settings & settings) :
-  GAE(_env, settings, count_pol_outputs(&_env->aI))
+  GAE_cont(Environment*const _env, Settings & _set) :
+  GAE(_env, _set, count_pol_outputs(&_env->aI))
   {
     printf("Continuous-action GAE\n");
-    F.push_back(new Approximator("policy", settings, input, data));
-    F.push_back(new Approximator("value", settings, input, data));
+    F.push_back(new Approximator("policy", _set, input, data));
+    F.push_back(new Approximator("value", _set, input, data));
     #ifndef simpleSigma
-      Builder build_pol = F[0]->buildFromSettings(settings, {2*aInfo.dim});
+      Builder build_pol = F[0]->buildFromSettings(_set, {2*aInfo.dim});
     #else
-      Builder build_pol = F[0]->buildFromSettings(settings,   {aInfo.dim});
+      Builder build_pol = F[0]->buildFromSettings(_set,   {aInfo.dim});
     #endif
-    Builder build_val = F[1]->buildFromSettings(settings, {1} );
+    Builder build_val = F[1]->buildFromSettings(_set, {1} );
 
     #ifdef simpleSigma //add stddev layer
       build_pol.addParamLayer(aInfo.dim, "Linear", -2*std::log(greedyEps));
@@ -233,14 +233,14 @@ class GAE_disc : public GAE<Discrete_policy, Uint>
   }
 
  public:
-  GAE_disc(Environment*const _env, Settings& settings) :
-  GAE(_env, settings, count_pol_outputs(&_env->aI))
+  GAE_disc(Environment*const _env, Settings& _set) :
+  GAE(_env, _set, count_pol_outputs(&_env->aI))
   {
     printf("Discrete-action GAE\n");
-    F.push_back(new Approximator("policy", settings, input, data));
-    F.push_back(new Approximator("value", settings, input, data));
-    Builder build_pol = F[0]->buildFromSettings(settings, aInfo.maxLabel);
-    Builder build_val = F[1]->buildFromSettings(settings, 1 );
+    F.push_back(new Approximator("policy", _set, input, data));
+    F.push_back(new Approximator("value", _set, input, data));
+    Builder build_pol = F[0]->buildFromSettings(_set, aInfo.maxLabel);
+    Builder build_val = F[1]->buildFromSettings(_set, 1 );
 
     build_pol.addParamLayer(1, "Exp", 1); //add klDiv penalty coefficient layer
 

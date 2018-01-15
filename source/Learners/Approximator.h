@@ -34,7 +34,7 @@ struct Approximator
 
   mutable vector<int> error_placements, first_sample;
   mutable Uint nAddedGradients=0, nReducedGradients=0;
-
+  Uint extraAlloc = 0;
   //thread safe memory for prediction with current weights:
   mutable vector<vector<Activation*>> series;
   //thread safe  memory for prediction with target weights. Rules are that
@@ -54,24 +54,25 @@ struct Approximator
 
   void initializeNetwork(Builder& build);
   void allocMorePerThread(const Uint nAlloc);
-  
-  void prepare_opc(const Sequence*const traj, const Uint samp,
-      const Uint thrID) const;
 
-  void prepare_seq(const Sequence*const traj, const Uint thrID) const;
+  void prepare_opc(const Sequence*const traj, const Uint samp,
+      const Uint thrID, const Uint nSamples = 1) const;
+
+  void prepare_seq(const Sequence*const traj, const Uint thrID,
+    const Uint nSamples = 1) const;
 
   void prepare_one(const Sequence*const traj, const Uint samp,
-      const Uint thrID) const;
+      const Uint thrID, const Uint nSamples = 1) const;
 
   vector<Real> forward(const Sequence* const traj, const Uint samp,
     const Uint thrID, const PARAMS USE_WEIGHTS, const PARAMS USE_ACT,
-    const int overwrite) const;
+    const Uint iSample, const int overwrite) const;
 
   template <PARAMS USE_WEIGHTS=CUR, PARAMS USE_ACT=USE_WEIGHTS, int overwrite=0>
   inline vector<Real> forward(const Sequence* const traj, const Uint samp,
-      const Uint thrID) const
+      const Uint thrID, const Uint iSample = 0) const
   {
-    return forward(traj, samp, thrID, USE_WEIGHTS, USE_ACT, overwrite);
+    return forward(traj, samp, thrID, USE_WEIGHTS, USE_ACT, iSample, overwrite);
   }
 
 
@@ -123,12 +124,8 @@ struct Approximator
     return act[mapTime2Ind(samp, thrID)]->getOutput();
   }
 
-  inline void backward(vector<Real> error, const Uint seq, const Uint samp,
-      const Uint thrID) const
-  {
-    return backward(error, samp, thrID);
-  }
-  void backward(vector<Real> error, const Uint samp, const Uint thrID) const;
+  void backward(vector<Real> error, const Uint samp, const Uint thrID,
+    const Uint iSample = 0) const;
 
   void prepareUpdate();
   void applyUpdate();
@@ -180,12 +177,13 @@ struct Aggregator
   void prepare(const RELAY SET, const Uint thrID) const;
 
   void prepare_opc(const Sequence*const traj, const Uint samp,
-      const Uint thrID) const;
+      const Uint thrID, const RELAY SET = VEC) const;
 
-  void prepare_seq(const Sequence*const traj, const Uint thrID) const;
+  void prepare_seq(const Sequence*const traj, const Uint thrID,
+    const RELAY SET = VEC) const;
 
   void prepare_one(const Sequence*const traj, const Uint samp,
-      const Uint thrID) const;
+      const Uint thrID, const RELAY SET = VEC) const;
 
   void set(const vector<Real> vec,const Uint samp,const Uint thrID) const;
 

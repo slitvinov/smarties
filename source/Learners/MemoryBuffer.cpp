@@ -173,7 +173,7 @@ void MemoryBuffer::push_back(const int & agentId)
 }
 
 // Transfer a completed trajectory from the `inProgress` buffer to the data set
-void MemoryBuffer::push_back_seq(const int & agentId)
+void MemoryBuffer::push_back_sequential(const int & agentId)
 {
   if(inProgress[agentId]->tuples.size() > minSeqLen ) {
     lock_guard<mutex> lock(dataset_mutex);
@@ -230,7 +230,7 @@ void MemoryBuffer::insertBufferedSequences()
   }
 
   #ifndef RESORT_SEQS
-  if(Set.size() > adapt_TotSeqNum) 
+  if(Set.size() > adapt_TotSeqNum)
   #endif
     sortSequences();
 
@@ -330,10 +330,6 @@ Uint MemoryBuffer::prune(const Real maxFrac, const Real CmaxRho)
       std::swap(Set[i], Set.back());
       popBackSequence();
     }
-
-  // If pruned, only safe thing is to shuffle the samples:
-  if(ret) shuffle_samples();
-  //printf("pruned %u\n",ret);
   return ret;
 }
 
@@ -379,9 +375,6 @@ Real MemoryBuffer::prune2(const Real CmaxRho, const Uint maxN)
   assert(_ID>=0 && cntN == nTransitions);
   minInd = _ID;
   nPruned += nB4-Set.size();
-  // If pruned, only safe thing is to shuffle the samples:
-  if(nB4>Set.size()) shuffle_samples();
-
   return nOffPol;
 }
 
@@ -409,7 +402,7 @@ Real MemoryBuffer::prune3(const Real CmaxRho, const Uint maxN)
   Uint cntN = 0;
   Real nOffPol = 0;
 
-  Uint i = 0; 
+  Uint i = 0;
   for(i=0; i < Set.size(); i++)
     if(cntN<maxN) {
       cntN += Set[i]->ndata();
@@ -420,9 +413,6 @@ Real MemoryBuffer::prune3(const Real CmaxRho, const Uint maxN)
   assert(cntN == nTransitions);
   minInd = Set.back()->ID;
   nPruned += nB4-Set.size();
-  // If pruned, only safe thing is to shuffle the samples:
-  if(nB4>Set.size()) shuffle_samples();
-
   return nOffPol;
 }
 
@@ -518,9 +508,9 @@ void MemoryBuffer::restart()
       _agents[0]->update(info, state, reward);
       add_state(*_agents[0]);
       inProgress[0]->add_action(action, policy);
-      if(info == 2) push_back_seq(0);
+      if(info == 2) push_back_sequential(0);
     }
-    if(_agents[0]->getStatus() not_eq 2) push_back_seq(0); //(agentID is 0)
+    if(_agents[0]->getStatus() not_eq 2) push_back_sequential(0); //(agentID is 0)
     fclose(pFile); free(buf);
     agentID++;
   }
@@ -531,40 +521,25 @@ void MemoryBuffer::restart()
 }
 
 // number of returned samples depends on size of seq! (== to that of trans)
-Uint MemoryBuffer::sampleTransitions(vector<Uint>& seq, vector<Uint>& trans)
+void MemoryBuffer::sampleTransition(Uint& seq, Uint& obs, const int thrID)
 {
-  const int thrID = omp_get_thread_num();
-  const Uint batch_size = seq.size(); assert(trans.size() == batch_size);
-  for (Uint i=0; i<batch_size; i++) {
-    const int ind = sample(thrID);
-    if(ind<0) die("not enough data");
-    seq[i] = ind;
-  }
-
-  #pragma omp parallel for
-  for (Uint i=0; i<batch_size; i++) // seq[i] stores random obs id
-    indexToSample(seq[i], seq[i], trans[i]); 
-  // now seq[i] stored seq id!
-  return batch_size; //always add one grad per transition
+  #ifndef importanceSampling
+    std::uniform_int_distribution<int> distObs(0, nTransitions-1);
+    const Uint ind = distObs(generators[thrID]);
+  #else
+    const Uint ind = (*dist)(generators[thrID]);
+  #endif
+  indexToSample(ind, seq, obs);
 }
 
-Uint MemoryBuffer::sampleSequences(vector<Uint>& seq)
+void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
 {
-  const int thrID = omp_get_thread_num();
-  Uint batch_size = seq.size(), _nAddedGradients = 0;
-  for (Uint i=0; i<batch_size; i++) {
-    const int ind = sample(thrID);
-    if(ind<0) die("not enough data");
-    seq[i]  = ind;
-    _nAddedGradients += Set[ind]->ndata();
-  }
-  //sort them such that longer ones are started first, reducing overhead
-  const auto compare = [this] (Uint a, Uint b) {
-    return Set[a]->tuples.size() < Set[b]->tuples.size();
-  };
-  std::sort(seq.begin(), seq.end(), compare);
-  assert( Set[seq.front()]->ndata() <= Set[seq.back()]->ndata() );
-  return _nAddedGradients;
+  #ifndef importanceSampling
+    std::uniform_int_distribution<int> distSeq(0, nSequences-1);
+    seq = distSeq(generators[thrID]);
+  #else
+    seq = (*dist)(generators[thrID]);
+  #endif
 }
 
 void MemoryBuffer::indexToSample(const int nSample, Uint& seq, Uint& obs) const

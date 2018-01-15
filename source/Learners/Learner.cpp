@@ -8,6 +8,7 @@
  */
 
 #include "Learner.h"
+#include "../Network/Builder.h"
 #include <chrono>
 
 Learner::Learner(Environment*const _env, Settings & _s) :
@@ -17,7 +18,7 @@ totNumSteps(_s.totNumSteps), nThreads(_s.nThreads), nSlaves(_s.nSlaves),
 policyVecDim(_s.policyVecDim), greedyEps(_s.greedyEps), epsAnneal(_s.epsAnneal),
 gamma(_s.gamma), learn_rank(_s.learner_rank), learn_size(_s.learner_size),
 aInfo(env->aI), sInfo(env->sI), generators(_s.generators), Vstats(nThreads),
-nTasks(_s.global_tasking_counter)
+nTasks(_s.global_tasking_counter), settings(_s)
 {
   assert(nThreads>1);
   if(bSampleSequences) printf("Sampling sequences.\n");
@@ -26,10 +27,16 @@ nTasks(_s.global_tasking_counter)
   input = new Encapsulator("input", _s, data);
   profiler->stop_start("SLP");
 
-  Network* _net = nullptr;
-  Optimizer* _opt = nullptr;
-  env->predefinedNetwork(_net, _opt);
-  if(_net not_eq nullptr) input->initializeNetwork(_net, _opt);
+  bool builder_used = false;
+  Builder input_build(_s);
+  input_build.addInput( input->nOutputs() );
+  builder_used = builder_used || env->predefinedNetwork(input_build);
+  builder_used = builder_used || predefinedNetwork(input_build);
+  if(builder_used) {
+    Network* net = input_build.build();
+    Optimizer* opt = input_build.opt;
+    input->initializeNetwork(net, opt);
+  }
 }
 
 void Learner::clearFailedSim(const int agentOne, const int agentEnd)
@@ -121,5 +128,10 @@ bool Learner::slaveHasUnfinishedSeqs(const int slave) const
   const Uint nAgentsPerSlave = env->nAgentsPerRank;
   for(Uint i=slave*nAgentsPerSlave; i<(slave+1)*nAgentsPerSlave; i++)
     if(data->inProgress[i]->tuples.size()) return true;
+  return false;
+}
+
+bool Learner::predefinedNetwork(Builder & input_net)
+{
   return false;
 }

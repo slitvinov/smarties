@@ -46,10 +46,9 @@ inline vector<Real> weightSum2Grads(const vector<Real>& f,
 }
 
 inline vector<Real> trust_region_update(const vector<Real>& grad,
-  const vector<Real>& trust, const Real delta)
+  const vector<Real>& trust, const Uint nA, const Real delta)
 {
   assert(grad.size() == trust.size());
-  const Uint nA = grad.size();
   vector<Real> ret(nA);
   Real dot=0, norm = numeric_limits<Real>::epsilon();
   for (Uint j=0; j<nA; j++) {

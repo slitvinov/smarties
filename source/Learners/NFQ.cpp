@@ -14,11 +14,11 @@
 #include "../Math/Utils.h"
 #include "../Network/Builder.h"
 
-NFQ::NFQ(Environment*const _env, Settings& settings) :
-Learner_offPolicy(_env, settings)
+NFQ::NFQ(Environment*const _env, Settings& _set) :
+Learner_offPolicy(_env, _set)
 {
-  F.push_back(new Approximator("Q", settings, input, data));
-  Builder build_pol = F[0]->buildFromSettings(settings, env->aI.maxLabel);
+  F.push_back(new Approximator("Q", _set, input, data));
+  Builder build_pol = F[0]->buildFromSettings(_set, env->aI.maxLabel);
   F[0]->initializeNetwork(build_pol);
 }
 

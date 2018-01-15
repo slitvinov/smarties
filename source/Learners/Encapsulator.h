@@ -124,7 +124,7 @@ struct Encapsulator
     assert(act[ind]->written == true);
     //ind+1 because we use c-style for loops in other places:
     error_placements[thrID] = std::max(ind+1, error_placements[thrID]);
-    act[ind]->setOutputDelta(error);
+    act[ind]->addOutputDelta(error);
   }
 
   void prepareUpdate()

@@ -15,26 +15,23 @@ AtariEnvironment::AtariEnvironment(Settings& _sett): Environment(_sett)
   printf("AtariEnvironment.\n");
 }
 
-void AtariEnvironment::predefinedNetwork(Network* &net, Optimizer* &opt) const
+bool AtariEnvironment::predefinedNetwork(Builder & input_net) const
 {
-  assert(net == nullptr && opt == nullptr);
-  Builder build(settings);
-  build.addInput( 84 * 84 * 4 );
+  assert(input_net.nInputs);
   // CNN is entirely templated for speed!
-  build.addConv2d<PRelu, //nonlineariy
+  input_net.addConv2d<PRelu, //nonlineariy
                   84, 84, 4,  // size of iunput x, y, c
                   8, 8, 32,   // size of kernel x, y, c
                   4, 4>();    // size of stride x, y
 
-  build.addConv2d<PRelu, //nonlineariy
+  input_net.addConv2d<PRelu, //nonlineariy
                   20, 20, 32, // size of iunput x, y, c
                   4, 4, 64,   // size of kernel x, y, c
                   2, 2>();    // size of stride x, y
 
-  build.addConv2d<PRelu, //nonlineariy
+  input_net.addConv2d<PRelu, //nonlineariy
                   9, 9, 64,   // size of iunput x, y, c
                   3, 3, 64,   // size of kernel x, y, c
-                  1, 1>();    // size of stride x, y
-  net = build.build();
-  opt = build.opt;
+                  1, 1>(true);    // size of stride x, y
+  return true;
 }

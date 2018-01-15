@@ -14,7 +14,7 @@ nEpochs(_s.obsPerStep * _s.batchSize) { }
 // nHorizon is number of obs in buffer during training
 // steps per epoch = nEpochs * nHorizon / batchSize
 // obs per step = nHorizon / (steps per epoch)
-// this leads to formula used to compute nEpochs 
+// this leads to formula used to compute nEpochs
 
 void Learner_onPolicy::prepareData()
 {
@@ -48,31 +48,27 @@ int Learner_onPolicy::spawnTrainTasks()
 {
   if( updateComplete || cntHorizon < nHorizon  || not bTrain )
     return 0;
-  data->shuffle_samples();
   waitingForData = false;
   updateComplete = false;
   updatePrepared = true;
 
-  vector<Uint> sequences(batchSize), transitions(batchSize);
-  nAddedGradients = data->sampleTransitions(sequences, transitions);
-
   #pragma omp parallel for schedule(dynamic)
   for (Uint i=0; i<batchSize; i++)
   {
-    const Uint seq = sequences.back(); sequences.pop_back();
-    const Uint obs = transitions.back(); transitions.pop_back();
     addToNTasks(1);
-    #pragma omp task firstprivate(seq, obs)
+    #pragma omp task
     {
+      Uint seq, obs;
       const int thrID = omp_get_thread_num();
       if(thrID==0) profiler_ext->stop_start("WORK");
+      data->sampleTransition(seq, obs, thrID);
       Train(seq, obs, thrID);
       if(thrID==0) profiler_ext->stop_start("COMM");
-      addToNTasks(-1);
       #pragma omp atomic
       taskCounter++;
       //printf("Thread %d done %u %u\n",thrID,seq,obs); fflush(0);
       if(taskCounter >= batchSize) updateComplete = true;
+      addToNTasks(-1);
     }
   }
   return 0;

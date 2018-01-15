@@ -16,8 +16,7 @@ class Learner_offPolicy: public Learner
 protected:
   const Uint nObsPerTraining;
   const Real obsPerStep_orig;
-  vector<Uint> sequences, transitions;
-  Uint taskCounter = batchSize, nData_b4PolUpdates = 0;
+  Uint taskCounter = batchSize, nData_b4PolUpdates = 0, nToSpawn = 0;
   unsigned long nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig, nStoredSeqs_last = 0;
 
@@ -41,15 +40,8 @@ public:
 
   inline void resample(const Uint thrID) const // TODO resample sequence
   {
-    int newSample = -1;
-    #pragma omp critical
-    newSample = data->sample(thrID);
-    
     Uint sequence, transition;
-    if(newSample >= 0) // process the other sample
-      data->indexToSample(newSample, sequence, transition);
-    else //we ran out of pre-shuffled stuff: pick one at random
-      data->sample_emergency(sequence, transition, thrID);
+    data->sampleTransition(sequence, transition, thrID);
     return Train(sequence, transition, thrID);
   }
 

@@ -12,13 +12,13 @@
 #include "../Network/Builder.h"
 #include "DPG.h"
 
-DPG::DPG(Environment*const _env, Settings& sett) : Learner_offPolicy(_env, sett)
+DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
 {
-  F.push_back(new Approximator("policy", sett, input, data));
-  relay = new Aggregator(sett, data, _env->aI.dim, F[0]);
-  F.push_back(new Approximator("value", sett, input, data, relay));
-  Builder build_pol = F[0]->buildFromSettings(sett, _env->aI.dim);
-  Builder build_val = F[1]->buildFromSettings(sett, 1 );
+  F.push_back(new Approximator("policy", _set, input, data));
+  relay = new Aggregator(_set, data, _env->aI.dim, F[0]);
+  F.push_back(new Approximator("value", _set, input, data, relay));
+  Builder build_pol = F[0]->buildFromSettings(_set, _env->aI.dim);
+  Builder build_val = F[1]->buildFromSettings(_set, 1 );
   F[0]->initializeNetwork(build_pol);
   F[1]->initializeNetwork(build_val);
 }

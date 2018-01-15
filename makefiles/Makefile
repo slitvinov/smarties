@@ -14,7 +14,7 @@ sortseq ?= off
 mpi_lib ?= default
 
 CPPFLAGS= -std=c++11 -D__Smarties_ -fopenmp
-LIBS= -fopenmp -lstdc++ -lm -dynamic -ldl -lc -lgomp -lopenblas
+LIBS= -fopenmp -lstdc++ -lm -dynamic -ldl -lc -lgomp
 
 ifeq ($(UNAME_S),Darwin)
 include make.macos
@@ -96,7 +96,7 @@ CPPFLAGS += -DNDEBUG -O3 -ffast-math
 endif
 
 CPPFLAGS+= -fstrict-aliasing -march=native -mtune=native
-CPPFLAGS+= -ftree-vectorize #-ftree-vectorizer-verbose=2 #-DNDEBUG
+#CPPFLAGS+= -ftree-vectorize #-ftree-vectorizer-verbose=2 #-DNDEBUG
 CPPFLAGS+= -fmerge-all-constants #-fassociative-math
 #CPPFLAGS+= -funsafe-loop-optimizations
 #CPPFLAGS+= -fprofile-use

@@ -124,10 +124,11 @@ Environment::~Environment()
       _dispose_object(trash);
 }
 
-void Environment::predefinedNetwork(Network* &net, Optimizer* &opt) const
+bool Environment::predefinedNetwork(Builder & input_net) const
 {
   // this function is to be filled by child classes
   // to implement convolutional models
+  return false;
 }
 
 void Environment::commonSetup()

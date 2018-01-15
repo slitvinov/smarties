@@ -244,17 +244,17 @@ class RACER : public Learner_offPolicy
   }
 
  public:
-  RACER(Environment*const _env, Settings& sett, vector<Uint> net_outs,
+  RACER(Environment*const _env, Settings& _set, vector<Uint> net_outs,
     vector<Uint> pol_inds, vector<Uint> adv_inds) :
-    Learner_offPolicy(_env, sett), CmaxPol(sett.impWeight),
-    DKL_param(sett.klDivConstraint), net_outputs(net_outs),
+    Learner_offPolicy(_env, _set), CmaxPol(_set.impWeight),
+    DKL_param(_set.klDivConstraint), net_outputs(net_outs),
     net_indices(count_indices(net_outs)), pol_start(pol_inds), adv_start(adv_inds)
   {
     printf("RACER starts: v:%u pol:%s adv:%s\n", VsID,
     print(pol_start).c_str(), print(adv_start).c_str());
-    opcInfo = new StatsTracker(4, "racer", sett);
+    opcInfo = new StatsTracker(4, "racer", _set);
     //test();
-    if(sett.maxTotSeqNum < sett.batchSize)  die("maxTotSeqNum < batchSize")
+    if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() { }
 

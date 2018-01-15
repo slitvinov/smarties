@@ -12,7 +12,9 @@
 #ifndef __STDC_VERSION__ //it should never be defined with g++
 #define __STDC_VERSION__ 0
 #endif
+#if 1 //def NDEBUG
 #include "cblas.h"
+#endif
 
 class BaseLayer: public Layer
 {
@@ -113,13 +115,13 @@ class BaseLayer: public Layer
           G[o] += inputs[i] * deltas[o];
         }
       }
-      #if 1
-      cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1, weight, nOut_simd, deltas, 1, 1, errors, 1);
+      #if 1 //def NDEBUG
+        cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1, weight, nOut_simd, deltas, 1, 1, errors, 1);
       #else
-      #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
-      for(Uint o=0; o<nNeurons; o++)
-        for(Uint i=0; i<nInputs;  i++)
-          errors[i] += weight[o +nOut_simd*i] * deltas[o];
+        #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
+        for(Uint o=0; o<nNeurons; o++)
+          for(Uint i=0; i<nInputs;  i++)
+            errors[i] += weight[o +nOut_simd*i] * deltas[o];
       #endif
     }
     if(bRecurrent && prev not_eq nullptr)

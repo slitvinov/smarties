@@ -24,6 +24,7 @@ void Learner_offPolicy::prepareData()
   // then no need to prepare a new update
   if(updatePrepared) return;
 
+  profiler->stop_start("PRE");
   // When is an algorithm not looking for more data and not ready for training?
   // It means that something messed with the transitions, ie by cancelling part
   // of the dataset, and therefore i need to reset how counters advance.
@@ -41,28 +42,14 @@ void Learner_offPolicy::prepareData()
     return;
   }
 
-  if(data->requestUpdateSamples()) {
-  profiler->stop_start("PRE1");
+  if(data->requestUpdateSamples())
     data->updateActiveBuffer(); //update sampling //syncDataStats
-  profiler->stop_start("PRE2");
-    data->shuffle_samples();
-  }
 
-  if(nStep%100==0) {
-    profiler->stop_start("PRE3");
-    data->updateRewardsStats();
-  }
+  if(nStep%100==0) data->updateRewardsStats();
 
   taskCounter = 0;
-  sequences.resize(batchSize);
-  transitions.resize(batchSize);
-
-    profiler->stop_start("PRE4");
-  nAddedGradients = bSampleSequences ? data->sampleSequences(sequences) :
-    data->sampleTransitions(sequences, transitions);
-
   updatePrepared = true;
-
+  nToSpawn = batchSize;
   profiler->stop_start("SLP");
 }
 
@@ -119,28 +106,38 @@ int Learner_offPolicy::spawnTrainTasks()
 {
   if( updateComplete || not updatePrepared ) return 0;
 
-  for (Uint i=0; i<sequences.size(); i++)
+  for (Uint i=0; i<nToSpawn; i++)
   {
-    const Uint seq = sequences.back(); sequences.pop_back();
-    const Uint obs = transitions.back(); transitions.pop_back();
     addToNTasks(1);
-    #pragma omp task firstprivate(seq, obs)
+    #pragma omp task
     {
+      Uint seq, obs;
       const int thrID = omp_get_thread_num();
       //printf("Thread %d doing %u %u\n",thrID,seq,obs); fflush(0);
       if(thrID == 0) profiler_ext->stop_start("WORK");
 
-      if(bSampleSequences) Train_BPTT(seq, thrID);
-      else                 Train(seq, obs, thrID);
+      if(bSampleSequences) {
+        data->sampleSequence(seq, thrID);
+        Train_BPTT(seq, thrID);
+        #pragma omp atomic
+        nAddedGradients += data->Set[seq]->ndata();
+      }
+      else                 {
+        data->sampleTransition(seq, obs, thrID);
+        Train(seq, obs, thrID);
+        #pragma omp atomic
+        nAddedGradients++;
+      }
 
       if(thrID == 0) profiler_ext->stop_start("COMM");
-      addToNTasks(-1);
       #pragma omp atomic
       taskCounter++;
       //printf("Thread %d done %u %u\n",thrID,seq,obs); fflush(0);
       if(taskCounter >= batchSize) updateComplete = true;
+      addToNTasks(-1);
     }
   }
+  nToSpawn = 0;
   return 0;
 }
 

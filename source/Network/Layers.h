@@ -18,7 +18,8 @@
 class Layer
 {
  public:
-  const Uint size, ID, bOutput;
+  const Uint size, ID;
+  Uint bOutput;
   inline Uint number() const { return ID; }
   inline Uint nOutputs() const { return size; }
 
