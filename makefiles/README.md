@@ -1,7 +1,7 @@
 # Dependencies
 * **Euler** :
   ```
-  module load new modules gcc/6.3.0 open_mpi/2.1.1 binutils/2.25 hwloc/1.11.0
+  module load new modules gcc/6.3.0 mvapich2/2.2 binutils/2.25 hwloc/1.11.0
   ```
 * **Falcon** Have in the bashrc:
 	```
@@ -18,4 +18,10 @@
 	module swap PrgEnv-cray PrgEnv-gnu
 	module load daint-gpu python_virtualenv/15.0.3
 	```
-* **MacOs** Install `mpich` with `gcc`.
+* **MacOs** Install `mpich` with `gcc`. Assuming gcc version 7:  
+    In `~/.profile`:
+    ```
+    export HOMEBREW_CC=gcc-7
+    export HOMEBREW_CXX=g++-7
+    ```
+    Then `brew install mpich --build-from-source`
