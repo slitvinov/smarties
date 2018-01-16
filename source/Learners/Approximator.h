@@ -68,6 +68,7 @@ struct Approximator
     const Uint thrID, const PARAMS USE_WEIGHTS, const PARAMS USE_ACT,
     const Uint iSample, const int overwrite) const;
 
+  // this is templated only to increase clarity when calling the forward op
   template <PARAMS USE_WEIGHTS=CUR, PARAMS USE_ACT=USE_WEIGHTS, int overwrite=0>
   inline vector<Real> forward(const Sequence* const traj, const Uint samp,
       const Uint thrID, const Uint iSample = 0) const

@@ -89,7 +89,7 @@ class ACER : public Learner_offPolicy
       F[1]->backward({0.1*(V_err+Q_err)}, k, thrID);
       F[2]->backward({0.1*Q_err}, k, thrID);
       for(Uint i = 0; i < nAexpectation; i++)
-        F[2]->backward({-facExpect*Q_err}, k, thrID, i+1);
+        F[2]->backward({-0.1*facExpect*Q_err}, k, thrID, i+1);
       //prepare Q with off policy corrections for next step:
       Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
       Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]);
