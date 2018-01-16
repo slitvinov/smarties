@@ -177,7 +177,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
     Real numOver = 0, opcW = 0, mse = 0;
     for(Uint j=0; j<Set[i]->ndata(); j++) {
       const Real obsOpcW = Set[i]->offPol_weight[j];
-      const Real obsDist = std::max(obsOpcW, 1/obsOpcW);
+      const Real obsDist = max(obsOpcW, 1/obsOpcW);
       assert(obsOpcW > 0 && obsDist >= 1);
       if( obsDist > CmaxRho ) numOver += 1;
       mse += Set[i]->SquaredError[j];

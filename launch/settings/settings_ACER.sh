@@ -14,7 +14,7 @@ SETTINGS+=" --gamma 0.995"
 #SETTINGS+=" --nnl1 32"
 #SETTINGS+=" --nnl2 32"
 SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnl2 64"
 #SETTINGS+=" --nnl1 128"
 #SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
@@ -42,9 +42,8 @@ SETTINGS+=" --epsAnneal 1000"
 SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 1000000"
 SETTINGS+=" --bSampleSequences 1"
-SETTINGS+=" --maxTotSeqNum 100000"
-SETTINGS+=" --maxTotObsNum 131072"
-SETTINGS+=" --obsPerStep 1" # equivalent to 10 epoch with BS 64
+SETTINGS+=" --maxTotObsNum 262144"
+SETTINGS+=" --obsPerStep 6.4" # equivalent to 10 epoch with BS 64
 # 4096 / 64 * 10 = 640 steps per epoch
 # 4096 / 640 = 6.4 obs per step
 
@@ -52,3 +51,4 @@ SETTINGS+=" --obsPerStep 1" # equivalent to 10 epoch with BS 64
 SETTINGS+=" --batchSize 128"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0003"
+SETTINGS+=" --targetDelay 0.05"

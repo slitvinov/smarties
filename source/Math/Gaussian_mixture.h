@@ -16,7 +16,7 @@ struct Gaussian_mixture
 public:
   const ActionInfo* const aInfo;
   const Uint iExperts, iMeans, iPrecs, nA, nP;
-  const vector<Real>& netOutputs;
+  const vector<Real> netOutputs;
   const array<Real, nExperts> unnorm;
   const Real normalization;
   const array<Real, nExperts> experts;

@@ -24,7 +24,7 @@ class ACER : public Learner_offPolicy
   Aggregator* relay = nullptr;
 
   inline Policy_t prepare_policy(const vector<Real>& out) const {
-    return Policy_t({0}, &aInfo, out);
+    return Policy_t({0, nA}, &aInfo, out);
   }
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override
@@ -86,10 +86,10 @@ class ACER : public Learner_offPolicy
       const vector<Real> pGrad = policyGradient(traj->tuples[k], policies[k],
         policies_tgt[k], A_OPC, APol, policy_samples[k]);
       F[0]->backward(pGrad,   k, thrID);
-      F[1]->backward({0.1*(V_err+Q_err)}, k, thrID);
-      F[2]->backward({0.1*Q_err}, k, thrID);
+      F[1]->backward({0.01*(V_err+Q_err)}, k, thrID);
+      F[2]->backward({0.01*Q_err}, k, thrID);
       for(Uint i = 0; i < nAexpectation; i++)
-        F[2]->backward({-0.1*facExpect*Q_err}, k, thrID, i+1);
+        F[2]->backward({-0.01*facExpect*Q_err}, k, thrID, i+1);
       //prepare Q with off policy corrections for next step:
       Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
       Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]);
@@ -122,9 +122,10 @@ class ACER : public Learner_offPolicy
     const Real gain2 = APol*std::max((Real) 0, 1-5/rho_pol);
     const vector<Real> gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
     const vector<Real> gradAcer_2 = POL.policy_grad(pol_samp,    gain2);
-    const vector<Real> penalization = POL.div_kl_opp_grad(&TGT, -1);
-    const vector<Real> gradAcer = sum2Grads(gradAcer_1, gradAcer_2);
-    return trust_region_update(gradAcer, penalization, nA, 1);
+    const vector<Real> penal = POL.div_kl_opp_grad(&TGT, -1);
+    const vector<Real> grad = sum2Grads(gradAcer_1, gradAcer_2);
+    const vector<Real> trust = trust_region_update(grad, penal, 2*nA, 1);
+    return POL.finalize_grad(trust);
   }
 
  public:
@@ -147,6 +148,7 @@ class ACER : public Learner_offPolicy
     F.push_back(new Approximator("advantage", _set, input, data, relay));
 
     Builder build_pol = F[0]->buildFromSettings(_set, nA);
+    build_pol.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
     Builder build_val = F[1]->buildFromSettings(_set, 1 ); // V
     Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A
 

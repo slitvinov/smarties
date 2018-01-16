@@ -13,7 +13,7 @@
 struct Quadratic_term
 {
   const Uint start_matrix, start_mean, nA, nL;
-  const vector<Real>& netOutputs;
+  const vector<Real> netOutputs;
   const vector<Real> L, mean, matrix;
   static inline Uint compute_nL(const ActionInfo* const aI)
   {

@@ -15,7 +15,7 @@ struct Mixture_advantage
 {
 public:
   const Uint start_matrix, nA, nL;
-  const vector<Real>& netOutputs;
+  const vector<Real> netOutputs;
   const array<vector<Real>, nExperts> L, matrix;
   const ActionInfo* const aInfo;
   const Gaussian_mixture<nExperts>* const policy;

@@ -14,7 +14,7 @@ struct Discrete_policy
 {
   const ActionInfo* const aInfo;
   const Uint start_prob, nA;
-  const vector<Real>& netOutputs;
+  const vector<Real> netOutputs;
   const vector<Real> unnorm;
   const Real normalization;
   const vector<Real> probs;

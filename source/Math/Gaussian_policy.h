@@ -14,7 +14,7 @@ struct Gaussian_policy
 {
   const ActionInfo* const aInfo;
   const Uint start_mean, start_prec, nA;
-  const vector<Real>& netOutputs;
+  const vector<Real> netOutputs;
   const vector<Real> mean, precision, variance, stdev;
 
   vector<Real> sampAct;
@@ -282,6 +282,26 @@ public:
       //  netGradient[iS] = min(grad[j+nA], ACER_MAX_PREC-precision[j]) * diff;
       //#endif
     }
+  }
+ 
+  inline vector<Real> finalize_grad(const vector<Real>&grad) const
+  {
+    vector<Real> ret = grad; 
+    for (Uint j=0; j<nA; j++) 
+    if(aInfo->bounded[j]) {
+      if(mean[j]> BOUNDACT_MAX && grad[j]>0) ret[j]=0;
+      else
+      if(mean[j]<-BOUNDACT_MAX && grad[j]<0) ret[j]=0;
+    }
+
+    if(start_prec != 0)
+    for (Uint j=0; j<nA; j++) {
+      const Uint iS = start_prec+j;
+      const Real diff = precision_func_diff(netOutputs[iS]);
+      if(precision[j]>ACER_MAX_PREC && grad[j+nA]>0) ret[j+nA] = 0;
+      else ret[j+nA] = grad[j+nA] * diff;
+    }
+    return ret;
   }
 
   inline void finalize_grad_unb(const vector<Real>&grad, vector<Real>&netGradient) const

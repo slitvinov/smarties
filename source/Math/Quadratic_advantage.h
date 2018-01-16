@@ -141,7 +141,7 @@ struct Diagonal_advantage
 {
   const ActionInfo* const aInfo;
   const Uint start_matrix, nA;
-  const vector<Real>& netOutputs;
+  const vector<Real> netOutputs;
   const vector<Real> mean, quadratic_coefs_pos, quadratic_coefs_neg;
   const vector<Real> linear_coefs_pos, linear_coefs_neg;
   const Gaussian_policy* const policy;

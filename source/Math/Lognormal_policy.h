@@ -13,7 +13,7 @@
 struct Lognormal_policy
 {
   const Uint start_mean, start_std, nA;
-  const vector<Real>& netOutputs;
+  const vector<Real> netOutputs;
   const vector<Real> mean, stdev;
 
   Lognormal_policy(Uint startM, Uint startS, Uint _nA, const vector<Real>&out) : start_mean(startM), start_std(startS), nA(_nA), netOutputs(out), mean(extract_mean()), stdev(extract_stdev()) {}

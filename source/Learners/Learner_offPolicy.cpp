@@ -101,7 +101,7 @@ int Learner_offPolicy::spawnTrainTasks()
   if(bSampleSequences && data->nSequences<nToSpawn)
     die("Parameter maxTotObsNum is too low for given problem");
     
-  vector<Uint> samp_seq = data->sampleSequences(nToSpawn);
+  vector<Uint> samp_seq = bSampleSequences? data->sampleSequences(nToSpawn) : vector<Uint>(nToSpawn);
   for (Uint i=0; i<nToSpawn; i++)
   {
     addToNTasks(1);
@@ -112,7 +112,6 @@ int Learner_offPolicy::spawnTrainTasks()
       if(thrID == 0) profiler_ext->stop_start("WORK");
 
       if(bSampleSequences) {
-        data->sampleSequence(seq, thrID);
         Train_BPTT(seq, thrID);
         #pragma omp atomic
         nAddedGradients += data->Set[seq]->ndata();

@@ -37,7 +37,7 @@ struct Mixture_advantage
   }
 
   const Uint start_matrix, start_coefs, nA, nL;
-  const vector<Real>& netOutputs;
+  const vector<Real> netOutputs;
   const array<Real, nExperts> coef;
   const array<vector<Real>, nExperts> matrix;
   const ActionInfo* const aInfo;
