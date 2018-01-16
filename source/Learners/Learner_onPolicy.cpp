@@ -10,7 +10,7 @@
 #include "Learner_onPolicy.h"
 
 Learner_onPolicy::Learner_onPolicy(Environment*const _env, Settings&_s): Learner(_env, _s), nHorizon(_s.maxTotObsNum),
-nEpochs(_s.obsPerStep * _s.batchSize) {
+nEpochs(_s.batchSize/_s.obsPerStep) {
   cout << "nHorizon:"<<nHorizon<<endl;
   cout << "nEpochs:"<<nEpochs<<endl;
 }
@@ -70,7 +70,7 @@ int Learner_onPolicy::spawnTrainTasks()
     }
   }
   updateComplete = true;
-  updatePrepared = false;
+
   return 0;
 }
 

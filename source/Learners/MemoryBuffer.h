@@ -160,7 +160,6 @@ public:
   }
   inline void pushBackSequence(Sequence*const seq)
   {
-    assert(Set.size() < adapt_TotSeqNum);
     Set.push_back(nullptr);
     addSequence(nSequences, seq);
     nSequences++;

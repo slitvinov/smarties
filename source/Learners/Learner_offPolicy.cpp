@@ -146,9 +146,9 @@ void Learner_offPolicy::prepareGradient()
     profiler->stop_start("PRNE");
     //shift data / gradient counters to maintain grad stepping to sample
     // collection ratio prescirbed by obsPerStep
-    const Real stepCounter = nStep+1 - (Real)nStep_last;
+    const Real stepCounter = nStep - (Real)nStep_last;
     nData_last += stepCounter*obsPerStep/learn_size;
-    nStep_last = nStep+1; //actual counter advanced by base class
+    nStep_last = nStep;
     data->prune(CmaxPol, ALGO);
     profiler->stop_start("SLP");
   }
