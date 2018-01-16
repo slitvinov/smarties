@@ -174,11 +174,7 @@ public:
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const long double logW = sampLogPonPolicy - sampLogPBehavior;
     sampImpWeight = std::min((long double) MAX_IMPW, std::exp(logW) );
-    #ifdef RETRACE_TRICK
-    sampRhoWeight = std::exp(logW / std::sqrt(nA));
-    #else
     sampRhoWeight = sampImpWeight;
-    #endif
   }
 
   static inline long double evalBehavior(const vector<Real>& act, const vector<Real>& beta)

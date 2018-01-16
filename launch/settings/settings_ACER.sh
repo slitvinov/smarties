@@ -42,7 +42,8 @@ SETTINGS+=" --epsAnneal 1000"
 SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 1000000"
 SETTINGS+=" --bSampleSequences 1"
-SETTINGS+=" --maxTotObsNum 262144"
+#SETTINGS+=" --maxTotObsNum 262144"
+SETTINGS+=" --maxTotObsNum 131072"
 SETTINGS+=" --obsPerStep 6.4" # equivalent to 10 epoch with BS 64
 # 4096 / 64 * 10 = 640 steps per epoch
 # 4096 / 640 = 6.4 obs per step
@@ -50,5 +51,5 @@ SETTINGS+=" --obsPerStep 6.4" # equivalent to 10 epoch with BS 64
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 128"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0003"
-SETTINGS+=" --targetDelay 0.05"
+SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --targetDelay 0.005"

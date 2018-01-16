@@ -81,15 +81,16 @@ class ACER : public Learner_offPolicy
         APol -= facExpect*advantages[k][2+i];
       }
       const Real A_OPC = Q_OPC - Vstates[k], Q_err = Q_RET - QTheta;
-      const Real W = std::min((Real)1, policies[k].sampRhoWeight);
+      //const Real W = std::min((Real)1, policies[k].sampRhoWeight);
+      const Real W = std::min((Real)1, policies[k].sampImpWeight);
       const Real R = data->standardized_reward(traj, k), V_err = Q_err*W;
       const vector<Real> pGrad = policyGradient(traj->tuples[k], policies[k],
         policies_tgt[k], A_OPC, APol, policy_samples[k]);
       F[0]->backward(pGrad,   k, thrID);
-      F[1]->backward({0.01*(V_err+Q_err)}, k, thrID);
-      F[2]->backward({0.01*Q_err}, k, thrID);
+      F[1]->backward({0.1*(V_err+Q_err)}, k, thrID);
+      F[2]->backward({0.1*Q_err}, k, thrID);
       for(Uint i = 0; i < nAexpectation; i++)
-        F[2]->backward({-0.01*facExpect*Q_err}, k, thrID, i+1);
+        F[2]->backward({-0.1*facExpect*Q_err}, k, thrID, i+1);
       //prepare Q with off policy corrections for next step:
       Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
       Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]);

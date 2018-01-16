@@ -76,11 +76,7 @@ public:
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
     sampImpWeight = std::min(MAX_IMPW, safeExp(logW) );
-    #ifdef RETRACE_TRICK
     sampRhoWeight = std::exp(logW / std::sqrt(nA));
-    #else
-    sampRhoWeight = sampImpWeight;
-    #endif
   }
 
   static inline Real evalBehavior(const vector<Real>& act, const vector<Real>& beta)

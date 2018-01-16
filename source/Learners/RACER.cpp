@@ -53,12 +53,7 @@ class RACER : public Learner_offPolicy
     F[0]->prepare_seq(traj, thrID);
 
     if(thrID==1) profiler->stop_start("FWD");
-    for (int k=0; k<ndata; k++) {
-      F[0]->forward<CUR>(traj, k, thrID);
-      #ifdef ACER_TARGETNET
-        F[0]->forward<TGT>(traj, k, thrID);
-      #endif
-    }
+    for (int k=0; k<ndata; k++) F[0]->forward(traj, k, thrID);
 
     //if partial sequence then compute value of last state (!= R_end)
     assert(traj->ended);
@@ -67,7 +62,7 @@ class RACER : public Learner_offPolicy
     if(thrID==1)  profiler->stop_start("POL");
     for(int k=ndata-1; k>=0; k--)
     {
-      const vector<Real> out_cur = F[0]->get<CUR>(traj, k, thrID);
+      const vector<Real> out_cur = F[0]->get(traj, k, thrID);
       Policy_t pol = prepare_policy(out_cur);
 
       Tuple * const _t = traj->tuples[k];
@@ -182,8 +177,7 @@ class RACER : public Learner_offPolicy
 
     //prepare Q with off policy corrections for next step:
     const Real R = data->standardized_reward(traj, samp);
-    //const Real W = std::min((Real)1, pol_cur.sampImpWeight);
-    const Real W = std::min((Real)1, pol_cur.sampRhoWeight);
+    const Real W = std::min((Real)1, pol_cur.sampImpWeight);
     traj->state_vals[samp] = R +gamma*(W*(Q_RET-A_cur-V_cur) +V_cur);
 
     //bookkeeping:
@@ -202,8 +196,7 @@ class RACER : public Learner_offPolicy
     const Real V_cur = output[VsID], A_cur = adv_cur.computeAdvantage(act);
     //prepare rolled Q with off policy corrections for next step:
     const Real R = data->standardized_reward(traj, samp);
-    //const Real W = std::min((Real)1, pol.sampImpWeight);
-    const Real W = std::min((Real)1, pol.sampRhoWeight);
+    const Real W = std::min((Real)1, pol.sampImpWeight);
     traj->state_vals[samp] = R +gamma*(W*(Q_RET-A_cur-V_cur) +V_cur);
     traj->SquaredError[samp]=min(1/pol.sampImpWeight, pol.sampImpWeight); //*std::fabs(Q_RET-A_hat-V_hat);
   }

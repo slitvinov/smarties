@@ -351,10 +351,22 @@ void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
 
 vector<Uint> MemoryBuffer::sampleSequences(const Uint N)
 {
-  vector<Uint> inds(nSequences);
-  std::iota(inds.begin(), inds.end(), 0);
-  std::shuffle(inds.begin(), inds.end(), generators[0]);
-  return vector<Uint>(&inds[0], &inds[N]);
+  assert(N<=nSequences);
+  vector<Uint> inds;
+  if(N*5<nSequences) {
+    inds.resize(N);
+    for(Uint i=0; i<N; i++) sampleSequence(inds[i], 0);
+  } else { // if N is large, make sure we do not repeat indices
+    inds.resize(nSequences);
+    std::iota(inds.begin(), inds.end(), 0);
+    std::shuffle(inds.begin(), inds.end(), generators[0]);
+    inds = vector<Uint>(&inds[0], &inds[N]);
+  }
+  const auto compare = [&](Uint a, Uint b) {
+    return Set[a]->ndata() < Set[b]->ndata();
+  };
+  std::sort(inds.begin(), inds.end(), compare);
+  return inds;
 }
 
 void MemoryBuffer::indexToSample(const int nSample, Uint& seq, Uint& obs) const
