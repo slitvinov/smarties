@@ -419,7 +419,7 @@ Real MemoryBuffer::prune3(const Real CmaxRho, const Uint maxN)
 void MemoryBuffer::updateImportanceWeights()
 {
   const Uint ndata = bSampleSeq ? nSequences : nTransitions;
-  inds.resize(ndata);
+  vector<Uint> inds(ndata);
   std::iota(inds.begin(), inds.end(), 0);
   vector<Real> errors(ndata), Ps(ndata), Ws(ndata);
 
@@ -540,6 +540,14 @@ void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
   #else
     seq = (*dist)(generators[thrID]);
   #endif
+}
+
+vector<Uint> MemoryBuffer::sampleSequences(const Uint N)
+{
+  vector<Uint> inds(nSequences);
+  std::iota(inds.begin(), inds.end(), 0);
+  std::shuffle(inds.begin(), inds.end(), generators[0]);
+  return vector<Uint>(&inds[0], &inds[N]);
 }
 
 void MemoryBuffer::indexToSample(const int nSample, Uint& seq, Uint& obs) const

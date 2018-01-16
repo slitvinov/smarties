@@ -106,14 +106,14 @@ int Learner_offPolicy::spawnTrainTasks()
 {
   if( updateComplete || not updatePrepared ) return 0;
 
+  vector<Uint> samp_seq = data->sampleSequences(nToSpawn);
   for (Uint i=0; i<nToSpawn; i++)
   {
     addToNTasks(1);
-    #pragma omp task
+    Uint seq = samp_seq[i], obs = -1;
+    #pragma omp task firstprivate(seq, obs)
     {
-      Uint seq, obs;
       const int thrID = omp_get_thread_num();
-      //printf("Thread %d doing %u %u\n",thrID,seq,obs); fflush(0);
       if(thrID == 0) profiler_ext->stop_start("WORK");
 
       if(bSampleSequences) {
@@ -128,7 +128,7 @@ int Learner_offPolicy::spawnTrainTasks()
         #pragma omp atomic
         nAddedGradients++;
       }
-
+      input->gradient(thrID);
       if(thrID == 0) profiler_ext->stop_start("COMM");
       #pragma omp atomic
       taskCounter++;

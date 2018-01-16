@@ -64,6 +64,7 @@ int Learner_onPolicy::spawnTrainTasks()
       data->sampleTransition(seq, obs, thrID);
       Train(seq, obs, thrID);
       if(thrID==0) profiler_ext->stop_start("COMM");
+      input->gradient(thrID);
       #pragma omp atomic
       taskCounter++;
       //printf("Thread %d done %u %u\n",thrID,seq,obs); fflush(0);

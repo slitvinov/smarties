@@ -23,7 +23,6 @@ public:
 
   bool first_pass = true;
   vector<Real> std, mean, invstd;
-  vector<Uint> inds;
   discrete_distribution<Uint> * dist = nullptr;
   //bool bRecurrent;
   const StateInfo sI;
@@ -123,9 +122,10 @@ public:
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut);
   void restart();
 
+  void indexToSample(const int nSample, Uint& seq, Uint& obs) const;
   void sampleTransition(Uint& seq, Uint& obs, const int thrID);
   void sampleSequence(Uint& seq, const int thrID);
-  void indexToSample(const int nSample, Uint& seq, Uint& obs) const;
+  vector<Uint> sampleSequences(const Uint N);
 
   inline bool requestUpdateSamples() const {
     //2 cases:

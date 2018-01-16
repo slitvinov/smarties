@@ -260,6 +260,7 @@ vector<Real> Approximator::getOutput(const vector<Real> inp, const int ind,
   const Activation*const recur = ind? act_cur[ind-1] : nullptr;
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
   const vector<Real> ret = net->predict(inp, recur, act, W);
+  //if(thrID) cout<<"net fwd with inp:"<<print(inp)<<" out:"<<print(ret)<<endl;
   act->written = true;
   return ret;
 }
@@ -329,13 +330,12 @@ void Approximator::gradient(const Uint thrID) const
 
     net->backProp(act, last_error, net->Vgrad[thrID]);
 
-    if(input->net == nullptr) return;
+    if(input->net == nullptr) continue;
 
     for(int i=0; i<last_error; i++) {
-      const vector<Real> grad0 = act[i]->getInputGradient();
-      const Uint inpFeat = input->nOutputs();
-      const vector<Real> inpgrad = vector<Real>(&grad0[0], &grad0[0] +inpFeat);
-      input->backward(inpgrad, first_sample[thrID] + i, thrID);
+      const vector<Real> iG = act[i]->getInputGradient();
+      const vector<Real> inputG = vector<Real>(&iG[0], &iG[input->nOutputs()]);
+      input->backward(inputG, first_sample[thrID] +i, thrID);
     }
   }
   error_placements[thrID] = -1; //to stop additional backprops

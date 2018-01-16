@@ -46,25 +46,22 @@ class ACER : public Learner_offPolicy
 
     if(thrID==1) profiler->stop_start("FWD");
     for(int k=0; k<ndata; k++) {
-      const vector<Real> out = F[0]->forward<CUR>(traj, k, thrID);
-      policies.push_back(prepare_policy(out));
-    }
-    for(int k=0; k<ndata; k++) {
-      const vector<Real> out = F[0]->forward<TGT>(traj, k, thrID);
-      policies_tgt.push_back(prepare_policy(out));
-    }
-    for(int k=0; k<ndata; k++) {
-      const vector<Real> out = F[1]->forward(traj, k, thrID);
-      Vstates[k] = out[0];
-    }
-    for(int k=0; k<ndata; k++) {
-      relay->prepare(ACT, thrID);
+      const vector<Real> outPc = F[0]->forward<CUR>(traj, k, thrID);
+      policies.push_back(prepare_policy(outPc));
+      assert(policies.size() == k+1);
       policies[k].prepare(traj->tuples[k]->a, traj->tuples[k]->mu);
+      const vector<Real> outPt = F[0]->forward<TGT>(traj, k, thrID);
+      policies_tgt.push_back(prepare_policy(outPt));
+      const vector<Real> outVs = F[1]->forward(traj, k, thrID);
+
+      relay->set(policies[k].sampAct, k, thrID);
+      //if(thrID) cout << "Action: " << print(policies[k].sampAct) << endl;
       const vector<Real> At = F[2]->forward<CUR>    (traj, k, thrID);
       policy_samples[k] = policies[k].sample(&generators[thrID]);
+      //if(thrID) cout << "Sample: " << print(policy_samples[k]) << endl;
       relay->set(policy_samples[k], k, thrID);
       const vector<Real> Ap = F[2]->forward<CUR,TGT>(traj, k, thrID);
-      advantages[k][0] = At[0]; advantages[k][1] = Ap[0];
+      advantages[k][0] = At[0]; advantages[k][1] = Ap[0]; Vstates[k] = outVs[0];
       for(Uint i = 0; i < nAexpectation; i++) {
         relay->set(policies[k].sample(&generators[thrID]), k, thrID);
         const vector<Real> A = F[2]->forward(traj, k, thrID, 1+i);
@@ -95,14 +92,13 @@ class ACER : public Learner_offPolicy
         F[2]->backward({-facExpect*Q_err}, k, thrID, i+1);
       //prepare Q with off policy corrections for next step:
       Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
-      Q_OPC = R +gamma*(   (Q_RET-QTheta) +Vstates[k]);
+      Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]);
     }
 
     if(thrID==1)  profiler->stop_start("BCK");
      F[0]->gradient(thrID);
      F[1]->gradient(thrID);
      F[2]->gradient(thrID);
-    input->gradient(thrID);
     if(thrID==1)  profiler->stop_start("SLP");
   }
 
@@ -139,9 +135,7 @@ class ACER : public Learner_offPolicy
     input_build.addInput( input->nOutputs() );
     env->predefinedNetwork(input_build);
     predefinedNetwork(input_build);
-    Network* net = input_build.build();
-    Optimizer* opt = input_build.opt;
-    input->initializeNetwork(net, opt);
+    input->initializeNetwork(input_build.build(), input_build.opt);
 
     relay = new Aggregator(_set, data, _env->aI.dim);
     F.push_back(new Approximator("policy", _set, input, data));
