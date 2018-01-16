@@ -59,7 +59,6 @@ void Aggregator::set(const vector<Real> vec,const Uint samp,const Uint thrID) co
   const int ind = (int)samp - first_sample[thrID];
   assert(first_sample[thrID] <= (int)samp);
   assert(ind >= 0 && (int) inputs[thrID].size() > ind);
-  assert(inputs[thrID][ind].size() == 0);
   inputs[thrID][ind] = vec;
 }
 
@@ -196,7 +195,7 @@ vector<Real> Approximator::forward(const Sequence* const traj, const Uint samp,
   const Uint thrID, const PARAMS USE_WEIGHTS, const PARAMS USE_ACT,
   const Uint iSample, const int overwrite) const
 {
-  if(iSample) assert(USE_ACT not_eq CUR && iSample<=extraAlloc);
+  if(iSample) assert(USE_ACT == CUR && iSample<=extraAlloc);
   const Uint netID = thrID + iSample*nThreads;
   const vector<Activation*>& act=USE_ACT==CUR? series[netID] :series_tgt[thrID];
   const vector<Activation*>& act_cur = series[thrID];
@@ -329,17 +328,17 @@ void Approximator::gradient(const Uint thrID) const
     for (int i=0; i<last_error; i++) assert(act[i]->written == true);
 
     net->backProp(act, last_error, net->Vgrad[thrID]);
-    error_placements[thrID] = -1; //to stop additional backprops
 
     if(input->net == nullptr) return;
 
     for(int i=0; i<last_error; i++) {
       const vector<Real> grad0 = act[i]->getInputGradient();
       const Uint inpFeat = input->nOutputs();
-      const vector<Real> inpgrad = vector<Real>(&grad0[0], &grad0[0] + inpFeat);
+      const vector<Real> inpgrad = vector<Real>(&grad0[0], &grad0[0] +inpFeat);
       input->backward(inpgrad, first_sample[thrID] + i, thrID);
     }
   }
+  error_placements[thrID] = -1; //to stop additional backprops
 }
 
 void Approximator::getMetrics(ostringstream&fileOut, ostringstream&screenOut) const

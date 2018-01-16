@@ -92,7 +92,7 @@ public:
   virtual void Train(const Uint seq, const Uint samp, const Uint thrID) const=0;
 
   virtual void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const;
-  virtual bool predefinedNetwork(Builder & input_net);
+  virtual bool predefinedNetwork(Builder & input_net) = 0;
   //mass-handing of unfinished sequences from master
   void clearFailedSim(const int agentOne, const int agentEnd);
   void pushBackEndedSim(const int agentOne, const int agentEnd);

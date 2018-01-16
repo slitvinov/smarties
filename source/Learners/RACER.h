@@ -168,7 +168,7 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
   }
 
   RACER_experts(Environment*const _env, Settings& _set) :
-  RACER(_env, settings, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
+  RACER(_env, _set, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
   {
     printf("Mixture-of-experts RACER: Built network with outputs: %s %s\n",
       print(net_indices).c_str(),print(net_outputs).c_str());

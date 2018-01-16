@@ -153,3 +153,8 @@ void Learner_offPolicy::prepareGradient()
 
   Learner::prepareGradient();
 }
+
+bool Learner_offPolicy::predefinedNetwork(Builder& input_net)
+{
+  return false;
+}

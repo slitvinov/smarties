@@ -23,7 +23,7 @@ struct Encapsulator
   const string name;
   const Uint nThreads, nAppended;
   Settings& settings;
-  vector<vector<Activation*>*> series;
+  mutable vector<vector<Activation*>> series;
   mutable vector<int> first_sample;
   mutable vector<int> error_placements;
   mutable Uint nAddedGradients=0, nReducedGradients = 0;
@@ -38,7 +38,7 @@ struct Encapsulator
 
   Encapsulator(const string _name, Settings& sett, MemoryBuffer*const data_ptr)
   : name(_name), nThreads(sett.nThreads), nAppended(sett.appendedObs),
-    settings(sett), series(nThreads,nullptr), first_sample(nThreads,-1),
+    settings(sett), first_sample(nThreads,-1),
     error_placements(nThreads,-1), data(data_ptr) {}
 
   void initializeNetwork(Network* _net, Optimizer* _opt)
@@ -47,14 +47,11 @@ struct Encapsulator
     opt = _opt;
     assert(opt not_eq nullptr && net not_eq nullptr);
 
-    series.resize(nThreads, nullptr);
-    #pragma omp parallel for
+    series.resize(nThreads);
+    #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
     for (Uint i=0; i<nThreads; i++) // numa aware allocation
      #pragma omp critical
-     {
-      series[i] = new vector<Activation*>();
-      series[i]->reserve(settings.maxSeqLen);
-     }
+      series[i].reserve(settings.maxSeqLen);
   }
 
   inline void prepare(const Uint len, const Uint samp, const Uint thrID) const
@@ -70,7 +67,7 @@ struct Encapsulator
     if(error_placements[thrID] > 0) gradient(thrID);
     error_placements[thrID] = -1;
     first_sample[thrID] = samp;
-    net->prepForBackProp(*series[thrID], len);
+    net->prepForBackProp(series[thrID], len);
   }
 
   inline int mapTime2Ind(const Uint samp, const Uint thrID) const
@@ -104,7 +101,7 @@ struct Encapsulator
 
     if(error_placements[thrID] > 0) gradient(thrID);
 
-    const vector<Activation*>& act = *(series[thrID]);
+    const vector<Activation*>& act = series[thrID];
     const int ind = mapTime2Ind(samp, thrID);
     //if already computed just give answer
     if(act[ind]->written == true) return act[ind]->getOutput();
@@ -120,7 +117,7 @@ struct Encapsulator
   {
     if(net == nullptr) return;
     const int ind = mapTime2Ind(samp, thrID);
-    const vector<Activation*>& act = *(series[thrID]);
+    const vector<Activation*>& act = series[thrID];
     assert(act[ind]->written == true);
     //ind+1 because we use c-style for loops in other places:
     error_placements[thrID] = std::max(ind+1, error_placements[thrID]);
@@ -158,7 +155,7 @@ struct Encapsulator
     #pragma omp atomic
     nAddedGradients++;
 
-    vector<Activation*>& act = *(series[thrID]);
+    vector<Activation*>& act = series[thrID];
     const int last_error = error_placements[thrID];
     for (int i=0; i<last_error; i++) assert(act[i]->written == true);
     net->backProp(act, last_error, net->Vgrad[thrID]);

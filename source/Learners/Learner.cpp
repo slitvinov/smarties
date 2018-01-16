@@ -27,11 +27,9 @@ nTasks(_s.global_tasking_counter), settings(_s)
   input = new Encapsulator("input", _s, data);
   profiler->stop_start("SLP");
 
-  bool builder_used = false;
   Builder input_build(_s);
   input_build.addInput( input->nOutputs() );
-  builder_used = builder_used || env->predefinedNetwork(input_build);
-  builder_used = builder_used || predefinedNetwork(input_build);
+  bool builder_used = env->predefinedNetwork(input_build);
   if(builder_used) {
     Network* net = input_build.build();
     Optimizer* opt = input_build.opt;
@@ -131,7 +129,8 @@ bool Learner::slaveHasUnfinishedSeqs(const int slave) const
   return false;
 }
 
-bool Learner::predefinedNetwork(Builder & input_net)
-{
-  return false;
-}
+//bool Learner::predefinedNetwork(Builder & input_net)
+//{
+//  return false;
+//}
+

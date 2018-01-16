@@ -168,7 +168,7 @@ class Optimizer
     const Real factor = 1./totGrads;
     nnReal* const paramAry = weights->params;    
     assert(eta < 2e-3); //super upper bound for NN, srsly
-    const Real _eta =eta +1e-3*std::max(5-std::log10((Real)nStep),(Real)0)/5;
+    const Real _eta =eta +1e-3*std::max(6-std::log10((Real)nStep),(Real)0)/6;
 
     #pragma omp parallel
     {

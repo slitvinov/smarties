@@ -13,8 +13,8 @@ SETTINGS+=" --gamma 0.995"
 #size of network layers
 #SETTINGS+=" --nnl1 32"
 #SETTINGS+=" --nnl2 32"
-SETTINGS+=" --nnl1 64"
-SETTINGS+=" --nnl2 64"
+SETTINGS+=" --nnl1 128"
+SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl1 128"
 #SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
@@ -24,7 +24,7 @@ SETTINGS+=" --nnl2 64"
 #subject to changes
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc Tanh"
-SETTINGS+=" --nnFunc SoftSign"
+SETTINGS+=" --nnFunc HardSign"
 # L2 regularization of the weights
 #SETTINGS+=" --nnLambda 0.0001"
 

@@ -86,3 +86,8 @@ void Learner_onPolicy::prepareGradient()
   }
   Learner::prepareGradient();
 }
+
+bool Learner_onPolicy::predefinedNetwork(Builder& input_net)
+{
+  return false;
+}

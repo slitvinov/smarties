@@ -39,8 +39,8 @@ class ACER : public Learner_offPolicy
      F[2]->prepare_seq(traj, thrID, 1+nAexpectation);
 
     vector<Real> Vstates(ndata, 0);
-    vector<Action_t> policy_samples;
-    vector<Policy_t> policies, policies_tgt;;
+    vector<Action_t> policy_samples(ndata);
+    vector<Policy_t> policies, policies_tgt;
     policies_tgt.reserve(ndata); policies.reserve(ndata);
     vector<vector<Real>> advantages(ndata, vector<Real>(2+nAexpectation, 0));
 
@@ -58,6 +58,7 @@ class ACER : public Learner_offPolicy
       Vstates[k] = out[0];
     }
     for(int k=0; k<ndata; k++) {
+      relay->prepare(ACT, thrID);
       policies[k].prepare(traj->tuples[k]->a, traj->tuples[k]->mu);
       const vector<Real> At = F[2]->forward<CUR>    (traj, k, thrID);
       policy_samples[k] = policies[k].sample(&generators[thrID]);
@@ -130,6 +131,18 @@ class ACER : public Learner_offPolicy
  public:
   ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
   {
+    if(input->net not_eq nullptr) {
+      delete input->opt; input->opt = nullptr;
+      delete input->net; input->net = nullptr;
+    }
+    Builder input_build(_set);
+    input_build.addInput( input->nOutputs() );
+    env->predefinedNetwork(input_build);
+    predefinedNetwork(input_build);
+    Network* net = input_build.build();
+    Optimizer* opt = input_build.opt;
+    input->initializeNetwork(net, opt);
+
     relay = new Aggregator(_set, data, _env->aI.dim);
     F.push_back(new Approximator("policy", _set, input, data));
     F.push_back(new Approximator("value", _set, input, data));
@@ -167,7 +180,7 @@ class ACER : public Learner_offPolicy
     else data->terminate_seq(agent);
   }
 
-  bool predefinedNetwork(Builder & input_net) override
+  bool predefinedNetwork(Builder& input_net) override
   {
     if(settings.nnl2<=0) return false;
 
