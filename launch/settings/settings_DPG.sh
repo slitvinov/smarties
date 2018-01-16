@@ -10,7 +10,7 @@ SETTINGS+=" --gamma 0.99"
 
 #size of network layers
 SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 64"
+SETTINGS+=" --nnl2 128"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
@@ -31,7 +31,7 @@ SETTINGS+=" --maxTotObsNum 65536"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.1"
-SETTINGS+=" --epsAnneal   100000"
+SETTINGS+=" --epsAnneal   500000"
 SETTINGS+=" --totNumSteps 5000000"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
@@ -42,6 +42,6 @@ SETTINGS+=" --bSampleSequences 0"
 #the first option is markedly safer
 SETTINGS+=" --targetDelay 0.001"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 256"
+SETTINGS+=" --batchSize 64"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0003"
+SETTINGS+=" --learnrate 0.0001"

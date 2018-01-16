@@ -14,7 +14,7 @@ SETTINGS+=" --gamma 0.995"
 #SETTINGS+=" --nnl1 32"
 #SETTINGS+=" --nnl2 32"
 SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 64"
+SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl1 128"
 #SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
@@ -26,7 +26,7 @@ SETTINGS+=" --nnl2 64"
 #SETTINGS+=" --nnFunc Tanh"
 SETTINGS+=" --nnFunc HardSign"
 # L2 regularization of the weights
-#SETTINGS+=" --nnLambda 0.0001"
+SETTINGS+=" --nnLambda 0.000001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -40,16 +40,16 @@ SETTINGS+=" --learner ACER"
 SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --epsAnneal 1000"
 SETTINGS+=" --nMasters 1"
-SETTINGS+=" --totNumSteps 1000000"
 SETTINGS+=" --bSampleSequences 1"
 #SETTINGS+=" --maxTotObsNum 262144"
-SETTINGS+=" --maxTotObsNum 131072"
+#SETTINGS+=" --maxTotObsNum 131072"
+SETTINGS+=" --maxTotObsNum 65536"
 SETTINGS+=" --obsPerStep 6.4" # equivalent to 10 epoch with BS 64
 # 4096 / 64 * 10 = 640 steps per epoch
 # 4096 / 640 = 6.4 obs per step
 
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 128"
+SETTINGS+=" --batchSize 64"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"
 SETTINGS+=" --targetDelay 0.005"

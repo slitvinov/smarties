@@ -59,13 +59,13 @@ private:
   }
   static inline Real precision_func(const Real val)
   {
-    return safeExp(val) + numeric_limits<Real>::epsilon();
-    //return 0.5*(val + std::sqrt(val*val+1));
+    //return safeExp(val) + numeric_limits<Real>::epsilon();
+    return 0.5*(val + std::sqrt(val*val+1));
   }
   static inline Real precision_func_diff(const Real val)
   {
-    return safeExp(val);
-    //return 0.5*(1.+val/std::sqrt(val*val+1));
+    //return safeExp(val);
+    return 0.5*(1.+val/std::sqrt(val*val+1));
   }
 
 public:

@@ -79,7 +79,7 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
       //because we will need the CUR work memory unpolluted for backprop:
       //const vector<Real> v_curr = F[1]->forward<CUR,TGT,1>(traj, k+1, thrID);
 
-      const vector<Real> polGr = F[1]->relay_backprop<TGT>({1}, k, thrID);
+      const vector<Real> polGr = F[1]->relay_backprop<TGT>({100}, k, thrID);
       F[0]->backward(polGr, k, thrID);
     }
     { //code to compute value grad:
@@ -93,7 +93,7 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
         target += gamma * v_next[0];
       }
 
-      const vector<Real> grad_val = {target - q_curr[0]};
+      const vector<Real> grad_val = {(target-q_curr[0])};
       traj->SquaredError[k] = grad_val[0]*grad_val[0];
       Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
       F[1]->backward(grad_val, k, thrID);
@@ -123,7 +123,7 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
   { //code to compute policy grad:
     //const vector<Real> v_curr = F[1]->forward<TGT>(traj, samp, thrID);
     const vector<Real> v_curr = F[1]->forward<CUR, TGT>(traj, samp, thrID);
-    const vector<Real> polGr = F[1]->relay_backprop<TGT>({1}, samp, thrID);
+    const vector<Real> polGr = F[1]->relay_backprop<TGT>({100}, samp, thrID);
 
     F[0]->backward(polGr, samp, thrID);
   }
@@ -136,7 +136,7 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
       target += gamma * v_next[0];
     }
 
-    const vector<Real> grad_val = {target - q_curr[0]};
+    const vector<Real> grad_val = {(target-q_curr[0])};
     traj->SquaredError[samp] = grad_val[0]*grad_val[0];
     Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
     F[1]->backward(grad_val, samp, thrID);

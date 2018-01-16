@@ -93,7 +93,8 @@ class ACER : public Learner_offPolicy
         F[2]->backward({-0.1*facExpect*Q_err}, k, thrID, i+1);
       //prepare Q with off policy corrections for next step:
       Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
-      Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]);
+      //Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]);
+      Q_OPC = R +gamma*( W*(Q_OPC-QTheta) +Vstates[k]);
       traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
       traj->offPol_weight[k] = policies[k].sampImpWeight;
       Vstats[thrID].dumpStats(QTheta, Q_err);

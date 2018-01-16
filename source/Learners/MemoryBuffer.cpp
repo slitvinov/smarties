@@ -363,7 +363,7 @@ vector<Uint> MemoryBuffer::sampleSequences(const Uint N)
     inds = vector<Uint>(&inds[0], &inds[N]);
   }
   const auto compare = [&](Uint a, Uint b) {
-    return Set[a]->ndata() < Set[b]->ndata();
+    return Set[a]->ndata() > Set[b]->ndata();
   };
   std::sort(inds.begin(), inds.end(), compare);
   return inds;
