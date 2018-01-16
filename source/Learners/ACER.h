@@ -45,7 +45,7 @@ class ACER : public Learner_offPolicy
     vector<vector<Real>> advantages(ndata, vector<Real>(2+nAexpectation, 0));
 
     if(thrID==1) profiler->stop_start("FWD");
-    for(int k=0; k<ndata; k++) {
+    for(Uint k=0; k<(Uint)ndata; k++) {
       const vector<Real> outPc = F[0]->forward<CUR>(traj, k, thrID);
       policies.push_back(prepare_policy(outPc));
       assert(policies.size() == k+1);
@@ -86,13 +86,16 @@ class ACER : public Learner_offPolicy
       const vector<Real> pGrad = policyGradient(traj->tuples[k], policies[k],
         policies_tgt[k], A_OPC, APol, policy_samples[k]);
       F[0]->backward(pGrad,   k, thrID);
-      F[1]->backward({V_err + Q_err}, k, thrID);
-      F[2]->backward({Q_err}, k, thrID);
+      F[1]->backward({0.1*(V_err+Q_err)}, k, thrID);
+      F[2]->backward({0.1*Q_err}, k, thrID);
       for(Uint i = 0; i < nAexpectation; i++)
         F[2]->backward({-facExpect*Q_err}, k, thrID, i+1);
       //prepare Q with off policy corrections for next step:
       Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
       Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]);
+      traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
+      traj->offPol_weight[k] = policies[k].sampImpWeight;
+      Vstats[thrID].dumpStats(QTheta, Q_err);
     }
 
     if(thrID==1)  profiler->stop_start("BCK");
@@ -135,7 +138,8 @@ class ACER : public Learner_offPolicy
     input_build.addInput( input->nOutputs() );
     env->predefinedNetwork(input_build);
     predefinedNetwork(input_build);
-    input->initializeNetwork(input_build.build(), input_build.opt);
+    Network* net = input_build.build();
+    input->initializeNetwork(net, input_build.opt);
 
     relay = new Aggregator(_set, data, _env->aI.dim);
     F.push_back(new Approximator("policy", _set, input, data));
