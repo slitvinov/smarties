@@ -22,10 +22,11 @@ protected:
   Environment * const env;
   const bool bSampleSequences, bTrain;
   const Uint nAgents, batchSize, totNumSteps, nThreads, nSlaves, policyVecDim;
-  const Real greedyEps, epsAnneal, gamma;
+  const Real greedyEps, epsAnneal, gamma, CmaxPol;
   const int learn_rank, learn_size;
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;
+  SORTING ALGO = RECENT;
 
   mutable bool updatePrepared = false;
   mutable bool updateComplete = false;
@@ -48,7 +49,6 @@ public:
   Profiler* profiler_ext = nullptr;
   int& nTasks;
   string learner_name;
-  Settings& settings;
 
   Learner(Environment*const env, Settings & settings);
 
@@ -92,7 +92,6 @@ public:
   virtual void Train(const Uint seq, const Uint samp, const Uint thrID) const=0;
 
   virtual void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const;
-  virtual bool predefinedNetwork(Builder & input_net) = 0;
   //mass-handing of unfinished sequences from master
   void clearFailedSim(const int agentOne, const int agentEnd);
   void pushBackEndedSim(const int agentOne, const int agentEnd);

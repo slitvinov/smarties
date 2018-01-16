@@ -18,7 +18,7 @@ protected:
   const Real obsPerStep_orig;
   Uint taskCounter = batchSize, nData_b4PolUpdates = 0, nToSpawn = 0;
   unsigned long nData_last = 0, nStep_last = 0;
-  Real obsPerStep = obsPerStep_orig, nStoredSeqs_last = 0;
+  Real obsPerStep = obsPerStep_orig;
 
 public:
   Learner_offPolicy(Environment*const env, Settings& _s);
@@ -51,5 +51,4 @@ public:
   int spawnTrainTasks() override;
   void prepareGradient() override;
   bool batchGradientReady() override;
-  virtual bool predefinedNetwork(Builder & input_net) override;
 };

@@ -65,6 +65,13 @@ struct Settings
 #define DEFAULT_restart "policy"
   string restart = DEFAULT_restart;
 
+#define CHARARG_maxTotSeqNum '='
+#define COMMENT_maxTotSeqNum "DEPRECATED: Maximum number of sequences in training buffer"
+#define TYPEVAL_maxTotSeqNum int
+#define TYPENUM_maxTotSeqNum INT
+#define DEFAULT_maxTotSeqNum 1000
+  int maxTotSeqNum = DEFAULT_maxTotSeqNum;
+
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO LEARNING ALGORITHM: lowercase LETTER
 ///////////////////////////////////////////////////////////////////////////////
@@ -179,13 +186,6 @@ struct Settings
 #define TYPENUM_bSampleSequences  INT
 #define DEFAULT_bSampleSequences  0
   int bSampleSequences = DEFAULT_bSampleSequences;
-
-#define CHARARG_maxTotSeqNum 't'
-#define COMMENT_maxTotSeqNum "Maximum number of sequences in training buffer"
-#define TYPEVAL_maxTotSeqNum int
-#define TYPENUM_maxTotSeqNum INT
-#define DEFAULT_maxTotSeqNum 1000
-  int maxTotSeqNum = DEFAULT_maxTotSeqNum;
 
 #define CHARARG_impWeight 'w'
 #define COMMENT_impWeight "Max importance weight for Policy Gradient"

@@ -15,9 +15,6 @@ obsPerStep_orig(_s.obsPerStep) { }
 
 void Learner_offPolicy::prepareData()
 {
-  if(data->adapt_TotSeqNum <= batchSize)
-    die("I do not have enough data for training. Change hyperparameters")
-
   // it should be impossible to get here before starting batch update was ready.
   if(updateComplete) die("undefined behavior");
 
@@ -32,7 +29,6 @@ void Learner_offPolicy::prepareData()
   if(not waitingForData && not readyForTrain()) {
     abort();
     nData_b4PolUpdates = data->readNSeen();
-    nStoredSeqs_last = nSequences4Train(); //RACER
     nData_last = 0;
   }
 
@@ -41,9 +37,6 @@ void Learner_offPolicy::prepareData()
     waitingForData = true;
     return;
   }
-
-  if(data->requestUpdateSamples())
-    data->updateActiveBuffer(); //update sampling //syncDataStats
 
   if(nStep%100==0) data->updateRewardsStats();
 
@@ -104,8 +97,10 @@ bool Learner_offPolicy::unlockQueue()
 
 int Learner_offPolicy::spawnTrainTasks()
 {
-  if( updateComplete || not updatePrepared ) return 0;
-
+  if( updateComplete || not updatePrepared || nToSpawn == 0) return 0;
+  if(bSampleSequences && data->nSequences<nToSpawn)
+    die("Parameter maxTotObsNum is too low for given problem");
+    
   vector<Uint> samp_seq = data->sampleSequences(nToSpawn);
   for (Uint i=0; i<nToSpawn; i++)
   {
@@ -143,18 +138,18 @@ int Learner_offPolicy::spawnTrainTasks()
 
 void Learner_offPolicy::prepareGradient()
 {
-  if(updateComplete) {
+  const bool bWasPrepareReady = updateComplete;
+
+  Learner::prepareGradient();
+
+  if(bWasPrepareReady) {
+    profiler->stop_start("PRNE");
     //shift data / gradient counters to maintain grad stepping to sample
     // collection ratio prescirbed by obsPerStep
     const Real stepCounter = nStep+1 - (Real)nStep_last;
     nData_last += stepCounter*obsPerStep/learn_size;
     nStep_last = nStep+1; //actual counter advanced by base class
+    data->prune(CmaxPol, ALGO);
+    profiler->stop_start("SLP");
   }
-
-  Learner::prepareGradient();
-}
-
-bool Learner_offPolicy::predefinedNetwork(Builder& input_net)
-{
-  return false;
 }

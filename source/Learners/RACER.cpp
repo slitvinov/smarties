@@ -22,7 +22,7 @@ class RACER : public Learner_offPolicy
  protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
-  const Real CmaxPol, DKL_param;
+  const Real DKL_param;
   Real DKL_coef = 0.2;
   const vector<Uint> net_outputs, net_indices;
   const vector<Uint> pol_start, adv_start;
@@ -246,9 +246,9 @@ class RACER : public Learner_offPolicy
  public:
   RACER(Environment*const _env, Settings& _set, vector<Uint> net_outs,
     vector<Uint> pol_inds, vector<Uint> adv_inds) :
-    Learner_offPolicy(_env, _set), CmaxPol(_set.impWeight),
-    DKL_param(_set.klDivConstraint), net_outputs(net_outs),
-    net_indices(count_indices(net_outs)), pol_start(pol_inds), adv_start(adv_inds)
+    Learner_offPolicy(_env, _set), DKL_param(_set.klDivConstraint),
+    net_outputs(net_outs), net_indices(count_indices(net_outs)),
+    pol_start(pol_inds), adv_start(adv_inds)
   {
     printf("RACER starts: v:%u pol:%s adv:%s\n", VsID,
     print(pol_start).c_str(), print(adv_start).c_str());
@@ -334,14 +334,7 @@ class RACER : public Learner_offPolicy
     if(not bWasPrepareReady) return;
 
     // update sequences
-    // this does not count ones added between updates by exploration
-    //const Real lastSeq = nStoredSeqs_last;
-    //const Real currPre = data->nSequences; //pre pruning
-    //assert(nStoredSeqs_last <= data->nSequences); //before pruining
-    profiler->stop_start("PRNE");
-    Real numOffPol = data->prune3(CmaxPol, nSequences4Train());
-    Real fracOffPol = numOffPol / data->nTransitions;
-    nStoredSeqs_last = data->nSequences; //after pruning
+    Real fracOffPol = data->nOffPol / data->nTransitions;
     profiler->stop_start("SLP");
 
     if (learn_size > 1)
@@ -350,10 +343,9 @@ class RACER : public Learner_offPolicy
       if(not firstUpdate) MPI_Wait(&nData_request, MPI_STATUS_IGNORE);
 
       // prepare an allreduce with the current data:
-      ndata_partial_sum[0] = numOffPol;
+      ndata_partial_sum[0] = data->nOffPol;
       ndata_partial_sum[1] = data->nTransitions;
       // use result from prev reduce to update rewards (before new reduce)
-      numOffPol = ndata_reduce_result[0];
       fracOffPol = ndata_reduce_result[0] / ndata_reduce_result[1];
 
       MPI_Iallreduce(ndata_partial_sum, ndata_reduce_result, 2, MPI_DOUBLE, MPI_SUM, mastersComm, &nData_request);
@@ -363,7 +355,6 @@ class RACER : public Learner_offPolicy
     const Real tgtFrac = DKL_param/CmaxPol;
     if(fracOffPol>tgtFrac) DKL_coef = .9999*DKL_coef;
     else DKL_coef = 1e-4 + .9999*DKL_coef;
-
   }
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const

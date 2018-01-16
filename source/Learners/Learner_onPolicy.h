@@ -27,5 +27,4 @@ public:
   int spawnTrainTasks() override;
   void prepareGradient() override;
   bool batchGradientReady() override;
-  virtual bool predefinedNetwork(Builder & input_net) override;
 };

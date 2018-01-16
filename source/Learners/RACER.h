@@ -172,12 +172,12 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
   {
     printf("Mixture-of-experts RACER: Built network with outputs: %s %s\n",
       print(net_indices).c_str(),print(net_outputs).c_str());
-    F.push_back(new Approximator("net", settings, input, data));
+    F.push_back(new Approximator("net", _set, input, data));
     vector<Uint> nouts{1, nL, NEXPERTS, NEXPERTS * nA};
     #ifndef simpleSigma
       nouts.push_back(NEXPERTS * nA);
     #endif
-    Builder build = F[0]->buildFromSettings(settings, nouts);
+    Builder build = F[0]->buildFromSettings(_set, nouts);
 
     vector<Real> initBias;
     initBias.push_back(0);

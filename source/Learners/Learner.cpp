@@ -16,9 +16,9 @@ mastersComm(_s.mastersComm), env(_env), bSampleSequences(_s.bSampleSequences),
 bTrain(_s.bTrain), nAgents(_s.nAgents), batchSize(_s.batchSize),
 totNumSteps(_s.totNumSteps), nThreads(_s.nThreads), nSlaves(_s.nSlaves),
 policyVecDim(_s.policyVecDim), greedyEps(_s.greedyEps), epsAnneal(_s.epsAnneal),
-gamma(_s.gamma), learn_rank(_s.learner_rank), learn_size(_s.learner_size),
-aInfo(env->aI), sInfo(env->sI), generators(_s.generators), Vstats(nThreads),
-nTasks(_s.global_tasking_counter), settings(_s)
+gamma(_s.gamma), CmaxPol(_s.impWeight), learn_rank(_s.learner_rank),
+learn_size(_s.learner_size), aInfo(env->aI), sInfo(env->sI),
+generators(_s.generators), Vstats(nThreads), nTasks(_s.global_tasking_counter)
 {
   assert(nThreads>1);
   if(bSampleSequences) printf("Sampling sequences.\n");
@@ -133,4 +133,3 @@ bool Learner::slaveHasUnfinishedSeqs(const int slave) const
 //{
 //  return false;
 //}
-

@@ -137,7 +137,7 @@ class ACER : public Learner_offPolicy
     Builder input_build(_set);
     input_build.addInput( input->nOutputs() );
     env->predefinedNetwork(input_build);
-    predefinedNetwork(input_build);
+    predefinedNetwork(input_build, _set);
     Network* net = input_build.build();
     input->initializeNetwork(net, input_build.opt);
 
@@ -178,7 +178,7 @@ class ACER : public Learner_offPolicy
     else data->terminate_seq(agent);
   }
 
-  bool predefinedNetwork(Builder& input_net) override
+  bool predefinedNetwork(Builder& input_net, Settings& settings)
   {
     if(settings.nnl2<=0) return false;
 

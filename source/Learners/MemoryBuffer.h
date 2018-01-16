@@ -11,13 +11,15 @@
 #include "Sequences.h"
 #include "../Environments/Environment.h"
 #include <parallel/algorithm>
+
+enum SORTING {RECENT, OPCWEIGHT, ERROR};
 class MemoryBuffer
 {
 public:
   const MPI_Comm mastersComm;
   Environment * const env;
   const bool bTrain, bWriteToFile, bSampleSeq;
-  const Uint maxTotSeqNum,maxSeqLen,minSeqLen,nAppended,batchSize,policyVecDim;
+  const Uint maxTotObsNum, nAppended, batchSize, policyVecDim;
   const int learn_rank, learn_size;
   std::vector<std::mt19937>& generators;
 
@@ -31,22 +33,19 @@ public:
   Uint nBroken=0, nTransitions=0, nSequences=0;
   Uint nTransitionsInBuf=0, nTransitionsDeleted=0;
   size_t nSeenSequences=0, nSeenTransitions=0, iOldestSaved = 0;
-  Uint adapt_TotSeqNum = maxTotSeqNum, nPruned = 0, minInd = 0;
-  Real invstd_reward = 1, mean_reward = 0;
+  Uint nPruned = 0, minInd = 0;
+  Real invstd_reward = 1, mean_reward = 0, nOffPol = 0;
 
 
   Gen* gen;
-  vector<Sequence*> Set, inProgress, Buffered;
+  vector<Sequence*> Set, inProgress;
   mutable std::mutex dataset_mutex;
 
   MPI_Request rewRequest = MPI_REQUEST_NULL;
   long double rew_reduce_result[2], partial_sum[2];
 
 public:
-  void sortSequences();
-  void insertBufferedSequences();
   void push_back(const int & agentId);
-  void push_back_sequential(const int & agentId);
 
   MemoryBuffer(Environment*const env, Settings & settings);
 
@@ -56,7 +55,6 @@ public:
     _dispose_object(dist);
     for (auto & trash : Set) _dispose_object( trash);
     for (auto & trash : inProgress) _dispose_object( trash);
-    for (auto & trash : Buffered) _dispose_object( trash);
   }
 
   void inline clearAll()
@@ -112,12 +110,9 @@ public:
   void terminate_seq(const Agent&a);
   int add_state(const Agent&a);
 
-  void updateActiveBuffer();
   void updateRewardsStats();
   void updateImportanceWeights();
-  Uint prune(const Real maxFrac, const Real CmaxRho);
-  Real prune2(const Real CmaxRho, const Uint maxN);
-  Real prune3(const Real CmaxRho, const Uint maxN);
+  void prune(const Real CmaxRho, const SORTING ALGO);
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut);
   void restart();
@@ -126,13 +121,6 @@ public:
   void sampleTransition(Uint& seq, Uint& obs, const int thrID);
   void sampleSequence(Uint& seq, const int thrID);
   vector<Uint> sampleSequences(const Uint N);
-
-  inline bool requestUpdateSamples() const {
-    //2 cases:
-    // if i have buffered transitions to add to dataset
-    // if my desired dataset size is less than what i have
-    return Buffered.size() || adapt_TotSeqNum<Set.size();
-  }
 
   inline Uint readNTransitions() const
   {
