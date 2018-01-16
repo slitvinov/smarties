@@ -105,6 +105,6 @@ public:
 
   virtual void prepareGradient();
   void synchronizeGradients();
-
+  bool predefinedNetwork(Builder& input_net, Settings& settings);
   void restart();
 };

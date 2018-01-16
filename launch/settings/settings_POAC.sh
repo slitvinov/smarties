@@ -32,11 +32,11 @@ SETTINGS+=" --bTrain 1"
 SETTINGS+=" --learner POAC"
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.5"
+
 SETTINGS+=" --obsPerStep 1"
-SETTINGS+=" --maxTotSeqNum 100000"
+SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --maxTotObsNum 65536"
-SETTINGS+=" --epsAnneal 1000"
-#SETTINGS+=" --obsPerStep 0.01"
+
 SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 5000000"
 #SETTINGS+=" --impWeight 5"

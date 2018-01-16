@@ -14,6 +14,17 @@
 
 DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
 {
+  if(input->net not_eq nullptr) {
+    delete input->opt; input->opt = nullptr;
+    delete input->net; input->net = nullptr;
+  }
+  Builder input_build(_set);
+  input_build.addInput( input->nOutputs() );
+  env->predefinedNetwork(input_build);
+  predefinedNetwork(input_build, _set);
+  Network* net = input_build.build();
+  input->initializeNetwork(net, input_build.opt);
+
   F.push_back(new Approximator("policy", _set, input, data));
   relay = new Aggregator(_set, data, _env->aI.dim, F[0]);
   F.push_back(new Approximator("value", _set, input, data, relay));
@@ -21,6 +32,7 @@ DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
   Builder build_val = F[1]->buildFromSettings(_set, 1 );
   F[0]->initializeNetwork(build_pol);
   F[1]->initializeNetwork(build_val);
+  printf("DPG\n");
 }
 
 void DPG::select(const Agent& agent)

@@ -64,13 +64,13 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
 
   nStep++;
 
-  if(nStep%100 ==0) {
+  if(nStep%1000 ==0) {
     profiler->stop_start("STAT");
     processStats();
   }
   profiler->stop_all();
 
-  if(nStep%1000==0 && !learn_rank) {
+  if(nStep%10000==0 && !learn_rank) {
     profiler->printSummary();
     profiler->reset();
 
@@ -127,6 +127,38 @@ bool Learner::slaveHasUnfinishedSeqs(const int slave) const
   for(Uint i=slave*nAgentsPerSlave; i<(slave+1)*nAgentsPerSlave; i++)
     if(data->inProgress[i]->tuples.size()) return true;
   return false;
+}
+
+//TODO: generalize!!
+bool Learner::predefinedNetwork(Builder& input_net, Settings& settings)
+{
+  if(settings.nnl2<=0) return false;
+
+  if(input_net.nOutputs > 0) {
+    input_net.nOutputs = 0;
+    input_net.layers.back()->bOutput = false;
+  }
+  //                 size       function     is output (of input net)?
+  input_net.addLayer(settings.nnl1, settings.nnFunc, settings.nnl3<=0);
+  settings.nnl1 = settings.nnl2;
+  if(settings.nnl3>0) {
+    input_net.addLayer(settings.nnl2, settings.nnFunc, settings.nnl4<=0);
+    settings.nnl1 = settings.nnl3;
+    if(settings.nnl4>0) {
+      input_net.addLayer(settings.nnl3, settings.nnFunc, settings.nnl5<=0);
+      settings.nnl1 = settings.nnl4;
+      if(settings.nnl5>0) {
+        input_net.addLayer(settings.nnl4, settings.nnFunc, settings.nnl6<=0);
+        settings.nnl1 = settings.nnl5;
+        if(settings.nnl6>0) {
+          input_net.addLayer(settings.nnl5, settings.nnFunc, true);
+          settings.nnl1 = settings.nnl6;
+        }
+      }
+    }
+  }
+  settings.nnl2 = 0; // value, adv and pol nets will be one-layer
+  return true;
 }
 
 //bool Learner::predefinedNetwork(Builder & input_net)

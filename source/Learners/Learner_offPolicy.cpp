@@ -100,7 +100,7 @@ int Learner_offPolicy::spawnTrainTasks()
   if( updateComplete || not updatePrepared || nToSpawn == 0) return 0;
   if(bSampleSequences && data->nSequences<nToSpawn)
     die("Parameter maxTotObsNum is too low for given problem");
-    
+
   vector<Uint> samp_seq = bSampleSequences? data->sampleSequences(nToSpawn) : vector<Uint>(nToSpawn);
   for (Uint i=0; i<nToSpawn; i++)
   {

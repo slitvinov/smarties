@@ -181,36 +181,6 @@ class ACER : public Learner_offPolicy
     else data->terminate_seq(agent);
   }
 
-  bool predefinedNetwork(Builder& input_net, Settings& settings)
-  {
-    if(settings.nnl2<=0) return false;
-
-    if(input_net.nOutputs > 0) {
-      input_net.nOutputs = 0;
-      input_net.layers.back()->bOutput = false;
-    }
-    //                 size       function     is output (of input net)?
-    input_net.addLayer(settings.nnl1, settings.nnFunc, settings.nnl3<=0);
-    settings.nnl1 = settings.nnl2;
-    if(settings.nnl3>0) {
-      input_net.addLayer(settings.nnl2, settings.nnFunc, settings.nnl4<=0);
-      settings.nnl1 = settings.nnl3;
-      if(settings.nnl4>0) {
-        input_net.addLayer(settings.nnl3, settings.nnFunc, settings.nnl5<=0);
-        settings.nnl1 = settings.nnl4;
-        if(settings.nnl5>0) {
-          input_net.addLayer(settings.nnl4, settings.nnFunc, settings.nnl6<=0);
-          settings.nnl1 = settings.nnl5;
-          if(settings.nnl6>0) {
-            input_net.addLayer(settings.nnl5, settings.nnFunc, true);
-            settings.nnl1 = settings.nnl6;
-          }
-        }
-      }
-    }
-    settings.nnl2 = 0; // value, adv and pol nets will be one-layer
-    return true;
-  }
   static Uint getnDimPolicy(const ActionInfo*const aI)
   {
     return 2*aI->dim;

@@ -69,13 +69,12 @@ class RACER : public Learner_offPolicy
       pol.prepare(_t->a, _t->mu);
       traj->offPol_weight[k] = pol.sampImpWeight;
 
-      #if 1 // in case rho outside bounds, do not compute gradient
+      // in case rho outside bounds, do not compute gradient
       if(pol.sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
          pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) )  {
         offPolCorrUpdate(traj, k, out_cur, pol);
         continue;
       }
-      #endif
 
       vector<Real> G = compute(traj,k, out_cur, pol, thrID);
       //write gradient onto output layer:
@@ -103,8 +102,7 @@ class RACER : public Learner_offPolicy
     traj->offPol_weight[samp] = pol.sampImpWeight;
 
    if(pol.sampImpWeight < std::min((Real)0.5, 1/CmaxPol) ||
-      pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) )
-   {
+      pol.sampImpWeight > std::max((Real)2.0,   CmaxPol) ) {
      offPolCorrUpdate(traj, samp, out_cur, pol);
      if(thrID==1)  profiler->stop_start("SLP");
      return resample(thrID);

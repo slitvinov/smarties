@@ -226,7 +226,7 @@ vector<Real> Approximator::relay_backprop(const vector<Real> error,
   net->backProp(nullptr, act_tgt[ind], nullptr, extra_grads[thrID], W);
   const vector<Real> gradR = act_tgt[ind]->getInputGradient();
   assert(gradR.size() == nInp + relay->nOutputs());
-  return vector<Real>(&gradR[0]+nInp, &gradR[0]+nInp+relay->nOutputs());
+  return vector<Real>(&gradR[nInp], &gradR[nInp+relay->nOutputs()]);
 }
 
 vector<Real> Approximator::forward_agent(const Sequence* const traj,
