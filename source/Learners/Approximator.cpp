@@ -121,16 +121,19 @@ void Approximator::initializeNetwork(Builder& build)
      series[i].reserve(settings.maxSeqLen);
      series_tgt[i].reserve(settings.maxSeqLen);
      if(relay not_eq nullptr)
-      extra_grads[i] = net->allocateParameters();
+      relayG[i] = net->allocateParameters();
    }
 
   if(relay not_eq nullptr) {
     vector<int> relayInputID;
     for(Uint i=1; i<net->layers.size(); i++) //assume layer 0 is passed to input
       if(net->layers[i]->bInput) relayInputID.push_back(i);
-    if(relayInputID.size() != 1) die("should not be possible");
-    relayInp = relayInputID[0];
-    if(net->layers[relayInp]->nOutputs() != relay->nOutputs()) die("crap");
+
+    if(relayInputID.size() > 1) { die("should not be possible");
+    } else if (relayInputID.size() == 1) {
+      relayInp = relayInputID[0];
+      if(net->layers[relayInp]->nOutputs() != relay->nOutputs()) die("crap");
+    } else relayInp = 0;
   }
   #ifdef __CHECK_DIFF //check gradients with finite differences
     net->checkGrads();
@@ -218,18 +221,21 @@ vector<Real> Approximator::forward(const Sequence* const traj, const Uint samp,
     this->forward(traj, samp-1, thrID);
 
   const vector<Real> inp = getInput(traj, samp, thrID);
+  //cout <<"Input : "<< print(inp) << endl; fflush(0);
   return getOutput(inp, ind, act[ind], thrID, USE_WEIGHTS);
 }
 
-vector<Real> Approximator::relay_backprop(const vector<Real> error,
+vector<Real> Approximator::relay_backprop(const vector<Real> err,
   const Uint samp, const Uint thrID, const PARAMS USEW) const
 {
-  if(relay == nullptr || relayInp <= 0) die("improperly set up the relay");
-  const vector<Activation*>& act_tgt = series_tgt[thrID];
-  const int ind = mapTime2Ind(samp, thrID);
-  assert(act_tgt[ind]->written == true && relay not_eq nullptr);
+  if(relay == nullptr || relayInp < 0) die("improperly set up the relay");
+  const vector<Activation*>& act = series_tgt[thrID];
+  const int ind = mapTime2Ind(samp, thrID), nInp = input->nOutputs();
+  assert(act[ind]->written == true && relay not_eq nullptr);
   const Parameters*const W = USEW==CUR? net->weights : net->tgt_weights;
-  return net->inpBackProp(error, act_tgt[ind], extra_grads[thrID], W, relayInp);
+  const vector<Real>ret=net->inpBackProp(err,act[ind],relayG[thrID],W,relayInp);
+  if(relayInp>0) return ret;
+  else return vector<Real>(&ret[nInp], &ret[nInp+relay->nOutputs()]);
 }
 
 vector<Real> Approximator::forward_agent(const Sequence* const traj,
@@ -336,8 +342,8 @@ void Approximator::gradient(const Uint thrID) const
     if(input->net == nullptr) continue;
 
     for(int i=0; i<last_error; i++) {
-      const vector<Real> inputG = act[i]->getInputGradient(0);
-      assert(input->nOutputs() == inputG.size());
+      vector<Real> inputG = act[i]->getInputGradient(0);
+      inputG.resize(input->nOutputs());
       input->backward(inputG, first_sample[thrID] +i, thrID);
     }
   }

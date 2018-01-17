@@ -7,7 +7,7 @@ make -C ../makefiles clean
 make -C ../makefiles config=fit -j
 
 for BUFFSIZE in "16384" "65536" "262144"; do
-for DKLPARAM in "0.02" "0.032" "0.05" "0.08" "0.125" "0.2" "0.32" "0.5"; do
+for DKLPARAM in "0.03125" "0.0625" "0.25" "0.5" "1.0"; do
 for IMPSAMPR in "5" "2"; do
 for BATCHNUM in "256"; do
 for EPERSTEP in "1"; do

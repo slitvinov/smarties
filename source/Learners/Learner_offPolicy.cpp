@@ -110,7 +110,7 @@ int Learner_offPolicy::spawnTrainTasks()
     {
       const int thrID = omp_get_thread_num();
       if(thrID == 0) profiler_ext->stop_start("WORK");
-
+      //printf("Thread %d done %u %u\n",thrID,seq,obs); fflush(0);
       if(bSampleSequences) {
         Train_BPTT(seq, thrID);
         #pragma omp atomic
@@ -126,7 +126,6 @@ int Learner_offPolicy::spawnTrainTasks()
       if(thrID == 0) profiler_ext->stop_start("COMM");
       #pragma omp atomic
       taskCounter++;
-      //printf("Thread %d done %u %u\n",thrID,seq,obs); fflush(0);
       if(taskCounter >= batchSize) updateComplete = true;
       addToNTasks(-1);
     }

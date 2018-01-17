@@ -30,7 +30,7 @@ struct Approximator
   Optimizer* opt = nullptr;
   Network* net = nullptr;
   StatsTracker* gradStats = nullptr;
-  vector<Parameters*> extra_grads;
+  vector<Parameters*> relayG;
 
   mutable vector<int> error_placements, first_sample;
   mutable Uint nAddedGradients=0, nReducedGradients=0;
@@ -47,7 +47,7 @@ struct Approximator
     MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
   settings(S), name(_name), nThreads(S.nThreads), mpisize(S.learner_size),
   bRecurrent(S.bRecurrent), input(enc), data(data_ptr), relay(r),
-  extra_grads(nThreads, nullptr), error_placements(nThreads, -1),
+  relayG(nThreads, nullptr), error_placements(nThreads, -1),
   first_sample(nThreads, -1), series(nThreads), series_tgt(nThreads) {}
 
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
