@@ -12,29 +12,12 @@
 #include <parallel/algorithm>
 
 MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
-  mastersComm(_s.mastersComm), env(_env), bTrain(_s.bTrain), bWriteToFile(!(_s.samplesFile=="none")),
-  bSampleSeq(_s.bSampleSequences), maxTotObsNum(_s.maxTotObsNum),
-  nAppended(_s.appendedObs), batchSize(_s.batchSize), policyVecDim(_s.policyVecDim),
-  learn_rank(_s.learner_rank), learn_size(_s.learner_size),
-  generators(_s.generators), sI(_env->sI), aI(_env->aI),
-  _agents(_env->agents)
-{
-  mean.resize(sI.dimUsed, 0);
-  std.resize(sI.dimUsed, 1);
-  invstd.resize(sI.dimUsed, 1);
-  if (sI.mean.size()){
-    Uint k = 0;
-    for(Uint i=0; i<sI.dim; i++) {
-      if(sI.inUse[i]) {
-        mean[k] = sI.mean[i];
-        std[k] = sI.scale[i];
-        invstd[k] = 1./sI.scale[i];
-        k++;
-      }
-    }
-    assert(k == sI.dimUsed);
-  }
-
+ mastersComm(_s.mastersComm), env(_env), bWriteToFile(_s.samplesFile!="none"),
+ bTrain(_s.bTrain), bSampleSeq(_s.bSampleSequences), nAppended(_s.appendedObs),
+ batchSize(_s.batchSize), maxTotObsNum(_s.maxTotObsNum), nThreads(_s.nThreads),
+ policyVecDim(_s.policyVecDim), sI(env->sI), aI(env->aI), _agents(env->agents),
+ generators(_s.generators), mean(sI.inUseMean()), invstd(sI.inUseInvStd()),
+ std(sI.inUseStd()), learn_rank(_s.learner_rank), learn_size(_s.learner_size) {
   assert(_s.nAgents>0);
   inProgress.resize(_s.nAgents);
   for (int i=0; i<_s.nAgents; i++) inProgress[i] = new Sequence();
@@ -172,54 +155,44 @@ void MemoryBuffer::push_back(const int & agentId)
 
 void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
 {
-  #pragma omp parallel for schedule(dynamic)
-  for(Uint i = 0; i < Set.size(); i++) {
-    Real numOver = 0, opcW = 0, mse = 0;
-    for(Uint j=0; j<Set[i]->ndata(); j++) {
-      const Real obsOpcW = Set[i]->offPol_weight[j];
-      const Real obsDist = max(obsOpcW, 1/obsOpcW);
-      assert(obsOpcW > 0 && obsDist >= 1);
-      if( obsDist > CmaxRho ) numOver += 1;
-      mse += Set[i]->SquaredError[j];
-      opcW += obsDist;
+  assert(CmaxRho>1);
+  vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
+  const Real invCmaxRho = 1/CmaxRho;
+  Real _nOffPol = 0;
+  #pragma omp parallel num_threads(nThreads) reduction(+ : _nOffPol)
+  {
+    const int thrID = omp_get_thread_num();
+    #pragma omp for schedule(dynamic)
+    for(Uint i = 0; i < Set.size(); i++) {
+      Real numOver = 0, opcW = 0, mse = 0;
+      for(Uint j=0; j<Set[i]->ndata(); j++) {
+        const Real obsOpcW = Set[i]->offPol_weight[j];
+        const Real obsDist = min(obsOpcW, 1/obsOpcW);
+        assert(obsOpcW > 0 && obsDist <= 1);
+        if( obsDist < invCmaxRho ) numOver += 1;
+        mse += Set[i]->SquaredError[j];
+        opcW += obsDist;
+      }
+      const Real ndata = Set[i]->ndata(), ID = Set[i]->ID;
+      const Real W = ALGO==RECENT? ID : ((ALGO==OPCWEIGHT? opcW : mse)/ndata);
+      //locate smallest sequence id/mse/impW
+      if(W < delete_location[thrID].second) {
+        delete_location[thrID].second = W;
+        delete_location[thrID].first = i;
+      }
+      _nOffPol += numOver;
     }
-    if(ALGO == OPCWEIGHT) Set[i]->MSE = opcW/Set[i]->ndata();
-    else Set[i]->MSE = mse/Set[i]->ndata();
-    Set[i]->OPW = numOver;
   }
-
-  if(ALGO == RECENT) {
-    const auto isAbeforeB =[&](const Sequence*const a, const Sequence*const b) {
-      return a->ID > b->ID; // later sequences first
-    };
-    if(Set.size()>1e4) __gnu_parallel::sort(Set.begin(),Set.end(), isAbeforeB); 
-    else std::sort(Set.begin(), Set.end(), isAbeforeB);
-  } else if (ALGO == OPCWEIGHT) {
-    const auto isAbeforeB =[&](const Sequence*const a, const Sequence*const b) {
-      return a->MSE < b->MSE; // smaller opcW first
-    };
-    if(Set.size()>1e4) __gnu_parallel::sort(Set.begin(),Set.end(), isAbeforeB); 
-    else std::sort(Set.begin(), Set.end(), isAbeforeB);
-  } else if (ALGO == ERROR) {
-    const auto isAbeforeB =[&](const Sequence*const a, const Sequence*const b) {
-      return a->MSE > b->MSE; // larger errors first
-    };
-    if(Set.size()>1e4) __gnu_parallel::sort(Set.begin(),Set.end(), isAbeforeB); 
-    else std::sort(Set.begin(), Set.end(), isAbeforeB);
-  } else die("algo");
-
+  nOffPol = _nOffPol;
   const Uint nB4 = Set.size();
-  Uint cntN = 0, i = 0;
-  nOffPol = 0;
-  for(i=0; i < Set.size(); i++)
-    if(cntN < maxTotObsNum) {
-      cntN += Set[i]->ndata();
-      nOffPol += Set[i]->OPW;
-    } else break;
-  assert(i<=Set.size());
-  while(i not_eq Set.size()) popBackSequence();
-  assert(cntN == nTransitions);
-  minInd = Set.back()->ID;
+  int deli = -1; Real delv = 2e20;
+  for(const auto&P: delete_location)
+    if(delv>P.second) { deli = P.first; delv = P.second; }
+  assert(deli>=0);
+  if(nTransitions > maxTotObsNum) {
+    std::swap(Set[deli], Set.back());
+    popBackSequence();
+  } else minInd = Set[deli]->ID;
   nPruned += nB4-Set.size();
 
   #ifdef importanceSampling

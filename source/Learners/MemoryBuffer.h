@@ -18,18 +18,18 @@ class MemoryBuffer
 public:
   const MPI_Comm mastersComm;
   Environment * const env;
-  const bool bTrain, bWriteToFile, bSampleSeq;
-  const Uint maxTotObsNum, nAppended, batchSize, policyVecDim;
-  const int learn_rank, learn_size;
-  std::vector<std::mt19937>& generators;
-
-  bool first_pass = true;
-  vector<Real> std, mean, invstd;
-  discrete_distribution<Uint> * dist = nullptr;
-  //bool bRecurrent;
+  const bool bWriteToFile, bTrain, bSampleSeq;
+  const Uint nAppended, batchSize, maxTotObsNum, nThreads, policyVecDim;
   const StateInfo sI;
   const ActionInfo aI;
   const vector<Agent*> _agents;
+  std::vector<std::mt19937>& generators;
+  const vector<Real> mean, invstd, std;
+  const int learn_rank, learn_size;
+
+  bool first_pass = true;
+  discrete_distribution<Uint> * dist = nullptr;
+  //bool bRecurrent;
   Uint nBroken=0, nTransitions=0, nSequences=0;
   Uint nTransitionsInBuf=0, nTransitionsDeleted=0;
   size_t nSeenSequences=0, nSeenTransitions=0, iOldestSaved = 0;
