@@ -13,31 +13,35 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-NS  =int(sys.argv[1])
-NA  =int(sys.argv[2])
-FILE=    sys.argv[3]
-ICOL=int(sys.argv[4])
+PATH=    sys.argv[1]
+sizes = np.fromfile(PATH+'/problem_size.log', sep=' ')
+NS, NA, NP = int(sizes[0]), int(sizes[1]), int(sizes[2])
 NL=(NA*NA+NA)//2
+NREW=3+NS+NA
+NCOL=3+NS+NA+NP
+print('States begin at 2, actions at '+str(2+NS)+' policy at '+str(3+NS+NA)+'.')
+ICOL = input("Column to print? ")
 #COLMAX = 1e7
 #COLMAX = 8e6
 #COLMAX = 1e6
 COLMAX = -1
 
-if len(sys.argv) > 5: NP=int(sys.argv[5])
-else: NP = 2*NA
-
-if len(sys.argv) > 6: SKIP=int(sys.argv[6])
+if len(sys.argv) > 2: SKIP=int(sys.argv[2])
 else: SKIP = 10
 
-if len(sys.argv) > 7: XAXIS=int(sys.argv[7])
+if len(sys.argv) > 3: XAXIS=int(sys.argv[3])
 else: XAXIS = -1
 
-if len(sys.argv) > 8: IND0=int(sys.argv[8])
+if len(sys.argv) > 4: RANK=int(sys.argv[4])
+else: RANK = 0
+
+if len(sys.argv) > 5: AGENTID=int(sys.argv[5])
+else: AGENTID = 0
+
+if len(sys.argv) > 6: IND0=int(sys.argv[6])
 else: IND0 = 0
 
-NREW=3+NS+NA
-NCOL=3+NS+NA+NP
-
+FILE = "%s/obs_rank%02d_agent%03d.raw" % (PATH, RANK, AGENTID)
 #np.savetxt(sys.stdout, np.fromfile(sys.argv[1], dtype='i4').reshape(2,10).transpose())
 DATA = np.fromfile(FILE, dtype=np.float32)
 NROW = DATA.size // NCOL
@@ -55,14 +59,14 @@ for ind in range(IND0, len(terminals), SKIP):
   term = terminals[ind]; term = term[0]
   init =  initials[ind]; init = init[0]
   if COLMAX>0 and term>COLMAX: break;
-  span = range(init, term, 10)
+  span = range(init, term, 1)
   print(init,term)
   if XAXIS>=0:
     xes, xtrm = DATA[span,XAXIS], DATA[term,XAXIS]
   else:
     xes, xtrm = inds[span]      , inds[term]
 
-  if (ind % 10) == 0:
+  if (ind % 1) == 0:
     if ind==IND0:
       plt.plot(xes, DATA[span,ICOL], 'b-', label='x-trajectory')
     else:
