@@ -22,11 +22,15 @@ public:
   void addInput(const int size)
   {
     if(bBuilt) die("Cannot build the network multiple times");
-    if(nInputs>0 || layers.size()) die("More than one input layer?");
     if(size<=0) die("Requested an empty input layer\n");
-
+    const int ID = layers.size();
+    layers.push_back(new InputLayer(size, ID));
+    assert(layers[ID]->nOutputs() == size);
+    if(nInputs > 0) {
+      const Uint twoLayersSize = layers[ID-1]->nOutputs() + size;
+      layers.push_back(new JoinLayer(ID+1, twoLayersSize, 2));
+    } else assert(ID == 0);
     nInputs += size;
-    layers.push_back(new InputLayer(size));
   }
 
   /*
@@ -159,9 +163,9 @@ public:
     // Initialize network workspace to check that all is ok
     Activation*const test = allocate_activation(layers);
 
-    if(test->nInputs() not_eq nInputs)
+    if(test->nInputs not_eq nInputs)
       _die("Mismatch between Builder's computed inputs:%u and Activation's:%u",
-        nInputs, test->nInputs());
+        nInputs, test->nInputs);
 
     if(test->nOutputs not_eq nOutputs) {
       _warn("Mismatch between Builder's computed outputs:%u and Activation's:%u. Overruled Builder: probable cause is that user's net did not specify which layers are output. If multiple output layers expect trouble\n",
@@ -208,20 +212,21 @@ public:
     const Uint firstSplit = nL - nsplit;
 
     for(Uint i=0; i<firstSplit; i++) addLayer(lsize[i],funcType,false,netType);
+    if(sumout) {
+      if(nsplit) {
+        const Uint lastShared = layers.back()->number();
+        for (Uint i=0; i<nouts.size(); i++) {
+          //`link' specifies how many layers back should layer take input from
+          // use layers.size()-lastShared >=1 to link back to last shared layer
+          addLayer(lsize[lastShared], funcType, false, netType, nL-lastShared);
 
-    if(nsplit) {
-      const Uint lastShared = layers.back()->number();
-      for (Uint i=0; i<nouts.size(); i++) {
-        //`link' specifies how many layers back should layer take input from
-        // we use layers.size()-lastShared >=1 to link back to last shared layer
-        addLayer(lsize[lastShared], funcType, false, netType, nL - lastShared);
+          for (Uint j=firstSplit+1; j<lsize.size(); j++)
+            addLayer(lsize[j], funcType, false, netType);
 
-        for (Uint j=firstSplit+1; j<lsize.size(); j++)
-          addLayer(lsize[j], funcType, false, netType);
-
-        addLayer(nouts[i], "Linear", true);
-      }
-    } else addLayer(sumout, "Linear", true);
+          addLayer(nouts[i], "Linear", true);
+        }
+      } else addLayer(sumout, "Linear", true);
+    }
   }
 
 private:

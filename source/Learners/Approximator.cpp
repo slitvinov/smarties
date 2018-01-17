@@ -124,6 +124,14 @@ void Approximator::initializeNetwork(Builder& build)
       extra_grads[i] = net->allocateParameters();
    }
 
+  if(relay not_eq nullptr) {
+    vector<int> relayInputID;
+    for(Uint i=1; i<net->layers.size(); i++) //assume layer 0 is passed to input
+      if(net->layers[i]->bInput) relayInputID.push_back(i);
+    if(relayInputID.size() != 1) die("should not be possible");
+    relayInp = relayInputID[0];
+    if(net->layers[relayInp]->nOutputs() != relay->nOutputs()) die("crap");
+  }
   #ifdef __CHECK_DIFF //check gradients with finite differences
     net->checkGrads();
   #endif
@@ -216,17 +224,12 @@ vector<Real> Approximator::forward(const Sequence* const traj, const Uint samp,
 vector<Real> Approximator::relay_backprop(const vector<Real> error,
   const Uint samp, const Uint thrID, const PARAMS USEW) const
 {
-  if(relay == nullptr) die("Called relay_backprop without a relay.");
+  if(relay == nullptr || relayInp <= 0) die("improperly set up the relay");
   const vector<Activation*>& act_tgt = series_tgt[thrID];
-  const int ind = mapTime2Ind(samp, thrID), nInp = input->nOutputs();
+  const int ind = mapTime2Ind(samp, thrID);
   assert(act_tgt[ind]->written == true && relay not_eq nullptr);
-  act_tgt[ind]->clearErrors();
-  act_tgt[ind]->setOutputDelta(error);
   const Parameters*const W = USEW==CUR? net->weights : net->tgt_weights;
-  net->backProp(nullptr, act_tgt[ind], nullptr, extra_grads[thrID], W);
-  const vector<Real> gradR = act_tgt[ind]->getInputGradient();
-  assert(gradR.size() == nInp + relay->nOutputs());
-  return vector<Real>(&gradR[nInp], &gradR[nInp+relay->nOutputs()]);
+  return net->inpBackProp(error, act_tgt[ind], extra_grads[thrID], W, relayInp);
 }
 
 vector<Real> Approximator::forward_agent(const Sequence* const traj,
@@ -333,8 +336,8 @@ void Approximator::gradient(const Uint thrID) const
     if(input->net == nullptr) continue;
 
     for(int i=0; i<last_error; i++) {
-      const vector<Real> iG = act[i]->getInputGradient();
-      const vector<Real> inputG = vector<Real>(&iG[0], &iG[input->nOutputs()]);
+      const vector<Real> inputG = act[i]->getInputGradient(0);
+      assert(input->nOutputs() == inputG.size());
       input->backward(inputG, first_sample[thrID] +i, thrID);
     }
   }

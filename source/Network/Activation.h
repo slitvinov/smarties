@@ -35,20 +35,20 @@ struct Activation
     assert(_sizes.size() == _bOut.size() && nLayers == _bOut.size());
     Uint ret = 0;
     for(Uint i=0; i<_bOut.size(); i++) if(_bOut[i]) ret += _sizes[i];
-    if(!ret) {
-      ret = _sizes.back();
-      //warn("had to overwrite nOutputs");
-    }
-    //printf("sizes:%s outputs:%s Total:%u\n", print(_sizes).c_str(),
-    //  print(_bOut).c_str(), ret);
-    assert(ret>0);
+    if(!ret) die("err nOutputs");
+    return ret;
+  }
+  Uint _nInps(vector<Uint> _sizes, vector<Uint> _bInp) {
+    assert(_sizes.size() == _bInp.size() && nLayers == _bInp.size());
+    Uint ret = 0;
+    for(Uint i=0; i<_bInp.size(); i++) if(_bInp[i]) ret += _sizes[i];
+    if(!ret) die("err nInputs");
     return ret;
   }
 
-  Activation(vector<Uint>_sizes, vector<Uint>_bOut): nLayers(_sizes.size()),
-    nOutputs(_nOuts(_sizes,_bOut)), sizes(_sizes), output(_bOut),
-    suminps(allocate_vec(_sizes)), outvals(allocate_vec(_sizes)),
-    errvals(allocate_vec(_sizes)) {
+  Activation(vector<Uint>_sizes, vector<Uint>_bOut, vector<Uint>_bInp):
+    nLayers(_sizes.size()), nOutputs(_nOuts(_sizes,_bOut)), nInputs(_nInps(_sizes,_bInp)), sizes(_sizes), output(_bOut), input(_bInp),
+    suminps(allocate_vec(_sizes)), outvals(allocate_vec(_sizes)), errvals(allocate_vec(_sizes)) {
     assert(suminps.size()==nLayers);
     assert(outvals.size()==nLayers);
     assert(errvals.size()==nLayers);
@@ -61,8 +61,19 @@ struct Activation
   }
 
   inline void setInput(const vector<nnReal> inp) const {
-    assert(sizes[0] == inp.size()); //alternative not supported
-    memcpy(outvals[0], &inp[0], sizes[0]*sizeof(nnReal));
+    assert(nInputs == inp.size());
+    Uint k=0;
+    for(Uint i=0; i<nLayers; i++) if(input[i]) {
+      memcpy(outvals[i], &inp[k], sizes[i]*sizeof(nnReal));
+      k += sizes[i];
+    }
+    assert(k == nInputs);
+  }
+
+  inline vector<nnReal> getInputGradient(const Uint ID) const {
+    vector<nnReal> ret(sizes[ID]);
+    memcpy(&ret[0], errvals[ID], sizes[ID]*sizeof(nnReal));
+    return ret;
   }
 
   inline void setOutputDelta(const vector<nnReal> delta) const {
@@ -72,10 +83,7 @@ struct Activation
       memcpy(errvals[i], &delta[k], sizes[i]*sizeof(nnReal));
       k += sizes[i];
     }
-    if(k==0) {
-      assert(nOutputs == sizes.back());
-      memcpy(errvals.back(), &delta[0], nOutputs*sizeof(nnReal));
-    } else assert(k == nOutputs);
+    assert(k == nOutputs);
   }
 
   inline void addOutputDelta(const vector<nnReal> delta) const {
@@ -83,11 +91,7 @@ struct Activation
     Uint k=0;
     for(Uint i=0; i<nLayers; i++) if(output[i])
       for (Uint j=0; j<sizes[i]; j++, k++) errvals[i][j] += delta[k];
-
-    if(k==0) {
-      assert(nOutputs == sizes.back());
-      for (Uint j=0; j<nOutputs; j++) errvals.back()[j] += delta[j];
-    } else assert(k == nOutputs);
+    assert(k == nOutputs);
   }
 
   inline vector<nnReal> getOutput() const {
@@ -97,16 +101,7 @@ struct Activation
       memcpy(&ret[k], outvals[i], sizes[i]*sizeof(nnReal));
       k += sizes[i];
     }
-    if(k==0) {
-      assert(nOutputs ==sizes.back());
-      memcpy(&ret[0], outvals.back(), nOutputs*sizeof(nnReal));
-    } else assert(k == nOutputs);
-    return ret;
-  }
-
-  inline vector<nnReal> getInputGradient() const {
-    vector<nnReal> ret(sizes[0]);
-    memcpy(&ret[0], errvals[0], sizes[0]*sizeof(nnReal));
+    assert(k == nOutputs);
     return ret;
   }
 
@@ -164,10 +159,9 @@ struct Activation
     assert(layerID < nLayers);
     return errvals[layerID];
   }
-  inline Uint nInputs() const { return sizes[0]; }
 
-  const Uint nLayers, nOutputs;
-  const vector<Uint> sizes, output;
+  const Uint nLayers, nOutputs, nInputs;
+  const vector<Uint> sizes, output, input;
   //contains all inputs to each neuron (inputs to network input layer is empty)
   const vector<nnReal*> suminps;
   //contains all neuron outputs that will be the incoming signal to linked layers (outputs of input layer is network inputs)

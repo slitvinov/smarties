@@ -14,8 +14,8 @@
 class Learner_offPolicy: public Learner
 {
 protected:
-  const Uint nObsPerTraining;
   const Real obsPerStep_orig;
+  const Uint nObsPerTraining;
   Uint taskCounter = batchSize, nData_b4PolUpdates = 0, nToSpawn = 0;
   unsigned long nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig;

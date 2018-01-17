@@ -10,8 +10,8 @@
 #include "Learner_offPolicy.h"
 
 Learner_offPolicy::Learner_offPolicy(Environment*const _env, Settings & _s) :
-Learner(_env,_s), nObsPerTraining(_s.maxTotObsNum/_s.learner_size),
-obsPerStep_orig(_s.obsPerStep) { }
+Learner(_env,_s), obsPerStep_orig(_s.obsPerStep), nObsPerTraining(
+(_s.minTotObsNum>_s.batchSize? _s.minTotObsNum : _s.maxTotObsNum)/learn_size) {}
 
 void Learner_offPolicy::prepareData()
 {

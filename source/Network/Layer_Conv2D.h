@@ -39,9 +39,11 @@ class ConvLayer : public Layer
     nWeight.push_back(Kn_X * Kn_Y * Kn_C * In_C);
   }
   void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs) const override {
+                          vector<Uint>& bOutputs,
+                          vector<Uint>& bInputs) const override {
     sizes.push_back(OutX*OutY*Kn_C);
     bOutputs.push_back(bOutput);
+    bOutputs.push_back(bInput);
   }
   void biasInitialValues(const vector<nnReal> init) override { }
 

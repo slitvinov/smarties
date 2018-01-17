@@ -29,9 +29,11 @@ class BaseLayer: public Layer
     nBiases.push_back(nNeurons);
   }
   void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs) const override {
+                          vector<Uint>& bOutputs,
+                          vector<Uint>& bInputs) const override {
     sizes.push_back(nNeurons);
     bOutputs.push_back(bOutput);
+    bOutputs.push_back(bInput);
   }
   void biasInitialValues(const vector<nnReal> init) override {
     if(init.size() != size) _die("size of init:%lu.", init.size());

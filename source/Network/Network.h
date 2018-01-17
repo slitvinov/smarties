@@ -36,9 +36,9 @@ public:
   //  return ret;
   //}
   inline Activation* allocateActivation() const {
-    vector<Uint> sizes, output;
-    for(const auto & l : layers) l->requiredActivation(sizes, output);
-    return new Activation(sizes, output);
+    vector<Uint> sizes, output, input;
+    for(const auto & l : layers) l->requiredActivation(sizes, output, input);
+    return new Activation(sizes, output, input);
   }
 
   inline Parameters* allocateParameters() const {
@@ -103,6 +103,17 @@ public:
     currStep->setOutputDelta(_errors);
     backProp(nullptr, currStep, nullptr, _grad, _weights);
   }
+
+  vector<Real> inpBackProp(const vector<Real>& err, const Activation*const act,
+    const Parameters*const _grad, const Parameters*const W, const Uint ID) const
+  {
+    act->clearErrors();
+    act->setOutputDelta(err);
+    for (Uint i=layers.size()-1; i>ID; i--) //skip below layer we want grad for
+      layers[i]->backward(nullptr, act, nullptr, _grad, W);
+    return act->getInputGradient(ID);
+  }
+
 
   void backProp(const vector<Activation*>& timeSeries, const Uint stepLastError,
                 const Parameters*const _gradient,

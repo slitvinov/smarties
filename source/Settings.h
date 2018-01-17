@@ -21,58 +21,6 @@ struct Settings
 //- the name of the setting variable followed by the value (ie. -setting $value)
 
 ///////////////////////////////////////////////////////////////////////////////
-//SETTINGS PERTAINING TO PARALLELIZATION/COMMUNICATION: ASCII SYMBOL
-///////////////////////////////////////////////////////////////////////////////
-#define CHARARG_nThreads '#'
-#define COMMENT_nThreads "Number of threads from threaded training on each master rank."
-#define TYPEVAL_nThreads int
-#define TYPENUM_nThreads INT
-#define DEFAULT_nThreads 1
-  int nThreads = DEFAULT_nThreads;
-
-#define CHARARG_nMasters '$'
-#define COMMENT_nMasters "Number of master ranks (policy-updating ranks)."
-#define TYPEVAL_nMasters int
-#define TYPENUM_nMasters INT
-#define DEFAULT_nMasters 1
-  int nMasters = DEFAULT_nMasters;
-
-#define CHARARG_isServer '!'
-#define COMMENT_isServer "Whether smarties launches environment app (=1) or is launched by it (=0) (then cannot train)."
-#define TYPEVAL_isServer int
-#define TYPENUM_isServer INT
-#define DEFAULT_isServer 1
-  int isServer = DEFAULT_isServer;
-
-#define CHARARG_sockPrefix '@'
-#define COMMENT_sockPrefix "Prefix for communication file over sockets."
-#define TYPEVAL_sockPrefix int
-#define TYPENUM_sockPrefix INT
-#define DEFAULT_sockPrefix 0
-  int sockPrefix = DEFAULT_sockPrefix;
-
-#define CHARARG_samplesFile '('
-#define COMMENT_samplesFile "Name of main transition data backup file."
-#define TYPEVAL_samplesFile string
-#define TYPENUM_samplesFile STRING
-#define DEFAULT_samplesFile "history.txt"
-  string samplesFile = DEFAULT_samplesFile;
-
-#define CHARARG_restart '^'
-#define COMMENT_restart "File prefix of policy."
-#define TYPEVAL_restart string
-#define TYPENUM_restart STRING
-#define DEFAULT_restart "policy"
-  string restart = DEFAULT_restart;
-
-#define CHARARG_maxTotSeqNum '='
-#define COMMENT_maxTotSeqNum "DEPRECATED: Maximum number of sequences in training buffer"
-#define TYPEVAL_maxTotSeqNum int
-#define TYPENUM_maxTotSeqNum INT
-#define DEFAULT_maxTotSeqNum 1000
-  int maxTotSeqNum = DEFAULT_maxTotSeqNum;
-
-///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO LEARNING ALGORITHM: lowercase LETTER
 ///////////////////////////////////////////////////////////////////////////////
 #define CHARARG_learner 'a'
@@ -110,26 +58,12 @@ struct Settings
 #define DEFAULT_greedyEps 0.1
   Real greedyEps = DEFAULT_greedyEps;
 
-#define CHARARG_saveFreq 'f'
-#define COMMENT_saveFreq "Freq in # of comms with slaves for the master to save the policy."
-#define TYPEVAL_saveFreq int
-#define TYPENUM_saveFreq INT
-#define DEFAULT_saveFreq 10000
-  int saveFreq = DEFAULT_saveFreq;
-
 #define CHARARG_gamma 'g'
 #define COMMENT_gamma "Discount factor."
 #define TYPEVAL_gamma Real
 #define TYPENUM_gamma REAL
 #define DEFAULT_gamma 0.99
   Real gamma = DEFAULT_gamma;
-
-#define CHARARG_randSeed 'i'
-#define COMMENT_randSeed "Random seed."
-#define TYPEVAL_randSeed int
-#define TYPENUM_randSeed INT
-#define DEFAULT_randSeed 1
-  int randSeed = DEFAULT_randSeed;
 
 #define CHARARG_klDivConstraint 'k'
 #define COMMENT_klDivConstraint "Constraint on max KL div, algo specific."
@@ -145,19 +79,19 @@ struct Settings
 #define DEFAULT_lambda 0.99
   Real lambda = DEFAULT_lambda;
 
-#define CHARARG_minSeqLen 'm'
-#define COMMENT_minSeqLen "Minimum length of sequence, if shorter then discarded."
-#define TYPEVAL_minSeqLen int
-#define TYPENUM_minSeqLen INT
-#define DEFAULT_minSeqLen 2
-  int minSeqLen = DEFAULT_minSeqLen;
-
 #define CHARARG_maxSeqLen 'M' //there is always an exception
 #define COMMENT_maxSeqLen "Maximum length of sequence. if seq is longer it is just split into segments."
 #define TYPEVAL_maxSeqLen int
 #define TYPENUM_maxSeqLen INT
 #define DEFAULT_maxSeqLen 9999
   int maxSeqLen = DEFAULT_maxSeqLen;
+
+#define CHARARG_minTotObsNum 'm'
+#define COMMENT_minTotObsNum "Min number of transitions in training buffer before training starts."
+#define TYPEVAL_minTotObsNum int
+#define TYPENUM_minTotObsNum INT
+#define DEFAULT_minTotObsNum -1
+  int minTotObsNum = DEFAULT_minTotObsNum;
 
 #define CHARARG_maxTotObsNum 'n'
 #define COMMENT_maxTotObsNum "Max number of transitions in training buffer."
@@ -319,6 +253,72 @@ struct Settings
   string nnFunc = DEFAULT_nnFunc;
 
 ///////////////////////////////////////////////////////////////////////////////
+//SETTINGS PERTAINING TO PARALLELIZATION/COMMUNICATION: ASCII SYMBOL
+///////////////////////////////////////////////////////////////////////////////
+#define CHARARG_nThreads '#'
+#define COMMENT_nThreads "Number of threads from threaded training on each master rank."
+#define TYPEVAL_nThreads int
+#define TYPENUM_nThreads INT
+#define DEFAULT_nThreads 1
+  int nThreads = DEFAULT_nThreads;
+
+#define CHARARG_nMasters '$'
+#define COMMENT_nMasters "Number of master ranks (policy-updating ranks)."
+#define TYPEVAL_nMasters int
+#define TYPENUM_nMasters INT
+#define DEFAULT_nMasters 1
+  int nMasters = DEFAULT_nMasters;
+
+#define CHARARG_isServer '!'
+#define COMMENT_isServer "DEPRECATED: Whether smarties launches environment app (=1) or is launched by it (=0) (then cannot train)."
+#define TYPEVAL_isServer int
+#define TYPENUM_isServer INT
+#define DEFAULT_isServer 1
+  int isServer = DEFAULT_isServer;
+
+#define CHARARG_sockPrefix '@'
+#define COMMENT_sockPrefix "Prefix for communication file over sockets."
+#define TYPEVAL_sockPrefix int
+#define TYPENUM_sockPrefix INT
+#define DEFAULT_sockPrefix 0
+  int sockPrefix = DEFAULT_sockPrefix;
+
+#define CHARARG_samplesFile '('
+#define COMMENT_samplesFile "Name of main transition data backup file."
+#define TYPEVAL_samplesFile string
+#define TYPENUM_samplesFile STRING
+#define DEFAULT_samplesFile "history.txt"
+  string samplesFile = DEFAULT_samplesFile;
+
+#define CHARARG_restart '^'
+#define COMMENT_restart "File prefix of policy."
+#define TYPEVAL_restart string
+#define TYPENUM_restart STRING
+#define DEFAULT_restart "policy"
+  string restart = DEFAULT_restart;
+
+#define CHARARG_maxTotSeqNum '='
+#define COMMENT_maxTotSeqNum "DEPRECATED: Maximum number of sequences in training buffer"
+#define TYPEVAL_maxTotSeqNum int
+#define TYPENUM_maxTotSeqNum INT
+#define DEFAULT_maxTotSeqNum 1000
+  int maxTotSeqNum = DEFAULT_maxTotSeqNum;
+
+#define CHARARG_randSeed '*'
+#define COMMENT_randSeed "Random seed."
+#define TYPEVAL_randSeed int
+#define TYPENUM_randSeed INT
+#define DEFAULT_randSeed 1
+  int randSeed = DEFAULT_randSeed;
+
+#define CHARARG_saveFreq ')'
+#define COMMENT_saveFreq "DEPRECATED: Freq in # of comms with slaves for the master to save the policy."
+#define TYPEVAL_saveFreq int
+#define TYPENUM_saveFreq INT
+#define DEFAULT_saveFreq 10000
+  int saveFreq = DEFAULT_saveFreq;
+
+///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO ENVIRONMENT: NUMBER
 ///////////////////////////////////////////////////////////////////////////////
 #define CHARARG_environment '0'
@@ -410,7 +410,6 @@ struct Settings
     if(greedyEps<0)  die("greedyEps<0\n");
     if(gamma<0)  die("gamma<0\n");
     if(gamma>1)  die("gamma>1\n");
-    if(minSeqLen<2)  die("appendedObs<2\n");
     if(obsPerStep<0)  die("obsPerStep<0\n");
     if(epsAnneal<0)  die("epsAnneal<0\n");
     if(maxTotSeqNum<0)  die("maxTotSeqNum<0\n");
@@ -448,7 +447,7 @@ struct Settings
       { CHARARG_sockPrefix, "sockPrefix", TYPENUM_sockPrefix, COMMENT_sockPrefix, &sockPrefix, (TYPEVAL_sockPrefix) DEFAULT_sockPrefix },
       { CHARARG_appendedObs, "appendedObs", TYPENUM_appendedObs, COMMENT_appendedObs, &appendedObs, (TYPEVAL_appendedObs) DEFAULT_appendedObs },
       { CHARARG_maxSeqLen, "maxSeqLen", TYPENUM_maxSeqLen, COMMENT_maxSeqLen, &maxSeqLen, (TYPEVAL_maxSeqLen) DEFAULT_maxSeqLen },
-      { CHARARG_minSeqLen, "minSeqLen", TYPENUM_minSeqLen, COMMENT_minSeqLen, &minSeqLen, (TYPEVAL_minSeqLen) DEFAULT_minSeqLen },
+      { CHARARG_minTotObsNum, "minTotObsNum", TYPENUM_minTotObsNum, COMMENT_minTotObsNum, &minTotObsNum, (TYPEVAL_minTotObsNum) DEFAULT_minTotObsNum },
       { CHARARG_maxTotSeqNum, "maxTotSeqNum", TYPENUM_maxTotSeqNum, COMMENT_maxTotSeqNum, &maxTotSeqNum, (TYPEVAL_maxTotSeqNum) DEFAULT_maxTotSeqNum },
       { CHARARG_bTrain, "bTrain", TYPENUM_bTrain, COMMENT_bTrain, &bTrain, (TYPEVAL_bTrain) DEFAULT_bTrain },
       { CHARARG_maxTotObsNum, "maxTotObsNum", TYPENUM_maxTotObsNum, COMMENT_maxTotObsNum, &maxTotObsNum, (TYPEVAL_maxTotObsNum) DEFAULT_maxTotObsNum },

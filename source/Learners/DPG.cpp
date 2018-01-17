@@ -14,6 +14,7 @@
 
 DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
 {
+  _set.splitLayers = 0;
   #if 0
   if(input->net not_eq nullptr) {
     delete input->opt; input->opt = nullptr;
@@ -30,9 +31,19 @@ DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
   relay = new Aggregator(_set, data, nA, F[0]);
   F.push_back(new Approximator("value", _set, input, data, relay));
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
-  Builder build_val = F[1]->buildFromSettings(_set, 1 );
+  #if 0
+    Builder build_val = F[1]->buildFromSettings(_set, 1 );
+  #else
+    Builder build_val(_set);
+    build_val.stackSimple(input->nOutputs(), {0});
+    build_val.addInput(relay->nOutputs()); // add actions
+    build_val.addLayer(1, "Linear", true); // output
+  #endif
   F[0]->initializeNetwork(build_pol);
+  _set.learnrate *= 3; // DPG wants critic faster than actor
+  _set.nnLambda = 1e-2 * _set.learnrate; // also wants 1e-2 L2 penl coef
   F[1]->initializeNetwork(build_val);
+  _set.learnrate /= 3;
   printf("DPG\n");
 }
 
@@ -50,7 +61,7 @@ void DPG::select(const Agent& agent)
     for(Uint i=0; i<nA; i++) {
       const Real noise = dist(generators[thrID]);
       OrUhState[agent.ID][i] *= .85;
-      pol[i] += OrUhState[agent.ID][i]; //is mean if we model pol as gaussian 
+      pol[i] += OrUhState[agent.ID][i]; //is mean if we model pol as gaussian
       OrUhState[agent.ID][i] += greedyEps*noise;
       act[i] += OrUhState[agent.ID][i];
       pol.push_back(greedyEps); //is stdev if model pol as gaussian
@@ -88,7 +99,7 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
       //because we will need the CUR work memory unpolluted for backprop:
       //const vector<Real> v_curr = F[1]->forward<CUR,TGT,1>(traj, k+1, thrID);
 
-      const vector<Real> polGr = F[1]->relay_backprop<TGT>({100}, k, thrID);
+      const vector<Real> polGr = F[1]->relay_backprop<TGT>({10}, k, thrID);
       F[0]->backward(polGr, k, thrID);
     }
     { //code to compute value grad:

@@ -43,9 +43,11 @@ class LSTMLayer: public Layer
         dE/dInput        dE/dInput Gate     dE/dForget Gate    dE/dOutput Gate
   */
   void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs) const override {
+                          vector<Uint>& bOutputs,
+                          vector<Uint>& bInputs) const override {
     sizes.push_back(4*nCells);
     bOutputs.push_back(bOutput);
+    bOutputs.push_back(bInput);
   }
   virtual void biasInitialValues(const vector<nnReal> init) {}
 

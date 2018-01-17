@@ -18,7 +18,7 @@
 class Layer
 {
  public:
-  const Uint size, ID;
+  const Uint size, ID, bInput;
   Uint bOutput;
   inline Uint number() const { return ID; }
   inline Uint nOutputs() const { return size; }
@@ -31,12 +31,14 @@ class Layer
   // and then, without re-calling forward, compute backward step.
   // See the LSTM class for an example on working out of the box.
   virtual void requiredActivation(vector<Uint>& sizes,
-                                  vector<Uint>& bOutputs) const = 0;
+                                  vector<Uint>& bOutputs,
+                                  vector<Uint>& bInputs) const = 0;
   // Some classes might allow user to specify an initial value for the bias
   // vector (eg. parametric layer or linear output layer)
   virtual void biasInitialValues(const vector<nnReal> init) = 0;
 
-  Layer(Uint _ID, Uint _size, bool bOut): size(_size), ID(_ID), bOutput(bOut) {}
+  Layer(Uint _ID, Uint _size, bool bOut, const bool bInp = false):
+  size(_size), ID(_ID), bInput(bInp), bOutput(bOut)  {}
   virtual ~Layer() {}
 
   virtual void forward( const Activation*const prev,
@@ -68,7 +70,7 @@ class Layer
 class InputLayer: public Layer
 {
  public:
-  InputLayer(Uint _size) : Layer(0, _size, false) {
+  InputLayer(Uint _size, Uint _ID) : Layer(_ID, _size, false, true) {
     printf("(%u) Input Layer of size:%u.\n", ID, size); fflush(0);
   }
 
@@ -79,10 +81,12 @@ class InputLayer: public Layer
     nBiases.push_back(0);
   }
   void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs) const override {
+                          vector<Uint>& bOutputs,
+                          vector<Uint>& bInputs) const override {
     assert(sizes.size() == 0 && bOutputs.size() == 0);
     sizes.push_back(size);
     bOutputs.push_back(false);
+    bOutputs.push_back(bInput);
   }
   void biasInitialValues(const vector<nnReal> init) override { }
   void forward( const Activation*const prev,
@@ -94,6 +98,60 @@ class InputLayer: public Layer
                   const Activation*const next,
                   const Parameters*const grad,
                   const Parameters*const para) const override { }
+
+  void initialize(mt19937* const gen, const Parameters*const para,
+    Real initializationFac) const override { }
+};
+
+class JoinLayer: public Layer
+{
+  const Uint nJoin;
+ public:
+  JoinLayer(Uint _ID, Uint _N, Uint _nJ): Layer(_ID,_N,false), nJoin(_nJ) {
+    printf("(%u) Join Layer of size:%u.\n", ID, size); fflush(0);
+    assert(nJoin>1);
+  }
+
+  void requiredParameters(vector<Uint>& nWeight,
+                          vector<Uint>& nBiases ) const override {
+    assert(nWeight.size() == 0 && nBiases.size() == 0);
+    nWeight.push_back(0);
+    nBiases.push_back(0);
+  }
+  void requiredActivation(vector<Uint>& sizes,
+                          vector<Uint>& bOutputs,
+                          vector<Uint>& bInputs) const override {
+    assert(sizes.size() == 0 && bOutputs.size() == 0);
+    sizes.push_back(size);
+    bOutputs.push_back(bOutput);
+    bOutputs.push_back(bInput);
+  }
+  void biasInitialValues(const vector<nnReal> init) override { }
+  void forward( const Activation*const prev,
+                const Activation*const curr,
+                const Parameters*const para) const override {
+    nnReal* const ret = curr->Y(ID);
+    Uint k = 0;
+    for (Uint i=1; i<=nJoin; i++) {
+      const nnReal* const inputs = curr->Y(ID-i);
+      for (Uint j=0; j<curr->sizes[ID-i]; j++) ret[k++] = inputs[j];
+    }
+    assert(k==size);
+  }
+
+  void backward(  const Activation*const prev,
+                  const Activation*const curr,
+                  const Activation*const next,
+                  const Parameters*const grad,
+                  const Parameters*const para) const override {
+    const nnReal* const errors = curr->E(ID);
+    Uint k = 0;
+    for (Uint i=1; i<=nJoin; i++) {
+      nnReal* const ret = curr->E(ID-i);
+      for (Uint j=0; j<curr->sizes[ID-i]; j++) ret[j] = errors[k++];
+    }
+    assert(k==size);
+  }
 
   void initialize(mt19937* const gen, const Parameters*const para,
     Real initializationFac) const override { }
@@ -117,8 +175,9 @@ class ParamLayer: public Layer
     nWeight.push_back(0); nBiases.push_back(size);
   }
   void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs) const override {
-    sizes.push_back(size); bOutputs.push_back(true);
+                          vector<Uint>& bOutputs,
+                          vector<Uint>& bInputs) const override {
+    sizes.push_back(size); bOutputs.push_back(true); bOutputs.push_back(bInput);
   }
   void biasInitialValues(const vector<nnReal> init) override {
     if(init.size() != size) _die("size of init:%lu.", init.size());
@@ -162,9 +221,9 @@ class ParamLayer: public Layer
 
 
 inline Activation* allocate_activation(const vector<Layer*>& layers) {
-  vector<Uint> sizes, output;
-  for(const auto & l : layers) l->requiredActivation(sizes, output);
-  return new Activation(sizes, output);
+  vector<Uint> sizes, output, input;
+  for(const auto & l : layers) l->requiredActivation(sizes, output, input);
+  return new Activation(sizes, output, input);
 }
 
 inline Parameters* allocate_parameters(const vector<Layer*>& layers) {
@@ -174,7 +233,7 @@ inline Parameters* allocate_parameters(const vector<Layer*>& layers) {
 }
 
 inline Memory* allocate_memory(const vector<Layer*>& layers) {
-  vector<Uint> sizes, output;
-  for(const auto & l : layers) l->requiredActivation(sizes, output);
+  vector<Uint> sizes, output, input;
+  for(const auto & l : layers) l->requiredActivation(sizes, output, input);
   return new Memory(sizes, output);
 }

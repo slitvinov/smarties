@@ -35,6 +35,7 @@ struct Approximator
   mutable vector<int> error_placements, first_sample;
   mutable Uint nAddedGradients=0, nReducedGradients=0;
   Uint extraAlloc = 0;
+  int relayInp = -1;
   //thread safe memory for prediction with current weights:
   mutable vector<vector<Activation*>> series;
   //thread safe  memory for prediction with target weights. Rules are that

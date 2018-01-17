@@ -21,6 +21,7 @@ class ACER : public Learner_offPolicy
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nAexpectation = 5;
   const Real facExpect = 1./nAexpectation;
+  const Real alpha = 0.1;
   Aggregator* relay = nullptr;
 
   inline Policy_t prepare_policy(const vector<Real>& out) const {
@@ -87,10 +88,10 @@ class ACER : public Learner_offPolicy
       const vector<Real> pGrad = policyGradient(traj->tuples[k], policies[k],
         policies_tgt[k], A_OPC, APol, policy_samples[k]);
       F[0]->backward(pGrad,   k, thrID);
-      F[1]->backward({0.1*(V_err+Q_err)}, k, thrID);
-      F[2]->backward({0.1*Q_err}, k, thrID);
+      F[1]->backward({alpha*(V_err+Q_err)}, k, thrID);
+      F[2]->backward({alpha*Q_err}, k, thrID);
       for(Uint i = 0; i < nAexpectation; i++)
-        F[2]->backward({-0.1*facExpect*Q_err}, k, thrID, i+1);
+        F[2]->backward({-alpha*facExpect*Q_err}, k, thrID, i+1);
       //prepare Q with off policy corrections for next step:
       Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
       //Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]);
@@ -141,7 +142,9 @@ class ACER : public Learner_offPolicy
     input_build.addInput( input->nOutputs() );
     env->predefinedNetwork(input_build);
     predefinedNetwork(input_build, _set);
+    _set.learnrate /= 3;
     Network* net = input_build.build();
+    _set.learnrate *= 3;
     input->initializeNetwork(net, input_build.opt);
 
     relay = new Aggregator(_set, data, _env->aI.dim);
