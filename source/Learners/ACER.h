@@ -82,7 +82,7 @@ class ACER : public Learner_offPolicy
         APol -= facExpect*advantages[k][2+i];
       }
       const Real A_OPC = Q_OPC - Vstates[k], Q_err = Q_RET - QTheta;
-      //const Real W = std::min((Real)1, policies[k].sampRhoWeight);
+      //const Real W = std::min((Real)1, policies[k].sampRhoWeight); //as in paper, but I see dead people
       const Real W = std::min((Real)1, policies[k].sampImpWeight);
       const Real R = data->standardized_reward(traj, k), V_err = Q_err*W;
       const vector<Real> pGrad = policyGradient(traj->tuples[k], policies[k],
@@ -94,7 +94,7 @@ class ACER : public Learner_offPolicy
         F[2]->backward({-alpha*facExpect*Q_err}, k, thrID, i+1);
       //prepare Q with off policy corrections for next step:
       Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
-      //Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]);
+      //Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]); //as in paper, but I see dead people
       Q_OPC = R +gamma*( W*(Q_OPC-QTheta) +Vstates[k]);
       traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
       traj->offPol_weight[k] = policies[k].sampImpWeight;
@@ -157,7 +157,9 @@ class ACER : public Learner_offPolicy
     Builder build_val = F[1]->buildFromSettings(_set, 1 ); // V
     Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A
 
+    _set.learnrate /= 3;
     F[0]->initializeNetwork(build_pol);
+    _set.learnrate *= 3;
     F[1]->initializeNetwork(build_val);
     F[2]->initializeNetwork(build_adv);
     F[2]->allocMorePerThread(nAexpectation);
