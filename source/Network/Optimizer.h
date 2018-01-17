@@ -55,7 +55,7 @@ struct Adam {
   const nnReal eta, B1, B2;
   Adam(const nnReal _eta, const nnReal beta1, const nnReal beta2,
     const nnReal betat1, const nnReal betat2, Saru& _gen) :
-  eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2) {}
+  eta(_eta*std::sqrt(beta2-betat2)/(1-betat1)), B1(beta1), B2(beta2) {}
 
   #pragma omp declare simd notinbranch simdlen(VEC_WIDTH)
   inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){

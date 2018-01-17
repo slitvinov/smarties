@@ -192,17 +192,20 @@ void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
     const auto isAbeforeB =[&](const Sequence*const a, const Sequence*const b) {
       return a->ID > b->ID; // later sequences first
     };
-    std::sort(Set.begin(), Set.end(), isAbeforeB);
+    if(Set.size()>1e4) __gnu_parallel::sort(Set.begin(),Set.end(), isAbeforeB); 
+    else std::sort(Set.begin(), Set.end(), isAbeforeB);
   } else if (ALGO == OPCWEIGHT) {
     const auto isAbeforeB =[&](const Sequence*const a, const Sequence*const b) {
       return a->MSE < b->MSE; // smaller opcW first
     };
-    std::sort(Set.begin(), Set.end(), isAbeforeB);
+    if(Set.size()>1e4) __gnu_parallel::sort(Set.begin(),Set.end(), isAbeforeB); 
+    else std::sort(Set.begin(), Set.end(), isAbeforeB);
   } else if (ALGO == ERROR) {
     const auto isAbeforeB =[&](const Sequence*const a, const Sequence*const b) {
       return a->MSE > b->MSE; // larger errors first
     };
-    std::sort(Set.begin(), Set.end(), isAbeforeB);
+    if(Set.size()>1e4) __gnu_parallel::sort(Set.begin(),Set.end(), isAbeforeB); 
+    else std::sort(Set.begin(), Set.end(), isAbeforeB);
   } else die("algo");
 
   const Uint nB4 = Set.size();

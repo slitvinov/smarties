@@ -15,7 +15,7 @@
 DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
 {
   _set.splitLayers = 0;
-  #if 0
+  #if 1
   if(input->net not_eq nullptr) {
     delete input->opt; input->opt = nullptr;
     delete input->net; input->net = nullptr;
@@ -40,10 +40,10 @@ DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
     build_val.addLayer(1, "Linear", true); // output
   #endif
   F[0]->initializeNetwork(build_pol);
-  _set.learnrate *= 3; // DPG wants critic faster than actor
+  _set.learnrate *= 10; // DPG wants critic faster than actor
   _set.nnLambda = 1e-2 * _set.learnrate; // also wants 1e-2 L2 penl coef
   F[1]->initializeNetwork(build_val);
-  _set.learnrate /= 3;
+  _set.learnrate /= 10;
   printf("DPG\n");
 }
 
