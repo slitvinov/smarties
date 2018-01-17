@@ -14,6 +14,7 @@
 
 DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
 {
+  #if 0
   if(input->net not_eq nullptr) {
     delete input->opt; input->opt = nullptr;
     delete input->net; input->net = nullptr;
@@ -24,11 +25,11 @@ DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
   predefinedNetwork(input_build, _set);
   Network* net = input_build.build();
   input->initializeNetwork(net, input_build.opt);
-
+  #endif
   F.push_back(new Approximator("policy", _set, input, data));
-  relay = new Aggregator(_set, data, _env->aI.dim, F[0]);
+  relay = new Aggregator(_set, data, nA, F[0]);
   F.push_back(new Approximator("value", _set, input, data, relay));
-  Builder build_pol = F[0]->buildFromSettings(_set, _env->aI.dim);
+  Builder build_pol = F[0]->buildFromSettings(_set, nA);
   Builder build_val = F[1]->buildFromSettings(_set, 1 );
   F[0]->initializeNetwork(build_pol);
   F[1]->initializeNetwork(build_val);
@@ -37,21 +38,29 @@ DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
 
 void DPG::select(const Agent& agent)
 {
-  const Real annealedVar = greedyEps + (bTrain ? annealingFactor() : 0);
   const int thrID= omp_get_thread_num();
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
-
+  std::normal_distribution<Real> dist(0, 1);
   if( agent.Status != 2 ) {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
     vector<Real> pol = F[0]->forward_agent<CUR>(traj, agent, thrID);
-    pol.resize(policyVecDim, annealedVar);
-    const auto act = Gaussian_policy::sample(&generators[thrID], pol);
+    vector<Real> act = pol;
+    for(Uint i=0; i<nA; i++) {
+      const Real noise = dist(generators[thrID]);
+      OrUhState[agent.ID][i] *= .85;
+      pol[i] += OrUhState[agent.ID][i]; //is mean if we model pol as gaussian 
+      OrUhState[agent.ID][i] += greedyEps*noise;
+      act[i] += OrUhState[agent.ID][i];
+      pol.push_back(greedyEps); //is stdev if model pol as gaussian
+    }
     agent.act(aInfo.getScaled(act));
     data->add_action(agent, pol);
-  } else
+  } else {
+    OrUhState[agent.ID] = vector<Real>(nA, 0);
     data->terminate_seq(agent);
+  }
 }
 
 void DPG::Train_BPTT(const Uint seq, const Uint thrID) const

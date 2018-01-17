@@ -15,7 +15,8 @@ SETTINGS+=" --nnl2 128"
 #subject to changes
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnType LSTM"
-SETTINGS+=" --nnFunc HardSign"
+SETTINGS+=" --nnFunc SoftSign"
+#SETTINGS+=" --nnFunc HardSign"
 # L2 regularization of the weights
 SETTINGS+=" --nnLambda 0.000001"
 
@@ -27,11 +28,11 @@ SETTINGS+=" --learner DPG"
 
 #maximum allowed lenth for a sequence (from first to terminal state)
 #if a sequence is longer is just cut after #number of transitions
-SETTINGS+=" --maxTotObsNum 65536"
+SETTINGS+=" --maxTotObsNum 1048576"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 0.1"
-SETTINGS+=" --epsAnneal   500000"
+SETTINGS+=" --greedyEps 0.2"
+SETTINGS+=" --epsAnneal   100000"
 SETTINGS+=" --totNumSteps 5000000"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
