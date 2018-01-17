@@ -33,7 +33,7 @@ class BaseLayer: public Layer
                           vector<Uint>& bInputs) const override {
     sizes.push_back(nNeurons);
     bOutputs.push_back(bOutput);
-    bOutputs.push_back(bInput);
+    bInputs.push_back(bInput);
   }
   void biasInitialValues(const vector<nnReal> init) override {
     if(init.size() != size) _die("size of init:%lu.", init.size());

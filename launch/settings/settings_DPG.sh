@@ -29,6 +29,7 @@ SETTINGS+=" --learner DPG"
 #maximum allowed lenth for a sequence (from first to terminal state)
 #if a sequence is longer is just cut after #number of transitions
 SETTINGS+=" --maxTotObsNum 1048576"
+SETTINGS+=" --minTotObsNum 16384"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.2"

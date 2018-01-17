@@ -47,7 +47,7 @@ class LSTMLayer: public Layer
                           vector<Uint>& bInputs) const override {
     sizes.push_back(4*nCells);
     bOutputs.push_back(bOutput);
-    bOutputs.push_back(bInput);
+    bInputs.push_back(bInput);
   }
   virtual void biasInitialValues(const vector<nnReal> init) {}
 

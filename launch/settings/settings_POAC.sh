@@ -53,4 +53,4 @@ SETTINGS+=" --batchSize 256"
 #SETTINGS+=" --batchSize 32"
 SETTINGS+=" --bSampleSequences 0"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0003"
+SETTINGS+=" --learnrate 0.0001"

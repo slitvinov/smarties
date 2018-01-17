@@ -86,7 +86,7 @@ class InputLayer: public Layer
     assert(sizes.size() == 0 && bOutputs.size() == 0);
     sizes.push_back(size);
     bOutputs.push_back(false);
-    bOutputs.push_back(bInput);
+    bInputs.push_back(bInput);
   }
   void biasInitialValues(const vector<nnReal> init) override { }
   void forward( const Activation*const prev,
@@ -124,7 +124,7 @@ class JoinLayer: public Layer
     assert(sizes.size() == 0 && bOutputs.size() == 0);
     sizes.push_back(size);
     bOutputs.push_back(bOutput);
-    bOutputs.push_back(bInput);
+    bInputs.push_back(bInput);
   }
   void biasInitialValues(const vector<nnReal> init) override { }
   void forward( const Activation*const prev,
@@ -177,7 +177,7 @@ class ParamLayer: public Layer
   void requiredActivation(vector<Uint>& sizes,
                           vector<Uint>& bOutputs,
                           vector<Uint>& bInputs) const override {
-    sizes.push_back(size); bOutputs.push_back(true); bOutputs.push_back(bInput);
+    sizes.push_back(size); bOutputs.push_back(true); bInputs.push_back(bInput);
   }
   void biasInitialValues(const vector<nnReal> init) override {
     if(init.size() != size) _die("size of init:%lu.", init.size());

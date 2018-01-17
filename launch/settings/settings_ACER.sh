@@ -8,7 +8,7 @@ SETTINGS+=" --samplesFile none"
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.995"
+SETTINGS+=" --gamma 0.99"
 #SETTINGS+=" --gamma 1.0"
 #size of network layers
 #SETTINGS+=" --nnl1 32"
@@ -24,7 +24,8 @@ SETTINGS+=" --nnl2 128"
 #subject to changes
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc Tanh"
-SETTINGS+=" --nnFunc HardSign"
+SETTINGS+=" --nnFunc SoftSign"
+#SETTINGS+=" --nnFunc HardSign"
 # L2 regularization of the weights
 SETTINGS+=" --nnLambda 0.000001"
 
@@ -42,9 +43,9 @@ SETTINGS+=" --epsAnneal 1000"
 SETTINGS+=" --nMasters 1"
 SETTINGS+=" --bSampleSequences 1"
 #SETTINGS+=" --maxTotObsNum 262144"
-#SETTINGS+=" --maxTotObsNum 131072"
-SETTINGS+=" --maxTotObsNum 65536"
-SETTINGS+=" --obsPerStep 6.4" # equivalent to 10 epoch with BS 64
+SETTINGS+=" --maxTotObsNum 131072"
+#SETTINGS+=" --maxTotObsNum 65536"
+SETTINGS+=" --obsPerStep 1.0" # equivalent to 10 epoch with BS 64
 # 4096 / 64 * 10 = 640 steps per epoch
 # 4096 / 640 = 6.4 obs per step
 
