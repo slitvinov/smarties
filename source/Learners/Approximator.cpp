@@ -108,7 +108,7 @@ void Approximator::allocMorePerThread(const Uint nAlloc)
           series[i].reserve(settings.maxSeqLen);
 }
 
-void Approximator::initializeNetwork(Builder& build)
+void Approximator::initializeNetwork(Builder& build, Real cutGradFactor)
 {
   net = build.build();
   opt = build.opt;
@@ -138,7 +138,7 @@ void Approximator::initializeNetwork(Builder& build)
   #ifdef __CHECK_DIFF //check gradients with finite differences
     net->checkGrads();
   #endif
-  gradStats = new StatsTracker(net->getnOutputs(), name+"_grads", settings);
+  gradStats=new StatsTracker(net->getnOutputs(),name+"_grads",settings,cutGradFactor);
 }
 
 void Approximator::prepare_opc(const Sequence*const traj, const Uint samp,
@@ -290,8 +290,8 @@ void Approximator::backward(vector<Real> error, const Uint samp,
   const Uint thrID, const Uint iSample) const
 {
   const Uint netID = thrID + iSample*nThreads;
-  gradStats->clip_vector(error);
   gradStats->track_vector(error, thrID);
+  gradStats->clip_vector(error);
   const int ind = mapTime2Ind(samp, thrID);
   const vector<Activation*>& act = series[netID];
   assert(act[ind]->written == true && iSample <= extraAlloc);

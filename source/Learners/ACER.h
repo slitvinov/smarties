@@ -21,7 +21,7 @@ class ACER : public Learner_offPolicy
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nAexpectation = 5;
   const Real facExpect = 1./nAexpectation;
-  const Real alpha = 0.1;
+  const Real alpha = 1.0;
   Aggregator* relay = nullptr;
 
   inline Policy_t prepare_policy(const vector<Real>& out) const {
@@ -134,6 +134,8 @@ class ACER : public Learner_offPolicy
  public:
   ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
   {
+    _set.splitLayers = 0;
+    #if 0
     if(input->net not_eq nullptr) {
       delete input->opt; input->opt = nullptr;
       delete input->net; input->net = nullptr;
@@ -147,6 +149,8 @@ class ACER : public Learner_offPolicy
       Network* net = input_build.build();
       input->initializeNetwork(net, input_build.opt);
     }
+    #endif
+
     relay = new Aggregator(_set, data, _env->aI.dim);
     F.push_back(new Approximator("policy", _set, input, data));
     F.push_back(new Approximator("value", _set, input, data));
@@ -157,10 +161,13 @@ class ACER : public Learner_offPolicy
     Builder build_val = F[1]->buildFromSettings(_set, 1 ); // V
     Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A
 
-    F[0]->initializeNetwork(build_pol);
+    F[0]->initializeNetwork(build_pol, 10);
     _set.learnrate *= 10;
-    F[1]->initializeNetwork(build_val);
-    F[2]->initializeNetwork(build_adv);
+    const Real backup = _set.nnLambda;
+    _set.nnLambda = 0.01 * _set.learnrate;
+    F[1]->initializeNetwork(build_val, 10);
+    F[2]->initializeNetwork(build_adv, 10);
+    _set.nnLambda = backup;
     _set.learnrate /= 10;
     F[2]->allocMorePerThread(nAexpectation);
     printf("ACER\n");
