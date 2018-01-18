@@ -156,8 +156,9 @@ public:
     //advance counters of available data for training
     if(agent.Status==2) {
       data->terminate_seq(agent);
-      lock_guard<mutex> lock(buffer_mutex);
+      #pragma omp atomic
       cntHorizon += curr_seq->ndata();
+      #pragma omp atomic
       cntTrajectories++;
     }
   }

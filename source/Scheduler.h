@@ -92,8 +92,8 @@ private:
   inline void sendBuffer(const int i)
   {
     assert(i>0);
-    lock_guard<mutex> lock(mpi_mutex);
     MPI_Request tmp;
+    #pragma omp critical
     MPI_Isend(outBufs[i-1], outSize, MPI_BYTE, i, 0, slavesComm, &tmp);
     MPI_Request_free(&tmp); //Not my problem
     debugS("Sent action to slave %d: [%s]", i,
@@ -102,7 +102,7 @@ private:
 
   inline void recvBuffer(const int i)
   {
-    lock_guard<mutex> lock(mpi_mutex);
+    #pragma omp critical
     MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, slavesComm, &requests[i-1]);
     slaveIrecvStatus[i-1] = OPEN;
   }
@@ -138,9 +138,9 @@ public:
     //it's awfully ugly, i send -256 to kill the slaves... but...
     //what are the chances that learner sends action -256.(+/- eps) to clients?
     printf("nslaves %d\n",nSlaves);
-    lock_guard<mutex> lock(mpi_mutex);
     for (int slave=1; slave<=nSlaves; slave++) {
       outBufs[slave-1][0] = _AGENT_KILLSIGNAL;
+      #pragma omp critical
       MPI_Ssend(outBufs[slave-1], outSize, MPI_BYTE, slave, 0, slavesComm);
     }
   }

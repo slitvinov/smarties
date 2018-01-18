@@ -168,8 +168,6 @@ public:
   inline void addSequence(const Uint ind, Sequence*const seq)
   {
     assert(Set[ind] == nullptr && seq not_eq nullptr);
-    seq->SquaredError.resize(seq->ndata(), 0);
-    seq->offPol_weight.resize(seq->ndata(), 1); //initially treated as on-pol
     if (not seq->ended) ++nBroken;
     nTransitions += seq->ndata();
     Set[ind] = seq;

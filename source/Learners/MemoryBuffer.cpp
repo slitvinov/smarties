@@ -135,12 +135,16 @@ void MemoryBuffer::updateRewardsStats()
 void MemoryBuffer::push_back(const int & agentId)
 {
   if(inProgress[agentId]->tuples.size() > 2 ) {
-    lock_guard<mutex> lock(dataset_mutex);
-
+    #pragma omp atomic
     inProgress[agentId]->ID = nSeenSequences++;
+    #pragma omp atomic
     nSeenTransitions += inProgress[agentId]->ndata();
     assert(nSequences == Set.size());
+    #pragma omp critical
     pushBackSequence(inProgress[agentId]);
+
+    inProgress[agentId]->SquaredError.resize(inProgress[agentId]->ndata(), 0);
+    inProgress[agentId]->offPol_weight.resize(inProgress[agentId]->ndata(), 1);
   } else {
     printf("Trashing %lu obs.\n",inProgress[agentId]->tuples.size());
     fflush(0);
@@ -183,7 +187,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
       _nOffPol += numOver;
     }
   }
-  
+
   nOffPol = _nOffPol;
   const Uint nB4 = Set.size();
   int deli = -1; Real delv = 2e20;
