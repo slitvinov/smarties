@@ -22,6 +22,7 @@ class ACER : public Learner_offPolicy
   const Uint nAexpectation = 5;
   const Real facExpect = 1./nAexpectation;
   const Real alpha = 1.0;
+  //const Real alpha = 0.1;
   Aggregator* relay = nullptr;
 
   inline Policy_t prepare_policy(const vector<Real>& out) const {
@@ -68,8 +69,8 @@ class ACER : public Learner_offPolicy
         const vector<Real> A = F[2]->forward(traj, k, thrID, 1+i);
         advantages[k][2+i] = A[0];
       }
+      //cout << print(advantages[k]) << endl; fflush(0);
     }
-
     assert(traj->ended);
     Real Q_RET = data->standardized_reward(traj, ndata);
     Real Q_OPC = data->standardized_reward(traj, ndata);
@@ -82,8 +83,8 @@ class ACER : public Learner_offPolicy
         APol -= facExpect*advantages[k][2+i];
       }
       const Real A_OPC = Q_OPC - Vstates[k], Q_err = Q_RET - QTheta;
-      //const Real W = std::min((Real)1, policies[k].sampRhoWeight); //as in paper, but I see dead people
-      const Real W = std::min((Real)1, policies[k].sampImpWeight);
+      const Real W = std::min((Real)1, policies[k].sampRhoWeight); //as in paper, but I see dead people
+      //const Real W = std::min((Real)1, policies[k].sampImpWeight);
       const Real R = data->standardized_reward(traj, k), V_err = Q_err*W;
       const vector<Real> pGrad = policyGradient(traj->tuples[k], policies[k],
         policies_tgt[k], A_OPC, APol, policy_samples[k]);
@@ -94,8 +95,8 @@ class ACER : public Learner_offPolicy
         F[2]->backward({-alpha*facExpect*Q_err}, k, thrID, i+1);
       //prepare Q with off policy corrections for next step:
       Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
-      //Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]); //as in paper, but I see dead people
-      Q_OPC = R +gamma*( W*(Q_OPC-QTheta) +Vstates[k]);
+      Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]); //as in paper, but I see dead people
+      //Q_OPC = R +gamma*( W*(Q_OPC-QTheta) +Vstates[k]);
       traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
       traj->offPol_weight[k] = policies[k].sampImpWeight;
       Vstats[thrID].dumpStats(QTheta, Q_err);
@@ -125,7 +126,7 @@ class ACER : public Learner_offPolicy
     const Real gain2 = APol*std::max((Real) 0, 1-5/rho_pol);
     const vector<Real> gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
     const vector<Real> gradAcer_2 = POL.policy_grad(pol_samp,    gain2);
-    const vector<Real> penal = POL.div_kl_opp_grad(&TGT, -1);
+    const vector<Real> penal = POL.div_kl_opp_grad(&TGT, 1);
     const vector<Real> grad = sum2Grads(gradAcer_1, gradAcer_2);
     const vector<Real> trust = trust_region_update(grad, penal, 2*nA, 1);
     return POL.finalize_grad(trust);
@@ -135,7 +136,7 @@ class ACER : public Learner_offPolicy
   ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
   {
     _set.splitLayers = 0;
-    #if 0
+    #if 1
     if(input->net not_eq nullptr) {
       delete input->opt; input->opt = nullptr;
       delete input->net; input->net = nullptr;
@@ -161,14 +162,14 @@ class ACER : public Learner_offPolicy
     Builder build_val = F[1]->buildFromSettings(_set, 1 ); // V
     Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A
 
-    F[0]->initializeNetwork(build_pol, 10);
-    _set.learnrate *= 10;
-    const Real backup = _set.nnLambda;
-    _set.nnLambda = 0.01 * _set.learnrate;
-    F[1]->initializeNetwork(build_val, 10);
-    F[2]->initializeNetwork(build_adv, 10);
-    _set.nnLambda = backup;
-    _set.learnrate /= 10;
+    F[0]->initializeNetwork(build_pol);
+    //_set.learnrate *= 10;
+    //const Real backup = _set.nnLambda;
+    //_set.nnLambda = 0.01 * _set.learnrate;
+    F[1]->initializeNetwork(build_val);
+    F[2]->initializeNetwork(build_adv);
+    //_set.nnLambda = backup;
+    //_set.learnrate /= 10;
     F[2]->allocMorePerThread(nAexpectation);
     printf("ACER\n");
     if(_set.maxTotSeqNum<_set.batchSize)  die("maxTotSeqNum < batchSize")

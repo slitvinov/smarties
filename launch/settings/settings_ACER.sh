@@ -11,12 +11,8 @@ SETTINGS+=" --samplesFile none"
 SETTINGS+=" --gamma 0.99"
 #SETTINGS+=" --gamma 1.0"
 #size of network layers
-#SETTINGS+=" --nnl1 32"
-#SETTINGS+=" --nnl2 32"
 SETTINGS+=" --nnl1 128"
 SETTINGS+=" --nnl2 128"
-#SETTINGS+=" --nnl1 128"
-#SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
 #SETTINGS+=" --nnl1 256"
 #SETTINGS+=" --nnl2 256"
@@ -24,8 +20,8 @@ SETTINGS+=" --nnl2 128"
 #subject to changes
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc Tanh"
-SETTINGS+=" --nnFunc SoftSign"
-#SETTINGS+=" --nnFunc HardSign"
+#SETTINGS+=" --nnFunc SoftSign"
+SETTINGS+=" --nnFunc HardSign"
 # L2 regularization of the weights
 SETTINGS+=" --nnLambda 0.000001"
 
@@ -43,8 +39,8 @@ SETTINGS+=" --epsAnneal 1000"
 SETTINGS+=" --nMasters 1"
 SETTINGS+=" --bSampleSequences 1"
 #SETTINGS+=" --maxTotObsNum 262144"
-SETTINGS+=" --maxTotObsNum 131072"
-#SETTINGS+=" --maxTotObsNum 65536"
+#SETTINGS+=" --maxTotObsNum 131072"
+SETTINGS+=" --maxTotObsNum 65536"
 SETTINGS+=" --obsPerStep 1.0" # equivalent to 10 epoch with BS 64
 # 4096 / 64 * 10 = 640 steps per epoch
 # 4096 / 640 = 6.4 obs per step
