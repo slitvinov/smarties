@@ -92,17 +92,17 @@ private:
   inline void sendBuffer(const int i)
   {
     assert(i>0);
-    MPI_Request tmp;
-    #pragma omp critical
-    MPI_Isend(outBufs[i-1], outSize, MPI_BYTE, i, 0, slavesComm, &tmp);
-    MPI_Request_free(&tmp); //Not my problem
     debugS("Sent action to slave %d: [%s]", i,
       print(vector<Real>(outBufs[i-1], outBufs[i-1]+aI.dim)).c_str());
+    MPI_Request tmp;
+    lock_guard<mutex> lock(mpi_mutex);
+    MPI_Isend(outBufs[i-1], outSize, MPI_BYTE, i, 0, slavesComm, &tmp);
+    MPI_Request_free(&tmp); //Not my problem
   }
 
   inline void recvBuffer(const int i)
   {
-    #pragma omp critical
+    lock_guard<mutex> lock(mpi_mutex);
     MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, slavesComm, &requests[i-1]);
     slaveIrecvStatus[i-1] = OPEN;
   }

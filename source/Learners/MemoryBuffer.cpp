@@ -141,7 +141,6 @@ void MemoryBuffer::push_back(const int & agentId)
     #pragma omp atomic
     nSeenTransitions += inProgress[agentId]->ndata();
     assert(nSequences == Set.size());
-    #pragma omp critical
     pushBackSequence(inProgress[agentId]);
 
     inProgress[agentId]->SquaredError.resize(inProgress[agentId]->ndata(), 0);

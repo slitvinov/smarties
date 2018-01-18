@@ -160,6 +160,7 @@ public:
   }
   inline void pushBackSequence(Sequence*const seq)
   {
+    lock_guard<mutex> lock(dataset_mutex);
     Set.push_back(nullptr);
     addSequence(nSequences, seq);
     nSequences++;

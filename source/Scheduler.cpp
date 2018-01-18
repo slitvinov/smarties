@@ -90,7 +90,7 @@ while (true)
 
           if(not learnersLockQueue()) {
             addToNTasks(1);
-            #pragma omp task firstprivate(slave) if(nTasks<nThreads) priority(1)
+            #pragma omp task firstprivate(slave) if(nTasks<nThreads) priority(9)
             {
               //const auto t1 = chrono::high_resolution_clock::now();
               processRequest(slave);
@@ -173,14 +173,12 @@ inline void Master::processRequest(const int slave)
     {
       char path[256];
       sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
-      #pragma omp critical
-      {
-        std::ofstream outf(path, ios::app);
-        outf<<iter<<" "<<agent<<" "<<agents[agent]->transitionID<<" "
-            <<agents[agent]->cumulative_rewards<<endl;
-        outf.close();
-        ++stepNum; //sequence counter: used to terminate if not training
-      }
+      lock_guard<mutex> lock(dump_mutex); 
+      std::ofstream outf(path, ios::app);
+      outf<<iter<<" "<<agent<<" "<<agents[agent]->transitionID<<" "
+          <<agents[agent]->cumulative_rewards<<endl;
+      outf.close();
+      ++stepNum; //sequence counter: used to terminate if not training
     }
   }
 
