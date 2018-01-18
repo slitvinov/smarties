@@ -135,8 +135,9 @@ void MemoryBuffer::updateRewardsStats()
 void MemoryBuffer::push_back(const int & agentId)
 {
   if(inProgress[agentId]->tuples.size() > 2 ) {
+    inProgress[agentId]->ID = nSeenSequences;
     #pragma omp atomic
-    inProgress[agentId]->ID = nSeenSequences++;
+    nSeenSequences++;
     #pragma omp atomic
     nSeenTransitions += inProgress[agentId]->ndata();
     assert(nSequences == Set.size());
