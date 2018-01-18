@@ -21,11 +21,14 @@ DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
       delete input->net; input->net = nullptr;
     }
     Builder input_build(_set);
+    bool bInputNet = false;
     input_build.addInput( input->nOutputs() );
-    env->predefinedNetwork(input_build);
-    predefinedNetwork(input_build, _set);
-    Network* net = input_build.build();
-    input->initializeNetwork(net, input_build.opt);
+    bInputNet = bInputNet || env->predefinedNetwork(input_build);
+    bInputNet = bInputNet || predefinedNetwork(input_build, _set);
+    if(bInputNet) {
+      Network* net = input_build.build();
+      input->initializeNetwork(net, input_build.opt);
+    }
   #endif
 
   F.push_back(new Approximator("policy", _set, input, data));
