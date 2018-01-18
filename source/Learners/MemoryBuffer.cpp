@@ -166,8 +166,8 @@ void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
     for(Uint i = 0; i < Set.size(); i++) {
       Real numOver = 0, opcW = 0, mse = 0;
       for(Uint j=0; j<Set[i]->ndata(); j++) {
-        const Real obsOpcW = Set[i]->offPol_weight[j];
-        const Real obsDist = min(obsOpcW, 1/obsOpcW);
+        const Real obsOpcW = Set[i]->offPol_weight[j], invOpcW = 1/obsOpcW;
+        const Real obsDist = std::min(obsOpcW, invOpcW);
         assert(obsOpcW > 0 && obsDist <= 1);
         if( obsDist < invCmaxRho ) numOver += 1;
         mse += Set[i]->SquaredError[j];
@@ -183,13 +183,14 @@ void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
       _nOffPol += numOver;
     }
   }
+  
   nOffPol = _nOffPol;
   const Uint nB4 = Set.size();
   int deli = -1; Real delv = 2e20;
   for(const auto&P: delete_location)
     if(delv>P.second) { deli = P.first; delv = P.second; }
   assert(deli>=0);
-  if(nTransitions > maxTotObsNum) {
+  if(nTransitions-Set[deli]->ndata() > maxTotObsNum) {
     std::swap(Set[deli], Set.back());
     popBackSequence();
   } else minInd = Set[deli]->ID;

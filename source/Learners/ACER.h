@@ -139,14 +139,16 @@ class ACER : public Learner_offPolicy
       delete input->net; input->net = nullptr;
     }
     Builder input_build(_set);
+    bool bInputNet = false;
     input_build.addInput( input->nOutputs() );
-    env->predefinedNetwork(input_build);
-    predefinedNetwork(input_build, _set);
-    _set.learnrate /= 3;
-    Network* net = input_build.build();
-    _set.learnrate *= 3;
-    input->initializeNetwork(net, input_build.opt);
-
+    bInputNet = bInputNet || env->predefinedNetwork(input_build);
+    bInputNet = bInputNet || predefinedNetwork(input_build, _set);
+    if(bInputNet) {
+      _set.learnrate /= 3;
+      Network* net = input_build.build();
+      _set.learnrate *= 3;
+      input->initializeNetwork(net, input_build.opt);
+    }
     relay = new Aggregator(_set, data, _env->aI.dim);
     F.push_back(new Approximator("policy", _set, input, data));
     F.push_back(new Approximator("value", _set, input, data));

@@ -25,7 +25,7 @@ public:
     if(size<=0) die("Requested an empty input layer\n");
     const int ID = layers.size();
     layers.push_back(new InputLayer(size, ID));
-    assert(layers[ID]->nOutputs() == size);
+    assert(layers[ID]->nOutputs() == (Uint) size);
     if(nInputs > 0) {
       const Uint twoLayersSize = layers[ID-1]->nOutputs() + size;
       layers.push_back(new JoinLayer(ID+1, twoLayersSize, 2));

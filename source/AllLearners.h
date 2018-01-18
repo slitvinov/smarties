@@ -28,6 +28,8 @@ inline void print(std::ostringstream& o, std::string fname, int rank)
   if(rank != 0) return;
   ofstream fout(fname.c_str(), ios::app);
   fout << o.str() << endl;
+  fout.flush();
+  fout.close();
 }
 
 inline Learner* createLearner(Environment*const env, Settings&settings)
