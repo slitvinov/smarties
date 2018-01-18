@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <fstream>
 #include <algorithm>
+#include <chrono>
 
 Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
   Settings&_s): slavesComm(_c), learners(_l), env(_e), aI(_e->aI), sI(_e->sI),
@@ -92,7 +93,11 @@ while (true)
             addToNTasks(1);
             #pragma omp task firstprivate(slave) if(nTasks<nThreads) priority(1)
             {
+              //const auto t1 = chrono::high_resolution_clock::now();
               processRequest(slave);
+              //const auto t2 = chrono::high_resolution_clock::now();
+              //const auto span = chrono::duration_cast<chrono::duration<double,std::micro>>(t2 - t1);
+              //std::cout << "It took me " << span.count() << " seconds." << endl;
               addToNTasks(-1);
             }
           } else {

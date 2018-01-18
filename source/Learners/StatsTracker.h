@@ -72,21 +72,22 @@ struct StatsTracker
   const string name;
   const MPI_Comm comm;
   const Uint nThreads, learn_size, learn_rank;
+  const Real grad_cut_fac;
   mutable vector<long double> cntVec;
   mutable vector<vector<long double>> avgVec, stdVec;
 
   MPI_Request request = MPI_REQUEST_NULL;
   vector<long double> reduce_result, partial_sum;
 
-  StatsTracker(const Uint nvars, const string _name, Settings& sett) :
+  StatsTracker(const Uint nvars, const string _name, Settings& sett, Real cutFac = 10) :
   n_stats(nvars), name(_name), comm(sett.mastersComm), nThreads(sett.nThreads),
-  learn_size(sett.learner_size), learn_rank(sett.learner_rank),
+  learn_size(sett.learner_size), learn_rank(sett.learner_rank), grad_cut_fac(cutFac),
   cntVec(nThreads+1,0), avgVec(nThreads+1,vector<long double>()),
   stdVec(nThreads+1,vector<long double>())
   {
     avgVec[0].resize(n_stats, 0); stdVec[0].resize(n_stats, 10);
 
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
     for (Uint i=0; i<nThreads; i++) // numa aware allocation
      #pragma omp critical
      {
@@ -112,19 +113,17 @@ struct StatsTracker
       //  assert(data->Set[seq]->tuples[samp]->weight>0);
       //  grad[i] *= data->Set[seq]->tuples[samp]->weight;
       //#endif
-      #ifdef ACER_GRAD_CUT
-        if(grad[i]>  ACER_GRAD_CUT*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-        //printf("Cut %u was:%f is:%LG\n",i,grad[i], ACER_GRAD_CUT*stdVec[0][i]);
-          grad[i] =  ACER_GRAD_CUT*stdVec[0][i];
+        if(grad[i]> grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
+          //printf("Cut %u was:%f is:%LG\n",i,grad[i], grad_cut_fac*stdVec[0][i]);
+          grad[i] =  grad_cut_fac*stdVec[0][i];
           ret = 1;
         } else
-        if(grad[i]< -ACER_GRAD_CUT*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-        //printf("Cut %u was:%f is:%LG\n",i,grad[i],-ACER_GRAD_CUT*stdVec[0][i]);
-          grad[i] = -ACER_GRAD_CUT*stdVec[0][i];
+        if(grad[i]< -grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
+          //printf("Cut %u was:%f is:%LG\n",i,grad[i],-grad_cut_fac*stdVec[0][i]);
+          grad[i] = -grad_cut_fac*stdVec[0][i];
           ret = 1;
         }
         //else printf("Not cut\n");
-      #endif
     }
     return ret;
   }

@@ -144,9 +144,7 @@ class ACER : public Learner_offPolicy
     bInputNet = bInputNet || env->predefinedNetwork(input_build);
     bInputNet = bInputNet || predefinedNetwork(input_build, _set);
     if(bInputNet) {
-      _set.learnrate /= 3;
       Network* net = input_build.build();
-      _set.learnrate *= 3;
       input->initializeNetwork(net, input_build.opt);
     }
     relay = new Aggregator(_set, data, _env->aI.dim);
@@ -159,11 +157,11 @@ class ACER : public Learner_offPolicy
     Builder build_val = F[1]->buildFromSettings(_set, 1 ); // V
     Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A
 
-    _set.learnrate /= 3;
     F[0]->initializeNetwork(build_pol);
-    _set.learnrate *= 3;
+    _set.learnrate *= 10;
     F[1]->initializeNetwork(build_val);
     F[2]->initializeNetwork(build_adv);
+    _set.learnrate /= 10;
     F[2]->allocMorePerThread(nAexpectation);
     printf("ACER\n");
     if(_set.maxTotSeqNum<_set.batchSize)  die("maxTotSeqNum < batchSize")
