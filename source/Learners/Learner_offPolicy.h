@@ -42,6 +42,7 @@ public:
   {
     Uint sequence, transition;
     data->sampleTransition(sequence, transition, thrID);
+    data->Set[sequence]->setSampled(transition);
     return Train(sequence, transition, thrID);
   }
 

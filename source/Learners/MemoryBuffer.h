@@ -26,6 +26,7 @@ public:
   std::vector<std::mt19937>& generators;
   const vector<Real> mean, invstd, std;
   const int learn_rank, learn_size;
+  const Real gamma;
 
   bool first_pass = true;
   discrete_distribution<Uint> * dist = nullptr;

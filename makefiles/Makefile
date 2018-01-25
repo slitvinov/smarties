@@ -84,9 +84,15 @@ ifeq "$(config)" "debug"
 CPPFLAGS+= -g -O0
 endif
 ifeq "$(config)" "segf"
-CPPFLAGS+= -g# -O2 -ffast-math
+CPPFLAGS+= -g -O3 -ffast-math
 CPPFLAGS+= -fsanitize=address
 LIBS += -fsanitize=address
+#CPPFLAGS+= -fsanitize=thread
+#LIBS += -fsanitize=thread
+#CPPFLAGS+= -fsanitize=undefined
+#LIBS += -fsanitize=undefined
+#CPPFLAGS+= -fsanitize=leak
+#LIBS += -fsanitize=leak
 endif
 ifeq "$(config)" "prod"
 CPPFLAGS += -DNDEBUG -O2 -ffast-math

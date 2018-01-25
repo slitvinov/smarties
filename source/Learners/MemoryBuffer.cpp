@@ -17,7 +17,8 @@ MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
  batchSize(_s.batchSize), maxTotObsNum(_s.maxTotObsNum), nThreads(_s.nThreads),
  policyVecDim(_s.policyVecDim), sI(env->sI), aI(env->aI), _agents(env->agents),
  generators(_s.generators), mean(sI.inUseMean()), invstd(sI.inUseInvStd()),
- std(sI.inUseStd()), learn_rank(_s.learner_rank), learn_size(_s.learner_size) {
+ std(sI.inUseStd()), learn_rank(_s.learner_rank), learn_size(_s.learner_size),
+ gamma(_s.gamma) {
   assert(_s.nAgents>0);
   inProgress.resize(_s.nAgents);
   for (int i=0; i<_s.nAgents; i++) inProgress[i] = new Sequence();
@@ -158,33 +159,57 @@ void MemoryBuffer::push_back(const int & agentId)
 }
 
 void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
-{
-  assert(CmaxRho>1);
+{ 
   vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
-  const Real invCmaxRho = 1/CmaxRho;
   Real _nOffPol = 0;
   #pragma omp parallel num_threads(nThreads) reduction(+ : _nOffPol)
   {
     const int thrID = omp_get_thread_num();
     #pragma omp for schedule(dynamic)
     for(Uint i = 0; i < Set.size(); i++) {
-      Real numOver = 0, opcW = 0, mse = 0;
+      /*
+      if(Set[i]->just_sampled>=0) {
+      Set[i]->nOffPol = 0; Real mse=0, opcW=0;
       for(Uint j=0; j<Set[i]->ndata(); j++) {
-        const Real obsOpcW = Set[i]->offPol_weight[j], invOpcW = 1/obsOpcW;
-        const Real obsDist = std::min(obsOpcW, invOpcW);
-        assert(obsOpcW > 0 && obsDist <= 1);
-        if( obsDist < invCmaxRho ) numOver += 1;
+        const Real W = Set[i]->offPol_weight[j], invW = 1/W;
+        const Real obsDist = std::min(W, invW);
+        if( obsDist < 1/CmaxRho ) Set[i]->nOffPol += 1;
         mse += Set[i]->SquaredError[j];
         opcW += obsDist;
       }
-      const Real ndata = Set[i]->ndata(), ID = Set[i]->ID;
-      const Real W = ALGO==RECENT? ID : ((ALGO==OPCWEIGHT? opcW : mse)/ndata);
+      const Real W = ALGO==RECENT ?   Set[i]->ID : (
+        (ALGO==OPCWEIGHT? opcW : mse)/Set[i]->ndata());
+      }
+      */
+
+     for(int j=Set[i]->just_sampled; j>=0; j--) {
+        const Real obsOpcW = Set[i]->offPol_weight[j];
+        assert(obsOpcW >= 0);
+        const Real R = standardized_reward(Set[i], j);
+        const Real W = obsOpcW>1? 1: obsOpcW; 
+        const Real A = Set[i]->action_adv[j];
+        const Real V = Set[i]->state_vals[j];
+        const Real Qret = Set[i]->Q_RET[j+1];
+        Set[i]->Q_RET[j] = R +gamma*(W*(Qret -A-V)+V);
+      }
+
+      Set[i]->just_sampled = -1;
+      _nOffPol += Set[i]->nOffPol;
+
+      #ifndef NDEBUG
+        Real chck_nOffPol = 0;
+        for(Uint j=0; j<Set[i]->ndata(); j++) 
+          if(Set[i]->offPol_weight[j] <1/CmaxRho || 
+             Set[i]->offPol_weight[j] >  CmaxRho ) 
+             chck_nOffPol += 1;
+        assert(fabs(chck_nOffPol - Set[i]->nOffPol)<0.5);
+      #endif
+      
       //locate smallest sequence id/mse/impW
-      if(W < delete_location[thrID].second) {
-        delete_location[thrID].second = W;
+      if(Set[i]->ID < delete_location[thrID].second) {
+        delete_location[thrID].second = Set[i]->ID;
         delete_location[thrID].first = i;
       }
-      _nOffPol += numOver;
     }
   }
 
@@ -192,7 +217,10 @@ void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
   const Uint nB4 = Set.size();
   int deli = -1; Real delv = 2e20;
   for(const auto&P: delete_location)
-    if(delv>P.second) { deli = P.first; delv = P.second; }
+    //avoid segf if omp does not spawn req threads
+    if(delv>P.second && P.first>=0) { 
+      deli = P.first; delv = P.second; 
+    }
   assert(deli>=0);
   if(nTransitions-Set[deli]->ndata() > maxTotObsNum) {
     std::swap(Set[deli], Set.back());
@@ -258,7 +286,7 @@ void MemoryBuffer::getMetrics(ostringstream&fileOut, ostringstream&screenOut)
          //<<nSequencesInBuf<<" "<<nSequencesDeleted<<endl;
   screenOut<<" nSeq:"<<nSequences<<" nObs:"<<nTransitions<<" (seen Seq:"
   <<nSeenSequences<<" Obs:"<<nSeenTransitions<<") stdRew:"<<1/invstd_reward
-  <<" nPruned:"<<nPruned<<" minInd:"<<minInd;
+  <<" nPruned:"<<nPruned<<" minInd:"<<minInd<<" nOffPol:"<<nOffPol;
   nPruned=0;
   //<<nSequencesInBuf<<" "<<nSequencesDeleted<<endl;
 }

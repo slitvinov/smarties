@@ -112,6 +112,7 @@ int Learner_offPolicy::spawnTrainTasks()
       if(thrID == 0) profiler_ext->stop_start("WORK");
       //printf("Thread %d done %u %u\n",thrID,seq,obs); fflush(0);
       if(bSampleSequences) {
+        obs = data->Set[seq]->ndata()-1;
         Train_BPTT(seq, thrID);
         #pragma omp atomic
         nAddedGradients += data->Set[seq]->ndata();
@@ -123,6 +124,8 @@ int Learner_offPolicy::spawnTrainTasks()
         nAddedGradients++;
       }
       input->gradient(thrID);
+      data->Set[seq]->setSampled(obs);
+
       if(thrID == 0) profiler_ext->stop_start("COMM");
       #pragma omp atomic
       taskCounter++;
