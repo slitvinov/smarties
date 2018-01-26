@@ -161,9 +161,9 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
 {
   assert(CmaxRho>1);
   vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
-  Real _nOffPol = 0, _totMSE = 0;
+  Real _nOffPol = 0, _totMSE = 0, _minInd = 2e20;
   const Real invC = 1/CmaxRho, EPS = 1e-9;
-  #pragma omp parallel num_threads(nThreads) reduction(+ : _nOffPol, _totMSE)
+  #pragma omp parallel reduction(+ : _nOffPol,_totMSE) reduction(min : _minInd)
   {
     const int thrID = omp_get_thread_num();
     #pragma omp for schedule(dynamic)
@@ -183,6 +183,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
       //either delete seq with smallest index or with largest "error"
       const Real W=ALGO==OLDEST? Set[i]->ID : Set[i]->ndata()/(EPS+Set[i]->MSE);
       _nOffPol += Set[i]->nOffPol; _totMSE += Set[i]->MSE;
+      _minInd = std::min(_minInd, (Real) Set[i]->ID);
 
       //locate smallest sequence id/mse/impW
       if(W < delete_location[thrID].second) {
@@ -192,7 +193,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
     }
   }
 
-  nOffPol = _nOffPol; totMSE = _totMSE;
+  nOffPol = _nOffPol; totMSE = _totMSE; minInd = _minInd;
   const Uint nB4 = Set.size();
   int deli = -1; Real delv = 2e20;
   for(const auto&P: delete_location)
@@ -204,7 +205,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
   if(nTransitions-Set[deli]->ndata() > maxTotObsNum) {
     std::swap(Set[deli], Set.back());
     popBackSequence();
-  } else minInd = Set[deli]->ID;
+  }
   nPruned += nB4-Set.size();
 
   #ifdef IMPORTSAMPLE
