@@ -295,7 +295,7 @@ class RACER : public Learner_offPolicy
     print(pol_start).c_str(), print(adv_start).c_str());
     opcInfo = new StatsTracker(5, "racer", _set);
     //test();
-    //ALGO = MAXERROR;
+    ALGO = MAXERROR;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() { }

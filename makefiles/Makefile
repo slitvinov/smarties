@@ -81,7 +81,7 @@ CPPFLAGS+= -DRACER_SKIP=$(raceskip)
 racefrwd ?= 0
 CPPFLAGS+= -DRACER_FORWARD=$(racefrwd)
 
-raceadve ?= 1
+raceadve ?= 0
 ifeq "$(raceadve)" "1"
 CPPFLAGS+= -DRACER_ONESTEPADV
 endif

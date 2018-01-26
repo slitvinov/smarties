@@ -10,17 +10,14 @@ SETTINGS+=" --samplesFile none"
 SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-#SETTINGS+=" --nnl1 32"
-#SETTINGS+=" --nnl2 32"
+#SETTINGS+=" --nnl1 12"
 SETTINGS+=" --nnl1 128"
 SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
-#SETTINGS+=" --nnl3 64"
 #SETTINGS+=" --nnl1 256"
 #SETTINGS+=" --nnl2 256"
 
 #SETTINGS+=" --nnType RNN"
-#SETTINGS+=" --nnType LSTM"
 #SETTINGS+=" --nnFunc PRelu"
 #SETTINGS+=" --nnFunc SoftSign"
 SETTINGS+=" --nnFunc HardSign"
@@ -34,23 +31,20 @@ SETTINGS+=" --learner POAC"
 SETTINGS+=" --greedyEps 0.5"
 
 SETTINGS+=" --obsPerStep 1"
-SETTINGS+=" --bSampleSequences 0"
-SETTINGS+=" --maxTotObsNum 65536"
+SETTINGS+=" --maxTotObsNum 65536" 
+#SETTINGS+=" --maxTotObsNum 262144"
 
 SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 5000000"
 #SETTINGS+=" --impWeight 5"
 SETTINGS+=" --impWeight 2"
 
-#lag of target network
-#- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
-#- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w
-#the first option is markedly safer
-SETTINGS+=" --klDivConstraint 0.4"
+SETTINGS+=" --klDivConstraint 0.01"
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 256"
-#SETTINGS+=" --batchSize 32"
 SETTINGS+=" --bSampleSequences 0"
+#SETTINGS+=" --batchSize 32"
+#SETTINGS+=" --bSampleSequences 1"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.0003"

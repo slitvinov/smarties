@@ -216,12 +216,8 @@ public:
     const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      #ifdef TRUNC_SAMPLING
-        if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
-        if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
-      #else
-        while (samp > NORMDIST_MAX || samp < -NORMDIST_MAX) samp = dist(*gen);
-      #endif
+           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       const Uint indM = i +experti*nA +nExperts; //after experts come the means
       const Uint indS = i +experti*nA +nExperts*(nA+1); //after means, stdev
       ret[i] = beta[indM] + beta[indS] * samp;
