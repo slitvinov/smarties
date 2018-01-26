@@ -164,7 +164,7 @@ class RACER : public Learner_offPolicy
     #ifdef RACER_ONESTEPADV
       const Real rNext = data->standardized_reward(traj,samp+1);
       const Real vNext = traj->state_vals[samp+1];
-      const Real Qer = fac*(rNext + gamma*vNext -A_cur-V_cur);
+      const Real Qer = alpha*(rNext + gamma*vNext -A_cur-V_cur);
     #else
       const Real Qer = Ver;
     #endif
@@ -212,9 +212,8 @@ class RACER : public Learner_offPolicy
   inline vector<Real> offPolGrad(Sequence*const S, const Uint t,
     const vector<Real> output, const Policy_t& pol, const Uint thrID) const
   {
-    const Advantage_t advantage = prepare_advantage(output, &pol);
-    const Real V = output[VsID], A = advantage.computeAdvantage(pol.sampAct);
-    updateQret(S, t, A, V, pol);
+    const Advantage_t adv = prepare_advantage(output, &pol);
+    updateQret(S, t, adv.computeAdvantage(pol.sampAct), output[VsID], pol);
     // prepare penalization gradient:
     vector<Real> gradient(F[0]->nOutputs(), 0);
     const vector<Real> pg = pol.div_kl_opp_grad(S->tuples[t]->mu, DKL_coef-1);
@@ -222,6 +221,13 @@ class RACER : public Learner_offPolicy
     return gradient;
     //const Real r=data->standardized_reward(traj,t+1), v=traj->state_vals[t+1];
     //adv_cur.grad(act, r + gamma*v -A_cur-V_cur, gradient);
+  }
+
+  inline void offPolCorrUpdate(Sequence*const S, const Uint t,
+    const vector<Real> output, const Policy_t& pol) const
+  {
+    const Advantage_t adv = prepare_advantage(output, &pol);
+    updateQret(S, t, adv.computeAdvantage(pol.sampAct), output[VsID], pol);
   }
 
   inline void updateQret(Sequence*const S, const Uint t) const
@@ -242,14 +248,6 @@ class RACER : public Learner_offPolicy
     S->Q_RET[t] = data->standardized_reward(S,t) +gamma*(W*C +V);
     S->action_adv[t] = A; S->state_vals[t] = V;
     return std::fabs(S->Q_RET[t] - oldQret);
-  }
-
-  inline void offPolCorrUpdate(Sequence*const traj, const Uint samp,
-    const vector<Real> output, const Policy_t& pol) const
-  {
-    const Advantage_t advantage = prepare_advantage(output, &pol);
-    const Real A = advantage.computeAdvantage(pol.sampAct), V = output[VsID];
-    updateQret(traj, samp, A, V, pol);
   }
 
   inline vector<Real> policyGradient(const Tuple*const _t, const Policy_t& POL,
@@ -376,20 +374,22 @@ class RACER : public Learner_offPolicy
     const bool bWasPrepareReady = updateComplete;
 
     #ifdef RACER_BACKWARD
-    if(updateComplete) {
-      #pragma omp parallel for schedule(dynamic)
-      for(Uint i = 0; i < data->Set.size(); i++)
-        for(int j = data->Set[i]->just_sampled; j>=0; j--) {
-          const Real obsOpcW = data->Set[i]->offPol_weight[j];
-          assert(obsOpcW >= 0);
-          const Real R = data->standardized_reward(data->Set[i], j);
-          const Real W = obsOpcW>1? 1 : obsOpcW;
-          const Real A = data->Set[i]->action_adv[j];
-          const Real V = data->Set[i]->state_vals[j];
-          const Real Qret = data->Set[i]->Q_RET[j+1];
-          data->Set[i]->Q_RET[j] = R +gamma*(W*(Qret -A-V)+V);
-        }
-    }
+      if(updateComplete) {
+        profiler->stop_start("QRET");
+        #pragma omp parallel for schedule(dynamic)
+        for(Uint i = 0; i < data->Set.size(); i++)
+          for(int j = data->Set[i]->just_sampled; j>=0; j--) {
+            const Real obsOpcW = data->Set[i]->offPol_weight[j];
+            assert(obsOpcW >= 0);
+            const Real R = data->standardized_reward(data->Set[i], j);
+            const Real W = obsOpcW>1? 1 : obsOpcW;
+            const Real A = data->Set[i]->action_adv[j];
+            const Real V = data->Set[i]->state_vals[j];
+            const Real Qret = data->Set[i]->Q_RET[j+1];
+            data->Set[i]->Q_RET[j] = R +gamma*(W*(Qret -A-V)+V);
+          }
+        profiler->stop_start("SLP");
+      }
     #endif
 
     Learner_offPolicy::prepareGradient();

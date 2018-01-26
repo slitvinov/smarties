@@ -14,7 +14,7 @@
 #include "../Math/Quadratic_advantage.h"
 
 #ifdef ADV_GAUS
-#include "../Math/Mixture_advantage_prova.h"
+#include "../Math/Mixture_advantage_prova2.h"
 #warning "Using Mixture_advantage with Gaussian advantages"
 #else
 #include "../Math/Mixture_advantage.h"

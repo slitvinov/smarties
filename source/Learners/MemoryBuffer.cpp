@@ -217,7 +217,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
   } else minInd = Set[deli]->ID;
   nPruned += nB4-Set.size();
 
-  #ifdef importanceSampling
+  #ifdef IMPORTSAMPLE
     updateImportanceWeights();
   #endif
 }
@@ -328,7 +328,7 @@ void MemoryBuffer::restart()
 // number of returned samples depends on size of seq! (== to that of trans)
 void MemoryBuffer::sampleTransition(Uint& seq, Uint& obs, const int thrID)
 {
-  #ifndef importanceSampling
+  #ifndef IMPORTSAMPLE
     std::uniform_int_distribution<int> distObs(0, nTransitions-1);
     const Uint ind = distObs(generators[thrID]);
   #else
@@ -345,7 +345,7 @@ Uint MemoryBuffer::sampleTransition(const Uint seq, const int thrID)
 
 void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
 {
-  #ifndef importanceSampling
+  #ifndef IMPORTSAMPLE
     std::uniform_int_distribution<int> distSeq(0, nSequences-1);
     seq = distSeq(generators[thrID]);
   #else

@@ -75,7 +75,7 @@ struct Discrete_policy
     sampLogPonPolicy = evalLogProbability(sampAct);
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = std::min(MAX_IMPW, safeExp(logW) );
+    sampImpWeight = safeExp(logW);
     sampRhoWeight = sampImpWeight;
   }
 

@@ -109,7 +109,7 @@ struct StatsTracker
   {
     int ret = 0;
     for (Uint i=0; i<n_stats; i++) {
-      //#ifdef importanceSampling
+      //#ifdef IMPORTSAMPLE
       //  assert(data->Set[seq]->tuples[samp]->weight>0);
       //  grad[i] *= data->Set[seq]->tuples[samp]->weight;
       //#endif

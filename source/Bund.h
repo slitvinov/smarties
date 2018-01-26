@@ -24,7 +24,9 @@ using namespace std;
 
 #include <omp.h>
 #include <mpi.h>
-//#define RETRACE_TRICK
+
+//#define RACER_ACERTRICK
+
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
 //FOR CONTINUOUS ACTIONS RACER:
@@ -36,29 +38,17 @@ using namespace std;
   #define ACER_MIN_PROB 0
 #endif
 
-//de facto unused:
 #define NORMDIST_MAX 2 //truncated normal distribution range
 #define BOUNDACT_MAX 8 //for bounded action spaces: range (ie. tanh(8))
 
-#define MAX_UNROLL_AFTER 2000
 //uniform precision (1/std^2) in case of Acer:
 #define ACER_CONST_PREC (1/0.09)
 
 // number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20
-//clip gradients of network outputs if more than # standard deviations from 0:
-#define ACER_GRAD_CUT 100
-#define MAX_IMPW (Real)100
-
-#ifdef IMPORTSAMPLE
-  #define importanceSampling
-#endif
 
 //#define NET_L1_PENAL
-//#define INTEGRATEANDFIREMODEL
-//#define INTEGRATEANDFIRESHARED //if IaF parameters are shared by all neurons
 //#define _dumpNet_
-#define FULLTASKING
 
 typedef unsigned Uint;
 

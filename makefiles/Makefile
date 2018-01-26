@@ -75,7 +75,7 @@ ifeq "$(acertrick)" "1"
 CPPFLAGS+= -DRACER_ACERTRICK
 endif
 
-raceskip ?= 2
+raceskip ?= 1
 CPPFLAGS+= -DRACER_SKIP=$(raceskip)
 
 racefrwd ?= 0
@@ -91,7 +91,7 @@ ifeq "$(raceback)" "1"
 CPPFLAGS+= -DRACER_BACKWARD
 endif
 
-exp ?= QUAD
+exp ?= GAUS
 ifeq "$(exp)" "GAUS"
 CPPFLAGS+= -DADV_GAUS
 endif

@@ -75,7 +75,7 @@ public:
     sampLogPonPolicy = evalLogProbability(sampAct);
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = std::min(MAX_IMPW, safeExp(logW) );
+    sampImpWeight = safeExp( logW );
     sampRhoWeight = std::exp(logW / std::sqrt(nA));
   }
 
@@ -279,11 +279,11 @@ public:
       //#endif
     }
   }
- 
+
   inline vector<Real> finalize_grad(const vector<Real>&grad) const
   {
-    vector<Real> ret = grad; 
-    for (Uint j=0; j<nA; j++) 
+    vector<Real> ret = grad;
+    for (Uint j=0; j<nA; j++)
     if(aInfo->bounded[j]) {
       if(mean[j]> BOUNDACT_MAX && grad[j]>0) ret[j]=0;
       else

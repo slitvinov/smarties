@@ -89,7 +89,7 @@ protected:
     const Action_t act = pol.map_action(traj->tuples[samp]->a);
     const Real actProbOnPolicy = pol.evalLogProbability(act);
     const Real actProbBehavior = Policy_t::evalBehavior(act, beta);
-    const Real rho_cur= min(MAX_IMPW, safeExp(actProbOnPolicy-actProbBehavior));
+    const Real rho_cur = safeExp(actProbOnPolicy-actProbBehavior);
     const Real DivKL=pol.kl_divergence_opp(beta);
     //if ( thrID==1 ) printf("%u %u : %f DivKL:%f %f %f\n", nOutputs, PenalID, penalDKL, DivKL, completed[workid]->policy[samp][1], output[2]);
 
