@@ -12,7 +12,7 @@
 #define impSampVal
 //#define dumpExtra
 #ifndef RACER_SKIP
-#define RACER_SKIP 2
+#define RACER_SKIP 1
 #endif
 //#define RACER_ONESTEPADV
 //#define RACER_BACKWARD
@@ -114,8 +114,9 @@ class RACER : public Learner_offPolicy
         const Policy_t polt = prepare_policy(outt, traj->tuples[k]);
         const Advantage_t advt = prepare_advantage(outt, &polt);
         //impW *= gamma * std::min((Real)1, polt.sampImpWeight);
+        traj->SquaredError[k] = polt.kl_divergence_opp(traj->tuples[k]->mu);
         traj->action_adv[k] = advt.computeAdvantage(polt.sampAct);
-        traj->isOffPolicy(k, pol.sampRhoWeight, CmaxRet,invC);
+        traj->offPol_weight[k] = polt.sampRhoWeight;
         traj->state_vals[k] = outt[VsID];
         //if (impW < 0.1) break;
       }
@@ -147,7 +148,6 @@ class RACER : public Learner_offPolicy
   inline vector<Real> compute(Sequence*const traj, const Uint samp,
     const vector<Real>& outVec, const Policy_t& pol_cur, const Uint thrID) const
   {
-    Real meanPena=0, meanGrad=0, meanProj=0, meanDist=0;
     vector<Real> gradient(F[0]->nOutputs(), 0);
     const Advantage_t adv_cur = prepare_advantage(outVec, &pol_cur);
     const Real A_cur = adv_cur.computeAdvantage(pol_cur.sampAct);
@@ -174,12 +174,7 @@ class RACER : public Learner_offPolicy
     const vector<Real> penal=pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu,-1);
     const vector<Real> finalG = weightSum2Grads(policyG, penal, DKL_coef);
 
-    for(Uint i=0; i<policyG.size(); i++) {
-      meanGrad += std::fabs(policyG[i]);
-      meanPena += std::fabs(penal[i]);
-      meanProj += policyG[i]*penal[i];
-      meanDist += std::fabs(policyG[i]-finalG[i]);
-    }
+
     #ifdef dumpExtra
       {
         Real normG=0, normT=numeric_limits<Real>::epsilon(), dot=0, normP=0;
@@ -205,7 +200,13 @@ class RACER : public Learner_offPolicy
     Vstats[thrID].dumpStats(A_cur, Q_dist); //bookkeeping
     //prepare Q with off policy corrections for next step:
     const Real dAdv = updateQret(traj, samp, A_cur, V_cur, pol_cur);
-    opcInfo->track_vector({meanGrad,meanPena,meanProj,meanDist,dAdv}, thrID);
+    vector<Real> sampleInfo {0, 0, 0, dAdv, pol_cur.sampImpWeight};
+    for(Uint i=0; i<policyG.size(); i++) {
+      sampleInfo[0] += std::fabs(policyG[i]);
+      sampleInfo[1] += std::fabs(penal[i]);
+      sampleInfo[2] += policyG[i]*penal[i];
+    }
+    opcInfo->track_vector(sampleInfo, thrID);
     return gradient;
   }
 
@@ -245,6 +246,7 @@ class RACER : public Learner_offPolicy
     const Real oldQret = S->Q_RET[t], C = S->Q_RET[t+1]-A-V;
     const Real W = std::min((Real)1, pol.sampRhoWeight);
     //prepare Qret with off policy corrections for next step:
+    S->SquaredError[t] = pol.kl_divergence_opp(S->tuples[t]->mu);
     S->Q_RET[t] = data->standardized_reward(S,t) +gamma*(W*C +V);
     S->action_adv[t] = A; S->state_vals[t] = V;
     return std::fabs(S->Q_RET[t] - oldQret);
@@ -254,7 +256,7 @@ class RACER : public Learner_offPolicy
     const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
   {
     const Real rho_cur = POL.sampImpWeight;
-    #if   defined(ACER_TABC)
+    #if defined(RACER_TABC)
       //compute quantities needed for trunc import sampl with bias correction
       const Action_t sample = POL.sample(&generators[thrID]);
       const Real polProbOnPolicy = POL.evalLogProbability(sample);
@@ -293,6 +295,7 @@ class RACER : public Learner_offPolicy
     print(pol_start).c_str(), print(adv_start).c_str());
     opcInfo = new StatsTracker(5, "racer", _set);
     //test();
+    ALGO = MAXERROR;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() { }

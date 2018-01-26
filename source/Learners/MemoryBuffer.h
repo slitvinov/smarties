@@ -12,7 +12,7 @@
 #include "../Environments/Environment.h"
 #include <parallel/algorithm>
 
-enum SORTING {RECENT, OPCWEIGHT, ERROR};
+enum FORGET {OLDEST, MAXERROR, MINERROR};
 class MemoryBuffer
 {
 public:
@@ -35,7 +35,7 @@ public:
   Uint nTransitionsInBuf=0, nTransitionsDeleted=0;
   size_t nSeenSequences=0, nSeenTransitions=0, iOldestSaved = 0;
   Uint nPruned = 0, minInd = 0;
-  Real invstd_reward = 1, mean_reward = 0, nOffPol = 0;
+  Real invstd_reward = 1, mean_reward = 0, nOffPol = 0, totMSE = 0;
 
 
   Gen* gen;
@@ -113,7 +113,7 @@ public:
 
   void updateRewardsStats();
   void updateImportanceWeights();
-  void prune(const Real CmaxRho, const SORTING ALGO);
+  void prune(const Real CmaxRho, const FORGET ALGO);
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut);
   void restart();

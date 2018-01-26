@@ -157,60 +157,50 @@ void MemoryBuffer::push_back(const int & agentId)
   inProgress[agentId] = new Sequence();
 }
 
-void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
+void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
 {
   assert(CmaxRho>1);
   vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
-  Real _nOffPol = 0;
-  #pragma omp parallel num_threads(nThreads) reduction(+ : _nOffPol)
+  Real _nOffPol = 0, _totMSE = 0;
+  const Real invC = 1/CmaxRho, EPS = 1e-9;
+  #pragma omp parallel num_threads(nThreads) reduction(+ : _nOffPol, _totMSE)
   {
     const int thrID = omp_get_thread_num();
     #pragma omp for schedule(dynamic)
-    for(Uint i = 0; i < Set.size(); i++) {
-      /*
-      if(Set[i]->just_sampled>=0) {
-      Set[i]->nOffPol = 0; Real mse=0, opcW=0;
-      for(Uint j=0; j<Set[i]->ndata(); j++) {
-        const Real W = Set[i]->offPol_weight[j], invW = 1/W;
-        const Real obsDist = std::min(W, invW);
-        assert(W >= 0 && obsDist <= 1);
-        if( obsDist < 1/CmaxRho ) Set[i]->nOffPol += 1;
-        mse += Set[i]->SquaredError[j];
-        opcW += obsDist;
+    for(Uint i = 0; i < Set.size(); i++)
+    {
+      if(Set[i]->just_sampled >= 0) {
+        Set[i]->nOffPol = 0; Set[i]->MSE = 0;
+        for(Uint j=0; j<Set[i]->ndata(); j++) {
+          Set[i]->MSE += Set[i]->SquaredError[j];
+          const Real W = Set[i]->offPol_weight[j];
+          assert(Set[i]->SquaredError[j]>=0 && W>=0);
+          if(W>CmaxRho || W<invC) Set[i]->nOffPol += 1;
+        }
+        Set[i]->just_sampled = -1;
       }
-      const Real W = ALGO==RECENT ?   Set[i]->ID : (
-        (ALGO==OPCWEIGHT? opcW : mse)/Set[i]->ndata());
-      }
-      */
-
-      Set[i]->just_sampled = -1;
-      _nOffPol += Set[i]->nOffPol;
-
-      #ifndef NDEBUG
-        Real chck_nOffPol = 0;
-        for(Uint j=0; j<Set[i]->ndata(); j++)
-          if(Set[i]->offPol_weight[j] <1/CmaxRho ||
-             Set[i]->offPol_weight[j] >  CmaxRho ) chck_nOffPol += 1;
-        assert(fabs(chck_nOffPol - Set[i]->nOffPol)<0.5);
-      #endif
+      assert(ALGO == OLDEST || ALGO == MAXERROR); //TODO generalize
+      //either delete seq with smallest index or with largest "error"
+      const Real W=ALGO==OLDEST? Set[i]->ID : Set[i]->ndata()/(EPS+Set[i]->MSE);
+      _nOffPol += Set[i]->nOffPol; _totMSE += Set[i]->MSE;
 
       //locate smallest sequence id/mse/impW
-      if(Set[i]->ID < delete_location[thrID].second) {
-        delete_location[thrID].second = Set[i]->ID;
+      if(W < delete_location[thrID].second) {
+        delete_location[thrID].second = W;
         delete_location[thrID].first = i;
       }
     }
   }
 
-  nOffPol = _nOffPol;
+  nOffPol = _nOffPol; totMSE = _totMSE;
   const Uint nB4 = Set.size();
   int deli = -1; Real delv = 2e20;
   for(const auto&P: delete_location)
-    //avoid segf if omp does not spawn req threads
     if(delv>P.second && P.first>=0) {
       deli = P.first; delv = P.second;
     }
   assert(deli>=0);
+
   if(nTransitions-Set[deli]->ndata() > maxTotObsNum) {
     std::swap(Set[deli], Set.back());
     popBackSequence();
@@ -275,7 +265,7 @@ void MemoryBuffer::getMetrics(ostringstream&fileOut, ostringstream&screenOut)
          //<<nSequencesInBuf<<" "<<nSequencesDeleted<<endl;
   screenOut<<" nSeq:"<<nSequences<<" nObs:"<<nTransitions<<" (seen Seq:"
   <<nSeenSequences<<" Obs:"<<nSeenTransitions<<") stdRew:"<<1/invstd_reward
-  <<" nPruned:"<<nPruned<<" minInd:"<<minInd<<" nOffPol:"<<nOffPol;
+  <<" minInd:"<<minInd<<" nOffPol:"<<nOffPol<<" totMSE:"<<totMSE;
   nPruned=0;
   //<<nSequencesInBuf<<" "<<nSequencesDeleted<<endl;
 }

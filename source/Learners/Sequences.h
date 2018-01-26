@@ -34,7 +34,7 @@ struct Sequence
 {
   vector<Tuple*> tuples;
   int ended = 0, ID = -1, just_sampled = -1;
-  Real nOffPol = 0;
+  Real nOffPol = 0, MSE = 0;
   vector<Real> action_adv;
   vector<Real> state_vals;
   vector<Real> Q_RET;
@@ -51,29 +51,30 @@ struct Sequence
   void clear()
   {
     for(auto &t : tuples) _dispose_object(t);
-    tuples.clear(); ended=0; ID=-1; just_sampled=-1; nOffPol=0;
+    tuples.clear();
+    ended=0; ID=-1; just_sampled=-1; nOffPol=0; MSE=0;
     SquaredError.clear(); offPol_weight.clear();
-    action_adv.clear(); state_vals.clear();
-    imp_weight.clear(); Q_RET.clear();
+    action_adv.clear(); state_vals.clear(); Q_RET.clear();
+    imp_weight.clear();
   }
   inline void setSampled(const int t)
   {
     #pragma omp critical
     if(just_sampled < t) just_sampled = t;
   }
-  bool isOffPolicy(const Uint t, const Real W, const Real C, const Real iC)
+  inline bool isOffPolicy(const Uint t,const Real W,const Real C,const Real iC)
   {
     bool isOff;
-    #pragma omp critical
-    {
+    //#pragma omp critical
+    //{
       assert(t<offPol_weight.size());
-      const Real w = offPol_weight[t];
+      //const Real w = offPol_weight[t];
       offPol_weight[t] = W;
-      const bool wasOff = w > C || w < iC;
+      //const bool wasOff = w > C || w < iC;
                   isOff = W > C || W < iC;
-      if((not wasOff)&&     isOff ) nOffPol += 1;
-      if(     wasOff &&(not isOff)) nOffPol -= 1;
-    }
+      //if((not wasOff)&&     isOff ) nOffPol += 1;
+      //if(     wasOff &&(not isOff)) nOffPol -= 1;
+    //}
     return isOff;
   }
   inline void add_state(const vector<Real> state, const Real reward=0)

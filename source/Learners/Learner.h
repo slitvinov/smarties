@@ -32,7 +32,7 @@ protected:
   const int learn_rank, learn_size;
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;
-  SORTING ALGO = RECENT;
+  FORGET ALGO = OLDEST;
 
   mutable bool updatePrepared = false;
   mutable bool updateComplete = false;
