@@ -61,17 +61,18 @@ struct Sequence
     #pragma omp critical
     if(just_sampled < t) just_sampled = t;
   }
-  inline bool isOffPolicy(const Uint t, const Real W, const Real C, const Real iC) 
+  bool isOffPolicy(const Uint t, const Real W, const Real C, const Real iC)
   {
     bool isOff;
     #pragma omp critical
     {
+      assert(t<offPol_weight.size());
       const Real w = offPol_weight[t];
       offPol_weight[t] = W;
       const bool wasOff = w > C || w < iC;
                   isOff = W > C || W < iC;
       if((not wasOff)&&     isOff ) nOffPol += 1;
-      if(     wasOff &&(not isOff)) nOffPol -= 1; 
+      if(     wasOff &&(not isOff)) nOffPol -= 1;
     }
     return isOff;
   }

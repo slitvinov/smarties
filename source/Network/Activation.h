@@ -129,7 +129,7 @@ struct Activation
     }
   }
 
-  inline void loadMemory(Memory*const _M) const {
+  inline void loadMemory(const Memory*const _M) const {
     for(Uint i=0; i<nLayers; i++) {
       assert(outvals[i] not_eq nullptr);
       assert(_M->outvals[i] not_eq nullptr);

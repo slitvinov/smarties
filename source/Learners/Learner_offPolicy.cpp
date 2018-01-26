@@ -150,7 +150,7 @@ void Learner_offPolicy::prepareGradient()
     const Real stepCounter = nStep - (Real)nStep_last;
     nData_last += stepCounter*obsPerStep/learn_size;
     nStep_last = nStep;
-    data->prune(CmaxPol, ALGO);
+    data->prune(CmaxRet, ALGO);
     profiler->stop_start("SLP");
   }
 }

@@ -137,15 +137,14 @@ void MemoryBuffer::push_back(const int & agentId)
 {
   if(inProgress[agentId]->tuples.size() > 2 ) {
     inProgress[agentId]->ID = nSeenSequences;
+    inProgress[agentId]->SquaredError.resize(inProgress[agentId]->ndata(), 0);
+    inProgress[agentId]->offPol_weight.resize(inProgress[agentId]->ndata(), 1);
     #pragma omp atomic
     nSeenSequences++;
     #pragma omp atomic
     nSeenTransitions += inProgress[agentId]->ndata();
     assert(nSequences == Set.size());
     pushBackSequence(inProgress[agentId]);
-
-    inProgress[agentId]->SquaredError.resize(inProgress[agentId]->ndata(), 0);
-    inProgress[agentId]->offPol_weight.resize(inProgress[agentId]->ndata(), 1);
   } else {
     printf("Trashing %lu obs.\n",inProgress[agentId]->tuples.size());
     fflush(0);
@@ -159,7 +158,8 @@ void MemoryBuffer::push_back(const int & agentId)
 }
 
 void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
-{ 
+{
+  assert(CmaxRho>1);
   vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
   Real _nOffPol = 0;
   #pragma omp parallel num_threads(nThreads) reduction(+ : _nOffPol)
@@ -173,6 +173,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
       for(Uint j=0; j<Set[i]->ndata(); j++) {
         const Real W = Set[i]->offPol_weight[j], invW = 1/W;
         const Real obsDist = std::min(W, invW);
+        assert(W >= 0 && obsDist <= 1);
         if( obsDist < 1/CmaxRho ) Set[i]->nOffPol += 1;
         mse += Set[i]->SquaredError[j];
         opcW += obsDist;
@@ -182,29 +183,17 @@ void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
       }
       */
 
-     for(int j=Set[i]->just_sampled; j>=0; j--) {
-        const Real obsOpcW = Set[i]->offPol_weight[j];
-        assert(obsOpcW >= 0);
-        const Real R = standardized_reward(Set[i], j);
-        const Real W = obsOpcW>1? 1: obsOpcW; 
-        const Real A = Set[i]->action_adv[j];
-        const Real V = Set[i]->state_vals[j];
-        const Real Qret = Set[i]->Q_RET[j+1];
-        Set[i]->Q_RET[j] = R +gamma*(W*(Qret -A-V)+V);
-      }
-
       Set[i]->just_sampled = -1;
       _nOffPol += Set[i]->nOffPol;
 
       #ifndef NDEBUG
         Real chck_nOffPol = 0;
-        for(Uint j=0; j<Set[i]->ndata(); j++) 
-          if(Set[i]->offPol_weight[j] <1/CmaxRho || 
-             Set[i]->offPol_weight[j] >  CmaxRho ) 
-             chck_nOffPol += 1;
+        for(Uint j=0; j<Set[i]->ndata(); j++)
+          if(Set[i]->offPol_weight[j] <1/CmaxRho ||
+             Set[i]->offPol_weight[j] >  CmaxRho ) chck_nOffPol += 1;
         assert(fabs(chck_nOffPol - Set[i]->nOffPol)<0.5);
       #endif
-      
+
       //locate smallest sequence id/mse/impW
       if(Set[i]->ID < delete_location[thrID].second) {
         delete_location[thrID].second = Set[i]->ID;
@@ -218,8 +207,8 @@ void MemoryBuffer::prune(const Real CmaxRho, const SORTING ALGO)
   int deli = -1; Real delv = 2e20;
   for(const auto&P: delete_location)
     //avoid segf if omp does not spawn req threads
-    if(delv>P.second && P.first>=0) { 
-      deli = P.first; delv = P.second; 
+    if(delv>P.second && P.first>=0) {
+      deli = P.first; delv = P.second;
     }
   assert(deli>=0);
   if(nTransitions-Set[deli]->ndata() > maxTotObsNum) {
@@ -275,8 +264,8 @@ void MemoryBuffer::updateImportanceWeights()
 
   for(Uint i=0, k=0; i<Set.size(); i++)
     for(Uint j=0; j<Set[i]->ndata(); j++)
-      if(bSampleSeq) Set[i]->offPol_weight[j] = Ws[i];
-      else Set[i]->offPol_weight[j] = Ws[k++];
+      if(bSampleSeq) Set[i]->imp_weight[j] = Ws[i];
+      else Set[i]->imp_weight[j] = Ws[k++];
 }
 
 void MemoryBuffer::getMetrics(ostringstream&fileOut, ostringstream&screenOut)
@@ -346,6 +335,12 @@ void MemoryBuffer::sampleTransition(Uint& seq, Uint& obs, const int thrID)
     const Uint ind = (*dist)(generators[thrID]);
   #endif
   indexToSample(ind, seq, obs);
+}
+
+Uint MemoryBuffer::sampleTransition(const Uint seq, const int thrID)
+{
+  std::uniform_int_distribution<Uint> distObs(0, Set[seq]->ndata()-1);
+  return distObs(generators[thrID]);
 }
 
 void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)

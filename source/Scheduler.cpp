@@ -120,7 +120,7 @@ die(" ");
 return 0;
 }
 
-inline void Master::processRequest(const int slave)
+void Master::processRequest(const int slave)
 {
   const int thrID = omp_get_thread_num();
   //printf("Thread %d doing slave %d\n",thrID,slave);
@@ -173,11 +173,11 @@ inline void Master::processRequest(const int slave)
     {
       char path[256];
       sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
-      lock_guard<mutex> lock(dump_mutex); 
+      lock_guard<mutex> lock(dump_mutex);
       std::ofstream outf(path, ios::app);
       outf<<iter<<" "<<agent<<" "<<agents[agent]->transitionID<<" "
           <<agents[agent]->cumulative_rewards<<endl;
-      outf.close();
+      outf.flush(); outf.close();
       ++stepNum; //sequence counter: used to terminate if not training
     }
   }

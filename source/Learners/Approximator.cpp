@@ -156,7 +156,8 @@ void Approximator::prepare_opc(const Sequence*const traj, const Uint samp,
   for(Uint k=0; k<nSamples; k++)
     net->prepForBackProp(series[thrID + k*nThreads], nTotal);
 
-  net->prepForFwdProp(series_tgt[thrID], nTotal);
+  if(series_tgt.size()>thrID)
+    net->prepForFwdProp(series_tgt[thrID], nTotal);
 
   error_placements[thrID] = -1;
   first_sample[thrID] = samp - nRecurr;
@@ -251,13 +252,11 @@ vector<Real> Approximator::forward_agent(const Sequence* const traj,
   const vector<Real> inp = getInput(traj, stepid, thrID);
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
   const Activation* const prevStep = agent.Status==1? nullptr : act[0];
+  act[0]->written = true; act[1]->written = true;
   Activation* const currStep = act[1];
-  if(agent.Status not_eq 1)
-    prevStep->loadMemory(net->mem[agent.ID]);
-
+  if(agent.Status not_eq 1) prevStep->loadMemory(net->mem[agent.ID]);
   const vector<Real> ret = net->predict(inp, prevStep, currStep, W);
   currStep->storeMemory(net->mem[agent.ID]);
-  currStep->written = true;
   return ret;
 }
 

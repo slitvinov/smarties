@@ -47,17 +47,35 @@ public:
     return new Parameters(nWeight, nBiases);
   }
 
-  inline void prepForBackProp(vector<Activation*>& series, const Uint N) const {
-    prepForFwdProp(series,N);
-    assert(series.size()>=N);
-    for(Uint j=0; j<series.size(); j++) series[j]->clearErrors();
-  }
-  inline void prepForFwdProp (vector<Activation*>& series, const Uint N) const {
+  inline void prepForBackProp(vector<Activation*>& series, const Uint N) const
+  {
     if (series.size() < N)
       for(Uint j=series.size(); j<N; j++)
         series.push_back(allocateActivation());
+    assert(series.size()>=N);
 
-    for(Uint j=0; j<series.size(); j++) series[j]->written = false;
+    for(Uint j=0; j<series.size() && series[j]->written; j++) {
+      series[j]->clearErrors();
+      series[j]->written = false;
+    }
+
+    #ifndef NDEBUG
+    for(Uint j=0; j<series.size(); j++) assert(not series[j]->written);
+    #endif
+  }
+  inline void prepForFwdProp (vector<Activation*>& series, const Uint N) const
+  {
+    if (series.size() < N)
+      for(Uint j=series.size(); j<N; j++)
+        series.push_back(allocateActivation());
+    assert(series.size()>=N);
+
+    for(Uint j=0; j<series.size() && series[j]->written; j++)
+      series[j]->written = false;
+
+    #ifndef NDEBUG
+    for(Uint j=0; j<series.size(); j++) assert(not series[j]->written);
+    #endif
   }
 
   Network(Builder* const B, Settings & settings) ;

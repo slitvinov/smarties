@@ -174,7 +174,12 @@ public:
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const long double logW = sampLogPonPolicy - sampLogPBehavior;
     sampImpWeight = std::min((long double) MAX_IMPW, std::exp(logW) );
-    sampRhoWeight = sampImpWeight;
+    #ifdef RACER_ACERTRICK
+      //sampRhoWeight = std::exp( logW / std::sqrt(nA) );
+      sampRhoWeight = std::exp( logW / nA );
+    #else
+      sampRhoWeight = sampImpWeight;
+    #endif
   }
 
   static inline long double evalBehavior(const vector<Real>& act, const vector<Real>& beta)

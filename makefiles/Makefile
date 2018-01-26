@@ -4,14 +4,6 @@ UNAME_S := $(shell uname -s)
 viz ?= 0
 config ?= prod
 extra ?=
-app ?= test
-acer ?= relax
-testdiff ?= no
-entropy ?= off
-importance ?= off
-tabc ?= off
-sortseq ?= off
-mpi_lib ?= default
 
 CPPFLAGS= -std=c++11 -D__Smarties_ -fopenmp
 LIBS= -fopenmp -lstdc++ -lm -dynamic -ldl -lc -lgomp
@@ -32,6 +24,7 @@ include make.brutus
 endif
 
 ifeq "$(findstring daint,$(shell hostname))" "daint"
+mpi_lib ?= default
 ifeq "$(mpi_lib)" "mpich"
 include make.daint_mpich # When using self-compiled MPI - for client runs with srun main app
 else
@@ -53,6 +46,7 @@ CPPFLAGS+= -Wno-cpp -Wno-unused-parameter # does not make sense with function ov
 #CPPFLAGS+= -Wno-float-equal #sometimes you just know, do you know what I am saying?
 CPPFLAGS+= -Wno-unknown-pragmas
 
+acer ?= relax
 ifeq "$(acer)" "relax"
 CPPFLAGS += -DACER_RELAX
 else
@@ -61,36 +55,76 @@ ifneq "$(acer)" "full"
 endif #!full
 endif #relax
 
+sortseq ?= off
 ifeq "$(sortseq)" "on"
 CPPFLAGS+= -DRESORT_SEQS
 endif
+
+tabc ?= off
 ifeq "$(tabc)" "on"
 CPPFLAGS+= -DACER_TABC
 endif
+
+importance ?= off
 ifeq "$(importance)" "on"
 CPPFLAGS+= -DimportanceSampling
 endif
+
+acertrick ?= 0
+ifeq "$(acertrick)" "1"
+CPPFLAGS+= -DRACER_ACERTRICK
+endif
+
+raceskip ?= 2
+CPPFLAGS+= -DRACER_SKIP=$(raceskip)
+
+racefrwd ?= 0
+CPPFLAGS+= -DRACER_FORWARD=$(racefrwd)
+
+raceadve ?= 1
+ifeq "$(raceadve)" "1"
+CPPFLAGS+= -DRACER_ONESTEPADV
+endif
+
+raceback ?= 1
+ifeq "$(raceback)" "1"
+CPPFLAGS+= -DRACER_BACKWARD
+endif
+
+exp ?= QUAD
+ifeq "$(exp)" "GAUS"
+CPPFLAGS+= -DADV_GAUS
+endif
+
+nexp ?= 1
+CPPFLAGS+= -DNEXPERTS=$(nexp)
+
+entropy ?= off
 ifeq "$(entropy)" "on"
 CPPFLAGS+= -D__EntropySGD
 endif
-ifeq "$(testdiff)" "yes"
+
+testdiff ?= off
+ifeq "$(testdiff)" "on"
 CPPFLAGS+= -D__CHECK_DIFF
 endif
 
+app ?= test
 ifeq "$(app)" "cubism"
 CPPFLAGS+= -D__Cubism3D
 endif
+
 ifeq "$(config)" "debug"
-CPPFLAGS+= -g -O0
+CPPFLAGS+= -g -O1
 endif
 ifeq "$(config)" "segf"
-CPPFLAGS+= -g -O3 -ffast-math
-CPPFLAGS+= -fsanitize=address
-LIBS += -fsanitize=address
+CPPFLAGS+= -g -O1 -ffast-math
+#CPPFLAGS+= -fsanitize=address
+#LIBS += -fsanitize=address
 #CPPFLAGS+= -fsanitize=thread
 #LIBS += -fsanitize=thread
-#CPPFLAGS+= -fsanitize=undefined
-#LIBS += -fsanitize=undefined
+CPPFLAGS+= -fsanitize=undefined
+LIBS += -fsanitize=undefined
 #CPPFLAGS+= -fsanitize=leak
 #LIBS += -fsanitize=leak
 endif

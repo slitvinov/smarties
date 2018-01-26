@@ -120,6 +120,7 @@ public:
 
   void indexToSample(const int nSample, Uint& seq, Uint& obs) const;
   void sampleTransition(Uint& seq, Uint& obs, const int thrID);
+  Uint sampleTransition(const Uint seq, const int thrID);
   void sampleSequence(Uint& seq, const int thrID);
   vector<Uint> sampleSequences(const Uint N);
 
