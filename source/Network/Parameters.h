@@ -97,6 +97,11 @@ struct Parameters
     }
   }
 
+  void set(const Real val) const
+  {
+    for(Uint j=0; j<nParams; j++) params[j] = val;
+  }
+
   long double compute_weight_norm() const
   {
     long double sumWeights = 0;

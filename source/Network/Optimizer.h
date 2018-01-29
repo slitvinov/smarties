@@ -25,10 +25,10 @@ struct EntropyAdam {
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
     M2 = M2<M1*M1? M1*M1 : M2; // gradient clipping to 1
-    const nnReal _M2 = std::sqrt(M2 + nnEPS);
-    //const nnReal ret = eta*M1/_M2;
-    const nnReal ret = eta*(B1*M1 + (1-B1)*DW)/_M2;
-    return ret + 1e-5*gen.d_mean0_var1(); //Adam plus exploratory noise
+    const nnReal _M2 = std::sqrt(M2) + nnEPS;
+    const nnReal ret = eta*M1/_M2;
+    //const nnReal ret = eta*(B1*M1 + (1-B1)*DW)/_M2;
+    return ret + 1e-6*gen.d_mean0_var1(); //Adam plus exploratory noise
     //dest[i] += delay*(target[i]-dest[i]);
     //dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
     //_mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
@@ -55,7 +55,7 @@ struct Adam {
   const nnReal eta, B1, B2;
   Adam(const nnReal _eta, const nnReal beta1, const nnReal beta2,
     const nnReal betat1, const nnReal betat2, Saru& _gen) :
-  eta(_eta*std::sqrt(beta2-betat2)/(1-betat1)), B1(beta1), B2(beta2) {}
+  eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2) {}
 
   #pragma omp declare simd notinbranch simdlen(VEC_WIDTH)
   inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
@@ -65,7 +65,8 @@ struct Adam {
     M2 = M2<M1*M1? M1*M1 : M2; // gradient clipping to 1
     //const nnReal _M2 = std::sqrt(M2 + nnEPS);
     //return eta*M1/_M2;
-    return eta*M1/(nnEPS + std::sqrt(M2));
+    //return eta*M1/(nnEPS + std::sqrt(M2));
+    return eta*M1/(std::sqrt(nnEPS + M2));
     //return eta*(B1*M1 + (1-B1)*DW)/_M2;
   }
 };
@@ -124,7 +125,7 @@ class Optimizer
     lambda(S.nnLambda), epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay),
     weights(W), tgt_weights(W_TGT), gradSum(W->allocateGrad()),
     _1stMom(W->allocateGrad()), _2ndMom(W->allocateGrad()),
-    generators(S.generators) {  }
+    generators(S.generators) { _2ndMom->set(std::sqrt(nnEPS)); }
   //alpha_eSGD(0.75), gamma_eSGD(10.), eta_eSGD(.1/_s.targetDelay),
   //eps_eSGD(1e-3), delay(_s.targetDelay), L_eSGD(_s.targetDelay),
   //_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
@@ -161,7 +162,11 @@ class Optimizer
       MPI_Wait(&paramRequest, MPI_STATUS_IGNORE);
       MPI_Wait(&batchRequest, MPI_STATUS_IGNORE);
     }
-    using Algorithm = Adam;
+    #ifndef __EntropySGD
+      using Algorithm = Adam;
+    #else
+      using Algorithm = EntropyAdam;
+    #endif
     //update is deterministic: can be handled independently by each node
     //communication overhead is probably greater than a parallelised sum
     assert(totGrads>0);

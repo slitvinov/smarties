@@ -62,7 +62,7 @@ endif
 
 tabc ?= off
 ifeq "$(tabc)" "on"
-CPPFLAGS+= -DACER_TABC
+CPPFLAGS+= -DRACER_TABC
 endif
 
 importance ?= off

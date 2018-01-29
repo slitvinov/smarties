@@ -76,7 +76,7 @@ struct Settings
 #define COMMENT_lambda "Lambda for off policy corrections."
 #define TYPEVAL_lambda Real
 #define TYPENUM_lambda REAL
-#define DEFAULT_lambda 0.99
+#define DEFAULT_lambda 0.95
   Real lambda = DEFAULT_lambda;
 
 #define CHARARG_maxSeqLen 'M' //there is always an exception

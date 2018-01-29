@@ -107,6 +107,7 @@ class RACER : public Learner_offPolicy
     const bool isOff = traj->isOffPolicy(samp, pol.sampRhoWeight, CmaxRet,invC);
 
     #if RACER_FORWARD>0
+      // do N steps of fwd net to obtain better estimate of Qret
       Uint N = std::min(traj->ndata()-1-samp, (Uint)RACER_FORWARD);
       //Uint k; Real impW = std::min(1, pol.sampImpWeight);
       for(Uint k = samp+1; k<=samp+N; k++) { // && k<traj->ndata()
@@ -114,6 +115,7 @@ class RACER : public Learner_offPolicy
         const Policy_t polt = prepare_policy(outt, traj->tuples[k]);
         const Advantage_t advt = prepare_advantage(outt, &polt);
         //impW *= gamma * std::min((Real)1, polt.sampImpWeight);
+        //these are all race conditions:
         traj->SquaredError[k] = polt.kl_divergence_opp(traj->tuples[k]->mu);
         traj->action_adv[k] = advt.computeAdvantage(polt.sampAct);
         traj->offPol_weight[k] = polt.sampRhoWeight;
@@ -166,7 +168,8 @@ class RACER : public Learner_offPolicy
       const Real vNext = traj->state_vals[samp+1];
       const Real Qer = alpha*(rNext + gamma*vNext -A_cur-V_cur);
     #else
-      const Real Qer = Ver;
+      //const Real Qer = Ver;
+      const Real Qer = alpha*Q_dist;
     #endif
 
     const vector<Real> policyG = policyGradient(traj->tuples[samp], pol_cur,
@@ -295,7 +298,7 @@ class RACER : public Learner_offPolicy
     print(pol_start).c_str(), print(adv_start).c_str());
     opcInfo = new StatsTracker(5, "racer", _set);
     //test();
-    ALGO = MAXERROR;
+    //ALGO = MAXERROR;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() { }

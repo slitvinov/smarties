@@ -176,11 +176,7 @@ public:
     _dispose_object(test);
 
     net = new Network(this, settings);
-    #ifndef __EntropySGD
-      opt = new Optimizer(settings, weights, tgt_weights);
-    #else
-      opt = new Optimizer(settings, weights, tgt_weights);
-    #endif
+    opt = new Optimizer(settings, weights, tgt_weights);
 
     //if (!settings.learner_rank) opt->save("initial");
     //#ifndef NDEBUG

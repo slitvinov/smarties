@@ -114,12 +114,8 @@ public:
     std::normal_distribution<Real> dist(0, 1);
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      #ifdef TRUNC_SAMPLING
-        if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
-        if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
-      #else
-        while (samp > NORMDIST_MAX || samp < -NORMDIST_MAX) samp = dist(*gen);
-      #endif
+           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       ret[i] = mean[i] + stdev[i]*samp;
     }
     return ret;
