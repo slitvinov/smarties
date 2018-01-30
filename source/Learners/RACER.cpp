@@ -294,7 +294,7 @@ class RACER : public Learner_offPolicy
   {
     printf("RACER starts: v:%u pol:%s adv:%s\n", VsID,
     print(pol_start).c_str(), print(adv_start).c_str());
-    opcInfo = new StatsTracker(5, "racer", _set);
+    opcInfo = new StatsTracker(5, "racer", _set, 100);
     //test();
     //ALGO = MAXERROR;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
