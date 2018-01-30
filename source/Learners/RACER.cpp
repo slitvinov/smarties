@@ -175,7 +175,6 @@ class RACER : public Learner_offPolicy
     const vector<Real> penal=pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu,-1);
     const vector<Real> finalG = weightSum2Grads(policyG, penal, DKL_coef);
 
-
     #ifdef dumpExtra
       {
         Real normG=0, normT=numeric_limits<Real>::epsilon(), dot=0, normP=0;
@@ -264,8 +263,8 @@ class RACER : public Learner_offPolicy
       const Real polProbBehavior = Policy_t::evalBehavior(sample, _t->mu);
       const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
       const Real A_pol = ADV.computeAdvantage(sample);
-      const Real gain1 = A_RET*std::min((Real) 5, rho_cur);
-      const Real gain2 = A_pol*std::max((Real) 0, 1-5/rho_pol);
+      const Real gain1 = A_RET*std::min((Real) CmaxPol, rho_cur);
+      const Real gain2 = A_pol*std::max((Real) 0, 1-CmaxPol/rho_pol);
 
       const vector<Real> gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
       const vector<Real> gradAcer_2 = POL.policy_grad(sample,      gain2);
@@ -296,7 +295,7 @@ class RACER : public Learner_offPolicy
     print(pol_start).c_str(), print(adv_start).c_str());
     opcInfo = new StatsTracker(5, "racer", _set, 100);
     //test();
-    //ALGO = MAXERROR;
+    ALGO = MAXERROR;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() { }

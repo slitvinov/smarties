@@ -161,9 +161,10 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
 {
   assert(CmaxRho>1);
   vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
-  Real _nOffPol = 0, _totMSE = 0, _minInd = 2e20;
+  vector<pair<int,  int>> oldest_sequence(nThreads, {-1, nSeenSequences});
+  Real _nOffPol = 0, _totMSE = 0;
   const Real invC = 1/CmaxRho, EPS = 1e-9;
-  #pragma omp parallel reduction(+ : _nOffPol,_totMSE) reduction(min : _minInd)
+  #pragma omp parallel reduction(+ : _nOffPol,_totMSE) 
   {
     const int thrID = omp_get_thread_num();
     #pragma omp for schedule(dynamic)
@@ -183,8 +184,10 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
       //either delete seq with smallest index or with largest "error"
       const Real W=ALGO==OLDEST? Set[i]->ID : Set[i]->ndata()/(EPS+Set[i]->MSE);
       _nOffPol += Set[i]->nOffPol; _totMSE += Set[i]->MSE;
-      _minInd = std::min(_minInd, (Real) Set[i]->ID);
-
+      if(Set[i]->ID < oldest_sequence[thrID].second) {
+        oldest_sequence[thrID].second = Set[i]->ID;
+        oldest_sequence[thrID].first = i;
+      }
       //locate smallest sequence id/mse/impW
       if(W < delete_location[thrID].second) {
         delete_location[thrID].second = W;
@@ -193,16 +196,23 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
     }
   }
 
-  nOffPol = _nOffPol; totMSE = _totMSE; minInd = _minInd;
+  nOffPol = _nOffPol; totMSE = _totMSE; 
   const Uint nB4 = Set.size();
-  int deli = -1; Real delv = 2e20;
+  int deli = -1, oldi = -1, oldj = nSeenSequences; Real delv = 2e20;
+  for(const auto&P: oldest_sequence)
+    if(oldj>P.second && P.first>=0) {
+      oldi = P.first; oldj = P.second;
+    }
   for(const auto&P: delete_location)
     if(delv>P.second && P.first>=0) {
       deli = P.first; delv = P.second;
     }
+  minInd = oldj;
   assert(deli>=0);
-
   if(nTransitions-Set[deli]->ndata() > maxTotObsNum) {
+    //cout<< "delete:"<<Set[deli]->ID<<" "<<Set[deli]->MSE<<" "<<Set[deli]->nOffPol
+    //    <<" oldest:"<<Set[oldi]->ID<<" "<<Set[oldi]->MSE<<" "<<Set[oldi]->nOffPol<<endl;
+    if(Set[oldi]->ID + 100 < Set[deli]->ID) deli = oldi;
     std::swap(Set[deli], Set.back());
     popBackSequence();
   }

@@ -40,7 +40,7 @@ SETTINGS+=" --totNumSteps 5000000"
 #SETTINGS+=" --impWeight 5"
 SETTINGS+=" --impWeight 2"
 
-SETTINGS+=" --klDivConstraint 0.02"
+SETTINGS+=" --klDivConstraint 0.05"
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 256"
