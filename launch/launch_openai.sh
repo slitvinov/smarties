@@ -41,7 +41,7 @@ vglrun -c proxy python ../Communicator.py \$1 $APP
 EOF
 else
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-python ../Communicator.py \$1 $APP
+python3 ../Communicator.py \$1 $APP
 EOF
 fi
 
