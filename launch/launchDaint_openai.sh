@@ -20,7 +20,7 @@ if [ $# -gt 4 ] ; then
     cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
 fi
 if [ $# -lt 7 ] ; then
-    NTASK=12 #n tasks per node
+    NTASK=2 #n tasks per node
     NTHREADS=12 #n threads per task
 else
     NTASK=$6
@@ -51,6 +51,7 @@ cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/policy_settings.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
+git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
 
 cd ${BASEPATH}${RUNFOLDER}
 if [ ! -f settings.sh ];then
@@ -74,6 +75,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --nodes=${NNODES}
 #SBATCH --ntasks-per-node=${NTASK}
 #SBATCH --constraint=gpu
+# #SBATCH --threads-per-core=1
 
 # #SBATCH --partition=debug
 # #SBATCH --time=00:30:00
@@ -84,8 +86,9 @@ cat <<EOF >daint_sbatch
 module load daint-gpu
 export OMP_NUM_THREADS=12
 export CRAY_CUDA_MPS=1
-
-srun --ntasks ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} ./exec ${SETTINGS}
+export OMP_PROC_BIND=CLOSE
+export OMP_PLACES=cores
+srun --ntasks ${NPROCESS} --threads-per-core=1 --cpu_bind=none --cpus-per-task=12 --ntasks-per-node=${NTASK} ./exec ${SETTINGS}
 
 #srun --ntasks ${NPROCESS} --cpu_bind=none --ntasks-per-node=${NTASK} --threads-per-core=2 valgrind  --tool=memcheck  --leak-check=full --show-reachable=no --show-possibly-lost=no --track-origins=yes ./exec ${SETTINGS}
 EOF

@@ -25,8 +25,6 @@ using namespace std;
 #include <omp.h>
 #include <mpi.h>
 
-//#define RACER_ACERTRICK
-
 #define ACER_BOUNDED //increased safety, TODO move to makefile
 #ifdef ACER_BOUNDED
 //FOR CONTINUOUS ACTIONS RACER:
@@ -38,7 +36,8 @@ using namespace std;
   #define ACER_MIN_PROB 0
 #endif
 
-#define NORMDIST_MAX 2.5 //truncated normal distribution range
+#define RACER_ACERTRICK
+#define NORMDIST_MAX 2 //truncated normal distribution range
 #define BOUNDACT_MAX 8 //for bounded action spaces: range (ie. tanh(8))
 
 //uniform precision (1/std^2) in case of Acer:

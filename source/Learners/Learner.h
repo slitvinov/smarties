@@ -23,12 +23,12 @@ protected:
   const bool bSampleSequences, bTrain;
   const Uint nAgents, batchSize, totNumSteps, nThreads, nSlaves, policyVecDim;
   const Real greedyEps, epsAnneal, gamma, CmaxPol;
-  #ifdef RACER_ACERTRICK
-    //const Real CmaxRet = std::pow(CmaxPol, 1./std::sqrt(env->aI.dim));
-    const Real CmaxRet = std::pow( CmaxPol, 1./env->aI.dim );
-  #else
+  //#ifdef RACER_ACERTRICK
+  //  const Real CmaxRet = std::pow(CmaxPol, 1./std::sqrt(env->aI.dim));
+    //const Real CmaxRet = std::pow( CmaxPol, 1./env->aI.dim );
+  //#else
     const Real CmaxRet = CmaxPol;
-  #endif
+  //#endif
   const int learn_rank, learn_size;
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;

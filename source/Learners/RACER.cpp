@@ -109,12 +109,10 @@ class RACER : public Learner_offPolicy
     #if RACER_FORWARD>0
       // do N steps of fwd net to obtain better estimate of Qret
       Uint N = std::min(traj->ndata()-1-samp, (Uint)RACER_FORWARD);
-      //Uint k; Real impW = std::min(1, pol.sampImpWeight);
       for(Uint k = samp+1; k<=samp+N; k++) { // && k<traj->ndata()
         const vector<Real> outt = F[0]->forward(traj, k, thrID);
         const Policy_t polt = prepare_policy(outt, traj->tuples[k]);
         const Advantage_t advt = prepare_advantage(outt, &polt);
-        //impW *= gamma * std::min((Real)1, polt.sampImpWeight);
         //these are all race conditions:
         traj->SquaredError[k] = polt.kl_divergence_opp(traj->tuples[k]->mu);
         traj->action_adv[k] = advt.computeAdvantage(polt.sampAct);
@@ -122,7 +120,6 @@ class RACER : public Learner_offPolicy
         traj->state_vals[k] = outt[VsID];
         //if (impW < 0.1) break;
       }
-      //for(Uint j=std::min(traj->ndata()-1, k); j>samp; j--)updateQret(traj,j);
       for(Uint j = samp+N; j>samp; j--) updateQret(traj,j);
     #endif
 
@@ -157,7 +154,7 @@ class RACER : public Learner_offPolicy
     const Real Q_dist = Q_RET -A_cur -V_cur, A_RET = Q_RET-V_cur;
 
     #ifdef impSampVal
-      const Real fac = alpha*std::min((Real)1, pol_cur.sampImpWeight);
+      const Real fac = alpha*std::min((Real)1, pol_cur.sampRhoWeight);
     #else
       const Real fac = alpha;
     #endif
@@ -170,7 +167,7 @@ class RACER : public Learner_offPolicy
     #else
       //const Real Qer = Ver;
       //const Real Qer = alpha*Q_dist;
-      const Real Qer = alpha*pol_cur.sampImpWeight * Q_dist;
+      const Real Qer = alpha*pol_cur.sampRhoWeight * Q_dist;
     #endif
 
     const vector<Real> policyG = policyGradient(traj->tuples[samp], pol_cur,
@@ -259,7 +256,7 @@ class RACER : public Learner_offPolicy
   inline vector<Real> policyGradient(const Tuple*const _t, const Policy_t& POL,
     const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
   {
-    const Real rho_cur = POL.sampImpWeight;
+    const Real rho_cur = POL.sampRhoWeight;
     #if defined(RACER_TABC)
       //compute quantities needed for trunc import sampl with bias correction
       const Action_t sample = POL.sample(&generators[thrID]);
@@ -421,7 +418,11 @@ class RACER : public Learner_offPolicy
       // if no reduction done, partial sums are meaningless
       if(firstUpdate) return;
     }
+    #ifdef RACER_ACERTRICK
     const Real tgtFrac = DKL_param/CmaxPol;
+    #else
+    const Real tgtFrac = DKL_param*std::sqrt(nA)/CmaxPol;
+    #endif
     if(fracOffPol>tgtFrac) DKL_coef = .9999*DKL_coef;
     else DKL_coef = 1e-4 + .9999*DKL_coef;
   }

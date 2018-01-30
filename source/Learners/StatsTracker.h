@@ -79,7 +79,7 @@ struct StatsTracker
   MPI_Request request = MPI_REQUEST_NULL;
   vector<long double> reduce_result, partial_sum;
 
-  StatsTracker(const Uint N, const string _name, Settings& set, Real fac = 10) :
+  StatsTracker(const Uint N, const string _name, Settings& set, Real fac) :
   n_stats(N), name(_name), comm(set.mastersComm), nThreads(set.nThreads),
   learn_size(set.learner_size), learn_rank(set.learner_rank), grad_cut_fac(fac),
   cntVec(nThreads+1,0), avgVec(nThreads+1,vector<long double>()),

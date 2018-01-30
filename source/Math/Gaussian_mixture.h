@@ -175,8 +175,8 @@ public:
     const long double logW = sampLogPonPolicy - sampLogPBehavior;
     sampImpWeight = std::exp(logW);
     #ifdef RACER_ACERTRICK
-      //sampRhoWeight = std::exp( logW / std::sqrt(nA) );
-      sampRhoWeight = std::exp( logW / nA );
+      sampRhoWeight = std::exp( logW / std::sqrt(nA) );
+      //sampRhoWeight = std::exp( logW / nA );
     #else
       sampRhoWeight = sampImpWeight;
     #endif

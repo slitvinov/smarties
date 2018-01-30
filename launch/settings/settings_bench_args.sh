@@ -14,13 +14,13 @@ SETTINGS+=" --gamma 0.995"
 #SETTINGS+=" --nnl2 512"
 SETTINGS+=" --nnl1 128"
 SETTINGS+=" --nnl2 128"
-SETTINGS+=" --nnl3 128"
+#SETTINGS+=" --nnl3 128"
 
 #subject to changes
 #SETTINGS+=" --nnFunc PRelu"
 #SETTINGS+=" --nnFunc Tanh"
-#SETTINGS+=" --nnFunc SoftSign"
-SETTINGS+=" --nnFunc HardSign"
+SETTINGS+=" --nnFunc SoftSign"
+#SETTINGS+=" --nnFunc HardSign"
 SETTINGS+=" --nnLambda 0.000001"
 
 #whether you are training a policy or testing an already trained network
@@ -38,7 +38,7 @@ SETTINGS+=" --impWeight ${IMPSAMPR}"
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --epsAnneal 100"
-SETTINGS+=" --totNumSteps 10000000"
+SETTINGS+=" --totNumSteps 5000000"
 SETTINGS+=" --obsPerStep ${EPERSTEP}"
 SETTINGS+=" --nMasters ${NMASTERS}"
 SETTINGS+=" --bSampleSequences 0"
@@ -52,4 +52,4 @@ SETTINGS+=" --klDivConstraint ${DKLPARAM}"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize ${BATCHNUM}"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.0003"
