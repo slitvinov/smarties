@@ -147,7 +147,6 @@ class RACER : public Learner_offPolicy
   inline vector<Real> compute(Sequence*const traj, const Uint samp,
     const vector<Real>& outVec, const Policy_t& pol_cur, const Uint thrID) const
   {
-    vector<Real> gradient(F[0]->nOutputs(), 0);
     const Advantage_t adv_cur = prepare_advantage(outVec, &pol_cur);
     const Real A_cur = adv_cur.computeAdvantage(pol_cur.sampAct);
     const Real Q_RET = traj->Q_RET[samp+1], V_cur = outVec[VsID];
@@ -158,15 +157,15 @@ class RACER : public Learner_offPolicy
     #else
       const Real fac = alpha;
     #endif
-    const Real Ver = fac*Q_dist;
+    const Real Ver = DKL_coef*fac*Q_dist;
 
     #ifdef RACER_ONESTEPADV
       const Real rNext = data->standardized_reward(traj,samp+1);
       const Real vNext = traj->state_vals[samp+1];
-      const Real Qer = alpha*(rNext + gamma*vNext -A_cur-V_cur);
+      const Real Qer = DKL_coef*alpha*(rNext + gamma*vNext -A_cur-V_cur);
     #else
       //const Real Qer = Ver;
-      const Real Qer = alpha*Q_dist;
+      const Real Qer = DKL_coef*alpha*Q_dist;
       //const Real Qer = alpha*pol_cur.sampRhoWeight * Q_dist;
     #endif
 
@@ -193,6 +192,7 @@ class RACER : public Learner_offPolicy
       }
     #endif
 
+    vector<Real> gradient(F[0]->nOutputs(), 0);
     gradient[VsID] = Ver;
     pol_cur.finalize_grad(finalG, gradient);
     adv_cur.grad(pol_cur.sampAct, Qer, gradient);

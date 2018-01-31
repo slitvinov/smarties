@@ -75,7 +75,7 @@ ifeq "$(acertrick)" "1"
 CPPFLAGS+= -DRACER_ACERTRICK
 endif
 
-raceskip ?= 1
+raceskip ?= 3
 CPPFLAGS+= -DRACER_SKIP=$(raceskip)
 
 racefrwd ?= 0
