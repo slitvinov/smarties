@@ -483,18 +483,20 @@ struct Settings
   vector<int> readNetSettingsSize()
   {
     vector<int> ret;
-    if(nnl1<1) die("Add at least one hidden layer.\n");
-    ret.push_back(nnl1);
-    if (nnl2>0) {
-      ret.push_back(nnl2);
-      if (nnl3>0) {
-        ret.push_back(nnl3);
-        if (nnl4>0) {
-          ret.push_back(nnl4);
-          if (nnl5>0) {
-            ret.push_back(nnl5);
-            if (nnl6>0) {
-              ret.push_back(nnl6);
+    //if(nnl1<1) die("Add at least one hidden layer.\n");
+    if(nnl1>0) {
+      ret.push_back(nnl1);
+      if (nnl2>0) {
+        ret.push_back(nnl2);
+        if (nnl3>0) {
+          ret.push_back(nnl3);
+          if (nnl4>0) {
+            ret.push_back(nnl4);
+            if (nnl5>0) {
+              ret.push_back(nnl5);
+              if (nnl6>0) {
+                ret.push_back(nnl6);
+              }
             }
           }
         }
