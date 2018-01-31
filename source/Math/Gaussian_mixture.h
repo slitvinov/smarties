@@ -162,7 +162,7 @@ public:
   inline void prepare(const vector<Real>& unscal_act, const vector<Real>& beta)
   {
     sampAct = map_action(unscal_act);
-    Pact_Final = 0;
+    Pact_Final = numeric_limits<Real>::epsilon();
     for(Uint j=0; j<nExperts; j++) {
       PactEachExp[j] = 1;
       for(Uint i=0; i<nA; i++)
@@ -336,7 +336,7 @@ public:
   }
   inline Real kl_divergence_exp(const Uint expi, const vector<Real>&beta) const
   {
-    Real DKLe = 0;
+    Real DKLe = numeric_limits<Real>::epsilon();
     for (Uint i=0; i<nA; i++) {
       const Real prech = 1/std::pow(beta[i+expi*nA +nExperts*(1+nA)], 2);
       const Real R =prech*variances[expi][i], meanh = beta[i+expi*nA +nExperts];
@@ -347,7 +347,7 @@ public:
   }
   inline Real kl_divergence_exp(const Uint expi, const Gaussian_mixture*const pol) const
   {
-    Real DKLe = 0;
+    Real DKLe = numeric_limits<Real>::epsilon();
     for (Uint i=0; i<nA; i++) {
       const Real pRatio = pol->precisions[expi][i]*variances[expi][i];
       const Real meanh = pol->means[expi][i], prech = pol->precisions[expi][i];

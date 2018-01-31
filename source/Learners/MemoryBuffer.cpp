@@ -208,11 +208,12 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
       deli = P.first; delv = P.second;
     }
   minInd = oldj;
-  assert(deli>=0);
+  assert(deli>=0 && deli<(int)Set.size());
+  assert(oldi>=0 && oldi<(int)Set.size());
+  if(Set[oldi]->ID + (int)Set.size() < Set[deli]->ID) deli = oldi;
   if(nTransitions-Set[deli]->ndata() > maxTotObsNum) {
     //cout<< "delete:"<<Set[deli]->ID<<" "<<Set[deli]->MSE<<" "<<Set[deli]->nOffPol
     //    <<" oldest:"<<Set[oldi]->ID<<" "<<Set[oldi]->MSE<<" "<<Set[oldi]->nOffPol<<endl;
-    if(Set[oldi]->ID + 100 < Set[deli]->ID) deli = oldi;
     std::swap(Set[deli], Set.back());
     popBackSequence();
   }
