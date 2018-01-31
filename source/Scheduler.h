@@ -91,7 +91,7 @@ private:
 
   inline void sendBuffer(const int i)
   {
-    assert(i>0);
+    assert(i>0 && i <= (int) outBufs.size());
     debugS("Sent action to slave %d: [%s]", i,
       print(vector<Real>(outBufs[i-1], outBufs[i-1]+aI.dim)).c_str());
     MPI_Request tmp;
@@ -140,7 +140,7 @@ public:
     printf("nslaves %d\n",nSlaves);
     for (int slave=1; slave<=nSlaves; slave++) {
       outBufs[slave-1][0] = _AGENT_KILLSIGNAL;
-      #pragma omp critical
+      lock_guard<mutex> lock(mpi_mutex);
       MPI_Ssend(outBufs[slave-1], outSize, MPI_BYTE, slave, 0, slavesComm);
     }
   }

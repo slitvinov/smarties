@@ -77,6 +77,7 @@ while (true)
         int completed=0;
         MPI_Status mpistatus;
         {
+          lock_guard<mutex> lock(mpi_mutex);
           if(slaveIrecvStatus[i] == OPEN) //otherwise, Irecv not sent
             MPI_Test(&requests[i], &completed, &mpistatus);
         }
@@ -86,7 +87,7 @@ while (true)
           const int slave = mpistatus.MPI_SOURCE;
           assert(slaveIrecvStatus[i]==OPEN && slave==i+1);
           debugS("Master receives from %d", slave);
-          slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
+          slaveIrecvStatus[i] = DOING; //slave will be 'served' by task
 
           if(not learnersLockQueue()) {
             addToNTasks(1);
