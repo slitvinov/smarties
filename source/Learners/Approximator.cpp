@@ -304,10 +304,10 @@ void Approximator::prepareUpdate()
   #pragma omp parallel for //each thread should still handle its own memory
   for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) gradient(i);
 
-  if(nAddedGradients == 0) die("Error in prepareUpdate\n");
+  if(nAddedGradients == 0) warn("Zero-gradient update. Revise hyperparameters.\n");
 
   opt->prepare_update(nAddedGradients, net->Vgrad);
-  nReducedGradients = nAddedGradients;
+  reducedGradients = 1;
   nAddedGradients = 0;
 
   if(mpisize<=1) applyUpdate();
@@ -315,10 +315,10 @@ void Approximator::prepareUpdate()
 
 void Approximator::applyUpdate()
 {
-  if(nReducedGradients == 0) return;
+  if(reducedGradients == 0) return;
 
   opt->apply_update();
-  nReducedGradients = 0;
+  reducedGradients = 0;
 }
 
 void Approximator::gradient(const Uint thrID) const

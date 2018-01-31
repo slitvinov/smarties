@@ -33,7 +33,7 @@ struct Approximator
   vector<Parameters*> relayG;
 
   mutable vector<int> error_placements, first_sample;
-  mutable Uint nAddedGradients=0, nReducedGradients=0;
+  mutable Uint nAddedGradients=0, reducedGradients=0;
   Uint extraAlloc = 0;
   int relayInp = -1;
   //thread safe memory for prediction with current weights:

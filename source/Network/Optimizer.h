@@ -169,26 +169,27 @@ class Optimizer
     #endif
     //update is deterministic: can be handled independently by each node
     //communication overhead is probably greater than a parallelised sum
-    assert(totGrads>0);
+
     const Real factor = 1./totGrads;
-    nnReal* const paramAry = weights->params;    
+    nnReal* const paramAry = weights->params;
     assert(eta < 2e-3); //super upper bound for NN, srsly
     const Real _eta = eta; //+1e-3*std::max(6-std::log10((Real)nStep),(Real)0)/6;
 
-    #pragma omp parallel
-    {
-      const Uint thrID = static_cast<Uint>(omp_get_thread_num());
-      Saru gen(nStep, thrID, generators[thrID]());
-      Algorithm algo(_eta, beta_1, beta_2, beta_t_1, beta_t_2, gen);
-      nnReal* const mom1 = _1stMom->params;    
-      nnReal* const mom2 = _2ndMom->params;    
-      nnReal* const grad = gradSum->params;    
+    if(totGrads>0) {
+      #pragma omp parallel
+      {
+        const Uint thrID = static_cast<Uint>(omp_get_thread_num());
+        Saru gen(nStep, thrID, generators[thrID]());
+        Algorithm algo(_eta, beta_1, beta_2, beta_t_1, beta_t_2, gen);
+        nnReal* const mom1 = _1stMom->params;
+        nnReal* const mom2 = _2ndMom->params;
+        nnReal* const grad = gradSum->params;
 
-      #pragma omp for simd aligned(paramAry, mom1, mom2, grad : VEC_WIDTH)
-      for (Uint i=0; i<weights->nParams; i++)
-        paramAry[i] += algo.step(grad[i], mom1[i], mom2[i], factor);
+        #pragma omp for simd aligned(paramAry, mom1, mom2, grad : VEC_WIDTH)
+        for (Uint i=0; i<weights->nParams; i++)
+          paramAry[i] += algo.step(grad[i], mom1[i], mom2[i], factor);
+      }
     }
-
     gradSum->clear();
     // Needed by Adam optimization algorithm:
     beta_t_1 *= beta_1;
@@ -206,7 +207,7 @@ class Optimizer
         if(tgtUpdateAlpha>=1) tgt_weights->copy(weights);
         else {
           nnReal* const targetAry = tgt_weights->params;
-          #pragma omp parallel for simd aligned(paramAry, targetAry : VEC_WIDTH) 
+          #pragma omp parallel for simd aligned(paramAry, targetAry : VEC_WIDTH)
           for(Uint j=0; j<weights->nParams; j++)
             targetAry[j] += tgtUpdateAlpha*(paramAry[j] - targetAry[j]);
         }
