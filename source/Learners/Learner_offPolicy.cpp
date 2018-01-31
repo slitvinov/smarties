@@ -144,6 +144,7 @@ void Learner_offPolicy::prepareGradient()
   Learner::prepareGradient();
 
   if(bWasPrepareReady) {
+    nSkipped = 0;
     profiler->stop_start("PRNE");
     //shift data / gradient counters to maintain grad stepping to sample
     // collection ratio prescirbed by obsPerStep

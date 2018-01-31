@@ -17,6 +17,7 @@ protected:
   const Real obsPerStep_orig;
   const Uint nObsPerTraining;
   Uint taskCounter = batchSize, nData_b4PolUpdates = 0, nToSpawn = 0;
+  mutable Uint nSkipped = 0;
   unsigned long nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig;
 
@@ -40,6 +41,12 @@ public:
 
   inline void resample(const Uint thrID) const // TODO resample sequence
   {
+    // skipping too many samples, something is wrong. To avoid code hanging return: 
+    if(nSkipped>=batchSize) return;
+
+    #pragma omp atomic
+    nSkipped++; 
+
     Uint sequence, transition;
     data->sampleTransition(sequence, transition, thrID);
     data->Set[sequence]->setSampled(transition);
