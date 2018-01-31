@@ -75,6 +75,9 @@ struct StatsTracker
   const Real grad_cut_fac;
   mutable vector<long double> cntVec;
   mutable vector<vector<long double>> avgVec, stdVec;
+  vector<long double> instMean, instStdv;
+  mutable Uint numCut = 0, numTot = 0;
+  Real cutRatio = 0;
 
   MPI_Request request = MPI_REQUEST_NULL;
   vector<long double> reduce_result, partial_sum;
@@ -86,7 +89,7 @@ struct StatsTracker
   stdVec(nThreads+1,vector<long double>())
   {
     avgVec[0].resize(n_stats, 0); stdVec[0].resize(n_stats, 10);
-
+    instMean.resize(n_stats, 0); instStdv.resize(n_stats, 0);
     #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
     for (Uint i=0; i<nThreads; i++) // numa aware allocation
      #pragma omp critical
@@ -105,9 +108,9 @@ struct StatsTracker
       stdVec[thrID+1][i] += grad[i]*grad[i];
     }
   }
-  inline int clip_vector(vector<Real>& grad) const
+  inline void clip_vector(vector<Real>& grad) const
   {
-    int ret = 0;
+    Uint ret = 0;
     for (Uint i=0; i<n_stats; i++) {
       //#ifdef IMPORTSAMPLE
       //  assert(data->Set[seq]->tuples[samp]->weight>0);
@@ -125,7 +128,10 @@ struct StatsTracker
         }
         //else printf("Not cut\n");
     }
-    return ret;
+    #pragma omp atomic 
+    numCut += ret;
+    #pragma omp atomic 
+    numTot ++;
   }
 
   void advance()
@@ -203,6 +209,11 @@ struct StatsTracker
     update();
     printToFile();
 
+    instMean = avgVec[0];
+    instStdv = stdVec[0];
+    cutRatio = numCut / (Real) numTot;
+    numCut = 0; numTot = 0;
+
     for (Uint i=0; i<n_stats; i++) {
       avgVec[0][i] = .99*oldsum[i] +.01*avgVec[0][i];
       stdVec[0][i] = .99*oldstd[i] +.01*stdVec[0][i];
@@ -216,10 +227,16 @@ struct StatsTracker
     advance();
     update();
     printToFile();
+
+    instMean = avgVec[0];
+    instStdv = stdVec[0];
+    cutRatio = numCut / (Real) numTot;
+    numCut = 0; numTot = 0;
+
     for (Uint i=0; i<n_stats; i++) {
       avgVec[0][i] = .99*oldsum[i] +.01*avgVec[0][i];
-      //stdVec[0][i] = .99*oldstd[i] +.01*stdVec[0][i];
-      stdVec[0][i] = std::max(0.99*oldstd[i], stdVec[0][i]);
+      stdVec[0][i] = .99*oldstd[i] +.01*stdVec[0][i];
+      //stdVec[0][i] = std::max(0.99*oldstd[i], stdVec[0][i]);
     }
   }
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const

@@ -332,10 +332,10 @@ class RACER : public Learner_offPolicy
       #endif
 
       #ifndef NDEBUG
-        Policy_t dbg = prepare_policy(output);
-        dbg.prepare(traj->tuples.back()->a, traj->tuples.back()->mu);
-        const double err = fabs(dbg.sampImpWeight-1);
-        if(err>1e-10) _die("Imp W err %20.20e", err);
+        //Policy_t dbg = prepare_policy(output);
+        //dbg.prepare(traj->tuples.back()->a, traj->tuples.back()->mu);
+        //const double err = fabs(dbg.sampImpWeight-1);
+        //if(err>1e-10) _die("Imp W err %20.20e", err);
       #endif
     }
     else
@@ -429,7 +429,8 @@ class RACER : public Learner_offPolicy
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const {
     //Learner_offPolicy::getMetrics(fileOut, screenOut);
     opcInfo->reduce_approx();
-    screenOut<<" DKL:"<<DKL_coef<<" polStats:["<<print(opcInfo->avgVec[0])<<"]";
-    fileOut<<" "<<DKL_coef<<" "<<print(opcInfo->avgVec[0])<<" "<<print(opcInfo->stdVec[0]);
+    screenOut<<" DKL:"<<DKL_coef<<" polStats:["<<print(opcInfo->instMean)
+             <<"] clipRatio:"<<F[0]->gradStats->cutRatio;
+    fileOut<<" "<<DKL_coef<<" "<<print(opcInfo->instMean)<<" "<<print(opcInfo->instStdv);
   }
 };
