@@ -166,8 +166,8 @@ class RACER : public Learner_offPolicy
       const Real Qer = alpha*(rNext + gamma*vNext -A_cur-V_cur);
     #else
       //const Real Qer = Ver;
-      //const Real Qer = alpha*Q_dist;
-      const Real Qer = alpha*pol_cur.sampRhoWeight * Q_dist;
+      const Real Qer = alpha*Q_dist;
+      //const Real Qer = alpha*pol_cur.sampRhoWeight * Q_dist;
     #endif
 
     const vector<Real> policyG = policyGradient(traj->tuples[samp], pol_cur,
