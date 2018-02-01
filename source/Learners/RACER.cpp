@@ -152,21 +152,16 @@ class RACER : public Learner_offPolicy
     const Real Q_RET = traj->Q_RET[samp+1], V_cur = outVec[VsID];
     const Real Q_dist = Q_RET -A_cur -V_cur, A_RET = Q_RET-V_cur;
 
-    #ifdef impSampVal
-      const Real fac = alpha*std::min((Real)1, pol_cur.sampRhoWeight);
-    #else
-      const Real fac = alpha;
-    #endif
-    const Real Ver = DKL_coef*fac*Q_dist;
+    const Real VerFac = alpha*std::min((Real)1, pol_cur.sampRhoWeight);
+    const Real Ver = DKL_coef*VerFac * Q_dist;
 
     #ifdef RACER_ONESTEPADV
       const Real rNext = data->standardized_reward(traj,samp+1);
       const Real vNext = traj->state_vals[samp+1];
       const Real Qer = DKL_coef*alpha*(rNext + gamma*vNext -A_cur-V_cur);
     #else
-      //const Real Qer = Ver;
-      const Real Qer = DKL_coef*alpha*Q_dist;
-      //const Real Qer = alpha*pol_cur.sampRhoWeight * Q_dist;
+      //const Real Qer = DKL_coef*alpha*Q_dist;
+      const Real Qer = DKL_coef*alpha * pol_cur.sampRhoWeight * Q_dist;
     #endif
 
     const vector<Real> policyG = policyGradient(traj->tuples[samp], pol_cur,

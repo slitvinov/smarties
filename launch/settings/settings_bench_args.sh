@@ -21,7 +21,7 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnFunc Tanh"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc HardSign"
-SETTINGS+=" --nnLambda 0.000001"
+SETTINGS+=" --nnLambda 0.0000003"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"

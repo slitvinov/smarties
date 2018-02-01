@@ -34,7 +34,7 @@ fi
 NPROCESS=$((${NNODES}*${NTASK}))
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-python ../Communicator.py \$1 $APP
+python3 ../Communicator.py \$1 $APP
 EOF
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
