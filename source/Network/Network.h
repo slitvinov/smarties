@@ -122,13 +122,15 @@ public:
     backProp(nullptr, currStep, nullptr, _grad, _weights);
   }
 
-  vector<Real> inpBackProp(const vector<Real>& err, const Activation*const act,
+  vector<Real> inpBackProp(const vector<Real>& err, Activation*const act,
     const Parameters*const _grad, const Parameters*const W, const Uint ID) const
   {
     act->clearErrors();
     act->setOutputDelta(err);
+    act->input[ID] = false; //trigger computing backprop of input for this call
     for (Uint i=layers.size()-1; i>ID; i--) //skip below layer we want grad for
       layers[i]->backward(nullptr, act, nullptr, _grad, W);
+    act->input[ID] = true; // disable it again
     return act->getInputGradient(ID);
   }
 

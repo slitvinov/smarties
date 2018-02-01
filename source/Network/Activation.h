@@ -161,7 +161,7 @@ struct Activation
   }
 
   const Uint nLayers, nOutputs, nInputs;
-  const vector<Uint> sizes, output, input;
+  vector<Uint> sizes, output, input;
   //contains all inputs to each neuron (inputs to network input layer is empty)
   const vector<nnReal*> suminps;
   //contains all neuron outputs that will be the incoming signal to linked layers (outputs of input layer is network inputs)

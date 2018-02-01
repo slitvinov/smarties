@@ -28,7 +28,6 @@ public:
   Real sampImpWeight=0, sampRhoWeight = 0;
   array<long double, nExperts> PactEachExp;
   long double Pact_Final = -1;
-  bool prepared = false;
 
   static inline Uint compute_nP(const ActionInfo* const aI)
   {
@@ -232,12 +231,8 @@ public:
     const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      #ifdef TRUNC_SAMPLING
-        if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
-        if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
-      #else
-        while (samp > NORMDIST_MAX || samp < -NORMDIST_MAX) samp = dist(*gen);
-      #endif
+           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       ret[i] = means[experti][i] + stdevs[experti][i] * samp;
     }
     return ret;

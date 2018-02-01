@@ -37,6 +37,7 @@ using namespace std;
 #endif
 
 //#define RACER_ACERTRICK
+
 #define NORMDIST_MAX 2 //truncated normal distribution range
 #define BOUNDACT_MAX 8 //for bounded action spaces: range (ie. tanh(8))
 

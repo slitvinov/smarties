@@ -117,14 +117,18 @@ class BaseLayer: public Layer
           G[o] += inputs[i] * deltas[o];
         }
       }
-      #if 1 //def NDEBUG
+   
+      if( (not curr->input[ID-link]) ) 
+      {
+       #if 1 //def NDEBUG
         cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1, weight, nOut_simd, deltas, 1, 1, errors, 1);
-      #else
+       #else
         #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
         for(Uint o=0; o<nNeurons; o++)
           for(Uint i=0; i<nInputs;  i++)
             errors[i] += weight[o +nOut_simd*i] * deltas[o];
-      #endif
+       #endif
+      }
     }
     if(bRecurrent && prev not_eq nullptr)
     {

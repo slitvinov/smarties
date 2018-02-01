@@ -151,9 +151,9 @@ class RACER : public Learner_offPolicy
     const Real A_cur = adv_cur.computeAdvantage(pol_cur.sampAct);
     const Real Q_RET = traj->Q_RET[samp+1], V_cur = outVec[VsID];
     const Real Q_dist = Q_RET -A_cur -V_cur, A_RET = Q_RET-V_cur;
-
-    const Real VerFac = alpha*std::min((Real)1, pol_cur.sampRhoWeight);
-    const Real Ver = DKL_coef*VerFac * Q_dist;
+    //const Real rho_cur = pol_cur.sampRhoWeight;
+    const Real rho_cur = pol_cur.sampImpWeight;
+    const Real Ver = DKL_coef*alpha*std::min((Real)1, rho_cur) * Q_dist;
 
     #ifdef RACER_ONESTEPADV
       const Real rNext = data->standardized_reward(traj,samp+1);
@@ -161,7 +161,7 @@ class RACER : public Learner_offPolicy
       const Real Qer = DKL_coef*alpha*(rNext + gamma*vNext -A_cur-V_cur);
     #else
       //const Real Qer = DKL_coef*alpha*Q_dist;
-      const Real Qer = DKL_coef*alpha * pol_cur.sampRhoWeight * Q_dist;
+      const Real Qer = DKL_coef*alpha * rho_cur * Q_dist;
     #endif
 
     const vector<Real> policyG = policyGradient(traj->tuples[samp], pol_cur,
@@ -250,7 +250,8 @@ class RACER : public Learner_offPolicy
   inline vector<Real> policyGradient(const Tuple*const _t, const Policy_t& POL,
     const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
   {
-    const Real rho_cur = POL.sampRhoWeight;
+    //const Real rho_cur = POL.sampRhoWeight;
+    const Real rho_cur = POL.sampImpWeight;
     #if defined(RACER_TABC)
       //compute quantities needed for trunc import sampl with bias correction
       const Action_t sample = POL.sample(&generators[thrID]);
@@ -265,7 +266,7 @@ class RACER : public Learner_offPolicy
       const vector<Real> gradAcer_2 = POL.policy_grad(sample,      gain2);
       return sum2Grads(gradAcer_1, gradAcer_2);
     #else
-      return POL.policy_grad(POL.sampAct, A_RET*std::min(CmaxPol, rho_cur) );
+      return POL.policy_grad(POL.sampAct, A_RET*rho_cur);
     #endif
   }
 
@@ -291,6 +292,7 @@ class RACER : public Learner_offPolicy
     opcInfo = new StatsTracker(5, "racer", _set, 100);
     //test();
     ALGO = MAXERROR;
+    cout << CmaxPol << " " << CmaxRet << " " << invC << endl; 
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() { }
@@ -412,11 +414,12 @@ class RACER : public Learner_offPolicy
       // if no reduction done, partial sums are meaningless
       if(firstUpdate) return;
     }
-    #ifdef RACER_ACERTRICK
-    const Real tgtFrac = DKL_param/CmaxPol;
-    #else
-    const Real tgtFrac = DKL_param*std::sqrt(nA)/CmaxPol;
-    #endif
+
+    //#ifdef RACER_ACERTRICK
+    //const Real tgtFrac = DKL_param/CmaxPol;
+    //#else
+    const Real tgtFrac = DKL_param*std::cbrt(nA)/CmaxPol;
+    //#endif
     if(fracOffPol>tgtFrac) DKL_coef = .9999*DKL_coef;
     else DKL_coef = 1e-4 + .9999*DKL_coef;
   }
