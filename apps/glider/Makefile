@@ -4,6 +4,7 @@ smart ?= 1
 aspectr ?= 0.1
 density ?= 200
 costfun ?= 1
+train ?= 1
 CPPFLAGS += -DRANDOM_START=$(train) -DRHORATIO=$(density) -DASPECTRATIO=$(aspectr) -DINSTREW=$(costfun)
 
 UNAME_S := $(shell uname -s)
