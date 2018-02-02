@@ -16,6 +16,9 @@ struct Gaussian_mixture
 public:
   const ActionInfo* const aInfo;
   const Uint iExperts, iMeans, iPrecs, nA, nP;
+  const Real retraceTrickPow = 1. / std::cbrt(nA);
+  //const Real retraceTrickPow = 1. / std::sqrt(nA);
+  //const Real retraceTrickPow = 1. / nA;
   const vector<Real> netOutputs;
   const array<Real, nExperts> unnorm;
   const Real normalization;
@@ -174,8 +177,7 @@ public:
     const long double logW = sampLogPonPolicy - sampLogPBehavior;
     sampImpWeight = std::exp(logW);
     #ifdef RACER_ACERTRICK
-      sampRhoWeight = std::exp( logW / std::sqrt(nA) );
-      //sampRhoWeight = std::exp( logW / nA );
+      sampRhoWeight = std::exp( logW * retraceTrickPow );
     #else
       sampRhoWeight = sampImpWeight;
     #endif

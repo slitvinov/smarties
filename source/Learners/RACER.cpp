@@ -151,8 +151,8 @@ class RACER : public Learner_offPolicy
     const Real A_cur = adv_cur.computeAdvantage(pol_cur.sampAct);
     const Real Q_RET = traj->Q_RET[samp+1], V_cur = outVec[VsID];
     const Real Q_dist = Q_RET -A_cur -V_cur, A_RET = Q_RET-V_cur;
-    //const Real rho_cur = pol_cur.sampRhoWeight;
-    const Real rho_cur = pol_cur.sampImpWeight;
+    const Real rho_cur = pol_cur.sampRhoWeight;
+    //const Real rho_cur = pol_cur.sampImpWeight;
     const Real Ver = DKL_coef*alpha*std::min((Real)1, rho_cur) * Q_dist;
 
     #ifdef RACER_ONESTEPADV
@@ -250,8 +250,8 @@ class RACER : public Learner_offPolicy
   inline vector<Real> policyGradient(const Tuple*const _t, const Policy_t& POL,
     const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
   {
-    //const Real rho_cur = POL.sampRhoWeight;
-    const Real rho_cur = POL.sampImpWeight;
+    const Real rho_cur = POL.sampRhoWeight;
+    //const Real rho_cur = POL.sampImpWeight;
     #if defined(RACER_TABC)
       //compute quantities needed for trunc import sampl with bias correction
       const Action_t sample = POL.sample(&generators[thrID]);

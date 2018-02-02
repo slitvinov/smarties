@@ -198,7 +198,7 @@ public:
       }
     }
     fout.close();
-    #if 1
+    #if 0
     Real expect = 0, expect2 = 0;
     for(Uint i = 0; i<1e7; i++) {
       const auto sample = policy->sample(gen);

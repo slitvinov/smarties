@@ -216,7 +216,7 @@ class GAE_cont : public GAE<Gaussian_policy, vector<Real> >
     build_pol.addParamLayer(1, "Exp", 1);
 
     F[0]->initializeNetwork(build_pol);
-    _set.learnrate *= 2;
+    //_set.learnrate *= 2;
     F[1]->initializeNetwork(build_val);
   }
 };
