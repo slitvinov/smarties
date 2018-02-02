@@ -33,8 +33,6 @@ public:
     if(nSkipped>=batchSize) return;
 
     #pragma omp atomic
-    cntBatch++;
-    #pragma omp atomic
     nSkipped++; 
 
     Uint sequence, transition;

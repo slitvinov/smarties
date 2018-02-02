@@ -159,6 +159,9 @@ void MemoryBuffer::push_back(const int & agentId)
 
 void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
 {
+  //no need for pruning:
+  if(nTransitions <= maxTotObsNum) return;
+
   assert(CmaxRho>1);
   vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
   vector<pair<int,  int>> oldest_sequence(nThreads, {-1, nSeenSequences});
