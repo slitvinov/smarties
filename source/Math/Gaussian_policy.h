@@ -98,12 +98,8 @@ public:
     std::normal_distribution<Real> dist(0, 1);
     for(Uint i=0; i<beta.size()/2; i++) {
       Real samp = dist(*gen);
-      #ifdef TRUNC_SAMPLING
-        if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
-        if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
-      #else
-        while (samp > NORMDIST_MAX || samp < -NORMDIST_MAX) samp = dist(*gen);
-      #endif
+           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       ret[i] = beta[i] + beta[beta.size()/2 + i]*samp;
     }
     return ret;

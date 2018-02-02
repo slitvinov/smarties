@@ -29,13 +29,13 @@ SETTINGS+=" --learner DPG"
 
 #maximum allowed lenth for a sequence (from first to terminal state)
 #if a sequence is longer is just cut after #number of transitions
-SETTINGS+=" --maxTotObsNum 1048576"
+SETTINGS+=" --maxTotObsNum 262144"
 SETTINGS+=" --minTotObsNum 65536"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.2"
 SETTINGS+=" --epsAnneal   100000"
-SETTINGS+=" --totNumSteps 5000000"
+SETTINGS+=" --totNumSteps 6400000"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
 
@@ -45,6 +45,6 @@ SETTINGS+=" --bSampleSequences 0"
 #the first option is markedly safer
 SETTINGS+=" --targetDelay 0.001"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 64"
+SETTINGS+=" --batchSize 128"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"

@@ -82,6 +82,7 @@ void Learner_onPolicy::prepareGradient()
       cntBatch = 0;
       cntEpoch++;
     }
+    nSkipped = 0;
   }
   Learner::prepareGradient();
 }

@@ -96,8 +96,12 @@ protected:
 
     Real gain = rho_cur*adv_est;
     #ifdef PPO_CLIPPED
-      if (adv_est > 0 && rho_cur > 1+clip_fac) gain = 0;
-      if (adv_est < 0 && rho_cur < 1-clip_fac) gain = 0;
+      bool gainZero = false;
+      if (adv_est > 0 && rho_cur > 1+clip_fac) gainZero = true; //gain = 0;
+      if (adv_est < 0 && rho_cur < 1-clip_fac) gainZero = true; //gain = 0;
+      // if off policy, skip zero-gradient backprop
+      // pro: avoid messing adam statistics
+      if(gainZero) return resample(thrID);
     #endif
 
     #ifdef PPO_PENALKL
@@ -117,13 +121,8 @@ protected:
     Vstats[thrID].dumpStats(Vst, val_tgt - Vst);
     if(thrID==1)  profiler->stop_start("BCK");
 
-    #ifndef PPO_PENALKL
-    if(gain!=0) 
-    #endif 
-    {
-      F[0]->backward(grad, samp, thrID);
-      F[0]->gradient(thrID);
-    }
+    F[0]->backward(grad, samp, thrID);
+    F[0]->gradient(thrID);
     F[1]->backward({val_tgt - Vst}, samp, thrID);
     F[1]->gradient(thrID);
     if(thrID==1)  profiler->stop_start("SLP");
