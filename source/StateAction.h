@@ -33,6 +33,31 @@ struct StateInfo
       inUse[i] = (stateInfo.inUse[i]);
     return *this;
   }
+
+  vector<Real> inUseStd() const {
+    vector<Real> ret(dimUsed, 0);
+    for(Uint i=0, k=0; i<dim && scale.size(); i++) {
+      if(inUse[i]) ret[k++] = scale[i];
+      if(i+1 == dim) assert(k == dimUsed);
+    }
+    return ret;
+  }
+  vector<Real> inUseMean() const {
+    vector<Real> ret(dimUsed, 1);
+    for(Uint i=0, k=0; i<dim && mean.size(); i++) {
+      if(inUse[i]) ret[k++] = mean[i];
+      if(i+1 == dim) assert(k == dimUsed);
+    }
+    return ret;
+  }
+  vector<Real> inUseInvStd() const {
+    vector<Real> ret(dimUsed, 1);
+    for(Uint i=0, k=0; i<dim && scale.size(); i++) {
+      if(inUse[i]) ret[k++] = 1/scale[i];
+      if(i+1 == dim) assert(k == dimUsed);
+    }
+    return ret;
+  }
 };
 
 class State

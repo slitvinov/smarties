@@ -16,7 +16,7 @@ struct Gaussian_mixture
 public:
   const ActionInfo* const aInfo;
   const Uint iExperts, iMeans, iPrecs, nA, nP;
-  const vector<Real>& netOutputs;
+  const vector<Real> netOutputs;
   const array<Real, nExperts> unnorm;
   const Real normalization;
   const array<Real, nExperts> experts;
@@ -24,24 +24,14 @@ public:
   //not kosher stuff, but it should work, relies on ordering of operations:
 
   vector<Real> sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampInvWeight=0;
-  array<Real, nExperts> PactEachExp;
-  Real Pact_Final = -1;
-  bool prepared = false;
+  long double sampLogPonPolicy=0, sampLogPBehavior=0;
+  Real sampImpWeight=0, sampRhoWeight = 0;
+  array<long double, nExperts> PactEachExp;
+  long double Pact_Final = -1;
 
   static inline Uint compute_nP(const ActionInfo* const aI)
   {
     return nExperts*(1 + 2*aI->dim);
-  }
-  static void setInitial_noStdev(const ActionInfo* const aI, vector<Real>& initBias)
-  {
-    for(Uint e=0; e<nExperts*(1 + aI->dim); e++)
-      initBias.push_back(0);
-  }
-  static void setInitial_Stdev(const ActionInfo* const aI, vector<Real>& initBias, const Real greedyEps)
-  {
-    for(Uint e=0; e<nExperts*aI->dim; e++)
-      initBias.push_back(std::log(greedyEps));
   }
 
   Gaussian_mixture(const vector <Uint> starts, const ActionInfo*const aI,
@@ -127,20 +117,38 @@ private:
   }
   static inline Real precision_func(const Real val)
   {
-    return std::exp(val) + nnEPS; //nan police
-    //return 0.5*(val + std::sqrt(val*val+1)) +nnEPS;
+    //return std::exp(val) + nnEPS; //nan police
+    return 0.5*(val + std::sqrt(val*val+1)) +nnEPS;
   }
   static inline Real precision_func_diff(const Real val)
   {
-    return std::exp(val);
-    //return 0.5*(1.+val/std::sqrt(val*val+1));
+    //return std::exp(val);
+    return 0.5*(1.+val/std::sqrt(val*val+1));
   }
-  static inline Real oneDnormal(const Real act,const Real mean,const Real prec)
+  static inline Real precision_inverse(const Real val)
   {
-    return std::sqrt(prec/M_PI/2)*std::exp(-std::pow(act-mean,2)*prec/2);
+    //return std::log(val);
+    return (val*val -.25)/val;
+  }
+  static inline long double oneDnormal(const Real act, const Real mean, const Real prec)
+  {
+    const long double arg = .5 * std::pow(act-mean,2) * prec;
+    return std::sqrt(prec/M_PI/2)*std::exp(-arg);
   }
 
 public:
+
+  static void setInitial_noStdev(const ActionInfo* const aI, vector<Real>& initBias)
+  {
+    for(Uint e=0; e<nExperts*(1 + aI->dim); e++)
+      initBias.push_back(0);
+  }
+  static void setInitial_Stdev(const ActionInfo* const aI, vector<Real>& initBias, const Real greedyEps)
+  {
+    for(Uint e=0; e<nExperts*aI->dim; e++)
+      initBias.push_back(precision_inverse(greedyEps));
+  }
+
   template <typename T>
   inline string print(const array<T,nExperts> vals)
   {
@@ -150,10 +158,10 @@ public:
     return o.str();
   }
 
-  inline void prepare(const vector<Real>& unbact, const vector<Real>& beta)
+  inline void prepare(const vector<Real>& unscal_act, const vector<Real>& beta)
   {
-    sampAct = map_action(unbact);
-    Pact_Final = numeric_limits<Real>::epsilon();  //nan police
+    sampAct = map_action(unscal_act);
+    Pact_Final = numeric_limits<Real>::epsilon();
     for(Uint j=0; j<nExperts; j++) {
       PactEachExp[j] = 1;
       for(Uint i=0; i<nA; i++)
@@ -163,17 +171,22 @@ public:
     assert(Pact_Final>0);
     sampLogPonPolicy = std::log(Pact_Final);
     sampLogPBehavior = evalBehavior(sampAct, beta);
-    const Real logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = std::min(MAX_IMPW, std::exp(logW) );
-    sampInvWeight = 1./(sampImpWeight+nnEPS);
+    const long double logW = sampLogPonPolicy - sampLogPBehavior;
+    sampImpWeight = std::exp(logW);
+    #ifdef RACER_ACERTRICK
+      sampRhoWeight = std::exp( logW / std::sqrt(nA) );
+      //sampRhoWeight = std::exp( logW / nA );
+    #else
+      sampRhoWeight = sampImpWeight;
+    #endif
   }
 
-  static inline Real evalBehavior(const vector<Real>& act, const vector<Real>& beta)
+  static inline long double evalBehavior(const vector<Real>& act, const vector<Real>& beta)
   {
-    Real p = numeric_limits<Real>::epsilon(); //nan police
+    long double p = 0;
     const Uint NA = act.size();
     for(Uint j=0; j<nExperts; j++) {
-      Real pi = 1;
+      long double pi = 1;
       for(Uint i=0; i<NA; i++) {
         const Real stdi  = beta[i +j*NA +nExperts*(1+NA)]; //then stdevs
         pi *= oneDnormal(act[i], beta[i +j*NA +nExperts], 1/(stdi*stdi));
@@ -184,9 +197,9 @@ public:
   }
   inline Real evalLogProbability(const vector<Real>& act) const
   {
-    Real P = numeric_limits<Real>::epsilon(); //nan police
+    long double P = 0;
     for(Uint j=0; j<nExperts; j++) {
-      Real pi  = 1;
+      long double pi  = 1;
       for(Uint i=0; i<nA; i++)
         pi *= oneDnormal(act[i], means[j][i], precisions[j][i]);
       P += pi * experts[j];
@@ -202,12 +215,8 @@ public:
     const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      #ifdef TRUNC_SAMPLING
-        if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
-        if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
-      #else
-        while (samp > NORMDIST_MAX || samp < -NORMDIST_MAX) samp = dist(*gen);
-      #endif
+           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       const Uint indM = i +experti*nA +nExperts; //after experts come the means
       const Uint indS = i +experti*nA +nExperts*(nA+1); //after means, stdev
       ret[i] = beta[indM] + beta[indS] * samp;
@@ -222,12 +231,8 @@ public:
     const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      #ifdef TRUNC_SAMPLING
-        if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
-        if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
-      #else
-        while (samp > NORMDIST_MAX || samp < -NORMDIST_MAX) samp = dist(*gen);
-      #endif
+           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       ret[i] = means[experti][i] + stdevs[experti][i] * samp;
     }
     return ret;
@@ -266,16 +271,15 @@ public:
   inline vector<Real> policy_grad(const vector<Real>& act, const Real factor) const
   {
     vector<Real> ret(nExperts +2*nA*nExperts, 0);
-    const Real EPS = numeric_limits<Real>::epsilon();
     assert(Pact_Final > 0);
     for(Uint j=0; j<nExperts; j++) {
-      const Real normExpert = factor * (PactEachExp[j]/(Pact_Final+EPS));
+      const long double normExpert = factor * PactEachExp[j]/Pact_Final;
       assert(PactEachExp[j] > 0);
       for(Uint i=0; i<nExperts; i++)
         ret[i] += normExpert * ((i==j)-experts[j])/normalization;
 
       //if(PactEachExp[j]<EPS) continue; // NaN police
-      const Real fac = normExpert * experts[j];
+      const long double fac = normExpert * experts[j];
       for (Uint i=0; i<nA; i++) {
         const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(1+nA)*nExperts;
         const Real u = act[i]-means[j][i];
@@ -310,22 +314,24 @@ public:
     //const Real EPS = std::numeric_limits<Real>::epsilon();
     vector<Real> ret(nExperts +2*nA*nExperts, 0);
     for(Uint j=0; j<nExperts; j++) {
+      Real DKLe = 0;
       for (Uint i=0; i<nA; i++) {
         const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(nA+1)*nExperts;
         const Real preci = precisions[j][i], prech = 1/std::pow(beta[indS],2);
         ret[indM]= fac*experts[j]*(means[j][i]-beta[indM])*prech;
         ret[indS]= fac*experts[j]*(prech-preci)*stdevs[j][i];
+        const Real R = prech*variances[j][i];
+        DKLe += R-1-std::log(R) +std::pow(means[j][i]-beta[indM],2)*prech;
       }
-      const Real DKL_ExpBeta = kl_divergence_exp(j, beta);
       const Real logRhoBeta = std::log(experts[j]/beta[j]);
-      const Real tmp = fac*(DKL_ExpBeta +1 +logRhoBeta)/normalization;
+      const Real tmp = fac*(.5*DKLe +1 +logRhoBeta)/normalization;
       for (Uint i=0; i<nExperts; i++) ret[i] += tmp*((i==j)-experts[j]);
     }
     return ret;
   }
   inline Real kl_divergence_exp(const Uint expi, const vector<Real>&beta) const
   {
-    Real DKLe = 0;
+    Real DKLe = numeric_limits<Real>::epsilon();
     for (Uint i=0; i<nA; i++) {
       const Real prech = 1/std::pow(beta[i+expi*nA +nExperts*(1+nA)], 2);
       const Real R =prech*variances[expi][i], meanh = beta[i+expi*nA +nExperts];
@@ -336,7 +342,7 @@ public:
   }
   inline Real kl_divergence_exp(const Uint expi, const Gaussian_mixture*const pol) const
   {
-    Real DKLe = 0;
+    Real DKLe = numeric_limits<Real>::epsilon();
     for (Uint i=0; i<nA; i++) {
       const Real pRatio = pol->precisions[expi][i]*variances[expi][i];
       const Real meanh = pol->means[expi][i], prech = pol->precisions[expi][i];
@@ -398,9 +404,10 @@ public:
     const Uint bestExp = std::distance(experts.begin(), std::max_element(experts.begin(),experts.end()));
     return means[bestExp];
   }
-  inline vector<Real> finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta) const
+  inline vector<Real> finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta)
   { //scale back to action space size:
-    return aInfo->getScaled(bSample ? sample(gen, beta) : getBest());
+    sampAct = bSample ? sample(gen, beta) : getBest();
+    return aInfo->getScaled(sampAct);
   }
 
   inline vector<Real> getBeta() const
@@ -428,47 +435,7 @@ public:
 
   void test(const vector<Real>& act, const Gaussian_mixture*const pol_hat) const
   {
-    vector<Real> _grad(netOutputs.size());
-    const vector<Real> div_klgrad = pol_hat not_eq nullptr? div_kl_opp_grad(pol_hat) : vector<Real>() ;
-    const vector<Real> policygrad = policy_grad(act, 1);
-    const Uint NEA = nExperts*(1+nA);
-    for(Uint i = 0; i<nP; i++)
-    {
-      vector<Real> out_1 = netOutputs, out_2 = netOutputs;
-      const Uint ind = i<nExperts? iExperts+i :
-        (i<NEA? iMeans +i-nExperts : iPrecs +i-NEA);
-      const Uint ie = i<nExperts? i : (i<NEA? (i-nExperts)/nA : (i-NEA)/nA);
-      assert(ie<nExperts);
-      if(PactEachExp[ie]<1e-12 && ind >= nExperts) continue;
-
-      out_1[ind] -= 0.0001; out_2[ind] += 0.0001;
-      Gaussian_mixture p1(vector<Uint>{iExperts, iMeans, iPrecs}, aInfo, out_1);
-      Gaussian_mixture p2(vector<Uint>{iExperts, iMeans, iPrecs}, aInfo, out_2);
-      const Real p_1=p1.evalLogProbability(act);
-      const Real p_2=p2.evalLogProbability(act);
-      {
-        finalize_grad(policygrad, _grad);
-        const Real fdiff =(p_2-p_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
-        const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
-        if((abserr>1e-7 && abserr/scale>1e-4) && PactEachExp[ie]>nnEPS)
-        printf("LogPol grad %d: fin-diff %g analytic %g error %g/%g (%g %g)\n",
-        i, fdiff, _grad[ind], abserr,abserr/scale, Pact_Final,PactEachExp[ie]);
-        fflush(0);
-      }
-      if(pol_hat == nullptr) continue;
-
-      const Real d_1=p1.kl_divergence_opp(pol_hat);
-      const Real d_2=p2.kl_divergence_opp(pol_hat);
-      {
-        finalize_grad(div_klgrad, _grad);
-        const Real fdiff =(d_2-d_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
-        const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
-        if((abserr>1e-7 && abserr/scale>1e-4) && d_1>1e-8)
-        printf("DivKL grad %d: fin-diff %g analytic %g error %g/%g (%g %g)\n",
-        i, fdiff, _grad[ind], abserr,abserr/scale, Pact_Final,PactEachExp[ie]);
-        fflush(0);
-      }
-    }
+    test(act, pol_hat->getBeta());
   }
 
   void test(const vector<Real>& act, const vector<Real>& beta) const
@@ -477,6 +444,7 @@ public:
     const vector<Real> div_klgrad = div_kl_opp_grad(beta);
     const vector<Real> policygrad = policy_grad(act, 1);
     const Uint NEA = nExperts*(1+nA);
+    ofstream fout("mathtest.log", ios::app);
     for(Uint i = 0; i<nP; i++)
     {
       vector<Real> out_1 = netOutputs, out_2 = netOutputs;
@@ -484,7 +452,6 @@ public:
         (i<NEA? iMeans +i-nExperts : iPrecs +i-NEA);
       const Uint ie = i<nExperts? i : (i<NEA? (i-nExperts)/nA : (i-NEA)/nA);
       assert(ie<nExperts);
-      cout << ind << " " << ie << "\n";
       //if(PactEachExp[ie]<1e-12 && ind >= nExperts) continue;
 
       out_1[ind] -= 0.0001; out_2[ind] += 0.0001;
@@ -493,26 +460,24 @@ public:
       const Real p_1=p1.evalLogProbability(act);
       const Real p_2=p2.evalLogProbability(act);
       {
-        finalize_grad(policygrad, _grad);
-        const Real fdiff =(p_2-p_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
-        const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
-        //if((abserr>1e-7 && abserr/scale>1e-4) && PactEachExp[ie]>nnEPS)
-        printf("LogPol grad %d: fin-diff %g analytic %g error %g/%g (%g %g)\n",
-        i, fdiff, _grad[ind], abserr,abserr/scale, Pact_Final,PactEachExp[ie]);
-        fflush(0);
+       finalize_grad(policygrad, _grad);
+       const double fdiff =(p_2-p_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
+       const double scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
+       //if((abserr>1e-7 && abserr/scale>1e-4) && PactEachExp[ie]>nnEPS)
+       fout<<"Pol grad "<<i<<" fdiff "<<fdiff<<" grad "<<_grad[ind]<<" err "
+       <<abserr<<" "<<abserr/scale<<" "<<Pact_Final<<" "<<PactEachExp[ie]<<endl;
       }
 
       const Real d_1=p1.kl_divergence_opp(beta);
       const Real d_2=p2.kl_divergence_opp(beta);
       {
-        finalize_grad(div_klgrad, _grad);
-        const Real fdiff =(d_2-d_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
-        const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
-        //if((abserr>1e-7 && abserr/scale>1e-4) && d_1>1e-8)
-        printf("DivKL grad %d: fin-diff %g analytic %g error %g/%g (%g %g)\n",
-        i, fdiff, _grad[ind], abserr,abserr/scale, Pact_Final,PactEachExp[ie]);
-        fflush(0);
+       finalize_grad(div_klgrad, _grad);
+       const double fdiff =(d_2-d_1)/.0002, abserr =std::fabs(_grad[ind]-fdiff);
+       const double scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
+       fout<<"DivKL grad "<<i<<" fdiff "<<fdiff<<" grad "<<_grad[ind]<<" err "
+       <<abserr<<" "<<abserr/scale<<" "<<Pact_Final<<" "<<PactEachExp[ie]<<endl;
       }
     }
+    fout.close();
   }
 };

@@ -9,7 +9,12 @@
 
 #pragma once
 #include "Layers.h"
+#ifndef __STDC_VERSION__ //it should never be defined with g++
+#define __STDC_VERSION__ 0
+#endif
+#if 1 //def NDEBUG
 #include "cblas.h"
+#endif
 
 class BaseLayer: public Layer
 {
@@ -24,9 +29,11 @@ class BaseLayer: public Layer
     nBiases.push_back(nNeurons);
   }
   void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs) const override {
+                          vector<Uint>& bOutputs,
+                          vector<Uint>& bInputs) const override {
     sizes.push_back(nNeurons);
     bOutputs.push_back(bOutput);
+    bInputs.push_back(bInput);
   }
   void biasInitialValues(const vector<nnReal> init) override {
     if(init.size() != size) _die("size of init:%lu.", init.size());
@@ -61,7 +68,7 @@ class BaseLayer: public Layer
       for (Uint i = 0; i < nInputs; i++)
       {
         const nnReal* const W = weight + nOut_simd*i;
-        #pragma omp simd aligned(suminp, inputs, W : VEC_WIDTH) 
+        #pragma omp simd aligned(suminp, inputs, W : VEC_WIDTH)
         for (Uint o = 0; o < nNeurons; o++)
           suminp[o] += inputs[i] * W[o];
       }
@@ -110,11 +117,18 @@ class BaseLayer: public Layer
           G[o] += inputs[i] * deltas[o];
         }
       }
-      cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1, weight, nOut_simd, deltas, 1, 1, errors, 1);
-      //#pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
-      //for(Uint o=0; o<nNeurons; o++)
-      //  for(Uint i=0; i<nInputs;  i++)
-      //    errors[i] += weight[o +nOut_simd*i] * deltas[o];
+   
+      if( (not curr->input[ID-link]) ) 
+      {
+       #if 1 //def NDEBUG
+        cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1, weight, nOut_simd, deltas, 1, 1, errors, 1);
+       #else
+        #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
+        for(Uint o=0; o<nNeurons; o++)
+          for(Uint i=0; i<nInputs;  i++)
+            errors[i] += weight[o +nOut_simd*i] * deltas[o];
+       #endif
+      }
     }
     if(bRecurrent && prev not_eq nullptr)
     {
@@ -126,7 +140,7 @@ class BaseLayer: public Layer
       for(Uint i=0; i<nNeurons;  i++)
       {
         nnReal* const G = grad_w + nOut_simd*i;
-        #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH) 
+        #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH)
         for (Uint o = 0; o < nNeurons; o++)
           G[o] += inputs[i] * deltas[o];
       }

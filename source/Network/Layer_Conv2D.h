@@ -39,14 +39,49 @@ class ConvLayer : public Layer
     nWeight.push_back(Kn_X * Kn_Y * Kn_C * In_C);
   }
   void requiredActivation(vector<Uint>& sizes,
-                          vector<Uint>& bOutputs) const override {
+                          vector<Uint>& bOutputs,
+                          vector<Uint>& bInputs) const override {
     sizes.push_back(OutX*OutY*Kn_C);
     bOutputs.push_back(bOutput);
+    bInputs.push_back(bInput);
   }
   void biasInitialValues(const vector<nnReal> init) override { }
 
-  #ifndef CONVBLAS
+  #if 1 //def NDEBUG
+  void forward( const Activation*const prev,
+                const Activation*const curr,
+                const Parameters*const para) const override
+  {
+    __attribute__((aligned(32))) const nnReal (&convInp)[In_Y][In_X][In_C] =
+         * reinterpret_cast < nnReal ( * __restrict__ ) [In_Y][In_X][In_C]> (
+      curr->Y(ID-link) );
 
+    __attribute__((aligned(32))) nnReal buf[OutY][OutX][Kn_Y][Kn_X][In_C];
+    memcpy(curr->X(ID), para->B(ID), OutX*OutY*Kn_C*sizeof(nnReal));
+
+    for(int oy=0, iy0= -Py; oy<OutY; oy++, iy0+=Sy) //2loops over output images
+    for(int ox=0, ix0= -Px; ox<OutX; ox++, ix0+=Sx)
+     for(int fy=0, iy=iy0; fy<Kn_Y; fy++, iy++) //2loops for filter width/height
+     for(int fx=0, ix=ix0; fx<Kn_X; fx++, ix++)
+      //padding: skip addition if outside input boundaries
+      if ( ix < 0 || ix >= In_X || iy < 0 || iy >= In_Y) continue;
+      else
+      memcpy(&buf[oy][ox][fy][fx][0],&convInp[iy][ix][0], In_C*sizeof(nnReal));
+
+    static const int mm_outRow = OutY * OutX;
+    static const int mm_nInner = Kn_Y * Kn_X * In_C;
+    static const int mm_outCol = Kn_C;
+
+    // TODO: code can be compiled in quad precision, but then switch off cblas?
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+      mm_outRow, mm_outCol, mm_nInner, 1, &buf[0][0][0][0][0], mm_nInner,
+      para->W(ID), mm_outCol, 1, curr->X(ID), mm_outCol);
+
+    //apply per-pixel non-linearity:
+    func::_eval(curr->X(ID), curr->Y(ID), OutX*OutY*Kn_C);
+  }
+
+  #else
   void forward( const Activation*const prev,
                 const Activation*const curr,
                 const Parameters*const para) const override {
@@ -79,48 +114,14 @@ class ConvLayer : public Layer
     //apply per-pixel non-linearity:
     func::_eval(curr->X(ID), curr->Y(ID), OutX*OutY*Kn_C);
   }
-
-  #else
-
-  void forward( const Activation*const prev,
-                const Activation*const curr,
-                const Parameters*const para) const override {
-    __attribute__((aligned(32))) const nnReal (&convInp)[In_Y][In_X][In_C] =
-         * reinterpret_cast < nnReal ( * __restrict__ ) [In_Y][In_X][In_C]> (
-      curr->Y(ID-link) );
-
-    __attribute__((aligned(32))) nnReal buf[OutY][OutX][Kn_Y][Kn_X][In_C];
-    memcpy(curr->X(ID), para->B(ID), OutX*OutY*Kn_C*sizeof(nnReal));
-
-    for(int oy=0, iy0= -Py; oy<OutY; oy++, iy0+=Sy) //2loops over output images
-    for(int ox=0, ix0= -Px; ox<OutX; ox++, ix0+=Sx)
-     for(int fy=0, iy=iy0; fy<Kn_Y; fy++, iy++) //2loops for filter width/height
-     for(int fx=0, ix=ix0; fx<Kn_X; fx++, ix++)
-      //padding: skip addition if outside input boundaries
-      if ( ix < 0 || ix >= In_X || iy < 0 || iy >= In_Y) continue;
-      else
-      memcpy(&buf[oy][ox][fy][fx][0],&conv_inp[iy][ix][0], In_C*sizeof(nnReal));
-
-    static const int mm_outRow = OutY * OutX;
-    static const int mm_nInner = Kn_Y * Kn_X * In_C;
-    static const int mm_outCol = Kn_C;
-
-    // TODO: code can be compiled in quad precision, but then switch off cblas?
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
-      mm_outRow, mm_outCol, mm_nInner, 1, &buf[0][0][0][0][0], mm_nInner,
-      para->W(ID), mm_outCol, 1, curr->X(ID), mm_outCol);
-
-    //apply per-pixel non-linearity:
-    func::_eval(curr->X(ID), curr->Y(ID), OutX*OutY*Kn_C);
-  }
-
   #endif
 
   void backward(  const Activation*const prev,
                   const Activation*const curr,
                   const Activation*const next,
                   const Parameters*const grad,
-                  const Parameters*const para) const override {
+                  const Parameters*const para) const override
+  {
     { // premultiply with derivative of non-linearity
             nnReal* const deltas = curr->E(ID);
             nnReal* const grad_b = grad->B(ID);
@@ -177,4 +178,7 @@ class ConvLayer : public Layer
   }
 
   void orthogonalize(const Parameters*const para) const {}
+
+
+
 };

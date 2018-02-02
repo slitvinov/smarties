@@ -72,21 +72,25 @@ struct StatsTracker
   const string name;
   const MPI_Comm comm;
   const Uint nThreads, learn_size, learn_rank;
+  const Real grad_cut_fac;
   mutable vector<long double> cntVec;
   mutable vector<vector<long double>> avgVec, stdVec;
+  vector<long double> instMean, instStdv;
+  mutable Uint numCut = 0, numTot = 0;
+  Real cutRatio = 0;
 
   MPI_Request request = MPI_REQUEST_NULL;
   vector<long double> reduce_result, partial_sum;
 
-  StatsTracker(const Uint nvars, const string _name, Settings& sett) :
-  n_stats(nvars), name(_name), comm(sett.mastersComm), nThreads(sett.nThreads),
-  learn_size(sett.learner_size), learn_rank(sett.learner_rank),
+  StatsTracker(const Uint N, const string _name, Settings& set, Real fac) :
+  n_stats(N), name(_name), comm(set.mastersComm), nThreads(set.nThreads),
+  learn_size(set.learner_size), learn_rank(set.learner_rank), grad_cut_fac(fac),
   cntVec(nThreads+1,0), avgVec(nThreads+1,vector<long double>()),
   stdVec(nThreads+1,vector<long double>())
   {
     avgVec[0].resize(n_stats, 0); stdVec[0].resize(n_stats, 10);
-
-    #pragma omp parallel for
+    instMean.resize(n_stats, 0); instStdv.resize(n_stats, 0);
+    #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
     for (Uint i=0; i<nThreads; i++) // numa aware allocation
      #pragma omp critical
      {
@@ -104,29 +108,30 @@ struct StatsTracker
       stdVec[thrID+1][i] += grad[i]*grad[i];
     }
   }
-  inline int clip_vector(vector<Real>& grad) const
+  inline void clip_vector(vector<Real>& grad) const
   {
-    int ret = 0;
+    Uint ret = 0;
     for (Uint i=0; i<n_stats; i++) {
-      //#ifdef importanceSampling
+      //#ifdef IMPORTSAMPLE
       //  assert(data->Set[seq]->tuples[samp]->weight>0);
       //  grad[i] *= data->Set[seq]->tuples[samp]->weight;
       //#endif
-      #ifdef ACER_GRAD_CUT
-        if(grad[i]>  ACER_GRAD_CUT*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-        //printf("Cut %u was:%f is:%LG\n",i,grad[i], ACER_GRAD_CUT*stdVec[0][i]);
-          grad[i] =  ACER_GRAD_CUT*stdVec[0][i];
+        if(grad[i]> grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
+          //printf("Cut %u was:%f is:%LG\n",i,grad[i], grad_cut_fac*stdVec[0][i]);
+          grad[i] =  grad_cut_fac*stdVec[0][i];
           ret = 1;
         } else
-        if(grad[i]< -ACER_GRAD_CUT*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-        //printf("Cut %u was:%f is:%LG\n",i,grad[i],-ACER_GRAD_CUT*stdVec[0][i]);
-          grad[i] = -ACER_GRAD_CUT*stdVec[0][i];
+        if(grad[i]< -grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
+          //printf("Cut %u was:%f is:%LG\n",i,grad[i],-grad_cut_fac*stdVec[0][i]);
+          grad[i] = -grad_cut_fac*stdVec[0][i];
           ret = 1;
         }
         //else printf("Not cut\n");
-      #endif
     }
-    return ret;
+    #pragma omp atomic 
+    numCut += ret;
+    #pragma omp atomic 
+    numTot ++;
   }
 
   void advance()
@@ -204,6 +209,11 @@ struct StatsTracker
     update();
     printToFile();
 
+    instMean = avgVec[0];
+    instStdv = stdVec[0];
+    cutRatio = numCut / (Real) numTot;
+    numCut = 0; numTot = 0;
+
     for (Uint i=0; i<n_stats; i++) {
       avgVec[0][i] = .99*oldsum[i] +.01*avgVec[0][i];
       stdVec[0][i] = .99*oldstd[i] +.01*stdVec[0][i];
@@ -217,10 +227,16 @@ struct StatsTracker
     advance();
     update();
     printToFile();
+
+    instMean = avgVec[0];
+    instStdv = stdVec[0];
+    cutRatio = numCut / (Real) numTot;
+    numCut = 0; numTot = 0;
+
     for (Uint i=0; i<n_stats; i++) {
       avgVec[0][i] = .99*oldsum[i] +.01*avgVec[0][i];
-      //stdVec[0][i] = .99*oldstd[i] +.01*stdVec[0][i];
-      stdVec[0][i] = std::max(0.99*oldstd[i], stdVec[0][i]);
+      stdVec[0][i] = .99*oldstd[i] +.01*stdVec[0][i];
+      //stdVec[0][i] = std::max(0.99*oldstd[i], stdVec[0][i]);
     }
   }
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const

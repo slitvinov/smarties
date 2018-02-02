@@ -91,13 +91,13 @@ private:
 
   inline void sendBuffer(const int i)
   {
-    assert(i>0);
-    lock_guard<mutex> lock(mpi_mutex);
-    MPI_Request tmp;
-    MPI_Isend(outBufs[i-1], outSize, MPI_BYTE, i, 0, slavesComm, &tmp);
-    MPI_Request_free(&tmp); //Not my problem
+    assert(i>0 && i <= (int) outBufs.size());
     debugS("Sent action to slave %d: [%s]", i,
       print(vector<Real>(outBufs[i-1], outBufs[i-1]+aI.dim)).c_str());
+    MPI_Request tmp;
+    lock_guard<mutex> lock(mpi_mutex);
+    MPI_Isend(outBufs[i-1], outSize, MPI_BYTE, i, 0, slavesComm, &tmp);
+    MPI_Request_free(&tmp); //Not my problem
   }
 
   inline void recvBuffer(const int i)
@@ -138,9 +138,9 @@ public:
     //it's awfully ugly, i send -256 to kill the slaves... but...
     //what are the chances that learner sends action -256.(+/- eps) to clients?
     printf("nslaves %d\n",nSlaves);
-    lock_guard<mutex> lock(mpi_mutex);
     for (int slave=1; slave<=nSlaves; slave++) {
       outBufs[slave-1][0] = _AGENT_KILLSIGNAL;
+      lock_guard<mutex> lock(mpi_mutex);
       MPI_Ssend(outBufs[slave-1], outSize, MPI_BYTE, slave, 0, slavesComm);
     }
   }

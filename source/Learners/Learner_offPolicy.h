@@ -15,10 +15,11 @@ class Learner_offPolicy: public Learner
 {
 protected:
   const Real obsPerStep_orig;
-  vector<Uint> sequences, transitions;
-  Uint taskCounter = batchSize, nData_b4PolUpdates = 0;
+  const Uint nObsPerTraining;
+  Uint taskCounter = batchSize, nData_b4PolUpdates = 0, nToSpawn = 0;
+  mutable Uint nSkipped = 0;
   unsigned long nData_last = 0, nStep_last = 0;
-  Real obsPerStep = obsPerStep_orig, nStoredSeqs_last = 0;
+  Real obsPerStep = obsPerStep_orig;
 
 public:
   Learner_offPolicy(Environment*const env, Settings& _s);
@@ -27,8 +28,9 @@ public:
 
   inline Uint nSequences4Train() const
   {
-    if(bSampleSequences) return 8*batchSize;
-    else                 return   batchSize;
+    return nObsPerTraining;
+    //if(bSampleSequences) return 8*batchSize;
+    //else                 return   batchSize/2;
   }
   inline Uint read_nData() const
   {
@@ -39,17 +41,16 @@ public:
 
   inline void resample(const Uint thrID) const // TODO resample sequence
   {
-    int newSample = -1;
-    #pragma omp critical
-    newSample = data->sample(thrID);
+    // skipping too many samples, something is wrong. To avoid code hanging return: 
+    if(nSkipped>=batchSize) return;
 
-    if(newSample >= 0) // process the other sample
-    {
-      Uint sequence, transition;
-      data->indexToSample(newSample, sequence, transition);
-      return Train(sequence, transition, thrID);
-    }
-    else return; // skip element of the batch -> as if added 0 gradient
+    #pragma omp atomic
+    nSkipped++; 
+
+    Uint sequence, transition;
+    data->sampleTransition(sequence, transition, thrID);
+    data->Set[sequence]->setSampled(transition);
+    return Train(sequence, transition, thrID);
   }
 
   //main training functions:

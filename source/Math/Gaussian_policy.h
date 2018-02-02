@@ -14,11 +14,11 @@ struct Gaussian_policy
 {
   const ActionInfo* const aInfo;
   const Uint start_mean, start_prec, nA;
-  const vector<Real>& netOutputs;
+  const vector<Real> netOutputs;
   const vector<Real> mean, precision, variance, stdev;
 
   vector<Real> sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampInvWeight=0;
+  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0;
 
   Gaussian_policy(const vector <Uint>& start, const ActionInfo*const aI,
     const vector<Real>&out) : aInfo(aI), start_mean(start[0]),
@@ -59,13 +59,13 @@ private:
   }
   static inline Real precision_func(const Real val)
   {
-    return safeExp(val) + numeric_limits<Real>::epsilon();
-    //return 0.5*(val + std::sqrt(val*val+1));
+    //return safeExp(val) + numeric_limits<Real>::epsilon();
+    return 0.5*(val + std::sqrt(val*val+1));
   }
   static inline Real precision_func_diff(const Real val)
   {
-    return safeExp(val);
-    //return 0.5*(1.+val/std::sqrt(val*val+1));
+    //return safeExp(val);
+    return 0.5*(1.+val/std::sqrt(val*val+1));
   }
 
 public:
@@ -75,8 +75,8 @@ public:
     sampLogPonPolicy = evalLogProbability(sampAct);
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = std::min(MAX_IMPW, safeExp(logW) );
-    sampInvWeight = 1/(sampImpWeight+numeric_limits<Real>::epsilon());
+    sampImpWeight = safeExp( logW );
+    sampRhoWeight = std::exp(logW / std::sqrt(nA));
   }
 
   static inline Real evalBehavior(const vector<Real>& act, const vector<Real>& beta)
@@ -114,12 +114,8 @@ public:
     std::normal_distribution<Real> dist(0, 1);
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      #ifdef TRUNC_SAMPLING
-        if(samp<-NORMDIST_MAX) samp = -NORMDIST_MAX;
-        if(samp> NORMDIST_MAX) samp =  NORMDIST_MAX;
-      #else
-        while (samp > NORMDIST_MAX || samp < -NORMDIST_MAX) samp = dist(*gen);
-      #endif
+           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       ret[i] = mean[i] + stdev[i]*samp;
     }
     return ret;
@@ -280,6 +276,26 @@ public:
     }
   }
 
+  inline vector<Real> finalize_grad(const vector<Real>&grad) const
+  {
+    vector<Real> ret = grad;
+    for (Uint j=0; j<nA; j++)
+    if(aInfo->bounded[j]) {
+      if(mean[j]> BOUNDACT_MAX && grad[j]>0) ret[j]=0;
+      else
+      if(mean[j]<-BOUNDACT_MAX && grad[j]<0) ret[j]=0;
+    }
+
+    if(start_prec != 0)
+    for (Uint j=0; j<nA; j++) {
+      const Uint iS = start_prec+j;
+      const Real diff = precision_func_diff(netOutputs[iS]);
+      if(precision[j]>ACER_MAX_PREC && grad[j+nA]>0) ret[j+nA] = 0;
+      else ret[j+nA] = grad[j+nA] * diff;
+    }
+    return ret;
+  }
+
   inline void finalize_grad_unb(const vector<Real>&grad, vector<Real>&netGradient) const
   {
     assert(netGradient.size()>=start_mean+nA && grad.size() == 2*nA);
@@ -312,9 +328,10 @@ public:
   {
     return mean;
   }
-  inline vector<Real> finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta) const
+  inline vector<Real> finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta)
   { //scale back to action space size:
-    return aInfo->getScaled(bSample ? sample(gen, beta) : mean);
+    sampAct = bSample ? sample(gen, beta) : mean;
+    return aInfo->getScaled(sampAct);
   }
 
   inline vector<Real> getBeta() const

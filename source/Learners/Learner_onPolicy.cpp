@@ -9,11 +9,19 @@
 
 #include "Learner_onPolicy.h"
 
-Learner_onPolicy::Learner_onPolicy(Environment*const _env, Settings&_s): Learner(_env, _s) { }
+Learner_onPolicy::Learner_onPolicy(Environment*const _env, Settings&_s): Learner(_env, _s), nHorizon(_s.maxTotObsNum),
+nEpochs(_s.batchSize/_s.obsPerStep) {
+  cout << "nHorizon:"<<nHorizon<<endl;
+  cout << "nEpochs:"<<nEpochs<<endl;
+}
+// nHorizon is number of obs in buffer during training
+// steps per epoch = nEpochs * nHorizon / batchSize
+// obs per step = nHorizon / (steps per epoch)
+// this leads to formula used to compute nEpochs
 
 void Learner_onPolicy::prepareData()
 {
-  if(cntEpoch == nEpochs) {
+  if(cntEpoch >= nEpochs) {
     data->clearAll();
     //reset batch learning counters
     cntTrajectories = 0; cntHorizon = 0; cntEpoch = 0; cntBatch = 0;
@@ -25,7 +33,6 @@ void Learner_onPolicy::prepareData()
 
 bool Learner_onPolicy::batchGradientReady()
 {
-  updateComplete = taskCounter >= batchSize;
   return updateComplete;
 }
 
@@ -41,42 +48,35 @@ bool Learner_onPolicy::unlockQueue()
 
 int Learner_onPolicy::spawnTrainTasks()
 {
-  if( updateComplete || cntHorizon < nHorizon  || not bTrain )
-    return 0;
-  data->shuffle_samples();
+  if( updateComplete || cntHorizon<nHorizon  || not bTrain ) return 0;
   waitingForData = false;
   updateComplete = false;
   updatePrepared = true;
 
-  vector<Uint> sequences(batchSize), transitions(batchSize);
-  nAddedGradients = data->sampleTransitions(sequences, transitions);
-
   #pragma omp parallel for schedule(dynamic)
   for (Uint i=0; i<batchSize; i++)
   {
-    const Uint seq = sequences.back(); sequences.pop_back();
-    const Uint obs = transitions.back(); transitions.pop_back();
     addToNTasks(1);
-    #pragma omp task firstprivate(seq, obs)
+    #pragma omp task
     {
+      Uint seq, obs;
       const int thrID = omp_get_thread_num();
       if(thrID==0) profiler_ext->stop_start("WORK");
+      data->sampleTransition(seq, obs, thrID);
       Train(seq, obs, thrID);
       if(thrID==0) profiler_ext->stop_start("COMM");
+      input->gradient(thrID);
       addToNTasks(-1);
-      #pragma omp atomic
-      taskCounter++;
-      //printf("Thread %d done %u %u\n",thrID,seq,obs); fflush(0);
-      if(taskCounter >= batchSize) updateComplete = true;
     }
   }
+  updateComplete = true;
+
   return 0;
 }
 
 void Learner_onPolicy::prepareGradient()
 {
   if (updateComplete && bTrain) {
-    taskCounter = 0;
     cntBatch += batchSize*learn_size;
     if(cntBatch >= nHorizon) {
       cntBatch = 0;

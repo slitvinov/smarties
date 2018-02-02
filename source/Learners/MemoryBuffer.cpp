@@ -12,36 +12,18 @@
 #include <parallel/algorithm>
 
 MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
-  mastersComm(_s.mastersComm), env(_env), bNormalize(_s.bNormalize),
-  bTrain(_s.bTrain), bWriteToFile(!(_s.samplesFile=="none")),
-  bSampleSeq(_s.bSampleSequences), maxTotSeqNum(_s.maxTotSeqNum),
-  maxSeqLen(_s.maxSeqLen),minSeqLen(_s.minSeqLen), nAppended(_s.appendedObs),
-  batchSize(_s.batchSize), policyVecDim(_s.policyVecDim),
-  learn_rank(_s.learner_rank), learn_size(_s.learner_size),
-  generators(_s.generators), sI(_env->sI), aI(_env->aI),
-  _agents(_env->agents)
-{
-  mean.resize(sI.dimUsed, 0);
-  std.resize(sI.dimUsed, 1);
-  invstd.resize(sI.dimUsed, 1);
-  if (sI.mean.size()){
-    Uint k = 0;
-    for(Uint i=0; i<sI.dim; i++) {
-      if(sI.inUse[i]) {
-        mean[k] = sI.mean[i];
-        std[k] = sI.scale[i];
-        invstd[k] = 1./sI.scale[i];
-        k++;
-      }
-    }
-    assert(k == sI.dimUsed);
-  }
-
+ mastersComm(_s.mastersComm), env(_env), bWriteToFile(_s.samplesFile!="none"),
+ bTrain(_s.bTrain), bSampleSeq(_s.bSampleSequences), nAppended(_s.appendedObs),
+ batchSize(_s.batchSize), maxTotObsNum(_s.maxTotObsNum), nThreads(_s.nThreads),
+ policyVecDim(_s.policyVecDim), sI(env->sI), aI(env->aI), _agents(env->agents),
+ generators(_s.generators), mean(sI.inUseMean()), invstd(sI.inUseInvStd()),
+ std(sI.inUseStd()), learn_rank(_s.learner_rank), learn_size(_s.learner_size),
+ gamma(_s.gamma) {
   assert(_s.nAgents>0);
   inProgress.resize(_s.nAgents);
   for (int i=0; i<_s.nAgents; i++) inProgress[i] = new Sequence();
   gen = new Gen(&generators[0]);
-  Set.reserve(maxTotSeqNum);
+  Set.reserve(maxTotObsNum);
 }
 
 // Once learner receives a new observation, first this function is called
@@ -74,12 +56,6 @@ int MemoryBuffer::add_state(const Agent&a)
   }
   #endif
 
-  if(inProgress[a.ID]->tuples.size() >= maxSeqLen) { //upper limit to seq length
-    const Tuple* const last = inProgress[a.ID]->tuples.back();
-    Tuple * t = new Tuple(last); //copy last state
-    push_back(a.ID); //create new sequence
-    inProgress[a.ID]->tuples.push_back(t);
-  }
   env->pickReward(a);
   inProgress[a.ID]->ended = a.Status==2;
   inProgress[a.ID]->add_state(a.s->copy_observed(), a.r);
@@ -108,7 +84,7 @@ void MemoryBuffer::terminate_seq(const Agent&a)
 // update the second order moment of the rewards in the memory buffer
 void MemoryBuffer::updateRewardsStats()
 {
-  if(!bTrain || !bNormalize) return; //if not training, keep the stored values
+  if(!bTrain) return; //if not training, keep the stored values
 
   long double count = 0, newstdvr = 0;
   #pragma omp parallel for schedule(dynamic) reduction(+ : count, newstdvr)
@@ -159,196 +135,99 @@ void MemoryBuffer::updateRewardsStats()
 // REQUIRES CALLING insertBufferedSequences() once a serial region is reached
 void MemoryBuffer::push_back(const int & agentId)
 {
-  if(inProgress[agentId]->tuples.size() > minSeqLen ) {
-    lock_guard<mutex> lock(dataset_mutex);
-
-    inProgress[agentId]->ID = nSeenSequences++;
+  if(inProgress[agentId]->tuples.size() > 2 ) {
+    inProgress[agentId]->ID = nSeenSequences;
+    inProgress[agentId]->SquaredError.resize(inProgress[agentId]->ndata(), 0);
+    inProgress[agentId]->offPol_weight.resize(inProgress[agentId]->ndata(), 1);
+    #pragma omp atomic
+    nSeenSequences++;
+    #pragma omp atomic
     nSeenTransitions += inProgress[agentId]->ndata();
     assert(nSequences == Set.size());
-
-    if (nSequences >= adapt_TotSeqNum)
-      Buffered.push_back(inProgress[agentId]);
-    else
-      pushBackSequence(inProgress[agentId]);
+    pushBackSequence(inProgress[agentId]);
   } else {
     printf("Trashing %lu obs.\n",inProgress[agentId]->tuples.size());
     fflush(0);
     _dispose_object(inProgress[agentId]);
   }
 
-  inProgress[agentId] = new Sequence();
-}
-
-// Transfer a completed trajectory from the `inProgress` buffer to the data set
-void MemoryBuffer::push_back_seq(const int & agentId)
-{
-  if(inProgress[agentId]->tuples.size() > minSeqLen ) {
-    lock_guard<mutex> lock(dataset_mutex);
-
-    inProgress[agentId]->ID = nSeenSequences++;
-    nSeenTransitions += inProgress[agentId]->ndata();
-    assert(nSequences == Set.size());
-
-    if (nSequences >= adapt_TotSeqNum) {
-      const Uint ind = iOldestSaved >= Set.size()? 0 : iOldestSaved;
-      iOldestSaved++;
-      removeSequence(ind);
-      addSequence(ind, inProgress[agentId]);
-    } else
-      pushBackSequence(inProgress[agentId]);
-  } else {
-    printf("Trashing %lu obs.\n",inProgress[agentId]->tuples.size());
-    fflush(0);
-    _dispose_object(inProgress[agentId]);
-  }
+  if(nSequences >= maxTotObsNum)
+    die("maxTotObsNum setting is too low for given problem");
 
   inProgress[agentId] = new Sequence();
 }
 
-//If observed sequences exceeded capacity of memory buffer, placed into buffer
-//Here inserted in dataset by removing old/less important seqs (see function)
-//Also, algorithms might want to adap size of memory buffer
-//Concurrently, I also update the value of the standard deviation of the reward
-void MemoryBuffer::updateActiveBuffer()
-{
-  if(Buffered.size() || adapt_TotSeqNum<Set.size())
-    insertBufferedSequences();
-
-  #ifdef importanceSampling
-    updateImportanceWeights();
-  #endif
-}
-
-void MemoryBuffer::insertBufferedSequences()
-{
-  // 4 steps:
-  //1) if Set.size() < adapt_TotSeqNum, add buffer to Set
-  //2) optional, sort transitions in Set
-  //3) if Set.size() > adapt_TotSeqNum remove those at the back
-  //this implies that adaptive Set size is only suppoted if i sort the sequences
-  //4) add the buffered transitions
-  while( Set.size()<adapt_TotSeqNum && Buffered.size()>0 ) {
-    const auto bufTransition = Buffered.back();
-    assert(bufTransition not_eq nullptr);
-    pushBackSequence(bufTransition);
-
-    Buffered.back() = nullptr;
-    Buffered.pop_back();
-  }
-
-  #ifndef RESORT_SEQS
-  if(Set.size() > adapt_TotSeqNum)
-  #endif
-    sortSequences();
-
-  //If algorithm specifies a certain memory buffer size and never changes it
-  // this would be never called:
-  if(Set.size() > adapt_TotSeqNum) {
-    while(Set.size() > adapt_TotSeqNum) popBackSequence();
-
-    Set.reserve(maxTotSeqNum); //just to make sure, should be unnecessary
-    assert(nSequences<=adapt_TotSeqNum);
-    //tell code that buffered seqs will be added at the end
-    iOldestSaved = nSequences - Buffered.size();
-  }
-
-  if( Buffered.size() == 0 ) return;
-
-  nTransitionsInBuf=0; nTransitionsDeleted=0;
-  for(Uint j=Buffered.size(); j>0; j--) {
-    assert(Buffered.size() == j);
-    const Uint ind = (iOldestSaved >= Set.size()) ? 0 : iOldestSaved;
-    iOldestSaved++;
-    nTransitionsDeleted += Set[ind]->ndata();
-    nTransitionsInBuf += Buffered.back()->ndata();
-    removeSequence(ind);
-    addSequence(ind, Buffered.back());
-    Buffered.back() = nullptr;
-    Buffered.pop_back();
-  }
-}
-
-// Sort sequences based on SquaredError array. Places large errors first
-void MemoryBuffer::sortSequences()
-{
-  #ifndef NDEBUG
-    printf("Sorting %lu sequences\n", Set.size());
-    for(Uint i=0; i<Set.size(); i++) {
-      assert(*(Set.begin()+i) not_eq nullptr);
-      cout<<i<<" "<<Set[i]->MSE<<" "<<Set[i]->ndata()<<endl;
-    }
-  #endif
-
-  #pragma omp parallel for schedule(dynamic)
-  for(Uint i=0; i<Set.size(); i++) {
-    assert(Set[i] not_eq nullptr);
-    Set[i]->MSE = 0.;
-    for(Uint j=0; j<Set[i]->ndata(); j++)
-     #if 0 //sort by max error
-        Set[i]->MSE = std::max(Set[i]->MSE, Set[i]->tuples[j]->SquaredError);
-     #else //sort by mean error: penalizes long sequences
-        Set[i]->MSE += Set[i]->SquaredError[j]/Set[i]->ndata();
-     #endif
-  }
-
-  const auto compare = [&] (const Sequence*const a, const Sequence*const b) {
-    assert(a->MSE>=0 && b->MSE>=0);
-    return a->MSE<1e-16? true : (b->MSE<1e-16? false : (a->MSE > b->MSE) ); };
-  //__gnu_parallel::
-  std::sort(Set.begin(), Set.begin()+nSequences, compare);
-  assert(Set.front()->MSE >= Set.back()->MSE || Set.front()->MSE<1e-16);
-
-  iOldestSaved = nSequences - Buffered.size();
-}
-
-// remove sequences from Seq if more than maxFrac of samples have importance
-// weight (from vetor offPol_weight) either <1/CmaxRho or >CmaxRho
-Uint MemoryBuffer::prune(const Real maxFrac, const Real CmaxRho)
+void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
 {
   assert(CmaxRho>1);
-
-  int _ID = Set[0]->ID;
-  Uint ret = 0;
-
-  #pragma omp parallel for schedule(dynamic) reduction(+:ret) reduction(min:_ID)
-  for(Uint i = 0; i < Set.size(); i++)
+  vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
+  vector<pair<int,  int>> oldest_sequence(nThreads, {-1, nSeenSequences});
+  Real _nOffPol = 0, _totMSE = 0;
+  const Real invC = 1/CmaxRho, EPS = 1e-9;
+  #pragma omp parallel reduction(+ : _nOffPol,_totMSE) 
   {
-    Real numOver = 0;
-    for(Uint j=0; j<Set[i]->ndata(); j++)
+    const int thrID = omp_get_thread_num();
+    #pragma omp for schedule(dynamic)
+    for(Uint i = 0; i < Set.size(); i++)
     {
-      if( Set[i]->offPol_weight[j] > CmaxRho )   numOver += 1;
-      else
-      if( 1/CmaxRho > Set[i]->offPol_weight[j] ) numOver += 1;
+      if(Set[i]->just_sampled >= 0) {
+        Set[i]->nOffPol = 0; Set[i]->MSE = 0;
+        for(Uint j=0; j<Set[i]->ndata(); j++) {
+          Set[i]->MSE += Set[i]->SquaredError[j];
+          const Real W = Set[i]->offPol_weight[j];
+          assert(Set[i]->SquaredError[j]>=0 && W>=0);
+          if(W>CmaxRho || W<invC) Set[i]->nOffPol += 1;
+        }
+        Set[i]->just_sampled = -1;
+      }
+      assert(ALGO == OLDEST || ALGO == MAXERROR); //TODO generalize
+      //either delete seq with smallest index or with largest "error"
+      const Real W=ALGO==OLDEST? Set[i]->ID : Set[i]->ndata()/(EPS+Set[i]->MSE);
+      _nOffPol += Set[i]->nOffPol; _totMSE += Set[i]->MSE;
+      if(Set[i]->ID < oldest_sequence[thrID].second) {
+        oldest_sequence[thrID].second = Set[i]->ID;
+        oldest_sequence[thrID].first = i;
+      }
+      //locate smallest sequence id/mse/impW
+      if(W < delete_location[thrID].second) {
+        delete_location[thrID].second = W;
+        delete_location[thrID].first = i;
+      }
     }
-    _ID = std::min(Set[i]->ID, _ID);
-    // overwrite MSE as `boolean` depending on whether seq should be removed
-    if(numOver/(Real)Set[i]->ndata() > maxFrac) {
-      Set[i]->MSE = 1;
-      ret++;
-    } else
-      Set[i]->MSE = 0;
   }
 
-  assert(_ID>=0);
-  nPruned+=ret;
-  minInd = _ID;
-
-  for(int i = (int)Set.size()-1; i >= 0; i--)
-    if( Set[i]->MSE > 0.5 ) {
-      std::swap(Set[i], Set.back());
-      popBackSequence();
+  nOffPol = _nOffPol; totMSE = _totMSE; 
+  const Uint nB4 = Set.size();
+  int deli = -1, oldi = -1, oldj = nSeenSequences; Real delv = 2e20;
+  for(const auto&P: oldest_sequence)
+    if(oldj>P.second && P.first>=0) {
+      oldi = P.first; oldj = P.second;
     }
+  for(const auto&P: delete_location)
+    if(delv>P.second && P.first>=0) {
+      deli = P.first; delv = P.second;
+    }
+  minInd = oldj;
+  assert(deli>=0 && deli<(int)Set.size());
+  assert(oldi>=0 && oldi<(int)Set.size());
+  if(Set[oldi]->ID + (int)Set.size() < Set[deli]->ID) deli = oldi;
+  if(nTransitions-Set[deli]->ndata() > maxTotObsNum) {
+    //cout<< "delete:"<<Set[deli]->ID<<" "<<Set[deli]->MSE<<" "<<Set[deli]->nOffPol
+    //    <<" oldest:"<<Set[oldi]->ID<<" "<<Set[oldi]->MSE<<" "<<Set[oldi]->nOffPol<<endl;
+    std::swap(Set[deli], Set.back());
+    popBackSequence();
+  }
+  nPruned += nB4-Set.size();
 
-  // If pruned, only safe thing is to shuffle the samples:
-  if(ret) shuffle_samples();
-  //printf("pruned %u\n",ret);
-  return ret;
+  #ifdef IMPORTSAMPLE
+    updateImportanceWeights();
+  #endif
 }
 
 void MemoryBuffer::updateImportanceWeights()
 {
   const Uint ndata = bSampleSeq ? nSequences : nTransitions;
-  inds.resize(ndata);
+  vector<Uint> inds(ndata);
   std::iota(inds.begin(), inds.end(), 0);
   vector<Real> errors(ndata), Ps(ndata), Ws(ndata);
 
@@ -387,19 +266,18 @@ void MemoryBuffer::updateImportanceWeights()
 
   for(Uint i=0, k=0; i<Set.size(); i++)
     for(Uint j=0; j<Set[i]->ndata(); j++)
-      if(bSampleSeq) Set[i]->offPol_weight[j] = Ws[i];
-      else Set[i]->offPol_weight[j] = Ws[k++];
+      if(bSampleSeq) Set[i]->imp_weight[j] = Ws[i];
+      else Set[i]->imp_weight[j] = Ws[k++];
 }
 
 void MemoryBuffer::getMetrics(ostringstream&fileOut, ostringstream&screenOut)
 {
   fileOut<<nSequences<<" "<<nTransitions<<" "<<nSeenSequences<<" "
-         <<nSeenTransitions<<" "<<adapt_TotSeqNum<<" "<<1./invstd_reward<<" ";
+         <<nSeenTransitions<<" "<<1./invstd_reward<<" ";
          //<<nSequencesInBuf<<" "<<nSequencesDeleted<<endl;
-  screenOut<<" nSeq:"<<nSequences<<" nObs:"<<nTransitions
-  <<" (seen Seq:"<<nSeenSequences<<" Obs:"<<nSeenTransitions
-  <<") maxSeq:"<<adapt_TotSeqNum<<" stdRew:"<<1./invstd_reward
-  <<" nPruned:"<<nPruned<<" minInd:"<<minInd;
+  screenOut<<" nSeq:"<<nSequences<<" nObs:"<<nTransitions<<" (seen Seq:"
+  <<nSeenSequences<<" Obs:"<<nSeenTransitions<<") stdRew:"<<1/invstd_reward
+  <<" minInd:"<<minInd<<" nOffPol:"<<nOffPol<<" totMSE:"<<totMSE;
   nPruned=0;
   //<<nSequencesInBuf<<" "<<nSequencesDeleted<<endl;
 }
@@ -437,9 +315,9 @@ void MemoryBuffer::restart()
       _agents[0]->update(info, state, reward);
       add_state(*_agents[0]);
       inProgress[0]->add_action(action, policy);
-      if(info == 2) push_back_seq(0);
+      if(info == 2) push_back(0);
     }
-    if(_agents[0]->getStatus() not_eq 2) push_back_seq(0); //(agentID is 0)
+    if(_agents[0]->getStatus() not_eq 2) push_back(0); //(agentID is 0)
     fclose(pFile); free(buf);
     agentID++;
   }
@@ -450,50 +328,51 @@ void MemoryBuffer::restart()
 }
 
 // number of returned samples depends on size of seq! (== to that of trans)
-Uint MemoryBuffer::sampleTransitions(vector<Uint>& seq, vector<Uint>& trans)
+void MemoryBuffer::sampleTransition(Uint& seq, Uint& obs, const int thrID)
 {
-  const int thrID = omp_get_thread_num();
-  const Uint batch_size = seq.size(); assert(trans.size() == batch_size);
-  vector<Uint> load(batch_size), sort(batch_size), s(batch_size), t(batch_size);
-  for (Uint i=0; i<batch_size; i++) {
-    const int ind = sample(thrID);
-    if(ind<0) die("not enough data");
-    indexToSample(ind, s[i], t[i]);
-    sort[i] = i;
-    //work per transition (applies to algos with off policy corrections):
-    load[i] = Set[s[i]]->ndata() - t[i];
-    //load[i] = data->Set[k]->tuples.size()-1; // ~ this would be for RNN
-  }
-
-  //sort elements of sorting according to load for each transition:
-  const auto compare = [&] (Uint a, Uint b) { return load[a] < load[b]; };
-  std::sort(sort.begin(), sort.end(), compare);
-  assert(load[sort[0]] <= load[sort[batch_size-1]]);
-  //sort vectors passed to learning algo:
-  for (Uint i=0; i<batch_size; i++) {
-    trans[i] = t[sort[i]];
-    seq[i] = s[sort[i]];
-  }
-  return batch_size; //always add one grad per transition
+  #ifndef IMPORTSAMPLE
+    std::uniform_int_distribution<int> distObs(0, nTransitions-1);
+    const Uint ind = distObs(generators[thrID]);
+  #else
+    const Uint ind = (*dist)(generators[thrID]);
+  #endif
+  indexToSample(ind, seq, obs);
 }
 
-Uint MemoryBuffer::sampleSequences(vector<Uint>& seq)
+Uint MemoryBuffer::sampleTransition(const Uint seq, const int thrID)
 {
-  const int thrID = omp_get_thread_num();
-  Uint batch_size = seq.size(), _nAddedGradients = 0;
-  for (Uint i=0; i<batch_size; i++) {
-    const int ind = sample(thrID);
-    if(ind<0) die("not enough data");
-    seq[i]  = ind;
-    _nAddedGradients += Set[ind]->ndata();
+  std::uniform_int_distribution<Uint> distObs(0, Set[seq]->ndata()-1);
+  return distObs(generators[thrID]);
+}
+
+void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
+{
+  #ifndef IMPORTSAMPLE
+    std::uniform_int_distribution<int> distSeq(0, nSequences-1);
+    seq = distSeq(generators[thrID]);
+  #else
+    seq = (*dist)(generators[thrID]);
+  #endif
+}
+
+vector<Uint> MemoryBuffer::sampleSequences(const Uint N)
+{
+  assert(N<=nSequences);
+  vector<Uint> inds;
+  if(N*5<nSequences) {
+    inds.resize(N);
+    for(Uint i=0; i<N; i++) sampleSequence(inds[i], 0);
+  } else { // if N is large, make sure we do not repeat indices
+    inds.resize(nSequences);
+    std::iota(inds.begin(), inds.end(), 0);
+    std::shuffle(inds.begin(), inds.end(), generators[0]);
+    inds = vector<Uint>(&inds[0], &inds[N]);
   }
-  //sort them such that longer ones are started first, reducing overhead
-  const auto compare = [this] (Uint a, Uint b) {
-    return Set[a]->tuples.size() < Set[b]->tuples.size();
+  const auto compare = [&](Uint a, Uint b) {
+    return Set[a]->ndata() > Set[b]->ndata();
   };
-  std::sort(seq.begin(), seq.end(), compare);
-  assert( Set[seq.front()]->ndata() <= Set[seq.back()]->ndata() );
-  return _nAddedGradients;
+  std::sort(inds.begin(), inds.end(), compare);
+  return inds;
 }
 
 void MemoryBuffer::indexToSample(const int nSample, Uint& seq, Uint& obs) const

@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <fstream>
 #include <algorithm>
+#include <chrono>
 
 Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
   Settings&_s): slavesComm(_c), learners(_l), env(_e), aI(_e->aI), sI(_e->sI),
@@ -86,18 +87,23 @@ while (true)
           const int slave = mpistatus.MPI_SOURCE;
           assert(slaveIrecvStatus[i]==OPEN && slave==i+1);
           debugS("Master receives from %d", slave);
-          slaveIrecvStatus[slave-1] = DOING; //slave will be 'served' by task
+          slaveIrecvStatus[i] = DOING; //slave will be 'served' by task
 
           if(not learnersLockQueue()) {
             addToNTasks(1);
-            #pragma omp task firstprivate(slave) if(nTasks<nThreads) priority(1)
+            #pragma omp task firstprivate(slave) if(nTasks<nThreads) priority(9)
             {
+              //const auto t1 = chrono::high_resolution_clock::now();
               processRequest(slave);
+              //const auto t2 = chrono::high_resolution_clock::now();
+              //const auto span = chrono::duration_cast<chrono::duration<double,std::micro>>(t2 - t1);
+              //std::cout << "It took me " << span.count() << " seconds." << endl;
               addToNTasks(-1);
             }
           } else {
             postponed_queue.push_back(slave);
-            if(postponed_queue.size()==(size_t)nSlaves)
+            //if(postponed_queue.size()==(size_t)nSlaves)
+            if(postponed_queue.size())
             {
               #pragma omp taskwait
             }
@@ -115,7 +121,7 @@ die(" ");
 return 0;
 }
 
-inline void Master::processRequest(const int slave)
+void Master::processRequest(const int slave)
 {
   const int thrID = omp_get_thread_num();
   //printf("Thread %d doing slave %d\n",thrID,slave);
@@ -138,6 +144,7 @@ inline void Master::processRequest(const int slave)
        if (istatus == FAIL_COMM) //app crashed :sadface:
   {
     //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
+    //TODO FIX MULTIPLE ALGOS
     aAlgo->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
     for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
     warn("Received a FAIL_COMM\n");
@@ -145,6 +152,7 @@ inline void Master::processRequest(const int slave)
   else if (istatus == GAME_OVER)
   {
     //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
+    //TODO FIX MULTIPLE ALGOS, ALSO FIX SENDING "action" AFTER TERM STATE
     aAlgo->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
     for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
     //printf("Received a GAME_OVER\n");
@@ -159,13 +167,10 @@ inline void Master::processRequest(const int slave)
 
     debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
 
-    if(agents[agent]->Status not_eq TERM_COMM) //if term, no action sent
-    {
-      for(Uint i=0; i<aI.dim; i++)
-        outBufs[slave-1][i]=agents[agent]->a->vals[i];
-      sendBuffer(slave);
-    }
-    else if ( iter || !bTrain )
+    for(Uint i=0; i<aI.dim; i++) outBufs[slave-1][i]=agents[agent]->a->vals[i];
+    sendBuffer(slave);
+
+    if ( agents[agent]->Status == TERM_COMM && (iter || !bTrain) )
     {
       char path[256];
       sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
@@ -173,7 +178,7 @@ inline void Master::processRequest(const int slave)
       std::ofstream outf(path, ios::app);
       outf<<iter<<" "<<agent<<" "<<agents[agent]->transitionID<<" "
           <<agents[agent]->cumulative_rewards<<endl;
-      outf.close();
+      outf.flush(); outf.close();
       ++stepNum; //sequence counter: used to terminate if not training
     }
   }
@@ -201,11 +206,11 @@ void Slave::run()
       unpackState(comm->getDataState(), iAgent, info, state, reward);
 
       status[iAgent] = info;
-      if(info not_eq TERM_COMM && info not_eq GAME_OVER)
+      if(info not_eq GAME_OVER)
       {
         assert(info not_eq FAIL_COMM); //that one should cause the break
         if (comm->sendActionToApp()) {
-          printf("Slave exiting\n");
+          die("Slave exiting\n");
           fflush(0);
           return;
         }

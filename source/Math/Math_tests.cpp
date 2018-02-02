@@ -15,6 +15,7 @@ void Gaussian_policy::test(const vector<Real>& act,
    //const vector<Real> cntrolgrad = control_grad(a, -1);
    const vector<Real> div_klgrad = div_kl_grad(pol_hat);
    const vector<Real> policygrad = policy_grad(act, 1);
+   ofstream fout("mathtest.log", ios::app);
    for(Uint i = 0; i<2*nA; i++)
    {
      vector<Real> out_1 = netOutputs, out_2 = netOutputs;
@@ -46,9 +47,9 @@ void Gaussian_policy::test(const vector<Real>& act,
       const double diffVal = (p_2-p_1)/.0002;
       const double gradVal = _grad[index];
       const double errVal  = std::fabs(_grad[index]-(p_2-p_1)/.0002);
-      if(errVal>1e-7)
-        _die("LogPol var grad %u: finite differences %g analytic %g error %g \n", i,diffVal,gradVal,errVal);
-      printf("LogPol var grad %u: finite differences %g analytic %g error %g \n", i,diffVal,gradVal,errVal);
+      fout<<"LogPol var grad "<<i<<" finite differences "
+          <<diffVal<<" analytic "<<gradVal<<" error "<<errVal<<endl;
+      if(errVal>1e-7) die("failed");
     }
 
     //#ifndef ACER_RELAX
@@ -66,11 +67,12 @@ void Gaussian_policy::test(const vector<Real>& act,
       const double diffVal = (d_2-d_1)/.0002;
       const double gradVal = _grad[index];
       const double errVal  = std::fabs(_grad[index]-(d_2-d_1)/.0002);
-      if(errVal>1e-7)
-        _die("DivKL var grad %u: finite differences %g analytic %g error %g \n", i,diffVal,gradVal,errVal);
-      printf("DivKL var grad %u: finite differences %g analytic %g error %g \n", i,diffVal,gradVal,errVal);
+      fout<<"DivKL var grad "<<i<<" finite differences "
+          <<diffVal<<" analytic "<<gradVal<<" error "<<errVal<<endl;
+      if(errVal>1e-7) die("failed");
     }
    }
+   fout.close();
 }
 
 void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat) const
@@ -79,6 +81,7 @@ void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat) 
   //const vector<Real> cntrolgrad = control_grad(-1);
   const vector<Real> div_klgrad = div_kl_grad(pol_hat);
   const vector<Real> policygrad = policy_grad(act, 1);
+  ofstream fout("mathtest.log", ios::app);
   //values_grad(act, 1, _grad);
   for(Uint i = 0; i<nA; i++)
   {
@@ -100,9 +103,9 @@ void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat) 
       const double diffVal = (d_2-d_1)/.0002;
       const double gradVal = _grad[index];
       const double errVal  = std::fabs(_grad[index]-(d_2-d_1)/.0002);
-      if(errVal>1e-7 && i>=nA)
-        _die("DivKL var grad %u %u: finite differences %g analytic %g error %g \n", i,act,diffVal,gradVal,errVal);
-      printf("DivKL var grad %u %u: finite differences %g analytic %g error %g \n", i,act,diffVal,gradVal,errVal);
+      fout<<"DivKL var grad "<<i<<" "<<act<<" finite differences "
+          <<diffVal<<" analytic "<<gradVal<<" error "<<errVal<<endl;
+      if(errVal>1e-7) die("failed");
     }
 
     // finalize_grad(cntrolgrad, _grad);
@@ -115,17 +118,19 @@ void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat) 
       const double diffVal = (p_2-p_1)/.0002;
       const double gradVal = _grad[index];
       const double errVal  = std::fabs(_grad[index]-(p_2-p_1)/.0002);
-      if(errVal>1e-7 && i>=nA)
-        _die("LogPol var grad %u %u: finite differences %g analytic %g error %g \n", i,act,diffVal,gradVal,errVal);
-      printf("LogPol var grad %u %u: finite differences %g analytic %g error %g \n", i,act,diffVal,gradVal,errVal);
+      fout<<"LogPol var grad "<<i<<" "<<act<<" finite differences "
+          <<diffVal<<" analytic "<<gradVal<<" error "<<errVal<<endl;
+      if(errVal>1e-7) die("failed");
     }
   }
+  fout.close();
 }
 
 void Quadratic_advantage::test(const vector<Real>& act, mt19937*const gen) const
 {
   vector<Real> _grad(netOutputs.size());
    grad_unb(act, 1, _grad);
+   ofstream fout("mathtest.log", ios::app);
    for(Uint i = 0; i<nL+nA; i++)
    {
      vector<Real> out_1 = netOutputs, out_2 = netOutputs;
@@ -144,17 +149,19 @@ void Quadratic_advantage::test(const vector<Real>& act, mt19937*const gen) const
       const double diffVal = (A_2-A_1)/.0002;
       const double gradVal = _grad[index];
       const double errVal  = std::fabs(_grad[index]-(A_2-A_1)/.0002);
-      if(errVal>1e-7 && i>=nA)
-        _die("Advantage var grad %u: finite differences %g analytic %g error %g \n", i,diffVal,gradVal,errVal);
-      printf("Advantage var grad %u: finite differences %g analytic %g error %g \n", i,diffVal,gradVal,errVal);
+      fout<<"Advantage grad "<<i<<" finite differences "
+          <<diffVal<<" analytic "<<gradVal<<" error "<<errVal<<endl;
+      if(errVal>1e-7) die("failed");
     }
    }
+   fout.close();
 }
 
 void Diagonal_advantage::test(const vector<Real>& act, mt19937*const gen) const
 {
   vector<Real> _grad(netOutputs.size());
   grad(act, 1, _grad);
+  ofstream fout("mathtest.log", ios::app);
   for(Uint i = 0; i<4*nA; i++)
   {
     vector<Real> out_1 = netOutputs, out_2 = netOutputs;
@@ -172,11 +179,12 @@ void Diagonal_advantage::test(const vector<Real>& act, mt19937*const gen) const
       const double diffVal = (A_2-A_1)/.0002;
       const double gradVal = _grad[index];
       const double errVal  = std::fabs(_grad[index]-(A_2-A_1)/.0002);
-      if(errVal>1e-7 && i>=nA)
-        _die("Advantage grad %u: finite differences %g analytic %g error %g \n", i,diffVal,gradVal,errVal);
-      printf("Advantage grad %u: finite differences %g analytic %g error %g \n", i,diffVal,gradVal,errVal);
+      fout<<"Advantage grad "<<i<<" finite differences "
+          <<diffVal<<" analytic "<<gradVal<<" error "<<errVal<<endl;
+      if(errVal>1e-7) die("failed");
     }
   }
+  fout.close();
 }
 
 void NAF::test()

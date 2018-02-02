@@ -191,7 +191,11 @@ void Communicator::sendState(const int iAgent, const envInfo status,
   #endif
     comm_sock(Socket, true, data_state, size_state);
 
-  if (status == TERM_COMM) { seq_id++; msg_id = 0; }
+  if (status == TERM_COMM) {
+    seq_id++;
+    msg_id = 0;
+    recvAction();
+  }
 }
 
 void Communicator::recvAction(std::vector<double>& actions)
@@ -519,10 +523,11 @@ int Communicator::sendActionToApp()
   if(comm_learn_pool != MPI_COMM_NULL)
     recv_MPI(data_action, size_action, comm_learn_pool, lag);
 
-  send_all(Socket, data_action, size_action);
-  if(fabs(data_action[0]-_AGENT_KILLSIGNAL)<2.2e-16) return 1;
+  bool endSignal = fabs(data_action[0]-_AGENT_KILLSIGNAL)<2.2e-16;
 
-  return 0;
+  send_all(Socket, data_action, size_action);
+
+  return endSignal;
 }
 
 void Communicator::answerTerminateReq(const double answer)

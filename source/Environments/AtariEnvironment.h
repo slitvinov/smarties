@@ -16,5 +16,5 @@ class AtariEnvironment: public Environment
 {
 public:
     AtariEnvironment(Settings & _settings);
-    void predefinedNetwork(Network* &net, Optimizer* &opt) const override;
+    bool predefinedNetwork(Builder & input_net) const override;
 };

@@ -10,26 +10,25 @@
 #include "Learner_offPolicy.h"
 
 Learner_offPolicy::Learner_offPolicy(Environment*const _env, Settings & _s) :
-Learner(_env,_s), obsPerStep_orig(_s.obsPerStep) { }
+Learner(_env,_s), obsPerStep_orig(_s.obsPerStep), nObsPerTraining(
+(_s.minTotObsNum>_s.batchSize? _s.minTotObsNum : _s.maxTotObsNum)/learn_size) {}
 
 void Learner_offPolicy::prepareData()
 {
-  if(data->adapt_TotSeqNum <= batchSize)
-    die("I do not have enough data for training. Change hyperparameters")
-
   // it should be impossible to get here before starting batch update was ready.
   if(updateComplete) die("undefined behavior");
 
   // then no need to prepare a new update
   if(updatePrepared) return;
 
+  profiler->stop_start("PRE");
   // When is an algorithm not looking for more data and not ready for training?
   // It means that something messed with the transitions, ie by cancelling part
   // of the dataset, and therefore i need to reset how counters advance.
   // Anything that messes with MemoryBuffer can only happen on prepareGradient
   if(not waitingForData && not readyForTrain()) {
+    abort();
     nData_b4PolUpdates = data->readNSeen();
-    nStoredSeqs_last = nSequences4Train(); //RACER
     nData_last = 0;
   }
 
@@ -39,24 +38,11 @@ void Learner_offPolicy::prepareData()
     return;
   }
 
-  profiler->push_start("PRE");
-
-  if(data->requestUpdateSamples()) {
-    data->updateActiveBuffer(); //update sampling //syncDataStats
-    data->shuffle_samples();
-  }
-
   if(nStep%100==0) data->updateRewardsStats();
 
   taskCounter = 0;
-  sequences.resize(batchSize);
-  transitions.resize(batchSize);
-
-  nAddedGradients = bSampleSequences ? data->sampleSequences(sequences) :
-    data->sampleTransitions(sequences, transitions);
-
   updatePrepared = true;
-
+  nToSpawn = batchSize;
   profiler->stop_start("SLP");
 }
 
@@ -66,7 +52,7 @@ bool Learner_offPolicy::readyForTrain() const
    //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
    //  die("I do not have enough data for training. Change hyperparameters");
    //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
-   return bTrain && data->nSequences >= nSequences4Train();
+   return bTrain && data->nTransitions >= nSequences4Train();
 }
 
 bool Learner_offPolicy::batchGradientReady()
@@ -111,42 +97,61 @@ bool Learner_offPolicy::unlockQueue()
 
 int Learner_offPolicy::spawnTrainTasks()
 {
-  if( updateComplete || not updatePrepared ) return 0;
+  if( updateComplete || not updatePrepared || nToSpawn == 0) return 0;
+  if(bSampleSequences && data->nSequences<nToSpawn)
+    die("Parameter maxTotObsNum is too low for given problem");
 
-  for (Uint i=0; i<sequences.size(); i++)
+  vector<Uint> samp_seq = bSampleSequences? data->sampleSequences(nToSpawn) : vector<Uint>(nToSpawn);
+  for (Uint i=0; i<nToSpawn; i++)
   {
-    const Uint seq = sequences.back(); sequences.pop_back();
-    const Uint obs = transitions.back(); transitions.pop_back();
     addToNTasks(1);
+    Uint seq = samp_seq[i], obs = -1;
     #pragma omp task firstprivate(seq, obs)
     {
       const int thrID = omp_get_thread_num();
-      //printf("Thread %d doing %u %u\n",thrID,seq,obs); fflush(0);
       if(thrID == 0) profiler_ext->stop_start("WORK");
-
-      if(bSampleSequences) Train_BPTT(seq, thrID);
-      else                 Train(seq, obs, thrID);
+      //printf("Thread %d done %u %u\n",thrID,seq,obs); fflush(0);
+      if(bSampleSequences) {
+        obs = data->Set[seq]->ndata()-1;
+        Train_BPTT(seq, thrID);
+        #pragma omp atomic
+        nAddedGradients += data->Set[seq]->ndata();
+      }
+      else                 {
+        data->sampleTransition(seq, obs, thrID);
+        Train(seq, obs, thrID);
+        #pragma omp atomic
+        nAddedGradients++;
+      }
+      input->gradient(thrID);
+      data->Set[seq]->setSampled(obs);
 
       if(thrID == 0) profiler_ext->stop_start("COMM");
-      addToNTasks(-1);
       #pragma omp atomic
       taskCounter++;
-      //printf("Thread %d done %u %u\n",thrID,seq,obs); fflush(0);
       if(taskCounter >= batchSize) updateComplete = true;
+      addToNTasks(-1);
     }
   }
+  nToSpawn = 0;
   return 0;
 }
 
 void Learner_offPolicy::prepareGradient()
 {
-  if(updateComplete) {
-    //shift data / gradient counters to maintain grad stepping to sample
-    // collection ratio prescirbed by obsPerStep
-    const Real stepCounter = nStep+1 - (Real)nStep_last;
-    nData_last += stepCounter*obsPerStep/learn_size;
-    nStep_last = nStep+1; //actual counter advanced by base class
-  }
+  const bool bWasPrepareReady = updateComplete;
 
   Learner::prepareGradient();
+
+  if(bWasPrepareReady) {
+    nSkipped = 0;
+    profiler->stop_start("PRNE");
+    //shift data / gradient counters to maintain grad stepping to sample
+    // collection ratio prescirbed by obsPerStep
+    const Real stepCounter = nStep - (Real)nStep_last;
+    nData_last += stepCounter*obsPerStep/learn_size;
+    nStep_last = nStep;
+    data->prune(CmaxRet, ALGO);
+    profiler->stop_start("SLP");
+  }
 }

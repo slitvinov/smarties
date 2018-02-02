@@ -14,13 +14,13 @@ struct Discrete_policy
 {
   const ActionInfo* const aInfo;
   const Uint start_prob, nA;
-  const vector<Real>& netOutputs;
+  const vector<Real> netOutputs;
   const vector<Real> unnorm;
   const Real normalization;
   const vector<Real> probs;
 
   Uint sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampInvWeight=0;
+  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0;
 
   Discrete_policy(const vector<Uint>& start, const ActionInfo*const aI,
     const vector<Real>& out) : aInfo(aI), start_prob(start[0]), nA(aI->maxLabel), netOutputs(out), unnorm(extract_unnorm()),
@@ -75,8 +75,8 @@ struct Discrete_policy
     sampLogPonPolicy = evalLogProbability(sampAct);
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = std::min(MAX_IMPW, safeExp(logW) );
-    sampInvWeight = 1./(sampImpWeight+nnEPS);
+    sampImpWeight = safeExp(logW);
+    sampRhoWeight = sampImpWeight;
   }
 
   void test(const Uint act, const Discrete_policy*const pol_hat) const;
@@ -196,11 +196,11 @@ struct Discrete_policy
     return probs;
   }
 
-  inline Uint finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta) const
+  inline Uint finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta)
   {
-    if(bSample) return sample(gen, beta);
-    else return //the index of max Q:
+    sampAct = bSample? sample(gen, beta) :
       std::distance(probs.begin(), std::max_element(probs.begin(),probs.end()));
+    return sampAct; //the index of max Q
   }
 
   static inline void anneal_beta(vector<Real>& beta, const Real eps)

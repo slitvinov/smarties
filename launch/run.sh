@@ -14,6 +14,8 @@ fi
 source $SETTINGSNAME
 SETTINGS+=" --nThreads ${NTHREADS}"
 export OMP_NUM_THREADS=${NTHREADS}
+export OMP_PROC_BIND=CLOSE
+export OMP_PLACES=cores
 echo $SETTINGS > settings.txt
 env > environment.log
 #echo ${NPROCESS} ${NTHREADS}

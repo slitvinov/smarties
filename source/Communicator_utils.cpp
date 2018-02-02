@@ -173,17 +173,12 @@ void recv_MPI(double*const data, const int size, const MPI_Comm comm, unsigned l
   assert(comm != MPI_COMM_NULL);
   MPI_Request request;
   MPI_Irecv(data, size, MPI_BYTE, 0, 0, comm, &request);
-  int cnt=0;
   while(true) {
-    usleep(wait++);
-    cnt++;
+    usleep(10);
     int completed=0;
     MPI_Test(&request, &completed, MPI_STATUS_IGNORE);
     if (completed) break;
   }
-  //avoid wasting cpu for communication if MPI implementation does busy-wait
-  //note that non-MPI send and recv usually already have a yield-wait policy
-  wait = cnt == 1 ? 5 : wait;
 }
 
 void send_MPI(double*const data, const int size, const MPI_Comm comm)

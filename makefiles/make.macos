@@ -1,11 +1,7 @@
 #CC=g++
 CC=mpic++
 LD=mpic++
-LIBS += -lmpi -lmpicxx -lmpich -mavx
+LIBS += -lmpi -lmpicxx -lmpich
 
-#CPPFLAGS+= -DGYM_RENDEROPT=3 
-#CPPFLAGS+= -I/opt/local/include/openmpi -mavx
-
-#LIBS+= -L/cluster/apps/openmpi/1.6.5/x86_64/gcc_4.9.2/lib -lmpi -lmpi_cxx -mavx
-
-#LIBS+= -lz -L/cluster/apps/openmpi/1.6.2/x86_64/gcc_4.8.2/lib -lmpi -lmpi_cxx
+LIBS += -L/usr/local/Cellar/openblas/0.2.20/lib/ -lopenblas
+CPPFLAGS += -I/usr/local/Cellar/openblas/0.2.20/include/

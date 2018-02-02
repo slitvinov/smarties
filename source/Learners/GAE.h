@@ -41,24 +41,25 @@ protected:
     // at t=0 we do not have a reward, and we cannot compute delta
     //(if policy was updated after prev action we treat next state as initial)
     if(seq->state_vals.size() < 2) {
-      seq->action_adv.push_back(0);
       return;
     }
     assert(seq->tuples.size() == seq->state_vals.size());
-    assert(seq->tuples.size() == seq->action_adv.size()+1);
+    assert(seq->tuples.size() == 2+seq->Q_RET.size());
+    assert(seq->tuples.size() == 2+seq->action_adv.size());
     const Uint N = seq->tuples.size();
     const Real vSold = seq->state_vals[N-2], vSnew = seq->state_vals[N-1];
     // delta_t = r_t+1 + gamma V(s_t+1) - V(s_t)  (pedix on r means r_t+1
     // received with transition to s_t+1, sometimes referred to as r_t)
     const Real delta = seq->tuples[N-1]->r +gamma*vSnew -vSold;
-    seq->action_adv.push_back(delta);
+    seq->action_adv.push_back(0);
+    seq->Q_RET.push_back(0);
 
-    Real fac_lambda = lambda*gamma, fac_gamma = gamma;
+    Real fac_lambda = 1, fac_gamma = 1;
     // reward of i=0 is 0, because before any action
     // adv(0) is also 0, V(0) = V(s_0)
-    for (Uint i=N-2; i>0; i--) { //update all rewards before current step
+    for (int i=N-2; i>=0; i--) { //update all rewards before current step
       //will contain MC sum of returns:
-      seq->tuples[i]->r += fac_gamma * seq->tuples[N-1]->r;
+      seq->Q_RET[i] += fac_gamma * seq->tuples[N-1]->r;
       #ifndef IGNORE_CRITIC
         seq->action_adv[i] += fac_lambda * delta;
       #else
@@ -73,10 +74,10 @@ protected:
   {
     if(thrID==1)  profiler->stop_start("FWD");
     const Sequence* const traj = data->Set[seq];
-    const Real adv_est = traj->action_adv[samp+1];
-    const Real val_tgt = traj->tuples[samp+1]->r;
+    const Real adv_est = traj->action_adv[samp];
+    const Real val_tgt = traj->Q_RET[samp];
     const vector<Real>& beta = traj->tuples[samp]->mu;
-    
+
     F[0]->prepare_one(traj, samp, thrID);
     F[1]->prepare_one(traj, samp, thrID);
     const vector<Real> pol_cur = F[0]->forward(traj, samp, thrID);
@@ -89,7 +90,7 @@ protected:
     const Action_t act = pol.map_action(traj->tuples[samp]->a);
     const Real actProbOnPolicy = pol.evalLogProbability(act);
     const Real actProbBehavior = Policy_t::evalBehavior(act, beta);
-    const Real rho_cur= min(MAX_IMPW, safeExp(actProbOnPolicy-actProbBehavior));
+    const Real rho_cur = safeExp(actProbOnPolicy-actProbBehavior);
     const Real DivKL=pol.kl_divergence_opp(beta);
     //if ( thrID==1 ) printf("%u %u : %f DivKL:%f %f %f\n", nOutputs, PenalID, penalDKL, DivKL, completed[workid]->policy[samp][1], output[2]);
 
@@ -104,31 +105,34 @@ protected:
       const vector<Real> penal_grad = pol.div_kl_opp_grad(beta, -penalDKL);
       vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
     #else //we still learn the penal coef, for simplicity, but no effect
-      if(gain==0) {
-        if(thrID==1)  profiler->stop_start("SLP");
-        return; //if 0 pol grad dont backprop
-      }
       vector<Real> totalPolGrad = pol.policy_grad(act, gain);
     #endif
 
     vector<Real> grad(F[0]->nOutputs(), 0);
     pol.finalize_grad(totalPolGrad, grad);
-    grad[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
+    //grad[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
+    grad[PenalID] = (DivKL - DKL_target)*penalDKL;
 
     //bookkeeping:
     Vstats[thrID].dumpStats(Vst, val_tgt - Vst);
     if(thrID==1)  profiler->stop_start("BCK");
-    F[0]->backward(grad, samp, thrID);
+
+    #ifndef PPO_PENALKL
+    if(gain!=0) 
+    #endif 
+    {
+      F[0]->backward(grad, samp, thrID);
+      F[0]->gradient(thrID);
+    }
     F[1]->backward({val_tgt - Vst}, samp, thrID);
-    F[0]->gradient(thrID);
     F[1]->gradient(thrID);
     if(thrID==1)  profiler->stop_start("SLP");
   }
 
 public:
-  GAE(Environment*const _env, Settings& sett, vector<Uint> pol_outs) :
-    Learner_onPolicy(_env, sett), lambda(sett.lambda),
-    DKL_target(sett.klDivConstraint), pol_outputs(pol_outs),
+  GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
+    Learner_onPolicy(_env, _set), lambda(_set.lambda),
+    DKL_target(_set.klDivConstraint), pol_outputs(pol_outs),
     pol_indices(count_indices(pol_outs)) { }
 
   //called by scheduler:
@@ -144,7 +148,7 @@ public:
       const vector<Real> val=F[1]->forward_agent(curr_seq, agent, thrID);
 
       curr_seq->state_vals.push_back(val[0]);
-      const Policy_t policy = prepare_policy(pol);
+      Policy_t policy = prepare_policy(pol);
       const vector<Real> beta = policy.getBeta();
       agent.a->set(policy.finalize(bTrain, &generators[thrID], beta));
       data->add_action(agent, beta);
@@ -156,8 +160,9 @@ public:
     //advance counters of available data for training
     if(agent.Status==2) {
       data->terminate_seq(agent);
-      lock_guard<mutex> lock(buffer_mutex);
+      #pragma omp atomic
       cntHorizon += curr_seq->ndata();
+      #pragma omp atomic
       cntTrajectories++;
     }
   }
@@ -191,18 +196,18 @@ class GAE_cont : public GAE<Gaussian_policy, vector<Real> >
     return 2*aI->dim;
   }
 
-  GAE_cont(Environment*const _env, Settings & settings) :
-  GAE(_env, settings, count_pol_outputs(&_env->aI))
+  GAE_cont(Environment*const _env, Settings & _set) :
+  GAE(_env, _set, count_pol_outputs(&_env->aI))
   {
     printf("Continuous-action GAE\n");
-    F.push_back(new Approximator("policy", settings, input, data));
-    F.push_back(new Approximator("value", settings, input, data));
+    F.push_back(new Approximator("policy", _set, input, data));
+    F.push_back(new Approximator("value", _set, input, data));
     #ifndef simpleSigma
-      Builder build_pol = F[0]->buildFromSettings(settings, {2*aInfo.dim});
+      Builder build_pol = F[0]->buildFromSettings(_set, {2*aInfo.dim});
     #else
-      Builder build_pol = F[0]->buildFromSettings(settings,   {aInfo.dim});
+      Builder build_pol = F[0]->buildFromSettings(_set,   {aInfo.dim});
     #endif
-    Builder build_val = F[1]->buildFromSettings(settings, {1} );
+    Builder build_val = F[1]->buildFromSettings(_set, {1} );
 
     #ifdef simpleSigma //add stddev layer
       build_pol.addParamLayer(aInfo.dim, "Linear", -2*std::log(greedyEps));
@@ -211,6 +216,7 @@ class GAE_cont : public GAE<Gaussian_policy, vector<Real> >
     build_pol.addParamLayer(1, "Exp", 1);
 
     F[0]->initializeNetwork(build_pol);
+    _set.learnrate *= 2;
     F[1]->initializeNetwork(build_val);
   }
 };
@@ -233,14 +239,14 @@ class GAE_disc : public GAE<Discrete_policy, Uint>
   }
 
  public:
-  GAE_disc(Environment*const _env, Settings& settings) :
-  GAE(_env, settings, count_pol_outputs(&_env->aI))
+  GAE_disc(Environment*const _env, Settings& _set) :
+  GAE(_env, _set, count_pol_outputs(&_env->aI))
   {
     printf("Discrete-action GAE\n");
-    F.push_back(new Approximator("policy", settings, input, data));
-    F.push_back(new Approximator("value", settings, input, data));
-    Builder build_pol = F[0]->buildFromSettings(settings, aInfo.maxLabel);
-    Builder build_val = F[1]->buildFromSettings(settings, 1 );
+    F.push_back(new Approximator("policy", _set, input, data));
+    F.push_back(new Approximator("value", _set, input, data));
+    Builder build_pol = F[0]->buildFromSettings(_set, aInfo.maxLabel);
+    Builder build_val = F[1]->buildFromSettings(_set, 1 );
 
     build_pol.addParamLayer(1, "Exp", 1); //add klDiv penalty coefficient layer
 

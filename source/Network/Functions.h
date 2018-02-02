@@ -191,15 +191,15 @@ struct SoftSign : public Function {
     return std::sqrt(6./(inps + outs));
   }
   static inline nnReal _eval(const nnReal in) {
-    return in/(1+std::fabs(in));
+    return 2*in/(1 + std::fabs(2*in));
   }
   static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
-    const nnReal denom = 1+std::fabs(in);
-    return 1/(denom*denom);
+    const nnReal denom = 1 + 2*std::fabs(in);
+    return 2/(denom*denom);
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
-    for (Uint i=0;i<N; i++) out[i] = in[i]/(1+std::fabs(in[i]));
+    for (Uint i=0;i<N; i++) out[i] = 2*in[i]/(1+ std::fabs(2*in[i]));
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
     return _eval(in, out, N);
@@ -209,7 +209,7 @@ struct SoftSign : public Function {
   }
   nnReal inverse(const nnReal in) const override {
     assert(in > 0 && in < 1);
-    return in/(1-in);
+    return 0.5*in/(1-std::fabs(in));
   }
   nnReal evalDiff(const nnReal in, const nnReal d) const override {
     return _evalDiff(in, d);

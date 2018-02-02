@@ -10,44 +10,43 @@
 
 #include "Sequences.h"
 #include "../Environments/Environment.h"
+#include <parallel/algorithm>
 
+enum FORGET {OLDEST, MAXERROR, MINERROR};
 class MemoryBuffer
 {
 public:
   const MPI_Comm mastersComm;
   Environment * const env;
-  const bool bNormalize, bTrain, bWriteToFile, bSampleSeq;
-  const Uint maxTotSeqNum,maxSeqLen,minSeqLen,nAppended,batchSize,policyVecDim;
-  const int learn_rank, learn_size;
-  std::vector<std::mt19937>& generators;
-
-  bool first_pass = true;
-  vector<Real> std, mean, invstd;
-  vector<Uint> inds;
-  discrete_distribution<Uint> * dist = nullptr;
-  //bool bRecurrent;
+  const bool bWriteToFile, bTrain, bSampleSeq;
+  const Uint nAppended, batchSize, maxTotObsNum, nThreads, policyVecDim;
   const StateInfo sI;
   const ActionInfo aI;
   const vector<Agent*> _agents;
+  std::vector<std::mt19937>& generators;
+  const vector<Real> mean, invstd, std;
+  const int learn_rank, learn_size;
+  const Real gamma;
+
+  bool first_pass = true;
+  discrete_distribution<Uint> * dist = nullptr;
+  //bool bRecurrent;
   Uint nBroken=0, nTransitions=0, nSequences=0;
   Uint nTransitionsInBuf=0, nTransitionsDeleted=0;
   size_t nSeenSequences=0, nSeenTransitions=0, iOldestSaved = 0;
-  Uint adapt_TotSeqNum = maxTotSeqNum, nPruned = 0, minInd = 0;
-  Real invstd_reward = 1, mean_reward = 0;
+  Uint nPruned = 0, minInd = 0;
+  Real invstd_reward = 1, mean_reward = 0, nOffPol = 0, totMSE = 0;
 
 
   Gen* gen;
-  vector<Sequence*> Set, inProgress, Buffered;
+  vector<Sequence*> Set, inProgress;
   mutable std::mutex dataset_mutex;
 
   MPI_Request rewRequest = MPI_REQUEST_NULL;
   long double rew_reduce_result[2], partial_sum[2];
 
 public:
-  void sortSequences();
-  void insertBufferedSequences();
   void push_back(const int & agentId);
-  void push_back_seq(const int & agentId);
 
   MemoryBuffer(Environment*const env, Settings & settings);
 
@@ -57,7 +56,6 @@ public:
     _dispose_object(dist);
     for (auto & trash : Set) _dispose_object( trash);
     for (auto & trash : inProgress) _dispose_object( trash);
-    for (auto & trash : Buffered) _dispose_object( trash);
   }
 
   void inline clearAll()
@@ -89,13 +87,11 @@ public:
   inline Real standardized_reward(const Uint seq, const Uint samp) const
   {
     assert(samp>0 && samp < Set[seq]->tuples.size());
-    if(!bNormalize) return Set[seq]->tuples[samp]->r;
     return Set[seq]->tuples[samp]->r * invstd_reward;
   }
   inline Real standardized_reward(const Sequence*const seq,const Uint samp)const
   {
-    assert(samp>0 && samp < seq->tuples.size());
-    if(!bNormalize) return seq->tuples[samp]->r;
+    assert(samp < seq->tuples.size()); // samp>0 &&
     return seq->tuples[samp]->r * invstd_reward;
   }
 
@@ -108,46 +104,25 @@ public:
   }
   void pushBackEndedSim(const int agentOne, const int agentEnd)
   {
-    for (int i = agentOne; i<agentEnd; i++)
-      if(inProgress[i]->tuples.size()) push_back(i);
-  }
-
-  inline int sample(const int thrID)
-  {
-    #ifndef importanceSampling
-      if(inds.size() == 0) return -1;
-      const Uint ind = inds.back();
-      inds.pop_back();
-    #else
-      const Uint ind = (*dist)(generators[thrID]);
-    #endif
-    return ind;
+    for(int i=agentOne; i<agentEnd; i++) if(inProgress[i]->ndata()) push_back(i);
   }
 
   void add_action(const Agent& a, vector<Real> pol = vector<Real>()) const;
   void terminate_seq(const Agent&a);
   int add_state(const Agent&a);
 
-  void updateActiveBuffer();
   void updateRewardsStats();
   void updateImportanceWeights();
-  Uint prune(const Real maxFrac, const Real CmaxRho);
+  void prune(const Real CmaxRho, const FORGET ALGO);
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut);
   void restart();
 
-  Uint sampleSequences(vector<Uint>& seq);
-  Uint sampleTransitions(vector<Uint>& seq, vector<Uint>& trans);
-
   void indexToSample(const int nSample, Uint& seq, Uint& obs) const;
-
-  inline bool requestUpdateSamples() const
-  {
-    //three cases:
-    // if i have buffered transitions to add to dataset
-    // if my desired dataset size is less than what i have
-    return inds.size()<2*batchSize || Buffered.size() || adapt_TotSeqNum<Set.size();
-  }
+  void sampleTransition(Uint& seq, Uint& obs, const int thrID);
+  Uint sampleTransition(const Uint seq, const int thrID);
+  void sampleSequence(Uint& seq, const int thrID);
+  vector<Uint> sampleSequences(const Uint N);
 
   inline Uint readNTransitions() const
   {
@@ -187,7 +162,7 @@ public:
   }
   inline void pushBackSequence(Sequence*const seq)
   {
-    assert(Set.size() < adapt_TotSeqNum);
+    lock_guard<mutex> lock(dataset_mutex);
     Set.push_back(nullptr);
     addSequence(nSequences, seq);
     nSequences++;
@@ -196,8 +171,6 @@ public:
   inline void addSequence(const Uint ind, Sequence*const seq)
   {
     assert(Set[ind] == nullptr && seq not_eq nullptr);
-    seq->SquaredError.resize(seq->ndata(), 0);
-    seq->offPol_weight.resize(seq->ndata(), 1); //initially treated as on-pol
     if (not seq->ended) ++nBroken;
     nTransitions += seq->ndata();
     Set[ind] = seq;
@@ -224,16 +197,6 @@ public:
       }
       assert(cntSamp==nTransitions);
       assert(Set.size()==nSequences);
-    #endif
-  }
-
-  inline void shuffle_samples()
-  {
-    #ifndef importanceSampling
-    const Uint ndata = (bSampleSeq) ? nSequences : nTransitions;
-    inds.resize(ndata);
-    std::iota(inds.begin(), inds.end(), 0);
-    std::random_shuffle(inds.begin(), inds.end(), *(gen));
     #endif
   }
 };

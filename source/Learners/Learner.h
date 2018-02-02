@@ -22,10 +22,18 @@ protected:
   Environment * const env;
   const bool bSampleSequences, bTrain;
   const Uint nAgents, batchSize, totNumSteps, nThreads, nSlaves, policyVecDim;
-  const Real greedyEps, epsAnneal, gamma;
+  const Real greedyEps, epsAnneal, gamma, CmaxPol;
+  #ifdef RACER_ACERTRICK
+    // the offPolicyWeight passed to MemoryBuffer::prune is actually c^(1/sqrt(nA))
+    // therefore std::pow here to count the number of obs with c < 1/CmaxPol || c > CmaxPol
+    const Real CmaxRet = std::pow(CmaxPol, 1./std::sqrt(env->aI.dim))*std::cbrt(env->aI.dim);
+  #else
+    const Real CmaxRet = CmaxPol * std::cbrt(env->aI.dim);
+  #endif
   const int learn_rank, learn_size;
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;
+  FORGET ALGO = OLDEST;
 
   mutable bool updatePrepared = false;
   mutable bool updateComplete = false;
@@ -104,6 +112,6 @@ public:
 
   virtual void prepareGradient();
   void synchronizeGradients();
-
+  bool predefinedNetwork(Builder& input_net, Settings& settings);
   void restart();
 };

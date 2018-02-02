@@ -22,7 +22,7 @@ print(DATA.shape)
 NOUTS = DATA.shape[1]//2
 #DATA = DATA.reshape(NROW, NCOL)
 
-for ind in range(0, NOUTS-2):
+for ind in range(0, NOUTS):
   plt.subplot(121)
   #plt.plot(DATA[:,ind]/DATA[:,NOUTS+ind], label=str(ind))
   #plt.semilogy(abs(DATA[:,ind]),label=str(ind))

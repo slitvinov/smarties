@@ -25,10 +25,10 @@ struct EntropyAdam {
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
     M2 = M2<M1*M1? M1*M1 : M2; // gradient clipping to 1
-    const nnReal _M2 = std::sqrt(M2 + nnEPS);
-    //const nnReal ret = eta*M1/_M2;
-    const nnReal ret = eta*(B1*M1 + (1-B1)*DW)/_M2;
-    return ret + 1e-5*gen.d_mean0_var1(); //Adam plus exploratory noise
+    const nnReal _M2 = std::sqrt(M2) + nnEPS;
+    const nnReal ret = eta*M1/_M2;
+    //const nnReal ret = eta*(B1*M1 + (1-B1)*DW)/_M2;
+    return ret + 1e-6*gen.d_mean0_var1(); //Adam plus exploratory noise
     //dest[i] += delay*(target[i]-dest[i]);
     //dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
     //_mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
@@ -57,6 +57,7 @@ struct Adam {
     const nnReal betat1, const nnReal betat2, Saru& _gen) :
   eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2) {}
 
+  //#pragma omp declare simd notinbranch simdlen(VEC_WIDTH)
   inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
     const nnReal DW  = grad * fac;
     M1 = B1 * M1 + (1-B1) * DW;
@@ -64,7 +65,8 @@ struct Adam {
     M2 = M2<M1*M1? M1*M1 : M2; // gradient clipping to 1
     //const nnReal _M2 = std::sqrt(M2 + nnEPS);
     //return eta*M1/_M2;
-    return eta*M1/(nnEPS + std::sqrt(M2));
+    //return eta*M1/(nnEPS + std::sqrt(M2));
+    return eta*M1/(std::sqrt(nnEPS + M2));
     //return eta*(B1*M1 + (1-B1)*DW)/_M2;
   }
 };
@@ -123,7 +125,7 @@ class Optimizer
     lambda(S.nnLambda), epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay),
     weights(W), tgt_weights(W_TGT), gradSum(W->allocateGrad()),
     _1stMom(W->allocateGrad()), _2ndMom(W->allocateGrad()),
-    generators(S.generators) {  }
+    generators(S.generators) { _2ndMom->set(std::sqrt(nnEPS)); }
   //alpha_eSGD(0.75), gamma_eSGD(10.), eta_eSGD(.1/_s.targetDelay),
   //eps_eSGD(1e-3), delay(_s.targetDelay), L_eSGD(_s.targetDelay),
   //_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
@@ -160,27 +162,34 @@ class Optimizer
       MPI_Wait(&paramRequest, MPI_STATUS_IGNORE);
       MPI_Wait(&batchRequest, MPI_STATUS_IGNORE);
     }
-    using Algorithm = Adam;
+    #ifndef __EntropySGD
+      using Algorithm = Adam;
+    #else
+      using Algorithm = EntropyAdam;
+    #endif
     //update is deterministic: can be handled independently by each node
     //communication overhead is probably greater than a parallelised sum
-    assert(totGrads>0);
+
     const Real factor = 1./totGrads;
-    nnReal* const paramAry = weights->params;    
+    nnReal* const paramAry = weights->params;
     assert(eta < 2e-3); //super upper bound for NN, srsly
-    const Real _eta =eta +1e-3*std::max(5-std::log10((Real)nStep),(Real)0)/5;
+    const Real _eta = eta; //+1e-3*std::max(6-std::log10((Real)nStep),(Real)0)/6;
 
-    #pragma omp parallel
-    {
-      const Uint thrID = static_cast<Uint>(omp_get_thread_num());
-      Saru gen(nStep, thrID, generators[thrID]());
-      Algorithm algo(_eta, beta_1, beta_2, beta_t_1, beta_t_2, gen);
+    if(totGrads>0) {
+      #pragma omp parallel
+      {
+        const Uint thrID = static_cast<Uint>(omp_get_thread_num());
+        Saru gen(nStep, thrID, generators[thrID]());
+        Algorithm algo(_eta, beta_1, beta_2, beta_t_1, beta_t_2, gen);
+        nnReal* const mom1 = _1stMom->params;
+        nnReal* const mom2 = _2ndMom->params;
+        nnReal* const grad = gradSum->params;
 
-      #pragma omp for
-      for (Uint i=0; i<weights->nParams; i++)
-        paramAry[i] += algo.step(gradSum->params[i], _1stMom->params[i],
-                                 _2ndMom->params[i], factor);
+        #pragma omp for simd aligned(paramAry, mom1, mom2, grad : VEC_WIDTH)
+        for (Uint i=0; i<weights->nParams; i++)
+          paramAry[i] += algo.step(grad[i], mom1[i], mom2[i], factor);
+      }
     }
-
     gradSum->clear();
     // Needed by Adam optimization algorithm:
     beta_t_1 *= beta_1;
@@ -198,7 +207,7 @@ class Optimizer
         if(tgtUpdateAlpha>=1) tgt_weights->copy(weights);
         else {
           nnReal* const targetAry = tgt_weights->params;
-          #pragma omp parallel for
+          #pragma omp parallel for simd aligned(paramAry, targetAry : VEC_WIDTH)
           for(Uint j=0; j<weights->nParams; j++)
             targetAry[j] += tgtUpdateAlpha*(paramAry[j] - targetAry[j]);
         }

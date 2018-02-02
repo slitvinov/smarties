@@ -30,11 +30,12 @@ struct Approximator
   Optimizer* opt = nullptr;
   Network* net = nullptr;
   StatsTracker* gradStats = nullptr;
-  vector<Parameters*> extra_grads;
+  vector<Parameters*> relayG;
 
   mutable vector<int> error_placements, first_sample;
-  mutable Uint nAddedGradients=0, nReducedGradients=0;
-
+  mutable Uint nAddedGradients=0, reducedGradients=0;
+  Uint extraAlloc = 0;
+  int relayInp = -1;
   //thread safe memory for prediction with current weights:
   mutable vector<vector<Activation*>> series;
   //thread safe  memory for prediction with target weights. Rules are that
@@ -46,31 +47,34 @@ struct Approximator
     MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
   settings(S), name(_name), nThreads(S.nThreads), mpisize(S.learner_size),
   bRecurrent(S.bRecurrent), input(enc), data(data_ptr), relay(r),
-  extra_grads(nThreads, nullptr), error_placements(nThreads, -1),
+  relayG(nThreads, nullptr), error_placements(nThreads, -1),
   first_sample(nThreads, -1), series(nThreads), series_tgt(nThreads) {}
 
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
   Builder buildFromSettings(Settings& _s, const Uint n_outputs);
 
-  void initializeNetwork(Builder& build);
+  void initializeNetwork(Builder& build, Real cutGradFactor = 10);
+  void allocMorePerThread(const Uint nAlloc);
 
   void prepare_opc(const Sequence*const traj, const Uint samp,
-      const Uint thrID) const;
+      const Uint thrID, const Uint nSamples = 1) const;
 
-  void prepare_seq(const Sequence*const traj, const Uint thrID) const;
+  void prepare_seq(const Sequence*const traj, const Uint thrID,
+    const Uint nSamples = 1) const;
 
   void prepare_one(const Sequence*const traj, const Uint samp,
-      const Uint thrID) const;
+      const Uint thrID, const Uint nSamples = 1) const;
 
   vector<Real> forward(const Sequence* const traj, const Uint samp,
     const Uint thrID, const PARAMS USE_WEIGHTS, const PARAMS USE_ACT,
-    const int overwrite) const;
+    const Uint iSample, const int overwrite) const;
 
+  // this is templated only to increase clarity when calling the forward op
   template <PARAMS USE_WEIGHTS=CUR, PARAMS USE_ACT=USE_WEIGHTS, int overwrite=0>
   inline vector<Real> forward(const Sequence* const traj, const Uint samp,
-      const Uint thrID) const
+      const Uint thrID, const Uint iSample = 0) const
   {
-    return forward(traj, samp, thrID, USE_WEIGHTS, USE_ACT, overwrite);
+    return forward(traj, samp, thrID, USE_WEIGHTS, USE_ACT, iSample, overwrite);
   }
 
 
@@ -122,12 +126,8 @@ struct Approximator
     return act[mapTime2Ind(samp, thrID)]->getOutput();
   }
 
-  inline void backward(vector<Real> error, const Uint seq, const Uint samp,
-      const Uint thrID) const
-  {
-    return backward(error, samp, thrID);
-  }
-  void backward(vector<Real> error, const Uint samp, const Uint thrID) const;
+  void backward(vector<Real> error, const Uint samp, const Uint thrID,
+    const Uint iSample = 0) const;
 
   void prepareUpdate();
   void applyUpdate();
@@ -179,12 +179,13 @@ struct Aggregator
   void prepare(const RELAY SET, const Uint thrID) const;
 
   void prepare_opc(const Sequence*const traj, const Uint samp,
-      const Uint thrID) const;
+      const Uint thrID, const RELAY SET = VEC) const;
 
-  void prepare_seq(const Sequence*const traj, const Uint thrID) const;
+  void prepare_seq(const Sequence*const traj, const Uint thrID,
+    const RELAY SET = VEC) const;
 
   void prepare_one(const Sequence*const traj, const Uint samp,
-      const Uint thrID) const;
+      const Uint thrID, const RELAY SET = VEC) const;
 
   void set(const vector<Real> vec,const Uint samp,const Uint thrID) const;
 

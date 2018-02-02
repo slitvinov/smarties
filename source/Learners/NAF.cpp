@@ -11,11 +11,11 @@
 #include "../Network/Builder.h"
 #include "NAF.h"
 
-NAF::NAF(Environment*const _env, Settings & settings) :
-Learner_offPolicy(_env, settings)
+NAF::NAF(Environment*const _env, Settings & _set) :
+Learner_offPolicy(_env, _set)
 {
-  F.push_back(new Approximator("value", settings, input, data));
-  Builder build_pol = F[0]->buildFromSettings(settings, aInfo.dim);
+  F.push_back(new Approximator("value", _set, input, data));
+  Builder build_pol = F[0]->buildFromSettings(_set, aInfo.dim);
   F[0]->initializeNetwork(build_pol);
   test();
 }

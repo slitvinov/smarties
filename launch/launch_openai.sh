@@ -33,15 +33,16 @@ NPROCESS=$((${NNODES}*${NTASK}))
 
 #python ../openaibot.py \$1 $APP
 #xvfb-run -s "-screen $DISPLAY 1400x900x24" -- python ../openaibot.py \$1 $APP
+#vglrun -c proxy python3 ../Communicator.py \$1 $APP
 
 if [ ${HOSTNAME:0:5} == 'falco' ] || [ ${HOSTNAME:0:5} == 'panda' ]
 then
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-vglrun -c proxy python ../Communicator.py \$1 $APP
+/home/novatig/Python-3.5.2/build/bin/python3.5 ../Communicator.py \$1 $APP
 EOF
 else
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-python ../Communicator.py \$1 $APP
+python3 ../Communicator.py \$1 $APP
 EOF
 fi
 

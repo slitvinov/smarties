@@ -14,14 +14,13 @@ class Builder;
 
 class Network
 {
-protected:
+public:
   const Uint nAgents, nThreads, nInputs, nOutputs, nLayers;
   const bool bDump;
-public:
   const vector<Layer*> layers;
   const Parameters* const weights;
   const Parameters* const tgt_weights;
-  const vector<Parameters*> Vgrad;
+  vector<Parameters*> Vgrad;
   const vector<Memory*> mem;
   vector<std::mt19937>& generators;
   vector<Uint> dump_ID;
@@ -37,9 +36,9 @@ public:
   //  return ret;
   //}
   inline Activation* allocateActivation() const {
-    vector<Uint> sizes, output;
-    for(const auto & l : layers) l->requiredActivation(sizes, output);
-    return new Activation(sizes, output);
+    vector<Uint> sizes, output, input;
+    for(const auto & l : layers) l->requiredActivation(sizes, output, input);
+    return new Activation(sizes, output, input);
   }
 
   inline Parameters* allocateParameters() const {
@@ -48,17 +47,35 @@ public:
     return new Parameters(nWeight, nBiases);
   }
 
-  inline void prepForBackProp(vector<Activation*>& series, const Uint N) const {
-    prepForFwdProp(series,N);
-    assert(series.size()>=N);
-    for(Uint j=0; j<series.size(); j++) series[j]->clearErrors();
-  }
-  inline void prepForFwdProp (vector<Activation*>& series, const Uint N) const {
+  inline void prepForBackProp(vector<Activation*>& series, const Uint N) const
+  {
     if (series.size() < N)
       for(Uint j=series.size(); j<N; j++)
         series.push_back(allocateActivation());
+    assert(series.size()>=N);
 
-    for(Uint j=0; j<series.size(); j++) series[j]->written = false;
+    for(Uint j=0; j<series.size() && series[j]->written; j++) {
+      series[j]->clearErrors();
+      series[j]->written = false;
+    }
+
+    #ifndef NDEBUG
+    for(Uint j=0; j<series.size(); j++) assert(not series[j]->written);
+    #endif
+  }
+  inline void prepForFwdProp (vector<Activation*>& series, const Uint N) const
+  {
+    if (series.size() < N)
+      for(Uint j=series.size(); j<N; j++)
+        series.push_back(allocateActivation());
+    assert(series.size()>=N);
+
+    for(Uint j=0; j<series.size() && series[j]->written; j++)
+      series[j]->written = false;
+
+    #ifndef NDEBUG
+    for(Uint j=0; j<series.size(); j++) assert(not series[j]->written);
+    #endif
   }
 
   Network(Builder* const B, Settings & settings) ;
@@ -104,6 +121,19 @@ public:
     currStep->setOutputDelta(_errors);
     backProp(nullptr, currStep, nullptr, _grad, _weights);
   }
+
+  vector<Real> inpBackProp(const vector<Real>& err, Activation*const act,
+    const Parameters*const _grad, const Parameters*const W, const Uint ID) const
+  {
+    act->clearErrors();
+    act->setOutputDelta(err);
+    act->input[ID] = false; //trigger computing backprop of input for this call
+    for (Uint i=layers.size()-1; i>ID; i--) //skip below layer we want grad for
+      layers[i]->backward(nullptr, act, nullptr, _grad, W);
+    act->input[ID] = true; // disable it again
+    return act->getInputGradient(ID);
+  }
+
 
   void backProp(const vector<Activation*>& timeSeries, const Uint stepLastError,
                 const Parameters*const _gradient,

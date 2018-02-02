@@ -8,6 +8,7 @@
  */
 
 #include "Learner.h"
+#include "../Network/Builder.h"
 #include <chrono>
 
 Learner::Learner(Environment*const _env, Settings & _s) :
@@ -15,9 +16,9 @@ mastersComm(_s.mastersComm), env(_env), bSampleSequences(_s.bSampleSequences),
 bTrain(_s.bTrain), nAgents(_s.nAgents), batchSize(_s.batchSize),
 totNumSteps(_s.totNumSteps), nThreads(_s.nThreads), nSlaves(_s.nSlaves),
 policyVecDim(_s.policyVecDim), greedyEps(_s.greedyEps), epsAnneal(_s.epsAnneal),
-gamma(_s.gamma), learn_rank(_s.learner_rank), learn_size(_s.learner_size),
-aInfo(env->aI), sInfo(env->sI), generators(_s.generators), Vstats(nThreads),
-nTasks(_s.global_tasking_counter)
+gamma(_s.gamma), CmaxPol(_s.impWeight), learn_rank(_s.learner_rank),
+learn_size(_s.learner_size), aInfo(env->aI), sInfo(env->sI),
+generators(_s.generators), Vstats(nThreads), nTasks(_s.global_tasking_counter)
 {
   assert(nThreads>1);
   if(bSampleSequences) printf("Sampling sequences.\n");
@@ -26,10 +27,14 @@ nTasks(_s.global_tasking_counter)
   input = new Encapsulator("input", _s, data);
   profiler->stop_start("SLP");
 
-  Network* _net = nullptr;
-  Optimizer* _opt = nullptr;
-  env->predefinedNetwork(_net, _opt);
-  if(_net not_eq nullptr) input->initializeNetwork(_net, _opt);
+  Builder input_build(_s);
+  input_build.addInput( input->nOutputs() );
+  bool builder_used = env->predefinedNetwork(input_build);
+  if(builder_used) {
+    Network* net = input_build.build();
+    Optimizer* opt = input_build.opt;
+    input->initializeNetwork(net, opt);
+  }
 }
 
 void Learner::clearFailedSim(const int agentOne, const int agentEnd)
@@ -53,16 +58,19 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
   updatePrepared = false;
   updateComplete = false;
 
-  profiler->stop_start("UPW");
+  profiler->stop_start("ADDW");
   for(auto & net : F) net->prepareUpdate();
   input->prepareUpdate();
 
   nStep++;
 
-  if(nStep%100 ==0) processStats();
+  if(nStep%1000 ==0) {
+    profiler->stop_start("STAT");
+    processStats();
+  }
   profiler->stop_all();
 
-  if(nStep%1000==0 && !learn_rank) {
+  if(nStep%10000==0 && !learn_rank) {
     profiler->printSummary();
     profiler->reset();
 
@@ -78,8 +86,10 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
 
 void Learner::synchronizeGradients()
 {
+  profiler->stop_start("UPW");
   for(auto & net : F) net->applyUpdate();
   input->applyUpdate();
+  profiler->stop_start("SLP");
 }
 
 void Learner::processStats()
@@ -118,3 +128,40 @@ bool Learner::slaveHasUnfinishedSeqs(const int slave) const
     if(data->inProgress[i]->tuples.size()) return true;
   return false;
 }
+
+//TODO: generalize!!
+bool Learner::predefinedNetwork(Builder& input_net, Settings& settings)
+{
+  if(settings.nnl2<=0) return false;
+
+  if(input_net.nOutputs > 0) {
+    input_net.nOutputs = 0;
+    input_net.layers.back()->bOutput = false;
+  }
+  //                 size       function     is output (of input net)?
+  input_net.addLayer(settings.nnl1, settings.nnFunc, settings.nnl3<=0);
+  settings.nnl1 = settings.nnl2;
+  if(settings.nnl3>0) {
+    input_net.addLayer(settings.nnl2, settings.nnFunc, settings.nnl4<=0);
+    settings.nnl1 = settings.nnl3;
+    if(settings.nnl4>0) {
+      input_net.addLayer(settings.nnl3, settings.nnFunc, settings.nnl5<=0);
+      settings.nnl1 = settings.nnl4;
+      if(settings.nnl5>0) {
+        input_net.addLayer(settings.nnl4, settings.nnFunc, settings.nnl6<=0);
+        settings.nnl1 = settings.nnl5;
+        if(settings.nnl6>0) {
+          input_net.addLayer(settings.nnl5, settings.nnFunc, true);
+          settings.nnl1 = settings.nnl6;
+        }
+      }
+    }
+  }
+  settings.nnl2 = 0; // value, adv and pol nets will be one-layer
+  return true;
+}
+
+//bool Learner::predefinedNetwork(Builder & input_net)
+//{
+//  return false;
+//}

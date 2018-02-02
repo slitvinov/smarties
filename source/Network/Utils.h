@@ -21,6 +21,7 @@
   typedef float nnReal;
   #define EXP_CUT 4 //prevent under/over flow with exponentials
 #endif
+#define ARY_WIDTH (VEC_WIDTH/sizeof(nnReal))
 
 static const int simdWidth = VEC_WIDTH/sizeof(nnReal);
 static const nnReal nnEPS = std::numeric_limits<float>::epsilon();

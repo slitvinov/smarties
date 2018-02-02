@@ -12,34 +12,71 @@
 #include "../Network/Builder.h"
 #include "DPG.h"
 
-DPG::DPG(Environment*const _env, Settings& sett) : Learner_offPolicy(_env, sett)
+DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
 {
-  F.push_back(new Approximator("policy", sett, input, data));
-  relay = new Aggregator(sett, data, _env->aI.dim, F[0]);
-  F.push_back(new Approximator("value", sett, input, data, relay));
-  Builder build_pol = F[0]->buildFromSettings(sett, _env->aI.dim);
-  Builder build_val = F[1]->buildFromSettings(sett, 1 );
+  _set.splitLayers = 0;
+  #if 1
+    if(input->net not_eq nullptr) {
+      delete input->opt; input->opt = nullptr;
+      delete input->net; input->net = nullptr;
+    }
+    Builder input_build(_set);
+    bool bInputNet = false;
+    input_build.addInput( input->nOutputs() );
+    bInputNet = bInputNet || env->predefinedNetwork(input_build);
+    bInputNet = bInputNet || predefinedNetwork(input_build, _set);
+    if(bInputNet) {
+      Network* net = input_build.build();
+      input->initializeNetwork(net, input_build.opt);
+    }
+  #endif
+
+  F.push_back(new Approximator("policy", _set, input, data));
+  relay = new Aggregator(_set, data, nA, F[0]);
+  F.push_back(new Approximator("value", _set, input, data, relay));
+  Builder build_pol = F[0]->buildFromSettings(_set, nA);
+
+  #if 1
+    Builder build_val = F[1]->buildFromSettings(_set, 1 );
+  #else
+    Builder build_val(_set);
+    build_val.stackSimple(input->nOutputs(), {0});
+    build_val.addInput(relay->nOutputs()); // add actions
+    build_val.addLayer(1, "Linear", true); // output
+  #endif
   F[0]->initializeNetwork(build_pol);
+  _set.learnrate *= 10; // DPG wants critic faster than actor
+  _set.nnLambda = 1e-2 * _set.learnrate; // also wants 1e-2 L2 penl coef
   F[1]->initializeNetwork(build_val);
+  _set.learnrate /= 10;
+  printf("DPG\n");
 }
 
 void DPG::select(const Agent& agent)
 {
-  const Real annealedVar = greedyEps + (bTrain ? annealingFactor() : 0);
   const int thrID= omp_get_thread_num();
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
-
+  std::normal_distribution<Real> dist(0, 1);
   if( agent.Status != 2 ) {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
-    vector<Real> pol = F[0]->forward_agent<CUR>(traj, agent, thrID);
-    pol.resize(policyVecDim, annealedVar);
-    const auto act = Gaussian_policy::sample(&generators[thrID], pol);
+    vector<Real> pol = F[0]->forward_agent(traj, agent, thrID);
+    vector<Real> act = pol;
+    for(Uint i=0; i<nA; i++) {
+      const Real noise = dist(generators[thrID]);
+      OrUhState[agent.ID][i] *= .85;
+      pol[i] += OrUhState[agent.ID][i]; //is mean if we model pol as gaussian
+      OrUhState[agent.ID][i] += greedyEps*noise;
+      act[i] += OrUhState[agent.ID][i];
+      pol.push_back(greedyEps); //is stdev if model pol as gaussian
+    }
     agent.act(aInfo.getScaled(act));
     data->add_action(agent, pol);
-  } else
+  } else {
+    OrUhState[agent.ID] = vector<Real>(nA, 0);
     data->terminate_seq(agent);
+  }
 }
 
 void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
@@ -67,7 +104,7 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
       //because we will need the CUR work memory unpolluted for backprop:
       //const vector<Real> v_curr = F[1]->forward<CUR,TGT,1>(traj, k+1, thrID);
 
-      const vector<Real> polGr = F[1]->relay_backprop<TGT>({1}, k, thrID);
+      const vector<Real> polGr = F[1]->relay_backprop({1}, k, thrID);
       F[0]->backward(polGr, k, thrID);
     }
     { //code to compute value grad:
@@ -81,7 +118,7 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
         target += gamma * v_next[0];
       }
 
-      const vector<Real> grad_val = {target - q_curr[0]};
+      const vector<Real> grad_val = {(target-q_curr[0])};
       traj->SquaredError[k] = grad_val[0]*grad_val[0];
       Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
       F[1]->backward(grad_val, k, thrID);
@@ -104,27 +141,27 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
   F[1]->prepare_one(traj, samp, thrID);
 
   relay->prepare(ACT, thrID); // tell relay between two nets to pass actions
-  const vector<Real> pol_curr = F[0]->forward<CUR>(traj, samp, thrID);
-  const vector<Real> q_curr = F[1]->forward<CUR>(traj, samp, thrID);
+  const vector<Real> pol_curr = F[0]->forward(traj, samp, thrID);
+  const vector<Real> q_curr = F[1]->forward(traj, samp, thrID);
 
   relay->prepare(NET, thrID); // tell relay to pass policy (output of F[0])
   { //code to compute policy grad:
     //const vector<Real> v_curr = F[1]->forward<TGT>(traj, samp, thrID);
     const vector<Real> v_curr = F[1]->forward<CUR, TGT>(traj, samp, thrID);
-    const vector<Real> polGr = F[1]->relay_backprop<TGT>({1}, samp, thrID);
-
+    const vector<Real> polGr = F[1]->relay_backprop({10}, samp, thrID);
+    //cout <<"Inp grad: "<< print(polGr) << endl; fflush(0);
     F[0]->backward(polGr, samp, thrID);
   }
 
   { //code to compute value grad:
     Real target = traj->tuples[samp+1]->r;
     if (not terminal) {
-      const vector<Real> pol_next = F[0]->forward<CUR>(traj, samp+1, thrID);
+      const vector<Real> pol_next = F[0]->forward(traj, samp+1, thrID);
       const vector<Real> v_next = F[1]->forward<TGT>(traj, samp+1, thrID);
       target += gamma * v_next[0];
     }
 
-    const vector<Real> grad_val = {target - q_curr[0]};
+    const vector<Real> grad_val = {(target-q_curr[0])};
     traj->SquaredError[samp] = grad_val[0]*grad_val[0];
     Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
     F[1]->backward(grad_val, samp, thrID);
