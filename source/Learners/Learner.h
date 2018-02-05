@@ -74,6 +74,10 @@ public:
     nTasks += add;
   }
 
+  inline unsigned time() const
+  {
+    return data->readNSeen();
+  }
   inline unsigned iter() const
   {
     return nStep;

@@ -415,11 +415,11 @@ class RACER : public Learner_offPolicy
       if(firstUpdate) return;
     }
 
-    #ifdef RACER_ACERTRICK
-    const Real tgtFrac = DKL_param/CmaxPol;
-    #else
+    //#ifdef RACER_ACERTRICK
+    //const Real tgtFrac = DKL_param/CmaxPol;
+    //#else
     const Real tgtFrac = DKL_param*std::cbrt(nA)/CmaxPol;
-    #endif
+    //#endif
     if(fracOffPol>tgtFrac) DKL_coef = .9999*DKL_coef;
     else DKL_coef = 1e-4 + .9999*DKL_coef;
   }
