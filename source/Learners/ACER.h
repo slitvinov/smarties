@@ -97,7 +97,7 @@ class ACER : public Learner_offPolicy
       Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
       Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]); //as in paper, but I see dead people
       //Q_OPC = R +gamma*( W*(Q_OPC-QTheta) +Vstates[k]);
-      traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
+      //traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
       traj->offPol_weight[k] = policies[k].sampImpWeight;
       Vstats[thrID].dumpStats(QTheta, Q_err);
     }

@@ -15,11 +15,11 @@ SETTINGS+=" --nnl2 128"
 #subject to changes
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnType LSTM"
-SETTINGS+=" --nnFunc SoftSign"
-#SETTINGS+=" --nnFunc PRelu"
+#SETTINGS+=" --nnFunc SoftSign"
+SETTINGS+=" --nnFunc PRelu"
 #SETTINGS+=" --nnFunc HardSign"
 # L2 regularization of the weights
-SETTINGS+=" --nnLambda 0.000001"
+SETTINGS+=" --nnLambda 0.0000001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -27,8 +27,6 @@ SETTINGS+=" --bTrain 1"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner DPG"
 
-#maximum allowed lenth for a sequence (from first to terminal state)
-#if a sequence is longer is just cut after #number of transitions
 SETTINGS+=" --maxTotObsNum 262144"
 SETTINGS+=" --minTotObsNum 65536"
 

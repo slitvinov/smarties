@@ -106,8 +106,8 @@ protected:
 
     cntPenal[thrID+1]++;
     //grad[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
-    if(DivKL > 1.2 * DKL_target) valPenal[thrID+1] += .2*penalDKL;
-    if(DivKL <  .8 * DKL_target) valPenal[thrID+1] -= .2*penalDKL;
+    if(DivKL > 1.5 * DKL_target) valPenal[thrID+1] += penalDKL; //double
+    if(DivKL < DKL_target / 1.5) valPenal[thrID+1] -= penalDKL/2; //half
 
 
     #ifdef PPO_PENALKL
@@ -135,9 +135,13 @@ protected:
 public:
   GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
     Learner_onPolicy(_env, _set), lambda(_set.lambda),
-    DKL_target(_set.klDivConstraint), pol_outputs(pol_outs),
-    pol_indices(count_indices(pol_outs)), cntPenal(nThreads+1, 0), 
-    valPenal(nThreads+1, 0) { 
+    #ifdef PPO_CLIPPED
+    DKL_target(_set.klDivConstraint * std::sqrt(nA) * 10), //negligible penalty, still better perf 
+    #else
+    DKL_target(_set.klDivConstraint), 
+    #endif
+    pol_outputs(pol_outs), pol_indices(count_indices(pol_outs)), 
+    cntPenal(nThreads+1, 0), valPenal(nThreads+1, 0) { 
     valPenal[0] = 1./DKL_target; 
     //valPenal[0] = 1.; 
   }
