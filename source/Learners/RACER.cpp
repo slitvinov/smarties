@@ -26,7 +26,7 @@ class RACER : public Learner_offPolicy
  protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
-  const Real DKL_param, invC=1./CmaxRet, alpha=1;
+  const Real DKL_param, learnR, invC=1./CmaxRet, alpha=1;
   const vector<Uint> net_outputs, net_indices, pol_start, adv_start;
   const Uint VsID = net_indices[0];
   StatsTracker* opcInfo;
@@ -284,7 +284,8 @@ class RACER : public Learner_offPolicy
   RACER(Environment*const _env, Settings& _set, vector<Uint> net_outs,
     vector<Uint> pol_inds, vector<Uint> adv_inds) :
     Learner_offPolicy(_env, _set), DKL_param(_set.klDivConstraint),
-    net_outputs(net_outs), net_indices(count_indices(net_outs)),
+    learnR(_set.learnrate), net_outputs(net_outs), 
+    net_indices(count_indices(net_outs)), 
     pol_start(pol_inds), adv_start(adv_inds)
   {
     printf("RACER starts: v:%u pol:%s adv:%s\n", VsID,
@@ -418,10 +419,11 @@ class RACER : public Learner_offPolicy
     //#ifdef RACER_ACERTRICK
     //const Real tgtFrac = DKL_param/CmaxPol;
     //#else
-    const Real tgtFrac = DKL_param*std::cbrt(nA)/CmaxPol;
+    //const Real tgtFrac = DKL_param*std::cbrt(nA)/CmaxPol;
+    const Real tgtFrac = 0.01 + 0.09 * std::max(1-nStep/5e6, 0.);
     //#endif
-    if(fracOffPol>tgtFrac) DKL_coef = .9999*DKL_coef;
-    else DKL_coef = 1e-4 + .9999*DKL_coef;
+    if(fracOffPol>tgtFrac*std::cbrt(nA)) DKL_coef = (1-learnR)*DKL_coef;
+    else DKL_coef = learnR + (1-learnR)*DKL_coef;
   }
 
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const {
