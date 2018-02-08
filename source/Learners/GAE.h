@@ -94,10 +94,6 @@ protected:
     const Real DivKL=pol.kl_divergence_opp(beta);
     //if ( thrID==1 ) printf("%u %u : %f DivKL:%f %f %f\n", nOutputs, PenalID, penalDKL, DivKL, completed[workid]->policy[samp][1], output[2]);
 
-    cntPenal[thrID+1]++;
-    //grad[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
-    valPenal[thrID+1] = (DivKL - DKL_target)*penalDKL;
-
     Real gain = rho_cur*adv_est;
     #ifdef PPO_CLIPPED
       bool gainZero = false;
@@ -107,6 +103,12 @@ protected:
       // pro: avoid messing adam statistics
       if(gainZero) return resample(thrID);
     #endif
+
+    cntPenal[thrID+1]++;
+    //grad[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
+    if(DivKL > 1.2 * DKL_target) valPenal[thrID+1] += .2*penalDKL;
+    if(DivKL <  .8 * DKL_target) valPenal[thrID+1] -= .2*penalDKL;
+
 
     #ifdef PPO_PENALKL
       const vector<Real> policy_grad = pol.policy_grad(act, gain);
@@ -134,7 +136,11 @@ public:
   GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
     Learner_onPolicy(_env, _set), lambda(_set.lambda),
     DKL_target(_set.klDivConstraint), pol_outputs(pol_outs),
-    pol_indices(count_indices(pol_outs)), cntPenal(nThreads+1, 0), valPenal(nThreads+1, 1) { }
+    pol_indices(count_indices(pol_outs)), cntPenal(nThreads+1, 0), 
+    valPenal(nThreads+1, 0) { 
+    valPenal[0] = 1./DKL_target; 
+    //valPenal[0] = 1.; 
+  }
 
   //called by scheduler:
   void select(const Agent& agent) override
@@ -188,9 +194,11 @@ public:
     for(Uint i=1; i<=nThreads; i++) {
       cntPenal[0] += cntPenal[i]; cntPenal[i] = 0;
     }
-    const Real fac = 1./cntPenal[0]; cntPenal[0] = 0;
+    const Real fac = 0.0003/cntPenal[0]; // learnRate*gradient/N 
+    cntPenal[0] = 0;
     for(Uint i=1; i<=nThreads; i++) {
-        valPenal[0] += fac*valPenal[i]; valPenal[i] = 0;
+        valPenal[0] += fac*valPenal[i]; 
+        valPenal[i] = 0;
     }
     if(valPenal[0] <= nnEPS) valPenal[0] = nnEPS;
   }
