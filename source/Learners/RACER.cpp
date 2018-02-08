@@ -224,6 +224,7 @@ class RACER : public Learner_offPolicy
   {
     const Advantage_t adv = prepare_advantage(output, &pol);
     updateQret(S, t, adv.computeAdvantage(pol.sampAct), output[VsID], pol);
+    S->SquaredError[t] = 0;
   }
 
   inline void updateQret(Sequence*const S, const Uint t) const
@@ -420,7 +421,8 @@ class RACER : public Learner_offPolicy
     //const Real tgtFrac = DKL_param/CmaxPol;
     //#else
     //const Real tgtFrac = DKL_param*std::cbrt(nA)/CmaxPol;
-    const Real tgtFrac = 0.01 + 0.09 * std::max(1-nStep/5e6, 0.);
+    //const Real tgtFrac = .01 + .09 * std::max(1-nStep/5e6, 0.);
+    const Real tgtFrac = DKL_param / (1 + nStep/1e6); 
     //#endif
     if(fracOffPol>tgtFrac*std::cbrt(nA)) DKL_coef = (1-learnR)*DKL_coef;
     else DKL_coef = learnR + (1-learnR)*DKL_coef;
