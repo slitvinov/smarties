@@ -230,6 +230,7 @@ private:
 public:
   Uint nAgents, nThreads;
   Uint nInputs=0, nOutputs=0, nLayers=0;
+  Real gradClip = 1;
   std::vector<std::mt19937>& generators;
   Parameters *weights, *tgt_weights;
   vector<Parameters*> Vgrad;

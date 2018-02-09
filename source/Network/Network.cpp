@@ -73,18 +73,24 @@ void Network::backProp(const vector<Activation*>& netSeries,
   if (stepLastError == 0) return; //no errors placed
   else
   if (stepLastError == 1)  //errors placed at first time step
-    for(Uint i=layers.size()-1; i>0; i--)
+    for(Uint i=layers.size()-1; i>0; i--) {
+      netSeries[0]->clipDelta(layers[i]->ID, gradClip);
       layers[i]->backward(nullptr, netSeries[0], nullptr, _grad, W);
+    }
   else
   {
     const Uint T = stepLastError - 1;
     for(Uint i=layers.size()-1; i>0; i--) //skip 0: input layer
     {
+      netSeries[T]->clipDelta(layers[i]->ID, gradClip);
       layers[i]->backward(netSeries[T-1],netSeries[T],nullptr,        _grad,W);
 
-      for (Uint k=T-1; k>0; k--)
+      for (Uint k=T-1; k>0; k--) {
+      netSeries[k]->clipDelta(layers[i]->ID, gradClip);
       layers[i]->backward(netSeries[k-1],netSeries[k],netSeries[k+1], _grad,W);
+      }
 
+      netSeries[0]->clipDelta(layers[i]->ID, gradClip);
       layers[i]->backward(       nullptr,netSeries[0],netSeries[1],   _grad,W);
     }
   }
@@ -93,8 +99,9 @@ void Network::backProp(const vector<Activation*>& netSeries,
 Network::Network(Builder* const B, Settings & settings) :
   nAgents(B->nAgents), nThreads(B->nThreads), nInputs(B->nInputs),
   nOutputs(B->nOutputs), nLayers(B->nLayers), bDump(not settings.bTrain),
-  layers(B->layers), weights(B->weights), tgt_weights(B->tgt_weights),
-  Vgrad(B->Vgrad), mem(B->mem), generators(settings.generators) {
+  gradClip(B->gradClip), layers(B->layers), weights(B->weights),
+  tgt_weights(B->tgt_weights), Vgrad(B->Vgrad), mem(B->mem),
+  generators(settings.generators) {
   dump_ID.resize(nAgents, 0);
 }
 
