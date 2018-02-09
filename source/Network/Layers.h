@@ -19,7 +19,7 @@ class Layer
 {
  public:
   const Uint size, ID, bInput;
-  Uint bOutput;
+  Uint bOutput, nLinkedTo = 0;
   inline Uint number() const { return ID; }
   inline Uint nOutputs() const { return size; }
 

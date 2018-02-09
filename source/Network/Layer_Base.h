@@ -101,7 +101,7 @@ class BaseLayer: public Layer
       for(Uint o=0; o<nNeurons; o++)
         deltas[o] *= func->evalDiff(suminp[o], deltas[o]);
 
-      //curr->clipDelta(ID);
+      //curr->clipDelta(ID, nLinkedTo);
       #pragma omp simd aligned(deltas, grad_b : VEC_WIDTH)
       for(Uint o=0; o<nNeurons; o++) grad_b[o] += deltas[o];
     }
