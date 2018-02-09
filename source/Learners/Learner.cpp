@@ -64,6 +64,8 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
 
   nStep++;
 
+  for(auto & net : F) net->updateGradStats(nStep);
+
   if(nStep%1000 ==0) {
     profiler->stop_start("STAT");
     processStats();

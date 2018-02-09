@@ -351,7 +351,6 @@ void Approximator::gradient(const Uint thrID) const
 
 void Approximator::getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
 {
-  gradStats->reduce_stats();
   long double sumW = 0, distTgt = 0;
   net->weights->compute_dist_norm(sumW, distTgt, net->tgt_weights);
   screenOut<<" "<<name<<":[normW:"<<sumW<<" distW:"<<distTgt<<"]";

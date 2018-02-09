@@ -72,7 +72,7 @@ struct StatsTracker
   const string name;
   const MPI_Comm comm;
   const Uint nThreads, learn_size, learn_rank;
-  const Real grad_cut_fac;
+  const Real grad_cut_fac, learnRate;
   mutable vector<long double> cntVec;
   mutable vector<vector<long double>> avgVec, stdVec;
   vector<long double> instMean, instStdv;
@@ -85,7 +85,8 @@ struct StatsTracker
   StatsTracker(const Uint N, const string _name, Settings& set, Real fac) :
   n_stats(N), name(_name), comm(set.mastersComm), nThreads(set.nThreads),
   learn_size(set.learner_size), learn_rank(set.learner_rank), grad_cut_fac(fac),
-  cntVec(nThreads+1,0), avgVec(nThreads+1,vector<long double>()),
+  learnRate(set.learnrate), cntVec(nThreads+1,0),
+  avgVec(nThreads+1,vector<long double>()),
   stdVec(nThreads+1,vector<long double>())
   {
     avgVec[0].resize(n_stats, 0); stdVec[0].resize(n_stats, 10);
@@ -128,29 +129,30 @@ struct StatsTracker
         }
         //else printf("Not cut\n");
     }
-    #pragma omp atomic 
+    #pragma omp atomic
     numCut += ret;
-    #pragma omp atomic 
+    #pragma omp atomic
     numTot ++;
   }
 
-  void advance()
+  inline void advance()
   {
-    for(Uint i=0; i<n_stats; i++) {
-      avgVec[0][i]=0;
-      stdVec[0][i]=0;
-    }
+    std::fill(avgVec[0].begin(),  avgVec[0].end(), 0);
+    std::fill(stdVec[0].begin(),  stdVec[0].end(), 0);
     cntVec[0] = 0;
 
     for (Uint i=1; i<=nThreads; i++) {
-      cntVec[0] += cntVec[i]; cntVec[i] = 0;
+      cntVec[0] += cntVec[i];
       for (Uint j=0; j<n_stats; j++) {
-        avgVec[0][j] += avgVec[i][j]; avgVec[i][j] = 0;
-        stdVec[0][j] += stdVec[i][j]; stdVec[i][j] = 0;
+        avgVec[0][j] += avgVec[i][j];
+        stdVec[0][j] += stdVec[i][j];
       }
+      cntVec[i] = 0;
+      std::fill(avgVec[i].begin(),  avgVec[i].end(), 0);
+      std::fill(stdVec[i].begin(),  stdVec[i].end(), 0);
     }
   }
-  void update()
+  inline void update()
   {
     cntVec[0] = std::max((long double)2.2e-16, cntVec[0]);
     for (Uint j=0; j<n_stats; j++) {
@@ -160,7 +162,7 @@ struct StatsTracker
       avgVec[0][j] = mean;
     }
   }
-  void printToFile()
+  inline void printToFile()
   {
     if(!learn_rank) {
       ofstream filestats;
@@ -169,9 +171,23 @@ struct StatsTracker
       filestats.close();
     }
   }
-  inline void reduce_stats()
+  void finalize(const vector<long double>&oldM, const vector<long double>&oldS)
   {
-    const vector<long double> oldsum = avgVec[0], oldstd = stdVec[0];
+    instMean = avgVec[0];
+    instStdv = stdVec[0];
+    cutRatio = numCut / (Real) numTot;
+    numCut = 0; numTot = 0;
+
+    for (Uint i=0; i<n_stats; i++) {
+      avgVec[0][i] = (1-learnRate)*oldM[i] +learnRate*avgVec[0][i];
+      stdVec[0][i] = (1-learnRate)*oldS[i] +learnRate*stdVec[0][i];
+      //stdVec[0][i] = std::max((1-learnRate)*oldstd[i], stdVec[0][i]);
+    }
+  }
+  inline void reduce_stats(const Uint iter = 0)
+  {
+    const vector<long double> oldsum = avgVec[0];
+    const vector<long double> oldstd = stdVec[0];
     assert(cntVec.size()>1);
 
     advance();
@@ -207,37 +223,19 @@ struct StatsTracker
       }
     }
     update();
-    printToFile();
 
-    instMean = avgVec[0];
-    instStdv = stdVec[0];
-    cutRatio = numCut / (Real) numTot;
-    numCut = 0; numTot = 0;
-
-    for (Uint i=0; i<n_stats; i++) {
-      avgVec[0][i] = .99*oldsum[i] +.01*avgVec[0][i];
-      stdVec[0][i] = .99*oldstd[i] +.01*stdVec[0][i];
-      //stdVec[0][i] = std::max(0.99*oldstd[i], stdVec[0][i]);
-    }
+    if(iter % 1000 == 0) printToFile();
+    finalize(oldsum, oldstd);
   }
-  inline void reduce_approx()
+  inline void reduce_approx(const Uint iter = 0)
   {
-    const vector<long double> oldsum = avgVec[0], oldstd = stdVec[0];
+    const vector<long double> oldsum = avgVec[0];
+    const vector<long double> oldstd = stdVec[0];
     assert(cntVec.size()>1);
     advance();
     update();
-    printToFile();
-
-    instMean = avgVec[0];
-    instStdv = stdVec[0];
-    cutRatio = numCut / (Real) numTot;
-    numCut = 0; numTot = 0;
-
-    for (Uint i=0; i<n_stats; i++) {
-      avgVec[0][i] = .99*oldsum[i] +.01*avgVec[0][i];
-      stdVec[0][i] = .99*oldstd[i] +.01*stdVec[0][i];
-      //stdVec[0][i] = std::max(0.99*oldstd[i], stdVec[0][i]);
-    }
+    if(iter % 1000 == 0) printToFile();
+    finalize(oldsum, oldstd);
   }
   void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
   {

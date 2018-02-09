@@ -151,6 +151,11 @@ struct Approximator
     if(opt == nullptr) die("Attempted to restart uninitialized net!");
     opt->restart(base+name);
   }
+
+  inline void updateGradStats(const Uint iter) const
+  {
+    gradStats->reduce_stats(iter);
+  }
 };
 
 enum RELAY { VEC, ACT, NET};
