@@ -129,10 +129,8 @@ public:
     act->clearErrors();
     act->setOutputDelta(err);
     act->input[ID] = false; //trigger computing backprop of input for this call
-    for(Uint i=layers.size()-1; i>ID; i--) { //skip below layer we want grad for
-      act->clipDelta(layers[i]->ID, gradClip);  
+    for(Uint i=layers.size()-1; i>ID; i--) //skip below layer we want grad for
       layers[i]->backward(nullptr, act, nullptr, _grad, W);
-    }
     act->input[ID] = true; // disable it again
     return act->getInputGradient(ID);
   }

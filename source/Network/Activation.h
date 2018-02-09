@@ -76,10 +76,13 @@ struct Activation
     nnReal* const delta = errvals[ID];
     #pragma omp simd aligned(delta : VEC_WIDTH) reduction(+ : norm)
     for(Uint i=0; i<sizes[ID]; i++) norm += delta[i]*delta[i];
-    norm = clip/std::max(std::sqrt(norm), clip);
+    if(omp_get_thread_num() == 1) { 
+      ofstream fout("clip"+to_string(ID)+".log", ios::app);
+      fout << norm << endl; fout.flush(); fout.close();
+    }
+    norm = clip/(std::sqrt(norm)/sizes[ID] + clip);
     #pragma omp simd aligned(delta : VEC_WIDTH)
     for(Uint i=0; i<sizes[ID]; i++) delta[i] *= norm;
-    assert(k == nInputs);
   }
 
   inline vector<nnReal> getInputGradient(const Uint ID) const {
