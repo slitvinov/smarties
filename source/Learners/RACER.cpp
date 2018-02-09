@@ -432,7 +432,7 @@ class RACER : public Learner_offPolicy
     //Learner_offPolicy::getMetrics(fileOut, screenOut);
     opcInfo->reduce_approx();
     screenOut<<" DKL:"<<DKL_coef<<" polStats:["<<print(opcInfo->instMean)
-             <<"] clipRatio:"<<F[0]->gradStats->cutRatio;
+             <<"] clipRatio:"<<F[0]->gradStats->clip_ratio();
     fileOut<<" "<<DKL_coef<<" "<<print(opcInfo->instMean)<<" "<<print(opcInfo->instStdv);
   }
 };

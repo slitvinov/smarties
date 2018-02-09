@@ -175,14 +175,18 @@ struct StatsTracker
   {
     instMean = avgVec[0];
     instStdv = stdVec[0];
-    cutRatio = numCut / (Real) numTot;
-    numCut = 0; numTot = 0;
 
     for (Uint i=0; i<n_stats; i++) {
       avgVec[0][i] = (1-learnRate)*oldM[i] +learnRate*avgVec[0][i];
       stdVec[0][i] = (1-learnRate)*oldS[i] +learnRate*stdVec[0][i];
       //stdVec[0][i] = std::max((1-learnRate)*oldstd[i], stdVec[0][i]);
     }
+  }
+  double clip_ratio()
+  {
+    cutRatio = numCut / (Real) numTot;
+    numCut = 0; numTot = 0;
+    return cutRatio;
   }
   inline void reduce_stats(const Uint iter = 0)
   {
