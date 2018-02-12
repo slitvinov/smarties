@@ -60,17 +60,6 @@ struct Parameters
     memcpy(params, tgt->params, nParams*sizeof(nnReal));
   }
 
-  inline void penalization(const nnReal lambda) const {
-    nnReal* const dst = params;    
-    #pragma omp parallel for simd aligned(dst : VEC_WIDTH) 
-    for (Uint i=0; i<nParams; i++)
-    #ifdef NET_L1_PENAL
-      dst[i] += (dst[i]<0 ? lambda : -lambda);
-    #else
-      dst[i] -= dst[i]*lambda;
-    #endif
-  }
-
   Parameters(vector<Uint> _nWeights, vector<Uint> _nBiases) :
    nBiases(_nBiases), nWeights(_nWeights),
    nParams(computeNParams(_nWeights, _nBiases)), nLayers(_nWeights.size()),
@@ -84,16 +73,16 @@ struct Parameters
     {
       const Uint thrID = static_cast<Uint>(omp_get_thread_num());
       assert(nParams == g[thrID]->nParams);
-      const nnReal* const src = g[thrID]->params;    
-      nnReal* const dst = params; 
-      // every thread starts staggered to avoid race conditions:  
+      const nnReal* const src = g[thrID]->params;
+      nnReal* const dst = params;
+      // every thread starts staggered to avoid race conditions:
       const Uint shift = thrID*((nParams/g.size())/ARY_WIDTH)*ARY_WIDTH;
-      #pragma omp simd aligned(dst, src : VEC_WIDTH) 
-      for(Uint j=0; j<nParams; j++) {
-        const Uint ind = (j + shift) % nParams;
-        dst[ind] += src[ind];
-      }
-      g[thrID]->clear(); 
+
+      #pragma omp simd aligned(dst, src : VEC_WIDTH)
+      for(Uint j=shift; j<nParams; j++) dst[j] += src[j];
+      #pragma omp simd aligned(dst, src : VEC_WIDTH)
+      for(Uint j=0; j<shift; j++) dst[j] += src[j];
+      g[thrID]->clear();
     }
   }
 
