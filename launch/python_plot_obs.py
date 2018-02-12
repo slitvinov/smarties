@@ -20,7 +20,7 @@ NL=(NA*NA+NA)//2
 NREW=3+NS+NA
 NCOL=3+NS+NA+NP
 print('States begin at 2, actions at '+str(2+NS)+' policy at '+str(3+NS+NA)+'.')
-ICOL = input("Column to print? ")
+ICOL = int( input("Column to print? ") )
 #COLMAX = 1e7
 #COLMAX = 8e6
 #COLMAX = 1e6
