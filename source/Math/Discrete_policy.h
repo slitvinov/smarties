@@ -14,16 +14,16 @@ struct Discrete_policy
 {
   const ActionInfo* const aInfo;
   const Uint start_prob, nA;
-  const vector<Real> netOutputs;
-  const vector<Real> unnorm;
+  const Rvec netOutputs;
+  const Rvec unnorm;
   const Real normalization;
-  const vector<Real> probs;
+  const Rvec probs;
 
   Uint sampAct;
   Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0;
 
   Discrete_policy(const vector<Uint>& start, const ActionInfo*const aI,
-    const vector<Real>& out) : aInfo(aI), start_prob(start[0]), nA(aI->maxLabel), netOutputs(out), unnorm(extract_unnorm()),
+    const Rvec& out) : aInfo(aI), start_prob(start[0]), nA(aI->maxLabel), netOutputs(out), unnorm(extract_unnorm()),
     normalization(compute_norm()), probs(extract_probabilities())
     {
       //printf("Discrete_policy: %u %u %u %lu %lu %lu %lu\n",
@@ -32,10 +32,10 @@ struct Discrete_policy
     }
 
  private:
-  inline vector<Real> extract_unnorm() const
+  inline Rvec extract_unnorm() const
   {
     assert(netOutputs.size()>=start_prob+nA);
-    vector<Real> ret(nA);
+    Rvec ret(nA);
     for (Uint j=0; j<nA; j++) ret[j] = prob_func(netOutputs[start_prob+j]);
     return ret;
   }
@@ -48,10 +48,10 @@ struct Discrete_policy
     return ret + numeric_limits<Real>::epsilon();
   }
 
-  inline vector<Real> extract_probabilities() const
+  inline Rvec extract_probabilities() const
   {
     assert(unnorm.size()==nA);
-    vector<Real> ret(nA);
+    Rvec ret(nA);
     for (Uint j=0; j<nA; j++) ret[j] = unnorm[j]/normalization;
     return ret;
   }
@@ -69,7 +69,7 @@ struct Discrete_policy
   }
 
  public:
-  inline void prepare(const vector<Real>& unbact, const vector<Real>& beta)
+  inline void prepare(const Rvec& unbact, const Rvec& beta)
   {
     sampAct = map_action(unbact);
     sampLogPonPolicy = evalLogProbability(sampAct);
@@ -81,12 +81,12 @@ struct Discrete_policy
 
   void test(const Uint act, const Discrete_policy*const pol_hat) const;
 
-  static inline Real evalBehavior(const Uint& act, const vector<Real>& beta)
+  static inline Real evalBehavior(const Uint& act, const Rvec& beta)
   {
     return std::log(beta[act]);
   }
 
-  static inline Uint sample(mt19937*const gen, const vector<Real>& beta)
+  static inline Uint sample(mt19937*const gen, const Rvec& beta)
   {
     std::discrete_distribution<Uint> dist(beta.begin(), beta.end());
     return dist(*gen);
@@ -105,26 +105,26 @@ struct Discrete_policy
   }
 
   template<typename Advantage_t>
-  inline vector<Real> control_grad(const Advantage_t*const adv, const Real eta) const
+  inline Rvec control_grad(const Advantage_t*const adv, const Real eta) const
   {
-    vector<Real> ret(nA, 0);
+    Rvec ret(nA, 0);
     for (Uint j=0; j<nA; j++)
       ret[j] = eta*adv->computeAdvantage(j)/normalization;
     return ret;
   }
 
-  inline vector<Real> policy_grad(const Uint act, const Real factor) const
+  inline Rvec policy_grad(const Uint act, const Real factor) const
   {
-    vector<Real> ret(nA);
+    Rvec ret(nA);
     //for (Uint i=0; i<nA; i++) ret[i] = factor*(((i==act) ? 1 : 0) -probs[i]);
     for (Uint i=0; i<nA; i++) ret[i] = -factor/normalization;
     ret[act] += factor/unnorm[act];
     return ret;
   }
 
-  inline vector<Real> policy_grad(const Uint act, const vector<Real>& beta, const Real factor) const
+  inline Rvec policy_grad(const Uint act, const Rvec& beta, const Real factor) const
   {
-    vector<Real> ret(nA);
+    Rvec ret(nA);
     abort(); // what to do here?
     //for (Uint i=0; i<nA; i++) ret[i] = factor*(((i==act) ? 1 : 0) -probs[i]);
     for (Uint i=0; i<nA; i++) ret[i] = -factor/normalization;
@@ -146,7 +146,7 @@ struct Discrete_policy
       ret += probs[i]*std::log(probs[i]/pol_hat->probs[i]);
     return ret;
   }
-  inline Real kl_divergence_opp(const vector<Real>& beta) const
+  inline Real kl_divergence_opp(const Rvec& beta) const
   {
     Real ret = 0;
     for (Uint i=0; i<nA; i++)
@@ -154,25 +154,25 @@ struct Discrete_policy
     return ret;
   }
 
-  inline vector<Real> div_kl_grad(const Discrete_policy*const pol_hat, const Real fac = 1) const
+  inline Rvec div_kl_grad(const Discrete_policy*const pol_hat, const Real fac = 1) const
   {
-    vector<Real> ret(nA, 0);
+    Rvec ret(nA, 0);
     for (Uint j=0; j<nA; j++)
       ret[j] = fac*(1./normalization - pol_hat->probs[j]/unnorm[j]);
     return ret;
   }
-  inline vector<Real> div_kl_opp_grad(const Discrete_policy*const pol_hat, const Real fac = 1) const
+  inline Rvec div_kl_opp_grad(const Discrete_policy*const pol_hat, const Real fac = 1) const
   {
-    vector<Real> ret(nA, 0);
+    Rvec ret(nA, 0);
     for (Uint j=0; j<nA; j++){
       const Real tmp=fac*(1+std::log(probs[j]/pol_hat->probs[j]))/normalization;
       for (Uint i=0; i<nA; i++) ret[i] += tmp*((i==j)-probs[j]);
     }
     return ret;
   }
-  inline vector<Real> div_kl_opp_grad(const vector<Real>& beta, const Real fac = 1) const
+  inline Rvec div_kl_opp_grad(const Rvec& beta, const Real fac = 1) const
   {
-    vector<Real> ret(nA, 0);
+    Rvec ret(nA, 0);
     for (Uint j=0; j<nA; j++){
       const Real tmp = fac*(1+std::log(probs[j]/beta[j]))/normalization;
       for (Uint i=0; i<nA; i++) ret[i] += tmp*((i==j)-probs[j]);
@@ -180,35 +180,35 @@ struct Discrete_policy
     return ret;
   }
 
-  inline void finalize_grad(const vector<Real>&grad, vector<Real>&netGradient) const
+  inline void finalize_grad(const Rvec&grad, Rvec&netGradient) const
   {
     assert(netGradient.size()>=start_prob+nA && grad.size() == nA);
     for (Uint j=0; j<nA; j++)
       netGradient[start_prob+j] = grad[j]*prob_diff(netOutputs[start_prob+j]);
   }
 
-  inline vector<Real> getProbs() const
+  inline Rvec getProbs() const
   {
     return probs;
   }
-  inline vector<Real> getBeta() const
+  inline Rvec getBeta() const
   {
     return probs;
   }
 
-  inline Uint finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta)
+  inline Uint finalize(const bool bSample, mt19937*const gen, const Rvec& beta)
   {
     sampAct = bSample? sample(gen, beta) :
       std::distance(probs.begin(), std::max_element(probs.begin(),probs.end()));
     return sampAct; //the index of max Q
   }
 
-  static inline void anneal_beta(vector<Real>& beta, const Real eps)
+  static inline void anneal_beta(Rvec& beta, const Real eps)
   {
     for(Uint i=0;i<beta.size();i++) beta[i] = (1-eps)*beta[i] +eps/beta.size();
   }
 
-  inline Uint map_action(const vector<Real>& sent) const
+  inline Uint map_action(const Rvec& sent) const
   {
     return aInfo->actionToLabel(sent);
   }
@@ -217,10 +217,15 @@ struct Discrete_policy
     assert(aI->maxLabel);
     return aI->maxLabel;
   }
+  Uint updateOrUhState(Rvec& state, Rvec& beta,
+    const Uint act, const Real step) {
+    // not applicable to discrete action spaces
+    return act;
+  }
 };
 /*
- inline Real diagTerm(const vector<Real>& S, const vector<Real>& mu,
-      const vector<Real>& a) const
+ inline Real diagTerm(const Rvec& S, const Rvec& mu,
+      const Rvec& a) const
   {
     assert(S.size() == nA);
     assert(a.size() == nA);
@@ -235,8 +240,8 @@ struct Discrete_policy
  {
    const ActionInfo* const aInfo;
    const Uint start_adv, nA;
-   const vector<Real>& netOutputs;
-   const vector<Real> advantages;
+   const Rvec& netOutputs;
+   const Rvec advantages;
    const Discrete_policy* const policy;
 
    static inline Uint compute_nL(const ActionInfo* const aI)
@@ -246,14 +251,14 @@ struct Discrete_policy
    }
 
    Discrete_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
-     const vector<Real>& out, const Discrete_policy*const pol = nullptr) : aInfo(aI), start_adv(starts[0]), nA(aI->maxLabel), netOutputs(out),
+     const Rvec& out, const Discrete_policy*const pol = nullptr) : aInfo(aI), start_adv(starts[0]), nA(aI->maxLabel), netOutputs(out),
      advantages(extract(out)), policy(pol) {}
 
   protected:
-   inline vector<Real> extract(const vector<Real> & v) const
+   inline Rvec extract(const Rvec & v) const
    {
      assert(v.size() >= start_adv + nA);
-     return vector<Real>( &(v[start_adv]), &(v[start_adv +nA]) );
+     return Rvec( &(v[start_adv]), &(v[start_adv +nA]) );
    }
    inline Real expectedAdvantage() const
    {
@@ -263,7 +268,7 @@ struct Discrete_policy
    }
 
   public:
-   inline void grad(const Uint act, const Real Qer, vector<Real>&netGradient) const
+   inline void grad(const Uint act, const Real Qer, Rvec&netGradient) const
    {
      if(policy not_eq nullptr)
        for (Uint j=0; j<nA; j++)
@@ -285,7 +290,7 @@ struct Discrete_policy
      return advantages[action];
    }
 
-   vector<Real> getParam() const {
+   Rvec getParam() const {
      return advantages;
    }
 

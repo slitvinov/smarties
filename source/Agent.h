@@ -122,7 +122,7 @@ public:
     this->sInfo = stateInfo;
   }
 
-  void writeData(const int rank, const vector<Real>mu) const
+  void writeData(const int rank, const Rvec mu) const
   {
     char cpath[256];
     sprintf(cpath, "obs_rank%02d_agent%03d.raw", rank, ID);

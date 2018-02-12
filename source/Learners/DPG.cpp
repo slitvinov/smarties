@@ -61,20 +61,19 @@ void DPG::select(const Agent& agent)
   if( agent.Status != 2 ) {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
-    vector<Real> pol = F[0]->forward_agent(traj, agent, thrID);
-    vector<Real> act = pol;
+    Rvec pol = F[0]->forward_agent(traj, agent, thrID);
+    Rvec act = pol;
     for(Uint i=0; i<nA; i++) {
-      const Real noise = dist(generators[thrID]);
       OrUhState[agent.ID][i] *= .85;
       pol[i] += OrUhState[agent.ID][i]; //is mean if we model pol as gaussian
-      OrUhState[agent.ID][i] += greedyEps*noise;
+      OrUhState[agent.ID][i] += greedyEps*dist(generators[thrID]);
       act[i] += OrUhState[agent.ID][i];
       pol.push_back(greedyEps); //is stdev if model pol as gaussian
     }
     agent.act(aInfo.getScaled(act));
     data->add_action(agent, pol);
   } else {
-    OrUhState[agent.ID] = vector<Real>(nA, 0);
+    OrUhState[agent.ID] = Rvec(nA, 0);
     data->terminate_seq(agent);
   }
 }
@@ -88,23 +87,23 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
 
   for (Uint k=0; k<traj->tuples.size()-1; k++)
   {
-    const vector<Real> pol_curr = F[0]->forward<CUR>(traj, k, thrID);
+    const Rvec pol_curr = F[0]->forward<CUR>(traj, k, thrID);
     relay->prepare(ACT, thrID); // tell relay between two nets to pass actions
-    const vector<Real> q_curr = F[1]->forward<CUR>(traj, k, thrID);
+    const Rvec q_curr = F[1]->forward<CUR>(traj, k, thrID);
 
     relay->prepare(NET, thrID); // tell relay to pass policy (output of F[0])
     { //code to compute policy grad:
       //F[1] to compute v_curr (relay set NET, therefore input is policy)
       //with TGT weights on work memory of the TGT net.
       //if k>0, this was already computed in previous step of value grad
-      const vector<Real> v_curr = F[1]->forward<TGT>(traj, k, thrID);
+      const Rvec v_curr = F[1]->forward<TGT>(traj, k, thrID);
 
       //to use current weights (so, policy grad wrt to current value net)
       //we need to ask using CUR weights, overwriting the TGT work memory
       //because we will need the CUR work memory unpolluted for backprop:
-      //const vector<Real> v_curr = F[1]->forward<CUR,TGT,1>(traj, k+1, thrID);
+      //const Rvec v_curr = F[1]->forward<CUR,TGT,1>(traj, k+1, thrID);
 
-      const vector<Real> polGr = F[1]->relay_backprop({1}, k, thrID);
+      const Rvec polGr = F[1]->relay_backprop({1}, k, thrID);
       F[0]->backward(polGr, k, thrID);
     }
     { //code to compute value grad:
@@ -112,13 +111,13 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
       Real target = traj->tuples[k+1]->r;
       if (not terminal) {
         //unnecessary function call, just to make it transaprent to reader:
-        /*const vector<Real> pol_next = */ F[0]->forward<CUR>(traj, k+1, thrID);
+        /*const Rvec pol_next = */ F[0]->forward<CUR>(traj, k+1, thrID);
         // relay NET is still in effect, this will take pol_next as input:
-        const vector<Real> v_next = F[1]->forward<TGT>(traj, k+1, thrID);
+        const Rvec v_next = F[1]->forward<TGT>(traj, k+1, thrID);
         target += gamma * v_next[0];
       }
 
-      const vector<Real> grad_val = {(target-q_curr[0])};
+      const Rvec grad_val = {(target-q_curr[0])};
       traj->SquaredError[k] = grad_val[0]*grad_val[0];
       Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
       F[1]->backward(grad_val, k, thrID);
@@ -141,14 +140,14 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
   F[1]->prepare_one(traj, samp, thrID);
 
   relay->prepare(ACT, thrID); // tell relay between two nets to pass actions
-  const vector<Real> pol_curr = F[0]->forward(traj, samp, thrID);
-  const vector<Real> q_curr = F[1]->forward(traj, samp, thrID);
+  const Rvec pol_curr = F[0]->forward(traj, samp, thrID);
+  const Rvec q_curr = F[1]->forward(traj, samp, thrID);
 
   relay->prepare(NET, thrID); // tell relay to pass policy (output of F[0])
   { //code to compute policy grad:
-    //const vector<Real> v_curr = F[1]->forward<TGT>(traj, samp, thrID);
-    const vector<Real> v_curr = F[1]->forward<CUR, TGT>(traj, samp, thrID);
-    const vector<Real> polGr = F[1]->relay_backprop({10}, samp, thrID);
+    //const Rvec v_curr = F[1]->forward<TGT>(traj, samp, thrID);
+    const Rvec v_curr = F[1]->forward<CUR, TGT>(traj, samp, thrID);
+    const Rvec polGr = F[1]->relay_backprop({10}, samp, thrID);
     //cout <<"Inp grad: "<< print(polGr) << endl; fflush(0);
     F[0]->backward(polGr, samp, thrID);
   }
@@ -156,12 +155,12 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
   { //code to compute value grad:
     Real target = traj->tuples[samp+1]->r;
     if (not terminal) {
-      const vector<Real> pol_next = F[0]->forward(traj, samp+1, thrID);
-      const vector<Real> v_next = F[1]->forward<TGT>(traj, samp+1, thrID);
+      const Rvec pol_next = F[0]->forward(traj, samp+1, thrID);
+      const Rvec v_next = F[1]->forward<TGT>(traj, samp+1, thrID);
       target += gamma * v_next[0];
     }
 
-    const vector<Real> grad_val = {(target-q_curr[0])};
+    const Rvec grad_val = {(target-q_curr[0])};
     traj->SquaredError[samp] = grad_val[0]*grad_val[0];
     Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
     F[1]->backward(grad_val, samp, thrID);

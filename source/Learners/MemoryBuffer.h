@@ -24,7 +24,7 @@ public:
   const ActionInfo aI;
   const vector<Agent*> _agents;
   std::vector<std::mt19937>& generators;
-  const vector<Real> mean, invstd, std;
+  const Rvec mean, invstd, std;
   const int learn_rank, learn_size;
   const Real gamma;
 
@@ -71,16 +71,16 @@ public:
   }
 
   template<typename T>
-  inline vector<Real> standardize(const vector<T>& state) const
+  inline Rvec standardize(const vector<T>& state) const
   {
-    vector<Real> ret(sI.dimUsed*(1+nAppended));
+    Rvec ret(sI.dimUsed*(1+nAppended));
     assert(state.size() == sI.dimUsed*(1+nAppended));
     for (Uint j=0; j<1+nAppended; j++)
       for (Uint i=0; i<sI.dimUsed; i++)
         ret[j +i*(nAppended+1)] =(state[j +i*(nAppended+1)]-mean[i])*invstd[i];
     return ret;
   }
-  inline vector<Real> standardized(const Uint seq, const Uint samp) const
+  inline Rvec standardized(const Uint seq, const Uint samp) const
   {
     return standardize(Set[seq]->tuples[samp]->s);
   }
@@ -107,7 +107,7 @@ public:
     for(int i=agentOne; i<agentEnd; i++) if(inProgress[i]->ndata()) push_back(i);
   }
 
-  void add_action(const Agent& a, vector<Real> pol = vector<Real>()) const;
+  void add_action(const Agent& a, Rvec pol = Rvec()) const;
   void terminate_seq(const Agent&a);
   int add_state(const Agent&a);
 

@@ -25,7 +25,7 @@ protected:
   const vector<Uint> pol_outputs, pol_indices;
   mutable vector<long double> cntPenal, valPenal;
 
-  inline Policy_t prepare_policy(const vector<Real>& out) const
+  inline Policy_t prepare_policy(const Rvec& out) const
   {
     return Policy_t(pol_indices, &aInfo, out);
   }
@@ -76,12 +76,12 @@ protected:
     const Sequence* const traj = data->Set[seq];
     const Real adv_est = traj->action_adv[samp];
     const Real val_tgt = traj->Q_RET[samp];
-    const vector<Real>& beta = traj->tuples[samp]->mu;
+    const Rvec& beta = traj->tuples[samp]->mu;
 
     F[0]->prepare_one(traj, samp, thrID);
     F[1]->prepare_one(traj, samp, thrID);
-    const vector<Real> pol_cur = F[0]->forward(traj, samp, thrID);
-    const vector<Real> val_cur = F[1]->forward(traj, samp, thrID);
+    const Rvec pol_cur = F[0]->forward(traj, samp, thrID);
+    const Rvec val_cur = F[1]->forward(traj, samp, thrID);
 
     if(thrID==1)  profiler->stop_start("CMP");
 
@@ -111,14 +111,14 @@ protected:
 
 
     #ifdef PPO_PENALKL
-      const vector<Real> policy_grad = pol.policy_grad(act, gain);
-      const vector<Real> penal_grad = pol.div_kl_opp_grad(beta, -penalDKL);
-      vector<Real> totalPolGrad = sum2Grads(penal_grad, policy_grad);
+      const Rvec policy_grad = pol.policy_grad(act, gain);
+      const Rvec penal_grad = pol.div_kl_opp_grad(beta, -penalDKL);
+      Rvec totalPolGrad = sum2Grads(penal_grad, policy_grad);
     #else //we still learn the penal coef, for simplicity, but no effect
-      vector<Real> totalPolGrad = pol.policy_grad(act, gain);
+      Rvec totalPolGrad = pol.policy_grad(act, gain);
     #endif
 
-    vector<Real> grad(F[0]->nOutputs(), 0);
+    Rvec grad(F[0]->nOutputs(), 0);
     pol.finalize_grad(totalPolGrad, grad);
 
     //bookkeeping:
@@ -155,12 +155,12 @@ public:
 
     if(agent.Status != 2) { //non terminal state
       //Compute policy and value on most recent element of the sequence:
-      const vector<Real> pol=F[0]->forward_agent(curr_seq, agent, thrID);
-      const vector<Real> val=F[1]->forward_agent(curr_seq, agent, thrID);
+      const Rvec pol=F[0]->forward_agent(curr_seq, agent, thrID);
+      const Rvec val=F[1]->forward_agent(curr_seq, agent, thrID);
 
       curr_seq->state_vals.push_back(val[0]);
       Policy_t policy = prepare_policy(pol);
-      const vector<Real> beta = policy.getBeta();
+      const Rvec beta = policy.getBeta();
       agent.a->set(policy.finalize(bTrain, &generators[thrID], beta));
       data->add_action(agent, beta);
     } else
@@ -209,7 +209,7 @@ public:
   }
 };
 
-class GAE_cont : public GAE<Gaussian_policy, vector<Real> >
+class GAE_cont : public GAE<Gaussian_policy, Rvec >
 {
   static vector<Uint> count_pol_outputs(const ActionInfo*const aI)
   {
@@ -294,16 +294,16 @@ void Train(const Uint seq, const Uint obs, const Uint thrID) const override
   const Sequence*const traj = data->Set[seq];          // fetch sampled sequence
   const Real advantage_obs  = traj->action_adv[obs+1];// observed advantage
   const Real value_obs      = traj->tuples[obs+1]->r; // observed state val
-  const vector<Real> mu     = traj->tuples[obs]->mu;  // policy used for sample
-  const vector<Real> action = traj->tuples[obs]->a;   // sample performed act
+  const Rvec mu     = traj->tuples[obs]->mu;  // policy used for sample
+  const Rvec action = traj->tuples[obs]->a;   // sample performed act
 
   // compute current policy and state-value-estimate for sampled state
-  const vector<Real> out_policy = policyNet->forward(traj, samp, thrID);
-  const vector<Real> out_value  =  valueNet->forward(traj, samp, thrID);
+  const Rvec out_policy = policyNet->forward(traj, samp, thrID);
+  const Rvec out_value  =  valueNet->forward(traj, samp, thrID);
 
   //compute gradient of state-value est. and backpropagate value net
   const Real Vst_est  = out_value[0];           // estimated state value
-  const vector<Real>  value_grad = {value_obs - Vst_est};
+  const Rvec  value_grad = {value_obs - Vst_est};
    valueNet->backward(value_grad, samp, thrID);
 
   //Create action & policy objects: generalize discrete, gaussian, lognorm pols
@@ -317,13 +317,13 @@ void Train(const Uint seq, const Uint obs, const Uint thrID) const override
 
   //compute policy gradient and backpropagate pol net
   const Real gain = rho * advantage_obs;
-  const vector<Real>  policy_grad = pol.policy_grad(act, gain);
+  const Rvec  policy_grad = pol.policy_grad(act, gain);
   policyNet->backward(policy_grad, samp, thrID);
 }
 
 #endif
 //#ifdef INTEGRATEANDFIREMODEL
-//  inline Lognormal_policy prepare_policy(const vector<Real>& out) const
+//  inline Lognormal_policy prepare_policy(const Rvec& out) const
 //  {
 //    return Lognormal_policy(net_indices[0], net_indices[1], nA, out);
 //  }

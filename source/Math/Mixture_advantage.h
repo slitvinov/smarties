@@ -15,14 +15,14 @@ struct Mixture_advantage
 {
 public:
   const Uint start_matrix, nA, nL;
-  const vector<Real> netOutputs;
-  const array<vector<Real>, nExperts> L, matrix;
+  const Rvec netOutputs;
+  const array<Rvec, nExperts> L, matrix;
   const ActionInfo* const aInfo;
   const Gaussian_mixture<nExperts>* const policy;
   //const array<array<Real,nExperts>, nExperts> overlap;
 
-  vector<Real> getParam() const {
-    vector<Real> ret(nL, 0);
+  Rvec getParam() const {
+    Rvec ret(nL, 0);
     for(Uint ind=0, e=0; e<nExperts; e++)
       for (Uint j=0; j<nA; j++)
         for (Uint i=0; i<=j; i++)
@@ -30,7 +30,7 @@ public:
           else if (i==j) ret[ind++] = matrix[e][nA*j +i];
     return ret;
   }
-  static void setInitial(const ActionInfo* const aI, vector<Real>& initBias)
+  static void setInitial(const ActionInfo* const aI, Rvec& initBias)
   {
     for(Uint e=0; e<nExperts; e++)
       for (Uint j=0; j<aI->dim; j++)
@@ -41,7 +41,7 @@ public:
 
   //Normalized quadratic advantage, with own mean
   Mixture_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
-   const vector<Real>& out, const Gaussian_mixture<nExperts>*const pol) :
+   const Rvec& out, const Gaussian_mixture<nExperts>*const pol) :
    start_matrix(starts[0]), nA(aI->dim), nL(compute_nL(aI)), netOutputs(out),
    L(extract_L()), matrix(extract_matrix()), aInfo(aI), policy(pol) { }
 
@@ -61,8 +61,8 @@ private:
     }
     */
 
-    static inline Real quadMatMul(const Uint nA, const vector<Real>& act,
-      const vector<Real>& mat, const vector<Real>& mean)
+    static inline Real quadMatMul(const Uint nA, const Rvec& act,
+      const Rvec& mat, const Rvec& mean)
     {
       assert(act.size()==nA);assert(mean.size()==nA);assert(mat.size()==nA*nA);
       Real ret = 0;
@@ -74,12 +74,12 @@ private:
       return ret;
     }
 
-    inline array<vector<Real>,nExperts> extract_L() const
+    inline array<Rvec,nExperts> extract_L() const
     {
-      array<vector<Real>,nExperts> ret;
+      array<Rvec,nExperts> ret;
       Uint kL = start_matrix;
       for (Uint e=0; e<nExperts; e++) {
-        ret[e] = vector<Real>(nA*nA, 0);
+        ret[e] = Rvec(nA*nA, 0);
         for (Uint j=0; j<nA; j++)
         for (Uint i=0; i<=j; i++)
           if (i<j) ret[e][nA*j +i] = offdiag_func(netOutputs[kL++]);
@@ -89,11 +89,11 @@ private:
       return ret;
     }
 
-    inline array<vector<Real>,nExperts> extract_matrix() const
+    inline array<Rvec,nExperts> extract_matrix() const
     {
-      array<vector<Real>,nExperts> ret;
+      array<Rvec,nExperts> ret;
       for (Uint e=0; e<nExperts; e++) {
-        ret[e] = vector<Real>(nA*nA, 0);
+        ret[e] = Rvec(nA*nA, 0);
         for (Uint j=0; j<nA; j++)
           for (Uint i=0; i<=j; i++) //exploit symmetry
           {
@@ -120,12 +120,12 @@ private:
     static inline Real offdiag_func_diff(Real val) { return 1; }
 
 public:
-  inline void grad(const vector<Real>&act, const Real Qer, vector<Real>& netGradient) const
+  inline void grad(const Rvec&act, const Real Qer, Rvec& netGradient) const
   {
     assert(act.size()==nA);
     for (Uint e=0, kl = start_matrix; e<nExperts; e++)
     {
-      vector<Real> dErrdP(nA*nA, 0);
+      Rvec dErrdP(nA*nA, 0);
 
       for (Uint i=0; i<nA; i++)
       for (Uint j=0; j<=i; j++) {
@@ -157,7 +157,7 @@ public:
       }
     }
   }
-  inline Real computeAdvantage(const vector<Real>& action) const
+  inline Real computeAdvantage(const Rvec& action) const
   {
     Real ret = 0;
     for (Uint e=0; e<nExperts; e++) {
@@ -174,7 +174,7 @@ public:
     }
     return 0.5*ret;
   }
-  inline Real computeAdvantageNoncentral(const vector<Real>& action) const
+  inline Real computeAdvantageNoncentral(const Rvec& action) const
   {
     Real ret = 0;
     for (Uint e=0; e<nExperts; e++)
@@ -187,15 +187,15 @@ public:
     return nExperts*(aI->dim*aI->dim + aI->dim)/2;
   }
 
-  void test(const vector<Real>& act, mt19937*const gen) const
+  void test(const Rvec& act, mt19937*const gen) const
   {
     const Uint numNetOutputs = netOutputs.size();
-    vector<Real> _grad(numNetOutputs, 0);
+    Rvec _grad(numNetOutputs, 0);
     grad(act, 1, _grad);
     ofstream fout("mathtest.log", ios::app);
     for(Uint i = 0; i<nL; i++)
     {
-      vector<Real> out_1 = netOutputs, out_2 = netOutputs;
+      Rvec out_1 = netOutputs, out_2 = netOutputs;
       const Uint index = start_matrix+i;
       out_1[index] -= 0.0001; out_2[index] += 0.0001;
 
@@ -223,7 +223,7 @@ public:
     printf("Ratio of expectation: %f, mean %f\n", meanv/stdef, meanv);
     #endif
   }
-  inline Real matrixDotVar(const vector<Real>& mat, const vector<Real>& S) const
+  inline Real matrixDotVar(const Rvec& mat, const Rvec& S) const
   {
     Real ret = 0;
     for(Uint i=0; i<nA; i++) ret += mat[nA*i+i] * S[i];
@@ -248,15 +248,15 @@ public:
   {
     return -0.5*(std::log(2*var*M_PI) +std::pow(act-mean,2)/var);
   }
-  inline vector<Real> mix2mean(const vector<Real>& m1, const vector<Real>& S1, const vector<Real>& m2, const vector<Real>& S2) const
+  inline Rvec mix2mean(const Rvec& m1, const Rvec& S1, const Rvec& m2, const Rvec& S2) const
   {
-    vector<Real> ret(nA, 0);
+    Rvec ret(nA, 0);
     for(Uint i=0; i<nA; i++) ret[i] =(S2[i]*m1[i] + S1[i]*m2[i])/(S1[i]+S2[i]);
     return ret;
   }
-  inline vector<Real> mix2vars(const vector<Real>&S1,const vector<Real>&S2)const
+  inline Rvec mix2vars(const Rvec&S1,const Rvec&S2)const
   {
-    vector<Real> ret(nA, 0);
+    Rvec ret(nA, 0);
     for(Uint i=0; i<nA; i++) ret[i] =(S2[i]*S1[i])/(S1[i]+S2[i]);
     return ret;
   }

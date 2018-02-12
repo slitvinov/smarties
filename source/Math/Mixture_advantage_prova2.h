@@ -21,38 +21,38 @@ struct Mixture_advantage
     return o.str();
   }
 
-  vector<Real> getParam() const {
-    vector<Real> ret = matrix[0];
+  Rvec getParam() const {
+    Rvec ret = matrix[0];
     for(Uint e=1; e<nExperts; e++)
       ret.insert(ret.end(), matrix[e].begin(), matrix[e].end());
     for(Uint e=0; e<nExperts; e++) ret.push_back(coef[e]);
     return ret;
   }
 
-  static void setInitial(const ActionInfo* const aI, vector<Real>& initBias) {
+  static void setInitial(const ActionInfo* const aI, Rvec& initBias) {
     for(Uint e=0; e<nExperts; e++) initBias.push_back(-1);
     for(Uint e=nExperts; e<compute_nL(aI); e++) initBias.push_back(1);
   }
 
   const Uint start_matrix, start_coefs, nA, nL;
-  const vector<Real> netOutputs;
+  const Rvec netOutputs;
   const array<Real, nExperts> coef;
-  const array<vector<Real>, nExperts> matrix;
+  const array<Rvec, nExperts> matrix;
   const ActionInfo* const aInfo;
   const Gaussian_mixture<nExperts>* const policy;
 
   //Normalized quadratic advantage, with own mean
   Mixture_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
-   const vector<Real>& out, const Gaussian_mixture<nExperts>*const pol) :
+   const Rvec& out, const Gaussian_mixture<nExperts>*const pol) :
    start_matrix(starts[0]+nExperts), start_coefs(starts[0]), nA(aI->dim),
    nL(compute_nL(aI)), netOutputs(out), coef(extract_coefs()),
    matrix(extract_matrix()), aInfo(aI), policy(pol) {}
 
 private:
-  inline array<vector<Real>, nExperts> extract_matrix() const {
-    array<vector<Real>, nExperts> ret;
+  inline array<Rvec, nExperts> extract_matrix() const {
+    array<Rvec, nExperts> ret;
     for (Uint e=0; e<nExperts; e++) {
-      ret[e] = vector<Real>(2*nA);
+      ret[e] = Rvec(2*nA);
       for(Uint i=0; i<2*nA; i++)
         ret[e][i] = diag_func(netOutputs[start_matrix +2*nA*e +i]);
     }
@@ -64,7 +64,7 @@ private:
     return ret;
   }
 
-  inline void grad_matrix(vector<Real>& G, const Real err) const {
+  inline void grad_matrix(Rvec& G, const Real err) const {
     for (Uint e=0; e<nExperts; e++) {
       G[start_coefs+e] *= err * diag_func_diff(netOutputs[start_coefs+e]);
       for (Uint i=0, ind=start_matrix +2*nA*e; i<2*nA; i++, ind++)
@@ -85,7 +85,7 @@ private:
 
 public:
 
-  inline Real computeAdvantage(const vector<Real>& act) const {
+  inline Real computeAdvantage(const Rvec& act) const {
     Real ret = 0;
     for (Uint e=0; e<nExperts; e++) {
       const Real shape = -.5 * diagInvMul(act, matrix[e], policy->means[e]);
@@ -98,7 +98,7 @@ public:
     return ret;
   }
 
-  inline Real coefMixRatio(const vector<Real>&A, const vector<Real>&VAR) const {
+  inline Real coefMixRatio(const Rvec&A, const Rvec&VAR) const {
     Real ret1 = 1, ret2 = 1;
     for (Uint i=0; i<nA; i++) {
       ret1 *= A[i]   /(A[i]   +VAR[i]);
@@ -122,7 +122,7 @@ public:
     return ret;
   }
 
-  inline void grad(const vector<Real>&a, const Real Qer, vector<Real>& G) const
+  inline void grad(const Rvec&a, const Real Qer, Rvec& G) const
   {
     assert(a.size()==nA);
     for (Uint e=0; e<nExperts; e++)
@@ -174,15 +174,15 @@ public:
     return nExperts*(1 + 2*aI->dim);
   }
 
-  void test(const vector<Real>& act, mt19937*const gen) const
+  void test(const Rvec& act, mt19937*const gen) const
   {
     const Uint numNetOutputs = netOutputs.size();
-    vector<Real> _grad(numNetOutputs, 0);
+    Rvec _grad(numNetOutputs, 0);
     grad(act, 1, _grad);
     ofstream fout("mathtest.log", ios::app);
     for(Uint i = 0; i<nL; i++)
     {
-      vector<Real> out_1 = netOutputs, out_2 = netOutputs;
+      Rvec out_1 = netOutputs, out_2 = netOutputs;
       const Uint index = start_coefs+i;
       out_1[index] -= 0.0001; out_2[index] += 0.0001;
 
@@ -210,8 +210,8 @@ public:
     #endif
   }
 
-  inline Real diagInvMul(const vector<Real>& act,
-    const vector<Real>& mat, const vector<Real>& mean) const {
+  inline Real diagInvMul(const Rvec& act,
+    const Rvec& mat, const Rvec& mean) const {
     assert(act.size()==nA); assert(mean.size()==nA); assert(mat.size()==2*nA);
     Real ret = 0;
     for (Uint i=0; i<nA; i++) {
@@ -221,8 +221,8 @@ public:
     return ret;
   }
 
-  inline Real diagInvMulVar(const vector<Real>&pol, const vector<Real>&mat,
-    const vector<Real>& mean, const vector<Real>& var) const {
+  inline Real diagInvMulVar(const Rvec&pol, const Rvec&mat,
+    const Rvec& mean, const Rvec& var) const {
     assert(pol.size()==nA); assert(mean.size()==nA); assert(mat.size()==2*nA);
     Real ret = 0;
     for(Uint i=0; i<nA; i++) {

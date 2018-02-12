@@ -21,7 +21,7 @@ struct StateInfo
 {
   Uint dim, dimUsed;
   vector<bool> inUse;
-  vector<Real> mean, scale;
+  Rvec mean, scale;
 
   StateInfo& operator= (const StateInfo& stateInfo)
   {
@@ -34,24 +34,24 @@ struct StateInfo
     return *this;
   }
 
-  vector<Real> inUseStd() const {
-    vector<Real> ret(dimUsed, 0);
+  Rvec inUseStd() const {
+    Rvec ret(dimUsed, 0);
     for(Uint i=0, k=0; i<dim && scale.size(); i++) {
       if(inUse[i]) ret[k++] = scale[i];
       if(i+1 == dim) assert(k == dimUsed);
     }
     return ret;
   }
-  vector<Real> inUseMean() const {
-    vector<Real> ret(dimUsed, 1);
+  Rvec inUseMean() const {
+    Rvec ret(dimUsed, 1);
     for(Uint i=0, k=0; i<dim && mean.size(); i++) {
       if(inUse[i]) ret[k++] = mean[i];
       if(i+1 == dim) assert(k == dimUsed);
     }
     return ret;
   }
-  vector<Real> inUseInvStd() const {
-    vector<Real> ret(dimUsed, 1);
+  Rvec inUseInvStd() const {
+    Rvec ret(dimUsed, 1);
     for(Uint i=0, k=0; i<dim && scale.size(); i++) {
       if(inUse[i]) ret[k++] = 1/scale[i];
       if(i+1 == dim) assert(k == dimUsed);
@@ -64,7 +64,7 @@ class State
 {
  public:
   StateInfo sInfo;
-  vector<Real> vals;
+  Rvec vals;
 
   State(const StateInfo& newSInfo) : sInfo(newSInfo)
   {
@@ -83,7 +83,7 @@ class State
     return print(vals);
   }
 
-  inline void copy_observed(vector<Real>& res, const Uint append=0) const
+  inline void copy_observed(Rvec& res, const Uint append=0) const
   {
     //copy state into res, append is used to chain multiple states together
     Uint k = append*sInfo.dimUsed;
@@ -92,15 +92,15 @@ class State
       if (sInfo.inUse[i]) res[k++] = vals[i];
   }
 
-  inline vector<Real> copy_observed() const
+  inline Rvec copy_observed() const
   {
-    vector<Real> ret(sInfo.dimUsed);
+    Rvec ret(sInfo.dimUsed);
     for (Uint i=0, k=0; i<sInfo.dim; i++)
       if (sInfo.inUse[i]) ret[k++] = vals[i];
     return ret;
   }
 
-  inline void copy(vector<Real>& res) const
+  inline void copy(Rvec& res) const
   {
     assert(res.size() == sInfo.dim);
     for (Uint i=0; i<sInfo.dim; i++) res[i] = vals[i];
@@ -121,7 +121,7 @@ struct ActionInfo
   //vector<int> boundedTOP, boundedBOT; TODO
   bool discrete = false;
   //each component of action vector has a vector of possible values that action can take with DQN
-  vector<vector<Real>> values; //max and min of this vector also used for rescaling
+  vector<Rvec> values; //max and min of this vector also used for rescaling
   vector<Uint> shifts; //used by DQN to map int to an (entry in each component of values)
 
   ActionInfo() {}
@@ -217,18 +217,18 @@ struct ActionInfo
     }
   }
 
-  inline vector<Real> getInvScaled(const vector<Real> scaled) const
+  inline Rvec getInvScaled(const Rvec scaled) const
   {
-    vector<Real> ret = scaled;
+    Rvec ret = scaled;
     assert(ret.size()==dim);
     for (Uint i=0; i<dim; i++)
       ret[i] = getInvScaled(scaled[i], i);
     return ret;
   }
 
-  inline vector<Real> getScaled(vector<Real> unscaled) const
+  inline Rvec getScaled(Rvec unscaled) const
   {
-    vector<Real> ret(dim);
+    Rvec ret(dim);
     assert(unscaled.size()==dim);
     for (Uint i=0; i<dim; i++) ret[i] = getScaled(unscaled[i], i);
     return ret;
@@ -265,7 +265,7 @@ struct ActionInfo
     #endif
   }
 
-  inline Uint actionToLabel(const vector<Real> vals) const
+  inline Uint actionToLabel(const Rvec vals) const
   {
     assert(vals.size() == dim && shifts.size() == dim);
     //map from discretized action (entry per component of values vectors) to int
@@ -287,10 +287,10 @@ struct ActionInfo
     return lab;
   }
 
-  inline vector<Real> labelToAction(Uint lab) const
+  inline Rvec labelToAction(Uint lab) const
   {
     //map an int to the corresponding entries in the values vec
-    vector<Real> ret(dim);
+    Rvec ret(dim);
     for (Uint i=dim; i>0; i--) {
       Uint tmp = lab/shifts[i-1]; //in opposite op: add shifts*index
       ret[i-1] = values[i-1][tmp];
@@ -316,7 +316,7 @@ class Action
 {
  public:
   ActionInfo actInfo;
-  vector<Real> vals;
+  Rvec vals;
   mt19937 * gen;
 
   Action(const ActionInfo& newActInfo, mt19937 * g) :
@@ -339,7 +339,7 @@ class Action
     return print(vals);
   }
 
-  inline void set(const vector<Real>& data)
+  inline void set(const Rvec& data)
   {
     assert(data.size() == actInfo.dim);
     vals = data;

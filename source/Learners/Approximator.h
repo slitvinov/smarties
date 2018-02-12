@@ -65,49 +65,49 @@ struct Approximator
   void prepare_one(const Sequence*const traj, const Uint samp,
       const Uint thrID, const Uint nSamples = 1) const;
 
-  vector<Real> forward(const Sequence* const traj, const Uint samp,
+  Rvec forward(const Sequence* const traj, const Uint samp,
     const Uint thrID, const PARAMS USE_WEIGHTS, const PARAMS USE_ACT,
     const Uint iSample, const int overwrite) const;
 
   // this is templated only to increase clarity when calling the forward op
   template <PARAMS USE_WEIGHTS=CUR, PARAMS USE_ACT=USE_WEIGHTS, int overwrite=0>
-  inline vector<Real> forward(const Sequence* const traj, const Uint samp,
+  inline Rvec forward(const Sequence* const traj, const Uint samp,
       const Uint thrID, const Uint iSample = 0) const
   {
     return forward(traj, samp, thrID, USE_WEIGHTS, USE_ACT, iSample, overwrite);
   }
 
 
-  vector<Real> relay_backprop(const vector<Real> error, const Uint samp,
+  Rvec relay_backprop(const Rvec error, const Uint samp,
     const Uint thrID, const PARAMS USEW) const;
 
   template <PARAMS USEW = CUR>
-  inline vector<Real> relay_backprop(const vector<Real> error, const Uint samp,
+  inline Rvec relay_backprop(const Rvec error, const Uint samp,
       const Uint thrID) const
   {
     return relay_backprop(error, samp, thrID, USEW);
   }
 
-  vector<Real> forward_agent(const Sequence* const traj, const Agent& agent,
+  Rvec forward_agent(const Sequence* const traj, const Agent& agent,
     const Uint thrID, const PARAMS USEW) const;
 
   template <PARAMS USEW = CUR>
-  inline vector<Real> forward_agent(const Sequence* const traj,
+  inline Rvec forward_agent(const Sequence* const traj,
     const Agent& agent, const Uint thrID) const
   {
     return forward_agent(traj, agent, thrID, USEW);
   }
 
-  vector<Real> getOutput(const vector<Real> inp, const int ind,
+  Rvec getOutput(const Rvec inp, const int ind,
     Activation*const act, const Uint thrID, const PARAMS USEW) const;
 
   template <PARAMS USEW = CUR>
-  inline vector<Real> getOutput(const vector<Real> inp, const int ind, Activation*const act, const Uint thrID) const
+  inline Rvec getOutput(const Rvec inp, const int ind, Activation*const act, const Uint thrID) const
   {
     return getOutput(inp, ind, act, thrID, USEW);
   }
 
-  vector<Real> getInput(const Sequence*const traj, const Uint samp,
+  Rvec getInput(const Sequence*const traj, const Uint samp,
     const Uint thrID) const;
 
   inline int mapTime2Ind(const Uint samp, const Uint thrID) const
@@ -119,14 +119,14 @@ struct Approximator
   }
 
   template <PARAMS USEW = CUR>
-  inline vector<Real> get(const Sequence*const traj, const Uint samp,
+  inline Rvec get(const Sequence*const traj, const Uint samp,
     const Uint thrID)
   {
     const vector<Activation*>&act =USEW==CUR? series[thrID] : series_tgt[thrID];
     return act[mapTime2Ind(samp, thrID)]->getOutput();
   }
 
-  void backward(vector<Real> error, const Uint samp, const Uint thrID,
+  void backward(Rvec error, const Uint samp, const Uint thrID,
     const Uint iSample = 0) const;
 
   void prepareUpdate();
@@ -141,7 +141,7 @@ struct Approximator
 
   void getMetrics(ostringstream& buff) const;
   void getHeaders(ostringstream& buff) const;
-  
+
   void save(const string base = string())
   {
     if(opt == nullptr) die("Attempted to save uninitialized net!");
@@ -170,7 +170,7 @@ struct Aggregator
   const Approximator* const approx;
 
   mutable vector<int> first_sample;
-  mutable vector<vector<vector<Real>>> inputs; // [thread][time][component]
+  mutable vector<vector<Rvec>> inputs; // [thread][time][component]
   mutable vector<RELAY> usage; // [thread]
 
   // Settings file, the memory buffer class from which all trajectory pointers
@@ -193,9 +193,9 @@ struct Aggregator
   void prepare_one(const Sequence*const traj, const Uint samp,
       const Uint thrID, const RELAY SET = VEC) const;
 
-  void set(const vector<Real> vec,const Uint samp,const Uint thrID) const;
+  void set(const Rvec vec,const Uint samp,const Uint thrID) const;
 
-  vector<Real> get(const Sequence*const traj, const Uint samp,
+  Rvec get(const Sequence*const traj, const Uint samp,
       const Uint thrID) const;
 
   inline Uint nOutputs() const

@@ -25,7 +25,7 @@ void Aggregator::prepare_opc(const Sequence*const traj, const Uint samp,
   const Uint nTotal = nRecurr + nSValues;
   first_sample[thrID] = samp - nRecurr;
   inputs[thrID].clear(); //make sure we only have empty vectors
-  inputs[thrID].resize(nTotal, vector<Real>());
+  inputs[thrID].resize(nTotal, Rvec());
   usage[thrID] = SET;
 }
 
@@ -34,7 +34,7 @@ void Aggregator::prepare_seq(const Sequence*const traj, const Uint thrID, const 
   const Uint nSValues =  traj->tuples.size() - traj->ended;
   first_sample[thrID] = 0;
   inputs[thrID].clear(); //make sure we only have empty vectors
-  inputs[thrID].resize(nSValues, vector<Real>());
+  inputs[thrID].resize(nSValues, Rvec());
   usage[thrID] = SET;
 }
 
@@ -49,11 +49,11 @@ void Aggregator::prepare_one(const Sequence*const traj, const Uint samp,
   const Uint nTotal = nRecurr + nSValues;
   first_sample[thrID] = samp - nRecurr;
   inputs[thrID].clear(); //make sure we only have empty vectors
-  inputs[thrID].resize(nTotal, vector<Real>());
+  inputs[thrID].resize(nTotal, Rvec());
   usage[thrID] = SET;
 }
 
-void Aggregator::set(const vector<Real> vec,const Uint samp,const Uint thrID) const
+void Aggregator::set(const Rvec vec,const Uint samp,const Uint thrID) const
 {
   usage[thrID] = VEC;
   const int ind = (int)samp - first_sample[thrID];
@@ -62,7 +62,7 @@ void Aggregator::set(const vector<Real> vec,const Uint samp,const Uint thrID) co
   inputs[thrID][ind] = vec;
 }
 
-vector<Real> Aggregator::get(const Sequence*const traj, const Uint samp,
+Rvec Aggregator::get(const Sequence*const traj, const Uint samp,
     const Uint thrID) const
 {
   if(usage[thrID] == VEC) {
@@ -203,7 +203,7 @@ void Approximator::prepare_one(const Sequence*const traj, const Uint samp,
   first_sample[thrID] = samp - nRecurr;
 }
 
-vector<Real> Approximator::forward(const Sequence* const traj, const Uint samp,
+Rvec Approximator::forward(const Sequence* const traj, const Uint samp,
   const Uint thrID, const PARAMS USE_WEIGHTS, const PARAMS USE_ACT,
   const Uint iSample, const int overwrite) const
 {
@@ -221,12 +221,12 @@ vector<Real> Approximator::forward(const Sequence* const traj, const Uint samp,
   if(ind>0 && act_cur[ind-1]->written not_eq true)
     this->forward(traj, samp-1, thrID);
 
-  const vector<Real> inp = getInput(traj, samp, thrID);
+  const Rvec inp = getInput(traj, samp, thrID);
   //cout <<"Input : "<< print(inp) << endl; fflush(0);
   return getOutput(inp, ind, act[ind], thrID, USE_WEIGHTS);
 }
 
-vector<Real> Approximator::relay_backprop(const vector<Real> err,
+Rvec Approximator::relay_backprop(const Rvec err,
   const Uint samp, const Uint thrID, const PARAMS USEW) const
 {
   if(relay == nullptr || relayInp < 0) die("improperly set up the relay");
@@ -234,12 +234,12 @@ vector<Real> Approximator::relay_backprop(const vector<Real> err,
   const int ind = mapTime2Ind(samp, thrID), nInp = input->nOutputs();
   assert(act[ind]->written == true && relay not_eq nullptr);
   const Parameters*const W = USEW==CUR? net->weights : net->tgt_weights;
-  const vector<Real>ret=net->inpBackProp(err,act[ind],relayG[thrID],W,relayInp);
+  const Rvec ret = net->inpBackProp(err, act[ind], relayG[thrID], W, relayInp);
   if(relayInp>0) return ret;
-  else return vector<Real>(&ret[nInp], &ret[nInp+relay->nOutputs()]);
+  else return Rvec(&ret[nInp], &ret[nInp+relay->nOutputs()]);
 }
 
-vector<Real> Approximator::forward_agent(const Sequence* const traj,
+Rvec Approximator::forward_agent(const Sequence* const traj,
   const Agent& agent, const Uint thrID, const PARAMS USEW) const
 {
   if(error_placements[thrID] > 0) gradient(thrID);
@@ -249,35 +249,35 @@ vector<Real> Approximator::forward_agent(const Sequence* const traj,
   net->prepForFwdProp(series[thrID], 2);
 
   const vector<Activation*>& act = series[thrID];
-  const vector<Real> inp = getInput(traj, stepid, thrID);
+  const Rvec inp = getInput(traj, stepid, thrID);
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
   const Activation* const prevStep = agent.Status==1? nullptr : act[0];
   act[0]->written = true; act[1]->written = true;
   Activation* const currStep = act[1];
   if(agent.Status not_eq 1) prevStep->loadMemory(net->mem[agent.ID]);
-  const vector<Real> ret = net->predict(inp, prevStep, currStep, W);
+  const Rvec ret = net->predict(inp, prevStep, currStep, W);
   currStep->storeMemory(net->mem[agent.ID]);
   return ret;
 }
 
-vector<Real> Approximator::getOutput(const vector<Real> inp, const int ind,
+Rvec Approximator::getOutput(const Rvec inp, const int ind,
   Activation*const act, const Uint thrID, const PARAMS USEW) const
 {
   //hardcoded to use time series predicted with cur weights for recurrencies:
   const vector<Activation*>& act_cur = series[thrID];
   const Activation*const recur = ind? act_cur[ind-1] : nullptr;
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
-  const vector<Real> ret = net->predict(inp, recur, act, W);
+  const Rvec ret = net->predict(inp, recur, act, W);
   //if(thrID) cout<<"net fwd with inp:"<<print(inp)<<" out:"<<print(ret)<<endl;
   act->written = true;
   return ret;
 }
 
-vector<Real> Approximator::getInput(const Sequence*const traj, const Uint samp, const Uint thrID) const
+Rvec Approximator::getInput(const Sequence*const traj, const Uint samp, const Uint thrID) const
 {
-  vector<Real> inp = input->forward(traj, samp, thrID);
+  Rvec inp = input->forward(traj, samp, thrID);
   if(relay not_eq nullptr) {
-    const vector<Real> addedinp = relay->get(traj, samp, thrID);
+    const Rvec addedinp = relay->get(traj, samp, thrID);
     assert(addedinp.size());
     inp.insert(inp.end(), addedinp.begin(), addedinp.end());
   }
@@ -285,7 +285,7 @@ vector<Real> Approximator::getInput(const Sequence*const traj, const Uint samp, 
   return inp;
 }
 
-void Approximator::backward(vector<Real> error, const Uint samp,
+void Approximator::backward(Rvec error, const Uint samp,
   const Uint thrID, const Uint iSample) const
 {
   const Uint netID = thrID + iSample*nThreads;
@@ -341,7 +341,7 @@ void Approximator::gradient(const Uint thrID) const
     if(input->net == nullptr) continue;
 
     for(int i=0; i<last_error; i++) {
-      vector<Real> inputG = act[i]->getInputGradient(0);
+      Rvec inputG = act[i]->getInputGradient(0);
       inputG.resize(input->nOutputs());
       input->backward(inputG, first_sample[thrID] +i, thrID);
     }

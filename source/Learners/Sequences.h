@@ -19,7 +19,7 @@
 
 struct Tuple
 {
-  vector<Real> s, a, mu;
+  Rvec s, a, mu;
   Real r = 0;
   Tuple(const Tuple*const c): s(c->s), a(c->a), mu(c->mu), r(c->r) {}
   Tuple() {}
@@ -35,12 +35,12 @@ struct Sequence
   vector<Tuple*> tuples;
   int ended = 0, ID = -1, just_sampled = -1;
   Real nOffPol = 0, MSE = 0;
-  vector<Real> action_adv;
-  vector<Real> state_vals;
-  vector<Real> Q_RET;
+  Rvec action_adv;
+  Rvec state_vals;
+  Rvec Q_RET;
   //Used for sampling, filtering, and sorting off policy data:
-  vector<Real> SquaredError, offPol_weight;
-  vector<Real> imp_weight;
+  Rvec SquaredError, offPol_weight;
+  Rvec imp_weight;
 
   inline Uint ndata() const {
     assert(tuples.size());
@@ -77,14 +77,14 @@ struct Sequence
     //}
     return isOff;
   }
-  inline void add_state(const vector<Real> state, const Real reward=0)
+  inline void add_state(const Rvec state, const Real reward=0)
   {
     Tuple * t = new Tuple();
     t->s = state; t->r = reward;
     tuples.push_back(t);
   }
-  inline void add_action(const vector<Real> act,
-                         const vector<Real> mu = vector<Real>())
+  inline void add_action(const Rvec act,
+                         const Rvec mu = Rvec())
   {
     tuples.back()->a = act;
     tuples.back()->mu = mu;

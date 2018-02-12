@@ -43,5 +43,5 @@ public:
     Communicator create_communicator( const MPI_Comm slavesComm, const int socket, const bool bSpawn);
 
     virtual Uint getNdumpPoints();
-    virtual vector<Real> getDumpState(Uint k);
+    virtual Rvec getDumpState(Uint k);
 };

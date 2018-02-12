@@ -13,24 +13,24 @@
 struct Lognormal_policy
 {
   const Uint start_mean, start_std, nA;
-  const vector<Real> netOutputs;
-  const vector<Real> mean, stdev;
+  const Rvec netOutputs;
+  const Rvec mean, stdev;
 
-  Lognormal_policy(Uint startM, Uint startS, Uint _nA, const vector<Real>&out) : start_mean(startM), start_std(startS), nA(_nA), netOutputs(out), mean(extract_mean()), stdev(extract_stdev()) {}
+  Lognormal_policy(Uint startM, Uint startS, Uint _nA, const Rvec&out) : start_mean(startM), start_std(startS), nA(_nA), netOutputs(out), mean(extract_mean()), stdev(extract_stdev()) {}
 
 private:
-  inline vector<Real> extract_mean() const
+  inline Rvec extract_mean() const
   {
     assert(netOutputs.size() >= start_mean + nA);
-    return vector<Real>(&(netOutputs[start_mean]),&(netOutputs[start_mean])+nA);
+    return Rvec(&(netOutputs[start_mean]),&(netOutputs[start_mean])+nA);
   }
 
-  inline vector<Real> extract_stdev() const
+  inline Rvec extract_stdev() const
   {
     #ifdef INTEGRATEANDFIRESHARED
-      return vector<Real>(nA, std_func(netOutputs[start_std]));
+      return Rvec(nA, std_func(netOutputs[start_std]));
     #else
-      vector<Real> ret(nA);
+      Rvec ret(nA);
       assert(netOutputs.size() >= start_std + nA);
       for (Uint j=0; j<nA; j++) {
         ret[j] = std_func(netOutputs[start_std+j]);
@@ -51,9 +51,9 @@ private:
   }
 
 public:
-  inline vector<Real> sample(mt19937*const gen) const
+  inline Rvec sample(mt19937*const gen) const
   {
-    std::vector<Real> ret(nA);
+    Rvec ret(nA);
     for(Uint i=0; i<nA; i++) {
       std::lognormal_distribution<Real> dist(mean[i], stdev[i]);
       ret[i] = dist(*gen);
@@ -61,9 +61,9 @@ public:
     return ret;
   }
 
-  inline vector<Real> policy_grad(const vector<Real>& act, const Real fac) const
+  inline Rvec policy_grad(const Rvec& act, const Real fac) const
   {
-    vector<Real> ret(2*nA);
+    Rvec ret(2*nA);
     for (Uint i=0; i<nA; i++) {
       const Real prec = 1/(stdev[i]*stdev[i]), logA = std::log(act[i]);
       ret[i]    = fac*(logA-mean[i])*prec;
@@ -72,7 +72,7 @@ public:
     return ret;
   }
 
-  inline void finalize_grad(const vector<Real>&grad, vector<Real>&netGrad) const
+  inline void finalize_grad(const Rvec&grad, Rvec&netGrad) const
   {
     assert(netGrad.size()>=start_mean+nA && grad.size() == 2*nA);
     for (Uint j=0; j<nA; j++) netGrad[start_mean+j] = grad[j];
@@ -86,11 +86,11 @@ public:
     #endif
   }
 
-  inline vector<Real> getMean() const
+  inline Rvec getMean() const
   {
     return mean;
   }
-  inline vector<Real> getStdev() const
+  inline Rvec getStdev() const
   {
     return stdev;
   }

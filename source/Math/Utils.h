@@ -18,38 +18,36 @@ inline Real clip(const Real val, const Real ub, const Real lb)
   return std::max(std::min(val, ub), lb);
 }
 
-inline vector<Real> sum3Grads(const vector<Real>& f, const vector<Real>& g,
-  const vector<Real>& h)
+inline Rvec sum3Grads(const Rvec& f, const Rvec& g, const Rvec& h)
 {
   assert(g.size() == f.size());
   assert(h.size() == f.size());
-  vector<Real> ret(f.size());
+  Rvec ret(f.size());
   for(Uint i=0; i<f.size(); i++) ret[i] = f[i]+g[i]+h[i];
   return ret;
 }
 
-inline vector<Real> sum2Grads(const vector<Real>& f, const vector<Real>& g)
+inline Rvec sum2Grads(const Rvec& f, const Rvec& g)
 {
   assert(g.size() == f.size());
-  vector<Real> ret(f.size());
+  Rvec ret(f.size());
   for(Uint i=0; i<f.size(); i++) ret[i] = f[i]+g[i];
   return ret;
 }
 
-inline vector<Real> weightSum2Grads(const vector<Real>& f,
-  const vector<Real>& g, const Real W)
+inline Rvec weightSum2Grads(const Rvec& f, const Rvec& g, const Real W)
 {
   assert(g.size() == f.size());
-  vector<Real> ret(f.size());
+  Rvec ret(f.size());
   for(Uint i=0; i<f.size(); i++) ret[i] = W*f[i]+ (1-W)*g[i];
   return ret;
 }
 
-inline vector<Real> trust_region_update(const vector<Real>& grad,
-  const vector<Real>& trust, const Uint nA, const Real delta)
+inline Rvec trust_region_update(const Rvec& grad,
+  const Rvec& trust, const Uint nA, const Real delta)
 {
   assert(grad.size() == trust.size());
-  vector<Real> ret(nA);
+  Rvec ret(nA);
   Real dot=0, norm = numeric_limits<Real>::epsilon();
   for (Uint j=0; j<nA; j++) {
     norm += trust[j] * trust[j];
@@ -67,12 +65,12 @@ inline vector<Real> trust_region_update(const vector<Real>& grad,
   return ret;
 }
 
-inline vector<Real> circle_region(const vector<Real>& grad,
-  const vector<Real>& trust, const Uint nact, const Real delta)
+inline Rvec circle_region(const Rvec& grad,
+  const Rvec& trust, const Uint nact, const Real delta)
 {
   assert(grad.size() == trust.size());
   const Uint nA = grad.size();
-  vector<Real> ret(nA);
+  Rvec ret(nA);
   Real normKG = 0, normK = 1e-16, normG = 1e-16, dot = 0;
   for(Uint j=0; j<nA; j++) {
     normKG += std::pow(grad[j]+trust[j],2);
@@ -99,7 +97,7 @@ inline vector<Real> circle_region(const vector<Real>& grad,
   return ret;
 }
 
-inline void circle_region(vector<Real>& grad, const Real delta, const Uint start, const Uint end)
+inline void circle_region(Rvec& grad, const Real delta, const Uint start, const Uint end)
 {
   Real normKG = 0;
   for(Uint j=start; j<end; j++) normKG += std::pow(grad[j],2);
@@ -107,7 +105,7 @@ inline void circle_region(vector<Real>& grad, const Real delta, const Uint start
   for(Uint j=start; j<end; j++) grad[j] = grad[j]*softclip;
 }
 
-inline Uint maxInd(const vector<Real>& pol)
+inline Uint maxInd(const Rvec& pol)
 {
   Real Val = -1e9;
   Uint Nbest = 0;
@@ -116,7 +114,7 @@ inline Uint maxInd(const vector<Real>& pol)
   return Nbest;
 }
 
-inline Uint maxInd(const vector<Real>& pol, const Uint start, const Uint N)
+inline Uint maxInd(const Rvec& pol, const Uint start, const Uint N)
 {
   Real Val = -1e9;
   Uint Nbest = 0;
@@ -131,7 +129,7 @@ inline Real minAbsValue(const Real v, const Real w)
 }
 
 /*
-inline void setVecMean(vector<Real>& vals)
+inline void setVecMean(Rvec& vals)
 {
    assert(vals.size()>1);
   Real mean = 0;

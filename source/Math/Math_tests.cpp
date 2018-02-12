@@ -8,17 +8,17 @@
  */
 #include "../AllLearners.h"
 
-void Gaussian_policy::test(const vector<Real>& act,
+void Gaussian_policy::test(const Rvec& act,
   const Gaussian_policy*const pol_hat) const //, const Quadratic_term*const a
 {
-  vector<Real> _grad(netOutputs.size());
-   //const vector<Real> cntrolgrad = control_grad(a, -1);
-   const vector<Real> div_klgrad = div_kl_grad(pol_hat);
-   const vector<Real> policygrad = policy_grad(act, 1);
+  Rvec _grad(netOutputs.size());
+   //const Rvec cntrolgrad = control_grad(a, -1);
+   const Rvec div_klgrad = div_kl_grad(pol_hat);
+   const Rvec policygrad = policy_grad(act, 1);
    ofstream fout("mathtest.log", ios::app);
    for(Uint i = 0; i<2*nA; i++)
    {
-     vector<Real> out_1 = netOutputs, out_2 = netOutputs;
+     Rvec out_1 = netOutputs, out_2 = netOutputs;
      if(i>=nA && !start_prec) continue;
      const Uint index = i>=nA ? start_prec+i-nA : start_mean+i;
      out_1[index] -= 0.0001;
@@ -77,15 +77,15 @@ void Gaussian_policy::test(const vector<Real>& act,
 
 void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat) const
 {
-  vector<Real> _grad(netOutputs.size());
-  //const vector<Real> cntrolgrad = control_grad(-1);
-  const vector<Real> div_klgrad = div_kl_grad(pol_hat);
-  const vector<Real> policygrad = policy_grad(act, 1);
+  Rvec _grad(netOutputs.size());
+  //const Rvec cntrolgrad = control_grad(-1);
+  const Rvec div_klgrad = div_kl_grad(pol_hat);
+  const Rvec policygrad = policy_grad(act, 1);
   ofstream fout("mathtest.log", ios::app);
   //values_grad(act, 1, _grad);
   for(Uint i = 0; i<nA; i++)
   {
-    vector<Real> out_1 = netOutputs, out_2 = netOutputs;
+    Rvec out_1 = netOutputs, out_2 = netOutputs;
     const Uint index = start_prob+i;
     out_1[index] -= 0.0001;
     out_2[index] += 0.0001;
@@ -126,14 +126,14 @@ void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat) 
   fout.close();
 }
 
-void Quadratic_advantage::test(const vector<Real>& act, mt19937*const gen) const
+void Quadratic_advantage::test(const Rvec& act, mt19937*const gen) const
 {
-  vector<Real> _grad(netOutputs.size());
+  Rvec _grad(netOutputs.size());
    grad_unb(act, 1, _grad);
    ofstream fout("mathtest.log", ios::app);
    for(Uint i = 0; i<nL+nA; i++)
    {
-     vector<Real> out_1 = netOutputs, out_2 = netOutputs;
+     Rvec out_1 = netOutputs, out_2 = netOutputs;
      if(i>=nL && !start_mean) continue;
      const Uint index = i>=nL ? start_mean+i-nL : start_matrix+i;
      out_1[index] -= 0.0001;
@@ -157,14 +157,14 @@ void Quadratic_advantage::test(const vector<Real>& act, mt19937*const gen) const
    fout.close();
 }
 
-void Diagonal_advantage::test(const vector<Real>& act, mt19937*const gen) const
+void Diagonal_advantage::test(const Rvec& act, mt19937*const gen) const
 {
-  vector<Real> _grad(netOutputs.size());
+  Rvec _grad(netOutputs.size());
   grad(act, 1, _grad);
   ofstream fout("mathtest.log", ios::app);
   for(Uint i = 0; i<4*nA; i++)
   {
-    vector<Real> out_1 = netOutputs, out_2 = netOutputs;
+    Rvec out_1 = netOutputs, out_2 = netOutputs;
     const Uint index = start_matrix+i;
     out_1[index] -= 0.0001;
     out_2[index] += 0.0001;
@@ -189,7 +189,7 @@ void Diagonal_advantage::test(const vector<Real>& act, mt19937*const gen) const
 
 void NAF::test()
 {
-  vector<Real> out(F[0]->nOutputs()), act(aInfo.dim);
+  Rvec out(F[0]->nOutputs()), act(aInfo.dim);
   uniform_real_distribution<Real> out_dis(-.5,.5);
   uniform_real_distribution<Real> act_dis(-.5,.5);
   const int thrID = omp_get_thread_num();
@@ -202,7 +202,7 @@ void NAF::test()
 /*
 void CACER::test()
 {
-  vector<Real> hat(nOutputs), out(nOutputs), act(nA);
+  Rvec hat(nOutputs), out(nOutputs), act(nA);
   uniform_real_distribution<Real> out_dis(-.5,.5);
   uniform_real_distribution<Real> act_dis(-.5,.5);
   for(Uint i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
@@ -219,7 +219,7 @@ void CACER::test()
 /*
 void POAC::test()
 {
-  vector<Real> hat(nOutputs), out(nOutputs), act(nA);
+  Rvec hat(nOutputs), out(nOutputs), act(nA);
   uniform_real_distribution<Real> out_dis(-.5,.5);
   uniform_real_distribution<Real> act_dis(-.5,.5);
   for(Uint i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
@@ -237,7 +237,7 @@ void DACER::test()
 {
   uniform_real_distribution<Real> out_dis(-.5,.5);
   uniform_real_distribution<Real> act_dis(0, 1.);
-  vector<Real> hat(nOutputs), out(nOutputs);
+  Rvec hat(nOutputs), out(nOutputs);
   const Uint act = act_dis(*gen)*nA;
   for(Uint i = 0; i<nOutputs; i++) out[i] = out_dis(*gen);
   for(Uint i = 0; i<nOutputs; i++) hat[i] = out_dis(*gen);

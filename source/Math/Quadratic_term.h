@@ -13,15 +13,15 @@
 struct Quadratic_term
 {
   const Uint start_matrix, start_mean, nA, nL;
-  const vector<Real> netOutputs;
-  const vector<Real> L, mean, matrix;
+  const Rvec netOutputs;
+  const Rvec L, mean, matrix;
   static inline Uint compute_nL(const ActionInfo* const aI)
   {
     return (aI->dim*aI->dim + aI->dim)/2;
   }
 
-  vector<Real> getParam() const {
-     vector<Real> ret(nL, 0);
+  Rvec getParam() const {
+     Rvec ret(nL, 0);
      for (Uint ind=0, j=0; j<nA; j++)
        for (Uint i=0; i<nA; i++)
          if (i<j)       ret[ind++] = matrix[nA*j +i];
@@ -30,7 +30,7 @@ struct Quadratic_term
   }
 
   Quadratic_term(Uint _startMat, Uint _startMean, Uint _nA, Uint _nL,
-    const vector<Real>& out, const vector<Real>_m=vector<Real>()) :
+    const Rvec& out, const Rvec _m = Rvec()) :
     start_matrix(_startMat), start_mean(_startMean), nA(_nA), nL(_nL),
     netOutputs(out), L(extract_L()), mean(extract_mean(_m)),
     matrix(extract_matrix())
@@ -42,7 +42,7 @@ struct Quadratic_term
     }
 
 protected:
-  inline Real quadMatMul(const vector<Real>& act, const vector<Real>& mat) const
+  inline Real quadMatMul(const Rvec& act, const Rvec& mat) const
   {
     assert(act.size() == nA && mat.size() == nA*nA);
     Real ret = 0;
@@ -52,15 +52,15 @@ protected:
     return ret;
   }
 
-  inline Real quadraticTerm(const vector<Real>& act) const
+  inline Real quadraticTerm(const Rvec& act) const
   {
     return quadMatMul(act, matrix);
   }
 
-  inline vector<Real> extract_L() const
+  inline Rvec extract_L() const
   {
     assert(netOutputs.size()>=start_matrix+nL);
-    vector<Real> ret(nA*nA);
+    Rvec ret(nA*nA);
     Uint kL = start_matrix;
     for (Uint j=0; j<nA; j++)
     for (Uint i=0; i<nA; i++)
@@ -70,18 +70,18 @@ protected:
     return ret;
   }
 
-  inline vector<Real> extract_mean(const vector<Real> tmp) const
+  inline Rvec extract_mean(const Rvec tmp) const
   {
     //printf("%lu vec:%s\n", tmp.size(), print(tmp).c_str()); fflush(0);
     if(tmp.size() == nA) { assert(start_mean==0); return tmp; }
     assert(start_mean!=0 && netOutputs.size()>=start_mean+nA);
-    return vector<Real>(&(netOutputs[start_mean]),&(netOutputs[start_mean])+nA);
+    return Rvec(&(netOutputs[start_mean]),&(netOutputs[start_mean])+nA);
   }
 
-  inline vector<Real> extract_matrix() const //fill positive definite matrix P == L * L'
+  inline Rvec extract_matrix() const //fill positive definite matrix P == L * L'
   {
     assert(L.size() == nA*nA);
-    vector<Real> ret(nA*nA,0);
+    Rvec ret(nA*nA,0);
     for (Uint j=0; j<nA; j++)
     for (Uint i=0; i<nA; i++)
     for (Uint k=0; k<nA; k++) {
@@ -92,13 +92,13 @@ protected:
     return ret;
   }
 
-  inline void grad_matrix(const vector<Real>&dErrdP, vector<Real>&netGradient) const
+  inline void grad_matrix(const Rvec&dErrdP, Rvec&netGradient) const
   {
     assert(netGradient.size() >= start_matrix+nL);
     for (Uint il=0; il<nL; il++)
     {
       Uint kL = 0;
-      vector<Real> _dLdl(nA*nA, 0);
+      Rvec _dLdl(nA*nA, 0);
       for (Uint j=0; j<nA; j++)
       for (Uint i=0; i<nA; i++)
         if(i<=j) if(kL++==il) _dLdl[nA*j+i]=1;
@@ -160,8 +160,8 @@ protected:
 
 
 /*
- inline Real diagTerm(const vector<Real>& S, const vector<Real>& mu,
-      const vector<Real>& a) const
+ inline Real diagTerm(const Rvec& S, const Rvec& mu,
+      const Rvec& a) const
   {
     assert(S.size() == nA);
     assert(a.size() == nA);
@@ -170,9 +170,9 @@ protected:
     for (Uint j=0; j<nA; j++) Q += S[j]*std::pow(mu[j]-a[j],2);
     return Q;
   }
-  inline Real quadraticNoise(const vector<Real>& P, const vector<Real>& var, const int thrID) const
+  inline Real quadraticNoise(const Rvec& P, const Rvec& var, const int thrID) const
   {
-    vector<Real> q(nA,0);
+    Rvec q(nA,0);
     for (Uint j=0; j<nA; j++)
     {
       const Real scale = 0.1*std::sqrt(3)*std::sqrt(var[j]);
