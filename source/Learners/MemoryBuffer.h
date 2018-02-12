@@ -115,7 +115,8 @@ public:
   void updateImportanceWeights();
   void prune(const Real CmaxRho, const FORGET ALGO);
 
-  void getMetrics(ostringstream&fileOut, ostringstream&screenOut);
+  void getMetrics(ostringstream& buff);
+  void getHeaders(ostringstream& buff);
   void restart();
 
   void indexToSample(const int nSample, Uint& seq, Uint& obs) const;

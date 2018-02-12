@@ -66,10 +66,6 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
 
   for(auto & net : F) net->updateGradStats(nStep);
 
-  if(nStep%1000 ==0) {
-    profiler->stop_start("STAT");
-    processStats();
-  }
   profiler->stop_all();
 
   if(nStep%10000==0 && !learn_rank) {
@@ -82,6 +78,11 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
 
     for(auto & net : F) net->save(learner_name);
     input->save(learner_name);
+  }
+
+  if(nStep%1000 ==0) {
+    profiler->stop_start("STAT");
+    processStats();
   }
   profiler->stop_start("SLP");
 }
@@ -97,19 +98,34 @@ void Learner::synchronizeGradients()
 void Learner::processStats()
 {
   stats.reduce(Vstats);
-  ostringstream fileOut, screenOut;
-  stats.getMetrics(fileOut, screenOut);
-  data->getMetrics(fileOut, screenOut);
-  for(auto & net : F) net->getMetrics(fileOut, screenOut);
-  getMetrics(fileOut, screenOut);
+  ostringstream buf;
+  stats.getMetrics(buf);
+  data->getMetrics(buf);
+  for(auto & net : F) net->getMetrics(buf);
+  getMetrics(buf);
 
   if(learn_rank) return;
-  ofstream fout; fout.open("stats.txt", ios::app);
-  fout<<fileOut.str()<<endl; fout.flush(); fout.close();
-  printf("%lu %s\n", nStep, screenOut.str().c_str()); fflush(0);
+
+  FILE* fout = fopen ("stats.txt","a");
+
+  ostringstream head;
+  if( nStep%10000==0 || nStep==1000 ) {
+    stats.getHeaders(head);
+    data->getHeaders(head);
+    for(auto & net : F) net->getHeaders(head);
+    getHeaders(head);
+    printf("#/1e3 %s\n", head.str().c_str());
+    fprintf(fout, "#/1e3 %s\n", head.str().c_str());
+  }
+
+  fprintf(fout, "%05d %s\n", (int)nStep/1000, buf.str().c_str());
+  printf("%05d %s\n", (int)nStep/1000, buf.str().c_str());
+  fclose(fout);
+  fflush(0);
 }
 
-void Learner::getMetrics(ostringstream&fileOut,ostringstream&screenOut) const {}
+void Learner::getMetrics(ostringstream& buf) const {}
+void Learner::getHeaders(ostringstream& buf) const {}
 
 void Learner::restart()
 {

@@ -102,8 +102,8 @@ public:
   virtual void Train_BPTT(const Uint seq, const Uint thrID) const = 0;
   virtual void Train(const Uint seq, const Uint samp, const Uint thrID) const=0;
 
-  virtual void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const;
-  //virtual void getHeaders(ostringstream&fileOut, ostringstream&screenOut) const;
+  virtual void getMetrics(ostringstream& buff) const;
+  virtual void getHeaders(ostringstream& buff) const;
   //mass-handing of unfinished sequences from master
   void clearFailedSim(const int agentOne, const int agentEnd);
   void pushBackEndedSim(const int agentOne, const int agentEnd);

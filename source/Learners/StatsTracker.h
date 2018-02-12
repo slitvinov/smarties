@@ -48,11 +48,17 @@ struct trainData
     stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
   }
 
-  void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
+  void getMetrics(ostringstream& buff) const
   {
-    fileOut<<" "<<MSE<<" "<<avgQ<<" "<<stdQ<<" "<<minQ<<" "<<maxQ;
-    screenOut<<" MSE:"<<MSE<<" avgQ:"<<avgQ<<" stdQ:"<<stdQ<<" minQ:"<<minQ
-    <<" maxQ:"<<maxQ;
+    buff<<" "<<std::setw(6)<<std::setprecision(2)<<std::fixed<< MSE;
+    buff<<" "<<std::setw(6)<<std::setprecision(2)<<std::fixed<<avgQ;
+    buff<<" "<<std::setw(6)<<std::setprecision(2)<<std::fixed<<stdQ;
+    buff<<" "<<std::setw(6)<<std::setprecision(2)<<std::fixed<<minQ;
+    buff<<" "<<std::setw(6)<<std::setprecision(2)<<std::fixed<<maxQ;
+  }
+  void getHeaders(ostringstream& buff) const
+  {
+    buff <<"| RMSE | avgQ | stdQ | minQ | maxQ ";
   }
 
   inline void dumpStats(const Real&Q, const Real&err)
@@ -241,10 +247,11 @@ struct StatsTracker
     if(iter % 1000 == 0) printToFile();
     finalize(oldsum, oldstd);
   }
-  void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
-  {
-    screenOut<<" "<<name<<" avg:["<<print(avgVec[0])
-                  <<"] std:["<<print(stdVec[0])<<"]";
-    fileOut<<" "<<print(avgVec[0])<<" "<<print(stdVec[0]);
-  }
+
+  //void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
+  //{
+  //  screenOut<<" "<<name<<" avg:["<<print(instMean)
+  //                <<"] std:["<<print(instStdv)<<"]";
+  //  fileOut<<" "<<print(instMean)<<" "<<print(stdVec[0]);
+  //}
 };

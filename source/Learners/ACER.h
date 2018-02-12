@@ -154,8 +154,8 @@ class ACER : public Learner_offPolicy
 
     relay = new Aggregator(_set, data, _env->aI.dim);
     F.push_back(new Approximator("policy", _set, input, data));
-    F.push_back(new Approximator("value", _set, input, data));
-    F.push_back(new Approximator("advantage", _set, input, data, relay));
+    F.push_back(new Approximator("value",  _set, input, data));
+    F.push_back(new Approximator("advntg", _set, input, data, relay));
 
     Builder build_pol = F[0]->buildFromSettings(_set, nA);
     build_pol.addParamLayer(nA, "Linear", -2*std::log(greedyEps));

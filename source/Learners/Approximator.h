@@ -139,8 +139,9 @@ struct Approximator
    return net->getnOutputs();
   }
 
-  void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const;
-
+  void getMetrics(ostringstream& buff) const;
+  void getHeaders(ostringstream& buff) const;
+  
   void save(const string base = string())
   {
     if(opt == nullptr) die("Attempted to save uninitialized net!");

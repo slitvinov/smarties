@@ -136,14 +136,14 @@ public:
   GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
     Learner_onPolicy(_env, _set), lambda(_set.lambda),
     #ifdef PPO_CLIPPED
-    DKL_target(_set.klDivConstraint * std::sqrt(nA) * 10), //negligible penalty, still better perf 
+    DKL_target(_set.klDivConstraint * std::sqrt(nA) * 10), //negligible penalty, still better perf
     #else
-    DKL_target(_set.klDivConstraint), 
+    DKL_target(_set.klDivConstraint),
     #endif
-    pol_outputs(pol_outs), pol_indices(count_indices(pol_outs)), 
-    cntPenal(nThreads+1, 0), valPenal(nThreads+1, 0) { 
-    valPenal[0] = 1./DKL_target; 
-    //valPenal[0] = 1.; 
+    pol_outputs(pol_outs), pol_indices(count_indices(pol_outs)),
+    cntPenal(nThreads+1, 0), valPenal(nThreads+1, 0) {
+    valPenal[0] = 1./DKL_target;
+    //valPenal[0] = 1.;
   }
 
   //called by scheduler:
@@ -178,12 +178,13 @@ public:
     }
   }
 
-  void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
+  void getMetrics(ostringstream& buff) const
   {
-    const Real penalDKL = valPenal[0];
-
-    screenOut<<" penalDKL:"<<penalDKL;
-    fileOut<<" "<<penalDKL;
+    buff<<" "<<std::setw(6)<<std::setprecision(4)<<valPenal[0];
+  }
+  void getHeaders(ostringstream& buff) const
+  {
+    buff <<"| beta ";
   }
 
   void prepareGradient()
@@ -198,10 +199,10 @@ public:
     for(Uint i=1; i<=nThreads; i++) {
       cntPenal[0] += cntPenal[i]; cntPenal[i] = 0;
     }
-    const Real fac = 0.0003/cntPenal[0]; // learnRate*gradient/N 
+    const Real fac = 0.0003/cntPenal[0]; // learnRate*gradient/N
     cntPenal[0] = 0;
     for(Uint i=1; i<=nThreads; i++) {
-        valPenal[0] += fac*valPenal[i]; 
+        valPenal[0] += fac*valPenal[i];
         valPenal[i] = 0;
     }
     if(valPenal[0] <= nnEPS) valPenal[0] = nnEPS;
