@@ -165,7 +165,7 @@ class ACER : public Learner_offPolicy
     F[0]->initializeNetwork(build_pol);
     //_set.learnrate *= 10;
     //const Real backup = _set.nnLambda;
-    //_set.nnLambda = 0.01 * _set.learnrate;
+    //_set.nnLambda = 0.01;
     F[1]->initializeNetwork(build_val);
     F[2]->initializeNetwork(build_adv);
     //_set.nnLambda = backup;

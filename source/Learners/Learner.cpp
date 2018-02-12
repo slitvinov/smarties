@@ -68,7 +68,7 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
 
   profiler->stop_all();
 
-  if(nStep%10000==0 && !learn_rank) {
+  if(nStep%100000==0 && !learn_rank) {
     profiler->printSummary();
     profiler->reset();
 
@@ -109,13 +109,14 @@ void Learner::processStats()
   FILE* fout = fopen ("stats.txt","a");
 
   ostringstream head;
-  if( nStep%10000==0 || nStep==1000 ) {
+  if( nStep%100000==0 || nStep==1000 ) {
     stats.getHeaders(head);
     data->getHeaders(head);
     for(auto & net : F) net->getHeaders(head);
     getHeaders(head);
     printf("#/1e3 %s\n", head.str().c_str());
-    fprintf(fout, "#/1e3 %s\n", head.str().c_str());
+    if(nStep==1000)
+      fprintf(fout, "#/1e3 %s\n", head.str().c_str());
   }
 
   fprintf(fout, "%05d %s\n", (int)nStep/1000, buf.str().c_str());

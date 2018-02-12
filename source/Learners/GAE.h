@@ -21,7 +21,7 @@ class GAE : public Learner_onPolicy
 {
 protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
-  const Real lambda, DKL_target, clip_fac = 0.2;
+  const Real lambda, learnR, DKL_target, clip_fac = 0.2;
   const vector<Uint> pol_outputs, pol_indices;
   mutable vector<long double> cntPenal, valPenal;
 
@@ -134,7 +134,7 @@ protected:
 
 public:
   GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
-    Learner_onPolicy(_env, _set), lambda(_set.lambda),
+    Learner_onPolicy(_env, _set), lambda(_set.lambda), learnR(_set.learnrate),
     #ifdef PPO_CLIPPED
     DKL_target(_set.klDivConstraint * std::sqrt(nA) * 10), //negligible penalty, still better perf
     #else
@@ -199,7 +199,7 @@ public:
     for(Uint i=1; i<=nThreads; i++) {
       cntPenal[0] += cntPenal[i]; cntPenal[i] = 0;
     }
-    const Real fac = 0.0003/cntPenal[0]; // learnRate*gradient/N
+    const Real fac = learnR/cntPenal[0]; // learnRate*grad/N
     cntPenal[0] = 0;
     for(Uint i=1; i<=nThreads; i++) {
         valPenal[0] += fac*valPenal[i];

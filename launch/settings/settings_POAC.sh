@@ -21,7 +21,7 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnFunc PRelu"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc HardSign"
-SETTINGS+=" --nnLambda 0.0000001"
+SETTINGS+=" --nnLambda 0.001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -50,4 +50,4 @@ SETTINGS+=" --bSampleSequences 0"
 #SETTINGS+=" --batchSize 32"
 #SETTINGS+=" --bSampleSequences 1"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.0003"
