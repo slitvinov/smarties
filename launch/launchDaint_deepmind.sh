@@ -28,7 +28,7 @@ fi
 NPROCESS=$((${NNODES}*${NTASK}))
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-python3 ../Communicator_dmc.py \$1 $ENV $TASK
+LD_PRELOAD=${HOME}/glew-2.1.0/install/lib64/libGLEW.so python3 ../Communicator_dmc.py \$1 $ENV $TASK
 EOF
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
