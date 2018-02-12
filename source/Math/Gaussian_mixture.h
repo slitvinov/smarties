@@ -213,7 +213,7 @@ public:
   {
     std::vector<Real> ret(nA);
     std::normal_distribution<Real> dist(0, 1);
-    std::discrete_distribution<Uint> dE(&(beta[0]), &(beta[0]) +nExperts);
+    std::discrete_distribution<Uint> dE(&beta[0], &beta[nExperts]);
     const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
@@ -409,6 +409,20 @@ public:
   inline vector<Real> finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta)
   { //scale back to action space size:
     sampAct = bSample ? sample(gen, beta) : getBest();
+    return aInfo->getScaled(sampAct);
+  }
+
+  vector<Real> updateOrUhState(vector<Real>& state, vector<Real>& beta,
+    const vector<Real> act, const Real step)
+  {
+    assert(nExperts == 1);
+    for (Uint i=0; i<nA; i++) {
+      const Real noise = sampAct[i] - means[0][i];
+      state[i] *= .8/(1 +1e-3*step);
+      sampAct[i] += state[i];
+      beta[i+nExperts] += state[i];
+      state[i] += noise;
+    }
     return aInfo->getScaled(sampAct);
   }
 

@@ -217,6 +217,11 @@ struct Discrete_policy
     assert(aI->maxLabel);
     return aI->maxLabel;
   }
+  Uint updateOrUhState(vector<Real>& state, vector<Real>& beta,
+    const Uint act, const Real step) {
+    // not applicable to discrete action spaces 
+    return act;
+  }
 };
 /*
  inline Real diagTerm(const vector<Real>& S, const vector<Real>& mu,

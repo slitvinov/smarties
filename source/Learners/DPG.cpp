@@ -64,10 +64,9 @@ void DPG::select(const Agent& agent)
     vector<Real> pol = F[0]->forward_agent(traj, agent, thrID);
     vector<Real> act = pol;
     for(Uint i=0; i<nA; i++) {
-      const Real noise = dist(generators[thrID]);
       OrUhState[agent.ID][i] *= .85;
       pol[i] += OrUhState[agent.ID][i]; //is mean if we model pol as gaussian
-      OrUhState[agent.ID][i] += greedyEps*noise;
+      OrUhState[agent.ID][i] += greedyEps*dist(generators[thrID]);
       act[i] += OrUhState[agent.ID][i];
       pol.push_back(greedyEps); //is stdev if model pol as gaussian
     }

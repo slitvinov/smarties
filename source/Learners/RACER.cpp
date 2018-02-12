@@ -28,6 +28,8 @@ class RACER : public Learner_offPolicy
   const Uint nL = Advantage_t::compute_nL(&aInfo);
   const Real DKL_param, learnR, invC=1./CmaxRet, alpha=1;
   const vector<Uint> net_outputs, net_indices, pol_start, adv_start;
+  typedef vector<Real> rvec;
+  vector<rvec> OrUhState = vector<rvec>( nAgents, rvec(nA, 0) );
   const Uint VsID = net_indices[0];
   StatsTracker* opcInfo;
   Real DKL_coef = 0.2;
@@ -314,7 +316,11 @@ class RACER : public Learner_offPolicy
       const Advantage_t adv = prepare_advantage(output, &pol);
       vector<Real> beta = pol.getBeta();
 
-      const Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
+      Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
+      #if 0
+        act = updateOrUhState(OrUhState[agent.ID], beta, act, iter());
+      #endif
+      
       const Real advantage = adv.computeAdvantage(pol.sampAct);
       traj->action_adv.push_back(advantage);
       traj->state_vals.push_back(output[VsID]);
