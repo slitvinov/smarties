@@ -14,8 +14,6 @@ SETTINGS+=" --gamma 0.995"
 SETTINGS+=" --nnl1 128"
 SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
-#SETTINGS+=" --nnl1 256"
-#SETTINGS+=" --nnl2 256"
 
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc PRelu"
