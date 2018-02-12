@@ -28,8 +28,8 @@ for i in range(1, len(sys.argv)):
   X = X.reshape(X.size//L, L) 
   Y = Y.reshape(Y.size//L, L) 
   X = X.mean(1)
-  plt.fill_between(X, np.percentile(Y, 30, axis=1), 
-                  np.percentile(Y, 70, axis=1), 
+  plt.fill_between(X, np.percentile(Y, 20, axis=1), 
+                  np.percentile(Y, 80, axis=1), 
                facecolor=colors[i-1], alpha=0.5)
   plt.plot(X, np.percentile(Y, 50, axis=1), label=PATH, color=colors[i-1])
 

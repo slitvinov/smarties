@@ -183,9 +183,9 @@ struct StatsTracker
     instStdv = stdVec[0];
 
     for (Uint i=0; i<n_stats; i++) {
-      avgVec[0][i] = (1-learnRate)*oldM[i] +learnRate*avgVec[0][i];
-      stdVec[0][i] = (1-learnRate)*oldS[i] +learnRate*stdVec[0][i];
-      //stdVec[0][i] = std::max((1-learnRate)*oldstd[i], stdVec[0][i]);
+      avgVec[0][i] = (1-CLIP_LEARNR)*oldM[i] +CLIP_LEARNR*avgVec[0][i];
+      stdVec[0][i] = (1-CLIP_LEARNR)*oldS[i] +CLIP_LEARNR*stdVec[0][i];
+      //stdVec[0][i]=std::max((1-CLIP_LEARNR)*oldstd[i], stdVec[0][i]);
     }
   }
   double clip_ratio()
