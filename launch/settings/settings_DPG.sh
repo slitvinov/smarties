@@ -15,11 +15,11 @@ SETTINGS+=" --nnl2 128"
 #subject to changes
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnType LSTM"
-SETTINGS+=" --nnFunc SoftSign"
-#SETTINGS+=" --nnFunc PRelu"
+#SETTINGS+=" --nnFunc SoftSign"
+SETTINGS+=" --nnFunc PRelu"
 #SETTINGS+=" --nnFunc HardSign"
 # L2 regularization of the weights
-SETTINGS+=" --nnLambda 0.000001"
+SETTINGS+=" --nnLambda 0.0000001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -27,15 +27,13 @@ SETTINGS+=" --bTrain 1"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner DPG"
 
-#maximum allowed lenth for a sequence (from first to terminal state)
-#if a sequence is longer is just cut after #number of transitions
-SETTINGS+=" --maxTotObsNum 1048576"
+SETTINGS+=" --maxTotObsNum 262144"
 SETTINGS+=" --minTotObsNum 65536"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.2"
 SETTINGS+=" --epsAnneal   100000"
-SETTINGS+=" --totNumSteps 5000000"
+SETTINGS+=" --totNumSteps 6400000"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
 
@@ -45,6 +43,6 @@ SETTINGS+=" --bSampleSequences 0"
 #the first option is markedly safer
 SETTINGS+=" --targetDelay 0.001"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 64"
+SETTINGS+=" --batchSize 128"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"

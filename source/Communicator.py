@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-import gym, sys, socket, os, os.path, time
-from gym import wrappers
+import sys, socket, os, os.path, time
 import numpy as np
 
 class Communicator:
@@ -44,94 +43,33 @@ class Communicator:
         assert(len(observable) == self.nStates)
         for i in range(self.nStates): self.obs_in_use[i] = observable[i]
 
-    def __init__(self, state_components = 0, action_components = 0, number_of_agents = 1):
+    def __init__(self, state_components, action_components, number_of_agents=1, discrete_actions=False):
+        assert(False)
         self.start_server()
         self.sent_stateaction_info = False
-        self.discrete_actions = False
+        self.discrete_actions = discrete_actions
         self.number_of_agents = number_of_agents
-        if(state_components==0 or action_components==0):
-            self.gym = self.read_gym_env()
-        else:
-            self.nActions, self.nStates = action_components, state_components
-            actVals = np.zeros([0],dtype=np.float64)
-            actOpts = np.zeros([0],dtype=np.float64)
-            obsBnds = np.zeros([0],dtype=np.float64)
-            for i in range(action_components):
-                #tell smarties unbounded (0) continuous actions
-                actOpts = np.append(actOpts, [2.1, 0.])
-                #tell smarties non-rescaling bounds -1 : 1
-                actVals = np.append(actVals, [1, -1])
-            for i in range(state_components):
-                #tell smarties non-rescaling bounds -1 : 1.
-                obsBnds = np.append(obsBnds, [1, -1])
-            self.obs_in_use = np.ones(state_components, dtype=np.float64)
-            self.observation_bounds = obsBnds
-            self.action_options = actOpts
-            self.action_bounds = actVals
-            self.gym = None
+        self.nActions = action_components
+        self.nStates =   state_components
+        actVals = np.zeros([0],dtype=np.float64)
+        actOpts = np.zeros([0],dtype=np.float64)
+        obsBnds = np.zeros([0],dtype=np.float64)
+        for i in range(action_components):
+            #tell smarties unbounded (0) continuous actions
+            actOpts = np.append(actOpts, [2.1, 0.])
+            #tell smarties non-rescaling bounds -1 : 1
+            actVals = np.append(actVals, [-1, 1])
+        for i in range(state_components):
+            #tell smarties non-rescaling bounds -1 : 1.
+            obsBnds = np.append(obsBnds, [1, -1])
+        self.obs_in_use = np.ones(state_components, dtype=np.float64)
+        self.observation_bounds = obsBnds
+        self.action_options = actOpts
+        self.action_bounds = actVals
         self.seq_id, self.frame_id = 0, 0
 
     def __del__(self):
         self.conn.close()
-
-    def read_gym_env(self):
-        print("openAI environment: ", sys.argv[2])
-        env = gym.make(sys.argv[2])
-        nAct, nObs = 1, 1
-        actVals = np.zeros([0],dtype=np.float64)
-        actOpts = np.zeros([0],dtype=np.float64)
-        obsBnds = np.zeros([0],dtype=np.float64)
-        if hasattr(env.action_space, 'spaces'):
-            nAct = len(env.action_space.spaces)
-            self.discrete_actions = True
-            for i in range(nAct):
-                nActions_i = env.action_space.spaces[i].n
-                actOpts = np.append(actOpts, [nActions_i+.1, 1])
-                actVals = np.append(actVals, np.arange(0,nActions_i)+.1)
-        elif hasattr(env.action_space, 'n'):
-            nActions_i = env.action_space.n
-            self.discrete_actions = True
-            actOpts = np.append(actOpts, [nActions_i, 1])
-            actVals = np.append(actVals, np.arange(0,nActions_i)+.1)
-        elif hasattr(env.action_space, 'shape'):
-            nAct = env.action_space.shape[0]
-            for i in range(nAct):
-                bounded = 0 #figure out if environment is strict about the bounds on action:
-                test = env.reset()
-                test_act = 0.5*(env.action_space.low + env.action_space.high)
-                test_act[i] = env.action_space.high[i]+1
-                try: test = env.step(test_act)
-                except: bounded = 1.1
-                env.reset()
-                actOpts = np.append(actOpts, [2.1, bounded])
-                actVals = np.append(actVals, max(env.action_space.low[i],-1e3))
-                actVals = np.append(actVals, min(env.action_space.high[i],1e3))
-        else: assert(False)
-
-        if hasattr(env.observation_space, 'shape'):
-            for i in range(len(env.observation_space.shape)):
-                nObs *= env.observation_space.shape[i]
-
-            for i in range(nObs):
-                if(env.observation_space.high[i]<1e3 and env.observation_space.low[i]>-1e3):
-                    obsBnds = np.append(obsBnds, env.observation_space.high[i])
-                    obsBnds = np.append(obsBnds, env.observation_space.low[i])
-                else: #no scaling
-                    obsBnds = np.append(obsBnds, [1, -1])
-        elif hasattr(env.observation_space, 'n'):
-            obsBnds = np.append(obsBnds, env.observation_space.n)
-            obsBnds = np.append(obsBnds, 0)
-        else: assert(False)
-
-        self.obs_in_use = np.ones(nObs, dtype=np.float64)
-        self.nActions, self.nStates = nAct, nObs
-        self.observation_bounds = obsBnds
-        self.action_options = actOpts
-        self.action_bounds = actVals
-        self.send_stateaction_info()
-        if self.bRender==3:
-            env = gym.wrappers.Monitor(env, './', force=True)
-        return env
 
     def send_stateaction_info(self):
         if(not self.sent_stateaction_info):
@@ -178,38 +116,5 @@ class Communicator:
     def recv_action(self):
         buf = np.frombuffer(self.conn.recv(self.nActions*8), dtype=np.float64)
         for i in range(self.nActions): assert(not np.isnan(buf[i]))
-
-        if self.gym is not None:
-            if hasattr(self.gym.action_space, 'n'):
-                action = int(buf[0])
-            elif hasattr(self.gym.action_space, 'shape'):
-                action = buf
-            elif hasattr(self.gym.action_space, 'spaces'):
-                action = [int(buf[0])]
-                for i in range(1, self.nActions): action = action+[int(buf[i])]
-            else: assert(False)
-        else: action = buf
         if abs(buf[0]+256)<2.2e-16: quit()
-        return action
-
-    def get_gym_env(self):
-        assert(self.gym is not None)
-        return self.gym
-
-if __name__ == '__main__':
-    comm = Communicator() # create communicator with smarties
-    env = comm.get_gym_env()
-
-    while True: #training loop
-        observation = env.reset()
-        #send initial state
-        comm.send_state(observation, initial=True)
-
-        while True: # simulation loop
-            #receive action from smarties
-            action = comm.recv_action()
-            #advance the environment
-            observation, reward, done, info = env.step(action)
-            #send the observation to smarties
-            comm.send_state(observation, reward=reward, terminal=done)
-            if done: break
+        return buf

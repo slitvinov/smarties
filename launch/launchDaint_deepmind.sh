@@ -2,8 +2,9 @@
 EXECNAME=rl
 RUNFOLDER=$1
 NNODES=$2
-APP=$3
-SETTINGSNAME=$4
+ENV=$3
+TASK=$4
+SETTINGSNAME=$5
 
 MYNAME=`whoami`
 BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
@@ -12,13 +13,6 @@ mkdir -p ${BASEPATH}${RUNFOLDER}
 ulimit -c unlimited
 #lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
 
-if [ $# -gt 4 ] ; then
-    POLICY=$5
-    cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
-    #cp ${POLICY}_mems ${BASEPATH}${RUNFOLDER}/policy_mems
-    cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
-    cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
-fi
 if [ $# -lt 7 ] ; then
     NTASK=2 #n tasks per node
     NTHREADS=12 #n threads per task
@@ -34,7 +28,7 @@ fi
 NPROCESS=$((${NNODES}*${NTASK}))
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-python3 ../Communicator_gym.py \$1 $APP
+LD_PRELOAD=${HOME}/glew-2.1.0/install/lib64/libGLEW.so python3 ../Communicator_dmc.py \$1 $ENV $TASK
 EOF
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
@@ -67,7 +61,7 @@ echo ${NPROCESS} ${NNODES} ${NTASK} ${NTHREADS}
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
-#SBATCH --account=eth2
+#SBATCH --account=s658
 #SBATCH --job-name="${RUNFOLDER}"
 #SBATCH --output=${RUNFOLDER}_out_%j.txt
 #SBATCH --error=${RUNFOLDER}_err_%j.txt

@@ -39,8 +39,10 @@ void Environment::setDims() //this environment is for the cart pole test
   nAgentsPerRank = comm_ptr->nAgents;
   aI.discrete = comm_ptr->discrete_actions;
 
-  aI.values.resize(aI.dim); aI.bounded.resize(aI.dim, 0);
-  sI.mean.resize(sI.dim); sI.scale.resize(sI.dim);
+  aI.values.resize(aI.dim);
+  aI.bounded.resize(aI.dim, 0);
+  sI.mean.resize(sI.dim);
+  sI.scale.resize(sI.dim);
   sI.inUse.resize(sI.dim, 1);
 
   if(!settings.world_rank) printf("State dim:");

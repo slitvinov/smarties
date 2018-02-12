@@ -26,7 +26,7 @@ class RACER : public Learner_offPolicy
  protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nL = Advantage_t::compute_nL(&aInfo);
-  const Real DKL_param, invC=1./CmaxRet, alpha=1;
+  const Real DKL_param, learnR, invC=1./CmaxRet, alpha=1;
   const vector<Uint> net_outputs, net_indices, pol_start, adv_start;
   const Uint VsID = net_indices[0];
   StatsTracker* opcInfo;
@@ -151,8 +151,8 @@ class RACER : public Learner_offPolicy
     const Real A_cur = adv_cur.computeAdvantage(pol_cur.sampAct);
     const Real Q_RET = traj->Q_RET[samp+1], V_cur = outVec[VsID];
     const Real Q_dist = Q_RET -A_cur -V_cur, A_RET = Q_RET-V_cur;
-    //const Real rho_cur = pol_cur.sampRhoWeight;
-    const Real rho_cur = pol_cur.sampImpWeight;
+    const Real rho_cur = pol_cur.sampRhoWeight;
+    //const Real rho_cur = pol_cur.sampImpWeight;
     const Real Ver = DKL_coef*alpha*std::min((Real)1, rho_cur) * Q_dist;
 
     #ifdef RACER_ONESTEPADV
@@ -224,6 +224,7 @@ class RACER : public Learner_offPolicy
   {
     const Advantage_t adv = prepare_advantage(output, &pol);
     updateQret(S, t, adv.computeAdvantage(pol.sampAct), output[VsID], pol);
+    S->SquaredError[t] = 0;
   }
 
   inline void updateQret(Sequence*const S, const Uint t) const
@@ -250,8 +251,8 @@ class RACER : public Learner_offPolicy
   inline vector<Real> policyGradient(const Tuple*const _t, const Policy_t& POL,
     const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
   {
-    //const Real rho_cur = POL.sampRhoWeight;
-    const Real rho_cur = POL.sampImpWeight;
+    const Real rho_cur = POL.sampRhoWeight;
+    //const Real rho_cur = POL.sampImpWeight;
     #if defined(RACER_TABC)
       //compute quantities needed for trunc import sampl with bias correction
       const Action_t sample = POL.sample(&generators[thrID]);
@@ -284,7 +285,8 @@ class RACER : public Learner_offPolicy
   RACER(Environment*const _env, Settings& _set, vector<Uint> net_outs,
     vector<Uint> pol_inds, vector<Uint> adv_inds) :
     Learner_offPolicy(_env, _set), DKL_param(_set.klDivConstraint),
-    net_outputs(net_outs), net_indices(count_indices(net_outs)),
+    learnR(_set.learnrate), net_outputs(net_outs),
+    net_indices(count_indices(net_outs)),
     pol_start(pol_inds), adv_start(adv_inds)
   {
     printf("RACER starts: v:%u pol:%s adv:%s\n", VsID,
@@ -292,7 +294,7 @@ class RACER : public Learner_offPolicy
     opcInfo = new StatsTracker(5, "racer", _set, 100);
     //test();
     ALGO = MAXERROR;
-    cout << CmaxPol << " " << CmaxRet << " " << invC << endl; 
+    cout << CmaxPol << " " << CmaxRet << " " << invC << endl;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() { }
@@ -418,17 +420,26 @@ class RACER : public Learner_offPolicy
     //#ifdef RACER_ACERTRICK
     //const Real tgtFrac = DKL_param/CmaxPol;
     //#else
-    const Real tgtFrac = DKL_param*std::cbrt(nA)/CmaxPol;
+    //const Real tgtFrac = DKL_param*std::cbrt(nA)/CmaxPol;
+    //const Real tgtFrac = .01 + .09 * std::max(1-nStep/5e6, 0.);
+    const Real tgtFrac = DKL_param/CmaxPol/ (1 + nStep/1e6);
     //#endif
-    if(fracOffPol>tgtFrac) DKL_coef = .9999*DKL_coef;
-    else DKL_coef = 1e-4 + .9999*DKL_coef;
+    if(fracOffPol>tgtFrac*std::cbrt(nA)) DKL_coef = (1-learnR)*DKL_coef;
+    else DKL_coef = learnR + (1-learnR)*DKL_coef;
   }
 
-  void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const {
-    //Learner_offPolicy::getMetrics(fileOut, screenOut);
+  void getMetrics(ostringstream& buff) const
+  {
     opcInfo->reduce_approx();
-    screenOut<<" DKL:"<<DKL_coef<<" polStats:["<<print(opcInfo->instMean)
-             <<"] clipRatio:"<<F[0]->gradStats->cutRatio;
-    fileOut<<" "<<DKL_coef<<" "<<print(opcInfo->instMean)<<" "<<print(opcInfo->instStdv);
+    buff<<" "<<std::setw(6)<<std::setprecision(3)<<DKL_coef;
+    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[0];
+    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[1];
+    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[2];
+    buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[3];
+    buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[4];
+  }
+  void getHeaders(ostringstream& buff) const
+  {
+    buff <<"| beta | polG | penG | proj | dAdv | avgW ";
   }
 };

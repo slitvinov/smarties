@@ -59,13 +59,16 @@ public:
 
     Layer* l = nullptr;
            if (layerType == "LSTM") {
+      layers.back()->nLinkedTo += 4*nNeurons;
       l = new LSTMLayer(ID, layInp, nNeurons, funcType, bOutput, iLink);
     } else if (layerType == "IntegrateFire") {
       //l = new IntegrateFireLayer(nInputs, nNeurons, layers.size());
     } else {
       const bool bRecur = (layerType=="RNN") || (layerType=="Recurrent");
+      layers.back()->nLinkedTo += nNeurons;
       l = new BaseLayer(ID, layInp, nNeurons, funcType, bRecur, bOutput, iLink);
     }
+
 
     layers.push_back(l);
     assert(l not_eq nullptr);
@@ -230,6 +233,7 @@ private:
 public:
   Uint nAgents, nThreads;
   Uint nInputs=0, nOutputs=0, nLayers=0;
+  Real gradClip = 1;
   std::vector<std::mt19937>& generators;
   Parameters *weights, *tgt_weights;
   vector<Parameters*> Vgrad;

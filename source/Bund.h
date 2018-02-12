@@ -37,9 +37,11 @@ using namespace std;
 #endif
 
 //#define RACER_ACERTRICK
+#define CLIP_LEARNR 0.0001
+#define PRFL_DMPFRQ 100
 
 #define NORMDIST_MAX 2 //truncated normal distribution range
-#define BOUNDACT_MAX 8 //for bounded action spaces: range (ie. tanh(8))
+#define BOUNDACT_MAX 4 //for bounded action spaces: range (ie. tanh(4))
 
 //uniform precision (1/std^2) in case of Acer:
 #define ACER_CONST_PREC (1/0.09)

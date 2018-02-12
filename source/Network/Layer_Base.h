@@ -98,10 +98,12 @@ class BaseLayer: public Layer
     {
             nnReal* const grad_b = grad->B(ID);
       const nnReal* const suminp = curr->X(ID);
-      for(Uint o=0; o<nNeurons; o++) {
+      for(Uint o=0; o<nNeurons; o++)
         deltas[o] *= func->evalDiff(suminp[o], deltas[o]);
-        grad_b[o] += deltas[o];
-      }
+
+      //curr->clipDelta(ID, nLinkedTo);
+      #pragma omp simd aligned(deltas, grad_b : VEC_WIDTH)
+      for(Uint o=0; o<nNeurons; o++) grad_b[o] += deltas[o];
     }
     {
       const nnReal* const inputs = curr->Y(ID-link);

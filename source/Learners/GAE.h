@@ -21,9 +21,9 @@ class GAE : public Learner_onPolicy
 {
 protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
-  const Real lambda, DKL_target, clip_fac = 0.2;
+  const Real lambda, learnR, DKL_target, clip_fac = 0.2;
   const vector<Uint> pol_outputs, pol_indices;
-  const Uint PenalID = pol_indices.back(), ValID = 0;
+  mutable vector<long double> cntPenal, valPenal;
 
   inline Policy_t prepare_policy(const vector<Real>& out) const
   {
@@ -85,7 +85,7 @@ protected:
 
     if(thrID==1)  profiler->stop_start("CMP");
 
-    const Real Vst = val_cur[ValID], penalDKL = pol_cur[PenalID];
+    const Real Vst = val_cur[0], penalDKL = valPenal[0];
     const Policy_t pol = prepare_policy(pol_cur);
     const Action_t act = pol.map_action(traj->tuples[samp]->a);
     const Real actProbOnPolicy = pol.evalLogProbability(act);
@@ -96,9 +96,19 @@ protected:
 
     Real gain = rho_cur*adv_est;
     #ifdef PPO_CLIPPED
-      if (adv_est > 0 && rho_cur > 1+clip_fac) gain = 0;
-      if (adv_est < 0 && rho_cur < 1-clip_fac) gain = 0;
+      bool gainZero = false;
+      if (adv_est > 0 && rho_cur > 1+clip_fac) gainZero = true; //gain = 0;
+      if (adv_est < 0 && rho_cur < 1-clip_fac) gainZero = true; //gain = 0;
+      // if off policy, skip zero-gradient backprop
+      // pro: avoid messing adam statistics
+      if(gainZero) return resample(thrID);
     #endif
+
+    cntPenal[thrID+1]++;
+    //grad[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
+    if(DivKL > 1.5 * DKL_target) valPenal[thrID+1] += penalDKL; //double
+    if(DivKL < DKL_target / 1.5) valPenal[thrID+1] -= penalDKL/2; //half
+
 
     #ifdef PPO_PENALKL
       const vector<Real> policy_grad = pol.policy_grad(act, gain);
@@ -110,20 +120,13 @@ protected:
 
     vector<Real> grad(F[0]->nOutputs(), 0);
     pol.finalize_grad(totalPolGrad, grad);
-    //grad[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
-    grad[PenalID] = (DivKL - DKL_target)*penalDKL;
 
     //bookkeeping:
     Vstats[thrID].dumpStats(Vst, val_tgt - Vst);
     if(thrID==1)  profiler->stop_start("BCK");
 
-    #ifndef PPO_PENALKL
-    if(gain!=0) 
-    #endif 
-    {
-      F[0]->backward(grad, samp, thrID);
-      F[0]->gradient(thrID);
-    }
+    F[0]->backward(grad, samp, thrID);
+    F[0]->gradient(thrID);
     F[1]->backward({val_tgt - Vst}, samp, thrID);
     F[1]->gradient(thrID);
     if(thrID==1)  profiler->stop_start("SLP");
@@ -131,9 +134,17 @@ protected:
 
 public:
   GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
-    Learner_onPolicy(_env, _set), lambda(_set.lambda),
-    DKL_target(_set.klDivConstraint), pol_outputs(pol_outs),
-    pol_indices(count_indices(pol_outs)) { }
+    Learner_onPolicy(_env, _set), lambda(_set.lambda), learnR(_set.learnrate),
+    #ifdef PPO_CLIPPED
+    DKL_target(_set.klDivConstraint * std::sqrt(nA) * 10), //negligible penalty, still better perf
+    #else
+    DKL_target(_set.klDivConstraint),
+    #endif
+    pol_outputs(pol_outs), pol_indices(count_indices(pol_outs)),
+    cntPenal(nThreads+1, 0), valPenal(nThreads+1, 0) {
+    valPenal[0] = 1./DKL_target;
+    //valPenal[0] = 1.;
+  }
 
   //called by scheduler:
   void select(const Agent& agent) override
@@ -167,14 +178,34 @@ public:
     }
   }
 
-  void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const
+  void getMetrics(ostringstream& buff) const
   {
-    const Parameters*const W = F[0]->net->weights;
-    const nnReal*const parameters = W->B(W->nLayers - 1);
-    const Real penalDKL = std::exp(parameters[0]);
+    buff<<" "<<std::setw(6)<<std::setprecision(4)<<valPenal[0];
+  }
+  void getHeaders(ostringstream& buff) const
+  {
+    buff <<"| beta ";
+  }
 
-    screenOut<<" penalDKL:"<<penalDKL;
-    fileOut<<" "<<penalDKL;
+  void prepareGradient()
+  {
+    const bool bWasPrepareReady = updateComplete;
+
+    Learner_onPolicy::prepareGradient();
+
+    if(not bWasPrepareReady) return;
+
+    cntPenal[0] = 0;
+    for(Uint i=1; i<=nThreads; i++) {
+      cntPenal[0] += cntPenal[i]; cntPenal[i] = 0;
+    }
+    const Real fac = learnR/cntPenal[0]; // learnRate*grad/N
+    cntPenal[0] = 0;
+    for(Uint i=1; i<=nThreads; i++) {
+        valPenal[0] += fac*valPenal[i];
+        valPenal[i] = 0;
+    }
+    if(valPenal[0] <= nnEPS) valPenal[0] = nnEPS;
   }
 };
 
@@ -182,7 +213,7 @@ class GAE_cont : public GAE<Gaussian_policy, vector<Real> >
 {
   static vector<Uint> count_pol_outputs(const ActionInfo*const aI)
   {
-    return vector<Uint>{aI->dim, aI->dim, 1};
+    return vector<Uint>{aI->dim, aI->dim};
   }
   static vector<Uint> count_pol_starts(const ActionInfo*const aI)
   {
@@ -213,10 +244,10 @@ class GAE_cont : public GAE<Gaussian_policy, vector<Real> >
       build_pol.addParamLayer(aInfo.dim, "Linear", -2*std::log(greedyEps));
     #endif
     //add klDiv penalty coefficient layer initialized to 1
-    build_pol.addParamLayer(1, "Exp", 1);
+    //build_pol.addParamLayer(1, "Exp", 1);
 
     F[0]->initializeNetwork(build_pol);
-    _set.learnrate *= 2;
+    //_set.learnrate *= 2;
     F[1]->initializeNetwork(build_val);
   }
 };
@@ -225,7 +256,7 @@ class GAE_disc : public GAE<Discrete_policy, Uint>
 {
   static vector<Uint> count_pol_outputs(const ActionInfo*const aI)
   {
-    return vector<Uint>{aI->maxLabel, 1};
+    return vector<Uint>{aI->maxLabel};
   }
   static vector<Uint> count_pol_starts(const ActionInfo*const aI)
   {
@@ -248,7 +279,7 @@ class GAE_disc : public GAE<Discrete_policy, Uint>
     Builder build_pol = F[0]->buildFromSettings(_set, aInfo.maxLabel);
     Builder build_val = F[1]->buildFromSettings(_set, 1 );
 
-    build_pol.addParamLayer(1, "Exp", 1); //add klDiv penalty coefficient layer
+    //build_pol.addParamLayer(1,"Exp",1); //add klDiv penalty coefficient layer
 
     F[0]->initializeNetwork(build_pol);
     F[1]->initializeNetwork(build_val);

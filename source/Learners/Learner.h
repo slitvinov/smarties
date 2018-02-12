@@ -26,7 +26,7 @@ protected:
   #ifdef RACER_ACERTRICK
     // the offPolicyWeight passed to MemoryBuffer::prune is actually c^(1/sqrt(nA))
     // therefore std::pow here to count the number of obs with c < 1/CmaxPol || c > CmaxPol
-    const Real CmaxRet = std::pow(CmaxPol, 1./std::sqrt(env->aI.dim))*std::cbrt(env->aI.dim);
+    const Real CmaxRet = std::pow(CmaxPol, 1./std::cbrt(env->aI.dim))*std::cbrt(env->aI.dim);
   #else
     const Real CmaxRet = CmaxPol * std::cbrt(env->aI.dim);
   #endif
@@ -74,6 +74,10 @@ public:
     nTasks += add;
   }
 
+  inline unsigned time() const
+  {
+    return data->readNSeen();
+  }
   inline unsigned iter() const
   {
     return nStep;
@@ -98,7 +102,8 @@ public:
   virtual void Train_BPTT(const Uint seq, const Uint thrID) const = 0;
   virtual void Train(const Uint seq, const Uint samp, const Uint thrID) const=0;
 
-  virtual void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const;
+  virtual void getMetrics(ostringstream& buff) const;
+  virtual void getHeaders(ostringstream& buff) const;
   //mass-handing of unfinished sequences from master
   void clearFailedSim(const int agentOne, const int agentEnd);
   void pushBackEndedSim(const int agentOne, const int agentEnd);

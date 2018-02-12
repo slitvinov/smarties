@@ -70,6 +70,26 @@ struct Activation
     assert(k == nInputs);
   }
 
+  inline void clipDelta(const Uint ID, const Uint sizeLink, const nnReal clip=5) const 
+  {
+    if(clip<=0 || output[ID]) return;
+    nnReal norm = 0;
+    nnReal* const delta = errvals[ID];
+    #pragma omp simd aligned(delta : VEC_WIDTH) reduction(+ : norm)
+    for(Uint i=0; i<sizes[ID]; i++) norm += delta[i]*delta[i];
+
+    norm = clip/(std::sqrt(norm)/(sizes[ID]+sizeLink) + clip);
+    /*
+    if(omp_get_thread_num() == 1) { 
+      ofstream fout("clip"+to_string(ID)+".log", ios::app);
+      fout << norm << endl; 
+      fout.close();
+    }
+    */
+    #pragma omp simd aligned(delta : VEC_WIDTH)
+    for(Uint i=0; i<sizes[ID]; i++) delta[i] *= norm;
+  }
+
   inline vector<nnReal> getInputGradient(const Uint ID) const {
     vector<nnReal> ret(sizes[ID]);
     memcpy(&ret[0], errvals[ID], sizes[ID]*sizeof(nnReal));

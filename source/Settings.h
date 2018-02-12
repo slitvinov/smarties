@@ -48,7 +48,7 @@ struct Settings
 #define COMMENT_targetDelay "Copy delay for target network. If >1: every # grad desc steps tgt-net copies curr weigths. If <1: every grad desc step tgt-net does exp averaging."
 #define TYPEVAL_targetDelay Real
 #define TYPENUM_targetDelay REAL
-#define DEFAULT_targetDelay 1000
+#define DEFAULT_targetDelay 0
   Real targetDelay = DEFAULT_targetDelay;
 
 #define CHARARG_greedyEps 'e'
@@ -111,7 +111,7 @@ struct Settings
 #define COMMENT_epsAnneal "Annealing rate in grad steps of various learning-algorithm-dependent behaviors."
 #define TYPEVAL_epsAnneal Real
 #define TYPENUM_epsAnneal REAL
-#define DEFAULT_epsAnneal 1e4
+#define DEFAULT_epsAnneal 1e6
   Real epsAnneal = DEFAULT_epsAnneal;
 
 #define CHARARG_bSampleSequences 's'
@@ -401,28 +401,29 @@ struct Settings
   {
     bRecurrent = nnType=="LSTM" || nnType=="RNN";
 
-    if(bSampleSequences && maxTotSeqNum<batchSize) die("Increase memory buffer size or decrease batchsize, or switch to sampling by transitions.");
-    if(nThreads<1) die("nThreads<1\n");
-    if(nMasters<1) die("nMasters<1\n");
-    if(sockPrefix<0) die("sockPrefix<0\n");
-    if(appendedObs<0)  die("appendedObs<0\n");
-    if(targetDelay<0)  die("targetDelay<0\n");
-    if(greedyEps<0)  die("greedyEps<0\n");
-    if(gamma<0)  die("gamma<0\n");
-    if(gamma>1)  die("gamma>1\n");
-    if(obsPerStep<0)  die("obsPerStep<0\n");
-    if(epsAnneal<0)  die("epsAnneal<0\n");
-    if(maxTotSeqNum<0)  die("maxTotSeqNum<0\n");
-    if(totNumSteps<0)  die("totNumSteps<0\n");
-    if(nnl1<0)  die("nnl1<2\n");
-    if(nnl2<0)  die("nnl2<0\n");
-    if(nnl3<0)  die("nnl3<0\n");
-    if(nnl4<0)  die("nnl4<0\n");
-    if(nnl5<0)  die("nnl5<0\n");
-    if(splitLayers<0)  die("splitLayers<0\n");
-    if(batchSize<0)  die("batchSize<0\n");
-    if(learnrate<0)  die("learnrate<0\n");
-    if(nnLambda<0)  die("nnLambda<0\n");
+    if(bSampleSequences && maxTotSeqNum<batchSize) 
+    die("Increase memory buffer size or decrease batchsize, or switch to sampling by transitions.");
+    if(maxTotSeqNum<0) die("maxTotSeqNum<0");
+    if(appendedObs<0)  die("appendedObs<0");
+    if(targetDelay<0)  die("targetDelay<0");
+    if(splitLayers<0)  die("splitLayers<0");
+    if(totNumSteps<0)  die("totNumSteps<0");
+    if(sockPrefix<0)   die("sockPrefix<0");
+    if(obsPerStep<0)   die("obsPerStep<0");
+    if(greedyEps<0)    die("greedyEps<0");
+    if(epsAnneal<0)    die("epsAnneal<0");
+    if(batchSize<0)    die("batchSize<0");
+    if(learnrate<0)    die("learnrate<0");
+    if(nnLambda<0)     die("nnLambda<0");
+    if(nThreads<1)     die("nThreads<1");
+    if(nMasters<1)     die("nMasters<1");
+    if(gamma<0)        die("gamma<0");
+    if(gamma>1)        die("gamma>1");
+    if(nnl1<0)         die("nnl1<2");
+    if(nnl2<0)         die("nnl2<0");
+    if(nnl3<0)         die("nnl3<0");
+    if(nnl4<0)         die("nnl4<0");
+    if(nnl5<0)         die("nnl5<0");
   }
 
   vector<ArgParser::OptionStruct> initializeOpts ()

@@ -46,7 +46,7 @@ DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
   #endif
   F[0]->initializeNetwork(build_pol);
   _set.learnrate *= 10; // DPG wants critic faster than actor
-  _set.nnLambda = 1e-2 * _set.learnrate; // also wants 1e-2 L2 penl coef
+  _set.nnLambda = 1e-2; // also wants 1e-2 L2 penl coef
   F[1]->initializeNetwork(build_val);
   _set.learnrate /= 10;
   printf("DPG\n");

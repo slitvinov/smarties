@@ -53,7 +53,7 @@ struct Approximator
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
   Builder buildFromSettings(Settings& _s, const Uint n_outputs);
 
-  void initializeNetwork(Builder& build, Real cutGradFactor = 10);
+  void initializeNetwork(Builder& build, Real cutGradFactor = 6);
   void allocMorePerThread(const Uint nAlloc);
 
   void prepare_opc(const Sequence*const traj, const Uint samp,
@@ -139,8 +139,9 @@ struct Approximator
    return net->getnOutputs();
   }
 
-  void getMetrics(ostringstream&fileOut, ostringstream&screenOut) const;
-
+  void getMetrics(ostringstream& buff) const;
+  void getHeaders(ostringstream& buff) const;
+  
   void save(const string base = string())
   {
     if(opt == nullptr) die("Attempted to save uninitialized net!");
@@ -150,6 +151,11 @@ struct Approximator
   {
     if(opt == nullptr) die("Attempted to restart uninitialized net!");
     opt->restart(base+name);
+  }
+
+  inline void updateGradStats(const Uint iter) const
+  {
+    gradStats->reduce_stats(iter);
   }
 };
 

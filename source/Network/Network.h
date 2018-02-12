@@ -17,6 +17,7 @@ class Network
 public:
   const Uint nAgents, nThreads, nInputs, nOutputs, nLayers;
   const bool bDump;
+  const Real gradClip;
   const vector<Layer*> layers;
   const Parameters* const weights;
   const Parameters* const tgt_weights;
@@ -128,7 +129,7 @@ public:
     act->clearErrors();
     act->setOutputDelta(err);
     act->input[ID] = false; //trigger computing backprop of input for this call
-    for (Uint i=layers.size()-1; i>ID; i--) //skip below layer we want grad for
+    for(Uint i=layers.size()-1; i>ID; i--) //skip below layer we want grad for
       layers[i]->backward(nullptr, act, nullptr, _grad, W);
     act->input[ID] = true; // disable it again
     return act->getInputGradient(ID);

@@ -159,12 +159,15 @@ void MemoryBuffer::push_back(const int & agentId)
 
 void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
 {
+  //no need for pruning:
+  if(nTransitions <= maxTotObsNum) return;
+
   assert(CmaxRho>1);
   vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
   vector<pair<int,  int>> oldest_sequence(nThreads, {-1, nSeenSequences});
   Real _nOffPol = 0, _totMSE = 0;
   const Real invC = 1/CmaxRho, EPS = 1e-9;
-  #pragma omp parallel reduction(+ : _nOffPol,_totMSE) 
+  #pragma omp parallel reduction(+ : _nOffPol,_totMSE)
   {
     const int thrID = omp_get_thread_num();
     #pragma omp for schedule(dynamic)
@@ -196,7 +199,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
     }
   }
 
-  nOffPol = _nOffPol; totMSE = _totMSE; 
+  nOffPol = _nOffPol; totMSE = _totMSE;
   const Uint nB4 = Set.size();
   int deli = -1, oldi = -1, oldj = nSeenSequences; Real delv = 2e20;
   for(const auto&P: oldest_sequence)
@@ -270,16 +273,22 @@ void MemoryBuffer::updateImportanceWeights()
       else Set[i]->imp_weight[j] = Ws[k++];
 }
 
-void MemoryBuffer::getMetrics(ostringstream&fileOut, ostringstream&screenOut)
+void MemoryBuffer::getMetrics(ostringstream& buff)
 {
-  fileOut<<nSequences<<" "<<nTransitions<<" "<<nSeenSequences<<" "
-         <<nSeenTransitions<<" "<<1./invstd_reward<<" ";
-         //<<nSequencesInBuf<<" "<<nSequencesDeleted<<endl;
-  screenOut<<" nSeq:"<<nSequences<<" nObs:"<<nTransitions<<" (seen Seq:"
-  <<nSeenSequences<<" Obs:"<<nSeenTransitions<<") stdRew:"<<1/invstd_reward
-  <<" minInd:"<<minInd<<" nOffPol:"<<nOffPol<<" totMSE:"<<totMSE;
+  buff<<" "<<std::setw(8)<<nSequences;
+  buff<<" "<<std::setw(8)<<nTransitions;
+  buff<<" "<<std::setw(8)<<nSeenSequences;
+  buff<<" "<<std::setw(8)<<nSeenTransitions;
+  buff<<" "<<std::setw(7)<<minInd;
+  buff<<" "<<std::setw(7)<<(int)nOffPol;
+  buff<<" "<<std::setw(6)<<std::setprecision(2)<<1./invstd_reward;
+  buff<<" "<<std::setw(6)<<std::setprecision(0)<<totMSE;
   nPruned=0;
-  //<<nSequencesInBuf<<" "<<nSequencesDeleted<<endl;
+}
+void MemoryBuffer::getHeaders(ostringstream& buff)
+{
+  buff <<
+  "| curSeq | curObs | totSeq | totObs | minID | nOffP | stdR | tMSE ";
 }
 
 void MemoryBuffer::restart()

@@ -14,85 +14,69 @@
 
 
 struct EntropyAdam {
-  const nnReal eta, B1, B2;
+  const nnReal eta, B1, B2, lambda, fac;
   Saru& gen;
-  EntropyAdam(const nnReal _eta, const nnReal beta1, const nnReal beta2,
-    const nnReal betat1, const nnReal betat2, Saru& _gen) :
-  eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2), gen(_gen) {}
+  EntropyAdam(nnReal _eta, nnReal beta1, nnReal beta2, nnReal betat1,
+    nnReal betat2, nnReal _lambda, nnReal _fac, Saru& _gen) :
+    eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2),
+    lambda(_lambda), fac(_fac), gen(_gen) {}
 
-  inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
-    const nnReal DW  = grad * fac;
+  inline nnReal step(const nnReal grad, nnReal&M1, nnReal&M2, const nnReal W)
+  {
+    #ifdef NET_L1_PENAL
+      const nnReal DW = grad * fac -(W>0 ? lambda : -lambda);
+    #else
+      const nnReal DW = grad * fac - W*lambda;
+    #endif
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
-    M2 = M2<M1*M1? M1*M1 : M2; // gradient clipping to 1
-    const nnReal _M2 = std::sqrt(M2) + nnEPS;
-    const nnReal ret = eta*M1/_M2;
-    //const nnReal ret = eta*(B1*M1 + (1-B1)*DW)/_M2;
-    return ret + 1e-6*gen.d_mean0_var1(); //Adam plus exploratory noise
-    //dest[i] += delay*(target[i]-dest[i]);
-    //dest[i] += DW_ + RNG + eta_*gamma_eSGD*(target[i]-dest[i]);
-    //_mu[i]  += alpha_eSGD*(dest[i] - _mu[i]);
+    const nnReal ret = eta*M1/(std::sqrt(M2) + nnEPS);
+    //const nnReal ret = eta*(B1*M1 + (1-B1)*DW)/(std::sqrt(M2) + nnEPS);
+    return ret + eta*1e-3 * gen.d_mean0_var1(); //Adam plus exploratory noise
   }
 };
 
 struct AdaMax {
-  const nnReal eta, B1, B2;
-  AdaMax(const nnReal _eta, const nnReal beta1, const nnReal beta2,
-    const nnReal betat1, const nnReal betat2, Saru& _gen) :
-  eta(_eta), B1(beta1), B2(beta2) {}
+  const nnReal eta, B1, B2, lambda, fac;
+  AdaMax(nnReal _eta, nnReal beta1, nnReal beta2, nnReal betat1,
+    nnReal betat2, nnReal _lambda, nnReal _fac, Saru& _gen) :
+    eta(_eta), B1(beta1), B2(beta2), lambda(_lambda), fac(_fac) {}
 
-  inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
-    const nnReal DW  = grad * fac;
+  #pragma omp declare simd notinbranch //simdlen(VEC_WIDTH)
+  inline nnReal step(const nnReal grad,nnReal&M1,nnReal&M2,const nnReal W) const
+  {
+    #ifdef NET_L1_PENAL
+      const nnReal DW = grad * fac -(W>0 ? lambda : -lambda);
+    #else
+      const nnReal DW = grad * fac - W*lambda;
+    #endif
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = std::max(B2 * M2, std::fabs(DW));
-    M2 = std::max(M2, nnEPS);
-    //return eta*M1/M2;
-    return eta*(B1*M1 + (1-B1)*DW)/M2;
+    return eta*M1/std::max(M2, nnEPS);
+    //return eta*(B1*M1 + (1-B1)*DW)/M2; // Nesterov AdaMax
   }
 };
 
 struct Adam {
-  const nnReal eta, B1, B2;
-  Adam(const nnReal _eta, const nnReal beta1, const nnReal beta2,
-    const nnReal betat1, const nnReal betat2, Saru& _gen) :
-  eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2) {}
+  const nnReal eta, B1, B2, lambda, fac;
+  Adam(nnReal _eta, nnReal beta1, nnReal beta2, nnReal betat1,
+    nnReal betat2, nnReal _lambda, nnReal _fac, Saru& _gen) :
+    eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2),
+    lambda(_lambda), fac(_fac) {}
 
-  //#pragma omp declare simd notinbranch simdlen(VEC_WIDTH)
-  inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
-    const nnReal DW  = grad * fac;
+  #pragma omp declare simd notinbranch //simdlen(VEC_WIDTH)
+  inline nnReal step(const nnReal grad,nnReal&M1,nnReal&M2,const nnReal W) const
+  {
+    #ifdef NET_L1_PENAL
+      const nnReal DW = grad * fac -(W>0 ? lambda : -lambda);
+    #else
+      const nnReal DW = grad * fac - W*lambda;
+    #endif
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
-    M2 = M2<M1*M1? M1*M1 : M2; // gradient clipping to 1
-    //const nnReal _M2 = std::sqrt(M2 + nnEPS);
-    //return eta*M1/_M2;
     //return eta*M1/(nnEPS + std::sqrt(M2));
-    return eta*M1/(std::sqrt(nnEPS + M2));
-    //return eta*(B1*M1 + (1-B1)*DW)/_M2;
-  }
-};
-
-struct Momentum {
-  const nnReal eta, B1;
-  Momentum(const nnReal _eta, const nnReal beta1, const nnReal beta2,
-    const nnReal betat1, const nnReal betat2, Saru& _gen) :
-  eta(_eta), B1(beta1) {}
-
-  inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
-    const nnReal DW  = grad * fac;
-    M1 = B1 * M1 + eta * DW;
-    return M1;
-  }
-};
-
-struct SGD {
-  const nnReal eta;
-  SGD(const nnReal _eta, const nnReal beta1, const nnReal beta2,
-    const nnReal betat1, const nnReal betat2, Saru& _gen) :
-  eta(_eta) {}
-
-  inline nnReal step(const nnReal&grad, nnReal&M1, nnReal&M2, const nnReal fac){
-    const nnReal DW  = grad * fac;
-    return eta*DW;
+    return eta*M1/std::sqrt(nnEPS + M2);
+    //return eta*(B1*M1 + (1-B1)*DW)/std::sqrt(nnEPS + M2); // Nesterov Adam
   }
 };
 
@@ -173,21 +157,21 @@ class Optimizer
     const Real factor = 1./totGrads;
     nnReal* const paramAry = weights->params;
     assert(eta < 2e-3); //super upper bound for NN, srsly
-    const Real _eta = eta; //+1e-3*std::max(6-std::log10((Real)nStep),(Real)0)/6;
+    const Real _eta = eta/(1 + 1e-6*nStep);
 
     if(totGrads>0) {
       #pragma omp parallel
       {
         const Uint thrID = static_cast<Uint>(omp_get_thread_num());
         Saru gen(nStep, thrID, generators[thrID]());
-        Algorithm algo(_eta, beta_1, beta_2, beta_t_1, beta_t_2, gen);
-        nnReal* const mom1 = _1stMom->params;
-        nnReal* const mom2 = _2ndMom->params;
-        nnReal* const grad = gradSum->params;
+        Algorithm algo(_eta,beta_1,beta_2,beta_t_1,beta_t_2,lambda,factor,gen);
+        nnReal* const M1 = _1stMom->params;
+        nnReal* const M2 = _2ndMom->params;
+        nnReal* const G  = gradSum->params;
 
-        #pragma omp for simd aligned(paramAry, mom1, mom2, grad : VEC_WIDTH)
+        #pragma omp for simd aligned(paramAry, M1, M2, G : VEC_WIDTH)
         for (Uint i=0; i<weights->nParams; i++)
-          paramAry[i] += algo.step(grad[i], mom1[i], mom2[i], factor);
+        paramAry[i] += algo.step(G[i], M1[i], M2[i], paramAry[i]);
       }
     }
     gradSum->clear();
@@ -196,8 +180,6 @@ class Optimizer
     if (beta_t_1<nnEPS) beta_t_1 = 0;
     beta_t_2 *= beta_2;
     if (beta_t_2<nnEPS) beta_t_2 = 0;
-
-    if(lambda>nnEPS) weights->penalization(lambda);
 
     // update frozen weights:
     if(tgtUpdateAlpha > 0 && tgt_weights not_eq nullptr) {

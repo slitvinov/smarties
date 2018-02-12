@@ -97,7 +97,7 @@ class ACER : public Learner_offPolicy
       Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
       Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]); //as in paper, but I see dead people
       //Q_OPC = R +gamma*( W*(Q_OPC-QTheta) +Vstates[k]);
-      traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
+      //traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
       traj->offPol_weight[k] = policies[k].sampImpWeight;
       Vstats[thrID].dumpStats(QTheta, Q_err);
     }
@@ -154,8 +154,8 @@ class ACER : public Learner_offPolicy
 
     relay = new Aggregator(_set, data, _env->aI.dim);
     F.push_back(new Approximator("policy", _set, input, data));
-    F.push_back(new Approximator("value", _set, input, data));
-    F.push_back(new Approximator("advantage", _set, input, data, relay));
+    F.push_back(new Approximator("value",  _set, input, data));
+    F.push_back(new Approximator("advntg", _set, input, data, relay));
 
     Builder build_pol = F[0]->buildFromSettings(_set, nA);
     build_pol.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
@@ -165,7 +165,7 @@ class ACER : public Learner_offPolicy
     F[0]->initializeNetwork(build_pol);
     //_set.learnrate *= 10;
     //const Real backup = _set.nnLambda;
-    //_set.nnLambda = 0.01 * _set.learnrate;
+    //_set.nnLambda = 0.01;
     F[1]->initializeNetwork(build_val);
     F[2]->initializeNetwork(build_adv);
     //_set.nnLambda = backup;
