@@ -20,7 +20,7 @@ class NAF : public Learner_offPolicy
   const vector<Uint> net_outputs = {1, compute_nL(aInfo.dim), aInfo.dim};
   const vector<Uint> net_indices = {0, 1, 1+compute_nL(aInfo.dim)};
 
-  inline Quadratic_advantage prepare_advantage(const vector<Real>& out) const
+  inline Quadratic_advantage prepare_advantage(const Rvec& out) const
   {
     return Quadratic_advantage(vector<Uint>{net_indices[1], net_indices[2]}, &aInfo, out);
   }

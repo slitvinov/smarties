@@ -14,28 +14,28 @@ struct Gaussian_policy
 {
   const ActionInfo* const aInfo;
   const Uint start_mean, start_prec, nA;
-  const vector<Real> netOutputs;
-  const vector<Real> mean, precision, variance, stdev;
+  const Rvec netOutputs;
+  const Rvec mean, precision, variance, stdev;
 
-  vector<Real> sampAct;
+  Rvec sampAct;
   Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0;
 
   Gaussian_policy(const vector <Uint>& start, const ActionInfo*const aI,
-    const vector<Real>&out) : aInfo(aI), start_mean(start[0]),
+    const Rvec&out) : aInfo(aI), start_mean(start[0]),
     start_prec(start.size()>1 ? start[1] : 0), nA(aI->dim), netOutputs(out),
     mean(extract_mean()), precision(extract_precision()),
     variance(extract_variance()), stdev(extract_stdev()) {}
 
 private:
-  inline vector<Real> extract_mean() const
+  inline Rvec extract_mean() const
   {
     assert(netOutputs.size() >= start_mean + nA);
-    return vector<Real>(&(netOutputs[start_mean]),&(netOutputs[start_mean])+nA);
+    return Rvec(&(netOutputs[start_mean]),&(netOutputs[start_mean])+nA);
   }
-  inline vector<Real> extract_precision() const
+  inline Rvec extract_precision() const
   {
-    if(start_prec == 0) return vector<Real> (nA, ACER_CONST_PREC);
-    vector<Real> ret(nA);
+    if(start_prec == 0) return Rvec (nA, ACER_CONST_PREC);
+    Rvec ret(nA);
     assert(netOutputs.size() >= start_prec + nA);
     for (Uint j=0; j<nA; j++) {
       ret[j] = precision_func(netOutputs[start_prec+j]);
@@ -43,16 +43,16 @@ private:
     }
     return ret;
   }
-  inline vector<Real> extract_variance() const
+  inline Rvec extract_variance() const
   {
-    vector<Real> ret(nA);
+    Rvec ret(nA);
     assert(precision.size() == nA);
     for(Uint i=0; i<nA; i++) ret[i] = 1./precision[i];
     return ret;
   }
-  inline vector<Real> extract_stdev() const
+  inline Rvec extract_stdev() const
   {
-    vector<Real> ret(nA);
+    Rvec ret(nA);
     assert(variance.size() == nA);
     for(Uint i=0; i<nA; i++) ret[i] = std::sqrt(variance[i]);
     return ret;
@@ -69,7 +69,7 @@ private:
   }
 
 public:
-  inline void prepare(const vector<Real>& unbact, const vector<Real>& beta)
+  inline void prepare(const Rvec& unbact, const Rvec& beta)
   {
     sampAct = map_action(unbact);
     sampLogPonPolicy = evalLogProbability(sampAct);
@@ -79,7 +79,7 @@ public:
     sampRhoWeight = std::exp(logW / std::sqrt(nA));
   }
 
-  static inline Real evalBehavior(const vector<Real>& act, const vector<Real>& beta)
+  static inline Real evalBehavior(const Rvec& act, const Rvec& beta)
   {
     Real p = 0;
     for(Uint i=0; i<act.size(); i++) {
@@ -91,10 +91,10 @@ public:
     return 0.5*p;
   }
 
-  static inline vector<Real> sample(mt19937*const gen, const vector<Real>& beta)
+  static inline Rvec sample(mt19937*const gen, const Rvec& beta)
   {
     assert(beta.size() / 2 > 0 && beta.size() % 2 == 0);
-    std::vector<Real> ret(beta.size()/2);
+    Rvec ret(beta.size()/2);
     std::normal_distribution<Real> dist(0, 1);
     for(Uint i=0; i<beta.size()/2; i++) {
       Real samp = dist(*gen);
@@ -104,9 +104,9 @@ public:
     }
     return ret;
   }
-  inline vector<Real> sample(mt19937*const gen) const
+  inline Rvec sample(mt19937*const gen) const
   {
-    std::vector<Real> ret(nA);
+    Rvec ret(nA);
     std::normal_distribution<Real> dist(0, 1);
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
@@ -117,7 +117,7 @@ public:
     return ret;
   }
 
-  inline Real evalLogProbability(const vector<Real>& act) const
+  inline Real evalLogProbability(const Rvec& act) const
   {
     Real p = 0;
     for(Uint i=0; i<nA; i++) {
@@ -127,9 +127,9 @@ public:
     return p;
   }
 
-  inline vector<Real> control_grad(const Quadratic_term*const adv, const Real eta) const
+  inline Rvec control_grad(const Quadratic_term*const adv, const Real eta) const
   {
-    vector<Real> ret(nA*2, 0);
+    Rvec ret(nA*2, 0);
     for (Uint j=0; j<nA; j++)
     {
       for (Uint i=0; i<nA; i++)
@@ -140,7 +140,7 @@ public:
     return ret;
   }
 
-  inline vector<Real> policy_grad(const vector<Real>& act, const Real factor) const
+  inline Rvec policy_grad(const Rvec& act, const Real factor) const
   {
     /*
       this function returns factor * grad_phi log(policy(a,s))
@@ -150,7 +150,7 @@ public:
       Therefore log of distrib becomes:
       sum_i( -.5*log(2*M_PI*Sigma_i) -.5*(a-pi)^2*Sigma_i^-1 )
      */
-    vector<Real> ret(2*nA);
+    Rvec ret(2*nA);
     for (Uint i=0; i<nA; i++) {
       ret[i]    = factor*(act[i]-mean[i])*precision[i];
       ret[i+nA] =.5*factor*(variance[i] -std::pow(act[i]-mean[i],2));
@@ -158,7 +158,7 @@ public:
     return ret;
   }
 
-  inline vector<Real> policy_grad(const vector<Real>& act, const vector<Real>& beta, const Real factor) const
+  inline Rvec policy_grad(const Rvec& act, const Rvec& beta, const Real factor) const
   {
     /*
       this function returns factor * grad_phi log(policy(a,s))
@@ -168,7 +168,7 @@ public:
       Therefore log of distrib becomes:
       sum_i( -.5*log(2*M_PI*Sigma_i) -.5*(a-pi)^2*Sigma_i^-1 )
      */
-    vector<Real> ret(2*nA);
+    Rvec ret(2*nA);
     for (Uint i=0; i<nA; i++) {
       const Real vari = beta[nA + i]*beta[nA + i];
       ret[i]    = factor*(act[i]-beta[i])/vari;
@@ -177,9 +177,9 @@ public:
     return ret;
   }
 
-  inline vector<Real> div_kl_grad(const Gaussian_policy*const pol_hat, const Real fac = 1) const
+  inline Rvec div_kl_grad(const Gaussian_policy*const pol_hat, const Real fac = 1) const
   {
-    vector<Real> ret(2*nA);
+    Rvec ret(2*nA);
     for (Uint i=0; i<nA; i++) {
       ret[i]    = fac*(mean[i]-pol_hat->mean[i])*precision[i];
 
@@ -188,18 +188,18 @@ public:
     }
     return ret;
   }
-  inline vector<Real> div_kl_opp_grad(const Gaussian_policy*const pol_hat, const Real fac = 1) const
+  inline Rvec div_kl_opp_grad(const Gaussian_policy*const pol_hat, const Real fac = 1) const
   {
-    vector<Real> ret(2*nA);
+    Rvec ret(2*nA);
     for (Uint i=0; i<nA; i++) {
       ret[i]   =fac*(mean[i]-pol_hat->mean[i])*pol_hat->precision[i];
       ret[i+nA]=.5*fac*(precision[i]-pol_hat->precision[i])*pow(variance[i],2);
     }
     return ret;
   }
-  inline vector<Real> div_kl_opp_grad(const vector<Real>& beta, const Real fac = 1) const
+  inline Rvec div_kl_opp_grad(const Rvec& beta, const Real fac = 1) const
   {
-    vector<Real> ret(2*nA);
+    Rvec ret(2*nA);
     for (Uint i=0; i<nA; i++) {
       const Real preci = 1/std::pow(beta[nA+i],2);
       ret[i]   = fac  * (mean[i]-beta[i])*preci;
@@ -227,7 +227,7 @@ public:
     }
     return 0.5*ret;
   }
-  inline Real kl_divergence_opp(const vector<Real>& beta) const
+  inline Real kl_divergence_opp(const Rvec& beta) const
   {
     Real ret = 0;
     for (Uint i=0; i<nA; i++) {
@@ -238,7 +238,7 @@ public:
     return 0.5*ret;
   }
 
-  inline void finalize_grad(const vector<Real>&grad, vector<Real>&netGradient) const
+  inline void finalize_grad(const Rvec&grad, Rvec&netGradient) const
   {
     assert(netGradient.size()>=start_mean+nA && grad.size() == 2*nA);
     for (Uint j=0; j<nA; j++) {
@@ -272,9 +272,9 @@ public:
     }
   }
 
-  inline vector<Real> finalize_grad(const vector<Real>&grad) const
+  inline Rvec finalize_grad(const Rvec&grad) const
   {
-    vector<Real> ret = grad;
+    Rvec ret = grad;
     for (Uint j=0; j<nA; j++)
     if(aInfo->bounded[j]) {
       if(mean[j]> BOUNDACT_MAX && grad[j]>0) ret[j]=0;
@@ -292,7 +292,7 @@ public:
     return ret;
   }
 
-  inline void finalize_grad_unb(const vector<Real>&grad, vector<Real>&netGradient) const
+  inline void finalize_grad_unb(const Rvec&grad, Rvec&netGradient) const
   {
     assert(netGradient.size()>=start_mean+nA && grad.size() == 2*nA);
     for (Uint j=0; j<nA; j++)  netGradient[start_mean+j] = grad[j];
@@ -304,39 +304,39 @@ public:
       netGradient[start_prec+j] = grad[j+nA] * diff;
     }
   }
-  inline vector<Real> getMean() const
+  inline Rvec getMean() const
   {
     return mean;
   }
-  inline vector<Real> getPrecision() const
+  inline Rvec getPrecision() const
   {
     return precision;
   }
-  inline vector<Real> getStdev() const
+  inline Rvec getStdev() const
   {
     return stdev;
   }
-  inline vector<Real> getVariance() const
+  inline Rvec getVariance() const
   {
     return variance;
   }
-  inline vector<Real> getBest() const
+  inline Rvec getBest() const
   {
     return mean;
   }
-  inline vector<Real> finalize(const bool bSample, mt19937*const gen, const vector<Real>& beta)
+  inline Rvec finalize(const bool bSample, mt19937*const gen, const Rvec& beta)
   { //scale back to action space size:
     sampAct = bSample ? sample(gen, beta) : mean;
     return aInfo->getScaled(sampAct);
   }
 
-  inline vector<Real> getBeta() const
+  inline Rvec getBeta() const
   {
-    vector<Real> ret = getStdev();
+    Rvec ret = getStdev();
     ret.insert(ret.begin(), mean.begin(), mean.end());
     return ret;
   }
-  static inline void anneal_beta(vector<Real>& beta, const Real eps)
+  static inline void anneal_beta(Rvec& beta, const Real eps)
   {
     assert(beta.size() / 2 > 0 && beta.size() % 2 == 0);
     const Real safety_std = std::sqrt(1/ACER_MAX_PREC);
@@ -344,7 +344,7 @@ public:
       beta[i] = std::max(safety_std + eps, beta[i]);
   }
 
-  inline vector<Real> map_action(const vector<Real>& sent) const
+  inline Rvec map_action(const Rvec& sent) const
   {
     return aInfo->getInvScaled(sent);
   }
@@ -353,6 +353,6 @@ public:
     assert(aI->dim);
     return aI->dim;
   }
-  void test(const vector<Real>& act, const Gaussian_policy*const pol_hat) const;//,
+  void test(const Rvec& act, const Gaussian_policy*const pol_hat) const;//,
       //const Quadratic_term*const a);
 };

@@ -78,7 +78,7 @@ struct Encapsulator
     return ind;
   }
 
-  inline vector<Real> state2Inp(const int samp, const Sequence*const traj) const
+  inline Rvec state2Inp(const int samp, const Sequence*const traj) const
   {
     assert(samp<(int)traj->tuples.size());
     const Uint nSvar = traj->tuples[samp]->s.size();
@@ -94,7 +94,7 @@ struct Encapsulator
     } else return data->standardize(traj->tuples[samp]->s);
   }
 
-  inline vector<Real> forward(const Sequence*const seq, const int samp,
+  inline Rvec forward(const Sequence*const seq, const int samp,
     const Uint thrID) const
   {
     if(net==nullptr) return state2Inp(samp, seq); //data->Tmp[agentId]);
@@ -105,14 +105,14 @@ struct Encapsulator
     const int ind = mapTime2Ind(samp, thrID);
     //if already computed just give answer
     if(act[ind]->written == true) return act[ind]->getOutput();
-    const vector<Real> inp = state2Inp(samp, seq);
+    const Rvec inp = state2Inp(samp, seq);
     assert(inp.size() == net->getnInputs());
-    const vector<Real> ret = net->predict(inp, act[ind]);
+    const Rvec ret = net->predict(inp, act[ind]);
     act[ind]->written = true;
     return ret;
   }
 
-  inline void backward(const vector<Real>&error, const Uint samp,
+  inline void backward(const Rvec&error, const Uint samp,
     const Uint thrID) const
   {
     if(net == nullptr) return;
@@ -182,12 +182,12 @@ void Learner_utils::dumpPolicy()
   const Uint n_outs = 4;
   printf("n_outs:%u, nInputs:%u, nDumpPoints:%u\n",n_outs,nInputs, nDumpPoints);
   FILE * pFile = fopen ("dump.raw", "wb");
-  vector<Real> output(nOutputs);
+  Rvec output(nOutputs);
   vector<float> dump(nInputs+n_outs);
   Activation* act = net->allocateActivation();
   for (Uint i=0; i<nDumpPoints; i++)
   {
-    vector<Real> state = env->getDumpState(i);
+    Rvec state = env->getDumpState(i);
     assert(state.size()==nInputs);
     net->predict(data->standardize(state), output, act);
     Uint k=0;
@@ -208,7 +208,7 @@ void Learner_utils::dumpNetworkInfo(const int agentId) const
   return;
   #endif
   net->dump(agentId);
-  vector<Real> output(nOutputs);
+  Rvec output(nOutputs);
   const Uint ndata = data->Tmp[agentId]->tuples.size(); //last one already placed
   if (ndata == 0) return;
 
@@ -231,12 +231,12 @@ void Learner_utils::dumpNetworkInfo(const int agentId) const
     for (Uint i=0; i<nInputs; i++) {
       vector<Activation*> series =net->allocateUnrolledActivations(ndata);
       for (Uint k=start1; k<ndata; k++) {
-        vector<Real> state = data->Tmp[agentId]->tuples[k]->s;
+        Rvec state = data->Tmp[agentId]->tuples[k]->s;
         if (k==ii) state[i] = 0;
         net->predict(data->standardize(state), output, series, k);
       }
-      vector<Real> oDiff = net->getOutputs(series.back());
-      vector<Real> oBase = net->getOutputs(series_base.back());
+      Rvec oDiff = net->getOutputs(series.back());
+      Rvec oBase = net->getOutputs(series_base.back());
       //other rows of file are d(net output)/d(state_i(t):
       for(Uint j=0; j<nOutputs; j++) {
         const Real dOut = oDiff[j]-oBase[j];
@@ -261,7 +261,7 @@ void Learner_utils::dumpNetworkInfo(const int agentId) const
 
     #ifdef GradClip
       net->prepForBackProp(series_1[thrID], nRecurr);
-      vector<Real> trust = grad_kldiv(seq, samp, policies[0]);
+      Rvec trust = grad_kldiv(seq, samp, policies[0]);
 
         net->setOutputDeltas(trust, series_cur[nRecurr-1]);
         net->backProp(series_cur, nRecurr, Kgrad[thrID]);
@@ -280,7 +280,7 @@ void Learner_utils::dumpNetworkInfo(const int agentId) const
     // task = new ContinuousSignControl(task_out0, nA, env->sI.dimUsed, net,data);
     //#endif
     //#ifdef FEAT_CONTROL
-    // const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[samp]->a);
+    // const Rvec act=aInfo.getInvScaled(data->Set[seq]->tuples[samp]->a);
     // const Activation*const recur = nSValues>1 ? series_hat[1] : nullptr;
     // task->Train(series_cur.back(), recur, act, seq, samp, grad);
     //#endif
@@ -296,7 +296,7 @@ void Learner_utils::dumpNetworkInfo(const int agentId) const
             const Tuple * const _t = data->Set[seq]->tuples[k];
             Policy_t pol = prepare_policy(net->getOutputs(series_cur[k]));
             pol.prepare(_t->a, _t->mu, bGeometric, nullptr);
-            vector<Real> trust = grad_kldiv(seq, k, pol);
+            Rvec trust = grad_kldiv(seq, k, pol);
             net->setOutputDeltas(trust, series_cur[k]);
           }
 
@@ -309,7 +309,7 @@ void Learner_utils::dumpNetworkInfo(const int agentId) const
         #endif
 
         //#ifdef FEAT_CONTROL
-        //const vector<Real> act=aInfo.getInvScaled(data->Set[seq]->tuples[k]->a);
+        //const Rvec act=aInfo.getInvScaled(data->Set[seq]->tuples[k]->a);
         //task->Train(series_cur[k], series_hat[k+1], act, seq, k, grad);
         //#endif
   #ifdef ExpTrust
@@ -340,11 +340,11 @@ void Learner_utils::dumpNetworkInfo(const int agentId) const
   }
   #endif
 
-  inline vector<Real> grad_kldiv(const Uint seq, const Uint samp, const Policy_t& pol_cur) const
+  inline Rvec grad_kldiv(const Uint seq, const Uint samp, const Policy_t& pol_cur) const
   {
     const Tuple * const _t = data->Set[seq]->tuples[samp];
-    const vector<Real> gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
-    vector<Real> gradient(nOutputs,0);
+    const Rvec gradDivKL = pol_cur.div_kl_opp_grad(_t->mu, 1);
+    Rvec gradient(nOutputs,0);
     pol_cur.finalize_grad(gradDivKL, gradient);
     //clip_gradient(gradient, stdGrad[0], seq, samp);
     return gradient;

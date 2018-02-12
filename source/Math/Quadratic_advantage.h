@@ -17,14 +17,14 @@ struct Quadratic_advantage: public Quadratic_term
 
   //Normalized quadratic advantage, with own mean
   Quadratic_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
-  const vector<Real>& out, const Gaussian_policy*const pol = nullptr) :
+  const Rvec& out, const Gaussian_policy*const pol = nullptr) :
   Quadratic_term(starts[0],starts.size()>1? starts[1]:0, aI->dim,compute_nL(aI),
-   out, pol==nullptr? vector<Real>(): pol->mean), aInfo(aI), policy(pol) {}
+   out, pol==nullptr? Rvec(): pol->mean), aInfo(aI), policy(pol) {}
 
-  inline void grad(const vector<Real>&act, const Real Qer, vector<Real>& netGradient) const
+  inline void grad(const Rvec&act, const Real Qer, Rvec& netGradient) const
   {
     assert(act.size()==nA);
-    vector<Real> dErrdP(nA*nA), dPol(nA, 0), dAct(nA);
+    Rvec dErrdP(nA*nA), dPol(nA, 0), dAct(nA);
     for (Uint j=0; j<nA; j++) dAct[j] = act[j] - mean[j];
 
     if(policy not_eq nullptr)
@@ -59,11 +59,11 @@ struct Quadratic_advantage: public Quadratic_term
     }
   }
 
-  inline void grad_unb(const vector<Real>&act, const Real Qer,
-    vector<Real>& netGradient) const
+  inline void grad_unb(const Rvec&act, const Real Qer,
+    Rvec& netGradient) const
   {
     assert(act.size()==nA);
-    vector<Real> dErrdP(nA*nA), dPol(nA, 0), dAct(nA);
+    Rvec dErrdP(nA*nA), dPol(nA, 0), dAct(nA);
     for (Uint j=0; j<nA; j++) dAct[j] = act[j] - mean[j];
 
     if(policy not_eq nullptr)
@@ -90,7 +90,7 @@ struct Quadratic_advantage: public Quadratic_term
     }
   }
 
-  inline Real computeAdvantage(const vector<Real>& action) const
+  inline Real computeAdvantage(const Rvec& action) const
   {
     Real ret = -quadraticTerm(action);
     if(policy not_eq nullptr)
@@ -102,17 +102,17 @@ struct Quadratic_advantage: public Quadratic_term
     return 0.5*ret;
   }
 
-  inline Real computeAdvantageNoncentral(const vector<Real>& action) const
+  inline Real computeAdvantageNoncentral(const Rvec& action) const
   {
     Real ret = -quadraticTerm(action);
     return 0.5*ret;
   }
 
-  inline vector<Real> getMean() const
+  inline Rvec getMean() const
   {
     return mean;
   }
-  inline vector<Real> getMatrix() const
+  inline Rvec getMatrix() const
   {
     return matrix;
   }
@@ -120,7 +120,7 @@ struct Quadratic_advantage: public Quadratic_term
   inline Real advantageVariance() const
   {
     if(policy == nullptr) return 0;
-    vector<Real> PvarP(nA*nA, 0);
+    Rvec PvarP(nA*nA, 0);
     for (Uint j=0; j<nA; j++)
     for (Uint i=0; i<nA; i++)
     for (Uint k=0; k<nA; k++) {
@@ -134,16 +134,16 @@ struct Quadratic_advantage: public Quadratic_term
     return ret;
   }
 
-  void test(const vector<Real>& act, mt19937*const gen) const;
+  void test(const Rvec& act, mt19937*const gen) const;
 };
 
 struct Diagonal_advantage
 {
   const ActionInfo* const aInfo;
   const Uint start_matrix, nA;
-  const vector<Real> netOutputs;
-  const vector<Real> mean, quadratic_coefs_pos, quadratic_coefs_neg;
-  const vector<Real> linear_coefs_pos, linear_coefs_neg;
+  const Rvec netOutputs;
+  const Rvec mean, quadratic_coefs_pos, quadratic_coefs_neg;
+  const Rvec linear_coefs_pos, linear_coefs_neg;
   const Gaussian_policy* const policy;
   static inline Uint compute_nL(const ActionInfo* const aI)
   {
@@ -151,14 +151,14 @@ struct Diagonal_advantage
   }
 
   Diagonal_advantage(const vector<Uint>& starts, const ActionInfo* const aI,
-    const vector<Real>& out, const Gaussian_policy*const pol) : aInfo(aI),
+    const Rvec& out, const Gaussian_policy*const pol) : aInfo(aI),
     start_matrix(starts[0]), nA(aI->dim), netOutputs(out), mean(pol->mean),
     quadratic_coefs_pos(extract(2)), quadratic_coefs_neg(extract(3)),
     linear_coefs_pos(extract(0)), linear_coefs_neg(extract(1)), policy(pol)
     { assert(starts.size()==1); }
 
  protected:
-  inline Real diagMatMul(const vector<Real>& act) const
+  inline Real diagMatMul(const Rvec& act) const
   {
     assert(act.size() == nA);
     Real ret = 0;
@@ -170,11 +170,11 @@ struct Diagonal_advantage
     assert(ret<=0);
     return ret;
   }
-  inline vector<Real> extract(const Uint i) const
+  inline Rvec extract(const Uint i) const
   {
     const Uint start = start_matrix +i*nA;
     assert(netOutputs.size() >= start+nA);
-    vector<Real> ret( &(netOutputs[start]), &(netOutputs[start+nA]) );
+    Rvec ret( &(netOutputs[start]), &(netOutputs[start+nA]) );
     for (Uint j=0; j<nA; j++) ret[j] = diag_func(ret[j]);
     return ret;
   }
@@ -188,7 +188,7 @@ struct Diagonal_advantage
   }
 
  public:
-  inline void grad(const vector<Real>&act, const Real Qer, vector<Real>& netGradient) const
+  inline void grad(const Rvec&act, const Real Qer, Rvec& netGradient) const
   {
     assert(act.size()==nA);
     for (Uint j=0; j<nA; j++)
@@ -213,7 +213,7 @@ struct Diagonal_advantage
       netGradient[i] *= Qer*diag_func_diff(netOutputs[i]);
   }
 
-  inline Real computeAdvantage(const vector<Real>& action) const
+  inline Real computeAdvantage(const Rvec& action) const
   {
     Real ret = diagMatMul(action);
     for (Uint i=0; i<nA; i++) { //add expectation from advantage of action
@@ -240,5 +240,5 @@ struct Diagonal_advantage
     }
     return ret;
   }
-  void test(const vector<Real>& act, mt19937*const gen) const;
+  void test(const Rvec& act, mt19937*const gen) const;
 };

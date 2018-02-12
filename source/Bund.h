@@ -61,6 +61,7 @@ typedef long double Real;
 typedef double Real;
 #define MPI_VALUE_TYPE MPI_DOUBLE
 #endif
+typedef vector<Real> Rvec;
 
 template <typename T>
 void _dispose_object(T *& ptr)

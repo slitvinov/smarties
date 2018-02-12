@@ -47,7 +47,7 @@ int MemoryBuffer::add_state(const Agent&a)
   #ifndef NDEBUG // check that last new state and new old state are the same
   if(inProgress[a.ID]->tuples.size()) {
     bool same = true;
-    const vector<Real> vecSold = a.sOld->copy_observed();
+    const Rvec vecSold = a.sOld->copy_observed();
     const Tuple*const last = inProgress[a.ID]->tuples.back();
     for (Uint i=0; i<sI.dimUsed && same; i++) //scaled vec only has used dims:
       same = same && std::fabs(last->s[i]-vecSold[i]) < 1e-8;
@@ -63,7 +63,7 @@ int MemoryBuffer::add_state(const Agent&a)
 }
 
 // Once network picked next action, call this method
-void MemoryBuffer::add_action(const Agent& a, vector<Real> pol) const
+void MemoryBuffer::add_action(const Agent& a, Rvec pol) const
 {
   if(pol.size() not_eq policyVecDim) die("add_action");
   inProgress[a.ID]->add_action(a.a->vals, pol);
@@ -76,8 +76,8 @@ void MemoryBuffer::terminate_seq(const Agent&a)
   assert(a.Status==2);
   assert(inProgress[a.ID]->tuples.back()->mu.size() == 0);
   assert(inProgress[a.ID]->tuples.back()->a.size()  == 0);
-  a.a->set(vector<Real>(aI.dim,0));
-  add_action(a, vector<Real>(policyVecDim, 0) );
+  a.a->set(Rvec(aI.dim,0));
+  add_action(a, Rvec(policyVecDim, 0) );
   push_back(a.ID);
 }
 
@@ -232,7 +232,7 @@ void MemoryBuffer::updateImportanceWeights()
   const Uint ndata = bSampleSeq ? nSequences : nTransitions;
   vector<Uint> inds(ndata);
   std::iota(inds.begin(), inds.end(), 0);
-  vector<Real> errors(ndata), Ps(ndata), Ws(ndata);
+  Rvec errors(ndata), Ps(ndata), Ws(ndata);
 
   for(Uint i=0, k=0; i<Set.size(); i++)
     for(Uint j=0; j<Set[i]->ndata(); j++)
@@ -296,7 +296,7 @@ void MemoryBuffer::restart()
   return;
   const Uint writesize = 3 +sI.dim +aI.dim +policyVecDim;
   int agentID = 0, info = 0, sampID = 0;
-  vector<Real> policy(policyVecDim), action(aI.dim), state(sI.dim);
+  Rvec policy(policyVecDim), action(aI.dim), state(sI.dim);
   char cpath[256];
 
   while (true) {

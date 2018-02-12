@@ -17,7 +17,7 @@ class ACER : public Learner_offPolicy
 {
  protected:
   using Policy_t = Gaussian_policy;
-  using Action_t = vector<Real>;
+  using Action_t = Rvec;
   const Uint nA = Policy_t::compute_nA(&aInfo);
   const Uint nAexpectation = 5;
   const Real facExpect = 1./nAexpectation;
@@ -25,7 +25,7 @@ class ACER : public Learner_offPolicy
   //const Real alpha = 0.1;
   Aggregator* relay = nullptr;
 
-  inline Policy_t prepare_policy(const vector<Real>& out) const {
+  inline Policy_t prepare_policy(const Rvec& out) const {
     return Policy_t({0, nA}, &aInfo, out);
   }
 
@@ -40,33 +40,33 @@ class ACER : public Learner_offPolicy
     //advantage : 1+nAexpect [A(s,a)] + 1 [A(s,a'), same normalization] calls
      F[2]->prepare_seq(traj, thrID, 1+nAexpectation);
 
-    vector<Real> Vstates(ndata, 0);
+    Rvec Vstates(ndata, 0);
     vector<Action_t> policy_samples(ndata);
     vector<Policy_t> policies, policies_tgt;
     policies_tgt.reserve(ndata); policies.reserve(ndata);
-    vector<vector<Real>> advantages(ndata, vector<Real>(2+nAexpectation, 0));
+    vector<Rvec> advantages(ndata, Rvec(2+nAexpectation, 0));
 
     if(thrID==1) profiler->stop_start("FWD");
     for(Uint k=0; k<(Uint)ndata; k++) {
-      const vector<Real> outPc = F[0]->forward<CUR>(traj, k, thrID);
+      const Rvec outPc = F[0]->forward<CUR>(traj, k, thrID);
       policies.push_back(prepare_policy(outPc));
       assert(policies.size() == k+1);
       policies[k].prepare(traj->tuples[k]->a, traj->tuples[k]->mu);
-      const vector<Real> outPt = F[0]->forward<TGT>(traj, k, thrID);
+      const Rvec outPt = F[0]->forward<TGT>(traj, k, thrID);
       policies_tgt.push_back(prepare_policy(outPt));
-      const vector<Real> outVs = F[1]->forward(traj, k, thrID);
+      const Rvec outVs = F[1]->forward(traj, k, thrID);
 
       relay->set(policies[k].sampAct, k, thrID);
       //if(thrID) cout << "Action: " << print(policies[k].sampAct) << endl;
-      const vector<Real> At = F[2]->forward<CUR>    (traj, k, thrID);
+      const Rvec At = F[2]->forward<CUR>    (traj, k, thrID);
       policy_samples[k] = policies[k].sample(&generators[thrID]);
       //if(thrID) cout << "Sample: " << print(policy_samples[k]) << endl;
       relay->set(policy_samples[k], k, thrID);
-      const vector<Real> Ap = F[2]->forward<CUR,TGT>(traj, k, thrID);
+      const Rvec Ap = F[2]->forward<CUR,TGT>(traj, k, thrID);
       advantages[k][0] = At[0]; advantages[k][1] = Ap[0]; Vstates[k] = outVs[0];
       for(Uint i = 0; i < nAexpectation; i++) {
         relay->set(policies[k].sample(&generators[thrID]), k, thrID);
-        const vector<Real> A = F[2]->forward(traj, k, thrID, 1+i);
+        const Rvec A = F[2]->forward(traj, k, thrID, 1+i);
         advantages[k][2+i] = A[0];
       }
       //cout << print(advantages[k]) << endl; fflush(0);
@@ -86,7 +86,7 @@ class ACER : public Learner_offPolicy
       const Real W = std::min((Real)1, policies[k].sampRhoWeight); //as in paper, but I see dead people
       //const Real W = std::min((Real)1, policies[k].sampImpWeight);
       const Real R = data->standardized_reward(traj, k), V_err = Q_err*W;
-      const vector<Real> pGrad = policyGradient(traj->tuples[k], policies[k],
+      const Rvec pGrad = policyGradient(traj->tuples[k], policies[k],
         policies_tgt[k], A_OPC, APol, policy_samples[k]);
       F[0]->backward(pGrad,   k, thrID);
       F[1]->backward({alpha*(V_err+Q_err)}, k, thrID);
@@ -114,7 +114,7 @@ class ACER : public Learner_offPolicy
     die("not allowed");
   }
 
-  inline vector<Real> policyGradient(const Tuple*const _t,
+  inline Rvec policyGradient(const Tuple*const _t,
     const Policy_t& POL, const Policy_t& TGT,
     const Real ARET, const Real APol,
     const Action_t& pol_samp) const {
@@ -124,11 +124,11 @@ class ACER : public Learner_offPolicy
     const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
     const Real gain1 = ARET*std::min((Real) 5, POL.sampImpWeight);
     const Real gain2 = APol*std::max((Real) 0, 1-5/rho_pol);
-    const vector<Real> gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
-    const vector<Real> gradAcer_2 = POL.policy_grad(pol_samp,    gain2);
-    const vector<Real> penal = POL.div_kl_opp_grad(&TGT, 1);
-    const vector<Real> grad = sum2Grads(gradAcer_1, gradAcer_2);
-    const vector<Real> trust = trust_region_update(grad, penal, 2*nA, 1);
+    const Rvec gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
+    const Rvec gradAcer_2 = POL.policy_grad(pol_samp,    gain2);
+    const Rvec penal = POL.div_kl_opp_grad(&TGT, 1);
+    const Rvec grad = sum2Grads(gradAcer_1, gradAcer_2);
+    const Rvec trust = trust_region_update(grad, penal, 2*nA, 1);
     return POL.finalize_grad(trust);
   }
 
@@ -185,9 +185,9 @@ class ACER : public Learner_offPolicy
     if( agent.Status != 2 ) {
       //Compute policy and value on most recent element of the sequence. If RNN
       // recurrent connection from last call from same agent will be reused
-      vector<Real> output = F[0]->forward_agent(traj, agent, thrID);
+      Rvec output = F[0]->forward_agent(traj, agent, thrID);
       Policy_t pol = prepare_policy(output);
-      vector<Real> beta = pol.getBeta();
+      Rvec beta = pol.getBeta();
       const Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
       agent.a->set(act);
       data->add_action(agent, beta);

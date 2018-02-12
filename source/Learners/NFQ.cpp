@@ -34,14 +34,14 @@ void NFQ::select(const Agent& agent)
   {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
-    vector<Real> output = F[0]->forward_agent<CUR>(traj, agent, thrID);
+    Rvec output = F[0]->forward_agent<CUR>(traj, agent, thrID);
 
     uniform_real_distribution<Real> dis(0.,1.);
     if(dis(generators[thrID]) < annealedEps)
       agent.act(env->aI.maxLabel*dis(generators[thrID]));
     else agent.act(maxInd(output));
 
-    vector<Real> beta(policyVecDim, annealedEps/env->aI.maxLabel);
+    Rvec beta(policyVecDim, annealedEps/env->aI.maxLabel);
     beta[maxInd(output)] += 1-annealedEps;
 
     data->add_action(agent, beta);
@@ -58,18 +58,18 @@ void NFQ::Train_BPTT(const Uint seq, const Uint thrID) const
 
   for (Uint k=0; k<ndata-1; k++) { //state in k=[0:N-2]
     const bool terminal = k+2==ndata && traj->ended;
-    const vector<Real> Qs = F[0]->forward<CUR>(traj, k, thrID);
+    const Rvec Qs = F[0]->forward<CUR>(traj, k, thrID);
     const Uint action = aInfo.actionToLabel(traj->tuples[k]->a);
 
     Real Vsnew = traj->tuples[k+1]->r;
     if ( not terminal ) {
-      const vector<Real> Qhats = F[0]->forward<CUR>(traj, k+1, thrID);
-      const vector<Real> Qtildes = F[0]->forward<TGT>(traj, k+1, thrID);
+      const Rvec Qhats = F[0]->forward<CUR>(traj, k+1, thrID);
+      const Rvec Qtildes = F[0]->forward<TGT>(traj, k+1, thrID);
       Vsnew += gamma * Qtildes[maxInd(Qhats)];
     }
     const Real error = Vsnew - Qs[action];
 
-    vector<Real> gradient(F[0]->nOutputs());
+    Rvec gradient(F[0]->nOutputs());
     gradient[action] = error;
     traj->SquaredError[k] = error*error;
     Vstats[thrID].dumpStats(Qs[action], error);
@@ -87,7 +87,7 @@ void NFQ::Train(const Uint seq, const Uint samp, const Uint thrID) const
   F[0]->prepare_one(traj, samp, thrID);
   if(thrID==1) profiler->stop_start("FWD");
 
-  const vector<Real> Qs = F[0]->forward<CUR>(traj, samp, thrID);
+  const Rvec Qs = F[0]->forward<CUR>(traj, samp, thrID);
   const bool terminal = samp+2 == traj->tuples.size() && traj->ended;
   const Uint act = aInfo.actionToLabel(traj->tuples[samp]->a);
 
@@ -95,12 +95,12 @@ void NFQ::Train(const Uint seq, const Uint samp, const Uint thrID) const
   if (not terminal) {
     // find best action for sNew with moving wghts, evaluate it with tgt wgths:
     // Double Q Learning ( http://arxiv.org/abs/1509.06461 )
-    const vector<Real> Qhats = F[0]->forward<CUR>(traj, samp+1, thrID);
-    const vector<Real> Qtildes = F[0]->forward<TGT>(traj, samp+1, thrID);
+    const Rvec Qhats = F[0]->forward<CUR>(traj, samp+1, thrID);
+    const Rvec Qtildes = F[0]->forward<TGT>(traj, samp+1, thrID);
     Vsnew += gamma * Qtildes[maxInd(Qhats)];
   }
   const Real error = Vsnew - Qs[act];
-  vector<Real> gradient(F[0]->nOutputs());
+  Rvec gradient(F[0]->nOutputs());
   gradient[act] = error;
 
   traj->SquaredError[samp] = error*error;

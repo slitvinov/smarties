@@ -28,8 +28,7 @@ class RACER : public Learner_offPolicy
   const Uint nL = Advantage_t::compute_nL(&aInfo);
   const Real DKL_param, learnR, invC=1./CmaxRet, alpha=1;
   const vector<Uint> net_outputs, net_indices, pol_start, adv_start;
-  typedef vector<Real> rvec;
-  vector<rvec> OrUhState = vector<rvec>( nAgents, rvec(nA, 0) );
+  vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
   const Uint VsID = net_indices[0];
   StatsTracker* opcInfo;
   Real DKL_coef = 0.2;

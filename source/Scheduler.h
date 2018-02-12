@@ -93,7 +93,7 @@ private:
   {
     assert(i>0 && i <= (int) outBufs.size());
     debugS("Sent action to slave %d: [%s]", i,
-      print(vector<Real>(outBufs[i-1], outBufs[i-1]+aI.dim)).c_str());
+      print(Rvec(outBufs[i-1], outBufs[i-1]+aI.dim)).c_str());
     MPI_Request tmp;
     lock_guard<mutex> lock(mpi_mutex);
     MPI_Isend(outBufs[i-1], outSize, MPI_BYTE, i, 0, slavesComm, &tmp);

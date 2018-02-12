@@ -14,7 +14,7 @@ class DPG : public Learner_offPolicy
 {
   Aggregator* relay;
   const Uint nA = env->aI.dim;
-  vector<vector<Real>> OrUhState=vector<vector<Real>>(nAgents,vector<Real>(nA,0));
+  vector<Rvec> OrUhState = vector<Rvec>(nAgents,Rvec(nA,0));
   void Train_BPTT(const Uint seq, const Uint thrID) const override;
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 

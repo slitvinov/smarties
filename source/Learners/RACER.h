@@ -30,7 +30,7 @@
 #include "RACER.cpp"
 //#define simpleSigma
 
-class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, vector<Real> >
+class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, Rvec >
 {
   static vector<Uint> count_outputs(const ActionInfo& aI)
   {
@@ -137,7 +137,7 @@ class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
   }
 };
 
-class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, vector<Real>>
+class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>
 {
   static vector<Uint> count_outputs(const ActionInfo& aI)
   {
@@ -179,7 +179,7 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     #endif
     Builder build = F[0]->buildFromSettings(_set, nouts);
 
-    vector<Real> initBias;
+    Rvec initBias;
     initBias.push_back(0);
     Mixture_advantage<NEXPERTS>::setInitial(&aInfo, initBias);
     Gaussian_mixture<NEXPERTS>::setInitial_noStdev(&aInfo, initBias);
@@ -194,7 +194,7 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     F[0]->initializeNetwork(build);
 
     {
-      vector<Real> output(F[0]->nOutputs()),beta(getnDimPolicy(&aInfo)),act(nA);
+      Rvec output(F[0]->nOutputs()),beta(getnDimPolicy(&aInfo)),act(nA);
       std::normal_distribution<Real> dist(0, 1);
       for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
       for(Uint i=0; i<beta.size(); i++) beta[i] = dist(generators[0]);

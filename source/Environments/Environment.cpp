@@ -54,7 +54,7 @@ void Environment::setDims() //this environment is for the cart pole test
     sI.scale[i] = 0.5*std::fabs(upper-lower)/std::sqrt(3.); //approximate std=1
     if(sI.scale[i]>=1e3 || sI.scale[i] < 1e-7) {
       if(!settings.world_rank) printf(" unbounded");
-      sI.scale = vector<Real>(); sI.mean = vector<Real>();
+      sI.scale = Rvec(); sI.mean = Rvec();
       break;
     }
     if(!settings.world_rank) printf(" %u%s:[%f,%f]",i,
@@ -179,7 +179,7 @@ Uint Environment::getNdumpPoints()
   return 0;
 }
 
-vector<Real> Environment::getDumpState(Uint k)
+Rvec Environment::getDumpState(Uint k)
 {
-  return vector<Real>();
+  return Rvec();
 }

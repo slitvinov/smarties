@@ -269,7 +269,7 @@ void Client::run()
 
 void Client::prepareState(int& iAgent, int& istatus, Real& reward)
 {
-  vector<Real> recv_state(sNew.sInfo.dim);
+  Rvec recv_state(sNew.sInfo.dim);
 
   unpackState(comm->getDataState(), iAgent, istatus, recv_state, reward);
   assert(iAgent>=0 && iAgent<static_cast<int>(agents.size()));

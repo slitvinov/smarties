@@ -43,14 +43,14 @@ class ContinuousSignControl: public ContinuousFeatureControl
   const vector<Uint> net_indices = {outIndex, outIndex+nS, outIndex+nS*(1+nL)};
   const Uint nOutputs = nS*(1+nL+nA);
 
-  inline Quadratic_advantage prepare_advantage(const vector<Real>& out,
+  inline Quadratic_advantage prepare_advantage(const Rvec& out,
     const Uint iS) const
   {
     const Uint startL=net_indices[1] + iS*nL, startA=net_indices[2] + iS*nA;
     return Quadratic_advantage(startL, startA, nA, nL, out);
   }
-  inline Real computeReward(const vector<Real>sold, const vector<Real> scur,
-    const vector<Real> snew, const Uint iS) const
+  inline Real computeReward(const Rvecsold, const Rvec scur,
+    const Rvec snew, const Uint iS) const
   {
     if((scur[iS]-sold[iS])*(snew[iS]-scur[iS])<=0)
       return fabs(snew[iS]-scur[iS]);
@@ -67,8 +67,8 @@ public:
 
   inline void Train(
     const Activation*const nPrev, const Activation*const nNext,
-    const vector<Real>&act, const Uint seq, const Uint samp,
-    const Real gamma, vector<Real>& grad) const
+    const Rvec&act, const Uint seq, const Uint samp,
+    const Real gamma, Rvec& grad) const
   {
     if(samp == 0) {
       for (Uint j=net_indices[0]; j<net_indices[0]+nOutputs; j++) grad[j] = 0;
@@ -77,12 +77,12 @@ public:
     const Tuple* const t0 = data->Set[seq]->tuples[samp-1];
     const Tuple* const t1 = data->Set[seq]->tuples[samp];
     const Tuple* const t2 = data->Set[seq]->tuples[samp+1];
-    const vector<Real> sold = data->standardize(t0->s);
-    const vector<Real> scur = data->standardize(t1->s);
-    const vector<Real> snew = data->standardize(t2->s);
+    const Rvec sold = data->standardize(t0->s);
+    const Rvec scur = data->standardize(t1->s);
+    const Rvec snew = data->standardize(t2->s);
     const bool bTerm = bTerminal(seq,samp);
-    const vector<Real> outPrev = net->getOutputs(nPrev);
-    const vector<Real> outNext =bTerm? vector<Real>() : net->getOutputs(nNext);
+    const Rvec outPrev = net->getOutputs(nPrev);
+    const Rvec outNext =bTerm? Rvec() : net->getOutputs(nNext);
     for (Uint j=0; j<nS; j++) {
       const Real rew = computeReward(sold, scur, snew, j);
       const Quadratic_advantage adv = prepare_advantage(outPrev, j);
@@ -93,7 +93,7 @@ public:
     }
   }
 
-  static Uint addRequestedLayers(const Uint NA, const Uint NS, vector<Uint>&net_indices, vector<Uint>&net_outputs, vector<Real>&out_weight_inits)
+  static Uint addRequestedLayers(const Uint NA, const Uint NS, vector<Uint>&net_indices, vector<Uint>&net_outputs, Rvec&out_weight_inits)
   {
     net_indices.push_back(net_indices.back()+net_outputs.back());
     net_outputs.push_back(NS);
@@ -138,8 +138,8 @@ class DiscreteSignControl: public DiscreteFeatureControl
   const vector<Uint> net_outputs = {nS, nS*nA};
   const vector<Uint> net_indices = {outIndex, outIndex+nS};
   const Uint nOutputs = nS*(1+nA);
-  inline Real computeReward(const vector<Real>sold, const vector<Real> scur,
-    const vector<Real> snew, const Uint iS) const
+  inline Real computeReward(const Rvecsold, const Rvec scur,
+    const Rvec snew, const Uint iS) const
   {
     if((scur[iS]-sold[iS])*(snew[iS]-scur[iS])<=0)
       return fabs(snew[iS]-scur[iS]);
@@ -157,7 +157,7 @@ public:
   inline void Train(
     const Activation*const nPrev, const Activation*const nNext,
     const Uint act, const Uint seq, const Uint samp,
-    const Real gamma, vector<Real>& grad) const
+    const Real gamma, Rvec& grad) const
   {
     for (Uint j=net_indices[0]; j<net_indices[0]+nOutputs; j++) grad[j] = 0;
     if(samp == 0) return;
@@ -165,12 +165,12 @@ public:
     const Tuple* const t0 = data->Set[seq]->tuples[samp-1];
     const Tuple* const t1 = data->Set[seq]->tuples[samp];
     const Tuple* const t2 = data->Set[seq]->tuples[samp+1];
-    const vector<Real> sold = data->standardize(t0->s);
-    const vector<Real> scur = data->standardize(t1->s);
-    const vector<Real> snew = data->standardize(t2->s);
+    const Rvec sold = data->standardize(t0->s);
+    const Rvec scur = data->standardize(t1->s);
+    const Rvec snew = data->standardize(t2->s);
     const bool bTerm = bTerminal(seq,samp);
-    const vector<Real> outPrev = net->getOutputs(nPrev);
-    const vector<Real> outNext =bTerm? vector<Real>() : net->getOutputs(nNext);
+    const Rvec outPrev = net->getOutputs(nPrev);
+    const Rvec outNext =bTerm? Rvec() : net->getOutputs(nNext);
 
     for (Uint j=0, k=net_indices[1]; j<nS; j++, k+=nA) {
       const Real rew = computeReward(sold, scur, snew, j);
@@ -180,7 +180,7 @@ public:
     }
   }
 
-  static Uint addRequestedLayers(const Uint NA, const Uint NS, vector<Uint>&net_indices, vector<Uint>&net_outputs, vector<Real>&out_weight_inits)
+  static Uint addRequestedLayers(const Uint NA, const Uint NS, vector<Uint>&net_indices, vector<Uint>&net_outputs, Rvec&out_weight_inits)
   {
     net_indices.push_back(net_indices.back()+net_outputs.back());
     net_outputs.push_back(NS);
