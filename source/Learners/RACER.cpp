@@ -36,13 +36,13 @@ class RACER : public Learner_offPolicy
   MPI_Request nData_request = MPI_REQUEST_NULL;
   double ndata_reduce_result[2], ndata_partial_sum[2];
 
-  inline Policy_t prepare_policy(const vector<Real>& out,
+  inline Policy_t prepare_policy(const Rvec& out,
     const Tuple*const t = nullptr) const {
     Policy_t pol(pol_start, &aInfo, out);
     if(t not_eq nullptr) pol.prepare(t->a, t->mu);
     return pol;
   }
-  inline Advantage_t prepare_advantage(const vector<Real>& out,
+  inline Advantage_t prepare_advantage(const Rvec& out,
       const Policy_t*const pol) const {
     return Advantage_t(adv_start, &aInfo, out, pol);
   }
@@ -317,7 +317,7 @@ class RACER : public Learner_offPolicy
 
       Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
       #if 0
-        act = updateOrUhState(OrUhState[agent.ID], beta, act, iter());
+        act = pol.updateOrUhState(OrUhState[agent.ID], beta, act, iter());
       #endif
       
       const Real advantage = adv.computeAdvantage(pol.sampAct);
@@ -345,11 +345,11 @@ class RACER : public Learner_offPolicy
     else
     {
       writeOnPolRetrace(traj);
-
+      OrUhState[agent.ID] = Rvec(nA, 0);
       #ifdef dumpExtra
-        agent.a->set(vector<Real>(nA,0));
-        data->inProgress[agent.ID]->add_action(agent.a->vals, vector<Real>(policyVecDim, 0));
-        agent.writeData(learn_rank, vector<Real>(policyVecDim+nL, 0));
+        agent.a->set(Rvec(nA,0));
+        data->inProgress[agent.ID]->add_action(agent.a->vals, Rvec(policyVecDim,0));
+        agent.writeData(learn_rank, Rvec(policyVecDim+nL, 0));
         data->push_back(agent.ID);
       #else
         data->terminate_seq(agent);
