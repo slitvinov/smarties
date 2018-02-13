@@ -415,7 +415,7 @@ public:
   Rvec updateOrUhState(Rvec& state, Rvec& beta, const Rvec act, const Real step)
   {
     assert(nExperts == 1);
-    const Real fac = .3*retraceTrickPow/(1 +1e-6*step);
+    const Real fac = .3*retraceTrickPow/(1 +step*ANNEAL_RATE);
     for (Uint i=0; i<nA; i++) {
       const Real noise = sampAct[i] - means[0][i];
       state[i] *= fac;

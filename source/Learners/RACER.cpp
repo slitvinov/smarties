@@ -427,10 +427,11 @@ class RACER : public Learner_offPolicy
     //#else
     //const Real tgtFrac = DKL_param*std::cbrt(nA)/CmaxPol;
     //const Real tgtFrac = .01 + .09 * std::max(1-nStep/5e6, 0.);
-    const Real tgtFrac = DKL_param/CmaxPol/ (1 + nStep/1e6);
+    const Real tgtFrac = DKL_param/CmaxPol/ (1 + nStep * ANNEAL_RATE);
+    const Real learnRate = learnR / (1 + nStep * ANNEAL_RATE);
     //#endif
-    if(fracOffPol>tgtFrac*std::cbrt(nA)) DKL_coef = (1-CLIP_LEARNR)*DKL_coef;
-    else DKL_coef = CLIP_LEARNR + (1-CLIP_LEARNR)*DKL_coef;
+    if(fracOffPol>tgtFrac*std::cbrt(nA)) DKL_coef = (1-learnRate)*DKL_coef;
+    else DKL_coef = learnRate + (1-learnRate)*DKL_coef;
   }
 
   void getMetrics(ostringstream& buff) const

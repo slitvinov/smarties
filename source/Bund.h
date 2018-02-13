@@ -37,7 +37,8 @@ using namespace std;
 #endif
 
 //#define RACER_ACERTRICK
-#define CLIP_LEARNR 0.0001
+#define CLIP_LEARNR 1e-4
+#define ANNEAL_RATE 1e-6
 #define PRFL_DMPFRQ 100
 
 #define NORMDIST_MAX 2 //truncated normal distribution range
@@ -62,6 +63,7 @@ typedef double Real;
 #define MPI_VALUE_TYPE MPI_DOUBLE
 #endif
 typedef vector<Real> Rvec;
+typedef vector<long double> LDvec;
 
 template <typename T>
 void _dispose_object(T *& ptr)

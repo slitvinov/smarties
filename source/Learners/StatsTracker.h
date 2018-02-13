@@ -78,22 +78,22 @@ struct StatsTracker
   const string name;
   const MPI_Comm comm;
   const Uint nThreads, learn_size, learn_rank;
-  const Real grad_cut_fac, learnRate;
-  mutable vector<long double> cntVec;
-  mutable vector<vector<long double>> avgVec, stdVec;
-  vector<long double> instMean, instStdv;
+  const Real grad_cut_fac, learnR;
+  mutable LDvec cntVec = LDvec(nThreads+1,0);
+  mutable vector<LDvec> avgVec = vector<LDvec>(nThreads+1, LDvec());
+  mutable vector<LDvec> stdVec = vector<LDvec>(nThreads+1, LDvec());
+  LDvec instMean, instStdv;
   mutable Uint numCut = 0, numTot = 0;
+  unsigned long nStep = 0;
   Real cutRatio = 0;
 
   MPI_Request request = MPI_REQUEST_NULL;
-  vector<long double> reduce_result, partial_sum;
+  LDvec reduce_result, partial_sum;
 
   StatsTracker(const Uint N, const string _name, Settings& set, Real fac) :
   n_stats(N), name(_name), comm(set.mastersComm), nThreads(set.nThreads),
   learn_size(set.learner_size), learn_rank(set.learner_rank), grad_cut_fac(fac),
-  learnRate(set.learnrate), cntVec(nThreads+1,0),
-  avgVec(nThreads+1,vector<long double>()),
-  stdVec(nThreads+1,vector<long double>())
+  learnR(set.learnrate)
   {
     avgVec[0].resize(n_stats, 0); stdVec[0].resize(n_stats, 10);
     instMean.resize(n_stats, 0); instStdv.resize(n_stats, 0);
@@ -106,7 +106,7 @@ struct StatsTracker
      }
   }
 
-  inline void track_vector(const vector<Real> grad, const Uint thrID) const
+  inline void track_vector(const Rvec grad, const Uint thrID) const
   {
     assert(n_stats==grad.size());
     cntVec[thrID+1] += 1;
@@ -115,7 +115,7 @@ struct StatsTracker
       stdVec[thrID+1][i] += grad[i]*grad[i];
     }
   }
-  inline void clip_vector(vector<Real>& grad) const
+  inline void clip_vector(Rvec& grad) const
   {
     Uint ret = 0;
     for (Uint i=0; i<n_stats; i++) {
@@ -164,7 +164,7 @@ struct StatsTracker
     for (Uint j=0; j<n_stats; j++) {
       const Real   mean = avgVec[0][j] / cntVec[0];
       const Real sqmean = stdVec[0][j] / cntVec[0];
-      stdVec[0][j] = std::sqrt(sqmean - mean*mean);
+      stdVec[0][j] = std::sqrt(sqmean); // - mean*mean
       avgVec[0][j] = mean;
     }
   }
@@ -177,11 +177,12 @@ struct StatsTracker
       filestats.close();
     }
   }
-  void finalize(const vector<long double>&oldM, const vector<long double>&oldS)
+  void finalize(const LDvec&oldM, const LDvec&oldS)
   {
     instMean = avgVec[0];
     instStdv = stdVec[0];
-
+    nStep++;
+    //const Real learnRate = learnR / (1 + nStep * ANNEAL_RATE);
     for (Uint i=0; i<n_stats; i++) {
       avgVec[0][i] = (1-CLIP_LEARNR)*oldM[i] +CLIP_LEARNR*avgVec[0][i];
       stdVec[0][i] = (1-CLIP_LEARNR)*oldS[i] +CLIP_LEARNR*stdVec[0][i];
@@ -196,8 +197,7 @@ struct StatsTracker
   }
   inline void reduce_stats(const Uint iter = 0)
   {
-    const vector<long double> oldsum = avgVec[0];
-    const vector<long double> oldstd = stdVec[0];
+    const LDvec oldsum = avgVec[0], oldstd = stdVec[0];
     assert(cntVec.size()>1);
 
     advance();
@@ -239,8 +239,7 @@ struct StatsTracker
   }
   inline void reduce_approx(const Uint iter = 0)
   {
-    const vector<long double> oldsum = avgVec[0];
-    const vector<long double> oldstd = stdVec[0];
+    const LDvec oldsum = avgVec[0], oldstd = stdVec[0];
     assert(cntVec.size()>1);
     advance();
     update();
