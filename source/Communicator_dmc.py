@@ -20,7 +20,8 @@ class Communicator_dmc(Communicator):
         act_spec, obs_spec = env.action_spec(), env.observation_spec()
         nAct, nObs = act_spec.shape[0], 0
         for component in obs_spec.values():
-            nObs = nObs + component.shape[0]
+            if len(component.shape): nObs = nObs + component.shape[0]
+            else: nObs = nObs + 1
 
         actVals = np.zeros([0], dtype=np.float64)
         actOpts = np.zeros([0], dtype=np.float64)

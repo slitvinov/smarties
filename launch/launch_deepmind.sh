@@ -30,7 +30,7 @@ export DISABLE_MUJOCO_RENDERING=1
 if [ ${HOSTNAME:0:5} == 'falco' ] || [ ${HOSTNAME:0:5} == 'panda' ]
 then
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-${HOME}/Python-3.5.2/build/bin/python3.5 ../Communicator_dmc.py \$1 $ENV $TASK
+LD_PRELOAD=libstdc++.so.6 ${HOME}/Python-3.5.2/build/bin/python3.5 ../Communicator_dmc.py \$1 $ENV $TASK
 EOF
 else
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
