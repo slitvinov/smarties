@@ -29,7 +29,7 @@ class Communicator_dmc(Communicator):
 
         for i in range(nAct):
             # assume all continuous envs with act space bounded in -1 and 1
-            actOpts = np.append(actOpts, [2.1, 1])
+            actOpts = np.append(actOpts, [2.1, 0])
             actVals = np.append(actVals, [-1,  1])
 
         for i in range(nObs):
