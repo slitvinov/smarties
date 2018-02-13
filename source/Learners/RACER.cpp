@@ -29,6 +29,7 @@ class RACER : public Learner_offPolicy
   const Real DKL_param, learnR, invC=1./CmaxRet, alpha=1;
   const vector<Uint> net_outputs, net_indices, pol_start, adv_start;
   vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
+  FILE * wFile = fopen("grads_dist.raw", "ab");
   const Uint VsID = net_indices[0];
   StatsTracker* opcInfo;
   Real DKL_coef = 0.2;
@@ -170,21 +171,15 @@ class RACER : public Learner_offPolicy
     const Rvec penalG  = pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu, -1);
     const Rvec finalG  = weightSum2Grads(policyG, penalG, DKL_coef);
 
-    #ifdef dumpExtra
-      {
-        Real normG=0, normT=numeric_limits<Real>::epsilon(), dot=0, normP=0;
+    #if 1 //def dumpExtra
+      if(thrID == 1) {
+        Real normT = numeric_limits<Real>::epsilon(), dot=0;
         for(Uint i = 0; i < policyG.size(); i++) {
-          normG += policyG[i] * policyG[i];
           dot   += policyG[i] *  penalG[i];
           normT +=  penalG[i] *  penalG[i];
         }
-        for(Uint i = 0; i < policyG.size(); i++)
-          normP += std::pow(policyG[i] -dot*penalG[i]/normT, 2);
-        float R1 = sqrt(normG), R2 = sqrt(normT), R3 = dot/R2, R4 = sqrt(normP);
-        vector<float> ret = {R1, R2, R3, R4};
-        lock_guard<mutex> lock(buffer_mutex);
-        FILE * wFile = fopen("grads_dist.raw", "ab");
-        fwrite(ret.data(),sizeof(float),4,wFile); fflush(wFile); fclose(wFile);
+        float ret[] = {float(dot/std::sqrt(normT))};
+        fwrite(ret, sizeof(float), 1, wFile);
       }
     #endif
 
@@ -298,7 +293,9 @@ class RACER : public Learner_offPolicy
     cout << CmaxPol << " " << CmaxRet << " " << invC << endl;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
-  ~RACER() { }
+  ~RACER() {
+    fclose(wFile);
+  }
 
   void select(const Agent& agent) override
   {

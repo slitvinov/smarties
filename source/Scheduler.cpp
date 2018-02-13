@@ -72,7 +72,11 @@ while (true)
 
       spawnTrainingTasks();
 
+      #ifdef BENCHMARKING
+      for(int i=0; i < ( learners[0]->iter() ? 1 : nSlaves ); i++)
+      #else
       for(int i=0; i<nSlaves; i++)
+      #endif
       {
         int completed=0;
         MPI_Status mpistatus;
@@ -89,9 +93,13 @@ while (true)
           debugS("Master receives from %d", slave);
           slaveIrecvStatus[i] = DOING; //slave will be 'served' by task
 
-          if(not learnersLockQueue()) {
+          if( learnersLockQueue() ) /* stop gathering data */ {
+            postponed_queue.push_back(slave);
+            //if(postponed_queue.size()==(size_t)nSlaves)
+            #pragma omp taskwait
+          } else {
             addToNTasks(1);
-            #pragma omp task firstprivate(slave) if(nTasks<nThreads) priority(9)
+            #pragma omp task firstprivate(slave) if(nTasks<nThreads) priority(1)
             {
               //const auto t1 = chrono::high_resolution_clock::now();
               processRequest(slave);
@@ -99,13 +107,6 @@ while (true)
               //const auto span = chrono::duration_cast<chrono::duration<double,std::micro>>(t2 - t1);
               //std::cout << "It took me " << span.count() << " seconds." << endl;
               addToNTasks(-1);
-            }
-          } else {
-            postponed_queue.push_back(slave);
-            //if(postponed_queue.size()==(size_t)nSlaves)
-            if(postponed_queue.size())
-            {
-              #pragma omp taskwait
             }
           }
         }

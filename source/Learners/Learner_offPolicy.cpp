@@ -90,7 +90,7 @@ bool Learner_offPolicy::unlockQueue()
   const Real _nData = read_nData();
   const Real dataCounter = _nData - std::min((Real)nData_last, _nData);
   const Real stepCounter = nStep  - (Real)nStep_last;
-  const Real cushionData = nSlaves;
+  const Real cushionData = nThreads;
   // cushion leads collection of a bit more data than strictly necessary
   return stepCounter*obsPerStep/learn_size +cushionData >= dataCounter;
 }

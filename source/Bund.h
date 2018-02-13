@@ -50,6 +50,8 @@ using namespace std;
 // number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20
 
+#define BENCHMARKING
+
 //#define NET_L1_PENAL
 //#define _dumpNet_
 
