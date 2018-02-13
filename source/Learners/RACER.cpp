@@ -63,11 +63,11 @@ class RACER : public Learner_offPolicy
     if(thrID==1)  profiler->stop_start("POL");
     for(int k=ndata-1; k>=0; k--)
     {
-      const vector<Real> out_cur = F[0]->get(traj, k, thrID);
+      const Rvec out_cur = F[0]->get(traj, k, thrID);
       const Policy_t pol = prepare_policy(out_cur, traj->tuples[k]);
       const bool isOff = traj->isOffPolicy(k, pol.sampRhoWeight, CmaxRet, invC);
       // in case rho outside bounds, do not compute gradient
-      vector<Real> G;
+      Rvec G;
       #if   RACER_SKIP == 1
         if(isOff) {
           offPolCorrUpdate(traj, k, out_cur, pol);
@@ -103,7 +103,7 @@ class RACER : public Learner_offPolicy
       F[0]->prepare_one(traj, samp, thrID);
     #endif
 
-    const vector<Real> out_cur = F[0]->forward(traj, samp, thrID);
+    const Rvec out_cur = F[0]->forward(traj, samp, thrID);
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
     const bool isOff = traj->isOffPolicy(samp, pol.sampRhoWeight, CmaxRet,invC);
 
@@ -111,7 +111,7 @@ class RACER : public Learner_offPolicy
       // do N steps of fwd net to obtain better estimate of Qret
       Uint N = std::min(traj->ndata()-1-samp, (Uint)RACER_FORWARD);
       for(Uint k = samp+1; k<=samp+N; k++) { // && k<traj->ndata()
-        const vector<Real> outt = F[0]->forward(traj, k, thrID);
+        const Rvec outt = F[0]->forward(traj, k, thrID);
         const Policy_t polt = prepare_policy(outt, traj->tuples[k]);
         const Advantage_t advt = prepare_advantage(outt, &polt);
         //these are all race conditions:
@@ -125,7 +125,7 @@ class RACER : public Learner_offPolicy
     #endif
 
     if(thrID==1)  profiler->stop_start("CMP");
-    vector<Real> grad;
+    Rvec grad;
 
     #if   RACER_SKIP == 1
       if(isOff) {
@@ -145,8 +145,8 @@ class RACER : public Learner_offPolicy
     if(thrID==1)  profiler->stop_start("SLP");
   }
 
-  inline vector<Real> compute(Sequence*const traj, const Uint samp,
-    const vector<Real>& outVec, const Policy_t& pol_cur, const Uint thrID) const
+  inline Rvec compute(Sequence*const traj, const Uint samp,
+    const Rvec& outVec, const Policy_t& pol_cur, const Uint thrID) const
   {
     const Advantage_t adv_cur = prepare_advantage(outVec, &pol_cur);
     const Real A_cur = adv_cur.computeAdvantage(pol_cur.sampAct);
@@ -165,21 +165,21 @@ class RACER : public Learner_offPolicy
       const Real Qer = DKL_coef*alpha * rho_cur * Q_dist;
     #endif
 
-    const vector<Real> policyG = policyGradient(traj->tuples[samp], pol_cur,
+    const Rvec policyG = policyGradient(traj->tuples[samp], pol_cur,
       adv_cur, A_RET, thrID);
-    const vector<Real> penal=pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu,-1);
-    const vector<Real> finalG = weightSum2Grads(policyG, penal, DKL_coef);
+    const Rvec penalG  = pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu, -1);
+    const Rvec finalG  = weightSum2Grads(policyG, penalG, DKL_coef);
 
     #ifdef dumpExtra
       {
         Real normG=0, normT=numeric_limits<Real>::epsilon(), dot=0, normP=0;
         for(Uint i = 0; i < policyG.size(); i++) {
           normG += policyG[i] * policyG[i];
-          dot   += policyG[i] *  penal[i];
-          normT +=  penal[i] *  penal[i];
+          dot   += policyG[i] *  penalG[i];
+          normT +=  penalG[i] *  penalG[i];
         }
         for(Uint i = 0; i < policyG.size(); i++)
-          normP += std::pow(policyG[i] -dot*penal[i]/normT, 2);
+          normP += std::pow(policyG[i] -dot*penalG[i]/normT, 2);
         float R1 = sqrt(normG), R2 = sqrt(normT), R3 = dot/R2, R4 = sqrt(normP);
         vector<float> ret = {R1, R2, R3, R4};
         lock_guard<mutex> lock(buffer_mutex);
@@ -188,7 +188,7 @@ class RACER : public Learner_offPolicy
       }
     #endif
 
-    vector<Real> gradient(F[0]->nOutputs(), 0);
+    Rvec gradient(F[0]->nOutputs(), 0);
     gradient[VsID] = Ver;
     pol_cur.finalize_grad(finalG, gradient);
     adv_cur.grad(pol_cur.sampAct, Qer, gradient);
@@ -196,24 +196,24 @@ class RACER : public Learner_offPolicy
     Vstats[thrID].dumpStats(A_cur, Q_dist); //bookkeeping
     //prepare Q with off policy corrections for next step:
     const Real dAdv = updateQret(traj, samp, A_cur, V_cur, pol_cur);
-    vector<Real> sampleInfo {0, 0, 0, dAdv, pol_cur.sampImpWeight};
+    Rvec sampleInfo {0, 0, 0, dAdv, pol_cur.sampImpWeight};
     for(Uint i=0; i<policyG.size(); i++) {
       sampleInfo[0] += std::fabs(policyG[i]);
-      sampleInfo[1] += std::fabs(penal[i]);
-      sampleInfo[2] += policyG[i]*penal[i];
+      sampleInfo[1] += std::fabs( penalG[i]);
+      sampleInfo[2] += policyG[i]*penalG[i];
     }
     opcInfo->track_vector(sampleInfo, thrID);
     return gradient;
   }
 
-  inline vector<Real> offPolGrad(Sequence*const S, const Uint t,
-    const vector<Real> output, const Policy_t& pol, const Uint thrID) const
+  inline Rvec offPolGrad(Sequence*const S, const Uint t,
+    const Rvec output, const Policy_t& pol, const Uint thrID) const
   {
     const Advantage_t adv = prepare_advantage(output, &pol);
     updateQret(S, t, adv.computeAdvantage(pol.sampAct), output[VsID], pol);
     // prepare penalization gradient:
-    vector<Real> gradient(F[0]->nOutputs(), 0);
-    const vector<Real> pg = pol.div_kl_opp_grad(S->tuples[t]->mu, DKL_coef-1);
+    Rvec gradient(F[0]->nOutputs(), 0);
+    const Rvec pg = pol.div_kl_opp_grad(S->tuples[t]->mu, DKL_coef-1);
     pol.finalize_grad(pg, gradient);
     return gradient;
     //const Real r=data->standardized_reward(traj,t+1), v=traj->state_vals[t+1];
@@ -221,7 +221,7 @@ class RACER : public Learner_offPolicy
   }
 
   inline void offPolCorrUpdate(Sequence*const S, const Uint t,
-    const vector<Real> output, const Policy_t& pol) const
+    const Rvec output, const Policy_t& pol) const
   {
     const Advantage_t adv = prepare_advantage(output, &pol);
     updateQret(S, t, adv.computeAdvantage(pol.sampAct), output[VsID], pol);
@@ -249,7 +249,7 @@ class RACER : public Learner_offPolicy
     return std::fabs(S->Q_RET[t] - oldQret);
   }
 
-  inline vector<Real> policyGradient(const Tuple*const _t, const Policy_t& POL,
+  inline Rvec policyGradient(const Tuple*const _t, const Policy_t& POL,
     const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
   {
     const Real rho_cur = POL.sampRhoWeight;
@@ -264,15 +264,15 @@ class RACER : public Learner_offPolicy
       const Real gain1 = A_RET*std::min((Real) CmaxPol, rho_cur);
       const Real gain2 = A_pol*std::max((Real) 0, 1-CmaxPol/rho_pol);
 
-      const vector<Real> gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
-      const vector<Real> gradAcer_2 = POL.policy_grad(sample,      gain2);
+      const Rvec gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
+      const Rvec gradAcer_2 = POL.policy_grad(sample,      gain2);
       return sum2Grads(gradAcer_1, gradAcer_2);
     #else
       return POL.policy_grad(POL.sampAct, A_RET*rho_cur);
     #endif
   }
 
-  inline vector<Real> criticGrad(const Policy_t& POL, const Advantage_t& ADV,
+  inline Rvec criticGrad(const Policy_t& POL, const Advantage_t& ADV,
     const Real A_RET, const Real A_critic) const
   {
     const Real anneal = iter()>epsAnneal ? 1 : Real(iter())/epsAnneal;
@@ -310,16 +310,16 @@ class RACER : public Learner_offPolicy
     {
       //Compute policy and value on most recent element of the sequence. If RNN
       // recurrent connection from last call from same agent will be reused
-      vector<Real> output = F[0]->forward_agent(traj, agent, thrID);
+      Rvec output = F[0]->forward_agent(traj, agent, thrID);
       Policy_t pol = prepare_policy(output);
       const Advantage_t adv = prepare_advantage(output, &pol);
-      vector<Real> beta = pol.getBeta();
+      Rvec beta = pol.getBeta();
 
       Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
       #if 0
         act = pol.updateOrUhState(OrUhState[agent.ID], beta, act, iter());
       #endif
-      
+
       const Real advantage = adv.computeAdvantage(pol.sampAct);
       traj->action_adv.push_back(advantage);
       traj->state_vals.push_back(output[VsID]);
@@ -327,7 +327,7 @@ class RACER : public Learner_offPolicy
 
       #ifdef dumpExtra
         data->inProgress[agent.ID]->add_action(agent.a->vals, beta);
-        vector<Real> param = adv.getParam();
+        Rvec param = adv.getParam();
         assert(param.size() == nL);
         beta.insert(beta.end(), param.begin(), param.end());
         agent.writeData(learn_rank, beta);
@@ -429,8 +429,8 @@ class RACER : public Learner_offPolicy
     //const Real tgtFrac = .01 + .09 * std::max(1-nStep/5e6, 0.);
     const Real tgtFrac = DKL_param/CmaxPol/ (1 + nStep/1e6);
     //#endif
-    if(fracOffPol>tgtFrac*std::cbrt(nA)) DKL_coef = (1-learnR)*DKL_coef;
-    else DKL_coef = learnR + (1-learnR)*DKL_coef;
+    if(fracOffPol>tgtFrac*std::cbrt(nA)) DKL_coef = (1-CLIP_LEARNR)*DKL_coef;
+    else DKL_coef = CLIP_LEARNR + (1-CLIP_LEARNR)*DKL_coef;
   }
 
   void getMetrics(ostringstream& buff) const
