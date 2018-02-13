@@ -37,7 +37,7 @@ using namespace std;
 #endif
 
 //#define RACER_ACERTRICK
-#define CLIP_LEARNR 1e-4
+#define CLIP_LEARNR 1e-3
 #define ANNEAL_RATE 1e-6
 #define PRFL_DMPFRQ 100
 

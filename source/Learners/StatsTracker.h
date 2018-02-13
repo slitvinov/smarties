@@ -117,6 +117,7 @@ struct StatsTracker
   }
   inline void clip_vector(Rvec& grad) const
   {
+    assert(grad.size() == n_stats);
     Uint ret = 0;
     for (Uint i=0; i<n_stats; i++) {
       //#ifdef IMPORTSAMPLE
@@ -138,7 +139,7 @@ struct StatsTracker
     #pragma omp atomic
     numCut += ret;
     #pragma omp atomic
-    numTot ++;
+    numTot += n_stats;
   }
 
   inline void advance()
