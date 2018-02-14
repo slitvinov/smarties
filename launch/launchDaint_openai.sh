@@ -63,11 +63,11 @@ SETTINGS+=" --nThreads 12"
 echo $SETTINGS > settings.txt
 echo ${SETTINGS}
 echo ${NPROCESS} ${NNODES} ${NTASK} ${NTHREADS}
-
+#eth2
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
-#SBATCH --account=eth2
+#SBATCH --account=s658 
 #SBATCH --job-name="${RUNFOLDER}"
 #SBATCH --output=${RUNFOLDER}_out_%j.txt
 #SBATCH --error=${RUNFOLDER}_err_%j.txt

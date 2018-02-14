@@ -1,26 +1,30 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-FILE =     sys.argv[1]
-M    = int(sys.argv[2])
-#ICOL = int(sys.argv[3])
+from numpy import random
+M    = int(sys.argv[1])
 
+means = np.zeros([M, len(range(2,len(sys.argv))) ])
+stdev = np.zeros([M, len(range(2,len(sys.argv))) ])
+exkrt = np.zeros([M, len(range(2,len(sys.argv))) ])
 
-#np.savetxt(sys.stdout, np.fromfile(sys.argv[1], dtype='i4').reshape(2,10).transpose())
-DATA = np.fromfile(FILE, dtype=np.float32)
-#DATA = DATA.reshape([DATA.size//2, 2])
-N = DATA.shape[0]
-norm1 = M ** 0.50
-norm2 = M ** 0.25
-for i in range(0, (N//M)*M, M):
-  start = i
-  end = start + M
-  #x = np.random.normal(0, 1, M) # debug, must print (0, 1)
-  x = DATA[start:end] #, ICOL]
-  mean_1 = np.mean(x)
-  stdv_1 = np.std(x)
-  numer =  np.sum( ((x-mean_1)/norm2)**4 )  
-  denom = (np.sum( ((x-mean_1)/norm1)**2 ) )**2
-  print (numer/denom- 3, stdv_1)
-  
+for j in range(2, len(sys.argv)):
+  DATA = np.fromfile(sys.argv[j], dtype=np.float32)
+  L = DATA.shape[0] // M
+  DATA = DATA[DATA.shape[0] - M*L : -1]
+  norm1, norm2 = L ** 0.50, L ** 0.25
+  for i in range(M):
+    start, end = i*L, (i+1)*L
+    x = DATA[start:end] 
+    #x = 1000*np.random.randn(L) 
+    mean_1 = np.mean(x)
+    stdv_1 = np.std(x)
+    numer =  np.sum( ((x-mean_1)/norm2)**4 )  
+    denom = (np.sum( ((x-mean_1)/norm1)**2 ) )**2
+    exkr_1 = numer/denom- 3
+    means[i,j-2], stdev[i,j-2], exkrt[i,j-2] = mean_1, stdv_1, exkr_1
+    #print (exkr_1, stdv_1)
+ret=np.append(np.mean(means, axis=1).reshape(M,1),np.mean(stdev, axis=1).reshape(M,1),axis=1)
+ret=np.append(ret,                                np.mean(exkrt, axis=1).reshape(M,1),axis=1)
+print(ret)
 
