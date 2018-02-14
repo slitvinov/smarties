@@ -17,10 +17,10 @@ FILE=    sys.argv[1]
 
 
 #np.savetxt(sys.stdout, np.fromfile(sys.argv[1], dtype='i4').reshape(2,10).transpose())
-DATA = np.loadtxt(FILE, delimiter=" ")
+DATA = np.fromfile(FILE, dtype=np.float32)
+NOUTS = int(DATA[0])
+DATA = (DATA[1:-1]).reshape(DATA.size // (2*NOUTS), 2*NOUTS)
 print(DATA.shape)
-NOUTS = DATA.shape[1]//2
-#DATA = DATA.reshape(NROW, NCOL)
 
 for ind in range(0, NOUTS):
   plt.subplot(121)

@@ -104,6 +104,11 @@ struct StatsTracker
        avgVec[i+1].resize(n_stats, 0);
        stdVec[i+1].resize(n_stats, 0);
      }
+     // write to log the number of variables, so that it can be then unwrangled
+     FILE * pFile = fopen((name + ".raw").c_str(), "ab");
+     float printvals = n_stats +0.1; // to be floored to an integer in post
+     fwrite(&printvals, sizeof(float), 1, pFile);
+     fflush(pFile); fclose(pFile);
   }
 
   inline void track_vector(const Rvec grad, const Uint thrID) const
@@ -172,10 +177,14 @@ struct StatsTracker
   inline void printToFile()
   {
     if(!learn_rank) {
-      ofstream filestats;
-      filestats.open(name + ".txt", ios::app);
-      filestats<<print(avgVec[0])<<" "<<print(stdVec[0])<<endl;
-      filestats.close();
+      FILE * pFile = fopen((name + ".raw").c_str(), "ab");
+      vector<float> printvals(n_stats*2);
+      for (Uint i=0; i<n_stats; i++) {
+        printvals[i]         = avgVec[0][i];
+        printvals[i+n_stats] = stdVec[0][i];
+      }
+      fwrite(printvals.data(), sizeof(float), n_stats*2, pFile);
+      fflush(pFile); fclose(pFile);
     }
   }
   void finalize(const LDvec&oldM, const LDvec&oldS)
