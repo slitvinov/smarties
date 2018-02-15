@@ -323,7 +323,7 @@ class RACER : public Learner_offPolicy
       agent.a->set(act);
 
       #ifdef dumpExtra
-        data->inProgress[agent.ID]->add_action(agent.a->vals, beta);
+        traj->add_action(agent.a->vals, beta);
         Rvec param = adv.getParam();
         assert(param.size() == nL);
         beta.insert(beta.end(), param.begin(), param.end());
@@ -345,7 +345,7 @@ class RACER : public Learner_offPolicy
       OrUhState[agent.ID] = Rvec(nA, 0);
       #ifdef dumpExtra
         agent.a->set(Rvec(nA,0));
-        data->inProgress[agent.ID]->add_action(agent.a->vals, Rvec(policyVecDim,0));
+        traj->add_action(agent.a->vals, Rvec(policyVecDim,0));
         agent.writeData(learn_rank, Rvec(policyVecDim+nL, 0));
         data->push_back(agent.ID);
       #else
@@ -402,7 +402,6 @@ class RACER : public Learner_offPolicy
 
     // update sequences
     Real fracOffPol = data->nOffPol / data->nTransitions;
-    profiler->stop_start("SLP");
 
     if (learn_size > 1) {
       const bool firstUpdate = nData_request == MPI_REQUEST_NULL;
