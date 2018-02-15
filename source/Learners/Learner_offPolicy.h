@@ -18,7 +18,7 @@ protected:
   const Uint nObsPerTraining;
   Uint taskCounter = batchSize, nData_b4PolUpdates = 0, nToSpawn = 0;
   mutable Uint nSkipped = 0;
-  unsigned long nData_last = 0, nStep_last = 0;
+  Real nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig;
 
 public:

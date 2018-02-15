@@ -29,9 +29,9 @@ SETTINGS+=" --learner POAC"
 SETTINGS+=" --greedyEps 0.5"
 
 SETTINGS+=" --obsPerStep 1"
-#SETTINGS+=" --maxTotObsNum 65536" 
-SETTINGS+=" --maxTotObsNum 131072" 
-#SETTINGS+=" --maxTotObsNum 262144"
+#SETTINGS+=" --maxTotObsNum 4000" 
+#SETTINGS+=" --maxTotObsNum 131072" 
+SETTINGS+=" --maxTotObsNum 262144"
 
 SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 5000000"
@@ -39,8 +39,8 @@ SETTINGS+=" --totNumSteps 5000000"
 SETTINGS+=" --impWeight 2"
 
 
-#SETTINGS+=" --klDivConstraint 0.05"
-SETTINGS+=" --klDivConstraint 0.1"
+#SETTINGS+=" --klDivConstraint 0.1"
+SETTINGS+=" --klDivConstraint 0.2"
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 256"
