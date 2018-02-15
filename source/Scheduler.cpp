@@ -171,7 +171,7 @@ void Master::processRequest(const int slave)
     for(Uint i=0; i<aI.dim; i++) outBufs[slave-1][i]=agents[agent]->a->vals[i];
     sendBuffer(slave);
 
-    if ( agents[agent]->Status == TERM_COMM && (iter || !bTrain) )
+    if ( agents[agent]->Status == TERM_COMM ) //&& (iter || !bTrain) )
     {
       char path[256];
       sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);

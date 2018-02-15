@@ -158,6 +158,7 @@ public:
   {
     removeSequence(nSequences-1);
     Set.pop_back();
+    #pragma omp atomic
     nSequences--;
     assert(nSequences==Set.size());
   }
@@ -166,6 +167,7 @@ public:
     lock_guard<mutex> lock(dataset_mutex);
     Set.push_back(nullptr);
     addSequence(nSequences, seq);
+    #pragma omp atomic
     nSequences++;
     assert(nSequences == Set.size());
   }
@@ -173,6 +175,7 @@ public:
   {
     assert(Set[ind] == nullptr && seq not_eq nullptr);
     if (not seq->ended) ++nBroken;
+    #pragma omp atomic
     nTransitions += seq->ndata();
     Set[ind] = seq;
   }
@@ -183,6 +186,7 @@ public:
       assert(nBroken>0);
       --nBroken;
     }
+    #pragma omp atomic
     nTransitions -= Set[ind]->ndata();
     _dispose_object(Set[ind]);
     Set[ind] = nullptr;

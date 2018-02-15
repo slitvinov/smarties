@@ -70,7 +70,7 @@ bool Learner_offPolicy::batchGradientReady()
   }
 
   const Real _nData = read_nData();
-  const Real dataCounter = _nData - std::min((Real)nData_last, _nData);
+  const Real dataCounter = _nData - (Real)nData_last;
   const Real stepCounter =  nStep - (Real)nStep_last;
   //If I have done too many gradient steps on the avail data, go back to comm
   waitingForData = stepCounter*obsPerStep/learn_size > dataCounter;
@@ -88,7 +88,7 @@ bool Learner_offPolicy::unlockQueue()
 {
   if( waitingForData ) return true;
   const Real _nData = read_nData();
-  const Real dataCounter = _nData - std::min((Real)nData_last, _nData);
+  const Real dataCounter = _nData - (Real)nData_last;
   const Real stepCounter = nStep  - (Real)nStep_last;
   const Real cushionData = nThreads;
   // cushion leads collection of a bit more data than strictly necessary
@@ -129,7 +129,7 @@ int Learner_offPolicy::spawnTrainTasks()
       if(thrID == 0) profiler_ext->stop_start("COMM");
       #pragma omp atomic
       taskCounter++;
-      if(taskCounter >= batchSize) updateComplete = true;
+      //if(taskCounter >= batchSize) updateComplete = true;
       addToNTasks(-1);
     }
   }
@@ -149,6 +149,7 @@ void Learner_offPolicy::prepareGradient()
     //shift data / gradient counters to maintain grad stepping to sample
     // collection ratio prescirbed by obsPerStep
     const Real stepCounter = nStep - (Real)nStep_last;
+
     nData_last += stepCounter*obsPerStep/learn_size;
     nStep_last = nStep;
     data->prune(CmaxRet, ALGO);
