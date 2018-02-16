@@ -378,7 +378,7 @@ class RACER : public Learner_offPolicy
     #ifdef RACER_BACKWARD
       if(updateComplete) {
         profiler->stop_start("QRET");
-        #pragma omp parallel for //schedule(dynamic)
+        #pragma omp parallel for schedule(dynamic)
         for(Uint i = 0; i < data->Set.size(); i++)
           for(int j = data->Set[i]->just_sampled; j>=0; j--) {
             const Real obsOpcW = data->Set[i]->offPol_weight[j];

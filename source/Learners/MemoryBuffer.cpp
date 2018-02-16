@@ -86,7 +86,7 @@ void MemoryBuffer::updateRewardsStats()
   if(!bTrain) return; //if not training, keep the stored values
 
   long double count = 0, newstdvr = 0;
-  #pragma omp parallel for reduction(+ : count, newstdvr) //schedule(dynamic)
+  #pragma omp parallel for reduction(+ : count, newstdvr) schedule(dynamic)
   for(Uint i=0; i<Set.size(); i++)
     for(Uint j=0; j<Set[i]->ndata(); j++) {
       newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
@@ -170,7 +170,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
   #pragma omp parallel reduction(+ : _nOffPol,_totMSE)
   {
     const int thrID = omp_get_thread_num();
-    #pragma omp for //schedule(dynamic)
+    #pragma omp for schedule(dynamic)
     for(Uint i = 0; i < Set.size(); i++)
     {
       if(Set[i]->just_sampled >= 0) {
