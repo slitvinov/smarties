@@ -68,5 +68,5 @@ if __name__ == '__main__':
             obsVec = np.zeros([0], dtype=np.float64)
             for oi in obs.values(): obsVec = np.append(obsVec, oi)
             #send the observation to smarties
-            comm.send_state(obsVec, reward=rew, terminal=(step==2) )
-            if step==2: break
+            comm.send_state(obsVec, reward=rew, terminal = t.last() )
+            if t.last(): break

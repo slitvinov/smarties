@@ -47,6 +47,7 @@ int Master::run()
     profiler->stop_start("PREP");
     prepareLearners();
 
+    profiler->stop_start("SLP");
     #pragma omp parallel num_threads(nThreads)
     {
       #pragma omp single nowait
@@ -71,19 +72,21 @@ int Master::run()
 void Master::processSlave(const int slave)
 {
   if( bTrain && learnersLockQueue() ) return;
+  const int thrID = omp_get_thread_num();
+  if(thrID==1) profiler_int->stop_start("SERV");
+  if(thrID==0) profiler->stop_start("SERV");
 
   int completed = 0;
   MPI_Status mpistatus;
-  MPI_Test(&requests[slave-1], &completed, &mpistatus);
-
+  {
+    assert(slave>0 && slave <= (int) nSlaves);
+    lock_guard<mutex> lock(mpi_mutex);
+    MPI_Test(&requests[slave-1], &completed, &mpistatus);
+  }
   if(completed)
   {
     assert(slave == mpistatus.MPI_SOURCE);
-    const int thrID = omp_get_thread_num();
     //printf("Thread %d doing slave %d\n",thrID,slave);
-    if(thrID==1) profiler_int->stop_start("SERV");
-    if(thrID==0) profiler->stop_start("SERV");
-
     vector<double> recv_state(sI.dim);
     int recv_agent = -1, recv_status = -1; double reward;
 
@@ -129,10 +132,10 @@ void Master::processSlave(const int slave)
 
     recvBuffer(slave);
 
-    if(thrID==1) profiler_int->stop_start("SLP");
-    if(thrID==0) profiler->stop_start("COMM");
   }
 
+  if(thrID==1) profiler_int->stop_start("SLP");
+  if(thrID==0) profiler->stop_start("SLP");
   #pragma omp task firstprivate(slave) priority(1)
     processSlave(slave);
 }
