@@ -93,13 +93,13 @@ void Learner_offPolicy::spawnTrainTasks_par()
         nAddedGradients++;
       }
 
+      #pragma omp atomic
+        taskCounter++;
       input->gradient(thrID);
       data->Set[seq]->setSampled(obs);
 
-      if(thrID == 0) profiler_ext->stop_start("COMM");
-
-      #pragma omp atomic
-      taskCounter++;
+      if(thrID==0) profiler_ext->stop_start("COMM");
+      if(thrID==1)  profiler->stop_start("SLP");
     }
   }
 }

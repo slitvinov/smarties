@@ -129,7 +129,6 @@ protected:
     F[0]->gradient(thrID);
     F[1]->backward({val_tgt - Vst}, samp, thrID);
     F[1]->gradient(thrID);
-    if(thrID==1)  profiler->stop_start("SLP");
   }
 
 public:

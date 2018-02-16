@@ -106,7 +106,6 @@ class ACER : public Learner_offPolicy
      F[0]->gradient(thrID);
      F[1]->gradient(thrID);
      F[2]->gradient(thrID);
-    if(thrID==1)  profiler->stop_start("SLP");
   }
 
   void Train(const Uint seq, const Uint obs, const Uint thrID) const override

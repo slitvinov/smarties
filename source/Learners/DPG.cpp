@@ -128,7 +128,6 @@ void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
   if(thrID==1)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
   F[1]->gradient(thrID);
-  if(thrID==1)  profiler->stop_start("SLP");
 }
 
 void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
@@ -168,5 +167,4 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
   if(thrID==1)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
   F[1]->gradient(thrID);
-  if(thrID==1)  profiler->stop_start("SLP");
 }

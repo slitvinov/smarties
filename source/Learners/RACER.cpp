@@ -59,7 +59,7 @@ class RACER : public Learner_offPolicy
 
     //if partial sequence then compute value of last state (!= R_end)
     assert(traj->ended);
-    traj->Q_RET[ndata] = data->standardized_reward(traj, ndata);
+    traj->setRetrace(ndata, data->standardized_reward(traj, ndata) );
 
     if(thrID==1)  profiler->stop_start("POL");
     for(int k=ndata-1; k>=0; k--)
@@ -86,15 +86,15 @@ class RACER : public Learner_offPolicy
 
     if(thrID==1)  profiler->stop_start("BCK");
     F[0]->gradient(thrID);
-    if(thrID==1)  profiler->stop_start("SLP");
   }
 
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override
   {
     Sequence* const traj = data->Set[seq];
     assert(samp+1 < traj->tuples.size());
+
     if(samp+2 == traj->tuples.size()) // if sampled S_{T-1}, update qRet of s_T
-      traj->Q_RET[samp+1] = data->standardized_reward(traj, samp+1);
+      traj->setRetrace(samp+1, data->standardized_reward(traj, samp+1) );
 
     if(thrID==1) profiler->stop_start("FWD");
 
@@ -116,10 +116,10 @@ class RACER : public Learner_offPolicy
         const Policy_t polt = prepare_policy(outt, traj->tuples[k]);
         const Advantage_t advt = prepare_advantage(outt, &polt);
         //these are all race conditions:
-        traj->SquaredError[k] = polt.kl_divergence_opp(traj->tuples[k]->mu);
-        traj->action_adv[k] = advt.computeAdvantage(polt.sampAct);
-        traj->offPol_weight[k] = polt.sampRhoWeight;
-        traj->state_vals[k] = outt[VsID];
+        traj->setSquaredError(k, polt.kl_divergence_opp(traj->tuples[k]->mu) );
+        traj->setAdvantage(k, advt.computeAdvantage(polt.sampAct) );
+        traj->setOffPolWeight(k, polt.sampRhoWeight );
+        traj->setStateValue(k, outt[VsID] );
         //if (impW < 0.1) break;
       }
       for(Uint j = samp+N; j>samp; j--) updateQret(traj,j);
@@ -143,7 +143,6 @@ class RACER : public Learner_offPolicy
     if(thrID==1)  profiler->stop_start("BCK");
     F[0]->backward(grad, samp, thrID);
     F[0]->gradient(thrID);
-    if(thrID==1)  profiler->stop_start("SLP");
   }
 
   inline Rvec compute(Sequence*const traj, const Uint samp,
@@ -220,7 +219,6 @@ class RACER : public Learner_offPolicy
   {
     const Advantage_t adv = prepare_advantage(output, &pol);
     updateQret(S, t, adv.computeAdvantage(pol.sampAct), output[VsID], pol);
-    S->SquaredError[t] = 0;
   }
 
   inline void updateQret(Sequence*const S, const Uint t) const
@@ -229,7 +227,7 @@ class RACER : public Learner_offPolicy
     const Real R = data->standardized_reward(S, t);
     const Real W = std::min((Real)1, S->offPol_weight[t]);
     //prepare Qret with off policy corrections for next step:
-    S->Q_RET[t] = R +gamma*(W*(S->Q_RET[t+1]-A-V) +V);
+    S->setRetrace(t, R +gamma*(W*(S->Q_RET[t+1]-A-V) +V) );
   }
 
   inline Real updateQret(Sequence*const S, const Uint t, const Real A,
@@ -238,9 +236,10 @@ class RACER : public Learner_offPolicy
     const Real oldQret = S->Q_RET[t], C = S->Q_RET[t+1]-A-V;
     const Real W = std::min((Real)1, pol.sampRhoWeight);
     //prepare Qret with off policy corrections for next step:
-    S->SquaredError[t] = pol.kl_divergence_opp(S->tuples[t]->mu);
-    S->Q_RET[t] = data->standardized_reward(S,t) +gamma*(W*C +V);
-    S->action_adv[t] = A; S->state_vals[t] = V;
+
+    S->setAdvantage(t, A ); S->setStateValue(t, V );
+    S->setSquaredError(t, pol.kl_divergence_opp(S->tuples[t]->mu) );
+    S->setRetrace(t, data->standardized_reward(S,t) +gamma*(W*C +V) );
     return std::fabs(S->Q_RET[t] - oldQret);
   }
 

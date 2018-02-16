@@ -62,6 +62,37 @@ struct Sequence
     #pragma omp critical
     if(just_sampled < t) just_sampled = t;
   }
+  inline void setSquaredError(const Uint t, const Real err)
+  {
+    assert( t < SquaredError.size() );
+    #pragma omp atomic write
+    SquaredError[t] = err;
+  }
+  inline void setRetrace(const Uint t, const Real Q)
+  {
+    assert( t < Q_RET.size() );
+    #pragma omp atomic write
+    Q_RET[t] = Q;
+  }
+  inline void setAdvantage(const Uint t, const Real A)
+  {
+    assert( t < action_adv.size() );
+    #pragma omp atomic write
+    action_adv[t] = A;
+  }
+  inline void setStateValue(const Uint t, const Real V)
+  {
+    assert( t < state_vals.size() );
+    #pragma omp atomic write
+    state_vals[t] = V;
+  }
+  inline void setOffPolWeight(const Uint t, const Real W)
+  {
+    assert( t < offPol_weight.size() );
+    #pragma omp atomic write
+    offPol_weight[t] = W;
+  }
+
   inline bool isOffPolicy(const Uint t,const Real W,const Real C,const Real iC)
   {
     bool isOff;
@@ -69,6 +100,7 @@ struct Sequence
     //{
       assert(t<offPol_weight.size());
       //const Real w = offPol_weight[t];
+      #pragma omp atomic write
       offPol_weight[t] = W;
       //const bool wasOff = w > C || w < iC;
                   isOff = W > C || W < iC;
