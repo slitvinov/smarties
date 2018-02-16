@@ -12,8 +12,6 @@
 #include <mutex>
 #include "Learners/Learner.h"
 
-enum IrecvStatus { OPEN, DOING, EMPTY };
-
 class Master
 {
 private:
@@ -23,21 +21,26 @@ private:
   const ActionInfo aI;
   const StateInfo  sI;
   const vector<Agent*> agents;
-  const int bTrain, nPerRank, saveFreq, nSlaves, nThreads, learn_rank, learn_size, totNumSteps, outSize, inSize;
+  const int bTrain, nPerRank, nSlaves, nThreads, learn_rank, learn_size, totNumSteps, outSize, inSize;
   const vector<double*> inpBufs;
   const vector<double*> outBufs;
-  long int stepNum = 0;
-  vector<IrecvStatus> slaveIrecvStatus;
-  vector<Uint> agentSortingCheck;
+  mutable long int stepNum = 0;
   vector<MPI_Request> requests;
-  vector<int> postponed_queue;
   Profiler* profiler     = nullptr;
   Profiler* profiler_int = nullptr;
-  std::mutex mpi_mutex, dump_mutex;
+  mutable std::mutex mpi_mutex;
+  mutable std::mutex dump_mutex;
 
-  int& nTasks;
 
-  inline void prepareLearners()
+  inline Uint readTimeSteps() const
+  {
+    Uint ret;
+    #pragma omp atomic read
+    ret = stepNum;
+    return ret;
+  }
+
+  inline void prepareLearners() const
   {
     for(const auto& L : learners)
       L->prepareData(); //sync data, make sure we can sample
@@ -48,7 +51,7 @@ private:
       L->synchronizeGradients();
   }
 
-  inline bool learnersLockQueue()
+  inline bool learnersLockQueue() const
   {
     //When would a learning algo stop acquiring more data?
     //Off Policy algos:
@@ -66,18 +69,25 @@ private:
     // However, no learner can stop others from getting data (vector of algos)
     bool locked = true;
     for(const auto& L : learners)
-      locked = locked && not L->unlockQueue(); // if any wants to unlock...
+      locked = locked && L->lockQueue(); // if any wants to unlock...
 
     return locked;
   }
 
-  inline bool learnersGradientReady()
+  inline void dumpCumulativeReward(const int agent, const unsigned iter,
+    const unsigned tstep) const
   {
-    // can we perform any batch gradient update?
-     bool ready = false;
-     for(const auto& L : learners)
-       ready = ready || L->batchGradientReady();
-     return ready;
+    if (iter == 0 && bTrain) return;
+
+    char path[256];
+    sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
+
+    lock_guard<mutex> lock(dump_mutex);
+    std::ofstream outf(path, ios::app);
+    outf<<iter<<" "<<tstep<<" "<<agent<<" "<<agents[agent]->transitionID<<" "
+        <<agents[agent]->cumulative_rewards<<endl;
+    outf.flush();
+    outf.close();
   }
 
   static inline vector<double*> alloc_bufs(const int size, const int num)
@@ -87,16 +97,19 @@ private:
     return ret;
   }
 
-  inline void processRequest(const int slave);
+  inline void processSlave(const int slave);
 
-  inline void sendBuffer(const int i)
+  inline void sendBuffer(const int slave, const int agent)
   {
-    assert(i>0 && i <= (int) outBufs.size());
-    debugS("Sent action to slave %d: [%s]", i,
-      print(Rvec(outBufs[i-1], outBufs[i-1]+aI.dim)).c_str());
+    assert(slave>0 && slave <= (int) outBufs.size());
+    for(Uint i=0; i<aI.dim; i++)
+      outBufs[slave-1][i] = agents[agent]->a->vals[i];
+
+    debugS("Sent action to slave %d: [%s]", slave,
+      print(Rvec(outBufs[slave-1], outBufs[slave-1]+aI.dim)).c_str());
     MPI_Request tmp;
     lock_guard<mutex> lock(mpi_mutex);
-    MPI_Isend(outBufs[i-1], outSize, MPI_BYTE, i, 0, slavesComm, &tmp);
+    MPI_Isend(outBufs[slave-1], outSize, MPI_BYTE, slave, 0, slavesComm, &tmp);
     MPI_Request_free(&tmp); //Not my problem
   }
 
@@ -104,23 +117,18 @@ private:
   {
     lock_guard<mutex> lock(mpi_mutex);
     MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, slavesComm, &requests[i-1]);
-    slaveIrecvStatus[i-1] = OPEN;
   }
 
-  inline int readNTasks() const
-  {
-    return nTasks;
-  }
-  inline void addToNTasks(const int add) const
-  {
-    #pragma omp atomic
-    nTasks += add;
-  }
-
-  inline void spawnTrainingTasks() const
+  inline void spawnTrainingTasks_par() const
   {
     for(const auto& L : learners)
-      L->spawnTrainTasks();
+      L->spawnTrainTasks_par();
+  }
+
+  inline void spawnTrainingTasks_seq() const
+  {
+    for(const auto& L : learners)
+      L->spawnTrainTasks_seq();
   }
 
 public:

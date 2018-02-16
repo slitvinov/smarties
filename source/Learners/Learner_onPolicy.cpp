@@ -24,16 +24,10 @@ void Learner_onPolicy::prepareData()
   if(cntEpoch >= nEpochs) {
     data->clearAll();
     //reset batch learning counters
-    cntTrajectories = 0; cntHorizon = 0; cntEpoch = 0; cntBatch = 0;
-    waitingForData = true;
+    cntEpoch = 0; cntBatch = 0;
     updateComplete = false;
     updatePrepared = false;
   }
-}
-
-bool Learner_onPolicy::batchGradientReady()
-{
-  return updateComplete;
 }
 
 // unlockQueue tells scheduler that has stopped receiving states from slaves
@@ -41,38 +35,41 @@ bool Learner_onPolicy::batchGradientReady()
 // for on policy learning, when enough data is collected from slaves
 // gradient stepping starts and collection is paused
 // when training is concluded collection restarts
-bool Learner_onPolicy::unlockQueue()
+bool Learner_onPolicy::lockQueue() const
 {
-  return waitingForData;
+  return bTrain && data->readNData() >= nHorizon;
 }
 
-int Learner_onPolicy::spawnTrainTasks()
+void Learner_onPolicy::spawnTrainTasks_seq()
 {
-  if( updateComplete || cntHorizon<nHorizon  || not bTrain ) return 0;
-  waitingForData = false;
-  updateComplete = false;
+  if( updateComplete ) die("undefined behavior");
+  if( data->readNData() < nHorizon ) die("undefined behavior");
+  if( not bTrain ) return;
+
   updatePrepared = true;
 
   #pragma omp parallel for schedule(dynamic)
   for (Uint i=0; i<batchSize; i++)
   {
-    addToNTasks(1);
     #pragma omp task
     {
       Uint seq, obs;
       const int thrID = omp_get_thread_num();
+
       if(thrID==0) profiler_ext->stop_start("WORK");
+
       data->sampleTransition(seq, obs, thrID);
       Train(seq, obs, thrID);
+
       if(thrID==0) profiler_ext->stop_start("COMM");
+
       input->gradient(thrID);
-      addToNTasks(-1);
     }
   }
   updateComplete = true;
-
-  return 0;
 }
+
+void Learner_onPolicy::spawnTrainTasks_par() { }
 
 void Learner_onPolicy::prepareGradient()
 {

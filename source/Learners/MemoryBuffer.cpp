@@ -136,14 +136,14 @@ void MemoryBuffer::updateRewardsStats()
 void MemoryBuffer::push_back(const int & agentId)
 {
   if(inProgress[agentId]->tuples.size() > 2 ) {
-    inProgress[agentId]->ID = nSeenSequences;
+    inProgress[agentId]->ID = readNSeenSeq();
     inProgress[agentId]->SquaredError.resize(inProgress[agentId]->ndata(), 0);
     inProgress[agentId]->offPol_weight.resize(inProgress[agentId]->ndata(), 1);
     #pragma omp atomic
     nSeenSequences++;
     #pragma omp atomic
     nSeenTransitions += inProgress[agentId]->ndata();
-    assert(nSequences == Set.size());
+
     pushBackSequence(inProgress[agentId]);
   } else {
     printf("Trashing %lu obs.\n",inProgress[agentId]->tuples.size());
@@ -151,7 +151,7 @@ void MemoryBuffer::push_back(const int & agentId)
     _dispose_object(inProgress[agentId]);
   }
 
-  if(nSequences >= maxTotObsNum)
+  if(readNSeq() >= maxTotObsNum)
     die("maxTotObsNum setting is too low for given problem");
 
   inProgress[agentId] = new Sequence();
@@ -340,7 +340,7 @@ void MemoryBuffer::restart()
 void MemoryBuffer::sampleTransition(Uint& seq, Uint& obs, const int thrID)
 {
   #ifndef IMPORTSAMPLE
-    std::uniform_int_distribution<int> distObs(0, nTransitions-1);
+    std::uniform_int_distribution<int> distObs(0, readNData()-1);
     const Uint ind = distObs(generators[thrID]);
   #else
     const Uint ind = (*dist)(generators[thrID]);
@@ -357,7 +357,7 @@ Uint MemoryBuffer::sampleTransition(const Uint seq, const int thrID)
 void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
 {
   #ifndef IMPORTSAMPLE
-    std::uniform_int_distribution<int> distSeq(0, nSequences-1);
+    std::uniform_int_distribution<int> distSeq(0, readNSeq()-1);
     seq = distSeq(generators[thrID]);
   #else
     seq = (*dist)(generators[thrID]);
@@ -366,13 +366,13 @@ void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
 
 vector<Uint> MemoryBuffer::sampleSequences(const Uint N)
 {
-  assert(N<=nSequences);
+  assert(N<=readNSeq());
   vector<Uint> inds;
-  if(N*5<nSequences) {
+  if( N*5 < readNSeq() ) {
     inds.resize(N);
     for(Uint i=0; i<N; i++) sampleSequence(inds[i], 0);
   } else { // if N is large, make sure we do not repeat indices
-    inds.resize(nSequences);
+    inds.resize(readNSeq());
     std::iota(inds.begin(), inds.end(), 0);
     std::shuffle(inds.begin(), inds.end(), generators[0]);
     inds = vector<Uint>(&inds[0], &inds[N]);

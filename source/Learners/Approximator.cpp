@@ -351,8 +351,8 @@ void Approximator::gradient(const Uint thrID) const
 
 void Approximator::getHeaders(ostringstream& buff) const
 {
-  buff << std::left << std::setfill(' ') << std::setw(6);
-  buff <<"| " << name << ": |W| DW cut%";
+  buff << std::left << std::setfill(' ') ;
+  buff <<"| " << std::setw(6) << name << ": |W| DW cut%";
 }
 
 void Approximator::getMetrics(ostringstream& buff) const

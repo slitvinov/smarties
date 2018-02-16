@@ -22,27 +22,13 @@ void Learner_offPolicy::prepareData()
   if(updatePrepared) return;
 
   profiler->stop_start("PRE");
-  // When is an algorithm not looking for more data and not ready for training?
-  // It means that something messed with the transitions, ie by cancelling part
-  // of the dataset, and therefore i need to reset how counters advance.
-  // Anything that messes with MemoryBuffer can only happen on prepareGradient
-  if(not waitingForData && not readyForTrain()) {
-    abort();
-    nData_b4PolUpdates = data->readNSeen();
-    nData_last = 0;
-  }
 
-  // Do not prepare an update:
-  if(    waitingForData || not readyForTrain()) {
-    waitingForData = true;
-    return;
-  }
+  if( not readyForTrain() ) return; // Do not prepare an update
 
   if(nStep%100==0) data->updateRewardsStats();
 
   taskCounter = 0;
   updatePrepared = true;
-  nToSpawn = batchSize;
   profiler->stop_start("SLP");
 }
 
@@ -52,59 +38,42 @@ bool Learner_offPolicy::readyForTrain() const
    //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
    //  die("I do not have enough data for training. Change hyperparameters");
    //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
-   return bTrain && data->nTransitions >= nSequences4Train();
+   return bTrain && data->readNData() >= nObsPerTraining;
 }
 
-bool Learner_offPolicy::batchGradientReady()
-{
-  //if there is not enough data for training: go back to communicating
-  if(not readyForTrain()) {
-    assert(waitingForData && not updatePrepared);
-    nData_b4PolUpdates = data->readNSeen();
-    return false;
-  }
-
-  if(not updatePrepared) { //then was waiting for data without an update ready
-    waitingForData = false;
-    return true; //we need to exit data loop to prepare an update
-  }
-
-  const Real _nData = read_nData();
-  const Real dataCounter = _nData - (Real)nData_last;
-  const Real stepCounter =  nStep - (Real)nStep_last;
-  //If I have done too many gradient steps on the avail data, go back to comm
-  waitingForData = stepCounter*obsPerStep/learn_size > dataCounter;
-  if(waitingForData) return false; // stay in data loop.
-
-  updateComplete = taskCounter >= batchSize;
-  return updateComplete;
-}
-
-// unlockQueue tells scheduler that has stopped receiving states from slaves
+// lockQueue tells scheduler that has stopped receiving states from slaves
 // whether should start communication again.
 // for off policy learning, there is a ratio between gradient steps
 // and observed transitions to be kept (approximatively) constant
-bool Learner_offPolicy::unlockQueue()
+bool Learner_offPolicy::lockQueue() const
 {
-  if( waitingForData ) return true;
-  const Real _nData = read_nData();
+  if( not readyForTrain() ) {
+    //if there is not enough data for training, need more data
+    assert( not updatePrepared );
+    return false;
+  }
+
+  if( not updatePrepared ) { //then was waiting for data without an update ready
+    return true; // need to exit data loop to prepare an update
+  }
+
+  const Real _nData = data->readNSeen() - nData_b4Startup;
   const Real dataCounter = _nData - (Real)nData_last;
-  const Real stepCounter = nStep  - (Real)nStep_last;
-  // cushion allows tolerance to collect a bit more data than strictly necessary
-  // to avoid bottlenecks, but no significant effect on learning
-  return stepCounter*obsPerStep/learn_size >= dataCounter;
+  const Real stepCounter =  nStep - (Real)nStep_last;
+  // lock the queue if we have more data than grad step ratio
+  return dataCounter > stepCounter*obsPerStep/learn_size;
 }
 
-int Learner_offPolicy::spawnTrainTasks()
+void Learner_offPolicy::spawnTrainTasks_par()
 {
-  if( updateComplete || not updatePrepared || nToSpawn == 0) return 0;
-  if(bSampleSequences && data->nSequences<nToSpawn)
+  if(updateComplete) die("undefined behavior");
+  if( not updatePrepared ) return;
+  if( bSampleSequences && data->nSequences < batchSize )
     die("Parameter maxTotObsNum is too low for given problem");
 
-  vector<Uint> samp_seq = bSampleSequences? data->sampleSequences(nToSpawn) : vector<Uint>(nToSpawn);
-  for (Uint i=0; i<nToSpawn; i++)
+  vector<Uint> samp_seq = bSampleSequences? data->sampleSequences(batchSize) : vector<Uint>(batchSize);
+  for (Uint i=0; i<batchSize; i++)
   {
-    addToNTasks(1);
     Uint seq = samp_seq[i], obs = -1;
     #pragma omp task firstprivate(seq, obs)
     {
@@ -123,18 +92,23 @@ int Learner_offPolicy::spawnTrainTasks()
         #pragma omp atomic
         nAddedGradients++;
       }
+
       input->gradient(thrID);
       data->Set[seq]->setSampled(obs);
 
       if(thrID == 0) profiler_ext->stop_start("COMM");
+
       #pragma omp atomic
       taskCounter++;
-      if(taskCounter >= batchSize) updateComplete = true;
-      addToNTasks(-1);
     }
   }
-  nToSpawn = 0;
-  return 0;
+}
+
+void Learner_offPolicy::spawnTrainTasks_seq()
+{
+  if(taskCounter >= batchSize) updateComplete = true;
+
+  if(not updatePrepared) nData_b4Startup = data->readNSeen();
 }
 
 void Learner_offPolicy::prepareGradient()

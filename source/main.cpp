@@ -69,8 +69,8 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
     learners[i]->restart();
   }
 
-  //#pragma omp parallel 
-  //printf("Rank %d Thread %3d is running on CPU %3d\n", 
+  //#pragma omp parallel
+  //printf("Rank %d Thread %3d is running on CPU %3d\n",
   //  settings.world_rank, omp_get_thread_num(), sched_getcpu());
 
   Master master(slavesComm, learners, env, settings);
@@ -96,8 +96,8 @@ int main (int argc, char** argv)
   vector<ArgParser::OptionStruct> opts = settings.initializeOpts();
 
   int provided;
-  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-  if (provided < MPI_THREAD_MULTIPLE)
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+  if (provided < MPI_THREAD_SERIALIZED)
     die("The MPI implementation does not have required thread support\n");
 
   MPI_Comm_rank(MPI_COMM_WORLD, &settings.world_rank);

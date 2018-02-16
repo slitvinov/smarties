@@ -52,7 +52,7 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
   if(not updateComplete)
     return; //then this was called WITHOUT a batch ready
 
-  assert(updatePrepared && not waitingForData);
+  assert(updatePrepared);
   // Learner is ready for the update: send the task to the networks and
   // start preparing the next one
   updatePrepared = false;

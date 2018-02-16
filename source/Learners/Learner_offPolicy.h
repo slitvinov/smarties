@@ -16,7 +16,7 @@ class Learner_offPolicy: public Learner
 protected:
   const Real obsPerStep_orig;
   const Uint nObsPerTraining;
-  Uint taskCounter = batchSize, nData_b4PolUpdates = 0, nToSpawn = 0;
+  Uint taskCounter = 0, nData_b4Startup = 0;
   mutable Uint nSkipped = 0;
   Real nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig;
@@ -26,26 +26,18 @@ public:
 
   bool readyForTrain() const;
 
-  inline Uint nSequences4Train() const
-  {
-    return nObsPerTraining;
-    //if(bSampleSequences) return 8*batchSize;
-    //else                 return   batchSize/2;
-  }
-  inline Uint read_nData() const
-  {
-    const Uint _nData = data->readNSeen();
-    if(_nData < nData_b4PolUpdates) return 0;
-    return _nData - nData_b4PolUpdates;
-  }
-
   inline void resample(const Uint thrID) const // TODO resample sequence
   {
-    // skipping too many samples, something is wrong. To avoid code hanging return: 
-    if(nSkipped>=batchSize) return;
+    Uint _nSkipped;
+    #pragma omp atomic read
+      _nSkipped = nSkipped;
+
+    // If skipping too many samples return w/o sample to avoid code hanging.
+    // If true smth is wrong. Approximator will print to screen a warning.
+    if(_nSkipped >= batchSize) return;
 
     #pragma omp atomic
-    nSkipped++; 
+    nSkipped++;
 
     Uint sequence, transition;
     data->sampleTransition(sequence, transition, thrID);
@@ -55,8 +47,8 @@ public:
 
   //main training functions:
   void prepareData() override;
-  bool unlockQueue() override;
-  int spawnTrainTasks() override;
+  bool lockQueue() const override;
+  void spawnTrainTasks_seq() override;
+  void spawnTrainTasks_par() override;
   void prepareGradient() override;
-  bool batchGradientReady() override;
 };

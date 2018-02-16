@@ -125,38 +125,41 @@ public:
   void sampleSequence(Uint& seq, const int thrID);
   vector<Uint> sampleSequences(const Uint N);
 
-  inline Uint readNTransitions() const
-  {
-    //lock_guard<mutex> lock(dataset_mutex);
-    return nTransitions;
-  }
-  inline Real readAvgSeqLen() const
-  {
-    //lock_guard<mutex> lock(dataset_mutex);
-    return nTransitions/(nSequences+2.2e-16);
-  }
   inline Uint readNSeen() const
   {
-    //lock_guard<mutex> lock(dataset_mutex);
-    //#ifdef PACE_SEQUENCES
-    //return nSeenSequences;
-    //#else
-    return nSeenTransitions;
+    Uint ret;
+    #pragma omp atomic read
+    ret = nSeenTransitions;
+    return ret;
+    //#endif
+  }
+  inline Uint readNSeenSeq() const
+  {
+    Uint ret;
+    #pragma omp atomic read
+    ret = nSeenSequences;
+    return ret;
     //#endif
   }
   inline Uint readNData() const
   {
-    //lock_guard<mutex> lock(dataset_mutex);
-    //#ifdef PACE_SEQUENCES
-    //return nSequences;
-    //#else
-    return nTransitions;
-    //#endif
+    Uint ret;
+    #pragma omp atomic read
+    ret = nTransitions;
+    return ret;
+  }
+  inline Uint readNSeq() const
+  {
+    Uint ret;
+    #pragma omp atomic read
+    ret = nSequences;
+    return ret;
   }
 
+ private:
   inline void popBackSequence()
   {
-    removeSequence(nSequences-1);
+    removeSequence( readNSeq() - 1 );
     Set.pop_back();
     #pragma omp atomic
     nSequences--;
@@ -166,15 +169,14 @@ public:
   {
     lock_guard<mutex> lock(dataset_mutex);
     Set.push_back(nullptr);
-    addSequence(nSequences, seq);
+    addSequence( readNSeq(), seq);
     #pragma omp atomic
     nSequences++;
-    assert(nSequences == Set.size());
+    assert( readNSeq() == Set.size());
   }
   inline void addSequence(const Uint ind, Sequence*const seq)
   {
     assert(Set[ind] == nullptr && seq not_eq nullptr);
-    if (not seq->ended) ++nBroken;
     #pragma omp atomic
     nTransitions += seq->ndata();
     Set[ind] = seq;
@@ -182,10 +184,6 @@ public:
   inline void removeSequence(const Uint ind)
   {
     assert(Set[ind] not_eq nullptr);
-    if(not Set[ind]->ended) {
-      assert(nBroken>0);
-      --nBroken;
-    }
     #pragma omp atomic
     nTransitions -= Set[ind]->ndata();
     _dispose_object(Set[ind]);

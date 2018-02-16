@@ -136,7 +136,7 @@ public:
   GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
     Learner_onPolicy(_env, _set), lambda(_set.lambda), learnR(_set.learnrate),
     #ifdef PPO_CLIPPED
-    DKL_target(_set.klDivConstraint * std::sqrt(nA) * 10), //negligible penalty, still better perf
+    DKL_target(_set.klDivConstraint *std::sqrt(nA)), //small penalty, still better perf
     #else
     DKL_target(_set.klDivConstraint),
     #endif
@@ -169,13 +169,7 @@ public:
     updateGAE(curr_seq);
 
     //advance counters of available data for training
-    if(agent.Status==2) {
-      data->terminate_seq(agent);
-      #pragma omp atomic
-      cntHorizon += curr_seq->ndata();
-      #pragma omp atomic
-      cntTrajectories++;
-    }
+    if(agent.Status==2) data->terminate_seq(agent);
   }
 
   void getMetrics(ostringstream& buff) const

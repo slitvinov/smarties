@@ -37,7 +37,6 @@ protected:
 
   mutable bool updatePrepared = false;
   mutable bool updateComplete = false;
-  mutable bool waitingForData = true;
 
   ActionInfo aInfo;
   StateInfo  sInfo;
@@ -68,12 +67,6 @@ public:
     learner_name = lName;
   }
 
-  inline void addToNTasks(const int add)
-  {
-    #pragma omp atomic
-    nTasks += add;
-  }
-
   inline unsigned time() const
   {
     return data->readNSeen();
@@ -84,7 +77,7 @@ public:
   }
   inline unsigned nData() const
   {
-    return data->readNTransitions();
+    return data->readNData();
   }
   inline bool reachedMaxGradStep() const
   {
@@ -110,10 +103,11 @@ public:
   bool slaveHasUnfinishedSeqs(const int slave) const;
 
   //main training loop functions:
-  virtual int spawnTrainTasks() = 0;
+  virtual void spawnTrainTasks_par() = 0;
+  virtual void spawnTrainTasks_seq() = 0;
+
   virtual void prepareData() = 0;
-  virtual bool unlockQueue() = 0;
-  virtual bool batchGradientReady() = 0;
+  virtual bool lockQueue() const = 0;
 
   virtual void prepareGradient();
   void synchronizeGradients();

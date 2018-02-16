@@ -15,13 +15,14 @@
 
 Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
   Settings&_s): slavesComm(_c), learners(_l), env(_e), aI(_e->aI), sI(_e->sI),
-  agents(_e->agents), bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank), saveFreq(_s.saveFreq), nSlaves(_s.nSlaves), nThreads(_s.nThreads), learn_rank(_s.learner_rank), learn_size(_s.learner_size), totNumSteps(_s.totNumSteps),
+  agents(_e->agents), bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank),
+  nSlaves(_s.nSlaves), nThreads(_s.nThreads), learn_rank(_s.learner_rank),
+  learn_size(_s.learner_size), totNumSteps(_s.totNumSteps),
   outSize(_e->aI.dim*sizeof(double)), inSize((3+_e->sI.dim)*sizeof(double)),
   inpBufs(alloc_bufs(inSize,nSlaves)), outBufs(alloc_bufs(outSize,nSlaves)),
-  slaveIrecvStatus(nSlaves, EMPTY), agentSortingCheck(agents.size(), 0), requests(nSlaves, MPI_REQUEST_NULL), nTasks(_s.global_tasking_counter)
+  requests(nSlaves, MPI_REQUEST_NULL)
 {
   profiler = new Profiler();
-
   profiler_int = learners[0]->profiler;
   for (Uint i=0; i<learners.size(); i++) {
     learners[i]->profiler_ext = profiler;
@@ -39,156 +40,101 @@ Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
 
 int Master::run()
 {
-while (true)
-{
-  if(!bTrain && stepNum >= totNumSteps) return 1;
-  if( bTrain && learners[0]->reachedMaxGradStep()) return 1;
-
-  profiler->stop_start("PREP");
-  prepareLearners();
-
-  #pragma omp parallel num_threads(nThreads)
-  #pragma omp master
+  while (true)
   {
-    if( postponed_queue.size() && not learnersLockQueue() )
+    if( stepNum >= totNumSteps ) return 1;
+
+    profiler->stop_start("PREP");
+    prepareLearners();
+
+    #pragma omp parallel num_threads(nThreads)
     {
-      profiler->stop_start("QUEUE");
-      for (const int slave : postponed_queue) {
-        addToNTasks(1);
-        #pragma omp task firstprivate(slave) priority(1)
-        {
-          processRequest(slave);
-          addToNTasks(-1);
-        }
-      }
-      postponed_queue.clear();
+      #pragma omp single nowait
+        for(int i=1; i<=nSlaves; i++)
+          #pragma omp task firstprivate(i) priority(1)
+            processSlave(i);
+
+      #pragma omp single nowait
+        spawnTrainingTasks_par();
     }
 
-    profiler->stop_start("COMM");
-    while (true)
-    {
-      if(!bTrain && stepNum >= totNumSteps) break; //check for termination
-      if( learnersGradientReady() ) break;
+    spawnTrainingTasks_seq();
 
-      spawnTrainingTasks();
-
-      #ifdef BENCHMARKING
-      for(int i=0; i < ( learners[0]->iter() ? 1 : nSlaves ); i++)
-      #else
-      for(int i=0; i<nSlaves; i++)
-      #endif
-      {
-        int completed=0;
-        MPI_Status mpistatus;
-        {
-          lock_guard<mutex> lock(mpi_mutex);
-          if(slaveIrecvStatus[i] == OPEN) //otherwise, Irecv not sent
-            MPI_Test(&requests[i], &completed, &mpistatus);
-        }
-
-        if(completed)
-        {
-          const int slave = mpistatus.MPI_SOURCE;
-          assert(slaveIrecvStatus[i]==OPEN && slave==i+1);
-          debugS("Master receives from %d", slave);
-          slaveIrecvStatus[i] = DOING; //slave will be 'served' by task
-
-          if( learnersLockQueue() ) /* stop gathering data */ {
-            postponed_queue.push_back(slave);
-            //if(postponed_queue.size()==(size_t)nSlaves)
-            #pragma omp taskwait
-          } else {
-            addToNTasks(1);
-            #pragma omp task firstprivate(slave) if(nTasks<nThreads) priority(1)
-            {
-              //const auto t1 = chrono::high_resolution_clock::now();
-              processRequest(slave);
-              //const auto t2 = chrono::high_resolution_clock::now();
-              //const auto span = chrono::duration_cast<chrono::duration<double,std::micro>>(t2 - t1);
-              //std::cout << "It took me " << span.count() << " seconds." << endl;
-              addToNTasks(-1);
-            }
-          }
-        }
-      }
-    }
+    profiler->stop_start("TERM");
+    for(const auto& L : learners)
+      L->prepareGradient(); //tasks have finished, update is ready
   }
-  assert(nTasks==0); // here is outside of tasking region
-  profiler->stop_start("TERM");
-  for(const auto& L : learners)
-    L->prepareGradient(); //tasks have finished, update is ready
-}
-die(" ");
-return 0;
+  die(" ");
+  return 0;
 }
 
-void Master::processRequest(const int slave)
+void Master::processSlave(const int slave)
 {
-  const int thrID = omp_get_thread_num();
-  //printf("Thread %d doing slave %d\n",thrID,slave);
-  if(thrID==1) profiler_int->stop_start("SERV");
-  if(thrID==0) profiler->stop_start("SERV");
-  //auto start = std::chrono::high_resolution_clock::now();
-  vector<double> recv_state(sI.dim);
-  int recv_iAgent = -1, istatus;
-  double reward;
-  //read from slave's buffer:
-  unpackState(inpBufs[slave-1], recv_iAgent, istatus, recv_state, reward);
-  const int agent = (slave-1) * nPerRank + recv_iAgent;
-  assert(agent>=0 && recv_iAgent>=0 && agent<static_cast<int>(agents.size()));
+  if( bTrain && learnersLockQueue() ) return;
 
-  if(learners.size() > 1)
-    assert((int)learners.size() == nPerRank && recv_iAgent < nPerRank);
+  int completed = 0;
+  MPI_Status mpistatus;
+  MPI_Test(&requests[slave-1], &completed, &mpistatus);
 
-  Learner*const aAlgo = learners.size()>1? learners[recv_iAgent] : learners[0];
-
-       if (istatus == FAIL_COMM) //app crashed :sadface:
+  if(completed)
   {
-    //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
-    //TODO FIX MULTIPLE ALGOS
-    aAlgo->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
-    for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
-    warn("Received a FAIL_COMM\n");
-  }
-  else if (istatus == GAME_OVER)
-  {
-    //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
-    //TODO FIX MULTIPLE ALGOS, ALSO FIX SENDING "action" AFTER TERM STATE
-    aAlgo->pushBackEndedSim((slave-1)*nPerRank, slave*nPerRank);
-    for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
-    //printf("Received a GAME_OVER\n");
-  }
-  else
-  {
-    agents[agent]->update(istatus, recv_state, reward);
-    assert(istatus == agents[agent]->Status);
-    //pick next action and ...do a bunch of other stuff with the data:
-    aAlgo->select(*agents[agent]);
-    const unsigned iter = aAlgo->iter(), tstep = aAlgo->time();
+    assert(slave == mpistatus.MPI_SOURCE);
+    const int thrID = omp_get_thread_num();
+    //printf("Thread %d doing slave %d\n",thrID,slave);
+    if(thrID==1) profiler_int->stop_start("SERV");
+    if(thrID==0) profiler->stop_start("SERV");
 
-    debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
+    vector<double> recv_state(sI.dim);
+    int recv_agent = -1, recv_status = -1; double reward;
 
-    for(Uint i=0; i<aI.dim; i++) outBufs[slave-1][i]=agents[agent]->a->vals[i];
-    sendBuffer(slave);
+    //read from slave's buffer:
+    unpackState(inpBufs[slave-1], recv_agent, recv_status, recv_state, reward);
+    const int agent = (slave-1) * nPerRank + recv_agent;
 
-    if ( agents[agent]->Status == TERM_COMM && (iter || !bTrain) )
+    assert(agent>=0 && recv_agent>=0 && agent<static_cast<int>(agents.size()));
+    if(learners.size() > 1)
+      assert((int)learners.size() == nPerRank && recv_agent < nPerRank);
+
+    Learner*const aAlgo = learners.size()>1? learners[recv_agent] : learners[0];
+
+    if (recv_status == FAIL_COMM) //app crashed :sadface:
     {
-      char path[256];
-      sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
-      lock_guard<mutex> lock(dump_mutex);
-      std::ofstream outf(path, ios::app);
-      outf<<iter<<" "<<tstep<<" "<<agent<<" "<<agents[agent]->transitionID<<" "
-          <<agents[agent]->cumulative_rewards<<endl;
-      outf.flush(); outf.close();
-      ++stepNum; //sequence counter: used to terminate if not training
+      //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
+      //TODO FIX MULTIPLE ALGOS
+      aAlgo->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
+      for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
+      warn("Received a FAIL_COMM\n");
     }
+    else
+    {
+      agents[agent]->update(recv_status, recv_state, reward);
+      assert(recv_status == agents[agent]->Status);
+      //pick next action and ...do a bunch of other stuff with the data:
+      aAlgo->select(*agents[agent]);
+
+      debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
+
+      sendBuffer(slave, agent);
+
+      if ( agents[agent]->Status >= TERM_COMM )
+        dumpCumulativeReward(agent, aAlgo->iter(), aAlgo->time());
+      else {
+        #pragma omp atomic
+        stepNum++;
+      }
+    }
+
+    if( readTimeSteps() >= (Uint) totNumSteps )
+      return; // do not recv a new state, do not create new slave-handling task
+
+    recvBuffer(slave);
+
+    if(thrID==1) profiler_int->stop_start("SLP");
+    if(thrID==0) profiler->stop_start("COMM");
   }
 
-  recvBuffer(slave);
-  if(thrID==1) profiler_int->stop_start("SLP");
-  if(thrID==0) profiler->stop_start("COMM");
-  //auto elapsed = std::chrono::high_resolution_clock::now() - start;
-  //cout << chrono::duration_cast<chrono::microseconds>(elapsed).count() <<endl;
+  #pragma omp task firstprivate(slave) priority(1)
+    processSlave(slave);
 }
 
 Slave::Slave(Communicator*const _c, Environment*const _e, Settings& _s):
