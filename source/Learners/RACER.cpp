@@ -171,7 +171,7 @@ class RACER : public Learner_offPolicy
     const Rvec penalG  = pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu, -1);
     const Rvec finalG  = weightSum2Grads(policyG, penalG, DKL_coef);
 
-    #if 1 //def dumpExtra
+    #ifdef dumpExtra
       if(thrID == 1) {
         Real normT = numeric_limits<Real>::epsilon(), dot=0;
         for(Uint i = 0; i < policyG.size(); i++) {

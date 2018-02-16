@@ -90,10 +90,9 @@ bool Learner_offPolicy::unlockQueue()
   const Real _nData = read_nData();
   const Real dataCounter = _nData - (Real)nData_last;
   const Real stepCounter = nStep  - (Real)nStep_last;
-  const Real cushionData = data->readAvgSeqLen();
   // cushion allows tolerance to collect a bit more data than strictly necessary
   // to avoid bottlenecks, but no significant effect on learning
-  return stepCounter*obsPerStep/learn_size +cushionData >= dataCounter;
+  return stepCounter*obsPerStep/learn_size >= dataCounter;
 }
 
 int Learner_offPolicy::spawnTrainTasks()
@@ -130,7 +129,7 @@ int Learner_offPolicy::spawnTrainTasks()
       if(thrID == 0) profiler_ext->stop_start("COMM");
       #pragma omp atomic
       taskCounter++;
-      //if(taskCounter >= batchSize) updateComplete = true;
+      if(taskCounter >= batchSize) updateComplete = true;
       addToNTasks(-1);
     }
   }

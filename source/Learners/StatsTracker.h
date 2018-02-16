@@ -132,12 +132,12 @@ struct StatsTracker
         if(grad[i]> grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
           //printf("Cut %u was:%f is:%LG\n",i,grad[i], grad_cut_fac*stdVec[0][i]);
           grad[i] =  grad_cut_fac*stdVec[0][i];
-          ret = 1;
+          ret += 1;
         } else
         if(grad[i]< -grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
           //printf("Cut %u was:%f is:%LG\n",i,grad[i],-grad_cut_fac*stdVec[0][i]);
           grad[i] = -grad_cut_fac*stdVec[0][i];
-          ret = 1;
+          ret += 1;
         }
         //else printf("Not cut\n");
     }
