@@ -46,6 +46,7 @@ python3 ../Communicator_gym.py \$1 $APP
 EOF
 fi
 
+git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
 git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
 
 #cat <<EOF >${BASEPATH}${RUNFOLDER}/factory

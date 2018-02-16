@@ -29,7 +29,7 @@ SETTINGS+=" --learner POAC"
 SETTINGS+=" --greedyEps 0.5"
 
 SETTINGS+=" --obsPerStep 1"
-#SETTINGS+=" --maxTotObsNum 4000" 
+#SETTINGS+=" --minTotObsNum 4000" 
 #SETTINGS+=" --maxTotObsNum 131072" 
 SETTINGS+=" --maxTotObsNum 262144"
 
@@ -48,4 +48,4 @@ SETTINGS+=" --bSampleSequences 0"
 #SETTINGS+=" --batchSize 32"
 #SETTINGS+=" --bSampleSequences 1"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0003"
+SETTINGS+=" --learnrate 0.0001"

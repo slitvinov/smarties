@@ -19,14 +19,16 @@
 
 struct Tuple
 {
-  Rvec s, a, mu;
-  Real r = 0;
+  const vector<float> s;
+  Rvec a, mu;
+  const Real r;
   Tuple(const Tuple*const c): s(c->s), a(c->a), mu(c->mu), r(c->r) {}
-  Tuple() {}
-  Tuple& operator= (const Tuple& l)
+  Tuple(const Rvec _s, const Real _r) : s(convert(_s)), r(_r) {}
+  static inline vector<float> convert(const Rvec _s) 
   {
-    s = l.s; a = l.a; mu = l.mu; r = l.r;
-    return *this;
+    vector<float> ret ( _s.size() );
+    for(Uint i=0; i < _s.size(); i++) ret[i] = _s[i];
+    return ret;
   }
 };
 
@@ -111,13 +113,12 @@ struct Sequence
   }
   inline void add_state(const Rvec state, const Real reward=0)
   {
-    Tuple * t = new Tuple();
-    t->s = state; t->r = reward;
+    Tuple * t = new Tuple(state, reward);
     tuples.push_back(t);
   }
-  inline void add_action(const Rvec act,
-                         const Rvec mu = Rvec())
+  inline void add_action(const Rvec act, const Rvec mu = Rvec())
   {
+    assert( tuples.back()->s.size() && 0==tuples.back()->a.size() && 0==tuples.back()->mu.size() );
     tuples.back()->a = act;
     tuples.back()->mu = mu;
   }

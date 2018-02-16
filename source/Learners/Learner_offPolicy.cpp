@@ -21,12 +21,11 @@ void Learner_offPolicy::prepareData()
   // then no need to prepare a new update
   if(updatePrepared) return;
 
-  profiler->stop_start("PRE");
 
   if( not readyForTrain() ) return; // Do not prepare an update
 
+  profiler->stop_start("PRE");
   if(nStep%100==0) data->updateRewardsStats();
-
   taskCounter = 0;
   updatePrepared = true;
   profiler->stop_start("SLP");
@@ -98,8 +97,8 @@ void Learner_offPolicy::spawnTrainTasks_par()
       input->gradient(thrID);
       data->Set[seq]->setSampled(obs);
 
-      if(thrID==0) profiler_ext->stop_start("COMM");
-      if(thrID==1)  profiler->stop_start("SLP");
+      if(thrID==0) profiler_ext->stop_start("SLP");
+      if(thrID==1) profiler->stop_start("SLP");
     }
   }
 }

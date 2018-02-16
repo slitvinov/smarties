@@ -49,7 +49,7 @@ int MemoryBuffer::add_state(const Agent&a)
     const Rvec vecSold = a.sOld->copy_observed();
     const Tuple*const last = inProgress[a.ID]->tuples.back();
     for (Uint i=0; i<sI.dimUsed && same; i++) //scaled vec only has used dims:
-      same = same && std::fabs(last->s[i]-vecSold[i]) < 1e-8;
+      same = same && std::fabs(last->s[i]-vecSold[i]) < 1e-4;
     if (!same) { //create new sequence
       warn("Detected partial sequence"); push_back(a.ID); ret = 1; }
   }
@@ -86,7 +86,7 @@ void MemoryBuffer::updateRewardsStats()
   if(!bTrain) return; //if not training, keep the stored values
 
   long double count = 0, newstdvr = 0;
-  #pragma omp parallel for schedule(dynamic) reduction(+ : count, newstdvr)
+  #pragma omp parallel for reduction(+ : count, newstdvr) //schedule(dynamic)
   for(Uint i=0; i<Set.size(); i++)
     for(Uint j=0; j<Set[i]->ndata(); j++) {
       newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
@@ -113,7 +113,7 @@ void MemoryBuffer::updateRewardsStats()
   if(count<batchSize) return;
   //const Real stdev_reward = std::sqrt((newstdvr-newmeanr*newmeanr/count)/count);
   const Real stdev_reward = std::sqrt(newstdvr/count);
-  const Real weight = first_pass ? 1 : 0.01;
+  const Real weight = 1;//first_pass ? 1 : 0.01;
   first_pass = false;
   //mean_reward = (1-weight)*mean_reward +weight*newmeanr/count;
   invstd_reward = (1-weight)*invstd_reward +weight/stdev_reward;
@@ -170,7 +170,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
   #pragma omp parallel reduction(+ : _nOffPol,_totMSE)
   {
     const int thrID = omp_get_thread_num();
-    #pragma omp for schedule(dynamic)
+    #pragma omp for //schedule(dynamic)
     for(Uint i = 0; i < Set.size(); i++)
     {
       if(Set[i]->just_sampled >= 0) {

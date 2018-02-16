@@ -89,6 +89,7 @@ void Master::processSlave(const int slave)
     //printf("Thread %d doing slave %d\n",thrID,slave);
     vector<double> recv_state(sI.dim);
     int recv_agent = -1, recv_status = -1; double reward;
+    //auto start = std::chrono::high_resolution_clock::now();
 
     //read from slave's buffer:
     unpackState(inpBufs[slave-1], recv_agent, recv_status, recv_state, reward);
@@ -120,8 +121,8 @@ void Master::processSlave(const int slave)
       sendBuffer(slave, agent);
 
       if ( agents[agent]->Status >= TERM_COMM )
-        dumpCumulativeReward(agent, aAlgo->iter(), aAlgo->time());
-      else {
+        dumpCumulativeReward(agent, aAlgo->iter(), readTimeSteps() );
+      else if ( aAlgo->iter() ) {
         #pragma omp atomic
         stepNum++;
       }
@@ -132,6 +133,8 @@ void Master::processSlave(const int slave)
 
     recvBuffer(slave);
 
+    //auto elapsed = std::chrono::high_resolution_clock::now() - start;
+    //cout << chrono::duration_cast<chrono::microseconds>(elapsed).count() <<endl;
   }
 
   if(thrID==1) profiler_int->stop_start("SLP");
@@ -156,14 +159,11 @@ void Slave::run()
       unpackState(comm->getDataState(), iAgent, info, state, reward);
 
       status[iAgent] = info;
-      if(info not_eq GAME_OVER)
-      {
-        assert(info not_eq FAIL_COMM); //that one should cause the break
-        if (comm->sendActionToApp()) {
-          die("Slave exiting\n");
-          fflush(0);
-          return;
-        }
+      assert(info not_eq FAIL_COMM); //that one should cause the break
+
+      if ( comm->sendActionToApp() ) {
+        warn("Slave exiting");
+        return;
       }
     }
     //if here, a crash happened:

@@ -352,14 +352,14 @@ void Approximator::gradient(const Uint thrID) const
 void Approximator::getHeaders(ostringstream& buff) const
 {
   buff << std::left << std::setfill(' ') ;
-  buff <<"| " << std::setw(6) << name << ": |W| DW cut%";
+  buff <<"| " << std::setw(6) << name << ":|W| DW cut%";
 }
 
 void Approximator::getMetrics(ostringstream& buff) const
 {
   long double sumW = 0, distTgt = 0;
   net->weights->compute_dist_norm(sumW, distTgt, net->tgt_weights);
-  buff<<" "<<std::setw(7)<<std::setprecision(0)<<sumW;
-  buff<<" "<<std::setw(7)<<std::setprecision(0)<<distTgt;
+  buff<<" "<<std::setw(6)<<std::setprecision(0)<<sumW;
+  buff<<" "<<std::setw(6)<<std::setprecision(0)<<distTgt;
   buff<<" "<<std::setw(5)<<std::setprecision(3)<<gradStats->clip_ratio();
 }

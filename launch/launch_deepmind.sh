@@ -38,6 +38,7 @@ python3 ../Communicator_dmc.py \$1 $ENV $TASK
 EOF
 fi
 
+git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
 git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
 
 #cat <<EOF >${BASEPATH}${RUNFOLDER}/factory

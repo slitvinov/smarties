@@ -240,6 +240,8 @@ void Communicator::sendCompleteTermination()
     else
   #endif
     comm_sock(Socket, true, data_state, size_state);
+
+  recvAction();
 }
 
 void Communicator::printLog(const double*const buf, const int size)

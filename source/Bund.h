@@ -38,7 +38,7 @@ using namespace std;
 
 //#define RACER_ACERTRICK
 #define CLIP_LEARNR 1e-3
-#define ANNEAL_RATE 1e-6
+#define ANNEAL_RATE 1e-7
 #define PRFL_DMPFRQ 100
 
 #define NORMDIST_MAX 2 //truncated normal distribution range
@@ -49,8 +49,6 @@ using namespace std;
 
 // number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20
-
-#define BENCHMARKING
 
 //#define NET_L1_PENAL
 //#define _dumpNet_

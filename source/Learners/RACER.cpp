@@ -52,11 +52,10 @@ class RACER : public Learner_offPolicy
   {
     Sequence* const traj = data->Set[seq];
     const int ndata = traj->tuples.size()-1;
-    F[0]->prepare_seq(traj, thrID);
-
     if(thrID==1) profiler->stop_start("FWD");
-    for (int k=0; k<ndata; k++) F[0]->forward(traj, k, thrID);
 
+    F[0]->prepare_seq(traj, thrID);
+    for (int k=0; k<ndata; k++) F[0]->forward(traj, k, thrID);
     //if partial sequence then compute value of last state (!= R_end)
     assert(traj->ended);
     traj->setRetrace(ndata, data->standardized_reward(traj, ndata) );
@@ -379,7 +378,7 @@ class RACER : public Learner_offPolicy
     #ifdef RACER_BACKWARD
       if(updateComplete) {
         profiler->stop_start("QRET");
-        #pragma omp parallel for schedule(dynamic)
+        #pragma omp parallel for //schedule(dynamic)
         for(Uint i = 0; i < data->Set.size(); i++)
           for(int j = data->Set[i]->just_sampled; j>=0; j--) {
             const Real obsOpcW = data->Set[i]->offPol_weight[j];

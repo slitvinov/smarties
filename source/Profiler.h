@@ -196,9 +196,12 @@ public:
     {
       const ProfileSummaryItem& item = *it;
       const double avgTime = item.dAverageTime;
-
+      const double frac1 = 100*item.dTime/dTotalTime;
+      const double frac2 = 100*(item.dTime- item.nSamples*1.3e-6)/dTotalTime2;
+      if(frac1 < 1 && frac2 < 1) continue;
       printf("[%15s]: \t%02.0f-%02.0f%%\t%03.3e (%03.3e) s\t%03.3f (%03.3f) s\t(%d samples)\n",
-          item.sName.data(), 100*item.dTime/dTotalTime, 100*(item.dTime- item.nSamples*1.3e-6)/dTotalTime2, avgTime,avgTime-1.30e-6,  item.dTime, item.dTime- item.nSamples*1.30e-6, item.nSamples);
+          item.sName.data(), frac1, frac2, avgTime, avgTime-1.30e-6,  item.dTime, 
+          item.dTime- item.nSamples*1.30e-6, item.nSamples);
       if (outFile) fprintf(outFile,"[%15s]: \t%02.2f%%\t%03.3f s\t(%d samples)\n",
 
           item.sName.data(), 100*item.dTime/dTotalTime, avgTime, item.nSamples);
