@@ -25,7 +25,7 @@ private:
   const vector<double*> inpBufs;
   const vector<double*> outBufs;
   mutable long int stepNum = 0;
-  vector<MPI_Request> requests;
+  mutable vector<MPI_Request> requests;
   Profiler* profiler     = nullptr;
   Profiler* profiler_int = nullptr;
   mutable std::mutex mpi_mutex;

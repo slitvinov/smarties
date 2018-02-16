@@ -32,7 +32,7 @@ MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
 int MemoryBuffer::add_state(const Agent&a)
 {
   int ret=0; //ret is 1 if state will be placed as first in a sequence
-  #if 0
+  #if 1
     if (inProgress[a.ID]->tuples.size() && a.Status == 1) {
       //prev sequence not empty, yet received an initial state, push back prev
       warn("Detected partial sequence\n");
@@ -40,7 +40,6 @@ int MemoryBuffer::add_state(const Agent&a)
       ret = 1;
     } else if(inProgress[a.ID]->tuples.size()==0) {
       if(a.Status not_eq 1) die("Missing initial state\n");
-      ret = 1; //status is 1
     }
   #endif
 
@@ -159,6 +158,7 @@ void MemoryBuffer::push_back(const int & agentId)
 
 void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
 {
+  //checkNData();
   //no need for pruning:
   if(nTransitions <= maxTotObsNum) return;
 
