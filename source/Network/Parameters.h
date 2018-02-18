@@ -69,7 +69,7 @@ struct Parameters
 
   void reduceThreadsGrad(const vector<Parameters*>& g) const
   {
-    #pragma omp parallel
+    #pragma omp parallel num_threads(g.size())
     {
       const Uint thrID = static_cast<Uint>(omp_get_thread_num());
       assert(nParams == g[thrID]->nParams);
