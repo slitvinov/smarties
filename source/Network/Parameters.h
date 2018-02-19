@@ -70,15 +70,23 @@ struct Parameters
   void reduceThreadsGrad(const vector<Parameters*>& g) const
   {
     #pragma omp parallel
-    for(Uint i=0; i<g.size(); i++)
     {
-      if(not g[i]->written) continue;
-
-      assert(nParams == g[i]->nParams);
-      const nnReal* const src = g[i]->params;
+      const Uint thrI = omp_get_thread_num(), thrN = omp_get_num_threads();
+      const Uint shift = std::ceil(nParams/ARY_WIDTH/thrN)*ARY_WIDTH;
+      const Uint start = thrI*shift, end = thrI+1==thrN? nParams:(thrI+1)*shift;
       nnReal* const dst = params;
-      #pragma omp for simd aligned(dst, src : VEC_WIDTH) schedule(static) nowait
-      for(Uint j=0; j<nParams; j++) dst[j] += src[j];
+      //#pragma omp critical
+      //{
+      //  cout<<thrI<<" "<<shift<<" "<<nParams<<" "<<start<<" "<<end<<" "<<endl;
+      //  fflush(0);
+      //}
+      for(Uint i=0; i<g.size(); i++) {
+        if(not g[i]->written) continue;
+        assert(nParams == g[i]->nParams);
+        const nnReal* const src = g[i]->params;
+        #pragma omp simd aligned(dst, src : VEC_WIDTH)
+        for(Uint j=start; j<end; j++) dst[j] += src[j];
+      }
     }
     for(Uint i=0; i<g.size(); i++) g[i]->clear();
   }

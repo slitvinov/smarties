@@ -66,6 +66,8 @@ public:
   }
   inline void prepForFwdProp (vector<Activation*>& series, const Uint N) const
   {
+    prepForBackProp(series, N);
+    #if 0
     if (series.size() < N)
       for(Uint j=series.size(); j<N; j++)
         series.push_back(allocateActivation());
@@ -76,6 +78,7 @@ public:
 
     #ifndef NDEBUG
     for(Uint j=0; j<series.size(); j++) assert(not series[j]->written);
+    #endif
     #endif
   }
 
