@@ -159,9 +159,6 @@ void MemoryBuffer::push_back(const int & agentId)
 void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
 {
   //checkNData();
-  //no need for pruning:
-  if(nTransitions <= maxTotObsNum) return;
-
   assert(CmaxRho>1);
   vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
   vector<pair<int,  int>> oldest_sequence(nThreads, {-1, nSeenSequences});
@@ -363,25 +360,60 @@ void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
     seq = (*dist)(generators[thrID]);
   #endif
 }
-
-vector<Uint> MemoryBuffer::sampleSequences(const Uint N)
+/*
+vector<Uint> MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
 {
-  assert(N<=readNSeq());
-  vector<Uint> inds;
-  if( N*5 < readNSeq() ) {
-    inds.resize(N);
-    for(Uint i=0; i<N; i++) sampleSequence(inds[i], 0);
+  assert(seq.size() == obs.size());
+  vector<Uint> ret = seq;
+  #pragma omp parallel for
+  for(Uint i=0; i < seq.size(); i++) {
+    sampleTransition(seq[i], obs[i], omp_get_thread_num());
+    const Real W = Set[seq[i]]->offPol_weight[obs[i]], invW = 1/W;
+    //used to compute openmp task priority, must be an integer:
+    //highest priority to those most off policy, because they might
+    //trigger a resampling. starting them earlier improves load balancing
+    ret[i] = std::max(W, invW)*100;
+  }
+  return ret;
+}
+ */
+void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
+{
+  assert(seq.size() == obs.size());
+  vector<Uint> s = seq, o = obs;
+  vector<pair<Uint, Real>> load(seq.size());
+  #pragma omp parallel for
+  for(Uint i=0; i<seq.size(); i++) {
+    sampleTransition(s[i], o[i], omp_get_thread_num());
+    const Real W = Set[s[i]]->offPol_weight[o[i]], invW = 1/W;
+    load[i] = make_pair(i, std::max(W, invW));
+  }
+
+  const auto isAbeforeB = [&] (const pair<Uint,Real> a, const pair<Uint,Real> b)
+  { return a.second > b.second; };
+
+  std::sort(load.begin(), load.end(), isAbeforeB);
+  for (Uint i=0; i<seq.size(); i++) {
+      obs[i] = o[load[i].first];
+      seq[i] = s[load[i].first];
+  }
+}
+
+void MemoryBuffer::sampleSequences(vector<Uint>& seq)
+{
+  const Uint N = seq.size();
+  if( readNSeq() > N*5 ) {
+    for(Uint i=0; i<N; i++) sampleSequence(seq[i], 0);
   } else { // if N is large, make sure we do not repeat indices
-    inds.resize(readNSeq());
-    std::iota(inds.begin(), inds.end(), 0);
-    std::shuffle(inds.begin(), inds.end(), generators[0]);
-    inds = vector<Uint>(&inds[0], &inds[N]);
+    seq.resize(readNSeq());
+    std::iota(seq.begin(), seq.end(), 0);
+    std::shuffle(seq.begin(), seq.end(), generators[0]);
+    seq.resize(N);
   }
   const auto compare = [&](Uint a, Uint b) {
     return Set[a]->ndata() > Set[b]->ndata();
   };
-  std::sort(inds.begin(), inds.end(), compare);
-  return inds;
+  std::sort(seq.begin(), seq.end(), compare);
 }
 
 void MemoryBuffer::indexToSample(const int nSample, Uint& seq, Uint& obs) const

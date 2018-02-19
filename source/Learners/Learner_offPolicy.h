@@ -20,6 +20,7 @@ protected:
   mutable Uint nSkipped = 0;
   Real nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig;
+  vector<Uint> samp_seq, samp_obs;
 
 public:
   Learner_offPolicy(Environment*const env, Settings& _s);

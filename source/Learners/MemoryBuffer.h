@@ -123,7 +123,8 @@ public:
   void sampleTransition(Uint& seq, Uint& obs, const int thrID);
   Uint sampleTransition(const Uint seq, const int thrID);
   void sampleSequence(Uint& seq, const int thrID);
-  vector<Uint> sampleSequences(const Uint N);
+  void sampleTransitions_OPW(vector<Uint>& seq, vector<Uint>& obs);
+  void sampleSequences(vector<Uint>& seq);
 
   inline Uint readNSeen() const
   {

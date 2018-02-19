@@ -92,7 +92,7 @@ int main (int argc, char** argv)
 {
   struct timeval clock;
   gettimeofday(&clock, NULL);
-  //omp_set_dynamic(0);
+  omp_set_dynamic(0);
 
   vector<ArgParser::OptionStruct> opts = settings.initializeOpts();
 
