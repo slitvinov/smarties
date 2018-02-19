@@ -71,7 +71,7 @@ public:
         series.push_back(allocateActivation());
     assert(series.size()>=N);
 
-    for(Uint j=0; j<series.size() && series[j]->written; j++)
+    for(Uint j=0; j<series.size() && series[j]->written; j++) //; j++)
       series[j]->written = false;
 
     #ifndef NDEBUG

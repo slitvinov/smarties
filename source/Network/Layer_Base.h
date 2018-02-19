@@ -107,23 +107,21 @@ class BaseLayer: public Layer
     }
     {
       const nnReal* const inputs = curr->Y(ID-link);
-            nnReal* const errors = curr->E(ID-link);
-      const nnReal* const weight = para->W(ID);
             nnReal* const grad_w = grad->W(ID);
 
-      for(Uint i=0; i<nInputs;  i++)
-      {
+      for(Uint i=0; i<nInputs;  i++) {
               nnReal* const G = grad_w + nOut_simd*i;
         #pragma omp simd aligned(deltas,inputs,G : VEC_WIDTH)
-        for (Uint o = 0; o < nNeurons; o++) {
-          G[o] += inputs[i] * deltas[o];
-        }
+        for(Uint o=0; o<nNeurons; o++) G[o] += inputs[i] * deltas[o];
       }
    
-      if( (not curr->input[ID-link]) ) 
+      if( not curr->input[ID-link] ) 
       {
+              nnReal* const errors = curr->E(ID-link);
+        const nnReal* const weight = para->W(ID);
        #if 1 //def NDEBUG
-        cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1, weight, nOut_simd, deltas, 1, 1, errors, 1);
+        cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1, 
+          weight, nOut_simd, deltas, 1, 1, errors, 1);
        #else
         #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
         for(Uint o=0; o<nNeurons; o++)
@@ -139,12 +137,10 @@ class BaseLayer: public Layer
       const nnReal* const weight = para->W(ID) +nOut_simd*nInputs;
             nnReal* const grad_w = grad->W(ID) +nOut_simd*nInputs;
 
-      for(Uint i=0; i<nNeurons;  i++)
-      {
+      for(Uint i=0; i<nNeurons;  i++) {
         nnReal* const G = grad_w + nOut_simd*i;
         #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH)
-        for (Uint o = 0; o < nNeurons; o++)
-          G[o] += inputs[i] * deltas[o];
+        for(Uint o=0; o<nNeurons; o++) G[o] += inputs[i] * deltas[o];
       }
 
       #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
