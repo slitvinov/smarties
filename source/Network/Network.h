@@ -120,6 +120,8 @@ public:
   {
     currStep->clearErrors();
     currStep->setOutputDelta(_errors);
+    assert(currStep->written);
+    _grad->written = true;
     backProp(nullptr, currStep, nullptr, _grad, _weights);
   }
 
@@ -128,6 +130,8 @@ public:
   {
     act->clearErrors();
     act->setOutputDelta(err);
+    assert(act->written && act->input[ID]);
+    _grad->written = true;
     act->input[ID] = false; //trigger computing backprop of input for this call
     for(Uint i=layers.size()-1; i>ID; i--) //skip below layer we want grad for
       layers[i]->backward(nullptr, act, nullptr, _grad, W);

@@ -17,7 +17,7 @@ struct Parameters
   vector<Uint> nBiases, nWeights;
  public:
   const Uint nParams, nLayers;
-
+  mutable bool written = false;
   // array containing all parameters of network contiguously
   //(used by optimizer and for MPI reductions)
   nnReal*const params;
@@ -70,20 +70,17 @@ struct Parameters
   void reduceThreadsGrad(const vector<Parameters*>& g) const
   {
     #pragma omp parallel
+    for(Uint i=0; i<g.size(); i++)
     {
-      const Uint thrID = static_cast<Uint>(omp_get_thread_num());
-      assert(nParams == g[thrID]->nParams);
-      const nnReal* const src = g[thrID]->params;
-      nnReal* const dst = params;
-      // every thread starts staggered to avoid race conditions:
-      const Uint shift = thrID*((nParams/g.size())/ARY_WIDTH)*ARY_WIDTH;
+      if(not g[i]->written) continue;
 
-      #pragma omp simd aligned(dst, src : VEC_WIDTH)
-      for(Uint j=shift; j<nParams; j++) dst[j] += src[j];
-      #pragma omp simd aligned(dst, src : VEC_WIDTH)
-      for(Uint j=0; j<shift; j++) dst[j] += src[j];
-      g[thrID]->clear();
+      assert(nParams == g[i]->nParams);
+      const nnReal* const src = g[i]->params;
+      nnReal* const dst = params;
+      #pragma omp for simd aligned(dst, src : VEC_WIDTH) schedule(static) nowait
+      for(Uint j=0; j<nParams; j++) dst[j] += src[j];
     }
+    for(Uint i=0; i<g.size(); i++) g[i]->clear();
   }
 
   void set(const Real val) const
@@ -115,6 +112,7 @@ struct Parameters
 
   inline void clear() const {
     std::memset(params, 0, nParams*sizeof(nnReal));
+    written = false;
   }
 
   void save(const std::string fname) const {

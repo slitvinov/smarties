@@ -70,7 +70,7 @@ struct Activation
     assert(k == nInputs);
   }
 
-  inline void clipDelta(const Uint ID, const Uint sizeLink, const nnReal clip=5) const 
+  inline void clipDelta(const Uint ID, const Uint sizeLink, const nnReal clip=5) const
   {
     if(clip<=0 || output[ID]) return;
     nnReal norm = 0;
@@ -80,9 +80,9 @@ struct Activation
 
     norm = clip/(std::sqrt(norm)/(sizes[ID]+sizeLink) + clip);
     /*
-    if(omp_get_thread_num() == 1) { 
+    if(omp_get_thread_num() == 1) {
       ofstream fout("clip"+to_string(ID)+".log", ios::app);
-      fout << norm << endl; 
+      fout << norm << endl;
       fout.close();
     }
     */
@@ -91,6 +91,7 @@ struct Activation
   }
 
   inline vector<nnReal> getInputGradient(const Uint ID) const {
+    assert(written == true);
     vector<nnReal> ret(sizes[ID]);
     memcpy(&ret[0], errvals[ID], sizes[ID]*sizeof(nnReal));
     return ret;
@@ -104,6 +105,7 @@ struct Activation
       k += sizes[i];
     }
     assert(k == nOutputs);
+    written = true;
   }
 
   inline void addOutputDelta(const vector<nnReal> delta) const {
@@ -112,9 +114,11 @@ struct Activation
     for(Uint i=0; i<nLayers; i++) if(output[i])
       for (Uint j=0; j<sizes[i]; j++, k++) errvals[i][j] += delta[k];
     assert(k == nOutputs);
+    written = true;
   }
 
   inline vector<nnReal> getOutput() const {
+    assert(written == true);
     vector<nnReal> ret(nOutputs);
     Uint k=0;
     for(Uint i=0; i<nLayers; i++) if(output[i]) {

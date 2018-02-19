@@ -29,6 +29,7 @@ vector<Real> Network::predict(const vector<nnReal>& _inp,
   const Parameters*const W = _weights==nullptr? weights : _weights;
   for(Uint j=1; j<nLayers; j++) //skip 0: input layer
     layers[j]->forward(prevStep, currStep, W);
+  currStep->written = true;
 
   return currStep->getOutput();
 }
@@ -52,6 +53,8 @@ void Network::backProp( const Activation*const prevStep,
                         const Parameters*const _gradient,
                         const Parameters*const _weights) const
 {
+  assert(currStep->written);
+  _gradient->written = true;
   const Parameters*const W = _weights == nullptr ? weights : _weights;
   for (Uint i=layers.size()-1; i>0; i--) //skip 0: input layer
     layers[i]->backward(prevStep, currStep, nextStep, _gradient, W);
@@ -72,22 +75,30 @@ void Network::backProp(const vector<Activation*>& netSeries,
 
   if (stepLastError == 0) return; //no errors placed
   else
-  if (stepLastError == 1)  //errors placed at first time step
+  if (stepLastError == 1)
+  { //errors placed at first time step
+    assert(netSeries[0]->written);
     for(Uint i=layers.size()-1; i>0; i--)
       layers[i]->backward(nullptr, netSeries[0], nullptr, _grad, W);
+  }
   else
   {
     const Uint T = stepLastError - 1;
     for(Uint i=layers.size()-1; i>0; i--) //skip 0: input layer
     {
+      assert(netSeries[T]->written);
       layers[i]->backward(netSeries[T-1],netSeries[T],nullptr,        _grad,W);
 
-      for (Uint k=T-1; k>0; k--)
+      for (Uint k=T-1; k>0; k--) {
+      assert(netSeries[k]->written);
       layers[i]->backward(netSeries[k-1],netSeries[k],netSeries[k+1], _grad,W);
+      }
 
+      assert(netSeries[0]->written);
       layers[i]->backward(       nullptr,netSeries[0],netSeries[1],   _grad,W);
     }
   }
+  _grad->written = true;
 }
 
 Network::Network(Builder* const B, Settings & settings) :
