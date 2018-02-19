@@ -93,6 +93,7 @@ public:
   std::string paramfile = std::string();
   std::string logfile = std::string();
   std::mt19937 gen;
+  MPI_Request slave_request = MPI_REQUEST_NULL;
 
   int discrete_action_values = 0;
   double dump_value = -1;
@@ -118,7 +119,7 @@ public:
   int getStateDim()  {return nStates;}
   int getActionDim() {return nActions;}
   //called by app to interact with smarties
-  void sendCompleteTermination();
+  //void sendCompleteTermination();
   void sendState(const int iAgent, const envInfo status,
     const std::vector<double> state, const double reward);
   //simplified functions:
@@ -187,6 +188,28 @@ public:
   void recv_buffer_to_app(double*const buf, const int size) const
   {
     comm_sock(Socket, false, buf, size);
+  }
+
+  void slaveRecv_MPI() {
+    //auto start = std::chrono::high_resolution_clock::now();
+    assert(comm_learn_pool != MPI_COMM_NULL);
+    assert(&slave_request != MPI_REQUEST_NULL);
+    while(true) {
+      int completed=0;
+      MPI_Test(&slave_request, &completed, MPI_STATUS_IGNORE);
+      if (completed) break;
+      usleep(5);
+    }
+    //auto elapsed = std::chrono::high_resolution_clock::now() - start;
+    //cout << chrono::duration_cast<chrono::microseconds>(elapsed).count() <<endl;
+  }
+
+  void slaveSend_MPI() {
+    assert(comm_learn_pool != MPI_COMM_NULL);
+    MPI_Request dummyreq;
+    MPI_Isend(data_state, size_state, MPI_BYTE, 0, 1, comm_learn_pool, &dummyreq);
+    MPI_Request_free(&dummyreq); //Not my problem?
+    MPI_Irecv(data_action, size_action, MPI_BYTE, 0, 0, comm_learn_pool, &slave_request);
   }
 #endif
 };

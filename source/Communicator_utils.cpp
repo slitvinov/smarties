@@ -165,31 +165,3 @@ void comm_sock(int fd, const bool bsend, double*const data, const int size)
     abort();
   }
 }
-
-#ifdef MPI_INCLUDED
-//these commands only work to send to master, matching command is defined in Scheduler.cpp
-// no matter the MPI implementation i want to avoid busy-wait
-void recv_MPI(double*const data, const int size, const MPI_Comm comm, unsigned long &wait)
-{
-  //auto start = std::chrono::high_resolution_clock::now();
-  assert(comm != MPI_COMM_NULL);
-  MPI_Request request;
-  MPI_Irecv(data, size, MPI_BYTE, 0, 0, comm, &request);
-  while(true) {
-    usleep(5);
-    int completed=0;
-    MPI_Test(&request, &completed, MPI_STATUS_IGNORE);
-    if (completed) break;
-  }
-  //auto elapsed = std::chrono::high_resolution_clock::now() - start;
-  //cout << chrono::duration_cast<chrono::microseconds>(elapsed).count() <<endl;
-}
-
-void send_MPI(double*const data, const int size, const MPI_Comm comm)
-{
-  assert(comm != MPI_COMM_NULL);
-  MPI_Request dummyreq;
-  MPI_Isend(data, size, MPI_BYTE, 0, 1, comm, &dummyreq);
-  MPI_Request_free(&dummyreq); //Not my problem?
-}
-#endif

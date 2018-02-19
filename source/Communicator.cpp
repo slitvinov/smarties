@@ -186,7 +186,7 @@ void Communicator::sendState(const int iAgent, const envInfo status,
   }
 
   #ifdef MPI_INCLUDED
-    if (rank_learn_pool>0) send_MPI(data_state, size_state, comm_learn_pool);
+    if (rank_learn_pool>0) slaveSend_MPI();
     else
   #endif
     comm_sock(Socket, true, data_state, size_state);
@@ -204,8 +204,7 @@ void Communicator::recvAction(std::vector<double>& actions)
   #ifdef MPI_INCLUDED
     if(rank_inside_app <= 0)
     {
-      if (rank_learn_pool>0)
-        recv_MPI(data_action, size_action, comm_learn_pool, lag);
+      if (rank_learn_pool>0) slaveRecv_MPI();
       else
   #endif
         comm_sock(Socket, false, data_action, size_action);
@@ -230,6 +229,7 @@ void Communicator::recvAction(std::vector<double>& actions)
   }
 }
 
+/*
 void Communicator::sendCompleteTermination()
 {
   if(rank_inside_app>0) return;
@@ -243,6 +243,7 @@ void Communicator::sendCompleteTermination()
 
   recvAction();
 }
+*/
 
 void Communicator::printLog(const double*const buf, const int size)
 {
@@ -513,8 +514,7 @@ int Communicator::recvStateFromApp()
   }
   else assert(bytes == size_state);
 
-  if(comm_learn_pool != MPI_COMM_NULL)
-    send_MPI(data_state, size_state, comm_learn_pool);
+  if(comm_learn_pool != MPI_COMM_NULL) slaveSend_MPI();
 
   return bytes <= 0;
 }
@@ -522,8 +522,7 @@ int Communicator::recvStateFromApp()
 int Communicator::sendActionToApp()
 {
   //printf("I think im sending action %f\n",data_action[0]);
-  if(comm_learn_pool != MPI_COMM_NULL)
-    recv_MPI(data_action, size_action, comm_learn_pool, lag);
+  if(comm_learn_pool != MPI_COMM_NULL) slaveRecv_MPI();
 
   bool endSignal = fabs(data_action[0]-_AGENT_KILLSIGNAL)<2.2e-16;
 
