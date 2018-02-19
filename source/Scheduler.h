@@ -24,13 +24,13 @@ private:
   const int bTrain, nPerRank, nSlaves, nThreads, learn_rank, learn_size, totNumSteps, outSize, inSize;
   const vector<double*> inpBufs;
   const vector<double*> outBufs;
-  mutable long int stepNum = 0;
+  mutable long int stepNum = 0, iternum = 0;
   mutable vector<MPI_Request> requests;
   Profiler* profiler     = nullptr;
   Profiler* profiler_int = nullptr;
   mutable std::mutex mpi_mutex;
   mutable std::mutex dump_mutex;
-
+  mutable std::ostringstream rewardsBuffer;
 
   inline Uint readTimeSteps() const
   {
@@ -74,20 +74,33 @@ private:
     return locked;
   }
 
+  void flushRewardBuffer()
+  {
+    std::streampos pos = rewardsBuffer.tellp();  // store current location
+    rewardsBuffer.seekp(0, ios_base::end);       // go to end
+    bool empty = (rewardsBuffer.tellp() == 0);   // check size == 0 ?
+    rewardsBuffer.seekp(pos);                    // restore location
+
+    if(empty) return;
+
+    char path[256];
+    sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
+    std::ofstream outf(path, ios::app);
+    outf << rewardsBuffer.str();
+    rewardsBuffer.str(std::string());
+    outf.flush();
+    outf.close();
+  }
+
   inline void dumpCumulativeReward(const int agent, const unsigned iter,
     const unsigned tstep) const
   {
     if (iter == 0 && bTrain) return;
 
-    char path[256];
-    sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
-
     lock_guard<mutex> lock(dump_mutex);
-    std::ofstream outf(path, ios::app);
-    outf<<iter<<" "<<tstep<<" "<<agent<<" "<<agents[agent]->transitionID<<" "
-        <<agents[agent]->cumulative_rewards<<endl;
-    outf.flush();
-    outf.close();
+    rewardsBuffer<<iter<<" "<<tstep<<" "<<agent<<" "
+    <<agents[agent]->transitionID<<" "<<agents[agent]->cumulative_rewards<<endl;
+    rewardsBuffer.flush();
   }
 
   static inline vector<double*> alloc_bufs(const int size, const int num)

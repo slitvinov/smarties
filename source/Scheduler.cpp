@@ -64,6 +64,8 @@ int Master::run()
     profiler->stop_start("TERM");
     for(const auto& L : learners)
       L->prepareGradient(); //tasks have finished, update is ready
+
+    if(iternum++ % 1000 == 0) flushRewardBuffer();
   }
   die(" ");
   return 0;

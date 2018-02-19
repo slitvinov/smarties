@@ -19,14 +19,16 @@
 
 struct Tuple
 {
-  const vector<float> s;
+  typedef double memReal;
+  //typedef float memReal;
+  const vector<memReal> s;
   Rvec a, mu;
   const Real r;
   Tuple(const Tuple*const c): s(c->s), a(c->a), mu(c->mu), r(c->r) {}
   Tuple(const Rvec _s, const Real _r) : s(convert(_s)), r(_r) {}
-  static inline vector<float> convert(const Rvec _s) 
+  static inline vector<memReal> convert(const Rvec _s)
   {
-    vector<float> ret ( _s.size() );
+    vector<memReal> ret ( _s.size() );
     for(Uint i=0; i < _s.size(); i++) ret[i] = _s[i];
     return ret;
   }

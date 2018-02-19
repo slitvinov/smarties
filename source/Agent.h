@@ -11,7 +11,7 @@
 #include "StateAction.h"
 #include "Settings.h"
 #include "Communicator.h"
-
+#define OUTBUFFSIZE 65536
 class Agent
 {
 protected:
@@ -28,13 +28,46 @@ public:
   int Status = 1;
   int transitionID = 0;
 
+  mutable float buf[OUTBUFFSIZE];
+  mutable Uint buffCnter = 0;
+
   Agent(const int _ID = 0) : ID(_ID) { }
 
-  ~Agent()
-  {
+  ~Agent() {
     _dispose_object(s);
     _dispose_object(sOld);
     _dispose_object(a);
+  }
+
+  void writeBuffer(const int rank) const
+  {
+    char cpath[256];
+    sprintf(cpath, "obs_rank%02d_agent%03d.raw", rank, ID);
+    FILE * pFile = fopen (cpath, "ab");
+
+    fwrite (buf, sizeof(float), buffCnter, pFile);
+    fflush(pFile); fclose(pFile);
+    buffCnter = 0;
+  }
+
+  void writeData(const int rank, const Rvec mu) const
+  {
+    const Uint writesize = 3 +sInfo.dim +aInfo.dim +mu.size();
+    assert( buffCnter % writesize == 0 );
+    if(buffCnter+writesize > OUTBUFFSIZE) writeBuffer(rank);
+
+    buf[buffCnter++] = Status + 0.1;
+    buf[buffCnter++] = transitionID + 0.1;
+
+    for (Uint i=0; i<sInfo.dim; i++)
+      buf[buffCnter++] = (float) s->vals[i];
+
+    for (Uint i=0; i<aInfo.dim; i++)
+      buf[buffCnter++] = (float) a->vals[i];
+
+    buf[buffCnter++] = r;
+    for (Uint i=0; i<mu.size(); i++)
+      buf[buffCnter++] = (float) mu[i];
   }
 
   inline void getState(State& _s) const
@@ -120,25 +153,5 @@ public:
   {
     this->aInfo = actionInfo;
     this->sInfo = stateInfo;
-  }
-
-  void writeData(const int rank, const Rvec mu) const
-  {
-    char cpath[256];
-    sprintf(cpath, "obs_rank%02d_agent%03d.raw", rank, ID);
-    FILE * pFile = fopen (cpath, "ab");
-    const Uint writesize = (3 +sInfo.dim +aInfo.dim +mu.size())*sizeof(float);
-    float* buf = (float*) malloc(writesize);
-    memset(buf, 0, writesize);
-    Uint k=0;
-    buf[k++] = Status + 0.1;
-    buf[k++] = transitionID + 0.1;
-    for (Uint i=0; i<sInfo.dim; i++) buf[k++] = (float) s->vals[i];
-    for (Uint i=0; i<aInfo.dim; i++) buf[k++] = (float) a->vals[i];
-    buf[k++] = r;
-    for (Uint i=0; i<mu.size(); i++) buf[k++] = (float) mu[i];
-    assert(k*sizeof(float) == writesize);
-    fwrite (buf, sizeof(float), writesize/sizeof(float), pFile);
-    fflush(pFile); fclose(pFile);  free(buf);
   }
 };
