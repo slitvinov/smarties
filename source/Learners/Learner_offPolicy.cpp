@@ -122,7 +122,11 @@ void Learner_offPolicy::prepareGradient()
   Learner::prepareGradient();
 
   if(bWasPrepareReady) {
+    if(nSkipped >= batchSize) 
+      warn("Too many skipped samples caused code to override algorithm. Change hyperparameters.");
+
     nSkipped = 0;
+
     profiler->stop_start("PRNE");
     //shift data / gradient counters to maintain grad stepping to sample
     // collection ratio prescirbed by obsPerStep

@@ -85,64 +85,62 @@ void Master::processSlave(const int slave)
     lock_guard<mutex> lock(mpi_mutex);
     MPI_Test(&requests[slave-1], &completed, &mpistatus);
   }
-  if(completed)
-  {
+  //printf("Thread %d doing slave %d\n",thrID,slave);
+
+  if(completed) { 
     assert(slave == mpistatus.MPI_SOURCE);
-    //printf("Thread %d doing slave %d\n",thrID,slave);
-    vector<double> recv_state(sI.dim);
-    int recv_agent = -1, recv_status = -1; double reward;
-    //auto start = std::chrono::high_resolution_clock::now();
-
-    //read from slave's buffer:
-    unpackState(inpBufs[slave-1], recv_agent, recv_status, recv_state, reward);
-    const int agent = (slave-1) * nPerRank + recv_agent;
-
-    assert(agent>=0 && recv_agent>=0 && agent<static_cast<int>(agents.size()));
-    if(learners.size() > 1)
-      assert((int)learners.size() == nPerRank && recv_agent < nPerRank);
-
-    Learner*const aAlgo = learners.size()>1? learners[recv_agent] : learners[0];
-
-    if (recv_status == FAIL_COMM) //app crashed :sadface:
-    {
-      //TODO fix for on-pol: on crash clear unfinished workspace assigned to slave
-      //TODO FIX MULTIPLE ALGOS
-      aAlgo->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
-      for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
-      warn("Received a FAIL_COMM\n");
-    }
-    else
-    {
-      agents[agent]->update(recv_status, recv_state, reward);
-      assert(recv_status == agents[agent]->Status);
-      //pick next action and ...do a bunch of other stuff with the data:
-      aAlgo->select(*agents[agent]);
-
-      debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]", agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(), agents[agent]->s->_print().c_str(), agents[agent]->r, agents[agent]->a->_print().c_str());
-
-      sendBuffer(slave, agent);
-
-      if ( agents[agent]->Status >= TERM_COMM )
-        dumpCumulativeReward(agent, aAlgo->iter(), readTimeSteps() );
-      else if ( aAlgo->iter() ) {
-        #pragma omp atomic
-        stepNum++;
-      }
-    }
-
-    if( readTimeSteps() >= (Uint) totNumSteps )
-      return; // do not recv a new state, do not create new slave-handling task
-
-    recvBuffer(slave);
-
-    //auto elapsed = std::chrono::high_resolution_clock::now() - start;
-    //cout << chrono::duration_cast<chrono::microseconds>(elapsed).count() <<endl;
+    processAgent(slave, mpistatus);
   }
 
   if(thrID==1) profiler_int->stop_start("SLP");
   if(thrID==0) profiler->stop_start("SLP");
+
+  if( readTimeSteps() >= (Uint) totNumSteps ) return;  
+  if( bTrain && learnersLockQueue() ) return;
+
   #pragma omp task firstprivate(slave) priority(1)
     processSlave(slave);
+}
+
+void Master::processAgent(const int slave, const MPI_Status mpistatus)
+{
+  //read from slave's buffer:
+  vector<double> recv_state(sI.dim);
+  int recv_agent = -1, recv_status = -1; double reward;
+  unpackState(inpBufs[slave-1], recv_agent, recv_status, recv_state, reward);
+
+  const int agent = (slave-1) * nPerRank + recv_agent;
+  assert(agent>=0 && recv_agent>=0 && agent<static_cast<int>(agents.size()));
+  if(learners.size() > 1)
+    assert((int)learners.size() == nPerRank && recv_agent < nPerRank);
+  Learner*const aAlgo = learners.size()>1? learners[recv_agent] : learners[0];
+
+  if (recv_status == FAIL_COMM) //app crashed :sadface:
+  { //TODO fix for on-pol & multiple algos
+    aAlgo->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
+    for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
+    warn("Received a FAIL_COMM\n");
+  } else {
+    agents[agent]->update(recv_status, recv_state, reward);
+    //pick next action and ...do a bunch of other stuff with the data:
+    aAlgo->select(*agents[agent]);
+
+    debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]",
+      agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(),
+      agents[agent]->s->_print().c_str(), agents[agent]->r,
+      agents[agent]->a->_print().c_str());
+
+    sendBuffer(slave, agent);
+
+    if ( recv_status >= TERM_COMM )
+      dumpCumulativeReward(agent, aAlgo->iter(), readTimeSteps() );
+    else if ( aAlgo->iter() ) {
+      #pragma omp atomic
+      stepNum++;
+    }
+  }
+
+  recvBuffer(slave);
 }
 
 Slave::Slave(Communicator*const _c, Environment*const _e, Settings& _s):
@@ -150,18 +148,17 @@ Slave::Slave(Communicator*const _c, Environment*const _e, Settings& _s):
 
 void Slave::run()
 {
-  vector<double> state(env->sI.dim);
-  int iAgent, info;
-  double reward;
+  //vector<double> state(env->sI.dim);
+  //int iAgent, info;
+  //double reward;
 
   while(true) {
 
     while(true) {
       if (comm->recvStateFromApp()) break; //sim crashed
-      unpackState(comm->getDataState(), iAgent, info, state, reward);
-
-      status[iAgent] = info;
-      assert(info not_eq FAIL_COMM); //that one should cause the break
+      //unpackState(comm->getDataState(), iAgent, info, state, reward);
+      //status[iAgent] = info;
+      //assert(info not_eq FAIL_COMM); //that one should cause the break
 
       if ( comm->sendActionToApp() ) {
         warn("Slave exiting");

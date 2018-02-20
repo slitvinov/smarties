@@ -36,10 +36,36 @@ using namespace std;
   #define ACER_MIN_PROB 0
 #endif
 
+// If this is uncommented, action importance sampling ratio is defined by
+// [ pi(a|s) / mu(a|s) ]^f(nA) where f(nA) is function of a dimensionality
+// In ACER's paper f(nA) = 1/sqrt(nA). For Racer leads to bad perf.
+// Tested also 1/cbrt(nA) then gave up.
 //#define RACER_ACERTRICK
+
+// Learn rate for the exponential average of the gradient's second moment
+// Used to learn the scale for the pre-backprop gradient clipping.
+// (currently set to be the same as Adam's second moment learn rate)
 #define CLIP_LEARNR 1e-3
-#define ANNEAL_RATE 1e-7
-#define PRFL_DMPFRQ 100
+
+// Default number of second moments to clip the pre-backprop gradient:
+// Can be changed inside each learning algo by overwriting default arg of
+// Approximator::initializeNetwork function
+//#define STD_GRADCUT 5
+#define STD_GRADCUT 4
+
+// Anneal rate for the learning rate, should be moved to settings
+//#define ANNEAL_RATE 1e-7
+#define ANNEAL_RATE 1e-6
+
+// Scheduler keeps approximate ratio of grad steps N to env time steps T
+// according to user's setting obsPerStep. This option affects how T is 
+// advanced. Setting this to 1 means that T is advanced only when a full
+// seq is observed. In this case T is increased by length of the seq.
+// Set to 0 to add 1 for every new time step. Caveat is that in any case 
+// observations are added to the training set only when their seq ends. 
+#define PACEFULLSEQ 0
+
+#define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
 #define NORMDIST_MAX 2 //truncated normal distribution range
 #define BOUNDACT_MAX 4 //for bounded action spaces: range (ie. tanh(4))

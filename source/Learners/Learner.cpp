@@ -49,6 +49,15 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 
 void Learner::prepareGradient() //this cannot be called from omp parallel region
 {
+  if(not updatePrepared) {
+    profiler_ext->stop_all();
+    profiler->stop_all();
+    profiler->reset();
+    profiler_ext->reset();
+    profiler->stop_start("SLP");
+    profiler_ext->stop_start("SLP");
+  }
+
   if(not updateComplete)
     return; //then this was called WITHOUT a batch ready
 

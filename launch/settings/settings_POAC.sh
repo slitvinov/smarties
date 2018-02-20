@@ -19,6 +19,7 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnFunc PRelu"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc HardSign"
+#SETTINGS+=" --nnFunc Linear"
 SETTINGS+=" --nnLambda 0.0001"
 
 #whether you are training a policy or testing an already trained network
@@ -29,7 +30,7 @@ SETTINGS+=" --learner POAC"
 SETTINGS+=" --greedyEps 0.5"
 
 SETTINGS+=" --obsPerStep 1"
-#SETTINGS+=" --minTotObsNum 4000" 
+#SETTINGS+=" --minTotObsNum 16384" 
 #SETTINGS+=" --maxTotObsNum 131072" 
 SETTINGS+=" --maxTotObsNum 262144"
 

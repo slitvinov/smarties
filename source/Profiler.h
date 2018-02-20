@@ -230,7 +230,6 @@ public:
 
   void reset()
   {
-    printf("reset\n");
     for(map<string, ProfileAgent*>::const_iterator it = m_mapAgents.begin(); it != m_mapAgents.end(); it++)
       it->second->_reset();
   }

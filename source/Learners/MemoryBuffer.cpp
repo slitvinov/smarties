@@ -32,6 +32,13 @@ MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
 int MemoryBuffer::add_state(const Agent&a)
 {
   int ret=0; //ret is 1 if state will be placed as first in a sequence
+  #if PACEFULLSEQ == 0
+  if(a.Status < 2) {
+    #pragma omp atomic
+    nSeenTransitions ++;
+  }
+  #endif
+
   #if 1
     if (inProgress[a.ID]->tuples.size() && a.Status == 1) {
       //prev sequence not empty, yet received an initial state, push back prev
@@ -140,8 +147,11 @@ void MemoryBuffer::push_back(const int & agentId)
     inProgress[agentId]->offPol_weight.resize(inProgress[agentId]->ndata(), 1);
     #pragma omp atomic
     nSeenSequences++;
+
+    #if PACEFULLSEQ
     #pragma omp atomic
     nSeenTransitions += inProgress[agentId]->ndata();
+    #endif
 
     pushBackSequence(inProgress[agentId]);
   } else {
@@ -386,7 +396,7 @@ void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
   for(Uint i=0; i<seq.size(); i++) {
     sampleTransition(s[i], o[i], omp_get_thread_num());
     const Real W = Set[s[i]]->offPol_weight[o[i]], invW = 1/W;
-    load[i] = make_pair(i, std::max(W, invW));
+    load[i].first = i; load[i].second = std::max(W, invW); 
   }
 
   const auto isAbeforeB = [&] (const pair<Uint,Real> a, const pair<Uint,Real> b)

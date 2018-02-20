@@ -52,22 +52,24 @@ public:
 
   void writeData(const int rank, const Rvec mu) const
   {
+    // possible race conditions, avoided by the fact that each slave
+    // (and therefore agent) can only be handled by one thread at the time
+    // atomic op is to make sure that counter gets flushed to all threads
     const Uint writesize = 3 +sInfo.dim +aInfo.dim +mu.size();
     assert( buffCnter % writesize == 0 );
     if(buffCnter+writesize > OUTBUFFSIZE) writeBuffer(rank);
+    Uint ind = buffCnter;
+    buf[ind++] = Status + 0.1;
+    buf[ind++] = transitionID + 0.1;
 
-    buf[buffCnter++] = Status + 0.1;
-    buf[buffCnter++] = transitionID + 0.1;
+    for (Uint i=0; i<sInfo.dim; i++) buf[ind++] = (float) s->vals[i];
+    for (Uint i=0; i<aInfo.dim; i++) buf[ind++] = (float) a->vals[i];
+    buf[ind++] = r;
+    for (Uint i=0; i<mu.size(); i++) buf[ind++] = (float) mu[i];
 
-    for (Uint i=0; i<sInfo.dim; i++)
-      buf[buffCnter++] = (float) s->vals[i];
-
-    for (Uint i=0; i<aInfo.dim; i++)
-      buf[buffCnter++] = (float) a->vals[i];
-
-    buf[buffCnter++] = r;
-    for (Uint i=0; i<mu.size(); i++)
-      buf[buffCnter++] = (float) mu[i];
+    #pragma omp atomic 
+    buffCnter += writesize;
+    assert(buffCnter == ind);
   }
 
   inline void getState(State& _s) const

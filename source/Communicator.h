@@ -193,7 +193,7 @@ public:
   void slaveRecv_MPI() {
     //auto start = std::chrono::high_resolution_clock::now();
     assert(comm_learn_pool != MPI_COMM_NULL);
-    assert(&slave_request != MPI_REQUEST_NULL);
+    assert(slave_request != MPI_REQUEST_NULL);
     while(true) {
       int completed=0;
       MPI_Test(&slave_request, &completed, MPI_STATUS_IGNORE);

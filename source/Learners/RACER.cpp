@@ -73,10 +73,6 @@ class RACER : public Learner_offPolicy
           offPolCorrUpdate(traj, k, out_cur, pol);
           continue;
         } else
-      #elif RACER_SKIP == 2
-        if(isOff) {
-          G = offPolGrad(traj, k, out_cur, pol, thrID);
-        } else
       #endif
           G = compute(traj,k, out_cur, pol, thrID);
       //write gradient onto output layer:
@@ -130,11 +126,11 @@ class RACER : public Learner_offPolicy
     #if   RACER_SKIP == 1
       if(isOff) {
         offPolCorrUpdate(traj, samp, out_cur, pol);
-        return resample(thrID);
-      } else
-    #elif RACER_SKIP == 2
-      if(isOff) {
-        grad = offPolGrad(traj, samp, out_cur, pol, thrID);
+        // correct behavior is to resample
+        // to avoid bugs there is a failsafe mechanism
+        // if that is triggered, warning will be printed to screen
+        if( DKL_coef < 0.95 ) return resample(thrID);
+        else grad = offPolGrad(traj, samp, out_cur, pol, thrID);
       } else
     #endif
         grad = compute(traj, samp, out_cur, pol, thrID);
@@ -202,8 +198,6 @@ class RACER : public Learner_offPolicy
   inline Rvec offPolGrad(Sequence*const S, const Uint t,
     const Rvec output, const Policy_t& pol, const Uint thrID) const
   {
-    const Advantage_t adv = prepare_advantage(output, &pol);
-    updateQret(S, t, adv.computeAdvantage(pol.sampAct), output[VsID], pol);
     // prepare penalization gradient:
     Rvec gradient(F[0]->nOutputs(), 0);
     const Rvec pg = pol.div_kl_opp_grad(S->tuples[t]->mu, DKL_coef-1);
@@ -422,10 +416,11 @@ class RACER : public Learner_offPolicy
     //const Real tgtFrac = DKL_param*std::cbrt(nA)/CmaxPol;
     //const Real tgtFrac = .01 + .09 * std::max(1-nStep/5e6, 0.);
     const Real tgtFrac = DKL_param/CmaxPol/ (1 + nStep * ANNEAL_RATE);
-    const Real learnRate = learnR / (1 + nStep * ANNEAL_RATE);
     //#endif
-    if(fracOffPol>tgtFrac*std::cbrt(nA)) DKL_coef = (1-learnRate)*DKL_coef;
-    else DKL_coef = learnRate + (1-learnRate)*DKL_coef;
+    if(fracOffPol>tgtFrac*std::cbrt(nA)) DKL_coef = (1-learnR)*DKL_coef;
+    else DKL_coef = learnR + (1-learnR)*DKL_coef;
+    if( DKL_coef > 0.95 ) 
+    warn("DKL_coef too high. Decrease learnrate and/or increase klDivConstraint.");
   }
 
   void getMetrics(ostringstream& buff) const

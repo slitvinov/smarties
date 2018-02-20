@@ -76,18 +76,16 @@ private:
 
   void flushRewardBuffer()
   {
-    std::streampos pos = rewardsBuffer.tellp();  // store current location
-    rewardsBuffer.seekp(0, ios_base::end);       // go to end
-    bool empty = (rewardsBuffer.tellp() == 0);   // check size == 0 ?
-    rewardsBuffer.seekp(pos);                    // restore location
-
-    if(empty) return;
-
+    streampos pos = rewardsBuffer.tellp(); // store current location
+    rewardsBuffer.seekp(0, ios_base::end); // go to end
+    bool empty = rewardsBuffer.tellp()==0; // check size == 0 ?
+    rewardsBuffer.seekp(pos);              // restore location
+    if(empty) return;                      // else update rewards log
     char path[256];
     sprintf(path, "cumulative_rewards_rank%02d.dat", learn_rank);
-    std::ofstream outf(path, ios::app);
+    ofstream outf(path, ios::app);
     outf << rewardsBuffer.str();
-    rewardsBuffer.str(std::string());
+    rewardsBuffer.str(std::string());      // empty buffer
     outf.flush();
     outf.close();
   }
@@ -110,7 +108,8 @@ private:
     return ret;
   }
 
-  inline void processSlave(const int slave);
+  void processSlave(const int slave);
+  void processAgent(const int slave, const MPI_Status mpistatus);
 
   inline void sendBuffer(const int slave, const int agent)
   {

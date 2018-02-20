@@ -26,16 +26,19 @@ public:
   Learner_offPolicy(Environment*const env, Settings& _s);
 
   bool readyForTrain() const;
-
-  inline void resample(const Uint thrID) const // TODO resample sequence
+  
+  inline bool canSkip() const
   {
     Uint _nSkipped;
     #pragma omp atomic read
       _nSkipped = nSkipped;
-
     // If skipping too many samples return w/o sample to avoid code hanging.
     // If true smth is wrong. Approximator will print to screen a warning.
-    if(_nSkipped >= batchSize) return;
+    return _nSkipped < batchSize;
+  }
+  inline void resample(const Uint thrID) const // TODO resample sequence
+  {
+    if( not canSkip() ) return;
 
     #pragma omp atomic
     nSkipped++;
