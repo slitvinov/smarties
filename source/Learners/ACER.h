@@ -186,7 +186,7 @@ class ACER : public Learner_offPolicy
       // recurrent connection from last call from same agent will be reused
       Rvec output = F[0]->forward_agent(traj, agent, thrID);
       Policy_t pol = prepare_policy(output);
-      Rvec beta = pol.getBeta();
+      Rvec beta = pol.getVector();
       const Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
       agent.a->set(act);
       data->add_action(agent, beta);

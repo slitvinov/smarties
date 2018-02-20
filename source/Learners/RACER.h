@@ -28,7 +28,7 @@
 
 #include "../Math/Discrete_policy.h"
 #include "RACER.cpp"
-//#define simpleSigma
+//#define RACER_simpleSigma
 
 class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
 {
@@ -109,7 +109,7 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
       print(net_indices).c_str(),print(net_outputs).c_str());
     F.push_back(new Approximator("net", _set, input, data));
     vector<Uint> nouts{1, nL, NEXPERTS, NEXPERTS * nA};
-    #ifndef simpleSigma
+    #ifndef RACER_simpleSigma // network outputs also sigmas
       nouts.push_back(NEXPERTS * nA);
     #endif
     Builder build = F[0]->buildFromSettings(_set, nouts);
@@ -119,7 +119,7 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     Mixture_advantage<NEXPERTS>::setInitial(&aInfo, initBias);
     Gaussian_mixture<NEXPERTS>::setInitial_noStdev(&aInfo, initBias);
 
-    #ifdef simpleSigma
+    #ifdef RACER_simpleSigma // sigma not linked to network: parametric output
       build.setLastLayersBias(initBias);
       build.addParamLayer(NEXPERTS * nA, "Linear", std::log(greedyEps));
     #else
@@ -128,26 +128,26 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     #endif
     F[0]->initializeNetwork(build);
 
-    {
-      Rvec output(F[0]->nOutputs()),beta(getnDimPolicy(&aInfo)),act(nA);
+    {  // TEST FINITE DIFFERENCES:
+      Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo)), act(nA);
       std::normal_distribution<Real> dist(0, 1);
       for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
-      for(Uint i=0; i<beta.size(); i++) beta[i] = dist(generators[0]);
+      for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
       Real norm = 0;
       for(Uint i=0; i<NEXPERTS; i++) {
-        beta[i] = std::exp(beta[i]);
-        norm += beta[i];
+        mu[i] = std::exp(mu[i]);
+        norm += mu[i];
       }
-      for(Uint i=0; i<NEXPERTS; i++) beta[i] = beta[i]/norm;
-      for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) beta[i]=exp(beta[i]);
+      for(Uint i=0; i<NEXPERTS; i++) mu[i] = mu[i]/norm;
+      for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) mu[i]=std::exp(mu[i]);
 
       for(Uint i=0; i<act.size(); i++) act[i] = dist(generators[0]);
       act = aInfo.getScaled(act);
       Gaussian_mixture<NEXPERTS>  pol = prepare_policy(output);
       Mixture_advantage<NEXPERTS> adv = prepare_advantage(output, &pol);
       adv.test(act, &generators[0]);
-      pol.prepare(act, beta);
-      pol.test(act, beta);
+      pol.prepare(act, mu);
+      pol.test(act, mu);
     }
   }
 };
@@ -207,15 +207,14 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, Rvec >
       print(net_indices).c_str(),print(net_outputs).c_str());
     F.push_back(new Approximator("net", _set, input, data));
     vector<Uint> nouts{1, nL, nA};
-    #ifndef simpleSigma
+    #ifndef RACER_simpleSigma
       nouts.push_back(nA);
     #endif
     Builder build = F[0]->buildFromSettings(_set, nouts);
-    #ifdef simpleSigma
+    #ifdef RACER_simpleSigma
       build.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
     #endif
     F[0]->initializeNetwork(build);
   }
 };
 #endif
-

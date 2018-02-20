@@ -401,7 +401,7 @@ struct Settings
   {
     bRecurrent = nnType=="LSTM" || nnType=="RNN";
 
-    if(bSampleSequences && maxTotSeqNum<batchSize) 
+    if(bSampleSequences && maxTotSeqNum<batchSize)
     die("Increase memory buffer size or decrease batchsize, or switch to sampling by transitions.");
     if(maxTotSeqNum<0) die("maxTotSeqNum<0");
     if(appendedObs<0)  die("appendedObs<0");
@@ -410,16 +410,17 @@ struct Settings
     if(totNumSteps<0)  die("totNumSteps<0");
     if(sockPrefix<0)   die("sockPrefix<0");
     if(obsPerStep<0)   die("obsPerStep<0");
+    if(learnrate>.1)   die("learnrate>.1");
+    if(learnrate<0)    die("learnrate<0");
     if(greedyEps<0)    die("greedyEps<0");
     if(epsAnneal<0)    die("epsAnneal<0");
     if(batchSize<0)    die("batchSize<0");
-    if(learnrate<0)    die("learnrate<0");
     if(nnLambda<0)     die("nnLambda<0");
     if(nThreads<1)     die("nThreads<1");
     if(nMasters<1)     die("nMasters<1");
     if(gamma<0)        die("gamma<0");
     if(gamma>1)        die("gamma>1");
-    if(nnl1<0)         die("nnl1<2");
+    if(nnl1<0)         die("nnl1<0");
     if(nnl2<0)         die("nnl2<0");
     if(nnl3<0)         die("nnl3<0");
     if(nnl4<0)         die("nnl4<0");

@@ -61,7 +61,7 @@ struct Sequence
     action_adv.clear(); state_vals.clear(); Q_RET.clear();
     imp_weight.clear();
   }
-  inline void setSampled(const int t)
+  inline void setSampled(const int t) //update index of latest sampled time step
   {
     #pragma omp critical
     if(just_sampled < t) just_sampled = t;
@@ -123,6 +123,15 @@ struct Sequence
     assert( tuples.back()->s.size() && 0==tuples.back()->a.size() && 0==tuples.back()->mu.size() );
     tuples.back()->a = act;
     tuples.back()->mu = mu;
+  }
+  void finalize(const Uint index)
+  {
+    ID = index;
+    // whatever the meaning of SquaredError, initialize with all zeros
+    // this must be taken into account when sorting/filtering
+    SquaredError = Rvec(ndata(), 0);
+    // off pol importance weights are initialized to 1s
+    offPol_weight = Rvec(ndata(), 1);
   }
 };
 

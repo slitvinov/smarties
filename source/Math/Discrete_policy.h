@@ -191,7 +191,7 @@ struct Discrete_policy
   {
     return probs;
   }
-  inline Rvec getBeta() const
+  inline Rvec getVector() const
   {
     return probs;
   }

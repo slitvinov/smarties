@@ -14,7 +14,7 @@
 #define PPO_PENALKL
 #define PPO_CLIPPED
 //#define IGNORE_CRITIC
-#define simpleSigma
+#define PPO_simpleSigma
 
 template<typename Policy_t, typename Action_t>
 class GAE : public Learner_onPolicy
@@ -159,7 +159,7 @@ public:
 
       curr_seq->state_vals.push_back(val[0]);
       Policy_t policy = prepare_policy(pol);
-      const Rvec beta = policy.getBeta();
+      const Rvec beta = policy.getVector();
       agent.a->set(policy.finalize(bTrain, &generators[thrID], beta));
       data->add_action(agent, beta);
     } else
@@ -226,14 +226,14 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
     printf("Continuous-action GAE\n");
     F.push_back(new Approximator("policy", _set, input, data));
     F.push_back(new Approximator("value", _set, input, data));
-    #ifndef simpleSigma
+    #ifndef PPO_simpleSigma
       Builder build_pol = F[0]->buildFromSettings(_set, {2*aInfo.dim});
     #else
       Builder build_pol = F[0]->buildFromSettings(_set,   {aInfo.dim});
     #endif
     Builder build_val = F[1]->buildFromSettings(_set, {1} );
 
-    #ifdef simpleSigma //add stddev layer
+    #ifdef PPO_simpleSigma //add stddev layer
       build_pol.addParamLayer(aInfo.dim, "Linear", -2*std::log(greedyEps));
     #endif
     //add klDiv penalty coefficient layer initialized to 1
