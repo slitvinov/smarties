@@ -129,7 +129,7 @@ class RACER : public Learner_offPolicy
         // correct behavior is to resample
         // to avoid bugs there is a failsafe mechanism
         // if that is triggered, warning will be printed to screen
-        if( DKL_coef < 0.95 ) return resample(thrID);
+        if( DKL_coef > 0.05 ) return resample(thrID);
         else grad = offPolGrad(traj, samp, out_cur, pol, thrID);
       } else
     #endif
@@ -419,8 +419,8 @@ class RACER : public Learner_offPolicy
     //#endif
     if(fracOffPol>tgtFrac*std::cbrt(nA)) DKL_coef = (1-learnR)*DKL_coef;
     else DKL_coef = learnR + (1-learnR)*DKL_coef;
-    if( DKL_coef > 0.95 ) 
-    warn("DKL_coef too high. Decrease learnrate and/or increase klDivConstraint.");
+    if( DKL_coef < 0.05 ) 
+    warn("DKL_coef too low. Decrease learnrate and/or increase klDivConstraint.");
   }
 
   void getMetrics(ostringstream& buff) const

@@ -148,7 +148,7 @@ void MemoryBuffer::push_back(const int & agentId)
     #pragma omp atomic
     nSeenSequences++;
 
-    #if PACEFULLSEQ
+    #if PACEFULLSEQ == 1
     #pragma omp atomic
     nSeenTransitions += inProgress[agentId]->ndata();
     #endif
