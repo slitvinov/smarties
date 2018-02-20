@@ -330,7 +330,7 @@ public:
     return aInfo->getScaled(sampAct);
   }
 
-  inline Rvec getBeta() const
+  inline Rvec getVector() const
   {
     Rvec ret = getStdev();
     ret.insert(ret.begin(), mean.begin(), mean.end());

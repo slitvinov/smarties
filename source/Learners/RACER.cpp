@@ -24,15 +24,33 @@ template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_offPolicy
 {
  protected:
+  // continuous actions: dimensionality of action vectors
+  // discrete actions: number of options
   const Uint nA = Policy_t::compute_nA(&aInfo);
+  // number of parameters of advantage approximator
   const Uint nL = Advantage_t::compute_nL(&aInfo);
-  const Real DKL_param, learnR, invC=1./CmaxRet, alpha=1;
+
+  // tgtFrac_param: target fraction of off-pol samples
+  // learnR: net's learning rate
+  // invC: inverse of c_max
+  // alpha: weight of value-update relative to policy update. 1 means equal
+  const Real tgtFrac_param, learnR, invC=1./CmaxRet, alpha=1;
+  // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
+  // such as state value, policy mean, policy std, adv approximator
   const vector<Uint> net_outputs, net_indices, pol_start, adv_start;
-  vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
-  FILE * wFile = fopen("grads_dist.raw", "ab");
   const Uint VsID = net_indices[0];
+
+  // used in case of temporally correlated noise
+  vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
+
+  // used for debugging purposes to dump stats about gradient. will be removed
+  FILE * wFile = fopen("grads_dist.raw", "ab");
+
+  //tracks statistics about gradient, used for gradient clipping:
   StatsTracker* opcInfo;
-  Real DKL_coef = 0.2;
+
+  // initial value of relative weight of penalization to update gradients:
+  Real beta = 0.2;
 
   MPI_Request nData_request = MPI_REQUEST_NULL;
   double ndata_reduce_result[2], ndata_partial_sum[2];
@@ -40,6 +58,13 @@ class RACER : public Learner_offPolicy
   inline Policy_t prepare_policy(const Rvec& out,
     const Tuple*const t = nullptr) const {
     Policy_t pol(pol_start, &aInfo, out);
+    // pol.prepare computes various quanties that depend on behavioral policy mu
+    // (such as importance weight) and stores both mu and the non-scaled action
+
+    //policy saves pol.sampAct, which is unscaled action
+    //eg. if action bounds act in [-1 1]; learning is with sampAct in (-inf inf)
+    // when facing out of the learner we output act = tanh(sampAct)
+    // TODO semi-bounded action spaces! eg. [0 inf): act = softplus(sampAct)
     if(t not_eq nullptr) pol.prepare(t->a, t->mu);
     return pol;
   }
@@ -88,19 +113,21 @@ class RACER : public Learner_offPolicy
     Sequence* const traj = data->Set[seq];
     assert(samp+1 < traj->tuples.size());
 
-    if(samp+2 == traj->tuples.size()) // if sampled S_{T-1}, update qRet of s_T
+    // if sampled S_{T-1}, update qRet of s_T = reward (with current rescaling)
+    if(samp+2 == traj->tuples.size())
       traj->setRetrace(samp+1, data->standardized_reward(traj, samp+1) );
 
     if(thrID==1) profiler->stop_start("FWD");
 
     #if RACER_FORWARD>0
-      F[0]->prepare_opc(traj, samp, thrID);
+      F[0]->prepare_opc(traj, samp, thrID); // prepare thread workspace
     #else
-      F[0]->prepare_one(traj, samp, thrID);
+      F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
     #endif
 
-    const Rvec out_cur = F[0]->forward(traj, samp, thrID);
+    const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
+    // check whether importance weight is in 1/Cmax < c < Cmax
     const bool isOff = traj->isOffPolicy(samp, pol.sampRhoWeight, CmaxRet,invC);
 
     #if RACER_FORWARD>0
@@ -124,20 +151,21 @@ class RACER : public Learner_offPolicy
     Rvec grad;
 
     #if   RACER_SKIP == 1
-      if(isOff) {
+      if(isOff) { // only update stored offpol weight and qret and so on
         offPolCorrUpdate(traj, samp, out_cur, pol);
         // correct behavior is to resample
         // to avoid bugs there is a failsafe mechanism
         // if that is triggered, warning will be printed to screen
-        if( DKL_coef > 0.05 ) return resample(thrID);
-        else grad = offPolGrad(traj, samp, out_cur, pol, thrID);
+        if( beta > 0.05 ) return resample(thrID);
+        else // if beta too small, grad \approx penalization gradient
+          grad = offPolGrad(traj, samp, out_cur, pol, thrID);
       } else
     #endif
         grad = compute(traj, samp, out_cur, pol, thrID);
 
     if(thrID==1)  profiler->stop_start("BCK");
-    F[0]->backward(grad, samp, thrID);
-    F[0]->gradient(thrID);
+    F[0]->backward(grad, samp, thrID); // place gradient onto output layer
+    F[0]->gradient(thrID);  // backprop
   }
 
   inline Rvec compute(Sequence*const traj, const Uint samp,
@@ -149,21 +177,21 @@ class RACER : public Learner_offPolicy
     const Real Q_dist = Q_RET -A_cur -V_cur, A_RET = Q_RET-V_cur;
     const Real rho_cur = pol_cur.sampRhoWeight;
     //const Real rho_cur = pol_cur.sampImpWeight;
-    const Real Ver = DKL_coef*alpha*std::min((Real)1, rho_cur) * Q_dist;
+    const Real Ver = beta*alpha*std::min((Real)1, rho_cur) * Q_dist;
 
     #ifdef RACER_ONESTEPADV
       const Real rNext = data->standardized_reward(traj,samp+1);
       const Real vNext = traj->state_vals[samp+1];
-      const Real Qer = DKL_coef*alpha*(rNext + gamma*vNext -A_cur-V_cur);
+      const Real Qer = beta*alpha*(rNext + gamma*vNext -A_cur-V_cur);
     #else
-      //const Real Qer = DKL_coef*alpha*Q_dist;
-      const Real Qer = DKL_coef*alpha * rho_cur * Q_dist;
+      //const Real Qer = beta*alpha*Q_dist;
+      const Real Qer = beta*alpha * rho_cur * Q_dist;
     #endif
 
     const Rvec policyG = policyGradient(traj->tuples[samp], pol_cur,
       adv_cur, A_RET, thrID);
     const Rvec penalG  = pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu, -1);
-    const Rvec finalG  = weightSum2Grads(policyG, penalG, DKL_coef);
+    const Rvec finalG  = weightSum2Grads(policyG, penalG, beta);
 
     #ifdef dumpExtra
       if(thrID == 1) {
@@ -200,7 +228,7 @@ class RACER : public Learner_offPolicy
   {
     // prepare penalization gradient:
     Rvec gradient(F[0]->nOutputs(), 0);
-    const Rvec pg = pol.div_kl_opp_grad(S->tuples[t]->mu, DKL_coef-1);
+    const Rvec pg = pol.div_kl_opp_grad(S->tuples[t]->mu, beta-1);
     pol.finalize_grad(pg, gradient);
     return gradient;
     //const Real r=data->standardized_reward(traj,t+1), v=traj->state_vals[t+1];
@@ -272,7 +300,7 @@ class RACER : public Learner_offPolicy
  public:
   RACER(Environment*const _env, Settings& _set, vector<Uint> net_outs,
     vector<Uint> pol_inds, vector<Uint> adv_inds) :
-    Learner_offPolicy(_env, _set), DKL_param(_set.klDivConstraint),
+    Learner_offPolicy(_env, _set), tgtFrac_param(_set.klDivConstraint),
     learnR(_set.learnrate), net_outputs(net_outs),
     net_indices(count_indices(net_outs)),
     pol_start(pol_inds), adv_start(adv_inds)
@@ -302,11 +330,15 @@ class RACER : public Learner_offPolicy
       Rvec output = F[0]->forward_agent(traj, agent, thrID);
       Policy_t pol = prepare_policy(output);
       const Advantage_t adv = prepare_advantage(output, &pol);
-      Rvec beta = pol.getBeta();
+      Rvec mu = pol.getVector(); // vector-form current policy for storage
 
-      Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
-      #if 0
-        act = pol.updateOrUhState(OrUhState[agent.ID], beta, act, iter());
+      // if greedyEps is 0, we just act according to policy
+      // since greedyEps is initial value of diagonal std vectors
+      // this should only be used for evaluating a learned policy
+      Action_t act = pol.finalize(greedyEps>0, &generators[thrID], mu);
+
+      #if 0 // add and update temporally correlated noise
+        act = pol.updateOrUhState(OrUhState[agent.ID], mu, act, iter());
       #endif
 
       const Real advantage = adv.computeAdvantage(pol.sampAct);
@@ -315,13 +347,13 @@ class RACER : public Learner_offPolicy
       agent.a->set(act);
 
       #ifdef dumpExtra
-        traj->add_action(agent.a->vals, beta);
+        traj->add_action(agent.a->vals, mu);
         Rvec param = adv.getParam();
         assert(param.size() == nL);
-        beta.insert(beta.end(), param.begin(), param.end());
-        agent.writeData(learn_rank, beta);
+        mu.insert(mu.end(), param.begin(), param.end());
+        agent.writeData(learn_rank, mu);
       #else
-        data->add_action(agent, beta);
+        data->add_action(agent, mu);
       #endif
 
       #ifndef NDEBUG
@@ -333,8 +365,8 @@ class RACER : public Learner_offPolicy
     }
     else
     {
-      writeOnPolRetrace(traj);
-      OrUhState[agent.ID] = Rvec(nA, 0);
+      writeOnPolRetrace(traj); // compute initial Qret for whole trajectory
+      OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
       #ifdef dumpExtra
         agent.a->set(Rvec(nA,0));
         traj->add_action(agent.a->vals, Rvec(policyVecDim,0));
@@ -352,9 +384,11 @@ class RACER : public Learner_offPolicy
     assert(seq->tuples.size() == seq->state_vals.size()+1);
     assert(seq->Q_RET.size() == 0);
     const Uint N = seq->tuples.size();
-    //within Retrace, we use the state_vals vetor to write the Q retrace values
+    //within Retrace, we use the state_vals vector to write the Q retrace values
     seq->Q_RET.resize(N, 0);
-    seq->state_vals.push_back(0);
+    seq->state_vals.push_back(0); //value of terminal state is 0
+    //TODO extend for non-terminal trajectories: one more v_state predict
+
     //terminal Q_ret = term reward with state val = 0:
     seq->Q_RET[N-1] = data->standardized_reward(seq, N-1);
 
@@ -393,7 +427,7 @@ class RACER : public Learner_offPolicy
     if(not bWasPrepareReady) return;
 
     // update sequences
-    Real fracOffPol = data->nOffPol / data->nTransitions;
+    Real fracOffPol = data->nOffPol / (Real) data->nTransitions;
 
     if (learn_size > 1) {
       const bool firstUpdate = nData_request == MPI_REQUEST_NULL;
@@ -410,23 +444,21 @@ class RACER : public Learner_offPolicy
       if(firstUpdate) return;
     }
 
-    //#ifdef RACER_ACERTRICK
-    //const Real tgtFrac = DKL_param/CmaxPol;
-    //#else
-    //const Real tgtFrac = DKL_param*std::cbrt(nA)/CmaxPol;
-    //const Real tgtFrac = .01 + .09 * std::max(1-nStep/5e6, 0.);
-    const Real tgtFrac = DKL_param/CmaxPol/ (1 + nStep * ANNEAL_RATE);
-    //#endif
-    if(fracOffPol>tgtFrac*std::cbrt(nA)) DKL_coef = (1-learnR)*DKL_coef;
-    else DKL_coef = learnR + (1-learnR)*DKL_coef;
-    if( DKL_coef < 0.05 ) 
-    warn("DKL_coef too low. Decrease learnrate and/or increase klDivConstraint.");
+    const Real tgtFrac = tgtFrac_param / CmaxPol / (1 + nStep * ANNEAL_RATE);
+
+    if( fracOffPol > tgtFrac * std::cbrt(nA) )
+      beta = (1-learnR)*beta; // fixed point iteration converges to 0
+    else
+      beta = learnR + (1-learnR)*beta; // fixed point iteration converges to 1
+
+    if( beta < 0.05 )
+    warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");
   }
 
   void getMetrics(ostringstream& buff) const
   {
     opcInfo->reduce_approx();
-    buff<<" "<<std::setw(6)<<std::setprecision(3)<<DKL_coef;
+    buff<<" "<<std::setw(6)<<std::setprecision(3)<<beta;
     buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[0];
     buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[1];
     buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[2];
@@ -435,6 +467,14 @@ class RACER : public Learner_offPolicy
   }
   void getHeaders(ostringstream& buff) const
   {
+    // beta: coefficient of update gradient to penalization gradient:
+    //       g = g_loss * beta + (1-beta) * g_penal
+    // polG, penG : average norm of these gradients
+    // proj : average norm of projection of polG along penG
+    //        it is usually negative because curr policy should be as far as
+    //        possible from behav. pol. in the direction of update
+    // dAdv : average magnitude of Qret update
+    // avgW : average importance weight
     buff <<"| beta | polG | penG | proj | dAdv | avgW ";
   }
 };

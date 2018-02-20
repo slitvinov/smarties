@@ -109,7 +109,7 @@ public:
 
   void add_action(const Agent& a, Rvec pol = Rvec()) const;
   void terminate_seq(const Agent&a);
-  int add_state(const Agent&a);
+  void add_state(const Agent&a);
 
   void updateRewardsStats();
   void updateImportanceWeights();

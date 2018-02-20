@@ -426,7 +426,7 @@ public:
     return aInfo->getScaled(sampAct);
   }
 
-  inline Rvec getBeta() const
+  inline Rvec getVector() const
   {
     Rvec ret(nExperts +2*nA*nExperts);
     for(Uint j=0; j<nExperts; j++) {
@@ -451,7 +451,7 @@ public:
 
   void test(const Rvec& act, const Gaussian_mixture*const pol_hat) const
   {
-    test(act, pol_hat->getBeta());
+    test(act, pol_hat->getVector());
   }
 
   void test(const Rvec& act, const Rvec& beta) const

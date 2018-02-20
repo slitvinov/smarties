@@ -29,43 +29,43 @@ MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
 // Once learner receives a new observation, first this function is called
 // to add the state and reward to the memory buffer
 // this is called first also bcz memory buffer is used by net to pick new action
-int MemoryBuffer::add_state(const Agent&a)
+void MemoryBuffer::add_state(const Agent&a)
 {
-  int ret=0; //ret is 1 if state will be placed as first in a sequence
   #if PACEFULLSEQ == 0
-  if(a.Status < 2) {
-    #pragma omp atomic
-    nSeenTransitions ++;
-  }
+    if(a.Status < 2) {
+      #pragma omp atomic
+      nSeenTransitions ++;
+    }
   #endif
 
   #if 1
     if (inProgress[a.ID]->tuples.size() && a.Status == 1) {
       //prev sequence not empty, yet received an initial state, push back prev
-      warn("Detected partial sequence\n");
+      warn("Unexpected termination of sequence");
       push_back(a.ID);
-      ret = 1;
     } else if(inProgress[a.ID]->tuples.size()==0) {
-      if(a.Status not_eq 1) die("Missing initial state\n");
+      if(a.Status not_eq 1) die("Missing initial state");
     }
   #endif
 
   #ifndef NDEBUG // check that last new state and new old state are the same
-  if(inProgress[a.ID]->tuples.size()) {
-    bool same = true;
-    const Rvec vecSold = a.sOld->copy_observed();
-    const Tuple*const last = inProgress[a.ID]->tuples.back();
-    for (Uint i=0; i<sI.dimUsed && same; i++) //scaled vec only has used dims:
-      same = same && std::fabs(last->s[i]-vecSold[i]) < 1e-4;
-    if (!same) { //create new sequence
-      warn("Detected partial sequence"); push_back(a.ID); ret = 1; }
-  }
+    if(inProgress[a.ID]->tuples.size()) {
+      bool same = true;
+      const Rvec vecSold = a.sOld->copy_observed();
+      const auto memSold = inProgress[a.ID]->tuples.back()->s;
+      for (Uint i=0; i<sI.dimUsed && same; i++) //scaled vec only has used dims:
+        same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-4;
+      if (!same) { //create new sequence
+        warn("Unexpected termination of sequence");
+        push_back(a.ID);
+      }
+    }
   #endif
 
+  // environment interface can overwrite reward. why? it can be useful.
   env->pickReward(a);
   inProgress[a.ID]->ended = a.Status==2;
   inProgress[a.ID]->add_state(a.s->copy_observed(), a.r);
-  return ret;
 }
 
 // Once network picked next action, call this method
@@ -141,16 +141,16 @@ void MemoryBuffer::updateRewardsStats()
 // REQUIRES CALLING insertBufferedSequences() once a serial region is reached
 void MemoryBuffer::push_back(const int & agentId)
 {
-  if(inProgress[agentId]->tuples.size() > 2 ) {
-    inProgress[agentId]->ID = readNSeenSeq();
-    inProgress[agentId]->SquaredError.resize(inProgress[agentId]->ndata(), 0);
-    inProgress[agentId]->offPol_weight.resize(inProgress[agentId]->ndata(), 1);
+  if(inProgress[agentId]->tuples.size() > 2 )
+  {
+    inProgress[agentId]->finalize( readNSeenSeq() );
+
     #pragma omp atomic
     nSeenSequences++;
 
     #if PACEFULLSEQ == 1
-    #pragma omp atomic
-    nSeenTransitions += inProgress[agentId]->ndata();
+      #pragma omp atomic
+      nSeenTransitions += inProgress[agentId]->ndata();
     #endif
 
     pushBackSequence(inProgress[agentId]);
@@ -396,7 +396,7 @@ void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
   for(Uint i=0; i<seq.size(); i++) {
     sampleTransition(s[i], o[i], omp_get_thread_num());
     const Real W = Set[s[i]]->offPol_weight[o[i]], invW = 1/W;
-    load[i].first = i; load[i].second = std::max(W, invW); 
+    load[i].first = i; load[i].second = std::max(W, invW);
   }
 
   const auto isAbeforeB = [&] (const pair<Uint,Real> a, const pair<Uint,Real> b)
