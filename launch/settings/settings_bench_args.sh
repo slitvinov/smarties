@@ -29,6 +29,7 @@ SETTINGS+=" --bTrain 1"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner POAC"
 
+SETTINGS+=" --minTotObsNum  32768"
 SETTINGS+=" --maxTotSeqNum 262144" # enough to safely handle 2^18 obs
 SETTINGS+=" --maxTotObsNum ${BUFFSIZE}"
 SETTINGS+=" --impWeight ${IMPSAMPR}"
@@ -49,4 +50,4 @@ SETTINGS+=" --klDivConstraint ${DKLPARAM}"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize ${BATCHNUM}"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0003"
+SETTINGS+=" --learnrate 0.0001"
