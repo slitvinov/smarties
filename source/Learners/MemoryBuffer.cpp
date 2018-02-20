@@ -282,12 +282,12 @@ void MemoryBuffer::updateImportanceWeights()
 
 void MemoryBuffer::getMetrics(ostringstream& buff)
 {
-  buff<<" "<<std::setw(8)<<nSequences;
-  buff<<" "<<std::setw(8)<<nTransitions;
-  buff<<" "<<std::setw(8)<<nSeenSequences;
+  buff<<" "<<std::setw(5)<<nSequences;
+  buff<<" "<<std::setw(6)<<nTransitions;
+  buff<<" "<<std::setw(7)<<nSeenSequences;
   buff<<" "<<std::setw(8)<<nSeenTransitions;
   buff<<" "<<std::setw(7)<<minInd;
-  buff<<" "<<std::setw(7)<<(int)nOffPol;
+  buff<<" "<<std::setw(6)<<(int)nOffPol;
   buff<<" "<<std::setw(6)<<std::setprecision(2)<<1./invstd_reward;
   buff<<" "<<std::setw(6)<<std::setprecision(0)<<totMSE;
   nPruned=0;
@@ -295,7 +295,7 @@ void MemoryBuffer::getMetrics(ostringstream& buff)
 void MemoryBuffer::getHeaders(ostringstream& buff)
 {
   buff <<
-  "| curSeq | curObs | totSeq | totObs | minID | nOffP | stdR | tMSE ";
+  "| nEp | nObs | totEp | totObs | oldEp |nOffP | stdR | tMSE ";
 }
 
 void MemoryBuffer::restart()
