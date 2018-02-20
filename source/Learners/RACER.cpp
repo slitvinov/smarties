@@ -445,11 +445,16 @@ class RACER : public Learner_offPolicy
     }
 
     const Real tgtFrac = tgtFrac_param / CmaxPol / (1 + nStep * ANNEAL_RATE);
-
+    #ifdef ANNEAL_LEARNR
+      const Real learnRate = learnR / (1 + nStep * ANNEAL_RATE);
+    #else
+      const Real learnRate = learnR;
+    #endif
+ 
     if( fracOffPol > tgtFrac * std::cbrt(nA) )
-      beta = (1-learnR)*beta; // fixed point iteration converges to 0
+      beta = (1-learnRate)*beta; // fixed point iter converges to 0
     else
-      beta = learnR + (1-learnR)*beta; // fixed point iteration converges to 1
+      beta = learnRate +(1-learnRate)*beta; // fixed point iter converges to 1
 
     if( beta < 0.05 )
     warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");
