@@ -1,148 +1,24 @@
-#WALKER############################################################################################################
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/walker_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/walker_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/walker_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL3/grads_dist.raw
 
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/walker_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/walker_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/walker_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL3/grads_dist.raw
+BASEDIR="/scratch/snx3000/novatig/smarties/"
+PREFIX="_chosenParam_12_GAUS_"
+FNAME="/grads_dist.raw"
 
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/walker_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/walker_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/walker_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL3/grads_dist.raw
-#SPIDER############################################################################################################
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/spider_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/spider_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/spider_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL3/grads_dist.raw
+for ENV in "walker" "spider" "reachr" "humanw" "cheeta" "hopper" "swimmr" "dblpnd"; do
+#for R in "2"; do
+for R in "5"; do
+#for N in "131072" "262144" "524288"; do
+for N in "262144"; do
+for D in "0.2"; do
+for B in "256"; do
+for O in "1.0"; do
 
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/spider_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/spider_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/spider_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL3/grads_dist.raw
+RUN=${BASEDIR}${ENV}${PREFIX}_R${R}_N${N}_D${D}_B${B}_O${O}_TRIAL
+echo
+python excess_kurtosis.py 16 ${RUN}1${FNAME} ${RUN}2${FNAME} ${RUN}3${FNAME}
 
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/spider_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/spider_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/spider_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL3/grads_dist.raw
-#REACHER###########################################################################################################
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/reachr_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/reachr_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/reachr_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/reachr_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/reachr_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/reachr_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/reachr_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/reachr_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/reachr_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL3/grads_dist.raw
-#HUMANOID###########################################################################################################
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/humanw_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/humanw_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/humanw_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/humanw_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/humanw_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/humanw_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/humanw_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/humanw_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/humanw_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL3/grads_dist.raw
-#CHEETAH###########################################################################################################
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/cheeta_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/cheeta_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/cheeta_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/cheeta_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/cheeta_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/cheeta_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/cheeta_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/cheeta_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/cheeta_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL3/grads_dist.raw
-#HOPPER###########################################################################################################
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/hopper_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/hopper_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/hopper_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/hopper_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/hopper_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/hopper_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/hopper_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/hopper_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/hopper_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL3/grads_dist.raw
-#SWIMMER###########################################################################################################
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/swimmr_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/swimmr_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/swimmr_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/swimmr_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/swimmr_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/swimmr_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/swimmr_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/swimmr_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/swimmr_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL3/grads_dist.raw
-#DBLPEND###########################################################################################################
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/dblpnd_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/dblpnd_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/dblpnd_chosenParam_11_GAUS_S1_R2_N131072_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/dblpnd_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/dblpnd_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/dblpnd_chosenParam_11_GAUS_S1_R2_N262144_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-python excess_kurtosis.py 16 \
-/scratch/snx3000/novatig/smarties/dblpnd_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL1/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/dblpnd_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL2/grads_dist.raw \
-/scratch/snx3000/novatig/smarties/dblpnd_chosenParam_11_GAUS_S1_R2_N524288_D0.05_TRICK0_TRIAL3/grads_dist.raw
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+done
+done
+done
+done
+done
+done
