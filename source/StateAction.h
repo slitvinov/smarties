@@ -19,9 +19,11 @@ using namespace std;
 
 struct StateInfo
 {
+  // number of state dimensions and number of state dims observable to learner:
   Uint dim, dimUsed;
+  // vector specifying whether a state component is observable to the learner:
   vector<bool> inUse;
-  Rvec mean, scale;
+  Rvec mean, scale; // mean and scale of state variables. env. defined
 
   StateInfo& operator= (const StateInfo& stateInfo)
   {
@@ -34,6 +36,7 @@ struct StateInfo
     return *this;
   }
 
+  //functions returning std, mean, 1/std of observale state components
   Rvec inUseStd() const {
     Rvec ret(dimUsed, 0);
     for(Uint i=0, k=0; i<dim && scale.size(); i++) {
@@ -66,25 +69,21 @@ class State
   StateInfo sInfo;
   Rvec vals;
 
-  State(const StateInfo& newSInfo) : sInfo(newSInfo)
-  {
+  State(const StateInfo& newSInfo) : sInfo(newSInfo) {
     vals.resize(sInfo.dim);
   };
 
-  State& operator= (const State& s)
-  {
+  State& operator= (const State& s) {
     if (sInfo.dim != s.sInfo.dim) die("Dimension of states differ!!!\n");
     for (Uint i=0; i<sInfo.dim; i++) vals[i] = s.vals[i];
     return *this;
   }
 
-  inline string _print() const
-  {
+  inline string _print() const {
     return print(vals);
   }
 
-  inline void copy_observed(Rvec& res, const Uint append=0) const
-  {
+  inline void copy_observed(Rvec& res, const Uint append=0) const {
     //copy state into res, append is used to chain multiple states together
     Uint k = append*sInfo.dimUsed;
     assert(res.size() >= k+sInfo.dimUsed);
@@ -92,23 +91,20 @@ class State
       if (sInfo.inUse[i]) res[k++] = vals[i];
   }
 
-  inline Rvec copy_observed() const
-  {
+  inline Rvec copy_observed() const {
     Rvec ret(sInfo.dimUsed);
     for (Uint i=0, k=0; i<sInfo.dim; i++)
       if (sInfo.inUse[i]) ret[k++] = vals[i];
     return ret;
   }
 
-  inline void copy(Rvec& res) const
-  {
+  inline void copy(Rvec& res) const {
     assert(res.size() == sInfo.dim);
     for (Uint i=0; i<sInfo.dim; i++) res[i] = vals[i];
   }
 
   template<typename T>
-  inline void set(const vector<T>& data)
-  {
+  inline void set(const vector<T>& data) {
     assert(data.size() == sInfo.dim);
     for (Uint i=0; i<sInfo.dim; i++) vals[i] = data[i];
   }
@@ -116,9 +112,14 @@ class State
 
 struct ActionInfo
 {
-  Uint dim, maxLabel; //number of actions per turn
-  vector<bool> bounded; //whether action have a lower && upper bounded (bool)
+  Uint dim;      //number of actions per turn
+  Uint maxLabel; //number of actions options for discretized act spaces
+
+  // whether action have a lower && upper bounded (bool)
+  // if true scaled action = tanh ( unscaled action )
+  vector<bool> bounded;
   //vector<int> boundedTOP, boundedBOT; TODO
+  
   bool discrete = false;
   //each component of action vector has a vector of possible values that action can take with DQN
   vector<Rvec> values; //max and min of this vector also used for rescaling

@@ -19,15 +19,18 @@ protected:
   ActionInfo aInfo;
 
 public:
-  State *s = nullptr;
-  State *sOld = nullptr;
-  Action *a = nullptr;
-  Real r = 0;
+  State  * sOld = nullptr; // previous state
+  State  * s    = nullptr; // current state
+  // Action performed by agent. Updated by Learner::select and sent to Slave
+  Action * a    = nullptr;
+  Real r = 0;              // current reward
   Real cumulative_rewards = 0;
   const int ID;
+  // status of agent's episode. 1: initial; 0: middle; 2: terminal; 3: truncated
   int Status = 1;
   int transitionID = 0;
 
+  // for dumping to state-action-reward-policy binary log (writeBuffer):
   mutable float buf[OUTBUFFSIZE];
   mutable Uint buffCnter = 0;
 
@@ -67,7 +70,7 @@ public:
     buf[ind++] = r;
     for (Uint i=0; i<mu.size(); i++) buf[ind++] = (float) mu[i];
 
-    #pragma omp atomic 
+    #pragma omp atomic
     buffCnter += writesize;
     assert(buffCnter == ind);
   }

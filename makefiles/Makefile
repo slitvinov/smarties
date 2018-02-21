@@ -45,6 +45,7 @@ CPPFLAGS+= -Wno-cpp -Wno-unused-parameter # does not make sense with function ov
 #CPPFLAGS+= -Wno-maybe-uninitialized #to switch on and check that only triggered by std random
 #CPPFLAGS+= -Wno-float-equal #sometimes you just know, do you know what I am saying?
 CPPFLAGS+= -Wno-unknown-pragmas
+#CPPFLAGS+= -D__CHECK_DIFF 
 
 acer ?= relax
 ifeq "$(acer)" "relax"
@@ -118,13 +119,13 @@ ifeq "$(config)" "debug"
 CPPFLAGS+= -g -O1
 endif
 ifeq "$(config)" "segf"
-CPPFLAGS+= -g -O1 -ffast-math
-#CPPFLAGS+= -fsanitize=address
-#LIBS += -fsanitize=address
+CPPFLAGS+= -g -O0 -ffast-math
+CPPFLAGS+= -fsanitize=address
+LIBS += -fsanitize=address
 #CPPFLAGS+= -fsanitize=thread
 #LIBS += -fsanitize=thread
-CPPFLAGS+= -fsanitize=undefined
-LIBS += -fsanitize=undefined
+#CPPFLAGS+= -fsanitize=undefined
+#LIBS += -fsanitize=undefined
 #CPPFLAGS+= -fsanitize=leak
 #LIBS += -fsanitize=leak
 endif

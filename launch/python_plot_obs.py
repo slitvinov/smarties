@@ -19,7 +19,7 @@ NS, NA, NP = int(sizes[0]), int(sizes[1]), int(sizes[2])
 NL=(NA*NA+NA)//2
 NREW=3+NS+NA
 NCOL=3+NS+NA+NP
-print('States begin at 2, actions at '+str(2+NS)+' policy at '+str(3+NS+NA)+'.')
+print('States begin at 2, actions at '+str(2+NS)+' policy at '+str(3+NS+NA)+' end at '+str(NCOL)+'.')
 ICOL = int( input("Column to print? ") )
 #COLMAX = 1e7
 #COLMAX = 8e6
