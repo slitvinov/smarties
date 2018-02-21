@@ -141,8 +141,8 @@ void Learner::restart()
 {
   if(!learn_rank) printf("Restarting from saved policy...\n");
 
-  for(auto & net : F) net->restart();
-  input->restart();
+  for(auto & net : F) net->restart(learner_name);
+  input->restart(learner_name);
   data->restart();
 
   for(auto & net : F) net->save("restarted_");

@@ -131,8 +131,11 @@ struct Parameters
   int restart(const std::string fname) const {
     FILE * wFile = fopen((fname+".raw").c_str(), "rb");
     if(wFile == NULL) {
-      _warn("Parameters restart file %s not found.", (fname+".raw").c_str());
+      printf("Parameters restart file %s not found.\n", (fname+".raw").c_str());
       return 1;
+    } else {
+      printf("Restarting from file %s.\n", (fname+".raw").c_str());
+      fflush(0);
     }
     size_t wsize = fread(params, sizeof(nnReal), nParams, wFile);
     fclose(wFile);

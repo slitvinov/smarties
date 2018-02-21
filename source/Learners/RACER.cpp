@@ -177,8 +177,8 @@ class RACER : public Learner_offPolicy
     const Real Q_dist = Q_RET -A_cur -V_cur, A_RET = Q_RET-V_cur;
     const Real rho_cur = pol_cur.sampRhoWeight;
     //const Real rho_cur = pol_cur.sampImpWeight;
-    //const Real Ver = beta*alpha*std::min((Real)1, rho_cur) * Q_dist;
-    const Real Ver = beta*alpha * rho_cur * Q_dist;
+    const Real Ver = beta*alpha*std::min((Real)1, rho_cur) * Q_dist;
+    //const Real Ver = beta*alpha * rho_cur * Q_dist;
 
     #ifdef RACER_ONESTEPADV
       const Real rNext = data->standardized_reward(traj,samp+1);

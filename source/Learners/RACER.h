@@ -129,7 +129,7 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     F[0]->initializeNetwork(build);
 
     {  // TEST FINITE DIFFERENCES:
-      Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo)), act(nA);
+      Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
       std::normal_distribution<Real> dist(0, 1);
       for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
       for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
@@ -141,9 +141,8 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
       for(Uint i=0; i<NEXPERTS; i++) mu[i] = mu[i]/norm;
       for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) mu[i]=std::exp(mu[i]);
 
-      for(Uint i=0; i<act.size(); i++) act[i] = dist(generators[0]);
-      act = aInfo.getScaled(act);
       Gaussian_mixture<NEXPERTS>  pol = prepare_policy(output);
+      Rvec act = pol.finalize(1, &generators[0], mu);
       Mixture_advantage<NEXPERTS> adv = prepare_advantage(output, &pol);
       adv.test(act, &generators[0]);
       pol.prepare(act, mu);
