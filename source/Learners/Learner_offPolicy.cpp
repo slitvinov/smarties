@@ -28,7 +28,7 @@ void Learner_offPolicy::prepareData()
   if(nStep%100==0) data->updateRewardsStats();
   taskCounter = 0;
   samp_seq = vector<Uint>(batchSize, -1);
-  samp_obs = vector<Uint>(batchSize, -1); 
+  samp_obs = vector<Uint>(batchSize, -1);
   if(bSampleSequences) data->sampleSequences(samp_seq);
   else data->sampleTransitions_OPW(samp_seq, samp_obs);
   updatePrepared = true;
@@ -77,18 +77,20 @@ void Learner_offPolicy::spawnTrainTasks_par()
   for (Uint i=0; i<batchSize; i++)
   {
     Uint seq = samp_seq[i], obs = samp_obs[i];
-    #pragma omp task firstprivate(seq,obs) 
+    #pragma omp task firstprivate(seq, obs)
     {
       const int thrID = omp_get_thread_num();
       if(thrID == 0) profiler_ext->stop_start("WORK");
       //printf("Thread %d done %u %u %f\n",thrID,seq,obs,data->Set[seq]->offPol_weight[obs]); fflush(0);
-      if(bSampleSequences) {
+      if(bSampleSequences)
+      {
         obs = data->Set[seq]->ndata()-1;
         Train_BPTT(seq, thrID);
         #pragma omp atomic
         nAddedGradients += data->Set[seq]->ndata();
       }
-      else                 {
+      else
+      {
         //data->sampleTransition(seq, obs, thrID);
         Train(seq, obs, thrID);
         #pragma omp atomic
@@ -122,7 +124,7 @@ void Learner_offPolicy::prepareGradient()
   Learner::prepareGradient();
 
   if(bWasPrepareReady) {
-    if(nSkipped >= batchSize) 
+    if(nSkipped >= batchSize)
       warn("Too many skipped samples caused code to override algorithm. Change hyperparameters.");
 
     nSkipped = 0;

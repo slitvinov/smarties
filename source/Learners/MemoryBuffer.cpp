@@ -170,7 +170,9 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
 {
   //checkNData();
   assert(CmaxRho>1);
+  // vector indicating location of sequence to delete
   vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
+  // vector indicating location of oldest sequence
   vector<pair<int,  int>> oldest_sequence(nThreads, {-1, nSeenSequences});
   Real _nOffPol = 0, _totMSE = 0;
   const Real invC = 1/CmaxRho, EPS = 1e-9;
@@ -186,12 +188,17 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
           Set[i]->MSE += Set[i]->SquaredError[j];
           const Real W = Set[i]->offPol_weight[j];
           assert(Set[i]->SquaredError[j]>=0 && W>=0);
+          // sequence is off policy if offPol W is out of 1/C : C
           if(W>CmaxRho || W<invC) Set[i]->nOffPol += 1;
         }
         Set[i]->just_sampled = -1;
       }
       assert(ALGO == OLDEST || ALGO == MAXERROR); //TODO generalize
       //either delete seq with smallest index or with largest "error"
+      // since we always delete the sequence with smallest W, MSE is
+      // stored here with its inverse
+      // TODO: to avoid overfitting and only keep "unexpected" transition in
+      // buffer we should add an other sorting: delete min MSE
       const Real W=ALGO==OLDEST? Set[i]->ID : Set[i]->ndata()/(EPS+Set[i]->MSE);
       _nOffPol += Set[i]->nOffPol; _totMSE += Set[i]->MSE;
       if(Set[i]->ID < oldest_sequence[thrID].second) {
@@ -220,10 +227,13 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
   minInd = oldj;
   assert(deli>=0 && deli<(int)Set.size());
   assert(oldi>=0 && oldi<(int)Set.size());
+  // safety measure to avoid trajectories lingering too much in mem buffer
   if(Set[oldi]->ID + (int)Set.size() < Set[deli]->ID) deli = oldi;
+  // safety measure: do not delete trajectory if Nobs > Ntarget
+  // but if N > Ntarget even if we remove the trajectory
+  // done to avoid problems if a sequence is longer than maxTotObsNum
+  // negligible effect if hyperparameters are chosen wisely
   if(nTransitions-Set[deli]->ndata() > maxTotObsNum) {
-    //cout<< "delete:"<<Set[deli]->ID<<" "<<Set[deli]->MSE<<" "<<Set[deli]->nOffPol
-    //    <<" oldest:"<<Set[oldi]->ID<<" "<<Set[oldi]->MSE<<" "<<Set[oldi]->nOffPol<<endl;
     std::swap(Set[deli], Set.back());
     popBackSequence();
   }
@@ -398,7 +408,9 @@ void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
     const Real W = Set[s[i]]->offPol_weight[o[i]], invW = 1/W;
     load[i].first = i; load[i].second = std::max(W, invW);
   }
-
+  // Done for HPC reasons: sort by offPolicy weights. Only useful in Racer
+  // obs that are likely to be discarded due to opcW being out of range and
+  // therefore will trigger a resampling are done first to improve load balance
   const auto isAbeforeB = [&] (const pair<Uint,Real> a, const pair<Uint,Real> b)
   { return a.second > b.second; };
 
