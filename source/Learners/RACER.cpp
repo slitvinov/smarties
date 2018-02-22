@@ -196,13 +196,15 @@ class RACER : public Learner_offPolicy
 
     #ifdef dumpExtra
       if(thrID == 1) {
-        Real normT = numeric_limits<Real>::epsilon(), dot=0;
+        const float dist = pol_cur.kl_divergence_opp(traj->tuples[samp]->mu);
+        float normT = 0, dot = 0, normG = 0, impW = pol_cur.sampImpWeight;
         for(Uint i = 0; i < policyG.size(); i++) {
+          normG += policyG[i] * policyG[i];
           dot   += policyG[i] *  penalG[i];
           normT +=  penalG[i] *  penalG[i];
         }
-        float ret[] = {float(dot/std::sqrt(normT))};
-        fwrite(ret, sizeof(float), 1, wFile);
+        float ret[]={dot/std::sqrt(normT), std::sqrt(normG), dist, impW};
+        fwrite(ret, sizeof(float), 4, wFile);
       }
     #endif
 
@@ -310,7 +312,14 @@ class RACER : public Learner_offPolicy
     print(pol_start).c_str(), print(adv_start).c_str());
     opcInfo = new StatsTracker(5, "racer", _set, 100);
     //test();
-    ALGO = MAXERROR;
+
+    // Uncomment this line to keep the sequences with the minimum average DKL.
+    // You probably do not want to tho because we measured the correlation
+    // coefficient between the DKL and the offPol imp weight to be 0.1 .
+    // This is because samples with a larger imp. w generally have a larger
+    // pol grad magnitude. Therefore are more strongly pushed away from mu.
+    //FILTER_ALGO = MAXERROR;
+
     cout << CmaxPol << " " << CmaxRet << " " << invC << endl;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
@@ -451,7 +460,7 @@ class RACER : public Learner_offPolicy
     #else
       const Real learnRate = learnR;
     #endif
- 
+
     if( fracOffPol > tgtFrac * std::cbrt(nA) )
       beta = (1-learnRate)*beta; // fixed point iter converges to 0
     else

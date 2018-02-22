@@ -35,7 +35,7 @@ protected:
   const int learn_rank, learn_size;
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;
-  FORGET ALGO = OLDEST;
+  FORGET FILTER_ALGO = OLDEST;
 
   mutable bool updatePrepared = false;
   mutable bool updateComplete = false;
