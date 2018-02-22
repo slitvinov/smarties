@@ -213,7 +213,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
     }
   }
 
-  nOffPol = _nOffPol; totMSE = _totMSE;
+  nOffPol = _nOffPol; totMSE = _totMSE/Set[i]->ndata();
   const Uint nB4 = Set.size();
   int deli = -1, oldi = -1, oldj = nSeenSequences; Real delv = 2e20;
   for(const auto&P: oldest_sequence)
@@ -299,7 +299,7 @@ void MemoryBuffer::getMetrics(ostringstream& buff)
   buff<<" "<<std::setw(7)<<minInd;
   buff<<" "<<std::setw(6)<<(int)nOffPol;
   buff<<" "<<std::setw(6)<<std::setprecision(2)<<1./invstd_reward;
-  buff<<" "<<std::setw(6)<<std::setprecision(0)<<totMSE;
+  buff<<" "<<std::setw(6)<<std::setprecision(3)<<totMSE;
   nPruned=0;
 }
 void MemoryBuffer::getHeaders(ostringstream& buff)
