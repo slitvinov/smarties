@@ -22,7 +22,6 @@ public:
   const Rvec netOutputs;
   const array<Real, nExperts> unnorm;
   const Real normalization;
-  const Real P_trunc = (1-std::erf(NORMDIST_MAX/std::sqrt(2)))/(2*NORMDIST_MAX);
   const array<Real, nExperts> experts;
   const array<Rvec, nExperts> means, stdevs, variances, precisions;
   //not kosher stuff, but it should work, relies on ordering of operations:
@@ -33,8 +32,7 @@ public:
   array<long double, nExperts> PactEachExp;
   long double Pact_Final = -1;
 
-  static inline Uint compute_nP(const ActionInfo* const aI)
-  {
+  static inline Uint compute_nP(const ActionInfo* const aI) {
     return nExperts*(1 + 2*aI->dim);
   }
 
@@ -88,7 +86,7 @@ private:
     for(Uint i=0; i<nExperts; i++) {
       const Uint start = iMeans + i*nA;
       assert(netOutputs.size() >= start + nA);
-      ret[i] = Rvec(&(netOutputs[start]), &(netOutputs[start+nA]));
+      ret[i] = Rvec(&(netOutputs[start]),&(netOutputs[start])+nA);
     }
     return ret;
   }
@@ -108,7 +106,7 @@ private:
     array<Rvec,nExperts> ret = variances; //take inverse of precision
     for(Uint i=0; i<nExperts; i++)
       for(Uint j=0; j<nA; j++)
-        ret[i][j] = 1/(variances[i][j] + numeric_limits<Real>::epsilon());
+        ret[i][j] = 1/(variances[i][j] + std::numeric_limits<long double>::epsilon());
     return ret;
   }
   inline array<Rvec,nExperts> extract_variance() const
@@ -122,7 +120,7 @@ private:
   static inline Real precision_func(const Real val)
   {
     //return std::exp(val) + nnEPS; //nan police
-    return 0.5*(val + std::sqrt(val*val+1)) + numeric_limits<Real>::epsilon();
+    return 0.5*(val + std::sqrt(val*val+1)) +nnEPS;
   }
   static inline Real precision_func_diff(const Real val)
   {
@@ -134,18 +132,19 @@ private:
     //return std::log(val);
     return (val*val -.25)/val;
   }
-  static inline long double oneDnormal(const Real act, const Real mean, const Real prec)
+  static inline long double oneDnormal(const Real act, const Real mean, const Real stdev)
   {
-    const long double arg = .5 * std::pow(act-mean,2) * prec;
-    return std::sqrt(prec/M_PI/2)*std::exp(-arg);
-  }
-  inline long double oneDnormal_trunc(const Real act, const Real mean, const Real stdev) const
-  {
-    const Real u = (act-mean)/stdev, norm = std::sqrt(1/M_PI/2);
-    assert(std::fabs(u)<NORMDIST_MAX);
-    const Real Pnotrunc = norm * std::exp( -std::pow(u,2)/2 );
+    const Real u = (act-mean)/stdev;
+    //P(101:501) =              exp(-0.5* x_mid.^2);
+    //P(  1:501) = P(  1:501) + exp(-0.5*(x_bot-4).^2);
+    //P(101:601) = P(101:601) + exp(-0.5*(x_top+4).^2);
+    const long double top = -std::pow( u +2*NORMDIST_MAX, 2) /2;
+    const long double mid = -std::pow( u                , 2) /2;
+    const long double bot = -std::pow( u -2*NORMDIST_MAX, 2) /2;
     // policy is truncated as shown in function sample()
-    return (P_trunc + Pnotrunc)/stdev;
+    const auto corrBot = u <  NORMDIST_MAX ? std::exp(bot) : 0;
+    const auto corrTop = u > -NORMDIST_MAX ? std::exp(top) : 0;
+    return std::sqrt(1/M_PI/2/stdev/stdev)*(corrBot+std::exp(mid)+corrTop);
   }
 
 public:
@@ -173,13 +172,19 @@ public:
   inline void prepare(const Rvec& unscal_act, const Rvec& beta)
   {
     sampAct = map_action(unscal_act);
-    Pact_Final = 0; //numeric_limits<Real>::epsilon();
+    //Pact_Final = numeric_limits<long double>::epsilon();
+    Pact_Final = 0;
     for(Uint j=0; j<nExperts; j++) {
+    //cout << Pact_Final << endl;
       PactEachExp[j] = 1;
-      for(Uint i=0; i<nA; i++)
-        PactEachExp[j] *= oneDnormal(sampAct[i], means[j][i], precisions[j][i]);
+      for(Uint i=0; i<nA; i++) {
+        PactEachExp[j] *= oneDnormal(sampAct[i], means[j][i], stdevs[j][i]);
+        //cout << PactEachExp[j] << endl;
+      }
       Pact_Final += PactEachExp[j] * experts[j];
+      //cout << Pact_Final << endl;
     }
+    //fflush(0);
     assert(Pact_Final>0);
     sampLogPonPolicy = std::log(Pact_Final);
     sampLogPBehavior = evalBehavior(sampAct, beta);
@@ -192,7 +197,7 @@ public:
     #endif
   }
 
-  inline long double evalBehavior(const Rvec& act, const Rvec& beta) const
+  static inline long double evalBehavior(const Rvec& act, const Rvec& beta)
   {
     long double p = 0;
     const Uint NA = act.size();
@@ -200,7 +205,7 @@ public:
       long double pi = 1;
       for(Uint i=0; i<NA; i++) {
         const Real stdi  = beta[i +j*NA +nExperts*(1+NA)]; //then stdevs
-        pi *= oneDnormal_trunc(act[i], beta[i +j*NA +nExperts], stdi);
+        pi *= oneDnormal(act[i], beta[i +j*NA +nExperts], stdi);
       }
       p += pi * beta[j]; //beta[j] contains expert
     }
@@ -212,7 +217,7 @@ public:
     for(Uint j=0; j<nExperts; j++) {
       long double pi  = 1;
       for(Uint i=0; i<nA; i++)
-        pi *= oneDnormal(act[i], means[j][i], precisions[j][i]);
+        pi *= oneDnormal(act[i], means[j][i], stdevs[j][i]);
       P += pi * experts[j];
     }
     return std::log(P);
@@ -222,13 +227,12 @@ public:
   {
     Rvec ret(nA);
     std::normal_distribution<Real> dist(0, 1);
-    std::uniform_real_distribution<Real> safety(-NORMDIST_MAX, NORMDIST_MAX);
     std::discrete_distribution<Uint> dE(&beta[0], &beta[nExperts]);
-
     const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
+           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       const Uint indM = i +experti*nA +nExperts; //after experts come the means
       const Uint indS = i +experti*nA +nExperts*(nA+1); //after means, stdev
       ret[i] = beta[indM] + beta[indS] * samp;
@@ -239,13 +243,12 @@ public:
   {
     Rvec ret(nA);
     std::normal_distribution<Real> dist(0, 1);
-    std::uniform_real_distribution<Real> safety(-NORMDIST_MAX, NORMDIST_MAX);
-    std::discrete_distribution<Uint> dE(&(experts[0]), &(experts[nExperts]));
-
+    std::discrete_distribution<Uint> dE(&(experts[0]),&(experts[0])+nExperts);
     const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
+           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       ret[i] = means[experti][i] + stdevs[experti][i] * samp;
     }
     return ret;
@@ -265,10 +268,40 @@ public:
       const long double fac = normExpert * experts[j];
       for (Uint i=0; i<nA; i++) {
         const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(1+nA)*nExperts;
-        const Real u = act[i]-means[j][i];
+        const Real u = (act[i]-means[j][i])/stdevs[j][i];
+        const Real ut = u+2*NORMDIST_MAX, ub = u-2*NORMDIST_MAX;
+        const auto Pt = u>-NORMDIST_MAX? std::exp(-std::pow(ut,2)/2) : 0;
+        const auto Pm =                  std::exp(-std::pow(u ,2)/2);
+        const auto Pb = u< NORMDIST_MAX? std::exp(-std::pow(ub,2)/2) : 0;
         //const Real P=sqrt(.5*preci/M_PI)*safeExp(-pow(act[i]-meani,2)*preci);
-        ret[indM] = fac*precisions[j][i]*u;
-        ret[indS] = fac*(u*u*precisions[j][i]-1)/stdevs[j][i];
+        ret[indM] = fac*(ut*Pt + u*Pm + ub*Pb)/(Pt+Pm+Pb)/stdevs[j][i];
+        const auto precFac = (ut*ut*Pt + u*u*Pm + ub*ub*Pb)/(Pt+Pm+Pb);
+        ret[indS] = fac*(precFac-1)/stdevs[j][i];
+      }
+    }
+    return ret;
+  }
+
+  inline Rvec policy_grad_1E(const Rvec& act, const Real factor) const
+  {
+    Rvec ret(nExperts +2*nA*nExperts, 0);
+
+    assert(Pact_Final > 0);
+    for(Uint j=0; j<nExperts; j++) {
+      //if(PactEachExp[j]<EPS) continue; // NaN police
+      const long double fac = factor;
+      for (Uint i=0; i<nA; i++) {
+        const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(1+nA)*nExperts;
+        const Real u = act[i]-means[j][i], prec = precisions[j][i];
+        const Real ut = u+2*NORMDIST_MAX, um = u, ub = u-2*NORMDIST_MAX;
+        const long double mult = -std::pow(ut, 2) *prec /2;
+        const long double mulm = -std::pow(um, 2) *prec /2;
+        const long double mulb = -std::pow(ub, 2) *prec /2;
+        const long double Pt=std::exp(mult),Pm=std::exp(mulm),Pb=std::exp(mulb);
+        //const Real P=sqrt(.5*preci/M_PI)*safeExp(-pow(act[i]-meani,2)*preci);
+        ret[indM] = fac * prec * (ut*Pt + um*Pm + ub*Pb)/(Pt+Pm+Pb);
+        const auto precFac = (ut*ut*Pt + um*um*Pm + ub*ub*Pb)/(Pt+Pm+Pb);
+        ret[indS] = fac*(precFac*prec-1)/stdevs[j][i];
       }
     }
     return ret;
@@ -314,7 +347,7 @@ public:
   }
   inline Real kl_divergence_exp(const Uint expi, const Rvec&beta) const
   {
-    Real DKLe = 0; //numeric_limits<Real>::epsilon();
+    Real DKLe = 0; //numeric_limits<long double>::epsilon();
     for (Uint i=0; i<nA; i++) {
       const Real prech = 1/std::pow(beta[i+expi*nA +nExperts*(1+nA)], 2);
       const Real R =prech*variances[expi][i], meanh = beta[i+expi*nA +nExperts];
@@ -325,7 +358,7 @@ public:
   }
   inline Real kl_divergence_exp(const Uint expi, const Gaussian_mixture*const pol) const
   {
-    Real DKLe = 0; //numeric_limits<Real>::epsilon();
+    Real DKLe = 0; //numeric_limits<long double>::epsilon();
     for (Uint i=0; i<nA; i++) {
       const Real pRatio = pol->precisions[expi][i]*variances[expi][i];
       const Real meanh = pol->means[expi][i], prech = pol->precisions[expi][i];
@@ -454,7 +487,8 @@ public:
       out_1[ind] -= nnEPS; out_2[ind] += nnEPS;
       Gaussian_mixture p1(vector<Uint>{iExperts, iMeans, iPrecs}, aInfo, out_1);
       Gaussian_mixture p2(vector<Uint>{iExperts, iMeans, iPrecs}, aInfo, out_2);
-      const auto p_1=p1.evalLogProbability(act), p_2=p2.evalLogProbability(act);
+      const auto p_1=p1.evalLogProbability(act);
+      const auto p_2=p2.evalLogProbability(act);
       {
        finalize_grad(policygrad, _grad);
        const auto fdiff =(p_2-p_1)/nnEPS/2, abserr =std::fabs(_grad[ind]-fdiff);
@@ -464,7 +498,8 @@ public:
        <<abserr<<" "<<abserr/scale<<" "<<Pact_Final<<" "<<PactEachExp[ie]<<endl;
       }
 
-      const auto d_1=p1.kl_divergence_opp(beta), d_2=p2.kl_divergence_opp(beta);
+      const auto d_1=p1.kl_divergence_opp(beta);
+      const auto d_2=p2.kl_divergence_opp(beta);
       {
        finalize_grad(div_klgrad, _grad);
        const auto fdiff =(d_2-d_1)/nnEPS/2, abserr =std::fabs(_grad[ind]-fdiff);
@@ -473,6 +508,7 @@ public:
        <<abserr<<" "<<abserr/scale<<" "<<Pact_Final<<" "<<PactEachExp[ie]<<endl;
       }
     }
+    fout.flush();
     fout.close();
   }
 };

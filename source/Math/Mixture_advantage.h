@@ -8,7 +8,7 @@
  */
 
 #pragma once
-#if 1
+#if 0
 #include "Gaussian_mixture_trunc.h"
 #else
 #include "Gaussian_mixture.h"
