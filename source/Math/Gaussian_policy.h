@@ -96,10 +96,13 @@ public:
     assert(beta.size() / 2 > 0 && beta.size() % 2 == 0);
     Rvec ret(beta.size()/2);
     std::normal_distribution<Real> dist(0, 1);
+    std::uniform_real_distribution<Real> safety(-NORMDIST_MAX, NORMDIST_MAX);
+
     for(Uint i=0; i<beta.size()/2; i++) {
       Real samp = dist(*gen);
-           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
-      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
+      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
+      //     if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      //else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       ret[i] = beta[i] + beta[beta.size()/2 + i]*samp;
     }
     return ret;
@@ -108,10 +111,13 @@ public:
   {
     Rvec ret(nA);
     std::normal_distribution<Real> dist(0, 1);
+    std::uniform_real_distribution<Real> safety(-NORMDIST_MAX, NORMDIST_MAX);
+
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
-      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
+      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
+      //     if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      //else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       ret[i] = mean[i] + stdev[i]*samp;
     }
     return ret;
@@ -344,12 +350,10 @@ public:
       beta[i] = std::max(safety_std + eps, beta[i]);
   }
 
-  inline Rvec map_action(const Rvec& sent) const
-  {
+  inline Rvec map_action(const Rvec& sent) const {
     return aInfo->getInvScaled(sent);
   }
-  static inline Uint compute_nA(const ActionInfo* const aI)
-  {
+  static inline Uint compute_nA(const ActionInfo* const aI) {
     assert(aI->dim);
     return aI->dim;
   }

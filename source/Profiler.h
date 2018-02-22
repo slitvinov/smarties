@@ -163,11 +163,9 @@ public:
 
   void clear()
   {
-    for(map<string, ProfileAgent*>::iterator it = m_mapAgents.begin(); it != m_mapAgents.end(); it++)
-    {
-      delete it->second;
-
-      it->second = NULL;
+    for(auto &item : m_mapAgents) {
+      delete item.second;
+      item.second = nullptr;
     }
 
     m_mapAgents.clear();
@@ -186,24 +184,19 @@ public:
 
     double dTotalTime = 0;
     double dTotalTime2 = 0;
-    for(vector<ProfileSummaryItem>::const_iterator it = v.begin(); it!= v.end(); it++)
-      dTotalTime += it->dTime;
+    for(const auto &item : v) dTotalTime += item.dTime;
 
-    for(vector<ProfileSummaryItem>::const_iterator it = v.begin(); it!= v.end(); it++)
-      dTotalTime2 += it->dTime - it->nSamples*1.30e-6;
+    for(const auto &item : v) dTotalTime2 += item.dTime - item.nSamples*1.30e-6;
 
-    for(vector<ProfileSummaryItem>::const_iterator it = v.begin(); it!= v.end(); it++)
-    {
-      const ProfileSummaryItem& item = *it;
+    for(const auto &item : v) {
       const double avgTime = item.dAverageTime;
       const double frac1 = 100*item.dTime/dTotalTime;
       const double frac2 = 100*(item.dTime- item.nSamples*1.3e-6)/dTotalTime2;
       if(frac1 < 1 && frac2 < 1) continue;
       printf("[%15s]: \t%02.0f-%02.0f%%\t%03.3e (%03.3e) s\t%03.3f (%03.3f) s\t(%d samples)\n",
-          item.sName.data(), frac1, frac2, avgTime, avgTime-1.30e-6,  item.dTime, 
-          item.dTime- item.nSamples*1.30e-6, item.nSamples);
-      if (outFile) fprintf(outFile,"[%15s]: \t%02.2f%%\t%03.3f s\t(%d samples)\n",
-
+        item.sName.data(), frac1, frac2, avgTime, avgTime-1.30e-6, item.dTime,
+        item.dTime- item.nSamples*1.30e-6, item.nSamples);
+      if(outFile)fprintf(outFile,"[%15s]: \t%02.2f%%\t%03.3f s\t(%d samples)\n",
           item.sName.data(), 100*item.dTime/dTotalTime, avgTime, item.nSamples);
     }
 
@@ -214,24 +207,20 @@ public:
   }
 
   vector<ProfileSummaryItem> createSummary(bool bSkipIrrelevantEntries=true) const
-      {
+  {
     vector<ProfileSummaryItem> result;
     result.reserve(m_mapAgents.size());
 
-    for(map<string, ProfileAgent*>::const_iterator it = m_mapAgents.begin(); it != m_mapAgents.end(); it++)
-    {
-      const ProfileAgent& agent = *it->second;
+    for(const auto &item : m_mapAgents) {
+      const ProfileAgent& agent = *item.second;
       if (!bSkipIrrelevantEntries || agent.m_dAccumulatedTime>1e-3)
-        result.push_back(ProfileSummaryItem(it->first, agent.m_dAccumulatedTime, agent.m_nMoney, agent.m_nMeasurements));
+        result.push_back(ProfileSummaryItem(item.first, agent.m_dAccumulatedTime, agent.m_nMoney, agent.m_nMeasurements));
     }
-
     return result;
-      }
+  }
 
-  void reset()
-  {
-    for(map<string, ProfileAgent*>::const_iterator it = m_mapAgents.begin(); it != m_mapAgents.end(); it++)
-      it->second->_reset();
+  void reset() {
+    for(const auto &item : m_mapAgents) item.second->_reset();
   }
 
   ProfileAgent& getAgent(string sName)

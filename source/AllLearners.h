@@ -11,6 +11,7 @@
 #include "Learners/NAF.h"
 #include "Learners/DPG.h"
 #include "Learners/RACER.h"
+#include "Learners/DACER.h"
 #include "Learners/ACER.h"
 #include "Learners/GAE.h"
 
@@ -56,6 +57,19 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
       o << env->aI.dim << " " << settings.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
       return new RACER_continuous(env, settings);
+    }
+  }
+  else if (settings.learner == "DACER") {
+    if(env->aI.discrete) {
+      settings.policyVecDim = RACER_disc::getnDimPolicy(&env->aI);
+      o << env->aI.maxLabel << " " << settings.policyVecDim;
+      print(o, "problem_size.log", settings.world_rank);
+      return new DACER_disc(env, settings);
+    } else {
+      settings.policyVecDim = DACER_experts::getnDimPolicy(&env->aI);
+      o << env->aI.dim << " " << settings.policyVecDim;
+      print(o, "problem_size.log", settings.world_rank);
+      return new DACER_experts(env, settings);
     }
   }
   else if (settings.learner == "ACER") {

@@ -30,6 +30,9 @@ struct EntropyAdam {
     #endif
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
+    #ifdef SAFE_ADAM
+      M2 = M2<M1*M1? M1*M1 : M2;
+    #endif
     const nnReal ret = eta*M1/(std::sqrt(M2) + nnEPS);
     //const nnReal ret = eta*(B1*M1 + (1-B1)*DW)/(std::sqrt(M2) + nnEPS);
     return ret + eta*1e-3 * gen.d_mean0_var1(); //Adam plus exploratory noise
@@ -74,6 +77,9 @@ struct Adam {
     #endif
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
+    #ifdef SAFE_ADAM
+      M2 = M2<M1*M1? M1*M1 : M2;
+    #endif
     //return eta*M1/(nnEPS + std::sqrt(M2));
     return eta*M1/std::sqrt(nnEPS + M2);
     //return eta*(B1*M1 + (1-B1)*DW)/std::sqrt(nnEPS + M2); // Nesterov Adam
