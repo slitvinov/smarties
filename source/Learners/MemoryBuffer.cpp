@@ -213,7 +213,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
     }
   }
 
-  nOffPol = _nOffPol; totMSE = _totMSE/Set[i]->ndata();
+  nOffPol = _nOffPol; totMSE = _totMSE/nTransitions;
   const Uint nB4 = Set.size();
   int deli = -1, oldi = -1, oldj = nSeenSequences; Real delv = 2e20;
   for(const auto&P: oldest_sequence)
