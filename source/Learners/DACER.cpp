@@ -77,7 +77,7 @@ class DACER : public Learner_offPolicy
       for(Uint i = 0; i < data->Set.size(); i++) {
         Sequence* const traj = data->Set[i];
         const int N = traj->ndata(); traj->setRetrace(N, 0);
-        for(Uint j=N; j>0; j--) updateVret(traj, i-1, traj->state_vals[i-1], 1);
+        for(Uint j=N; j>0; j--) updateVret(traj, j-1, traj->state_vals[j-1], 1);
       }
     }
   }
