@@ -168,7 +168,7 @@ class DACER : public Learner_offPolicy
     #endif
 
     Rvec gradient(F[0]->nOutputs(), 0);
-    gradient[VsID] = Ver;
+    gradient[VsID] = beta*alpha *Ver;
     pol_cur.finalize_grad(finalG, gradient);
 
     Vstats[thrID].dumpStats(V_cur, Ver); //bookkeeping
@@ -203,9 +203,9 @@ class DACER : public Learner_offPolicy
     const Real rho) const {
     const Real rNext = data->standardized_reward(S, t+1), oldVret = S->Q_RET[t];
     const Real vNext = S->state_vals[t+1], V_RET = S->Q_RET[t+1];
-    const Real delta = rho * (rNext +gamma*vNext -V);
-    const Real trace = gamma *.95 *std::pow(rho,retraceTrickPow) *(V_RET-vNext);
-    //const Real trace = gamma *std::min((Real)1, rho) *(V_RET-vNext);
+    const Real delta = std::min((Real)1, rho) * (rNext +gamma*vNext -V);
+    //const Real trace = gamma *.95 *std::pow(rho,retraceTrickPow) *V_RET;
+    const Real trace = gamma *std::min((Real)1, rho) *V_RET;
     S->setStateValue(t, V ); S->setRetrace(t, delta + trace);
     return std::fabs(S->Q_RET[t] - oldVret);
   }

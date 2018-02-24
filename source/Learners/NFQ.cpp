@@ -99,7 +99,7 @@ void NFQ::Train(const Uint seq, const Uint samp, const Uint thrID) const
     Vsnew += gamma * Qtildes[maxInd(Qhats)];
   }
   const Real error = Vsnew - Qs[act];
-  Rvec gradient(F[0]->nOutputs());
+  Rvec gradient(F[0]->nOutputs(), 0);
   gradient[act] = error;
 
   traj->SquaredError[samp] = error*error;
