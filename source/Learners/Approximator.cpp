@@ -251,10 +251,10 @@ Rvec Approximator::forward_agent(const Sequence* const traj,
   const vector<Activation*>& act = series[thrID];
   const Rvec inp = getInput(traj, stepid, thrID);
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
-  const Activation* const prevStep = agent.Status==1? nullptr : act[0];
+  const Activation* const prevStep = agent.Status==INIT_COMM? nullptr : act[0];
   act[0]->written = true; act[1]->written = true;
   Activation* const currStep = act[1];
-  if(agent.Status not_eq 1) prevStep->loadMemory(net->mem[agent.ID]);
+  if(agent.Status not_eq INIT_COMM) prevStep->loadMemory(net->mem[agent.ID]);
   const Rvec ret = net->predict(inp, prevStep, currStep, W);
   currStep->storeMemory(net->mem[agent.ID]);
   return ret;

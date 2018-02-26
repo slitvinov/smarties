@@ -122,6 +122,7 @@ void Communicator::update_state_action_dims(const int sdim, const int adim)
   for (int i = 0; i<2*adim; i++) action_options[i] = i%2 == 0 ? 2.1 :  0;
   for (int i = 0; i<2*adim; i++) action_bounds[i]  = i%2 == 0 ? 1   : -1;
   // agent number, initial/normal/terminal indicator, state,  reward
+  stored_actions = std::vector<std::vector<double>>(nAgents, std::vector<double>(nActions,0));
   size_state = (3+sdim)*sizeof(double);
   size_action = adim*sizeof(double);
   _dealloc(data_action);
@@ -163,44 +164,38 @@ Communicator::Communicator(const int socket, const int state_components, const i
 }
 #endif
 
+// this function effectively sends the state of agent iAgent
+// (and additional info) and also waits for and stores selected action
 void Communicator::sendState(const int iAgent, const envInfo status,
     const std::vector<double> state, const double reward)
 {
-  if(rank_inside_app>0) return; //only rank 0 of the app sends state
-  if(!sentStateActionShape) sendStateActionShape();
-  assert(state.size()==(std::size_t)nStates && data_state not_eq nullptr);
-  assert(iAgent>=0 && iAgent<nAgents);
+  if(rank_inside_app <= 0)
+  { //only rank 0 of the app sends state
+    if(!sentStateActionShape) sendStateActionShape();
+    assert(state.size()==(std::size_t)nStates && data_state not_eq nullptr);
+    assert(iAgent>=0 && iAgent<nAgents);
 
-  intToDoublePtr(iAgent, data_state+0);
-  intToDoublePtr(status, data_state+1);
-  for (int j=0; j<nStates; j++) {
-    data_state[j+2] = state[j];
-    assert(not std::isnan(state[j]) && not std::isinf(state[j]));
+    intToDoublePtr(iAgent, data_state+0);
+    intToDoublePtr(status, data_state+1);
+    for (int j=0; j<nStates; j++) {
+      data_state[j+2] = state[j];
+      assert(not std::isnan(state[j]) && not std::isinf(state[j]));
+    }
+    data_state[nStates+2] = reward;
+    assert(not std::isnan(reward) && not std::isinf(reward));
+
+    //if (logfile != std::string()) {
+    //  if(verbose) printLog(data_state, size_state);
+    //  else  printBuf(data_state, size_state);
+    //}
+
+    #ifdef MPI_INCLUDED
+      if (rank_learn_pool>0) slaveSend_MPI();
+      else
+    #endif
+      comm_sock(Socket, true, data_state, size_state);
   }
-  data_state[nStates+2] = reward;
-  assert(not std::isnan(reward) && not std::isinf(reward));
 
-  if (logfile != std::string()) {
-    if(verbose) printLog(data_state, size_state);
-    else  printBuf(data_state, size_state);
-  }
-
-  #ifdef MPI_INCLUDED
-    if (rank_learn_pool>0) slaveSend_MPI();
-    else
-  #endif
-    comm_sock(Socket, true, data_state, size_state);
-
-  if (status == TERM_COMM) {
-    seq_id++;
-    msg_id = 0;
-    recvAction();
-  }
-}
-
-void Communicator::recvAction(std::vector<double>& actions)
-{
-  assert(actions.size() == (std::size_t) nActions);
   #ifdef MPI_INCLUDED
     if(rank_inside_app <= 0)
     {
@@ -217,34 +212,24 @@ void Communicator::recvAction(std::vector<double>& actions)
   #endif
 
   for (int j=0; j<nActions; j++) {
-    actions[j] = data_action[j];
-    assert(not std::isnan(actions[j]) && not std::isinf(actions[j]));
+    stored_actions[iAgent][j] = data_action[j];
+    assert(not std::isnan(data_action[j]) && not std::isinf(data_action[j]));
   }
 
   if(fabs(data_action[0]-_AGENT_KILLSIGNAL)<2.2e-16) abort();
 
-  if (logfile != std::string() && rank_inside_app <= 0) {
-    if(verbose) printLog(data_action, size_action);
-    else  printBuf(data_action, size_action);
+  //if (logfile != std::string() && rank_inside_app <= 0) {
+  //  if(verbose) printLog(data_action, size_action);
+  //  else  printBuf(data_action, size_action);
+  //}
+
+  if (status >= TERM_COMM) {
+    seq_id++;
+    msg_id = 0;
   }
 }
 
 /*
-void Communicator::sendCompleteTermination()
-{
-  if(rank_inside_app>0) return;
-  intToDoublePtr(0, data_state+0);
-  intToDoublePtr(GAME_OVER, data_state+1);
-  #ifdef MPI_INCLUDED
-    if (rank_learn_pool>0) send_MPI(data_state, size_state, comm_learn_pool);
-    else
-  #endif
-    comm_sock(Socket, true, data_state, size_state);
-
-  recvAction();
-}
-*/
-
 void Communicator::printLog(const double*const buf, const int size)
 {
   std::ostringstream o;
@@ -264,6 +249,7 @@ void Communicator::printBuf(const double*const buf, const int size)
   fwrite (buf, sizeof(double), size/sizeof(double), pFile);
   fclose (pFile);
 }
+*/
 
 void Communicator::launch_smarties()
 {

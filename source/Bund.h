@@ -59,17 +59,21 @@ using namespace std;
 // #define ANNEAL_LEARNR // Anneal also network learn rate
 
 // Scheduler keeps approximate ratio of grad steps N to env time steps T
-// according to user's setting obsPerStep. This option affects how T is 
-// advanced. Setting this to 1 means that T is advanced only when a full
+// according to user's setting obsPerStep. Following option affects how T
+// is advanced. Setting this to 1 means that T is advanced only when full
 // seq is observed. In this case T is increased by length of the seq.
-// Set to 0 to add 1 for every new time step. Caveat is that in any case 
-// observations are added to the training set only when their seq ends. 
+// Set to 0 to add 1 for every new time step. Caveat is that in any case
+// observations are added to the training set only when their seq ends.
+// Main difference in first (=1) case network weights will be identical
+// for whole sequence. Slightly better perf but harder to explain so
+// it is not the default. Also: way worse load balancing and terrible for
+// really expensive to advance environments.
 #define PACEFULLSEQ 0
 
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
 #define NORMDIST_MAX 2 //truncated normal distribution range
-#define BOUNDACT_MAX 4 //for bounded action spaces: range (ie. tanh(4))
+#define BOUNDACT_MAX 4 //limit range of pol. for bounded act. spaces ie. tanh(4)
 
 //uniform precision (1/std^2) in case of Acer:
 #define ACER_CONST_PREC (1/0.09)

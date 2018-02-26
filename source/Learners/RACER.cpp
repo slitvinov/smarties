@@ -81,10 +81,10 @@ class RACER : public Learner_offPolicy
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++) {
         const int N = data->Set[i]->ndata();
-        data->Set[i]->setRetrace(N, data->standardized_reward(data->Set[i], N));
+        data->Set[i]->setRetrace(N, data->scaledReward(data->Set[i], N));
         for(int j = N-1; j>=0; j--) {
           const Real A = data->Set[i]->action_adv[j];
-          const Real R = data->standardized_reward(data->Set[i], j);
+          const Real R = data->scaledReward(data->Set[i], j);
           data->Set[i]->setRetrace(j, R +gamma*(data->Set[i]->Q_RET[j+1] -A) );
         }
       }
@@ -101,7 +101,7 @@ class RACER : public Learner_offPolicy
     for (int k=0; k<ndata; k++) F[0]->forward(traj, k, thrID);
     //if partial sequence then compute value of last state (!= R_end)
     assert(traj->ended);
-    traj->setRetrace(ndata, data->standardized_reward(traj, ndata) );
+    traj->setRetrace(ndata, data->scaledReward(traj, ndata) );
 
     if(thrID==1)  profiler->stop_start("POL");
     for(int k=ndata-1; k>=0; k--)
@@ -131,10 +131,6 @@ class RACER : public Learner_offPolicy
     Sequence* const traj = data->Set[seq];
     assert(samp+1 < traj->tuples.size());
 
-    // if sampled S_{T-1}, update qRet of s_T = reward (with current rescaling)
-    if(samp+2 == traj->tuples.size())
-      traj->setRetrace(samp+1, data->standardized_reward(traj, samp+1) );
-
     if(thrID==1) profiler->stop_start("FWD");
 
     #if RACER_FORWARD>0
@@ -142,8 +138,18 @@ class RACER : public Learner_offPolicy
     #else
       F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
     #endif
-
     const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
+
+    // if sampled S_{T-1}, update qRet of s_T = reward (with current rescaling)
+    if( traj->isTerminal(samp+1) )
+      traj->setRetrace(samp+1, data->scaledReward(traj, samp+1) );
+    else if ( traj->isTruncated(samp+1) )
+    {
+      const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
+      traj->setStateValue(samp+1, nxt[VsID] );
+      traj->setRetrace(samp+1,data->scaledReward(traj,samp+1) +gamma*nxt[VsID]);
+    }
+
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
     // check whether importance weight is in 1/Cmax < c < Cmax
     const bool isOff = traj->isOffPolicy(samp, pol.sampRhoWeight, CmaxRet,invC);
@@ -199,7 +205,7 @@ class RACER : public Learner_offPolicy
     //const Real Ver = beta*alpha * rho_cur * Q_dist;
 
     #ifdef RACER_ONESTEPADV
-      const Real rNext = data->standardized_reward(traj,samp+1);
+      const Real rNext = data->scaledReward(traj,samp+1);
       const Real vNext = traj->state_vals[samp+1];
       const Real Qer = beta*alpha*(rNext + gamma*vNext -A_cur-V_cur);
     #else
@@ -252,7 +258,7 @@ class RACER : public Learner_offPolicy
     const Rvec pg = pol.div_kl_opp_grad(S->tuples[t]->mu, beta-1);
     pol.finalize_grad(pg, gradient);
     return gradient;
-    //const Real r=data->standardized_reward(traj,t+1), v=traj->state_vals[t+1];
+    //const Real r=data->scaledReward(traj,t+1), v=traj->state_vals[t+1];
     //adv_cur.grad(act, r + gamma*v -A_cur-V_cur, gradient);
   }
 
@@ -266,7 +272,7 @@ class RACER : public Learner_offPolicy
   inline void updateQret(Sequence*const S, const Uint t) const
   {
     const Real A = S->action_adv[t], V = S->state_vals[t];
-    const Real R = data->standardized_reward(S, t);
+    const Real R = data->scaledReward(S, t);
     const Real W = std::min((Real)1, S->offPol_weight[t]);
     //prepare Qret with off policy corrections for next step:
     S->setRetrace(t, R +gamma*(W*(S->Q_RET[t+1]-A-V) +V) );
@@ -281,7 +287,7 @@ class RACER : public Learner_offPolicy
 
     S->setAdvantage(t, A ); S->setStateValue(t, V );
     S->setSquaredError(t, pol.kl_divergence_opp(S->tuples[t]->mu) );
-    S->setRetrace(t, data->standardized_reward(S,t) +gamma*(W*C +V) );
+    S->setRetrace(t, data->scaledReward(S,t) +gamma*(W*C +V) );
     return std::fabs(S->Q_RET[t] - oldQret);
   }
 
@@ -351,7 +357,7 @@ class RACER : public Learner_offPolicy
     Sequence* const traj = data->inProgress[agent.ID];
     data->add_state(agent);
 
-    if( agent.Status != 2 )
+    if( agent.Status < TERM_COMM ) // not end of sequence
     {
       //Compute policy and value on most recent element of the sequence. If RNN
       // recurrent connection from last call from same agent will be reused
@@ -393,6 +399,12 @@ class RACER : public Learner_offPolicy
     }
     else
     {
+      if( agent.Status == TRNC_COMM ) {
+        Rvec output = F[0]->forward_agent(traj, agent, thrID);
+        traj->state_vals.push_back(output[VsID]); // not a terminal state
+      } else {
+        traj->state_vals.push_back(0); //value of terminal state is 0
+      }
       writeOnPolRetrace(traj); // compute initial Qret for whole trajectory
       OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
       #ifdef dumpExtra
@@ -409,19 +421,17 @@ class RACER : public Learner_offPolicy
   void writeOnPolRetrace(Sequence*const seq) const
   {
     assert(seq->tuples.size() == seq->action_adv.size()+1);
-    assert(seq->tuples.size() == seq->state_vals.size()+1);
+    assert(seq->tuples.size() == seq->state_vals.size());
     assert(seq->Q_RET.size() == 0);
     const Uint N = seq->tuples.size();
     //within Retrace, we use the state_vals vector to write the Q retrace values
     seq->Q_RET.resize(N, 0);
-    seq->state_vals.push_back(0); //value of terminal state is 0
-    //TODO extend for non-terminal trajectories: one more v_state predict
 
     //terminal Q_ret = term reward with state val = 0:
-    seq->Q_RET[N-1] = data->standardized_reward(seq, N-1);
+    seq->Q_RET[N-1] = data->scaledReward(seq,N-1) + gamma*seq->state_vals[N-1];
 
     for (Uint i=N-1; i>0; i--) { //update all q_ret before terminal step
-      const Real R = data->standardized_reward(seq, i-1);
+      const Real R = data->scaledReward(seq, i-1);
       // formula for Q_RET given rho = 1 :
       seq->Q_RET[i-1] = R +gamma*(seq->Q_RET[i] - seq->action_adv[i-1]);
     }
@@ -439,7 +449,7 @@ class RACER : public Learner_offPolicy
           for(int j = data->Set[i]->just_sampled; j>=0; j--) {
             const Real obsOpcW = data->Set[i]->offPol_weight[j];
             assert(obsOpcW >= 0);
-            const Real R = data->standardized_reward(data->Set[i], j);
+            const Real R = data->scaledReward(data->Set[i], j);
             const Real W = obsOpcW>1? 1 : obsOpcW;
             const Real A = data->Set[i]->action_adv[j];
             const Real V = data->Set[i]->state_vals[j];
@@ -464,7 +474,11 @@ class RACER : public Learner_offPolicy
       // prepare an allreduce with the current data:
       ndata_partial_sum[0] = data->nOffPol;
       ndata_partial_sum[1] = data->nTransitions;
-      // use result from prev reduce to update rewards (before new reduce)
+      // use result from prev reduce to update rewards (before new reduce).
+      // Assumption is that the number of off Pol trajectories does not change
+      // much each step. Especially because here we update the off pol W only
+      // if an observation is actually sampled. Therefore at most this fraction
+      // is wrong by bathSize / nTransitions ~ 0
       fracOffPol = ndata_reduce_result[0] / ndata_reduce_result[1];
 
       MPI_Iallreduce(ndata_partial_sum, ndata_reduce_result, 2, MPI_DOUBLE, MPI_SUM, mastersComm, &nData_request);

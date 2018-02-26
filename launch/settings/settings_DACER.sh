@@ -10,19 +10,13 @@ SETTINGS+=" --samplesFile none"
 SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-#SETTINGS+=" --nnl1 12"
-#SETTINGS+=" --nnl1 128"
-#SETTINGS+=" --nnl2 128"
-#SETTINGS+=" --nnl3 128"
 SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 96"
-SETTINGS+=" --nnl3 64"
+SETTINGS+=" --nnl2 128"
+#SETTINGS+=" --nnl3 128"
 
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc PRelu"
 SETTINGS+=" --nnFunc SoftSign"
-#SETTINGS+=" --nnFunc HardSign"
-#SETTINGS+=" --nnFunc Linear"
 SETTINGS+=" --nnLambda 0.0001"
 
 #whether you are training a policy or testing an already trained network
@@ -33,12 +27,11 @@ SETTINGS+=" --learner DACER"
 SETTINGS+=" --greedyEps 0.5"
 
 SETTINGS+=" --obsPerStep 1"
-SETTINGS+=" --minTotObsNum 131072" 
+SETTINGS+=" --minTotObsNum 131072"
 SETTINGS+=" --maxTotObsNum 262144"
 
 SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 5000000"
-#SETTINGS+=" --impWeight 5"
 SETTINGS+=" --impWeight 2"
 
 
@@ -46,7 +39,7 @@ SETTINGS+=" --impWeight 2"
 SETTINGS+=" --klDivConstraint 0.2"
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 256"
+SETTINGS+=" --batchSize 128"
 SETTINGS+=" --bSampleSequences 0"
 #SETTINGS+=" --batchSize 32"
 #SETTINGS+=" --bSampleSequences 1"

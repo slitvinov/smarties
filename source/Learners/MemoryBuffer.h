@@ -84,12 +84,12 @@ public:
   {
     return standardize(Set[seq]->tuples[samp]->s);
   }
-  inline Real standardized_reward(const Uint seq, const Uint samp) const
+  inline Real scaledReward(const Uint seq, const Uint samp) const
   {
     assert(samp>0 && samp < Set[seq]->tuples.size());
     return Set[seq]->tuples[samp]->r * invstd_reward;
   }
-  inline Real standardized_reward(const Sequence*const seq,const Uint samp)const
+  inline Real scaledReward(const Sequence*const seq,const Uint samp)const
   {
     assert(samp < seq->tuples.size()); // samp>0 &&
     return seq->tuples[samp]->r * invstd_reward;

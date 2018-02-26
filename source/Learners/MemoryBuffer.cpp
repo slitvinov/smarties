@@ -32,19 +32,19 @@ MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
 void MemoryBuffer::add_state(const Agent&a)
 {
   #if PACEFULLSEQ == 0
-    if(a.Status < 2) {
+    if(a.Status < TERM_COMM) {
       #pragma omp atomic
       nSeenTransitions ++;
     }
   #endif
 
   #if 1
-    if (inProgress[a.ID]->tuples.size() && a.Status == 1) {
+    if (inProgress[a.ID]->tuples.size() && a.Status == INIT_COMM) {
       //prev sequence not empty, yet received an initial state, push back prev
       warn("Unexpected termination of sequence");
       push_back(a.ID);
     } else if(inProgress[a.ID]->tuples.size()==0) {
-      if(a.Status not_eq 1) die("Missing initial state");
+      if(a.Status not_eq INIT_COMM) die("Missing initial state");
     }
   #endif
 
@@ -64,7 +64,7 @@ void MemoryBuffer::add_state(const Agent&a)
 
   // environment interface can overwrite reward. why? it can be useful.
   env->pickReward(a);
-  inProgress[a.ID]->ended = a.Status==2;
+  inProgress[a.ID]->ended = a.Status==TERM_COMM;
   inProgress[a.ID]->add_state(a.s->copy_observed(), a.r);
 }
 
@@ -79,7 +79,7 @@ void MemoryBuffer::add_action(const Agent& a, Rvec pol) const
 // If the state is terminal, instead of calling `add_action`, call this:
 void MemoryBuffer::terminate_seq(const Agent&a)
 {
-  assert(a.Status==2);
+  assert(a.Status>=TERM_COMM);
   assert(inProgress[a.ID]->tuples.back()->mu.size() == 0);
   assert(inProgress[a.ID]->tuples.back()->a.size()  == 0);
   a.a->set(Rvec(aI.dim,0));
@@ -141,7 +141,7 @@ void MemoryBuffer::updateRewardsStats()
 // REQUIRES CALLING insertBufferedSequences() once a serial region is reached
 void MemoryBuffer::push_back(const int & agentId)
 {
-  if(inProgress[agentId]->tuples.size() > 2 )
+  if(inProgress[agentId]->tuples.size() > 2 ) //at least s0 and sT
   {
     inProgress[agentId]->finalize( readNSeenSeq() );
 

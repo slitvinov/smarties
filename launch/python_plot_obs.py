@@ -47,7 +47,7 @@ DATA = np.fromfile(FILE, dtype=np.float32)
 NROW = DATA.size // NCOL
 DATA = DATA.reshape(NROW, NCOL)
 
-terminals = np.argwhere(abs(DATA[:,0]-2.1)<0.1)
+terminals = np.argwhere(DATA[:,0]>=2.)
 initials  = np.argwhere(abs(DATA[:,0]-1.1)<0.1)
 print(np.mean(DATA[terminals,NREW-1]))
 print(np.std(DATA[:,NREW-1]), np.mean(DATA[:,NREW-1]))

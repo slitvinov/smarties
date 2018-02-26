@@ -15,7 +15,7 @@
 #define CONT_COMM 0
 #define INIT_COMM 1
 #define TERM_COMM 2
-#define GAME_OVER 3
+#define TRNC_COMM 3
 #define FAIL_COMM 4
 #define _AGENT_KILLSIGNAL -256
 #ifdef OPEN_MPI
@@ -63,8 +63,8 @@ protected:
     #endif
   }
 
-  void printLog(const double*const buf, const int size);
-  void printBuf(const double*const ptr, const int size);
+  //void printLog(const double*const buf, const int size);
+  //void printBuf(const double*const ptr, const int size);
 
   void launch_exec(const std::string exec);
   void launch_smarties();
@@ -77,15 +77,19 @@ public:
   #ifdef MPI_INCLUDED
     MPI_Comm comm_inside_app = MPI_COMM_NULL, comm_learn_pool = MPI_COMM_NULL;
   #endif
+  // only for MPI-based *applications* eg. flow solvers:
   int rank_inside_app = -1, rank_learn_pool = -1;
+  // comm to talk to master:
   int size_inside_app = -1, size_learn_pool = -1;
+  // for MPI-based applications, to split simulations between groups of ranks
   int slaveGroup = -1;
+  // should be named nState/ActionComponents
   int nStates = -1, nActions = -1, size_state = -1, size_action = -1;
   int discrete_actions = 0, nAgents=1;
   // communication buffers:
   double *data_state = nullptr, *data_action = nullptr;
   bool called_by_app = false, defined_spaces = false;
-
+  std::vector<std::vector<double>> stored_actions;
   //internal counters
   unsigned long seq_id = 0, msg_id = 0, iter = 0, lag = 10;
   bool verbose = false, spawner = false;
@@ -93,7 +97,6 @@ public:
   std::string paramfile = std::string();
   std::string logfile = std::string();
   std::mt19937 gen;
-  MPI_Request slave_request = MPI_REQUEST_NULL;
 
   int discrete_action_values = 0;
   double dump_value = -1;
@@ -135,14 +138,15 @@ public:
   {
     return sendState(iAgent, TERM_COMM, state, reward);
   }
-  void recvAction(std::vector<double>& actions);
-
-  std::vector<double> recvAction()
+  inline void truncateSeq(const std::vector<double> state, const double reward, const int iAgent = 0)
   {
-    assert(nActions>0);
-    std::vector<double> act(nActions);
-    recvAction(act);
-    return act;
+    return sendState(iAgent, TRNC_COMM, state, reward);
+  }
+  //void recvAction(std::vector<double>& actions);
+
+  std::vector<double> recvAction(const int iAgent = 0)
+  {
+    return stored_actions[iAgent];
   }
 
   void launch();
@@ -190,26 +194,37 @@ public:
     comm_sock(Socket, false, buf, size);
   }
 
+
+  MPI_Request send_request = MPI_REQUEST_NULL;
+  MPI_Request recv_request = MPI_REQUEST_NULL;
+
   void slaveRecv_MPI() {
     //auto start = std::chrono::high_resolution_clock::now();
     assert(comm_learn_pool != MPI_COMM_NULL);
-    assert(slave_request != MPI_REQUEST_NULL);
-    while(true) {
-      int completed=0;
-      MPI_Test(&slave_request, &completed, MPI_STATUS_IGNORE);
-      if (completed) break;
-      usleep(5);
-    }
+    assert(recv_request != MPI_REQUEST_NULL);
+    //if(recv_request != MPI_REQUEST_NULL) {
+      while(true) {
+        int completed=0;
+        MPI_Test(&recv_request, &completed, MPI_STATUS_IGNORE);
+        if (completed) break;
+        usleep(5);
+      }
+    //  memcpy(&stored_actions[iAgent], data_action, size_action);
+    //}
+    assert(recv_request == MPI_REQUEST_NULL);
     //auto elapsed = std::chrono::high_resolution_clock::now() - start;
     //cout << chrono::duration_cast<chrono::microseconds>(elapsed).count() <<endl;
   }
 
   void slaveSend_MPI() {
+    //if(send_request != MPI_REQUEST_NULL) MPI_Wait(&send_request, MPI_STATUS_IGNORE);
+    //if(recv_request != MPI_REQUEST_NULL) slaveRecv_MPI(iAgent);
+
     assert(comm_learn_pool != MPI_COMM_NULL);
     MPI_Request dummyreq;
     MPI_Isend(data_state, size_state, MPI_BYTE, 0, 1, comm_learn_pool, &dummyreq);
-    MPI_Request_free(&dummyreq); //Not my problem?
-    MPI_Irecv(data_action, size_action, MPI_BYTE, 0, 0, comm_learn_pool, &slave_request);
+    MPI_Request_free(&dummyreq); //Not my problem? send_request
+    MPI_Irecv(data_action, size_action, MPI_BYTE, 0, 0, comm_learn_pool, &recv_request);
   }
 #endif
 };

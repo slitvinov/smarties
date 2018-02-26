@@ -64,7 +64,7 @@ int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv)
       double reward = vec[nS];
 
       rlcom->sendState(0, status, state, reward);
-      if(status != 2) rlcom->recvAction(action);
+      if(status != 2) action = rlcom->recvAction();
 
       //printf("Rank %d (%d) comm %s\n",
       //  rank, wrank, printableTuple(state, reward, action).c_str());

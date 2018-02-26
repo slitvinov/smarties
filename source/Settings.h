@@ -101,7 +101,7 @@ struct Settings
   int maxTotObsNum = DEFAULT_maxTotObsNum;
 
 #define CHARARG_obsPerStep 'o'
-#define COMMENT_obsPerStep "Ratio of observed *transitions* to gradient steps. 1 means that for every state, learner does 10 gradient steps."
+#define COMMENT_obsPerStep "Ratio of observed *transitions* to gradient steps. 0.1 means that for every observation, learner does 10 gradient steps."
 #define TYPEVAL_obsPerStep  Real
 #define TYPENUM_obsPerStep  REAL
 #define DEFAULT_obsPerStep  1

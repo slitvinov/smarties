@@ -72,8 +72,8 @@ class ACER : public Learner_offPolicy
       //cout << print(advantages[k]) << endl; fflush(0);
     }
     assert(traj->ended);
-    Real Q_RET = data->standardized_reward(traj, ndata);
-    Real Q_OPC = data->standardized_reward(traj, ndata);
+    Real Q_RET = data->scaledReward(traj, ndata);
+    Real Q_OPC = data->scaledReward(traj, ndata);
     if(thrID==1)  profiler->stop_start("POL");
     for(int k=ndata-1; k>=0; k--)
     {
@@ -85,7 +85,7 @@ class ACER : public Learner_offPolicy
       const Real A_OPC = Q_OPC - Vstates[k], Q_err = Q_RET - QTheta;
       const Real W = std::min((Real)1, policies[k].sampRhoWeight); //as in paper, but I see dead people
       //const Real W = std::min((Real)1, policies[k].sampImpWeight);
-      const Real R = data->standardized_reward(traj, k), V_err = Q_err*W;
+      const Real R = data->scaledReward(traj, k), V_err = Q_err*W;
       const Rvec pGrad = policyGradient(traj->tuples[k], policies[k],
         policies_tgt[k], A_OPC, APol, policy_samples[k]);
       F[0]->backward(pGrad,   k, thrID);
@@ -181,7 +181,7 @@ class ACER : public Learner_offPolicy
     Sequence* const traj = data->inProgress[agent.ID];
     data->add_state(agent);
 
-    if( agent.Status != 2 ) {
+    if( agent.Status < TERM_COMM ) {
       //Compute policy and value on most recent element of the sequence. If RNN
       // recurrent connection from last call from same agent will be reused
       Rvec output = F[0]->forward_agent(traj, agent, thrID);

@@ -152,7 +152,7 @@ public:
     Sequence*const curr_seq = data->inProgress[agent.ID];
     data->add_state(agent);
 
-    if(agent.Status != 2) { //non terminal state
+    if(agent.Status < TERM_COMM ) { //non terminal state
       //Compute policy and value on most recent element of the sequence:
       const Rvec pol=F[0]->forward_agent(curr_seq, agent, thrID);
       const Rvec val=F[1]->forward_agent(curr_seq, agent, thrID);
@@ -162,13 +162,16 @@ public:
       const Rvec beta = policy.getVector();
       agent.a->set(policy.finalize(bTrain, &generators[thrID], beta));
       data->add_action(agent, beta);
+    } if( agent.Status == TRNC_COMM ) {
+      const Rvec val = F[1]->forward_agent(curr_seq, agent, thrID);
+      curr_seq->state_vals.push_back(val[0]);
     } else
       curr_seq->state_vals.push_back(0); // Assign value of term state to 0
 
     updateGAE(curr_seq);
 
     //advance counters of available data for training
-    if(agent.Status==2) data->terminate_seq(agent);
+    if(agent.Status >= TERM_COMM) data->terminate_seq(agent);
   }
 
   void getMetrics(ostringstream& buff) const

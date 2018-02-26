@@ -27,7 +27,7 @@ void NAF::select(const Agent& agent)
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
 
-  if( agent.Status != 2 )
+  if( agent.Status < TERM_COMM )
   {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused

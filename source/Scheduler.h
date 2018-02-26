@@ -40,6 +40,16 @@ private:
     return ret;
   }
 
+  inline Learner* pickLearner(const Uint agentId, const Uint recvId)
+  {
+    assert(agent>=0 && recv_agent>=0 && agent<static_cast<int>(agents.size()));
+    if(learners.size() > 1)
+      assert((int)learners.size() == nPerRank && recv_agent < nPerRank);
+      
+    assert( learners.size() == 1 || recvId < learners.size() );
+    return learners.size()>1? learners[recvId] : learners[0];
+  }
+
   inline void prepareLearners() const
   {
     for(const auto& L : learners)

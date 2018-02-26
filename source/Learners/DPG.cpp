@@ -58,7 +58,7 @@ void DPG::select(const Agent& agent)
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
   std::normal_distribution<Real> dist(0, 1);
-  if( agent.Status != 2 ) {
+  if( agent.Status < TERM_COMM ) { // not last of a sequence
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
     Rvec pol = F[0]->forward_agent(traj, agent, thrID);

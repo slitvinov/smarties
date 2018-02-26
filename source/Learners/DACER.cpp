@@ -101,7 +101,13 @@ class DACER : public Learner_offPolicy
     #endif
 
     const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
+    if( traj->isTruncated(samp+1) ) {
+      const Rvec out_nxt = F[0]->forward(traj, samp+1, thrID);
+      traj->setStateValue(samp+1, out_nxt[VsID] );
+    }
+
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
+
     // check whether importance weight is in 1/Cmax < c < Cmax
     const bool isOff = traj->isOffPolicy(samp, pol.sampRhoWeight, CmaxRet,invC);
 
@@ -144,7 +150,7 @@ class DACER : public Learner_offPolicy
   inline Rvec compute(Sequence*const S, const Uint t, const Rvec& outVec,
     const Policy_t& pol_cur, const Uint thrID) const
   {
-    const Real rNext = data->standardized_reward(S, t+1), V_cur = outVec[VsID];
+    const Real rNext = data->scaledReward(S, t+1), V_cur = outVec[VsID];
     const Real A_RET = rNext +gamma*(S->Q_RET[t+1]+S->state_vals[t+1]) - V_cur;
     const Real dAdv = updateVret(S, t, V_cur, pol_cur);
     const Real rho_cur = pol_cur.sampRhoWeight, Ver = S->Q_RET[t];
@@ -201,7 +207,7 @@ class DACER : public Learner_offPolicy
 
   inline Real updateVret(Sequence*const S, const Uint t, const Real V,
     const Real rho) const {
-    const Real rNext = data->standardized_reward(S, t+1), oldVret = S->Q_RET[t];
+    const Real rNext = data->scaledReward(S, t+1), oldVret = S->Q_RET[t];
     const Real vNext = S->state_vals[t+1], V_RET = S->Q_RET[t+1];
     const Real delta = std::min((Real)1, rho) * (rNext +gamma*vNext -V);
     //const Real trace = gamma *.95 *std::pow(rho,retraceTrickPow) *V_RET;
@@ -240,7 +246,7 @@ class DACER : public Learner_offPolicy
     Sequence* const traj = data->inProgress[agent.ID];
     data->add_state(agent);
 
-    if( agent.Status != 2 )
+    if( agent.Status < TERM_COMM ) // not last of a sequence
     {
       //Compute policy and value on most recent element of the sequence. If RNN
       // recurrent connection from last call from same agent will be reused
@@ -270,6 +276,12 @@ class DACER : public Learner_offPolicy
     }
     else
     {
+      if( agent.Status == TRNC_COMM ) {
+        Rvec output = F[0]->forward_agent(traj, agent, thrID);
+        traj->state_vals.push_back(output[VsID]);
+      } else
+        traj->state_vals.push_back(0); //value of terminal state is 0
+
       writeOnPolRetrace(traj); // compute initial Qret for whole trajectory
       OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
       data->terminate_seq(agent);
@@ -278,16 +290,14 @@ class DACER : public Learner_offPolicy
 
   void writeOnPolRetrace(Sequence*const seq) const
   {
-    assert(seq->tuples.size() == seq->state_vals.size()+1);
+    assert(seq->tuples.size() == seq->state_vals.size());
     assert(seq->Q_RET.size() == 0);
     const Uint N = seq->tuples.size();
     //within Retrace, we use the state_vals vector to write the Q retrace values
     seq->Q_RET.resize(N, 0);
-    seq->state_vals.push_back(0); //value of terminal state is 0
     //TODO extend for non-terminal trajectories: one more v_state predict
 
-    //terminal Q_ret = term reward with state val = 0:
-    seq->Q_RET[N-1] = 0;
+    seq->Q_RET[N-1] = 0; //both if truncated or not, delta is zero
 
     //update all q_ret before terminal step
     for (Uint i=N-1; i>0; i--) updateVret(seq, i-1, seq->state_vals[i-1], 1);

@@ -15,8 +15,9 @@ class Communicator_atari(Communicator):
         total_reward, done = 0.0, None
         for i in range(self.frame_skip):
             obs, reward, done, info = self.env.step(action)
-            if i == self.frame_skip - 2: self.buffer[0] = obs
-            if i == self.frame_skip - 1: self.buffer[1] = obs
+            if i == self.frame_skip - 1: self.buffer[0] = obs
+            if i == self.frame_skip - 2: self.buffer[1] = obs
+            #if i == self.frame_skip - 3: self.buffer[2] = obs
             total_reward += reward
             if done: break
         # Note that the observation on the done=True frame doesn't matter
@@ -55,8 +56,6 @@ class Communicator_atari(Communicator):
             self.env.reset(**kwargs)
         return obs
 
-
-
     def life_step(self, action):
         obs, reward, done, info = self.base_step(action)
         self.was_real_done = done
@@ -77,8 +76,6 @@ class Communicator_atari(Communicator):
 
     if 'FIRE' in env.unwrapped.get_action_meanings():
         env = FireResetEnv(env)
-
-
 
     def get_frame(self):
         total_reward = 0.0

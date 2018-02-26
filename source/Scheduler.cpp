@@ -87,7 +87,7 @@ void Master::processSlave(const int slave)
   }
   //printf("Thread %d doing slave %d\n",thrID,slave);
 
-  if(completed) { 
+  if(completed) {
     assert(slave == mpistatus.MPI_SOURCE);
     processAgent(slave, mpistatus);
   }
@@ -95,7 +95,7 @@ void Master::processSlave(const int slave)
   if(thrID==1) profiler_int->stop_start("SLP");
   if(thrID==0) profiler->stop_start("SLP");
 
-  if( readTimeSteps() >= (Uint) totNumSteps ) return;  
+  if( readTimeSteps() >= (Uint) totNumSteps ) return;
   if( bTrain && learnersLockQueue() ) return;
 
   #pragma omp task firstprivate(slave) priority(1)
@@ -110,17 +110,16 @@ void Master::processAgent(const int slave, const MPI_Status mpistatus)
   unpackState(inpBufs[slave-1], recv_agent, recv_status, recv_state, reward);
 
   const int agent = (slave-1) * nPerRank + recv_agent;
-  assert(agent>=0 && recv_agent>=0 && agent<static_cast<int>(agents.size()));
-  if(learners.size() > 1)
-    assert((int)learners.size() == nPerRank && recv_agent < nPerRank);
-  Learner*const aAlgo = learners.size()>1? learners[recv_agent] : learners[0];
+  Learner*const aAlgo = pickLearner(agent, recv_agent);
 
   if (recv_status == FAIL_COMM) //app crashed :sadface:
   { //TODO fix for on-pol & multiple algos
     aAlgo->clearFailedSim((slave-1)*nPerRank, slave*nPerRank);
     for(int i=(slave-1)*nPerRank; i<slave*nPerRank; i++) agents[i]->reset();
     warn("Received a FAIL_COMM\n");
-  } else {
+  }
+  else
+  {
     agents[agent]->update(recv_status, recv_state, reward);
     //pick next action and ...do a bunch of other stuff with the data:
     aAlgo->select(*agents[agent]);
@@ -133,8 +132,11 @@ void Master::processAgent(const int slave, const MPI_Status mpistatus)
     sendBuffer(slave, agent);
 
     if ( recv_status >= TERM_COMM )
+    {
       dumpCumulativeReward(agent, aAlgo->iter(), readTimeSteps() );
-    else if ( aAlgo->iter() ) {
+    } 
+    else if ( aAlgo->iter() )
+    {
       #pragma omp atomic
       stepNum++;
     }
