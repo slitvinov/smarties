@@ -216,9 +216,9 @@ public:
     const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
-      //     if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
-      //else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
+      //if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
+           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       const Uint indM = i +experti*nA +nExperts; //after experts come the means
       const Uint indS = i +experti*nA +nExperts*(nA+1); //after means, stdev
       ret[i] = beta[indM] + beta[indS] * samp;
@@ -235,9 +235,9 @@ public:
     const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
-      //     if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
-      //else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
+      //if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
+           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       ret[i] = means[experti][i] + stdevs[experti][i] * samp;
     }
     return ret;
