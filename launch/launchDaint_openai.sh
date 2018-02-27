@@ -3,6 +3,12 @@ EXECNAME=rl
 RUNFOLDER=$1
 APP=$2
 SETTINGSNAME=$3
+BDAINTMC=0
+if [ BDAINTMC ] ; then
+CONSTRAINT=mc
+else
+CONSTRAINT=gpu
+fi
 
 MYNAME=`whoami`
 BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
@@ -15,18 +21,36 @@ NSLAVESPERMASTER=$4
 else
 NSLAVESPERMASTER=1 #n tasks per node
 fi
+
 if [ $# -gt 4 ] ; then
 NMASTERS=$5
 else
+if [ BDAINTMC ] ; then
+NMASTERS=2 #n master ranks
+else
 NMASTERS=1 #n master ranks
 fi
-if [ $# -gt 5 ] ; then
-NTHREADS=$6
-else
-NTHREADS=12 #threads per master
 fi
-NTASKPERNODE=$((1+${NSLAVESPERMASTER})) # master plus its slaves
-NPROCESS=$((${NMASTERS}*$NTASKPERNODE))
+if [ $# -gt 5 ] ; then
+NNODES=$6
+else
+NNODES=1 #threads per master
+fi
+
+if [ $# -gt 6 ] ; then
+NTHREADS=$7
+else
+if [ BDAINTMC ] ; then
+NTHREADS=18 #n master ranks
+else
+NTHREADS=12 #n master ranks
+fi
+fi
+
+
+NTASKPERMASTER=$((1+${NSLAVESPERMASTER})) # master plus its slaves
+NPROCESS=$((${NMASTERS}*$NTASKPERMASTER))
+NTASKPERNODE=$((${NPROCESS}/${NNODES}))
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
 python3 ../Communicator_gym.py \$1 $APP
@@ -57,6 +81,7 @@ fi
 source settings.sh
 SETTINGS+=" --nMasters ${NMASTERS}"
 SETTINGS+=" --nThreads ${NTHREADS}"
+SETTINGS+=" --ppn ${NTASKPERNODE}"
 echo $SETTINGS > settings.txt
 echo ${SETTINGS}
 #eth2
@@ -70,9 +95,8 @@ cat <<EOF >daint_sbatch
 #SBATCH --time=12:00:00
 #SBATCH --nodes=${NMASTERS}
 #SBATCH --ntasks-per-node=${NTASKPERNODE}
-#SBATCH --constraint=gpu
+#SBATCH --constraint=${CONSTRAINT}
 
-# #SBATCH --constraint=mc
 # #SBATCH --partition=debug
 # #SBATCH --time=00:30:00
 # #SBATCH --mail-user="${MYNAME}@ethz.ch"
@@ -83,7 +107,7 @@ export CRAY_CUDA_MPS=1
 export OMP_PROC_BIND=CLOSE
 export OMP_PLACES=cores
 
-srun --ntasks ${NPROCESS} --threads-per-core=1 --cpu_bind=none --cpus-per-task=${NTHREADS} --ntasks-per-node=${NTASK} ./exec ${SETTINGS}
+srun --ntasks ${NPROCESS} --threads-per-core=2 --cpu_bind=sockets --cpus-per-task=${NTHREADS} --ntasks-per-node=${NTASKPERNODE} ./exec ${SETTINGS}
 EOF
 
 chmod 755 daint_sbatch

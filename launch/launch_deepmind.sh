@@ -21,14 +21,21 @@ NMASTERS=$7
 else
 NMASTERS=1 #n master ranks
 fi
+if [ $# -gt 7 ] ; then
+NNODES=$8
+else
+NNODES=1 #n master ranks
+fi
 
 MYNAME=`whoami`
 HOSTNAME=`hostname`
 BASEPATH="../runs/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 
-NTASKPERNODE=$((1+${NSLAVESPERMASTER})) # master plus its slaves
-NPROCESS=$((${NMASTERS}*$NTASKPERNODE))
+
+NTASKPERMASTER=$((1+${NSLAVESPERMASTER})) # master plus its slaves
+NPROCESS=$((${NMASTERS}*$NTASKPERMASTER))
+NTASKPERNODE=$((${NPROCESS}/${NNODES}))
 
 export DISABLE_MUJOCO_RENDERING=1
 

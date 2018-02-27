@@ -15,6 +15,7 @@ fi
 source $SETTINGSNAME
 SETTINGS+=" --nThreads ${NTHREADS}"
 SETTINGS+=" --nMasters ${NMASTERS}"
+SETTINGS+=" --ppn ${TASKPERN}"
 export OMP_NUM_THREADS=${NTHREADS}
 export OMP_PROC_BIND=CLOSE
 export OMP_PLACES=cores
@@ -25,7 +26,7 @@ export OMP_DYNAMIC=FALSE
 
 echo $SETTINGS > settings.txt
 env > environment.log
-#echo ${NPROCESS} ${NTHREADS}
+echo ${NPROCESS} ${NTHREADS} $TASKPERN $NMASTERS
 
 #mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none xterm -e gdb --tui --args ./rl ${SETTINGS}
 
@@ -35,7 +36,7 @@ mpirun -n ${NPROCESS} -oversubscribe --map-by node:PE=24 -report-bindings --mca 
 else
  #--leak-check=yes  --track-origins=yes
 #mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none valgrind --num-callers=100  --tool=memcheck  ./rl ${SETTINGS} | tee out.log
-mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none ./rl ${SETTINGS} | tee out.log
+mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to core:${NTHREADS} ./rl ${SETTINGS} | tee out.log
 fi
 
 

@@ -297,6 +297,13 @@ struct Settings
 #define DEFAULT_restart "policy"
   string restart = DEFAULT_restart;
 
+#define CHARARG_ppn '>'
+#define COMMENT_ppn "Number of processes per node."
+#define TYPEVAL_ppn int
+#define TYPENUM_ppn INT
+#define DEFAULT_ppn 1
+  int ppn = DEFAULT_ppn;
+
 #define CHARARG_maxTotSeqNum '='
 #define COMMENT_maxTotSeqNum "DEPRECATED: Maximum number of sequences in training buffer"
 #define TYPEVAL_maxTotSeqNum int
@@ -432,6 +439,7 @@ struct Settings
     //AVERT YOUR EYES!
 
     return vector<ArgParser::OptionStruct> ({
+      { CHARARG_ppn, "ppn", TYPENUM_ppn, COMMENT_ppn, &ppn, (TYPEVAL_ppn) DEFAULT_ppn },
       { CHARARG_bSharedPol, "bSharedPol", TYPENUM_bSharedPol, COMMENT_bSharedPol, &bSharedPol, (TYPEVAL_bSharedPol) DEFAULT_bSharedPol },
       { CHARARG_impWeight, "impWeight", TYPENUM_impWeight, COMMENT_impWeight, &impWeight, (TYPEVAL_impWeight) DEFAULT_impWeight },
       { CHARARG_environment, "environment", TYPENUM_environment, COMMENT_environment, &environment, (TYPEVAL_environment) DEFAULT_environment },

@@ -17,7 +17,7 @@ ulimit -c unlimited
 NMASTERS=1
 NTASKPERNODE=1
 NTHREADS=12
-NPROCESS=$((${NTASKPERNODE}*${NTASK}))
+NPROCESS=$((${NTASKPERNODE}*${NNODES}))
 
 #this handles app-side setup (incl. copying the factory)
 #this must handle all app-side setup (as well as copying the factory)
@@ -56,6 +56,7 @@ fi
 source settings.sh
 SETTINGS+=" --nThreads ${NTHREADS}"
 SETTINGS+=" --nMasters ${NMASTERS}"
+SETTINGS+=" --ppn ${NTASKPERNODE}"
 echo $SETTINGS > settings.txt
 echo ${SETTINGS}
 

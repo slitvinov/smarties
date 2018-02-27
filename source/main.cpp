@@ -73,9 +73,9 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
     learners[i]->restart();
   }
 
-  //#pragma omp parallel
-  //printf("Rank %d Thread %3d is running on CPU %3d\n",
-  //  settings.world_rank, omp_get_thread_num(), sched_getcpu());
+  #pragma omp parallel
+  printf("Rank %d Thread %3d is running on CPU %3d\n",
+    settings.world_rank, omp_get_thread_num(), sched_getcpu());
 
   Master master(slavesComm, learners, env, settings);
   MPI_Barrier(mastersComm); // to avoid garbled output during run
@@ -147,30 +147,52 @@ int main (int argc, char** argv)
     settings.generators.push_back(mt19937(seed));
   }
 
-
   if(settings.world_size%settings.nMasters)
-    die("Number of masters not compatible with available ranks.\n");
-
+    die("Number of masters not compatible with available ranks.");
   const int slavesPerMaster = settings.world_size/settings.nMasters - 1;
-  //Assuming rank distribution is 'block', to improve balacincing
-  //masters and its slaves are adjacent:
-  const int isMaster = settings.world_rank % (slavesPerMaster+1) == 0;
-  const int whichMaster = settings.world_rank / (slavesPerMaster+1);
-  printf("Job size=%d, %d masters, %d slaves per master. I'm %d: %s part of comm %d.\n",
-      settings.world_size,settings.nMasters,slavesPerMaster,settings.world_rank,
-      isMaster?"master":"slave",whichMaster);
 
   MPI_Comm slavesComm; //this communicator allows slaves to talk to their master
   MPI_Comm mastersComm; //this communicator allows masters to talk among themselves
-  MPI_Comm_split(MPI_COMM_WORLD, isMaster, settings.world_rank, &mastersComm);
-  MPI_Comm_split(MPI_COMM_WORLD, whichMaster, settings.world_rank, &slavesComm);
-  if (!isMaster) MPI_Comm_free(&mastersComm);
+
+  int bIsMaster, slaveCommInd;
+  // two options: either multiple learners because they are the bottleneck
+  //              or multiple slaves for single master because data is expensive
+  // in the second case, rank 0 will be master either away
+  // in first case our objective is to maximise the spread of master ranks
+  // and use processes on hyperthreaded cores to run the slaves
+  // in a multi socket board usually the cpus are going to be sorted
+  // as (socket-core-thread): 0-0-0 0-1-0 0-2-0 ... 1-0-0 1-1-0 1-2-0 ...
+  //                          0-0-1 0-1-1 0-2-1 ... 1-0-1 1-1-1 1-2-1
+  // therefore if there are more than one master per node sorting changes
+  // this is al very brittle. relies on my MPI implementations sorting of ranks
+  if (settings.ppn > slavesPerMaster+1) {
+    if(settings.ppn % (slavesPerMaster+1)) die("Bad number of proc per node");
+    const int nMastersPerNode =  settings.ppn / (slavesPerMaster+1);
+    const int nodeIndx = settings.world_rank / settings.ppn;
+    const int nodeRank = settings.world_rank % settings.ppn;
+    // will be 1 for the first nMastersPerNode ranks of each node:
+    bIsMaster = nodeRank / nMastersPerNode == 0;
+    // index will be shared by every nMastersPerNode ranks:
+    const int nodeMScomm = nodeRank % nMastersPerNode;
+    // split communicators residing on different nodes:
+    slaveCommInd = nodeMScomm + nodeIndx * nMastersPerNode;
+  } else {
+    bIsMaster = settings.world_rank % (slavesPerMaster+1) == 0;
+    slaveCommInd = settings.world_rank / (slavesPerMaster+1);
+  }
+
+  MPI_Comm_split(MPI_COMM_WORLD, bIsMaster, settings.world_rank, &mastersComm);
+  MPI_Comm_split(MPI_COMM_WORLD, slaveCommInd, settings.world_rank,&slavesComm);
+  if (!bIsMaster) MPI_Comm_free(&mastersComm);
+  printf("nRanks=%d, %d masters, %d slaves per master. I'm %d: %s part of comm %d.\n",
+      settings.world_size,settings.nMasters,slavesPerMaster,settings.world_rank,
+      bIsMaster?"master":"slave",slaveCommInd);
 
   MPI_Barrier(MPI_COMM_WORLD);
-  if (isMaster) runMaster(slavesComm, mastersComm);
-  else          runSlave(slavesComm);
+  if (bIsMaster) runMaster(slavesComm, mastersComm);
+  else           runSlave(slavesComm);
 
-  if (isMaster) MPI_Comm_free(&mastersComm);
+  if (bIsMaster) MPI_Comm_free(&mastersComm);
   MPI_Comm_free(&slavesComm);
   MPI_Finalize();
   return 0;

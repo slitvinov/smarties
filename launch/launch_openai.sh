@@ -20,15 +20,20 @@ NMASTERS=$6
 else
 NMASTERS=1 #n master ranks
 fi
+if [ $# -gt 6 ] ; then
+NNODES=$7
+else
+NNODES=1 #n master ranks
+fi
 
 MYNAME=`whoami`
 HOSTNAME=`hostname`
 BASEPATH="../runs/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 
-NTASKPERNODE=$((1+${NSLAVESPERMASTER})) # master plus its slaves
-NPROCESS=$((${NMASTERS}*$NTASKPERNODE))
-
+NTASKPERMASTER=$((1+${NSLAVESPERMASTER})) # master plus its slaves
+NPROCESS=$((${NMASTERS}*$NTASKPERMASTER))
+NTASKPERNODE=$((${NPROCESS}/${NNODES}))
 #python ../openaibot.py \$1 $APP
 #xvfb-run -s "-screen $DISPLAY 1400x900x24" -- python ../openaibot.py \$1 $APP
 #vglrun -c proxy python3 ../Communicator.py \$1 $APP

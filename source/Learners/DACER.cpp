@@ -312,16 +312,14 @@ class DACER : public Learner_offPolicy
     if(not bWasPrepareReady) return;
 
     #ifdef DACER_BACKWARD
-      if(updateComplete) {
-        profiler->stop_start("QRET");
-        #pragma omp parallel for schedule(dynamic)
-        for(Uint i = 0; i < data->Set.size(); i++)
-          for(int j = data->Set[i]->just_sampled; j>=0; j--) {
-            const Real obsOpcW = data->Set[i]->offPol_weight[j];
-            assert(obsOpcW >= 0);
-            updateVret(data->Set[i], j, data->Set[i]->state_vals[j], obsOpcW);
-          }
-      }
+      profiler->stop_start("QRET");
+      #pragma omp parallel for schedule(dynamic)
+      for(Uint i = 0; i < data->Set.size(); i++)
+        for(int j = data->Set[i]->just_sampled; j>=0; j--) {
+          const Real obsOpcW = data->Set[i]->offPol_weight[j];
+          assert(obsOpcW >= 0);
+          updateVret(data->Set[i], j, data->Set[i]->state_vals[j], obsOpcW);
+        }
     #endif
 
     profiler->stop_start("PRNE");

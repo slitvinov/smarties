@@ -449,21 +449,19 @@ class RACER : public Learner_offPolicy
     if(not bWasPrepareReady) return;
 
     #ifdef RACER_BACKWARD
-      if(updateComplete) {
-        profiler->stop_start("QRET");
-        #pragma omp parallel for schedule(dynamic)
-        for(Uint i = 0; i < data->Set.size(); i++)
-          for(int j = data->Set[i]->just_sampled; j>=0; j--) {
-            const Real obsOpcW = data->Set[i]->offPol_weight[j];
-            assert(obsOpcW >= 0);
-            const Real R = data->scaledReward(data->Set[i], j);
-            const Real W = obsOpcW>1? 1 : obsOpcW;
-            const Real A = data->Set[i]->action_adv[j];
-            const Real V = data->Set[i]->state_vals[j];
-            const Real Qret = data->Set[i]->Q_RET[j+1];
-            data->Set[i]->Q_RET[j] = R +gamma*(W*(Qret -A-V)+V);
-          }
-      }
+      profiler->stop_start("QRET");
+      #pragma omp parallel for schedule(dynamic)
+      for(Uint i = 0; i < data->Set.size(); i++)
+        for(int j = data->Set[i]->just_sampled; j>=0; j--) {
+          const Real obsOpcW = data->Set[i]->offPol_weight[j];
+          assert(obsOpcW >= 0);
+          const Real R = data->scaledReward(data->Set[i], j);
+          const Real W = obsOpcW>1? 1 : obsOpcW;
+          const Real A = data->Set[i]->action_adv[j];
+          const Real V = data->Set[i]->state_vals[j];
+          const Real Qret = data->Set[i]->Q_RET[j+1];
+          data->Set[i]->Q_RET[j] = R +gamma*(W*(Qret -A-V)+V);
+        }
     #endif
 
     profiler->stop_start("PRNE");
