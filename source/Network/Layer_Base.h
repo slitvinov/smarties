@@ -46,8 +46,7 @@ class BaseLayer: public Layer
   BaseLayer(Uint _ID, Uint _nInputs, Uint _nNeurons, string funcType, bool bRnn,
     bool bOut, Uint iLink) : Layer(_ID, _nNeurons, bOut), nInputs(_nInputs),
     nNeurons(_nNeurons), bRecurrent(bRnn), link(iLink),
-    nInp_simd(std::ceil( _nInputs*sizeof(nnReal)/32.)*32/sizeof(nnReal)),
-    nOut_simd(std::ceil(_nNeurons*sizeof(nnReal)/32.)*32/sizeof(nnReal)),
+    nInp_simd(roundUpSimd(_nInputs)), nOut_simd(roundUpSimd(_nNeurons)),
     func(makeFunction(funcType)) {
       printf("(%u) %s %s%sInnerProduct Layer of size:%u linked to Layer:%u of size:%u.\n",
       ID, funcType.c_str(), bOutput? "output ":"", bRecurrent? "Recurrent-":"",
@@ -114,13 +113,13 @@ class BaseLayer: public Layer
         #pragma omp simd aligned(deltas,inputs,G : VEC_WIDTH)
         for(Uint o=0; o<nNeurons; o++) G[o] += inputs[i] * deltas[o];
       }
-   
-      if( not curr->input[ID-link] ) 
+
+      if( not curr->input[ID-link] )
       {
               nnReal* const errors = curr->E(ID-link);
         const nnReal* const weight = para->W(ID);
        #if 1 //def NDEBUG
-        cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1, 
+        cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1,
           weight, nOut_simd, deltas, 1, 1, errors, 1);
        #else
         #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)

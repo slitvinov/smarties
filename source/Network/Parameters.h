@@ -34,9 +34,9 @@ struct Parameters
     indWeights = vector<Uint>(nL, 0);
     for(Uint i=0; i<nL; i++) {
       indWeights[i] = nTotPara;
-      nTotPara += std::ceil(_nWeights[i]*sizeof(nnReal)/32.)*32/sizeof(nnReal);
+      nTotPara += roundUpSimd(_nWeights[i]);
       indBiases[i] = nTotPara;
-      nTotPara += std::ceil( _nBiases[i]*sizeof(nnReal)/32.)*32/sizeof(nnReal);
+      nTotPara += roundUpSimd( _nBiases[i]);
     }
     //printf("Weight sizes:[%s] inds:[%s] Bias sizes:[%s] inds[%s] Total:%u\n",
     //  print(_nWeights).c_str(), print(indWeights).c_str(),
@@ -69,29 +69,27 @@ struct Parameters
 
   void reduceThreadsGrad(const vector<Parameters*>& g) const
   {
-    #pragma omp parallel
+    #pragma omp parallel num_threads(g.size())
     {
       const Uint thrI = omp_get_thread_num(), thrN = omp_get_num_threads();
-      const Uint shift = std::ceil(nParams/ARY_WIDTH/thrN)*ARY_WIDTH;
-      // TODO is it ever possible these indices do not span entire nParams?
-      // shift*thrN should always be >nParams. thrI should always span 0:thrN-1
-      assert(thrN*shift >= nParams);
-      const Uint start = thrI*shift, end = std::min(nParams, (thrI+1)*shift);
-      nnReal* const dst = params;
-      //#pragma omp critical
-      //{
-      //  cout<<thrI<<" "<<shift<<" "<<nParams<<" "<<start<<" "<<end<<" "<<endl;
-      //  fflush(0);
-      //}
-      for(Uint i=0; i<g.size(); i++) {
-        if(not g[i]->written) continue;
-        assert(nParams == g[i]->nParams);
-        const nnReal* const src = g[i]->params;
-        #pragma omp simd aligned(dst, src : VEC_WIDTH)
-        for(Uint j=start; j<end; j++) dst[j] += src[j];
+      const Uint shift = roundUpSimd(nParams/(Real)thrN);
+      assert(thrN*shift>=nParams&& thrN==g.size()&& nParams==g[thrI]->nParams);
+      const nnReal *const src = g[thrI]->params; nnReal *const dst = params;
+
+      for(Uint i=0; i<thrN; i++) {
+        const Uint turn = (thrI + i) % thrN;
+        const Uint start = turn*shift, end = std::min(nParams, (turn+1)*shift);
+        //#pragma omp critical
+        //{ cout<<turn<<" "<<start<<" "<<end<<" "<<thrI<<" "
+        //      <<thrN<<" "<<shift<<" "<<nParams<<endl; fflush(0); }
+        if(g[thrI]->written) {
+          #pragma omp simd aligned(dst, src : VEC_WIDTH)
+          for(Uint j=start; j<end; j++) dst[j] += src[j];
+        }
+        #pragma omp barrier
       }
+      g[thrI]->clear();
     }
-    for(Uint i=0; i<g.size(); i++) g[i]->clear();
   }
 
   void set(const Real val) const
