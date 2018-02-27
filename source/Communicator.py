@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys, socket, os, os.path, time
+os.environ['MUJOCO_PY_FORCE_CPU'] = '1'
 import numpy as np
 
 class Communicator:
