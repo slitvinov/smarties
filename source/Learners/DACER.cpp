@@ -307,6 +307,10 @@ class DACER : public Learner_offPolicy
   {
     const bool bWasPrepareReady = updateComplete;
 
+    Learner::prepareGradient();
+
+    if(not bWasPrepareReady) return;
+
     #ifdef DACER_BACKWARD
       if(updateComplete) {
         profiler->stop_start("QRET");
@@ -317,16 +321,16 @@ class DACER : public Learner_offPolicy
             assert(obsOpcW >= 0);
             updateVret(data->Set[i], j, data->Set[i]->state_vals[j], obsOpcW);
           }
-        profiler->stop_start("SLP");
       }
     #endif
 
-    Learner_offPolicy::prepareGradient();
+    profiler->stop_start("PRNE");
 
-    if(not bWasPrepareReady) return;
-
-    // update sequences
+    advanceCounters();
     Real fracOffPol = data->nOffPol / (Real) data->nTransitions;
+    data->prune(CmaxRet, FILTER_ALGO);
+
+    profiler->stop_start("SLP");
 
     if (learn_size > 1) {
       const bool firstUpdate = nData_request == MPI_REQUEST_NULL;
@@ -335,7 +339,12 @@ class DACER : public Learner_offPolicy
       // prepare an allreduce with the current data:
       ndata_partial_sum[0] = data->nOffPol;
       ndata_partial_sum[1] = data->nTransitions;
-      // use result from prev reduce to update rewards (before new reduce)
+      // use result from prev AllReduce to update rewards (before new reduce).
+      // Assumption is that the number of off Pol trajectories does not change
+      // much each step. Especially because here we update the off pol W only
+      // if an observation is actually sampled. Therefore at most this fraction
+      // is wrong by batchSize / nTransitions ( ~ 0 )
+      // In exchange we skip an mpi implicit barrier point.
       fracOffPol = ndata_reduce_result[0] / ndata_reduce_result[1];
 
       MPI_Iallreduce(ndata_partial_sum, ndata_reduce_result, 2, MPI_DOUBLE, MPI_SUM, mastersComm, &nData_request);

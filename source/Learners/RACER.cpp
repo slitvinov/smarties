@@ -444,6 +444,10 @@ class RACER : public Learner_offPolicy
   {
     const bool bWasPrepareReady = updateComplete;
 
+    Learner::prepareGradient();
+
+    if(not bWasPrepareReady) return;
+
     #ifdef RACER_BACKWARD
       if(updateComplete) {
         profiler->stop_start("QRET");
@@ -459,16 +463,17 @@ class RACER : public Learner_offPolicy
             const Real Qret = data->Set[i]->Q_RET[j+1];
             data->Set[i]->Q_RET[j] = R +gamma*(W*(Qret -A-V)+V);
           }
-        profiler->stop_start("SLP");
       }
     #endif
 
-    Learner_offPolicy::prepareGradient();
+    profiler->stop_start("PRNE");
 
-    if(not bWasPrepareReady) return;
-
-    // update sequences
+    advanceCounters();
     Real fracOffPol = data->nOffPol / (Real) data->nTransitions;
+    data->prune(CmaxRet, FILTER_ALGO);
+
+    profiler->stop_start("SLP");
+
 
     if (learn_size > 1) {
       const bool firstUpdate = nData_request == MPI_REQUEST_NULL;
