@@ -17,6 +17,7 @@ protected:
   const Real obsPerStep_orig;
   const Uint nObsPerTraining;
   Uint taskCounter = 0, nData_b4Startup = 0;
+  mutable Uint percData = 0;
   Real nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig;
   vector<Uint> samp_seq, samp_obs;

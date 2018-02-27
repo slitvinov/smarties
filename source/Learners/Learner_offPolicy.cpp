@@ -37,14 +37,19 @@ void Learner_offPolicy::prepareData()
 
 bool Learner_offPolicy::readyForTrain() const
 {
-   //const Uint nTransitions = data->readNTransitions();
-   //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
-   //  die("I do not have enough data for training. Change hyperparameters");
-   //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
-   const bool ready = bTrain && data->readNData() >= nObsPerTraining;
-   if(not ready && bTrain && omp_get_thread_num() == 0 && !learn_rank)
-    printf("\rCollected %#5.4g %% of data required to begin training. ",
-      data->readNData() * 100. / (Real) nObsPerTraining);
+  //const Uint nTransitions = data->readNTransitions();
+  //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
+  //  die("I do not have enough data for training. Change hyperparameters");
+  //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
+  const bool ready = bTrain && data->readNData() >= nObsPerTraining;
+  if(not ready && bTrain && omp_get_thread_num() == 0 && !learn_rank) {
+    const Uint currPerc = data->readNData() * 100. / (Real) nObsPerTraining;
+    if(currPerc>percData) {
+      percData = currPerc;
+      printf("\rCollected %d%% of data required to begin training. ", percData);
+    }
+  }
+
    return ready;
 }
 
