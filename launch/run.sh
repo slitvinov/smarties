@@ -18,7 +18,7 @@ export OMP_PROC_BIND=CLOSE
 export OMP_PLACES=cores
 #export OMP_WAIT_POLICY=active
 export OMP_MAX_TASK_PRIORITY=1
-export OMP_DISPLAY_ENV=TRUE
+#export OMP_DISPLAY_ENV=TRUE
 export OMP_DYNAMIC=FALSE
 
 echo $SETTINGS > settings.txt

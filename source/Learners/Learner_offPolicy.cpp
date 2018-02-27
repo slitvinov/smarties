@@ -41,7 +41,11 @@ bool Learner_offPolicy::readyForTrain() const
    //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
    //  die("I do not have enough data for training. Change hyperparameters");
    //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
-   return bTrain && data->readNData() >= nObsPerTraining;
+   const bool ready = bTrain && data->readNData() >= nObsPerTraining;
+   if(not ready && bTrain && omp_get_thread_num() == 0)
+    printf("\rCollected %5.02g%% of data required to begin training. ",
+      data->readNData() * 100. / (Real) nObsPerTraining);
+   return ready;
 }
 
 // lockQueue tells scheduler that has stopped receiving states from slaves

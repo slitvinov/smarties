@@ -233,7 +233,7 @@ class DACER : public Learner_offPolicy
     // pol grad magnitude. Therefore are more strongly pushed away from mu.
     //FILTER_ALGO = MAXERROR;
 
-    cout << CmaxPol << " " << CmaxRet << " " << invC << endl;
+    //cout << CmaxPol << " " << CmaxRet << " " << invC << endl;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~DACER() {
