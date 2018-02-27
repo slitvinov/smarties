@@ -30,10 +30,12 @@ struct EntropyAdam {
     #endif
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
-    #ifdef SAFE_ADAM
-      M2 = M2<M1*M1? M1*M1 : M2;
+    #ifdef SAFE_ADAM // prevent rare gradient blow ups
+      M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
+      const nnReal ret = eta*M1/(nnEPS + std::sqrt(M2));
+    #else
+      const nnReal ret = eta*M1/std::sqrt(nnEPS + M2);
     #endif
-    const nnReal ret = eta*M1/(std::sqrt(M2) + nnEPS);
     //const nnReal ret = eta*(B1*M1 + (1-B1)*DW)/(std::sqrt(M2) + nnEPS);
     return ret + eta*1e-3 * gen.d_mean0_var1(); //Adam plus exploratory noise
   }
@@ -77,11 +79,12 @@ struct Adam {
     #endif
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
-    #ifdef SAFE_ADAM
-      M2 = M2<M1*M1? M1*M1 : M2;
+    #ifdef SAFE_ADAM // prevent rare gradient blow ups
+      M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
+      return eta*M1/(nnEPS + std::sqrt(M2));
+    #else
+      return eta*M1/std::sqrt(nnEPS + M2);
     #endif
-    //return eta*M1/(nnEPS + std::sqrt(M2));
-    return eta*M1/std::sqrt(nnEPS + M2);
     //return eta*(B1*M1 + (1-B1)*DW)/std::sqrt(nnEPS + M2); // Nesterov Adam
   }
 };
@@ -115,7 +118,9 @@ class Optimizer
     lambda(S.nnLambda), epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay),
     weights(W), tgt_weights(W_TGT), gradSum(W->allocateGrad()),
     _1stMom(W->allocateGrad()), _2ndMom(W->allocateGrad()),
-    generators(S.generators) { _2ndMom->set(std::sqrt(nnEPS)); }
+    generators(S.generators) {
+      _2ndMom->set(std::sqrt(nnEPS)); }
+      //_2ndMom->set(1); }
   //alpha_eSGD(0.75), gamma_eSGD(10.), eta_eSGD(.1/_s.targetDelay),
   //eps_eSGD(1e-3), delay(_s.targetDelay), L_eSGD(_s.targetDelay),
   //_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))

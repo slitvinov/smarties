@@ -25,11 +25,11 @@ plt.title('Weights')
 #plt.plot(abs(W),'b.')
 
 plt.subplot(222)
-plt.semilogy(abs(M1)/(1e-7 + np.sqrt(M2)),'g.')
+plt.semilogy(abs(M1)/(1e-7 + np.sqrt(M2)) + 1e-6,'g.')
 plt.title('Abs Grad')
 
 plt.subplot(223)
-plt.semilogy(abs(M1),'k.')
+plt.semilogy(abs(M1) + 1e-6,'k.')
 plt.title('Abs M1')
 
 plt.subplot(224)

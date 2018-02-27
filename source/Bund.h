@@ -83,6 +83,7 @@ using namespace std;
 
 //#define NET_L1_PENAL
 //#define _dumpNet_
+#define SAFE_ADAM // prevent rare gradient blow ups
 
 typedef unsigned Uint;
 

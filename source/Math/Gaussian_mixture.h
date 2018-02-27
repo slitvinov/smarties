@@ -168,7 +168,7 @@ public:
         PactEachExp[j] *= oneDnormal(sampAct[i], means[j][i], precisions[j][i]);
       Pact_Final += PactEachExp[j] * experts[j];
     }
-    assert(Pact_Final>0);
+    assert(Pact_Final>=0);
     sampLogPonPolicy = std::log(Pact_Final);
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const long double logW = sampLogPonPolicy - sampLogPBehavior;
@@ -192,6 +192,7 @@ public:
       }
       p += pi * beta[j]; //beta[j] contains expert
     }
+    assert(p>0);
     return std::log(p);
   }
   inline Real evalLogProbability(const Rvec& act) const

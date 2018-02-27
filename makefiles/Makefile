@@ -122,12 +122,11 @@ ifeq "$(config)" "segf"
 CPPFLAGS+= -g -O0 -ffast-math
 CPPFLAGS+= -fsanitize=address
 LIBS += -fsanitize=address
-#CPPFLAGS+= -fsanitize=thread
-#LIBS += -fsanitize=thread
-#CPPFLAGS+= -fsanitize=undefined
-#LIBS += -fsanitize=undefined
-#CPPFLAGS+= -fsanitize=leak
-#LIBS += -fsanitize=leak
+endif
+ifeq "$(config)" "nan"
+CPPFLAGS+= -g -O0 -ffast-math
+CPPFLAGS+= -fsanitize=undefined
+LIBS += -fsanitize=undefined
 endif
 ifeq "$(config)" "prod"
 CPPFLAGS += -DNDEBUG -O2 -ffast-math

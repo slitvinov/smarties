@@ -337,10 +337,14 @@ class RACER : public Learner_offPolicy
     opcInfo = new StatsTracker(5, "racer", _set, 100);
     //test();
 
-    // Uncomment this line to keep the sequences with the minimum average DKL.
-    // You probably do not want to tho because we measured the correlation
-    // coefficient between the DKL and the offPol imp weight to be 0.1 .
-    // This is because samples with a larger imp. w generally have a larger
+    // Uncomment this line to keep the sequences with the minimum average DKL
+    // instead of discarding the oldest sequences.
+    // You probably do not want to tho because the DKL and the offPol imp
+    // weight tend to be correlated. This means that if low DKL sequences are
+    // discarded, low offPoll W will be over-represented in the mem buffer.
+    // In general this means that sequences with worse-than-expected outcomes
+    // will be over represented in the mem buffer.
+    // This is because samples with a larger \rho generally have a larger
     // pol grad magnitude. Therefore are more strongly pushed away from mu.
     //FILTER_ALGO = MAXERROR;
 
@@ -474,11 +478,12 @@ class RACER : public Learner_offPolicy
       // prepare an allreduce with the current data:
       ndata_partial_sum[0] = data->nOffPol;
       ndata_partial_sum[1] = data->nTransitions;
-      // use result from prev reduce to update rewards (before new reduce).
+      // use result from prev AllReduce to update rewards (before new reduce).
       // Assumption is that the number of off Pol trajectories does not change
       // much each step. Especially because here we update the off pol W only
       // if an observation is actually sampled. Therefore at most this fraction
-      // is wrong by bathSize / nTransitions ~ 0
+      // is wrong by batchSize / nTransitions ( ~ 0 )
+      // In exchange we skip an mpi implicit barrier point.
       fracOffPol = ndata_reduce_result[0] / ndata_reduce_result[1];
 
       MPI_Iallreduce(ndata_partial_sum, ndata_reduce_result, 2, MPI_DOUBLE, MPI_SUM, mastersComm, &nData_request);
