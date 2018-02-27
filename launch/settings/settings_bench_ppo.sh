@@ -33,7 +33,6 @@ SETTINGS+=" --maxTotObsNum 16384"
 SETTINGS+=" --obsPerStep 6.4"
 # unused:
 SETTINGS+=" --epsAnneal 1000"
-SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 1000000"
 SETTINGS+=" --lambda 0.95"
 

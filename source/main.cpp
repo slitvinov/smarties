@@ -49,10 +49,14 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
   Environment*const env = factory.createEnvironment();
   Communicator comm = env->create_communicator(slavesComm, settings.sockPrefix, true);
 
-  const int bs = settings.batchSize, ls = settings.learner_size;
-  settings.batchSize = ceil(bs/(Real)ls);
-  if(bs%ls)
-  printf("Due to nMasters, batchsize (%d) set to %d\n",bs,settings.batchSize);
+  const Real nLearners = settings.learner_size;
+  // each learner computes a fraction of the batch:
+  settings.batchSize    = std::ceil(settings.batchSize    / nLearners);
+  // every grad step, each learner performs a fraction of the time steps:
+  settings.obsPerStep   = std::ceil(settings.obsPerStep   / nLearners);
+  // each learner contains a fraction of the memory buffer:
+  settings.minTotObsNum = std::ceil(settings.minTotObsNum / nLearners);
+  settings.maxTotObsNum = std::ceil(settings.maxTotObsNum / nLearners);
 
   if(env->mpi_ranks_per_env) { //unblock creation of app comm if needed
     MPI_Comm tmp_com;
@@ -74,6 +78,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
   //  settings.world_rank, omp_get_thread_num(), sched_getcpu());
 
   Master master(slavesComm, learners, env, settings);
+  MPI_Barrier(mastersComm); // to avoid garbled output during run
 
   #if 0
   if (!settings.nSlaves && !learner->nData())

@@ -29,7 +29,6 @@ SETTINGS+=" --learner ACER"
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --epsAnneal 1000"
-SETTINGS+=" --nMasters 1"
 SETTINGS+=" --bSampleSequences 1"
 SETTINGS+=" --maxTotObsNum 131072"
 #SETTINGS+=" --maxTotObsNum 65536" #as in paper, but paper had sh

@@ -58,7 +58,7 @@ void Environment::setDims() //this environment is for the cart pole test
       break;
     }
     if(!settings.world_rank && not inuse)
-      printf(" State component %u is hidden from the learner.");
+      printf(" State component %u is hidden from the learner.", i);
   }
   if(!settings.world_rank) printf("\nAction dimensionality : %d.",aI.dim);
 
@@ -73,9 +73,6 @@ void Environment::setDims() //this environment is for the cart pole test
       aI.values[i][j] = comm_ptr->action_bounds[k++];
 
     const Real amax = aI.getActMaxVal(i), amin = aI.getActMinVal(i);
-    const double scale = 0.5*(amax - amin), mean = 0.5*(amax + amin);
-    if(scale>=1e3 || scale<1e-7) aI.bounded[i] = 0;
-    //if(aI.bounded[i]) settings.greedyEps = std::min(settings.greedyEps, 0.2);
     if(!settings.world_rank)
     printf(" [%u: %f:%f%s]", i, amin, amax, aI.bounded[i]?" (bounded)":"");
   }

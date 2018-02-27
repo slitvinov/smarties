@@ -2,29 +2,34 @@
 EXECNAME=rl
 RUNFOLDER=$1
 NTHREADS=$2
-NNODES=$3
-ENV=$4
-TASK=$5
-SETTINGSNAME=$6
+ENV=$3
+TASK=$4
+SETTINGSNAME=$5
 
-if [ $# -lt 6 ] ; then
-echo "Usage: ./launch_openai.sh RUNFOLDER OMP_THREADS MPI_NODES ENV TASK SETTINGS_PATH (N_MPI_TASK_PER_NODE)"
+if [ $# -lt 5 ] ; then
+echo "Usage: ./launch_openai.sh RUNFOLDER OMP_THREADS ENV TASK SETTINGS_PATH (N_MPI_TASK_PER_NODE)"
 exit 1
+fi
+
+if [ $# -gt 5 ] ; then
+NSLAVESPERMASTER=$6
+else
+NSLAVESPERMASTER=1 #n tasks per node
+fi
+if [ $# -gt 6 ] ; then
+NMASTERS=$7
+else
+NMASTERS=1 #n master ranks
 fi
 
 MYNAME=`whoami`
 HOSTNAME=`hostname`
 BASEPATH="../runs/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
-#rm /tmp/smarties_sock_
 
-if [ $# -gt 6 ] ; then
-NTASK=$7
-else
-NTASK=1 #n tasks per node
-fi
+NTASKPERNODE=$((1+${NSLAVESPERMASTER})) # master plus its slaves
+NPROCESS=$((${NMASTERS}*$NTASKPERNODE))
 
-NPROCESS=$((${NNODES}*${NTASK}))
 export DISABLE_MUJOCO_RENDERING=1
 
 if [ ${HOSTNAME:0:5} == 'falco' ] || [ ${HOSTNAME:0:5} == 'panda' ]
@@ -55,4 +60,4 @@ cp run.sh ${BASEPATH}${RUNFOLDER}/run.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}
-./run.sh ${NPROCESS} ${NTHREADS} ${NTASK}
+./run.sh ${NPROCESS} ${NTHREADS} ${NTASK} ${NMASTERS}

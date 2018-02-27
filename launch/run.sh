@@ -5,6 +5,7 @@ export MV2_ENABLE_AFFINITY=0 #MVAPICH
 NPROCESS=$1
 NTHREADS=$2
 TASKPERN=$3
+NMASTERS=$4
 
 SETTINGSNAME=settings.sh
 if [ ! -f $SETTINGSNAME ];then
@@ -13,6 +14,7 @@ if [ ! -f $SETTINGSNAME ];then
 fi
 source $SETTINGSNAME
 SETTINGS+=" --nThreads ${NTHREADS}"
+SETTINGS+=" --nMasters ${NMASTERS}"
 export OMP_NUM_THREADS=${NTHREADS}
 export OMP_PROC_BIND=CLOSE
 export OMP_PLACES=cores

@@ -32,7 +32,6 @@ SETTINGS+=" --learner GAE"
 SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --klDivConstraint 0.01"
 SETTINGS+=" --epsAnneal 1000"
-SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 1000000"
 SETTINGS+=" --lambda 0.95"
 

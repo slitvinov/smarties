@@ -1,35 +1,33 @@
 #!/bin/bash
 EXECNAME=rl
 RUNFOLDER=$1
-NTHREADS=$2
-NNODES=$3
-APP=$4
-SETTINGSNAME=$5
+NTHREADS=$2 # number of threads per learner
+APP=$3
+SETTINGSNAME=$4
 
-if [ $# -lt 5 ] ; then
-echo "Usage: ./launch_openai.sh RUNFOLDER OMP_THREADS MPI_NODES APP SETTINGS_PATH (POLICY_PATH) (N_MPI_TASK_PER_NODE)"
+if [ $# -lt 4 ] ; then
+echo "Usage: ./launch_openai.sh RUNFOLDER NTHREADS APP SETTINGS_PATH  (SLAVES PER LEARNER) (N LEARNERS)"
 exit 1
+fi
+
+if [ $# -gt 4 ] ; then
+NSLAVESPERMASTER=$5
+else
+NSLAVESPERMASTER=1 #n tasks per node
+fi
+if [ $# -gt 5 ] ; then
+NMASTERS=$6
+else
+NMASTERS=1 #n master ranks
 fi
 
 MYNAME=`whoami`
 HOSTNAME=`hostname`
 BASEPATH="../runs/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
-#rm /tmp/smarties_sock_
-if [ $# -gt 5 ] ; then
-POLICY=$6
-cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
-cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
-cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
-fi
 
-if [ $# -gt 6 ] ; then
-NTASK=$7
-else
-NTASK=1 #n tasks per node
-fi
-
-NPROCESS=$((${NNODES}*${NTASK}))
+NTASKPERNODE=$((1+${NSLAVESPERMASTER})) # master plus its slaves
+NPROCESS=$((${NMASTERS}*$NTASKPERNODE))
 
 #python ../openaibot.py \$1 $APP
 #xvfb-run -s "-screen $DISPLAY 1400x900x24" -- python ../openaibot.py \$1 $APP
@@ -63,4 +61,4 @@ cp run.sh ${BASEPATH}${RUNFOLDER}/run.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}
-./run.sh ${NPROCESS} ${NTHREADS} ${NTASK}
+./run.sh ${NPROCESS} ${NTHREADS} ${NTASKPERNODE} ${NMASTERS}
