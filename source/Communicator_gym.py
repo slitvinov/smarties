@@ -2,6 +2,7 @@
 import gym, sys, socket, os, os.path, time
 from gym import wrappers
 import numpy as np
+os.environ['MUJOCO_PY_FORCE_CPU'] = '1'
 from Communicator import Communicator
 
 class Communicator_gym(Communicator):

@@ -77,6 +77,7 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
   printf("Rank %d Thread %3d is running on CPU %3d\n",
     settings.world_rank, omp_get_thread_num(), sched_getcpu());
 
+  fflush(0);
   Master master(slavesComm, learners, env, settings);
   MPI_Barrier(mastersComm); // to avoid garbled output during run
 

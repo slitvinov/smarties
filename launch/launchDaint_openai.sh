@@ -4,7 +4,7 @@ RUNFOLDER=$1
 APP=$2
 SETTINGSNAME=$3
 BDAINTMC=0
-if [ BDAINTMC ] ; then
+if [ $BDAINTMC -eq 1 ] ; then
 CONSTRAINT=mc
 else
 CONSTRAINT=gpu
@@ -25,8 +25,9 @@ fi
 if [ $# -gt 4 ] ; then
 NMASTERS=$5
 else
-if [ BDAINTMC ] ; then
-NMASTERS=2 #n master ranks
+if [ $BDAINTMC -eq 1 ] ; then
+#NMASTERS=2 #n master ranks
+NMASTERS=1 #n master ranks
 else
 NMASTERS=1 #n master ranks
 fi
@@ -40,8 +41,9 @@ fi
 if [ $# -gt 6 ] ; then
 NTHREADS=$7
 else
-if [ BDAINTMC ] ; then
-NTHREADS=18 #n master ranks
+if [ $BDAINTMC -eq 1 ] ; then
+#NTHREADS=18 #n master ranks
+NTHREADS=36 #n master ranks
 else
 NTHREADS=12 #n master ranks
 fi
@@ -88,17 +90,18 @@ echo ${SETTINGS}
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
-#SBATCH --account=s658
+# #SBATCH --account=s658
+#SBATCH --account=eth2
 #SBATCH --job-name="${RUNFOLDER}"
 #SBATCH --output=${RUNFOLDER}_out_%j.txt
 #SBATCH --error=${RUNFOLDER}_err_%j.txt
-#SBATCH --time=12:00:00
-#SBATCH --nodes=${NMASTERS}
+#SBATCH --nodes=${NNODES}
 #SBATCH --ntasks-per-node=${NTASKPERNODE}
 #SBATCH --constraint=${CONSTRAINT}
 
-# #SBATCH --partition=debug
-# #SBATCH --time=00:30:00
+# #SBATCH --time=12:00:00
+#SBATCH --partition=debug
+#SBATCH --time=00:30:00
 # #SBATCH --mail-user="${MYNAME}@ethz.ch"
 # #SBATCH --mail-type=ALL
 

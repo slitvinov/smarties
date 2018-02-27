@@ -5,7 +5,7 @@ ENV=$2
 TASK=$3
 SETTINGSNAME=$4
 BDAINTMC=0
-if [ BDAINTMC ] ; then
+if [ $BDAINTMC -eq 1 ] ; then
 CONSTRAINT=mc
 else
 CONSTRAINT=gpu
@@ -26,7 +26,7 @@ fi
 if [ $# -gt 5 ] ; then
 NMASTERS=$6
 else
-if [ BDAINTMC ] ; then
+if [ $BDAINTMC -eq 1 ] ; then
 NMASTERS=2 #n master ranks
 else
 NMASTERS=1 #n master ranks
@@ -41,7 +41,7 @@ fi
 if [ $# -gt 7 ] ; then
 NTHREADS=$8
 else
-if [ BDAINTMC ] ; then
+if [ $BDAINTMC -eq 1 ] ; then
 NTHREADS=18 #n master ranks
 else
 NTHREADS=12 #n master ranks

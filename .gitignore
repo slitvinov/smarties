@@ -29,6 +29,7 @@
 
 apps/glider/glider
 apps/cart_pole/cart-pole
+apps/two_cart_poles/cart-pole
 apps/acrobot/acrobot
 apps/CMA/engine_cmaes
 makefiles/rl
