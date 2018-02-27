@@ -17,9 +17,8 @@ struct Memory //Memory light recipient for recurrent connections
 
   inline void clearOutput() const {
     for(Uint i=0; i<nLayers; i++) {
-      const int sizesimd = std::ceil(sizes[i]*sizeof(nnReal)/32.)*32;
-      assert(outvals[i] not_eq nullptr && sizes[i]>0);
-      std::memset(outvals[i], 0, sizesimd);
+      assert(outvals[i] not_eq nullptr);
+      std::memset( outvals[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
   }
 
@@ -131,25 +130,22 @@ struct Activation
 
   inline void clearOutput() const {
     for(Uint i=0; i<nLayers; i++) {
-      const int sizesimd = std::ceil(sizes[i]*sizeof(nnReal)/32.)*32;
-      assert(outvals[i] not_eq nullptr && sizes[i]>0);
-      std::memset(outvals[i], 0, sizesimd);
+      assert(outvals[i] not_eq nullptr);
+      std::memset( outvals[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
   }
 
   inline void clearErrors() const {
     for(Uint i=0; i<nLayers; i++) {
-      const int sizesimd = std::ceil(sizes[i]*sizeof(nnReal)/32.)*32;
-      assert(errvals[i] not_eq nullptr && sizes[i]>0);
-      std::memset(errvals[i], 0, sizesimd);
+      assert(errvals[i] not_eq nullptr);
+      std::memset( errvals[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
   }
 
   inline void clearInputs() const {
     for(Uint i=0; i<nLayers; i++) {
-      const int sizesimd = std::ceil(sizes[i]*sizeof(nnReal)/32.)*32;
-      assert(suminps[i] not_eq nullptr && sizes[i]>0);
-      std::memset(suminps[i], 0, sizesimd);
+      assert(suminps[i] not_eq nullptr);
+      std::memset( suminps[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
   }
 

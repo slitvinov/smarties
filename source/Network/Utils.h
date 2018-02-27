@@ -26,15 +26,19 @@
 static const int simdWidth = VEC_WIDTH/sizeof(nnReal);
 static const nnReal nnEPS = std::numeric_limits<float>::epsilon();
 
-inline nnReal* allocate_ptr(Uint _size)
+inline Uint roundUpSimd(const Real N)
+{
+  return std::ceil(N/ARY_WIDTH)*ARY_WIDTH;
+}
+
+inline nnReal* allocate_ptr(const Uint _size)
 {
   nnReal* ret = nullptr;
   assert(_size > 0);
-  //printf("requested %u floats of size %lu, allocating %u bytes\n",
-  //  _size, sizeof(nnReal), (Uint) std::ceil(_size*sizeof(nnReal)/32.) * 32);
-  _size = std::ceil(_size*sizeof(nnReal)/32.) * 32;
-  posix_memalign((void **) &ret, 32, _size);
-  memset(ret, 0, _size);
+  //printf("requested %u floats of size %lu, allocating %lu bytes\n",
+  //  _size, sizeof(nnReal), roundUpSimd(_size)*sizeof(nnReal));
+  posix_memalign((void **) &ret, VEC_WIDTH, roundUpSimd(_size)*sizeof(nnReal));
+  memset(ret, 0, roundUpSimd(_size)*sizeof(nnReal) );
   return ret;
 }
 
