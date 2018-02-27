@@ -54,7 +54,7 @@ for RUNTRIAL in "${listOfCases[@]}" ; do
 RUNNAME=${RUNTRIAL/./_}
 RUNTRIAL=${RUNTRIAL/./ }
 echo $RUNTRIAL $RUNNAME
-source launchDaint_deepmind.sh ${RUNNAME}_${POSTFIX} ${NMASTERS} $RUNTRIAL settings/settings_bench_args_DMC.sh
+source launchDaint_deepmind.sh ${RUNNAME}_${POSTFIX} $RUNTRIAL settings/settings_bench_args_DMC.sh
 
 done
 

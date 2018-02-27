@@ -79,7 +79,7 @@ struct Adam {
     #endif
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
-    #ifdef SAFE_ADAM // prevent rare gradient blow ups
+    #ifdef SAFE_ADAM // prevent rare gradient blow ups. allows dW <= eta*3
       M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
       return eta*M1/(nnEPS + std::sqrt(M2));
     #else

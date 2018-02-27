@@ -48,7 +48,6 @@ SETTINGS+=" --greedyEps 0.2"
 SETTINGS+=" --epsAnneal 10000"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
-SETTINGS+=" --nMasters 1"
 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps

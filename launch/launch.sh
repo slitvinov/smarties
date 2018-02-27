@@ -10,10 +10,15 @@ if [ $# -lt 5 ] ; then
 	echo "Usage: ./launch_openai.sh RUNFOLDER OMP_THREADS MPI_NODES APP SETTINGS_PATH (POLICY_PATH) (N_MPI_TASK_PER_NODE)"
 	exit 1
 fi
-
-if [ ! -f $SETTINGSNAME ] ; then
-	echo "Cannot find settings file."
-	exit 1
+if [ $# -gt 5 ] ; then
+NMASTERS=$6
+else
+NMASTERS=1 #n master ranks
+fi
+if [ $# -gt 6 ] ; then
+	NTASKPERNODE=$7
+else
+	NTASKPERNODE=1 #n tasks per node
 fi
 
 MYNAME=`whoami`
@@ -24,26 +29,6 @@ else
 	BASEPATH="../runs/"
 fi
 mkdir -p ${BASEPATH}${RUNFOLDER}
-
-if [ $# -gt 5 ] && [ $6 != 'none' ] ; then
-	POLICY=$6
-	if [ -f ${POLICY}_net.raw ] ; then
-		cp ${POLICY}_net.raw ${BASEPATH}${RUNFOLDER}/policy_net.raw
-	elif [ -f ${POLICY}_net ] ; then
-		cp ${POLICY}_net ${BASEPATH}${RUNFOLDER}/policy_net
-	else
-		echo "Cannot find saved network file."
-		exit 1
-	fi
-	cp ${POLICY}_data_stats ${BASEPATH}${RUNFOLDER}/policy_data_stats
-	cp ${POLICY}.status ${BASEPATH}${RUNFOLDER}/policy.status
-fi
-
-if [ $# -gt 6 ] ; then
-	NTASK=$7
-else
-	NTASK=1 #n tasks per node
-fi
 
 #this must handle all app-side setup (as well as copying the factory)
 if [ -d ${APP} ]; then
@@ -72,11 +57,11 @@ git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
 
 cd ${BASEPATH}${RUNFOLDER}
 
-NPROCESS=$((${NNODES}*${NTASK}))
+NPROCESS=$((${NNODES}*${NTASKPERNODE}))
 if [ ${HOST:0:5} == 'euler' ] || [ ${HOST:0:5} == 'eu-lo' ] || [ ${HOST:0:4} == 'eu-c' ] ; then
 	NTHREADSPERNODE=24
 	NPROCESSORS=$((${NNODES}*${NTHREADSPERNODE}))
-	bsub -J ${RUNFOLDER} -R "select[model==XeonE5_2680v3]" -n ${NPROCESSORS} -W 24:00 ./run.sh ${NPROCESS} ${NTHREADS} ${NTASK}
+	bsub -J ${RUNFOLDER} -R "select[model==XeonE5_2680v3]" -n ${NPROCESSORS} -W 24:00 ./run.sh ${NPROCESS} ${NTHREADS} ${NTASKPERNODE} 1
 else
-./run.sh ${NPROCESS} ${NTHREADS} ${NTASK}
+./run.sh ${NPROCESS} ${NTHREADS} ${NTASKPERNODE} ${NMASTERS}
 fi

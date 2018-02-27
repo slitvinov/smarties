@@ -74,12 +74,11 @@ void Learner_onPolicy::spawnTrainTasks_par() { }
 void Learner_onPolicy::prepareGradient()
 {
   if (updateComplete && bTrain) {
-    cntBatch += batchSize*learn_size;
+    cntBatch += batchSize;
     if(cntBatch >= nHorizon) {
       cntBatch = 0;
       cntEpoch++;
     }
-    nSkipped = 0;
   }
   Learner::prepareGradient();
 }

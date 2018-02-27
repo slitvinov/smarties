@@ -5,6 +5,7 @@ export MV2_ENABLE_AFFINITY=0 #MVAPICH
 NPROCESS=$1
 NTHREADS=$2
 TASKPERN=$3
+NMASTERS=$4
 
 SETTINGSNAME=settings.sh
 if [ ! -f $SETTINGSNAME ];then
@@ -13,17 +14,19 @@ if [ ! -f $SETTINGSNAME ];then
 fi
 source $SETTINGSNAME
 SETTINGS+=" --nThreads ${NTHREADS}"
+SETTINGS+=" --nMasters ${NMASTERS}"
+SETTINGS+=" --ppn ${TASKPERN}"
 export OMP_NUM_THREADS=${NTHREADS}
 export OMP_PROC_BIND=CLOSE
 export OMP_PLACES=cores
 #export OMP_WAIT_POLICY=active
 export OMP_MAX_TASK_PRIORITY=1
-export OMP_DISPLAY_ENV=TRUE
+#export OMP_DISPLAY_ENV=TRUE
 export OMP_DYNAMIC=FALSE
 
 echo $SETTINGS > settings.txt
 env > environment.log
-#echo ${NPROCESS} ${NTHREADS}
+echo ${NPROCESS} ${NTHREADS} $TASKPERN $NMASTERS
 
 #mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none xterm -e gdb --tui --args ./rl ${SETTINGS}
 
@@ -33,7 +36,7 @@ mpirun -n ${NPROCESS} -oversubscribe --map-by node:PE=24 -report-bindings --mca 
 else
  #--leak-check=yes  --track-origins=yes
 #mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none valgrind --num-callers=100  --tool=memcheck  ./rl ${SETTINGS} | tee out.log
-mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none ./rl ${SETTINGS} | tee out.log
+mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to core:${NTHREADS} ./rl ${SETTINGS} | tee out.log
 fi
 
 

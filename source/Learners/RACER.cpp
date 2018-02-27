@@ -77,7 +77,7 @@ class RACER : public Learner_offPolicy
   {
     Learner_offPolicy::prepareData();
     if(updatePrepared && nStep == 0) {
-      cout << "Preparing initial sequences with computed reward 1/std " << data->invstd_reward << endl;
+      if(!learn_rank) cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++) {
         const int N = data->Set[i]->ndata();
@@ -348,7 +348,6 @@ class RACER : public Learner_offPolicy
     // pol grad magnitude. Therefore are more strongly pushed away from mu.
     //FILTER_ALGO = MAXERROR;
 
-    cout << CmaxPol << " " << CmaxRet << " " << invC << endl;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() {
@@ -445,31 +444,34 @@ class RACER : public Learner_offPolicy
   {
     const bool bWasPrepareReady = updateComplete;
 
-    #ifdef RACER_BACKWARD
-      if(updateComplete) {
-        profiler->stop_start("QRET");
-        #pragma omp parallel for schedule(dynamic)
-        for(Uint i = 0; i < data->Set.size(); i++)
-          for(int j = data->Set[i]->just_sampled; j>=0; j--) {
-            const Real obsOpcW = data->Set[i]->offPol_weight[j];
-            assert(obsOpcW >= 0);
-            const Real R = data->scaledReward(data->Set[i], j);
-            const Real W = obsOpcW>1? 1 : obsOpcW;
-            const Real A = data->Set[i]->action_adv[j];
-            const Real V = data->Set[i]->state_vals[j];
-            const Real Qret = data->Set[i]->Q_RET[j+1];
-            data->Set[i]->Q_RET[j] = R +gamma*(W*(Qret -A-V)+V);
-          }
-        profiler->stop_start("SLP");
-      }
-    #endif
-
-    Learner_offPolicy::prepareGradient();
+    Learner::prepareGradient();
 
     if(not bWasPrepareReady) return;
 
-    // update sequences
+    #ifdef RACER_BACKWARD
+      profiler->stop_start("QRET");
+      #pragma omp parallel for schedule(dynamic)
+      for(Uint i = 0; i < data->Set.size(); i++)
+        for(int j = data->Set[i]->just_sampled; j>=0; j--) {
+          const Real obsOpcW = data->Set[i]->offPol_weight[j];
+          assert(obsOpcW >= 0);
+          const Real R = data->scaledReward(data->Set[i], j);
+          const Real W = obsOpcW>1? 1 : obsOpcW;
+          const Real A = data->Set[i]->action_adv[j];
+          const Real V = data->Set[i]->state_vals[j];
+          const Real Qret = data->Set[i]->Q_RET[j+1];
+          data->Set[i]->Q_RET[j] = R +gamma*(W*(Qret -A-V)+V);
+        }
+    #endif
+
+    profiler->stop_start("PRNE");
+
+    advanceCounters();
     Real fracOffPol = data->nOffPol / (Real) data->nTransitions;
+    data->prune(CmaxRet, FILTER_ALGO);
+
+    profiler->stop_start("SLP");
+
 
     if (learn_size > 1) {
       const bool firstUpdate = nData_request == MPI_REQUEST_NULL;

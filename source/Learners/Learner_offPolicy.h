@@ -17,7 +17,6 @@ protected:
   const Real obsPerStep_orig;
   const Uint nObsPerTraining;
   Uint taskCounter = 0, nData_b4Startup = 0;
-  mutable Uint nSkipped = 0;
   Real nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig;
   vector<Uint> samp_seq, samp_obs;
@@ -26,27 +25,13 @@ public:
   Learner_offPolicy(Environment*const env, Settings& _s);
 
   bool readyForTrain() const;
-  
-  inline bool canSkip() const
-  {
-    Uint _nSkipped;
-    #pragma omp atomic read
-      _nSkipped = nSkipped;
-    // If skipping too many samples return w/o sample to avoid code hanging.
-    // If true smth is wrong. Approximator will print to screen a warning.
-    return _nSkipped < batchSize;
-  }
-  inline void resample(const Uint thrID) const // TODO resample sequence
-  {
-    if( not canSkip() ) return;
 
-    #pragma omp atomic
-    nSkipped++;
-
-    Uint sequence, transition;
-    data->sampleTransition(sequence, transition, thrID);
-    data->Set[sequence]->setSampled(transition);
-    return Train(sequence, transition, thrID);
+  inline void advanceCounters() {
+    //shift data / gradient counters to maintain grad stepping to sample
+    // collection ratio prescirbed by obsPerStep
+    const Real stepCounter = nStep - (Real)nStep_last;
+    nData_last += stepCounter*obsPerStep;
+    nStep_last = nStep;
   }
 
   //main training functions:

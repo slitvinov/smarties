@@ -35,6 +35,7 @@ protected:
   const int learn_rank, learn_size;
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;
+  mutable Uint nSkipped = 0;
   FORGET FILTER_ALGO = OLDEST;
 
   mutable bool updatePrepared = false;
@@ -51,6 +52,29 @@ protected:
   trainData stats;
   mutable vector<trainData> Vstats;
   virtual void processStats();
+
+  inline bool canSkip() const
+  {
+    Uint _nSkipped;
+    #pragma omp atomic read
+      _nSkipped = nSkipped;
+    // If skipping too many samples return w/o sample to avoid code hanging.
+    // If true smth is wrong. Approximator will print to screen a warning.
+    return _nSkipped < batchSize;
+  }
+
+  inline void resample(const Uint thrID) const // TODO resample sequence
+  {
+    if( not canSkip() ) return;
+
+    #pragma omp atomic
+    nSkipped++;
+
+    Uint sequence, transition;
+    data->sampleTransition(sequence, transition, thrID);
+    data->Set[sequence]->setSampled(transition);
+    return Train(sequence, transition, thrID);
+  }
 
 public:
   Profiler* profiler;

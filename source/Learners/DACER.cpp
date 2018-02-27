@@ -72,7 +72,7 @@ class DACER : public Learner_offPolicy
   {
     Learner_offPolicy::prepareData();
     if(updatePrepared && nStep == 0) {
-      cout << "Preparing initial sequences with computed reward 1/std " << data->invstd_reward << endl;
+      if(!learn_rank) cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++) {
         Sequence* const traj = data->Set[i];
@@ -233,7 +233,7 @@ class DACER : public Learner_offPolicy
     // pol grad magnitude. Therefore are more strongly pushed away from mu.
     //FILTER_ALGO = MAXERROR;
 
-    cout << CmaxPol << " " << CmaxRet << " " << invC << endl;
+    //cout << CmaxPol << " " << CmaxRet << " " << invC << endl;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~DACER() {
@@ -307,26 +307,28 @@ class DACER : public Learner_offPolicy
   {
     const bool bWasPrepareReady = updateComplete;
 
-    #ifdef DACER_BACKWARD
-      if(updateComplete) {
-        profiler->stop_start("QRET");
-        #pragma omp parallel for schedule(dynamic)
-        for(Uint i = 0; i < data->Set.size(); i++)
-          for(int j = data->Set[i]->just_sampled; j>=0; j--) {
-            const Real obsOpcW = data->Set[i]->offPol_weight[j];
-            assert(obsOpcW >= 0);
-            updateVret(data->Set[i], j, data->Set[i]->state_vals[j], obsOpcW);
-          }
-        profiler->stop_start("SLP");
-      }
-    #endif
-
-    Learner_offPolicy::prepareGradient();
+    Learner::prepareGradient();
 
     if(not bWasPrepareReady) return;
 
-    // update sequences
+    #ifdef DACER_BACKWARD
+      profiler->stop_start("QRET");
+      #pragma omp parallel for schedule(dynamic)
+      for(Uint i = 0; i < data->Set.size(); i++)
+        for(int j = data->Set[i]->just_sampled; j>=0; j--) {
+          const Real obsOpcW = data->Set[i]->offPol_weight[j];
+          assert(obsOpcW >= 0);
+          updateVret(data->Set[i], j, data->Set[i]->state_vals[j], obsOpcW);
+        }
+    #endif
+
+    profiler->stop_start("PRNE");
+
+    advanceCounters();
     Real fracOffPol = data->nOffPol / (Real) data->nTransitions;
+    data->prune(CmaxRet, FILTER_ALGO);
+
+    profiler->stop_start("SLP");
 
     if (learn_size > 1) {
       const bool firstUpdate = nData_request == MPI_REQUEST_NULL;
@@ -335,7 +337,12 @@ class DACER : public Learner_offPolicy
       // prepare an allreduce with the current data:
       ndata_partial_sum[0] = data->nOffPol;
       ndata_partial_sum[1] = data->nTransitions;
-      // use result from prev reduce to update rewards (before new reduce)
+      // use result from prev AllReduce to update rewards (before new reduce).
+      // Assumption is that the number of off Pol trajectories does not change
+      // much each step. Especially because here we update the off pol W only
+      // if an observation is actually sampled. Therefore at most this fraction
+      // is wrong by batchSize / nTransitions ( ~ 0 )
+      // In exchange we skip an mpi implicit barrier point.
       fracOffPol = ndata_reduce_result[0] / ndata_reduce_result[1];
 
       MPI_Iallreduce(ndata_partial_sum, ndata_reduce_result, 2, MPI_DOUBLE, MPI_SUM, mastersComm, &nData_request);

@@ -30,10 +30,9 @@ SETTINGS+=" --learner POAC"
 SETTINGS+=" --greedyEps 0.5"
 
 SETTINGS+=" --obsPerStep 1"
-SETTINGS+=" --minTotObsNum 131072" 
+SETTINGS+=" --minTotObsNum 131072"
 SETTINGS+=" --maxTotObsNum 262144"
 
-SETTINGS+=" --nMasters 1"
 SETTINGS+=" --totNumSteps 5000000"
 #SETTINGS+=" --impWeight 5"
 SETTINGS+=" --impWeight 2"

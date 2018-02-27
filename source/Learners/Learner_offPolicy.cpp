@@ -11,7 +11,7 @@
 
 Learner_offPolicy::Learner_offPolicy(Environment*const _env, Settings & _s) :
 Learner(_env,_s), obsPerStep_orig(_s.obsPerStep), nObsPerTraining(
-(_s.minTotObsNum>_s.batchSize? _s.minTotObsNum : _s.maxTotObsNum)/learn_size) {}
+_s.minTotObsNum>_s.batchSize? _s.minTotObsNum : _s.maxTotObsNum) {}
 
 void Learner_offPolicy::prepareData()
 {
@@ -41,7 +41,11 @@ bool Learner_offPolicy::readyForTrain() const
    //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
    //  die("I do not have enough data for training. Change hyperparameters");
    //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
-   return bTrain && data->readNData() >= nObsPerTraining;
+   const bool ready = bTrain && data->readNData() >= nObsPerTraining;
+   if(not ready && bTrain && omp_get_thread_num() == 0 && !learn_rank)
+    printf("\rCollected %#5.4g %% of data required to begin training. ",
+      data->readNData() * 100. / (Real) nObsPerTraining);
+   return ready;
 }
 
 // lockQueue tells scheduler that has stopped receiving states from slaves
@@ -64,14 +68,14 @@ bool Learner_offPolicy::lockQueue() const
   const Real dataCounter = _nData - (Real)nData_last;
   const Real stepCounter =  nStep - (Real)nStep_last;
   // lock the queue if we have more data than grad step ratio
-  return dataCounter > stepCounter*obsPerStep/learn_size;
+  return dataCounter > stepCounter*obsPerStep;
 }
 
 void Learner_offPolicy::spawnTrainTasks_par()
 {
   if(updateComplete) die("undefined behavior");
   if( not updatePrepared ) return;
-  if( bSampleSequences && data->nSequences < batchSize )
+  if( bSampleSequences && data->nSequences < batchSize)
     die("Parameter maxTotObsNum is too low for given problem");
 
   for (Uint i=0; i<batchSize; i++)
@@ -124,18 +128,8 @@ void Learner_offPolicy::prepareGradient()
   Learner::prepareGradient();
 
   if(bWasPrepareReady) {
-    if(nSkipped >= batchSize)
-      warn("Too many skipped samples caused code to override algorithm. Change hyperparameters.");
-
-    nSkipped = 0;
-
     profiler->stop_start("PRNE");
-    //shift data / gradient counters to maintain grad stepping to sample
-    // collection ratio prescirbed by obsPerStep
-    const Real stepCounter = nStep - (Real)nStep_last;
-
-    nData_last += stepCounter*obsPerStep/learn_size;
-    nStep_last = nStep;
+    advanceCounters();
     data->prune(CmaxRet, FILTER_ALGO);
     profiler->stop_start("SLP");
   }

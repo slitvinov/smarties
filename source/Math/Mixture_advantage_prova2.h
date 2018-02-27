@@ -198,7 +198,7 @@ public:
       const Real scale = std::max(std::fabs(fdiff), std::fabs(_grad[index]));
       //if(abserr>1e-7 && abserr/scale>1e-4)
       {
-        cout<<"Adv grad "<<i<<" finite differences "<<fdiff<<" analytic "
+        fout<<"Adv grad "<<i<<" finite differences "<<fdiff<<" analytic "
           <<_grad[index]<<" error "<<abserr<<" "<<abserr/scale<<endl;
       }
     }

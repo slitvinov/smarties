@@ -45,7 +45,7 @@ void Environment::setDims() //this environment is for the cart pole test
   sI.scale.resize(sI.dim);
   sI.inUse.resize(sI.dim, 1);
 
-  if(!settings.world_rank) printf("State dim:");
+  if(!settings.world_rank) printf("State dimensionality : %d.",sI.dim);
   for (unsigned i=0; i<sI.dim; i++) {
     const bool inuse = comm_ptr->obs_inuse[i] > 0.5;
     const double upper = comm_ptr->obs_bounds[i*2+0];
@@ -57,10 +57,10 @@ void Environment::setDims() //this environment is for the cart pole test
       sI.scale = Rvec(); sI.mean = Rvec();
       break;
     }
-    if(!settings.world_rank) printf(" %u%s:[%f,%f]",i,
-    inuse?"":" (hidden from agent)",upper,lower);
+    if(!settings.world_rank && not inuse)
+      printf(" State component %u is hidden from the learner.", i);
   }
-  if(!settings.world_rank) printf("\nAction dim:");
+  if(!settings.world_rank) printf("\nAction dimensionality : %d.",aI.dim);
 
   int k = 0;
   for (Uint i=0; i<aI.dim; i++) {
@@ -73,11 +73,8 @@ void Environment::setDims() //this environment is for the cart pole test
       aI.values[i][j] = comm_ptr->action_bounds[k++];
 
     const Real amax = aI.getActMaxVal(i), amin = aI.getActMinVal(i);
-    const double scale = 0.5*(amax - amin), mean = 0.5*(amax + amin);
-    if(scale>=1e3 || scale<1e-7) aI.bounded[i] = 0;
-    //if(aI.bounded[i]) settings.greedyEps = std::min(settings.greedyEps, 0.2);
     if(!settings.world_rank)
-    printf(" [%u: %f +/- %f%s]", i, mean, scale, aI.bounded[i]?" (bounded)":"");
+    printf(" [%u: %f:%f%s]", i, amin, amax, aI.bounded[i]?" (bounded)":"");
   }
   if(!settings.world_rank) printf("\n");
 

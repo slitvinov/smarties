@@ -93,6 +93,11 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
     profiler->stop_start("STAT");
     processStats();
   }
+
+  if(nSkipped >= batchSize)
+    warn("Too many skipped samples caused code to override algorithm. Change hyperparameters.");
+  nSkipped = 0;
+  
   profiler->stop_start("SLP");
 }
 

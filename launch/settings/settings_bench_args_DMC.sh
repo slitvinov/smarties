@@ -38,7 +38,6 @@ SETTINGS+=" --greedyEps 1"
 SETTINGS+=" --epsAnneal 100"
 SETTINGS+=" --totNumSteps 6400000"
 SETTINGS+=" --obsPerStep ${EPERSTEP}"
-SETTINGS+=" --nMasters ${NMASTERS}"
 SETTINGS+=" --bSampleSequences 0"
 
 #lag of target network.
