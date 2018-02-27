@@ -73,7 +73,10 @@ struct Parameters
     {
       const Uint thrI = omp_get_thread_num(), thrN = omp_get_num_threads();
       const Uint shift = std::ceil(nParams/ARY_WIDTH/thrN)*ARY_WIDTH;
-      const Uint start = thrI*shift, end = thrI+1==thrN? nParams:(thrI+1)*shift;
+      // TODO is it ever possible these indices do not span entire nParams?
+      // shift*thrN should always be >nParams. thrI should always span 0:thrN-1
+      assert(thrN*shift >= nParams);
+      const Uint start = thrI*shift, end = std::min(nParams, (thrI+1)*shift);
       nnReal* const dst = params;
       //#pragma omp critical
       //{
