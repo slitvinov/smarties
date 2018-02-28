@@ -27,10 +27,9 @@ public:
   //not kosher stuff, but it should work, relies on ordering of operations:
 
   Rvec sampAct;
-  long double sampLogPonPolicy=0, sampLogPBehavior=0;
+  long double sampPonPolicy = -1, sampPBehavior = -1;
   Real sampImpWeight=0, sampRhoWeight = 0;
   array<long double, nExperts> PactEachExp;
-  long double Pact_Final = -1;
 
   static inline Uint compute_nP(const ActionInfo* const aI)
   {
@@ -161,25 +160,24 @@ public:
   inline void prepare(const Rvec& unscal_act, const Rvec& beta)
   {
     sampAct = map_action(unscal_act);
-    Pact_Final = 0; //numeric_limits<Real>::epsilon();
+    sampPonPolicy = 0; //numeric_limits<Real>::epsilon();
     for(Uint j=0; j<nExperts; j++) {
       PactEachExp[j] = 1;
       for(Uint i=0; i<nA; i++)
         PactEachExp[j] *= oneDnormal(sampAct[i], means[j][i], precisions[j][i]);
-      Pact_Final += PactEachExp[j] * experts[j];
+      sampPonPolicy += PactEachExp[j] * experts[j];
     }
-    assert(Pact_Final>=0);
-    sampLogPonPolicy = std::log(Pact_Final);
-    sampLogPBehavior = evalBehavior(sampAct, beta);
-    const long double logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = std::exp(logW);
+    assert(sampPonPolicy>=0);
+    sampPBehavior = evalBehavior(sampAct, beta);
+    sampImpWeight = sampPonPolicy / sampPBehavior;
     #ifdef RACER_ACERTRICK
-      sampRhoWeight = std::exp( logW * retraceTrickPow );
+      sampRhoWeight = std::pow( logW, retraceTrickPow );
     #else
       sampRhoWeight = sampImpWeight;
     #endif
+    if(sampPonPolicy<=0){printf("observed %g\n",(Real)sampPonPolicy);fflush(0);}
   }
-
+private:
   static inline long double evalBehavior(const Rvec& act, const Rvec& beta)
   {
     long double p = 0;
@@ -193,7 +191,7 @@ public:
       p += pi * beta[j]; //beta[j] contains expert
     }
     assert(p>0);
-    return std::log(p);
+    return p;
   }
   inline Real evalLogProbability(const Rvec& act) const
   {
@@ -207,6 +205,7 @@ public:
     return std::log(P);
   }
 
+public:
   inline Rvec sample(mt19937*const gen, const Rvec& beta) const
   {
     Rvec ret(nA);
@@ -217,9 +216,9 @@ public:
     const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      //if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
-           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
-      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
+      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
+      //     if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      //else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       const Uint indM = i +experti*nA +nExperts; //after experts come the means
       const Uint indS = i +experti*nA +nExperts*(nA+1); //after means, stdev
       ret[i] = beta[indM] + beta[indS] * samp;
@@ -236,9 +235,9 @@ public:
     const Uint experti = nExperts>1 ? dE(*gen) : 0;
     for(Uint i=0; i<nA; i++) {
       Real samp = dist(*gen);
-      //if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
-           if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
-      else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
+      if (samp >  NORMDIST_MAX || samp < -NORMDIST_MAX) samp = safety(*gen);
+      //     if (samp >  NORMDIST_MAX) samp =  2*NORMDIST_MAX -samp;
+      //else if (samp < -NORMDIST_MAX) samp = -2*NORMDIST_MAX -samp;
       ret[i] = means[experti][i] + stdevs[experti][i] * samp;
     }
     return ret;
@@ -247,9 +246,9 @@ public:
   inline Rvec policy_grad(const Rvec& act, const Real factor) const
   {
     Rvec ret(nExperts +2*nA*nExperts, 0);
-    assert(Pact_Final > 0);
+    assert(sampPonPolicy > 0);
     for(Uint j=0; j<nExperts; j++) {
-      const long double normExpert = factor * PactEachExp[j]/Pact_Final;
+      const long double normExpert = factor * PactEachExp[j]/sampPonPolicy;
       assert(PactEachExp[j] > 0);
       for(Uint i=0; i<nExperts; i++)
         ret[i] += normExpert * ((i==j)-experts[j])/normalization;
@@ -453,8 +452,8 @@ public:
        const auto fdiff =(p_2-p_1)/nnEPS/2, abserr =std::fabs(_grad[ind]-fdiff);
        const auto scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
        //if((abserr>1e-7 && abserr/scale>1e-4) && PactEachExp[ie]>nnEPS)
-       fout<<"Pol grad "<<i<<" fdiff "<<fdiff<<" grad "<<_grad[ind]<<" err "
-       <<abserr<<" "<<abserr/scale<<" "<<Pact_Final<<" "<<PactEachExp[ie]<<endl;
+       fout<<"Pol "<<i<<" fdiff "<<fdiff<<" grad "<<_grad[ind]<<" err "<<abserr
+       <<" "<<abserr/scale<<" "<<sampPonPolicy<<" "<<PactEachExp[ie]<<endl;
       }
 
       const auto d_1=p1.kl_divergence_opp(beta), d_2=p2.kl_divergence_opp(beta);
@@ -462,8 +461,8 @@ public:
        finalize_grad(div_klgrad, _grad);
        const auto fdiff =(d_2-d_1)/nnEPS/2, abserr =std::fabs(_grad[ind]-fdiff);
        const auto scale = std::max(std::fabs(fdiff), std::fabs(_grad[ind]));
-       fout<<"DivKL grad "<<i<<" fdiff "<<fdiff<<" grad "<<_grad[ind]<<" err "
-       <<abserr<<" "<<abserr/scale<<" "<<Pact_Final<<" "<<PactEachExp[ie]<<endl;
+       fout<<"DKL "<<i<<" fdiff "<<fdiff<<" grad "<<_grad[ind]<<" err "<<abserr
+       <<" "<<abserr/scale<<" "<<sampPonPolicy<<" "<<PactEachExp[ie]<<endl;
       }
     }
     fout.close();

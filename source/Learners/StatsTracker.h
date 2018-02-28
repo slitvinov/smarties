@@ -124,7 +124,7 @@ struct StatsTracker
   {
     assert(grad.size() == n_stats);
     Uint ret = 0;
-    for (Uint i=0; i<n_stats && grad_cut_fac>1; i++) {
+    for (Uint i=0; i<n_stats && grad_cut_fac>=1; i++) {
       //#ifdef IMPORTSAMPLE
       //  assert(data->Set[seq]->tuples[samp]->weight>0);
       //  grad[i] *= data->Set[seq]->tuples[samp]->weight;
