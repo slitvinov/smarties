@@ -10,6 +10,7 @@
 #include "Learner_onPolicy.h"
 #include "../Math/Lognormal_policy.h"
 #include "../Math/Gaussian_policy.h"
+#include "../Math/Discrete_advantage.h"
 #include "../Network/Builder.h"
 #define PPO_PENALKL
 #define PPO_CLIPPED
@@ -88,10 +89,10 @@ protected:
     const Real Vst = val_cur[0], penalDKL = valPenal[0];
     const Policy_t pol = prepare_policy(pol_cur);
     const Action_t act = pol.map_action(traj->tuples[samp]->a);
-    const Real actProbOnPolicy = pol.evalLogProbability(act);
+    const Real actProbOnPolicy = pol.logProbability(act);
     const Real actProbBehavior = Policy_t::evalBehavior(act, beta);
     const Real rho_cur = safeExp(actProbOnPolicy-actProbBehavior);
-    const Real DivKL=pol.kl_divergence_opp(beta);
+    const Real DivKL = pol.kl_divergence(beta);
     //if ( thrID==1 ) printf("%u %u : %f DivKL:%f %f %f\n", nOutputs, PenalID, penalDKL, DivKL, completed[workid]->policy[samp][1], output[2]);
 
     Real gain = rho_cur*adv_est;
@@ -112,7 +113,7 @@ protected:
 
     #ifdef PPO_PENALKL
       const Rvec policy_grad = pol.policy_grad(act, gain);
-      const Rvec penal_grad = pol.div_kl_opp_grad(beta, -penalDKL);
+      const Rvec penal_grad = pol.div_kl_grad(beta, -penalDKL);
       Rvec totalPolGrad = sum2Grads(penal_grad, policy_grad);
     #else //we still learn the penal coef, for simplicity, but no effect
       Rvec totalPolGrad = pol.policy_grad(act, gain);

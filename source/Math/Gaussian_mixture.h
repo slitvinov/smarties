@@ -31,9 +31,15 @@ public:
   Real sampImpWeight=0, sampRhoWeight = 0;
   array<long double, nExperts> PactEachExp;
 
-  static inline Uint compute_nP(const ActionInfo* const aI)
-  {
+  static inline Uint compute_nP(const ActionInfo* const aI) {
     return nExperts*(1 + 2*aI->dim);
+  }
+  static inline Uint compute_nA(const ActionInfo* const aI) {
+    assert(aI->dim);
+    return aI->dim;
+  }
+  inline Rvec map_action(const Rvec& sent) const {
+    return aInfo->getInvScaled(sent);
   }
 
   Gaussian_mixture(const vector <Uint> starts, const ActionInfo*const aI,
@@ -102,8 +108,7 @@ private:
   {
     array<Rvec,nExperts> ret = variances; //take inverse of precision
     for(Uint i=0; i<nExperts; i++)
-      for(Uint j=0; j<nA; j++)
-        ret[i][j] = 1/(variances[i][j] + std::numeric_limits<Real>::epsilon());
+      for(Uint j=0; j<nA; j++) ret[i][j] = 1/variances[i][j];
     return ret;
   }
   inline array<Rvec,nExperts> extract_variance() const
@@ -117,7 +122,7 @@ private:
   static inline Real precision_func(const Real val)
   {
     //return std::exp(val) + nnEPS; //nan police
-    return .5*(val+std::sqrt(val*val+1)) + std::numeric_limits<Real>::epsilon();
+    return .5*(val+std::sqrt(val*val+1)) + nnEPS;
   }
   static inline Real precision_func_diff(const Real val)
   {
@@ -193,7 +198,7 @@ private:
     assert(p>0);
     return p;
   }
-  inline Real evalLogProbability(const Rvec& act) const
+  inline Real logProbability(const Rvec& act) const
   {
     long double P = 0;
     for(Uint j=0; j<nExperts; j++) {
@@ -253,7 +258,6 @@ public:
       for(Uint i=0; i<nExperts; i++)
         ret[i] += normExpert * ((i==j)-experts[j])/normalization;
 
-      //if(PactEachExp[j]<EPS) continue; // NaN police
       const long double fac = normExpert * experts[j];
       for (Uint i=0; i<nA; i++) {
         const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(1+nA)*nExperts;
@@ -266,27 +270,12 @@ public:
     return ret;
   }
 
-  inline Rvec div_kl_opp_grad(const Gaussian_mixture*const pol_hat, const Real fac = 1) const
-  {
-    Rvec ret(nExperts +2*nA*nExperts, 0);
-    for(Uint j=0; j<nExperts; j++) {
-      for (Uint i=0; i<nA; i++) {
-        const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(nA+1)*nExperts;
-        const Real meani = means[j][i], preci = precisions[j][i];
-        const Real meanh=pol_hat->means[j][i], prech=pol_hat->precisions[j][i];
-        ret[indM]= fac*experts[j]*(meani-meanh)*prech;
-        ret[indS]= fac*experts[j]*(prech-preci)*stdevs[j][i];
-      }
-      const Real DKL_ExpJ = kl_divergence_exp(j,pol_hat);
-      const Real logExpJ = std::log( experts[j]/pol_hat->experts[j] );
-      const Real tmp = fac*(DKL_ExpJ +1 +logExpJ)/normalization;
-      for (Uint i=0; i<nExperts; i++) ret[i] += tmp*((i==j)-experts[j]);
-    }
-    return ret;
+  inline Rvec div_kl_grad(const Gaussian_mixture*const pol_hat, const Real fac = 1) const {
+    const Rvec vecTarget = pol_hat->getVector();
+    return div_kl_grad(vecTarget, fac);
   }
-  inline Rvec div_kl_opp_grad(const Rvec&beta, const Real fac=1) const
+  inline Rvec div_kl_grad(const Rvec&beta, const Real fac=1) const
   {
-    //const Real EPS = std::numeric_limits<Real>::epsilon();
     Rvec ret(nExperts +2*nA*nExperts, 0);
     for(Uint j=0; j<nExperts; j++) {
       Real DKLe = 0;
@@ -304,6 +293,7 @@ public:
     }
     return ret;
   }
+
   inline Real kl_divergence_exp(const Uint expi, const Rvec&beta) const
   {
     Real DKLe = 0; //numeric_limits<Real>::epsilon();
@@ -315,28 +305,11 @@ public:
     assert(DKLe>=0);
     return 0.5*DKLe;
   }
-  inline Real kl_divergence_exp(const Uint expi, const Gaussian_mixture*const pol) const
-  {
-    Real DKLe = 0; //numeric_limits<Real>::epsilon();
-    for (Uint i=0; i<nA; i++) {
-      const Real pRatio = pol->precisions[expi][i]*variances[expi][i];
-      const Real meanh = pol->means[expi][i], prech = pol->precisions[expi][i];
-      DKLe += pRatio-1-std::log(pRatio) +std::pow(means[expi][i]-meanh,2)*prech;
-    }
-    assert(DKLe>=0);
-    return 0.5*DKLe;
+  inline Real kl_divergence(const Gaussian_mixture*const pol_hat) const {
+    const Rvec vecTarget = pol_hat->getVector();
+    return kl_divergence(vecTarget);
   }
-  inline Real kl_divergence_opp(const Gaussian_mixture*const pol_hat) const
-  {
-    Real ret = 0;
-    for(Uint j=0; j<nExperts; j++) {
-      const Real DKL_ExpJ = kl_divergence_exp(j,pol_hat);
-      const Real logExpJ = std::log( experts[j]/pol_hat->experts[j] );
-      ret += experts[j]*(logExpJ + DKL_ExpJ);
-    }
-    return ret;
-  }
-  inline Real kl_divergence_opp(const Rvec&beta) const
+  inline Real kl_divergence(const Rvec&beta) const
   {
     Real r = 0;
     for(Uint j=0; j<nExperts; j++)
@@ -364,12 +337,8 @@ public:
             netGradient[iMeans +i+j*nA] = 0;
         }
 
-        if(precisions[j][i]>ACER_MAX_PREC && grad[i+j*nA +(nA+1)*nExperts]<0)
-          netGradient[iPrecs +i+j*nA] = 0;
-        else {
-          const Real diff = precision_func_diff(netOutputs[iPrecs +i+j*nA]);
-          netGradient[iPrecs +i+j*nA] = grad[i+j*nA +(nA+1)*nExperts] * diff;
-        }
+        const Real diff = precision_func_diff(netOutputs[iPrecs +i+j*nA]);
+        netGradient[iPrecs +i+j*nA] = grad[i+j*nA +(nA+1)*nExperts] * diff;
       }
     }
   }
@@ -411,16 +380,6 @@ public:
     }
     return ret;
   }
-  static inline void anneal_beta(Rvec& beta, const Real eps) {}
-  inline Rvec map_action(const Rvec& sent) const
-  {
-    return aInfo->getInvScaled(sent);
-  }
-  static inline Uint compute_nA(const ActionInfo* const aI)
-  {
-    assert(aI->dim);
-    return aI->dim;
-  }
 
   void test(const Rvec& act, const Gaussian_mixture*const pol_hat) const
   {
@@ -430,7 +389,7 @@ public:
   void test(const Rvec& act, const Rvec& beta) const
   {
     Rvec _grad(netOutputs.size());
-    const Rvec div_klgrad = div_kl_opp_grad(beta);
+    const Rvec div_klgrad = div_kl_grad(beta);
     const Rvec policygrad = policy_grad(act, 1);
     const Uint NEA = nExperts*(1+nA);
     ofstream fout("mathtest.log", ios::app);
@@ -446,7 +405,7 @@ public:
       out_1[ind] -= nnEPS; out_2[ind] += nnEPS;
       Gaussian_mixture p1(vector<Uint>{iExperts, iMeans, iPrecs}, aInfo, out_1);
       Gaussian_mixture p2(vector<Uint>{iExperts, iMeans, iPrecs}, aInfo, out_2);
-      const auto p_1=p1.evalLogProbability(act), p_2=p2.evalLogProbability(act);
+      const auto p_1=p1.logProbability(act), p_2=p2.logProbability(act);
       {
        finalize_grad(policygrad, _grad);
        const auto fdiff =(p_2-p_1)/nnEPS/2, abserr =std::fabs(_grad[ind]-fdiff);
@@ -456,7 +415,7 @@ public:
        <<" "<<abserr/scale<<" "<<sampPonPolicy<<" "<<PactEachExp[ie]<<endl;
       }
 
-      const auto d_1=p1.kl_divergence_opp(beta), d_2=p2.kl_divergence_opp(beta);
+      const auto d_1=p1.kl_divergence(beta), d_2=p2.kl_divergence(beta);
       {
        finalize_grad(div_klgrad, _grad);
        const auto fdiff =(d_2-d_1)/nnEPS/2, abserr =std::fabs(_grad[ind]-fdiff);

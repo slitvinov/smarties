@@ -38,12 +38,12 @@ void Gaussian_policy::test(const Rvec& act,
     //  :
     //Quadratic_advantage(a->start_matrix,a->start_mean,a->nA,a->nL,out_2,&p2);
 
-    const Real p_1 = p1.evalLogProbability(act);
-    const Real p_2 = p2.evalLogProbability(act);
+    const Real p_1 = p1.logProbability(act);
+    const Real p_2 = p2.logProbability(act);
     const Real d_1 = p1.kl_divergence(pol_hat);
     const Real d_2 = p2.kl_divergence(pol_hat);
     {
-      finalize_grad_unb(policygrad, _grad);
+      finalize_grad(policygrad, _grad);
       const double diffVal = (p_2-p_1)/.0002;
       const double gradVal = _grad[index];
       const double errVal  = std::fabs(_grad[index]-(p_2-p_1)/.0002);
@@ -61,9 +61,8 @@ void Gaussian_policy::test(const Rvec& act,
     //  i,(A_2-A_1)/.0002,_grad[index],fabs(_grad[index]-(A_2-A_1)/.0002));
     //#endif
 
-    finalize_grad_unb(div_klgrad, _grad);
     {
-      finalize_grad_unb(policygrad, _grad);
+      finalize_grad(div_klgrad, _grad);
       const double diffVal = (d_2-d_1)/.0002;
       const double gradVal = _grad[index];
       const double errVal  = std::fabs(_grad[index]-(d_2-d_1)/.0002);
@@ -93,8 +92,8 @@ void Discrete_policy::test(const Uint act, const Discrete_policy*const pol_hat) 
     Discrete_policy p2(vector<Uint>{start_prob},aInfo,out_2);
     //const Real A_1 = p1.computeAdvantage(act);
     //const Real A_2 = p2.computeAdvantage(act);
-    const Real p_1 = p1.evalLogProbability(act);
-    const Real p_2 = p2.evalLogProbability(act);
+    const Real p_1 = p1.logProbability(act);
+    const Real p_2 = p2.logProbability(act);
     const Real d_1 = p1.kl_divergence(pol_hat);
     const Real d_2 = p2.kl_divergence(pol_hat);
 

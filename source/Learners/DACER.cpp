@@ -14,8 +14,7 @@
 #ifndef DACER_SKIP
 #define DACER_SKIP 1
 #endif
-//#define DACER_ONESTEPADV
-//#define DACER_BACKWARD
+#define DACER_BACKWARD
 #ifndef DACER_FORWARD
 #define DACER_FORWARD 0
 #endif
@@ -118,7 +117,7 @@ class DACER : public Learner_offPolicy
         const Rvec outt = F[0]->forward(traj, k, thrID);
         const Policy_t polt = prepare_policy(outt, traj->tuples[k]);
         //these are all race conditions:
-        traj->setSquaredError(k, polt.kl_divergence_opp(traj->tuples[k]->mu) );
+        traj->setSquaredError(k, polt.kl_divergence(traj->tuples[k]->mu) );
         traj->setOffPolWeight(k, polt.sampRhoWeight );
         traj->setStateValue(k, outt[VsID] );
         //if (impW < 0.1) break;
@@ -156,12 +155,12 @@ class DACER : public Learner_offPolicy
     const Real rho_cur = pol_cur.sampRhoWeight, Ver = S->Q_RET[t];
 
     const Rvec policyG = pol_cur.policy_grad(pol_cur.sampAct, A_RET*rho_cur);
-    const Rvec penalG  = pol_cur.div_kl_opp_grad(S->tuples[t]->mu, -1);
+    const Rvec penalG  = pol_cur.div_kl_grad(S->tuples[t]->mu, -1);
     const Rvec finalG  = weightSum2Grads(policyG, penalG, beta);
 
     #ifdef dumpExtra
       if(thrID == 1) {
-        const float dist = pol_cur.kl_divergence_opp(S->tuples[t]->mu);
+        const float dist = pol_cur.kl_divergence(S->tuples[t]->mu);
         float normT = 0, dot = 0, normG = 0, impW = pol_cur.sampImpWeight;
         for(Uint i = 0; i < policyG.size(); i++) {
           normG += policyG[i] * policyG[i];
@@ -194,14 +193,14 @@ class DACER : public Learner_offPolicy
     const Policy_t& pol, const Uint thrID) const {
     // prepare penalization gradient:
     Rvec gradient(F[0]->nOutputs(), 0);
-    const Rvec pg = pol.div_kl_opp_grad(S->tuples[t]->mu, beta-1);
+    const Rvec pg = pol.div_kl_grad(S->tuples[t]->mu, beta-1);
     pol.finalize_grad(pg, gradient);
     return gradient;
   }
 
   inline Real updateVret(Sequence*const S, const Uint t, const Real V,
     const Policy_t& pol) const {
-    S->setSquaredError(t, pol.kl_divergence_opp(S->tuples[t]->mu) );
+    S->setSquaredError(t, pol.kl_divergence(S->tuples[t]->mu) );
     return updateVret(S, t, V, pol.sampRhoWeight);
   }
 

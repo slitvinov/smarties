@@ -10,8 +10,8 @@
 #pragma once
 #include "../Network/Builder.h"
 #include "Learner_offPolicy.h"
-#include "../Math/FeatureControlTasks.h"
 #include "../Math/Quadratic_advantage.h"
+#include "../Math/Discrete_advantage.h"
 
 class ACER : public Learner_offPolicy
 {
@@ -119,13 +119,13 @@ class ACER : public Learner_offPolicy
     const Action_t& pol_samp) const {
     //compute quantities needed for trunc import sampl with bias correction
     const Real polProbBehavior = Policy_t::evalBehavior(pol_samp, _t->mu);
-    const Real polProbOnPolicy = POL.evalLogProbability(pol_samp);
+    const Real polProbOnPolicy = POL.logProbability(pol_samp);
     const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
     const Real gain1 = ARET*std::min((Real) 5, POL.sampImpWeight);
     const Real gain2 = APol*std::max((Real) 0, 1-5/rho_pol);
     const Rvec gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
     const Rvec gradAcer_2 = POL.policy_grad(pol_samp,    gain2);
-    const Rvec penal = POL.div_kl_opp_grad(&TGT, 1);
+    const Rvec penal = POL.div_kl_grad(&TGT, 1);
     const Rvec grad = sum2Grads(gradAcer_1, gradAcer_2);
     const Rvec trust = trust_region_update(grad, penal, 2*nA, 1);
     return POL.finalize_grad(trust);

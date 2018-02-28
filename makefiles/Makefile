@@ -45,52 +45,6 @@ CPPFLAGS+= -Wno-cpp -Wno-unused-parameter # does not make sense with function ov
 #CPPFLAGS+= -Wno-maybe-uninitialized #to switch on and check that only triggered by std random
 #CPPFLAGS+= -Wno-float-equal #sometimes you just know, do you know what I am saying?
 CPPFLAGS+= -Wno-unknown-pragmas
-#CPPFLAGS+= -D__CHECK_DIFF 
-
-acer ?= relax
-ifeq "$(acer)" "relax"
-CPPFLAGS += -DACER_RELAX
-else
-ifneq "$(acer)" "full"
-#$(error acer flag is not recognized: safe, relax or full)
-endif #!full
-endif #relax
-
-sortseq ?= off
-ifeq "$(sortseq)" "on"
-CPPFLAGS+= -DRESORT_SEQS
-endif
-
-tabc ?= off
-ifeq "$(tabc)" "on"
-CPPFLAGS+= -DRACER_TABC
-endif
-
-importance ?= off
-ifeq "$(importance)" "on"
-CPPFLAGS+= -DimportanceSampling
-endif
-
-acertrick ?= 0
-ifeq "$(acertrick)" "1"
-CPPFLAGS+= -DRACER_ACERTRICK
-endif
-
-raceskip ?= 1
-CPPFLAGS+= -DRACER_SKIP=$(raceskip)
-
-racefrwd ?= 0
-CPPFLAGS+= -DRACER_FORWARD=$(racefrwd)
-
-raceadve ?= 0
-ifeq "$(raceadve)" "1"
-CPPFLAGS+= -DRACER_ONESTEPADV
-endif
-
-raceback ?= 1
-ifeq "$(raceback)" "1"
-CPPFLAGS+= -DRACER_BACKWARD
-endif
 
 exp ?= GAUS
 ifeq "$(exp)" "GAUS"
@@ -99,11 +53,6 @@ endif
 
 nexp ?= 1
 CPPFLAGS+= -DNEXPERTS=$(nexp)
-
-entropy ?= off
-ifeq "$(entropy)" "on"
-CPPFLAGS+= -D__EntropySGD
-endif
 
 testdiff ?= off
 ifeq "$(testdiff)" "on"

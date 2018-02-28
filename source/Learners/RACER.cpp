@@ -15,7 +15,7 @@
 #define RACER_SKIP 1
 #endif
 //#define RACER_ONESTEPADV
-//#define RACER_BACKWARD
+#define RACER_BACKWARD
 #ifndef RACER_FORWARD
 #define RACER_FORWARD 0
 #endif
@@ -162,7 +162,7 @@ class RACER : public Learner_offPolicy
         const Policy_t polt = prepare_policy(outt, traj->tuples[k]);
         const Advantage_t advt = prepare_advantage(outt, &polt);
         //these are all race conditions:
-        traj->setSquaredError(k, polt.kl_divergence_opp(traj->tuples[k]->mu) );
+        traj->setSquaredError(k, polt.kl_divergence(traj->tuples[k]->mu) );
         traj->setAdvantage(k, advt.computeAdvantage(polt.sampAct) );
         traj->setOffPolWeight(k, polt.sampRhoWeight );
         traj->setStateValue(k, outt[VsID] );
@@ -215,12 +215,12 @@ class RACER : public Learner_offPolicy
 
     const Rvec policyG = policyGradient(traj->tuples[samp], pol_cur,
       adv_cur, A_RET, thrID);
-    const Rvec penalG  = pol_cur.div_kl_opp_grad(traj->tuples[samp]->mu, -1);
+    const Rvec penalG  = pol_cur.div_kl_grad(traj->tuples[samp]->mu, -1);
     const Rvec finalG  = weightSum2Grads(policyG, penalG, beta);
 
     #ifdef dumpExtra
       if(thrID == 1) {
-        const float dist = pol_cur.kl_divergence_opp(traj->tuples[samp]->mu);
+        const float dist = pol_cur.kl_divergence(traj->tuples[samp]->mu);
         float normT = 0, dot = 0, normG = 0, impW = pol_cur.sampImpWeight;
         for(Uint i = 0; i < policyG.size(); i++) {
           normG += policyG[i] * policyG[i];
@@ -255,7 +255,7 @@ class RACER : public Learner_offPolicy
   {
     // prepare penalization gradient:
     Rvec gradient(F[0]->nOutputs(), 0);
-    const Rvec pg = pol.div_kl_opp_grad(S->tuples[t]->mu, beta-1);
+    const Rvec pg = pol.div_kl_grad(S->tuples[t]->mu, beta-1);
     pol.finalize_grad(pg, gradient);
     return gradient;
     //const Real r=data->scaledReward(traj,t+1), v=traj->state_vals[t+1];
@@ -286,7 +286,7 @@ class RACER : public Learner_offPolicy
     //prepare Qret with off policy corrections for next step:
 
     S->setAdvantage(t, A ); S->setStateValue(t, V );
-    S->setSquaredError(t, pol.kl_divergence_opp(S->tuples[t]->mu) );
+    S->setSquaredError(t, pol.kl_divergence(S->tuples[t]->mu) );
     S->setRetrace(t, data->scaledReward(S,t) +gamma*(W*C +V) );
     return std::fabs(S->Q_RET[t] - oldQret);
   }

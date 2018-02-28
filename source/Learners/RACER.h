@@ -10,7 +10,6 @@
 #pragma once
 #include "../Network/Builder.h"
 #include "Learner_offPolicy.h"
-#include "../Math/FeatureControlTasks.h"
 #include "../Math/Quadratic_advantage.h"
 
 #ifdef ADV_GAUS
@@ -26,7 +25,7 @@
 #warning "Using Mixture_advantage with 1 expert"
 #endif
 
-#include "../Math/Discrete_policy.h"
+#include "../Math/Discrete_advantage.h"
 #include "RACER.cpp"
 //#define RACER_simpleSigma
 

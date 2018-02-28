@@ -97,14 +97,6 @@ inline Rvec circle_region(const Rvec& grad,
   return ret;
 }
 
-inline void circle_region(Rvec& grad, const Real delta, const Uint start, const Uint end)
-{
-  Real normKG = 0;
-  for(Uint j=start; j<end; j++) normKG += std::pow(grad[j],2);
-  const Real nG = std::sqrt(normKG), softclip = delta/(nG+delta);
-  for(Uint j=start; j<end; j++) grad[j] = grad[j]*softclip;
-}
-
 inline Uint maxInd(const Rvec& pol)
 {
   Real Val = -1e9;

@@ -10,7 +10,6 @@
 #pragma once
 #include "Learner_offPolicy.h"
 #include "../Math/Quadratic_advantage.h"
-#include "../Math/FeatureControlTasks.h"
 
 class NAF : public Learner_offPolicy
 {

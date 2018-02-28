@@ -25,17 +25,6 @@ using namespace std;
 #include <omp.h>
 #include <mpi.h>
 
-#define ACER_BOUNDED //increased safety, TODO move to makefile
-#ifdef ACER_BOUNDED
-//FOR CONTINUOUS ACTIONS RACER:
-  #define ACER_MAX_PREC 1e6
-  //FOR DISCRETE ACTIONS DACER:
-  #define ACER_MIN_PROB 0.001
-#else
-  #define ACER_MAX_PREC 1e9
-  #define ACER_MIN_PROB 0
-#endif
-
 // If this is uncommented, action importance sampling ratio is defined by
 // [ pi(a|s) / mu(a|s) ]^f(nA) where f(nA) is function of a dimensionality
 // In ACER's paper f(nA) = 1/sqrt(nA). For Racer leads to bad perf.
@@ -76,14 +65,14 @@ using namespace std;
 #define BOUNDACT_MAX 4 //limit range of pol. for bounded act. spaces ie. tanh(4)
 
 //uniform precision (1/std^2) in case of Acer:
-#define ACER_CONST_PREC (1/0.09)
+#define ACER_CONST_STDEV 0.3
 
 // number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20
 
-//#define NET_L1_PENAL
+//#define NET_L1_PENAL // else employ L2 penal defined by Settings::nnLambda
 //#define _dumpNet_
-#define SAFE_ADAM // prevent rare gradient blow ups
+#define SAFE_ADAM // prevent rare gradient blow ups?
 
 typedef unsigned Uint;
 
