@@ -12,16 +12,15 @@
 #include "saruprng.h"
 #include <iomanip>
 
-
-struct EntropyAdam {
+struct Adam {
   const nnReal eta, B1, B2, lambda, fac;
-  Saru& gen;
-  EntropyAdam(nnReal _eta, nnReal beta1, nnReal beta2, nnReal betat1,
+  Adam(nnReal _eta, nnReal beta1, nnReal beta2, nnReal betat1,
     nnReal betat2, nnReal _lambda, nnReal _fac, Saru& _gen) :
     eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2),
-    lambda(_lambda), fac(_fac), gen(_gen) {}
+    lambda(_lambda), fac(_fac) {}
 
-  inline nnReal step(const nnReal grad, nnReal&M1, nnReal&M2, const nnReal W)
+  #pragma omp declare simd notinbranch //simdlen(VEC_WIDTH)
+  inline nnReal step(const nnReal grad,nnReal&M1,nnReal&M2,const nnReal W) const
   {
     #ifdef NET_L1_PENAL
       const nnReal DW = grad * fac -(W>0 ? lambda : -lambda);
@@ -30,14 +29,21 @@ struct EntropyAdam {
     #endif
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
-    #ifdef SAFE_ADAM // prevent rare gradient blow ups
-      M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
-      const nnReal ret = eta*M1/(nnEPS + std::sqrt(M2));
+    #ifdef NESTEROV_ADAM
+      const nnReal numer = B1*M1 + (1-B1)*DW;
     #else
-      const nnReal ret = eta*M1/std::sqrt(nnEPS + M2);
+      const nnReal numer = M1;
     #endif
-    //const nnReal ret = eta*(B1*M1 + (1-B1)*DW)/(std::sqrt(M2) + nnEPS);
-    return ret + eta*1e-3 * gen.d_mean0_var1(); //Adam plus exploratory noise
+    #ifdef SAFE_ADAM
+      // prevent rare gradient blow ups. allows dW<= eta*sqrt(10). if pre update
+      // M2 and M1 were both 0, this is what normally happens with Adam
+      // Actually I can't think of a situation where, except due to finite
+      // precision, this next like will not be reduntant...
+      M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
+      return eta * numer / (nnEPS + std::sqrt(M2));
+    #else
+      return eta * numer / std::sqrt(nnEPS + M2);
+    #endif
   }
 };
 
@@ -57,35 +63,24 @@ struct AdaMax {
     #endif
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = std::max(B2 * M2, std::fabs(DW));
-    return eta*M1/std::max(M2, nnEPS);
-    //return eta*(B1*M1 + (1-B1)*DW)/M2; // Nesterov AdaMax
+    #ifdef NESTEROV_ADAM
+      return eta * (B1*M1 + (1-B1)*DW)/std::max(M2, nnEPS);
+    #else
+      return eta * M1                 /std::max(M2, nnEPS);
+    #endif
   }
 };
 
-struct Adam {
-  const nnReal eta, B1, B2, lambda, fac;
-  Adam(nnReal _eta, nnReal beta1, nnReal beta2, nnReal betat1,
-    nnReal betat2, nnReal _lambda, nnReal _fac, Saru& _gen) :
-    eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2),
-    lambda(_lambda), fac(_fac) {}
+template <class T>
+struct Entropy : public T {
+  Saru& gen;
+  const nnReal eps;
+  Entropy(nnReal _eta, nnReal beta1, nnReal beta2, nnReal bett1, nnReal bett2,
+    nnReal _lambda, nnReal _fac, Saru& _gen) : T(_eta, beta1, beta2, bett1,
+    bett2, _lambda, _fac, _gen), gen(_gen), eps(_eta*_lambda) {}
 
-  #pragma omp declare simd notinbranch //simdlen(VEC_WIDTH)
-  inline nnReal step(const nnReal grad,nnReal&M1,nnReal&M2,const nnReal W) const
-  {
-    #ifdef NET_L1_PENAL
-      const nnReal DW = grad * fac -(W>0 ? lambda : -lambda);
-    #else
-      const nnReal DW = grad * fac - W*lambda;
-    #endif
-    M1 = B1 * M1 + (1-B1) * DW;
-    M2 = B2 * M2 + (1-B2) * DW*DW;
-    #ifdef SAFE_ADAM // prevent rare gradient blow ups. allows dW <= eta*3
-      M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
-      return eta*M1/(nnEPS + std::sqrt(M2));
-    #else
-      return eta*M1/std::sqrt(nnEPS + M2);
-    #endif
-    //return eta*(B1*M1 + (1-B1)*DW)/std::sqrt(nnEPS + M2); // Nesterov Adam
+  inline nnReal step(const nnReal grad, nnReal&M1, nnReal&M2, const nnReal W) {
+    return T::step(grad, M1, M2, W) + eps * gen.d_mean0_var1();
   }
 };
 
@@ -160,7 +155,7 @@ class Optimizer
     #ifndef __EntropySGD
       using Algorithm = Adam;
     #else
-      using Algorithm = EntropyAdam;
+      using Algorithm = Entropy<Adam>;
     #endif
     //update is deterministic: can be handled independently by each node
     //communication overhead is probably greater than a parallelised sum
@@ -178,7 +173,7 @@ class Optimizer
       #pragma omp parallel
       {
         const Uint thrID = static_cast<Uint>(omp_get_thread_num());
-        Saru gen(nStep, thrID, generators[thrID]());
+        Saru gen(nStep, thrID, generators[thrID]()); //needs 3 seeds
         Algorithm algo(_eta,beta_1,beta_2,beta_t_1,beta_t_2,lambda,factor,gen);
         nnReal* const M1 = _1stMom->params;
         nnReal* const M2 = _2ndMom->params;
@@ -199,10 +194,11 @@ class Optimizer
     // update frozen weights:
     if(tgtUpdateAlpha > 0 && tgt_weights not_eq nullptr) {
       if (cntUpdateDelay == 0) {
+        // the targetDelay setting param can be either >1 or <1.
+        // if >1 then it means "every how many steps copy weight to tgt weights"
         cntUpdateDelay = tgtUpdateAlpha;
-
         if(tgtUpdateAlpha>=1) tgt_weights->copy(weights);
-        else {
+        else { // else is the learning rate of an exponential averaging
           nnReal* const targetAry = tgt_weights->params;
           #pragma omp parallel for simd aligned(paramAry, targetAry : VEC_WIDTH)
           for(Uint j=0; j<weights->nParams; j++)
