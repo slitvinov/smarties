@@ -2,13 +2,17 @@
 EXECNAME=rl
 RUNFOLDER=$1
 NTHREADS=$2
-NNODES=$3
-APP=$4
-SETTINGSNAME=$5
+APP=$3
+SETTINGSNAME=$4
 
-if [ $# -lt 5 ] ; then
-	echo "Usage: ./launch_openai.sh RUNFOLDER OMP_THREADS MPI_NODES APP SETTINGS_PATH (POLICY_PATH) (N_MPI_TASK_PER_NODE)"
+if [ $# -lt 4 ] ; then
+	echo "Usage: ./launch_openai.sh RUNFOLDER OMP_THREADS APP SETTINGS_PATH (POLICY_PATH) (N_MPI_TASK_PER_NODE)"
 	exit 1
+fi
+if [ $# -gt 4 ] ; then
+NSLAVESPERMASTER=$5
+else
+NSLAVESPERMASTER=1 #n master ranks
 fi
 if [ $# -gt 5 ] ; then
 NMASTERS=$6
@@ -16,10 +20,13 @@ else
 NMASTERS=1 #n master ranks
 fi
 if [ $# -gt 6 ] ; then
-	NTASKPERNODE=$7
+NNODES=$7
 else
-	NTASKPERNODE=1 #n tasks per node
+NNODES=1 #n master ranks
 fi
+NTASKPERMASTER=$((1+${NSLAVESPERMASTER})) # master plus its slaves
+NPROCESS=$((${NMASTERS}*$NTASKPERMASTER))
+NTASKPERNODE=$((${NPROCESS}/${NNODES}))
 
 MYNAME=`whoami`
 HOST=`hostname`
@@ -47,10 +54,10 @@ else
 	fi
 fi
 
-cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/rl
-cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
 cp run.sh ${BASEPATH}${RUNFOLDER}/run.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch_smarties.sh
+cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/rl
+cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/policy_settings.sh
 git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
 git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
