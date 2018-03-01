@@ -346,7 +346,7 @@ class RACER : public Learner_offPolicy
     // will be over represented in the mem buffer.
     // This is because samples with a larger \rho generally have a larger
     // pol grad magnitude. Therefore are more strongly pushed away from mu.
-    //FILTER_ALGO = MAXERROR;
+    FILTER_ALGO = MAXERROR;
 
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
@@ -488,7 +488,8 @@ class RACER : public Learner_offPolicy
       // In exchange we skip an mpi implicit barrier point.
       fracOffPol = ndata_reduce_result[0] / ndata_reduce_result[1];
 
-      MPI_Iallreduce(ndata_partial_sum, ndata_reduce_result, 2, MPI_DOUBLE, MPI_SUM, mastersComm, &nData_request);
+      MPI_Iallreduce(ndata_partial_sum, ndata_reduce_result, 2, MPI_DOUBLE, 
+                     MPI_SUM, mastersComm, &nData_request);
       // if no reduction done, partial sums are meaningless
       if(firstUpdate) return;
     }
@@ -500,10 +501,9 @@ class RACER : public Learner_offPolicy
       const Real learnRate = learnR;
     #endif
 
-    if( fracOffPol > tgtFrac * std::cbrt(nA) )
-      beta = (1-learnRate)*beta; // fixed point iter converges to 0
-    else
-      beta = learnRate +(1-learnRate)*beta; // fixed point iter converges to 1
+    //if( fracOffPol > tgtFrac * std::cbrt(nA) )
+    if(fracOffPol>tgtFrac) beta = (1-learnRate)*beta; // iter converges to 0
+    else beta = learnRate +(1-learnRate)*beta; //fixed point iter converge to 1
 
     if( beta < 0.05 )
     warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");

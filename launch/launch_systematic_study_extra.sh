@@ -1,4 +1,4 @@
-COMMNAME=chosenParam_19
+COMMNAME=chosenParam_20
 
 #for EXPTYPE in "QUAD" "GAUS"; do
 for EXPTYPE in "GAUS"; do

@@ -1,4 +1,4 @@
-COMMNAME=chosenParam_19
+COMMNAME=chosenParam_21
 
 #for EXPTYPE in "QUAD" "GAUS"; do
 for EXPTYPE in "GAUS"; do
@@ -12,7 +12,7 @@ make -C ../makefiles config=fit -j acertrick=$TRICK raceskip=$SKIPA exp=$EXPTYPE
 #for BUFFSIZE in "65536" "131072"; do
 for BUFFSIZE in "131072" "262144" "524288"; do
 
-for DKLPARAM in "0.05" "0.1" "0.2"; do
+for DKLPARAM in "0.1" "0.2" "0.4"; do
 
 for IMPSAMPR in "2"; do
 for BATCHNUM in "256"; do
