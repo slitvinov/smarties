@@ -77,20 +77,24 @@ class DACER_experts : public DACER<Gaussian_mixture<NEXPERTS>, Rvec>
   {
     printf("Mixture-of-experts DACER: Built network with outputs: %s %s\n",
       print(net_indices).c_str(), print(net_outputs).c_str());
+
     F.push_back(new Approximator("net", _set, input, data));
+    
     vector<Uint> nouts{1, NEXPERTS, NEXPERTS * nA};
     #ifndef DACER_simpleSigma // network outputs also sigmas
       nouts.push_back(NEXPERTS * nA);
     #endif
+
     Builder build = F[0]->buildFromSettings(_set, nouts);
 
     Rvec initBias;
-    initBias.push_back(0);
+    initBias.push_back(0); // state value
     Gaussian_mixture<NEXPERTS>::setInitial_noStdev(&aInfo, initBias);
 
     #ifdef DACER_simpleSigma // sigma not linked to network: parametric output
       build.setLastLayersBias(initBias);
-      build.addParamLayer(NEXPERTS * nA, "Linear", std::log(greedyEps));
+      Real initParam = Gaussian_mixture<NEXPERTS>::precision_inverse(greedyEps);
+      build.addParamLayer(NEXPERTS * nA, "Linear", initParam);
     #else
       Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, greedyEps);
       build.setLastLayersBias(initBias);

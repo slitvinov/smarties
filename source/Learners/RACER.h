@@ -105,22 +105,26 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
   RACER(_env, _set, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
   {
     printf("Mixture-of-experts RACER: Built network with outputs: %s %s\n",
-      print(net_indices).c_str(),print(net_outputs).c_str());
+      print(net_indices).c_str(), print(net_outputs).c_str());
+
     F.push_back(new Approximator("net", _set, input, data));
+
     vector<Uint> nouts{1, nL, NEXPERTS, NEXPERTS * nA};
     #ifndef RACER_simpleSigma // network outputs also sigmas
       nouts.push_back(NEXPERTS * nA);
     #endif
+
     Builder build = F[0]->buildFromSettings(_set, nouts);
 
     Rvec initBias;
-    initBias.push_back(0);
+    initBias.push_back(0); // state value
     Mixture_advantage<NEXPERTS>::setInitial(&aInfo, initBias);
     Gaussian_mixture<NEXPERTS>::setInitial_noStdev(&aInfo, initBias);
 
     #ifdef RACER_simpleSigma // sigma not linked to network: parametric output
       build.setLastLayersBias(initBias);
-      build.addParamLayer(NEXPERTS * nA, "Linear", std::log(greedyEps));
+      Real initParam = Gaussian_mixture<NEXPERTS>::precision_inverse(greedyEps);
+      build.addParamLayer(NEXPERTS * nA, "Linear", initParam);
     #else
       Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, greedyEps);
       build.setLastLayersBias(initBias);

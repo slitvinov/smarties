@@ -26,14 +26,113 @@ protected:
   const vector<Uint> pol_outputs, pol_indices;
   mutable vector<long double> cntPenal, valPenal;
 
-  inline Policy_t prepare_policy(const Rvec& out) const
-  {
+  inline Policy_t prepare_policy(const Rvec& out) const {
     return Policy_t(pol_indices, &aInfo, out);
   }
 
-  void Train_BPTT(const Uint seq, const Uint thrID) const override
-  {
+  void Train_BPTT(const Uint seq, const Uint thrID) const override {
     die("not allowed");
+  }
+
+  void Train(const Uint seq, const Uint samp, const Uint thrID) const override
+  {
+    if(thrID==1)  profiler->stop_start("FWD");
+    Sequence* const traj = data->Set[seq];
+    const Real adv_est = traj->action_adv[samp], val_tgt = traj->Q_RET[samp];
+    const Rvec beta = traj->tuples[samp]->mu;
+
+    F[0]->prepare_one(traj, samp, thrID);
+    const Rvec pol_cur = F[0]->forward(traj, samp, thrID);
+
+    if(thrID==1)  profiler->stop_start("CMP");
+
+    const Policy_t pol = prepare_policy(pol_cur);
+    const Action_t act = pol.map_action(traj->tuples[samp]->a);
+    const Real actProbOnPolicy = pol.logProbability(act);
+    const Real actProbBehavior = Policy_t::evalBehavior(act, beta);
+    const Real rho_cur = std::exp(actProbOnPolicy-actProbBehavior);
+    const Real DivKL = pol.kl_divergence(beta);
+    traj->setOffPolWeight(samp, rho_cur);
+
+    Real gain = rho_cur*adv_est;
+    #ifdef PPO_CLIPPED
+      bool gainZero = false;
+      if (adv_est > 0 && rho_cur > 1+clip_fac) gainZero = true; //gain = 0;
+      if (adv_est < 0 && rho_cur < 1-clip_fac) gainZero = true; //gain = 0;
+      // if off policy, skip zero-gradient backprop
+      if(gainZero) return resample(thrID);
+    #endif
+
+    F[1]->prepare_one(traj, samp, thrID);
+    const Rvec val_cur = F[1]->forward(traj, samp, thrID);
+
+    cntPenal[thrID+1]++;
+    if(DivKL > 1.5 * DKL_target) valPenal[thrID+1] += valPenal[0]; //double
+    if(DivKL < DKL_target / 1.5) valPenal[thrID+1] -= valPenal[0]/2; //half
+
+    #ifdef PPO_PENALKL
+      const Rvec policy_grad = pol.policy_grad(act, gain);
+      const Rvec penal_grad = pol.div_kl_grad(beta, -valPenal[0]);
+      const Rvec totalPolGrad = sum2Grads(penal_grad, policy_grad);
+    #else //we still learn the penal coef, for simplicity, but no effect
+      const Rvec totalPolGrad = pol.policy_grad(act, gain);
+    #endif
+
+    Rvec grad(F[0]->nOutputs(), 0);
+    pol.finalize_grad(totalPolGrad, grad);
+
+    //bookkeeping:
+    Vstats[thrID].dumpStats(val_cur[0], val_tgt - val_cur[0]);
+    if(thrID==1)  profiler->stop_start("BCK");
+
+    F[0]->backward(grad, samp, thrID);
+    F[0]->gradient(thrID);
+    F[1]->backward({val_tgt - val_cur[0]}, samp, thrID);
+    F[1]->gradient(thrID);
+  }
+
+public:
+  GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
+    Learner_onPolicy(_env, _set), lambda(_set.lambda), learnR(_set.learnrate),
+    #ifdef PPO_CLIPPED
+    DKL_target(_set.klDivConstraint *std::cbrt(nA)), //small penalty, still better perf
+    #else
+    DKL_target(_set.klDivConstraint),
+    #endif
+    pol_outputs(pol_outs), pol_indices(count_indices(pol_outs)),
+    cntPenal(nThreads+1, 0), valPenal(nThreads+1, 0) {
+    valPenal[0] = 1./DKL_target;
+    //valPenal[0] = 1.;
+  }
+
+  //called by scheduler:
+  void select(const Agent& agent) override
+  {
+    const int thrID= omp_get_thread_num();
+    Sequence*const curr_seq = data->inProgress[agent.ID];
+    data->add_state(agent);
+
+    if(agent.Status < TERM_COMM ) { //non terminal state
+      //Compute policy and value on most recent element of the sequence:
+      const Rvec pol=F[0]->forward_agent(curr_seq, agent, thrID);
+      const Rvec val=F[1]->forward_agent(curr_seq, agent, thrID);
+
+      curr_seq->state_vals.push_back(val[0]);
+      Policy_t policy = prepare_policy(pol);
+      const Rvec beta = policy.getVector();
+      const Action_t act = policy.finalize(bTrain, &generators[thrID], beta);
+      agent.a->set(act);
+      data->add_action(agent, beta);
+    } else if( agent.Status == TRNC_COMM ) {
+      const Rvec val = F[1]->forward_agent(curr_seq, agent, thrID);
+      curr_seq->state_vals.push_back(val[0]);
+    } else
+      curr_seq->state_vals.push_back(0); // Assign value of term state to 0
+
+    updateGAE(curr_seq);
+
+    //advance counters of available data for training
+    if(agent.Status >= TERM_COMM) data->terminate_seq(agent);
   }
 
   void updateGAE(Sequence*const seq) const
@@ -71,116 +170,10 @@ protected:
     }
   }
 
-  void Train(const Uint seq, const Uint samp,const Uint thrID) const override
-  {
-    if(thrID==1)  profiler->stop_start("FWD");
-    const Sequence* const traj = data->Set[seq];
-    const Real adv_est = traj->action_adv[samp];
-    const Real val_tgt = traj->Q_RET[samp];
-    const Rvec& beta = traj->tuples[samp]->mu;
-
-    F[0]->prepare_one(traj, samp, thrID);
-    F[1]->prepare_one(traj, samp, thrID);
-    const Rvec pol_cur = F[0]->forward(traj, samp, thrID);
-    const Rvec val_cur = F[1]->forward(traj, samp, thrID);
-
-    if(thrID==1)  profiler->stop_start("CMP");
-
-    const Real Vst = val_cur[0], penalDKL = valPenal[0];
-    const Policy_t pol = prepare_policy(pol_cur);
-    const Action_t act = pol.map_action(traj->tuples[samp]->a);
-    const Real actProbOnPolicy = pol.logProbability(act);
-    const Real actProbBehavior = Policy_t::evalBehavior(act, beta);
-    const Real rho_cur = safeExp(actProbOnPolicy-actProbBehavior);
-    const Real DivKL = pol.kl_divergence(beta);
-    //if ( thrID==1 ) printf("%u %u : %f DivKL:%f %f %f\n", nOutputs, PenalID, penalDKL, DivKL, completed[workid]->policy[samp][1], output[2]);
-
-    Real gain = rho_cur*adv_est;
-    #ifdef PPO_CLIPPED
-      bool gainZero = false;
-      if (adv_est > 0 && rho_cur > 1+clip_fac) gainZero = true; //gain = 0;
-      if (adv_est < 0 && rho_cur < 1-clip_fac) gainZero = true; //gain = 0;
-      // if off policy, skip zero-gradient backprop
-      // pro: avoid messing adam statistics
-      if(gainZero) return resample(thrID);
-    #endif
-
-    cntPenal[thrID+1]++;
-    //grad[PenalID] = 4*std::pow(DivKL - DKL_target,3)*penalDKL;
-    if(DivKL > 1.5 * DKL_target) valPenal[thrID+1] += penalDKL; //double
-    if(DivKL < DKL_target / 1.5) valPenal[thrID+1] -= penalDKL/2; //half
-
-
-    #ifdef PPO_PENALKL
-      const Rvec policy_grad = pol.policy_grad(act, gain);
-      const Rvec penal_grad = pol.div_kl_grad(beta, -penalDKL);
-      Rvec totalPolGrad = sum2Grads(penal_grad, policy_grad);
-    #else //we still learn the penal coef, for simplicity, but no effect
-      Rvec totalPolGrad = pol.policy_grad(act, gain);
-    #endif
-
-    Rvec grad(F[0]->nOutputs(), 0);
-    pol.finalize_grad(totalPolGrad, grad);
-
-    //bookkeeping:
-    Vstats[thrID].dumpStats(Vst, val_tgt - Vst);
-    if(thrID==1)  profiler->stop_start("BCK");
-
-    F[0]->backward(grad, samp, thrID);
-    F[0]->gradient(thrID);
-    F[1]->backward({val_tgt - Vst}, samp, thrID);
-    F[1]->gradient(thrID);
-  }
-
-public:
-  GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
-    Learner_onPolicy(_env, _set), lambda(_set.lambda), learnR(_set.learnrate),
-    #ifdef PPO_CLIPPED
-    DKL_target(_set.klDivConstraint *std::sqrt(nA)), //small penalty, still better perf
-    #else
-    DKL_target(_set.klDivConstraint),
-    #endif
-    pol_outputs(pol_outs), pol_indices(count_indices(pol_outs)),
-    cntPenal(nThreads+1, 0), valPenal(nThreads+1, 0) {
-    valPenal[0] = 1./DKL_target;
-    //valPenal[0] = 1.;
-  }
-
-  //called by scheduler:
-  void select(const Agent& agent) override
-  {
-    const int thrID= omp_get_thread_num();
-    Sequence*const curr_seq = data->inProgress[agent.ID];
-    data->add_state(agent);
-
-    if(agent.Status < TERM_COMM ) { //non terminal state
-      //Compute policy and value on most recent element of the sequence:
-      const Rvec pol=F[0]->forward_agent(curr_seq, agent, thrID);
-      const Rvec val=F[1]->forward_agent(curr_seq, agent, thrID);
-
-      curr_seq->state_vals.push_back(val[0]);
-      Policy_t policy = prepare_policy(pol);
-      const Rvec beta = policy.getVector();
-      agent.a->set(policy.finalize(bTrain, &generators[thrID], beta));
-      data->add_action(agent, beta);
-    } if( agent.Status == TRNC_COMM ) {
-      const Rvec val = F[1]->forward_agent(curr_seq, agent, thrID);
-      curr_seq->state_vals.push_back(val[0]);
-    } else
-      curr_seq->state_vals.push_back(0); // Assign value of term state to 0
-
-    updateGAE(curr_seq);
-
-    //advance counters of available data for training
-    if(agent.Status >= TERM_COMM) data->terminate_seq(agent);
-  }
-
-  void getMetrics(ostringstream& buff) const
-  {
+  void getMetrics(ostringstream& buff) const {
     buff<<" "<<std::setw(6)<<std::setprecision(4)<<valPenal[0];
   }
-  void getHeaders(ostringstream& buff) const
-  {
+  void getHeaders(ostringstream& buff) const {
     buff <<"| beta ";
   }
 
@@ -230,22 +223,36 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
     printf("Continuous-action GAE\n");
     F.push_back(new Approximator("policy", _set, input, data));
     F.push_back(new Approximator("value", _set, input, data));
+
     #ifndef PPO_simpleSigma
+      Rvec initBias;
+      Gaussian_policy::setInitial_noStdev(&aInfo, initBias);
+      Gaussian_policy::setInitial_Stdev(&aInfo, initBias, greedyEps);
       Builder build_pol = F[0]->buildFromSettings(_set, {2*aInfo.dim});
-    #else
+      build.setLastLayersBias(initBias);
+    #else  //stddev params
       Builder build_pol = F[0]->buildFromSettings(_set,   {aInfo.dim});
+      const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
+      build_pol.addParamLayer(aInfo.dim, "Linear", initParam);
     #endif
-    Builder build_val = F[1]->buildFromSettings(_set, {1} );
-
-    #ifdef PPO_simpleSigma //add stddev layer
-      build_pol.addParamLayer(aInfo.dim, "Linear", -2*std::log(greedyEps));
-    #endif
-    //add klDiv penalty coefficient layer initialized to 1
-    //build_pol.addParamLayer(1, "Exp", 1);
-
     F[0]->initializeNetwork(build_pol);
+
+    Builder build_val = F[1]->buildFromSettings(_set, {1} );
     //_set.learnrate *= 2;
     F[1]->initializeNetwork(build_val);
+
+    {  // TEST FINITE DIFFERENCES:
+      Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
+      std::normal_distribution<Real> dist(0, 1);
+      for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
+      for(Uint i=0;  i<mu.size(); i++) mu[i] = dist(generators[0]);
+      for(Uint i=nA; i<mu.size(); i++) mu[i] = std::exp(mu[i]);
+
+      Gaussian_policy pol = prepare_policy(output);
+      Rvec act = pol.finalize(1, &generators[0], mu);
+      pol.prepare(act, mu);
+      pol.test(act, mu);
+    }
   }
 };
 

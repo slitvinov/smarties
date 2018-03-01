@@ -47,24 +47,20 @@ void Learner_onPolicy::spawnTrainTasks_seq()
   if( not bTrain ) return;
 
   updatePrepared = true;
+  vector<Uint> samp_seq(batchSize, -1), samp_obs(batchSize, -1);
+  data->sampleTransitions_OPW(samp_seq, samp_obs);
 
   #pragma omp parallel for schedule(dynamic)
   for (Uint i=0; i<batchSize; i++)
   {
-    #pragma omp task
-    {
-      Uint seq, obs;
-      const int thrID = omp_get_thread_num();
-
-      if(thrID==0) profiler_ext->stop_start("WORK");
-
-      data->sampleTransition(seq, obs, thrID);
-      Train(seq, obs, thrID);
-
-      if(thrID==0) profiler_ext->stop_start("COMM");
-
-      input->gradient(thrID);
-    }
+    const int thrID = omp_get_thread_num();
+    if(thrID==0) profiler_ext->stop_start("WORK");
+    const Uint seq = samp_seq[i], obs = samp_obs[i];
+    Train(seq, obs, thrID);
+    input->gradient(thrID);
+    data->Set[seq]->setSampled(obs);
+    if(thrID==1) profiler->stop_start("SLP");
+    if(thrID==0) profiler_ext->stop_start("SLP");
   }
   updateComplete = true;
 }

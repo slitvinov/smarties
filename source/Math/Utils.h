@@ -9,6 +9,7 @@
 #pragma once
 #include "../Bund.h"
 #include "../StateAction.h"
+#include "../Network/Utils.h"
 
 inline Real clip(const Real val, const Real ub, const Real lb)
 {

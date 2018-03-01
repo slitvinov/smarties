@@ -136,11 +136,6 @@ int main (int argc, char** argv)
   MPI_Bcast(&runSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
   settings.sockPrefix = runSeed+settings.world_rank;
 
-  if(settings.bTrain && settings.nThreads<2)
-    die("must have at least 2 threads\n");
-  if(!settings.bTrain && settings.nThreads<1)
-    die("must have at least 1 thread even when not training.\n");
-
   settings.generators.reserve(omp_get_max_threads());
   settings.generators.push_back(mt19937(settings.sockPrefix));
   for(int i=1; i<omp_get_max_threads(); i++) {

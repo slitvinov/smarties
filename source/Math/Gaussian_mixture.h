@@ -119,21 +119,6 @@ private:
         ret[i][j] = stdevs[i][j] * stdevs[i][j];
     return ret;
   }
-  static inline Real precision_func(const Real val)
-  {
-    //return std::exp(val) + nnEPS; //nan police
-    return .5*(val+std::sqrt(val*val+1)) + nnEPS;
-  }
-  static inline Real precision_func_diff(const Real val)
-  {
-    //return std::exp(val);
-    return 0.5*(1.+val/std::sqrt(val*val+1));
-  }
-  static inline Real precision_inverse(const Real val)
-  {
-    //return std::log(val);
-    return (val*val -.25)/val;
-  }
   static inline long double oneDnormal(const Real act, const Real mean, const Real prec)
   {
     const long double arg = .5 * std::pow(act-mean,2) * prec;
@@ -141,7 +126,18 @@ private:
   }
 
 public:
-
+  static inline Real precision_func(const Real val) {
+    //return std::exp(val) + nnEPS; //nan police
+    return .5*(val+std::sqrt(val*val+1)) + nnEPS;
+  }
+  static inline Real precision_func_diff(const Real val) {
+    //return std::exp(val);
+    return 0.5*(1.+val/std::sqrt(val*val+1));
+  }
+  static inline Real precision_inverse(const Real val) {
+    //return std::log(val);
+    return (val*val -.25)/val;
+  }
   static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias)
   {
     for(Uint e=0; e<nExperts*(1 + aI->dim); e++)
@@ -386,7 +382,7 @@ public:
     test(act, pol_hat->getVector());
   }
 
-  void test(const Rvec& act, const Rvec& beta) const
+  void test(const Rvec& act, const Rvec beta) const
   {
     Rvec _grad(netOutputs.size());
     const Rvec div_klgrad = div_kl_grad(beta);

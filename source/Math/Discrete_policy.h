@@ -173,7 +173,7 @@ struct Discrete_policy
     return act;
   }
 
-  void test(const Uint act, const Discrete_policy*const pol_hat) const;
+  void test(const Uint act, const Rvec& beta) const;
 };
 /*
  inline Real diagTerm(const Rvec& S, const Rvec& mu,

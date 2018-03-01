@@ -14,6 +14,7 @@ struct Gaussian_policy
 {
   const ActionInfo* const aInfo;
   const Uint start_mean, start_prec, nA;
+  const Real acerTrickPow = 1. / std::sqrt(nA);
   const Rvec netOutputs;
   const Rvec mean, stdev, variance, precision;
 
@@ -37,7 +38,7 @@ private:
   inline Rvec extract_mean() const
   {
     assert(netOutputs.size() >= start_mean + nA);
-    return Rvec(&(netOutputs[start_mean]),&(netOutputs[start_mean])+nA);
+    return Rvec(&(netOutputs[start_mean]),&(netOutputs[start_mean+nA]));
   }
   inline Rvec extract_precision() const
   {
@@ -61,26 +62,35 @@ private:
     for(Uint i=0; i<nA; i++) ret[i] = precision_func(netOutputs[start_prec+i]);
     return ret;
   }
-  static inline Real precision_func(const Real val)
-  {
-    //return safeExp(val) + numeric_limits<Real>::epsilon();
-    return 0.5*(val + std::sqrt(val*val+1));
+
+public:
+  static inline Real precision_func(const Real val) {
+    return 0.5*(val + std::sqrt(val*val+1)) + nnEPS;
   }
-  static inline Real precision_func_diff(const Real val)
-  {
+  static inline Real precision_func_diff(const Real val) {
     //return safeExp(val);
     return 0.5*(1.+val/std::sqrt(val*val+1));
   }
-
-public:
+  static inline Real precision_inverse(const Real val) {
+    //return std::log(val);
+    return (val*val -.25)/val;
+  }
+  static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias)
+  {
+    for(Uint e=0; e<aI->dim; e++) initBias.push_back(0);
+  }
+  static void setInitial_Stdev(const ActionInfo* const aI, Rvec& initBias, const Real std0)
+  {
+    for(Uint e=0; e<aI->dim; e++) initBias.push_back(precision_inverse(std0));
+  }
   inline void prepare(const Rvec& unbact, const Rvec& beta)
   {
     sampAct = map_action(unbact);
     sampLogPonPolicy = logProbability(sampAct);
     sampLogPBehavior = evalBehavior(sampAct, beta);
     const Real logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = safeExp( logW );
-    sampRhoWeight = std::exp(logW / std::sqrt(nA));
+    sampImpWeight = std::exp( logW );
+    sampRhoWeight = std::exp(logW * acerTrickPow);
   }
 
   static inline Real evalBehavior(const Rvec& act, const Rvec& beta)
@@ -89,7 +99,7 @@ public:
     for(Uint i=0; i<act.size(); i++) {
       assert(beta[act.size()+i]>0);
       const Real stdi = beta[act.size()+i];
-      p -= (act[i]-beta[i])*(act[i]-beta[i])/(stdi*stdi);
+      p -= std::pow(act[i]-beta[i],2)/(stdi*stdi);
       p -= std::log(2*M_PI*stdi*stdi);
     }
     return 0.5*p;
@@ -131,10 +141,10 @@ public:
   {
     Real p = 0;
     for(Uint i=0; i<nA; i++) {
-      p -= 0.5*precision[i]*(act[i]-mean[i])*(act[i]-mean[i]);
-      p += 0.5*std::log(0.5*precision[i]/M_PI);
+      p -= std::pow(act[i]-mean[i],2)*precision[i];
+      p += std::log(0.5*precision[i]/M_PI);
     }
-    return p;
+    return 0.5*p;
   }
 
   inline Rvec control_grad(const Quadratic_term*const adv, const Real eta) const
@@ -203,24 +213,19 @@ public:
       netGradient[start_mean+j] = grad[j];
       //if bounded actions pass through tanh!
       //helps against NaNs in converting from bounded to unbounded action space:
-      if(aInfo->bounded[j])
-      {
-        if(mean[j]> BOUNDACT_MAX && netGradient[start_mean+j]>0)
-          netGradient[start_mean+j] = 0;
+      if(aInfo->bounded[j])  {
+        if(mean[j]> BOUNDACT_MAX && grad[j]>0) netGradient[start_mean+j] = 0;
         else
-        if(mean[j]<-BOUNDACT_MAX && netGradient[start_mean+j]<0)
-          netGradient[start_mean+j] = 0;
+        if(mean[j]<-BOUNDACT_MAX && grad[j]<0) netGradient[start_mean+j] = 0;
       }
     }
 
-    if(start_prec != 0)
-    for (Uint j=0, iS=start_prec; j<nA; j++, iS++) {
+    for (Uint j=0, iS=start_prec; j<nA && start_prec != 0; j++, iS++) {
       assert(netGradient.size()>=start_prec+nA);
       netGradient[iS] = grad[j+nA] * precision_func_diff(netOutputs[iS]);
     }
   }
-  inline Rvec finalize_grad(const Rvec&grad) const
-  {
+  inline Rvec finalize_grad(const Rvec&grad) const {
     Rvec ret = grad;
     for (Uint j=0; j<nA; j++) if(aInfo->bounded[j]) {
       if(mean[j]> BOUNDACT_MAX && grad[j]>0) ret[j]=0;
@@ -256,11 +261,10 @@ public:
   }
 
   inline Rvec getVector() const {
-    Rvec ret = getStdev();
-    ret.insert(ret.begin(), mean.begin(), mean.end());
+    Rvec ret = getMean();
+    ret.insert(ret.end(), stdev.begin(), stdev.end());
     return ret;
   }
 
-  void test(const Rvec& act, const Gaussian_policy*const pol_hat) const;//,
-      //const Quadratic_term*const a);
+  void test(const Rvec& act, const Rvec& beta) const;
 };

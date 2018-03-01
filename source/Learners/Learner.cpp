@@ -20,7 +20,6 @@ gamma(_s.gamma), CmaxPol(_s.impWeight), learn_rank(_s.learner_rank),
 learn_size(_s.learner_size), aInfo(env->aI), sInfo(env->sI),
 generators(_s.generators), Vstats(nThreads), nTasks(_s.global_tasking_counter)
 {
-  assert(nThreads>1);
   if(bSampleSequences) printf("Sampling sequences.\n");
   profiler = new Profiler();
   data = new MemoryBuffer(env, _s);
@@ -97,7 +96,7 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
   if(nSkipped >= batchSize)
     warn("Too many skipped samples caused code to override algorithm. Change hyperparameters.");
   nSkipped = 0;
-  
+
   profiler->stop_start("SLP");
 }
 

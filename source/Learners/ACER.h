@@ -132,49 +132,6 @@ class ACER : public Learner_offPolicy
   }
 
  public:
-  ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
-  {
-    _set.splitLayers = 0;
-    #if 1
-    if(input->net not_eq nullptr) {
-      delete input->opt; input->opt = nullptr;
-      delete input->net; input->net = nullptr;
-    }
-    Builder input_build(_set);
-    bool bInputNet = false;
-    input_build.addInput( input->nOutputs() );
-    bInputNet = bInputNet || env->predefinedNetwork(input_build);
-    bInputNet = bInputNet || predefinedNetwork(input_build, _set);
-    if(bInputNet) {
-      Network* net = input_build.build();
-      input->initializeNetwork(net, input_build.opt);
-    }
-    #endif
-
-    relay = new Aggregator(_set, data, _env->aI.dim);
-    F.push_back(new Approximator("policy", _set, input, data));
-    F.push_back(new Approximator("value",  _set, input, data));
-    F.push_back(new Approximator("advntg", _set, input, data, relay));
-
-    Builder build_pol = F[0]->buildFromSettings(_set, nA);
-    build_pol.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
-    Builder build_val = F[1]->buildFromSettings(_set, 1 ); // V
-    Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A
-
-    F[0]->initializeNetwork(build_pol);
-    //_set.learnrate *= 10;
-    //const Real backup = _set.nnLambda;
-    //_set.nnLambda = 0.01;
-    F[1]->initializeNetwork(build_val);
-    F[2]->initializeNetwork(build_adv);
-    //_set.nnLambda = backup;
-    //_set.learnrate /= 10;
-    F[2]->allocMorePerThread(nAexpectation);
-    printf("ACER\n");
-    if(_set.maxTotSeqNum<_set.batchSize)  die("maxTotSeqNum < batchSize")
-  }
-  ~ACER() { }
-
   void select(const Agent& agent) override
   {
     const int thrID= omp_get_thread_num();
@@ -198,4 +155,60 @@ class ACER : public Learner_offPolicy
   {
     return 2*aI->dim;
   }
+
+  ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
+  {
+    _set.splitLayers = 0;
+    #if 1
+      if(input->net not_eq nullptr) {
+        delete input->opt; input->opt = nullptr;
+        delete input->net; input->net = nullptr;
+      }
+      Builder input_build(_set);
+      bool bInputNet = false;
+      input_build.addInput( input->nOutputs() );
+      bInputNet = bInputNet || env->predefinedNetwork(input_build);
+      bInputNet = bInputNet || predefinedNetwork(input_build, _set);
+      if(bInputNet) {
+        Network* net = input_build.build();
+        input->initializeNetwork(net, input_build.opt);
+      }
+    #endif
+
+    relay = new Aggregator(_set, data, _env->aI.dim);
+    F.push_back(new Approximator("policy", _set, input, data));
+    F.push_back(new Approximator("value",  _set, input, data));
+    F.push_back(new Approximator("advntg", _set, input, data, relay));
+
+    Builder build_pol = F[0]->buildFromSettings(_set, nA);
+    const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
+    build_pol.addParamLayer(nA, "Linear", initParam);
+    Builder build_val = F[1]->buildFromSettings(_set, 1 ); // V
+    Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A
+
+    F[0]->initializeNetwork(build_pol);
+    //_set.learnrate *= 10;
+    //const Real backup = _set.nnLambda;
+    //_set.nnLambda = 0.01;
+    F[1]->initializeNetwork(build_val);
+    F[2]->initializeNetwork(build_adv);
+    //_set.nnLambda = backup;
+    //_set.learnrate /= 10;
+    F[2]->allocMorePerThread(nAexpectation);
+    printf("ACER\n");
+
+    {  // TEST FINITE DIFFERENCES:
+      Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
+      std::normal_distribution<Real> dist(0, 1);
+      for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
+      for(Uint i=0;  i<mu.size(); i++) mu[i] = dist(generators[0]);
+      for(Uint i=nA; i<mu.size(); i++) mu[i] = std::exp(mu[i]);
+
+      Policy_t pol = prepare_policy(output);
+      Rvec act = pol.finalize(1, &generators[0], mu);
+      pol.prepare(act, mu);
+      pol.test(act, mu);
+    }
+  }
+  ~ACER() { }
 };
