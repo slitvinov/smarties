@@ -75,21 +75,22 @@ struct Parameters
       const Uint shift = roundUpSimd(nParams/(Real)thrN);
       assert(thrN*shift>=nParams&& thrN==g.size()&& nParams==g[thrI]->nParams);
       const nnReal *const src = g[thrI]->params; nnReal *const dst = params;
-
-      for(Uint i=0; i<thrN; i++) {
+      for(Uint i=0; i<thrN; i++)
+      {
         const Uint turn = (thrI + i) % thrN;
-        const Uint start = turn*shift, end = std::min(nParams, (turn+1)*shift);
+        const Uint start = turn*shift, end = (turn+1)*shift;
         //#pragma omp critical
         //{ cout<<turn<<" "<<start<<" "<<end<<" "<<thrI<<" "
         //      <<thrN<<" "<<shift<<" "<<nParams<<endl; fflush(0); }
         if(g[thrI]->written) {
           #pragma omp simd aligned(dst, src : VEC_WIDTH)
-          for(Uint j=start; j<end; j++) dst[j] += src[j];
+          for(Uint j=start; j<std::min(nParams, end); j++) dst[j] += src[j];
         }
         #pragma omp barrier
       }
       g[thrI]->clear();
     }
+    //cout<<endl;
   }
 
   void set(const Real val) const

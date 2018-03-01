@@ -197,9 +197,11 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
       //either delete seq with smallest index or with largest "error"
       // since we always delete the sequence with smallest W, MSE is
       // stored here with its inverse
+      //const Real W_MSE = Set[i]->ndata()/(EPS+Set[i]->MSE);
+      const Real W_MSE = Set[i]->ndata()/(EPS+Set[i]->nOffPol);
       // TODO: to avoid overfitting and only keep "unexpected" transition in
       // buffer we should add an other sorting: delete min MSE
-      const Real W=ALGO==OLDEST? Set[i]->ID : Set[i]->ndata()/(EPS+Set[i]->MSE);
+      const Real W=ALGO==OLDEST? Set[i]->ID : W_MSE;
       _nOffPol += Set[i]->nOffPol; _totMSE += Set[i]->MSE;
       if(Set[i]->ID < oldest_sequence[thrID].second) {
         oldest_sequence[thrID].second = Set[i]->ID;

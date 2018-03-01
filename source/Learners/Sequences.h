@@ -51,10 +51,10 @@ struct Sequence
     if(tuples.size()==0) return 0;
     return tuples.size()-1;
   }
-  inline bool isTerminal(const Uint t) {
+  inline bool isTerminal(const Uint t) const {
     return t+1 == tuples.size() && ended;
   }
-  inline bool isTruncated(const Uint t) {
+  inline bool isTruncated(const Uint t) const {
     return t+1 == tuples.size() && not ended;
   }
   ~Sequence() { clear(); }
