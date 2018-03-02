@@ -495,11 +495,11 @@ class RACER : public Learner_offPolicy
     }
 
     const Real tgtFrac = tgtFrac_param / CmaxPol / (1 + nStep * ANNEAL_RATE);
-    #ifdef ANNEAL_LEARNR
-      const Real learnRate = learnR / (1 + nStep * ANNEAL_RATE);
-    #else
+    //#ifdef ANNEAL_LEARNR
+    //  const Real learnRate = learnR / (1 + nStep * ANNEAL_RATE);
+    //#else
       const Real learnRate = learnR;
-    #endif
+    //#endif
 
     //if( fracOffPol > tgtFrac * std::cbrt(nA) )
     if(fracOffPol>tgtFrac) beta = (1-learnRate)*beta; // iter converges to 0

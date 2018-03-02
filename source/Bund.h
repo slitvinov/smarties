@@ -45,7 +45,7 @@ using namespace std;
 // Anneal rate for the learning rate, should be moved to settings
 //#define ANNEAL_RATE 1e-7
 #define ANNEAL_RATE 1e-6
-// #define ANNEAL_LEARNR // Anneal also network learn rate
+#define ANNEAL_LEARNR // Anneal also network learn rate
 
 // Scheduler keeps approximate ratio of grad steps N to env time steps T
 // according to user's setting obsPerStep. Following option affects how T
