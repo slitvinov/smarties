@@ -19,8 +19,6 @@
 
 struct Tuple
 {
-  typedef double memReal;
-  //typedef float memReal;
   const vector<memReal> s;
   Rvec a, mu;
   const Real r;

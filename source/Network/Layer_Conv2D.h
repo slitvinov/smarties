@@ -47,7 +47,6 @@ class ConvLayer : public Layer
   }
   void biasInitialValues(const vector<nnReal> init) override { }
 
-  #if 1 //def NDEBUG
   void forward( const Activation*const prev,
                 const Activation*const curr,
                 const Parameters*const para) const override
@@ -72,7 +71,6 @@ class ConvLayer : public Layer
     static const int mm_nInner = Kn_Y * Kn_X * In_C;
     static const int mm_outCol = Kn_C;
 
-    // TODO: code can be compiled in quad precision, but then switch off cblas?
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
       mm_outRow, mm_outCol, mm_nInner, 1, &buf[0][0][0][0][0], mm_nInner,
       para->W(ID), mm_outCol, 1, curr->X(ID), mm_outCol);
@@ -80,41 +78,6 @@ class ConvLayer : public Layer
     //apply per-pixel non-linearity:
     func::_eval(curr->X(ID), curr->Y(ID), OutX*OutY*Kn_C);
   }
-
-  #else
-  void forward( const Activation*const prev,
-                const Activation*const curr,
-                const Parameters*const para) const override {
-    //prepare arrays:
-    __attribute__((aligned(32)))       nnReal (&convOut)[OutY][OutX][Kn_C] =
-         * reinterpret_cast < nnReal ( * __restrict__ ) [OutY][OutX][Kn_C]> (
-      curr->X(ID));
-
-    __attribute__((aligned(32))) const nnReal (&convInp)[In_Y][In_X][In_C] =
-         * reinterpret_cast < nnReal ( * __restrict__ ) [In_Y][In_X][In_C]> (
-      curr->Y(ID-link));
-
-    __attribute__((aligned(32))) const nnReal (&K)[Kn_Y][Kn_X][In_C][Kn_C] =
-     * reinterpret_cast <nnReal( * __restrict__ ) [Kn_Y][Kn_X][In_C][Kn_C]> (
-      para->W(ID));
-
-    memcpy(curr->X(ID), para->B(ID), OutX*OutY*Kn_C*sizeof(nnReal));
-
-    for(int oy=0, iy0= -Py; oy<OutY; oy++, iy0+=Sy) //2loops over output images
-    for(int ox=0, ix0= -Px; ox<OutX; ox++, ix0+=Sx)
-     for(int fy=0, iy=iy0; fy<Kn_Y; fy++, iy++) //2loops for filter width/height
-     for(int fx=0, ix=ix0; fx<Kn_X; fx++, ix++)
-       //padding: skip addition if outside input boundaries
-       if ( ix < 0 || ix >= In_X || iy < 0 || iy >= In_Y) continue;
-       else
-        for(int ic=0; ic<In_C; ic++) //loop over inp feature maps
-         for(int fc=0; fc<Kn_C; fc++)
-          convOut[oy][ox][fc] += convInp[iy][ix][ic] * K[fy][fx][ic][fc];
-
-    //apply per-pixel non-linearity:
-    func::_eval(curr->X(ID), curr->Y(ID), OutX*OutY*Kn_C);
-  }
-  #endif
 
   void backward(  const Activation*const prev,
                   const Activation*const curr,

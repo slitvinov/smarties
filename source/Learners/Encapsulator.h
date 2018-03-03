@@ -85,10 +85,12 @@ struct Encapsulator
     assert(nSvar == data->sI.dimUsed);
     if (nAppended>0) {
       vector <Real> inp((nAppended+1)*nSvar, 0);
-      for(int k=samp, j=0; k>=0 && j<=(int)nAppended; k--, j++) {
+      for(int k=samp, j=0; j<=(int)nAppended; k--, j++)
+      {
+        const int kk = k<0 ? 0 : k; // copy multiple times s_0 at start of seq
         for(Uint i = 0; i < nSvar; i++)
         // j is fast index (different t of same feature are close, think CNN)
-          inp[j + i*(nAppended+1)] = traj->tuples[k]->s[i];
+          inp[j + i*(nAppended+1)] = traj->tuples[kk]->s[i];
       }
       return data->standardize(inp);
     } else return data->standardize(traj->tuples[samp]->s);

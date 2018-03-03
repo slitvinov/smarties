@@ -13,6 +13,10 @@ if [ ! -f $SETTINGSNAME ];then
     exit -1
 fi
 source $SETTINGSNAME
+if [ -x appSettings.sh ]; then
+  source appSettings.sh
+fi
+
 SETTINGS+=" --nThreads ${NTHREADS}"
 SETTINGS+=" --nMasters ${NMASTERS}"
 SETTINGS+=" --ppn ${TASKPERN}"

@@ -177,9 +177,9 @@ class RACER : public Learner_offPolicy
     #if   RACER_SKIP == 1
       if(isOff) { // only update stored offpol weight and qret and so on
         offPolCorrUpdate(traj, samp, out_cur, pol);
-        // correct behavior is to resample
-        // to avoid bugs there is a failsafe mechanism
-        // if that is triggered, warning will be printed to screen
+        // The correct behavior here is to resample. To avoid code hanging due
+        // to bad choice of hyperparams there is this failsafe mechanism.
+        // If this is triggered, warning will be printed to screen.
         if( beta > 0.05 ) return resample(thrID);
         else // if beta too small, grad \approx penalization gradient
           grad = offPolGrad(traj, samp, out_cur, pol, thrID);
@@ -488,7 +488,7 @@ class RACER : public Learner_offPolicy
       // In exchange we skip an mpi implicit barrier point.
       fracOffPol = ndata_reduce_result[0] / ndata_reduce_result[1];
 
-      MPI_Iallreduce(ndata_partial_sum, ndata_reduce_result, 2, MPI_DOUBLE, 
+      MPI_Iallreduce(ndata_partial_sum, ndata_reduce_result, 2, MPI_DOUBLE,
                      MPI_SUM, mastersComm, &nData_request);
       // if no reduction done, partial sums are meaningless
       if(firstUpdate) return;

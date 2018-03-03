@@ -25,6 +25,11 @@ using namespace std;
 #include <omp.h>
 #include <mpi.h>
 
+// Data format for storage in memory buffer. Switch to float for example for
+// Atari where the memory buffer is in the order of GBs. 
+typedef double memReal;
+//typedef float memReal;
+
 // If this is uncommented, action importance sampling ratio is defined by
 // [ pi(a|s) / mu(a|s) ]^f(nA) where f(nA) is function of a dimensionality
 // In ACER's paper f(nA) = 1/sqrt(nA). For Racer leads to bad perf.

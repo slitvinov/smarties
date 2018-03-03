@@ -41,14 +41,19 @@ NTASKPERNODE=$((${NPROCESS}/${NNODES}))
 if [ ${HOSTNAME:0:5} == 'falco' ] || [ ${HOSTNAME:0:5} == 'panda' ]
 then
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-/home/novatig/Python-3.5.2/build/bin/python3.5 ../Communicator_gym.py \$1 $APP
+/home/novatig/Python-3.5.2/build/bin/python3.5 ../Communicator_atari.py \$1 $APP
 EOF
 else
 cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
-python3 ../Communicator_gym.py \$1 $APP
+python3 ../Communicator_atari.py \$1 $APP
 EOF
 fi
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
+
+cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh
+SETTINGS+=" --environment AtariEnvironment --appendedObs 3 "
+EOF
+chmod +x ${BASEPATH}${RUNFOLDER}/appSettings.sh
 
 git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
 git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
