@@ -373,6 +373,42 @@ struct Exp : public Function {
   }
 };
 
+struct DualRelu {
+  static Real _initFactor(const Uint inps, const Uint outs) {
+    return std::sqrt(2./inps);
+  }
+  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+    #pragma omp simd aligned(in,out : VEC_WIDTH)
+    for (Uint i=0;i<N; i++){
+      out[2*i +0] = in[i]<0 ? in[i] : 0;
+      out[2*i +1] = in[i]>0 ? in[i] : 0;
+    }
+  }
+  static inline void _evalDiff(nnOpInp in, nnOpRet out, const Uint N) {
+    #pragma omp simd aligned(in,out : VEC_WIDTH)
+    for (Uint i=0;i<N; i++)
+    out[i] = (in[i]<0 ? out[2*i+0] : 0) + (in[i]>0 ? out[2*i+1] : 0);
+  }
+};
+
+struct DualLRelu {
+  static Real _initFactor(const Uint inps, const Uint outs) {
+    return std::sqrt(2./inps);
+  }
+  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+    #pragma omp simd aligned(in,out : VEC_WIDTH)
+    for (Uint i=0;i<N; i++){
+      out[2*i +0] = in[i]<0 ? in[i] : PRELU_FAC*in[i];
+      out[2*i +1] = in[i]>0 ? in[i] : PRELU_FAC*in[i];
+    }
+  }
+  static inline void _evalDiff(nnOpInp in, nnOpRet out, const Uint N) {
+    #pragma omp simd aligned(in,out : VEC_WIDTH)
+    for (Uint i=0;i<N; i++)
+    out[i] = out[2*i]*(in[i]<0? 1:PRELU_FAC) +out[2*i+1]*(in[i]>0? 1:PRELU_FAC);
+  }
+};
+
 inline Function* makeFunction(const string name, const bool bOutput=false) {
   if (bOutput || name == "Linear") return new Linear();
   else

@@ -100,8 +100,15 @@ class RACER : public Learner_offPolicy
     F[0]->prepare_seq(traj, thrID);
     for (int k=0; k<ndata; k++) F[0]->forward(traj, k, thrID);
     //if partial sequence then compute value of last state (!= R_end)
-    assert(traj->ended);
-    traj->setRetrace(ndata, data->scaledReward(traj, ndata) );
+
+    if( traj->isTerminal(ndata) )
+      traj->setRetrace(ndata, data->scaledReward(traj, ndata) );
+    else if ( traj->isTruncated(ndata) )
+    {
+      const Rvec nxt = F[0]->forward(traj, ndata, thrID);
+      traj->setStateValue(ndata, nxt[VsID] );
+      traj->setRetrace(ndata, data->scaledReward(traj,ndata) +gamma*nxt[VsID]);
+    }
 
     if(thrID==1)  profiler->stop_start("POL");
     for(int k=ndata-1; k>=0; k--)

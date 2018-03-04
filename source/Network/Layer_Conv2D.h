@@ -14,7 +14,7 @@ template<typename func, //nonlinearity
 int In_X, int In_Y, int In_C, //input image: x:width, y:height, c:color channels
 int Kn_X, int Kn_Y, int Kn_C,  //filter: x:width, y:height, c:color channels
 int Sx, int Sy, //stride x/y
-int OutX, int OutY, //output image: same number of feature maps as KnC
+int OutX, int OutY, int OutC=Kn_C, //output image
 int Px=0, int Py=0>
 class ConvLayer : public Layer
 {
@@ -31,6 +31,7 @@ class ConvLayer : public Layer
     assert(Sx>0 && Sy>0 && OutX>0 && OutY>0);
     assert((In_X-Kn_X) % Sx == 0);
     assert((In_Y-Kn_Y) % Sy == 0);
+    assert(OutC == Kn_C || OutC == 2*Kn_C);
   }
 
   void requiredParameters(vector<Uint>& nWeight,
