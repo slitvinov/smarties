@@ -81,7 +81,7 @@ class Communicator_atari(Communicator):
         self.lives = 0
         self.was_real_done = True
         print("openAI environment: ", sys.argv[2])
-        env = gym.make(sys.argv[2])
+        env = gym.make(sys.argv[2]+'NoFrameskip-v4')
         self.buffI = 0
         self.buffer = np.zeros((3,)+env.observation_space.shape, dtype=np.uint8)
         nAct, nObs = 1, 84 * 84
