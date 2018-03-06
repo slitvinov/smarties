@@ -17,6 +17,7 @@ public:
   const ActionInfo* const aInfo;
   const Uint iExperts, iMeans, iPrecs, nA, nP;
   const Real retraceTrickPow = 1. / std::cbrt(nA);
+  const Real P_trunc = (1-std::erf(NORMDIST_MAX/std::sqrt(2)))/(2*NORMDIST_MAX);
   //const Real retraceTrickPow = 1. / std::sqrt(nA);
   //const Real retraceTrickPow = 1. / nA;
   const Rvec netOutputs;
@@ -119,10 +120,15 @@ private:
         ret[i][j] = stdevs[i][j] * stdevs[i][j];
     return ret;
   }
-  static inline long double oneDnormal(const Real act, const Real mean, const Real prec)
+  inline long double oneDnormal(const Real act, const Real mean, const Real prec) const
   {
     const long double arg = .5 * std::pow(act-mean,2) * prec;
-    return std::sqrt(prec/M_PI/2)*std::exp(-arg);
+    #if 0 // (P_trunc + Pnotrunc)/stdev
+      const Real norm = std::sqrt(1./M_PI/2);
+      return std::sqrt(prec)*( norm*std::exp(-arg) + P_trunc );
+    #else
+      return std::sqrt(prec/M_PI/2)*std::exp(-arg);
+    #endif
   }
 
 public:
@@ -172,14 +178,14 @@ public:
     sampPBehavior = evalBehavior(sampAct, beta);
     sampImpWeight = sampPonPolicy / sampPBehavior;
     #ifdef RACER_ACERTRICK
-      sampRhoWeight = std::pow( logW, retraceTrickPow );
+      sampRhoWeight = std::pow( sampImpWeight, retraceTrickPow );
     #else
       sampRhoWeight = sampImpWeight;
     #endif
     if(sampPonPolicy<=0){printf("observed %g\n",(Real)sampPonPolicy);fflush(0);}
   }
 private:
-  static inline long double evalBehavior(const Rvec& act, const Rvec& beta)
+  inline long double evalBehavior(const Rvec& act, const Rvec& beta) const
   {
     long double p = 0;
     const Uint NA = act.size();
