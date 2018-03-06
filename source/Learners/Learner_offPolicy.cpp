@@ -57,7 +57,7 @@ bool Learner_offPolicy::stopGrads() const
 {
   //stop grads if the ratio of observed trantition to steps is above
   //user defined ratio `obsPerStep`
-  const Real _nData = data->readNSeen() - nData_b4Startup;
+  const Real _nData = (Real)data->readNSeen() - nData_b4Startup;
   const Real dataCounter = _nData - (Real)nData_last;
   const Real stepCounter =  nStep - (Real)nStep_last;
   // lock the queue if we have more data than grad step ratio
@@ -82,7 +82,8 @@ bool Learner_offPolicy::lockQueue() const
     return true; // need to exit data loop to prepare an update
   }
 
-  const Real _nData = data->readNConcluded() - nData_b4Startup;
+  //const Real _nData = (Real)data->readNConcluded() - nData_b4Startup;
+  const Real _nData = data->readNSeen() - nData_b4Startup;
   const Real dataCounter = _nData - (Real)nData_last;
   const Real stepCounter =  nStep - (Real)nStep_last;
   // Lock the queue if we have !added to the training set! more observations
@@ -91,17 +92,18 @@ bool Learner_offPolicy::lockQueue() const
   // some load inbalance, with only has marginal effects on algorithms.
   // Load imb. is reduced by minimizing pauses in either data or grad stepping.
   const bool tooMuchData = dataCounter > stepCounter*obsPerStep;
-  return tooMuchData || batchComplete();
+  //return tooMuchData || batchComplete();
+  return tooMuchData;
 }
 
 void Learner_offPolicy::spawnTrainTasks_par()
 {
   if(updateComplete) die("undefined behavior");
   if( not updatePrepared ) return;
-  if( stopGrads() ) { // postpone
-    #pragma omp task
-    spawnTrainTasks_par();
-  }
+  //if( stopGrads() ) { // postpone
+  //  #pragma omp task
+  //  spawnTrainTasks_par();
+  //}
   if( bSampleSequences && data->nSequences < batchSize)
     die("Parameter maxTotObsNum is too low for given problem");
 
