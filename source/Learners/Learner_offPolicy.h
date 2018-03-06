@@ -26,6 +26,7 @@ public:
   Learner_offPolicy(Environment*const env, Settings& _s);
 
   bool readyForTrain() const;
+  bool stopGrads() const;
 
   inline void advanceCounters() {
     //shift data / gradient counters to maintain grad stepping to sample
@@ -35,6 +36,12 @@ public:
     nStep_last = nStep;
   }
 
+  inline bool batchComplete() const {
+    Uint ret;
+    #pragma omp atomic read
+    ret = taskCounter;
+    return ret >= batchSize;
+  }
   //main training functions:
   void prepareData() override;
   bool lockQueue() const override;

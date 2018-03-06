@@ -31,12 +31,10 @@ MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
 // this is called first also bcz memory buffer is used by net to pick new action
 void MemoryBuffer::add_state(const Agent&a)
 {
-  #if PACEFULLSEQ == 0
-    if(a.Status < TERM_COMM) {
-      #pragma omp atomic
-      nSeenTransitions ++;
-    }
-  #endif
+  if(a.Status < TERM_COMM) {
+    #pragma omp atomic
+    nSeenTransitions ++;
+  }
 
   #if 1
     if (inProgress[a.ID]->tuples.size() && a.Status == INIT_COMM) {
@@ -148,10 +146,8 @@ void MemoryBuffer::push_back(const int & agentId)
     #pragma omp atomic
     nSeenSequences++;
 
-    #if PACEFULLSEQ == 1
-      #pragma omp atomic
-      nSeenTransitions += inProgress[agentId]->ndata();
-    #endif
+    #pragma omp atomic
+    nCmplTransitions += inProgress[agentId]->ndata();
 
     pushBackSequence(inProgress[agentId]);
   } else {

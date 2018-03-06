@@ -33,7 +33,7 @@ public:
   //bool bRecurrent;
   Uint nBroken=0, nTransitions=0, nSequences=0;
   Uint nTransitionsInBuf=0, nTransitionsDeleted=0;
-  size_t nSeenSequences=0, nSeenTransitions=0, iOldestSaved = 0;
+  size_t nSeenSequences=0, nSeenTransitions=0, nCmplTransitions=0, iOldestSaved = 0;
   Uint nPruned = 0, minInd = 0;
   Real invstd_reward = 1, mean_reward = 0, nOffPol = 0, totMSE = 0;
 
@@ -131,6 +131,14 @@ public:
     Uint ret;
     #pragma omp atomic read
     ret = nSeenTransitions;
+    return ret;
+    //#endif
+  }
+  inline Uint readNConcluded() const
+  {
+    Uint ret;
+    #pragma omp atomic read
+    ret = nCmplTransitions;
     return ret;
     //#endif
   }
