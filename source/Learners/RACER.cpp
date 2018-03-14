@@ -95,7 +95,8 @@ class RACER : public Learner_offPolicy
     F[0]->prepare_seq(traj, thrID);
     for (int k=0; k<ndata; k++) F[0]->forward(traj, k, thrID);
     //if partial sequence then compute value of last state (!= R_end)
-    if ( traj->isTruncated(ndata) ) {
+    if( traj->isTerminal(ndata) ) updateQret(traj, ndata, 0, 0, 0);
+    else if( traj->isTruncated(ndata) ) {
       const Rvec nxt = F[0]->forward(traj, ndata, thrID);
       traj->setStateValue(ndata, nxt[VsID]);
       updateQret(traj, ndata, 0, nxt[VsID], 0);
@@ -138,7 +139,8 @@ class RACER : public Learner_offPolicy
     #endif
     const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
 
-    if ( traj->isTruncated(samp+1) ) {
+    if( traj->isTerminal(samp+1) ) updateQret(traj, samp+1, 0, 0, 0);
+    else if( traj->isTruncated(samp+1) ) {
       const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
       traj->setStateValue(samp+1, nxt[VsID]);
       updateQret(traj, samp+1, 0, nxt[VsID], 0);
@@ -244,8 +246,6 @@ class RACER : public Learner_offPolicy
     const Rvec pg = pol.div_kl_grad(S->tuples[t]->mu, beta-1);
     pol.finalize_grad(pg, gradient);
     return gradient;
-    //const Real r=data->scaledReward(traj,t+1), v=traj->state_vals[t+1];
-    //ADV.grad(act, r + gamma*v -A_cur-V_cur, gradient);
   }
 
   inline void offPolCorrUpdate(Sequence*const S, const Uint t,
@@ -261,13 +261,11 @@ class RACER : public Learner_offPolicy
   inline Real updateQret(Sequence*const S, const Uint t, const Real A,
     const Real V, const Policy_t& pol) const {
     S->setSquaredError(t, pol.kl_divergence(S->tuples[t]->mu) );
-    updateQretNext(S, t, V); S->setStateValue(t, V); S->setAdvantage(t, A);
-    //prepare Qret with off policy corrections for next step:
-    return updateQret(S, t, A, V, pol.sampRhoWeight);
-  }
-
-  inline void updateQretNext(Sequence*const S, const Uint t, const Real V) const {
+    // shift retrace advantage with update estimate for V(s_t)
     S->setRetrace(t, S->Q_RET[t] + S->state_vals[t] -V );
+    S->setStateValue(t, V); S->setAdvantage(t, A);
+    //prepare Qret_{t-1} with off policy corrections for future use
+    return updateQret(S, t, A, V, pol.sampRhoWeight);
   }
 
   inline Real updateQret(Sequence*const S, const Uint t, const Real A,
@@ -433,9 +431,9 @@ class RACER : public Learner_offPolicy
       profiler->stop_start("QRET");
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++)
-      for(int j = data->Set[i]->just_sampled-1; j>0; j--)
-        updateQret(data->Set[i], j, data->Set[i]->action_adv[j],
-          data->Set[i]->state_vals[j], data->Set[i]->offPol_weight[j]);
+        for(int j = data->Set[i]->just_sampled-1; j>0; j--)
+          updateQret(data->Set[i], j, data->Set[i]->action_adv[j],
+            data->Set[i]->state_vals[j], data->Set[i]->offPol_weight[j]);
     #endif
 
     profiler->stop_start("PRNE");

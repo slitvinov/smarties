@@ -363,12 +363,6 @@ void MemoryBuffer::sampleTransition(Uint& seq, Uint& obs, const int thrID)
   indexToSample(ind, seq, obs);
 }
 
-Uint MemoryBuffer::sampleTransition(const Uint seq, const int thrID)
-{
-  std::uniform_int_distribution<Uint> distObs(0, Set[seq]->ndata()-1);
-  return distObs(generators[thrID]);
-}
-
 void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
 {
   #ifndef IMPORTSAMPLE
@@ -378,45 +372,59 @@ void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
     seq = (*dist)(generators[thrID]);
   #endif
 }
-/*
-vector<Uint> MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
-{
-  assert(seq.size() == obs.size());
-  vector<Uint> ret = seq;
-  #pragma omp parallel for
-  for(Uint i=0; i < seq.size(); i++) {
-    sampleTransition(seq[i], obs[i], omp_get_thread_num());
-    const Real W = Set[seq[i]]->offPol_weight[obs[i]], invW = 1/W;
-    //used to compute openmp task priority, must be an integer:
-    //highest priority to those most off policy, because they might
-    //trigger a resampling. starting them earlier improves load balancing
-    ret[i] = std::max(W, invW)*100;
-  }
-  return ret;
-}
- */
+
 void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
 {
   assert(seq.size() == obs.size());
   vector<Uint> s = seq, o = obs;
-  vector<pair<Uint, Real>> load(seq.size());
-  #pragma omp parallel for
-  for(Uint i=0; i<seq.size(); i++) {
-    sampleTransition(s[i], o[i], omp_get_thread_num());
-    const Real W = Set[s[i]]->offPol_weight[o[i]], invW = 1/W;
-    load[i].first = i; load[i].second = std::max(W, invW);
-  }
-  // Done for HPC reasons: sort by offPolicy weights. Only useful in Racer
-  // obs that are likely to be discarded due to opcW being out of range and
-  // therefore will trigger a resampling are done first to improve load balance
+  int nThr_loc = nThreads;
+  while(seq.size() % nThr_loc) nThr_loc--;
+  const int stride = seq.size()/nThr_loc, N = seq.size();
+  assert(nThr_loc>0 && N % nThr_loc == 0 && stride > 0);
+
+  // Perf tweak: sort by offPol weight to aid load balance of algos like
+  // Racer/PPO. "Far Policy" obs are discarded due to opcW being out of range
+  // and will trigger a resampling. Sorting here affects tasking order.
   const auto isAbeforeB = [&] (const pair<Uint,Real> a, const pair<Uint,Real> b)
   { return a.second > b.second; };
 
+  vector<pair<Uint, Real>> load(N);
+  #pragma omp parallel num_threads(nThr_loc)
+  {
+    const int thrI = omp_get_thread_num(), start = thrI*stride;
+    assert(nThr_loc == omp_get_num_threads());
+
+    sampleMultipleTrans(&s[start], &o[start], stride, thrI);
+    for(int i=start; i<start+stride; i++) {
+      const Real W = Set[s[i]]->offPol_weight[o[i]], invW = 1/W;
+      load[i].first = i; load[i].second = std::max(W, invW);
+    }
+    std::sort(load.begin()+start, load.begin()+start+stride, isAbeforeB);
+
+    // additional parallel partial sort if batchsize makes it worthwhile
+    if(stride % nThr_loc == 0) {
+      vector<pair<Uint, Real>> load_loc(stride);
+      const int preSortChunk = stride / nThr_loc;
+
+      #pragma omp barrier
+
+      for(int i=0, k=0; i<nThr_loc; i++) // avoid cache thrashing
+       for(int j=0; j<preSortChunk; j++)
+         load_loc[k++] = load[thrI*preSortChunk + i*stride + j];
+
+      std::sort(load_loc.begin(), load_loc.end(), isAbeforeB);
+
+      #pragma omp barrier
+      for(int i=0; i<stride; i++) load[i+start] = load_loc[i];
+    }
+  }
+  //for (Uint i=0; i<seq.size(); i++) cout<<load[i].second<<endl; cout<<endl;
   std::sort(load.begin(), load.end(), isAbeforeB);
   for (Uint i=0; i<seq.size(); i++) {
-      obs[i] = o[load[i].first];
-      seq[i] = s[load[i].first];
+    obs[i] = o[load[i].first];
+    seq[i] = s[load[i].first];
   }
+
 }
 
 void MemoryBuffer::sampleSequences(vector<Uint>& seq)
@@ -446,4 +454,32 @@ void MemoryBuffer::indexToSample(const int nSample, Uint& seq, Uint& obs) const
   }
   assert(nSample>=back && Set[k]->ndata()>(Uint)nSample-back);
   seq = k; obs = nSample-back;
+}
+
+void MemoryBuffer::sampleMultipleTrans(Uint* seq, Uint* obs, const Uint N, const int thrID)
+{
+  vector<Uint> samples(N);
+
+  #ifndef IMPORTSAMPLE
+    std::uniform_int_distribution<Uint> distObs(0, readNData()-1);
+    for (Uint k=0; k<N; k++) samples[k] = distObs(generators[thrID]);
+  #else
+    for (Uint k=0; k<N; k++) samples[k] = (*dist)(generators[thrID]);
+  #endif
+
+  std::sort(samples.begin(), samples.end());
+
+  Uint cntO = 0, samp = 0;
+  for (Uint k=0; k<Set.size(); k++) {
+    for(Uint i=samp; i<N; i++) {
+      if(samples[i] < cntO+Set[k]->ndata()) { // cannot sample last state in seq
+        seq[i] = k;
+        obs[i] = samples[i]-cntO;
+        samp = i+1; // next iteration remember first samp-1 were already found
+      }
+    }
+    if(samp == N) break;
+    cntO += Set[k]->ndata();
+    if(k+1 == Set.size()) assert(cntO == nTransitions && samp == N);
+  }
 }

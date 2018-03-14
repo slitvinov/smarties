@@ -25,7 +25,7 @@ void Learner_offPolicy::prepareData()
   if( not readyForTrain() ) return; // Do not prepare an update
 
   profiler->stop_start("PRE");
-  if(nStep%100==0) data->updateRewardsStats();
+  if(nStep%1000==0) data->updateRewardsStats();
   taskCounter = 0;
   samp_seq = vector<Uint>(batchSize, -1);
   samp_obs = vector<Uint>(batchSize, -1);
@@ -71,7 +71,7 @@ bool Learner_offPolicy::lockQueue() const
   // whether should start communication again.
   // for off policy learning, there is a ratio between gradient steps
   // and observed transitions to be kept (approximatively) constant
-  
+
   if( not readyForTrain() ) {
     //if there is not enough data for training, need more data
     assert( not updatePrepared );

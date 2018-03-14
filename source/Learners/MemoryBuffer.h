@@ -120,8 +120,8 @@ public:
   void restart();
 
   void indexToSample(const int nSample, Uint& seq, Uint& obs) const;
+  void sampleMultipleTrans(Uint* seq, Uint* obs, const Uint N, const int thrID);
   void sampleTransition(Uint& seq, Uint& obs, const int thrID);
-  Uint sampleTransition(const Uint seq, const int thrID);
   void sampleSequence(Uint& seq, const int thrID);
   void sampleTransitions_OPW(vector<Uint>& seq, vector<Uint>& obs);
   void sampleSequences(vector<Uint>& seq);
