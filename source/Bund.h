@@ -62,7 +62,7 @@ typedef double memReal;
 // for whole sequence. Slightly better perf but harder to explain so
 // it is not the default. Also: way worse load balancing and terrible for
 // really expensive to advance environments.
-#define PACEFULLSEQ 0
+#define PACEFULLSEQ 1
 
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
