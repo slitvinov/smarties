@@ -79,15 +79,10 @@ class RACER : public Learner_offPolicy
     if(updatePrepared && nStep == 0) {
       if(!learn_rank) cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
       #pragma omp parallel for schedule(dynamic)
-      for(Uint i = 0; i < data->Set.size(); i++) {
-        const int N = data->Set[i]->ndata();
-        data->Set[i]->setRetrace(N, data->scaledReward(data->Set[i], N));
-        for(int j = N-1; j>=0; j--) {
-          const Real A = data->Set[i]->action_adv[j];
-          const Real R = data->scaledReward(data->Set[i], j);
-          data->Set[i]->setRetrace(j, R +gamma*(data->Set[i]->Q_RET[j+1] -A) );
-        }
-      }
+      for(Uint i = 0; i < data->Set.size(); i++)
+        for (Uint j=data->Set[i]->ndata(); j>0; j--)
+          updateQret(data->Set[i], j, data->Set[i]->action_adv[j],
+            data->Set[i]->state_vals[j], 1);
     }
   }
 
@@ -100,14 +95,10 @@ class RACER : public Learner_offPolicy
     F[0]->prepare_seq(traj, thrID);
     for (int k=0; k<ndata; k++) F[0]->forward(traj, k, thrID);
     //if partial sequence then compute value of last state (!= R_end)
-
-    if( traj->isTerminal(ndata) )
-      traj->setRetrace(ndata, data->scaledReward(traj, ndata) );
-    else if ( traj->isTruncated(ndata) )
-    {
+    if ( traj->isTruncated(ndata) ) {
       const Rvec nxt = F[0]->forward(traj, ndata, thrID);
-      traj->setStateValue(ndata, nxt[VsID] );
-      traj->setRetrace(ndata, data->scaledReward(traj,ndata) +gamma*nxt[VsID]);
+      traj->setStateValue(ndata, nxt[VsID]);
+      updateQret(traj, ndata, 0, nxt[VsID], 0);
     }
 
     if(thrID==1)  profiler->stop_start("POL");
@@ -147,14 +138,10 @@ class RACER : public Learner_offPolicy
     #endif
     const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
 
-    // if sampled S_{T-1}, update qRet of s_T = reward (with current rescaling)
-    if( traj->isTerminal(samp+1) )
-      traj->setRetrace(samp+1, data->scaledReward(traj, samp+1) );
-    else if ( traj->isTruncated(samp+1) )
-    {
+    if ( traj->isTruncated(samp+1) ) {
       const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
-      traj->setStateValue(samp+1, nxt[VsID] );
-      traj->setRetrace(samp+1,data->scaledReward(traj,samp+1) +gamma*nxt[VsID]);
+      traj->setStateValue(samp+1, nxt[VsID]);
+      updateQret(traj, samp+1, 0, nxt[VsID], 0);
     }
 
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
@@ -200,38 +187,31 @@ class RACER : public Learner_offPolicy
   }
 
   inline Rvec compute(Sequence*const traj, const Uint samp,
-    const Rvec& outVec, const Policy_t& pol_cur, const Uint thrID) const
+    const Rvec& outVec, const Policy_t& POL, const Uint thrID) const
   {
-    const Advantage_t adv_cur = prepare_advantage(outVec, &pol_cur);
-    const Real A_cur = adv_cur.computeAdvantage(pol_cur.sampAct);
-    const Real Q_RET = traj->Q_RET[samp+1], V_cur = outVec[VsID];
-    const Real Q_dist = Q_RET -A_cur -V_cur, A_RET = Q_RET-V_cur;
-    const Real rho_cur = pol_cur.sampRhoWeight;
-    //const Real rho_cur = pol_cur.sampImpWeight;
-    const Real Ver = beta*alpha*std::min((Real)1, rho_cur) * Q_dist;
+    const Advantage_t ADV = prepare_advantage(outVec, &POL);
+    const Real A_cur = ADV.computeAdvantage(POL.sampAct), V_cur = outVec[VsID];
+    // shift retrace-advantage with current V(s) estimate:
+    const Real A_RET = traj->Q_RET[samp] +traj->state_vals[samp]-V_cur;
+    const Real rho_cur = POL.sampRhoWeight;
+    //const Real rho_cur = POL.sampImpWeight;
+    const Real Ver = beta*alpha*std::min((Real)1, rho_cur) * (A_RET-A_cur);
     //const Real Ver = beta*alpha * rho_cur * Q_dist;
 
-    #ifdef RACER_ONESTEPADV
-      const Real rNext = data->scaledReward(traj,samp+1);
-      const Real vNext = traj->state_vals[samp+1];
-      const Real Qer = beta*alpha*(rNext + gamma*vNext -A_cur-V_cur);
-    #else
-      //const Real Qer = beta*alpha*Q_dist;
-      const Real Qer = beta*alpha * rho_cur * Q_dist;
-    #endif
+    //const Real Aer = beta*alpha*Q_dist;
+    const Real Aer = beta*alpha * rho_cur * (A_RET-A_cur);
 
-    const Rvec policyG = policyGradient(traj->tuples[samp], pol_cur,
-      adv_cur, A_RET, thrID);
-    const Rvec penalG  = pol_cur.div_kl_grad(traj->tuples[samp]->mu, -1);
-    const Rvec finalG  = weightSum2Grads(policyG, penalG, beta);
+    const Rvec polG = policyGradient(traj->tuples[samp], POL,ADV,A_RET, thrID);
+    const Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
+    const Rvec finalG  = weightSum2Grads(polG, penalG, beta);
 
     #ifdef dumpExtra
       if(thrID == 1) {
-        const float dist = pol_cur.kl_divergence(traj->tuples[samp]->mu);
-        float normT = 0, dot = 0, normG = 0, impW = pol_cur.sampImpWeight;
-        for(Uint i = 0; i < policyG.size(); i++) {
-          normG += policyG[i] * policyG[i];
-          dot   += policyG[i] *  penalG[i];
+        const float dist = POL.kl_divergence(traj->tuples[samp]->mu);
+        float normT = 0, dot = 0, normG = 0, impW = POL.sampImpWeight;
+        for(Uint i = 0; i < polG.size(); i++) {
+          normG +=    polG[i] * polG[i];
+          dot   +=    polG[i] *  penalG[i];
           normT +=  penalG[i] *  penalG[i];
         }
         float ret[]={dot/std::sqrt(normT), std::sqrt(normG), dist, impW};
@@ -241,66 +221,67 @@ class RACER : public Learner_offPolicy
 
     Rvec gradient(F[0]->nOutputs(), 0);
     gradient[VsID] = Ver;
-    pol_cur.finalize_grad(finalG, gradient);
-    adv_cur.grad(pol_cur.sampAct, Qer, gradient);
+    POL.finalize_grad(finalG, gradient);
+    ADV.grad(POL.sampAct, Aer, gradient);
 
-    Vstats[thrID].dumpStats(A_cur, Q_dist); //bookkeeping
+    Vstats[thrID].dumpStats(A_cur, A_RET-A_cur); //bookkeeping
     //prepare Q with off policy corrections for next step:
-    const Real dAdv = updateQret(traj, samp, A_cur, V_cur, pol_cur);
-    Rvec sampleInfo {0, 0, 0, dAdv, pol_cur.sampImpWeight};
-    for(Uint i=0; i<policyG.size(); i++) {
-      sampleInfo[0] += std::fabs(policyG[i]);
+    const Real dAdv = updateQret(traj, samp, A_cur, V_cur, POL);
+    Rvec sampleInfo {0, 0, 0, dAdv, POL.sampImpWeight};
+    for(Uint i=0; i<polG.size(); i++) {
+      sampleInfo[0] += std::fabs(polG[i]);
       sampleInfo[1] += std::fabs( penalG[i]);
-      sampleInfo[2] += policyG[i]*penalG[i];
+      sampleInfo[2] += polG[i]*penalG[i];
     }
     opcInfo->track_vector(sampleInfo, thrID);
     return gradient;
   }
 
   inline Rvec offPolGrad(Sequence*const S, const Uint t,
-    const Rvec output, const Policy_t& pol, const Uint thrID) const
-  {
+    const Rvec output, const Policy_t& pol, const Uint thrID) const {
     // prepare penalization gradient:
     Rvec gradient(F[0]->nOutputs(), 0);
     const Rvec pg = pol.div_kl_grad(S->tuples[t]->mu, beta-1);
     pol.finalize_grad(pg, gradient);
     return gradient;
     //const Real r=data->scaledReward(traj,t+1), v=traj->state_vals[t+1];
-    //adv_cur.grad(act, r + gamma*v -A_cur-V_cur, gradient);
+    //ADV.grad(act, r + gamma*v -A_cur-V_cur, gradient);
   }
 
   inline void offPolCorrUpdate(Sequence*const S, const Uint t,
-    const Rvec output, const Policy_t& pol) const
-  {
+    const Rvec output, const Policy_t& pol) const {
     const Advantage_t adv = prepare_advantage(output, &pol);
     updateQret(S, t, adv.computeAdvantage(pol.sampAct), output[VsID], pol);
   }
 
-  inline void updateQret(Sequence*const S, const Uint t) const
-  {
-    const Real A = S->action_adv[t], V = S->state_vals[t];
-    const Real R = data->scaledReward(S, t);
-    const Real W = std::min((Real)1, S->offPol_weight[t]);
-    //prepare Qret with off policy corrections for next step:
-    S->setRetrace(t, R +gamma*(W*(S->Q_RET[t+1]-A-V) +V) );
+  inline void updateQret(Sequence*const S, const Uint t) const {
+    updateQret(S, t, S->action_adv[t], S->state_vals[t], S->offPol_weight[t]);
   }
 
   inline Real updateQret(Sequence*const S, const Uint t, const Real A,
-    const Real V, const Policy_t& pol) const
-  {
-    const Real oldQret = S->Q_RET[t], C = S->Q_RET[t+1]-A-V;
-    const Real W = std::min((Real)1, pol.sampRhoWeight);
-    //prepare Qret with off policy corrections for next step:
-
-    S->setAdvantage(t, A ); S->setStateValue(t, V );
+    const Real V, const Policy_t& pol) const {
     S->setSquaredError(t, pol.kl_divergence(S->tuples[t]->mu) );
-    S->setRetrace(t, data->scaledReward(S,t) +gamma*(W*C +V) );
-    return std::fabs(S->Q_RET[t] - oldQret);
+    updateQretNext(S, t, V); S->setStateValue(t, V); S->setAdvantage(t, A);
+    //prepare Qret with off policy corrections for next step:
+    return updateQret(S, t, A, V, pol.sampRhoWeight);
+  }
+
+  inline void updateQretNext(Sequence*const S, const Uint t, const Real V) const {
+    S->setRetrace(t, S->Q_RET[t] + S->state_vals[t] -V );
+  }
+
+  inline Real updateQret(Sequence*const S, const Uint t, const Real A,
+    const Real V, const Real rho) const {
+    assert(rho >= 0);
+    if(t == 0) return 0;
+    const Real oldRet = S->Q_RET[t-1], W = rho>1 ? 1 : rho;
+    const Real delta = data->scaledReward(S,t) +gamma*V - S->state_vals[t-1];
+    S->setRetrace(t-1, delta + gamma*W*(S->Q_RET[t] - A) );
+    return std::fabs(S->Q_RET[t-1] - oldRet);
   }
 
   inline Rvec policyGradient(const Tuple*const _t, const Policy_t& POL,
-    const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
-  {
+    const Advantage_t& ADV, const Real A_RET, const Uint thrID) const {
     const Real rho_cur = POL.sampRhoWeight;
     //const Real rho_cur = POL.sampImpWeight;
     #if defined(RACER_TABC)
@@ -322,8 +303,7 @@ class RACER : public Learner_offPolicy
   }
 
   inline Rvec criticGrad(const Policy_t& POL, const Advantage_t& ADV,
-    const Real A_RET, const Real A_critic) const
-  {
+    const Real A_RET, const Real A_critic) const {
     const Real anneal = iter()>epsAnneal ? 1 : Real(iter())/epsAnneal;
     const Real varCritic = ADV.advantageVariance();
     const Real iEpsA = std::pow(A_RET-A_critic,2)/(varCritic+2.2e-16);
@@ -337,8 +317,7 @@ class RACER : public Learner_offPolicy
     Learner_offPolicy(_env, _set), tgtFrac_param(_set.klDivConstraint),
     learnR(_set.learnrate), net_outputs(net_outs),
     net_indices(count_indices(net_outs)),
-    pol_start(pol_inds), adv_start(adv_inds)
-  {
+    pol_start(pol_inds), adv_start(adv_inds) {
     printf("RACER starts: v:%u pol:%s adv:%s\n", VsID,
     print(pol_start).c_str(), print(adv_start).c_str());
     opcInfo = new StatsTracker(5, "racer", _set, 100);
@@ -415,7 +394,10 @@ class RACER : public Learner_offPolicy
       } else {
         traj->state_vals.push_back(0); //value of terminal state is 0
       }
-      writeOnPolRetrace(traj); // compute initial Qret for whole trajectory
+      //whether seq is truncated or terminated, act adv is undefined:
+      traj->action_adv.push_back(0);
+      // compute initial Qret for whole trajectory:
+      writeOnPolRetrace(traj);
       OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
       #ifdef dumpExtra
         agent.a->set(Rvec(nA,0));
@@ -428,23 +410,15 @@ class RACER : public Learner_offPolicy
     }
   }
 
-  void writeOnPolRetrace(Sequence*const seq) const
-  {
-    assert(seq->tuples.size() == seq->action_adv.size()+1);
+  void writeOnPolRetrace(Sequence*const seq) const {
+    assert(seq->tuples.size() == seq->action_adv.size());
     assert(seq->tuples.size() == seq->state_vals.size());
-    assert(seq->Q_RET.size() == 0);
+    assert(seq->Q_RET.size()  == 0);
     const Uint N = seq->tuples.size();
     //within Retrace, we use the state_vals vector to write the Q retrace values
     seq->Q_RET.resize(N, 0);
-
-    //terminal Q_ret = term reward with state val = 0:
-    seq->Q_RET[N-1] = data->scaledReward(seq,N-1) + gamma*seq->state_vals[N-1];
-
-    for (Uint i=N-1; i>0; i--) { //update all q_ret before terminal step
-      const Real R = data->scaledReward(seq, i-1);
-      // formula for Q_RET given rho = 1 :
-      seq->Q_RET[i-1] = R +gamma*(seq->Q_RET[i] - seq->action_adv[i-1]);
-    }
+    for (Uint i=N-1; i>0; i--) //update all q_ret before terminal step
+      updateQret(seq, i, seq->action_adv[i], seq->state_vals[i], 1);
   }
 
   void prepareGradient()
@@ -459,16 +433,9 @@ class RACER : public Learner_offPolicy
       profiler->stop_start("QRET");
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++)
-        for(int j = data->Set[i]->just_sampled; j>=0; j--) {
-          const Real obsOpcW = data->Set[i]->offPol_weight[j];
-          assert(obsOpcW >= 0);
-          const Real R = data->scaledReward(data->Set[i], j);
-          const Real W = obsOpcW>1? 1 : obsOpcW;
-          const Real A = data->Set[i]->action_adv[j];
-          const Real V = data->Set[i]->state_vals[j];
-          const Real Qret = data->Set[i]->Q_RET[j+1];
-          data->Set[i]->Q_RET[j] = R +gamma*(W*(Qret -A-V)+V);
-        }
+      for(int j = data->Set[i]->just_sampled-1; j>0; j--)
+        updateQret(data->Set[i], j, data->Set[i]->action_adv[j],
+          data->Set[i]->state_vals[j], data->Set[i]->offPol_weight[j]);
     #endif
 
     profiler->stop_start("PRNE");
@@ -516,8 +483,7 @@ class RACER : public Learner_offPolicy
     warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");
   }
 
-  void getMetrics(ostringstream& buff) const
-  {
+  void getMetrics(ostringstream& buff) const {
     opcInfo->reduce_approx();
     buff<<" "<<std::setw(6)<<std::setprecision(3)<<beta;
     buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[0];
@@ -526,8 +492,7 @@ class RACER : public Learner_offPolicy
     buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[3];
     buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[4];
   }
-  void getHeaders(ostringstream& buff) const
-  {
+  void getHeaders(ostringstream& buff) const {
     // beta: coefficient of update gradient to penalization gradient:
     //       g = g_loss * beta + (1-beta) * g_penal
     // polG, penG : average norm of these gradients
