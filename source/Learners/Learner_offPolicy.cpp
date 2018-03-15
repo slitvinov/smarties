@@ -25,7 +25,7 @@ void Learner_offPolicy::prepareData()
   if( not readyForTrain() ) return; // Do not prepare an update
 
   profiler->stop_start("PRE");
-  if(nStep%1000==0) data->updateRewardsStats();
+  if(nStep%1000==0) data->updateRewardsStats(nStep);
   taskCounter = 0;
   samp_seq = vector<Uint>(batchSize, -1);
   samp_obs = vector<Uint>(batchSize, -1);

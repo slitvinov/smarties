@@ -129,7 +129,7 @@ public:
   void terminate_seq(const Agent&a);
   void add_state(const Agent&a);
 
-  void updateRewardsStats();
+  void updateRewardsStats(unsigned long nStep);
   void updateImportanceWeights();
   void prune(const Real CmaxRho, const FORGET ALGO);
 

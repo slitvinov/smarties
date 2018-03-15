@@ -86,7 +86,7 @@ void MemoryBuffer::terminate_seq(const Agent&a)
 }
 
 // update the second order moment of the rewards in the memory buffer
-void MemoryBuffer::updateRewardsStats()
+void MemoryBuffer::updateRewardsStats(unsigned long nStep)
 {
   if(!bTrain) return; //if not training, keep the stored values
 
@@ -151,8 +151,10 @@ void MemoryBuffer::updateRewardsStats()
   first_pass = false;
   //mean_reward = (1-weight)*mean_reward +weight*newmeanr/count;
   invstd_reward = (1-weight)*invstd_reward +weight/stdev_reward;
-  for(Uint k=0; k<sI.dimUsed; k++)
-  std_noise[k] = std::sqrt((totSqSumS[k]-std::pow(totSumS[k],2)/count)/count);
+  for(Uint k=0; k<sI.dimUsed; k++) {
+    std_noise[k] = std::sqrt((totSqSumS[k]-std::pow(totSumS[k],2)/count)/count);
+    std_noise[k] /= 1 + nStep * ANNEAL_RATE;
+  }
 
   #ifndef NDEBUG
   Uint cntSamp = 0;
