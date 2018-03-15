@@ -16,9 +16,9 @@
 #endif
 //#define RACER_ONESTEPADV
 #define RACER_BACKWARD
-#ifndef RACER_FORWARD
+//#ifndef RACER_FORWARD
 #define RACER_FORWARD 0
-#endif
+//#endif
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_offPolicy
@@ -107,7 +107,7 @@ class RACER : public Learner_offPolicy
     {
       const Rvec out_cur = F[0]->get(traj, k, thrID);
       const Policy_t pol = prepare_policy(out_cur, traj->tuples[k]);
-      const bool isOff = traj->isOffPolicy(k, pol.sampRhoWeight, CmaxRet, invC);
+      const bool isOff = traj->isOffPolicy(k, pol.sampImpWeight, CmaxRet, invC);
       // in case rho outside bounds, do not compute gradient
       Rvec G;
       #if   RACER_SKIP == 1
@@ -148,7 +148,7 @@ class RACER : public Learner_offPolicy
 
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
     // check whether importance weight is in 1/Cmax < c < Cmax
-    const bool isOff = traj->isOffPolicy(samp, pol.sampRhoWeight, CmaxRet,invC);
+    const bool isOff = traj->isOffPolicy(samp, pol.sampImpWeight, CmaxRet,invC);
 
     #if RACER_FORWARD>0
       // do N steps of fwd net to obtain better estimate of Qret
@@ -160,7 +160,7 @@ class RACER : public Learner_offPolicy
         //these are all race conditions:
         traj->setSquaredError(k, polt.kl_divergence(traj->tuples[k]->mu) );
         traj->setAdvantage(k, advt.computeAdvantage(polt.sampAct) );
-        traj->setOffPolWeight(k, polt.sampRhoWeight );
+        traj->setOffPolWeight(k, polt.sampImpWeight );
         traj->setStateValue(k, outt[VsID] );
         //if (impW < 0.1) break;
       }
@@ -195,8 +195,7 @@ class RACER : public Learner_offPolicy
     const Real A_cur = ADV.computeAdvantage(POL.sampAct), V_cur = outVec[VsID];
     // shift retrace-advantage with current V(s) estimate:
     const Real A_RET = traj->Q_RET[samp] +traj->state_vals[samp]-V_cur;
-    const Real rho_cur = POL.sampRhoWeight;
-    //const Real rho_cur = POL.sampImpWeight;
+    const Real rho_cur = POL.sampImpWeight;
     const Real Ver = beta*alpha*std::min((Real)1, rho_cur) * (A_RET-A_cur);
     //const Real Ver = beta*alpha * rho_cur * Q_dist;
 
@@ -265,7 +264,7 @@ class RACER : public Learner_offPolicy
     S->setRetrace(t, S->Q_RET[t] + S->state_vals[t] -V );
     S->setStateValue(t, V); S->setAdvantage(t, A);
     //prepare Qret_{t-1} with off policy corrections for future use
-    return updateQret(S, t, A, V, pol.sampRhoWeight);
+    return updateQret(S, t, A, V, pol.sampImpWeight);
   }
 
   inline Real updateQret(Sequence*const S, const Uint t, const Real A,
@@ -280,8 +279,7 @@ class RACER : public Learner_offPolicy
 
   inline Rvec policyGradient(const Tuple*const _t, const Policy_t& POL,
     const Advantage_t& ADV, const Real A_RET, const Uint thrID) const {
-    const Real rho_cur = POL.sampRhoWeight;
-    //const Real rho_cur = POL.sampImpWeight;
+    const Real rho_cur = POL.sampImpWeight;
     #if defined(RACER_TABC)
       //compute quantities needed for trunc import sampl with bias correction
       const Action_t sample = POL.sample(&generators[thrID]);

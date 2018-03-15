@@ -108,7 +108,7 @@ class DACER : public Learner_offPolicy
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
 
     // check whether importance weight is in 1/Cmax < c < Cmax
-    const bool isOff = traj->isOffPolicy(samp, pol.sampRhoWeight, CmaxRet,invC);
+    const bool isOff = traj->isOffPolicy(samp, pol.sampImpWeight, CmaxRet,invC);
 
     #if DACER_FORWARD>0
       // do N steps of fwd net to obtain better estimate of Qret
@@ -152,7 +152,7 @@ class DACER : public Learner_offPolicy
     const Real rNext = data->scaledReward(S, t+1), V_cur = outVec[VsID];
     const Real A_RET = rNext +gamma*(S->Q_RET[t+1]+S->state_vals[t+1]) - V_cur;
     const Real dAdv = updateVret(S, t, V_cur, pol_cur);
-    const Real rho_cur = pol_cur.sampRhoWeight, Ver = S->Q_RET[t];
+    const Real rho_cur = pol_cur.sampImpWeight, Ver = S->Q_RET[t];
 
     const Rvec policyG = pol_cur.policy_grad(pol_cur.sampAct, A_RET*rho_cur);
     const Rvec penalG  = pol_cur.div_kl_grad(S->tuples[t]->mu, -1);
@@ -201,7 +201,7 @@ class DACER : public Learner_offPolicy
   inline Real updateVret(Sequence*const S, const Uint t, const Real V,
     const Policy_t& pol) const {
     S->setSquaredError(t, pol.kl_divergence(S->tuples[t]->mu) );
-    return updateVret(S, t, V, pol.sampRhoWeight);
+    return updateVret(S, t, V, pol.sampImpWeight);
   }
 
   inline Real updateVret(Sequence*const S, const Uint t, const Real V,

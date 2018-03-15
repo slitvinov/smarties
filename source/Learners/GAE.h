@@ -26,8 +26,11 @@ protected:
   const vector<Uint> pol_outputs, pol_indices;
   mutable vector<long double> cntPenal, valPenal;
 
-  inline Policy_t prepare_policy(const Rvec& out) const {
-    return Policy_t(pol_indices, &aInfo, out);
+  inline Policy_t prepare_policy(const Rvec& out,
+    const Tuple*const t = nullptr) const {
+    Policy_t pol(pol_indices, &aInfo, out);
+    if(t not_eq nullptr) pol.prepare(t->a, t->mu);
+    return pol;
   }
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override {
@@ -46,12 +49,9 @@ protected:
 
     if(thrID==1)  profiler->stop_start("CMP");
 
-    const Policy_t pol = prepare_policy(pol_cur);
+    const Policy_t pol = prepare_policy(pol_cur, traj->tuples[samp]);
     const Action_t act = pol.map_action(traj->tuples[samp]->a);
-    const Real actProbOnPolicy = pol.logProbability(act);
-    const Real actProbBehavior = Policy_t::evalBehavior(act, beta);
-    const Real rho_cur = std::exp(actProbOnPolicy-actProbBehavior);
-    const Real DivKL = pol.kl_divergence(beta);
+    const Real rho_cur = pol.sampImpWeight, DivKL = pol.kl_divergence(beta);
     traj->setOffPolWeight(samp, rho_cur);
 
     Real gain = rho_cur*adv_est;

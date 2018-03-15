@@ -14,12 +14,13 @@ struct Gaussian_policy
 {
   const ActionInfo* const aInfo;
   const Uint start_mean, start_prec, nA;
-  const Real acerTrickPow = 1. / std::sqrt(nA);
+  const Real P_trunc = (1-std::erf(NORMDIST_MAX/std::sqrt(2)))/(2*NORMDIST_MAX);
   const Rvec netOutputs;
   const Rvec mean, stdev, variance, precision;
 
   Rvec sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0;
+  long double sampPonPolicy=0, sampPBehavior=0;
+  Real sampImpWeight=0;
 
   inline Rvec map_action(const Rvec& sent) const {
     return aInfo->getInvScaled(sent);
@@ -62,6 +63,17 @@ private:
     for(Uint i=0; i<nA; i++) ret[i] = precision_func(netOutputs[start_prec+i]);
     return ret;
   }
+  inline long double oneDnormal(const Real act, const Real _mean, const Real _prec) const
+  {
+    const long double arg = .5 * std::pow(act-_mean,2) * _prec;
+    #if 1
+      const auto Pgaus = std::sqrt(1./M_PI/2)*std::exp(-arg);
+      const Real Punif = arg<.5*NORMDIST_MAX*NORMDIST_MAX? P_trunc : 0;
+      return std::sqrt(_prec)*(Pgaus + Punif);
+    #else
+      return std::sqrt(_prec/M_PI/2)*std::exp(-arg);
+    #endif
+  }
 
 public:
   static inline Real precision_func(const Real val) {
@@ -86,23 +98,29 @@ public:
   inline void prepare(const Rvec& unbact, const Rvec& beta)
   {
     sampAct = map_action(unbact);
-    sampLogPonPolicy = logProbability(sampAct);
-    sampLogPBehavior = evalBehavior(sampAct, beta);
-    const Real logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = std::exp( logW );
-    sampRhoWeight = std::exp(logW * acerTrickPow);
+    sampPonPolicy = evalProbability(sampAct);
+    sampPBehavior = evalBehavior(sampAct, beta);
+    sampImpWeight = sampPonPolicy / sampPBehavior;
   }
 
-  static inline Real evalBehavior(const Rvec& act, const Rvec& beta)
-  {
-    Real p = 0;
-    for(Uint i=0; i<act.size(); i++) {
-      assert(beta[act.size()+i]>0);
-      const Real stdi = beta[act.size()+i];
-      p -= std::pow(act[i]-beta[i],2)/(stdi*stdi);
-      p -= std::log(2*M_PI*stdi*stdi);
+  inline long double evalBehavior(const Rvec& act, const Rvec& beta) const {
+    long double pi  = 1;
+    assert(act.size() == nA);
+    for(Uint i=0; i<nA; i++) {
+      assert(beta[nA+i]>0);
+      pi *= oneDnormal(act[i], beta[i], 1/(beta[nA+i]*beta[nA+i]) );
     }
-    return 0.5*p;
+    return pi;
+  }
+
+  inline long double evalProbability(const Rvec& act) const {
+    long double pi  = 1;
+    for(Uint i=0; i<nA; i++) pi *= oneDnormal(act[i], mean[i], precision[i]);
+    return pi;
+  }
+
+  inline Real logProbability(const Rvec& act) const {
+    return std::log(evalProbability(act));
   }
 
   static inline Rvec sample(mt19937*const gen, const Rvec& beta)
@@ -135,16 +153,6 @@ public:
       ret[i] = mean[i] + stdev[i]*samp;
     }
     return ret;
-  }
-
-  inline Real logProbability(const Rvec& act) const
-  {
-    Real p = 0;
-    for(Uint i=0; i<nA; i++) {
-      p -= std::pow(act[i]-mean[i],2)*precision[i];
-      p += std::log(0.5*precision[i]/M_PI);
-    }
-    return 0.5*p;
   }
 
   inline Rvec control_grad(const Quadratic_term*const adv, const Real eta) const

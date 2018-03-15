@@ -78,7 +78,8 @@ struct Encapsulator
     return ind;
   }
 
-  inline Rvec state2Inp(const int samp, const Sequence*const traj) const
+  inline Rvec state2Inp(const int samp, const Sequence*const traj,
+      const Uint thrID) const
   {
     assert(samp<(int)traj->tuples.size());
     const Uint nSvar = traj->tuples[samp]->s.size();
@@ -92,14 +93,19 @@ struct Encapsulator
         // j is fast index (different t of same feature are close, think CNN)
           inp[j + i*(nAppended+1)] = traj->tuples[kk]->s[i];
       }
-      return data->standardize(inp);
-    } else return data->standardize(traj->tuples[samp]->s);
+      return data->standardizeAppended(inp);
+    } else
+    #ifdef NOISY_INPUT
+      return data->standardize(traj->tuples[samp]->s);
+    #else
+      return data->standardizeNoisy(traj->tuples[samp]->s, thrID);
+    #endif
   }
 
   inline Rvec forward(const Sequence*const seq, const int samp,
     const Uint thrID) const
   {
-    if(net==nullptr) return state2Inp(samp, seq); //data->Tmp[agentId]);
+    if(net==nullptr) return state2Inp(samp, seq, thrID); //data->Tmp[agentId]);
 
     if(error_placements[thrID] > 0) gradient(thrID);
 
@@ -107,7 +113,7 @@ struct Encapsulator
     const int ind = mapTime2Ind(samp, thrID);
     //if already computed just give answer
     if(act[ind]->written == true) return act[ind]->getOutput();
-    const Rvec inp = state2Inp(samp, seq);
+    const Rvec inp = state2Inp(samp, seq, thrID);
     assert(inp.size() == net->getnInputs());
     const Rvec ret = net->predict(inp, act[ind]);
     act[ind]->written = true;

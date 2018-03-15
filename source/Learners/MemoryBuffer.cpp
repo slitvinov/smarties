@@ -91,26 +91,55 @@ void MemoryBuffer::updateRewardsStats()
   if(!bTrain) return; //if not training, keep the stored values
 
   long double count = 0, newstdvr = 0;
-  #pragma omp parallel for reduction(+ : count, newstdvr) schedule(dynamic)
-  for(Uint i=0; i<Set.size(); i++)
-    for(Uint j=0; j<Set[i]->ndata(); j++) {
-      newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
-      count++;
+  vector<long double> totSumS(sI.dimUsed), totSqSumS(sI.dimUsed);
+
+  #pragma omp parallel reduction(+ : count, newstdvr)
+  {
+    vector<long double> sumS(sI.dimUsed), sqSumS(sI.dimUsed);
+
+    #pragma omp for schedule(dynamic)
+    for(Uint i=0; i<Set.size(); i++)
+      for(Uint j=0; j<Set[i]->ndata(); j++) {
+        const auto S = standardize(Set[i]->tuples[j]->s);
+        for(Uint k=0; k<sI.dimUsed; k++){ sumS[k]+=S[k]; sqSumS[k]+=S[k]*S[k]; }
+        newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
+        count++;
+      }
+
+    #pragma omp critical
+    {
+      for(Uint k=0; k<sI.dimUsed; k++) {
+        totSumS[k] += sumS[k];
+        totSqSumS[k] += sqSumS[k];
+      }
     }
+  }
 
   //add up gradients across nodes (masters)
   if (learn_size > 1) {
     const bool firstUpdate = rewRequest == MPI_REQUEST_NULL;
     if(not firstUpdate) MPI_Wait(&rewRequest, MPI_STATUS_IGNORE);
+    else {
+      rew_reduce_result.resize(nReduce);
+      partial_sum.resize(nReduce);
+    }
     // prepare an allreduce with the current data:
     partial_sum[0] = count;
     partial_sum[1] = newstdvr;
+    for(Uint k=0; k<sI.dimUsed; k++) {
+      partial_sum[2+k] = totSumS[k];
+      partial_sum[2+sI.dimUsed+k] = totSqSumS[k];
+    }
     //use result from prev reduce to update rewards (before calling new reduce)
     count = rew_reduce_result[0];
     newstdvr = rew_reduce_result[1];
+    for(Uint k=0; k<sI.dimUsed; k++) {
+      totSumS[k] = rew_reduce_result[2+k];
+      totSqSumS[k] = rew_reduce_result[2+sI.dimUsed+k];
+    }
 
-    MPI_Iallreduce(partial_sum, rew_reduce_result, 2, MPI_LONG_DOUBLE, MPI_SUM,
-                   mastersComm, &rewRequest);
+    MPI_Iallreduce(partial_sum.data(), rew_reduce_result.data(), nReduce,
+                    MPI_LONG_DOUBLE, MPI_SUM, mastersComm, &rewRequest);
     // if no reduction done, partial sums are meaningless
     if(firstUpdate) return;
   }
@@ -122,6 +151,9 @@ void MemoryBuffer::updateRewardsStats()
   first_pass = false;
   //mean_reward = (1-weight)*mean_reward +weight*newmeanr/count;
   invstd_reward = (1-weight)*invstd_reward +weight/stdev_reward;
+  for(Uint k=0; k<sI.dimUsed; k++)
+  std_noise[k] = std::sqrt((totSqSumS[k]-std::pow(totSumS[k],2)/count)/count);
+
   #ifndef NDEBUG
   Uint cntSamp = 0;
   for(Uint i=0; i<Set.size(); i++) {

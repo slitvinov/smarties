@@ -29,7 +29,7 @@ public:
 
   Rvec sampAct;
   long double sampPonPolicy = -1, sampPBehavior = -1;
-  Real sampImpWeight=0, sampRhoWeight = 0;
+  Real sampImpWeight=0;
   array<long double, nExperts> PactEachExp;
 
   static inline Uint compute_nP(const ActionInfo* const aI) {
@@ -127,9 +127,6 @@ private:
       const auto Pgaus = std::sqrt(1./M_PI/2)*std::exp(-arg);
       const Real Punif = arg<.5*NORMDIST_MAX*NORMDIST_MAX? P_trunc : 0;
       return std::sqrt(prec)*(Pgaus + Punif);
-    #elif 0
-      const Real norm = std::sqrt(1./M_PI/2);
-      return std::sqrt(prec)*( norm*std::exp(-arg) + P_trunc );
     #else
       return std::sqrt(prec/M_PI/2)*std::exp(-arg);
     #endif
@@ -181,16 +178,10 @@ public:
     assert(sampPonPolicy>=0);
     sampPBehavior = evalBehavior(sampAct, beta);
     sampImpWeight = sampPonPolicy / sampPBehavior;
-    #ifdef RACER_ACERTRICK
-      sampRhoWeight = std::pow( sampImpWeight, retraceTrickPow );
-    #else
-      sampRhoWeight = sampImpWeight;
-    #endif
     if(sampPonPolicy<=0){printf("observed %g\n",(Real)sampPonPolicy);fflush(0);}
   }
 private:
-  inline long double evalBehavior(const Rvec& act, const Rvec& beta) const
-  {
+  inline long double evalBehavior(const Rvec& act, const Rvec& beta) const {
     long double p = 0;
     const Uint NA = act.size();
     for(Uint j=0; j<nExperts; j++) {
@@ -204,8 +195,7 @@ private:
     assert(p>0);
     return p;
   }
-  inline Real logProbability(const Rvec& act) const
-  {
+  inline Real logProbability(const Rvec& act) const {
     long double P = 0;
     for(Uint j=0; j<nExperts; j++) {
       long double pi  = 1;

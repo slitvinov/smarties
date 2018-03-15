@@ -25,6 +25,7 @@ public:
   const vector<Agent*> _agents;
   std::vector<std::mt19937>& generators;
   const Rvec mean, invstd, std;
+  Rvec std_noise = Rvec(mean.size(), 0);
   const int learn_rank, learn_size;
   const Real gamma;
 
@@ -42,8 +43,9 @@ public:
   vector<Sequence*> Set, inProgress;
   mutable std::mutex dataset_mutex;
 
+  const Uint nReduce = 2 + 2*sI.dimUsed;
   MPI_Request rewRequest = MPI_REQUEST_NULL;
-  long double rew_reduce_result[2], partial_sum[2];
+  vector<long double> rew_reduce_result, partial_sum;
 
 public:
   void push_back(const int & agentId);
@@ -71,7 +73,7 @@ public:
   }
 
   template<typename T>
-  inline Rvec standardize(const vector<T>& state) const
+  inline Rvec standardizeAppended(const vector<T>& state) const
   {
     Rvec ret(sI.dimUsed*(1+nAppended));
     assert(state.size() == sI.dimUsed*(1+nAppended));
@@ -80,10 +82,26 @@ public:
         ret[j +i*(nAppended+1)] =(state[j +i*(nAppended+1)]-mean[i])*invstd[i];
     return ret;
   }
-  inline Rvec standardized(const Uint seq, const Uint samp) const
+  template<typename T>
+  inline Rvec standardize(const vector<T>& state) const
   {
-    return standardize(Set[seq]->tuples[samp]->s);
+    Rvec ret(sI.dimUsed);
+    assert(state.size() == sI.dimUsed && mean.size() == sI.dimUsed);
+    for (Uint i=0; i<sI.dimUsed; i++) ret[i] =(state[i]-mean[i])*invstd[i];
+    return ret;
   }
+
+  template<typename T>
+  inline Rvec standardizeNoisy(const vector<T>& state, const Uint thrID) const
+  {
+    Rvec ret = standardize(state);
+    for (Uint i=0; i<sI.dimUsed; i++) {
+      std::normal_distribution<Real> noise(0, 0.01*std_noise[i]);
+      ret[i] += noise(generators[thrID]);
+    }
+    return ret;
+  }
+
   inline Real scaledReward(const Uint seq, const Uint samp) const
   {
     assert(samp>0 && samp < Set[seq]->tuples.size());

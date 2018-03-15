@@ -14,13 +14,16 @@ SETTINGS+=" --gamma 0.995"
 SETTINGS+=" --nnl1 128"
 SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
+#SETTINGS+=" --nnl1 128"
+#SETTINGS+=" --nnl2 96"
+#SETTINGS+=" --nnl3 64"
 
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc PRelu"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc HardSign"
 #SETTINGS+=" --nnFunc Linear"
-SETTINGS+=" --nnLambda 0.0001"
+SETTINGS+=" --nnLambda 0.00001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"

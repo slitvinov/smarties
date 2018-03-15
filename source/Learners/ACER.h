@@ -19,14 +19,19 @@ class ACER : public Learner_offPolicy
   using Policy_t = Gaussian_policy;
   using Action_t = Rvec;
   const Uint nA = Policy_t::compute_nA(&aInfo);
+  const Real acerTrickPow = 1. / std::sqrt(nA);
+  //const Real acerTrickPow = 1. / nA;
   const Uint nAexpectation = 5;
   const Real facExpect = 1./nAexpectation;
   const Real alpha = 1.0;
   //const Real alpha = 0.1;
   Aggregator* relay = nullptr;
 
-  inline Policy_t prepare_policy(const Rvec& out) const {
-    return Policy_t({0, nA}, &aInfo, out);
+  inline Policy_t prepare_policy(const Rvec& out,
+    const Tuple*const t = nullptr) const {
+    Policy_t pol({0, nA}, &aInfo, out);
+    if(t not_eq nullptr) pol.prepare(t->a, t->mu);
+    return pol;
   }
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override
@@ -49,9 +54,8 @@ class ACER : public Learner_offPolicy
     if(thrID==1) profiler->stop_start("FWD");
     for(Uint k=0; k<(Uint)ndata; k++) {
       const Rvec outPc = F[0]->forward<CUR>(traj, k, thrID);
-      policies.push_back(prepare_policy(outPc));
+      policies.push_back(prepare_policy(outPc, traj->tuples[k]));
       assert(policies.size() == k+1);
-      policies[k].prepare(traj->tuples[k]->a, traj->tuples[k]->mu);
       const Rvec outPt = F[0]->forward<TGT>(traj, k, thrID);
       policies_tgt.push_back(prepare_policy(outPt));
       const Rvec outVs = F[1]->forward(traj, k, thrID);
@@ -83,8 +87,9 @@ class ACER : public Learner_offPolicy
         APol -= facExpect*advantages[k][2+i];
       }
       const Real A_OPC = Q_OPC - Vstates[k], Q_err = Q_RET - QTheta;
-      const Real W = std::min((Real)1, policies[k].sampRhoWeight); //as in paper, but I see dead people
-      //const Real W = std::min((Real)1, policies[k].sampImpWeight);
+
+      const Real W = std::min((Real)1, policies[k].sampImpWeight);
+      const Real C = std::pow(W, acerTrickPow); //as in paper, but might be bad
       const Real R = data->scaledReward(traj, k), V_err = Q_err*W;
       const Rvec pGrad = policyGradient(traj->tuples[k], policies[k],
         policies_tgt[k], A_OPC, APol, policy_samples[k]);
@@ -94,9 +99,9 @@ class ACER : public Learner_offPolicy
       for(Uint i = 0; i < nAexpectation; i++)
         F[2]->backward({-alpha*facExpect*Q_err}, k, thrID, i+1);
       //prepare Q with off policy corrections for next step:
-      Q_RET = R +gamma*( W*(Q_RET-QTheta) +Vstates[k]);
-      Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]); //as in paper, but I see dead people
-      //Q_OPC = R +gamma*( W*(Q_OPC-QTheta) +Vstates[k]);
+      Q_RET = R +gamma*( C*(Q_RET-QTheta) +Vstates[k]);
+      Q_OPC = R +gamma*((Q_OPC-QTheta)+Vstates[k]); //as paper, but might be bad
+      //Q_OPC = R +gamma*( C*(Q_OPC-QTheta) +Vstates[k]);
       //traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
       traj->offPol_weight[k] = policies[k].sampImpWeight;
       Vstats[thrID].dumpStats(QTheta, Q_err);
@@ -118,9 +123,9 @@ class ACER : public Learner_offPolicy
     const Real ARET, const Real APol,
     const Action_t& pol_samp) const {
     //compute quantities needed for trunc import sampl with bias correction
-    const Real polProbBehavior = Policy_t::evalBehavior(pol_samp, _t->mu);
-    const Real polProbOnPolicy = POL.logProbability(pol_samp);
-    const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
+    const Real polProbBehavior = POL.evalBehavior(pol_samp, _t->mu);
+    const Real polProbOnPolicy = POL.evalProbability(pol_samp);
+    const Real rho_pol = polProbOnPolicy / polProbBehavior;
     const Real gain1 = ARET*std::min((Real) 5, POL.sampImpWeight);
     const Real gain2 = APol*std::max((Real) 0, 1-5/rho_pol);
     const Rvec gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);

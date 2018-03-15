@@ -26,7 +26,7 @@ using namespace std;
 #include <mpi.h>
 
 // Data format for storage in memory buffer. Switch to float for example for
-// Atari where the memory buffer is in the order of GBs. 
+// Atari where the memory buffer is in the order of GBs.
 typedef double memReal;
 //typedef float memReal;
 
@@ -78,6 +78,8 @@ typedef double memReal;
 //#define NET_L1_PENAL // else employ L2 penal defined by Settings::nnLambda
 //#define _dumpNet_
 #define SAFE_ADAM // prevent rare gradient blow ups?
+
+#define NOISY_INPUT
 
 typedef unsigned Uint;
 

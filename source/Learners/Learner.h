@@ -23,15 +23,7 @@ protected:
   const bool bSampleSequences, bTrain;
   const Uint nAgents, batchSize, totNumSteps, nThreads, nSlaves, policyVecDim;
   const Real greedyEps, epsAnneal, gamma, CmaxPol;
-  #ifdef RACER_ACERTRICK
-    // the offPolicyWeight passed to MemoryBuffer::prune is actually c^(1/sqrt(nA))
-    // therefore std::pow here to count the number of obs with c < 1/CmaxPol || c > CmaxPol
-    //const Real CmaxRet = std::pow(CmaxPol, 1./std::cbrt(env->aI.dim))*std::sqrt(env->aI.dim);
-    const Real CmaxRet = std::pow(CmaxPol, 1./std::cbrt(env->aI.dim))*std::cbrt(env->aI.dim);
-  #else
-    //const Real CmaxRet = CmaxPol * std::sqrt(env->aI.dim);
-    const Real CmaxRet = CmaxPol * std::cbrt(env->aI.dim);
-  #endif
+  const Real CmaxRet = CmaxPol * std::cbrt(env->aI.dim);
   const int learn_rank, learn_size;
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;

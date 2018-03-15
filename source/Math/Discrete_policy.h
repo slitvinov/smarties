@@ -20,7 +20,7 @@ struct Discrete_policy
   const Rvec probs;
 
   Uint sampAct;
-  Real sampLogPonPolicy=0, sampLogPBehavior=0, sampImpWeight=0, sampRhoWeight=0;
+  Real sampPonPolicy=0, sampPBehavior=0, sampImpWeight=0;
 
   inline Uint map_action(const Rvec& sent) const {
     return aInfo->actionToLabel(sent);
@@ -78,15 +78,13 @@ struct Discrete_policy
   inline void prepare(const Rvec& unbact, const Rvec& beta)
   {
     sampAct = map_action(unbact);
-    sampLogPonPolicy = logProbability(sampAct);
-    sampLogPBehavior = evalBehavior(sampAct, beta);
-    const Real logW = sampLogPonPolicy - sampLogPBehavior;
-    sampImpWeight = safeExp(logW);
-    sampRhoWeight = sampImpWeight;
+    sampPonPolicy = probs[sampAct];
+    sampPBehavior = beta[sampAct];
+    sampImpWeight = sampPonPolicy / sampPBehavior;
   }
 
   static inline Real evalBehavior(const Uint& act, const Rvec& beta) {
-    return std::log(beta[act]);
+    return beta[act];
   }
 
   static inline Uint sample(mt19937*const gen, const Rvec& beta) {
@@ -97,6 +95,10 @@ struct Discrete_policy
   inline Uint sample(mt19937*const gen) const {
     std::discrete_distribution<Uint> dist(probs.begin(), probs.end());
     return dist(*gen);
+  }
+
+  inline Real evalProbability(const Uint act) const {
+    return probs[act];
   }
 
   inline Real logProbability(const Uint act) const {
