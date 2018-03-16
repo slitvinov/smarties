@@ -43,7 +43,14 @@ public:
   vector<Sequence*> Set, inProgress;
   mutable std::mutex dataset_mutex;
 
-  const Uint nReduce = 2 + 2*sI.dimUsed;
+  const Uint dimS = sI.dimUsed;
+  #ifdef NOISY_INPUT
+    const Uint nReduce = 2 + 2*dimS;
+    Rvec state_coef = Rvec(mean.size(), 0);
+    Rvec state_bias = Rvec(mean.size(), 0);
+  #else
+    const Uint nReduce = 2;
+  #endif
   MPI_Request rewRequest = MPI_REQUEST_NULL;
   vector<long double> rew_reduce_result, partial_sum;
 

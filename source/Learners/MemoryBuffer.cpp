@@ -91,28 +91,39 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep)
   if(!bTrain) return; //if not training, keep the stored values
 
   long double count = 0, newstdvr = 0;
-  vector<long double> totSumS(sI.dimUsed), totSqSumS(sI.dimUsed);
+  vector<long double> sumS(dimS,0), sqSumS(dimS,0), gradC(dimS,0);
 
   #pragma omp parallel reduction(+ : count, newstdvr)
   {
-    vector<long double> sumS(sI.dimUsed), sqSumS(sI.dimUsed);
+    vector<long double> locSumS(dimS,0), locSqSumS(dimS,0), locGradC(dimS,0);
 
     #pragma omp for schedule(dynamic)
-    for(Uint i=0; i<Set.size(); i++)
+    for(Uint i=0; i<Set.size(); i++) {
+      count += Set[i]->ndata();
       for(Uint j=0; j<Set[i]->ndata(); j++) {
-        const auto S = standardize(Set[i]->tuples[j]->s);
-        for(Uint k=0; k<sI.dimUsed; k++){ sumS[k]+=S[k]; sqSumS[k]+=S[k]*S[k]; }
+        #ifdef NOISY_INPUT
+          const auto S = standardize(Set[i]->tuples[j]->s);
+          for(Uint k=0; k<dimS; k++) {
+            const Real scaled = S[k] - state_coef[k]*j - state_bias[k];
+            locSqSumS[k] += scaled * scaled;
+            locGradC[k] += scaled * j;
+            locSumS[k] += scaled;
+          }
+        #endif
         newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
-        count++;
-      }
-
-    #pragma omp critical
-    {
-      for(Uint k=0; k<sI.dimUsed; k++) {
-        totSumS[k] += sumS[k];
-        totSqSumS[k] += sqSumS[k];
       }
     }
+
+    #ifdef NOISY_INPUT
+      #pragma omp critical
+      {
+        for(Uint k=0; k<dimS; k++) {
+          sqSumS[k] += locSqSumS[k];
+          gradC[k] += locGradC[k];
+          sumS[k] += locSumS[k];
+        }
+      }
+    #endif
   }
 
   //add up gradients across nodes (masters)
@@ -123,20 +134,24 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep)
       rew_reduce_result.resize(nReduce);
       partial_sum.resize(nReduce);
     }
+
     // prepare an allreduce with the current data:
     partial_sum[0] = count;
     partial_sum[1] = newstdvr;
-    for(Uint k=0; k<sI.dimUsed; k++) {
-      partial_sum[2+k] = totSumS[k];
-      partial_sum[2+sI.dimUsed+k] = totSqSumS[k];
-    }
     //use result from prev reduce to update rewards (before calling new reduce)
     count = rew_reduce_result[0];
     newstdvr = rew_reduce_result[1];
-    for(Uint k=0; k<sI.dimUsed; k++) {
-      totSumS[k] = rew_reduce_result[2+k];
-      totSqSumS[k] = rew_reduce_result[2+sI.dimUsed+k];
-    }
+
+    #ifdef NOISY_INPUT
+      for(Uint k=0; k<dimS; k++) {
+        partial_sum[2+k] = sumS[k];
+        partial_sum[2+dimS+k] = sqSumS[k];
+      }
+      for(Uint k=0; k<dimS; k++) {
+        sumS[k] = rew_reduce_result[2+k];
+        sqSumS[k] = rew_reduce_result[2+dimS+k];
+      }
+    #endif
 
     MPI_Iallreduce(partial_sum.data(), rew_reduce_result.data(), nReduce,
                     MPI_LONG_DOUBLE, MPI_SUM, mastersComm, &rewRequest);
@@ -145,24 +160,30 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep)
   }
 
   if(count<batchSize) return;
-  //const Real stdev_reward = std::sqrt((newstdvr-newmeanr*newmeanr/count)/count);
+  //const Real stdev_reward=std::sqrt((newstdvr-newmeanr*newmeanr/count)/count);
   const Real stdev_reward = std::sqrt(newstdvr/count);
   const Real weight = 1;//first_pass ? 1 : 0.01;
   first_pass = false;
   //mean_reward = (1-weight)*mean_reward +weight*newmeanr/count;
   invstd_reward = (1-weight)*invstd_reward +weight/stdev_reward;
-  for(Uint k=0; k<sI.dimUsed; k++) {
-    std_noise[k] = std::sqrt((totSqSumS[k]-std::pow(totSumS[k],2)/count)/count);
-    std_noise[k] /= 1 + nStep * ANNEAL_RATE;
-  }
+
+  #ifdef NOISY_INPUT
+    for(Uint k=0; k<dimS; k++) {
+      state_bias[k] += 1e-6 * sumS[k]/count;
+      state_coef[k] += 1e-6 * gradC[k]/count;
+      std_noise[k] = std::sqrt( sqSumS[k]/count - std::pow(sumS[k]/count, 2) );
+      std_noise[k] /= 1 + nStep * ANNEAL_RATE;
+    }
+    //cout <<  print(std_noise) << endl;
+  #endif
 
   #ifndef NDEBUG
-  Uint cntSamp = 0;
-  for(Uint i=0; i<Set.size(); i++) {
-    assert(Set[i] not_eq nullptr);
-    cntSamp += Set[i]->ndata();
-  }
-  assert(cntSamp==nTransitions);
+    Uint cntSamp = 0;
+    for(Uint i=0; i<Set.size(); i++) {
+      assert(Set[i] not_eq nullptr);
+      cntSamp += Set[i]->ndata();
+    }
+    assert(cntSamp==nTransitions);
   #endif
   //printf("new invstd reward %g\n",invstd_reward);
 }
