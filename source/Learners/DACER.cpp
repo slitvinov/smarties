@@ -230,7 +230,7 @@ class DACER : public Learner_offPolicy
     // coefficient between the DKL and the offPol imp weight to be 0.1 .
     // This is because samples with a larger imp. w generally have a larger
     // pol grad magnitude. Therefore are more strongly pushed away from mu.
-    //FILTER_ALGO = MAXERROR;
+    MEMBUF_FILTER_ALGO = MAXERROR;
 
     //cout << CmaxPol << " " << CmaxRet << " " << invC << endl;
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
@@ -324,8 +324,8 @@ class DACER : public Learner_offPolicy
     profiler->stop_start("PRNE");
 
     advanceCounters();
+    data->prune(CmaxRet, MEMBUF_FILTER_ALGO);
     Real fracOffPol = data->nOffPol / (Real) data->nTransitions;
-    data->prune(CmaxRet, FILTER_ALGO);
 
     profiler->stop_start("SLP");
 
@@ -349,7 +349,7 @@ class DACER : public Learner_offPolicy
       if(firstUpdate) return;
     }
 
-    const Real tgtFrac = tgtFrac_param / CmaxPol / (1 + nStep * ANNEAL_RATE);
+    const Real tgtFrac = tgtFrac_param / CmaxPol; // / (1 + nStep * ANNEAL_RATE)
     //#ifdef ANNEAL_LEARNR
     //  const Real learnRate = learnR / (1 + nStep * ANNEAL_RATE);
     //#else

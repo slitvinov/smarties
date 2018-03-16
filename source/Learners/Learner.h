@@ -28,7 +28,7 @@ protected:
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;
   mutable Uint nSkipped = 0;
-  FORGET FILTER_ALGO = OLDEST;
+  FORGET MEMBUF_FILTER_ALGO = OLDEST;
 
   mutable bool updatePrepared = false;
   mutable bool updateComplete = false;

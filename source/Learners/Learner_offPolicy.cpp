@@ -159,7 +159,7 @@ void Learner_offPolicy::prepareGradient()
   if(bWasPrepareReady) {
     profiler->stop_start("PRNE");
     advanceCounters();
-    data->prune(CmaxRet, FILTER_ALGO);
+    data->prune(CmaxRet, MEMBUF_FILTER_ALGO);
     profiler->stop_start("SLP");
   }
 }

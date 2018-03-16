@@ -177,12 +177,13 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
   //checkNData();
   assert(CmaxRho>1);
   // vector indicating location of sequence to delete
-  vector<pair<int, Real>> delete_location(nThreads, {-1, 2e20});
+  vector<pair<int, Real>> farpol_location(nThreads, {-1, -1});
+  vector<pair<int, Real>> maxerr_location(nThreads, {-1, -1});
+  vector<pair<int, Real>> minerr_location(nThreads, {-1,9e9});
   // vector indicating location of oldest sequence
   vector<pair<int,  int>> oldest_sequence(nThreads, {-1, nSeenSequences});
-  Real _nOffPol = 0, _totMSE = 0;
-  const Real invC = 1/CmaxRho, EPS = 1e-9;
-  #pragma omp parallel reduction(+ : _nOffPol,_totMSE)
+  Real _nOffPol = 0, _totMSE = 0, invC = 1/CmaxRho;
+  #pragma omp parallel reduction(+ : _nOffPol, _totMSE)
   {
     const int thrID = omp_get_thread_num();
     #pragma omp for schedule(dynamic)
@@ -203,46 +204,63 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
       //either delete seq with smallest index or with largest "error"
       // since we always delete the sequence with smallest W, MSE is
       // stored here with its inverse
-      //const Real W_MSE = Set[i]->ndata()/(EPS+Set[i]->MSE);
-      const Real W_MSE = Set[i]->ndata()/(EPS+Set[i]->nOffPol);
-      // TODO: to avoid overfitting and only keep "unexpected" transition in
-      // buffer we should add an other sorting: delete min MSE
-      const Real W=ALGO==OLDEST? Set[i]->ID : W_MSE;
+      const Real W_MSE = Set[i]->MSE    /Set[i]->ndata();
+      const Real W_FAR = Set[i]->nOffPol/Set[i]->ndata();
       _nOffPol += Set[i]->nOffPol; _totMSE += Set[i]->MSE;
+
+      // TODO: to avoid overfitting only keep "unexpected" transition in buffer
       if(Set[i]->ID < oldest_sequence[thrID].second) {
         oldest_sequence[thrID].second = Set[i]->ID;
         oldest_sequence[thrID].first = i;
       }
-      //locate smallest sequence id/mse/impW
-      if(W < delete_location[thrID].second) {
-        delete_location[thrID].second = W;
-        delete_location[thrID].first = i;
+      if(W_FAR > farpol_location[thrID].second) {
+        farpol_location[thrID].second = W_FAR;
+        farpol_location[thrID].first = i;
+      }
+      if(W_MSE > maxerr_location[thrID].second) {
+        maxerr_location[thrID].second = W_MSE;
+        maxerr_location[thrID].first = i;
+      }
+      if(W_MSE < minerr_location[thrID].second) {
+        minerr_location[thrID].second = W_MSE;
+        minerr_location[thrID].first = i;
       }
     }
   }
 
   nOffPol = _nOffPol; totMSE = _totMSE/nTransitions;
-  const Uint nB4 = Set.size();
-  int deli = -1, oldi = -1, oldj = nSeenSequences; Real delv = 2e20;
+  const int nB4 = Set.size();
+  int old_ptr = -1, far_ptr = -1, mse_ptr = -1, fit_ptr = -1, del_ptr = -1;
+  Real mse_val = -1, far_val = -1, fit_val = 9e9, old_ind = nSeenSequences;
+
   for(const auto&P: oldest_sequence)
-    if(oldj>P.second && P.first>=0) {
-      oldi = P.first; oldj = P.second;
-    }
-  for(const auto&P: delete_location)
-    if(delv>P.second && P.first>=0) {
-      deli = P.first; delv = P.second;
-    }
-  minInd = oldj;
-  assert(deli>=0 && deli<(int)Set.size());
-  assert(oldi>=0 && oldi<(int)Set.size());
+   if(P.second<old_ind && P.first>=0) { old_ptr = P.first; old_ind = P.second; }
+
+  for(const auto&P: farpol_location)
+   if(P.second>far_val && P.first>=0) { far_ptr = P.first; far_val = P.second; }
+
+  for(const auto&P: maxerr_location)
+   if(P.second>mse_val && P.first>=0) { mse_ptr = P.first; mse_val = P.second; }
+
+  for(const auto&P: minerr_location)
+   if(P.second<fit_val && P.first>=0) { fit_ptr = P.first; fit_val = P.second; }
+
+  minInd = old_ind;
+  assert( old_ptr < nB4 && far_ptr < nB4 && mse_ptr < nB4 && fit_ptr < nB4 );
+  switch(ALGO) {
+      case OLDEST:     del_ptr = old_ptr; break;
+      case FARPOLFRAC: del_ptr = far_ptr; break;
+      case MAXERROR:   del_ptr = mse_ptr; break;
+      case MINERROR:   del_ptr = fit_ptr; break;
+  }
   // safety measure to avoid trajectories lingering too much in mem buffer
-  if(Set[oldi]->ID + (int)Set.size() < Set[deli]->ID) deli = oldi;
+  if(Set[old_ptr]->ID + (int)Set.size() < Set[del_ptr]->ID) del_ptr = old_ptr;
   // safety measure: do not delete trajectory if Nobs > Ntarget
   // but if N > Ntarget even if we remove the trajectory
   // done to avoid problems if a sequence is longer than maxTotObsNum
   // negligible effect if hyperparameters are chosen wisely
-  if(nTransitions-Set[deli]->ndata() > maxTotObsNum) {
-    std::swap(Set[deli], Set.back());
+  if(nTransitions-Set[del_ptr]->ndata() > maxTotObsNum) {
+    std::swap(Set[del_ptr], Set.back());
     popBackSequence();
   }
   nPruned += nB4-Set.size();

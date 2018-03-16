@@ -12,7 +12,7 @@
 #include "../Environments/Environment.h"
 #include <parallel/algorithm>
 
-enum FORGET {OLDEST, MAXERROR, MINERROR};
+enum FORGET {OLDEST, FARPOLFRAC, MAXERROR, MINERROR};
 class MemoryBuffer
 {
 public:
@@ -90,18 +90,20 @@ public:
     return ret;
   }
 
+  #ifdef NOISY_INPUT
   inline Rvec standardizeNoisy(const Sequence*const traj, const int t,
       const Uint thrID) const {
     Rvec ret = standardize(traj->tuples[t]->s);
     const Rvec nxt = standardize(traj->tuples[traj->isLast(t) ? t : t+1]->s);
     const Rvec prv = standardize(traj->tuples[t>0 ? t-1 : t]->s);
-    std::normal_distribution<Real> noise(0, 0.01/(1 + _nStep * ANNEAL_RATE) );
+    std::normal_distribution<Real> noise(0, NOISY_INPUT);
     for (Uint i=0; i<sI.dimUsed; i++) {
       // i don't care about the sign: Gaussian is symmetric
       ret[i] += (nxt[i]-prv[i])*noise(generators[thrID]);
     }
     return ret;
   }
+  #endif // NOISY_INPUT
 
   inline Real scaledReward(const Uint seq, const Uint samp) const
   {
