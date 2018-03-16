@@ -78,28 +78,30 @@ struct Encapsulator
     return ind;
   }
 
-  inline Rvec state2Inp(const int samp, const Sequence*const traj,
+  inline Rvec state2Inp(const int t, const Sequence*const traj,
       const Uint thrID) const
   {
-    assert(samp<(int)traj->tuples.size());
-    const Uint nSvar = traj->tuples[samp]->s.size();
+    assert(t<(int)traj->tuples.size());
+    const Uint nSvar = traj->tuples[t]->s.size();
     assert(nSvar == data->sI.dimUsed);
     if (nAppended>0) {
       vector <Real> inp((nAppended+1)*nSvar, 0);
-      for(int k=samp, j=0; j<=(int)nAppended; k--, j++)
+      for(int k=t, j=0; j<=(int)nAppended; k--, j++)
       {
         const int kk = k<0 ? 0 : k; // copy multiple times s_0 at start of seq
         for(Uint i = 0; i < nSvar; i++)
         // j is fast index (different t of same feature are close, think CNN)
           inp[j + i*(nAppended+1)] = traj->tuples[kk]->s[i];
       }
+      #ifdef NOISY_INPUT
+        //if(traj->ID>=0) return data->standardizeAppendedNoisy(traj->tuples[t]->s, thrID);
+      #endif
       return data->standardizeAppended(inp);
     } else
     #ifdef NOISY_INPUT
-      return data->standardize(traj->tuples[samp]->s);
-    #else
-      return data->standardizeNoisy(traj->tuples[samp]->s, thrID);
+      if(traj->ID>=0) return data->standardizeNoisy(traj, t, thrID);
     #endif
+    return data->standardize(traj->tuples[t]->s);
   }
 
   inline Rvec forward(const Sequence*const seq, const int samp,

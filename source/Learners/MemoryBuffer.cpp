@@ -88,42 +88,18 @@ void MemoryBuffer::terminate_seq(const Agent&a)
 // update the second order moment of the rewards in the memory buffer
 void MemoryBuffer::updateRewardsStats(unsigned long nStep)
 {
+  _nStep = nStep;
   if(!bTrain) return; //if not training, keep the stored values
 
   long double count = 0, newstdvr = 0;
-  vector<long double> sumS(dimS,0), sqSumS(dimS,0), gradC(dimS,0);
-
   #pragma omp parallel reduction(+ : count, newstdvr)
   {
-    vector<long double> locSumS(dimS,0), locSqSumS(dimS,0), locGradC(dimS,0);
-
     #pragma omp for schedule(dynamic)
     for(Uint i=0; i<Set.size(); i++) {
       count += Set[i]->ndata();
-      for(Uint j=0; j<Set[i]->ndata(); j++) {
-        #ifdef NOISY_INPUT
-          const auto S = standardize(Set[i]->tuples[j]->s);
-          for(Uint k=0; k<dimS; k++) {
-            const Real scaled = S[k] - state_coef[k]*j - state_bias[k];
-            locSqSumS[k] += scaled * scaled;
-            locGradC[k] += scaled * j;
-            locSumS[k] += scaled;
-          }
-        #endif
+      for(Uint j=0; j<Set[i]->ndata(); j++)
         newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
-      }
     }
-
-    #ifdef NOISY_INPUT
-      #pragma omp critical
-      {
-        for(Uint k=0; k<dimS; k++) {
-          sqSumS[k] += locSqSumS[k];
-          gradC[k] += locGradC[k];
-          sumS[k] += locSumS[k];
-        }
-      }
-    #endif
   }
 
   //add up gradients across nodes (masters)
@@ -142,17 +118,6 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep)
     count = rew_reduce_result[0];
     newstdvr = rew_reduce_result[1];
 
-    #ifdef NOISY_INPUT
-      for(Uint k=0; k<dimS; k++) {
-        partial_sum[2+k] = sumS[k];
-        partial_sum[2+dimS+k] = sqSumS[k];
-      }
-      for(Uint k=0; k<dimS; k++) {
-        sumS[k] = rew_reduce_result[2+k];
-        sqSumS[k] = rew_reduce_result[2+dimS+k];
-      }
-    #endif
-
     MPI_Iallreduce(partial_sum.data(), rew_reduce_result.data(), nReduce,
                     MPI_LONG_DOUBLE, MPI_SUM, mastersComm, &rewRequest);
     // if no reduction done, partial sums are meaningless
@@ -166,16 +131,6 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep)
   first_pass = false;
   //mean_reward = (1-weight)*mean_reward +weight*newmeanr/count;
   invstd_reward = (1-weight)*invstd_reward +weight/stdev_reward;
-
-  #ifdef NOISY_INPUT
-    for(Uint k=0; k<dimS; k++) {
-      state_bias[k] += 1e-6 * sumS[k]/count;
-      state_coef[k] += 1e-6 * gradC[k]/count;
-      std_noise[k] = std::sqrt( sqSumS[k]/count - std::pow(sumS[k]/count, 2) );
-      std_noise[k] /= 1 + nStep * ANNEAL_RATE;
-    }
-    //cout <<  print(std_noise) << endl;
-  #endif
 
   #ifndef NDEBUG
     Uint cntSamp = 0;

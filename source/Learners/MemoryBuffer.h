@@ -25,7 +25,6 @@ public:
   const vector<Agent*> _agents;
   std::vector<std::mt19937>& generators;
   const Rvec mean, invstd, std;
-  Rvec std_noise = Rvec(mean.size(), 0);
   const int learn_rank, learn_size;
   const Real gamma;
 
@@ -35,7 +34,7 @@ public:
   Uint nBroken=0, nTransitions=0, nSequences=0;
   Uint nTransitionsInBuf=0, nTransitionsDeleted=0;
   size_t nSeenSequences=0, nSeenTransitions=0, nCmplTransitions=0, iOldestSaved = 0;
-  Uint nPruned = 0, minInd = 0;
+  Uint nPruned = 0, minInd = 0, _nStep = 0;
   Real invstd_reward = 1, mean_reward = 0, nOffPol = 0, totMSE = 0;
 
 
@@ -43,14 +42,7 @@ public:
   vector<Sequence*> Set, inProgress;
   mutable std::mutex dataset_mutex;
 
-  const Uint dimS = sI.dimUsed;
-  #ifdef NOISY_INPUT
-    const Uint nReduce = 2 + 2*dimS;
-    Rvec state_coef = Rvec(mean.size(), 0);
-    Rvec state_bias = Rvec(mean.size(), 0);
-  #else
-    const Uint nReduce = 2;
-  #endif
+  const Uint dimS = sI.dimUsed, nReduce = 2;
   MPI_Request rewRequest = MPI_REQUEST_NULL;
   vector<long double> rew_reduce_result, partial_sum;
 
@@ -98,13 +90,15 @@ public:
     return ret;
   }
 
-  template<typename T>
-  inline Rvec standardizeNoisy(const vector<T>& state, const Uint thrID) const
-  {
-    Rvec ret = standardize(state);
+  inline Rvec standardizeNoisy(const Sequence*const traj, const int t,
+      const Uint thrID) const {
+    Rvec ret = standardize(traj->tuples[t]->s);
+    const Rvec nxt = standardize(traj->tuples[traj->isLast(t) ? t : t+1]->s);
+    const Rvec prv = standardize(traj->tuples[t>0 ? t-1 : t]->s);
+    std::normal_distribution<Real> noise(0, 0.01/(1 + _nStep * ANNEAL_RATE) );
     for (Uint i=0; i<sI.dimUsed; i++) {
-      std::normal_distribution<Real> noise(0, 0.01*std_noise[i]);
-      ret[i] += noise(generators[thrID]);
+      // i don't care about the sign: Gaussian is symmetric
+      ret[i] += (nxt[i]-prv[i])*noise(generators[thrID]);
     }
     return ret;
   }

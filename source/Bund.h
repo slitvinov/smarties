@@ -79,6 +79,7 @@ typedef double memReal;
 //#define _dumpNet_
 #define SAFE_ADAM // prevent rare gradient blow ups?
 
+// Sample Gaussian noise and add it to state vector before input to net,
 #define NOISY_INPUT
 
 typedef unsigned Uint;
