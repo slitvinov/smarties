@@ -88,8 +88,6 @@ struct Tanh : public Function {
   static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
     const nnReal arg = in < 0? -in : in; //symmetric
     const nnReal e2x = std::exp(-2*arg);
-    //if (arg > EXP_CUT && d*in > 0) return 0;
-    if (arg > EXP_CUT) return 4*e2x;
     return 4*e2x/((1+e2x)*(1+e2x));
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
