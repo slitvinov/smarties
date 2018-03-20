@@ -93,17 +93,20 @@ class DACER : public Learner_offPolicy
 
     if(thrID==1) profiler->stop_start("FWD");
 
-    #if DACER_FORWARD>0
-      F[0]->prepare_opc(traj, samp, thrID); // prepare thread workspace
+    #if DACER_FORWARD>0 // prepare thread workspace
+      F[0]->prepare(DACER_FORWARD+1, traj, samp, thrID);
     #else
       F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
     #endif
 
     const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
-    if( traj->isTruncated(samp+1) ) {
-      const Rvec out_nxt = F[0]->forward(traj, samp+1, thrID);
-      traj->setStateValue(samp+1, out_nxt[VsID] );
-    }
+
+    #if RACER_FORWARD==0
+      if( traj->isTruncated(samp+1) ) {
+        const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
+        traj->setStateValue(samp+1, nxt[VsID]);
+      }
+    #endif
 
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
 

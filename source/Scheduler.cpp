@@ -134,7 +134,7 @@ void Master::processAgent(const int slave, const MPI_Status mpistatus)
     if ( recv_status >= TERM_COMM )
     {
       dumpCumulativeReward(agent, aAlgo->iter(), readTimeSteps() );
-    } 
+    }
     else if ( aAlgo->iter() )
     {
       #pragma omp atomic

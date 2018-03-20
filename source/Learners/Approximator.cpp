@@ -15,14 +15,12 @@ void Aggregator::prepare(const RELAY SET, const Uint thrID) const
   usage[thrID] = SET;
 }
 
-void Aggregator::prepare_opc(const Sequence*const traj, const Uint samp,
-    const Uint thrID, const RELAY SET) const
+void Aggregator::prepare(const Uint N, const Sequence*const traj,
+  const Uint samp, const Uint thrID, const RELAY SET) const
 {
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
-  // predict pol/val of all states from samp to T (T-1 if T is term state)
-  const Uint nSValues =  traj->tuples.size() - samp - traj->ended;
-  const Uint nTotal = nRecurr + nSValues;
+  const Uint nTotal = nRecurr + N;
   first_sample[thrID] = samp - nRecurr;
   inputs[thrID].clear(); //make sure we only have empty vectors
   inputs[thrID].resize(nTotal, Rvec());
@@ -141,16 +139,14 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor)
   gradStats=new StatsTracker(net->getnOutputs(),name+"_grads",settings,cutGradFactor);
 }
 
-void Approximator::prepare_opc(const Sequence*const traj, const Uint samp,
-    const Uint thrID, const Uint nSamples) const
+void Approximator::prepare(const Uint N, const Sequence*const traj,
+  const Uint samp, const Uint thrID, const Uint nSamples) const
 {
   if(error_placements[thrID] > 0) gradient(thrID);
   assert(nSamples<=1+extraAlloc && nSamples>0);
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
-  // predict pol/val of all states from samp to T (T-1 if T is term state)
-  const Uint nSValues =  traj->tuples.size() - samp - traj->ended;
-  const Uint nTotal = nRecurr + nSValues;
+  const Uint nTotal = nRecurr + N;
   input->prepare(nTotal, samp - nRecurr, thrID);
 
   for(Uint k=0; k<nSamples; k++)

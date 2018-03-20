@@ -77,10 +77,11 @@ class Communicator_gym(Communicator):
 
 if __name__ == '__main__':
     comm = Communicator_gym() # create communicator with smarties
-    env = comm.get_env()
+    env = comm.get_env() #
 
     while True: #training loop
         observation = env.reset()
+        t = 0
         #send initial state
         comm.send_state(observation, initial=True)
 
@@ -93,9 +94,15 @@ if __name__ == '__main__':
                 action = [int(buf[0])]
                 for i in range(1, comm.nActions): action = action+[int(buf[i])]
             else: assert(False)
-
+            #print(t, observation, action)
             #advance the environment
             observation, reward, done, info = env.step(action)
+            t = t + 1
             #send the observation to smarties
-            comm.send_state(observation, reward=reward, terminal=done)
+            #print(t, done, env._max_episode_steps)
+            sys.stdout.flush()
+            if done == True and t >= env._max_episode_steps:
+              comm.send_state(observation, reward=reward, truncated=True)
+            else:
+              comm.send_state(observation, reward=reward, terminal=done)
             if done: break

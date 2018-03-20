@@ -132,19 +132,21 @@ class RACER : public Learner_offPolicy
 
     if(thrID==1) profiler->stop_start("FWD");
 
-    #if RACER_FORWARD>0
-      F[0]->prepare_opc(traj, samp, thrID); // prepare thread workspace
+    #if RACER_FORWARD>0 // prepare thread workspace
+      F[0]->prepare(RACER_FORWARD+1, traj, samp, thrID);
     #else
       F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
     #endif
     const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
 
-    if( traj->isTerminal(samp+1) ) updateQret(traj, samp+1, 0, 0, 0);
-    else if( traj->isTruncated(samp+1) ) {
-      const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
-      traj->setStateValue(samp+1, nxt[VsID]);
-      updateQret(traj, samp+1, 0, nxt[VsID], 0);
-    }
+    #if RACER_FORWARD==0
+      if( traj->isTerminal(samp+1) ) updateQret(traj, samp+1, 0, 0, 0);
+      else if( traj->isTruncated(samp+1) ) {
+        const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
+        traj->setStateValue(samp+1, nxt[VsID]);
+        updateQret(traj, samp+1, 0, nxt[VsID], 0);
+      }
+    #endif
 
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
     // check whether importance weight is in 1/Cmax < c < Cmax
@@ -152,17 +154,25 @@ class RACER : public Learner_offPolicy
 
     #if RACER_FORWARD>0
       // do N steps of fwd net to obtain better estimate of Qret
-      Uint N = std::min(traj->ndata()-1-samp, (Uint)RACER_FORWARD);
-      for(Uint k = samp+1; k<=samp+N; k++) { // && k<traj->ndata()
-        const Rvec outt = F[0]->forward(traj, k, thrID);
-        const Policy_t polt = prepare_policy(outt, traj->tuples[k]);
-        const Advantage_t advt = prepare_advantage(outt, &polt);
-        //these are all race conditions:
-        traj->setSquaredError(k, polt.kl_divergence(traj->tuples[k]->mu) );
-        traj->setAdvantage(k, advt.computeAdvantage(polt.sampAct) );
-        traj->setOffPolWeight(k, polt.sampImpWeight );
-        traj->setStateValue(k, outt[VsID] );
-        //if (impW < 0.1) break;
+      Uint N = std::min(traj->ndata()-samp, (Uint)RACER_FORWARD);
+      for(Uint k = samp+1; k<=samp+N; k++)
+      {
+        if( traj->isTerminal(k) ) {
+          assert(traj->action_adv[k] == 0 && traj->state_vals[k] == 0);
+        } else if( traj->isTruncated(k) ) {
+          assert(traj->action_adv[k] == 0);
+          const Rvec nxt = F[0]->forward(traj, k, thrID);
+          traj->setStateValue(k, nxt[VsID]);
+        } else {
+          const Rvec nxt = F[0]->forward(traj, k, thrID);
+          const Policy_t polt = prepare_policy(nxt, traj->tuples[k]);
+          const Advantage_t advt = prepare_advantage(nxt, &polt);
+          //these are all race conditions:
+          traj->setSquaredError(k, polt.kl_divergence(traj->tuples[k]->mu) );
+          traj->setAdvantage(k, advt.computeAdvantage(polt.sampAct) );
+          traj->setOffPolWeight(k, polt.sampImpWeight );
+          traj->setStateValue(k, nxt[VsID] );
+        }
       }
       for(Uint j = samp+N; j>samp; j--) updateQret(traj,j);
     #endif
@@ -197,9 +207,7 @@ class RACER : public Learner_offPolicy
     const Real A_RET = traj->Q_RET[samp] +traj->state_vals[samp]-V_cur;
     const Real rho_cur = POL.sampImpWeight;
     const Real Ver = beta*alpha*std::min((Real)1, rho_cur) * (A_RET-A_cur);
-    //const Real Ver = beta*alpha * rho_cur * Q_dist;
-
-    //const Real Aer = beta*alpha*Q_dist;
+    //const Real Aer = beta*alpha*(A_RET-A_cur);
     const Real Aer = beta*alpha * rho_cur * (A_RET-A_cur);
 
     const Rvec polG = policyGradient(traj->tuples[samp], POL,ADV,A_RET, thrID);
@@ -254,7 +262,8 @@ class RACER : public Learner_offPolicy
   }
 
   inline void updateQret(Sequence*const S, const Uint t) const {
-    updateQret(S, t, S->action_adv[t], S->state_vals[t], S->offPol_weight[t]);
+    const Real rho = S->isLast(t) ? 0 : S->offPol_weight[t];
+    updateQret(S, t, S->action_adv[t], S->state_vals[t], rho);
   }
 
   inline Real updateQret(Sequence*const S, const Uint t, const Real A,
@@ -430,9 +439,8 @@ class RACER : public Learner_offPolicy
       profiler->stop_start("QRET");
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++)
-        for(int j = data->Set[i]->just_sampled-1; j>0; j--)
-          updateQret(data->Set[i], j, data->Set[i]->action_adv[j],
-            data->Set[i]->state_vals[j], data->Set[i]->offPol_weight[j]);
+        for(int j = data->Set[i]->just_sampled-1; j > 0; j--)
+          updateQret(data->Set[i], j);
     #endif
 
     profiler->stop_start("PRNE");
@@ -466,11 +474,10 @@ class RACER : public Learner_offPolicy
     }
 
     const Real tgtFrac = tgtFrac_param / CmaxPol / (1 + nStep * ANNEAL_RATE);
-    const Real learnRate = learnR;
 
     //if( fracOffPol > tgtFrac * std::cbrt(nA) )
-    if(fracOffPol>tgtFrac) beta = (1-learnRate)*beta; // iter converges to 0
-    else beta = learnRate +(1-learnRate)*beta; //fixed point iter converge to 1
+    if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
+    else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 
     if( beta < 0.05 )
     warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");

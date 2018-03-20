@@ -200,10 +200,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
         }
         Set[i]->just_sampled = -1;
       }
-      assert(ALGO == OLDEST || ALGO == MAXERROR); //TODO generalize
-      //either delete seq with smallest index or with largest "error"
-      // since we always delete the sequence with smallest W, MSE is
-      // stored here with its inverse
+      
       const Real W_MSE = Set[i]->MSE    /Set[i]->ndata();
       const Real W_FAR = Set[i]->nOffPol/Set[i]->ndata();
       _nOffPol += Set[i]->nOffPol; _totMSE += Set[i]->MSE;

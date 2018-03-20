@@ -56,7 +56,7 @@ struct Approximator
   void initializeNetwork(Builder& build, Real cutGradFactor = STD_GRADCUT);
   void allocMorePerThread(const Uint nAlloc);
 
-  void prepare_opc(const Sequence*const traj, const Uint samp,
+  void prepare(const Uint N, const Sequence*const traj, const Uint samp,
       const Uint thrID, const Uint nSamples = 1) const;
 
   void prepare_seq(const Sequence*const traj, const Uint thrID,
@@ -184,7 +184,7 @@ struct Aggregator
 
   void prepare(const RELAY SET, const Uint thrID) const;
 
-  void prepare_opc(const Sequence*const traj, const Uint samp,
+  void prepare(const Uint N, const Sequence*const traj, const Uint samp,
       const Uint thrID, const RELAY SET = VEC) const;
 
   void prepare_seq(const Sequence*const traj, const Uint thrID,

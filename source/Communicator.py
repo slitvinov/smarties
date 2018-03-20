@@ -86,16 +86,17 @@ class Communicator:
             #print(bRender); sys.stdout.flush()
             self.sent_stateaction_info = True
 
-    def send_state(self, observation, reward=0, terminal=False, initial=False, agent_id = 0):
+    def send_state(self, observation, reward=0, terminal=False, initial=False, truncated=False, agent_id = 0):
         if initial: self.seq_id, self.frame_id = self.seq_id+1, 0
         self.frame_id = self.frame_id + 1
         self.send_stateaction_info()
         assert(agent_id<self.number_of_agents)
         state = np.zeros(self.nStates+3, dtype=np.float64)
         state[0] = agent_id
-        if terminal:  state[1] = 2.1
-        elif initial: state[1] = 1.1
-        else:         state[1] = 0.1
+        if truncated:  state[1] = 3.1
+        elif terminal: state[1] = 2.1
+        elif initial:  state[1] = 1.1
+        else:          state[1] = 0.1
         if hasattr(observation, 'shape'):
             assert( self.nStates == observation.size )
             state[2:self.nStates+2] = observation.ravel()
@@ -112,7 +113,7 @@ class Communicator:
         #    fname = 'state_seq%04d_frame%07d' % (seq_id, frame_id)
         #    plt.imshow(self.gym.render(mode='rgb_array'))
         #    plt.savefig(fname, dpi=100)
-        if(terminal): self.recv_action()
+        if(terminal or truncated): self.recv_action()
 
     def recv_action(self):
         buf = np.frombuffer(self.conn.recv(self.nActions*8), dtype=np.float64)
