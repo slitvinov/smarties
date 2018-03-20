@@ -21,7 +21,7 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnFunc Tanh"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc HardSign"
-SETTINGS+=" --nnLambda 0.0001"
+SETTINGS+=" --nnLambda 0.001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -37,7 +37,7 @@ SETTINGS+=" --impWeight ${IMPSAMPR}"
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --epsAnneal 100"
-SETTINGS+=" --totNumSteps 6400000"
+SETTINGS+=" --totNumSteps 10000000"
 SETTINGS+=" --obsPerStep ${EPERSTEP}"
 SETTINGS+=" --bSampleSequences 0"
 
