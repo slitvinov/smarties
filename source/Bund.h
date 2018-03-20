@@ -45,11 +45,10 @@ typedef double memReal;
 // Can be changed inside each learning algo by overwriting default arg of
 // Approximator::initializeNetwork function
 #define STD_GRADCUT 5
-//#define STD_GRADCUT 4
 
 // Anneal rate for the learning rate, should be moved to settings
-//#define ANNEAL_RATE 1e-7
-#define ANNEAL_RATE 1e-6
+#define ANNEAL_RATE 5e-7
+//#define ANNEAL_RATE 1e-6
 #define ANNEAL_LEARNR // Anneal also network learn rate
 
 // Scheduler keeps approximate ratio of grad steps N to env time steps T

@@ -50,7 +50,7 @@ struct Sequence
     return tuples.size()-1;
   }
   inline bool isLast(const Uint t) const {
-    return t+1 == tuples.size();
+    return t+1 >= tuples.size();
   }
   inline bool isTerminal(const Uint t) const {
     return t+1 == tuples.size() && ended;

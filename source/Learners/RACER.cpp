@@ -328,8 +328,8 @@ class RACER : public Learner_offPolicy
     // will be over represented in the mem buffer.
     // This is because samples with a larger \rho generally have a larger
     // pol grad magnitude. Therefore are more strongly pushed away from mu.
-    //MEMBUF_FILTER_ALGO = MAXERROR;
-    MEMBUF_FILTER_ALGO = FARPOLFRAC;
+    MEMBUF_FILTER_ALGO = MAXERROR;
+    //MEMBUF_FILTER_ALGO = FARPOLFRAC;
 
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
@@ -465,12 +465,8 @@ class RACER : public Learner_offPolicy
       if(firstUpdate) return;
     }
 
-    const Real tgtFrac = tgtFrac_param / CmaxPol; // / (1 + nStep * ANNEAL_RATE)
-    //#ifdef ANNEAL_LEARNR
-    //  const Real learnRate = learnR / (1 + nStep * ANNEAL_RATE);
-    //#else
-      const Real learnRate = learnR;
-    //#endif
+    const Real tgtFrac = tgtFrac_param / CmaxPol / (1 + nStep * ANNEAL_RATE);
+    const Real learnRate = learnR;
 
     //if( fracOffPol > tgtFrac * std::cbrt(nA) )
     if(fracOffPol>tgtFrac) beta = (1-learnRate)*beta; // iter converges to 0

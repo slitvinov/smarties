@@ -23,10 +23,11 @@ struct Adam {
   inline nnReal step(const nnReal grad,nnReal&M1,nnReal&M2,const nnReal W) const
   {
     #ifdef NET_L1_PENAL
-      const nnReal DW = grad * fac -(W>0 ? lambda : -lambda);
+      const nnReal penal = -(W>0 ? lambda : -lambda);
     #else
-      const nnReal DW = grad * fac - W*lambda;
+      const nnReal penal = - W*lambda;
     #endif
+    const nnReal DW = fac * grad;
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
     #ifdef NESTEROV_ADAM
@@ -40,9 +41,10 @@ struct Adam {
       // Actually I can't think of a situation where, except due to finite
       // precision, this next like will not be reduntant...
       M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
-      return eta * numer / (nnEPS + std::sqrt(M2));
+      return eta * (numer /  std::sqrt(nnEPS + M2)  +penal);
+      //return eta * (numer / (nnEPS + std::sqrt(M2)) +penal);
     #else
-      return eta * numer / std::sqrt(nnEPS + M2);
+      return eta * (numer /  std::sqrt(nnEPS + M2)  +penal);
     #endif
   }
 };

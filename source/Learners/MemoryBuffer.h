@@ -94,7 +94,7 @@ public:
   inline Rvec standardizeNoisy(const Sequence*const traj, const int t,
       const Uint thrID) const {
     Rvec ret = standardize(traj->tuples[t]->s);
-    const Rvec nxt = standardize(traj->tuples[traj->isLast(t) ? t : t+1]->s);
+    const Rvec nxt = standardize(traj->tuples[traj->isLast(t+1) ? t : t+1]->s);
     const Rvec prv = standardize(traj->tuples[t>0 ? t-1 : t]->s);
     std::normal_distribution<Real> noise(0, NOISY_INPUT);
     for (Uint i=0; i<sI.dimUsed; i++) {
