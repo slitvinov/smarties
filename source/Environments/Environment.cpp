@@ -51,7 +51,7 @@ void Environment::setDims() //this environment is for the cart pole test
     const double upper = comm_ptr->obs_bounds[i*2+0];
     const double lower = comm_ptr->obs_bounds[i*2+1];
     sI.mean[i]  = 0.5*(upper+lower); sI.inUse[i] = inuse;
-    sI.scale[i] = 0.5*std::fabs(upper-lower)/std::sqrt(3.); //approximate std=1
+    sI.scale[i] = 0.5*std::fabs(upper-lower); //approximate std=1
     if(sI.scale[i]>=1e3 || sI.scale[i] < 1e-7) {
       if(!settings.world_rank) printf(" unbounded");
       sI.scale = Rvec(); sI.mean = Rvec();
