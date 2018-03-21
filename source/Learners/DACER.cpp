@@ -9,7 +9,6 @@
 
 #pragma once
 
-#define impSampVal
 //#define dumpExtra
 #ifndef DACER_SKIP
 #define DACER_SKIP 1
@@ -29,9 +28,10 @@ class DACER : public Learner_offPolicy
 
   // tgtFrac_param: target fraction of off-pol samples
   // learnR: net's learning rate
-  // invC: inverse of c_max
   // alpha: weight of value-update relative to policy update. 1 means equal
-  const Real learnR, tgtFrac_param, invC=1./CmaxRet, alpha=1;
+  const Real learnR, tgtFrac_param, alpha=1;
+  Real CmaxRet = 1 + CmaxPol*std::cbrt(env->aI.dim);
+
   const Real retraceTrickPow = 1. / std::cbrt(nA);
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
   // such as state value, policy mean, policy std, adv approximator
@@ -111,7 +111,7 @@ class DACER : public Learner_offPolicy
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
 
     // check whether importance weight is in 1/Cmax < c < Cmax
-    const bool isOff = traj->isOffPolicy(samp, pol.sampImpWeight, CmaxRet,invC);
+    const bool isOff = traj->isFarPolicy(samp, pol.sampImpWeight, CmaxRet);
 
     #if DACER_FORWARD>0
       // do N steps of fwd net to obtain better estimate of Qret
@@ -327,7 +327,11 @@ class DACER : public Learner_offPolicy
     profiler->stop_start("PRNE");
 
     advanceCounters();
-    data->prune(CmaxRet, MEMBUF_FILTER_ALGO);
+
+    CmaxRet = 1 + CmaxPol*std::cbrt(env->aI.dim)/(1+nStep*ANNEAL_RATE);
+
+    data->prune(MEMBUF_FILTER_ALGO, CmaxRet);
+
     Real fracOffPol = data->nOffPol / (Real) data->nTransitions;
 
     profiler->stop_start("SLP");
@@ -352,17 +356,9 @@ class DACER : public Learner_offPolicy
       if(firstUpdate) return;
     }
 
-    const Real tgtFrac = tgtFrac_param / CmaxPol; // / (1 + nStep * ANNEAL_RATE)
-    //#ifdef ANNEAL_LEARNR
-    //  const Real learnRate = learnR / (1 + nStep * ANNEAL_RATE);
-    //#else
-      const Real learnRate = learnR;
-    //#endif
-
-    if( fracOffPol > tgtFrac * std::cbrt(nA) )
-      beta = (1-learnRate)*beta; // fixed point iter converges to 0
-    else
-      beta = learnRate +(1-learnRate)*beta; // fixed point iter converges to 1
+    const Real tgtFrac = tgtFrac_param / CmaxPol;
+    if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
+    else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 
     if( beta < 0.05 )
     warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");

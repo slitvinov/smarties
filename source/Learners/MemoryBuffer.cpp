@@ -172,7 +172,7 @@ void MemoryBuffer::push_back(const int & agentId)
   inProgress[agentId] = new Sequence();
 }
 
-void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
+void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
 {
   //checkNData();
   assert(CmaxRho>1);
@@ -200,7 +200,7 @@ void MemoryBuffer::prune(const Real CmaxRho, const FORGET ALGO)
         }
         Set[i]->just_sampled = -1;
       }
-      
+
       const Real W_MSE = Set[i]->MSE    /Set[i]->ndata();
       const Real W_FAR = Set[i]->nOffPol/Set[i]->ndata();
       _nOffPol += Set[i]->nOffPol; _totMSE += Set[i]->MSE;

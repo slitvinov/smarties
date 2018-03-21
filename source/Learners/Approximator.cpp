@@ -42,8 +42,7 @@ void Aggregator::prepare_one(const Sequence*const traj, const Uint samp,
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
   // might need to predict the value of next state if samp not terminal state
-  const bool terminal = samp+2 == traj->tuples.size() && traj->ended;
-  const Uint nSValues = terminal ? 1 : 2; //probably faster to just assume 2
+  const Uint nSValues = traj->isTerminal(samp+1) ? 1 : 2;
   const Uint nTotal = nRecurr + nSValues;
   first_sample[thrID] = samp - nRecurr;
   inputs[thrID].clear(); //make sure we only have empty vectors
@@ -185,8 +184,7 @@ void Approximator::prepare_one(const Sequence*const traj, const Uint samp,
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
   // might need to predict the value of next state if samp not terminal state
-  const bool terminal = samp+2 == traj->tuples.size() && traj->ended;
-  const Uint nSValues = terminal ? 1 : 2; //probably faster to just assume 2
+  const Uint nSValues = traj->isTerminal(samp+1) ? 1 : 2;
   const Uint nTotal = nRecurr + nSValues;
 
   input->prepare(nTotal, samp - nRecurr, thrID);

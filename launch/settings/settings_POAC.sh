@@ -8,6 +8,7 @@ SETTINGS+=" --samplesFile none"
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
 SETTINGS+=" --gamma 0.995"
+#SETTINGS+=" --gamma 0.99"
 
 #size of network layers
 #SETTINGS+=" --nnl1 12"
@@ -21,9 +22,10 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc PRelu"
 SETTINGS+=" --nnFunc SoftSign"
+#SETTINGS+=" --nnFunc Tanh"
 #SETTINGS+=" --nnFunc HardSign"
 #SETTINGS+=" --nnFunc Linear"
-SETTINGS+=" --nnLambda 0.00001"
+SETTINGS+=" --nnLambda 0.001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -34,15 +36,15 @@ SETTINGS+=" --greedyEps 0.5"
 
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --minTotObsNum 131072"
-SETTINGS+=" --maxTotObsNum 262144"
+SETTINGS+=" --maxTotObsNum 524288"
 
 SETTINGS+=" --totNumSteps 5000000"
 #SETTINGS+=" --impWeight 5"
-SETTINGS+=" --impWeight 2"
+SETTINGS+=" --impWeight 1"
 
 
 #SETTINGS+=" --klDivConstraint 0.1"
-SETTINGS+=" --klDivConstraint 0.2"
+SETTINGS+=" --klDivConstraint 0.1"
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 256"

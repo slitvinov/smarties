@@ -9,12 +9,11 @@
 
 #pragma once
 
-#define impSampVal
 //#define dumpExtra
 #ifndef RACER_SKIP
 #define RACER_SKIP 1
 #endif
-//#define RACER_ONESTEPADV
+
 #define RACER_BACKWARD
 //#ifndef RACER_FORWARD
 #define RACER_FORWARD 0
@@ -32,9 +31,11 @@ class RACER : public Learner_offPolicy
 
   // tgtFrac_param: target fraction of off-pol samples
   // learnR: net's learning rate
-  // invC: inverse of c_max
   // alpha: weight of value-update relative to policy update. 1 means equal
-  const Real tgtFrac_param, learnR, invC=1./CmaxRet, alpha=1;
+  const Real tgtFrac_param, learnR, alpha=1;
+
+  Real CmaxRet = 1 + CmaxPol*std::cbrt(env->aI.dim);
+
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
   // such as state value, policy mean, policy std, adv approximator
   const vector<Uint> net_outputs, net_indices, pol_start, adv_start;
@@ -107,10 +108,10 @@ class RACER : public Learner_offPolicy
     {
       const Rvec out_cur = F[0]->get(traj, k, thrID);
       const Policy_t pol = prepare_policy(out_cur, traj->tuples[k]);
-      const bool isOff = traj->isOffPolicy(k, pol.sampImpWeight, CmaxRet, invC);
+      const bool isOff = traj->isFarPolicy(k, pol.sampImpWeight, CmaxRet);
       // in case rho outside bounds, do not compute gradient
       Rvec G;
-      #if   RACER_SKIP == 1
+      #if RACER_SKIP == 1
         if(isOff) {
           offPolCorrUpdate(traj, k, out_cur, pol);
           continue;
@@ -150,7 +151,7 @@ class RACER : public Learner_offPolicy
 
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
     // check whether importance weight is in 1/Cmax < c < Cmax
-    const bool isOff = traj->isOffPolicy(samp, pol.sampImpWeight, CmaxRet,invC);
+    const bool isOff = traj->isFarPolicy(samp, pol.sampImpWeight, CmaxRet);
 
     #if RACER_FORWARD>0
       // do N steps of fwd net to obtain better estimate of Qret
@@ -180,7 +181,7 @@ class RACER : public Learner_offPolicy
     if(thrID==1)  profiler->stop_start("CMP");
     Rvec grad;
 
-    #if   RACER_SKIP == 1
+    #if RACER_SKIP == 1
       if(isOff) { // only update stored offpol weight and qret and so on
         offPolCorrUpdate(traj, samp, out_cur, pol);
         // The correct behavior here is to resample. To avoid code hanging due
@@ -208,7 +209,7 @@ class RACER : public Learner_offPolicy
     const Real rho_cur = POL.sampImpWeight;
     const Real Ver = beta*alpha*std::min((Real)1, rho_cur) * (A_RET-A_cur);
     //const Real Aer = beta*alpha*(A_RET-A_cur);
-    const Real Aer = beta*alpha * rho_cur * (A_RET-A_cur);
+    const Real Aer = beta*alpha*std::min(rho_cur, CmaxRet) * (A_RET-A_cur);
 
     const Rvec polG = policyGradient(traj->tuples[samp], POL,ADV,A_RET, thrID);
     const Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
@@ -296,14 +297,14 @@ class RACER : public Learner_offPolicy
       const Real polProbBehavior = Policy_t::evalBehavior(sample, _t->mu);
       const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
       const Real A_pol = ADV.computeAdvantage(sample);
-      const Real gain1 = A_RET*std::min((Real) CmaxPol, rho_cur);
-      const Real gain2 = A_pol*std::max((Real) 0, 1-CmaxPol/rho_pol);
+      const Real gain1 = A_RET*std::min((Real) CmaxRet, rho_cur);
+      const Real gain2 = A_pol*std::max((Real) 0, 1-CmaxRet/rho_pol);
 
       const Rvec gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
       const Rvec gradAcer_2 = POL.policy_grad(sample,      gain2);
       return sum2Grads(gradAcer_1, gradAcer_2);
     #else
-      return POL.policy_grad(POL.sampAct, A_RET*rho_cur);
+      return POL.policy_grad(POL.sampAct, A_RET * std::min(rho_cur, CmaxRet) );
     #endif
   }
 
@@ -446,11 +447,14 @@ class RACER : public Learner_offPolicy
     profiler->stop_start("PRNE");
 
     advanceCounters();
-    data->prune(CmaxRet, MEMBUF_FILTER_ALGO);
+
+    CmaxRet = 1 + CmaxPol*std::cbrt(env->aI.dim)/(1+nStep*ANNEAL_RATE);
+
+    data->prune(MEMBUF_FILTER_ALGO, CmaxRet);
+
     Real fracOffPol = data->nOffPol / (Real) data->nTransitions;
 
     profiler->stop_start("SLP");
-
 
     if (learn_size > 1) {
       const bool firstUpdate = nData_request == MPI_REQUEST_NULL;
@@ -473,9 +477,8 @@ class RACER : public Learner_offPolicy
       if(firstUpdate) return;
     }
 
-    const Real tgtFrac = tgtFrac_param / CmaxPol / (1 + nStep * ANNEAL_RATE);
+    const Real tgtFrac = tgtFrac_param / CmaxPol;
 
-    //if( fracOffPol > tgtFrac * std::cbrt(nA) )
     if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
     else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 

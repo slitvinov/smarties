@@ -23,7 +23,6 @@ protected:
   const bool bSampleSequences, bTrain;
   const Uint nAgents, batchSize, totNumSteps, nThreads, nSlaves, policyVecDim;
   const Real greedyEps, epsAnneal, gamma, CmaxPol;
-  const Real CmaxRet = CmaxPol * std::cbrt(env->aI.dim);
   const int learn_rank, learn_size;
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;

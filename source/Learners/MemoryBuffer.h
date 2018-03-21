@@ -134,7 +134,9 @@ public:
 
   void updateRewardsStats(unsigned long nStep);
   void updateImportanceWeights();
-  void prune(const Real CmaxRho, const FORGET ALGO);
+
+  // Algorithm for maintaining and filtering dataset, and optional imp weight range parameter
+  void prune(const FORGET ALGO, const Real CmaxRho = 1000);
 
   void getMetrics(ostringstream& buff);
   void getHeaders(ostringstream& buff);

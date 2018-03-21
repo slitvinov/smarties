@@ -104,7 +104,7 @@ struct Sequence
     offPol_weight[t] = W;
   }
 
-  inline bool isOffPolicy(const Uint t,const Real W,const Real C,const Real iC)
+  inline bool isFarPolicy(const Uint t, const Real W, const Real C)
   {
     bool isOff;
     //#pragma omp critical
@@ -114,7 +114,7 @@ struct Sequence
       #pragma omp atomic write
       offPol_weight[t] = W;
       //const bool wasOff = w > C || w < iC;
-                  isOff = W > C || W < iC;
+                  isOff = W > C || W < 1/C;
       //if((not wasOff)&&     isOff ) nOffPol += 1;
       //if(     wasOff &&(not isOff)) nOffPol -= 1;
     //}
