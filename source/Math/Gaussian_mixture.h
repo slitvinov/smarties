@@ -123,7 +123,7 @@ private:
   inline long double oneDnormal(const Real act, const Real mean, const Real prec) const
   {
     const long double arg = .5 * std::pow(act-mean,2) * prec;
-    #if 1
+    #if 0
       const auto Pgaus = std::sqrt(1./M_PI/2)*std::exp(-arg);
       const Real Punif = arg<.5*NORMDIST_MAX*NORMDIST_MAX? P_trunc : 0;
       return std::sqrt(prec)*(Pgaus + Punif);

@@ -38,6 +38,7 @@ SETTINGS+=" --impWeight ${IMPSAMPR}"
 SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --epsAnneal 100"
 SETTINGS+=" --totNumSteps 10000000"
+#SETTINGS+=" --totNumSteps 5000000"
 SETTINGS+=" --obsPerStep ${EPERSTEP}"
 SETTINGS+=" --bSampleSequences 0"
 

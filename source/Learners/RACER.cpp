@@ -32,9 +32,9 @@ class RACER : public Learner_offPolicy
   // tgtFrac_param: target fraction of off-pol samples
   // learnR: net's learning rate
   // alpha: weight of value-update relative to policy update. 1 means equal
-  const Real tgtFrac_param, learnR, alpha=1;
+  const Real tgtFrac, learnR, alpha=1;
 
-  Real CmaxRet = 1 + CmaxPol*std::cbrt(env->aI.dim);
+  Real CmaxRet = 1 + CmaxPol;
 
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
   // such as state value, policy mean, policy std, adv approximator
@@ -320,7 +320,7 @@ class RACER : public Learner_offPolicy
  public:
   RACER(Environment*const _env, Settings& _set, vector<Uint> net_outs,
     vector<Uint> pol_inds, vector<Uint> adv_inds) :
-    Learner_offPolicy(_env, _set), tgtFrac_param(_set.klDivConstraint),
+    Learner_offPolicy(_env, _set), tgtFrac(_set.klDivConstraint),
     learnR(_set.learnrate), net_outputs(net_outs),
     net_indices(count_indices(net_outs)),
     pol_start(pol_inds), adv_start(adv_inds) {
@@ -448,7 +448,7 @@ class RACER : public Learner_offPolicy
 
     advanceCounters();
 
-    CmaxRet = 1 + CmaxPol*std::cbrt(env->aI.dim)/(1+nStep*ANNEAL_RATE);
+    CmaxRet = 1 + CmaxPol/(1+nStep*ANNEAL_RATE);
 
     data->prune(MEMBUF_FILTER_ALGO, CmaxRet);
 
@@ -476,8 +476,6 @@ class RACER : public Learner_offPolicy
       // if no reduction done, partial sums are meaningless
       if(firstUpdate) return;
     }
-
-    const Real tgtFrac = tgtFrac_param / CmaxPol;
 
     if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
     else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1

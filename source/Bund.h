@@ -32,8 +32,8 @@ typedef double memReal;
 
 // If this is uncommented, action importance sampling ratio is defined by
 // [ pi(a|s) / mu(a|s) ]^f(nA) where f(nA) is function of a dimensionality
-// In ACER's paper f(nA) = 1/sqrt(nA). For Racer leads to bad perf.
-// Tested also 1/cbrt(nA) then gave up.
+// In ACER's paper f(nA) = 1/nA. For Racer leads to bad perf.
+// Tested also 1/sqrt(nA) and 1/cbrt(nA) then gave up.
 //#define RACER_ACERTRICK
 
 // Learn rate for the exponential average of the gradient's second moment
@@ -51,24 +51,12 @@ typedef double memReal;
 //#define ANNEAL_RATE 1e-6
 #define ANNEAL_LEARNR // Anneal also network learn rate
 
-// Scheduler keeps approximate ratio of grad steps N to env time steps T
-// according to user's setting obsPerStep. Following option affects how T
-// is advanced. Setting this to 1 means that T is advanced only when full
-// seq is observed. In this case T is increased by length of the seq.
-// Set to 0 to add 1 for every new time step. Caveat is that in any case
-// observations are added to the training set only when their seq ends.
-// Main difference in first (=1) case network weights will be identical
-// for whole sequence. Slightly better perf but harder to explain so
-// it is not the default. Also: way worse load balancing and terrible for
-// really expensive to advance environments.
-#define PACEFULLSEQ 1
-
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
 #define NORMDIST_MAX 2 //truncated normal distribution range
 #define BOUNDACT_MAX 4 //limit range of pol. for bounded act. spaces ie. tanh(4)
 
-//uniform precision (1/std^2) in case of Acer:
+// Optional constant stdev in case of Acer:
 #define ACER_CONST_STDEV 0.3
 
 // number of previous time steps to include in back-prop through time:
