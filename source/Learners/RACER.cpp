@@ -46,6 +46,7 @@ class RACER : public Learner_offPolicy
 
   // used for debugging purposes to dump stats about gradient. will be removed
   FILE * wFile = fopen("grads_dist.raw", "ab");
+  FILE * qFile = fopen("onpolQdist.raw", "ab");
 
   //tracks statistics about gradient, used for gradient clipping:
   StatsTracker* opcInfo;
@@ -225,7 +226,7 @@ class RACER : public Learner_offPolicy
           normT +=  penalG[i] *  penalG[i];
         }
         float ret[]={dot/std::sqrt(normT), std::sqrt(normG), dist, impW};
-        fwrite(ret, sizeof(float), 4, wFile);
+        fwrite(ret, sizeof(float), 4, qFile);
       }
     #endif
 
@@ -244,6 +245,21 @@ class RACER : public Learner_offPolicy
       sampleInfo[2] += polG[i]*penalG[i];
     }
     opcInfo->track_vector(sampleInfo, thrID);
+
+    #if 1
+      if(thrID == 1) {
+        Rvec Gcpy = gradient;
+        F[0]->gradStats->clip_vector(Gcpy);
+        Gcpy = Rvec(&Gcpy[pol_start[0]], &Gcpy[pol_start[0]+polG.size()]);
+        float normT = 0, dot = 0;
+        for(Uint i = 0; i < polG.size(); i++) {
+          dot += Gcpy[i] * penalG[i]; normT += penalG[i] * penalG[i];
+        }
+        float ret[]={dot/std::sqrt(normT)};
+        fwrite(ret, sizeof(float), 1, wFile);
+      }
+    #endif
+
     return gradient;
   }
 
@@ -345,6 +361,7 @@ class RACER : public Learner_offPolicy
   }
   ~RACER() {
     fclose(wFile);
+    fclose(qFile);
   }
 
   void select(const Agent& agent) override
@@ -404,7 +421,7 @@ class RACER : public Learner_offPolicy
       //whether seq is truncated or terminated, act adv is undefined:
       traj->action_adv.push_back(0);
       // compute initial Qret for whole trajectory:
-      writeOnPolRetrace(traj);
+      writeOnPolRetrace(traj, thrID);
       OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
       #ifdef dumpExtra
         agent.a->set(Rvec(nA,0));
@@ -417,7 +434,7 @@ class RACER : public Learner_offPolicy
     }
   }
 
-  void writeOnPolRetrace(Sequence*const seq) const {
+  void writeOnPolRetrace(Sequence*const seq, const int thrID) const {
     assert(seq->tuples.size() == seq->action_adv.size());
     assert(seq->tuples.size() == seq->state_vals.size());
     assert(seq->Q_RET.size()  == 0);
@@ -426,6 +443,29 @@ class RACER : public Learner_offPolicy
     seq->Q_RET.resize(N, 0);
     for (Uint i=N-1; i>0; i--) //update all q_ret before terminal step
       updateQret(seq, i, seq->action_adv[i], seq->state_vals[i], 1);
+
+    #if 1
+      #pragma omp critical
+      if(nStep>0) {
+        // outbuf contains
+        // - R[t] = sum_{t'=t}^{T-1} gamma^{t'-t} r_{t+1} (if seq is truncated //   instead of terminated, we must add V_T * gamma^(T-t) )
+        // - Q^w(s_t,a_t) and Q^ret_t
+        vector<float> outBuf(3*(N-1), 0);
+        for(Uint i=N-1; i>0; i--) {
+          Real R = data->scaledReward(seq, i) +
+            (seq->isTruncated(i)? gamma*seq->state_vals[i] : 0);
+          for(Uint j = i; j>0; j--) { // add disc rew to R_t of all prev steps
+            outBuf[3*(j-1) +0] += R; R *= gamma;
+          }
+          outBuf[3*(i-1) +1] = seq->action_adv[i-1] + seq->state_vals[i-1];
+          // we are actually storing A_RET in there, therefore for proper QRET:
+          outBuf[3*(i-1) +2] = seq->Q_RET[i-1] + seq->state_vals[i-1];
+        }
+        // revert scaling of rewards
+        for(Uint i=0; i<outBuf.size(); i--) outBuf[i] /= data->invstd_reward;
+        fwrite(outBuf.data(), sizeof(float), outBuf.size(), qFile);
+      }
+    #endif
   }
 
   void prepareGradient()
