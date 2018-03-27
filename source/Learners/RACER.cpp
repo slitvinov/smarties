@@ -47,7 +47,7 @@ class RACER : public Learner_offPolicy
   // used for debugging purposes to dump stats about gradient. will be removed
   FILE * wFile = fopen("grads_dist.raw", "ab");
   FILE * qFile = fopen("onpolQdist.raw", "ab");
-
+  vector<float> outBuf;
   //tracks statistics about gradient, used for gradient clipping:
   StatsTracker* opcInfo;
 
@@ -434,7 +434,7 @@ class RACER : public Learner_offPolicy
     }
   }
 
-  void writeOnPolRetrace(Sequence*const seq, const int thrID) const {
+  void writeOnPolRetrace(Sequence*const seq, const int thrID) {
     assert(seq->tuples.size() == seq->action_adv.size());
     assert(seq->tuples.size() == seq->state_vals.size());
     assert(seq->Q_RET.size()  == 0);
@@ -448,22 +448,23 @@ class RACER : public Learner_offPolicy
       #pragma omp critical
       if(nStep>0) {
         // outbuf contains
-        // - R[t] = sum_{t'=t}^{T-1} gamma^{t'-t} r_{t+1} (if seq is truncated //   instead of terminated, we must add V_T * gamma^(T-t) )
+        // - R[t] = sum_{t'=t}^{T-1} gamma^{t'-t} r_{t+1} (if seq is truncated
+        //   instead of terminated, we must add V_T * gamma^(T-t) )
         // - Q^w(s_t,a_t) and Q^ret_t
-        vector<float> outBuf(3*(N-1), 0);
+        outBuf = vector<float>(4*(N-1), 0);
         for(Uint i=N-1; i>0; i--) {
           Real R = data->scaledReward(seq, i) +
             (seq->isTruncated(i)? gamma*seq->state_vals[i] : 0);
           for(Uint j = i; j>0; j--) { // add disc rew to R_t of all prev steps
-            outBuf[3*(j-1) +0] += R; R *= gamma;
+            outBuf[4*(j-1) +0] += R; R *= gamma;
           }
-          outBuf[3*(i-1) +1] = seq->action_adv[i-1] + seq->state_vals[i-1];
-          // we are actually storing A_RET in there, therefore for proper QRET:
-          outBuf[3*(i-1) +2] = seq->Q_RET[i-1] + seq->state_vals[i-1];
+          outBuf[4*(i-1) +1] = seq->action_adv[i-1];
+          // we are actually storing A_RET in there:
+          outBuf[4*(i-1) +2] = seq->Q_RET[i-1];
+          outBuf[4*(i-1) +3] = seq->state_vals[i-1];
         }
         // revert scaling of rewards
-        for(Uint i=0; i<outBuf.size(); i--) outBuf[i] /= data->invstd_reward;
-        fwrite(outBuf.data(), sizeof(float), outBuf.size(), qFile);
+        //for(Uint i=0; i<outBuf.size(); i--) outBuf[i] /= data->invstd_reward;
       }
     #endif
   }
@@ -475,6 +476,13 @@ class RACER : public Learner_offPolicy
     Learner::prepareGradient();
 
     if(not bWasPrepareReady) return;
+    #if 1
+      if(outBuf.size()) {
+        fwrite(outBuf.data(), sizeof(float), outBuf.size(), qFile);
+        fflush(qFile);
+        outBuf.resize(0);
+      }
+    #endif
 
     #ifdef RACER_BACKWARD
       profiler->stop_start("QRET");

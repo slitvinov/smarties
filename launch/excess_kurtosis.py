@@ -12,8 +12,10 @@ exkrt = np.zeros([M, NFILES])
 
 for j in range(3, len(sys.argv)):
   DATA = np.fromfile(sys.argv[j], dtype=np.float32)
-  DATA = DATA.reshape([DATA.size // 4, 4])
+  #DATA = DATA.reshape([DATA.size // 4, 4])
+  DATA = DATA.reshape([DATA.size // 1, 1])
   L = DATA.shape[0] // M
+  print(L)
   DATA = DATA[DATA.shape[0] - M*L : -1]
   norm1, norm2 = L ** 0.50, L ** 0.25
   for i in range(M):
@@ -29,4 +31,4 @@ for j in range(3, len(sys.argv)):
     #print (exkr_1, stdv_1)
 ret=np.append(np.mean(means, axis=1).reshape(M,1),np.mean(stdev, axis=1).reshape(M,1),axis=1)
 ret=np.append(ret,                                np.mean(exkrt, axis=1).reshape(M,1),axis=1)
-print(ret)
+for i in range(M): print(ret[i,:])
