@@ -224,6 +224,9 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
     F.push_back(new Approximator("policy", _set, input, data));
     F.push_back(new Approximator("value", _set, input, data));
 
+    Builder build_val = F[1]->buildFromSettings(_set, {1} );
+
+    _set.nnFunc = "LRelu"; //pol works best with Leaky Relu non-linearities
     #ifndef PPO_simpleSigma
       Rvec initBias;
       Gaussian_policy::setInitial_noStdev(&aInfo, initBias);
@@ -237,7 +240,6 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
     #endif
     F[0]->initializeNetwork(build_pol);
 
-    Builder build_val = F[1]->buildFromSettings(_set, {1} );
     //_set.learnrate *= 2;
     F[1]->initializeNetwork(build_val);
 

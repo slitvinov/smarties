@@ -13,7 +13,7 @@
 #include "Utils.h"
 using namespace std;
 #ifndef PRELU_FAC
-#define PRELU_FAC 0.01
+#define PRELU_FAC 0.1
 #endif
 
 typedef nnReal* __restrict__       const nnOpRet;
@@ -246,7 +246,7 @@ struct Relu : public Function {
   }
 };
 
-struct PRelu : public Function {
+struct LRelu : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(2./inps);
   }
@@ -420,7 +420,7 @@ inline Function* makeFunction(const string name, const bool bOutput=false) {
   else
   if (name == "Relu") return new Relu();
   else
-  if (name == "PRelu") return new PRelu();
+  if (name == "LRelu") return new LRelu();
   else
   if (name == "ExpPlus") return new ExpPlus();
   else
