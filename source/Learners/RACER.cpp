@@ -226,7 +226,7 @@ class RACER : public Learner_offPolicy
           normT +=  penalG[i] *  penalG[i];
         }
         float ret[]={dot/std::sqrt(normT), std::sqrt(normG), dist, impW};
-        fwrite(ret, sizeof(float), 4, qFile);
+        fwrite(ret, sizeof(float), 4, wFile);
       }
     #endif
 
@@ -246,7 +246,7 @@ class RACER : public Learner_offPolicy
     }
     opcInfo->track_vector(sampleInfo, thrID);
 
-    #if 1
+    #if 0
       if(thrID == 1) {
         Rvec Gcpy = gradient;
         F[0]->gradStats->clip_vector(Gcpy);
@@ -444,7 +444,7 @@ class RACER : public Learner_offPolicy
     for (Uint i=N-1; i>0; i--) //update all q_ret before terminal step
       updateQret(seq, i, seq->action_adv[i], seq->state_vals[i], 1);
 
-    #if 1
+    #if 0
       #pragma omp critical
       if(nStep>0) {
         // outbuf contains
@@ -476,7 +476,7 @@ class RACER : public Learner_offPolicy
     Learner::prepareGradient();
 
     if(not bWasPrepareReady) return;
-    #if 1
+    #if 0
       if(outBuf.size()) {
         fwrite(outBuf.data(), sizeof(float), outBuf.size(), qFile);
         fflush(qFile);

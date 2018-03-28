@@ -8,7 +8,9 @@ make -C ../makefiles clean
 make -C ../makefiles config=fit -j raceskip=$SKIPA exp=$EXPTYPE nexp=$NEXPERTS
 
 for BUFFSIZE in "131072" "262144" "524288" "1048576"; do
-for IMPSAMPR in "2" "3" "4" "5"; do
+#for IMPSAMPR in "2" "3" "4" "5"; do
+#for IMPSAMPR in "2" "3" "4" "5"; do
+for IMPSAMPR in "6" "8"; do
 #for DKLPARAM in "0.05" "0.1" "0.2"; do
 
 for DKLPARAM in "0.10"; do

@@ -1,4 +1,4 @@
-COMMNAME=maxErr_35
+COMMNAME=maxErr_trnc_
 
 #for EXPTYPE in "QUAD" "GAUS"; do
 for EXPTYPE in "GAUS"; do
