@@ -54,6 +54,10 @@ protected:
     const Real rho_cur = pol.sampImpWeight, DivKL = pol.kl_divergence(beta);
     traj->setOffPolWeight(samp, rho_cur);
 
+    cntPenal[thrID+1]++;
+    if(DivKL > 1.5 * DKL_target) valPenal[thrID+1] += valPenal[0]; //double
+    if(DivKL < DKL_target / 1.5) valPenal[thrID+1] -= valPenal[0]/2; //half
+
     Real gain = rho_cur*adv_est;
     #ifdef PPO_CLIPPED
       bool gainZero = false;
@@ -65,10 +69,6 @@ protected:
 
     F[1]->prepare_one(traj, samp, thrID);
     const Rvec val_cur = F[1]->forward(traj, samp, thrID);
-
-    cntPenal[thrID+1]++;
-    if(DivKL > 1.5 * DKL_target) valPenal[thrID+1] += valPenal[0]; //double
-    if(DivKL < DKL_target / 1.5) valPenal[thrID+1] -= valPenal[0]/2; //half
 
     #ifdef PPO_PENALKL
       const Rvec policy_grad = pol.policy_grad(act, gain);

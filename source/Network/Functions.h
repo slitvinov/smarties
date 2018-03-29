@@ -248,10 +248,10 @@ struct Relu : public Function {
 
 struct LRelu : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
-    return std::sqrt(2./inps);
+    return std::sqrt(1./inps);
   }
   static Real _initFactor(const Uint inps, const Uint outs) {
-    return std::sqrt(2./inps);
+    return std::sqrt(1./inps);
   }
   static inline nnReal _eval(const nnReal in) {
     return in>0 ? in : PRELU_FAC*in;

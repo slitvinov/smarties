@@ -249,7 +249,7 @@ struct Settings
 #define COMMENT_nnFunc "Activation function for non-output layers (which are always linear) which are built from settings. (Relu, Tanh, Sigm, PRelu, softSign, softPlus, ...)"
 #define TYPEVAL_nnFunc string
 #define TYPENUM_nnFunc STRING
-#define DEFAULT_nnFunc "PRelu"
+#define DEFAULT_nnFunc "LRelu"
   string nnFunc = DEFAULT_nnFunc;
 
 ///////////////////////////////////////////////////////////////////////////////

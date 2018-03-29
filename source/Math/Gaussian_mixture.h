@@ -178,7 +178,7 @@ public:
     assert(sampPonPolicy>=0);
     sampPBehavior = evalBehavior(sampAct, beta);
     sampImpWeight = sampPonPolicy / sampPBehavior;
-    if(sampPonPolicy<=0){printf("observed %g\n",(Real)sampPonPolicy);fflush(0);}
+    if(sampPonPolicy<0){printf("observed %g\n",(Real)sampPonPolicy);fflush(0);}
   }
 private:
   inline long double evalBehavior(const Rvec& act, const Rvec& beta) const {

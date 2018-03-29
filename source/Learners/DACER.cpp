@@ -13,10 +13,11 @@
 #ifndef DACER_SKIP
 #define DACER_SKIP 1
 #endif
+
 #define DACER_BACKWARD
-#ifndef DACER_FORWARD
+//#ifndef DACER_FORWARD
 #define DACER_FORWARD 0
-#endif
+//#endif
 
 template<typename Policy_t, typename Action_t>
 class DACER : public Learner_offPolicy
@@ -29,10 +30,9 @@ class DACER : public Learner_offPolicy
   // tgtFrac_param: target fraction of off-pol samples
   // learnR: net's learning rate
   // alpha: weight of value-update relative to policy update. 1 means equal
-  const Real learnR, tgtFrac_param, alpha=1;
-  Real CmaxRet = 1 + CmaxPol*std::cbrt(env->aI.dim);
+  const Real learnR, tgtFrac, alpha=1;
+  Real CmaxRet = 1 + CmaxPol;
 
-  const Real retraceTrickPow = 1. / std::cbrt(nA);
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
   // such as state value, policy mean, policy std, adv approximator
   const vector<Uint> net_outputs, net_indices, pol_start;
@@ -93,40 +93,17 @@ class DACER : public Learner_offPolicy
 
     if(thrID==1) profiler->stop_start("FWD");
 
-    #if DACER_FORWARD>0 // prepare thread workspace
-      F[0]->prepare(DACER_FORWARD+1, traj, samp, thrID);
-    #else
-      F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
-    #endif
-
+    F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
     const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
 
-    #if RACER_FORWARD==0
-      if( traj->isTruncated(samp+1) ) {
-        const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
-        traj->setStateValue(samp+1, nxt[VsID]);
-      }
-    #endif
+    if( traj->isTruncated(samp+1) ) {
+      const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
+      traj->setStateValue(samp+1, nxt[VsID]);
+    }
 
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
-
     // check whether importance weight is in 1/Cmax < c < Cmax
     const bool isOff = traj->isFarPolicy(samp, pol.sampImpWeight, CmaxRet);
-
-    #if DACER_FORWARD>0
-      // do N steps of fwd net to obtain better estimate of Qret
-      Uint N = std::min(traj->ndata()-1-samp, (Uint)DACER_FORWARD);
-      for(Uint k = samp+1; k<=samp+N; k++) { // && k<traj->ndata()
-        const Rvec outt = F[0]->forward(traj, k, thrID);
-        const Policy_t polt = prepare_policy(outt, traj->tuples[k]);
-        //these are all race conditions:
-        traj->setSquaredError(k, polt.kl_divergence(traj->tuples[k]->mu) );
-        traj->setOffPolWeight(k, polt.sampRhoWeight );
-        traj->setStateValue(k, outt[VsID] );
-        //if (impW < 0.1) break;
-      }
-      for(Uint j = samp+N; j>samp; j--) updateQret(traj,j);
-    #endif
 
     if(thrID==1)  profiler->stop_start("CMP");
     Rvec grad;
@@ -160,20 +137,6 @@ class DACER : public Learner_offPolicy
     const Rvec policyG = pol_cur.policy_grad(pol_cur.sampAct, A_RET*rho_cur);
     const Rvec penalG  = pol_cur.div_kl_grad(S->tuples[t]->mu, -1);
     const Rvec finalG  = weightSum2Grads(policyG, penalG, beta);
-
-    #ifdef dumpExtra
-      if(thrID == 1) {
-        const float dist = pol_cur.kl_divergence(S->tuples[t]->mu);
-        float normT = 0, dot = 0, normG = 0, impW = pol_cur.sampImpWeight;
-        for(Uint i = 0; i < policyG.size(); i++) {
-          normG += policyG[i] * policyG[i];
-          dot   += policyG[i] *  penalG[i];
-          normT +=  penalG[i] *  penalG[i];
-        }
-        float ret[]={dot/std::sqrt(normT), std::sqrt(normG), dist, impW};
-        fwrite(ret, sizeof(float), 4, wFile);
-      }
-    #endif
 
     Rvec gradient(F[0]->nOutputs(), 0);
     gradient[VsID] = beta*alpha *Ver;
@@ -209,6 +172,7 @@ class DACER : public Learner_offPolicy
 
   inline Real updateVret(Sequence*const S, const Uint t, const Real V,
     const Real rho) const {
+    assert(rho >= 0);
     const Real rNext = data->scaledReward(S, t+1), oldVret = S->Q_RET[t];
     const Real vNext = S->state_vals[t+1], V_RET = S->Q_RET[t+1];
     const Real delta = std::min((Real)1, rho) * (rNext +gamma*vNext -V);
@@ -221,7 +185,7 @@ class DACER : public Learner_offPolicy
  public:
   DACER(Environment*const _env, Settings& _set, vector<Uint> net_outs,
    vector<Uint> pol_inds): Learner_offPolicy(_env,_set), learnR(_set.learnrate),
-   tgtFrac_param(_set.klDivConstraint), net_outputs(net_outs),
+   tgtFrac(_set.klDivConstraint), net_outputs(net_outs),
    net_indices(count_indices(net_outs)), pol_start(pol_inds)
   {
     printf("DACER starts: v:%u pol:%s\n", VsID, print(pol_start).c_str());
@@ -317,18 +281,15 @@ class DACER : public Learner_offPolicy
       profiler->stop_start("QRET");
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++)
-        for(int j = data->Set[i]->just_sampled; j>=0; j--) {
-          const Real obsOpcW = data->Set[i]->offPol_weight[j];
-          assert(obsOpcW >= 0);
-          updateVret(data->Set[i], j, data->Set[i]->state_vals[j], obsOpcW);
-        }
+        for(int j = data->Set[i]->just_sampled; j>=0; j--)
+          updateVret(data->Set[i], j, data->Set[i]->state_vals[j], data->Set[i]->offPol_weight[j]);
     #endif
 
     profiler->stop_start("PRNE");
 
     advanceCounters();
 
-    CmaxRet = 1 + CmaxPol*std::cbrt(env->aI.dim)/(1+nStep*ANNEAL_RATE);
+    CmaxRet = 1 + CmaxPol/(1+nStep*ANNEAL_RATE);
 
     data->prune(MEMBUF_FILTER_ALGO, CmaxRet);
 
@@ -356,7 +317,6 @@ class DACER : public Learner_offPolicy
       if(firstUpdate) return;
     }
 
-    const Real tgtFrac = tgtFrac_param / CmaxPol;
     if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
     else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 

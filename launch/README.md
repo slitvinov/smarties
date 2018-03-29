@@ -4,20 +4,28 @@ The main files that will be maintained are `launch.sh`, `launch_openai.sh`, `lau
 
 `launch.sh` is your run-of-the-mill launch script. You must provide:
 * the name of the folder to run in, which will be placed in `../runs/`.
-* the number of omp-threads (>=2). The master thread handles mpi communication (therefore your mpi distribution must support thread safety, such as mpich), the others train the network by sampling transition data. This does not control the number of threads (if any) used by app.
-* the number of mpi-ranks
-    - Usually at least 2. Note that if `--nMasters` is greater than 1 (for most cases it _will_ be 1), then take care that the mpi ranks allow for each master to have the same number of slaves. If the environment requires multiple ranks itself then the number of mpi ranks minus `--nMasters` must be a multiple of the number of ranks required by each instance of the application.
-    - 1 is acceptable in two circumstances: **1)** training exclusively from data (then either the settings file should contain the variable `--path some/path/history.txt` pointing to a data file of stored transition or smarties must find a binary dump, ie. `agent_...raw`, in the run directory), **2)** dumping the policy (happens if no data is read from file, but chances of you wanting this for now are very slim)
+* the number of omp-threads (>=1). The master thread handles mpi communication (therefore your mpi distribution must support thread safety, such as mpich), the others train the network by sampling transition data. This does not control the number of threads (if any) used by app.
 * the path or name of the folder in the `apps` folder containing the files defining your application.
 * the path to the settings file.
-* (optional) the base path to a previously saved policy (the base name is usually `path/policy`, and the policy is then composed of multiple files such as `path/policy_net.raw` and so on).
-* (optional) the number of task per node, not needed for `launch.sh`.
+* (optional, default 1) the number of workers per learner
+    - At least 1. If the environment requires multiple ranks itself then the number of mpi ranks minus `--nMasters` must be a multiple of the number of ranks required by each instance of the application.
+    - More than one worker per learner might be needed if the simulations are particularly slow.
+* (optional, default 1) the number of learner ranks. Unless the network is very large this should not need to change.
+* (optional, default 1) the number of nodes to use. This setting affect the `ppn` option given to `mpirun`.
 
 * `launch_openai.sh` behaves much the same way, but instead of providing a path to an application provide the name of the openai environment (e.g. `CartPole-v1`)
 
 These two scripts set up the launch environment and directory, and then call `run.sh`.
 
 * `launchDaint.sh` .. it works on Daint. Main changes are that run folder is in `/scratch/snx3000/${MYNAME}/smarties/`, the number of threads is hardcoded to 24, and `run.sh` is not used.
+
+* An example of running a `C++` based app is `./launch.sh RUNDIR 12 glider settings/settings_POAC.sh` . To see an example of how to set up a `C++` app see the folder `../apps/`. The setting file `settings/settings_RACER.sh` details the baseline solver of `smarties`.
+ 
+* An example of launching an OpenAI gym based app is `./launch_openai.sh RUNDIR 12 Walker2d-v2 settings/settings_RACER.sh` .
+
+* `settings/settings_DACER.sh` details the simplified Racer architecture. Can speed up learning. Easier to explain.
+
+* The best strategy to speed up learning for  _easy problems_ is to change `--gamma 0.99`, `--batchSize 128`, `--maxTotObsNum 262144` 
 
 # misc
 
