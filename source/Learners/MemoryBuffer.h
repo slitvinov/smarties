@@ -71,6 +71,23 @@ public:
     nTransitions = 0;
   }
 
+  Uint clearOffPol(const Real C, const Real tol)
+  {
+    Uint i = 0;
+    while(1) {
+      if(i>=Set.size()) break;
+      Uint _nOffPol = 0;
+      for(Uint j=0; j<Set[i]->ndata(); j++)
+         _nOffPol += (Set[i]->offPol_weight[j]>1+C || Set[i]->offPol_weight[j]<1-C);
+      if(_nOffPol > tol*Set[i]->ndata()) {
+        std::swap(Set[i], Set.back());
+        popBackSequence();
+      }
+      else i++;
+    }
+    return readNData();
+  }
+
   template<typename T>
   inline Rvec standardizeAppended(const vector<T>& state) const
   {
@@ -132,7 +149,7 @@ public:
   void terminate_seq(const Agent&a);
   void add_state(const Agent&a);
 
-  void updateRewardsStats(unsigned long nStep);
+  void updateRewardsStats(unsigned long nStep, const Real weight = 1);
   void updateImportanceWeights();
 
   // Algorithm for maintaining and filtering dataset, and optional imp weight range parameter

@@ -15,7 +15,8 @@ class Learner_onPolicy: public Learner
 {
 protected:
   const Uint nHorizon, nEpochs;
-  mutable Uint cntBatch = 0, cntEpoch = 0;
+  mutable Uint cntBatch = 0, cntEpoch = 0, cntKept = 0;
+
 
 public:
   Learner_onPolicy(Environment*const _env, Settings&_s);

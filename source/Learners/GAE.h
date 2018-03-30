@@ -22,9 +22,11 @@ class GAE : public Learner_onPolicy
 {
 protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
-  const Real lambda, learnR, DKL_target, clip_fac = 0.2;
+  const Real lambda, learnR, DKL_target;
   const vector<Uint> pol_outputs, pol_indices;
   mutable vector<long double> cntPenal, valPenal;
+  //tracks statistics about gradient, used for gradient clipping:
+  StatsTracker* opcInfo;
 
   inline Policy_t prepare_policy(const Rvec& out,
     const Tuple*const t = nullptr) const {
@@ -52,19 +54,22 @@ protected:
     const Policy_t pol = prepare_policy(pol_cur, traj->tuples[samp]);
     const Action_t act = pol.map_action(traj->tuples[samp]->a);
     const Real rho_cur = pol.sampImpWeight, DivKL = pol.kl_divergence(beta);
+    Rvec sampleInfo {0, 0, 0, DivKL, rho_cur};
     traj->setOffPolWeight(samp, rho_cur);
 
-    cntPenal[thrID+1]++;
-    if(DivKL > 1.5 * DKL_target) valPenal[thrID+1] += valPenal[0]; //double
-    if(DivKL < DKL_target / 1.5) valPenal[thrID+1] -= valPenal[0]/2; //half
 
     Real gain = rho_cur*adv_est;
+    cntPenal[thrID+1]++;
+    if(DivKL < DKL_target / 1.5) valPenal[thrID+1] -= valPenal[0]/2; //half
     #ifdef PPO_CLIPPED
       bool gainZero = false;
-      if (adv_est > 0 && rho_cur > 1+clip_fac) gainZero = true; //gain = 0;
-      if (adv_est < 0 && rho_cur < 1-clip_fac) gainZero = true; //gain = 0;
+      if(adv_est > 0 && rho_cur > 1+CmaxPol) gainZero = true; //gain = 0;
+      if(adv_est < 0 && rho_cur < 1-CmaxPol) gainZero = true; //gain = 0;
+      if(DivKL>1.5*DKL_target && adv_est>0) valPenal[thrID+1] += valPenal[0]; //double
       // if off policy, skip zero-gradient backprop
       if(gainZero) return resample(thrID);
+    #else
+      if(DivKL > 1.5 * DKL_target) valPenal[thrID+1] += valPenal[0]; //double
     #endif
 
     F[1]->prepare_one(traj, samp, thrID);
@@ -74,8 +79,17 @@ protected:
       const Rvec policy_grad = pol.policy_grad(act, gain);
       const Rvec penal_grad = pol.div_kl_grad(beta, -valPenal[0]);
       const Rvec totalPolGrad = sum2Grads(penal_grad, policy_grad);
+      for(Uint i=0; i<policy_grad.size(); i++) {
+        sampleInfo[0] += std::fabs(policy_grad[i]);
+        sampleInfo[1] += std::fabs(penal_grad[i]);
+        sampleInfo[2] += policy_grad[i]*penal_grad[i];
+      }
     #else //we still learn the penal coef, for simplicity, but no effect
       const Rvec totalPolGrad = pol.policy_grad(act, gain);
+      for(Uint i=0; i<totalPolGrad.size(); i++) {
+        sampleInfo[0] += std::fabs(totalPolGrad[i]);
+        sampleInfo[1] += 0; sampleInfo[2] += 0;
+      }
     #endif
 
     Rvec grad(F[0]->nOutputs(), 0);
@@ -83,6 +97,7 @@ protected:
 
     //bookkeeping:
     Vstats[thrID].dumpStats(val_cur[0], val_tgt - val_cur[0]);
+    opcInfo->track_vector(sampleInfo, thrID);
     if(thrID==1)  profiler->stop_start("BCK");
 
     F[0]->backward(grad, samp, thrID);
@@ -101,6 +116,7 @@ public:
     #endif
     pol_outputs(pol_outs), pol_indices(count_indices(pol_outs)),
     cntPenal(nThreads+1, 0), valPenal(nThreads+1, 0) {
+    opcInfo = new StatsTracker(5, "GAE", _set, 100);
     valPenal[0] = 1./DKL_target;
     //valPenal[0] = 1.;
   }
@@ -148,9 +164,11 @@ public:
     assert(seq->tuples.size() == 2+seq->action_adv.size());
     const Uint N = seq->tuples.size();
     const Real vSold = seq->state_vals[N-2], vSnew = seq->state_vals[N-1];
+    const Real R = data->scaledReward(seq,N-1);
     // delta_t = r_t+1 + gamma V(s_t+1) - V(s_t)  (pedix on r means r_t+1
     // received with transition to s_t+1, sometimes referred to as r_t)
-    const Real delta = seq->tuples[N-1]->r +gamma*vSnew -vSold;
+
+    const Real delta = R +gamma*vSnew -vSold;
     seq->action_adv.push_back(0);
     seq->Q_RET.push_back(0);
 
@@ -159,11 +177,11 @@ public:
     // adv(0) is also 0, V(0) = V(s_0)
     for (int i=N-2; i>=0; i--) { //update all rewards before current step
       //will contain MC sum of returns:
-      seq->Q_RET[i] += fac_gamma * seq->tuples[N-1]->r;
+      seq->Q_RET[i] += fac_gamma * R;
       #ifndef IGNORE_CRITIC
         seq->action_adv[i] += fac_lambda * delta;
       #else
-        seq->action_adv[i] += fac_gamma * seq->tuples[N-1]->r;
+        seq->action_adv[i] += fac_gamma * R;
       #endif
       fac_lambda *= lambda*gamma;
       fac_gamma *= gamma;
@@ -171,10 +189,16 @@ public:
   }
 
   void getMetrics(ostringstream& buff) const {
+    opcInfo->reduce_approx();
     buff<<" "<<std::setw(6)<<std::setprecision(4)<<valPenal[0];
+    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[0];
+    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[1];
+    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[2];
+    buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[3];
+    buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[4];
   }
   void getHeaders(ostringstream& buff) const {
-    buff <<"| beta ";
+    buff <<"| beta | polG | penG | proj |  DKL | avgW ";
   }
 
   void prepareGradient()
@@ -238,10 +262,10 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
       const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
       build_pol.addParamLayer(aInfo.dim, "Linear", initParam);
     #endif
-    F[0]->initializeNetwork(build_pol);
+    F[0]->initializeNetwork(build_pol, 8);
 
     //_set.learnrate *= 2;
-    F[1]->initializeNetwork(build_val);
+    F[1]->initializeNetwork(build_val, 8);
 
     {  // TEST FINITE DIFFERENCES:
       Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));

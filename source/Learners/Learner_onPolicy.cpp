@@ -22,7 +22,8 @@ nEpochs(_s.batchSize/_s.obsPerStep) {
 void Learner_onPolicy::prepareData()
 {
   if(cntEpoch >= nEpochs) {
-    data->clearAll();
+    // data->clearAll();
+    cntKept = data->clearOffPol(CmaxPol, 0.1);
     //reset batch learning counters
     cntEpoch = 0; cntBatch = 0;
     updateComplete = false;
@@ -37,7 +38,7 @@ void Learner_onPolicy::prepareData()
 // when training is concluded collection restarts
 bool Learner_onPolicy::lockQueue() const
 {
-  return bTrain && data->readNData() >= nHorizon;
+  return bTrain && data->readNData() >= nHorizon + cntKept;
 }
 
 void Learner_onPolicy::spawnTrainTasks_seq()
@@ -71,7 +72,8 @@ void Learner_onPolicy::prepareGradient()
 {
   if (updateComplete && bTrain) {
     cntBatch += batchSize;
-    if(cntBatch >= nHorizon) {
+    if(cntBatch >= data->readNData()) {
+      data->updateRewardsStats(nStep, 0.01);
       cntBatch = 0;
       cntEpoch++;
     }

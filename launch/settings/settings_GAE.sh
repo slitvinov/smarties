@@ -32,11 +32,12 @@ SETTINGS+=" --learner GAE"
 SETTINGS+=" --greedyEps 0.5"
 SETTINGS+=" --klDivConstraint 0.01"
 SETTINGS+=" --epsAnneal 1000"
-SETTINGS+=" --totNumSteps 1000000"
+SETTINGS+=" --totNumSteps 10000000"
 SETTINGS+=" --lambda 0.95"
+SETTINGS+=" --impWeight 0.2"
 
-SETTINGS+=" --maxTotObsNum 16384"
-#SETTINGS+=" --maxTotObsNum 2048"
+#SETTINGS+=" --maxTotObsNum 16384"
+SETTINGS+=" --maxTotObsNum 2048"
 SETTINGS+=" --obsPerStep 6.4" # equivalent to 10 epoch with BS 64
 # 4096 / 64 * 10 = 640 steps per epoch
 # 4096 / 640 = 6.4 obs per step
