@@ -68,5 +68,6 @@ if __name__ == '__main__':
             obsVec = np.zeros([0], dtype=np.float64)
             for oi in obs.values(): obsVec = np.append(obsVec, oi)
             #send the observation to smarties
-            comm.send_state(obsVec, reward=rew, terminal = t.last() )
+            # DMC suite does not have term condition, just truncated seqs
+            comm.send_state(obsVec, reward=rew, truncated = t.last() )
             if t.last(): break
