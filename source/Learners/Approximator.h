@@ -36,8 +36,15 @@ struct Approximator
   mutable Uint nAddedGradients=0, reducedGradients=0;
   Uint extraAlloc = 0;
   int relayInp = -1;
+
+  // whether to backprop gradients in the input network.
+  // work by DeepMind (eg in D4PG) indicates it's best to not propagate
+  // policy net gradients towards input conv layers
+  bool blockInpGrad = false;
+
   //thread safe memory for prediction with current weights:
   mutable vector<vector<Activation*>> series;
+  
   //thread safe  memory for prediction with target weights. Rules are that
   // index along the two alloc vectors is the same for the same sample, and
   // that tgt net (if available) takes recurrent activation from current net:

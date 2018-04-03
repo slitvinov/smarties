@@ -44,11 +44,12 @@ DPG::DPG(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set)
     build_val.addInput(relay->nOutputs()); // add actions
     build_val.addLayer(1, "Linear", true); // output
   #endif
-  F[0]->initializeNetwork(build_pol);
+  F[0]->initializeNetwork(build_pol, 10);
+  F[0]->blockInpGrad = true;
   _set.learnrate *= 10; // DPG wants critic faster than actor
   _set.nnLambda = 1e-2; // also wants 1e-2 L2 penl coef
-  F[1]->initializeNetwork(build_val);
-  _set.learnrate /= 10;
+  _set.nnFunc = "LRelu"; // works best with rectifiers
+  F[1]->initializeNetwork(build_val, 10);
   printf("DPG\n");
 }
 
@@ -146,13 +147,13 @@ void DPG::Train(const Uint seq, const Uint samp, const Uint thrID) const
   { //code to compute policy grad:
     //const Rvec v_curr = F[1]->forward<TGT>(traj, samp, thrID);
     const Rvec v_curr = F[1]->forward<CUR, TGT>(traj, samp, thrID);
-    const Rvec polGr = F[1]->relay_backprop({10}, samp, thrID);
+    const Rvec polGr = F[1]->relay_backprop({1}, samp, thrID);
     //cout <<"Inp grad: "<< print(polGr) << endl; fflush(0);
     F[0]->backward(polGr, samp, thrID);
   }
 
   { //code to compute value grad:
-    Real target = traj->tuples[samp+1]->r;
+    Real target = data->scaledReward(traj,samp+1);
     if (not terminal) {
       const Rvec pol_next = F[0]->forward(traj, samp+1, thrID);
       const Rvec v_next = F[1]->forward<TGT>(traj, samp+1, thrID);

@@ -332,7 +332,7 @@ void Approximator::gradient(const Uint thrID) const
 
     net->backProp(act, last_error, net->Vgrad[thrID]);
 
-    if(input->net == nullptr) continue;
+    if(input->net == nullptr || blockInpGrad) continue;
 
     for(int i=0; i<last_error; i++) {
       Rvec inputG = act[i]->getInputGradient(0);
