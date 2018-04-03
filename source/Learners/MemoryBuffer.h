@@ -233,6 +233,7 @@ public:
   inline void removeSequence(const Uint ind)
   {
     assert(Set[ind] not_eq nullptr);
+    assert(nTransitions>=Set[ind]->ndata());
     #pragma omp atomic
     nTransitions -= Set[ind]->ndata();
     _dispose_object(Set[ind]);

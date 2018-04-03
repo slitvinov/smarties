@@ -42,7 +42,7 @@ int Master::run()
 {
   while (true)
   {
-    if( stepNum >= totNumSteps ) return 1;
+    if( stepNum >= totNumSteps ) return 0;
 
     profiler->stop_start("PREP");
     prepareLearners();
@@ -68,7 +68,7 @@ int Master::run()
     if(iternum++ % 1000 == 0) flushRewardBuffer();
   }
   die(" ");
-  return 0;
+  return 1;
 }
 
 void Master::processSlave(const int slave)
@@ -95,8 +95,10 @@ void Master::processSlave(const int slave)
   if(thrID==1) profiler_int->stop_start("SLP");
   if(thrID==0) profiler->stop_start("SLP");
 
-  if( readTimeSteps() >= (Uint) totNumSteps ) return;
-  if( bTrain && learnersLockQueue() ) return;
+  // If not bTrain this is only termination condition. If bTrain the code checks
+  // termination at beginning of loop in run() to prevent undefined behaviors.
+  if( !bTrain && readTimeSteps() >= (Uint) totNumSteps ) return;
+  if(  bTrain && learnersLockQueue() ) return;
 
   #pragma omp task firstprivate(slave) priority(1)
     processSlave(slave);
