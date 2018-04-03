@@ -52,8 +52,8 @@ typedef double memReal;
 
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
-#define NORMDIST_MAX 2 //truncated normal distribution range
-#define BOUNDACT_MAX 4 //limit range of pol. for bounded act. spaces ie. tanh(4)
+#define NORMDIST_MAX 2.5 //truncated normal distribution range
+#define BOUNDACT_MAX 4   //limit range of pol. for bounded act. spaces ie. tanh(4)
 
 // Optional constant stdev in case of Acer:
 #define ACER_CONST_STDEV 0.3
@@ -68,7 +68,7 @@ typedef double memReal;
 // Sample white Gaussian noise and add it to state vector before input to net
 // This has been found to help in case of dramatic dearth of data
 // The noise stdev for state s_t is = ($NOISY_INPUT) * || s_{t-1} - s_{t+1} ||
-//#define NOISY_INPUT 0.01
+#define NOISY_INPUT 0.001
 
 typedef unsigned Uint;
 
