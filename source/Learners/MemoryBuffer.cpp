@@ -143,17 +143,17 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight)
   }
 
   if(count<batchSize) return;
-  const Real stdev_reward = std::sqrt(newstdvr/count);
-  invstd_reward = (1-weight)*invstd_reward +weight/stdev_reward;
+  const Real stDevRew = std::sqrt(newstdvr/count) +numeric_limits<float>::epsilon();
+  invstd_reward = (1-weight)*invstd_reward +weight/stDevRew;
   for(Uint k=0; k<dimS; k++) {
     mean[k] = (1-weight) * mean[k] + weight * newStateSum[k]/count;
     const Real curVar = newStateSqSum[k]/count - mean[k]*mean[k];
     std[k] = (1-weight) * std[k] + weight * std::sqrt(curVar);
-    invstd[k] = 1/std[k];
+    invstd[k] = 1/(std[k]+std::numeric_limits<float>::epsilon());
   }
   if(learn_rank == 0) {
     ofstream outf("runningAverages.dat", ios::app);
-    outf<<count<<" "<<stdev_reward<<" "<<print(mean)<<" "<<print(std)<<endl;
+    outf<<count<<" "<<stDevRew<<" "<<print(mean)<<" "<<print(std)<<endl;
     outf.flush(); outf.close();
   }
 
