@@ -83,7 +83,7 @@ struct StatsTracker
   mutable vector<LDvec> avgVec = vector<LDvec>(nThreads+1, LDvec());
   mutable vector<LDvec> stdVec = vector<LDvec>(nThreads+1, LDvec());
   LDvec instMean, instStdv;
-  mutable Uint numCut = 0, numTot = 0;
+  mutable Real numCut = 0, numTot = 0;
   unsigned long nStep = 0;
   Real cutRatio = 0;
 
@@ -105,7 +105,7 @@ struct StatsTracker
        stdVec[i+1].resize(n_stats, 0);
      }
      // write to log the number of variables, so that it can be then unwrangled
-     FILE * pFile = fopen((name + ".raw").c_str(), "ab");
+     FILE * pFile = fopen((name + ".raw").c_str(), "wb");
      float printvals = n_stats +0.1; // to be floored to an integer in post
      fwrite(&printvals, sizeof(float), 1, pFile);
      fflush(pFile); fclose(pFile);
@@ -124,25 +124,29 @@ struct StatsTracker
   {
     assert(grad.size() == n_stats);
     Uint ret = 0;
+    Real change = 0;
     for (Uint i=0; i<n_stats && grad_cut_fac>=1; i++) {
       //#ifdef IMPORTSAMPLE
       //  assert(data->Set[seq]->tuples[samp]->weight>0);
       //  grad[i] *= data->Set[seq]->tuples[samp]->weight;
       //#endif
-        if(grad[i]> grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-          //printf("Cut %u was:%f is:%LG\n",i,grad[i], grad_cut_fac*stdVec[0][i]);
-          grad[i] =  grad_cut_fac*stdVec[0][i];
-          ret += 1;
-        } else
-        if(grad[i]< -grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-          //printf("Cut %u was:%f is:%LG\n",i,grad[i],-grad_cut_fac*stdVec[0][i]);
-          grad[i] = -grad_cut_fac*stdVec[0][i];
-          ret += 1;
-        }
-        //else printf("Not cut\n");
+      if(grad[i]> grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
+        //printf("Cut %u was:%f is:%LG\n",i,grad[i], grad_cut_fac*stdVec[0][i]);
+        change+=(grad[i]-grad_cut_fac*stdVec[0][i])/(grad_cut_fac*stdVec[0][i]);
+        grad[i] = grad_cut_fac*stdVec[0][i];
+        ret += 1;
+      } else
+      if(grad[i]< -grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
+        //printf("Cut %u was:%f is:%LG\n",i,grad[i],-grad_cut_fac*stdVec[0][i]);
+        change-=(grad[i]+grad_cut_fac*stdVec[0][i])/(grad_cut_fac*stdVec[0][i]);
+        grad[i] = -grad_cut_fac*stdVec[0][i];
+        ret += 1;
+      }
+      //else printf("Not cut\n");
     }
     #pragma omp atomic
-    numCut += ret;
+    //numCut += ret;
+    numCut += change;
     #pragma omp atomic
     numTot += n_stats;
   }

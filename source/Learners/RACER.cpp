@@ -79,7 +79,6 @@ class RACER : public Learner_offPolicy
   {
     Learner_offPolicy::prepareData();
     if(updatePrepared && nStep == 0) {
-      if(!learn_rank) cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++)
         for (Uint j=data->Set[i]->ndata(); j>0; j--)
