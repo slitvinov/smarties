@@ -54,6 +54,9 @@ Learner_offPolicy(_env, _set), learnR(_set.learnrate)
   _set.learnrate *= 10; // DPG wants critic faster than actor
   _set.nnLambda = 1e-2; // also wants 1e-2 L2 penl coef
   //_set.nnFunc = "LRelu"; // works best with rectifiers
+  // we want initial Q to be approx equal to 0 everywhere.
+  // if LRelu we need to make initialization multiplier smaller:
+  //_set.outWeightsPrefac *= 0.01;
   F[1]->initializeNetwork(build_val, 0);
   printf("DPG\n");
 }

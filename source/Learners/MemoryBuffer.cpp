@@ -92,13 +92,25 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight)
   if(!bTrain) return; //if not training, keep the stored values
 
   long double count = 0, newstdvr = 0;
+  vector<long double> newStateSum(dimS, 0), newStateSqSum(dimS, 0);
   #pragma omp parallel reduction(+ : count, newstdvr)
   {
+    vector<long double> thr_newStateSum(dimS, 0), thr_newStateSqSum(dimS, 0);
     #pragma omp for schedule(dynamic)
     for(Uint i=0; i<Set.size(); i++) {
       count += Set[i]->ndata();
-      for(Uint j=0; j<Set[i]->ndata(); j++)
+      for(Uint j=0; j<Set[i]->ndata(); j++) {
         newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
+        for(Uint k=0; k<dimS; k++) {
+          thr_newStateSum[k] += Set[i]->tuples[j]->s[k];
+          thr_newStateSqSum[k] += std::pow(Set[i]->tuples[j]->s[k], 2);
+        }
+      }
+    }
+    #pragma omp critical
+    for(Uint k=0; k<dimS; k++) {
+      newStateSum[k]   += thr_newStateSum[k];
+      newStateSqSum[k] += thr_newStateSqSum[k];
     }
   }
 
@@ -117,6 +129,12 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight)
     //use result from prev reduce to update rewards (before calling new reduce)
     count = rew_reduce_result[0];
     newstdvr = rew_reduce_result[1];
+    for(Uint k=0; k<dimS; k++) {
+      partial_sum[2+k] = newStateSum[k];
+      newStateSum[k] = rew_reduce_result[2+k];
+      partial_sum[2+dimS+k] = newStateSqSum[k];
+      newStateSqSum[k] = rew_reduce_result[2+dimS+k];
+    }
 
     MPI_Iallreduce(partial_sum.data(), rew_reduce_result.data(), nReduce,
                     MPI_LONG_DOUBLE, MPI_SUM, mastersComm, &rewRequest);
@@ -125,10 +143,19 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight)
   }
 
   if(count<batchSize) return;
-  //const Real stdev_reward=std::sqrt((newstdvr-newmeanr*newmeanr/count)/count);
   const Real stdev_reward = std::sqrt(newstdvr/count);
-  //mean_reward = (1-weight)*mean_reward +weight*newmeanr/count;
   invstd_reward = (1-weight)*invstd_reward +weight/stdev_reward;
+  for(Uint k=0; k<dimS; k++) {
+    mean[k] = (1-weight) * mean[k] + weight * newStateSum[k]/count;
+    const Real curVar = newStateSqSum[k]/count - mean[k]*mean[k];
+    std[k] = (1-weight) * std[k] + weight * std::sqrt(curVar);
+    invstd[k] = 1/std[k];
+  }
+  if(learn_rank == 0) {
+    ofstream outf("runningAverages.dat", ios::app);
+    outf<<count<<" "<<stdev_reward<<" "<<print(mean)<<" "<<print(std)<<endl;
+    outf.flush(); outf.close();
+  }
 
   #ifndef NDEBUG
     Uint cntSamp = 0;
@@ -248,11 +275,11 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
       case MAXERROR:   del_ptr = mse_ptr; break;
       case MINERROR:   del_ptr = fit_ptr; break;
   }
-  // safety measure to avoid trajectories lingering too much in mem buffer
+  // safety measure to avoid invisib bugs caused by user selecting wrong ALGO:
   if(Set[old_ptr]->ID + (int)Set.size() < Set[del_ptr]->ID) del_ptr = old_ptr;
   // safety measure: do not delete trajectory if Nobs > Ntarget
   // but if N > Ntarget even if we remove the trajectory
-  // done to avoid problems if a sequence is longer than maxTotObsNum
+  // done to avoid bugs if a sequence is longer than maxTotObsNum
   // negligible effect if hyperparameters are chosen wisely
   if(nTransitions-Set[del_ptr]->ndata() > maxTotObsNum) {
     std::swap(Set[del_ptr], Set.back());

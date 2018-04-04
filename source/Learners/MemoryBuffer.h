@@ -24,7 +24,7 @@ public:
   const ActionInfo aI;
   const vector<Agent*> _agents;
   std::vector<std::mt19937>& generators;
-  const Rvec mean, invstd, std;
+  Rvec mean, invstd, std;
   const int learn_rank, learn_size;
   const Real gamma;
 
@@ -42,7 +42,7 @@ public:
   vector<Sequence*> Set, inProgress;
   mutable std::mutex dataset_mutex;
 
-  const Uint dimS = sI.dimUsed, nReduce = 2;
+  const Uint dimS = sI.dimUsed, nReduce = 2 + 2*dimS;
   MPI_Request rewRequest = MPI_REQUEST_NULL;
   vector<long double> rew_reduce_result, partial_sum;
 
