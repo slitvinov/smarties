@@ -9,6 +9,7 @@
 #pragma once
 
 #include "Sequences.h"
+#include <atomic>
 #include "../Environments/Environment.h"
 #include <parallel/algorithm>
 
@@ -31,11 +32,8 @@ public:
   bool first_pass = true;
   discrete_distribution<Uint> * dist = nullptr;
   //bool bRecurrent;
-  Uint nBroken=0, nTransitions=0, nSequences=0;
-  Uint nTransitionsInBuf=0, nTransitionsDeleted=0;
-  size_t nSeenSequences=0, nSeenTransitions=0, nCmplTransitions=0, iOldestSaved = 0;
   Uint nPruned = 0, minInd = 0, _nStep = 0;
-  Real invstd_reward = 1, mean_reward = 0, nOffPol = 0, totMSE = 0;
+  Real invstd_reward = 1, nOffPol = 0, totMSE = 0;
 
 
   Gen* gen;
@@ -46,6 +44,10 @@ public:
   MPI_Request rewRequest = MPI_REQUEST_NULL;
   vector<long double> rew_reduce_result, partial_sum;
 
+private:
+  std::atomic<Uint> nBroken{0}, nTransitions{0}, nSequences{0};
+  std::atomic<Uint> nSeenSequences{0}, nSeenTransitions{0};
+  std::atomic<Uint> nCmplTransitions{0}, iOldestSaved{0};
 public:
   void push_back(const int & agentId);
 
@@ -166,51 +168,29 @@ public:
   void sampleTransitions_OPW(vector<Uint>& seq, vector<Uint>& obs);
   void sampleSequences(vector<Uint>& seq);
 
-  inline Uint readNSeen() const
-  {
-    Uint ret;
-    #pragma omp atomic read
-    ret = nSeenTransitions;
-    return ret;
-    //#endif
+  inline Uint readNSeen() const {
+    return nSeenTransitions.load();
   }
-  inline Uint readNConcluded() const
-  {
-    Uint ret;
-    #pragma omp atomic read
-    ret = nCmplTransitions;
-    return ret;
-    //#endif
+  inline Uint readNConcluded() const {
+    return nCmplTransitions.load();
   }
-  inline Uint readNSeenSeq() const
-  {
-    Uint ret;
-    #pragma omp atomic read
-    ret = nSeenSequences;
-    return ret;
-    //#endif
+  inline Uint readNSeenSeq() const {
+    return nSeenSequences.load();
   }
-  inline Uint readNData() const
-  {
-    Uint ret;
-    #pragma omp atomic read
-    ret = nTransitions;
-    return ret;
+  inline Uint readNData() const {
+    return nTransitions.load();
   }
-  inline Uint readNSeq() const
-  {
-    Uint ret;
-    #pragma omp atomic read
-    ret = nSequences;
-    return ret;
+  inline Uint readNSeq() const {
+    return nSequences.load();
   }
 
  private:
   inline void popBackSequence()
   {
+    lock_guard<mutex> lock(dataset_mutex);
     removeSequence( readNSeq() - 1 );
     Set.pop_back();
-    #pragma omp atomic
+    //#pragma omp atomic
     nSequences--;
     assert(nSequences==Set.size());
   }
@@ -219,14 +199,14 @@ public:
     lock_guard<mutex> lock(dataset_mutex);
     Set.push_back(nullptr);
     addSequence( readNSeq(), seq);
-    #pragma omp atomic
+    //#pragma omp atomic
     nSequences++;
     assert( readNSeq() == Set.size());
   }
   inline void addSequence(const Uint ind, Sequence*const seq)
   {
     assert(Set[ind] == nullptr && seq not_eq nullptr);
-    #pragma omp atomic
+    //#pragma omp atomic
     nTransitions += seq->ndata();
     Set[ind] = seq;
   }
@@ -234,7 +214,7 @@ public:
   {
     assert(Set[ind] not_eq nullptr);
     assert(nTransitions>=Set[ind]->ndata());
-    #pragma omp atomic
+    //#pragma omp atomic
     nTransitions -= Set[ind]->ndata();
     _dispose_object(Set[ind]);
     Set[ind] = nullptr;

@@ -32,7 +32,7 @@ MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
 void MemoryBuffer::add_state(const Agent&a)
 {
   if(a.Status < TERM_COMM) {
-    #pragma omp atomic
+    //#pragma omp atomic
     nSeenTransitions ++;
   }
 
@@ -109,7 +109,9 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight)
     }
     #pragma omp critical
     for(Uint k=0; k<dimS; k++) {
+      #pragma omp atomic
       newStateSum[k]   += thr_newStateSum[k];
+      #pragma omp atomic
       newStateSqSum[k] += thr_newStateSqSum[k];
     }
   }
@@ -163,7 +165,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight)
       assert(Set[i] not_eq nullptr);
       cntSamp += Set[i]->ndata();
     }
-    assert(cntSamp==nTransitions);
+    assert(cntSamp==nTransitions.load());
   #endif
   //printf("new invstd reward %g\n",invstd_reward);
 }
@@ -178,10 +180,10 @@ void MemoryBuffer::push_back(const int & agentId)
   {
     inProgress[agentId]->finalize( readNSeenSeq() );
 
-    #pragma omp atomic
+    //#pragma omp atomic
     nSeenSequences++;
 
-    #pragma omp atomic
+    //#pragma omp atomic
     nCmplTransitions += inProgress[agentId]->ndata();
 
     pushBackSequence(inProgress[agentId]);
@@ -250,7 +252,7 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
     }
   }
 
-  nOffPol = _nOffPol; totMSE = _totMSE/nTransitions;
+  nOffPol = _nOffPol; totMSE = _totMSE/nTransitions.load();
   const int nB4 = Set.size();
   int old_ptr = -1, far_ptr = -1, mse_ptr = -1, fit_ptr = -1, del_ptr = -1;
   Real mse_val = -1, far_val = -1, fit_val = 9e9, old_ind = nSeenSequences;
@@ -281,7 +283,7 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
   // but if N > Ntarget even if we remove the trajectory
   // done to avoid bugs if a sequence is longer than maxTotObsNum
   // negligible effect if hyperparameters are chosen wisely
-  if(nTransitions-Set[del_ptr]->ndata() > maxTotObsNum) {
+  if(nTransitions.load()-Set[del_ptr]->ndata() > maxTotObsNum) {
     std::swap(Set[del_ptr], Set.back());
     popBackSequence();
   }
@@ -294,7 +296,7 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
 
 void MemoryBuffer::updateImportanceWeights()
 {
-  const Uint ndata = bSampleSeq ? nSequences : nTransitions;
+  const Uint ndata = bSampleSeq ? nSequences.load() : nTransitions.load();
   vector<Uint> inds(ndata);
   std::iota(inds.begin(), inds.end(), 0);
   Rvec errors(ndata), Ps(ndata), Ws(ndata);
@@ -340,10 +342,10 @@ void MemoryBuffer::updateImportanceWeights()
 
 void MemoryBuffer::getMetrics(ostringstream& buff)
 {
-  buff<<" "<<std::setw(5)<<nSequences;
-  buff<<" "<<std::setw(6)<<nTransitions;
-  buff<<" "<<std::setw(7)<<nSeenSequences;
-  buff<<" "<<std::setw(8)<<nSeenTransitions;
+  buff<<" "<<std::setw(5)<<nSequences.load();
+  buff<<" "<<std::setw(6)<<nTransitions.load();
+  buff<<" "<<std::setw(7)<<nSeenSequences.load();
+  buff<<" "<<std::setw(8)<<nSeenTransitions.load();
   buff<<" "<<std::setw(7)<<minInd;
   buff<<" "<<std::setw(6)<<(int)nOffPol;
   buff<<" "<<std::setw(6)<<std::setprecision(2)<<1./invstd_reward;
@@ -397,7 +399,8 @@ void MemoryBuffer::restart()
   }
   if(agentID==0) { printf("Couldn't restart transition data.\n"); } //return 1;
   //push_back(0);
-  printf("Found %d broken seq out of %d/%d.\n",nBroken,nSequences,nTransitions);
+  printf("Found %d broken seq out of %d/%d.\n",
+    nBroken.load(),nSequences.load(),nTransitions.load());
   //return 0;
 }
 
@@ -530,6 +533,6 @@ void MemoryBuffer::sampleMultipleTrans(Uint* seq, Uint* obs, const Uint N, const
     }
     if(samp == N) break;
     cntO += Set[k]->ndata();
-    if(k+1 == Set.size()) assert(cntO == nTransitions && samp == N);
+    if(k+1 == Set.size()) assert(cntO == nTransitions.load() && samp == N);
   }
 }

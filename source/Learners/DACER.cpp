@@ -293,7 +293,7 @@ class DACER : public Learner_offPolicy
 
     data->prune(MEMBUF_FILTER_ALGO, CmaxRet);
 
-    Real fracOffPol = data->nOffPol / (Real) data->nTransitions;
+    Real fracOffPol = data->nOffPol / (Real) data->readNData();
 
     profiler->stop_start("SLP");
 
@@ -303,7 +303,7 @@ class DACER : public Learner_offPolicy
 
       // prepare an allreduce with the current data:
       ndata_partial_sum[0] = data->nOffPol;
-      ndata_partial_sum[1] = data->nTransitions;
+      ndata_partial_sum[1] = data->readNData();
       // use result from prev AllReduce to update rewards (before new reduce).
       // Assumption is that the number of off Pol trajectories does not change
       // much each step. Especially because here we update the off pol W only

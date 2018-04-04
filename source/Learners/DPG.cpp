@@ -153,7 +153,7 @@ void DPG::prepareGradient()
   profiler->stop_start("PRNE");
   advanceCounters();
   data->prune(CmaxPol>0 ? MAXERROR : OLDEST, 1 + CmaxPol);
-  Real fracOffPol = data->nOffPol / (Real) data->nTransitions;
+  Real fracOffPol = data->nOffPol / (Real) data->readNData();
   profiler->stop_start("SLP");
 
   if (learn_size > 1) {
@@ -162,7 +162,7 @@ void DPG::prepareGradient()
 
     // prepare an allreduce with the current data:
     ndata_partial_sum[0] = data->nOffPol;
-    ndata_partial_sum[1] = data->nTransitions;
+    ndata_partial_sum[1] = data->readNData();
     // use result from prev AllReduce to update rewards (before new reduce).
     // Assumption is that the number of off Pol trajectories does not change
     // much each step. Especially because here we update the off pol W only

@@ -92,7 +92,6 @@ bool Learner_offPolicy::lockQueue() const
   // some load inbalance, with only has marginal effects on algorithms.
   // Load imb. is reduced by minimizing pauses in either data or grad stepping.
   const bool tooMuchData = dataCounter > stepCounter*obsPerStep;
-  //return tooMuchData || batchComplete();
   return tooMuchData;
 }
 
@@ -104,7 +103,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
   //  #pragma omp task
   //  spawnTrainTasks_par();
   //}
-  if( bSampleSequences && data->nSequences < batchSize)
+  if( bSampleSequences && data->readNSeq() < batchSize)
     die("Parameter maxTotObsNum is too low for given problem");
 
   for (Uint i=0; i<batchSize; i++)

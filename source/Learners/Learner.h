@@ -32,8 +32,8 @@ protected:
   mutable bool updatePrepared = false;
   mutable bool updateComplete = false;
 
-  ActionInfo aInfo;
-  StateInfo  sInfo;
+  const ActionInfo aInfo;
+  const StateInfo  sInfo;
   std::vector<std::mt19937>& generators;
   MemoryBuffer* data;
   Encapsulator* input;
