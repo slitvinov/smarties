@@ -63,10 +63,10 @@ private:
     for(Uint i=0; i<nA; i++) ret[i] = precision_func(netOutputs[start_prec+i]);
     return ret;
   }
-  inline long double oneDnormal(const Real act, const Real _mean, const Real _prec) const
+  static inline long double oneDnormal(const Real act, const Real _mean, const Real _prec) //const
   {
     const long double arg = .5 * std::pow(act-_mean,2) * _prec;
-    #if 1
+    #if 0
       const auto Pgaus = std::sqrt(1./M_PI/2)*std::exp(-arg);
       const Real Punif = arg<.5*NORMDIST_MAX*NORMDIST_MAX? P_trunc : 0;
       return std::sqrt(_prec)*(Pgaus + Punif);
@@ -101,6 +101,13 @@ public:
     sampPonPolicy = evalProbability(sampAct);
     sampPBehavior = evalBehavior(sampAct, beta);
     sampImpWeight = sampPonPolicy / sampPBehavior;
+  }
+
+  static inline double evalPolVec(const Rvec&act,const Rvec&mu,const Real stdev)
+  {
+    double pi  = 1, prec = 1/(stdev*stdev);
+    for(Uint i=0; i<act.size(); i++) pi *= oneDnormal(act[i], mu[i], prec);
+    return pi;
   }
 
   inline long double evalBehavior(const Rvec& act, const Rvec& beta) const {
@@ -199,6 +206,21 @@ public:
     }
     return ret;
   }
+  static inline Rvec actDivKLgrad(const Rvec&pol, const Rvec&beta, const Real fac = 1)
+  {
+    assert(pol.size()*2 == beta.size());
+    Rvec ret(pol.size());
+    for (Uint i=0; i<pol.size(); i++)
+      ret[i]   = fac * (pol[i]-beta[i])/std::pow(beta[pol.size()+i],2);
+    return ret;
+  }
+  static inline Real actKLdivergence(const Rvec&pol, const Rvec& beta) {
+    Real ret = 0;
+    assert(pol.size()*2 == beta.size());
+    for (Uint i=0; i<pol.size(); i++)
+      ret += std::pow((pol[i]-beta[i])/beta[pol.size()+i],2);
+    return 0.5*ret;
+  }
 
   inline Real kl_divergence(const Gaussian_policy*const pol_hat) const {
     const Rvec vecTarget = pol_hat->getVector();
@@ -214,7 +236,18 @@ public:
     return 0.5*ret;
   }
 
-  inline void finalize_grad(const Rvec&grad, Rvec&netGradient) const
+  Rvec updateOrUhState(Rvec& state, Rvec& beta, const Real fac)
+  {
+    for (Uint i=0; i<nA; i++) {
+      const Real noise = sampAct[i] - mean[i];
+      state[i] *= fac;
+      sampAct[i] += state[i];
+      state[i] += noise;
+    }
+    return aInfo->getScaled(sampAct);
+  }
+
+  inline void finalize_grad(const Rvec grad, Rvec&netGradient) const
   {
     assert(netGradient.size()>=start_mean+nA && grad.size() == 2*nA);
     for (Uint j=0; j<nA; j++) {

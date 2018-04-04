@@ -10,8 +10,6 @@
 #pragma once
 #include "Learner_offPolicy.h"
 
-#define LearnStDev
-
 class DPG : public Learner_offPolicy
 {
   Aggregator* relay;
@@ -21,16 +19,9 @@ class DPG : public Learner_offPolicy
   const Real OrUhDecay = 0; // no correlated noise
   vector<Rvec> OrUhState = vector<Rvec>(nAgents,Rvec(nA,0));
 
-  Real beta = CmaxPol>0 ? 0.2 : 1; // if CmaxPol==0 do naive Exp Replay
+  Real beta = 0.2;
   MPI_Request nData_request = MPI_REQUEST_NULL;
   double ndata_reduce_result[2], ndata_partial_sum[2];
-
-  inline Gaussian_policy prepare_policy(const Rvec& out,
-    const Tuple*const t = nullptr) const {
-    Gaussian_policy pol({0, nA}, &aInfo, out);
-    if(t not_eq nullptr) pol.prepare(t->a, t->mu);
-    return pol;
-  }
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override;
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;

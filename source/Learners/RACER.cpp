@@ -384,10 +384,6 @@ class RACER : public Learner_offPolicy
       // this should only be used for evaluating a learned policy
       Action_t act = pol.finalize(greedyEps>0, &generators[thrID], mu);
 
-      #if 0 // add and update temporally correlated noise
-        act = pol.updateOrUhState(OrUhState[agent.ID], mu, act, iter());
-      #endif
-
       const Real advantage = adv.computeAdvantage(pol.sampAct);
       traj->action_adv.push_back(advantage);
       traj->state_vals.push_back(output[VsID]);

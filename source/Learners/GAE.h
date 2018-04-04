@@ -52,7 +52,6 @@ protected:
     if(thrID==1)  profiler->stop_start("CMP");
 
     const Policy_t pol = prepare_policy(pol_cur, traj->tuples[samp]);
-    const Action_t act = pol.map_action(traj->tuples[samp]->a);
     const Real rho_cur = pol.sampImpWeight, DivKL = pol.kl_divergence(beta);
     Rvec sampleInfo {0, 0, 0, DivKL, rho_cur};
     traj->setOffPolWeight(samp, rho_cur);
@@ -76,7 +75,7 @@ protected:
     const Rvec val_cur = F[1]->forward(traj, samp, thrID);
 
     #ifdef PPO_PENALKL
-      const Rvec policy_grad = pol.policy_grad(act, gain);
+      const Rvec policy_grad = pol.policy_grad(pol.sampAct, gain);
       const Rvec penal_grad = pol.div_kl_grad(beta, -valPenal[0]);
       const Rvec totalPolGrad = sum2Grads(penal_grad, policy_grad);
       for(Uint i=0; i<policy_grad.size(); i++) {
@@ -85,7 +84,7 @@ protected:
         sampleInfo[2] += policy_grad[i]*penal_grad[i];
       }
     #else //we still learn the penal coef, for simplicity, but no effect
-      const Rvec totalPolGrad = pol.policy_grad(act, gain);
+      const Rvec totalPolGrad = pol.policy_grad(pol.sampAct, gain);
       for(Uint i=0; i<totalPolGrad.size(); i++) {
         sampleInfo[0] += std::fabs(totalPolGrad[i]);
         sampleInfo[1] += 0; sampleInfo[2] += 0;

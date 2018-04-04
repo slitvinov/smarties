@@ -45,15 +45,14 @@ Learner_offPolicy(_env, _set), learnR(_set.learnrate)
     build_val.addInput(relay->nOutputs()); // add actions
     build_val.addLayer(1, "Linear", true); // output
   #endif
-  const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
-  build_pol.addParamLayer(nA, "Linear", initParam);
-
+  //_set.nnFunc = "SoftSign"; // works best with rectifiers
   F[0]->initializeNetwork(build_pol, 0);
   F[0]->blockInpGrad = true;
 
   _set.learnrate *= 10; // DPG wants critic faster than actor
   _set.nnLambda = 1e-2; // also wants 1e-2 L2 penl coef
   //_set.nnFunc = "LRelu"; // works best with rectifiers
+  _set.targetDelay = .001;
   F[1]->initializeNetwork(build_val, 0);
   printf("DPG\n");
 }
@@ -68,13 +67,16 @@ void DPG::select(const Agent& agent)
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
     Rvec pol = F[0]->forward_agent(traj, agent, thrID);
-    Gaussian_policy policy = prepare_policy(pol);
-    Rvec MU = policy.getVector();
-    Rvec act = policy.finalize(bTrain, &generators[thrID], MU);
-    if(OrUhDecay>0)
-      act = policy.updateOrUhState(OrUhState[agent.ID], MU, OrUhDecay);
-    agent.a->set(act);
-    data->add_action(agent, MU);
+    Rvec act = pol;
+    for(Uint i=0; i<nA; i++) {
+      OrUhState[agent.ID][i] *= OrUhDecay;
+      pol[i] += OrUhState[agent.ID][i]; //is mean if we model pol as gaussian
+      OrUhState[agent.ID][i] += greedyEps*dist(generators[thrID]);
+      act[i] += OrUhState[agent.ID][i];
+      pol.push_back(greedyEps); //is stdev if model pol as gaussian
+    }
+    agent.act(aInfo.getScaled(act));
+    data->add_action(agent, pol);
   } else {
     OrUhState[agent.ID] = Rvec(nA, 0);
     data->terminate_seq(agent);
@@ -93,43 +95,38 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   F[0]->prepare_one(traj, t, thrID);
   F[1]->prepare_one(traj, t, thrID);
 
-  const Rvec polVec = F[0]->forward(traj, t, thrID);
-  const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
-  const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, 1 + CmaxPol);
-  if(isOff) return resample(thrID); // if CmaxPol==0 this is never triggered
-
   relay->prepare(ACT, thrID); // tell relay between two nets to pass actions
-  const Rvec q_curr = F[1]->forward(traj, t, thrID); // inp here is {s,a}
+  const Rvec POL = F[0]->forward(traj, t, thrID), MU = traj->tuples[t]->mu;
+  const Rvec act = aInfo.getInvScaled(traj->tuples[t]->a);
+  const Real sampPonPolicy = Gaussian_policy::evalPolVec(act, POL, greedyEps);
+  const Real sampPBehavior = Gaussian_policy::evalPolVec(act,  MU, greedyEps);
+  const Real sampImpWeight = sampPonPolicy / sampPBehavior;
+  const bool isOff = traj->isFarPolicy(t, sampImpWeight, 1 + CmaxPol);
+  if(isOff) return resample(thrID);
+
+  const Rvec q_curr = F[1]->forward(traj, t, thrID);
 
   relay->prepare(NET, thrID); // tell relay to pass policy (output of F[0])
-  const Rvec v_curr = F[1]->forward<CUR, TGT>(traj, t, thrID); //here is {s,pi}
-    //const Rvec v_curr = F[1]->forward<TGT, TGT>(traj, t, thrID);
-  const Rvec detPolG = F[1]->relay_backprop({1}, t, thrID);
-
-  Real target = data->scaledReward(traj, t+1);
-  if (not traj->isTerminal(t+1)) {
-    const Rvec pol_next = F[0]->forward<TGT>(traj, t+1, thrID);
-    const Rvec v_next = F[1]->forward<TGT>(traj, t+1, thrID);//here is {s,pi}_+1
-    target += gamma * v_next[0];
-  }
-
   { //code to compute policy grad:
+    //const Rvec v_curr = F[1]->forward<TGT>(traj, t, thrID);
+    const Rvec v_curr = F[1]->forward<CUR, TGT>(traj, t, thrID);
+    const Rvec polG = F[1]->relay_backprop({1}, t, thrID);
     //cout <<"Inp grad: "<< print(polGr) << endl; fflush(0);
-    const Real a_curr = target - v_curr[0];
-    Rvec polG = POL.policy_grad(POL.sampAct, POL.sampImpWeight*a_curr);
-    for (Uint i=0; i<nA; i++) polG[i] = detPolG[i];
-    #ifndef LearnStDev // one-line rule to keep stdev const == init user value
-      for (Uint i=0; i<nA; i++) polG[i+nA] = greedyEps - POL.stdev[i];
-    #endif
-    const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
-    Rvec finalG(F[0]->nOutputs(), 0);
-    POL.finalize_grad(weightSum2Grads(polG, penG, beta), finalG);
+    const Rvec penG = Gaussian_policy::actDivKLgrad(POL, MU, -1);
+    const Rvec finalG  = weightSum2Grads(polG, penG, beta);
     F[0]->backward(finalG, t, thrID);
   }
 
   { //code to compute value grad:
+    Real target = data->scaledReward(traj,t+1);
+    if (not traj->isTerminal(t+1)) {
+      const Rvec pol_next = F[0]->forward(traj, t+1, thrID);
+      const Rvec v_next = F[1]->forward<TGT>(traj, t+1, thrID);
+      target += gamma * v_next[0];
+    }
+
     const Rvec grad_val = {(target-q_curr[0])};
-    traj->SquaredError[t] = POL.kl_divergence(traj->tuples[t]->mu);
+    traj->SquaredError[t] = Gaussian_policy::actKLdivergence(POL, MU);
     //traj->SquaredError[t] = grad_val[0]*grad_val[0];
     Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
     F[1]->backward(grad_val, t, thrID);
@@ -149,7 +146,7 @@ void DPG::prepareGradient()
 
   profiler->stop_start("PRNE");
   advanceCounters();
-  data->prune(CmaxPol>0 ? MAXERROR : OLDEST, 1 + CmaxPol);
+  data->prune(MAXERROR, 1 + CmaxPol);
   Real fracOffPol = data->nOffPol / (Real) data->nTransitions;
   profiler->stop_start("SLP");
 
@@ -174,7 +171,6 @@ void DPG::prepareGradient()
     if(firstUpdate) return;
   }
 
-  // if CmaxPol<=0 no samples will be counted as far pol, beta will be 1
   if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
   else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 

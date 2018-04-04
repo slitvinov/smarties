@@ -106,18 +106,11 @@ struct Sequence
 
   inline bool isFarPolicy(const Uint t, const Real W, const Real C)
   {
-    bool isOff;
-    //#pragma omp critical
-    //{
-      assert(t<offPol_weight.size());
-      //const Real w = offPol_weight[t];
-      #pragma omp atomic write
-      offPol_weight[t] = W;
-      //const bool wasOff = w > C || w < iC;
-                  isOff = W > C || W < 1/C;
-      //if((not wasOff)&&     isOff ) nOffPol += 1;
-      //if(     wasOff &&(not isOff)) nOffPol -= 1;
-    //}
+    if(C<=1) return false;
+    const bool isOff = W > C || W < 1/C;
+    assert(t<offPol_weight.size());
+    #pragma omp atomic write
+    offPol_weight[t] = W;
     return isOff;
   }
   inline void add_state(const Rvec state, const Real reward=0)
