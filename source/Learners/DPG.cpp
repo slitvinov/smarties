@@ -118,20 +118,26 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
     const Rvec pol_next = F[0]->forward<TGT>(traj, t+1, thrID);
     //if(!thrID) cout << "nterm pol "<<print(pol_next) << endl;
     const Rvec v_next = F[1]->forward<TGT>(traj, t+1, thrID);//here is {s,pi}_+1
-    //const Real rGamma = nStep<1e4? 1-1/(1+(nStep/1e4)*(1/(1-gamma)-1)) :gamma;
-    target += gamma * v_next[0];
+    const Real rGamma = nStep<1e4? 1-1/(1+(nStep/1e4)*(1/(1-gamma)-1)) :gamma;
+    target += rGamma * v_next[0];
   }
 
   { //code to compute policy grad:
-    const Real a_curr = target - v_curr[0];
+    Real a_curr = target - v_curr[0];
+    if(a_curr > 0 && POL.sampImpWeight >  2) a_curr = 0;
+    if(a_curr < 0 && POL.sampImpWeight < .5) a_curr = 0;
+    // this is an experimental change to update stdev using policy gradient
+    // not fully analyzed therefore should be turned off by default
+    // policy gradient is fully overwritten in 2 and 4 lines from here
     Rvec polG = POL.policy_grad(POL.sampAct, POL.sampImpWeight*a_curr);
     for (Uint i=0; i<nA; i++) polG[i] = detPolG[i];
-    Rvec finalG(F[0]->nOutputs(), 0);
-    const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
-    Rvec mixG = weightSum2Grads(polG, penG, beta);
-    #ifndef LearnStDev // one-line rule to keep stdev const == init user value
-      for (Uint i=0; i<nA; i++) mixG[i+nA] = greedyEps - POL.stdev[i];
+    #ifndef LearnStDev // ugly hack to keep stdev const == init user value
+      for (Uint i=0; i<nA; i++) polG[i+nA] = greedyEps - POL.stdev[i];
     #endif
+    const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
+    // if beta=1 (which is inevitable for CmaxPol=0) this will be equal to polG
+    Rvec mixG = weightSum2Grads(polG, penG, beta);
+    Rvec finalG(F[0]->nOutputs(), 0);
     POL.finalize_grad(mixG, finalG);
     //#pragma omp critical //"O:"<<print(polVec)<<
     //if(!thrID) cout<<"G:"<<print(polG)<<" D:"<<print(penG)<<endl;
