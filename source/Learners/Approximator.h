@@ -44,7 +44,7 @@ struct Approximator
 
   //thread safe memory for prediction with current weights:
   mutable vector<vector<Activation*>> series;
-  
+
   //thread safe  memory for prediction with target weights. Rules are that
   // index along the two alloc vectors is the same for the same sample, and
   // that tgt net (if available) takes recurrent activation from current net:
@@ -73,8 +73,8 @@ struct Approximator
       const Uint thrID, const Uint nSamples = 1) const;
 
   Rvec forward(const Sequence* const traj, const Uint samp,
-    const Uint thrID, const PARAMS USE_WEIGHTS, const PARAMS USE_ACT,
-    const Uint iSample, const int overwrite) const;
+    const Uint thrID, const PARAMS USE_W, const PARAMS USE_ACT,
+    const Uint iSample=0, const int overwrite=0) const;
 
   // this is templated only to increase clarity when calling the forward op
   template <PARAMS USE_WEIGHTS=CUR, PARAMS USE_ACT=USE_WEIGHTS, int overwrite=0>
@@ -115,7 +115,7 @@ struct Approximator
   }
 
   Rvec getInput(const Sequence*const traj, const Uint samp,
-    const Uint thrID) const;
+    const Uint thrID, const PARAMS USE_WEIGHTS) const;
 
   inline int mapTime2Ind(const Uint samp, const Uint thrID) const
   {
@@ -175,7 +175,7 @@ struct Aggregator
   const MemoryBuffer* const data;
   const ActionInfo& aI = data->aI;
   const Approximator* const approx;
-
+  Rvec scaling;
   mutable vector<int> first_sample;
   mutable vector<vector<Rvec>> inputs; // [thread][time][component]
   mutable vector<RELAY> usage; // [thread]
@@ -203,7 +203,7 @@ struct Aggregator
   void set(const Rvec vec,const Uint samp,const Uint thrID) const;
 
   Rvec get(const Sequence*const traj, const Uint samp,
-      const Uint thrID) const;
+      const Uint thrID, const PARAMS USEW) const;
 
   inline Uint nOutputs() const
   {
@@ -212,9 +212,18 @@ struct Aggregator
         assert(inputs[omp_get_thread_num()][0].size() == nOuts);
       } else if (usage[omp_get_thread_num()] == NET) {
         assert(approx not_eq nullptr);
-        assert(approx->nOutputs() == nOuts);
+        assert(approx->nOutputs() >= nOuts); // DPG now outputs stdev: >=
       } else assert(aI.dim == nOuts);
     #endif
     return nOuts;
+  }
+
+  inline Rvec scale(Rvec out) const {
+    if(scaling.size()){
+      assert(scaling.size() == out.size());
+      assert(scaling.size() == nOuts);
+      for (Uint i=0; i<nOuts; i++) out[i] *= scaling[i];
+    }
+    return out;
   }
 };

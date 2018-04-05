@@ -60,20 +60,26 @@ void Aggregator::set(const Rvec vec,const Uint samp,const Uint thrID) const
 }
 
 Rvec Aggregator::get(const Sequence*const traj, const Uint samp,
-    const Uint thrID) const
+    const Uint thrID, const PARAMS USEW) const
 {
+  Rvec ret;
   if(usage[thrID] == VEC) {
     assert(first_sample[thrID] >= 0);
     const int ind = (int)samp - first_sample[thrID];
     assert(first_sample[thrID] <= (int)samp);
     assert(ind >= 0 && (int) inputs[thrID].size() > ind);
     assert(inputs[thrID][ind].size());
-    return inputs[thrID][ind];
+    ret = inputs[thrID][ind];
   } else if (usage[thrID] == ACT) {
-    return aI.getInvScaled(traj->tuples[samp]->a);
+    assert(aI.dim == nOuts);
+    ret = aI.getInvScaled(traj->tuples[samp]->a);
   } else {
-    return approx->forward<CUR>(traj, samp, thrID);
+    ret = approx->forward(traj, samp, thrID, USEW, USEW);
+    assert(ret.size() >= nOuts); // in DPG we now also output parametric stdev
+    ret.resize(nOuts);           // vector, therefore ... this workaround
   }
+  for(Uint j=0; j<nOuts; j++) assert(!std::isnan(ret[j])&&!std::isinf(ret[j]));
+  return scale(ret);
 }
 
 Builder Approximator::buildFromSettings(Settings&sett, const vector<Uint>nouts)
@@ -215,7 +221,7 @@ Rvec Approximator::forward(const Sequence* const traj, const Uint samp,
   if(ind>0 && act_cur[ind-1]->written not_eq true)
     this->forward(traj, samp-1, thrID);
 
-  const Rvec inp = getInput(traj, samp, thrID);
+  const Rvec inp = getInput(traj, samp, thrID, USE_WEIGHTS);
   //cout <<"Input : "<< print(inp) << endl; fflush(0);
   return getOutput(inp, ind, act[ind], thrID, USE_WEIGHTS);
 }
@@ -229,8 +235,16 @@ Rvec Approximator::relay_backprop(const Rvec err,
   assert(act[ind]->written == true && relay not_eq nullptr);
   const Parameters*const W = USEW==CUR? net->weights : net->tgt_weights;
   const Rvec ret = net->inpBackProp(err, act[ind], relayG[thrID], W, relayInp);
-  if(relayInp>0) return ret;
-  else return Rvec(&ret[nInp], &ret[nInp+relay->nOutputs()]);
+  for(Uint j=0; j<ret.size(); j++)
+    assert(!std::isnan(ret[j]) && !std::isinf(ret[j]));
+  //if(!thrID) {
+  //  const auto pret = Rvec(&ret[nInp], &ret[nInp+relay->nOutputs()]);
+  //  const auto inp = act[ind]->getInput();
+  //  const auto pinp = Rvec(&inp[nInp], &inp[nInp+relay->nOutputs()]);
+  //  cout <<"G:"<<print(pret)<< " Inp:"<<print(pinp)<<endl;
+  //}
+  if(relayInp>0) return relay->scale(ret);
+  else return relay->scale(Rvec(&ret[nInp], &ret[nInp+relay->nOutputs()]));
 }
 
 Rvec Approximator::forward_agent(const Sequence* const traj,
@@ -243,7 +257,7 @@ Rvec Approximator::forward_agent(const Sequence* const traj,
   net->prepForFwdProp(series[thrID], 2);
 
   const vector<Activation*>& act = series[thrID];
-  const Rvec inp = getInput(traj, stepid, thrID);
+  const Rvec inp = getInput(traj, stepid, thrID, USEW);
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
   const Activation* const prevStep = agent.Status==INIT_COMM? nullptr : act[0];
   act[0]->written = true; act[1]->written = true;
@@ -267,13 +281,15 @@ Rvec Approximator::getOutput(const Rvec inp, const int ind,
   return ret;
 }
 
-Rvec Approximator::getInput(const Sequence*const traj, const Uint samp, const Uint thrID) const
+Rvec Approximator::getInput(const Sequence*const traj, const Uint samp,
+  const Uint thrID, const PARAMS USE_WEIGHTS) const
 {
   Rvec inp = input->forward(traj, samp, thrID);
   if(relay not_eq nullptr) {
-    const Rvec addedinp = relay->get(traj, samp, thrID);
+    const Rvec addedinp = relay->get(traj, samp, thrID, USE_WEIGHTS);
     assert(addedinp.size());
     inp.insert(inp.end(), addedinp.begin(), addedinp.end());
+    //if(!thrID) cout << "relay "<<print(addedinp) << endl;
   }
   assert(inp.size() == net->getnInputs());
   return inp;

@@ -24,11 +24,11 @@ void Learner_offPolicy::prepareData()
 
   if( not readyForTrain() ) return; // Do not prepare an update
 
-  if(updatePrepared && nStep == 0 && !learn_rank)
+  profiler->stop_start("PRE");
+  if(nStep%1000==0) data->updateRewardsStats(nStep, nStep==0? 1 : .001);
+  if(nStep == 0 && !learn_rank)
     cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
 
-  profiler->stop_start("PRE");
-  if(nStep%1000==0) data->updateRewardsStats(nStep, nStep==0? 1 : .01);
   taskCounter = 0;
   samp_seq = vector<Uint>(batchSize, -1);
   samp_obs = vector<Uint>(batchSize, -1);

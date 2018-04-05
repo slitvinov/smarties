@@ -18,6 +18,9 @@ FILE=    sys.argv[1]
 W  = np.fromfile(FILE+"weights.raw", dtype=np.float64)
 M1 = np.fromfile(FILE +"1stMom.raw", dtype=np.float64)
 M2 = np.fromfile(FILE +"2ndMom.raw", dtype=np.float64)
+assert(not np.isnan(W).any())
+assert(not np.isnan(M1).any())
+assert(not np.isnan(M2).any())
 
 plt.subplot(221)
 plt.semilogy(1e-6 + abs(W),'b.')

@@ -38,7 +38,7 @@ if [[ $PATH == *"openmpi"* ]]; then
 #pirun -n ${NPROCESS} --map-by ppr:1:socket:pe=12 -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
 mpirun -n ${NPROCESS} -oversubscribe --map-by node:PE=24 -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
 else
- #--leak-check=yes  --track-origins=yes
+#--leak-check=yes  --track-origins=yes
 #mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to core:${NTHREADS} valgrind --num-callers=100  --tool=memcheck  ./rl ${SETTINGS} | tee out.log
 mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to core:${NTHREADS} ./rl ${SETTINGS} | tee out.log
 fi

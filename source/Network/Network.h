@@ -55,7 +55,7 @@ public:
         series.push_back(allocateActivation());
     assert(series.size()>=N);
 
-    for(Uint j=0; j<series.size() && series[j]->written; j++) {
+    for(Uint j=0; j<series.size(); j++) {
       series[j]->clearErrors();
       series[j]->written = false;
     }
@@ -139,6 +139,7 @@ public:
     for(Uint i=layers.size()-1; i>ID; i--) //skip below layer we want grad for
       layers[i]->backward(nullptr, act, nullptr, _grad, W);
     act->input[ID] = true; // disable it again
+    _grad->clear();
     return act->getInputGradient(ID);
   }
 

@@ -84,7 +84,10 @@ struct Parameters
         //      <<thrN<<" "<<shift<<" "<<nParams<<endl; fflush(0); }
         if(g[thrI]->written) {
           #pragma omp simd aligned(dst, src : VEC_WIDTH)
-          for(Uint j=start; j<std::min(nParams, end); j++) dst[j] += src[j];
+          for(Uint j=start; j<std::min(nParams, end); j++) {
+            assert(not std::isnan(src[j]) && not std::isinf(src[j]));
+            dst[j] += src[j];
+          }
         }
         #pragma omp barrier
       }

@@ -47,16 +47,19 @@ Learner_offPolicy(_env, _set), learnR(_set.learnrate)
   #endif
   const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
   build_pol.addParamLayer(nA, "Linear", initParam);
+  relay->scaling = Rvec(nA, 1/greedyEps);
 
+  _set.outWeightsPrefac = 0.001;
   F[0]->initializeNetwork(build_pol, 0);
   F[0]->blockInpGrad = true;
 
-  _set.learnrate *= 10; // DPG wants critic faster than actor
+  _set.learnrate *= 3; // DPG wants critic faster than actor
   _set.nnLambda = 1e-2; // also wants 1e-2 L2 penl coef
-  //_set.nnFunc = "LRelu"; // works best with rectifiers
+  //_set.nnFunc = "SoftSign"; // works best with rectifiers
+  _set.nnFunc = "LRelu"; // works best with rectifiers
   // we want initial Q to be approx equal to 0 everywhere.
   // if LRelu we need to make initialization multiplier smaller:
-  //_set.outWeightsPrefac *= 0.01;
+  _set.targetDelay = 0.001;
   F[1]->initializeNetwork(build_val, 0);
   printf("DPG\n");
 }
@@ -66,7 +69,6 @@ void DPG::select(const Agent& agent)
   const int thrID= omp_get_thread_num();
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
-  std::normal_distribution<Real> dist(0, 1);
   if( agent.Status < TERM_COMM ) { // not last of a sequence
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
@@ -78,6 +80,7 @@ void DPG::select(const Agent& agent)
       act = policy.updateOrUhState(OrUhState[agent.ID], MU, OrUhDecay);
     agent.a->set(act);
     data->add_action(agent, MU);
+    //if(nStep)cout << print(MU) << " " << print(act) << endl;
   } else {
     OrUhState[agent.ID] = Rvec(nA, 0);
     data->terminate_seq(agent);
@@ -98,41 +101,46 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
 
   const Rvec polVec = F[0]->forward(traj, t, thrID);
   const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
+  //if(!thrID) cout<<"tpol "<<print(polVec)<<" act: "<<print(POL.sampAct)<<endl;
   const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, 1 + CmaxPol);
   if(isOff) return resample(thrID); // if CmaxPol==0 this is never triggered
 
-  relay->prepare(ACT, thrID); // tell relay between two nets to pass actions
+  relay->prepare_one(traj, t, thrID, ACT);
   const Rvec q_curr = F[1]->forward(traj, t, thrID); // inp here is {s,a}
 
   relay->prepare(NET, thrID); // tell relay to pass policy (output of F[0])
   const Rvec v_curr = F[1]->forward<CUR, TGT>(traj, t, thrID); //here is {s,pi}
-    //const Rvec v_curr = F[1]->forward<TGT, TGT>(traj, t, thrID);
   const Rvec detPolG = F[1]->relay_backprop({1}, t, thrID);
+  //if(!thrID) cout << "G "<<print(detPolG) << endl;
 
   Real target = data->scaledReward(traj, t+1);
   if (not traj->isTerminal(t+1)) {
     const Rvec pol_next = F[0]->forward<TGT>(traj, t+1, thrID);
+    //if(!thrID) cout << "nterm pol "<<print(pol_next) << endl;
     const Rvec v_next = F[1]->forward<TGT>(traj, t+1, thrID);//here is {s,pi}_+1
+    //const Real rGamma = nStep<1e4? 1-1/(1+(nStep/1e4)*(1/(1-gamma)-1)) :gamma;
     target += gamma * v_next[0];
   }
 
   { //code to compute policy grad:
-    //cout <<"Inp grad: "<< print(polGr) << endl; fflush(0);
     const Real a_curr = target - v_curr[0];
     Rvec polG = POL.policy_grad(POL.sampAct, POL.sampImpWeight*a_curr);
     for (Uint i=0; i<nA; i++) polG[i] = detPolG[i];
-    #ifndef LearnStDev // one-line rule to keep stdev const == init user value
-      for (Uint i=0; i<nA; i++) polG[i+nA] = greedyEps - POL.stdev[i];
-    #endif
-    const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
     Rvec finalG(F[0]->nOutputs(), 0);
-    POL.finalize_grad(weightSum2Grads(polG, penG, beta), finalG);
+    const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
+    Rvec mixG = weightSum2Grads(polG, penG, beta);
+    #ifndef LearnStDev // one-line rule to keep stdev const == init user value
+      for (Uint i=0; i<nA; i++) mixG[i+nA] = greedyEps - POL.stdev[i];
+    #endif
+    POL.finalize_grad(mixG, finalG);
+    //#pragma omp critical //"O:"<<print(polVec)<<
+    //if(!thrID) cout<<"G:"<<print(polG)<<" D:"<<print(penG)<<endl;
     F[0]->backward(finalG, t, thrID);
   }
 
   { //code to compute value grad:
     const Rvec grad_val = {(target-q_curr[0])};
-    traj->SquaredError[t] = POL.kl_divergence(traj->tuples[t]->mu);
+    traj->setSquaredError(t, POL.kl_divergence(traj->tuples[t]->mu));
     //traj->SquaredError[t] = grad_val[0]*grad_val[0];
     Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
     F[1]->backward(grad_val, t, thrID);

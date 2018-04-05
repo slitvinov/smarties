@@ -50,11 +50,26 @@ struct trainData
 
   void getMetrics(ostringstream& buff) const
   {
-    buff<<" "<<std::setw(6)<<std::setprecision(2)<<std::fixed<< MSE;
-    buff<<" "<<std::setw(6)<<std::setprecision(2)<<std::fixed<<avgQ;
-    buff<<" "<<std::setw(6)<<std::setprecision(2)<<std::fixed<<stdQ;
-    buff<<" "<<std::setw(6)<<std::setprecision(2)<<std::fixed<<minQ;
-    buff<<" "<<std::setw(6)<<std::setprecision(2)<<std::fixed<<maxQ;
+    {
+      const auto prec = std::fabs( MSE)>1e3? 0 : (std::fabs( MSE)>1e2? 1:2);
+      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<< MSE;
+    }
+    {
+      const auto prec = std::fabs(avgQ)>1e3? 0 : (std::fabs(avgQ)>1e2? 1:2);
+      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<<avgQ;
+    }
+    {
+      const auto prec = std::fabs(stdQ)>1e3? 0 : (std::fabs(stdQ)>1e2? 1:2);
+      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<<stdQ;
+    }
+    {
+      const auto prec = std::fabs(minQ)>1e3? 0 : (std::fabs(minQ)>1e2? 1:2);
+      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<<minQ;
+    }
+    {
+      const auto prec = std::fabs(maxQ)>1e3? 0 : (std::fabs(maxQ)>1e2? 1:2);
+      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<<maxQ;
+    }
   }
   void getHeaders(ostringstream& buff) const
   {

@@ -61,12 +61,24 @@ struct Activation
 
   inline void setInput(const vector<nnReal> inp) const {
     assert(nInputs == inp.size());
+    for(Uint j=0; j<nInputs; j++)
+      assert(!std::isnan(inp[j]) && !std::isinf(inp[j]));
     Uint k=0;
     for(Uint i=0; i<nLayers; i++) if(input[i]) {
       memcpy(outvals[i], &inp[k], sizes[i]*sizeof(nnReal));
       k += sizes[i];
     }
     assert(k == nInputs);
+  }
+  inline vector<nnReal> getInput() const {
+    vector<nnReal> ret(nInputs);
+    Uint k=0;
+    for(Uint i=0; i<nLayers; i++) if(input[i]) {
+      memcpy(&ret[k], outvals[i], sizes[i]*sizeof(nnReal));
+      k += sizes[i];
+    }
+    assert(k == nInputs);
+    return ret;
   }
 
   inline void clipDelta(const Uint ID, const Uint sizeLink, const nnReal clip=5) const
@@ -98,6 +110,8 @@ struct Activation
 
   inline void setOutputDelta(const vector<nnReal> delta) const {
     assert(nOutputs == delta.size()); //alternative not supported
+    for(Uint j=0; j<nOutputs; j++)
+      assert(!std::isnan(delta[j]) && !std::isinf(delta[j]));
     Uint k=0;
     for(Uint i=0; i<nLayers; i++) if(output[i]) {
       memcpy(errvals[i], &delta[k], sizes[i]*sizeof(nnReal));
@@ -124,6 +138,8 @@ struct Activation
       memcpy(&ret[k], outvals[i], sizes[i]*sizeof(nnReal));
       k += sizes[i];
     }
+    for(Uint j=0; j<nOutputs; j++)
+      assert(!std::isnan(ret[j]) && !std::isinf(ret[j]));
     assert(k == nOutputs);
     return ret;
   }

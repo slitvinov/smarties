@@ -169,7 +169,7 @@ void Slave::run()
         return;
       }
     }
-    //if here, a crash happened:
+    die("Simulation crash");
     //if we are training, then launch again, otherwise exit
     //if (!bTrain) return;
     comm->launch();

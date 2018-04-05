@@ -55,7 +55,7 @@ public:
 
   void writeData(const int rank, const Rvec mu) const
   {
-    return; // TODO READ BVERBOSE
+    //return; // TODO READ BVERBOSE
     // possible race conditions, avoided by the fact that each slave
     // (and therefore agent) can only be handled by one thread at the time
     // atomic op is to make sure that counter gets flushed to all threads

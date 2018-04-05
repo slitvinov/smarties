@@ -21,7 +21,7 @@ class DPG : public Learner_offPolicy
   const Real OrUhDecay = 0; // no correlated noise
   vector<Rvec> OrUhState = vector<Rvec>(nAgents,Rvec(nA,0));
 
-  Real beta = CmaxPol>0 ? 0.2 : 1; // if CmaxPol==0 do naive Exp Replay
+  Real beta = .2; // if CmaxPol==0 do naive Exp Replay
   MPI_Request nData_request = MPI_REQUEST_NULL;
   double ndata_reduce_result[2], ndata_partial_sum[2];
 

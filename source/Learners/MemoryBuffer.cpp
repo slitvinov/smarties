@@ -145,12 +145,12 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight)
   }
 
   if(count<batchSize) return;
-  const Real stDevRew = std::sqrt(newstdvr/count) +numeric_limits<float>::epsilon();
+  const Real stDevRew = sqrt(newstdvr/count) +numeric_limits<float>::epsilon();
   invstd_reward = (1-weight)*invstd_reward +weight/stDevRew;
   for(Uint k=0; k<dimS; k++) {
     mean[k] = (1-weight) * mean[k] + weight * newStateSum[k]/count;
-    const Real curVar = newStateSqSum[k]/count - mean[k]*mean[k];
-    std[k] = (1-weight) * std[k] + weight * std::sqrt(curVar);
+    const Real var = newStateSqSum[k]/count - std::pow(newStateSum[k]/count,2);
+    std[k] = (1-weight) * std[k] + weight * std::sqrt(var);
     invstd[k] = 1/(std[k]+std::numeric_limits<float>::epsilon());
   }
   if(learn_rank == 0) {
@@ -159,15 +159,39 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight)
     outf.flush(); outf.close();
   }
 
-  #ifndef NDEBUG
+  #if 0 //ndef NDEBUG
     Uint cntSamp = 0;
     for(Uint i=0; i<Set.size(); i++) {
       assert(Set[i] not_eq nullptr);
       cntSamp += Set[i]->ndata();
     }
     assert(cntSamp==nTransitions.load());
+    vector<long double> dbgStateSum(dimS, 0), dbgStateSqSum(dimS, 0);
+    #pragma omp parallel
+    {
+      vector<long double> thr_dbgStateSum(dimS, 0), thr_dbgStateSqSum(dimS, 0);
+      #pragma omp for schedule(dynamic)
+      for(Uint i=0; i<Set.size(); i++)
+        for(Uint j=0; j<Set[i]->ndata(); j++) {
+          const auto S = standardize(Set[i]->tuples[j]->s);
+          for(Uint k=0; k<dimS; k++) {
+            thr_dbgStateSum[k] += S[k]; thr_dbgStateSqSum[k] += S[k]*S[k];
+          }
+        }
+      #pragma omp critical
+      for(Uint k=0; k<dimS; k++) {
+        #pragma omp atomic
+        dbgStateSum[k]   += thr_dbgStateSum[k];
+        #pragma omp atomic
+        dbgStateSqSum[k] += thr_dbgStateSqSum[k];
+      }
+    }
+    for(Uint k=0; k<dimS; k++) {
+      const Real dbgMean = dbgStateSum[k]/count;
+      const Real dbgVar = dbgStateSqSum[k]/count - dbgMean*dbgMean;
+      cout <<k<<" mean:"<<dbgMean<<" std:"<<std::sqrt(dbgVar);
+    }
   #endif
-  //printf("new invstd reward %g\n",invstd_reward);
 }
 
 // Transfer a completed trajectory from the `inProgress` buffer to the data set
@@ -202,7 +226,7 @@ void MemoryBuffer::push_back(const int & agentId)
 void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
 {
   //checkNData();
-  assert(CmaxRho>1);
+  assert(CmaxRho>=1);
   // vector indicating location of sequence to delete
   vector<pair<int, Real>> farpol_location(nThreads, {-1, -1});
   vector<pair<int, Real>> maxerr_location(nThreads, {-1, -1});
@@ -222,6 +246,8 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
           Set[i]->MSE += Set[i]->SquaredError[j];
           const Real W = Set[i]->offPol_weight[j];
           assert(Set[i]->SquaredError[j]>=0 && W>=0);
+          //if(Set[i]->SquaredError[j]<0)  {_die("%f",Set[i]->SquaredError[j]) }
+          //if(Set[i]->offPol_weight[j]<0) {_die("%f",Set[i]->offPol_weight[j])}
           // sequence is off policy if offPol W is out of 1/C : C
           if(W>CmaxRho || W<invC) Set[i]->nOffPol += 1;
         }
@@ -251,7 +277,7 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
       }
     }
   }
-
+  if(CmaxRho<=1) _nOffPol = 0; //then this counter and its effects are skipped
   nOffPol = _nOffPol; totMSE = _totMSE/nTransitions.load();
   const int nB4 = Set.size();
   int old_ptr = -1, far_ptr = -1, mse_ptr = -1, fit_ptr = -1, del_ptr = -1;
@@ -285,6 +311,11 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
   // negligible effect if hyperparameters are chosen wisely
   if(nTransitions.load()-Set[del_ptr]->ndata() > maxTotObsNum) {
     std::swap(Set[del_ptr], Set.back());
+    popBackSequence();
+  } else if(far_val > 0.9) {
+    cout<<"Too many farpol samp ("<<far_val*100<<"%%) in seq "
+        <<Set[far_ptr]->ID<<". Change hyperparams."<<endl;
+    std::swap(Set[far_ptr], Set.back());
     popBackSequence();
   }
   nPruned += nB4-Set.size();
@@ -349,7 +380,11 @@ void MemoryBuffer::getMetrics(ostringstream& buff)
   buff<<" "<<std::setw(7)<<minInd;
   buff<<" "<<std::setw(6)<<(int)nOffPol;
   buff<<" "<<std::setw(6)<<std::setprecision(2)<<1./invstd_reward;
-  buff<<" "<<std::setw(6)<<std::setprecision(3)<<totMSE;
+  {
+    const auto prec = std::fabs(totMSE)>1e3? 0: (std::fabs(totMSE)>1e2? 1 :
+                                                (std::fabs(totMSE)>1e1? 2 : 3));
+    buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<< totMSE;
+  }
   nPruned=0;
 }
 void MemoryBuffer::getHeaders(ostringstream& buff)

@@ -41,11 +41,13 @@ struct Adam {
       // Actually I can't think of a situation where, except due to finite
       // precision, this next like will not be reduntant...
       M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
-      return eta * (numer /  std::sqrt(nnEPS + M2)  +penal);
+      const nnReal ret =  eta * (numer /  std::sqrt(nnEPS + M2)  +penal);
       //return eta * (numer / (nnEPS + std::sqrt(M2)) +penal);
     #else
-      return eta * (numer /  std::sqrt(nnEPS + M2)  +penal);
+      const nnReal ret =  eta * (numer /  std::sqrt(nnEPS + M2)  +penal);
     #endif
+    assert(not std::isnan(ret) && not std::isinf(ret));
+    return ret;
   }
 };
 
@@ -116,8 +118,9 @@ class Optimizer
     weights(W), tgt_weights(W_TGT), gradSum(W->allocateGrad()),
     _1stMom(W->allocateGrad()), _2ndMom(W->allocateGrad()),
     generators(S.generators) {
-      _2ndMom->set(std::sqrt(nnEPS)); }
-      //_2ndMom->set(1); }
+      _2ndMom->set(std::sqrt(nnEPS));
+      //_2ndMom->set(1);
+    }
   //alpha_eSGD(0.75), gamma_eSGD(10.), eta_eSGD(.1/_s.targetDelay),
   //eps_eSGD(1e-3), delay(_s.targetDelay), L_eSGD(_s.targetDelay),
   //_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
