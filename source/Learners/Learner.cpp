@@ -114,6 +114,7 @@ void Learner::processStats()
   ostringstream buf;
   stats.getMetrics(buf);
   data->getMetrics(buf);
+  input->getMetrics(buf);
   for(auto & net : F) net->getMetrics(buf);
   getMetrics(buf);
 
@@ -125,6 +126,7 @@ void Learner::processStats()
   if( nStep%(1000*PRFL_DMPFRQ)==0 || nStep==1000 ) {
     stats.getHeaders(head);
     data->getHeaders(head);
+    input->getHeaders(head);
     for(auto & net : F) net->getHeaders(head);
     getHeaders(head);
     printf("#/1e3 %s\n", head.str().c_str());

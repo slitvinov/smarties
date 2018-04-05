@@ -34,7 +34,7 @@ Learner_offPolicy(_env, _set), learnR(_set.learnrate)
 
   F.push_back(new Approximator("policy", _set, input, data));
   relay = new Aggregator(_set, data, nA, F[0]);
-  F.push_back(new Approximator("value", _set, input, data, relay));
+  F.push_back(new Approximator("critic", _set, input, data, relay));
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
 
   #if 1

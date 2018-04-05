@@ -245,7 +245,7 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
   {
     printf("Continuous-action GAE\n");
     F.push_back(new Approximator("policy", _set, input, data));
-    F.push_back(new Approximator("value", _set, input, data));
+    F.push_back(new Approximator("critic", _set, input, data));
 
     Builder build_val = F[1]->buildFromSettings(_set, {1} );
 
@@ -304,7 +304,7 @@ class GAE_disc : public GAE<Discrete_policy, Uint>
   {
     printf("Discrete-action GAE\n");
     F.push_back(new Approximator("policy", _set, input, data));
-    F.push_back(new Approximator("value", _set, input, data));
+    F.push_back(new Approximator("critic", _set, input, data));
     Builder build_pol = F[0]->buildFromSettings(_set, aInfo.maxLabel);
     Builder build_val = F[1]->buildFromSettings(_set, 1 );
 
