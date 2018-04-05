@@ -38,21 +38,25 @@ struct Settings
   int bTrain = DEFAULT_bTrain;
 
 #define CHARARG_appendedObs 'c'
-#define COMMENT_appendedObs "Number of past observations to be chained together to form policy input (eg. see frames in DQN paper)."
+#define COMMENT_appendedObs "Number of past observations to be chained \
+together to form policy input (eg. see frames in DQN paper)."
 #define TYPEVAL_appendedObs int
 #define TYPENUM_appendedObs INT
 #define DEFAULT_appendedObs 0
   int appendedObs = DEFAULT_appendedObs;
 
 #define CHARARG_targetDelay 'd'
-#define COMMENT_targetDelay "Copy delay for target network. If >1: every # grad desc steps tgt-net copies curr weigths. If <1: every grad desc step tgt-net does exp averaging."
+#define COMMENT_targetDelay "Copy delay for target network. If >1: every \
+$targetDelay grad desc steps tgt-net copies curr weigths. If <1: every \
+grad desc step tgt-net does exp averaging."
 #define TYPEVAL_targetDelay Real
 #define TYPENUM_targetDelay REAL
 #define DEFAULT_targetDelay 0
   Real targetDelay = DEFAULT_targetDelay;
 
 #define CHARARG_greedyEps 'e'
-#define COMMENT_greedyEps "Rate of random actions (detail depend on chosen learning algorithm)."
+#define COMMENT_greedyEps "Rate of random actions (detail depend on chosen \
+learning algorithm)."
 #define TYPEVAL_greedyEps Real
 #define TYPENUM_greedyEps REAL
 #define DEFAULT_greedyEps 0.1
@@ -80,14 +84,16 @@ struct Settings
   Real lambda = DEFAULT_lambda;
 
 #define CHARARG_maxSeqLen 'M' //there is always an exception
-#define COMMENT_maxSeqLen "Maximum length of sequence. if seq is longer it is just split into segments."
+#define COMMENT_maxSeqLen "DEPRECATED: Maximum length of sequence. if seq is \
+longer it is just split into segments."
 #define TYPEVAL_maxSeqLen int
 #define TYPENUM_maxSeqLen INT
 #define DEFAULT_maxSeqLen 9999
   int maxSeqLen = DEFAULT_maxSeqLen;
 
 #define CHARARG_minTotObsNum 'm'
-#define COMMENT_minTotObsNum "Min number of transitions in training buffer before training starts."
+#define COMMENT_minTotObsNum "Min number of transitions in training buffer \
+before training starts."
 #define TYPEVAL_minTotObsNum int
 #define TYPENUM_minTotObsNum INT
 #define DEFAULT_minTotObsNum -1
@@ -101,14 +107,16 @@ struct Settings
   int maxTotObsNum = DEFAULT_maxTotObsNum;
 
 #define CHARARG_obsPerStep 'o'
-#define COMMENT_obsPerStep "Ratio of observed *transitions* to gradient steps. 0.1 means that for every observation, learner does 10 gradient steps."
+#define COMMENT_obsPerStep "Ratio of observed *transitions* to gradient \
+steps. 0.1 means that for every observation, learner does 10 gradient steps."
 #define TYPEVAL_obsPerStep  Real
 #define TYPENUM_obsPerStep  REAL
 #define DEFAULT_obsPerStep  1
   Real obsPerStep = DEFAULT_obsPerStep;
 
 #define CHARARG_epsAnneal 'r'
-#define COMMENT_epsAnneal "Annealing rate in grad steps of various learning-algorithm-dependent behaviors."
+#define COMMENT_epsAnneal "Annealing rate in grad steps of various \
+learning-algorithm-dependent behaviors."
 #define TYPEVAL_epsAnneal Real
 #define TYPENUM_epsAnneal REAL
 #define DEFAULT_epsAnneal 1e6
@@ -200,7 +208,9 @@ struct Settings
   int splitLayers = DEFAULT_splitLayers;
 
 #define CHARARG_outWeightsPrefac 'O'
-#define COMMENT_outWeightsPrefac "Output weights initialization factor (will be multiplied by default fan-in factor). Picking 1 leads to treating output layers with normal initialization."
+#define COMMENT_outWeightsPrefac "Output weights initialization factor (will \
+be multiplied by default fan-in factor). Picking 1 leads to treating \
+output layers with normal initialization."
 #define TYPEVAL_outWeightsPrefac Real
 #define TYPENUM_outWeightsPrefac REAL
 #ifdef __CHECK_DIFF //check gradients with finite differences
@@ -239,14 +249,18 @@ struct Settings
   Real nnLambda = DEFAULT_nnLambda;
 
 #define CHARARG_nnType 'N'
-#define COMMENT_nnType "Type of non-output layers read from settings. (RNN, LSTM, everything else maps to FFNN). Conv2D layers need to be built in environment directly."
+#define COMMENT_nnType "Type of non-output layers read from settings. (RNN, \
+LSTM, everything else maps to FFNN). Conv2D layers need to be built in \
+environment directly."
 #define TYPEVAL_nnType string
 #define TYPENUM_nnType STRING
 #define DEFAULT_nnType "FFNN"
   string nnType = DEFAULT_nnType;
 
 #define CHARARG_nnFunc 'F'
-#define COMMENT_nnFunc "Activation function for non-output layers (which are always linear) which are built from settings. (Relu, Tanh, Sigm, PRelu, softSign, softPlus, ...)"
+#define COMMENT_nnFunc "Activation function for non-output layers (which are \
+always linear) which are built from settings. (Relu, Tanh, Sigm, PRelu, \
+softSign, softPlus, ...)"
 #define TYPEVAL_nnFunc string
 #define TYPENUM_nnFunc STRING
 #define DEFAULT_nnFunc "LRelu"
@@ -256,7 +270,8 @@ struct Settings
 //SETTINGS PERTAINING TO PARALLELIZATION/COMMUNICATION: ASCII SYMBOL
 ///////////////////////////////////////////////////////////////////////////////
 #define CHARARG_nThreads '#'
-#define COMMENT_nThreads "Number of threads from threaded training on each master rank."
+#define COMMENT_nThreads "Number of threads from threaded training on each \
+master rank."
 #define TYPEVAL_nThreads int
 #define TYPENUM_nThreads INT
 #define DEFAULT_nThreads 1
@@ -270,11 +285,19 @@ struct Settings
   int nMasters = DEFAULT_nMasters;
 
 #define CHARARG_isServer '!'
-#define COMMENT_isServer "DEPRECATED: Whether smarties launches environment app (=1) or is launched by it (=0) (then cannot train)."
+#define COMMENT_isServer "DEPRECATED: Whether smarties launches environment \
+app (=1) or is launched by it (=0) (then cannot train)."
 #define TYPEVAL_isServer int
 #define TYPENUM_isServer INT
 #define DEFAULT_isServer 1
   int isServer = DEFAULT_isServer;
+
+#define CHARARG_ppn '>'
+#define COMMENT_ppn "Number of processes per node."
+#define TYPEVAL_ppn int
+#define TYPENUM_ppn INT
+#define DEFAULT_ppn 1
+  int ppn = DEFAULT_ppn;
 
 #define CHARARG_sockPrefix '@'
 #define COMMENT_sockPrefix "Prefix for communication file over sockets."
@@ -297,15 +320,9 @@ struct Settings
 #define DEFAULT_restart "policy"
   string restart = DEFAULT_restart;
 
-#define CHARARG_ppn '>'
-#define COMMENT_ppn "Number of processes per node."
-#define TYPEVAL_ppn int
-#define TYPENUM_ppn INT
-#define DEFAULT_ppn 1
-  int ppn = DEFAULT_ppn;
-
 #define CHARARG_maxTotSeqNum '='
-#define COMMENT_maxTotSeqNum "DEPRECATED: Maximum number of sequences in training buffer"
+#define COMMENT_maxTotSeqNum "DEPRECATED: Maximum number of sequences in \
+training buffer"
 #define TYPEVAL_maxTotSeqNum int
 #define TYPENUM_maxTotSeqNum INT
 #define DEFAULT_maxTotSeqNum 1000
@@ -319,7 +336,8 @@ struct Settings
   int randSeed = DEFAULT_randSeed;
 
 #define CHARARG_saveFreq ')'
-#define COMMENT_saveFreq "DEPRECATED: Freq in # of comms with slaves for the master to save the policy."
+#define COMMENT_saveFreq "DEPRECATED: Freq in # of comms with slaves for \
+the master to save the policy."
 #define TYPEVAL_saveFreq int
 #define TYPENUM_saveFreq INT
 #define DEFAULT_saveFreq 10000
@@ -329,18 +347,12 @@ struct Settings
 //SETTINGS PERTAINING TO ENVIRONMENT: NUMBER
 ///////////////////////////////////////////////////////////////////////////////
 #define CHARARG_environment '0'
-#define COMMENT_environment "Environment name, required is action/state space properties are hardcoded in smarties rather than read at runtime."
+#define COMMENT_environment "Environment name, required is action/state \
+space properties are hardcoded in smarties rather than read at runtime."
 #define TYPEVAL_environment string
 #define TYPENUM_environment STRING
 #define DEFAULT_environment "Environment"
   string environment = DEFAULT_environment;
-
-#define CHARARG_launchfile '1'
-#define COMMENT_launchfile "Name of executable or launch script of user application. No arguments can go here. The file must be placed in the base run folder."
-#define TYPEVAL_launchfile string
-#define TYPENUM_launchfile STRING
-#define DEFAULT_launchfile "launchSim.sh"
-  string launchfile = DEFAULT_launchfile;
 
 #define CHARARG_rType '2'
 #define COMMENT_rType "Reward type (can be defined by user in the environment)."
@@ -350,7 +362,8 @@ struct Settings
   int rType = DEFAULT_rType;
 
 #define CHARARG_senses '3'
-#define COMMENT_senses "Perceptions allowed to agent (can be defined by user in the environment)."
+#define COMMENT_senses "Perceptions allowed to agent (can be defined by user \
+in the environment)."
 #define TYPEVAL_senses int
 #define TYPENUM_senses INT
 #define DEFAULT_senses 0
@@ -362,6 +375,15 @@ struct Settings
 #define TYPENUM_goalDY REAL
 #define DEFAULT_goalDY 0
   Real goalDY = DEFAULT_goalDY;
+
+#define CHARARG_launchfile '1'
+#define COMMENT_launchfile "Name of executable or launch script of user \
+application. No arguments can go here. The file must be placed in the \
+base run folder."
+#define TYPEVAL_launchfile string
+#define TYPENUM_launchfile STRING
+#define DEFAULT_launchfile "launchSim.sh"
+  string launchfile = DEFAULT_launchfile;
 
 #define CHARARG_factory '5'
 #define COMMENT_factory "Location of factory file."
@@ -376,6 +398,9 @@ struct Settings
 #define TYPENUM_filePrefix STRING
 #define DEFAULT_filePrefix "./"
   string filePrefix = DEFAULT_filePrefix;
+
+#define READOPT(NAME)  { CHARARG_ ## NAME, #NAME, TYPENUM_ ## NAME, \
+  COMMENT_ ## NAME, &NAME, (TYPEVAL_ ## NAME) DEFAULT_ ## NAME }
 
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS THAT ARE NOT READ FROM FILE
@@ -439,54 +464,25 @@ struct Settings
     //AVERT YOUR EYES!
 
     return vector<ArgParser::OptionStruct> ({
-      { CHARARG_ppn, "ppn", TYPENUM_ppn, COMMENT_ppn, &ppn, (TYPEVAL_ppn) DEFAULT_ppn },
-      { CHARARG_bSharedPol, "bSharedPol", TYPENUM_bSharedPol, COMMENT_bSharedPol, &bSharedPol, (TYPEVAL_bSharedPol) DEFAULT_bSharedPol },
-      { CHARARG_impWeight, "impWeight", TYPENUM_impWeight, COMMENT_impWeight, &impWeight, (TYPEVAL_impWeight) DEFAULT_impWeight },
-      { CHARARG_environment, "environment", TYPENUM_environment, COMMENT_environment, &environment, (TYPEVAL_environment) DEFAULT_environment },
-      { CHARARG_launchfile, "launchfile", TYPENUM_launchfile, COMMENT_launchfile, &launchfile, (TYPEVAL_launchfile) DEFAULT_launchfile },
-      { CHARARG_splitLayers, "splitLayers", TYPENUM_splitLayers, COMMENT_splitLayers, &splitLayers, (TYPEVAL_splitLayers) DEFAULT_splitLayers },
-      { CHARARG_outWeightsPrefac, "outWeightsPrefac", TYPENUM_outWeightsPrefac, COMMENT_outWeightsPrefac, &outWeightsPrefac, (TYPEVAL_outWeightsPrefac) DEFAULT_outWeightsPrefac },
-      { CHARARG_rType, "rType", TYPENUM_rType, COMMENT_rType, &rType, (TYPEVAL_rType) DEFAULT_rType },
-      { CHARARG_senses, "senses", TYPENUM_senses, COMMENT_senses, &senses, (TYPEVAL_senses) DEFAULT_senses },
-      { CHARARG_goalDY, "goalDY", TYPENUM_goalDY, COMMENT_goalDY, &goalDY, (TYPEVAL_goalDY) DEFAULT_goalDY },
-      { CHARARG_factory, "factory", TYPENUM_factory, COMMENT_factory, &factory, (TYPEVAL_factory) DEFAULT_factory },
-      { CHARARG_filePrefix, "filePrefix", TYPENUM_filePrefix, COMMENT_filePrefix, &filePrefix, (TYPEVAL_filePrefix) DEFAULT_filePrefix },
-      { CHARARG_nThreads, "nThreads", TYPENUM_nThreads, COMMENT_nThreads, &nThreads, (TYPEVAL_nThreads) DEFAULT_nThreads },
-      { CHARARG_nMasters, "nMasters", TYPENUM_nMasters, COMMENT_nMasters, &nMasters, (TYPEVAL_nMasters) DEFAULT_nMasters },
-      { CHARARG_isServer, "isServer", TYPENUM_isServer, COMMENT_isServer, &isServer, (TYPEVAL_isServer) DEFAULT_isServer },
-      { CHARARG_sockPrefix, "sockPrefix", TYPENUM_sockPrefix, COMMENT_sockPrefix, &sockPrefix, (TYPEVAL_sockPrefix) DEFAULT_sockPrefix },
-      { CHARARG_appendedObs, "appendedObs", TYPENUM_appendedObs, COMMENT_appendedObs, &appendedObs, (TYPEVAL_appendedObs) DEFAULT_appendedObs },
-      { CHARARG_maxSeqLen, "maxSeqLen", TYPENUM_maxSeqLen, COMMENT_maxSeqLen, &maxSeqLen, (TYPEVAL_maxSeqLen) DEFAULT_maxSeqLen },
-      { CHARARG_minTotObsNum, "minTotObsNum", TYPENUM_minTotObsNum, COMMENT_minTotObsNum, &minTotObsNum, (TYPEVAL_minTotObsNum) DEFAULT_minTotObsNum },
-      { CHARARG_maxTotSeqNum, "maxTotSeqNum", TYPENUM_maxTotSeqNum, COMMENT_maxTotSeqNum, &maxTotSeqNum, (TYPEVAL_maxTotSeqNum) DEFAULT_maxTotSeqNum },
-      { CHARARG_bTrain, "bTrain", TYPENUM_bTrain, COMMENT_bTrain, &bTrain, (TYPEVAL_bTrain) DEFAULT_bTrain },
-      { CHARARG_maxTotObsNum, "maxTotObsNum", TYPENUM_maxTotObsNum, COMMENT_maxTotObsNum, &maxTotObsNum, (TYPEVAL_maxTotObsNum) DEFAULT_maxTotObsNum },
-      { CHARARG_saveFreq, "saveFreq", TYPENUM_saveFreq, COMMENT_saveFreq, &saveFreq, (TYPEVAL_saveFreq) DEFAULT_saveFreq },
-      { CHARARG_randSeed, "randSeed", TYPENUM_randSeed, COMMENT_randSeed, &randSeed, (TYPEVAL_randSeed) DEFAULT_randSeed },
-      { CHARARG_epsAnneal, "epsAnneal", TYPENUM_epsAnneal, COMMENT_epsAnneal, &epsAnneal, (TYPEVAL_epsAnneal) DEFAULT_epsAnneal },
-      { CHARARG_greedyEps, "greedyEps", TYPENUM_greedyEps, COMMENT_greedyEps, &greedyEps, (TYPEVAL_greedyEps) DEFAULT_greedyEps },
-      { CHARARG_targetDelay, "targetDelay", TYPENUM_targetDelay, COMMENT_targetDelay, &targetDelay, (TYPEVAL_targetDelay) DEFAULT_targetDelay },
-      { CHARARG_gamma, "gamma", TYPENUM_gamma, COMMENT_gamma, &gamma, (TYPEVAL_gamma) DEFAULT_gamma },
-      { CHARARG_lambda, "lambda", TYPENUM_lambda, COMMENT_lambda, &lambda, (TYPEVAL_lambda) DEFAULT_lambda },
-      { CHARARG_learner, "learner", TYPENUM_learner, COMMENT_learner, &learner, (TYPEVAL_learner) DEFAULT_learner },
-      { CHARARG_restart, "restart", TYPENUM_restart, COMMENT_restart, &restart, (TYPEVAL_restart) DEFAULT_restart },
-      { CHARARG_obsPerStep, "obsPerStep", TYPENUM_obsPerStep, COMMENT_obsPerStep, &obsPerStep, (TYPEVAL_obsPerStep) DEFAULT_obsPerStep },
-      { CHARARG_totNumSteps, "totNumSteps", TYPENUM_totNumSteps, COMMENT_totNumSteps, &totNumSteps, (TYPEVAL_totNumSteps) DEFAULT_totNumSteps },
-      { CHARARG_samplesFile, "samplesFile", TYPENUM_samplesFile, COMMENT_samplesFile, &samplesFile, (TYPEVAL_samplesFile) DEFAULT_samplesFile },
-      { CHARARG_bSampleSequences, "bSampleSequences", TYPENUM_bSampleSequences, COMMENT_bSampleSequences, &bSampleSequences, (TYPEVAL_bSampleSequences) DEFAULT_bSampleSequences },
-      { CHARARG_nnl1, "nnl1", TYPENUM_nnl1, COMMENT_nnl1, &nnl1, (TYPEVAL_nnl1) DEFAULT_nnl1 },
-      { CHARARG_nnl2, "nnl2", TYPENUM_nnl2, COMMENT_nnl2, &nnl2, (TYPEVAL_nnl2) DEFAULT_nnl2 },
-      { CHARARG_nnl3, "nnl3", TYPENUM_nnl3, COMMENT_nnl3, &nnl3, (TYPEVAL_nnl3) DEFAULT_nnl3 },
-      { CHARARG_nnl4, "nnl4", TYPENUM_nnl4, COMMENT_nnl4, &nnl4, (TYPEVAL_nnl4) DEFAULT_nnl4 },
-      { CHARARG_nnl5, "nnl5", TYPENUM_nnl5, COMMENT_nnl5, &nnl5, (TYPEVAL_nnl5) DEFAULT_nnl5 },
-      { CHARARG_nnl6, "nnl6", TYPENUM_nnl6, COMMENT_nnl6, &nnl6, (TYPEVAL_nnl6) DEFAULT_nnl6 },
-      { CHARARG_batchSize, "batchSize", TYPENUM_batchSize, COMMENT_batchSize, &batchSize, (TYPEVAL_batchSize) DEFAULT_batchSize },
-      { CHARARG_learnrate, "learnrate", TYPENUM_learnrate, COMMENT_learnrate, &learnrate, (TYPEVAL_learnrate) DEFAULT_learnrate },
-      { CHARARG_nnPdrop, "nnPdrop", TYPENUM_nnPdrop, COMMENT_nnPdrop, &nnPdrop, (TYPEVAL_nnPdrop) DEFAULT_nnPdrop },
-      { CHARARG_nnLambda, "nnLambda", TYPENUM_nnLambda, COMMENT_nnLambda, &nnLambda, (TYPEVAL_nnLambda) DEFAULT_nnLambda },
-      { CHARARG_nnType, "nnType", TYPENUM_nnType, COMMENT_nnType, &nnType, (TYPEVAL_nnType) DEFAULT_nnType },
-      { CHARARG_nnFunc, "nnFunc", TYPENUM_nnFunc, COMMENT_nnFunc, &nnFunc, (TYPEVAL_nnFunc) DEFAULT_nnFunc },
-      { CHARARG_klDivConstraint, "klDivConstraint", TYPENUM_klDivConstraint, COMMENT_klDivConstraint, &klDivConstraint, (TYPEVAL_klDivConstraint) DEFAULT_klDivConstraint }
+      // LEARNER ARGS: MUST contain all 17 mentioned above (more if modified)
+      READOPT(learner), READOPT(bTrain), READOPT(appendedObs),
+      READOPT(targetDelay), READOPT(greedyEps), READOPT(gamma),
+      READOPT(klDivConstraint), READOPT(lambda), READOPT(maxSeqLen),
+      READOPT(minTotObsNum), READOPT(maxTotObsNum), READOPT(obsPerStep),
+      READOPT(epsAnneal), READOPT(bSampleSequences), READOPT(impWeight),
+      READOPT(bSharedPol), READOPT(totNumSteps),
+      // NETWORK ARGS: MUST contain all 14 mentioned above (more if modified)
+      READOPT(nnl1), READOPT(nnl2), READOPT(nnl3), READOPT(nnl4),
+      READOPT(nnl5), READOPT(nnl6), READOPT(splitLayers),
+      READOPT(outWeightsPrefac), READOPT(batchSize), READOPT(learnrate),
+      READOPT(nnPdrop), READOPT(nnLambda), READOPT(nnType), READOPT(nnFunc),
+      // SMARTIES ARGS: MUST contain all 10 mentioned above (more if modified)
+      READOPT(nThreads), READOPT(nMasters), READOPT(isServer), READOPT(ppn),
+      READOPT(sockPrefix), READOPT(samplesFile), READOPT(restart),
+      READOPT(maxTotSeqNum), READOPT(randSeed), READOPT(saveFreq),
+      // ENVIRONMENT ARGS: MUST contain all 7 mentioned above (more if modified)
+      READOPT(environment), READOPT(rType), READOPT(senses), READOPT(goalDY),
+      READOPT(launchfile), READOPT(factory), READOPT(filePrefix)
     });
   }
 
