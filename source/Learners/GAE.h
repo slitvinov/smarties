@@ -58,18 +58,20 @@ protected:
 
 
     Real gain = rho_cur*adv_est;
-    cntPenal[thrID+1]++;
-    if(DivKL < DKL_target / 1.5) valPenal[thrID+1] -= valPenal[0]/2; //half
     #ifdef PPO_CLIPPED
       bool gainZero = false;
       if(adv_est > 0 && rho_cur > 1+CmaxPol) gainZero = true; //gain = 0;
       if(adv_est < 0 && rho_cur < 1-CmaxPol) gainZero = true; //gain = 0;
-      if(DivKL>1.5*DKL_target && adv_est>0) valPenal[thrID+1] += valPenal[0]; //double
-      // if off policy, skip zero-gradient backprop
-      if(gainZero) return resample(thrID);
-    #else
-      if(DivKL > 1.5 * DKL_target) valPenal[thrID+1] += valPenal[0]; //double
+      if(gainZero) return resample(thrID); // if off policy, resample
     #endif
+    //In total absence of penalty term, it can happen that no samples are still
+    //near-policy after nEpochs. Therefore we keep it, but since beta is Updated
+    //after the resampling, samples that arrive here have a lower KL div.
+    //Therefore beta is substantially smaller if PPO_CLIPPED is defined.
+
+    cntPenal[thrID+1]++;
+    if(DivKL < DKL_target / 1.5) valPenal[thrID+1] -= valPenal[0]/2; //half
+    if(DivKL > 1.5 * DKL_target) valPenal[thrID+1] += valPenal[0]; //double
 
     F[1]->prepare_one(traj, samp, thrID);
     const Rvec val_cur = F[1]->forward(traj, samp, thrID);
@@ -109,14 +111,14 @@ public:
   GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
     Learner_onPolicy(_env, _set), lambda(_set.lambda), learnR(_set.learnrate),
     #ifdef PPO_CLIPPED
-    DKL_target(_set.klDivConstraint *std::cbrt(nA)), //small penalty, still better perf
+    DKL_target(_set.klDivConstraint *std::cbrt(nA)), //small penal for stability
     #else
     DKL_target(_set.klDivConstraint),
     #endif
     pol_outputs(pol_outs), pol_indices(count_indices(pol_outs)),
     cntPenal(nThreads+1, 0), valPenal(nThreads+1, 0) {
     opcInfo = new StatsTracker(5, "GAE", _set, 100);
-    valPenal[0] = 1./DKL_target;
+    valPenal[0] = 1;
     //valPenal[0] = 1.;
   }
 
@@ -249,7 +251,6 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
 
     Builder build_val = F[1]->buildFromSettings(_set, {1} );
 
-    _set.nnFunc = "LRelu"; //pol works best with Leaky Relu non-linearities
     #ifndef PPO_simpleSigma
       Rvec initBias;
       Gaussian_policy::setInitial_noStdev(&aInfo, initBias);
@@ -261,10 +262,10 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
       const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
       build_pol.addParamLayer(aInfo.dim, "Linear", initParam);
     #endif
-    F[0]->initializeNetwork(build_pol, 8);
+    F[0]->initializeNetwork(build_pol, 10);
 
     //_set.learnrate *= 2;
-    F[1]->initializeNetwork(build_val, 8);
+    F[1]->initializeNetwork(build_val, 10);
 
     {  // TEST FINITE DIFFERENCES:
       Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
