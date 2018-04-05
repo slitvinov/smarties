@@ -107,6 +107,11 @@ inline string print(const vector<T> vals)
   return o.str();
 }
 
+inline bool isZero(const Real vals)
+{
+  return std::fabs(vals) < std::numeric_limits<Real>::epsilon();
+}
+
 inline bool nonZero(const Real vals)
 {
   return std::fabs(vals) > std::numeric_limits<Real>::epsilon();

@@ -128,12 +128,14 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
     if(a_curr < 0 && POL.sampImpWeight < .5) a_curr = 0;
     // this is an experimental change to update stdev using policy gradient
     // not fully analyzed therefore should be turned off by default
-    // policy gradient is fully overwritten in 2 and 4 lines from here
+    // policy gradient is fully overwritten in 2 and 6 lines from here
     Rvec polG = POL.policy_grad(POL.sampAct, POL.sampImpWeight*a_curr);
     for (Uint i=0; i<nA; i++) polG[i] = detPolG[i];
-    #ifndef LearnStDev // ugly hack to keep stdev const == init user value
-      for (Uint i=0; i<nA; i++) polG[i+nA] = greedyEps - POL.stdev[i];
+    #ifdef LearnStDev // ugly hack to keep stdev const == init user value
+      if(isZero(a_curr))
     #endif
+        for (Uint i=0; i<nA; i++) polG[i+nA] = greedyEps - POL.stdev[i];
+
     const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
     // if beta=1 (which is inevitable for CmaxPol=0) this will be equal to polG
     Rvec mixG = weightSum2Grads(polG, penG, beta);
