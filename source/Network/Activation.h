@@ -130,6 +130,18 @@ struct Activation
     written = true;
   }
 
+  inline vector<nnReal> getOutputDelta() const {
+    assert(written == true);
+    vector<nnReal> ret(nOutputs);
+    Uint k=0;
+    for(Uint i=0; i<nLayers; i++) if(output[i]) {
+      memcpy(&ret[k], errvals[i], sizes[i]*sizeof(nnReal));
+      k += sizes[i];
+    }
+    assert(k == nOutputs);
+    return ret;
+  }
+
   inline vector<nnReal> getOutput() const {
     assert(written == true);
     vector<nnReal> ret(nOutputs);

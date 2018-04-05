@@ -16,7 +16,7 @@ DPG::DPG(Environment*const _env, Settings& _set) :
 Learner_offPolicy(_env, _set), learnR(_set.learnrate)
 {
   _set.splitLayers = 0;
-  #if 0
+  #if 1
     if(input->net not_eq nullptr) {
       delete input->opt; input->opt = nullptr;
       delete input->net; input->net = nullptr;
@@ -27,7 +27,7 @@ Learner_offPolicy(_env, _set), learnR(_set.learnrate)
     bInputNet = bInputNet || env->predefinedNetwork(input_build);
     bInputNet = bInputNet || predefinedNetwork(input_build, _set);
     if(bInputNet) {
-      Network* net = input_build.build();
+      Network* net = input_build.build(true);
       input->initializeNetwork(net, input_build.opt);
     }
   #endif
@@ -55,8 +55,6 @@ Learner_offPolicy(_env, _set), learnR(_set.learnrate)
 
   _set.learnrate *= 3; // DPG wants critic faster than actor
   _set.nnLambda = 1e-2; // also wants 1e-2 L2 penl coef
-  //_set.nnFunc = "SoftSign"; // works best with rectifiers
-  _set.nnFunc = "LRelu"; // works best with rectifiers
   // we want initial Q to be approx equal to 0 everywhere.
   // if LRelu we need to make initialization multiplier smaller:
   _set.targetDelay = 0.001;

@@ -30,7 +30,7 @@ generators(_s.generators), Vstats(nThreads), nTasks(_s.global_tasking_counter)
   input_build.addInput( input->nOutputs() );
   bool builder_used = env->predefinedNetwork(input_build);
   if(builder_used) {
-    Network* net = input_build.build();
+    Network* net = input_build.build(true);
     Optimizer* opt = input_build.opt;
     input->initializeNetwork(net, opt);
   }

@@ -138,6 +138,13 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor)
       if(net->layers[relayInp]->nOutputs() != relay->nOutputs()) die("crap");
     } else relayInp = 0;
   }
+
+  if(input->net not_eq nullptr) {
+    if(not net->layers[0]->bInput) die("should not be possible");
+    for(Uint i=1; i<net->layers.size(); i++)
+      net->layers[i]->forceBackProp = true;
+  }
+
   #ifdef __CHECK_DIFF //check gradients with finite differences
     net->checkGrads();
   #endif
@@ -354,6 +361,7 @@ void Approximator::gradient(const Uint thrID) const
       Rvec inputG = act[i]->getInputGradient(0);
       inputG.resize(input->nOutputs());
       input->backward(inputG, first_sample[thrID] +i, thrID);
+      //if(!thrID) cout<<i<<" inpG:"<<print(inputG)<<endl;
     }
   }
   error_placements[thrID] = -1; //to stop additional backprops

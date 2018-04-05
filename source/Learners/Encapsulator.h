@@ -168,6 +168,8 @@ struct Encapsulator
     vector<Activation*>& act = series[thrID];
     const int last_error = error_placements[thrID];
     for (int i=0; i<last_error; i++) assert(act[i]->written == true);
+    //if(!thrID) for(int i=0; i<last_error; i++)
+    //  cout<<i<<" inpB:"<<print(act[i]->getOutputDelta())<<endl;
     net->backProp(act, last_error, net->Vgrad[thrID]);
     error_placements[thrID] = -1; //to stop additional backprops
   }

@@ -135,7 +135,7 @@ public:
 
   // Function that initializes and constructs net and optimizer.
   // Once this is called number of layers or weights CANNOT be modified.
-  Network* build()
+  Network* build(const bool isInputNet = false)
   {
     if(bBuilt) die("Cannot build the network multiple times\n");
     bBuilt = true;
@@ -146,7 +146,8 @@ public:
 
     // Initialize weights
     for(const auto & l : layers)
-      l->initialize(&generators[0], weights, l->bOutput? settings.outWeightsPrefac : 1);
+      l->initialize(&generators[0], weights,
+        l->bOutput && not isInputNet ? settings.outWeightsPrefac : 1);
 
     // Make sure that all ranks have the same weights (copy from rank 0)
     weights->broadcast(settings.mastersComm);

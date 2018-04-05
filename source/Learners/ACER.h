@@ -175,7 +175,7 @@ class ACER : public Learner_offPolicy
       bInputNet = bInputNet || env->predefinedNetwork(input_build);
       bInputNet = bInputNet || predefinedNetwork(input_build, _set);
       if(bInputNet) {
-        Network* net = input_build.build();
+        Network* net = input_build.build(true);
         input->initializeNetwork(net, input_build.opt);
       }
     #endif

@@ -114,7 +114,7 @@ class BaseLayer: public Layer
         for(Uint o=0; o<nNeurons; o++) G[o] += inputs[i] * deltas[o];
       }
 
-      if( not curr->input[ID-link] )
+      if( forceBackProp || not curr->input[ID-link] )
       {
               nnReal* const errors = curr->E(ID-link);
         const nnReal* const weight = para->W(ID);
