@@ -41,14 +41,15 @@ protected:
     die("not allowed");
   }
 
-  inline void updateDKL_target(const bool farPolSample) const {
+  inline void updateDKL_target(const bool farPolSample, const Real DivKL) const
+  {
     #ifdef PPO_learnDKLt
       //In total absence of penalty term, it can happen that no samples are
       //near-policy after nEpochs. Therefore we keep penalty.
       //We adapt DKL_target such that approximatively 80% of the samples
-      //are still near -policy according to:
-      if(farPolSample && DKL_target>1e-3) DKL_target = DKL_target*0.99995;
-      else if           (DKL_target<1e-1) DKL_target = DKL_target*1.00001;
+      //are still near-policy. In gym tasks will lead to ~0 penalty term.
+      if(      farPolSample && DKL_target>DivKL) DKL_target = DKL_target*0.9995;
+      else if(!farPolSample && DKL_target<DivKL) DKL_target = DKL_target*1.0001;
     #endif
   }
 
@@ -77,7 +78,7 @@ protected:
     #ifdef PPO_CLIPPED
       if(adv_est > 0 && rho_cur > 1+CmaxPol) gain = 0;
       if(adv_est < 0 && rho_cur < 1-CmaxPol) gain = 0;
-      updateDKL_target(isFarPol);
+      updateDKL_target(isFarPol, DivKL);
     #endif
 
     F[1]->prepare_one(traj, samp, thrID);
@@ -85,7 +86,7 @@ protected:
 
     #ifdef PPO_PENALKL
       const Rvec policy_grad = pol.policy_grad(pol.sampAct, gain);
-      const Rvec penal_grad = pol.div_kl_grad(MU, -valPenal[0]);
+      const Rvec penal_grad = pol.div_kl_grad(MU, -valPenal[0]*nonZero(gain));
       const Rvec totalPolGrad = sum2Grads(penal_grad, policy_grad);
       for(Uint i=0; i<policy_grad.size(); i++) {
         sampleInfo[0] += policy_grad[i]*policy_grad[i];
