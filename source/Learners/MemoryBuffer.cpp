@@ -86,11 +86,12 @@ void MemoryBuffer::terminate_seq(const Agent&a)
 }
 
 // update the second order moment of the rewards in the memory buffer
-void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight)
+void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight,
+    Real weighR)
 {
   _nStep = nStep;
   if(!bTrain) return; //if not training, keep the stored values
-
+  if(weighR<0) weighR = weight;
   long double count = 0, newstdvr = 0;
   vector<long double> newStateSum(dimS, 0), newStateSqSum(dimS, 0);
   #pragma omp parallel reduction(+ : count, newstdvr)
@@ -146,7 +147,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight)
 
   if(count<batchSize) return;
   const Real stDevRew = sqrt(newstdvr/count) +numeric_limits<float>::epsilon();
-  invstd_reward = (1-weight)*invstd_reward +weight/stDevRew;
+  invstd_reward = (1-weighR)*invstd_reward +weighR/stDevRew;
   for(Uint k=0; k<dimS; k++) {
     mean[k] = (1-weight) * mean[k] + weight * newStateSum[k]/count;
     const Real var = newStateSqSum[k]/count - std::pow(newStateSum[k]/count,2);
@@ -312,9 +313,9 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
   if(nTransitions.load()-Set[del_ptr]->ndata() > maxTotObsNum) {
     std::swap(Set[del_ptr], Set.back());
     popBackSequence();
-  } else if(far_val > 0.9) {
-    cout<<"Too many farpol samp ("<<far_val*100<<"%%) in seq "
-        <<Set[far_ptr]->ID<<". Change hyperparams."<<endl;
+  } else if(far_val > 0.5) {
+    //cout<<"Too many farpol samp ("<<far_val*100<<"/100) in seq "
+    //    <<Set[far_ptr]->ID<<". Change hyperparams."<<endl;
     std::swap(Set[far_ptr], Set.back());
     popBackSequence();
   }

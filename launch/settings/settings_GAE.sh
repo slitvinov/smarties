@@ -4,14 +4,15 @@ SETTINGS=
 SETTINGS+=" --samplesFile none"
 #SETTINGS+=" --restart none"
 
-
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.99"
+SETTINGS+=" --gamma 0.995"
 #size of network layers
 SETTINGS+=" --nnl1 64"
 SETTINGS+=" --nnl2 64"
+#SETTINGS+=" --nnl1 128"
+#SETTINGS+=" --nnl2 128"
 
 #subject to changes
 #SETTINGS+=" --nnType RNN"
@@ -29,11 +30,12 @@ SETTINGS+=" --bTrain 1"
 SETTINGS+=" --learner GAE"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 0.5"
+#SETTINGS+=" --greedyEps 0.5"
+SETTINGS+=" --greedyEps 1"
 SETTINGS+=" --klDivConstraint 0.01"
 SETTINGS+=" --epsAnneal 1000"
 SETTINGS+=" --totNumSteps 10000000"
-SETTINGS+=" --lambda 0.95"
+SETTINGS+=" --lambda 0.97"
 SETTINGS+=" --impWeight 0.2"
 
 #SETTINGS+=" --maxTotObsNum 16384"

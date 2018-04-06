@@ -23,7 +23,7 @@ void Learner_onPolicy::prepareData()
 {
   if(cntEpoch >= nEpochs) {
     // data->clearAll();
-    cntKept = data->clearOffPol(CmaxPol, 0.1);
+    cntKept = data->clearOffPol(CmaxPol, 0.05);
     //reset batch learning counters
     cntEpoch = 0; cntBatch = 0;
     updateComplete = false;
@@ -46,7 +46,7 @@ void Learner_onPolicy::spawnTrainTasks_seq()
   if( updateComplete ) die("undefined behavior");
   if( data->readNData() < nHorizon ) die("undefined behavior");
   if( not bTrain ) return;
-  if(nStep==0) data->updateRewardsStats(nStep, 1);
+  if(nStep==0) data->updateRewardsStats(nStep, 1, 0);
   updatePrepared = true;
   vector<Uint> samp_seq(batchSize, -1), samp_obs(batchSize, -1);
   data->sampleTransitions_OPW(samp_seq, samp_obs);
@@ -72,7 +72,7 @@ void Learner_onPolicy::prepareGradient()
 {
   if (updateComplete && bTrain) {
     cntBatch += batchSize;
-    if(cntBatch >= data->readNData()) {
+    if(cntBatch >= nHorizon) {
       data->updateRewardsStats(nStep, 0.001);
       cntBatch = 0;
       cntEpoch++;

@@ -16,15 +16,17 @@
 #define PPO_CLIPPED
 //#define IGNORE_CRITIC
 #define PPO_simpleSigma
+#define PPO_learnDKLt
 
 template<typename Policy_t, typename Action_t>
 class GAE : public Learner_onPolicy
 {
 protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
-  const Real lambda, learnR, DKL_target;
+  mutable vector<long double> valPenal, cntPenal;
+  const Real lambda, learnR;
   const vector<Uint> pol_outputs, pol_indices;
-  mutable vector<long double> cntPenal, valPenal;
+  mutable std::atomic<Real> DKL_target;
   //tracks statistics about gradient, used for gradient clipping:
   StatsTracker* opcInfo;
 
@@ -39,12 +41,23 @@ protected:
     die("not allowed");
   }
 
+  inline void updateDKL_target(const bool farPolSample) const {
+    #ifdef PPO_learnDKLt
+      //In total absence of penalty term, it can happen that no samples are
+      //near-policy after nEpochs. Therefore we keep penalty.
+      //We adapt DKL_target such that approximatively 80% of the samples
+      //are still near -policy according to:
+      if(farPolSample && DKL_target>1e-3) DKL_target = DKL_target*0.99995;
+      else if           (DKL_target<1e-1) DKL_target = DKL_target*1.00001;
+    #endif
+  }
+
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override
   {
     if(thrID==1)  profiler->stop_start("FWD");
     Sequence* const traj = data->Set[seq];
     const Real adv_est = traj->action_adv[samp], val_tgt = traj->Q_RET[samp];
-    const Rvec beta = traj->tuples[samp]->mu;
+    const Rvec MU = traj->tuples[samp]->mu;
 
     F[0]->prepare_one(traj, samp, thrID);
     const Rvec pol_cur = F[0]->forward(traj, samp, thrID);
@@ -52,39 +65,36 @@ protected:
     if(thrID==1)  profiler->stop_start("CMP");
 
     const Policy_t pol = prepare_policy(pol_cur, traj->tuples[samp]);
-    const Real rho_cur = pol.sampImpWeight, DivKL = pol.kl_divergence(beta);
+    const Real rho_cur = pol.sampImpWeight, DivKL = pol.kl_divergence(MU);
     Rvec sampleInfo {0, 0, 0, DivKL, rho_cur};
-    traj->setOffPolWeight(samp, rho_cur);
-
-
-    Real gain = rho_cur*adv_est;
-    #ifdef PPO_CLIPPED
-      bool gainZero = false;
-      if(adv_est > 0 && rho_cur > 1+CmaxPol) gainZero = true; //gain = 0;
-      if(adv_est < 0 && rho_cur < 1-CmaxPol) gainZero = true; //gain = 0;
-      if(gainZero) return resample(thrID); // if off policy, resample
-    #endif
-    //In total absence of penalty term, it can happen that no samples are still
-    //near-policy after nEpochs. Therefore we keep it, but since beta is Updated
-    //after the resampling, samples that arrive here have a lower KL div.
-    //Therefore beta is substantially smaller if PPO_CLIPPED is defined.
+    const bool isFarPol = traj->isFarPolicyPPO(samp, rho_cur, CmaxPol);
 
     cntPenal[thrID+1]++;
     if(DivKL < DKL_target / 1.5) valPenal[thrID+1] -= valPenal[0]/2; //half
     if(DivKL > 1.5 * DKL_target) valPenal[thrID+1] += valPenal[0]; //double
+
+    Real gain = rho_cur*adv_est;
+    #ifdef PPO_CLIPPED
+      if(adv_est > 0 && rho_cur > 1+CmaxPol) gain = 0;
+      if(adv_est < 0 && rho_cur < 1-CmaxPol) gain = 0;
+      updateDKL_target(isFarPol);
+    #endif
 
     F[1]->prepare_one(traj, samp, thrID);
     const Rvec val_cur = F[1]->forward(traj, samp, thrID);
 
     #ifdef PPO_PENALKL
       const Rvec policy_grad = pol.policy_grad(pol.sampAct, gain);
-      const Rvec penal_grad = pol.div_kl_grad(beta, -valPenal[0]);
+      const Rvec penal_grad = pol.div_kl_grad(MU, -valPenal[0]);
       const Rvec totalPolGrad = sum2Grads(penal_grad, policy_grad);
       for(Uint i=0; i<policy_grad.size(); i++) {
-        sampleInfo[0] += std::fabs(policy_grad[i]);
-        sampleInfo[1] += std::fabs(penal_grad[i]);
-        sampleInfo[2] += policy_grad[i]*penal_grad[i];
+        sampleInfo[0] += policy_grad[i]*policy_grad[i];
+        sampleInfo[1] +=  penal_grad[i]* penal_grad[i];
+        sampleInfo[2] += policy_grad[i]* penal_grad[i];
       }
+      sampleInfo[0] = std::sqrt(sampleInfo[0]);
+      sampleInfo[1] = std::sqrt(sampleInfo[1]);
+      sampleInfo[2] = sampleInfo[2]/(sampleInfo[1]+nnEPS);
     #else //we still learn the penal coef, for simplicity, but no effect
       const Rvec totalPolGrad = pol.policy_grad(pol.sampAct, gain);
       for(Uint i=0; i<totalPolGrad.size(); i++) {
@@ -100,25 +110,21 @@ protected:
     Vstats[thrID].dumpStats(val_cur[0], val_tgt - val_cur[0]);
     opcInfo->track_vector(sampleInfo, thrID);
     if(thrID==1)  profiler->stop_start("BCK");
-
+    //if(!thrID) cout << "back pol" << endl;
     F[0]->backward(grad, samp, thrID);
+    //if(!thrID) cout << "back val" << endl; //
+    F[1]->backward({(val_tgt - val_cur[0])*(!isFarPol)}, samp, thrID);
     F[0]->gradient(thrID);
-    F[1]->backward({val_tgt - val_cur[0]}, samp, thrID);
     F[1]->gradient(thrID);
   }
 
 public:
   GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
-    Learner_onPolicy(_env, _set), lambda(_set.lambda), learnR(_set.learnrate),
-    #ifdef PPO_CLIPPED
-    DKL_target(_set.klDivConstraint *std::cbrt(nA)), //small penal for stability
-    #else
-    DKL_target(_set.klDivConstraint),
-    #endif
-    pol_outputs(pol_outs), pol_indices(count_indices(pol_outs)),
-    cntPenal(nThreads+1, 0), valPenal(nThreads+1, 0) {
+    Learner_onPolicy(_env,_set), valPenal(nThreads+1,0), cntPenal(nThreads+1,0),
+    lambda(_set.lambda), learnR(_set.learnrate), pol_outputs(pol_outs),
+    pol_indices(count_indices(pol_outs)), DKL_target(_set.klDivConstraint) {
     opcInfo = new StatsTracker(5, "GAE", _set, 100);
-    valPenal[0] = 1;
+    valPenal[0] = 10;
     //valPenal[0] = 1.;
   }
 
@@ -131,15 +137,15 @@ public:
 
     if(agent.Status < TERM_COMM ) { //non terminal state
       //Compute policy and value on most recent element of the sequence:
-      const Rvec pol=F[0]->forward_agent(curr_seq, agent, thrID);
-      const Rvec val=F[1]->forward_agent(curr_seq, agent, thrID);
+      const Rvec pol = F[0]->forward_agent(curr_seq, agent, thrID);
+      const Rvec val = F[1]->forward_agent(curr_seq, agent, thrID);
 
       curr_seq->state_vals.push_back(val[0]);
       Policy_t policy = prepare_policy(pol);
-      const Rvec beta = policy.getVector();
-      const Action_t act = policy.finalize(bTrain, &generators[thrID], beta);
+      const Rvec MU = policy.getVector();
+      const Action_t act = policy.finalize(bTrain, &generators[thrID], MU);
       agent.a->set(act);
-      data->add_action(agent, beta);
+      data->add_action(agent, MU);
     } else if( agent.Status == TRNC_COMM ) {
       const Rvec val = F[1]->forward_agent(curr_seq, agent, thrID);
       curr_seq->state_vals.push_back(val[0]);
@@ -174,6 +180,8 @@ public:
     seq->Q_RET.push_back(0);
 
     Real fac_lambda = 1, fac_gamma = 1;
+    const Real rGamma  = nStep<1e5? 1-2*(1- gamma)/(1+(nStep/1e5)) :  gamma;
+    const Real rLambda = nStep<1e5? 1-2*(1-lambda)/(1+(nStep/1e5)) : lambda;
     // reward of i=0 is 0, because before any action
     // adv(0) is also 0, V(0) = V(s_0)
     for (int i=N-2; i>=0; i--) { //update all rewards before current step
@@ -184,22 +192,32 @@ public:
       #else
         seq->action_adv[i] += fac_gamma * R;
       #endif
-      fac_lambda *= lambda*gamma;
-      fac_gamma *= gamma;
+      fac_lambda *= rLambda*rGamma;
+      fac_gamma *= rGamma;
     }
   }
 
   void getMetrics(ostringstream& buff) const {
     opcInfo->reduce_approx();
-    buff<<" "<<std::setw(6)<<std::setprecision(4)<<valPenal[0];
+    {
+      const auto prec = std::fabs(valPenal[0])>=10? 2 : (std::fabs(valPenal[0])>=1? 3 : 4);
+      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<<valPenal[0];
+    }
     buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[0];
     buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[1];
     buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[2];
     buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[3];
     buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[4];
+    #ifdef PPO_learnDKLt
+      buff<<" "<<std::setw(6)<<std::setprecision(4)<<DKL_target;
+    #endif
   }
   void getHeaders(ostringstream& buff) const {
-    buff <<"| beta | polG | penG | proj |  DKL | avgW ";
+    buff <<"| beta | polG | penG | proj |  DKL | avgW "
+    #ifdef PPO_learnDKLt
+      "| DKLt "
+    #endif
+    ;
   }
 
   void prepareGradient()
@@ -214,7 +232,7 @@ public:
     for(Uint i=1; i<=nThreads; i++) {
       cntPenal[0] += cntPenal[i]; cntPenal[i] = 0;
     }
-    const Real fac = learnR/cntPenal[0]; // learnRate*grad/N
+    const Real fac = learnR/cntPenal[0]; // learnRate*grad/N //
     cntPenal[0] = 0;
     for(Uint i=1; i<=nThreads; i++) {
         valPenal[0] += fac*valPenal[i];
@@ -246,7 +264,23 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
   GAE(_env, _set, count_pol_outputs(&_env->aI))
   {
     printf("Continuous-action GAE\n");
+    #if 0
+      if(input->net not_eq nullptr) {
+        delete input->opt; input->opt = nullptr;
+        delete input->net; input->net = nullptr;
+      }
+      Builder input_build(_set);
+      bool bInputNet = false;
+      input_build.addInput( input->nOutputs() );
+      bInputNet = bInputNet || env->predefinedNetwork(input_build);
+      bInputNet = bInputNet || predefinedNetwork(input_build, _set);
+      if(bInputNet) {
+        Network* net = input_build.build(true);
+        input->initializeNetwork(net, input_build.opt);
+      }
+    #endif
     F.push_back(new Approximator("policy", _set, input, data));
+    F[0]->blockInpGrad = true;
     F.push_back(new Approximator("critic", _set, input, data));
 
     Builder build_val = F[1]->buildFromSettings(_set, {1} );
@@ -264,7 +298,7 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
     #endif
     F[0]->initializeNetwork(build_pol, 10);
 
-    //_set.learnrate *= 2;
+    //_set.learnrate *= 3;
     F[1]->initializeNetwork(build_val, 10);
 
     {  // TEST FINITE DIFFERENCES:
