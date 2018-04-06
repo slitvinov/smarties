@@ -31,8 +31,8 @@ SETTINGS+=" --bTrain 1"
 SETTINGS+=" --learner GAE"
 
 #chance of taking random actions
-#SETTINGS+=" --greedyEps 0.5"
-SETTINGS+=" --greedyEps 1"
+SETTINGS+=" --greedyEps 0.5"
+#SETTINGS+=" --greedyEps 1"
 SETTINGS+=" --klDivConstraint 0.01"
 SETTINGS+=" --epsAnneal 1000"
 SETTINGS+=" --totNumSteps 10000000"
