@@ -215,17 +215,14 @@ class RACER : public Learner_offPolicy
     const Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
     const Rvec finalG  = weightSum2Grads(polG, penalG, beta);
 
-    #ifdef dumpExtra
+    #if 0
       if(thrID == 1) {
-        const float dist = POL.kl_divergence(traj->tuples[samp]->mu);
-        float normT = 0, dot = 0, normG = 0, impW = POL.sampImpWeight;
+        float normT = 0, dot = 0;
         for(Uint i = 0; i < polG.size(); i++) {
-          normG +=    polG[i] * polG[i];
-          dot   +=    polG[i] *  penalG[i];
-          normT +=  penalG[i] *  penalG[i];
+          dot += polG[i] * penalG[i]; normT += penalG[i] * penalG[i];
         }
-        float ret[]={dot/std::sqrt(normT), std::sqrt(normG), dist, impW};
-        fwrite(ret, sizeof(float), 4, wFile);
+        float ret[]={dot/std::sqrt(normT)};
+        fwrite(ret, sizeof(float), 1, wFile);
       }
     #endif
 
