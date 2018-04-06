@@ -19,7 +19,7 @@ void Learner_offPolicy::prepareData()
   if(updateComplete) die("undefined behavior");
 
   // then no need to prepare a new update
-  if(updatePrepared) return;
+  if(updatePrepared) die("undefined behavior"); //return;
 
 
   if( not readyForTrain() ) return; // Do not prepare an update
@@ -29,7 +29,6 @@ void Learner_offPolicy::prepareData()
   if(nStep == 0 && !learn_rank)
     cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
 
-  taskCounter = 0;
   samp_seq = vector<Uint>(batchSize, -1);
   samp_obs = vector<Uint>(batchSize, -1);
   if(bSampleSequences) data->sampleSequences(samp_seq);
@@ -147,9 +146,15 @@ void Learner_offPolicy::spawnTrainTasks_par()
 
 void Learner_offPolicy::spawnTrainTasks_seq()
 {
-  if(taskCounter >= batchSize) updateComplete = true;
+  if(taskCounter >= batchSize) {
+    updateComplete = true;
+    taskCounter = 0;
+  }
 
-  if(not updatePrepared) nData_b4Startup = data->readNConcluded();
+  if(not updatePrepared) {
+    nData_b4Startup = data->readNConcluded();
+    nData_last = 0;
+  }
 }
 
 void Learner_offPolicy::prepareGradient()
