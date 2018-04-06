@@ -239,10 +239,13 @@ class RACER : public Learner_offPolicy
     const Real dAdv = updateQret(traj, samp, A_cur, V_cur, POL);
     Rvec sampleInfo {0, 0, 0, dAdv, POL.sampImpWeight};
     for(Uint i=0; i<polG.size(); i++) {
-      sampleInfo[0] += std::fabs(polG[i]);
-      sampleInfo[1] += std::fabs( penalG[i]);
-      sampleInfo[2] += polG[i]*penalG[i];
+      sampleInfo[0] +=   polG[i]*   polG[i];
+      sampleInfo[1] += penalG[i]* penalG[i];
+      sampleInfo[2] +=   polG[i]* penalG[i];
     }
+    sampleInfo[0] = std::sqrt(sampleInfo[0]);
+    sampleInfo[1] = std::sqrt(sampleInfo[1]);
+    sampleInfo[2] = sampleInfo[2]/(sampleInfo[1]+nnEPS);
     opcInfo->track_vector(sampleInfo, thrID);
 
     #if 0
@@ -535,12 +538,24 @@ class RACER : public Learner_offPolicy
 
   void getMetrics(ostringstream& buff) const {
     opcInfo->reduce_approx();
-    buff<<" "<<std::setw(6)<<std::setprecision(3)<<beta;
-    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[0];
-    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[1];
-    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[2];
-    buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[3];
-    buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[4];
+    buff<<" "<<std::setw(6)<<std::setprecision(4)<<beta;
+    {
+      const Real v = opcInfo->instMean[0];
+      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
+      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
+    }
+    {
+      const Real v = opcInfo->instMean[1];
+      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
+      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
+    }
+    {
+      const Real v = opcInfo->instMean[2];
+      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
+      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
+    }
+    buff<<" "<<std::setw(6)<<std::setprecision(4)<<opcInfo->instMean[3];
+    buff<<" "<<std::setw(6)<<std::setprecision(3)<<opcInfo->instMean[4];
   }
   void getHeaders(ostringstream& buff) const {
     // beta: coefficient of update gradient to penalization gradient:
