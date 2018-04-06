@@ -361,7 +361,7 @@ class RACER : public Learner_offPolicy
     // pol grad magnitude. Therefore are more strongly pushed away from mu.
     MEMBUF_FILTER_ALGO = MAXERROR;
     //MEMBUF_FILTER_ALGO = FARPOLFRAC;
-
+    assert(input->net == nullptr);
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() {
@@ -529,7 +529,7 @@ class RACER : public Learner_offPolicy
     if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
     else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 
-    if( beta < 0.05 )
+    if( beta < 0.05 && nStep % 1000 == 0)
     warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");
   }
 
