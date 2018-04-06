@@ -48,7 +48,7 @@ protected:
       //near-policy after nEpochs. Therefore we keep penalty.
       //We adapt DKL_target such that approximatively 80% of the samples
       //are still near-policy. In gym tasks will lead to ~0 penalty term.
-      if(      farPolSample && DKL_target>DivKL) DKL_target = DKL_target*0.9995;
+      if(      farPolSample && DKL_target>DivKL) DKL_target = DKL_target*0.9996;
       else if(!farPolSample && DKL_target<DivKL) DKL_target = DKL_target*1.0001;
     #endif
   }
@@ -84,9 +84,9 @@ protected:
     F[1]->prepare_one(traj, samp, thrID);
     const Rvec val_cur = F[1]->forward(traj, samp, thrID);
 
-    #ifdef PPO_PENALKL
+    #ifdef PPO_PENALKL //*nonZero(gain)
       const Rvec policy_grad = pol.policy_grad(pol.sampAct, gain);
-      const Rvec penal_grad = pol.div_kl_grad(MU, -valPenal[0]*nonZero(gain));
+      const Rvec penal_grad = pol.div_kl_grad(MU, -valPenal[0]);
       const Rvec totalPolGrad = sum2Grads(penal_grad, policy_grad);
       for(Uint i=0; i<policy_grad.size(); i++) {
         sampleInfo[0] += policy_grad[i]*policy_grad[i];
@@ -113,7 +113,7 @@ protected:
     if(thrID==1)  profiler->stop_start("BCK");
     //if(!thrID) cout << "back pol" << endl;
     F[0]->backward(grad, samp, thrID);
-    //if(!thrID) cout << "back val" << endl; //
+    //if(!thrID) cout << "back val" << endl; //*(!isFarPol)
     F[1]->backward({(val_tgt - val_cur[0])*(!isFarPol)}, samp, thrID);
     F[0]->gradient(thrID);
     F[1]->gradient(thrID);
@@ -297,10 +297,10 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
       const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
       build_pol.addParamLayer(aInfo.dim, "Linear", initParam);
     #endif
-    F[0]->initializeNetwork(build_pol, 10);
+    F[0]->initializeNetwork(build_pol, 5);
 
     //_set.learnrate *= 3;
-    F[1]->initializeNetwork(build_val, 10);
+    F[1]->initializeNetwork(build_val, 5);
 
     {  // TEST FINITE DIFFERENCES:
       Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));

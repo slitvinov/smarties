@@ -17,7 +17,8 @@ SETTINGS+=" --nnl2 64"
 #subject to changes
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc Tanh"
-SETTINGS+=" --nnFunc SoftSign"
+#SETTINGS+=" --nnFunc SoftSign"
+SETTINGS+=" --nnFunc LRelu"
 # L2 regularization of the weights
 SETTINGS+=" --nnLambda 0.0001"
 
@@ -47,4 +48,4 @@ SETTINGS+=" --obsPerStep 6.4" # equivalent to 10 epoch with BS 64
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 64"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0003"
+SETTINGS+=" --learnrate 0.0001"

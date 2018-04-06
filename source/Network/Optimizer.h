@@ -118,7 +118,7 @@ class Optimizer
     weights(W), tgt_weights(W_TGT), gradSum(W->allocateGrad()),
     _1stMom(W->allocateGrad()), _2ndMom(W->allocateGrad()),
     generators(S.generators) {
-      _2ndMom->set(std::sqrt(nnEPS));
+      //_2ndMom->set(std::sqrt(nnEPS));
       //_2ndMom->set(1);
     }
   //alpha_eSGD(0.75), gamma_eSGD(10.), eta_eSGD(.1/_s.targetDelay),
