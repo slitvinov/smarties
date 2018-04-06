@@ -125,7 +125,7 @@ public:
     lambda(_set.lambda), learnR(_set.learnrate), pol_outputs(pol_outs),
     pol_indices(count_indices(pol_outs)), DKL_target(_set.klDivConstraint) {
     opcInfo = new StatsTracker(5, "GAE", _set, 100);
-    valPenal[0] = 10;
+    valPenal[0] = 1;
     //valPenal[0] = 1.;
   }
 
