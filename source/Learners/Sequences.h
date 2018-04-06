@@ -104,6 +104,15 @@ struct Sequence
     offPol_weight[t] = W;
   }
 
+  inline bool isFarPolicyPPO(const Uint t, const Real W, const Real C)
+  {
+    assert(C<1) ;
+    const bool isOff = W > 1+C || W < 1-C;
+    assert(t<offPol_weight.size());
+    #pragma omp atomic write
+    offPol_weight[t] = W;
+    return isOff;
+  }
   inline bool isFarPolicy(const Uint t, const Real W, const Real C)
   {
     if(C<=1) return false;

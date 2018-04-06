@@ -141,7 +141,7 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor)
 
   if(input->net not_eq nullptr) {
     if(not net->layers[0]->bInput) die("should not be possible");
-    for(Uint i=1; i<net->layers.size(); i++)
+    for(Uint i=1; i<net->layers.size() && not blockInpGrad; i++)
       net->layers[i]->forceBackProp = true;
   }
 
