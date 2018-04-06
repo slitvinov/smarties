@@ -64,8 +64,7 @@ struct Encapsulator
     // instead of creating multiple functions to serve this purpose
     // order to perform backprop in implicit in re-allocation of work memory
     // and in order to advance the weights:
-    if(error_placements[thrID] > 0) gradient(thrID);
-    error_placements[thrID] = -1;
+    if(error_placements[thrID] > 0) die("")
     first_sample[thrID] = samp;
     net->prepForBackProp(series[thrID], len);
   }
@@ -108,8 +107,7 @@ struct Encapsulator
     const Uint thrID) const
   {
     if(net==nullptr) return state2Inp(samp, seq, thrID); //data->Tmp[agentId]);
-
-    if(error_placements[thrID] > 0) gradient(thrID);
+    if(error_placements[thrID] > 0) die("")
 
     const vector<Activation*>& act = series[thrID];
     const int ind = mapTime2Ind(samp, thrID);
@@ -134,16 +132,16 @@ struct Encapsulator
     act[ind]->addOutputDelta(error);
   }
 
-  void prepareUpdate()
+  void prepareUpdate(const Uint batchSize)
   {
     if(net == nullptr) return;
 
-    #pragma omp parallel for //each thread should still handle its own memory
-    for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) gradient(i);
+    for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) die("");
 
-    if(nAddedGradients == 0) die("Error in prepareUpdate\n");
+    if(nAddedGradients==0) warn("No-gradient update. Revise hyperparameters.");
+    if(nAddedGradients>batchSize) warn("weird");
 
-    opt->prepare_update(nAddedGradients, net->Vgrad);
+    opt->prepare_update(batchSize, net->Vgrad);
     nReducedGradients = nAddedGradients;
     nAddedGradients = 0;
   }
@@ -160,7 +158,7 @@ struct Encapsulator
   inline void gradient(const Uint thrID) const
   {
     if(net == nullptr) return;
-    if(error_placements[thrID]<=0) return;
+    if(error_placements[thrID]<=0) { warn("no input grad") return;}
 
     #pragma omp atomic
     nAddedGradients++;

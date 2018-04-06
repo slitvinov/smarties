@@ -12,8 +12,8 @@
 #include "../Network/Builder.h"
 #include "DPG.h"
 
-DPG::DPG(Environment*const _env, Settings& _set) :
-Learner_offPolicy(_env, _set), learnR(_set.learnrate)
+DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
+tgtFrac(_set.klDivConstraint), learnR(_set.learnrate)
 {
   _set.splitLayers = 0;
   #if 1
@@ -33,6 +33,7 @@ Learner_offPolicy(_env, _set), learnR(_set.learnrate)
   #endif
 
   F.push_back(new Approximator("policy", _set, input, data));
+  F[0]->blockInpGrad = true; // this line must happen b4 initialize
   relay = new Aggregator(_set, data, nA, F[0]);
   F.push_back(new Approximator("critic", _set, input, data, relay));
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
@@ -47,11 +48,10 @@ Learner_offPolicy(_env, _set), learnR(_set.learnrate)
   #endif
   const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
   build_pol.addParamLayer(nA, "Linear", initParam);
-  relay->scaling = Rvec(nA, 1/greedyEps);
+  //relay->scaling = Rvec(nA, 1/greedyEps); //
 
   _set.outWeightsPrefac = 0.001;
   F[0]->initializeNetwork(build_pol, 0);
-  F[0]->blockInpGrad = true;
 
   _set.learnrate *= 3; // DPG wants critic faster than actor
   _set.nnLambda = 1e-2; // also wants 1e-2 L2 penl coef
@@ -116,7 +116,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
     const Rvec pol_next = F[0]->forward<TGT>(traj, t+1, thrID);
     //if(!thrID) cout << "nterm pol "<<print(pol_next) << endl;
     const Rvec v_next = F[1]->forward<TGT>(traj, t+1, thrID);//here is {s,pi}_+1
-    const Real rGamma = nStep<1e4? 1-1/(1+(nStep/1e4)*(1/(1-gamma)-1)) :gamma;
+    const Real rGamma  = nStep<1e5? 1-2*(1- gamma)/(1+(nStep/1e5)) :  gamma;
     target += rGamma * v_next[0];
   }
 

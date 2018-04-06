@@ -10,13 +10,13 @@
 #pragma once
 #include "Learner_offPolicy.h"
 
-#define LearnStDev
+//#define LearnStDev
 
 class DPG : public Learner_offPolicy
 {
   Aggregator* relay;
   const Uint nA = env->aI.dim;
-  const Real tgtFrac = 0.1, learnR;
+  const Real tgtFrac, learnR;
   //const Real OrUhDecay = .85; // as in original
   const Real OrUhDecay = 0; // no correlated noise
   vector<Rvec> OrUhState = vector<Rvec>(nAgents,Rvec(nA,0));

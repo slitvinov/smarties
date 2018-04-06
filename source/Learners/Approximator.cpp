@@ -154,7 +154,7 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor)
 void Approximator::prepare(const Uint N, const Sequence*const traj,
   const Uint samp, const Uint thrID, const Uint nSamples) const
 {
-  if(error_placements[thrID] > 0) gradient(thrID);
+  if(error_placements[thrID] > 0) die("")
   assert(nSamples<=1+extraAlloc && nSamples>0);
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
@@ -167,14 +167,13 @@ void Approximator::prepare(const Uint N, const Sequence*const traj,
   if(series_tgt.size()>thrID)
     net->prepForFwdProp(series_tgt[thrID], nTotal);
 
-  error_placements[thrID] = -1;
   first_sample[thrID] = samp - nRecurr;
 }
 
 void Approximator::prepare_seq(const Sequence*const traj, const Uint thrID,
   const Uint nSamples) const
 {
-  if(error_placements[thrID] > 0) gradient(thrID);
+  if(error_placements[thrID] > 0) die("")
   assert(nSamples<=1+extraAlloc && nSamples>0);
   const Uint nSValues =  traj->tuples.size() - traj->ended;
   input->prepare(nSValues, 0, thrID);
@@ -185,14 +184,13 @@ void Approximator::prepare_seq(const Sequence*const traj, const Uint thrID,
   if(series_tgt.size()>thrID)
     net->prepForFwdProp(series_tgt[thrID], nSValues);
 
-  error_placements[thrID] = -1;
   first_sample[thrID] = 0;
 }
 
 void Approximator::prepare_one(const Sequence*const traj, const Uint samp,
     const Uint thrID, const Uint nSamples) const
 {
-  if(error_placements[thrID] > 0) gradient(thrID);
+  if(error_placements[thrID] > 0) die("")
   assert(nSamples<=1+extraAlloc && nSamples>0);
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
@@ -206,7 +204,6 @@ void Approximator::prepare_one(const Sequence*const traj, const Uint samp,
 
   net->prepForFwdProp(series_tgt[thrID], nTotal);
 
-  error_placements[thrID] = -1;
   first_sample[thrID] = samp - nRecurr;
 }
 
@@ -283,7 +280,7 @@ Rvec Approximator::getOutput(const Rvec inp, const int ind,
   const Activation*const recur = ind? act_cur[ind-1] : nullptr;
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
   const Rvec ret = net->predict(inp, recur, act, W);
-  //if(thrID) cout<<"net fwd with inp:"<<print(inp)<<" out:"<<print(ret)<<endl;
+  //if(!thrID) cout<<"net fwd with inp:"<<print(inp)<<" out:"<<print(ret)<<endl;
   act->written = true;
   return ret;
 }
@@ -316,14 +313,14 @@ void Approximator::backward(Rvec error, const Uint samp,
   act[ind]->setOutputDelta(error);
 }
 
-void Approximator::prepareUpdate()
+void Approximator::prepareUpdate(const Uint batchSize)
 {
-  #pragma omp parallel for //each thread should still handle its own memory
-  for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) gradient(i);
+  for(Uint i=0; i<nThreads; i++) if(error_placements[i]>0) die("")
 
-  if(nAddedGradients == 0) warn("Zero-gradient update. Revise hyperparameters.\n");
+  if(nAddedGradients==0) warn("No-gradient update. Revise hyperparameters.");
+  if(nAddedGradients>batchSize) warn("weird");
 
-  opt->prepare_update(nAddedGradients, net->Vgrad);
+  opt->prepare_update(batchSize, net->Vgrad);
   reducedGradients = 1;
   nAddedGradients = 0;
 
@@ -340,7 +337,7 @@ void Approximator::applyUpdate()
 
 void Approximator::gradient(const Uint thrID) const
 {
-  if(error_placements[thrID]<=0) return;
+  if(error_placements[thrID]<=0) die("");
 
   #pragma omp atomic
   nAddedGradients++;
@@ -354,6 +351,7 @@ void Approximator::gradient(const Uint thrID) const
     for (int i=0; i<last_error; i++) assert(act[i]->written == true);
 
     net->backProp(act, last_error, net->Vgrad[thrID]);
+    //for(int i=0;i<last_error&&!thrID;i++)cout<<i<<" inpG:"<<print(act[i]->getInputGradient(0))<<endl;
 
     if(input->net == nullptr || blockInpGrad) continue;
 
@@ -361,7 +359,6 @@ void Approximator::gradient(const Uint thrID) const
       Rvec inputG = act[i]->getInputGradient(0);
       inputG.resize(input->nOutputs());
       input->backward(inputG, first_sample[thrID] +i, thrID);
-      //if(!thrID) cout<<i<<" inpG:"<<print(inputG)<<endl;
     }
   }
   error_placements[thrID] = -1; //to stop additional backprops

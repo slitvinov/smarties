@@ -36,7 +36,7 @@ ifeq "$(findstring falcon,$(shell hostname))" "falcon"
 include make.falcon
 endif
 ifeq "$(findstring panda,$(shell hostname))" "panda"
-include make.panda
+include make.falcon
 endif
 
 CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Wpedantic -Woverloaded-virtual

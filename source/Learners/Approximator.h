@@ -136,7 +136,7 @@ struct Approximator
   void backward(Rvec error, const Uint samp, const Uint thrID,
     const Uint iSample = 0) const;
 
-  void prepareUpdate();
+  void prepareUpdate(const Uint batchSize);
   void applyUpdate();
 
   void gradient(const Uint thrID) const;

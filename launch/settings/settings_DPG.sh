@@ -29,7 +29,7 @@ SETTINGS+=" --learner DPG"
 
 SETTINGS+=" --maxTotObsNum 524288"
 SETTINGS+=" --minTotObsNum 262144"
-#SETTINGS+=" --minTotObsNum 65536"
+#SETTINGS+=" --minTotObsNum 35536"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.2"
@@ -39,6 +39,7 @@ SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --impWeight 4"
 #SETTINGS+=" --impWeight 0"
+SETTINGS+=" --klDivConstraint 0.1"
 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps

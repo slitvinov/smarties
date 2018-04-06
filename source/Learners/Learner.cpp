@@ -67,8 +67,8 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
   updateComplete = false;
 
   profiler->stop_start("ADDW");
-  for(auto & net : F) net->prepareUpdate();
-  input->prepareUpdate();
+  for(auto & net : F) net->prepareUpdate(batchSize);
+  input->prepareUpdate(batchSize);
 
   nStep++;
 
