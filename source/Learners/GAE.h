@@ -44,11 +44,11 @@ protected:
   inline void updateDKL_target(const bool farPolSample, const Real DivKL) const
   {
     #ifdef PPO_learnDKLt
-      //In total absence of penalty term, it can happen that no samples are
-      //near-policy after nEpochs. Therefore we keep penalty.
-      //We adapt DKL_target such that approximatively 80% of the samples
-      //are still near-policy. In gym tasks will lead to ~0 penalty term.
-      if(      farPolSample && DKL_target>DivKL) DKL_target = DKL_target*0.9996;
+      //In absence of penalty term, it happens that within nEpochs most samples
+      //are far-pol and therefore policy loss is 0. To keep samples on policy
+      //we adapt DKL_target s.t. approx. 80% of samples are always near-Policy.
+      //For most gym tasks with eta=1e-4 this results in ~0 penalty term.
+      if(      farPolSample && DKL_target>DivKL) DKL_target = DKL_target*0.9995;
       else if(!farPolSample && DKL_target<DivKL) DKL_target = DKL_target*1.0001;
     #endif
   }
@@ -201,14 +201,27 @@ public:
   void getMetrics(ostringstream& buff) const {
     opcInfo->reduce_approx();
     {
-      const auto prec = std::fabs(valPenal[0])>=10? 2 : (std::fabs(valPenal[0])>=1? 3 : 4);
+      const Real v = valPenal[0];
+      const int prec = std::fabs(v)>=10? 2 : (std::fabs(v)>=1? 3 : 4);
       buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<<valPenal[0];
     }
-    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[0];
-    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[1];
-    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[2];
-    buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[3];
-    buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[4];
+    {
+      const Real v = opcInfo->instMean[0];
+      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
+      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
+    }
+    {
+      const Real v = opcInfo->instMean[1];
+      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
+      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
+    }
+    {
+      const Real v = opcInfo->instMean[2];
+      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
+      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
+    }
+    buff<<" "<<std::setw(6)<<std::setprecision(4)<<opcInfo->instMean[3];
+    buff<<" "<<std::setw(6)<<std::setprecision(4)<<opcInfo->instMean[4];
     #ifdef PPO_learnDKLt
       buff<<" "<<std::setw(6)<<std::setprecision(4)<<DKL_target;
     #endif
@@ -265,7 +278,7 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
   GAE(_env, _set, count_pol_outputs(&_env->aI))
   {
     printf("Continuous-action GAE\n");
-    #if 0
+    #if 1
       if(input->net not_eq nullptr) {
         delete input->opt; input->opt = nullptr;
         delete input->net; input->net = nullptr;
@@ -297,10 +310,10 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
       const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
       build_pol.addParamLayer(aInfo.dim, "Linear", initParam);
     #endif
-    F[0]->initializeNetwork(build_pol, 5);
+    F[0]->initializeNetwork(build_pol, 0);
 
-    //_set.learnrate *= 3;
-    F[1]->initializeNetwork(build_val, 5);
+    _set.learnrate *= 3;
+    F[1]->initializeNetwork(build_val, 0);
 
     {  // TEST FINITE DIFFERENCES:
       Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));

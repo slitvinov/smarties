@@ -17,10 +17,10 @@ SETTINGS+=" --nnl2 64"
 #subject to changes
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnFunc Tanh"
-#SETTINGS+=" --nnFunc SoftSign"
-SETTINGS+=" --nnFunc LRelu"
+SETTINGS+=" --nnFunc SoftSign"
+#SETTINGS+=" --nnFunc LRelu"
 # L2 regularization of the weights
-SETTINGS+=" --nnLambda 0.0001"
+SETTINGS+=" --nnLambda 0.001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
