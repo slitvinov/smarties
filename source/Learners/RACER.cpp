@@ -207,9 +207,9 @@ class RACER : public Learner_offPolicy
     // shift retrace-advantage with current V(s) estimate:
     const Real A_RET = traj->Q_RET[samp] +traj->state_vals[samp]-V_cur;
     const Real rho_cur = POL.sampImpWeight;
-    const Real Ver = beta*alpha*std::min((Real)1, rho_cur) * (A_RET-A_cur);
-    //const Real Aer = beta*alpha*(A_RET-A_cur);
-    const Real Aer = beta*alpha*std::min(rho_cur, CmaxRet) * (A_RET-A_cur);
+    const Real Ver = alpha*std::min((Real)1, rho_cur) * (A_RET-A_cur);
+    //const Real Aer = alpha*(A_RET-A_cur);
+    const Real Aer = alpha*std::min(rho_cur, CmaxRet) * (A_RET-A_cur);
 
     const Rvec polG = policyGradient(traj->tuples[samp], POL,ADV,A_RET, thrID);
     const Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
@@ -280,6 +280,12 @@ class RACER : public Learner_offPolicy
   inline void updateQret(Sequence*const S, const Uint t) const {
     const Real rho = S->isLast(t) ? 0 : S->offPol_weight[t];
     updateQret(S, t, S->action_adv[t], S->state_vals[t], rho);
+  }
+  inline void updateQretBack(Sequence*const S, const Uint t) const {
+    if(t == 0) return;
+    const Real W=S->isLast(t)? 0:S->offPol_weight[t], R=data->scaledReward(S,t);
+    const Real delta = R +gamma*S->state_vals[t] -S->state_vals[t-1];
+    S->Q_RET[t-1] = delta + gamma*(W>1? 1:W)*(S->Q_RET[t] - S->action_adv[t]);
   }
 
   inline Real updateQret(Sequence*const S, const Uint t, const Real A,
@@ -484,7 +490,7 @@ class RACER : public Learner_offPolicy
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++)
         for(int j = data->Set[i]->just_sampled-1; j > 0; j--)
-          updateQret(data->Set[i], j);
+          updateQretBack(data->Set[i], j);
     #endif
 
     profiler->stop_start("PRNE");
