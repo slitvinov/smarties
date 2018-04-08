@@ -27,8 +27,16 @@ struct Tuple
   static inline vector<memReal> convert(const Rvec _s)
   {
     vector<memReal> ret ( _s.size() );
-    for(Uint i=0; i < _s.size(); i++) ret[i] = _s[i];
+    for(Uint i=0; i < _s.size(); i++) ret[i] = toFinitePrec(_s[i]);
     return ret;
+  }
+ private:
+  static inline memReal toFinitePrec(const Real val) {
+    if(val > numeric_limits<float>::max()) return  numeric_limits<float>::max();
+    else
+    if(val <-numeric_limits<float>::max()) return -numeric_limits<float>::max();
+    else
+    return val;
   }
 };
 

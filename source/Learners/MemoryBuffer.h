@@ -35,7 +35,6 @@ public:
   Uint nPruned = 0, minInd = 0, _nStep = 0;
   Real invstd_reward = 1, nOffPol = 0, totMSE = 0;
 
-
   Gen* gen;
   vector<Sequence*> Set, inProgress;
   mutable std::mutex dataset_mutex;

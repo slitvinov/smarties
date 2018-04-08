@@ -92,28 +92,29 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight,
   _nStep = nStep;
   if(!bTrain) return; //if not training, keep the stored values
   if(weighR<0) weighR = weight;
+
   long double count = 0, newstdvr = 0;
-  vector<long double> newStateSum(dimS, 0), newStateSqSum(dimS, 0);
+  vector<long double> newSSum(dimS, 0), newSSqSum(dimS, 0);
   #pragma omp parallel reduction(+ : count, newstdvr)
   {
-    vector<long double> thr_newStateSum(dimS, 0), thr_newStateSqSum(dimS, 0);
+    vector<long double> thNewSSum(dimS, 0), thNewSSqSum(dimS, 0);
     #pragma omp for schedule(dynamic)
     for(Uint i=0; i<Set.size(); i++) {
       count += Set[i]->ndata();
       for(Uint j=0; j<Set[i]->ndata(); j++) {
         newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
         for(Uint k=0; k<dimS; k++) {
-          thr_newStateSum[k] += Set[i]->tuples[j]->s[k];
-          thr_newStateSqSum[k] += std::pow(Set[i]->tuples[j]->s[k], 2);
+          const Real sk = Set[i]->tuples[j]->s[k] - mean[k];
+          thNewSSum[k] += sk; thNewSSqSum[k] += sk*sk;
         }
       }
     }
     #pragma omp critical
     for(Uint k=0; k<dimS; k++) {
       #pragma omp atomic
-      newStateSum[k]   += thr_newStateSum[k];
+      newSSum[k]   += thNewSSum[k];
       #pragma omp atomic
-      newStateSqSum[k] += thr_newStateSqSum[k];
+      newSSqSum[k] += thNewSSqSum[k];
     }
   }
 
@@ -133,10 +134,10 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight,
     count = rew_reduce_result[0];
     newstdvr = rew_reduce_result[1];
     for(Uint k=0; k<dimS; k++) {
-      partial_sum[2+k] = newStateSum[k];
-      newStateSum[k] = rew_reduce_result[2+k];
-      partial_sum[2+dimS+k] = newStateSqSum[k];
-      newStateSqSum[k] = rew_reduce_result[2+dimS+k];
+      partial_sum[2+k] = newSSum[k];
+      newSSum[k] = rew_reduce_result[2+k];
+      partial_sum[2+dimS+k] = newSSqSum[k];
+      newSSqSum[k] = rew_reduce_result[2+dimS+k];
     }
 
     MPI_Iallreduce(partial_sum.data(), rew_reduce_result.data(), nReduce,
@@ -145,14 +146,15 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight,
     if(firstUpdate) return;
   }
 
-  if(count<batchSize) return;
+  if(count<batchSize) die("");
   const Real stDevRew = sqrt(newstdvr/count) +numeric_limits<float>::epsilon();
   invstd_reward = (1-weighR)*invstd_reward +weighR/stDevRew;
   for(Uint k=0; k<dimS; k++) {
-    mean[k] = (1-weight) * mean[k] + weight * newStateSum[k]/count;
-    const Real var = newStateSqSum[k]/count - std::pow(newStateSum[k]/count,2);
+    mean[k] += weight * newSSum[k]/count;
+    Real var = newSSqSum[k]/count - std::pow(newSSum[k]/count,2);
+    if(var<numeric_limits<Real>::epsilon())var=numeric_limits<Real>::epsilon();
     std[k] = (1-weight) * std[k] + weight * std::sqrt(var);
-    invstd[k] = 1/(std[k]+std::numeric_limits<float>::epsilon());
+    invstd[k] = 1/(std[k]+numeric_limits<float>::epsilon());
   }
   if(learn_rank == 0) {
     ofstream outf("runningAverages.dat", ios::app);
@@ -190,7 +192,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight,
     for(Uint k=0; k<dimS; k++) {
       const Real dbgMean = dbgStateSum[k]/count;
       const Real dbgVar = dbgStateSqSum[k]/count - dbgMean*dbgMean;
-      cout <<k<<" mean:"<<dbgMean<<" std:"<<std::sqrt(dbgVar);
+      cout <<k<<" mean:"<<dbgMean<<" std:"<<dbgVar<< endl;
     }
   #endif
 }

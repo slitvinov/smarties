@@ -165,7 +165,7 @@ void Slave::run()
       //assert(info not_eq FAIL_COMM); //that one should cause the break
 
       if ( comm->sendActionToApp() ) {
-        warn("Slave exiting");
+        die("Slave exiting");
         return;
       }
     }
