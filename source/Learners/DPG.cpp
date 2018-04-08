@@ -53,7 +53,7 @@ tgtFrac(_set.klDivConstraint), learnR(_set.learnrate)
   _set.outWeightsPrefac = 0.001;
   F[0]->initializeNetwork(build_pol, 0);
 
-  _set.learnrate *= 3; // DPG wants critic faster than actor
+  _set.learnrate *= 10; // DPG wants critic faster than actor
   _set.nnLambda = 1e-2; // also wants 1e-2 L2 penl coef
   // we want initial Q to be approx equal to 0 everywhere.
   // if LRelu we need to make initialization multiplier smaller:
@@ -116,8 +116,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
     const Rvec pol_next = F[0]->forward<TGT>(traj, t+1, thrID);
     //if(!thrID) cout << "nterm pol "<<print(pol_next) << endl;
     const Rvec v_next = F[1]->forward<TGT>(traj, t+1, thrID);//here is {s,pi}_+1
-    const Real rGamma  = nStep<1e5? 1-2*(1- gamma)/(1+(nStep/1e5)) :  gamma;
-    target += rGamma * v_next[0];
+    target += gamma * v_next[0];
   }
 
   { //code to compute policy grad:
@@ -149,7 +148,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
     traj->setSquaredError(t, POL.kl_divergence(traj->tuples[t]->mu));
     //traj->SquaredError[t] = grad_val[0]*grad_val[0];
     Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
-    F[1]->backward(grad_val, t, thrID);
+    F[1]->backward(clampGrad(grad_val,q_curr[0]), t, thrID);
   }
   if(thrID==1)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);

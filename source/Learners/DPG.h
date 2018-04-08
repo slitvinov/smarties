@@ -32,6 +32,13 @@ class DPG : public Learner_offPolicy
     return pol;
   }
 
+  static inline Rvec clampGrad(Rvec grad_val, const Real val)
+  {
+    //if(grad_val[0]>0 && val>0) grad_val[0] /= 2;
+    //if(grad_val[0]<0 && val<0) grad_val[0] /= 2;
+    return grad_val;
+  }
+
   void Train_BPTT(const Uint seq, const Uint thrID) const override;
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
