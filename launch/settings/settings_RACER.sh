@@ -20,7 +20,7 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnFunc LRelu"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc Tanh"
-SETTINGS+=" --nnLambda 0.0001"
+SETTINGS+=" --nnLambda 0.001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -31,6 +31,7 @@ SETTINGS+=" --greedyEps 0.5"
 
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --minTotObsNum 131072"
+#SETTINGS+=" --minTotObsNum 25236"
 SETTINGS+=" --maxTotObsNum 524288"
 
 SETTINGS+=" --totNumSteps 5000000"

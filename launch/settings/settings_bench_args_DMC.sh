@@ -35,7 +35,6 @@ SETTINGS+=" --impWeight ${IMPSAMPR}"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 1"
-SETTINGS+=" --epsAnneal 100"
 SETTINGS+=" --totNumSteps 6400000"
 SETTINGS+=" --obsPerStep ${EPERSTEP}"
 SETTINGS+=" --bSampleSequences 0"

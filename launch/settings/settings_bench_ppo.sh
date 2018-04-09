@@ -32,7 +32,6 @@ SETTINGS+=" --maxTotObsNum 16384"
 # same as 10 epochs with batch size 64
 SETTINGS+=" --obsPerStep 6.4"
 # unused:
-SETTINGS+=" --epsAnneal 1000"
 SETTINGS+=" --totNumSteps 1000000"
 SETTINGS+=" --lambda 0.95"
 

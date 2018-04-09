@@ -28,12 +28,11 @@ SETTINGS+=" --bTrain 1"
 SETTINGS+=" --learner DPG"
 
 SETTINGS+=" --maxTotObsNum 524288"
-SETTINGS+=" --minTotObsNum 262144"
+SETTINGS+=" --minTotObsNum 131072"
 #SETTINGS+=" --minTotObsNum 35536"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.2"
-SETTINGS+=" --epsAnneal   100000"
 SETTINGS+=" --totNumSteps 6400000"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
