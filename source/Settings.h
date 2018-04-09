@@ -119,7 +119,7 @@ steps. 0.1 means that for every observation, learner does 10 gradient steps."
 learning-algorithm-dependent behaviors."
 #define TYPEVAL_epsAnneal Real
 #define TYPENUM_epsAnneal REAL
-#define DEFAULT_epsAnneal 1e6
+#define DEFAULT_epsAnneal 5e-7
   Real epsAnneal = DEFAULT_epsAnneal;
 
 #define CHARARG_bSampleSequences 's'
@@ -457,6 +457,10 @@ base run folder."
     if(nnl3<0)         die("nnl3<0");
     if(nnl4<0)         die("nnl4<0");
     if(nnl5<0)         die("nnl5<0");
+    if(epsAnneal>0.0001 || epsAnneal<0) {
+      warn("epsAnneal should be tiny. It will be set to 5e-7 for this run.");
+      epsAnneal = 5e-7;
+    }
   }
 
   vector<ArgParser::OptionStruct> initializeOpts ()

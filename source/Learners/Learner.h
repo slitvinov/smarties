@@ -22,7 +22,7 @@ protected:
   Environment * const env;
   const bool bSampleSequences, bTrain;
   const Uint nAgents, batchSize, totNumSteps, nThreads, nSlaves, policyVecDim;
-  const Real greedyEps, epsAnneal, gamma, CmaxPol;
+  const Real learnR, greedyEps, epsAnneal, gamma, CmaxPol;
   const int learn_rank, learn_size;
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;
@@ -104,8 +104,8 @@ public:
   {
     //number that goes from 1 to 0 with optimizer's steps
     assert(epsAnneal>1.);
-    if(nStep >= epsAnneal || !bTrain) return 0;
-    else return 1 - nStep/epsAnneal;
+    if(nStep*epsAnneal >= 1 || !bTrain) return 0;
+    else return 1 - nStep*epsAnneal;
   }
 
   virtual void select(const Agent& agent) = 0;

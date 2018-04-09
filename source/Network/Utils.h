@@ -62,6 +62,9 @@ inline nnReal nnSafeExp(const nnReal val)
     return std::exp( std::min((nnReal)8., std::max((nnReal)-16.,val) ) );
 }
 
+inline Real annealRate(const Real eta, const Real t, const Real T) {
+  return eta / (1 + t * T);
+}
 /*
 inline Uint roundUpSimd(const Uint size)
 {

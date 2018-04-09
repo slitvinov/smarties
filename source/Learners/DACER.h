@@ -79,7 +79,7 @@ class DACER_experts : public DACER<Gaussian_mixture<NEXPERTS>, Rvec>
       print(net_indices).c_str(), print(net_outputs).c_str());
 
     F.push_back(new Approximator("net", _set, input, data));
-    
+
     vector<Uint> nouts{1, NEXPERTS, NEXPERTS * nA};
     #ifndef DACER_simpleSigma // network outputs also sigmas
       nouts.push_back(NEXPERTS * nA);
@@ -99,7 +99,7 @@ class DACER_experts : public DACER<Gaussian_mixture<NEXPERTS>, Rvec>
       Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, greedyEps);
       build.setLastLayersBias(initBias);
     #endif
-    F[0]->initializeNetwork(build);
+    F[0]->initializeNetwork(build, STD_GRADCUT);
 
     {  // TEST FINITE DIFFERENCES:
       Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));

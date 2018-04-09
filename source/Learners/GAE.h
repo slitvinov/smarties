@@ -24,7 +24,7 @@ class GAE : public Learner_onPolicy
 protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
   mutable vector<long double> valPenal, cntPenal;
-  const Real lambda, learnR;
+  const Real lambda;
   const vector<Uint> pol_outputs, pol_indices;
   mutable std::atomic<Real> DKL_target;
   //tracks statistics about gradient, used for gradient clipping:
@@ -122,8 +122,8 @@ protected:
 public:
   GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
     Learner_onPolicy(_env,_set), valPenal(nThreads+1,0), cntPenal(nThreads+1,0),
-    lambda(_set.lambda), learnR(_set.learnrate), pol_outputs(pol_outs),
-    pol_indices(count_indices(pol_outs)), DKL_target(_set.klDivConstraint) {
+    lambda(_set.lambda), pol_outputs(pol_outs), pol_indices(count_indices(pol_outs)),
+    DKL_target(_set.klDivConstraint) {
     opcInfo = new StatsTracker(5, "GAE", _set, 100);
     valPenal[0] = 1;
     //valPenal[0] = 1.;
@@ -310,10 +310,10 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
       const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
       build_pol.addParamLayer(aInfo.dim, "Linear", initParam);
     #endif
-    F[0]->initializeNetwork(build_pol, 0);
+    F[0]->initializeNetwork(build_pol);
 
     _set.learnrate *= 3;
-    F[1]->initializeNetwork(build_val, 0);
+    F[1]->initializeNetwork(build_val);
 
     {  // TEST FINITE DIFFERENCES:
       Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));

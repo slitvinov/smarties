@@ -73,7 +73,7 @@ void Learner_onPolicy::prepareGradient()
   if (updateComplete && bTrain) {
     cntBatch += batchSize;
     if(cntBatch >= nHorizon) {
-      data->updateRewardsStats(nStep, 0.001);
+      data->updateRewardsStats(nStep, annealRate(learnR,nStep,epsAnneal));
       cntBatch = 0;
       cntEpoch++;
     }

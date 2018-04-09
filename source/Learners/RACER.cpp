@@ -30,9 +30,8 @@ class RACER : public Learner_offPolicy
   const Uint nL = Advantage_t::compute_nL(&aInfo);
 
   // tgtFrac_param: target fraction of off-pol samples
-  // learnR: net's learning rate
   // alpha: weight of value-update relative to policy update. 1 means equal
-  const Real tgtFrac, learnR, alpha=1;
+  const Real tgtFrac, alpha=1;
 
   Real CmaxRet = 1 + CmaxPol;
 
@@ -329,21 +328,20 @@ class RACER : public Learner_offPolicy
     #endif
   }
 
-  inline Rvec criticGrad(const Policy_t& POL, const Advantage_t& ADV,
-    const Real A_RET, const Real A_critic) const {
-    const Real anneal = iter()>epsAnneal ? 1 : Real(iter())/epsAnneal;
-    const Real varCritic = ADV.advantageVariance();
-    const Real iEpsA = std::pow(A_RET-A_critic,2)/(varCritic+2.2e-16);
-    const Real eta = anneal * safeExp( -0.5*iEpsA);
-    return POL.control_grad(&ADV, eta);
-  }
+  //inline Rvec criticGrad(const Policy_t& POL, const Advantage_t& ADV,
+  //  const Real A_RET, const Real A_critic) const {
+  //  const Real anneal = iter()>epsAnneal ? 1 : Real(iter())/epsAnneal;
+  //  const Real varCritic = ADV.advantageVariance();
+  //  const Real iEpsA = std::pow(A_RET-A_critic,2)/(varCritic+2.2e-16);
+  //  const Real eta = anneal * safeExp( -0.5*iEpsA);
+  //  return POL.control_grad(&ADV, eta);
+  //}
 
  public:
   RACER(Environment*const _env, Settings& _set, vector<Uint> net_outs,
     vector<Uint> pol_inds, vector<Uint> adv_inds) :
     Learner_offPolicy(_env, _set), tgtFrac(_set.klDivConstraint),
-    learnR(_set.learnrate), net_outputs(net_outs),
-    net_indices(count_indices(net_outs)),
+    net_outputs(net_outs), net_indices(count_indices(net_outs)),
     pol_start(pol_inds), adv_start(adv_inds) {
     printf("RACER starts: v:%u pol:%s adv:%s\n", VsID,
     print(pol_start).c_str(), print(adv_start).c_str());
@@ -361,7 +359,6 @@ class RACER : public Learner_offPolicy
     // pol grad magnitude. Therefore are more strongly pushed away from mu.
     MEMBUF_FILTER_ALGO = MAXERROR;
     //MEMBUF_FILTER_ALGO = FARPOLFRAC;
-    assert(input->net == nullptr);
     if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() {
@@ -497,12 +494,10 @@ class RACER : public Learner_offPolicy
 
     advanceCounters();
 
-    CmaxRet = 1 + CmaxPol/(1+nStep*ANNEAL_RATE);
-
+    CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
+    if(CmaxRet<=1) die("Either run lasted too long or epsAnneal is wrong.");
     data->prune(MEMBUF_FILTER_ALGO, CmaxRet);
-
     Real fracOffPol = data->nOffPol / (Real) data->readNData();
-
     profiler->stop_start("SLP");
 
     if (learn_size > 1) {

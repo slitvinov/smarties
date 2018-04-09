@@ -129,7 +129,9 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
       Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, greedyEps);
       build.setLastLayersBias(initBias);
     #endif
-    F[0]->initializeNetwork(build);
+    F[0]->initializeNetwork(build, STD_GRADCUT);
+    if(F.size() > 1) die("");
+    F[0]->opt->bAnnealLearnRate= true;
 
     {  // TEST FINITE DIFFERENCES:
       Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));

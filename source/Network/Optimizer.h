@@ -111,6 +111,8 @@ class Optimizer
   //nnReal *const _muW_eSGD, *const _muB_eSGD;
 
  public:
+  bool bAnnealLearnRate = false;
+
   Optimizer(Settings&S, const Parameters*const W, const Parameters*const W_TGT,
     const Real B1=.9, const Real B2=.999) : mastersComm(S.mastersComm),
     learn_size(S.learner_size), eta(S.learnrate), beta_1(B1), beta_2(B2),
@@ -168,11 +170,7 @@ class Optimizer
     const Real factor = 1./totGrads;
     nnReal* const paramAry = weights->params;
     assert(eta < 2e-3); //super upper bound for NN, srsly
-    #ifdef ANNEAL_LEARNR
-      const Real _eta = eta / (1 + nStep * ANNEAL_RATE);
-    #else
-      const Real _eta = eta;
-    #endif
+    const nnReal _eta = bAnnealLearnRate? annealRate(eta,nStep,epsAnneal) : eta;
 
     if(totGrads>0) {
       #pragma omp parallel

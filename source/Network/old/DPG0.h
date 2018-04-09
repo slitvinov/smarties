@@ -16,7 +16,7 @@ class DPG : public Learner_offPolicy
 {
   Aggregator* relay;
   const Uint nA = env->aI.dim;
-  const Real tgtFrac;
+  const Real tgtFrac, learnR;
   //const Real OrUhDecay = .85; // as in original
   const Real OrUhDecay = 0; // no correlated noise
   vector<Rvec> OrUhState = vector<Rvec>(nAgents,Rvec(nA,0));
@@ -30,13 +30,6 @@ class DPG : public Learner_offPolicy
     Gaussian_policy pol({0, nA}, &aInfo, out);
     if(t not_eq nullptr) pol.prepare(t->a, t->mu);
     return pol;
-  }
-
-  static inline Rvec clampGrad(Rvec grad_val, const Real val)
-  {
-    //if(grad_val[0]>0 && val>0) grad_val[0] /= 2;
-    //if(grad_val[0]<0 && val<0) grad_val[0] /= 2;
-    return grad_val;
   }
 
   void Train_BPTT(const Uint seq, const Uint thrID) const override;

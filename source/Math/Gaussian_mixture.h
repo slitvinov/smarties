@@ -350,20 +350,6 @@ public:
     return aInfo->getScaled(sampAct);
   }
 
-  Rvec updateOrUhState(Rvec& state, Rvec& beta, const Rvec act, const Real step)
-  {
-    assert(nExperts == 1);
-    const Real fac = .3*retraceTrickPow/(1 +step*ANNEAL_RATE);
-    for (Uint i=0; i<nA; i++) {
-      const Real noise = sampAct[i] - means[0][i];
-      state[i] *= fac;
-      //beta[i+nExperts] += state[i];
-      sampAct[i] += state[i];
-      state[i] += noise;
-    }
-    return aInfo->getScaled(sampAct);
-  }
-
   inline Rvec getVector() const
   {
     Rvec ret(nExperts +2*nA*nExperts);

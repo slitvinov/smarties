@@ -15,8 +15,8 @@ Learner::Learner(Environment*const _env, Settings & _s) :
 mastersComm(_s.mastersComm), env(_env), bSampleSequences(_s.bSampleSequences),
 bTrain(_s.bTrain), nAgents(_s.nAgents), batchSize(_s.batchSize),
 totNumSteps(_s.totNumSteps), nThreads(_s.nThreads), nSlaves(_s.nSlaves),
-policyVecDim(_s.policyVecDim), greedyEps(_s.greedyEps), epsAnneal(_s.epsAnneal),
-gamma(_s.gamma), CmaxPol(_s.impWeight), learn_rank(_s.learner_rank),
+policyVecDim(_s.policyVecDim), learnR(_s.learnrate), greedyEps(_s.greedyEps),
+epsAnneal(_s.epsAnneal), gamma(_s.gamma), CmaxPol(_s.impWeight), learn_rank(_s.learner_rank),
 learn_size(_s.learner_size), aInfo(env->aI), sInfo(env->sI),
 generators(_s.generators), Vstats(nThreads), nTasks(_s.global_tasking_counter)
 {

@@ -315,9 +315,9 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
   if(nTransitions.load()-Set[del_ptr]->ndata() > maxTotObsNum) {
     std::swap(Set[del_ptr], Set.back());
     popBackSequence();
-  } else if(far_val > 0.5) {
-    //cout<<"Too many farpol samp ("<<far_val*100<<"/100) in seq "
-    //    <<Set[far_ptr]->ID<<". Change hyperparams."<<endl;
+  } else if(far_val > 0.9) {
+    cout<<"Too many farpol samp ("<<far_val*Set[far_ptr]->ndata()<<"/"<<
+    Set[far_ptr]->ndata()<<") in seq "<<Set[far_ptr]->ID<<". Bad params."<<endl;
     std::swap(Set[far_ptr], Set.back());
     popBackSequence();
   }

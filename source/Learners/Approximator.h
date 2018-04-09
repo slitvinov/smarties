@@ -60,7 +60,7 @@ struct Approximator
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
   Builder buildFromSettings(Settings& _s, const Uint n_outputs);
 
-  void initializeNetwork(Builder& build, Real cutGradFactor = STD_GRADCUT);
+  void initializeNetwork(Builder& build, Real cutGradFactor = 0);
   void allocMorePerThread(const Uint nAlloc);
 
   void prepare(const Uint N, const Sequence*const traj, const Uint samp,

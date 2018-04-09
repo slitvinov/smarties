@@ -28,9 +28,8 @@ class DACER : public Learner_offPolicy
   const Uint nA = Policy_t::compute_nA(&aInfo);
 
   // tgtFrac_param: target fraction of off-pol samples
-  // learnR: net's learning rate
   // alpha: weight of value-update relative to policy update. 1 means equal
-  const Real learnR, tgtFrac, alpha=1;
+  const Real tgtFrac, alpha=1;
   Real CmaxRet = 1 + CmaxPol;
 
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
@@ -183,7 +182,7 @@ class DACER : public Learner_offPolicy
 
  public:
   DACER(Environment*const _env, Settings& _set, vector<Uint> net_outs,
-   vector<Uint> pol_inds): Learner_offPolicy(_env,_set), learnR(_set.learnrate),
+   vector<Uint> pol_inds): Learner_offPolicy(_env,_set),
    tgtFrac(_set.klDivConstraint), net_outputs(net_outs),
    net_indices(count_indices(net_outs)), pol_start(pol_inds)
   {
@@ -287,13 +286,10 @@ class DACER : public Learner_offPolicy
     profiler->stop_start("PRNE");
 
     advanceCounters();
-
-    CmaxRet = 1 + CmaxPol/(1+nStep*ANNEAL_RATE);
-
+    CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
     data->prune(MEMBUF_FILTER_ALGO, CmaxRet);
-
     Real fracOffPol = data->nOffPol / (Real) data->readNData();
-
+    
     profiler->stop_start("SLP");
 
     if (learn_size > 1) {

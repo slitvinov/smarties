@@ -190,7 +190,6 @@ public:
     lock_guard<mutex> lock(dataset_mutex);
     removeSequence( readNSeq() - 1 );
     Set.pop_back();
-    //#pragma omp atomic
     nSequences--;
     assert(nSequences==Set.size());
   }
@@ -199,14 +198,12 @@ public:
     lock_guard<mutex> lock(dataset_mutex);
     Set.push_back(nullptr);
     addSequence( readNSeq(), seq);
-    //#pragma omp atomic
     nSequences++;
     assert( readNSeq() == Set.size());
   }
   inline void addSequence(const Uint ind, Sequence*const seq)
   {
     assert(Set[ind] == nullptr && seq not_eq nullptr);
-    //#pragma omp atomic
     nTransitions += seq->ndata();
     Set[ind] = seq;
   }
@@ -214,7 +211,6 @@ public:
   {
     assert(Set[ind] not_eq nullptr);
     assert(nTransitions>=Set[ind]->ndata());
-    //#pragma omp atomic
     nTransitions -= Set[ind]->ndata();
     _dispose_object(Set[ind]);
     Set[ind] = nullptr;
