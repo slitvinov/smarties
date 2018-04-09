@@ -27,7 +27,7 @@ struct Adam {
     #else
       const nnReal penal = - W*lambda;
     #endif
-    const nnReal DW = fac * grad;
+    const nnReal DW = fac * grad + penal;
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
     #ifdef NESTEROV_ADAM
@@ -41,10 +41,10 @@ struct Adam {
       // Actually I can't think of a situation where, except due to finite
       // precision, this next like will not be reduntant...
       M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
-      const nnReal ret =  eta * (numer /  std::sqrt(nnEPS + M2)  +penal);
+      const nnReal ret =  eta * (numer /  std::sqrt(nnEPS + M2) );
       //return eta * (numer / (nnEPS + std::sqrt(M2)) +penal);
     #else
-      const nnReal ret =  eta * (numer /  std::sqrt(nnEPS + M2)  +penal);
+      const nnReal ret =  eta * (numer /  std::sqrt(nnEPS + M2) );
     #endif
     assert(not std::isnan(ret) && not std::isinf(ret));
     return ret;
