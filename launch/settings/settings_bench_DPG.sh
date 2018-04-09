@@ -21,7 +21,7 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnFunc Tanh"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc HardSign"
-SETTINGS+=" --nnLambda 0.001"
+SETTINGS+=" --nnLambda 0.00001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -30,6 +30,8 @@ SETTINGS+=" --bTrain 1"
 SETTINGS+=" --learner DPG"
 
 #SETTINGS+=" --minTotObsNum  32768"
+SETTINGS+=" --minTotObsNum 131072"
+SETTINGS+=" --epsAnneal 0"
 SETTINGS+=" --maxTotSeqNum 262144" # enough to safely handle 2^18 obs
 SETTINGS+=" --maxTotObsNum ${BUFFSIZE}"
 SETTINGS+=" --impWeight ${IMPSAMPR}"
