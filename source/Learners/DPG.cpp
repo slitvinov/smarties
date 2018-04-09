@@ -33,7 +33,7 @@ tgtFrac(_set.klDivConstraint)
   #endif
 
   F.push_back(new Approximator("policy", _set, input, data));
-  F[0]->blockInpGrad = true; // this line must happen b4 initialize
+  //F[0]->blockInpGrad = true; // this line must happen b4 initialize
   relay = new Aggregator(_set, data, nA, F[0]);
   F.push_back(new Approximator("critic", _set, input, data, relay));
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
