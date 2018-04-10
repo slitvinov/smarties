@@ -245,7 +245,7 @@ output layers with normal initialization."
 #define COMMENT_nnLambda "Penalization factor for network weights."
 #define TYPEVAL_nnLambda Real
 #define TYPENUM_nnLambda REAL
-#define DEFAULT_nnLambda 0
+#define DEFAULT_nnLambda numeric_limits<float>::epsilon()
   Real nnLambda = DEFAULT_nnLambda;
 
 #define CHARARG_nnType 'N'
