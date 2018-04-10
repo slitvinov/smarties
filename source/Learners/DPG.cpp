@@ -106,6 +106,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
     const bool isOff = traj->distFarPolicy(t, KLdiv, 1+KLdiv, CmaxPol);
   #else
     const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, 1 + CmaxPol);
+    traj->setSquaredError(t, POL.kl_divergence(traj->tuples[t]->mu));
   #endif
   // if CmaxPol==0 this is never triggered:
   if(isOff && beta>10*learnR && canSkip()) return resample(thrID);
