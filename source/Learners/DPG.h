@@ -22,6 +22,8 @@ class DPG : public Learner_offPolicy
   vector<Rvec> OrUhState = vector<Rvec>(nAgents,Rvec(nA,0));
 
   Real beta = CmaxPol<=0? 1 : .2; // if CmaxPol==0 do naive Exp Replay
+  Real CmaxRet = 1 + CmaxPol;
+
   MPI_Request nData_request = MPI_REQUEST_NULL;
   double ndata_reduce_result[2], ndata_partial_sum[2];
 

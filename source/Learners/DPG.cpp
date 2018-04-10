@@ -11,7 +11,7 @@
 #include "../Math/Gaussian_policy.h"
 #include "../Network/Builder.h"
 #include "DPG.h"
-#define DKL_filter
+//#define DKL_filter
 
 DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 tgtFrac(_set.klDivConstraint)
@@ -103,9 +103,9 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   const Real KLdiv = POL.kl_divergence(traj->tuples[t]->mu);
   //if(!thrID) cout<<"tpol "<<print(polVec)<<" act: "<<print(POL.sampAct)<<endl;
   #ifdef DKL_filter
-    const bool isOff = traj->distFarPolicy(t, KLdiv, 1+KLdiv, CmaxPol);
+    const bool isOff = traj->distFarPolicy(t, KLdiv, 1+KLdiv, CmaxRet-1);
   #else
-    const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, 1 + CmaxPol);
+    const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, CmaxRet);
     traj->setSquaredError(t, POL.kl_divergence(traj->tuples[t]->mu));
   #endif
   // if CmaxPol==0 this is never triggered:
@@ -172,7 +172,9 @@ void DPG::prepareGradient()
 
   profiler->stop_start("PRNE");
   advanceCounters();
-  data->prune(CmaxPol>0 ? MAXERROR : OLDEST, 1 + CmaxPol);
+  CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
+  if(CmaxRet<=1) die("Either run lasted too long or epsAnneal is wrong.");
+  data->prune(CmaxPol>0 ? MAXERROR : OLDEST, CmaxRet);
   Real fracOffPol = data->nOffPol / (Real) data->readNData();
   profiler->stop_start("SLP");
 
