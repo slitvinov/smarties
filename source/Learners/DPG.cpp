@@ -11,7 +11,7 @@
 #include "../Math/Gaussian_policy.h"
 #include "../Network/Builder.h"
 #include "DPG.h"
-#define DKL_filter
+//#define DKL_filter
 
 DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 tgtFrac(_set.klDivConstraint)
