@@ -112,7 +112,7 @@ class DACER : public Learner_offPolicy
         // correct behavior is to resample
         // to avoid bugs there is a failsafe mechanism
         // if that is triggered, warning will be printed to screen
-        if( beta > 0.05 ) return resample(thrID);
+        if( beta>10*learnR && canSkip() ) return resample(thrID);
         else // if beta too small, grad \approx penalization gradient
           grad = offPolGrad(traj, samp, out_cur, pol, thrID);
       } else
@@ -289,7 +289,7 @@ class DACER : public Learner_offPolicy
     CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
     data->prune(MEMBUF_FILTER_ALGO, CmaxRet);
     Real fracOffPol = data->nOffPol / (Real) data->readNData();
-    
+
     profiler->stop_start("SLP");
 
     if (learn_size > 1) {
@@ -315,7 +315,7 @@ class DACER : public Learner_offPolicy
     if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
     else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 
-    if( beta < 0.05 )
+    if( beta <= 10*learnR && nStep % 1000 == 0)
     warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");
   }
 

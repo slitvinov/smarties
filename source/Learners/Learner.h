@@ -56,8 +56,6 @@ protected:
 
   inline void resample(const Uint thrID) const // TODO resample sequence
   {
-    if( not canSkip() ) return;
-
     #pragma omp atomic
     nSkipped++;
 

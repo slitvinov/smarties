@@ -186,7 +186,7 @@ class RACER : public Learner_offPolicy
         // The correct behavior here is to resample. To avoid code hanging due
         // to bad choice of hyperparams there is this failsafe mechanism.
         // If this is triggered, warning will be printed to screen.
-        if( beta > 0.05 ) return resample(thrID);
+        if( beta>10*learnR && canSkip() ) return resample(thrID);
         else // if beta too small, grad \approx penalization gradient
           grad = offPolGrad(traj, samp, out_cur, pol, thrID);
       } else
@@ -524,7 +524,7 @@ class RACER : public Learner_offPolicy
     if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
     else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 
-    if( beta < 0.05 && nStep % 1000 == 0)
+    if( beta <= 10*learnR && nStep % 1000 == 0)
     warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");
   }
 

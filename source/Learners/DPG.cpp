@@ -101,7 +101,8 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
   //if(!thrID) cout<<"tpol "<<print(polVec)<<" act: "<<print(POL.sampAct)<<endl;
   const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, 1 + CmaxPol);
-  if(isOff) return resample(thrID); // if CmaxPol==0 this is never triggered
+  // if CmaxPol==0 this is never triggered:
+  if(isOff && beta>10*learnR && canSkip()) return resample(thrID);
 
   relay->prepare_one(traj, t, thrID, ACT);
   const Rvec q_curr = F[1]->forward(traj, t, thrID); // inp here is {s,a}
@@ -194,7 +195,7 @@ void DPG::prepareGradient()
   if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
   else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 
-  if( beta < 0.05 )
+  if( beta <= 10*learnR && nStep % 1000 == 0)
   warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");
 }
 
