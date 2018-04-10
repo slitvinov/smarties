@@ -130,6 +130,13 @@ struct Sequence
     offPol_weight[t] = W;
     return isOff;
   }
+  inline bool fracFarPolicy(const Uint t, const Real W, const Real D)
+  {
+    assert(t<offPol_weight.size());
+    #pragma omp atomic write
+    offPol_weight[t] = W;
+    return nOffPol/ndata() > D;
+  }
   inline void add_state(const Rvec state, const Real reward=0)
   {
     Tuple * t = new Tuple(state, reward);
