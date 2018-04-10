@@ -65,7 +65,7 @@ CPPFLAGS+= -D__Cubism3D
 endif
 
 ifeq "$(config)" "debug"
-CPPFLAGS+= -g -O1
+CPPFLAGS+= -g -O0
 endif
 ifeq "$(config)" "segf"
 CPPFLAGS+= -g -O0 -ffast-math

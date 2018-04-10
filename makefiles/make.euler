@@ -1,7 +1,7 @@
 CC=mpic++
 LD=mpic++
 #LIBS += -lmpi -lmpicxx -lmpich -mavx
-
+LIBS+= -lopenblas
 ifeq "$(app)" "cubism"
 
 LIBAPP = -L../../CubismUP_3D/makefiles/ -L. -lsim_rl
