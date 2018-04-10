@@ -130,12 +130,14 @@ struct Sequence
     offPol_weight[t] = W;
     return isOff;
   }
-  inline bool fracFarPolicy(const Uint t, const Real W, const Real D)
+  inline bool distFarPolicy(const Uint t, const Real D, const Real W, const Real target)
   {
     assert(t<offPol_weight.size());
     #pragma omp atomic write
+    SquaredError[t] = D;
+    #pragma omp atomic write
     offPol_weight[t] = W;
-    return nOffPol/ndata() > D;
+    return D > target;
   }
   inline void add_state(const Rvec state, const Real reward=0)
   {

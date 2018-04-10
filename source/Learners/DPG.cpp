@@ -11,6 +11,7 @@
 #include "../Math/Gaussian_policy.h"
 #include "../Network/Builder.h"
 #include "DPG.h"
+#define DKL_filter
 
 DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 tgtFrac(_set.klDivConstraint)
@@ -99,9 +100,13 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
 
   const Rvec polVec = F[0]->forward(traj, t, thrID);
   const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
+  const Real KLdiv = POL.kl_divergence(traj->tuples[t]->mu);
   //if(!thrID) cout<<"tpol "<<print(polVec)<<" act: "<<print(POL.sampAct)<<endl;
-  //const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, 1 + CmaxPol);
-  const bool isOff = traj->fracFarPolicy(t, POL.sampImpWeight, tgtFrac);
+  #ifdef DKL_filter
+    const bool isOff = traj->distFarPolicy(t, KLdiv, 1+KLdiv, CmaxPol);
+  #else
+    const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, 1 + CmaxPol);
+  #endif
   // if CmaxPol==0 this is never triggered:
   if(isOff && beta>10*learnR && canSkip()) return resample(thrID);
 
@@ -147,7 +152,6 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
 
   { //code to compute value grad:
     const Rvec grad_val = {(target-q_curr[0])};
-    traj->setSquaredError(t, POL.kl_divergence(traj->tuples[t]->mu));
     //traj->SquaredError[t] = grad_val[0]*grad_val[0];
     Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
     F[1]->backward(clampGrad(grad_val,q_curr[0]), t, thrID);
