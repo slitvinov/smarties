@@ -18,7 +18,8 @@ SETTINGS+=" --nnl2 128"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc LRelu"
 #SETTINGS+=" --nnFunc HardSign"
-SETTINGS+=" --nnLambda 0.000001"
+#SETTINGS+=" --nnLambda 0.000001"
+#SETTINGS+=" --nnOutputFunc Tanh" #is read by critic
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -49,4 +50,4 @@ SETTINGS+=" --targetDelay 0.01"
 SETTINGS+=" --batchSize 128"
 #network update learning rate
 #SETTINGS+=" --learnrate 0.00001"
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.00003"

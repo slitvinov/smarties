@@ -12,7 +12,6 @@
 #include "../Network/Builder.h"
 #include "DPG.h"
 //#define DKL_filter
-//#define DPG_BOUNDED_POL
 
 DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 tgtFrac(_set.klDivConstraint)
@@ -35,9 +34,6 @@ tgtFrac(_set.klDivConstraint)
   #endif
 
   F.push_back(new Approximator("policy", _set, input, data));
-  #ifdef DPG_BOUNDED_POL
-  _set.nnOutputFunc = "Tanh";
-  #endif
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
   const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
   //F[0]->blockInpGrad = true; // this line must happen b4 initialize
@@ -48,11 +44,9 @@ tgtFrac(_set.klDivConstraint)
   F.push_back(new Approximator("critic", _set, input, data, relay));
   //relay->scaling = Rvec(nA, 1/greedyEps);
 
-  #ifdef DPG_BOUNDED_POL
-  _set.nnLambda = 1e-4; // also wants L2 penl coef
-  #endif
+  //_set.nnLambda = 1e-4; // also wants L2 penl coef
   _set.learnrate *= 10; // DPG wants critic faster than actor
-  _set.nnOutputFunc = "Linear";
+  _set.nnOutputFunc = "Linear"; // critic must be linear
   // we want initial Q to be approx equal to 0 everywhere.
   // if LRelu we need to make initialization multiplier smaller:
   Builder build_val = F[1]->buildFromSettings(_set, 1 );

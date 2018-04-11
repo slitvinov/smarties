@@ -258,13 +258,20 @@ environment directly."
   string nnType = DEFAULT_nnType;
 
 #define CHARARG_nnFunc 'F'
-#define COMMENT_nnFunc "Activation function for non-output layers (which are \
-always linear) which are built from settings. (Relu, Tanh, Sigm, PRelu, \
+#define COMMENT_nnFunc "Activation function for non-output layers (which should\
+ always be linear) which are built from settings. (Relu, Tanh, Sigm, PRelu, \
 softSign, softPlus, ...)"
 #define TYPEVAL_nnFunc string
 #define TYPENUM_nnFunc STRING
 #define DEFAULT_nnFunc "LRelu"
   string nnFunc = DEFAULT_nnFunc;
+
+#define CHARARG_nnOutputFunc 'E'
+#define COMMENT_nnOutputFunc "Activation function for output layers."
+#define TYPEVAL_nnOutputFunc string
+#define TYPENUM_nnOutputFunc STRING
+#define DEFAULT_nnOutputFunc "Linear"
+  string nnOutputFunc = DEFAULT_nnOutputFunc;
 
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO PARALLELIZATION/COMMUNICATION: ASCII SYMBOL
@@ -425,7 +432,6 @@ base run folder."
   //random number generators (one per thread)
   //std::mt19937* gen;
   std::vector<std::mt19937> generators;
-  string nnOutputFunc = "Linear";
   //bad practice! but... allows me to speed up things:
   int global_tasking_counter = 0;
 
@@ -475,11 +481,12 @@ base run folder."
       READOPT(minTotObsNum), READOPT(maxTotObsNum), READOPT(obsPerStep),
       READOPT(epsAnneal), READOPT(bSampleSequences), READOPT(impWeight),
       READOPT(bSharedPol), READOPT(totNumSteps),
-      // NETWORK ARGS: MUST contain all 14 mentioned above (more if modified)
+      // NETWORK ARGS: MUST contain all 15 mentioned above (more if modified)
       READOPT(nnl1), READOPT(nnl2), READOPT(nnl3), READOPT(nnl4),
       READOPT(nnl5), READOPT(nnl6), READOPT(splitLayers),
       READOPT(outWeightsPrefac), READOPT(batchSize), READOPT(learnrate),
       READOPT(nnPdrop), READOPT(nnLambda), READOPT(nnType), READOPT(nnFunc),
+      READOPT(nnOutputFunc),
       // SMARTIES ARGS: MUST contain all 10 mentioned above (more if modified)
       READOPT(nThreads), READOPT(nMasters), READOPT(isServer), READOPT(ppn),
       READOPT(sockPrefix), READOPT(samplesFile), READOPT(restart),
