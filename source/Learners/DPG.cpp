@@ -55,7 +55,7 @@ tgtFrac(_set.klDivConstraint)
   F[0]->initializeNetwork(build_pol, 0);
 
   _set.learnrate *= 10; // DPG wants critic faster than actor
-  _set.nnLambda = 1e-3; // also wants L2 penl coef
+  _set.nnLambda = 1e-4; // also wants L2 penl coef
   // we want initial Q to be approx equal to 0 everywhere.
   // if LRelu we need to make initialization multiplier smaller:
   _set.targetDelay = 0.001;

@@ -21,6 +21,7 @@ SETTINGS+=" --nnFunc SoftSign"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
+#SETTINGS+=" --epsAnneal 0"
 
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner DPG"
