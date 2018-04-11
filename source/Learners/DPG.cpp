@@ -17,7 +17,7 @@ DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 tgtFrac(_set.klDivConstraint)
 {
   _set.splitLayers = 0;
-  #if 1
+  #if 0
     if(input->net not_eq nullptr) {
       delete input->opt; input->opt = nullptr;
       delete input->net; input->net = nullptr;
@@ -173,7 +173,7 @@ void DPG::prepareGradient()
   profiler->stop_start("PRNE");
   advanceCounters();
   CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
-  if(CmaxRet<=1) die("Either run lasted too long or epsAnneal is wrong.");
+  if(CmaxRet<1) die("Either run lasted too long or epsAnneal is wrong.");
   data->prune(CmaxPol>0 ? MAXERROR : OLDEST, CmaxRet);
   Real fracOffPol = data->nOffPol / (Real) data->readNData();
   profiler->stop_start("SLP");
