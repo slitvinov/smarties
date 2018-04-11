@@ -223,9 +223,9 @@ public:
           for (Uint j=firstSplit+1; j<lsize.size(); j++)
             addLayer(lsize[j], funcType, false, netType);
 
-          addLayer(nouts[i], "Linear", true);
+          addLayer(nouts[i], settings.nnOutputFunc, true);
         }
-      } else addLayer(sumout, "Linear", true);
+      } else addLayer(sumout, settings.nnOutputFunc, true);
     }
   }
 

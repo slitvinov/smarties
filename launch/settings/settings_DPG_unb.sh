@@ -49,4 +49,4 @@ SETTINGS+=" --targetDelay 0.01"
 SETTINGS+=" --batchSize 128"
 #network update learning rate
 #SETTINGS+=" --learnrate 0.00001"
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.00003"

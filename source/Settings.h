@@ -425,7 +425,7 @@ base run folder."
   //random number generators (one per thread)
   //std::mt19937* gen;
   std::vector<std::mt19937> generators;
-
+  string nnOutputFunc = "Linear";
   //bad practice! but... allows me to speed up things:
   int global_tasking_counter = 0;
 

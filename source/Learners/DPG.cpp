@@ -12,6 +12,7 @@
 #include "../Network/Builder.h"
 #include "DPG.h"
 //#define DKL_filter
+//#define DPG_BOUNDED_POL
 
 DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 tgtFrac(_set.klDivConstraint)
@@ -34,31 +35,27 @@ tgtFrac(_set.klDivConstraint)
   #endif
 
   F.push_back(new Approximator("policy", _set, input, data));
-  //F[0]->blockInpGrad = true; // this line must happen b4 initialize
-  relay = new Aggregator(_set, data, nA, F[0]);
-  F.push_back(new Approximator("critic", _set, input, data, relay));
-  Builder build_pol = F[0]->buildFromSettings(_set, nA);
-
-  #if 1
-    Builder build_val = F[1]->buildFromSettings(_set, 1 );
-  #else
-    Builder build_val(_set);
-    build_val.stackSimple(input->nOutputs(), {0});
-    build_val.addInput(relay->nOutputs()); // add actions
-    build_val.addLayer(1, "Linear", true); // output
+  #ifdef DPG_BOUNDED_POL
+  _set.nnOutputFunc = "Tanh";
   #endif
+  Builder build_pol = F[0]->buildFromSettings(_set, nA);
   const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
+  //F[0]->blockInpGrad = true; // this line must happen b4 initialize
   build_pol.addParamLayer(nA, "Linear", initParam);
-  //relay->scaling = Rvec(nA, 1/greedyEps); //
-
-  _set.outWeightsPrefac = 0.001;
   F[0]->initializeNetwork(build_pol, 0);
 
-  _set.learnrate *= 10; // DPG wants critic faster than actor
+  relay = new Aggregator(_set, data, nA, F[0]);
+  F.push_back(new Approximator("critic", _set, input, data, relay));
+  //relay->scaling = Rvec(nA, 1/greedyEps);
+
+  #ifdef DPG_BOUNDED_POL
   _set.nnLambda = 1e-4; // also wants L2 penl coef
+  #endif
+  _set.learnrate *= 10; // DPG wants critic faster than actor
+  _set.nnOutputFunc = "Linear";
   // we want initial Q to be approx equal to 0 everywhere.
   // if LRelu we need to make initialization multiplier smaller:
-  _set.targetDelay = 0.001;
+  Builder build_val = F[1]->buildFromSettings(_set, 1 );
   F[1]->initializeNetwork(build_val, 0);
   printf("DPG\n");
 }
