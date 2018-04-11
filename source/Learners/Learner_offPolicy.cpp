@@ -25,8 +25,7 @@ void Learner_offPolicy::prepareData()
   if( not readyForTrain() ) return; // Do not prepare an update
 
   profiler->stop_start("PRE");
-  if(nStep%1000==0)
-    data->updateRewardsStats(nStep);
+  if(nStep%1000==0) data->updateRewardsStats(nStep, 1, nStep>0?-1:1);
   if(nStep == 0 && !learn_rank)
     cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
 

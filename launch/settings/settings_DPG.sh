@@ -18,10 +18,11 @@ SETTINGS+=" --nnl2 128"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc LRelu"
 #SETTINGS+=" --nnFunc HardSign"
+SETTINGS+=" --nnLambda 0.000001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
-#SETTINGS+=" --epsAnneal 0"
+SETTINGS+=" --epsAnneal 0"
 
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner DPG"
@@ -32,7 +33,7 @@ SETTINGS+=" --minTotObsNum 131072"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.2"
-SETTINGS+=" --totNumSteps 6400000"
+SETTINGS+=" --totNumSteps 10000000"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --impWeight 4"

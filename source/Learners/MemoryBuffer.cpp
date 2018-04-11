@@ -86,13 +86,13 @@ void MemoryBuffer::terminate_seq(const Agent&a)
 }
 
 // update the second order moment of the rewards in the memory buffer
-void MemoryBuffer::updateRewardsStats(unsigned long nStep,
-    const Real WR, const Real WS)
+void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
 {
   _nStep = nStep;
   if(!bTrain) return; //if not training, keep the stored values
   if(WR<0 && WS<0) return;
-
+  WR = std::min((Real)1, WR);
+  WS = std::min((Real)1, WS);
   long double count = 0, newstdvr = 0;
   vector<long double> newSSum(dimS, 0), newSSqSum(dimS, 0);
   #pragma omp parallel reduction(+ : count, newstdvr)
@@ -152,7 +152,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep,
     Real varR = newstdvr/count;
     if(varR < numeric_limits<float>::epsilon())
        varR = numeric_limits<float>::epsilon();
-    const Real stDevRew = sqrt(varR);
+    const Real stDevRew = std::sqrt(varR);
     invstd_reward = (1-WR)*invstd_reward +WR/stDevRew;
   }
   for(Uint k=0; k<dimS && WS>0; k++)
@@ -170,37 +170,37 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep,
     outf.flush(); outf.close();
   }
 
-  #if 0 //ndef NDEBUG
+  #ifndef NDEBUG
     Uint cntSamp = 0;
     for(Uint i=0; i<Set.size(); i++) {
       assert(Set[i] not_eq nullptr);
       cntSamp += Set[i]->ndata();
     }
     assert(cntSamp==nTransitions.load());
-    vector<long double> dbgStateSum(dimS, 0), dbgStateSqSum(dimS, 0);
-    #pragma omp parallel
-    {
-      vector<long double> thr_dbgStateSum(dimS, 0), thr_dbgStateSqSum(dimS, 0);
-      #pragma omp for schedule(dynamic)
-      for(Uint i=0; i<Set.size(); i++)
-        for(Uint j=0; j<Set[i]->ndata(); j++) {
-          const auto S = standardize(Set[i]->tuples[j]->s);
-          for(Uint k=0; k<dimS; k++) {
-            thr_dbgStateSum[k] += S[k]; thr_dbgStateSqSum[k] += S[k]*S[k];
+    if(WS>=1) {
+      vector<long double> dbgStateSum(dimS,0), dbgStateSqSum(dimS,0);
+      #pragma omp parallel
+      {
+        vector<long double> thr_dbgStateSum(dimS,0), thr_dbgStateSqSum(dimS,0);
+        #pragma omp for schedule(dynamic)
+        for(Uint i=0; i<Set.size(); i++)
+          for(Uint j=0; j<Set[i]->ndata(); j++) {
+            const auto S = standardize(Set[i]->tuples[j]->s);
+            for(Uint k=0; k<dimS; k++) {
+              thr_dbgStateSum[k] += S[k]; thr_dbgStateSqSum[k] += S[k]*S[k];
+            }
           }
+        #pragma omp critical
+        for(Uint k=0; k<dimS; k++) {
+          dbgStateSum[k]   += thr_dbgStateSum[k];
+          dbgStateSqSum[k] += thr_dbgStateSqSum[k];
         }
-      #pragma omp critical
-      for(Uint k=0; k<dimS; k++) {
-        #pragma omp atomic
-        dbgStateSum[k]   += thr_dbgStateSum[k];
-        #pragma omp atomic
-        dbgStateSqSum[k] += thr_dbgStateSqSum[k];
       }
-    }
-    for(Uint k=0; k<dimS; k++) {
-      const Real dbgMean = dbgStateSum[k]/count;
-      const Real dbgVar = dbgStateSqSum[k]/count - dbgMean*dbgMean;
-      cout <<k<<" mean:"<<dbgMean<<" std:"<<dbgVar<< endl;
+      for(Uint k=0; k<dimS; k++) {
+        const Real dbgMean = dbgStateSum[k]/count;
+        const Real dbgVar = dbgStateSqSum[k]/count - dbgMean*dbgMean;
+        cout <<k<<" mean:"<<dbgMean<<" std:"<<dbgVar<< endl;
+      }
     }
   #endif
 }
