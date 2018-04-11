@@ -46,7 +46,7 @@ void Learner_onPolicy::spawnTrainTasks_seq()
   if( updateComplete ) die("undefined behavior");
   if( data->readNData() < nHorizon ) die("undefined behavior");
   if( not bTrain ) return;
-  if(nStep==0) data->updateRewardsStats(nStep, 1, 0);
+  //if(nStep==0) data->updateRewardsStats(nStep);
   updatePrepared = true;
   vector<Uint> samp_seq(batchSize, -1), samp_obs(batchSize, -1);
   data->sampleTransitions_OPW(samp_seq, samp_obs);
@@ -73,7 +73,7 @@ void Learner_onPolicy::prepareGradient()
   if (updateComplete && bTrain) {
     cntBatch += batchSize;
     if(cntBatch >= nHorizon) {
-      data->updateRewardsStats(nStep, annealRate(learnR,nStep,epsAnneal));
+      data->updateRewardsStats(nStep, 0.01);
       cntBatch = 0;
       cntEpoch++;
     }

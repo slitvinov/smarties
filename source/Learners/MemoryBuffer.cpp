@@ -86,12 +86,12 @@ void MemoryBuffer::terminate_seq(const Agent&a)
 }
 
 // update the second order moment of the rewards in the memory buffer
-void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight,
-    Real weighR)
+void MemoryBuffer::updateRewardsStats(unsigned long nStep,
+    const Real WR, const Real WS)
 {
   _nStep = nStep;
   if(!bTrain) return; //if not training, keep the stored values
-  if(weighR<0) weighR = weight;
+  if(WR<0 && WS<0) return;
 
   long double count = 0, newstdvr = 0;
   vector<long double> newSSum(dimS, 0), newSSqSum(dimS, 0);
@@ -103,18 +103,18 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight,
       count += Set[i]->ndata();
       for(Uint j=0; j<Set[i]->ndata(); j++) {
         newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
-        for(Uint k=0; k<dimS; k++) {
+        for(Uint k=0; k<dimS && WS>0; k++) {
           const Real sk = Set[i]->tuples[j]->s[k] - mean[k];
           thNewSSum[k] += sk; thNewSSqSum[k] += sk*sk;
         }
       }
     }
-    #pragma omp critical
-    for(Uint k=0; k<dimS; k++) {
-      #pragma omp atomic
-      newSSum[k]   += thNewSSum[k];
-      #pragma omp atomic
-      newSSqSum[k] += thNewSSqSum[k];
+    if(WS>0) {
+      #pragma omp critical
+      for(Uint k=0; k<dimS; k++) {
+        newSSum[k]   += thNewSSum[k];
+        newSSqSum[k] += thNewSSqSum[k];
+      }
     }
   }
 
@@ -142,23 +142,31 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, const Real weight,
 
     MPI_Iallreduce(partial_sum.data(), rew_reduce_result.data(), nReduce,
                     MPI_LONG_DOUBLE, MPI_SUM, mastersComm, &rewRequest);
-    // if no reduction done, partial sums are meaningless
-    if(firstUpdate) return;
+    // if no reduction done, partial sums are inaccurate
+    // it means that we are at the first step... use partial sums
   }
 
   if(count<batchSize) die("");
-  const Real stDevRew = sqrt(newstdvr/count) +numeric_limits<float>::epsilon();
-  invstd_reward = (1-weighR)*invstd_reward +weighR/stDevRew;
-  for(Uint k=0; k<dimS; k++) {
-    mean[k] += weight * newSSum[k]/count;
-    Real var = newSSqSum[k]/count - std::pow(newSSum[k]/count,2);
-    if(var<numeric_limits<Real>::epsilon())var=numeric_limits<Real>::epsilon();
-    std[k] = (1-weight) * std[k] + weight * std::sqrt(var);
+  if(WR>0)
+  {
+    Real varR = newstdvr/count;
+    if(varR < numeric_limits<float>::epsilon())
+       varR = numeric_limits<float>::epsilon();
+    const Real stDevRew = sqrt(varR);
+    invstd_reward = (1-WR)*invstd_reward +WR/stDevRew;
+  }
+  for(Uint k=0; k<dimS && WS>0; k++)
+  {
+    mean[k] += WS * newSSum[k]/count;
+    Real varS = newSSqSum[k]/count - std::pow(newSSum[k]/count,2);
+    if(varS < numeric_limits<float>::epsilon())
+       varS = numeric_limits<float>::epsilon();
+    std[k] = (1-WS) * std[k] + WS * std::sqrt(varS);
     invstd[k] = 1/(std[k]+numeric_limits<float>::epsilon());
   }
   if(learn_rank == 0) {
     ofstream outf("runningAverages.dat", ios::app);
-    outf<<count<<" "<<stDevRew<<" "<<print(mean)<<" "<<print(std)<<endl;
+    outf<<count<<" "<<1/invstd_reward<<" "<<print(mean)<<" "<<print(std)<<endl;
     outf.flush(); outf.close();
   }
 
