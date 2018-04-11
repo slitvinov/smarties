@@ -35,7 +35,7 @@ class Optimizer
   //nnReal *const _muW_eSGD, *const _muB_eSGD;
 
  public:
-  bool bAnnealLearnRate = false;
+  bool bAnnealLearnRate = true;
 
   Optimizer(Settings&S, const Parameters*const W, const Parameters*const W_TGT,
     const Real B1=.9, const Real B2=.999) : mastersComm(S.mastersComm),
