@@ -21,8 +21,8 @@ public:
   Environment * const env;
   const bool bWriteToFile, bTrain, bSampleSeq;
   const Uint nAppended, batchSize, maxTotObsNum, nThreads, policyVecDim;
-  const StateInfo sI;
-  const ActionInfo aI;
+  const StateInfo& sI;
+  const ActionInfo& aI;
   const vector<Agent*> _agents;
   std::vector<std::mt19937>& generators;
   Rvec mean, invstd, std;

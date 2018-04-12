@@ -15,15 +15,6 @@
 #include "Learners/ACER.h"
 #include "Learners/GAE.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <fstream>
-
 inline void print(std::ostringstream& o, std::string fname, int rank)
 {
   if(rank != 0) return;
@@ -93,9 +84,6 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
     return new DPG(env, settings);
   }
   else if (settings.learner == "GAE" || settings.learner == "PPO") {
-    settings.batchSize = ceil(settings.batchSize/(Real)env->nAgentsPerRank);
-    printf("Batchsize set to %d\n", settings.batchSize);
-
     if(env->aI.discrete) {
       settings.policyVecDim = GAE_disc::getnDimPolicy(&env->aI);
       o << env->aI.maxLabel << " " << settings.policyVecDim;

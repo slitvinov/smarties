@@ -16,9 +16,9 @@ mastersComm(_s.mastersComm), env(_env), bSampleSequences(_s.bSampleSequences),
 bTrain(_s.bTrain), nAgents(_s.nAgents), batchSize(_s.batchSize),
 totNumSteps(_s.totNumSteps), nThreads(_s.nThreads), nSlaves(_s.nSlaves),
 policyVecDim(_s.policyVecDim), learnR(_s.learnrate), greedyEps(_s.greedyEps),
-epsAnneal(_s.epsAnneal), gamma(_s.gamma), CmaxPol(_s.impWeight), learn_rank(_s.learner_rank),
-learn_size(_s.learner_size), aInfo(env->aI), sInfo(env->sI),
-generators(_s.generators), Vstats(nThreads), nTasks(_s.global_tasking_counter)
+epsAnneal(_s.epsAnneal), gamma(_s.gamma), CmaxPol(_s.impWeight),
+learn_rank(_s.learner_rank), learn_size(_s.learner_size), settings(_s),
+aInfo(env->aI), sInfo(env->sI), generators(_s.generators), Vstats(nThreads)
 {
   if(bSampleSequences) printf("Sampling sequences.\n");
   profiler = new Profiler();
@@ -145,10 +145,11 @@ void Learner::getHeaders(ostringstream& buf) const {}
 
 void Learner::restart()
 {
+  if(settings.restart == "none") return;
   if(!learn_rank) printf("Restarting from saved policy...\n");
 
-  for(auto & net : F) net->restart(learner_name);
-  input->restart(learner_name);
+  for(auto & net : F) net->restart(settings.restart+"/"+learner_name);
+  input->restart(settings.restart+"/"+learner_name);
   data->restart();
 
   for(auto & net : F) net->save("restarted_");
@@ -164,7 +165,7 @@ bool Learner::slaveHasUnfinishedSeqs(const int slave) const
 }
 
 //TODO: generalize!!
-bool Learner::predefinedNetwork(Builder& input_net, Settings& settings)
+bool Learner::predefinedNetwork(Builder& input_net)
 {
   if(settings.nnl2<=0) return false;
 

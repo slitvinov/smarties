@@ -15,14 +15,14 @@
 class Agent
 {
 protected:
-  StateInfo  sInfo;
-  ActionInfo aInfo;
+  const StateInfo&  sInfo;
+  const ActionInfo& aInfo;
 
 public:
-  State  * sOld = nullptr; // previous state
-  State  * s    = nullptr; // current state
+  State * const sOld; // previous state
+  State * const s   ; // current state
   // Action performed by agent. Updated by Learner::select and sent to Slave
-  Action * a    = nullptr;
+  Action* const a   ;
   Real r = 0;              // current reward
   Real cumulative_rewards = 0;
   const int ID;
@@ -34,7 +34,9 @@ public:
   mutable float buf[OUTBUFFSIZE];
   mutable Uint buffCnter = 0;
 
-  Agent(const int _ID = 0) : ID(_ID) { }
+  Agent(const int _ID, const StateInfo& _sInfo, const ActionInfo& _aInfo) :
+    sInfo(_sInfo), aInfo(_aInfo), sOld(new State(_sInfo)),
+    s(new State(_sInfo)), a(new Action(_aInfo)), ID(_ID) { }
 
   ~Agent() {
     _dispose_object(s);
@@ -55,7 +57,6 @@ public:
 
   void writeData(const int rank, const Rvec mu) const
   {
-    return; // TODO READ BVERBOSE
     // possible race conditions, avoided by the fact that each slave
     // (and therefore agent) can only be handled by one thread at the time
     // atomic op is to make sure that counter gets flushed to all threads
@@ -91,7 +92,7 @@ public:
   {
     assert(s not_eq nullptr);
     assert(sOld not_eq nullptr);
-    std::swap(s, sOld);
+    std::swap(s->vals, sOld->vals);
   }
 
   inline void getAction(Action& _a) const
@@ -150,13 +151,5 @@ public:
       cumulative_rewards += _r;
       transitionID++;
     }
-  }
-  StateInfo getStateDims() {return sInfo;}
-  ActionInfo getActionDims() {return aInfo;}
-
-  void setDims(const StateInfo& stateInfo, const ActionInfo& actionInfo)
-  {
-    this->aInfo = actionInfo;
-    this->sInfo = stateInfo;
   }
 };

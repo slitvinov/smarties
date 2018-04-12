@@ -66,7 +66,7 @@ struct StateInfo
 class State
 {
  public:
-  StateInfo sInfo;
+  const StateInfo& sInfo;
   Rvec vals;
 
   State(const StateInfo& newSInfo) : sInfo(newSInfo) {
@@ -119,7 +119,7 @@ struct ActionInfo
   // if true scaled action = tanh ( unscaled action )
   vector<bool> bounded;
   //vector<int> boundedTOP, boundedBOT; TODO
-  
+
   bool discrete = false;
   //each component of action vector has a vector of possible values that action can take with DQN
   vector<Rvec> values; //max and min of this vector also used for rescaling
@@ -316,12 +316,10 @@ struct ActionInfo
 class Action
 {
  public:
-  ActionInfo actInfo;
+  const ActionInfo& actInfo;
   Rvec vals;
-  mt19937 * gen;
 
-  Action(const ActionInfo& newActInfo, mt19937 * g) :
-    actInfo(newActInfo), gen(g)
+  Action(const ActionInfo& newActInfo) :  actInfo(newActInfo)
   {
     vals.resize(actInfo.dim);
   }

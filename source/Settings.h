@@ -212,7 +212,7 @@ or observations (0) from the Replay Memory."
 #define CHARARG_outWeightsPrefac 'O'
 #define COMMENT_outWeightsPrefac "Output weights initialization factor (will \
 be multiplied by default fan-in factor). Picking 1 leads to treating \
-output layers with normal initialization."
+output layers with normal Xavier initialization."
 #define TYPEVAL_outWeightsPrefac Real
 #define TYPENUM_outWeightsPrefac REAL
 #define DEFAULT_outWeightsPrefac 1
@@ -312,17 +312,17 @@ app (=1) or is launched by it (=0) (then cannot train)."
   int sockPrefix = DEFAULT_sockPrefix;
 
 #define CHARARG_samplesFile '('
-#define COMMENT_samplesFile "Name of main transition data backup file."
-#define TYPEVAL_samplesFile string
-#define TYPENUM_samplesFile STRING
-#define DEFAULT_samplesFile "history.txt"
-  string samplesFile = DEFAULT_samplesFile;
+#define COMMENT_samplesFile "Whether to write files recording all transitions."
+#define TYPEVAL_samplesFile int
+#define TYPENUM_samplesFile INT
+#define DEFAULT_samplesFile 0
+  int samplesFile = DEFAULT_samplesFile;
 
 #define CHARARG_restart '^'
-#define COMMENT_restart "File prefix of policy."
+#define COMMENT_restart "Prefix of net save files. If 'none' then no restart."
 #define TYPEVAL_restart string
 #define TYPENUM_restart STRING
-#define DEFAULT_restart "policy"
+#define DEFAULT_restart "none"
   string restart = DEFAULT_restart;
 
 #define CHARARG_maxTotSeqNum '='
@@ -337,7 +337,7 @@ training buffer"
 #define COMMENT_randSeed "Random seed."
 #define TYPEVAL_randSeed int
 #define TYPENUM_randSeed INT
-#define DEFAULT_randSeed 1
+#define DEFAULT_randSeed 0
   int randSeed = DEFAULT_randSeed;
 
 #define CHARARG_saveFreq ')'
@@ -430,8 +430,6 @@ base run folder."
   //random number generators (one per thread)
   //std::mt19937* gen;
   std::vector<std::mt19937> generators;
-  //bad practice! but... allows me to speed up things:
-  int global_tasking_counter = 0;
 
   void check()
   {
@@ -493,6 +491,18 @@ base run folder."
       READOPT(environment), READOPT(rType), READOPT(senses), READOPT(goalDY),
       READOPT(launchfile), READOPT(factory), READOPT(filePrefix)
     });
+  }
+
+  void initRandomSeed()
+  {
+    if(randSeed<=0) {
+      struct timeval clock;
+      gettimeofday(&clock, NULL);
+      const long MAXINT = std::numeric_limits<int>::max();
+      randSeed = abs(clock.tv_usec % MAXINT);
+      MPI_Bcast(&randSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+    sockPrefix = randSeed + world_rank;
   }
 
   vector<int> readNetSettingsSize()

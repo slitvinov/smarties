@@ -372,7 +372,6 @@ class RACER : public Learner_offPolicy
     // pol grad magnitude. Therefore are more strongly pushed away from mu.
     MEMBUF_FILTER_ALGO = MAXERROR;
     //MEMBUF_FILTER_ALGO = FARPOLFRAC;
-    if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~RACER() {
     fclose(wFile);

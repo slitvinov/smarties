@@ -96,10 +96,6 @@ void runMaster(MPI_Comm slavesComm, MPI_Comm mastersComm)
 
 int main (int argc, char** argv)
 {
-  struct timeval clock;
-  gettimeofday(&clock, NULL);
-  omp_set_dynamic(0);
-
   vector<ArgParser::OptionStruct> opts = settings.initializeOpts();
 
   int provided;
@@ -109,6 +105,7 @@ int main (int argc, char** argv)
 
   MPI_Comm_rank(MPI_COMM_WORLD, &settings.world_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &settings.world_size);
+  omp_set_dynamic(0);
 
   ArgParser::Parser parser(opts);
   parser.parse(argc, argv, settings.world_rank == 0);
@@ -131,11 +128,7 @@ int main (int argc, char** argv)
     */
   }
 
-  const long MAXINT = std::numeric_limits<int>::max();
-  int runSeed = abs(clock.tv_usec % MAXINT);
-  MPI_Bcast(&runSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  settings.sockPrefix = runSeed+settings.world_rank;
-
+  settings.initRandomSeed();
   settings.generators.reserve(omp_get_max_threads());
   settings.generators.push_back(mt19937(settings.sockPrefix));
   for(int i=1; i<omp_get_max_threads(); i++) {

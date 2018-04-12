@@ -198,7 +198,6 @@ class DACER : public Learner_offPolicy
     MEMBUF_FILTER_ALGO = MAXERROR;
 
     //cout << CmaxPol << " " << CmaxRet << " " << invC << endl;
-    if(_set.maxTotSeqNum < _set.batchSize)  die("maxTotSeqNum < batchSize")
   }
   ~DACER() {
     fclose(wFile);

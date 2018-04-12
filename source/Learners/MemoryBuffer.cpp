@@ -12,7 +12,7 @@
 #include <parallel/algorithm>
 
 MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
- mastersComm(_s.mastersComm), env(_env), bWriteToFile(_s.samplesFile!="none"),
+ mastersComm(_s.mastersComm), env(_env), bWriteToFile(_s.samplesFile),
  bTrain(_s.bTrain), bSampleSeq(_s.bSampleSequences), nAppended(_s.appendedObs),
  batchSize(_s.batchSize), maxTotObsNum(_s.maxTotObsNum), nThreads(_s.nThreads),
  policyVecDim(_s.policyVecDim), sI(env->sI), aI(env->aI), _agents(env->agents),
@@ -71,7 +71,7 @@ void MemoryBuffer::add_action(const Agent& a, Rvec pol) const
 {
   if(pol.size() not_eq policyVecDim) die("add_action");
   inProgress[a.ID]->add_action(a.a->vals, pol);
-  if(bWriteToFile || a.ID == 0 ) a.writeData(learn_rank, pol);
+  if(bWriteToFile) a.writeData(learn_rank, pol);
 }
 
 // If the state is terminal, instead of calling `add_action`, call this:

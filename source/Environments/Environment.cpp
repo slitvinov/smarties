@@ -135,8 +135,6 @@ void Environment::commonSetup()
   assert(settings.nSlaves > 0);
   assert(nAgentsPerRank > 0);
   nAgents = nAgentsPerRank * settings.nSlaves;
-  agents.resize(std::max(nAgents, (Uint) 1), nullptr);
-  for(Uint i=0; i<nAgents; i++) agents[i] = new Agent(i);
   settings.nAgents = nAgents;
 
   sI.dim = 0; sI.dimUsed = 0;
@@ -155,12 +153,9 @@ void Environment::commonSetup()
     printf("Unspecified whether action space is bounded: assumed not\n");
   } else assert(aI.bounded.size() == aI.dim);
 
-  for (auto& a : agents) {
-    a->setDims(sI, aI);
-    a->a = new Action(aI, g);
-    a->s = new State(sI);
-    a->sOld = new State(sI);
-  }
+  agents.resize(std::max(nAgents, (Uint) 1), nullptr);
+  for(Uint i=0; i<nAgents; i++) agents[i] = new Agent(i, sI, aI);
+
   assert(sI.scale.size() == sI.mean.size());
   assert(sI.mean.size()==0 || sI.mean.size()==sI.dim);
   for (Uint i=0; i<sI.scale.size(); i++) assert(positive(sI.scale[i]));

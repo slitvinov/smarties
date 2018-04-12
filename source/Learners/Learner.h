@@ -24,6 +24,7 @@ protected:
   const Uint nAgents, batchSize, totNumSteps, nThreads, nSlaves, policyVecDim;
   const Real learnR, greedyEps, epsAnneal, gamma, CmaxPol;
   const int learn_rank, learn_size;
+  Settings & settings;
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;
   mutable Uint nSkipped = 0;
@@ -32,8 +33,8 @@ protected:
   mutable bool updatePrepared = false;
   mutable bool updateComplete = false;
 
-  const ActionInfo aInfo;
-  const StateInfo  sInfo;
+  const ActionInfo& aInfo;
+  const StateInfo&  sInfo;
   std::vector<std::mt19937>& generators;
   MemoryBuffer* data;
   Encapsulator* input;
@@ -68,7 +69,6 @@ protected:
 public:
   Profiler* profiler;
   Profiler* profiler_ext = nullptr;
-  int& nTasks;
   string learner_name;
 
   Learner(Environment*const env, Settings & settings);
@@ -126,6 +126,6 @@ public:
 
   virtual void prepareGradient();
   void synchronizeGradients();
-  bool predefinedNetwork(Builder& input_net, Settings& settings);
+  bool predefinedNetwork(Builder& input_net);
   void restart();
 };

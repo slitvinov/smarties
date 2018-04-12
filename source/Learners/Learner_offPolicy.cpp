@@ -11,7 +11,10 @@
 
 Learner_offPolicy::Learner_offPolicy(Environment*const _env, Settings & _s) :
 Learner(_env,_s), obsPerStep_orig(_s.obsPerStep), nObsPerTraining(
-_s.minTotObsNum>_s.batchSize? _s.minTotObsNum : _s.maxTotObsNum) {}
+_s.minTotObsNum>_s.batchSize? _s.minTotObsNum : _s.maxTotObsNum) {
+  if(not bSampleSequences && nObsPerTraining < batchSize)
+    die("Parameter minTotObsNum is too low for given problem");
+}
 
 void Learner_offPolicy::prepareData()
 {
@@ -21,13 +24,15 @@ void Learner_offPolicy::prepareData()
   // then no need to prepare a new update
   if(updatePrepared) die("undefined behavior"); //return;
 
-
   if( not readyForTrain() ) return; // Do not prepare an update
 
   profiler->stop_start("PRE");
   if(nStep%1000==0) data->updateRewardsStats(nStep, 1);
   if(nStep == 0 && !learn_rank)
     cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
+
+  if(bSampleSequences && data->readNSeq() < batchSize)
+    die("Parameter minTotObsNum is too low for given problem");
 
   samp_seq = vector<Uint>(batchSize, -1);
   samp_obs = vector<Uint>(batchSize, -1);
@@ -105,8 +110,6 @@ void Learner_offPolicy::spawnTrainTasks_par()
   //  #pragma omp task
   //  spawnTrainTasks_par();
   //}
-  if( bSampleSequences && data->readNSeq() < batchSize)
-    die("Parameter maxTotObsNum is too low for given problem");
 
   for (Uint i=0; i<batchSize; i++)
   {

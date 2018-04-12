@@ -297,7 +297,7 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
       bool bInputNet = false;
       input_build.addInput( input->nOutputs() );
       bInputNet = bInputNet || env->predefinedNetwork(input_build);
-      bInputNet = bInputNet || predefinedNetwork(input_build, _set);
+      bInputNet = bInputNet || predefinedNetwork(input_build);
       if(bInputNet) {
         Network* net = input_build.build(true);
         input->initializeNetwork(net, input_build.opt);
