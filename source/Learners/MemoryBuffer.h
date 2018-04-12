@@ -150,8 +150,7 @@ public:
   void terminate_seq(const Agent&a);
   void add_state(const Agent&a);
 
-  void updateRewardsStats(unsigned long nStep, const Real weight,
-      Real weighR = -1);
+  void updateRewardsStats(unsigned long nStep, Real WR = 1, Real WS = -1);
   void updateImportanceWeights();
 
   // Algorithm for maintaining and filtering dataset, and optional imp weight range parameter

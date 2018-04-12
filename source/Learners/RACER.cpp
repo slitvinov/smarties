@@ -18,6 +18,9 @@
 //#ifndef RACER_FORWARD
 #define RACER_FORWARD 0
 //#endif
+#ifdef DKL_filter
+#undef DKL_filter
+#endif
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_offPolicy
@@ -107,7 +110,12 @@ class RACER : public Learner_offPolicy
     {
       const Rvec out_cur = F[0]->get(traj, k, thrID);
       const Policy_t pol = prepare_policy(out_cur, traj->tuples[k]);
-      const bool isOff = traj->isFarPolicy(k, pol.sampImpWeight, CmaxRet);
+      #ifdef DKL_filter
+        const Real KLdiv = pol.kl_divergence(S->tuples[k]->mu);
+        const bool isOff = traj->distFarPolicy(k, KLdiv, 1+KLdiv, CmaxRet-1);
+      #else
+        const bool isOff = traj->isFarPolicy(k, pol.sampImpWeight, CmaxRet);
+      #endif
       // in case rho outside bounds, do not compute gradient
       Rvec G;
       #if RACER_SKIP == 1
@@ -150,7 +158,12 @@ class RACER : public Learner_offPolicy
 
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
     // check whether importance weight is in 1/Cmax < c < Cmax
-    const bool isOff = traj->isFarPolicy(samp, pol.sampImpWeight, CmaxRet);
+    #ifdef DKL_filter
+      const Real KLdiv = pol.kl_divergence(S->tuples[t]->mu);
+      const bool isOff = traj->distFarPolicy(t, KLdiv, 1+KLdiv, CmaxRet-1);
+    #else
+      const bool isOff = traj->isFarPolicy(samp, pol.sampImpWeight, CmaxRet);
+    #endif
 
     #if RACER_FORWARD>0
       // do N steps of fwd net to obtain better estimate of Qret
@@ -186,7 +199,7 @@ class RACER : public Learner_offPolicy
         // The correct behavior here is to resample. To avoid code hanging due
         // to bad choice of hyperparams there is this failsafe mechanism.
         // If this is triggered, warning will be printed to screen.
-        if( beta > 0.05 ) return resample(thrID);
+        if( beta>10*learnR && canSkip() ) return resample(thrID);
         else // if beta too small, grad \approx penalization gradient
           grad = offPolGrad(traj, samp, out_cur, pol, thrID);
       } else
@@ -206,9 +219,9 @@ class RACER : public Learner_offPolicy
     // shift retrace-advantage with current V(s) estimate:
     const Real A_RET = traj->Q_RET[samp] +traj->state_vals[samp]-V_cur;
     const Real rho_cur = POL.sampImpWeight;
-    const Real Ver = alpha*std::min((Real)1, rho_cur) * (A_RET-A_cur);
+    const Real Ver = beta*alpha*std::min((Real)1, rho_cur) * (A_RET-A_cur);
     //const Real Aer = alpha*(A_RET-A_cur);
-    const Real Aer = alpha*std::min(rho_cur, CmaxRet) * (A_RET-A_cur);
+    const Real Aer = beta*alpha* rho_cur * (A_RET-A_cur);
 
     const Rvec polG = policyGradient(traj->tuples[samp], POL,ADV,A_RET, thrID);
     const Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
@@ -324,7 +337,7 @@ class RACER : public Learner_offPolicy
       const Rvec gradAcer_2 = POL.policy_grad(sample,      gain2);
       return sum2Grads(gradAcer_1, gradAcer_2);
     #else
-      return POL.policy_grad(POL.sampAct, A_RET * std::min(rho_cur, CmaxRet) );
+      return POL.policy_grad(POL.sampAct, A_RET * rho_cur );
     #endif
   }
 
@@ -524,7 +537,7 @@ class RACER : public Learner_offPolicy
     if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
     else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 
-    if( beta < 0.05 && nStep % 1000 == 0)
+    if( beta <= 10*learnR && nStep % 1000 == 0)
     warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");
   }
 

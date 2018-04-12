@@ -19,8 +19,6 @@ SETTINGS+=" --nnl2 64"
 #SETTINGS+=" --nnFunc Tanh"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc LRelu"
-# L2 regularization of the weights
-SETTINGS+=" --nnLambda 0.00001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"

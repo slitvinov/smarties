@@ -123,12 +123,22 @@ struct Sequence
   }
   inline bool isFarPolicy(const Uint t, const Real W, const Real C)
   {
-    if(C<=1) return false;
     const bool isOff = W > C || W < 1/C;
     assert(t<offPol_weight.size());
     #pragma omp atomic write
     offPol_weight[t] = W;
-    return isOff;
+    // If C<=1 assume we never filter far policy samples
+    return C>1 && isOff;
+  }
+  inline bool distFarPolicy(const Uint t, const Real D, const Real W, const Real target)
+  {
+    assert(t<offPol_weight.size());
+    #pragma omp atomic write
+    SquaredError[t] = D;
+    #pragma omp atomic write
+    offPol_weight[t] = W;
+    // If target<=0 assume we never filter far policy samples
+    return target>0 && D > target;
   }
   inline void add_state(const Rvec state, const Real reward=0)
   {

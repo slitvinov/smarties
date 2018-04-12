@@ -11,12 +11,13 @@
 #include "../Math/Gaussian_policy.h"
 #include "../Network/Builder.h"
 #include "DPG.h"
+//#define DKL_filter
 
 DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 tgtFrac(_set.klDivConstraint)
 {
   _set.splitLayers = 0;
-  #if 1
+  #if 0
     if(input->net not_eq nullptr) {
       delete input->opt; input->opt = nullptr;
       delete input->net; input->net = nullptr;
@@ -33,31 +34,22 @@ tgtFrac(_set.klDivConstraint)
   #endif
 
   F.push_back(new Approximator("policy", _set, input, data));
-  //F[0]->blockInpGrad = true; // this line must happen b4 initialize
-  relay = new Aggregator(_set, data, nA, F[0]);
-  F.push_back(new Approximator("critic", _set, input, data, relay));
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
-
-  #if 1
-    Builder build_val = F[1]->buildFromSettings(_set, 1 );
-  #else
-    Builder build_val(_set);
-    build_val.stackSimple(input->nOutputs(), {0});
-    build_val.addInput(relay->nOutputs()); // add actions
-    build_val.addLayer(1, "Linear", true); // output
-  #endif
   const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
+  //F[0]->blockInpGrad = true; // this line must happen b4 initialize
   build_pol.addParamLayer(nA, "Linear", initParam);
-  //relay->scaling = Rvec(nA, 1/greedyEps); //
-
-  _set.outWeightsPrefac = 0.001;
   F[0]->initializeNetwork(build_pol, 0);
 
+  relay = new Aggregator(_set, data, nA, F[0]);
+  F.push_back(new Approximator("critic", _set, input, data, relay));
+  //relay->scaling = Rvec(nA, 1/greedyEps);
+
+  //_set.nnLambda = 1e-4; // also wants L2 penl coef
   _set.learnrate *= 10; // DPG wants critic faster than actor
-  _set.nnLambda = 1e-3; // also wants L2 penl coef
+  _set.nnOutputFunc = "Linear"; // critic must be linear
   // we want initial Q to be approx equal to 0 everywhere.
   // if LRelu we need to make initialization multiplier smaller:
-  _set.targetDelay = 0.001;
+  Builder build_val = F[1]->buildFromSettings(_set, 1 );
   F[1]->initializeNetwork(build_val, 0);
   printf("DPG\n");
 }
@@ -99,9 +91,16 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
 
   const Rvec polVec = F[0]->forward(traj, t, thrID);
   const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
+  const Real KLdiv = POL.kl_divergence(traj->tuples[t]->mu);
   //if(!thrID) cout<<"tpol "<<print(polVec)<<" act: "<<print(POL.sampAct)<<endl;
-  const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, 1 + CmaxPol);
-  if(isOff) return resample(thrID); // if CmaxPol==0 this is never triggered
+  #ifdef DKL_filter
+    const bool isOff = traj->distFarPolicy(t, KLdiv, 1+KLdiv, CmaxRet-1);
+  #else
+    const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, CmaxRet);
+    traj->setSquaredError(t, KLdiv);
+  #endif
+  // if CmaxPol==0 this is never triggered:
+  if(isOff && beta>10*learnR && canSkip()) return resample(thrID);
 
   relay->prepare_one(traj, t, thrID, ACT);
   const Rvec q_curr = F[1]->forward(traj, t, thrID); // inp here is {s,a}
@@ -145,7 +144,6 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
 
   { //code to compute value grad:
     const Rvec grad_val = {(target-q_curr[0])};
-    traj->setSquaredError(t, POL.kl_divergence(traj->tuples[t]->mu));
     //traj->SquaredError[t] = grad_val[0]*grad_val[0];
     Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
     F[1]->backward(clampGrad(grad_val,q_curr[0]), t, thrID);
@@ -165,7 +163,9 @@ void DPG::prepareGradient()
 
   profiler->stop_start("PRNE");
   advanceCounters();
-  data->prune(CmaxPol>0 ? MAXERROR : OLDEST, 1 + CmaxPol);
+  CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
+  if(CmaxRet<1) die("Either run lasted too long or epsAnneal is wrong.");
+  data->prune(CmaxPol>0 ? MAXERROR : OLDEST, CmaxRet);
   Real fracOffPol = data->nOffPol / (Real) data->readNData();
   profiler->stop_start("SLP");
 
@@ -194,7 +194,7 @@ void DPG::prepareGradient()
   if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
   else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 
-  if( beta < 0.05 )
+  if( beta <= 10*learnR && nStep % 1000 == 0)
   warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");
 }
 

@@ -13,7 +13,7 @@
 import sys, time
 import numpy as np
 import matplotlib.pyplot as plt
-L = 200
+L = 50
 colors = ['#1f78b4', '#33a02c', '#e31a1c', '#ff7f00', '#6a3d9a', '#b15928', '#a6cee3', '#b2df8a', '#fb9a99', '#fdbf6f', '#cab2d6', '#ffff99']
 nP = len(sys.argv)
 lines = [None] * nP
@@ -37,7 +37,8 @@ while 1:
     Y = Y.reshape(Y.size//L, L) 
     X = X.mean(1)
     Yb = np.percentile(Y, 20, axis=1)
-    Ym = np.percentile(Y, 50, axis=1)
+    #Ym = np.percentile(Y, 50, axis=1)
+    Ym = np.mean(Y, axis=1)
     Yt = np.percentile(Y, 80, axis=1)
     if fills[i]: a=1#fills[i].set_data(X,Yb,Yt)
     else:

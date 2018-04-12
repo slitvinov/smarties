@@ -19,8 +19,6 @@ SETTINGS+=" --nnl3 128"
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnType LSTM"
 SETTINGS+=" --nnFunc PRelu"
-# L2 regularization of the weights
-#SETTINGS+=" --nnLambda 0.001"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
