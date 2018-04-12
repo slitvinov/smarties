@@ -1,4 +1,4 @@
-COMMNAME=noanneal2
+COMMNAME=Racer_noanneal
 
 for EXPTYPE in "GAUS"; do
 for NEXPERTS in "1"; do
@@ -8,9 +8,9 @@ make -C ../makefiles clean
 make -C ../makefiles config=fit -j raceskip=$SKIPA exp=$EXPTYPE nexp=$NEXPERTS
 
 #for BUFFSIZE in "131072" "262144" "524288" "1048576"; do
-for BUFFSIZE in "131072" "262144" "524288" "1048576"; do
+for BUFFSIZE in "262144" "524288" "1048576"; do
 #for IMPSAMPR in "0.5" "1" "2" "4"; do
-for IMPSAMPR in "1" "3" "7"; do
+for IMPSAMPR in "0" "1" "4"; do
 #for DKLPARAM in "0.05" "0.1" "0.2"; do
 for DKLPARAM in "0.10"; do
 

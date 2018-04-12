@@ -40,9 +40,9 @@ SETTINGS+=" --bSampleSequences 0"
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w
-SETTINGS+=" --targetDelay 0.001"
+SETTINGS+=" --targetDelay 0.01"
 SETTINGS+=" --klDivConstraint ${DKLPARAM}"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize ${BATCHNUM}"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.00001"
