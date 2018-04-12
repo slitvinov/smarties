@@ -36,7 +36,10 @@ public:
 
   Agent(const int _ID, const StateInfo& _sInfo, const ActionInfo& _aInfo) :
     sInfo(_sInfo), aInfo(_aInfo), sOld(new State(_sInfo)),
-    s(new State(_sInfo)), a(new Action(_aInfo)), ID(_ID) { }
+    s(new State(_sInfo)), a(new Action(_aInfo)), ID(_ID) {
+      const Uint writesize = 3 +sInfo.dim +aInfo.dim +mu.size();
+      if(OUTBUFFSIZE<writesize) die("Edit compile-time OUTBUFFSIZE variable.");
+    }
 
   ~Agent() {
     _dispose_object(s);
