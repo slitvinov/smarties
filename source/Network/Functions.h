@@ -181,7 +181,7 @@ struct HardSign : public Function {
   }
 };
 
-#define SoftSign_FAC 2
+#define SoftSign_FAC 1
 struct SoftSign : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(6./(inps + outs));
