@@ -247,8 +247,9 @@ public:
   inline Rvec policy_grad(const Rvec& act, const Real factor) const
   {
     Rvec ret(nExperts +2*nA*nExperts, 0);
-    assert(sampPonPolicy > 0);
-    for(Uint j=0; j<nExperts; j++) {
+    // if sampPonPolicy == 0 then rho == 0 then we can skip this:
+    // (also, we would get a nan)
+    for(Uint j=0; j<nExperts && sampPonPolicy>0; j++) {
       const long double normExpert = factor * PactEachExp[j]/sampPonPolicy;
       assert(PactEachExp[j] > 0);
       for(Uint i=0; i<nExperts; i++)
