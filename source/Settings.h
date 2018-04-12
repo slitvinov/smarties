@@ -503,6 +503,13 @@ base run folder."
       MPI_Bcast(&randSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }
     sockPrefix = randSeed + world_rank;
+
+    generators.reserve(omp_get_max_threads());
+    generators.push_back(mt19937(sockPrefix));
+    for(int i=1; i<omp_get_max_threads(); i++) {
+      const Uint seed = generators[0]();
+      generators.push_back(mt19937(seed));
+    }
   }
 
   vector<int> readNetSettingsSize()
