@@ -97,7 +97,7 @@ CPPFLAGS+= -falign-functions=32 #-DBOOST_UBLAS_NDEBUG
 
 DIRS = $(sort $(dir $(wildcard ../source/*/)))
 OBJ_FILES = ArgParser.o main.o ObjectFactory.o Communicator.o \
-		Environment.o TwoActFishEnvironment.o Learner.o NAF.o NFQ.o DPG.o \
+		Environment.o TwoActFishEnvironment.o Learner.o NAF.o DQN.o DPG.o \
 		Learner_onPolicy.o MemoryBuffer.o Learner_offPolicy.o Optimizer.o \
 		Scheduler.o Network.o Math_tests.o Approximator.o AtariEnvironment.o
 
