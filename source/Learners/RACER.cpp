@@ -79,6 +79,9 @@ class RACER : public Learner_offPolicy
 
   void prepareData()
   {
+    // Rewards second moment is computed right before actual training begins
+    // therefore we need to recompute (rescaled) Retrace values for all obss
+    // seen before this point.
     Learner_offPolicy::prepareData();
     if(updatePrepared && nStep == 0) {
       #pragma omp parallel for schedule(dynamic)
@@ -89,7 +92,7 @@ class RACER : public Learner_offPolicy
     }
   }
 
-  void Train_BPTT(const Uint seq, const Uint thrID) const override
+  void TrainBySequences(const Uint seq, const Uint thrID) const override
   {
     Sequence* const traj = data->Set[seq];
     const int ndata = traj->tuples.size()-1;

@@ -24,7 +24,7 @@ class NAF : public Learner_offPolicy
     return Quadratic_advantage(vector<Uint>{net_indices[1], net_indices[2]}, &aInfo, out);
   }
 
-  void Train_BPTT(const Uint seq, const Uint thrID) const override;
+  void TrainBySequences(const Uint seq, const Uint thrID) const override;
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
 public:

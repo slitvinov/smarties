@@ -79,7 +79,7 @@ class DACER : public Learner_offPolicy
     }
   }
 
-  void Train_BPTT(const Uint seq, const Uint thrID) const override
+  void TrainBySequences(const Uint seq, const Uint thrID) const override
   {
     die("");
   }

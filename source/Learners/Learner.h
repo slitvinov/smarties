@@ -107,7 +107,7 @@ public:
   }
 
   virtual void select(const Agent& agent) = 0;
-  virtual void Train_BPTT(const Uint seq, const Uint thrID) const = 0;
+  virtual void TrainBySequences(const Uint seq, const Uint thrID) const = 0;
   virtual void Train(const Uint seq, const Uint samp, const Uint thrID) const=0;
 
   virtual void getMetrics(ostringstream& buff) const;

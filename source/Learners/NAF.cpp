@@ -42,7 +42,7 @@ void NAF::select(const Agent& agent)
     data->terminate_seq(agent);
 }
 
-void NAF::Train_BPTT(const Uint seq, const Uint thrID) const
+void NAF::TrainBySequences(const Uint seq, const Uint thrID) const
 {
   Sequence* const traj = data->Set[seq];
   const Uint ndata = traj->tuples.size();

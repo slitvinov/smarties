@@ -1,5 +1,5 @@
 /*
- *  NFQ.cpp
+ *  DQN.cpp
  *  rl
  *
  *  Created by Guido Novati on 16.07.15.
@@ -10,11 +10,11 @@
   - add option to switch between double Q and V-A formulation
  */
 
-#include "NFQ.h"
+#include "DQN.h"
 #include "../Math/Utils.h"
 #include "../Network/Builder.h"
 
-NFQ::NFQ(Environment*const _env, Settings& _set) :
+DQN::DQN(Environment*const _env, Settings& _set) :
 Learner_offPolicy(_env, _set)
 {
   F.push_back(new Approximator("Q", _set, input, data));
@@ -22,7 +22,7 @@ Learner_offPolicy(_env, _set)
   F[0]->initializeNetwork(build_pol);
 }
 
-void NFQ::select(const Agent& agent)
+void DQN::select(const Agent& agent)
 {
   const Real anneal = annealingFactor();
   const Real annealedEps = bTrain ? anneal + (1-anneal)*greedyEps : greedyEps;
@@ -49,7 +49,7 @@ void NFQ::select(const Agent& agent)
     data->terminate_seq(agent);
 }
 
-void NFQ::Train_BPTT(const Uint seq, const Uint thrID) const
+void DQN::TrainBySequences(const Uint seq, const Uint thrID) const
 {
   Sequence* const traj = data->Set[seq];
   const Uint ndata = traj->tuples.size();
@@ -80,7 +80,7 @@ void NFQ::Train_BPTT(const Uint seq, const Uint thrID) const
   F[0]->gradient(thrID);
 }
 
-void NFQ::Train(const Uint seq, const Uint samp, const Uint thrID) const
+void DQN::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
   Sequence* const traj = data->Set[seq];
   F[0]->prepare_one(traj, samp, thrID);

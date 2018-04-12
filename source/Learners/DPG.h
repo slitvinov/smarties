@@ -41,7 +41,7 @@ class DPG : public Learner_offPolicy
     return grad_val;
   }
 
-  void Train_BPTT(const Uint seq, const Uint thrID) const override;
+  void TrainBySequences(const Uint seq, const Uint thrID) const override;
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
 
 public:

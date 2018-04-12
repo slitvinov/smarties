@@ -34,7 +34,7 @@ class ACER : public Learner_offPolicy
     return pol;
   }
 
-  void Train_BPTT(const Uint seq, const Uint thrID) const override
+  void TrainBySequences(const Uint seq, const Uint thrID) const override
   {
     Sequence* const traj = data->Set[seq];
     const int ndata = traj->tuples.size()-1;

@@ -19,7 +19,7 @@
 #define PPO_learnDKLt
 
 template<typename Policy_t, typename Action_t>
-class GAE : public Learner_onPolicy
+class PPO : public Learner_onPolicy
 {
 protected:
   const Uint nA = Policy_t::compute_nA(&aInfo);
@@ -37,7 +37,7 @@ protected:
     return pol;
   }
 
-  void Train_BPTT(const Uint seq, const Uint thrID) const override {
+  void TrainBySequences(const Uint seq, const Uint thrID) const override {
     die("not allowed");
   }
 
@@ -120,11 +120,11 @@ protected:
   }
 
 public:
-  GAE(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
+  PPO(Environment*const _env, Settings& _set, vector<Uint> pol_outs) :
     Learner_onPolicy(_env,_set), valPenal(nThreads+1,0), cntPenal(nThreads+1,0),
     lambda(_set.lambda), pol_outputs(pol_outs), pol_indices(count_indices(pol_outs)),
     DKL_target(_set.klDivConstraint) {
-    opcInfo = new StatsTracker(5, "GAE", _set, 100);
+    opcInfo = new StatsTracker(5, "PPO", _set, 100);
     valPenal[0] = 1;
     //valPenal[0] = 1.;
   }
@@ -153,7 +153,7 @@ public:
     } else
       curr_seq->state_vals.push_back(0); // Assign value of term state to 0
 
-    updateGAE(curr_seq);
+    updatePPO(curr_seq);
 
     //advance counters of available data for training
     if(agent.Status >= TERM_COMM) data->terminate_seq(agent);
@@ -166,7 +166,7 @@ public:
     assert(targ>=orig);
     return t<T ? 1 -(1-orig)*(1-targ)/(1-targ +(t/T)*(targ-orig)) : targ;
   }
-  void updateGAE(Sequence*const seq) const
+  void updatePPO(Sequence*const seq) const
   {
     //this is only triggered by t = 0 (or truncated trajectories)
     // at t=0 we do not have a reward, and we cannot compute delta
@@ -266,7 +266,7 @@ public:
   }
 };
 
-class GAE_cont : public GAE<Gaussian_policy, Rvec >
+class PPO_cont : public PPO<Gaussian_policy, Rvec >
 {
   static vector<Uint> count_pol_outputs(const ActionInfo*const aI)
   {
@@ -284,10 +284,10 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
     return 2*aI->dim;
   }
 
-  GAE_cont(Environment*const _env, Settings & _set) :
-  GAE(_env, _set, count_pol_outputs(&_env->aI))
+  PPO_cont(Environment*const _env, Settings & _set) :
+  PPO(_env, _set, count_pol_outputs(&_env->aI))
   {
-    printf("Continuous-action GAE\n");
+    printf("Continuous-action PPO\n");
     #if 1
       if(input->net not_eq nullptr) {
         delete input->opt; input->opt = nullptr;
@@ -340,7 +340,7 @@ class GAE_cont : public GAE<Gaussian_policy, Rvec >
   }
 };
 
-class GAE_disc : public GAE<Discrete_policy, Uint>
+class PPO_disc : public PPO<Discrete_policy, Uint>
 {
   static vector<Uint> count_pol_outputs(const ActionInfo*const aI)
   {
@@ -358,10 +358,10 @@ class GAE_disc : public GAE<Discrete_policy, Uint>
   }
 
  public:
-  GAE_disc(Environment*const _env, Settings& _set) :
-  GAE(_env, _set, count_pol_outputs(&_env->aI))
+  PPO_disc(Environment*const _env, Settings& _set) :
+  PPO(_env, _set, count_pol_outputs(&_env->aI))
   {
-    printf("Discrete-action GAE\n");
+    printf("Discrete-action PPO\n");
     F.push_back(new Approximator("policy", _set, input, data));
     F.push_back(new Approximator("critic", _set, input, data));
     Builder build_pol = F[0]->buildFromSettings(_set, aInfo.maxLabel);
@@ -434,6 +434,6 @@ net->biases[penalparid] = std::log(1/settings.klDivConstraint);
 
 finalize_network(build);
 
-printf("GAE: Built network with outputs: %s %s\n",
+printf("PPO: Built network with outputs: %s %s\n",
   print(net_indices).c_str(),print(net_outputs).c_str());
 */

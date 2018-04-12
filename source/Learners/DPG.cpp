@@ -77,7 +77,7 @@ void DPG::select(const Agent& agent)
   }
 }
 
-void DPG::Train_BPTT(const Uint seq, const Uint thrID) const
+void DPG::TrainBySequences(const Uint seq, const Uint thrID) const
 {
   die("");
 }

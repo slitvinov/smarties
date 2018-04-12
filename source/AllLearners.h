@@ -7,13 +7,13 @@
  *
  */
 #pragma once
-#include "Learners/NFQ.h"
+#include "Learners/DQN.h"
 #include "Learners/NAF.h"
 #include "Learners/DPG.h"
 #include "Learners/RACER.h"
 #include "Learners/DACER.h"
 #include "Learners/ACER.h"
-#include "Learners/GAE.h"
+#include "Learners/PPO.h"
 
 inline void print(std::ostringstream& o, std::string fname, int rank)
 {
@@ -28,12 +28,12 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
 {
   std::ostringstream o;
   o << env->sI.dim << " ";
-  if(settings.learner=="DQN" || settings.learner=="NFQ") {
+  if(settings.learner=="NFQ" || settings.learner=="DQN") {
     assert(env->aI.discrete);
     o << env->aI.maxLabel << " " << env->aI.maxLabel;
     print(o, "problem_size.log", settings.world_rank);
     settings.policyVecDim = env->aI.maxLabel;
-    return new NFQ(env, settings);
+    return new DQN(env, settings);
   }
   else if (settings.learner == "RACER" || settings.learner == "POAC") {
     if(env->aI.discrete) {
@@ -85,17 +85,17 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
   }
   else if (settings.learner == "GAE" || settings.learner == "PPO") {
     if(env->aI.discrete) {
-      settings.policyVecDim = GAE_disc::getnDimPolicy(&env->aI);
+      settings.policyVecDim = PPO_disc::getnDimPolicy(&env->aI);
       o << env->aI.maxLabel << " " << settings.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
-      return new GAE_disc(env, settings);
+      return new PPO_disc(env, settings);
     } else {
-      settings.policyVecDim = GAE_cont::getnDimPolicy(&env->aI);
+      settings.policyVecDim = PPO_cont::getnDimPolicy(&env->aI);
       o << env->aI.dim << " " << settings.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
-      return new GAE_cont(env, settings);
+      return new PPO_cont(env, settings);
     }
   } else die("Learning algorithm not recognized\n");
   assert(false);
-  return new NFQ(env, settings); //fake, to silence warnings
+  return new DQN(env, settings); //fake, to silence warnings
 }

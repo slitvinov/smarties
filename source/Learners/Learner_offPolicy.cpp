@@ -122,7 +122,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
       if(bSampleSequences)
       {
         obs = data->Set[seq]->ndata()-1;
-        Train_BPTT(seq, thrID);
+        TrainBySequences(seq, thrID);
         #pragma omp atomic
         nAddedGradients += data->Set[seq]->ndata();
       }
