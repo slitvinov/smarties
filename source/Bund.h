@@ -50,7 +50,7 @@ typedef double memReal;
 // Default number of second moments to clip the pre-backprop gradient:
 // Can be changed inside each learning algo by overwriting default arg of
 // Approximator::initializeNetwork function
-#define STD_GRADCUT 5
+#define STD_GRADCUT 0
 
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
