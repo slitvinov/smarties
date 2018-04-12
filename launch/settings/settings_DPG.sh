@@ -28,7 +28,7 @@ SETTINGS+=" --epsAnneal 0"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner DPG"
 
-SETTINGS+=" --maxTotObsNum 524288"
+SETTINGS+=" --maxTotObsNum 1048576"
 SETTINGS+=" --minTotObsNum 131072"
 #SETTINGS+=" --minTotObsNum 35536"
 
@@ -50,4 +50,5 @@ SETTINGS+=" --targetDelay 0.01"
 SETTINGS+=" --batchSize 128"
 #network update learning rate
 #SETTINGS+=" --learnrate 0.00001"
-SETTINGS+=" --learnrate 0.00003"
+SETTINGS+=" --learnrate 0.00001"
+SETTINGS+=" --outWeightsPrefac 1"
