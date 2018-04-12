@@ -1,10 +1,4 @@
-
 SETTINGS=
-#file that stores every observtion (log of states and actions)
-#if none then no output
-SETTINGS+=" --samplesFile none"
-#SETTINGS+=" --restart none"
-
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
