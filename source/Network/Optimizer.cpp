@@ -36,15 +36,14 @@ struct Adam {
       const nnReal numer = M1;
     #endif
     #ifdef SAFE_ADAM
-      // prevent rare gradient blow ups. allows dW<= eta*sqrt(10). if pre update
-      // M2 and M1 were both 0, this is what normally happens with Adam
+      // prevent gradient blow ups. allows dW<= eta*sqrt(10). if pre update
+      // M2 and M1 were both 0, but this is what normally happens with Adam
       // Actually I can't think of a situation where, except due to finite
       // precision, this next like will not be reduntant...
       M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
-      const nnReal ret =  eta * (numer /  std::sqrt(nnEPS + M2) );
-      //return eta * (numer / (nnEPS + std::sqrt(M2)) +penal);
+      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M2) );
     #else
-      const nnReal ret =  eta * (numer /  std::sqrt(nnEPS + M2) );
+      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M2) );
     #endif
     assert(not std::isnan(ret) && not std::isinf(ret));
     return ret;
