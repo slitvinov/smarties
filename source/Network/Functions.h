@@ -181,6 +181,7 @@ struct HardSign : public Function {
   }
 };
 
+#define SoftSign_FAC 2
 struct SoftSign : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(6./(inps + outs));
@@ -189,15 +190,15 @@ struct SoftSign : public Function {
     return std::sqrt(6./(inps + outs));
   }
   static inline nnReal _eval(const nnReal in) {
-    return 2*in/(1 + std::fabs(2*in));
+    return SoftSign_FAC*in/(1 + SoftSign_FAC*std::fabs(in));
   }
   static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
-    const nnReal denom = 1 + 2*std::fabs(in);
-    return 2/(denom*denom);
+    const nnReal denom = 1 + SoftSign_FAC*std::fabs(in);
+    return SoftSign_FAC/(denom*denom);
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
-    for (Uint i=0;i<N; i++) out[i] = 2*in[i]/(1+ std::fabs(2*in[i]));
+    for (Uint i=0;i<N; i++) out[i] = _eval(in[i]);
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
     return _eval(in, out, N);
@@ -207,7 +208,7 @@ struct SoftSign : public Function {
   }
   nnReal inverse(const nnReal in) const override {
     assert(in > 0 && in < 1);
-    return 0.5*in/(1-std::fabs(in));
+    return in/(1-std::fabs(in))/SoftSign_FAC;
   }
   nnReal evalDiff(const nnReal in, const nnReal d) const override {
     return _evalDiff(in, d);

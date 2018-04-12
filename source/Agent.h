@@ -37,8 +37,6 @@ public:
   Agent(const int _ID, const StateInfo& _sInfo, const ActionInfo& _aInfo) :
     sInfo(_sInfo), aInfo(_aInfo), sOld(new State(_sInfo)),
     s(new State(_sInfo)), a(new Action(_aInfo)), ID(_ID) {
-      const Uint writesize = 3 +sInfo.dim +aInfo.dim +mu.size();
-      if(OUTBUFFSIZE<writesize) die("Edit compile-time OUTBUFFSIZE variable.");
     }
 
   ~Agent() {
@@ -64,6 +62,7 @@ public:
     // (and therefore agent) can only be handled by one thread at the time
     // atomic op is to make sure that counter gets flushed to all threads
     const Uint writesize = 3 +sInfo.dim +aInfo.dim +mu.size();
+    if(OUTBUFFSIZE<writesize) die("Edit compile-time OUTBUFFSIZE variable.");
     assert( buffCnter % writesize == 0 );
     if(buffCnter+writesize > OUTBUFFSIZE) writeBuffer(rank);
     Uint ind = buffCnter;
