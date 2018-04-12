@@ -159,6 +159,13 @@ public:
     if(agent.Status >= TERM_COMM) data->terminate_seq(agent);
   }
 
+  static inline Real annealDiscount(const Real targ, const Real orig,
+    const Real t, const Real T=1e5) {
+      // this function makes 1/(1-ret) linearly go from
+      // 1/(1-orig) to 1/(1-targ) for t = 0:T. if t>=T it returns targ
+    assert(targ>=orig);
+    return t<T ? 1 -(1-orig)*(1-targ)/(1-targ +(t/T)*(targ-orig)) : targ;
+  }
   void updateGAE(Sequence*const seq) const
   {
     //this is only triggered by t = 0 (or truncated trajectories)
@@ -181,8 +188,11 @@ public:
     seq->Q_RET.push_back(0);
 
     Real fac_lambda = 1, fac_gamma = 1;
-    const Real rGamma  = nStep<1e5? 1-2*(1- gamma)/(1+(nStep/1e5)) :  gamma;
-    const Real rLambda = nStep<1e5? 1-2*(1-lambda)/(1+(nStep/1e5)) : lambda;
+    // If user selects gamma=.995 and lambda=0.97 as in Henderson2017
+    // these will start at 0.99 and 0.95 (same as original) and be quickly
+    // annealed upward in the first 1e5 steps.
+    const Real rGamma  =  gamma>0.99? annealDiscount( gamma,.99,nStep) :  gamma;
+    const Real rLambda = lambda>0.95? annealDiscount(lambda,.95,nStep) : lambda;
     // reward of i=0 is 0, because before any action
     // adv(0) is also 0, V(0) = V(s_0)
     for (int i=N-2; i>=0; i--) { //update all rewards before current step
