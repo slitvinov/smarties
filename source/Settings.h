@@ -27,7 +27,7 @@ struct Settings
 #define COMMENT_learner "Algorithm."
 #define TYPEVAL_learner string
 #define TYPENUM_learner STRING
-#define DEFAULT_learner "NFQ"
+#define DEFAULT_learner "RACER"
   string learner = DEFAULT_learner;
 
 #define CHARARG_bTrain 'b'
@@ -55,25 +55,26 @@ grad desc step tgt-net does exp averaging."
   Real targetDelay = DEFAULT_targetDelay;
 
 #define CHARARG_greedyEps 'e'
-#define COMMENT_greedyEps "Rate of random actions (detail depend on chosen \
-learning algorithm)."
+#define COMMENT_greedyEps "Noise added to policy. For discrete actions \
+it is the probability of picking a random one (detail depend on chosen \
+learning algorithm), for continuous actions it is the (initial) stdev."
 #define TYPEVAL_greedyEps Real
 #define TYPENUM_greedyEps REAL
-#define DEFAULT_greedyEps 0.1
+#define DEFAULT_greedyEps 0.5
   Real greedyEps = DEFAULT_greedyEps;
 
 #define CHARARG_gamma 'g'
 #define COMMENT_gamma "Discount factor."
 #define TYPEVAL_gamma Real
 #define TYPENUM_gamma REAL
-#define DEFAULT_gamma 0.99
+#define DEFAULT_gamma 0.995
   Real gamma = DEFAULT_gamma;
 
 #define CHARARG_klDivConstraint 'k'
 #define COMMENT_klDivConstraint "Constraint on max KL div, algo specific."
 #define TYPEVAL_klDivConstraint Real
 #define TYPENUM_klDivConstraint REAL
-#define DEFAULT_klDivConstraint 0.001
+#define DEFAULT_klDivConstraint 0.1
   Real klDivConstraint = DEFAULT_klDivConstraint;
 
 #define CHARARG_lambda 'l'
@@ -93,7 +94,7 @@ longer it is just split into segments."
 
 #define CHARARG_minTotObsNum 'm'
 #define COMMENT_minTotObsNum "Min number of transitions in training buffer \
-before training starts."
+before training starts. If unset we use maxTotObsNum."
 #define TYPEVAL_minTotObsNum int
 #define TYPENUM_minTotObsNum INT
 #define DEFAULT_minTotObsNum -1
@@ -103,7 +104,7 @@ before training starts."
 #define COMMENT_maxTotObsNum "Max number of transitions in training buffer."
 #define TYPEVAL_maxTotObsNum int
 #define TYPENUM_maxTotObsNum INT
-#define DEFAULT_maxTotObsNum 100000
+#define DEFAULT_maxTotObsNum 1000000
   int maxTotObsNum = DEFAULT_maxTotObsNum;
 
 #define CHARARG_obsPerStep 'o'
@@ -123,7 +124,8 @@ learning-algorithm-dependent behaviors."
   Real epsAnneal = DEFAULT_epsAnneal;
 
 #define CHARARG_bSampleSequences 's'
-#define COMMENT_bSampleSequences "Whether to sample sequences or trajectories."
+#define COMMENT_bSampleSequences "Whether to sample sequences (1) \
+or observations (0) from the Replay Memory."
 #define TYPEVAL_bSampleSequences  int
 #define TYPENUM_bSampleSequences  INT
 #define DEFAULT_bSampleSequences  0
@@ -133,7 +135,7 @@ learning-algorithm-dependent behaviors."
 #define COMMENT_impWeight "Max importance weight for Policy Gradient"
 #define TYPEVAL_impWeight Real
 #define TYPENUM_impWeight REAL
-#define DEFAULT_impWeight 5
+#define DEFAULT_impWeight 4
   Real impWeight = DEFAULT_impWeight;
 
 #define CHARARG_bSharedPol 'y'
@@ -213,18 +215,14 @@ be multiplied by default fan-in factor). Picking 1 leads to treating \
 output layers with normal initialization."
 #define TYPEVAL_outWeightsPrefac Real
 #define TYPENUM_outWeightsPrefac REAL
-#ifdef __CHECK_DIFF //check gradients with finite differences
 #define DEFAULT_outWeightsPrefac 1
-#else
-#define DEFAULT_outWeightsPrefac 0.01
-#endif
   Real outWeightsPrefac = DEFAULT_outWeightsPrefac;
 
 #define CHARARG_batchSize 'B'
 #define COMMENT_batchSize "Network training batch size."
 #define TYPEVAL_batchSize int
 #define TYPENUM_batchSize INT
-#define DEFAULT_batchSize 32
+#define DEFAULT_batchSize 128
   int batchSize = DEFAULT_batchSize;
 
 #define CHARARG_learnrate 'L'
@@ -263,7 +261,7 @@ environment directly."
 softSign, softPlus, ...)"
 #define TYPEVAL_nnFunc string
 #define TYPENUM_nnFunc STRING
-#define DEFAULT_nnFunc "LRelu"
+#define DEFAULT_nnFunc "SoftSign"
   string nnFunc = DEFAULT_nnFunc;
 
 #define CHARARG_nnOutputFunc 'E'
