@@ -510,7 +510,7 @@ class RACER : public Learner_offPolicy
     advanceCounters();
 
     CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
-    if(CmaxRet<=1) die("Either run lasted too long or epsAnneal is wrong.");
+    if(CmaxRet<1) die("Either run lasted too long or epsAnneal is wrong.");
     data->prune(MEMBUF_FILTER_ALGO, CmaxRet);
     Real fracOffPol = data->nOffPol / (Real) data->readNData();
     profiler->stop_start("SLP");
