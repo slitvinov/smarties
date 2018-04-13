@@ -141,6 +141,7 @@ void Network::checkGrads()
 
     for (Uint w=0; w<weights->nParams; w++) {
       nnReal diff = 0;
+      const auto copy = weights->params[w];
       //1
       weights->params[w] += incr;
       for (Uint k=0; k<seq_len; k++) {
@@ -148,13 +149,13 @@ void Network::checkGrads()
         if(k==t) diff = -ret[o]/(2*incr);
       }
       //2
-      weights->params[w] -= 2*incr;
+      weights->params[w] = copy - incr;
       for (Uint k=0; k<seq_len; k++) {
         const vector<Real> ret = predict(inputs[k], timeSeries, k);
         if(k==t) diff += ret[o]/(2*incr);
       }
       //0
-      weights->params[w] += incr;
+      weights->params[w] = copy;
 
       const nnReal scale = std::max( fabs(Vgrad[0]->params[w]), fabs(diff) );
       if (scale < nnEPS) continue;
@@ -178,10 +179,10 @@ void Network::checkGrads()
     sumsq2 += Vgrad[2]->params[w]*Vgrad[2]->params[w];
   }
 
-  double NW = weights->nParams, avg1 = sum1/NW, avg2 = sum2/NW;
-  double std1=sqrt((sumsq1-sum1*avg1)/NW), std2=sqrt((sumsq2-sum2*avg2)/NW);
-  cout<< "Abs err avg:" <<avg1<<" std:"<<std1
-      <<" Abs grad avg:"<<avg2<<" std:"<<std2<<endl;
+  long double NW = weights->nParams, avg1 = sum1/NW, avg2 = sum2/NW;
+  auto std1=sqrt((sumsq1-sum1*avg1)/NW), std2=sqrt((sumsq2-sum2*avg2)/NW);
+  cout<< "Abs gradient avg:" <<avg1<<" std:"<<std1
+      <<" Abs error avg:"<<avg2<<" std:"<<std2<<endl;
   deallocateUnrolledActivations(&timeSeries);
   Vgrad[0]->clear(); Vgrad[1]->clear(); Vgrad[2]->clear(); Vgrad[3]->clear();
   die("done");

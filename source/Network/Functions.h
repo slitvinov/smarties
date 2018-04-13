@@ -32,7 +32,7 @@ struct Function {
 
   virtual nnReal eval(const nnReal in) const = 0;
   virtual nnReal inverse(const nnReal in) const = 0; // f(in)
-  virtual nnReal evalDiff(const nnReal in, const nnReal d) const = 0; // f'(in)
+  virtual nnReal evalDiff(const nnReal in, const nnReal out) const = 0; // f'(in)
 
   virtual ~Function() {}
 };
@@ -53,7 +53,7 @@ struct Linear : public Function {
   static inline nnReal _eval(const nnReal in) {
     return in;
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
+  static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return 1;
   }
   nnReal eval(const nnReal in) const override {
@@ -62,7 +62,7 @@ struct Linear : public Function {
   nnReal inverse(const nnReal in) const override {
     return in;
   }
-  nnReal evalDiff(const nnReal in, const nnReal d) const override {
+  nnReal evalDiff(const nnReal in, const nnReal out) const override {
     return 1;
   }
 };
@@ -75,8 +75,6 @@ struct Tanh : public Function {
     return std::sqrt(6./(inps + outs));
   }
   static inline nnReal _eval(const nnReal in) {
-    if(in >   EXP_CUT) return  1;
-    if(in < - EXP_CUT) return -1;
     if(in > 0) {
       const nnReal e2x = std::exp(-2*in);
       return (1-e2x)/(1+e2x);
@@ -85,10 +83,8 @@ struct Tanh : public Function {
       return (e2x-1)/(1+e2x);
     }
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
-    const nnReal arg = in < 0? -in : in; //symmetric
-    const nnReal e2x = std::exp(-2*arg);
-    return 4*e2x/((1+e2x)*(1+e2x));
+  static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
+    return 1 - out*out;
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
     for(Uint i=0; i<N; i++) out[i] = _eval(in[i]);
@@ -103,8 +99,8 @@ struct Tanh : public Function {
     assert(std::fabs(in)<1);
     return 0.5 * std::log((1+in)/(1-in));
   }
-  nnReal evalDiff(const nnReal in, const nnReal d) const override {
-    return _evalDiff(in, d);
+  nnReal evalDiff(const nnReal in, const nnReal out) const override {
+    return _evalDiff(in, out);
   }
 };
 
@@ -116,19 +112,14 @@ struct Sigm : public Function {
     return std::sqrt(6./(inps + outs));
   }
   static inline nnReal _eval(const nnReal in) {
-    if(in >  2*EXP_CUT) return 1;
-    if(in < -2*EXP_CUT) return 0;
     if(in > 0) return 1/(1+std::exp(-in));
     else {
       const nnReal ex = std::exp(in);
       return ex/(1+ex);
     }
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
-    const nnReal arg = in < 0 ? -in : in;
-    const nnReal ex = std::exp(-arg);
-    if (arg > 2*EXP_CUT) return ex;
-    return ex/((1+ex)*(1+ex));
+  static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
+    return out*(1-out);
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
     for(Uint i=0; i<N; i++) out[i] = _eval(in[i]);
@@ -143,8 +134,8 @@ struct Sigm : public Function {
     assert(in > 0 && in < 1);
     return - std::log(1/in - 1);
   }
-  nnReal evalDiff(const nnReal in, const nnReal d) const override {
-    return _evalDiff(in, d);
+  nnReal evalDiff(const nnReal in, const nnReal out) const override {
+    return _evalDiff(in, out);
   }
 };
 
@@ -158,7 +149,7 @@ struct HardSign : public Function {
   static inline nnReal _eval(const nnReal in) {
     return in/std::sqrt(1+in*in);
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
+  static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     const nnReal denom = std::sqrt(1+in*in);
     return 1/(denom*denom*denom);
   }
@@ -176,8 +167,8 @@ struct HardSign : public Function {
     assert(in > 0 && in < 1);
     return in/std::sqrt(1 -in*in);
   }
-  nnReal evalDiff(const nnReal in, const nnReal d) const override {
-    return _evalDiff(in, d);
+  nnReal evalDiff(const nnReal in, const nnReal out) const override {
+    return _evalDiff(in, out);
   }
 };
 
@@ -192,7 +183,7 @@ struct SoftSign : public Function {
   static inline nnReal _eval(const nnReal in) {
     return SoftSign_FAC*in/(1 + SoftSign_FAC*std::fabs(in));
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
+  static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     const nnReal denom = 1 + SoftSign_FAC*std::fabs(in);
     return SoftSign_FAC/(denom*denom);
   }
@@ -210,8 +201,8 @@ struct SoftSign : public Function {
     assert(in > 0 && in < 1);
     return in/(1-std::fabs(in))/SoftSign_FAC;
   }
-  nnReal evalDiff(const nnReal in, const nnReal d) const override {
-    return _evalDiff(in, d);
+  nnReal evalDiff(const nnReal in, const nnReal out) const override {
+    return _evalDiff(in, out);
   }
 };
 
@@ -225,7 +216,7 @@ struct Relu : public Function {
   static inline nnReal _eval(const nnReal in) {
     return in>0 ? in : 0;
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
+  static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return in>0 ? 1 : 0;
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
@@ -242,8 +233,8 @@ struct Relu : public Function {
     assert(in>=0);
     return in;
   }
-  nnReal evalDiff(const nnReal in, const nnReal d) const override {
-    return _evalDiff(in, d);
+  nnReal evalDiff(const nnReal in, const nnReal out) const override {
+    return _evalDiff(in, out);
   }
 };
 
@@ -257,7 +248,7 @@ struct LRelu : public Function {
   static inline nnReal _eval(const nnReal in) {
     return in>0 ? in : PRELU_FAC*in;
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
+  static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return in>0 ? 1 : PRELU_FAC;
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
@@ -274,8 +265,8 @@ struct LRelu : public Function {
     if(in >= 0) return in;
     else return in / PRELU_FAC;
   }
-  nnReal evalDiff(const nnReal in, const nnReal d) const override {
-    return _evalDiff(in, d);
+  nnReal evalDiff(const nnReal in, const nnReal out) const override {
+    return _evalDiff(in, out);
   }
 };
 
@@ -289,7 +280,7 @@ struct ExpPlus : public Function {
   static inline nnReal _eval(const nnReal in) {
     return std::log(1+std::exp(in));
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
+  static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return 1/(1+std::exp(-in));
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
@@ -304,8 +295,8 @@ struct ExpPlus : public Function {
   nnReal inverse(const nnReal in) const override {
     return std::log(std::exp(in)-1);
   }
-  nnReal evalDiff(const nnReal in, const nnReal d) const override {
-    return _evalDiff(in, d);
+  nnReal evalDiff(const nnReal in, const nnReal out) const override {
+    return _evalDiff(in, out);
   }
 };
 
@@ -319,7 +310,7 @@ struct SoftPlus : public Function {
   static inline nnReal _eval(const nnReal in) {
     return .5*(in + std::sqrt(1+in*in));
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
+  static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return .5*(1 + in/std::sqrt(1+in*in));
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
@@ -336,8 +327,8 @@ struct SoftPlus : public Function {
     assert(in > 0);
     return (in*in - 0.25)/in;
   }
-  nnReal evalDiff(const nnReal in, const nnReal d) const override {
-    return _evalDiff(in, d);
+  nnReal evalDiff(const nnReal in, const nnReal out) const override {
+    return _evalDiff(in, out);
   }
 };
 
@@ -351,7 +342,7 @@ struct Exp : public Function {
   static inline nnReal _eval(const nnReal in) {
     return nnSafeExp(in);
   }
-  static inline nnReal _evalDiff(const nnReal in, const nnReal d) {
+  static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return nnSafeExp(in);
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
@@ -367,8 +358,8 @@ struct Exp : public Function {
     assert(in > 0);
     return std::log(in);
   }
-  nnReal evalDiff(const nnReal in, const nnReal d) const override {
-    return _evalDiff(in, d);
+  nnReal evalDiff(const nnReal in, const nnReal out) const override {
+    return _evalDiff(in, out);
   }
 };
 

@@ -205,8 +205,9 @@ class ParamLayer: public Layer
           nnReal* const deltas = curr->E(ID);
           nnReal* const grad_b = grad->B(ID);
     const nnReal* const inputs = curr->X(ID);
+    const nnReal* const outval = curr->Y(ID);
     for(Uint o=0; o<size; o++) {
-      deltas[o] *= func->evalDiff(inputs[o], deltas[o]);
+      deltas[o] *= func->evalDiff(inputs[o], outval[o]);
       grad_b[o] += deltas[o];
     }
   }

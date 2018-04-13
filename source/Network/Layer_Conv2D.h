@@ -90,8 +90,9 @@ class ConvLayer : public Layer
             nnReal* const deltas = curr->E(ID);
             nnReal* const grad_b = grad->B(ID);
       const nnReal* const suminp = curr->X(ID);
+      const nnReal* const outval = curr->Y(ID);
       for(Uint o=0; o<OutX*OutY*Kn_C; o++) {
-        deltas[o] *= func::_evalDiff(suminp[o], deltas[o]);
+        deltas[o] *= func::_evalDiff(suminp[o], outval[o]);
         grad_b[o] += deltas[o];
       }
     }

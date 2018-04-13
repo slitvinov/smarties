@@ -132,11 +132,13 @@ class LSTMLayer: public Layer
 
     for (Uint o=0; o<nC; o++) {
       const nnReal D = deltas[o]; //before overwriting it
-      const nnReal diff = deltas[o] * (1-cellOutput[o]*cellOutput[o]);
+      //                  |      derivative of tanh     |
+      const nnReal diff = (1-cellOutput[o]*cellOutput[o]) * deltas[o];
       // Compute state's error signal
       stateDelta[o] = diff*OGate[o] +(next==nullptr?0: nxtStErr[o]*nxtFGate[o]);
       // Compute deltas for cell input and gates
       deltas[o+0*nC] = IGate[o] * stateDelta[o];
+      //               | derivative of sigm |
       deltas[o+1*nC] = IGate[o]*(1-IGate[o]) * cellInpt[o] * stateDelta[o];
       if(prev not_eq nullptr)
       deltas[o+2*nC] = FGate[o]*(1-FGate[o]) * prvState[o] * stateDelta[o];
