@@ -343,7 +343,7 @@ struct Exp : public Function {
     return nnSafeExp(in);
   }
   static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
-    return nnSafeExp(in);
+    return out;
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
     for(Uint i=0;i<N;i++) out[i] = nnSafeExp(in[i]);
@@ -374,10 +374,10 @@ struct DualRelu {
       out[2*i +1] = in[i]>0 ? in[i] : 0;
     }
   }
-  static inline void _evalDiff(nnOpInp in, nnOpRet out, const Uint N) {
-    #pragma omp simd aligned(in,out : VEC_WIDTH)
+  static inline void _evalDiff(nnOpInp I, nnOpInp O, nnOpRet E, const Uint N) {
+    #pragma omp simd aligned(I,E : VEC_WIDTH)
     for (Uint i=0;i<N; i++)
-    out[i] = (in[i]<0 ? out[2*i+0] : 0) + (in[i]>0 ? out[2*i+1] : 0);
+    E[i] = (I[i]<0 ? E[2*i+0] : 0) + (I[i]>0 ? E[2*i+1] : 0);
   }
 };
 
@@ -392,10 +392,10 @@ struct DualLRelu {
       out[2*i +1] = in[i]>0 ? in[i] : PRELU_FAC*in[i];
     }
   }
-  static inline void _evalDiff(nnOpInp in, nnOpRet out, const Uint N) {
-    #pragma omp simd aligned(in,out : VEC_WIDTH)
+  static inline void _evalDiff(nnOpInp I, nnOpInp O, nnOpRet E, const Uint N) {
+    #pragma omp simd aligned(I,E : VEC_WIDTH)
     for (Uint i=0;i<N; i++)
-    out[i] = out[2*i]*(in[i]<0? 1:PRELU_FAC) +out[2*i+1]*(in[i]>0? 1:PRELU_FAC);
+    E[i] = E[2*i]*(I[i]<0? 1:PRELU_FAC) +E[2*i+1]*(I[i]>0? 1:PRELU_FAC);
   }
 };
 
