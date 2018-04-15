@@ -39,10 +39,10 @@ struct Function {
 
 struct Linear : public Function {
   Real initFactor(const Uint inps, const Uint outs) const override {
-    return std::sqrt(2./inps);
+    return std::sqrt(1./inps);
   }
   static Real _initFactor(const Uint inps, const Uint outs) {
-    return std::sqrt(2./inps);
+    return std::sqrt(1./inps);
   }
   void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
     memcpy(out, in, N*sizeof(nnReal));
