@@ -222,9 +222,10 @@ class RACER : public Learner_offPolicy
     // shift retrace-advantage with current V(s) estimate:
     const Real A_RET = traj->Q_RET[samp] +traj->state_vals[samp]-V_cur;
     const Real rho_cur = POL.sampImpWeight;
-    const Real Ver = beta*alpha*std::min((Real)1, rho_cur) * (A_RET-A_cur);
-    //const Real Aer = alpha*(A_RET-A_cur);
-    const Real Aer = beta*alpha* rho_cur * (A_RET-A_cur);
+    const Real Ver = beta*alpha * std::min((Real)1,rho_cur) * (A_RET-A_cur);
+    //min(CmaxRet,rho) stabilize if resampling is disabled (*will show
+    // warning on screen*). No effect if functioning normally.
+    const Real Aer = beta*alpha * std::min(CmaxRet,rho_cur) * (A_RET-A_cur);
 
     const Rvec polG = policyGradient(traj->tuples[samp], POL,ADV,A_RET, thrID);
     const Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
@@ -340,7 +341,9 @@ class RACER : public Learner_offPolicy
       const Rvec gradAcer_2 = POL.policy_grad(sample,      gain2);
       return sum2Grads(gradAcer_1, gradAcer_2);
     #else
-      return POL.policy_grad(POL.sampAct, A_RET * rho_cur );
+    //min(CmaxRet,rho) stabilize if resampling is disabled (*will show
+    // warning on screen*). No effect if functioning normally.
+      return POL.policy_grad(POL.sampAct, A_RET*std::min(CmaxRet,rho_cur));
     #endif
   }
 
