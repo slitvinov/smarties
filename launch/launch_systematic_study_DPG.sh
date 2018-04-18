@@ -1,4 +1,4 @@
-COMMNAME=DPG_02
+COMMNAME=DPG_03
 
 for EXPTYPE in "GAUS"; do
 for NEXPERTS in "1"; do
@@ -6,12 +6,10 @@ for SKIPA in "1"; do
 
 make -C ../makefiles clean
 make -C ../makefiles config=fit -j raceskip=$SKIPA exp=$EXPTYPE nexp=$NEXPERTS
-
-for BUFFSIZE in "524288" "1048576"; do
-#for IMPSAMPR in "2" "3" "4" "5"; do
-#for IMPSAMPR in "2" "3" "4" "5"; do
-for IMPSAMPR in "9" "4" "0"; do
-#for DKLPARAM in "0.05" "0.1" "0.2"; do
+#524288
+#for BUFFSIZE in "1048576"; do
+for BUFFSIZE in "1000000"; do
+for IMPSAMPR in "7" "3" "1" "0"; do
 
 for DKLPARAM in "0.10"; do
 for BATCHNUM in "128"; do

@@ -14,8 +14,8 @@ SETTINGS+=" --nnl2 128"
 #subject to changes
 #SETTINGS+=" --nnFunc PRelu"
 #SETTINGS+=" --nnFunc Tanh"
-#SETTINGS+=" --nnFunc SoftSign"
-SETTINGS+=" --nnFunc HardSign"
+SETTINGS+=" --nnFunc SoftSign"
+#SETTINGS+=" --nnFunc HardSign"
 SETTINGS+=" --outWeightsPrefac 0.1"
 
 #whether you are training a policy or testing an already trained network
@@ -23,7 +23,6 @@ SETTINGS+=" --bTrain 1"
 
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner POAC"
-#SETTINGS+=" --learner DACER"
 
 #SETTINGS+=" --minTotObsNum  32768"
 SETTINGS+=" --minTotObsNum 131072"
@@ -32,7 +31,7 @@ SETTINGS+=" --impWeight ${IMPSAMPR}"
 
 #chance of taking random actions
 SETTINGS+=" --greedyEps 0.5"
-#SETTINGS+=" --epsAnneal 0"
+SETTINGS+=" --epsAnneal 0"
 SETTINGS+=" --totNumSteps 10000000"
 #SETTINGS+=" --totNumSteps 5000000"
 SETTINGS+=" --obsPerStep ${EPERSTEP}"
@@ -45,4 +44,4 @@ SETTINGS+=" --klDivConstraint ${DKLPARAM}"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize ${BATCHNUM}"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.00001"
