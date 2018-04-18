@@ -1,17 +1,11 @@
 #!/bin/bash -l
 
-COMMNAME=Racer_revisit_clip5
-
-SETTINGS=" --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc Tanh --learner POAC --minTotObsNum 131072 --targetDelay 0 --greedyEps 0.5 --totNumSteps 10000000 --learnrate 0.0001 --nMasters 1 --nThreads 12 --ppn 2 "
-
-MYNAME=`whoami`
-BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
-
-#SBATCH --job-name=${COMMNAME}
+#SBATCH --job-name=Racer_soft_clip0
 #SBATCH --time=24:00:00
 #SBATCH --output=out.%j.%a.o
 #SBATCH --error=out.%j.%a.e
 #SBATCH --constraint=gpu
+# #SBATCH --partition=debug
 
 # #SBATCH --account=ch7
 #SBATCH --account=s658
@@ -19,7 +13,16 @@ BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
 
 #SBATCH --array=0-179
 
+# #SBATCH --ntasks=1
+# #SBATCH --ntasks-per-node=1
+
 # ======START=====
+COMMNAME=Racer_soft_noanneal
+
+SETTINGS=" --epsAnneal 0 --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner POAC --minTotObsNum 131072 --targetDelay 0 --greedyEps 0.5 --totNumSteps 10000000 --learnrate 0.0003 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 "
+MYNAME=`whoami`
+BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
+
 BUFFSIZE=(1048576 524288 262144)
 IMPSAMPR=(2 4 8)
 DKLPARAM=(0.10)
@@ -46,8 +49,8 @@ for c in ${IMPSAMPR[@]}; do
 for r in ${RUNTRIAL[@]}; do
 
 cases+=("--maxTotObsNum $n --impWeight $c --klDivConstraint $d --batchSize $b --obsPerStep $o")
-rundir+=("${SHORTID[$i]}_${COMMNAME}_R${c}_N${n}_D${d}_TRIAL${r}")
-appspec+=("${TASKNAME[$i]}")
+rundir+=("${SHORTID[$it]}_${COMMNAME}_R${c}_N${n}_D${d}_TRIAL${r}")
+appspec+=("${TASKNAME[$it]}")
 
 done
 done
@@ -79,12 +82,12 @@ git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
 
 cd ${BASEPATH}${RUNFOLDER}
 
-export OMP_NUM_THREADS=${NTHREADS}
+export OMP_NUM_THREADS=12
 export OMP_PROC_BIND=CLOSE
 export OMP_PLACES=cores
 export CRAY_CUDA_MPS=1
 
-srun --ntasks 2 --threads-per-core=2 --cpu_bind=sockets --cpus-per-task=12 --ntasks-per-node=2 ./exec ${RUNSET}
+srun --ntasks 2 --overcommit --threads-per-core=2 --cpu_bind=sockets --cpus-per-task=12 --ntasks-per-node=2  ./exec ${RUNSET}
 
 #srun  -n 2 --cpu_bind=map_cpu:0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17 ./run1 & srun  -n 2 --cpu_bind=map_cpu:18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35 ./run2 & wait
 

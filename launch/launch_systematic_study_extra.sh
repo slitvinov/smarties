@@ -1,4 +1,4 @@
-COMMNAME=anneal_params
+COMMNAME=Racer_soft_clip0
 
 #for EXPTYPE in "QUAD" "GAUS"; do
 for EXPTYPE in "GAUS"; do
@@ -25,18 +25,18 @@ source launchDaint_openai.sh spider_${POSTFIX} Ant-v2                    setting
 #source launchDaint_openai.sh dblpnd_${POSTFIX} InvertedDoublePendulum-v2 settings/settings_bench_args.sh
 source launchDaint_openai.sh walker_${POSTFIX} Walker2d-v2               settings/settings_bench_args.sh
 source launchDaint_openai.sh cheeta_${POSTFIX} HalfCheetah-v2            settings/settings_bench_args.sh
-source launchDaint_openai.sh swimmr_${POSTFIX} Swimmer-v2                settings/settings_bench_args.sh
+#source launchDaint_openai.sh swimmr_${POSTFIX} Swimmer-v2                settings/settings_bench_args.sh
 #source launchDaint_openai.sh hopper_${POSTFIX} Hopper-v2                 settings/settings_bench_args.sh
 #source launchDaint_openai.sh reachr_${POSTFIX} Reacher-v2                settings/settings_bench_args.sh
 
 done #RUNTRIAL
 done #EPERSTEP
 done #BATCHNUM
-done #BATCHNUM
+done #DKLPARAM
 
 for DKLPARAM in "0.1"; do
 for BATCHNUM in "256"; do
-for EPERSTEP in "0.2" "0.5" "2.0" "4.0" "8.0"; do
+for EPERSTEP in "0.2" "0.5" "2.0" "4.0"; do
 for RUNTRIAL in "1" "2" "3" "4" "5"; do
 
 NMASTERS=1
@@ -48,14 +48,14 @@ source launchDaint_openai.sh spider_${POSTFIX} Ant-v2                    setting
 #source launchDaint_openai.sh dblpnd_${POSTFIX} InvertedDoublePendulum-v2 settings/settings_bench_args.sh
 source launchDaint_openai.sh walker_${POSTFIX} Walker2d-v2               settings/settings_bench_args.sh
 source launchDaint_openai.sh cheeta_${POSTFIX} HalfCheetah-v2            settings/settings_bench_args.sh
-source launchDaint_openai.sh swimmr_${POSTFIX} Swimmer-v2                settings/settings_bench_args.sh
+#source launchDaint_openai.sh swimmr_${POSTFIX} Swimmer-v2                settings/settings_bench_args.sh
 #source launchDaint_openai.sh hopper_${POSTFIX} Hopper-v2                 settings/settings_bench_args.sh
 #source launchDaint_openai.sh reachr_${POSTFIX} Reacher-v2                settings/settings_bench_args.sh
 
 done #RUNTRIAL
 done #EPERSTEP
 done #BATCHNUM
-done #BATCHNUM
+done #DKLPARAM
 
 for DKLPARAM in "0.05" "0.15" "0.20"; do
 for BATCHNUM in "256"; do
@@ -71,14 +71,14 @@ source launchDaint_openai.sh spider_${POSTFIX} Ant-v2                    setting
 #source launchDaint_openai.sh dblpnd_${POSTFIX} InvertedDoublePendulum-v2 settings/settings_bench_args.sh
 source launchDaint_openai.sh walker_${POSTFIX} Walker2d-v2               settings/settings_bench_args.sh
 source launchDaint_openai.sh cheeta_${POSTFIX} HalfCheetah-v2            settings/settings_bench_args.sh
-source launchDaint_openai.sh swimmr_${POSTFIX} Swimmer-v2                settings/settings_bench_args.sh
+#source launchDaint_openai.sh swimmr_${POSTFIX} Swimmer-v2                settings/settings_bench_args.sh
 #source launchDaint_openai.sh hopper_${POSTFIX} Hopper-v2                 settings/settings_bench_args.sh
 #source launchDaint_openai.sh reachr_${POSTFIX} Reacher-v2                settings/settings_bench_args.sh
 
 done #RUNTRIAL
 done #EPERSTEP
 done #BATCHNUM
-done #BATCHNUM
+done #DKLPARAM
 
 done
 done
