@@ -61,37 +61,25 @@ private:
     for (Uint e=0; e<nExperts; e++) {
       ret[e] = Rvec(nA);
       for(Uint i=0; i<nA; i++)
-        ret[e][i] = diag_func(netOutputs[start_matrix +nA*e +i]);
+        ret[e][i] = posDefMap_func(netOutputs[start_matrix +nA*e +i]);
     }
     return ret;
   }
   inline array<Real,nExperts> extract_coefs() const
   {
     array<Real, nExperts> ret;
-    for(Uint e=0; e<nExperts;e++) ret[e]=diag_func(netOutputs[start_coefs+e]);
+    for(Uint e=0; e<nExperts;e++) ret[e]=posDefMap_func(netOutputs[start_coefs+e]);
     return ret;
   }
 
   inline void grad_matrix(Rvec& netGradient, const Real err) const
   {
     for (Uint e=0; e<nExperts; e++) {
-      netGradient[start_coefs+e]*=err*diag_func_diff(netOutputs[start_coefs+e]);
+      netGradient[start_coefs+e]*=err*posDefMap_diff(netOutputs[start_coefs+e]);
       for (Uint i=0, ind=start_matrix+nA*e; i<nA; i++, ind++)
-         netGradient[ind] *= err*diag_func_diff(netOutputs[ind]);
+         netGradient[ind] *= err*posDefMap_diff(netOutputs[ind]);
     }
   }
-  static inline Real diag_func(const Real val)
-  {
-    return 0.5*(val + std::sqrt(val*val+1));
-    //return safeExp(val);
-  }
-  static inline Real diag_func_diff(const Real val)
-  {
-    return 0.5*(1 + val/std::sqrt(val*val+1));
-    //return safeExp(val);
-  }
-  static inline Real offdiag_func(const Real val) { return val; }
-  static inline Real offdiag_func_diff(Real val) { return 1; }
 
 public:
   inline array<Real,nExperts> expectation(const Uint expert) const

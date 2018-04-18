@@ -65,7 +65,7 @@ private:
   inline array<Real,nExperts> extract_unnorm() const {
     array<Real, nExperts> ret;
     if(nExperts == 1) {ret[0] = 1; return ret;}
-    for(Uint i=0;i<nExperts;i++) ret[i]=precision_func(netOutputs[iExperts+i]);
+    for(Uint i=0;i<nExperts;i++) ret[i]=posDefMap_func(netOutputs[iExperts+i]);
     return ret;
   }
   inline Real compute_norm() const {
@@ -101,7 +101,7 @@ private:
       const Uint start = iPrecs + i*nA;
       assert(netOutputs.size() >= start + nA);
       ret[i] = Rvec(nA);
-      for (Uint j=0; j<nA; j++) ret[i][j] = precision_func(netOutputs[start+j]);
+      for (Uint j=0; j<nA; j++) ret[i][j] = posDefMap_func(netOutputs[start+j]);
     }
     return ret;
   }
@@ -133,18 +133,6 @@ private:
   }
 
 public:
-  static inline Real precision_func(const Real val) {
-    //return std::exp(val) + nnEPS; //nan police
-    return .5*(val+std::sqrt(val*val+1)) + nnEPS;
-  }
-  static inline Real precision_func_diff(const Real val) {
-    //return std::exp(val);
-    return 0.5*(1.+val/std::sqrt(val*val+1));
-  }
-  static inline Real precision_inverse(const Real val) {
-    //return std::log(val);
-    return (val*val -.25)/val;
-  }
   static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias)
   {
     for(Uint e=0; e<nExperts*(1 + aI->dim); e++)
@@ -153,7 +141,7 @@ public:
   static void setInitial_Stdev(const ActionInfo* const aI, Rvec& initBias, const Real greedyEps)
   {
     for(Uint e=0; e<nExperts*aI->dim; e++)
-      initBias.push_back(precision_inverse(greedyEps));
+      initBias.push_back(posDefMap_inverse(greedyEps));
   }
 
   template <typename T>
@@ -319,7 +307,7 @@ public:
     assert(grad.size() == nP);
     for(Uint j=0; j<nExperts; j++) {
       {
-        const Real diff = precision_func_diff(netOutputs[iExperts+j]);
+        const Real diff = posDefMap_diff(netOutputs[iExperts+j]);
         netGradient[iExperts+j] = grad[j] * diff;
       }
       for (Uint i=0; i<nA; i++) {
@@ -334,7 +322,7 @@ public:
             netGradient[iMeans +i+j*nA] = 0;
         }
 
-        const Real diff = precision_func_diff(netOutputs[iPrecs +i+j*nA]);
+        const Real diff = posDefMap_diff(netOutputs[iPrecs +i+j*nA]);
         netGradient[iPrecs +i+j*nA] = grad[i+j*nA +(nA+1)*nExperts] * diff;
       }
     }

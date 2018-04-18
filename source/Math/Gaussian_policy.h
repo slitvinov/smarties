@@ -60,7 +60,7 @@ private:
     if(start_prec == 0) return Rvec (nA, ACER_CONST_STDEV);
     Rvec ret(nA);
     assert(netOutputs.size() >= start_prec + nA);
-    for(Uint i=0; i<nA; i++) ret[i] = precision_func(netOutputs[start_prec+i]);
+    for(Uint i=0; i<nA; i++) ret[i] = posDefMap_func(netOutputs[start_prec+i]);
     return ret;
   }
   static inline long double oneDnormal(const Real act, const Real _mean, const Real _prec) //const
@@ -76,24 +76,13 @@ private:
   }
 
 public:
-  static inline Real precision_func(const Real val) {
-    return 0.5*(val + std::sqrt(val*val+1)) + nnEPS;
-  }
-  static inline Real precision_func_diff(const Real val) {
-    //return safeExp(val);
-    return 0.5*(1.+val/std::sqrt(val*val+1));
-  }
-  static inline Real precision_inverse(const Real val) {
-    //return std::log(val);
-    return (val*val -.25)/val;
-  }
   static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias)
   {
     for(Uint e=0; e<aI->dim; e++) initBias.push_back(0);
   }
   static void setInitial_Stdev(const ActionInfo* const aI, Rvec& initBias, const Real std0)
   {
-    for(Uint e=0; e<aI->dim; e++) initBias.push_back(precision_inverse(std0));
+    for(Uint e=0; e<aI->dim; e++) initBias.push_back(posDefMap_inverse(std0));
   }
   inline void prepare(const Rvec& unbact, const Rvec& beta)
   {
@@ -263,7 +252,7 @@ public:
 
     for (Uint j=0, iS=start_prec; j<nA && start_prec != 0; j++, iS++) {
       assert(netGradient.size()>=start_prec+nA);
-      netGradient[iS] = grad[j+nA] * precision_func_diff(netOutputs[iS]);
+      netGradient[iS] = grad[j+nA] * posDefMap_diff(netOutputs[iS]);
     }
   }
   inline Rvec finalize_grad(const Rvec&grad) const {
@@ -276,7 +265,7 @@ public:
 
     if(start_prec != 0)
     for (Uint j=0, iS=start_prec; j<nA; j++, iS++)
-      ret[j+nA] = grad[j+nA] * precision_func_diff(netOutputs[iS]);
+      ret[j+nA] = grad[j+nA] * posDefMap_diff(netOutputs[iS]);
     return ret;
   }
 

@@ -35,7 +35,7 @@ tgtFrac(_set.klDivConstraint)
 
   F.push_back(new Approximator("policy", _set, input, data));
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
-  const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
+  const Real initParam = posDefMap_inverse(greedyEps);
   //F[0]->blockInpGrad = true; // this line must happen b4 initialize
   build_pol.addParamLayer(nA, "Linear", initParam);
   F[0]->initializeNetwork(build_pol, 0);

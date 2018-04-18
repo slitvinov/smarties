@@ -11,6 +11,30 @@
 #include "../StateAction.h"
 #include "../Network/Utils.h"
 
+#ifdef CHEAP_SOFTPLUS
+  inline Real posDefMap_func(const Real val) {
+    return .5*(val+std::sqrt(val*val+1));
+  }
+  inline Real posDefMap_diff(const Real val) {
+    return 0.5*(1.+val/std::sqrt(val*val+1));
+  }
+  inline Real posDefMap_inverse(const Real val) {
+    assert(val>0);
+    return (val*val -.25)/val;
+  }
+#else
+  inline Real posDefMap_func(const Real val) {
+    return std::log(1+std::exp(val));
+  }
+  inline Real posDefMap_diff(const Real val) {
+    return 1/(1+std::exp(-val));
+  }
+  inline Real posDefMap_inverse(const Real val) {
+    assert(val>0);
+    return std::log(std::exp(val)-1);
+  }
+#endif
+
 inline Real clip(const Real val, const Real ub, const Real lb)
 {
   assert(!std::isnan(val) && !std::isnan(ub) && !std::isnan(lb));

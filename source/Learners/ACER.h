@@ -186,7 +186,7 @@ class ACER : public Learner_offPolicy
     F.push_back(new Approximator("advntg", _set, input, data, relay));
 
     Builder build_pol = F[0]->buildFromSettings(_set, nA);
-    const Real initParam = Gaussian_policy::precision_inverse(greedyEps);
+    const Real initParam = posDefMap_inverse(greedyEps);
     build_pol.addParamLayer(nA, "Linear", initParam);
     Builder build_val = F[1]->buildFromSettings(_set, 1 ); // V
     Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A

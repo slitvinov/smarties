@@ -44,7 +44,7 @@ struct Discrete_policy
   {
     assert(netOutputs.size()>=start_prob+nA);
     Rvec ret(nA);
-    for (Uint j=0; j<nA; j++) ret[j] = prob_func(netOutputs[start_prob+j]);
+    for (Uint j=0; j<nA; j++) ret[j] = posDefMap_func(netOutputs[start_prob+j]);
     return ret;
   }
 
@@ -62,16 +62,6 @@ struct Discrete_policy
     Rvec ret(nA);
     for (Uint j=0; j<nA; j++) ret[j] = unnorm[j]/normalization;
     return ret;
-  }
-
-  static inline Real prob_func(const Real val) {
-    //return safeExp(val) + nnEPS;
-    return 0.5*(val + std::sqrt(val*val+1)) + nnEPS;
-  }
-
-  static inline Real prob_diff(const Real val) {
-    //return safeExp(val);
-    return 0.5*(1.+val/std::sqrt(val*val+1));
   }
 
  public:
@@ -152,7 +142,7 @@ struct Discrete_policy
   {
     assert(netGradient.size()>=start_prob+nA && grad.size() == nA);
     for (Uint j=0; j<nA; j++)
-      netGradient[start_prob+j] = grad[j]*prob_diff(netOutputs[start_prob+j]);
+    netGradient[start_prob+j]= grad[j]*posDefMap_diff(netOutputs[start_prob+j]);
   }
 
   inline Rvec getProbs() const {

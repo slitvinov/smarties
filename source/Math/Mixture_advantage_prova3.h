@@ -84,17 +84,21 @@ public:
     for (Uint e=0; e<nExperts; e++) {
       const Real shape = -.5 * diagInvMul(act, matrix[e], policy->means[e]);
       ret += policy->experts[e] * coef[e] * std::exp(shape);
-      const array<Real,nExperts> expectations = expectation(e);
-      for (Uint E=0; E<nExperts; E++) ret += coef[e] * expectations[E];
+      #if 1
+        const array<Real,nExperts> expectations = expectation(e);
+        for (Uint E=0; E<nExperts; E++) ret += coef[e] * expectations[E];
+      #endif
     }
     return ret;
   }
 
-  inline Real coefMixRatio(const Rvec&A, const Rvec&V) const {
-    Real ret = 1;
-    for (Uint i=0; i<nA; i++)
-      ret *= std::sqrt(A[i]/(A[i]+V[i]))/2 +std::sqrt(A[i+nA]/(A[i+nA]+V[i]))/2;
-    return ret;
+  inline Real coefMixRatio(const Rvec&A, const Rvec&VAR) const {
+    Real ret1 = 1, ret2 = 1;
+    for (Uint i=0; i<nA; i++) {
+      ret1 *= A[i]   /(A[i]   +VAR[i]);
+      ret2 *= A[i+nA]/(A[i+nA]+VAR[i]);
+    }
+    return .5*(std::sqrt(ret1)+std::sqrt(ret2));
   }
 
   inline array<Real,nExperts> expectation(const Uint expert) const {
@@ -119,30 +123,42 @@ public:
     {
       const Real shape = -.5 * diagInvMul(a, matrix[e], policy->means[e]);
       const Real orig = policy->experts[e] * std::exp(shape);
-      const array<Real, nExperts> expect = expectation(e);
-      G[start_coefs+e] += orig;
-      for(Uint E=0;E<nExperts;E++) G[start_coefs+e] += expect[E];
+      G[start_coefs+e] = orig;
 
-      for (Uint i=0, ind=start_matrix+ 2*nA*e; i<nA; i++, ind++) {
+      #if 1
+      array<Real, nExperts> fact1, fact2, overl, W;
+      for (Uint E=0; E<nExperts; E++)
+      {
+        fact1[E] = 1; fact2[E] = 1;
+        overl[E] = e==E? 1 : std::exp( -0.5*diagInvMulVar(policy->means[E],
+          matrix[e], policy->means[e], policy->variances[E]) );
+        W[E] = - policy->experts[e] * policy->experts[E];
+        for (Uint i=0; i<nA; i++) {
+          fact1[E] *= matrix[e][i]   /(matrix[e][i]   +policy->variances[E][i]);
+          fact2[E] *= matrix[e][i+nA]/(matrix[e][i+nA]+policy->variances[E][i]);
+        }
+        fact1[E] = std::sqrt(fact1[E])/2; fact2[E] = std::sqrt(fact2[E])/2;
+        G[start_coefs+e] += W[E] * (fact1[E]+fact2[E]) * overl[E];
+      }
+      #endif
+
+      for (Uint i=0, ind=start_matrix+ 2*nA*e; i<nA; i++, ind++)
+      {
         const Real m=policy->means[e][i], p1=matrix[e][i], p2=matrix[e][i+nA];
         G[ind]   = a[i]>m ? orig*coef[e] * std::pow((a[i]-m)/p1, 2)/2 : 0;
         G[ind+nA]= a[i]<m ? orig*coef[e] * std::pow((a[i]-m)/p2, 2)/2 : 0;
-
-        for(Uint E=0; E<nExperts; E++)
-        {
-          const Real S = policy->variances[E][i], M = policy->means[E][i];
-          // inv of the pertinent coefMixRatio
-          const Real F = 2 / (std::sqrt(p1/(p1+S)) + std::sqrt(p2/(p2+S)));
-          //the derivatives of std::sqrt(A[i]/(A[i]+V[i])/2
-          const Real diff1 = 0.25* S/std::sqrt(p1 * std::pow(p1+S, 3));
-          const Real diff2 = 0.25* S/std::sqrt(p2 * std::pow(p2+S, 3));
-          if(M>m)
-            G[ind]    += expect[E]*coef[e] * std::pow((m-M)/(p1+S), 2)/2;
-          else if (M<m)
-            G[ind+nA] += expect[E]*coef[e] * std::pow((m-M)/(p2+S), 2)/2;
-          G[ind]    += F * expect[E]*coef[e] * diff1;
-          G[ind+nA] += F * expect[E]*coef[e] * diff2;
-        }
+        #if 1
+          for(Uint E=0; E<nExperts; E++)
+          {
+            const Real S = policy->variances[E][i], M = policy->means[E][i];
+            const Real diff1 = S/(p1*(p1+S)), diff2 = S/(p2*(p2+S));
+            const Real expectE = W[E]*coef[e]*(fact1[E]+fact2[E])*overl[E];
+            if(M>m) G[ind] += expectE * std::pow((m-M)/(p1+S), 2)/2;
+            else G[ind+nA] += expectE * std::pow((m-M)/(p2+S), 2)/2;
+            G[ind]    += W[E]*coef[e]*overl[E]*fact1[E]*diff1/2;
+            G[ind+nA] += W[E]*coef[e]*overl[E]*fact2[E]*diff2/2;
+          }
+        #endif
       }
     }
     grad_matrix(G, Qer);

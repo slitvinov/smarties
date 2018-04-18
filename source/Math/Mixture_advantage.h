@@ -86,8 +86,8 @@ private:
         ret[e] = Rvec(nA*nA, 0);
         for (Uint j=0; j<nA; j++)
         for (Uint i=0; i<=j; i++)
-          if (i<j) ret[e][nA*j +i] = offdiag_func(netOutputs[kL++]);
-          else if (i==j) ret[e][nA*j +i] = diag_func(netOutputs[kL++]);
+          if (i<j) ret[e][nA*j +i] = netOutputs[kL++];
+          else if (i==j) ret[e][nA*j +i] = posDefMap_func(netOutputs[kL++]);
       }
       assert(kL==start_matrix+nL);
       return ret;
@@ -109,19 +109,6 @@ private:
       }
       return ret;
     }
-
-    static inline Real diag_func(const Real val)
-    {
-      return 0.5*(val + std::sqrt(val*val+1));
-      //return safeExp(val);
-    }
-    static inline Real diag_func_diff(const Real val)
-    {
-      return 0.5*(1 + val/std::sqrt(val*val+1));
-      //return safeExp(val);
-    }
-    static inline Real offdiag_func(const Real val) { return val; }
-    static inline Real offdiag_func_diff(Real val) { return 1; }
 
 public:
   inline void grad(const Rvec&act, const Real Qer, Rvec& netGradient) const
@@ -154,9 +141,9 @@ public:
         for (Uint k=i; k<nA; k++)
           dErrdL += dErrdP[nA*j +k] * L[e][nA*k +i];
 
-        if(i==j) netGradient[kl] = dErrdL * diag_func_diff(netOutputs[kl]);
+        if(i==j) netGradient[kl] = dErrdL * posDefMap_diff(netOutputs[kl]);
         else
-        if(i<j)  netGradient[kl] = dErrdL * offdiag_func_diff(netOutputs[kl]);
+        if(i<j)  netGradient[kl] = dErrdL;
         kl++;
       }
     }

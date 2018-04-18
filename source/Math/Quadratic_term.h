@@ -64,8 +64,8 @@ protected:
     Uint kL = start_matrix;
     for (Uint j=0; j<nA; j++)
     for (Uint i=0; i<nA; i++)
-      if (i<j) ret[nA*j + i] = offdiag_func(netOutputs[kL++]);
-      else if (i==j) ret[nA*j + i] = diag_func(netOutputs[kL++]);
+      if (i<j) ret[nA*j + i] = netOutputs[kL++];
+      else if (i==j) ret[nA*j + i] = posDefMap_func(netOutputs[kL++]);
     assert(kL==start_matrix+nL);
     return ret;
   }
@@ -123,37 +123,12 @@ protected:
       Uint kl = start_matrix;
       for (Uint j=0; j<nA; j++)
       for (Uint i=0; i<nA; i++) {
-        if (i==j) netGradient[kl] *= diag_func_diff(netOutputs[kl]);
-        if (i<j)  netGradient[kl] *= offdiag_func_diff(netOutputs[kl]);
+        if (i==j) netGradient[kl] *= posDefMap_diff(netOutputs[kl]);
+        if (i<j)  netGradient[kl] *= 1;
         if (i<=j) kl++;
       }
       assert(kl==start_matrix+nL);
     }
-  }
-  static inline Real diag_func(const Real val)
-  {
-    //return std::exp(val) +ACER_TOL_DIAG;
-    return 0.5*(val + std::sqrt(val*val+1));
-    //return sqrt(val + std::sqrt(val*val+1)) +ACER_TOL_DIAG;
-  }
-  static inline Real diag_func_diff(const Real val)
-  {
-    //return std::exp(val);
-    return 0.5*(1 + val/std::sqrt(val*val+1));
-    //const Real den = std::sqrt(val*val+1);
-    //return 0.5*std::sqrt(den+val)/den;
-  }
-  static inline Real offdiag_func(const Real val)
-  {
-    return val;
-    //return val/sqrt(1+std::fabs(val));
-  }
-  static inline Real offdiag_func_diff(Real val)
-  {
-    return 1.;
-    //if(val<0) val = -val; //symmetric
-    //const Real denom = std::sqrt(val+1);
-    //return (.5*val+1)/(denom*denom*denom);
   }
 };
 
