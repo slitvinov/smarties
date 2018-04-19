@@ -32,7 +32,6 @@ MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
 void MemoryBuffer::add_state(const Agent&a)
 {
   if(a.Status < TERM_COMM) {
-    //#pragma omp atomic
     nSeenTransitions ++;
   }
 
@@ -215,10 +214,7 @@ void MemoryBuffer::push_back(const int & agentId)
   {
     inProgress[agentId]->finalize( readNSeenSeq() );
 
-    //#pragma omp atomic
     nSeenSequences++;
-
-    //#pragma omp atomic
     nCmplTransitions += inProgress[agentId]->ndata();
 
     pushBackSequence(inProgress[agentId]);
@@ -227,10 +223,6 @@ void MemoryBuffer::push_back(const int & agentId)
     fflush(0);
     _dispose_object(inProgress[agentId]);
   }
-
-  if(readNSeq() >= maxTotObsNum)
-    die("maxTotObsNum setting is too low for given problem");
-
   inProgress[agentId] = new Sequence();
 }
 

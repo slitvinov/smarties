@@ -9,7 +9,7 @@
 
 #pragma once
 #include "Gaussian_policy.h"
-
+#define EXTRACT_COVAR
 template<Uint nExperts>
 struct Gaussian_mixture
 {
@@ -94,6 +94,32 @@ private:
     }
     return ret;
   }
+  #ifdef EXTRACT_COVAR
+  inline array<Rvec,nExperts> extract_stdev() const
+  {
+    array<Rvec,nExperts> ret;
+    for(Uint i=0; i<nExperts; i++) {
+      const Uint start = iPrecs + i*nA;
+      assert(netOutputs.size() >= start + nA);
+      ret[i] = Rvec(nA);
+      for (Uint j=0; j<nA; j++)
+        ret[i][j] = std::sqrt(posDefMap_func(netOutputs[start+j]));
+    }
+    return ret;
+  }
+  inline array<Rvec,nExperts> extract_variance() const
+  {
+    array<Rvec,nExperts> ret;
+    for(Uint i=0; i<nExperts; i++) {
+      const Uint start = iPrecs + i*nA;
+      assert(netOutputs.size() >= start + nA);
+      ret[i] = Rvec(nA);
+      for(Uint j=0; j<nA; j++)
+        ret[i][j] = posDefMap_func(netOutputs[start+j]);
+    }
+    return ret;
+  }
+  #else
   inline array<Rvec,nExperts> extract_stdev() const
   {
     array<Rvec,nExperts> ret;
@@ -105,19 +131,20 @@ private:
     }
     return ret;
   }
-  inline array<Rvec,nExperts> extract_precision() const
-  {
-    array<Rvec,nExperts> ret = variances; //take inverse of precision
-    for(Uint i=0; i<nExperts; i++)
-      for(Uint j=0; j<nA; j++) ret[i][j] = 1/variances[i][j];
-    return ret;
-  }
   inline array<Rvec,nExperts> extract_variance() const
   {
     array<Rvec,nExperts> ret = stdevs; //take sqrt of variance
     for(Uint i=0; i<nExperts; i++)
       for(Uint j=0; j<nA; j++)
         ret[i][j] = stdevs[i][j] * stdevs[i][j];
+    return ret;
+  }
+  #endif
+  inline array<Rvec,nExperts> extract_precision() const
+  {
+    array<Rvec,nExperts> ret = variances; //take inverse of precision
+    for(Uint i=0; i<nExperts; i++)
+      for(Uint j=0; j<nA; j++) ret[i][j] = 1/variances[i][j];
     return ret;
   }
   inline long double oneDnormal(const Real act, const Real mean, const Real prec) const
@@ -141,7 +168,11 @@ public:
   static void setInitial_Stdev(const ActionInfo* const aI, Rvec& initBias, const Real greedyEps)
   {
     for(Uint e=0; e<nExperts*aI->dim; e++)
+    #ifdef EXTRACT_COVAR
+      initBias.push_back(posDefMap_inverse(greedyEps*greedyEps));
+    #else
       initBias.push_back(posDefMap_inverse(greedyEps));
+    #endif
   }
 
   template <typename T>
@@ -249,7 +280,11 @@ public:
         const Real u = act[i]-means[j][i];
         //const Real P=sqrt(.5*preci/M_PI)*safeExp(-pow(act[i]-meani,2)*preci);
         ret[indM] = fac*precisions[j][i]*u;
-        ret[indS] = fac*(u*u*precisions[j][i]-1)/stdevs[j][i];
+        #ifdef EXTRACT_COVAR
+          ret[indS] = fac*(u*u*precisions[j][i]-1)/variances[j][i]/2;
+        #else
+          ret[indS] = fac*(u*u*precisions[j][i]-1)/stdevs[j][i];
+        #endif
       }
     }
     return ret;
@@ -268,7 +303,11 @@ public:
         const Uint indM = i+j*nA +nExperts, indS = i+j*nA +(nA+1)*nExperts;
         const Real preci = precisions[j][i], prech = 1/std::pow(beta[indS],2);
         ret[indM]= fac*experts[j]*(means[j][i]-beta[indM])*prech;
-        ret[indS]= fac*experts[j]*(prech-preci)*stdevs[j][i];
+        #ifdef EXTRACT_COVAR
+          ret[indS] = fac*experts[j]*(prech-preci)/2;
+        #else
+          ret[indS] = fac*experts[j]*(prech-preci)*stdevs[j][i];
+        #endif
         const Real R = prech*variances[j][i];
         DKLe += R-1-std::log(R) +std::pow(means[j][i]-beta[indM],2)*prech;
       }
