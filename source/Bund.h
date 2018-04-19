@@ -52,10 +52,17 @@ typedef double memReal;
 // Approximator::initializeNetwork function
 #define STD_GRADCUT 0
 
+// Learn rate of moving stdev and mean of states. If <=0 averaging switched off
+#define STATESCALE_LEARNR learnR
+
+// Switch between log(1+exp(x)) and (x+sqrt(x*x+1)/2 as mapping to R^+ for
+// policies, advantages, and all math objects that require pos def net outputs
+//#define CHEAP_SOFTPLUS
+
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
 #define NORMDIST_MAX 2.5 //truncated normal distribution range
-#define BOUNDACT_MAX 8   //limit range of pol. for bounded act. spaces ie. tanh(8)
+#define BOUNDACT_MAX 8   //bound of pol. for bounded act. spaces ie. tanh(8)
 
 // Optional constant stdev in case of Acer:
 #define ACER_CONST_STDEV 0.3
