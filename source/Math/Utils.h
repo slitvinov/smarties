@@ -19,19 +19,27 @@
     return 0.5*(1.+val/std::sqrt(val*val+1));
   }
   inline Real posDefMap_inverse(const Real val) {
-    assert(val>0);
+    if(val<=0) {
+      warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting greedyEps.");
+      val = numeric_limits<float>::epsilon();
+    }
     return (val*val -.25)/val;
   }
 #else
+  // Used here, std::exp is trigger happy with nans, therefore we clip it
+  // between exp(-32) and exp(16).  
   inline Real posDefMap_func(const Real val) {
-    return std::log(1+std::exp(val));
+    return std::log(1+safeExp(val));
   }
   inline Real posDefMap_diff(const Real val) {
-    return 1/(1+std::exp(-val));
+    return 1/(1+safeExp(-val));
   }
   inline Real posDefMap_inverse(const Real val) {
-    assert(val>0);
-    return std::log(std::exp(val)-1);
+    if(val<=0) {
+      warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting greedyEps.");
+      val = numeric_limits<float>::epsilon();
+    }
+    return std::log(safeExp(val)-1);
   }
 #endif
 
