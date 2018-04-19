@@ -18,7 +18,7 @@
   inline Real posDefMap_diff(const Real val) {
     return 0.5*(1.+val/std::sqrt(val*val+1));
   }
-  inline Real posDefMap_inverse(const Real val) {
+  inline Real posDefMap_inverse(Real val) {
     if(val<=0) {
       warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting greedyEps.");
       val = numeric_limits<float>::epsilon();
@@ -34,7 +34,7 @@
   inline Real posDefMap_diff(const Real val) {
     return 1/(1+safeExp(-val));
   }
-  inline Real posDefMap_inverse(const Real val) {
+  inline Real posDefMap_inverse(Real val) {
     if(val<=0) {
       warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting greedyEps.");
       val = numeric_limits<float>::epsilon();

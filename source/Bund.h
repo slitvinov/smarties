@@ -80,6 +80,7 @@ typedef double memReal;
 //#define NOISY_INPUT 0.001
 
 typedef unsigned Uint;
+#define EXTRACT_COVAR
 
 #if 0
 typedef long double Real;

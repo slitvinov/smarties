@@ -9,7 +9,6 @@
 
 #pragma once
 #include "Gaussian_policy.h"
-#define EXTRACT_COVAR
 template<Uint nExperts>
 struct Gaussian_mixture
 {
