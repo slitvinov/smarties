@@ -62,8 +62,10 @@ typedef double memReal;
 
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
-#define NORMDIST_MAX 2.5 //truncated normal distribution range
-#define BOUNDACT_MAX 8   //bound of pol. for bounded act. spaces ie. tanh(8)
+// truncate gaussian dist from -4 to 4, resamples once every ~15787 times.
+#define NORMDIST_MAX 4
+// bound of pol mean for bounded act. spaces (ie tanh(+/- 8))
+#define BOUNDACT_MAX 8
 
 // Optional constant stdev in case of Acer:
 #define ACER_CONST_STDEV 0.3

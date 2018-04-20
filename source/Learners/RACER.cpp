@@ -376,8 +376,8 @@ class RACER : public Learner_offPolicy
     // will be over represented in the mem buffer.
     // This is because samples with a larger \rho generally have a larger
     // pol grad magnitude. Therefore are more strongly pushed away from mu.
-    MEMBUF_FILTER_ALGO = MAXERROR;
-    //MEMBUF_FILTER_ALGO = FARPOLFRAC;
+    //MEMBUF_FILTER_ALGO = MAXERROR;
+    MEMBUF_FILTER_ALGO = FARPOLFRAC;
   }
   ~RACER() {
     fclose(wFile);

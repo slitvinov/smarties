@@ -12,10 +12,10 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
 
 #subject to changes
-#SETTINGS+=" --nnFunc PRelu"
+#SETTINGS+=" --nnFunc LRelu"
 #SETTINGS+=" --nnFunc Tanh"
-#SETTINGS+=" --nnFunc SoftSign"
-SETTINGS+=" --nnFunc HardSign"
+SETTINGS+=" --nnFunc SoftSign"
+#SETTINGS+=" --nnFunc HardSign"
 SETTINGS+=" --outWeightsPrefac 0.1"
 
 #whether you are training a policy or testing an already trained network
