@@ -11,6 +11,7 @@
 #include "Sequences.h"
 #include <atomic>
 #include "../Environments/Environment.h"
+#include "StatsTracker.h"
 #include <parallel/algorithm>
 
 enum FORGET {OLDEST, FARPOLFRAC, MAXERROR, MINERROR};
@@ -32,7 +33,7 @@ public:
   bool first_pass = true;
   discrete_distribution<Uint> * dist = nullptr;
   //bool bRecurrent;
-  Uint nPruned = 0, minInd = 0, _nStep = 0;
+  Uint nPruned = 0, minInd = 0;
   Real invstd_reward = 1, nOffPol = 0, totMSE = 0;
 
   Gen* gen;
@@ -40,8 +41,8 @@ public:
   mutable std::mutex dataset_mutex;
 
   const Uint dimS = sI.dimUsed, nReduce = 2 + 2*dimS;
-  MPI_Request rewRequest = MPI_REQUEST_NULL;
-  vector<long double> rew_reduce_result, partial_sum;
+  ApproximateReductor<long double, MPI_LONG_DOUBLE> reductor =
+  ApproximateReductor<long double, MPI_LONG_DOUBLE>(mastersComm, nReduce);
 
 private:
   std::atomic<Uint> nBroken{0}, nTransitions{0}, nSequences{0};
@@ -154,7 +155,7 @@ public:
   void updateImportanceWeights();
 
   // Algorithm for maintaining and filtering dataset, and optional imp weight range parameter
-  void prune(const FORGET ALGO, const Real CmaxRho = 1000);
+  void prune(const FORGET ALGO, const Real CmaxRho = 0);
 
   void getMetrics(ostringstream& buff);
   void getHeaders(ostringstream& buff);

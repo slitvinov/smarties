@@ -9,7 +9,6 @@
 
 #pragma once
 #include "Encapsulator.h"
-#include "StatsTracker.h"
 
 #include <list>
 

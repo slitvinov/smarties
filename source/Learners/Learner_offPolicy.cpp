@@ -28,11 +28,9 @@ void Learner_offPolicy::prepareData()
 
   profiler->stop_start("PRE");
   if(nStep%1000==0) {
-    // if STATESCALE_LEARNR>0 update state mean/std with net's learning rate
-    const Real WS = nStep? annealRate(STATESCALE_LEARNR, nStep, epsAnneal)
-    // at 1st step use larger moving avg w, dependinding on fullness of membuf
-                   : (STATESCALE_LEARNR>0)*1; //data->readNData()/nObsPerTraining;
-    data->updateRewardsStats(nStep, 1, WS);
+    // update state mean/std with net's learning rate
+    const Real WS = nStep? annealRate(learnR, nStep, epsAnneal) : 1;
+    data->updateRewardsStats(nStep, 1, WS*(LEARN_STSCALE>0));
   }
   if(nStep == 0 && !learn_rank)
     cout<<"Initial reward std "<<1/data->invstd_reward<<endl;

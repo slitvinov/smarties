@@ -10,6 +10,45 @@
 #pragma once
 #include "../Settings.h"
 
+template<typename T, MPI_Datatype MPI_RDX_TYPE>
+struct ApproximateReductor
+{
+  const MPI_Comm mpicomm;
+  const Uint mpisize, arysize;
+  MPI_Request buffRequest = MPI_REQUEST_NULL;
+  vector<T> reduce_ret = vector<T>(arysize, 0);
+  vector<T> local_vals = vector<T>(arysize, 0);
+
+  static int getSize(const MPI_Comm comm) {
+    int size;
+    MPI_Comm_size(comm, &size);
+    return size;
+  }
+  ApproximateReductor(const MPI_Comm c, const Uint N) :
+  mpicomm(c), mpisize(getSize(c)), arysize(N)
+  { }
+
+  int sync(vector<T>& ret, bool accurate = false)
+  {
+    if (mpisize <= 1) return 1;
+    const bool firstUpdate = buffRequest == MPI_REQUEST_NULL;
+    if(not firstUpdate) MPI_Wait(&buffRequest, MPI_STATUS_IGNORE);
+    assert(ret.size() == arysize);
+    local_vals = ret;
+    ret = reduce_ret;
+    if(accurate){
+      if(not firstUpdate) die("undefined behavior")
+      MPI_Allreduce( local_vals.data(), reduce_ret.data(), arysize,
+                     MPI_RDX_TYPE, MPI_SUM, mpicomm);
+    } else {
+      MPI_Iallreduce(local_vals.data(), reduce_ret.data(), arysize,
+                     MPI_RDX_TYPE, MPI_SUM, mpicomm, &buffRequest);
+    }
+    // if no reduction done, partial sums are meaningless
+    return firstUpdate and not accurate;
+  }
+};
+
 struct trainData
 {
   trainData():MSE(0),avgQ(0),stdQ(0),minQ(1e9),maxQ(-1e9),relE(0),dCnt(0) {}
@@ -102,8 +141,8 @@ struct StatsTracker
   unsigned long nStep = 0;
   Real cutRatio = 0;
 
-  MPI_Request request = MPI_REQUEST_NULL;
-  LDvec reduce_result, partial_sum;
+  ApproximateReductor<long double, MPI_LONG_DOUBLE> reductor =
+  ApproximateReductor<long double, MPI_LONG_DOUBLE>(comm, 2*n_stats +1);
 
   StatsTracker(const Uint N, const string _name, Settings& set, Real fac) :
   n_stats(N), name(_name), comm(set.mastersComm), nThreads(set.nThreads),
@@ -232,33 +271,19 @@ struct StatsTracker
     advance();
 
     if (learn_size > 1) {
-      const bool firstUpdate = (request == MPI_REQUEST_NULL);
-      if(not firstUpdate) MPI_Wait(&request, MPI_STATUS_IGNORE);
-
-      // prepare an allreduce with the current data:
-      partial_sum = avgVec[0];
-      partial_sum.insert(partial_sum.end(), stdVec[0].begin(), stdVec[0].end());
-      partial_sum.push_back(cntVec[0]);
-      assert(partial_sum.size() == 2*n_stats +1);
-
-      //use result from prev reduce to update rewards (before new reduce)
-      if(firstUpdate) reduce_result.resize(2*n_stats +1, 0);
-      else { //then i have the result ready
-        for (Uint i=0; i<n_stats; i++) {
-          avgVec[0][i] = reduce_result[i];
-          stdVec[0][i] = reduce_result[i+n_stats];
-        }
-        cntVec[0] = reduce_result[2*n_stats];
-      }
-
-      MPI_Iallreduce(partial_sum.data(), reduce_result.data(), 2*n_stats +1,
-        MPI_LONG_DOUBLE, MPI_SUM, comm, &request);
-
-      // if no reduction done partial sums are meaningless. no change applied
-      if(firstUpdate) {
-        avgVec[0] = oldsum;
-        stdVec[0] = oldstd;
+      LDvec res = avgVec[0];
+      res.insert(res.end(), stdVec[0].begin(), stdVec[0].end());
+      res.push_back(cntVec[0]);
+      assert(res.size() == 2*n_stats+1);
+      bool skipped = reductor.sync(res);
+      if(skipped) {
+        avgVec[0] = oldsum; stdVec[0] = oldstd;
         return;
+      } else {
+        for (Uint i=0; i<n_stats; i++) {
+          avgVec[0][i] = res[i]; stdVec[0][i] = res[i+n_stats];
+        }
+        cntVec[0] = res[2*n_stats];
       }
     }
     update();

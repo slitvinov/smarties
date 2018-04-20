@@ -170,24 +170,15 @@ void DPG::prepareGradient()
   profiler->stop_start("SLP");
 
   if (learn_size > 1) {
-    const bool firstUpdate = nData_request == MPI_REQUEST_NULL;
-    if(not firstUpdate) MPI_Wait(&nData_request, MPI_STATUS_IGNORE);
-
-    // prepare an allreduce with the current data:
-    ndata_partial_sum[0] = data->nOffPol;
-    ndata_partial_sum[1] = data->readNData();
+    vector<Real> partial_data {(Real)data->nOffPol, (Real)data->readNData()};
     // use result from prev AllReduce to update rewards (before new reduce).
     // Assumption is that the number of off Pol trajectories does not change
     // much each step. Especially because here we update the off pol W only
     // if an observation is actually sampled. Therefore at most this fraction
     // is wrong by batchSize / nTransitions ( ~ 0 )
     // In exchange we skip an mpi implicit barrier point.
-    fracOffPol = ndata_reduce_result[0] / ndata_reduce_result[1];
-
-    MPI_Iallreduce(ndata_partial_sum, ndata_reduce_result, 2, MPI_DOUBLE,
-                   MPI_SUM, mastersComm, &nData_request);
-    // if no reduction done, partial sums are meaningless
-    if(firstUpdate) return;
+    reductor.sync(partial_data);
+    fracOffPol = partial_data[0] / partial_data[1];
   }
 
   // if CmaxPol<=0 no samples will be counted as far pol, beta will be 1

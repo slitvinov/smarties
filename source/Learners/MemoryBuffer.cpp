@@ -79,6 +79,7 @@ void MemoryBuffer::terminate_seq(const Agent&a)
   assert(a.Status>=TERM_COMM);
   assert(inProgress[a.ID]->tuples.back()->mu.size() == 0);
   assert(inProgress[a.ID]->tuples.back()->a.size()  == 0);
+  // fill empty action and empty policy:
   a.a->set(Rvec(aI.dim,0));
   add_action(a, Rvec(policyVecDim, 0) );
   push_back(a.ID);
@@ -87,7 +88,6 @@ void MemoryBuffer::terminate_seq(const Agent&a)
 // update the second order moment of the rewards in the memory buffer
 void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
 {
-  _nStep = nStep;
   if(!bTrain) return; //if not training, keep the stored values
   if(WR<0 && WS<0) return;
   WR = std::min((Real)1, WR);
@@ -119,30 +119,18 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
 
   //add up gradients across nodes (masters)
   if (learn_size > 1) {
-    const bool firstUpdate = rewRequest == MPI_REQUEST_NULL;
-    if(not firstUpdate) MPI_Wait(&rewRequest, MPI_STATUS_IGNORE);
-    else {
-      rew_reduce_result.resize(nReduce);
-      partial_sum.resize(nReduce);
-    }
-
-    // prepare an allreduce with the current data:
-    partial_sum[0] = count;
-    partial_sum[1] = newstdvr;
-    //use result from prev reduce to update rewards (before calling new reduce)
-    count = rew_reduce_result[0];
-    newstdvr = rew_reduce_result[1];
+    LDvec res = LDvec(nReduce);
+    res[0] = count; res[1] = newstdvr;
     for(Uint k=0; k<dimS; k++) {
-      partial_sum[2+k] = newSSum[k];
-      newSSum[k] = rew_reduce_result[2+k];
-      partial_sum[2+dimS+k] = newSSqSum[k];
-      newSSqSum[k] = rew_reduce_result[2+dimS+k];
+      res[2+k] = newSSum[k]; res[2+dimS+k] = newSSqSum[k];
     }
+    bool skipped = reductor.sync(res, WS>=1);
+    if(skipped) return; // no reduction done.
 
-    MPI_Iallreduce(partial_sum.data(), rew_reduce_result.data(), nReduce,
-                    MPI_LONG_DOUBLE, MPI_SUM, mastersComm, &rewRequest);
-    // if no reduction done, partial sums are inaccurate
-    // it means that we are at the first step... use partial sums
+    count = res[0]; newstdvr = res[1];
+    for(Uint k=0; k<dimS; k++) {
+      newSSum[k] = res[2+k]; newSSqSum[k] = res[2+dimS+k];
+    }
   }
 
   if(count<batchSize) die("");
@@ -210,9 +198,6 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
 }
 
 // Transfer a completed trajectory from the `inProgress` buffer to the data set
-// This is the thread-safe version that if Set is full instead of messing with
-// it, this function stores the seq onto a buffer.
-// REQUIRES CALLING insertBufferedSequences() once a serial region is reached
 void MemoryBuffer::push_back(const int & agentId)
 {
   if(inProgress[agentId]->tuples.size() > 2 ) //at least s0 and sT

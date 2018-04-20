@@ -24,8 +24,8 @@ class DPG : public Learner_offPolicy
   Real beta = CmaxPol<=0? 1 : .2; // if CmaxPol==0 do naive Exp Replay
   Real CmaxRet = 1 + CmaxPol;
 
-  MPI_Request nData_request = MPI_REQUEST_NULL;
-  double ndata_reduce_result[2], ndata_partial_sum[2];
+  ApproximateReductor<double, MPI_DOUBLE> reductor =
+  ApproximateReductor<double, MPI_DOUBLE>(mastersComm, 2);
 
   inline Gaussian_policy prepare_policy(const Rvec& out,
     const Tuple*const t = nullptr) const {

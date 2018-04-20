@@ -22,7 +22,8 @@ nEpochs(_s.batchSize/_s.obsPerStep) {
 void Learner_onPolicy::prepareData()
 {
   if(cntEpoch >= nEpochs) {
-    // data->clearAll();
+    const Real annlLR = annealRate(learnR, nStep, epsAnneal);
+    data->updateRewardsStats(nStep, annlLR, annlLR*(LEARN_STSCALE>0));
     cntKept = data->clearOffPol(CmaxPol, 0.05);
     //reset batch learning counters
     cntEpoch = 0; cntBatch = 0;
@@ -72,7 +73,6 @@ void Learner_onPolicy::prepareGradient()
   if (updateComplete && bTrain) {
     cntBatch += batchSize;
     if(cntBatch >= nHorizon) {
-      data->updateRewardsStats(nStep, 0.01, 0.01*STATESCALE_LEARNR);
       cntBatch = 0;
       cntEpoch++;
     }

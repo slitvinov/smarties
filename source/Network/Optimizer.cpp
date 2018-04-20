@@ -17,7 +17,7 @@ struct Adam {
     eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2),
     lambda(_lambda), fac(_fac) {}
 
-#ifndef NDEBUG
+#ifdef NDEBUG
   #pragma omp declare simd notinbranch //simdlen(VEC_WIDTH)
 #endif
   inline nnReal step(const nnReal grad,nnReal&M1,nnReal&M2,const nnReal W) const
@@ -56,7 +56,7 @@ struct AdaMax {
     nnReal betat2, nnReal _lambda, nnReal _fac, Saru& _gen) :
     eta(_eta), B1(beta1), B2(beta2), lambda(_lambda), fac(_fac) {}
 
-#ifndef NDEBUG
+#ifdef NDEBUG
   #pragma omp declare simd notinbranch //simdlen(VEC_WIDTH)
 #endif
   inline nnReal step(const nnReal grad,nnReal&M1,nnReal&M2,const nnReal W) const
