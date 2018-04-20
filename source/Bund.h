@@ -58,6 +58,7 @@ typedef double memReal;
 // Switch between log(1+exp(x)) and (x+sqrt(x*x+1)/2 as mapping to R^+ for
 // policies, advantages, and all math objects that require pos def net outputs
 //#define CHEAP_SOFTPLUS
+#define EXTRACT_COVAR
 
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
@@ -80,7 +81,6 @@ typedef double memReal;
 //#define NOISY_INPUT 0.001
 
 typedef unsigned Uint;
-#define EXTRACT_COVAR
 
 #if 0
 typedef long double Real;
