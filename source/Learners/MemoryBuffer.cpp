@@ -160,10 +160,9 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
     const Real MmM = newSSum[k]/count;
     // mean[k] = (1-WS)*mean[k] + WS * sample_mean, which becomes:
     mean[k] = mean[k] + WS * MmM;
-    if(mean[k]*mean[k]>MmM*MmM) die("im just bad at math i guess");
     // if WS==1 then varS is exact, otherwise update second moment
     // centered around current mean[k] (ie. E[(Sk-mean[k])^2])
-    Real varS = newSSqSum[k]/count - mean[k]*mean[k];
+    Real varS = newSSqSum[k]/count - MmM*MmM*(2*WS-WS*WS);
     if(varS < numeric_limits<float>::epsilon())
        varS = numeric_limits<float>::epsilon();
     std[k] = (1-WS) * std[k] + WS * std::sqrt(varS);
@@ -182,7 +181,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
       cntSamp += Set[i]->ndata();
     }
     assert(cntSamp==nTransitions.load());
-    if(WS>=1) {
+    if(WS>0) {
       vector<long double> dbgStateSum(dimS,0), dbgStateSqSum(dimS,0);
       #pragma omp parallel
       {
