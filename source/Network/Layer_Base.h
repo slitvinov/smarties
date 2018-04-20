@@ -119,15 +119,8 @@ class BaseLayer: public Layer
       {
               nnReal* const errors = curr->E(ID-link);
         const nnReal* const weight = para->W(ID);
-       #if 1 //def NDEBUG
         cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1,
           weight, nOut_simd, deltas, 1, 1, errors, 1);
-       #else
-        #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
-        for(Uint o=0; o<nNeurons; o++)
-          for(Uint i=0; i<nInputs;  i++)
-            errors[i] += weight[o +nOut_simd*i] * deltas[o];
-       #endif
       }
     }
     if(bRecurrent && prev not_eq nullptr)
@@ -142,11 +135,8 @@ class BaseLayer: public Layer
         #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH)
         for(Uint o=0; o<nNeurons; o++) G[o] += inputs[i] * deltas[o];
       }
-
-      #pragma omp simd aligned(errors, deltas, weight : VEC_WIDTH)
-      for(Uint o=0; o<nNeurons; o++)
-        for(Uint i=0; i<nNeurons;  i++)
-          errors[i] += weight[o +nOut_simd*i] * deltas[o];
+      cblas_dgemv(CblasRowMajor, CblasNoTrans, nNeurons, nNeurons, 1,
+        weight, nOut_simd, deltas, 1, 1, errors, 1);
     }
   }
 

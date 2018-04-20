@@ -72,9 +72,11 @@ class LSTMLayer: public Layer
     {
       const nnReal* const inputs = curr->Y(ID-link);
       const nnReal* const weight = para->W(ID);
-      for (Uint i = 0; i < nInputs; i++)
-        for (Uint o = 0; o < 4*nCells; o++)
-          suminp[o] += inputs[i] * weight[o + (4*nCells) * i];
+      for (Uint i = 0; i < nInputs; i++) {
+        const nnReal* const W = weight + (4*nCells)*i;
+        #pragma omp simd aligned(suminp, inputs, W : VEC_WIDTH)
+        for (Uint o = 0; o < 4*nCells; o++) suminp[o] += inputs[i] * W[o];
+      }
     }
 
     if(prev not_eq nullptr)
@@ -82,9 +84,11 @@ class LSTMLayer: public Layer
       const nnReal* const inputs = prev->Y(ID);
       const nnReal* const weight = para->W(ID) +(4*nCells)*nInputs;
       //first input loop, here input only prev step LSTM's output
-      for (Uint i = 0; i < nCells; i++)
-        for (Uint o = 0; o < 4*nCells; o++)
-          suminp[o] += inputs[i] * weight[o + (4*nCells) * i];
+      for (Uint i = 0; i < nCells; i++) {
+        const nnReal* const W = weight + (4*nCells)*i;
+        #pragma omp simd aligned(suminp, inputs, W : VEC_WIDTH)
+        for (Uint o = 0; o < 4*nCells; o++) suminp[o] += inputs[i] * W[o];
+      }
     }
     {
       // Input, forget, output gates output overwrite their input
@@ -114,54 +118,58 @@ class LSTMLayer: public Layer
                   const Parameters*const grad,
                   const Parameters*const para) const override
   {
-    const Uint nC = nCells; //lighten notation, number of cells
           nnReal*const deltas = curr->E(ID); //error signal from above/future
     // Also need pre-outGate cell output
-    const nnReal*const cellOutput = curr->Y(ID) + 2*nC;
+    const nnReal*const cellOutput = curr->Y(ID) + 2*nCells;
     // Will also need to copy the state's error signal, use last available slot:
-          nnReal*const stateDelta = curr->Y(ID) + 3*nC;
+          nnReal*const stateDelta = curr->Y(ID) + 3*nCells;
 
     const nnReal*const cellInpt = curr->X(ID);
-    const nnReal*const IGate = curr->X(ID)+ 1*nC;
-    const nnReal*const FGate = curr->X(ID)+ 2*nC;
-    const nnReal*const OGate = curr->X(ID)+ 3*nC;
+    const nnReal*const IGate = curr->X(ID)+ 1*nCells;
+    const nnReal*const FGate = curr->X(ID)+ 2*nCells;
+    const nnReal*const OGate = curr->X(ID)+ 3*nCells;
     // prevState, nextState's delta and next output of forget gate
-    const nnReal*const prvState = prev==nullptr? nullptr : prev->Y(ID) + 1*nC;
-    const nnReal*const nxtStErr = next==nullptr? nullptr : next->Y(ID) + 3*nC;
-    const nnReal*const nxtFGate = next==nullptr? nullptr : next->X(ID) + 2*nC;
+    const nnReal*const prvState = prev==nullptr? nullptr :prev->Y(ID) +1*nCells;
+    const nnReal*const nxtStErr = next==nullptr? nullptr :next->Y(ID) +3*nCells;
+    const nnReal*const nxtFGate = next==nullptr? nullptr :next->X(ID) +2*nCells;
 
-    for (Uint o=0; o<nC; o++) {
+    for (Uint o=0; o<nCells; o++) {
       const nnReal D = deltas[o]; //before overwriting it
       //                  |      derivative of tanh     |
       const nnReal diff = (1-cellOutput[o]*cellOutput[o]) * deltas[o];
       // Compute state's error signal
       stateDelta[o] = diff*OGate[o] +(next==nullptr?0: nxtStErr[o]*nxtFGate[o]);
       // Compute deltas for cell input and gates
-      deltas[o+0*nC] = IGate[o] * stateDelta[o];
-      //               | derivative of sigm |
-      deltas[o+1*nC] = IGate[o]*(1-IGate[o]) * cellInpt[o] * stateDelta[o];
+      deltas[o+0*nCells] = IGate[o] * stateDelta[o];
+      //                  | sigmoid derivative |
+      deltas[o+1*nCells] = IGate[o]*(1-IGate[o]) * cellInpt[o] * stateDelta[o];
       if(prev not_eq nullptr)
-      deltas[o+2*nC] = FGate[o]*(1-FGate[o]) * prvState[o] * stateDelta[o];
-      else deltas[o+2*nC] = 0;
-      deltas[o+3*nC] = OGate[o]*(1-OGate[o]) * D * cellOutput[o];
+      deltas[o+2*nCells] = FGate[o]*(1-FGate[o]) * prvState[o] * stateDelta[o];
+      else deltas[o+2*nCells] = 0;
+      deltas[o+3*nCells] = OGate[o]*(1-OGate[o]) * D * cellOutput[o];
     }
     { // now that all is loaded in place, we can treat it like normal RNN layer
       nnReal* const grad_b = grad->B(ID);
+      #pragma omp simd aligned(deltas, grad_b : VEC_WIDTH)
       for(Uint o=0; o<4*nCells; o++) grad_b[o] += deltas[o];
     }
     {
       const nnReal* const inputs = curr->Y(ID-link);
-            nnReal* const errors = curr->E(ID-link);
-      const nnReal* const weight = para->W(ID);
             nnReal* const grad_w = grad->W(ID);
 
-      for(Uint i=0; i<nInputs;  i++)
-        for(Uint o=0; o<4*nCells; o++)
-          grad_w[o +(4*nCells)*i] += inputs[i] * deltas[o];
+      for(Uint i=0; i<nInputs;  i++) {
+              nnReal* const G = grad_w + 4*nCells*i;
+        #pragma omp simd aligned(deltas,inputs,G : VEC_WIDTH)
+        for(Uint o=0; o<4*nCells; o++) G[o] += inputs[i] * deltas[o];
+      }
 
-      for(Uint o=0; o<4*nCells; o++)
-        for(Uint i=0; i<nInputs;  i++)
-          errors[i] += weight[o +(4*nCells)*i] * deltas[o];
+      if( forceBackProp || not curr->input[ID-link] )
+      {
+              nnReal* const errors = curr->E(ID-link);
+        const nnReal* const weight = para->W(ID);
+        cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, 4*nCells, 1,
+          weight, 4*nCells, deltas, 1, 1, errors, 1);
+      }
     }
     if(prev not_eq nullptr)
     {
@@ -170,13 +178,13 @@ class LSTMLayer: public Layer
       const nnReal* const weight = para->W(ID) +(4*nCells)*nInputs;
             nnReal* const grad_w = grad->W(ID) +(4*nCells)*nInputs;
 
-      for(Uint i=0; i<nCells;  i++)
-        for(Uint o=0; o<4*nCells; o++)
-          grad_w[o +(4*nCells)*i] += inputs[i] * deltas[o];
-
-      for(Uint o=0; o<4*nCells; o++)
-        for(Uint i=0; i<nCells;  i++)
-          errors[i] += weight[o +(4*nCells)*i] * deltas[o];
+      for(Uint i=0; i<nCells;  i++) {
+        nnReal* const G = grad_w + 4*nCells*i;
+        #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH)
+        for(Uint o=0; o<4*nCells; o++) G[o] += inputs[i] * deltas[o];
+      }
+      cblas_dgemv(CblasRowMajor, CblasNoTrans, nCells, 4*nCells, 1,
+        weight, 4*nCells, deltas, 1, 1, errors, 1);
     }
   }
 
