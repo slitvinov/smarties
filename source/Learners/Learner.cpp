@@ -94,7 +94,9 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
   }
 
   if(nSkipped >= batchSize)
-    warn("Too many skipped samples caused code to override algorithm. Change hyperparameters.");
+    warn("Too many skipped samples caused temporary pause in resampling. " \
+      "Change hyperp: probably the learn rate is too large for "  \
+      "the net's combination of size/activation/batchsize.");
   nSkipped = 0;
 
   profiler->stop_start("SLP");
