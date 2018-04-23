@@ -165,7 +165,7 @@ void DPG::prepareGradient()
   advanceCounters();
   CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
   if(CmaxRet<1) die("Either run lasted too long or epsAnneal is wrong.");
-  data->prune(CmaxPol>0 ? MAXERROR : OLDEST, CmaxRet);
+  data->prune(CmaxPol>0 ? FARPOLFRAC : OLDEST, CmaxRet);
   Real fracOffPol = data->nOffPol / (Real) data->readNData();
   profiler->stop_start("SLP");
 
