@@ -388,7 +388,7 @@ void MemoryBuffer::getHeaders(ostringstream& buff)
 
 void MemoryBuffer::save(const string base, const Uint nStep)
 {
-  FILE * wFile = fopen((base+"_scaling.raw").c_str(), "wb");
+  FILE * wFile = fopen((base+"scaling.raw").c_str(), "wb");
   fwrite(   mean.data(), sizeof(Real),   mean.size(), wFile);
   fwrite( invstd.data(), sizeof(Real), invstd.size(), wFile);
   fwrite(    std.data(), sizeof(Real),    std.size(), wFile);
@@ -397,7 +397,7 @@ void MemoryBuffer::save(const string base, const Uint nStep)
 
   if(nStep % 100000 == 0 && nStep > 0) {
     ostringstream ss; ss << std::setw(9) << std::setfill('0') << nStep;
-    FILE * wFile = fopen((base+"_"+ss.str()+"_scaling.raw").c_str(), "wb");
+    FILE * wFile = fopen((base+ss.str()+"_scaling.raw").c_str(), "wb");
     fwrite(   mean.data(), sizeof(Real),   mean.size(), wFile);
     fwrite( invstd.data(), sizeof(Real), invstd.size(), wFile);
     fwrite(    std.data(), sizeof(Real),    std.size(), wFile);
@@ -409,7 +409,7 @@ void MemoryBuffer::save(const string base, const Uint nStep)
 void MemoryBuffer::restart(const string base)
 {
   {
-    FILE * wFile = fopen((base+"_scaling.raw").c_str(), "rb");
+    FILE * wFile = fopen((base+"scaling.raw").c_str(), "rb");
     if(wFile == NULL) {
       printf("Parameters restart file %s not found.\n", (base+".raw").c_str());
       return;

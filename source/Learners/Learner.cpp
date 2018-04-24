@@ -153,7 +153,7 @@ void Learner::restart()
 
   for(auto & net : F) net->restart(settings.restart+"/"+learner_name);
   input->restart(settings.restart+"/"+learner_name);
-  data->restart(learner_name);
+  data->restart(settings.restart+"/"+learner_name);
 
   for(auto & net : F) net->save("restarted_");
   input->save("restarted_");
