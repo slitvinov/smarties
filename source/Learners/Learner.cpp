@@ -86,6 +86,7 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
 
     for(auto & net : F) net->save(learner_name);
     input->save(learner_name);
+    data->save(learner_name, nStep);
   }
 
   if(nStep%1000 ==0) {
@@ -150,7 +151,7 @@ void Learner::restart()
 
   for(auto & net : F) net->restart(settings.restart+"/"+learner_name);
   input->restart(settings.restart+"/"+learner_name);
-  data->restart();
+  data->restart(learner_name);
 
   for(auto & net : F) net->save("restarted_");
   input->save("restarted_");

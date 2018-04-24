@@ -159,7 +159,8 @@ public:
 
   void getMetrics(ostringstream& buff);
   void getHeaders(ostringstream& buff);
-  void restart();
+  void restart(const string base);
+  void save(const string base, const Uint nStep);
 
   void indexToSample(const int nSample, Uint& seq, Uint& obs) const;
   void sampleMultipleTrans(Uint* seq, Uint* obs, const Uint N, const int thrID);
