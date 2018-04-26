@@ -396,8 +396,8 @@ void MemoryBuffer::save(const string base, const Uint nStep)
   fflush(wFile); fclose(wFile);
 
   if(nStep % 100000 == 0 && nStep > 0) {
-    ostringstream ss; ss << std::setw(9) << std::setfill('0') << nStep;
-    FILE * wFile = fopen((base+ss.str()+"_scaling.raw").c_str(), "wb");
+    ostringstream S; S<<std::setw(9)<<std::setfill('0')<<nStep;
+    wFile = fopen((base+S.str()+"_scaling.raw").c_str(), "wb");
     fwrite(   mean.data(), sizeof(Real),   mean.size(), wFile);
     fwrite( invstd.data(), sizeof(Real), invstd.size(), wFile);
     fwrite(    std.data(), sizeof(Real),    std.size(), wFile);
@@ -500,7 +500,6 @@ void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
   while(seq.size() % nThr_loc) nThr_loc--;
   const int stride = seq.size()/nThr_loc, N = seq.size();
   assert(nThr_loc>0 && N % nThr_loc == 0 && stride > 0);
-
   // Perf tweak: sort by offPol weight to aid load balance of algos like
   // Racer/PPO. "Far Policy" obs are discarded due to opcW being out of range
   // and will trigger a resampling. Sorting here affects tasking order.
@@ -543,7 +542,6 @@ void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
     obs[i] = o[load[i].first];
     seq[i] = s[load[i].first];
   }
-
 }
 
 void MemoryBuffer::sampleSequences(vector<Uint>& seq)
