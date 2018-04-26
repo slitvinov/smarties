@@ -48,6 +48,10 @@ public:
     return new Parameters(nWeight, nBiases);
   }
 
+  void updateTransposed() const {
+    for(const auto & l : layers) l->transpose(weights);
+  }
+
   inline void prepForBackProp(vector<Activation*>& series, const Uint N) const
   {
     if (series.size() < N)

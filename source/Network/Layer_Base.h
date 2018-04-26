@@ -118,9 +118,14 @@ class BaseLayer: public Layer
       if( forceBackProp || not curr->input[ID-link] )
       {
               nnReal* const errors = curr->E(ID-link);
-        const nnReal* const weight = para->W(ID);
-        cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1,
-          weight, nOut_simd, deltas, 1, 1, errors, 1);
+        const nnReal* const weight = para->W_T(ID);
+        for(Uint o=0; o<nNeurons; o++) {
+          const nnReal* const W = weight + nInp_simd*o;
+          #pragma omp simd aligned(deltas,errors,W : VEC_WIDTH)
+          for(Uint i=0; i<nInputs;  i++) errors[i] += W[i] * deltas[o];
+        }
+        //cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1,
+        //  weight, nOut_simd, deltas, 1, 1, errors, 1);
       }
     }
     if(bRecurrent && prev not_eq nullptr)
@@ -163,6 +168,14 @@ class BaseLayer: public Layer
       for(Uint i=0; i<nNeurons;  i++) for(Uint o=0; o<nNeurons; o++)
         weight[o +nOut_simd*i] = dis(*gen);
     }
+  }
+
+  void transpose(const Parameters*const para) const override
+  {
+    const nnReal* const W   = para->W(ID);
+          nnReal* const W_T = para->W_T(ID);
+    for(Uint i=0; i<nInputs;  i++)
+      for(Uint o=0; o<nNeurons; o++) W_T[nInp_simd*o + i] = W[nOut_simd*i + o];
   }
 
   void orthogonalize(const Parameters*const para) const

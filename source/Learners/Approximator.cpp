@@ -332,6 +332,7 @@ void Approximator::applyUpdate()
   if(reducedGradients == 0) return;
 
   opt->apply_update();
+  net->updateTransposed();
   reducedGradients = 0;
 }
 

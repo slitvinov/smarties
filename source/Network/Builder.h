@@ -151,6 +151,7 @@ public:
 
     // Make sure that all ranks have the same weights (copy from rank 0)
     weights->broadcast(settings.mastersComm);
+    weights->allocateTransposed();
     tgt_weights->copy(weights); //copy weights onto tgt_weights
 
     // Allocate a gradient for each thread.

@@ -152,6 +152,7 @@ struct Encapsulator
     if(nReducedGradients == 0) return;
 
     opt->apply_update();
+    net->updateTransposed();
     nReducedGradients = 0;
   }
 

@@ -63,6 +63,7 @@ class Layer
   }
 
   // Initialize the weights and biases. Probably by sampling.
+  virtual void transpose(const Parameters*const para) const {}
   virtual void initialize(mt19937* const gen, const Parameters*const para,
     Real initializationFac) const = 0;
 };

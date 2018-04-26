@@ -21,6 +21,7 @@ struct Parameters
   // array containing all parameters of network contiguously
   //(used by optimizer and for MPI reductions)
   nnReal*const params;
+  nnReal* params_T = nullptr;
 
   //each layer requests a certain number of parameters, here compute contiguous
   //memory required such that each layer gets an aligned pointer to both
@@ -47,6 +48,10 @@ struct Parameters
   Parameters* allocateGrad() const
   {
     return new Parameters(nWeights, nBiases);
+  }
+
+  void allocateTransposed() {
+    params_T = allocate_ptr(nParams);
   }
 
   inline void broadcast(const MPI_Comm comm) const
@@ -153,6 +158,10 @@ struct Parameters
   inline nnReal* W(const Uint layerID) const {
     assert(layerID < nLayers);
     return params + indWeights[layerID];
+  }
+  inline nnReal* W_T(const Uint layerID) const {
+    assert(layerID < nLayers && params_T not_eq nullptr);
+    return params_T + indWeights[layerID];
   }
   inline nnReal* B(const Uint layerID) const {
     assert(layerID < nLayers);

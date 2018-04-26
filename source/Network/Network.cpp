@@ -107,6 +107,7 @@ Network::Network(Builder* const B, Settings & settings) :
   gradClip(B->gradClip), layers(B->layers), weights(B->weights),
   tgt_weights(B->tgt_weights), Vgrad(B->Vgrad), mem(B->mem),
   generators(settings.generators) {
+  updateTransposed();
   dump_ID.resize(nAgents, 0);
 }
 
