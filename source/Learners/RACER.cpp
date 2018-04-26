@@ -534,7 +534,7 @@ class RACER : public Learner_offPolicy
     else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 
     if( beta <= 10*learnR && nStep % 1000 == 0)
-    warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");
+    warn("beta too low. Lower lrate, pick bounded nnfunc, or incr net size.");
   }
 
   void getMetrics(ostringstream& buff) const {
