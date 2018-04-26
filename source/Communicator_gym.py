@@ -44,8 +44,12 @@ class Communicator_gym(Communicator):
                 except: bounded = 1.1
                 env.reset()
                 actOpts = np.append(actOpts, [2.1, bounded])
-                actVals = np.append(actVals, max(env.action_space.low[i],-1e3))
-                actVals = np.append(actVals, min(env.action_space.high[i],1e3))
+                if bounded:
+                  actVals = np.append(actVals, max(env.action_space.low[i],-1e3))
+                  actVals = np.append(actVals, min(env.action_space.high[i],1e3))
+                else:
+                  actVals = np.append(actVals, 1)
+                  actVals = np.append(actVals, -1)
         else: assert(False)
 
         if hasattr(env.observation_space, 'shape'):
