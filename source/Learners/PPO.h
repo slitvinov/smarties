@@ -210,30 +210,14 @@ public:
 
   void getMetrics(ostringstream& buff) const {
     opcInfo->reduce_approx();
-    {
-      const Real v = valPenal[0];
-      const int prec = std::fabs(v)>=10? 2 : (std::fabs(v)>=1? 3 : 4);
-      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<<valPenal[0];
-    }
-    {
-      const Real v = opcInfo->instMean[0];
-      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
-      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
-    }
-    {
-      const Real v = opcInfo->instMean[1];
-      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
-      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
-    }
-    {
-      const Real v = opcInfo->instMean[2];
-      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
-      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
-    }
-    buff<<" "<<std::setw(6)<<std::setprecision(4)<<opcInfo->instMean[3];
-    buff<<" "<<std::setw(6)<<std::setprecision(4)<<opcInfo->instMean[4];
+    real2SS(buff, valPenal[0], 6, 1);
+    real2SS(buff, opcInfo->instMean[0], 6, 1);
+    real2SS(buff, opcInfo->instMean[1], 6, 1);
+    real2SS(buff, opcInfo->instMean[2], 6, 0);
+    real2SS(buff, opcInfo->instMean[3], 6, 1);
+    real2SS(buff, opcInfo->instMean[4], 6, 1);
     #ifdef PPO_learnDKLt
-      buff<<" "<<std::setw(6)<<std::setprecision(4)<<DKL_target;
+      real2SS(buff, DKL_target, 6, 1);
     #endif
   }
   void getHeaders(ostringstream& buff) const {

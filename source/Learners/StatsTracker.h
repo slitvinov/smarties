@@ -89,26 +89,11 @@ struct trainData
 
   void getMetrics(ostringstream& buff) const
   {
-    {
-      const auto prec = std::fabs( MSE)>1e3? 0 : (std::fabs( MSE)>1e2? 1:2);
-      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<< MSE;
-    }
-    {
-      const auto prec = std::fabs(avgQ)>1e3? 0 : (std::fabs(avgQ)>1e2? 1:2);
-      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<<avgQ;
-    }
-    {
-      const auto prec = std::fabs(stdQ)>1e3? 0 : (std::fabs(stdQ)>1e2? 1:2);
-      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<<stdQ;
-    }
-    {
-      const auto prec = std::fabs(minQ)>1e3? 0 : (std::fabs(minQ)>1e2? 1:2);
-      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<<minQ;
-    }
-    {
-      const auto prec = std::fabs(maxQ)>1e3? 0 : (std::fabs(maxQ)>1e2? 1:2);
-      buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<<maxQ;
-    }
+    real2SS(buff, MSE, 6, 1);
+    real2SS(buff,avgQ, 6, 0);
+    real2SS(buff,stdQ, 6, 1);
+    real2SS(buff,minQ, 6, 0);
+    real2SS(buff,maxQ, 6, 0);
   }
   void getHeaders(ostringstream& buff) const
   {

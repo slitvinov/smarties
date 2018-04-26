@@ -312,12 +312,12 @@ class DACER : public Learner_offPolicy
   void getMetrics(ostringstream& buff) const
   {
     opcInfo->reduce_approx();
-    buff<<" "<<std::setw(6)<<std::setprecision(3)<<beta;
-    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[0];
-    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[1];
-    buff<<" "<<std::setw(6)<<std::setprecision(1)<<opcInfo->instMean[2];
-    buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[3];
-    buff<<" "<<std::setw(6)<<std::setprecision(2)<<opcInfo->instMean[4];
+    real2SS(buff, beta, 6, 1);
+    real2SS(buff, opcInfo->instMean[0], 6, 1);
+    real2SS(buff, opcInfo->instMean[1], 6, 1);
+    real2SS(buff, opcInfo->instMean[2], 6, 0);
+    real2SS(buff, opcInfo->instMean[3], 6, 1);
+    real2SS(buff, opcInfo->instMean[4], 6, 1);
   }
   void getHeaders(ostringstream& buff) const
   {

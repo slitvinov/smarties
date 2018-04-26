@@ -110,11 +110,8 @@ struct Parameters
   {
     long double sumWeights = 0;
     #pragma omp parallel for reduction(+:sumWeights)
-    for (Uint w=0; w<nParams; w++)
-      sumWeights += std::fabs(params[w]);
-      //sumWeightsSq += net->weights[w]*net->weights[w];
-      //distTarget += std::fabs(net->weights[w]-net->tgt_weights[w]);
-    return sumWeights;
+    for (Uint w=0; w<nParams; w++) sumWeights += std::pow(params[w],2);
+    return std::sqrt(sumWeights);
   }
 
   void compute_dist_norm(long double& norm, long double& dist,

@@ -21,6 +21,7 @@ using namespace std;
 #include <immintrin.h>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -117,6 +118,16 @@ inline string print(const vector<T> vals)
   for (Uint i=0; i<vals.size()-1; i++) o << vals[i] << " ";
   o << vals[vals.size()-1];
   return o.str();
+}
+
+inline void real2SS(ostringstream&B,const Real V,const Uint W, const bool bPos)
+{
+  B<<" "<<std::setw(W);
+  if(std::fabs(V)>= 1e3) B << std::setprecision(W-6+bPos);
+  if(std::fabs(V)>= 1e2) B << std::setprecision(W-5+bPos);
+  if(std::fabs(V)>= 1e1) B << std::setprecision(W-4+bPos);
+  else                   B << std::setprecision(W-3+bPos);
+  B<<std::fixed<<V;
 }
 
 inline bool isZero(const Real vals)

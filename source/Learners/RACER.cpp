@@ -539,24 +539,12 @@ class RACER : public Learner_offPolicy
 
   void getMetrics(ostringstream& buff) const {
     opcInfo->reduce_approx();
-    buff<<" "<<std::setw(6)<<std::setprecision(4)<<beta;
-    {
-      const Real v = opcInfo->instMean[0];
-      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
-      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
-    }
-    {
-      const Real v = opcInfo->instMean[1];
-      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
-      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
-    }
-    {
-      const Real v = opcInfo->instMean[2];
-      const int p=std::fabs(v)>1e3?0:(std::fabs(v)>1e2?1:(std::fabs(v)>10?2:3));
-      buff <<" " <<std::setw(6) <<std::setprecision(p) <<std::fixed <<v;
-    }
-    buff<<" "<<std::setw(6)<<std::setprecision(4)<<opcInfo->instMean[3];
-    buff<<" "<<std::setw(6)<<std::setprecision(3)<<opcInfo->instMean[4];
+    real2SS(buff, beta, 6, 1);
+    real2SS(buff, opcInfo->instMean[0], 6, 1);
+    real2SS(buff, opcInfo->instMean[1], 6, 1);
+    real2SS(buff, opcInfo->instMean[2], 6, 0);
+    real2SS(buff, opcInfo->instMean[3], 6, 1);
+    real2SS(buff, opcInfo->instMean[4], 6, 1);
   }
   void getHeaders(ostringstream& buff) const {
     // beta: coefficient of update gradient to penalization gradient:

@@ -12,7 +12,6 @@
 #include "Settings.h"
 #include <cassert>
 #include <algorithm>
-#include <sstream>
 #include <math.h>
 
 using namespace std;

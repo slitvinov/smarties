@@ -190,7 +190,7 @@ void DPG::prepareGradient()
 }
 
 void DPG::getMetrics(ostringstream& buff) const {
-  buff<<" "<<std::setw(6)<<std::setprecision(3)<<beta;
+  real2SS(buff, beta, 6, 1);
 }
 void DPG::getHeaders(ostringstream& buff) const {
   buff <<"| beta ";

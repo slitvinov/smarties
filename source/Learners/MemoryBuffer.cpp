@@ -372,12 +372,8 @@ void MemoryBuffer::getMetrics(ostringstream& buff)
   buff<<" "<<std::setw(8)<<nSeenTransitions.load();
   buff<<" "<<std::setw(7)<<minInd;
   buff<<" "<<std::setw(6)<<(int)nOffPol;
-  buff<<" "<<std::setw(6)<<std::setprecision(2)<<1./invstd_reward;
-  {
-    const auto prec = std::fabs(totMSE)>1e3? 0: (std::fabs(totMSE)>1e2? 1 :
-                                                (std::fabs(totMSE)>1e1? 2 : 3));
-    buff<<" "<<std::setw(6)<<std::setprecision(prec)<<std::fixed<< totMSE;
-  }
+  real2SS(buff, 1./invstd_reward, 6, 1);
+  real2SS(buff, totMSE, 6, 1);
   nPruned=0;
 }
 void MemoryBuffer::getHeaders(ostringstream& buff)

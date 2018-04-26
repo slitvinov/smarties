@@ -185,17 +185,13 @@ struct Encapsulator
   void getHeaders(ostringstream& buff) const
   {
     if(net == nullptr) return;
-    buff << std::left << std::setfill(' ') ;
-    buff <<"| " << std::setw(5) << name << ":|W| DW";
+    buff << std::left << std::setfill(' ') <<"| " << std::setw(5) << name;
   }
 
   void getMetrics(ostringstream& buff) const
   {
     if(net == nullptr) return;
-    long double sumW = 0, distTgt = 0;
-    net->weights->compute_dist_norm(sumW, distTgt, net->tgt_weights);
-    buff<<" "<<std::setw(6)<<std::setprecision(0)<<sumW;
-    buff<<" "<<std::setw(6)<<std::setprecision(0)<<distTgt;
+    real2SS(buff, net->weights->compute_weight_norm(), 6, 1);
   }
 };
 
