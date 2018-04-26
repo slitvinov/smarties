@@ -24,7 +24,7 @@ private:
   const int bTrain, nPerRank, nSlaves, nThreads, learn_rank, learn_size, totNumSteps, outSize, inSize;
   const vector<double*> inpBufs;
   const vector<double*> outBufs;
-  mutable long int stepNum = 0, iternum = 0;
+  mutable long int stepNum = 0, iternum = 0, seqNum = 0;
   mutable vector<MPI_Request> requests;
   Profiler* profiler     = nullptr;
   Profiler* profiler_int = nullptr;
@@ -156,10 +156,12 @@ public:
   Master(MPI_Comm _c,const vector<Learner*>_l,Environment*const _e,Settings&_s);
   ~Master()
   {
+    for(const auto& A : agents) A->writeBuffer(learn_rank);
     _dispose_object(env);
     for(int i=0; i<nSlaves; i++) _dealloc(inpBufs[i]);
     for(int i=0; i<nSlaves; i++) _dealloc(outBufs[i]);
     for(const auto& L : learners) _dispose_object(L);
+    flushRewardBuffer();
   }
 
   void sendTerminateReq()

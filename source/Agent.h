@@ -47,6 +47,7 @@ public:
 
   void writeBuffer(const int rank) const
   {
+    if(buffCnter == 0) return;
     char cpath[256];
     sprintf(cpath, "obs_rank%02d_agent%03d.raw", rank, ID);
     FILE * pFile = fopen (cpath, "ab");

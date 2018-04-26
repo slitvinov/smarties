@@ -42,7 +42,8 @@ int Master::run()
 {
   while (true)
   {
-    if( stepNum >= totNumSteps ) return 0;
+    if( bTrain && stepNum >= totNumSteps ) return 0;
+    if(!bTrain &&  seqNum >= totNumSteps ) return 0;
 
     profiler->stop_start("PREP");
     prepareLearners();
@@ -97,8 +98,8 @@ void Master::processSlave(const int slave)
 
   // If not bTrain this is only termination condition. If bTrain the code checks
   // termination at beginning of loop in run() to prevent undefined behaviors.
-  if( !bTrain && readTimeSteps() >= (Uint) totNumSteps ) return;
-  if(  bTrain && learnersLockQueue() ) return;
+  if( !bTrain && seqNum >= totNumSteps ) return;
+  if(  bTrain && learnersLockQueue()   ) return;
 
   #pragma omp task firstprivate(slave) priority(1)
     processSlave(slave);
@@ -136,6 +137,8 @@ void Master::processAgent(const int slave, const MPI_Status mpistatus)
     if ( recv_status >= TERM_COMM )
     {
       dumpCumulativeReward(agent, aAlgo->iter(), readTimeSteps() );
+      #pragma omp atomic
+      seqNum++;
     }
     else if ( aAlgo->iter() )
     {
