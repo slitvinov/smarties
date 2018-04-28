@@ -1,14 +1,14 @@
 #!/bin/bash -l
 
-#SBATCH --job-name=Racer_soft_clip0
+#SBATCH --job-name=Racer_softnone_annllast
 #SBATCH --time=24:00:00
 #SBATCH --output=out.%j.%a.o
 #SBATCH --error=out.%j.%a.e
 #SBATCH --constraint=gpu
 # #SBATCH --partition=debug
 
-# #SBATCH --account=ch7
-#SBATCH --account=s658
+#SBATCH --account=ch7
+# #SBATCH --account=s658
 # #SBATCH --account=eth2
 
 #SBATCH --array=0-179
@@ -17,13 +17,14 @@
 # #SBATCH --ntasks-per-node=1
 
 # ======START=====
-COMMNAME=Racer_soft_noanneal
+COMMNAME=Racer_softnone_anneal_5
 
-SETTINGS=" --epsAnneal 0 --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner POAC --minTotObsNum 131072 --targetDelay 0 --greedyEps 0.5 --totNumSteps 10000000 --learnrate 0.0003 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 "
+SETTINGS=" --epsAnneal 5e-7 --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner POAC --minTotObsNum 262144 --targetDelay 0 --greedyEps 0.4472 --totNumSteps 10000000 --learnrate 0.0001 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 "
 MYNAME=`whoami`
-BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
+BASEPATH="/scratch/snx3000/${MYNAME}/smarties/Guido/"
 
 BUFFSIZE=(1048576 524288 262144)
+#IMPSAMPR=(1 3 7)
 IMPSAMPR=(2 4 8)
 DKLPARAM=(0.10)
 BATCHNUM=(256)
@@ -32,8 +33,12 @@ RUNTRIAL=(1 2 3 4 5)
 
 #TASKNAME=(Humanoid-v2 Ant-v2 Walker2d-v2 HalfCheetah-v2 Swimmer-v2 Reacher-v2 Hopper-v2 HumanoidStandup-v2 InvertedPendulum-v2 InvertedDoublePendulum-v2)
 #SHORTID=(humanw spider walker cheeta swimmr reachr hopper standu invpnd dblpnd)
-TASKNAME=(Humanoid-v2 Ant-v2 Walker2d-v2 HalfCheetah-v2)
-SHORTID=(humanw spider walker cheeta)
+TASKNAME=(HumanoidStandup-v2 Swimmer-v2 Reacher-v2 Hopper-v2)
+SHORTID=( standu             swimmr     reachr     hopper)
+#TASKNAME=(Humanoid-v2 Ant-v2 Walker2d-v2 HalfCheetah-v2)
+#SHORTID=(humanw spider walker cheeta)
+#TASKNAME=(Humanoid-v2)
+#SHORTID=(standu)
 
 cases=()
 rundir=()
