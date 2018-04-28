@@ -52,7 +52,7 @@ protected:
       _nSkipped = nSkipped;
     // If skipping too many samples return w/o sample to avoid code hanging.
     // If true smth is wrong. Approximator will print to screen a warning.
-    return _nSkipped < batchSize;
+    return _nSkipped < 2*batchSize;
   }
 
   inline void resample(const Uint thrID) const // TODO resample sequence

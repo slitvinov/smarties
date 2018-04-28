@@ -29,7 +29,8 @@ void Learner_offPolicy::prepareData()
   profiler->stop_start("PRE");
   if(nStep%1000==0) {
     // update state mean/std with net's learning rate
-    const Real WS = nStep? annealRate(learnR, nStep, epsAnneal) : 1;
+    //const Real WS = nStep? annealRate(learnR, nStep, epsAnneal) : 1;
+    const Real WS = nStep? 0 : 1;
     data->updateRewardsStats(nStep, 1, WS*(LEARN_STSCALE>0));
   }
   if(nStep == 0 && !learn_rank)
