@@ -17,7 +17,7 @@
 # #SBATCH --ntasks-per-node=1
 
 # ======START=====
-COMMNAME=Racer_softnone_anneal_5
+COMMNAME=Racer_softnone_anneal_6
 
 SETTINGS=" --epsAnneal 5e-7 --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner POAC --minTotObsNum 262144 --targetDelay 0 --greedyEps 0.4472 --totNumSteps 10000000 --learnrate 0.0001 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 "
 MYNAME=`whoami`
@@ -31,10 +31,10 @@ BATCHNUM=(256)
 EPERSTEP=(1)
 RUNTRIAL=(1 2 3 4 5)
 
-#TASKNAME=(Humanoid-v2 Ant-v2 Walker2d-v2 HalfCheetah-v2 Swimmer-v2 Reacher-v2 Hopper-v2 HumanoidStandup-v2 InvertedPendulum-v2 InvertedDoublePendulum-v2)
-#SHORTID=(humanw spider walker cheeta swimmr reachr hopper standu invpnd dblpnd)
-TASKNAME=(HumanoidStandup-v2 Swimmer-v2 Reacher-v2 Hopper-v2)
-SHORTID=( standu             swimmr     reachr     hopper)
+TASKNAME=(HumanoidStandup-v2 Humanoid-v2 Ant-v2 Walker2d-v2 HalfCheetah-v2 Swimmer-v2 Reacher-v2 Hopper-v2)
+SHORTID=( standu             humanw      spider walker      cheeta         swimmr     reachr     hopper)
+#TASKNAME=(HumanoidStandup-v2 Swimmer-v2 Reacher-v2 Hopper-v2)
+#SHORTID=( standu             swimmr     reachr     hopper)
 #TASKNAME=(Humanoid-v2 Ant-v2 Walker2d-v2 HalfCheetah-v2)
 #SHORTID=(humanw spider walker cheeta)
 #TASKNAME=(Humanoid-v2)
