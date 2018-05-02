@@ -112,8 +112,8 @@ class DACER : public Learner_offPolicy
         // correct behavior is to resample
         // to avoid bugs there is a failsafe mechanism
         // if that is triggered, warning will be printed to screen
-        if( beta>10*learnR && canSkip() ) return resample(thrID);
-        else // if beta too small, grad \approx penalization gradient
+        //if( beta>10*learnR && canSkip() ) return resample(thrID);
+        //else // if beta too small, grad \approx penalization gradient
           grad = offPolGrad(traj, samp, out_cur, pol, thrID);
       } else
     #endif

@@ -93,25 +93,23 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
   const Real KLdiv = POL.kl_divergence(traj->tuples[t]->mu);
   //if(!thrID) cout<<"tpol "<<print(polVec)<<" act: "<<print(POL.sampAct)<<endl;
-  #ifdef DKL_filter
+  #ifdef DKL_filter // if CmaxPol=0 isOff is always false
     const bool isOff = traj->distFarPolicy(t, KLdiv, 1+KLdiv, CmaxRet-1);
   #else
     const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, CmaxRet);
     traj->setSquaredError(t, KLdiv);
   #endif
-  // if CmaxPol==0 this is never triggered:
-  if(isOff && beta>10*learnR && canSkip()) return resample(thrID);
 
   relay->prepare_one(traj, t, thrID, ACT);
   const Rvec q_curr = F[1]->forward(traj, t, thrID); // inp here is {s,a}
 
   relay->prepare(NET, thrID); // tell relay to pass policy (output of F[0])
   const Rvec v_curr = F[1]->forward<CUR, TGT>(traj, t, thrID); //here is {s,pi}
-  const Rvec detPolG = F[1]->relay_backprop({1}, t, thrID);
+  const Rvec detPolG = isOff? Rvec(nA,0) : F[1]->relay_backprop({1}, t, thrID);
   //if(!thrID) cout << "G "<<print(detPolG) << endl;
 
   Real target = data->scaledReward(traj, t+1);
-  if (not traj->isTerminal(t+1)) {
+  if (not traj->isTerminal(t+1) && not isOff) {
     const Rvec pol_next = F[0]->forward<TGT>(traj, t+1, thrID);
     //if(!thrID) cout << "nterm pol "<<print(pol_next) << endl;
     const Rvec v_next = F[1]->forward<TGT>(traj, t+1, thrID);//here is {s,pi}_+1
@@ -119,18 +117,15 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   }
 
   { //code to compute policy grad:
-    Real a_curr = target - v_curr[0];
-    if(a_curr > 0 && POL.sampImpWeight >  2) a_curr = 0;
-    if(a_curr < 0 && POL.sampImpWeight < .5) a_curr = 0;
+    Rvec polG(2*nA, 0);
+    for (Uint i=0; i<nA; i++) polG[i] = isOff? 0 : detPolG[i];
+    for (Uint i=0; i<nA; i++) polG[i+nA] = greedyEps - POL.stdev[i];
     // this is an experimental change to update stdev using policy gradient
     // not fully analyzed therefore should be turned off by default
-    // policy gradient is fully overwritten in 2 and 6 lines from here
-    Rvec polG = POL.policy_grad(POL.sampAct, POL.sampImpWeight*a_curr);
-    for (Uint i=0; i<nA; i++) polG[i] = detPolG[i];
-    #ifdef LearnStDev // ugly hack to keep stdev const == init user value
-      if(isZero(a_curr))
-    #endif
-        for (Uint i=0; i<nA; i++) polG[i+nA] = greedyEps - POL.stdev[i];
+    //Real a_curr = target - v_curr[0];
+    //if(a_curr > 0 && POL.sampImpWeight >  2) a_curr = 0;
+    //if(a_curr < 0 && POL.sampImpWeight < .5) a_curr = 0;
+    //Rvec sPG = POL.policy_grad(POL.sampAct, POL.sampImpWeight*a_curr);
 
     const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
     // if beta=1 (which is inevitable for CmaxPol=0) this will be equal to polG
@@ -143,7 +138,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   }
 
   { //code to compute value grad:
-    const Rvec grad_val = {(target-q_curr[0])};
+    const Rvec grad_val = {isOff ? 0 : (target-q_curr[0])};
     //traj->SquaredError[t] = grad_val[0]*grad_val[0];
     Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
     F[1]->backward(clampGrad(grad_val,q_curr[0]), t, thrID);
