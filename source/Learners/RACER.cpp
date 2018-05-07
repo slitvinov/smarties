@@ -226,9 +226,22 @@ class RACER : public Learner_offPolicy
     //min(CmaxRet,rho) stabilize if resampling is disabled (*will show
     // warning on screen*). No effect if functioning normally.
     const Real Aer = beta*alpha * std::min(CmaxRet,rho_cur) * (A_RET-A_cur);
-
     const Rvec polG = policyGradient(traj->tuples[samp], POL,ADV,A_RET, thrID);
-    const Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
+    Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
+
+    //prepare Q with off policy corrections for next step:
+    const Real dAdv = updateQret(traj, samp, A_cur, V_cur, POL);
+    Rvec sampleInfo {0, 0, 0, dAdv, POL.sampImpWeight};
+    for(Uint i=0; i<polG.size(); i++) {
+      sampleInfo[0] +=   polG[i]*   polG[i];
+      sampleInfo[1] += penalG[i]* penalG[i];
+      sampleInfo[2] +=   polG[i]* penalG[i];
+    }
+    sampleInfo[0] = std::sqrt(sampleInfo[0]);
+    sampleInfo[1] = std::sqrt(sampleInfo[1]);
+    sampleInfo[2] = sampleInfo[2]/(sampleInfo[1]+nnEPS);
+    //for(Uint i=0; i<polG.size(); i++)
+    //  penalG[i] *= sampleInfo[0]/(sampleInfo[1]+2.22e-16);
     const Rvec finalG  = weightSum2Grads(polG, penalG, beta);
 
     #if 0
@@ -246,20 +259,8 @@ class RACER : public Learner_offPolicy
     gradient[VsID] = Ver;
     POL.finalize_grad(finalG, gradient);
     ADV.grad(POL.sampAct, Aer, gradient);
-
-    Vstats[thrID].dumpStats(A_cur, A_RET-A_cur); //bookkeeping
-    //prepare Q with off policy corrections for next step:
-    const Real dAdv = updateQret(traj, samp, A_cur, V_cur, POL);
-    Rvec sampleInfo {0, 0, 0, dAdv, POL.sampImpWeight};
-    for(Uint i=0; i<polG.size(); i++) {
-      sampleInfo[0] +=   polG[i]*   polG[i];
-      sampleInfo[1] += penalG[i]* penalG[i];
-      sampleInfo[2] +=   polG[i]* penalG[i];
-    }
-    sampleInfo[0] = std::sqrt(sampleInfo[0]);
-    sampleInfo[1] = std::sqrt(sampleInfo[1]);
-    sampleInfo[2] = sampleInfo[2]/(sampleInfo[1]+nnEPS);
     opcInfo->track_vector(sampleInfo, thrID);
+    Vstats[thrID].dumpStats(A_cur, A_RET-A_cur); //bookkeeping
 
     #if 0
       if(thrID == 1) {
@@ -294,12 +295,12 @@ class RACER : public Learner_offPolicy
   }
 
   inline void updateQret(Sequence*const S, const Uint t) const {
-    const Real rho = S->isLast(t) ? 0 : S->offPol_weight[t];
+    const Real rho = S->isLast(t) ? 0 : S->offPolicImpW[t];
     updateQret(S, t, S->action_adv[t], S->state_vals[t], rho);
   }
   inline void updateQretBack(Sequence*const S, const Uint t) const {
     if(t == 0) return;
-    const Real W=S->isLast(t)? 0:S->offPol_weight[t], R=data->scaledReward(S,t);
+    const Real W=S->isLast(t)? 0:S->offPolicImpW[t], R=data->scaledReward(S,t);
     const Real delta = R +gamma*S->state_vals[t] -S->state_vals[t-1];
     S->Q_RET[t-1] = delta + gamma*(W>1? 1:W)*(S->Q_RET[t] - S->action_adv[t]);
   }

@@ -103,7 +103,7 @@ class ACER : public Learner_offPolicy
       Q_OPC = R +gamma*((Q_OPC-QTheta)+Vstates[k]); //as paper, but might be bad
       //Q_OPC = R +gamma*( C*(Q_OPC-QTheta) +Vstates[k]);
       //traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
-      traj->offPol_weight[k] = policies[k].sampImpWeight;
+      traj->offPolicImpW[k] = policies[k].sampImpWeight;
       Vstats[thrID].dumpStats(QTheta, Q_err);
     }
 

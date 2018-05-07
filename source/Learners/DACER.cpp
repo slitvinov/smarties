@@ -279,7 +279,7 @@ class DACER : public Learner_offPolicy
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++)
         for(int j = data->Set[i]->just_sampled; j>=0; j--)
-          updateVret(data->Set[i], j, data->Set[i]->state_vals[j], data->Set[i]->offPol_weight[j]);
+          updateVret(data->Set[i], j, data->Set[i]->state_vals[j], data->Set[i]->offPolicImpW[j]);
     #endif
 
     profiler->stop_start("PRNE");

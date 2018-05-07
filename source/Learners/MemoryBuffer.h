@@ -80,7 +80,7 @@ public:
       if(i>=Set.size()) break;
       Uint _nOffPol = 0;
       for(Uint j=0; j<Set[i]->ndata(); j++)
-         _nOffPol += (Set[i]->offPol_weight[j]>1+C || Set[i]->offPol_weight[j]<1-C);
+        _nOffPol +=(Set[i]->offPolicImpW[j]>1+C || Set[i]->offPolicImpW[j]<1-C);
       if(_nOffPol > tol*Set[i]->ndata()) {
         std::swap(Set[i], Set.back());
         popBackSequence();

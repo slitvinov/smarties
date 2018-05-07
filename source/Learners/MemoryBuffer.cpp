@@ -237,10 +237,8 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
         Set[i]->nOffPol = 0; Set[i]->MSE = 0;
         for(Uint j=0; j<Set[i]->ndata(); j++) {
           Set[i]->MSE += Set[i]->SquaredError[j];
-          const Real W = Set[i]->offPol_weight[j];
+          const Real W = Set[i]->offPolicImpW[j];
           assert(Set[i]->SquaredError[j]>=0 && W>=0);
-          //if(Set[i]->SquaredError[j]<0)  {_die("%f",Set[i]->SquaredError[j]) }
-          //if(Set[i]->offPol_weight[j]<0) {_die("%f",Set[i]->offPol_weight[j])}
           // sequence is off policy if offPol W is out of 1/C : C
           if(W>CmaxRho || W<invC) Set[i]->nOffPol += 1;
         }
@@ -320,48 +318,34 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
 
 void MemoryBuffer::updateImportanceWeights()
 {
-  const Uint ndata = bSampleSeq ? nSequences.load() : nTransitions.load();
-  vector<Uint> inds(ndata);
-  std::iota(inds.begin(), inds.end(), 0);
-  Rvec errors(ndata), Ps(ndata), Ws(ndata);
+  Rvec probs(nTransitions.load()), wghts(nTransitions.load());
+  const Real EPS = numeric_limits<float>::epsilon();
+  Real minP = 1e9, sumP = 0;
+  #pragma omp parallel reduction(min: minP) reduction(+: sumP)
+  for(Uint i=0, k=0; i<Set.size(); i++) {
+    #pragma omp for nowait
+    for(Uint j=0; j<Set[i]->ndata(); j++) {
+      const Real P = Set[i]->SquaredError[j]*Set[i]->offPolicImpW[j] + EPS;
+      minP  = std::min(minP, P);
+      sumP += P;
+      probs[k+j] = P;
+    }
+    k += Set[i]->ndata();
+  }
 
-  for(Uint i=0, k=0; i<Set.size(); i++)
-    for(Uint j=0; j<Set[i]->ndata(); j++)
-      //if(bSampleSeq) errors[i] = std::max(maxerr, Set[i]->SquaredError[j]);
-      if(bSampleSeq) errors[i] += Set[i]->SquaredError[j]/Set[i]->ndata();
-      else errors[k++] = Set[i]->SquaredError[j];
-
-  #if 1
-    // As in the prioritized exp replay paper, importance weight is ~sqrt()
-    // of 1/rank of the sample's MSE error (ie big errors are sampled more).
-    const auto comp=[&](const Uint a,const Uint b){return errors[a]>errors[b];};
-    __gnu_parallel::sort(inds.begin(), inds.end(), comp);
-    assert(errors[inds.front()] >= errors[inds.back()]);
-
-    //sort in decreasing order of the error. Points with zero error
-    //(which means that they are not yet processed) are put at the top:
-    #pragma omp parallel for
-    for(Uint i=0; i<ndata; i++)
-      Ps[inds[i]] = errors[inds[i]]>0 ? std::sqrt(1./(i+1.)) : 1;
-  #else
-    Ps = errors; //otherwise we use error magnitude as probability
-  #endif
-
-  Real minP = 2, sumP = 0;
-  #pragma omp parallel for reduction(min: minP) reduction(+: sumP)
-  for(Uint i=0; i<ndata; i++) { minP = std::min(minP, Ps[i]); sumP += Ps[i]; }
-  assert(minP<=1 && sumP>0);
-
-  #pragma omp parallel for
-  for(Uint i=0; i<ndata; i++) { Ws[i] = minP / Ps[i]; Ps[i] = Ps[i ] /sumP; }
+  #pragma omp parallel
+  for(Uint i=0, k=0; i<Set.size(); i++) {
+    #pragma omp for nowait
+    for(Uint j=0; j<Set[i]->ndata(); j++) {
+      wghts[k+j] = minP / probs[k+j];
+      probs[k+j] = probs[k+j] / sumP;
+      Set[i]->priorityImpW[j] = wghts[k+j];
+    }
+    k += Set[i]->ndata();
+  }
 
   if(dist not_eq nullptr) delete dist;
-  dist = new std::discrete_distribution<Uint>(Ps.begin(), Ps.end());
-
-  for(Uint i=0, k=0; i<Set.size(); i++)
-    for(Uint j=0; j<Set[i]->ndata(); j++)
-      if(bSampleSeq) Set[i]->imp_weight[j] = Ws[i];
-      else Set[i]->imp_weight[j] = Ws[k++];
+  dist = new std::discrete_distribution<Uint>(probs.begin(), probs.end());
 }
 
 void MemoryBuffer::getMetrics(ostringstream& buff)
@@ -510,7 +494,7 @@ void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
 
     sampleMultipleTrans(&s[start], &o[start], stride, thrI);
     for(int i=start; i<start+stride; i++) {
-      const Real W = Set[s[i]]->offPol_weight[o[i]], invW = 1/W;
+      const Real W = Set[s[i]]->offPolicImpW[o[i]], invW = 1/W;
       load[i].first = i; load[i].second = std::max(W, invW);
     }
     std::sort(load.begin()+start, load.begin()+start+stride, isAbeforeB);

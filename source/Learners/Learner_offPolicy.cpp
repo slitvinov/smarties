@@ -123,7 +123,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
     {
       const int thrID = omp_get_thread_num();
       if(thrID == 0) profiler_ext->stop_start("WORK");
-      //printf("Thread %d done %u %u %f\n",thrID,seq,obs,data->Set[seq]->offPol_weight[obs]); fflush(0);
+      //printf("Thread %d done %u %u %f\n",thrID,seq,obs,data->Set[seq]->offPolicImpW[obs]); fflush(0);
       if(bSampleSequences)
       {
         obs = data->Set[seq]->ndata()-1;

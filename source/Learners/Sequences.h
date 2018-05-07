@@ -49,8 +49,10 @@ struct Sequence
   Rvec state_vals;
   Rvec Q_RET;
   //Used for sampling, filtering, and sorting off policy data:
-  Rvec SquaredError, offPol_weight;
-  Rvec imp_weight;
+  Rvec SquaredError;
+  Rvec offPolicImpW;
+  Rvec priorityImpW;
+  //Rvec KullbLeibDiv;
 
   inline Uint ndata() const {
     assert(tuples.size());
@@ -72,9 +74,12 @@ struct Sequence
     for(auto &t : tuples) _dispose_object(t);
     tuples.clear();
     ended=0; ID=-1; just_sampled=-1; nOffPol=0; MSE=0;
-    SquaredError.clear(); offPol_weight.clear();
-    action_adv.clear(); state_vals.clear(); Q_RET.clear();
-    imp_weight.clear();
+    SquaredError.clear();
+    offPolicImpW.clear();
+    priorityImpW.clear();
+    action_adv.clear();
+    state_vals.clear();
+    Q_RET.clear();
   }
   inline void setSampled(const int t) //update index of latest sampled time step
   {
@@ -107,36 +112,36 @@ struct Sequence
   }
   inline void setOffPolWeight(const Uint t, const Real W)
   {
-    assert( t < offPol_weight.size() );
+    assert( t < offPolicImpW.size() );
     #pragma omp atomic write
-    offPol_weight[t] = W;
+    offPolicImpW[t] = W;
   }
 
   inline bool isFarPolicyPPO(const Uint t, const Real W, const Real C)
   {
     assert(C<1) ;
     const bool isOff = W > 1+C || W < 1-C;
-    assert(t<offPol_weight.size());
+    assert(t<offPolicImpW.size());
     #pragma omp atomic write
-    offPol_weight[t] = W;
+    offPolicImpW[t] = W;
     return isOff;
   }
   inline bool isFarPolicy(const Uint t, const Real W, const Real C)
   {
     const bool isOff = W > C || W < 1/C;
-    assert(t<offPol_weight.size());
+    assert(t<offPolicImpW.size());
     #pragma omp atomic write
-    offPol_weight[t] = W;
+    offPolicImpW[t] = W;
     // If C<=1 assume we never filter far policy samples
     return C>1 && isOff;
   }
   inline bool distFarPolicy(const Uint t, const Real D, const Real W, const Real target)
   {
-    assert(t<offPol_weight.size());
+    assert(t<offPolicImpW.size());
     #pragma omp atomic write
     SquaredError[t] = D;
     #pragma omp atomic write
-    offPol_weight[t] = W;
+    offPolicImpW[t] = W;
     // If target<=0 assume we never filter far policy samples
     return target>0 && D > target;
   }
@@ -158,7 +163,7 @@ struct Sequence
     // this must be taken into account when sorting/filtering
     SquaredError = Rvec(ndata(), 0);
     // off pol importance weights are initialized to 1s
-    offPol_weight = Rvec(ndata(), 1);
+    offPolicImpW = Rvec(ndata(), 1);
   }
 };
 
