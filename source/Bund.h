@@ -121,15 +121,18 @@ inline string print(const vector<T> vals)
   return o.str();
 }
 
-inline void real2SS(ostringstream&B,const Real V,const Uint W, const bool bPos)
+inline void real2SS(ostringstream&B,const Real V,const int W, const bool bPos)
 {
   B<<" "<<std::setw(W);
-  if(std::fabs(V)>= 1e3) B << std::setprecision(W-6+bPos);
+  if(std::fabs(V)>= 1e4) B << std::setprecision(std::max(W-7+bPos,0));
   else
-  if(std::fabs(V)>= 1e2) B << std::setprecision(W-5+bPos);
+  if(std::fabs(V)>= 1e3) B << std::setprecision(std::max(W-6+bPos,0));
   else
-  if(std::fabs(V)>= 1e1) B << std::setprecision(W-4+bPos);
-  else                   B << std::setprecision(W-3+bPos);
+  if(std::fabs(V)>= 1e2) B << std::setprecision(std::max(W-5+bPos,0));
+  else
+  if(std::fabs(V)>= 1e1) B << std::setprecision(std::max(W-4+bPos,0));
+  else
+                         B << std::setprecision(std::max(W-3+bPos,0));
   B<<std::fixed<<V;
 }
 
