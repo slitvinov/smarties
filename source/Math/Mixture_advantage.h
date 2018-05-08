@@ -87,7 +87,7 @@ private:
         for (Uint j=0; j<nA; j++)
         for (Uint i=0; i<=j; i++)
           if (i<j) ret[e][nA*j +i] = netOutputs[kL++];
-          else if (i==j) ret[e][nA*j +i] = posDefMap_func(netOutputs[kL++]);
+          else if (i==j) ret[e][nA*j +i] = unbPosMap_func(netOutputs[kL++]);
       }
       assert(kL==start_matrix+nL);
       return ret;
@@ -141,7 +141,7 @@ public:
         for (Uint k=i; k<nA; k++)
           dErrdL += dErrdP[nA*j +k] * L[e][nA*k +i];
 
-        if(i==j) netGradient[kl] = dErrdL * posDefMap_diff(netOutputs[kl]);
+        if(i==j) netGradient[kl] = dErrdL * unbPosMap_diff(netOutputs[kl]);
         else
         if(i<j)  netGradient[kl] = dErrdL;
         kl++;

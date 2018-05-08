@@ -64,7 +64,7 @@ private:
   inline array<Real,nExperts> extract_unnorm() const {
     array<Real, nExperts> ret;
     if(nExperts == 1) {ret[0] = 1; return ret;}
-    for(Uint i=0;i<nExperts;i++) ret[i]=posDefMap_func(netOutputs[iExperts+i]);
+    for(Uint i=0;i<nExperts;i++) ret[i]=unbPosMap_func(netOutputs[iExperts+i]);
     return ret;
   }
   inline Real compute_norm() const {
@@ -102,7 +102,7 @@ private:
       assert(netOutputs.size() >= start + nA);
       ret[i] = Rvec(nA);
       for (Uint j=0; j<nA; j++)
-        ret[i][j] = std::sqrt(posDefMap_func(netOutputs[start+j]));
+        ret[i][j] = std::sqrt(noiseMap_func(netOutputs[start+j]));
     }
     return ret;
   }
@@ -114,7 +114,7 @@ private:
       assert(netOutputs.size() >= start + nA);
       ret[i] = Rvec(nA);
       for(Uint j=0; j<nA; j++)
-        ret[i][j] = posDefMap_func(netOutputs[start+j]);
+        ret[i][j] = noiseMap_func(netOutputs[start+j]);
     }
     return ret;
   }
@@ -126,7 +126,7 @@ private:
       const Uint start = iPrecs + i*nA;
       assert(netOutputs.size() >= start + nA);
       ret[i] = Rvec(nA);
-      for (Uint j=0; j<nA; j++) ret[i][j] = posDefMap_func(netOutputs[start+j]);
+      for (Uint j=0; j<nA; j++) ret[i][j] = noiseMap_func(netOutputs[start+j]);
     }
     return ret;
   }
@@ -168,9 +168,9 @@ public:
   {
     for(Uint e=0; e<nExperts*aI->dim; e++)
     #ifdef EXTRACT_COVAR
-      initBias.push_back(posDefMap_inverse(greedyEps*greedyEps));
+      initBias.push_back(noiseMap_inverse(greedyEps*greedyEps));
     #else
-      initBias.push_back(posDefMap_inverse(greedyEps));
+      initBias.push_back(noiseMap_inverse(greedyEps));
     #endif
   }
 
@@ -345,7 +345,7 @@ public:
     assert(grad.size() == nP);
     for(Uint j=0; j<nExperts; j++) {
       {
-        const Real diff = posDefMap_diff(netOutputs[iExperts+j]);
+        const Real diff = unbPosMap_diff(netOutputs[iExperts+j]);
         netGradient[iExperts+j] = grad[j] * diff;
       }
       for (Uint i=0; i<nA; i++) {
@@ -360,7 +360,7 @@ public:
             netGradient[iMeans +i+j*nA] = 0;
         }
 
-        const Real diff = posDefMap_diff(netOutputs[iPrecs +i+j*nA]);
+        const Real diff = noiseMap_diff(netOutputs[iPrecs +i+j*nA]);
         netGradient[iPrecs +i+j*nA] = grad[i+j*nA +(nA+1)*nExperts] * diff;
       }
     }

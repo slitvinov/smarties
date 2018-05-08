@@ -9,39 +9,57 @@
 #pragma once
 #include "../Bund.h"
 #include "../StateAction.h"
-#include "../Network/Utils.h"
+#include "../Network/Functions.h"
 
 #ifdef CHEAP_SOFTPLUS
-  inline Real posDefMap_func(const Real val) {
-    return .5*(val+std::sqrt(val*val+1));
-  }
-  inline Real posDefMap_diff(const Real val) {
-    return 0.5*(1.+val/std::sqrt(val*val+1));
-  }
-  inline Real posDefMap_inverse(Real val) {
-    if(val<=0) {
-      warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting greedyEps.");
-      val = numeric_limits<float>::epsilon();
-    }
-    return (val*val -.25)/val;
-  }
+using mapFunc = SoftPlus;
 #else
-  // Used here, std::exp is trigger happy with nans, therefore we clip it
-  // between exp(-32) and exp(16).  
-  inline Real posDefMap_func(const Real val) {
-    return std::log(1+safeExp(val));
-  }
-  inline Real posDefMap_diff(const Real val) {
-    return 1/(1+safeExp(-val));
-  }
-  inline Real posDefMap_inverse(Real val) {
-    if(val<=0) {
-      warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting greedyEps.");
-      val = numeric_limits<float>::epsilon();
-    }
-    return std::log(safeExp(val)-1);
-  }
+using mapFunc = ExpPlus;
 #endif
+
+#define UNBND_VAR
+
+inline Real unbPosMap_func(const Real val) {
+  return mapFunc::_eval(val);
+}
+inline Real unbPosMap_diff(const Real val) {
+  return mapFunc::_evalDiff(val);
+}
+inline Real unbPosMap_inverse(Real val) {
+  if(val<=0) {
+    warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting greedyEps.");
+    val = numeric_limits<float>::epsilon();
+  }
+  return mapFunc::_inv(val);
+}
+
+inline Real noiseMap_func(const Real val) {
+  #ifdef UNBND_VAR
+    return unbPosMap_func(val);
+  #else
+    return Sigm::_eval(val);
+  #endif
+}
+inline Real noiseMap_diff(const Real val) {
+  #ifdef UNBND_VAR
+    return unbPosMap_diff(val);
+  #else
+    return Sigm::_evalDiff(val);
+  #endif
+}
+inline Real noiseMap_inverse(Real val) {
+  #ifdef UNBND_VAR
+    return unbPosMap_inverse(val);
+  #else
+    if(val<=0 || val>=1) {
+      warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting greedyEps.");
+      if(val<=0) val =   numeric_limits<float>::epsilon();
+      if(val>=1) val = 1-numeric_limits<float>::epsilon();
+    }
+    return Sigm::_inv(val);
+  #endif
+}
+
 
 inline Real clip(const Real val, const Real ub, const Real lb)
 {

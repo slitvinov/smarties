@@ -61,23 +61,23 @@ private:
     for (Uint e=0; e<nExperts; e++) {
       ret[e] = Rvec(nA);
       for(Uint i=0; i<nA; i++)
-        ret[e][i] = posDefMap_func(netOutputs[start_matrix +nA*e +i]);
+        ret[e][i] = unbPosMap_func(netOutputs[start_matrix +nA*e +i]);
     }
     return ret;
   }
   inline array<Real,nExperts> extract_coefs() const
   {
     array<Real, nExperts> ret;
-    for(Uint e=0; e<nExperts;e++) ret[e]=posDefMap_func(netOutputs[start_coefs+e]);
+    for(Uint e=0; e<nExperts;e++) ret[e]=unbPosMap_func(netOutputs[start_coefs+e]);
     return ret;
   }
 
   inline void grad_matrix(Rvec& netGradient, const Real err) const
   {
     for (Uint e=0; e<nExperts; e++) {
-      netGradient[start_coefs+e]*=err*posDefMap_diff(netOutputs[start_coefs+e]);
+      netGradient[start_coefs+e]*=err*unbPosMap_diff(netOutputs[start_coefs+e]);
       for (Uint i=0, ind=start_matrix+nA*e; i<nA; i++, ind++)
-         netGradient[ind] *= err*posDefMap_diff(netOutputs[ind]);
+         netGradient[ind] *= err*unbPosMap_diff(netOutputs[ind]);
     }
   }
 

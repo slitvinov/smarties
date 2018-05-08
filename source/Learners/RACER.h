@@ -123,7 +123,11 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
 
     #ifdef RACER_simpleSigma // sigma not linked to network: parametric output
       build.setLastLayersBias(initBias);
-      Real initParam = Gaussian_mixture<NEXPERTS>::precision_inverse(greedyEps);
+      #ifdef EXTRACT_COVAR
+        Real initParam = noiseMap_inverse(greedyEps*greedyEps);
+      #else
+        Real initParam = noiseMap_inverse(greedyEps);
+      #endif
       build.addParamLayer(NEXPERTS * nA, "Linear", initParam);
     #else
       Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, greedyEps);

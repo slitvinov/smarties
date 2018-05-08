@@ -112,11 +112,19 @@ struct Sigm : public Function {
     return std::sqrt(6./(inps + outs));
   }
   static inline nnReal _eval(const nnReal in) {
-    if(in > 0) return 1/(1+std::exp(-in));
+    if(in > 0) return 1/(1+safeExp(-in));
     else {
-      const nnReal ex = std::exp(in);
+      const nnReal ex = safeExp(in);
       return ex/(1+ex);
     }
+  }
+  static inline nnReal _inv(const nnReal in) {
+   assert(in > 0 && in < 1);
+   return - std::log(1/in - 1);
+  }
+  static inline nnReal _evalDiff(const nnReal in) {
+    const Real expx = safeExp(in);
+    return expx / std::pow(expx+1, 2);
   }
   static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return out*(1-out);
@@ -131,8 +139,7 @@ struct Sigm : public Function {
     return _eval(in);
   }
   nnReal inverse(const nnReal in) const override {
-    assert(in > 0 && in < 1);
-    return - std::log(1/in - 1);
+    return _inv(in);
   }
   nnReal evalDiff(const nnReal in, const nnReal out) const override {
     return _evalDiff(in, out);
@@ -277,11 +284,19 @@ struct ExpPlus : public Function {
   static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(2./inps);
   }
+  static inline nnReal _inv(const nnReal in) {
+    return std::log(safeExp(in)-1);
+  }
+  // Used here, std::exp is trigger happy with nans, therefore we clip it
+  // between exp(-32) and exp(16).
   static inline nnReal _eval(const nnReal in) {
-    return std::log(1+std::exp(in));
+    return std::log(1+safeExp(in));
+  }
+  static inline nnReal _evalDiff(const nnReal in) {
+    return 1/(1+safeExp(-in));
   }
   static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
-    return 1/(1+std::exp(-in));
+    return 1/(1+safeExp(-in));
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
     for(Uint i=0; i<N; i++) out[i] = _eval(in[i]);
@@ -293,7 +308,7 @@ struct ExpPlus : public Function {
     return _eval(in);
   }
   nnReal inverse(const nnReal in) const override {
-    return std::log(std::exp(in)-1);
+    return _inv(in);
   }
   nnReal evalDiff(const nnReal in, const nnReal out) const override {
     return _evalDiff(in, out);
@@ -310,8 +325,15 @@ struct SoftPlus : public Function {
   static inline nnReal _eval(const nnReal in) {
     return .5*(in + std::sqrt(1+in*in));
   }
+  static inline nnReal _evalDiff(const nnReal in) {
+    return .5*(1 + in/std::sqrt(1+in*in));
+  }
   static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return .5*(1 + in/std::sqrt(1+in*in));
+  }
+  static inline nnReal _inv(const nnReal in) {
+    assert(in > 0);
+    return (in*in - 0.25)/in;
   }
   static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
@@ -320,13 +342,8 @@ struct SoftPlus : public Function {
   void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
     return _eval(in, out, N);
   }
-  nnReal eval(const nnReal in) const override {
-    return _eval(in);
-  }
-  nnReal inverse(const nnReal in) const override {
-    assert(in > 0);
-    return (in*in - 0.25)/in;
-  }
+  nnReal eval(const nnReal in) const override { return _eval(in); }
+  nnReal inverse(const nnReal in) const override { return _inv(in); }
   nnReal evalDiff(const nnReal in, const nnReal out) const override {
     return _evalDiff(in, out);
   }

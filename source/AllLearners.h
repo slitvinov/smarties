@@ -79,6 +79,9 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
   }
   else if (settings.learner == "DP" || settings.learner == "DPG") {
     settings.policyVecDim = 2*env->aI.dim;
+    // non-NPER DPG is unstable with annealed network learn rate
+    // because critic network must adapt quickly
+    if(settings.impWeight<=0) settings.epsAnneal = 0;
     o << env->aI.dim << " " << settings.policyVecDim;
     print(o, "problem_size.log", settings.world_rank);
     return new DPG(env, settings);

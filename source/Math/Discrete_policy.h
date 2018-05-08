@@ -44,7 +44,7 @@ struct Discrete_policy
   {
     assert(netOutputs.size()>=start_prob+nA);
     Rvec ret(nA);
-    for (Uint j=0; j<nA; j++) ret[j] = posDefMap_func(netOutputs[start_prob+j]);
+    for (Uint j=0; j<nA; j++) ret[j] = unbPosMap_func(netOutputs[start_prob+j]);
     return ret;
   }
 
@@ -142,7 +142,7 @@ struct Discrete_policy
   {
     assert(netGradient.size()>=start_prob+nA && grad.size() == nA);
     for (Uint j=0; j<nA; j++)
-    netGradient[start_prob+j]= grad[j]*posDefMap_diff(netOutputs[start_prob+j]);
+    netGradient[start_prob+j]= grad[j]*unbPosMap_diff(netOutputs[start_prob+j]);
   }
 
   inline Rvec getProbs() const {

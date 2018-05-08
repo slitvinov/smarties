@@ -35,7 +35,7 @@ tgtFrac(_set.klDivConstraint)
 
   F.push_back(new Approximator("policy", _set, input, data));
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
-  const Real initParam = posDefMap_inverse(greedyEps);
+  const Real initParam = noiseMap_inverse(greedyEps);
   //F[0]->blockInpGrad = true; // this line must happen b4 initialize
   build_pol.addParamLayer(nA, "Linear", initParam);
   F[0]->initializeNetwork(build_pol, 0);
@@ -44,7 +44,7 @@ tgtFrac(_set.klDivConstraint)
   F.push_back(new Approximator("critic", _set, input, data, relay));
   //relay->scaling = Rvec(nA, 1/greedyEps);
 
-  //_set.nnLambda = 1e-4; // also wants L2 penl coef
+  _set.nnLambda = 1e-4; // also wants L2 penl coef
   _set.learnrate *= 10; // DPG wants critic faster than actor
   _set.nnOutputFunc = "Linear"; // critic must be linear
   // we want initial Q to be approx equal to 0 everywhere.

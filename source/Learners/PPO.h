@@ -301,7 +301,7 @@ class PPO_cont : public PPO<Gaussian_policy, Rvec >
       build.setLastLayersBias(initBias);
     #else  //stddev params
       Builder build_pol = F[0]->buildFromSettings(_set,   {aInfo.dim});
-      const Real initParam = posDefMap_inverse(greedyEps);
+      const Real initParam = noiseMap_inverse(greedyEps);
       build_pol.addParamLayer(aInfo.dim, "Linear", initParam);
     #endif
     F[0]->initializeNetwork(build_pol);
