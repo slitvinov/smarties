@@ -17,8 +17,6 @@ using mapFunc = SoftPlus;
 using mapFunc = ExpPlus;
 #endif
 
-#define UNBND_VAR
-
 inline Real unbPosMap_func(const Real val) {
   return mapFunc::_eval(val);
 }

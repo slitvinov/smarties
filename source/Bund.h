@@ -60,6 +60,7 @@ typedef double memReal;
 // policies, advantages, and all math objects that require pos def net outputs
 //#define CHEAP_SOFTPLUS
 #define EXTRACT_COVAR
+//#define UNBND_VAR
 
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 

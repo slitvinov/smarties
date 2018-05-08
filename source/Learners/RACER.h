@@ -27,6 +27,7 @@
 
 #include "../Math/Discrete_advantage.h"
 #include "RACER.cpp"
+
 //#define RACER_simpleSigma
 
 class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
