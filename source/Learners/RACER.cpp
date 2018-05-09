@@ -240,8 +240,6 @@ class RACER : public Learner_offPolicy
     sampleInfo[0] = std::sqrt(sampleInfo[0]);
     sampleInfo[1] = std::sqrt(sampleInfo[1]);
     sampleInfo[2] = sampleInfo[2]/(sampleInfo[1]+nnEPS);
-    //for(Uint i=0; i<polG.size(); i++)
-    //  penalG[i] *= sampleInfo[0]/(sampleInfo[1]+2.22e-16);
     const Rvec finalG  = weightSum2Grads(polG, penalG, beta);
 
     #if 0
