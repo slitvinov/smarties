@@ -52,6 +52,13 @@ struct Encapsulator
     for (Uint i=0; i<nThreads; i++) // numa aware allocation
      #pragma omp critical
       series[i].reserve(settings.maxSeqLen);
+
+    if(not net->layers[0]->bInput) die("should not be possible");
+    const Uint nInps = data->sI.dimUsed*(1+nAppended);
+    if(net->layers[1]->spanCompInpGrads not_eq nInps)
+      die("should not be possible");
+    net->layers[1]->spanCompInpGrads  = 0;
+    net->layers[1]->startCompInpGrads = nInps;
   }
 
   inline void prepare(const Uint len, const Uint samp, const Uint thrID) const

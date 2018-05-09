@@ -9,16 +9,10 @@
 
 #pragma once
 #include "Layers.h"
-#ifndef __STDC_VERSION__ //it should never be defined with g++
-#define __STDC_VERSION__ 0
-#endif
-#if 1 //def NDEBUG
-#include "cblas.h"
-#endif
 
 class BaseLayer: public Layer
 {
-  const Uint nInputs, nNeurons, bRecurrent, link, nInp_simd, nOut_simd;
+  const Uint nInputs, nNeurons, bRecurrent, nOut_simd;
   const Function* const func;
   vector<nnReal> initVals;
 
@@ -44,10 +38,10 @@ class BaseLayer: public Layer
   }
 
   BaseLayer(Uint _ID, Uint _nInputs, Uint _nNeurons, string funcType, bool bRnn,
-    bool bOut, Uint iLink) : Layer(_ID, _nNeurons, bOut), nInputs(_nInputs),
-    nNeurons(_nNeurons), bRecurrent(bRnn), link(iLink),
-    nInp_simd(roundUpSimd(_nInputs)), nOut_simd(roundUpSimd(_nNeurons)),
-    func(makeFunction(funcType)) {
+    bool bOut, Uint iLink) : Layer(_ID, _nNeurons, bOut, false, iLink),
+    nInputs(_nInputs), nNeurons(_nNeurons), bRecurrent(bRnn),
+    nOut_simd(roundUpSimd(_nNeurons)), func(makeFunction(funcType)) {
+      spanCompInpGrads = _nInputs;
       printf("(%u) %s %s%sInnerProduct Layer of size:%u linked to Layer:%u of size:%u.\n",
       ID, funcType.c_str(), bOutput? "output ":"", bRecurrent? "Recurrent-":"",
         nNeurons, ID-link, nInputs);
@@ -93,57 +87,16 @@ class BaseLayer: public Layer
                   const Parameters*const grad,
                   const Parameters*const para) const override
   {
-    nnReal* const deltas = curr->E(ID);
     {
-            nnReal* const grad_b = grad->B(ID);
+      nnReal* const deltas = curr->E(ID);
       const nnReal* const suminp = curr->X(ID);
       const nnReal* const outval = curr->Y(ID);
       for(Uint o=0; o<nNeurons; o++)
         deltas[o] *= func->evalDiff(suminp[o], outval[o]);
-
-      //curr->clipDelta(ID, nLinkedTo);
-      #pragma omp simd aligned(deltas, grad_b : VEC_WIDTH)
-      for(Uint o=0; o<nNeurons; o++) grad_b[o] += deltas[o];
     }
-    {
-      const nnReal* const inputs = curr->Y(ID-link);
-            nnReal* const grad_w = grad->W(ID);
 
-      for(Uint i=0; i<nInputs;  i++) {
-              nnReal* const G = grad_w + nOut_simd*i;
-        #pragma omp simd aligned(deltas,inputs,G : VEC_WIDTH)
-        for(Uint o=0; o<nNeurons; o++) G[o] += inputs[i] * deltas[o];
-      }
-
-      if( forceBackProp || not curr->input[ID-link] )
-      {
-              nnReal* const errors = curr->E(ID-link);
-        //const nnReal* const weight = para->W_T(ID);
-        //for(Uint o=0; o<nNeurons; o++) {
-        //  const nnReal* const W = weight + nInp_simd*o;
-        //  #pragma omp simd aligned(deltas,errors,W : VEC_WIDTH)
-        //  for(Uint i=0; i<nInputs;  i++) errors[i] += W[i] * deltas[o];
-        //}
-        const nnReal* const weight = para->W(ID);
-        cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, nNeurons, 1,
-          weight, nOut_simd, deltas, 1, 1, errors, 1);
-      }
-    }
-    if(bRecurrent && prev not_eq nullptr)
-    {
-      const nnReal* const inputs = prev->Y(ID);
-            nnReal* const errors = prev->E(ID);
-      const nnReal* const weight = para->W(ID) +nOut_simd*nInputs;
-            nnReal* const grad_w = grad->W(ID) +nOut_simd*nInputs;
-
-      for(Uint i=0; i<nNeurons;  i++) {
-        nnReal* const G = grad_w + nOut_simd*i;
-        #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH)
-        for(Uint o=0; o<nNeurons; o++) G[o] += inputs[i] * deltas[o];
-      }
-      cblas_dgemv(CblasRowMajor, CblasNoTrans, nNeurons, nNeurons, 1,
-        weight, nOut_simd, deltas, 1, 1, errors, 1);
-    }
+    Layer::backward(nInputs, nNeurons, nOut_simd, bRecurrent? nNeurons : 0,
+            prev, curr, next, grad, para);
   }
 
   void initialize(mt19937* const gen, const Parameters*const para,
@@ -171,13 +124,13 @@ class BaseLayer: public Layer
     }
   }
 
-  void transpose(const Parameters*const para) const override
-  {
+  //void transpose(const Parameters*const para) const override
+  //{
     //const nnReal* const W   = para->W(ID);
     //      nnReal* const W_T = para->W_T(ID);
     //for(Uint i=0; i<nInputs;  i++)
     //  for(Uint o=0; o<nNeurons; o++) W_T[nInp_simd*o + i] = W[nOut_simd*i + o];
-  }
+  //}
 
   void orthogonalize(const Parameters*const para) const
   {

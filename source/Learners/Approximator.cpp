@@ -123,8 +123,6 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor)
    {
      series[i].reserve(settings.maxSeqLen);
      series_tgt[i].reserve(settings.maxSeqLen);
-     if(relay not_eq nullptr)
-      relayG[i] = net->allocateParameters();
    }
 
   if(relay not_eq nullptr) {
@@ -139,10 +137,25 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor)
     } else relayInp = 0;
   }
 
-  if(input->net not_eq nullptr) {
-    if(not net->layers[0]->bInput) die("should not be possible");
-    for(Uint i=1; i<net->layers.size() && not blockInpGrad; i++)
-      net->layers[i]->forceBackProp = true;
+  if(not net->layers[0]->bInput) die("should not be possible");
+  // skip backprop to input vector or to input features if `blockInpGrad`
+  if ( input->net == nullptr or blockInpGrad ) {
+    Uint layBckPrpInp = 1, nInps = input->nOutputs();
+    // make sure that we are computing relay gradient
+    if(relayInp>0) { //then lay 0 is input, 1 is relay, 2 is joining
+      layBckPrpInp = 3;
+      if(not net->layers[1]->bInput) die("should not be possible"); //relay
+      if(net->layers[2]->bInput) die("should not be possible"); //joining
+    }
+    if(relay==nullptr) {
+      if(net->layers[layBckPrpInp]->spanCompInpGrads!=nInps)
+        die("should not be possible");
+    } else
+      if(net->layers[layBckPrpInp]->spanCompInpGrads!=nInps+relay->nOutputs())
+        die("should not be possible");
+
+    net->layers[layBckPrpInp]->spanCompInpGrads -= nInps;
+    net->layers[layBckPrpInp]->startCompInpGrads = nInps;
   }
 
   #ifdef __CHECK_DIFF //check gradients with finite differences
@@ -238,7 +251,7 @@ Rvec Approximator::relay_backprop(const Rvec err,
   const int ind = mapTime2Ind(samp, thrID), nInp = input->nOutputs();
   assert(act[ind]->written == true && relay not_eq nullptr);
   const Parameters*const W = USEW==CUR? net->weights : net->tgt_weights;
-  const Rvec ret = net->inpBackProp(err, act[ind], relayG[thrID], W, relayInp);
+  const Rvec ret = net->inpBackProp(err, act[ind], W, relayInp);
   for(Uint j=0; j<ret.size(); j++)
     assert(!std::isnan(ret[j]) && !std::isinf(ret[j]));
   //if(!thrID) {

@@ -12,7 +12,7 @@
 
 class LSTMLayer: public Layer
 {
-  const Uint nInputs, nCells, link;
+  const Uint nInputs, nCells;
   const Function* const cell;
 
  public:
@@ -54,8 +54,9 @@ class LSTMLayer: public Layer
   ~LSTMLayer() { _dispose_object(cell); }
 
   LSTMLayer(Uint _ID, Uint _nInputs, Uint _nCells, string funcType,
-    bool bOut, Uint iLink) :  Layer(_ID, _nCells, bOut), nInputs(_nInputs),
-    nCells(_nCells), link(iLink), cell(makeFunction(funcType)) {
+    bool bOut, Uint iLink) :  Layer(_ID, _nCells, bOut, false, iLink),
+    nInputs(_nInputs), nCells(_nCells), cell(makeFunction(funcType)) {
+    spanCompInpGrads = _nInputs;
     printf("(%u) %s %sLSTM Layer of size:%u linked to Layer:%u of size:%u.\n",
     ID, funcType.c_str(), bOutput? "output ":"", nCells, ID-link, nInputs);
     fflush(0);
@@ -148,44 +149,8 @@ class LSTMLayer: public Layer
       else deltas[o+2*nCells] = 0;
       deltas[o+3*nCells] = OGate[o]*(1-OGate[o]) * D * cellOutput[o];
     }
-    { // now that all is loaded in place, we can treat it like normal RNN layer
-      nnReal* const grad_b = grad->B(ID);
-      #pragma omp simd aligned(deltas, grad_b : VEC_WIDTH)
-      for(Uint o=0; o<4*nCells; o++) grad_b[o] += deltas[o];
-    }
-    {
-      const nnReal* const inputs = curr->Y(ID-link);
-            nnReal* const grad_w = grad->W(ID);
 
-      for(Uint i=0; i<nInputs;  i++) {
-              nnReal* const G = grad_w + 4*nCells*i;
-        #pragma omp simd aligned(deltas,inputs,G : VEC_WIDTH)
-        for(Uint o=0; o<4*nCells; o++) G[o] += inputs[i] * deltas[o];
-      }
-
-      if( forceBackProp || not curr->input[ID-link] )
-      {
-              nnReal* const errors = curr->E(ID-link);
-        const nnReal* const weight = para->W(ID);
-        cblas_dgemv(CblasRowMajor, CblasNoTrans, nInputs, 4*nCells, 1,
-          weight, 4*nCells, deltas, 1, 1, errors, 1);
-      }
-    }
-    if(prev not_eq nullptr)
-    {
-      const nnReal* const inputs = prev->Y(ID);
-            nnReal* const errors = prev->E(ID);
-      const nnReal* const weight = para->W(ID) +(4*nCells)*nInputs;
-            nnReal* const grad_w = grad->W(ID) +(4*nCells)*nInputs;
-
-      for(Uint i=0; i<nCells;  i++) {
-        nnReal* const G = grad_w + 4*nCells*i;
-        #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH)
-        for(Uint o=0; o<4*nCells; o++) G[o] += inputs[i] * deltas[o];
-      }
-      cblas_dgemv(CblasRowMajor, CblasNoTrans, nCells, 4*nCells, 1,
-        weight, 4*nCells, deltas, 1, 1, errors, 1);
-    }
+    Layer::backward(nInputs, 4*nCells, 4*nCells, nCells, prev,curr,next, grad,para);
   }
 
   void initialize(mt19937* const gen, const Parameters*const para,

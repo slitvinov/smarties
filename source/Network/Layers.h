@@ -13,13 +13,20 @@
 #include "Functions.h"
 #include "../Profiler.h"
 
+#ifndef __STDC_VERSION__ //it should never be defined with g++
+#define __STDC_VERSION__ 0
+#endif
+#include "cblas.h"
+
 // Base class of all layer types. To insert a new layer type, overwrite all
 // virtual functions.
 class Layer
 {
  public:
-  const Uint size, ID, bInput;
-  Uint bOutput, nLinkedTo = 0, forceBackProp = false;
+  const Uint size, ID, link, bInput;
+  Uint bOutput;
+  Uint spanCompInpGrads = 0, startCompInpGrads = 0;
+
   inline Uint number() const { return ID; }
   inline Uint nOutputs() const { return size; }
 
@@ -37,8 +44,13 @@ class Layer
   // vector (eg. parametric layer or linear output layer)
   virtual void biasInitialValues(const vector<nnReal> init) = 0;
 
-  Layer(Uint _ID, Uint _size, bool bOut, const bool bInp = false):
-  size(_size), ID(_ID), bInput(bInp), bOutput(bOut)  {}
+  Layer(
+    Uint _ID,
+    Uint _size,
+    bool bOut,
+    bool bInp = false,
+    Uint _link = 0):
+    size(_size), ID(_ID), link(_link), bInput(bInp), bOutput(bOut)  {}
   virtual ~Layer() {}
 
   virtual void forward( const Activation*const prev,
@@ -60,6 +72,69 @@ class Layer
                         const Parameters*const grad,
                         const Parameters*const para) const {
     return backward(nullptr, curr, nullptr, grad, para);
+  }
+
+  void backward(const Uint NI, const Uint NO, const Uint NOsimd, const Uint NR,
+                const Activation*const prev,
+                const Activation*const curr,
+                const Activation*const next,
+                const Parameters*const grad,
+                const Parameters*const para) const
+  {
+    const nnReal* const deltas = curr->E(ID);
+    if( spanCompInpGrads )
+    {
+            nnReal* const errors = curr->E(ID-link);
+      const nnReal* const weight = para->W(ID);
+      cblas_dgemv(CblasRowMajor, CblasNoTrans,
+        spanCompInpGrads,
+        NO,
+        1,
+        weight + startCompInpGrads*NOsimd,
+        NOsimd,
+        deltas,
+        1,
+        1,
+        errors + startCompInpGrads,
+        1);
+    }
+
+    if(NR && prev not_eq nullptr)
+    {
+            nnReal* const errors = prev->E(ID);
+      const nnReal* const weight = para->W(ID) +NOsimd*NI;
+      cblas_dgemv(CblasRowMajor, CblasNoTrans, NR, NO, 1,
+        weight, NOsimd, deltas, 1, 1, errors, 1);
+    }
+
+    if(grad == nullptr) return;
+
+    {
+      nnReal* const grad_b = grad->B(ID);
+      #pragma omp simd aligned(deltas, grad_b : VEC_WIDTH)
+      for(Uint o=0; o<NO; o++) grad_b[o] += deltas[o];
+    }
+
+    {
+      const nnReal* const inputs = curr->Y(ID-link);
+            nnReal* const grad_w = grad->W(ID);
+      for(Uint i=0; i<NI;  i++) {
+              nnReal* const G = grad_w + NOsimd*i;
+        #pragma omp simd aligned(deltas,inputs,G : VEC_WIDTH)
+        for(Uint o=0; o<NO; o++) G[o] += inputs[i] * deltas[o];
+      }
+    }
+
+    if(NR && prev not_eq nullptr)
+    {
+      const nnReal* const inputs = prev->Y(ID);
+            nnReal* const grad_w = grad->W(ID) +NOsimd*NI;
+      for(Uint i=0; i<NR;  i++) {
+        nnReal* const G = grad_w + NOsimd*i;
+        #pragma omp simd aligned(deltas, inputs, G : VEC_WIDTH)
+        for(Uint o=0; o<NO; o++) G[o] += inputs[i] * deltas[o];
+      }
+    }
   }
 
   // Initialize the weights and biases. Probably by sampling.
