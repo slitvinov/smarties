@@ -67,4 +67,4 @@ cp run.sh ${BASEPATH}${RUNFOLDER}/run.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 
 cd ${BASEPATH}${RUNFOLDER}
-./run.sh ${NPROCESS} ${NTHREADS} ${NTASK} ${NMASTERS}
+./run.sh ${NPROCESS} ${NTHREADS} ${NTASKPERNODE} ${NMASTERS} 
