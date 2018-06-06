@@ -11,7 +11,7 @@
 #include "Learners/NAF.h"
 #include "Learners/DPG.h"
 #include "Learners/RACER.h"
-#include "Learners/DACER.h"
+#include "Learners/VRACER.h"
 #include "Learners/ACER.h"
 #include "Learners/PPO.h"
 
@@ -37,12 +37,13 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
   }
   else if (settings.learner == "RACER") {
     if(env->aI.discrete) {
-      settings.policyVecDim = RACER_disc::getnDimPolicy(&env->aI);
+      using RACER_discrete = RACER<Discrete_advantage, Discrete_policy, Uint>;
+      settings.policyVecDim = RACER_discrete::getnDimPolicy(&env->aI);
       o << env->aI.maxLabel << " " << settings.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
-      return new RACER_disc(env, settings);
+      return new RACER_discrete(env, settings);
     } else {
-      typedef RACER_experts RACER_continuous;
+      using RACER_continuous = RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>;
       //typedef RACER_cont RACER_continuous;
       settings.policyVecDim = RACER_continuous::getnDimPolicy(&env->aI);
       o << env->aI.dim << " " << settings.policyVecDim;
@@ -52,15 +53,17 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
   }
   else if (settings.learner == "VRACER") {
     if(env->aI.discrete) {
-      settings.policyVecDim = RACER_disc::getnDimPolicy(&env->aI);
+      using RACER_discrete = VRACER<Discrete_policy, Uint>;
+      settings.policyVecDim = RACER_discrete::getnDimPolicy(&env->aI);
       o << env->aI.maxLabel << " " << settings.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
-      return new DACER_disc(env, settings);
+      return new RACER_discrete(env, settings);
     } else {
-      settings.policyVecDim = DACER_experts::getnDimPolicy(&env->aI);
+      using RACER_continuous = VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
+      settings.policyVecDim = RACER_continuous::getnDimPolicy(&env->aI);
       o << env->aI.dim << " " << settings.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
-      return new DACER_experts(env, settings);
+      return new RACER_continuous(env, settings);
     }
   }
   else if (settings.learner == "ACER") {
@@ -92,15 +95,17 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
   else if (settings.learner == "GAE" || settings.learner == "PPO") {
     settings.bSampleSequences = false;
     if(env->aI.discrete) {
-      settings.policyVecDim = PPO_disc::getnDimPolicy(&env->aI);
+      using PPO_discrete = PPO<Discrete_policy, Uint>;
+      settings.policyVecDim = PPO_discrete::getnDimPolicy(&env->aI);
       o << env->aI.maxLabel << " " << settings.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
-      return new PPO_disc(env, settings);
+      return new PPO_discrete(env, settings);
     } else {
-      settings.policyVecDim = PPO_cont::getnDimPolicy(&env->aI);
+      using PPO_continuous = PPO<Gaussian_policy, Rvec>;
+      settings.policyVecDim = PPO_continuous::getnDimPolicy(&env->aI);
       o << env->aI.dim << " " << settings.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
-      return new PPO_cont(env, settings);
+      return new PPO_continuous(env, settings);
     }
   } else die("Learning algorithm not recognized\n");
   assert(false);

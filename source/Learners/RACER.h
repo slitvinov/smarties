@@ -8,7 +8,6 @@
  */
 
 #pragma once
-#include "../Network/Builder.h"
 #include "Learner_offPolicy.h"
 #include "../Math/Quadratic_advantage.h"
 
@@ -26,139 +25,121 @@
 #endif
 
 #include "../Math/Discrete_advantage.h"
-#include "RACER.cpp"
 
-//#define RACER_simpleSigma
-
-class RACER_disc : public RACER<Discrete_advantage, Discrete_policy, Uint>
+template<typename Advantage_t, typename Policy_t, typename Action_t>
+class RACER : public Learner_offPolicy
 {
-  static vector<Uint> count_outputs(const ActionInfo*const aI)
-  {
-    return vector<Uint>{1, aI->maxLabel, aI->maxLabel};
+ protected:
+  // continuous actions: dimensionality of action vectors
+  // discrete actions: number of options
+  const Uint nA = Policy_t::compute_nA(&aInfo);
+  // number of parameters of advantage approximator
+  const Uint nL = Advantage_t::compute_nL(&aInfo);
+
+  // tgtFrac_param: target fraction of off-pol samples
+  // alpha: weight of value-update relative to policy update. 1 means equal
+  const Real alpha=1;
+
+  // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
+  // such as state value, policy mean, policy std, adv approximator
+  const vector<Uint> net_outputs;
+  const vector<Uint> net_indices = count_indices(net_outputs);
+  const vector<Uint> pol_start, adv_start;
+  const Uint VsID = net_indices[0];
+
+  // used in case of temporally correlated noise
+  vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
+
+  vector<float> outBuf;
+
+  inline Policy_t prepare_policy(const Rvec& out,
+    const Tuple*const t = nullptr) const {
+    Policy_t pol(pol_start, &aInfo, out);
+    // pol.prepare computes various quanties that depend on behavioral policy mu
+    // (such as importance weight) and stores both mu and the non-scaled action
+
+    //policy saves pol.sampAct, which is unscaled action
+    //eg. if action bounds act in [-1 1]; learning is with sampAct in (-inf inf)
+    // when facing out of the learner we output act = tanh(sampAct)
+    // TODO semi-bounded action spaces! eg. [0 inf): act = softplus(sampAct)
+    if(t not_eq nullptr) pol.prepare(t->a, t->mu);
+    return pol;
   }
-  static vector<Uint> count_pol_starts(const ActionInfo*const aI)
-  {
-    const vector<Uint> sizes = count_outputs(aI);
-    const vector<Uint> indices = count_indices(sizes);
-    return vector<Uint>{indices[1]};
+  inline Advantage_t prepare_advantage(const Rvec& out,
+      const Policy_t*const pol) const {
+    return Advantage_t(adv_start, &aInfo, out, pol);
   }
-  static vector<Uint> count_adv_starts(const ActionInfo*const aI)
-  {
-    const vector<Uint> sizes = count_outputs(aI);
-    const vector<Uint> indices = count_indices(sizes);
-    return vector<Uint>{indices[2]};
+
+  void prepareData() override;
+
+  void TrainBySequences(const Uint seq, const Uint thrID) const override;
+
+  void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
+
+  Rvec compute(Sequence*const traj, const Uint samp,
+    const Rvec& outVec, const Policy_t& POL, const Uint thrID) const;
+
+  Rvec offPolCorrUpdate(Sequence*const S, const Uint t,
+    const Rvec output, const Policy_t& pol, const Uint thrID) const;
+
+  inline void updateQret(Sequence*const S, const Uint t) const {
+    const Real rho = S->isLast(t) ? 0 : S->offPolicImpW[t];
+    updateQret(S, t, S->action_adv[t], S->state_vals[t], rho);
   }
+  inline void updateQretBack(Sequence*const S, const Uint t) const {
+    if(t == 0) return;
+    const Real W=S->isLast(t)? 0:S->offPolicImpW[t], R=data->scaledReward(S,t);
+    const Real delta = R +gamma*S->state_vals[t] -S->state_vals[t-1];
+    S->Q_RET[t-1] = delta + gamma*(W>1? 1:W)*(S->Q_RET[t] - S->action_adv[t]);
+  }
+
+  inline Real updateQret(Sequence*const S, const Uint t, const Real A,
+    const Real V, const Policy_t& pol) const {
+    // shift retrace advantage with update estimate for V(s_t)
+    S->setRetrace(t, S->Q_RET[t] + S->state_vals[t] -V );
+    S->setStateValue(t, V); S->setAdvantage(t, A);
+    //prepare Qret_{t-1} with off policy corrections for future use
+    return updateQret(S, t, A, V, pol.sampImpWeight);
+  }
+
+  inline Real updateQret(Sequence*const S, const Uint t, const Real A,
+    const Real V, const Real rho) const {
+    assert(rho >= 0);
+    if(t == 0) return 0;
+    const Real oldRet = S->Q_RET[t-1], W = rho>1 ? 1 : rho;
+    const Real delta = data->scaledReward(S,t) +gamma*V - S->state_vals[t-1];
+    S->setRetrace(t-1, delta + gamma*W*(S->Q_RET[t] - A) );
+    return std::fabs(S->Q_RET[t-1] - oldRet);
+  }
+
+  Rvec policyGradient(const Tuple*const _t, const Policy_t& POL,
+    const Advantage_t& ADV, const Real A_RET, const Uint thrID) const;
+
+  //inline Rvec criticGrad(const Policy_t& POL, const Advantage_t& ADV,
+  //  const Real A_RET, const Real A_critic) const {
+  //  const Real anneal = iter()>epsAnneal ? 1 : Real(iter())/epsAnneal;
+  //  const Real varCritic = ADV.advantageVariance();
+  //  const Real iEpsA = std::pow(A_RET-A_critic,2)/(varCritic+2.2e-16);
+  //  const Real eta = anneal * safeExp( -0.5*iEpsA);
+  //  return POL.control_grad(&ADV, eta);
+  //}
+
+  static vector<Uint> count_outputs(const ActionInfo*const aI);
+  static vector<Uint> count_pol_starts(const ActionInfo*const aI);
+  static vector<Uint> count_adv_starts(const ActionInfo*const aI);
 
  public:
-  static Uint getnOutputs(const ActionInfo*const aI)
-  {
-    return 1 + aI->maxLabel + aI->maxLabel;
-  }
-  static Uint getnDimPolicy(const ActionInfo*const aI)
-  {
-    return aI->maxLabel;
-  }
+  RACER(Environment*const _env, Settings& _set);
+  ~RACER() { }
 
- public:
-  RACER_disc(Environment*const _env, Settings& _set) :
-  RACER(_env, _set, count_outputs(&_env->aI), count_pol_starts(&_env->aI), count_adv_starts(&_env->aI) )
-  {
-    printf("Discrete-action RACER: Built network with outputs: %s %s\n",
-      print(net_indices).c_str(),print(net_outputs).c_str());
-    F.push_back(new Approximator("net", _set, input, data));
-    vector<Uint> nouts{1, nL, nA};
-    Builder build = F[0]->buildFromSettings(_set, nouts);
-    F[0]->initializeNetwork(build);
-  }
-};
+  void select(const Agent& agent) override;
 
-class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>
-{
-  static vector<Uint> count_outputs(const ActionInfo& aI)
-  {
-    const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(&aI);
-    return vector<Uint>{1, nL, NEXPERTS, NEXPERTS*aI.dim, NEXPERTS*aI.dim};
-  }
-  static vector<Uint> count_pol_starts(const ActionInfo& aI)
-  {
-    const vector<Uint> sizes = count_outputs(aI);
-    const vector<Uint> indices = count_indices(sizes);
-    return vector<Uint>{indices[2], indices[3], indices[4]};
-  }
-  static vector<Uint> count_adv_starts(const ActionInfo& aI)
-  {
-    const vector<Uint> sizes = count_outputs(aI);
-    const vector<Uint> indices = count_indices(sizes);
-    return vector<Uint>{indices[1]};
-  }
- public:
-  static Uint getnOutputs(const ActionInfo*const aI)
-  {
-    const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(aI);
-    return 1 + nL + NEXPERTS*(1 +2*aI->dim);
-  }
-  static Uint getnDimPolicy(const ActionInfo*const aI)
-  {
-    return NEXPERTS*(1 +2*aI->dim);
-  }
+  void writeOnPolRetrace(Sequence*const seq, const int thrID);
 
-  RACER_experts(Environment*const _env, Settings& _set) :
-  RACER(_env, _set, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
-  {
-    printf("Mixture-of-experts RACER: Built network with outputs: %s %s\n",
-      print(net_indices).c_str(), print(net_outputs).c_str());
+  void prepareGradient() override;
 
-    F.push_back(new Approximator("net", _set, input, data));
-
-    vector<Uint> nouts{1, nL, NEXPERTS, NEXPERTS * nA};
-    #ifndef RACER_simpleSigma // network outputs also sigmas
-      nouts.push_back(NEXPERTS * nA);
-    #endif
-
-    Builder build = F[0]->buildFromSettings(_set, nouts);
-
-    Rvec initBias;
-    initBias.push_back(0); // state value
-    Mixture_advantage<NEXPERTS>::setInitial(&aInfo, initBias);
-    Gaussian_mixture<NEXPERTS>::setInitial_noStdev(&aInfo, initBias);
-
-    #ifdef RACER_simpleSigma // sigma not linked to network: parametric output
-      build.setLastLayersBias(initBias);
-      #ifdef EXTRACT_COVAR
-        Real initParam = noiseMap_inverse(explNoise*explNoise);
-      #else
-        Real initParam = noiseMap_inverse(explNoise);
-      #endif
-      build.addParamLayer(NEXPERTS * nA, "Linear", initParam);
-    #else
-      Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, explNoise);
-      build.setLastLayersBias(initBias);
-    #endif
-    F[0]->initializeNetwork(build, STD_GRADCUT);
-    if(F.size() > 1) die("");
-    F[0]->opt->bAnnealLearnRate= true;
-
-    {  // TEST FINITE DIFFERENCES:
-      Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
-      std::normal_distribution<Real> dist(0, 1);
-      for(Uint i=0; i<output.size(); i++) output[i] = dist(generators[0]);
-      for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
-      Real norm = 0;
-      for(Uint i=0; i<NEXPERTS; i++) {
-        mu[i] = std::exp(mu[i]);
-        norm += mu[i];
-      }
-      for(Uint i=0; i<NEXPERTS; i++) mu[i] = mu[i]/norm;
-      for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) mu[i]=std::exp(mu[i]);
-
-      Gaussian_mixture<NEXPERTS>  pol = prepare_policy(output);
-      Rvec act = pol.finalize(1, &generators[0], mu);
-      Mixture_advantage<NEXPERTS> adv = prepare_advantage(output, &pol);
-      adv.test(act, &generators[0]);
-      pol.prepare(act, mu);
-      pol.test(act, mu);
-    }
-  }
+  static Uint getnOutputs(const ActionInfo*const aI);
+  static Uint getnDimPolicy(const ActionInfo*const aI);
 };
 
 #if 0
