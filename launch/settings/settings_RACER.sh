@@ -8,8 +8,6 @@ SETTINGS+=" --gamma 0.995"
 SETTINGS+=" --nnl1 128"
 SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
-#SETTINGS+=" --nnl2 96"
-#SETTINGS+=" --nnl3 64"
 
 # Activation functions:
 #SETTINGS+=" --nnFunc LRelu"
@@ -23,7 +21,7 @@ SETTINGS+=" --bTrain 1"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner RACER"
 #Initialization of the standard deviation for all actions
-SETTINGS+=" --greedyEps 0.5"
+SETTINGS+=" --explNoise 0.5"
 #Number of time steps per gradient step
 SETTINGS+=" --obsPerStep 1"
 #Number of samples before starting gradient steps
@@ -34,13 +32,13 @@ SETTINGS+=" --maxTotObsNum 524288"
 SETTINGS+=" --totNumSteps 5000000"
 
 #C in paper. Determines c_max: boundary between (used) near-policy samples and (skipped) far policy ones
-SETTINGS+=" --impWeight 4"
+SETTINGS+=" --clipImpWeight 4"
 
 # Annealing factor for impWeight and learn rate -> 1/(1+epsAnneal*fac)
 #SETTINGS+=" --epsAnneal 0"
 
 # Here, fraction of far pol samples allowed in memory buffer
-SETTINGS+=" --klDivConstraint 0.1"
+SETTINGS+=" --penalTol 0.1"
 
 #Here is unused. Used for target network soft update
 SETTINGS+=" --targetDelay 0"

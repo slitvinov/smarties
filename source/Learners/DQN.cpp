@@ -17,6 +17,7 @@
 DQN::DQN(Environment*const _env, Settings& _set) :
 Learner_offPolicy(_env, _set)
 {
+  trainInfo = new TrainData("DQN", _set);
   F.push_back(new Approximator("Q", _set, input, data));
   Builder build_pol = F[0]->buildFromSettings(_set, env->aI.maxLabel);
   F[0]->initializeNetwork(build_pol);
@@ -25,7 +26,7 @@ Learner_offPolicy(_env, _set)
 void DQN::select(const Agent& agent)
 {
   const Real anneal = annealingFactor();
-  const Real annealedEps = bTrain ? anneal + (1-anneal)*greedyEps : greedyEps;
+  const Real annealedEps = bTrain ? anneal + (1-anneal)*explNoise : explNoise;
   const int thrID= omp_get_thread_num();
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
@@ -41,10 +42,10 @@ void DQN::select(const Agent& agent)
       agent.act(env->aI.maxLabel*dis(generators[thrID]));
     else agent.act(maxInd(output));
 
-    Rvec beta(policyVecDim, annealedEps/env->aI.maxLabel);
-    beta[maxInd(output)] += 1-annealedEps;
+    Rvec mu(policyVecDim, annealedEps/env->aI.maxLabel);
+    mu[maxInd(output)] += 1-annealedEps;
 
-    data->add_action(agent, beta);
+    data->add_action(agent, mu);
   } else
     data->terminate_seq(agent);
 }
@@ -71,8 +72,8 @@ void DQN::TrainBySequences(const Uint seq, const Uint thrID) const
 
     Rvec gradient(F[0]->nOutputs());
     gradient[action] = error;
-    traj->SquaredError[k] = error*error;
-    Vstats[thrID].dumpStats(Qs[action], error);
+    traj->setMseDklImpw(k, error*error, 0, 1);
+    trainInfo->log(Qs[action], error, thrID);
     F[0]->backward(gradient, k, thrID);
   }
 
@@ -102,8 +103,8 @@ void DQN::Train(const Uint seq, const Uint samp, const Uint thrID) const
   Rvec gradient(F[0]->nOutputs(), 0);
   gradient[act] = error;
 
-  traj->SquaredError[samp] = error*error;
-  Vstats[thrID].dumpStats(Qs[act], error);
+  traj->setMseDklImpw(samp, error*error, 0, 1);
+  trainInfo->log(Qs[act], error, thrID);
   if(thrID==1)  profiler->stop_start("BCK");
   F[0]->backward(gradient, samp, thrID);
   F[0]->gradient(thrID);

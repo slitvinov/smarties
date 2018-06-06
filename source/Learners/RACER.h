@@ -125,13 +125,13 @@ class RACER_experts : public RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture
     #ifdef RACER_simpleSigma // sigma not linked to network: parametric output
       build.setLastLayersBias(initBias);
       #ifdef EXTRACT_COVAR
-        Real initParam = noiseMap_inverse(greedyEps*greedyEps);
+        Real initParam = noiseMap_inverse(explNoise*explNoise);
       #else
-        Real initParam = noiseMap_inverse(greedyEps);
+        Real initParam = noiseMap_inverse(explNoise);
       #endif
       build.addParamLayer(NEXPERTS * nA, "Linear", initParam);
     #else
-      Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, greedyEps);
+      Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, explNoise);
       build.setLastLayersBias(initBias);
     #endif
     F[0]->initializeNetwork(build, STD_GRADCUT);
@@ -221,7 +221,7 @@ class RACER_cont : public RACER<Quadratic_advantage, Gaussian_policy, Rvec >
     #endif
     Builder build = F[0]->buildFromSettings(_set, nouts);
     #ifdef RACER_simpleSigma
-      build.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
+      build.addParamLayer(nA, "Linear", -2*std::log(explNoise));
     #endif
     F[0]->initializeNetwork(build);
   }

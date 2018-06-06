@@ -20,7 +20,7 @@ struct Gaussian_policy
 
   Rvec sampAct;
   long double sampPonPolicy=0, sampPBehavior=0;
-  Real sampImpWeight=0;
+  Real sampImpWeight=0, sampKLdiv=0;
 
   inline Rvec map_action(const Rvec& sent) const {
     return aInfo->getInvScaled(sent);
@@ -90,6 +90,7 @@ public:
     sampPonPolicy = evalProbability(sampAct);
     sampPBehavior = evalBehavior(sampAct, beta);
     sampImpWeight = sampPonPolicy / sampPBehavior;
+    sampKLdiv = kl_divergence(beta);
   }
 
   static inline double evalPolVec(const Rvec&act,const Rvec&mu,const Real stdev)

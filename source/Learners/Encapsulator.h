@@ -51,7 +51,7 @@ struct Encapsulator
     #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
     for (Uint i=0; i<nThreads; i++) // numa aware allocation
      #pragma omp critical
-      series[i].reserve(settings.maxSeqLen);
+      series[i].reserve(MAX_SEQ_LEN);
 
     if(not net->layers[0]->bInput) die("should not be possible");
     const Uint nInps = data->sI.dimUsed*(1+nAppended);

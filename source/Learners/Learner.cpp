@@ -15,10 +15,10 @@ Learner::Learner(Environment*const _env, Settings & _s) :
 mastersComm(_s.mastersComm), env(_env), bSampleSequences(_s.bSampleSequences),
 bTrain(_s.bTrain), nAgents(_s.nAgents), batchSize(_s.batchSize),
 totNumSteps(_s.totNumSteps), nThreads(_s.nThreads), nSlaves(_s.nSlaves),
-policyVecDim(_s.policyVecDim), learnR(_s.learnrate), greedyEps(_s.greedyEps),
-epsAnneal(_s.epsAnneal), gamma(_s.gamma), CmaxPol(_s.impWeight),
+policyVecDim(_s.policyVecDim), learnR(_s.learnrate), explNoise(_s.explNoise),
+epsAnneal(_s.epsAnneal), gamma(_s.gamma), CmaxPol(_s.clipImpWeight),
 learn_rank(_s.learner_rank), learn_size(_s.learner_size), settings(_s),
-aInfo(env->aI), sInfo(env->sI), generators(_s.generators), Vstats(nThreads)
+aInfo(env->aI), sInfo(env->sI), generators(_s.generators)
 {
   if(bSampleSequences) printf("Sampling sequences.\n");
   profiler = new Profiler();
@@ -113,13 +113,11 @@ void Learner::synchronizeGradients()
 
 void Learner::processStats()
 {
-  stats.reduce(Vstats);
   ostringstream buf;
-  stats.getMetrics(buf);
   data->getMetrics(buf);
   input->getMetrics(buf);
   for(auto & net : F) net->getMetrics(buf);
-  getMetrics(buf);
+  if(trainInfo not_eq nullptr) trainInfo->getMetrics(buf);
 
   if(learn_rank) return;
 
@@ -127,11 +125,10 @@ void Learner::processStats()
 
   ostringstream head;
   if( nStep%(1000*PRFL_DMPFRQ)==0 || nStep==1000 ) {
-    stats.getHeaders(head);
     data->getHeaders(head);
     input->getHeaders(head);
     for(auto & net : F) net->getHeaders(head);
-    getHeaders(head);
+    if(trainInfo not_eq nullptr) trainInfo->getHeaders(head);
     printf("#/1e3 %s\n", head.str().c_str());
     if(nStep==1000)
       fprintf(fout, "#/1e3 %s\n", head.str().c_str());

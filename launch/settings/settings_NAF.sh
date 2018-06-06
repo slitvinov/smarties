@@ -7,13 +7,13 @@ SETTINGS+=" --gamma 0.99"
 #size of network layers
 SETTINGS+=" --nnl1 128"
 SETTINGS+=" --nnl2 128"
-SETTINGS+=" --nnl3 128"
-#SETTINGS+=" --nnl3 256"
+#SETTINGS+=" --nnl3 128"
 
 #subject to changes
-#SETTINGS+=" --nnType RNN"
-#SETTINGS+=" --nnType LSTM"
-SETTINGS+=" --nnFunc PRelu"
+#SETTINGS+=" --nnFunc LRelu"
+SETTINGS+=" --nnFunc SoftSign"
+# Multiplies initial weights of output layer. Ie U[-.1/sqrt(f), .1/sqrt(f)]
+SETTINGS+=" --outWeightsPrefac 0.1"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -21,17 +21,16 @@ SETTINGS+=" --bTrain 1"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
 SETTINGS+=" --learner NAF"
 
-#number of state vectors received from env to be chained together to form input to net (faux RNN?)
-SETTINGS+=" --appendedObs 0"
-SETTINGS+=" --splitLayers 0"
+#Number of time steps per gradient step
+SETTINGS+=" --obsPerStep 1"
+#Number of samples before starting gradient steps
+SETTINGS+=" --minTotObsNum 131072"
+#Maximum size of the replay memory
+SETTINGS+=" --maxTotObsNum 524288"
+#Number of gradient steps before training ends
+SETTINGS+=" --totNumSteps 5000000"
 
-#maximum allowed lenth for a sequence (from first to terminal state)
-#if a sequence is longer is just cut after #number of transitions
-SETTINGS+=" --maxTotSeqNum 5000"
-
-#chance of taking random actions
-SETTINGS+=" --obsPerStep 0.1"
-SETTINGS+=" --greedyEps 0.05"
+SETTINGS+=" --explNoise 0.2"
 SETTINGS+=" --bSampleSequences 0"
 
 #lag of target network.
@@ -42,4 +41,4 @@ SETTINGS+=" --targetDelay 0.01"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 128"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.00001"

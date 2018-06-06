@@ -108,7 +108,7 @@ void Approximator::allocMorePerThread(const Uint nAlloc)
     #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
       for (Uint i = j*nThreads; i<(1+j)*nThreads; i++)
         #pragma omp critical
-          series[i].reserve(settings.maxSeqLen);
+          series[i].reserve(MAX_SEQ_LEN);
 }
 
 void Approximator::initializeNetwork(Builder& build, Real cutGradFactor)
@@ -121,8 +121,8 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor)
   for (Uint i=0; i<nThreads; i++) // numa aware allocation
    #pragma omp critical
    {
-     series[i].reserve(settings.maxSeqLen);
-     series_tgt[i].reserve(settings.maxSeqLen);
+     series[i].reserve(MAX_SEQ_LEN);
+     series_tgt[i].reserve(MAX_SEQ_LEN);
    }
 
   if(relay not_eq nullptr) {

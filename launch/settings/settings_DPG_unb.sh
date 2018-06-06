@@ -12,9 +12,8 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnType RNN"
 #SETTINGS+=" --nnType LSTM"
 SETTINGS+=" --nnFunc SoftSign"
-#SETTINGS+=" --nnFunc LRelu"
-#SETTINGS+=" --nnFunc HardSign"
-SETTINGS+=" --nnLambda 0.000001"
+# Multiplies initial weights of output layer. Ie U[-.1/sqrt(f), .1/sqrt(f)]
+SETTINGS+=" --outWeightsPrefac 0.1"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -28,13 +27,13 @@ SETTINGS+=" --minTotObsNum 131072"
 #SETTINGS+=" --minTotObsNum 35536"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 0.2"
+SETTINGS+=" --explNoise 0.2"
 SETTINGS+=" --totNumSteps 10000000"
 SETTINGS+=" --obsPerStep 1"
 SETTINGS+=" --bSampleSequences 0"
 #SETTINGS+=" --impWeight 4"
-SETTINGS+=" --impWeight 0"
-SETTINGS+=" --klDivConstraint 0.1"
+SETTINGS+=" --clipImpWeight 0"
+SETTINGS+=" --penalTol 0.1"
 
 #lag of target network.
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
@@ -45,4 +44,4 @@ SETTINGS+=" --targetDelay 0.01"
 SETTINGS+=" --batchSize 128"
 #network update learning rate
 #SETTINGS+=" --learnrate 0.00001"
-SETTINGS+=" --learnrate 0.00003"
+SETTINGS+=" --learnrate 0.00001"

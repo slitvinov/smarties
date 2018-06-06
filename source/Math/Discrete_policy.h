@@ -20,7 +20,7 @@ struct Discrete_policy
   const Rvec probs;
 
   Uint sampAct;
-  Real sampPonPolicy=0, sampPBehavior=0, sampImpWeight=0;
+  Real sampPonPolicy=0, sampPBehavior=0, sampImpWeight=0, sampKLdiv=0;
 
   inline Uint map_action(const Rvec& sent) const {
     return aInfo->actionToLabel(sent);
@@ -71,6 +71,7 @@ struct Discrete_policy
     sampPonPolicy = probs[sampAct];
     sampPBehavior = beta[sampAct];
     sampImpWeight = sampPonPolicy / sampPBehavior;
+    sampKLdiv = kl_divergence(beta);
   }
 
   static inline Real evalBehavior(const Uint& act, const Rvec& beta) {

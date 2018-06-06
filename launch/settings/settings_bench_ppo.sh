@@ -18,7 +18,7 @@ SETTINGS+=" --bTrain 1"
 SETTINGS+=" --learner GAE"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 0.5"
+SETTINGS+=" --explNoise 0.5"
 # same as 2048 * 8 agents extrapolated from paper
 SETTINGS+=" --maxTotObsNum 16384"
 # same as 10 epochs with batch size 64

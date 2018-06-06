@@ -25,7 +25,7 @@ inline Real unbPosMap_diff(const Real val) {
 }
 inline Real unbPosMap_inverse(Real val) {
   if(val<=0) {
-    warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting greedyEps.");
+    warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting explNoise.");
     val = numeric_limits<float>::epsilon();
   }
   return mapFunc::_inv(val);
@@ -50,7 +50,7 @@ inline Real noiseMap_inverse(Real val) {
     return unbPosMap_inverse(val);
   #else
     if(val<=0 || val>=1) {
-      warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting greedyEps.");
+      warn("Tried to initialize invalid pos-def mapping. Unless not training this should not be happening. Revise setting explNoise.");
       if(val<=0) val =   numeric_limits<float>::epsilon();
       if(val>=1) val = 1-numeric_limits<float>::epsilon();
     }

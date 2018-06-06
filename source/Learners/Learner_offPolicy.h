@@ -23,6 +23,10 @@ protected:
   Real obsPerStep = obsPerStep_orig;
   vector<Uint> samp_seq, samp_obs;
 
+
+  Real beta = CmaxPol<=0? 1 : .2; // if CmaxPol==0 do naive Exp Replay
+  Real CmaxRet = 1 + CmaxPol;
+
 public:
   Learner_offPolicy(Environment*const env, Settings& _s);
 

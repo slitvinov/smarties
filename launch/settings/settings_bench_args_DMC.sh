@@ -16,19 +16,19 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnFunc Tanh"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc HardSign"
+SETTINGS+=" --outWeightsPrefac 0.1"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
 
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
-SETTINGS+=" --learner POAC"
+SETTINGS+=" --learner RACER"
 
-SETTINGS+=" --maxTotSeqNum 262144" # enough to safely handle 2^18 obs
 SETTINGS+=" --maxTotObsNum ${BUFFSIZE}"
-SETTINGS+=" --impWeight ${IMPSAMPR}"
+SETTINGS+=" --clipImpWeight ${IMPSAMPR}"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 1"
+SETTINGS+=" --explNoise 1"
 SETTINGS+=" --totNumSteps 10000000"
 SETTINGS+=" --obsPerStep ${EPERSTEP}"
 SETTINGS+=" --bSampleSequences 0"
@@ -37,7 +37,7 @@ SETTINGS+=" --bSampleSequences 0"
 #- if >1 (ie 1000) then weights are copied every dqnT grad descent steps
 #- if <1 (ie .001) then every step the target weights are updated as dqnT * w_Target + (1-dqnT)*w
 SETTINGS+=" --targetDelay 0"
-SETTINGS+=" --klDivConstraint ${DKLPARAM}"
+SETTINGS+=" --penalTol ${DKLPARAM}"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize ${BATCHNUM}"
 #network update learning rate

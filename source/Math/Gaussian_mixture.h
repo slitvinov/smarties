@@ -28,7 +28,7 @@ public:
 
   Rvec sampAct;
   long double sampPonPolicy = -1, sampPBehavior = -1;
-  Real sampImpWeight=0;
+  Real sampImpWeight=0, sampKLdiv=0;
   array<long double, nExperts> PactEachExp;
 
   static inline Uint compute_nP(const ActionInfo* const aI) {
@@ -164,13 +164,13 @@ public:
     for(Uint e=0; e<nExperts*(1 + aI->dim); e++)
       initBias.push_back(0);
   }
-  static void setInitial_Stdev(const ActionInfo* const aI, Rvec& initBias, const Real greedyEps)
+  static void setInitial_Stdev(const ActionInfo* const aI, Rvec& initBias, const Real explNoise)
   {
     for(Uint e=0; e<nExperts*aI->dim; e++)
     #ifdef EXTRACT_COVAR
-      initBias.push_back(noiseMap_inverse(greedyEps*greedyEps));
+      initBias.push_back(noiseMap_inverse(explNoise*explNoise));
     #else
-      initBias.push_back(noiseMap_inverse(greedyEps));
+      initBias.push_back(noiseMap_inverse(explNoise));
     #endif
   }
 
@@ -196,6 +196,7 @@ public:
     assert(sampPonPolicy>=0);
     sampPBehavior = evalBehavior(sampAct, beta);
     sampImpWeight = sampPonPolicy / sampPBehavior;
+    sampKLdiv = kl_divergence(beta);
     if(sampPonPolicy<0){printf("observed %g\n",(Real)sampPonPolicy);fflush(0);}
   }
 private:

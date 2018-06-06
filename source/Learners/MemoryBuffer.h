@@ -14,7 +14,7 @@
 #include "StatsTracker.h"
 #include <parallel/algorithm>
 
-enum FORGET {OLDEST, FARPOLFRAC, MAXERROR, MINERROR};
+enum FORGET {OLDEST, FARPOLFRAC, MAXKLDIV, MINERROR};
 class MemoryBuffer
 {
 public:
@@ -34,7 +34,7 @@ public:
   discrete_distribution<Uint> * dist = nullptr;
   //bool bRecurrent;
   Uint nPruned = 0, minInd = 0;
-  Real invstd_reward = 1, nOffPol = 0, totMSE = 0;
+  Real invstd_reward = 1, nOffPol = 0, avgDKL = 0;
 
   Gen* gen;
   vector<Sequence*> Set, inProgress;

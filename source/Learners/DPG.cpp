@@ -14,7 +14,7 @@
 //#define DKL_filter
 
 DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
-tgtFrac(_set.klDivConstraint)
+tgtFrac(_set.penalTol)
 {
   _set.splitLayers = 0;
   #if 0
@@ -35,14 +35,14 @@ tgtFrac(_set.klDivConstraint)
 
   F.push_back(new Approximator("policy", _set, input, data));
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
-  const Real initParam = noiseMap_inverse(greedyEps);
+  const Real initParam = noiseMap_inverse(explNoise);
   //F[0]->blockInpGrad = true; // this line must happen b4 initialize
   build_pol.addParamLayer(nA, "Linear", initParam);
   F[0]->initializeNetwork(build_pol, 0);
 
   relay = new Aggregator(_set, data, nA, F[0]);
   F.push_back(new Approximator("critic", _set, input, data, relay));
-  //relay->scaling = Rvec(nA, 1/greedyEps);
+  //relay->scaling = Rvec(nA, 1/explNoise);
 
   _set.nnLambda = 1e-4; // also wants L2 penl coef
   _set.learnrate *= 10; // DPG wants critic faster than actor
@@ -52,6 +52,8 @@ tgtFrac(_set.klDivConstraint)
   Builder build_val = F[1]->buildFromSettings(_set, 1 );
   F[1]->initializeNetwork(build_val, 0);
   printf("DPG\n");
+
+  trainInfo = new TrainData("DPG", _set, 1, "| beta | avgW ", 2);
 }
 
 void DPG::select(const Agent& agent)
@@ -91,13 +93,12 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
 
   const Rvec polVec = F[0]->forward(traj, t, thrID);
   const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
-  const Real KLdiv = POL.kl_divergence(traj->tuples[t]->mu);
+  const Real DKL = POL.sampKLdiv, rho = POL.sampImpWeight;
   //if(!thrID) cout<<"tpol "<<print(polVec)<<" act: "<<print(POL.sampAct)<<endl;
   #ifdef DKL_filter // if CmaxPol=0 isOff is always false
-    const bool isOff = traj->distFarPolicy(t, KLdiv, 1+KLdiv, CmaxRet-1);
+    const bool isOff = traj->distFarPolicy(t, DKL, CmaxRet-1);
   #else
-    const bool isOff = traj->isFarPolicy(t, POL.sampImpWeight, CmaxRet);
-    traj->setSquaredError(t, KLdiv);
+    const bool isOff = traj->isFarPolicy(t, rho, CmaxRet);
   #endif
 
   relay->prepare_one(traj, t, thrID, ACT);
@@ -116,33 +117,35 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
     target += gamma * v_next[0];
   }
 
-  { //code to compute policy grad:
-    Rvec polG(2*nA, 0);
-    for (Uint i=0; i<nA; i++) polG[i] = isOff? 0 : detPolG[i];
-    for (Uint i=0; i<nA; i++) polG[i+nA] = greedyEps - POL.stdev[i];
-    // this is an experimental change to update stdev using policy gradient
-    // not fully analyzed therefore should be turned off by default
-    //Real a_curr = target - v_curr[0];
-    //if(a_curr > 0 && POL.sampImpWeight >  2) a_curr = 0;
-    //if(a_curr < 0 && POL.sampImpWeight < .5) a_curr = 0;
-    //Rvec sPG = POL.policy_grad(POL.sampAct, POL.sampImpWeight*a_curr);
+  //code to compute policy grad:
+  Rvec polG(2*nA, 0);
+  for (Uint i=0; i<nA; i++) polG[i] = isOff? 0 : detPolG[i];
+  for (Uint i=0; i<nA; i++) polG[i+nA] = explNoise - POL.stdev[i];
+  // this is an experimental change to update stdev using policy gradient
+  // not fully analyzed therefore should be turned off by default
+  //Real a_curr = target - v_curr[0];
+  //if(a_curr > 0 && POL.sampImpWeight >  2) a_curr = 0;
+  //if(a_curr < 0 && POL.sampImpWeight < .5) a_curr = 0;
+  //Rvec sPG = POL.policy_grad(POL.sampAct, POL.sampImpWeight*a_curr);
 
-    const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
-    // if beta=1 (which is inevitable for CmaxPol=0) this will be equal to polG
-    Rvec mixG = weightSum2Grads(polG, penG, beta);
-    Rvec finalG(F[0]->nOutputs(), 0);
-    POL.finalize_grad(mixG, finalG);
-    //#pragma omp critical //"O:"<<print(polVec)<<
-    //if(!thrID) cout<<"G:"<<print(polG)<<" D:"<<print(penG)<<endl;
-    F[0]->backward(finalG, t, thrID);
-  }
+  const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
+  // if beta=1 (which is inevitable for CmaxPol=0) this will be equal to polG
+  Rvec mixG = weightSum2Grads(polG, penG, beta);
+  Rvec finalG(F[0]->nOutputs(), 0);
+  POL.finalize_grad(mixG, finalG);
+  //#pragma omp critical //"O:"<<print(polVec)<<
+  //if(!thrID) cout<<"G:"<<print(polG)<<" D:"<<print(penG)<<endl;
+  F[0]->backward(finalG, t, thrID);
 
-  { //code to compute value grad:
-    const Rvec grad_val = {isOff ? 0 : (target-q_curr[0])};
-    //traj->SquaredError[t] = grad_val[0]*grad_val[0];
-    Vstats[thrID].dumpStats(q_curr[0], grad_val[0]);
-    F[1]->backward(clampGrad(grad_val,q_curr[0]), t, thrID);
-  }
+
+  //code to compute value grad:
+  const Rvec grad_val = {isOff ? 0 : (target-q_curr[0])};
+  //traj->SquaredError[t] = grad_val[0]*grad_val[0];
+  F[1]->backward(clampGrad(grad_val,q_curr[0]), t, thrID);
+
+  //bookkeeping:
+  trainInfo->log(q_curr[0], grad_val[0], polG, penG, {beta,rho}, thrID);
+  traj->setMseDklImpw(t, grad_val[0]*grad_val[0], DKL, rho);
   if(thrID==1)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
   F[1]->gradient(thrID);

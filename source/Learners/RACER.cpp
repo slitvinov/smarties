@@ -36,8 +36,6 @@ class RACER : public Learner_offPolicy
   // alpha: weight of value-update relative to policy update. 1 means equal
   const Real tgtFrac, alpha=1;
 
-  Real CmaxRet = 1 + CmaxPol;
-
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
   // such as state value, policy mean, policy std, adv approximator
   const vector<Uint> net_outputs, net_indices, pol_start, adv_start;
@@ -46,12 +44,7 @@ class RACER : public Learner_offPolicy
   // used in case of temporally correlated noise
   vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
 
-  // used for debugging purposes to dump stats about gradient. will be removed
-  FILE * wFile = fopen("grads_dist.raw", "ab");
-  FILE * qFile = fopen("onpolQdist.raw", "ab");
   vector<float> outBuf;
-  //tracks statistics about gradient, used for gradient clipping:
-  StatsTracker* opcInfo;
 
   // initial value of relative weight of penalization to update gradients:
   Real beta = 0.2;
@@ -114,8 +107,7 @@ class RACER : public Learner_offPolicy
       const Rvec out_cur = F[0]->get(traj, k, thrID);
       const Policy_t pol = prepare_policy(out_cur, traj->tuples[k]);
       #ifdef DKL_filter
-        const Real KLdiv = pol.kl_divergence(S->tuples[k]->mu);
-        const bool isOff = traj->distFarPolicy(k, KLdiv, 1+KLdiv, CmaxRet-1);
+        const bool isOff = traj->distFarPolicy(k, pol.sampKLdiv, CmaxRet-1);
       #else
         const bool isOff = traj->isFarPolicy(k, pol.sampImpWeight, CmaxRet);
       #endif
@@ -123,7 +115,7 @@ class RACER : public Learner_offPolicy
       Rvec G;
       #if RACER_SKIP == 1
         if(isOff) {
-          offPolCorrUpdate(traj, k, out_cur, pol);
+          G = offPolCorrUpdate(traj, k, out_cur, pol, thrID);
           continue;
         } else
       #endif
@@ -143,69 +135,26 @@ class RACER : public Learner_offPolicy
 
     if(thrID==1) profiler->stop_start("FWD");
 
-    #if RACER_FORWARD>0 // prepare thread workspace
-      F[0]->prepare(RACER_FORWARD+1, traj, samp, thrID);
-    #else
-      F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
-    #endif
+    F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
     const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
 
-    #if RACER_FORWARD==0
-      if( traj->isTerminal(samp+1) ) updateQret(traj, samp+1, 0, 0, 0);
-      else if( traj->isTruncated(samp+1) ) {
-        const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
-        traj->setStateValue(samp+1, nxt[VsID]);
-        updateQret(traj, samp+1, 0, nxt[VsID], 0);
-      }
-    #endif
+    if( traj->isTerminal(samp+1) ) updateQret(traj, samp+1, 0, 0, 0);
+    else if( traj->isTruncated(samp+1) ) {
+      const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
+      traj->setStateValue(samp+1, nxt[VsID]);
+      updateQret(traj, samp+1, 0, nxt[VsID], 0);
+    }
 
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
     // check whether importance weight is in 1/Cmax < c < Cmax
-    #ifdef DKL_filter
-      const Real KLdiv = pol.kl_divergence(S->tuples[t]->mu);
-      const bool isOff = traj->distFarPolicy(t, KLdiv, 1+KLdiv, CmaxRet-1);
-    #else
-      const bool isOff = traj->isFarPolicy(samp, pol.sampImpWeight, CmaxRet);
-    #endif
-
-    #if RACER_FORWARD>0
-      // do N steps of fwd net to obtain better estimate of Qret
-      Uint N = std::min(traj->ndata()-samp, (Uint)RACER_FORWARD);
-      for(Uint k = samp+1; k<=samp+N; k++)
-      {
-        if( traj->isTerminal(k) ) {
-          assert(traj->action_adv[k] == 0 && traj->state_vals[k] == 0);
-        } else if( traj->isTruncated(k) ) {
-          assert(traj->action_adv[k] == 0);
-          const Rvec nxt = F[0]->forward(traj, k, thrID);
-          traj->setStateValue(k, nxt[VsID]);
-        } else {
-          const Rvec nxt = F[0]->forward(traj, k, thrID);
-          const Policy_t polt = prepare_policy(nxt, traj->tuples[k]);
-          const Advantage_t advt = prepare_advantage(nxt, &polt);
-          //these are all race conditions:
-          traj->setSquaredError(k, polt.kl_divergence(traj->tuples[k]->mu) );
-          traj->setAdvantage(k, advt.computeAdvantage(polt.sampAct) );
-          traj->setOffPolWeight(k, polt.sampImpWeight );
-          traj->setStateValue(k, nxt[VsID] );
-        }
-      }
-      for(Uint j = samp+N; j>samp; j--) updateQret(traj,j);
-    #endif
+    const bool isOff = traj->isFarPolicy(samp, pol.sampImpWeight, CmaxRet);
 
     if(thrID==1)  profiler->stop_start("CMP");
     Rvec grad;
 
     #if RACER_SKIP == 1
-      if(isOff) { // only update stored offpol weight and qret and so on
-        offPolCorrUpdate(traj, samp, out_cur, pol);
-        // The correct behavior here is to resample. To avoid code hanging due
-        // to bad choice of hyperparams there is this failsafe mechanism.
-        // If this is triggered, warning will be printed to screen.
-        //if( beta>10*learnR && canSkip() ) return resample(thrID);
-        //else // if beta too small, grad \approx penalization gradient
-          grad = offPolGrad(traj, samp, out_cur, pol, thrID);
-      } else
+      if(isOff) grad = offPolCorrUpdate(traj, samp, out_cur, pol, thrID);
+      else
     #endif
         grad = compute(traj, samp, out_cur, pol, thrID);
 
@@ -221,77 +170,38 @@ class RACER : public Learner_offPolicy
     const Real A_cur = ADV.computeAdvantage(POL.sampAct), V_cur = outVec[VsID];
     // shift retrace-advantage with current V(s) estimate:
     const Real A_RET = traj->Q_RET[samp] +traj->state_vals[samp]-V_cur;
-    const Real rho_cur = POL.sampImpWeight;
-    const Real Ver = beta*alpha * std::min((Real)1,rho_cur) * (A_RET-A_cur);
-    //min(CmaxRet,rho) stabilize if resampling is disabled (*will show
-    // warning on screen*). No effect if functioning normally.
-    const Real Aer = beta*alpha * std::min(CmaxRet,rho_cur) * (A_RET-A_cur);
+    const Real rho = POL.sampImpWeight, dkl = POL.sampKLdiv;
+    const Real Ver = std::min((Real)1, rho) * (A_RET-A_cur);
+    const Real Aer = std::min(CmaxRet, rho) * (A_RET-A_cur);
     const Rvec polG = policyGradient(traj->tuples[samp], POL,ADV,A_RET, thrID);
-    Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
-
+    const Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
+    const Rvec finalG  = weightSum2Grads(polG, penalG, beta);
     //prepare Q with off policy corrections for next step:
     const Real dAdv = updateQret(traj, samp, A_cur, V_cur, POL);
-    Rvec sampleInfo {0, 0, 0, dAdv, POL.sampImpWeight};
-    for(Uint i=0; i<polG.size(); i++) {
-      sampleInfo[0] +=   polG[i]*   polG[i];
-      sampleInfo[1] += penalG[i]* penalG[i];
-      sampleInfo[2] +=   polG[i]* penalG[i];
-    }
-    sampleInfo[0] = std::sqrt(sampleInfo[0]);
-    sampleInfo[1] = std::sqrt(sampleInfo[1]);
-    sampleInfo[2] = sampleInfo[2]/(sampleInfo[1]+nnEPS);
-    //for(Uint i=0; i<polG.size(); i++)
-    //  penalG[i] *= sampleInfo[0]/(sampleInfo[1]+2.22e-16);
-    const Rvec finalG  = weightSum2Grads(polG, penalG, beta);
-
-    #if 0
-      if(thrID == 1) {
-        float normT = 0, dot = 0;
-        for(Uint i = 0; i < polG.size(); i++) {
-          dot += polG[i] * penalG[i]; normT += penalG[i] * penalG[i];
-        }
-        float ret[]={dot/std::sqrt(normT)};
-        fwrite(ret, sizeof(float), 1, wFile);
-      }
-    #endif
 
     Rvec gradient(F[0]->nOutputs(), 0);
-    gradient[VsID] = Ver;
+    gradient[VsID] = beta*alpha * Ver;
     POL.finalize_grad(finalG, gradient);
-    ADV.grad(POL.sampAct, Aer, gradient);
-    opcInfo->track_vector(sampleInfo, thrID);
-    Vstats[thrID].dumpStats(A_cur, A_RET-A_cur); //bookkeeping
-
-    #if 0
-      if(thrID == 1) {
-        Rvec Gcpy = gradient;
-        F[0]->gradStats->clip_vector(Gcpy);
-        Gcpy = Rvec(&Gcpy[pol_start[0]], &Gcpy[pol_start[0]+polG.size()]);
-        float normT = 0, dot = 0;
-        for(Uint i = 0; i < polG.size(); i++) {
-          dot += Gcpy[i] * penalG[i]; normT += penalG[i] * penalG[i];
-        }
-        float ret[]={dot/std::sqrt(normT)};
-        fwrite(ret, sizeof(float), 1, wFile);
-      }
-    #endif
-
+    ADV.grad(POL.sampAct, beta*alpha * Aer, gradient);
+    trainInfo->log(A_cur, A_RET-A_cur, polG, penalG, {beta, dAdv, rho}, thrID);
+    traj->setMseDklImpw(samp, Ver*Ver, dkl, rho);
     return gradient;
   }
 
-  inline Rvec offPolGrad(Sequence*const S, const Uint t,
-    const Rvec output, const Policy_t& pol, const Uint thrID) const {
-    // prepare penalization gradient:
+  inline Rvec offPolCorrUpdate(Sequence*const S, const Uint t,
+    const Rvec output, const Policy_t& pol, const Uint thrID) const
+  {
+    const Advantage_t adv = prepare_advantage(output, &pol);
+    const Real A_cur = adv.computeAdvantage(pol.sampAct);
+    // shift retrace-advantage with current V(s) estimate:
+    const Real A_RET = S->Q_RET[t] +S->state_vals[t] -output[VsID];
+    const Real Ver = std::min((Real)1, pol.sampImpWeight) * (A_RET-A_cur);
+    updateQret(S, t, A_cur, output[VsID], pol);
+    S->setMseDklImpw(t, Ver*Ver, pol.sampKLdiv, pol.sampImpWeight);
     Rvec gradient(F[0]->nOutputs(), 0);
     const Rvec pg = pol.div_kl_grad(S->tuples[t]->mu, beta-1);
     pol.finalize_grad(pg, gradient);
     return gradient;
-  }
-
-  inline void offPolCorrUpdate(Sequence*const S, const Uint t,
-    const Rvec output, const Policy_t& pol) const {
-    const Advantage_t adv = prepare_advantage(output, &pol);
-    updateQret(S, t, adv.computeAdvantage(pol.sampAct), output[VsID], pol);
   }
 
   inline void updateQret(Sequence*const S, const Uint t) const {
@@ -307,7 +217,6 @@ class RACER : public Learner_offPolicy
 
   inline Real updateQret(Sequence*const S, const Uint t, const Real A,
     const Real V, const Policy_t& pol) const {
-    S->setSquaredError(t, pol.kl_divergence(S->tuples[t]->mu) );
     // shift retrace advantage with update estimate for V(s_t)
     S->setRetrace(t, S->Q_RET[t] + S->state_vals[t] -V );
     S->setStateValue(t, V); S->setAdvantage(t, A);
@@ -335,8 +244,8 @@ class RACER : public Learner_offPolicy
       const Real polProbBehavior = Policy_t::evalBehavior(sample, _t->mu);
       const Real rho_pol = safeExp(polProbOnPolicy-polProbBehavior);
       const Real A_pol = ADV.computeAdvantage(sample);
-      const Real gain1 = A_RET*std::min((Real) CmaxRet, rho_cur);
-      const Real gain2 = A_pol*std::max((Real) 0, 1-CmaxRet/rho_pol);
+      const Real gain1 = A_RET*std::min((Real)1, rho_cur);
+      const Real gain2 = A_pol*std::max((Real)0, 1-1/rho_pol);
 
       const Rvec gradAcer_1 = POL.policy_grad(POL.sampAct, gain1);
       const Rvec gradAcer_2 = POL.policy_grad(sample,      gain2);
@@ -360,30 +269,14 @@ class RACER : public Learner_offPolicy
  public:
   RACER(Environment*const _env, Settings& _set, vector<Uint> net_outs,
     vector<Uint> pol_inds, vector<Uint> adv_inds) :
-    Learner_offPolicy(_env, _set), tgtFrac(_set.klDivConstraint),
+    Learner_offPolicy(_env, _set), tgtFrac(_set.penalTol),
     net_outputs(net_outs), net_indices(count_indices(net_outs)),
     pol_start(pol_inds), adv_start(adv_inds) {
     printf("RACER starts: v:%u pol:%s adv:%s\n", VsID,
     print(pol_start).c_str(), print(adv_start).c_str());
-    opcInfo = new StatsTracker(5, "racer", _set, 100);
-    //test();
-
-    // Uncomment this line to keep the sequences with the minimum average DKL
-    // instead of discarding the oldest sequences.
-    // You probably do not want to tho because the DKL and the offPol imp
-    // weight tend to be correlated. This means that if low DKL sequences are
-    // discarded, low offPoll W will be over-represented in the mem buffer.
-    // In general this means that sequences with worse-than-expected outcomes
-    // will be over represented in the mem buffer.
-    // This is because samples with a larger \rho generally have a larger
-    // pol grad magnitude. Therefore are more strongly pushed away from mu.
-    //MEMBUF_FILTER_ALGO = MAXERROR;
-    MEMBUF_FILTER_ALGO = FARPOLFRAC;
+    trainInfo = new TrainData("racer", _set, 1, "| beta | dAdv | avgW ", 3);
   }
-  ~RACER() {
-    fclose(wFile);
-    fclose(qFile);
-  }
+  ~RACER() { }
 
   void select(const Agent& agent) override
   {
@@ -400,10 +293,10 @@ class RACER : public Learner_offPolicy
       const Advantage_t adv = prepare_advantage(output, &pol);
       Rvec mu = pol.getVector(); // vector-form current policy for storage
 
-      // if greedyEps is 0, we just act according to policy
-      // since greedyEps is initial value of diagonal std vectors
+      // if explNoise is 0, we just act according to policy
+      // since explNoise is initial value of diagonal std vectors
       // this should only be used for evaluating a learned policy
-      Action_t act = pol.finalize(greedyEps>0, &generators[thrID], mu);
+      Action_t act = pol.finalize(explNoise>0, &generators[thrID], mu);
 
       const Real advantage = adv.computeAdvantage(pol.sampAct);
       traj->action_adv.push_back(advantage);
@@ -460,30 +353,6 @@ class RACER : public Learner_offPolicy
     seq->Q_RET.resize(N, 0);
     for (Uint i=N-1; i>0; i--) //update all q_ret before terminal step
       updateQret(seq, i, seq->action_adv[i], seq->state_vals[i], 1);
-
-    #if 0
-      #pragma omp critical
-      if(nStep>0) {
-        // outbuf contains
-        // - R[t] = sum_{t'=t}^{T-1} gamma^{t'-t} r_{t+1} (if seq is truncated
-        //   instead of terminated, we must add V_T * gamma^(T-t) )
-        // - Q^w(s_t,a_t) and Q^ret_t
-        outBuf = vector<float>(4*(N-1), 0);
-        for(Uint i=N-1; i>0; i--) {
-          Real R = data->scaledReward(seq, i) +
-            (seq->isTruncated(i)? gamma*seq->state_vals[i] : 0);
-          for(Uint j = i; j>0; j--) { // add disc rew to R_t of all prev steps
-            outBuf[4*(j-1) +0] += R; R *= gamma;
-          }
-          outBuf[4*(i-1) +1] = seq->action_adv[i-1];
-          // we are actually storing A_RET in there:
-          outBuf[4*(i-1) +2] = seq->Q_RET[i-1];
-          outBuf[4*(i-1) +3] = seq->state_vals[i-1];
-        }
-        // revert scaling of rewards
-        //for(Uint i=0; i<outBuf.size(); i--) outBuf[i] /= data->invstd_reward;
-      }
-    #endif
   }
 
   void prepareGradient()
@@ -493,13 +362,6 @@ class RACER : public Learner_offPolicy
     Learner::prepareGradient();
 
     if(not bWasPrepareReady) return;
-    #if 0
-      if(outBuf.size()) {
-        fwrite(outBuf.data(), sizeof(float), outBuf.size(), qFile);
-        fflush(qFile);
-        outBuf.resize(0);
-      }
-    #endif
 
     #ifdef RACER_BACKWARD
       profiler->stop_start("QRET");
@@ -528,7 +390,8 @@ class RACER : public Learner_offPolicy
       // In exchange we skip an mpi implicit barrier point.
       const bool skipped = reductor.sync(partial_data);
       fracOffPol = partial_data[0] / partial_data[1];
-      if(skipped) assert(partial_data[0] == 0); // it must be the first step
+      if(skipped) // it must be the first step: nothing is far policy yet
+        assert(partial_data[0] < nnEPS);
     }
 
     if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
@@ -537,25 +400,67 @@ class RACER : public Learner_offPolicy
     if( beta <= 10*learnR && nStep % 1000 == 0)
     warn("beta too low. Lower lrate, pick bounded nnfunc, or incr net size.");
   }
-
-  void getMetrics(ostringstream& buff) const {
-    opcInfo->reduce_approx();
-    real2SS(buff, beta, 6, 1);
-    real2SS(buff, opcInfo->instMean[0], 6, 1);
-    real2SS(buff, opcInfo->instMean[1], 6, 1);
-    real2SS(buff, opcInfo->instMean[2], 6, 0);
-    real2SS(buff, opcInfo->instMean[3], 6, 1);
-    real2SS(buff, opcInfo->instMean[4], 6, 1);
-  }
-  void getHeaders(ostringstream& buff) const {
-    // beta: coefficient of update gradient to penalization gradient:
-    //       g = g_loss * beta + (1-beta) * g_penal
-    // polG, penG : average norm of these gradients
-    // proj : average norm of projection of polG along penG
-    //        it is usually negative because curr policy should be as far as
-    //        possible from behav. pol. in the direction of update
-    // dAdv : average magnitude of Qret update
-    // avgW : average importance weight
-    buff <<"| beta | polG | penG | proj | dAdv | avgW ";
-  }
 };
+
+/*
+  ## FORWARD RACER
+
+      #if RACER_FORWARD>0 // prepare thread workspace
+        F[0]->prepare(RACER_FORWARD+1, traj, samp, thrID);
+      #else
+      #endif
+      #ifdef DKL_filter
+        const Real KLdiv = pol.kl_divergence(S->tuples[t]->mu);
+        const bool isOff = traj->distFarPolicy(t, KLdiv, 1+KLdiv, CmaxRet-1);
+      #else
+
+    #if RACER_FORWARD>0
+      // do N steps of fwd net to obtain better estimate of Qret
+      Uint N = std::min(traj->ndata()-samp, (Uint)RACER_FORWARD);
+      for(Uint k = samp+1; k<=samp+N; k++)
+      {
+        if( traj->isTerminal(k) ) {
+          assert(traj->action_adv[k] == 0 && traj->state_vals[k] == 0);
+        } else if( traj->isTruncated(k) ) {
+          assert(traj->action_adv[k] == 0);
+          const Rvec nxt = F[0]->forward(traj, k, thrID);
+          traj->setStateValue(k, nxt[VsID]);
+        } else {
+          const Rvec nxt = F[0]->forward(traj, k, thrID);
+          const Policy_t polt = prepare_policy(nxt, traj->tuples[k]);
+          const Advantage_t advt = prepare_advantage(nxt, &polt);
+          //these are all race conditions:
+          traj->setSquaredError(k, polt.kl_divergence(traj->tuples[k]->mu) );
+          traj->setAdvantage(k, advt.computeAdvantage(polt.sampAct) );
+          traj->setOffPolWeight(k, polt.sampImpWeight );
+          traj->setStateValue(k, nxt[VsID] );
+        }
+      }
+      for(Uint j = samp+N; j>samp; j--) updateQret(traj,j);
+    #endif
+
+  ## ADV DUMPING (bottom of writeOnPolRetrace)
+  #if 0
+    #pragma omp critical
+    if(nStep>0) {
+      // outbuf contains
+      // - R[t] = sum_{t'=t}^{T-1} gamma^{t'-t} r_{t+1} (if seq is truncated
+      //   instead of terminated, we must add V_T * gamma^(T-t) )
+      // - Q^w(s_t,a_t) and Q^ret_t
+      outBuf = vector<float>(4*(N-1), 0);
+      for(Uint i=N-1; i>0; i--) {
+        Real R = data->scaledReward(seq, i) +
+          (seq->isTruncated(i)? gamma*seq->state_vals[i] : 0);
+        for(Uint j = i; j>0; j--) { // add disc rew to R_t of all prev steps
+          outBuf[4*(j-1) +0] += R; R *= gamma;
+        }
+        outBuf[4*(i-1) +1] = seq->action_adv[i-1];
+        // we are actually storing A_RET in there:
+        outBuf[4*(i-1) +2] = seq->Q_RET[i-1];
+        outBuf[4*(i-1) +3] = seq->state_vals[i-1];
+      }
+      // revert scaling of rewards
+      //for(Uint i=0; i<outBuf.size(); i--) outBuf[i] /= data->invstd_reward;
+    }
+  #endif
+*/

@@ -22,7 +22,7 @@ protected:
   Environment * const env;
   const bool bSampleSequences, bTrain;
   const Uint nAgents, batchSize, totNumSteps, nThreads, nSlaves, policyVecDim;
-  const Real learnR, greedyEps, epsAnneal, gamma, CmaxPol;
+  const Real learnR, explNoise, epsAnneal, gamma, CmaxPol;
   const int learn_rank, learn_size;
   Settings & settings;
   unsigned long nStep = 0;
@@ -38,11 +38,10 @@ protected:
   std::vector<std::mt19937>& generators;
   MemoryBuffer* data;
   Encapsulator* input;
+  TrainData* trainInfo = nullptr;
   vector<Approximator*> F;
   mutable std::mutex buffer_mutex;
 
-  trainData stats;
-  mutable vector<trainData> Vstats;
   virtual void processStats();
 
   inline bool canSkip() const

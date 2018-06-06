@@ -49,65 +49,198 @@ struct ApproximateReductor
   }
 };
 
-struct trainData
+struct TrainData
 {
-  trainData():MSE(0),avgQ(0),stdQ(0),minQ(1e9),maxQ(-1e9),relE(0),dCnt(0) {}
-  long double MSE, avgQ, stdQ, minQ, maxQ, relE, dCnt;
+  const Uint n_extra, nThreads, bPolStats;
+  const string name, extra_header;
 
-  void reduce(vector<trainData>& Vstats)
+  mutable LDvec cntVec = LDvec(nThreads+1,0);
+  mutable vector<LDvec> qVec = vector<LDvec>(nThreads+1, LDvec(5,0));
+  mutable vector<LDvec> pVec = vector<LDvec>(nThreads+1, LDvec(3,0));
+  mutable vector<LDvec> eVec = vector<LDvec>(nThreads+1, LDvec(n_extra,0));
+
+  // used for debugging purposes to dump stats about gradient. will be removed
+  //FILE * wFile = fopen("grads_dist.raw", "ab");
+  //FILE * qFile = fopen("onpolQdist.raw", "ab");
+
+  TrainData(const string _name, Settings&set, bool bPPol=0,
+    const string extrah = string(), const Uint nextra=0) : n_extra(nextra),
+    nThreads(set.nThreads), bPolStats(bPPol), name(_name), extra_header(extrah)
   {
-    minQ= 1e9;MSE =0;dCnt=0;
-    maxQ=-1e9;avgQ=0;relE=0;
-    for (Uint i=0; i<Vstats.size(); i++) {
-      MSE  += Vstats[i].MSE;
-      avgQ += Vstats[i].avgQ;
-      stdQ += Vstats[i].stdQ;
-      dCnt += Vstats[i].dCnt;
-      minQ = std::min(minQ, Vstats[i].minQ);
-      maxQ = std::max(maxQ, Vstats[i].maxQ);
-      Vstats[i].minQ= 1e9; Vstats[i].MSE =0; Vstats[i].dCnt=0;
-      Vstats[i].maxQ=-1e9; Vstats[i].avgQ=0; Vstats[i].stdQ=0;
-    }
-
-    #if 0
-    if (learn_size > 1) {
-    long double ary[4] = {stats.MSE, stats.dCnt, stats.avgQ, stats.stdQ};
-    MPI_Allreduce(MPI_IN_PLACE,ary,4,MPI_LONG_DOUBLE,MPI_SUM,mastersComm);
-    stats.MSE=ary[0]; stats.dCnt=ary[1]; stats.avgQ=ary[2]; stats.stdQ=ary[3];
-    #if 0
-    MPI_Allreduce(MPI_IN_PLACE,&stats.minQ,1,MPI_LONG_DOUBLE,MPI_MIN,mastersComm);
-    MPI_Allreduce(MPI_IN_PLACE,&stats.maxQ,1,MPI_LONG_DOUBLE,MPI_MAX,mastersComm);
-    #endif
-    }
-    #endif
-
-    const long double sum = avgQ, sumsq = stdQ, cnt = dCnt;
-    MSE   = std::sqrt(MSE/cnt);
-    avgQ /= cnt; //stats.relE/=stats.dCnt;
-    stdQ  = std::sqrt((sumsq-sum*sum/cnt)/cnt);
+    resetSoft();
+    resetHead();
+  }
+  ~TrainData() {
+    //fclose(wFile);
+    //fclose(qFile);
   }
 
-  void getMetrics(ostringstream& buff) const
+  void log(const Real Q, const Real Qerr,
+    const std::vector<Real> polG, const std::vector<Real> penal,
+    std::initializer_list<Real> extra, const int thrID) {
+    cntVec[thrID] ++;
+    trackQ(Q, Qerr, thrID);
+    trackPolicy(polG, penal, thrID);
+    const vector<Real> tmp = extra;
+    assert(tmp.size() == n_extra && bPolStats);
+    for(Uint i=0; i<n_extra; i++) eVec[thrID+1][i] += tmp[i];
+  }
+  void log(const Real Q, const Real Qerr,
+    std::initializer_list<Real> extra, const int thrID) {
+    cntVec[thrID] ++;
+    trackQ(Q, Qerr, thrID);
+    const vector<Real> tmp = extra;
+    assert(tmp.size() == n_extra && not bPolStats);
+    for(Uint i=0; i<n_extra; i++) eVec[thrID+1][i] += tmp[i];
+  }
+  void log(const Real Q, const Real Qerr, const int thrID) {
+    cntVec[thrID] ++;
+    trackQ(Q, Qerr, thrID);
+    assert(not bPolStats);
+  }
+
+  void getMetrics(ostringstream& buff)
   {
-    real2SS(buff, MSE, 6, 1);
-    real2SS(buff,avgQ, 6, 0);
-    real2SS(buff,stdQ, 6, 1);
-    real2SS(buff,minQ, 6, 0);
-    real2SS(buff,maxQ, 6, 0);
+    reduce();
+    real2SS(buff, qVec[0][0], 6, 1);
+    real2SS(buff, qVec[0][1], 6, 0);
+    real2SS(buff, qVec[0][2], 6, 1);
+    real2SS(buff, qVec[0][3], 6, 0);
+    real2SS(buff, qVec[0][4], 6, 0);
+    if(bPolStats) {
+      real2SS(buff, pVec[0][0], 6, 1);
+      real2SS(buff, pVec[0][1], 6, 1);
+      real2SS(buff, pVec[0][2], 6, 0);
+    }
+    for(Uint i=0; i<n_extra; i++) real2SS(buff, eVec[0][i], 6, 1);
   }
   void getHeaders(ostringstream& buff) const
   {
     buff <<"| RMSE | avgQ | stdQ | minQ | maxQ ";
+
+    // polG, penG : average norm of policy/penalization gradients
+    // proj : average norm of projection of polG along penG
+    //        it is usually negative because curr policy should be as far as
+    //        possible from behav. pol. in the direction of update
+    if(bPolStats) buff <<"| polG | penG | proj ";
+
+    // beta: coefficient of update gradient to penalization gradient:
+    //       g = g_loss * beta + (1-beta) * g_penal
+    // dAdv : average magnitude of Qret update
+    // avgW : average importance weight
+    if(n_extra) buff << extra_header;
   }
 
-  inline void dumpStats(const Real&Q, const Real&err)
+ private:
+  void resetSoft() {
+    for(Uint i=1; i<=nThreads; i++) {
+      cntVec[i] = 0;
+      qVec[i][0] = 0;
+      qVec[i][1] = 0;
+      qVec[i][2] = 0;
+      pVec[i][0] = 0;
+      pVec[i][1] = 0;
+      pVec[i][2] = 0;
+      qVec[i][3] =  1e9;
+      qVec[i][4] = -1e9;
+      for(Uint j=0; j<n_extra; j++) eVec[i][j] = 0;
+    }
+  }
+  void resetHead() {
+    cntVec[0]  = 0;
+    qVec[0][0] = 0;
+    qVec[0][1] = 0;
+    qVec[0][2] = 0;
+    pVec[0][0] = 0;
+    pVec[0][1] = 0;
+    pVec[0][2] = 0;
+    qVec[0][3] =  1e9;
+    qVec[0][4] = -1e9;
+    for(Uint j=0; j<n_extra; j++) eVec[0][j] = 0;
+  }
+
+  void reduce()
   {
-    MSE += err*err;
-    avgQ += Q;
-    stdQ += Q*Q;
-    minQ = std::min(minQ, static_cast<long double>(Q));
-    maxQ = std::max(maxQ, static_cast<long double>(Q));
-    dCnt++;
+    resetHead();
+    for (Uint i=0; i<nThreads; i++) {
+      cntVec[0] += cntVec[i+1];
+      qVec[0][0] += qVec[i+1][0];
+      qVec[0][1] += qVec[i+1][1];
+      qVec[0][2] += qVec[i+1][2];
+      qVec[0][3]  = std::min(qVec[i+1][3], qVec[0][3]);
+      qVec[0][4]  = std::max(qVec[i+1][4], qVec[0][4]);
+      pVec[0][0] += pVec[i+1][0];
+      pVec[0][1] += pVec[i+1][1];
+      pVec[0][2] += pVec[i+1][2];
+      for(Uint j=0; j<n_extra; j++)
+        eVec[0][j] += eVec[i+1][j];
+    }
+    resetSoft();
+
+    qVec[0][0] = std::sqrt(qVec[0][0]/cntVec[0]);
+    qVec[0][1] /= cntVec[0]; // average Q
+    qVec[0][2] /= cntVec[0]; // second moment of Q
+    qVec[0][2] = std::sqrt(qVec[0][2] - qVec[0][1]*qVec[0][1]); // sdev of Q
+
+    pVec[0][0] /= cntVec[0];
+    pVec[0][1] /= cntVec[0];
+    pVec[0][2] /= cntVec[0];
+    for(Uint j=0; j<n_extra; j++) eVec[0][j] /= cntVec[0];
+
+    #if 0
+      if(outBuf.size()) {
+        fwrite(outBuf.data(), sizeof(float), outBuf.size(), qFile);
+        fflush(qFile);
+        outBuf.resize(0);
+      }
+    #endif
+  }
+
+  inline void trackQ(const Real Q, const Real err, const int thrID) {
+    qVec[thrID+1][0] += err*err;
+    qVec[thrID+1][1] += Q;
+    qVec[thrID+1][2] += Q*Q;
+    qVec[thrID+1][3] = std::min(qVec[thrID+1][3], static_cast<long double>(Q));
+    qVec[thrID+1][4] = std::max(qVec[thrID+1][4], static_cast<long double>(Q));
+  }
+
+  inline void trackPolicy(const std::vector<Real> polG,
+    const std::vector<Real> penal, const int thrID) {
+    #if 0
+      if(thrID == 1) {
+        float normT = 0, dot = 0;
+        for(Uint i = 0; i < polG.size(); i++) {
+          dot += polG[i] * penalG[i]; normT += penalG[i] * penalG[i];
+        }
+        float ret[]={dot/std::sqrt(normT)};
+        fwrite(ret, sizeof(float), 1, wFile);
+      }
+    #endif
+
+    #if 0
+      if(thrID == 1) {
+        Rvec Gcpy = gradient;
+        F[0]->gradStats->clip_vector(Gcpy);
+        Gcpy = Rvec(&Gcpy[pol_start[0]], &Gcpy[pol_start[0]+polG.size()]);
+        float normT = 0, dot = 0;
+        for(Uint i = 0; i < polG.size(); i++) {
+          dot += Gcpy[i] * penalG[i]; normT += penalG[i] * penalG[i];
+        }
+        float ret[]={dot/std::sqrt(normT)};
+        fwrite(ret, sizeof(float), 1, wFile);
+      }
+    #endif
+
+    Real tmpPol = 0, tmpPen = 0, tmpPrj = 0;
+    for(Uint i=0; i<polG.size(); i++) {
+      tmpPol +=  polG[i]* polG[i];
+      tmpPen += penal[i]*penal[i];
+      tmpPrj +=  polG[i]*penal[i];
+    }
+    pVec[thrID+1][0] += std::sqrt(tmpPol);
+    pVec[thrID+1][1] += std::sqrt(tmpPen);
+    static constexpr Real eps = numeric_limits<Real>::epsilon();
+    pVec[thrID+1][2] += tmpPrj/(std::sqrt(tmpPen)+eps);
   }
 };
 

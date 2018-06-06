@@ -93,10 +93,10 @@ class DACER_experts : public DACER<Gaussian_mixture<NEXPERTS>, Rvec>
 
     #ifdef DACER_simpleSigma // sigma not linked to network: parametric output
       build.setLastLayersBias(initBias);
-      Real initParam = Gaussian_mixture<NEXPERTS>::precision_inverse(greedyEps);
+      Real initParam = Gaussian_mixture<NEXPERTS>::precision_inverse(explNoise);
       build.addParamLayer(NEXPERTS * nA, "Linear", initParam);
     #else
-      Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, greedyEps);
+      Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, explNoise);
       build.setLastLayersBias(initBias);
     #endif
     F[0]->initializeNetwork(build, STD_GRADCUT);
@@ -182,7 +182,7 @@ class DACER_cont : public DACER<Quadratic_advantage, Gaussian_policy, Rvec >
     #endif
     Builder build = F[0]->buildFromSettings(_set, nouts);
     #ifdef DACER_simpleSigma
-      build.addParamLayer(nA, "Linear", -2*std::log(greedyEps));
+      build.addParamLayer(nA, "Linear", -2*std::log(explNoise));
     #endif
     F[0]->initializeNetwork(build);
   }

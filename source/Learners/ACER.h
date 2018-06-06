@@ -81,6 +81,7 @@ class ACER : public Learner_offPolicy
     if(thrID==1)  profiler->stop_start("POL");
     for(int k=ndata-1; k>=0; k--)
     {
+      const Tuple*const T = traj->tuples[k];
       Real QTheta = Vstates[k]+advantages[k][0], APol = advantages[k][1];
       for(Uint i = 0; i < nAexpectation; i++) {
         QTheta -= facExpect*advantages[k][2+i];
@@ -88,11 +89,12 @@ class ACER : public Learner_offPolicy
       }
       const Real A_OPC = Q_OPC - Vstates[k], Q_err = Q_RET - QTheta;
 
-      const Real W = std::min((Real)1, policies[k].sampImpWeight);
-      const Real C = std::pow(W, acerTrickPow); //as in paper, but might be bad
+      const Real rho = policies[k].sampImpWeight, W = std::min((Real)1, rho);
+      const Real C = std::pow(W, acerTrickPow), dkl = policies[k].sampKLdiv;
       const Real R = data->scaledReward(traj, k), V_err = Q_err*W;
-      const Rvec pGrad = policyGradient(traj->tuples[k], policies[k],
-        policies_tgt[k], A_OPC, APol, policy_samples[k]);
+      const Rvec pGrad = policyGradient(T, policies[k], policies_tgt[k], A_OPC,
+        APol, policy_samples[k]);
+
       F[0]->backward(pGrad,   k, thrID);
       F[1]->backward({alpha*(V_err+Q_err)}, k, thrID);
       F[2]->backward({alpha*Q_err}, k, thrID);
@@ -103,8 +105,9 @@ class ACER : public Learner_offPolicy
       Q_OPC = R +gamma*((Q_OPC-QTheta)+Vstates[k]); //as paper, but might be bad
       //Q_OPC = R +gamma*( C*(Q_OPC-QTheta) +Vstates[k]);
       //traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
-      traj->offPolicImpW[k] = policies[k].sampImpWeight;
-      Vstats[thrID].dumpStats(QTheta, Q_err);
+      const Rvec penal = policies[k].div_kl_grad(T->mu, -1);
+      data->Set[seq]->setMseDklImpw(k, Q_err*Q_err, dkl, rho);
+      trainInfo->log(QTheta, Q_err, pGrad, penal, {rho}, thrID);
     }
 
     if(thrID==1)  profiler->stop_start("BCK");
@@ -148,10 +151,10 @@ class ACER : public Learner_offPolicy
       // recurrent connection from last call from same agent will be reused
       Rvec output = F[0]->forward_agent(traj, agent, thrID);
       Policy_t pol = prepare_policy(output);
-      Rvec beta = pol.getVector();
-      const Action_t act = pol.finalize(greedyEps>0, &generators[thrID], beta);
+      Rvec mu = pol.getVector();
+      const Action_t act = pol.finalize(explNoise>0, &generators[thrID], mu);
       agent.a->set(act);
-      data->add_action(agent, beta);
+      data->add_action(agent, mu);
     }
     else data->terminate_seq(agent);
   }
@@ -182,11 +185,11 @@ class ACER : public Learner_offPolicy
 
     relay = new Aggregator(_set, data, _env->aI.dim);
     F.push_back(new Approximator("policy", _set, input, data));
-    F.push_back(new Approximator("value",  _set, input, data));
+    F.push_back(new Approximator("critic", _set, input, data));
     F.push_back(new Approximator("advntg", _set, input, data, relay));
 
     Builder build_pol = F[0]->buildFromSettings(_set, nA);
-    const Real initParam = noiseMap_inverse(greedyEps);
+    const Real initParam = noiseMap_inverse(explNoise);
     build_pol.addParamLayer(nA, "Linear", initParam);
     Builder build_val = F[1]->buildFromSettings(_set, 1 ); // V
     Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A
@@ -201,6 +204,7 @@ class ACER : public Learner_offPolicy
     //_set.learnrate /= 10;
     F[2]->allocMorePerThread(nAexpectation);
     printf("ACER\n");
+    trainInfo = new TrainData("acer", _set, 1, "| avgW ", 1);
 
     {  // TEST FINITE DIFFERENCES:
       Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));

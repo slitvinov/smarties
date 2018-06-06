@@ -24,11 +24,11 @@ SETTINGS+=" --bTrain 1"
 SETTINGS+=" --learner GAE"
 
 #chance of taking random actions
-SETTINGS+=" --greedyEps 0.5"
+SETTINGS+=" --explNoise 0.5"
 SETTINGS+=" --klDivConstraint 0.01"
 SETTINGS+=" --totNumSteps 10000000"
 SETTINGS+=" --lambda 0.97"
-SETTINGS+=" --impWeight 0.2"
+SETTINGS+=" --clipImpWeight 0.2"
 
 #SETTINGS+=" --maxTotObsNum 16384"
 SETTINGS+=" --maxTotObsNum 2048"

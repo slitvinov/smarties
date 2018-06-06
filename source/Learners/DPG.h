@@ -21,9 +21,6 @@ class DPG : public Learner_offPolicy
   //const Real OrUhDecay = 0; // no correlated noise
   vector<Rvec> OrUhState = vector<Rvec>(nAgents,Rvec(nA,0));
 
-  Real beta = CmaxPol<=0? 1 : .2; // if CmaxPol==0 do naive Exp Replay
-  Real CmaxRet = 1 + CmaxPol;
-
   ApproximateReductor<double, MPI_DOUBLE> reductor =
   ApproximateReductor<double, MPI_DOUBLE>(mastersComm, 2);
 

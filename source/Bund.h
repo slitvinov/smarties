@@ -48,6 +48,9 @@ typedef double memReal;
 // (currently set to be the same as Adam's second moment learn rate)
 #define CLIP_LEARNR 1e-3
 
+// hint to reserve memory for the network workspaces, can be breached
+#define MAX_SEQ_LEN 1000
+
 // Default number of second moments to clip the pre-backprop gradient:
 // Can be changed inside each learning algo by overwriting default arg of
 // Approximator::initializeNetwork function

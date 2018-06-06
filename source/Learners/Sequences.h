@@ -44,15 +44,16 @@ struct Sequence
 {
   vector<Tuple*> tuples;
   int ended = 0, ID = -1, just_sampled = -1;
-  Real nOffPol = 0, MSE = 0;
+  Real nOffPol = 0, MSE = 0, sumKLDiv = 0;
   Rvec action_adv;
   Rvec state_vals;
   Rvec Q_RET;
   //Used for sampling, filtering, and sorting off policy data:
   Rvec SquaredError;
   Rvec offPolicImpW;
-  Rvec priorityImpW;
-  //Rvec KullbLeibDiv;
+  //Rvec priorityImpW;
+  Rvec KullbLeibDiv;
+  mutable std::mutex seq_mutex;
 
   inline Uint ndata() const {
     assert(tuples.size());
@@ -73,75 +74,60 @@ struct Sequence
   {
     for(auto &t : tuples) _dispose_object(t);
     tuples.clear();
-    ended=0; ID=-1; just_sampled=-1; nOffPol=0; MSE=0;
+    ended=0; ID=-1; just_sampled=-1; nOffPol=0; MSE=0; sumKLDiv=0;
     SquaredError.clear();
     offPolicImpW.clear();
-    priorityImpW.clear();
+    //priorityImpW.clear();
+    KullbLeibDiv.clear();
     action_adv.clear();
     state_vals.clear();
     Q_RET.clear();
   }
   inline void setSampled(const int t) //update index of latest sampled time step
   {
-    #pragma omp critical
+    lock_guard<mutex> lock(seq_mutex);
     if(just_sampled < t) just_sampled = t;
-  }
-  inline void setSquaredError(const Uint t, const Real err)
-  {
-    assert( t < SquaredError.size() );
-    #pragma omp atomic write
-    SquaredError[t] = err;
   }
   inline void setRetrace(const Uint t, const Real Q)
   {
     assert( t < Q_RET.size() );
-    #pragma omp atomic write
+    lock_guard<mutex> lock(seq_mutex);
     Q_RET[t] = Q;
   }
   inline void setAdvantage(const Uint t, const Real A)
   {
     assert( t < action_adv.size() );
-    #pragma omp atomic write
+    lock_guard<mutex> lock(seq_mutex);
     action_adv[t] = A;
   }
   inline void setStateValue(const Uint t, const Real V)
   {
     assert( t < state_vals.size() );
-    #pragma omp atomic write
+    lock_guard<mutex> lock(seq_mutex);
     state_vals[t] = V;
   }
-  inline void setOffPolWeight(const Uint t, const Real W)
+  inline void setMseDklImpw(const Uint t,const Real E,const Real D,const Real W)
   {
-    assert( t < offPolicImpW.size() );
-    #pragma omp atomic write
+    lock_guard<mutex> lock(seq_mutex);
+    SquaredError[t] = E;
+    KullbLeibDiv[t] = D;
     offPolicImpW[t] = W;
   }
 
-  inline bool isFarPolicyPPO(const Uint t, const Real W, const Real C)
+  inline bool isFarPolicyPPO(const Uint t, const Real W, const Real C) const
   {
     assert(C<1) ;
     const bool isOff = W > 1+C || W < 1-C;
-    assert(t<offPolicImpW.size());
-    #pragma omp atomic write
-    offPolicImpW[t] = W;
     return isOff;
   }
-  inline bool isFarPolicy(const Uint t, const Real W, const Real C)
+  inline bool isFarPolicy(const Uint t, const Real W, const Real C) const
   {
     const bool isOff = W > C || W < 1/C;
-    assert(t<offPolicImpW.size());
-    #pragma omp atomic write
-    offPolicImpW[t] = W;
     // If C<=1 assume we never filter far policy samples
     return C>1 && isOff;
   }
-  inline bool distFarPolicy(const Uint t, const Real D, const Real W, const Real target)
+  inline bool distFarPolicy(const Uint t, const Real D, const Real target) const
   {
-    assert(t<offPolicImpW.size());
-    #pragma omp atomic write
-    SquaredError[t] = D;
-    #pragma omp atomic write
-    offPolicImpW[t] = W;
     // If target<=0 assume we never filter far policy samples
     return target>0 && D > target;
   }
@@ -164,6 +150,7 @@ struct Sequence
     SquaredError = Rvec(ndata(), 0);
     // off pol importance weights are initialized to 1s
     offPolicImpW = Rvec(ndata(), 1);
+    KullbLeibDiv = Rvec(ndata(), 1);
   }
 };
 

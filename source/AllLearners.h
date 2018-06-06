@@ -35,7 +35,7 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
     settings.policyVecDim = env->aI.maxLabel;
     return new DQN(env, settings);
   }
-  else if (settings.learner == "RACER" || settings.learner == "POAC") {
+  else if (settings.learner == "RACER") {
     if(env->aI.discrete) {
       settings.policyVecDim = RACER_disc::getnDimPolicy(&env->aI);
       o << env->aI.maxLabel << " " << settings.policyVecDim;
@@ -50,7 +50,7 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
       return new RACER_continuous(env, settings);
     }
   }
-  else if (settings.learner == "DACER") {
+  else if (settings.learner == "VRACER") {
     if(env->aI.discrete) {
       settings.policyVecDim = RACER_disc::getnDimPolicy(&env->aI);
       o << env->aI.maxLabel << " " << settings.policyVecDim;
@@ -64,6 +64,7 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
     }
   }
   else if (settings.learner == "ACER") {
+    settings.bSampleSequences = true;
     assert(env->aI.discrete == false);
     settings.policyVecDim = ACER::getnDimPolicy(&env->aI);
     o << env->aI.dim << " " << settings.policyVecDim;
@@ -71,6 +72,7 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
     return new ACER(env, settings);
   }
   else if (settings.learner == "NA" || settings.learner == "NAF") {
+    settings.bSampleSequences = false;
     settings.policyVecDim = 2*env->aI.dim;
     assert(not env->aI.discrete);
     o << env->aI.dim << " " << settings.policyVecDim;
@@ -78,15 +80,17 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
     return new NAF(env, settings);
   }
   else if (settings.learner == "DP" || settings.learner == "DPG") {
+    settings.bSampleSequences = false;
     settings.policyVecDim = 2*env->aI.dim;
     // non-NPER DPG is unstable with annealed network learn rate
     // because critic network must adapt quickly
-    if(settings.impWeight<=0) settings.epsAnneal = 0;
+    if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
     o << env->aI.dim << " " << settings.policyVecDim;
     print(o, "problem_size.log", settings.world_rank);
     return new DPG(env, settings);
   }
   else if (settings.learner == "GAE" || settings.learner == "PPO") {
+    settings.bSampleSequences = false;
     if(env->aI.discrete) {
       settings.policyVecDim = PPO_disc::getnDimPolicy(&env->aI);
       o << env->aI.maxLabel << " " << settings.policyVecDim;

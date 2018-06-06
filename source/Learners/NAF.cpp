@@ -14,6 +14,7 @@
 NAF::NAF(Environment*const _env, Settings & _set) :
 Learner_offPolicy(_env, _set)
 {
+  trainInfo = new TrainData("NAF", _set);
   F.push_back(new Approximator("value", _set, input, data));
   Builder build_pol = F[0]->buildFromSettings(_set, aInfo.dim);
   F[0]->initializeNetwork(build_pol);
@@ -22,7 +23,7 @@ Learner_offPolicy(_env, _set)
 
 void NAF::select(const Agent& agent)
 {
-  const Real annealedVar = greedyEps + (bTrain ? annealingFactor() : 0);
+  const Real annealedVar = explNoise + (bTrain ? annealingFactor() : 0);
   const int thrID= omp_get_thread_num();
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
@@ -67,8 +68,8 @@ void NAF::TrainBySequences(const Uint seq, const Uint thrID) const
     gradient[net_indices[0]] = error;
     adv_sold.grad(act, error, gradient);
 
-    traj->SquaredError[k] = error*error;
-    Vstats[thrID].dumpStats(Qsold, error);
+    traj->setMseDklImpw(k, error*error, 0, 1);
+    trainInfo->log(Qsold, error, thrID);
     F[0]->backward(gradient, k, thrID);
   }
 
@@ -100,8 +101,8 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
   gradient[net_indices[0]] = error;
   adv_sold.grad(act, error, gradient);
 
-  traj->SquaredError[samp] = error*error;
-  Vstats[thrID].dumpStats(Qsold, error);
+  trainInfo->log(Qsold, error, thrID);
+  traj->setMseDklImpw(samp, error*error, 0, 1);
   if(thrID==1)  profiler->stop_start("BCK");
   F[0]->backward(gradient, samp, thrID);
   F[0]->gradient(thrID);

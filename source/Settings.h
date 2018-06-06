@@ -37,13 +37,13 @@ struct Settings
 #define DEFAULT_bTrain 1
   int bTrain = DEFAULT_bTrain;
 
-#define CHARARG_appendedObs 'c'
-#define COMMENT_appendedObs "Number of past observations to be chained \
-together to form policy input (eg. see frames in DQN paper)."
-#define TYPEVAL_appendedObs int
-#define TYPENUM_appendedObs INT
-#define DEFAULT_appendedObs 0
-  int appendedObs = DEFAULT_appendedObs;
+#define CHARARG_clipImpWeight 'c'
+#define COMMENT_clipImpWeight "Max importance weight for off-policy Policy \
+Gradient. Algo specific."
+#define TYPEVAL_clipImpWeight Real
+#define TYPENUM_clipImpWeight REAL
+#define DEFAULT_clipImpWeight 4
+Real clipImpWeight = DEFAULT_clipImpWeight;
 
 #define CHARARG_targetDelay 'd'
 #define COMMENT_targetDelay "Copy delay for target network. If >1: every \
@@ -54,14 +54,14 @@ grad desc step tgt-net does exp averaging."
 #define DEFAULT_targetDelay 0
   Real targetDelay = DEFAULT_targetDelay;
 
-#define CHARARG_greedyEps 'e'
-#define COMMENT_greedyEps "Noise added to policy. For discrete actions \
+#define CHARARG_explNoise 'e'
+#define COMMENT_explNoise "Noise added to policy. For discrete actions \
 it is the probability of picking a random one (detail depend on chosen \
 learning algorithm), for continuous actions it is the (initial) stdev."
-#define TYPEVAL_greedyEps Real
-#define TYPENUM_greedyEps REAL
-#define DEFAULT_greedyEps 0.5
-  Real greedyEps = DEFAULT_greedyEps;
+#define TYPEVAL_explNoise Real
+#define TYPENUM_explNoise REAL
+#define DEFAULT_explNoise 0.5
+  Real explNoise = DEFAULT_explNoise;
 
 #define CHARARG_gamma 'g'
 #define COMMENT_gamma "Discount factor."
@@ -74,7 +74,7 @@ learning algorithm), for continuous actions it is the (initial) stdev."
 #define COMMENT_klDivConstraint "Constraint on max KL div, algo specific."
 #define TYPEVAL_klDivConstraint Real
 #define TYPENUM_klDivConstraint REAL
-#define DEFAULT_klDivConstraint 0.1
+#define DEFAULT_klDivConstraint 0.01
   Real klDivConstraint = DEFAULT_klDivConstraint;
 
 #define CHARARG_lambda 'l'
@@ -83,14 +83,6 @@ learning algorithm), for continuous actions it is the (initial) stdev."
 #define TYPENUM_lambda REAL
 #define DEFAULT_lambda 0.95
   Real lambda = DEFAULT_lambda;
-
-#define CHARARG_maxSeqLen 'M' //there is always an exception
-#define COMMENT_maxSeqLen "DEPRECATED: Maximum length of sequence. if seq is \
-longer it is just split into segments."
-#define TYPEVAL_maxSeqLen int
-#define TYPENUM_maxSeqLen INT
-#define DEFAULT_maxSeqLen 9999
-  int maxSeqLen = DEFAULT_maxSeqLen;
 
 #define CHARARG_minTotObsNum 'm'
 #define COMMENT_minTotObsNum "Min number of transitions in training buffer \
@@ -115,6 +107,14 @@ steps. 0.1 means that for every observation, learner does 10 gradient steps."
 #define DEFAULT_obsPerStep  1
   Real obsPerStep = DEFAULT_obsPerStep;
 
+#define CHARARG_penalTol 't'
+#define COMMENT_penalTol "Tolerance used for adaptive penalization methods. \
+Algo specific."
+#define TYPEVAL_penalTol  Real
+#define TYPENUM_penalTol  REAL
+#define DEFAULT_penalTol  0.1
+  Real penalTol = DEFAULT_penalTol;
+
 #define CHARARG_epsAnneal 'r'
 #define COMMENT_epsAnneal "Annealing rate in grad steps of various \
 learning-algorithm-dependent behaviors."
@@ -130,13 +130,6 @@ or observations (0) from the Replay Memory."
 #define TYPENUM_bSampleSequences  INT
 #define DEFAULT_bSampleSequences  0
   int bSampleSequences = DEFAULT_bSampleSequences;
-
-#define CHARARG_impWeight 'w'
-#define COMMENT_impWeight "Max importance weight for Policy Gradient"
-#define TYPEVAL_impWeight Real
-#define TYPENUM_impWeight REAL
-#define DEFAULT_impWeight 4
-  Real impWeight = DEFAULT_impWeight;
 
 #define CHARARG_bSharedPol 'y'
 #define COMMENT_bSharedPol "Have a separate policy per each agent on a sim"
@@ -197,6 +190,76 @@ or observations (0) from the Replay Memory."
 #define DEFAULT_nnl6 0
   int nnl6 = DEFAULT_nnl6;
 
+#define CHARARG_batchSize 'B'
+#define COMMENT_batchSize "Network training batch size."
+#define TYPEVAL_batchSize int
+#define TYPENUM_batchSize INT
+#define DEFAULT_batchSize 128
+  int batchSize = DEFAULT_batchSize;
+
+#define CHARARG_appendedObs 'C'
+#define COMMENT_appendedObs "Number of past observations to be chained \
+together to form policy input (eg. see frames in DQN paper)."
+#define TYPEVAL_appendedObs int
+#define TYPENUM_appendedObs INT
+#define DEFAULT_appendedObs 0
+  int appendedObs = DEFAULT_appendedObs;
+
+#define CHARARG_nnPdrop 'D'
+#define COMMENT_nnPdrop "Unused currently (dropout)."
+#define TYPEVAL_nnPdrop Real
+#define TYPENUM_nnPdrop REAL
+#define DEFAULT_nnPdrop 0
+  Real nnPdrop = DEFAULT_nnPdrop;
+
+#define CHARARG_nnOutputFunc 'E'
+#define COMMENT_nnOutputFunc "Activation function for output layers."
+#define TYPEVAL_nnOutputFunc string
+#define TYPENUM_nnOutputFunc STRING
+#define DEFAULT_nnOutputFunc "Linear"
+  string nnOutputFunc = DEFAULT_nnOutputFunc;
+
+#define CHARARG_nnFunc 'F'
+#define COMMENT_nnFunc "Activation function for non-output layers (which should\
+ always be linear) which are built from settings. (Relu, Tanh, Sigm, PRelu, \
+softSign, softPlus, ...)"
+#define TYPEVAL_nnFunc string
+#define TYPENUM_nnFunc STRING
+#define DEFAULT_nnFunc "SoftSign"
+  string nnFunc = DEFAULT_nnFunc;
+
+#define CHARARG_learnrate 'L'
+#define COMMENT_learnrate "Learning rate."
+#define TYPEVAL_learnrate Real
+#define TYPENUM_learnrate REAL
+#define DEFAULT_learnrate 1e-4
+  Real learnrate = DEFAULT_learnrate;
+
+#define CHARARG_nnType 'N'
+#define COMMENT_nnType "Type of non-output layers read from settings. (RNN, \
+LSTM, everything else maps to FFNN). Conv2D layers need to be built in \
+environment directly."
+#define TYPEVAL_nnType string
+#define TYPENUM_nnType STRING
+#define DEFAULT_nnType "FFNN"
+  string nnType = DEFAULT_nnType;
+
+#define CHARARG_outWeightsPrefac 'O'
+#define COMMENT_outWeightsPrefac "Output weights initialization factor (will \
+be multiplied by default fan-in factor). Picking 1 leads to treating \
+output layers with normal Xavier initialization."
+#define TYPEVAL_outWeightsPrefac Real
+#define TYPENUM_outWeightsPrefac REAL
+#define DEFAULT_outWeightsPrefac 1
+  Real outWeightsPrefac = DEFAULT_outWeightsPrefac;
+
+#define CHARARG_nnLambda 'P'
+#define COMMENT_nnLambda "Penalization factor for network weights."
+#define TYPEVAL_nnLambda Real
+#define TYPENUM_nnLambda REAL
+#define DEFAULT_nnLambda numeric_limits<Real>::epsilon()
+  Real nnLambda = DEFAULT_nnLambda;
+
 #define CHARARG_splitLayers 'S'
 #define COMMENT_splitLayers "Number of split layers, description in Settings.h"
 //"For each output required by algorithm (ie. value, policy, std, ...) " \/
@@ -208,68 +271,6 @@ or observations (0) from the Replay Memory."
 #define TYPENUM_splitLayers INT
 #define DEFAULT_splitLayers 0
   int splitLayers = DEFAULT_splitLayers;
-
-#define CHARARG_outWeightsPrefac 'O'
-#define COMMENT_outWeightsPrefac "Output weights initialization factor (will \
-be multiplied by default fan-in factor). Picking 1 leads to treating \
-output layers with normal Xavier initialization."
-#define TYPEVAL_outWeightsPrefac Real
-#define TYPENUM_outWeightsPrefac REAL
-#define DEFAULT_outWeightsPrefac 1
-  Real outWeightsPrefac = DEFAULT_outWeightsPrefac;
-
-#define CHARARG_batchSize 'B'
-#define COMMENT_batchSize "Network training batch size."
-#define TYPEVAL_batchSize int
-#define TYPENUM_batchSize INT
-#define DEFAULT_batchSize 128
-  int batchSize = DEFAULT_batchSize;
-
-#define CHARARG_learnrate 'L'
-#define COMMENT_learnrate "Learning rate."
-#define TYPEVAL_learnrate Real
-#define TYPENUM_learnrate REAL
-#define DEFAULT_learnrate 1e-4
-  Real learnrate = DEFAULT_learnrate;
-
-#define CHARARG_nnPdrop 'D'
-#define COMMENT_nnPdrop "Unused currently (dropout)."
-#define TYPEVAL_nnPdrop Real
-#define TYPENUM_nnPdrop REAL
-#define DEFAULT_nnPdrop 0
-  Real nnPdrop = DEFAULT_nnPdrop;
-
-#define CHARARG_nnLambda 'P'
-#define COMMENT_nnLambda "Penalization factor for network weights."
-#define TYPEVAL_nnLambda Real
-#define TYPENUM_nnLambda REAL
-#define DEFAULT_nnLambda numeric_limits<Real>::epsilon()
-  Real nnLambda = DEFAULT_nnLambda;
-
-#define CHARARG_nnType 'N'
-#define COMMENT_nnType "Type of non-output layers read from settings. (RNN, \
-LSTM, everything else maps to FFNN). Conv2D layers need to be built in \
-environment directly."
-#define TYPEVAL_nnType string
-#define TYPENUM_nnType STRING
-#define DEFAULT_nnType "FFNN"
-  string nnType = DEFAULT_nnType;
-
-#define CHARARG_nnFunc 'F'
-#define COMMENT_nnFunc "Activation function for non-output layers (which should\
- always be linear) which are built from settings. (Relu, Tanh, Sigm, PRelu, \
-softSign, softPlus, ...)"
-#define TYPEVAL_nnFunc string
-#define TYPENUM_nnFunc STRING
-#define DEFAULT_nnFunc "SoftSign"
-  string nnFunc = DEFAULT_nnFunc;
-
-#define CHARARG_nnOutputFunc 'E'
-#define COMMENT_nnOutputFunc "Activation function for output layers."
-#define TYPEVAL_nnOutputFunc string
-#define TYPENUM_nnOutputFunc STRING
-#define DEFAULT_nnOutputFunc "Linear"
-  string nnOutputFunc = DEFAULT_nnOutputFunc;
 
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS PERTAINING TO PARALLELIZATION/COMMUNICATION: ASCII SYMBOL
@@ -437,7 +438,6 @@ base run folder."
 
     if(bSampleSequences && maxTotSeqNum<batchSize)
     die("Increase memory buffer size or decrease batchsize, or switch to sampling by transitions.");
-    if(maxTotSeqNum<0) die("maxTotSeqNum<0");
     if(appendedObs<0)  die("appendedObs<0");
     if(targetDelay<0)  die("targetDelay<0");
     if(splitLayers<0)  die("splitLayers<0");
@@ -446,7 +446,7 @@ base run folder."
     if(obsPerStep<0)   die("obsPerStep<0");
     if(learnrate>.1)   die("learnrate>.1");
     if(learnrate<0)    die("learnrate<0");
-    if(greedyEps<0)    die("greedyEps<0");
+    if(explNoise<0)    die("explNoise<0");
     if(epsAnneal<0)    die("epsAnneal<0");
     if(batchSize<0)    die("batchSize<0");
     if(nnLambda<0)     die("nnLambda<0");
@@ -471,15 +471,15 @@ base run folder."
 
     return vector<ArgParser::OptionStruct> ({
       // LEARNER ARGS: MUST contain all 17 mentioned above (more if modified)
-      READOPT(learner), READOPT(bTrain), READOPT(appendedObs),
-      READOPT(targetDelay), READOPT(greedyEps), READOPT(gamma),
-      READOPT(klDivConstraint), READOPT(lambda), READOPT(maxSeqLen),
-      READOPT(minTotObsNum), READOPT(maxTotObsNum), READOPT(obsPerStep),
-      READOPT(epsAnneal), READOPT(bSampleSequences), READOPT(impWeight),
+      READOPT(learner), READOPT(bTrain), READOPT(clipImpWeight),
+      READOPT(targetDelay), READOPT(explNoise), READOPT(gamma),
+      READOPT(klDivConstraint), READOPT(lambda), READOPT(minTotObsNum),
+      READOPT(maxTotObsNum), READOPT(obsPerStep), READOPT(penalTol),
+      READOPT(epsAnneal), READOPT(bSampleSequences),
       READOPT(bSharedPol), READOPT(totNumSteps),
       // NETWORK ARGS: MUST contain all 15 mentioned above (more if modified)
       READOPT(nnl1), READOPT(nnl2), READOPT(nnl3), READOPT(nnl4),
-      READOPT(nnl5), READOPT(nnl6), READOPT(splitLayers),
+      READOPT(nnl5), READOPT(nnl6), READOPT(splitLayers), READOPT(appendedObs),
       READOPT(outWeightsPrefac), READOPT(batchSize), READOPT(learnrate),
       READOPT(nnPdrop), READOPT(nnLambda), READOPT(nnType), READOPT(nnFunc),
       READOPT(nnOutputFunc),
