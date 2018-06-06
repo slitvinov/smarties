@@ -29,7 +29,7 @@ class DACER : public Learner_offPolicy
 
   // tgtFrac_param: target fraction of off-pol samples
   // alpha: weight of value-update relative to policy update. 1 means equal
-  const Real tgtFrac, alpha=1;
+  const Real alpha=1;
   Real CmaxRet = 1 + CmaxPol;
 
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
@@ -39,12 +39,6 @@ class DACER : public Learner_offPolicy
 
   // used in case of temporally correlated noise
   vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
-
-  // initial value of relative weight of penalization to update gradients:
-  Real beta = 0.2;
-
-  ApproximateReductor<double, MPI_DOUBLE> reductor =
-  ApproximateReductor<double, MPI_DOUBLE>(mastersComm, 2);
 
   inline Policy_t prepare_policy(const Rvec& out,
     const Tuple*const t = nullptr) const {
@@ -163,8 +157,7 @@ class DACER : public Learner_offPolicy
 
  public:
   DACER(Environment*const _env, Settings& _set, vector<Uint> net_outs,
-   vector<Uint> pol_inds): Learner_offPolicy(_env,_set),
-   tgtFrac(_set.penalTol), net_outputs(net_outs),
+   vector<Uint> pol_inds): Learner_offPolicy(_env,_set), net_outputs(net_outs),
    net_indices(count_indices(net_outs)), pol_start(pol_inds)
   {
     printf("DACER starts: v:%u pol:%s\n", VsID, print(pol_start).c_str());
@@ -237,44 +230,16 @@ class DACER : public Learner_offPolicy
 
   void prepareGradient()
   {
-    const bool bWasPrepareReady = updateComplete;
-
-    Learner::prepareGradient();
-
-    if(not bWasPrepareReady) return;
-
-    #ifdef DACER_BACKWARD
+    #ifdef RACER_BACKWARD
+    if(updateComplete) {
       profiler->stop_start("QRET");
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++)
         for(int j = data->Set[i]->just_sampled; j>=0; j--)
           updateVret(data->Set[i], j, data->Set[i]->state_vals[j], data->Set[i]->offPolicImpW[j]);
+    }
     #endif
 
-    profiler->stop_start("PRNE");
-
-    advanceCounters();
-    CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
-    data->prune(CmaxPol>0 ? FARPOLFRAC : OLDEST, CmaxRet);
-    Real fracOffPol = data->nOffPol / (Real) data->readNData();
-    profiler->stop_start("SLP");
-
-    if (learn_size > 1) {
-      vector<Real> partial_data {(Real)data->nOffPol, (Real)data->readNData()};
-      // use result from prev AllReduce to update rewards (before new reduce).
-      // Assumption is that the number of off Pol trajectories does not change
-      // much each step. Especially because here we update the off pol W only
-      // if an observation is actually sampled. Therefore at most this fraction
-      // is wrong by batchSize / nTransitions ( ~ 0 )
-      // In exchange we skip an mpi implicit barrier point.
-      reductor.sync(partial_data);
-      fracOffPol = partial_data[0] / partial_data[1];
-    }
-
-    if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
-    else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
-
-    if( beta <= 10*learnR && nStep % 1000 == 0)
-    warn("beta too low. Decrease learnrate and/or increase penalTol.");
+    Learner_offPolicy::prepareGradientReFER();
   }
 };

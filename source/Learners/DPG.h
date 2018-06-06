@@ -21,9 +21,6 @@ class DPG : public Learner_offPolicy
   //const Real OrUhDecay = 0; // no correlated noise
   vector<Rvec> OrUhState = vector<Rvec>(nAgents,Rvec(nA,0));
 
-  ApproximateReductor<double, MPI_DOUBLE> reductor =
-  ApproximateReductor<double, MPI_DOUBLE>(mastersComm, 2);
-
   inline Gaussian_policy prepare_policy(const Rvec& out,
     const Tuple*const t = nullptr) const {
     Gaussian_policy pol({0, nA}, &aInfo, out);
@@ -45,6 +42,4 @@ public:
   DPG(Environment*const env, Settings & settings);
   void select(const Agent& agent) override;
   void prepareGradient() override;
-  void getMetrics(ostringstream& buff) const;
-  void getHeaders(ostringstream& buff) const;
 };

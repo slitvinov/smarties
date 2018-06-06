@@ -13,10 +13,10 @@
 
 Learner::Learner(Environment*const _env, Settings & _s) :
 mastersComm(_s.mastersComm), env(_env), bSampleSequences(_s.bSampleSequences),
-bTrain(_s.bTrain), nAgents(_s.nAgents), batchSize(_s.batchSize),
-totNumSteps(_s.totNumSteps), nThreads(_s.nThreads), nSlaves(_s.nSlaves),
-policyVecDim(_s.policyVecDim), learnR(_s.learnrate), explNoise(_s.explNoise),
-epsAnneal(_s.epsAnneal), gamma(_s.gamma), CmaxPol(_s.clipImpWeight),
+bTrain(_s.bTrain), totNumSteps(_s.totNumSteps), policyVecDim(_s.policyVecDim),
+batchSize(_s.batchSize), nAgents(_s.nAgents), nThreads(_s.nThreads),
+nSlaves(_s.nSlaves), gamma(_s.gamma), learnR(_s.learnrate), ReFtol(_s.penalTol),
+explNoise(_s.explNoise), epsAnneal(_s.epsAnneal), CmaxPol(_s.clipImpWeight),
 learn_rank(_s.learner_rank), learn_size(_s.learner_size), settings(_s),
 aInfo(env->aI), sInfo(env->sI), generators(_s.generators)
 {

@@ -46,12 +46,6 @@ class RACER : public Learner_offPolicy
 
   vector<float> outBuf;
 
-  // initial value of relative weight of penalization to update gradients:
-  Real beta = 0.2;
-
-  ApproximateReductor<double, MPI_DOUBLE> reductor =
-  ApproximateReductor<double, MPI_DOUBLE>(mastersComm, 2);
-
   inline Policy_t prepare_policy(const Rvec& out,
     const Tuple*const t = nullptr) const {
     Policy_t pol(pol_start, &aInfo, out);
@@ -357,48 +351,17 @@ class RACER : public Learner_offPolicy
 
   void prepareGradient()
   {
-    const bool bWasPrepareReady = updateComplete;
-
-    Learner::prepareGradient();
-
-    if(not bWasPrepareReady) return;
-
     #ifdef RACER_BACKWARD
+    if(updateComplete) {
       profiler->stop_start("QRET");
       #pragma omp parallel for schedule(dynamic)
       for(Uint i = 0; i < data->Set.size(); i++)
         for(int j = data->Set[i]->just_sampled-1; j > 0; j--)
           updateQretBack(data->Set[i], j);
+    }
     #endif
 
-    profiler->stop_start("PRNE");
-
-    advanceCounters();
-    CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
-    if(CmaxRet<1) die("Either run lasted too long or epsAnneal is wrong.");
-    data->prune(CmaxPol>0 ? FARPOLFRAC : OLDEST, CmaxRet);
-    Real fracOffPol = data->nOffPol / (Real) data->readNData();
-    profiler->stop_start("SLP");
-
-    if (learn_size > 1) {
-      vector<Real> partial_data {(Real)data->nOffPol, (Real)data->readNData()};
-      // use result from prev AllReduce to update rewards (before new reduce).
-      // Assumption is that the number of off Pol trajectories does not change
-      // much each step. Especially because here we update the off pol W only
-      // if an observation is actually sampled. Therefore at most this fraction
-      // is wrong by batchSize / nTransitions ( ~ 0 )
-      // In exchange we skip an mpi implicit barrier point.
-      const bool skipped = reductor.sync(partial_data);
-      fracOffPol = partial_data[0] / partial_data[1];
-      if(skipped) // it must be the first step: nothing is far policy yet
-        assert(partial_data[0] < nnEPS);
-    }
-
-    if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
-    else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
-
-    if( beta <= 10*learnR && nStep % 1000 == 0)
-    warn("beta too low. Lower lrate, pick bounded nnfunc, or incr net size.");
+    Learner_offPolicy::prepareGradientReFER();
   }
 };
 

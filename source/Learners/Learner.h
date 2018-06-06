@@ -21,8 +21,8 @@ protected:
   const MPI_Comm mastersComm;
   Environment * const env;
   const bool bSampleSequences, bTrain;
-  const Uint nAgents, batchSize, totNumSteps, nThreads, nSlaves, policyVecDim;
-  const Real learnR, explNoise, epsAnneal, gamma, CmaxPol;
+  const Uint totNumSteps, policyVecDim, batchSize, nAgents, nThreads, nSlaves;
+  const Real gamma, learnR, ReFtol, explNoise, epsAnneal, CmaxPol;
   const int learn_rank, learn_size;
   Settings & settings;
   unsigned long nStep = 0;

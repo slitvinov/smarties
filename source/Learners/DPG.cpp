@@ -153,43 +153,5 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
 
 void DPG::prepareGradient()
 {
-  const bool bWasPrepareReady = updateComplete;
-
-  Learner::prepareGradient();
-
-  if(not bWasPrepareReady) return;
-
-  profiler->stop_start("PRNE");
-  advanceCounters();
-  CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
-  if(CmaxRet<1) die("Either run lasted too long or epsAnneal is wrong.");
-  data->prune(CmaxPol>0 ? FARPOLFRAC : OLDEST, CmaxRet);
-  Real fracOffPol = data->nOffPol / (Real) data->readNData();
-  profiler->stop_start("SLP");
-
-  if (learn_size > 1) {
-    vector<Real> partial_data {(Real)data->nOffPol, (Real)data->readNData()};
-    // use result from prev AllReduce to update rewards (before new reduce).
-    // Assumption is that the number of off Pol trajectories does not change
-    // much each step. Especially because here we update the off pol W only
-    // if an observation is actually sampled. Therefore at most this fraction
-    // is wrong by batchSize / nTransitions ( ~ 0 )
-    // In exchange we skip an mpi implicit barrier point.
-    reductor.sync(partial_data);
-    fracOffPol = partial_data[0] / partial_data[1];
-  }
-
-  // if CmaxPol<=0 no samples will be counted as far pol, beta will be 1
-  if(fracOffPol>tgtFrac) beta = (1-learnR)*beta; // iter converges to 0
-  else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
-
-  if( beta <= 10*learnR && nStep % 1000 == 0)
-  warn("beta too low. Decrease learnrate and/or increase klDivConstraint.");
-}
-
-void DPG::getMetrics(ostringstream& buff) const {
-  real2SS(buff, beta, 6, 1);
-}
-void DPG::getHeaders(ostringstream& buff) const {
-  buff <<"| beta ";
+  Learner_offPolicy::prepareGradientReFER();
 }
