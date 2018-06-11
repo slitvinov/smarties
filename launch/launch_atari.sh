@@ -31,6 +31,7 @@ cp ../source/Communicators/Communicator_atari.py ${BASEPATH}${RUNFOLDER}/
 
 # Atari environment specific settings: glue 4 frames together to compose frame
 # and use the Nature paper's CNN architecture specified in AtariEnvironment
+# Be careful, this may not be overwritten and may cause bugs if re-using folders
 cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh
 SETTINGS+=" --environment AtariEnvironment --appendedObs 3 "
 EOF

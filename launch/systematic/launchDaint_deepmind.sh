@@ -13,7 +13,7 @@ fi
 
 MYNAME=`whoami`
 BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
-#BASEPATH="/scratch/snx1600/${MYNAME}/smarties/"
+
 mkdir -p ${BASEPATH}${RUNFOLDER}
 ulimit -c unlimited
 
@@ -56,17 +56,12 @@ cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
 LD_PRELOAD=${HOME}/glew-2.1.0/install/lib64/libGLEW.so python3 ../Communicator_dmc.py \$1 $ENV $TASK
 EOF
 
-cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
-Environment exec=../launchSim.sh n=1
-EOF
-
-#this handles app-side setup (incl. copying the factory)
-#cp ../apps/openai/factory ${BASEPATH}${RUNFOLDER}/factory
-#cp ../apps/openai/openaibot.py ${BASEPATH}${RUNFOLDER}/
-cp ../source/Communicator*.py ${BASEPATH}${RUNFOLDER}/
+#this handles app-side setup
+cp ../../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
+cp ../../source/Communicators/Communicator_gym.py ${BASEPATH}${RUNFOLDER}/
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
-cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
+cp ../../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/policy_settings.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
@@ -84,11 +79,11 @@ SETTINGS+=" --nThreads ${NTHREADS}"
 SETTINGS+=" --ppn ${NTASKPERNODE}"
 echo $SETTINGS > settings.txt
 echo ${SETTINGS}
-#s658
+
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
-#SBATCH --account=eth2
+#SBATCH --account=s658
 #SBATCH --job-name="${RUNFOLDER}"
 #SBATCH --output=${RUNFOLDER}_out_%j.txt
 #SBATCH --error=${RUNFOLDER}_err_%j.txt

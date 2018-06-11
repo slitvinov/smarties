@@ -1,6 +1,6 @@
 #!/bin/bash -l
 
-#SBATCH --job-name=Racer_softnone_annllast
+#SBATCH --job-name=DPG_softfin_penal
 #SBATCH --time=24:00:00
 #SBATCH --output=out.%j.%a.o
 #SBATCH --error=out.%j.%a.e
@@ -11,34 +11,25 @@
 # #SBATCH --account=s658
 # #SBATCH --account=eth2
 
-#SBATCH --array=0-179
+#SBATCH --array=0-249
 
 # #SBATCH --ntasks=1
 # #SBATCH --ntasks-per-node=1
 
 # ======START=====
-COMMNAME=Racer_softnone_anneal_6
+COMMNAME=DPG_softfin_penal
 
-SETTINGS=" --epsAnneal 5e-7 --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner POAC --minTotObsNum 262144 --targetDelay 0 --greedyEps 0.4472 --totNumSteps 10000000 --learnrate 0.0001 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 "
+SETTINGS=" --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner DPG --maxTotObsNum 524288 --minTotObsNum 262144 --targetDelay 0.01 --explNoise 0.2 --totNumSteps 10000000 --learnrate 0.00001 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 --epsAnneal 5e-7 --batchSize 128 --obsPerStep 1 "
+
 MYNAME=`whoami`
 BASEPATH="/scratch/snx3000/${MYNAME}/smarties/Guido/"
-
-BUFFSIZE=(1048576 524288 262144)
-#IMPSAMPR=(1 3 7)
-IMPSAMPR=(2 4 8)
-DKLPARAM=(0.10)
-BATCHNUM=(256)
-EPERSTEP=(1)
+IMPSAMPR=(0 0 2 4 8)
+FUNC=(Tanh Linear Linear Linear Linear)
+TOLPARAM=(0.10)
 RUNTRIAL=(1 2 3 4 5)
 
-TASKNAME=(HumanoidStandup-v2 Humanoid-v2 Ant-v2 Walker2d-v2 HalfCheetah-v2 Swimmer-v2 Reacher-v2 Hopper-v2)
-SHORTID=( standu             humanw      spider walker      cheeta         swimmr     reachr     hopper)
-#TASKNAME=(HumanoidStandup-v2 Swimmer-v2 Reacher-v2 Hopper-v2)
-#SHORTID=( standu             swimmr     reachr     hopper)
-#TASKNAME=(Humanoid-v2 Ant-v2 Walker2d-v2 HalfCheetah-v2)
-#SHORTID=(humanw spider walker cheeta)
-#TASKNAME=(Humanoid-v2)
-#SHORTID=(standu)
+TASKNAME=(HumanoidStandup-v2 Humanoid-v2 Ant-v2 Walker2d-v2 HalfCheetah-v2 Reacher-v2 Swimmer-v2 Hopper-v2 InvertedPendulum-v2 InvertedDoublePendulum-v2)
+SHORTID=( standu             humanw      spider walker      cheeta         reachr     swimmr     hopper    invpnd              dblpnd)
 
 cases=()
 rundir=()
@@ -46,20 +37,17 @@ appspec=()
 #approximatively sorted by strongest effect on runtime
 for it in `seq 0 ${#TASKNAME[@]}`; do
 
-for b in ${BATCHNUM[@]}; do
-for d in ${DKLPARAM[@]}; do
-for n in ${BUFFSIZE[@]}; do
-for o in ${EPERSTEP[@]}; do
-for c in ${IMPSAMPR[@]}; do
+for d in ${TOLPARAM[@]}; do
+for ic in `seq 0 ${#IMPSAMPR[@]}`; do
 for r in ${RUNTRIAL[@]}; do
 
-cases+=("--maxTotObsNum $n --impWeight $c --klDivConstraint $d --batchSize $b --obsPerStep $o")
-rundir+=("${SHORTID[$it]}_${COMMNAME}_R${c}_N${n}_D${d}_TRIAL${r}")
+c=${IMPSAMPR[$ic]}
+f=${FUNC[$ic]}
+
+cases+=("--clipImpWeight $c --penalTol $d --nnOutputFunc $f")
+rundir+=("${SHORTID[$it]}_${COMMNAME}_R${c}_F${f}_TRIAL${r}")
 appspec+=("${TASKNAME[$it]}")
 
-done
-done
-done
 done
 done
 done
@@ -79,9 +67,10 @@ EOF
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
 # copy over stuff
+cp ../../makefiles/rl ${BASEPATH}${RUNFOLDER}/exec
+cp ../../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
+cp ../../source/Communicators/Communicator_gym.py ${BASEPATH}${RUNFOLDER}/
 cp $0                         ${BASEPATH}${RUNFOLDER}/launch.sh
-cp ../makefiles/rl            ${BASEPATH}${RUNFOLDER}/exec
-cp ../source/Communicator*.py ${BASEPATH}${RUNFOLDER}/
 git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
 git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
 

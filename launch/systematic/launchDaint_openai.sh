@@ -61,19 +61,15 @@ EOF
 cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
 Environment exec=../launchSim.sh n=1
 EOF
-
-#this handles app-side setup (incl. copying the factory)
-#cp ../apps/openai/factory ${BASEPATH}${RUNFOLDER}/factory
-#cp ../apps/openai/openaibot.py ${BASEPATH}${RUNFOLDER}/
-cp ../source/Communicator*.py ${BASEPATH}${RUNFOLDER}/
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
-cp ../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
+cp ../../makefiles/${EXECNAME} ${BASEPATH}${RUNFOLDER}/exec
+cp ../../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
+cp ../../source/Communicators/Communicator_gym.py ${BASEPATH}${RUNFOLDER}/
 cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/settings.sh
-cp ${SETTINGSNAME} ${BASEPATH}${RUNFOLDER}/policy_settings.sh
 cp $0 ${BASEPATH}${RUNFOLDER}/launch.sh
 git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
-git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
+git diff HEAD > ${BASEPATH}${RUNFOLDER}/gitdiff.log
 
 cd ${BASEPATH}${RUNFOLDER}
 if [ ! -f settings.sh ];then
@@ -86,12 +82,12 @@ SETTINGS+=" --nThreads ${NTHREADS}"
 SETTINGS+=" --ppn ${NTASKPERNODE}"
 echo $SETTINGS > settings.txt
 echo ${SETTINGS}
-#eth2
+
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
-# #SBATCH --account=s658
-#SBATCH --account=eth2
+#SBATCH --account=s658
+# #SBATCH --account=eth2
 #SBATCH --job-name="${RUNFOLDER}"
 #SBATCH --output=${RUNFOLDER}_out_%j.txt
 #SBATCH --error=${RUNFOLDER}_err_%j.txt
@@ -99,7 +95,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --ntasks-per-node=${NTASKPERNODE}
 #SBATCH --constraint=${CONSTRAINT}
 
-#SBATCH --time=12:00:00
+#SBATCH --time=16:00:00
 # #SBATCH --partition=debug
 # #SBATCH --time=00:30:00
 # #SBATCH --mail-user="${MYNAME}@ethz.ch"
@@ -119,8 +115,4 @@ chmod 755 daint_sbatch
 sbatch daint_sbatch
 cd -
 
-# module swap daint-gpu daint-mc
-# module swap gcc gcc/7.1.0
-# deactivate
-# source ${HOME}/gymmc/bin/activate
 
