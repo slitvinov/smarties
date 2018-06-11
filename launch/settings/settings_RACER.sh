@@ -5,8 +5,8 @@ SETTINGS=
 SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-#SETTINGS+=" --nnl1 128"
-#SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnl1 128"
+SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
 
 # Activation functions:
