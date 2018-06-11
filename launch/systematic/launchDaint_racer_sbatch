@@ -71,8 +71,8 @@ chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
 # copy over stuff
 cp ../../makefiles/rl ${BASEPATH}${RUNFOLDER}/exec
-cp ../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
-cp ../source/Communicators/Communicator_gym.py ${BASEPATH}${RUNFOLDER}/
+cp ../../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
+cp ../../source/Communicators/Communicator_gym.py ${BASEPATH}${RUNFOLDER}/
 cp $0                         ${BASEPATH}${RUNFOLDER}/launch.sh
 git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
 git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
