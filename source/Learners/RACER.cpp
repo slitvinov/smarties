@@ -21,7 +21,7 @@
 #ifdef DKL_filter
 #undef DKL_filter
 #endif
-//#define RACER_simpleSigma
+#define RACER_simpleSigma
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::prepareData()

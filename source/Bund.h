@@ -37,12 +37,6 @@ using namespace std;
 typedef double memReal;
 //typedef float memReal;
 
-// If this is uncommented, action importance sampling ratio is defined by
-// [ pi(a|s) / mu(a|s) ]^f(nA) where f(nA) is function of a dimensionality
-// In ACER's paper f(nA) = 1/nA. For Racer leads to bad perf.
-// Tested also 1/sqrt(nA) and 1/cbrt(nA) then gave up.
-//#define RACER_ACERTRICK
-
 // Learn rate for the exponential average of the gradient's second moment
 // Used to learn the scale for the pre-backprop gradient clipping.
 // (currently set to be the same as Adam's second moment learn rate)
@@ -63,13 +57,17 @@ typedef double memReal;
 // Switch between log(1+exp(x)) and (x+sqrt(x*x+1)/2 as mapping to R^+ for
 // policies, advantages, and all math objects that require pos def net outputs
 //#define CHEAP_SOFTPLUS
+
+// Switch between network computing \sigma or \Sigma.
 #define EXTRACT_COVAR
-//#define UNBND_VAR
+
+// Switch between \sigma in (0 1) or (0 inf).
+#define UNBND_VAR
 
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
 // truncate gaussian dist from -4 to 4, resamples once every ~15787 times.
-#define NORMDIST_MAX 4
+#define NORMDIST_MAX 3
 // bound of pol mean for bounded act. spaces (ie tanh(+/- 8))
 #define BOUNDACT_MAX 8
 
