@@ -59,10 +59,7 @@ ifeq "$(testdiff)" "on"
 CPPFLAGS+= -D__CHECK_DIFF
 endif
 
-app ?= test
-ifeq "$(app)" "cubism"
-CPPFLAGS+= -D__Cubism3D
-endif
+app ?= ext_app_test
 
 ifeq "$(config)" "debug"
 CPPFLAGS+= -g -O0
@@ -78,9 +75,6 @@ CPPFLAGS+= -fsanitize=undefined
 LIBS += -fsanitize=undefined
 endif
 ifeq "$(config)" "prod"
-CPPFLAGS += -DNDEBUG -O2 -ffast-math
-endif
-ifeq "$(config)" "fit"
 CPPFLAGS += -DNDEBUG -O3 -ffast-math
 endif
 
@@ -100,7 +94,7 @@ OBJ_FILES = ArgParser.o main.o ObjectFactory.o Communicator.o RACER.o \
 		PPO.o ACER.o VRACER.o AtariEnvironment.o Approximator.o Network.o \
 		Environment.o TwoActFishEnvironment.o Learner.o NAF.o DQN.o DPG.o \
 		Learner_onPolicy.o MemoryBuffer.o Learner_offPolicy.o Optimizer.o \
-		Scheduler.o Math_tests.o
+		Scheduler.o Math_tests.o Communicator_internal.o
 
 #ExternalAgent.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o GliderEnvironment.o
 #TwoFishEnvironment.o HingedFishEnvironment.o BlowfishEnvironment.o alebotEnvironment.o
@@ -121,24 +115,23 @@ lib:
 	#make -C ../../CubismUP_3D/makefiles/ train=true librl -j
 	make -C ../../CubismUP_3D/makefiles/ librl -j
 else
-LIBAPP= -L. -lsimulation
-
-lib: ext_app_test.o
+lib: $(app).o Communicator.o
 	ar rs libsimulation.a $^
 endif
+ifneq "$(app)" "ext_app_test"
+CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
+endif #else app is compiled independently and uses communication through sockets
+
+LIBAPP= -L. -lsimulation
 
 rl: $(OBJ_FILES) lib
 	$(CC) $(OBJ_FILES) $(LIBAPP) $(LIBS) -o $@
-
-LSTM: anntest.o ArgumentParser.o Profiler.o Links.o Layers.o Network.o Optimizer.o LSTMNet.o
-	g++ $(LIBS) $^ -o $@
 
 %.o: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -c $< -o $@
 
 %.d: %.cpp
 	$(CC) $(extra)  $(CPPFLAGS) -c -MD $<
-
 
 vpath %.cpp $(DIRS)
 vpath %.h   $(DIRS)

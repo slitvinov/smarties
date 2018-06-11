@@ -1,11 +1,10 @@
-/*
- *  TwoFishEnvironment.cpp
- *  smarties
- *
- *  Created by Guido Novati on May 13, 2015
- *  Copyright 2015 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #include "TwoActFishEnvironment.h"
 //#define __Cubism3D
@@ -20,12 +19,12 @@ goalDY((_settings.goalDY>1)? 1-_settings.goalDY : _settings.goalDY)
 {
   printf("TwoActFishEnvironment.\n");
 
-  #ifdef __Cubism3D
+  //#ifdef __Cubism3D
     //mpi_ranks_per_env = 1;
     mpi_ranks_per_env = 2;
-  #else
+  //#else
     mpi_ranks_per_env = 0;
-  #endif
+  //#endif
   //paramsfile="settings_32.txt";
   paramsfile="settings_64.txt";
   assert(settings.senses<=8);
@@ -204,42 +203,5 @@ bool TwoActFishEnvironment::pickReward(const Agent& agent)
     reward = std::min((Real)0.,reward);
 
   return new_sample;
-}
-#endif
-
-#ifdef __DBG_CNN
-bool TwoActFishEnvironment::predefinedNetwork(Builder* const net) const
-{
-  if(!sight || !press || rcast || lline || sI.dimUsed != 90 )
-    die("Pick correct state");
-
-  {
-    const int inputsize[3] = {9,10,1};
-    net->add2DInput(inputsize);
-  }
-  {
-    const int filterSize[3] = {3,3,3};
-    const int padding[2] = {1,1};
-    const int outSize[3] = {9,10,3};
-    const int stride[2] = {1,1};
-    net->addConv2DLayer(filterSize, outSize, padding, stride);
-  }
-  {
-    const int filterSize[3] = {3,2,3};
-    const int padding[2] = {0,0};
-    const int outSize[3] = {3,5,3};
-    const int stride[2] = {3,2};
-    net->addConv2DLayer(filterSize, outSize, padding, stride);
-  }
-  {
-    const int filterSize[3] = {3,5,32};
-    const int padding[2] = {0,0};
-    const int outSize[3] = {1,1,32};
-    const int stride[2] = {0,0};
-    net->addConv2DLayer(filterSize, outSize, padding, stride);
-  }
-  net->addOutput(1+3+2, "Normal");
-
-  return true;
 }
 #endif

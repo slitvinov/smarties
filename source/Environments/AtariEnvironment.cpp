@@ -1,11 +1,10 @@
-/*
- *  TwoFishEnvironment.cpp
- *  smarties
- *
- *  Created by Guido Novati on May 13, 2015
- *  Copyright 2015 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #include "AtariEnvironment.h"
 #include "../Network/Builder.h"

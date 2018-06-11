@@ -1,17 +1,16 @@
-/*
- *  Layers.h
- *  rl
- *
- *  Created by Guido Novati on 11.02.16.
- *  Copyright 2016 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #pragma once
 #include "Parameters.h"
 #include "Activation.h"
 #include "Functions.h"
-#include "../Profiler.h"
+#include "../Utils/Profiler.h"
 
 #ifndef __STDC_VERSION__ //it should never be defined with g++
 #define __STDC_VERSION__ 0

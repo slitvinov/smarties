@@ -1,12 +1,12 @@
-/*
- *  NAF.h
- *  rl
- *
- *  Created by Guido Novati on 16.07.15.
- *  Copyright 2013 ETH Zurich. All rights reserved.
- *
- */
-#include "../AllLearners.h"
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
+
+#include "../Learners/AllLearners.h"
 
 void Gaussian_policy::test(const Rvec& act, const Rvec& beta) const
 {

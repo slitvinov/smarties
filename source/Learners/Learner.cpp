@@ -1,11 +1,10 @@
-/*
- *  Learner.cpp
- *  rl
- *
- *  Created by Guido Novati on 15.06.16.
- *  Copyright 2013 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #include "Learner.h"
 #include "../Network/Builder.h"
@@ -15,7 +14,7 @@ Learner::Learner(Environment*const _env, Settings & _s) :
 mastersComm(_s.mastersComm), env(_env), bSampleSequences(_s.bSampleSequences),
 bTrain(_s.bTrain), totNumSteps(_s.totNumSteps), policyVecDim(_s.policyVecDim),
 batchSize(_s.batchSize), nAgents(_s.nAgents), nThreads(_s.nThreads),
-nSlaves(_s.nSlaves), gamma(_s.gamma), learnR(_s.learnrate), ReFtol(_s.penalTol),
+nWorkers(_s.nWorkers), gamma(_s.gamma), learnR(_s.learnrate), ReFtol(_s.penalTol),
 explNoise(_s.explNoise), epsAnneal(_s.epsAnneal), CmaxPol(_s.clipImpWeight),
 learn_rank(_s.learner_rank), learn_size(_s.learner_size), settings(_s),
 aInfo(env->aI), sInfo(env->sI), generators(_s.generators)
@@ -114,10 +113,10 @@ void Learner::synchronizeGradients()
 void Learner::processStats()
 {
   ostringstream buf;
+  if(trainInfo not_eq nullptr) trainInfo->getMetrics(buf);
   data->getMetrics(buf);
   input->getMetrics(buf);
   for(auto & net : F) net->getMetrics(buf);
-  if(trainInfo not_eq nullptr) trainInfo->getMetrics(buf);
 
   if(learn_rank) return;
 
@@ -125,10 +124,11 @@ void Learner::processStats()
 
   ostringstream head;
   if( nStep%(1000*PRFL_DMPFRQ)==0 || nStep==1000 ) {
+    if(trainInfo not_eq nullptr) trainInfo->getHeaders(head);
     data->getHeaders(head);
     input->getHeaders(head);
     for(auto & net : F) net->getHeaders(head);
-    if(trainInfo not_eq nullptr) trainInfo->getHeaders(head);
+
     printf("#/1e3 %s\n", head.str().c_str());
     if(nStep==1000)
       fprintf(fout, "#/1e3 %s\n", head.str().c_str());
@@ -156,10 +156,10 @@ void Learner::restart()
   input->save("restarted_");
 }
 
-bool Learner::slaveHasUnfinishedSeqs(const int slave) const
+bool Learner::workerHasUnfinishedSeqs(const int worker) const
 {
-  const Uint nAgentsPerSlave = env->nAgentsPerRank;
-  for(Uint i=slave*nAgentsPerSlave; i<(slave+1)*nAgentsPerSlave; i++)
+  const Uint nAgentsPerWorker = env->nAgentsPerRank;
+  for(Uint i=worker*nAgentsPerWorker; i<(worker+1)*nAgentsPerWorker; i++)
     if(data->inProgress[i]->tuples.size()) return true;
   return false;
 }

@@ -1,11 +1,11 @@
-/*
- *  Settings.h
- *  rl
- *
- *  Created by Guido Novati on 02.05.16.
- *  Copyright 2013 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
+
 #pragma once
 
 using namespace std;
@@ -51,6 +51,7 @@ typedef double memReal;
 // hint to reserve memory for the network workspaces, can be breached
 #define MAX_SEQ_LEN 1000
 
+#define FREQ_BACKUP 1000000
 // Default number of second moments to clip the pre-backprop gradient:
 // Can be changed inside each learning algo by overwriting default arg of
 // Approximator::initializeNetwork function

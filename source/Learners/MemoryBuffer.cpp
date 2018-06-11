@@ -1,10 +1,10 @@
-/*
- *  QApproximator.h
- *  rl
- *
- *  Created by Guido Novati on 24.02.16.
- *  Copyright 2016 ETH Zurich. All rights reserved.
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #include "MemoryBuffer.h"
 #include <dirent.h>
@@ -156,11 +156,11 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
     std[k] = (1-WS) * std[k] + WS * std::sqrt(varS);
     invstd[k] = 1/(std[k]+numeric_limits<float>::epsilon());
   }
-  if(learn_rank == 0) {
-    ofstream outf("runningAverages.dat", ios::app);
-    outf<<count<<" "<<1/invstd_reward<<" "<<print(mean)<<" "<<print(std)<<endl;
-    outf.flush(); outf.close();
-  }
+  //if(learn_rank == 0) {
+  //  ofstream outf("runningAverages.dat", ios::app);
+  //  outf<<count<<" "<<1/invstd_reward<<" "<<print(mean)<<" "<<print(std)<<endl;
+  //  outf.flush(); outf.close();
+  //}
 
   #ifndef NDEBUG
     Uint cntSamp = 0;
@@ -367,7 +367,7 @@ void MemoryBuffer::getMetrics(ostringstream& buff)
 void MemoryBuffer::getHeaders(ostringstream& buff)
 {
   buff <<
-  "| nEp |  nObs | totEp | totObs | oldEp |nOffP | stdR | tMSE ";
+  "| nEp |  nObs | totEp | totObs | oldEp |nFarP | stdR | tDKL ";
 }
 
 void MemoryBuffer::save(const string base, const Uint nStep)
@@ -379,9 +379,9 @@ void MemoryBuffer::save(const string base, const Uint nStep)
   fwrite(&invstd_reward, sizeof(Real),             1, wFile);
   fflush(wFile); fclose(wFile);
 
-  if(nStep % 100000 == 0 && nStep > 0) {
+  if(nStep % FREQ_BACKUP == 0 && nStep > 0) {
     ostringstream S; S<<std::setw(9)<<std::setfill('0')<<nStep;
-    wFile = fopen((base+S.str()+"_scaling.raw").c_str(), "wb");
+    wFile = fopen((base+"scaling_"+S.str()+".raw").c_str(), "wb");
     fwrite(   mean.data(), sizeof(Real),   mean.size(), wFile);
     fwrite( invstd.data(), sizeof(Real), invstd.size(), wFile);
     fwrite(    std.data(), sizeof(Real),    std.size(), wFile);

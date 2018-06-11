@@ -1,15 +1,15 @@
-/*
- *  Settings.h
- *  rl
- *
- *  Created by Dmitry Alexeev and extended by Guido Novati on 02.05.13.
- *  Copyright 2013 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
+
 #pragma once
 #include <getopt.h>
-#include "ArgParser.h"
-#include "Warnings.h"
+#include "Utils/ArgParser.h"
+#include "Utils/Warnings.h"
 
 struct Settings
 {
@@ -135,7 +135,7 @@ or observations (0) from the Replay Memory."
 #define COMMENT_bSharedPol "Have a separate policy per each agent on a sim"
 #define TYPEVAL_bSharedPol int
 #define TYPENUM_bSharedPol INT
-#define DEFAULT_bSharedPol 0
+#define DEFAULT_bSharedPol 1
   int bSharedPol = DEFAULT_bSharedPol;
 
 #define CHARARG_totNumSteps 'z'
@@ -342,7 +342,7 @@ training buffer"
   int randSeed = DEFAULT_randSeed;
 
 #define CHARARG_saveFreq ')'
-#define COMMENT_saveFreq "DEPRECATED: Freq in # of comms with slaves for \
+#define COMMENT_saveFreq "DEPRECATED: Freq in # of comms with workers for \
 the master to save the policy."
 #define TYPEVAL_saveFreq int
 #define TYPENUM_saveFreq INT
@@ -382,7 +382,7 @@ in the environment)."
 #define DEFAULT_goalDY 0
   Real goalDY = DEFAULT_goalDY;
 
-#define CHARARG_launchfile '1'
+#define CHARARG_launchfile '7'
 #define COMMENT_launchfile "Name of executable or launch script of user \
 application. No arguments can go here. The file must be placed in the \
 base run folder."
@@ -391,12 +391,19 @@ base run folder."
 #define DEFAULT_launchfile "launchSim.sh"
   string launchfile = DEFAULT_launchfile;
 
-#define CHARARG_factory '5'
-#define COMMENT_factory "Location of factory file."
-#define TYPEVAL_factory string
-#define TYPENUM_factory STRING
-#define DEFAULT_factory "factory"
-  string factory = DEFAULT_factory;
+#define CHARARG_appSettings '8'
+#define COMMENT_appSettings "Name of file containing the command line arguments for user's application."
+#define TYPEVAL_appSettings string
+#define TYPENUM_appSettings STRING
+#define DEFAULT_appSettings ""
+  string appSettings = DEFAULT_appSettings;
+
+#define CHARARG_setupFolder '9'
+#define COMMENT_setupFolder "The contents of this folder are copied over into the folder where the simulation is run. It can contain additional files needed to set up the simulation such as settings files, configuration files..."
+#define TYPEVAL_setupFolder string
+#define TYPENUM_setupFolder STRING
+#define DEFAULT_setupFolder ""
+string setupFolder = DEFAULT_setupFolder;
 
 #define CHARARG_filePrefix '6'
 #define COMMENT_filePrefix "Unused (?)."
@@ -414,15 +421,15 @@ base run folder."
   MPI_Comm mastersComm;
   int world_rank = 0;
   int world_size = 0;
-  int slaves_rank = 0;
-  int slaves_size = 0;
+  int workers_rank = 0;
+  int workers_size = 0;
   int learner_rank = 0;
   int learner_size = 0;
-  // number of slaves (usually per master)
-  int nSlaves = 1;
+  // number of workers (usually per master)
+  int nWorkers = 1;
   //number of agents that:
-  // in case of slave: # of agents that are contained in an environment
-  // in case of master: nSlaves * # are contained in an environment
+  // in case of worker: # of agents that are contained in an environment
+  // in case of master: nWorkers * # are contained in an environment
   int nAgents = -1;
   // whether Recurrent network (figured out in main)
   bool bRecurrent = false;
@@ -489,7 +496,8 @@ base run folder."
       READOPT(maxTotSeqNum), READOPT(randSeed), READOPT(saveFreq),
       // ENVIRONMENT ARGS: MUST contain all 7 mentioned above (more if modified)
       READOPT(environment), READOPT(rType), READOPT(senses), READOPT(goalDY),
-      READOPT(launchfile), READOPT(factory), READOPT(filePrefix)
+      READOPT(launchfile), READOPT(filePrefix), READOPT(appSettings),
+      READOPT(setupFolder)
     });
   }
 

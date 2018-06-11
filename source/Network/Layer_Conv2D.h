@@ -1,11 +1,10 @@
-/*
- *  Layers.h
- *  rl
- *
- *  Created by Guido Novati on 11.02.16.
- *  Copyright 2016 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #pragma once
 #include "Layers.h"
@@ -22,6 +21,7 @@ class ConvLayer : public Layer
   const Uint link;
   ConvLayer(int _ID, bool bOut, Uint iLink) :
    Layer(_ID, OutX*OutY*Kn_C, bOut), link(iLink) {
+    spanCompInpGrads = In_X * In_Y * In_C;
     printf("Conv Layer of sizes:\n"
     "Input:[%d %d %d] Filter:[%d %d %d] Output:[%d %d] Stride:[%d %d]\n",
       In_X, In_Y, In_C, Kn_X, Kn_Y, Kn_C, OutX, OutY, Sx, Sy);

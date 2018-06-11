@@ -1,16 +1,15 @@
-/*
- *  Agent.h
- *  rl
- *
- *  Created by Dmitry Alexeev on 02.05.13.
- *  Copyright 2013 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #pragma once
 #include "StateAction.h"
 #include "Settings.h"
-#include "Communicator.h"
+#include "Communicators/Communicator.h"
 #define OUTBUFFSIZE 65536
 class Agent
 {
@@ -59,7 +58,7 @@ public:
 
   void writeData(const int rank, const Rvec mu) const
   {
-    // possible race conditions, avoided by the fact that each slave
+    // possible race conditions, avoided by the fact that each worker
     // (and therefore agent) can only be handled by one thread at the time
     // atomic op is to make sure that counter gets flushed to all threads
     const Uint writesize = 3 +sInfo.dim +aInfo.dim +mu.size();

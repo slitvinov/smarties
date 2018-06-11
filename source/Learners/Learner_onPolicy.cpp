@@ -1,11 +1,10 @@
-/*
- *  Learner.cpp
- *  rl
- *
- *  Created by Guido Novati on 15.06.16.
- *  Copyright 2013 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #include "Learner_onPolicy.h"
 
@@ -32,9 +31,9 @@ void Learner_onPolicy::prepareData()
   }
 }
 
-// unlockQueue tells scheduler that has stopped receiving states from slaves
+// unlockQueue tells scheduler that has stopped receiving states from workers
 // whether should start communication again.
-// for on policy learning, when enough data is collected from slaves
+// for on policy learning, when enough data is collected from workers
 // gradient stepping starts and collection is paused
 // when training is concluded collection restarts
 bool Learner_onPolicy::lockQueue() const

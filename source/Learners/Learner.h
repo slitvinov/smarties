@@ -1,11 +1,10 @@
-/*
- *  Learner.h
- *  rl
- *
- *  Created by Guido Novati on 15.06.16.
- *  Copyright 2013 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #pragma once
 
@@ -21,7 +20,7 @@ protected:
   const MPI_Comm mastersComm;
   Environment * const env;
   const bool bSampleSequences, bTrain;
-  const Uint totNumSteps, policyVecDim, batchSize, nAgents, nThreads, nSlaves;
+  const Uint totNumSteps, policyVecDim, batchSize, nAgents, nThreads, nWorkers;
   const Real gamma, learnR, ReFtol, explNoise, epsAnneal, CmaxPol;
   const int learn_rank, learn_size;
   Settings & settings;
@@ -114,7 +113,7 @@ public:
   //mass-handing of unfinished sequences from master
   void clearFailedSim(const int agentOne, const int agentEnd);
   void pushBackEndedSim(const int agentOne, const int agentEnd);
-  bool slaveHasUnfinishedSeqs(const int slave) const;
+  bool workerHasUnfinishedSeqs(const int worker) const;
 
   //main training loop functions:
   virtual void spawnTrainTasks_par() = 0;

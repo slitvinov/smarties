@@ -1,12 +1,10 @@
-/*
- *  NAF.h
- *  rl
- *
- *  Created by Guido Novati on 16.07.15.
- *  Copyright 2013 ETH Zurich. All rights reserved.
- *
- */
-
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #include "RACER.h"
 #include "../Network/Builder.h"
@@ -351,7 +349,7 @@ Uint RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::getnD
 
 template<>
 RACER<Discrete_advantage, Discrete_policy, Uint>::RACER(
-  Environment*const _env, Settings& _set) : Learner_offPolicy(_env,_set), 
+  Environment*const _env, Settings& _set) : Learner_offPolicy(_env,_set),
   net_outputs(count_outputs(&_env->aI)),
   pol_start(count_pol_starts(&_env->aI)),
   adv_start(count_adv_starts(&_env->aI))

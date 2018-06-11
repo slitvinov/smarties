@@ -5,8 +5,8 @@ SETTINGS=
 SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
+#SETTINGS+=" --nnl1 128"
+#SETTINGS+=" --nnl2 128"
 
 #subject to changes
 SETTINGS+=" --nnFunc SoftSign"
@@ -36,7 +36,7 @@ SETTINGS+=" --explNoise 0.2"
 SETTINGS+=" --bSampleSequences 0"
 
 #C in paper. Determines c_max: boundary between (used) near-policy samples and (skipped) far policy ones
-SETTINGS+=" --clipImpWeight 0"
+SETTINGS+=" --clipImpWeight 2"
 # Here, fraction of far pol samples allowed in memory buffer
 SETTINGS+=" --penalTol 0.1"
 

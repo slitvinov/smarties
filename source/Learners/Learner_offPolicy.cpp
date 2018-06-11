@@ -1,11 +1,10 @@
-/*
- *  Learner.cpp
- *  rl
- *
- *  Created by Guido Novati on 15.06.16.
- *  Copyright 2013 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #include "Learner_offPolicy.h"
 
@@ -79,7 +78,7 @@ bool Learner_offPolicy::stopGrads() const
 
 bool Learner_offPolicy::lockQueue() const
 {
-  // lockQueue tells scheduler that has stopped receiving states from slaves
+  // lockQueue tells scheduler that has stopped receiving states from workers
   // whether should start communication again.
   // for off policy learning, there is a ratio between gradient steps
   // and observed transitions to be kept (approximatively) constant

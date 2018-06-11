@@ -1,11 +1,10 @@
-/*
- *  Layers.h
- *  rl
- *
- *  Created by Guido Novati on 11.02.16.
- *  Copyright 2016 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #pragma once
 #include "Parameters.h"
@@ -70,7 +69,7 @@ class Optimizer
     _1stMom->save(fname+"_1stMom");
     _2ndMom->save(fname+"_2ndMom");
 
-    if(nStep % 100000 == 0 && nStep > 0) {
+    if(nStep % FREQ_BACKUP == 0 && nStep > 0) {
       ostringstream ss; ss << std::setw(9) << std::setfill('0') << nStep;
       weights->save(fname+"_"+ss.str()+"_weights");
       _1stMom->save(fname+"_"+ss.str()+"_1stMom" );
@@ -90,4 +89,3 @@ class Optimizer
     return ret;
   }
 };
-

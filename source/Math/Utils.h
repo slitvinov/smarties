@@ -1,11 +1,10 @@
-/*
- *  Settings.h
- *  rl
- *
- *  Created by Guido Novati on 02.05.16.
- *  Copyright 2013 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 #pragma once
 #include "../Bund.h"
 #include "../StateAction.h"

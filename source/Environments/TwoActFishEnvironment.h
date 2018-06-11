@@ -1,12 +1,10 @@
-/*
- *  TwoFish_Environment.h
- *  smarties
- *
- *  Created by Guido Novati on May 13, 2015
- *  Copyright 2015 ETH Zurich. All rights reserved.
- *
- */
-
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #pragma once
 //#define __DBG_CNN
@@ -22,7 +20,4 @@ public:
     TwoActFishEnvironment(Settings & _settings);
     void setDims() override;
     //bool pickReward(const Agent& agent) override;
-    #ifdef __DBG_CNN
-    bool predefinedNetwork(Builder* const net) const override;
-    #endif
 };

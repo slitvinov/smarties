@@ -1,11 +1,10 @@
-/*
- *  ExternalEnvironment.cpp
- *  smarties
- *
- *  Created by Guido Novati on May 13, 2016
- *  Copyright 2015 ETH Zurich. All rights reserved.
- *
- */
+//
+//  smarties
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+//  Distributed under the terms of the “CC BY-SA 4.0” license.
+//
+//  Created by Guido Novati (novatig@ethz.ch).
+//
 
 #include "Environment.h"
 #include "../Network/Builder.h"
@@ -16,18 +15,8 @@
 Environment::Environment(Settings& _settings) :
 g(&_settings.generators[0]), settings(_settings), gamma(_settings.gamma) {}
 
-void Environment::setDims() //this environment is for the cart pole test
+void Environment::setDims()
 {
-  #if   GYM_RENDEROPT==0
-    comm_ptr->dump_value = settings.bTrain||settings.slaves_rank>1 ? -1 : 1;
-  #elif GYM_RENDEROPT==1
-    comm_ptr->dump_value = settings.slaves_rank>1 ? -1 : 1;
-  #elif GYM_RENDEROPT==2
-    comm_ptr->dump_value = settings.slaves_rank>1 ? -1 : 2;
-  #else
-    comm_ptr->dump_value = 1;
-  #endif
-
   comm_ptr->getStateActionShape();
   assert(comm_ptr->nAgents>0);
   assert(comm_ptr->nStates>0);
@@ -50,11 +39,12 @@ void Environment::setDims() //this environment is for the cart pole test
     const bool inuse = comm_ptr->obs_inuse[i] > 0.5;
     const double upper = comm_ptr->obs_bounds[i*2+0];
     const double lower = comm_ptr->obs_bounds[i*2+1];
-    sI.mean[i]  = 0.5*(upper+lower); sI.inUse[i] = inuse;
-    sI.scale[i] = 0.5*std::fabs(upper-lower); //approximate std=1
+    sI.inUse[i] = inuse;
+    sI.mean[i]  = 0.5*(upper+lower);
+    sI.scale[i] = 0.5*std::fabs(upper-lower);
     if(sI.scale[i]>=1e3 || sI.scale[i] < 1e-7) {
-      if(!settings.world_rank) printf(" unbounded");
-      sI.scale = Rvec(); sI.mean = Rvec();
+      if(settings.world_rank == 0) printf(" unbounded");
+      sI.scale = Rvec(sI.dim, 1); sI.mean = Rvec(sI.dim, 0);
       break;
     }
     if(!settings.world_rank && not inuse)
@@ -64,8 +54,9 @@ void Environment::setDims() //this environment is for the cart pole test
 
   int k = 0;
   for (Uint i=0; i<aI.dim; i++) {
-    aI.bounded[i] = comm_ptr->action_options[i*2+1] > 0.5;
-    const int nvals = comm_ptr->action_options[i*2];
+    aI.bounded[i]   = comm_ptr->action_options[i*2 +1] > 0.5;
+    const int nvals = comm_ptr->action_options[i*2 +0];
+    // if act space is continuous, only receive high and low val for each action
     assert(aI.discrete || nvals == 2);
     assert(nvals > 1);
     aI.values[i].resize(nvals);
@@ -82,45 +73,50 @@ void Environment::setDims() //this environment is for the cart pole test
   assert(sI.dim == (Uint) comm_ptr->nStates);
 }
 
-Communicator Environment::create_communicator(
-  const MPI_Comm slavesComm,
-  const int socket,
-  const bool bSpawn)
+Communicator_internal Environment::create_communicator(
+  const MPI_Comm workersComm,
+  const int socket, const bool bSpawn)
 {
   assert(socket>0);
-  Communicator comm(slavesComm, socket, bSpawn);
+  Communicator_internal comm(workersComm, socket, bSpawn);
   comm.set_exec_path(settings.launchfile);
   comm_ptr = &comm;
-  if(mpi_ranks_per_env==0 && settings.slaves_rank>0)
-    comm_ptr->launch();
-  setDims();
-  comm.update_state_action_dims(sI.dim, aI.dim);
 
-  if(mpi_ranks_per_env>0 && settings.slaves_rank>0)
+  if(settings.workers_rank>0) // aka not a master
   {
-    assert(bSpawn);
-    assert(paramsfile != string());
-    settings.nSlaves = settings.slaves_size-1; //one is the master
+    #ifdef INTERNALAPP
+      settings.nWorkers = settings.workers_size-1; //one is the master
 
-    if(settings.nSlaves % mpi_ranks_per_env != 0)
-      die("Number of ranks does not match app\n");
+      if(settings.nWorkers % mpi_ranks_per_env != 0)
+        die("Number of ranks does not match app\n");
 
-    int slaveGroup = (settings.slaves_rank-1) / mpi_ranks_per_env;
-    MPI_Comm app_com;
-    MPI_Comm_split(slavesComm, slaveGroup, settings.slaves_rank, &app_com);
+      int workerGroup = settings.nWorkers / mpi_ranks_per_env;
 
-    comm.set_params_file(paramsfile);
-    comm.set_application_mpicom(app_com, slaveGroup);
-    while(true)
-      comm.ext_app_run();
+      MPI_Comm app_com;
+      MPI_Comm_split(workersComm, workerGroup, settings.workers_rank, &app_com);
+
+      comm.set_params_file(settings.appSettings);
+      comm.set_folder_path(settings.setupFolder);
+      comm.set_application_mpicom(app_com, workerGroup);
+      comm.ext_app_run(); //worker rank will remain here for ever
+    #else
+      //worker will fork and create environment
+      comm_ptr->launch();
+      //parent will stay here and set up communication between sim and master
+      setDims();
+    #endif
   }
-
+  else  // master
+  {
+    setDims();
+  }
+  comm.update_state_action_dims(sI.dim, aI.dim);
   return comm;
 }
-Environment::~Environment()
-{
-    for (auto & trash : agents)
-      _dispose_object(trash);
+
+Environment::~Environment() {
+  for (auto & trash : agents)
+    _dispose_object(trash);
 }
 
 bool Environment::predefinedNetwork(Builder & input_net) const
@@ -132,24 +128,33 @@ bool Environment::predefinedNetwork(Builder & input_net) const
 
 void Environment::commonSetup()
 {
-  assert(settings.nSlaves > 0);
+  assert(settings.nWorkers > 0);
   assert(nAgentsPerRank > 0);
-  nAgents = nAgentsPerRank * settings.nSlaves;
+  nAgents = nAgentsPerRank * settings.nWorkers;
   settings.nAgents = nAgents;
 
-  sI.dim = 0; sI.dimUsed = 0;
-  for (Uint i=0; i<sI.inUse.size(); i++) {
-      sI.dim++;
-      if (sI.inUse[i]) sI.dimUsed++;
+  sI.dim = 0;
+  if(sI.dim == 0) sI.dim = sI.inUse.size();
+  if(sI.inUse.size() == 0) {
+    if(settings.world_rank == 0)
+    printf("Unspecified whether state vector components are available to learner, assumed yes\n");
+    sI.inUse = vector<bool>(sI.dim, true);
   }
-  if(!settings.world_rank)
+  if(sI.dim == 0) {
+    die("State vector dimensionality cannot be zero at this point")
+  }
+
+  sI.dimUsed = 0;
+  for (Uint i=0; i<sI.inUse.size(); i++) if (sI.inUse[i]) sI.dimUsed++;
+
+  if(settings.world_rank == 0)
   printf("State has %d component, %d in use\n", sI.dim, sI.dimUsed);
 
   aI.updateShifts();
 
-  if(! aI.bounded.size()) {
-    aI.bounded.resize(aI.dim, 0);
-    if(!settings.world_rank)
+  if(0 == aI.bounded.size()) {
+    aI.bounded = vector<bool>(aI.dim, false);
+    if(settings.world_rank == 0)
     printf("Unspecified whether action space is bounded: assumed not\n");
   } else assert(aI.bounded.size() == aI.dim);
 

@@ -5,8 +5,8 @@ SETTINGS=
 SETTINGS+=" --gamma 0.995"
 
 #size of network layers
-SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
+#SETTINGS+=" --nnl1 128"
+#SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
 
 # Activation functions:
@@ -47,4 +47,4 @@ SETTINGS+=" --batchSize 256"
 #Whether to train based on sampling sequences. Best not to.
 SETTINGS+=" --bSampleSequences 0"
 #network update learning rate
-SETTINGS+=" --learnrate 0.0001"
+SETTINGS+=" --learnrate 0.00001"
