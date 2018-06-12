@@ -47,4 +47,4 @@ SETTINGS+=" --batchSize 256"
 #Whether to train based on sampling sequences. Best not to.
 SETTINGS+=" --bSampleSequences 0"
 #network update learning rate
-SETTINGS+=" --learnrate 0.00001"
+SETTINGS+=" --learnrate 0.0001"
