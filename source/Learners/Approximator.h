@@ -19,7 +19,7 @@ struct Approximator
 {
   Settings& settings;
   const string name;
-  const Uint nThreads, mpisize, nMaxBPTT = MAX_UNROLL_BFORE;
+  const Uint nAgents, nThreads, mpisize, nMaxBPTT = MAX_UNROLL_BFORE;
   const bool bRecurrent;
 
   Encapsulator* const input;
@@ -42,17 +42,20 @@ struct Approximator
   //thread safe memory for prediction with current weights:
   mutable vector<vector<Activation*>> series;
 
+  //thread safe agent specific activations
+  mutable vector<vector<Activation*>> agent_series;
+
   //thread safe  memory for prediction with target weights. Rules are that
   // index along the two alloc vectors is the same for the same sample, and
   // that tgt net (if available) takes recurrent activation from current net:
   mutable vector<vector<Activation*>> series_tgt;
 
-  Approximator(const string _name, Settings& S, Encapsulator*const enc,
+  Approximator(const string _name, Settings& S, Encapsulator*const en,
     MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
-  settings(S), name(_name), nThreads(S.nThreads), mpisize(S.learner_size),
-  bRecurrent(S.bRecurrent), input(enc), data(data_ptr), relay(r),
-  error_placements(nThreads, -1),
-  first_sample(nThreads, -1), series(nThreads), series_tgt(nThreads) {}
+  settings(S), name(_name), nAgents(S.nAgents), nThreads(S.nThreads),
+  mpisize(S.learner_size), bRecurrent(S.bRecurrent), input(en), data(data_ptr),
+  relay(r), error_placements(nThreads, -1), first_sample(nThreads, -1),
+  series(nThreads), agent_series(nAgents), series_tgt(nThreads) {}
 
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
   Builder buildFromSettings(Settings& _s, const Uint n_outputs);
@@ -92,14 +95,12 @@ struct Approximator
     return relay_backprop(error, samp, thrID, USEW);
   }
 
-  Rvec forward_agent(const Sequence* const traj, const Agent& agent,
-    const Uint thrID, const PARAMS USEW) const;
+  Rvec forward_agent(const Sequence* const traj, const Agent& agent, const PARAMS USEW) const;
 
   template <PARAMS USEW = CUR>
-  inline Rvec forward_agent(const Sequence* const traj,
-    const Agent& agent, const Uint thrID) const
+  inline Rvec forward_agent(const Sequence*const traj, const Agent&agent) const
   {
-    return forward_agent(traj, agent, thrID, USEW);
+    return forward_agent(traj, agent, USEW);
   }
 
   Rvec getOutput(const Rvec inp, const int ind,
@@ -182,9 +183,10 @@ struct Aggregator
   // 1) output the actions of the sequence (default)
   // 2) output the result of NN approximator (pointer a)
   Aggregator(Settings& S, const MemoryBuffer*const d, const Uint nOut=0,
-    const Approximator*const a = nullptr): bRecurrent(S.bRecurrent),
-    nThreads(S.nThreads), nOuts(nOut? nOut: d->aI.dim), data(d), approx(a),
-    first_sample(nThreads, -1), inputs(nThreads), usage(nThreads, ACT) { }
+   const Approximator*const a = nullptr): bRecurrent(S.bRecurrent),
+   nThreads(S.nThreads+S.nAgents), nOuts(nOut? nOut: d->aI.dim), data(d),
+   approx(a), first_sample(nThreads,-1), inputs(nThreads), usage(nThreads,ACT)
+   {}
 
   void prepare(const RELAY SET, const Uint thrID) const;
 
@@ -204,14 +206,6 @@ struct Aggregator
 
   inline Uint nOutputs() const
   {
-    #ifndef NDEBUG
-      if(usage[omp_get_thread_num()] == VEC) {
-        assert(inputs[omp_get_thread_num()][0].size() == nOuts);
-      } else if (usage[omp_get_thread_num()] == NET) {
-        assert(approx not_eq nullptr);
-        assert(approx->nOutputs() >= nOuts); // DPG now outputs stdev: >=
-      } else assert(aI.dim == nOuts);
-    #endif
     return nOuts;
   }
 

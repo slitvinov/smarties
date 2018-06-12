@@ -24,27 +24,11 @@
 #define RACER_simpleSigma
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::prepareData()
-{
-  // Rewards second moment is computed right before actual training begins
-  // therefore we need to recompute (rescaled) Retrace values for all obss
-  // seen before this point.
-  Learner_offPolicy::prepareData();
-  if(updatePrepared && nStep == 0) {
-    #pragma omp parallel for schedule(dynamic)
-    for(Uint i = 0; i < data->Set.size(); i++)
-      for (Uint j=data->Set[i]->ndata(); j>0; j--)
-        updateQret(data->Set[i], j, data->Set[i]->action_adv[j],
-          data->Set[i]->state_vals[j], 1);
-  }
-}
-
-template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(const Uint seq, const Uint thrID) const
 {
   Sequence* const traj = data->Set[seq];
   const int ndata = traj->tuples.size()-1;
-  if(thrID==1) profiler->stop_start("FWD");
+  if(thrID==0) profiler->stop_start("FWD");
 
   F[0]->prepare_seq(traj, thrID);
   for (int k=0; k<ndata; k++) F[0]->forward(traj, k, thrID);
@@ -56,7 +40,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(const Uint seq, co
     updateQret(traj, ndata, 0, nxt[VsID], 0);
   }
 
-  if(thrID==1)  profiler->stop_start("POL");
+  if(thrID==0)  profiler->stop_start("POL");
   for(int k=ndata-1; k>=0; k--)
   {
     const Rvec out_cur = F[0]->get(traj, k, thrID);
@@ -79,7 +63,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(const Uint seq, co
     F[0]->backward(G, k, thrID);
   }
 
-  if(thrID==1)  profiler->stop_start("BCK");
+  if(thrID==0)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
 }
 
@@ -89,7 +73,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint sa
   Sequence* const traj = data->Set[seq];
   assert(samp+1 < traj->tuples.size());
 
-  if(thrID==1) profiler->stop_start("FWD");
+  if(thrID==0) profiler->stop_start("FWD");
 
   F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
   const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
@@ -105,7 +89,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint sa
   // check whether importance weight is in 1/Cmax < c < Cmax
   const bool isOff = traj->isFarPolicy(samp, pol.sampImpWeight, CmaxRet);
 
-  if(thrID==1)  profiler->stop_start("CMP");
+  if(thrID==0)  profiler->stop_start("CMP");
   Rvec grad;
 
   #if RACER_SKIP == 1
@@ -114,7 +98,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint sa
   #endif
       grad = compute(traj, samp, out_cur, pol, thrID);
 
-  if(thrID==1)  profiler->stop_start("BCK");
+  if(thrID==0)  profiler->stop_start("BCK");
   F[0]->backward(grad, samp, thrID); // place gradient onto output layer
   F[0]->gradient(thrID);  // backprop
 }
@@ -190,7 +174,7 @@ Rvec RACER<Advantage_t, Policy_t, Action_t>::policyGradient(const Tuple*const _t
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::select(const Agent& agent)
 {
-  const int thrID= omp_get_thread_num();
+  const int fakeThrID= nThreads + agent.ID;
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
 
@@ -198,7 +182,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::select(const Agent& agent)
   {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
-    Rvec output = F[0]->forward_agent(traj, agent, thrID);
+    Rvec output = F[0]->forward_agent(traj, agent);
     Policy_t pol = prepare_policy(output);
     const Advantage_t adv = prepare_advantage(output, &pol);
     Rvec mu = pol.getVector(); // vector-form current policy for storage
@@ -206,7 +190,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::select(const Agent& agent)
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
-    Action_t act = pol.finalize(explNoise>0, &generators[thrID], mu);
+    Action_t act = pol.finalize(explNoise>0, &generators[fakeThrID], mu);
 
     const Real advantage = adv.computeAdvantage(pol.sampAct);
     traj->action_adv.push_back(advantage);
@@ -233,7 +217,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::select(const Agent& agent)
   else
   {
     if( agent.Status == TRNC_COMM ) {
-      Rvec output = F[0]->forward_agent(traj, agent, thrID);
+      Rvec output = F[0]->forward_agent(traj, agent);
       traj->state_vals.push_back(output[VsID]); // not a terminal state
     } else {
       traj->state_vals.push_back(0); //value of terminal state is 0
@@ -241,7 +225,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::select(const Agent& agent)
     //whether seq is truncated or terminated, act adv is undefined:
     traj->action_adv.push_back(0);
     // compute initial Qret for whole trajectory:
-    writeOnPolRetrace(traj, thrID);
+    writeOnPolRetrace(traj);
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
     #ifdef dumpExtra
       agent.a->set(Rvec(nA,0));
@@ -255,7 +239,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::select(const Agent& agent)
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::writeOnPolRetrace(Sequence*const seq, const int thrID)
+void RACER<Advantage_t, Policy_t, Action_t>::writeOnPolRetrace(Sequence*const seq)
 {
   assert(seq->tuples.size() == seq->action_adv.size());
   assert(seq->tuples.size() == seq->state_vals.size());
@@ -270,8 +254,11 @@ void RACER<Advantage_t, Policy_t, Action_t>::writeOnPolRetrace(Sequence*const se
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::prepareGradient()
 {
+  Learner_offPolicy::prepareGradient();
+
   #ifdef RACER_BACKWARD
-  if(updateComplete) {
+  if(updateToApply)
+  {
     profiler->stop_start("QRET");
     #pragma omp parallel for schedule(dynamic)
     for(Uint i = 0; i < data->Set.size(); i++)
@@ -279,8 +266,24 @@ void RACER<Advantage_t, Policy_t, Action_t>::prepareGradient()
         updateQretBack(data->Set[i], j);
   }
   #endif
+}
 
-  Learner_offPolicy::prepareGradientReFER();
+template<typename Advantage_t, typename Policy_t, typename Action_t>
+void RACER<Advantage_t, Policy_t, Action_t>::applyGradient()
+{
+  Learner_offPolicy::applyGradient();
+
+  // Rewards second moment is computed right before actual training begins
+  // therefore we need to recompute (rescaled) Retrace values for all obss
+  // seen before this point.
+  if( readyForTrain() && nStep == 0 ) {
+    if(updateToApply) die("")
+    #pragma omp parallel for schedule(dynamic)
+    for(Uint i = 0; i < data->Set.size(); i++)
+      for (Uint j=data->Set[i]->ndata(); j>0; j--)
+        updateQret(data->Set[i], j, data->Set[i]->action_adv[j],
+          data->Set[i]->state_vals[j], 1);
+  }
 }
 
 template<>

@@ -12,11 +12,10 @@
 using namespace std;
 
 void runClient();
-void runWorker(MPI_Comm workersComm);
-void runMaster(MPI_Comm workersComm, MPI_Comm mastersComm);
-Settings settings;
+void runWorker(Settings& settings, MPI_Comm workersComm);
+void runMaster(Settings& settings, MPI_Comm workersComm, MPI_Comm mastersComm);
 
-void runWorker(MPI_Comm workersComm)
+void runWorker(Settings& settings, MPI_Comm workersComm)
 {
   MPI_Comm_rank(workersComm, &settings.workers_rank);
   MPI_Comm_size(workersComm, &settings.workers_size);
@@ -31,7 +30,7 @@ void runWorker(MPI_Comm workersComm)
   simulation.run();
 }
 
-void runMaster(MPI_Comm workersComm, MPI_Comm mastersComm)
+void runMaster(Settings& settings, MPI_Comm workersComm, MPI_Comm mastersComm)
 {
   settings.mastersComm =  mastersComm;
   MPI_Comm_rank(workersComm, &settings.workers_rank);
@@ -51,6 +50,7 @@ void runMaster(MPI_Comm workersComm, MPI_Comm mastersComm)
   Environment*const env = factory.createEnvironment();
   Communicator comm = env->create_communicator(workersComm, settings.sockPrefix, true);
 
+  settings.finalizeSeeds(); // now i know nAgents, might need more generators
   const Real nLearners = settings.learner_size;
   // each learner computes a fraction of the batch:
   settings.batchSize    = std::ceil(settings.batchSize    / nLearners);
@@ -68,7 +68,6 @@ void runMaster(MPI_Comm workersComm, MPI_Comm mastersComm)
     learners[i]->setLearnerName("agent_"+ss.str()+"_");
     learners[i]->restart();
   }
-
   //#pragma omp parallel
   //printf("Rank %d Thread %3d is running on CPU %3d\n",
   //  settings.world_rank, omp_get_thread_num(), sched_getcpu());
@@ -92,11 +91,11 @@ void runMaster(MPI_Comm workersComm, MPI_Comm mastersComm)
 
 int main (int argc, char** argv)
 {
+  Settings settings;
   vector<ArgParser::OptionStruct> opts = settings.initializeOpts();
 
-  int provided;
-  MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
-  if (provided < MPI_THREAD_SERIALIZED)
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &settings.threadSafety);
+  if (settings.threadSafety < MPI_THREAD_SERIALIZED)
     die("The MPI implementation does not have required thread support");
 
   MPI_Comm_rank(MPI_COMM_WORLD, &settings.world_rank);
@@ -168,8 +167,8 @@ int main (int argc, char** argv)
       bIsMaster?"master":"worker",workerCommInd);
 
   MPI_Barrier(MPI_COMM_WORLD);
-  if (bIsMaster) runMaster(workersComm, mastersComm);
-  else           runWorker(workersComm);
+  if (bIsMaster) runMaster(settings, workersComm, mastersComm);
+  else           runWorker(settings, workersComm);
 
   if (bIsMaster) MPI_Comm_free(&mastersComm);
   MPI_Comm_free(&workersComm);

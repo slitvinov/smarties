@@ -22,7 +22,7 @@ void PPO<Policy_t, Action_t>::TrainBySequences(const Uint seq, const Uint thrID)
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
-  if(thrID==1)  profiler->stop_start("FWD");
+  if(thrID==0)  profiler->stop_start("FWD");
   Sequence* const traj = data->Set[seq];
   const Real adv_est = traj->action_adv[samp], val_tgt = traj->Q_RET[samp];
   const Rvec MU = traj->tuples[samp]->mu;
@@ -30,7 +30,7 @@ void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Uint 
   F[0]->prepare_one(traj, samp, thrID);
   const Rvec pol_cur = F[0]->forward(traj, samp, thrID);
 
-  if(thrID==1)  profiler->stop_start("CMP");
+  if(thrID==0)  profiler->stop_start("CMP");
 
   const Policy_t pol = prepare_policy(pol_cur, traj->tuples[samp]);
   const Real rho_cur = pol.sampImpWeight, DivKL = pol.sampKLdiv;
@@ -74,7 +74,7 @@ void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Uint 
   #endif
   traj->setMseDklImpw(samp, verr*verr, DivKL, rho_cur);
 
-  if(thrID==1)  profiler->stop_start("BCK");
+  if(thrID==0)  profiler->stop_start("BCK");
   //if(!thrID) cout << "back pol" << endl;
   F[0]->backward(grad, samp, thrID);
   //if(!thrID) cout << "back val" << endl; //*(!isFarPol)
@@ -129,16 +129,11 @@ void PPO<Policy_t, Action_t>::updatePPO(Sequence*const seq) const
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::prepareGradient()
 {
-  const bool bWasPrepareReady = updateComplete;
-
-  Learner_onPolicy::prepareGradient();
-
-  if(not bWasPrepareReady) return;
-
   cntPenal[0] = 0;
   for(Uint i=1; i<=nThreads; i++) {
     cntPenal[0] += cntPenal[i]; cntPenal[i] = 0;
   }
+  if(cntPenal[0]<nnEPS) die("undefined behavior");
   const Real fac = learnR/cntPenal[0]; // learnRate*grad/N //
   cntPenal[0] = 0;
   for(Uint i=1; i<=nThreads; i++) {
@@ -146,28 +141,30 @@ void PPO<Policy_t, Action_t>::prepareGradient()
       valPenal[i] = 0;
   }
   if(valPenal[0] <= nnEPS) valPenal[0] = nnEPS;
+
+  Learner_onPolicy::prepareGradient();
 }
 
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::select(const Agent& agent)
 {
-  const int thrID= omp_get_thread_num();
+  const int fakeThrID= nThreads + agent.ID;
   Sequence*const curr_seq = data->inProgress[agent.ID];
   data->add_state(agent);
 
   if(agent.Status < TERM_COMM ) { //non terminal state
     //Compute policy and value on most recent element of the sequence:
-    const Rvec pol = F[0]->forward_agent(curr_seq, agent, thrID);
-    const Rvec val = F[1]->forward_agent(curr_seq, agent, thrID);
+    const Rvec pol = F[0]->forward_agent(curr_seq, agent);
+    const Rvec val = F[1]->forward_agent(curr_seq, agent);
 
     curr_seq->state_vals.push_back(val[0]);
     Policy_t policy = prepare_policy(pol);
     const Rvec MU = policy.getVector();
-    const Action_t act = policy.finalize(bTrain, &generators[thrID], MU);
+    const Action_t act = policy.finalize(bTrain, &generators[fakeThrID], MU);
     agent.a->set(act);
     data->add_action(agent, MU);
   } else if( agent.Status == TRNC_COMM ) {
-    const Rvec val = F[1]->forward_agent(curr_seq, agent, thrID);
+    const Rvec val = F[1]->forward_agent(curr_seq, agent);
     curr_seq->state_vals.push_back(val[0]);
   } else
     curr_seq->state_vals.push_back(0); // Assign value of term state to 0

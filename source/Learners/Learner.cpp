@@ -20,10 +20,8 @@ learn_rank(_s.learner_rank), learn_size(_s.learner_size), settings(_s),
 aInfo(env->aI), sInfo(env->sI), generators(_s.generators)
 {
   if(bSampleSequences) printf("Sampling sequences.\n");
-  profiler = new Profiler();
   data = new MemoryBuffer(env, _s);
   input = new Encapsulator("input", _s, data);
-  profiler->stop_start("SLP");
 
   Builder input_build(_s);
   input_build.addInput( input->nOutputs() );
@@ -47,41 +45,41 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 
 void Learner::prepareGradient() //this cannot be called from omp parallel region
 {
-  if(not updatePrepared) {
-    profiler_ext->stop_all();
-    profiler->stop_all();
-    profiler->reset();
-    profiler_ext->reset();
-    profiler->stop_start("SLP");
-    profiler_ext->stop_start("SLP");
-  }
-
-  if(not updateComplete)
-    return; //then this was called WITHOUT a batch ready
-
-  assert(updatePrepared);
+  if(updateToApply) die("undefined behavior");
+  if(not updateComplete) return; //then this was called WITHOUT a batch ready
   // Learner is ready for the update: send the task to the networks and
   // start preparing the next one
-  updatePrepared = false;
   updateComplete = false;
+  updateToApply = true;
 
   profiler->stop_start("ADDW");
   for(auto & net : F) net->prepareUpdate(batchSize);
   input->prepareUpdate(batchSize);
 
-  nStep++;
-
   for(auto & net : F) net->updateGradStats(nStep);
 
-  profiler->stop_all();
+  if(nSkipped >= batchSize)
+    warn("Too many skipped samples caused temporary pause in resampling. " \
+      "Change hyperp: probably the learn rate is too large for "  \
+      "the net's combination of size/activation/batchsize.");
+  nSkipped = 0;
+}
 
+void Learner::applyGradient()
+{
+  if(not updateToApply) { // usually at the first step
+    profiler->stop_all();
+    profiler->reset();
+    profiler->stop_start("SLP");
+    return;
+  }
+  updateToApply = false;
+
+  nStep++;
   if(nStep%(1000*PRFL_DMPFRQ)==0 && !learn_rank) {
+    profiler->stop_all();
     profiler->printSummary();
     profiler->reset();
-
-    profiler_ext->stop_all();
-    profiler_ext->printSummary();
-    profiler_ext->reset();
 
     for(auto & net : F) net->save(learner_name);
     input->save(learner_name);
@@ -93,21 +91,9 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
     processStats();
   }
 
-  if(nSkipped >= batchSize)
-    warn("Too many skipped samples caused temporary pause in resampling. " \
-      "Change hyperp: probably the learn rate is too large for "  \
-      "the net's combination of size/activation/batchsize.");
-  nSkipped = 0;
-
-  profiler->stop_start("SLP");
-}
-
-void Learner::synchronizeGradients()
-{
-  profiler->stop_start("UPW");
+  profiler->stop_start("GRAD");
   for(auto & net : F) net->applyUpdate();
   input->applyUpdate();
-  profiler->stop_start("SLP");
 }
 
 void Learner::processStats()

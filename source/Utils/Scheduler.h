@@ -21,13 +21,13 @@ private:
   const ActionInfo aI;
   const StateInfo  sI;
   const vector<Agent*> agents;
-  const int bTrain, nPerRank, nWorkers, nThreads, learn_rank, learn_size, totNumSteps, outSize, inSize;
+  const int bTrain, nPerRank, nWorkers, nThreads, learn_rank, learn_size, totNumSteps, outSize, inSize, bAsync;
   const vector<double*> inpBufs;
   const vector<double*> outBufs;
   mutable long int stepNum = 0, iternum = 0, seqNum = 0;
-  mutable vector<MPI_Request> requests;
+  bool bNeedSequentialTasks = false;
+  mutable vector<MPI_Request> requests = vector<MPI_Request>(nWorkers, MPI_REQUEST_NULL);
   Profiler* profiler     = nullptr;
-  Profiler* profiler_int = nullptr;
   mutable std::mutex mpi_mutex;
   mutable std::mutex dump_mutex;
   mutable std::ostringstream rewardsBuffer;
@@ -47,17 +47,6 @@ private:
 
     assert( learners.size() == 1 || recvId < learners.size() );
     return learners.size()>1? learners[recvId] : learners[0];
-  }
-
-  inline void prepareLearners() const
-  {
-    for(const auto& L : learners)
-      L->prepareData(); //sync data, make sure we can sample
-
-    //this is the last possible time to finish the blocking mpi MPI_Allreduce
-    // and finally perform the actual gradient step
-    for(const auto& L : learners)
-      L->synchronizeGradients();
   }
 
   inline bool learnersLockQueue() const
@@ -83,6 +72,15 @@ private:
     return locked;
   }
 
+  vector<std::thread> asyncReplyWorkers()
+  {
+    vector<std::thread> worker_replies;
+    worker_replies.reserve(nWorkers);
+    for(int i=1; i<=nWorkers; i++)
+      worker_replies.push_back(std::thread([&, i]() { processWorker(i); }));
+    return worker_replies;
+  }
+  
   void flushRewardBuffer()
   {
     streampos pos = rewardsBuffer.tellp(); // store current location
@@ -129,27 +127,35 @@ private:
     debugS("Sent action to worker %d: [%s]", worker,
       print(Rvec(outBufs[worker-1], outBufs[worker-1]+aI.dim)).c_str());
     MPI_Request tmp;
-    lock_guard<mutex> lock(mpi_mutex);
-    MPI_Isend(outBufs[worker-1], outSize, MPI_BYTE, worker, 0, workersComm, &tmp);
+    if(bAsync) {
+      MPI_Isend(outBufs[worker-1], outSize, MPI_BYTE, worker, 0, workersComm, &tmp);
+    } else {
+      lock_guard<mutex> lock(mpi_mutex);
+      MPI_Isend(outBufs[worker-1], outSize, MPI_BYTE, worker, 0, workersComm, &tmp);
+    }
     MPI_Request_free(&tmp); //Not my problem
   }
 
   inline void recvBuffer(const int i)
   {
-    lock_guard<mutex> lock(mpi_mutex);
-    MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, workersComm, &requests[i-1]);
+    if(bAsync) {
+      MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, workersComm, &requests[i-1]);
+    } else {
+      lock_guard<mutex> lock(mpi_mutex);
+      MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, workersComm, &requests[i-1]);
+    }
   }
 
-  inline void spawnTrainingTasks_par() const
+  inline int testBuffer(const int i, MPI_Status& mpistatus)
   {
-    for(const auto& L : learners)
-      L->spawnTrainTasks_par();
-  }
-
-  inline void spawnTrainingTasks_seq() const
-  {
-    for(const auto& L : learners)
-      L->spawnTrainTasks_seq();
+    int completed = 0;
+    if(bAsync) {
+      MPI_Test(&requests[i-1], &completed, &mpistatus);
+    } else {
+      lock_guard<mutex> lock(mpi_mutex);
+      MPI_Test(&requests[i-1], &completed, &mpistatus);
+    }
+    return completed;
   }
 
 public:
@@ -171,7 +177,6 @@ public:
     printf("nworkers %d\n",nWorkers);
     for (int worker=1; worker<=nWorkers; worker++) {
       outBufs[worker-1][0] = _AGENT_KILLSIGNAL;
-      lock_guard<mutex> lock(mpi_mutex);
       MPI_Ssend(outBufs[worker-1], outSize, MPI_BYTE, worker, 0, workersComm);
     }
   }

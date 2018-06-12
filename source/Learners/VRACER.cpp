@@ -23,20 +23,6 @@
 #define DACER_simpleSigma
 
 template<typename Policy_t, typename Action_t>
-void VRACER<Policy_t, Action_t>::prepareData()
-{
-  Learner_offPolicy::prepareData();
-  if(updatePrepared && nStep == 0) {
-    #pragma omp parallel for schedule(dynamic)
-    for(Uint i = 0; i < data->Set.size(); i++) {
-      Sequence* const traj = data->Set[i];
-      const int N = traj->ndata(); traj->setRetrace(N, 0);
-      for(Uint j=N; j>0; j--) updateVret(traj, j-1, traj->state_vals[j-1], 1);
-    }
-  }
-}
-
-template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::TrainBySequences(const Uint seq, const Uint thrID) const
 {
   die("");
@@ -48,7 +34,7 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Ui
   Sequence* const traj = data->Set[seq];
   assert(samp+1 < traj->tuples.size());
 
-  if(thrID==1) profiler->stop_start("FWD");
+  if(thrID==0) profiler->stop_start("FWD");
 
   F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
   const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
@@ -62,7 +48,7 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Ui
   // check whether importance weight is in 1/Cmax < c < Cmax
   const bool isOff = traj->isFarPolicy(samp, pol.sampImpWeight, CmaxRet);
 
-  if(thrID==1)  profiler->stop_start("CMP");
+  if(thrID==0)  profiler->stop_start("CMP");
   Rvec grad;
 
   #if   DACER_SKIP == 1
@@ -71,7 +57,7 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Ui
   #endif
       grad = compute(traj, samp, out_cur, pol, thrID);
 
-  if(thrID==1)  profiler->stop_start("BCK");
+  if(thrID==0)  profiler->stop_start("BCK");
   F[0]->backward(grad, samp, thrID); // place gradient onto output layer
   F[0]->gradient(thrID);  // backprop
 }
@@ -115,7 +101,7 @@ Rvec VRACER<Policy_t, Action_t>::offPolGrad(Sequence*const S, const Uint t, cons
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::select(const Agent& agent)
 {
-  const int thrID= omp_get_thread_num();
+  const int fakeThrID= nThreads + agent.ID;
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
 
@@ -123,14 +109,14 @@ void VRACER<Policy_t, Action_t>::select(const Agent& agent)
   {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
-    Rvec output = F[0]->forward_agent(traj, agent, thrID);
+    Rvec output = F[0]->forward_agent(traj, agent);
     Policy_t pol = prepare_policy(output);
     Rvec mu = pol.getVector(); // vector-form current policy for storage
 
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
-    Action_t act = pol.finalize(explNoise>0, &generators[thrID], mu);
+    Action_t act = pol.finalize(explNoise>0, &generators[fakeThrID], mu);
 
     #if 0 // add and update temporally correlated noise
       act = pol.updateOrUhState(OrUhState[agent.ID], mu, act, iter());
@@ -150,7 +136,7 @@ void VRACER<Policy_t, Action_t>::select(const Agent& agent)
   else
   {
     if( agent.Status == TRNC_COMM ) {
-      Rvec output = F[0]->forward_agent(traj, agent, thrID);
+      Rvec output = F[0]->forward_agent(traj, agent);
       traj->state_vals.push_back(output[VsID]);
     } else
       traj->state_vals.push_back(0); //value of terminal state is 0
@@ -180,8 +166,11 @@ void VRACER<Policy_t, Action_t>::writeOnPolRetrace(Sequence*const seq) const
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::prepareGradient()
 {
+  Learner_offPolicy::prepareGradient();
+
   #ifdef RACER_BACKWARD
-  if(updateComplete) {
+  if(updateToApply)
+  {
     profiler->stop_start("QRET");
     #pragma omp parallel for schedule(dynamic)
     for(Uint i = 0; i < data->Set.size(); i++)
@@ -189,8 +178,24 @@ void VRACER<Policy_t, Action_t>::prepareGradient()
         updateVret(data->Set[i], j, data->Set[i]->state_vals[j], data->Set[i]->offPolicImpW[j]);
   }
   #endif
+}
 
-  Learner_offPolicy::prepareGradientReFER();
+template<typename Policy_t, typename Action_t>
+void VRACER<Policy_t, Action_t>::applyGradient()
+{
+  Learner_offPolicy::applyGradient();
+
+  // Rewards second moment is computed right before actual training begins
+  // therefore we need to recompute (rescaled) Retrace values for all obss
+  // seen before this point.
+  if( readyForTrain() && nStep == 0) {
+    #pragma omp parallel for schedule(dynamic)
+    for(Uint i = 0; i < data->Set.size(); i++) {
+      Sequence* const traj = data->Set[i];
+      const int N = traj->ndata(); traj->setRetrace(N, 0);
+      for(Uint j=N; j>0; j--) updateVret(traj, j-1, traj->state_vals[j-1], 1);
+    }
+  }
 }
 
 template<>

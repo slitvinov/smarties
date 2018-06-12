@@ -69,8 +69,6 @@ class RACER : public Learner_offPolicy
     return Advantage_t(adv_start, &aInfo, out, pol);
   }
 
-  void prepareData() override;
-
   void TrainBySequences(const Uint seq, const Uint thrID) const override;
 
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
@@ -133,10 +131,10 @@ class RACER : public Learner_offPolicy
 
   void select(const Agent& agent) override;
 
-  void writeOnPolRetrace(Sequence*const seq, const int thrID);
+  void writeOnPolRetrace(Sequence*const seq);
 
   void prepareGradient() override;
-
+  void applyGradient() override;
   static Uint getnOutputs(const ActionInfo*const aI);
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };

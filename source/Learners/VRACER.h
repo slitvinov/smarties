@@ -55,8 +55,6 @@ class VRACER : public Learner_offPolicy
     return pol;
   }
 
-  void prepareData() override;
-
   void TrainBySequences(const Uint seq, const Uint thrID) const override;
 
   void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
@@ -96,7 +94,7 @@ class VRACER : public Learner_offPolicy
   void writeOnPolRetrace(Sequence*const seq) const;
 
   void prepareGradient() override;
-
+  void applyGradient() override;
   static Uint getnOutputs(const ActionInfo*const aI);
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };

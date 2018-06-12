@@ -21,9 +21,9 @@ public:
   Learner_onPolicy(Environment*const _env, Settings&_s);
 
   //main training functions:
-  void prepareData() override;
   bool lockQueue() const override;
   void spawnTrainTasks_seq() override;
   void spawnTrainTasks_par() override;
-  void prepareGradient() override;
+  bool bNeedSequentialTrain() override;
+  virtual void prepareGradient() override;
 };

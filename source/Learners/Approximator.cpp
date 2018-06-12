@@ -116,6 +116,8 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor)
   opt = build.opt;
   assert(opt not_eq nullptr && net not_eq nullptr);
 
+  for (Uint i=0; i<nAgents; i++) agent_series[i].reserve(2);
+
   #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
   for (Uint i=0; i<nThreads; i++) // numa aware allocation
    #pragma omp critical
@@ -264,16 +266,15 @@ Rvec Approximator::relay_backprop(const Rvec err,
 }
 
 Rvec Approximator::forward_agent(const Sequence* const traj,
-  const Agent& agent, const Uint thrID, const PARAMS USEW) const
+  const Agent& agent, const PARAMS USEW) const
 {
-  if(error_placements[thrID] > 0) gradient(thrID);
+  const Uint fakeThrID = nThreads + agent.ID, stepid = traj->ndata();
+  input->prepare(1, stepid, fakeThrID);
 
-  const Uint stepid = traj->ndata();
-  input->prepare(1, stepid, thrID);
-  net->prepForFwdProp(series[thrID], 2);
+  const vector<Activation*>& act = agent_series[agent.ID];
+  net->prepForFwdProp(agent_series[agent.ID], 2);
 
-  const vector<Activation*>& act = series[thrID];
-  const Rvec inp = getInput(traj, stepid, thrID, USEW);
+  const Rvec inp = getInput(traj, stepid, fakeThrID, USEW);
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
   const Activation* const prevStep = agent.Status==INIT_COMM? nullptr : act[0];
   act[0]->written = true; act[1]->written = true;
@@ -329,14 +330,12 @@ void Approximator::prepareUpdate(const Uint batchSize)
 {
   for(Uint i=0; i<nThreads; i++) if(error_placements[i]>0) die("")
 
-  if(nAddedGradients==0) warn("No-gradient update. Revise hyperparameters.");
-  if(nAddedGradients>batchSize) warn("weird");
+  if(nAddedGradients==0) die("No-gradient update. Revise hyperparameters.");
+  if(nAddedGradients>batchSize) die("weird");
 
   opt->prepare_update(batchSize, net->Vgrad);
   reducedGradients = 1;
   nAddedGradients = 0;
-
-  if(mpisize<=1) applyUpdate();
 }
 
 void Approximator::applyUpdate()

@@ -57,16 +57,16 @@ tgtFrac(_set.penalTol)
 
 void DPG::select(const Agent& agent)
 {
-  const int thrID= omp_get_thread_num();
+  const int fakeThrID = nThreads + agent.ID;
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
   if( agent.Status < TERM_COMM ) { // not last of a sequence
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
-    Rvec pol = F[0]->forward_agent(traj, agent, thrID);
+    Rvec pol = F[0]->forward_agent(traj, agent);
     Gaussian_policy policy = prepare_policy(pol);
     Rvec MU = policy.getVector();
-    Rvec act = policy.finalize(bTrain, &generators[thrID], MU);
+    Rvec act = policy.finalize(bTrain, &generators[fakeThrID], MU);
     if(OrUhDecay>0)
       act = policy.updateOrUhState(OrUhState[agent.ID], MU, OrUhDecay);
     agent.a->set(act);
@@ -85,7 +85,7 @@ void DPG::TrainBySequences(const Uint seq, const Uint thrID) const
 
 void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
 {
-  if(thrID==1) profiler->stop_start("FWD");
+  if(thrID==0) profiler->stop_start("FWD");
   Sequence* const traj = data->Set[seq];
   F[0]->prepare_one(traj, t, thrID);
   F[1]->prepare_one(traj, t, thrID);
@@ -145,12 +145,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   //bookkeeping:
   trainInfo->log(q_curr[0], grad_val[0], polG, penG, {beta,rho}, thrID);
   traj->setMseDklImpw(t, grad_val[0]*grad_val[0], DKL, rho);
-  if(thrID==1)  profiler->stop_start("BCK");
+  if(thrID==0)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
   F[1]->gradient(thrID);
-}
-
-void DPG::prepareGradient()
-{
-  Learner_offPolicy::prepareGradientReFER();
 }

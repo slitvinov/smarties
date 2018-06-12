@@ -27,10 +27,9 @@ protected:
   unsigned long nStep = 0;
   Uint nAddedGradients = 0;
   mutable Uint nSkipped = 0;
-  FORGET MEMBUF_FILTER_ALGO = OLDEST;
 
-  mutable bool updatePrepared = false;
   mutable bool updateComplete = false;
+  mutable bool updateToApply = false;
 
   const ActionInfo& aInfo;
   const StateInfo&  sInfo;
@@ -65,8 +64,7 @@ protected:
   }
 
 public:
-  Profiler* profiler;
-  Profiler* profiler_ext = nullptr;
+  Profiler* profiler = nullptr;
   string learner_name;
 
   Learner(Environment*const env, Settings & settings);
@@ -118,12 +116,12 @@ public:
   //main training loop functions:
   virtual void spawnTrainTasks_par() = 0;
   virtual void spawnTrainTasks_seq() = 0;
+  virtual bool bNeedSequentialTrain() = 0;
 
-  virtual void prepareData() = 0;
   virtual bool lockQueue() const = 0;
 
   virtual void prepareGradient();
-  void synchronizeGradients();
+  virtual void applyGradient();
   bool predefinedNetwork(Builder& input_net);
   void restart();
 };

@@ -36,8 +36,8 @@ struct Encapsulator
   }
 
   Encapsulator(const string _name, Settings& sett, MemoryBuffer*const data_ptr)
-  : name(_name), nThreads(sett.nThreads), nAppended(sett.appendedObs),
-    settings(sett), first_sample(nThreads,-1),
+  : name(_name), nThreads(sett.nThreads+sett.nAgents),
+    nAppended(sett.appendedObs), settings(sett), first_sample(nThreads,-1),
     error_placements(nThreads,-1), data(data_ptr) {}
 
   void initializeNetwork(Network* _net, Optimizer* _opt)
@@ -144,8 +144,8 @@ struct Encapsulator
 
     for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) die("");
 
-    if(nAddedGradients==0) warn("No-gradient update. Revise hyperparameters.");
-    if(nAddedGradients>batchSize) warn("weird");
+    if(nAddedGradients==0) die("No-gradient update. Revise hyperparameters.");
+    if(nAddedGradients>batchSize) die("weird");
 
     opt->prepare_update(batchSize, net->Vgrad);
     nReducedGradients = nAddedGradients;

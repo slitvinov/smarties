@@ -15,12 +15,13 @@ class Learner_offPolicy: public Learner
 protected:
   const Real obsPerStep_orig;
   const Uint nObsPerTraining;
-  Uint taskCounter = 0;
-  mutable Uint percData = 0;
+  mutable int percData = -5;
   Uint nData_b4Startup = 0;
   Real nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig;
-  vector<Uint> samp_seq, samp_obs;
+
+  //to be overwritten if algo needs specific filtering of old episodes
+  FORGET MEMBUF_FILTER_ALGO = OLDEST;
 
 
   Real beta = CmaxPol<=0? 1 : .2; // if CmaxPol==0 do naive Exp Replay
@@ -32,7 +33,6 @@ public:
   Learner_offPolicy(Environment*const env, Settings& _s);
 
   bool readyForTrain() const;
-  bool stopGrads() const;
 
   inline void advanceCounters() {
     //shift data / gradient counters to maintain grad stepping to sample
@@ -43,10 +43,9 @@ public:
   }
 
   //main training functions:
-  void prepareData() override;
   bool lockQueue() const override;
   void spawnTrainTasks_seq() override;
   void spawnTrainTasks_par() override;
-  void prepareGradient() override;
-  void prepareGradientReFER();
+  virtual void applyGradient() override;
+  bool bNeedSequentialTrain() override;
 };

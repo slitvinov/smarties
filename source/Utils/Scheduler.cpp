@@ -19,18 +19,15 @@ Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
   nWorkers(_s.nWorkers), nThreads(_s.nThreads), learn_rank(_s.learner_rank),
   learn_size(_s.learner_size), totNumSteps(_s.totNumSteps),
   outSize(_e->aI.dim*sizeof(double)), inSize((3+_e->sI.dim)*sizeof(double)),
-  inpBufs(alloc_bufs(inSize,nWorkers)), outBufs(alloc_bufs(outSize,nWorkers)),
-  requests(nWorkers, MPI_REQUEST_NULL)
+  bAsync(_s.threadSafety>=MPI_THREAD_MULTIPLE),
+  inpBufs(alloc_bufs(inSize,nWorkers)), outBufs(alloc_bufs(outSize,nWorkers))
 {
   profiler = new Profiler();
-  profiler_int = learners[0]->profiler;
-  for (Uint i=0; i<learners.size(); i++) {
-    learners[i]->profiler_ext = profiler;
-    if(i) {
-      _dispose_object(learners[i]->profiler);
-      learners[i]->profiler = profiler_int;
-    }
-  }
+  for (Uint i=0; i<learners.size(); i++)  learners[i]->profiler = profiler;
+  profiler->stop_start("SLP");
+
+  for(const auto& L : learners) // Figure out if I have on-pol learners
+    bNeedSequentialTasks = bNeedSequentialTasks || L->bNeedSequentialTrain();
 
   if(nWorkers*nPerRank != static_cast<int>(agents.size()))
     die("Mismatch in master's nWorkers nPerRank nAgents.")
@@ -40,31 +37,40 @@ Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
 
 int Master::run()
 {
+  if(!bTrain) {
+    vector<std::thread> worker_replies = asyncReplyWorkers();
+    assert(worker_replies.size() == (size_t) nWorkers);
+    for(int i=0; i<nWorkers; i++) worker_replies[i].join();
+    return 0;
+  }
+
   while (true)
   {
-    if( bTrain && stepNum >= totNumSteps ) return 0;
-    if(!bTrain &&  seqNum >= totNumSteps ) return 0;
+    if( stepNum >= totNumSteps ) return 0;
 
-    profiler->stop_start("PREP");
-    prepareLearners();
+    //this is the last possible time to finish the blocking mpi MPI_Allreduce
+    // and finally perform the actual gradient step
+    for(const auto& L : learners) L->applyGradient();
 
-    profiler->stop_start("SLP");
-    #pragma omp parallel num_threads(nThreads)
-    {
-      #pragma omp single nowait
-        for(int i=1; i<=nWorkers; i++)
-          #pragma omp task firstprivate(i) priority(1)
-            processWorker(i);
+    //Spawn threads asynchronously handling requests from workers
+    vector<std::thread> worker_replies = asyncReplyWorkers();
+    assert(worker_replies.size() == (size_t) nWorkers);
 
-      #pragma omp single nowait
-        spawnTrainingTasks_par();
+    for(const auto& L : learners) L->spawnTrainTasks_par();
+
+    if(bNeedSequentialTasks) {
+      // typically on-policy learning. Wait for all needed data:
+      for(int i=0; i<nWorkers; i++) worker_replies[i].join();
+      // and then perform on-policy update step(s):
+      for(const auto& L : learners) L->spawnTrainTasks_seq();
     }
 
-    spawnTrainingTasks_seq();
+    for(const auto& L : learners) L->prepareGradient();
 
-    profiler->stop_start("TERM");
-    for(const auto& L : learners)
-      L->prepareGradient(); //tasks have finished, update is ready
+    if(not bNeedSequentialTasks) {
+      //for off-policy learners this is last possibility to wait for needed data
+      for(int i=0; i<nWorkers; i++) worker_replies[i].join();
+    }
 
     if(iternum++ % 1000 == 0) flushRewardBuffer();
   }
@@ -74,35 +80,22 @@ int Master::run()
 
 void Master::processWorker(const int worker)
 {
-  if( bTrain && learnersLockQueue() ) return;
-  const int thrID = omp_get_thread_num();
-  if(thrID==1) profiler_int->stop_start("SERV");
-  if(thrID==0) profiler->stop_start("SERV");
-
-  int completed = 0;
-  MPI_Status mpistatus;
+  assert(worker>0 && worker <= (int) nWorkers);
+  while(1)
   {
-    assert(worker>0 && worker <= (int) nWorkers);
-    lock_guard<mutex> lock(mpi_mutex);
-    MPI_Test(&requests[worker-1], &completed, &mpistatus);
+    // If !bTrain this is only termination condition. If bTrain the code checks
+    // termination at beginning of loop in run() to prevent undefined behaviors.
+    if(!bTrain && seqNum >= totNumSteps) break;
+    if( bTrain && learnersLockQueue()  ) break;
+
+    MPI_Status mpistatus;
+    int completed = testBuffer(worker, mpistatus);
+
+    if(completed) {
+      assert(worker == mpistatus.MPI_SOURCE);
+      processAgent(worker, mpistatus);
+    } else usleep(5);
   }
-  //printf("Thread %d doing worker %d\n",thrID,worker);
-
-  if(completed) {
-    assert(worker == mpistatus.MPI_SOURCE);
-    processAgent(worker, mpistatus);
-  }
-
-  if(thrID==1) profiler_int->stop_start("SLP");
-  if(thrID==0) profiler->stop_start("SLP");
-
-  // If not bTrain this is only termination condition. If bTrain the code checks
-  // termination at beginning of loop in run() to prevent undefined behaviors.
-  if( !bTrain && seqNum >= totNumSteps ) return;
-  if(  bTrain && learnersLockQueue()   ) return;
-
-  #pragma omp task firstprivate(worker) priority(1)
-    processWorker(worker);
 }
 
 void Master::processAgent(const int worker, const MPI_Status mpistatus)

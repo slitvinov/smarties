@@ -437,6 +437,7 @@ string setupFolder = DEFAULT_setupFolder;
   int policyVecDim = -1;
   //random number generators (one per thread)
   //std::mt19937* gen;
+  int threadSafety = -1;
   std::vector<std::mt19937> generators;
 
   void check()
@@ -520,6 +521,18 @@ string setupFolder = DEFAULT_setupFolder;
     for(int i=1; i<omp_get_max_threads(); i++) {
       const Uint seed = generators[0]();
       generators.push_back(mt19937(seed));
+    }
+  }
+
+  void finalizeSeeds()
+  {
+    const int currsize = generators.size();
+    if(currsize < nThreads + nAgents) {
+      generators.reserve(nThreads+nAgents);
+      for(int i=currsize; i<nThreads+nAgents; i++) {
+        const Uint seed = generators[0]();
+        generators.push_back(mt19937(seed));
+      }
     }
   }
 

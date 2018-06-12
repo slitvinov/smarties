@@ -15,37 +15,6 @@ _s.minTotObsNum>_s.batchSize? _s.minTotObsNum : _s.maxTotObsNum) {
     die("Parameter minTotObsNum is too low for given problem");
 }
 
-void Learner_offPolicy::prepareData()
-{
-  // it should be impossible to get here before starting batch update was ready.
-  if(updateComplete) die("undefined behavior");
-
-  // then no need to prepare a new update
-  if(updatePrepared) die("undefined behavior"); //return;
-
-  if( not readyForTrain() ) return; // Do not prepare an update
-
-  profiler->stop_start("PRE");
-  if(nStep%1000==0) {
-    // update state mean/std with net's learning rate
-    //const Real WS = nStep? annealRate(learnR, nStep, epsAnneal) : 1;
-    const Real WS = nStep? 0 : 1;
-    data->updateRewardsStats(nStep, 1, WS*(LEARN_STSCALE>0));
-  }
-  if(nStep == 0 && !learn_rank)
-    cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
-
-  if(bSampleSequences && data->readNSeq() < batchSize)
-    die("Parameter minTotObsNum is too low for given problem");
-
-  samp_seq = vector<Uint>(batchSize, -1);
-  samp_obs = vector<Uint>(batchSize, -1);
-  if(bSampleSequences) data->sampleSequences(samp_seq);
-  else data->sampleTransitions_OPW(samp_seq, samp_obs);
-  updatePrepared = true;
-  profiler->stop_start("SLP");
-}
-
 bool Learner_offPolicy::readyForTrain() const
 {
   //const Uint nTransitions = data->readNTransitions();
@@ -53,27 +22,16 @@ bool Learner_offPolicy::readyForTrain() const
   //  die("I do not have enough data for training. Change hyperparameters");
   //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
   const bool ready = bTrain && data->readNData() >= nObsPerTraining;
-  if(not ready && bTrain && omp_get_thread_num() == 0 && !learn_rank) {
-    const Uint currPerc = data->readNData() * 100. / (Real) nObsPerTraining;
-    if(currPerc>percData) {
+
+  if(not ready && bTrain && !learn_rank) {
+    lock_guard<mutex> lock(buffer_mutex);
+    const int currPerc = data->readNData() * 100. / (Real) nObsPerTraining;
+    if(currPerc>=percData+5) {
       percData = currPerc;
       printf("\rCollected %d%% of data required to begin training. ", percData);
     }
   }
-
-   return ready;
-}
-
-bool Learner_offPolicy::stopGrads() const
-{
-  //stop grads if the ratio of observed trantition to steps is above
-  //user defined ratio `obsPerStep`
-  const Real _nData = (Real)data->readNSeen() - nData_b4Startup;
-  const Real dataCounter = _nData - (Real)nData_last;
-  const Real stepCounter =  nStep - (Real)nStep_last;
-  // lock the queue if we have more data than grad step ratio
-  const bool notEnoughData = dataCounter < stepCounter*obsPerStep;
-  return notEnoughData;
+  return ready;
 }
 
 bool Learner_offPolicy::lockQueue() const
@@ -83,15 +41,8 @@ bool Learner_offPolicy::lockQueue() const
   // for off policy learning, there is a ratio between gradient steps
   // and observed transitions to be kept (approximatively) constant
 
-  if( not readyForTrain() ) {
-    //if there is not enough data for training, need more data
-    assert( not updatePrepared );
-    return false;
-  }
-
-  if( not updatePrepared ) { //then was waiting for data without an update ready
-    return true; // need to exit data loop to prepare an update
-  }
+  //if there is not enough data for training, need more data
+  if( not readyForTrain() ) return false;
 
   //const Real _nData = (Real)data->readNConcluded() - nData_b4Startup;
   const Real _nData = data->readNSeen() - nData_b4Startup;
@@ -108,110 +59,107 @@ bool Learner_offPolicy::lockQueue() const
 
 void Learner_offPolicy::spawnTrainTasks_par()
 {
-  if(updateComplete) die("undefined behavior");
-  if( not updatePrepared ) return;
-  //if( stopGrads() ) { // postpone
-  //  #pragma omp task
-  //  spawnTrainTasks_par();
-  //}
+  // it should be impossible to get here before starting batch update was ready
+  if(updateComplete || updateToApply) die("undefined behavior");
 
+  if( ! readyForTrain() ) return; // Do not prepare an update
+
+  if(bSampleSequences && data->readNSeq() < batchSize)
+    die("Parameter minTotObsNum is too low for given problem");
+
+  vector<Uint> samp_seq = vector<Uint>(batchSize, -1);
+  vector<Uint> samp_obs = vector<Uint>(batchSize, -1);
+  if(bSampleSequences) data->sampleSequences(samp_seq);
+  else data->sampleTransitions_OPW(samp_seq, samp_obs);
+
+  profiler->stop_start("SLP"); // so we see inactive time during parallel loop
+  #pragma omp parallel for schedule(dynamic)
   for (Uint i=0; i<batchSize; i++)
   {
     Uint seq = samp_seq[i], obs = samp_obs[i];
-    #pragma omp task firstprivate(seq, obs)
+    const int thrID = omp_get_thread_num();
+    //printf("Thread %d done %u %u %f\n",thrID,seq,obs,data->Set[seq]->offPolicImpW[obs]); fflush(0);
+    if(bSampleSequences)
     {
-      const int thrID = omp_get_thread_num();
-      if(thrID == 0) profiler_ext->stop_start("WORK");
-      //printf("Thread %d done %u %u %f\n",thrID,seq,obs,data->Set[seq]->offPolicImpW[obs]); fflush(0);
-      if(bSampleSequences)
-      {
-        obs = data->Set[seq]->ndata()-1;
-        TrainBySequences(seq, thrID);
-        #pragma omp atomic
-        nAddedGradients += data->Set[seq]->ndata();
-      }
-      else
-      {
-        //data->sampleTransition(seq, obs, thrID);
-        Train(seq, obs, thrID);
-        #pragma omp atomic
-        nAddedGradients++;
-      }
-
+      obs = data->Set[seq]->ndata()-1;
+      TrainBySequences(seq, thrID);
       #pragma omp atomic
-        taskCounter++;
-      input->gradient(thrID);
-      data->Set[seq]->setSampled(obs);
-
-      if(thrID==0) profiler_ext->stop_start("SLP");
-      if(thrID==1) profiler->stop_start("SLP");
+      nAddedGradients += data->Set[seq]->ndata();
     }
+    else
+    {
+      //data->sampleTransition(seq, obs, thrID);
+      Train(seq, obs, thrID);
+      #pragma omp atomic
+      nAddedGradients++;
+    }
+
+    input->gradient(thrID);
+    data->Set[seq]->setSampled(obs);
+    if(thrID==0) profiler->stop_start("SLP");
   }
-  samp_seq.clear();
-  samp_obs.clear();
+
+  updateComplete = true;
 }
 
-void Learner_offPolicy::spawnTrainTasks_seq()
-{
-  if(taskCounter >= batchSize) {
-    updateComplete = true;
-    taskCounter = 0;
-  }
+bool Learner_offPolicy::bNeedSequentialTrain() {return false;}
+void Learner_offPolicy::spawnTrainTasks_seq() { }
 
-  if(not updatePrepared) {
+void Learner_offPolicy::applyGradient()
+{
+  if(not updateToApply)
+  {
     nData_b4Startup = data->readNConcluded();
     nData_last = 0;
   }
-}
-
-void Learner_offPolicy::prepareGradient()
-{
-  const bool bWasPrepareReady = updateComplete;
-
-  Learner::prepareGradient();
-
-  if(bWasPrepareReady) {
+  else
+  {
     profiler->stop_start("PRNE");
     advanceCounters();
-    data->prune(MEMBUF_FILTER_ALGO);
-    profiler->stop_start("SLP");
-  }
-}
+    if(CmaxRet>0) // assume ReF-ER
+    {
+      CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
+      if(CmaxRet<=1) die("Either run lasted too long or epsAnneal is wrong.");
+      data->prune(FARPOLFRAC, CmaxRet);
+      Real fracOffPol = data->nOffPol / (Real) data->readNData();
 
-void Learner_offPolicy::prepareGradientReFER()
-{
-  const bool bWasPrepareReady = updateComplete;
+      if (learn_size > 1) {
+        vector<Real> partial_data {(Real)data->nOffPol,(Real)data->readNData()};
+        // use result from prev AllReduce to update rewards (before new reduce).
+        // Assumption is that the number of off Pol trajectories does not change
+        // much each step. Especially because here we update the off pol W only
+        // if an obs is actually sampled. Therefore at most this fraction
+        // is wrong by batchSize / nTransitions ( ~ 0 )
+        // In exchange we skip an mpi implicit barrier point.
+        const bool skipped = reductor.sync(partial_data);
+        fracOffPol = partial_data[0] / partial_data[1];
+        if(skipped) // it must be the first step: nothing is far policy yet
+          assert(partial_data[0] < nnEPS);
+      }
 
-  Learner::prepareGradient();
+      if(fracOffPol>ReFtol) beta = (1-learnR)*beta; // iter converges to 0
+      else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 
-  if(not bWasPrepareReady) return;
-
-  profiler->stop_start("PRNE");
-
-  advanceCounters();
-  CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
-  if(CmaxRet<1) die("Either run lasted too long or epsAnneal is wrong.");
-  data->prune(CmaxPol>0 ? FARPOLFRAC : OLDEST, CmaxRet);
-  Real fracOffPol = data->nOffPol / (Real) data->readNData();
-  profiler->stop_start("SLP");
-
-  if (learn_size > 1) {
-    vector<Real> partial_data {(Real)data->nOffPol, (Real)data->readNData()};
-    // use result from prev AllReduce to update rewards (before new reduce).
-    // Assumption is that the number of off Pol trajectories does not change
-    // much each step. Especially because here we update the off pol W only
-    // if an observation is actually sampled. Therefore at most this fraction
-    // is wrong by batchSize / nTransitions ( ~ 0 )
-    // In exchange we skip an mpi implicit barrier point.
-    const bool skipped = reductor.sync(partial_data);
-    fracOffPol = partial_data[0] / partial_data[1];
-    if(skipped) // it must be the first step: nothing is far policy yet
-      assert(partial_data[0] < nnEPS);
+      if( beta <= 10*learnR && nStep % 1000 == 0)
+      warn("beta too low. Lower lrate, pick bounded nnfunc, or incr net size.");
+    }
+    else
+    {
+      data->prune(MEMBUF_FILTER_ALGO);
+    }
   }
 
-  if(fracOffPol>ReFtol) beta = (1-learnR)*beta; // iter converges to 0
-  else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
+  Learner::applyGradient();
 
-  if( beta <= 10*learnR && nStep % 1000 == 0)
-  warn("beta too low. Lower lrate, pick bounded nnfunc, or incr net size.");
+  if( readyForTrain() )
+  {
+    profiler->stop_start("PRE");
+    if(nStep%1000==0) { // update state mean/std with net's learning rate
+      //const Real WS = nStep? annealRate(learnR, nStep, epsAnneal) : 1;
+      const Real WS = nStep? 0 : 1;
+      data->updateRewardsStats(nStep, 1, WS*(LEARN_STSCALE>0));
+    }
+    if(nStep == 0 && !learn_rank)
+      cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
+  }
 }

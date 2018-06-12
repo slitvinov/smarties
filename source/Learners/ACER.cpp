@@ -26,7 +26,7 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID) const
   policies_tgt.reserve(ndata); policies.reserve(ndata);
   vector<Rvec> advantages(ndata, Rvec(2+nAexpectation, 0));
 
-  if(thrID==1) profiler->stop_start("FWD");
+  if(thrID==0) profiler->stop_start("FWD");
   for(Uint k=0; k<(Uint)ndata; k++) {
     const Rvec outPc = F[0]->forward<CUR>(traj, k, thrID);
     policies.push_back(prepare_policy(outPc, traj->tuples[k]));
@@ -53,7 +53,7 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID) const
   assert(traj->ended);
   Real Q_RET = data->scaledReward(traj, ndata);
   Real Q_OPC = data->scaledReward(traj, ndata);
-  if(thrID==1)  profiler->stop_start("POL");
+  if(thrID==0)  profiler->stop_start("POL");
   for(int k=ndata-1; k>=0; k--)
   {
     const Tuple*const T = traj->tuples[k];
@@ -85,7 +85,7 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID) const
     trainInfo->log(QTheta, Q_err, pGrad, penal, {rho}, thrID);
   }
 
-  if(thrID==1)  profiler->stop_start("BCK");
+  if(thrID==0)  profiler->stop_start("BCK");
    F[0]->gradient(thrID);
    F[1]->gradient(thrID);
    F[2]->gradient(thrID);
@@ -116,17 +116,17 @@ Rvec ACER::policyGradient(const Tuple*const _t, const Policy_t& POL,
 
 void ACER::select(const Agent& agent)
 {
-  const int thrID= omp_get_thread_num();
+  const int fakeThrID= nThreads + agent.ID;
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
 
   if( agent.Status < TERM_COMM ) {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
-    Rvec output = F[0]->forward_agent(traj, agent, thrID);
+    Rvec output = F[0]->forward_agent(traj, agent);
     Policy_t pol = prepare_policy(output);
     Rvec mu = pol.getVector();
-    const Action_t act = pol.finalize(explNoise>0, &generators[thrID], mu);
+    const Action_t act = pol.finalize(explNoise>0, &generators[fakeThrID], mu);
     agent.a->set(act);
     data->add_action(agent, mu);
   }

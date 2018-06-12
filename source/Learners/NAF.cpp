@@ -23,7 +23,7 @@ Learner_offPolicy(_env, _set)
 void NAF::select(const Agent& agent)
 {
   const Real annealedVar = explNoise + (bTrain ? annealingFactor() : 0);
-  const int thrID= omp_get_thread_num();
+  const int fakeThrID= nThreads + agent.ID;
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
 
@@ -31,11 +31,11 @@ void NAF::select(const Agent& agent)
   {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
-    Rvec output = F[0]->forward_agent<CUR>(traj, agent, thrID);
+    Rvec output = F[0]->forward_agent<CUR>(traj, agent);
     const Quadratic_advantage advantage = prepare_advantage(output);
     Rvec pol = advantage.getMean();
     pol.resize(policyVecDim, annealedVar);
-    const auto act = Gaussian_policy::sample(&generators[thrID], pol);
+    const auto act = Gaussian_policy::sample(&generators[fakeThrID], pol);
     agent.act(aInfo.getScaled(act));
     data->add_action(agent, pol);
   } else
@@ -47,7 +47,7 @@ void NAF::TrainBySequences(const Uint seq, const Uint thrID) const
   Sequence* const traj = data->Set[seq];
   const Uint ndata = traj->tuples.size();
   F[0]->prepare_seq(traj, thrID);
-  if(thrID==1) profiler->stop_start("FWD");
+  if(thrID==0) profiler->stop_start("FWD");
 
   for (Uint k=0; k<ndata-1; k++) { //state in k=[0:N-2]
     const bool terminal = k+2==ndata && traj->ended;
@@ -72,7 +72,7 @@ void NAF::TrainBySequences(const Uint seq, const Uint thrID) const
     F[0]->backward(gradient, k, thrID);
   }
 
-  if(thrID==1)  profiler->stop_start("BCK");
+  if(thrID==0)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
 }
 
@@ -80,7 +80,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
   Sequence* const traj = data->Set[seq];
   F[0]->prepare_one(traj, samp, thrID);
-  if(thrID==1) profiler->stop_start("FWD");
+  if(thrID==0) profiler->stop_start("FWD");
 
   const Rvec output = F[0]->forward<CUR>(traj, samp, thrID);
   const bool terminal = samp+2 == traj->tuples.size() && traj->ended;
@@ -102,7 +102,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
 
   trainInfo->log(Qsold, error, thrID);
   traj->setMseDklImpw(samp, error*error, 0, 1);
-  if(thrID==1)  profiler->stop_start("BCK");
+  if(thrID==0)  profiler->stop_start("BCK");
   F[0]->backward(gradient, samp, thrID);
   F[0]->gradient(thrID);
 }
