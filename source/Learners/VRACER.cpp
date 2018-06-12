@@ -101,7 +101,6 @@ Rvec VRACER<Policy_t, Action_t>::offPolGrad(Sequence*const S, const Uint t, cons
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::select(const Agent& agent)
 {
-  const int fakeThrID= nThreads + agent.ID;
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
 
@@ -116,7 +115,7 @@ void VRACER<Policy_t, Action_t>::select(const Agent& agent)
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
-    Action_t act = pol.finalize(explNoise>0, &generators[fakeThrID], mu);
+    auto act = pol.finalize(explNoise>0, &generators[nThreads+agent.ID], mu);
 
     #if 0 // add and update temporally correlated noise
       act = pol.updateOrUhState(OrUhState[agent.ID], mu, act, iter());

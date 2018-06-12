@@ -23,7 +23,6 @@ void DQN::select(const Agent& agent)
 {
   const Real anneal = annealingFactor();
   const Real annealedEps = bTrain ? anneal + (1-anneal)*explNoise : explNoise;
-  const int fakeThrID = nThreads + agent.ID;
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
 
@@ -34,8 +33,8 @@ void DQN::select(const Agent& agent)
     Rvec output = F[0]->forward_agent<CUR>(traj, agent);
 
     uniform_real_distribution<Real> dis(0.,1.);
-    if(dis(generators[fakeThrID]) < annealedEps)
-      agent.act(env->aI.maxLabel*dis(generators[fakeThrID]));
+    if(dis(generators[nThreads+agent.ID]) < annealedEps)
+      agent.act(env->aI.maxLabel*dis(generators[nThreads+agent.ID]));
     else agent.act(maxInd(output));
 
     Rvec mu(policyVecDim, annealedEps/env->aI.maxLabel);

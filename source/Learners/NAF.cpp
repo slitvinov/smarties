@@ -23,7 +23,6 @@ Learner_offPolicy(_env, _set)
 void NAF::select(const Agent& agent)
 {
   const Real annealedVar = explNoise + (bTrain ? annealingFactor() : 0);
-  const int fakeThrID= nThreads + agent.ID;
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
 
@@ -35,7 +34,7 @@ void NAF::select(const Agent& agent)
     const Quadratic_advantage advantage = prepare_advantage(output);
     Rvec pol = advantage.getMean();
     pol.resize(policyVecDim, annealedVar);
-    const auto act = Gaussian_policy::sample(&generators[fakeThrID], pol);
+    const auto act=Gaussian_policy::sample(&generators[nThreads+agent.ID], pol);
     agent.act(aInfo.getScaled(act));
     data->add_action(agent, pol);
   } else

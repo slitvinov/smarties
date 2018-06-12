@@ -80,7 +80,7 @@ private:
       worker_replies.push_back(std::thread([&, i]() { processWorker(i); }));
     return worker_replies;
   }
-  
+
   void flushRewardBuffer()
   {
     streampos pos = rewardsBuffer.tellp(); // store current location

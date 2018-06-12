@@ -174,7 +174,6 @@ Rvec RACER<Advantage_t, Policy_t, Action_t>::policyGradient(const Tuple*const _t
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::select(const Agent& agent)
 {
-  const int fakeThrID= nThreads + agent.ID;
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
 
@@ -190,7 +189,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::select(const Agent& agent)
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
-    Action_t act = pol.finalize(explNoise>0, &generators[fakeThrID], mu);
+    auto act = pol.finalize(explNoise>0, &generators[nThreads+agent.ID], mu);
 
     const Real advantage = adv.computeAdvantage(pol.sampAct);
     traj->action_adv.push_back(advantage);

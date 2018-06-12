@@ -148,7 +148,6 @@ void PPO<Policy_t, Action_t>::prepareGradient()
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::select(const Agent& agent)
 {
-  const int fakeThrID= nThreads + agent.ID;
   Sequence*const curr_seq = data->inProgress[agent.ID];
   data->add_state(agent);
 
@@ -160,7 +159,7 @@ void PPO<Policy_t, Action_t>::select(const Agent& agent)
     curr_seq->state_vals.push_back(val[0]);
     Policy_t policy = prepare_policy(pol);
     const Rvec MU = policy.getVector();
-    const Action_t act = policy.finalize(bTrain, &generators[fakeThrID], MU);
+    auto act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
     agent.a->set(act);
     data->add_action(agent, MU);
   } else if( agent.Status == TRNC_COMM ) {

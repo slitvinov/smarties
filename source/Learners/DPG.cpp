@@ -57,7 +57,6 @@ tgtFrac(_set.penalTol)
 
 void DPG::select(const Agent& agent)
 {
-  const int fakeThrID = nThreads + agent.ID;
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
   if( agent.Status < TERM_COMM ) { // not last of a sequence
@@ -66,7 +65,7 @@ void DPG::select(const Agent& agent)
     Rvec pol = F[0]->forward_agent(traj, agent);
     Gaussian_policy policy = prepare_policy(pol);
     Rvec MU = policy.getVector();
-    Rvec act = policy.finalize(bTrain, &generators[fakeThrID], MU);
+    Rvec act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
     if(OrUhDecay>0)
       act = policy.updateOrUhState(OrUhState[agent.ID], MU, OrUhDecay);
     agent.a->set(act);
