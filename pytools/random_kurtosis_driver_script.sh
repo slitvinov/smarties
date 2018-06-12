@@ -1,4 +1,4 @@
-
+#/usr/bin/env python
 BASEDIR="/scratch/snx3000/novatig/smarties"
 PREFIX="chosenParam_12_GAUS"
 FNAME="/grads_dist.raw"

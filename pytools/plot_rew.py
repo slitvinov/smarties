@@ -1,4 +1,4 @@
-#
+#/usr/bin/env python
 # SIMPLE PYTHON SCRIPT TO PLOT .raw AGENT OBS FILES
 #
 # usage:
@@ -30,11 +30,11 @@ while 1:
     DATA = DATA.reshape(DATA.size // 5, 5)
     N = (DATA.shape[0] // L)*L
     span = DATA.shape[0]-N + np.arange(0, N)
-    #print(N, L, DATA.shape[0], span.size) 
-    X = DATA[span, 1] - DATA[0,1] 
+    #print(N, L, DATA.shape[0], span.size)
+    X = DATA[span, 1] - DATA[0,1]
     Y = DATA[span, 4]
-    X = X.reshape(X.size//L, L) 
-    Y = Y.reshape(Y.size//L, L) 
+    X = X.reshape(X.size//L, L)
+    Y = Y.reshape(Y.size//L, L)
     X = X.mean(1)
     Yb = np.percentile(Y, 20, axis=1)
     #Ym = np.percentile(Y, 50, axis=1)

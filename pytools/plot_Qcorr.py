@@ -1,3 +1,4 @@
+#/usr/bin/env python
 import numpy as np, matplotlib.pyplot as plt, sys
 from scipy.stats import pearsonr
 
@@ -23,4 +24,3 @@ for j in range(2, len(sys.argv)):
 ret = np.mean(means, axis=1).reshape(M,1)
 plt.semilogy(ret,'.')
 plt.show()
-

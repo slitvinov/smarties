@@ -1,4 +1,4 @@
-#
+#/usr/bin/env python
 # SIMPLE PYTHON SCRIPT TO PLOT .raw AGENT OBS FILES
 #
 # usage:

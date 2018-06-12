@@ -484,20 +484,23 @@ string setupFolder = DEFAULT_setupFolder;
       READOPT(maxTotObsNum), READOPT(obsPerStep), READOPT(penalTol),
       READOPT(epsAnneal), READOPT(bSampleSequences),
       READOPT(bSharedPol), READOPT(totNumSteps),
+
       // NETWORK ARGS: MUST contain all 15 mentioned above (more if modified)
       READOPT(nnl1), READOPT(nnl2), READOPT(nnl3), READOPT(nnl4),
-      READOPT(nnl5), READOPT(nnl6), READOPT(splitLayers), READOPT(appendedObs),
-      READOPT(outWeightsPrefac), READOPT(batchSize), READOPT(learnrate),
-      READOPT(nnPdrop), READOPT(nnLambda), READOPT(nnType), READOPT(nnFunc),
-      READOPT(nnOutputFunc),
+      READOPT(nnl5), READOPT(nnl6), READOPT(batchSize), READOPT(appendedObs),
+      READOPT(nnPdrop), READOPT(nnOutputFunc), READOPT(nnFunc),
+      READOPT(learnrate), READOPT(nnType), READOPT(outWeightsPrefac),
+      READOPT(nnLambda), READOPT(splitLayers),
+
       // SMARTIES ARGS: MUST contain all 10 mentioned above (more if modified)
       READOPT(nThreads), READOPT(nMasters), READOPT(isServer), READOPT(ppn),
       READOPT(sockPrefix), READOPT(samplesFile), READOPT(restart),
       READOPT(maxTotSeqNum), READOPT(randSeed), READOPT(saveFreq),
+
       // ENVIRONMENT ARGS: MUST contain all 7 mentioned above (more if modified)
       READOPT(environment), READOPT(rType), READOPT(senses), READOPT(goalDY),
-      READOPT(launchfile), READOPT(filePrefix), READOPT(appSettings),
-      READOPT(setupFolder)
+      READOPT(launchfile), READOPT(appSettings), READOPT(setupFolder),
+      READOPT(filePrefix)
     });
   }
 
