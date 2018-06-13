@@ -44,4 +44,5 @@ fitfun.o: fitfun.c
 
 clean:
 	rm -f *.o
+	rm -f *.d
 	rm -f engine_cmaes
