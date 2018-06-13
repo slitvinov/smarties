@@ -146,6 +146,10 @@ public:
       l->initialize(&generators[0], weights,
         l->bOutput && not isInputNet ? settings.outWeightsPrefac : 1);
 
+    if(settings.learner_rank == 0) {
+      for(const auto & l : layers) cout << l->printSpecs();
+    }
+
     // Make sure that all ranks have the same weights (copy from rank 0)
     weights->broadcast(settings.mastersComm);
     weights->allocateTransposed();

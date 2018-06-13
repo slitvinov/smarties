@@ -118,38 +118,38 @@ private:
   void processWorker(const int worker);
   void processAgent(const int worker, const MPI_Status mpistatus);
 
-  inline void sendBuffer(const int worker, const int agent)
+  inline void sendBuffer(const int i, const int agent)
   {
-    assert(worker>0 && worker <= (int) outBufs.size());
-    for(Uint i=0; i<aI.dim; i++)
-      outBufs[worker-1][i] = agents[agent]->a->vals[i];
+    assert(i>0 && i <= (int) outBufs.size());
+    for(Uint j=0; j<aI.dim; j++)
+      outBufs[i-1][j] = agents[agent]->a->vals[j];
 
-    debugS("Sent action to worker %d: [%s]", worker,
-      print(Rvec(outBufs[worker-1], outBufs[worker-1]+aI.dim)).c_str());
+    debugS("Sent action to worker %d: [%s]", i,
+      print(Rvec(outBufs[i-1], outBufs[i-1]+aI.dim)).c_str());
     MPI_Request tmp;
-    if(bAsync) {
-      MPI_Isend(outBufs[worker-1], outSize, MPI_BYTE, worker, 0, workersComm, &tmp);
+    if(bAsync) { // MPI impl allows maximum thread safety
+      MPI_Isend(outBufs[i-1],outSize, MPI_BYTE, i,0,workersComm,&tmp);
     } else {
       lock_guard<mutex> lock(mpi_mutex);
-      MPI_Isend(outBufs[worker-1], outSize, MPI_BYTE, worker, 0, workersComm, &tmp);
+      MPI_Isend(outBufs[i-1],outSize, MPI_BYTE, i,0,workersComm,&tmp);
     }
     MPI_Request_free(&tmp); //Not my problem
   }
 
   inline void recvBuffer(const int i)
   {
-    if(bAsync) {
-      MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, workersComm, &requests[i-1]);
+    if(bAsync) { // MPI impl allows maximum thread safety
+      MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i,1,workersComm,&requests[i-1]);
     } else {
       lock_guard<mutex> lock(mpi_mutex);
-      MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i, 1, workersComm, &requests[i-1]);
+      MPI_Irecv(inpBufs[i-1], inSize, MPI_BYTE, i,1,workersComm,&requests[i-1]);
     }
   }
 
   inline int testBuffer(const int i, MPI_Status& mpistatus)
   {
     int completed = 0;
-    if(bAsync) {
+    if(bAsync) { // MPI impl allows maximum thread safety
       MPI_Test(&requests[i-1], &completed, &mpistatus);
     } else {
       lock_guard<mutex> lock(mpi_mutex);
@@ -174,7 +174,6 @@ public:
   {
     //it's awfully ugly, i send -256 to kill the workers... but...
     //what are the chances that learner sends action -256.(+/- eps) to clients?
-    printf("nworkers %d\n",nWorkers);
     for (int worker=1; worker<=nWorkers; worker++) {
       outBufs[worker-1][0] = _AGENT_KILLSIGNAL;
       MPI_Ssend(outBufs[worker-1], outSize, MPI_BYTE, worker, 0, workersComm);

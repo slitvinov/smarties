@@ -46,13 +46,17 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 void Learner::prepareGradient() //this cannot be called from omp parallel region
 {
   if(updateToApply) die("undefined behavior");
-  if(not updateComplete) return; //then this was called WITHOUT a batch ready
+  if(not updateComplete) {
+    debugL("prepareGradient called while waiting for workers to gather data")
+    return; // there is nothing in the gradients yet
+  }
   // Learner is ready for the update: send the task to the networks and
   // start preparing the next one
   updateComplete = false;
   updateToApply = true;
 
   profiler->stop_start("ADDW");
+  debugL("Gather gradient estimates from each thread and Learner MPI rank")
   for(auto & net : F) net->prepareUpdate(batchSize);
   input->prepareUpdate(batchSize);
 
@@ -68,6 +72,7 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
 void Learner::applyGradient()
 {
   if(not updateToApply) { // usually at the first step
+    debugL("Reset profiler after gathering initial episodes")
     profiler->stop_all();
     profiler->reset();
     profiler->stop_start("SLP");
@@ -91,6 +96,7 @@ void Learner::applyGradient()
     processStats();
   }
 
+  debugL("Apply SGD update after reduction of gradients")
   profiler->stop_start("GRAD");
   for(auto & net : F) net->applyUpdate();
   input->applyUpdate();

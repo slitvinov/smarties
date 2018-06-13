@@ -50,6 +50,10 @@ class Layer
     bool bInp = false,
     Uint _link = 0):
     size(_size), ID(_ID), link(_link), bInput(bInp), bOutput(bOut)  {}
+
+
+  virtual string printSpecs() const = 0;
+
   virtual ~Layer() {}
 
   virtual void forward( const Activation*const prev,
@@ -145,8 +149,11 @@ class Layer
 class InputLayer: public Layer
 {
  public:
-  InputLayer(Uint _size, Uint _ID) : Layer(_ID, _size, false, true) {
-    printf("(%u) Input Layer of size:%u.\n", ID, size); fflush(0);
+  InputLayer(Uint _size, Uint _ID) : Layer(_ID, _size, false, true) { }
+  string printSpecs() const override {
+    std::ostringstream o;
+    o<<"("<<ID<<") Input Layer of size:"<<size<<"\n";
+    return o.str();
   }
 
   void requiredParameters(vector<Uint>& nWeight,
@@ -183,8 +190,13 @@ class JoinLayer: public Layer
   const Uint nJoin;
  public:
   JoinLayer(Uint _ID, Uint _N, Uint _nJ): Layer(_ID,_N,false), nJoin(_nJ) {
-    printf("(%u) Join Layer of size:%u.\n", ID, size); fflush(0);
     assert(nJoin>1);
+  }
+  string printSpecs() const override {
+    std::ostringstream o;
+    o<<"("<<ID<<") Join Layer of size:"<<size
+     <<" joining the previous "<<nJoin<<" layers"<<"\n";
+    return o.str();
   }
 
   void requiredParameters(vector<Uint>& nWeight,
@@ -240,9 +252,13 @@ class ParamLayer: public Layer
   ~ParamLayer() { delete func; }
   ParamLayer(Uint _ID, Uint _size, string funcType, vector<nnReal> init) :
     Layer(_ID, _size, true), func(makeFunction(funcType)), initVals(init) {
-    printf("(%u) %s ParameterLayer of size:%u.\n", ID, funcType.c_str(), size);
     if(initVals.size() != size) _die("size of initVals:%lu.", initVals.size());
-    fflush(0);
+  }
+  string printSpecs() const override {
+    std::ostringstream o;
+    o<<"("<<ID<<") "<<func->name()
+     <<"Parameter Layer of size:"<<size<<"\n";
+    return o.str();
   }
 
   void requiredParameters(vector<Uint>& nWeight,

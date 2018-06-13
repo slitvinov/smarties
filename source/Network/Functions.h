@@ -33,11 +33,12 @@ struct Function {
   virtual nnReal eval(const nnReal in) const = 0;
   virtual nnReal inverse(const nnReal in) const = 0; // f(in)
   virtual nnReal evalDiff(const nnReal in, const nnReal out) const = 0; // f'(in)
-
+  virtual string name() const = 0;
   virtual ~Function() {}
 };
 
 struct Linear : public Function {
+  string name() const override { return "Linear";}
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(1./inps);
   }
@@ -68,6 +69,7 @@ struct Linear : public Function {
 };
 
 struct Tanh : public Function {
+  string name() const override { return "Tanh";}
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(6./(inps + outs));
   }
@@ -105,6 +107,7 @@ struct Tanh : public Function {
 };
 
 struct Sigm : public Function {
+  string name() const override { return "Sigm";}
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(6./(inps + outs));
   }
@@ -147,6 +150,7 @@ struct Sigm : public Function {
 };
 
 struct HardSign : public Function {
+  string name() const override { return "HardSign";}
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(6./(inps + outs));
   }
@@ -181,6 +185,7 @@ struct HardSign : public Function {
 
 #define SoftSign_FAC 1
 struct SoftSign : public Function {
+  string name() const override { return "SoftSign";}
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(6./(inps + outs));
   }
@@ -214,6 +219,7 @@ struct SoftSign : public Function {
 };
 
 struct Relu : public Function {
+  string name() const override { return "Relu";}
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(2./inps);
   }
@@ -246,6 +252,7 @@ struct Relu : public Function {
 };
 
 struct LRelu : public Function {
+  string name() const override { return "LRelu";}
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(1./inps);
   }
@@ -278,6 +285,7 @@ struct LRelu : public Function {
 };
 
 struct ExpPlus : public Function {
+  string name() const override { return "ExpPlus";}
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(2./inps);
   }
@@ -316,6 +324,7 @@ struct ExpPlus : public Function {
 };
 
 struct SoftPlus : public Function {
+  string name() const override { return "SoftPlus";}
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(2./inps);
   }
@@ -350,6 +359,7 @@ struct SoftPlus : public Function {
 };
 
 struct Exp : public Function {
+  string name() const override { return "Exp";}
   Real initFactor(const Uint inps, const Uint outs) const override {
     return std::sqrt(2./inps);
   }

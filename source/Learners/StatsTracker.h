@@ -34,12 +34,13 @@ struct ApproximateReductor
     if(not firstUpdate) MPI_Wait(&buffRequest, MPI_STATUS_IGNORE);
     assert(ret.size() == arysize);
     local_vals = ret;
-    ret = reduce_ret;
     if(accurate){
       if(not firstUpdate) die("undefined behavior")
       MPI_Allreduce( local_vals.data(), reduce_ret.data(), arysize,
                      MPI_RDX_TYPE, MPI_SUM, mpicomm);
+      ret = reduce_ret; //accurate result after reduction
     } else {
+      ret = reduce_ret; //inaccurate result coming from return of previous call
       MPI_Iallreduce(local_vals.data(), reduce_ret.data(), arysize,
                      MPI_RDX_TYPE, MPI_SUM, mpicomm, &buffRequest);
     }

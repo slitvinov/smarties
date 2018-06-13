@@ -41,11 +41,18 @@ class BaseLayer: public Layer
     nInputs(_nInputs), nNeurons(_nNeurons), bRecurrent(bRnn),
     nOut_simd(roundUpSimd(_nNeurons)), func(makeFunction(funcType)) {
       spanCompInpGrads = _nInputs;
-      printf("(%u) %s %s%sInnerProduct Layer of size:%u linked to Layer:%u of size:%u.\n",
-      ID, funcType.c_str(), bOutput? "output ":"", bRecurrent? "Recurrent-":"",
-        nNeurons, ID-link, nInputs);
-      fflush(0);
     }
+
+  string printSpecs() const override {
+    std::ostringstream o;
+    o<<"("<<ID<<") "<<func->name()
+     <<string(bOutput? " output ":" ")
+     <<string(bRecurrent? "Recurrent-":"")
+     <<"InnerProduct Layer of size:"<<nNeurons
+     <<" linked to Layer:"<<ID-link
+     <<" of size:"<<nInputs<<"\n";
+    return o.str();
+  }
 
   void forward( const Activation*const prev,
                 const Activation*const curr,

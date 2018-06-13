@@ -78,6 +78,7 @@ class Communicator:
         self.action_options = actOpts
         self.action_bounds = actVals
         self.seq_id, self.frame_id = 0, 0
+        self.seed = sys.argv[1]
 
     def __del__(self):
         self.conn.close()

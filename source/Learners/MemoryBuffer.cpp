@@ -89,7 +89,10 @@ void MemoryBuffer::terminate_seq(const Agent&a)
 void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
 {
   if(!bTrain) return; //if not training, keep the stored values
-  if(WR<0 && WS<0) return;
+  if(WR<=0 && WS<=0) {
+    debugL("Learner did not request any update to the state or rew stats")
+    return;
+  }
   WR = std::min((Real)1, WR);
   WS = std::min((Real)1, WS);
   long double count = 0, newstdvr = 0;
@@ -125,8 +128,14 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
       res[2+k] = newSSum[k]; res[2+dimS+k] = newSSqSum[k];
     }
     bool skipped = reductor.sync(res, WS>=1);
-    if(skipped) return; // no reduction done.
-
+    if(skipped) {
+      debugL("Update of state/reward data has been skipped")
+      // typically off pol learner does an accurate reduction on first step
+      // to compute state/rew statistics, then we can assume they change slowly
+      // and if we have multiple ranks we use the result from previous reduction
+      // in order to avoid blocking communication
+      return; // no reduction done.
+    }
     count = res[0]; newstdvr = res[1];
     for(Uint k=0; k<dimS; k++) {
       newSSum[k] = res[2+k]; newSSqSum[k] = res[2+dimS+k];
@@ -137,8 +146,8 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
   if(WR>0)
   {
     Real varR = newstdvr/count;
-    if(varR < numeric_limits<float>::epsilon())
-       varR = numeric_limits<float>::epsilon();
+    if(varR < numeric_limits<Real>::epsilon())
+       varR = numeric_limits<Real>::epsilon();
     const Real stDevRew = std::sqrt(varR);
     invstd_reward = (1-WR)*invstd_reward +WR/stDevRew;
   }
@@ -151,25 +160,26 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
     // if WS==1 then varS is exact, otherwise update second moment
     // centered around current mean[k] (ie. E[(Sk-mean[k])^2])
     Real varS = newSSqSum[k]/count - MmM*MmM*(2*WS-WS*WS);
-    if(varS < numeric_limits<float>::epsilon())
-       varS = numeric_limits<float>::epsilon();
+    if(varS < numeric_limits<Real>::epsilon())
+       varS = numeric_limits<Real>::epsilon();
     std[k] = (1-WS) * std[k] + WS * std::sqrt(varS);
     invstd[k] = 1/(std[k]+numeric_limits<float>::epsilon());
   }
-  //if(learn_rank == 0) {
-  //  ofstream outf("runningAverages.dat", ios::app);
-  //  outf<<count<<" "<<1/invstd_reward<<" "<<print(mean)<<" "<<print(std)<<endl;
-  //  outf.flush(); outf.close();
-  //}
 
   #ifndef NDEBUG
+    if(learn_rank == 0) {
+     ofstream outf("runningAverages.dat", ios::app);
+     outf<<count<<" "<<1/invstd_reward<<" "<<print(mean)<<" "<<print(std)<<endl;
+     outf.flush(); outf.close();
+    }
     Uint cntSamp = 0;
     for(Uint i=0; i<Set.size(); i++) {
       assert(Set[i] not_eq nullptr);
       cntSamp += Set[i]->ndata();
     }
     assert(cntSamp==nTransitions.load());
-    if(WS>0) {
+    //if(WS>0)
+    {
       vector<long double> dbgStateSum(dimS,0), dbgStateSqSum(dimS,0);
       #pragma omp parallel
       {
@@ -189,8 +199,8 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
         }
       }
       for(Uint k=0; k<dimS; k++) {
-        const Real dbgMean = dbgStateSum[k]/count;
-        const Real dbgVar = dbgStateSqSum[k]/count - dbgMean*dbgMean;
+        const Real dbgMean = dbgStateSum[k]/cntSamp;
+        const Real dbgVar = dbgStateSqSum[k]/cntSamp - dbgMean*dbgMean;
         cout <<k<<" mean:"<<dbgMean<<" std:"<<dbgVar<< endl;
       }
     }

@@ -62,11 +62,19 @@ void Learner_offPolicy::spawnTrainTasks_par()
   // it should be impossible to get here before starting batch update was ready
   if(updateComplete || updateToApply) die("undefined behavior");
 
-  if( ! readyForTrain() ) return; // Do not prepare an update
+  if( ! readyForTrain() ) {
+    debugL("spawnTrainTasks_par called with not enough data, wait next call")
+    // This is to be expected!! On first Master loop workers are spawned
+    // they gather initial data and then terminate the loop iteration.
+    // During this first loop all the learner functions (e.g. this one)
+    // are called, but nothing is done. On the 2nd loop iter training begins.
+    return; // Do not prepare an update
+  }
 
   if(bSampleSequences && data->readNSeq() < batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 
+  debugL("Sample the replay memory and compute the gradients")
   vector<Uint> samp_seq = vector<Uint>(batchSize, -1);
   vector<Uint> samp_obs = vector<Uint>(batchSize, -1);
   if(bSampleSequences) data->sampleSequences(samp_seq);
@@ -109,11 +117,14 @@ void Learner_offPolicy::applyGradient()
 {
   if(not updateToApply)
   {
+    debugL("applyGradient called while waiting for data: shift counters")
     nData_b4Startup = data->readNConcluded();
     nData_last = 0;
   }
   else
   {
+    debugL("Prune the Replay Memory for old/stale episodes, advance counters")
+    //put here because this is called after workers finished gathering new data
     profiler->stop_start("PRNE");
     advanceCounters();
     if(CmaxRet>0) // assume ReF-ER
@@ -133,8 +144,8 @@ void Learner_offPolicy::applyGradient()
         // In exchange we skip an mpi implicit barrier point.
         const bool skipped = reductor.sync(partial_data);
         fracOffPol = partial_data[0] / partial_data[1];
-        if(skipped) // it must be the first step: nothing is far policy yet
-          assert(partial_data[0] < nnEPS);
+        if(skipped and partial_data[0]>nnEPS)
+          die("If skipping it must be 1st step, with nothing far policy");
       }
 
       if(fracOffPol>ReFtol) beta = (1-learnR)*beta; // iter converges to 0
@@ -153,6 +164,7 @@ void Learner_offPolicy::applyGradient()
 
   if( readyForTrain() )
   {
+    debugL("Compute state/rewards stats from the replay memory")
     profiler->stop_start("PRE");
     if(nStep%1000==0) { // update state mean/std with net's learning rate
       //const Real WS = nStep? annealRate(learnR, nStep, epsAnneal) : 1;

@@ -56,9 +56,16 @@ class LSTMLayer: public Layer
     bool bOut, Uint iLink) :  Layer(_ID, _nCells, bOut, false, iLink),
     nInputs(_nInputs), nCells(_nCells), cell(makeFunction(funcType)) {
     spanCompInpGrads = _nInputs;
-    printf("(%u) %s %sLSTM Layer of size:%u linked to Layer:%u of size:%u.\n",
-    ID, funcType.c_str(), bOutput? "output ":"", nCells, ID-link, nInputs);
-    fflush(0);
+  }
+
+  string printSpecs() const override {
+    std::ostringstream o;
+    o<<"("<<ID<<") "<<cell->name()
+     <<string(bOutput? " output ":" ")
+     <<"LSTM Layer of size:"<<nCells
+     <<" linked to Layer:"<<ID-link
+     <<" of size:"<<nInputs<<"\n";
+    return o.str();
   }
 
   void forward( const Activation*const prev,

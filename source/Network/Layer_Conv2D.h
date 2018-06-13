@@ -22,16 +22,26 @@ class ConvLayer : public Layer
   ConvLayer(int _ID, bool bOut, Uint iLink) :
    Layer(_ID, OutX*OutY*Kn_C, bOut), link(iLink) {
     spanCompInpGrads = In_X * In_Y * In_C;
-    printf("Conv Layer of sizes:\n"
-    "Input:[%d %d %d] Filter:[%d %d %d] Output:[%d %d] Stride:[%d %d]\n",
-      In_X, In_Y, In_C, Kn_X, Kn_Y, Kn_C, OutX, OutY, Sx, Sy);
-    fflush(0);
     assert(In_X>0 && In_Y>0 && In_C>0);
     assert(Kn_X>0 && Kn_Y>0 && Kn_C>0);
     assert(Sx>0 && Sy>0 && OutX>0 && OutY>0);
     assert((In_X-Kn_X) % Sx == 0);
     assert((In_Y-Kn_Y) % Sy == 0);
     assert(OutC == Kn_C || OutC == 2*Kn_C);
+  }
+
+  string printSpecs() const override {
+    std::ostringstream o;
+    func* nonlin = new func();
+    o<<"("<<ID<<") "<<nonlin->name()
+     <<"Conv Layer with Input:["<<In_X<<" "<<In_Y<<" "<<In_C
+     <<"] Filter:["<<Kn_X<<" "<<Kn_Y<<" "<<Kn_C
+     <<"] Output:["<<OutX<<" "<<OutY
+     <<"] Stride:["<<Sx<<" "<<Sy
+     <<"] Padding:["<<Px<<" "<<Py
+     <<"] linked to Layer:"<<ID-link<<"\n";
+    delete nonlin;
+    return o.str();
   }
 
   void requiredParameters(vector<Uint>& nWeight,

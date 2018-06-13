@@ -258,6 +258,8 @@ void RACER<Advantage_t, Policy_t, Action_t>::prepareGradient()
   #ifdef RACER_BACKWARD
   if(updateToApply)
   {
+    debugL("Update Retrace est. for episodes samples in prev. grad update")
+    // placed here because this happens right after update is computed
     profiler->stop_start("QRET");
     #pragma omp parallel for schedule(dynamic)
     for(Uint i = 0; i < data->Set.size(); i++)
@@ -276,7 +278,9 @@ void RACER<Advantage_t, Policy_t, Action_t>::applyGradient()
   // therefore we need to recompute (rescaled) Retrace values for all obss
   // seen before this point.
   if( readyForTrain() && nStep == 0 ) {
-    if(updateToApply) die("")
+    if(updateToApply) die("undefined behavior")
+    debugL("Rescale Retrace est. after gathering initial dataset")
+    // placed here because on 1st step we just computed first rewards statistics
     #pragma omp parallel for schedule(dynamic)
     for(Uint i = 0; i < data->Set.size(); i++)
       for (Uint j=data->Set[i]->ndata(); j>0; j--)
@@ -356,7 +360,9 @@ RACER<Discrete_advantage, Discrete_policy, Uint>::RACER(
   pol_start(count_pol_starts(&_env->aI)),
   adv_start(count_adv_starts(&_env->aI))
 {
-  printf("Discrete-action RACER: Built network with outputs: v:%u pol:%s adv:%s\n", VsID, print(pol_start).c_str(), print(adv_start).c_str());
+  if(_set.learner_rank == 0) {
+    printf("Discrete-action RACER: Built network with outputs: v:%u pol:%s adv:%s\n", VsID, print(pol_start).c_str(), print(adv_start).c_str());
+  }
 
   F.push_back(new Approximator("net", _set, input, data));
   vector<Uint> nouts{1, nL, nA};
@@ -373,7 +379,9 @@ RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::RACER(
   pol_start(count_pol_starts(&_env->aI)),
   adv_start(count_adv_starts(&_env->aI))
 {
-  printf("Mixture-of-experts continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s\n", VsID, print(pol_start).c_str(), print(adv_start).c_str());
+  if(_set.learner_rank == 0) {
+    printf("Mixture-of-experts continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s\n", VsID, print(pol_start).c_str(), print(adv_start).c_str());
+  }
 
   F.push_back(new Approximator("net", _set, input, data));
 
