@@ -39,7 +39,7 @@ void Learner_onPolicy::spawnTrainTasks_seq()
   data->sampleTransitions_OPW(samp_seq, samp_obs);
 
   profiler->stop_start("SLP"); // so we see inactive time during parallel loop
-  #pragma omp parallel for schedule(dynamic)
+  #pragma omp parallel for schedule(dynamic) num_threads(nThreads)
   for (Uint i=0; i<batchSize; i++)
   {
     const int thrID = omp_get_thread_num();

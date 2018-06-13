@@ -78,7 +78,7 @@ struct TrainData
   void log(const Real Q, const Real Qerr,
     const std::vector<Real> polG, const std::vector<Real> penal,
     std::initializer_list<Real> extra, const int thrID) {
-    cntVec[thrID] ++;
+    cntVec[thrID+1] ++;
     trackQ(Q, Qerr, thrID);
     trackPolicy(polG, penal, thrID);
     const vector<Real> tmp = extra;
@@ -87,14 +87,14 @@ struct TrainData
   }
   void log(const Real Q, const Real Qerr,
     std::initializer_list<Real> extra, const int thrID) {
-    cntVec[thrID] ++;
+    cntVec[thrID+1] ++;
     trackQ(Q, Qerr, thrID);
     const vector<Real> tmp = extra;
     assert(tmp.size() == n_extra && not bPolStats);
     for(Uint i=0; i<n_extra; i++) eVec[thrID+1][i] += tmp[i];
   }
   void log(const Real Q, const Real Qerr, const int thrID) {
-    cntVec[thrID] ++;
+    cntVec[thrID+1] ++;
     trackQ(Q, Qerr, thrID);
     assert(not bPolStats);
   }

@@ -81,7 +81,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
   else data->sampleTransitions_OPW(samp_seq, samp_obs);
 
   profiler->stop_start("SLP"); // so we see inactive time during parallel loop
-  #pragma omp parallel for schedule(dynamic)
+  #pragma omp parallel for schedule(dynamic) num_threads(nThreads)
   for (Uint i=0; i<batchSize; i++)
   {
     Uint seq = samp_seq[i], obs = samp_obs[i];
@@ -96,7 +96,6 @@ void Learner_offPolicy::spawnTrainTasks_par()
     }
     else
     {
-      //data->sampleTransition(seq, obs, thrID);
       Train(seq, obs, thrID);
       #pragma omp atomic
       nAddedGradients++;
