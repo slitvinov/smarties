@@ -35,6 +35,8 @@ void Learner_onPolicy::spawnTrainTasks_seq()
   if( updateComplete ) die("undefined behavior");
   if( data->readNData() < nHorizon ) die("undefined behavior");
   if( not bTrain ) return;
+
+  debugL("sampling update from (nearly) on-pol data")
   vector<Uint> samp_seq(batchSize, -1), samp_obs(batchSize, -1);
   data->sampleTransitions_OPW(samp_seq, samp_obs);
 
@@ -60,17 +62,24 @@ void Learner_onPolicy::prepareGradient()
 
   Learner::prepareGradient();
 
+  debugL("shift counters of epochs over the stored data")
   cntBatch += batchSize;
   if(cntBatch >= nHorizon) {
     cntBatch = 0;
     cntEpoch++;
   }
-  if(cntEpoch >= nEpochs) {
+
+  if(cntEpoch >= nEpochs || nStep == 0) {
+    debugL("shift state/rewards statistics over the dataset")
     const Real annlLR = annealRate(learnR, nStep, epsAnneal);
     data->updateRewardsStats(nStep, annlLR, annlLR*(LEARN_STSCALE>0));
+  }
+
+  if(cntEpoch >= nEpochs) {
+    debugL("finished epochs, clear buffer to gather new onpol samples")
     cntKept = data->clearOffPol(CmaxPol, 0.05);
     //reset batch learning counters
-    cntEpoch = 0; cntBatch = 0;
-    updateComplete = false;
+    cntEpoch = 0;
+    cntBatch = 0;
   }
 }

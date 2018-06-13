@@ -129,6 +129,7 @@ void PPO<Policy_t, Action_t>::updatePPO(Sequence*const seq) const
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::prepareGradient()
 {
+  debugL("update lagrangian penalization coefficient")
   cntPenal[0] = 0;
   for(Uint i=1; i<=nThreads; i++) {
     cntPenal[0] += cntPenal[i]; cntPenal[i] = 0;
