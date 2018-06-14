@@ -32,7 +32,7 @@ bool Learner_onPolicy::lockQueue() const
 bool Learner_onPolicy::bNeedSequentialTrain() {return true;}
 void Learner_onPolicy::spawnTrainTasks_seq()
 {
-  if( updateComplete ) die("undefined behavior");
+  if(updateComplete || updateToApply) die("undefined behavior");
   if( data->readNData() < nHorizon ) die("undefined behavior");
   if( not bTrain ) return;
 
@@ -58,7 +58,7 @@ void Learner_onPolicy::spawnTrainTasks_par() { }
 
 void Learner_onPolicy::prepareGradient()
 {
-  if(not updateComplete) die("undefined behavior");
+  if(not updateComplete || updateToApply) die("undefined behavior")
 
   Learner::prepareGradient();
 
@@ -69,17 +69,24 @@ void Learner_onPolicy::prepareGradient()
     cntEpoch++;
   }
 
-  if(cntEpoch >= nEpochs || nStep == 0) {
-    debugL("shift state/rewards statistics over the dataset")
-    const Real annlLR = annealRate(learnR, nStep, epsAnneal);
-    data->updateRewardsStats(nStep, annlLR, annlLR*(LEARN_STSCALE>0));
-  }
-
   if(cntEpoch >= nEpochs) {
-    debugL("finished epochs, clear buffer to gather new onpol samples")
+    debugL("finished epochs, compute state/rew stats, clear buffer to gather new onpol samples")
+    const Real annlLR = annealRate(learnR, nStep, epsAnneal);
+    data->updateRewardsStats(nStep, annlLR, annlLR);
     cntKept = data->clearOffPol(CmaxPol, 0.05);
     //reset batch learning counters
     cntEpoch = 0;
     cntBatch = 0;
   }
+}
+
+void Learner_onPolicy::initializeLearner()
+{
+  if ( nStep>0 ) die("undefined behavior")
+
+  debugL("Compute state/rewards stats from the replay memory")
+  profiler->stop_start("PRE");
+  data->updateRewardsStats(nStep, 1, 1);
+  if( learn_rank == 0 )
+    cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
 }

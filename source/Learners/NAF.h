@@ -28,7 +28,7 @@ class NAF : public Learner_offPolicy
 
 public:
   NAF(Environment*const env, Settings & settings);
-  void select(const Agent& agent) override;
+  void select(Agent& agent) override;
   void test();
   static inline Uint compute_nL(const Uint NA)
   {

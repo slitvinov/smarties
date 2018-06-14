@@ -20,7 +20,7 @@ Learner_offPolicy(_env, _set)
   test();
 }
 
-void NAF::select(const Agent& agent)
+void NAF::select(Agent& agent)
 {
   const Real annealedVar = explNoise + (bTrain ? annealingFactor() : 0);
   Sequence* const traj = data->inProgress[agent.ID];

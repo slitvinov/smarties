@@ -178,8 +178,9 @@ public:
     clear();
   }
 
-  void printSummary(FILE *outFile=NULL) const
+  void printSummary(FILE *outFile=NULL)
   {
+    stop_all();
     vector<ProfileSummaryItem> v = createSummary();
 
     double dTotalTime = 0;
@@ -219,7 +220,9 @@ public:
     return result;
   }
 
-  void reset() {
+  void reset()
+  {
+    stop_all();
     for(const auto &item : m_mapAgents) item.second->_reset();
   }
 

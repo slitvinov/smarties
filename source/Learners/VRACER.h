@@ -89,12 +89,12 @@ class VRACER : public Learner_offPolicy
   VRACER(Environment*const _env, Settings& _set);
   ~VRACER() { }
 
-  void select(const Agent& agent) override;
+  void select(Agent& agent) override;
 
   void writeOnPolRetrace(Sequence*const seq) const;
 
   void prepareGradient() override;
-  void applyGradient() override;
+  void initializeLearner() override;
   static Uint getnOutputs(const ActionInfo*const aI);
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };

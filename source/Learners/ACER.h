@@ -41,7 +41,7 @@ class ACER : public Learner_offPolicy
     const Action_t& pol_samp) const;
 
  public:
-  void select(const Agent& agent) override;
+  void select(Agent& agent) override;
 
   static Uint getnDimPolicy(const ActionInfo*const aI)
   {

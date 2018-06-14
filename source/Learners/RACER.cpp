@@ -172,7 +172,7 @@ Rvec RACER<Advantage_t, Policy_t, Action_t>::policyGradient(const Tuple*const _t
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::select(const Agent& agent)
+void RACER<Advantage_t, Policy_t, Action_t>::select(Agent& agent)
 {
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
@@ -194,7 +194,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::select(const Agent& agent)
     const Real advantage = adv.computeAdvantage(pol.sampAct);
     traj->action_adv.push_back(advantage);
     traj->state_vals.push_back(output[VsID]);
-    agent.a->set(act);
+    agent.act(act);
 
     #ifdef dumpExtra
       traj->add_action(agent.a->vals, mu);
@@ -260,6 +260,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::prepareGradient()
   {
     debugL("Update Retrace est. for episodes samples in prev. grad update")
     // placed here because this happens right after update is computed
+    // this can happen before prune and before workers are joined
     profiler->stop_start("QRET");
     #pragma omp parallel for schedule(dynamic)
     for(Uint i = 0; i < data->Set.size(); i++)
@@ -270,23 +271,25 @@ void RACER<Advantage_t, Policy_t, Action_t>::prepareGradient()
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::applyGradient()
+void RACER<Advantage_t, Policy_t, Action_t>::initializeLearner()
 {
-  Learner_offPolicy::applyGradient();
+  Learner_offPolicy::initializeLearner();
 
   // Rewards second moment is computed right before actual training begins
   // therefore we need to recompute (rescaled) Retrace values for all obss
   // seen before this point.
-  if( readyForTrain() && nStep == 0 ) {
-    if(updateToApply) die("undefined behavior")
-    debugL("Rescale Retrace est. after gathering initial dataset")
-    // placed here because on 1st step we just computed first rewards statistics
-    #pragma omp parallel for schedule(dynamic)
-    for(Uint i = 0; i < data->Set.size(); i++)
-      for (Uint j=data->Set[i]->ndata(); j>0; j--)
-        updateQret(data->Set[i], j, data->Set[i]->action_adv[j],
-          data->Set[i]->state_vals[j], 1);
-  }
+  debugL("Rescale Retrace est. after gathering initial dataset")
+  // placed here because on 1st step we just computed first rewards statistics
+  #pragma omp parallel for schedule(dynamic)
+  for(Uint i = 0; i < data->Set.size(); i++)
+    for (Uint j=data->Set[i]->ndata(); j>0; j--)
+      updateQret(data->Set[i], j, data->Set[i]->action_adv[j],
+        data->Set[i]->state_vals[j], 1);
+
+  for(Uint i = 0; i < data->inProgress.size(); i++)
+    for (Uint j=data->inProgress[i]->ndata(); j>0; j--)
+      updateQret(data->inProgress[i], j, data->inProgress[i]->action_adv[j],
+        data->inProgress[i]->state_vals[j], 1);
 }
 
 template<>

@@ -52,7 +52,7 @@ typedef double memReal;
 #define STD_GRADCUT 0
 
 // Learn rate of moving stdev and mean of states. If <=0 averaging switched off
-#define LEARN_STSCALE 1
+#define OFFPOL_ADAPT_STSCALE 0
 
 // Switch between log(1+exp(x)) and (x+sqrt(x*x+1)/2 as mapping to R^+ for
 // policies, advantages, and all math objects that require pos def net outputs

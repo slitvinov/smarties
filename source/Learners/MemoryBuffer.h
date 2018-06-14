@@ -147,7 +147,7 @@ public:
   }
 
   void add_action(const Agent& a, Rvec pol = Rvec()) const;
-  void terminate_seq(const Agent&a);
+  void terminate_seq(Agent&a);
   void add_state(const Agent&a);
 
   void updateRewardsStats(unsigned long nStep, Real WR = 1, Real WS = -1);

@@ -324,10 +324,8 @@ class Action
 
   Action& operator= (const Action& a)
   {
-    if (actInfo.dim != a.actInfo.dim)
-      die("Dimension of actions differ!!!");
-    for (Uint i=0; i<actInfo.dim; i++)
-      vals[i] = a.vals[i];
+    if (actInfo.dim != a.actInfo.dim) die("Dimension of actions differ!!!");
+    for (Uint i=0; i<actInfo.dim; i++) vals[i] = a.vals[i];
     return *this;
   }
 

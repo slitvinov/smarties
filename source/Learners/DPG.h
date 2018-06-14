@@ -39,5 +39,5 @@ class DPG : public Learner_offPolicy
 
 public:
   DPG(Environment*const env, Settings & settings);
-  void select(const Agent& agent) override;
+  void select(Agent& agent) override;
 };

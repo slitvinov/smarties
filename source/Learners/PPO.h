@@ -52,7 +52,7 @@ class PPO : public Learner_onPolicy
  public:
   PPO(Environment*const _env, Settings& _set);
 
-  void select(const Agent& agent) override;
+  void select(Agent& agent) override;
 
   static inline Real annealDiscount(const Real targ, const Real orig,
     const Real t, const Real T=1e5) {
@@ -65,6 +65,6 @@ class PPO : public Learner_onPolicy
   void updatePPO(Sequence*const seq) const;
 
   void prepareGradient() override;
-
+  void initializeLearner() override;
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };

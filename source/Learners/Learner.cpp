@@ -43,10 +43,11 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
   data->pushBackEndedSim(agentOne, agentEnd);
 }
 
-void Learner::prepareGradient() //this cannot be called from omp parallel region
+void Learner::prepareGradient()
 {
   if(updateToApply) die("undefined behavior");
-  if(not updateComplete) {
+  if(not updateComplete)
+  {
     debugL("prepareGradient called while waiting for workers to gather data")
     return; // there is nothing in the gradients yet
   }
@@ -69,20 +70,21 @@ void Learner::prepareGradient() //this cannot be called from omp parallel region
   nSkipped = 0;
 }
 
+void Learner::initializeLearner()
+{
+}
+
 void Learner::applyGradient()
 {
-  if(not updateToApply) { // usually at the first step
-    debugL("Reset profiler after gathering initial episodes")
-    profiler->stop_all();
-    profiler->reset();
-    profiler->stop_start("SLP");
+  if(not updateToApply) {
+    debugL("applyGradient called while waiting for data")
     return;
   }
   updateToApply = false;
 
   nStep++;
-  if(nStep%(1000*PRFL_DMPFRQ)==0 && !learn_rank) {
-    profiler->stop_all();
+  if(nStep%(1000*PRFL_DMPFRQ)==0 && learn_rank==0)
+  {
     profiler->printSummary();
     profiler->reset();
 
@@ -91,7 +93,8 @@ void Learner::applyGradient()
     data->save(learner_name, nStep);
   }
 
-  if(nStep%1000 ==0) {
+  if(nStep%1000 ==0)
+  {
     profiler->stop_start("STAT");
     processStats();
   }
@@ -112,7 +115,7 @@ void Learner::processStats()
 
   if(learn_rank) return;
 
-  FILE* fout = fopen ("stats.txt","a");
+  FILE* fout = fopen ((learner_name+"stats.txt").c_str(),"a");
 
   ostringstream head;
   if( nStep%(1000*PRFL_DMPFRQ)==0 || nStep==1000 ) {

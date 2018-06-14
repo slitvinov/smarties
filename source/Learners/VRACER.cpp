@@ -99,7 +99,7 @@ Rvec VRACER<Policy_t, Action_t>::offPolGrad(Sequence*const S, const Uint t, cons
 }
 
 template<typename Policy_t, typename Action_t>
-void VRACER<Policy_t, Action_t>::select(const Agent& agent)
+void VRACER<Policy_t, Action_t>::select(Agent& agent)
 {
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
@@ -122,7 +122,7 @@ void VRACER<Policy_t, Action_t>::select(const Agent& agent)
     #endif
 
     traj->state_vals.push_back(output[VsID]);
-    agent.a->set(act);
+    agent.act(act);
     data->add_action(agent, mu);
 
     #ifndef NDEBUG
@@ -171,6 +171,9 @@ void VRACER<Policy_t, Action_t>::prepareGradient()
   if(updateToApply)
   {
     profiler->stop_start("QRET");
+    debugL("Update Retrace est. for episodes samples in prev. grad update")
+    // placed here because this happens right after update is computed
+    // this can happen before prune and before workers are joined
     #pragma omp parallel for schedule(dynamic)
     for(Uint i = 0; i < data->Set.size(); i++)
       for(int j = data->Set[i]->just_sampled; j>=0; j--)
@@ -180,20 +183,25 @@ void VRACER<Policy_t, Action_t>::prepareGradient()
 }
 
 template<typename Policy_t, typename Action_t>
-void VRACER<Policy_t, Action_t>::applyGradient()
+void VRACER<Policy_t, Action_t>::initializeLearner()
 {
-  Learner_offPolicy::applyGradient();
+  Learner_offPolicy::initializeLearner();
 
   // Rewards second moment is computed right before actual training begins
   // therefore we need to recompute (rescaled) Retrace values for all obss
   // seen before this point.
-  if( readyForTrain() && nStep == 0) {
-    #pragma omp parallel for schedule(dynamic)
-    for(Uint i = 0; i < data->Set.size(); i++) {
-      Sequence* const traj = data->Set[i];
-      const int N = traj->ndata(); traj->setRetrace(N, 0);
-      for(Uint j=N; j>0; j--) updateVret(traj, j-1, traj->state_vals[j-1], 1);
-    }
+  debugL("Rescale Retrace est. after gathering initial dataset")
+  #pragma omp parallel for schedule(dynamic)
+  for(Uint i = 0; i < data->Set.size(); i++) {
+    Sequence* const traj = data->Set[i];
+    const int N = traj->ndata(); traj->setRetrace(N, 0);
+    for(Uint j=N; j>0; j--) updateVret(traj, j-1, traj->state_vals[j-1], 1);
+  }
+
+  for(Uint i = 0; i < data->inProgress.size(); i++) {
+    Sequence* const traj = data->inProgress[i];
+    const int N = traj->ndata(); traj->setRetrace(N, 0);
+    for(Uint j=N; j>0; j--) updateVret(traj, j-1, traj->state_vals[j-1], 1);
   }
 }
 

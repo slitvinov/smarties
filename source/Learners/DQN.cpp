@@ -19,7 +19,7 @@ Learner_offPolicy(_env, _set)
   F[0]->initializeNetwork(build_pol);
 }
 
-void DQN::select(const Agent& agent)
+void DQN::select(Agent& agent)
 {
   const Real anneal = annealingFactor();
   const Real annealedEps = bTrain ? anneal + (1-anneal)*explNoise : explNoise;

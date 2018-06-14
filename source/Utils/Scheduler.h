@@ -21,24 +21,22 @@ private:
   const ActionInfo aI;
   const StateInfo  sI;
   const vector<Agent*> agents;
-  const int bTrain, nPerRank, nWorkers, nThreads, learn_rank, learn_size, totNumSteps, outSize, inSize, bAsync;
+  const int bTrain, nPerRank, nWorkers, nThreads;
+  const int learn_rank, learn_size;
+  const Uint totNumSteps, outSize, inSize, bAsync;
   const vector<double*> inpBufs;
   const vector<double*> outBufs;
-  mutable long int stepNum = 0, iternum = 0, seqNum = 0;
+
+  std::atomic<Uint> stepNum {0};
+  std::atomic<Uint> iterNum {0};
+  std::atomic<Uint>  seqNum {0};
+
   bool bNeedSequentialTasks = false;
   mutable vector<MPI_Request> requests = vector<MPI_Request>(nWorkers, MPI_REQUEST_NULL);
   Profiler* profiler     = nullptr;
   mutable std::mutex mpi_mutex;
   mutable std::mutex dump_mutex;
   mutable std::ostringstream rewardsBuffer;
-
-  inline Uint readTimeSteps() const
-  {
-    Uint ret;
-    #pragma omp atomic read
-    ret = stepNum;
-    return ret;
-  }
 
   inline Learner* pickLearner(const Uint agentId, const Uint recvId)
   {
@@ -121,8 +119,7 @@ private:
   inline void sendBuffer(const int i, const int agent)
   {
     assert(i>0 && i <= (int) outBufs.size());
-    for(Uint j=0; j<aI.dim; j++)
-      outBufs[i-1][j] = agents[agent]->a->vals[j];
+    agents[agent]->copyAct(outBufs[i-1]);
 
     debugS("Sent action to worker %d: [%s]", i,
       print(Rvec(outBufs[i-1], outBufs[i-1]+aI.dim)).c_str());

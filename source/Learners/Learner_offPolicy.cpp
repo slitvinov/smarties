@@ -23,7 +23,8 @@ bool Learner_offPolicy::readyForTrain() const
   //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
   const bool ready = bTrain && data->readNData() >= nObsPerTraining;
 
-  if(not ready && bTrain && !learn_rank) {
+  if(not ready && bTrain && learn_rank==0)
+  {
     lock_guard<mutex> lock(buffer_mutex);
     const int currPerc = data->readNData() * 100. / (Real) nObsPerTraining;
     if(currPerc>=percData+5) {
@@ -62,7 +63,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
   // it should be impossible to get here before starting batch update was ready
   if(updateComplete || updateToApply) die("undefined behavior");
 
-  if( ! readyForTrain() ) {
+  if( not readyForTrain() ) {
     debugL("spawnTrainTasks_par called with not enough data, wait next call")
     // This is to be expected!! On first Master loop workers are spawned
     // they gather initial data and then terminate the loop iteration.
@@ -114,13 +115,8 @@ void Learner_offPolicy::spawnTrainTasks_seq() { }
 
 void Learner_offPolicy::applyGradient()
 {
-  if(not updateToApply)
-  {
-    debugL("applyGradient called while waiting for data: shift counters")
-    nData_b4Startup = data->readNConcluded();
-    nData_last = 0;
-  }
-  else
+  const auto currStep = nStep+1; // base class will advance this with this func
+  if(updateToApply)
   {
     debugL("Prune the Replay Memory for old/stale episodes, advance counters")
     //put here because this is called after workers finished gathering new data
@@ -128,7 +124,7 @@ void Learner_offPolicy::applyGradient()
     advanceCounters();
     if(CmaxRet>0) // assume ReF-ER
     {
-      CmaxRet = 1 + annealRate(CmaxPol, nStep, epsAnneal);
+      CmaxRet = 1 + annealRate(CmaxPol, currStep, epsAnneal);
       if(CmaxRet<=1) die("Either run lasted too long or epsAnneal is wrong.");
       data->prune(FARPOLFRAC, CmaxRet);
       Real fracOffPol = data->nOffPol / (Real) data->readNData();
@@ -150,7 +146,7 @@ void Learner_offPolicy::applyGradient()
       if(fracOffPol>ReFtol) beta = (1-learnR)*beta; // iter converges to 0
       else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
 
-      if( beta <= 10*learnR && nStep % 1000 == 0)
+      if( beta <= 10*learnR && currStep % 1000 == 0)
       warn("beta too low. Lower lrate, pick bounded nnfunc, or incr net size.");
     }
     else
@@ -158,19 +154,47 @@ void Learner_offPolicy::applyGradient()
       data->prune(MEMBUF_FILTER_ALGO);
     }
   }
-
-  Learner::applyGradient();
+  else
+  {
+    if( not readyForTrain() ) die("undefined behavior")
+    debugL("Pruning at prev grad step removed too much data and training was paused: shift training counters")
+    // Prune at prev grad step removed too much data and training was paused.
+    // ApplyGradient was surely called by Scheduler after workers finished
+    // gathering new data enabling training to continue ( after workers.join() )
+    // Therefore we should shift these counters to restart gradient stepping:
+    nData_b4Startup = data->readNConcluded();
+    nData_last = 0;
+  }
 
   if( readyForTrain() )
   {
     debugL("Compute state/rewards stats from the replay memory")
+    // placed here because this occurs after workers.join() so we have new data
     profiler->stop_start("PRE");
-    if(nStep%1000==0) { // update state mean/std with net's learning rate
-      //const Real WS = nStep? annealRate(learnR, nStep, epsAnneal) : 1;
-      const Real WS = nStep? 0 : 1;
-      data->updateRewardsStats(nStep, 1, WS*(LEARN_STSCALE>0));
+    if(currStep%1000==0) { // update state mean/std with net's learning rate
+      const Real WS = annealRate(learnR, currStep, epsAnneal);
+      data->updateRewardsStats(currStep, 1, WS*(OFFPOL_ADAPT_STSCALE>0));
     }
-    if(nStep == 0 && !learn_rank)
-      cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
   }
+  else
+  {
+    debugL("Pruning removed too much data from buffer: will have to wait one scheduler loop before training can continue")
+  }
+
+  Learner::applyGradient();
+}
+
+void Learner_offPolicy::initializeLearner()
+{
+  if ( not readyForTrain() || nStep>0 ) die("undefined behavior")
+
+  // shift counters after initial data is gathered
+  nData_b4Startup = data->readNConcluded();
+  nData_last = 0;
+
+  debugL("Compute state/rewards stats from the replay memory")
+  profiler->stop_start("PRE");
+  data->updateRewardsStats(nStep, 1, 1);
+  if( learn_rank == 0 )
+    cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
 }

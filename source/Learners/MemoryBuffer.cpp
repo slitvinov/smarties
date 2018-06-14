@@ -48,7 +48,7 @@ void MemoryBuffer::add_state(const Agent&a)
   #ifndef NDEBUG // check that last new state and new old state are the same
     if(inProgress[a.ID]->tuples.size()) {
       bool same = true;
-      const Rvec vecSold = a.sOld->copy_observed();
+      const Rvec vecSold = a.sOld.copy_observed();
       const auto memSold = inProgress[a.ID]->tuples.back()->s;
       for (Uint i=0; i<sI.dimUsed && same; i++) //scaled vec only has used dims:
         same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-4;
@@ -62,25 +62,25 @@ void MemoryBuffer::add_state(const Agent&a)
   // environment interface can overwrite reward. why? it can be useful.
   env->pickReward(a);
   inProgress[a.ID]->ended = a.Status==TERM_COMM;
-  inProgress[a.ID]->add_state(a.s->copy_observed(), a.r);
+  inProgress[a.ID]->add_state(a.s.copy_observed(), a.r);
 }
 
 // Once network picked next action, call this method
 void MemoryBuffer::add_action(const Agent& a, Rvec pol) const
 {
   if(pol.size() not_eq policyVecDim) die("add_action");
-  inProgress[a.ID]->add_action(a.a->vals, pol);
+  inProgress[a.ID]->add_action(a.a.vals, pol);
   if(bWriteToFile) a.writeData(learn_rank, pol);
 }
 
 // If the state is terminal, instead of calling `add_action`, call this:
-void MemoryBuffer::terminate_seq(const Agent&a)
+void MemoryBuffer::terminate_seq(Agent&a)
 {
   assert(a.Status>=TERM_COMM);
   assert(inProgress[a.ID]->tuples.back()->mu.size() == 0);
   assert(inProgress[a.ID]->tuples.back()->a.size()  == 0);
   // fill empty action and empty policy:
-  a.a->set(Rvec(aI.dim,0));
+  a.a.set(Rvec(aI.dim,0));
   add_action(a, Rvec(policyVecDim, 0) );
   push_back(a.ID);
 }

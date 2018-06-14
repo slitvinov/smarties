@@ -55,7 +55,7 @@ tgtFrac(_set.penalTol)
   trainInfo = new TrainData("DPG", _set, 1, "| beta | avgW ", 2);
 }
 
-void DPG::select(const Agent& agent)
+void DPG::select(Agent& agent)
 {
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
@@ -68,7 +68,7 @@ void DPG::select(const Agent& agent)
     Rvec act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
     if(OrUhDecay>0)
       act = policy.updateOrUhState(OrUhState[agent.ID], MU, OrUhDecay);
-    agent.a->set(act);
+    agent.act(act);
     data->add_action(agent, MU);
     //if(nStep)cout << print(MU) << " " << print(act) << endl;
   } else {

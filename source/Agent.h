@@ -10,6 +10,7 @@
 #include "StateAction.h"
 #include "Settings.h"
 #include "Communicators/Communicator.h"
+#include <atomic>
 #define OUTBUFFSIZE 65536
 class Agent
 {
@@ -18,10 +19,10 @@ protected:
   const ActionInfo& aInfo;
 
 public:
-  State * const sOld; // previous state
-  State * const s   ; // current state
+  State  sOld =  State(sInfo); // previous state
+  State  s    =  State(sInfo); // current state
   // Action performed by agent. Updated by Learner::select and sent to Slave
-  Action* const a   ;
+  Action a    = Action(aInfo);
   Real r = 0;              // current reward
   Real cumulative_rewards = 0;
   const int ID;
@@ -31,18 +32,10 @@ public:
 
   // for dumping to state-action-reward-policy binary log (writeBuffer):
   mutable float buf[OUTBUFFSIZE];
-  mutable Uint buffCnter = 0;
+  mutable std::atomic<Uint> buffCnter {0};
 
   Agent(const int _ID, const StateInfo& _sInfo, const ActionInfo& _aInfo) :
-    sInfo(_sInfo), aInfo(_aInfo), sOld(new State(_sInfo)),
-    s(new State(_sInfo)), a(new Action(_aInfo)), ID(_ID) {
-    }
-
-  ~Agent() {
-    _dispose_object(s);
-    _dispose_object(sOld);
-    _dispose_object(a);
-  }
+    sInfo(_sInfo), aInfo(_aInfo), ID(_ID) { }
 
   void writeBuffer(const int rank) const
   {
@@ -69,55 +62,54 @@ public:
     buf[ind++] = Status + 0.1;
     buf[ind++] = transitionID + 0.1;
 
-    for (Uint i=0; i<sInfo.dim; i++) buf[ind++] = (float) s->vals[i];
-    for (Uint i=0; i<aInfo.dim; i++) buf[ind++] = (float) a->vals[i];
+    for (Uint i=0; i<sInfo.dim; i++) buf[ind++] = (float) s.vals[i];
+    for (Uint i=0; i<aInfo.dim; i++) buf[ind++] = (float) a.vals[i];
     buf[ind++] = r;
     for (Uint i=0; i<mu.size(); i++) buf[ind++] = (float) mu[i];
 
-    #pragma omp atomic
     buffCnter += writesize;
     assert(buffCnter == ind);
   }
 
   inline void getState(State& _s) const
   {
-    assert(s not_eq nullptr);
-    _s = *s;
+    _s = s;
   }
 
-  inline void setState(State& _s) const
+  inline void setState(State& _s)
   {
-    *s = _s;
+    s = _s;
   }
 
   inline void swapStates()
   {
-    assert(s not_eq nullptr);
-    assert(sOld not_eq nullptr);
-    std::swap(s->vals, sOld->vals);
+    std::swap(s.vals, sOld.vals);
   }
 
   inline void getAction(Action& _a) const
   {
-    assert(a not_eq nullptr);
-    _a = *a;
+    _a = a;
   }
 
   inline void getOldState(State& _s) const
   {
-    assert(sOld not_eq nullptr);
-    _s = *sOld;
+    _s = sOld;
   }
 
-  inline void act(Action& _a) const
+  inline void act(Action& _a)
   {
-    *a = _a;
+    a = _a;
   }
 
   template<typename T>
-  inline void act(const T action) const
+  inline void act(const T action)
   {
-    a->set(action);
+    a.set(action);
+  }
+
+  inline void copyAct(double * const ary) const
+  {
+    for(Uint j=0; j<aInfo.dim; j++) ary[j] = a.vals[j];
   }
 
   inline int getStatus() const
@@ -144,10 +136,11 @@ public:
     }
     Status = _i;
     swapStates(); //swap sold and snew
-    s->set(_s);
+    s.set(_s);
     r = _r;
     if(_i == INIT_COMM) {
-      cumulative_rewards = 0; transitionID = 0;
+      cumulative_rewards = 0;
+      transitionID = 0;
     }
     else {
       cumulative_rewards += _r;

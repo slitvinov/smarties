@@ -129,12 +129,12 @@ class RACER : public Learner_offPolicy
   RACER(Environment*const _env, Settings& _set);
   ~RACER() { }
 
-  void select(const Agent& agent) override;
+  void select(Agent& agent) override;
 
   void writeOnPolRetrace(Sequence*const seq);
 
   void prepareGradient() override;
-  void applyGradient() override;
+  void initializeLearner() override;
   static Uint getnOutputs(const ActionInfo*const aI);
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };

@@ -130,6 +130,9 @@ template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::prepareGradient()
 {
   debugL("update lagrangian penalization coefficient")
+  if(learn_rank > 0)
+    die("This method does not support multiple learner ranks yet")
+
   cntPenal[0] = 0;
   for(Uint i=1; i<=nThreads; i++) {
     cntPenal[0] += cntPenal[i]; cntPenal[i] = 0;
@@ -147,7 +150,31 @@ void PPO<Policy_t, Action_t>::prepareGradient()
 }
 
 template<typename Policy_t, typename Action_t>
-void PPO<Policy_t, Action_t>::select(const Agent& agent)
+void PPO<Policy_t, Action_t>::initializeLearner()
+{
+  Learner_onPolicy::initializeLearner();
+
+  // Rewards second moment is computed right before actual training begins
+  // therefore we need to recompute (rescaled) GAE and MC cumulative rewards
+  // This assumes V(s) is initialized small, so we just rescale by std(rew)
+  debugL("Rescale Retrace est. after gathering initial dataset")
+  // placed here because on 1st step we just computed first rewards statistics
+  #pragma omp parallel for schedule(dynamic)
+  for(Uint i = 0; i < data->Set.size(); i++)
+    for (Uint j=data->Set[i]->ndata(); j>0; j--) {
+      data->Set[i]->action_adv[j] *= data->invstd_reward;
+      data->Set[i]->Q_RET[j] *= data->invstd_reward;
+    }
+
+  for(Uint i = 0; i < data->inProgress.size(); i++)
+    for (Uint j=data->inProgress[i]->ndata(); j>0; j--) {
+      data->inProgress[i]->action_adv[j] *= data->invstd_reward;
+      data->inProgress[i]->Q_RET[j] *= data->invstd_reward;
+    }
+}
+
+template<typename Policy_t, typename Action_t>
+void PPO<Policy_t, Action_t>::select(Agent& agent)
 {
   Sequence*const curr_seq = data->inProgress[agent.ID];
   data->add_state(agent);
@@ -161,7 +188,7 @@ void PPO<Policy_t, Action_t>::select(const Agent& agent)
     Policy_t policy = prepare_policy(pol);
     const Rvec MU = policy.getVector();
     auto act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
-    agent.a->set(act);
+    agent.act(act);
     data->add_action(agent, MU);
   } else if( agent.Status == TRNC_COMM ) {
     const Rvec val = F[1]->forward_agent(curr_seq, agent);

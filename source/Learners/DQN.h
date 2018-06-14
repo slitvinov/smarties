@@ -17,5 +17,5 @@ class DQN : public Learner_offPolicy
 
 public:
   DQN(Environment*const env, Settings & settings);
-  void select(const Agent& agent) override;
+  void select(Agent& agent) override;
 };

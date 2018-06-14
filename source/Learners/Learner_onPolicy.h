@@ -26,4 +26,5 @@ public:
   void spawnTrainTasks_par() override;
   bool bNeedSequentialTrain() override;
   virtual void prepareGradient() override;
+  virtual void initializeLearner() override;
 };

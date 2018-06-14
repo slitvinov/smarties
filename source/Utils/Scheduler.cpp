@@ -37,21 +37,20 @@ Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
 
 int Master::run()
 {
-  if(!bTrain) {
+  { // gather initial data OR if not training evaluated restarted policy
     vector<std::thread> worker_replies = asyncReplyWorkers();
     assert(worker_replies.size() == (size_t) nWorkers);
     for(int i=0; i<nWorkers; i++) worker_replies[i].join();
-    return 0;
   }
 
-  while (true)
+  if( not bTrain ) return 0;
+
+  profiler->reset();
+  profiler->stop_start("SLP");
+  for(const auto& L : learners) L->initializeLearner();
+
+  while (true) // gradient step loop: one step per iteration
   {
-    if( stepNum >= totNumSteps ) return 0;
-
-    //this is the last possible time to finish the blocking mpi MPI_Allreduce
-    // and finally perform the actual gradient step
-    for(const auto& L : learners) L->applyGradient();
-
     //Spawn threads asynchronously handling requests from workers
     vector<std::thread> worker_replies = asyncReplyWorkers();
     assert(worker_replies.size() == (size_t) nWorkers);
@@ -72,7 +71,14 @@ int Master::run()
       for(int i=0; i<nWorkers; i++) worker_replies[i].join();
     }
 
-    if(iternum++ % 1000 == 0) flushRewardBuffer();
+    if(iterNum++ % 1000 == 0) flushRewardBuffer();
+
+    //This is the last possible time to finish the blocking mpi MPI_Allreduce
+    // and finally perform the actual gradient step. Also, operations on memory
+    // buffer that should be done after workers.join() are done here.
+    for(const auto& L : learners) L->applyGradient();
+
+    if( stepNum >= totNumSteps ) return 0;
   }
   die(" ");
   return 1;
@@ -83,9 +89,8 @@ void Master::processWorker(const int worker)
   assert(worker>0 && worker <= (int) nWorkers);
   while(1)
   {
-    // If !bTrain this is only termination condition. If bTrain the code checks
-    // termination at beginning of loop in run() to prevent undefined behaviors.
-    if(!bTrain && seqNum >= totNumSteps) break;
+    if(!bTrain && seqNum.load() >= totNumSteps) break;
+    // Learners lock the workers queue if they have enough data to advance step
     if( bTrain && learnersLockQueue()  ) break;
 
     MPI_Status mpistatus;
@@ -102,7 +107,9 @@ void Master::processAgent(const int worker, const MPI_Status mpistatus)
 {
   //read from worker's buffer:
   vector<double> recv_state(sI.dim);
-  int recv_agent = -1, recv_status = -1; double reward;
+  int recv_agent  = -1; // id of agent inside environment
+  int recv_status = -1; // initial/normal/termination/truncation of episode
+  double reward   =  0;
   unpackState(inpBufs[worker-1], recv_agent, recv_status, recv_state, reward);
 
   const int agent = (worker-1) * nPerRank + recv_agent;
@@ -121,21 +128,19 @@ void Master::processAgent(const int worker, const MPI_Status mpistatus)
     aAlgo->select(*agents[agent]);
 
     debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]",
-      agent, agents[agent]->Status, agents[agent]->sOld->_print().c_str(),
-      agents[agent]->s->_print().c_str(), agents[agent]->r,
-      agents[agent]->a->_print().c_str());
+      agent, agents[agent]->Status, agents[agent]->sOld._print().c_str(),
+      agents[agent]->s._print().c_str(), agents[agent]->r,
+      agents[agent]->a._print().c_str());
 
     sendBuffer(worker, agent);
 
     if ( recv_status >= TERM_COMM )
     {
-      dumpCumulativeReward(agent, aAlgo->iter(), readTimeSteps() );
-      #pragma omp atomic
+      dumpCumulativeReward(agent, aAlgo->iter(), stepNum.load() );
       seqNum++;
     }
     else if ( aAlgo->iter() )
     {
-      #pragma omp atomic
       stepNum++;
     }
   }
@@ -147,19 +152,12 @@ Worker::Worker(Communicator_internal*const _c, Environment*const _e, Settings& _
 
 void Worker::run()
 {
-  //vector<double> state(env->sI.dim);
-  //int iAgent, info;
-  //double reward;
-
   while(true) {
 
     while(true) {
       if (comm->recvStateFromApp()) break; //sim crashed
-      //unpackState(comm->getDataState(), iAgent, info, state, reward);
-      //status[iAgent] = info;
-      //assert(info not_eq FAIL_COMM); //that one should cause the break
 
-      if ( comm->sendActionToApp() ) {
+      if (comm->sendActionToApp() ) {
         die("Worker exiting");
         return;
       }

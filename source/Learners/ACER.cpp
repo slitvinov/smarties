@@ -114,7 +114,7 @@ Rvec ACER::policyGradient(const Tuple*const _t, const Policy_t& POL,
   return POL.finalize_grad(trust);
 }
 
-void ACER::select(const Agent& agent)
+void ACER::select(Agent& agent)
 {
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
@@ -126,7 +126,7 @@ void ACER::select(const Agent& agent)
     Policy_t pol = prepare_policy(output);
     Rvec mu = pol.getVector();
     const auto act=pol.finalize(explNoise>0,&generators[nThreads+agent.ID], mu);
-    agent.a->set(act);
+    agent.act(act);
     data->add_action(agent, mu);
   }
   else data->terminate_seq(agent);

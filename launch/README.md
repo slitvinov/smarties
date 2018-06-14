@@ -29,7 +29,7 @@ These two scripts set up the launch environment and directory, and then call `ru
 
 # outputs
 
-* Running the script will produce the following outputs on screen and in the file `stats.txt` (according to applicability, these are either statistics computed over the past 1000 steps or are the most recent values):
+* Running the script will produce the following outputs on screen and in the file `agent_%02d_stats.txt` (according to applicability, these are either statistics computed over the past 1000 steps or are the most recent values):
     - `#/1e3` Counter of gradient steps divided by 1000
     - `RMSE | avgQ | stdQ | minQ | maxQ` RMSE of Q (or V) approximator, its average value, standard deviation, min and max.
     - (if algorithm employs parameterized policy) `polG | penG | proj` Average norm of the policy gradient and that of the penalization gradient (if applicable). Third is the average projection of the policy gradient over the penalty one. I.e. the average value of `proj = polG \cdot penG / sqrt(penG \cdot penG) `.
@@ -45,6 +45,8 @@ These two scripts set up the launch environment and directory, and then call `ru
 * If the option `--samplesFile 1` is set, a complete log of all state/action/rewards/policies will be recorded in binary files named `obs_rank%02d_agent%03d.raw`. This is read by the script `pytools/plot_obs.py`. Refer also to that script (or to `source/Agent.h`) for details on the structure of these files.
 
 * The files named `agent_%02d_${network_name}_${timestamp}` contain back-ups of network weights and Adam's moments estimates at regularly spaced time stamps. Some insight into the shape of the weight vector can be obtained by plotting with the script `pytools/plot_weights.py`. The files with `network_name=scaling` actually contains the values used to rescale the states and rewards: it contains, one after the other, arrays of size `d_S` of state-values means, 1/stdev, stdev, and one value corresponding to 1/stdev for the rewards.
+
+* Various files ending in `.log`. These record the state of smarties on startup. They include: `gitdiff.log` records the changes wrt the last commit, `gitlog.log` records the last commits, `mathtest.log` tests for correctness of policy/advantage gradients, `out.log` is a copy of the screen output, `problem_size.log` records state/action sizes used by other scripts, `settings.log` records the runtime options as read by smarties, `environment.log` records the environment variables at startup.
 
 # misc
 

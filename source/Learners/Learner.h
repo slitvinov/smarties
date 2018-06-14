@@ -102,7 +102,7 @@ public:
     else return 1 - nStep*epsAnneal;
   }
 
-  virtual void select(const Agent& agent) = 0;
+  virtual void select(Agent& agent) = 0;
   virtual void TrainBySequences(const Uint seq, const Uint thrID) const = 0;
   virtual void Train(const Uint seq, const Uint samp, const Uint thrID) const=0;
 
@@ -122,6 +122,7 @@ public:
 
   virtual void prepareGradient();
   virtual void applyGradient();
+  virtual void initializeLearner();
   bool predefinedNetwork(Builder& input_net);
   void restart();
 };

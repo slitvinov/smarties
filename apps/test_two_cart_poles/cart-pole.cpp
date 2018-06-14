@@ -123,7 +123,7 @@ struct CartPole
   		angle = angle<0 ? angle+2*M_PI : angle;
   		return fabs(angle-M_PI)<M_PI/6 ? 1 : 0;
     #else
-      return -1*( fabs(u.y3)>M_PI/15 || fabs(u.y1)>2.4 );
+      return 1-1*( fabs(u.y3)>M_PI/15 || fabs(u.y1)>2.4 );
 		#endif
   }
 
