@@ -30,7 +30,7 @@ export OMP_DYNAMIC=FALSE
 
 echo $SETTINGS > settings.txt
 env > environment.log
-echo ${NPROCESS} ${NTHREADS} $TASKPERN $NMASTERS
+#echo ${NPROCESS} ${NTHREADS} $TASKPERN $NMASTERS
 
 #mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none xterm -e gdb --tui --args ./rl ${SETTINGS}
 

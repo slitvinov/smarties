@@ -65,10 +65,8 @@ void Learner_offPolicy::spawnTrainTasks_par()
 
   if( not readyForTrain() ) {
     debugL("spawnTrainTasks_par called with not enough data, wait next call")
-    // This is to be expected!! On first Master loop workers are spawned
-    // they gather initial data and then terminate the loop iteration.
-    // During this first loop all the learner functions (e.g. this one)
-    // are called, but nothing is done. On the 2nd loop iter training begins.
+    // This can happen if data pruning algorithm is allowed to delete a lot of
+    // data from the mem buffer, which could cause training to pause
     return; // Do not prepare an update
   }
 
@@ -79,7 +77,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
   vector<Uint> samp_seq = vector<Uint>(batchSize, -1);
   vector<Uint> samp_obs = vector<Uint>(batchSize, -1);
   if(bSampleSequences) data->sampleSequences(samp_seq);
-  else data->sampleTransitions_OPW(samp_seq, samp_obs);
+  else data->sampleTransitions(samp_seq, samp_obs);
 
   profiler->stop_start("SLP"); // so we see inactive time during parallel loop
   #pragma omp parallel for schedule(dynamic) num_threads(nThreads)

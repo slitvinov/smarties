@@ -538,6 +538,22 @@ void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
   }
 }
 
+void MemoryBuffer::sampleTransitions(vector<Uint>&seq, vector<Uint>&obs)
+{
+  if(seq.size() not_eq obs.size()) die(" ")
+  const int stride = std::ceil(seq.size()/ (Real)nThreads);
+
+  #pragma omp parallel num_threads(nThreads)
+  {
+    const int thrI = omp_get_thread_num(), start = thrI*stride;
+    assert( nThreads == omp_get_num_threads() );
+    const int N = start+stride>(int)seq.size()? (int)seq.size()-start : stride;
+    //cout << N << " " << stride << " " << start << " " << thrI << endl;
+    if(N>0) sampleMultipleTrans(&seq[start], &obs[start], N, thrI);
+  }
+  //for(Uint i=0;i<seq.size();i++) cout<<seq[i]<<" "<<obs[i]<<endl; cout<<endl;
+}
+
 void MemoryBuffer::sampleSequences(vector<Uint>& seq)
 {
   const Uint N = seq.size();

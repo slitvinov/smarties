@@ -38,7 +38,7 @@ void Learner_onPolicy::spawnTrainTasks_seq()
 
   debugL("sampling update from (nearly) on-pol data")
   vector<Uint> samp_seq(batchSize, -1), samp_obs(batchSize, -1);
-  data->sampleTransitions_OPW(samp_seq, samp_obs);
+  data->sampleTransitions(samp_seq, samp_obs);
 
   profiler->stop_start("SLP"); // so we see inactive time during parallel loop
   #pragma omp parallel for schedule(dynamic) num_threads(nThreads)
