@@ -193,6 +193,8 @@ void Communicator_internal::redirect_stdout_finalize()
 
 void Communicator_internal::getStateActionShape()
 {
+  if(sentStateActionShape) die("undefined behavior")
+
   double sizes[4] = {0, 0, 0, 0};
   if (rank_learn_pool==0)
     MPI_Recv(sizes, 32, MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
@@ -201,9 +203,10 @@ void Communicator_internal::getStateActionShape()
     if(rank_learn_pool==1) MPI_Ssend(sizes,32, MPI_BYTE, 0,3, comm_learn_pool);
   }
 
-  nStates = doublePtrToInt(sizes+0); nActions = doublePtrToInt(sizes+1);
+  nStates          = doublePtrToInt(sizes+0);
+  nActions         = doublePtrToInt(sizes+1);
   discrete_actions = doublePtrToInt(sizes+2);
-  nAgents = doublePtrToInt(sizes+3);
+  nAgents          = doublePtrToInt(sizes+3);
   //printf("Discrete? %d\n",discrete_actions);
   assert(nStates>=0 && nActions>=0);
   update_state_action_dims(nStates, nActions);
@@ -236,4 +239,6 @@ void Communicator_internal::getStateActionShape()
     if (rank_learn_pool==1)
       MPI_Ssend(action_bounds.data(),n_vals*8, MPI_BYTE, 0,6, comm_learn_pool);
   }
+
+  print();
 }

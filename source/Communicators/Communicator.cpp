@@ -8,6 +8,8 @@
 
 #include "Communicator.h"
 #include "Communicator_utils.cpp"
+#include <iomanip>
+#include <fstream>
 
 //APPLICATION SIDE CONSTRUCTOR
 Communicator::Communicator(const int socket, const int state_components, const int action_components, const int number_of_agents) : gen(std::mt19937(socket))
@@ -197,6 +199,8 @@ void Communicator::sendStateActionShape()
       comm_sock(Socket, true, action_options.data(), nActions*2*sizeof(double));
       comm_sock(Socket, true, action_bounds.data(),  discrete_action_values*8 );
     }
+
+  print();
 }
 
 void Communicator::update_state_action_dims(const int sdim, const int adim)
@@ -228,7 +232,7 @@ void Communicator::update_state_action_dims(const int sdim, const int adim)
 
 void Communicator::launch_forked()
 {
-  abort();
+  printf("disabled Client style scripts"); fflush(0); abort();
   assert(called_by_app);
   //go up til a file runClient is found: shaky
   struct stat buffer;
@@ -263,20 +267,20 @@ void Communicator::launch()
 void Communicator::setupClient()
 {
   unlink(SOCK_PATH);
-  print();
-  fflush(0);
   const int rf = fork();
 
-  if (rf == 0) {  //child spawns server
+  if (rf == 0) //child spawns process
+  {
     launch_forked();
-    abort(); //if app returns: TODO
-  } else {  //parent
+    printf("setupClient app returned: what TODO?"); fflush(0); abort();
+  }
+  else //parent
+  {
     Socket = socket(AF_UNIX, SOCK_STREAM, 0);
 
     int _true = 1;
     if(setsockopt(Socket, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int))<0) {
-      perror("Sockopt failed\n");
-      exit(1);
+      printf("Sockopt failed\n"); fflush(0); abort();
     }
 
     // Specify the server
@@ -295,22 +299,19 @@ void Communicator::setupClient()
 void Communicator::setupServer()
 {
   if ((ServerSocket = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    perror("socket");
-    exit(1);
+    printf("socket"); fflush(0); abort();
   }
 
   bzero(&serverAddress, sizeof(serverAddress));
   serverAddress.sun_family = AF_UNIX;
   strcpy(serverAddress.sun_path, SOCK_PATH);
-  printf("%s %s\n",serverAddress.sun_path,SOCK_PATH);
-  fflush(0);
+  //this printf is to check that there is no funny business with trailing 0s:
+  //printf("%s %s\n",serverAddress.sun_path, SOCK_PATH); fflush(0);
   const int servlen = sizeof(serverAddress.sun_family)
                     + strlen(serverAddress.sun_path) +1;
 
-  if (bind(ServerSocket, (struct sockaddr *)&serverAddress, servlen) < 0)
-  {
-    perror("bind");
-    exit(1);
+  if (bind(ServerSocket, (struct sockaddr *)&serverAddress, servlen) < 0) {
+    printf("bind"); fflush(0); abort();
   }
   /*
   int _true = 1;
@@ -321,19 +322,17 @@ void Communicator::setupServer()
   }
   */
 
-  if (listen(ServerSocket, 1) == -1) // listen (only 1)
-  {
-    perror("listen");
-    exit(1);
+  if (listen(ServerSocket, 1) == -1) { // listen (only 1)
+    printf("listen"); fflush(0); abort();
   }
 
   unsigned int addr_len = sizeof(clientAddress);
-  if((Socket=accept(ServerSocket,(struct sockaddr*)&clientAddress,&addr_len))==-1)
-  {
-    perror("accept");
-    return;
+  struct sockaddr* const clientAddrPtr = (struct sockaddr*) &clientAddress;
+  if( (Socket=accept(ServerSocket, clientAddrPtr, &addr_len)) == -1) {
+    printf("accept"); fflush(0); abort();
   }
-  else printf("selectserver: new connection from on socket %d\n", Socket);
+
+  printf("selectserver: new connection from on socket %d\n", Socket);
   fflush(0);
 }
 
@@ -357,4 +356,23 @@ Communicator::Communicator(const int socket, const bool spawn) : gen(std::mt1993
   }
   spawner = spawn; // if app gets socket prefix 0, then it spawns smarties
   socket_id = socket;
+}
+
+void Communicator::print()
+{
+  std::ostringstream fname;
+  int wrank = socket_id;
+  #ifdef MPI_INCLUDED
+    MPI_Comm_rank(MPI_COMM_WORLD, &wrank);
+  #endif
+  fname<<"comm_"<<std::setw(3)<<std::setfill('0')<<wrank<<".log";
+  std::ofstream o(fname.str().c_str(), std::ios::app);
+  o <<(spawner?"Server":"Client")<<" communicator on ";
+  o <<(called_by_app?"app":"smarties")<<" side:\n";
+  o <<"nStates:"<<nStates<<" nActions:"<<nActions;
+  o <<" size_action:"<<size_action<< " size_state:"<< size_state<<"\n";
+  o <<"MPI comm: size_s"<<size_learn_pool<<" rank_s:"<<rank_learn_pool;
+  o <<" size_a:"<<size_inside_app<< " rank_a:"<< rank_inside_app<<"\n";
+  o <<"Socket comm: prefix:"<<socket_id<<" PATH:"<<SOCK_PATH<<"\n";
+  o.close();
 }
