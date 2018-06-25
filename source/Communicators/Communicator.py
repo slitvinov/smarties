@@ -2,7 +2,7 @@
 ##
 ##  smarties
 ##  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
-##  Distributed under the terms of the “CC BY-SA 4.0” license.
+##  Distributed under the terms of the "CC BY-SA 4.0" license.
 ##
 ##  Created by Guido Novati (novatig@ethz.ch).
 ##
@@ -79,6 +79,9 @@ class Communicator:
         self.action_bounds = actVals
         self.seq_id, self.frame_id = 0, 0
         self.seed = sys.argv[1]
+        self.actionBuffer = [None] * number_of_agents
+        for i in range(number_of_agents):
+          self.actionBuffer[i] = np.zeros([action_components], dtype=np.float64)
 
     def __del__(self):
         self.conn.close()
@@ -130,10 +133,12 @@ class Communicator:
         #    fname = 'state_seq%04d_frame%07d' % (seq_id, frame_id)
         #    plt.imshow(self.gym.render(mode='rgb_array'))
         #    plt.savefig(fname, dpi=100)
-        if(terminal or truncated): self.recvAction()
 
-    def recvAction(self):
         buf = np.frombuffer(self.conn.recv(self.nActions*8), dtype=np.float64)
         for i in range(self.nActions): assert(not np.isnan(buf[i]))
         if abs(buf[0]+256)<2.2e-16: quit()
-        return buf
+
+        self.actionBuffer[agent_id] = buf
+
+    def recvAction(self, agent_id=0):
+        return self.actionBuffer[agent_id]
