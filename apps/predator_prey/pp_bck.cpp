@@ -9,8 +9,8 @@
 #include "Communicator.h"
 
 #define EXTENT 1.0
-#define SAVEFREQ 1000
-#define STEPFREQ 1
+#define SAVEFREQ 100
+#define STEPFREQ 10
 //#define PERIODIC
 
 #include "matplotlibcpp.h"
@@ -31,7 +31,7 @@ class Window
     plt::figure_size(320, 320);
   }
 
-  void update(int step, int sim, double x1, double y1,
+  void update(int step, int sim, double x1, double y1, 
               double x2, double y2)
   {
     //printf("%d %g %g %g %g\n", step, x1, y1, x2, y2); fflush(0);
@@ -42,13 +42,12 @@ class Window
     std::fill(xData2.data() + step, xData2.data() + plotDataSize, x2);
     std::fill(yData2.data() + step, yData2.data() + plotDataSize, y2);
     plt::clf();
-    plt::xlim(-0.1, 1.1);
-    plt::ylim(-0.1, 1.1);
-    plt::plot(xData1, yData1, "r-");
-    plt::plot(xData2, yData2, "b-");
-    std::vector<double> X1(1,x1), Y1(1,y1), X2(1,x2), Y2(1,y2);
-    plt::plot(X1, Y1, "or");
-    plt::plot(X2, Y2, "ob");
+    plt::xlim(0, 1);
+    plt::ylim(0, 1);
+    plt::plot(xData1, yData1, "b-");
+    plt::plot(xData2, yData2, "r-");
+    //plt::plot(x1, y1, "ob");
+    //plt::plot(x2, y2, "or");
     //plt::show(false);
     plt::save("./"+std::to_string(sim)+"_"+std::to_string(step)+".png");
   }
@@ -70,7 +69,7 @@ struct Entity
     uniform_real_distribution<double> dist(0, EXTENT);
     p[0] = dist(gen);
     p[1] = dist(gen);
-    actScal = velMagnitude; // so that prey overwrites background
+    actScal = 1; // so that prey overwrites background
 	}
 
   bool is_over() {
@@ -79,11 +78,11 @@ struct Entity
 
   int advance(vector<double> act) {
     assert(act.size() == 2);
-    actScal = std::sqrt(act[0]*act[0] + act[1]*act[1]);
-    if( actScal > velMagnitude) {
+    actScal = std::sqrt(act[0]*act[0] + act[1]*act[1]) / velMagnitude;
+    if( actScal > 1) {
       p[0] += act[0] * velMagnitude / actScal;
       p[1] += act[1] * velMagnitude / actScal;
-      actScal = velMagnitude;
+      actScal = 1;
     } else {
       p[0] += act[0];
       p[1] += act[1];
@@ -94,16 +93,16 @@ struct Entity
       if (p[1] >= EXTENT) p[1] -= EXTENT;
       if (p[1] <  0)      p[1] += EXTENT;
     #else
-      if (p[0] > EXTENT) p[0] = EXTENT;
-      if (p[0] < 0)      p[0] = 0;
-      if (p[1] > EXTENT) p[1] = EXTENT;
-      if (p[1] < 0)      p[1] = 0;
+      if (p[0] >= EXTENT) p[0] = EXTENT;
+      if (p[0] <  0)      p[0] = 0;
+      if (p[1] >= EXTENT) p[1] = EXTENT;
+      if (p[1] <  0)      p[1] = 0;
     #endif
     return is_over();
   }
 
   template<typename T>
-  unsigned getAngle(const T& E) const {
+  unsigned getQuadrant(const T& E) const {
     double relX = E.p[0] - p[0];
     double relY = E.p[1] - p[1];
     #ifdef PERIODIC
@@ -112,7 +111,9 @@ struct Entity
       if(relY >  EXTENT/2) relY -= EXTENT;
       if(relY < -EXTENT/2) relY += EXTENT;
     #endif
-    return std::atan2(relY, relX);
+    const double relA = std::atan2(relY, relX) + M_PI;
+    assert(relA >= 0 and relA <= 2*M_PI);
+    return nQuadrants*relA/(2*M_PI + 2.2e-16);
   }
 
   template<typename T>
@@ -133,23 +134,25 @@ struct Entity
 struct Prey: public Entity
 {
   const double stdNoise;
+  vector<double> background = vector<double>(nQuadrants, 0);
+
+  void updateBackground(std::mt19937& gen, const double fac)
+  {
+    normal_distribution<double> dist(0, stdNoise);
+    for (unsigned i=0; i<nQuadrants; i++)
+      background[i] = fac*dist(gen) + (1-fac)*background[i];
+  }
 
   Prey(const unsigned nQ, const double vM, const double dN)
     : Entity(nQ, vM), stdNoise(dN) {}
 
   template<typename T>
   vector<double> getState(const T& E, std::mt19937& gen) {
-    vector<double> state(4, 0);
-    state[0] = p[0];
-    state[1] = p[1];
-    const double angEnemy = getAngle(E);
-    const double disEnemy = getDistance(E);
-    // close? low noise. moving slow? low noise
-    const double noiseAmp = stdNoise*disEnemy*actScal/std::pow(velMagnitude,2);
-    std::normal_distribution<double> dist(0, noiseAmp);
-    const double noiseAng = angEnemy + dist(gen);
-    state[2] = std::cos(noiseAng);
-    state[3] = std::sin(noiseAng);
+    updateBackground(gen, actScal);
+    vector<double> state = background;
+    const unsigned quadEnemy = getQuadrant(E);
+    const double signal = velMagnitude/(getDistance(E)+2.2e-16);
+    state[quadEnemy] = std::max(signal, state[quadEnemy]);
     return state;
   }
 
@@ -167,12 +170,9 @@ struct Predator: public Entity
 
   template<typename T>
   vector<double> getState(const T& E) const {
-    vector<double> state(4, 0);
-    state[0] = p[0];
-    state[1] = p[1];
-    const double angEnemy = getAngle(E);
-    state[2] = std::cos(angEnemy);
-    state[3] = std::sin(angEnemy);
+    vector<double> state(nQuadrants, 0);
+    const unsigned quadEnemy = getQuadrant(E);
+    state[quadEnemy] = 1;
     return state;
   }
 
@@ -188,10 +188,10 @@ int main(int argc, const char * argv[])
   const int socket = std::stoi(argv[1]);
   const unsigned maxStep = 500;
   const int control_vars = 2; // 2 components of velocity
-  const int state_vars = 4;   // number of sensor quadrants
+  const int state_vars = 8;   // number of sensor quadrants
   const int number_of_agents = 2; // predator prey
   //Sim box has size EXTENT. Fraction of box that agent can traverse in 1 step:
-  const double velScale = 0.02 * EXTENT;
+  const double velScale = 0.1 * EXTENT;
   //socket number is given by RL as first argument of execution
   Communicator comm(socket, state_vars, control_vars, number_of_agents);
 
