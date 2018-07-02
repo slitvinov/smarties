@@ -151,7 +151,7 @@ struct Sequence
     SquaredError = Rvec(ndata(), 0);
     // off pol importance weights are initialized to 1s
     offPolicImpW = Rvec(ndata(), 1);
-    KullbLeibDiv = Rvec(ndata(), 1);
+    KullbLeibDiv = Rvec(ndata(), 0);
   }
 };
 

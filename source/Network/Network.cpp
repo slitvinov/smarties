@@ -172,7 +172,7 @@ void Network::checkGrads()
 
   long double sum1 = 0, sumsq1 = 0, sum2 = 0, sumsq2 = 0;
   for (Uint w=0; w<weights->nParams; w++) {
-    //if(Vgrad[2]->params[w]>tol)
+    if(Vgrad[2]->params[w]>tol)
     cout<<w<<" err:"<<Vgrad[2]->params[w]<<", grad:"<<Vgrad[1]->params[w]
         <<" diff:"<<Vgrad[3]->params[w]<<" param:"<<weights->params[w]<<endl;
 

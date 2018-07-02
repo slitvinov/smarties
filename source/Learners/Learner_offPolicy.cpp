@@ -119,8 +119,14 @@ void Learner_offPolicy::applyGradient()
     debugL("Prune the Replay Memory for old/stale episodes, advance counters")
     //put here because this is called after workers finished gathering new data
     profiler->stop_start("PRNE");
-    advanceCounters();
-    if(CmaxRet>0) // assume ReF-ER
+    //shift data / gradient counters to maintain grad stepping to sample
+    // collection ratio prescirbed by obsPerStep
+    const Real stepCounter = currStep - (Real)nStep_last;
+    assert(std::fabs(stepCounter-1) < nnEPS);
+    nData_last += stepCounter*obsPerStep;
+    nStep_last = currStep;
+
+    if(CmaxPol>0) // assume ReF-ER
     {
       CmaxRet = 1 + annealRate(CmaxPol, currStep, epsAnneal);
       if(CmaxRet<=1) die("Either run lasted too long or epsAnneal is wrong.");

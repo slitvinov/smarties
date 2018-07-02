@@ -268,21 +268,24 @@ Rvec Approximator::relay_backprop(const Rvec err,
 Rvec Approximator::forward_agent(const Sequence* const traj,
   const Agent& agent, const PARAMS USEW) const
 {
+  //This is called by a std::thread and uses separate workspace from omp threads
+  //We use a fake thread id to avoid code duplication in encapsulator class
   const Uint fakeThrID = nThreads + agent.ID, stepid = traj->ndata();
-  input->prepare(1, stepid, fakeThrID);
-
+  const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT,stepid) : 0;
   const vector<Activation*>& act = agent_series[agent.ID];
-  net->prepForFwdProp(agent_series[agent.ID], 2);
+  net->prepForFwdProp(agent_series[agent.ID], nRecurr+1);
+  input->prepare(nRecurr+1, stepid-nRecurr, fakeThrID);
+  assert(act.size() == nRecurr+1);
+
+  const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
+  //Advance recurr net with 0 initialized activations for nRecurr steps
+  for(Uint i=0; i<nRecurr; i++) {
+    const Rvec inp = getInput(traj, stepid-nRecurr+i, fakeThrID, USEW);
+    net->predict(inp, i>0? act[i-1] : nullptr, act[i], W);
+  }
 
   const Rvec inp = getInput(traj, stepid, fakeThrID, USEW);
-  const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
-  const Activation* const prevStep = agent.Status==INIT_COMM? nullptr : act[0];
-  act[0]->written = true; act[1]->written = true;
-  Activation* const currStep = act[1];
-  if(agent.Status not_eq INIT_COMM) prevStep->loadMemory(net->mem[agent.ID]);
-  const Rvec ret = net->predict(inp, prevStep, currStep, W);
-  currStep->storeMemory(net->mem[agent.ID]);
-  return ret;
+  return net->predict(inp, nRecurr? act[nRecurr-1] : nullptr, act[nRecurr], W);
 }
 
 Rvec Approximator::getOutput(const Rvec inp, const int ind,

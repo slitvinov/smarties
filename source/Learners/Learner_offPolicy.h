@@ -24,7 +24,7 @@ protected:
   FORGET MEMBUF_FILTER_ALGO = OLDEST;
 
 
-  Real beta = CmaxPol<=0? 1 : .2; // if CmaxPol==0 do naive Exp Replay
+  Real beta = CmaxPol<=0? 1 : 0.2; // if CmaxPol==0 do naive Exp Replay
   Real CmaxRet = 1 + CmaxPol;
 
   ApproximateReductor<double, MPI_DOUBLE> reductor =
@@ -33,14 +33,6 @@ public:
   Learner_offPolicy(Environment*const env, Settings& _s);
 
   bool readyForTrain() const;
-
-  inline void advanceCounters() {
-    //shift data / gradient counters to maintain grad stepping to sample
-    // collection ratio prescirbed by obsPerStep
-    const Real stepCounter = nStep - (Real)nStep_last;
-    nData_last += stepCounter*obsPerStep;
-    nStep_last = nStep;
-  }
 
   //main training functions:
   bool lockQueue() const override;

@@ -119,12 +119,11 @@ compute(Sequence*const traj, const Uint samp, const Rvec& outVec,
   const Real Aer = std::min(CmaxRet, rho) * (A_RET-A_cur);
   const Rvec polG = policyGradient(traj->tuples[samp], POL,ADV,A_RET, thrID);
   const Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
-  //if(!thrID) cout<<"s "<<print(traj->tuples[samp]->s)
-  //               <<"mu "<<print(traj->tuples[samp]->mu)
-  //               <<"pol "<<print(POL.getVector())
-  //               <<" act: "<<print(traj->tuples[samp]->a)
-  //               <<" pg: "<<print(polG) <<" pen: "<<print(penalG)<<endl;
   const Rvec finalG  = weightSum2Grads(polG, penalG, beta);
+  //if(!thrID) cout<<dkl<<" s "<<print(traj->tuples[samp]->s)
+  //  <<" pol "<<print(POL.getVector())<<" mu "<<print(traj->tuples[samp]->mu)
+  //  <<" act: "<<print(traj->tuples[samp]->a)<<" pg: "<<print(polG)
+  //  <<" pen: "<<print(penalG)<<" fin: "<<print(finalG)<<endl;
   //prepare Q with off policy corrections for next step:
   const Real dAdv = updateQret(traj, samp, A_cur, V_cur, POL);
 

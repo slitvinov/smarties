@@ -442,7 +442,7 @@ string setupFolder = DEFAULT_setupFolder;
 
   void check()
   {
-    bRecurrent = nnType=="LSTM" || nnType=="RNN";
+    bRecurrent = nnType=="LSTM" || nnType=="RNN" || nnType == "MGU" || nnType == "GRU";
 
     if(bSampleSequences && maxTotSeqNum<batchSize)
     die("Increase memory buffer size or decrease batchsize, or switch to sampling by transitions.");

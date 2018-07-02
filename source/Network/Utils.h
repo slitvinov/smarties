@@ -41,6 +41,17 @@ inline nnReal* allocate_ptr(const Uint _size)
   return ret;
 }
 
+
+inline nnReal* allocate_dirty(const Uint _size)
+{
+  nnReal* ret = nullptr;
+  assert(_size > 0);
+  //printf("requested %u floats of size %lu, allocating %lu bytes\n",
+  //  _size, sizeof(nnReal), roundUpSimd(_size)*sizeof(nnReal));
+  posix_memalign((void **) &ret, VEC_WIDTH, roundUpSimd(_size)*sizeof(nnReal));
+  return ret;
+}
+
 inline vector<nnReal*> allocate_vec(vector<Uint> _sizes)
 {
   vector<nnReal*> ret(_sizes.size(), nullptr);
