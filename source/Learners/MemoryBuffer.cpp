@@ -143,13 +143,13 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
   }
 
   if(count<batchSize) die("");
+  static constexpr Real EPS = numeric_limits<float>::epsilon();
   if(WR>0)
   {
     Real varR = newstdvr/count;
     if(varR < numeric_limits<Real>::epsilon())
        varR = numeric_limits<Real>::epsilon();
-    const Real stDevRew = std::sqrt(varR);
-    invstd_reward = (1-WR)*invstd_reward +WR/stDevRew;
+    invstd_reward = (1-WR)*invstd_reward +WR/(std::sqrt(varR)+EPS);
   }
   for(Uint k=0; k<dimS && WS>0; k++)
   {
@@ -163,7 +163,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
     if(varS < numeric_limits<Real>::epsilon())
        varS = numeric_limits<Real>::epsilon();
     std[k] = (1-WS) * std[k] + WS * std::sqrt(varS);
-    invstd[k] = 1/(std[k]+numeric_limits<float>::epsilon());
+    invstd[k] = 1/(std[k]+EPS);
   }
 
   #ifndef NDEBUG
@@ -364,20 +364,26 @@ void MemoryBuffer::updateImportanceWeights()
 
 void MemoryBuffer::getMetrics(ostringstream& buff)
 {
+  Real avgR = 0;
+  for(Uint i=0; i<Set.size(); i++) avgR += Set[i]->totR;
+
+  real2SS(buff, invstd_reward*avgR/Set.size(), 7, 0);
+  real2SS(buff, 1/invstd_reward, 6, 1);
+  real2SS(buff, avgDKL, 6, 1);
+
   buff<<" "<<std::setw(5)<<nSequences.load();
   buff<<" "<<std::setw(7)<<nTransitions.load();
   buff<<" "<<std::setw(7)<<nSeenSequences.load();
   buff<<" "<<std::setw(8)<<nSeenTransitions.load();
   buff<<" "<<std::setw(7)<<minInd;
   buff<<" "<<std::setw(6)<<(int)nOffPol;
-  real2SS(buff, 1./invstd_reward, 6, 1);
-  real2SS(buff, avgDKL, 6, 1);
+
   nPruned=0;
 }
 void MemoryBuffer::getHeaders(ostringstream& buff)
 {
   buff <<
-  "| nEp |  nObs | totEp | totObs | oldEp |nFarP | stdR | tDKL ";
+  "| avgR | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nFarP ";
 }
 
 void MemoryBuffer::save(const string base, const Uint nStep)
@@ -546,7 +552,7 @@ void MemoryBuffer::sampleTransitions(vector<Uint>&seq, vector<Uint>&obs)
   #pragma omp parallel num_threads(nThreads)
   {
     const int thrI = omp_get_thread_num(), start = thrI*stride;
-    assert( nThreads == omp_get_num_threads() );
+    assert( nThreads == (Uint) omp_get_num_threads() );
     const int N = start+stride>(int)seq.size()? (int)seq.size()-start : stride;
     //cout << N << " " << stride << " " << start << " " << thrI << endl;
     if(N>0) sampleMultipleTrans(&seq[start], &obs[start], N, thrI);

@@ -155,7 +155,7 @@ void Learner_offPolicy::applyGradient()
   else
   {
     if( not readyForTrain() ) die("undefined behavior")
-    debugL("Pruning at prev grad step removed too much data and training was paused: shift training counters")
+    warn("Pruning at prev grad step removed too much data and training was paused: shift training counters")
     // Prune at prev grad step removed too much data and training was paused.
     // ApplyGradient was surely called by Scheduler after workers finished
     // gathering new data enabling training to continue ( after workers.join() )
@@ -176,7 +176,7 @@ void Learner_offPolicy::applyGradient()
   }
   else
   {
-    debugL("Pruning removed too much data from buffer: will have to wait one scheduler loop before training can continue")
+    warn("Pruning removed too much data from buffer: will have to wait one scheduler loop before training can continue")
   }
 
   Learner::applyGradient();

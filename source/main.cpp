@@ -66,7 +66,7 @@ void runMaster(Settings& settings, MPI_Comm workersComm, MPI_Comm mastersComm)
     stringstream ss; ss<<"agent_"<<std::setw(2)<<std::setfill('0')<<i;
     cout << "Learner: " << ss.str() << endl;
     learners[i] = createLearner(env, settings);
-    learners[i]->setLearnerName(ss.str() +"_");
+    learners[i]->setLearnerName(ss.str() +"_", i);
     learners[i]->restart();
   }
   //#pragma omp parallel

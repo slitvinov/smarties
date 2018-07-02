@@ -43,7 +43,7 @@ struct Sequence
 {
   vector<Tuple*> tuples;
   int ended = 0, ID = -1, just_sampled = -1;
-  Real nOffPol = 0, MSE = 0, sumKLDiv = 0;
+  Real nOffPol = 0, MSE = 0, sumKLDiv = 0, totR = 0;
   Rvec action_adv;
   Rvec state_vals;
   Rvec Q_RET;
@@ -73,10 +73,10 @@ struct Sequence
   {
     for(auto &t : tuples) _dispose_object(t);
     tuples.clear();
-    ended=0; ID=-1; just_sampled=-1; nOffPol=0; MSE=0; sumKLDiv=0;
+    ended=0; ID=-1; just_sampled=-1; nOffPol=0; MSE=0; sumKLDiv=0; totR=0;
+    //priorityImpW.clear();
     SquaredError.clear();
     offPolicImpW.clear();
-    //priorityImpW.clear();
     KullbLeibDiv.clear();
     action_adv.clear();
     state_vals.clear();
@@ -133,6 +133,8 @@ struct Sequence
   inline void add_state(const Rvec state, const Real reward=0)
   {
     Tuple * t = new Tuple(state, reward);
+    if(tuples.size()) totR += reward;
+    else assert(std::fabs(reward)<2.2e-16);
     tuples.push_back(t);
   }
   inline void add_action(const Rvec act, const Rvec mu = Rvec())

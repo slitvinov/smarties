@@ -24,7 +24,8 @@
 #define RACER_simpleSigma
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(const Uint seq, const Uint thrID) const
+void RACER<Advantage_t, Policy_t, Action_t>::
+TrainBySequences(const Uint seq, const Uint thrID) const
 {
   Sequence* const traj = data->Set[seq];
   const int ndata = traj->tuples.size()-1;
@@ -68,7 +69,8 @@ void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(const Uint seq, co
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Uint thrID) const
+void RACER<Advantage_t, Policy_t, Action_t>::
+Train(const Uint seq, const Uint samp, const Uint thrID) const
 {
   Sequence* const traj = data->Set[seq];
   assert(samp+1 < traj->tuples.size());
@@ -104,8 +106,9 @@ void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint sa
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-Rvec RACER<Advantage_t, Policy_t, Action_t>::compute(Sequence*const traj, const Uint samp,
-  const Rvec& outVec, const Policy_t& POL, const Uint thrID) const
+Rvec RACER<Advantage_t, Policy_t, Action_t>::
+compute(Sequence*const traj, const Uint samp, const Rvec& outVec,
+  const Policy_t& POL, const Uint thrID) const
 {
   const Advantage_t ADV = prepare_advantage(outVec, &POL);
   const Real A_cur = ADV.computeAdvantage(POL.sampAct), V_cur = outVec[VsID];
@@ -130,8 +133,9 @@ Rvec RACER<Advantage_t, Policy_t, Action_t>::compute(Sequence*const traj, const 
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-Rvec RACER<Advantage_t, Policy_t, Action_t>::offPolCorrUpdate(Sequence*const S, const Uint t,
-  const Rvec output, const Policy_t& pol, const Uint thrID) const
+Rvec RACER<Advantage_t, Policy_t, Action_t>::
+offPolCorrUpdate(Sequence*const S, const Uint t, const Rvec output,
+  const Policy_t& pol, const Uint thrID) const
 {
   const Advantage_t adv = prepare_advantage(output, &pol);
   const Real A_cur = adv.computeAdvantage(pol.sampAct);
@@ -147,7 +151,8 @@ Rvec RACER<Advantage_t, Policy_t, Action_t>::offPolCorrUpdate(Sequence*const S, 
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-Rvec RACER<Advantage_t, Policy_t, Action_t>::policyGradient(const Tuple*const _t, const Policy_t& POL,
+Rvec RACER<Advantage_t, Policy_t, Action_t>::
+policyGradient(const Tuple*const _t, const Policy_t& POL,
   const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
 {
   const Real rho_cur = POL.sampImpWeight;
@@ -172,7 +177,8 @@ Rvec RACER<Advantage_t, Policy_t, Action_t>::policyGradient(const Tuple*const _t
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::select(Agent& agent)
+void RACER<Advantage_t, Policy_t, Action_t>::
+select(Agent& agent)
 {
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
@@ -238,7 +244,8 @@ void RACER<Advantage_t, Policy_t, Action_t>::select(Agent& agent)
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::writeOnPolRetrace(Sequence*const seq)
+void RACER<Advantage_t, Policy_t, Action_t>::
+writeOnPolRetrace(Sequence*const seq)
 {
   assert(seq->tuples.size() == seq->action_adv.size());
   assert(seq->tuples.size() == seq->state_vals.size());
@@ -251,7 +258,8 @@ void RACER<Advantage_t, Policy_t, Action_t>::writeOnPolRetrace(Sequence*const se
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::prepareGradient()
+void RACER<Advantage_t, Policy_t, Action_t>::
+prepareGradient()
 {
   Learner_offPolicy::prepareGradient();
 
@@ -271,7 +279,8 @@ void RACER<Advantage_t, Policy_t, Action_t>::prepareGradient()
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::initializeLearner()
+void RACER<Advantage_t, Policy_t, Action_t>::
+initializeLearner()
 {
   Learner_offPolicy::initializeLearner();
 
@@ -286,79 +295,79 @@ void RACER<Advantage_t, Policy_t, Action_t>::initializeLearner()
       updateQret(data->Set[i], j, data->Set[i]->action_adv[j],
         data->Set[i]->state_vals[j], 1);
 
-  for(Uint i = 0; i < data->inProgress.size(); i++)
+  for(Uint i = 0; i < data->inProgress.size(); i++) {
+    if(data->inProgress[i]->tuples.size() == 0) continue;
     for (Uint j=data->inProgress[i]->ndata(); j>0; j--)
       updateQret(data->inProgress[i], j, data->inProgress[i]->action_adv[j],
         data->inProgress[i]->state_vals[j], 1);
+  }
 }
 
-template<>
-vector<Uint> RACER<Discrete_advantage, Discrete_policy, Uint>::count_outputs(const ActionInfo*const aI)
-{
+template<> vector<Uint>
+RACER<Discrete_advantage, Discrete_policy, Uint>::
+count_outputs(const ActionInfo*const aI) {
   return vector<Uint>{1, aI->maxLabel, aI->maxLabel};
 }
-template<>
-vector<Uint> RACER<Discrete_advantage, Discrete_policy, Uint>::count_pol_starts(const ActionInfo*const aI)
-{
+template<> vector<Uint>
+RACER<Discrete_advantage, Discrete_policy, Uint>::
+count_pol_starts(const ActionInfo*const aI) {
   const vector<Uint> sizes = count_outputs(aI);
   const vector<Uint> indices = count_indices(sizes);
   return vector<Uint>{indices[1]};
 }
-template<>
-vector<Uint> RACER<Discrete_advantage, Discrete_policy, Uint>::count_adv_starts(const ActionInfo*const aI)
-{
+template<> vector<Uint>
+RACER<Discrete_advantage, Discrete_policy, Uint>::
+count_adv_starts(const ActionInfo*const aI) {
   const vector<Uint> sizes = count_outputs(aI);
   const vector<Uint> indices = count_indices(sizes);
   return vector<Uint>{indices[2]};
 }
-
-template<>
-Uint RACER<Discrete_advantage, Discrete_policy, Uint>::getnOutputs(const ActionInfo*const aI)
-{
+template<> Uint
+RACER<Discrete_advantage, Discrete_policy, Uint>::
+getnOutputs(const ActionInfo*const aI) {
   return 1 + aI->maxLabel + aI->maxLabel;
 }
-template<>
-Uint RACER<Discrete_advantage, Discrete_policy, Uint>::getnDimPolicy(const ActionInfo*const aI)
-{
+template<> Uint
+RACER<Discrete_advantage, Discrete_policy, Uint>::
+getnDimPolicy(const ActionInfo*const aI) {
   return aI->maxLabel;
 }
 
-template<>
-vector<Uint> RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::count_outputs(const ActionInfo*const aI)
-{
+template<> vector<Uint>
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+count_outputs(const ActionInfo*const aI) {
   const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(aI);
   return vector<Uint>{1, nL, NEXPERTS, NEXPERTS*aI->dim, NEXPERTS*aI->dim};
 }
-template<>
-vector<Uint> RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::count_pol_starts(const ActionInfo*const aI)
-{
+template<> vector<Uint>
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+count_pol_starts(const ActionInfo*const aI) {
   const vector<Uint> sizes = count_outputs(aI);
   const vector<Uint> indices = count_indices(sizes);
   return vector<Uint>{indices[2], indices[3], indices[4]};
 }
-template<>
-vector<Uint> RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::count_adv_starts(const ActionInfo*const aI)
-{
+template<> vector<Uint>
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+count_adv_starts(const ActionInfo*const aI) {
   const vector<Uint> sizes = count_outputs(aI);
   const vector<Uint> indices = count_indices(sizes);
   return vector<Uint>{indices[1]};
 }
-
-template<>
-Uint RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::getnOutputs(const ActionInfo*const aI)
-{
+template<> Uint
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+getnOutputs(const ActionInfo*const aI) {
   const Uint nL = Mixture_advantage<NEXPERTS>::compute_nL(aI);
   return 1 + nL + NEXPERTS*(1 +2*aI->dim);
 }
-template<>
-Uint RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::getnDimPolicy(const ActionInfo*const aI)
-{
+template<> Uint
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+getnDimPolicy(const ActionInfo*const aI) {
   return NEXPERTS*(1 +2*aI->dim);
 }
 
 template<>
-RACER<Discrete_advantage, Discrete_policy, Uint>::RACER(
-  Environment*const _env, Settings& _set) : Learner_offPolicy(_env,_set),
+RACER<Discrete_advantage, Discrete_policy, Uint>::
+RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env,_set),
   net_outputs(count_outputs(&_env->aI)),
   pol_start(count_pol_starts(&_env->aI)),
   adv_start(count_adv_starts(&_env->aI))
@@ -376,8 +385,8 @@ RACER<Discrete_advantage, Discrete_policy, Uint>::RACER(
 }
 
 template<>
-RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::RACER(
-  Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
+RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
+RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
   net_outputs(count_outputs(&_env->aI)),
   pol_start(count_pol_starts(&_env->aI)),
   adv_start(count_adv_starts(&_env->aI))

@@ -112,7 +112,7 @@ Network::Network(Builder* const B, Settings & settings) :
 
 void Network::checkGrads()
 {
-  const Uint seq_len = 2;
+  const Uint seq_len = 5;
   const nnReal incr = std::pow(2,-20), tol = incr;
   cout<<"Checking grads with increment "<<incr<<" and tolerance "<<tol<<endl;
   vector<Activation*> timeSeries;
@@ -157,10 +157,11 @@ void Network::checkGrads()
       //0
       weights->params[w] = copy;
 
-      const nnReal scale = std::max( fabs(Vgrad[0]->params[w]), fabs(diff) );
-      if (scale < nnEPS) continue;
+      //const nnReal scale = std::max( fabs(Vgrad[0]->params[w]), fabs(diff) );
+      //if (scale < nnEPS) continue;
       const nnReal err = fabs(Vgrad[0]->params[w]-diff);//relerr=err/scale;
-      if(err > Vgrad[2]->params[w]) {
+      if( err>Vgrad[2]->params[w] || ( err==Vgrad[2]->params[w] &&
+         std::fabs(Vgrad[1]->params[w]) < std::fabs(Vgrad[0]->params[w]) ) ) {
         Vgrad[1]->params[w] = Vgrad[0]->params[w];
         Vgrad[2]->params[w] = err;
         Vgrad[3]->params[w] = diff;
@@ -170,7 +171,7 @@ void Network::checkGrads()
 
   long double sum1 = 0, sumsq1 = 0, sum2 = 0, sumsq2 = 0;
   for (Uint w=0; w<weights->nParams; w++) {
-    if(Vgrad[2]->params[w]>tol)
+    //if(Vgrad[2]->params[w]>tol)
     cout<<w<<" err:"<<Vgrad[2]->params[w]<<", grad:"<<Vgrad[1]->params[w]
         <<" diff:"<<Vgrad[3]->params[w]<<" param:"<<weights->params[w]<<endl;
 

@@ -66,6 +66,7 @@ protected:
 public:
   Profiler* profiler = nullptr;
   string learner_name;
+  Uint learnID;
 
   Learner(Environment*const env, Settings & settings);
 
@@ -74,8 +75,9 @@ public:
     _dispose_object(data);
   }
 
-  inline void setLearnerName(const string lName) {
+  inline void setLearnerName(const string lName, const Uint id) {
     learner_name = lName;
+    learnID = id;
   }
 
   inline unsigned time() const

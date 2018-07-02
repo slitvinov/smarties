@@ -48,7 +48,7 @@ void Learner::prepareGradient()
   if(updateToApply) die("undefined behavior");
   if(not updateComplete)
   {
-    debugL("prepareGradient called while waiting for workers to gather data")
+    warn("prepareGradient called while waiting for workers to gather data")
     return; // there is nothing in the gradients yet
   }
   // Learner is ready for the update: send the task to the networks and
@@ -76,8 +76,9 @@ void Learner::initializeLearner()
 
 void Learner::applyGradient()
 {
+  if(updateComplete) die("undefined behavior");
   if(not updateToApply) {
-    debugL("applyGradient called while waiting for data")
+    warn("applyGradient called while waiting for data")
     return;
   }
   updateToApply = false;
@@ -108,8 +109,8 @@ void Learner::applyGradient()
 void Learner::processStats()
 {
   ostringstream buf;
-  if(trainInfo not_eq nullptr) trainInfo->getMetrics(buf);
   data->getMetrics(buf);
+  if(trainInfo not_eq nullptr) trainInfo->getMetrics(buf);
   input->getMetrics(buf);
   for(auto & net : F) net->getMetrics(buf);
 
@@ -119,18 +120,18 @@ void Learner::processStats()
 
   ostringstream head;
   if( nStep%(1000*PRFL_DMPFRQ)==0 || nStep==1000 ) {
-    if(trainInfo not_eq nullptr) trainInfo->getHeaders(head);
     data->getHeaders(head);
+    if(trainInfo not_eq nullptr) trainInfo->getHeaders(head);
     input->getHeaders(head);
     for(auto & net : F) net->getHeaders(head);
 
-    printf("#/1e3 %s\n", head.str().c_str());
+    printf("ID #/1e3 %s\n", head.str().c_str());
     if(nStep==1000)
-      fprintf(fout, "#/1e3 %s\n", head.str().c_str());
+      fprintf(fout, "ID #/1e3 %s\n", head.str().c_str());
   }
 
-  fprintf(fout, "%05d %s\n", (int)nStep/1000, buf.str().c_str());
-  printf("%05d %s\n", (int)nStep/1000, buf.str().c_str());
+  fprintf(fout, "%02d %05d%s\n", learnID, (int)nStep/1000, buf.str().c_str());
+  printf("%02d %05d%s\n", learnID, (int)nStep/1000, buf.str().c_str());
   fclose(fout);
   fflush(0);
 }
