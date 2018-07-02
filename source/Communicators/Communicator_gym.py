@@ -87,6 +87,8 @@ class Communicator_gym(Communicator):
         #    env = gym.wrappers.Monitor(env, './', force=True)
         self.gym = env
         self.seq_id, self.frame_id = 0, 0
+        self.seed = sys.argv[1]
+        self.actionBuffer = [np.zeros([nAct], dtype=np.float64)]
 
 
 if __name__ == '__main__':
