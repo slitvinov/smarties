@@ -160,7 +160,8 @@ void Network::checkGrads()
       //const nnReal scale = std::max( fabs(Vgrad[0]->params[w]), fabs(diff) );
       //if (scale < nnEPS) continue;
       const nnReal err = fabs(Vgrad[0]->params[w]-diff);//relerr=err/scale;
-      if( err>Vgrad[2]->params[w] || ( err==Vgrad[2]->params[w] &&
+      // if error now is bigger or if equal but grad magnitude is greater
+      if( err>Vgrad[2]->params[w] || ( err>=Vgrad[2]->params[w] &&
          std::fabs(Vgrad[1]->params[w]) < std::fabs(Vgrad[0]->params[w]) ) ) {
         Vgrad[1]->params[w] = Vgrad[0]->params[w];
         Vgrad[2]->params[w] = err;
