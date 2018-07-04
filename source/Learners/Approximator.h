@@ -95,12 +95,17 @@ struct Approximator
     return relay_backprop(error, samp, thrID, USEW);
   }
 
-  Rvec forward_agent(const Sequence* const traj, const Agent& agent, const PARAMS USEW) const;
+  void prepare_agent(const Sequence* const traj, const Agent& agent) const;
+  Rvec forward_agent(const Sequence* const traj, const Uint aID, const PARAMS USEW) const;
 
   template <PARAMS USEW = CUR>
   inline Rvec forward_agent(const Sequence*const traj, const Agent&agent) const
   {
     return forward_agent(traj, agent, USEW);
+  }
+  inline Rvec forward_agent(const Sequence*const traj, const Agent&agent, const PARAMS USEW) const
+  {
+    return forward_agent(traj, agent.ID, USEW);
   }
 
   Rvec getOutput(const Rvec inp, const int ind,

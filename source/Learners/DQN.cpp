@@ -30,6 +30,7 @@ void DQN::select(Agent& agent)
   {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
+    F[0]->prepare_agent(traj, agent);
     Rvec output = F[0]->forward_agent<CUR>(traj, agent);
 
     uniform_real_distribution<Real> dis(0.,1.);

@@ -10,6 +10,7 @@
 #include "DQN.h"
 #include "NAF.h"
 #include "DPG.h"
+#include "RETPG.h"
 #include "RACER.h"
 #include "VRACER.h"
 #include "ACER.h"
@@ -91,6 +92,16 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
     o << env->aI.dim << " " << settings.policyVecDim;
     print(o, "problem_size.log", settings.world_rank);
     return new DPG(env, settings);
+  }
+  else if (settings.learner == "RETPG") {
+    settings.bSampleSequences = false;
+    settings.policyVecDim = 2*env->aI.dim;
+    // non-NPER DPG is unstable with annealed network learn rate
+    // because critic network must adapt quickly
+    if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
+    o << env->aI.dim << " " << settings.policyVecDim;
+    print(o, "problem_size.log", settings.world_rank);
+    return new RETPG(env, settings);
   }
   else if (settings.learner == "GAE" || settings.learner == "PPO") {
     settings.bSampleSequences = false;

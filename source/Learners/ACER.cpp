@@ -122,6 +122,7 @@ void ACER::select(Agent& agent)
   if( agent.Status < TERM_COMM ) {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
+    F[0]->prepare_agent(traj, agent);
     Rvec output = F[0]->forward_agent(traj, agent);
     Policy_t pol = prepare_policy(output);
     Rvec mu = pol.getVector();

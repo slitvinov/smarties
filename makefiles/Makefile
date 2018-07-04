@@ -44,7 +44,7 @@ CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrit
 CPPFLAGS+= -Wno-cpp -Wno-unused-parameter # does not make sense with function overloading
 #CPPFLAGS+= -Wno-maybe-uninitialized #to switch on and check that only triggered by std random
 #CPPFLAGS+= -Wno-float-equal #sometimes you just know, do you know what I am saying?
-CPPFLAGS+= -Wno-unknown-pragmas
+#CPPFLAGS+= -Wno-unknown-pragmas
 
 exp ?= GAUS
 ifeq "$(exp)" "GAUS"
@@ -94,7 +94,7 @@ OBJ_FILES = ArgParser.o main.o ObjectFactory.o Communicator.o RACER.o \
 		PPO.o ACER.o VRACER.o AtariEnvironment.o Approximator.o Network.o \
 		Environment.o TwoActFishEnvironment.o Learner.o NAF.o DQN.o DPG.o \
 		Learner_onPolicy.o MemoryBuffer.o Learner_offPolicy.o Optimizer.o \
-		Scheduler.o Math_tests.o Communicator_internal.o
+		RETPG.o Scheduler.o Math_tests.o Communicator_internal.o
 
 #ExternalAgent.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o GliderEnvironment.o
 #TwoFishEnvironment.o HingedFishEnvironment.o BlowfishEnvironment.o alebotEnvironment.o

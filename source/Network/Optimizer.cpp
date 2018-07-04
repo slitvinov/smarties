@@ -8,8 +8,8 @@
 
 #include "Optimizer.h"
 #include "saruprng.h"
-#define NESTEROV_ADAM
-#define AMSGRAD
+//#define NESTEROV_ADAM
+//#define AMSGRAD
 
 struct Adam {
   const nnReal eta, B1, B2, lambda, fac;
@@ -28,7 +28,7 @@ struct Adam {
     #else
       const nnReal penal = - W*lambda;
     #endif
-    const nnReal DW = fac * grad;
+    const nnReal DW = fac * grad + penal;
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
     #ifdef NESTEROV_ADAM // No significant effect
@@ -46,7 +46,7 @@ struct Adam {
       M3 = M2;
     #endif
 
-    const nnReal ret = eta * ( numer / ( nnEPS + std::sqrt(M3) ) + penal );
+    const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M3) );
     assert(not std::isnan(ret) && not std::isinf(ret));
     return ret;
   }

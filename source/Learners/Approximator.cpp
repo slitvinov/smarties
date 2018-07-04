@@ -41,8 +41,7 @@ void Aggregator::prepare_one(const Sequence*const traj, const Uint samp,
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
   // might need to predict the value of next state if samp not terminal state
-  const Uint nSValues = traj->isTerminal(samp+1) ? 1 : 2;
-  const Uint nTotal = nRecurr + nSValues;
+  const Uint nTotal = nRecurr + 2;
   first_sample[thrID] = samp - nRecurr;
   inputs[thrID].clear(); //make sure we only have empty vectors
   inputs[thrID].resize(nTotal, Rvec());
@@ -209,8 +208,7 @@ void Approximator::prepare_one(const Sequence*const traj, const Uint samp,
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
   // might need to predict the value of next state if samp not terminal state
-  const Uint nSValues = traj->isTerminal(samp+1) ? 1 : 2;
-  const Uint nTotal = nRecurr + nSValues;
+  const Uint nTotal = nRecurr + 2;
 
   input->prepare(nTotal, samp - nRecurr, thrID);
   for(Uint k=0; k<nSamples; k++)
@@ -226,6 +224,7 @@ Rvec Approximator::forward(const Sequence* const traj, const Uint samp,
   const Uint iSample, const int overwrite) const
 {
   if(iSample) assert(USE_ACT == CUR && iSample<=extraAlloc);
+  if(thrID>=nThreads) return forward_agent(traj, thrID-nThreads, USE_WEIGHTS);
   const Uint netID = thrID + iSample*nThreads;
   const vector<Activation*>& act=USE_ACT==CUR? series[netID] :series_tgt[thrID];
   const vector<Activation*>& act_cur = series[thrID];
@@ -265,25 +264,33 @@ Rvec Approximator::relay_backprop(const Rvec err,
   else return relay->scale(Rvec(&ret[nInp], &ret[nInp+relay->nOutputs()]));
 }
 
-Rvec Approximator::forward_agent(const Sequence* const traj,
-  const Agent& agent, const PARAMS USEW) const
+void Approximator::prepare_agent(const Sequence*const traj, const Agent&agent) const
 {
   //This is called by a std::thread and uses separate workspace from omp threads
   //We use a fake thread id to avoid code duplication in encapsulator class
   const Uint fakeThrID = nThreads + agent.ID, stepid = traj->ndata();
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT,stepid) : 0;
   const vector<Activation*>& act = agent_series[agent.ID];
-  net->prepForFwdProp(agent_series[agent.ID], nRecurr+1);
-  input->prepare(nRecurr+1, stepid-nRecurr, fakeThrID);
-  assert(act.size() == nRecurr+1);
+  net->prepForFwdProp(agent_series[agent.ID], nRecurr+2);
+  input->prepare(nRecurr+2, stepid-nRecurr, fakeThrID);
+  // if using relays, ask for previous actions:
+  if(relay not_eq nullptr) relay->prepare_one(traj, stepid, fakeThrID, ACT);
+  assert(act.size() == nRecurr+2);
 
-  const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
   //Advance recurr net with 0 initialized activations for nRecurr steps
   for(Uint i=0; i<nRecurr; i++) {
-    const Rvec inp = getInput(traj, stepid-nRecurr+i, fakeThrID, USEW);
-    net->predict(inp, i>0? act[i-1] : nullptr, act[i], W);
+    const Rvec inp = getInput(traj, stepid-nRecurr+i, fakeThrID, CUR);
+    net->predict(inp, i>0? act[i-1] : nullptr, act[i], net->weights);
   }
+}
 
+Rvec Approximator::forward_agent(const Sequence* const traj,
+  const Uint agentID, const PARAMS USEW) const
+{
+  const vector<Activation*>& act = agent_series[agentID];
+  const Uint fakeThrID = nThreads + agentID, stepid = traj->ndata();
+  const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT,stepid) : 0;
+  const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
   const Rvec inp = getInput(traj, stepid, fakeThrID, USEW);
   return net->predict(inp, nRecurr? act[nRecurr-1] : nullptr, act[nRecurr], W);
 }

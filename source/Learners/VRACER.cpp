@@ -103,6 +103,7 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
 {
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
+  F[0]->prepare_agent(traj, agent);
 
   if( agent.Status < TERM_COMM ) // not last of a sequence
   {

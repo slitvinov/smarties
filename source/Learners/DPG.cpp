@@ -61,6 +61,7 @@ void DPG::select(Agent& agent)
   if( agent.Status < TERM_COMM ) { // not last of a sequence
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
+    F[0]->prepare_agent(traj, agent);
     Rvec pol = F[0]->forward_agent(traj, agent);
     Gaussian_policy policy = prepare_policy(pol);
     Rvec MU = policy.getVector();
@@ -138,7 +139,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   //code to compute value grad:
   const Rvec grad_val = {isOff ? 0 : (target-q_curr[0])};
   //traj->SquaredError[t] = grad_val[0]*grad_val[0];
-  F[1]->backward(clampGrad(grad_val,q_curr[0]), t, thrID);
+  F[1]->backward(grad_val, t, thrID);
 
   //bookkeeping:
   trainInfo->log(q_curr[0], grad_val[0], polG, penG, {beta,rho}, thrID);

@@ -178,9 +178,11 @@ void PPO<Policy_t, Action_t>::select(Agent& agent)
 {
   Sequence*const curr_seq = data->inProgress[agent.ID];
   data->add_state(agent);
+  F[1]->prepare_agent(curr_seq, agent);
 
   if(agent.Status < TERM_COMM ) { //non terminal state
     //Compute policy and value on most recent element of the sequence:
+    F[0]->prepare_agent(curr_seq, agent);
     const Rvec pol = F[0]->forward_agent(curr_seq, agent);
     const Rvec val = F[1]->forward_agent(curr_seq, agent);
 

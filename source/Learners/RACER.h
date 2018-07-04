@@ -86,7 +86,7 @@ class RACER : public Learner_offPolicy
   inline void updateQretFront(Sequence*const S, const Uint t) const {
     if(t == 0) return;
     const Real D = data->scaledReward(S,t) + gamma*S->state_vals[t];
-    S->Q_RET[t-1]= D +gamma*(S->Q_RET[t]-S->action_adv[t]) -S->state_vals[t-1];
+    S->Q_RET[t-1] = D +gamma*(S->Q_RET[t]-S->action_adv[t]) -S->state_vals[t-1];
   }
   inline void updateQretBack(Sequence*const S, const Uint t) const {
     if(t == 0) return;

@@ -127,11 +127,11 @@ compute(Sequence*const traj, const Uint samp, const Rvec& outVec,
   //prepare Q with off policy corrections for next step:
   const Real dAdv = updateQret(traj, samp, A_cur, V_cur, POL);
 
-  Rvec gradient(F[0]->nOutputs(), 0);
+  Rvec gradient = Rvec(F[0]->nOutputs(), 0);
   gradient[VsID] = beta*alpha * Ver;
   POL.finalize_grad(finalG, gradient);
   ADV.grad(POL.sampAct, beta*alpha * Aer, gradient);
-  trainInfo->log(A_cur, A_RET-A_cur, polG, penalG, {beta, dAdv, rho}, thrID);
+  trainInfo->log(V_cur+A_cur, A_RET-A_cur, polG,penalG, {beta,dAdv,rho}, thrID);
   traj->setMseDklImpw(samp, Ver*Ver, dkl, rho);
   return gradient;
 }
@@ -148,8 +148,8 @@ offPolCorrUpdate(Sequence*const S, const Uint t, const Rvec output,
   const Real Ver = std::min((Real)1, pol.sampImpWeight) * (A_RET-A_cur);
   updateQret(S, t, A_cur, output[VsID], pol);
   S->setMseDklImpw(t, Ver*Ver, pol.sampKLdiv, pol.sampImpWeight);
-  Rvec gradient(F[0]->nOutputs(), 0);
   const Rvec pg = pol.div_kl_grad(S->tuples[t]->mu, beta-1);
+  Rvec gradient = Rvec(F[0]->nOutputs(), 0);
   pol.finalize_grad(pg, gradient);
   return gradient;
 }
@@ -186,6 +186,7 @@ select(Agent& agent)
 {
   Sequence* const traj = data->inProgress[agent.ID];
   data->add_state(agent);
+  F[0]->prepare_agent(traj, agent);
 
   if( agent.Status < TERM_COMM ) // not end of sequence
   {
@@ -275,7 +276,7 @@ prepareGradient()
     profiler->stop_start("QRET");
     #pragma omp parallel for schedule(dynamic)
     for(Uint i = 0; i < data->Set.size(); i++)
-      for(int j = data->Set[i]->just_sampled-1; j > 0; j--)
+      for(int j=data->Set[i]->just_sampled-1; j>0; j--)
         updateQretBack(data->Set[i], j);
   }
   #endif
@@ -293,16 +294,13 @@ initializeLearner()
   debugL("Rescale Retrace est. after gathering initial dataset")
   // placed here because on 1st step we just computed first rewards statistics
   #pragma omp parallel for schedule(dynamic)
-  for(Uint i = 0; i < data->Set.size(); i++)
-    for (Uint j=data->Set[i]->ndata(); j>0; j--)
-      updateQret(data->Set[i], j, data->Set[i]->action_adv[j],
-        data->Set[i]->state_vals[j], 1);
+  for(Uint i=0; i<data->Set.size(); i++)
+    for(Uint j=data->Set[i]->ndata(); j>0; j--) updateQretFront(data->Set[i],j);
 
   for(Uint i = 0; i < data->inProgress.size(); i++) {
     if(data->inProgress[i]->tuples.size() == 0) continue;
-    for (Uint j=data->inProgress[i]->ndata(); j>0; j--)
-      updateQret(data->inProgress[i], j, data->inProgress[i]->action_adv[j],
-        data->inProgress[i]->state_vals[j], 1);
+    for(Uint j=data->inProgress[i]->ndata(); j>0; j--)
+      updateQretFront(data->inProgress[i],j);
   }
 }
 

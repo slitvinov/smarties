@@ -1,6 +1,5 @@
 CC = CC
 LIBS+= -lsci_gnu
-CPPFLAGS+= -DGYM_RENDEROPT=0
 
 ifeq "$(app)" "cubism"
 
