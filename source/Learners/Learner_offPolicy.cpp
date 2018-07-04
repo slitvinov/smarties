@@ -202,4 +202,6 @@ void Learner_offPolicy::initializeLearner()
   data->updateRewardsStats(nStep, 1, 1);
   if( learn_rank == 0 )
     cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
+
+  Learner::initializeLearner();
 }
