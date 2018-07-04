@@ -38,8 +38,9 @@ struct Adam {
     #endif
     #ifdef AMSGRAD
       // No statistical improvement over NIPS implementation. However, without
-      // decay factor for max(M2) performance worsens noticeably. Probably
-      // because, unlike sup learning, data distribution in RL changes over time
+      // decay factor for M3 performance worsens noticeably. Probably because,
+      // unlike supervised learning, data distribution in RL changes over time.
+      // This decay factor was the biggest that did not ruin performance on gym.
       M3 = std::max((1.-1e-4)*M3, M2);
     #else
       M3 = M2;
