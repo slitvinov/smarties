@@ -8,6 +8,8 @@
 
 #include "Optimizer.h"
 #include "saruprng.h"
+#define NESTEROV_ADAM
+#define AMSGRAD
 
 struct Adam {
   const nnReal eta, B1, B2, lambda, fac;
@@ -19,31 +21,31 @@ struct Adam {
 #ifdef NDEBUG
   #pragma omp declare simd notinbranch //simdlen(VEC_WIDTH)
 #endif
-  inline nnReal step(const nnReal grad,nnReal&M1,nnReal&M2,const nnReal W) const
+  inline nnReal step(const nnReal grad, nnReal&M1, nnReal&M2, nnReal&M3, const nnReal W) const
   {
     #ifdef NET_L1_PENAL
       const nnReal penal = -(W>0 ? lambda : -lambda);
     #else
       const nnReal penal = - W*lambda;
     #endif
-    const nnReal DW = fac * grad + penal;
+    const nnReal DW = fac * grad;
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = B2 * M2 + (1-B2) * DW*DW;
-    #ifdef NESTEROV_ADAM
+    #ifdef NESTEROV_ADAM // No significant effect
       const nnReal numer = B1*M1 + (1-B1)*DW;
     #else
       const nnReal numer = M1;
     #endif
-    #ifdef SAFE_ADAM
-      // prevent gradient blow ups. allows dW<= eta*sqrt(10). if pre update
-      // M2 and M1 were both 0, but this is what normally happens with Adam
-      // Actually I can't think of a situation where, except due to finite
-      // precision, this next like will not be reduntant...
-      M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
-      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M2) );
+    #ifdef AMSGRAD
+      // No statistical improvement over NIPS implementation. However, without
+      // decay factor for max(M2) performance worsens noticeably. Probably
+      // because, unlike sup learning, data distribution in RL changes over time
+      M3 = std::max((1.-1e-4)*M3, M2);
     #else
-      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M2) );
+      M3 = M2;
     #endif
+
+    const nnReal ret = eta * ( numer / ( nnEPS + std::sqrt(M3) ) + penal );
     assert(not std::isnan(ret) && not std::isinf(ret));
     return ret;
   }
@@ -60,18 +62,20 @@ struct AdaMax {
 #endif
   inline nnReal step(const nnReal grad,nnReal&M1,nnReal&M2,const nnReal W) const
   {
-    #ifdef NET_L1_PENAL
-      const nnReal DW = grad * fac -(W>0 ? lambda : -lambda);
-    #else
-      const nnReal DW = grad * fac - W*lambda;
-    #endif
+    const nnReal DW = grad * fac;
     M1 = B1 * M1 + (1-B1) * DW;
     M2 = std::max(B2 * M2, std::fabs(DW));
     #ifdef NESTEROV_ADAM
-      return eta * (B1*M1 + (1-B1)*DW)/std::max(M2, nnEPS);
+      const nnReal numer = B1*M1 + (1-B1)*DW;
     #else
-      return eta * M1                 /std::max(M2, nnEPS);
+      const nnReal numer = M1;
     #endif
+    #ifdef NET_L1_PENAL
+      const nnReal penal = -(W>0 ? lambda : -lambda);
+    #else
+      const nnReal penal = - W*lambda;
+    #endif
+    return eta * (numer/std::max(M2, nnEPS) + penal);
   }
 };
 
@@ -133,11 +137,12 @@ void Optimizer::apply_update()
       Algorithm algo(_eta,beta_1,beta_2,beta_t_1,beta_t_2,lambda,factor,gen);
       nnReal* const M1 = _1stMom->params;
       nnReal* const M2 = _2ndMom->params;
+      nnReal* const M3 = _2ndMax->params;
       nnReal* const G  = gradSum->params;
 
-      #pragma omp for simd aligned(paramAry, M1, M2, G : VEC_WIDTH)
+    #pragma omp for simd schedule(static) aligned(paramAry,M1,M2,M3,G:VEC_WIDTH)
       for (Uint i=0; i<weights->nParams; i++)
-      paramAry[i] += algo.step(G[i], M1[i], M2[i], paramAry[i]);
+      paramAry[i] += algo.step(G[i], M1[i], M2[i], M3[i], paramAry[i]);
     }
   }
   gradSum->clear();
@@ -156,7 +161,7 @@ void Optimizer::apply_update()
       if(tgtUpdateAlpha>=1) tgt_weights->copy(weights);
       else { // else is the learning rate of an exponential averaging
         nnReal* const targetAry = tgt_weights->params;
-        #pragma omp parallel for simd aligned(paramAry, targetAry : VEC_WIDTH)
+        #pragma omp parallel for simd schedule(static) aligned(paramAry,targetAry:VEC_WIDTH)
         for(Uint j=0; j<weights->nParams; j++)
           targetAry[j] += tgtUpdateAlpha*(paramAry[j] - targetAry[j]);
       }

@@ -257,8 +257,7 @@ writeOnPolRetrace(Sequence*const seq)
   const Uint N = seq->tuples.size();
   //within Retrace, we use the state_vals vector to write the Q retrace values
   seq->Q_RET.resize(N, 0);
-  for (Uint i=N-1; i>0; i--) //update all q_ret before terminal step
-    updateQret(seq, i, seq->action_adv[i], seq->state_vals[i], 1);
+  for (Uint i=N-1; i>0; i--) updateQretFront(seq, i);
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
@@ -396,7 +395,7 @@ RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
   adv_start(count_adv_starts(&_env->aI))
 {
   if(_set.learner_rank == 0) {
-    printf("Mixture-of-experts continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s\n", VsID, print(pol_start).c_str(), print(adv_start).c_str());
+    printf("Mixture-of-experts continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s (sorted %s)\n", VsID, print(pol_start).c_str(), print(adv_start).c_str(), print(net_outputs).c_str());
   }
 
   F.push_back(new Approximator("net", _set, input, data));

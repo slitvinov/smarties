@@ -8,9 +8,6 @@
 
 #include "Environment.h"
 #include "../Network/Builder.h"
-#ifndef GYM_RENDEROPT
-#define GYM_RENDEROPT 0
-#endif
 
 Environment::Environment(Settings& _settings) :
 g(&_settings.generators[0]), settings(_settings), gamma(_settings.gamma) {}
@@ -133,13 +130,13 @@ void Environment::commonSetup()
   nAgents = nAgentsPerRank * settings.nWorkers;
   settings.nAgents = nAgents;
 
-  sI.dim = 0;
   if(sI.dim == 0) sI.dim = sI.inUse.size();
   if(sI.inUse.size() == 0) {
     if(settings.world_rank == 0)
     printf("Unspecified whether state vector components are available to learner, assumed yes\n");
     sI.inUse = vector<bool>(sI.dim, true);
   }
+  if(sI.dim not_eq sI.inUse.size()) { die("must be equal"); }
   if(sI.dim == 0) {
     die("State vector dimensionality cannot be zero at this point")
   }

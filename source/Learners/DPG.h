@@ -15,7 +15,6 @@ class DPG : public Learner_offPolicy
 {
   Aggregator* relay;
   const Uint nA = env->aI.dim;
-  const Real tgtFrac;
   const Real OrUhDecay = CmaxPol<=0? .85 : 0; // as in original
   //const Real OrUhDecay = 0; // no correlated noise
   vector<Rvec> OrUhState = vector<Rvec>(nAgents,Rvec(nA,0));

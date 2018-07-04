@@ -121,6 +121,7 @@ class BaseLayer: public Layer
       nnReal* const weight = para->W(ID);
       for(Uint i=0; i<nInputs;  i++) for(Uint o=0; o<nNeurons; o++)
         weight[o +nOut_simd*i] = dis(*gen);
+      if(std::fabs(fac-1)<nnEPS) orthogonalize(para, gen, init);
     }
     if(bRecurrent)
     {
@@ -138,22 +139,36 @@ class BaseLayer: public Layer
     //  for(Uint o=0; o<nNeurons; o++) W_T[nInp_simd*o + i] = W[nOut_simd*i + o];
   //}
 
-  void orthogonalize(const Parameters*const para) const
+  void orthogonalize(const Parameters*const para, mt19937*const gen, const Real initFac) const
   {
     nnReal* const weight = para->W(ID);
-    nnReal* const biases = para->B(ID);
-    for(Uint i=1; i<nNeurons; i++) {
+    for(Uint i=1; i<nNeurons; i++)
+    {
+      nnReal v_d_v_pre = 0, v_d_v_post = 0;
+      for(Uint k=0; k<nInputs; k++)
+        v_d_v_pre += weight[i +nOut_simd*k] * weight[i +nOut_simd*k];
+      if(v_d_v_pre<nnEPS) {die("init error")}
+
       for(Uint j=0; j<i; j++) {
         nnReal u_d_u = 0.0, v_d_u = 0.0;
         for(Uint k=0; k<nInputs; k++) {
-          u_d_u += weight[j +nNeurons*k] * weight[j +nNeurons*k];
-          v_d_u += weight[j +nNeurons*k] * weight[i +nNeurons*k];
+          u_d_u += weight[j +nOut_simd*k] * weight[j +nOut_simd*k];
+          v_d_u += weight[j +nOut_simd*k] * weight[i +nOut_simd*k];
         }
-        if( v_d_u < 0 ) continue;
-        const nnReal overlap = nnSafeExp(-100*std::pow(biases[i]-biases[j],2));
-        const nnReal fac = v_d_u/u_d_u * overlap;
+        if(u_d_u<nnEPS) {die("init error")}
         for(Uint k=0; k<nInputs; k++)
-          weight[i +nNeurons*k] -= fac * weight[i +nNeurons*k];
+          weight[i +nOut_simd*k] -= v_d_u/u_d_u* weight[j +nOut_simd*k];
+      }
+
+      for(Uint k=0; k<nInputs; k++)
+        v_d_v_post += weight[i +nOut_simd*k] * weight[i +nOut_simd*k];
+
+      if(std::sqrt(v_d_v_post)<nnEPS) {
+        uniform_real_distribution<nnReal> dis(-initFac, initFac);
+        for(Uint k=0; k<nInputs; k++) weight[i +nOut_simd*k] = dis(*gen);
+      } else {
+        const nnReal fac = std::sqrt(v_d_v_pre)/std::sqrt(v_d_v_post);
+        for(Uint k=0; k<nInputs; k++) weight[i +nOut_simd*k] *= fac;
       }
     }
   }

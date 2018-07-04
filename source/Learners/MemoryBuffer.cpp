@@ -218,7 +218,9 @@ void MemoryBuffer::push_back(const int & agentId)
     nCmplTransitions += inProgress[agentId]->ndata();
 
     pushBackSequence(inProgress[agentId]);
-  } else {
+  }
+  else
+  {
     printf("Trashing %lu obs.\n",inProgress[agentId]->tuples.size());
     fflush(0);
     _dispose_object(inProgress[agentId]);
@@ -237,47 +239,44 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
   // vector indicating location of oldest sequence
   vector<pair<int,  int>> oldest_sequence(nThreads, {-1, nSeenSequences});
   Real _nOffPol = 0, _totDKL = 0, invC = 1/CmaxRho;
-  #pragma omp parallel reduction(+ : _nOffPol, _totDKL)
+  #pragma omp parallel for schedule(dynamic) reduction(+ : _nOffPol, _totDKL)
+  for(Uint i = 0; i < Set.size(); i++)
   {
     const int thrID = omp_get_thread_num();
-    #pragma omp for schedule(dynamic)
-    for(Uint i = 0; i < Set.size(); i++)
+    if(Set[i]->just_sampled >= 0)
     {
-      if(Set[i]->just_sampled >= 0) {
-        Set[i]->nOffPol = 0; Set[i]->MSE = 0; Set[i]->sumKLDiv = 0;
-        for(Uint j=0; j<Set[i]->ndata(); j++) {
-          const Real W = Set[i]->offPolicImpW[j];
-          Set[i]->MSE += Set[i]->SquaredError[j];
-          Set[i]->sumKLDiv += Set[i]->KullbLeibDiv[j];
-          assert(Set[i]->SquaredError[j]>=0 && W>=0);
-          // sequence is off policy if offPol W is out of 1/C : C
-          if(W>CmaxRho || W<invC) Set[i]->nOffPol += 1;
-        }
-        Set[i]->just_sampled = -1;
+      Set[i]->nOffPol = 0; Set[i]->MSE = 0; Set[i]->sumKLDiv = 0;
+      for(Uint j=0; j<Set[i]->ndata(); j++) {
+        const Real W = Set[i]->offPolicImpW[j];
+        Set[i]->MSE += Set[i]->SquaredError[j];
+        Set[i]->sumKLDiv += Set[i]->KullbLeibDiv[j];
+        assert(Set[i]->SquaredError[j]>=0 && W>=0);
+        // sequence is off policy if offPol W is out of 1/C : C
+        if(W>CmaxRho || W<invC) Set[i]->nOffPol += 1;
       }
+      Set[i]->just_sampled = -1;
+    }
 
-      const Real W_MSE = Set[i]->MSE     /Set[i]->ndata();
-      const Real W_FAR = Set[i]->nOffPol /Set[i]->ndata();
-      const Real W_DKL = Set[i]->sumKLDiv/Set[i]->ndata();
-      _nOffPol += Set[i]->nOffPol; _totDKL += Set[i]->sumKLDiv;
+    const Real W_MSE = Set[i]->MSE     /Set[i]->ndata();
+    const Real W_FAR = Set[i]->nOffPol /Set[i]->ndata();
+    const Real W_DKL = Set[i]->sumKLDiv/Set[i]->ndata();
+    _nOffPol += Set[i]->nOffPol; _totDKL += Set[i]->sumKLDiv;
 
-      // TODO: to avoid overfitting only keep "unexpected" transition in buffer
-      if(Set[i]->ID < oldest_sequence[thrID].second) {
-        oldest_sequence[thrID].second = Set[i]->ID;
-        oldest_sequence[thrID].first = i;
-      }
-      if(W_FAR > farpol_location[thrID].second) {
-        farpol_location[thrID].second = W_FAR;
-        farpol_location[thrID].first = i;
-      }
-      if(W_DKL > maxdkl_location[thrID].second) {
-        maxdkl_location[thrID].second = W_DKL;
-        maxdkl_location[thrID].first = i;
-      }
-      if(W_MSE < minerr_location[thrID].second) {
-        minerr_location[thrID].second = W_MSE;
-        minerr_location[thrID].first = i;
-      }
+    if(Set[i]->ID < oldest_sequence[thrID].second) {
+      oldest_sequence[thrID].second = Set[i]->ID;
+      oldest_sequence[thrID].first = i;
+    }
+    if(W_FAR > farpol_location[thrID].second) {
+      farpol_location[thrID].second = W_FAR;
+      farpol_location[thrID].first = i;
+    }
+    if(W_DKL > maxdkl_location[thrID].second) {
+      maxdkl_location[thrID].second = W_DKL;
+      maxdkl_location[thrID].first = i;
+    }
+    if(W_MSE < minerr_location[thrID].second) {
+      minerr_location[thrID].second = W_MSE;
+      minerr_location[thrID].first = i;
     }
   }
   if(CmaxRho<=1) _nOffPol = 0; //then this counter and its effects are skipped
@@ -305,14 +304,19 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
       case FARPOLFRAC: del_ptr = far_ptr; break;
       case MAXKLDIV:   del_ptr = dkl_ptr; break;
       case MINERROR:   del_ptr = fit_ptr; break;
+      die(" ")
   }
   // safety measure to avoid invisib bugs caused by user selecting wrong ALGO:
   if(Set[old_ptr]->ID + (int)Set.size() < Set[del_ptr]->ID) del_ptr = old_ptr;
+
   // safety measure: do not delete trajectory if Nobs > Ntarget
   // but if N > Ntarget even if we remove the trajectory
   // done to avoid bugs if a sequence is longer than maxTotObsNum
   // negligible effect if hyperparameters are chosen wisely
   if(nTransitions.load()-Set[del_ptr]->ndata() > maxTotObsNum) {
+    if(far_ptr != del_ptr && ALGO == FARPOLFRAC)
+      _warn("safety %d %d %d %d %g %g", old_ptr, far_ptr, Set[old_ptr]->ID, Set[far_ptr]->ID, Set[old_ptr]->nOffPol /Set[old_ptr]->ndata(), Set[far_ptr]->nOffPol /Set[far_ptr]->ndata())
+
     std::swap(Set[del_ptr], Set.back());
     popBackSequence();
   } else if(far_val > 1) {
@@ -547,17 +551,38 @@ void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
 void MemoryBuffer::sampleTransitions(vector<Uint>&seq, vector<Uint>&obs)
 {
   if(seq.size() not_eq obs.size()) die(" ")
-  const int stride = std::ceil(seq.size()/ (Real)nThreads);
 
-  #pragma omp parallel num_threads(nThreads)
+  #ifndef IMPORTSAMPLE
+    std::uniform_int_distribution<Uint> distObs(0, readNData()-1);
+  #else
+    Gen & distObs = *dist;
+  #endif
+
+  std::vector<Uint> ret(seq.size());
+  std::vector<Uint>::iterator it = ret.begin();
+  while(it not_eq ret.end())
   {
-    const int thrI = omp_get_thread_num(), start = thrI*stride;
-    assert( nThreads == (Uint) omp_get_num_threads() );
-    const int N = start+stride>(int)seq.size()? (int)seq.size()-start : stride;
-    //cout << N << " " << stride << " " << start << " " << thrI << endl;
-    if(N>0) sampleMultipleTrans(&seq[start], &obs[start], N, thrI);
+    std::generate(it, ret.end(), [&]() { return distObs(generators[0]); } );
+    std::sort(ret.begin(), ret.end());
+    it = std::unique (ret.begin(), ret.end());
   }
-  //for(Uint i=0;i<seq.size();i++) cout<<seq[i]<<" "<<obs[i]<<endl; cout<<endl;
+
+  // go through each element of ret to find corresponding seq and obs
+  for (Uint k = 0, cntO = 0, i = 0; k<Set.size(); k++) {
+    while(1) {
+      assert(ret[i] >= cntO && i < seq.size());
+      if(ret[i] < cntO + Set[k]->ndata()) { // is ret[i] in sequence k?
+        obs[i] = ret[i] - cntO; // if ret[i]==cntO then obs 0 of k and so forth
+        seq[i] = k;
+        i++; // next iteration remember first i-1 were already found
+      }
+      else break;
+      if(i == seq.size()) break;
+    }
+    if(i == seq.size()) break; // then found all elements of ret
+    cntO += Set[k]->ndata(); // advance observation counter
+    if(k+1 == Set.size()) die(" "); // at last iter we must have found all
+  }
 }
 
 void MemoryBuffer::sampleSequences(vector<Uint>& seq)

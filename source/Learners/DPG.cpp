@@ -12,8 +12,7 @@
 #include "DPG.h"
 //#define DKL_filter
 
-DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
-tgtFrac(_set.penalTol)
+DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set)
 {
   _set.splitLayers = 0;
   #if 0

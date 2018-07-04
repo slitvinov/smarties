@@ -64,7 +64,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
   if(updateComplete || updateToApply) die("undefined behavior");
 
   if( not readyForTrain() ) {
-    debugL("spawnTrainTasks_par called with not enough data, wait next call")
+    warn("spawnTrainTasks_par called with not enough data, wait next call")
     // This can happen if data pruning algorithm is allowed to delete a lot of
     // data from the mem buffer, which could cause training to pause
     return; // Do not prepare an update
@@ -73,6 +73,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
   if(bSampleSequences && data->readNSeq() < batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 
+  profiler->stop_start("SAMP");
   debugL("Sample the replay memory and compute the gradients")
   vector<Uint> samp_seq = vector<Uint>(batchSize, -1);
   vector<Uint> samp_obs = vector<Uint>(batchSize, -1);

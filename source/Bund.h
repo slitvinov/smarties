@@ -43,7 +43,7 @@ typedef double memReal;
 #define CLIP_LEARNR 1e-3
 
 // hint to reserve memory for the network workspaces, can be breached
-#define MAX_SEQ_LEN 1000
+#define MAX_SEQ_LEN 1200
 
 #define FREQ_BACKUP 1000000
 // Default number of second moments to clip the pre-backprop gradient:

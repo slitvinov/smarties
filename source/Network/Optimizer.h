@@ -25,6 +25,7 @@ class Optimizer
   const Parameters * const gradSum;
   const Parameters * const _1stMom;
   const Parameters * const _2ndMom;
+  const Parameters * const _2ndMax;
   vector<std::mt19937>& generators;
   Uint cntUpdateDelay = 0, totGrads = 0;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
@@ -42,7 +43,7 @@ class Optimizer
     lambda(S.nnLambda), epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay),
     weights(W), tgt_weights(W_TGT), gradSum(W->allocateGrad()),
     _1stMom(W->allocateGrad()), _2ndMom(W->allocateGrad()),
-    generators(S.generators) {
+    _2ndMax(W->allocateGrad()), generators(S.generators) {
       //_2ndMom->set(std::sqrt(nnEPS));
       //_2ndMom->set(1);
     }
@@ -51,7 +52,8 @@ class Optimizer
   //_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))
 
   virtual ~Optimizer() {
-   _dispose_object(gradSum); _dispose_object(_1stMom); _dispose_object(_2ndMom);
+   _dispose_object(gradSum); _dispose_object(_1stMom);
+   _dispose_object(_2ndMom); _dispose_object(_2ndMax);
   }
 
   inline void prepare_update(const int batchsize, const vector<Parameters*>& grads) {
@@ -68,12 +70,14 @@ class Optimizer
     if(tgt_weights not_eq nullptr) tgt_weights->save(fname+"_tgt_weights");
     _1stMom->save(fname+"_1stMom");
     _2ndMom->save(fname+"_2ndMom");
+    _2ndMax->save(fname+"_2ndMax");
 
     if(nStep % FREQ_BACKUP == 0 && nStep > 0) {
       ostringstream ss; ss << std::setw(9) << std::setfill('0') << nStep;
       weights->save(fname+"_"+ss.str()+"_weights");
       _1stMom->save(fname+"_"+ss.str()+"_1stMom" );
       _2ndMom->save(fname+"_"+ss.str()+"_2ndMom" );
+      _2ndMax->save(fname+"_"+ss.str()+"_2ndMax" );
     }
   }
   int restart(const string fname)
@@ -86,6 +90,7 @@ class Optimizer
     }
     _1stMom->restart(fname+"_1stMom");
     _2ndMom->restart(fname+"_2ndMom");
+    _2ndMax->restart(fname+"_2ndMax");
     return ret;
   }
 };

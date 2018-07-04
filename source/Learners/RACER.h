@@ -10,13 +10,13 @@
 #include "Learner_offPolicy.h"
 #include "../Math/Quadratic_advantage.h"
 
-//#ifdef ADV_GAUS
+#ifdef ADV_GAUS
 #include "../Math/Mixture_advantage_gaus.h"
-//#warning "Using Mixture_advantage with Gaussian advantages"
-//#else
-//#include "../Math/Mixture_advantage_quad.h"
-//#warning "Using Mixture_advantage with Quadratic advantages"
-//#endif
+#warning "Using Mixture_advantage with Gaussian advantages"
+#else
+#include "../Math/Mixture_advantage_quad.h"
+#warning "Using Mixture_advantage with Quadratic advantages"
+#endif
 
 #ifndef NEXPERTS
 #define NEXPERTS 1
@@ -49,7 +49,7 @@ class RACER : public Learner_offPolicy
   // used in case of temporally correlated noise
   vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
 
-  vector<float> outBuf;
+  //vector<float> outBuf;
 
   inline Policy_t prepare_policy(const Rvec& out,
     const Tuple*const t = nullptr) const {
@@ -82,6 +82,11 @@ class RACER : public Learner_offPolicy
   inline void updateQret(Sequence*const S, const Uint t) const {
     const Real rho = S->isLast(t) ? 0 : S->offPolicImpW[t];
     updateQret(S, t, S->action_adv[t], S->state_vals[t], rho);
+  }
+  inline void updateQretFront(Sequence*const S, const Uint t) const {
+    if(t == 0) return;
+    const Real D = data->scaledReward(S,t) + gamma*S->state_vals[t];
+    S->Q_RET[t-1]= D +gamma*(S->Q_RET[t]-S->action_adv[t]) -S->state_vals[t-1];
   }
   inline void updateQretBack(Sequence*const S, const Uint t) const {
     if(t == 0) return;
