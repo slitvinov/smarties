@@ -24,7 +24,7 @@ void RETPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   F[1]->prepare_one(traj, t, thrID);
 
   const Rvec polVec = F[0]->forward(traj, t, thrID); // network compute
-  relay->prepare_one(traj, t, thrID, ACT);
+  relay->prepare(ACT, thrID);
   const Rvec q_curr = F[1]->forward(traj, t, thrID); // inp here is {s,a}
 
   const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
@@ -56,7 +56,8 @@ void RETPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   F[0]->backward(finalG, t, thrID);
 
   //code to compute value grad:
-  const Rvec grad_val = { isOff? 0 : traj->Q_RET[t] - q_curr[0] };
+  const Real retTarget = traj->Q_RET[t] +traj->state_vals[t];//Q_RET holds adv
+  const Rvec grad_val={isOff? 0: retTarget - q_curr[0]};
   F[1]->backward(grad_val, t, thrID);
 
   //bookkeeping:

@@ -274,7 +274,7 @@ void Approximator::prepare_agent(const Sequence*const traj, const Agent&agent) c
   net->prepForFwdProp(agent_series[agent.ID], nRecurr+2);
   input->prepare(nRecurr+2, stepid-nRecurr, fakeThrID);
   // if using relays, ask for previous actions:
-  if(relay not_eq nullptr) relay->prepare_one(traj, stepid, fakeThrID, ACT);
+  if(relay not_eq nullptr) relay->prepare(ACT, fakeThrID);
   assert(act.size() == nRecurr+2);
 
   //Advance recurr net with 0 initialized activations for nRecurr steps
@@ -290,6 +290,7 @@ Rvec Approximator::forward_agent(const Sequence* const traj,
   const vector<Activation*>& act = agent_series[agentID];
   const Uint fakeThrID = nThreads + agentID, stepid = traj->ndata();
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT,stepid) : 0;
+  if(act[nRecurr]->written) return act[nRecurr]->getOutput();
   const Parameters* const W = USEW==CUR? net->weights : net->tgt_weights;
   const Rvec inp = getInput(traj, stepid, fakeThrID, USEW);
   return net->predict(inp, nRecurr? act[nRecurr-1] : nullptr, act[nRecurr], W);
