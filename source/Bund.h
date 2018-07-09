@@ -66,7 +66,7 @@ typedef double memReal;
 
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
-// truncate gaussian dist from -4 to 4, resamples once every ~15787 times.
+// truncate gaussian dist from -3 to 3, resamples once every ~370 times.
 #define NORMDIST_MAX 3
 // bound of pol mean for bounded act. spaces (ie tanh(+/- 8))
 #define BOUNDACT_MAX 8
