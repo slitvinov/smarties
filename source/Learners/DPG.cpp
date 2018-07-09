@@ -99,7 +99,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
     const bool isOff = traj->isFarPolicy(t, rho, CmaxRet);
   #endif
 
-  relay->prepare_one(traj, t, thrID, ACT);
+  relay->prepare(ACT, thrID);
   const Rvec q_curr = F[1]->forward(traj, t, thrID); // inp here is {s,a}
 
   relay->prepare(NET, thrID); // tell relay to pass policy (output of F[0])

@@ -269,13 +269,15 @@ void Approximator::prepare_agent(const Sequence*const traj, const Agent&agent) c
   //This is called by a std::thread and uses separate workspace from omp threads
   //We use a fake thread id to avoid code duplication in encapsulator class
   const Uint fakeThrID = nThreads + agent.ID, stepid = traj->ndata();
+  // learner->select always only gets one new state, so we assume that it needs
+  // to run one (or more) forward net at time t, so here also compute recurrency
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT,stepid) : 0;
   const vector<Activation*>& act = agent_series[agent.ID];
-  net->prepForFwdProp(agent_series[agent.ID], nRecurr+2);
-  input->prepare(nRecurr+2, stepid-nRecurr, fakeThrID);
-  // if using relays, ask for previous actions:
+  net->prepForFwdProp(agent_series[agent.ID], nRecurr+1);
+  input->prepare(nRecurr+1, stepid-nRecurr, fakeThrID);
+  // if using relays, ask for previous actions: will be used for recurrencies
   if(relay not_eq nullptr) relay->prepare(ACT, fakeThrID);
-  assert(act.size() == nRecurr+2);
+  assert(act.size() == nRecurr+1);
 
   //Advance recurr net with 0 initialized activations for nRecurr steps
   for(Uint i=0; i<nRecurr; i++) {
@@ -287,6 +289,7 @@ void Approximator::prepare_agent(const Sequence*const traj, const Agent&agent) c
 Rvec Approximator::forward_agent(const Sequence* const traj,
   const Uint agentID, const PARAMS USEW) const
 {
+  // assume we already computed recurrencies
   const vector<Activation*>& act = agent_series[agentID];
   const Uint fakeThrID = nThreads + agentID, stepid = traj->ndata();
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT,stepid) : 0;

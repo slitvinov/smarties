@@ -70,8 +70,6 @@ class RETPG : public Learner_offPolicy
 
   void select(Agent& agent) override;
 
-  void writeOnPolRetrace(Sequence*const seq);
-
   void prepareGradient() override;
   void initializeLearner() override;
 };

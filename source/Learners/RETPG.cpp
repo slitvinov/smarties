@@ -47,16 +47,18 @@ void RETPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   //code to compute policy grad:
   Rvec polG(2*nA, 0);
   for (Uint i=0; i<nA; i++) polG[i] = isOff? 0 : detPolG[i];
+  // this keeps stdev at user's value, else NN penalization might cause drift:
   for (Uint i=0; i<nA; i++) polG[i+nA] = explNoise - POL.stdev[i];
   const Rvec penG = POL.div_kl_grad(traj->tuples[t]->mu, -1);
-  // If beta=1 (which is inevitable for CmaxPol=0) this will be equal to polGP:
+  // If beta=1 (which is inevitable for CmaxPol=0) this will be equal to polG:
   Rvec mixG = weightSum2Grads(polG, penG, beta);
   Rvec finalG = Rvec(F[0]->nOutputs(), 0);
   POL.finalize_grad(mixG, finalG);
   F[0]->backward(finalG, t, thrID);
 
-  //code to compute value grad:
-  const Real retTarget = traj->Q_RET[t] +traj->state_vals[t];//Q_RET holds adv
+  //code to compute value grad. Q_RET holds adv, sum with previous est of state
+  // val: analogous to having target weights in original DPG
+  const Real retTarget = traj->Q_RET[t] +traj->state_vals[t];
   const Rvec grad_val={isOff? 0: retTarget - q_curr[0]};
   F[1]->backward(grad_val, t, thrID);
 
@@ -78,14 +80,13 @@ void RETPG::select(Agent& agent)
 
   if( agent.Status < TERM_COMM ) // not end of sequence
   {
-    //Compute policy and value on most recent element of the sequence. If RNN
-    // recurrent connection from last call from same agent will be reused
+    //Compute policy and value on most recent element of the sequence.
     Rvec pol = F[0]->forward_agent(traj, agent);
     Gaussian_policy policy = prepare_policy(pol);
     Rvec MU = policy.getVector();
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
-    // this should only be used for evaluating a learned policy
+    // this should only be used for evaluating a learned policy with bTrain=0
     Rvec act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
     if(OrUhDecay>0)
       act = policy.updateOrUhState(OrUhState[agent.ID], MU, OrUhDecay);
@@ -100,30 +101,28 @@ void RETPG::select(Agent& agent)
   }
   else
   {
-    if( agent.Status == TRNC_COMM ) {
-      F[0]->forward_agent(traj, agent);
-      relay->prepare(NET, nThreads+agent.ID);
+    if( agent.Status == TRNC_COMM ) // not a terminal state
+    { //then compute on policy state value
+      F[0]->forward_agent(traj, agent); // compute policy
+      relay->prepare(NET, nThreads+agent.ID); // pass it to q net
       const Rvec sval = F[1]->forward_agent(traj, agent);
-      traj->state_vals.push_back(sval[0]); // not a terminal state
-    } else traj->state_vals.push_back(0); //value of terminal state is 0
+      traj->state_vals.push_back(sval[0]);
+    } else
+      traj->state_vals.push_back(0); //value of terminal state is 0
     //whether seq is truncated or terminated, act adv is undefined:
     traj->action_adv.push_back(0);
+
     // compute initial Qret for whole trajectory:
-    writeOnPolRetrace(traj);
+    assert(seq->tuples.size() == seq->action_adv.size());
+    assert(seq->tuples.size() == seq->state_vals.size());
+    assert(seq->Q_RET.size()  == 0);
+    //within Retrace, we use the state_vals vector to write the Q retrace values
+    traj->Q_RET.resize(traj->tuples.size(), 0);
+    for(Uint i=traj->tuples.size()-1; i>0; i--) updateQretFront(traj, i);
+
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
     data->terminate_seq(agent);
   }
-}
-
-void RETPG::writeOnPolRetrace(Sequence*const seq)
-{
-  assert(seq->tuples.size() == seq->action_adv.size());
-  assert(seq->tuples.size() == seq->state_vals.size());
-  assert(seq->Q_RET.size()  == 0);
-  const Uint N = seq->tuples.size();
-  //within Retrace, we use the state_vals vector to write the Q retrace values
-  seq->Q_RET.resize(N, 0);
-  for (Uint i=N-1; i>0; i--) updateQretFront(seq, i);
 }
 
 void RETPG::prepareGradient()
@@ -200,7 +199,7 @@ RETPG::RETPG(Environment*const _e, Settings& _s) : Learner_offPolicy(_e, _s)
   // if LRelu we need to make initialization multiplier smaller:
   Builder build_val = F[1]->buildFromSettings(_s, 1 );
   F[1]->initializeNetwork(build_val, 0);
-  printf("DPG\n");
+  printf("DPG with Retrace-based Q network target\n");
 
   trainInfo = new TrainData("DPG", _s, 1, "| beta | dAdv | avgW ", 3);
 }
