@@ -1,5 +1,5 @@
 #!/bin/bash
-unset LSB_AFFINITY_HOSTFILE
+unset LSB_AFFINITY_HOSTFILE #euler cluster
 export MPICH_MAX_THREAD_SAFETY=multiple #MPICH
 export MV2_ENABLE_AFFINITY=0 #MVAPICH
 NPROCESS=$1
@@ -32,18 +32,26 @@ echo $SETTINGS > settings.txt
 env > environment.log
 #echo ${NPROCESS} ${NTHREADS} $TASKPERN $NMASTERS
 
-#mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none xterm -e gdb --tui --args ./rl ${SETTINGS}
-
-if [[ $PATH == *"openmpi"* ]]; then
-#pirun -n ${NPROCESS} --map-by ppr:1:socket:pe=12 -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
-mpirun -n ${NPROCESS} -oversubscribe --map-by node:PE=24 -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
+# Mpi call depends on whether user has open mpi or mpich, whether they are on
+# a mac (which does not expose thread affinity), or on a linux cluster ...
+# Let's assume for now users can sort this out themselves
+isOpenMPI=$(mpirun --version | grep "Open MPI" | wc -l)
+HOST=`hostname`
+if [ ${isOpenMPI} ]; then
+	if [ ${HOST:0:5} == 'euler' ] || [ ${HOST:0:5} == 'eu-lo' ] || [ ${HOST:0:4} == 'eu-c' ];
+  then # eth's server
+		if [ ${NTHREADS} -ge 24 ]; then
+			mpirun -n ${NPROCESS} -oversubscribe --map-by node:PE=${NTHREADS} -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
+		else
+			mpirun -n ${NPROCESS} -oversubscribe --map-by ppr:1:socket:pe=${NTHREADS} -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
+		fi
+	else
+		mpirun -n ${NPROCESS} -oversubscribe -report-bindings ./rl ${SETTINGS} | tee out.log
+	fi
 else
-#--leak-check=yes  --track-origins=yes
 #mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to core:${NTHREADS} valgrind --num-callers=100  --tool=memcheck  ./rl ${SETTINGS} | tee out.log
 mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to core:${NTHREADS} ./rl ${SETTINGS} | tee out.log
 fi
 
-
 # mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none xterm -hold -e gdb -ex run --args ./rl ${SETTINGS}
-
-#mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none valgrind --num-callers=100  --tool=memcheck  --leak-check=yes  --track-origins=yes --show-reachable=yes  ./rl ${SETTINGS}
+#mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to none xterm -e gdb --tui --args ./rl ${SETTINGS}

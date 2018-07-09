@@ -27,8 +27,7 @@ protected:
   Real beta = CmaxPol<=0? 1 : 0.2; // if CmaxPol==0 do naive Exp Replay
   Real CmaxRet = 1 + CmaxPol;
 
-  ApproximateReductor<double, MPI_DOUBLE> reductor =
-    ApproximateReductor<double, MPI_DOUBLE>(mastersComm, 2);
+  ApproximateReductor reductor = ApproximateReductor(mastersComm, 2);
 public:
   Learner_offPolicy(Environment*const env, Settings& _s);
 

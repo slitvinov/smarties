@@ -1,11 +1,10 @@
 #!/bin/bash
 RUNFOLDER=$1
-NTHREADS=$2
-APP=$3
-SETTINGSNAME=$4
+APP=$2
+SETTINGSNAME=$3
 
-if [ $# -lt 4 ] ; then
-	echo "Usage: ./launch_openai.sh RUNFOLDER OMP_THREADS APP SETTINGS_PATH (POLICY_PATH) (N_MPI_TASK_PER_NODE)"
+if [ $# -lt 3 ] ; then
+	echo "Usage: ./launch_atari.sh RUNFOLDER APP SETTINGS_PATH (WORKERS PER LEARNER) (NTHREADS) (N LEARNERS)"
 	exit 1
 fi
 

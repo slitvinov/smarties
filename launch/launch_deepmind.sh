@@ -1,13 +1,12 @@
 #!/bin/bash
 EXECNAME=rl
 RUNFOLDER=$1
-NTHREADS=$2
-ENV=$3
-TASK=$4
-SETTINGSNAME=$5
+ENV=$2
+TASK=$3
+SETTINGSNAME=$4
 
-if [ $# -lt 5 ] ; then
-echo "Usage: ./launch_deepmind.sh RUNFOLDER OMP_THREADS ENV TASK SETTINGS_PATH (N_MPI_TASK_PER_NODE)"
+if [ $# -lt 4 ] ; then
+echo "Usage: ./launch_deepmind.sh RUNFOLDER ENV TASK SETTINGS_PATH (for other optional params see launch_base.sh)"
 exit 1
 fi
 
@@ -26,11 +25,9 @@ EOF
 fi
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
-git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
-git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
-
 cp ../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
 cp ../source/Communicators/Communicator_dmc.py ${BASEPATH}${RUNFOLDER}/
 
 export DISABLE_MUJOCO_RENDERING=1
-./launch_base.sh $1 $2 $3 $5 $6 $7 $8
+shift 2 # hack because for deepmind we need to args to describe env
+./launch_base.sh $RUNFOLDER $@

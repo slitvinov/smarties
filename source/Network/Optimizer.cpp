@@ -39,14 +39,15 @@ struct Adam {
     #ifdef AMSGRAD
       // No statistical improvement over NIPS implementation. However, without
       // decay factor for M3 performance worsens noticeably. Probably because,
-      // unlike supervised learning, data distribution in RL changes over time.
-      // This decay factor was the biggest that did not ruin performance on gym.
+      // unlike supervised learning, data distribution in RL changes over time
+      // increasing the kurtosis of the incoming gradients. 1e-4 decay factor
+      // is smallest that doesnt ruin returns on gym. 1e-3 (==B2) is no decay.
       M3 = std::max((1.-1e-4)*M3, M2);
+      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M3) );
     #else
-      M3 = M2;
+      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M2) );
     #endif
 
-    const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M3) );
     assert(not std::isnan(ret) && not std::isinf(ret));
     return ret;
   }
@@ -61,7 +62,7 @@ struct AdaMax {
 #ifdef NDEBUG
   #pragma omp declare simd notinbranch //simdlen(VEC_WIDTH)
 #endif
-  inline nnReal step(const nnReal grad,nnReal&M1,nnReal&M2,const nnReal W) const
+  inline nnReal step(const nnReal grad, nnReal&M1, nnReal&M2, nnReal&M3, const nnReal W) const
   {
     const nnReal DW = grad * fac;
     M1 = B1 * M1 + (1-B1) * DW;
@@ -138,7 +139,11 @@ void Optimizer::apply_update()
       Algorithm algo(_eta,beta_1,beta_2,beta_t_1,beta_t_2,lambda,factor,gen);
       nnReal* const M1 = _1stMom->params;
       nnReal* const M2 = _2ndMom->params;
-      nnReal* const M3 = _2ndMax->params;
+      #ifdef AMSGRAD
+        nnReal* const M3 = _2ndMax->params; // holds max of second moment
+      #else
+        nnReal* const M3 = _2ndMom->params; // unused
+      #endif
       nnReal* const G  = gradSum->params;
 
     #pragma omp for simd schedule(static) aligned(paramAry,M1,M2,M3,G:VEC_WIDTH)
@@ -170,6 +175,43 @@ void Optimizer::apply_update()
     if(cntUpdateDelay>0) cntUpdateDelay--;
   }
 }
+
+void Optimizer::save(const string fname)
+{
+  weights->save(fname+"_weights");
+  if(tgt_weights not_eq nullptr) tgt_weights->save(fname+"_tgt_weights");
+  _1stMom->save(fname+"_1stMom");
+  _2ndMom->save(fname+"_2ndMom");
+  #ifdef AMSGRAD
+  _2ndMax->save(fname+"_2ndMax");
+  #endif
+
+  if(nStep % FREQ_BACKUP == 0 && nStep > 0) {
+    ostringstream ss; ss << std::setw(9) << std::setfill('0') << nStep;
+    weights->save(fname+"_"+ss.str()+"_weights");
+    _1stMom->save(fname+"_"+ss.str()+"_1stMom" );
+    _2ndMom->save(fname+"_"+ss.str()+"_2ndMom" );
+    #ifdef AMSGRAD
+    _2ndMax->save(fname+"_"+ss.str()+"_2ndMax" );
+    #endif
+  }
+}
+int Optimizer::restart(const string fname)
+{
+  int ret = 0;
+  ret = weights->restart(fname+"_weights");
+  if(tgt_weights not_eq nullptr) {
+    int missing_tgt = tgt_weights->restart(fname+"_tgt_weights");
+    if (missing_tgt) tgt_weights->copy(weights);
+  }
+  _1stMom->restart(fname+"_1stMom");
+  _2ndMom->restart(fname+"_2ndMom");
+  #ifdef AMSGRAD
+  _2ndMax->restart(fname+"_2ndMax");
+  #endif
+  return ret;
+}
+
 #if 0
 void save_recurrent_connections(const string fname)
 {

@@ -1,12 +1,11 @@
 #!/bin/bash
 EXECNAME=rl
 RUNFOLDER=$1
-NTHREADS=$2 # number of threads per learner
-APP=$3
-SETTINGSNAME=$4
+APP=$2
+SETTINGSNAME=$3
 
-if [ $# -lt 4 ] ; then
-echo "Usage: ./launch_openai.sh RUNFOLDER NTHREADS APP SETTINGS_PATH  (WORKERS PER LEARNER) (N LEARNERS)"
+if [ $# -lt 3 ] ; then
+echo "Usage: ./launch_openai.sh RUNFOLDER APP SETTINGS_PATH (for other optional params see launch_base.sh)"
 exit 1
 fi
 

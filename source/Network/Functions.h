@@ -16,8 +16,6 @@ using namespace std;
 #define PRELU_FAC 0.1
 #endif
 
-typedef nnReal* __restrict__       const nnOpRet;
-typedef const nnReal* __restrict__ const nnOpInp;
 //List of non-linearities for neural networks
 //- eval return f(in), also present as array in / array out
 //- evalDiff returns f'(x)
@@ -28,7 +26,7 @@ struct Function {
   //weights are initialized with uniform distrib [-weightsInitFactor, weightsInitFactor]
   virtual Real initFactor(const Uint inps, const Uint outs) const = 0;
 
-  virtual void eval(nnOpInp in, nnOpRet out, const Uint N) const = 0; // f(in)
+  virtual void eval(const nnReal*const in, nnReal*const out, const Uint N) const = 0; // f(in)
 
   virtual nnReal eval(const nnReal in) const = 0;
   virtual nnReal inverse(const nnReal in) const = 0; // f(in)
@@ -45,10 +43,10 @@ struct Linear : public Function {
   static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(1./inps);
   }
-  void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
+  void eval(const nnReal*const in, nnReal*const out, const Uint N) const override {
     memcpy(out, in, N*sizeof(nnReal));
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     memcpy(out, in, N*sizeof(nnReal));
   }
   static inline nnReal _eval(const nnReal in) {
@@ -88,10 +86,10 @@ struct Tanh : public Function {
   static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return 1 - out*out;
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     for(Uint i=0; i<N; i++) out[i] = _eval(in[i]);
   }
-  void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
+  void eval(const nnReal*const in, nnReal*const out, const Uint N) const override {
     for(Uint i=0; i<N; i++) out[i] = _eval(in[i]);
   }
   nnReal eval(const nnReal in) const override {
@@ -132,10 +130,10 @@ struct Sigm : public Function {
   static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return out*(1-out);
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     for(Uint i=0; i<N; i++) out[i] = _eval(in[i]);
   }
-  void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
+  void eval(const nnReal*const in, nnReal*const out, const Uint N) const override {
     for(Uint i=0; i<N; i++) out[i] = _eval(in[i]);
   }
   nnReal eval(const nnReal in) const override {
@@ -164,11 +162,11 @@ struct HardSign : public Function {
     const nnReal denom = std::sqrt(1+in*in);
     return 1/(denom*denom*denom);
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0; i<N; i++) out[i] = in[i]/std::sqrt(1+in[i]*in[i]);
   }
-  void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
+  void eval(const nnReal*const in, nnReal*const out, const Uint N) const override {
     return _eval(in, out, N);
   }
   nnReal eval(const nnReal in) const override {
@@ -199,11 +197,11 @@ struct SoftSign : public Function {
     const nnReal denom = 1 + SoftSign_FAC*std::fabs(in);
     return SoftSign_FAC/(denom*denom);
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; i++) out[i] = _eval(in[i]);
   }
-  void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
+  void eval(const nnReal*const in, nnReal*const out, const Uint N) const override {
     return _eval(in, out, N);
   }
   nnReal eval(const nnReal in) const override {
@@ -232,11 +230,11 @@ struct Relu : public Function {
   static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return in>0 ? 1 : 0;
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; i++) out[i] = in[i]>0 ? in[i] : 0;
   }
-  void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
+  void eval(const nnReal*const in, nnReal*const out, const Uint N) const override {
     return _eval(in, out, N);
   }
   nnReal eval(const nnReal in) const override {
@@ -265,11 +263,11 @@ struct LRelu : public Function {
   static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return in>0 ? 1 : PRELU_FAC;
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; i++) out[i] = in[i]>0 ? in[i] : PRELU_FAC*in[i];
   }
-  void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
+  void eval(const nnReal*const in, nnReal*const out, const Uint N) const override {
     return _eval(in, out, N);
   }
   nnReal eval(const nnReal in) const override {
@@ -306,10 +304,10 @@ struct ExpPlus : public Function {
   static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return 1/(1+safeExp(-in));
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     for(Uint i=0; i<N; i++) out[i] = _eval(in[i]);
   }
-  void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
+  void eval(const nnReal*const in, nnReal*const out, const Uint N) const override {
     return _eval(in, out, N);
   }
   nnReal eval(const nnReal in) const override {
@@ -344,11 +342,11 @@ struct SoftPlus : public Function {
     assert(in > 0);
     return (in*in - 0.25)/in;
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; i++) out[i] = .5*(in[i]+std::sqrt(1+in[i]*in[i]));
   }
-  void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
+  void eval(const nnReal*const in, nnReal*const out, const Uint N) const override {
     return _eval(in, out, N);
   }
   nnReal eval(const nnReal in) const override { return _eval(in); }
@@ -372,10 +370,10 @@ struct Exp : public Function {
   static inline nnReal _evalDiff(const nnReal in, const nnReal out) {
     return out;
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     for(Uint i=0;i<N;i++) out[i] = nnSafeExp(in[i]);
   }
-  void eval(nnOpInp in, nnOpRet out, const Uint N) const override {
+  void eval(const nnReal*const in, nnReal*const out, const Uint N) const override {
     return _eval(in, out, N);
   }
   nnReal eval(const nnReal in) const override {
@@ -394,14 +392,14 @@ struct DualRelu {
   static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(2./inps);
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; i++){
       out[2*i +0] = in[i]<0 ? in[i] : 0;
       out[2*i +1] = in[i]>0 ? in[i] : 0;
     }
   }
-  static inline void _evalDiff(nnOpInp I, nnOpInp O, nnOpRet E, const Uint N) {
+  static inline void _evalDiff(const nnReal*const I, const nnReal*const O, nnReal*const E, const Uint N) {
     #pragma omp simd aligned(I,E : VEC_WIDTH)
     for (Uint i=0;i<N; i++)
     E[i] = (I[i]<0 ? E[2*i+0] : 0) + (I[i]>0 ? E[2*i+1] : 0);
@@ -412,14 +410,14 @@ struct DualLRelu {
   static Real _initFactor(const Uint inps, const Uint outs) {
     return std::sqrt(2./inps);
   }
-  static inline void _eval(nnOpInp in, nnOpRet out, const Uint N) {
+  static inline void _eval(const nnReal*const in, nnReal*const out, const Uint N) {
     #pragma omp simd aligned(in,out : VEC_WIDTH)
     for (Uint i=0;i<N; i++){
       out[2*i +0] = in[i]<0 ? in[i] : PRELU_FAC*in[i];
       out[2*i +1] = in[i]>0 ? in[i] : PRELU_FAC*in[i];
     }
   }
-  static inline void _evalDiff(nnOpInp I, nnOpInp O, nnOpRet E, const Uint N) {
+  static inline void _evalDiff(const nnReal*const I, const nnReal*const O, nnReal*const E, const Uint N) {
     #pragma omp simd aligned(I,E : VEC_WIDTH)
     for (Uint i=0;i<N; i++)
     E[i] = E[2*i]*(I[i]<0? 1:PRELU_FAC) +E[2*i+1]*(I[i]>0? 1:PRELU_FAC);

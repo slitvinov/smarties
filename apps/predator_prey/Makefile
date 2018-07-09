@@ -1,4 +1,4 @@
-CC = g++-7
+CC = g++
 
 OBJ_FILES = pp.o Communicator.o
 SRC_DIR = ./

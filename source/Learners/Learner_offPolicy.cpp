@@ -30,6 +30,7 @@ bool Learner_offPolicy::readyForTrain() const
     if(currPerc>=percData+5) {
       percData = currPerc;
       printf("\rCollected %d%% of data required to begin training. ", percData);
+      fflush(0); //otherwise no show on some platforms
     }
   }
   return ready;

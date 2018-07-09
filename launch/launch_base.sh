@@ -1,16 +1,20 @@
 #!/bin/bash
 RUNFOLDER=$1
-NTHREADS=$2
-SETTINGSNAME=$4
+SETTINGSNAME=$3
 
-if [ $# -lt 4 ] ; then
-	echo "Usage: ./launch_openai.sh RUNFOLDER OMP_THREADS APP SETTINGS_PATH (POLICY_PATH) (N_MPI_TASK_PER_NODE)"
+if [ $# -lt 3 ] ; then
+	echo "Usage: ./launch_base.sh RUNFOLDER APP SETTINGS_PATH (NSLAVESPERMASTER) (NTHREADS) (NMASTERS) (NNODES)"
 	exit 1
 fi
-if [ $# -gt 4 ] ; then
-NSLAVESPERMASTER=$5
+if [ $# -gt 3 ] ; then #n worker ranks per each master
+NSLAVESPERMASTER=$4
 else
-NSLAVESPERMASTER=1 #n master ranks
+NSLAVESPERMASTER=1
+fi
+if [ $# -gt 4 ] ; then #n threads on each master
+NTHREADS=$5
+else
+NTHREADS=$([[ $(uname) = 'Darwin' ]] && sysctl -n hw.physicalcpu_max || lscpu -p | egrep -v '^#' | sort -u -t, -k 2,4 | wc -l)
 fi
 if [ $# -gt 5 ] ; then
 NMASTERS=$6

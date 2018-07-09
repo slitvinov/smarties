@@ -40,8 +40,7 @@ public:
   mutable std::mutex dataset_mutex;
 
   const Uint dimS = sI.dimUsed, nReduce = 2 + 2*dimS;
-  ApproximateReductor<long double, MPI_LONG_DOUBLE> reductor =
-  ApproximateReductor<long double, MPI_LONG_DOUBLE>(mastersComm, nReduce);
+  ApproximateReductor reductor = ApproximateReductor(mastersComm, nReduce);
 
 private:
   std::atomic<Uint> nBroken{0}, nTransitions{0}, nSequences{0};

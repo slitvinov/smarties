@@ -2,8 +2,8 @@
 EXECNAME=rl
 RUNFOLDER=$1
 
-if [ $# -lt 4 ] ; then
-echo "Usage: ./launch_openai.sh RUNFOLDER NTHREADS APP SETTINGS_PATH  (SLAVES PER LEARNER) (N LEARNERS)"
+if [ $# -lt 3 ] ; then
+echo "Usage: ./launch_openai.sh RUNFOLDER APP SETTINGS_PATH (for other optional params see launch_base.sh)"
 exit 1
 fi
 
