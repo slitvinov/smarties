@@ -37,7 +37,7 @@ env > environment.log
 # Let's assume for now users can sort this out themselves
 isOpenMPI=$(mpirun --version | grep "Open MPI" | wc -l)
 HOST=`hostname`
-if [ ${isOpenMPI} ]; then
+if [ ${isOpenMPI} -ge 1 ]; then
 	if [ ${HOST:0:5} == 'euler' ] || [ ${HOST:0:5} == 'eu-lo' ] || [ ${HOST:0:4} == 'eu-c' ];
   then # eth's server, but second command can be probably used by YOU!
 		if [ ${NTHREADS} -ge 24 ]; then
