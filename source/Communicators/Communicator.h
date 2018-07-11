@@ -178,7 +178,7 @@ class Communicator
           int completed=0;
           MPI_Test(&recv_request, &completed, MPI_STATUS_IGNORE);
           if (completed) break;
-          usleep(5);
+          usleep(1);
         }
       //  memcpy(&stored_actions[iAgent], data_action, size_action);
       //}

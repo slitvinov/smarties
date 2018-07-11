@@ -58,6 +58,7 @@ int Master::run()
     for(const auto& L : learners) L->spawnTrainTasks_par();
 
     if(bNeedSequentialTasks) {
+      profiler->stop_start("SLP");
       // typically on-policy learning. Wait for all needed data:
       for(int i=0; i<nWorkers; i++) worker_replies[i].join();
       // and then perform on-policy update step(s):
@@ -67,6 +68,7 @@ int Master::run()
     for(const auto& L : learners) L->prepareGradient();
 
     if(not bNeedSequentialTasks) {
+      profiler->stop_start("SLP");
       //for off-policy learners this is last possibility to wait for needed data
       for(int i=0; i<nWorkers; i++) worker_replies[i].join();
     }
@@ -99,7 +101,7 @@ void Master::processWorker(const int worker)
     if(completed) {
       assert(worker == mpistatus.MPI_SOURCE);
       processAgent(worker, mpistatus);
-    } else usleep(5);
+    } else usleep(1);
   }
 }
 
