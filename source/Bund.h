@@ -79,7 +79,6 @@ typedef double memReal;
 
 //#define NET_L1_PENAL // else employ L2 penal defined by Settings::nnLambda
 //#define _dumpNet_
-#define SAFE_ADAM // prevent rare gradient blow ups?
 
 // Sample white Gaussian noise and add it to state vector before input to net
 // This has been found to help in case of dramatic dearth of data

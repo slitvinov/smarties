@@ -11,48 +11,6 @@
 //#define NESTEROV_ADAM
 //#define AMSGRAD
 
-struct Adam {
-  const nnReal eta, B1, B2, lambda, fac;
-  Adam(nnReal _eta, nnReal beta1, nnReal beta2, nnReal betat1,
-    nnReal betat2, nnReal _lambda, nnReal _fac, Saru& _gen) :
-    eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2),
-    lambda(_lambda), fac(_fac) {}
-
-#ifdef NDEBUG
-  #pragma omp declare simd notinbranch //simdlen(VEC_WIDTH)
-#endif
-  inline nnReal step(const nnReal grad, nnReal&M1, nnReal&M2, nnReal&M3, const nnReal W) const
-  {
-    #ifdef NET_L1_PENAL
-      const nnReal penal = -(W>0 ? lambda : -lambda);
-    #else
-      const nnReal penal = - W*lambda;
-    #endif
-    const nnReal DW = fac * grad + penal;
-    M1 = B1 * M1 + (1-B1) * DW;
-    M2 = B2 * M2 + (1-B2) * DW*DW;
-    #ifdef NESTEROV_ADAM // No significant effect
-      const nnReal numer = B1*M1 + (1-B1)*DW;
-    #else
-      const nnReal numer = M1;
-    #endif
-    #ifdef AMSGRAD
-      // No statistical improvement over NIPS implementation. However, without
-      // decay factor for M3 performance worsens noticeably. Probably because,
-      // unlike supervised learning, data distribution in RL changes over time
-      // increasing the kurtosis of the incoming gradients. 1e-4 decay factor
-      // is smallest that doesnt ruin returns on gym. 1e-3 (==B2) is no decay.
-      M3 = std::max((1.-1e-4)*M3, M2);
-      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M3) );
-    #else
-      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M2) );
-    #endif
-
-    assert(not std::isnan(ret) && not std::isinf(ret));
-    return ret;
-  }
-};
-
 struct AdaMax {
   const nnReal eta, B1, B2, lambda, fac;
   AdaMax(nnReal _eta, nnReal beta1, nnReal beta2, nnReal betat1,
@@ -91,6 +49,52 @@ struct Entropy : public T {
 
   inline nnReal step(const nnReal grad, nnReal&M1, nnReal&M2, const nnReal W) {
     return T::step(grad, M1, M2, W) + eps * gen.d_mean0_var1();
+  }
+};
+
+struct Adam {
+  const nnReal eta, B1, B2, lambda, fac;
+  Adam(nnReal _eta, nnReal beta1, nnReal beta2, nnReal betat1,
+    nnReal betat2, nnReal _lambda, nnReal _fac, Saru& _gen) :
+    eta(_eta*std::sqrt(1-betat2)/(1-betat1)), B1(beta1), B2(beta2),
+    lambda(_lambda), fac(_fac) {}
+
+#ifdef NDEBUG
+  #pragma omp declare simd notinbranch //simdlen(VEC_WIDTH)
+#endif
+  inline nnReal step(const nnReal grad, nnReal&M1, nnReal&M2, nnReal&M3, const nnReal W) const
+  {
+    #ifdef NET_L1_PENAL
+      const nnReal penal = -(W>0 ? lambda : -lambda);
+    #else
+      const nnReal penal = - W*lambda;
+    #endif
+    const nnReal DW = fac * grad + penal;
+    M1 = B1 * M1 + (1-B1) * DW;
+    M2 = B2 * M2 + (1-B2) * DW*DW;
+    #ifdef NESTEROV_ADAM // No significant effect
+      const nnReal numer = B1*M1 + (1-B1)*DW;
+    #else
+      const nnReal numer = M1;
+    #endif
+    #ifdef AMSGRAD
+      // No statistical improvement over NIPS implementation. However, without
+      // decay factor for M3 performance worsens noticeably. Probably because,
+      // unlike supervised learning, data distribution in RL changes over time
+      // increasing the kurtosis of the incoming gradients. 1e-4 decay factor
+      // is smallest that doesnt ruin returns on gym. 1e-3 (==B2) is no decay.
+      M3 = std::max((1.-1e-4)*M3, M2);
+      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M3) );
+    #else
+      #if 1 //numerical safety, assumes that 1-beta2 = (1-beta1)^2/10
+        assert( std::fabs( (1-B2) - 0.1*std::pow(1-B1,2)^2 ) < nnEPS );
+        M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
+      #endif
+      const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M2) );
+    #endif
+
+    assert(not std::isnan(ret) && not std::isinf(ret));
+    return ret;
   }
 };
 

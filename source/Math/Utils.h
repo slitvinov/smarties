@@ -106,10 +106,7 @@ inline Rvec trust_region_update(const Rvec& grad,
   //if(proj>0) {printf("Hit DKL constraint\n");fflush(0);}
   //else {printf("Not Hit DKL constraint\n");fflush(0);}
   //#endif
-  for (Uint j=0; j<nA; j++) {
-    ret[j] = grad[j]-proj*trust[j];
-    //if(ret[j]*grad[j] < 0) ret[j] = 0;
-  }
+  for (Uint j=0; j<nA; j++) ret[j] = grad[j]-proj*trust[j];
   return ret;
 }
 

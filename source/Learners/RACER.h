@@ -89,8 +89,8 @@ class RACER : public Learner_offPolicy
     S->Q_RET[t-1] = D +gamma*(S->Q_RET[t]-S->action_adv[t]) -S->state_vals[t-1];
   }
   inline void updateQretBack(Sequence*const S, const Uint t) const {
-    if(t == 0) return;
-    const Real W=S->isLast(t)? 0:S->offPolicImpW[t], R=data->scaledReward(S,t);
+    assert( t > 0 && not S->isLast(t) );
+    const Real W = S->offPolicImpW[t], R = data->scaledReward(S, t);
     const Real delta = R +gamma*S->state_vals[t] -S->state_vals[t-1];
     S->Q_RET[t-1] = delta + gamma*(W>1? 1:W)*(S->Q_RET[t] - S->action_adv[t]);
   }

@@ -14,8 +14,8 @@ struct Gaussian_mixture
 public:
   const ActionInfo* const aInfo;
   const Uint iExperts, iMeans, iPrecs, nA, nP;
-  const Real retraceTrickPow = 1. / std::cbrt(nA);
-  const Real P_trunc = (1-std::erf(NORMDIST_MAX/std::sqrt(2)))/(2*NORMDIST_MAX);
+  //const Real retraceTrickPow = 1. / std::cbrt(nA);
+  //const Real P_trunc = (1-std::erf(NORMDIST_MAX/std::sqrt(2)))/(2*NORMDIST_MAX);
   //const Real retraceTrickPow = 1. / std::sqrt(nA);
   //const Real retraceTrickPow = 1. / nA;
   const Rvec netOutputs;
@@ -225,6 +225,10 @@ private:
   }
 
 public:
+  // Sampling clipped between -NORMDIST_MAX and NORMDIST_MAX to reduce kurtosis
+  // ensure that on-policy returns have finite probability of occurring.
+  // Truncated normal is approximated by resampling from uniform  samples that
+  // exceed the boundaries: the resulting PDF almost exactly truncared normal.
   inline Rvec sample(mt19937*const gen, const Rvec& beta) const
   {
     Rvec ret(nA);
