@@ -129,9 +129,9 @@ void PPO<Policy_t, Action_t>::updatePPO(Sequence*const seq) const
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::prepareGradient()
 {
-  debugL("update lagrangian penalization coefficient")
+  debugL("update lagrangian penalization coefficient");
   if(learn_rank > 0)
-    die("This method does not support multiple learner ranks yet")
+    die("This method does not support multiple learner ranks yet");
 
   cntPenal[0] = 0;
   for(Uint i=1; i<=nThreads; i++) {
@@ -157,7 +157,7 @@ void PPO<Policy_t, Action_t>::initializeLearner()
   // Rewards second moment is computed right before actual training begins
   // therefore we need to recompute (rescaled) GAE and MC cumulative rewards
   // This assumes V(s) is initialized small, so we just rescale by std(rew)
-  debugL("Rescale Retrace est. after gathering initial dataset")
+  debugL("Rescale Retrace est. after gathering initial dataset");
   // placed here because on 1st step we just computed first rewards statistics
   #pragma omp parallel for schedule(dynamic)
   for(Uint i = 0; i < data->Set.size(); i++)

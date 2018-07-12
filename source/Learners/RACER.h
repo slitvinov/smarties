@@ -79,10 +79,6 @@ class RACER : public Learner_offPolicy
   Rvec offPolCorrUpdate(Sequence*const S, const Uint t,
     const Rvec output, const Policy_t& pol, const Uint thrID) const;
 
-  inline void updateQret(Sequence*const S, const Uint t) const {
-    const Real rho = S->isLast(t) ? 0 : S->offPolicImpW[t];
-    updateQret(S, t, S->action_adv[t], S->state_vals[t], rho);
-  }
   inline void updateQretFront(Sequence*const S, const Uint t) const {
     if(t == 0) return;
     const Real D = data->scaledReward(S,t) + gamma*S->state_vals[t];
@@ -92,7 +88,7 @@ class RACER : public Learner_offPolicy
     assert( t > 0 && not S->isLast(t) );
     const Real W = S->offPolicImpW[t], R = data->scaledReward(S, t);
     const Real delta = R +gamma*S->state_vals[t] -S->state_vals[t-1];
-    S->Q_RET[t-1] = delta + gamma*(W>1? 1:W)*(S->Q_RET[t] - S->action_adv[t]);
+    S->Q_RET[t-1] = delta + gamma*(W>=1? 1:W)*(S->Q_RET[t] - S->action_adv[t]);
   }
 
   inline Real updateQret(Sequence*const S, const Uint t, const Real A,
@@ -108,7 +104,7 @@ class RACER : public Learner_offPolicy
     const Real V, const Real rho) const {
     assert(rho >= 0);
     if(t == 0) return 0;
-    const Real oldRet = S->Q_RET[t-1], W = rho>1 ? 1 : rho;
+    const Real oldRet = S->Q_RET[t-1], W = rho>=1 ? 1 : rho;
     const Real delta = data->scaledReward(S,t) +gamma*V - S->state_vals[t-1];
     S->setRetrace(t-1, delta + gamma*W*(S->Q_RET[t] - A) );
     return std::fabs(S->Q_RET[t-1] - oldRet);
@@ -135,8 +131,6 @@ class RACER : public Learner_offPolicy
   ~RACER() { }
 
   void select(Agent& agent) override;
-
-  void writeOnPolRetrace(Sequence*const seq);
 
   void prepareGradient() override;
   void initializeLearner() override;

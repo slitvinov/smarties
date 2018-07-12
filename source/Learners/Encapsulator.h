@@ -70,7 +70,7 @@ struct Encapsulator
     // instead of creating multiple functions to serve this purpose
     // order to perform backprop in implicit in re-allocation of work memory
     // and in order to advance the weights:
-    if(error_placements[thrID] > 0) die("")
+    if(error_placements[thrID] > 0) die("");
     first_sample[thrID] = samp;
     net->prepForBackProp(series[thrID], len);
   }
@@ -113,7 +113,7 @@ struct Encapsulator
     const Uint thrID) const
   {
     if(net==nullptr) return state2Inp(samp, seq, thrID); //data->Tmp[agentId]);
-    if(error_placements[thrID] > 0) die("")
+    if(error_placements[thrID] > 0) die("");
 
     const vector<Activation*>& act = series[thrID];
     const int ind = mapTime2Ind(samp, thrID);
@@ -165,7 +165,7 @@ struct Encapsulator
   inline void gradient(const Uint thrID) const
   {
     if(net == nullptr) return;
-    if(error_placements[thrID]<=0) { warn("no input grad") return;}
+    if(error_placements[thrID]<=0) { warn("no input grad"); return;}
 
     #pragma omp atomic
     nAddedGradients++;

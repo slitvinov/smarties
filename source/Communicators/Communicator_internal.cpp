@@ -193,7 +193,7 @@ void Communicator_internal::redirect_stdout_finalize()
 
 void Communicator_internal::getStateActionShape()
 {
-  if(sentStateActionShape) die("undefined behavior")
+  if(sentStateActionShape) die("undefined behavior");
 
   double sizes[4] = {0, 0, 0, 0};
   if (rank_learn_pool==0)

@@ -36,7 +36,7 @@ void Learner_onPolicy::spawnTrainTasks_seq()
   if( data->readNData() < nHorizon ) die("undefined behavior");
   if( not bTrain ) return;
 
-  debugL("sampling update from (nearly) on-pol data")
+  debugL("sampling update from (nearly) on-pol data");
   vector<Uint> samp_seq(batchSize, -1), samp_obs(batchSize, -1);
   data->sampleTransitions(samp_seq, samp_obs);
 
@@ -58,11 +58,11 @@ void Learner_onPolicy::spawnTrainTasks_par() { }
 
 void Learner_onPolicy::prepareGradient()
 {
-  if(not updateComplete || updateToApply) die("undefined behavior")
+  if(not updateComplete || updateToApply) die("undefined behavior");
 
   Learner::prepareGradient();
 
-  debugL("shift counters of epochs over the stored data")
+  debugL("shift counters of epochs over the stored data");
   cntBatch += batchSize;
   if(cntBatch >= nHorizon) {
     cntBatch = 0;
@@ -70,7 +70,7 @@ void Learner_onPolicy::prepareGradient()
   }
 
   if(cntEpoch >= nEpochs) {
-    debugL("finished epochs, compute state/rew stats, clear buffer to gather new onpol samples")
+    debugL("finished epochs, compute state/rew stats, clear buffer to gather new onpol samples");
     const Real annlLR = annealRate(learnR, nStep, epsAnneal);
     data->updateRewardsStats(nStep, annlLR, annlLR);
     cntKept = data->clearOffPol(CmaxPol, 0.05);
@@ -82,9 +82,9 @@ void Learner_onPolicy::prepareGradient()
 
 void Learner_onPolicy::initializeLearner()
 {
-  if ( nStep>0 ) die("undefined behavior")
+  if ( nStep>0 ) die("undefined behavior");
 
-  debugL("Compute state/rewards stats from the replay memory")
+  debugL("Compute state/rewards stats from the replay memory");
   profiler->stop_start("PRE");
   data->updateRewardsStats(nStep, 1, 1);
   if( learn_rank == 0 )

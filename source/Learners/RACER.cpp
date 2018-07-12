@@ -10,14 +10,7 @@
 #include "../Network/Builder.h"
 
 //#define dumpExtra
-#ifndef RACER_SKIP
-#define RACER_SKIP 1
-#endif
 
-#define RACER_BACKWARD
-//#ifndef RACER_FORWARD
-#define RACER_FORWARD 0
-//#endif
 #ifdef DKL_filter
 #undef DKL_filter
 #endif
@@ -53,13 +46,10 @@ TrainBySequences(const Uint seq, const Uint thrID) const
     #endif
     // in case rho outside bounds, do not compute gradient
     Rvec G;
-    #if RACER_SKIP == 1
-      if(isOff) {
-        G = offPolCorrUpdate(traj, k, out_cur, pol, thrID);
-        continue;
-      } else
-    #endif
-        G = compute(traj,k, out_cur, pol, thrID);
+    if(isOff) {
+      G = offPolCorrUpdate(traj, k, out_cur, pol, thrID);
+      continue;
+    } else G = compute(traj,k, out_cur, pol, thrID);
     //write gradient onto output layer:
     F[0]->backward(G, k, thrID);
   }
@@ -93,12 +83,8 @@ Train(const Uint seq, const Uint samp, const Uint thrID) const
 
   if(thrID==0)  profiler->stop_start("CMP");
   Rvec grad;
-
-  #if RACER_SKIP == 1
-    if(isOff) grad = offPolCorrUpdate(traj, samp, out_cur, pol, thrID);
-    else
-  #endif
-      grad = compute(traj, samp, out_cur, pol, thrID);
+  if(isOff) grad = offPolCorrUpdate(traj, samp, out_cur, pol, thrID);
+  else grad = compute(traj, samp, out_cur, pol, thrID);
 
   if(thrID==0)  profiler->stop_start("BCK");
   F[0]->backward(grad, samp, thrID); // place gradient onto output layer
@@ -160,7 +146,7 @@ policyGradient(const Tuple*const _t, const Policy_t& POL,
   const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
 {
   const Real rho_cur = POL.sampImpWeight;
-  #if defined(RACER_TABC)
+  #if 0//defined(RACER_TABC)
     //compute quantities needed for trunc import sampl with bias correction
     const Action_t sample = POL.sample(&generators[thrID]);
     const Real polProbOnPolicy = POL.evalLogProbability(sample);
@@ -174,8 +160,7 @@ policyGradient(const Tuple*const _t, const Policy_t& POL,
     const Rvec gradAcer_2 = POL.policy_grad(sample,      gain2);
     return sum2Grads(gradAcer_1, gradAcer_2);
   #else
-  //min(CmaxRet,rho) stabilize if resampling is disabled (*will show
-  // warning on screen*). No effect if functioning normally.
+    // remember, all these min(CmaxRet,rho_cur) have no effect with ReFer
     return POL.policy_grad(POL.sampAct, A_RET*std::min(CmaxRet,rho_cur));
   #endif
 }
@@ -190,8 +175,7 @@ select(Agent& agent)
 
   if( agent.Status < TERM_COMM ) // not end of sequence
   {
-    //Compute policy and value on most recent element of the sequence. If RNN
-    // recurrent connection from last call from same agent will be reused
+    //Compute policy and value on most recent element of the sequence.
     Rvec output = F[0]->forward_agent(traj, agent);
     Policy_t pol = prepare_policy(output);
     const Advantage_t adv = prepare_advantage(output, &pol);
@@ -218,10 +202,10 @@ select(Agent& agent)
     #endif
 
     #ifndef NDEBUG
-      //Policy_t dbg = prepare_policy(output);
-      //dbg.prepare(traj->tuples.back()->a, traj->tuples.back()->mu);
-      //const double err = fabs(dbg.sampImpWeight-1);
-      //if(err>1e-10) _die("Imp W err %20.20e", err);
+      Policy_t dbg = prepare_policy(output);
+      dbg.prepare(traj->tuples.back()->a, traj->tuples.back()->mu);
+      const double err = fabs(dbg.sampImpWeight-1);
+      if(err>1e-10) _die("Imp W err %20.20e", err);
     #endif
   }
   else
@@ -235,7 +219,13 @@ select(Agent& agent)
     //whether seq is truncated or terminated, act adv is undefined:
     traj->action_adv.push_back(0);
     // compute initial Qret for whole trajectory:
-    writeOnPolRetrace(traj);
+    assert(traj->tuples.size() == traj->action_adv.size());
+    assert(traj->tuples.size() == traj->state_vals.size());
+    assert(traj->Q_RET.size()  == 0);
+    //within Retrace, we use the state_vals vector to write the Q retrace values
+    traj->Q_RET.resize(traj->tuples.size(), 0);
+    for(Uint i=traj->ndata(); i>0; i--) updateQretFront(traj, i);
+
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
     #ifdef dumpExtra
       agent.a->set(Rvec(nA,0));
@@ -250,19 +240,6 @@ select(Agent& agent)
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::
-writeOnPolRetrace(Sequence*const seq)
-{
-  assert(seq->tuples.size() == seq->action_adv.size());
-  assert(seq->tuples.size() == seq->state_vals.size());
-  assert(seq->Q_RET.size()  == 0);
-  const Uint N = seq->tuples.size();
-  //within Retrace, we use the state_vals vector to write the Q retrace values
-  seq->Q_RET.resize(N, 0);
-  for (Uint i=N-1; i>0; i--) updateQretFront(seq, i);
-}
-
-template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::
 prepareGradient()
 {
   Learner_offPolicy::prepareGradient();
@@ -270,7 +247,7 @@ prepareGradient()
   #ifdef RACER_BACKWARD
   if(updateToApply)
   {
-    debugL("Update Retrace est. for episodes samples in prev. grad update")
+    debugL("Update Retrace est. for episodes samples in prev. grad update");
     // placed here because this happens right after update is computed
     // this can happen before prune and before workers are joined
     profiler->stop_start("QRET");
@@ -291,7 +268,7 @@ initializeLearner()
   // Rewards second moment is computed right before actual training begins
   // therefore we need to recompute (rescaled) Retrace values for all obss
   // seen before this point.
-  debugL("Rescale Retrace est. after gathering initial dataset")
+  debugL("Rescale Retrace est. after gathering initial dataset");
   // placed here because on 1st step we just computed first rewards statistics
   #pragma omp parallel for schedule(dynamic)
   for(Uint i=0; i<data->Set.size(); i++)

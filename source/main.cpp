@@ -19,7 +19,7 @@ void runWorker(Settings& settings, MPI_Comm workersComm)
 {
   MPI_Comm_rank(workersComm, &settings.workers_rank);
   MPI_Comm_size(workersComm, &settings.workers_size);
-  if(settings.workers_rank==0) die("Worker is master?\n")
+  if(settings.workers_rank==0) die("Worker is master?\n");
   if(settings.workers_size<=1) die("Worker has no master?\n");
   settings.nWorkers = 1;
   ObjectFactory factory(settings);

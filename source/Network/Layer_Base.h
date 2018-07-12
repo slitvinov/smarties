@@ -121,7 +121,7 @@ class BaseLayer: public Layer
       nnReal* const weight = para->W(ID);
       for(Uint i=0; i<nInputs;  i++) for(Uint o=0; o<nNeurons; o++)
         weight[o +nOut_simd*i] = dis(*gen);
-      if(std::fabs(fac-1)<nnEPS) orthogonalize(para, gen, init);
+      //if(std::fabs(fac-1)<nnEPS) orthogonalize(para, gen, init);
     }
     if(bRecurrent)
     {
@@ -147,7 +147,7 @@ class BaseLayer: public Layer
       nnReal v_d_v_pre = 0, v_d_v_post = 0;
       for(Uint k=0; k<nInputs; k++)
         v_d_v_pre += weight[i +nOut_simd*k] * weight[i +nOut_simd*k];
-      if(v_d_v_pre<nnEPS) {die("init error")}
+      if(v_d_v_pre<nnEPS) {die("init error");}
 
       for(Uint j=0; j<i; j++) {
         nnReal u_d_u = 0.0, v_d_u = 0.0;
@@ -155,7 +155,7 @@ class BaseLayer: public Layer
           u_d_u += weight[j +nOut_simd*k] * weight[j +nOut_simd*k];
           v_d_u += weight[j +nOut_simd*k] * weight[i +nOut_simd*k];
         }
-        if(u_d_u<nnEPS) {die("init error")}
+        if(u_d_u<nnEPS) {die("init error");}
         for(Uint k=0; k<nInputs; k++)
           weight[i +nOut_simd*k] -= v_d_u/u_d_u* weight[j +nOut_simd*k];
       }

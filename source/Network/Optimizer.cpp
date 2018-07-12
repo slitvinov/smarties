@@ -87,7 +87,7 @@ struct Adam {
       const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M3) );
     #else
       #if 1 //numerical safety, assumes that 1-beta2 = (1-beta1)^2/10
-        assert( std::fabs( (1-B2) - 0.1*std::pow(1-B1,2)^2 ) < nnEPS );
+        assert( std::fabs( (1-B2) - 0.1*std::pow(1-B1,2) ) < nnEPS );
         M2 = M2 < M1*M1/10 ? M1*M1/10 : M2;
       #endif
       const nnReal ret = eta * numer / ( nnEPS + std::sqrt(M2) );

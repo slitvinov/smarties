@@ -138,7 +138,7 @@ void Environment::commonSetup()
   }
   if(sI.dim not_eq sI.inUse.size()) { die("must be equal"); }
   if(sI.dim == 0) {
-    die("State vector dimensionality cannot be zero at this point")
+    die("State vector dimensionality cannot be zero at this point");
   }
 
   sI.dimUsed = 0;

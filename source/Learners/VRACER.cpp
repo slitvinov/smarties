@@ -172,7 +172,7 @@ void VRACER<Policy_t, Action_t>::prepareGradient()
   if(updateToApply)
   {
     profiler->stop_start("QRET");
-    debugL("Update Retrace est. for episodes samples in prev. grad update")
+    debugL("Update Retrace est. for episodes samples in prev. grad update");
     // placed here because this happens right after update is computed
     // this can happen before prune and before workers are joined
     #pragma omp parallel for schedule(dynamic)
@@ -191,7 +191,7 @@ void VRACER<Policy_t, Action_t>::initializeLearner()
   // Rewards second moment is computed right before actual training begins
   // therefore we need to recompute (rescaled) Retrace values for all obss
   // seen before this point.
-  debugL("Rescale Retrace est. after gathering initial dataset")
+  debugL("Rescale Retrace est. after gathering initial dataset");
   #pragma omp parallel for schedule(dynamic)
   for(Uint i = 0; i < data->Set.size(); i++) {
     Sequence* const traj = data->Set[i];

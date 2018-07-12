@@ -30,7 +30,7 @@ Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
     bNeedSequentialTasks = bNeedSequentialTasks || L->bNeedSequentialTrain();
 
   if(nWorkers*nPerRank != static_cast<int>(agents.size()))
-    die("Mismatch in master's nWorkers nPerRank nAgents.")
+    die("Mismatch in master's nWorkers nPerRank nAgents.");
   //the following Irecv will be sent after sending the action
   for(int i=1; i<=nWorkers; i++) recvBuffer(i);
 }

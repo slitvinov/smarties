@@ -36,7 +36,7 @@ struct ApproximateReductor
     for(size_t i=0; i<ret.size(); i++) local_vals[i] = ret[i];
 
     if(accurate){
-      if(not firstUpdate) die("undefined behavior")
+      if(not firstUpdate) die("undefined behavior");
       MPI_Allreduce( local_vals.data(), reduce_ret.data(), arysize,
                      MPI_LONG_DOUBLE, MPI_SUM, mpicomm);
       //accurate result after reduction:

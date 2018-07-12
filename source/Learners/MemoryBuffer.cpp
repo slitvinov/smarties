@@ -90,7 +90,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
 {
   if(!bTrain) return; //if not training, keep the stored values
   if(WR<=0 && WS<=0) {
-    debugL("Learner did not request any update to the state or rew stats")
+    debugL("Learner did not request any update to the state or rew stats");
     return;
   }
   WR = std::min((Real)1, WR);
@@ -129,7 +129,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
     }
     bool skipped = reductor.sync(res, WS>=1);
     if(skipped) {
-      debugL("Update of state/reward data has been skipped")
+      debugL("Update of state/reward data has been skipped");
       // typically off pol learner does an accurate reduction on first step
       // to compute state/rew statistics, then we can assume they change slowly
       // and if we have multiple ranks we use the result from previous reduction
@@ -288,7 +288,7 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
       case FARPOLFRAC: del_ptr = far_ptr; break;
       case MAXKLDIV:   del_ptr = dkl_ptr; break;
       case MINERROR:   del_ptr = fit_ptr; break;
-      die(" ")
+      die(" ");
   }
 
   // safety measures: do not delete trajectory if Nobs > Ntarget
@@ -300,7 +300,7 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
     if(far_ptr != del_ptr && ALGO == FARPOLFRAC)
       _warn("safety %d %d %d %d %g %g", old_ptr, far_ptr, Set[old_ptr]->ID,
         Set[far_ptr]->ID, Set[old_ptr]->nOffPol /Set[old_ptr]->ndata(),
-        Set[far_ptr]->nOffPol /Set[far_ptr]->ndata())
+        Set[far_ptr]->nOffPol /Set[far_ptr]->ndata());
 
     std::swap(Set[del_ptr], Set.back());
     popBackSequence();
@@ -530,7 +530,7 @@ void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
 
 void MemoryBuffer::sampleTransitions(vector<Uint>&seq, vector<Uint>&obs)
 {
-  if(seq.size() not_eq obs.size()) die(" ")
+  if(seq.size() not_eq obs.size()) die(" ");
 
   // Drawing of samples is either uniform (each sample has same prob)
   // or based on importance sampling. The latter is TODO

@@ -22,7 +22,7 @@ inline string ObjectFactory::_parse(string source, string pattern, bool req)
   if (pos == string::npos) {
     if (req)
       _die("Parse factory file failed: required argument '%s' line '%s'\n",
-          pattern.c_str(), source.c_str())
+          pattern.c_str(), source.c_str());
     else return "";
   }
 
@@ -30,7 +30,7 @@ inline string ObjectFactory::_parse(string source, string pattern, bool req)
   while (source[pos] == ' ') pos++;
   if (source[pos] != '=')
     _die("Parse factory file failed: argument '%s' line '%s'\n",
-        pattern.c_str(), source.c_str())
+        pattern.c_str(), source.c_str());
         while (source[pos] == ' ') pos++;
 
   pos++;

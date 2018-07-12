@@ -167,7 +167,7 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor)
 void Approximator::prepare(const Uint N, const Sequence*const traj,
   const Uint samp, const Uint thrID, const Uint nSamples) const
 {
-  if(error_placements[thrID] > 0) die("")
+  if(error_placements[thrID] > 0) die("");
   assert(nSamples<=1+extraAlloc && nSamples>0);
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
@@ -186,7 +186,7 @@ void Approximator::prepare(const Uint N, const Sequence*const traj,
 void Approximator::prepare_seq(const Sequence*const traj, const Uint thrID,
   const Uint nSamples) const
 {
-  if(error_placements[thrID] > 0) die("")
+  if(error_placements[thrID] > 0) die("");
   assert(nSamples<=1+extraAlloc && nSamples>0);
   const Uint nSValues =  traj->tuples.size() - traj->ended;
   input->prepare(nSValues, 0, thrID);
@@ -203,7 +203,7 @@ void Approximator::prepare_seq(const Sequence*const traj, const Uint thrID,
 void Approximator::prepare_one(const Sequence*const traj, const Uint samp,
     const Uint thrID, const Uint nSamples) const
 {
-  if(error_placements[thrID] > 0) die("")
+  if(error_placements[thrID] > 0) die("");
   assert(nSamples<=1+extraAlloc && nSamples>0);
   // opc requires prediction of some states before samp for recurrencies
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, samp) : 0;
@@ -275,9 +275,10 @@ void Approximator::prepare_agent(const Sequence*const traj, const Agent&agent) c
   const vector<Activation*>& act = agent_series[agent.ID];
   net->prepForFwdProp(agent_series[agent.ID], nRecurr+1);
   input->prepare(nRecurr+1, stepid-nRecurr, fakeThrID);
-  // if using relays, ask for previous actions: will be used for recurrencies
+  // if using relays, ask for previous actions, to be used for recurrencies
+  // why? because the past is the past.
   if(relay not_eq nullptr) relay->prepare(ACT, fakeThrID);
-  assert(act.size() == nRecurr+1);
+  assert(act.size() >= nRecurr+1);
 
   //Advance recurr net with 0 initialized activations for nRecurr steps
   for(Uint i=0; i<nRecurr; i++) {
@@ -342,7 +343,7 @@ void Approximator::backward(Rvec error, const Uint samp,
 
 void Approximator::prepareUpdate(const Uint batchSize)
 {
-  for(Uint i=0; i<nThreads; i++) if(error_placements[i]>0) die("")
+  for(Uint i=0; i<nThreads; i++) if(error_placements[i]>0) die("");
 
   if(nAddedGradients==0) die("No-gradient update. Revise hyperparameters.");
   if(nAddedGradients>batchSize) die("weird");

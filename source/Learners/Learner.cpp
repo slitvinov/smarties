@@ -48,7 +48,7 @@ void Learner::prepareGradient()
   if(updateToApply) die("undefined behavior");
   if(not updateComplete)
   {
-    warn("prepareGradient called while waiting for workers to gather data")
+    warn("prepareGradient called while waiting for workers to gather data");
     return; // there is nothing in the gradients yet
   }
   // Learner is ready for the update: send the task to the networks and
@@ -57,7 +57,7 @@ void Learner::prepareGradient()
   updateToApply = true;
 
   profiler->stop_start("ADDW");
-  debugL("Gather gradient estimates from each thread and Learner MPI rank")
+  debugL("Gather gradient estimates from each thread and Learner MPI rank");
   for(auto & net : F) net->prepareUpdate(batchSize);
   input->prepareUpdate(batchSize);
 
@@ -80,7 +80,7 @@ void Learner::applyGradient()
 {
   if(updateComplete) die("undefined behavior");
   if(not updateToApply) {
-    warn("applyGradient called while waiting for data")
+    warn("applyGradient called while waiting for data");
     return;
   }
   updateToApply = false;
@@ -102,7 +102,7 @@ void Learner::applyGradient()
     processStats();
   }
 
-  debugL("Apply SGD update after reduction of gradients")
+  debugL("Apply SGD update after reduction of gradients");
   profiler->stop_start("GRAD");
   for(auto & net : F) net->applyUpdate();
   input->applyUpdate();

@@ -10,7 +10,7 @@
 #include "../Network/Builder.h"
 
 void RETPG::TrainBySequences(const Uint seq, const Uint thrID) const {
-  die(" ")
+  die(" ");
 }
 
 void RETPG::Train(const Uint seq, const Uint t, const Uint thrID) const
@@ -113,9 +113,9 @@ void RETPG::select(Agent& agent)
     traj->action_adv.push_back(0);
 
     // compute initial Qret for whole trajectory:
-    assert(seq->tuples.size() == seq->action_adv.size());
-    assert(seq->tuples.size() == seq->state_vals.size());
-    assert(seq->Q_RET.size()  == 0);
+    assert(traj->tuples.size() == traj->action_adv.size());
+    assert(traj->tuples.size() == traj->state_vals.size());
+    assert(traj->Q_RET.size()  == 0);
     //within Retrace, we use the state_vals vector to write the Q retrace values
     traj->Q_RET.resize(traj->tuples.size(), 0);
     for(Uint i=traj->tuples.size()-1; i>0; i--) updateQretFront(traj, i);
@@ -131,7 +131,7 @@ void RETPG::prepareGradient()
 
   if(updateToApply)
   {
-    debugL("Update Retrace est. for episodes samples in prev. grad update")
+    debugL("Update Retrace est. for episodes samples in prev. grad update");
     // placed here because this happens right after update is computed
     // this can happen before prune and before workers are joined
     profiler->stop_start("QRET");
@@ -149,7 +149,7 @@ void RETPG::initializeLearner()
   // Rewards second moment is computed right before actual training begins
   // therefore we need to recompute (rescaled) Retrace values for all obss
   // seen before this point.
-  debugL("Rescale Retrace est. after gathering initial dataset")
+  debugL("Rescale Retrace est. after gathering initial dataset");
   // placed here because on 1st step we just computed first rewards statistics
   #pragma omp parallel for schedule(dynamic)
   for(Uint i = 0; i < data->Set.size(); i++)

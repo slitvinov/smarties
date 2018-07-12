@@ -65,7 +65,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
   if(updateComplete || updateToApply) die("undefined behavior");
 
   if( not readyForTrain() ) {
-    warn("spawnTrainTasks_par called with not enough data, wait next call")
+    warn("spawnTrainTasks_par called with not enough data, wait next call");
     // This can happen if data pruning algorithm is allowed to delete a lot of
     // data from the mem buffer, which could cause training to pause
     return; // Do not prepare an update
@@ -75,7 +75,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
     die("Parameter minTotObsNum is too low for given problem");
 
   profiler->stop_start("SAMP");
-  debugL("Sample the replay memory and compute the gradients")
+  debugL("Sample the replay memory and compute the gradients");
   vector<Uint> samp_seq = vector<Uint>(batchSize, -1);
   vector<Uint> samp_obs = vector<Uint>(batchSize, -1);
   if(bSampleSequences) data->sampleSequences(samp_seq);
@@ -118,7 +118,7 @@ void Learner_offPolicy::applyGradient()
   const auto currStep = nStep+1; // base class will advance this with this func
   if(updateToApply)
   {
-    debugL("Prune the Replay Memory for old/stale episodes, advance counters")
+    debugL("Prune the Replay Memory for old/stale episodes, advance counters");
     //put here because this is called after workers finished gathering new data
     profiler->stop_start("PRNE");
     //shift data / gradient counters to maintain grad stepping to sample
@@ -162,8 +162,8 @@ void Learner_offPolicy::applyGradient()
   }
   else
   {
-    if( not readyForTrain() ) die("undefined behavior")
-    warn("Pruning at prev grad step removed too much data and training was paused: shift training counters")
+    if( not readyForTrain() ) die("undefined behavior");
+    warn("Pruning at prev grad step removed too much data and training was paused: shift training counters");
     // Prune at prev grad step removed too much data and training was paused.
     // ApplyGradient was surely called by Scheduler after workers finished
     // gathering new data enabling training to continue ( after workers.join() )
@@ -174,7 +174,7 @@ void Learner_offPolicy::applyGradient()
 
   if( readyForTrain() )
   {
-    debugL("Compute state/rewards stats from the replay memory")
+    debugL("Compute state/rewards stats from the replay memory");
     // placed here because this occurs after workers.join() so we have new data
     profiler->stop_start("PRE");
     if(currStep%1000==0) { // update state mean/std with net's learning rate
@@ -184,7 +184,7 @@ void Learner_offPolicy::applyGradient()
   }
   else
   {
-    warn("Pruning removed too much data from buffer: will have to wait one scheduler loop before training can continue")
+    warn("Pruning removed too much data from buffer: will have to wait one scheduler loop before training can continue");
   }
 
   Learner::applyGradient();
@@ -192,13 +192,13 @@ void Learner_offPolicy::applyGradient()
 
 void Learner_offPolicy::initializeLearner()
 {
-  if ( not readyForTrain() || nStep>0 ) die("undefined behavior")
+  if ( not readyForTrain() || nStep>0 ) die("undefined behavior");
 
   // shift counters after initial data is gathered
   nData_b4Startup = data->readNConcluded();
   nData_last = 0;
 
-  debugL("Compute state/rewards stats from the replay memory")
+  debugL("Compute state/rewards stats from the replay memory");
   profiler->stop_start("PRE");
   data->updateRewardsStats(nStep, 1, 1);
   if( learn_rank == 0 )
