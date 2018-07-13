@@ -145,7 +145,7 @@ public:
     for(int i=agentOne; i<agentEnd; i++) if(inProgress[i]->ndata()) push_back(i);
   }
 
-  void add_action(const Agent& a, Rvec pol = Rvec()) const;
+  void add_action(const Agent& a, Rvec pol) const;
   void terminate_seq(Agent&a);
   void add_state(const Agent&a);
 

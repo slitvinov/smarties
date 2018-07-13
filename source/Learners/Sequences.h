@@ -137,7 +137,7 @@ struct Sequence
     else assert(std::fabs(reward)<2.2e-16);
     tuples.push_back(t);
   }
-  inline void add_action(const Rvec act, const Rvec mu = Rvec())
+  inline void add_action(const Rvec act, const Rvec mu)
   {
     assert( tuples.back()->s.size() && 0==tuples.back()->a.size() && 0==tuples.back()->mu.size() );
     tuples.back()->a = act;

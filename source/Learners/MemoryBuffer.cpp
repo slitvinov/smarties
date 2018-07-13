@@ -66,9 +66,10 @@ void MemoryBuffer::add_state(const Agent&a)
 }
 
 // Once network picked next action, call this method
-void MemoryBuffer::add_action(const Agent& a, Rvec pol) const
+void MemoryBuffer::add_action(const Agent& a, const Rvec pol) const
 {
   if(pol.size() not_eq policyVecDim) die("add_action");
+  for(Uint i=pol.size()-a.a.vals.size(); i<pol.size(); i++)assert(pol[i]>.1);
   inProgress[a.ID]->add_action(a.a.vals, pol);
   if(bWriteToFile) a.writeData(learn_rank, pol);
 }
@@ -80,8 +81,9 @@ void MemoryBuffer::terminate_seq(Agent&a)
   assert(inProgress[a.ID]->tuples.back()->mu.size() == 0);
   assert(inProgress[a.ID]->tuples.back()->a.size()  == 0);
   // fill empty action and empty policy:
-  a.a.set(Rvec(aI.dim,0));
-  add_action(a, Rvec(policyVecDim, 0) );
+  a.act(Rvec(aI.dim,0));
+  inProgress[a.ID]->add_action(a.a.vals, Rvec(policyVecDim, 0));
+  if(bWriteToFile) a.writeData(learn_rank, Rvec(policyVecDim, 0));
   push_back(a.ID);
 }
 
