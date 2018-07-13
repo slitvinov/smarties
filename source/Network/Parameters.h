@@ -74,7 +74,7 @@ struct Parameters
   void reduceThreadsGrad(const vector<Parameters*>& g) const
   {
     #ifndef NDEBUG
-      vector<nnReal> gradMagn = vector<nnReal>(g.size(), 0);
+      //vector<nnReal> gradMagn = vector<nnReal>(g.size(), 0);
     #endif
     #pragma omp parallel num_threads(g.size())
     {
@@ -95,7 +95,7 @@ struct Parameters
             assert(not std::isnan(src[j]) && not std::isinf(src[j]));
             dst[j] += src[j];
             #ifndef NDEBUG
-              gradMagn[thrI] += src[j]*src[j];
+              //gradMagn[thrI] += src[j]*src[j];
             #endif
           }
         }
@@ -105,7 +105,7 @@ struct Parameters
     }
     //cout<<endl;
     #ifndef NDEBUG
-    cout<<"Grad magnitudes:"<<print(gradMagn)<<endl;
+    //cout<<"Grad magnitudes:"<<print(gradMagn)<<endl;
     #endif
   }
 
