@@ -146,7 +146,7 @@ policyGradient(const Tuple*const _t, const Policy_t& POL,
   const Advantage_t& ADV, const Real A_RET, const Uint thrID) const
 {
   const Real rho_cur = POL.sampImpWeight;
-  #if 0//defined(RACER_TABC)
+  #if defined(RACER_TABC)
     //compute quantities needed for trunc import sampl with bias correction
     const Action_t sample = POL.sample(&generators[thrID]);
     const Real polProbOnPolicy = POL.evalLogProbability(sample);
