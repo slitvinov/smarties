@@ -69,7 +69,6 @@ void MemoryBuffer::add_state(const Agent&a)
 void MemoryBuffer::add_action(const Agent& a, const Rvec pol) const
 {
   if(pol.size() not_eq policyVecDim) die("add_action");
-  for(Uint i=pol.size()-a.a.vals.size(); i<pol.size(); i++)assert(pol[i]>.1);
   inProgress[a.ID]->add_action(a.a.vals, pol);
   if(bWriteToFile) a.writeData(learn_rank, pol);
 }

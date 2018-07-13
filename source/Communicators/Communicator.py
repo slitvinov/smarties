@@ -104,7 +104,7 @@ class Communicator:
         self.sendState(observation, reward, terminal=True, initial=False, truncated=False, agent_id=agent_id)
 
     def truncateSeq(self, observation, reward, agent_id=0):
-        self.sendState(observation, reward, terminal=True, initial=False, truncated=False, agent_id=agent_id)
+        self.sendState(observation, reward, terminal=True, initial=False, truncated=True, agent_id=agent_id)
 
     def sendState(self, observation, reward, terminal=False, initial=False, truncated=False, agent_id=0):
         if initial: self.seq_id, self.frame_id = self.seq_id+1, 0

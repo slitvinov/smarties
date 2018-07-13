@@ -185,7 +185,6 @@ select(Agent& agent)
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
     auto act = pol.finalize(explNoise>0, &generators[nThreads+agent.ID], mu);
-    for(Uint i=mu.size()-nA; i<mu.size(); i++) assert(mu[i]>0.1);
     const Real advantage = adv.computeAdvantage(pol.sampAct);
     traj->action_adv.push_back(advantage);
     traj->state_vals.push_back(output[VsID]);
