@@ -178,7 +178,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
       cntSamp += Set[i]->ndata();
     }
     assert(cntSamp==nTransitions.load());
-    //if(WS>0)
+    if(WS>0)
     {
       vector<long double> dbgStateSum(dimS,0), dbgStateSqSum(dimS,0);
       #pragma omp parallel
@@ -201,7 +201,8 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
       for(Uint k=0; k<dimS; k++) {
         const Real dbgMean = dbgStateSum[k]/cntSamp;
         const Real dbgVar = dbgStateSqSum[k]/cntSamp - dbgMean*dbgMean;
-        cout <<k<<" mean:"<<dbgMean<<" std:"<<dbgVar<< endl;
+        if(std::fabs(dbgMean)>.001 || std::fabs(dbgVar-1)>.001)
+          cout <<k<<" mean:"<<dbgMean<<" std:"<<dbgVar<< endl;
       }
     }
   #endif
