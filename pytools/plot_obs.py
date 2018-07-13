@@ -59,32 +59,38 @@ for ind in range(IND0, len(terminals), SKIP):
   term = terminals[ind]; term = term[0]
   init =  initials[ind]; init = init[0]
   if COLMAX>0 and term>COLMAX: break;
-  span = range(init, term, 1)
+  span = range(init+1, term, 1)
   print(init,term)
   if XAXIS>=0:
-    xes, xtrm = DATA[span,XAXIS], DATA[term,XAXIS]
+    xes, xtrm, xini = DATA[span,XAXIS], DATA[term,XAXIS], DATA[init,XAXIS]
   else:
-    xes, xtrm = inds[span]      , inds[term]
-
+    xes, xtrm, xini = inds[span]      , inds[term],       inds[init]
+  #print(xini, xes, xtrm)
   if (ind % 1) == 0:
     if ind==IND0:
-      plt.plot(xes, DATA[span,ICOL], 'b-', label='x-trajectory')
+      plt.plot(xes, DATA[span,ICOL], 'bo', label='x-trajectory')
     else:
-      plt.plot(xes, DATA[span,ICOL], 'b-')
+      plt.plot(xes, DATA[span,ICOL], 'bo')
 
   #plt.plot(inds, DATA[:,ICOL])
   ST[ind] = DATA[term, ICOL]
-  if ICOL >= NREW: plottrm = term-1
-  else: plottrm = term
+  #if ICOL >= NREW: plottrm = term-1
+  #else: plottrm = term
 
   if ind==IND0:
-    plt.plot(xtrm, DATA[plottrm, ICOL], 'ro', label='terminal x')
+    plt.plot(xini, DATA[init, ICOL], 'go', label='terminal x')
   else:
-    plt.plot(xtrm, DATA[plottrm,  ICOL], 'ro')
+    plt.plot(xini, DATA[init, ICOL], 'go')
+  if DATA[term,0] > 3: color='mo'
+  else: color='ro'
+  if ind==IND0:
+    plt.plot(xtrm, DATA[term, ICOL], color, label='terminal x')
+  else:
+    plt.plot(xtrm, DATA[term, ICOL], color)
 #plt.legend(loc=4)
 #plt.ylabel('x',fontsize=16)
 #plt.xlabel('t',fontsize=16)
-if COLMAX>0:plt.axis([0, COLMAX, -50, 150])
+#if COLMAX>0:plt.axis([0, COLMAX, -50, 150])
 #plt.semilogy(inds, 1/np.sqrt(DATA[:,ICOL]))
 plt.tight_layout()
 #plt.semilogy(inds[terminals], 1/np.sqrt(DATA[terminals-1,ICOL]), 'ro')
