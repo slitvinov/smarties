@@ -40,13 +40,13 @@ inline static void printfmt(char*const p, const int N, const char*const a, ... )
 
 #define   _die(format, ...) do { LOCKCOMM  \
   int wrnk; MPI_Comm_rank(MPI_COMM_WORLD, &wrnk); \
-  char BUF[256]; ErrorHandling::printfmt(BUF, 256, format, ##__VA_ARGS__ ); \
+  char BUF[512]; ErrorHandling::printfmt(BUF, 512, format, ##__VA_ARGS__ ); \
   fprintf(stderr,"Rank %d %s(%s:%d)%s %s\n",wrnk,__func__,__FILE__,__LINE__, \
   " FATAL", BUF); FLUSHALL KILLALL } while(0)
 
 #define  error(format, ...) do { LOCKCOMM \
   int wrnk; MPI_Comm_rank(MPI_COMM_WORLD, &wrnk); \
-  char BUF[256]; ErrorHandling::printfmt(BUF, 256, format, ##__VA_ARGS__ ); \
+  char BUF[512]; ErrorHandling::printfmt(BUF, 512, format, ##__VA_ARGS__ ); \
   fprintf(stderr,"Rank %d %s(%s:%d)%s %s\n",wrnk,__func__,__FILE__,__LINE__, \
   " ERROR", BUF); FLUSHALL} while(0)
 
@@ -59,42 +59,42 @@ inline static void printfmt(char*const p, const int N, const char*const a, ... )
 #define  _warn(format, ...)  do { \
   if(ErrorHandling::level >= ErrorHandling::WARNINGS) { LOCKCOMM \
     int wrnk; MPI_Comm_rank(MPI_COMM_WORLD, &wrnk); \
-    char BUF[256]; ErrorHandling::printfmt(BUF, 256, format, ##__VA_ARGS__ ); \
+    char BUF[512]; ErrorHandling::printfmt(BUF, 512, format, ##__VA_ARGS__ ); \
     fprintf(stdout,"Rank %d %s(%s:%d)%s %s\n",wrnk,__func__,__FILE__,__LINE__, \
     " WARNING", BUF); FLUSHALL} } while(0)
 
 #define debugS(format, ...)  do { \
   if(ErrorHandling::level == ErrorHandling::SCHEDULER) { LOCKCOMM \
     int wrnk; MPI_Comm_rank(MPI_COMM_WORLD, &wrnk); \
-    char BUF[256]; ErrorHandling::printfmt(BUF, 256, format, ##__VA_ARGS__ ); \
+    char BUF[512]; ErrorHandling::printfmt(BUF, 512, format, ##__VA_ARGS__ ); \
     fprintf(stdout,"Rank %d %s(%s:%d)%s %s\n",wrnk,__func__,__FILE__,__LINE__, \
     " ", BUF); FLUSHALL} } while(0)
 
 #define debugE(format, ...)  do { \
   if(ErrorHandling::level == ErrorHandling::ENVIRONMENT) { LOCKCOMM \
     int wrnk; MPI_Comm_rank(MPI_COMM_WORLD, &wrnk); \
-    char BUF[256]; ErrorHandling::printfmt(BUF, 256, format, ##__VA_ARGS__ ); \
+    char BUF[512]; ErrorHandling::printfmt(BUF, 512, format, ##__VA_ARGS__ ); \
     fprintf(stderr,"Rank %d %s(%s:%d)%s %s\n",wrnk,__func__,__FILE__,__LINE__, \
     " ", BUF); FLUSHALL} } while(0)
 
 #define debugN(format, ...)  do { \
   if(ErrorHandling::level == ErrorHandling::NETWORK) { LOCKCOMM \
     int wrnk; MPI_Comm_rank(MPI_COMM_WORLD, &wrnk); \
-    char BUF[256]; ErrorHandling::printfmt(BUF, 256, format, ##__VA_ARGS__ ); \
+    char BUF[512]; ErrorHandling::printfmt(BUF, 512, format, ##__VA_ARGS__ ); \
     fprintf(stderr,"Rank %d %s(%s:%d)%s %s\n",wrnk,__func__,__FILE__,__LINE__, \
     " ", BUF); FLUSHALL} } while(0)
 
 #define debugC(format, ...)  do { \
   if(ErrorHandling::level == ErrorHandling::COMMUNICATOR) { LOCKCOMM \
     int wrnk; MPI_Comm_rank(MPI_COMM_WORLD, &wrnk); \
-    char BUF[256]; ErrorHandling::printfmt(BUF, 256, format, ##__VA_ARGS__ ); \
+    char BUF[512]; ErrorHandling::printfmt(BUF, 512, format, ##__VA_ARGS__ ); \
     fprintf(stderr,"Rank %d %s(%s:%d)%s %s\n",wrnk,__func__,__FILE__,__LINE__, \
     " ", BUF); FLUSHALL} } while(0)
 
 #define _debugL(format, ...)  do { \
   if(ErrorHandling::level == ErrorHandling::LEARNERS) { LOCKCOMM \
     int wrnk; MPI_Comm_rank(MPI_COMM_WORLD, &wrnk); \
-    char BUF[256]; ErrorHandling::printfmt(BUF, 256, format, ##__VA_ARGS__ ); \
+    char BUF[512]; ErrorHandling::printfmt(BUF, 512, format, ##__VA_ARGS__ ); \
     fprintf(stderr,"Rank %d %s(%s:%d)%s %s\n",wrnk,__func__,__FILE__,__LINE__, \
     " ", BUF); FLUSHALL} } while(0)
 #define debugL(format)  do { \
@@ -106,7 +106,7 @@ inline static void printfmt(char*const p, const int N, const char*const a, ... )
 #define debugT(format, ...)  do { \
   if(ErrorHandling::level == ErrorHandling::TRANSITIONS) { LOCKCOMM \
     int wrnk; MPI_Comm_rank(MPI_COMM_WORLD, &wrnk); \
-    char BUF[256]; ErrorHandling::printfmt(BUF, 256, format, ##__VA_ARGS__ ); \
+    char BUF[512]; ErrorHandling::printfmt(BUF, 512, format, ##__VA_ARGS__ ); \
     fprintf(stderr,"Rank %d %s(%s:%d)%s %s\n",wrnk,__func__,__FILE__,__LINE__, \
     " ", BUF); FLUSHALL} } while(0)
 

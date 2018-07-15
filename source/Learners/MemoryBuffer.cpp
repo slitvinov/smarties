@@ -299,11 +299,6 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
   // negligible effect if hyperparameters are chosen wisely
   if(Set[old_ptr]->ID + (int)Set.size() < Set[del_ptr]->ID) del_ptr = old_ptr;
   if(nTransitions.load()-Set[del_ptr]->ndata() > maxTotObsNum) {
-    if(far_ptr != del_ptr && ALGO == FARPOLFRAC)
-      _warn("safety %d %d %d %d %g %g", old_ptr, far_ptr, Set[old_ptr]->ID,
-        Set[far_ptr]->ID, Set[old_ptr]->nOffPol /Set[old_ptr]->ndata(),
-        Set[far_ptr]->nOffPol /Set[far_ptr]->ndata());
-
     std::swap(Set[del_ptr], Set.back());
     popBackSequence();
   }

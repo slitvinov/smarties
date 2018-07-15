@@ -184,7 +184,7 @@ select(Agent& agent)
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
     // this should only be used for evaluating a learned policy
-    auto act = pol.finalize(explNoise>0, &generators[nThreads+agent.ID], mu);
+    Action_t act = pol.finalize(explNoise>0, &generators[nThreads+agent.ID],mu);
     const Real advantage = adv.computeAdvantage(pol.sampAct);
     traj->action_adv.push_back(advantage);
     traj->state_vals.push_back(output[VsID]);
@@ -223,7 +223,11 @@ select(Agent& agent)
     assert(traj->Q_RET.size()  == 0);
     //within Retrace, we use the state_vals vector to write the Q retrace values
     traj->Q_RET.resize(traj->tuples.size(), 0);
-    for(Uint i=traj->ndata(); i>0; i--) updateQretFront(traj, i);
+    for(Uint i=traj->ndata(); i>0; i--) {
+      updateQretFront(traj, i);
+      //cout<<traj->Q_RET[i]<<" "<<traj->action_adv[i]<<" "<<traj->state_vals[i]<<endl;
+    }
+    //cout << traj->Q_RET[0]<<" "<<traj->action_adv[0]<<" "<<traj->state_vals[0]<<endl;
 
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
     #ifdef dumpExtra
@@ -243,7 +247,6 @@ prepareGradient()
 {
   Learner_offPolicy::prepareGradient();
 
-  #ifdef RACER_BACKWARD
   if(updateToApply)
   {
     debugL("Update Retrace est. for episodes samples in prev. grad update");
@@ -255,7 +258,6 @@ prepareGradient()
       for(int j=data->Set[i]->just_sampled-1; j>0; j--)
         updateQretBack(data->Set[i], j);
   }
-  #endif
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
@@ -399,6 +401,7 @@ RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
     build.setLastLayersBias(initBias);
   #endif
   F[0]->initializeNetwork(build, STD_GRADCUT);
+  //F[0]->save(learner_name+"init");
   if(F.size() > 1) die("");
   F[0]->opt->bAnnealLearnRate= true;
 

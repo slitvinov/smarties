@@ -257,7 +257,8 @@ class ParamLayer: public Layer
   string printSpecs() const override {
     std::ostringstream o;
     o<<"("<<ID<<") "<<func->name()
-     <<"Parameter Layer of size:"<<size<<"\n";
+     <<"Parameter Layer of size:"<<size<<". Initialized:"
+     <<print(initVals).c_str()<<"\n";
     return o.str();
   }
 

@@ -106,6 +106,7 @@ struct Encapsulator
     #ifdef NOISY_INPUT
       if(traj->ID>=0) return data->standardizeNoisy(traj, t, thrID);
     #endif
+    debugS("encapsulate state %s", print(traj->tuples[t]->s).c_str() );
     return data->standardize(traj->tuples[t]->s);
   }
 
