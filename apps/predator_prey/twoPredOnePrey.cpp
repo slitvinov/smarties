@@ -61,18 +61,18 @@ struct Entity
   //const unsigned nQuadrants; // NOTE: not used at the moment. Should we just stick to angles??
   const unsigned nStates;
   const double maxSpeed;
-  //const std::mt19937 *gen;
+  std::mt19937 genA;
 
   Entity(const std::mt19937& _gen, const unsigned nQ, const double vM)
-    : nStates(nQ), maxSpeed(vM) {}
+    : genA(_gen), nStates(nQ), maxSpeed(vM) {}
 
   array<double, 2> p;
-  double speed; // Scaling factor, to make the predator go slower than prey
+  double speed; 
 
-  void reset(std::mt19937& gen) {
+  void reset() {
     uniform_real_distribution<double> distrib(0, EXTENT);
-    p[0] = distrib(gen);
-    p[1] = distrib(gen);
+    p[0] = distrib(genA);
+    p[1] = distrib(genA);
     speed = maxSpeed;
 	}
 
@@ -142,8 +142,7 @@ struct Prey: public Entity
     : Entity(_gen, nStates, vM), stdNoise(dN) {}
 
   template<typename T>
-  //vector<double> getState(const T& E) { // wrt enemy E
-  vector<double> getState(const T& E, std::mt19937& gen) { // wrt enemy E
+  vector<double> getState(const T& E) { // wrt enemy E
     vector<double> state(nStates, 0);
     state[0] = p[0];
     state[1] = p[1];
@@ -155,7 +154,7 @@ struct Prey: public Entity
     const double ETA = distEnemy/fabs(speed);
     const double noiseAmp = stdNoise*ETA;
     std::normal_distribution<double> distrib(0, noiseAmp); // mean=0, stdDev=noiseAmp
-    const double noisyAng = angEnemy + distrib(gen);
+    const double noisyAng = angEnemy + distrib(genA);
     state[2] = std::cos(noisyAng); // Should we switch to quadrants? Why? Whynot?
     state[3] = std::sin(noisyAng);
     return state;
@@ -207,8 +206,7 @@ int main(int argc, const char * argv[])
 
   // predator last arg is how much slower than prey (eg 50%)
   Predator pred(comm.gen, state_vars, maxSpeed, 0.5);
-  //Predator pred1(comm.gen, state_vars, maxSpeed, 0.5);
-  //Predator pred2(comm.gen, state_vars, maxSpeed, 0.5);
+  Predator pred2(comm.gen, state_vars, maxSpeed, 0.5);
   // prey last arg is observation noise (eg ping of predator is in 1 stdev of noise)
   Prey     prey(comm.gen, state_vars, maxSpeed, 1.0);
 
@@ -218,17 +216,13 @@ int main(int argc, const char * argv[])
   while(true) //train loop
   {
     //reset environment:
-    //pred1.reset(comm.gen); //comm contains rng with different seed on each rank
-    //pred2.reset(comm.gen); //comm contains rng with different seed on each rank
-    pred.reset(comm.gen); //comm contains rng with different seed on each rank
-    prey.reset(comm.gen); //comm contains rng with different seed on each rank
+    pred.reset(); //comm contains rng with different seed on each rank
+    pred2.reset(); //comm contains rng with different seed on each rank
+    prey.reset(); //comm contains rng with different seed on each rank
 
     //send initial state
-    //comm.sendInitState(pred1.getState(prey),           0);
-    //comm.sendInitState(pred2.getState(prey),           1);
-    //comm.sendInitState(prey.getState(pred, comm.gen), 2);
-    comm.sendInitState(pred.getState(prey),           0);
-    comm.sendInitState(prey.getState(pred, comm.gen), 1);
+    comm.sendInitState(pred.getState(prey), 0);
+    comm.sendInitState(prey.getState(pred), 1);
 
     unsigned step = 0;
     while (true) //simulation loop
@@ -240,13 +234,13 @@ int main(int argc, const char * argv[])
 
       if(step++ < maxStep)
       {
-        comm.sendState(  pred.getState(prey),          pred.getReward(prey), 0);
-        comm.sendState(  prey.getState(pred,comm.gen), prey.getReward(pred), 1);
+        comm.sendState(  pred.getState(prey), pred.getReward(prey), 0);
+        comm.sendState(  prey.getState(pred), prey.getReward(pred), 1);
       }
       else
       {
-        comm.truncateSeq(pred.getState(prey),          pred.getReward(prey), 0);
-        comm.truncateSeq(prey.getState(pred,comm.gen), prey.getReward(pred), 1);
+        comm.truncateSeq(pred.getState(prey), pred.getReward(prey), 0);
+        comm.truncateSeq(prey.getState(pred), prey.getReward(pred), 1);
         sim++;
         break;
       }
