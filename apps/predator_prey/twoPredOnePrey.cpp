@@ -31,22 +31,21 @@ class Window
     plt::figure_size(320, 320);
   }
 
-  void update(int step, int sim, double x1, double y1,
-              double x2, double y2)
+  void update(int step, int sim, std::array<double, 2> x1, std::array<double, 2> x2)
   {
     //printf("%d %g %g %g %g\n", step, x1, y1, x2, y2); fflush(0);
     if(sim % SAVEFREQ || step % STEPFREQ) return;
     if(step>plotDataSize) step = plotDataSize;
-    std::fill(xData1.data() + step, xData1.data() + plotDataSize, x1);
-    std::fill(yData1.data() + step, yData1.data() + plotDataSize, y1);
-    std::fill(xData2.data() + step, xData2.data() + plotDataSize, x2);
-    std::fill(yData2.data() + step, yData2.data() + plotDataSize, y2);
+    std::fill(xData1.data() + step, xData1.data() + plotDataSize, x1[0]);
+    std::fill(yData1.data() + step, yData1.data() + plotDataSize, x1[1]);
+    std::fill(xData2.data() + step, xData2.data() + plotDataSize, x2[0]);
+    std::fill(yData2.data() + step, yData2.data() + plotDataSize, x2[1]);
     plt::clf();
     plt::xlim(-0.1, 1.1);
     plt::ylim(-0.1, 1.1);
     plt::plot(xData1, yData1, "r-");
     plt::plot(xData2, yData2, "b-");
-    std::vector<double> X1(1,x1), Y1(1,y1), X2(1,x2), Y2(1,y2);
+    std::vector<double> X1(1,x1[0]), Y1(1,x1[1]), X2(1,x2[0]), Y2(1,x2[1]);
     plt::plot(X1, Y1, "or");
     plt::plot(X2, Y2, "ob");
     //plt::show(false);
@@ -64,7 +63,7 @@ struct Entity
   std::mt19937 genA;
 
   Entity(const std::mt19937& _gen, const unsigned nQ, const double vM)
-    : genA(_gen), nStates(nQ), maxSpeed(vM) {}
+    : nStates(nQ), maxSpeed(vM), genA(_gen) {}
 
   array<double, 2> p;
   double speed; 
@@ -138,8 +137,8 @@ struct Prey: public Entity
 {
   const double stdNoise; // Only prey assumed to suffer from noise
 
-  Prey(const std::mt19937& _gen, const unsigned nStates, const double vM, const double dN)
-    : Entity(_gen, nStates, vM), stdNoise(dN) {}
+  Prey(const std::mt19937& _gen, const unsigned _nStates, const double vM, const double dN)
+    : Entity(_gen, _nStates, vM), stdNoise(dN) {}
 
   template<typename T>
   vector<double> getState(const T& E) { // wrt enemy E
@@ -169,8 +168,8 @@ struct Prey: public Entity
 struct Predator: public Entity
 {
   const double velPenalty;
-  Predator(const std::mt19937& _gen, const unsigned nStates, const double vM, const double vP)
-    : Entity(_gen, nStates, vP*vM), velPenalty(vP) {}
+  Predator(const std::mt19937& _gen, const unsigned _nStates, const double vM, const double vP)
+    : Entity(_gen, _nStates, vP*vM), velPenalty(vP) {}
 
   template<typename T>
   vector<double> getState(const T& E) const { // wrt enemy (or adversary) E
@@ -214,9 +213,9 @@ int main(int argc, const char * argv[])
   while(true) //train loop
   {
     //reset environment:
-    pred1.reset(); //comm contains rng with different seed on each rank
-    pred2.reset(); //comm contains rng with different seed on each rank
-    prey.reset(); //comm contains rng with different seed on each rank
+    pred1.reset();
+    pred2.reset();
+    prey.reset();
 
     //send initial state
     comm.sendInitState(pred1.getState(prey), 0);
@@ -230,7 +229,8 @@ int main(int argc, const char * argv[])
       pred2.advance(comm.recvAction(1));
       prey.advance(comm.recvAction(2));
 
-      plot.update(step, sim, pred1.p[0], pred1.p[1], prey.p[0], prey.p[1]);
+      plot.update(step, sim, pred1.p, prey.p);
+      //plot.update(step, sim, pred1.p[0], pred1.p[1], prey.p[0], prey.p[1]);
 
       if(step++ < maxStep)
       {
