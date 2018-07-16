@@ -58,10 +58,13 @@ using namespace std;
 
 struct Entity
 {
-  const unsigned nQuadrants;
+  //const unsigned nQuadrants; // NOTE: not used at the moment. Should we just stick to angles??
+  const unsigned nStates;
   const double maxSpeed;
-  Entity(const unsigned nQ, const double vM)
-    : nQuadrants(nQ), maxSpeed(vM) {}
+  //const std::mt19937 *gen;
+
+  Entity(const std::mt19937& _gen, const unsigned nQ, const double vM)
+    : nStates(nQ), maxSpeed(vM) {}
 
   array<double, 2> p;
   double speed; // Scaling factor, to make the predator go slower than prey
@@ -135,12 +138,13 @@ struct Prey: public Entity
 {
   const double stdNoise; // Only prey assumed to suffer from noise
 
-  Prey(const unsigned nQ, const double vM, const double dN)
-    : Entity(nQ, vM), stdNoise(dN) {}
+  Prey(const std::mt19937& _gen, const unsigned nStates, const double vM, const double dN)
+    : Entity(_gen, nStates, vM), stdNoise(dN) {}
 
   template<typename T>
+  //vector<double> getState(const T& E) { // wrt enemy E
   vector<double> getState(const T& E, std::mt19937& gen) { // wrt enemy E
-    vector<double> state(4, 0);
+    vector<double> state(nStates, 0);
     state[0] = p[0];
     state[1] = p[1];
     const double angEnemy = getAngle(E);
@@ -152,7 +156,7 @@ struct Prey: public Entity
     const double noiseAmp = stdNoise*ETA;
     std::normal_distribution<double> distrib(0, noiseAmp); // mean=0, stdDev=noiseAmp
     const double noisyAng = angEnemy + distrib(gen);
-    state[2] = std::cos(noisyAng);
+    state[2] = std::cos(noisyAng); // Should we switch to quadrants? Why? Whynot?
     state[3] = std::sin(noisyAng);
     return state;
   }
@@ -166,12 +170,12 @@ struct Prey: public Entity
 struct Predator: public Entity
 {
   const double velPenalty;
-  Predator(const unsigned nQ, const double vM, const double vP)
-    : Entity(nQ, vP*vM), velPenalty(vP) {}
+  Predator(const std::mt19937& _gen, const unsigned nStates, const double vM, const double vP)
+    : Entity(_gen, nStates, vP*vM), velPenalty(vP) {}
 
   template<typename T>
   vector<double> getState(const T& E) const { // wrt enemy (or adversary) E
-    vector<double> state(4, 0);
+    vector<double> state(nStates, 0);
     state[0] = p[0];
     state[1] = p[1];
     const double angEnemy = getAngle(E); // No noisy angle for predator
@@ -192,17 +196,21 @@ int main(int argc, const char * argv[])
   const int socket = std::stoi(argv[1]);
   const unsigned maxStep = 500;
   const int control_vars = 2; // 2 components of velocity
-  const int state_vars = 4;   // number of sensor quadrants
-  const int number_of_agents = 2; // predator prey
+  const int state_vars = 4;   // number of states (self pos[2], enemy cos|sin[theta])
+  const int number_of_agents = 2; // 2 predator, 1 prey
+  //const int state_vars = 6;   // number of states (self pos[2], enemy cos|sin[theta])
+  //const int number_of_agents = 3; // 2 predator, 1 prey
   //Sim box has size EXTENT. Fraction of box that agent can traverse in 1 step:
-  const double maxSpeed = 0.02 * EXTENT; // Again, assuming dt = 1
+  const double maxSpeed = 0.02 * EXTENT/dt;
   //socket number is given by RL as first argument of execution
   Communicator comm(socket, state_vars, control_vars, number_of_agents);
 
   // predator last arg is how much slower than prey (eg 50%)
-  Predator pred(state_vars, maxSpeed, 0.5);
+  Predator pred(comm.gen, state_vars, maxSpeed, 0.5);
+  //Predator pred1(comm.gen, state_vars, maxSpeed, 0.5);
+  //Predator pred2(comm.gen, state_vars, maxSpeed, 0.5);
   // prey last arg is observation noise (eg ping of predator is in 1 stdev of noise)
-  Prey     prey(state_vars, maxSpeed, 1.0);
+  Prey     prey(comm.gen, state_vars, maxSpeed, 1.0);
 
   Window plot;
 
@@ -210,10 +218,15 @@ int main(int argc, const char * argv[])
   while(true) //train loop
   {
     //reset environment:
+    //pred1.reset(comm.gen); //comm contains rng with different seed on each rank
+    //pred2.reset(comm.gen); //comm contains rng with different seed on each rank
     pred.reset(comm.gen); //comm contains rng with different seed on each rank
     prey.reset(comm.gen); //comm contains rng with different seed on each rank
 
     //send initial state
+    //comm.sendInitState(pred1.getState(prey),           0);
+    //comm.sendInitState(pred2.getState(prey),           1);
+    //comm.sendInitState(prey.getState(pred, comm.gen), 2);
     comm.sendInitState(pred.getState(prey),           0);
     comm.sendInitState(prey.getState(pred, comm.gen), 1);
 
