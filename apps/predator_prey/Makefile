@@ -1,6 +1,7 @@
 CC = g++
 
-OBJ_FILES = pp.o Communicator.o
+#OBJ_FILES = pp.o Communicator.o
+OBJ_FILES = twoPredOnePrey.o Communicator.o
 SRC_DIR = ./
 COM_DIR = ../../source/Communicators/
 VPATH := $(SRC_DIR):$(COM_DIR)
