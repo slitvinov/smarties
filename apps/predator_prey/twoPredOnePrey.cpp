@@ -195,17 +195,15 @@ int main(int argc, const char * argv[])
   const int socket = std::stoi(argv[1]);
   const unsigned maxStep = 500;
   const int control_vars = 2; // 2 components of velocity
-  const int state_vars = 4;   // number of states (self pos[2], enemy cos|sin[theta])
-  const int number_of_agents = 2; // 2 predator, 1 prey
-  //const int state_vars = 6;   // number of states (self pos[2], enemy cos|sin[theta])
-  //const int number_of_agents = 3; // 2 predator, 1 prey
+  const int state_vars = 6;   // number of states (self pos[2], enemy cos|sin[theta])
+  const int number_of_agents = 3; // 2 predator, 1 prey
   //Sim box has size EXTENT. Fraction of box that agent can traverse in 1 step:
   const double maxSpeed = 0.02 * EXTENT/dt;
   //socket number is given by RL as first argument of execution
   Communicator comm(socket, state_vars, control_vars, number_of_agents);
 
   // predator last arg is how much slower than prey (eg 50%)
-  Predator pred(comm.gen, state_vars, maxSpeed, 0.5);
+  Predator pred1(comm.gen, state_vars, maxSpeed, 0.5);
   Predator pred2(comm.gen, state_vars, maxSpeed, 0.5);
   // prey last arg is observation noise (eg ping of predator is in 1 stdev of noise)
   Prey     prey(comm.gen, state_vars, maxSpeed, 1.0);
@@ -216,31 +214,35 @@ int main(int argc, const char * argv[])
   while(true) //train loop
   {
     //reset environment:
-    pred.reset(); //comm contains rng with different seed on each rank
+    pred1.reset(); //comm contains rng with different seed on each rank
     pred2.reset(); //comm contains rng with different seed on each rank
     prey.reset(); //comm contains rng with different seed on each rank
 
     //send initial state
-    comm.sendInitState(pred.getState(prey), 0);
-    comm.sendInitState(prey.getState(pred), 1);
+    comm.sendInitState(pred1.getState(prey), 0);
+    comm.sendInitState(pred2.getState(prey), 1);
+    comm.sendInitState(prey.getState(pred1), 2);
 
     unsigned step = 0;
     while (true) //simulation loop
     {
-      pred.advance(comm.recvAction(0));
-      prey.advance(comm.recvAction(1));
+      pred1.advance(comm.recvAction(0));
+      pred2.advance(comm.recvAction(1));
+      prey.advance(comm.recvAction(2));
 
-      plot.update(step, sim, pred.p[0], pred.p[1], prey.p[0], prey.p[1]);
+      plot.update(step, sim, pred1.p[0], pred1.p[1], prey.p[0], prey.p[1]);
 
       if(step++ < maxStep)
       {
-        comm.sendState(  pred.getState(prey), pred.getReward(prey), 0);
-        comm.sendState(  prey.getState(pred), prey.getReward(pred), 1);
+        comm.sendState(  pred1.getState(prey), pred1.getReward(prey), 0);
+        comm.sendState(  pred2.getState(prey), pred2.getReward(prey), 1);
+        comm.sendState(  prey.getState(pred1), prey.getReward(pred1), 2);
       }
       else
       {
-        comm.truncateSeq(pred.getState(prey), pred.getReward(prey), 0);
-        comm.truncateSeq(prey.getState(pred), prey.getReward(pred), 1);
+        comm.truncateSeq(pred1.getState(prey), pred1.getReward(prey), 0);
+        comm.truncateSeq(pred2.getState(prey), pred2.getReward(prey), 1);
+        comm.truncateSeq(prey.getState(pred1), prey.getReward(pred1), 2);
         sim++;
         break;
       }
