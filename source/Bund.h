@@ -32,60 +32,100 @@ using namespace std;
 #include <omp.h>
 #include <mpi.h>
 
-// Data format for storage in memory buffer. Switch to float for example for
-// Atari where the memory buffer is in the order of GBs.
-typedef double memReal;
-//typedef float memReal;
-
-// Learn rate for the exponential average of the gradient's second moment
-// Used to learn the scale for the pre-backprop gradient clipping.
-// (currently set to be the same as Adam's second moment learn rate)
-#define CLIP_LEARNR 1e-3
-
-// hint to reserve memory for the network workspaces, can be breached
-#define MAX_SEQ_LEN 1200
-
-#define FREQ_BACKUP 1000000
-// Default number of second moments to clip the pre-backprop gradient:
-// Can be changed inside each learning algo by overwriting default arg of
-// Approximator::initializeNetwork function
-#define STD_GRADCUT 0
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// ALGORITHM TWEAKS ////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 // Learn rate of moving stdev and mean of states. If <=0 averaging switched off
+// and state scaling quantities are only computed from initial data.
+// It can lead to small improvement of results with some computational cost
 #define OFFPOL_ADAPT_STSCALE 0
 
 // Switch between log(1+exp(x)) and (x+sqrt(x*x+1)/2 as mapping to R^+ for
 // policies, advantages, and all math objects that require pos def net outputs
 //#define CHEAP_SOFTPLUS
 
-// Switch between network computing \sigma or \Sigma.
+// Switch between network computing \sigma (stdev) or \Sigma (covar).
+// Does have an effect only if sigma is linked to network output rather than
+// being a separate set of lerned parameters shared by all states.
 #define EXTRACT_COVAR
 
 // Switch between \sigma in (0 1) or (0 inf).
 #define UNBND_VAR
 
-#define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
-
 // Truncate gaussian dist from -3 to 3, resamples once every ~370 times.
 // Without this truncation, high dim act spaces might fail the test rho==1
 // with mixture of experts pols, because \pi is immediately equal to 0.
 #define NORMDIST_MAX 3
-// bound of pol mean for bounded act. spaces (ie tanh(+/- 8))
+
+// Bound of pol mean for bounded act. spaces (ie tanh(+/- 8)) Helps avoid nans
 #define BOUNDACT_MAX 8
 
 // Optional constant stdev in case of Acer:
 #define ACER_CONST_STDEV 0.3
 
-// number of previous time steps to include in back-prop through time:
+// Number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20
-
-//#define NET_L1_PENAL // else employ L2 penal defined by Settings::nnLambda
-//#define _dumpNet_
 
 // Sample white Gaussian noise and add it to state vector before input to net
 // This has been found to help in case of dramatic dearth of data
 // The noise stdev for state s_t is = ($NOISY_INPUT) * || s_{t-1} - s_{t+1} ||
-//#define NOISY_INPUT 0.001
+//#define NOISY_INPUT 0.01
+
+// Switch between filter policies when employing ReF-ER. Recommended:
+#define REFER_FILTER FARPOLFRAC // remove seqs with highest frac of far-pol obs
+//#define REFER_FILTER OLDEST   // remove oldest seqs
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////// OPTIMIZER TWEAKS ////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+// Extra numerical stability for Adam optimizer: ensures M2 <= M1*M1/10
+// (or in other words deltaW <= 3 \eta , which is what happens if M1 and M2 are
+// initialized to 0 and hot started to something ). Can improve results.
+//#define SAFE_ADAM
+
+// Turn on Nesterov-style Adam:
+//#define NESTEROV_ADAM
+
+// Switch for amsgrad (grep for it, it's not vanilla but spiced up a bit):
+//#define AMSGRAD
+
+// Switch between L1 and L2 penalization, both with coef Settings::nnLambda
+//#define NET_L1_PENAL
+
+////////////////////////////////////////////////////////////////////////////////
+///////////////////////////// GRADIENT CLIPPING ////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+// Learn rate for the exponential average of the gradient's second moment
+// Used to learn the scale for the pre-backprop gradient clipping.
+// (currently set to be the same as Adam's second moment learn rate)
+#define CLIP_LEARNR 1e-3
+
+// Default number of second moments to clip the pre-backprop gradient:
+// Can be changed inside each learning algo by overwriting default arg of
+// Approximator::initializeNetwork function. If 0 no gradient clipping.
+#define STD_GRADCUT 0
+
+
+////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////// BEHAVIOR TWEAKS ////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+// Data format for storage in memory buffer. Switch to float for example for
+// Atari where the memory buffer is in the order of GBs.
+typedef double memReal;
+//typedef float memReal;
+
+#define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
+
+// hint to reserve memory for the network workspaces, can be breached
+#define MAX_SEQ_LEN 1200
+
+#define FREQ_BACKUP 1000000 // frequency of network weights backups
+
+//#define _dumpNet_ // deprecated
 
 typedef unsigned Uint;
 
