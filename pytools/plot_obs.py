@@ -1,4 +1,11 @@
 #/usr/bin/env python
+#
+#  smarties
+#  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+#  Distributed under the terms of the MIT license.
+#
+#  Created by Guido Novati (novatig@ethz.ch).
+#
 # SIMPLE PYTHON SCRIPT TO PLOT .raw AGENT OBS FILES
 #
 # usage:

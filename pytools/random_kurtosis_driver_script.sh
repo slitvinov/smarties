@@ -1,4 +1,11 @@
 #/usr/bin/env python
+#
+#  smarties
+#  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+#  Distributed under the terms of the MIT license.
+#
+#  Created by Guido Novati (novatig@ethz.ch).
+#
 BASEDIR="/scratch/snx3000/novatig/smarties"
 PREFIX="chosenParam_12_GAUS"
 FNAME="/grads_dist.raw"

@@ -1,14 +1,12 @@
 #/usr/bin/env python
-# SIMPLE PYTHON SCRIPT TO PLOT .raw AGENT OBS FILES
 #
-# usage:
-# python python_plot_obs.py len_state_vec len_action_vec path/to/file.raw column_ID_to_plot
-# also, optional: ( number_of_elements_in_policy_vector )
-# otherwise, assumed continuous pol with 2*NA components (mean, precision of gaussian)
+#  smarties
+#  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+#  Distributed under the terms of the MIT license.
 #
-# structure of .raw files is:
-# transition_id [0/1/2] [state] [action] [reward] [policy]
-# (second column is 1 for first observation of an episode, 2 for last)
+#  Created by Guido Novati (novatig@ethz.ch).
+#
+# SIMPLE PYTHON SCRIPT TO PLOT reward files, just provide path to run dir(s)
 
 import sys, time
 import numpy as np

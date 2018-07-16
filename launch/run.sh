@@ -1,4 +1,11 @@
 #!/bin/bash
+#
+#  smarties
+#  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
+#  Distributed under the terms of the MIT license.
+#
+#  Created by Guido Novati (novatig@ethz.ch).
+#
 unset LSB_AFFINITY_HOSTFILE #euler cluster
 export MPICH_MAX_THREAD_SAFETY=multiple #MPICH
 export MV2_ENABLE_AFFINITY=0 #MVAPICH
