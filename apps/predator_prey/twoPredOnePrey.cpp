@@ -24,6 +24,8 @@ class Window
 	std::vector<double> yData1 = std::vector<double>(plotDataSize, 0);
 	std::vector<double> xData2 = std::vector<double>(plotDataSize, 0);
 	std::vector<double> yData2 = std::vector<double>(plotDataSize, 0);
+	std::vector<double> xData3 = std::vector<double>(plotDataSize, 0);
+	std::vector<double> yData3 = std::vector<double>(plotDataSize, 0);
 
  public:
 	Window() {
@@ -31,7 +33,7 @@ class Window
     plt::figure_size(320, 320);
   }
 
-  void update(int step, int sim, std::array<double, 2> x1, std::array<double, 2> x2)
+  void update(int step, int sim, std::array<double, 2> x1, std::array<double, 2> x2, std::array<double, 2> x3)
   {
     //printf("%d %g %g %g %g\n", step, x1, y1, x2, y2); fflush(0);
     if(sim % SAVEFREQ || step % STEPFREQ) return;
@@ -40,16 +42,22 @@ class Window
     std::fill(yData1.data() + step, yData1.data() + plotDataSize, x1[1]);
     std::fill(xData2.data() + step, xData2.data() + plotDataSize, x2[0]);
     std::fill(yData2.data() + step, yData2.data() + plotDataSize, x2[1]);
+    std::fill(xData3.data() + step, xData3.data() + plotDataSize, x3[0]);
+    std::fill(yData3.data() + step, yData3.data() + plotDataSize, x3[1]);
     plt::clf();
     plt::xlim(-0.1, 1.1);
     plt::ylim(-0.1, 1.1);
     plt::plot(xData1, yData1, "r-");
     plt::plot(xData2, yData2, "b-");
-    std::vector<double> X1(1,x1[0]), Y1(1,x1[1]), X2(1,x2[0]), Y2(1,x2[1]);
+    std::vector<double> X1(1,x1[0]), Y1(1,x1[1]), X2(1,x2[0]), Y2(1,x2[1]), X3(1,x3[0]), Y3(1,x3[1]);
     plt::plot(X1, Y1, "or");
-    plt::plot(X2, Y2, "ob");
+    plt::plot(X2, Y2, "om");
+    plt::plot(X3, Y3, "ob");
     //plt::show(false);
-    plt::save("./"+std::to_string(sim)+"_"+std::to_string(step)+".png");
+    char temp[32]; 
+    sprintf(temp, "%05d", step);
+    std::string temp2 = temp;
+    plt::save("./"+std::to_string(sim)+"_"+temp2+".png");
   }
 };
 
@@ -229,8 +237,7 @@ int main(int argc, const char * argv[])
       pred2.advance(comm.recvAction(1));
       prey.advance(comm.recvAction(2));
 
-      plot.update(step, sim, pred1.p, prey.p);
-      //plot.update(step, sim, pred1.p[0], pred1.p[1], prey.p[0], prey.p[1]);
+      plot.update(step, sim, pred1.p, pred2.p, prey.p);
 
       if(step++ < maxStep)
       {
