@@ -70,6 +70,7 @@ struct Entity
   const unsigned nStates;
   const double maxSpeed;
   std::mt19937& genA;
+  bool isOver=false;
 
   Entity(std::mt19937& _gen, const unsigned nQ, const double vM)
     : nStates(nQ), maxSpeed(vM), genA(_gen) {}
@@ -85,10 +86,10 @@ struct Entity
 	}
 
   bool is_over() {
-    return false; // TODO add catching condition - EHH??
+    return isOver; // TODO add catching condition - EHH??
   }
 
-  int advance(vector<double> act) {
+  void advance(vector<double> act) {
     assert(act.size() == 2);
     speed = std::sqrt(act[0]*act[0] + act[1]*act[1]);
 
@@ -111,7 +112,6 @@ struct Entity
       if (p[1] > EXTENT) p[1] = EXTENT;
       if (p[1] < 0)      p[1] = 0;
     #endif
-    return is_over();
   }
 
   template<typename T>
@@ -146,7 +146,7 @@ struct Prey: public Entity
 {
   const double stdNoise; // Only prey assumed to suffer from noise
 
-  Prey(const std::mt19937& _gen, const unsigned _nStates, const double vM, const double dN)
+  Prey(std::mt19937& _gen, const unsigned _nStates, const double vM, const double dN)
     : Entity(_gen, _nStates, vM), stdNoise(dN) {}
 
   template<typename T>
@@ -178,12 +178,26 @@ struct Prey: public Entity
   double getReward(const T& E1, const T& E2) const {
     return getDistance(E1)*getDistance(E2);
   }
+
+  template<typename T>
+  vector<bool> checkTermination(const T& E1, const T& E2) {
+	const double threshold= 0.001*EXTENT;
+    const double dist1 = getDistance(E1);
+    const double dist2 = getDistance(E2);
+	const bool caught1 = (dist1 < threshold) ? true : false;
+	const bool caught2 = (dist2 < threshold) ? true : false;
+	const vector<bool> gotCaught = {caught1, caught2};
+
+	if(caught1 || caught2) isOver = true; 
+	return gotCaught;
+  }
+ 
 };
 
 struct Predator: public Entity
 {
   const double velPenalty;
-  Predator(const std::mt19937& _gen, const unsigned _nStates, const double vM, const double vP)
+  Predator(std::mt19937& _gen, const unsigned _nStates, const double vM, const double vP)
     : Entity(_gen, _nStates, vP*vM), velPenalty(vP) {}
 
   template<typename T1, typename T2>
@@ -248,6 +262,8 @@ int main(int argc, const char * argv[])
       pred1.advance(comm.recvAction(0));
       pred2.advance(comm.recvAction(1));
       prey.advance(comm.recvAction(2));
+
+	  vector<bool> gotCaught = prey.checkTermination(pred1,pred2);
 
       plot.update(step, sim, pred1.p, pred2.p, prey.p);
 
