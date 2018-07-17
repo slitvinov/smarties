@@ -186,20 +186,25 @@ struct Predator: public Entity
   Predator(const std::mt19937& _gen, const unsigned _nStates, const double vM, const double vP)
     : Entity(_gen, _nStates, vP*vM), velPenalty(vP) {}
 
-  template<typename T>
-  vector<double> getState(const T& E) const { // wrt enemy (or adversary) E
+  template<typename T1, typename T2>
+  vector<double> getState(const T1& _prey, const T2& _pred) const { // wrt enemy (or adversary) E
     vector<double> state(nStates, 0);
     state[0] = p[0];
     state[1] = p[1];
-    const double angEnemy = getAngle(E); // No noisy angle for predator
-    state[2] = std::cos(angEnemy);
-    state[3] = std::sin(angEnemy);
+    const double angPrey = getAngle(_prey); // No noisy angle for predator
+    const double angPred = getAngle(_pred); // No noisy angle for predator
+    state[2] = std::cos(angPrey);
+    state[3] = std::sin(angPrey);
+    state[4] = std::cos(angPred);
+    state[5] = std::sin(angPred);
     return state;
   }
 
-  template<typename T>
-  double getReward(const T& E) const {
-    return - getDistance(E);
+  template<typename T1, typename T2>
+  double getReward(const T1& _prey, const T2& _pred) const {
+    //const double distMult = _prey.getReward(*this, _pred);
+    const double distMult = _prey.getDistance(*this) * _prey.getDistance(_pred);
+    return - distMult; // cooperative predators
   }
 };
 
@@ -233,8 +238,8 @@ int main(int argc, const char * argv[])
     prey.reset();
 
     //send initial state
-    comm.sendInitState(pred1.getState(prey), 0);
-    comm.sendInitState(pred2.getState(prey), 1);
+    comm.sendInitState(pred1.getState(prey,pred2), 0);
+    comm.sendInitState(pred2.getState(prey,pred1), 1);
     comm.sendInitState(prey.getState(pred1,pred2), 2);
 
     unsigned step = 0;
@@ -248,14 +253,14 @@ int main(int argc, const char * argv[])
 
       if(step++ < maxStep)
       {
-        comm.sendState(  pred1.getState(prey), pred1.getReward(prey), 0);
-        comm.sendState(  pred2.getState(prey), pred2.getReward(prey), 1);
+        comm.sendState(  pred1.getState(prey,pred2), pred1.getReward(prey,pred2), 0);
+        comm.sendState(  pred2.getState(prey,pred1), pred2.getReward(prey,pred1), 1);
         comm.sendState(  prey.getState(pred1,pred2), prey.getReward(pred1,pred2), 2);
       }
       else
       {
-        comm.truncateSeq(pred1.getState(prey), pred1.getReward(prey), 0);
-        comm.truncateSeq(pred2.getState(prey), pred2.getReward(prey), 1);
+        comm.truncateSeq(pred1.getState(prey,pred2), pred1.getReward(prey,pred2), 0);
+        comm.truncateSeq(pred2.getState(prey,pred1), pred2.getReward(prey,pred2), 1);
         comm.truncateSeq(prey.getState(pred1,pred2), prey.getReward(pred1,pred2), 2);
         sim++;
         break;
