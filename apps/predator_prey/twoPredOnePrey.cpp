@@ -48,7 +48,8 @@ class Window
     plt::xlim(-0.1, 1.1);
     plt::ylim(-0.1, 1.1);
     plt::plot(xData1, yData1, "r-");
-    plt::plot(xData2, yData2, "b-");
+    plt::plot(xData2, yData2, "m-");
+    plt::plot(xData3, yData3, "b-");
     std::vector<double> X1(1,x1[0]), Y1(1,x1[1]), X2(1,x2[0]), Y2(1,x2[1]), X3(1,x3[0]), Y3(1,x3[1]);
     plt::plot(X1, Y1, "or");
     plt::plot(X2, Y2, "om");
@@ -149,27 +150,33 @@ struct Prey: public Entity
     : Entity(_gen, _nStates, vM), stdNoise(dN) {}
 
   template<typename T>
-  vector<double> getState(const T& E) { // wrt enemy E
+  vector<double> getState(const T& E1, const T& E2) { // wrt enemy E
     vector<double> state(nStates, 0);
     state[0] = p[0];
     state[1] = p[1];
-    const double angEnemy = getAngle(E);
-    const double distEnemy = getDistance(E);
+    const double angEnemy1 = getAngle(E1);
+    const double angEnemy2 = getAngle(E2);
+    const double distEnemy1 = getDistance(E1);
+    const double distEnemy2 = getDistance(E2);
+    const double distEnemy = distEnemy1*distEnemy2;
     // close? low noise. moving slow? low noise
     //const double noiseAmp = stdNoise*distEnemy*speed/std::pow(maxSpeed,2);
     // or, can also think of it as ETA (Estimated Time of Arrival)
     const double ETA = distEnemy/fabs(speed);
     const double noiseAmp = stdNoise*ETA;
     std::normal_distribution<double> distrib(0, noiseAmp); // mean=0, stdDev=noiseAmp
-    const double noisyAng = angEnemy + distrib(genA);
-    state[2] = std::cos(noisyAng); // Should we switch to quadrants? Why? Whynot?
-    state[3] = std::sin(noisyAng);
+    const double noisyAng1 = angEnemy1 + distrib(genA);
+    const double noisyAng2 = angEnemy2 + distrib(genA);
+    state[2] = std::cos(noisyAng1); // Should we switch to quadrants? Why? Whynot?
+    state[3] = std::sin(noisyAng1);
+    state[4] = std::cos(noisyAng2);
+    state[5] = std::sin(noisyAng2);
     return state;
   }
 
   template<typename T>
-  double getReward(const T& E) const {
-    return getDistance(E);
+  double getReward(const T& E1, const T& E2) const {
+    return getDistance(E1)*getDistance(E2);
   }
 };
 
@@ -228,7 +235,7 @@ int main(int argc, const char * argv[])
     //send initial state
     comm.sendInitState(pred1.getState(prey), 0);
     comm.sendInitState(pred2.getState(prey), 1);
-    comm.sendInitState(prey.getState(pred1), 2);
+    comm.sendInitState(prey.getState(pred1,pred2), 2);
 
     unsigned step = 0;
     while (true) //simulation loop
@@ -243,13 +250,13 @@ int main(int argc, const char * argv[])
       {
         comm.sendState(  pred1.getState(prey), pred1.getReward(prey), 0);
         comm.sendState(  pred2.getState(prey), pred2.getReward(prey), 1);
-        comm.sendState(  prey.getState(pred1), prey.getReward(pred1), 2);
+        comm.sendState(  prey.getState(pred1,pred2), prey.getReward(pred1,pred2), 2);
       }
       else
       {
         comm.truncateSeq(pred1.getState(prey), pred1.getReward(prey), 0);
         comm.truncateSeq(pred2.getState(prey), pred2.getReward(prey), 1);
-        comm.truncateSeq(prey.getState(pred1), prey.getReward(pred1), 2);
+        comm.truncateSeq(prey.getState(pred1,pred2), prey.getReward(pred1,pred2), 2);
         sim++;
         break;
       }
