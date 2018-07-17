@@ -69,7 +69,7 @@ struct Entity
   //const unsigned nQuadrants; // NOTE: not used at the moment. Should we just stick to angles??
   const unsigned nStates;
   const double maxSpeed;
-  std::mt19937 genA;
+  std::mt19937& genA;
 
   Entity(const std::mt19937& _gen, const unsigned nQ, const double vM)
     : nStates(nQ), maxSpeed(vM), genA(_gen) {}
