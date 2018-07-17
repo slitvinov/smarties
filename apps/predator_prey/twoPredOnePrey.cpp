@@ -146,7 +146,7 @@ struct Prey: public Entity
 {
   const double stdNoise; // Only prey assumed to suffer from noise
 
-  Prey(const std::mt19937& _gen, const unsigned _nStates, const double vM, const double dN)
+  Prey(std::mt19937& _gen, const unsigned _nStates, const double vM, const double dN)
     : Entity(_gen, _nStates, vM), stdNoise(dN) {}
 
   template<typename T>
@@ -183,7 +183,7 @@ struct Prey: public Entity
 struct Predator: public Entity
 {
   const double velPenalty;
-  Predator(const std::mt19937& _gen, const unsigned _nStates, const double vM, const double vP)
+  Predator(std::mt19937& _gen, const unsigned _nStates, const double vM, const double vP)
     : Entity(_gen, _nStates, vP*vM), velPenalty(vP) {}
 
   template<typename T1, typename T2>
