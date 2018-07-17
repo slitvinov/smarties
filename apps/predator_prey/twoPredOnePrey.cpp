@@ -71,7 +71,7 @@ struct Entity
   const double maxSpeed;
   std::mt19937& genA;
 
-  Entity(const std::mt19937& _gen, const unsigned nQ, const double vM)
+  Entity(std::mt19937& _gen, const unsigned nQ, const double vM)
     : nStates(nQ), maxSpeed(vM), genA(_gen) {}
 
   array<double, 2> p;
