@@ -264,6 +264,20 @@ int main(int argc, const char * argv[])
       prey.advance(comm.recvAction(2));
 
 	  vector<bool> gotCaught = prey.checkTermination(pred1,pred2);
+	  if(prey.is_over()){ // Terminate simulation 
+		  // Cooperative hunting - both predators get reward
+		  const double finalReward = 10*EXTENT;
+		  comm.sendTermState(pred1.getState(prey,pred2), finalReward, 0);
+		  comm.sendTermState(pred2.getState(prey,pred1), finalReward, 1);
+		  comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);
+
+		  /*// Competitive hunting - only one winner, other one gets jack (also, change the reward to be not d1*d2, but just d_i if use competitive)
+          comm.sendTermState(pred1.getState(prey,pred2), finalReward*gotCaught[0], 0);
+          comm.sendTermState(pred2.getState(prey,pred1), finalReward*gotCaught[1], 1);
+          comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);*/
+
+		  sim++; break;
+	  }
 
       plot.update(step, sim, pred1.p, pred2.p, prey.p);
 
