@@ -84,6 +84,7 @@ struct Entity
     p[0] = distrib(genA);
     p[1] = distrib(genA);
     speed = maxSpeed;
+	isOver = false;
 	}
 
   bool is_over() {
