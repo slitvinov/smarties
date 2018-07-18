@@ -34,8 +34,6 @@ else
 NNODES=1 #n master ranks
 fi
 
-source create_rundir.sh
-
 NTASKPERMASTER=$((1+${NSLAVESPERMASTER})) # master plus its slaves
 NPROCESS=$((${NMASTERS}*$NTASKPERMASTER))
 NTASKPERNODE=$((${NPROCESS}/${NNODES}))
