@@ -12,7 +12,7 @@
 #define SAVEFREQ 1000
 #define STEPFREQ 1
 //#define PERIODIC
-//#define COOPERATIVE
+#define COOPERATIVE
 
 #include "matplotlibcpp.h"
 namespace plt = matplotlibcpp;
@@ -183,7 +183,7 @@ struct Prey: public Entity
 
   template<typename T>
   vector<bool> checkTermination(const T& E1, const T& E2) {
-	const double threshold= 0.001*EXTENT;
+	const double threshold= 0.05*EXTENT;
     const double dist1 = getDistance(E1);
     const double dist2 = getDistance(E2);
 	const bool caught1 = (dist1 < threshold) ? true : false;
@@ -253,7 +253,7 @@ int main(int argc, const char * argv[])
 #endif
   fflush(NULL);
 
-  Window plot;
+  //Window plot;
 
   unsigned sim = 0;
   while(true) //train loop
@@ -294,7 +294,7 @@ int main(int argc, const char * argv[])
 		  sim++; break;
 	  }
 
-      plot.update(step, sim, pred1.p, pred2.p, prey.p);
+      //plot.update(step, sim, pred1.p, pred2.p, prey.p);
 
       if(step++ < maxStep)
       {
