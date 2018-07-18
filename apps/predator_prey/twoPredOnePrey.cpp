@@ -12,6 +12,7 @@
 #define SAVEFREQ 1000
 #define STEPFREQ 1
 //#define PERIODIC
+//#define COOPERATIVE
 
 #include "matplotlibcpp.h"
 namespace plt = matplotlibcpp;
@@ -83,6 +84,7 @@ struct Entity
     p[0] = distrib(genA);
     p[1] = distrib(genA);
     speed = maxSpeed;
+	isOver = false;
 	}
 
   bool is_over() {
@@ -216,9 +218,12 @@ struct Predator: public Entity
 
   template<typename T1, typename T2>
   double getReward(const T1& _prey, const T2& _pred) const {
-    //const double distMult = _prey.getReward(*this, _pred);
+#ifdef COOPERATIVE
     const double distMult = _prey.getDistance(*this) * _prey.getDistance(_pred);
     return - distMult; // cooperative predators
+#else
+    return - getDistance(_prey); // competitive predators
+#endif
   }
 };
 
@@ -240,6 +245,13 @@ int main(int argc, const char * argv[])
   Predator pred2(comm.gen, state_vars, maxSpeed, 0.5);
   // prey last arg is observation noise (eg ping of predator is in 1 stdev of noise)
   Prey     prey(comm.gen, state_vars, maxSpeed, 1.0);
+
+#ifdef COOPERATIVE
+  printf("Cooperative predators\n");
+#else
+  printf("Competitive predators\n");
+#endif
+  fflush(NULL);
 
   Window plot;
 
@@ -267,14 +279,17 @@ int main(int argc, const char * argv[])
 	  if(prey.is_over()){ // Terminate simulation 
 		  // Cooperative hunting - both predators get reward
 		  const double finalReward = 10*EXTENT;
+
+#ifdef COOPERATIVE
 		  comm.sendTermState(pred1.getState(prey,pred2), finalReward, 0);
 		  comm.sendTermState(pred2.getState(prey,pred1), finalReward, 1);
 		  comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);
-
-		  /*// Competitive hunting - only one winner, other one gets jack (also, change the reward to be not d1*d2, but just d_i if use competitive)
+#else
+		  // Competitive hunting - only one winner, other one gets jack (also, change the reward to be not d1*d2, but just d_i if use competitive)
           comm.sendTermState(pred1.getState(prey,pred2), finalReward*gotCaught[0], 0);
           comm.sendTermState(pred2.getState(prey,pred1), finalReward*gotCaught[1], 1);
-          comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);*/
+          comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);
+#endif
 
 		  sim++; break;
 	  }
