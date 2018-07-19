@@ -150,8 +150,8 @@ void Learner::restart()
   input->restart(settings.restart+"/"+learner_name);
   data->restart(settings.restart+"/"+learner_name);
 
-  for(auto & net : F) net->save("restarted_");
-  input->save("restarted_");
+  for(auto & net : F) net->save("restarted_"+learner_name);
+  input->save("restarted_"+learner_name);
 }
 
 bool Learner::workerHasUnfinishedSeqs(const int worker) const
