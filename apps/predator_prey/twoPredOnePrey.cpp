@@ -9,7 +9,7 @@
 
 #define EXTENT 1.0
 #define dt 1.0
-#define SAVEFREQ 1000
+#define SAVEFREQ 2000
 #define STEPFREQ 1
 //#define PERIODIC
 #define COOPERATIVE
@@ -183,7 +183,7 @@ struct Prey: public Entity
 
   template<typename T>
   vector<bool> checkTermination(const T& E1, const T& E2) {
-	const double threshold= 0.05*EXTENT;
+	const double threshold= 0.01*EXTENT;
     const double dist1 = getDistance(E1);
     const double dist2 = getDistance(E2);
 	const bool caught1 = (dist1 < threshold) ? true : false;
