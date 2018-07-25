@@ -244,7 +244,8 @@ int main(int argc, const char * argv[])
   Predator pred1(comm.gen, state_vars, maxSpeed, 0.5);
   Predator pred2(comm.gen, state_vars, maxSpeed, 0.5);
   // prey last arg is observation noise (eg ping of predator is in 1 stdev of noise)
-  Prey     prey(comm.gen, state_vars, maxSpeed, 1.0);
+  // Prey     prey(comm.gen, state_vars, maxSpeed, 1.0); // The noise was large, the prey didn't run away quickly if preds were far away
+  Prey     prey(comm.gen, state_vars, maxSpeed, 0.0);
 
 #ifdef COOPERATIVE
   printf("Cooperative predators\n");
@@ -283,14 +284,14 @@ int main(int argc, const char * argv[])
 #ifdef COOPERATIVE
 		  comm.sendTermState(pred1.getState(prey,pred2), finalReward, 0);
 		  comm.sendTermState(pred2.getState(prey,pred1), finalReward, 1);
-		  comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);
 #else
 		  // Competitive hunting - only one winner, other one gets jack (also, change the reward to be not d1*d2, but just d_i if use competitive)
           comm.sendTermState(pred1.getState(prey,pred2), finalReward*gotCaught[0], 0);
           comm.sendTermState(pred2.getState(prey,pred1), finalReward*gotCaught[1], 1);
-          comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);
 #endif
+		  comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);
 
+		  printf("Sim #%d reporting that prey got its world rocked.\n", sim); fflush(NULL);
 		  sim++; break;
 	  }
 
