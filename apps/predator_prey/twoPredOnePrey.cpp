@@ -169,10 +169,10 @@ struct Prey: public Entity
     std::normal_distribution<double> distrib(0, noiseAmp); // mean=0, stdDev=noiseAmp
     const double noisyAng1 = angEnemy1 + distrib(genA);
     const double noisyAng2 = angEnemy2 + distrib(genA);
-    state[2] = std::cos(noisyAng1); // Should we switch to quadrants? Why? Whynot?
-    state[3] = std::sin(noisyAng1);
-    state[4] = std::cos(noisyAng2);
-    state[5] = std::sin(noisyAng2);
+    state[2] = distEnemy1*std::cos(noisyAng1); 
+    state[3] = distEnemy1*std::sin(noisyAng1);
+    state[4] = distEnemy2*std::cos(noisyAng2);
+    state[5] = distEnemy2*std::sin(noisyAng2);
     return state;
   }
 
