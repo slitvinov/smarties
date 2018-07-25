@@ -13,7 +13,9 @@
 #define STEPFREQ 1
 //#define PERIODIC
 #define COOPERATIVE
+//#define PLOT_TRAJ
 
+#ifdef PLOT_TRAJ
 #include "matplotlibcpp.h"
 namespace plt = matplotlibcpp;
 
@@ -62,6 +64,7 @@ class Window
     plt::save("./"+std::to_string(sim)+"_"+temp2+".png");
   }
 };
+#endif
 
 using namespace std;
 
@@ -209,10 +212,12 @@ struct Predator: public Entity
     state[1] = p[1];
     const double angPrey = getAngle(_prey); // No noisy angle for predator
     const double angPred = getAngle(_pred); // No noisy angle for predator
-    state[2] = std::cos(angPrey);
-    state[3] = std::sin(angPrey);
-    state[4] = std::cos(angPred);
-    state[5] = std::sin(angPred);
+    const double distPrey = getDistance(_prey);
+    const double distPred = getDistance(_pred);
+    state[2] = distPrey*std::cos(angPrey);
+    state[3] = distPrey*std::sin(angPrey);
+    state[4] = distPred*std::cos(angPred);
+    state[5] = distPred*std::sin(angPred);
     return state;
   }
 
@@ -254,7 +259,9 @@ int main(int argc, const char * argv[])
 #endif
   fflush(NULL);
 
-  //Window plot;
+#ifdef PLOT_TRAJ
+  Window plot;
+#endif
 
   unsigned sim = 0;
   while(true) //train loop
@@ -295,7 +302,9 @@ int main(int argc, const char * argv[])
 		  sim++; break;
 	  }
 
-      //plot.update(step, sim, pred1.p, pred2.p, prey.p);
+#ifdef PLOT_TRAJ
+      plot.update(step, sim, pred1.p, pred2.p, prey.p);
+#endif
 
       if(step++ < maxStep)
       {
