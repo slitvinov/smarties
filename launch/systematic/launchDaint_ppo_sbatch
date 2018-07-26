@@ -11,7 +11,7 @@
 #SBATCH --account=s658
 # #SBATCH --account=eth2
 
-#SBATCH --array=0-249
+#SBATCH --array=0-49
 
 # #SBATCH --ntasks=1
 # #SBATCH --ntasks-per-node=1
@@ -19,7 +19,7 @@
 # ======START=====
 COMMNAME=PPO_vanilla
 
-SETTINGS=" --gamma 0.995 --lambda 0.97 --nnl1 64 --nnl2 64 --nnFunc SoftSign --learner PPO --maxTotObsNum 2048 --clipImpWeight 0.2 --klDivConstraint 0.01 --targetDelay 0 --explNoise 0.4472136 --totNumSteps 10000000 --learnrate 0.0003 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 --epsAnneal 0 --batchSize 64 --obsPerStep 6.4 "
+SETTINGS=" --gamma 0.995 --lambda 0.97 --nnl1 64 --nnl2 64 --nnFunc SoftSign --learner PPO --maxTotObsNum 2048 --clipImpWeight 0.2 --klDivConstraint 0.01 --targetDelay 0 --explNoise 0.4472136 --totNumSteps 10000000 --learnrate 0.0003 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 --epsAnneal 5e-7 --batchSize 64 --obsPerStep 6.4 "
 
 MYNAME=`whoami`
 BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
