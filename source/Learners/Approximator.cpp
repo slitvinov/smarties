@@ -334,8 +334,11 @@ void Approximator::backward(Rvec error, const Sequence*const traj, const Uint t,
   #ifdef PRIORITIZED_ER
    const Real anneal = std::min( (Real)1, opt->nStep * opt->epsAnneal);
    assert( anneal >= 0 );
-   const float beta = 0.5 + 0.5 * anneal;
-   const Real PERW = std::pow(data->minPriorityImpW/traj->priorityImpW[t],beta);
+   const float beta = 0.5 + 0.5 * anneal, P0 = traj->priorityImpW[t];
+   // if samples never seen by optimizer the samples have high priority
+   // this matches one of last lines of MemoryBuffer::updateImportanceWeights()
+   const auto P = P0<=0 ? data->maxPriorityImpW : P0;
+   const Real PERW = std::pow(data->minPriorityImpW / P, beta);
    for(Uint i=0; i<error.size(); i++) error[i] *= PERW;
   #endif
   gradStats->track_vector(error, thrID);

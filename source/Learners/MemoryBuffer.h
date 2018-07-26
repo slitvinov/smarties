@@ -33,6 +33,7 @@ public:
   #ifdef PRIORITIZED_ER
     discrete_distribution<Uint> distPER;
     float minPriorityImpW = 1;
+    float maxPriorityImpW = 1;
     void updateImportanceWeights();
   #endif
   //bool bRecurrent;
