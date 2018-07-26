@@ -225,7 +225,7 @@ public:
     return 0.5*ret;
   }
 
-  Rvec updateOrUhState(Rvec& state, Rvec& beta, const Real fac)
+  Rvec updateOrUhState(Rvec& state, const Rvec& beta, const Real fac)
   {
     for (Uint i=0; i<nA; i++) {
       const Real noise = sampAct[i] - mean[i];

@@ -153,7 +153,7 @@ public:
   void updateImportanceWeights();
 
   // Algorithm for maintaining and filtering dataset, and optional imp weight range parameter
-  void prune(const FORGET ALGO, const Real CmaxRho = 0);
+  void prune(const FORGET ALGO, const Real CmaxRho = 1);
 
   void getMetrics(ostringstream& buff);
   void getHeaders(ostringstream& buff);
