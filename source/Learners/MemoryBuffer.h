@@ -28,9 +28,9 @@ public:
   Rvec mean, invstd, std;
   const int learn_rank, learn_size;
   const Real gamma;
-
   bool needs_pass = true;
   #ifdef PRIORITIZED_ER
+    Uint stepSinceISWeep = 0;
     discrete_distribution<Uint> distPER;
     float minPriorityImpW = 1;
     float maxPriorityImpW = 1;

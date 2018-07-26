@@ -302,9 +302,11 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
     prefixSum();
   }
   nPruned += nB4-Set.size();
-
   #ifdef PRIORITIZED_ER
-   if(needs_pass) { updateImportanceWeights(); needs_pass = false; }
+   stepSinceISWeep++;
+   if(needs_pass || stepSinceISWeep >= 10) {
+     updateImportanceWeights(); needs_pass = false; stepSinceISWeep = 0;
+   }
   #endif
 }
 
