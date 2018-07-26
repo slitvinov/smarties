@@ -9,11 +9,13 @@
 
 #define EXTENT 1.0
 #define dt 1.0
-#define SAVEFREQ 1000
+#define SAVEFREQ 2000
 #define STEPFREQ 1
 //#define PERIODIC
 #define COOPERATIVE
+//#define PLOT_TRAJ
 
+#ifdef PLOT_TRAJ
 #include "matplotlibcpp.h"
 namespace plt = matplotlibcpp;
 
@@ -62,6 +64,7 @@ class Window
     plt::save("./"+std::to_string(sim)+"_"+temp2+".png");
   }
 };
+#endif
 
 using namespace std;
 
@@ -169,10 +172,10 @@ struct Prey: public Entity
     std::normal_distribution<double> distrib(0, noiseAmp); // mean=0, stdDev=noiseAmp
     const double noisyAng1 = angEnemy1 + distrib(genA);
     const double noisyAng2 = angEnemy2 + distrib(genA);
-    state[2] = std::cos(noisyAng1); // Should we switch to quadrants? Why? Whynot?
-    state[3] = std::sin(noisyAng1);
-    state[4] = std::cos(noisyAng2);
-    state[5] = std::sin(noisyAng2);
+    state[2] = distEnemy1*std::cos(noisyAng1); 
+    state[3] = distEnemy1*std::sin(noisyAng1);
+    state[4] = distEnemy2*std::cos(noisyAng2);
+    state[5] = distEnemy2*std::sin(noisyAng2);
     return state;
   }
 
@@ -183,7 +186,7 @@ struct Prey: public Entity
 
   template<typename T>
   vector<bool> checkTermination(const T& E1, const T& E2) {
-	const double threshold= 0.05*EXTENT;
+	const double threshold= 0.01*EXTENT;
     const double dist1 = getDistance(E1);
     const double dist2 = getDistance(E2);
 	const bool caught1 = (dist1 < threshold) ? true : false;
@@ -209,10 +212,12 @@ struct Predator: public Entity
     state[1] = p[1];
     const double angPrey = getAngle(_prey); // No noisy angle for predator
     const double angPred = getAngle(_pred); // No noisy angle for predator
-    state[2] = std::cos(angPrey);
-    state[3] = std::sin(angPrey);
-    state[4] = std::cos(angPred);
-    state[5] = std::sin(angPred);
+    const double distPrey = getDistance(_prey);
+    const double distPred = getDistance(_pred);
+    state[2] = distPrey*std::cos(angPrey);
+    state[3] = distPrey*std::sin(angPrey);
+    state[4] = distPred*std::cos(angPred);
+    state[5] = distPred*std::sin(angPred);
     return state;
   }
 
@@ -244,7 +249,8 @@ int main(int argc, const char * argv[])
   Predator pred1(comm.gen, state_vars, maxSpeed, 0.5);
   Predator pred2(comm.gen, state_vars, maxSpeed, 0.5);
   // prey last arg is observation noise (eg ping of predator is in 1 stdev of noise)
-  Prey     prey(comm.gen, state_vars, maxSpeed, 1.0);
+  // Prey     prey(comm.gen, state_vars, maxSpeed, 1.0); // The noise was large, the prey didn't run away quickly if preds were far away
+  Prey     prey(comm.gen, state_vars, maxSpeed, 0.0);
 
 #ifdef COOPERATIVE
   printf("Cooperative predators\n");
@@ -253,7 +259,9 @@ int main(int argc, const char * argv[])
 #endif
   fflush(NULL);
 
-  //Window plot;
+#ifdef PLOT_TRAJ
+  Window plot;
+#endif
 
   unsigned sim = 0;
   while(true) //train loop
@@ -283,18 +291,20 @@ int main(int argc, const char * argv[])
 #ifdef COOPERATIVE
 		  comm.sendTermState(pred1.getState(prey,pred2), finalReward, 0);
 		  comm.sendTermState(pred2.getState(prey,pred1), finalReward, 1);
-		  comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);
 #else
 		  // Competitive hunting - only one winner, other one gets jack (also, change the reward to be not d1*d2, but just d_i if use competitive)
           comm.sendTermState(pred1.getState(prey,pred2), finalReward*gotCaught[0], 0);
           comm.sendTermState(pred2.getState(prey,pred1), finalReward*gotCaught[1], 1);
-          comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);
 #endif
+		  comm.sendTermState(prey.getState(pred1,pred2),-finalReward, 2);
 
+		  printf("Sim #%d reporting that prey got its world rocked.\n", sim); fflush(NULL);
 		  sim++; break;
 	  }
 
-      //plot.update(step, sim, pred1.p, pred2.p, prey.p);
+#ifdef PLOT_TRAJ
+      plot.update(step, sim, pred1.p, pred2.p, prey.p);
+#endif
 
       if(step++ < maxStep)
       {
