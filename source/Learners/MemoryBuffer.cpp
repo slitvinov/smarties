@@ -147,22 +147,20 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
   static constexpr Real EPS = numeric_limits<float>::epsilon();
   if(WR>0)
   {
-    Real varR = newstdvr/count;
-    if(varR < numeric_limits<Real>::epsilon())
-       varR = numeric_limits<Real>::epsilon();
+    long double varR = newstdvr/count;
+    if(varR < numeric_limits<long double>::epsilon()) varR = 1;
     invstd_reward = (1-WR)*invstd_reward +WR/(std::sqrt(varR)+EPS);
   }
   for(Uint k=0; k<dimS && WS>0; k++)
   {
     // this is the sample mean minus mean[k]:
-    const Real MmM = newSSum[k]/count;
+    const long double MmM = newSSum[k]/count;
     // mean[k] = (1-WS)*mean[k] + WS * sample_mean, which becomes:
     mean[k] = mean[k] + WS * MmM;
     // if WS==1 then varS is exact, otherwise update second moment
     // centered around current mean[k] (ie. E[(Sk-mean[k])^2])
-    Real varS = newSSqSum[k]/count - MmM*MmM*(2*WS-WS*WS);
-    if(varS < numeric_limits<Real>::epsilon())
-       varS = numeric_limits<Real>::epsilon();
+    long double varS = newSSqSum[k]/count - MmM*MmM*(2*WS-WS*WS);
+    if(varS < numeric_limits<long double>::epsilon()) varS = 1;
     std[k] = (1-WS) * std[k] + WS * std::sqrt(varS);
     invstd[k] = 1/(std[k]+EPS);
   }
