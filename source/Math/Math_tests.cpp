@@ -123,7 +123,7 @@ void Discrete_policy::test(const Uint act, const Rvec& beta) const
 void Quadratic_advantage::test(const Rvec& act, mt19937*const gen) const
 {
   Rvec _grad(netOutputs.size(), 0);
-  grad_unb(act, 1, _grad);
+  grad(act, 1, _grad);
   ofstream fout("mathtest.log", ios::app);
   for(Uint i = 0; i<nL+nA; i++)
   {

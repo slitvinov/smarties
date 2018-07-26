@@ -13,12 +13,15 @@
 NAF::NAF(Environment*const _env, Settings & _set) :
 Learner_offPolicy(_env, _set)
 {
-  trainInfo = new TrainData("NAF", _set, 0, "| beta | avgW ", 2);
-  F.push_back(new Approximator("value", _set, input, data));
+  _set.splitLayers = 0;
+  F.push_back(new Approximator("net", _set, input, data));
   const Uint nOutp = 1 +aInfo.dim +Quadratic_advantage::compute_nL(&aInfo);
+  assert(nOutp == net_outputs[0] + net_outputs[1] + net_outputs[2]);
   Builder build_pol = F[0]->buildFromSettings(_set, nOutp);
   F[0]->initializeNetwork(build_pol, 0);
   test();
+  printf("NAF\n");
+  trainInfo = new TrainData("NAF", _set, 0, "| beta | avgW ", 2);
 }
 
 void NAF::select(Agent& agent)
@@ -32,11 +35,16 @@ void NAF::select(Agent& agent)
     //Compute policy and value on most recent element of the sequence.
     const Rvec output = F[0]->forward_agent(traj, agent);
     //cout << print(output) << endl;
-    const Quadratic_advantage advantage = prepare_advantage(output);
-    Rvec pol = advantage.getMean();
-    pol.resize(policyVecDim, explNoise);
-    assert(pol.size() == 2 * nA);
-    Gaussian_policy policy({0, nA}, &aInfo, pol);
+    Rvec polvec = Rvec(&output[net_indices[2]], &output[net_indices[2]]+nA);
+    #ifndef NDEBUG
+      const Quadratic_advantage advantage = prepare_advantage(output);
+      Rvec polvec2 = advantage.getMean();
+      assert(polvec.size() == polvec2.size());
+      for(Uint i=0;i<nA;i++) assert(abs(polvec[i]-polvec2[i])<2e-16);
+    #endif
+    polvec.resize(policyVecDim, explNoise);
+    assert(polvec.size() == 2 * nA);
+    Gaussian_policy policy({0, nA}, &aInfo, polvec);
     const Rvec MU = policy.getVector();
     //cout << print(MU) << endl;
     Rvec act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
