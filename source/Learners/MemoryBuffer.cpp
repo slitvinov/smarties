@@ -309,6 +309,8 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
 
 #ifdef PRIORITIZED_ER
 
+#if 0 // rank based probability
+
 static inline float Q_rsqrt( const float number )
 {
 	union { float f; uint32_t i; } conv;
@@ -321,7 +323,6 @@ static inline float Q_rsqrt( const float number )
 	return conv.f * ( threehalfs - ( x2 * conv.f * conv.f ) );
 }
 
-#if 0 // rank based probability
 void MemoryBuffer::updateImportanceWeights()
 {
   // we need to collect all errors and rank them by magnitude
@@ -433,18 +434,25 @@ void MemoryBuffer::updateImportanceWeights()
     const Uint stride = std::ceil(Set.size() / (Real) nThreads);
     const Uint start = thrI*stride;
     const Uint end = std::min( (thrI+1)*stride, (Uint) Set.size());
+
     for(Uint i=0, k=0; i<Set.size(); i++) {
-      for(Uint j=0; j<Set[i]->ndata() && i>=start && i<end; j++) {
-        const float deltasq = (float)Set[i]->SquaredError[j];
-        // do sqrt(delta^2)^alpha with alpha = 0.5
-        const float P = deltasq>0 ? std::sqrt(std::sqrt(deltasq + EPS)) : 0;
-        if(P>0) {
-          minP = std::min(minP, P + EPS); // avoid nans in impW
+      const auto ndata = Set[i]->ndata();
+      const auto probs_i = probs.data()+i;
+      auto & priorityImpW = Set[i]->priorityImpW;
+      const auto & SquaredError = Set[i]->SquaredError;
+      if (i>=start && i<end)
+        for(Uint j=0; j<ndata; j++) {
+          const float deltasq = (float)SquaredError[j];
+          // do sqrt(delta^2)^alpha with alpha = 0.5
+          const float P = deltasq>0.0f? std::sqrt(std::sqrt(deltasq + EPS)) : 0.0f;
+          const float Q = (P>0.0f) ? P : 1.0e9f;
+
+          minP = std::min(minP, Q + EPS); // avoid nans in impW
           maxP = std::max(maxP, P + EPS);
+
+          priorityImpW[j] = P;
+          probs_i[j] = P;
         }
-        Set[i]->priorityImpW[j] = P;
-        probs[k+j] = P;
-      }
       k += Set[i]->ndata();
       if(i+1 == Set.size()) assert(k == nTransitions.load());
     }
