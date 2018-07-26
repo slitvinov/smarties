@@ -304,7 +304,7 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
   nPruned += nB4-Set.size();
 
   #ifdef PRIORITIZED_ER
-   if(needs_pass) { updateImportanceWeights(); needs_pass = false }
+   if(needs_pass) { updateImportanceWeights(); needs_pass = false; }
   #endif
 }
 
