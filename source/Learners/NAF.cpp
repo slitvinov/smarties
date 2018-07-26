@@ -105,6 +105,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
   //const bool terminal = samp+2 == traj->tuples.size() && traj->ended;
   const Real Vsold = output[net_indices[0]];
 
+  if(thrID==0) profiler->stop_start("CMP");
   // prepare advantage and policy
   const Quadratic_advantage adv_sold = prepare_advantage(output);
   Rvec polvec = adv_sold.getMean();       assert(polvec.size() == nA);

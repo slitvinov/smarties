@@ -395,9 +395,12 @@ void Approximator::gradient(const Uint thrID) const
 void Approximator::getHeaders(ostringstream& buff) const
 {
   buff << std::left << std::setfill(' ') <<"| " << std::setw(6) << name;
+  if(opt->lambda > 0) buff << "| dTgt ";
 }
 
 void Approximator::getMetrics(ostringstream& buff) const
 {
   real2SS(buff, net->weights->compute_weight_norm(), 7, 1);
+  if(opt->lambda > 0)
+    real2SS(buff, net->weights->compute_weight_dist(net->tgt_weights), 6, 1);
 }
