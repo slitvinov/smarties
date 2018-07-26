@@ -9,7 +9,7 @@
 #include "PPO.h"
 #include "../Network/Builder.h"
 
-#define PPO_PENALKL
+//#define PPO_PENALKL
 #define PPO_CLIPPED
 #define PPO_simpleSigma
 
@@ -157,7 +157,7 @@ void PPO<Policy_t, Action_t>::initializeLearner()
   // Rewards second moment is computed right before actual training begins
   // therefore we need to recompute (rescaled) GAE and MC cumulative rewards
   // This assumes V(s) is initialized small, so we just rescale by std(rew)
-  debugL("Rescale Retrace est. after gathering initial dataset");
+  debugL("Rescale GAE est. after gathering initial dataset");
   // placed here because on 1st step we just computed first rewards statistics
   #pragma omp parallel for schedule(dynamic)
   for(Uint i = 0; i < data->Set.size(); i++)
@@ -251,7 +251,7 @@ template<> PPO<Gaussian_policy, Rvec>::PPO(
   valPenal[0] = 1;
 
   printf("Continuous-action PPO\n");
-  #if 1
+  #if 0 // shared input layers
     if(input->net not_eq nullptr) {
       delete input->opt; input->opt = nullptr;
       delete input->net; input->net = nullptr;
@@ -285,7 +285,7 @@ template<> PPO<Gaussian_policy, Rvec>::PPO(
   #endif
   F[0]->initializeNetwork(build_pol);
 
-  _set.learnrate *= 3;
+  //_set.learnrate *= 3; // for shared input layers
   F[1]->initializeNetwork(build_val);
 
   {  // TEST FINITE DIFFERENCES:

@@ -73,7 +73,12 @@ void Learner_onPolicy::prepareGradient()
     debugL("finished epochs, compute state/rew stats, clear buffer to gather new onpol samples");
     const Real annlLR = annealRate(learnR, nStep, epsAnneal);
     data->updateRewardsStats(nStep, annlLR, annlLR);
-    cntKept = data->clearOffPol(CmaxPol, 0.05);
+    #if 0 // keep nearly on policy data
+      cntKept = data->clearOffPol(CmaxPol, 0.05);
+    #else
+      data->clearAll();
+      cntKept = 0;
+    #endif
     //reset batch learning counters
     cntEpoch = 0;
     cntBatch = 0;
