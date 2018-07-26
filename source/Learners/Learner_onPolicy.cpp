@@ -35,7 +35,10 @@ void Learner_onPolicy::spawnTrainTasks_seq()
   if(updateComplete || updateToApply) die("undefined behavior");
   if( data->readNData() < nHorizon ) die("undefined behavior");
   if( not bTrain ) return;
-
+  #ifdef PRIORITIZED_ER // NOT SUPPORTED
+    vector<float> probs(data->readNData(), 1);
+    data->distPER = discrete_distribution<Uint>(probs.begin(), probs.end());
+  #endif
   debugL("sampling update from (nearly) on-pol data");
   vector<Uint> samp_seq(batchSize, -1), samp_obs(batchSize, -1);
   data->sampleTransitions(samp_seq, samp_obs);

@@ -22,7 +22,6 @@ MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
   assert(_s.nAgents>0);
   inProgress.resize(_s.nAgents);
   for (int i=0; i<_s.nAgents; i++) inProgress[i] = new Sequence();
-  gen = new Gen(&generators[0]);
   Set.reserve(maxTotObsNum);
 }
 
@@ -177,7 +176,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
       cntSamp += Set[i]->ndata();
     }
     assert(cntSamp==nTransitions.load());
-    if(WS>0)
+    if(WS>=1)
     {
       vector<long double> dbgStateSum(dimS,0), dbgStateSqSum(dimS,0);
       #pragma omp parallel
@@ -299,17 +298,41 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
   if(nTransitions.load()-Set[del_ptr]->ndata() > maxTotObsNum) {
     std::swap(Set[del_ptr], Set.back());
     popBackSequence();
+    needs_pass = true;
+    prefixSum();
   }
   nPruned += nB4-Set.size();
 
   #ifdef PRIORITIZED_ER
-    updateImportanceWeights();
+   if(needs_pass) updateImportanceWeights();
   #endif
+}
+
+void MemoryBuffer::prefixSum()
+{
+  vector<Uint> thdStarts(nThreads, 0);
+  #pragma omp parallel num_threads(nThreads)
+  {
+    Uint locPrefix = 0;
+    const int thrI = omp_get_thread_num();
+    const Uint stride = std::ceil( Set.size() / (Real) nThreads );
+    const Uint start = thrI*stride;
+    const Uint end = std::min( (thrI+1)*stride, (Uint) Set.size());
+    for(Uint i=start; i<end; i++) {
+      Set[i]->prefix = locPrefix;
+      locPrefix += Set[i]->ndata();
+    }
+    thdStarts[thrI] = locPrefix;
+    #pragma omp barrier
+    Uint thrPrefix = 0;
+    for(int i=0; i<thrI; i++) thrPrefix += thdStarts[i];
+    for(Uint i=start; i<end; i++) Set[i]->prefix += thrPrefix;
+  }
 }
 
 #ifdef PRIORITIZED_ER
 
-#if 0 // rank based probability
+#if 1 // rank based probability
 
 static inline float Q_rsqrt( const float number )
 {
@@ -330,53 +353,45 @@ void MemoryBuffer::updateImportanceWeights()
   // 1) gather errors along with index
   // 2) sort them by decreasing error
   // 3) compute inv sqrt of all errors, same sweep also get minP
-  // 4) create the actual discrete distribution
   //const float EPS = numeric_limits<float>::epsilon();
-  vector<tuple<float, Uint,Uint>> errors(nTransitions.load());
-
+  using USI = unsigned short;
+  using TupEST = tuple<float, USI, USI>;
+  vector<TupEST> errors(nTransitions.load());
+  const Uint nData = nTransitions.load();
   // 1)
-  #pragma omp parallel num_threads(nThreads)
-  {
-    const int thrI = omp_get_thread_num();
-    const Uint stride = std::ceil(Set.size() / (Real) nThreads);
-    const Uint start = thrI*stride;
-    const Uint end = std::min( (thrI+1)*stride, (Uint) Set.size());
-    for(Uint i=0, k=0; i<Set.size(); i++) {
-      for(Uint j=0; j<Set[i]->ndata() && i>=start && i<end; j++)
-        errors[k+j] = std::make_tuple(Set[i]->SquaredError[j], i,j);
-      k += Set[i]->ndata();
-      if(i+1 == Set.size()) assert(k == nTransitions.load());
-    }
+  #pragma omp parallel for schedule(dynamic)
+  for(Uint i=0; i<Set.size(); i++) {
+    const auto err_i = errors.data() + Set[i]->prefix;
+    for(Uint j=0; j<Set[i]->ndata(); j++)
+      err_i[j] = std::make_tuple(Set[i]->SquaredError[j], (USI)i, (USI)j );
   }
 
   // 2)
-  const auto isAbeforeB = [&] ( const tuple<float, Uint,Uint> a,
-                                const tuple<float, Uint,Uint> b) {
+  const auto isAbeforeB = [&] ( const TupEST& a, const TupEST& b) {
                           return std::get<0>(a) > std::get<0>(b); };
-  #if 1
+  #if 0
     __gnu_parallel::sort(errors.begin(), errors.end(), isAbeforeB);
   #else //approximate 2 pass sort
   vector<Uint> thdStarts(nThreads, 0);
   #pragma omp parallel num_threads(nThreads)
   {
     const int thrI = omp_get_thread_num();
-    const Uint stride = std::ceil(nTransitions.load() / (Real) nThreads);
+    const Uint stride = std::ceil(nData / (Real) nThreads);
+    // avoid cache thrashing: create new vector for second sort
     { // first each sorts one chunk
       const Uint start = thrI*stride;
-      const Uint end = std::min( (thrI+1)*stride, nTransitions.load());
+      const Uint end = std::min( (thrI+1)*stride, nData);
       std::sort(errors.begin()+start, errors.begin()+end, isAbeforeB);
     }
-
-    // avoid cache thrashing: create new vector for second sort
-    vector<tuple<float, Uint,Uint>> load_loc;
-    load_loc.reserve(stride); // because we want to push back
 
     #pragma omp barrier
 
     // now each thread gets a quantile of partial sorts
-    for(Uint i=0; i<nThreads; i++) {
-      const Uint start = i*stride;
-      const Uint end = std::min( (i+1)*stride, nTransitions.load());
+    vector<TupEST> load_loc;
+    load_loc.reserve(stride); // because we want to push back
+    for(Uint t=0; t<nThreads; t++) {
+      const Uint i = t + thrI % nThreads;
+      const Uint start = i*stride, end = std::min( (i+1)*stride, nData);
       #pragma omp for schedule(static) nowait // equally divided
       for(Uint j=start; j<end; j++) load_loc.push_back( errors[j] );
     }
@@ -384,6 +399,7 @@ void MemoryBuffer::updateImportanceWeights()
     std::sort(load_loc.begin(), load_loc.end(), isAbeforeB);
 
     #pragma omp barrier // wait all those thdStarts values
+
     Uint threadStart = 0;
     for(int i=0; i<thrI; i++) threadStart += thdStarts[i];
     for(Uint i=0; i<load_loc.size(); i++) errors[i+threadStart] = load_loc[i];
@@ -393,31 +409,18 @@ void MemoryBuffer::updateImportanceWeights()
 
   // 3)
   float minP = 1e9;
+  vector<float> probs = vector<float>(nData, 1);
   #pragma omp parallel for reduction(min:minP) schedule(static)
   for(Uint i=0; i<errors.size(); i++) {
     // if error is 0 then never yet sampled and put ahead of queue
     const float P = std::get<0>(errors[i])>0 ? Q_rsqrt(i+1) : 1;
     const Uint seq = get<1>(errors[i]), t = get<2>(errors[i]);
+    probs[Set[seq]->prefix + t] = P;
     Set[seq]->priorityImpW[t] = P;
     minP = std::min(minP, P);
   }
   minPriorityImpW = minP;
 
-  // 4)
-  vector<float> probs = vector<float>(nTransitions.load(), 1);
-  #pragma omp parallel num_threads(nThreads)
-  {
-    const int thrI = omp_get_thread_num();
-    const Uint stride = std::ceil(Set.size() / (Real) nThreads);
-    const Uint start = thrI*stride;
-    const Uint end = std::min( (thrI+1)*stride, (Uint) Set.size());
-    for(Uint i=0, k=0; i<Set.size(); i++) {
-      for(Uint j=0; j<Set[i]->ndata() && i>=start && i<end; j++)
-        probs[k+j] = Set[i]->priorityImpW[j];
-      k += Set[i]->ndata();
-      if(i+1 == Set.size()) assert(k == nTransitions.load());
-    }
-  }
   distPER = discrete_distribution<Uint>(probs.begin(), probs.end());
 
 }
@@ -633,6 +636,7 @@ void MemoryBuffer::sampleTransitions(vector<Uint>&seq, vector<Uint>&obs)
       else break;
       if(i == seq.size()) break; // then found all elements of sequence k
     }
+    assert(cntO == Set[k]->prefix);
     if(i == seq.size()) break; // then found all elements of ret
     cntO += Set[k]->ndata(); // advance observation counter
     if(k+1 == Set.size()) die(" "); // at last iter we must have found all

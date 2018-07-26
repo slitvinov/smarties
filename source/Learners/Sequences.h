@@ -43,6 +43,7 @@ struct Sequence
 {
   vector<Tuple*> tuples;
   int ended = 0, ID = -1, just_sampled = -1;
+  Uint prefix = 0;
   Real nOffPol = 0, MSE = 0, sumKLDiv = 0, totR = 0;
   Fvec action_adv;
   Fvec state_vals;
@@ -160,15 +161,5 @@ struct Sequence
       priorityImpW = vector<float>(ndata(), 1);
     #endif
     KullbLeibDiv = Fvec(ndata(), 0);
-  }
-};
-
-struct Gen
-{
-  mt19937* const g;
-  Gen(mt19937 * gen) : g(gen) { }
-  size_t operator()(size_t n) {
-    std::uniform_int_distribution<size_t> d(0, n ? n-1 : 0);
-    return d(*g);
   }
 };

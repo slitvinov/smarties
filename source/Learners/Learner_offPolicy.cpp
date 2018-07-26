@@ -130,6 +130,9 @@ void Learner_offPolicy::applyGradient()
 
     if(CmaxPol>0) // assume ReF-ER
     {
+      #ifdef PRIORITIZED_ER
+        die("ReFER and Prioritized ER are incompatible. Set CmaxPol to 0");
+      #endif
       CmaxRet = 1 + annealRate(CmaxPol, currStep, epsAnneal);
       if(CmaxRet<=1) die("Either run lasted too long or epsAnneal is wrong.");
       data->prune(REFER_FILTER, CmaxRet);
@@ -157,7 +160,7 @@ void Learner_offPolicy::applyGradient()
     }
     else
     {
-      data->prune(MEMBUF_FILTER_ALGO);
+      data->prune(OLDEST);
     }
   }
   else

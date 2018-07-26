@@ -166,11 +166,13 @@ void PPO<Policy_t, Action_t>::initializeLearner()
       data->Set[i]->Q_RET[j] *= data->invstd_reward;
     }
 
-  for(Uint i = 0; i < data->inProgress.size(); i++)
+  for(Uint i = 0; i < data->inProgress.size(); i++) {
+    if(data->inProgress[i]->tuples.size() == 0) continue;
     for (Uint j=data->inProgress[i]->ndata(); j>0; j--) {
       data->inProgress[i]->action_adv[j] *= data->invstd_reward;
       data->inProgress[i]->Q_RET[j] *= data->invstd_reward;
     }
+  }
 }
 
 template<typename Policy_t, typename Action_t>

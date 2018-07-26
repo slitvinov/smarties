@@ -29,7 +29,7 @@ public:
   const int learn_rank, learn_size;
   const Real gamma;
 
-  bool first_pass = true;
+  bool needs_pass = true;
   #ifdef PRIORITIZED_ER
     discrete_distribution<Uint> distPER;
     float minPriorityImpW = 1;
@@ -40,7 +40,6 @@ public:
   Uint nPruned = 0, minInd = 0;
   Real invstd_reward = 1, nOffPol = 0, avgDKL = 0;
 
-  Gen* gen;
   vector<Sequence*> Set, inProgress;
   mutable std::mutex dataset_mutex;
 
@@ -58,7 +57,6 @@ public:
 
   ~MemoryBuffer()
   {
-    _dispose_object(gen);
     for (auto & trash : Set) _dispose_object( trash);
     for (auto & trash : inProgress) _dispose_object( trash);
   }
@@ -85,22 +83,23 @@ public:
     nTransitions = 0;
   }
 
-  Uint clearOffPol(const Real C, const Real tol)
-  {
-    Uint i = 0;
-    while(1) {
-      if(i>=Set.size()) break;
-      Uint _nOffPol = 0;
-      for(Uint j=0; j<Set[i]->ndata(); j++)
-        _nOffPol +=(Set[i]->offPolicImpW[j]>1+C || Set[i]->offPolicImpW[j]<1-C);
-      if(_nOffPol > tol*Set[i]->ndata()) {
-        std::swap(Set[i], Set.back());
-        popBackSequence();
-      }
-      else i++;
-    }
-    return readNData();
-  }
+  // TODO PREFIX: FORCE RECOUNT AFTER THIS:
+  // Uint clearOffPol(const Real C, const Real tol)
+  // {
+  //   Uint i = 0;
+  //   while(1) {
+  //     if(i>=Set.size()) break;
+  //     Uint _nOffPol = 0;
+  //     for(Uint j=0; j<Set[i]->ndata(); j++)
+  //       _nOffPol +=(Set[i]->offPolicImpW[j]>1+C || Set[i]->offPolicImpW[j]<1-C);
+  //     if(_nOffPol > tol*Set[i]->ndata()) {
+  //       std::swap(Set[i], Set.back());
+  //       popBackSequence();
+  //     }
+  //     else i++;
+  //   }
+  //   return readNData();
+  // }
 
   template<typename T>
   inline Rvec standardizeAppended(const vector<T>& state) const
@@ -198,10 +197,19 @@ public:
   }
 
  private:
+
+  void prefixSum();
+
   inline void popBackSequence()
   {
+    assert(readNSeq()>0);
     lock_guard<mutex> lock(dataset_mutex);
-    removeSequence( readNSeq() - 1 );
+    const auto ind = readNSeq() - 1;
+    assert(Set[ind] not_eq nullptr);
+    assert(nTransitions>=Set[ind]->ndata());
+    nTransitions -= Set[ind]->ndata();
+    _dispose_object(Set[ind]);
+    Set[ind] = nullptr;
     Set.pop_back();
     nSequences--;
     assert(nSequences==Set.size());
@@ -209,24 +217,18 @@ public:
   inline void pushBackSequence(Sequence*const seq)
   {
     lock_guard<mutex> lock(dataset_mutex);
-    Set.push_back(nullptr);
-    addSequence( readNSeq(), seq);
-    nSequences++;
     assert( readNSeq() == Set.size());
-  }
-  inline void addSequence(const Uint ind, Sequence*const seq)
-  {
+    const auto ind = readNSeq();
+    const Uint prefix = ind>0? Set[ind-1]->prefix +Set[ind-1]->ndata() : 0;
+    Set.push_back(nullptr);
     assert(Set[ind] == nullptr && seq not_eq nullptr);
     nTransitions += seq->ndata();
     Set[ind] = seq;
-  }
-  inline void removeSequence(const Uint ind)
-  {
-    assert(Set[ind] not_eq nullptr);
-    assert(nTransitions>=Set[ind]->ndata());
-    nTransitions -= Set[ind]->ndata();
-    _dispose_object(Set[ind]);
-    Set[ind] = nullptr;
+    Set[ind]->prefix = prefix;
+    nSequences++;
+    needs_pass = true;
+    assert( readNSeq() == Set.size());
+    //cout << "push back " << prefix << " " << Set[ind]->ndata() << endl;
   }
 
   inline void checkNData()
