@@ -76,9 +76,9 @@ void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Uint 
 
   if(thrID==0)  profiler->stop_start("BCK");
   //if(!thrID) cout << "back pol" << endl;
-  F[0]->backward(grad, samp, thrID);
+  F[0]->backward(grad, traj, samp, thrID);
   //if(!thrID) cout << "back val" << endl; //*(!isFarPol)
-  F[1]->backward({verr*(!isFarPol)}, samp, thrID);
+  F[1]->backward({verr*(!isFarPol)}, traj, samp, thrID);
   F[0]->gradient(thrID);
   F[1]->gradient(thrID);
 }

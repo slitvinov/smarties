@@ -76,6 +76,8 @@ using namespace std;
 #define REFER_FILTER FARPOLFRAC // remove seqs with highest frac of far-pol obs
 //#define REFER_FILTER OLDEST   // remove oldest seqs
 
+//#define PRIORITIZED_ER
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// OPTIMIZER TWEAKS ////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -136,6 +138,7 @@ typedef long double Real;
 typedef double Real;
 #define MPI_VALUE_TYPE MPI_DOUBLE
 #endif
+typedef vector<float> Fvec;
 typedef vector<Real> Rvec;
 typedef vector<long double> LDvec;
 

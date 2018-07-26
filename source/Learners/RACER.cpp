@@ -55,7 +55,7 @@ TrainBySequences(const Uint seq, const Uint thrID) const
       continue;
     } else G = compute(traj,k, out_cur, pol, thrID);
     //write gradient onto output layer:
-    F[0]->backward(G, k, thrID);
+    F[0]->backward(G, traj, k, thrID);
   }
 
   if(thrID==0)  profiler->stop_start("BCK");
@@ -91,7 +91,7 @@ Train(const Uint seq, const Uint samp, const Uint thrID) const
   else grad = compute(traj, samp, out_cur, pol, thrID);
 
   if(thrID==0)  profiler->stop_start("BCK");
-  F[0]->backward(grad, samp, thrID); // place gradient onto output layer
+  F[0]->backward(grad, traj, samp, thrID); // place gradient onto output layer
   F[0]->gradient(thrID);  // backprop
 }
 

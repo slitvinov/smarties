@@ -44,14 +44,16 @@ struct Sequence
   vector<Tuple*> tuples;
   int ended = 0, ID = -1, just_sampled = -1;
   Real nOffPol = 0, MSE = 0, sumKLDiv = 0, totR = 0;
-  Rvec action_adv;
-  Rvec state_vals;
-  Rvec Q_RET;
+  Fvec action_adv;
+  Fvec state_vals;
+  Fvec Q_RET;
   //Used for sampling, filtering, and sorting off policy data:
-  Rvec SquaredError;
-  Rvec offPolicImpW;
-  //Rvec priorityImpW;
-  Rvec KullbLeibDiv;
+  Fvec SquaredError;
+  Fvec offPolicImpW;
+  #ifdef PRIORITIZED_ER
+    vector<float> priorityImpW;
+  #endif
+  Fvec KullbLeibDiv;
   mutable std::mutex seq_mutex;
 
   inline Uint ndata() const {
@@ -77,6 +79,9 @@ struct Sequence
     //priorityImpW.clear();
     SquaredError.clear();
     offPolicImpW.clear();
+    #ifdef PRIORITIZED_ER
+      priorityImpW.clear();
+    #endif
     KullbLeibDiv.clear();
     action_adv.clear();
     state_vals.clear();
@@ -148,10 +153,13 @@ struct Sequence
     ID = index;
     // whatever the meaning of SquaredError, initialize with all zeros
     // this must be taken into account when sorting/filtering
-    SquaredError = Rvec(ndata(), 0);
+    SquaredError = Fvec(ndata(), 0);
     // off pol importance weights are initialized to 1s
-    offPolicImpW = Rvec(ndata(), 1);
-    KullbLeibDiv = Rvec(ndata(), 0);
+    offPolicImpW = Fvec(ndata(), 1);
+    #ifdef PRIORITIZED_ER
+      priorityImpW = vector<float>(ndata(), 1);
+    #endif
+    KullbLeibDiv = Fvec(ndata(), 0);
   }
 };
 

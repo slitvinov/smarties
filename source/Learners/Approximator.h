@@ -135,8 +135,8 @@ struct Approximator
     return act[mapTime2Ind(samp, thrID)]->getOutput();
   }
 
-  void backward(Rvec error, const Uint samp, const Uint thrID,
-    const Uint iSample = 0) const;
+  void backward(Rvec error, const Sequence*const traj, const Uint samp,
+    const Uint thrID, const Uint iSample = 0) const;
 
   void prepareUpdate(const Uint batchSize);
   void applyUpdate();

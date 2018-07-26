@@ -70,18 +70,18 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID) const
     const Rvec pGrad = policyGradient(T, policies[k], policies_tgt[k], A_OPC,
       APol, policy_samples[k]);
 
-    F[0]->backward(pGrad,   k, thrID);
-    F[1]->backward({alpha*(V_err+Q_err)}, k, thrID);
-    F[2]->backward({alpha*Q_err}, k, thrID);
+    F[0]->backward(pGrad,   traj, k, thrID);
+    F[1]->backward({alpha*(V_err+Q_err)}, traj, k, thrID);
+    F[2]->backward({alpha*Q_err}, traj, k, thrID);
     for(Uint i = 0; i < nAexpectation; i++)
-      F[2]->backward({-alpha*facExpect*Q_err}, k, thrID, i+1);
+      F[2]->backward({-alpha*facExpect*Q_err}, traj, k, thrID, i+1);
     //prepare Q with off policy corrections for next step:
     Q_RET = R +gamma*( C*(Q_RET-QTheta) +Vstates[k]);
     Q_OPC = R +gamma*((Q_OPC-QTheta)+Vstates[k]); //as paper, but might be bad
     //Q_OPC = R +gamma*( C*(Q_OPC-QTheta) +Vstates[k]);
     //traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
     const Rvec penal = policies[k].div_kl_grad(T->mu, -1);
-    data->Set[seq]->setMseDklImpw(k, Q_err*Q_err, dkl, rho);
+    traj->setMseDklImpw(k, Q_err*Q_err, dkl, rho);
     trainInfo->log(QTheta, Q_err, pGrad, penal, {rho}, thrID);
   }
 

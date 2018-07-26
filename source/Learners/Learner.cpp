@@ -72,8 +72,7 @@ void Learner::prepareGradient()
 
 void Learner::initializeLearner()
 {
-  // All sequences obtained before this point should share the same time stamp
-  for(Uint i=0;i<data->Set.size();i++) data->Set[i]->ID= data->readNSeenSeq()-1;
+  data->initialize();
 }
 
 void Learner::applyGradient()

@@ -302,44 +302,50 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
   }
   nPruned += nB4-Set.size();
 
-  #ifdef IMPORTSAMPLE
+  #ifdef PRIORITIZED_ER
     updateImportanceWeights();
   #endif
 }
 
+#ifdef PRIORITIZED_ER
+
+static inline float Q_rsqrt( const float number )
+{
+	union { float f; uint32_t i; } conv;
+	static constexpr float threehalfs = 1.5F;
+	const float x2 = number * 0.5F;
+	conv.f  = number;
+	conv.i  = 0x5f3759df - ( conv.i >> 1 );
+  // Uncomment to do 2 iterations:
+  //conv.f  = conv.f * ( threehalfs - ( x2 * conv.f * conv.f ) );
+	return conv.f * ( threehalfs - ( x2 * conv.f * conv.f ) );
+}
+
 void MemoryBuffer::updateImportanceWeights()
 {
-  /*
-  Rvec probs(nTransitions.load()), wghts(nTransitions.load());
-  const Real EPS = numeric_limits<float>::epsilon();
-  Real minP = 1e9, sumP = 0;
-  #pragma omp parallel reduction(min: minP) reduction(+: sumP)
+  const float EPS = numeric_limits<float>::epsilon();
+  vector<float> probs = vector<float>(nTransitions.load(), 1);
+  float minP = 1e9;
+  #pragma omp parallel reduction(min:minP)
   for(Uint i=0, k=0; i<Set.size(); i++) {
     #pragma omp for nowait
     for(Uint j=0; j<Set[i]->ndata(); j++) {
-      const Real P = Set[i]->SquaredError[j]*Set[i]->offPolicImpW[j] + EPS;
-      minP  = std::min(minP, P);
-      sumP += P;
+      const float deltasq = (float)Set[i]->SquaredError[j];
+      //const float deltasq = Set[i]->SquaredError[j]*Set[i]->offPolicImpW[j];
+      // do delta^alpha with alpha = 0.5
+      const float P = std::sqrt(std::sqrt(deltasq + EPS) /* ==abs(delta) */ );
+      minP = std::min(minP, P);
+      Set[i]->priorityImpW[j] = P;
       probs[k+j] = P;
     }
     k += Set[i]->ndata();
+    if(i+1 == Set.size()) assert(k == nTransitions.load());
   }
-
-  #pragma omp parallel
-  for(Uint i=0, k=0; i<Set.size(); i++) {
-    #pragma omp for nowait
-    for(Uint j=0; j<Set[i]->ndata(); j++) {
-      wghts[k+j] = minP / probs[k+j];
-      probs[k+j] = probs[k+j] / sumP;
-      Set[i]->priorityImpW[j] = wghts[k+j];
-    }
-    k += Set[i]->ndata();
-  }
-
-  if(dist not_eq nullptr) delete dist;
-  dist = new std::discrete_distribution<Uint>(probs.begin(), probs.end());
-  */
+  // std::discrete_distribution handles normalizing by sum P
+  distPER = discrete_distribution<Uint>(probs.begin(), probs.end());
 }
+
+#endif
 
 void MemoryBuffer::getMetrics(ostringstream& buff)
 {
@@ -453,75 +459,23 @@ void MemoryBuffer::restart(const string base)
 // number of returned samples depends on size of seq! (== to that of trans)
 void MemoryBuffer::sampleTransition(Uint& seq, Uint& obs, const int thrID)
 {
-  #ifndef IMPORTSAMPLE
+  #ifndef PRIORITIZED_ER
     std::uniform_int_distribution<int> distObs(0, readNData()-1);
     const Uint ind = distObs(generators[thrID]);
   #else
-    const Uint ind = (*dist)(generators[thrID]);
+    const Uint ind = distPER(generators[thrID]);
   #endif
   indexToSample(ind, seq, obs);
 }
 
 void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
 {
-  #ifndef IMPORTSAMPLE
+  //#ifndef PRIORITIZED_ER
     std::uniform_int_distribution<int> distSeq(0, readNSeq()-1);
     seq = distSeq(generators[thrID]);
-  #else
-    seq = (*dist)(generators[thrID]);
-  #endif
-}
-
-void MemoryBuffer::sampleTransitions_OPW(vector<Uint>&seq, vector<Uint>&obs)
-{
-  assert(seq.size() == obs.size());
-  vector<Uint> s = seq, o = obs;
-  int nThr_loc = nThreads;
-  while(seq.size() % nThr_loc) nThr_loc--;
-  const int stride = seq.size()/nThr_loc, N = seq.size();
-  assert(nThr_loc>0 && N % nThr_loc == 0 && stride > 0);
-  // Perf tweak: sort by offPol weight to aid load balance of algos like
-  // Racer/PPO. "Far Policy" obs are discarded due to opcW being out of range
-  // and will trigger a resampling. Sorting here affects tasking order.
-  const auto isAbeforeB = [&] (const pair<Uint,Real> a, const pair<Uint,Real> b)
-  { return a.second > b.second; };
-
-  vector<pair<Uint, Real>> load(N);
-  #pragma omp parallel num_threads(nThr_loc)
-  {
-    const int thrI = omp_get_thread_num(), start = thrI*stride;
-    assert(nThr_loc == omp_get_num_threads());
-
-    sampleMultipleTrans(&s[start], &o[start], stride, thrI);
-    for(int i=start; i<start+stride; i++) {
-      const Real W = Set[s[i]]->offPolicImpW[o[i]], invW = 1/W;
-      load[i].first = i; load[i].second = std::max(W, invW);
-    }
-    std::sort(load.begin()+start, load.begin()+start+stride, isAbeforeB);
-
-    // additional parallel partial sort if batchsize makes it worthwhile
-    if(stride % nThr_loc == 0) {
-      vector<pair<Uint, Real>> load_loc(stride);
-      const int preSortChunk = stride / nThr_loc;
-
-      #pragma omp barrier
-
-      for(int i=0, k=0; i<nThr_loc; i++) // avoid cache thrashing
-       for(int j=0; j<preSortChunk; j++)
-         load_loc[k++] = load[thrI*preSortChunk + i*stride + j];
-
-      std::sort(load_loc.begin(), load_loc.end(), isAbeforeB);
-
-      #pragma omp barrier
-      for(int i=0; i<stride; i++) load[i+start] = load_loc[i];
-    }
-  }
-  //for (Uint i=0; i<seq.size(); i++) cout<<load[i].second<<endl; cout<<endl;
-  std::sort(load.begin(), load.end(), isAbeforeB);
-  for (Uint i=0; i<seq.size(); i++) {
-    obs[i] = o[load[i].first];
-    seq[i] = s[load[i].first];
-  }
+  //#else
+  //  seq = distPER(generators[thrID]);
+  //#endif
 }
 
 void MemoryBuffer::sampleTransitions(vector<Uint>&seq, vector<Uint>&obs)
@@ -530,10 +484,10 @@ void MemoryBuffer::sampleTransitions(vector<Uint>&seq, vector<Uint>&obs)
 
   // Drawing of samples is either uniform (each sample has same prob)
   // or based on importance sampling. The latter is TODO
-  #ifndef IMPORTSAMPLE
+  #ifndef PRIORITIZED_ER
     std::uniform_int_distribution<Uint> distObs(0, readNData()-1);
   #else
-    Gen & distObs = *dist;
+    discrete_distribution<Uint> & distObs = distPER;
   #endif
 
   std::vector<Uint> ret(seq.size());
@@ -590,32 +544,4 @@ void MemoryBuffer::indexToSample(const int nSample, Uint& seq, Uint& obs) const
   }
   assert(nSample>=back && Set[k]->ndata()>(Uint)nSample-back);
   seq = k; obs = nSample-back;
-}
-
-void MemoryBuffer::sampleMultipleTrans(Uint* seq, Uint* obs, const Uint N, const int thrID)
-{
-  vector<Uint> samples(N);
-
-  #ifndef IMPORTSAMPLE
-    std::uniform_int_distribution<Uint> distObs(0, readNData()-1);
-    for (Uint k=0; k<N; k++) samples[k] = distObs(generators[thrID]);
-  #else
-    for (Uint k=0; k<N; k++) samples[k] = (*dist)(generators[thrID]);
-  #endif
-
-  std::sort(samples.begin(), samples.end());
-
-  Uint cntO = 0, samp = 0;
-  for (Uint k=0; k<Set.size(); k++) {
-    for(Uint i=samp; i<N; i++) {
-      if(samples[i] < cntO+Set[k]->ndata()) { // cannot sample last state in seq
-        seq[i] = k;
-        obs[i] = samples[i]-cntO;
-        samp = i+1; // next iteration remember first samp-1 were already found
-      }
-    }
-    if(samp == N) break;
-    cntO += Set[k]->ndata();
-    if(k+1 == Set.size()) assert(cntO == nTransitions.load() && samp == N);
-  }
 }

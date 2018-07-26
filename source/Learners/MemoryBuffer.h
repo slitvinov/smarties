@@ -30,7 +30,11 @@ public:
   const Real gamma;
 
   bool first_pass = true;
-  discrete_distribution<Uint> * dist = nullptr;
+  #ifdef PRIORITIZED_ER
+    discrete_distribution<Uint> distPER;
+    float minPriorityImpW = 1;
+    void updateImportanceWeights();
+  #endif
   //bool bRecurrent;
   Uint nPruned = 0, minInd = 0;
   Real invstd_reward = 1, nOffPol = 0, avgDKL = 0;
@@ -54,9 +58,18 @@ public:
   ~MemoryBuffer()
   {
     _dispose_object(gen);
-    _dispose_object(dist);
     for (auto & trash : Set) _dispose_object( trash);
     for (auto & trash : inProgress) _dispose_object( trash);
+  }
+
+  void initialize()
+  {
+    // All sequences obtained before this point should share the same time stamp
+    for(Uint i=0;i<Set.size();i++) Set[i]->ID = readNSeenSeq()-1;
+    #ifdef PRIORITIZED_ER
+    vector<float> probs(nTransitions.load(), 1);
+    distPER = discrete_distribution<Uint>(probs.begin(), probs.end());
+    #endif
   }
 
   void inline clearAll()
@@ -150,7 +163,6 @@ public:
   void add_state(const Agent&a);
 
   void updateRewardsStats(unsigned long nStep, Real WR = 1, Real WS = -1);
-  void updateImportanceWeights();
 
   // Algorithm for maintaining and filtering dataset, and optional imp weight range parameter
   void prune(const FORGET ALGO, const Real CmaxRho = 1);

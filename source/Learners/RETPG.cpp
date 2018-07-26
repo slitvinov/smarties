@@ -54,13 +54,13 @@ void RETPG::Train(const Uint seq, const Uint t, const Uint thrID) const
   Rvec mixG = weightSum2Grads(polG, penG, beta);
   Rvec finalG = Rvec(F[0]->nOutputs(), 0);
   POL.finalize_grad(mixG, finalG);
-  F[0]->backward(finalG, t, thrID);
+  F[0]->backward(finalG, traj, t, thrID);
 
   //code to compute value grad. Q_RET holds adv, sum with previous est of state
   // val: analogous to having target weights in original DPG
   const Real retTarget = traj->Q_RET[t] +traj->state_vals[t];
   const Rvec grad_val={isOff? 0: retTarget - q_curr[0]};
-  F[1]->backward(grad_val, t, thrID);
+  F[1]->backward(grad_val, traj, t, thrID);
 
   //bookkeeping:
   const Real dAdv = updateQret(traj, t, q_curr[0]-v_curr[0], v_curr[0], POL);

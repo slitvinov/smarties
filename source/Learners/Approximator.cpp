@@ -327,13 +327,20 @@ Rvec Approximator::getInput(const Sequence*const traj, const Uint samp,
   return inp;
 }
 
-void Approximator::backward(Rvec error, const Uint samp,
+void Approximator::backward(Rvec error, const Sequence*const traj, const Uint t,
   const Uint thrID, const Uint iSample) const
 {
   const Uint netID = thrID + iSample*nThreads;
+  #ifdef PRIORITIZED_ER
+   const Real anneal = std::min( (Real)1, opt->nStep * opt->epsAnneal);
+   assert( anneal >= 0 );
+   const float beta = 0.5 + 0.5 * anneal;
+   const Real PERW = std::pow(data->minPriorityImpW/traj->priorityImpW[t],beta);
+   for(Uint i=0; i<error.size(); i++) error[i] *= PERW;
+  #endif
   gradStats->track_vector(error, thrID);
   gradStats->clip_vector(error);
-  const int ind = mapTime2Ind(samp, thrID);
+  const int ind = mapTime2Ind(t, thrID);
   const vector<Activation*>& act = series[netID];
   assert(act[ind]->written == true && iSample <= extraAlloc);
   //ind+1 because we use c-style for loops in other places: TODO:netID

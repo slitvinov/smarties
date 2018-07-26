@@ -104,6 +104,6 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
   trainInfo->log(Qsold, error, {beta, POL.sampImpWeight}, thrID);
   traj->setMseDklImpw(samp, error*error, POL.sampKLdiv, POL.sampImpWeight);
   if(thrID==0)  profiler->stop_start("BCK");
-  F[0]->backward(grad, samp, thrID);
+  F[0]->backward(grad, traj, samp, thrID);
   F[0]->gradient(thrID);
 }
