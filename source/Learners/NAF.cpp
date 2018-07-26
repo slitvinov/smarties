@@ -42,7 +42,7 @@ void NAF::select(Agent& agent)
       assert(polvec.size() == polvec2.size());
       for(Uint i=0;i<nA;i++) assert(abs(polvec[i]-polvec2[i])<2e-16);
     #endif
-    polvec.resize(policyVecDim, explNoise);
+    polvec.resize(policyVecDim, noiseMap_inverse(explNoise));
     assert(polvec.size() == 2 * nA);
     Gaussian_policy policy({0, nA}, &aInfo, polvec);
     const Rvec MU = policy.getVector();
@@ -77,7 +77,8 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
   // prepare advantage and policy
   const Quadratic_advantage ADV = prepare_advantage(output);
   Rvec polvec = ADV.getMean();            assert(polvec.size() == nA);
-  polvec.resize(policyVecDim, explNoise); assert(polvec.size() == 2 * nA);
+  polvec.resize(policyVecDim, noiseMap_inverse(explNoise));
+  assert(polvec.size() == 2 * nA);
   Gaussian_policy POL({0, nA}, &aInfo, polvec);
   POL.prepare(traj->tuples[samp]->a, traj->tuples[samp]->mu);
   //cout << POL.sampImpWeight << " " << POL.sampKLdiv << " " << CmaxRet << endl;
