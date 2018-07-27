@@ -135,10 +135,11 @@ typedef unsigned Uint;
 typedef long double Real;
 #define MPI_VALUE_TYPE MPI_LONG_DOUBLE
 #else
-typedef double Real;
 #define MPI_VALUE_TYPE MPI_DOUBLE
 #endif
-typedef vector<float> Fvec;
+typedef float  Fval;
+typedef vector<Fval> Fvec;
+typedef double Real;
 typedef vector<Real> Rvec;
 typedef vector<long double> LDvec;
 

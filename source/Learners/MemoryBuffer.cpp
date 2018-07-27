@@ -227,14 +227,14 @@ void MemoryBuffer::push_back(const int & agentId)
   inProgress[agentId] = new Sequence();
 }
 
-void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
+void MemoryBuffer::prune(const FORGET ALGO, const Fval CmaxRho)
 {
   //checkNData();
   assert(CmaxRho>=1);
   // vector indicating location of sequence to delete
   int old_ptr = -1, far_ptr = -1, dkl_ptr = -1, fit_ptr = -1, del_ptr = -1;
   Real dkl_val = -1, far_val = -1, fit_val = 9e9, old_ind = nSeenSequences;
-  const int nB4 = Set.size(); const Real invC = 1/CmaxRho;
+  const int nB4 = Set.size(); const Fval invC = 1/CmaxRho;
   Real _nOffPol = 0, _totDKL = 0;
   #pragma omp parallel reduction(+ : _nOffPol, _totDKL)
   {
@@ -246,7 +246,7 @@ void MemoryBuffer::prune(const FORGET ALGO, const Real CmaxRho)
       {
         Set[i]->nOffPol = 0; Set[i]->MSE = 0; Set[i]->sumKLDiv = 0;
         for(Uint j=0; j<Set[i]->ndata(); j++) {
-          const Real W = Set[i]->offPolicImpW[j];
+          const Fval W = Set[i]->offPolicImpW[j];
           Set[i]->MSE += Set[i]->SquaredError[j];
           Set[i]->sumKLDiv += Set[i]->KullbLeibDiv[j];
           assert(Set[i]->SquaredError[j]>=0&&W>=0&&Set[i]->KullbLeibDiv[j]>=0);

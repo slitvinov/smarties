@@ -165,7 +165,7 @@ public:
   void updateRewardsStats(unsigned long nStep, Real WR = 1, Real WS = -1);
 
   // Algorithm for maintaining and filtering dataset, and optional imp weight range parameter
-  void prune(const FORGET ALGO, const Real CmaxRho = 1);
+  void prune(const FORGET ALGO, const Fval CmaxRho = 1);
 
   void getMetrics(ostringstream& buff);
   void getHeaders(ostringstream& buff);

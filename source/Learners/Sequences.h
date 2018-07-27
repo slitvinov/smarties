@@ -44,7 +44,7 @@ struct Sequence
   vector<Tuple*> tuples;
   int ended = 0, ID = -1, just_sampled = -1;
   Uint prefix = 0;
-  Real nOffPol = 0, MSE = 0, sumKLDiv = 0, totR = 0;
+  Fval nOffPol = 0, MSE = 0, sumKLDiv = 0, totR = 0;
   Fvec action_adv;
   Fvec state_vals;
   Fvec Q_RET;
@@ -93,25 +93,25 @@ struct Sequence
     lock_guard<mutex> lock(seq_mutex);
     if(just_sampled < t) just_sampled = t;
   }
-  inline void setRetrace(const Uint t, const Real Q)
+  inline void setRetrace(const Uint t, const Fval Q)
   {
     assert( t < Q_RET.size() );
     lock_guard<mutex> lock(seq_mutex);
     Q_RET[t] = Q;
   }
-  inline void setAdvantage(const Uint t, const Real A)
+  inline void setAdvantage(const Uint t, const Fval A)
   {
     assert( t < action_adv.size() );
     lock_guard<mutex> lock(seq_mutex);
     action_adv[t] = A;
   }
-  inline void setStateValue(const Uint t, const Real V)
+  inline void setStateValue(const Uint t, const Fval V)
   {
     assert( t < state_vals.size() );
     lock_guard<mutex> lock(seq_mutex);
     state_vals[t] = V;
   }
-  inline void setMseDklImpw(const Uint t,const Real E,const Real D,const Real W)
+  inline void setMseDklImpw(const Uint t,const Fval E,const Fval D,const Fval W)
   {
     lock_guard<mutex> lock(seq_mutex);
     SquaredError[t] = E;
@@ -119,19 +119,19 @@ struct Sequence
     offPolicImpW[t] = W;
   }
 
-  inline bool isFarPolicyPPO(const Uint t, const Real W, const Real C) const
+  inline bool isFarPolicyPPO(const Uint t, const Fval W, const Fval C) const
   {
     assert(C<1) ;
-    const bool isOff = W > 1+C || W < 1-C;
+    const bool isOff = W > (Fval)1 + C || W < (Fval)1 - C;
     return isOff;
   }
-  inline bool isFarPolicy(const Uint t, const Real W, const Real C) const
+  inline bool isFarPolicy(const Uint t, const Fval W, const Fval C) const
   {
-    const bool isOff = W > C || W < 1/C;
+    const bool isOff = W > C || W < (Fval)1 / C;
     // If C<=1 assume we never filter far policy samples
-    return C>1 && isOff;
+    return C > (Fval)1 && isOff;
   }
-  inline bool distFarPolicy(const Uint t, const Real D, const Real target) const
+  inline bool distFarPolicy(const Uint t, const Fval D, const Fval target) const
   {
     // If target<=0 assume we never filter far policy samples
     return target>0 && D > target;
