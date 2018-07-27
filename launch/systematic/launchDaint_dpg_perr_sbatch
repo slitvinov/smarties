@@ -22,6 +22,7 @@ COMMNAME=DPG_perr
 SETTINGS=" --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner DPG --maxTotObsNum 524288 --minTotObsNum 262144 --targetDelay 0.01 --explNoise 0.2 --totNumSteps 10000000 --learnrate 0.00001 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 --epsAnneal 0 --batchSize 128 --obsPerStep 1 --penalTol 0.1  --clipImpWeight 0 --nnOutputFunc Tanh "
 
 MYNAME=`whoami`
+SMARTIESDIR="${HOME}/smarties/"
 BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
 RUNTRIAL=(1 2 3 4 5)
 
@@ -44,25 +45,30 @@ done
 
 # stuff that depends on SLURM_ARRAY_TASK_ID
 RUNFOLDER=${rundir[$SLURM_ARRAY_TASK_ID]}
-mkdir -p ${BASEPATH}${RUNFOLDER}
+
+RUNPATH=${BASEPATH}${RUNFOLDER}
+
+mkdir -p ${RUNPATH}
+
 RUNSET=${SETTINGS}${cases[$SLURM_ARRAY_TASK_ID]}
-cat <<EOF >${BASEPATH}${RUNFOLDER}/launchSim.sh
+
+cat <<EOF >${RUNPATH}/launchSim.sh
 python3 ../Communicator_gym.py \$1 ${appspec[$SLURM_ARRAY_TASK_ID]}
 EOF
-cat <<EOF >${BASEPATH}${RUNFOLDER}/factory
+cat <<EOF >${RUNPATH}/factory
 Environment exec=../launchSim.sh n=1
 EOF
-chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
+chmod +x ${RUNPATH}/launchSim.sh
 
 # copy over stuff
-cp ../../makefiles3/rl ${BASEPATH}${RUNFOLDER}/exec
-cp ../../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
-cp ../../source/Communicators/Communicator_gym.py ${BASEPATH}${RUNFOLDER}/
-cp $0                         ${BASEPATH}${RUNFOLDER}/launch.sh
-git log | head  > ${BASEPATH}${RUNFOLDER}/gitlog.log
-git diff > ${BASEPATH}${RUNFOLDER}/gitdiff.log
+cp ${SMARTIESDIR}/makefiles3/rl                            ${RUNPATH}/exec
+cp ${SMARTIESDIR}/source/Communicators/Communicator.py     ${RUNPATH}/
+cp ${SMARTIESDIR}/source/Communicators/Communicator_gym.py ${RUNPATH}/
+cp $0                                                      ${RUNPATH}/launch.sh
+#git log | head  >                                         ${RUNPATH}/gitlog.log
+#git diff >                                                ${RUNPATH}/gitdif.log
 
-cd ${BASEPATH}${RUNFOLDER}
+cd ${RUNPATH}
 
 export OMP_NUM_THREADS=12
 export OMP_PROC_BIND=CLOSE

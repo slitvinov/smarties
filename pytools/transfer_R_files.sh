@@ -20,3 +20,6 @@ for f in ${BASEPATH}*${SHAREDPATTERN}*; do
   mkdir ${RETURNPATH}/${dir}
   cp ${f}/*cumulative_rewards*.dat ${RETURNPATH}/${dir}/
 done
+
+tar -zcvf ${RETURNPATH}.tar.gz ${RETURNPATH}
+rm -rf ${RETURNPATH}
