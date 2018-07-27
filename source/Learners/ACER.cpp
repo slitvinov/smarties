@@ -153,7 +153,7 @@ ACER::ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
     bool bInputNet = false;
     input_build.addInput( input->nOutputs() );
     bInputNet = bInputNet || env->predefinedNetwork(input_build);
-    bInputNet = bInputNet || predefinedNetwork(input_build);
+    bInputNet = bInputNet || predefinedNetwork(input_build, 0);
     if(bInputNet) {
       Network* net = input_build.build(true);
       input->initializeNetwork(net, input_build.opt);
