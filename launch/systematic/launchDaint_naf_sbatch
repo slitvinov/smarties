@@ -22,7 +22,7 @@ COMMNAME=NAF_REFER
 SETTINGS=" --gamma 0.995 --nnl1 128 --nnl2 128 --nnFunc SoftSign --learner NAF --maxTotObsNum 524288 --minTotObsNum 262144 --targetDelay 0.01 --explNoise 0.2 --totNumSteps 10000000 --learnrate 0.0001 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 --epsAnneal 5e-7 --batchSize 256 --obsPerStep 1 "
 
 MYNAME=`whoami`
-BASEPATH="/scratch/snx3000/${MYNAME}/smarties/Guido/"
+BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
 IMPSAMPR=(0 2 4 8)
 TOLPARAM=(0.10)
 RUNTRIAL=(1 2 3 4 5)
@@ -63,7 +63,7 @@ EOF
 chmod +x ${BASEPATH}${RUNFOLDER}/launchSim.sh
 
 # copy over stuff
-cp ../../makefiles/rl ${BASEPATH}${RUNFOLDER}/exec
+cp ../../makefiles1/rl ${BASEPATH}${RUNFOLDER}/exec
 cp ../../source/Communicators/Communicator.py     ${BASEPATH}${RUNFOLDER}/
 cp ../../source/Communicators/Communicator_gym.py ${BASEPATH}${RUNFOLDER}/
 cp $0                         ${BASEPATH}${RUNFOLDER}/launch.sh
