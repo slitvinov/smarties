@@ -9,7 +9,7 @@
 #include "PPO.h"
 #include "../Network/Builder.h"
 
-//#define PPO_PENALKL
+#define PPO_PENALKL
 #define PPO_CLIPPED
 #define PPO_simpleSigma
 
@@ -96,21 +96,21 @@ void PPO<Policy_t, Action_t>::updatePPO(Sequence*const seq) const
   assert(seq->tuples.size() == 2+seq->Q_RET.size());
   assert(seq->tuples.size() == 2+seq->action_adv.size());
   const Uint N = seq->tuples.size();
-  const Real vSold = seq->state_vals[N-2], vSnew = seq->state_vals[N-1];
-  const Real R = data->scaledReward(seq,N-1);
+  const Fval vSold = seq->state_vals[N-2], vSnew = seq->state_vals[N-1];
+  const Fval R = data->scaledReward(seq,N-1);
   // delta_t = r_t+1 + gamma V(s_t+1) - V(s_t)  (pedix on r means r_t+1
   // received with transition to s_t+1, sometimes referred to as r_t)
 
-  const Real delta = R +gamma*vSnew -vSold;
+  const Fval delta = R +(Fval)gamma*vSnew -vSold;
   seq->action_adv.push_back(0);
   seq->Q_RET.push_back(0);
 
-  Real fac_lambda = 1, fac_gamma = 1;
+  Fval fac_lambda = 1, fac_gamma = 1;
   // If user selects gamma=.995 and lambda=0.97 as in Henderson2017
   // these will start at 0.99 and 0.95 (same as original) and be quickly
   // annealed upward in the first 1e5 steps.
-  const Real rGamma  =  gamma>0.99? annealDiscount( gamma,.99,nStep) :  gamma;
-  const Real rLambda = lambda>0.95? annealDiscount(lambda,.95,nStep) : lambda;
+  const Fval rGamma  =  gamma>0.99? annealDiscount( gamma,.99,nStep) :  gamma;
+  const Fval rLambda = lambda>0.95? annealDiscount(lambda,.95,nStep) : lambda;
   // reward of i=0 is 0, because before any action
   // adv(0) is also 0, V(0) = V(s_0)
   for (int i=N-2; i>=0; i--) { //update all rewards before current step
