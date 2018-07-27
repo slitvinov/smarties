@@ -76,7 +76,7 @@ using namespace std;
 #define REFER_FILTER FARPOLFRAC // remove seqs with highest frac of far-pol obs
 //#define REFER_FILTER OLDEST   // remove oldest seqs
 
-//#define PRIORITIZED_ER
+// #define PRIORITIZED_ER
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////// OPTIMIZER TWEAKS ////////////////////////////////

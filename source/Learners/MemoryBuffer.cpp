@@ -358,8 +358,8 @@ void MemoryBuffer::updateImportanceWeights()
   //const float EPS = numeric_limits<float>::epsilon();
   using USI = unsigned short;
   using TupEST = tuple<float, USI, USI>;
-  vector<TupEST> errors(nTransitions.load());
   const Uint nData = nTransitions.load();
+  vector<TupEST> errors(nData);
   // 1)
   #pragma omp parallel for schedule(dynamic)
   for(Uint i=0; i<Set.size(); i++) {
@@ -397,14 +397,15 @@ void MemoryBuffer::updateImportanceWeights()
       #pragma omp for schedule(static) nowait // equally divided
       for(Uint j=start; j<end; j++) load_loc.push_back( errors[j] );
     }
-    thdStarts[thrI] = load_loc.size();
+    const Uint locSize = load_loc.size();
+    thdStarts[thrI] = locSize;
     std::sort(load_loc.begin(), load_loc.end(), isAbeforeB);
 
     #pragma omp barrier // wait all those thdStarts values
 
     Uint threadStart = 0;
     for(int i=0; i<thrI; i++) threadStart += thdStarts[i];
-    for(Uint i=0; i<load_loc.size(); i++) errors[i+threadStart] = load_loc[i];
+    for(Uint i=0; i<locSize; i++) errors[i+threadStart] = load_loc[i];
   }
   #endif
   //for(Uint i=0; i<errors.size(); i++) cout << std::get<0>(errors[i]) << endl;
@@ -413,7 +414,7 @@ void MemoryBuffer::updateImportanceWeights()
   float minP = 1e9;
   vector<float> probs = vector<float>(nData, 1);
   #pragma omp parallel for reduction(min:minP) schedule(static)
-  for(Uint i=0; i<errors.size(); i++) {
+  for(Uint i=0; i<nData; i++) {
     // if error is 0 then never yet sampled and put ahead of queue
     const float P = std::get<0>(errors[i])>0 ? Q_rsqrt(i+1) : 1;
     const Uint seq = get<1>(errors[i]), t = get<2>(errors[i]);
@@ -424,7 +425,6 @@ void MemoryBuffer::updateImportanceWeights()
   minPriorityImpW = minP;
 
   distPER = discrete_distribution<Uint>(probs.begin(), probs.end());
-
 }
 #else // error based probability
 void MemoryBuffer::updateImportanceWeights()
