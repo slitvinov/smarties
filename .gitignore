@@ -49,6 +49,7 @@ Temporary Items
 test.dSYM
 *.dSYM
 
+out.*.*.[oe]
 policies/*
 runs/
 engine_cmaes
