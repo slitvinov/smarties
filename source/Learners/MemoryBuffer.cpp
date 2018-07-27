@@ -334,7 +334,7 @@ void MemoryBuffer::prefixSum()
 
 #ifdef PRIORITIZED_ER
 
-#if 1 // rank based probability
+#if 0 // rank based probability
 
 static inline float Q_rsqrt( const float number )
 {
@@ -415,7 +415,7 @@ void MemoryBuffer::updateImportanceWeights()
   vector<float> probs = vector<float>(nData, 1);
   #pragma omp parallel for reduction(min:minP) schedule(static)
   for(Uint i=0; i<nData; i++) {
-    // if error is 0 then never yet sampled and put ahead of queue
+    // if samples never seen by optimizer the samples have high priority
     const float P = std::get<0>(errors[i])>0 ? Q_rsqrt(i+1) : 1;
     const Uint seq = get<1>(errors[i]), t = get<2>(errors[i]);
     probs[Set[seq]->prefix + t] = P;
@@ -430,41 +430,32 @@ void MemoryBuffer::updateImportanceWeights()
 void MemoryBuffer::updateImportanceWeights()
 {
   const float EPS = numeric_limits<float>::epsilon();
-  vector<float> probs = vector<float>(nTransitions.load(), 1);
+  const Uint nData = nTransitions.load();
+  vector<float> probs = vector<float>(nData, 1);
   float minP = 1e9, maxP = 0;
-  #pragma omp parallel num_threads(nThreads) \
-                       reduction(min:minP) reduction(max:maxP)
-  {
-    const int thrI = omp_get_thread_num();
-    const Uint stride = std::ceil(Set.size() / (Real) nThreads);
-    const Uint start = thrI*stride;
-    const Uint end = std::min( (thrI+1)*stride, (Uint) Set.size());
 
-    for(Uint i=0, k=0; i<Set.size(); i++) {
-      const auto ndata = Set[i]->ndata();
-      const auto probs_i = probs.data()+i;
-      auto & priorityImpW = Set[i]->priorityImpW;
-      const auto & SquaredError = Set[i]->SquaredError;
-      if (i>=start && i<end)
-        for(Uint j=0; j<ndata; j++) {
-          const float deltasq = (float)SquaredError[j];
-          // do sqrt(delta^2)^alpha with alpha = 0.5
-          const float P = deltasq>0.0f? std::sqrt(std::sqrt(deltasq + EPS)) : 0.0f;
-          const float Q = (P>0.0f) ? P : 1.0e9f;
+  #pragma omp parallel for schedule(dynamic) reduction(min:minP) reduction(max:maxP)
+  for(Uint i=0; i<Set.size(); i++) {
+    const auto ndata = Set[i]->ndata();
+    const auto probs_i = probs.data() + Set[i]->prefix;
 
-          minP = std::min(minP, Q + EPS); // avoid nans in impW
-          maxP = std::max(maxP, P + EPS);
+    for(Uint j=0; j<ndata; j++) {
+      const float deltasq = (float)Set[i]->SquaredError[j];
+      // do sqrt(delta^2)^alpha with alpha = 0.5
+      const float P = deltasq>0.0f? std::sqrt(std::sqrt(deltasq+EPS)) : 0.0f;
+      const float Pe = P + EPS, Qe = (P>0.0f? P : 1.0e9f) + EPS;
+      minP = std::min(minP, Qe); // avoid nans in impW
+      maxP = std::max(maxP, Pe);
 
-          priorityImpW[j] = P;
-          probs_i[j] = P;
-        }
-      k += Set[i]->ndata();
-      if(i+1 == Set.size()) assert(k == nTransitions.load());
+      Set[i]->priorityImpW[j] = P;
+      probs_i[j] = P;
     }
   }
+  //for(Uint i=0; i<probs.size(); i++) cout << probs[i]<< endl;
+  //cout <<minP <<" " <<maxP<<endl;
   // if samples never seen by optimizer the samples have high priority
   #pragma omp parallel for schedule(static)
-  for(Uint i=0; i<probs.size(); i++) if(probs[i]<=0) probs[i] = maxP;
+  for(Uint i=0; i<nData; i++) if(probs[i]<=0) probs[i] = maxP;
   minPriorityImpW = minP;
   maxPriorityImpW = maxP;
   // std::discrete_distribution handles normalizing by sum P
@@ -479,7 +470,7 @@ void MemoryBuffer::getMetrics(ostringstream& buff)
   Real avgR = 0;
   for(Uint i=0; i<Set.size(); i++) avgR += Set[i]->totR;
 
-  real2SS(buff, invstd_reward*avgR/Set.size(), 7, 0);
+  real2SS(buff, invstd_reward*avgR/(Set.size()+1e-7), 7, 0);
   real2SS(buff, 1/invstd_reward, 6, 1);
   real2SS(buff, avgDKL, 6, 1);
 

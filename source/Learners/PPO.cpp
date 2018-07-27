@@ -160,15 +160,20 @@ void PPO<Policy_t, Action_t>::initializeLearner()
   debugL("Rescale GAE est. after gathering initial dataset");
   // placed here because on 1st step we just computed first rewards statistics
   #pragma omp parallel for schedule(dynamic)
-  for(Uint i = 0; i < data->Set.size(); i++)
-    for (Uint j=data->Set[i]->ndata(); j>0; j--) {
+  for(Uint i = 0; i < data->Set.size(); i++) {
+    assert(data->Set[i]->ndata()>=1);
+    assert(data->Set[i]->action_adv.size() == data->Set[i]->ndata());
+    assert(data->Set[i]->Q_RET.size()      == data->Set[i]->ndata());
+    assert(data->Set[i]->state_vals.size() == data->Set[i]->ndata()+1);
+    for (Uint j=data->Set[i]->ndata()-1; j>0; j--) {
       data->Set[i]->action_adv[j] *= data->invstd_reward;
       data->Set[i]->Q_RET[j] *= data->invstd_reward;
     }
+  }
 
   for(Uint i = 0; i < data->inProgress.size(); i++) {
-    if(data->inProgress[i]->tuples.size() == 0) continue;
-    for (Uint j=data->inProgress[i]->ndata(); j>0; j--) {
+    if(data->inProgress[i]->tuples.size() <= 1) continue;
+    for (Uint j=data->inProgress[i]->ndata()-1; j>0; j--) {
       data->inProgress[i]->action_adv[j] *= data->invstd_reward;
       data->inProgress[i]->Q_RET[j] *= data->invstd_reward;
     }
