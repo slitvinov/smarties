@@ -61,9 +61,6 @@ using namespace std;
 // Bound of pol mean for bounded act. spaces (ie tanh(+/- 8)) Helps avoid nans
 #define BOUNDACT_MAX 8
 
-// Optional constant stdev in case of Acer:
-#define ACER_CONST_STDEV 0.3
-
 // Number of previous time steps to include in back-prop through time:
 #define MAX_UNROLL_BFORE 20
 

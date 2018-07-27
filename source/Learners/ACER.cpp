@@ -27,7 +27,8 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID) const
   vector<Rvec> advantages(ndata, Rvec(2+nAexpectation, 0));
 
   if(thrID==0) profiler->stop_start("FWD");
-  for(Uint k=0; k<(Uint)ndata; k++) {
+  for(Uint k=0; k<(Uint)ndata; k++)
+  {
     const Rvec outPc = F[0]->forward<CUR>(traj, k, thrID);
     policies.push_back(prepare_policy(outPc, traj->tuples[k]));
     assert(policies.size() == k+1);
@@ -50,9 +51,13 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID) const
     }
     //cout << print(advantages[k]) << endl; fflush(0);
   }
-  assert(traj->ended);
   Real Q_RET = data->scaledReward(traj, ndata);
   Real Q_OPC = data->scaledReward(traj, ndata);
+  if ( not traj->ended ) {
+    const Rvec v_term = F[1]->forward(traj, ndata, thrID);
+    Q_RET += gamma*v_term[0];
+    Q_OPC += gamma*v_term[0];
+  }
   if(thrID==0)  profiler->stop_start("POL");
   for(int k=ndata-1; k>=0; k--)
   {
@@ -64,9 +69,12 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID) const
     }
     const Real A_OPC = Q_OPC - Vstates[k], Q_err = Q_RET - QTheta;
 
-    const Real rho = policies[k].sampImpWeight, W = std::min((Real)1, rho);
-    const Real C = std::pow(W, acerTrickPow), dkl = policies[k].sampKLdiv;
-    const Real R = data->scaledReward(traj, k), V_err = Q_err*W;
+    const Real rho = policies[k].sampImpWeight;
+    const Real W = std::min((Real)1, rho);
+    const Real C = std::pow(W, acerTrickPow);
+    const Real dkl = policies[k].sampKLdiv;
+    const Real R = data->scaledReward(traj, k);
+    const Real V_err = Q_err*W;
     const Rvec pGrad = policyGradient(T, policies[k], policies_tgt[k], A_OPC,
       APol, policy_samples[k]);
 
@@ -77,7 +85,7 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID) const
       F[2]->backward({-alpha*facExpect*Q_err}, traj, k, thrID, i+1);
     //prepare Q with off policy corrections for next step:
     Q_RET = R +gamma*( C*(Q_RET-QTheta) +Vstates[k]);
-    Q_OPC = R +gamma*((Q_OPC-QTheta)+Vstates[k]); //as paper, but might be bad
+    Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]); // as paper, but bad
     //Q_OPC = R +gamma*( C*(Q_OPC-QTheta) +Vstates[k]);
     //traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
     const Rvec penal = policies[k].div_kl_grad(T->mu, -1);
@@ -167,6 +175,7 @@ ACER::ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
   //_set.learnrate *= 10;
   //const Real backup = _set.nnLambda;
   //_set.nnLambda = 0.01;
+  _set.targetDelay = 0; // unneeded for adv and val targets
   F[1]->initializeNetwork(build_val);
   F[2]->initializeNetwork(build_adv);
   //_set.nnLambda = backup;

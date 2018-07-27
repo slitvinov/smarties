@@ -348,7 +348,7 @@ void Approximator::backward(Rvec error, const Sequence*const traj, const Uint t,
   assert(act[ind]->written == true && iSample <= extraAlloc);
   //ind+1 because we use c-style for loops in other places: TODO:netID
   error_placements[thrID] = std::max(ind+1, error_placements[thrID]);
-  act[ind]->setOutputDelta(error);
+  act[ind]->addOutputDelta(error);
 }
 
 void Approximator::prepareUpdate(const Uint batchSize)

@@ -56,7 +56,6 @@ private:
   }
   inline Rvec extract_stdev() const
   {
-    if(start_prec == 0) return Rvec (nA, ACER_CONST_STDEV);
     Rvec ret(nA);
     assert(netOutputs.size() >= start_prec + nA);
     for(Uint i=0; i<nA; i++) ret[i] = noiseMap_func(netOutputs[start_prec+i]);
