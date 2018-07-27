@@ -392,7 +392,7 @@ void MemoryBuffer::updateImportanceWeights()
     vector<TupEST> load_loc;
     load_loc.reserve(stride); // because we want to push back
     for(Uint t=0; t<nThreads; t++) {
-      const Uint i = t + thrI % nThreads;
+      const Uint i = (t + thrI) % nThreads;
       const Uint start = i*stride, end = std::min( (i+1)*stride, nData);
       #pragma omp for schedule(static) nowait // equally divided
       for(Uint j=start; j<end; j++) load_loc.push_back( errors[j] );
