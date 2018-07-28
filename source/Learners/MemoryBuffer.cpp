@@ -489,7 +489,7 @@ void MemoryBuffer::getHeaders(ostringstream& buff)
   "| avgR | stdr | DKL | nEp |  nObs | totEp | totObs | oldEp |nFarP ";
 }
 
-void MemoryBuffer::save(const string base, const Uint nStep)
+void MemoryBuffer::save(const string base, const Uint nStep, const bool bBackup)
 {
   FILE * wFile = fopen((base+"scaling.raw").c_str(), "wb");
   fwrite(   mean.data(), sizeof(Real),   mean.size(), wFile);
@@ -498,7 +498,7 @@ void MemoryBuffer::save(const string base, const Uint nStep)
   fwrite(&invstd_reward, sizeof(Real),             1, wFile);
   fflush(wFile); fclose(wFile);
 
-  if(nStep % FREQ_BACKUP == 0 && nStep > 0) {
+  if(bBackup) {
     ostringstream S; S<<std::setw(9)<<std::setfill('0')<<nStep;
     wFile = fopen((base+"scaling_"+S.str()+".raw").c_str(), "wb");
     fwrite(   mean.data(), sizeof(Real),   mean.size(), wFile);

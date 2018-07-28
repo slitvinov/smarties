@@ -152,10 +152,10 @@ struct Approximator
   void getMetrics(ostringstream& buff) const;
   void getHeaders(ostringstream& buff) const;
 
-  void save(const string base = string())
+  void save(const string base, const bool bBackup)
   {
     if(opt == nullptr) die("Attempted to save uninitialized net!");
-    opt->save(base + name);
+    opt->save(base + name, bBackup);
   }
   void restart(const string base = string())
   {

@@ -63,6 +63,14 @@ learning algorithm), for continuous actions it is the (initial) stdev."
 #define DEFAULT_explNoise 0.5
   Real explNoise = DEFAULT_explNoise;
 
+#define CHARARG_freqBackup 'f'
+#define COMMENT_freqBackup "Frequency of checkpoints of learner state. These \
+checkpoints can be used to evaluate learners, but not yet to restart learning."
+#define TYPEVAL_freqBackup int
+#define TYPENUM_freqBackup INT
+#define DEFAULT_freqBackup 1000000
+int freqBackup = DEFAULT_freqBackup;
+
 #define CHARARG_gamma 'g'
 #define COMMENT_gamma "Discount factor."
 #define TYPEVAL_gamma Real

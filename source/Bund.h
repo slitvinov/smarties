@@ -119,8 +119,6 @@ typedef double memReal;
 // hint to reserve memory for the network workspaces, can be breached
 #define MAX_SEQ_LEN 1200
 
-#define FREQ_BACKUP 1000000 // frequency of network weights backups
-
 //#define _dumpNet_ // deprecated
 
 typedef unsigned Uint;

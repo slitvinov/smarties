@@ -64,6 +64,6 @@ class Optimizer
 
   void apply_update();
 
-  void save(const string fname);
+  void save(const string fname, const bool bBackup);
   int restart(const string fname);
 };
