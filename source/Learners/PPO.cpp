@@ -66,10 +66,10 @@ void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Uint 
   //bookkeeping:
   const Real verr = val_tgt-val_cur[0];
   #ifdef PPO_learnDKLt
-  trainInfo->log(val_cur[0], verr*verr, policy_grad, penal_grad,
+  trainInfo->log(val_cur[0], verr, policy_grad, penal_grad,
     { (Real)valPenal[0], DivKL, rho_cur, DKL_target }, thrID);
   #else
-  trainInfo->log(val_cur[0], verr*verr, policy_grad, penal_grad,
+  trainInfo->log(val_cur[0], verr, policy_grad, penal_grad,
     { (Real)valPenal[0], DivKL, rho_cur }, thrID);
   #endif
   traj->setMseDklImpw(samp, verr*verr, DivKL, rho_cur);
@@ -86,18 +86,19 @@ void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Uint 
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::updatePPO(Sequence*const seq) const
 {
-  //this is only triggered by t = 0 (or truncated trajectories)
-  // at t=0 we do not have a reward, and we cannot compute delta
-  //(if policy was updated after prev action we treat next state as initial)
-  if(seq->state_vals.size() < 2) {
-    return;
-  }
+  assert(seq->tuples.size());
   assert(seq->tuples.size() == seq->state_vals.size());
   assert(seq->tuples.size() == 2+seq->Q_RET.size());
   assert(seq->tuples.size() == 2+seq->action_adv.size());
+
+  //this is only triggered by t = 0 (or truncated trajectories)
+  // at t=0 we do not have a reward, and we cannot compute delta
+  //(if policy was updated after prev action we treat next state as initial)
+  if(seq->state_vals.size() < 2)  return;
+
   const Uint N = seq->tuples.size();
   const Fval vSold = seq->state_vals[N-2], vSnew = seq->state_vals[N-1];
-  const Fval R = data->scaledReward(seq,N-1);
+  const Fval R = data->scaledReward(seq, N-1);
   // delta_t = r_t+1 + gamma V(s_t+1) - V(s_t)  (pedix on r means r_t+1
   // received with transition to s_t+1, sometimes referred to as r_t)
 
@@ -116,11 +117,11 @@ void PPO<Policy_t, Action_t>::updatePPO(Sequence*const seq) const
   for (int i=N-2; i>=0; i--) { //update all rewards before current step
     //will contain MC sum of returns:
     seq->Q_RET[i] += fac_gamma * R;
-    #ifndef IGNORE_CRITIC
+    //#ifndef IGNORE_CRITIC
       seq->action_adv[i] += fac_lambda * delta;
-    #else
-      seq->action_adv[i] += fac_gamma * R;
-    #endif
+    //#else
+    //  seq->action_adv[i] += fac_gamma * R;
+    //#endif
     fac_lambda *= rLambda*rGamma;
     fac_gamma *= rGamma;
   }
