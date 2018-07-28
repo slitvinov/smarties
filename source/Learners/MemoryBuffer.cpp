@@ -106,7 +106,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
       for(Uint j=0; j<Set[i]->ndata(); j++) {
         newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
         for(Uint k=0; k<dimS && WS>0; k++) {
-          const Real sk = Set[i]->tuples[j]->s[k] - mean[k];
+          const long double sk = Set[i]->tuples[j]->s[k] - mean[k];
           thNewSSum[k] += sk; thNewSSqSum[k] += sk*sk;
         }
       }

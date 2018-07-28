@@ -25,7 +25,7 @@ public:
   const ActionInfo& aI;
   const vector<Agent*> _agents;
   std::vector<std::mt19937>& generators;
-  Rvec mean, invstd, std;
+  vector<memReal> mean, invstd, std;
   const int learn_rank, learn_size;
   const Real gamma;
   bool needs_pass = true;
