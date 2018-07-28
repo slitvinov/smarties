@@ -88,13 +88,13 @@ void PPO<Policy_t, Action_t>::updatePPO(Sequence*const seq) const
 {
   assert(seq->tuples.size());
   assert(seq->tuples.size() == seq->state_vals.size());
-  assert(seq->tuples.size() == 2+seq->Q_RET.size());
-  assert(seq->tuples.size() == 2+seq->action_adv.size());
 
   //this is only triggered by t = 0 (or truncated trajectories)
   // at t=0 we do not have a reward, and we cannot compute delta
   //(if policy was updated after prev action we treat next state as initial)
   if(seq->state_vals.size() < 2)  return;
+  assert(seq->tuples.size() == 2+seq->Q_RET.size());
+  assert(seq->tuples.size() == 2+seq->action_adv.size());
 
   const Uint N = seq->tuples.size();
   const Fval vSold = seq->state_vals[N-2], vSnew = seq->state_vals[N-1];

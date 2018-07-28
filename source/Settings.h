@@ -63,14 +63,6 @@ learning algorithm), for continuous actions it is the (initial) stdev."
 #define DEFAULT_explNoise 0.5
   Real explNoise = DEFAULT_explNoise;
 
-#define CHARARG_freqBackup 'f'
-#define COMMENT_freqBackup "Frequency of checkpoints of learner state. These \
-checkpoints can be used to evaluate learners, but not yet to restart learning."
-#define TYPEVAL_freqBackup int
-#define TYPENUM_freqBackup INT
-#define DEFAULT_freqBackup 1000000
-int freqBackup = DEFAULT_freqBackup;
-
 #define CHARARG_gamma 'g'
 #define COMMENT_gamma "Discount factor."
 #define TYPEVAL_gamma Real
@@ -358,11 +350,11 @@ training buffer"
   int randSeed = DEFAULT_randSeed;
 
 #define CHARARG_saveFreq ')'
-#define COMMENT_saveFreq "DEPRECATED: Freq in # of comms with workers for \
-the master to save the policy."
+#define COMMENT_saveFreq "Frequency of checkpoints of learner state. These \
+checkpoints can be used to evaluate learners, but not yet to restart learning."
 #define TYPEVAL_saveFreq int
 #define TYPENUM_saveFreq INT
-#define DEFAULT_saveFreq 10000
+#define DEFAULT_saveFreq 1000000
   int saveFreq = DEFAULT_saveFreq;
 
 ///////////////////////////////////////////////////////////////////////////////

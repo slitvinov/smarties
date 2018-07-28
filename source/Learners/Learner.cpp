@@ -91,7 +91,7 @@ void Learner::applyGradient()
     profiler->reset();
 
     const Real freqSave = 1000*PRFL_DMPFRQ;
-    const Uint freqBackup = std::ceil(settings.freqBackup / freqSave)*freqSave;
+    const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
     const bool bBackup = nStep % freqBackup == 0;
     for(auto & net : F) net->save(learner_name, bBackup);
     input->save(learner_name, bBackup);
