@@ -68,14 +68,14 @@ void Learner_onPolicy::prepareGradient()
   debugL("shift counters of epochs over the stored data");
   cntBatch += batchSize;
   if(cntBatch >= nHorizon) {
+    const Real annlLR = annealRate(learnR, nStep, epsAnneal);
+    data->updateRewardsStats(nStep, 0.001, annlLR);
     cntBatch = 0;
     cntEpoch++;
   }
 
   if(cntEpoch >= nEpochs) {
     debugL("finished epochs, compute state/rew stats, clear buffer to gather new onpol samples");
-    const Real annlLR = annealRate(learnR, nStep, epsAnneal);
-    data->updateRewardsStats(nStep, annlLR, annlLR);
     #if 0 // keep nearly on policy data
       cntKept = data->clearOffPol(CmaxPol, 0.05);
     #else
