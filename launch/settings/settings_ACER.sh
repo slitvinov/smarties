@@ -5,7 +5,7 @@ SETTINGS=
 SETTINGS+=" --gamma 0.99"
 #size of network layers
 SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 64"
+SETTINGS+=" --nnl2 128"
 
 #subject to changes
 #SETTINGS+=" --nnFunc Tanh"

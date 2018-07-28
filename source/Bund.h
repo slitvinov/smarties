@@ -61,9 +61,6 @@ using namespace std;
 // Bound of pol mean for bounded act. spaces (ie tanh(+/- 8)) Helps avoid nans
 #define BOUNDACT_MAX 8
 
-// Number of previous time steps to include in back-prop through time:
-#define MAX_UNROLL_BFORE 20
-
 // Sample white Gaussian noise and add it to state vector before input to net
 // This has been found to help in case of dramatic dearth of data
 // The noise stdev for state s_t is = ($NOISY_INPUT) * || s_{t-1} - s_{t+1} ||

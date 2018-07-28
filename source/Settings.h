@@ -261,6 +261,13 @@ multiplied by learn rate: w -= eta * nnLambda * w . L1 decay option in Bund.h"
 #define DEFAULT_nnLambda numeric_limits<Real>::epsilon()
   Real nnLambda = DEFAULT_nnLambda;
 
+#define CHARARG_nnBPTTseq 'T'
+#define COMMENT_nnBPTTseq "Number of previous steps considered by RNN."
+#define TYPEVAL_nnBPTTseq int
+#define TYPENUM_nnBPTTseq INT
+#define DEFAULT_nnBPTTseq 16
+  int nnBPTTseq = DEFAULT_nnBPTTseq;
+
 #define CHARARG_splitLayers 'S'
 #define COMMENT_splitLayers "Number of split layers, description in Settings.h"
 //"For each output required by algorithm (ie. value, policy, std, ...) " \/
@@ -496,7 +503,7 @@ string setupFolder = DEFAULT_setupFolder;
       READOPT(nnl5), READOPT(nnl6), READOPT(batchSize), READOPT(appendedObs),
       READOPT(nnPdrop), READOPT(nnOutputFunc), READOPT(nnFunc),
       READOPT(learnrate), READOPT(nnType), READOPT(outWeightsPrefac),
-      READOPT(nnLambda), READOPT(splitLayers),
+      READOPT(nnLambda), READOPT(splitLayers), READOPT(nnBPTTseq),
 
       // SMARTIES ARGS: MUST contain all 10 mentioned above (more if modified)
       READOPT(nThreads), READOPT(nMasters), READOPT(isServer), READOPT(ppn),

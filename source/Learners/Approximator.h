@@ -19,7 +19,7 @@ struct Approximator
 {
   Settings& settings;
   const string name;
-  const Uint nAgents, nThreads, mpisize, nMaxBPTT = MAX_UNROLL_BFORE;
+  const Uint nAgents, nThreads, mpisize, nMaxBPTT;
   const bool bRecurrent;
 
   Encapsulator* const input;
@@ -53,9 +53,10 @@ struct Approximator
   Approximator(const string _name, Settings& S, Encapsulator*const en,
     MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
   settings(S), name(_name), nAgents(S.nAgents), nThreads(S.nThreads),
-  mpisize(S.learner_size), bRecurrent(S.bRecurrent), input(en), data(data_ptr),
-  relay(r), error_placements(nThreads, -1), first_sample(nThreads, -1),
-  series(nThreads), agent_series(nAgents), series_tgt(nThreads) {}
+  mpisize(S.learner_size), nMaxBPTT(S.nnBPTTseq), bRecurrent(S.bRecurrent),
+  input(en), data(data_ptr), relay(r), error_placements(nThreads, -1),
+  first_sample(nThreads, -1), series(nThreads), agent_series(nAgents),
+  series_tgt(nThreads) {}
 
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
   Builder buildFromSettings(Settings& _s, const Uint n_outputs);
@@ -173,10 +174,10 @@ enum RELAY { VEC, ACT, NET};
 struct Aggregator
 {
   const bool bRecurrent;
-  const Uint nThreads, nOuts, nMaxBPTT = MAX_UNROLL_BFORE;
   const MemoryBuffer* const data;
   const ActionInfo& aI = data->aI;
   const Approximator* const approx;
+  const Uint nOuts, nMaxBPTT, nThreads;
   Rvec scaling;
   mutable vector<int> first_sample;
   mutable vector<vector<Rvec>> inputs; // [thread][time][component]
@@ -188,9 +189,9 @@ struct Aggregator
   // 2) output the result of NN approximator (pointer a)
   Aggregator(Settings& S, const MemoryBuffer*const d, const Uint nOut=0,
    const Approximator*const a = nullptr): bRecurrent(S.bRecurrent),
-   nThreads(S.nThreads+S.nAgents), nOuts(nOut? nOut: d->aI.dim), data(d),
-   approx(a), first_sample(nThreads,-1), inputs(nThreads), usage(nThreads,ACT)
-   {}
+   data(d), approx(a), nOuts(nOut? nOut: d->aI.dim), nMaxBPTT(S.nnBPTTseq),
+   nThreads(S.nThreads+S.nAgents), first_sample(nThreads,-1), inputs(nThreads),
+   usage(nThreads,ACT)  {}
 
   void prepare(const RELAY SET, const Uint thrID) const;
 
