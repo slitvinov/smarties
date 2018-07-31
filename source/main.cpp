@@ -25,6 +25,7 @@ void runWorker(Settings& settings, MPI_Comm workersComm)
   ObjectFactory factory(settings);
   Environment* env = factory.createEnvironment();
   Communicator_internal comm = env->create_communicator(workersComm, settings.sockPrefix, true);
+  printf("Worker Rank %d is running on CPU %3d\n", settings.world_rank, sched_getcpu());
 
   Worker simulation(&comm, env, settings);
   simulation.run();
@@ -69,9 +70,9 @@ void runMaster(Settings& settings, MPI_Comm workersComm, MPI_Comm mastersComm)
     learners[i]->setLearnerName(ss.str() +"_", i);
     learners[i]->restart();
   }
-  //#pragma omp parallel
-  //printf("Rank %d Thread %3d is running on CPU %3d\n",
-  //  settings.world_rank, omp_get_thread_num(), sched_getcpu());
+  #pragma omp parallel
+  printf("Rank %d Thread %3d is running on CPU %3d\n",
+    settings.world_rank, omp_get_thread_num(), sched_getcpu());
 
   fflush(0);
   Master master(workersComm, learners, env, settings);
