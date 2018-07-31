@@ -10,6 +10,7 @@
 #include "Communicator_utils.cpp"
 #include <iomanip>
 #include <fstream>
+#include <iostream>
 
 //APPLICATION SIDE CONSTRUCTOR
 Communicator::Communicator(const int socket, const int state_components, const int action_components, const int number_of_agents) : gen(std::mt19937(socket))
@@ -104,6 +105,11 @@ void Communicator::sendState(const int iAgent, const envInfo status,
     seq_id++;
     msg_id = 0;
   }
+}
+
+std::vector<double> Communicator::recvAction(const int iAgent)
+{
+  return stored_actions[iAgent];
 }
 
 void Communicator::set_action_scales(const std::vector<double> upper,
@@ -210,6 +216,9 @@ void Communicator::update_state_action_dims(const int sdim, const int adim)
     assert(sdim==nStates);
     return;
   }
+  assert(adim>0);
+  assert(sdim>0);
+  assert(nAgents>0);
   nStates = sdim;
   nActions = adim;
   discrete_action_values = 2*adim;
