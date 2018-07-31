@@ -187,6 +187,7 @@ void Communicator::sendStateActionShape()
 
   // only rank 0 of MPI-based apps send the info to smarties:
   if(rank_inside_app > 0) return;
+  if(workerGroup > 0) return;
 
   double sizes[4] = {nStates+.1, nActions+.1, discrete_actions+.1, nAgents+.1};
   #ifdef MPI_INCLUDED

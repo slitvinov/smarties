@@ -87,7 +87,7 @@ Communicator_internal Environment::create_communicator(
       if(settings.nWorkers % settings.workersPerEnv != 0)
         die("Number of ranks does not match app\n");
 
-      int workerGroup = settings.nWorkers / settings.workersPerEnv;
+      int workerGroup = (settings.workers_rank-1) / settings.workersPerEnv;
 
       MPI_Comm app_com;
       MPI_Comm_split(workersComm, workerGroup, settings.workers_rank, &app_com);
