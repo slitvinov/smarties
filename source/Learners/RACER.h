@@ -79,13 +79,14 @@ class RACER : public Learner_offPolicy
 
   inline void updateQretFront(Sequence*const S, const Uint t) const {
     if(t == 0) return;
+    //called only after a new ep is added to membuf. assumed rho=1
     const Fval D = data->scaledReward(S,t) + gamma * S->state_vals[t];
     S->Q_RET[t-1] = D +gamma*(S->Q_RET[t]-S->action_adv[t]) -S->state_vals[t-1];
   }
   inline void updateQretBack(Sequence*const S, const Uint t) const {
     assert( t > 0 && not S->isLast(t) );
     const Fval W = S->offPolicImpW[t], R = data->scaledReward(S, t);
-    const Fval G = gamma, C = W < (Fval)1 ? W : (Fval)1;
+    const Fval G = gamma, C = W < 1 ? W : 1;
     const Fval D = R +G*S->state_vals[t] -S->state_vals[t-1];
     S->Q_RET[t-1] = D + G*C*(S->Q_RET[t] - S->action_adv[t]);
   }
@@ -103,9 +104,9 @@ class RACER : public Learner_offPolicy
     const Fval V, const Fval rho) const {
     assert(rho >= 0);
     if(t == 0) return 0;
-    const Fval oldRet = S->Q_RET[t-1], W = rho < (Fval)1 ? rho : (Fval)1;
-    const Fval D = data->scaledReward(S,t) +(Fval)gamma*V - S->state_vals[t-1];
-    S->setRetrace(t-1, D + (Fval)gamma*W*(S->Q_RET[t] - A) );
+    const Fval oldRet = S->Q_RET[t-1], W = rho < 1 ? rho : 1, G = gamma;
+    const Fval D = data->scaledReward(S,t) +G*V - S->state_vals[t-1];
+    S->setRetrace(t-1, D + G*W*(S->Q_RET[t] - A) );
     return std::fabs(S->Q_RET[t-1] - oldRet);
   }
 
