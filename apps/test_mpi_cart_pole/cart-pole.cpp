@@ -14,7 +14,7 @@
 #include <functional>
 
 #include "mpi.h"
-#include "../../source/Communicators/Communicator.h"
+#include "Communicator.h"
 #define SWINGUP 0
 using namespace std;
 

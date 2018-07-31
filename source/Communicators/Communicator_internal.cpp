@@ -137,9 +137,8 @@ void Communicator_internal::ext_app_run()
     MPI_Barrier(comm_inside_app);
     chdir(newd);  // go to the task private directory
 
-
     if (rank_inside_app==0 && setupfolder != "") //copy any additional file
-      if (copy_from_dir(setupfolder.c_str()) !=0 )
+      if (copy_from_dir(("../"+setupfolder).c_str()) !=0 )
         _die("Error in copy from dir %s\n", setupfolder.c_str());
 
     MPI_Barrier(comm_inside_app);

@@ -84,10 +84,10 @@ Communicator_internal Environment::create_communicator(
     #ifdef INTERNALAPP
       settings.nWorkers = settings.workers_size-1; //one is the master
 
-      if(settings.nWorkers % mpi_ranks_per_env != 0)
+      if(settings.nWorkers % settings.workersPerEnv != 0)
         die("Number of ranks does not match app\n");
 
-      int workerGroup = settings.nWorkers / mpi_ranks_per_env;
+      int workerGroup = settings.nWorkers / settings.workersPerEnv;
 
       MPI_Comm app_com;
       MPI_Comm_split(workersComm, workerGroup, settings.workers_rank, &app_com);

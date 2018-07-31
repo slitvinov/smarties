@@ -368,6 +368,13 @@ space properties are hardcoded in smarties rather than read at runtime."
 #define DEFAULT_environment "Environment"
   string environment = DEFAULT_environment;
 
+#define CHARARG_workersPerEnv '1'
+#define COMMENT_workersPerEnv "Number of MPI ranks required to run each instance of the environment."
+#define TYPEVAL_workersPerEnv int
+#define TYPENUM_workersPerEnv INT
+#define DEFAULT_workersPerEnv 1
+  int workersPerEnv = DEFAULT_workersPerEnv;
+
 #define CHARARG_rType '2'
 #define COMMENT_rType "Reward type (can be defined by user in the environment)."
 #define TYPEVAL_rType int
@@ -412,13 +419,6 @@ base run folder."
 #define TYPENUM_setupFolder STRING
 #define DEFAULT_setupFolder ""
 string setupFolder = DEFAULT_setupFolder;
-
-#define CHARARG_filePrefix '6'
-#define COMMENT_filePrefix "Unused (?)."
-#define TYPEVAL_filePrefix string
-#define TYPENUM_filePrefix STRING
-#define DEFAULT_filePrefix "./"
-  string filePrefix = DEFAULT_filePrefix;
 
 #define READOPT(NAME)  { CHARARG_ ## NAME, #NAME, TYPENUM_ ## NAME, \
   COMMENT_ ## NAME, &NAME, (TYPEVAL_ ## NAME) DEFAULT_ ## NAME }
@@ -511,9 +511,9 @@ string setupFolder = DEFAULT_setupFolder;
       READOPT(maxTotSeqNum), READOPT(randSeed), READOPT(saveFreq),
 
       // ENVIRONMENT ARGS: MUST contain all 7 mentioned above (more if modified)
-      READOPT(environment), READOPT(rType), READOPT(senses), READOPT(goalDY),
-      READOPT(launchfile), READOPT(appSettings), READOPT(setupFolder),
-      READOPT(filePrefix)
+      READOPT(environment), READOPT(workersPerEnv), READOPT(rType),
+      READOPT(senses), READOPT(goalDY),
+      READOPT(launchfile), READOPT(appSettings), READOPT(setupFolder)
     });
   }
 
