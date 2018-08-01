@@ -183,6 +183,7 @@ public:
   {
     for(const auto& A : agents) A->writeBuffer(learn_rank);
     _dispose_object(env);
+    _dispose_object(profiler);
     for(int i=0; i<nWorkers; i++) _dealloc(inpBufs[i]);
     for(int i=0; i<nWorkers; i++) _dealloc(outBufs[i]);
     for(const auto& L : learners) _dispose_object(L);

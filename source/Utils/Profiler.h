@@ -160,7 +160,8 @@ public:
   void clear()
   {
     for(auto &item : m_mapAgents) {
-      delete item.second;
+      if(item.second not_eq nullptr)
+        delete item.second;
       item.second = nullptr;
     }
 
