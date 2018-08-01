@@ -154,12 +154,6 @@ void RETPG::initializeLearner()
   #pragma omp parallel for schedule(dynamic)
   for(Uint i = 0; i < data->Set.size(); i++)
   for(Uint j=data->Set[i]->ndata(); j>0; j--) updateQretFront(data->Set[i],j);
-
-  for(Uint i = 0; i < data->inProgress.size(); i++) {
-    if(data->inProgress[i]->tuples.size() == 0) continue;
-    for(Uint j=data->inProgress[i]->ndata(); j>0; j--)
-      updateQretFront(data->inProgress[i],j);
-  }
 }
 
 RETPG::RETPG(Environment*const _e, Settings& _s) : Learner_offPolicy(_e, _s)
