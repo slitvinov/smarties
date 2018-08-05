@@ -1,0 +1,49 @@
+LIBS += -lfftw3 -lfftw3f -lfftw3f_threads
+LIBS += -lfftw3 -lfftw3_threads
+LIBS += -L../../CubismUP_2D/tools/fpzip/lib -lfpzip
+
+ME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+VTKVER=-8.1
+VTKDIR=/usr/local/Cellar/vtk/8.1.1/
+export LD_LIBRARY_PATH:=$(VTK_LIB_DIR):$(LD_LIBRARY_PATH)
+LIBS += -L$(VTKDIR)lib/ -lz \
+        -lvtkCommonCore$(VTKVER) \
+        -lvtkCommonSystem$(VTKVER) \
+        -lvtkCommonMath$(VTKVER) \
+        -lvtkCommonDataModel$(VTKVER) \
+        -lvtkCommonComputationalGeometry$(VTKVER) \
+        -lvtkIOCore$(VTKVER) \
+        -lvtkIOAMR$(VTKVER) \
+        -lvtkIOXML$(VTKVER) \
+        -lvtkIOXMLParser$(VTKVER) \
+        -lvtkIOLegacy$(VTKVER) \
+        -lvtkIOImport$(VTKVER) \
+        -lvtkIOExport$(VTKVER)
+endif
+
+ifneq "$(findstring falcon,$(shell hostname))" ""
+VTK_INC_DIR=/usr/include/vtk/
+VTK_LIB_DIR=/usr/lib64/vtk/
+LIBS += -L$(VTK_LIB_DIR) -lz \
+        -lvtkCommonCore \
+        -lvtkCommonSystem \
+        -lvtkCommonMath \
+        -lvtkCommonDataModel \
+        -lvtkCommonComputationalGeometry \
+        -lvtkIOCore \
+        -lvtkIOAMR \
+        -lvtkIOXML \
+        -lvtkIOXMLParser \
+        -lvtkIOLegacy \
+        -lvtkIOImport \
+        -lvtkIOExport
+endif
+
+ifneq "$(findstring euler,$(shell hostname))" ""
+#include make.euler
+endif
+
+ifneq "$(findstring daint,$(shell hostname))" ""
+#include make.daint
+endif

@@ -119,14 +119,12 @@ void Communicator_internal::save() const
 
 void Communicator_internal::ext_app_run()
 {
-  char *largv[256];
-  char line[1024];
-  int largc = jobs_init(line, largv);
-
   char initd[256], newd[1024];
   getcwd(initd,256);
   assert(workerGroup>=0 && rank_inside_app >= 0 && comm_inside_app != MPI_COMM_NULL);
-
+  std::ifstream t(paramfile.c_str());
+  std::string linestr((std::istreambuf_iterator<char>(t)),
+                       std::istreambuf_iterator<char>());
   while(1)
   {
     sprintf(newd,"%s/%s_%d_%lu", initd, "simulation", workerGroup, iter);
@@ -147,9 +145,35 @@ void Communicator_internal::ext_app_run()
     // app only needs lower level functionalities:
     // ie. send state, recv action, specify state/action spaces properties...
     Communicator* commptr = static_cast<Communicator*>(this);
-    app_main(commptr, comm_inside_app, largc, largv);
-    redirect_stdout_finalize();
 
+    std::vector<char*> args;
+    std::istringstream iss(linestr);
+    std::string token;
+    while(iss >> token) {
+      if(token[0]=='\'') {
+        token.erase(0, 1);
+        std::string continuation;
+        while(1) {
+          if(!(iss >> continuation)) die("missing matching apostrophe");
+          token += " " + continuation;
+          if(continuation.back() == '\'') {
+            token.erase(token.end()-1, token.end());
+            break;
+          }
+        }
+      }
+      char *arg = new char[token.size() + 1];
+      copy(token.begin(), token.end(), arg);
+      arg[token.size()] = '\0';
+      args.push_back(arg);
+    }
+    args.push_back(0);
+    //for(size_t i=0; i<args.size(); i++) cout<<args[i]<<endl;
+    //cout<<endl; fflush(0);
+    app_main(commptr, comm_inside_app, args.size()-1, args.data());
+    for(size_t i = 0; i < args.size()-1; i++) delete[] args[i];
+
+    redirect_stdout_finalize();
     chdir(initd);  // go up one level
     iter++;
   }
