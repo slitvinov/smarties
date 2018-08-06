@@ -353,8 +353,8 @@ Communicator::~Communicator()
     else   close(ServerSocket);
   } //if with forked process paradigm
 
-  if(data_state not_eq nullptr) free(data_state);
-  if(data_action not_eq nullptr) free(data_action);
+  if(data_state not_eq nullptr)  _dealloc(data_state);
+  if(data_action not_eq nullptr) _dealloc(data_action);
 }
 
 // ONLY FOR CHILD CLASS
