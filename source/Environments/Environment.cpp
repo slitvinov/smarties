@@ -93,6 +93,7 @@ Communicator_internal Environment::create_communicator(
       MPI_Comm_split(workersComm, workerGroup, settings.workers_rank, &app_com);
 
       comm.set_params_file(settings.appSettings);
+      comm.set_nstepp_file(settings.nStepPappSett);
       comm.set_folder_path(settings.setupFolder);
       comm.set_application_mpicom(app_com, workerGroup);
       comm.ext_app_run(); //worker rank will remain here for ever

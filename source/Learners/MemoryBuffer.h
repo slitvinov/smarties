@@ -164,6 +164,19 @@ public:
 
   void updateRewardsStats(unsigned long nStep, Real WR = 1, Real WS = -1);
 
+  static FORGET readERfilterAlgo(const string setting, const bool bReFER)
+  {
+    if(setting == "oldest")     return OLDEST;
+    if(setting == "farpolfrac") return FARPOLFRAC;
+    if(setting == "maxkldiv")   return MAXKLDIV;
+    if(setting == "minerror")   return MINERROR;
+    if(setting == "default") {
+      if(bReFER) return FARPOLFRAC;
+      else       return OLDEST;
+    }
+    die("ERoldSeqFilter not recognized");
+    return OLDEST; // to silence warning
+  }
   // Algorithm for maintaining and filtering dataset, and optional imp weight range parameter
   void prune(const FORGET ALGO, const Fval CmaxRho = 1);
 

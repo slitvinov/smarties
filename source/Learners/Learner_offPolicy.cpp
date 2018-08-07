@@ -134,7 +134,7 @@ void Learner_offPolicy::applyGradient()
       #endif
       CmaxRet = 1 + annealRate(CmaxPol, currStep, epsAnneal);
       if(CmaxRet<=1) die("Either run lasted too long or epsAnneal is wrong.");
-      data->prune(REFER_FILTER, CmaxRet);
+      data->prune(ERFILTER, CmaxRet);
       Real fracOffPol = data->nOffPol / (Real) data->readNData();
 
       if (learn_size > 1) {
@@ -159,7 +159,7 @@ void Learner_offPolicy::applyGradient()
     }
     else
     {
-      data->prune(OLDEST);
+      data->prune(ERFILTER);
     }
   }
   else

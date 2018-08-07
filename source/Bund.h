@@ -66,10 +66,6 @@ using namespace std;
 // The noise stdev for state s_t is = ($NOISY_INPUT) * || s_{t-1} - s_{t+1} ||
 //#define NOISY_INPUT 0.01
 
-// Switch between filter policies when employing ReF-ER. Recommended:
-#define REFER_FILTER FARPOLFRAC // remove seqs with highest frac of far-pol obs
-//#define REFER_FILTER OLDEST   // remove oldest seqs
-
 // #define PRIORITIZED_ER
 
 ////////////////////////////////////////////////////////////////////////////////
