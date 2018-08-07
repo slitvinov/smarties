@@ -293,8 +293,9 @@ template<> PPO<Gaussian_policy, Rvec>::PPO(
   #endif
   F[0]->initializeNetwork(build_pol);
 
-  //_set.learnrate *= 3; // for shared input layers
+  _set.learnrate *= 3; // for shared input layers
   F[1]->initializeNetwork(build_val);
+  _set.learnrate /= 3;
 
   {  // TEST FINITE DIFFERENCES:
     Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));

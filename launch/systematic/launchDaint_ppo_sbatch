@@ -17,9 +17,9 @@
 # #SBATCH --ntasks-per-node=1
 
 # ======START=====
-COMMNAME=PPO_both
+COMMNAME=PPO_both_01
 
-SETTINGS=" --gamma 0.995 --lambda 0.97 --nnl1 64 --nnl2 64 --nnFunc SoftSign --learner PPO --maxTotObsNum 2048 --clipImpWeight 0.2 --klDivConstraint 0.01 --targetDelay 0 --explNoise 0.4472136 --totNumSteps 10000000 --learnrate 0.0003 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 --epsAnneal 5e-7 --batchSize 64 --obsPerStep 6.4 "
+SETTINGS=" --gamma 0.995 --lambda 0.97 --nnl1 64 --nnl2 64 --nnFunc SoftSign --learner PPO --maxTotObsNum 2048 --clipImpWeight 0.2 --klDivConstraint 0.01 --targetDelay 0 --explNoise 0.4472136 --totNumSteps 10000000 --learnrate 0.0001 --nMasters 1 --nThreads 12 --ppn 2 --outWeightsPrefac 0.1 --epsAnneal 0 --batchSize 64 --obsPerStep 6.4 "
 
 MYNAME=`whoami`
 SMARTIESDIR="${HOME}/smarties/"
@@ -62,7 +62,7 @@ EOF
 chmod +x ${RUNPATH}/launchSim.sh
 
 # copy over stuff
-cp ${SMARTIESDIR}/makefiles1/rl                            ${RUNPATH}/exec
+cp ${SMARTIESDIR}/makefiles/rl                            ${RUNPATH}/exec
 cp ${SMARTIESDIR}/source/Communicators/Communicator.py     ${RUNPATH}/
 cp ${SMARTIESDIR}/source/Communicators/Communicator_gym.py ${RUNPATH}/
 cp $0                                                      ${RUNPATH}/launch.sh
