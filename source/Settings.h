@@ -63,6 +63,15 @@ learning algorithm), for continuous actions it is the (initial) stdev."
 #define DEFAULT_explNoise 0.5
   Real explNoise = DEFAULT_explNoise;
 
+#define CHARARG_ERoldSeqFilter 'f'
+#define COMMENT_ERoldSeqFilter "Filter algorithm to remove old episodes from \
+memory buffer. Accepts: oldest, farpolfrac, maxkldiv, minerror, or default. \
+Default means oldest for ER and farpolfrac for ReFER"
+#define TYPEVAL_ERoldSeqFilter string
+#define TYPENUM_ERoldSeqFilter STRING
+#define DEFAULT_ERoldSeqFilter "default"
+  string ERoldSeqFilter = DEFAULT_ERoldSeqFilter;
+
 #define CHARARG_gamma 'g'
 #define COMMENT_gamma "Discount factor."
 #define TYPEVAL_gamma Real
@@ -368,6 +377,13 @@ space properties are hardcoded in smarties rather than read at runtime."
 #define DEFAULT_environment "Environment"
   string environment = DEFAULT_environment;
 
+#define CHARARG_workersPerEnv '1'
+#define COMMENT_workersPerEnv "Number of MPI ranks required to run each instance of the environment."
+#define TYPEVAL_workersPerEnv int
+#define TYPENUM_workersPerEnv INT
+#define DEFAULT_workersPerEnv 1
+  int workersPerEnv = DEFAULT_workersPerEnv;
+
 #define CHARARG_rType '2'
 #define COMMENT_rType "Reward type (can be defined by user in the environment)."
 #define TYPEVAL_rType int
@@ -383,12 +399,14 @@ in the environment)."
 #define DEFAULT_senses 0
   int senses = DEFAULT_senses;
 
-#define CHARARG_goalDY '4'
-#define COMMENT_goalDY "Parameter (can be defined by user in the environment)."
-#define TYPEVAL_goalDY Real
-#define TYPENUM_goalDY REAL
-#define DEFAULT_goalDY 0
-  Real goalDY = DEFAULT_goalDY;
+#define CHARARG_nStepPappSett '4'
+#define COMMENT_nStepPappSett "Number of time steps per appSettings file to \
+use. Must be a list of positive numbers separated by semicolons. Last number \
+will be overwritten to 0; i.e. last appSettings will be used til termination."
+#define TYPEVAL_nStepPappSett string
+#define TYPENUM_nStepPappSett STRING
+#define DEFAULT_nStepPappSett "0"
+  string nStepPappSett = DEFAULT_nStepPappSett;
 
 #define CHARARG_launchfile '7'
 #define COMMENT_launchfile "Name of executable or launch script of user \
@@ -412,13 +430,6 @@ base run folder."
 #define TYPENUM_setupFolder STRING
 #define DEFAULT_setupFolder ""
 string setupFolder = DEFAULT_setupFolder;
-
-#define CHARARG_filePrefix '6'
-#define COMMENT_filePrefix "Unused (?)."
-#define TYPEVAL_filePrefix string
-#define TYPENUM_filePrefix STRING
-#define DEFAULT_filePrefix "./"
-  string filePrefix = DEFAULT_filePrefix;
 
 #define READOPT(NAME)  { CHARARG_ ## NAME, #NAME, TYPENUM_ ## NAME, \
   COMMENT_ ## NAME, &NAME, (TYPEVAL_ ## NAME) DEFAULT_ ## NAME }
@@ -492,10 +503,10 @@ string setupFolder = DEFAULT_setupFolder;
     return vector<ArgParser::OptionStruct> ({
       // LEARNER ARGS: MUST contain all 17 mentioned above (more if modified)
       READOPT(learner), READOPT(bTrain), READOPT(clipImpWeight),
-      READOPT(targetDelay), READOPT(explNoise), READOPT(gamma),
-      READOPT(klDivConstraint), READOPT(lambda), READOPT(minTotObsNum),
-      READOPT(maxTotObsNum), READOPT(obsPerStep), READOPT(penalTol),
-      READOPT(epsAnneal), READOPT(bSampleSequences),
+      READOPT(targetDelay), READOPT(explNoise), READOPT(ERoldSeqFilter),
+      READOPT(gamma), READOPT(klDivConstraint), READOPT(lambda),
+      READOPT(minTotObsNum), READOPT(maxTotObsNum), READOPT(obsPerStep),
+      READOPT(penalTol), READOPT(epsAnneal), READOPT(bSampleSequences),
       READOPT(bSharedPol), READOPT(totNumSteps),
 
       // NETWORK ARGS: MUST contain all 15 mentioned above (more if modified)
@@ -511,9 +522,9 @@ string setupFolder = DEFAULT_setupFolder;
       READOPT(maxTotSeqNum), READOPT(randSeed), READOPT(saveFreq),
 
       // ENVIRONMENT ARGS: MUST contain all 7 mentioned above (more if modified)
-      READOPT(environment), READOPT(rType), READOPT(senses), READOPT(goalDY),
-      READOPT(launchfile), READOPT(appSettings), READOPT(setupFolder),
-      READOPT(filePrefix)
+      READOPT(environment), READOPT(workersPerEnv), READOPT(rType),
+      READOPT(senses), READOPT(nStepPappSett),
+      READOPT(launchfile), READOPT(appSettings), READOPT(setupFolder)
     });
   }
 

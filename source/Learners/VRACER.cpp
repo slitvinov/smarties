@@ -183,12 +183,6 @@ void VRACER<Policy_t, Action_t>::initializeLearner()
     const int N = traj->ndata(); traj->setRetrace(N, 0);
     for(Uint j=N; j>0; j--) updateVret(traj, j-1, traj->state_vals[j-1], 1);
   }
-
-  for(Uint i = 0; i < data->inProgress.size(); i++) {
-    Sequence* const traj = data->inProgress[i];
-    const int N = traj->ndata(); traj->setRetrace(N, 0);
-    for(Uint j=N; j>0; j--) updateVret(traj, j-1, traj->state_vals[j-1], 1);
-  }
 }
 
 template<>
