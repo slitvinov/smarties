@@ -2,10 +2,10 @@ SETTINGS=
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.99"
+SETTINGS+=" --gamma 0.995"
 #size of network layers
-SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnl1 64"
+SETTINGS+=" --nnl2 64"
 
 #subject to changes
 #SETTINGS+=" --nnFunc Tanh"
@@ -31,11 +31,11 @@ SETTINGS+=" --maxTotObsNum 131072"
 SETTINGS+=" --totNumSteps 5000000"
 
 #chance of taking random actions
-SETTINGS+=" --explNoise 0.5"
+SETTINGS+=" --explNoise 0.447214"
 SETTINGS+=" --bSampleSequences 1"
 
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 16"
+SETTINGS+=" --batchSize 12"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"
 SETTINGS+=" --targetDelay 0.005"
