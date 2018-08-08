@@ -4,7 +4,8 @@ CC ?= mpic++
 app:
 	# tell Cubism to compile itself for blowfish
 	make -C ../../../CubismUP_2D/makefiles/ -j4 precision=single \
-    config=production cheap=true smarties=true CC=$(CC) blowfish
+    config=production smarties=true CC=$(CC) blowfish
+	cp ../../../CubismUP_2D/makefiles/libsimulation.a ../../makefiles/
 
 clean:
 	make -C ../../../CubismUP_2D/makefiles/ clean
