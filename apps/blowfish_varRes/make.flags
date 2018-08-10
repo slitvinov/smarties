@@ -21,8 +21,8 @@ LIBS += -L/usr/lib64/vtk/ -lvtkCommonCore -lvtkCommonDataModel -lvtkIOXML
 endif
 endif
 
-ifneq "$(findstring euler,$(shell hostname))" ""
-#include make.euler
+ifneq "$(findstring eu-, $(shell hostname))" ""
+LIBS+= -lhdf5
 endif
 
 ifneq "$(findstring daint,$(shell hostname))" ""
