@@ -10,6 +10,8 @@ VTKD=/usr/local/Cellar/vtk/8.1.1/
 
 LIBS+= -L$(VTKD)lib/ -lvtkCommonCore$(VTKV) -lvtkCommonDataModel$(VTKV) -lvtkIOXML$(VTKV)
 
+else
+LIBS+= -lhdf5
 endif
 endif
 

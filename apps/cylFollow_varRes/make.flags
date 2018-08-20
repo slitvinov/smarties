@@ -23,10 +23,10 @@ LIBS += -L/usr/lib64/vtk/ -lvtkCommonCore -lvtkCommonDataModel -lvtkIOXML
 endif
 endif
 
-ifneq "$(findstring eu-,$(shell hostname))" ""
+ifneq "$(findstring eu-, $(shell hostname))" ""
 LIBS+= -lhdf5
 endif
 
-ifneq "$(findstring daint,$(shell hostname))" ""
+ifneq "$(findstring daint, $(shell hostname))" ""
 LIBS+= -lhdf5 -lcufft
 endif

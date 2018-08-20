@@ -1,7 +1,7 @@
 cp ../apps/blowfish_varRes/runArguments* ${BASEPATH}${RUNFOLDER}/
 
 make -C ../makefiles/ clean
-make -C ../makefiles/ config=prod app=blowfish -j4
+make -C ../makefiles/ config=prod app=blowfish_varRes -j4
 
 cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh
 SETTINGS+=" --appSettings runArguments00.sh;runArguments01.sh;runArguments02.sh;runArguments03.sh "
