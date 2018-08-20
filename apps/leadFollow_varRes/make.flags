@@ -26,5 +26,6 @@ LIBS+= -lhdf5
 endif
 
 ifneq "$(findstring daint,$(shell hostname))" ""
-#include make.daint
+LIBS+= -lhdf5 -lcufft
 endif
+

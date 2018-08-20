@@ -44,8 +44,13 @@ env > environment.log
 # Let's assume for now users can sort this out themselves
 isOpenMPI=$(mpirun --version | grep "Open MPI" | wc -l)
 HOST=`hostname`
+OS_D=`uname`
 if [ ${isOpenMPI} -ge 1 ]; then
+if [ ${OS_D} == 'Darwin' ] ; then
+mpirun -n ${NPROCESS} ./rl ${SETTINGS} | tee out.log
+else
 mpirun -n ${NPROCESS} --map-by socket:PE=${NTHREADS} -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
+fi
 else # mpich / mvapich
 #mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to core:${NTHREADS} valgrind --num-callers=100  --tool=memcheck  ./rl ${SETTINGS} | tee out.log
 mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to core:${NTHREADS} ./rl ${SETTINGS} | tee out.log

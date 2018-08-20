@@ -26,5 +26,6 @@ ifneq "$(findstring euler,$(shell hostname))" ""
 endif
 
 ifneq "$(findstring daint,$(shell hostname))" ""
-#include make.daint
+LIBS+= -lhdf5 -lcufft
 endif
+

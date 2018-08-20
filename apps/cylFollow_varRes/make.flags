@@ -10,6 +10,8 @@ VTKD=/usr/local/Cellar/vtk/8.1.1/
 
 LIBS+= -L$(VTKD)lib/ -lvtkCommonCore$(VTKV) -lvtkCommonDataModel$(VTKV) -lvtkIOXML$(VTKV)
 
+else
+LIBS+= -lhdf5
 endif
 endif
 
@@ -21,7 +23,7 @@ LIBS += -L/usr/lib64/vtk/ -lvtkCommonCore -lvtkCommonDataModel -lvtkIOXML
 endif
 endif
 
-ifneq "$(findstring eu-, $(shell hostname))" ""
+ifneq "$(findstring eu-,$(shell hostname))" ""
 LIBS+= -lhdf5
 endif
 
