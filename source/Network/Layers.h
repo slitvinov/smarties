@@ -89,7 +89,7 @@ class Layer
     {
             nnReal* const errors = curr->E(ID-link);
       const nnReal* const weight = para->W(ID);
-      cblas_dgemv(CblasRowMajor, CblasNoTrans,
+      gemv(CblasRowMajor, CblasNoTrans,
         spanCompInpGrads,
         NO,
         1,
@@ -106,7 +106,7 @@ class Layer
     {
             nnReal* const errors = prev->E(ID);
       const nnReal* const weight = para->W(ID) +NOsimd*NI;
-      cblas_dgemv(CblasRowMajor, CblasNoTrans, NR, NO, 1,
+      gemv(CblasRowMajor, CblasNoTrans, NR, NO, 1,
         weight, NOsimd, deltas, 1, 1, errors, 1);
     }
 

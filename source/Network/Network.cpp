@@ -113,7 +113,7 @@ Network::Network(Builder* const B, Settings & settings) :
 void Network::checkGrads()
 {
   const Uint seq_len = 5;
-  const nnReal incr = std::pow(2,-20), tol = incr;
+  const nnReal incr = std::cbrt(numeric_limits<nnReal>::epsilon()), tol = incr;
   cout<<"Checking grads with increment "<<incr<<" and tolerance "<<tol<<endl;
   vector<Activation*> timeSeries;
   if(Vgrad.size() < 4) die("I'm the worst, just use 4 threads and forgive me");
