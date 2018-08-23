@@ -176,13 +176,17 @@ void Communicator_internal::ext_app_run()
 
 vector<char*> Communicator_internal::readRunArgLst(const string _paramfile)
 {
-  if (_paramfile == "") die("empty parameter file path");
+  std::vector<char*> args;
+  if (_paramfile == "") {
+    warn("empty parameter file path");
+    args.push_back(0);
+    return args;
+  }
   std::ifstream t(("../"+_paramfile).c_str());
   std::string linestr((std::istreambuf_iterator<char>(t)),
                        std::istreambuf_iterator<char>());
   if(linestr.size() == 0) die("did not find parameter file");
   std::istringstream iss(linestr); // params file is read into iss
-  std::vector<char*> args;
   std::string token;
   while(iss >> token) {
     // If one runs an executable and provides an argument like ./exec 'foo bar'
