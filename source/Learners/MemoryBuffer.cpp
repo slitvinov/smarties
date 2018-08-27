@@ -304,10 +304,8 @@ void MemoryBuffer::prune(const FORGET ALGO, const Fval CmaxRho)
   }
   nPruned += nB4-Set.size();
   #ifdef PRIORITIZED_ER
-   stepSinceISWeep++;
-   if(needs_pass || stepSinceISWeep >= 10) {
+   if( stepSinceISWeep++ >= 10 || needs_pass )
      updateImportanceWeights(); needs_pass = false; stepSinceISWeep = 0;
-   }
   #endif
 }
 
