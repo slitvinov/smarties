@@ -77,6 +77,7 @@ public:
 
   inline void setLearnerName(const string lName, const Uint id) {
     learner_name = lName;
+    data->learnID = id;
     learnID = id;
   }
 
@@ -126,5 +127,6 @@ public:
   virtual void applyGradient();
   virtual void initializeLearner();
   bool predefinedNetwork(Builder& input_net, const Uint privateNum = 1);
-  void restart();
+  virtual void save();
+  virtual void restart();
 };

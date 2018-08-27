@@ -30,7 +30,7 @@ class MGULayer: public Layer
     bOutputs.push_back(bOutput);
     bInputs.push_back(bInput);
   }
-  virtual void biasInitialValues(const vector<nnReal> init) {}
+  virtual void biasInitialValues(const vector<Real> init) {}
 
   ~MGULayer() { _dispose_object(cell); }
 

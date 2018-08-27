@@ -118,44 +118,33 @@ void Master::processAgent(const int worker, const MPI_Status mpistatus)
   const int agent = (worker-1) * nPerRank + recv_agent;
   Learner*const aAlgo = pickLearner(agent, recv_agent);
 
-  if (recv_status == FAIL_COMM) //app crashed :sadface:
-  { //TODO fix for on-pol & multiple algos
-    aAlgo->clearFailedSim((worker-1)*nPerRank, worker*nPerRank);
-    for(int i=(worker-1)*nPerRank; i<worker*nPerRank; i++) agents[i]->reset();
-    warn("Received a FAIL_COMM\n");
-  }
-  else
+  if (recv_status == FAIL_COMM) die("app crashed");
+
+  agents[agent]->update(recv_status, recv_state, reward);
+  //pick next action and ...do a bunch of other stuff with the data:
+  aAlgo->select(*agents[agent]);
+
+  debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]",
+    agent, agents[agent]->Status, agents[agent]->sOld._print().c_str(),
+    agents[agent]->s._print().c_str(), agents[agent]->r,
+    agents[agent]->a._print().c_str());
+
+  sendBuffer(worker, agent);
+
+  if ( recv_status >= TERM_COMM )
   {
-    agents[agent]->update(recv_status, recv_state, reward);
-    //pick next action and ...do a bunch of other stuff with the data:
-    aAlgo->select(*agents[agent]);
-
-    debugS("Agent %d (%d): [%s] -> [%s] rewarded with %f going to [%s]",
-      agent, agents[agent]->Status, agents[agent]->sOld._print().c_str(),
-      agents[agent]->s._print().c_str(), agents[agent]->r,
-      agents[agent]->a._print().c_str());
-
-    sendBuffer(worker, agent);
-
-    if ( recv_status >= TERM_COMM )
-    {
-      const Uint agentTsteps = stepNum[recv_agent].load();
-      dumpCumulativeReward(recv_agent, worker, aAlgo->iter(), agentTsteps );
-      seqNum[recv_agent]++;
-    }
-    else if ( aAlgo->iter() )
-    {
-      stepNum[recv_agent]++;
-    }
+    const Uint agentTsteps = stepNum[recv_agent].load();
+    dumpCumulativeReward(recv_agent, worker, aAlgo->iter(), agentTsteps );
+    seqNum[recv_agent]++;
   }
+  else if ( aAlgo->iter() ) stepNum[recv_agent]++;
 
   recvBuffer(worker);
 }
 
 Worker::Worker(Communicator_internal*const _c, Environment*const _e, Settings& _s): comm(_c), env(_e), bTrain(_s.bTrain), status(_e->agents.size(),1) {}
 
-void Worker::run()
-{
+void Worker::run() {
   while(true) {
 
     while(true) {

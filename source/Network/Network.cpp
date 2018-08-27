@@ -19,7 +19,7 @@
                          `outvals` (containing func(suminps)). No need to clear.
   - Parameters _weights: network weights to use. If nullptr then we use default.
 */
-vector<Real> Network::predict(const vector<nnReal>& _inp,
+vector<Real> Network::predict(const vector<Real>& _inp,
   const Activation*const prevStep, const Activation*const currStep,
   const Parameters*const _weights) const
 {
@@ -122,7 +122,7 @@ void Network::checkGrads()
   for(Uint t=0; t<seq_len; t++)
   for(Uint o=0; o<nOutputs; o++)
   {
-    vector<vector<nnReal>> inputs(seq_len, vector<Real>(nInputs,0));
+    vector<vector<Real>> inputs(seq_len, vector<Real>(nInputs,0));
     prepForBackProp(timeSeries, seq_len);
     Vgrad[0]->clear();
     normal_distribution<nnReal> dis_inp(0, 1);

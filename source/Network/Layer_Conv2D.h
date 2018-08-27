@@ -56,7 +56,7 @@ class ConvLayer : public Layer
     bOutputs.push_back(bOutput);
     bInputs.push_back(bInput);
   }
-  void biasInitialValues(const vector<nnReal> init) override { }
+  void biasInitialValues(const vector<Real> init) override { }
 
   void forward( const Activation*const prev,
                 const Activation*const curr,

@@ -141,7 +141,8 @@ private:
   inline void sendBuffer(const int i, const int agent)
   {
     assert(i>0 && i <= (int) outBufs.size());
-    agents[agent]->copyAct(outBufs[i-1]);
+    if(agents[agent]->Status < TERM_COMM) agents[agent]->copyAct(outBufs[i-1]);
+    else intToDoublePtr( getMinStepId(), outBufs[i-1] );
 
     debugS("Sent action to worker %d: [%s]", i,
       print(Rvec(outBufs[i-1], outBufs[i-1]+aI.dim)).c_str());
@@ -195,7 +196,7 @@ public:
     //it's awfully ugly, i send -256 to kill the workers... but...
     //what are the chances that learner sends action -256.(+/- eps) to clients?
     for (int worker=1; worker<=nWorkers; worker++) {
-      outBufs[worker-1][0] = _AGENT_KILLSIGNAL;
+      outBufs[worker-1][0] = AGENT_KILLSIGNAL;
       MPI_Ssend(outBufs[worker-1], outSize, MPI_BYTE, worker, 0, workersComm);
     }
   }

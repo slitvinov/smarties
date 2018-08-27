@@ -69,7 +69,7 @@ void MemoryBuffer::add_action(const Agent& a, const Rvec pol) const
 {
   if(pol.size() not_eq policyVecDim) die("add_action");
   inProgress[a.ID]->add_action(a.a.vals, pol);
-  if(bWriteToFile) a.writeData(learn_rank, pol);
+  if(bWriteToFile) a.writeData(learn_rank, pol, nSeenTransitions);
 }
 
 // If the state is terminal, instead of calling `add_action`, call this:
@@ -81,7 +81,8 @@ void MemoryBuffer::terminate_seq(Agent&a)
   // fill empty action and empty policy:
   a.act(Rvec(aI.dim,0));
   inProgress[a.ID]->add_action(a.a.vals, Rvec(policyVecDim, 0));
-  if(bWriteToFile) a.writeData(learn_rank, Rvec(policyVecDim, 0));
+  if(bWriteToFile)
+    a.writeData(learn_rank, Rvec(policyVecDim, 0), nSeenTransitions);
   push_back(a.ID);
 }
 
@@ -529,54 +530,10 @@ void MemoryBuffer::restart(const string base)
     if(size1!=mean.size()|| size2!=invstd.size()|| size3!=std.size()|| size4!=1)
       _die("Mismatch in restarted file %s.", (base+"_scaling.raw").c_str());
   }
-  return;
-
-  const Uint writesize = 3 +sI.dim +aI.dim +policyVecDim;
-  int agentID = 0, info = 0, sampID = 0;
-  Rvec policy(policyVecDim), action(aI.dim), state(sI.dim);
-  char cpath[256];
-
-  while (true) {
-    sprintf(cpath, "obs_rank%02d_agent%03d.raw", learn_rank, agentID);
-    FILE*pFile = fopen(cpath, "rb");
-    if(pFile==NULL) { printf("Couldnt open file %s.\n", cpath); break; }
-
-    float* buf = (float*) malloc(writesize*sizeof(float));
-    while(true) {
-      size_t ret = fread(buf, sizeof(float), writesize, pFile);
-      if (ret == 0) break;
-      if (ret != writesize) _die("Error reading datafile %s", cpath);
-      Uint k = 0;
-      info = buf[k++]; sampID = buf[k++];
-
-      if((sampID==0) != (info==1)) die("Mismatch in transition counter\n");
-      if(sampID!=_agents[0]->transitionID+1 && info!=1) die(" transitionID");
-
-      for(Uint i=0; i<sI.dim; i++) state[i]  = buf[k++];
-      for(Uint i=0; i<aI.dim; i++) action[i] = buf[k++];
-      Real reward = buf[k++];
-      for(Uint i=0; i<policyVecDim; i++) policy[i] = buf[k++];
-      assert(k == writesize);
-
-      _agents[0]->update(info, state, reward);
-      add_state(*_agents[0]);
-      inProgress[0]->add_action(action, policy);
-      if(info == 2) push_back(0);
-    }
-    if(_agents[0]->getStatus() not_eq 2) push_back(0); //(agentID is 0)
-    fclose(pFile); free(buf);
-    agentID++;
-  }
-  if(agentID==0) { printf("Couldn't restart transition data.\n"); } //return 1;
-  //push_back(0);
-  printf("Found %d broken seq out of %d/%d.\n",
-    nBroken.load(),nSequences.load(),nTransitions.load());
-  //return 0;
 }
 
 // number of returned samples depends on size of seq! (== to that of trans)
-void MemoryBuffer::sampleTransition(Uint& seq, Uint& obs, const int thrID)
-{
+void MemoryBuffer::sampleTransition(Uint& seq, Uint& obs, const int thrID) {
   #ifndef PRIORITIZED_ER
     std::uniform_int_distribution<int> distObs(0, readNData()-1);
     const Uint ind = distObs(generators[thrID]);
@@ -586,8 +543,7 @@ void MemoryBuffer::sampleTransition(Uint& seq, Uint& obs, const int thrID)
   indexToSample(ind, seq, obs);
 }
 
-void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
-{
+void MemoryBuffer::sampleSequence(Uint& seq, const int thrID) {
   //#ifndef PRIORITIZED_ER
     std::uniform_int_distribution<int> distSeq(0, readNSeq()-1);
     seq = distSeq(generators[thrID]);
@@ -596,8 +552,7 @@ void MemoryBuffer::sampleSequence(Uint& seq, const int thrID)
   //#endif
 }
 
-void MemoryBuffer::sampleTransitions(vector<Uint>&seq, vector<Uint>&obs)
-{
+void MemoryBuffer::sampleTransitions(vector<Uint>& seq, vector<Uint>& obs) {
   if(seq.size() not_eq obs.size()) die(" ");
 
   // Drawing of samples is either uniform (each sample has same prob)
@@ -636,8 +591,7 @@ void MemoryBuffer::sampleTransitions(vector<Uint>&seq, vector<Uint>&obs)
   }
 }
 
-void MemoryBuffer::sampleSequences(vector<Uint>& seq)
-{
+void MemoryBuffer::sampleSequences(vector<Uint>& seq) {
   const Uint N = seq.size();
   if( readNSeq() > N*5 ) {
     for(Uint i=0; i<N; i++) sampleSequence(seq[i], 0);
@@ -653,8 +607,7 @@ void MemoryBuffer::sampleSequences(vector<Uint>& seq)
   std::sort(seq.begin(), seq.end(), compare);
 }
 
-void MemoryBuffer::indexToSample(const int nSample, Uint& seq, Uint& obs) const
-{
+void MemoryBuffer::indexToSample(const int nSample,Uint& seq,Uint& obs) const {
   int k = 0, back = 0, indT = Set[0]->ndata();
   while (nSample >= indT) {
     assert(k+2<=(int)Set.size());

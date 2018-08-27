@@ -115,7 +115,7 @@ using namespace std;
 
 typedef unsigned Uint;
 ////////////////////////////////////////////////////////////////////////////////
-#if 0 // MAIN CODE PRECISION
+#if 1 // MAIN CODE PRECISION
 typedef double Real;
 #define MPI_VALUE_TYPE MPI_DOUBLE
 #else
@@ -123,7 +123,7 @@ typedef float Real;
 #define MPI_VALUE_TYPE MPI_FLOAT
 #endif
 ///////////////////////////////////////////////////////////////////////////////
-#if 0 // NETWORK PRECISION
+#if 1 // NETWORK PRECISION
   #define gemv cblas_dgemv
   #define gemm cblas_dgemm
   typedef double nnReal;

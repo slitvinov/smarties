@@ -89,13 +89,7 @@ void Learner::applyGradient()
   {
     profiler->printSummary();
     profiler->reset();
-
-    const Real freqSave = 1000*PRFL_DMPFRQ;
-    const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
-    const bool bBackup = nStep % freqBackup == 0;
-    for(auto & net : F) net->save(learner_name, bBackup);
-    input->save(learner_name, bBackup);
-    data->save(learner_name, nStep, bBackup);
+    save();
   }
 
   if(nStep%1000 ==0)
@@ -154,6 +148,16 @@ void Learner::restart()
 
   for(auto & net : F) net->save("restarted_"+learner_name, false);
   input->save("restarted_"+learner_name, false);
+}
+
+void Learner::save()
+{
+  static constexpr Real freqSave = 1000*PRFL_DMPFRQ;
+  const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
+  const bool bBackup = nStep % freqBackup == 0;
+  for(auto & net : F) net->save(learner_name, bBackup);
+  input->save(learner_name, bBackup);
+  data->save(learner_name, nStep, bBackup);
 }
 
 bool Learner::workerHasUnfinishedSeqs(const int worker) const

@@ -93,7 +93,7 @@ OBJ_FILES = ArgParser.o main.o ObjectFactory.o Communicator.o RACER.o \
 		PPO.o ACER.o VRACER.o AtariEnvironment.o Approximator.o Network.o \
 		Learner_onPolicy.o MemoryBuffer.o Learner_offPolicy.o Optimizer.o \
 		Environment.o DQN.o RETPG.o Math_tests.o Communicator_internal.o \
-		Learner.o NAF.o DPG.o Scheduler.o
+		Learner.o NAF.o DPG.o Scheduler.o Sequences.o
 
 #ExternalAgent.o TestEnvironment.o CMAEnvironment.o CartEnvironment.o GliderEnvironment.o
 #TwoFishEnvironment.o HingedFishEnvironment.o BlowfishEnvironment.o alebotEnvironment.o

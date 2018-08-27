@@ -37,7 +37,7 @@ public:
     void updateImportanceWeights();
   #endif
   //bool bRecurrent;
-  Uint nPruned = 0, minInd = 0;
+  Uint nPruned = 0, minInd = 0, learnID = 0;
   Real invstd_reward = 1, nOffPol = 0, avgDKL = 0;
 
   vector<Sequence*> Set, inProgress;
@@ -46,8 +46,7 @@ public:
   const Uint dimS = sI.dimUsed, nReduce = 2 + 2*dimS;
   ApproximateReductor reductor = ApproximateReductor(mastersComm, nReduce);
 
-private:
-  std::atomic<Uint> nBroken{0}, nTransitions{0}, nSequences{0};
+  std::atomic<Uint> nTransitions{0}, nSequences{0};
   std::atomic<Uint> nSeenSequences{0}, nSeenTransitions{0};
   std::atomic<Uint> nCmplTransitions{0}, iOldestSaved{0};
 public:
@@ -78,7 +77,6 @@ public:
     //for(auto& old_traj: data->inProgress)
     //  old_traj->clear();//remove from in progress: now off policy
     Set.clear(); //clear trajectories used for learning
-    nBroken = 0;
     nSequences = 0;
     nTransitions = 0;
   }
