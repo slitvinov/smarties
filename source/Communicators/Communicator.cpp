@@ -111,7 +111,7 @@ void Communicator::sendState(const int iAgent, const envInfo status,
 
 std::vector<double> Communicator::recvAction(const int iAgent)
 {
-  assert( (stored_actions[iAgent][0]-AGENT_TERMSIGNAL) > 2.2e-16 );
+  assert( std::fabs(stored_actions[iAgent][0]-AGENT_TERMSIGNAL) > 2.2e-16 );
   return stored_actions[iAgent];
 }
 

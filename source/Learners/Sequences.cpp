@@ -45,7 +45,7 @@ void Sequence::save(FILE * f, const Uint dS, const Uint dA, const Uint dP)
   Fval* buf = buffer;
   for (Uint i = 0; i<seq_len; i++) {
     std::copy(tuples[i]->s.begin(), tuples[i]->s.end(), buf);
-    buffer[dS] = tuples[i]->r; buf += dS + 1;
+    buf[dS] = tuples[i]->r; buf += dS + 1;
     std::copy(tuples[i]->a.begin(),  tuples[i]->a.end(),  buf); buf += dA;
     std::copy(tuples[i]->mu.begin(), tuples[i]->mu.end(), buf); buf += dP;
   }
