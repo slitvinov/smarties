@@ -79,7 +79,7 @@ CPPFLAGS+= -DINTERNALAPP # app is linked directly to smarties
 
 lib: Communicator.o
 	make -C ../apps/$(app)/ clean
-	make -C ../apps/$(app)/ CC=$(CC) CXX=$(CC) compiler=$(compiler)
+	make -C ../apps/$(app)/ CC=$(CC) CXX=$(CC) compiler=$(compiler) config=$(config)
 else
 # app is compiled independently and uses communication through sockets
 # this is just for testing:
