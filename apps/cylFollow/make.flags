@@ -20,6 +20,8 @@ ifeq "1" "1"
 
 LIBS += -L/usr/lib64/vtk/ -lvtkCommonCore -lvtkCommonDataModel -lvtkIOXML
 
+else
+LIBS+= -lhdf5
 endif
 endif
 
