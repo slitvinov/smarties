@@ -97,8 +97,8 @@ void Communicator_internal::answerTerminateReq(const double answer) {
 
 void Communicator_internal::ext_app_run() {
   assert(workerGroup>=0 && rank_inside_app>=0 &&comm_inside_app!=MPI_COMM_NULL);
-  vector<string> argsFiles = split(paramfile, ';');
-  vector<string> stepNmbrs = split(nStepPerFile, ';');
+  vector<string> argsFiles = split(paramfile, ',');
+  vector<string> stepNmbrs = split(nStepPerFile, ',');
   if(argsFiles.size() not_eq stepNmbrs.size())
     die("error reading settings: nStepPappSett and appSettings");
   if(argsFiles.size() == 0) {
