@@ -10,14 +10,11 @@
 #include "../Network/Builder.h"
 #include <chrono>
 
-Learner::Learner(Environment*const _env, Settings & _s) :
-mastersComm(_s.mastersComm), env(_env), bSampleSequences(_s.bSampleSequences),
-bTrain(_s.bTrain), totNumSteps(_s.totNumSteps), policyVecDim(_s.policyVecDim),
-batchSize(_s.batchSize), nAgents(_s.nAgents), nThreads(_s.nThreads),
-nWorkers(_s.nWorkers), gamma(_s.gamma), learnR(_s.learnrate), ReFtol(_s.penalTol),
-explNoise(_s.explNoise), epsAnneal(_s.epsAnneal), CmaxPol(_s.clipImpWeight),
-learn_rank(_s.learner_rank), learn_size(_s.learner_size), settings(_s),
-aInfo(env->aI), sInfo(env->sI), generators(_s.generators)
+Learner::Learner(Environment*const _env, Settings& _s): settings(_s), env(_env),
+totNumSteps(_s.totNumSteps), policyVecDim(_s.policyVecDim), nAgents(_s.nAgents),
+batchSize(_s.batchSize), nThreads(_s.nThreads), nWorkers(_s.nWorkers),
+CmaxPol(_s.clipImpWeight), ReFtol(_s.penalTol), learnR(_s.learnrate),
+gamma(_s.gamma), explNoise(_s.explNoise), epsAnneal(_s.epsAnneal)
 {
   if(bSampleSequences) printf("Sampling sequences.\n");
   data = new MemoryBuffer(env, _s);

@@ -14,17 +14,13 @@
 #include <chrono>
 
 Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
-  Settings&_s): workersComm(_c), learners(_l), env(_e), aI(_e->aI), sI(_e->sI),
-  agents(_e->agents), bTrain(_s.bTrain), nPerRank(_e->nAgentsPerRank),
+  Settings&_s): workersComm(_c), learners(_l), env(_e), bTrain(_s.bTrain),
   nWorkers(_s.nWorkers), nThreads(_s.nThreads), learn_rank(_s.learner_rank),
   learn_size(_s.learner_size), totNumSteps(_s.totNumSteps),
-  outSize(_e->aI.dim*sizeof(double)), inSize((3+_e->sI.dim)*sizeof(double)),
-  bAsync(_s.threadSafety>=MPI_THREAD_MULTIPLE),
-  inpBufs(alloc_bufs(inSize,nWorkers)), outBufs(alloc_bufs(outSize,nWorkers))
+  bAsync(_s.threadSafety>=MPI_THREAD_MULTIPLE)
 {
   profiler = new Profiler();
   for (Uint i=0; i<learners.size(); i++)  learners[i]->profiler = profiler;
-  for (int i=0; i<nPerRank; i++) { stepNum[i] = 0; seqNum[i] = 0; }
 
   for(const auto& L : learners) // Figure out if I have on-pol learners
     bNeedSequentialTasks = bNeedSequentialTasks || L->bNeedSequentialTrain();
@@ -36,7 +32,7 @@ Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
   profiler->stop_start("SLP");
 }
 
-int Master::run()
+void Master::run()
 {
   { // gather initial data OR if not training evaluated restarted policy
     vector<std::thread> worker_replies = asyncReplyWorkers();
@@ -44,7 +40,7 @@ int Master::run()
     for(int i=0; i<nWorkers; i++) worker_replies[i].join();
   }
 
-  if( not bTrain ) return 0;
+  if( not bTrain ) return;
 
   profiler->reset();
   profiler->stop_start("SLP");
@@ -81,10 +77,8 @@ int Master::run()
     // buffer that should be done after workers.join() are done here.
     for(const auto& L : learners) L->applyGradient();
 
-    if( getMinStepId() >= totNumSteps ) return 0;
+    if( getMinStepId() >= totNumSteps ) return;
   }
-  die(" ");
-  return 1;
 }
 
 void Master::processWorker(const int worker)
@@ -133,11 +127,11 @@ void Master::processAgent(const int worker, const MPI_Status mpistatus)
 
   if ( recv_status >= TERM_COMM )
   {
-    const Uint agentTsteps = stepNum[recv_agent].load();
+    const Uint agentTsteps = (*stepNum[recv_agent]).load();
     dumpCumulativeReward(recv_agent, worker, aAlgo->iter(), agentTsteps );
-    seqNum[recv_agent]++;
+    (*seqNum[recv_agent])++;
   }
-  else if ( aAlgo->iter() ) stepNum[recv_agent]++;
+  else if ( aAlgo->iter() ) (*stepNum[recv_agent])++;
 
   recvBuffer(worker);
 }

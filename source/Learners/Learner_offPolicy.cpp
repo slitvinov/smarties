@@ -195,7 +195,10 @@ void Learner_offPolicy::applyGradient()
 void Learner_offPolicy::initializeLearner()
 {
   if ( not readyForTrain() ) die("undefined behavior");
-
+  if ( nStep > 0 ) {
+    warn("Skipping initialization for restartd learner.");
+    return;
+  }
   // shift counters after initial data is gathered
   nData_b4Startup = data->readNConcluded();
   nData_last = 0;

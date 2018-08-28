@@ -11,40 +11,35 @@
 #include <regex>
 #include <algorithm>
 #include <iterator>
-static inline vector<string> splitter(string& content) {
-    vector<string> split_content;
-    const regex pattern(R"(;)");
-    copy( sregex_token_iterator(content.begin(), content.end(), pattern, -1),
-    sregex_token_iterator(), back_inserter(split_content) );
-    return split_content;
+
+static inline vector<string> split(const string &s, const char delim) {
+  stringstream ss(s); string item; vector<string> tokens;
+  while (getline(ss, item, delim)) tokens.push_back(item);
+  return tokens;
 }
 
 extern int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv, const Uint numSteps);
 
-Communicator_internal::Communicator_internal(const MPI_Comm scom, const int socket, const bool spawn) : Communicator(socket, spawn)
-{
+Communicator_internal::Communicator_internal(const MPI_Comm scom, const int socket, const bool spawn) : Communicator(socket, spawn) {
   comm_learn_pool = scom;
   update_rank_size();
 }
 
-Communicator_internal::~Communicator_internal()
-{
+Communicator_internal::~Communicator_internal() {
   if (rank_learn_pool>0) {
     data_action[0] = AGENT_KILLSIGNAL;
     send_all(Socket, data_action, size_action);
   }
 }
 
-void Communicator_internal::launch_forked()
-{
+void Communicator_internal::launch_forked() {
   assert(not called_by_app);
   createGo_rundir();
   redirect_stdout_init();
   launch_exec("../"+execpath, socket_id);
 }
 
-void Communicator_internal::createGo_rundir()
-{
+void Communicator_internal::createGo_rundir() {
   char newd[1024];
   getcwd(initd, 512);
   struct stat fileStat;
@@ -63,8 +58,7 @@ void Communicator_internal::createGo_rundir()
   }
 }
 
-int Communicator_internal::recvStateFromApp()
-{
+int Communicator_internal::recvStateFromApp() {
   int bytes = recv_all(Socket, data_state, size_state);
 
   if (bytes <= 0)
@@ -84,8 +78,7 @@ int Communicator_internal::recvStateFromApp()
   return bytes <= 0;
 }
 
-int Communicator_internal::sendActionToApp()
-{
+int Communicator_internal::sendActionToApp() {
   //printf("I think im sending action %f\n",data_action[0]);
   if(comm_learn_pool != MPI_COMM_NULL) workerRecv_MPI();
 
@@ -96,24 +89,27 @@ int Communicator_internal::sendActionToApp()
   return endSignal;
 }
 
-void Communicator_internal::answerTerminateReq(const double answer)
-{
+void Communicator_internal::answerTerminateReq(const double answer) {
   data_action[0] = answer;
    //printf("I think im givign the goahead %f\n",data_action[0]);
   send_all(Socket, data_action, size_action);
 }
 
-void Communicator_internal::ext_app_run()
-{
+void Communicator_internal::ext_app_run() {
   assert(workerGroup>=0 && rank_inside_app>=0 &&comm_inside_app!=MPI_COMM_NULL);
-  vector<string> argsFiles = splitter(paramfile);
-  vector<string> stepNmbrs = splitter(nStepPerFile);
-  if(argsFiles.size() not_eq stepNmbrs.size() or argsFiles.size() == 0)
+  vector<string> argsFiles = split(paramfile, ';');
+  vector<string> stepNmbrs = split(nStepPerFile, ';');
+  if(argsFiles.size() not_eq stepNmbrs.size())
     die("error reading settings: nStepPappSett and appSettings");
-  vector<Uint> stepPrefix(stepNmbrs.size(), 0);
-  for (size_t i=0; i<stepNmbrs.size()-1; i++)
-    stepPrefix[i+1] = stepPrefix[i] + std::stol(stepNmbrs[i]);
+  if(argsFiles.size() == 0) {
+    if(paramfile not_eq "") die("");
+    argsFiles.push_back("");
+  }
+  vector<Uint> stepPrefix(argsFiles.size(), 0);
+  for (size_t i=1; i<stepNmbrs.size(); i++)
+    stepPrefix[i] = stepPrefix[i-1] + std::stol(stepNmbrs[i-1]);
   stepPrefix.push_back(numeric_limits<Uint>::max()); //last setup used for ever
+  assert(stepPrefix.size() == argsFiles.size() + 1);
 
   while(1)
   {
@@ -127,13 +123,10 @@ void Communicator_internal::ext_app_run()
     // ie. send state, recv action, specify state/action spaces properties...
     Communicator* commptr = static_cast<Communicator*>(this);
     Uint settingsInd = 0;
-    for(size_t i=0; i<stepPrefix.size(); i++)
+    for(size_t i=0; i<argsFiles.size(); i++)
       if(learner_step_id >= stepPrefix[i]) settingsInd = i;
     Uint numStepTSet = stepPrefix[settingsInd+1] - learner_step_id;
     numStepTSet = numStepTSet / (size_learn_pool-1);
-    //printf("Lstep %u iter %lu Ssteps %u/%ld\n",
-    //  learner_step_id, iter, numStepTSet, std::stol(stepNmbrs[settingsInd]));
-
     vector<char*> args = readRunArgLst(argsFiles[settingsInd]);
     //for(size_t i=0; i<args.size(); i++) cout<<args[i]<<endl;
     //cout<<endl; fflush(0);

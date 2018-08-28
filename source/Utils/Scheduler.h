@@ -18,17 +18,19 @@ private:
   const MPI_Comm workersComm;
   const vector<Learner*> learners;
   Environment* const env;
-  const ActionInfo aI;
-  const StateInfo  sI;
-  const vector<Agent*> agents;
-  const int bTrain, nPerRank, nWorkers, nThreads;
+  const ActionInfo& aI = env->aI;
+  const StateInfo&  sI = env->sI;
+  const vector<Agent*>& agents = env->agents;
+  const int nPerRank = env->nAgentsPerRank, bTrain, nWorkers, nThreads;
   const int learn_rank, learn_size;
-  const Uint totNumSteps, outSize, inSize, bAsync;
-  const vector<double*> inpBufs;
-  const vector<double*> outBufs;
+  const Uint totNumSteps, bAsync;
+  const Uint outSize = env->aI.dim * sizeof(double);
+  const Uint inSize = (3 + env->sI.dim) * sizeof(double);
+  const vector<double*> inpBufs = alloc_bufs(inSize, nWorkers);
+  const vector<double*> outBufs = alloc_bufs(outSize,nWorkers);
   Uint iterNum = 0;
-  vector<atomic<Uint>> stepNum = vector<atomic<Uint>>(nPerRank);
-  vector<atomic<Uint>>  seqNum = vector<atomic<Uint>>(nPerRank);
+  vector<atomic<Uint>*> stepNum = alloc_counts(nPerRank);
+  vector<atomic<Uint>*>  seqNum = alloc_counts(nPerRank);
 
   bool bNeedSequentialTasks = false;
   mutable vector<MPI_Request> requests = vector<MPI_Request>(nWorkers, MPI_REQUEST_NULL);
@@ -38,18 +40,17 @@ private:
   mutable vector<ostringstream> rewardsBuffer = vector<ostringstream>(nPerRank);
 
   inline Uint getMinSeqId() const {
-
-    Uint lowest = seqNum[0].load();
+    Uint lowest = (*seqNum[0]).load();
     for(int i=1; i<nPerRank; i++) {
-      const Uint tmp = seqNum[i].load();
+      const Uint tmp = (*seqNum[i]).load();
       if(tmp<lowest) lowest = tmp;
     }
     return lowest;
   }
   inline Uint getMinStepId() const {
-    Uint lowest = stepNum[0].load();
+    Uint lowest = (*stepNum[0]).load();
     for(int i=1; i<nPerRank; i++) {
-      const Uint tmp = stepNum[i].load();
+      const Uint tmp = (*stepNum[i]).load();
       if(tmp<lowest) lowest = tmp;
     }
     return lowest;
@@ -134,6 +135,12 @@ private:
     for(int i=0; i<num; i++) ret[i] = _alloc(size);
     return ret;
   }
+  static inline vector<atomic<Uint>*> alloc_counts(const int num)
+  {
+    vector<atomic<Uint>*> ret(num, nullptr);
+    for(int i=0; i<num; i++) ret[i] = new atomic<Uint>{0};
+    return ret;
+  }
 
   void processWorker(const int worker);
   void processAgent(const int worker, const MPI_Status mpistatus);
@@ -188,6 +195,8 @@ public:
     for(int i=0; i<nWorkers; i++) _dealloc(inpBufs[i]);
     for(int i=0; i<nWorkers; i++) _dealloc(outBufs[i]);
     for(const auto& L : learners) _dispose_object(L);
+    for(const auto& C : stepNum) _dispose_object(C);
+    for(const auto& C : seqNum) _dispose_object(C);
     flushRewardBuffer();
   }
 
@@ -201,7 +210,7 @@ public:
     }
   }
 
-  int run();
+  void run();
 };
 
 class Worker

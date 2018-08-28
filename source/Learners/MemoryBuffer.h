@@ -21,13 +21,15 @@ public:
   Environment * const env;
   const bool bWriteToFile, bTrain, bSampleSeq;
   const Uint nAppended, batchSize, maxTotObsNum, nThreads, policyVecDim;
-  const StateInfo& sI;
-  const ActionInfo& aI;
-  const vector<Agent*> _agents;
+  const StateInfo& sI = env->sI;
+  const ActionInfo& aI = env->aI;
+  const vector<Agent*>& _agents = env->agents;
   std::vector<std::mt19937>& generators;
-  vector<memReal> mean, invstd, std;
-  const int learn_rank, learn_size;
+  vector<memReal> invstd = sI.inUseInvStd();
+  vector<memReal> mean = sI.inUseMean();
+  vector<memReal> std = sI.inUseStd();
   const Real gamma;
+  const int learn_rank, learn_size;
   bool needs_pass = true;
   #ifdef PRIORITIZED_ER
     Uint stepSinceISWeep = 0;

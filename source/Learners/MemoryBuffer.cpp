@@ -15,10 +15,8 @@ MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
  mastersComm(_s.mastersComm), env(_env), bWriteToFile(_s.samplesFile),
  bTrain(_s.bTrain), bSampleSeq(_s.bSampleSequences), nAppended(_s.appendedObs),
  batchSize(_s.batchSize), maxTotObsNum(_s.maxTotObsNum), nThreads(_s.nThreads),
- policyVecDim(_s.policyVecDim), sI(env->sI), aI(env->aI), _agents(env->agents),
- generators(_s.generators), mean(sI.inUseMean()), invstd(sI.inUseInvStd()),
- std(sI.inUseStd()), learn_rank(_s.learner_rank), learn_size(_s.learner_size),
- gamma(_s.gamma) {
+ policyVecDim(_s.policyVecDim), generators(_s.generators), gamma(_s.gamma),
+ learn_rank(_s.learner_rank), learn_size(_s.learner_size){
   assert(_s.nAgents>0);
   inProgress.resize(_s.nAgents);
   for (int i=0; i<_s.nAgents; i++) inProgress[i] = new Sequence();
@@ -288,8 +286,8 @@ void MemoryBuffer::prune(const FORGET ALGO, const Fval CmaxRho)
       case FARPOLFRAC: del_ptr = far_ptr; break;
       case MAXKLDIV:   del_ptr = dkl_ptr; break;
       case MINERROR:   del_ptr = fit_ptr; break;
-      die(" ");
   }
+  if(del_ptr<0) die(" ");
 
   // safety measures: do not delete trajectory if Nobs > Ntarget
   // but if N > Ntarget even if we remove the trajectory
