@@ -16,7 +16,7 @@ endif
 endif
 
 ifneq "$(findstring falcon,$(shell hostname))" ""
-ifeq "0" "1"
+ifeq "1" "1"
 
 LIBS += -L/usr/lib64/vtk/ -lvtkCommonCore -lvtkCommonDataModel -lvtkIOXML
 
