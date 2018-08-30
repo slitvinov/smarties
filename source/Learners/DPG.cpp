@@ -138,7 +138,6 @@ void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
 
   //code to compute value grad:
   const Rvec grad_val = {isOff ? 0 : (target-q_curr[0])};
-  //traj->SquaredError[t] = grad_val[0]*grad_val[0];
   F[1]->backward(grad_val, traj, t, thrID);
 
   //bookkeeping:

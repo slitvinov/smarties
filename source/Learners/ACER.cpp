@@ -87,7 +87,6 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID) const
     Q_RET = R +gamma*( C*(Q_RET-QTheta) +Vstates[k]);
     Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]); // as paper, but bad
     //Q_OPC = R +gamma*( C*(Q_OPC-QTheta) +Vstates[k]);
-    //traj->SquaredError[k] = std::min(1/policies[k].sampImpWeight, policies[k].sampImpWeight);
     const Rvec penal = policies[k].div_kl_grad(T->mu, -1);
     traj->setMseDklImpw(k, Q_err*Q_err, dkl, rho);
     trainInfo->log(QTheta, Q_err, pGrad, penal, {rho}, thrID);

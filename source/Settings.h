@@ -244,6 +244,13 @@ softSign, softPlus, ...)"
 #define DEFAULT_learnrate 1e-4
   Real learnrate = DEFAULT_learnrate;
 
+#define CHARARG_ESpopSize 'M'
+#define COMMENT_ESpopSize "Population size for ES algorithm."
+#define TYPEVAL_ESpopSize int
+#define TYPENUM_ESpopSize INT
+#define DEFAULT_ESpopSize 0
+  int ESpopSize = DEFAULT_ESpopSize;
+
 #define CHARARG_nnType 'N'
 #define COMMENT_nnType "Type of non-output layers read from settings. (RNN, \
 LSTM, everything else maps to FFNN). Conv2D layers need to be built in \
@@ -513,7 +520,8 @@ string setupFolder = DEFAULT_setupFolder;
       READOPT(nnl1), READOPT(nnl2), READOPT(nnl3), READOPT(nnl4),
       READOPT(nnl5), READOPT(nnl6), READOPT(batchSize), READOPT(appendedObs),
       READOPT(nnPdrop), READOPT(nnOutputFunc), READOPT(nnFunc),
-      READOPT(learnrate), READOPT(nnType), READOPT(outWeightsPrefac),
+      READOPT(learnrate), READOPT(ESpopSize), READOPT(nnType),
+      READOPT(outWeightsPrefac),
       READOPT(nnLambda), READOPT(splitLayers), READOPT(nnBPTTseq),
 
       // SMARTIES ARGS: MUST contain all 10 mentioned above (more if modified)

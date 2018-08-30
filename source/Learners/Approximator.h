@@ -19,8 +19,9 @@ struct Approximator
 {
   Settings& settings;
   const string name;
-  const Uint nAgents, nThreads, mpisize, nMaxBPTT;
-  const bool bRecurrent;
+  const bool bRecurrent = settings.bRecurrent;
+  const Uint nAgents = settings.nAgents, nThreads = settings.nThreads;
+  const Uint mpisize = settings.learner_size, nMaxBPTT = settings.nnBPTTseq;
 
   Encapsulator* const input;
   MemoryBuffer* const data;
@@ -29,7 +30,12 @@ struct Approximator
   Network* net = nullptr;
   StatsTracker* gradStats = nullptr;
 
-  mutable vector<int> error_placements, first_sample;
+  mutable vector<int> weight_ind = vector<int>(nThreads, -1);
+  mutable vector<int> first_sample = vector<int>(nThreads, -1);
+  mutable vector<int> error_placements = vector<int>(nThreads, -1);
+  mutable vector<Sequence*> seq = vector<Sequence*>(nThreads, nullptr);
+  mutable vector<Sequence*> agent_seq = vector<Sequence*>(nAgents, nullptr);
+
   mutable Uint nAddedGradients=0, reducedGradients=0;
   Uint extraAlloc = 0;
   int relayInp = -1;
@@ -40,23 +46,22 @@ struct Approximator
   bool blockInpGrad = false;
 
   //thread safe memory for prediction with current weights:
-  mutable vector<vector<Activation*>> series;
+  mutable vector<vector<Activation*>> series =
+                                          vector<vector<Activation*>>(nThreads);
 
   //thread safe agent specific activations
-  mutable vector<vector<Activation*>> agent_series;
+  mutable vector<vector<Activation*>> agent_series =
+                                          vector<vector<Activation*>>(nAgents);
 
   //thread safe  memory for prediction with target weights. Rules are that
   // index along the two alloc vectors is the same for the same sample, and
   // that tgt net (if available) takes recurrent activation from current net:
-  mutable vector<vector<Activation*>> series_tgt;
+  mutable vector<vector<Activation*>> series_tgt =
+                                          vector<vector<Activation*>>(nThreads);
 
   Approximator(const string _name, Settings& S, Encapsulator*const en,
     MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
-  settings(S), name(_name), nAgents(S.nAgents), nThreads(S.nThreads),
-  mpisize(S.learner_size), nMaxBPTT(S.nnBPTTseq), bRecurrent(S.bRecurrent),
-  input(en), data(data_ptr), relay(r), error_placements(nThreads, -1),
-  first_sample(nThreads, -1), series(nThreads), agent_series(nAgents),
-  series_tgt(nThreads) {}
+  settings(S), name(_name), input(en), data(data_ptr), relay(r) {}
 
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
   Builder buildFromSettings(Settings& _s, const Uint n_outputs);
@@ -73,39 +78,35 @@ struct Approximator
   void prepare_one(const Sequence*const traj, const Uint samp,
       const Uint thrID, const Uint nSamples = 1) const;
 
-  Rvec forward(const Sequence* const traj, const Uint samp,
-    const Uint thrID, const PARAMS USE_W, const PARAMS USE_ACT,
-    const Uint iSample=0, const int overwrite=0) const;
+  Rvec forward(const Uint samp, const Uint thrID,
+    const int USE_W, const int USE_ACT, const int overwrite=0) const;
 
   // this is templated only to increase clarity when calling the forward op
-  template <PARAMS USE_WEIGHTS=CUR, PARAMS USE_ACT=USE_WEIGHTS, int overwrite=0>
-  inline Rvec forward(const Sequence* const traj, const Uint samp,
-      const Uint thrID, const Uint iSample = 0) const
-  {
-    return forward(traj, samp, thrID, USE_WEIGHTS, USE_ACT, iSample, overwrite);
+  template <PARAMS USE_WEIGHTS, PARAMS USE_ACT=USE_WEIGHTS, int overwrite=0>
+  inline Rvec forward(const Uint samp, const Uint thrID, const Uint iSample=0)
+  const {
+    const int USE_W = USE_WEIGHTS == CUR ? 0 : -1;
+    return forward(samp, thrID, wID, USE_WEIGHTS, USE_ACT, iSample, overwrite);
   }
 
-  Rvec relay_backprop(const Rvec error, const Uint samp,
-    const Uint thrID, const PARAMS USEW) const;
-
+  // relay backprop requires gradients: no wID, no sorting based opt algos
+  Rvec relay_backprop(const Rvec grad, const Uint samp, const Uint thrID,
+    const PARAMS USEW) const;
   template <PARAMS USEW = CUR>
   inline Rvec relay_backprop(const Rvec error, const Uint samp,
-      const Uint thrID) const
-  {
+      const Uint thrID) const {
     return relay_backprop(error, samp, thrID, USEW);
   }
 
+  // agent always uses mean weight vector, also when using evol strategies
   void prepare_agent(const Sequence* const traj, const Agent& agent) const;
-  Rvec forward_agent(const Sequence* const traj, const Uint aID, const PARAMS USEW) const;
-
+  Rvec forward_agent(const Uint aID, const PARAMS USEW) const;
   template <PARAMS USEW = CUR>
-  inline Rvec forward_agent(const Sequence*const traj, const Agent&agent) const
-  {
-    return forward_agent(traj, agent, USEW);
+  inline Rvec forward_agent(const Agent&agent) const {
+    return forward_agent(agent, USEW);
   }
-  inline Rvec forward_agent(const Sequence*const traj, const Agent&agent, const PARAMS USEW) const
-  {
-    return forward_agent(traj, agent.ID, USEW);
+  inline Rvec forward_agent(const Agent&agent, const PARAMS USEW) const {
+    return forward_agent(agent.ID, USEW);
   }
 
   Rvec getOutput(const Rvec inp, const int ind,
@@ -136,8 +137,8 @@ struct Approximator
     return act[mapTime2Ind(samp, thrID)]->getOutput();
   }
 
-  void backward(Rvec error, const Sequence*const traj, const Uint samp,
-    const Uint thrID, const Uint iSample = 0) const;
+  void backward(Real error, Rvec grad, const Sequence*const traj,
+    const Uint samp, const Uint thrID, const Uint iSample = 0) const;
 
   void prepareUpdate(const Uint batchSize);
   void applyUpdate();

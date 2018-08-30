@@ -248,7 +248,7 @@ void MemoryBuffer::prune(const FORGET ALGO, const Fval CmaxRho)
           const Fval W = Set[i]->offPolicImpW[j];
           Set[i]->MSE += Set[i]->SquaredError[j];
           Set[i]->sumKLDiv += Set[i]->KullbLeibDiv[j];
-          assert(Set[i]->SquaredError[j]>=0&&W>=0&&Set[i]->KullbLeibDiv[j]>=0);
+          assert( W>=0  &&  Set[i]->KullbLeibDiv[j]>=0 );
           // sequence is off policy if offPol W is out of 1/C : C
           if(W>CmaxRho || W<invC) Set[i]->nOffPol += 1;
         }
