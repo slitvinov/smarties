@@ -203,7 +203,7 @@ void Approximator::backward(const Real error, const Rvec grad, const Uint samp,
   error_placements[thrID] = std::max(ind+1, error_placements[thrID]);
   act[ind]->addOutputDelta(grad);
 
-  population_Losses[thread_Wind[thrID]] += error;
+  losses[thrID][thread_Wind[thrID]] += error;
 }
 
 void Approximator::gradient(const Uint thrID) const {
@@ -245,11 +245,12 @@ void Approximator::prepareUpdate(const Uint batchSize)
   //if(nAddedGradients>batchSize) die("weird");
 
   if(input->net not_eq nullptr and not blockInpGrad) {
-    for(int i=0; i<ESpopSize; i++)
-      input->population_Losses[i] += population_Losses[i];
+    for(Uint j=0; j<nThreads; j++)
+      for(int i=0; i<ESpopSize; i++) input->losses[j][i] += losses[j][i];
   }
 
-  opt->prepare_update(batchSize, population_Losses);
+  opt->prepare_update(batchSize, losses);
+  losses = vector<vector<Real>>(nThreads, vector<Real>(ESpopSize, 0));
   reducedGradients = 1;
   nAddedGradients = 0;
   if(mpisize<=1) applyUpdate();

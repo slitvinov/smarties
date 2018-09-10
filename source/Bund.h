@@ -139,9 +139,8 @@ typedef float Real;
 ////////////////////////////////////////////////////////////////////////////////
 // Data format for storage in memory buffer. Switch to float for example for
 // Atari where the memory buffer is in the order of GBs.
-//typedef double memReal;
-typedef float memReal;
-typedef float  Fval;
+typedef double memReal;
+typedef double Fval;
 typedef vector<Fval> Fvec;
 typedef vector<Real> Rvec;
 typedef vector<long double> LDvec;
@@ -202,6 +201,11 @@ inline bool positive(const Real vals)
   return vals > std::numeric_limits<Real>::epsilon();
 }
 
+template <typename T>
+inline bool bValid(const T vals) {
+  return ( not std::isnan(vals) ) and ( not std::isinf(vals) );
+}
+
 inline Real safeExp(const Real val)
 {
   return std::exp( std::min((Real)16, std::max((Real)-32,val) ) );
@@ -214,6 +218,7 @@ inline vector<Uint> count_indices(const vector<Uint> outs)
   return ret;
 }
 
+#ifdef __APPLE__
 #include <cpuid.h>
 #define CPUID(INFO, LEAF, SUBLEAF) __cpuid_count(LEAF, SUBLEAF, INFO[0], INFO[1], INFO[2], INFO[3])
 #define GETCPU(CPU) do {                               \
@@ -228,3 +233,6 @@ inline vector<Uint> count_indices(const vector<Uint> outs)
         }                                              \
         if (CPU < 0) CPU = 0;                          \
       } while(0)
+#else
+#define GETCPU(CPU) do { CPU=sched_getcpu(); } while(0)
+#endif

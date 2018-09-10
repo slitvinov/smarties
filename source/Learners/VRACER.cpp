@@ -47,10 +47,13 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   const Real D_RET = std::min((Real)1, W) * A_RET;
   const Real deltaD = std::pow(D_RET-S->Q_RET[t], 2);
   const Real clipRho = std::min(std::max(W, 1/CmaxRet), CmaxRet);
-  const Real L = clipRho*A_RET + 0.5*std::pow(D_RET, 2);
+  const Real anneal = 1;//std::min(nStep*std::sqrt(epsAnneal), (Real)1);
+  // maximize rho*A and minimize MSE critic loss
+  const Real L = - clipRho*A_RET*anneal + 0.5*std::pow(D_RET, 2);
+  const Real penalLoss = beta*L + (1-beta)*P.sampKLdiv;
   if( wID == 0 ) {
     S->setStateValue(t, Vcur); S->setRetrace(t, D_RET);
-    S->setMseDklImpw(t, L, P.sampKLdiv, W);
+    S->setMseDklImpw(t, D_RET*D_RET, P.sampKLdiv, W);
   }
 
   Rvec G = Rvec(F[0]->nOutputs(), 0);
@@ -67,11 +70,11 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
     P.finalize_grad(finalG, G);
     G[VsID] = beta * alpha * D_RET;
     if( wID == 0 )
-      trainInfo->log(Vcur, L, policyG, penalG, {beta, deltaD, W}, thrID);
+      trainInfo->log(Vcur, D_RET, policyG, penalG, {beta, deltaD, W}, thrID);
   }
 
   if(thrID==0)  profiler->stop_start("BCK");
-  F[0]->backward(L, G, t, thrID); // place gradient onto output layer
+  F[0]->backward(penalLoss, G, t, thrID); // place gradient onto output layer
   F[0]->gradient(thrID);  // backprop
 }
 
@@ -98,6 +101,7 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
     #if 0 // add and update temporally correlated noise
       act = pol.updateOrUhState(OrUhState[agent.ID], mu, act, iter());
     #endif
+    //if(nStep) cout << "pol:" << print(mu) << endl;
 
     traj->state_vals.push_back(output[VsID]);
     agent.act(act);

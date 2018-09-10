@@ -155,9 +155,6 @@ void Learner_offPolicy::applyGradient()
 
       if(fracOffPol>ReFtol) beta = (1-learnR)*beta; // iter converges to 0
       else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
-
-      if( beta <= 10*learnR && currStep % 1000 == 0)
-      warn("beta too low. Lower lrate, pick bounded nnfunc, or incr net size.");
     }
     else
     {
