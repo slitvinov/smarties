@@ -26,9 +26,9 @@ class RETPG : public Learner_offPolicy
     return pol;
   }
 
-  void TrainBySequences(const Uint seq, const Uint thrID) const override;
+  void TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const override;
 
-  void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
+  void Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wID) const override;
 
   inline void updateQretFront(Sequence*const S, const Uint t) const {
     if(t == 0) return;

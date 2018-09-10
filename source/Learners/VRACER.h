@@ -54,15 +54,9 @@ class VRACER : public Learner_offPolicy
     return pol;
   }
 
-  void TrainBySequences(const Uint seq, const Uint thrID) const override;
+  void TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const override;
 
-  void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
-
-  Rvec compute(Sequence*const S, const Uint t, const Rvec& outVec,
-    const Policy_t& pol_cur, const Uint thrID) const;
-
-  Rvec offPolGrad(Sequence*const S, const Uint t, const Rvec output,
-    const Policy_t& pol, const Uint thrID) const;
+  void Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wID) const override;
 
   inline Real updateVret(Sequence*const S, const Uint t, const Real V,
     const Policy_t& pol) const {

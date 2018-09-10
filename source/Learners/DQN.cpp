@@ -46,7 +46,7 @@ void DQN::select(Agent& agent)
     data->terminate_seq(agent);
 }
 
-void DQN::TrainBySequences(const Uint seq, const Uint thrID) const
+void DQN::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
 {
   Sequence* const traj = data->Set[seq];
   const Uint ndata = traj->tuples.size();
@@ -77,7 +77,7 @@ void DQN::TrainBySequences(const Uint seq, const Uint thrID) const
   F[0]->gradient(thrID);
 }
 
-void DQN::Train(const Uint seq, const Uint samp, const Uint thrID) const
+void DQN::Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wID) const
 {
   Sequence* const traj = data->Set[seq];
   F[0]->prepare_one(traj, samp, thrID);

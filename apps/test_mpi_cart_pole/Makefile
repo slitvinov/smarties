@@ -1,6 +1,8 @@
 .DEFAULT_GOAL := app
 
 SMARTIESDIR = ../../source/Communicators/
+#CPPFLAGS+= -fsanitize=address
+#LIBS += -fsanitize=address
 CPPFLAGS += -I$(SMARTIESDIR)
 VPATH := $(VPATH):$(SMARTIESDIR)
 
@@ -11,7 +13,7 @@ app: cart-pole.o Communicator.o
 	#cp app.so ../../makefiles/test_mpi_cart_pole.so
 
 clean:
-	rm -f app.so
+	rm -f *.o libsimulation.a
 
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@

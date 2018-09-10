@@ -48,7 +48,7 @@ void Learner_onPolicy::spawnTrainTasks_seq()
   {
     const int thrID = omp_get_thread_num();
     const Uint seq = samp_seq[i], obs = samp_obs[i];
-    Train(seq, obs, thrID);
+    Train(seq, obs, thrID, 0);
     input->gradient(thrID);
     data->Set[seq]->setSampled(obs);
   }

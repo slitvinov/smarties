@@ -96,11 +96,10 @@ struct Adam {
   }
 };
 
-void Optimizer::prepare_update(const int batchsize, const vector<Parameters*>* grads )
+void AdamOptimizer::prepare_update(const int batchsize, const vector<Real> L)
 {
   totGrads = batchsize;
-  if(grads not_eq nullptr) //add up gradients across threads
-    gradSum->reduceThreadsGrad(*grads);
+  gradSum->reduceThreadsGrad(grads);
 
   if (learn_size > 1) { //add up gradients across master ranks
     MPI_Iallreduce(MPI_IN_PLACE, gradSum->params, gradSum->nParams, MPI_NNVALUE_TYPE, MPI_SUM, mastersComm, &paramRequest);
@@ -109,7 +108,7 @@ void Optimizer::prepare_update(const int batchsize, const vector<Parameters*>* g
   nStep++;
 }
 
-void Optimizer::apply_update()
+void AdamOptimizer::apply_update()
 {
   if(nStep == 0) die("nStep == 0");
   if(learn_size > 1) {
@@ -178,7 +177,7 @@ void Optimizer::apply_update()
   }
 }
 
-void Optimizer::save(const string fname, const bool backup)
+void AdamOptimizer::save(const string fname, const bool backup)
 {
   weights->save(fname+"_weights");
   if(tgt_weights not_eq nullptr) tgt_weights->save(fname+"_tgt_weights");
@@ -198,7 +197,7 @@ void Optimizer::save(const string fname, const bool backup)
     #endif
   }
 }
-int Optimizer::restart(const string fname)
+int AdamOptimizer::restart(const string fname)
 {
   int ret = 0;
   ret = weights->restart(fname+"_weights");

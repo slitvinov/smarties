@@ -182,6 +182,12 @@ struct Parameters
   }
 };
 
+inline vector<Parameters*> initWpop(const Parameters*const W, Uint popsz) {
+  vector<Parameters*> ret(popsz, nullptr);
+  for(Uint i=0; i<popsz; i++) ret[i] = W->allocateGrad();
+  return ret;
+}
+
 #if 0
   inline void circle_region(Grads*const trust, Grads*const grad, const Real delta, const int ngrads)
   {

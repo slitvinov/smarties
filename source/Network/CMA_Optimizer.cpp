@@ -6,34 +6,37 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "Optimizer.h"
+#include "CMA_Optimizer.h"
 #include "saruprng.h"
+#include <algorithm>
 
 CMA_Optimizer::CMA_Optimizer(Settings&S, const Parameters*const W,
-  const Parameters*const W_TGT): mastersComm(S.mastersComm),
-  learn_size(S.learner_size), pop_size(S.ESpopSize), weights(W),
-  tgt_weights(W_TGT), sigma_init(S.learnrate) {
-    diagCov->set(1);
-    std::vector<unsigned long> seed(3*pop_size) ;
-    std::generate(seed.begin(), seed.end(), [&](){return S.generators[0]();});
-    MPI_Bcast(seed.data(), 3*pop_size, MPI_UNSIGNED_LONG, 0, mastersComm);
-    for(Uint i=0; i<pop_size; i++)
-      generators[i] = new Saru(seed[3*i +0], seed[3*i +1], seed[3*i +2]);
-  }
+  const Parameters*const WT, const vector<Parameters*>&G) : Optimizer(S, W, WT),
+  sampled_weights(G)
+{
+  diagCov->set(1);
+  std::vector<unsigned long> seed(3*pop_size) ;
+  std::generate(seed.begin(), seed.end(), [&](){return S.generators[0]();});
+  MPI_Bcast(seed.data(), 3*pop_size, MPI_UNSIGNED_LONG, 0, mastersComm);
+  for(Uint i=0; i<pop_size; i++)
+    generators[i] = new Saru(seed[3*i +0], seed[3*i +1], seed[3*i +2]);
+  initializeGeneration();
+}
 
-virtual CMA_Optimizer::~CMA_Optimizer() {
+CMA_Optimizer::~CMA_Optimizer() {
  _dispose_object(pathSig);
  _dispose_object(pathCov);
  _dispose_object(diagCov);
- for(auto& ptr: sampled_weights) _dispose_object(ptr);
+ _dispose_object(avgNois);
+
  for(auto& ptr: popNoiseVectors) _dispose_object(ptr);
  for(auto& ptr: generators) _dispose_object(ptr);
 }
 
 void CMA_Optimizer::initializeGeneration() const {
   #pragma omp parallel for schedule(static)
-  for(Uint i=0; i<pop_size; i++) {
-    Saru& gen = generators[i];
+  for(Uint i=1; i<pop_size; i++) {
+    Saru& gen = * generators[i];
     nnReal* const Z = popNoiseVectors[i]->params;
     nnReal* const X = sampled_weights[i]->params;
     const nnReal* const S = diagCov->params;
@@ -45,7 +48,7 @@ void CMA_Optimizer::initializeGeneration() const {
   }
 }
 
-void CMA_Optimizer::prepare_update(const vector<Real> L) {
+void CMA_Optimizer::prepare_update(const int batchsize, const vector<Real> L) {
   if(L.size() not_eq pop_size) die("");
   losses = L;
   if (learn_size > 1) //add up losses across master ranks
@@ -61,26 +64,32 @@ void CMA_Optimizer::apply_update()
     MPI_Wait(&paramRequest, MPI_STATUS_IGNORE);
   }
 
+  const nnReal _eta = bAnnealLearnRate? annealRate(eta,nStep,epsAnneal) : eta;
+
   std::vector<Uint> inds(pop_size,0);
   std::iota(inds.begin(), inds.end(), 0);
   std::sort(inds.begin(), inds.end(),
-              [&](Uint i1, Uint i2) { return losses[i1] < losses[i2]; } );
+       [&] (const Uint i1, const Uint i2) { return losses[i1] < losses[i2]; } );
 
   nnReal * const M = weights->params;
   nnReal * const S = diagCov->params;
   nnReal * const P = pathCov->params;
   nnReal * const C = pathSig->params;
   nnReal * const A = avgNois->params;
+  popNoiseVectors[0]->clear();
+  sampled_weights[0]->copy(weights);
   avgNois->clear(); weights->clear();
 
   #pragma omp parallel
   for(Uint i=0; i<pop_size; i++) {
     const Uint k = inds[i];
-    const nnReal ww = popWeights[i]
+    const nnReal wZ = popWeights[i];
+    const nnReal wM = i ? _eta*popWeights[i] : _eta*popWeights[i] + (1-_eta);
     const nnReal* const Z = popNoiseVectors[k]->params;
     const nnReal* const X = sampled_weights[k]->params;
+    if(wZ <= 0) continue;
     #pragma omp for simd schedule(static) aligned(A,Z,M,X : VEC_WIDTH)
-    for(Uint w=0; w<pDim; w++) { A[w] += Z[w] * ww; M[w] += X[w] * ww; }
+    for(Uint w=0; w<pDim; w++) { A[w] += Z[w] * wZ; M[w] += X[w] * wM; }
   }
 
   nnReal sumPP = 0, sumSS = 0;
@@ -105,6 +114,8 @@ void CMA_Optimizer::apply_update()
   const nnReal covBeta = ( std::sqrt(1 + sumPP*c2cov/(1-c2cov)) - 1 )/sumPP;
   #pragma omp parallel for simd schedule(static)
   for(Uint w=0; w<pDim; w++) S[w] = covAlph*(S[w] + covBeta*S[w]*P[w]*P[w]);
+
+  initializeGeneration();
 }
 
 void CMA_Optimizer::save(const string fname, const bool backup) {

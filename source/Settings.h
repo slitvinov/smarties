@@ -248,7 +248,7 @@ softSign, softPlus, ...)"
 #define COMMENT_ESpopSize "Population size for ES algorithm."
 #define TYPEVAL_ESpopSize int
 #define TYPENUM_ESpopSize INT
-#define DEFAULT_ESpopSize 0
+#define DEFAULT_ESpopSize 1
   int ESpopSize = DEFAULT_ESpopSize;
 
 #define CHARARG_nnType 'N'
@@ -546,7 +546,7 @@ string setupFolder = DEFAULT_setupFolder;
       MPI_Bcast(&randSeed, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }
     sockPrefix = randSeed + world_rank;
-
+    generators.resize(0);
     generators.reserve(omp_get_max_threads());
     generators.push_back(mt19937(sockPrefix));
     for(int i=1; i<omp_get_max_threads(); i++) {

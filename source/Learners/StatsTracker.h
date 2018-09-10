@@ -66,7 +66,7 @@ struct TrainData
   //FILE * wFile = fopen("grads_dist.raw", "ab");
   //FILE * qFile = fopen("onpolQdist.raw", "ab");
 
-  TrainData(const string _name, Settings&set, bool bPPol=0,
+  TrainData(const string _name, const Settings&set, bool bPPol=0,
     const string extrah = string(), const Uint nextra=0) : n_extra(nextra),
     nThreads(set.nThreads), bPolStats(bPPol), name(_name), extra_header(extrah)
   {
@@ -263,7 +263,7 @@ struct StatsTracker
 
   ApproximateReductor reductor = ApproximateReductor(comm, 2*n_stats +1);
 
-  StatsTracker(const Uint N, Settings& set, Real fac) :
+  StatsTracker(const Uint N, const Settings& set, Real fac) :
   n_stats(N), comm(set.mastersComm), nThreads(set.nThreads),
   learn_size(set.learner_size), learn_rank(set.learner_rank), grad_cut_fac(fac),
   learnR(set.learnrate)

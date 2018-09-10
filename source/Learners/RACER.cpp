@@ -22,7 +22,7 @@
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::
-TrainBySequences(const Uint seq, const Uint thrID) const
+TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
 {
   Sequence* const traj = data->Set[seq];
   const int ndata = traj->tuples.size()-1;
@@ -64,7 +64,7 @@ TrainBySequences(const Uint seq, const Uint thrID) const
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::
-Train(const Uint seq, const Uint samp, const Uint thrID) const
+Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wID) const
 {
   Sequence* const traj = data->Set[seq];
   assert(samp+1 < traj->tuples.size());

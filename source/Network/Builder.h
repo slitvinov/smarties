@@ -8,6 +8,7 @@
 
 #pragma once
 #include "Optimizer.h"
+#include "CMA_Optimizer.h"
 #include "Network.h"
 #include "Layer_Base.h"
 #include "Layer_Conv2D.h"
@@ -165,10 +166,6 @@ public:
       #pragma omp critical // numa-aware allocation if OMP_PROC_BIND is TRUE
         Vgrad[i] = allocate_parameters(layers);
 
-    // Allocate agents' memories. Will be used by RNN when selecting actions
-    mem.resize(nAgents);
-    for (Uint i=0; i<nAgents; ++i) mem[i] = allocate_memory(layers);
-
     // Initialize network workspace to check that all is ok
     Activation*const test = allocate_activation(layers);
 
@@ -184,15 +181,11 @@ public:
 
     _dispose_object(test);
 
-    net = new Network(this, settings);
-    opt = new Optimizer(settings, weights, tgt_weights);
+    popW = initWpop(weights, pop_size);
 
-    //if (!settings.learner_rank) opt->save("initial");
-    //#ifndef NDEBUG
-    //  MPI_Barrier(settings.mastersComm);
-    //  opt->restart("initial");
-    //  opt->save("restarted"+to_string(settings.learner_rank));
-    //#endif
+    net = new Network(this, settings);
+    if(pop_size>1) opt = new CMA_Optimizer(settings, weights,tgt_weights, popW);
+    else opt = new AdamOptimizer(settings, weights,tgt_weights, Vgrad);
     return net;
   }
 
@@ -237,21 +230,22 @@ public:
 private:
   bool bBuilt = false;
 public:
-  Uint nAgents, nThreads;
+  Settings & settings;
+  const Uint nAgents = settings.nAgents;
+  const Uint nThreads = settings.nThreads;
+  const Uint pop_size = settings.ESpopSize;
   Uint nInputs=0, nOutputs=0, nLayers=0;
   Real gradClip = 1;
-  std::vector<std::mt19937>& generators;
+  std::vector<std::mt19937>& generators = settings.generators;
   Parameters *weights, *tgt_weights;
   vector<Parameters*> Vgrad;
+  vector<Parameters*> popW;
   vector<Layer*> layers;
-  vector<Memory*> mem;
-  Settings & settings;
 
   Network* net = nullptr;
   Optimizer* opt = nullptr;
 
-  Builder(Settings& _sett): nAgents(_sett.nAgents), nThreads(_sett.nThreads),
-    generators(_sett.generators), settings(_sett) {
+  Builder(Settings& _sett) : settings(_sett) {
     assert(nAgents>0 && nThreads>0);
   }
 };

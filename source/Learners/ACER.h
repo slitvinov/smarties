@@ -32,9 +32,9 @@ class ACER : public Learner_offPolicy
     return pol;
   }
 
-  void TrainBySequences(const Uint seq, const Uint thrID) const override;
+  void TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const override;
 
-  void Train(const Uint seq, const Uint obs, const Uint thrID) const override;
+  void Train(const Uint seq, const Uint obs, const Uint thrID, const Uint wID) const override;
 
   Rvec policyGradient(const Tuple*const _t, const Policy_t& POL,
     const Policy_t& TGT, const Real ARET, const Real APol,

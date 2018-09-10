@@ -9,11 +9,11 @@
 #include "RETPG.h"
 #include "../Network/Builder.h"
 
-void RETPG::TrainBySequences(const Uint seq, const Uint thrID) const {
+void RETPG::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const {
   die(" ");
 }
 
-void RETPG::Train(const Uint seq, const Uint t, const Uint thrID) const
+void RETPG::Train(const Uint seq, const Uint t, const Uint thrID, const Uint wID) const
 {
   Sequence* const traj = data->Set[seq];
   assert(t+1 < traj->tuples.size());

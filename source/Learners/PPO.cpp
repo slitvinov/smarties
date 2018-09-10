@@ -14,13 +14,13 @@
 #define PPO_simpleSigma
 
 template<typename Policy_t, typename Action_t>
-void PPO<Policy_t, Action_t>::TrainBySequences(const Uint seq, const Uint thrID) const
+void PPO<Policy_t, Action_t>::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
 {
   die("not allowed");
 }
 
 template<typename Policy_t, typename Action_t>
-void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Uint thrID) const
+void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wID) const
 {
   if(thrID==0)  profiler->stop_start("FWD");
   Sequence* const traj = data->Set[seq];

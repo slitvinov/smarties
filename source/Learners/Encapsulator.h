@@ -15,17 +15,27 @@
 
 class Builder;
 
-enum OUTPUT { STATE, STATEACT }; /* use CUR or TGT weights */
-//template <OUTPUT OUTP = STATE>
 struct Encapsulator
 {
   const string name;
-  const Uint nThreads, nAppended;
-  Settings& settings;
-  mutable vector<vector<Activation*>> series;
-  mutable vector<int> first_sample;
-  mutable vector<int> error_placements;
-  mutable Uint nAddedGradients=0, nReducedGradients = 0;
+  const Settings& settings;
+  const Uint nThreads = settings.nThreads+settings.nAgents;
+  const Uint nAppended = settings.appendedObs;
+  const int ESpopSize = settings.ESpopSize;
+  mutable vector<vector<Activation*>> series =
+                                          vector<vector<Activation*>>(nThreads);
+  mutable vector<vector<Activation*>> series_tgt =
+                                          vector<vector<Activation*>>(nThreads);
+  mutable vector<int> first_sample = vector<int>(nThreads,-1);
+  mutable vector<int> error_placements = vector<int>(nThreads,-1);
+  mutable vector<Sequence*> thread_seq = vector<Sequence*>(nThreads, nullptr);
+
+  // For CMAES based optimization. Keeps track of total loss associate with
+  // Each weight vector sample:
+  mutable vector<Real> population_Losses = vector<Real>(ESpopSize, 0);
+
+  mutable std::atomic<Uint> nAddedGradients{0};
+  Uint nReducedGradients = 0;
   MemoryBuffer* const data;
   Optimizer* opt = nullptr;
   Network* net = nullptr;
@@ -36,9 +46,7 @@ struct Encapsulator
   }
 
   Encapsulator(const string _name, Settings& sett, MemoryBuffer*const data_ptr)
-  : name(_name), nThreads(sett.nThreads+sett.nAgents),
-    nAppended(sett.appendedObs), settings(sett), first_sample(nThreads,-1),
-    error_placements(nThreads,-1), data(data_ptr) {}
+  : name(_name), settings(sett),  data(data_ptr) {}
 
   void initializeNetwork(Network* _net, Optimizer* _opt)
   {
@@ -60,8 +68,9 @@ struct Encapsulator
     net->layers[1]->startCompInpGrads = nInps;
   }
 
-  inline void prepare(const Uint len, const Uint samp, const Uint thrID) const
-  {
+  inline void prepare(Sequence*const traj, const Uint len,
+    const Uint samp, const Uint thrID) const {
+    thread_seq[thrID] = traj;
     if(net==nullptr) return;
     // before clearing out gradient, check if a backprop was ready
     // this should be performed when I place all gradients in the outputs
@@ -73,19 +82,18 @@ struct Encapsulator
     if(error_placements[thrID] > 0) die("");
     first_sample[thrID] = samp;
     net->prepForBackProp(series[thrID], len);
+    net->prepForFwdProp(series_tgt[thrID], len);
   }
 
-  inline int mapTime2Ind(const Uint samp, const Uint thrID) const
-  {
+  inline int mapTime2Ind(const Uint samp, const Uint thrID) const {
     assert(first_sample[thrID]<=(int)samp);
     //ind is mapping from time stamp along trajectoy and along alloc memory
     const int ind = (int)samp - first_sample[thrID];
     return ind;
   }
 
-  inline Rvec state2Inp(const int t, const Sequence*const traj,
-      const Uint thrID) const
-  {
+  inline Rvec state2Inp(const int t, const Uint thrID) const {
+    const Sequence*const traj = thread_seq[thrID];
     assert(t<(int)traj->tuples.size());
     const Uint nSvar = traj->tuples[t]->s.size();
     assert(nSvar == data->sI.dimUsed);
@@ -99,38 +107,38 @@ struct Encapsulator
           inp[j + i*(nAppended+1)] = traj->tuples[kk]->s[i];
       }
       #ifdef NOISY_INPUT
-        //if(traj->ID>=0) return data->standardizeAppendedNoisy(traj->tuples[t]->s, thrID);
+        //if(traj->ID>=0) return; data->standardizeAppendedNoisy(traj->tuples[t]->s, thrID);
       #endif
       return data->standardizeAppended(inp);
-    } else
-    #ifdef NOISY_INPUT
-      if(traj->ID>=0) return data->standardizeNoisy(traj, t, thrID);
-    #endif
-    debugS("encapsulate state %s", print(traj->tuples[t]->s).c_str() );
-    return data->standardize(traj->tuples[t]->s);
+    } else {
+      #ifdef NOISY_INPUT
+        if(traj->ID>=0) return data->standardizeNoisy(traj, t, thrID);
+      #endif
+      debugS("encapsulate state %s", print(traj->tuples[t]->s).c_str() );
+      return data->standardize(traj->tuples[t]->s);
+    }
   }
 
-  inline Rvec forward(const Sequence*const seq, const int samp,
-    const Uint thrID) const
+  inline Rvec forward(const int samp, const Uint thrID, const int wghtID) const
   {
-    if(net==nullptr) return state2Inp(samp, seq, thrID); //data->Tmp[agentId]);
+    if(net==nullptr) return state2Inp(samp, thrID);
     if(error_placements[thrID] > 0) die("");
 
-    const vector<Activation*>& act = series[thrID];
+    const vector<Activation*>&act = wghtID>=0? series[thrID]:series_tgt[thrID];
     const int ind = mapTime2Ind(samp, thrID);
     //if already computed just give answer
-    if(act[ind]->written == true) return act[ind]->getOutput();
-    const Rvec inp = state2Inp(samp, seq, thrID);
-    assert(inp.size() == net->getnInputs());
-    const Rvec ret = net->predict(inp, act[ind]);
+    if(act[ind]->written) return act[ind]->getOutput();
+    const Parameters* const W = wghtID >0 ? net->sampled_weights[wghtID] : (
+                                wghtID==0 ? net->weights : net->tgt_weights );
     act[ind]->written = true;
-    return ret;
+    return net->predict(state2Inp(samp, thrID), act[ind], W);
   }
 
   inline void backward(const Rvec&error, const Uint samp,
     const Uint thrID) const
   {
     if(net == nullptr) return;
+    if(ESpopSize>1) die("should be impossible");
     const int ind = mapTime2Ind(samp, thrID);
     const vector<Activation*>& act = series[thrID];
     assert(act[ind]->written == true);
@@ -146,10 +154,10 @@ struct Encapsulator
     for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) die("");
 
     if(nAddedGradients==0) die("No-gradient update. Revise hyperparameters.");
-    if(nAddedGradients>batchSize) die("weird");
+    //if(nAddedGradients>batchSize) die("weird");
 
-    opt->prepare_update(batchSize, net->Vgrad);
-    nReducedGradients = nAddedGradients;
+    opt->prepare_update(batchSize, population_Losses);
+    nReducedGradients = 1;
     nAddedGradients = 0;
   }
 
@@ -166,17 +174,24 @@ struct Encapsulator
   inline void gradient(const Uint thrID) const
   {
     if(net == nullptr) return;
-    if(error_placements[thrID]<=0) { warn("no input grad"); return;}
 
-    #pragma omp atomic
     nAddedGradients++;
 
-    vector<Activation*>& act = series[thrID];
-    const int last_error = error_placements[thrID];
-    for (int i=0; i<last_error; i++) assert(act[i]->written == true);
-    //if(!thrID) for(int i=0; i<last_error; i++)
-    //  cout<<i<<" inpB:"<<print(act[i]->getOutputDelta())<<endl;
-    net->backProp(act, last_error, net->Vgrad[thrID]);
+    if(ESpopSize>1)
+    {
+      debugL("Skipping backprop because we use ES optimizers.");
+    }
+    else
+    {
+      if(error_placements[thrID]<=0) { warn("no input grad"); return;}
+
+      vector<Activation*>& act = series[thrID];
+      const int last_error = error_placements[thrID];
+      for (int i=0; i<last_error; i++) assert(act[i]->written == true);
+      //if(!thrID) for(int i=0; i<last_error; i++)
+      //  cout<<i<<" inpB:"<<print(act[i]->getOutputDelta())<<endl;
+      net->backProp(act, last_error, net->Vgrad[thrID]);
+    }
     error_placements[thrID] = -1; //to stop additional backprops
   }
 

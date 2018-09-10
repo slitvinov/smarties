@@ -13,8 +13,10 @@
 class Learner_offPolicy: public Learner
 {
 protected:
-  const Real obsPerStep_orig;
-  const Uint nObsPerTraining;
+  const Real obsPerStep_orig = settings.obsPerStep;
+  const Uint nObsPerTraining = settings.minTotObsNum > settings.batchSize ?
+                                  settings.minTotObsNum : settings.maxTotObsNum;
+  const Uint ESpopSize = settings.ESpopSize;
   mutable int percData = -5;
   Real nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig;

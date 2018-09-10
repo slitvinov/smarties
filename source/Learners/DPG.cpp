@@ -77,12 +77,12 @@ void DPG::select(Agent& agent)
   }
 }
 
-void DPG::TrainBySequences(const Uint seq, const Uint thrID) const
+void DPG::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
 {
   die("");
 }
 
-void DPG::Train(const Uint seq, const Uint t, const Uint thrID) const
+void DPG::Train(const Uint seq, const Uint t, const Uint thrID, const Uint wID) const
 {
   if(thrID==0) profiler->stop_start("FWD");
   Sequence* const traj = data->Set[seq];

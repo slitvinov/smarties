@@ -2,7 +2,7 @@
 
 make -C ../makefiles/ clean
 
-make -C ../makefiles/ app=test_mpi_cart_pole -j #compiler=intel #testdiff=on
+make -C ../makefiles/ app=test_mpi_cart_pole -j #config=segf #compiler=intel #testdiff=on
 
 # For debugging some utility of communicator:
 #cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh

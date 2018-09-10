@@ -13,76 +13,66 @@
 #define DACER_simpleSigma
 
 template<typename Policy_t, typename Action_t>
-void VRACER<Policy_t, Action_t>::TrainBySequences(const Uint seq, const Uint thrID) const
+void VRACER<Policy_t, Action_t>::TrainBySequences(const Uint seq,
+  const Uint thrID, const Uint wID) const
 {
   die("");
 }
 
 template<typename Policy_t, typename Action_t>
-void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint samp, const Uint thrID) const
+void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
+  const Uint thrID, const Uint wID) const
 {
-  Sequence* const traj = data->Set[seq];
-  assert(samp+1 < traj->tuples.size());
+  Sequence* const S = data->Set[seq];
+  assert(t+1 < S->tuples.size());
 
   if(thrID==0) profiler->stop_start("FWD");
 
-  F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
-  const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
+  F[0]->prepare_one(S, t, thrID, wID); // prepare thread workspace
+  const Rvec out = F[0]->forward(t, thrID); // network compute
 
-  if( traj->isTruncated(samp+1) ) {
-    const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
-    traj->setStateValue(samp+1, nxt[VsID]);
+  if( wID == 0 and S->isTruncated(t+1) ) {
+    const Rvec nxt = F[0]->forward(t+1, thrID);
+    S->setStateValue(t+1, nxt[VsID]);
   }
 
-  const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
-  // check whether importance weight is in 1/Cmax < c < Cmax
-  const bool isOff = traj->isFarPolicy(samp, pol.sampImpWeight, CmaxRet);
-
   if(thrID==0)  profiler->stop_start("CMP");
-  Rvec grad;
 
-  if(isOff) grad = offPolGrad(traj, samp, out_cur, pol, thrID);
-  else grad = compute(traj, samp, out_cur, pol, thrID);
+  const Policy_t P = prepare_policy(out, S->tuples[t]);
+  // check whether importance weight is in 1/Cmax < c < Cmax
+  const Real R = data->scaledReward(S, t+1), W = P.sampImpWeight;
+  const Real Vcur = out[VsID], Vnxt = S->state_vals[t+1], Dnxt = S->Q_RET[t+1];
+  const bool isOff = S->isFarPolicy(t, W, CmaxRet);
+  const Real A_RET = R + gamma * (Dnxt + Vnxt) - Vcur;
+  const Real D_RET = std::min((Real)1, W) * A_RET;
+  const Real deltaD = std::pow(D_RET-S->Q_RET[t], 2);
+  const Real clipRho = std::min(std::max(W, 1/CmaxRet), CmaxRet);
+  const Real L = clipRho*A_RET + 0.5*std::pow(D_RET, 2);
+  if( wID == 0 ) {
+    S->setStateValue(t, Vcur); S->setRetrace(t, D_RET);
+    S->setMseDklImpw(t, L, P.sampKLdiv, W);
+  }
+
+  Rvec G = Rvec(F[0]->nOutputs(), 0);
+  if(isOff)
+  {
+    const Rvec pg = P.div_kl_grad(S->tuples[t]->mu, beta-1);
+    P.finalize_grad(pg, G);
+  }
+  else
+  {
+    const Rvec policyG = P.policy_grad(P.sampAct, A_RET * W);
+    const Rvec penalG  = P.div_kl_grad(S->tuples[t]->mu, -1);
+    const Rvec finalG  = weightSum2Grads(policyG, penalG, beta);
+    P.finalize_grad(finalG, G);
+    G[VsID] = beta * alpha * D_RET;
+    if( wID == 0 )
+      trainInfo->log(Vcur, L, policyG, penalG, {beta, deltaD, W}, thrID);
+  }
 
   if(thrID==0)  profiler->stop_start("BCK");
-  F[0]->backward(grad, traj, samp, thrID); // place gradient onto output layer
+  F[0]->backward(L, G, t, thrID); // place gradient onto output layer
   F[0]->gradient(thrID);  // backprop
-}
-
-template<typename Policy_t, typename Action_t>
-Rvec VRACER<Policy_t, Action_t>::compute(Sequence*const S, const Uint t, const Rvec& outVec,
-  const Policy_t& pol_cur, const Uint thrID) const
-{
-  const Real rNext = data->scaledReward(S, t+1), V_cur = outVec[VsID];
-  const Real A_RET = rNext +gamma*(S->Q_RET[t+1]+S->state_vals[t+1]) - V_cur;
-  //prepare Q with off policy corrections for next step:
-  const Real dAdv = updateVret(S, t, V_cur, pol_cur);
-  const Real rho_cur = pol_cur.sampImpWeight, Ver = S->Q_RET[t];
-
-  const Rvec policyG = pol_cur.policy_grad(pol_cur.sampAct, A_RET*rho_cur);
-  const Rvec penalG  = pol_cur.div_kl_grad(S->tuples[t]->mu, -1);
-  const Rvec finalG  = weightSum2Grads(policyG, penalG, beta);
-
-  Rvec gradient(F[0]->nOutputs(), 0);
-  gradient[VsID] = beta*alpha *Ver;
-  pol_cur.finalize_grad(finalG, gradient);
-  //bookkeeping:
-  trainInfo->log(V_cur, Ver, policyG, penalG, {beta, dAdv, rho_cur}, thrID);
-  S->setMseDklImpw(t, S->Q_RET[t]*S->Q_RET[t], pol_cur.sampKLdiv, rho_cur);
-  return gradient;
-}
-
-template<typename Policy_t, typename Action_t>
-Rvec VRACER<Policy_t, Action_t>::offPolGrad(Sequence*const S, const Uint t, const Rvec output,
-  const Policy_t& pol, const Uint thrID) const
-{
-  updateVret(S, t, output[VsID], pol);
-  S->setMseDklImpw(t,std::pow(S->Q_RET[t],2),pol.sampKLdiv,pol.sampImpWeight);
-  // prepare penalization gradient:
-  Rvec gradient(F[0]->nOutputs(), 0);
-  const Rvec pg = pol.div_kl_grad(S->tuples[t]->mu, beta-1);
-  pol.finalize_grad(pg, gradient);
-  return gradient;
 }
 
 template<typename Policy_t, typename Action_t>
@@ -96,7 +86,7 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
   {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
-    Rvec output = F[0]->forward_agent(traj, agent);
+    Rvec output = F[0]->forward_agent(agent);
     Policy_t pol = prepare_policy(output);
     Rvec mu = pol.getVector(); // vector-form current policy for storage
 
@@ -123,7 +113,7 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
   else
   {
     if( agent.Status == TRNC_COMM ) {
-      Rvec output = F[0]->forward_agent(traj, agent);
+      Rvec output = F[0]->forward_agent(agent);
       traj->state_vals.push_back(output[VsID]);
     } else
       traj->state_vals.push_back(0); //value of terminal state is 0

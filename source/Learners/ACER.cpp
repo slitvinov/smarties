@@ -9,7 +9,7 @@
 #include "../Network/Builder.h"
 #include "ACER.h"
 
-void ACER::TrainBySequences(const Uint seq, const Uint thrID) const
+void ACER::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
 {
   Sequence* const traj = data->Set[seq];
   const int ndata = traj->tuples.size()-1;
@@ -98,7 +98,7 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID) const
    F[2]->gradient(thrID);
 }
 
-void ACER::Train(const Uint seq, const Uint obs, const Uint thrID) const
+void ACER::Train(const Uint seq, const Uint obs, const Uint thrID, const Uint wID) const
 {
   die("not allowed");
 }

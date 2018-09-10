@@ -72,7 +72,7 @@ class Communicator
   unsigned long seq_id = 0, msg_id = 0, iter = 0;
   unsigned learner_step_id = 0;
   std::mt19937 * const gen_ptr;
-  std::mt19937& gen = *gen_ptr;
+  std::mt19937& gen;
   const bool m_genOwner;
 
   bool sentStateActionShape = false;

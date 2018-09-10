@@ -20,8 +20,8 @@ public:
   const vector<Layer*> layers;
   const Parameters* const weights;
   const Parameters* const tgt_weights;
-  vector<Parameters*> Vgrad;
-  const vector<Memory*> mem;
+  const vector<Parameters*> Vgrad;
+  const vector<Parameters*> sampled_weights;
   vector<std::mt19937>& generators;
   vector<Uint> dump_ID;
 
@@ -88,9 +88,9 @@ public:
   Network(Builder* const B, Settings & settings) ;
 
   ~Network() {
+    for(auto& ptr: sampled_weights) _dispose_object(ptr);
     for(auto& ptr: layers) _dispose_object(ptr);
     for(auto& ptr: Vgrad) _dispose_object(ptr);
-    for(auto& ptr: mem) _dispose_object(ptr);
     _dispose_object(tgt_weights);
     _dispose_object(weights);
   }

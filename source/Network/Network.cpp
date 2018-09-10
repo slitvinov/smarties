@@ -104,7 +104,7 @@ Network::Network(Builder* const B, Settings & settings) :
   nAgents(B->nAgents), nThreads(B->nThreads), nInputs(B->nInputs),
   nOutputs(B->nOutputs), nLayers(B->nLayers), bDump(not settings.bTrain),
   gradClip(B->gradClip), layers(B->layers), weights(B->weights),
-  tgt_weights(B->tgt_weights), Vgrad(B->Vgrad), mem(B->mem),
+  tgt_weights(B->tgt_weights), Vgrad(B->Vgrad), sampled_weights(B->popW),
   generators(settings.generators) {
   updateTransposed();
   dump_ID.resize(nAgents, 0);

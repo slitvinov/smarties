@@ -26,8 +26,8 @@ class DPG : public Learner_offPolicy
     return pol;
   }
 
-  void TrainBySequences(const Uint seq, const Uint thrID) const override;
-  void Train(const Uint seq, const Uint samp, const Uint thrID) const override;
+  void TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const override;
+  void Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wID) const override;
 
 public:
   DPG(Environment*const env, Settings & settings);

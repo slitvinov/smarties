@@ -9,8 +9,7 @@
 #include "Learner_offPolicy.h"
 
 Learner_offPolicy::Learner_offPolicy(Environment*const _env, Settings & _s) :
-Learner(_env,_s), obsPerStep_orig(_s.obsPerStep), nObsPerTraining(
-_s.minTotObsNum>_s.batchSize? _s.minTotObsNum : _s.maxTotObsNum) {
+Learner(_env,_s) {
   if(not bSampleSequences && nObsPerTraining < batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 }
@@ -81,31 +80,34 @@ void Learner_offPolicy::spawnTrainTasks_par()
   if(bSampleSequences) data->sampleSequences(samp_seq);
   else data->sampleTransitions(samp_seq, samp_obs);
 
-  #pragma omp parallel for schedule(dynamic) num_threads(nThreads)
-  for (Uint i=0; i<batchSize; i++)
-  {
-    Uint seq = samp_seq[i], obs = samp_obs[i];
-    const int thrID = omp_get_thread_num();
-    //printf("Thread %d done %u %u %f\n",thrID,seq,obs,data->Set[seq]->offPolicImpW[obs]); fflush(0);
-    if(bSampleSequences)
+  #pragma omp parallel num_threads(nThreads)
+  #pragma omp single nowait
+  for (Uint wID=0; wID<ESpopSize; wID++)
+    for (Uint i=0; i<batchSize; i++)
     {
-      obs = data->Set[seq]->ndata()-1;
-      TrainBySequences(seq, thrID);
-      #pragma omp atomic
-      nAddedGradients += data->Set[seq]->ndata();
+      Uint seq = samp_seq[i], obs = samp_obs[i];
+      //printf("Thread %d done %u %u %f\n",thrID,seq,obs,data->Set[seq]->offPolicImpW[obs]); fflush(0);
+      if(bSampleSequences) {
+        obs = data->Set[seq]->ndata()-1;
+        nAddedGradients += data->Set[seq]->ndata();
+        #pragma omp task firstprivate(seq)
+        {
+          const Uint thrID = omp_get_thread_num();
+          TrainBySequences(seq, thrID, wID);
+          input->gradient(thrID);
+        }
+      } else {
+        nAddedGradients++;
+        #pragma omp task firstprivate(obs, seq)
+        {
+          const Uint thrID = omp_get_thread_num();
+          Train(seq, obs, thrID, wID);
+          input->gradient(thrID);
+        }
+      }
+      data->Set[seq]->setSampled(obs);
     }
-    else
-    {
-      Train(seq, obs, thrID);
-      #pragma omp atomic
-      nAddedGradients++;
-    }
-
-    input->gradient(thrID);
-    data->Set[seq]->setSampled(obs);
-  }
   profiler->stop_start("SLP");
-
   updateComplete = true;
 }
 

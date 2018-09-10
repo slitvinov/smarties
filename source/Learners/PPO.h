@@ -44,8 +44,8 @@ class PPO : public Learner_onPolicy
     #endif
   }
 
-  void TrainBySequences(const Uint seq, const Uint thrID) const override;
-  void Train(const Uint seq,const Uint samp,const Uint thrID) const override;
+  void TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const override;
+  void Train(const Uint seq,const Uint samp,const Uint thrID, const Uint wID) const override;
 
   static vector<Uint> count_pol_outputs(const ActionInfo*const aI);
   static vector<Uint> count_pol_starts(const ActionInfo*const aI);

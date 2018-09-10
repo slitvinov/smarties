@@ -59,12 +59,12 @@ void NAF::select(Agent& agent)
   }
 }
 
-void NAF::TrainBySequences(const Uint seq, const Uint thrID) const
+void NAF::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
 {
   die("");
 }
 
-void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
+void NAF::Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wID) const
 {
   if(thrID==0) profiler->stop_start("FWD");
 
@@ -106,4 +106,16 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID) const
   if(thrID==0)  profiler->stop_start("BCK");
   F[0]->backward(grad, traj, samp, thrID);
   F[0]->gradient(thrID);
+}
+
+void NAF::test()
+{
+  Rvec out(F[0]->nOutputs()), act(aInfo.dim);
+  uniform_real_distribution<Real> out_dis(-.5,.5);
+  uniform_real_distribution<Real> act_dis(-.5,.5);
+  const int thrID = omp_get_thread_num();
+  for(Uint i = 0; i<aInfo.dim; i++) act[i] = act_dis(generators[thrID]);
+  for(Uint i = 0; i<F[0]->nOutputs(); i++) out[i] = out_dis(generators[thrID]);
+  Quadratic_advantage A = prepare_advantage(out);
+  A.test(act, &generators[thrID]);
 }

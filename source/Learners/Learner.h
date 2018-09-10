@@ -27,8 +27,8 @@ protected:
   const int learn_rank=settings.learner_rank, learn_size=settings.learner_size;
   unsigned long nStep = 0;
   Uint nData_b4Startup = 0;
-  Uint nAddedGradients = 0;
   mutable Uint nSkipped = 0;
+  std::atomic<Uint> nAddedGradients{0};
 
   mutable bool updateComplete = false;
   mutable bool updateToApply = false;
@@ -54,7 +54,7 @@ protected:
     return _nSkipped < 2*batchSize;
   }
 
-  inline void resample(const Uint thrID) const // TODO resample sequence
+  inline void resample(const Uint thrID, const Uint WID) const // TODO resample sequence
   {
     #pragma omp atomic
     nSkipped++;
@@ -62,7 +62,7 @@ protected:
     Uint sequence, transition;
     data->sampleTransition(sequence, transition, thrID);
     data->Set[sequence]->setSampled(transition);
-    return Train(sequence, transition, thrID);
+    return Train(sequence, transition, thrID, WID);
   }
 
 public:
@@ -103,8 +103,10 @@ public:
   }
 
   virtual void select(Agent& agent) = 0;
-  virtual void TrainBySequences(const Uint seq, const Uint thrID) const = 0;
-  virtual void Train(const Uint seq, const Uint samp, const Uint thrID) const=0;
+  virtual void TrainBySequences(const Uint seq, const Uint thrID,
+    const Uint wID) const = 0;
+  virtual void Train(const Uint seq, const Uint samp, const Uint thrID,
+    const Uint wID) const = 0;
 
   virtual void getMetrics(ostringstream& buff) const;
   virtual void getHeaders(ostringstream& buff) const;
