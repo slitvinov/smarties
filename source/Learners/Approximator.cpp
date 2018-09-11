@@ -197,13 +197,15 @@ void Approximator::backward(const Real error, const Rvec grad, const Uint samp,
 
   gradStats->track_vector(grad, thrID);
   const int ind = mapTime2Ind(samp, thrID);
+  //ind+1 because we use c-style for loops in other places:
+  error_placements[thrID] = std::max(ind+1, error_placements[thrID]);
+
+  if(ESpopSize > 1) population_Losses[thread_Wind[thrID]] += error;
+  else {
   const vector<Activation*>& act = USE_ACT>=0? series[netID] :series_tgt[thrID];
   assert(act[ind]->written);
-  //ind+1 because we use c-style for loops in other places: TODO:netID
-  error_placements[thrID] = std::max(ind+1, error_placements[thrID]);
   act[ind]->addOutputDelta(grad);
-
-  population_Losses[thread_Wind[thrID]] += error;
+  }
 }
 
 void Approximator::gradient(const Uint thrID) const {
@@ -211,7 +213,7 @@ void Approximator::gradient(const Uint thrID) const {
 
   nAddedGradients++;
 
-  if(ESpopSize > 0)
+  if(ESpopSize > 1)
   {
     debugL("Skipping backprop because we use ES (derivative-free) optimizers.");
   }
