@@ -77,13 +77,10 @@ void CMA_Optimizer::apply_update()
        [&] (const Uint i1, const Uint i2) { return losses[i1] < losses[i2]; } );
 
   nnReal * const M = weights->params;
-  nnReal * const S = diagCov->params;
-  nnReal * const P = pathCov->params;
-  nnReal * const C = pathSig->params;
   nnReal * const A = avgNois->params;
-  popNoiseVectors[0]->clear();
-  sampled_weights[0]->copy(weights);
-  avgNois->clear(); weights->clear();
+  sampled_weights[0]->copy(weights); // first backup mean weights
+  popNoiseVectors[0]->clear();       // sample 0 is always mean W, no noise
+  avgNois->clear(); weights->clear(); // prepare for reduction these fields
 
   #pragma omp parallel
   for(Uint i=0; i<pop_size; i++) {
@@ -97,31 +94,39 @@ void CMA_Optimizer::apply_update()
     for(Uint w=0; w<pDim; w++) { A[w] += Z[w] * wZ; M[w] += X[w] * wM; }
   }
 
+  nnReal * const C = pathSig->params;
   nnReal sumPP = 0, sumSS = 0;
+  const nnReal updSigP = std::sqrt(c_sig * (2-c_sig) * mu_eff);
   #pragma omp parallel for simd schedule(static) reduction(+ : sumSS)
   for(Uint w=0; w<pDim; w++) {
     C[w] = (1-c_sig)*C[w] + updSigP*A[w];
     sumSS += C[w] * C[w];
   }
 
+  const nnReal updSigm = c_sig / ( 1 + c_sig );
   const nnReal updNormSigm = std::sqrt( sumSS / pDim );
   sigma *= std::exp( updSigm * ( updNormSigm - 1 ) );
   //cout << "sigma: "<<sigma << endl;
   const nnReal hsig = updNormSigm < ((1.4 + 2./pDim) * std::sqrt(1-anneal));
+  if (hsig<.5) cout << "triggered hsig==0" << endl;
   anneal *= std::pow( 1 - c_sig, 2 );
   if(anneal < 2e-16) anneal = 0;
 
+  nnReal * const P = pathCov->params;
+  const nnReal updPath = std::sqrt(cpath * (2-cpath) * mu_eff);
   #pragma omp parallel for simd schedule(static) reduction(+ : sumPP)
   for(Uint w=0; w<pDim; w++) {
     P[w] = (1-cpath) * P[w] + hsig*updPath * A[w];
     sumPP += P[w] * P[w];
   }
 
+  nnReal * const S = diagCov->params;
+  const nnReal covAlph = std::sqrt(1-c1cov);
   const nnReal covBeta = ( std::sqrt(1 + sumPP*c1cov/(1-c1cov)) - 1 )/sumPP;
   #pragma omp parallel for simd schedule(static)
   for(Uint w=0; w<pDim; w++) {
-    S[w] = covAlph*(S[w] + covBeta*S[w]*P[w]*P[w]);
-    S[w] = std::min((nnReal)1, S[w]); 
+    S[w] = covAlph*S[w]*(1 + covBeta*P[w]*P[w]);
+    //S[w] = std::min((nnReal)1, S[w]);
   }
 
   initializeGeneration();

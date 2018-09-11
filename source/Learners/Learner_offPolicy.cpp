@@ -80,16 +80,21 @@ void Learner_offPolicy::spawnTrainTasks_par()
   if(bSampleSequences) data->sampleSequences(samp_seq);
   else data->sampleTransitions(samp_seq, samp_obs);
 
+  nAddedGradients = 0;
+  for (Uint i=0; i<batchSize && bSampleSequences; i++) {
+    samp_obs[i] = data->Set[samp_seq[i]]->ndata() - 1;
+    nAddedGradients += ESpopSize * data->Set[samp_seq[i]]->ndata();
+  }
+  if(not bSampleSequences) nAddedGradients = ESpopSize * batchSize;
+
   #pragma omp parallel num_threads(nThreads)
   #pragma omp single nowait
   for (Uint wID=0; wID<ESpopSize; wID++)
     for (Uint i=0; i<batchSize; i++)
     {
-      Uint seq = samp_seq[i], obs = samp_obs[i];
+      const Uint seq = samp_seq[i], obs = samp_obs[i];
       //printf("Thread %d done %u %u %f\n",thrID,seq,obs,data->Set[seq]->offPolicImpW[obs]); fflush(0);
       if(bSampleSequences) {
-        obs = data->Set[seq]->ndata()-1;
-        nAddedGradients += data->Set[seq]->ndata();
         #pragma omp task firstprivate(seq, wID)
         {
           const Uint thrID = omp_get_thread_num();
@@ -97,7 +102,6 @@ void Learner_offPolicy::spawnTrainTasks_par()
           input->gradient(thrID);
         }
       } else {
-        nAddedGradients++;
         #pragma omp task firstprivate(obs, seq, wID)
         {
           const Uint thrID = omp_get_thread_num();
@@ -105,8 +109,9 @@ void Learner_offPolicy::spawnTrainTasks_par()
           input->gradient(thrID);
         }
       }
-      data->Set[seq]->setSampled(obs);
     }
+
+  for(Uint i=0;i<batchSize;i++) data->Set[samp_seq[i]]->setSampled(samp_obs[i]);
   profiler->stop_start("SLP");
   updateComplete = true;
 }
