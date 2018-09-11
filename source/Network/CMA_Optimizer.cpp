@@ -109,7 +109,8 @@ void CMA_Optimizer::apply_update()
   sigma = std::min( sigma, (nnReal) std::sqrt(eta) );
   //cout << "sigma: "<<sigma << endl;
   //const nnReal hsig = updNormSigm < ((1.4 + 2./pDim) * std::sqrt(1-anneal));
-  const nnReal hsig = updNormSigm < 1.5 * std::sqrt(1-anneal);
+  //const nnReal hsig = updNormSigm < 1.5 * std::sqrt(1-anneal);
+  const nnReal hsig = 1;
   //if (hsig<.5) cout << "triggered hsig==0" << endl;
   anneal *= std::pow( 1 - c_sig, 2 );
   if(anneal < 2e-16) anneal = 0;

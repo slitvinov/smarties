@@ -19,7 +19,7 @@ SETTINGS+=" --outWeightsPrefac 0.1"
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
 #RL algorithm: NAF, DPG are continuous actions, NFQ (also accepted DQN) is for discrete actions
-SETTINGS+=" --learner RACER"
+SETTINGS+=" --learner VRACER"
 #Initialization of the standard deviation for all actions
 SETTINGS+=" --explNoise 0.447214"
 #Number of time steps per gradient step
