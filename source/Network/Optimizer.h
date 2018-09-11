@@ -36,7 +36,7 @@ class Optimizer
   virtual void save(const string fname, const bool bBackup) = 0;
   virtual int restart(const string fname) = 0;
 
-  virtual void prepare_update(const int batchsize, const vector<Real> losses) = 0;
+  virtual void prepare_update(const int BS, const vector<Rvec>&L) = 0;
   virtual void apply_update() = 0;
 };
 
@@ -55,7 +55,7 @@ class AdamOptimizer : public Optimizer
   //const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD, delay;
   //const Uint L_eSGD;
   //nnReal *const _muW_eSGD, *const _muB_eSGD;
-  const vector<Parameters*>& grads;
+  const vector<Parameters*> grads;
 
  public:
 
@@ -72,7 +72,7 @@ class AdamOptimizer : public Optimizer
    _dispose_object(_2ndMom); _dispose_object(_2ndMax);
   }
 
-  void prepare_update(const int batchsize, const vector<Real> losses) override;
+  void prepare_update(const int BS, const vector<Rvec>&L) override;
   void apply_update() override;
 
   void save(const string fname, const bool bBackup) override;

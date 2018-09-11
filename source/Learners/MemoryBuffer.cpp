@@ -28,18 +28,15 @@ MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
 // this is called first also bcz memory buffer is used by net to pick new action
 void MemoryBuffer::add_state(const Agent&a)
 {
-  if(a.Status < TERM_COMM) {
-    nSeenTransitions ++;
-  }
+  if(a.Status < TERM_COMM) nSeenTransitions ++;
 
   #if 1
-    if (inProgress[a.ID]->tuples.size() && a.Status == INIT_COMM) {
+    if (inProgress[a.ID]->tuples.size() && a.Status == INIT_COMM)
       //prev sequence not empty, yet received an initial state, push back prev
-      warn("Unexpected termination of sequence");
-      push_back(a.ID);
-    } else if(inProgress[a.ID]->tuples.size()==0) {
-      if(a.Status not_eq INIT_COMM) die("Missing initial state");
-    }
+      die("Unexpected termination of sequence");
+    else
+    if(inProgress[a.ID]->tuples.size()==0 and a.Status not_eq INIT_COMM)
+      die("Missing initial state");
   #endif
 
   #ifndef NDEBUG // check that last new state and new old state are the same
@@ -48,11 +45,8 @@ void MemoryBuffer::add_state(const Agent&a)
       const Rvec vecSold = a.sOld.copy_observed();
       const auto memSold = inProgress[a.ID]->tuples.back()->s;
       for (Uint i=0; i<sI.dimUsed && same; i++) //scaled vec only has used dims:
-        same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-4;
-      if (!same) { //create new sequence
-        warn("Unexpected termination of sequence");
-        push_back(a.ID);
-      }
+        same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-16;
+      if (!same) die("Unexpected termination of sequence");
     }
   #endif
 
@@ -77,7 +71,7 @@ void MemoryBuffer::terminate_seq(Agent&a)
   assert(inProgress[a.ID]->tuples.back()->mu.size() == 0);
   assert(inProgress[a.ID]->tuples.back()->a.size()  == 0);
   // fill empty action and empty policy:
-  a.act(Rvec(aI.dim,0));
+  a.act(Rvec(aI.dim, 0));
   inProgress[a.ID]->add_action(a.a.vals, Rvec(policyVecDim, 0));
   if(bWriteToFile)
     a.writeData(learn_rank, Rvec(policyVecDim, 0), nSeenTransitions);

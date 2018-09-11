@@ -96,9 +96,9 @@ struct Adam {
   }
 };
 
-void AdamOptimizer::prepare_update(const int batchsize, const vector<Real> L)
+void AdamOptimizer::prepare_update(const int BS, const vector<Rvec>&L)
 {
-  totGrads = batchsize;
+  totGrads = BS;
   gradSum->reduceThreadsGrad(grads);
 
   if (learn_size > 1) { //add up gradients across master ranks

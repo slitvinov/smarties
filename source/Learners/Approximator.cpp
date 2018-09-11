@@ -200,11 +200,11 @@ void Approximator::backward(const Real error, const Rvec grad, const Uint samp,
   //ind+1 because we use c-style for loops in other places:
   error_placements[thrID] = std::max(ind+1, error_placements[thrID]);
 
-  if(ESpopSize > 1) population_Losses[thread_Wind[thrID]] += error;
+  if(ESpopSize > 1) losses[thrID][thread_Wind[thrID]] += error;
   else {
-  const vector<Activation*>& act = USE_ACT>=0? series[netID] :series_tgt[thrID];
-  assert(act[ind]->written);
-  act[ind]->addOutputDelta(grad);
+    const auto& act = USE_ACT>=0? series[netID] :series_tgt[thrID];
+    assert(act[ind]->written);
+    act[ind]->addOutputDelta(grad);
   }
 }
 
@@ -247,11 +247,12 @@ void Approximator::prepareUpdate(const Uint batchSize)
   //if(nAddedGradients>batchSize) die("weird");
 
   if(input->net not_eq nullptr and not blockInpGrad) {
-    for(int i=0; i<ESpopSize; i++)
-      input->population_Losses[i] += population_Losses[i];
+    for(Uint j=0; j<nThreads; j++)
+      for(int i=0; i<ESpopSize; i++) input->losses[j][i] += losses[j][i];
   }
 
-  opt->prepare_update(batchSize, population_Losses);
+  opt->prepare_update(batchSize, losses);
+  losses = vector<vector<Real>>(nThreads, vector<Real>(ESpopSize, 0));
   reducedGradients = 1;
   nAddedGradients = 0;
   if(mpisize<=1) applyUpdate();

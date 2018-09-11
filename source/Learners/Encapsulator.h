@@ -32,7 +32,8 @@ struct Encapsulator
 
   // For CMAES based optimization. Keeps track of total loss associate with
   // Each weight vector sample:
-  mutable vector<Real> population_Losses = vector<Real>(ESpopSize, 0);
+  mutable vector<vector<Real>> losses =
+                     vector<vector<Real>>(nThreads, vector<Real>(ESpopSize, 0));
 
   mutable std::atomic<Uint> nAddedGradients{0};
   Uint nReducedGradients = 0;
@@ -46,7 +47,7 @@ struct Encapsulator
   }
 
   Encapsulator(const string _name, Settings& sett, MemoryBuffer*const data_ptr)
-  : name(_name), settings(sett),  data(data_ptr) {}
+  : name(_name), settings(sett),  data(data_ptr) { }
 
   void initializeNetwork(Network* _net, Optimizer* _opt)
   {
@@ -156,7 +157,8 @@ struct Encapsulator
     if(nAddedGradients==0) die("No-gradient update. Revise hyperparameters.");
     //if(nAddedGradients>batchSize) die("weird");
 
-    opt->prepare_update(batchSize, population_Losses);
+    opt->prepare_update(batchSize, losses);
+    losses = vector<vector<Real>>(nThreads, vector<Real>(ESpopSize, 0));
     nReducedGradients = 1;
     nAddedGradients = 0;
   }
