@@ -32,8 +32,7 @@ struct Encapsulator
 
   // For CMAES based optimization. Keeps track of total loss associate with
   // Each weight vector sample:
-  mutable vector<vector<Real>> losses =
-                     vector<vector<Real>>(nThreads, vector<Real>(ESpopSize, 0));
+  mutable vector<Rvec> losses = vector<Rvec>(nThreads, Rvec(ESpopSize, 0));
 
   mutable std::atomic<Uint> nAddedGradients{0};
   Uint nReducedGradients = 0;
@@ -158,7 +157,7 @@ struct Encapsulator
     //if(nAddedGradients>batchSize) die("weird");
 
     opt->prepare_update(batchSize, losses);
-    losses = vector<vector<Real>>(nThreads, vector<Real>(ESpopSize, 0));
+    losses = vector<Rvec>(nThreads, Rvec(ESpopSize, 0));
     nReducedGradients = 1;
     nAddedGradients = 0;
   }

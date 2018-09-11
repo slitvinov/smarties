@@ -90,7 +90,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
       if(bSampleSequences) {
         obs = data->Set[seq]->ndata()-1;
         nAddedGradients += data->Set[seq]->ndata();
-        #pragma omp task firstprivate(seq)
+        #pragma omp task firstprivate(seq, wID)
         {
           const Uint thrID = omp_get_thread_num();
           TrainBySequences(seq, thrID, wID);
@@ -98,7 +98,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
         }
       } else {
         nAddedGradients++;
-        #pragma omp task firstprivate(obs, seq)
+        #pragma omp task firstprivate(obs, seq, wID)
         {
           const Uint thrID = omp_get_thread_num();
           Train(seq, obs, thrID, wID);

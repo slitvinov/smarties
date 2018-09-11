@@ -63,8 +63,7 @@ struct Approximator
 
   // For CMAES based optimization. Keeps track of total loss associate with
   // Each weight vector sample:
-  mutable vector<vector<Real>> losses =
-                     vector<vector<Real>>(nThreads, vector<Real>(ESpopSize, 0));
+  mutable vector<Rvec> losses = vector<Rvec>(nThreads, Rvec(ESpopSize, 0));
 
   Approximator(const string _name, Settings& S, Encapsulator*const en,
     MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
