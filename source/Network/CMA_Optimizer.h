@@ -37,7 +37,7 @@ class CMA_Optimizer : public Optimizer
   void initializeGeneration() const;
 
  public:
-  nnReal sigma = eta_init*eta_init;
+  nnReal sigma = eta_init;
 
   CMA_Optimizer(Settings&S, const Parameters*const W, const Parameters*const WT,
     const vector<Parameters*>&G);

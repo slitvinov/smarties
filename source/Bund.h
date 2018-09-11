@@ -123,18 +123,18 @@ typedef float Real;
 #define MPI_VALUE_TYPE MPI_FLOAT
 #endif
 ///////////////////////////////////////////////////////////////////////////////
-#if 1 // NETWORK PRECISION
+#if 0 // NETWORK PRECISION
   #define gemv cblas_dgemv
   #define gemm cblas_dgemm
   typedef double nnReal;
   #define MPI_NNVALUE_TYPE MPI_DOUBLE
-  #define EXP_CUT 8 //prevent under/over flow with exponentials
+  #define EXP_CUT 16 //prevent under/over flow with exponentials
 #else
   #define gemv cblas_sgemv
   #define gemm cblas_sgemm
   #define MPI_NNVALUE_TYPE MPI_FLOAT
   typedef float nnReal;
-  #define EXP_CUT 4 //prevent under/over flow with exponentials
+  #define EXP_CUT 8 //prevent under/over flow with exponentials
 #endif
 ////////////////////////////////////////////////////////////////////////////////
 // Data format for storage in memory buffer. Switch to float for example for
@@ -208,7 +208,7 @@ inline bool bValid(const T vals) {
 
 inline Real safeExp(const Real val)
 {
-  return std::exp( std::min((Real)16, std::max((Real)-32,val) ) );
+  return std::exp( std::min((Real)EXP_CUT, std::max(-(Real)EXP_CUT, val) ) );
 }
 
 inline vector<Uint> count_indices(const vector<Uint> outs)

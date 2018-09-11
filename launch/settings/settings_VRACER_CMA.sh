@@ -43,9 +43,9 @@ SETTINGS+=" --penalTol 0.1"
 #Here is unused. Used for target network soft update
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 64"
-SETTINGS+=" --ESpopSize 64"
+SETTINGS+=" --batchSize 32"
+SETTINGS+=" --ESpopSize 32"
 #Whether to train based on sampling sequences. Best not to.
 SETTINGS+=" --bSampleSequences 0"
 #network update learning rate
-SETTINGS+=" --learnrate 0.01"
+SETTINGS+=" --learnrate 0.001"

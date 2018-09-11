@@ -106,9 +106,11 @@ void CMA_Optimizer::apply_update()
   const nnReal updSigm = c_sig / ( 1 + c_sig );
   const nnReal updNormSigm = std::sqrt( sumSS / pDim );
   sigma *= std::exp( updSigm * ( updNormSigm - 1 ) );
+  sigma = std::min( sigma, (nnReal) std::sqrt(eta) );
   //cout << "sigma: "<<sigma << endl;
-  const nnReal hsig = updNormSigm < ((1.4 + 2./pDim) * std::sqrt(1-anneal));
-  if (hsig<.5) cout << "triggered hsig==0" << endl;
+  //const nnReal hsig = updNormSigm < ((1.4 + 2./pDim) * std::sqrt(1-anneal));
+  const nnReal hsig = updNormSigm < 1.5 * std::sqrt(1-anneal);
+  //if (hsig<.5) cout << "triggered hsig==0" << endl;
   anneal *= std::pow( 1 - c_sig, 2 );
   if(anneal < 2e-16) anneal = 0;
 
@@ -121,12 +123,13 @@ void CMA_Optimizer::apply_update()
   }
 
   nnReal * const S = diagCov->params;
-  const nnReal covAlph = std::sqrt(1-c1cov);
-  const nnReal covBeta = ( std::sqrt(1 + sumPP*c1cov/(1-c1cov)) - 1 )/sumPP;
+  const nnReal covAlph = 1 - c1cov*(1 - (1-hsig) * cpath * (2-cpath));
+  const nnReal sqrAlph = std::sqrt( covAlph );
+  const nnReal covBeta = ( std::sqrt( 1 + sumPP*c1cov/covAlph ) - 1 )/sumPP;
   #pragma omp parallel for simd schedule(static)
   for(Uint w=0; w<pDim; w++) {
-    S[w] = covAlph*S[w]*(1 + covBeta*P[w]*P[w]);
-    //S[w] = std::min((nnReal)1, S[w]);
+    S[w] = sqrAlph*S[w]*(1 + covBeta*P[w]*P[w]);
+    S[w] = std::min((nnReal)1, S[w]);
   }
 
   initializeGeneration();

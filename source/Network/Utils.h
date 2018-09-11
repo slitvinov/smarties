@@ -75,7 +75,7 @@ inline Real initializeMuEff(const vector<nnReal> popW, const Uint popsz) {
 }
 
 inline nnReal nnSafeExp(const nnReal val) {
-    return std::exp( std::min((nnReal)8., std::max((nnReal)-16.,val) ) );
+    return std::exp( std::min((nnReal)EXP_CUT, std::max(-(nnReal)EXP_CUT, val) ) );
 }
 
 inline Real annealRate(const Real eta, const Real t, const Real T) {
