@@ -40,7 +40,6 @@ DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set)
 
   relay = new Aggregator(_set, data, nA, F[0]);
   F.push_back(new Approximator("critic", _set, input, data, relay));
-  //relay->scaling = Rvec(nA, 1/explNoise);
 
   _set.nnLambda = 1e-4; // also wants L2 penl coef
   _set.learnrate *= 10; // DPG wants critic faster than actor
