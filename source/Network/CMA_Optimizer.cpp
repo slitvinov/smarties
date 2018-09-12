@@ -35,18 +35,35 @@ CMA_Optimizer::~CMA_Optimizer() {
 }
 
 void CMA_Optimizer::initializeGeneration() const {
+  const nnReal* const S = diagCov->params;
+  const nnReal* const M = weights->params;
+
+  #if 0
   #pragma omp parallel for schedule(static)
   for(Uint i=1; i<pop_size; i++) {
     Saru& gen = * generators[i];
     nnReal* const Z = popNoiseVectors[i]->params;
     nnReal* const X = sampled_weights[i]->params;
-    const nnReal* const S = diagCov->params;
-    const nnReal* const M = weights->params;
     for(Uint w=0; w<pDim; w++) {
       Z[w] = gen.f_mean0_var1();
       X[w] = M[w] + sigma * S[w] * Z[w];
     }
   }
+  #else
+  #pragma omp parallel for schedule(static)
+  for(Uint i=1; i<pop_size; i+=2) {
+    Saru& gen = * generators[i];
+    nnReal* const Z1 = popNoiseVectors[i]->params;
+    nnReal* const Z2 = popNoiseVectors[i+1]->params;
+    nnReal* const X1 = sampled_weights[i]->params;
+    nnReal* const X2 = sampled_weights[i+1]->params;
+    for(Uint w=0; w<pDim; w++) {
+      Z1[w] = gen.f_mean0_var1(); Z2[w] = -Z1[w];
+      X1[w] = M[w] + sigma * S[w] * Z1[w];
+      X2[w] = M[w] + sigma * S[w] * Z2[w];
+    }
+  }
+  #endif
 }
 
 void CMA_Optimizer::prepare_update(const int BS, const vector<Rvec>&L) {
@@ -107,7 +124,8 @@ void CMA_Optimizer::apply_update()
   const nnReal updNormSigm = std::sqrt( sumSS / pDim );
   sigma *= std::exp( updSigm * ( updNormSigm - 1 ) );
   sigma = std::min( sigma, (nnReal) std::sqrt(eta) );
-  //cout << "sigma: "<<sigma << endl;
+
+  nnReal * const P = pathCov->params;
   //const nnReal hsig = updNormSigm < ((1.4 + 2./pDim) * std::sqrt(1-anneal));
   //const nnReal hsig = updNormSigm < 1.5 * std::sqrt(1-anneal);
   const nnReal hsig = 1;
@@ -115,13 +133,17 @@ void CMA_Optimizer::apply_update()
   anneal *= std::pow( 1 - c_sig, 2 );
   if(anneal < 2e-16) anneal = 0;
 
-  nnReal * const P = pathCov->params;
+  #if 0
   const nnReal updPath = std::sqrt(cpath * (2-cpath) * mu_eff);
   #pragma omp parallel for simd schedule(static) reduction(+ : sumPP)
   for(Uint w=0; w<pDim; w++) {
     P[w] = (1-cpath) * P[w] + hsig*updPath * A[w];
     sumPP += P[w] * P[w];
   }
+  #else
+  sumPP = sumSS;
+  pathCov->copy(pathSig);
+  #endif
 
   nnReal * const S = diagCov->params;
   const nnReal covAlph = 1 - c1cov*(1 - (1-hsig) * cpath * (2-cpath));

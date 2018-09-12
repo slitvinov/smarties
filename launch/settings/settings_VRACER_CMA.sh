@@ -5,8 +5,8 @@ SETTINGS=
 SETTINGS+=" --gamma 0.995 --samplesFile 1"
 
 #size of network layers
-SETTINGS+=" --nnl1 128"
-#SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnl1 64"
+#SETTINGS+=" --nnl2 64"
 #SETTINGS+=" --nnl3 128"
 
 # Activation functions:
@@ -43,8 +43,8 @@ SETTINGS+=" --penalTol 0.1"
 #Here is unused. Used for target network soft update
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 32"
-SETTINGS+=" --ESpopSize 32"
+SETTINGS+=" --batchSize 64"
+SETTINGS+=" --ESpopSize 65"
 #Whether to train based on sampling sequences. Best not to.
 SETTINGS+=" --bSampleSequences 0"
 #network update learning rate
