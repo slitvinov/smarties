@@ -18,9 +18,9 @@ class CMA_Optimizer : public Optimizer
   const vector<nnReal> popWeights = initializePopWeights(pop_size);
   const Real mu_eff = initializeMuEff(popWeights, pop_size);
 
-  const nnReal c_sig = 0.030; //(2 + mu_eff) / (5 + mu_eff + pDim);
-  const nnReal cpath = 0.010; //(4 + mu_eff/pDim)/(pDim +4 +2*mu_eff/pDim);
-  const nnReal c1cov = 0.001; //2 / (mu_eff + (pDim+1.3)*(pDim+1.3) );
+  const nnReal c_sig = 1e-3; //(2 + mu_eff) / (5 + mu_eff + pDim);
+  //const nnReal cpath = 0.0100; //(4 + mu_eff/pDim)/(pDim +4 +2*mu_eff/pDim);
+  const nnReal c1cov = 1e-6; //2 / (mu_eff + (pDim+1.3)*(pDim+1.3) );
   nnReal anneal = std::pow( 1 - c_sig, 2 );
 
   const vector<Parameters*> sampled_weights;

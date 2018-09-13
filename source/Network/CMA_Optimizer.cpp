@@ -15,6 +15,7 @@ CMA_Optimizer::CMA_Optimizer(Settings&S, const Parameters*const W,
   sampled_weights(G)
 {
   diagCov->set(1);
+  pathSig->set(1);
   std::vector<unsigned long> seed(3*pop_size) ;
   std::generate(seed.begin(), seed.end(), [&](){return S.generators[0]();});
   MPI_Bcast(seed.data(), 3*pop_size, MPI_UNSIGNED_LONG, 0, mastersComm);
@@ -102,6 +103,8 @@ void CMA_Optimizer::apply_update()
   #pragma omp parallel
   for(Uint i=0; i<pop_size; i++) {
     const Uint k = inds[i];
+    //#pragma omp master
+    //cout << losses[k] << endl;
     const nnReal wZ = popWeights[i];
     const nnReal wM = k ? _eta*popWeights[i] : _eta*popWeights[i] + (1-_eta);
     const nnReal* const Z = popNoiseVectors[k]->params;
@@ -114,30 +117,24 @@ void CMA_Optimizer::apply_update()
   nnReal * const C = pathSig->params;
   nnReal * const S = diagCov->params;
 
-  Real sumPP = 0, sumSS = 0, sumCC = 0;
+  Real sumSS = 0, sumCC = 0;
   const nnReal updSigP = std::sqrt(c_sig * (2-c_sig) * mu_eff);
-  #pragma omp parallel for simd schedule(static) reduction(+ : sumCC)
+  #pragma omp parallel for simd schedule(static) reduction(+ : sumSS, sumCC)
   for(Uint w=0; w<pDim; w++) {
     C[w] = (1-c_sig)*C[w] + updSigP*A[w];
-    sumCC += C[w] * C[w];
+    sumCC += C[w] * C[w]; sumSS += S[w];
   }
 
   const nnReal updSigm = c_sig / ( 1 + c_sig );
   const nnReal updNormSigm = std::sqrt( sumCC / pDim ) / (1 - 0.25/pDim);
   sigma *= std::exp( updSigm * ( updNormSigm - 1 ) );
-  //sigma = std::min( sigma, (nnReal) std::sqrt(eta) );
-  cout<<sigma<<" "<<sumCC<<" "<<sumSS<<endl;
-  const nnReal alph = std::sqrt( 1 - c1cov );
+  sigma = std::min( sigma, (nnReal) std::sqrt(eta) );
+  const nnReal alph = std::sqrt( 1 - c1cov ) * pDim / sumSS;
   const nnReal beta = ( std::sqrt( 1 + sumCC*c1cov/(1-c1cov) ) - 1 )/sumCC;
-  #pragma omp parallel for simd schedule(static) reduction(+ : sumSS)
-  for(Uint w=0; w<pDim; w++) {
-    S[w] = alph*S[w]*(1 + beta*C[w]*C[w]);
-    sumSS += S[w];
-  }
-
   #pragma omp parallel for simd schedule(static)
-  for(Uint w=0; w<pDim; w++) S[w] *= pDim / sumSS
+  for(Uint w=0; w<pDim; w++) S[w] = alph*S[w]*(1 + beta*C[w]*C[w]);
 
+  //cout<<sigma<<" "<<sumCC<<" "<<sumSS<<endl;
   initializeGeneration();
 }
 
