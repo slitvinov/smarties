@@ -14,6 +14,7 @@ CMA_Optimizer::CMA_Optimizer(Settings&S, const Parameters*const W,
   const Parameters*const WT, const vector<Parameters*>&G) : Optimizer(S, W, WT),
   sampled_weights(G)
 {
+  cout << mu_eff << endl;
   diagCov->set(1);
   pathSig->set(1);
   std::vector<unsigned long> seed(3*pop_size) ;
@@ -104,7 +105,7 @@ void CMA_Optimizer::apply_update()
   for(Uint i=0; i<pop_size; i++) {
     const Uint k = inds[i];
     //#pragma omp master
-    //cout << losses[k] << endl;
+    //cout<<losses[k]<<" "<<popWeights[i]<<endl;
     const nnReal wZ = popWeights[i];
     const nnReal wM = k ? _eta*popWeights[i] : _eta*popWeights[i] + (1-_eta);
     const nnReal* const Z = popNoiseVectors[k]->params;

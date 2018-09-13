@@ -27,18 +27,18 @@ SETTINGS+=" --obsPerStep 1"
 #Number of samples before starting gradient steps
 SETTINGS+=" --minTotObsNum 262144"
 #Maximum size of the replay memory
-SETTINGS+=" --maxTotObsNum 524288"
+SETTINGS+=" --maxTotObsNum 262144"
 #Number of gradient steps before training ends
 SETTINGS+=" --totNumSteps 50000000"
 
 #C in paper. Determines c_max: boundary between (used) near-policy samples and (skipped) far policy ones
-SETTINGS+=" --clipImpWeight 4"
+SETTINGS+=" --clipImpWeight 2"
 
 # Annealing factor for impWeight and learn rate -> 1/(1+epsAnneal*fac)
 #SETTINGS+=" --epsAnneal 0"
 
 # Here, fraction of far pol samples allowed in memory buffer
-SETTINGS+=" --penalTol 0.1"
+SETTINGS+=" --penalTol 0.05"
 
 #Here is unused. Used for target network soft update
 SETTINGS+=" --targetDelay 0"

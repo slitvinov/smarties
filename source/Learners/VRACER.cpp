@@ -14,8 +14,7 @@
 
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::TrainBySequences(const Uint seq,
-  const Uint thrID, const Uint wID) const
-{
+  const Uint thrID, const Uint wID) const {
   die("");
 }
 
@@ -48,7 +47,7 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   const Real A_RET = R + gamma * (Dnxt + Vnxt) - Vcur;
   const Real D_RET = std::min((Real)1, W) * A_RET;
   const Real deltaD = std::pow(D_RET-S->Q_RET[t], 2);
-  const Real clipRho = std::min(std::max(W, 1/CmaxRet), CmaxRet);
+  const Real clipRho = std::max( 1/CmaxRet, std::min(W, CmaxRet) );
   // maximize rho*A and minimize MSE critic loss
   const Real penalLoss = -beta*clipRho*A_RET* + (1-beta)*P.sampKLdiv;
 
