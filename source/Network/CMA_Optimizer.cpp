@@ -112,47 +112,27 @@ void CMA_Optimizer::apply_update()
   }
 
   nnReal * const C = pathSig->params;
-  nnReal sumPP = 0, sumSS = 0;
+  nnReal * const S = diagCov->params;
+
+  Real sumPP = 0, sumSS = 0, sumCC = 0;
   const nnReal updSigP = std::sqrt(c_sig * (2-c_sig) * mu_eff);
-  #pragma omp parallel for simd schedule(static) reduction(+ : sumSS)
+  #pragma omp parallel for simd schedule(static) reduction(+ : sumSS, sumCC)
   for(Uint w=0; w<pDim; w++) {
     C[w] = (1-c_sig)*C[w] + updSigP*A[w];
-    sumSS += C[w] * C[w];
+    sumCC += C[w] * C[w];
+    sumSS += S[w];
   }
 
   const nnReal updSigm = c_sig / ( 1 + c_sig );
-  const nnReal updNormSigm = std::sqrt( sumSS / pDim );
+  const nnReal updNormSigm = std::sqrt( sumCC / pDim ) / (1 - 0.25/pDim);
   sigma *= std::exp( updSigm * ( updNormSigm - 1 ) );
-  sigma = std::min( sigma, (nnReal) std::sqrt(eta) );
-
-  nnReal * const P = pathCov->params;
-  //const nnReal hsig = updNormSigm < ((1.4 + 2./pDim) * std::sqrt(1-anneal));
-  //const nnReal hsig = updNormSigm < 1.5 * std::sqrt(1-anneal);
-  const nnReal hsig = 1;
-  //if (hsig<.5) cout << "triggered hsig==0" << endl;
-  anneal *= std::pow( 1 - c_sig, 2 );
-  if(anneal < 2e-16) anneal = 0;
-
-  #if 0
-  const nnReal updPath = std::sqrt(cpath * (2-cpath) * mu_eff);
-  #pragma omp parallel for simd schedule(static) reduction(+ : sumPP)
-  for(Uint w=0; w<pDim; w++) {
-    P[w] = (1-cpath) * P[w] + hsig*updPath * A[w];
-    sumPP += P[w] * P[w];
-  }
-  #else
-  sumPP = sumSS;
-  pathCov->copy(pathSig);
-  #endif
-
-  nnReal * const S = diagCov->params;
-  const nnReal covAlph = 1 - c1cov*(1 - (1-hsig) * cpath * (2-cpath));
-  const nnReal sqrAlph = std::sqrt( covAlph );
-  const nnReal covBeta = ( std::sqrt( 1 + sumPP*c1cov/covAlph ) - 1 )/sumPP;
+  //sigma = std::min( sigma, (nnReal) std::sqrt(eta) );
+  cout<<sigma<<" "<<sumCC<<" "<<sumSS<<endl;
+  const nnReal alph = std::sqrt( 1 - c1cov ) * pDim / sumSS;
+  const nnReal beta = ( std::sqrt( 1 + sumCC*c1cov/(1-c1cov) ) - 1 )/sumCC;
   #pragma omp parallel for simd schedule(static)
   for(Uint w=0; w<pDim; w++) {
-    S[w] = sqrAlph*S[w]*(1 + covBeta*P[w]*P[w]);
-    S[w] = std::min((nnReal)1, S[w]);
+    S[w] = alph*S[w]*(1 + beta*C[w]*C[w]);
   }
 
   initializeGeneration();
