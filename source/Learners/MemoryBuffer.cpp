@@ -522,26 +522,6 @@ void MemoryBuffer::restart(const string base)
   }
 }
 
-// number of returned samples depends on size of seq! (== to that of trans)
-void MemoryBuffer::sampleTransition(Uint& seq, Uint& obs, const int thrID) {
-  #ifndef PRIORITIZED_ER
-    std::uniform_int_distribution<int> distObs(0, readNData()-1);
-    const Uint ind = distObs(generators[thrID]);
-  #else
-    const Uint ind = distPER(generators[thrID]);
-  #endif
-  indexToSample(ind, seq, obs);
-}
-
-void MemoryBuffer::sampleSequence(Uint& seq, const int thrID) {
-  //#ifndef PRIORITIZED_ER
-    std::uniform_int_distribution<int> distSeq(0, readNSeq()-1);
-    seq = distSeq(generators[thrID]);
-  //#else
-  //  seq = distPER(generators[thrID]);
-  //#endif
-}
-
 void MemoryBuffer::sampleTransitions(vector<Uint>& seq, vector<Uint>& obs) {
   if(seq.size() not_eq obs.size()) die(" ");
 
@@ -582,30 +562,19 @@ void MemoryBuffer::sampleTransitions(vector<Uint>& seq, vector<Uint>& obs) {
 }
 
 void MemoryBuffer::sampleSequences(vector<Uint>& seq) {
-  const Uint N = seq.size();
-  if( readNSeq() > N*5 ) {
-    for(Uint i=0; i<N; i++) sampleSequence(seq[i], 0);
-  } else { // if N is large, make sure we do not repeat indices
-    seq.resize(readNSeq());
-    std::iota(seq.begin(), seq.end(), 0);
-    std::shuffle(seq.begin(), seq.end(), generators[0]);
-    seq.resize(N);
+  std::fill(seq.begin(), seq.end(), 0);
+  std::uniform_int_distribution<Uint> distSeq(0, readNSeq()-1);
+  std::vector<Uint>::iterator it = seq.begin();
+  while(it not_eq seq.end())
+  {
+    std::generate(it, seq.end(), [&]() { return distSeq(generators[0]); } );
+    std::sort( seq.begin(), seq.end() );
+    it = std::unique( seq.begin(), seq.end() );
   }
-  const auto compare = [&](Uint a, Uint b) {
+  const auto compare = [&](const Uint a, const Uint b) {
     return Set[a]->ndata() > Set[b]->ndata();
   };
   std::sort(seq.begin(), seq.end(), compare);
-}
-
-void MemoryBuffer::indexToSample(const int nSample,Uint& seq,Uint& obs) const {
-  int k = 0, back = 0, indT = Set[0]->ndata();
-  while (nSample >= indT) {
-    assert(k+2<=(int)Set.size());
-    back = indT;
-    indT += Set[++k]->ndata();
-  }
-  assert(nSample>=back && Set[k]->ndata()>(Uint)nSample-back);
-  seq = k; obs = nSample-back;
 }
 
 void MemoryBuffer::popBackSequence()

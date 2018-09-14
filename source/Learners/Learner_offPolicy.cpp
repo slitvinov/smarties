@@ -89,17 +89,17 @@ void Learner_offPolicy::spawnTrainTasks_par()
   if(bSampleSequences) {
   #pragma omp parallel for collapse(2) schedule(dynamic) num_threads(nThreads)
     for (Uint wID=0; wID<ESpopSize; wID++)
-      for (Uint i=0; i<batchSize; i++) {
+      for (Uint bID=0; bID<batchSize; bID++) {
         const Uint thrID = omp_get_thread_num();
-        TrainBySequences(samp_seq[i], thrID, wID);
+        TrainBySequences(samp_seq[bID], wID, bID, thrID);
         input->gradient(thrID);
       }
   } else {
   #pragma omp parallel for collapse(2) schedule(static, 1) num_threads(nThreads)
     for (Uint wID=0; wID<ESpopSize; wID++)
-      for (Uint i=0; i<batchSize; i++) {
+      for (Uint bID=0; bID<batchSize; bID++) {
         const Uint thrID = omp_get_thread_num();
-        Train(samp_seq[i], samp_obs[i], thrID, wID);
+        Train(samp_seq[bID], samp_obs[bID], wID, bID, thrID);
         input->gradient(thrID);
       }
   }

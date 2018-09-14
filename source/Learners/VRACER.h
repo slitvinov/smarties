@@ -39,6 +39,9 @@ class VRACER : public Learner_offPolicy
 
   // used in case of temporally correlated noise
   vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
+  mutable vector<Rvec> rhos = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
+  mutable vector<Rvec> dkls = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
+  mutable vector<Rvec> advs = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
 
   inline Policy_t prepare_policy(const Rvec& out,
     const Tuple*const t = nullptr) const {
@@ -54,25 +57,17 @@ class VRACER : public Learner_offPolicy
     return pol;
   }
 
-  void TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const override;
+  void TrainBySequences(const Uint seq, const Uint wID,
+    const Uint bID, const Uint tID) const override;
 
-  void Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wID) const override;
+  void Train(const Uint seq, const Uint samp, const Uint wID,
+    const Uint bID, const Uint tID) const override;
 
-  inline Real updateVret(Sequence*const S, const Uint t, const Real V,
-    const Policy_t& pol) const {
-    return updateVret(S, t, V, pol.sampImpWeight);
-  }
-
-  inline Real updateVret(Sequence*const S, const Uint t, const Real V,
-    const Real rho) const {
-    assert(rho >= 0);
-    const Real rNext = data->scaledReward(S, t+1), oldVret = S->Q_RET[t];
-    const Real vNext = S->state_vals[t+1], V_RET = S->Q_RET[t+1];
-    const Real delta = std::min((Real)1, rho) * (rNext +gamma*vNext -V);
-    //const Real trace = gamma *.95 *std::pow(rho,retraceTrickPow) *V_RET;
-    const Real trace = gamma *std::min((Real)1, rho) *V_RET;
-    S->setStateValue(t, V ); S->setRetrace(t, delta + trace);
-    return std::fabs(S->Q_RET[t] - oldVret);
+  inline void updateVret(Sequence*const S, const Uint t, const Fval W) const {
+    assert(W >= 0);
+    const Fval R = data->scaledReward(S, t+1), G = gamma, D = S->Q_RET[t+1];
+    const Fval Vc = S->state_vals[t],  Vn = S->state_vals[t+1];
+    S->Q_RET[t] = std::min((Fval)1, W) * (R + G * (Vn+D) - Vc);
   }
 
   static vector<Uint> count_outputs(const ActionInfo*const aI);

@@ -147,16 +147,6 @@ public:
     return seq->tuples[samp]->r * invstd_reward;
   }
 
-  void clearFailedSim(const int agentOne, const int agentEnd) {
-    for (int i = agentOne; i<agentEnd; i++) {
-      _dispose_object(inProgress[i]);
-      inProgress[i] = new Sequence();
-    }
-  }
-  void pushBackEndedSim(const int agentOne, const int agentEnd) {
-    for(int i=agentOne; i<agentEnd; i++) if(inProgress[i]->ndata()) push_back(i);
-  }
-
   void add_action(const Agent& a, Rvec pol) const;
   void terminate_seq(Agent&a);
   void add_state(const Agent&a);
@@ -185,11 +175,6 @@ public:
   void restart(const string base);
   void save(const string base, const Uint nStep, const bool bBackup);
 
-  void indexToSample(const int nSample, Uint& seq, Uint& obs) const;
-  void sampleMultipleTrans(Uint* seq, Uint* obs, const Uint N, const int thrID);
-  void sampleTransition(Uint& seq, Uint& obs, const int thrID);
-  void sampleSequence(Uint& seq, const int thrID);
-  void sampleTransitions_OPW(vector<Uint>& seq, vector<Uint>& obs);
   void sampleTransitions(vector<Uint>& seq, vector<Uint>& obs);
   void sampleSequences(vector<Uint>& seq);
 
@@ -212,12 +197,10 @@ public:
  private:
 
   void prefixSum();
-
   void popBackSequence();
   void pushBackSequence(Sequence*const seq);
 
-  inline void checkNData()
-  {
+  inline void checkNData() {
     #ifndef NDEBUG
       Uint cntSamp = 0;
       for(Uint i=0; i<Set.size(); i++) {

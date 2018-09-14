@@ -138,7 +138,7 @@ struct Discrete_policy
     return ret;
   }
 
-  inline void finalize_grad(const Rvec&grad, Rvec&netGradient) const
+  inline void finalize_grad(const Rvec grad, Rvec&netGradient) const
   {
     assert(netGradient.size()>=start_prob+nA && grad.size() == nA);
     for (Uint j=0; j<nA; j++)

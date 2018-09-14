@@ -346,7 +346,7 @@ public:
     return r;
   }
 
-  inline void finalize_grad(const Rvec&grad, Rvec&netGradient) const
+  inline void finalize_grad(const Rvec grad, Rvec&netGradient) const
   {
     assert(grad.size() == nP);
     for(Uint j=0; j<nExperts; j++) {

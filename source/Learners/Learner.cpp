@@ -30,16 +30,6 @@ gamma(_s.gamma), explNoise(_s.explNoise), epsAnneal(_s.epsAnneal)
   }
 }
 
-void Learner::clearFailedSim(const int agentOne, const int agentEnd)
-{
-  data->clearFailedSim(agentOne, agentEnd);
-}
-
-void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
-{
-  data->pushBackEndedSim(agentOne, agentEnd);
-}
-
 void Learner::prepareGradient()
 {
   const Uint currStep = nStep()+1;
@@ -60,12 +50,6 @@ void Learner::prepareGradient()
   input->prepareUpdate(batchSize);
 
   for(auto & net : F) net->updateGradStats(learner_name, currStep);
-
-  if(nSkipped >= batchSize)
-    warn("Too many skipped samples caused temporary pause in resampling. " \
-      "Change hyperp: probably the learn rate is too large for "  \
-      "the net's combination of size/activation/batchsize.");
-  nSkipped = 0;
 }
 
 void Learner::initializeLearner()
@@ -162,14 +146,6 @@ void Learner::save()
   for(auto & net : F) net->save(learner_name, bBackup);
   input->save(learner_name, bBackup);
   data->save(learner_name, currStep, bBackup);
-}
-
-bool Learner::workerHasUnfinishedSeqs(const int worker) const
-{
-  const Uint nAgentsPerWorker = env->nAgentsPerRank;
-  for(Uint i=worker*nAgentsPerWorker; i<(worker+1)*nAgentsPerWorker; i++)
-    if(data->inProgress[i]->tuples.size()) return true;
-  return false;
 }
 
 //TODO: generalize!!

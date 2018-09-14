@@ -31,7 +31,6 @@ protected:
   std::atomic<long int> nStep_b4Startup{0};
   std::atomic<Uint> nAddedGradients{0};
 
-  mutable Uint nSkipped = 0;
   mutable bool updateComplete = false;
   mutable bool updateToApply = false;
 
@@ -45,27 +44,6 @@ protected:
   mutable std::mutex buffer_mutex;
 
   virtual void processStats();
-
-  inline bool canSkip() const
-  {
-    Uint _nSkipped;
-    #pragma omp atomic read
-      _nSkipped = nSkipped;
-    // If skipping too many samples return w/o sample to avoid code hanging.
-    // If true smth is wrong. Approximator will print to screen a warning.
-    return _nSkipped < 2*batchSize;
-  }
-
-  inline void resample(const Uint thrID, const Uint WID) const // TODO resample sequence
-  {
-    #pragma omp atomic
-    nSkipped++;
-
-    Uint sequence, transition;
-    data->sampleTransition(sequence, transition, thrID);
-    data->Set[sequence]->setSampled(transition);
-    return Train(sequence, transition, thrID, WID);
-  }
 
 public:
   Profiler* profiler = nullptr;
@@ -106,17 +84,13 @@ public:
   }
 
   virtual void select(Agent& agent) = 0;
-  virtual void TrainBySequences(const Uint seq, const Uint thrID,
-    const Uint wID) const = 0;
-  virtual void Train(const Uint seq, const Uint samp, const Uint thrID,
-    const Uint wID) const = 0;
+  virtual void TrainBySequences(const Uint seq, const Uint wID,
+    const Uint bID, const Uint tID) const = 0;
+  virtual void Train(const Uint seq, const Uint samp, const Uint wID,
+    const Uint bID, const Uint tID) const = 0;
 
   virtual void getMetrics(ostringstream& buff) const;
   virtual void getHeaders(ostringstream& buff) const;
-  //mass-handing of unfinished sequences from master
-  void clearFailedSim(const int agentOne, const int agentEnd);
-  void pushBackEndedSim(const int agentOne, const int agentEnd);
-  bool workerHasUnfinishedSeqs(const int worker) const;
 
   //main training loop functions:
   virtual void spawnTrainTasks_par() = 0;

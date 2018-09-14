@@ -254,7 +254,7 @@ public:
       netGradient[iS] = grad[j+nA] * noiseMap_diff(netOutputs[iS]);
     }
   }
-  inline Rvec finalize_grad(const Rvec&grad) const {
+  inline Rvec finalize_grad(const Rvec grad) const {
     Rvec ret = grad;
     for (Uint j=0; j<nA; j++) if(aInfo->bounded[j]) {
       if(mean[j]> BOUNDACT_MAX && grad[j]>0) ret[j]=0;
