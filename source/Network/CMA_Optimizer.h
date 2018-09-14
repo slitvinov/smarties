@@ -18,7 +18,7 @@ class CMA_Optimizer : public Optimizer
   const vector<nnReal> popWeights = initializePopWeights(pop_size);
   const Real mu_eff = initializeMuEff(popWeights, pop_size);
 
-  const nnReal c_sig = 1e-3; //(2 + mu_eff) / (5 + mu_eff + pDim);
+  const nnReal c_sig = 1e-4; //(2 + mu_eff) / (5 + mu_eff + pDim);
   //const nnReal cpath = 0.0100; //(4 + mu_eff/pDim)/(pDim +4 +2*mu_eff/pDim);
   const nnReal c1cov = 1e-6; //2 / (mu_eff + (pDim+1.3)*(pDim+1.3) );
   nnReal anneal = std::pow( 1 - c_sig, 2 );
@@ -37,7 +37,7 @@ class CMA_Optimizer : public Optimizer
   void initializeGeneration() const;
 
  public:
-  nnReal sigma = eta_init;
+  nnReal sigma = 1e-2;
 
   CMA_Optimizer(Settings&S, const Parameters*const W, const Parameters*const WT,
     const vector<Parameters*>&G);

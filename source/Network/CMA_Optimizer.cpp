@@ -15,7 +15,7 @@ CMA_Optimizer::CMA_Optimizer(Settings&S, const Parameters*const W,
   sampled_weights(G) {
   cout << mu_eff << endl;
   diagCov->set(1);
-  pathSig->set(1);
+  pathSig->set(0);
   std::vector<unsigned long> seed(3*pop_size) ;
   std::generate(seed.begin(), seed.end(), [&](){return S.generators[0]();});
   MPI_Bcast(seed.data(), 3*pop_size, MPI_UNSIGNED_LONG, 0, mastersComm);
