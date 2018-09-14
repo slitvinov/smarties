@@ -129,13 +129,13 @@ void CMA_Optimizer::apply_update()
   const nnReal updSigm = c_sig / ( 1 + c_sig );
   const nnReal updNormSigm = std::sqrt( sumCC / pDim ) / (1 - 0.25/pDim);
   sigma *= std::exp( updSigm * ( updNormSigm - 1 ) );
-  sigma = std::min( sigma, (nnReal) std::sqrt(eta) );
+  //sigma = std::min( sigma, (nnReal) std::sqrt(eta) );
   const nnReal alph = std::sqrt( 1 - c1cov ) * pDim / sumSS;
   const nnReal beta = ( std::sqrt( 1 + sumCC*c1cov/(1-c1cov) ) - 1 )/sumCC;
   #pragma omp parallel for simd schedule(static)
   for(Uint w=0; w<pDim; w++) S[w] = alph*S[w]*(1 + beta*C[w]*C[w]);
 
-  //cout<<sigma<<" "<<sumCC<<" "<<sumSS<<endl;
+  if((nStep%100)==0) cout<<sigma<<" "<<sumCC<<" "<<sumSS<<endl;
   initializeGeneration();
 }
 

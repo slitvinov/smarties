@@ -49,7 +49,7 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   const Real deltaD = std::pow(D_RET-S->Q_RET[t], 2);
   const Real clipRho = std::max( 1/CmaxRet, std::min(W, CmaxRet) );
   // maximize rho*A and minimize MSE critic loss
-  const Real penalLoss = -beta*clipRho*A_RET* + (1-beta)*P.sampKLdiv;
+  const Real penalLoss = -beta*clipRho*A_RET + (1-beta)*P.sampKLdiv;
 
   if( wID == 0 ) {
     S->setStateValue(t, Vcur); S->setRetrace(t, D_RET);

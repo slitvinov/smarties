@@ -21,7 +21,7 @@ protected:
   Real nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig;
 
-  Real beta = CmaxPol<=0? 1 : 0.2; // if CmaxPol==0 do naive Exp Replay
+  Real beta = CmaxPol<=0? 1 : 0.0; // if CmaxPol==0 do naive Exp Replay
   Real CmaxRet = 1 + CmaxPol;
 
   const FORGET ERFILTER =
