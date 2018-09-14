@@ -45,7 +45,9 @@ void MemoryBuffer::add_state(const Agent&a)
       const Rvec vecSold = a.sOld.copy_observed();
       const auto memSold = inProgress[a.ID]->tuples.back()->s;
       for (Uint i=0; i<sI.dimUsed && same; i++) //scaled vec only has used dims:
-        same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-16;
+        same = same && std::fabs(memSold[i]-vecSold[i]) < 2e-7;
+      //debugS("Agent %s and %s",
+      //  print(vecSold).c_str(), print(memSold).c_str() );
       if (!same) die("Unexpected termination of sequence");
     }
   #endif
@@ -227,9 +229,9 @@ void MemoryBuffer::prune(const FORGET ALGO, const Fval CmaxRho)
   //checkNData();
   assert(CmaxRho>=1);
   // vector indicating location of sequence to delete
-  int old_ptr = -1, far_ptr = -1, dkl_ptr = -1, fit_ptr = -1, del_ptr = -1;
+  int old_ptr = -1, far_ptr = -1, dkl_ptr = -1, fit_ptr = -1;
   Real dkl_val = -1, far_val = -1, fit_val = 9e9, old_ind = nSeenSequences;
-  const int nB4 = Set.size(); const Fval invC = 1/CmaxRho;
+  const Fval invC = 1/CmaxRho;
   Real _nOffPol = 0, _totDKL = 0;
   #pragma omp parallel reduction(+ : _nOffPol, _totDKL)
   {
@@ -237,8 +239,7 @@ void MemoryBuffer::prune(const FORGET ALGO, const Fval CmaxRho)
     #pragma omp for schedule(dynamic)
     for(Uint i = 0; i < Set.size(); i++)
     {
-      if(Set[i]->just_sampled >= 0)
-      {
+      if(Set[i]->just_sampled >= 0) {
         Set[i]->nOffPol = 0; Set[i]->MSE = 0; Set[i]->sumKLDiv = 0;
         for(Uint j=0; j<Set[i]->ndata(); j++) {
           const Fval W = Set[i]->offPolicImpW[j];
@@ -248,7 +249,6 @@ void MemoryBuffer::prune(const FORGET ALGO, const Fval CmaxRho)
           // sequence is off policy if offPol W is out of 1/C : C
           if(W>CmaxRho || W<invC) Set[i]->nOffPol += 1;
         }
-        Set[i]->just_sampled = -1;
       }
 
       const Real W_MSE = Set[i]->MSE     /Set[i]->ndata();
@@ -274,8 +274,8 @@ void MemoryBuffer::prune(const FORGET ALGO, const Fval CmaxRho)
   nOffPol = _nOffPol; avgDKL = _totDKL/nTransitions.load();
 
   minInd = old_ind;
-  assert( far_val <= 1 );
-  assert( old_ptr < nB4 && far_ptr < nB4 && dkl_ptr < nB4 && fit_ptr < nB4 );
+  assert( old_ptr < (int)Set.size() && far_ptr < (int)Set.size() );
+  assert( dkl_ptr < (int)Set.size() && fit_ptr < (int)Set.size() );
   assert( old_ptr >=  0 && far_ptr >=  0 && dkl_ptr >=  0 && fit_ptr >=  0 );
   switch(ALGO) {
       case OLDEST:     del_ptr = old_ptr; break;
@@ -283,45 +283,43 @@ void MemoryBuffer::prune(const FORGET ALGO, const Fval CmaxRho)
       case MAXKLDIV:   del_ptr = dkl_ptr; break;
       case MINERROR:   del_ptr = fit_ptr; break;
   }
-  if(del_ptr<0) die(" ");
+  // prevent any weird race condition from causing deletion of newest data:
+  if(Set[old_ptr]->ID + (int)Set.size() < Set[del_ptr]->ID) del_ptr = old_ptr;
+}
 
-  // safety measures: do not delete trajectory if Nobs > Ntarget
+void MemoryBuffer::finalize()
+{
+  if(del_ptr<0) die(" ");
+  const int nB4 = Set.size();
+
+  // safety measure: do not delete trajectory if Nobs > Ntarget
   // but if N > Ntarget even if we remove the trajectory
   // done to avoid bugs if a sequence is longer than maxTotObsNum
   // negligible effect if hyperparameters are chosen wisely
-  if(Set[old_ptr]->ID + (int)Set.size() < Set[del_ptr]->ID) del_ptr = old_ptr;
   if(nTransitions.load()-Set[del_ptr]->ndata() > maxTotObsNum) {
     std::swap(Set[del_ptr], Set.back());
     popBackSequence();
     needs_pass = true;
     prefixSum();
   }
+  del_ptr = -1;
+
   nPruned += nB4-Set.size();
   #ifdef PRIORITIZED_ER
    if( stepSinceISWeep++ >= 10 || needs_pass )
      updateImportanceWeights(); needs_pass = false; stepSinceISWeep = 0;
   #endif
+
+  for(Uint i=0; i<Set.size(); i++)
+    if(Set[i]->just_sampled>=0) Set[i]->just_sampled = -1;
 }
 
 void MemoryBuffer::prefixSum()
 {
-  vector<Uint> thdStarts(nThreads, 0);
-  #pragma omp parallel num_threads(nThreads)
-  {
-    Uint locPrefix = 0;
-    const int thrI = omp_get_thread_num();
-    const Uint stride = std::ceil( Set.size() / (Real) nThreads );
-    const Uint start = thrI*stride;
-    const Uint end = std::min( (thrI+1)*stride, (Uint) Set.size());
-    for(Uint i=start; i<end; i++) {
-      Set[i]->prefix = locPrefix;
-      locPrefix += Set[i]->ndata();
-    }
-    thdStarts[thrI] = locPrefix;
-    #pragma omp barrier
-    Uint thrPrefix = 0;
-    for(int i=0; i<thrI; i++) thrPrefix += thdStarts[i];
-    for(Uint i=start; i<end; i++) Set[i]->prefix += thrPrefix;
+  Uint prefix = 0;
+  for(Uint i=0; i<Set.size(); i++) {
+    Set[i]->prefix = prefix;
+    prefix += Set[i]->ndata();
   }
 }
 
@@ -608,4 +606,35 @@ void MemoryBuffer::indexToSample(const int nSample,Uint& seq,Uint& obs) const {
   }
   assert(nSample>=back && Set[k]->ndata()>(Uint)nSample-back);
   seq = k; obs = nSample-back;
+}
+
+void MemoryBuffer::popBackSequence()
+{
+  assert(readNSeq()>0);
+  lock_guard<mutex> lock(dataset_mutex);
+  const auto ind = readNSeq() - 1;
+  assert(Set[ind] not_eq nullptr);
+  assert(nTransitions>=Set[ind]->ndata());
+  nTransitions -= Set[ind]->ndata();
+  _dispose_object(Set[ind]);
+  Set[ind] = nullptr;
+  Set.pop_back();
+  nSequences--;
+  assert(nSequences==Set.size());
+}
+void MemoryBuffer::pushBackSequence(Sequence*const seq)
+{
+  lock_guard<mutex> lock(dataset_mutex);
+  assert( readNSeq() == Set.size());
+  const auto ind = readNSeq();
+  const Uint prefix = ind>0? Set[ind-1]->prefix +Set[ind-1]->ndata() : 0;
+  Set.push_back(nullptr);
+  assert(Set[ind] == nullptr && seq not_eq nullptr);
+  nTransitions += seq->ndata();
+  Set[ind] = seq;
+  Set[ind]->prefix = prefix;
+  nSequences++;
+  needs_pass = true;
+  assert( readNSeq() == Set.size());
+  //cout << "push back " << prefix << " " << Set[ind]->ndata() << endl;
 }

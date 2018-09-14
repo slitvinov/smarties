@@ -139,8 +139,8 @@ typedef float Real;
 ////////////////////////////////////////////////////////////////////////////////
 // Data format for storage in memory buffer. Switch to float for example for
 // Atari where the memory buffer is in the order of GBs.
-typedef double memReal;
-typedef double Fval;
+typedef float memReal;
+typedef float Fval;
 typedef vector<Fval> Fvec;
 typedef vector<Real> Rvec;
 typedef vector<long double> LDvec;

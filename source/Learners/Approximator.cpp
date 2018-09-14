@@ -255,7 +255,6 @@ void Approximator::prepareUpdate(const Uint batchSize)
   losses = vector<vector<Real>>(nThreads, vector<Real>(ESpopSize, 0));
   reducedGradients = 1;
   nAddedGradients = 0;
-  if(mpisize<=1) applyUpdate();
 }
 
 void Approximator::applyUpdate() {

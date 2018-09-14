@@ -30,16 +30,17 @@ Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
   //the following Irecv will be sent after sending the action
   for(int i=1; i<=nWorkers; i++) recvBuffer(i);
   profiler->stop_start("SLP");
+  worker_replies.reserve(nWorkers);
 }
 
 void Master::run()
 {
   { // gather initial data OR if not training evaluated restarted policy
-    vector<std::thread> worker_replies = asyncReplyWorkers();
-    assert(worker_replies.size() == (size_t) nWorkers);
-    for(int i=0; i<nWorkers; i++) worker_replies[i].join();
+    for(int i=1; i<=nWorkers; i++)
+      worker_replies.push_back(std::thread([&, i]() { processWorker(i); }));
+    while ( ! learnersLockQueue() ) usleep(5);
+    cout << "learnersLockQueue" << endl; fflush(0);
   }
-
   if( not bTrain ) return;
 
   profiler->reset();
@@ -48,16 +49,12 @@ void Master::run()
 
   while (true) // gradient step loop: one step per iteration
   {
-    //Spawn threads asynchronously handling requests from workers
-    vector<std::thread> worker_replies = asyncReplyWorkers();
-    assert(worker_replies.size() == (size_t) nWorkers);
-
     for(const auto& L : learners) L->spawnTrainTasks_par();
 
     if(bNeedSequentialTasks) {
       profiler->stop_start("SLP");
       // typically on-policy learning. Wait for all needed data:
-      for(int i=0; i<nWorkers; i++) worker_replies[i].join();
+      while ( ! learnersLockQueue() ) usleep(5);
       // and then perform on-policy update step(s):
       for(const auto& L : learners) L->spawnTrainTasks_seq();
     }
@@ -67,7 +64,7 @@ void Master::run()
     if(not bNeedSequentialTasks) {
       profiler->stop_start("SLP");
       //for off-policy learners this is last possibility to wait for needed data
-      for(int i=0; i<nWorkers; i++) worker_replies[i].join();
+      while ( ! learnersLockQueue() ) usleep(5);
     }
 
     if(iterNum++ % 1000 == 0) flushRewardBuffer();
@@ -88,7 +85,10 @@ void Master::processWorker(const int worker)
   {
     if(!bTrain && getMinSeqId() >= totNumSteps) break;
     // Learners lock the workers queue if they have enough data to advance step
-    if( bTrain && learnersLockQueue()  ) break;
+    while ( bTrain && learnersLockQueue() ) {
+      usleep(5);
+      if( bExit.load() > 0 ) break;
+    }
 
     MPI_Status mpistatus;
     int completed = testBuffer(worker, mpistatus);
@@ -126,7 +126,7 @@ void Master::processAgent(const int worker, const MPI_Status mpistatus)
   sendBuffer(worker, agent);
 
   if ( recv_status >= TERM_COMM )
-    dumpCumulativeReward(recv_agent,worker,aAlgo->iter(),aAlgo->tStepsTrain());
+    dumpCumulativeReward(recv_agent,worker,aAlgo->nStep(),aAlgo->tStepsTrain());
 
   recvBuffer(worker);
 }

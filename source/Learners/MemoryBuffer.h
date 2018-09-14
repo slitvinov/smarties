@@ -25,7 +25,7 @@ public:
   const ActionInfo& aI = env->aI;
   const vector<Agent*>& _agents = env->agents;
   std::vector<std::mt19937>& generators;
-  
+
   vector<memReal> invstd = sI.inUseInvStd();
   vector<memReal> mean = sI.inUseMean();
   vector<memReal> std = sI.inUseStd();
@@ -44,6 +44,7 @@ public:
 
   Uint nPruned = 0, minInd = 0, learnID = 0;
   Real nOffPol = 0, avgDKL = 0;
+  int del_ptr = -1;
 
   vector<Sequence*> Set, inProgress;
   mutable std::mutex dataset_mutex;
@@ -177,6 +178,7 @@ public:
   }
   // Algorithm for maintaining and filtering dataset, and optional imp weight range parameter
   void prune(const FORGET ALGO, const Fval CmaxRho = 1);
+  void finalize();
 
   void getMetrics(ostringstream& buff);
   void getHeaders(ostringstream& buff);
@@ -211,36 +213,8 @@ public:
 
   void prefixSum();
 
-  inline void popBackSequence()
-  {
-    assert(readNSeq()>0);
-    lock_guard<mutex> lock(dataset_mutex);
-    const auto ind = readNSeq() - 1;
-    assert(Set[ind] not_eq nullptr);
-    assert(nTransitions>=Set[ind]->ndata());
-    nTransitions -= Set[ind]->ndata();
-    _dispose_object(Set[ind]);
-    Set[ind] = nullptr;
-    Set.pop_back();
-    nSequences--;
-    assert(nSequences==Set.size());
-  }
-  inline void pushBackSequence(Sequence*const seq)
-  {
-    lock_guard<mutex> lock(dataset_mutex);
-    assert( readNSeq() == Set.size());
-    const auto ind = readNSeq();
-    const Uint prefix = ind>0? Set[ind-1]->prefix +Set[ind-1]->ndata() : 0;
-    Set.push_back(nullptr);
-    assert(Set[ind] == nullptr && seq not_eq nullptr);
-    nTransitions += seq->ndata();
-    Set[ind] = seq;
-    Set[ind]->prefix = prefix;
-    nSequences++;
-    needs_pass = true;
-    assert( readNSeq() == Set.size());
-    //cout << "push back " << prefix << " " << Set[ind]->ndata() << endl;
-  }
+  void popBackSequence();
+  void pushBackSequence(Sequence*const seq);
 
   inline void checkNData()
   {

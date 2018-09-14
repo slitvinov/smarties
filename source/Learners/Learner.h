@@ -25,11 +25,13 @@ protected:
   const Uint totNumSteps, policyVecDim, nAgents, batchSize, nThreads, nWorkers;
   const Real CmaxPol, ReFtol, learnR, gamma, explNoise, epsAnneal;
   const int learn_rank=settings.learner_rank, learn_size=settings.learner_size;
-  unsigned long nStep = 0;
-  Uint nData_b4Startup = 0;
-  mutable Uint nSkipped = 0;
+  std::atomic<long int> _nStep{0};
+
+  std::atomic<long int> nData_b4Startup{0};
+  std::atomic<long int> nStep_b4Startup{0};
   std::atomic<Uint> nAddedGradients{0};
 
+  mutable Uint nSkipped = 0;
   mutable bool updateComplete = false;
   mutable bool updateToApply = false;
 
@@ -83,9 +85,6 @@ public:
     learnID = id;
   }
 
-  inline unsigned iter() const {
-    return nStep;
-  }
   inline unsigned tStepsTrain() const {
     return data->readNSeen() - nData_b4Startup;
   }
@@ -95,11 +94,15 @@ public:
   inline unsigned nData() const {
     return data->readNData();
   }
+  inline long int nStep() const {
+    return _nStep.load();
+  }
   inline Real annealingFactor() const {
     //number that goes from 1 to 0 with optimizer's steps
     assert(epsAnneal>1.);
-    if(nStep*epsAnneal >= 1 || !bTrain) return 0;
-    else return 1 - nStep*epsAnneal;
+    const auto mynstep = nStep();
+    if(mynstep*epsAnneal >= 1 || !bTrain) return 0;
+    else return 1 - mynstep*epsAnneal;
   }
 
   virtual void select(Agent& agent) = 0;

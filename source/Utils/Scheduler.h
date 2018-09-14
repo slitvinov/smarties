@@ -37,6 +37,9 @@ private:
   mutable mutex dump_mutex;
   mutable vector<ostringstream> rewardsBuffer = vector<ostringstream>(nPerRank);
 
+  std::atomic<Uint> bExit {0};
+  vector<std::thread> worker_replies;
+
   inline Uint getMinSeqId() const {
     Uint lowest = learners[0]->nSeqsEval();
     for(size_t i=1; i<learners.size(); i++) {
@@ -88,15 +91,6 @@ private:
       locked = locked && L->lockQueue(); // if any wants to unlock...
 
     return locked;
-  }
-
-  vector<std::thread> asyncReplyWorkers()
-  {
-    vector<std::thread> worker_replies;
-    worker_replies.reserve(nWorkers);
-    for(int i=1; i<=nWorkers; i++)
-      worker_replies.push_back(std::thread([&, i]() { processWorker(i); }));
-    return worker_replies;
   }
 
   void flushRewardBuffer()
@@ -191,6 +185,8 @@ public:
   Master(MPI_Comm _c,const vector<Learner*>_l,Environment*const _e,Settings&_s);
   ~Master()
   {
+    bExit = 1;
+    for(int i=0; i<nWorkers; i++) worker_replies[i].join();
     for(const auto& A : agents) A->writeBuffer(learn_rank);
     _dispose_object(env);
     _dispose_object(profiler);

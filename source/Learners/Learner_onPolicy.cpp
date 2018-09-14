@@ -63,13 +63,15 @@ void Learner_onPolicy::prepareGradient()
 {
   if(not updateComplete || updateToApply) die("undefined behavior");
 
+  const Uint currStep = nStep()+1; //base class will advance this with this func
+
   Learner::prepareGradient();
 
   debugL("shift counters of epochs over the stored data");
   cntBatch += batchSize;
   if(cntBatch >= nHorizon) {
-    const Real annlLR = annealRate(learnR, nStep, epsAnneal);
-    data->updateRewardsStats(nStep, 0.001, annlLR);
+    const Real annlLR = annealRate(learnR, currStep, epsAnneal);
+    data->updateRewardsStats(currStep, 0.001, annlLR);
     cntBatch = 0;
     cntEpoch++;
   }
@@ -90,11 +92,15 @@ void Learner_onPolicy::prepareGradient()
 
 void Learner_onPolicy::initializeLearner()
 {
-  if ( nStep>0 ) die("undefined behavior");
-
   debugL("Compute state/rewards stats from the replay memory");
+  const Uint currStep = nStep();
+  if ( currStep > 0 ) {
+    warn("Skipping initialization for restartd learner.");
+    return;
+  }
+
   profiler->stop_start("PRE");
-  data->updateRewardsStats(nStep, 1, 1);
+  data->updateRewardsStats(currStep, 1, 1);
   if( learn_rank == 0 )
     cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
 }

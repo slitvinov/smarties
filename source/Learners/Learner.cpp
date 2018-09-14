@@ -42,6 +42,7 @@ void Learner::pushBackEndedSim(const int agentOne, const int agentEnd)
 
 void Learner::prepareGradient()
 {
+  const Uint currStep = nStep()+1;
   if(updateToApply) die("undefined behavior");
   if(not updateComplete)
   {
@@ -58,7 +59,7 @@ void Learner::prepareGradient()
   for(auto & net : F) net->prepareUpdate(batchSize);
   input->prepareUpdate(batchSize);
 
-  for(auto & net : F) net->updateGradStats(learner_name, nStep);
+  for(auto & net : F) net->updateGradStats(learner_name, currStep);
 
   if(nSkipped >= batchSize)
     warn("Too many skipped samples caused temporary pause in resampling. " \
@@ -74,6 +75,8 @@ void Learner::initializeLearner()
 
 void Learner::applyGradient()
 {
+  const Uint currStep = nStep()+1;
+
   if(updateComplete) die("undefined behavior");
   if(not updateToApply) {
     warn("applyGradient called while waiting for data");
@@ -81,15 +84,14 @@ void Learner::applyGradient()
   }
   updateToApply = false;
 
-  nStep++;
-  if(nStep%(1000*PRFL_DMPFRQ)==0 && learn_rank==0)
+  if(currStep%(1000*PRFL_DMPFRQ)==0 && learn_rank==0)
   {
     profiler->printSummary();
     profiler->reset();
     save();
   }
 
-  if(nStep%1000 ==0)
+  if(currStep%1000 ==0)
   {
     profiler->stop_start("STAT");
     processStats();
@@ -99,10 +101,14 @@ void Learner::applyGradient()
   profiler->stop_start("GRAD");
   for(auto & net : F) net->applyUpdate();
   input->applyUpdate();
+
+  _nStep++;
 }
 
 void Learner::processStats()
 {
+  const Uint currStep = nStep()+1;
+
   ostringstream buf;
   data->getMetrics(buf);
   if(trainInfo not_eq nullptr) trainInfo->getMetrics(buf);
@@ -114,19 +120,19 @@ void Learner::processStats()
   FILE* fout = fopen ((learner_name+"stats.txt").c_str(),"a");
 
   ostringstream head;
-  if( nStep%(1000*PRFL_DMPFRQ)==0 || nStep==1000 ) {
+  if( currStep%(1000*PRFL_DMPFRQ)==0 || currStep==1000 ) {
     data->getHeaders(head);
     if(trainInfo not_eq nullptr) trainInfo->getHeaders(head);
     input->getHeaders(head);
     for(auto & net : F) net->getHeaders(head);
 
     printf("ID #/1e3 %s\n", head.str().c_str());
-    if(nStep==1000)
+    if(currStep==1000)
       fprintf(fout, "ID #/1e3 %s\n", head.str().c_str());
   }
 
-  fprintf(fout, "%02d %05d%s\n", learnID, (int)nStep/1000, buf.str().c_str());
-  printf("%02d %05d%s\n", learnID, (int)nStep/1000, buf.str().c_str());
+  fprintf(fout, "%02d %05u%s\n", learnID, currStep/1000, buf.str().c_str());
+  printf("%02d %05u%s\n", learnID, currStep/1000, buf.str().c_str());
   fclose(fout);
   fflush(0);
 }
@@ -149,12 +155,13 @@ void Learner::restart()
 
 void Learner::save()
 {
+  const Uint currStep = nStep()+1;
   static constexpr Real freqSave = 1000*PRFL_DMPFRQ;
   const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
-  const bool bBackup = nStep % freqBackup == 0;
+  const bool bBackup = currStep % freqBackup == 0;
   for(auto & net : F) net->save(learner_name, bBackup);
   input->save(learner_name, bBackup);
-  data->save(learner_name, nStep, bBackup);
+  data->save(learner_name, currStep, bBackup);
 }
 
 bool Learner::workerHasUnfinishedSeqs(const int worker) const

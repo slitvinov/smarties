@@ -18,11 +18,11 @@ protected:
                                   settings.minTotObsNum : settings.maxTotObsNum;
   const Uint ESpopSize = settings.ESpopSize;
   mutable int percData = -5;
-  Real nData_last = 0, nStep_last = 0;
   Real obsPerStep = obsPerStep_orig;
 
   Real beta = CmaxPol<=0? 1 : 0.0; // if CmaxPol==0 do naive Exp Replay
   Real CmaxRet = 1 + CmaxPol;
+  Real CinvRet = 1 / CmaxRet;
 
   const FORGET ERFILTER =
     MemoryBuffer::readERfilterAlgo(settings.ERoldSeqFilter, CmaxPol>0);
@@ -37,6 +37,7 @@ public:
   void spawnTrainTasks_seq() override;
   void spawnTrainTasks_par() override;
   virtual void applyGradient() override;
+  virtual void prepareGradient() override;
   bool bNeedSequentialTrain() override;
   virtual void initializeLearner() override;
   void save() override;

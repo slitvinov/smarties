@@ -46,15 +46,14 @@ bool Learner_offPolicy::lockQueue() const
   if( not readyForTrain() ) return false;
 
   //const Real _nData = (Real)data->readNConcluded() - nData_b4Startup;
-  const Real _nData = data->readNSeen() - nData_b4Startup;
-  const Real dataCounter = _nData - (Real)nData_last;
-  const Real stepCounter =  nStep - (Real)nStep_last;
+  const long int mynData = data->readNSeen() - nData_b4Startup.load();
+  const long int mynStep = nStep() - nStep_b4Startup.load();
   // Lock the queue if we have !added to the training set! more observations
   // than (grad_step * obsPerStep) or if the update is ready.
   // The distinction between "added to set" and "observed" allows removing
   // some load inbalance, with only has marginal effects on algorithms.
   // Load imb. is reduced by minimizing pauses in either data or grad stepping.
-  const bool tooMuchData = dataCounter > stepCounter*obsPerStep;
+  const bool tooMuchData = mynData > mynStep*obsPerStep;
   return tooMuchData;
 }
 
@@ -87,29 +86,23 @@ void Learner_offPolicy::spawnTrainTasks_par()
   }
   if(not bSampleSequences) nAddedGradients = ESpopSize * batchSize;
 
-  #pragma omp parallel num_threads(nThreads)
-  #pragma omp single nowait
-  for (Uint wID=0; wID<ESpopSize; wID++)
-    for (Uint i=0; i<batchSize; i++)
-    {
-      const Uint seq = samp_seq[i], obs = samp_obs[i];
-      //printf("Thread %d done %u %u %f\n",thrID,seq,obs,data->Set[seq]->offPolicImpW[obs]); fflush(0);
-      if(bSampleSequences) {
-        #pragma omp task firstprivate(seq, wID)
-        {
-          const Uint thrID = omp_get_thread_num();
-          TrainBySequences(seq, thrID, wID);
-          input->gradient(thrID);
-        }
-      } else {
-        #pragma omp task firstprivate(obs, seq, wID)
-        {
-          const Uint thrID = omp_get_thread_num();
-          Train(seq, obs, thrID, wID);
-          input->gradient(thrID);
-        }
+  if(bSampleSequences) {
+  #pragma omp parallel for collapse(2) schedule(dynamic) num_threads(nThreads)
+    for (Uint wID=0; wID<ESpopSize; wID++)
+      for (Uint i=0; i<batchSize; i++) {
+        const Uint thrID = omp_get_thread_num();
+        TrainBySequences(samp_seq[i], thrID, wID);
+        input->gradient(thrID);
       }
-    }
+  } else {
+  #pragma omp parallel for collapse(2) schedule(static, 1) num_threads(nThreads)
+    for (Uint wID=0; wID<ESpopSize; wID++)
+      for (Uint i=0; i<batchSize; i++) {
+        const Uint thrID = omp_get_thread_num();
+        Train(samp_seq[i], samp_obs[i], thrID, wID);
+        input->gradient(thrID);
+      }
+  }
 
   for(Uint i=0;i<batchSize;i++) data->Set[samp_seq[i]]->setSampled(samp_obs[i]);
   profiler->stop_start("SLP");
@@ -119,9 +112,11 @@ void Learner_offPolicy::spawnTrainTasks_par()
 bool Learner_offPolicy::bNeedSequentialTrain() {return false;}
 void Learner_offPolicy::spawnTrainTasks_seq() { }
 
-void Learner_offPolicy::applyGradient()
+void Learner_offPolicy::prepareGradient()
 {
-  const auto currStep = nStep+1; // base class will advance this with this func
+  Learner::prepareGradient();
+
+  const Uint currStep = nStep()+1; //base class will advance this with this func
   if(updateToApply)
   {
     debugL("Prune the Replay Memory for old/stale episodes, advance counters");
@@ -129,10 +124,6 @@ void Learner_offPolicy::applyGradient()
     profiler->stop_start("PRNE");
     //shift data / gradient counters to maintain grad stepping to sample
     // collection ratio prescirbed by obsPerStep
-    const Real stepCounter = currStep - (Real)nStep_last;
-    assert(std::fabs(stepCounter-1) < nnEPS);
-    nData_last += stepCounter*obsPerStep;
-    nStep_last = currStep;
 
     if(CmaxPol>0) // assume ReF-ER
     {
@@ -140,6 +131,7 @@ void Learner_offPolicy::applyGradient()
         die("ReFER and Prioritized ER are incompatible. Set CmaxPol to 0");
       #endif
       CmaxRet = 1 + annealRate(CmaxPol, currStep, epsAnneal);
+      CinvRet = 1 / CmaxRet;
       if(CmaxRet<=1) die("Either run lasted too long or epsAnneal is wrong.");
       data->prune(ERFILTER, CmaxRet);
       Real fracOffPol = data->nOffPol / (Real) data->readNData();
@@ -166,6 +158,16 @@ void Learner_offPolicy::applyGradient()
       data->prune(ERFILTER);
     }
   }
+}
+
+void Learner_offPolicy::applyGradient()
+{
+  const Uint currStep = nStep()+1; //base class will advance this with this func
+  if(updateToApply)
+  {
+    debugL("Finalize pruning of dataset");
+    data->finalize();
+  }
   else
   {
     if( not readyForTrain() ) die("undefined behavior");
@@ -175,7 +177,7 @@ void Learner_offPolicy::applyGradient()
     // gathering new data enabling training to continue ( after workers.join() )
     // Therefore we should shift these counters to restart gradient stepping:
     nData_b4Startup = data->readNConcluded();
-    nData_last = 0;
+    nStep_b4Startup = nStep();
   }
 
   if( readyForTrain() )
@@ -198,18 +200,19 @@ void Learner_offPolicy::applyGradient()
 
 void Learner_offPolicy::initializeLearner()
 {
+  const Uint currStep = nStep();
   if ( not readyForTrain() ) die("undefined behavior");
-  if ( nStep > 0 ) {
+  if ( currStep > 0 ) {
     warn("Skipping initialization for restartd learner.");
     return;
   }
   // shift counters after initial data is gathered
   nData_b4Startup = data->readNConcluded();
-  nData_last = 0;
+  nStep_b4Startup = currStep;
 
   debugL("Compute state/rewards stats from the replay memory");
   profiler->stop_start("PRE");
-  data->updateRewardsStats(nStep, 1, 1);
+  data->updateRewardsStats(currStep, 1, 1);
   if( learn_rank == 0 )
     cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
 
@@ -218,13 +221,14 @@ void Learner_offPolicy::initializeLearner()
 
 void Learner_offPolicy::save()
 {
+  const long int currStep = nStep()+1;
   Learner::save();
   static constexpr Real freqSave = 1000*PRFL_DMPFRQ;
   const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
-  const bool bBackup = nStep % freqBackup == 0;
+  const bool bBackup = currStep % freqBackup == 0;
   if(not bBackup) return;
 
-  ostringstream ss; ss << std::setw(9) << std::setfill('0') << nStep;
+  ostringstream ss; ss << std::setw(9) << std::setfill('0') << currStep;
   FILE* f = fopen((learner_name+ss.str()+"_learner.raw").c_str(), "wb");
   Uint val;
   val = data->Set.size(); fwrite(&val, sizeof(Uint), 1, f);
@@ -234,10 +238,7 @@ void Learner_offPolicy::save()
   val = data->nSeenTransitions.load(); fwrite(&val, sizeof(Uint), 1, f);
   val = data->nCmplTransitions.load(); fwrite(&val, sizeof(Uint), 1, f);
   val = data->iOldestSaved.load(); fwrite(&val, sizeof(Uint), 1, f);
-  fwrite(&nData_b4Startup, sizeof(Uint), 1, f);
-  fwrite(&nData_last, sizeof(Real), 1, f);
-  fwrite(&nStep_last, sizeof(Real), 1, f);
-  fwrite(&nStep, sizeof(Uint), 1, f);
+  fwrite(&currStep, sizeof(long int), 1, f);
   fwrite(&beta, sizeof(Real), 1, f);
   fwrite(&CmaxRet, sizeof(Real), 1, f);
 
@@ -262,14 +263,14 @@ void Learner_offPolicy::restart()
   if(fread(&val,sizeof(Uint),1,f) != 1) die(""); data->nSeenTransitions = val;
   if(fread(&val,sizeof(Uint),1,f) != 1) die(""); data->nCmplTransitions = val;
   if(fread(&val,sizeof(Uint),1,f) != 1) die(""); data->iOldestSaved = val;
-  if(fread(&nData_b4Startup, sizeof(Uint), 1, f) != 1) die("");
-  if(fread(&nData_last,      sizeof(Real), 1, f) != 1) die("");
-  if(fread(&nStep_last,      sizeof(Real), 1, f) != 1) die("");
-  if(fread(&nStep,           sizeof(Uint), 1, f) != 1) die("");
+
+  long int cnter;
+  if(fread(&cnter, sizeof(long int), 1, f) != 1) die(""); _nStep = cnter;
+  if(input->opt not_eq nullptr) input->opt->nStep = cnter;
+  for(auto & net : F) net->opt->nStep = cnter;
+
   if(fread(&beta,            sizeof(Real), 1, f) != 1) die("");
   if(fread(&CmaxRet,         sizeof(Real), 1, f) != 1) die("");
-  if(input->opt not_eq nullptr) input->opt->nStep = nStep;
-  for(auto & net : F) net->opt->nStep = nStep;
 
   for(Uint i = 0; i < data->Set.size(); i++) {
     assert(data->Set[i] == nullptr);
