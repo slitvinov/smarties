@@ -175,9 +175,6 @@ bool Learner::predefinedNetwork(Builder& input_net, Uint privateNum)
   return ret;
 }
 
-void Learner::getMetrics(ostringstream& buff) {}
-void Learner::getHeaders(ostringstream& buff) {}
-
 //bool Learner::predefinedNetwork(Builder & input_net)
 //{
 //  return false;

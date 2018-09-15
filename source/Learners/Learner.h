@@ -44,8 +44,6 @@ protected:
   mutable std::mutex buffer_mutex;
 
   virtual void processStats();
-  virtual void getMetrics(ostringstream& buff);
-  virtual void getHeaders(ostringstream& buff);
 
 public:
   Profiler* profiler = nullptr;

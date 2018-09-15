@@ -39,7 +39,6 @@ void Master::run()
     for(int i=1; i<=nWorkers; i++)
       worker_replies.push_back(std::thread([&, i]() { processWorker(i); }));
     while ( ! learnersLockQueue() ) usleep(5);
-    cout << "learnersLockQueue" << endl; fflush(0);
   }
   if( not bTrain ) return;
 

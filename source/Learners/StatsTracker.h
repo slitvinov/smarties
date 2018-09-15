@@ -312,11 +312,13 @@ struct StatsTracker
       }
       //else printf("Not cut\n");
     }
-    #pragma omp atomic
-    //numCut += ret;
-    numCut += change;
-    #pragma omp atomic
-    numTot += n_stats;
+    //if(grad_cut_fac >= 1) {
+      //#pragma omp atomic
+      //numCut += ret;
+      //numCut += change;
+      //#pragma omp atomic
+      //numTot += n_stats;
+    //}
   }
 
   inline void advance()

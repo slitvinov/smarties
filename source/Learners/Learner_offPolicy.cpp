@@ -281,3 +281,10 @@ void Learner_offPolicy::restart()
       _die("Unable to find sequence %u\n", i);
   }
 }
+
+void Learner_offPolicy::getMetrics(ostringstream& buff) const {
+  real2SS(buff, alpha, 6, 1); real2SS(buff, beta, 6, 1);
+}
+void Learner_offPolicy::getHeaders(ostringstream& buff) const {
+  buff << "| alph | beta ";
+}
