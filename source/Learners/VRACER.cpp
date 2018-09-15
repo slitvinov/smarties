@@ -54,7 +54,7 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
     advs[bID][wID] = A_RET;
     dkls[bID][wID] = P.sampKLdiv;
     rhos[bID][wID] = P.sampImpWeight;
-    if( wID == 0 ) trainInfo->log(Vcur, D_RET, {beta, deltaD, W}, thrID);
+    if( wID == 0 ) trainInfo->log(Vcur, D_RET, {deltaD, W}, thrID);
   }
   else
   {
@@ -65,7 +65,7 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
       const Rvec policyG = P.policy_grad(P.sampAct, A_RET * W);
       const Rvec penalG  = P.div_kl_grad(S->tuples[t]->mu, -1);
       P.finalize_grad(weightSum2Grads(policyG, penalG, beta), G);
-      trainInfo->log(Vcur, D_RET, policyG, penalG, {beta, deltaD, W}, thrID);
+      trainInfo->log(Vcur, D_RET, policyG, penalG, {deltaD, W}, thrID);
     }
     if(thrID==0)  profiler->stop_start("BCK");
     F[0]->backward(0, G, t, thrID);
@@ -142,9 +142,11 @@ void VRACER<Policy_t, Action_t>::prepareGradient()
 {
   for (Uint w=0; w<ESpopSize; w++) for (Uint b=0; b<batchSize; b++) {
     const Real clipRho = std::max(1/CmaxRet, std::min(rhos[b][w], CmaxRet));
+    const Real rAdv = - clipRho * advs[b][0]; //minus: to maximize advantage
     const Real DVret = std::pow(std::min((Real)1,rhos[b][0]) * advs[b][w], 2);
-    const Real loss = beta*(.5*DVret -clipRho*advs[b][0]) + (1-beta)*dkls[b][w];
+    const Real loss = alpha*(beta*rAdv +(1-beta)*dkls[b][w]) +(1-alpha)*DVret;
     F[0]->losses[0][w] += loss;
+    F[0]->nAddedGradients++;
   }
 
   Learner_offPolicy::prepareGradient();
@@ -219,7 +221,7 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
   Builder build = F[0]->buildFromSettings(_set, nouts);
   F[0]->initializeNetwork(build);
 
-  trainInfo=new TrainData("v-racer",_set,ESpopSize<2,"| beta | dAdv | avgW ",3);
+  trainInfo=new TrainData("v-racer", _set, ESpopSize<2, "| dAdv | avgW ", 2);
 }
 
 template<> VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::
@@ -243,13 +245,13 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
   #endif
 
   F.push_back(new Approximator("net", _set, input, data));
-  vector<Uint> nouts{NEXPERTS, NEXPERTS * nA};
+  vector<Uint> nouts{1, NEXPERTS, NEXPERTS * nA};
   #ifndef DACER_simpleSigma // network outputs also sigmas
     nouts.push_back(NEXPERTS * nA);
   #endif
 
   Builder build = F[0]->buildFromSettings(_set, nouts);
-  Rvec initBias;
+  Rvec initBias(1, 0); // state
   Gaussian_mixture<NEXPERTS>::setInitial_noStdev(&aInfo, initBias);
   #ifdef DACER_simpleSigma // sigma not linked to network: parametric output
     build.setLastLayersBias(initBias);
@@ -284,7 +286,7 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
     pol.test(act, mu);
   }
 
-  trainInfo=new TrainData("v-racer",_set,ESpopSize<2,"| beta | dAdv | avgW ",3);
+  trainInfo=new TrainData("v-racer", _set, ESpopSize<2, "| dAdv | avgW ", 2);
 }
 
 

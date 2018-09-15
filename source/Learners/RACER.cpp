@@ -120,9 +120,9 @@ compute(Sequence*const traj, const Uint samp, const Rvec& outVec,
   const Real dAdv = updateQret(traj, samp, A_cur, V_cur, POL);
   // compute the gradient:
   Rvec gradient = Rvec(F[0]->nOutputs(), 0);
-  gradient[VsID] = beta*alpha * Ver;
+  gradient[VsID] = beta * Ver;
   POL.finalize_grad(finalG, gradient);
-  ADV.grad(POL.sampAct, beta*alpha * Aer, gradient);
+  ADV.grad(POL.sampAct, beta * Aer, gradient);
   traj->setMseDklImpw(samp, Ver*Ver, dkl, rho); // update ER metrics of sample
   // logging for diagnostics:
   trainInfo->log(V_cur+A_cur, A_RET-A_cur, polG,penalG, {beta,dAdv,rho}, thrID);

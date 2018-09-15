@@ -13,7 +13,6 @@
 CMA_Optimizer::CMA_Optimizer(Settings&S, const Parameters*const W,
   const Parameters*const WT, const vector<Parameters*>&G) : Optimizer(S, W, WT),
   sampled_weights(G) {
-  cout << mu_eff << endl;
   diagCov->set(1);
   pathSig->set(0);
   std::vector<unsigned long> seed(3*pop_size) ;
@@ -117,24 +116,14 @@ void CMA_Optimizer::apply_update()
   nnReal * const C = pathSig->params;
   nnReal * const S = diagCov->params;
 
-  Real sumSS = 0, sumCC = 0;
   const nnReal updSigP = std::sqrt(c_sig * (2-c_sig) * mu_eff);
-  #pragma omp parallel for simd schedule(static) reduction(+ : sumSS, sumCC)
-  for(Uint w=0; w<pDim; w++) {
-    C[w] = (1-c_sig)*C[w] + updSigP*A[w];
-    sumCC += C[w] * C[w]; sumSS += S[w];
-  }
-
-  //const nnReal updSigm = c_sig / ( 1 + c_sig );
-  //const nnReal updNormSigm = std::sqrt( sumCC / pDim ) / (1 - 0.25/pDim);
-  //sigma *= std::exp( updSigm * ( updNormSigm - 1 ) );
-  //sigma = std::min( sigma, (nnReal) eta );
-  const nnReal alph = std::sqrt( 1 - c1cov ) * pDim / sumSS;
-  const nnReal beta = ( std::sqrt( 1 + sumCC*c1cov/(1-c1cov) ) - 1 )/sumCC;
   #pragma omp parallel for simd schedule(static)
-  for(Uint w=0; w<pDim; w++) S[w] = alph*S[w]*(1 + beta*C[w]*C[w]);
+  for(Uint w=0; w<pDim; w++)  C[w] = (1-c_sig)*C[w] + updSigP*A[w];
 
-  if((nStep%1000)==0) cout<<sigma<<" "<<sumCC<<" "<<sumSS<<endl;
+  #pragma omp parallel for simd schedule(static)
+  for(Uint w=0; w<pDim; w++) 
+    S[w] = S[w]*std::sqrt(1-c1cov + c1cov*std::max(C[w]*C[w], nnEPS));
+
   initializeGeneration();
 }
 

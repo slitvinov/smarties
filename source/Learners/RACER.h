@@ -34,8 +34,6 @@ class RACER : public Learner_offPolicy
   const Uint nL = Advantage_t::compute_nL(&aInfo);
 
   // tgtFrac_param: target fraction of off-pol samples
-  // alpha: weight of value-update relative to policy update. 1 means equal
-  const Real alpha=1;
 
   // indices identifying number and starting position of the different output // groups from the network, that are read by separate functions
   // such as state value, policy mean, policy std, adv approximator

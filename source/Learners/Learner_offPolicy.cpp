@@ -150,8 +150,10 @@ void Learner_offPolicy::prepareGradient()
           die("If skipping it must be 1st step, with nothing far policy");
       }
 
-      if(fracOffPol>ReFtol) beta = (1-learnR)*beta; // iter converges to 0
-      else beta = learnR +(1-learnR)*beta; //fixed point iter converge to 1
+      if(fracOffPol>ReFtol) beta = (1-1e-4)*beta; // iter converges to 0
+      else beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
+      if(std::pow(ReFtol-fracOffPol,2)<0.0025) alpha = (1-1e-4)*alpha;
+      else alpha = 1e-4 + (1-1e-4)*alpha;
     }
     else
     {

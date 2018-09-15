@@ -21,8 +21,6 @@ class ACER : public Learner_offPolicy
   //const Real acerTrickPow = 1. / nA;
   static constexpr Uint nAexpectation = 5;
   static constexpr Real facExpect = 1./nAexpectation;
-  static constexpr Real alpha = 1.0;
-  //const Real alpha = 0.1;
   Aggregator* relay = nullptr;
 
   inline Policy_t prepare_policy(const Rvec& out,

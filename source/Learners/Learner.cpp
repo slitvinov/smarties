@@ -94,7 +94,7 @@ void Learner::processStats()
   const Uint currStep = nStep()+1;
 
   ostringstream buf;
-  data->getMetrics(buf);
+  data->getMetrics(buf); getMetrics(buf);
   if(trainInfo not_eq nullptr) trainInfo->getMetrics(buf);
   input->getMetrics(buf);
   for(auto & net : F) net->getMetrics(buf);
@@ -105,7 +105,7 @@ void Learner::processStats()
 
   ostringstream head;
   if( currStep%(1000*PRFL_DMPFRQ)==0 || currStep==1000 ) {
-    data->getHeaders(head);
+    data->getHeaders(head); getHeaders(head);
     if(trainInfo not_eq nullptr) trainInfo->getHeaders(head);
     input->getHeaders(head);
     for(auto & net : F) net->getHeaders(head);
@@ -174,6 +174,9 @@ bool Learner::predefinedNetwork(Builder& input_net, Uint privateNum)
   settings.nnl6 = sizeOrig.size() > 5? sizeOrig[5] : 0;
   return ret;
 }
+
+void Learner::getMetrics(ostringstream& buff) {}
+void Learner::getHeaders(ostringstream& buff) {}
 
 //bool Learner::predefinedNetwork(Builder & input_net)
 //{

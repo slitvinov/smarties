@@ -20,6 +20,7 @@ protected:
   mutable int percData = -5;
   Real obsPerStep = obsPerStep_orig;
 
+  Real alpha = 0.5; // weight between critic and policy
   Real beta = CmaxPol<=0? 1 : 0.0; // if CmaxPol==0 do naive Exp Replay
   Real CmaxRet = 1 + CmaxPol;
   Real CinvRet = 1 / CmaxRet;
