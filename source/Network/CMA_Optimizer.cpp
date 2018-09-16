@@ -13,7 +13,7 @@
 CMA_Optimizer::CMA_Optimizer(Settings&S, const Parameters*const W,
   const Parameters*const WT, const vector<Parameters*>&G) : Optimizer(S, W, WT),
   sampled_weights(G) {
-  diagCov->set(1);
+  diagCov->set(0);
   pathSig->set(0);
   std::vector<unsigned long> seed(3*pop_size) ;
   std::generate(seed.begin(), seed.end(), [&](){return S.generators[0]();});
@@ -46,7 +46,7 @@ void CMA_Optimizer::initializeGeneration() const {
     nnReal* const X = sampled_weights[i]->params;
     for(Uint w=0; w<pDim; w++) {
       Z[w] = gen.f_mean0_var1();
-      X[w] = M[w] + sigma * S[w] * Z[w];
+      X[w] = M[w] + sigma * (1+S[w]) * Z[w];
     }
   }
   #else
@@ -59,8 +59,8 @@ void CMA_Optimizer::initializeGeneration() const {
     nnReal* const X2 = sampled_weights[i+1]->params;
     for(Uint w=0; w<pDim; w++) {
       Z1[w] = gen.f_mean0_var1(); Z2[w] = -Z1[w];
-      X1[w] = M[w] + sigma * S[w] * Z1[w];
-      X2[w] = M[w] + sigma * S[w] * Z2[w];
+      X1[w] = M[w] + sigma * (1+S[w]) * Z1[w];
+      X2[w] = M[w] + sigma * (1+S[w]) * Z2[w];
     }
   }
   #endif
@@ -114,16 +114,16 @@ void CMA_Optimizer::apply_update()
   }
 
   nnReal * const C = pathSig->params;
-  nnReal * const S = diagCov->params;
-
   const nnReal updSigP = std::sqrt(c_sig * (2-c_sig) * mu_eff);
   #pragma omp parallel for simd schedule(static)
   for(Uint w=0; w<pDim; w++)  C[w] = (1-c_sig)*C[w] + updSigP*A[w];
 
+  nnReal * const S = diagCov->params;
   #pragma omp parallel for simd schedule(static)
-  for(Uint w=0; w<pDim; w++) 
-    S[w] = S[w]*std::sqrt(1-c1cov + c1cov*std::max(C[w]*C[w], nnEPS));
-
+  for(Uint w=0; w<pDim; w++) {
+    const nnReal alpha = c1cov * std::max(C[w]*C[w], nnEPS) - c1cov;
+    S[w] = S[w] * (1 + alpha) + alpha;
+  }
   initializeGeneration();
 }
 
