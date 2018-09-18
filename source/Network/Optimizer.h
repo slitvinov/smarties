@@ -36,7 +36,7 @@ class Optimizer
   virtual void save(const string fname, const bool bBackup) = 0;
   virtual int restart(const string fname) = 0;
 
-  virtual void prepare_update(const int BS, const vector<Rvec>&L) = 0;
+  virtual void prepare_update(const int BS, const Rvec&L) = 0;
   virtual void apply_update() = 0;
 };
 
@@ -72,7 +72,7 @@ class AdamOptimizer : public Optimizer
    _dispose_object(_2ndMom); _dispose_object(_2ndMax);
   }
 
-  void prepare_update(const int BS, const vector<Rvec>&L) override;
+  void prepare_update(const int BS, const Rvec& L) override;
   void apply_update() override;
 
   void save(const string fname, const bool bBackup) override;

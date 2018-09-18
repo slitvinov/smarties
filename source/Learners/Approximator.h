@@ -63,7 +63,7 @@ struct Approximator
 
   // For CMAES based optimization. Keeps track of total loss associate with
   // Each weight vector sample:
-  mutable vector<Rvec> losses = vector<Rvec>(nThreads, Rvec(ESpopSize, 0));
+  mutable Rvec losses = Rvec(ESpopSize, 0);
 
   Approximator(const string _name, Settings& S, Encapsulator*const en,
     MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
@@ -116,8 +116,7 @@ struct Approximator
   Rvec relay_backprop(const Rvec grad, const Uint samp, const Uint thrID,
     const bool bUseTargetWeights = false) const;
 
-  void backward(const Real error, const Rvec grad, const Uint samp,
-    const Uint thrID, const int USE_ACT=0) const;
+  void backward(Rvec grad, const Uint samp, const Uint thrID, const int USE_ACT=0) const;
 
   void gradient(const Uint thrID) const;
 

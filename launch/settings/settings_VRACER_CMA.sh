@@ -6,7 +6,7 @@ SETTINGS+=" --gamma 0.995 --samplesFile 1"
 
 #size of network layers
 SETTINGS+=" --nnl1 64"
-#SETTINGS+=" --nnl2 64"
+SETTINGS+=" --nnl2 64"
 #SETTINGS+=" --nnl3 128"
 
 # Activation functions:
@@ -35,16 +35,16 @@ SETTINGS+=" --totNumSteps 50000000"
 SETTINGS+=" --clipImpWeight 2"
 
 # Annealing factor for impWeight and learn rate -> 1/(1+epsAnneal*fac)
-#SETTINGS+=" --epsAnneal 0"
+SETTINGS+=" --epsAnneal 0"
 
 # Here, fraction of far pol samples allowed in memory buffer
-SETTINGS+=" --penalTol 0.05"
+SETTINGS+=" --penalTol 0.1"
 
 #Here is unused. Used for target network soft update
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 64"
-SETTINGS+=" --ESpopSize 65"
+SETTINGS+=" --batchSize 240"
+SETTINGS+=" --ESpopSize 48"
 #Whether to train based on sampling sequences. Best not to.
 SETTINGS+=" --bSampleSequences 0"
 #network update learning rate

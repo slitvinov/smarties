@@ -10,11 +10,7 @@
 #include "../Network/Builder.h"
 #include <chrono>
 
-Learner::Learner(Environment*const _env, Settings& _s): settings(_s), env(_env),
-totNumSteps(_s.totNumSteps), policyVecDim(_s.policyVecDim), nAgents(_s.nAgents),
-batchSize(_s.batchSize), nThreads(_s.nThreads), nWorkers(_s.nWorkers),
-CmaxPol(_s.clipImpWeight), ReFtol(_s.penalTol), learnR(_s.learnrate),
-gamma(_s.gamma), explNoise(_s.explNoise), epsAnneal(_s.epsAnneal)
+Learner::Learner(Environment*const _env, Settings& _s): settings(_s), env(_env)
 {
   if(bSampleSequences) printf("Sampling sequences.\n");
   data = new MemoryBuffer(env, _s);
@@ -70,8 +66,7 @@ void Learner::applyGradient()
 
   if(currStep%(1000*PRFL_DMPFRQ)==0 && learn_rank==0)
   {
-    profiler->printSummary();
-    profiler->reset();
+    cout << profiler->printStatAndReset() << endl;
     save();
   }
 

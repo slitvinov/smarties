@@ -55,25 +55,6 @@ inline vector<nnReal*> allocate_vec(vector<Uint> _sizes)
   #define PRELU_FAC 1
 #endif
 
-inline vector<nnReal> initializePopWeights(const Uint popsz) {
-  vector<nnReal> ret(popsz); nnReal sum = 0;
-  for(Uint i=0; i<popsz; i++) {
-    ret[i] = std::max( std::log(0.5*(popsz+1)) - std::log(i+1.), 0.0 );
-    sum += ret[i];
-  }
-  for(Uint i=0; i<popsz; i++) ret[i] /= sum;
-  return ret;
-}
-
-inline Real initializeMuEff(const vector<nnReal> popW, const Uint popsz) {
-  Real sum = 0, sumsq = 0;
-  for(Uint i=0; i<popsz; i++) {
-    sumsq += popW[i] * popW[i];
-    sum += popW[i];
-  }
-  return sum * sum / sumsq;
-}
-
 inline nnReal nnSafeExp(const nnReal val) {
     return std::exp( std::min((nnReal)EXP_CUT, std::max(-(nnReal)EXP_CUT, val) ) );
 }

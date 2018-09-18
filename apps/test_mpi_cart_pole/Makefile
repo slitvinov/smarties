@@ -3,7 +3,7 @@
 SMARTIESDIR = ../../source/Communicators/
 #CPPFLAGS+= -fsanitize=address
 #LIBS += -fsanitize=address
-CPPFLAGS += -I$(SMARTIESDIR)
+CPPFLAGS += -I$(SMARTIESDIR) -std=c++14
 VPATH := $(VPATH):$(SMARTIESDIR)
 
 app: cart-pole.o Communicator.o

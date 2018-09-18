@@ -32,7 +32,7 @@ struct Encapsulator
 
   // For CMAES based optimization. Keeps track of total loss associate with
   // Each weight vector sample:
-  mutable vector<Rvec> losses = vector<Rvec>(nThreads, Rvec(ESpopSize, 0));
+  mutable Rvec losses = Rvec(ESpopSize, 0);
 
   mutable std::atomic<Uint> nAddedGradients{0};
   Uint nReducedGradients = 0;
@@ -134,8 +134,7 @@ struct Encapsulator
     return net->predict(state2Inp(samp, thrID), act[ind], W);
   }
 
-  inline void backward(const Rvec&error, const Uint samp,
-    const Uint thrID) const
+  inline void backward(const Rvec&error, const Uint samp, const Uint thrID) const
   {
     if(net == nullptr) return;
     if(ESpopSize>1) die("should be impossible");
@@ -157,7 +156,7 @@ struct Encapsulator
     //if(nAddedGradients>batchSize) die("weird");
 
     opt->prepare_update(batchSize, losses);
-    losses = vector<Rvec>(nThreads, Rvec(ESpopSize, 0));
+    losses = Rvec(ESpopSize, 0);
     nReducedGradients = 1;
     nAddedGradients = 0;
   }

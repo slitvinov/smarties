@@ -178,7 +178,7 @@ Rvec Approximator::getOutput(const Rvec inp, const int ind,
   return ret;
 }
 
-void Approximator::backward(const Real error, const Rvec grad, const Uint samp,
+void Approximator::backward(const Rvec grad, const Uint samp,
   const Uint thrID, const int USE_ACT) const
 {
   if(USE_ACT>0) assert( (Uint) USE_ACT <= extraAlloc );
@@ -200,12 +200,11 @@ void Approximator::backward(const Real error, const Rvec grad, const Uint samp,
   //ind+1 because we use c-style for loops in other places:
   error_placements[thrID] = std::max(ind+1, error_placements[thrID]);
 
-  if(ESpopSize > 1) losses[thrID][thread_Wind[thrID]] += error;
-  else {
-    const auto& act = USE_ACT>=0? series[netID] :series_tgt[thrID];
-    assert(act[ind]->written);
-    act[ind]->addOutputDelta(grad);
-  }
+  if(ESpopSize > 1) debugL("Skipping backward because we use ES.");
+
+  const auto& act = USE_ACT>=0? series[netID] :series_tgt[thrID];
+  assert(act[ind]->written);
+  act[ind]->addOutputDelta(grad);
 }
 
 void Approximator::gradient(const Uint thrID) const {
@@ -215,7 +214,7 @@ void Approximator::gradient(const Uint thrID) const {
 
   if(ESpopSize > 1)
   {
-    debugL("Skipping backprop because we use ES (derivative-free) optimizers.");
+    debugL("Skipping gradient because we use ES (derivative-free) optimizers.");
   }
   else
   {
@@ -247,12 +246,11 @@ void Approximator::prepareUpdate(const Uint batchSize)
   //if(nAddedGradients>batchSize) die("weird");
 
   if(input->net not_eq nullptr and not blockInpGrad) {
-    for(Uint j=0; j<nThreads; j++)
-      for(int i=0; i<ESpopSize; i++) input->losses[j][i] += losses[j][i];
+    for(int i=0; i<ESpopSize; i++) input->losses[i] += losses[i];
   }
 
   opt->prepare_update(batchSize, losses);
-  losses = vector<vector<Real>>(nThreads, vector<Real>(ESpopSize, 0));
+  losses = Rvec(ESpopSize, 0);
   reducedGradients = 1;
   nAddedGradients = 0;
 }

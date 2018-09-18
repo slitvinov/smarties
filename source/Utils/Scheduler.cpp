@@ -53,7 +53,7 @@ void Master::run()
     if(bNeedSequentialTasks) {
       profiler->stop_start("SLP");
       // typically on-policy learning. Wait for all needed data:
-      while ( ! learnersLockQueue() ) usleep(5);
+      while ( ! learnersLockQueue() ) usleep(1);
       // and then perform on-policy update step(s):
       for(const auto& L : learners) L->spawnTrainTasks_seq();
     }
@@ -63,7 +63,7 @@ void Master::run()
     if(not bNeedSequentialTasks) {
       profiler->stop_start("SLP");
       //for off-policy learners this is last possibility to wait for needed data
-      while ( ! learnersLockQueue() ) usleep(5);
+      while ( ! learnersLockQueue() ) { usleep(1); }
     }
 
     if(iterNum++ % 1000 == 0) flushRewardBuffer();

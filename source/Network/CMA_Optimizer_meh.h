@@ -18,13 +18,17 @@ class CMA_Optimizer : public Optimizer
   const vector<nnReal> popWeights = initializePopWeights(pop_size);
   const nnReal mu_eff = initializeMuEff(popWeights, pop_size);
   const nnReal sumW = initializeSumW(popWeights, pop_size);
-  const nnReal c1cov = 1e-4;
+  const nnReal c_sig = 1e-4; //(2 + mu_eff) / (5 + mu_eff + pDim);
+  //const nnReal cpath = 0.0100; //(4 + mu_eff/pDim)/(pDim +4 +2*mu_eff/pDim);
+  const nnReal c1cov = 1e-6; //2 / (mu_eff + (pDim+1.3)*(pDim+1.3) );
+  nnReal anneal = std::pow( 1 - c_sig, 2 );
 
   const vector<Parameters*> sampled_weights;
   const vector<Parameters*> popNoiseVectors = initWpop(weights, pop_size);
+  const Parameters * const avgNois = weights->allocateGrad();
   const Parameters * const momNois = weights->allocateGrad();
-  const Parameters * const diagPos = weights->allocateGrad();
-  const Parameters * const diagNeg = weights->allocateGrad();
+  const Parameters * const pathCov = weights->allocateGrad();
+  const Parameters * const diagCov = weights->allocateGrad();
 
   vector<Saru *> generators;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
@@ -33,13 +37,14 @@ class CMA_Optimizer : public Optimizer
   void initializeGeneration() const;
 
  public:
+  nnReal sigma = 1e-2;
 
   CMA_Optimizer(Settings&S, const Parameters*const W, const Parameters*const WT,
     const vector<Parameters*>&G);
 
   ~CMA_Optimizer();
 
-  void prepare_update(const int BS, const Rvec& L) override;
+  void prepare_update(const int BS, const vector<Rvec>& L) override;
   void apply_update() override;
 
   void save(const string fname, const bool bBackup) override;

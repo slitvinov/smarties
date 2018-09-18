@@ -147,7 +147,7 @@ public:
     return seq->tuples[samp]->r * invstd_reward;
   }
 
-  void add_action(const Agent& a, Rvec pol) const;
+  void add_action(const Agent& a, Rvec pol);
   void terminate_seq(Agent&a);
   void add_state(const Agent&a);
 

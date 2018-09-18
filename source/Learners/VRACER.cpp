@@ -67,12 +67,10 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
       P.finalize_grad(weightSum2Grads(policyG, penalG, beta), G);
       trainInfo->log(Vcur, D_RET, policyG, penalG, {deltaD, W}, thrID);
     }
-    if(thrID==0)  profiler->stop_start("BCK");
-    F[0]->backward(0, G, t, thrID);
+    if(thrID==0) profiler->stop_start("BCK");
+    F[0]->backward(G, t, thrID);
     F[0]->gradient(thrID);  // backprop
   }
-
-  if(thrID==0)  profiler->stop_start("SLP");
 }
 
 template<typename Policy_t, typename Action_t>
@@ -140,13 +138,19 @@ void VRACER<Policy_t, Action_t>::writeOnPolRetrace(Sequence*const seq) const
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::prepareGradient()
 {
-  for (Uint w=0; w<ESpopSize; w++) for (Uint b=0; b<batchSize; b++) {
-    const Real clipRho = std::max(1/CmaxRet, std::min(rhos[b][w], CmaxRet));
-    const Real rAdv = - clipRho * advs[b][0]; //minus: to maximize advantage
-    const Real DVret = std::pow(std::min((Real)1,rhos[b][0]) * advs[b][w], 2);
+  if(updateComplete) {
+   profiler->stop_start("LOSS");
+   for (Uint w=0; w<ESpopSize; w++) for (Uint b=0; b<batchSize; b++) {
+    const Real W = rhos[b][w], W0 = rhos[b][0], A = advs[b][w], A0 = advs[b][0];
+    const long double clipRho = std::max(1/CmaxRet, std::min(W, CmaxRet));
+    const Real B = std::pow( std::log(clipRho) * (1/std::log(CmaxRet)), 2*nA);
+    const Real onPolAdv = B * A0 + (1-B) * A;
+    const Real rAdv = - clipRho * A0; //minus: to maximize advantage
+    const Real DVret = std::pow( std::min((Real)1, W0) * onPolAdv, 2);
     const Real loss = alpha*(beta*rAdv +(1-beta)*dkls[b][w]) +(1-alpha)*DVret;
-    F[0]->losses[0][w] += loss;
+    F[0]->losses[w] += loss;
     F[0]->nAddedGradients++;
+   }
   }
 
   Learner_offPolicy::prepareGradient();

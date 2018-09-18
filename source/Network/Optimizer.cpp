@@ -96,7 +96,7 @@ struct Adam {
   }
 };
 
-void AdamOptimizer::prepare_update(const int BS, const vector<Rvec>&L)
+void AdamOptimizer::prepare_update(const int BS, const Rvec&L)
 {
   totGrads = BS;
   gradSum->reduceThreadsGrad(grads);

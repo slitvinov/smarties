@@ -105,7 +105,6 @@ void Learner_offPolicy::spawnTrainTasks_par()
   }
 
   for(Uint i=0;i<batchSize;i++) data->Set[samp_seq[i]]->setSampled(samp_obs[i]);
-  profiler->stop_start("SLP");
   updateComplete = true;
 }
 
@@ -152,7 +151,7 @@ void Learner_offPolicy::prepareGradient()
 
       if(fracOffPol>ReFtol) beta = (1-1e-4)*beta; // iter converges to 0
       else beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
-      if(std::pow(ReFtol-fracOffPol,2)<0.0025) alpha = (1-1e-4)*alpha;
+      if(std::fabs(ReFtol-fracOffPol)<0.01) alpha = (1-1e-4)*alpha;
       else alpha = 1e-4 + (1-1e-4)*alpha;
     }
     else

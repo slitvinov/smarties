@@ -14,28 +14,17 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 FILE=    sys.argv[1]
+#ftype=np.float64
+ftype=np.float32
+W  = np.fromfile(FILE+"weights.raw", dtype=ftype)
+M1 = np.fromfile(FILE+"diagPos.raw", dtype=ftype)
+M2 = np.fromfile(FILE+"diagNeg.raw", dtype=ftype)
 
-W  = np.fromfile(FILE+"weights.raw", dtype=np.float64)
-M1 = np.fromfile(FILE+"pathSig.raw", dtype=np.float64)
-M2 = np.fromfile(FILE+"pathCov.raw", dtype=np.float64)
-M3 = np.fromfile(FILE+"diagCov.raw", dtype=np.float64)
-
-plt.subplot(221)
-plt.semilogy(abs(W),'b.')
-plt.title('Weights')
-#plt.plot(abs(W),'b.')
-
-plt.subplot(222)
-plt.semilogy(abs(M1),'k.')
-plt.title('pathSig')
-
-plt.subplot(223)
-plt.semilogy(abs(M2), 'g.')
-#plt.semilogy(abs(M)/S,'g.')
-plt.title('pathCov')
-
-plt.subplot(224)
-plt.semilogy(abs(M3), 'g.')
-plt.title('diagCov')
+plt.subplot(311)
+plt.semilogy(np.abs(W),'k.')
+plt.subplot(312)
+plt.semilogy(M1, 'b.')
+plt.subplot(313)
+plt.semilogy(M2, 'r.')
 
 plt.show()

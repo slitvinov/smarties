@@ -252,7 +252,7 @@ struct StatsTracker
   const Uint n_stats;
   const MPI_Comm comm;
   const Uint nThreads, learn_size, learn_rank;
-  const Real grad_cut_fac, learnR;
+  const Real grad_cut_fac;
   mutable LDvec cntVec = LDvec(nThreads+1,0);
   mutable vector<LDvec> avgVec = vector<LDvec>(nThreads+1, LDvec());
   mutable vector<LDvec> stdVec = vector<LDvec>(nThreads+1, LDvec());
@@ -265,8 +265,7 @@ struct StatsTracker
 
   StatsTracker(const Uint N, const Settings& set, Real fac) :
   n_stats(N), comm(set.mastersComm), nThreads(set.nThreads),
-  learn_size(set.learner_size), learn_rank(set.learner_rank), grad_cut_fac(fac),
-  learnR(set.learnrate)
+  learn_size(set.learner_size), learn_rank(set.learner_rank), grad_cut_fac(fac)
   {
     avgVec[0].resize(n_stats, 0); stdVec[0].resize(n_stats, 10);
     instMean.resize(n_stats, 0); instStdv.resize(n_stats, 0);
@@ -373,7 +372,6 @@ struct StatsTracker
     instMean = avgVec[0];
     instStdv = stdVec[0];
     nStep++;
-    //const Real learnRate = learnR / (1 + nStep * ANNEAL_RATE);
     for (Uint i=0; i<n_stats; i++) {
       avgVec[0][i] = (1-CLIP_LEARNR)*oldM[i] +CLIP_LEARNR*avgVec[0][i];
       stdVec[0][i] = (1-CLIP_LEARNR)*oldS[i] +CLIP_LEARNR*stdVec[0][i];

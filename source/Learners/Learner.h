@@ -22,8 +22,12 @@ protected:
   const MPI_Comm mastersComm = settings.mastersComm;
 
   const bool bSampleSequences=settings.bSampleSequences, bTrain=settings.bTrain;
-  const Uint totNumSteps, policyVecDim, nAgents, batchSize, nThreads, nWorkers;
-  const Real CmaxPol, ReFtol, learnR, gamma, explNoise, epsAnneal;
+  const Uint totNumSteps=settings.totNumSteps, batchSize=settings.batchSize;
+  const Uint policyVecDim=settings.policyVecDim, nAgents=settings.nAgents;
+  const Real learnR=settings.learnrate, gamma=settings.gamma;
+  const Uint nThreads=settings.nThreads, nWorkers=settings.nWorkers;
+  const Real CmaxPol=settings.clipImpWeight, ReFtol=settings.penalTol;
+  const Real explNoise=settings.explNoise, epsAnneal=settings.epsAnneal;
   const int learn_rank=settings.learner_rank, learn_size=settings.learner_size;
   std::atomic<long int> _nStep{0};
 
