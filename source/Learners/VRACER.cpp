@@ -140,17 +140,20 @@ void VRACER<Policy_t, Action_t>::prepareGradient()
 {
   if(updateComplete) {
    profiler->stop_start("LOSS");
-   for (Uint w=0; w<ESpopSize; w++) for (Uint b=0; b<batchSize; b++) {
+   const Real invLC = 1 / std::log(CmaxRet);
+   #pragma omp parallel for schedule(static)
+   for (Uint w=0; w<ESpopSize; w++)
+   for (Uint b=0; b<batchSize; b++) {
     const Real W = rhos[b][w], W0 = rhos[b][0], A = advs[b][w], A0 = advs[b][0];
     const long double clipRho = std::max(1/CmaxRet, std::min(W, CmaxRet));
-    const Real B = std::pow( std::log(clipRho) * (1/std::log(CmaxRet)), 2*nA);
+    const Real B = std::pow( std::log(clipRho) * invLC, 2*nA);
     const Real onPolAdv = B * A0 + (1-B) * A;
     const Real rAdv = - clipRho * A0; //minus: to maximize advantage
     const Real DVret = std::pow( std::min((Real)1, W0) * onPolAdv, 2);
     const Real loss = alpha*(beta*rAdv +(1-beta)*dkls[b][w]) +(1-alpha)*DVret;
     F[0]->losses[w] += loss;
-    F[0]->nAddedGradients++;
    }
+   F[0]->nAddedGradients = ESpopSize * batchSize;
   }
 
   Learner_offPolicy::prepareGradient();
