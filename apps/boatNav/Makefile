@@ -1,6 +1,6 @@
 CC = g++
 
-OBJ_FILES = boatNav.o Communicator.o
+OBJ_FILES = boatNav.o Communicator.o odeSolve.o
 SRC_DIR = ./
 COM_DIR = ../../source/Communicators/
 VPATH := $(SRC_DIR):$(COM_DIR)
