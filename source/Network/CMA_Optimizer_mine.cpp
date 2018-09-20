@@ -13,7 +13,8 @@
 CMA_Optimizer::CMA_Optimizer(Settings&S, const Parameters*const W,
   const Parameters*const WT, const vector<Parameters*>&G) : Optimizer(S, W, WT),
   sampled_weights(G) {
-  diagCov->set(1);
+  diagPos->set(1);
+  diagNeg->set(1);
   std::vector<unsigned long> seed(3*pop_size) ;
   std::generate(seed.begin(), seed.end(), [&](){return S.generators[0]();});
   MPI_Bcast(seed.data(), 3*pop_size, MPI_UNSIGNED_LONG, 0, mastersComm);
@@ -25,15 +26,16 @@ CMA_Optimizer::CMA_Optimizer(Settings&S, const Parameters*const W,
 
 CMA_Optimizer::~CMA_Optimizer() {
   _dispose_object(momNois);
-  _dispose_object(diagCov);
-  _dispose_object(avgNois);
+  _dispose_object(diagPos);
+  _dispose_object(diagNeg);
 
  for(auto& ptr: popNoiseVectors) _dispose_object(ptr);
  for(auto& ptr: generators) _dispose_object(ptr);
 }
 
 void CMA_Optimizer::initializeGeneration() const {
-  const nnReal* const S = diagCov->params;
+  const nnReal* const S = diagPos->params;
+  const nnReal* const Z = diagNeg->params;
   const nnReal* const M = weights->params;
   const nnReal _eta = bAnnealLearnRate? annealRate(eta,nStep,epsAnneal) : eta;
 
@@ -44,11 +46,12 @@ void CMA_Optimizer::initializeGeneration() const {
     nnReal* const X = sampled_weights[i]->params;
     for(Uint w=0; w<pDim; w++) {
       #if 1
-      Y[w] = gen.f_mean0_var1();
-      X[w] = M[w] + _eta * Y[w] * S[w];
+        const nnReal eps = gen.f_mean0_var1();
+        Y[w] = eps*(eps>0)*S[w] + eps*(eps<0)*Z[w];
+        X[w] = M[w] + _eta * Y[w];
       #else
-      Y[w] = gen.f_mean0_var1() * S[w];
-      X[w] = M[w] + _eta * Y[w];
+        Y[w] = gen.f_mean0_var1();
+        X[w] = M[w] + _eta * ( Y[w]*(Y[w]>0)*S[w] + Y[w]*(Y[w]<0)*Z[w] );
       #endif
     }
   }
@@ -76,38 +79,9 @@ void CMA_Optimizer::apply_update()
   std::sort(inds.begin(), inds.end(), // is i1 before i2
        [&] (const Uint i1, const Uint i2) { return losses[i1] < losses[i2]; } );
 
-  //cout << "pre:"<< print(inds) << endl;
-  if(true) // add weight penalization to prevent drift
-  {
-    vector<nnReal> Wnorms (pop_size, 0);
-    for(Uint i=0; i<pop_size; i++) {
-      const nnReal* const X = sampled_weights[i]->params;
-      nnReal sum2 = 0;
-      #pragma omp parallel for simd schedule(static) reduction(+ : sum2)
-      for(Uint w=0; w<pDim; w++) sum2 += X[w] * X[w];
-      Wnorms[i] = sum2; // std::sqrt(sum2);
-    }
-
-    Real E2W2 = 0, EW2 = 0, E2L = 0, EL = 0; Uint cnt = 0;
-    for(Uint i=0; i<pop_size; i++) {
-      if(popWeights[i] <= 0) continue;
-      cnt ++;
-      const Uint k = inds[i];
-      E2W2 += Wnorms[k] * Wnorms[k]; EW2 += Wnorms[k];
-      E2L  += losses[k] * losses[k]; EL  += losses[k];
-    }
-    const Real nrm = 1.0/cnt;
-    const Real varW2 = nrm * (E2W2 - nrm * EW2 * EW2);
-    const Real varL  = nrm * (E2L  - nrm * EL  * EL );
-    const Real meanW2 = nrm * EW2, meanL = nrm * EL;
-    const Real nrmL = 1/std::sqrt(varL), nrmW2 = 0.1/std::sqrt(varW2);
-    for(Uint i=0; i<pop_size; i++)
-     losses[i] = nrmL * (losses[i]-meanL) + nrmW2 * (Wnorms[i] - meanW2);
-    std::sort(inds.begin(), inds.end(), // is i1 before i2
-       [&] (const Uint i1, const Uint i2) { return losses[i1] < losses[i2]; } );
-  }
-  //cout << "pst:"<< print(inds) << endl;
-
+  nnReal * const M = weights->params;
+  nnReal * const B = momNois->params;
+  nnReal * const A = avgNois->params;
   sampled_weights[0]->copy(weights); // first backup mean weights
   popNoiseVectors[0]->clear();       // sample 0 is always mean W, no noise
   weights->clear(); // prepare for reduction
@@ -119,51 +93,46 @@ void CMA_Optimizer::apply_update()
     const nnReal wZ = std::max(popWeights[i], (nnReal) 0), wC = popWeights[i];
     const nnReal* const Y = popNoiseVectors[k]->params;
     const nnReal* const X = sampled_weights[k]->params;
-    const nnReal* const S = diagCov->params;
-    nnReal * const M = weights->params;
-    nnReal * const B = momNois->params;
-    nnReal * const A = avgNois->params;
-    #pragma omp for simd schedule(static) aligned(B,A,Y,M,X,S : VEC_WIDTH)
+    #pragma omp for simd schedule(static) aligned(B,Y,M,X : VEC_WIDTH)
     for(Uint w=0; w<pDim; w++) {
-      B[w] += wC * std::pow( Y[w] * S[w], 2);
+      B[w] += wC * Y[w] * std::fabs(Y[w]);
       M[w] += wZ * X[w];
-      #if 0
-      A[w] += wZ * Y[w];
-      #else
-      A[w] += wZ * Y[w] * S[w];
-      #endif
+      A[w] += wC * Z[w];
     }
   }
 
-  const nnReal * const B = momNois->params;
-  const nnReal * const A = avgNois->params;
   nnReal * const C = pathCov->params;
-  nnReal * const S = diagCov->params;
   const nnReal updSigP = std::sqrt(c_sig * (2-c_sig) * mu_eff);
-  const nnReal alpha = 1 - 2*c1cov - sumW*mu_eff*c1cov;
-  #pragma omp parallel for simd schedule(static) aligned(B,S,C,A : VEC_WIDTH)
-  for(Uint w=0; w<pDim; w++) {
-    C[w] = (1-c_sig)*C[w] + updSigP*A[w];
-    S[w] = std::sqrt( alpha*S[w]*S[w] + 2*c1cov*C[w]*C[w] + mu_eff*c1cov*B[w] );
-  }
+  #pragma omp parallel for simd schedule(static) aligned(C,A : VEC_WIDTH)
+  for(Uint w=0; w<pDim; w++)  C[w] = (1-c_sig)*C[w] + updSigP*A[w];
 
+  nnReal * const S = diagPos->params;
+  nnReal * const Z = diagNeg->params;
+  static constexpr nnReal eps = 1e-2;
+  #pragma omp parallel for simd schedule(static) aligned(B,S,Z : VEC_WIDTH)
+  for(Uint w=0; w<pDim; w++) {
+    //S[w] = std::sqrt( std::max( S[w]*S[w] + c1cov*B[w], eps ) );
+    //Z[w] = std::sqrt( std::max( Z[w]*Z[w] - c1cov*B[w], eps ) );
+    S[w] = std::sqrt(std::max((1-c1cov)*S[w]*S[w] +c1cov*(1+B[w]), eps));
+    Z[w] = std::sqrt(std::max((1-c1cov)*Z[w]*Z[w] +c1cov*(1-B[w]), eps));
+  }
   initializeGeneration();
 }
 
 void CMA_Optimizer::save(const string fname, const bool backup) {
   weights->save(fname+"_weights");
-  pathCov->save(fname+"_pathCov");
-  diagCov->save(fname+"_diagCov");
+  diagPos->save(fname+"_diagPos");
+  diagNeg->save(fname+"_diagNeg");
 
   if(backup) {
     ostringstream ss; ss << std::setw(9) << std::setfill('0') << nStep;
     weights->save(fname+"_"+ss.str()+"_weights");
-    pathCov->save(fname+"_"+ss.str()+"_pathCov");
-    diagCov->save(fname+"_"+ss.str()+"_diagCov");
+    diagPos->save(fname+"_"+ss.str()+"_diagPos");
+    diagNeg->save(fname+"_"+ss.str()+"_diagNeg");
   }
 }
 int CMA_Optimizer::restart(const string fname) {
-  pathCov->restart(fname+"_pathCov");
-  diagCov->restart(fname+"_diagCov");
+  diagPos->restart(fname+"_diagPos");
+  diagNeg->restart(fname+"_diagNeg");
   return weights->restart(fname+"_weights");
 }

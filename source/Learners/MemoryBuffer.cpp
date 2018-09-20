@@ -142,9 +142,9 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
   {
    long double varR = newstdvr/count;
    if(varR < numeric_limits<long double>::epsilon()) varR = 1;
-   invstd_reward = (1-WR)*invstd_reward +WR/(std::sqrt(varR)+EPS);
-   //const long double Rscal = (std::sqrt(varR)+EPS)*(gamma<1? 1/(1-gamma):1);
-   //invstd_reward = (1-WR)*invstd_reward +WR/Rscal;
+   //invstd_reward = (1-WR)*invstd_reward +WR/(std::sqrt(varR)+EPS);
+   const long double Rscal = (std::sqrt(varR)+EPS)*(1-gamma>EPS? 1/(1-gamma):1);
+   invstd_reward = (1-WR)*invstd_reward +WR/Rscal;
   }
   for(Uint k=0; k<dimS && WS>0; k++)
   {

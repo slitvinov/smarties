@@ -17,14 +17,14 @@ FILE=    sys.argv[1]
 #ftype=np.float64
 ftype=np.float32
 W  = np.fromfile(FILE+"weights.raw", dtype=ftype)
-M1 = np.fromfile(FILE+"diagPos.raw", dtype=ftype)
-M2 = np.fromfile(FILE+"diagNeg.raw", dtype=ftype)
+M1 = np.fromfile(FILE+"diagCov.raw", dtype=ftype)
+M2 = np.fromfile(FILE+"pathCov.raw", dtype=ftype)
 
 plt.subplot(311)
 plt.semilogy(np.abs(W),'k.')
 plt.subplot(312)
 plt.semilogy(M1, 'b.')
 plt.subplot(313)
-plt.semilogy(M2, 'r.')
+plt.plot(M2, 'r.')
 
 plt.show()
