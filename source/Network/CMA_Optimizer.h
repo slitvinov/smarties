@@ -18,19 +18,19 @@ class CMA_Optimizer : public Optimizer
   const vector<nnReal> popWeights = initializePopWeights(pop_size);
   const nnReal mu_eff = initializeMuEff(popWeights, pop_size);
   const nnReal sumW = initializeSumW(popWeights, pop_size);
-  const nnReal c1cov = 1e-5;
-  const nnReal c_sig = 1e-3;
-
   const vector<Parameters*> sampled_weights;
   const vector<Parameters*> popNoiseVectors = initWpop(weights, pop_size);
   const Parameters * const momNois = weights->allocateGrad();
   const Parameters * const avgNois = weights->allocateGrad();
+  const Parameters * const negNois = weights->allocateGrad();
   const Parameters * const pathCov = weights->allocateGrad();
+  const Parameters * const pathDif = weights->allocateGrad();
   const Parameters * const diagCov = weights->allocateGrad();
 
   vector<Saru *> generators;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
   vector<Real> losses = vector<Real>(pop_size, 0);
+  Uint Nswap = 0;
 
   void initializeGeneration() const;
 
@@ -75,4 +75,6 @@ class CMA_Optimizer : public Optimizer
     for(Uint i=0; i<popsz; i++) sum += popW[i];
     return sum;
   }
+  void getMetrics(ostringstream& buff) override;
+  void getHeaders(ostringstream& buff) override;
 };

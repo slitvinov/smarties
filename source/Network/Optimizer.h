@@ -38,6 +38,9 @@ class Optimizer
 
   virtual void prepare_update(const int BS, const Rvec&L) = 0;
   virtual void apply_update() = 0;
+
+  virtual void getMetrics(ostringstream& buff) = 0;
+  virtual void getHeaders(ostringstream& buff) = 0;
 };
 
 class AdamOptimizer : public Optimizer
@@ -77,4 +80,6 @@ class AdamOptimizer : public Optimizer
 
   void save(const string fname, const bool bBackup) override;
   int restart(const string fname) override;
+  void getMetrics(ostringstream& buff) override {}
+  void getHeaders(ostringstream& buff) override {}
 };

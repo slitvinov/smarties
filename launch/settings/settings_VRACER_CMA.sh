@@ -25,7 +25,8 @@ SETTINGS+=" --explNoise 0.447214"
 #Number of time steps per gradient step
 SETTINGS+=" --obsPerStep 1"
 #Number of samples before starting gradient steps
-SETTINGS+=" --minTotObsNum 262144"
+#SETTINGS+=" --minTotObsNum 262144"
+SETTINGS+=" --minTotObsNum 32768"
 #Maximum size of the replay memory
 SETTINGS+=" --maxTotObsNum 262144"
 #Number of gradient steps before training ends
@@ -43,8 +44,8 @@ SETTINGS+=" --penalTol 0.1"
 #Here is unused. Used for target network soft update
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 240"
-SETTINGS+=" --ESpopSize 48"
+SETTINGS+=" --batchSize 120"
+SETTINGS+=" --ESpopSize 64"
 #Whether to train based on sampling sequences. Best not to.
 SETTINGS+=" --bSampleSequences 0"
 #network update learning rate

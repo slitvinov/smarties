@@ -11,12 +11,8 @@
 #include <iterator>
 #include <parallel/algorithm>
 
-MemoryBuffer::MemoryBuffer(Environment* const _env, Settings & _s):
- mastersComm(_s.mastersComm), env(_env), bWriteToFile(_s.samplesFile),
- bTrain(_s.bTrain), bSampleSeq(_s.bSampleSequences), nAppended(_s.appendedObs),
- batchSize(_s.batchSize), maxTotObsNum(_s.maxTotObsNum), nThreads(_s.nThreads),
- policyVecDim(_s.policyVecDim), generators(_s.generators), gamma(_s.gamma),
- learn_rank(_s.learner_rank), learn_size(_s.learner_size){
+MemoryBuffer::MemoryBuffer(Environment*const _env, Settings& _s):
+ settings(_s), env(_env) {
   assert(_s.nAgents>0);
   inProgress.resize(_s.nAgents);
   for (int i=0; i<_s.nAgents; i++) inProgress[i] = new Sequence();
@@ -142,9 +138,10 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
   {
    long double varR = newstdvr/count;
    if(varR < numeric_limits<long double>::epsilon()) varR = 1;
-   //invstd_reward = (1-WR)*invstd_reward +WR/(std::sqrt(varR)+EPS);
-   const long double Rscal = (std::sqrt(varR)+EPS)*(1-gamma>EPS? 1/(1-gamma):1);
-   invstd_reward = (1-WR)*invstd_reward +WR/Rscal;
+   if(ESpopSize>1) {
+     const auto Rscal = (std::sqrt(varR)+EPS) * (1-gamma>EPS ? 1/(1-gamma) : 1);
+     invstd_reward = (1-WR)*invstd_reward +WR/Rscal;
+   } else invstd_reward = (1-WR)*invstd_reward + WR / ( std::sqrt(varR) + EPS );
   }
   for(Uint k=0; k<dimS && WS>0; k++)
   {

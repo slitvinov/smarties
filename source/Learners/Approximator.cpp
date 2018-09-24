@@ -266,12 +266,14 @@ void Approximator::applyUpdate() {
 void Approximator::getHeaders(ostringstream& buff) const {
   buff << std::left << std::setfill(' ') <<"| " << std::setw(6) << name;
   if(opt->tgtUpdateAlpha > 0) buff << "| dTgt ";
+  opt->getHeaders(buff);
 }
 
 void Approximator::getMetrics(ostringstream& buff) const {
   real2SS(buff, net->weights->compute_weight_norm(), 7, 1);
   if(opt->tgtUpdateAlpha > 0)
     real2SS(buff, net->weights->compute_weight_dist(net->tgt_weights), 6, 1);
+  opt->getMetrics(buff);
 }
 
 Rvec Approximator::relay_backprop(const Rvec err,

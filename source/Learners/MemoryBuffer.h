@@ -17,22 +17,28 @@ enum FORGET {OLDEST, FARPOLFRAC, MAXKLDIV, MINERROR};
 class MemoryBuffer
 {
 public:
-  const MPI_Comm mastersComm;
+  Settings & settings;
+  const MPI_Comm mastersComm = settings.mastersComm;
   Environment * const env;
-  const bool bWriteToFile, bTrain, bSampleSeq;
-  const Uint nAppended, batchSize, maxTotObsNum, nThreads, policyVecDim;
+  const bool bWriteToFile = settings.samplesFile, bTrain = settings.bTrain;
+  const bool bSampleSeq = settings.bSampleSequences;
+  const Uint nAppended = settings.appendedObs, batchSize = settings.batchSize;
+  const Uint maxTotObsNum = settings.maxTotObsNum;
+  const Uint nThreads = settings.nThreads, policyVecDim = settings.policyVecDim;
   const StateInfo& sI = env->sI;
   const ActionInfo& aI = env->aI;
   const vector<Agent*>& _agents = env->agents;
-  std::vector<std::mt19937>& generators;
+  std::vector<std::mt19937>& generators = settings.generators;
 
   vector<memReal> invstd = sI.inUseInvStd();
   vector<memReal> mean = sI.inUseMean();
   vector<memReal> std = sI.inUseStd();
   Real invstd_reward = 1;
 
-  const Real gamma;
-  const int learn_rank, learn_size;
+  const Real gamma = settings.gamma;
+  const int learn_rank = settings.learner_rank;
+  const int learn_size = settings.learner_size;
+  const int ESpopSize = settings.ESpopSize;
   bool needs_pass = true;
   #ifdef PRIORITIZED_ER
     Uint stepSinceISWeep = 0;
