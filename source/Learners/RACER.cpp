@@ -125,7 +125,7 @@ compute(Sequence*const traj, const Uint samp, const Rvec& outVec,
   ADV.grad(POL.sampAct, beta * Aer, gradient);
   traj->setMseDklImpw(samp, Ver*Ver, dkl, rho); // update ER metrics of sample
   // logging for diagnostics:
-  trainInfo->log(V_cur+A_cur, A_RET-A_cur, polG,penalG, {beta,dAdv,rho}, thrID);
+  trainInfo->log(V_cur+A_cur, A_RET-A_cur, polG,penalG, {dAdv,rho}, thrID);
   return gradient;
 }
 
@@ -184,7 +184,7 @@ select(Agent& agent)
   if( agent.Status < TERM_COMM ) // not end of sequence
   {
     //Compute policy and value on most recent element of the sequence.
-    Rvec output = F[0]->forward_agent(traj, agent);
+    Rvec output = F[0]->forward_agent(agent);
     Policy_t pol = prepare_policy(output);
     const Advantage_t adv = prepare_advantage(output, &pol);
     Rvec mu = pol.getVector(); // vector-form current policy for storage
@@ -209,7 +209,7 @@ select(Agent& agent)
   else // either terminal or truncation state
   {
     if( agent.Status == TRNC_COMM ) {
-      Rvec output = F[0]->forward_agent(traj, agent);
+      Rvec output = F[0]->forward_agent(agent);
       traj->state_vals.push_back(output[VsID]); // not a terminal state
     } else {
       traj->state_vals.push_back(0); //value of terminal state is 0
@@ -389,7 +389,7 @@ RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
   if(F.size() > 1) die("");
   F[0]->opt->bAnnealLearnRate= true;
 
-  trainInfo = new TrainData("racer", _set, 1, "| beta | dAdv | avgW ", 3);
+  trainInfo = new TrainData("racer", _set, 1, "| dAdv | avgW ", 2);
 
   {  // TEST FINITE DIFFERENCES:
     Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
