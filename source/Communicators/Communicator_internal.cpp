@@ -129,11 +129,11 @@ void Communicator_internal::ext_app_run() {
     Uint numStepTSet = stepPrefix[settingsInd+1] - learner_step_id;
     numStepTSet = numStepTSet / (size_learn_pool-1);
     vector<char*> args = readRunArgLst(argsFiles[settingsInd]);
-    //for(size_t i=0; i<args.size(); i++) cout<<args[i]<<endl;
-    //cout<<endl; fflush(0);
-    //redirect_stdout_init();
+
+    redirect_stdout_init();
     app_main(commptr, comm_inside_app, args.size()-1, args.data(), numStepTSet);
-    //redirect_stdout_finalize();
+    redirect_stdout_finalize();
+
     for(size_t i = 0; i < args.size()-1; i++) delete[] args[i];
     chdir(initd);  // go up one level
   }
