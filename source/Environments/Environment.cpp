@@ -75,7 +75,8 @@ Communicator_internal Environment::create_communicator(
   const int socket, const bool bSpawn)
 {
   assert(socket>0);
-  Communicator_internal comm(workersComm,socket,bSpawn,&settings.generators[0]);
+  Communicator_internal comm(workersComm, socket, bSpawn,
+    settings.generators[0], settings.bTrain);
   comm.set_exec_path(settings.launchfile);
   comm_ptr = &comm;
 

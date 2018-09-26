@@ -73,6 +73,7 @@ class Communicator
   unsigned learner_step_id = 0;
   std::mt19937 gen;
 
+  const bool bTrain;
   bool sentStateActionShape = false;
   std::vector<double> obs_bounds, obs_inuse, action_options, action_bounds;
 

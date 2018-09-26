@@ -13,9 +13,8 @@
 #include <iostream>
 
 //APPLICATION SIDE CONSTRUCTOR
-Communicator::Communicator(const int socket, const int state_components,
-  const int action_components, const int number_of_agents) :
-gen(socket)
+Communicator::Communicator(int socket, int state_comp, int action_comp,
+  int number_of_agents) : gen(socket), bTrain(false)
 {
   if(socket<0) {
     printf("FATAL: Communicator created with socket < 0.\n");
@@ -362,8 +361,8 @@ Communicator::~Communicator()
 }
 
 // ONLY FOR CHILD CLASS
-Communicator::Communicator(const int socket, const bool spawn, unsigned seed) :
-gen(seed)
+Communicator::Communicator(int socket, bool spawn, unsigned seed, bool _bTr) :
+gen(seed), bTrain(_bTr)
 {
   if(socket<0) {
     printf("FATAL: Communicator created with socket < 0.\n");
@@ -391,4 +390,3 @@ void Communicator::print()
   //o <<"Socket comm: prefix:"<<socket_id<<" PATH:"<<std::string(SOCK_PATH)<<"\n";
   o.close();
 }
-

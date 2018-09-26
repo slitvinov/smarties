@@ -20,7 +20,8 @@ static inline vector<string> split(const string &s, const char delim) {
 
 int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv, const Uint numSteps);
 
-Communicator_internal::Communicator_internal(const MPI_Comm scom, const int socket, const bool spawn, mt19937*const g) : Communicator(socket, spawn, (*g)())
+Communicator_internal::Communicator_internal(MPI_Comm scom, int socket,
+  bool spawn, mt19937&g, bool _bTr) : Communicator(socket, spawn, g(), _bTr)
 {
   comm_learn_pool = scom;
   update_rank_size();
