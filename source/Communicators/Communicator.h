@@ -71,8 +71,7 @@ class Communicator
   //internal counters
   unsigned long seq_id = 0, msg_id = 0, iter = 0;
   unsigned learner_step_id = 0;
-  std::mt19937 * const gen_ptr;
-  const bool m_genOwner;
+  std::mt19937 gen;
 
   bool sentStateActionShape = false;
   std::vector<double> obs_bounds, obs_inuse, action_options, action_bounds;
@@ -142,8 +141,6 @@ class Communicator
   struct sockaddr_un serverAddress, clientAddress;
 
   void print();
-
-  unsigned int gen();
 
   void update_rank_size()
   {

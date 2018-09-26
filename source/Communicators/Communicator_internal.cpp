@@ -18,7 +18,7 @@ static inline vector<string> split(const string &s, const char delim) {
   return tokens;
 }
 
-extern int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv, const Uint numSteps);
+int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv, const Uint numSteps);
 
 Communicator_internal::Communicator_internal(const MPI_Comm scom, const int socket, const bool spawn, mt19937*const g) : Communicator(socket, spawn, (*g)())
 {
@@ -132,7 +132,6 @@ void Communicator_internal::ext_app_run() {
     //for(size_t i=0; i<args.size(); i++) cout<<args[i]<<endl;
     //cout<<endl; fflush(0);
     //redirect_stdout_init();
-    cout << "Gen works "<< gen() <<" "<< commptr->gen_ptr <<endl;
     app_main(commptr, comm_inside_app, args.size()-1, args.data(), numStepTSet);
     //redirect_stdout_finalize();
     for(size_t i = 0; i < args.size()-1; i++) delete[] args[i];
