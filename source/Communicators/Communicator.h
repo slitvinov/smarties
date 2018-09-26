@@ -41,8 +41,6 @@ class Communicator
   int workerGroup = -1;
   // should be named nState/ActionComponents
   int nStates = -1, nActions = -1;
-  int getStateDim()  {return nStates;}
-  int getActionDim() {return nActions;}
 
   // byte size of the messages
   int size_state = -1, size_action = -1;
