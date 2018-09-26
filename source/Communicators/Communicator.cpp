@@ -363,8 +363,8 @@ Communicator::~Communicator()
 }
 
 // ONLY FOR CHILD CLASS
-Communicator::Communicator(const int socket, const bool spawn,
-  std::mt19937* const _g) : gen_ptr(_g), m_genOwner(false)
+Communicator::Communicator(const int socket, const bool spawn, unsigned seed) :
+gen_ptr( new std::mt19937(seed) ), m_genOwner(true)
 {
   if(socket<0) {
     printf("FATAL: Communicator created with socket < 0.\n");
@@ -392,3 +392,5 @@ void Communicator::print()
   //o <<"Socket comm: prefix:"<<socket_id<<" PATH:"<<std::string(SOCK_PATH)<<"\n";
   o.close();
 }
+
+unsigned int Communicator::gen() { return (*gen_ptr)(); }

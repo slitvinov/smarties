@@ -72,7 +72,6 @@ class Communicator
   unsigned long seq_id = 0, msg_id = 0, iter = 0;
   unsigned learner_step_id = 0;
   std::mt19937 * const gen_ptr;
-  std::mt19937& gen = *gen_ptr;
   const bool m_genOwner;
 
   bool sentStateActionShape = false;
@@ -124,7 +123,7 @@ class Communicator
   void launch();
 
   Communicator(const int socket, const int state_components, const int action_components, const int number_of_agents = 1);
-  Communicator(const int socket, const bool spawn, std::mt19937* const _g);
+  Communicator(const int socket, const bool spawn, unsigned _g);
 
   #ifdef MPI_INCLUDED
   Communicator(const int socket, const int state_components, const int action_components, const MPI_Comm app, const int number_of_agents);
@@ -143,6 +142,8 @@ class Communicator
   struct sockaddr_un serverAddress, clientAddress;
 
   void print();
+
+  unsigned int gen();
 
   void update_rank_size()
   {

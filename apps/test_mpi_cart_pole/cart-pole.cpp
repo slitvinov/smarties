@@ -73,13 +73,13 @@ struct CartPole
   Vec4 u;
   double F=0, t=0;
 
-	void reset(std::mt19937& gen) {
+	void reset(std::mt19937* const gen) {
 		#if SWINGUP
 	    std::uniform_real_distribution<double> dist(-.1,.1);
 		#else
 	    std::uniform_real_distribution<double> dist(-0.05,0.05);
 		#endif
-		u = Vec4(dist(gen), dist(gen), dist(gen), dist(gen));
+		u = Vec4(dist(*gen), dist(*gen), dist(*gen), dist(*gen));
 		F = t = step = 0;
 		info = 1;
 	}
@@ -188,7 +188,7 @@ int app_main(
   while(true) //train loop
   {
     //reset environment:
-    env.reset(comm->gen); //comm contains rng with different seed on each rank
+    env.reset(comm->gen_ptr); //comm contains rng with different seed on each rank
 
 
     comm->sendInitState(env.getState()); //send initial state
