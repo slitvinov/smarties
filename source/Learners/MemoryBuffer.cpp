@@ -87,11 +87,12 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
   WS = std::min((Real)1, WS);
   long double count = 0, newstdvr = 0;
   vector<long double> newSSum(dimS, 0), newSSqSum(dimS, 0);
+  const Uint setSize = readNSeq();
   #pragma omp parallel reduction(+ : count, newstdvr)
   {
     vector<long double> thNewSSum(dimS, 0), thNewSSqSum(dimS, 0);
     #pragma omp for schedule(dynamic)
-    for(Uint i=0; i<Set.size(); i++) {
+    for(Uint i=0; i<setSize; i++) {
       count += Set[i]->ndata();
       for(Uint j=0; j<Set[i]->ndata(); j++) {
         newstdvr += std::pow(Set[i]->tuples[j+1]->r, 2);
@@ -164,7 +165,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
      outf.flush(); outf.close();
     }
     Uint cntSamp = 0;
-    for(Uint i=0; i<Set.size(); i++) {
+    for(Uint i=0; i<setSize; i++) {
       assert(Set[i] not_eq nullptr);
       cntSamp += Set[i]->ndata();
     }
@@ -176,7 +177,7 @@ void MemoryBuffer::updateRewardsStats(unsigned long nStep, Real WR, Real WS)
       {
         vector<long double> thr_dbgStateSum(dimS,0), thr_dbgStateSqSum(dimS,0);
         #pragma omp for schedule(dynamic)
-        for(Uint i=0; i<Set.size(); i++)
+        for(Uint i=0; i<setSize; i++)
           for(Uint j=0; j<Set[i]->ndata(); j++) {
             const auto S = standardize(Set[i]->tuples[j]->s);
             for(Uint k=0; k<dimS; k++) {
@@ -229,11 +230,12 @@ void MemoryBuffer::prune(const FORGET ALGO, const Fval CmaxRho)
   Real dkl_val = -1, far_val = -1, fit_val = 9e9, old_ind = nSeenSequences;
   const Fval invC = 1/CmaxRho;
   Real _nOffPol = 0, _totDKL = 0;
+  const Uint setSize = readNSeq();
   #pragma omp parallel reduction(+ : _nOffPol, _totDKL)
   {
     pair<int,Real> farpol{-1,-1}, maxdkl{-1,-1}, minerr{-1,9e9}, oldest{-1,9e9};
     #pragma omp for schedule(dynamic)
-    for(Uint i = 0; i < Set.size(); i++)
+    for(Uint i = 0; i < setSize; i++)
     {
       if(Set[i]->just_sampled >= 0) {
         Set[i]->nOffPol = 0; Set[i]->MSE = 0; Set[i]->sumKLDiv = 0;
