@@ -1,7 +1,8 @@
 cp ../apps/cylFollow/runArguments* ${BASEPATH}${RUNFOLDER}/
 
-make -C ../makefiles/ clean
-make -C ../makefiles/ app=cylFollow -j4
+rm ../makefiles/libsimulation.a
+rm ../makefiles/rl
+make -C ../makefiles/ app=cylFollow -j4 #config=debug
 #config=segf
 cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh
 SETTINGS+=" --appSettings runArguments00.sh,runArguments01.sh,runArguments02.sh,runArguments03.sh "

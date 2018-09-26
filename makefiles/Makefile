@@ -9,7 +9,7 @@ else
 compiler ?= intel
 endif
 
-CPPFLAGS=-D__Smarties_
+CPPFLAGS=-DSMARTIES
 LIBS=
 
 ifeq ($(UNAME_S),Darwin)
@@ -86,7 +86,7 @@ else
 
 # app is compiled independently and uses communication through sockets
 # this is just for testing:
-lib: ext_app_test.o 
+lib: ext_app_test.o
 	ar rs libsimulation.a $^
 
 endif
