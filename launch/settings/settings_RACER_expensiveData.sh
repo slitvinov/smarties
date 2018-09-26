@@ -2,7 +2,7 @@ SETTINGS=
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.99 --samplesFile 1"
+SETTINGS+=" --gamma 0.9 --samplesFile 1"
 
 #size of network layers
 SETTINGS+=" --nnl1 32"
