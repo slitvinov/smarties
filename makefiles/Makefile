@@ -34,6 +34,10 @@ ifeq "$(findstring panda,$(shell hostname))" "panda"
 include make.falcon
 endif
 
+ifeq "$(findstring lair,$(shell hostname))" "lair"
+include make.lair
+endif
+
 exp ?= GAUS
 ifeq "$(exp)" "GAUS"
 CPPFLAGS+= -DADV_GAUS
