@@ -11,6 +11,7 @@
 #define dt 1.0e-4
 #define SAVEFREQ 1
 #define STEPFREQ 1
+#define maxStep = 500000
 
 using namespace std;
 
@@ -18,13 +19,17 @@ struct Entity
 {
 	const modelParams params;
 	const unsigned nStates;
-	const double maxSpeed = 5*params.l;
 
 	double pathStart[2], pathEnd[2];
 	double thetaPath;
 
 	std::mt19937& genA;
 	bool isOver=false;
+
+	vector<double> u,v,r, uDot, vDot, rDot, x,y,thetaR;
+	u.reserve(maxStep), v.reserve(maxStep), r.reserve(maxStep);
+	uDot.reserve(maxStep), vDot.reserve(maxStep), rDot.reserve(maxStep);
+	x.reserve(maxStep), y.reserve(maxStep), thetaR.reserve(maxStep);
 
 	Entity(std::mt19937& _gen, const unsigned nQ, const double xS[2], const double xE[2]) : nStates(nQ), genA(_gen)
 	{
@@ -36,19 +41,23 @@ struct Entity
 	}
 
 	array<double, 2> p; // absolute position
-	double deltaX, deltaY, deltaTheta; // wrt straight line track
-	double theta; 
+	double rPos, thetaPos; // wrt starting position
+	double thetaNose; // Which way is the boat pointing (wrt path) 
 
 	void reset() {
 
 		normal_distribution<double> distribX(0, 2*params.l);
-		normal_distribution<double> distribAng(0, M_PI/3.0); // allow deviation by 60 degrees
+		normal_distribution<double> distribAng(0, M_PI/3.0); // allow random deviation by 60 degrees
 
 		p[0] = this->pathStart[0] + distribX(genA);
 		p[1] = this->pathStart[1] + distribX(genA);
 
-		theta = this->thetaPath + distribAng(genA);
+		thetaNose = this->thetaPath + distribAng(genA);
 		isOver = false;
+
+		u.push_back(0.0), v.push_back(0.0), r.push_back(0.0);
+		uDot.push_back(0.0), vDot.push_back(0.0), rDot.push_back(0.0);
+		x.push_back(p[0]), y.push_back(p[1]), thetaR.push_back(thetaNose - thetaPath);
 	}
 
 	bool is_over() {
@@ -64,24 +73,33 @@ struct Entity
 		const double thrustR = act[1];
 		const double torque = 0.5*params.l*(thrustR - thrustL);
 
-		odeSolve(uNot, params, N, tt, forceX, forceY, torque, u, v, r);
-		trajectory(N, tt, u, v, r, p, theta);
+		const double uN[3] = {u.back(), v.back(), r.back()};
+		const double uDotN[3] = {uDot.back(), vDot.back(), rDot.back()};
+		double uNp1[3] = {0.0};
+		double uDotNp1[3] = {0.0};
+
+		odeSolve(uN, uDotN, params, dt, thrustL, thrustR, torque, uNp1, uDotNp1);
+		u.push_back(uNp1[0]), v.push_back(uNp1[1]), r.push_back(uNp1[2]);
+		uDot.push_back(uDotNp1[0]), vDot.push_back(uDotNp1[1]), rDot.push_back(uDotNp1[2]);
+
+		const double xN[3] = {x.back(), y.back(), thetaR.back()};
+		double xNp1[3] = {0.0};
+		trajectory(xN, uN, uNp1, dt, xNp1);
+		x.push_back(xNp1[0]), y.push_back(xNp1[1]), thetaR.push_back(xNp1[2]);
 
 	}
 
-	template<typename T>
-		unsigned getAngle(const T& E) const {
-			const double relX = p[0] - pathStart[0];
-			const double relY = p[1] - pathStart[1];
-			return std::atan2(relY, relX) + theta - thetaPath;
-		}
+	double getAngle() const {
+		const double relX = p[0] - pathStart[0];
+		const double relY = p[1] - pathStart[1];
+		return std::atan2(relY, relX) - thetaPath;
+	}
 
-	template<typename T>
-		double getDistance() const {
-			double relX = E.p[0] - p[0];
-			double relY = E.p[1] - p[1];
-			return std::sqrt(relX*relX + relY*relY);
-		}
+	double getDistance() const {
+		double relX = E.p[0] - p[0];
+		double relY = E.p[1] - p[1];
+		return std::sqrt(relX*relX + relY*relY);
+	}
 };
 
 
@@ -112,12 +130,10 @@ struct USV: public Entity
 	  return state;
   }
 
-  template<typename T>
   double getReward(const ) const {
 	  return -/params.l;
   }
 
-  template<typename T>
   vector<bool> checkTermination() {
 	  const double threshold= 0.1*this->width;
 	  const double distGoal = getDistance(E1);
@@ -132,7 +148,7 @@ struct USV: public Entity
 int main(int argc, const char * argv[])
 {
 
-  const unsigned maxStep = 500000;
+  //const unsigned maxStep = 500000;
   const int control_vars = 2; // 2 components of thrust
   const int state_vars = 6;   // number of states (self pos[2], )
   const int number_of_agents = 1;
@@ -155,7 +171,7 @@ int main(int argc, const char * argv[])
     unsigned step = 0;
     while (true) //simulation loop
     {
-      boat.advance(comm.recvAction(0));
+      boat.advance(comm.recvAction(0), step);
 
 	  vector<bool> reachedGoal = boat.checkTermination();
 	  if(boat.is_over()){ // Terminate simulation 
@@ -168,7 +184,7 @@ int main(int argc, const char * argv[])
 
       if(step++ < maxStep)
       {
-        comm.sendState(  boat.getState(), boat.getReward(), 0);
+        comm.sendState(boat.getState(), boat.getReward(), 0);
       }
       else
       {
