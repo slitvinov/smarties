@@ -14,7 +14,7 @@ void odeSolve(const double uVec[3], const double uDotVec[3], const modelParams p
 		double uOut[3], double uDotOut[3]) 
 {
 	const double u=uVec[0], v=uVec[1], r=uVec[2];
-	const double uDot=uDotVec[0], vDot=uDotVec[1], rDot=uDotVec[2];
+	const double vDot=uDotVec[1], rDot=uDotVec[2];
 
 	//RK4
 	double stage1[3]={0}, stage2[3]={0}, stage3[3]={0}, stage4[3]={0};

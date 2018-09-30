@@ -11,9 +11,12 @@
 #define dt 1.0e-4
 #define SAVEFREQ 1
 #define STEPFREQ 1
-#define maxStep 500000
+#define maxStep 100000
 
 using namespace std;
+
+vector<double> u,v,r, uDot, vDot, rDot, x,y,thetaR;
+vector<double> tt, forceX;
 
 struct Entity
 {
@@ -26,7 +29,7 @@ struct Entity
 	std::mt19937& genA;
 	bool isOver=false;
 
-	vector<double> u,v,r, uDot, vDot, rDot, x,y,thetaR;
+	//vector<double> u,v,r, uDot, vDot, rDot, x,y,thetaR;
 
 	Entity(std::mt19937& _gen, const unsigned nQ, const double xS[2], const double xE[2]) : nStates(nQ), genA(_gen)
 	{
@@ -39,6 +42,7 @@ struct Entity
 		u.reserve(maxStep); v.reserve(maxStep); r.reserve(maxStep);
 		uDot.reserve(maxStep); vDot.reserve(maxStep); rDot.reserve(maxStep);
 		x.reserve(maxStep); y.reserve(maxStep); thetaR.reserve(maxStep);
+tt.reserve(maxStep); forceX.reserve(maxStep);
 	}
 
 	array<double, 2> p; // absolute position
@@ -56,9 +60,11 @@ struct Entity
 		thetaNose = this->thetaPath + distribAng(genA);
 		isOver = false;
 
-		u.push_back(0.0), v.push_back(0.0), r.push_back(0.0);
+u.push_back(4.0), v.push_back(0.0), r.push_back(0.0);
+		//u.push_back(0.0), v.push_back(0.0), r.push_back(0.0);
 		uDot.push_back(0.0), vDot.push_back(0.0), rDot.push_back(0.0);
 		x.push_back(p[0]), y.push_back(p[1]), thetaR.push_back(thetaNose - thetaPath);
+tt.push_back(0.0);
 	}
 
 	bool is_over() {
@@ -158,13 +164,14 @@ int main(int argc, const char * argv[])
   const int socket = std::stoi(argv[1]);
   //socket number is given by RL as first argument of execution
   Communicator	comm(socket, state_vars, control_vars, number_of_agents);
-  std::mt19937	&rngPointer =  comm.getPRNG();
+  //std::mt19937	&rngPointer =  comm.getPRNG();
 
   // Path start and end
   const double xPathStart[2] = {0,0};
   const double xPathEnd[2] = {10,0};
 
-  USV		boat(rngPointer, state_vars, 0.0, xPathStart, xPathEnd);
+  //USV		boat(rngPointer, state_vars, 0.0, xPathStart, xPathEnd);
+  USV		boat(comm.gen, state_vars, 0.0, xPathStart, xPathEnd);
 
   unsigned sim = 0;
   while(true) //train loop
@@ -178,16 +185,22 @@ int main(int argc, const char * argv[])
     unsigned step = 0;
     while (true) //simulation loop
     {
-      boat.advance(comm.recvAction(0));
+      //boat.advance(comm.recvAction(0));
+vector<double> actions(2, 0.0);
+const double angFactor = 2*M_PI/10.0;
+actions[0] = cos(tt[step]*angFactor/4.0);
+actions[1] = 0.0;
+forceX[step] = actions[0];
+      boat.advance(actions);
 
-	  const bool reachedGoal = boat.checkTermination();
+	  /*const bool reachedGoal = boat.checkTermination();
 	  if(boat.is_over()){ // Terminate simulation 
 		  const double finalReward = 10*boat.params.l;
 		  comm.sendTermState(boat.getState(),finalReward, 0);
 
 		  printf("Sim #%d reporting that boat reached safe harbor.\n", sim); fflush(NULL);
 		  sim++; break;
-	  }
+	  }*/
 
       if(step++ < maxStep)
       {
@@ -200,6 +213,13 @@ int main(int argc, const char * argv[])
         break;
       }
     }
+
+        FILE *temp = fopen("learnTrajectory.txt", "w");
+        fprintf(temp, "time \t forceX \t forceY \t u \t v \t r \t x \t y \t theta\n");
+        for(int i=0; i<maxStep; i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], forceX[i], 0.0, u[i], v[i], r[i], x[i], y[i], thetaR[i]);
+        fclose(temp);
+
+abort();
   }
   return 0;
 }

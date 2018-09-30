@@ -12,13 +12,6 @@ CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero
 
-ifeq "$(findstring eu-,$(shell hostname))" "eu-"
-CPPFLAGS+= -I ${PYTHON_ROOT}/include/python2.7
-LIBS += -L ${PYTHON_ROOT}/lib64 -lpython2.7
-else
-CPPFLAGS+= -I/usr/include/python2.7
-LIBS += -lpython2.7
-endif
 #-I/usr/local/Cellar/python/3.6.1/Frameworks/Python.framework/Versions/3.6/include/python3.6m/
 #LIBS = -L/usr/local/Cellar/python/3.6.1/Frameworks/Python.framework/Versions/3.6/lib/python3.6/config-3.6m-darwin/ -lpython3.6m
 
