@@ -78,9 +78,10 @@ int cp(const char *from, const char *to);
 
 int copy_from_dir(const std::string name);
 
-void comm_sock(int fd, const bool bsend, double*const data, const int size);
+void sockRecv(int fd, double*const data, const int size);
+void sockSend(int fd, double*const data, const int size);
 
-#ifdef MPI_INCLUDED
+#ifdef MPI_VERSION
 inline int getRank(const MPI_Comm comm)
 {
   int rank;

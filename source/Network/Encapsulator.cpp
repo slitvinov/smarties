@@ -6,7 +6,6 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
 
 #include "Encapsulator.h"
 #include "Network.h"
@@ -36,7 +35,7 @@ void Encapsulator::initializeNetwork(Network* _net, Optimizer* _opt)
 }
 
 void Encapsulator::prepare(Sequence*const traj, const Uint len,
-  const Uint samp, const Uint thrID) const {
+  const Uint samp, const Uint thrID) {
   thread_seq[thrID] = traj;
   if(net==nullptr) return;
   // before clearing out gradient, check if a backprop was ready
@@ -143,7 +142,7 @@ void Encapsulator::gradient(const Uint thrID) const
   {
     if(error_placements[thrID]<=0) { warn("no input grad"); return;}
 
-    vector<Activation*>& act = series[thrID];
+    const vector<Activation*>& act = series[thrID];
     const int last_error = error_placements[thrID];
     for (int i=0; i<last_error; i++) assert(act[i]->written == true);
     //if(!thrID) for(int i=0; i<last_error; i++)
@@ -157,7 +156,7 @@ void Encapsulator::save(const string base, const bool bBackup)
 {
   if(opt not_eq nullptr) opt->save(base+name, bBackup);
 }
-void Encapsulator::restart(const string base = string())
+void Encapsulator::restart(const string base)
 {
   if(opt not_eq nullptr) opt->restart(base+name);
 }

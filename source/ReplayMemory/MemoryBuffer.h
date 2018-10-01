@@ -15,16 +15,17 @@
 class MemoryBuffer
 {
  public:
- const Settings & settings;
- const Environment * const env;
+  const Settings & settings;
+  const Environment * const env;
 
- const StateInfo& sI = env->sI;
- const ActionInfo& aI = env->aI;
- const vector<Agent*>& agents = env->agents;
- Uint learnID = 0;
+  const StateInfo& sI = env->sI;
+  const ActionInfo& aI = env->aI;
+  const vector<Agent*>& agents = env->agents;
+  Uint learnID = 0;
  private:
 
   friend class Collector;
+  friend class MemorySharing;
   friend class MemoryProcessing;
 
   const Uint nAppended = settings.appendedObs;
@@ -85,8 +86,9 @@ class MemoryBuffer
   }
   inline Real scaledReward(const Sequence*const seq,const Uint samp) const {
     assert(samp < seq->tuples.size());
-    return seq->tuples[samp]->r * invstd_reward;
+    return scaledReward(seq->tuples[samp]->r);
   }
+  inline Real scaledReward(const Real r) const { return r * invstd_reward; }
 
   void restart(const string base);
   void save(const string base, const Uint nStep, const bool bBackup);

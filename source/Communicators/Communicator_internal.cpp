@@ -18,10 +18,12 @@ static inline vector<string> split(const string &s, const char delim) {
   return tokens;
 }
 
-extern int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv, const Uint numSteps);
+int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv, const Uint numSteps);
 
-Communicator_internal::Communicator_internal(const MPI_Comm scom, const int socket, const bool spawn, mt19937* const _g) : Communicator(socket, spawn, _g) {
-  comm_learn_pool = scom;
+Communicator_internal::Communicator_internal(Settings& _S) :
+  Communicator(_S.sockPrefix,0,_S.generators[0],_S.bTrain,_S.totNumSteps), S(_S)
+{
+  comm_learn_pool = S.workersComm;
   update_rank_size();
 }
 
@@ -29,6 +31,8 @@ Communicator_internal::~Communicator_internal() {
   if (rank_learn_pool>0) {
     data_action[0] = AGENT_KILLSIGNAL;
     send_all(Socket, data_action, size_action);
+    for(int i=0; i<nOwnWorkers; i++) _dealloc(inpBufs[i]);
+    for(int i=0; i<nOwnWorkers; i++) _dealloc(outBufs[i]);
   }
 }
 
@@ -58,34 +62,24 @@ void Communicator_internal::createGo_rundir() {
   }
 }
 
-int Communicator_internal::recvStateFromApp() {
+int Communicator_internal::recvStateFromApp()
+{
   int bytes = recv_all(Socket, data_state, size_state);
-
-  if (bytes <= 0)
-  {
-    if (bytes == 0) printf("socket %d hung up\n", Socket);
-    else perror("(1) recv");
-    close(Socket);
-
+  if(bytes not_eq size_state) {
+    if (bytes == 0) _warn("socket %d hung up\n", Socket);
+    else warn("(1) recv");
     intToDoublePtr(0, data_state+0);
     intToDoublePtr(FAIL_COMM, data_state+1);
-    iter++;
   }
-  else assert(bytes == size_state);
-
   if(comm_learn_pool != MPI_COMM_NULL) workerSend_MPI();
-
   return bytes <= 0;
 }
 
-int Communicator_internal::sendActionToApp() {
-  //printf("I think im sending action %f\n",data_action[0]);
+int Communicator_internal::sendActionToApp()
+{
   if(comm_learn_pool != MPI_COMM_NULL) workerRecv_MPI();
-
-  bool endSignal = fabs(data_action[0]-AGENT_KILLSIGNAL)<2.2e-16;
-
+  bool endSignal = std::fabs(data_action[0] - AGENT_KILLSIGNAL) < 2.2e-16;
   send_all(Socket, data_action, size_action);
-
   return endSignal;
 }
 
@@ -121,19 +115,18 @@ void Communicator_internal::ext_app_run() {
 
     // app only needs lower level functionalities:
     // ie. send state, recv action, specify state/action spaces properties...
-    Communicator* commptr = static_cast<Communicator*>(this);
+    Communicator* const commptr = static_cast<Communicator*>(this);
     Uint settingsInd = 0;
     for(size_t i=0; i<argsFiles.size(); i++)
       if(learner_step_id >= stepPrefix[i]) settingsInd = i;
     Uint numStepTSet = stepPrefix[settingsInd+1] - learner_step_id;
     numStepTSet = numStepTSet / (size_learn_pool-1);
     vector<char*> args = readRunArgLst(argsFiles[settingsInd]);
-    //for(size_t i=0; i<args.size(); i++) cout<<args[i]<<endl;
-    //cout<<endl; fflush(0);
 
     redirect_stdout_init();
     app_main(commptr, comm_inside_app, args.size()-1, args.data(), numStepTSet);
     redirect_stdout_finalize();
+
     for(size_t i = 0; i < args.size()-1; i++) delete[] args[i];
     chdir(initd);  // go up one level
   }
@@ -201,35 +194,54 @@ void Communicator_internal::getStateActionShape()
   if(sentStateActionShape) die("undefined behavior");
 
   double sizes[4] = {0, 0, 0, 0};
-  if (rank_learn_pool==0)
-    MPI_Recv(sizes, 32, MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
-  else {
-    comm_sock(Socket, false, sizes, 4*sizeof(double));
-    if(rank_learn_pool==1) MPI_Ssend(sizes,32, MPI_BYTE, 0,3, comm_learn_pool);
-  }
+  if(nOwnWorkers>0)
+  {
+    if (rank_learn_pool==0)
+      MPI_Recv(sizes, 32, MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
+    else {
+      sockRecv(Socket, sizes, 4*sizeof(double));
+      if(rank_learn_pool==1)
+        MPI_Ssend(sizes,32, MPI_BYTE, 0,3, comm_learn_pool);
+    }
+  } else if (S.world_rank == 0) die("");
+
+  if(S.mastersComm not_eq MPI_COMM_NULL)
+    MPI_Bcast(sizes, 32, MPI_BYTE, 0, S.mastersComm);
 
   nStates          = doublePtrToInt(sizes+0);
   nActions         = doublePtrToInt(sizes+1);
   discrete_actions = doublePtrToInt(sizes+2);
   nAgents          = doublePtrToInt(sizes+3);
-  //printf("Discrete? %d\n",discrete_actions);
+
   assert(nStates>=0 && nActions>=0);
   update_state_action_dims(nStates, nActions);
+  inpBufs = alloc_bufs(size_state,  nOwnWorkers);
+  outBufs = alloc_bufs(size_action, nOwnWorkers);
+
   sentStateActionShape = true;
 
-  if (rank_learn_pool==0) {
-    MPI_Recv(obs_inuse.data(), nStates*8, MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
-    MPI_Recv(obs_bounds.data(), nStates*16, MPI_BYTE, 1, 4, comm_learn_pool, MPI_STATUS_IGNORE);
-    MPI_Recv(action_options.data(), nActions*16, MPI_BYTE, 1, 5, comm_learn_pool, MPI_STATUS_IGNORE);
-  } else {
-    comm_sock(Socket, false, obs_inuse.data(), nStates*8);
-    comm_sock(Socket, false, obs_bounds.data(), nStates*16);
-    comm_sock(Socket, false, action_options.data(), nActions*16);
+  if(nOwnWorkers>0)
+  {
+   if (rank_learn_pool==0) {
+    MPI_Recv(obs_inuse.data(),nStates*8,MPI_BYTE,1,3,comm_learn_pool, MPI_STATUS_IGNORE);
+    MPI_Recv(obs_bounds.data(),nStates*16,MPI_BYTE,1,4,comm_learn_pool, MPI_STATUS_IGNORE);
+    MPI_Recv(action_options.data(),nActions*16,MPI_BYTE,1,5,comm_learn_pool, MPI_STATUS_IGNORE);
+   } else {
+    sockRecv(Socket, obs_inuse.data(), nStates*8);
+    sockRecv(Socket, obs_bounds.data(), nStates*16);
+    sockRecv(Socket, action_options.data(), nActions*16);
     if (rank_learn_pool==1) {
-      MPI_Ssend(obs_inuse.data(), nStates*8, MPI_BYTE, 0, 3, comm_learn_pool);
-      MPI_Ssend(obs_bounds.data(), nStates*16, MPI_BYTE, 0, 4, comm_learn_pool);
-      MPI_Ssend(action_options.data(), nActions*16, MPI_BYTE, 0, 5, comm_learn_pool);
+     MPI_Ssend(obs_inuse.data(), nStates*8,MPI_BYTE,0,3, comm_learn_pool);
+     MPI_Ssend(obs_bounds.data(), nStates*16,MPI_BYTE,0,4, comm_learn_pool);
+     MPI_Ssend(action_options.data(),nActions*16,MPI_BYTE,0,5, comm_learn_pool);
     }
+   }
+  }
+
+  if(S.mastersComm not_eq MPI_COMM_NULL) {
+    MPI_Bcast(obs_inuse.data(), nStates*8, MPI_BYTE, 0, S.mastersComm);
+    MPI_Bcast(obs_bounds.data(), nStates*16, MPI_BYTE, 0, S.mastersComm);
+    MPI_Bcast(action_options.data(), nActions*16, MPI_BYTE, 0, S.mastersComm);
   }
 
   int n_vals = 0;
@@ -237,13 +249,113 @@ void Communicator_internal::getStateActionShape()
   discrete_action_values = n_vals;
 
   action_bounds.resize(n_vals);
-  if (rank_learn_pool==0)
-    MPI_Recv(action_bounds.data(), n_vals*8, MPI_BYTE, 1, 6, comm_learn_pool, MPI_STATUS_IGNORE);
-  else {
-    comm_sock(Socket, false, action_bounds.data(), n_vals*8);
-    if (rank_learn_pool==1)
-      MPI_Ssend(action_bounds.data(),n_vals*8, MPI_BYTE, 0,6, comm_learn_pool);
+  if(nOwnWorkers>0)
+  {
+    if (rank_learn_pool==0)
+      MPI_Recv(action_bounds.data(), n_vals*8, MPI_BYTE, 1, 6, comm_learn_pool, MPI_STATUS_IGNORE);
+    else {
+      sockRecv(Socket, action_bounds.data(), n_vals*8);
+      if (rank_learn_pool==1)
+       MPI_Ssend(action_bounds.data(),n_vals*8, MPI_BYTE,0,6, comm_learn_pool);
+    }
   }
 
+  if(S.mastersComm not_eq MPI_COMM_NULL)
+    MPI_Bcast(action_bounds.data(), n_vals*8, MPI_BYTE, 0, S.mastersComm);
+
   print();
+}
+
+void Communicator_internal::sendTerminateReq()
+{
+  //it's awfully ugly, i send -256 to kill the workers... but...
+  //what are the chances that learner sends action -256.(+/- eps) to clients?
+  for (int worker = 1; worker <= nOwnWorkers; worker++) {
+    outBufs[worker-1][0] = AGENT_KILLSIGNAL;
+    MPI_Ssend(outBufs[worker-1],size_action,MPI_BYTE,worker,0,comm_learn_pool);
+  }
+}
+
+vector<double*> Communicator_internal::alloc_bufs(const int size, const int num)
+{
+  vector<double*> ret(num, nullptr);
+  for(int i=0; i<num; i++) ret[i] = _alloc(size);
+  return ret;
+}
+
+void Communicator_internal::unpackState(const int i, int& agent, envInfo& info,
+    std::vector<double>& state, double& reward)
+{
+  const double* const data = inpBufs[i];
+  assert(data not_eq nullptr and state.size() == (size_t) nStates);
+  agent = doublePtrToInt(data+0);
+  info  = doublePtrToInt(data+1);
+  for (int j=0; j<nStates; j++) {
+    state[j] = data[j+2];
+    assert(not std::isnan(state[j]));
+    assert(not std::isinf(state[j]));
+  }
+  reward = data[nStates+2];
+  assert(not std::isnan(reward));
+  assert(not std::isinf(reward));
+}
+
+void Communicator_internal::sendBuffer(const int i, const std::vector<double> V)
+{
+  assert(i>0 && i <= (int) outBufs.size() && V.size() == (size_t) nActions);
+  std::copy (V.begin(), V.end(), outBufs[i-1] );
+
+  if(bMasterSpawnApp) send_all(Socket, outBufs[i-1], size_action);
+  else
+  {
+    MPI_Request tmp;
+    if(bAsync) { // MPI impl allows maximum thread safety
+      MPI_Isend(outBufs[i-1], size_action, MPI_BYTE, i, 0,
+        comm_learn_pool, &tmp);
+    } else {
+      lock_guard<mutex> lock(mpi_mutex);
+      MPI_Isend(outBufs[i-1], size_action, MPI_BYTE, i, 0,
+        comm_learn_pool, &tmp);
+    }
+    MPI_Request_free(&tmp); //Not my problem
+  }
+}
+
+void Communicator_internal::recvBuffer(const int i)
+{
+  if(bMasterSpawnApp) return;
+  if(bAsync) { // MPI impl allows maximum thread safety
+    MPI_Irecv(inpBufs[i-1], size_state, MPI_BYTE, i, 1,
+      comm_learn_pool, &requests[i-1]);
+  } else {
+    lock_guard<mutex> lock(mpi_mutex);
+    MPI_Irecv(inpBufs[i-1], size_state, MPI_BYTE, i, 1,
+      comm_learn_pool, &requests[i-1]);
+  }
+}
+
+int Communicator_internal::testBuffer(const int i, MPI_Status& mpistatus)
+{
+  int completed = 0;
+  if(bMasterSpawnApp)
+  {
+    const int bytes = recv_all(Socket, inpBufs[i-1], size_state);
+    if(bytes not_eq size_state) {
+      if (bytes == 0) _warn("socket %d hung up\n", Socket);
+      else warn("(1) recv");
+      intToDoublePtr(FAIL_COMM, data_state+1);
+    }
+    completed = 1;
+  }
+  else
+  {
+    if(bAsync) { // MPI impl allows maximum thread safety
+      MPI_Test(&requests[i-1], &completed, &mpistatus);
+    } else {
+      lock_guard<mutex> lock(mpi_mutex);
+      MPI_Test(&requests[i-1], &completed, &mpistatus);
+    }
+  }
+
+  return completed;
 }

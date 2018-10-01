@@ -107,9 +107,11 @@ class Agent
     a.set(action);
   }
 
-  inline void copyAct(double * const ary) const
+  std::vector<double> getAct() const
   {
-    for(Uint j=0; j<aInfo.dim; j++) ary[j] = a.vals[j];
+    std::vector<double> ret(aInfo.dim);
+    for(Uint j=0; j<aInfo.dim; j++) ret[j] = a.vals[j];
+    return ret;
   }
 
   inline int getStatus() const

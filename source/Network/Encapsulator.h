@@ -69,29 +69,7 @@ struct Encapsulator
 
   void applyUpdate();
 
-  void gradient(const Uint thrID) const
-  {
-    if(net == nullptr) return;
-
-    nAddedGradients++;
-
-    if(ESpopSize>1)
-    {
-      debugL("Skipping backprop because we use ES optimizers.");
-    }
-    else
-    {
-      if(error_placements[thrID]<=0) { warn("no input grad"); return;}
-
-      const vector<Activation*>& act = series[thrID];
-      const int last_error = error_placements[thrID];
-      for (int i=0; i<last_error; i++) assert(act[i]->written == true);
-      //if(!thrID) for(int i=0; i<last_error; i++)
-      //  cout<<i<<" inpB:"<<print(act[i]->getOutputDelta())<<endl;
-      net->backProp(act, last_error, net->Vgrad[thrID]);
-    }
-    error_placements[thrID] = -1; //to stop additional backprops
-  }
+  void gradient(const Uint thrID) const;
 
   void save(const std::string base, const bool bBackup);
   void restart(const std::string base = std::string());

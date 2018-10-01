@@ -17,9 +17,32 @@
 
 class Learner
 {
-protected:
+ protected:
   Settings & settings;
   Environment * const env;
+
+  long nData_b4Startup = 0;
+  std::atomic<long> _nStep{0}, _nData{0};
+  std::atomic<bool> updatedNdata{false};
+  std::atomic<Uint> nAddedGradients{0};
+
+  bool updateComplete = false;
+  bool updateToApply = false;
+
+  std::vector<std::mt19937>& generators = settings.generators;
+
+  MemoryBuffer* const data = new MemoryBuffer(settings, env);
+  Collector* const data_get = new Collector(settings, this, data);
+  MemoryProcessing* const data_proc = new MemoryProcessing(settings, data);
+  Encapsulator * const input = new Encapsulator("input", settings, data);
+
+  TrainData* trainInfo = nullptr;
+  std::vector<Approximator*> F;
+  mutable std::mutex buffer_mutex;
+
+  virtual void processStats();
+
+ public:
   const MPI_Comm mastersComm = settings.mastersComm;
 
   const bool bSampleSequences = settings.bSampleSequences;
@@ -28,7 +51,6 @@ protected:
   const Uint policyVecDim = settings.policyVecDim;
   const Uint nAgents = settings.nAgents;
   const Uint nThreads = settings.nThreads;
-  const Uint nWorkers = settings.nWorkers;
 
   const int learn_rank = settings.learner_rank;
   const int learn_size = settings.learner_size;
@@ -44,30 +66,9 @@ protected:
   const Real explNoise = settings.explNoise;
   const Real epsAnneal = settings.epsAnneal;
 
-  long nData_b4Startup = 0;
-  std::atomic<long> _nStep{0}, _nData{0};
-  std::atomic<bool> updatedNdata{false};
-  std::atomic<Uint> nAddedGradients{0};
-
-  bool updateComplete = false;
-  bool updateToApply = false;
-
   const ActionInfo& aInfo = env->aI;
   const StateInfo&  sInfo = env->sI;
-  std::vector<std::mt19937>& generators = settings.generators;
 
-  MemoryBuffer* const data = new MemoryBuffer(settings, env);
-  Collector* const data_get = new Collector(settings, this, data);
-  MemoryProcessing* const data_proc = new MemoryProcessing(settings, data);
-  Encapsulator * const input = new Encapsulator("input", settings, data);
-
-  TrainData* trainInfo = nullptr;
-  std::vector<Approximator*> F;
-  mutable std::mutex buffer_mutex;
-
-  virtual void processStats();
-
-public:
   Profiler* profiler = nullptr;
   std::string learner_name;
   Uint learnID;
@@ -132,7 +133,7 @@ public:
 
   bool unblockGradStep() const {
     if(updatedNdata not_eq true) return false;
-    assert( _nData.load() - nData_b4Startup > _nStep.load() * obsPerStep );
+    //assert( _nData.load() - nData_b4Startup > _nStep.load() * obsPerStep );
     assert( blockDataAcquisition() );
     return true;
   }

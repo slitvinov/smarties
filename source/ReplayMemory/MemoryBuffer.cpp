@@ -141,7 +141,6 @@ void MemoryBuffer::pushBackSequence(Sequence*const seq)
   lock_guard<mutex> lock(dataset_mutex);
   assert( readNSeq() == Set.size() and seq not_eq nullptr);
   const auto ind = Set.size();
-  const Uint prefix =
   Set.push_back(seq);
   Set[ind]->prefix = ind>0? Set[ind-1]->prefix +Set[ind-1]->ndata() : 0;
   nTransitions += seq->ndata();
@@ -154,7 +153,7 @@ void MemoryBuffer::pushBackSequence(Sequence*const seq)
 void MemoryBuffer::initialize()
 {
   // All sequences obtained before this point should share the same time stamp
-  for(Uint i=0;i<Set.size();i++) Set[i]->ID = readNSeenSeq()-1;
+  for(Uint i=0;i<Set.size();i++) Set[i]->ID = nSeenSequences_loc.load() - 1;
   #ifdef PRIORITIZED_ER
     vector<float> probs(nTransitions.load(), 1);
     distPER = discrete_distribution<Uint>(probs.begin(), probs.end());

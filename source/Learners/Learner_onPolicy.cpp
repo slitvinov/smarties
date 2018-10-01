@@ -24,7 +24,7 @@ nEpochs(_s.batchSize/_s.obsPerStep) {
 // for on policy learning, when enough data is collected from workers
 // gradient stepping starts and collection is paused
 // when training is concluded collection restarts
-bool Learner_onPolicy::lockQueue() const
+bool Learner_onPolicy::blockDataAcquisition() const
 {
   return bTrain && data->readNData() >= nHorizon + cntKept;
 }
@@ -50,7 +50,7 @@ void Learner_onPolicy::spawnTrainTasks_seq()
     const Uint seq = samp_seq[i], obs = samp_obs[i];
     Train(seq, obs, 0, i, thrID);
     input->gradient(thrID);
-    data->Set[seq]->setSampled(obs);
+    data->get(seq)->setSampled(obs);
   }
 
   profiler->stop_start("SLP");
@@ -71,7 +71,7 @@ void Learner_onPolicy::prepareGradient()
   cntBatch += batchSize;
   if(cntBatch >= nHorizon) {
     const Real annlLR = annealRate(learnR, currStep, epsAnneal);
-    data->updateRewardsStats(currStep, 0.001, annlLR);
+    data_proc->updateRewardsStats(0.001, annlLR);
     cntBatch = 0;
     cntEpoch++;
   }
@@ -100,7 +100,7 @@ void Learner_onPolicy::initializeLearner()
   }
 
   profiler->stop_start("PRE");
-  data->updateRewardsStats(currStep, 1, 1);
+  data_proc->updateRewardsStats(1, 1, true);
   if( learn_rank == 0 )
-    cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
+    std::cout << "Initial reward std " <<1/data->scaledReward(1) << std::endl;
 }

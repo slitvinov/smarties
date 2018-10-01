@@ -1,12 +1,10 @@
 .DEFAULT_GOAL := app
 
 SMARTIESDIR = ../../source/Communicators/
-#CPPFLAGS+= -fsanitize=address
-#LIBS += -fsanitize=address
-CPPFLAGS += -I$(SMARTIESDIR) -std=c++14
+CPPFLAGS += -std=c++11 -I$(SMARTIESDIR) -DSMARTIES_APP
 VPATH := $(VPATH):$(SMARTIESDIR)
 
-app: cart-pole.o Communicator.o
+app: cart-pole.o
 	ar rs libsimulation.a $^
 	#$(CC) -shared -c cart-pole.cpp -o app.so -I ../../source/Communicators/
 	cp libsimulation.a ../../makefiles/libsimulation.a

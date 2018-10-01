@@ -188,7 +188,7 @@ int app_main(
   while(true) //train loop
   {
     //reset environment:
-    env.reset(comm->gen); //comm contains rng with different seed on each rank
+    env.reset(comm->getPRNG()); //comm contains rng with different seed on each rank
 
 
     comm->sendInitState(env.getState()); //send initial state

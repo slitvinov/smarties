@@ -27,6 +27,9 @@ private:
   std::atomic<Uint>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
 
 public:
+  void add_state(const Agent&a);
+  void add_action(const Agent& a, const Rvec pol);
+  void terminate_seq(Agent&a);
   void push_back(const int & agentId);
   inline Sequence* get(const Uint ID) {
     return inProgress[ID];

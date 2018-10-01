@@ -13,7 +13,7 @@ MemorySharing::MemorySharing(const Settings&S, Learner*const L,
   MemoryBuffer*const RM) : settings(S), learner(L), replay(RM), sI(L->sInfo),
   aI(L->aInfo) {
   completed.reserve(S.nAgents);
-  fetcher = std::thread( [ ] () { run(); } );
+  fetcher = std::thread( [ & ] () { this->run(); } );
 }
 
 MemorySharing::~MemorySharing()
@@ -26,14 +26,14 @@ MemorySharing::~MemorySharing()
 int MemorySharing::testBuffer(MPI_Request& req)
 {
   if(req == MPI_REQUEST_NULL) return 0;
-  int completed = 0;
+  int bRecvd = 0;
   if(bAsync) { // MPI impl allows maximum thread safety
-    MPI_Test(&req, &completed, MPI_STATUS_IGNORE);
+    MPI_Test(&req, &bRecvd, MPI_STATUS_IGNORE);
   } else {
     std::lock_guard<std::mutex> lock(mpi_mutex);
-    MPI_Test(&req, &completed, MPI_STATUS_IGNORE);
+    MPI_Test(&req, &bRecvd, MPI_STATUS_IGNORE);
   }
-  return completed;
+  return bRecvd;
 }
 
 void MemorySharing::recvEP(const int ID2)
@@ -76,6 +76,11 @@ void MemorySharing::sendEp(const int ID2, Sequence* const EP)
 
 void MemorySharing::run()
 {
+  for(int i=0; i<SZ; i++) if(i not_eq ID) {
+    std::lock_guard<std::mutex> lock(mpi_mutex);
+    MPI_Irecv(&recvSz[i], 1, MPI_UNSIGNED, i, 99, comm, &RRq[i]);
+  }
+
   while(true)
   {
     {
@@ -94,7 +99,7 @@ void MemorySharing::run()
     {
       std::lock_guard<std::mutex> lock(complete_mutex);
       if( completed.size() == 0) {
-        globalSeenTransitions = nSeenTransitions.load();
+        globalSeenTransitions = nSeenTransitions_loc.load();
         MPI_Iallreduce(MPI_IN_PLACE, &globalSeenTransitions, 1,
          MPI_LONG, MPI_SUM, comm, &nObsRequest);
       }

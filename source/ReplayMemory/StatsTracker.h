@@ -9,49 +9,6 @@
 #pragma once
 #include "../Settings.h"
 
-struct ApproximateReductor
-{
-  const MPI_Comm mpicomm;
-  const Uint mpisize, arysize;
-  MPI_Request buffRequest = MPI_REQUEST_NULL;
-  vector<long double> reduce_ret = vector<long double>(arysize, 0);
-  vector<long double> local_vals = vector<long double>(arysize, 0);
-
-  static int getSize(const MPI_Comm comm) {
-    int size;
-    MPI_Comm_size(comm, &size);
-    return size;
-  }
-  ApproximateReductor(const MPI_Comm c, const Uint N) :
-  mpicomm(c), mpisize(getSize(c)), arysize(N)
-  { }
-
-  template<typename T> // , MPI_Datatype MPI_RDX_TYPE
-  int sync(vector<T>& ret, bool accurate = false)
-  {
-    if (mpisize <= 1) return 1;
-    const bool firstUpdate = buffRequest == MPI_REQUEST_NULL;
-    if(not firstUpdate) MPI_Wait(&buffRequest, MPI_STATUS_IGNORE);
-    assert(ret.size() == arysize);
-    for(size_t i=0; i<ret.size(); i++) local_vals[i] = ret[i];
-
-    if(accurate){
-      if(not firstUpdate) die("undefined behavior");
-      MPI_Allreduce( local_vals.data(), reduce_ret.data(), arysize,
-                     MPI_LONG_DOUBLE, MPI_SUM, mpicomm);
-      //accurate result after reduction:
-      for(size_t i=0; i<ret.size(); i++) ret[i] = reduce_ret[i];
-    } else {
-      //inaccurate result coming from return of previous call:
-      for(size_t i=0; i<ret.size(); i++) ret[i] = reduce_ret[i];
-      MPI_Iallreduce(local_vals.data(), reduce_ret.data(), arysize,
-                     MPI_LONG_DOUBLE, MPI_SUM, mpicomm, &buffRequest);
-    }
-    // if no reduction done, partial sums are meaningless
-    return firstUpdate and not accurate;
-  }
-};
-
 template<typename T>
 struct DelayedReductor
 {

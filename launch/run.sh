@@ -20,13 +20,13 @@ if [ -x appSettings.sh ]; then
   source appSettings.sh
 fi
 
-SETTINGS+=" --nThreads ${NTHREADS}"
+SETTINGS+=" --nWorkers ${NWORKERS}"
 SETTINGS+=" --nMasters ${NMASTERS}"
-SETTINGS+=" --ppn ${TASKPERN}"
+SETTINGS+=" --nThreads ${NTHREADS}"
 export OMP_NUM_THREADS=${NTHREADS}
+export OMP_MAX_TASK_PRIORITY=1
 export OMP_PROC_BIND=CLOSE
 export OMP_PLACES=cores
-export OMP_MAX_TASK_PRIORITY=1
 
 #echo $SETTINGS > settings.txt
 env > environment.log
@@ -44,6 +44,6 @@ else
 mpirun -n ${NPROCESS} --map-by numa:PE=${NTHREADS} -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
 fi
 else # mpich / mvapich
-#mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to core:${NTHREADS} valgrind --num-callers=100  --tool=memcheck  ./rl ${SETTINGS} | tee out.log
-mpirun -n ${NPROCESS} -ppn ${TASKPERN} -bind-to core:${NTHREADS} ./rl ${SETTINGS} | tee out.log
+#mpirun -n ${NPROCESS} -bind-to core:${NTHREADS} valgrind --num-callers=100  --tool=memcheck --leak-check=yes  --track-origins=yes ./rl ${SETTINGS} | tee out.log
+mpirun -n ${NPROCESS} -bind-to core:${NTHREADS} ./rl ${SETTINGS} | tee out.log
 fi

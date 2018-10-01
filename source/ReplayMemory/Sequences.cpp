@@ -11,7 +11,7 @@
 vector<Fval> Sequence::packSequence(const Uint dS, const Uint dA, const Uint dP)
 {
   const Uint seq_len = tuples.size();
-  const Uint totalSize = computeTotalDataSize(dS, dA, dP, seq_len);
+  const Uint totalSize = computeTotalEpisodeSize(dS, dA, dP, seq_len);
   vector<Fval> ret(totalSize);
   Fval* buf = ret.data();
   for (Uint i = 0; i<seq_len; i++) {
@@ -53,8 +53,9 @@ void Sequence::save(FILE * f, const Uint dS, const Uint dA, const Uint dP) {
 }
 
 void Sequence::unpackSequence(const vector<Fval>& data, const Uint dS,
-  const Uint dA, const Uint dP, const Uint seq_len)
+  const Uint dA, const Uint dP)
 {
+  const Uint seq_len = computeTotalEpisodeNstep(dS, dA, dP, data.size());
   const Fval* buf = data.data();
   assert(tuples.size() == 0);
   tuples = vector<Tuple*>(seq_len, nullptr);
@@ -73,17 +74,17 @@ void Sequence::unpackSequence(const vector<Fval>& data, const Uint dS,
   #endif
   ended = *(buf++); ID = *(buf++); nOffPol = *(buf++);
   MSE = *(buf++); sumKLDiv = *(buf++); totR = *(buf++);
-  assert(buf - data.data() == computeTotalDataSize(dS, dA, dP, seq_len));
+  assert(buf - data.data() == computeTotalEpisodeSize(dS, dA, dP, seq_len));
 }
 
 int Sequence::restart(FILE * f, const Uint dS, const Uint dA, const Uint dP)
 {
   Uint seq_len = 0;
   if(fread(& seq_len, sizeof(Uint), 1, f) != 1) return 1;
-  const Uint totalSize = computeTotalDataSize(dS, dA, dP, seq_len);
+  const Uint totalSize = computeTotalEpisodeSize(dS, dA, dP, seq_len);
   vector<Fval> buffer(totalSize);
   if(fread(buffer.data(), sizeof(Fval), totalSize, f) != totalSize)
     die("mismatch");
-  unpackSequence(buffer, dS, dA, dP, seq_len);
+  unpackSequence(buffer, dS, dA, dP);
   return 0;
 }

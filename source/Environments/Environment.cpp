@@ -15,15 +15,15 @@ g(&_settings.generators[0]), settings(_settings), gamma(_settings.gamma) {}
 void Environment::setDims()
 {
   comm_ptr->getStateActionShape();
-  assert(comm_ptr->nAgents>0);
-  assert(comm_ptr->nStates>0);
-  assert(comm_ptr->nActions>0);
-  assert(comm_ptr->discrete_actions>=0);
+  assert(comm_ptr->getDimS()>0);
+  assert(comm_ptr->getDimA()>0);
+  assert(comm_ptr->getNagents()>0);
+  assert(comm_ptr->nDiscreteAct()>=0);
 
-  sI.dim = comm_ptr->nStates;
-  aI.dim = comm_ptr->nActions;
-  nAgentsPerRank = comm_ptr->nAgents;
-  aI.discrete = comm_ptr->discrete_actions;
+  sI.dim = comm_ptr->getDimS();
+  aI.dim = comm_ptr->getDimA();
+  nAgentsPerRank = comm_ptr->getNagents();
+  aI.discrete = comm_ptr->nDiscreteAct();
 
   aI.values.resize(aI.dim);
   aI.bounded.resize(aI.dim, 0);
@@ -31,11 +31,11 @@ void Environment::setDims()
   sI.scale.resize(sI.dim);
   sI.inUse.resize(sI.dim, 1);
 
-  if(!settings.world_rank) printf("State dimensionality : %d.",sI.dim);
+  if(settings.world_rank==0) printf("State dimensionality : %d.",sI.dim);
   for (unsigned i=0; i<sI.dim; i++) {
-    const bool inuse = comm_ptr->obs_inuse[i] > 0.5;
-    const double upper = comm_ptr->obs_bounds[i*2+0];
-    const double lower = comm_ptr->obs_bounds[i*2+1];
+    const bool inuse = comm_ptr->isStateObserved()[i] > 0.5;
+    const double upper = comm_ptr->stateBounds()[i*2+0];
+    const double lower = comm_ptr->stateBounds()[i*2+1];
     sI.inUse[i] = inuse;
     sI.mean[i]  = 0.5*(upper+lower);
     sI.scale[i] = 0.5*std::fabs(upper-lower);
@@ -44,57 +44,48 @@ void Environment::setDims()
       sI.scale = Rvec(sI.dim, 1); sI.mean = Rvec(sI.dim, 0);
       break;
     }
-    if(!settings.world_rank && not inuse)
+    if(settings.world_rank==0 && not inuse)
       printf(" State component %u is hidden from the learner.", i);
   }
-  if(!settings.world_rank) printf("\nAction dimensionality : %d.",aI.dim);
+  if(settings.world_rank==0) printf("\nAction dimensionality : %d.",aI.dim);
 
   int k = 0;
   for (Uint i=0; i<aI.dim; i++) {
-    aI.bounded[i]   = comm_ptr->action_options[i*2 +1] > 0.5;
-    const int nvals = comm_ptr->action_options[i*2 +0];
+    aI.bounded[i]   = comm_ptr->actionOption()[i*2 +1] > 0.5;
+    const int nvals = comm_ptr->actionOption()[i*2 +0];
     // if act space is continuous, only receive high and low val for each action
     assert(aI.discrete || nvals == 2);
     assert(nvals > 1);
     aI.values[i].resize(nvals);
     for(int j=0; j<nvals; j++)
-      aI.values[i][j] = comm_ptr->action_bounds[k++];
+      aI.values[i][j] = comm_ptr->actionBounds()[k++];
 
     const Real amax = aI.getActMaxVal(i), amin = aI.getActMinVal(i);
-    if(!settings.world_rank)
+    if(settings.world_rank==0)
     printf(" [%u: %f:%f%s]", i, amin, amax, aI.bounded[i]?" (bounded)":"");
   }
-  if(!settings.world_rank) printf("\n");
+  if(settings.world_rank==0) printf("\n");
 
   commonSetup(); //required
-  assert(sI.dim == (Uint) comm_ptr->nStates);
+  assert(sI.dim == (Uint) comm_ptr->getDimS());
 }
 
-Communicator_internal Environment::create_communicator(
-  const MPI_Comm workersComm,
-  const int socket, const bool bSpawn)
+Communicator_internal Environment::create_communicator()
 {
-  assert(socket>0);
-  Communicator_internal comm(workersComm,socket,bSpawn,&settings.generators[0]);
-  comm.set_exec_path(settings.launchfile);
+  Communicator_internal comm(settings);
   comm_ptr = &comm;
 
   if(settings.workers_rank>0) // aka not a master
   {
     #ifdef INTERNALAPP
-      settings.nWorkers = settings.workers_size-1; //one is the master
-
-      if(settings.nWorkers % settings.workersPerEnv != 0)
+      if( (settings.workers_size-1) % settings.workersPerEnv != 0)
         die("Number of ranks does not match app\n");
 
       int workerGroup = (settings.workers_rank-1) / settings.workersPerEnv;
 
       MPI_Comm app_com;
-      MPI_Comm_split(workersComm, workerGroup, settings.workers_rank, &app_com);
-
-      comm.set_params_file(settings.appSettings);
-      comm.set_nstepp_file(settings.nStepPappSett);
-      comm.set_folder_path(settings.setupFolder);
+      MPI_Comm_split(settings.workersComm, workerGroup, settings.workers_rank,
+        &app_com);
       comm.set_application_mpicom(app_com, workerGroup);
       comm.ext_app_run(); //worker rank will remain here for ever
     #else
@@ -113,8 +104,7 @@ Communicator_internal Environment::create_communicator(
 }
 
 Environment::~Environment() {
-  for (auto & trash : agents)
-    _dispose_object(trash);
+  for (auto & trash : agents) _dispose_object(trash);
 }
 
 bool Environment::predefinedNetwork(Builder & input_net) const
@@ -126,16 +116,15 @@ bool Environment::predefinedNetwork(Builder & input_net) const
 
 void Environment::commonSetup()
 {
-  assert(settings.nWorkers > 0);
   assert(nAgentsPerRank > 0);
-  nAgents = nAgentsPerRank * settings.nWorkers;
+  nAgents = nAgentsPerRank * settings.nWorkers_own;
   settings.nAgents = nAgents;
 
   if(sI.dim == 0) sI.dim = sI.inUse.size();
   if(sI.inUse.size() == 0) {
     if(settings.world_rank == 0)
     printf("Unspecified whether state vector components are available to learner, assumed yes\n");
-    sI.inUse = vector<bool>(sI.dim, true);
+    sI.inUse = std::vector<bool>(sI.dim, true);
   }
   if(sI.dim not_eq sI.inUse.size()) { die("must be equal"); }
   if(sI.dim == 0) {
@@ -151,9 +140,9 @@ void Environment::commonSetup()
   aI.updateShifts();
 
   if(0 == aI.bounded.size()) {
-    aI.bounded = vector<bool>(aI.dim, false);
+    aI.bounded = std::vector<bool>(aI.dim, false);
     if(settings.world_rank == 0)
-    printf("Unspecified whether action space is bounded: assumed not\n");
+      printf("Unspecified whether action space is bounded: assumed not\n");
   } else assert(aI.bounded.size() == aI.dim);
 
   agents.resize(std::max(nAgents, (Uint) 1), nullptr);
@@ -164,7 +153,7 @@ void Environment::commonSetup()
   for (Uint i=0; i<sI.scale.size(); i++) assert(positive(sI.scale[i]));
 }
 
-bool Environment::pickReward(const Agent& agent)
+bool Environment::pickReward(const Agent& agent) const
 {
   return agent.Status == 2;
 }

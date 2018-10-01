@@ -43,6 +43,7 @@ struct MemorySharing
   std::thread fetcher;
   std::atomic<Uint> bExit {0};
 
+  std::atomic<Uint>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
   long int globalSeenTransitions = 0;
 
   MemorySharing(const Settings&S, Learner*const L, MemoryBuffer*const RM);

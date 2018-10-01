@@ -48,13 +48,20 @@ struct Sequence
   void save(FILE * f, const Uint dS, const Uint dA, const Uint dP);
 
   void unpackSequence(const vector<Fval>& data, const Uint dS,
-    const Uint dA, const Uint dP, const Uint seq_len);
+    const Uint dA, const Uint dP);
   vector<Fval> packSequence(const Uint dS, const Uint dA, const Uint dP);
 
   static Uint computeTotalEpisodeSize(Uint dS, Uint dA, Uint dP, Uint Nstep) {
     const Uint tuplSize = dS+dA+dP+1;
     const Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
     return (tuplSize+infoSize)*Nstep + 6;
+  }
+  static Uint computeTotalEpisodeNstep(Uint dS, Uint dA, Uint dP, Uint size) {
+    const Uint tuplSize = dS+dA+dP+1;
+    const Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
+    const Uint nStep = (size - 6)/(tuplSize+infoSize);
+    assert(computeTotalEpisodeSize(dS,dA,dP,nStep) == size);
+    return nStep;
   }
 
   vector<Tuple*> tuples;

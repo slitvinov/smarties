@@ -9,11 +9,11 @@
 #include "Collector.h"
 
 Collector::Collector(const Settings&S, Learner*const L, MemoryBuffer*const RM) :
- settings(S), env(RM->env), replay(RM), sharing( new DataSharing(S, L, RM) )
+ settings(S), env(RM->env), replay(RM), sharing( new MemorySharing(S, L, RM) )
 {
-  assert(_s.nAgents>0);
-  inProgress.resize(_s.nAgents);
-  for (int i=0; i<_s.nAgents; i++) inProgress[i] = new Sequence();
+  assert(S.nAgents>0);
+  inProgress.resize(S.nAgents);
+  for (int i=0; i<S.nAgents; i++) inProgress[i] = new Sequence();
 }
 
 // Once learner receives a new observation, first this function is called
@@ -51,7 +51,7 @@ void Collector::add_action(const Agent& a, const Rvec pol)
   if(a.Status not_eq INIT_COMM) nSeenTransitions_loc ++;
 
   inProgress[a.ID]->add_action(a.a.vals, pol);
-  if(bWriteToFile) a.writeData(learn_rank, pol, nSeenTransitions);
+  if(bWriteToFile) a.writeData(learn_rank, pol, nSeenTransitions_loc.load());
 }
 
 // If the state is terminal, instead of calling `add_action`, call this:
@@ -65,7 +65,7 @@ void Collector::terminate_seq(Agent&a)
   inProgress[a.ID]->add_action(a.a.vals, Rvec(policyVecDim, 0));
 
   if(bWriteToFile)
-    a.writeData(learn_rank, Rvec(policyVecDim, 0), nSeenTransitions);
+    a.writeData(learn_rank, Rvec(policyVecDim, 0), nSeenTransitions_loc.load());
   push_back(a.ID);
 }
 
@@ -74,7 +74,7 @@ void Collector::push_back(const int & agentId)
 {
   if(inProgress[agentId]->tuples.size() > 2 ) //at least s0 and sT
   {
-    inProgress[agentId]->finalize( readNSeenSeq() );
+    inProgress[agentId]->finalize( nSeenSequences_loc.load() );
     sharing->addComplete(inProgress[agentId]);
     nSeenTransitions_loc++;
     nSeenSequences_loc++;

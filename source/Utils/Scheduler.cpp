@@ -13,8 +13,8 @@
 #include <algorithm>
 #include <chrono>
 
-Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
-  Settings&_s): settings(_s), workersComm(_c), learners(_l), env(_e)
+Master::Master(Communicator_internal* const _c, const vector<Learner*> _l,
+  Environment*const _e, Settings&_s): settings(_s),comm(_c),learners(_l),env(_e)
 {
   profiler = new Profiler();
   for (Uint i=0; i<learners.size(); i++)  learners[i]->profiler = profiler;
@@ -25,7 +25,7 @@ Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
   if(nWorkers*nPerRank != static_cast<int>(agents.size()))
     die("Mismatch in master's nWorkers nPerRank nAgents.");
   //the following Irecv will be sent after sending the action
-  for(int i=1; i<=nWorkers; i++) recvBuffer(i);
+  for(int i=1; i<=nWorkers; i++) comm->recvBuffer(i);
   profiler->stop_start("SLP");
   worker_replies.reserve(nWorkers);
 }
@@ -87,7 +87,7 @@ void Master::processWorker(const int worker)
     }
 
     MPI_Status mpistatus;
-    int completed = testBuffer(worker, mpistatus);
+    int completed = comm->testBuffer(worker, mpistatus);
 
     if(completed) {
       assert(worker == mpistatus.MPI_SOURCE);
@@ -103,12 +103,12 @@ void Master::processAgent(const int worker, const MPI_Status mpistatus)
   int recv_agent  = -1; // id of agent inside environment
   int recv_status = -1; // initial/normal/termination/truncation of episode
   double reward   =  0;
-  unpackState(inpBufs[worker-1], recv_agent, recv_status, recv_state, reward);
+  comm->unpackState(worker-1, recv_agent, recv_status, recv_state, reward);
+  if (recv_status == FAIL_COMM) die("app crashed");
 
   const int agent = (worker-1) * nPerRank + recv_agent;
   Learner*const aAlgo = pickLearner(agent, recv_agent);
 
-  if (recv_status == FAIL_COMM) die("app crashed");
 
   agents[agent]->update(recv_status, recv_state, reward);
   //pick next action and ...do a bunch of other stuff with the data:
@@ -119,15 +119,19 @@ void Master::processAgent(const int worker, const MPI_Status mpistatus)
     agents[agent]->s._print().c_str(), agents[agent]->r,
     agents[agent]->a._print().c_str());
 
-  sendBuffer(worker, agent);
+  std::vector<double> actVec = agents[agent]->getAct();
+  if(agents[agent]->Status >= TERM_COMM) actVec[0] = getMinStepId();
+  debugS("Sent action to worker %d: [%s]", worker, print(actVec).c_str() );
+  comm->sendBuffer(worker, actVec);
 
   if ( recv_status >= TERM_COMM )
     dumpCumulativeReward(recv_agent,worker,aAlgo->nStep(),aAlgo->tStepsTrain());
 
-  recvBuffer(worker);
+  comm->recvBuffer(worker);
 }
 
-Worker::Worker(Communicator_internal*const _c, Environment*const _e, Settings& _s): comm(_c), env(_e), bTrain(_s.bTrain), status(_e->agents.size(),1) {}
+Worker::Worker(Communicator_internal*const _c,Environment*const _e,Settings&_s)
+: comm(_c), env(_e), bTrain(_s.bTrain), status(_e->agents.size(),1) {}
 
 void Worker::run() {
   while(true) {
@@ -145,6 +149,38 @@ void Worker::run() {
     //if (!bTrain) return;
     comm->launch();
   }
+}
+
+void Master::flushRewardBuffer()
+{
+  for(int i=0; i<nPerRank; i++)
+  {
+    ostringstream& agentBuf = rewardsBuffer[i];
+    streampos pos = agentBuf.tellp(); // store current location
+    agentBuf.seekp(0, ios_base::end); // go to end
+    bool empty = agentBuf.tellp()==0; // check size == 0 ?
+    agentBuf.seekp(pos);              // restore location
+    if(empty) continue;               // else update rewards log
+    char path[256];
+    sprintf(path, "agent_%02d_rank%02d_cumulative_rewards.dat", i,learn_rank);
+    ofstream outf(path, ios::app);
+    outf << agentBuf.str();
+    agentBuf.str(std::string());      // empty buffer
+    outf.flush();
+    outf.close();
+  }
+}
+
+void Master::dumpCumulativeReward(const int agent, const int worker,
+  const unsigned giter, const unsigned tstep) const
+{
+  if (giter == 0 && bTrain) return;
+
+  const int ID = (worker-1) * nPerRank + agent;
+  lock_guard<mutex> lock(dump_mutex);
+  rewardsBuffer[agent]<<giter<<" "<<tstep<<" "<<worker<<" "
+    <<agents[ID]->transitionID<<" "<<agents[ID]->cumulative_rewards<<endl;
+  rewardsBuffer[agent].flush();
 }
 
 /*

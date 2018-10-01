@@ -21,7 +21,7 @@ public:
   Learner_onPolicy(Environment*const _env, Settings&_s);
 
   //main training functions:
-  bool lockQueue() const override;
+  bool blockDataAcquisition() const override;
   void spawnTrainTasks_seq() override;
   void spawnTrainTasks_par() override;
   bool bNeedSequentialTrain() override;

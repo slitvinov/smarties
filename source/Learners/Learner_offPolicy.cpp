@@ -7,6 +7,7 @@
 //
 
 #include "Learner_offPolicy.h"
+#include "../Network/Optimizer.h"
 
 Learner_offPolicy::Learner_offPolicy(Environment*const _env, Settings & _s) :
 Learner(_env,_s) {
@@ -167,7 +168,7 @@ void Learner_offPolicy::applyGradient()
     profiler->stop_start("PRE");
     if(currStep%1000==0) { // update state mean/std with net's learning rate
       const Real WS = annealRate(learnR, currStep, epsAnneal);
-      data_proc->updateRewardsStats(currStep, 1, WS*(OFFPOL_ADAPT_STSCALE>0));
+      data_proc->updateRewardsStats(1, WS*(OFFPOL_ADAPT_STSCALE>0));
     }
   }
   else die("Pruning removed too much data: no longer supported");
@@ -191,9 +192,9 @@ void Learner_offPolicy::initializeLearner()
 
   debugL("Compute state/rewards stats from the replay memory");
   profiler->stop_start("PRE");
-  data_proc->updateRewardsStats(currStep, 1, 1);
+  data_proc->updateRewardsStats(1, 1, true);
   if( learn_rank == 0 )
-    cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
+    std::cout << "Initial reward std " << 1/data->scaledReward(1) << std::endl;
 
   Learner::initializeLearner();
 }
@@ -233,8 +234,10 @@ void Learner_offPolicy::restart()
   std::ostringstream ss;
   ss<<"rank_"<<std::setfill('0')<<std::setw(3)<<learn_rank<<"_learner.raw";
   FILE * f = fopen((learner_name+ss.str()).c_str(), "rb");
-  if(f == NULL)
-    _warn("Did not find learner state file %s\n", fname.c_str()); return;
+  if(f == NULL) {
+   _warn("Learner restart file %s not found\n",(learner_name+ss.str()).c_str());
+   return;
+  }
 
   Uint nObs, tObs, nSeqs, tSeqs;
   if(fread(&nSeqs,sizeof(Uint),1,f) != 1) die(""); data->setNSeq(nSeqs);
@@ -251,7 +254,7 @@ void Learner_offPolicy::restart()
   if(fread(&CmaxRet,         sizeof(Real), 1, f) != 1) die("");
 
   for(Uint i = 0; i < nSeqs; i++) {
-    assert(data->Set[i] == nullptr);
+    assert(data->get(i) == nullptr);
     Sequence* const S = new Sequence();
     if( S->restart(f, sInfo.dimUsed, aInfo.dim, aInfo.policyVecDim) )
       _die("Unable to find sequence %u\n", i);

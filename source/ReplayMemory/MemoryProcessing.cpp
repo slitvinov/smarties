@@ -16,12 +16,12 @@ settings(S), RM(_RM) { }
 void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bool bInit)
 {
   if(not settings.bTrain) return; //if not training, keep the stored values
+  const Uint setSize = RM->readNSeq();
 
   if(WR>0 or WS>0)
   {
     long double count = 0, newstdvr = 0;
     std::vector<long double> newSSum(dimS, 0), newSSqSum(dimS, 0);
-    const Uint setSize = RM->readNSeq();
     #pragma omp parallel reduction(+ : count, newstdvr)
     {
       std::vector<long double> thNewSSum(dimS, 0), thNewSSqSum(dimS, 0);
@@ -106,7 +106,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
         #pragma omp for schedule(dynamic)
         for(Uint i=0; i<setSize; i++)
           for(Uint j=0; j<Set[i]->ndata(); j++) {
-            const auto S = standardize(Set[i]->tuples[j]->s);
+            const auto S = RM->standardize(Set[i]->tuples[j]->s);
             for(Uint k=0; k<dimS; k++) {
               thr_dbgStateSum[k] += S[k]; thr_dbgStateSqSum[k] += S[k]*S[k];
             }
@@ -176,7 +176,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
   nOffPol = _nOffPol;
   minInd = oldV;
   assert(oldP<(int)Set.size() && farP<(int)Set.size() && dklP<(int)Set.size());
-  assert( oldP >=  0 && farP >=  0 && dklP >=  0 && fitP >=  0 );
+  assert( oldP >=  0 && farP >=  0 && dklP >=  0 );
   switch(ALGO) {
     case OLDEST:     delPtr = oldP; break;
     case FARPOLFRAC: delPtr = farP; break;

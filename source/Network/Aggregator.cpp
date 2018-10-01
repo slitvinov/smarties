@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "Approximator.h"
+#include "Aggregator.h"
 #include "Builder.h"
 
 void Aggregator::prepare(Sequence*const traj, const Uint thrID,

@@ -330,13 +330,6 @@ app (=1) or is launched by it (=0) (then cannot train)."
 #define DEFAULT_isServer 1
   int isServer = DEFAULT_isServer;
 
-#define CHARARG_ppn '>'
-#define COMMENT_ppn "Number of processes per node."
-#define TYPEVAL_ppn int
-#define TYPENUM_ppn INT
-#define DEFAULT_ppn 1
-  int ppn = DEFAULT_ppn;
-
 #define CHARARG_sockPrefix '@'
 #define COMMENT_sockPrefix "Prefix for communication file over sockets."
 #define TYPEVAL_sockPrefix int
@@ -452,7 +445,9 @@ string setupFolder = DEFAULT_setupFolder;
 ///////////////////////////////////////////////////////////////////////////////
 //SETTINGS THAT ARE NOT READ FROM FILE
 ///////////////////////////////////////////////////////////////////////////////
-  MPI_Comm mastersComm;
+  MPI_Comm workersComm = MPI_COMM_NULL; // for workers to talk to their master
+  MPI_Comm mastersComm = MPI_COMM_NULL; // for masters to talk among themselves
+
   int world_rank = 0;
   int world_size = 0;
   int workers_rank = 0;
@@ -460,10 +455,12 @@ string setupFolder = DEFAULT_setupFolder;
   int learner_rank = 0;
   int learner_size = 0;
 
-  MPI_Comm dataShareComm;
   // number of workers (usually per master)
   int nWorkers_own = 1;
   bool bMasterSpawnApp = false;
+  bool bIsMaster = true;
+  int learGroupSize = -1;
+  int workerCommInd = -1;
   //number of agents that:
   // in case of worker: # of agents that are contained in an environment
   // in case of master: nWorkers * # are contained in an environment
@@ -491,15 +488,40 @@ string setupFolder = DEFAULT_setupFolder;
     bRecurrent = nnType=="LSTM" || nnType=="RNN" || nnType == "MGU" || nnType == "GRU";
 
     if(bSampleSequences && maxTotSeqNum<batchSize)
-    die("Increase memory buffer size or decrease batchsize, or switch to sampling by transitions.");
+      die("Increase memory buffer size or decrease batchsize, or switch to sampling by transitions.");
+
     if(bTrain == false && restart == "none") {
      cout<<"Did not specify path for restart files, assumed current dir."<<endl;
      restart = ".";
     }
+
+    if(mastersComm == MPI_COMM_NULL) die(" ");
+
+    MPI_Comm_rank(mastersComm, &learner_rank);
+    MPI_Comm_size(mastersComm, &learner_size);
+    assert(workers_rank == 0);
+
+    const Real nL = learner_size, nW = nWorkers;
+    // every grad step, each worker performs a fraction of the time steps:
+    obsPerStep = std::ceil(obsPerStep / nW) * nW;
+    // each learner computes a fraction of the batch:
+    batchSize = std::ceil(batchSize / nL) * nL;
+    // each worker collects a fraction of the initial memory buffer:
+    if(minTotObsNum_loc <= 0) minTotObsNum_loc = maxTotObsNum;
+    minTotObsNum = std::ceil(minTotObsNum / nW) * nW;
+    // each learner processes a fraction of the entire dataset:
+    maxTotObsNum = std::ceil(maxTotObsNum / nL) * nL;
+
+    maxTotObsNum_loc = maxTotObsNum / learner_size;
+    minTotObsNum_loc = minTotObsNum / nWorkers;
+    batchSize_loc = batchSize / learner_size;
+    obsPerStep_loc = obsPerStep / nWorkers;
+
     if(batchSize_loc <= 0) die(" ");
     if(obsPerStep_loc <= 0) die(" ");
     if(minTotObsNum_loc <= 0) die(" ");
     if(maxTotObsNum_loc <= 0) die(" ");
+
     if(appendedObs<0)  die("appendedObs<0");
     if(targetDelay<0)  die("targetDelay<0");
     if(splitLayers<0)  die("splitLayers<0");
@@ -550,9 +572,10 @@ string setupFolder = DEFAULT_setupFolder;
       READOPT(nnLambda), READOPT(splitLayers), READOPT(nnBPTTseq),
 
       // SMARTIES ARGS: MUST contain all 10 mentioned above (more if modified)
-      READOPT(nThreads), READOPT(nMasters), READOPT(isServer), READOPT(ppn),
-      READOPT(sockPrefix), READOPT(samplesFile), READOPT(restart),
-      READOPT(maxTotSeqNum), READOPT(randSeed), READOPT(saveFreq),
+      READOPT(nThreads), READOPT(nMasters), READOPT(nWorkers),
+      READOPT(isServer), READOPT(sockPrefix), READOPT(samplesFile),
+      READOPT(restart), READOPT(maxTotSeqNum),
+      READOPT(randSeed), READOPT(saveFreq),
 
       // ENVIRONMENT ARGS: MUST contain all 7 mentioned above (more if modified)
       READOPT(environment), READOPT(workersPerEnv), READOPT(rType),

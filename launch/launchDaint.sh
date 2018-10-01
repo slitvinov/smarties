@@ -17,7 +17,8 @@ if [ $# -lt 4 ] ; then
 fi
 
 MYNAME=`whoami`
-BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
+#BASEPATH="/scratch/snx3000/${MYNAME}/smarties/"
+BASEPATH="/scratch/snx1600/${MYNAME}/smarties/"
 mkdir -p ${BASEPATH}${RUNFOLDER}
 #ulimit -c unlimited
 #lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
