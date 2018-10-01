@@ -9,6 +9,49 @@
 #pragma once
 #include "../Settings.h"
 
+struct ApproximateReductor
+{
+  const MPI_Comm mpicomm;
+  const Uint mpisize, arysize;
+  MPI_Request buffRequest = MPI_REQUEST_NULL;
+  vector<long double> reduce_ret = vector<long double>(arysize, 0);
+  vector<long double> local_vals = vector<long double>(arysize, 0);
+
+  static int getSize(const MPI_Comm comm) {
+    int size;
+    MPI_Comm_size(comm, &size);
+    return size;
+  }
+  ApproximateReductor(const MPI_Comm c, const Uint N) :
+  mpicomm(c), mpisize(getSize(c)), arysize(N)
+  { }
+
+  template<typename T> // , MPI_Datatype MPI_RDX_TYPE
+  int sync(vector<T>& ret, bool accurate = false)
+  {
+    if (mpisize <= 1) return 1;
+    const bool firstUpdate = buffRequest == MPI_REQUEST_NULL;
+    if(not firstUpdate) MPI_Wait(&buffRequest, MPI_STATUS_IGNORE);
+    assert(ret.size() == arysize);
+    for(size_t i=0; i<ret.size(); i++) local_vals[i] = ret[i];
+
+    if(accurate){
+      if(not firstUpdate) die("undefined behavior");
+      MPI_Allreduce( local_vals.data(), reduce_ret.data(), arysize,
+                     MPI_LONG_DOUBLE, MPI_SUM, mpicomm);
+      //accurate result after reduction:
+      for(size_t i=0; i<ret.size(); i++) ret[i] = reduce_ret[i];
+    } else {
+      //inaccurate result coming from return of previous call:
+      for(size_t i=0; i<ret.size(); i++) ret[i] = reduce_ret[i];
+      MPI_Iallreduce(local_vals.data(), reduce_ret.data(), arysize,
+                     MPI_LONG_DOUBLE, MPI_SUM, mpicomm, &buffRequest);
+    }
+    // if no reduction done, partial sums are meaningless
+    return firstUpdate and not accurate;
+  }
+};
+
 template<typename T>
 struct DelayedReductor
 {
@@ -232,7 +275,8 @@ struct TrainData
   }
 
   inline void trackPolicy(const std::vector<Real> polG,
-    const std::vector<Real> penal, const int thrID) {
+    const std::vector<Real> penal, const int thrID)
+  {
     #if 0
       if(thrID == 1) {
         float normT = 0, dot = 0;
@@ -311,38 +355,6 @@ struct StatsTracker
       stdVec[thrID+1][i] += grad[i]*grad[i];
     }
   }
-  inline void clip_vector(Rvec& grad) const
-  {
-    assert(grad.size() == n_stats);
-    Uint ret = 0;
-    Real change = 0;
-    for (Uint i=0; i<n_stats && grad_cut_fac>=1; i++) {
-      //#ifdef IMPORTSAMPLE
-      //  assert(data->Set[seq]->tuples[samp]->weight>0);
-      //  grad[i] *= data->Set[seq]->tuples[samp]->weight;
-      //#endif
-      if(grad[i]> grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-        //printf("Cut %u was:%f is:%LG\n",i,grad[i], grad_cut_fac*stdVec[0][i]);
-        change+=(grad[i]-grad_cut_fac*stdVec[0][i])/(grad_cut_fac*stdVec[0][i]);
-        grad[i] = grad_cut_fac*stdVec[0][i];
-        ret += 1;
-      } else
-      if(grad[i]< -grad_cut_fac*stdVec[0][i] && stdVec[0][i]>2.2e-16) {
-        //printf("Cut %u was:%f is:%LG\n",i,grad[i],-grad_cut_fac*stdVec[0][i]);
-        change-=(grad[i]+grad_cut_fac*stdVec[0][i])/(grad_cut_fac*stdVec[0][i]);
-        grad[i] = -grad_cut_fac*stdVec[0][i];
-        ret += 1;
-      }
-      //else printf("Not cut\n");
-    }
-    //if(grad_cut_fac >= 1) {
-      //#pragma omp atomic
-      //numCut += ret;
-      //numCut += change;
-      //#pragma omp atomic
-      //numTot += n_stats;
-    //}
-  }
 
   inline void advance()
   {
@@ -361,6 +373,7 @@ struct StatsTracker
       std::fill(stdVec[i].begin(),  stdVec[i].end(), 0);
     }
   }
+
   inline void update()
   {
     cntVec[0] = std::max((long double)2.2e-16, cntVec[0]);
