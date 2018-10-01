@@ -7,6 +7,7 @@
 //
 
 #include "../Network/Builder.h"
+#include "Aggregator.h"
 #include "ACER.h"
 
 void ACER::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const

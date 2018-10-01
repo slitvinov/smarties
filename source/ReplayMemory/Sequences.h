@@ -47,9 +47,13 @@ struct Sequence
   int restart(FILE * f, const Uint dS, const Uint dA, const Uint dP);
   void save(FILE * f, const Uint dS, const Uint dA, const Uint dP);
 
-  Uint computeTotalDataSize(Uint dS, Uint dA, Uint dP, Uint Nstep) {
+  void unpackSequence(const vector<Fval>& data, const Uint dS,
+    const Uint dA, const Uint dP, const Uint seq_len);
+  vector<Fval> packSequence(const Uint dS, const Uint dA, const Uint dP);
+
+  static Uint computeTotalEpisodeSize(Uint dS, Uint dA, Uint dP, Uint Nstep) {
     const Uint tuplSize = dS+dA+dP+1;
-    const Uint infoSize = 6; //adv,val,ret,mse,
+    const Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
     return (tuplSize+infoSize)*Nstep + 6;
   }
 

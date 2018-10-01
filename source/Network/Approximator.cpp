@@ -7,7 +7,17 @@
 //
 
 #include "Approximator.h"
-#include "../Network/Builder.h"
+#include "Aggregator.h"
+#include "Builder.h"
+
+Approximator::Approximator(const string _name, Settings&S, Encapsulator*const E,
+  MemoryBuffer* const data_ptr, const Aggregator* const r) :
+settings(S), name(_name), input(E), data(data_ptr), relay(r) { }
+
+Approximator::~Approximator()
+{
+  _dispose_object(relay);
+}
 
 Builder Approximator::buildFromSettings(Settings&sett, const vector<Uint>nouts)
 {
@@ -335,4 +345,13 @@ Rvec Approximator::forward_agent(const Uint agentID) const {
                               wghtID==0 ? net->weights : net->tgt_weights );
   const Rvec inp = getInput(stepid, fakeThrID, wghtID);
   return net->predict(inp, nRecurr? act[nRecurr-1] : nullptr, act[nRecurr], W);
+}
+
+void Approximator::save(const string base, const bool bBackup) {
+  if(opt == nullptr) die("Attempted to save uninitialized net!");
+  opt->save(base + name, bBackup);
+}
+void Approximator::restart(const string base) {
+  if(opt == nullptr) die("Attempted to restart uninitialized net!");
+  opt->restart(base+name);
 }

@@ -52,6 +52,73 @@ struct ApproximateReductor
   }
 };
 
+template<typename T>
+struct DelayedReductor
+{
+  const MPI_Comm mpicomm;
+  const Uint mpisize, arysize;
+  MPI_Request buffRequest = MPI_REQUEST_NULL;
+  vector<T> return_ret;
+  vector<T> reduce_ret = vector<T>(arysize, 0);
+
+  static int getSize(const MPI_Comm comm) {
+    int size;
+    MPI_Comm_size(comm, &size);
+    return size;
+  }
+  DelayedReductor(const MPI_Comm c, const std::initializer_list<T> init) :
+  mpicomm(c), mpisize(getSize(c)), arysize(init.size()), return_ret(init) { }
+  DelayedReductor(const MPI_Comm c, const std::vector<T> init) :
+  mpicomm(c), mpisize(getSize(c)), arysize(init.size()), return_ret(init) { }
+
+  inline void check(const bool accurate)
+  {
+    if(buffRequest not_eq MPI_REQUEST_NULL and mpisize > 1) {
+      int completed = 0;
+      if(accurate) {
+        completed = 1;
+        MPI_Wait(&buffRequest, MPI_STATUS_IGNORE);
+      } else {
+        MPI_Test(&buffRequest, &completed, MPI_STATUS_IGNORE);
+      }
+      if(completed) {
+        return_ret = reduce_ret;
+        buffRequest = MPI_REQUEST_NULL;
+      }
+    }
+  }
+
+  const vector<T>& get(const bool accurate = false) {
+    check(accurate);
+    return return_ret;
+  }
+
+  void update(const vector<T> ret)
+  {
+    assert(ret.size() == arysize);
+    if (mpisize <= 1) { return_ret = ret; return; }
+
+    if(buffRequest not_eq MPI_REQUEST_NULL) {
+      MPI_Wait(&buffRequest, MPI_STATUS_IGNORE);
+      buffRequest = MPI_REQUEST_NULL;
+      return_ret = reduce_ret;
+    }
+
+    reduce_ret = ret;
+    static const MPI_Datatype MPIT =
+      typeid(T) == typeid(double)        ? MPI_DOUBLE        : (
+      typeid(T) == typeid(long double)   ? MPI_LONG_DOUBLE   : (
+      typeid(T) == typeid(unsigned)      ? MPI_UNSIGNED      : (
+      typeid(T) == typeid(unsigned long) ? MPI_UNSIGNED_LONG : (
+      typeid(T) == typeid(float)         ? MPI_FLOAT         : (
+      typeid(T) == typeid(int)           ? MPI_INT           : (
+      typeid(T) == typeid(long)          ? MPI_LONG          : MPI_BYTE ))))));
+
+    MPI_Iallreduce(MPI_IN_PLACE, reduce_ret.data(), arysize,
+                   MPIT, MPI_SUM, mpicomm, &buffRequest);
+  }
+};
+
 struct TrainData
 {
   const Uint n_extra, nThreads, bPolStats;

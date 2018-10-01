@@ -12,7 +12,6 @@
 #include <list>
 
 struct Aggregator;
-class Builder;
 
 enum NET { CUR, TGT }; /* use CUR or TGT weights */
 struct Approximator
@@ -66,8 +65,8 @@ struct Approximator
   mutable Rvec losses = Rvec(ESpopSize, 0);
 
   Approximator(const string _name, Settings& S, Encapsulator*const en,
-    MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr) :
-  settings(S), name(_name), input(en), data(data_ptr), relay(r) { }
+    MemoryBuffer* const data_ptr, const Aggregator* const r = nullptr);
+  ~Approximator();
 
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
   Builder buildFromSettings(Settings& _s, const Uint n_outputs);
@@ -131,14 +130,8 @@ struct Approximator
   void getMetrics(ostringstream& buff) const;
   void getHeaders(ostringstream& buff) const;
 
-  void save(const string base, const bool bBackup) {
-    if(opt == nullptr) die("Attempted to save uninitialized net!");
-    opt->save(base + name, bBackup);
-  }
-  void restart(const string base = string()) {
-    if(opt == nullptr) die("Attempted to restart uninitialized net!");
-    opt->restart(base+name);
-  }
+  void save(const string base, const bool bBackup);
+  void restart(const string base = string());
 
   inline void updateGradStats(const string base, const Uint iter) const {
     gradStats->reduce_stats(base+name, iter);
@@ -156,45 +149,4 @@ struct Approximator
     const int ind = (int)samp - first_sample[thrID];
     return ind;
   }
-};
-
-enum RELAY {VEC, ACT, NET};
-struct Aggregator
-{
-  const Settings& settings;
-  const bool bRecurrent = settings.bRecurrent;
-  const MemoryBuffer* const data;
-  const ActionInfo& aI = data->aI;
-  const Approximator* const approx;
-  const Uint nOuts, nMaxBPTT = settings.nnBPTTseq;
-  const Uint nThreads = settings.nThreads + settings.nAgents;
-
-  mutable vector<int> first_sample = vector<int>(nThreads,-1);
-  mutable vector<Sequence*> seq = vector<Sequence*>(nThreads, nullptr);
-  // [thread][time][component]:
-  mutable vector<vector<Rvec>> inputs = vector<vector<Rvec>>(nThreads);
-  // [thread]:
-  mutable vector<RELAY> usage = vector<RELAY>(nThreads, ACT);
-
-  // Settings file, the memory buffer class from which all trajectory pointers
-  // will be drawn from, the number of outputs from the aggregator. If 0 then
-  // 1) output the actions of the sequence (default)
-  // 2) output the result of NN approximator (pointer a)
-  Aggregator(Settings& S, const MemoryBuffer*const d, const Uint nOut=0,
-   const Approximator*const a = nullptr) : settings(S), data(d), approx(a),
-   nOuts(nOut? nOut: d->aI.dim)  {}
-
-  void prepare(Sequence*const traj,const Uint tID, const RELAY SET) const;
-
-  void prepare_seq(Sequence*const traj, const Uint thrID,
-    const RELAY SET = VEC) const;
-
-  void prepare_one(Sequence*const traj, const Uint samp,
-      const Uint thrID, const RELAY SET = VEC) const;
-
-  void set(const Rvec vec, const Uint samp, const Uint thrID) const;
-
-  Rvec get(const Uint samp, const Uint thrID, const int USEW) const;
-
-  inline Uint nOutputs() const { return nOuts; }
 };

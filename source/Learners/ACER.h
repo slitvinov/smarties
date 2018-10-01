@@ -10,6 +10,7 @@
 #include "Learner_offPolicy.h"
 #include "../Math/Quadratic_advantage.h"
 #include "../Math/Discrete_advantage.h"
+class Aggregator;
 
 class ACER : public Learner_offPolicy
 {

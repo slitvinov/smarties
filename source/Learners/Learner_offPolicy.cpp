@@ -30,12 +30,12 @@ bool Learner_offPolicy::readyForTrain() const
       percData = currPerc;
       printf("\rCollected %d%% of data required to begin training. ", percData);
       fflush(0); //otherwise no show on some platforms
-    }
+      }
   }
   return ready;
 }
 
-bool Learner_offPolicy::lockQueue() const
+bool Learner_offPolicy::blockDataAcquisition() const
 {
   // lockQueue tells scheduler that has stopped receiving states from workers
   // whether should start communication again.
@@ -43,18 +43,17 @@ bool Learner_offPolicy::lockQueue() const
   // and observed transitions to be kept (approximatively) constant
 
   //if there is not enough data for training, need more data
-  if( not readyForTrain() ) return false;
+  if( readyForTrain() not_eq true ) return false;
 
   //const Real _nData = (Real)data->readNConcluded() - nData_b4Startup;
-  const long int mynData = data->readNSeen() - nData_b4Startup.load();
-  const long int mynStep = nStep() - nStep_b4Startup.load();
+  const long int mynData = data->readNSeen_loc() - nData_b4Startup;
+  const long int mynStep = _nStep.load();
   // Lock the queue if we have !added to the training set! more observations
   // than (grad_step * obsPerStep) or if the update is ready.
   // The distinction between "added to set" and "observed" allows removing
   // some load inbalance, with only has marginal effects on algorithms.
   // Load imb. is reduced by minimizing pauses in either data or grad stepping.
-  const bool tooMuchData = mynData > mynStep*obsPerStep;
-  return tooMuchData;
+  return mynData > mynStep * obsPerStep_loc;
 }
 
 void Learner_offPolicy::spawnTrainTasks_par()
@@ -81,8 +80,9 @@ void Learner_offPolicy::spawnTrainTasks_par()
 
   nAddedGradients = 0;
   for (Uint i=0; i<batchSize && bSampleSequences; i++) {
-    samp_obs[i] = data->Set[samp_seq[i]]->ndata() - 1;
-    nAddedGradients += ESpopSize * data->Set[samp_seq[i]]->ndata();
+    const auto* const S = data->get(samp_seq[i]);
+    samp_obs[i] = S->ndata() - 1;
+    nAddedGradients += ESpopSize * S->ndata();
   }
   if(not bSampleSequences) nAddedGradients = ESpopSize * batchSize;
 
@@ -104,7 +104,7 @@ void Learner_offPolicy::spawnTrainTasks_par()
       }
   }
 
-  for(Uint i=0;i<batchSize;i++) data->Set[samp_seq[i]]->setSampled(samp_obs[i]);
+  for(Uint i=0;i<batchSize;i++) data->get(samp_seq[i])->setSampled(samp_obs[i]);
   updateComplete = true;
 }
 
@@ -124,40 +124,29 @@ void Learner_offPolicy::prepareGradient()
     //shift data / gradient counters to maintain grad stepping to sample
     // collection ratio prescirbed by obsPerStep
 
-    if(CmaxPol>0) // assume ReF-ER
-    {
-      #ifdef PRIORITIZED_ER
-        die("ReFER and Prioritized ER are incompatible. Set CmaxPol to 0");
-      #endif
-      CmaxRet = 1 + annealRate(CmaxPol, currStep, epsAnneal);
-      CinvRet = 1 / CmaxRet;
-      if(CmaxRet<=1) die("Either run lasted too long or epsAnneal is wrong.");
-      data->prune(ERFILTER, CmaxRet);
-      Real fracOffPol = data->nOffPol / (Real) data->readNData();
+    #ifdef PRIORITIZED_ER
+      die("ReFER and Prioritized ER are incompatible. Set CmaxPol to 0");
+    #endif
+    CmaxRet = 1 + annealRate(CmaxPol, currStep, epsAnneal);
+    CinvRet = 1 / CmaxRet;
+    if(CmaxRet<=1 and CmaxPol>0)
+      die("Either run lasted too long or epsAnneal is wrong.");
+    data_proc->prune(ERFILTER, CmaxRet);
 
-      if (learn_size > 1) {
-        vector<Real> partial_data {(Real)data->nOffPol,(Real)data->readNData()};
-        // use result from prev AllReduce to update rewards (before new reduce).
-        // Assumption is that the number of off Pol trajectories does not change
-        // much each step. Especially because here we update the off pol W only
-        // if an obs is actually sampled. Therefore at most this fraction
-        // is wrong by batchSize / nTransitions ( ~ 0 )
-        // In exchange we skip an mpi implicit barrier point.
-        const bool skipped = reductor.sync(partial_data);
-        fracOffPol = partial_data[0] / partial_data[1];
-        if(skipped and partial_data[0]>nnEPS)
-          die("If skipping it must be 1st step, with nothing far policy");
-      }
+    // use result from prev AllReduce to update rewards (before new reduce).
+    // Assumption is that the number of off Pol trajectories does not change
+    // much each step. Especially because here we update the off pol W only
+    // if an obs is actually sampled. Therefore at most this fraction
+    // is wrong by batchSize / nTransitions ( ~ 0 )
+    // In exchange we skip an mpi implicit barrier point.
+    ReFER_reduce.update({(Real)data_proc->nFarPol(), (Real)data->readNData()});
+    const vector<Real> nFarGlobal = ReFER_reduce.get();
+    const Real fracOffPol = nFarGlobal[0] / nFarGlobal[1];
 
-      if(fracOffPol>ReFtol) beta = (1-1e-4)*beta; // iter converges to 0
-      else beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
-      if(std::fabs(ReFtol-fracOffPol)<0.01) alpha = (1-1e-4)*alpha;
-      else alpha = 1e-4 + (1-1e-4)*alpha;
-    }
-    else
-    {
-      data->prune(ERFILTER);
-    }
+    if(fracOffPol>ReFtol) beta = (1-1e-4)*beta; // iter converges to 0
+    else beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
+    if(std::fabs(ReFtol-fracOffPol)<0.01) alpha = (1-1e-4)*alpha;
+    else alpha = 1e-4 + (1-1e-4)*alpha;
   }
 }
 
@@ -167,19 +156,9 @@ void Learner_offPolicy::applyGradient()
   if(updateToApply)
   {
     debugL("Finalize pruning of dataset");
-    data->finalize();
+    data_proc->finalize();
   }
-  else
-  {
-    if( not readyForTrain() ) die("undefined behavior");
-    warn("Pruning at prev grad step removed too much data and training was paused: shift training counters");
-    // Prune at prev grad step removed too much data and training was paused.
-    // ApplyGradient was surely called by Scheduler after workers finished
-    // gathering new data enabling training to continue ( after workers.join() )
-    // Therefore we should shift these counters to restart gradient stepping:
-    nData_b4Startup = data->readNConcluded();
-    nStep_b4Startup = nStep();
-  }
+  else die("undefined behavior");
 
   if( readyForTrain() )
   {
@@ -188,13 +167,10 @@ void Learner_offPolicy::applyGradient()
     profiler->stop_start("PRE");
     if(currStep%1000==0) { // update state mean/std with net's learning rate
       const Real WS = annealRate(learnR, currStep, epsAnneal);
-      data->updateRewardsStats(currStep, 1, WS*(OFFPOL_ADAPT_STSCALE>0));
+      data_proc->updateRewardsStats(currStep, 1, WS*(OFFPOL_ADAPT_STSCALE>0));
     }
   }
-  else
-  {
-    warn("Pruning removed too much data from buffer: will have to wait one scheduler loop before training can continue");
-  }
+  else die("Pruning removed too much data: no longer supported");
 
   Learner::applyGradient();
 }
@@ -203,17 +179,19 @@ void Learner_offPolicy::initializeLearner()
 {
   const Uint currStep = nStep();
   if ( not readyForTrain() ) die("undefined behavior");
+
+  ReFER_reduce.update({(Real)data_proc->nFarPol(), (Real)data->readNData()});
+
   if ( currStep > 0 ) {
     warn("Skipping initialization for restartd learner.");
     return;
   }
   // shift counters after initial data is gathered
-  nData_b4Startup = data->readNConcluded();
-  nStep_b4Startup = currStep;
+  nData_b4Startup = data->readNData();
 
   debugL("Compute state/rewards stats from the replay memory");
   profiler->stop_start("PRE");
-  data->updateRewardsStats(currStep, 1, 1);
+  data_proc->updateRewardsStats(currStep, 1, 1);
   if( learn_rank == 0 )
     cout<<"Initial reward std "<<1/data->invstd_reward<<endl;
 
@@ -229,55 +207,55 @@ void Learner_offPolicy::save()
   const bool bBackup = currStep % freqBackup == 0;
   if(not bBackup) return;
 
-  ostringstream ss; ss << std::setw(9) << std::setfill('0') << currStep;
-  FILE* f = fopen((learner_name+ss.str()+"_learner.raw").c_str(), "wb");
-  Uint val;
-  val = data->Set.size(); fwrite(&val, sizeof(Uint), 1, f);
-  val = data->nSequences.load(); fwrite(&val, sizeof(Uint), 1, f);
-  val = data->nTransitions.load(); fwrite(&val, sizeof(Uint), 1, f);
-  val = data->nSeenSequences.load(); fwrite(&val, sizeof(Uint), 1, f);
-  val = data->nSeenTransitions.load(); fwrite(&val, sizeof(Uint), 1, f);
-  val = data->nCmplTransitions.load(); fwrite(&val, sizeof(Uint), 1, f);
-  val = data->iOldestSaved.load(); fwrite(&val, sizeof(Uint), 1, f);
+  std::ostringstream ss;
+  ss<<learner_name<<"rank_"<<std::setfill('0')<<std::setw(3)<<learn_rank
+    <<"_"<<std::setw(9)<<currStep<<"_learner.raw";
+  FILE * f = fopen( ss.str().c_str(), "wb" );
+
+  const Uint nObs=data->readNData(), tObs=data->readNSeen_loc();
+  const Uint nSeqs=data->readNSeq(), tSeqs=data->readNSeenSeq_loc();
+  fwrite(&nSeqs, sizeof(Uint), 1, f);
+  fwrite(&nObs, sizeof(Uint), 1, f);
+  fwrite(&tObs, sizeof(Uint), 1, f);
+  fwrite(&tSeqs, sizeof(Uint), 1, f);
   fwrite(&currStep, sizeof(long int), 1, f);
   fwrite(&beta, sizeof(Real), 1, f);
   fwrite(&CmaxRet, sizeof(Real), 1, f);
 
-  for(Uint i = 0; i < data->Set.size(); i++)
-    data->Set[i]->save(f, sInfo.dimUsed, aInfo.dim, aInfo.policyVecDim);
+  for(Uint i = 0; i <nSeqs; i++)
+    data->get(i)->save(f, sInfo.dimUsed, aInfo.dim, aInfo.policyVecDim);
 }
 
 void Learner_offPolicy::restart()
 {
   Learner::restart();
   if(settings.restart == "none") return;
-  const string fname = learner_name+"learner.raw";
-  FILE* f = fopen(fname.c_str(), "rb");
-  if(f == NULL) {
+  std::ostringstream ss;
+  ss<<"rank_"<<std::setfill('0')<<std::setw(3)<<learn_rank<<"_learner.raw";
+  FILE * f = fopen((learner_name+ss.str()).c_str(), "rb");
+  if(f == NULL)
     _warn("Did not find learner state file %s\n", fname.c_str()); return;
-  }
-  Uint val;
-  if(fread(&val,sizeof(Uint),1,f) != 1) die(""); data->Set.resize(val, nullptr);
-  if(fread(&val,sizeof(Uint),1,f) != 1) die(""); data->nSequences = val;
-  if(fread(&val,sizeof(Uint),1,f) != 1) die(""); data->nTransitions = val;
-  if(fread(&val,sizeof(Uint),1,f) != 1) die(""); data->nSeenSequences = val;
-  if(fread(&val,sizeof(Uint),1,f) != 1) die(""); data->nSeenTransitions = val;
-  if(fread(&val,sizeof(Uint),1,f) != 1) die(""); data->nCmplTransitions = val;
-  if(fread(&val,sizeof(Uint),1,f) != 1) die(""); data->iOldestSaved = val;
 
-  long int cnter;
-  if(fread(&cnter, sizeof(long int), 1, f) != 1) die(""); _nStep = cnter;
-  if(input->opt not_eq nullptr) input->opt->nStep = cnter;
-  for(auto & net : F) net->opt->nStep = cnter;
+  Uint nObs, tObs, nSeqs, tSeqs;
+  if(fread(&nSeqs,sizeof(Uint),1,f) != 1) die(""); data->setNSeq(nSeqs);
+  if(fread(&nObs, sizeof(Uint),1,f) != 1) die(""); data->setNData(nObs);
+  if(fread(&tObs, sizeof(Uint),1,f) != 1) die(""); data->setNSeen_loc(tObs);
+  if(fread(&tSeqs,sizeof(Uint),1,f) != 1) die(""); data->setNSeenSeq_loc(tSeqs);
+
+  long int currStep;
+  if(fread(&currStep, sizeof(long int), 1, f) != 1) die(""); _nStep = currStep;
+  if(input->opt not_eq nullptr) input->opt->nStep = currStep;
+  for(auto & net : F) net->opt->nStep = currStep;
 
   if(fread(&beta,            sizeof(Real), 1, f) != 1) die("");
   if(fread(&CmaxRet,         sizeof(Real), 1, f) != 1) die("");
 
-  for(Uint i = 0; i < data->Set.size(); i++) {
+  for(Uint i = 0; i < nSeqs; i++) {
     assert(data->Set[i] == nullptr);
-    data->Set[i] = new Sequence();
-    if( data->Set[i]->restart(f, sInfo.dimUsed, aInfo.dim, aInfo.policyVecDim) )
+    Sequence* const S = new Sequence();
+    if( S->restart(f, sInfo.dimUsed, aInfo.dim, aInfo.policyVecDim) )
       _die("Unable to find sequence %u\n", i);
+    data->set(S, i);
   }
 }
 

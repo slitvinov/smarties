@@ -9,6 +9,7 @@
 #include "../Math/Utils.h"
 #include "../Math/Gaussian_policy.h"
 #include "../Network/Builder.h"
+#include "Aggregator.h"
 #include "DPG.h"
 //#define DKL_filter
 

@@ -9,6 +9,7 @@
 #pragma once
 #include "Learner_offPolicy.h"
 #include "../Math/Gaussian_policy.h"
+class Aggregator;
 
 class RETPG : public Learner_offPolicy
 {

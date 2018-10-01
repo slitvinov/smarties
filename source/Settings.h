@@ -43,7 +43,7 @@ Gradient. Algo specific."
 #define TYPEVAL_clipImpWeight Real
 #define TYPENUM_clipImpWeight REAL
 #define DEFAULT_clipImpWeight 4
-Real clipImpWeight = DEFAULT_clipImpWeight;
+  Real clipImpWeight = DEFAULT_clipImpWeight;
 
 #define CHARARG_targetDelay 'd'
 #define COMMENT_targetDelay "Copy delay for target network. If >1: every \
@@ -314,6 +314,14 @@ master rank."
 #define DEFAULT_nMasters 1
   int nMasters = DEFAULT_nMasters;
 
+
+#define CHARARG_nWorkers '%'
+#define COMMENT_nWorkers "Number of worker processes (not necessarily ranks)."
+#define TYPEVAL_nWorkers int
+#define TYPENUM_nWorkers INT
+#define DEFAULT_nWorkers 1
+  int nWorkers = DEFAULT_nWorkers;
+
 #define CHARARG_isServer '!'
 #define COMMENT_isServer "DEPRECATED: Whether smarties launches environment \
 app (=1) or is launched by it (=0) (then cannot train)."
@@ -451,8 +459,11 @@ string setupFolder = DEFAULT_setupFolder;
   int workers_size = 0;
   int learner_rank = 0;
   int learner_size = 0;
+
+  MPI_Comm dataShareComm;
   // number of workers (usually per master)
-  int nWorkers = 1;
+  int nWorkers_own = 1;
+  bool bMasterSpawnApp = false;
   //number of agents that:
   // in case of worker: # of agents that are contained in an environment
   // in case of master: nWorkers * # are contained in an environment
@@ -461,10 +472,19 @@ string setupFolder = DEFAULT_setupFolder;
   bool bRecurrent = false;
   // number of quantities defining the policy, depends on env and algorithm
   int policyVecDim = -1;
-  //random number generators (one per thread)
-  //std::mt19937* gen;
+
   int threadSafety = -1;
-  std::vector<std::mt19937> generators;
+  bool bAsync;
+  mutable std::mutex mpi_mutex;
+
+  // rank-local data-acquisition goals
+  int batchSize_loc = -1;
+  Real obsPerStep_loc = -1;
+  int minTotObsNum_loc = -1;
+  int maxTotObsNum_loc = -1;
+
+  //random number generators (one per thread)
+  mutable std::vector<std::mt19937> generators;
 
   void check()
   {
@@ -476,6 +496,10 @@ string setupFolder = DEFAULT_setupFolder;
      cout<<"Did not specify path for restart files, assumed current dir."<<endl;
      restart = ".";
     }
+    if(batchSize_loc <= 0) die(" ");
+    if(obsPerStep_loc <= 0) die(" ");
+    if(minTotObsNum_loc <= 0) die(" ");
+    if(maxTotObsNum_loc <= 0) die(" ");
     if(appendedObs<0)  die("appendedObs<0");
     if(targetDelay<0)  die("targetDelay<0");
     if(splitLayers<0)  die("splitLayers<0");
@@ -497,6 +521,7 @@ string setupFolder = DEFAULT_setupFolder;
     if(nnl3<0)         die("nnl3<0");
     if(nnl4<0)         die("nnl4<0");
     if(nnl5<0)         die("nnl5<0");
+
     if(epsAnneal>0.0001 || epsAnneal<0) {
       warn("epsAnneal should be tiny. It will be set to 5e-7 for this run.");
       epsAnneal = 5e-7;
@@ -548,10 +573,10 @@ string setupFolder = DEFAULT_setupFolder;
     sockPrefix = randSeed + world_rank;
     generators.resize(0);
     generators.reserve(omp_get_max_threads());
-    generators.push_back(mt19937(sockPrefix));
+    generators.push_back(std::mt19937(sockPrefix));
     for(int i=1; i<omp_get_max_threads(); i++) {
       const Uint seed = generators[0]();
-      generators.push_back(mt19937(seed));
+      generators.push_back(std::mt19937(seed));
     }
   }
 
@@ -562,7 +587,7 @@ string setupFolder = DEFAULT_setupFolder;
       generators.reserve(nThreads+nAgents);
       for(int i=currsize; i<nThreads+nAgents; i++) {
         const Uint seed = generators[0]();
-        generators.push_back(mt19937(seed));
+        generators.push_back(std::mt19937(seed));
       }
     }
   }

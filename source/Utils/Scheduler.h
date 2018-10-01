@@ -15,15 +15,18 @@
 class Master
 {
 private:
+  const Settings& settings;
   const MPI_Comm workersComm;
   const vector<Learner*> learners;
   Environment* const env;
   const ActionInfo& aI = env->aI;
   const StateInfo&  sI = env->sI;
   const vector<Agent*>& agents = env->agents;
-  const int nPerRank = env->nAgentsPerRank, bTrain, nWorkers, nThreads;
-  const int learn_rank, learn_size;
-  const Uint totNumSteps, bAsync;
+  const int nPerRank = env->nAgentsPerRank, bTrain = settings.bTrain;
+  const int nWorkers = settings.nWorkers, nThreads = settings.nThreads;
+  const int learn_rank=settings.learner_rank, learn_size=settings.learner_size;
+  const Uint totNumSteps = settings.totNumSteps, bAsync = settings.bAsync;
+
   const Uint outSize = env->aI.dim * sizeof(double);
   const Uint inSize = (3 + env->sI.dim) * sizeof(double);
   const vector<double*> inpBufs = alloc_bufs(inSize, nWorkers);
@@ -31,14 +34,18 @@ private:
   Uint iterNum = 0; // no need to restart this one
 
   bool bNeedSequentialTasks = false;
-  mutable vector<MPI_Request> requests = vector<MPI_Request>(nWorkers, MPI_REQUEST_NULL);
+  mutable std::vector<MPI_Request> requests =
+                           std::vector<MPI_Request>(nWorkers, MPI_REQUEST_NULL);
+
   Profiler* profiler     = nullptr;
-  mutable mutex mpi_mutex;
-  mutable mutex dump_mutex;
-  mutable vector<ostringstream> rewardsBuffer = vector<ostringstream>(nPerRank);
+
+  std::mutex& mpi_mutex = settings.mpi_mutex;
+  mutable std::mutex dump_mutex;
+  mutable std::vector<std::ostringstream> rewardsBuffer =
+                                      std::vector<std::ostringstream>(nPerRank);
 
   std::atomic<Uint> bExit {0};
-  vector<std::thread> worker_replies;
+  std::vector<std::thread> worker_replies;
 
   inline Uint getMinSeqId() const {
     Uint lowest = learners[0]->nSeqsEval();
@@ -88,7 +95,7 @@ private:
     // However, no learner can stop others from getting data (vector of algos)
     bool locked = true;
     for(const auto& L : learners)
-      locked = locked && L->lockQueue(); // if any wants to unlock...
+      locked = locked && L->blockDataAcquisition(); // if any wants to unlock...
 
     return locked;
   }

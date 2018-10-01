@@ -22,7 +22,7 @@ template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   const Uint wID, const Uint bID, const Uint thrID) const
 {
-  Sequence* const S = data->Set[seq];
+  Sequence* const S = data->get(seq);
   assert(t+1 < S->tuples.size());
 
   if(thrID==0) profiler->stop_start("FWD");
@@ -76,8 +76,8 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::select(Agent& agent)
 {
-  Sequence* const traj = data->inProgress[agent.ID];
-  data->add_state(agent);
+  Sequence* const traj = data_get->get(agent.ID);
+  data_get->add_state(agent);
   F[0]->prepare_agent(traj, agent);
 
   if( agent.Status < TERM_COMM ) // not last of a sequence
@@ -100,7 +100,7 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
 
     traj->state_vals.push_back(output[VsID]);
     agent.act(act);
-    data->add_action(agent, mu);
+    data_get->add_action(agent, mu);
 
     #ifndef NDEBUG
       //Policy_t dbg = prepare_policy(output);
@@ -119,7 +119,7 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
 
     writeOnPolRetrace(traj); // compute initial Qret for whole trajectory
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
-    data->terminate_seq(agent);
+    data_get->terminate_seq(agent);
   }
 }
 
@@ -160,14 +160,15 @@ void VRACER<Policy_t, Action_t>::prepareGradient()
 
   if(updateToApply)
   {
+    const Uint setSize = data->readNSeq();
     profiler->stop_start("QRET");
     debugL("Update Retrace est. for episodes samples in prev. grad update");
     // placed here because this happens right after update is computed
     // this can happen before prune and before workers are joined
     #pragma omp parallel for schedule(dynamic)
-    for(Uint i = 0; i < data->Set.size(); i++)
-      for(int j = data->Set[i]->just_sampled; j>=0; j--)
-        updateVret(data->Set[i], j, data->Set[i]->offPolicImpW[j]);
+    for(Uint i = 0; i < setSize; i++)
+      for(int j = data->get(i)->just_sampled; j>=0; j--)
+        updateVret(data->get(i), j, data->get(i)->offPolicImpW[j]);
   }
 }
 
@@ -180,9 +181,10 @@ void VRACER<Policy_t, Action_t>::initializeLearner()
   // therefore we need to recompute (rescaled) Retrace values for all obss
   // seen before this point.
   debugL("Rescale Retrace est. after gathering initial dataset");
+  const Uint setSize = data->readNSeq();
   #pragma omp parallel for schedule(dynamic)
-  for(Uint i = 0; i < data->Set.size(); i++) {
-    Sequence* const traj = data->Set[i];
+  for(Uint i = 0; i < setSize; i++) {
+    Sequence* const traj = data->get(i);
     const int N = traj->ndata(); traj->setRetrace(N, 0);
     for(Uint j=N; j>0; j--) updateVret(traj, j-1, 1);
   }

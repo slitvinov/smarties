@@ -26,15 +26,16 @@ protected:
   Real CinvRet = 1 / CmaxRet;
 
   const FORGET ERFILTER =
-    MemoryBuffer::readERfilterAlgo(settings.ERoldSeqFilter, CmaxPol>0);
-  ApproximateReductor reductor = ApproximateReductor(mastersComm, 2);
+    MemoryProcessing::readERfilterAlgo(settings.ERoldSeqFilter, CmaxPol>0);
+
+  DelayedReductor<Real> ReFER_reduce = DelayedReductor<Real>(mastersComm,{0,0});
 public:
   Learner_offPolicy(Environment*const env, Settings& _s);
 
   bool readyForTrain() const;
 
   //main training functions:
-  bool lockQueue() const override;
+  bool blockDataAcquisition() const override;
   void spawnTrainTasks_seq() override;
   void spawnTrainTasks_par() override;
   virtual void applyGradient() override;

@@ -8,11 +8,12 @@
 
 #pragma once
 
-#include "MemoryBuffer.h"
-#include "Approximator.h"
+#include "../ReplayMemory/MemoryBuffer.h"
+#include "../ReplayMemory/Collector.h"
+#include "../ReplayMemory/MemoryProcessing.h"
+#include "../Network/Approximator.h"
 
 #include <list>
-using namespace std;
 
 class Learner
 {
@@ -21,57 +22,76 @@ protected:
   Environment * const env;
   const MPI_Comm mastersComm = settings.mastersComm;
 
-  const bool bSampleSequences=settings.bSampleSequences, bTrain=settings.bTrain;
-  const Uint totNumSteps=settings.totNumSteps, batchSize=settings.batchSize;
-  const Uint policyVecDim=settings.policyVecDim, nAgents=settings.nAgents;
-  const Real learnR=settings.learnrate, gamma=settings.gamma;
-  const Uint nThreads=settings.nThreads, nWorkers=settings.nWorkers;
-  const Real CmaxPol=settings.clipImpWeight, ReFtol=settings.penalTol;
-  const Real explNoise=settings.explNoise, epsAnneal=settings.epsAnneal;
-  const int learn_rank=settings.learner_rank, learn_size=settings.learner_size;
-  std::atomic<long int> _nStep{0};
+  const bool bSampleSequences = settings.bSampleSequences;
+  const bool bTrain = settings.bTrain;
 
-  std::atomic<long int> nData_b4Startup{0};
-  std::atomic<long int> nStep_b4Startup{0};
+  const Uint policyVecDim = settings.policyVecDim;
+  const Uint nAgents = settings.nAgents;
+  const Uint nThreads = settings.nThreads;
+  const Uint nWorkers = settings.nWorkers;
+
+  const int learn_rank = settings.learner_rank;
+  const int learn_size = settings.learner_size;
+
+  // hyper-parameters:
+  const Uint batchSize = settings.batchSize;
+  const Uint totNumSteps = settings.totNumSteps;
+
+  const Real learnR = settings.learnrate;
+  const Real gamma = settings.gamma;
+  const Real CmaxPol = settings.clipImpWeight;
+  const Real ReFtol = settings.penalTol;
+  const Real explNoise = settings.explNoise;
+  const Real epsAnneal = settings.epsAnneal;
+
+  long nData_b4Startup = 0;
+  std::atomic<long> _nStep{0}, _nData{0};
+  std::atomic<bool> updatedNdata{false};
   std::atomic<Uint> nAddedGradients{0};
 
-  mutable bool updateComplete = false;
-  mutable bool updateToApply = false;
+  bool updateComplete = false;
+  bool updateToApply = false;
 
   const ActionInfo& aInfo = env->aI;
   const StateInfo&  sInfo = env->sI;
   std::vector<std::mt19937>& generators = settings.generators;
-  MemoryBuffer* data;
-  Encapsulator* input;
+
+  MemoryBuffer* const data = new MemoryBuffer(settings, env);
+  Collector* const data_get = new Collector(settings, this, data);
+  MemoryProcessing* const data_proc = new MemoryProcessing(settings, data);
+  Encapsulator * const input = new Encapsulator("input", settings, data);
+
   TrainData* trainInfo = nullptr;
-  vector<Approximator*> F;
+  std::vector<Approximator*> F;
   mutable std::mutex buffer_mutex;
 
   virtual void processStats();
 
 public:
   Profiler* profiler = nullptr;
-  string learner_name;
+  std::string learner_name;
   Uint learnID;
 
   Learner(Environment*const env, Settings & settings);
 
   virtual ~Learner() {
-    _dispose_object(profiler);
+    _dispose_object(data_proc);
+    _dispose_object(data_get);
+    _dispose_object(input);
     _dispose_object(data);
   }
 
-  inline void setLearnerName(const string lName, const Uint id) {
+  inline void setLearnerName(const std::string lName, const Uint id) {
     learner_name = lName;
     data->learnID = id;
     learnID = id;
   }
 
   inline unsigned tStepsTrain() const {
-    return data->readNSeen() - nData_b4Startup;
+    return data->readNSeen_loc() - nData_b4Startup;
   }
   inline unsigned nSeqsEval() const {
-    return data->readNSeenSeq();
+    return data->readNSeenSeq_loc();
   }
   inline unsigned nData() const {
     return data->readNData();
@@ -101,7 +121,22 @@ public:
   virtual void spawnTrainTasks_seq() = 0;
   virtual bool bNeedSequentialTrain() = 0;
 
-  virtual bool lockQueue() const = 0;
+  void globalDataCounterUpdate(const long globalSeenTransitions) {
+    _nData = globalSeenTransitions;
+    updatedNdata = true;
+  }
+  void globalGradCounterUpdate() {
+    _nStep++;
+    updatedNdata = false;
+  }
+
+  bool unblockGradStep() const {
+    if(updatedNdata not_eq true) return false;
+    assert( _nData.load() - nData_b4Startup > _nStep.load() * obsPerStep );
+    assert( blockDataAcquisition() );
+    return true;
+  }
+  virtual bool blockDataAcquisition() const = 0;
 
   virtual void prepareGradient();
   virtual void applyGradient();

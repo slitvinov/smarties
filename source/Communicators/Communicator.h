@@ -46,7 +46,9 @@ class Communicator
   int rank_inside_app = -1, rank_learn_pool = -1;
   // comm to talk to master:
   int size_inside_app = -1, size_learn_pool = -1;
+
   // for MPI-based applications, to split simulations between groups of ranks
+  // each learner can have multiple mpi groups of workers
   int workerGroup = -1;
   // should be named nState/ActionComponents
   int nStates = -1, nActions = -1;

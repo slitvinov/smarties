@@ -12,10 +12,6 @@
 
 Learner::Learner(Environment*const _env, Settings& _s): settings(_s), env(_env)
 {
-  if(bSampleSequences) printf("Sampling sequences.\n");
-  data = new MemoryBuffer(env, _s);
-  input = new Encapsulator("input", _s, data);
-
   Builder input_build(_s);
   input_build.addInput( input->nOutputs() );
   bool builder_used = env->predefinedNetwork(input_build);
@@ -81,7 +77,7 @@ void Learner::applyGradient()
   for(auto & net : F) net->applyUpdate();
   input->applyUpdate();
 
-  _nStep++;
+  globalGradCounterUpdate();
 }
 
 void Learner::processStats()
@@ -89,7 +85,8 @@ void Learner::processStats()
   const Uint currStep = nStep()+1;
 
   ostringstream buf;
-  data->getMetrics(buf); getMetrics(buf);
+  data_proc->getMetrics(buf);
+  getMetrics(buf);
   if(trainInfo not_eq nullptr) trainInfo->getMetrics(buf);
   input->getMetrics(buf);
   for(auto & net : F) net->getMetrics(buf);
@@ -100,7 +97,8 @@ void Learner::processStats()
 
   ostringstream head;
   if( currStep%(1000*PRFL_DMPFRQ)==0 || currStep==1000 ) {
-    data->getHeaders(head); getHeaders(head);
+    data_proc->getHeaders(head);
+    getHeaders(head);
     if(trainInfo not_eq nullptr) trainInfo->getHeaders(head);
     input->getHeaders(head);
     for(auto & net : F) net->getHeaders(head);

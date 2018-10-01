@@ -14,18 +14,17 @@
 #define OUTBUFFSIZE 65536
 class Agent
 {
-protected:
+ public:
   const StateInfo&  sInfo;
   const ActionInfo& aInfo;
 
-public:
   State  sOld =  State(sInfo); // previous state
   State  s    =  State(sInfo); // current state
   // Action performed by agent. Updated by Learner::select and sent to Slave
   Action a    = Action(aInfo);
   Real r = 0;              // current reward
   Real cumulative_rewards = 0;
-  const int ID;
+  const Uint ID;
   // status of agent's episode. 1: initial; 0: middle; 2: terminal; 3: truncated
   int Status = 1;
   int transitionID = 0;
@@ -34,7 +33,7 @@ public:
   mutable float buf[OUTBUFFSIZE];
   mutable std::atomic<Uint> buffCnter {0};
 
-  Agent(const int _ID, const StateInfo& _sInfo, const ActionInfo& _aInfo) :
+  Agent(const Uint _ID, const StateInfo& _sInfo, const ActionInfo& _aInfo) :
     sInfo(_sInfo), aInfo(_aInfo), ID(_ID) { }
 
   void writeBuffer(const int rank) const

@@ -8,8 +8,7 @@
 
 #pragma once
 #include "Learner_offPolicy.h"
-
-//#define LearnStDev
+class Aggregator;
 
 class DPG : public Learner_offPolicy
 {

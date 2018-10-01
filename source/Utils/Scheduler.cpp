@@ -14,10 +14,7 @@
 #include <chrono>
 
 Master::Master(MPI_Comm _c, const vector<Learner*> _l, Environment*const _e,
-  Settings&_s): workersComm(_c), learners(_l), env(_e), bTrain(_s.bTrain),
-  nWorkers(_s.nWorkers), nThreads(_s.nThreads), learn_rank(_s.learner_rank),
-  learn_size(_s.learner_size), totNumSteps(_s.totNumSteps),
-  bAsync(_s.threadSafety>=MPI_THREAD_MULTIPLE)
+  Settings&_s): settings(_s), workersComm(_c), learners(_l), env(_e)
 {
   profiler = new Profiler();
   for (Uint i=0; i<learners.size(); i++)  learners[i]->profiler = profiler;

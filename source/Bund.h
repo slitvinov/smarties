@@ -141,9 +141,12 @@ typedef float Real;
 // Atari where the memory buffer is in the order of GBs.
 typedef float memReal;
 typedef float Fval;
+#define MPI_Fval MPI_FLOAT
+
 typedef vector<Fval> Fvec;
 typedef vector<Real> Rvec;
 typedef vector<long double> LDvec;
+
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename T>

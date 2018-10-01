@@ -193,7 +193,7 @@ void Communicator_internal::redirect_stdout_finalize()
   dup2(fd, fileno(stdout));
   close(fd);
   clearerr(stdout);
-  fsetpos(stdout, &pos);        /* for C9X */
+  fsetpos(stdout, &pos);
 }
 
 void Communicator_internal::getStateActionShape()

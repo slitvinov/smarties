@@ -8,6 +8,7 @@
 
 #include "RETPG.h"
 #include "../Network/Builder.h"
+#include "Aggregator.h"
 
 void RETPG::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const {
   die(" ");

@@ -7,7 +7,7 @@
 //
 
 #include "Approximator.h"
-#include "../Network/Builder.h"
+#include "Builder.h"
 
 void Aggregator::prepare(Sequence*const traj, const Uint thrID,
   const RELAY SET) const {
