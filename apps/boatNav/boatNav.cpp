@@ -164,14 +164,13 @@ int main(int argc, const char * argv[])
   const int socket = std::stoi(argv[1]);
   //socket number is given by RL as first argument of execution
   Communicator	comm(socket, state_vars, control_vars, number_of_agents);
-  //std::mt19937	&rngPointer =  comm.getPRNG();
+  std::mt19937	&rngPointer =  comm.getPRNG();
 
   // Path start and end
   const double xPathStart[2] = {0,0};
   const double xPathEnd[2] = {10,0};
 
-  //USV		boat(rngPointer, state_vars, 0.0, xPathStart, xPathEnd);
-  USV		boat(comm.gen, state_vars, 0.0, xPathStart, xPathEnd);
+  USV		boat(rngPointer, state_vars, 0.0, xPathStart, xPathEnd);
 
   unsigned sim = 0;
   while(true) //train loop
@@ -188,10 +187,12 @@ int main(int argc, const char * argv[])
       //boat.advance(comm.recvAction(0));
 vector<double> actions(2, 0.0);
 const double angFactor = 2*M_PI/10.0;
-actions[0] = cos(tt[step]*angFactor/4.0);
+actions[0] = 0.0;// cos(tt[step]*angFactor/4.0);
 actions[1] = 0.0;
 forceX[step] = actions[0];
       boat.advance(actions);
+
+tt.push_back(dt*step);
 
 	  /*const bool reachedGoal = boat.checkTermination();
 	  if(boat.is_over()){ // Terminate simulation 
@@ -212,6 +213,7 @@ forceX[step] = actions[0];
         sim++;
         break;
       }
+
     }
 
         FILE *temp = fopen("learnTrajectory.txt", "w");

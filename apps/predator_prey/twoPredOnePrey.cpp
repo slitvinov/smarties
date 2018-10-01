@@ -245,12 +245,14 @@ int main(int argc, const char * argv[])
   //socket number is given by RL as first argument of execution
   Communicator comm(socket, state_vars, control_vars, number_of_agents);
 
+  std::mt19937 &rngPointer =  comm.getPRNG();
+ 
   // predator last arg is how much slower than prey (eg 50%)
-  Predator pred1(comm.gen, state_vars, maxSpeed, 0.5);
-  Predator pred2(comm.gen, state_vars, maxSpeed, 0.5);
+  Predator pred1(rngPointer, state_vars, maxSpeed, 0.5);
+  Predator pred2(rngPointer, state_vars, maxSpeed, 0.5);
   // prey last arg is observation noise (eg ping of predator is in 1 stdev of noise)
   // Prey     prey(comm.gen, state_vars, maxSpeed, 1.0); // The noise was large, the prey didn't run away quickly if preds were far away
-  Prey     prey(comm.gen, state_vars, maxSpeed, 0.0);
+  Prey     prey(rngPointer, state_vars, maxSpeed, 0.0);
 
 #ifdef COOPERATIVE
   printf("Cooperative predators\n");
