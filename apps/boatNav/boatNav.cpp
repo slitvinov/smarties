@@ -155,7 +155,7 @@ struct USV: public Entity
 		  //printf("getReward sez %f, %f, %f\n", p[0], p[1], retVal);
 	  } else {
 		  retVal = (distStart < distEnd) ? distStart : distEnd;
-		  //printf("outside line bounds, returning distance from nearest harbour %f, %f, %f, %f, %f\n", p[0], p[1] , distStart ,distEnd, retVal);
+		  //printf("outside line bounds, returning distance from nearest harbour %f\n", retVal);
 	  }
 
 	  return -retVal/params.l; // normalize with ship width
@@ -170,6 +170,11 @@ struct USV: public Entity
 	  // Check if need to abort
 	  const double latDist = -getReward(); // already normalized by params.l
 	  const bool abortSim = (latDist > 10) ? true : false ;
+	  if (abortSim) {
+		  printf("boat is too far from path, distance = %f boatWidths\n", latDist);
+		  isOver = true;
+	  }
+
 	  return abortSim;
   }
  
@@ -251,10 +256,9 @@ actions[1] = 0.0; // Thruster Right
     sprintf(fileName, "learnedTrajectory_%07d.txt", sim);
     FILE *temp = fopen(fileName, "w");
     fprintf(temp, "time \t forceX \t forceY \t u \t v \t r \t x \t y \t theta\n");
-    for(int i=0; i<maxStep; i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], forceX[i], 0.0, u[i], v[i], r[i], x[i], y[i], thetaR[i]);
+    for(int i=0; i<tt.size(); i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], forceX[i], 0.0, u[i], v[i], r[i], x[i], y[i], thetaR[i]);
     fclose(temp);
 
-abort();
   }
   return 0;
 }
