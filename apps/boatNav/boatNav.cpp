@@ -50,6 +50,12 @@ struct Entity
 
 	void reset() {
 
+		// Reset all global vectors - won't destroy the capacity
+		u.clear(); v.clear(); r.clear();
+		uDot.clear(); vDot.clear(); rDot.clear();
+		x.clear(); y.clear(); thetaR.clear();
+		tt.clear(); forceX.clear();
+
 		normal_distribution<double> distribX(0, params.l);
 		normal_distribution<double> distribU(0, 0.5*params.l);
 		normal_distribution<double> distribAng(0, M_PI/18.0); // allow random deviation by 10 degrees
@@ -216,10 +222,10 @@ int main(int argc, const char * argv[])
 	    vector<double> actions(control_vars, 0.0);
 	    actions = comm.recvAction(0);
 
-// Overwrite actions
+/*// Overwrite actions
 const double angFactor = 2*M_PI/10.0;
 actions[0] = cos(tt[step]*angFactor/4.0); // Thruster Left
-actions[1] = 0.0; // Thruster Right
+actions[1] = 0.0; // Thruster Right*/
 
 	    forceX[step] = actions[0] + actions[1];
 	    boat.advance(actions);
@@ -256,7 +262,7 @@ actions[1] = 0.0; // Thruster Right
     sprintf(fileName, "learnedTrajectory_%07d.txt", sim);
     FILE *temp = fopen(fileName, "w");
     fprintf(temp, "time \t forceX \t forceY \t u \t v \t r \t x \t y \t theta\n");
-    for(int i=0; i<tt.size(); i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], forceX[i], 0.0, u[i], v[i], r[i], x[i], y[i], thetaR[i]);
+    for(unsigned int i=0; i<tt.size(); i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], forceX[i], 0.0, u[i], v[i], r[i], x[i], y[i], thetaR[i]);
     fclose(temp);
 
   }
