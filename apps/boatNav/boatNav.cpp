@@ -29,7 +29,6 @@ struct Entity
 	std::mt19937& genA;
 	bool isOver=false;
 
-	//vector<double> u,v,r, uDot, vDot, rDot, x,y,thetaR;
 
 	Entity(std::mt19937& _gen, const unsigned nQ, const double xS[2], const double xE[2]) : nStates(nQ), genA(_gen)
 	{
@@ -42,7 +41,7 @@ struct Entity
 		u.reserve(maxStep); v.reserve(maxStep); r.reserve(maxStep);
 		uDot.reserve(maxStep); vDot.reserve(maxStep); rDot.reserve(maxStep);
 		x.reserve(maxStep); y.reserve(maxStep); thetaR.reserve(maxStep);
-tt.reserve(maxStep); forceX.reserve(maxStep);
+		tt.reserve(maxStep); forceX.reserve(maxStep);
 	}
 
 	array<double, 2> p; // absolute position
@@ -51,20 +50,22 @@ tt.reserve(maxStep); forceX.reserve(maxStep);
 
 	void reset() {
 
-		normal_distribution<double> distribX(0, 2*params.l);
-		normal_distribution<double> distribAng(0, M_PI/3.0); // allow random deviation by 60 degrees
+		normal_distribution<double> distribX(0, params.l);
+		normal_distribution<double> distribU(0, 0.5*params.l);
+		normal_distribution<double> distribAng(0, M_PI/18.0); // allow random deviation by 10 degrees
 
-		p[0] = this->pathStart[0] + distribX(genA);
+		p[0] = this->pathStart[0] + distribX(genA); // random starting positions
 		p[1] = this->pathStart[1] + distribX(genA);
+
 
 		thetaNose = this->thetaPath + distribAng(genA);
 		isOver = false;
 
-u.push_back(4.0), v.push_back(0.0), r.push_back(0.0);
-		//u.push_back(0.0), v.push_back(0.0), r.push_back(0.0);
+		u.push_back(distribU(genA)), v.push_back(distribU(genA)); // random initial linear velocities
+		r.push_back(0.0);
 		uDot.push_back(0.0), vDot.push_back(0.0), rDot.push_back(0.0);
 		x.push_back(p[0]), y.push_back(p[1]), thetaR.push_back(thetaNose - thetaPath);
-tt.push_back(0.0);
+		tt.push_back(0.0);
 	}
 
 	bool is_over() {
@@ -94,11 +95,14 @@ tt.push_back(0.0);
 		trajectory(xN, uN, uNp1, dt, xNp1);
 		x.push_back(xNp1[0]), y.push_back(xNp1[1]), thetaR.push_back(xNp1[2]);
 
+		p[0] = xNp1[0];
+		p[1] = xNp1[1];
+
 	}
 
-	double getAngle() const {
-		const double relX = p[0] - pathStart[0];
-		const double relY = p[1] - pathStart[1];
+	double getAngle(const double xLoc[2]) const {
+		const double relX = p[0] - xLoc[0];
+		const double relY = p[1] - xLoc[1];
 		return std::atan2(relY, relX) - thetaPath;
 	}
 
@@ -123,7 +127,7 @@ struct USV: public Entity
 	  vector<double> state(nStates, 0);
 
 	  state[0] = getDistance(pathStart); 	// rPos
-	  state[1] = getAngle(); 		// thetaPos
+	  state[1] = getAngle(pathStart); 	// thetaPos
 	  state[2] = thetaR.back(); 		// bearing nose
 	  state[3] = u.back();
 	  state[4] = v.back();
@@ -138,8 +142,23 @@ struct USV: public Entity
 
   double getReward() const {
 	  // Compute perpendicular distance from path
-	  const double perpDist = getDistance(pathStart)*cos(getAngle());
-	  return -perpDist/params.l; // normalize with ship width
+	  const double thetaStart = getAngle(pathStart);
+	  const double thetaEnd = getAngle(pathEnd);
+
+	  const double distStart = getDistance(pathStart);
+	  const double distEnd 	= getDistance(pathEnd); 
+
+	  double retVal;
+	  if( abs(thetaEnd) >= M_PI/2.0 && (thetaStart>=-M_PI/2.0 && thetaStart<=M_PI/2.0) )
+	  {
+		  retVal = distStart*abs(sin(thetaStart));
+		  //printf("getReward sez %f, %f, %f\n", p[0], p[1], retVal);
+	  } else {
+		  retVal = (distStart < distEnd) ? distStart : distEnd;
+		  //printf("outside line bounds, returning distance from nearest harbour %f, %f, %f, %f, %f\n", p[0], p[1] , distStart ,distEnd, retVal);
+	  }
+
+	  return -retVal/params.l; // normalize with ship width
   }
 
   bool checkTermination() {
@@ -147,7 +166,11 @@ struct USV: public Entity
 	  const double distGoal = getDistance(pathEnd);
 	  const bool goal = (distGoal < threshold) ? true : false;
 	  if (goal) isOver = true; 
-	  return goal;
+
+	  // Check if need to abort
+	  const double latDist = -getReward(); // already normalized by params.l
+	  const bool abortSim = (latDist > 10) ? true : false ;
+	  return abortSim;
   }
  
 };
@@ -159,6 +182,7 @@ int main(int argc, const char * argv[])
   const int control_vars = 2; // 2 components of thrust
   const int state_vars = 6;   // number of states
   const int number_of_agents = 1;
+  char fileName[100];
 
   //communication:
   const int socket = std::stoi(argv[1]);
@@ -170,7 +194,7 @@ int main(int argc, const char * argv[])
   const double xPathStart[2] = {0,0};
   const double xPathEnd[2] = {10,0};
 
-  USV		boat(rngPointer, state_vars, 0.0, xPathStart, xPathEnd);
+  USV	boat(rngPointer, state_vars, 0.0, xPathStart, xPathEnd);
 
   unsigned sim = 0;
   while(true) //train loop
@@ -184,24 +208,32 @@ int main(int argc, const char * argv[])
     unsigned step = 0;
     while (true) //simulation loop
     {
-      //boat.advance(comm.recvAction(0));
-vector<double> actions(2, 0.0);
+	    vector<double> actions(control_vars, 0.0);
+	    actions = comm.recvAction(0);
+
+// Overwrite actions
 const double angFactor = 2*M_PI/10.0;
-actions[0] = 0.0;// cos(tt[step]*angFactor/4.0);
-actions[1] = 0.0;
-forceX[step] = actions[0];
-      boat.advance(actions);
+actions[0] = cos(tt[step]*angFactor/4.0); // Thruster Left
+actions[1] = 0.0; // Thruster Right
 
-tt.push_back(dt*step);
+	    forceX[step] = actions[0] + actions[1];
+	    boat.advance(actions);
+	    tt.push_back(dt*(step+1));
 
-	  /*const bool reachedGoal = boat.checkTermination();
+	  const bool abortSim = boat.checkTermination();// Abort if too far from trajectory
 	  if(boat.is_over()){ // Terminate simulation 
+			  
 		  const double finalReward = 10*boat.params.l;
-		  comm.sendTermState(boat.getState(),finalReward, 0);
 
-		  printf("Sim #%d reporting that boat reached safe harbor.\n", sim); fflush(NULL);
+		  if(abortSim){
+			  comm.sendTermState(boat.getState(), -finalReward, 0);
+			  printf("Sim #%d reporting that boat got lost.\n", sim); fflush(NULL);
+		  } else {
+			  comm.sendTermState(boat.getState(), +finalReward, 0);
+			  printf("Sim #%d reporting that boat reached safe harbor.\n", sim); fflush(NULL);
+		  }
 		  sim++; break;
-	  }*/
+	  }
 
       if(step++ < maxStep)
       {
@@ -216,10 +248,11 @@ tt.push_back(dt*step);
 
     }
 
-        FILE *temp = fopen("learnTrajectory.txt", "w");
-        fprintf(temp, "time \t forceX \t forceY \t u \t v \t r \t x \t y \t theta\n");
-        for(int i=0; i<maxStep; i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], forceX[i], 0.0, u[i], v[i], r[i], x[i], y[i], thetaR[i]);
-        fclose(temp);
+    sprintf(fileName, "learnedTrajectory_%07d.txt", sim);
+    FILE *temp = fopen(fileName, "w");
+    fprintf(temp, "time \t forceX \t forceY \t u \t v \t r \t x \t y \t theta\n");
+    for(int i=0; i<maxStep; i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], forceX[i], 0.0, u[i], v[i], r[i], x[i], y[i], thetaR[i]);
+    fclose(temp);
 
 abort();
   }
