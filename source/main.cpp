@@ -22,11 +22,6 @@ void runWorker(Settings& S)
   Environment* env = factory.createEnvironment();
   Communicator_internal comm = env->create_communicator();
 
-  #ifndef NDEBUG
-    int cpu_num; GETCPU(cpu_num); //sched_getcpu()
-    printf("Worker Rank %d is running on CPU %3d\n", S.world_rank, cpu_num);
-  #endif
-
   Worker simulation(&comm, env, S);
   simulation.run();
 }
@@ -36,6 +31,7 @@ void runMaster(Settings& S)
   S.check();
 
   #ifdef INTERNALAPP //unblock creation of app comm if needed
+    if(S.bSpawnApp) die("Unsuppored, create dedicated workers");
     MPI_Comm tmp_com;
     MPI_Comm_split(S.workersComm, MPI_UNDEFINED, 0, &tmp_com);
   #endif
@@ -56,18 +52,9 @@ void runMaster(Settings& S)
     learners[i]->restart();
   }
 
-  #ifndef NDEBUG
-    #pragma omp parallel
-    {
-      int cpu_num; GETCPU(cpu_num); //sched_getcpu()
-      printf("Master Rank %d Thread %3d  is running on CPU %3d\n",
-             S.world_rank, omp_get_thread_num(), cpu_num);
-    }
-  #endif
-
-  fflush(0);
-  Master master(&comm, learners, env, S);
+  fflush(stdout); fflush(stderr); fflush(0);
   MPI_Barrier(S.mastersComm); // to avoid garbled output during run
+  Master master(&comm, learners, env, S);
 
   master.run();
   comm.sendTerminateReq();
@@ -79,12 +66,21 @@ int main (int argc, char** argv)
   vector<ArgParser::OptionStruct> opts = S.initializeOpts();
 
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &S.threadSafety);
+  MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
   if (S.threadSafety < MPI_THREAD_SERIALIZED)
     die("The MPI implementation does not have required thread support");
   S.bAsync = S.threadSafety>=MPI_THREAD_MULTIPLE;
   MPI_Comm_rank(MPI_COMM_WORLD, &S.world_rank);
   MPI_Comm_size(MPI_COMM_WORLD, &S.world_size);
   omp_set_dynamic(0);
+  #pragma omp parallel
+  {
+    int cpu_num; GETCPU(cpu_num); //sched_getcpu()
+    //#ifndef NDEBUG
+      printf("Rank %d Thread %3d  is running on CPU %3d\n",
+            S.world_rank, omp_get_thread_num(), cpu_num);
+    //#endif
+  }
 
   ArgParser::Parser parser(opts);
   parser.parse(argc, argv, S.world_rank == 0);
@@ -96,12 +92,12 @@ int main (int argc, char** argv)
 
   if(S.nMasters == S.world_size)
   {
-    S.bMasterSpawnApp = S.nWorkers < S.world_rank;
+    S.bSpawnApp = S.nWorkers > S.world_rank;
     S.mastersComm = MPI_COMM_WORLD;
-    S.workersComm = MPI_COMM_SELF;
+    S.workersComm = MPI_COMM_NULL;
     S.workers_rank = 0;
     S.workers_size = 1;
-    S.nWorkers_own = 1;
+    S.nWorkers_own = S.bSpawnApp;
     runMaster(S);
   }
   else
@@ -115,6 +111,7 @@ int main (int argc, char** argv)
     if(not bIsMaster) {
       MPI_Comm_free(&S.mastersComm);
       S.mastersComm = MPI_COMM_NULL;
+      S.bSpawnApp = 1;
     }
     printf("Process %d is a %s part of comm %d.\n",
         S.world_rank, bIsMaster? "master" : "worker", workerCommInd);

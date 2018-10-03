@@ -10,7 +10,7 @@
 #include "saruprng.h"
 #include <algorithm>
 
-CMA_Optimizer::CMA_Optimizer(Settings&S, const Parameters*const W,
+CMA_Optimizer::CMA_Optimizer(const Settings&S, const Parameters*const W,
   const Parameters*const WT, const vector<Parameters*>&G) : Optimizer(S, W, WT),
   sampled_weights(G) {
     cout << mu_eff << " " << sumW << endl;

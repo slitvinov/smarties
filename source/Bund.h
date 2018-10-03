@@ -105,6 +105,7 @@ using namespace std;
 /////////////////////////////// BEHAVIOR TWEAKS ////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+//#define PRINT_ALL_RANKS
 
 #define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
@@ -143,9 +144,9 @@ typedef float memReal;
 typedef float Fval;
 #define MPI_Fval MPI_FLOAT
 
-typedef vector<Fval> Fvec;
-typedef vector<Real> Rvec;
-typedef vector<long double> LDvec;
+typedef std::vector<Fval> Fvec;
+typedef std::vector<Real> Rvec;
+typedef std::vector<long double> LDvec;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -172,6 +173,12 @@ inline string print(const vector<T> vals)
   for (Uint i=0; i<vals.size()-1; i++) o << vals[i] << " ";
   o << vals[vals.size()-1];
   return o.str();
+}
+
+inline MPI_Comm MPIComDup(const MPI_Comm C) {
+  MPI_Comm ret;
+  MPI_Comm_dup(C, &ret);
+  return ret;
 }
 
 inline void real2SS(ostringstream&B,const Real V,const int W, const bool bPos)

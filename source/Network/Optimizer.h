@@ -19,7 +19,9 @@ class Optimizer
   const Parameters * const tgt_weights;
   const Uint pDim = weights->nParams;
   const Real eta_init;
+  const bool bAsync;
   Uint cntUpdateDelay = 0, totGrads = 0;
+  std::mutex& mpi_mutex;
 
  public:
   bool bAnnealLearnRate = true;
@@ -27,9 +29,10 @@ class Optimizer
   long unsigned nStep = 0;
   nnReal eta = eta_init;
 
-  Optimizer(Settings&S, const Parameters*const W, const Parameters*const W_TGT):
-  mastersComm(S.mastersComm), learn_size(S.learner_size), pop_size(S.ESpopSize),
-  weights(W), tgt_weights(W_TGT), eta_init(S.learnrate), lambda(S.nnLambda),
+  Optimizer(const Settings&S,const Parameters*const W,const Parameters*const WT)
+  : mastersComm(MPIComDup(S.mastersComm)), learn_size(S.learner_size),
+  pop_size(S.ESpopSize), weights(W), tgt_weights(WT), eta_init(S.learnrate),
+  bAsync(S.bAsync), mpi_mutex(S.mpi_mutex), lambda(S.nnLambda),
   epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay) {}
 
   virtual ~Optimizer() {}
@@ -62,7 +65,7 @@ class AdamOptimizer : public Optimizer
 
  public:
 
-  AdamOptimizer(Settings&S, const Parameters*const W, const Parameters*const WT,
+  AdamOptimizer(const Settings&S, const Parameters*const W, const Parameters*const WT,
     const vector<Parameters*>&G, const Real B1=.9, const Real B2=.999) :
     Optimizer(S, W, WT), beta_1(B1), beta_2(B2), generators(S.generators),
     grads(G) { }

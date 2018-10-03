@@ -14,7 +14,7 @@ class Builder;
 class Network
 {
 public:
-  const Uint nAgents, nThreads, nInputs, nOutputs, nLayers;
+  const Uint nThreads, nInputs, nOutputs, nLayers;
   const bool bDump;
   const Real gradClip;
   const vector<Layer*> layers;
@@ -23,12 +23,10 @@ public:
   const vector<Parameters*> Vgrad;
   const vector<Parameters*> sampled_weights;
   vector<std::mt19937>& generators;
-  vector<Uint> dump_ID;
 
   Uint getnOutputs() const { return nOutputs; }
   Uint getnInputs()  const { return nInputs;  }
   Uint getnLayers()  const { return nLayers;  }
-  Uint getnAgents()  const { return nAgents;  }
 
   //inline vector<Activation*> allocateUnrolledActivations(const Uint num) const {
   //  vector<Activation*> ret(num, nullptr);
@@ -85,7 +83,7 @@ public:
     #endif
   }
 
-  Network(Builder* const B, Settings & settings) ;
+  Network(Builder* const B, const Settings & settings) ;
 
   ~Network() {
     for(auto& ptr: sampled_weights) _dispose_object(ptr);

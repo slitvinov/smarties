@@ -36,8 +36,8 @@ class CMA_Optimizer : public Optimizer
 
  public:
 
-  CMA_Optimizer(Settings&S, const Parameters*const W, const Parameters*const WT,
-    const vector<Parameters*>&G);
+  CMA_Optimizer(const Settings&S, const Parameters*const W,
+    const Parameters*const WT, const vector<Parameters*>&G);
 
   ~CMA_Optimizer();
 

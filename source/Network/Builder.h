@@ -57,7 +57,7 @@ public:
       die("Missing input layer.");
     if(nNeurons <= 0)  die("Requested empty layer.");
     const Uint layInp = layers[ID-iLink]->nOutputs();
-
+    const bool bResLayer = (int) layers[ID-1]->nOutputs() == nNeurons;
     Layer* l = nullptr;
            if (layerType == "LSTM") {
       l = new LSTMLayer(ID, layInp, nNeurons, funcType, bOutput, iLink);
@@ -69,10 +69,11 @@ public:
       const bool bRecur = (layerType=="RNN") || (layerType=="Recurrent");
       l = new BaseLayer(ID, layInp, nNeurons, funcType, bRecur, bOutput, iLink);
     }
-
-
-    layers.push_back(l);
     assert(l not_eq nullptr);
+    layers.push_back(l);
+
+    if(bResLayer) layers.push_back(new ResidualLayer(ID+1, nNeurons));
+
     if(bOutput) nOutputs += l->nOutputs();
   }
 
@@ -230,8 +231,7 @@ public:
 private:
   bool bBuilt = false;
 public:
-  Settings & settings;
-  const Uint nAgents = settings.nAgents;
+  const Settings & settings;
   const Uint nThreads = settings.nThreads;
   const Uint pop_size = settings.ESpopSize;
   Uint nInputs=0, nOutputs=0, nLayers=0;
@@ -245,7 +245,5 @@ public:
   Network* net = nullptr;
   Optimizer* opt = nullptr;
 
-  Builder(Settings& _sett) : settings(_sett) {
-    assert(nAgents>0 && nThreads>0);
-  }
+  Builder(const Settings& _sett) : settings(_sett) { }
 };

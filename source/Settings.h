@@ -457,8 +457,7 @@ string setupFolder = DEFAULT_setupFolder;
 
   // number of workers (usually per master)
   int nWorkers_own = 1;
-  bool bMasterSpawnApp = false;
-  bool bIsMaster = true;
+  bool bSpawnApp = false;
   int learGroupSize = -1;
   int workerCommInd = -1;
   //number of agents that:
@@ -467,8 +466,6 @@ string setupFolder = DEFAULT_setupFolder;
   int nAgents = -1;
   // whether Recurrent network (figured out in main)
   bool bRecurrent = false;
-  // number of quantities defining the policy, depends on env and algorithm
-  int policyVecDim = -1;
 
   int threadSafety = -1;
   bool bAsync;
@@ -501,25 +498,23 @@ string setupFolder = DEFAULT_setupFolder;
     MPI_Comm_size(mastersComm, &learner_size);
     assert(workers_rank == 0);
 
-    const Real nL = learner_size, nW = nWorkers;
-    // every grad step, each worker performs a fraction of the time steps:
-    obsPerStep = std::ceil(obsPerStep / nW) * nW;
+    const Real nL = learner_size;
     // each learner computes a fraction of the batch:
     batchSize = std::ceil(batchSize / nL) * nL;
     // each worker collects a fraction of the initial memory buffer:
     if(minTotObsNum_loc <= 0) minTotObsNum_loc = maxTotObsNum;
-    minTotObsNum = std::ceil(minTotObsNum / nW) * nW;
+    minTotObsNum = std::ceil(minTotObsNum / nL) * nL;
     // each learner processes a fraction of the entire dataset:
     maxTotObsNum = std::ceil(maxTotObsNum / nL) * nL;
 
     maxTotObsNum_loc = maxTotObsNum / learner_size;
-    minTotObsNum_loc = minTotObsNum / nWorkers;
+    minTotObsNum_loc = minTotObsNum / learner_size;
     batchSize_loc = batchSize / learner_size;
-    obsPerStep_loc = obsPerStep / nWorkers;
+    obsPerStep_loc = nWorkers_own * obsPerStep / nWorkers;
 
     if(batchSize_loc <= 0) die(" ");
-    if(obsPerStep_loc <= 0) die(" ");
-    if(minTotObsNum_loc <= 0) die(" ");
+    if(obsPerStep_loc < 0) die(" ");
+    if(minTotObsNum_loc < 0) die(" ");
     if(maxTotObsNum_loc <= 0) die(" ");
 
     if(appendedObs<0)  die("appendedObs<0");
@@ -615,7 +610,7 @@ string setupFolder = DEFAULT_setupFolder;
     }
   }
 
-  vector<int> readNetSettingsSize()
+  vector<int> readNetSettingsSize() const
   {
     vector<int> ret;
     //if(nnl1<1) die("Add at least one hidden layer.\n");

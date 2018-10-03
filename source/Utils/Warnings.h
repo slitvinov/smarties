@@ -17,6 +17,8 @@ namespace ErrorHandling
   enum Debug_level { SILENT, WARNINGS, SCHEDULER, ENVIRONMENT, NETWORK, COMMUNICATOR, LEARNERS, TRANSITIONS };
 
   static constexpr Debug_level level = WARNINGS;
+  //static constexpr Debug_level level = LEARNERS;
+  //static constexpr Debug_level level = SCHEDULER;
 
 //#define PR_ERR(fd,a,...) fprintf(fd,a,__func__,__FILE__,__LINE__,##__VA_ARGS__);
 #define FLUSHALL fflush(stdout); fflush(stderr); fflush(0);
@@ -97,6 +99,7 @@ inline static void printfmt(char*const p, const int N, const char*const a, ... )
     char BUF[512]; ErrorHandling::printfmt(BUF, 512, format, ##__VA_ARGS__ ); \
     fprintf(stderr,"Rank %d %s(%s:%d)%s %s\n",wrnk,__func__,__FILE__,__LINE__, \
     " ", BUF); FLUSHALL} } while(0)
+
 #define debugL(format)  do { \
   if(ErrorHandling::level == ErrorHandling::LEARNERS) { LOCKCOMM \
     int wrnk; MPI_Comm_rank(MPI_COMM_WORLD, &wrnk); \
@@ -111,3 +114,18 @@ inline static void printfmt(char*const p, const int N, const char*const a, ... )
     " ", BUF); FLUSHALL} } while(0)
 
 }
+
+#define MPI(NAME, ...)                                                         \
+do {                                                                           \
+  int mpiW = 0;                                                                \
+  if(bAsync) {                                                                 \
+    mpiW = MPI_ ## NAME ( __VA_ARGS__ );                                       \
+  } else {                                                                     \
+    std::lock_guard<std::mutex> lock(mpi_mutex);                               \
+    mpiW = MPI_ ## NAME ( __VA_ARGS__ );                                       \
+  }                                                                            \
+  if(mpiW not_eq MPI_SUCCESS) {                                                \
+    _warn("%s %d", #NAME, mpiW);                                               \
+    throw std::runtime_error("i'll be back");                                  \
+  }                                                                            \
+} while(0)

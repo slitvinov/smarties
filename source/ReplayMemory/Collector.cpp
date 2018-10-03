@@ -11,8 +11,7 @@
 Collector::Collector(const Settings&S, Learner*const L, MemoryBuffer*const RM) :
  settings(S), env(RM->env), replay(RM), sharing( new MemorySharing(S, L, RM) )
 {
-  assert(S.nAgents>0);
-  inProgress.resize(S.nAgents);
+  inProgress.resize(S.nAgents, nullptr);
   for (int i=0; i<S.nAgents; i++) inProgress[i] = new Sequence();
 }
 
@@ -21,6 +20,7 @@ Collector::Collector(const Settings&S, Learner*const L, MemoryBuffer*const RM) :
 // this is called first also bcz memory buffer is used by net to pick new action
 void Collector::add_state(const Agent&a)
 {
+  assert(a.ID < inProgress.size());
   // if no tuples, init state. if tuples, cannot be initial state:
   assert( (inProgress[a.ID]->tuples.size() == 0) == (a.Status == INIT_COMM) );
 
@@ -30,7 +30,7 @@ void Collector::add_state(const Agent&a)
       const Rvec vecSold = a.sOld.copy_observed();
       const auto memSold = inProgress[a.ID]->tuples.back()->s;
       for (Uint i=0; i<vecSold.size() && same; i++)
-        same = same && std::fabs(memSold[i]-vecSold[i]) < 2e-7;
+        same = same && std::fabs(memSold[i]-vecSold[i]) < 1e-6;
       //debugS("Agent %s and %s",
       //  print(vecSold).c_str(), print(memSold).c_str() );
       if (!same) die("Unexpected termination of sequence");
@@ -72,9 +72,10 @@ void Collector::terminate_seq(Agent&a)
 // Transfer a completed trajectory from the `inProgress` buffer to the data set
 void Collector::push_back(const int & agentId)
 {
+  assert(agentId < (int) inProgress.size());
   if(inProgress[agentId]->tuples.size() > 2 ) //at least s0 and sT
   {
-    inProgress[agentId]->finalize( nSeenSequences_loc.load() );
+    inProgress[agentId]->finalize( nSeenSequences.load() );
     sharing->addComplete(inProgress[agentId]);
     nSeenTransitions_loc++;
     nSeenSequences_loc++;

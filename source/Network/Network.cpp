@@ -100,14 +100,13 @@ void Network::backProp(const vector<Activation*>& netSeries,
   _grad->written = true;
 }
 
-Network::Network(Builder* const B, Settings & settings) :
-  nAgents(B->nAgents), nThreads(B->nThreads), nInputs(B->nInputs),
+Network::Network(Builder* const B, const Settings & settings) :
+  nThreads(B->nThreads), nInputs(B->nInputs),
   nOutputs(B->nOutputs), nLayers(B->nLayers), bDump(not settings.bTrain),
   gradClip(B->gradClip), layers(B->layers), weights(B->weights),
   tgt_weights(B->tgt_weights), Vgrad(B->Vgrad), sampled_weights(B->popW),
   generators(settings.generators) {
   updateTransposed();
-  dump_ID.resize(nAgents, 0);
 }
 
 void Network::checkGrads()

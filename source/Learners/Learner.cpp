@@ -47,6 +47,7 @@ void Learner::prepareGradient()
 void Learner::initializeLearner()
 {
   data->initialize();
+  bUpdateNdata = false;
 }
 
 void Learner::applyGradient()
@@ -91,9 +92,13 @@ void Learner::processStats()
   input->getMetrics(buf);
   for(auto & net : F) net->getMetrics(buf);
 
-  if(learn_rank) return;
-
-  FILE* fout = fopen ((learner_name+"stats.txt").c_str(),"a");
+  #ifndef PRINT_ALL_RANKS
+    if(learn_rank) return;
+    FILE* fout = fopen ((learner_name+"stats.txt").c_str(),"a");
+  #else
+    FILE* fout = fopen (
+      (learner_name+std::to_string(learn_rank)+"stats.txt").c_str(), "a");
+  #endif
 
   ostringstream head;
   if( currStep%(1000*PRFL_DMPFRQ)==0 || currStep==1000 ) {
@@ -103,13 +108,21 @@ void Learner::processStats()
     input->getHeaders(head);
     for(auto & net : F) net->getHeaders(head);
 
-    printf("ID #/1e3 %s\n", head.str().c_str());
+    #ifdef PRINT_ALL_RANKS
+      printf("ID  #/1e3 %s\n", head.str().c_str());
+    #else
+      printf("ID #/1e3 %s\n", head.str().c_str());
+    #endif
     if(currStep==1000)
       fprintf(fout, "ID #/1e3 %s\n", head.str().c_str());
   }
-
+  #ifdef PRINT_ALL_RANKS
+    printf("%01d-%01d %05u%s\n",
+      learn_rank, learnID, currStep/1000, buf.str().c_str());
+  #else
+    printf("%02d %05u%s\n", learnID, currStep/1000, buf.str().c_str());
+  #endif
   fprintf(fout, "%02d %05u%s\n", learnID, currStep/1000, buf.str().c_str());
-  printf("%02d %05u%s\n", learnID, currStep/1000, buf.str().c_str());
   fclose(fout);
   fflush(0);
 }

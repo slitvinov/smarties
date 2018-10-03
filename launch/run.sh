@@ -24,8 +24,7 @@ SETTINGS+=" --nWorkers ${NWORKERS}"
 SETTINGS+=" --nMasters ${NMASTERS}"
 SETTINGS+=" --nThreads ${NTHREADS}"
 export OMP_NUM_THREADS=${NTHREADS}
-export OMP_MAX_TASK_PRIORITY=1
-export OMP_PROC_BIND=CLOSE
+export OMP_PROC_BIND=TRUE
 export OMP_PLACES=cores
 
 #echo $SETTINGS > settings.txt
@@ -44,6 +43,10 @@ else
 mpirun -n ${NPROCESS} --map-by numa:PE=${NTHREADS} -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
 fi
 else # mpich / mvapich
+ulimit -c unlimited
 #mpirun -n ${NPROCESS} -bind-to core:${NTHREADS} valgrind --num-callers=100  --tool=memcheck --leak-check=yes  --track-origins=yes ./rl ${SETTINGS} | tee out.log
+#hwthread:${NTHREADS}
+#mpirun -n ${NPROCESS} -bind-to user:0+1+2+3+4+5+6+7,8+9+10+11+12+13+14+15,16+17+18+19+20+21+22+23 ./rl ${SETTINGS} | tee out.log
 mpirun -n ${NPROCESS} -bind-to core:${NTHREADS} ./rl ${SETTINGS} | tee out.log
+#mpirun -n 1  gdb --args ./rl ${SETTINGS} : -n 2 ./rl ${SETTINGS}
 fi

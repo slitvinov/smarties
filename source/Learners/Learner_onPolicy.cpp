@@ -10,6 +10,7 @@
 
 Learner_onPolicy::Learner_onPolicy(Environment*const _env, Settings&_s): Learner(_env, _s), nHorizon(_s.maxTotObsNum),
 nEpochs(_s.batchSize/_s.obsPerStep) {
+  data_get = new Collector(settings, this, data);
   cout << "nHorizon:"<<nHorizon<<endl;
   cout << "nEpochs:"<<nEpochs<<endl;
 }

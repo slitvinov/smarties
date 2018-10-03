@@ -10,7 +10,7 @@
 #include "saruprng.h"
 #include <algorithm>
 
-CMA_Optimizer::CMA_Optimizer(Settings&S, const Parameters*const W,
+CMA_Optimizer::CMA_Optimizer(const Settings&S, const Parameters*const W,
   const Parameters*const WT, const vector<Parameters*>&G) : Optimizer(S, W, WT),
   sampled_weights(G) {
   diagCov->set(1);
@@ -58,9 +58,10 @@ void CMA_Optimizer::initializeGeneration() const {
 void CMA_Optimizer::prepare_update(const int BS, const Rvec&L) {
   assert(L.size() == pop_size);
   losses = L;
-  if (learn_size > 1) //add up losses across master ranks
-    MPI_Iallreduce(MPI_IN_PLACE, losses.data(), pop_size, MPI_VALUE_TYPE,
+  if (learn_size > 1) { //add up losses across master ranks
+    MPI(Iallreduce, MPI_IN_PLACE, losses.data(), pop_size, MPI_VALUE_TYPE,
                    MPI_SUM, mastersComm, &paramRequest);
+  }
   nStep++;
 }
 
@@ -69,7 +70,7 @@ void CMA_Optimizer::apply_update()
   if(nStep == 0) die("nStep == 0");
   if(learn_size > 1) {
     if(paramRequest == MPI_REQUEST_NULL) die("Did not start reduction");
-    MPI_Wait(&paramRequest, MPI_STATUS_IGNORE);
+    MPI(Wait, &paramRequest, MPI_STATUS_IGNORE);
   }
 
   std::vector<Uint> inds(pop_size,0);

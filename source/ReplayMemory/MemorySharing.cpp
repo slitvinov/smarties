@@ -7,13 +7,14 @@
 //
 
 #include "MemorySharing.h"
-#include "../Learners/Learner.h"
+#include "../Learners/Learner_offPolicy.h"
+#include "../Learners/Learner_onPolicy.h"
 
 MemorySharing::MemorySharing(const Settings&S, Learner*const L,
   MemoryBuffer*const RM) : settings(S), learner(L), replay(RM), sI(L->sInfo),
   aI(L->aInfo) {
   completed.reserve(S.nAgents);
-  fetcher = std::thread( [ & ] () { this->run(); } );
+  fetcher = std::thread( [ &, this ] () { run(); } );
 }
 
 MemorySharing::~MemorySharing()
@@ -27,12 +28,7 @@ int MemorySharing::testBuffer(MPI_Request& req)
 {
   if(req == MPI_REQUEST_NULL) return 0;
   int bRecvd = 0;
-  if(bAsync) { // MPI impl allows maximum thread safety
-    MPI_Test(&req, &bRecvd, MPI_STATUS_IGNORE);
-  } else {
-    std::lock_guard<std::mutex> lock(mpi_mutex);
-    MPI_Test(&req, &bRecvd, MPI_STATUS_IGNORE);
-  }
+  MPI(Test, &req, &bRecvd, MPI_STATUS_IGNORE);
   return bRecvd;
 }
 
@@ -41,14 +37,10 @@ void MemorySharing::recvEP(const int ID2)
   if( testBuffer(RRq[ID2]) ) {
    recvSq[ID2].resize(recvSz[ID2]);
    const auto NOSTS = MPI_STATUS_IGNORE;
-   if(bAsync) {
-    MPI_Recv(recvSq[ID2].data(), recvSz[ID2], MPI_Fval, ID2, 98, comm, NOSTS);
-    MPI_Irecv(&recvSz[ID2], 1, MPI_UNSIGNED, ID2, 99, comm, &RRq[ID2]);
-   } else {
-    std::lock_guard<std::mutex> lock(mpi_mutex);
-    MPI_Recv(recvSq[ID2].data(), recvSz[ID2], MPI_Fval, ID2, 98, comm, NOSTS);
-    MPI_Irecv(&recvSz[ID2], 1, MPI_UNSIGNED, ID2, 99, comm, &RRq[ID2]);
-   }
+
+   MPI(Recv, recvSq[ID2].data(), recvSz[ID2], MPI_Fval, ID2, 98, comm, NOSTS);
+   MPI(Irecv, &recvSz[ID2], 1, MPI_UNSIGNED, ID2, 99, comm, &RRq[ID2]);
+
    Sequence * const tmp = new Sequence();
    tmp->unpackSequence(recvSq[ID2], dimS, dimA, dimP);
    replay->pushBackSequence(tmp);
@@ -57,29 +49,20 @@ void MemorySharing::recvEP(const int ID2)
 
 void MemorySharing::sendEp(const int ID2, Sequence* const EP)
 {
-  if(SRq[ID2] not_eq MPI_REQUEST_NULL) MPI_Wait(&SRq[ID2], MPI_STATUS_IGNORE);
+  if(CRq[ID2] not_eq MPI_REQUEST_NULL) MPI(Wait, &CRq[ID2], MPI_STATUS_IGNORE);
+  if(SRq[ID2] not_eq MPI_REQUEST_NULL) MPI(Wait, &SRq[ID2], MPI_STATUS_IGNORE);
 
   sendSq[ID2] = EP->packSequence(dimS, dimA, dimP);
   sendSz[ID2] = sendSq[ID2].size();
 
-  MPI_Request tmp;
-  if(bAsync) {
-    MPI_Isend(sendSq[ID2].data(),sendSz[ID2], MPI_Fval,ID2,98,comm,&SRq[ID2]);
-    MPI_Isend(&sendSz[ID2], 1, MPI_UNSIGNED, ID2, 99, comm, &tmp);
-  } else {
-    std::lock_guard<std::mutex> lock(mpi_mutex);
-    MPI_Isend(sendSq[ID2].data(),sendSz[ID2], MPI_Fval,ID2,98,comm,&SRq[ID2]);
-    MPI_Isend(&sendSz[ID2], 1, MPI_UNSIGNED, ID2, 99, comm, &tmp);
-  }
-  MPI_Request_free(&tmp);
+  MPI(Isend, &sendSz[ID2], 1, MPI_UNSIGNED, ID2, 99, comm, &CRq[ID2]);
+  MPI(Isend, sendSq[ID2].data(),sendSz[ID2], MPI_Fval,ID2,98,comm,&SRq[ID2]);
 }
 
 void MemorySharing::run()
 {
-  for(int i=0; i<SZ; i++) if(i not_eq ID) {
-    std::lock_guard<std::mutex> lock(mpi_mutex);
-    MPI_Irecv(&recvSz[i], 1, MPI_UNSIGNED, i, 99, comm, &RRq[i]);
-  }
+  for(int i=0; i<SZ; i++) if(i not_eq ID)
+    MPI(Irecv, &recvSz[i], 1, MPI_UNSIGNED, i, 99, comm, &RRq[i]);
 
   while(true)
   {
@@ -95,22 +78,33 @@ void MemorySharing::run()
         EpOwnerID = (EpOwnerID+1) % SZ;
       }
     }
-    if( learner->blockDataAcquisition() )
+
+    if(nObsRequest == MPI_REQUEST_NULL)
     {
-      std::lock_guard<std::mutex> lock(complete_mutex);
-      if( completed.size() == 0) {
-        globalSeenTransitions = nSeenTransitions_loc.load();
-        MPI_Iallreduce(MPI_IN_PLACE, &globalSeenTransitions, 1,
-         MPI_LONG, MPI_SUM, comm, &nObsRequest);
-      }
+     int ready = 0;
+     if(learner->blockGradStep() and learner->blockDataAcquisition()) ready = 1;
+     else if( learner->checkReady4Init() ) ready = 2;
+     if(ready)
+     {
+       std::lock_guard<std::mutex> lock1(complete_mutex);
+       if( completed.size() == 0) {
+         globSeen[0] = nSeenTransitions_loc.load();
+         globSeen[1] = nSeenSequences_loc.load();
+         //_warn("Sent advance req %d %ld %ld",ready,globSeen[0],globSeen[1]);
+         MPI(Iallreduce, MPI_IN_PLACE, globSeen, 2,
+          MPI_LONG, MPI_SUM, comm, &nObsRequest);
+       }
+     }
     }
 
     for(int i=0; i<SZ; i++) if(i not_eq ID) recvEP(i);
 
-    if( testBuffer(nObsRequest) )
-      learner->globalDataCounterUpdate(globalSeenTransitions);
+    if( testBuffer(nObsRequest) ) {
+      learner->globalDataCounterUpdate(globSeen[0], globSeen[1]);
+      nObsRequest = MPI_REQUEST_NULL;
+    }
 
-    usleep(5);
+    usleep(1);
     if( bExit.load() > 0 ) break;
   }
 }

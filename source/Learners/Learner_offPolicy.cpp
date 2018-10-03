@@ -10,30 +10,11 @@
 #include "../Network/Optimizer.h"
 
 Learner_offPolicy::Learner_offPolicy(Environment*const _env, Settings & _s) :
-Learner(_env,_s) {
+Learner(_env,_s)
+{
+  data_get = new Collector(settings, this, data);
   if(not bSampleSequences && nObsPerTraining < batchSize)
     die("Parameter minTotObsNum is too low for given problem");
-}
-
-bool Learner_offPolicy::readyForTrain() const
-{
-  //const Uint nTransitions = data->readNTransitions();
-  //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
-  //  die("I do not have enough data for training. Change hyperparameters");
-  //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
-  const bool ready = bTrain && data->readNData() >= nObsPerTraining;
-
-  if(not ready && bTrain && learn_rank==0)
-  {
-    lock_guard<mutex> lock(buffer_mutex);
-    const int currPerc = data->readNData() * 100. / (Real) nObsPerTraining;
-    if(currPerc>=percData+5) {
-      percData = currPerc;
-      printf("\rCollected %d%% of data required to begin training. ", percData);
-      fflush(0); //otherwise no show on some platforms
-      }
-  }
-  return ready;
 }
 
 bool Learner_offPolicy::blockDataAcquisition() const
@@ -44,30 +25,20 @@ bool Learner_offPolicy::blockDataAcquisition() const
   // and observed transitions to be kept (approximatively) constant
 
   //if there is not enough data for training, need more data
-  if( readyForTrain() not_eq true ) return false;
+  if( not bReady4Init.load() ) return false;
 
-  //const Real _nData = (Real)data->readNConcluded() - nData_b4Startup;
-  const long int mynData = data->readNSeen_loc() - nData_b4Startup;
-  const long int mynStep = _nStep.load();
   // Lock the queue if we have !added to the training set! more observations
   // than (grad_step * obsPerStep) or if the update is ready.
   // The distinction between "added to set" and "observed" allows removing
   // some load inbalance, with only has marginal effects on algorithms.
   // Load imb. is reduced by minimizing pauses in either data or grad stepping.
-  return mynData > mynStep * obsPerStep_loc;
+  return data->readNSeen_loc()-nData_b4Startup >= _nStep.load()*obsPerStep_loc;
 }
 
 void Learner_offPolicy::spawnTrainTasks_par()
 {
   // it should be impossible to get here before starting batch update was ready
   if(updateComplete || updateToApply) die("undefined behavior");
-
-  if( not readyForTrain() ) {
-    warn("spawnTrainTasks_par called with not enough data, wait next call");
-    // This can happen if data pruning algorithm is allowed to delete a lot of
-    // data from the mem buffer, which could cause training to pause
-    return; // Do not prepare an update
-  }
 
   if(bSampleSequences && data->readNSeq() < batchSize)
     die("Parameter minTotObsNum is too low for given problem");
@@ -140,8 +111,9 @@ void Learner_offPolicy::prepareGradient()
     // if an obs is actually sampled. Therefore at most this fraction
     // is wrong by batchSize / nTransitions ( ~ 0 )
     // In exchange we skip an mpi implicit barrier point.
-    ReFER_reduce.update({(Real)data_proc->nFarPol(), (Real)data->readNData()});
-    const vector<Real> nFarGlobal = ReFER_reduce.get();
+    ReFER_reduce.update({(long double)data_proc->nFarPol(),
+                         (long double)data->readNData()});
+    const LDvec nFarGlobal = ReFER_reduce.get();
     const Real fracOffPol = nFarGlobal[0] / nFarGlobal[1];
 
     if(fracOffPol>ReFtol) beta = (1-1e-4)*beta; // iter converges to 0
@@ -161,17 +133,13 @@ void Learner_offPolicy::applyGradient()
   }
   else die("undefined behavior");
 
-  if( readyForTrain() )
-  {
-    debugL("Compute state/rewards stats from the replay memory");
-    // placed here because this occurs after workers.join() so we have new data
-    profiler->stop_start("PRE");
-    if(currStep%1000==0) { // update state mean/std with net's learning rate
-      const Real WS = annealRate(learnR, currStep, epsAnneal);
-      data_proc->updateRewardsStats(1, WS*(OFFPOL_ADAPT_STSCALE>0));
-    }
+  debugL("Compute state/rewards stats from the replay memory");
+  // placed here because this occurs after workers.join() so we have new data
+  profiler->stop_start("PRE");
+  if(currStep%1000==0) { // update state mean/std with net's learning rate
+    const Real WS = annealRate(learnR, currStep, epsAnneal);
+    data_proc->updateRewardsStats(1, WS*(OFFPOL_ADAPT_STSCALE>0));
   }
-  else die("Pruning removed too much data: no longer supported");
 
   Learner::applyGradient();
 }
@@ -179,16 +147,20 @@ void Learner_offPolicy::applyGradient()
 void Learner_offPolicy::initializeLearner()
 {
   const Uint currStep = nStep();
-  if ( not readyForTrain() ) die("undefined behavior");
+  if ( not bReady4Init.load() ) die("undefined behavior");//const Uint nTransitions = data->readNTransitions();
+  //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
+  //  die("I do not have enough data for training. Change hyperparameters");
+  //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
 
-  ReFER_reduce.update({(Real)data_proc->nFarPol(), (Real)data->readNData()});
+  ReFER_reduce.update({(long double)data_proc->nFarPol(),
+                       (long double)data->readNData()});
 
   if ( currStep > 0 ) {
     warn("Skipping initialization for restartd learner.");
     return;
   }
   // shift counters after initial data is gathered
-  nData_b4Startup = data->readNData();
+  nData_b4Startup = data->readNSeen_loc();
 
   debugL("Compute state/rewards stats from the replay memory");
   profiler->stop_start("PRE");
@@ -244,6 +216,7 @@ void Learner_offPolicy::restart()
   if(fread(&nObs, sizeof(Uint),1,f) != 1) die(""); data->setNData(nObs);
   if(fread(&tObs, sizeof(Uint),1,f) != 1) die(""); data->setNSeen_loc(tObs);
   if(fread(&tSeqs,sizeof(Uint),1,f) != 1) die(""); data->setNSeenSeq_loc(tSeqs);
+  //nData_b4Startup
 
   long int currStep;
   if(fread(&currStep, sizeof(long int), 1, f) != 1) die(""); _nStep = currStep;

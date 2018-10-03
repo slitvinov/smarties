@@ -48,17 +48,18 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
     //add up gradients across nodes (masters)
     Ssum1Rdx.update(newSSum);
     Ssum2Rdx.update(newSSqSum);
-    Csum1Rdx.update(std::vector<long double>{count});
-    Rsum2Rdx.update(std::vector<long double>{newstdvr});
+    Csum1Rdx.update( LDvec {count});
+    Rsum2Rdx.update( LDvec {newstdvr});
   }
 
-  static constexpr Real EPS = numeric_limits<float>::epsilon();
-  const long double count = Csum1Rdx.get(bInit)[0];
+  static constexpr Real EPS = std::numeric_limits<float>::epsilon();
+
+  const long double count = Csum1Rdx.get<0>(bInit);
 
   if(WR>0)
   {
-   long double varR = Rsum2Rdx.get(bInit)[0]/count;
-   if(varR < numeric_limits<long double>::epsilon()) varR = 1;
+   long double varR = Rsum2Rdx.get<0>(bInit)/count;
+   if(varR < std::numeric_limits<long double>::epsilon()) varR = 1;
    if( settings.ESpopSize > 1 ) {
      const Real gamma = settings.gamma;
      const auto Rscal = (std::sqrt(varR)+EPS) * (1-gamma>EPS ? 1/(1-gamma) : 1);
@@ -68,8 +69,8 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
 
   if(WS>0)
   {
-    const std::vector<long double> SSum1 = Ssum1Rdx.get(bInit);
-    const std::vector<long double> SSum2 = Ssum2Rdx.get(bInit);
+    const LDvec SSum1 = Ssum1Rdx.get(bInit);
+    const LDvec SSum2 = Ssum2Rdx.get(bInit);
     for(Uint k=0; k<dimS; k++)
     {
       // this is the sample mean minus mean[k]:
@@ -99,10 +100,10 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
     assert(cntSamp==nTransitions.load());
     if(WS>=1)
     {
-      std::vector<long double> dbgStateSum(dimS,0), dbgStateSqSum(dimS,0);
+      LDvec dbgStateSum(dimS,0), dbgStateSqSum(dimS,0);
       #pragma omp parallel
       {
-        std::vector<long double> thr_dbgStateSum(dimS), thr_dbgStateSqSum(dimS);
+        LDvec thr_dbgStateSum(dimS), thr_dbgStateSqSum(dimS);
         #pragma omp for schedule(dynamic)
         for(Uint i=0; i<setSize; i++)
           for(Uint j=0; j<Set[i]->ndata(); j++) {
@@ -117,7 +118,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
           dbgStateSqSum[k] += thr_dbgStateSqSum[k];
         }
       }
-      for(Uint k=0; k<dimS; k++) {
+      for(Uint k=0; k<dimS && settings.learner_rank == 0; k++) {
         const Real dbgMean = dbgStateSum[k]/cntSamp;
         const Real dbgVar = dbgStateSqSum[k]/cntSamp - dbgMean*dbgMean;
         if(std::fabs(dbgMean)>.001 || std::fabs(dbgVar-1)>.001)
@@ -227,8 +228,10 @@ void MemoryProcessing::getMetrics(ostringstream& buff)
 
   buff<<" "<<std::setw(5)<<nSeq;
   buff<<" "<<std::setw(7)<<nTransitions.load();
-  buff<<" "<<std::setw(7)<<nSeenSequences_loc.load();
-  buff<<" "<<std::setw(8)<<nSeenTransitions_loc.load();
+  buff<<" "<<std::setw(7)<<nSeenSequences.load();
+  buff<<" "<<std::setw(8)<<nSeenTransitions.load();
+  //buff<<" "<<std::setw(7)<<nSeenSequences_loc.load();
+  //buff<<" "<<std::setw(8)<<nSeenTransitions_loc.load();
   buff<<" "<<std::setw(7)<<minInd;
   buff<<" "<<std::setw(6)<<(int)nOffPol;
 

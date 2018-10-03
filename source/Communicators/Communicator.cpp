@@ -35,7 +35,8 @@ Communicator::Communicator(int socket, int state_comp, int action_comp,
   assert(state_comp>0 && action_comp>0 && number_of_agents>0);
   nAgents = number_of_agents;
   update_state_action_dims(state_comp, action_comp);
-  spawner = socket==0; // if app gets socket prefix 0, then it spawns smarties
+  assert(socket not_eq 0);
+  spawner = false; // if app gets socket prefix 0, then it spawns smarties
   socket_id = socket;
   called_by_app = true;
   launch();
@@ -266,7 +267,8 @@ void Communicator::launch_forked()
 void Communicator::launch()
 {
   assert(rank_inside_app<1);
-  if (spawner && called_by_app) {
+  if (spawner && called_by_app)
+  {
     //this code runs if application spawns smarties
     //cheap way to ensure multiple sockets can exist on same node
     struct timeval clock;
@@ -412,9 +414,9 @@ void Communicator::workerSend_MPI() {
 
   assert(comm_learn_pool != MPI_COMM_NULL);
   MPI_Request dummyreq;
-  MPI_Isend(data_state, size_state, MPI_BYTE, 0, 1, comm_learn_pool, &dummyreq);
+  MPI_Isend(data_state, size_state, MPI_BYTE,0,1,comm_learn_pool,&dummyreq);
   MPI_Request_free(&dummyreq); //Not my problem? send_request
-  MPI_Irecv(data_action, size_action, MPI_BYTE, 0, 0, comm_learn_pool, &recv_request);
+  MPI_Irecv(data_action,size_action,MPI_BYTE,0,0,comm_learn_pool,&recv_request);
 }
 void Communicator::workerRecv_MPI() {
   //auto start = std::chrono::high_resolution_clock::now();

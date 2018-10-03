@@ -138,7 +138,8 @@ void VRACER<Policy_t, Action_t>::writeOnPolRetrace(Sequence*const seq) const
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::prepareGradient()
 {
-  if(updateComplete) {
+  if(updateComplete and ESpopSize>1)
+  {
    profiler->stop_start("LOSS");
    const Real invLC = 1 / std::log(CmaxRet);
    #pragma omp parallel for schedule(static)
@@ -175,8 +176,6 @@ void VRACER<Policy_t, Action_t>::prepareGradient()
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::initializeLearner()
 {
-  Learner_offPolicy::initializeLearner();
-
   // Rewards second moment is computed right before actual training begins
   // therefore we need to recompute (rescaled) Retrace values for all obss
   // seen before this point.
@@ -188,6 +187,8 @@ void VRACER<Policy_t, Action_t>::initializeLearner()
     const int N = traj->ndata(); traj->setRetrace(N, 0);
     for(Uint j=N; j>0; j--) updateVret(traj, j-1, 1);
   }
+
+  Learner_offPolicy::initializeLearner();
 }
 
 template<> vector<Uint> VRACER<Discrete_policy, Uint>::

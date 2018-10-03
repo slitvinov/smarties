@@ -14,9 +14,7 @@ class Learner_offPolicy: public Learner
 {
 protected:
   const Real obsPerStep_loc = settings.obsPerStep_loc;
-  const Uint nObsPerTraining = settings.minTotObsNum_loc;
   const Uint ESpopSize = settings.ESpopSize;
-  mutable int percData = -5;
 
   Real alpha = 0.0; // weight between critic and policy
   Real beta = CmaxPol<=0? 1 : 0.0; // if CmaxPol==0 do naive Exp Replay
@@ -26,11 +24,9 @@ protected:
   const FORGET ERFILTER =
     MemoryProcessing::readERfilterAlgo(settings.ERoldSeqFilter, CmaxPol>0);
 
-  DelayedReductor<Real> ReFER_reduce = DelayedReductor<Real>(mastersComm,{0,0});
+  DelayedReductor ReFER_reduce = DelayedReductor(settings, LDvec{ 0.0, 1.0 } );
 public:
   Learner_offPolicy(Environment*const env, Settings& _s);
-
-  bool readyForTrain() const;
 
   //main training functions:
   bool blockDataAcquisition() const override;

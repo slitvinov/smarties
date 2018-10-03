@@ -99,7 +99,7 @@ void MemoryBuffer::sampleTransitions(vector<Uint>& seq, vector<Uint>& obs) {
       else break;
       if(i == seq.size()) break; // then found all elements of sequence k
     }
-    assert(cntO == Set[k]->prefix);
+    //assert(cntO == Set[k]->prefix);
     if(i == seq.size()) break; // then found all elements of ret
     cntO += Set[k]->ndata(); // advance observation counter
     if(k+1 == Set.size()) die(" "); // at last iter we must have found all
@@ -134,26 +134,25 @@ void MemoryBuffer::removeSequence(const Uint ind)
   std::swap(Set[ind], Set.back());
   _dispose_object(Set.back());
   Set.pop_back();
-  assert(nSequences == Set.size());
+  assert(nSequences == (long) Set.size());
 }
 void MemoryBuffer::pushBackSequence(Sequence*const seq)
 {
   lock_guard<mutex> lock(dataset_mutex);
-  assert( readNSeq() == Set.size() and seq not_eq nullptr);
+  assert( readNSeq() == (long) Set.size() and seq not_eq nullptr);
   const auto ind = Set.size();
   Set.push_back(seq);
   Set[ind]->prefix = ind>0? Set[ind-1]->prefix +Set[ind-1]->ndata() : 0;
   nTransitions += seq->ndata();
   needs_pass = true;
   nSequences++;
-  assert( readNSeq() == Set.size());
-  //cout << "push back " << prefix << " " << Set[ind]->ndata() << endl;
+  assert( readNSeq() == (long) Set.size());
 }
 
 void MemoryBuffer::initialize()
 {
   // All sequences obtained before this point should share the same time stamp
-  for(Uint i=0;i<Set.size();i++) Set[i]->ID = nSeenSequences_loc.load() - 1;
+  for(Uint i=0;i<Set.size();i++) Set[i]->ID = nSeenSequences.load();
   #ifdef PRIORITIZED_ER
     vector<float> probs(nTransitions.load(), 1);
     distPER = discrete_distribution<Uint>(probs.begin(), probs.end());
@@ -173,7 +172,7 @@ void MemoryBuffer::checkNData() {
       cntSamp += Set[i]->ndata();
     }
     assert(cntSamp==nTransitions);
-    assert(Set.size()==nSequences);
+    assert(nSequences==(long)Set.size());
   #endif
 }
 

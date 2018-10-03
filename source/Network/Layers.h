@@ -244,6 +244,57 @@ class JoinLayer: public Layer
     Real initializationFac) const override { }
 };
 
+
+class ResidualLayer: public Layer
+{
+ public:
+  ResidualLayer(Uint _ID, Uint _N): Layer(_ID,_N,false) { }
+
+  string printSpecs() const override {
+    std::ostringstream o;
+    o<<"("<<ID<<") Residual Connection of size:"<<size<<"\n";
+    return o.str();
+  }
+
+  void requiredParameters(vector<Uint>& nWeight,
+                          vector<Uint>& nBiases ) const override {
+    nWeight.push_back(0);
+    nBiases.push_back(0);
+  }
+  void requiredActivation(vector<Uint>& sizes,
+                          vector<Uint>& bOutputs,
+                          vector<Uint>& bInputs) const override {
+    sizes.push_back(size);
+    bOutputs.push_back(false);
+    bInputs.push_back(false);
+  }
+  void biasInitialValues(const vector<Real> init) override { }
+  void forward( const Activation*const prev,
+                const Activation*const curr,
+                const Parameters*const para) const override {
+    nnReal* const ret = curr->Y(ID);
+    std::memset( ret, 0, size * sizeof(nnReal) );
+    for (Uint i=1; i<=2; i++) {
+      assert(curr->sizes[ID-i] == size);
+      const nnReal* const inputs = curr->Y(ID-i);
+      for (Uint j=0; j<size; j++) ret[j] += inputs[j];
+    }
+  }
+
+  void backward(  const Activation*const prev,
+                  const Activation*const curr,
+                  const Activation*const next,
+                  const Parameters*const grad,
+                  const Parameters*const para) const override {
+    const nnReal* const errors = curr->E(ID);
+    for (Uint i=1; i<=2; i++)
+      memcpy( curr->E(ID-i), errors, size * sizeof(nnReal) );
+  }
+
+  void initialize(mt19937* const gen, const Parameters*const para,
+    Real initializationFac) const override { }
+};
+
 class ParamLayer: public Layer
 {
   const Function * const func;

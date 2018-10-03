@@ -47,11 +47,12 @@ class MemoryBuffer
 
   std::mutex dataset_mutex;
 
-  std::atomic<Uint> nSequences{0};
-  std::atomic<Uint> nTransitions{0};
-  std::atomic<Uint> nSeenTransitions{0};
-  std::atomic<Uint> nSeenSequences_loc{0};
-  std::atomic<Uint> nSeenTransitions_loc{0};
+  std::atomic<long> nSequences{0};
+  std::atomic<long> nTransitions{0};
+  std::atomic<long> nSeenSequences{0};
+  std::atomic<long> nSeenTransitions{0};
+  std::atomic<long> nSeenSequences_loc{0};
+  std::atomic<long> nSeenTransitions_loc{0};
 
   void checkNData();
 
@@ -96,35 +97,41 @@ class MemoryBuffer
   void sampleTransitions(vector<Uint>& seq, vector<Uint>& obs);
   void sampleSequences(vector<Uint>& seq);
 
-  inline Uint readNSeen_loc() const {
+  inline long readNSeen_loc() const {
     return nSeenTransitions_loc.load();
   }
-  inline Uint readNSeenSeq_loc() const {
+  inline long readNSeenSeq_loc() const {
     return nSeenSequences_loc.load();
   }
-  inline Uint readNSeen() const {
+  inline long readNSeenSeq() const {
+    return nSeenSequences.load();
+  }
+  inline long readNSeen() const {
     return nSeenTransitions.load();
   }
-  inline Uint readNData() const {
+  inline long readNData() const {
     return nTransitions.load();
   }
-  inline Uint readNSeq() const {
+  inline long readNSeq() const {
     return nSequences.load();
   }
 
-  inline void setNSeen_loc(const Uint val) {
+  inline void setNSeen_loc(const long val) {
     nSeenTransitions_loc = val;
   }
-  inline void setNSeenSeq_loc(const Uint val) {
+  inline void setNSeenSeq_loc(const long val) {
     nSeenSequences_loc = val;
   }
-  inline void setNSeen(const Uint val) {
+  inline void setNSeenSeq(const long val) {
+    nSeenSequences = val;
+  }
+  inline void setNSeen(const long val) {
     nSeenTransitions = val;
   }
-  inline void setNData(const Uint val) {
+  inline void setNData(const long val) {
     nTransitions = val;
   }
-  inline void setNSeq(const Uint val) {
+  inline void setNSeq(const long val) {
     nSequences = val;
     Set.resize(val, nullptr);
   }

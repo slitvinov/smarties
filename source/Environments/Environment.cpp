@@ -75,30 +75,25 @@ Communicator_internal Environment::create_communicator()
   Communicator_internal comm(settings);
   comm_ptr = &comm;
 
+  #ifdef INTERNALAPP
   if(settings.workers_rank>0) // aka not a master
   {
-    #ifdef INTERNALAPP
-      if( (settings.workers_size-1) % settings.workersPerEnv != 0)
-        die("Number of ranks does not match app\n");
+    if( (settings.workers_size-1) % settings.workersPerEnv != 0)
+      die("Number of ranks does not match app\n");
 
-      int workerGroup = (settings.workers_rank-1) / settings.workersPerEnv;
+    int workerGroup = (settings.workers_rank-1) / settings.workersPerEnv;
 
-      MPI_Comm app_com;
-      MPI_Comm_split(settings.workersComm, workerGroup, settings.workers_rank,
-        &app_com);
-      comm.set_application_mpicom(app_com, workerGroup);
-      comm.ext_app_run(); //worker rank will remain here for ever
-    #else
-      //worker will fork and create environment
-      comm_ptr->launch();
-      //parent will stay here and set up communication between sim and master
-      setDims();
-    #endif
+    MPI_Comm app_com;
+    MPI_Comm_split(settings.workersComm, workerGroup, settings.workers_rank,
+      &app_com);
+    comm.set_application_mpicom(app_com, workerGroup);
+    comm.ext_app_run(); //worker rank will remain here for ever
   }
-  else  // master
-  {
-    setDims();
-  }
+  #endif
+
+  if(settings.bSpawnApp) { warn("launching"); comm_ptr->launch(); }
+  setDims();
+
   comm.update_state_action_dims(sI.dim, aI.dim);
   return comm;
 }
@@ -145,7 +140,7 @@ void Environment::commonSetup()
       printf("Unspecified whether action space is bounded: assumed not\n");
   } else assert(aI.bounded.size() == aI.dim);
 
-  agents.resize(std::max(nAgents, (Uint) 1), nullptr);
+  agents.resize(nAgents, nullptr);
   for(Uint i=0; i<nAgents; i++) agents[i] = new Agent(i, sI, aI);
 
   assert(sI.scale.size() == sI.mean.size());

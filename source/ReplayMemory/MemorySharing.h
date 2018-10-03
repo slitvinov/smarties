@@ -6,6 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 #pragma once
+#include <thread>
 
 #include "MemoryBuffer.h"
 class Learner;
@@ -20,7 +21,7 @@ struct MemorySharing
   const ActionInfo& aI;
   const Uint dimS = sI.dimUsed, dimA = aI.dim, dimP = aI.policyVecDim;
 
-  const MPI_Comm comm = settings.mastersComm;
+  const MPI_Comm comm = MPIComDup(settings.mastersComm);
   const int ID = settings.learner_rank, SZ = settings.learner_size;
 
   int EpOwnerID = ID; // first episode stays on rank
@@ -34,6 +35,7 @@ struct MemorySharing
 
   std::vector<MPI_Request> RRq = std::vector<MPI_Request>(SZ, MPI_REQUEST_NULL);
   std::vector<MPI_Request> SRq = std::vector<MPI_Request>(SZ, MPI_REQUEST_NULL);
+  std::vector<MPI_Request> CRq = std::vector<MPI_Request>(SZ, MPI_REQUEST_NULL);
   MPI_Request nObsRequest = MPI_REQUEST_NULL;
 
   std::mutex complete_mutex;
@@ -43,8 +45,9 @@ struct MemorySharing
   std::thread fetcher;
   std::atomic<Uint> bExit {0};
 
-  std::atomic<Uint>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
-  long int globalSeenTransitions = 0;
+  std::atomic<long>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
+  std::atomic<long>& nSeenSequences_loc = replay->nSeenSequences_loc;
+  long int globSeen[2] = {0, 0};
 
   MemorySharing(const Settings&S, Learner*const L, MemoryBuffer*const RM);
   ~MemorySharing();

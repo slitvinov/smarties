@@ -51,16 +51,21 @@ struct Sequence
     const Uint dA, const Uint dP);
   vector<Fval> packSequence(const Uint dS, const Uint dA, const Uint dP);
 
-  static Uint computeTotalEpisodeSize(Uint dS, Uint dA, Uint dP, Uint Nstep) {
+  static inline Uint computeTotalEpisodeSize(const Uint dS, const Uint dA,
+    const Uint dP, const Uint Nstep)
+  {
     const Uint tuplSize = dS+dA+dP+1;
     const Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
-    return (tuplSize+infoSize)*Nstep + 6;
+    const Uint ret = (tuplSize+infoSize)*Nstep + 6;
+    return ret;
   }
-  static Uint computeTotalEpisodeNstep(Uint dS, Uint dA, Uint dP, Uint size) {
+  static inline Uint computeTotalEpisodeNstep(const Uint dS, const Uint dA,
+    const Uint dP, const Uint size)
+  {
     const Uint tuplSize = dS+dA+dP+1;
     const Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
     const Uint nStep = (size - 6)/(tuplSize+infoSize);
-    assert(computeTotalEpisodeSize(dS,dA,dP,nStep) == size);
+    assert(Sequence::computeTotalEpisodeSize(dS,dA,dP,nStep) == size);
     return nStep;
   }
 

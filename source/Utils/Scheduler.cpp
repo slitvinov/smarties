@@ -22,20 +22,20 @@ Master::Master(Communicator_internal* const _c, const vector<Learner*> _l,
   for(const auto& L : learners) // Figure out if I have on-pol learners
     bNeedSequentialTasks = bNeedSequentialTasks || L->bNeedSequentialTrain();
 
-  if(nWorkers*nPerRank != static_cast<int>(agents.size()))
+  if(nWorkers_own*nPerRank != static_cast<int>(agents.size()))
     die("Mismatch in master's nWorkers nPerRank nAgents.");
   //the following Irecv will be sent after sending the action
-  for(int i=1; i<=nWorkers; i++) comm->recvBuffer(i);
+  for(int i=1; i<=nWorkers_own; i++) comm->recvBuffer(i);
   profiler->stop_start("SLP");
-  worker_replies.reserve(nWorkers);
+  worker_replies.reserve(nWorkers_own);
 }
 
 void Master::run()
 {
   { // gather initial data OR if not training evaluated restarted policy
-    for(int i=1; i<=nWorkers; i++)
+    for(int i=1; i<=nWorkers_own; i++)
       worker_replies.push_back(std::thread([&, i]() { processWorker(i); }));
-    while ( ! learnersLockQueue() ) usleep(5);
+    while ( ! learnersInitialized() ) usleep(5);
   }
   if( not bTrain ) return;
 
@@ -50,7 +50,7 @@ void Master::run()
     if(bNeedSequentialTasks) {
       profiler->stop_start("SLP");
       // typically on-policy learning. Wait for all needed data:
-      while ( ! learnersLockQueue() ) usleep(1);
+      while ( ! learnersUnlockQueue() ) usleep(1);
       // and then perform on-policy update step(s):
       for(const auto& L : learners) L->spawnTrainTasks_seq();
     }
@@ -60,7 +60,7 @@ void Master::run()
     if(not bNeedSequentialTasks) {
       profiler->stop_start("SLP");
       //for off-policy learners this is last possibility to wait for needed data
-      while ( ! learnersLockQueue() ) { usleep(1); }
+      while ( ! learnersUnlockQueue() ) usleep(1);
     }
 
     if(iterNum++ % 1000 == 0) flushRewardBuffer();
@@ -70,33 +70,34 @@ void Master::run()
     // buffer that should be done after workers.join() are done here.
     for(const auto& L : learners) L->applyGradient();
 
-    if( getMinStepId() >= totNumSteps ) return;
+    if( getMinStepId() >= totNumSteps ) {
+      cout << "over!" << endl;
+      return;
+    }
   }
 }
 
 void Master::processWorker(const int worker)
 {
-  assert(worker>0 && worker <= (int) nWorkers);
+  assert(worker>0 && worker <= (int) nWorkers_own);
   while(1)
   {
     if(!bTrain && getMinSeqId() >= totNumSteps) break;
     // Learners lock the workers queue if they have enough data to advance step
     while ( bTrain && learnersLockQueue() ) {
-      usleep(5);
+      usleep(1);
       if( bExit.load() > 0 ) break;
     }
 
-    MPI_Status mpistatus;
-    int completed = comm->testBuffer(worker, mpistatus);
+    int completed = comm->testBuffer(worker);
 
     if(completed) {
-      assert(worker == mpistatus.MPI_SOURCE);
-      processAgent(worker, mpistatus);
+      processAgent(worker);
     } else usleep(1);
   }
 }
 
-void Master::processAgent(const int worker, const MPI_Status mpistatus)
+void Master::processAgent(const int worker)
 {
   //read from worker's buffer:
   vector<double> recv_state(sI.dim);

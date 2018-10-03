@@ -21,7 +21,7 @@ static inline vector<string> split(const string &s, const char delim) {
 int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv, const Uint numSteps);
 
 Communicator_internal::Communicator_internal(Settings& _S) :
-  Communicator(_S.sockPrefix,0,_S.generators[0],_S.bTrain,_S.totNumSteps), S(_S)
+  Communicator(_S.sockPrefix,1,_S.generators[0],_S.bTrain,_S.totNumSteps), S(_S)
 {
   comm_learn_pool = S.workersComm;
   update_rank_size();
@@ -50,6 +50,7 @@ void Communicator_internal::createGo_rundir() {
   while(true) {
     const int workID = workerGroup>=0? workerGroup : socket_id;
     sprintf(newd,"%s/%s_%03d_%05lu", initd, "simulation", workID, iter);
+    //cout << newd << endl; fflush(0); fflush(stdout);
     if ( stat(newd, &fileStat) >= 0 ) iter++; // directory already exists
     else {
       if(rank_inside_app>=0) MPI_Barrier(comm_inside_app);
@@ -71,13 +72,13 @@ int Communicator_internal::recvStateFromApp()
     intToDoublePtr(0, data_state+0);
     intToDoublePtr(FAIL_COMM, data_state+1);
   }
-  if(comm_learn_pool != MPI_COMM_NULL) workerSend_MPI();
+  if(comm_learn_pool not_eq MPI_COMM_NULL) workerSend_MPI();
   return bytes <= 0;
 }
 
 int Communicator_internal::sendActionToApp()
 {
-  if(comm_learn_pool != MPI_COMM_NULL) workerRecv_MPI();
+  if(comm_learn_pool not_eq MPI_COMM_NULL) workerRecv_MPI();
   bool endSignal = std::fabs(data_action[0] - AGENT_KILLSIGNAL) < 2.2e-16;
   send_all(Socket, data_action, size_action);
   return endSignal;
@@ -272,7 +273,7 @@ void Communicator_internal::sendTerminateReq()
   //what are the chances that learner sends action -256.(+/- eps) to clients?
   for (int worker = 1; worker <= nOwnWorkers; worker++) {
     outBufs[worker-1][0] = AGENT_KILLSIGNAL;
-    MPI_Ssend(outBufs[worker-1],size_action,MPI_BYTE,worker,0,comm_learn_pool);
+    MPI(Ssend, outBufs[worker-1],size_action,MPI_BYTE,worker,0,comm_learn_pool);
   }
 }
 
@@ -305,39 +306,27 @@ void Communicator_internal::sendBuffer(const int i, const std::vector<double> V)
   assert(i>0 && i <= (int) outBufs.size() && V.size() == (size_t) nActions);
   std::copy (V.begin(), V.end(), outBufs[i-1] );
 
-  if(bMasterSpawnApp) send_all(Socket, outBufs[i-1], size_action);
-  else
-  {
+  if(bSpawnApp) send_all(Socket, outBufs[i-1], size_action);
+  else {
     MPI_Request tmp;
-    if(bAsync) { // MPI impl allows maximum thread safety
-      MPI_Isend(outBufs[i-1], size_action, MPI_BYTE, i, 0,
-        comm_learn_pool, &tmp);
-    } else {
-      lock_guard<mutex> lock(mpi_mutex);
-      MPI_Isend(outBufs[i-1], size_action, MPI_BYTE, i, 0,
-        comm_learn_pool, &tmp);
-    }
-    MPI_Request_free(&tmp); //Not my problem
+    MPI(Isend, outBufs[i-1], size_action, MPI_BYTE, i, 0,
+      comm_learn_pool, &tmp);
+    MPI(Request_free, &tmp); //Not my problem
   }
 }
 
 void Communicator_internal::recvBuffer(const int i)
 {
-  if(bMasterSpawnApp) return;
-  if(bAsync) { // MPI impl allows maximum thread safety
-    MPI_Irecv(inpBufs[i-1], size_state, MPI_BYTE, i, 1,
+  if(bSpawnApp) return;
+
+  MPI(Irecv, inpBufs[i-1], size_state, MPI_BYTE, i, 1,
       comm_learn_pool, &requests[i-1]);
-  } else {
-    lock_guard<mutex> lock(mpi_mutex);
-    MPI_Irecv(inpBufs[i-1], size_state, MPI_BYTE, i, 1,
-      comm_learn_pool, &requests[i-1]);
-  }
 }
 
-int Communicator_internal::testBuffer(const int i, MPI_Status& mpistatus)
+int Communicator_internal::testBuffer(const int i)
 {
   int completed = 0;
-  if(bMasterSpawnApp)
+  if(bSpawnApp)
   {
     const int bytes = recv_all(Socket, inpBufs[i-1], size_state);
     if(bytes not_eq size_state) {
@@ -349,13 +338,9 @@ int Communicator_internal::testBuffer(const int i, MPI_Status& mpistatus)
   }
   else
   {
-    if(bAsync) { // MPI impl allows maximum thread safety
-      MPI_Test(&requests[i-1], &completed, &mpistatus);
-    } else {
-      lock_guard<mutex> lock(mpi_mutex);
-      MPI_Test(&requests[i-1], &completed, &mpistatus);
-    }
+    MPI_Status mpistatus;
+    MPI(Test, &requests[i-1], &completed, &mpistatus);
+    if(completed) assert(i == mpistatus.MPI_SOURCE);
   }
-
   return completed;
 }

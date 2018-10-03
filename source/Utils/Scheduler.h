@@ -26,7 +26,7 @@ private:
   const vector<Agent*>& agents = env->agents;
   const int nPerRank = env->nAgentsPerRank;
   const int bTrain = settings.bTrain;
-  const int nWorkers = settings.nWorkers;
+  const int nWorkers_own = settings.nWorkers_own;
   const int nThreads = settings.nThreads;
   const int learn_rank = settings.learner_rank;
   const int learn_size = settings.learner_size;
@@ -97,13 +97,29 @@ private:
     return locked;
   }
 
+  inline bool learnersUnlockQueue() const
+  {
+    bool unlocked = true;
+    for(const auto& L : learners)
+      unlocked = unlocked && L->unblockGradStep(); // if any wants to unlock...
+    return unlocked;
+  }
+
+  inline bool learnersInitialized() const
+  {
+    bool unlocked = true;
+    for(const auto& L : learners)
+      unlocked = unlocked && L->isReady4Init(); // if any wants to unlock...
+    return unlocked;
+  }
+
   void flushRewardBuffer();
 
   void dumpCumulativeReward(const int agent, const int worker,
     const unsigned giter, const unsigned tstep) const;
 
   void processWorker(const int worker);
-  void processAgent(const int worker, const MPI_Status mpistatus);
+  void processAgent(const int worker);
 
 public:
   Master(Communicator_internal* const _c, const vector<Learner*> _l,
@@ -111,7 +127,7 @@ public:
   ~Master()
   {
     bExit = 1;
-    for(int i=0; i<nWorkers; i++) worker_replies[i].join();
+    for(int i=0; i<nWorkers_own; i++) worker_replies[i].join();
     for(const auto& A : agents) A->writeBuffer(learn_rank);
     _dispose_object(env);
     _dispose_object(profiler);

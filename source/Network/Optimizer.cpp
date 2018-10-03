@@ -102,8 +102,8 @@ void AdamOptimizer::prepare_update(const int BS, const Rvec&L)
   gradSum->reduceThreadsGrad(grads);
 
   if (learn_size > 1) { //add up gradients across master ranks
-    MPI_Iallreduce(MPI_IN_PLACE, gradSum->params, gradSum->nParams, MPI_NNVALUE_TYPE, MPI_SUM, mastersComm, &paramRequest);
-    MPI_Iallreduce(MPI_IN_PLACE, &totGrads, 1, MPI_UNSIGNED, MPI_SUM, mastersComm, &batchRequest);
+    MPI(Iallreduce, MPI_IN_PLACE, gradSum->params, gradSum->nParams, MPI_NNVALUE_TYPE, MPI_SUM, mastersComm, &paramRequest);
+    MPI(Iallreduce, MPI_IN_PLACE, &totGrads, 1, MPI_UNSIGNED, MPI_SUM, mastersComm, &batchRequest);
   }
   nStep++;
 }
@@ -116,8 +116,8 @@ void AdamOptimizer::apply_update()
       die("I am in finalize without having started a reduction");
     if(paramRequest == MPI_REQUEST_NULL)
       die("I am in finalize without having started a reduction");
-    MPI_Wait(&paramRequest, MPI_STATUS_IGNORE);
-    MPI_Wait(&batchRequest, MPI_STATUS_IGNORE);
+    MPI(Wait, &paramRequest, MPI_STATUS_IGNORE);
+    MPI(Wait, &batchRequest, MPI_STATUS_IGNORE);
   }
   #ifndef __EntropySGD
     using Algorithm = Adam;

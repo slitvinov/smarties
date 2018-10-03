@@ -18,13 +18,14 @@ private:
   MemorySharing * const sharing;
 
   const bool bWriteToFile = settings.samplesFile;
-  const Uint policyVecDim = settings.policyVecDim;
+  const Uint policyVecDim = env->aI.policyVecDim;
   const int learn_rank = settings.learner_rank;
 
   std::vector<Sequence*> inProgress;
 
-  std::atomic<Uint>& nSeenSequences_loc = replay->nSeenSequences_loc;
-  std::atomic<Uint>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
+  std::atomic<long>& nSeenSequences = replay->nSeenSequences;
+  std::atomic<long>& nSeenSequences_loc = replay->nSeenSequences_loc;
+  std::atomic<long>& nSeenTransitions_loc = replay->nSeenTransitions_loc;
 
 public:
   void add_state(const Agent&a);

@@ -14,6 +14,7 @@ class MemoryProcessing
 {
 private:
   const Settings & settings;
+  const int ID = settings.learner_rank;
   MemoryBuffer * const RM;
 
   vector<memReal>& invstd = RM->invstd;
@@ -25,23 +26,18 @@ private:
   Uint nPruned = 0, minInd = 0, nOffPol = 0, avgDKL = 0;
   int delPtr = -1;
 
-  DelayedReductor<long double> Ssum1Rdx = DelayedReductor<long double>(
-                      settings.mastersComm, std::vector<long double>(dimS, 0) );
-
-  DelayedReductor<long double> Ssum2Rdx = DelayedReductor<long double>(
-                      settings.mastersComm, std::vector<long double>(dimS, 1) );
-
-  DelayedReductor<long double> Rsum2Rdx = DelayedReductor<long double>(
-                      settings.mastersComm, std::vector<long double>(   1, 1) );
-
-  DelayedReductor<long double> Csum1Rdx = DelayedReductor<long double>(
-                      settings.mastersComm, std::vector<long double>(   1, 1) );
+  DelayedReductor Ssum1Rdx = DelayedReductor(settings, LDvec(dimS, 0) );
+  DelayedReductor Ssum2Rdx = DelayedReductor(settings, LDvec(dimS, 1) );
+  DelayedReductor Rsum2Rdx = DelayedReductor(settings, LDvec(   1, 1) );
+  DelayedReductor Csum1Rdx = DelayedReductor(settings, LDvec(   1, 1) );
 
   const std::vector<Sequence*>& Set = RM->Set;
-  std::atomic<Uint>& nSequences = RM->nSequences;
-  std::atomic<Uint>& nTransitions = RM->nTransitions;
-  std::atomic<Uint>& nSeenSequences_loc = RM->nSeenSequences_loc;
-  std::atomic<Uint>& nSeenTransitions_loc = RM->nSeenTransitions_loc;
+  std::atomic<long>& nSequences = RM->nSequences;
+  std::atomic<long>& nTransitions = RM->nTransitions;
+  std::atomic<long>& nSeenSequences = RM->nSeenSequences;
+  std::atomic<long>& nSeenTransitions = RM->nSeenTransitions;
+  std::atomic<long>& nSeenSequences_loc = RM->nSeenSequences_loc;
+  std::atomic<long>& nSeenTransitions_loc = RM->nSeenTransitions_loc;
 
 public:
 

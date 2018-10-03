@@ -22,7 +22,7 @@ class Communicator_internal: public Communicator
   const std::string setupfolder = S.setupFolder;
   const int nOwnWorkers = S.nWorkers_own;
   const int bAsync = S.bAsync;
-  const bool bMasterSpawnApp = S.bMasterSpawnApp;
+  const bool bSpawnApp = S.bSpawnApp;
 
   std::mutex& mpi_mutex = S.mpi_mutex;
   vector<double*> inpBufs;
@@ -63,7 +63,7 @@ public:
 
   void recvBuffer(const int i);
 
-  int testBuffer(const int i, MPI_Status& mpistatus);
+  int testBuffer(const int i);
 
   void sendTerminateReq();
 
