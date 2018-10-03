@@ -8,9 +8,7 @@
 #include "Communicator.h"
 #include "odeSolve.h"
 
-#define dt 2.0e-5
-#define SAVEFREQ 1
-#define STEPFREQ 1
+#define dt 1.0e-4
 #define maxStep 100000
 
 using namespace std;
@@ -56,19 +54,16 @@ struct Entity
 		tt.clear(); forceX.clear();
 
 		normal_distribution<double> distribX(0, params.l);
-		normal_distribution<double> distribU(0, 0.5*params.l);
+		normal_distribution<double> distribU(0, 2*params.l);
 		normal_distribution<double> distribAng(0, M_PI/18.0); // allow random deviation by 10 degrees
 
-		/*p[0] = this->pathStart[0] + distribX(genA); // random starting positions
-		p[1] = this->pathStart[1] + distribX(genA);*/
-p[0] = 0;
-p[1] = 0;
-thetaNose=0.0;
-		//thetaNose = this->thetaPath + distribAng(genA);
+		p[0] = this->pathStart[0] + distribX(genA); // random starting positions
+		p[1] = this->pathStart[1] + distribX(genA);
+
+		thetaNose = this->thetaPath + distribAng(genA);
 		isOver = false;
 
-		//u.push_back(distribU(genA)), v.push_back(distribU(genA)); // random initial linear velocities
-u.push_back(10), v.push_back(0.0); // random initial linear velocities
+		u.push_back(distribU(genA)), v.push_back(distribU(genA)); // random initial linear velocities
 		r.push_back(0.0);
 		x.push_back(p[0]), y.push_back(p[1]), thetaR.push_back(thetaNose - thetaPath);
 		tt.push_back(0.0);
@@ -217,39 +212,39 @@ int main(int argc, const char * argv[])
 	    vector<double> actions(control_vars, 0.0);
 	    actions = comm.recvAction(0);
 
-// Overwrite actions
-actions[0] = -20.0; // Thruster Left
-actions[1] = 20.0; // Thruster Right
+	    /*// Overwrite actions
+	      actions[0] = -20.0; // Thruster Left
+	      actions[1] = 20.0; // Thruster Right*/
 
 	    forceX[step] = actions[0] + actions[1];
 	    boat.advance(actions);
 	    tt.push_back(dt*(step+1));
 
-/*	  const bool abortSim = boat.checkTermination();// Abort if too far from trajectory
-	  if(boat.is_over()){ // Terminate simulation 
-			  
-		  const double finalReward = 10*boat.params.l;
+	    const bool abortSim = boat.checkTermination();// Abort if too far from trajectory
+	    if(boat.is_over()){ // Terminate simulation 
 
-		  if(abortSim){
-			  comm.sendTermState(boat.getState(), -finalReward, 0);
-			  printf("Sim #%d reporting that boat got lost.\n", sim); fflush(NULL);
-		  } else {
-			  comm.sendTermState(boat.getState(), +finalReward, 0);
-			  printf("Sim #%d reporting that boat reached safe harbor.\n", sim); fflush(NULL);
-		  }
-		  sim++; break;
-	  }*/
+		    const double finalReward = 10*boat.params.l;
 
-      if(step++ < maxStep)
-      {
-        comm.sendState(boat.getState(), boat.getReward(), 0);
-      }
-      else
-      {
-        comm.truncateSeq(boat.getState(), boat.getReward(), 0);
-        sim++;
-        break;
-      }
+		    if(abortSim){
+			    comm.sendTermState(boat.getState(), -finalReward, 0);
+			    printf("Sim #%d reporting that boat got lost.\n", sim); fflush(NULL);
+		    } else {
+			    comm.sendTermState(boat.getState(), +finalReward, 0);
+			    printf("Sim #%d reporting that boat reached safe harbor.\n", sim); fflush(NULL);
+		    }
+		    sim++; break;
+	    }
+
+	    if(step++ < maxStep)
+	    {
+		    comm.sendState(boat.getState(), boat.getReward(), 0);
+	    }
+	    else
+	    {
+		    comm.truncateSeq(boat.getState(), boat.getReward(), 0);
+		    sim++;
+		    break;
+	    }
 
     }
 
@@ -258,7 +253,6 @@ actions[1] = 20.0; // Thruster Right
     fprintf(temp, "time \t forceX \t forceY \t u \t v \t r \t x \t y \t theta\n");
     for(unsigned int i=0; i<tt.size(); i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], forceX[i], forceY, u[i], v[i], r[i], x[i], y[i], thetaR[i]);
     fclose(temp);
-abort();
 
   }
   return 0;
