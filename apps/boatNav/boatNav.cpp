@@ -8,15 +8,16 @@
 #include "Communicator.h"
 #include "odeSolve.h"
 
-#define dt 1.0e-4
+#define dt 2.0e-5
 #define SAVEFREQ 1
 #define STEPFREQ 1
 #define maxStep 100000
 
 using namespace std;
 
-vector<double> u,v,r, uDot, vDot, rDot, x,y,thetaR;
+vector<double> u,v,r, x,y,thetaR;
 vector<double> tt, forceX;
+const double forceY = 0.0;
 
 struct Entity
 {
@@ -39,7 +40,6 @@ struct Entity
 		thetaPath = atan2( (pathEnd[1] - pathStart[1]), (pathEnd[0] - pathStart[0]) ); 
 
 		u.reserve(maxStep); v.reserve(maxStep); r.reserve(maxStep);
-		uDot.reserve(maxStep); vDot.reserve(maxStep); rDot.reserve(maxStep);
 		x.reserve(maxStep); y.reserve(maxStep); thetaR.reserve(maxStep);
 		tt.reserve(maxStep); forceX.reserve(maxStep);
 	}
@@ -52,7 +52,6 @@ struct Entity
 
 		// Reset all global vectors - won't destroy the capacity
 		u.clear(); v.clear(); r.clear();
-		uDot.clear(); vDot.clear(); rDot.clear();
 		x.clear(); y.clear(); thetaR.clear();
 		tt.clear(); forceX.clear();
 
@@ -60,16 +59,17 @@ struct Entity
 		normal_distribution<double> distribU(0, 0.5*params.l);
 		normal_distribution<double> distribAng(0, M_PI/18.0); // allow random deviation by 10 degrees
 
-		p[0] = this->pathStart[0] + distribX(genA); // random starting positions
-		p[1] = this->pathStart[1] + distribX(genA);
-
-
-		thetaNose = this->thetaPath + distribAng(genA);
+		/*p[0] = this->pathStart[0] + distribX(genA); // random starting positions
+		p[1] = this->pathStart[1] + distribX(genA);*/
+p[0] = 0;
+p[1] = 0;
+thetaNose=0.0;
+		//thetaNose = this->thetaPath + distribAng(genA);
 		isOver = false;
 
-		u.push_back(distribU(genA)), v.push_back(distribU(genA)); // random initial linear velocities
+		//u.push_back(distribU(genA)), v.push_back(distribU(genA)); // random initial linear velocities
+u.push_back(10), v.push_back(0.0); // random initial linear velocities
 		r.push_back(0.0);
-		uDot.push_back(0.0), vDot.push_back(0.0), rDot.push_back(0.0);
 		x.push_back(p[0]), y.push_back(p[1]), thetaR.push_back(thetaNose - thetaPath);
 		tt.push_back(0.0);
 	}
@@ -88,13 +88,10 @@ struct Entity
 		const double torque = 0.5*params.l*(thrustR - thrustL);
 
 		const double uN[3] = {u.back(), v.back(), r.back()};
-		//const double uDotN[3] = {uDot.back(), vDot.back(), rDot.back()};
 		double uNp1[3] = {0.0};
-		double uDotNp1[3] = {0.0};
 
-		odeSolve(uN, params, dt, thrustL, thrustR, torque, uNp1, uDotNp1);
+		odeSolve(uN, params, dt, forceX.back(), forceY, torque, uNp1);
 		u.push_back(uNp1[0]), v.push_back(uNp1[1]), r.push_back(uNp1[2]);
-		uDot.push_back(uDotNp1[0]), vDot.push_back(uDotNp1[1]), rDot.push_back(uDotNp1[2]);
 
 		const double xN[3] = {x.back(), y.back(), thetaR.back()};
 		double xNp1[3] = {0.0};
@@ -158,10 +155,8 @@ struct USV: public Entity
 	  if( abs(thetaEnd) >= M_PI/2.0 && (thetaStart>=-M_PI/2.0 && thetaStart<=M_PI/2.0) )
 	  {
 		  retVal = distStart*abs(sin(thetaStart));
-		  //printf("getReward sez %f, %f, %f\n", p[0], p[1], retVal);
 	  } else {
 		  retVal = (distStart < distEnd) ? distStart : distEnd;
-		  //printf("outside line bounds, returning distance from nearest harbour %f\n", retVal);
 	  }
 
 	  return -retVal/params.l; // normalize with ship width
@@ -222,16 +217,15 @@ int main(int argc, const char * argv[])
 	    vector<double> actions(control_vars, 0.0);
 	    actions = comm.recvAction(0);
 
-/*// Overwrite actions
-const double angFactor = 2*M_PI/10.0;
-actions[0] = cos(tt[step]*angFactor/4.0); // Thruster Left
-actions[1] = 0.0; // Thruster Right*/
+// Overwrite actions
+actions[0] = -20.0; // Thruster Left
+actions[1] = 20.0; // Thruster Right
 
 	    forceX[step] = actions[0] + actions[1];
 	    boat.advance(actions);
 	    tt.push_back(dt*(step+1));
 
-	  const bool abortSim = boat.checkTermination();// Abort if too far from trajectory
+/*	  const bool abortSim = boat.checkTermination();// Abort if too far from trajectory
 	  if(boat.is_over()){ // Terminate simulation 
 			  
 		  const double finalReward = 10*boat.params.l;
@@ -244,7 +238,7 @@ actions[1] = 0.0; // Thruster Right*/
 			  printf("Sim #%d reporting that boat reached safe harbor.\n", sim); fflush(NULL);
 		  }
 		  sim++; break;
-	  }
+	  }*/
 
       if(step++ < maxStep)
       {
@@ -262,8 +256,9 @@ actions[1] = 0.0; // Thruster Right*/
     sprintf(fileName, "learnedTrajectory_%07d.txt", sim);
     FILE *temp = fopen(fileName, "w");
     fprintf(temp, "time \t forceX \t forceY \t u \t v \t r \t x \t y \t theta\n");
-    for(unsigned int i=0; i<tt.size(); i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], forceX[i], 0.0, u[i], v[i], r[i], x[i], y[i], thetaR[i]);
+    for(unsigned int i=0; i<tt.size(); i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], forceX[i], forceY, u[i], v[i], r[i], x[i], y[i], thetaR[i]);
     fclose(temp);
+abort();
 
   }
   return 0;

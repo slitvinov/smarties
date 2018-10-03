@@ -28,10 +28,10 @@ void getDerivs(const modelParams p, const double Fx, const double Fy, const doub
 
 //////////////////////////////////////////////////////////////////////////////////////////
 void odeSolve(const double uVec[3], const modelParams params, const double dt, 
-		const double fX, const double fY, const double torque,
-		double uOut[3], double uDotOut[3]) 
+		const double fX, const double fY, const double torque, double uOut[3]) 
 {
 	const double u=uVec[0], v=uVec[1], r=uVec[2];
+	double uDotOut[3] = {0.0};
 
 	//RK4
 	double stage1[3]={0}, stage2[3]={0}, stage3[3]={0}, stage4[3]={0};

@@ -57,6 +57,6 @@ struct modelParams
 
 void getDerivs(const modelParams p, const double Fx, const double Fy, const double Tau, const double u, const double v, const double r, double retVal[3]);
 
-void odeSolve(const double uVec[3], const modelParams params, const double dt, const double fX, const double fY, const double torque, double uOut[3], double uDotOut[3]);
+void odeSolve(const double uVec[3], const modelParams params, const double dt, const double fX, const double fY, const double torque, double uOut[3]);
 
 void trajectory(const double xVec[3], const double uN[3], const double uNp1[3], const double dt, double xOut[3]);
