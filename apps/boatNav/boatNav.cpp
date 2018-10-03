@@ -88,11 +88,11 @@ struct Entity
 		const double torque = 0.5*params.l*(thrustR - thrustL);
 
 		const double uN[3] = {u.back(), v.back(), r.back()};
-		const double uDotN[3] = {uDot.back(), vDot.back(), rDot.back()};
+		//const double uDotN[3] = {uDot.back(), vDot.back(), rDot.back()};
 		double uNp1[3] = {0.0};
 		double uDotNp1[3] = {0.0};
 
-		odeSolve(uN, uDotN, params, dt, thrustL, thrustR, torque, uNp1, uDotNp1);
+		odeSolve(uN, params, dt, thrustL, thrustR, torque, uNp1, uDotNp1);
 		u.push_back(uNp1[0]), v.push_back(uNp1[1]), r.push_back(uNp1[2]);
 		uDot.push_back(uDotNp1[0]), vDot.push_back(uDotNp1[1]), rDot.push_back(uDotNp1[2]);
 
