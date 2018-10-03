@@ -14,7 +14,7 @@
 using namespace std;
 
 vector<double> u,v,r, x,y,thetaR;
-vector<double> tt, forceX;
+vector<double> tt, forceX, thrustL, thrustR, torque;
 const double forceY = 0.0;
 
 struct Entity
@@ -39,7 +39,7 @@ struct Entity
 
 		u.reserve(maxStep); v.reserve(maxStep); r.reserve(maxStep);
 		x.reserve(maxStep); y.reserve(maxStep); thetaR.reserve(maxStep);
-		tt.reserve(maxStep); forceX.reserve(maxStep);
+		tt.reserve(maxStep); forceX.reserve(maxStep); thrustL.reserve(maxStep); thrustR.reserve(maxStep); torque.reserve(maxStep);
 	}
 
 	array<double, 2> p; // absolute position
@@ -51,7 +51,7 @@ struct Entity
 		// Reset all global vectors - won't destroy the capacity
 		u.clear(); v.clear(); r.clear();
 		x.clear(); y.clear(); thetaR.clear();
-		tt.clear(); forceX.clear();
+		tt.clear(); forceX.clear(); thrustL.clear(); thrustR.clear(); torque.clear();
 
 		normal_distribution<double> distribX(0, params.l);
 		normal_distribution<double> distribU(0, 2*params.l);
@@ -78,14 +78,12 @@ struct Entity
 		assert(act.size() == 2);
 
 		// Assume no other forces for the time being
-		const double thrustL = act[0];
-		const double thrustR = act[1];
-		const double torque = 0.5*params.l*(thrustR - thrustL);
+		torque.push_back(0.5*params.l*(thrustR.back() - thrustL.back()));
 
 		const double uN[3] = {u.back(), v.back(), r.back()};
 		double uNp1[3] = {0.0};
 
-		odeSolve(uN, params, dt, forceX.back(), forceY, torque, uNp1);
+		odeSolve(uN, params, dt, forceX.back(), forceY, torque.back(), uNp1);
 		u.push_back(uNp1[0]), v.push_back(uNp1[1]), r.push_back(uNp1[2]);
 
 		const double xN[3] = {x.back(), y.back(), thetaR.back()};
@@ -216,7 +214,10 @@ int main(int argc, const char * argv[])
 	      actions[0] = -20.0; // Thruster Left
 	      actions[1] = 20.0; // Thruster Right*/
 
+	    thrustL.push_back(actions[0]);
+	    thrustR.push_back(actions[1]);
 	    forceX[step] = actions[0] + actions[1];
+
 	    boat.advance(actions);
 	    tt.push_back(dt*(step+1));
 
@@ -250,8 +251,8 @@ int main(int argc, const char * argv[])
 
     sprintf(fileName, "learnedTrajectory_%07d.txt", sim);
     FILE *temp = fopen(fileName, "w");
-    fprintf(temp, "time \t forceX \t forceY \t u \t v \t r \t x \t y \t theta\n");
-    for(unsigned int i=0; i<tt.size(); i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], forceX[i], forceY, u[i], v[i], r[i], x[i], y[i], thetaR[i]);
+    fprintf(temp, "time \t x \t y \t theta \t u \t v \t r \t thrustL \t thrustR \t forceX \t forceY \t torque\n");
+    for(unsigned int i=0; i<tt.size(); i++)  fprintf(temp, "%f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f\n", tt[i], x[i], y[i], thetaR[i], u[i], v[i], r[i], thrustL[i], thrustR[i], forceX[i], forceY, torque[i]);
     fclose(temp);
 
   }

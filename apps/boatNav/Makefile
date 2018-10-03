@@ -4,8 +4,8 @@ OBJ_FILES = boatNav.o Communicator.o odeSolve.o
 SRC_DIR = ./
 COM_DIR = ../../source/Communicators/
 VPATH := $(SRC_DIR):$(COM_DIR)
-CPPFLAGS+=-std=c++11 -Wall -O0 -I$(COM_DIR)
-#CPPFLAGS+=-std=c++11 -Wall -O2 -I$(COM_DIR)
+#CPPFLAGS+=-std=c++11 -Wall -O0 -I$(COM_DIR)
+CPPFLAGS+=-std=c++11 -Wall -O2 -I$(COM_DIR)
 
 
 CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align
