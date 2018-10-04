@@ -8,8 +8,8 @@
 #include "Communicator.h"
 #include "odeSolve.h"
 
-#define dt 1.0e-4
-#define maxStep 100000
+#define dt 1.0e-2
+#define maxStep 1000000
 
 using namespace std;
 
@@ -74,8 +74,7 @@ struct Entity
 	}
 
 	// actions are thrustLeft and thrustRight
-	void advance(vector<double> act) {
-		assert(act.size() == 2);
+	void advance() {
 
 		// Assume no other forces for the time being
 		torque.push_back(0.5*params.l*(thrustR.back() - thrustL.back()));
@@ -191,7 +190,7 @@ int main(int argc, const char * argv[])
 
   // Path start and end
   const double xPathStart[2] = {0,0};
-  const double xPathEnd[2] = {10,0};
+  const double xPathEnd[2] = {50,0};
 
   USV	boat(rngPointer, state_vars, 0.0, xPathStart, xPathEnd);
 
@@ -214,11 +213,12 @@ int main(int argc, const char * argv[])
 	      actions[0] = -20.0; // Thruster Left
 	      actions[1] = 20.0; // Thruster Right*/
 
-	    thrustL.push_back(actions[0]);
-	    thrustR.push_back(actions[1]);
+	    // Magnify order(1) actions to order(10) forces
+	    thrustL.push_back(10*actions[0]);
+	    thrustR.push_back(10*actions[1]);
 	    forceX[step] = actions[0] + actions[1];
 
-	    boat.advance(actions);
+	    boat.advance();
 	    tt.push_back(dt*(step+1));
 
 	    const bool abortSim = boat.checkTermination();// Abort if too far from trajectory
