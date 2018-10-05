@@ -281,14 +281,14 @@ Uint PPO<Gaussian_policy, Rvec>::getnDimPolicy(const ActionInfo*const aI)
   return 2*aI->dim;
 }
 
-template<> PPO<Gaussian_policy, Rvec>::PPO(
-  Environment*const _env, Settings & _set) : Learner(_env,_set),
-  pol_outputs(count_pol_outputs(&_env->aI))
+template<> PPO<Gaussian_policy, Rvec>::PPO(Environment*const E, Settings&S) :
+Learner(E, S), pol_outputs(count_pol_outputs(&E->aI))
 {
+  data_get = new Collector(S, this, data);
   #ifdef PPO_learnDKLt
-   trainInfo = new TrainData("PPO", _set, 1, "| beta |  DKL | avgW | DKLt ", 4);
+   trainInfo = new TrainData("PPO", S, 1, "| beta |  DKL | avgW | DKLt ", 4);
   #else
-   trainInfo = new TrainData("PPO", _set, 1, "| beta |  DKL | avgW ", 3);
+   trainInfo = new TrainData("PPO", S, 1, "| beta |  DKL | avgW ", 3);
   #endif
   valPenal[0] = 1;
 
@@ -298,7 +298,7 @@ template<> PPO<Gaussian_policy, Rvec>::PPO(
       delete input->opt; input->opt = nullptr;
       delete input->net; input->net = nullptr;
     }
-    Builder input_build(_set);
+    Builder input_build(S);
     bool bInputNet = false;
     input_build.addInput( input->nOutputs() );
     bInputNet = bInputNet || env->predefinedNetwork(input_build);
@@ -308,28 +308,28 @@ template<> PPO<Gaussian_policy, Rvec>::PPO(
       input->initializeNetwork(net, input_build.opt);
     }
   #endif
-  F.push_back(new Approximator("policy", _set, input, data));
+  F.push_back(new Approximator("policy", S, input, data));
   F[0]->blockInpGrad = true;
-  F.push_back(new Approximator("critic", _set, input, data));
+  F.push_back(new Approximator("critic", S, input, data));
 
-  Builder build_val = F[1]->buildFromSettings(_set, {1} );
+  Builder build_val = F[1]->buildFromSettings(S, {1} );
 
   #ifndef PPO_simpleSigma
     Rvec initBias;
     Gaussian_policy::setInitial_noStdev(&aInfo, initBias);
     Gaussian_policy::setInitial_Stdev(&aInfo, initBias, explNoise);
-    Builder build_pol = F[0]->buildFromSettings(_set, {2*aInfo.dim});
+    Builder build_pol = F[0]->buildFromSettings(S, {2*aInfo.dim});
     build.setLastLayersBias(initBias);
   #else  //stddev params
-    Builder build_pol = F[0]->buildFromSettings(_set,   {aInfo.dim});
+    Builder build_pol = F[0]->buildFromSettings(S,   {aInfo.dim});
     const Real initParam = noiseMap_inverse(explNoise);
     build_pol.addParamLayer(aInfo.dim, "Linear", initParam);
   #endif
   F[0]->initializeNetwork(build_pol);
 
-  _set.learnrate *= 3; // for shared input layers
+  S.learnrate *= 3; // for shared input layers
   F[1]->initializeNetwork(build_val);
-  _set.learnrate /= 3;
+  S.learnrate /= 3;
 
   {  // TEST FINITE DIFFERENCES:
     Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
@@ -345,22 +345,22 @@ template<> PPO<Gaussian_policy, Rvec>::PPO(
   }
 }
 
-template<> PPO<Discrete_policy, Uint>::PPO(
-  Environment*const _env, Settings & _set) : Learner(_env,_set),
-  pol_outputs(count_pol_outputs(&_env->aI))
+template<> PPO<Discrete_policy, Uint>::PPO(Environment*const E, Settings&S) :
+Learner(E,S), pol_outputs(count_pol_outputs(&E->aI))
 {
+  data_get = new Collector(S, this, data);
   #ifdef PPO_learnDKLt
-    trainInfo = new TrainData("PPO", _set,1,"| beta |  DKL | avgW | DKLt ",4);
+    trainInfo = new TrainData("PPO", S, 1,"| beta |  DKL | avgW | DKLt ",4);
   #else
-    trainInfo = new TrainData("PPO", _set,1,"| beta |  DKL | avgW ", 3);
+    trainInfo = new TrainData("PPO", S, 1,"| beta |  DKL | avgW ", 3);
   #endif
   valPenal[0] = 1;
 
   printf("Discrete-action PPO\n");
-  F.push_back(new Approximator("policy", _set, input, data));
-  F.push_back(new Approximator("critic", _set, input, data));
-  Builder build_pol = F[0]->buildFromSettings(_set, aInfo.maxLabel);
-  Builder build_val = F[1]->buildFromSettings(_set, 1 );
+  F.push_back(new Approximator("policy", S, input, data));
+  F.push_back(new Approximator("critic", S, input, data));
+  Builder build_pol = F[0]->buildFromSettings(S, aInfo.maxLabel);
+  Builder build_val = F[1]->buildFromSettings(S, 1 );
 
   //build_pol.addParamLayer(1,"Exp",1); //add klDiv penalty coefficient layer
 

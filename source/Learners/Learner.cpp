@@ -10,9 +10,9 @@
 #include "../Network/Builder.h"
 #include <chrono>
 
-Learner::Learner(Environment*const _env, Settings& _s): settings(_s), env(_env)
+Learner::Learner(Environment*const E, Settings&S): settings(S), env(E)
 {
-  Builder input_build(_s);
+  Builder input_build(S);
   input_build.addInput( input->nOutputs() );
   bool builder_used = env->predefinedNetwork(input_build);
   if(builder_used) {
