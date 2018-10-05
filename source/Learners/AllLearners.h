@@ -17,7 +17,7 @@
 #include "PPO.h"
 */
 #include "VRACER.h"
-#include "Learner_onPolicy.h"
+#include "CMALearner.h"
 #include "PPO.h"
 
 inline void print(std::ostringstream& o, std::string fname, int rank)

@@ -8,7 +8,7 @@
 
 #include "MemorySharing.h"
 #include "../Learners/Learner_offPolicy.h"
-#include "../Learners/Learner_onPolicy.h"
+#include "../Learners/CMALearner.h"
 #include "../Learners/PPO.h"
 
 MemorySharing::MemorySharing(const Settings&S, Learner*const L,

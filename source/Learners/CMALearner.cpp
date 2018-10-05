@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "Learner_onPolicy.h"
+#include "CMALearner.h"
 #include "../Network/Builder.h"
 
 // nHorizon is number of obs in buffer during training
@@ -24,7 +24,7 @@ void CMALearner<Action_t>::select(Agent& agent)
   if(agent.Status == CONT_COMM) WnEnded[wrkr] = 0;
 
   const Uint progress = WiEnded[wrkr] * nWorkers_own + wrkr;
-  const Uint weightID = progress / batchSize;
+  const Uint weightID = ESpopStart + progress / batchSize;
 
   if( agent.Status <  TERM_COMM ) //non terminal state
   {

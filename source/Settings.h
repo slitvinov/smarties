@@ -503,7 +503,7 @@ string setupFolder = DEFAULT_setupFolder;
     if(batchSize > 1) {
       batchSize = std::ceil(batchSize / nL) * nL;
       batchSize_loc = batchSize / learner_size;
-    }
+    } else batchSize_loc = batchSize;
 
     // each worker collects a fraction of the initial memory buffer:
     if(minTotObsNum < 0) minTotObsNum = maxTotObsNum;
