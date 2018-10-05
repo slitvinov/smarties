@@ -103,16 +103,15 @@ void Encapsulator::backward(const Rvec&error, const Uint samp, const Uint thrID)
   act[ind]->addOutputDelta(error);
 }
 
-void Encapsulator::prepareUpdate(const Uint batchSize)
+void Encapsulator::prepareUpdate()
 {
   if(net == nullptr) return;
 
   for(Uint i=0; i<nThreads; i++) if(error_placements[i] > 0) die("");
 
   if(nAddedGradients==0) die("No-gradient update. Revise hyperparameters.");
-  //if(nAddedGradients>batchSize) die("weird");
 
-  opt->prepare_update(batchSize, losses);
+  opt->prepare_update(losses);
   losses = Rvec(ESpopSize, 0);
   nReducedGradients = 1;
   nAddedGradients = 0;

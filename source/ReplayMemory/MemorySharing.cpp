@@ -9,6 +9,7 @@
 #include "MemorySharing.h"
 #include "../Learners/Learner_offPolicy.h"
 #include "../Learners/Learner_onPolicy.h"
+#include "../Learners/PPO.h"
 
 MemorySharing::MemorySharing(const Settings&S, Learner*const L,
   MemoryBuffer*const RM) : settings(S), learner(L), replay(RM), sI(L->sInfo),

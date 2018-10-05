@@ -32,9 +32,14 @@ public:
   void add_action(const Agent& a, const Rvec pol);
   void terminate_seq(Agent&a);
   void push_back(const int & agentId);
-  inline Sequence* get(const Uint ID) {
+
+  inline Sequence* get(const Uint ID) const {
     return inProgress[ID];
   }
+  inline Uint nInProgress() const {
+    return inProgress.size();
+  }
+
   Collector(const Settings&S, Learner*const L, MemoryBuffer*const RM);
 
   ~Collector();

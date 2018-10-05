@@ -91,7 +91,7 @@ Communicator_internal Environment::create_communicator()
   }
   #endif
 
-  if(settings.bSpawnApp) { warn("launching"); comm_ptr->launch(); }
+  if(settings.bSpawnApp) { comm_ptr->launch(); }
   setDims();
 
   comm.update_state_action_dims(sI.dim, aI.dim);
@@ -141,7 +141,11 @@ void Environment::commonSetup()
   } else assert(aI.bounded.size() == aI.dim);
 
   agents.resize(nAgents, nullptr);
-  for(Uint i=0; i<nAgents; i++) agents[i] = new Agent(i, sI, aI);
+  for(Uint i=0; i<nAgents; i++) {
+    const Uint workerID = i / nAgentsPerRank;
+    const Uint localID = i % nAgentsPerRank;
+    agents[i] = new Agent(i, sI, aI, workerID, localID);
+  }
 
   assert(sI.scale.size() == sI.mean.size());
   assert(sI.mean.size()==0 || sI.mean.size()==sI.dim);

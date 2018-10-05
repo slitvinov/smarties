@@ -36,8 +36,9 @@ class Learner
   const int learn_size = settings.learner_size;
 
   // hyper-parameters:
-  const Uint batchSize = settings.batchSize;
+  const Uint batchSize = settings.batchSize_loc;
   const Uint totNumSteps = settings.totNumSteps;
+  const Uint ESpopSize = settings.ESpopSize;
 
   const Real learnR = settings.learnrate;
   const Real gamma = settings.gamma;
@@ -55,7 +56,6 @@ class Learner
   std::atomic<long> _nStep{0};
   std::atomic<bool> bUpdateNdata{false};
   std::atomic<bool> bReady4Init {false};
-  std::atomic<Uint> nAddedGradients{0};
 
   bool updateComplete = false;
   bool updateToApply = false;
@@ -65,7 +65,7 @@ class Learner
   MemoryBuffer* const data = new MemoryBuffer(settings, env);
   Encapsulator * const input = new Encapsulator("input", settings, data);
   MemoryProcessing* const data_proc = new MemoryProcessing(settings, data);
-  Collector* data_get;
+  Collector* const data_get = new Collector(settings, this, data);
 
   TrainData* trainInfo = nullptr;
   std::vector<Approximator*> F;
@@ -111,10 +111,6 @@ class Learner
   }
 
   virtual void select(Agent& agent) = 0;
-  virtual void TrainBySequences(const Uint seq, const Uint wID,
-    const Uint bID, const Uint tID) const = 0;
-  virtual void Train(const Uint seq, const Uint samp, const Uint wID,
-    const Uint bID, const Uint tID) const = 0;
 
   virtual void getMetrics(ostringstream& buff) const;
   virtual void getHeaders(ostringstream& buff) const;

@@ -10,21 +10,36 @@
 
 #include "Learner.h"
 
-class Learner_onPolicy: public Learner
+template<typename Action_t>
+class CMALearner: public Learner
 {
 protected:
-  const Uint nHorizon, nEpochs;
-  mutable Uint cntBatch = 0, cntEpoch = 0, cntKept = 0;
+  const Uint nWorkers_own = settings.nWorkers_own;
+  const Uint ESpopSize_loc = ESpopSize / learn_size;
+  const Uint nAgentsPerWorker = env->nAgentsPerRank;
+  const Uint nSeqPerStep = batchSize * ESpopSize_loc * nAgentsPerWorker;
+  const Uint nSeqPerWorker = batchSize * ESpopSize_loc / nWorkers_own;
+  const Uint ESpopStart = ESpopSize_loc * learn_rank;
 
+  std::vector<long> WiEnded = std::vector<long>(nWorkers_own, 0);
+  std::vector<long> WnEnded = std::vector<long>(nWorkers_own, nAgentsPerWorker);
+  std::vector<long> WwghtID = std::vector<long>(nWorkers_own, 0);
+
+  static vector<Uint> count_pol_outputs(const ActionInfo*const aI);
+  static vector<Uint> count_pol_starts(const ActionInfo*const aI);
 
 public:
-  Learner_onPolicy(Environment*const _env, Settings&_s);
+  CMALearner(Environment*const _env, Settings&_s);
 
   //main training functions:
+  void select(Agent& agent) override;
+
+  void prepareGradient() override;
+  void initializeLearner() override;
   bool blockDataAcquisition() const override;
   void spawnTrainTasks_seq() override;
   void spawnTrainTasks_par() override;
   bool bNeedSequentialTrain() override;
-  virtual void prepareGradient() override;
-  virtual void initializeLearner() override;
+
+  static Uint getnDimPolicy(const ActionInfo*const aI);
 };

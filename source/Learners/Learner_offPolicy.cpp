@@ -12,7 +12,6 @@
 Learner_offPolicy::Learner_offPolicy(Environment*const _env, Settings & _s) :
 Learner(_env,_s)
 {
-  data_get = new Collector(settings, this, data);
   if(not bSampleSequences && nObsPerTraining < batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 }
@@ -47,16 +46,10 @@ void Learner_offPolicy::spawnTrainTasks_par()
   debugL("Sample the replay memory and compute the gradients");
   vector<Uint> samp_seq = vector<Uint>(batchSize, -1);
   vector<Uint> samp_obs = vector<Uint>(batchSize, -1);
-  if(bSampleSequences) data->sampleSequences(samp_seq);
-  else data->sampleTransitions(samp_seq, samp_obs);
+  data->sample(samp_seq, samp_obs);
 
-  nAddedGradients = 0;
-  for (Uint i=0; i<batchSize && bSampleSequences; i++) {
-    const auto* const S = data->get(samp_seq[i]);
-    samp_obs[i] = S->ndata() - 1;
-    nAddedGradients += ESpopSize * S->ndata();
-  }
-  if(not bSampleSequences) nAddedGradients = ESpopSize * batchSize;
+  for(Uint i=0; i<batchSize && bSampleSequences; i++)
+    assert( samp_obs[i] == data->get(samp_seq[i])->ndata() - 1 );
 
   if(bSampleSequences) {
   #pragma omp parallel for collapse(2) schedule(dynamic) num_threads(nThreads)
@@ -129,6 +122,7 @@ void Learner_offPolicy::applyGradient()
   if(updateToApply)
   {
     debugL("Finalize pruning of dataset");
+    profiler->stop_start("FIND");
     data_proc->finalize();
   }
   else die("undefined behavior");
@@ -147,10 +141,7 @@ void Learner_offPolicy::applyGradient()
 void Learner_offPolicy::initializeLearner()
 {
   const Uint currStep = nStep();
-  if ( not bReady4Init.load() ) die("undefined behavior");//const Uint nTransitions = data->readNTransitions();
-  //if(data->nSequences>=data->adapt_TotSeqNum && nTransitions<nData_b4Train())
-  //  die("I do not have enough data for training. Change hyperparameters");
-  //const Real nReq = std::sqrt(data->readAvgSeqLen()*16)*batchSize;
+  if ( not bReady4Init.load() ) die("undefined behavior");
 
   ReFER_reduce.update({(long double)data_proc->nFarPol(),
                        (long double)data->readNData()});

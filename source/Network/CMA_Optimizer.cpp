@@ -55,7 +55,7 @@ void CMA_Optimizer::initializeGeneration() const {
   }
 }
 
-void CMA_Optimizer::prepare_update(const int BS, const Rvec&L) {
+void CMA_Optimizer::prepare_update(const Rvec&L) {
   assert(L.size() == pop_size);
   losses = L;
   if (learn_size > 1) { //add up losses across master ranks
@@ -79,7 +79,7 @@ void CMA_Optimizer::apply_update()
        [&] (const Uint i1, const Uint i2) { return losses[i1] < losses[i2]; } );
 
   //cout << "pre:"<< print(inds) << endl;
-  if(true) // add weight penalization to prevent drift
+  if(0) // add weight penalization to prevent drift
   {
     vector<nnReal> Wnorms(pop_size, 0);
     for(Uint i=0; i < pop_size / 2; i++) {

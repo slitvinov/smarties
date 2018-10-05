@@ -8,9 +8,10 @@
 
 #include "MemoryBuffer.h"
 #include <iterator>
+#include <parallel/algorithm>
 
 MemoryBuffer::MemoryBuffer(const Settings&S, const Environment*const E):
- settings(S), env(E) {
+ settings(S), env(E), sampler(prepareSampler(S, this)) {
   Set.reserve(settings.maxTotObsNum);
 }
 
@@ -67,59 +68,9 @@ void MemoryBuffer::clearAll()
   nTransitions = 0;
 }
 
-void MemoryBuffer::sampleTransitions(vector<Uint>& seq, vector<Uint>& obs) {
-  if(seq.size() not_eq obs.size()) die(" ");
-
-  // Drawing of samples is either uniform (each sample has same prob)
-  // or based on importance sampling. The latter is TODO
-  #ifndef PRIORITIZED_ER
-    std::uniform_int_distribution<Uint> distObs(0, readNData()-1);
-  #else
-    discrete_distribution<Uint> & distObs = distPER;
-  #endif
-
-  std::vector<Uint> ret(seq.size());
-  std::vector<Uint>::iterator it = ret.begin();
-  while(it not_eq ret.end())
-  {
-    std::generate(it, ret.end(), [&]() { return distObs(generators[0]); } );
-    std::sort(ret.begin(), ret.end());
-    it = std::unique (ret.begin(), ret.end());
-  } // ret is now also sorted!
-
-  // go through each element of ret to find corresponding seq and obs
-  for (Uint k = 0, cntO = 0, i = 0; k<Set.size(); k++) {
-    while(1) {
-      assert(ret[i] >= cntO && i < seq.size());
-      if(ret[i] < cntO + Set[k]->ndata()) { // is ret[i] in sequence k?
-        obs[i] = ret[i] - cntO; // if ret[i]==cntO then obs 0 of k and so forth
-        seq[i] = k;
-        i++; // next iteration remember first i-1 were already found
-      }
-      else break;
-      if(i == seq.size()) break; // then found all elements of sequence k
-    }
-    //assert(cntO == Set[k]->prefix);
-    if(i == seq.size()) break; // then found all elements of ret
-    cntO += Set[k]->ndata(); // advance observation counter
-    if(k+1 == Set.size()) die(" "); // at last iter we must have found all
-  }
-}
-
-void MemoryBuffer::sampleSequences(vector<Uint>& seq) {
-  std::fill(seq.begin(), seq.end(), 0);
-  std::uniform_int_distribution<Uint> distSeq(0, readNSeq()-1);
-  std::vector<Uint>::iterator it = seq.begin();
-  while(it not_eq seq.end())
-  {
-    std::generate(it, seq.end(), [&]() { return distSeq(generators[0]); } );
-    std::sort( seq.begin(), seq.end() );
-    it = std::unique( seq.begin(), seq.end() );
-  }
-  const auto compare = [&](const Uint a, const Uint b) {
-    return Set[a]->ndata() > Set[b]->ndata();
-  };
-  std::sort(seq.begin(), seq.end(), compare);
+void MemoryBuffer::sample(vector<Uint>& seq, vector<Uint>& obs)
+{
+  sampler->sample(seq, obs);
 }
 
 void MemoryBuffer::removeSequence(const Uint ind)
@@ -153,10 +104,8 @@ void MemoryBuffer::initialize()
 {
   // All sequences obtained before this point should share the same time stamp
   for(Uint i=0;i<Set.size();i++) Set[i]->ID = nSeenSequences.load();
-  #ifdef PRIORITIZED_ER
-    vector<float> probs(nTransitions.load(), 1);
-    distPER = discrete_distribution<Uint>(probs.begin(), probs.end());
-  #endif
+
+  sampler->prepare();
 }
 
 MemoryBuffer::~MemoryBuffer()
@@ -176,6 +125,11 @@ void MemoryBuffer::checkNData() {
   #endif
 }
 
-#ifdef PRIORITIZED_ER
-#include "MemoryBuffer_prioritizedER.cpp"
-#endif
+Sampling* MemoryBuffer::prepareSampler(const Settings&S, MemoryBuffer* const R)
+{
+  Sampling* ret = nullptr;
+  if(S.bSampleSequences) ret = new SSample_uniform(S, R);
+  else ret = new TSample_impLen(S, R);
+  assert(ret not_eq nullptr);
+  return ret;
+}

@@ -7,8 +7,7 @@
 //
 #pragma once
 
-#include "Sequences.h"
-#include <atomic>
+#include "Sampling.h"
 #include "../Environments/Environment.h"
 #include "StatsTracker.h"
 
@@ -17,13 +16,13 @@ class MemoryBuffer
  public:
   const Settings & settings;
   const Environment * const env;
-
   const StateInfo& sI = env->sI;
   const ActionInfo& aI = env->aI;
   const vector<Agent*>& agents = env->agents;
   Uint learnID = 0;
  private:
 
+  friend class Sampling;
   friend class Collector;
   friend class MemorySharing;
   friend class MemoryProcessing;
@@ -41,7 +40,7 @@ class MemoryBuffer
   const int learn_rank = settings.learner_rank;
   const int learn_size = settings.learner_size;
 
-  std::atomic<bool> needs_pass {true};
+  std::atomic<bool> needs_pass {false};
 
   std::vector<Sequence*> Set;
 
@@ -53,6 +52,8 @@ class MemoryBuffer
   std::atomic<long> nSeenTransitions{0};
   std::atomic<long> nSeenSequences_loc{0};
   std::atomic<long> nSeenTransitions_loc{0};
+
+  Sampling * const sampler;
 
   void checkNData();
 
@@ -94,8 +95,7 @@ class MemoryBuffer
   void restart(const string base);
   void save(const string base, const Uint nStep, const bool bBackup);
 
-  void sampleTransitions(vector<Uint>& seq, vector<Uint>& obs);
-  void sampleSequences(vector<Uint>& seq);
+  void sample(vector<Uint>& seq, vector<Uint>& obs);
 
   inline long readNSeen_loc() const {
     return nSeenTransitions_loc.load();
@@ -147,4 +147,6 @@ class MemoryBuffer
     assert(Set[ID] == nullptr);
     Set[ID] = S;
   }
+
+  static Sampling* prepareSampler(const Settings&S, MemoryBuffer* const R);
 };

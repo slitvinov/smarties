@@ -38,8 +38,8 @@ void Learner::prepareGradient()
 
   profiler->stop_start("ADDW");
   debugL("Gather gradient estimates from each thread and Learner MPI rank");
-  for(auto & net : F) net->prepareUpdate(batchSize);
-  input->prepareUpdate(batchSize);
+  for(auto & net : F) net->prepareUpdate();
+  input->prepareUpdate();
 
   for(auto & net : F) net->updateGradStats(learner_name, currStep);
 }

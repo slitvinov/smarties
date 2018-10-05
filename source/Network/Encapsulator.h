@@ -65,7 +65,7 @@ struct Encapsulator
 
   void backward(const Rvec&error, const Uint samp, const Uint thrID) const;
 
-  void prepareUpdate(const Uint batchSize);
+  void prepareUpdate();
 
   void applyUpdate();
 

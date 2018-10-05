@@ -248,18 +248,17 @@ void Approximator::gradient(const Uint thrID) const {
   error_placements[thrID] = -1; //to stop additional backprops
 }
 
-void Approximator::prepareUpdate(const Uint batchSize)
+void Approximator::prepareUpdate()
 {
   for(Uint i=0; i<nThreads; i++) if(error_placements[i]>0) die("");
 
   if(nAddedGradients==0) die("No-gradient update. Revise hyperparameters.");
-  //if(nAddedGradients>batchSize) die("weird");
 
   if(input->net not_eq nullptr and not blockInpGrad) {
     for(int i=0; i<ESpopSize; i++) input->losses[i] += losses[i];
   }
 
-  opt->prepare_update(batchSize, losses);
+  opt->prepare_update(losses);
   losses = Rvec(ESpopSize, 0);
   reducedGradients = 1;
   nAddedGradients = 0;

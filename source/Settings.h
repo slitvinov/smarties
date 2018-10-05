@@ -500,16 +500,19 @@ string setupFolder = DEFAULT_setupFolder;
 
     const Real nL = learner_size;
     // each learner computes a fraction of the batch:
-    batchSize = std::ceil(batchSize / nL) * nL;
+    if(batchSize > 1) {
+      batchSize = std::ceil(batchSize / nL) * nL;
+      batchSize_loc = batchSize / learner_size;
+    }
+
     // each worker collects a fraction of the initial memory buffer:
-    if(minTotObsNum_loc <= 0) minTotObsNum_loc = maxTotObsNum;
+    if(minTotObsNum < 0) minTotObsNum = maxTotObsNum;
     minTotObsNum = std::ceil(minTotObsNum / nL) * nL;
+    minTotObsNum_loc = minTotObsNum / learner_size;
     // each learner processes a fraction of the entire dataset:
     maxTotObsNum = std::ceil(maxTotObsNum / nL) * nL;
-
     maxTotObsNum_loc = maxTotObsNum / learner_size;
-    minTotObsNum_loc = minTotObsNum / learner_size;
-    batchSize_loc = batchSize / learner_size;
+
     obsPerStep_loc = nWorkers_own * obsPerStep / nWorkers;
 
     if(batchSize_loc <= 0) die(" ");

@@ -119,7 +119,7 @@ struct Approximator
 
   void gradient(const Uint thrID) const;
 
-  void prepareUpdate(const Uint batchSize);
+  void prepareUpdate();
 
   void applyUpdate();
 

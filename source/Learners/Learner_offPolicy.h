@@ -14,7 +14,6 @@ class Learner_offPolicy: public Learner
 {
 protected:
   const Real obsPerStep_loc = settings.obsPerStep_loc;
-  const Uint ESpopSize = settings.ESpopSize;
 
   Real alpha = 0.0; // weight between critic and policy
   Real beta = CmaxPol<=0? 1 : 0.0; // if CmaxPol==0 do naive Exp Replay
@@ -27,6 +26,10 @@ protected:
   DelayedReductor ReFER_reduce = DelayedReductor(settings, LDvec{ 0.0, 1.0 } );
 public:
   Learner_offPolicy(Environment*const env, Settings& _s);
+  virtual void TrainBySequences(const Uint seq, const Uint wID,
+    const Uint bID, const Uint tID) const = 0;
+  virtual void Train(const Uint seq, const Uint samp, const Uint wID,
+    const Uint bID, const Uint tID) const = 0;
 
   //main training functions:
   bool blockDataAcquisition() const override;

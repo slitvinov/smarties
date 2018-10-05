@@ -41,7 +41,7 @@ class CMA_Optimizer : public Optimizer
 
   ~CMA_Optimizer();
 
-  void prepare_update(const int BS, const Rvec& L) override;
+  void prepare_update(const Rvec& L) override;
   void apply_update() override;
 
   void save(const string fname, const bool bBackup) override;

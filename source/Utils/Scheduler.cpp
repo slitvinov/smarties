@@ -40,7 +40,6 @@ void Master::run()
   if( not bTrain ) return;
 
   profiler->reset();
-  profiler->stop_start("SLP");
   for(const auto& L : learners) L->initializeLearner();
 
   while (true) // gradient step loop: one step per iteration

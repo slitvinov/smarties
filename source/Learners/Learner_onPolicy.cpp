@@ -7,101 +7,136 @@
 //
 
 #include "Learner_onPolicy.h"
+#include "../Network/Builder.h"
 
-Learner_onPolicy::Learner_onPolicy(Environment*const _env, Settings&_s): Learner(_env, _s), nHorizon(_s.maxTotObsNum),
-nEpochs(_s.batchSize/_s.obsPerStep) {
-  data_get = new Collector(settings, this, data);
-  cout << "nHorizon:"<<nHorizon<<endl;
-  cout << "nEpochs:"<<nEpochs<<endl;
-}
 // nHorizon is number of obs in buffer during training
 // steps per epoch = nEpochs * nHorizon / batchSize
 // obs per step = nHorizon / (steps per epoch)
 // this leads to formula used to compute nEpochs
-
-
-// unlockQueue tells scheduler that has stopped receiving states from workers
-// whether should start communication again.
-// for on policy learning, when enough data is collected from workers
-// gradient stepping starts and collection is paused
-// when training is concluded collection restarts
-bool Learner_onPolicy::blockDataAcquisition() const
+template<typename Action_t>
+void CMALearner<Action_t>::select(Agent& agent)
 {
-  return bTrain && data->readNData() >= nHorizon + cntKept;
-}
+  Sequence*const curr_seq = data_get->get(agent.ID);
+  data_get->add_state(agent);
 
-bool Learner_onPolicy::bNeedSequentialTrain() {return true;}
-void Learner_onPolicy::spawnTrainTasks_seq()
-{
-  if(updateComplete || updateToApply) die("undefined behavior");
-  if( data->readNData() < nHorizon ) die("undefined behavior");
-  if( not bTrain ) return;
-  #ifdef PRIORITIZED_ER // NOT SUPPORTED
-    vector<float> probs(data->readNData(), 1);
-    data->distPER = discrete_distribution<Uint>(probs.begin(), probs.end());
-  #endif
-  debugL("sampling update from (nearly) on-pol data");
-  vector<Uint> samp_seq(batchSize, -1), samp_obs(batchSize, -1);
-  data->sampleTransitions(samp_seq, samp_obs);
+  const Uint wrkr = agent.workerID;
+  if(agent.Status == INIT_COMM and WnEnded[wrkr] != nAgentsPerWorker) die("");
+  if(agent.Status == CONT_COMM) WnEnded[wrkr] = 0;
 
-  #pragma omp parallel for schedule(dynamic) num_threads(nThreads)
-  for (Uint i=0; i<batchSize; i++)
+  const Uint progress = WiEnded[wrkr] * nWorkers_own + wrkr;
+  const Uint weightID = progress / batchSize;
+
+  if( agent.Status <  TERM_COMM ) //non terminal state
   {
-    const int thrID = omp_get_thread_num();
-    const Uint seq = samp_seq[i], obs = samp_obs[i];
-    Train(seq, obs, 0, i, thrID);
-    input->gradient(thrID);
-    data->get(seq)->setSampled(obs);
+    //Compute policy and value on most recent element of the sequence:
+    F[0]->prepare_agent(curr_seq, agent, weightID);
+    const Rvec pol = F[0]->forward_agent(agent);
+    agent.act(pol);
+    data_get->add_action(agent, pol);
   }
+  else
+  {
+    data_get->terminate_seq(agent);
+    ++WnEnded[wrkr];
+    if(WnEnded[wrkr] > nAgentsPerWorker) die("");
 
-  profiler->stop_start("SLP");
-  updateComplete = true;
+    if(WnEnded[wrkr] == nAgentsPerWorker) ++WiEnded[wrkr];
+
+    if(WiEnded[wrkr] >= nSeqPerWorker) {
+      while(bUpdateNdata.load()) usleep(5);
+      WiEnded[wrkr] = 0;
+    }
+  }
 }
 
-void Learner_onPolicy::spawnTrainTasks_par() { }
-
-void Learner_onPolicy::prepareGradient()
+template<typename Action_t>
+void CMALearner<Action_t>::prepareGradient()
 {
-  if(not updateComplete || updateToApply) die("undefined behavior");
+  updateComplete = true;
 
-  const Uint currStep = nStep()+1; //base class will advance this with this func
 
   Learner::prepareGradient();
 
   debugL("shift counters of epochs over the stored data");
-  cntBatch += batchSize;
-  if(cntBatch >= nHorizon) {
-    const Real annlLR = annealRate(learnR, currStep, epsAnneal);
-    data_proc->updateRewardsStats(0.001, annlLR);
-    cntBatch = 0;
-    cntEpoch++;
-  }
-
-  if(cntEpoch >= nEpochs) {
-    debugL("finished epochs, compute state/rew stats, clear buffer to gather new onpol samples");
-    #if 0 // keep nearly on policy data
-      cntKept = data->clearOffPol(CmaxPol, 0.05);
-    #else
-      data->clearAll();
-      cntKept = 0;
-    #endif
-    //reset batch learning counters
-    cntEpoch = 0;
-    cntBatch = 0;
-  }
-}
-
-void Learner_onPolicy::initializeLearner()
-{
-  debugL("Compute state/rewards stats from the replay memory");
-  const Uint currStep = nStep();
-  if ( currStep > 0 ) {
-    warn("Skipping initialization for restartd learner.");
-    return;
-  }
-
   profiler->stop_start("PRE");
-  data_proc->updateRewardsStats(1, 1, true);
-  if( learn_rank == 0 )
-    std::cout << "Initial reward std " <<1/data->scaledReward(1) << std::endl;
+  data_proc->updateRewardsStats(0.001, 0.001);
+  data->clearAll();
 }
+
+template<typename Action_t>
+void CMALearner<Action_t>::initializeLearner()
+{
+  //nothing to do
+}
+
+template<typename Action_t>
+bool CMALearner<Action_t>::blockDataAcquisition() const
+{
+  return data->readNSeq() >= nSeqPerStep;
+}
+
+template<typename Action_t>
+void CMALearner<Action_t>::spawnTrainTasks_seq()
+{
+}
+
+template<typename Action_t>
+void CMALearner<Action_t>::spawnTrainTasks_par()
+{
+}
+
+template<typename Action_t>
+bool CMALearner<Action_t>::bNeedSequentialTrain() { return true; }
+
+template<>
+vector<Uint> CMALearner<Uint>::count_pol_outputs(const ActionInfo*const aI)
+{
+  return vector<Uint>{aI->maxLabel};
+}
+template<>
+vector<Uint> CMALearner<Uint>::count_pol_starts(const ActionInfo*const aI)
+{
+  return vector<Uint>{0};
+}
+template<>
+Uint CMALearner<Uint>::getnDimPolicy(const ActionInfo*const aI)
+{
+  return aI->maxLabel;
+}
+
+template<>
+vector<Uint> CMALearner<Rvec>::count_pol_outputs(const ActionInfo*const aI)
+{
+  return vector<Uint>{aI->dim};
+}
+template<>
+vector<Uint> CMALearner<Rvec>::count_pol_starts(const ActionInfo*const aI)
+{
+  return vector<Uint>{0};
+}
+template<>
+Uint CMALearner<Rvec>::getnDimPolicy(const ActionInfo*const aI)
+{
+  return aI->dim;
+}
+
+template<> CMALearner<Rvec>::CMALearner(Environment*const E, Settings& S) : Learner(E,S)
+{
+  bReady4Init = true;
+  printf("CMALearner\n");
+  F.push_back(new Approximator("policy", S, input, data));
+  Builder build_pol = F[0]->buildFromSettings(S, {aInfo.dim});
+  F[0]->initializeNetwork(build_pol);
+}
+
+template<> CMALearner<Uint>::CMALearner(Environment*const E, Settings & S) : Learner(E, S)
+{
+  bReady4Init = true;
+  printf("Discrete-action CMALearner\n");
+  F.push_back(new Approximator("policy", S, input, data));
+  Builder build_pol = F[0]->buildFromSettings(S, aInfo.maxLabel);
+  F[0]->initializeNetwork(build_pol);
+}
+
+template class CMALearner<Uint>;
+template class CMALearner<Rvec>;

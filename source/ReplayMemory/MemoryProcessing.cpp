@@ -204,6 +204,11 @@ void MemoryProcessing::finalize()
   const long nSeq = RM->readNSeq();
   nPruned += nB4 - nSeq;
 
+  if(RM->needs_pass) {
+    RM->sampler->prepare();
+    RM->needs_pass = false;
+  }
+
   #ifdef PRIORITIZED_ER
    if( stepSinceISWeep++ >= 10 || needs_pass ) {
      updateImportanceWeights();

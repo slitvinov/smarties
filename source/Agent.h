@@ -25,6 +25,8 @@ class Agent
   Real r = 0;              // current reward
   Real cumulative_rewards = 0;
   const Uint ID;
+  const Uint workerID;
+  const Uint localID;
   // status of agent's episode. 1: initial; 0: middle; 2: terminal; 3: truncated
   int Status = 1;
   int transitionID = 0;
@@ -33,8 +35,8 @@ class Agent
   mutable float buf[OUTBUFFSIZE];
   mutable std::atomic<Uint> buffCnter {0};
 
-  Agent(const Uint _ID, const StateInfo& _sInfo, const ActionInfo& _aInfo) :
-    sInfo(_sInfo), aInfo(_aInfo), ID(_ID) { }
+  Agent(Uint _ID, const StateInfo& _sInfo, const ActionInfo& _aInfo, Uint wID,
+    Uint lID): sInfo(_sInfo),aInfo(_aInfo),ID(_ID),workerID(wID),localID(lID) {}
 
   void writeBuffer(const int rank) const
   {

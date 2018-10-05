@@ -19,8 +19,9 @@ class Optimizer
   const Parameters * const tgt_weights;
   const Uint pDim = weights->nParams;
   const Real eta_init;
+  const Uint batchSize;
   const bool bAsync;
-  Uint cntUpdateDelay = 0, totGrads = 0;
+  Uint cntUpdateDelay = 0;
   std::mutex& mpi_mutex;
 
  public:
@@ -32,14 +33,14 @@ class Optimizer
   Optimizer(const Settings&S,const Parameters*const W,const Parameters*const WT)
   : mastersComm(MPIComDup(S.mastersComm)), learn_size(S.learner_size),
   pop_size(S.ESpopSize), weights(W), tgt_weights(WT), eta_init(S.learnrate),
-  bAsync(S.bAsync), mpi_mutex(S.mpi_mutex), lambda(S.nnLambda),
-  epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay) {}
+  batchSize(S.batchSize), bAsync(S.bAsync), mpi_mutex(S.mpi_mutex),
+  lambda(S.nnLambda), epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay) {}
 
   virtual ~Optimizer() {}
   virtual void save(const string fname, const bool bBackup) = 0;
   virtual int restart(const string fname) = 0;
 
-  virtual void prepare_update(const int BS, const Rvec&L) = 0;
+  virtual void prepare_update(const Rvec&L) = 0;
   virtual void apply_update() = 0;
 
   virtual void getMetrics(ostringstream& buff) = 0;
@@ -57,7 +58,6 @@ class AdamOptimizer : public Optimizer
   const Parameters * const _2ndMax = weights->allocateGrad();
   vector<std::mt19937>& generators;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
-  MPI_Request batchRequest = MPI_REQUEST_NULL;
   //const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD, delay;
   //const Uint L_eSGD;
   //nnReal *const _muW_eSGD, *const _muB_eSGD;
@@ -78,7 +78,7 @@ class AdamOptimizer : public Optimizer
    _dispose_object(_2ndMom); _dispose_object(_2ndMax);
   }
 
-  void prepare_update(const int BS, const Rvec& L) override;
+  void prepare_update(const Rvec& L) override;
   void apply_update() override;
 
   void save(const string fname, const bool bBackup) override;

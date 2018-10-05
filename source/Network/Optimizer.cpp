@@ -96,14 +96,12 @@ struct Adam {
   }
 };
 
-void AdamOptimizer::prepare_update(const int BS, const Rvec&L)
+void AdamOptimizer::prepare_update(const Rvec&L)
 {
-  totGrads = BS;
   gradSum->reduceThreadsGrad(grads);
 
   if (learn_size > 1) { //add up gradients across master ranks
     MPI(Iallreduce, MPI_IN_PLACE, gradSum->params, gradSum->nParams, MPI_NNVALUE_TYPE, MPI_SUM, mastersComm, &paramRequest);
-    MPI(Iallreduce, MPI_IN_PLACE, &totGrads, 1, MPI_UNSIGNED, MPI_SUM, mastersComm, &batchRequest);
   }
   nStep++;
 }
@@ -112,12 +110,9 @@ void AdamOptimizer::apply_update()
 {
   if(nStep == 0) die("nStep == 0");
   if(learn_size > 1) {
-    if(batchRequest == MPI_REQUEST_NULL)
-      die("I am in finalize without having started a reduction");
     if(paramRequest == MPI_REQUEST_NULL)
       die("I am in finalize without having started a reduction");
     MPI(Wait, &paramRequest, MPI_STATUS_IGNORE);
-    MPI(Wait, &batchRequest, MPI_STATUS_IGNORE);
   }
   #ifndef __EntropySGD
     using Algorithm = Adam;
@@ -127,31 +122,30 @@ void AdamOptimizer::apply_update()
   //update is deterministic: can be handled independently by each node
   //communication overhead is probably greater than a parallelised sum
 
-  const Real factor = 1./totGrads;
+  const Real factor = 1./batchSize;
   nnReal* const paramAry = weights->params;
   assert(eta < 2e-3); //super upper bound for NN, srsly
   const nnReal _eta = bAnnealLearnRate? annealRate(eta,nStep,epsAnneal) : eta;
 
-  if(totGrads>0) {
-    #pragma omp parallel
-    {
-      const Uint thrID = static_cast<Uint>(omp_get_thread_num());
-      Saru gen(nStep, thrID, generators[thrID]()); //needs 3 seeds
-      Algorithm algo(_eta,beta_1,beta_2,beta_t_1,beta_t_2,lambda,factor,gen);
-      nnReal* const M1 = _1stMom->params;
-      nnReal* const M2 = _2ndMom->params;
-      #ifdef AMSGRAD
-        nnReal* const M3 = _2ndMax->params; // holds max of second moment
-      #else
-        nnReal* const M3 = _2ndMom->params; // unused
-      #endif
-      nnReal* const G  = gradSum->params;
+  #pragma omp parallel
+  {
+    const Uint thrID = static_cast<Uint>(omp_get_thread_num());
+    Saru gen(nStep, thrID, generators[thrID]()); //needs 3 seeds
+    Algorithm algo(_eta,beta_1,beta_2,beta_t_1,beta_t_2,lambda,factor,gen);
+    nnReal* const M1 = _1stMom->params;
+    nnReal* const M2 = _2ndMom->params;
+    #ifdef AMSGRAD
+      nnReal* const M3 = _2ndMax->params; // holds max of second moment
+    #else
+      nnReal* const M3 = _2ndMom->params; // unused
+    #endif
+    nnReal* const G  = gradSum->params;
 
-    #pragma omp for simd schedule(static) aligned(paramAry,M1,M2,M3,G:VEC_WIDTH)
-      for (Uint i=0; i<weights->nParams; i++)
-      paramAry[i] += algo.step(G[i], M1[i], M2[i], M3[i], paramAry[i]);
-    }
+  #pragma omp for simd schedule(static) aligned(paramAry,M1,M2,M3,G:VEC_WIDTH)
+    for (Uint i=0; i<weights->nParams; i++)
+    paramAry[i] += algo.step(G[i], M1[i], M2[i], M3[i], paramAry[i]);
   }
+
   gradSum->clear();
   // Needed by Adam optimization algorithm:
   beta_t_1 *= beta_1;
