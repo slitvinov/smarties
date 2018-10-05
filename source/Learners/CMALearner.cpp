@@ -126,8 +126,10 @@ Uint CMALearner<Rvec>::getnDimPolicy(const ActionInfo*const aI)
   return aI->dim;
 }
 
-template<> CMALearner<Rvec>::CMALearner(Environment*const E, Settings& S) : Learner(E,S)
+template<> CMALearner<Rvec>::CMALearner(Environment*const E, Settings& S) :
+Learner(E, S)
 {
+  data_get = new Collector(S, this, data);
   bReady4Init = true;
   printf("CMALearner\n");
   F.push_back(new Approximator("policy", S, input, data));
@@ -135,8 +137,10 @@ template<> CMALearner<Rvec>::CMALearner(Environment*const E, Settings& S) : Lear
   F[0]->initializeNetwork(build_pol);
 }
 
-template<> CMALearner<Uint>::CMALearner(Environment*const E, Settings & S) : Learner(E, S)
+template<> CMALearner<Uint>::CMALearner(Environment*const E, Settings & S) :
+Learner(E, S)
 {
+  data_get = new Collector(S, this, data);
   bReady4Init = true;
   printf("Discrete-action CMALearner\n");
   F.push_back(new Approximator("policy", S, input, data));

@@ -65,7 +65,7 @@ class Learner
   MemoryBuffer* const data = new MemoryBuffer(settings, env);
   Encapsulator * const input = new Encapsulator("input", settings, data);
   MemoryProcessing* const data_proc = new MemoryProcessing(settings, data);
-  Collector* const data_get = new Collector(settings, this, data);
+  Collector* data_get;
 
   TrainData* trainInfo = nullptr;
   std::vector<Approximator*> F;
@@ -125,7 +125,8 @@ class Learner
     data->setNSeen(globSeenObs);
     data->setNSeenSeq(globSeenSeq);
     if( bReady4Init and not blockDataAcquisition() )
-      _die("? %ld %ld %ld %ld", data->readNSeen_loc(), nData_b4Startup, _nStep.load(), data->readNSeen());
+      _die("? %ld %ld %ld %ld", data->readNSeen_loc(), nData_b4Startup,
+           _nStep.load(), data->readNSeen());
     bReady4Init = true;
     bUpdateNdata = true;
   }

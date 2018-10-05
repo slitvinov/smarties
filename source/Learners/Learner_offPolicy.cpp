@@ -9,9 +9,10 @@
 #include "Learner_offPolicy.h"
 #include "../Network/Optimizer.h"
 
-Learner_offPolicy::Learner_offPolicy(Environment*const _env, Settings & _s) :
-Learner(_env,_s)
+Learner_offPolicy::Learner_offPolicy(Environment*const E, Settings & S) :
+Learner(E, S)
 {
+  data_get = new Collector(S, this, data);
   if(not bSampleSequences && nObsPerTraining < batchSize)
     die("Parameter minTotObsNum is too low for given problem");
 }
