@@ -24,16 +24,18 @@ class Communicator_internal: public Communicator
   const int bAsync = S.bAsync;
   const bool bSpawnApp = S.bSpawnApp;
 
+  std::vector<int> clientSockets = std::vector<int>(nOwnWorkers, 0);
+
   std::mutex& mpi_mutex = S.mpi_mutex;
   vector<double*> inpBufs;
   vector<double*> outBufs;
   std::vector<MPI_Request> requests =
                         std::vector<MPI_Request>(nOwnWorkers, MPI_REQUEST_NULL);
 
-  void launch_forked() override;
 
 public:
   void getStateActionShape();
+  void launch() override;
 
   int recvStateFromApp();
   int sendActionToApp();

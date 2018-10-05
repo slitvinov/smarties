@@ -25,6 +25,8 @@ protected:
   std::vector<long> WnEnded = std::vector<long>(nWorkers_own, nAgentsPerWorker);
   std::vector<long> WwghtID = std::vector<long>(nWorkers_own, 0);
 
+  std::vector<Rvec> R = std::vector<Rvec>(nWorkers_own, Rvec(ESpopSize, 0) );
+
   static vector<Uint> count_pol_outputs(const ActionInfo*const aI);
   static vector<Uint> count_pol_starts(const ActionInfo*const aI);
 

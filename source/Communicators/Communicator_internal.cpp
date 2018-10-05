@@ -11,6 +11,7 @@
 #include <regex>
 #include <algorithm>
 #include <iterator>
+#include <sys/un.h>
 
 static inline vector<string> split(const string &s, const char delim) {
   stringstream ss(s); string item; vector<string> tokens;
@@ -36,13 +37,6 @@ Communicator_internal::~Communicator_internal() {
   }
 }
 
-void Communicator_internal::launch_forked() {
-  assert(not called_by_app);
-  createGo_rundir();
-  redirect_stdout_init();
-  launch_exec("../"+execpath, socket_id);
-}
-
 void Communicator_internal::createGo_rundir() {
   char newd[1024];
   getcwd(initd, 512);
@@ -65,7 +59,8 @@ void Communicator_internal::createGo_rundir() {
 
 int Communicator_internal::recvStateFromApp()
 {
-  int bytes = recv_all(Socket, data_state, size_state);
+  assert(clientSockets.size() == 1);
+  int bytes = recv_all(clientSockets[0], data_state, size_state);
   if(bytes not_eq size_state) {
     if (bytes == 0) _warn("socket %d hung up\n", Socket);
     else warn("(1) recv");
@@ -78,19 +73,21 @@ int Communicator_internal::recvStateFromApp()
 
 int Communicator_internal::sendActionToApp()
 {
+  assert(clientSockets.size() == 1);
   if(comm_learn_pool not_eq MPI_COMM_NULL) workerRecv_MPI();
   bool endSignal = std::fabs(data_action[0] - AGENT_KILLSIGNAL) < 2.2e-16;
-  send_all(Socket, data_action, size_action);
+  send_all(clientSockets[0], data_action, size_action);
   return endSignal;
 }
 
 void Communicator_internal::answerTerminateReq(const double answer) {
   data_action[0] = answer;
    //printf("I think im givign the goahead %f\n",data_action[0]);
-  send_all(Socket, data_action, size_action);
+  send_all(clientSockets[0], data_action, size_action);
 }
 
-void Communicator_internal::ext_app_run() {
+void Communicator_internal::ext_app_run()
+{
   assert(workerGroup>=0 && rank_inside_app>=0 &&comm_inside_app!=MPI_COMM_NULL);
   vector<string> argsFiles = split(paramfile, ',');
   vector<string> stepNmbrs = split(nStepPerFile, ',');
@@ -200,7 +197,8 @@ void Communicator_internal::getStateActionShape()
     if (rank_learn_pool==0)
       MPI_Recv(sizes, 32, MPI_BYTE, 1, 3, comm_learn_pool, MPI_STATUS_IGNORE);
     else {
-      sockRecv(Socket, sizes, 4*sizeof(double));
+      for(int i=0; i<nOwnWorkers; i++)
+        sockRecv(clientSockets[i], sizes, 4*sizeof(double));
       if(rank_learn_pool==1)
         MPI_Ssend(sizes,32, MPI_BYTE, 0,3, comm_learn_pool);
     }
@@ -228,9 +226,12 @@ void Communicator_internal::getStateActionShape()
     MPI_Recv(obs_bounds.data(),nStates*16,MPI_BYTE,1,4,comm_learn_pool, MPI_STATUS_IGNORE);
     MPI_Recv(action_options.data(),nActions*16,MPI_BYTE,1,5,comm_learn_pool, MPI_STATUS_IGNORE);
    } else {
-    sockRecv(Socket, obs_inuse.data(), nStates*8);
-    sockRecv(Socket, obs_bounds.data(), nStates*16);
-    sockRecv(Socket, action_options.data(), nActions*16);
+    for(int i=0; i<nOwnWorkers; i++)
+    {
+      sockRecv(clientSockets[i], obs_inuse.data(), nStates*8);
+      sockRecv(clientSockets[i], obs_bounds.data(), nStates*16);
+      sockRecv(clientSockets[i], action_options.data(), nActions*16);
+    }
     if (rank_learn_pool==1) {
      MPI_Ssend(obs_inuse.data(), nStates*8,MPI_BYTE,0,3, comm_learn_pool);
      MPI_Ssend(obs_bounds.data(), nStates*16,MPI_BYTE,0,4, comm_learn_pool);
@@ -255,7 +256,8 @@ void Communicator_internal::getStateActionShape()
     if (rank_learn_pool==0)
       MPI_Recv(action_bounds.data(), n_vals*8, MPI_BYTE, 1, 6, comm_learn_pool, MPI_STATUS_IGNORE);
     else {
-      sockRecv(Socket, action_bounds.data(), n_vals*8);
+      for(int i=0; i<nOwnWorkers; i++)
+        sockRecv(clientSockets[i], action_bounds.data(), n_vals*8);
       if (rank_learn_pool==1)
        MPI_Ssend(action_bounds.data(),n_vals*8, MPI_BYTE,0,6, comm_learn_pool);
     }
@@ -271,9 +273,10 @@ void Communicator_internal::sendTerminateReq()
 {
   //it's awfully ugly, i send -256 to kill the workers... but...
   //what are the chances that learner sends action -256.(+/- eps) to clients?
-  for (int worker = 1; worker <= nOwnWorkers; worker++) {
-    outBufs[worker-1][0] = AGENT_KILLSIGNAL;
-    MPI(Ssend, outBufs[worker-1],size_action,MPI_BYTE,worker,0,comm_learn_pool);
+  for (int i = 1; i <= nOwnWorkers; i++) {
+    outBufs[i-1][0] = AGENT_KILLSIGNAL;
+    if(bSpawnApp) send_all(clientSockets[i-1], outBufs[i-1], size_action);
+    else MPI(Ssend, outBufs[i-1], size_action, MPI_BYTE, i, 0, comm_learn_pool);
   }
 }
 
@@ -306,7 +309,8 @@ void Communicator_internal::sendBuffer(const int i, const std::vector<double> V)
   assert(i>0 && i <= (int) outBufs.size() && V.size() == (size_t) nActions);
   std::copy (V.begin(), V.end(), outBufs[i-1] );
 
-  if(bSpawnApp) send_all(Socket, outBufs[i-1], size_action);
+  if(bSpawnApp)
+    send_all(clientSockets[i-1], outBufs[i-1], size_action);
   else {
     MPI_Request tmp;
     MPI(Isend, outBufs[i-1], size_action, MPI_BYTE, i, 0,
@@ -328,9 +332,9 @@ int Communicator_internal::testBuffer(const int i)
   int completed = 0;
   if(bSpawnApp)
   {
-    const int bytes = recv_all(Socket, inpBufs[i-1], size_state);
+    const int bytes = recv_all(clientSockets[i-1], inpBufs[i-1], size_state);
     if(bytes not_eq size_state) {
-      if (bytes == 0) _warn("socket %d hung up\n", Socket);
+      if (bytes == 0) _warn("socket %d hung up\n", clientSockets[i-1]);
       else warn("(1) recv");
       intToDoublePtr(FAIL_COMM, data_state+1);
     }
@@ -343,4 +347,55 @@ int Communicator_internal::testBuffer(const int i)
     if(completed) assert(i == mpistatus.MPI_SOURCE);
   }
   return completed;
+}
+
+void Communicator_internal::launch()
+{
+  // Specify the socket
+  char SOCK_PATH[256];
+  sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock", socket_id);
+  unlink(SOCK_PATH);
+
+  for(int i = 0; i<nOwnWorkers; i++)
+    if ( fork() == 0 )
+    {
+      createGo_rundir();
+      redirect_stdout_init();
+      launch_exec("../"+execpath, socket_id); //child spawns process
+      printf("setupClient app returned: what TODO?"); fflush(0); abort();
+    }
+
+  if ( ( Socket = socket(AF_UNIX, SOCK_STREAM, 0) ) == -1 ) {
+    printf("socket"); fflush(0); abort();
+  }
+
+  struct sockaddr_un serverAddress;
+  bzero(&serverAddress, sizeof(serverAddress));
+  serverAddress.sun_family = AF_UNIX;
+  strcpy(serverAddress.sun_path, SOCK_PATH);
+  //this printf is to check that there is no funny business with trailing 0s:
+  //printf("%s %s\n",serverAddress.sun_path, SOCK_PATH); fflush(0);
+  const int servlen = sizeof(serverAddress.sun_family)
+                    + strlen(serverAddress.sun_path) +1;
+
+  if ( bind(Socket, (struct sockaddr *)&serverAddress, servlen) < 0 ) {
+    printf("bind"); fflush(0); abort();
+  }
+
+  if (listen(Socket, nOwnWorkers) == -1) { // listen
+    printf("listen"); fflush(0); abort();
+  }
+
+  for(int i = 0; i<nOwnWorkers; i++)
+  {
+    int clientSocket;
+    struct sockaddr_un clientAddress;
+    unsigned int addr_len = sizeof(clientAddress);
+    struct sockaddr*const addrPtr = (struct sockaddr*) &clientAddress;
+    if( ( clientSocket = accept(Socket, addrPtr, &addr_len) ) == -1 ) {
+      printf("accept"); fflush(0); abort();
+    }
+    printf("server: new connection on socket %d\n", clientSocket); fflush(0);
+    clientSockets[i] = clientSocket;
+  }
 }

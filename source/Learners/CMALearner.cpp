@@ -20,6 +20,7 @@ void CMALearner<Action_t>::select(Agent& agent)
   data_get->add_state(agent);
 
   const Uint wrkr = agent.workerID;
+
   if(agent.Status == INIT_COMM and WnEnded[wrkr] != nAgentsPerWorker) die("");
   if(agent.Status == CONT_COMM) WnEnded[wrkr] = 0;
 
@@ -36,7 +37,9 @@ void CMALearner<Action_t>::select(Agent& agent)
   }
   else
   {
+    R[wrkr][weightID] += agent.cumulative_rewards;
     data_get->terminate_seq(agent);
+
     ++WnEnded[wrkr];
     if(WnEnded[wrkr] > nAgentsPerWorker) die("");
 
@@ -53,7 +56,10 @@ template<typename Action_t>
 void CMALearner<Action_t>::prepareGradient()
 {
   updateComplete = true;
-
+  #pragma omp parallel for schedule(static)
+  for (Uint b=0; b<nWorkers_own; b++)
+  for (Uint w=0; w<ESpopSize; w++) F[0]->losses[w] -= R[b][w];
+  F[0]->nAddedGradients = nWorkers_own * ESpopSize;
 
   Learner::prepareGradient();
 

@@ -12,6 +12,8 @@
 #include <fstream>
 #include <iostream>
 
+#include <sys/un.h>
+
 //APPLICATION SIDE CONSTRUCTOR
 Communicator::Communicator(int socket, int state_comp, int action_comp,
   int number_of_agents) : gen(socket), bTrain(true), nEpisodes(-1)
@@ -36,7 +38,6 @@ Communicator::Communicator(int socket, int state_comp, int action_comp,
   nAgents = number_of_agents;
   update_state_action_dims(state_comp, action_comp);
   assert(socket not_eq 0);
-  spawner = false; // if app gets socket prefix 0, then it spawns smarties
   socket_id = socket;
   called_by_app = true;
   launch();
@@ -246,133 +247,41 @@ void Communicator::update_state_action_dims(const int sdim, const int adim)
   data_state = _alloc(size_state);
 }
 
-void Communicator::launch_forked()
-{
-  printf("disabled Client style scripts"); fflush(0); abort();
-  assert(called_by_app);
-  //go up til a file runClient is found: shaky
-  struct stat buffer;
-  while(stat("runClient.sh", &buffer)) {
-    chdir("..");
-    char cwd[1024];
-    if (getcwd(cwd, sizeof(cwd)) != NULL)
-      printf("Current working dir: %s\n", cwd);
-    else perror("getcwd() error");
-  }
-
-  fd = redirect_stdout_stderr();
-  launch_exec("./runClient.sh", socket_id);
-}
-
 void Communicator::launch()
 {
-  assert(rank_inside_app<1);
-  if (spawner && called_by_app)
-  {
-    //this code runs if application spawns smarties
-    //cheap way to ensure multiple sockets can exist on same node
-    struct timeval clock;
-    gettimeofday(&clock, NULL);
-    socket_id = abs(clock.tv_usec % std::numeric_limits<int>::max());
-  }
-  sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock", socket_id);
+  assert(rank_inside_app < 1);
 
-  if (spawner) setupClient();
-  else setupServer();
-}
-
-void Communicator::setupClient()
-{
-  unlink(SOCK_PATH);
-  const int rf = fork();
-
-  if (rf == 0) //child spawns process
-  {
-    launch_forked();
-    printf("setupClient app returned: what TODO?"); fflush(0); abort();
-  }
-  else //parent
-  {
-    Socket = socket(AF_UNIX, SOCK_STREAM, 0);
-
-    int _true = 1;
-    if(setsockopt(Socket, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int))<0) {
-      printf("Sockopt failed\n"); fflush(0); abort();
-    }
-
-    // Specify the server
-    bzero((char *)&serverAddress, sizeof(serverAddress));
-    serverAddress.sun_family = AF_UNIX;
-    strcpy(serverAddress.sun_path, SOCK_PATH);
-    const int servlen = sizeof(serverAddress.sun_family)
-                      + strlen(serverAddress.sun_path)+1;
-
-    // Connect to the server
-    while (connect(Socket, (struct sockaddr *)&serverAddress, servlen) < 0)
-      usleep(1);
-  }
-}
-
-void Communicator::setupServer()
-{
-  if ((ServerSocket = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+  if ( ( Socket = socket(AF_UNIX, SOCK_STREAM, 0) ) == -1 ) {
     printf("socket"); fflush(0); abort();
   }
 
-  bzero(&serverAddress, sizeof(serverAddress));
+  int _true = 1;
+  if( setsockopt(Socket, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int)) < 0 ) {
+    printf("Sockopt failed\n"); fflush(0); abort();
+  }
+
+  // Specify the socket
+  char SOCK_PATH[256];
+  sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock", socket_id);
+
+  // Specify the server
+  struct sockaddr_un serverAddress;
+  bzero((char *)&serverAddress, sizeof(serverAddress));
   serverAddress.sun_family = AF_UNIX;
   strcpy(serverAddress.sun_path, SOCK_PATH);
-  //this printf is to check that there is no funny business with trailing 0s:
-  //printf("%s %s\n",serverAddress.sun_path, SOCK_PATH); fflush(0);
   const int servlen = sizeof(serverAddress.sun_family)
-                    + strlen(serverAddress.sun_path) +1;
+                    + strlen(serverAddress.sun_path)+1;
 
-  if (bind(ServerSocket, (struct sockaddr *)&serverAddress, servlen) < 0) {
-    printf("bind"); fflush(0); abort();
-  }
-  /*
-  int _true = 1;
-  if(setsockopt(ServerSocket, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int))<0)
-  {
-    perror("Sockopt failed\n");
-    exit(1);
-  }
-  */
-
-  if (listen(ServerSocket, 1) == -1) { // listen (only 1)
-    printf("listen"); fflush(0); abort();
-  }
-
-  unsigned int addr_len = sizeof(clientAddress);
-  struct sockaddr* const clientAddrPtr = (struct sockaddr*) &clientAddress;
-  if( (Socket=accept(ServerSocket, clientAddrPtr, &addr_len)) == -1) {
-    printf("accept"); fflush(0); abort();
-  }
-
-  printf("selectserver: new connection from on socket %d\n", Socket);
-  fflush(0);
+  // Connect to the server
+  while (connect(Socket, (struct sockaddr *)&serverAddress, servlen) < 0)
+    usleep(1);
 }
 
 Communicator::~Communicator()
 {
-  if (rank_learn_pool>0) {
-    if (spawner) close(Socket);
-    else   close(ServerSocket);
-  } //if with forked process paradigm
+  if (rank_learn_pool>0) close(Socket); //if with forked process paradigm
   if(data_state not_eq nullptr)  _dealloc(data_state);
   if(data_action not_eq nullptr) _dealloc(data_action);
-}
-
-// ONLY FOR CHILD CLASS
-Communicator::Communicator(int socket, bool spawn, std::mt19937& G, int _bTr,
-  int nEps) : gen(G()), bTrain(_bTr), nEpisodes(nEps)
-{
-  if(socket<0) {
-    printf("FATAL: Communicator created with socket < 0.\n");
-    abort();
-  }
-  spawner = spawn; // if app gets socket prefix 0, then it spawns smarties
-  socket_id = socket;
 }
 
 void Communicator::print()
@@ -384,8 +293,7 @@ void Communicator::print()
   #endif
   fname<<"comm_"<<std::setw(3)<<std::setfill('0')<<wrank<<".log";
   std::ofstream o(fname.str().c_str(), std::ios::app);
-  o <<(spawner?"Server":"Client")<<" communicator on ";
-  o <<(called_by_app?"app":"smarties")<<" side:\n";
+  o <<(called_by_app?"Client":"Server")<<" communicator.\n";
   o <<"nStates:"<<nStates<<" nActions:"<<nActions;
   o <<" size_action:"<<size_action<< " size_state:"<< size_state<<"\n";
   o <<"MPI comm: size_s"<<size_learn_pool<<" rank_s:"<<rank_learn_pool;
@@ -408,7 +316,20 @@ void Communicator::update_rank_size()
   #endif
 }
 
-void Communicator::workerSend_MPI() {
+#ifdef MPI_VERSION
+// ONLY FOR CHILD CLASS
+Communicator::Communicator(int socket, bool spawn, std::mt19937& G, int _bTr,
+  int nEps) : gen(G()), bTrain(_bTr), nEpisodes(nEps)
+{
+  if(socket<0) {
+    printf("FATAL: Communicator created with socket < 0.\n");
+    abort();
+  }
+  socket_id = socket;
+}
+
+void Communicator::workerSend_MPI()
+{
   //if(send_request != MPI_REQUEST_NULL) MPI_Wait(&send_request, MPI_STATUS_IGNORE);
   //if(recv_request != MPI_REQUEST_NULL) workerRecv_MPI(iAgent);
 
@@ -418,7 +339,9 @@ void Communicator::workerSend_MPI() {
   MPI_Request_free(&dummyreq); //Not my problem? send_request
   MPI_Irecv(data_action,size_action,MPI_BYTE,0,0,comm_learn_pool,&recv_request);
 }
-void Communicator::workerRecv_MPI() {
+
+void Communicator::workerRecv_MPI()
+{
   //auto start = std::chrono::high_resolution_clock::now();
   assert(comm_learn_pool != MPI_COMM_NULL);
   assert(recv_request != MPI_REQUEST_NULL);
@@ -435,6 +358,7 @@ void Communicator::workerRecv_MPI() {
   //auto elapsed = std::chrono::high_resolution_clock::now() - start;
   //cout << chrono::duration_cast<chrono::microseconds>(elapsed).count() <<endl;
 }
+#endif
 
 std::mt19937& Communicator::getPRNG() {
   return gen;

@@ -97,7 +97,8 @@ int main (int argc, char** argv)
     S.workersComm = MPI_COMM_NULL;
     S.workers_rank = 0;
     S.workers_size = 1;
-    S.nWorkers_own = S.bSpawnApp;
+    S.nWorkers_own =
+      S.nWorkers/S.world_size + ( (S.nWorkers%S.world_size) > S.world_rank );
     runMaster(S);
   }
   else
