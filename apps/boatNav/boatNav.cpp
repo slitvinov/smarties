@@ -135,7 +135,7 @@ struct USV: public Entity
 	  return state;
   }
 
-  double getReward() const {
+  double getLateralDist() const {
 	  // Compute perpendicular distance from path
 	  const double thetaStart = getAngle(pathStart);
 	  const double thetaEnd = getAngle(pathEnd);
@@ -151,7 +151,14 @@ struct USV: public Entity
 		  retVal = (distStart < distEnd) ? distStart : distEnd;
 	  }
 
-	  return -retVal/params.l; // normalize with ship width
+	  return retVal/params.l; // normalize with ship width
+  }
+
+  double getReward() const {
+	  const double latDist = getLateralDist();
+	  // angle wrt path - punish 45deg to be equal to 1 latDist, and linearly vary up and down
+	  const double anglePenalty = abs(r.back())/(M_PI/4.0);
+	  return -(latDist + anglePenalty);
   }
 
   bool checkTermination() {
@@ -161,7 +168,7 @@ struct USV: public Entity
 	  if (goal) isOver = true; 
 
 	  // Check if need to abort
-	  const double latDist = -getReward(); // already normalized by params.l
+	  const double latDist = getLateralDist(); // already normalized by params.l
 	  const bool abortSim = (latDist > 10) ? true : false ;
 	  if (abortSim) {
 		  printf("boat is too far from path, distance = %f boatWidths\n", latDist);
