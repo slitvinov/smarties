@@ -334,8 +334,8 @@ int Communicator_internal::testBuffer(const int i)
   {
     const int bytes = recv_all(clientSockets[i-1], inpBufs[i-1], size_state);
     if(bytes not_eq size_state) {
-      if (bytes == 0) _warn("socket %d hung up\n", clientSockets[i-1]);
-      else warn("(1) recv");
+      if (bytes == 0) _die("socket %d hung up\n", clientSockets[i-1]);
+      else die("(1) recv");
       intToDoublePtr(FAIL_COMM, data_state+1);
     }
     completed = 1;
@@ -356,14 +356,20 @@ void Communicator_internal::launch()
   sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock", socket_id);
   unlink(SOCK_PATH);
 
+  #pragma omp parallel 
   for(int i = 0; i<nOwnWorkers; i++)
-    if ( fork() == 0 )
+  {
+    const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
+    const int tgtCPU =  ( ( (-1-i) % thrN ) + thrN ) % thrN;
+    #pragma omp critical
+    if ( ( thrID==tgtCPU ) && ( fork() == 0 ) )
     {
       createGo_rundir();
       redirect_stdout_init();
       launch_exec("../"+execpath, socket_id); //child spawns process
       printf("setupClient app returned: what TODO?"); fflush(0); abort();
     }
+  }
 
   if ( ( Socket = socket(AF_UNIX, SOCK_STREAM, 0) ) == -1 ) {
     printf("socket"); fflush(0); abort();
