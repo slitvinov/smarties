@@ -28,7 +28,8 @@ Communicator_internal::Communicator_internal(Settings& _S) :
   update_rank_size();
 }
 
-Communicator_internal::~Communicator_internal() {
+Communicator_internal::~Communicator_internal()
+{
   if (rank_learn_pool>0) {
     data_action[0] = AGENT_KILLSIGNAL;
     send_all(Socket, data_action, size_action);
@@ -37,7 +38,8 @@ Communicator_internal::~Communicator_internal() {
   }
 }
 
-void Communicator_internal::createGo_rundir() {
+void Communicator_internal::createGo_rundir()
+{
   char newd[1024];
   getcwd(initd, 512);
   struct stat fileStat;
