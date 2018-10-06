@@ -59,6 +59,7 @@ void CMALearner<Action_t>::prepareGradient()
   #pragma omp parallel for schedule(static)
   for (Uint b=0; b<nWorkers_own; b++)
   for (Uint w=0; w<ESpopSize; w++) F[0]->losses[w] -= R[b][w];
+  R = std::vector<Rvec>(nWorkers_own, Rvec(ESpopSize, 0) );
   F[0]->nAddedGradients = nWorkers_own * ESpopSize;
 
   Learner::prepareGradient();

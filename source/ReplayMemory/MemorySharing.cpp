@@ -15,7 +15,12 @@ MemorySharing::MemorySharing(const Settings&S, Learner*const L,
   MemoryBuffer*const RM) : settings(S), learner(L), replay(RM), sI(L->sInfo),
   aI(L->aInfo) {
   completed.reserve(S.nAgents);
-  fetcher = std::thread( [ &, this ] () { run(); } );
+  #pragma omp parallel
+  {
+    const int thrID = omp_get_thread_num();
+    const int tgtCPU =  std::min(omp_get_num_threads()-1, 2);
+    if( thrID==tgtCPU ) fetcher = std::thread( [ &, this ] () { run(); } );
+  }
 }
 
 MemorySharing::~MemorySharing()
