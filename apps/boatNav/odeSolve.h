@@ -24,7 +24,7 @@ struct modelParams
 			{0, m-YvDot, -YrDot},
 			{0, -NvDot, Izz-NrDot} 	};
 
-	const double determinant = abs( M[0][0]* (M[1][1]*M[2][2] - M[1][2]*M[2][1]) ); // others are zero
+	const double determinant = std::abs( M[0][0]* (M[1][1]*M[2][2] - M[1][2]*M[2][1]) ); // others are zero
 	double invM[3][3];
 
 	const double D[3][3] = {{Xu, 0, 0}, 

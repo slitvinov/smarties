@@ -9,7 +9,7 @@
 #include "odeSolve.h"
 
 #define dt 1.0e-2
-#define maxStep 1000000
+#define maxStep 20000
 
 using namespace std;
 
@@ -214,8 +214,8 @@ int main(int argc, const char * argv[])
 	      actions[1] = 20.0; // Thruster Right*/
 
 	    // Magnify order(1) actions to order(10) forces
-	    thrustL.push_back(10*actions[0]);
-	    thrustR.push_back(10*actions[1]);
+	    thrustL.push_back(50*actions[0]);
+	    thrustR.push_back(50*actions[1]);
 	    forceX[step] = actions[0] + actions[1];
 
 	    boat.advance();
@@ -231,7 +231,7 @@ int main(int argc, const char * argv[])
 			    printf("Sim #%d reporting that boat got lost.\n", sim); fflush(NULL);
 		    } else {
 			    comm.sendTermState(boat.getState(), +finalReward, 0);
-			    printf("Sim #%d reporting that boat reached safe harbor.\n", sim); fflush(NULL);
+			    printf("Sim #%d reporting that boat reached safe harbor.\n", sim+1); fflush(NULL);
 		    }
 		    sim++; break;
 	    }
