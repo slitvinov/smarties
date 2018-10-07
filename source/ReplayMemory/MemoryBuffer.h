@@ -43,7 +43,7 @@ class MemoryBuffer
   std::atomic<bool> needs_pass {false};
 
   std::vector<Sequence*> Set;
-
+  std::vector<Uint> sampled;
   std::mutex dataset_mutex;
 
   std::atomic<long> nSequences{0};
@@ -148,5 +148,6 @@ class MemoryBuffer
     Set[ID] = S;
   }
 
+  const std::vector<Uint>& listSampled() { return sampled; }
   static Sampling* prepareSampler(const Settings&S, MemoryBuffer* const R);
 };

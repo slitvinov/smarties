@@ -37,7 +37,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
         }
       }
       if(WS>0) {
-        #pragma omp critical
+        #pragma omp critical (RDXS)
         for(Uint k=0; k<dimS; k++) {
           newSSum[k]   += thNewSSum[k];
           newSSqSum[k] += thNewSSqSum[k];
@@ -164,7 +164,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
       if(    W_FAR >farpol.second) { farpol.second= W_FAR;     farpol.first=i; }
       if(    W_DKL >maxdkl.second) { maxdkl.second= W_DKL;     maxdkl.first=i; }
     }
-    #pragma omp critical
+    #pragma omp critical (RDXP)
     {
       if(oldest.second<oldV) { oldP=oldest.first; oldV=oldest.second; }
       if(farpol.second>farV) { farP=farpol.first; farV=farpol.second; }
@@ -192,6 +192,16 @@ void MemoryProcessing::finalize()
   if(delPtr<0) die("undefined behavior");
   const int nB4 = RM->readNSeq();
 
+  // reset flags that signal request to update estimators:
+  const std::vector<Uint>& sampled = RM->listSampled();
+  const Uint sampledSize = sampled.size();
+  for(Uint i = 0; i < sampledSize; i++) {
+    Sequence * const S = RM->get(sampled[i]);
+    assert(S->just_sampled >= 0);
+    S->just_sampled=-1;
+  }
+  for(int i=0; i<nB4; i++) assert(RM->get(i)->just_sampled < 0);
+
   // safety measure: do not delete trajectory if Nobs > Ntarget
   // but if N > Ntarget even if we remove the trajectory
   // done to avoid bugs if a sequence is longer than maxTotObsNum
@@ -216,9 +226,6 @@ void MemoryProcessing::finalize()
      stepSinceISWeep = 0;
    }
   #endif
-
-  // reset flags that signal request to update estimators:
-  for(long i=0;i<nSeq;i++) if(Set[i]->just_sampled>=0) Set[i]->just_sampled=-1;
 }
 
 void MemoryProcessing::getMetrics(ostringstream& buff)

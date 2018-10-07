@@ -161,15 +161,17 @@ void VRACER<Policy_t, Action_t>::prepareGradient()
 
   if(updateToApply)
   {
-    const Uint setSize = data->readNSeq();
     profiler->stop_start("QRET");
     debugL("Update Retrace est. for episodes samples in prev. grad update");
     // placed here because this happens right after update is computed
     // this can happen before prune and before workers are joined
+    const std::vector<Uint>& sampled = data->listSampled();
+    const Uint setSize = sampled.size();
     #pragma omp parallel for schedule(dynamic)
-    for(Uint i = 0; i < setSize; i++)
-      for(int j = data->get(i)->just_sampled; j>=0; j--)
-        updateVret(data->get(i), j, data->get(i)->offPolicImpW[j]);
+    for(Uint i = 0; i < setSize; i++) {
+      Sequence * const S = data->get(sampled[i]);
+      for(int j=S->just_sampled; j>=0; j--) updateVret(S,j,S->offPolicImpW[j]);
+    }
   }
 }
 

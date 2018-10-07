@@ -241,11 +241,13 @@ prepareGradient()
     // placed here because this happens right after update is computed
     // this can happen before prune and before workers are joined
     profiler->stop_start("QRET");
-    const Uint setSize = data->readNSeq();
+    const std::vector<Uint>& sampled = data->listSampled();
+    const Uint setSize = sampled.size();
     #pragma omp parallel for schedule(dynamic)
-    for(Uint i = 0; i < setSize; i++)
-      for(int j=data->get(i)->just_sampled-1; j>0; j--)
-        updateQretBack(data->get(i), j);
+    for(Uint i = 0; i < setSize; i++) {
+      Sequence * const S = data->get(sampled[i]);
+      for(int j=S->just_sampled-1; j>0; j--) updateQretBack(S, j);
+    }
   }
 }
 

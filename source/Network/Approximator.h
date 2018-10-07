@@ -29,12 +29,12 @@ struct Approximator
   Network* net = nullptr;
   StatsTracker* gradStats = nullptr;
 
-  mutable vector<int> error_placements = vector<int>(nThreads, -1);
-  mutable vector<int> first_sample = vector<int>(nThreads, -1);
-  mutable vector<int> agent_Wind = vector<int>(nAgents, -1);
-  mutable vector<int> thread_Wind = vector<int>(nThreads, -1);
-  mutable vector<Sequence*> agent_seq = vector<Sequence*>(nAgents, nullptr);
-  mutable vector<Sequence*> thread_seq = vector<Sequence*>(nThreads, nullptr);
+  THRvec<int> error_placements = THRvec<int>(nThreads, -1);
+  THRvec<int> first_sample = THRvec<int>(nThreads, -1);
+  THRvec<int> agent_Wind = THRvec<int>(nAgents, -1);
+  THRvec<int> thread_Wind = THRvec<int>(nThreads, -1);
+  THRvec<Sequence*> agent_seq = THRvec<Sequence*>(nAgents, nullptr);
+  THRvec<Sequence*> thread_seq = THRvec<Sequence*>(nThreads, nullptr);
 
   mutable std::atomic<Uint> nAddedGradients{0};
   Uint reducedGradients=0;
@@ -47,18 +47,15 @@ struct Approximator
   bool blockInpGrad = false;
 
   //thread safe memory for prediction with current weights:
-  mutable vector<vector<Activation*>> series =
-                                          vector<vector<Activation*>>(nThreads);
+  THRvec<vector<Activation*>> series = THRvec<vector<Activation*>>(nThreads);
 
   //thread safe agent specific activations
-  mutable vector<vector<Activation*>> agent_series =
-                                          vector<vector<Activation*>>(nAgents);
+  THRvec<vector<Activation*>> agent_series = THRvec<vector<Activation*>>(nAgents);
 
   //thread safe  memory for prediction with target weights. Rules are that
   // index along the two alloc vectors is the same for the same sample, and
   // that tgt net (if available) takes recurrent activation from current net:
-  mutable vector<vector<Activation*>> series_tgt =
-                                          vector<vector<Activation*>>(nThreads);
+  THRvec<vector<Activation*>> series_tgt = THRvec<vector<Activation*>>(nThreads);
 
   // For CMAES based optimization. Keeps track of total loss associate with
   // Each weight vector sample:

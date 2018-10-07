@@ -401,7 +401,6 @@ void PPO<Policy_t, Action_t>::spawnTrainTasks_seq()
         input->gradient(thrID);
       }
 
-  for(Uint i=0;i<batchSize;i++) data->get(samp_seq[i])->setSampled(samp_obs[i]);
   updateComplete = true;
 }
 

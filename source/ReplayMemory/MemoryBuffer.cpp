@@ -71,6 +71,12 @@ void MemoryBuffer::clearAll()
 void MemoryBuffer::sample(vector<Uint>& seq, vector<Uint>& obs)
 {
   sampler->sample(seq, obs);
+
+  sampled = seq;
+  std::sort(sampled.begin(), sampled.end());
+  sampled.erase(std::unique(sampled.begin(), sampled.end()), sampled.end());
+
+  for(Uint i=0; i<seq.size(); i++) Set[seq[i]]->setSampled(obs[i]);
 }
 
 void MemoryBuffer::removeSequence(const Uint ind)

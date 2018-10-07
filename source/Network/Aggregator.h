@@ -20,12 +20,12 @@ struct Aggregator
   const Uint nOuts, nMaxBPTT = settings.nnBPTTseq;
   const Uint nThreads = settings.nThreads + settings.nAgents;
 
-  mutable vector<int> first_sample = vector<int>(nThreads,-1);
-  mutable vector<Sequence*> seq = vector<Sequence*>(nThreads, nullptr);
+  THRvec<int> first_sample = THRvec<int>(nThreads,-1);
+  THRvec<Sequence*> seq = THRvec<Sequence*>(nThreads, nullptr);
   // [thread][time][component]:
-  mutable vector<vector<Rvec>> inputs = vector<vector<Rvec>>(nThreads);
+  THRvec<vector<Rvec>> inputs = THRvec<vector<Rvec>>(nThreads);
   // [thread]:
-  mutable vector<RELAY> usage = vector<RELAY>(nThreads, ACT);
+  THRvec<RELAY> usage = THRvec<RELAY>(nThreads, ACT);
 
   // Settings file, the memory buffer class from which all trajectory pointers
   // will be drawn from, the number of outputs from the aggregator. If 0 then

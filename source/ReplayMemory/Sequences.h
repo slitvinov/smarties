@@ -81,8 +81,6 @@ struct Sequence
     vector<float> priorityImpW;
   #endif
 
-  mutable std::mutex seq_mutex;
-
   inline Uint ndata() const {
     assert(tuples.size());
     if(tuples.size()==0) return 0;
@@ -114,27 +112,22 @@ struct Sequence
     Q_RET.clear();
   }
   inline void setSampled(const int t) {//update ind of latest sampled time step
-    lock_guard<mutex> lock(seq_mutex);
     if(just_sampled < t) just_sampled = t;
   }
   inline void setRetrace(const Uint t, const Fval Q) {
     assert( t < Q_RET.size() );
-    lock_guard<mutex> lock(seq_mutex);
     Q_RET[t] = Q;
   }
   inline void setAdvantage(const Uint t, const Fval A) {
     assert( t < action_adv.size() );
-    lock_guard<mutex> lock(seq_mutex);
     action_adv[t] = A;
   }
   inline void setStateValue(const Uint t, const Fval V) {
     assert( t < state_vals.size() );
-    lock_guard<mutex> lock(seq_mutex);
     state_vals[t] = V;
   }
   inline void setMseDklImpw(const Uint t,const Fval E,const Fval D,const Fval W)
   {
-    lock_guard<mutex> lock(seq_mutex);
     SquaredError[t] = E;
     KullbLeibDiv[t] = D;
     offPolicImpW[t] = W;

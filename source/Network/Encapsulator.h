@@ -23,13 +23,13 @@ struct Encapsulator
   const Uint nAppended = settings.appendedObs;
   const int ESpopSize = settings.ESpopSize;
 
-  std::vector<std::vector<Activation*>> series =
-                                std::vector<std::vector<Activation*>>(nThreads);
-  std::vector<std::vector<Activation*>> series_tgt =
-                                std::vector<std::vector<Activation*>>(nThreads);
-  mutable std::vector<int> first_sample = std::vector<int>(nThreads,-1);
-  mutable std::vector<int> error_placements = std::vector<int>(nThreads,-1);
-  std::vector<Sequence*> thread_seq = std::vector<Sequence*>(nThreads, nullptr);
+  THRvec<std::vector<Activation*>> series =
+                                THRvec<std::vector<Activation*>>(nThreads);
+  THRvec<std::vector<Activation*>> series_tgt =
+                                THRvec<std::vector<Activation*>>(nThreads);
+  THRvec<int> first_sample = THRvec<int>(nThreads, -1);
+  THRvec<int> error_placements = THRvec<int>(nThreads, -1);
+  THRvec<Sequence*> thread_seq = THRvec<Sequence*>(nThreads, nullptr);
 
   // For CMAES based optimization. Keeps track of total loss associate with
   // Each weight vector sample:

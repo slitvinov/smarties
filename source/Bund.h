@@ -258,3 +258,24 @@ inline float approxRsqrt( const float number )
   //conv.f  = conv.f * ( threehalfs - ( x2 * conv.f * conv.f ) );
 	return conv.f * ( threehalfs - ( x2 * conv.f * conv.f ) );
 }
+
+
+template<typename T>
+struct THRvec
+{
+  Uint nThreads;
+  const T initial;
+  mutable std::vector<T*> m_v = std::vector<T*> (nThreads, nullptr);
+  THRvec(const Uint size, const T init=T()) : nThreads(size), initial(init) {}
+  ~THRvec() { for (Uint i=0; i<nThreads; i++) delete m_v[i]; }
+  inline void resize(const Uint N)
+  {
+    nThreads = N;
+    m_v.resize(N, nullptr);
+  }
+  inline Uint size() const { return nThreads; };
+  inline T& operator[] (const Uint i) const {
+    if(m_v[i] == nullptr) m_v[i] = new T(initial);
+    return * m_v[i];
+  }
+};

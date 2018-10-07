@@ -70,7 +70,6 @@ void Learner_offPolicy::spawnTrainTasks_par()
       }
   }
 
-  for(Uint i=0;i<batchSize;i++) data->get(samp_seq[i])->setSampled(samp_obs[i]);
   updateComplete = true;
 }
 
