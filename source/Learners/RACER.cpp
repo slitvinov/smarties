@@ -21,19 +21,19 @@
 #define RACER_simpleSigma
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::
-TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
+void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(
+  const Uint seq, const Uint wID, const Uint bID, const Uint thrID) const
 {
-  Sequence* const traj = data->Set[seq];
+  Sequence* const traj = data->get(seq);
   const int ndata = traj->tuples.size()-1;
   if(thrID==0) profiler->stop_start("FWD");
 
-  F[0]->prepare_seq(traj, thrID);
-  for (int k=0; k<ndata; k++) F[0]->forward(traj, k, thrID);
+  F[0]->prepare_seq(traj, thrID, wID);
+  for (int k=0; k<ndata; k++) F[0]->forward(k, thrID);
   //if partial sequence then compute value of last state (!= R_end)
   if( traj->isTerminal(ndata) ) updateQret(traj, ndata, 0, 0, 0);
   else if( traj->isTruncated(ndata) ) {
-    const Rvec nxt = F[0]->forward(traj, ndata, thrID);
+    const Rvec nxt = F[0]->forward(ndata, thrID);
     traj->setStateValue(ndata, nxt[VsID]);
     updateQret(traj, ndata, 0, nxt[VsID], 0);
   }
@@ -41,7 +41,7 @@ TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
   if(thrID==0)  profiler->stop_start("POL");
   for(int k=ndata-1; k>=0; k--)
   {
-    const Rvec out_cur = F[0]->get(traj, k, thrID);
+    const Rvec out_cur = F[0]->get(k, thrID);
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[k]);
     #ifdef DKL_filter // far policy definition depends on divKL, not on rho
       const bool isOff = traj->distFarPolicy(k, pol.sampKLdiv, CmaxRet-1);
@@ -55,7 +55,7 @@ TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
       continue;
     } else G = compute(traj,k, out_cur, pol, thrID);
     //write gradient onto output layer:
-    F[0]->backward(G, traj, k, thrID);
+    F[0]->backward(G, k, thrID);
   }
 
   if(thrID==0)  profiler->stop_start("BCK");
@@ -63,36 +63,36 @@ TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
 }
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::
-Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wID) const
+void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint t,
+  const Uint wID, const Uint bID, const Uint thrID) const
 {
-  Sequence* const traj = data->Set[seq];
-  assert(samp+1 < traj->tuples.size());
+  Sequence* const traj = data->get(seq);
+  assert(t+1 < traj->tuples.size());
 
   if(thrID==0) profiler->stop_start("FWD");
 
-  F[0]->prepare_one(traj, samp, thrID); // prepare thread workspace
-  const Rvec out_cur = F[0]->forward(traj, samp, thrID); // network compute
+  F[0]->prepare_one(traj, t, thrID, wID); // prepare thread workspace
+  const Rvec out_cur = F[0]->forward(t, thrID); // network compute
 
   //Update Qret of eps' last state if sampled T-1. (and V(s_T) for truncated ep)
-  if( traj->isTerminal(samp+1) ) updateQret(traj, samp+1, 0, 0, 0);
-  else if( traj->isTruncated(samp+1) ) {
-    const Rvec nxt = F[0]->forward(traj, samp+1, thrID);
-    traj->setStateValue(samp+1, nxt[VsID]);
-    updateQret(traj, samp+1, 0, nxt[VsID], 0);
+  if( traj->isTerminal(t+1) ) updateQret(traj, t+1, 0, 0, 0);
+  else if( traj->isTruncated(t+1) ) {
+    const Rvec nxt = F[0]->forward(t+1, thrID);
+    traj->setStateValue(t+1, nxt[VsID]);
+    updateQret(traj, t+1, 0, nxt[VsID], 0);
   }
 
-  const Policy_t pol = prepare_policy(out_cur, traj->tuples[samp]);
+  const Policy_t pol = prepare_policy(out_cur, traj->tuples[t]);
   // check whether importance weight is in 1/Cmax < c < Cmax
-  const bool isOff = traj->isFarPolicy(samp, pol.sampImpWeight, CmaxRet);
+  const bool isOff = traj->isFarPolicy(t, pol.sampImpWeight, CmaxRet);
 
   if(thrID==0)  profiler->stop_start("CMP");
   Rvec grad;
-  if(isOff) grad = offPolCorrUpdate(traj, samp, out_cur, pol, thrID);
-  else grad = compute(traj, samp, out_cur, pol, thrID);
+  if(isOff) grad = offPolCorrUpdate(traj, t, out_cur, pol, thrID);
+  else grad = compute(traj, t, out_cur, pol, thrID);
 
   if(thrID==0)  profiler->stop_start("BCK");
-  F[0]->backward(grad, traj, samp, thrID); // place gradient onto output layer
+  F[0]->backward(grad, t, thrID); // place gradient onto output layer
   F[0]->gradient(thrID);  // backprop
 }
 
@@ -177,8 +177,8 @@ template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::
 select(Agent& agent)
 {
-  Sequence* const traj = data->inProgress[agent.ID];
-  data->add_state(agent);
+  Sequence* const traj = data_get->get(agent.ID);
+  data_get->add_state(agent);
   F[0]->prepare_agent(traj, agent);
 
   if( agent.Status < TERM_COMM ) // not end of sequence
@@ -197,7 +197,7 @@ select(Agent& agent)
     traj->action_adv.push_back(advantage);
     traj->state_vals.push_back(output[VsID]);
     agent.act(act);
-    data->add_action(agent, mu);
+    data_get->add_action(agent, mu);
 
     #ifndef NDEBUG
       Policy_t dbg = prepare_policy(output);
@@ -225,7 +225,7 @@ select(Agent& agent)
     for(Uint i=traj->ndata(); i>0; i--) updateQretFront(traj, i);
 
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
-    data->terminate_seq(agent);
+    data_get->terminate_seq(agent);
   }
 }
 
@@ -241,10 +241,11 @@ prepareGradient()
     // placed here because this happens right after update is computed
     // this can happen before prune and before workers are joined
     profiler->stop_start("QRET");
+    const Uint setSize = data->readNSeq();
     #pragma omp parallel for schedule(dynamic)
-    for(Uint i = 0; i < data->Set.size(); i++)
-      for(int j=data->Set[i]->just_sampled-1; j>0; j--)
-        updateQretBack(data->Set[i], j);
+    for(Uint i = 0; i < setSize; i++)
+      for(int j=data->get(i)->just_sampled-1; j>0; j--)
+        updateQretBack(data->get(i), j);
   }
 }
 
@@ -259,9 +260,10 @@ initializeLearner()
   // seen before this point.
   debugL("Rescale Retrace est. after gathering initial dataset");
   // placed here because on 1st step we just computed first rewards statistics
+  const Uint setSize = data->readNSeq();
   #pragma omp parallel for schedule(dynamic)
-  for(Uint i=0; i<data->Set.size(); i++)
-    for(Uint j=data->Set[i]->ndata(); j>0; j--) updateQretFront(data->Set[i],j);
+  for(Uint i=0; i<setSize; i++)
+    for(Uint j=data->get(i)->ndata(); j>0; j--) updateQretFront(data->get(i),j);
 }
 
 // Template specializations. From now on, nothing relevant to algorithm itself.

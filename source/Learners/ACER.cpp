@@ -7,16 +7,17 @@
 //
 
 #include "../Network/Builder.h"
-#include "Aggregator.h"
+#include "../Network/Aggregator.h"
 #include "ACER.h"
 
-void ACER::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
+void ACER::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
+  const Uint thrID) const
 {
-  Sequence* const traj = data->Set[seq];
+  Sequence* const traj = data->get(seq);
   const int ndata = traj->tuples.size()-1;
   //policy : we need just 2 calls: pi pi_tilde
-   F[0]->prepare_seq(traj, thrID);
-   F[1]->prepare_seq(traj, thrID);
+   F[0]->prepare_seq(traj, thrID, wID);
+   F[1]->prepare_seq(traj, thrID, wID);
   relay->prepare_seq(traj, thrID, ACT);
   //advantage : 1+nAexpect [A(s,a)] + 1 [A(s,a'), same normalization] calls
    F[2]->prepare_seq(traj, thrID, 1+nAexpectation);
@@ -30,24 +31,24 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) co
   if(thrID==0) profiler->stop_start("FWD");
   for(Uint k=0; k<(Uint)ndata; k++)
   {
-    const Rvec outPc = F[0]->forward<CUR>(traj, k, thrID);
+    const Rvec outPc = F[0]->forward_cur(k, thrID);
     policies.push_back(prepare_policy(outPc, traj->tuples[k]));
     assert(policies.size() == k+1);
-    const Rvec outPt = F[0]->forward<TGT>(traj, k, thrID);
+    const Rvec outPt = F[0]->forward_tgt(k, thrID);
     policies_tgt.push_back(prepare_policy(outPt));
-    const Rvec outVs = F[1]->forward(traj, k, thrID);
+    const Rvec outVs = F[1]->forward(k, thrID);
 
     relay->set(policies[k].sampAct, k, thrID);
     //if(thrID) cout << "Action: " << print(policies[k].sampAct) << endl;
-    const Rvec At = F[2]->forward<CUR>    (traj, k, thrID);
+    const Rvec At = F[2]->forward_cur(k, thrID);
     policy_samples[k] = policies[k].sample(&generators[thrID]);
     //if(thrID) cout << "Sample: " << print(policy_samples[k]) << endl;
     relay->set(policy_samples[k], k, thrID);
-    const Rvec Ap = F[2]->forward<CUR,TGT>(traj, k, thrID);
+    const Rvec Ap = F[2]->forward_cur<TGT>(k, thrID);
     advantages[k][0] = At[0]; advantages[k][1] = Ap[0]; Vstates[k] = outVs[0];
     for(Uint i = 0; i < nAexpectation; i++) {
       relay->set(policies[k].sample(&generators[thrID]), k, thrID);
-      const Rvec A = F[2]->forward(traj, k, thrID, 1+i);
+      const Rvec A = F[2]->forward(k, thrID, 1+i);
       advantages[k][2+i] = A[0];
     }
     //cout << print(advantages[k]) << endl; fflush(0);
@@ -55,7 +56,7 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) co
   Real Q_RET = data->scaledReward(traj, ndata);
   Real Q_OPC = data->scaledReward(traj, ndata);
   if ( not traj->ended ) {
-    const Rvec v_term = F[1]->forward(traj, ndata, thrID);
+    const Rvec v_term = F[1]->forward(ndata, thrID);
     Q_RET += gamma*v_term[0];
     Q_OPC += gamma*v_term[0];
   }
@@ -79,11 +80,11 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) co
     const Rvec pGrad = policyGradient(T, policies[k], policies_tgt[k], A_OPC,
       APol, policy_samples[k]);
 
-    F[0]->backward(pGrad,   traj, k, thrID);
-    F[1]->backward({(V_err+Q_err)}, traj, k, thrID);
-    F[2]->backward({Q_err}, traj, k, thrID);
+    F[0]->backward(pGrad, k, thrID);
+    F[1]->backward({(V_err+Q_err)}, k, thrID);
+    F[2]->backward({Q_err}, k, thrID);
     for(Uint i = 0; i < nAexpectation; i++)
-      F[2]->backward({-facExpect*Q_err}, traj, k, thrID, i+1);
+      F[2]->backward({-facExpect*Q_err}, k, thrID, i+1);
     //prepare Q with off policy corrections for next step:
     Q_RET = R +gamma*( C*(Q_RET-QTheta) +Vstates[k]);
     Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]); // as paper, but bad
@@ -99,7 +100,8 @@ void ACER::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) co
    F[2]->gradient(thrID);
 }
 
-void ACER::Train(const Uint seq, const Uint obs, const Uint thrID, const Uint wID) const
+void ACER::Train(const Uint seq, const Uint samp, const Uint wID,
+  const Uint bID, const Uint thrID) const
 {
   die("not allowed");
 }
@@ -124,21 +126,21 @@ Rvec ACER::policyGradient(const Tuple*const _t, const Policy_t& POL,
 
 void ACER::select(Agent& agent)
 {
-  Sequence* const traj = data->inProgress[agent.ID];
-  data->add_state(agent);
+  Sequence* const traj = data_get->get(agent.ID);
+  data_get->add_state(agent);
 
   if( agent.Status < TERM_COMM ) {
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
     F[0]->prepare_agent(traj, agent);
-    Rvec output = F[0]->forward_agent(traj, agent);
+    Rvec output = F[0]->forward_agent(agent);
     Policy_t pol = prepare_policy(output);
     Rvec mu = pol.getVector();
     const auto act=pol.finalize(explNoise>0,&generators[nThreads+agent.ID], mu);
     agent.act(act);
-    data->add_action(agent, mu);
+    data_get->add_action(agent, mu);
   }
-  else data->terminate_seq(agent);
+  else data_get->terminate_seq(agent);
 }
 
 ACER::ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)

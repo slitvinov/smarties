@@ -65,9 +65,11 @@ class RACER : public Learner_offPolicy
     return Advantage_t(adv_start, &aInfo, out, pol);
   }
 
-  void TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const override;
+  void TrainBySequences(const Uint seq, const Uint wID,
+    const Uint bID, const Uint tID) const override;
 
-  void Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wID) const override;
+  void Train(const Uint seq, const Uint samp, const Uint wID,
+    const Uint bID, const Uint tID) const override;
 
   Rvec compute(Sequence*const traj, const Uint samp,
     const Rvec& outVec, const Policy_t& POL, const Uint thrID) const;

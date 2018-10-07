@@ -7,16 +7,14 @@
 //
 
 #pragma once
-/*
+
 #include "DQN.h"
+#include "ACER.h"
 #include "NAF.h"
 #include "DPG.h"
 #include "RETPG.h"
-#include "RACER.h"
-#include "ACER.h"
-#include "PPO.h"
-*/
 #include "VRACER.h"
+#include "RACER.h"
 #include "CMALearner.h"
 #include "PPO.h"
 
@@ -34,7 +32,7 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
   Learner * ret = nullptr;
   std::ostringstream o;
   o << env->sI.dim << " ";
-  /*
+
   if(settings.learner=="NFQ" || settings.learner=="DQN") {
     assert(env->aI.discrete);
     o << env->aI.maxLabel << " " << env->aI.maxLabel;
@@ -42,7 +40,47 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
     env->aI.policyVecDim = env->aI.maxLabel;
     ret = new DQN(env, settings);
   }
-  else if (settings.learner == "RACER") {
+  else if (settings.learner == "ACER") {
+    settings.bSampleSequences = true;
+    assert(env->aI.discrete == false);
+    env->aI.policyVecDim = ACER::getnDimPolicy(&env->aI);
+    o << env->aI.dim << " " << env->aI.policyVecDim;
+    print(o, "problem_size.log", settings.world_rank);
+    ret = new ACER(env, settings);
+  }
+  else
+  if (settings.learner == "NA" || settings.learner == "NAF") {
+    settings.bSampleSequences = false;
+    env->aI.policyVecDim = 2*env->aI.dim;
+    assert(not env->aI.discrete);
+    o << env->aI.dim << " " << env->aI.policyVecDim;
+    print(o, "problem_size.log", settings.world_rank);
+    ret = new NAF(env, settings);
+  }
+  else
+  if (settings.learner == "DP" || settings.learner == "DPG") {
+    settings.bSampleSequences = false;
+    env->aI.policyVecDim = 2*env->aI.dim;
+    // non-NPER DPG is unstable with annealed network learn rate
+    // because critic network must adapt quickly
+    if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
+    o << env->aI.dim << " " << env->aI.policyVecDim;
+    print(o, "problem_size.log", settings.world_rank);
+    ret = new DPG(env, settings);
+  }
+  else
+  if (settings.learner == "RETPG") {
+    settings.bSampleSequences = false;
+    env->aI.policyVecDim = 2*env->aI.dim;
+    // non-NPER DPG is unstable with annealed network learn rate
+    // because critic network must adapt quickly
+    if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
+    o << env->aI.dim << " " << env->aI.policyVecDim;
+    print(o, "problem_size.log", settings.world_rank);
+    ret = new RETPG(env, settings);
+  }
+  else
+  if (settings.learner == "RACER") {
     if(env->aI.discrete) {
       using RACER_discrete = RACER<Discrete_advantage, Discrete_policy, Uint>;
       env->aI.policyVecDim = RACER_discrete::getnDimPolicy(&env->aI);
@@ -58,44 +96,7 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
       ret = new RACER_continuous(env, settings);
     }
   }
-  else if (settings.learner == "ACER") {
-    settings.bSampleSequences = true;
-    assert(env->aI.discrete == false);
-    env->aI.policyVecDim = ACER::getnDimPolicy(&env->aI);
-    o << env->aI.dim << " " << env->aI.policyVecDim;
-    print(o, "problem_size.log", settings.world_rank);
-    ret = new ACER(env, settings);
-  }
-  else if (settings.learner == "NA" || settings.learner == "NAF") {
-    settings.bSampleSequences = false;
-    env->aI.policyVecDim = 2*env->aI.dim;
-    assert(not env->aI.discrete);
-    o << env->aI.dim << " " << env->aI.policyVecDim;
-    print(o, "problem_size.log", settings.world_rank);
-    ret = new NAF(env, settings);
-  }
-  else if (settings.learner == "DP" || settings.learner == "DPG") {
-    settings.bSampleSequences = false;
-    env->aI.policyVecDim = 2*env->aI.dim;
-    // non-NPER DPG is unstable with annealed network learn rate
-    // because critic network must adapt quickly
-    if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
-    o << env->aI.dim << " " << env->aI.policyVecDim;
-    print(o, "problem_size.log", settings.world_rank);
-    ret = new DPG(env, settings);
-  }
-  else if (settings.learner == "RETPG") {
-    settings.bSampleSequences = false;
-    env->aI.policyVecDim = 2*env->aI.dim;
-    // non-NPER DPG is unstable with annealed network learn rate
-    // because critic network must adapt quickly
-    if(settings.clipImpWeight<=0) settings.epsAnneal = 0;
-    o << env->aI.dim << " " << env->aI.policyVecDim;
-    print(o, "problem_size.log", settings.world_rank);
-    ret = new RETPG(env, settings);
-  }
   else
-  */
   if (settings.learner == "CMA") {
     settings.batchSize_loc = settings.batchSize;
     if(settings.ESpopSize<1)

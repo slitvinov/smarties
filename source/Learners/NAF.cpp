@@ -26,14 +26,14 @@ Learner_offPolicy(_env, _set)
 
 void NAF::select(Agent& agent)
 {
-  Sequence* const traj = data->inProgress[agent.ID];
-  data->add_state(agent);
+  Sequence* const traj = data_get->get(agent.ID);
+  data_get->add_state(agent);
 
   if( agent.Status < TERM_COMM ) // not last of a sequence
   {
     F[0]->prepare_agent(traj, agent);
     //Compute policy and value on most recent element of the sequence.
-    const Rvec output = F[0]->forward_agent(traj, agent);
+    const Rvec output = F[0]->forward_agent(agent);
     //cout << print(output) << endl;
     Rvec polvec = Rvec(&output[net_indices[2]], &output[net_indices[2]]+nA);
     #ifndef NDEBUG
@@ -52,26 +52,28 @@ void NAF::select(Agent& agent)
       act = policy.updateOrUhState(OrUhState[agent.ID], MU, OrUhDecay);
 
     agent.act(act);
-    data->add_action(agent, MU);
+    data_get->add_action(agent, MU);
   } else {
     OrUhState[agent.ID] = Rvec(nA, 0);
-    data->terminate_seq(agent);
+    data_get->terminate_seq(agent);
   }
 }
 
-void NAF::TrainBySequences(const Uint seq, const Uint thrID, const Uint wID) const
+void NAF::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
+  const Uint thrID) const
 {
   die("");
 }
 
-void NAF::Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wID) const
+void NAF::Train(const Uint seq, const Uint samp, const Uint wID,
+  const Uint bID, const Uint thrID) const
 {
   if(thrID==0) profiler->stop_start("FWD");
 
-  Sequence* const traj = data->Set[seq];
-  F[0]->prepare_one(traj, samp, thrID);
+  Sequence* const traj = data->get(seq);
+  F[0]->prepare_one(traj, samp, thrID, wID);
 
-  const Rvec output = F[0]->forward(traj, samp, thrID);
+  const Rvec output = F[0]->forward(samp, thrID);
 
   if(thrID==0) profiler->stop_start("CMP");
   // prepare advantage and policy
@@ -88,7 +90,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wI
 
   Real Vsnew = data->scaledReward(traj, samp+1);
   if (not traj->isTerminal(samp+1) && not isOff) {
-    const Rvec target = F[0]->forward<TGT>(traj, samp+1, thrID);
+    const Rvec target = F[0]->forward_tgt(samp+1, thrID);
     Vsnew += gamma*target[net_indices[0]];
   }
   const Real error = isOff? 0 : Vsnew - Qsold;
@@ -104,7 +106,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint thrID, const Uint wI
   trainInfo->log(Qsold, error, {beta, POL.sampImpWeight}, thrID);
   traj->setMseDklImpw(samp, error*error, POL.sampKLdiv, POL.sampImpWeight);
   if(thrID==0)  profiler->stop_start("BCK");
-  F[0]->backward(grad, traj, samp, thrID);
+  F[0]->backward(grad, samp, thrID);
   F[0]->gradient(thrID);
 }
 

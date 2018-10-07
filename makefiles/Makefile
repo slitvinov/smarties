@@ -60,7 +60,7 @@ OBJ_FILES = ArgParser.o main.o ObjectFactory.o Communicator.o Sequences.o \
 		CMA_Optimizer.o CMALearner.o MemoryBuffer.o Learner_offPolicy.o \
 		Math_tests.o Communicator_internal.o Learner.o  Scheduler.o Aggregator.o \
 		VRACER.o Encapsulator.o Collector.o MemoryProcessing.o MemorySharing.o \
-		StatsTracker.o Sampling.o PPO.o # RACER.o NAF.o DPG.o DQN.o RETPG.o ACER.o
+		StatsTracker.o Sampling.o PPO.o RACER.o RETPG.o DPG.o NAF.o DQN.o ACER.o
 
 CPP_FILES = $(notdir $(OBJ_FILES:.o=.cpp))
 
