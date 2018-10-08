@@ -23,7 +23,8 @@ private:
   Real& invstd_reward = RM->invstd_reward;
 
   const Uint dimS = RM->dimS;
-  Uint nPruned = 0, minInd = 0, nOffPol = 0, avgDKL = 0;
+  Uint nPruned = 0, minInd = 0, nOffPol = 0;
+  Real avgDKL = 0;
   int delPtr = -1;
 
   DelayedReductor Ssum1Rdx = DelayedReductor(settings, LDvec(dimS, 0) );
