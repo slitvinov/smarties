@@ -267,6 +267,8 @@ struct THRvec
   const T initial;
   mutable std::vector<T*> m_v = std::vector<T*> (nThreads, nullptr);
   THRvec(const Uint size, const T init=T()) : nThreads(size), initial(init) {}
+  THRvec(const THRvec&c): nThreads(c.nThreads),initial(c.initial),m_v(c.m_v) {}
+
   ~THRvec() { for (Uint i=0; i<nThreads; i++) delete m_v[i]; }
   inline void resize(const Uint N)
   {
@@ -275,7 +277,10 @@ struct THRvec
   }
   inline Uint size() const { return nThreads; };
   inline T& operator[] (const Uint i) const {
-    if(m_v[i] == nullptr) m_v[i] = new T(initial);
+    if(m_v[i] == nullptr) {
+      m_v[i] = new T(initial);
+      //printf("allocting %d\n", i);
+    }
     return * m_v[i];
   }
 };

@@ -81,6 +81,8 @@ struct Sequence
     vector<float> priorityImpW;
   #endif
 
+  std::mutex seq_mutex;
+
   inline Uint ndata() const {
     assert(tuples.size());
     if(tuples.size()==0) return 0;
@@ -126,8 +128,17 @@ struct Sequence
     assert( t < state_vals.size() );
     state_vals[t] = V;
   }
-  inline void setMseDklImpw(const Uint t,const Fval E,const Fval D,const Fval W)
+  inline void setMseDklImpw(const Uint t, const Fval E, const Fval D,
+    const Fval W, const Fval C, const Fval invC)
   {
+    const bool wasOff = offPolicImpW[t] > C || offPolicImpW[t] < invC;
+    const bool isOff = W > C || W < invC;
+    {
+      std::lock_guard<std::mutex> lock(seq_mutex);
+      sumKLDiv = sumKLDiv - KullbLeibDiv[t] + D;
+      MSE = MSE - SquaredError[t] + E;
+      nOffPol = nOffPol - wasOff + isOff;
+    }
     SquaredError[t] = E;
     KullbLeibDiv[t] = D;
     offPolicImpW[t] = W;
@@ -138,8 +149,9 @@ struct Sequence
     const bool isOff = W > (Fval)1 + C || W < (Fval)1 - C;
     return isOff;
   }
-  inline bool isFarPolicy(const Uint t, const Fval W, const Fval C) const {
-    const bool isOff = W > C || W < (Fval)1 / C;
+  inline bool isFarPolicy(const Uint t, const Fval W,
+    const Fval C, const Fval invC) const {
+    const bool isOff = W > C || W < invC;
     // If C<=1 assume we never filter far policy samples
     return C > (Fval)1 && isOff;
   }

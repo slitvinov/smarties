@@ -18,7 +18,7 @@ Learner_offPolicy(_env, _set)
   const Uint nOutp = 1 +aInfo.dim +Quadratic_advantage::compute_nL(&aInfo);
   assert(nOutp == net_outputs[0] + net_outputs[1] + net_outputs[2]);
   Builder build_pol = F[0]->buildFromSettings(_set, nOutp);
-  F[0]->initializeNetwork(build_pol, 0);
+  F[0]->initializeNetwork(build_pol);
   test();
   printf("NAF\n");
   trainInfo = new TrainData("NAF", _set, 0, "| beta | avgW ", 2);
@@ -86,7 +86,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint wID,
   //cout << POL.sampImpWeight << " " << POL.sampKLdiv << " " << CmaxRet << endl;
 
   const Real Qsold = output[net_indices[0]] + ADV.computeAdvantage(POL.sampAct);
-  const bool isOff = traj->isFarPolicy(samp, POL.sampImpWeight, CmaxRet);
+  const bool isOff = traj->isFarPolicy(samp, POL.sampImpWeight,CmaxRet,CinvRet);
 
   Real Vsnew = data->scaledReward(traj, samp+1);
   if (not traj->isTerminal(samp+1) && not isOff) {
@@ -104,7 +104,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint wID,
   }
 
   trainInfo->log(Qsold, error, {beta, POL.sampImpWeight}, thrID);
-  traj->setMseDklImpw(samp, error*error, POL.sampKLdiv, POL.sampImpWeight);
+  traj->setMseDklImpw(samp, error*error, POL.sampKLdiv, POL.sampImpWeight, CmaxRet, CinvRet);
   if(thrID==0)  profiler->stop_start("BCK");
   F[0]->backward(grad, samp, thrID);
   F[0]->gradient(thrID);

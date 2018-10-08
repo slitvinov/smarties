@@ -64,8 +64,8 @@ void MemoryBuffer::clearAll()
   for(auto& old_traj: Set) _dispose_object(old_traj);
 
   Set.clear(); //clear trajectories used for learning
-  nSequences = 0;
   nTransitions = 0;
+  nSequences = 0;
 }
 
 void MemoryBuffer::sample(vector<Uint>& seq, vector<Uint>& obs)

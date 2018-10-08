@@ -274,7 +274,7 @@ output layers with normal Xavier initialization."
 multiplied by learn rate: w -= eta * nnLambda * w . L1 decay option in Bund.h"
 #define TYPEVAL_nnLambda Real
 #define TYPENUM_nnLambda REAL
-#define DEFAULT_nnLambda numeric_limits<Real>::epsilon()
+#define DEFAULT_nnLambda numeric_limits<nnReal>::epsilon()
   Real nnLambda = DEFAULT_nnLambda;
 
 #define CHARARG_nnBPTTseq 'T'

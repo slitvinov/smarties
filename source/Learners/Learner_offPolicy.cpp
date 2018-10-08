@@ -166,7 +166,7 @@ void Learner_offPolicy::save()
 {
   const long int currStep = nStep()+1;
   Learner::save();
-  static constexpr Real freqSave = 1000*PRFL_DMPFRQ;
+  const Real freqSave = tPrint * PRFL_DMPFRQ;
   const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
   const bool bBackup = currStep % freqBackup == 0;
   if(not bBackup) return;

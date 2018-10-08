@@ -82,15 +82,13 @@ struct StatsTracker
   const Uint n_stats;
   const MPI_Comm comm;
   const Uint nThreads, learn_size, learn_rank;
-  const Real grad_cut_fac;
   mutable LDvec cntVec = LDvec(nThreads+1,0);
   mutable vector<LDvec> avgVec = vector<LDvec>(nThreads+1, LDvec());
   mutable vector<LDvec> stdVec = vector<LDvec>(nThreads+1, LDvec());
   LDvec instMean, instStdv;
-  mutable Real numCut = 0, numTot = 0;
   unsigned long nStep = 0;
 
-  StatsTracker(const Uint N, const Settings& set, Real fac);
+  StatsTracker(const Uint N, const Settings& set);
 
   void track_vector(const Rvec grad, const Uint thrID) const;
 

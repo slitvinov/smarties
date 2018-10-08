@@ -34,4 +34,4 @@ SETTINGS+=" --maxTotObsNum 64000"
 SETTINGS+=" --batchSize 1"
 SETTINGS+=" --ESpopSize 120"
 #network update learning rate
-SETTINGS+=" --learnrate 0.001"
+SETTINGS+=" --learnrate 0.01"

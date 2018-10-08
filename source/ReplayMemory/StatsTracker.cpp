@@ -229,9 +229,9 @@ void TrainData::trackPolicy(const std::vector<Real> polG,
   pVec[thrID+1][2] += tmpPrj/(std::sqrt(tmpPen)+eps);
 }
 
-StatsTracker::StatsTracker(const Uint N, const Settings& set, Real fac) :
+StatsTracker::StatsTracker(const Uint N, const Settings& set) :
 n_stats(N), comm(set.mastersComm), nThreads(set.nThreads),
-learn_size(set.learner_size), learn_rank(set.learner_rank), grad_cut_fac(fac)
+learn_size(set.learner_size), learn_rank(set.learner_rank)
 {
   avgVec[0].resize(n_stats, 0); stdVec[0].resize(n_stats, 10);
   instMean.resize(n_stats, 0); instStdv.resize(n_stats, 0);

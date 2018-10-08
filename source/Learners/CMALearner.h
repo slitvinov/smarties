@@ -21,9 +21,9 @@ protected:
   const Uint nSeqPerWorker = batchSize * ESpopSize_loc / nWorkers_own;
   const Uint ESpopStart = ESpopSize_loc * learn_rank;
 
-  std::vector<long> WiEnded = std::vector<long>(nWorkers_own, 0);
-  std::vector<long> WnEnded = std::vector<long>(nWorkers_own, nAgentsPerWorker);
-  std::vector<long> WwghtID = std::vector<long>(nWorkers_own, 0);
+  THRvec<long> WiEnded = THRvec<long>(nWorkers_own, 0);
+  THRvec<long> WnEnded = THRvec<long>(nWorkers_own, nAgentsPerWorker);
+  THRvec<long> WwghtID = THRvec<long>(nWorkers_own, 0);
 
   std::vector<Rvec> R = std::vector<Rvec>(nWorkers_own, Rvec(ESpopSize, 0) );
 
@@ -36,9 +36,11 @@ public:
   //main training functions:
   void select(Agent& agent) override;
 
+  void applyGradient() override;
   void prepareGradient() override;
   void initializeLearner() override;
   bool blockDataAcquisition() const override;
+  void globalGradCounterUpdate() override;
   void spawnTrainTasks_seq() override;
   void spawnTrainTasks_par() override;
   bool bNeedSequentialTrain() override;

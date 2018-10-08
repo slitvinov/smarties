@@ -47,7 +47,7 @@ void Approximator::allocMorePerThread(const Uint nAlloc) {
           series[i].reserve(MAX_SEQ_LEN);
 }
 
-void Approximator::initializeNetwork(Builder& build, Real cutGradFactor) {
+void Approximator::initializeNetwork(Builder& build) {
   net = build.build();
   opt = build.opt;
   assert(opt not_eq nullptr && net not_eq nullptr);
@@ -98,7 +98,7 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor) {
   #ifdef __CHECK_DIFF //check gradients with finite differences
     net->checkGrads();
   #endif
-  gradStats = new StatsTracker(net->getnOutputs(), settings, cutGradFactor);
+  gradStats = new StatsTracker(net->getnOutputs(), settings);
 }
 
 void Approximator::prepare_seq(Sequence*const traj, const Uint thrID,

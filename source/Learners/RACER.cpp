@@ -43,11 +43,8 @@ void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(
   {
     const Rvec out_cur = F[0]->get(k, thrID);
     const Policy_t pol = prepare_policy(out_cur, traj->tuples[k]);
-    #ifdef DKL_filter // far policy definition depends on divKL, not on rho
-      const bool isOff = traj->distFarPolicy(k, pol.sampKLdiv, CmaxRet-1);
-    #else // far policy definition depends on rho (as in paper)
-      const bool isOff = traj->isFarPolicy(k, pol.sampImpWeight, CmaxRet);
-    #endif
+    // far policy definition depends on rho (as in paper)
+    const bool isOff = traj->isFarPolicy(k, pol.sampImpWeight, CmaxRet,CinvRet);
     // in case rho outside bounds, do not compute gradient
     Rvec G;
     if(isOff) {
@@ -84,7 +81,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint t,
 
   const Policy_t pol = prepare_policy(out_cur, traj->tuples[t]);
   // check whether importance weight is in 1/Cmax < c < Cmax
-  const bool isOff = traj->isFarPolicy(t, pol.sampImpWeight, CmaxRet);
+  const bool isOff = traj->isFarPolicy(t, pol.sampImpWeight, CmaxRet, CinvRet);
 
   if(thrID==0)  profiler->stop_start("CMP");
   Rvec grad;
@@ -123,7 +120,7 @@ compute(Sequence*const traj, const Uint samp, const Rvec& outVec,
   gradient[VsID] = beta * Ver;
   POL.finalize_grad(finalG, gradient);
   ADV.grad(POL.sampAct, beta * Aer, gradient);
-  traj->setMseDklImpw(samp, Ver*Ver, dkl, rho); // update ER metrics of sample
+  traj->setMseDklImpw(samp, Ver*Ver, dkl, rho, CmaxRet, CinvRet);
   // logging for diagnostics:
   trainInfo->log(V_cur+A_cur, A_RET-A_cur, polG,penalG, {dAdv,rho}, thrID);
   return gradient;
@@ -140,7 +137,7 @@ offPolCorrUpdate(Sequence*const S, const Uint t, const Rvec output,
   const Real A_RET = S->Q_RET[t] +S->state_vals[t] -output[VsID];
   const Real Ver = std::min((Real)1, pol.sampImpWeight) * (A_RET-A_cur);
   updateQret(S, t, A_cur, output[VsID], pol);
-  S->setMseDklImpw(t, Ver*Ver, pol.sampKLdiv, pol.sampImpWeight);
+  S->setMseDklImpw(t, Ver*Ver, pol.sampKLdiv, pol.sampImpWeight, CmaxRet, CinvRet);
   const Rvec pg = pol.div_kl_grad(S->tuples[t]->mu, beta-1);
   // only non zero gradient is policy penalization
   Rvec gradient = Rvec(F[0]->nOutputs(), 0);
@@ -388,7 +385,7 @@ RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
     Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, explNoise);
     build.setLastLayersBias(initBias);
   #endif
-  F[0]->initializeNetwork(build, STD_GRADCUT);
+  F[0]->initializeNetwork(build);
   //F[0]->save(learner_name+"init");
   if(F.size() > 1) die("");
   F[0]->opt->bAnnealLearnRate= true;

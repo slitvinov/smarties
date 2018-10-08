@@ -37,7 +37,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
         }
       }
       if(WS>0) {
-        #pragma omp critical (RDXS)
+        #pragma omp critical
         for(Uint k=0; k<dimS; k++) {
           newSSum[k]   += thNewSSum[k];
           newSSqSum[k] += thNewSSqSum[k];
@@ -135,26 +135,27 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
   // vector indicating location of sequence to delete
   int  oldP = -1, farP = -1, dklP = -1;
   Real dklV = -1, farV = -1, oldV = 9e9;
-  const Fval invC = 1/CmaxRho;
   Real _nOffPol = 0, _totDKL = 0;
   const Uint setSize = RM->readNSeq();
-
   #pragma omp parallel reduction(+ : _nOffPol, _totDKL)
   {
     std::pair<int, Real> farpol{-1, -1}, maxdkl{-1, -1}, oldest{-1, 9e9};
-    #pragma omp for schedule(dynamic) nowait
+    #pragma omp for schedule(static, 1) nowait
     for(Uint i = 0; i < setSize; i++)
     {
-      if(Set[i]->just_sampled >= 0) {
-        Set[i]->nOffPol = 0; Set[i]->sumKLDiv = 0;
+      #ifndef NDEBUG
+        const Fval invC = 1/CmaxRho;
+        Fval dbg_nOffPol = 0, dbg_sumKLDiv = 0;
         for(Uint j=0; j<Set[i]->ndata(); j++) {
           const Fval W = Set[i]->offPolicImpW[j];
-          Set[i]->sumKLDiv += Set[i]->KullbLeibDiv[j];
+          dbg_sumKLDiv += Set[i]->KullbLeibDiv[j];
           assert( W>=0  &&  Set[i]->KullbLeibDiv[j]>=0 );
           // sequence is off policy if offPol W is out of 1/C : C
-          if(W>CmaxRho || W<invC) Set[i]->nOffPol += 1;
+          if(W>CmaxRho || W<invC) dbg_nOffPol += 1;
         }
-      }
+        if( std::fabs(dbg_sumKLDiv - Set[i]->sumKLDiv) > 1e-4 ) _die("%f %f", dbg_sumKLDiv, Set[i]->sumKLDiv);
+        if( std::fabs(dbg_nOffPol - Set[i]->nOffPol) > 1 ) _die("%f %f", dbg_nOffPol, Set[i]->nOffPol);
+      #endif
 
       const Real W_FAR = Set[i]->nOffPol /Set[i]->ndata();
       const Real W_DKL = Set[i]->sumKLDiv/Set[i]->ndata();
@@ -164,7 +165,7 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
       if(    W_FAR >farpol.second) { farpol.second= W_FAR;     farpol.first=i; }
       if(    W_DKL >maxdkl.second) { maxdkl.second= W_DKL;     maxdkl.first=i; }
     }
-    #pragma omp critical (RDXP)
+    #pragma omp critical
     {
       if(oldest.second<oldV) { oldP=oldest.first; oldV=oldest.second; }
       if(farpol.second>farV) { farP=farpol.first; farV=farpol.second; }
@@ -189,7 +190,6 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
 
 void MemoryProcessing::finalize()
 {
-  if(delPtr<0) die("undefined behavior");
   const int nB4 = RM->readNSeq();
 
   // reset flags that signal request to update estimators:
@@ -198,7 +198,7 @@ void MemoryProcessing::finalize()
   for(Uint i = 0; i < sampledSize; i++) {
     Sequence * const S = RM->get(sampled[i]);
     assert(S->just_sampled >= 0);
-    S->just_sampled=-1;
+    S->just_sampled = -1;
   }
   for(int i=0; i<nB4; i++) assert(RM->get(i)->just_sampled < 0);
 
@@ -206,10 +206,10 @@ void MemoryProcessing::finalize()
   // but if N > Ntarget even if we remove the trajectory
   // done to avoid bugs if a sequence is longer than maxTotObsNum
   // negligible effect if hyperparameters are chosen wisely
+  if(delPtr<0) die("undefined behavior");
   const Uint maxTotObsNum_loc = settings.maxTotObsNum_loc;
   if(nTransitions.load()-Set[delPtr]->ndata() > maxTotObsNum_loc)
     RM->removeSequence(delPtr);
-
   delPtr = -1;
   const long nSeq = RM->readNSeq();
   nPruned += nB4 - nSeq;

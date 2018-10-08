@@ -40,14 +40,14 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   // check whether importance weight is in 1/Cmax < c < Cmax
   const Real R = data->scaledReward(S, t+1), W = P.sampImpWeight;
   const Real Vcur = out[0], Vnxt = S->state_vals[t+1], Dnxt = S->Q_RET[t+1];
-  const bool isOff = S->isFarPolicy(t, W, CmaxRet);
+  const bool isOff = S->isFarPolicy(t, W, CmaxRet, CinvRet);
   const Real A_RET = R + gamma * (Dnxt + Vnxt) - Vcur;
   const Real D_RET = std::min((Real)1, W) * A_RET;
   const Real deltaD = std::pow(D_RET-S->Q_RET[t], 2);
 
   if( wID == 0 ) {
     S->setStateValue(t, Vcur); S->setRetrace(t, D_RET);
-    S->setMseDklImpw(t, D_RET*D_RET, P.sampKLdiv, W);
+    S->setMseDklImpw(t, D_RET*D_RET, P.sampKLdiv, W, CmaxRet, CinvRet);
   }
 
   if(ESpopSize>1) {
@@ -277,7 +277,7 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
     Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, explNoise);
     build.setLastLayersBias(initBias);
   #endif
-  F[0]->initializeNetwork(build, STD_GRADCUT);
+  F[0]->initializeNetwork(build);
 
   {  // TEST FINITE DIFFERENCES:
     Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));

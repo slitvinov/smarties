@@ -77,6 +77,7 @@ class Learner
   Profiler* profiler = nullptr;
   std::string learner_name;
   Uint learnID;
+  Uint tPrint = 1000;
 
   Learner(Environment*const env, Settings & settings);
 
@@ -130,10 +131,7 @@ class Learner
     bReady4Init = true;
     bUpdateNdata = true;
   }
-  void globalGradCounterUpdate() {
-    _nStep++;
-    bUpdateNdata = false;
-  }
+  virtual void globalGradCounterUpdate();
 
   bool unblockGradStep() const {
     return bUpdateNdata.load();

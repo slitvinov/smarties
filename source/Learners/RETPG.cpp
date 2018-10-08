@@ -32,7 +32,7 @@ void RETPG::Train(const Uint seq, const Uint t, const Uint wID,
 
   const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
   const Real DKL = POL.sampKLdiv, rho = POL.sampImpWeight;
-  const bool isOff = traj->isFarPolicy(t, rho, CmaxRet);
+  const bool isOff = traj->isFarPolicy(t, rho, CmaxRet, CinvRet);
 
   relay->prepare(traj, thrID, NET); //relay to pass policy (output of F[0])
   const Rvec v_curr = F[1]->forward_cur<TGT>(t, thrID); //here is {s,pi}
@@ -68,7 +68,7 @@ void RETPG::Train(const Uint seq, const Uint t, const Uint wID,
   //bookkeeping:
   const Real dAdv = updateQret(traj, t, q_curr[0]-v_curr[0], v_curr[0], POL);
   trainInfo->log(q_curr[0], grad_val[0], polG, penG, {beta, dAdv, rho}, thrID);
-  traj->setMseDklImpw(t, grad_val[0]*grad_val[0], DKL, rho);
+  traj->setMseDklImpw(t, grad_val[0]*grad_val[0], DKL, rho, CmaxRet, CinvRet);
   if(thrID==0)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
   F[1]->gradient(thrID);
@@ -188,7 +188,7 @@ RETPG::RETPG(Environment*const _e, Settings& _s) : Learner_offPolicy(_e, _s)
   const Real initParam = noiseMap_inverse(explNoise);
   //F[0]->blockInpGrad = true; // this line must happen b4 initialize
   build_pol.addParamLayer(nA, "Linear", initParam);
-  F[0]->initializeNetwork(build_pol, 0);
+  F[0]->initializeNetwork(build_pol);
 
   relay = new Aggregator(_s, data, nA, F[0]);
   F.push_back(new Approximator("critic", _s, input, data, relay));
@@ -200,7 +200,7 @@ RETPG::RETPG(Environment*const _e, Settings& _s) : Learner_offPolicy(_e, _s)
   // we want initial Q to be approx equal to 0 everywhere.
   // if LRelu we need to make initialization multiplier smaller:
   Builder build_val = F[1]->buildFromSettings(_s, 1 );
-  F[1]->initializeNetwork(build_val, 0);
+  F[1]->initializeNetwork(build_val);
   printf("DPG with Retrace-based Q network target\n");
 
   trainInfo = new TrainData("DPG", _s, 1, "| beta | dAdv | avgW ", 3);

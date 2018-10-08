@@ -68,7 +68,7 @@ struct Approximator
   Builder buildFromSettings(Settings& _s, const vector<Uint> n_outputs);
   Builder buildFromSettings(Settings& _s, const Uint n_outputs);
 
-  void initializeNetwork(Builder& build, Real cutGradFactor = 0);
+  void initializeNetwork(Builder& build);
   void allocMorePerThread(const Uint nAlloc);
 
   // agent always uses mean weight vector, also when using evol strategies

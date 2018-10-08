@@ -68,7 +68,7 @@ void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp,
   trainInfo->log(val_cur[0], verr, policy_grad, penal_grad,
     { (Real)valPenal[0], DivKL, rho_cur }, thrID);
   #endif
-  traj->setMseDklImpw(samp, verr*verr, DivKL, rho_cur);
+  traj->setMseDklImpw(samp, verr*verr, DivKL, rho_cur, 1+CmaxPol, 1-CmaxPol);
 
   if(thrID==0)  profiler->stop_start("BCK");
   //if(!thrID) cout << "back pol" << endl;

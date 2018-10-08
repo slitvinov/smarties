@@ -37,7 +37,7 @@ DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set)
   const Real initParam = noiseMap_inverse(explNoise);
   //F[0]->blockInpGrad = true; // this line must happen b4 initialize
   build_pol.addParamLayer(nA, "Linear", initParam);
-  F[0]->initializeNetwork(build_pol, 0);
+  F[0]->initializeNetwork(build_pol);
 
   relay = new Aggregator(_set, data, nA, F[0]);
   F.push_back(new Approximator("critic", _set, input, data, relay));
@@ -48,7 +48,7 @@ DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set)
   // we want initial Q to be approx equal to 0 everywhere.
   // if LRelu we need to make initialization multiplier smaller:
   Builder build_val = F[1]->buildFromSettings(_set, 1 );
-  F[1]->initializeNetwork(build_val, 0);
+  F[1]->initializeNetwork(build_val);
   printf("DPG\n");
 
   trainInfo = new TrainData("DPG", _set, 1, "| beta | avgW ", 2);
@@ -95,11 +95,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint wID,
   const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
   const Real DKL = POL.sampKLdiv, rho = POL.sampImpWeight;
   //if(!thrID) cout<<"tpol "<<print(polVec)<<" act: "<<print(POL.sampAct)<<endl;
-  #ifdef DKL_filter // if CmaxPol=0 isOff is always false
-    const bool isOff = traj->distFarPolicy(t, DKL, CmaxRet-1);
-  #else
-    const bool isOff = traj->isFarPolicy(t, rho, CmaxRet);
-  #endif
+  const bool isOff = traj->isFarPolicy(t, rho, CmaxRet,CinvRet);
 
   relay->prepare(traj, thrID, ACT);
   const Rvec q_curr = F[1]->forward_cur(t, thrID); // inp here is {s,a}
@@ -144,7 +140,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint wID,
 
   //bookkeeping:
   trainInfo->log(q_curr[0], grad_val[0], polG, penG, {beta,rho}, thrID);
-  traj->setMseDklImpw(t, grad_val[0]*grad_val[0], DKL, rho);
+  traj->setMseDklImpw(t, grad_val[0]*grad_val[0], DKL, rho, CmaxRet, CinvRet);
   if(thrID==0)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
   F[1]->gradient(thrID);

@@ -69,7 +69,7 @@ void Master::run()
       while ( ! learnersUnlockQueue() ) usleep(1);
     }
 
-    if(iterNum++ % 1000 == 0) flushRewardBuffer();
+    flushRewardBuffer();
 
     //This is the last possible time to finish the blocking mpi MPI_Allreduce
     // and finally perform the actual gradient step. Also, operations on memory
@@ -162,6 +162,9 @@ void Master::flushRewardBuffer()
 {
   for(int i=0; i<nPerRank; i++)
   {
+    const Learner*const aAlgo = pickLearner(i, i);
+    if( (iterNum % aAlgo->tPrint) not_eq 0 ) continue;
+
     ostringstream& agentBuf = rewardsBuffer[i];
     streampos pos = agentBuf.tellp(); // store current location
     agentBuf.seekp(0, ios_base::end); // go to end
@@ -176,6 +179,7 @@ void Master::flushRewardBuffer()
     outf.flush();
     outf.close();
   }
+  iterNum++;
 }
 
 void Master::dumpCumulativeReward(const int agent, const int worker,
