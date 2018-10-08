@@ -10,24 +10,6 @@
 
 #include "Functions.h"
 
-struct Memory //Memory light recipient for recurrent connections
-{
-  Memory(vector<Uint>_sizes, vector<Uint>_bOut): nLayers(_sizes.size()),
-  outvals(allocate_vec(_sizes)), sizes(_sizes) {}
-
-  inline void clearOutput() const {
-    for(Uint i=0; i<nLayers; i++) {
-      assert(outvals[i] not_eq nullptr);
-      std::memset( outvals[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
-    }
-  }
-
-  ~Memory() { for(auto& p : outvals) if(p not_eq nullptr) free(p); }
-  const Uint nLayers;
-  const vector<nnReal*> outvals;
-  const vector<Uint> sizes;
-};
-
 struct Activation
 {
   Uint _nOuts(vector<Uint> _sizes, vector<Uint> _bOut) {
@@ -183,26 +165,6 @@ struct Activation
     for(Uint i=0; i<nLayers; i++) {
       assert(suminps[i] not_eq nullptr);
       std::memset( suminps[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
-    }
-  }
-
-  inline void loadMemory(const Memory*const _M) const {
-    for(Uint i=0; i<nLayers; i++) {
-      assert(outvals[i] not_eq nullptr);
-      assert(_M->outvals[i] not_eq nullptr);
-      assert(sizes[i] == _M->sizes[i]);
-      std::copy(_M->outvals[i], _M->outvals[i]+sizes[i], outvals[i]);
-      //memcpy(outvals[i], _M->outvals[i], sizes[i]*sizeof(nnReal));
-    }
-  }
-
-  inline void storeMemory(Memory*const _M) const {
-    for(Uint i=0; i<nLayers; i++) {
-      assert(outvals[i] not_eq nullptr);
-      assert(_M->outvals[i] not_eq nullptr);
-      assert(sizes[i] == _M->sizes[i]);
-      std::copy(outvals[i], outvals[i]+sizes[i], _M->outvals[i]);
-      //memcpy(_M->outvals[i], outvals[i], sizes[i]*sizeof(nnReal));
     }
   }
 

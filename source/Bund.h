@@ -140,9 +140,15 @@ typedef float Real;
 ////////////////////////////////////////////////////////////////////////////////
 // Data format for storage in memory buffer. Switch to float for example for
 // Atari where the memory buffer is in the order of GBs.
+#if 0
+typedef double memReal;
+typedef double Fval;
+#define MPI_Fval MPI_DOUBLE
+#else
 typedef float memReal;
 typedef float Fval;
 #define MPI_Fval MPI_FLOAT
+#endif
 
 typedef std::vector<Fval> Fvec;
 typedef std::vector<Real> Rvec;

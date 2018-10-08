@@ -137,7 +137,7 @@ offPolCorrUpdate(Sequence*const S, const Uint t, const Rvec output,
   const Real A_RET = S->Q_RET[t] +S->state_vals[t] -output[VsID];
   const Real Ver = std::min((Real)1, pol.sampImpWeight) * (A_RET-A_cur);
   updateQret(S, t, A_cur, output[VsID], pol);
-  S->setMseDklImpw(t, Ver*Ver, pol.sampKLdiv, pol.sampImpWeight, CmaxRet, CinvRet);
+  S->setMseDklImpw(t, Ver*Ver,pol.sampKLdiv,pol.sampImpWeight, CmaxRet,CinvRet);
   const Rvec pg = pol.div_kl_grad(S->tuples[t]->mu, beta-1);
   // only non zero gradient is policy penalization
   Rvec gradient = Rvec(F[0]->nOutputs(), 0);
