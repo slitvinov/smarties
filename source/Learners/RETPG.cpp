@@ -9,6 +9,14 @@
 #include "RETPG.h"
 #include "../Network/Builder.h"
 #include "../Network/Aggregator.h"
+#include "../Math/Gaussian_policy.h"
+
+static inline Gaussian_policy prepare_policy(const Rvec&out,
+  const ActionInfo*const aI, const Tuple*const t = nullptr) {
+  Gaussian_policy pol({0, aI->dim}, aI, out);
+  if(t not_eq nullptr) pol.prepare(t->a, t->mu);
+  return pol;
+}
 
 void RETPG::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
   const Uint thrID) const {
@@ -30,7 +38,7 @@ void RETPG::Train(const Uint seq, const Uint t, const Uint wID,
   relay->prepare(traj, thrID, ACT);
   const Rvec q_curr = F[1]->forward_cur(t, thrID); // inp here is {s,a}
 
-  const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
+  const Gaussian_policy POL = prepare_policy(polVec, &aInfo, traj->tuples[t]);
   const Real DKL = POL.sampKLdiv, rho = POL.sampImpWeight;
   const bool isOff = traj->isFarPolicy(t, rho, CmaxRet, CinvRet);
 
@@ -66,7 +74,12 @@ void RETPG::Train(const Uint seq, const Uint t, const Uint wID,
   F[1]->backward(grad_val, t, thrID);
 
   //bookkeeping:
-  const Real dAdv = updateQret(traj, t, q_curr[0]-v_curr[0], v_curr[0], POL);
+  const Real adv = q_curr[0]-v_curr[0], val = v_curr[0];
+  traj->setRetrace(t, traj->Q_RET[t] + traj->state_vals[t] - val );
+  traj->setStateValue(t, val);
+  traj->setAdvantage(t, adv);
+  //prepare Qret_{t-1} with off policy corrections for future use
+  const Real dAdv = updateQret(traj, t, adv, val, POL.sampImpWeight);
   trainInfo->log(q_curr[0], grad_val[0], polG, penG, {beta, dAdv, rho}, thrID);
   traj->setMseDklImpw(t, grad_val[0]*grad_val[0], DKL, rho, CmaxRet, CinvRet);
   if(thrID==0)  profiler->stop_start("BCK");
@@ -85,7 +98,7 @@ void RETPG::select(Agent& agent)
   {
     //Compute policy and value on most recent element of the sequence.
     Rvec pol = F[0]->forward_agent(agent);
-    Gaussian_policy policy = prepare_policy(pol);
+    Gaussian_policy policy = prepare_policy(pol, &aInfo);
     Rvec MU = policy.getVector();
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors

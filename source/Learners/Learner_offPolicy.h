@@ -15,7 +15,7 @@ class Learner_offPolicy: public Learner
 protected:
   const Real obsPerStep_loc = settings.obsPerStep_loc;
 
-  Real alpha = 0.0; // weight between critic and policy
+  Real alpha = 0.5; // weight between critic and policy
   Real beta = CmaxPol<=0? 1 : 0.0; // if CmaxPol==0 do naive Exp Replay
   Real CmaxRet = 1 + CmaxPol;
   Real CinvRet = 1 / CmaxRet;

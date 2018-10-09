@@ -111,7 +111,7 @@ void Learner_offPolicy::prepareGradient()
 
     if(fracOffPol>ReFtol) beta = (1-1e-4)*beta; // iter converges to 0
     else beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
-    if(std::fabs(ReFtol-fracOffPol)<0.01) alpha = (1-1e-4)*alpha;
+    if(std::fabs(ReFtol-fracOffPol)<0.001) alpha = (1-1e-4)*alpha;
     else alpha = 1e-4 + (1-1e-4)*alpha;
   }
 }

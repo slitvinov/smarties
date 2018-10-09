@@ -7,9 +7,9 @@
 //
 #pragma once
 #include "Learner.h"
-#include "../Math/Lognormal_policy.h"
-#include "../Math/Gaussian_policy.h"
-#include "../Math/Discrete_advantage.h"
+
+class Discrete_policy;
+class Gaussian_policy;
 
 #define PPO_learnDKLt
 
@@ -28,13 +28,6 @@ class PPO : public Learner
 
   mutable Uint cntBatch = 0, cntEpoch = 0, cntKept = 0;
   mutable std::atomic<Real> DKL_target{ settings.klDivConstraint };
-
-  inline Policy_t prepare_policy(const Rvec& out,
-    const Tuple*const t = nullptr) const {
-    Policy_t pol(pol_indices, &aInfo, out);
-    if(t not_eq nullptr) pol.prepare(t->a, t->mu);
-    return pol;
-  }
 
   inline void updateDKL_target(const bool farPolSample, const Real DivKL) const
   {

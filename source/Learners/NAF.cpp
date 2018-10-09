@@ -10,6 +10,14 @@
 #include "../Network/Builder.h"
 #include "NAF.h"
 
+#include "../Math/Quadratic_advantage.h"
+
+static inline Quadratic_advantage prepare_advantage(const Rvec&O,
+  const ActionInfo*const aI, const vector<Uint>& net_inds)
+{
+  return Quadratic_advantage(vector<Uint>{net_inds[1], net_inds[2]}, aI, O);
+}
+
 NAF::NAF(Environment*const _env, Settings & _set) :
 Learner_offPolicy(_env, _set)
 {
@@ -37,7 +45,7 @@ void NAF::select(Agent& agent)
     //cout << print(output) << endl;
     Rvec polvec = Rvec(&output[net_indices[2]], &output[net_indices[2]]+nA);
     #ifndef NDEBUG
-      const Quadratic_advantage advantage = prepare_advantage(output);
+      const Quadratic_advantage advantage = prepare_advantage(output, &aInfo, net_indices);
       Rvec polvec2 = advantage.getMean();
       assert(polvec.size() == polvec2.size());
       for(Uint i=0;i<nA;i++) assert(abs(polvec[i]-polvec2[i])<2e-16);
@@ -77,7 +85,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint wID,
 
   if(thrID==0) profiler->stop_start("CMP");
   // prepare advantage and policy
-  const Quadratic_advantage ADV = prepare_advantage(output);
+  const Quadratic_advantage ADV = prepare_advantage(output, &aInfo,net_indices);
   Rvec polvec = ADV.getMean();            assert(polvec.size() == nA);
   polvec.resize(policyVecDim, noiseMap_inverse(explNoise));
   assert(polvec.size() == 2 * nA);
@@ -118,6 +126,6 @@ void NAF::test()
   const int thrID = omp_get_thread_num();
   for(Uint i = 0; i<aInfo.dim; i++) act[i] = act_dis(generators[thrID]);
   for(Uint i = 0; i<F[0]->nOutputs(); i++) out[i] = out_dis(generators[thrID]);
-  Quadratic_advantage A = prepare_advantage(out);
+  Quadratic_advantage A = prepare_advantage(out, &aInfo, net_indices);
   A.test(act, &generators[thrID]);
 }

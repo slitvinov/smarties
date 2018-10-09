@@ -60,7 +60,7 @@ void MemoryProcessing::updateRewardsStats(const Real WR, const Real WS, const bo
   {
    long double varR = Rsum2Rdx.get<0>(bInit)/count;
    if(varR < std::numeric_limits<long double>::epsilon()) varR = 1;
-   if( settings.ESpopSize > 1 ) {
+   if( settings.ESpopSize > 1e7 ) {
      const Real gamma = settings.gamma;
      const auto Rscal = (std::sqrt(varR)+EPS) * (1-gamma>EPS ? 1/(1-gamma) : 1);
      invstd_reward = (1-WR)*invstd_reward +WR/Rscal;

@@ -8,7 +8,6 @@
 
 #pragma once
 #include "Learner_offPolicy.h"
-#include "../Math/Gaussian_policy.h"
 class Aggregator;
 
 class RETPG : public Learner_offPolicy
@@ -19,13 +18,6 @@ class RETPG : public Learner_offPolicy
   const Real OrUhDecay = CmaxPol<=0? .85 : 0; // as in original
   //const Real OrUhDecay = 0; // no correlated noise
   vector<Rvec> OrUhState = vector<Rvec>(nAgents,Rvec(nA,0));
-
-  inline Gaussian_policy prepare_policy(const Rvec& out,
-    const Tuple*const t = nullptr) const {
-    Gaussian_policy pol({0, nA}, &aInfo, out);
-    if(t not_eq nullptr) pol.prepare(t->a, t->mu);
-    return pol;
-  }
 
   void TrainBySequences(const Uint seq,
     const Uint wID, const Uint bID, const Uint thrID) const override;
@@ -43,14 +35,6 @@ class RETPG : public Learner_offPolicy
     const Real W = S->offPolicImpW[t], R = data->scaledReward(S, t);
     const Real delta = R +gamma*S->state_vals[t] -S->state_vals[t-1];
     S->Q_RET[t-1] = delta + gamma*(W<1? W:1)*(S->Q_RET[t] - S->action_adv[t]);
-  }
-  inline Real updateQret(Sequence*const S, const Uint t, const Real A,
-    const Real V, const Gaussian_policy& pol) const {
-    // shift retrace advantage with update estimate for V(s_t)
-    S->setRetrace(t, S->Q_RET[t] + S->state_vals[t] -V );
-    S->setStateValue(t, V); S->setAdvantage(t, A);
-    //prepare Qret_{t-1} with off policy corrections for future use
-    return updateQret(S, t, A, V, pol.sampImpWeight);
   }
   inline Real updateQret(Sequence*const S, const Uint t, const Real A,
     const Real V, const Real rho) const {

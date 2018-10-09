@@ -14,7 +14,7 @@ class Optimizer
 {
  protected:
   const MPI_Comm mastersComm;
-  const Uint learn_size, pop_size;
+  const Uint learn_size, pop_size, nThreads;
   const Parameters * const weights;
   const Parameters * const tgt_weights;
   const Uint pDim = weights->nParams;
@@ -32,8 +32,8 @@ class Optimizer
 
   Optimizer(const Settings&S,const Parameters*const W,const Parameters*const WT)
   : mastersComm(MPIComDup(S.mastersComm)), learn_size(S.learner_size),
-  pop_size(S.ESpopSize), weights(W), tgt_weights(WT), eta_init(S.learnrate),
-  batchSize(S.batchSize), bAsync(S.bAsync), mpi_mutex(S.mpi_mutex),
+  pop_size(S.ESpopSize), nThreads(S.nThreads), weights(W), tgt_weights(WT),
+  eta_init(S.learnrate), batchSize(S.batchSize), bAsync(S.bAsync), mpi_mutex(S.mpi_mutex),
   lambda(S.nnLambda), epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay) {}
 
   virtual ~Optimizer() {}

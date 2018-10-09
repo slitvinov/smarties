@@ -9,14 +9,17 @@
 #pragma once
 #include "Learner_offPolicy.h"
 
-#include "../Math/Gaussian_mixture.h"
+class Discrete_policy;
+class Gaussian_policy;
 
-#ifndef NEXPERTS
-#define NEXPERTS 1
-#warning "Using Mixture_advantage with 1 expert"
-#endif
+template<Uint nExperts>
+class Gaussian_mixture;
 
-#include "../Math/Discrete_policy.h"
+class Discrete_advantage;
+class Quadratic_advantage;
+
+template<Uint nExperts>
+class Mixture_advantage;
 
 template<typename Policy_t, typename Action_t>
 class VRACER : public Learner_offPolicy
@@ -40,20 +43,6 @@ class VRACER : public Learner_offPolicy
   mutable vector<Rvec> rhos = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
   mutable vector<Rvec> dkls = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
   mutable vector<Rvec> advs = vector<Rvec>(batchSize, Rvec(ESpopSize, 0) );
-
-  inline Policy_t prepare_policy(const Rvec& out,
-    const Tuple*const t = nullptr) const {
-    Policy_t pol(pol_start, &aInfo, out);
-    // pol.prepare computes various quanties that depend on behavioral policy mu
-    // (such as importance weight) and stores both mu and the non-scaled action
-
-    //policy saves pol.sampAct, which is unscaled action
-    //eg. if action bounds act in [-1 1]; learning is with sampAct in (-inf inf)
-    // when facing out of the learner we output act = tanh(sampAct)
-    // TODO semi-bounded action spaces! eg. [0 inf): act = softplus(sampAct)
-    if(t not_eq nullptr) pol.prepare(t->a, t->mu);
-    return pol;
-  }
 
   void TrainBySequences(const Uint seq, const Uint wID,
     const Uint bID, const Uint tID) const override;

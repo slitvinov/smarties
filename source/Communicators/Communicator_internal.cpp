@@ -358,7 +358,7 @@ void Communicator_internal::launch()
   sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock", socket_id);
   unlink(SOCK_PATH);
 
-  #pragma omp parallel 
+  #pragma omp parallel num_threads(S.nThreads)
   for(int i = 0; i<nOwnWorkers; i++)
   {
     const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();

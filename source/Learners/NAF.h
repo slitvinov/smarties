@@ -8,7 +8,6 @@
 
 #pragma once
 #include "Learner_offPolicy.h"
-#include "../Math/Quadratic_advantage.h"
 
 class NAF : public Learner_offPolicy
 {
@@ -22,11 +21,6 @@ class NAF : public Learner_offPolicy
   const Real OrUhDecay = CmaxPol<=0? .85 : 0;
   //const Real OrUhDecay = 0; // as in original
   vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
-
-  inline Quadratic_advantage prepare_advantage(const Rvec& out) const
-  {
-    return Quadratic_advantage(vector<Uint>{net_indices[1], net_indices[2]}, &aInfo, out);
-  }
 
   void TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
     const Uint thrID) const override;

@@ -33,7 +33,7 @@ Master::Master(Communicator_internal* const _c, const vector<Learner*> _l,
 void Master::run()
 {
   { // gather initial data OR if not training evaluated restarted policy
-    #pragma omp parallel
+    #pragma omp parallel num_threads(nThreads)
     for(int i=1; i<=nWorkers_own; i++)
     {
       const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();

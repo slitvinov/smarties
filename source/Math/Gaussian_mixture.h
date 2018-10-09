@@ -7,7 +7,8 @@
 //
 
 #pragma once
-#include "Gaussian_policy.h"
+#include "Utils.h"
+
 template<Uint nExperts>
 struct Gaussian_mixture
 {

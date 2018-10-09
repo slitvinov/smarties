@@ -10,7 +10,19 @@
 
 #include "VRACER.h"
 
+#include "../Math/Gaussian_mixture.h"
+#include "../Math/Gaussian_policy.h"
+#include "../Math/Discrete_policy.h"
+
 #define DACER_simpleSigma
+
+template<typename Policy_t>
+static inline Policy_t prepare_policy(const Rvec& O, const ActionInfo*const aI,
+  const vector<Uint>& pol_indices, const Tuple*const t = nullptr) {
+  Policy_t pol(pol_indices, aI, O);
+  if(t not_eq nullptr) pol.prepare(t->a, t->mu);
+  return pol;
+}
 
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::TrainBySequences(const Uint seq,
@@ -36,14 +48,13 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
 
   if(thrID==0)  profiler->stop_start("CMP");
 
-  const Policy_t P = prepare_policy(out, S->tuples[t]);
+  const Policy_t P = prepare_policy<Policy_t>(out, &aInfo, pol_start, S->tuples[t]);
   // check whether importance weight is in 1/Cmax < c < Cmax
   const Real R = data->scaledReward(S, t+1), W = P.sampImpWeight;
   const Real Vcur = out[0], Vnxt = S->state_vals[t+1], Dnxt = S->Q_RET[t+1];
   const bool isOff = S->isFarPolicy(t, W, CmaxRet, CinvRet);
   const Real A_RET = R + gamma * (Dnxt + Vnxt) - Vcur;
   const Real D_RET = std::min((Real)1, W) * A_RET;
-  const Real deltaD = std::pow(D_RET-S->Q_RET[t], 2);
 
   if( wID == 0 ) {
     S->setStateValue(t, Vcur); S->setRetrace(t, D_RET);
@@ -54,7 +65,8 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
     advs[bID][wID] = A_RET;
     dkls[bID][wID] = P.sampKLdiv;
     rhos[bID][wID] = P.sampImpWeight;
-    if( wID == 0 ) trainInfo->log(Vcur, D_RET, {deltaD, W}, thrID);
+    if( wID == 0 )
+      trainInfo->log(Vcur, D_RET, {std::pow(D_RET-S->Q_RET[t],2), W}, thrID);
   }
   else
   {
@@ -62,10 +74,10 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
     Rvec G = Rvec(F[0]->nOutputs(), 0);
     if(isOff) P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu, beta-1), G);
     else {
-      const Rvec policyG = P.policy_grad(P.sampAct, A_RET * W);
-      const Rvec penalG  = P.div_kl_grad(S->tuples[t]->mu, -1);
-      P.finalize_grad(weightSum2Grads(policyG, penalG, beta), G);
-      trainInfo->log(Vcur, D_RET, policyG, penalG, {deltaD, W}, thrID);
+     const Rvec G1 = P.policy_grad(P.sampAct, A_RET * W);
+     const Rvec G2  = P.div_kl_grad(S->tuples[t]->mu, -1);
+     P.finalize_grad(weightSum2Grads(G1, G2, beta), G);
+     trainInfo->log(Vcur,D_RET,G1,G2, {std::pow(D_RET-S->Q_RET[t],2),W}, thrID);
     }
     if(thrID==0) profiler->stop_start("BCK");
     F[0]->backward(G, t, thrID);
@@ -85,7 +97,7 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
     //Compute policy and value on most recent element of the sequence. If RNN
     // recurrent connection from last call from same agent will be reused
     Rvec output = F[0]->forward_agent(agent);
-    Policy_t pol = prepare_policy(output);
+    Policy_t pol = prepare_policy<Policy_t>(output, &aInfo, pol_start);
     Rvec mu = pol.getVector(); // vector-form current policy for storage
 
     // if explNoise is 0, we just act according to policy
@@ -103,7 +115,7 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
     data_get->add_action(agent, mu);
 
     #ifndef NDEBUG
-      //Policy_t dbg = prepare_policy(output);
+      //Policy_t dbg = prepare_policy<Policy_t>(output, &aInfo, pol_start);
       //dbg.prepare(traj->tuples.back()->a, traj->tuples.back()->mu);
       //const double err = fabs(dbg.sampImpWeight-1);
       //if(err>1e-10) _die("Imp W err %20.20e", err);
@@ -140,21 +152,26 @@ void VRACER<Policy_t, Action_t>::prepareGradient()
 {
   if(updateComplete and ESpopSize>1)
   {
-   profiler->stop_start("LOSS");
-   const Real invLC = 1 / std::log(CmaxRet);
-   #pragma omp parallel for schedule(static)
-   for (Uint w=0; w<ESpopSize; w++)
-   for (Uint b=0; b<batchSize; b++) {
-    const Real W = rhos[b][w], W0 = rhos[b][0], A = advs[b][w], A0 = advs[b][0];
-    const long double clipRho = std::max(1/CmaxRet, std::min(W, CmaxRet));
-    const Real B = std::pow( std::log(clipRho) * invLC, 2*nA);
-    const Real onPolAdv = B * A0 + (1-B) * A;
-    const Real rAdv = - clipRho * A0; //minus: to maximize advantage
-    const Real DVret = std::pow( std::min((Real)1, W0) * onPolAdv, 2);
-    const Real loss = alpha*(beta*rAdv +(1-beta)*dkls[b][w]) +(1-alpha)*DVret;
-    F[0]->losses[w] += loss;
-   }
-   F[0]->nAddedGradients = ESpopSize * batchSize;
+    profiler->stop_start("LOSS");
+    std::vector<Real> aR(batchSize, 0), aA(batchSize, 0);
+    #pragma omp parallel for schedule(static)
+    for (Uint b=0; b<batchSize; b++) {
+      for (Uint w=0; w<ESpopSize; w++) { aR[b]+=rhos[b][w]; aA[b]+=advs[b][w]; }
+      aR[b] /= ESpopSize; aA[b] /= ESpopSize;
+    }
+
+    const auto isFar = [&](const Real&W) {return W >= CmaxRet || W <= CinvRet;};
+    #pragma omp parallel for schedule(static)
+    for (Uint w=0; w<ESpopSize; w++)
+    for (Uint b=0; b<batchSize; b++) {
+      const Real clipR = std::max(CinvRet, std::min(rhos[b][w], CmaxRet));
+      const Real clipA = isFar(rhos[b][w]) ? aA[b] : advs[b][w];
+      const Real rAdv = - clipR * aA[b]; //minus: to maximize advantage
+      const Real dVret = std::pow( std::min((Real)1, aR[b]) * clipA, 2);
+      const Real L = alpha*(beta*rAdv +(1-beta)*dkls[b][w]) + dVret*(1-alpha);
+      F[0]->losses[w] += L;
+    }
+    F[0]->nAddedGradients = ESpopSize * batchSize;
   }
 
   Learner_offPolicy::prepareGradient();
@@ -193,6 +210,7 @@ void VRACER<Policy_t, Action_t>::initializeLearner()
   Learner_offPolicy::initializeLearner();
 }
 
+///////////////////////////////////////////////////////////////////////////////
 template<> vector<Uint> VRACER<Discrete_policy, Uint>::
 count_outputs(const ActionInfo*const aI) {
   return vector<Uint>{1, aI->maxLabel};
@@ -208,6 +226,21 @@ getnDimPolicy(const ActionInfo*const aI) {
   return aI->maxLabel;
 }
 
+template<> VRACER<Discrete_policy, Uint>::
+VRACER(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
+net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
+  printf("Discrete-action DACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
+
+  F.push_back(new Approximator("net", _set, input, data));
+  vector<Uint> nouts{1, nA};
+  Builder build = F[0]->buildFromSettings(_set, nouts);
+  F[0]->initializeNetwork(build);
+
+  trainInfo=new TrainData("v-racer", _set, ESpopSize<2, "| dAdv | avgW ", 2);
+}
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
 template<> vector<Uint> VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::
 count_outputs(const ActionInfo*const aI) {
   return vector<Uint>{1, NEXPERTS, NEXPERTS*aI->dim, NEXPERTS*aI->dim};
@@ -223,38 +256,10 @@ getnDimPolicy(const ActionInfo*const aI) {
   return NEXPERTS*(1 +2*aI->dim);
 }
 
-template<> VRACER<Discrete_policy, Uint>::
-VRACER(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
-net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
-  printf("Discrete-action DACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
-
-  F.push_back(new Approximator("net", _set, input, data));
-  vector<Uint> nouts{1, nA};
-  Builder build = F[0]->buildFromSettings(_set, nouts);
-  F[0]->initializeNetwork(build);
-
-  trainInfo=new TrainData("v-racer", _set, ESpopSize<2, "| dAdv | avgW ", 2);
-}
-
 template<> VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::
 VRACER(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
   printf("Mixture-of-experts continuous-action DACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
-  #if 0
-    if(input->net not_eq nullptr) {
-      delete input->opt; input->opt = nullptr;
-      delete input->net; input->net = nullptr;
-    }
-    Builder input_build(_set);
-    bool bInputNet = false;
-    input_build.addInput( input->nOutputs() );
-    bInputNet = bInputNet || env->predefinedNetwork(input_build);
-    bInputNet = bInputNet || predefinedNetwork(input_build);
-    if(bInputNet) {
-      Network* net = input_build.build(true);
-      input->initializeNetwork(net, input_build.opt);
-    }
-  #endif
 
   F.push_back(new Approximator("net", _set, input, data));
   vector<Uint> nouts{1, NEXPERTS, NEXPERTS * nA};
@@ -292,7 +297,74 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
     for(Uint i=0; i<NEXPERTS; i++) mu[i] = mu[i]/norm;
     for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) mu[i]=std::exp(mu[i]);
 
-    Gaussian_mixture<NEXPERTS>  pol = prepare_policy(output);
+    Gaussian_mixture<NEXPERTS> pol = prepare_policy<Gaussian_mixture<NEXPERTS>>(output, &aInfo, pol_start);
+    Rvec act = pol.finalize(1, &generators[0], mu);
+    pol.prepare(act, mu);
+    pol.test(act, mu);
+  }
+
+  trainInfo=new TrainData("v-racer", _set, ESpopSize<2, "| dAdv | avgW ", 2);
+}
+///////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////
+template<> vector<Uint> VRACER<Gaussian_policy, Rvec>::
+count_outputs(const ActionInfo*const aI) {
+  return vector<Uint>{1, aI->dim, aI->dim};
+}
+template<> vector<Uint> VRACER<Gaussian_policy, Rvec>::
+count_pol_starts(const ActionInfo*const aI) {
+  const vector<Uint> sizes = count_outputs(aI);
+  const vector<Uint> indices = count_indices(sizes);
+  return vector<Uint>{indices[1], indices[2]};
+}
+template<> Uint VRACER<Gaussian_policy, Rvec>::
+getnDimPolicy(const ActionInfo*const aI) {
+  return 2*aI->dim;
+}
+
+template<> VRACER<Gaussian_policy, Rvec>::
+VRACER(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
+net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
+  printf("Gaussian continuous-action DACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
+
+  F.push_back(new Approximator("net", _set, input, data));
+  vector<Uint> nouts{1, nA};
+  #ifndef DACER_simpleSigma // network outputs also sigmas
+    nouts.push_back(nA);
+  #endif
+
+  Builder build = F[0]->buildFromSettings(_set, nouts);
+  Rvec initBias(1, 0); // state
+  Gaussian_policy::setInitial_noStdev(&aInfo, initBias);
+  #ifdef DACER_simpleSigma // sigma not linked to network: parametric output
+    build.setLastLayersBias(initBias);
+    #ifdef EXTRACT_COVAR
+      Real initParam = noiseMap_inverse(explNoise*explNoise);
+    #else
+      Real initParam = noiseMap_inverse(explNoise);
+    #endif
+    build.addParamLayer(nA, "Linear", initParam);
+  #else
+    Gaussian_policy::setInitial_Stdev(&aInfo, initBias, explNoise);
+    build.setLastLayersBias(initBias);
+  #endif
+  F[0]->initializeNetwork(build);
+
+  {  // TEST FINITE DIFFERENCES:
+    Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
+    std::normal_distribution<Real> dist(0, 1);
+
+    for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
+    for(Uint i=0; i<nA; i++) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
+    for(Uint i=0; i<nA; i++) output[1+i] = mu[i] + dist(generators[0])*mu[i+nA];
+    for(Uint i=0; i<nA; i++) {
+      const Real S = mu[i+nA];//*mu[i+nA];
+      output[1+i+nA] = (S*S -.25)/S + .1*dist(generators[0]);
+    }
+
+
+    Gaussian_policy pol = prepare_policy<Gaussian_policy>(output, &aInfo, pol_start);
     Rvec act = pol.finalize(1, &generators[0], mu);
     pol.prepare(act, mu);
     pol.test(act, mu);
@@ -301,73 +373,6 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
   trainInfo=new TrainData("v-racer", _set, ESpopSize<2, "| dAdv | avgW ", 2);
 }
 
-
 template class VRACER<Discrete_policy, Uint>;
 template class VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
-
-#if 0
-class DACER_cont : public DACER<Quadratic_advantage, Gaussian_policy, Rvec >
-{
-  static vector<Uint> count_outputs(const ActionInfo& aI)
-  {
-    const Uint nL = Quadratic_term::compute_nL(&aI);
-    #if defined ACER_RELAX
-      return vector<Uint>{1, nL, aI.dim, aI.dim};
-    #else
-      return vector<Uint>{1, nL, aI.dim, aI.dim, aI.dim};
-    #endif
-  }
-  static vector<Uint> count_pol_starts(const ActionInfo& aI)
-  {
-    const vector<Uint> sizes = count_outputs(aI);
-    const vector<Uint> indices = count_indices(sizes);
-    #if defined ACER_RELAX
-    return vector<Uint>{indices[2], indices[3]};
-    #else
-    return vector<Uint>{indices[2], indices[4]};
-    #endif
-  }
-  static vector<Uint> count_adv_starts(const ActionInfo& aI)
-  {
-    const vector<Uint> sizes = count_outputs(aI);
-    const vector<Uint> indices = count_indices(sizes);
-    #if defined ACER_RELAX
-    return vector<Uint>{indices[1]};
-    #else
-    return vector<Uint>{indices[1], indices[3]};
-    #endif
-  }
-
- public:
-  static Uint getnOutputs(const ActionInfo*const aI)
-  {
-    const Uint nL = Quadratic_advantage::compute_nL(aI);
-    #if defined ACER_RELAX // I output V(s), P(s), pol(s), prec(s) (and variate)
-      return 1 + nL + aI->dim + aI->dim;
-    #else // I output V(s), P(s), pol(s), prec(s), mu(s) (and variate)
-      return 1 + nL + aI->dim + aI->dim + aI->dim;
-    #endif
-  }
-  static Uint getnDimPolicy(const ActionInfo*const aI)
-  {
-    return 2*aI->dim;
-  }
-
-  DACER_cont(Environment*const _env, Settings& _set) :
-  DACER(_env, _set, count_outputs(_env->aI), count_pol_starts(_env->aI), count_adv_starts(_env->aI) )
-  {
-    printf("Continuous-action DACER: Built network with outputs: %s %s\n",
-      print(net_indices).c_str(),print(net_outputs).c_str());
-    F.push_back(new Approximator("net", _set, input, data));
-    vector<Uint> nouts{1, nL, nA};
-    #ifndef DACER_simpleSigma
-      nouts.push_back(nA);
-    #endif
-    Builder build = F[0]->buildFromSettings(_set, nouts);
-    #ifdef DACER_simpleSigma
-      build.addParamLayer(nA, "Linear", -2*std::log(explNoise));
-    #endif
-    F[0]->initializeNetwork(build);
-  }
-};
-#endif
+template class VRACER<Gaussian_policy, Rvec>;

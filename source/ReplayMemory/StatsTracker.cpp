@@ -60,25 +60,25 @@ TrainData::~TrainData() { }
 void TrainData::log(const Real Q, const Real Qerr,
   const std::vector<Real> polG, const std::vector<Real> penal,
   std::initializer_list<Real> extra, const int thrID) {
-  cntVec[thrID+1] ++;
+  cntVec[thrID] ++;
   trackQ(Q, Qerr, thrID);
   trackPolicy(polG, penal, thrID);
   const vector<Real> tmp = extra;
   assert(tmp.size() == n_extra && bPolStats);
-  for(Uint i=0; i<n_extra; i++) eVec[thrID+1][i] += tmp[i];
+  for(Uint i=0; i<n_extra; i++) eVec[thrID][i] += tmp[i];
 }
 
 void TrainData::log(const Real Q, const Real Qerr,
   std::initializer_list<Real> extra, const int thrID) {
-  cntVec[thrID+1] ++;
+  cntVec[thrID] ++;
   trackQ(Q, Qerr, thrID);
   const vector<Real> tmp = extra;
   assert(tmp.size() == n_extra && not bPolStats);
-  for(Uint i=0; i<n_extra; i++) eVec[thrID+1][i] += tmp[i];
+  for(Uint i=0; i<n_extra; i++) eVec[thrID][i] += tmp[i];
 }
 
 void TrainData::log(const Real Q, const Real Qerr, const int thrID) {
-  cntVec[thrID+1] ++;
+  cntVec[thrID] ++;
   trackQ(Q, Qerr, thrID);
   assert(not bPolStats);
 }
@@ -86,17 +86,17 @@ void TrainData::log(const Real Q, const Real Qerr, const int thrID) {
 void TrainData::getMetrics(ostringstream& buff)
 {
   reduce();
-  real2SS(buff, qVec[0][0], 6, 1);
-  real2SS(buff, qVec[0][1], 6, 0);
-  real2SS(buff, qVec[0][2], 6, 1);
-  real2SS(buff, qVec[0][3], 6, 0);
-  real2SS(buff, qVec[0][4], 6, 0);
+  real2SS(buff, q[0], 6, 1);
+  real2SS(buff, q[1], 6, 0);
+  real2SS(buff, q[2], 6, 1);
+  real2SS(buff, q[3], 6, 0);
+  real2SS(buff, q[4], 6, 0);
   if(bPolStats) {
-    real2SS(buff, pVec[0][0], 6, 1);
-    real2SS(buff, pVec[0][1], 6, 1);
-    real2SS(buff, pVec[0][2], 6, 0);
+    real2SS(buff, p[0], 6, 1);
+    real2SS(buff, p[1], 6, 1);
+    real2SS(buff, p[2], 6, 0);
   }
-  for(Uint i=0; i<n_extra; i++) real2SS(buff, eVec[0][i], 6, 1);
+  for(Uint i=0; i<n_extra; i++) real2SS(buff, e[i], 6, 1);
 }
 
 void TrainData::getHeaders(ostringstream& buff) const
@@ -117,7 +117,7 @@ void TrainData::getHeaders(ostringstream& buff) const
 }
 
 void TrainData::resetSoft() {
-  for(Uint i=1; i<=nThreads; i++) {
+  for(Uint i=0; i<nThreads; i++) {
     cntVec[i] = 0;
     qVec[i][0] = 0;
     qVec[i][1] = 0;
@@ -132,139 +132,100 @@ void TrainData::resetSoft() {
 }
 
 void TrainData::resetHead() {
-  cntVec[0]  = 0;
-  qVec[0][0] = 0;
-  qVec[0][1] = 0;
-  qVec[0][2] = 0;
-  pVec[0][0] = 0;
-  pVec[0][1] = 0;
-  pVec[0][2] = 0;
-  qVec[0][3] =  1e9;
-  qVec[0][4] = -1e9;
-  for(Uint j=0; j<n_extra; j++) eVec[0][j] = 0;
+  cnt  = 0;
+
+  q[0] = 0;
+  q[1] = 0;
+  q[2] = 0;
+  q[3] =  1e9;
+  q[4] = -1e9;
+
+  p[0] = 0;
+  p[1] = 0;
+  p[2] = 0;
+
+  for(Uint j=0; j<n_extra; j++) e[j] = 0;
 }
 
 void TrainData::reduce()
 {
   resetHead();
   for (Uint i=0; i<nThreads; i++) {
-    cntVec[0] += cntVec[i+1];
-    qVec[0][0] += qVec[i+1][0];
-    qVec[0][1] += qVec[i+1][1];
-    qVec[0][2] += qVec[i+1][2];
-    qVec[0][3]  = std::min(qVec[i+1][3], qVec[0][3]);
-    qVec[0][4]  = std::max(qVec[i+1][4], qVec[0][4]);
-    pVec[0][0] += pVec[i+1][0];
-    pVec[0][1] += pVec[i+1][1];
-    pVec[0][2] += pVec[i+1][2];
-    for(Uint j=0; j<n_extra; j++)
-      eVec[0][j] += eVec[i+1][j];
+    cnt += cntVec[i];
+    q[0] += qVec[i][0];
+    q[1] += qVec[i][1];
+    q[2] += qVec[i][2];
+    q[3]  = std::min(qVec[i][3], q[3]);
+    q[4]  = std::max(qVec[i][4], q[4]);
+    p[0] += pVec[i][0];
+    p[1] += pVec[i][1];
+    p[2] += pVec[i][2];
+    for(Uint j=0; j<n_extra; j++) e[j] += eVec[i][j];
   }
   resetSoft();
 
-  qVec[0][0] = std::sqrt(qVec[0][0]/cntVec[0]);
-  qVec[0][1] /= cntVec[0]; // average Q
-  qVec[0][2] /= cntVec[0]; // second moment of Q
-  qVec[0][2] = std::sqrt(qVec[0][2] - qVec[0][1]*qVec[0][1]); // sdev of Q
+  q[0] = std::sqrt(q[0]/cnt);
+  q[1] /= cnt; // average Q
+  q[2] /= cnt; // second moment of Q
+  q[2] = std::sqrt(q[2] - q[1]*q[1]); // sdev of Q
 
-  pVec[0][0] /= cntVec[0];
-  pVec[0][1] /= cntVec[0];
-  pVec[0][2] /= cntVec[0];
-  for(Uint j=0; j<n_extra; j++) eVec[0][j] /= cntVec[0];
-
-  #if 0
-    if(outBuf.size()) {
-      fwrite(outBuf.data(), sizeof(float), outBuf.size(), qFile);
-      fflush(qFile);
-      outBuf.resize(0);
-    }
-  #endif
+  p[0] /= cnt;
+  p[1] /= cnt;
+  p[2] /= cnt;
+  for(Uint j=0; j<n_extra; j++) e[j] /= cnt;
 }
 
 void TrainData::trackQ(const Real Q, const Real err, const int thrID) {
-  qVec[thrID+1][0] += err*err;
-  qVec[thrID+1][1] += Q;
-  qVec[thrID+1][2] += Q*Q;
-  qVec[thrID+1][3] = std::min(qVec[thrID+1][3], static_cast<long double>(Q));
-  qVec[thrID+1][4] = std::max(qVec[thrID+1][4], static_cast<long double>(Q));
+  qVec[thrID][0] += err*err;
+  qVec[thrID][1] += Q;
+  qVec[thrID][2] += Q*Q;
+  qVec[thrID][3] = std::min(qVec[thrID][3], static_cast<long double>(Q) );
+  qVec[thrID][4] = std::max(qVec[thrID][4], static_cast<long double>(Q) );
 }
 
 void TrainData::trackPolicy(const std::vector<Real> polG,
   const std::vector<Real> penal, const int thrID)
 {
-  #if 0
-    if(thrID == 1) {
-      float normT = 0, dot = 0;
-      for(Uint i = 0; i < polG.size(); i++) {
-        dot += polG[i] * penalG[i]; normT += penalG[i] * penalG[i];
-      }
-      float ret[]={dot/std::sqrt(normT)};
-      fwrite(ret, sizeof(float), 1, wFile);
-    }
-  #endif
-
-  #if 0
-    if(thrID == 1) {
-      Rvec Gcpy = gradient;
-      F[0]->gradStats->clip_vector(Gcpy);
-      Gcpy = Rvec(&Gcpy[pol_start[0]], &Gcpy[pol_start[0]+polG.size()]);
-      float normT = 0, dot = 0;
-      for(Uint i = 0; i < polG.size(); i++) {
-        dot += Gcpy[i] * penalG[i]; normT += penalG[i] * penalG[i];
-      }
-      float ret[]={dot/std::sqrt(normT)};
-      fwrite(ret, sizeof(float), 1, wFile);
-    }
-  #endif
-
   Real tmpPol = 0, tmpPen = 0, tmpPrj = 0;
   for(Uint i=0; i<polG.size(); i++) {
     tmpPol +=  polG[i]* polG[i];
     tmpPen += penal[i]*penal[i];
     tmpPrj +=  polG[i]*penal[i];
   }
-  pVec[thrID+1][0] += std::sqrt(tmpPol);
-  pVec[thrID+1][1] += std::sqrt(tmpPen);
+  pVec[thrID][0] += std::sqrt(tmpPol);
+  pVec[thrID][1] += std::sqrt(tmpPen);
   static constexpr Real eps = numeric_limits<Real>::epsilon();
-  pVec[thrID+1][2] += tmpPrj/(std::sqrt(tmpPen)+eps);
+  pVec[thrID][2] += tmpPrj/(std::sqrt(tmpPen)+eps);
 }
 
 StatsTracker::StatsTracker(const Uint N, const Settings& set) :
 n_stats(N), comm(set.mastersComm), nThreads(set.nThreads),
 learn_size(set.learner_size), learn_rank(set.learner_rank)
 {
-  avgVec[0].resize(n_stats, 0); stdVec[0].resize(n_stats, 10);
   instMean.resize(n_stats, 0); instStdv.resize(n_stats, 0);
-  #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
-  for (Uint i=0; i<nThreads; i++) // numa aware allocation
-   #pragma omp critical
-   {
-     avgVec[i+1].resize(n_stats, 0);
-     stdVec[i+1].resize(n_stats, 0);
-   }
 }
 
 void StatsTracker::track_vector(const Rvec grad, const Uint thrID) const
 {
   assert(n_stats==grad.size());
-  cntVec[thrID+1] += 1;
+  cntVec[thrID] += 1;
   for (Uint i=0; i<n_stats; i++) {
-    avgVec[thrID+1][i] += grad[i];
-    stdVec[thrID+1][i] += grad[i]*grad[i];
+    avgVec[thrID][i] += grad[i];
+    stdVec[thrID][i] += grad[i]*grad[i];
   }
 }
 
 void StatsTracker::advance()
 {
-  std::fill(avgVec[0].begin(),  avgVec[0].end(), 0);
-  std::fill(stdVec[0].begin(),  stdVec[0].end(), 0);
-  cntVec[0] = 0;
+  std::fill(avg.begin(),  avg.end(), 0);
+  std::fill(std.begin(),  std.end(), 0);
+  cnt = 0;
 
-  for (Uint i=1; i<=nThreads; i++) {
-    cntVec[0] += cntVec[i];
+  for (Uint i=0; i<nThreads; i++) {
+    cnt += cntVec[i];
     for (Uint j=0; j<n_stats; j++) {
-      avgVec[0][j] += avgVec[i][j];
-      stdVec[0][j] += stdVec[i][j];
+      avg[j] += avgVec[i][j];
+      std[j] += stdVec[i][j];
     }
     cntVec[i] = 0;
     std::fill(avgVec[i].begin(),  avgVec[i].end(), 0);
@@ -274,12 +235,12 @@ void StatsTracker::advance()
 
 void StatsTracker::update()
 {
-  cntVec[0] = std::max((long double)2.2e-16, cntVec[0]);
+  cnt = std::max((long double)2.2e-16, cnt);
   for (Uint j=0; j<n_stats; j++) {
-    const Real   mean = avgVec[0][j] / cntVec[0];
-    const Real sqmean = stdVec[0][j] / cntVec[0];
-    stdVec[0][j] = std::sqrt(sqmean); // - mean*mean
-    avgVec[0][j] = mean;
+    const Real   mean = avg[j] / cnt;
+    const Real sqmean = std[j] / cnt;
+    std[j] = std::sqrt(sqmean); // - mean*mean
+    avg[j] = mean;
   }
 }
 
@@ -296,8 +257,8 @@ void StatsTracker::printToFile(const string base)
     else pFile = fopen((base + "_outGrad_stats.raw").c_str(), "ab");
     vector<float> printvals(n_stats*2);
     for (Uint i=0; i<n_stats; i++) {
-      printvals[i]         = avgVec[0][i];
-      printvals[i+n_stats] = stdVec[0][i];
+      printvals[i]         = avg[i];
+      printvals[i+n_stats] = std[i];
     }
     fwrite(printvals.data(), sizeof(float), n_stats*2, pFile);
     fflush(pFile); fclose(pFile);
@@ -306,19 +267,19 @@ void StatsTracker::printToFile(const string base)
 
 void StatsTracker::finalize(const LDvec&oldM, const LDvec&oldS)
 {
-  instMean = avgVec[0];
-  instStdv = stdVec[0];
+  instMean = avg;
+  instStdv = std;
   nStep++;
   for (Uint i=0; i<n_stats; i++) {
-    avgVec[0][i] = (1-CLIP_LEARNR)*oldM[i] +CLIP_LEARNR*avgVec[0][i];
-    stdVec[0][i] = (1-CLIP_LEARNR)*oldS[i] +CLIP_LEARNR*stdVec[0][i];
+    avg[i] = (1-CLIP_LEARNR)*oldM[i] +CLIP_LEARNR*avg[i];
+    std[i] = (1-CLIP_LEARNR)*oldS[i] +CLIP_LEARNR*std[i];
     //stdVec[0][i]=std::max((1-CLIP_LEARNR)*oldstd[i], stdVec[0][i]);
   }
 }
 
 void StatsTracker::reduce_stats(const string base, const Uint iter)
 {
-  const LDvec oldsum = avgVec[0], oldstd = stdVec[0];
+  const LDvec oldsum = avg, oldstd = std;
   assert(cntVec.size()>1);
   advance();
   update();

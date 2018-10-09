@@ -8,20 +8,19 @@
 
 #pragma once
 #include "Learner_offPolicy.h"
-#include "../Math/Quadratic_advantage.h"
 
-#ifdef ADV_GAUS
-#include "../Math/Mixture_advantage_gaus.h"
-#else
-#include "../Math/Mixture_advantage_quad.h"
-#endif
+class Discrete_policy;
+class Gaussian_policy;
 
-#ifndef NEXPERTS
-#define NEXPERTS 1
-#warning "Using Mixture_advantage with 1 expert"
-#endif
+template<Uint nExperts>
+class Gaussian_mixture;
 
-#include "../Math/Discrete_advantage.h"
+class Discrete_advantage;
+class Quadratic_advantage;
+
+template<Uint nExperts>
+class Mixture_advantage;
+
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 class RACER : public Learner_offPolicy
@@ -44,26 +43,6 @@ class RACER : public Learner_offPolicy
 
   // used in case of temporally correlated noise
   vector<Rvec> OrUhState = vector<Rvec>( nAgents, Rvec(nA, 0) );
-
-  //vector<float> outBuf;
-
-  inline Policy_t prepare_policy(const Rvec& out,
-    const Tuple*const t = nullptr) const {
-    Policy_t pol(pol_start, &aInfo, out);
-    // pol.prepare computes various quanties that depend on behavioral policy mu
-    // (such as importance weight) and stores both mu and the non-scaled action
-
-    //policy saves pol.sampAct, which is unscaled action
-    //eg. if action bounds act in [-1 1]; learning is with sampAct in (-inf inf)
-    // when facing out of the learner we output act = tanh(sampAct)
-    // TODO semi-bounded action spaces! eg. [0 inf): act = softplus(sampAct)
-    if(t not_eq nullptr) pol.prepare(t->a, t->mu);
-    return pol;
-  }
-  inline Advantage_t prepare_advantage(const Rvec& out,
-      const Policy_t*const pol) const {
-    return Advantage_t(adv_start, &aInfo, out, pol);
-  }
 
   void TrainBySequences(const Uint seq, const Uint wID,
     const Uint bID, const Uint tID) const override;

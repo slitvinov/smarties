@@ -27,7 +27,8 @@ class CMA_Optimizer : public Optimizer
   const Parameters * const pathDif = weights->allocateGrad();
   const Parameters * const diagCov = weights->allocateGrad();
 
-  vector<Saru *> generators;
+  std::vector<Saru *> generators;
+  std::vector<std::mt19937 *> stdgens;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
   vector<Real> losses = vector<Real>(pop_size, 0);
   Uint Nswap = 0;

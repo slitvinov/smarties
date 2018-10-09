@@ -10,15 +10,31 @@
 #include "../Network/Builder.h"
 
 #ifdef ADV_GAUS
-#warning "Using Mixture_advantage with Gaussian advantages"
+#include "../Math/Mixture_advantage_gaus.h"
+#include "../Math/Gaus_advantage.h"
 #else
-#warning "Using Mixture_advantage with Quadratic advantages"
+#include "../Math/Mixture_advantage_quad.h"
+#include "../Math/Quadratic_advantage.h"
 #endif
+#include "../Math/Discrete_advantage.h"
 
 #ifdef DKL_filter // this is so bad let's force undefined
 #undef DKL_filter
 #endif
 #define RACER_simpleSigma
+
+template<typename Policy_t>
+static inline Policy_t prepare_policy(const Rvec& O, const ActionInfo*const aI,
+  const vector<Uint>& pol_start, const Tuple*const t = nullptr) {
+  Policy_t pol(pol_start, aI, O);
+  if(t not_eq nullptr) pol.prepare(t->a, t->mu);
+  return pol;
+}
+
+template<typename Advantage_t, typename Policy_t>
+static inline Advantage_t prepare_advantage(const Rvec& out, const ActionInfo*const aI, const vector<Uint>& adv_start, const Policy_t*const pol) {
+  return Advantage_t(adv_start, aI, out, pol);
+}
 
 template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(
@@ -42,7 +58,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(
   for(int k=ndata-1; k>=0; k--)
   {
     const Rvec out_cur = F[0]->get(k, thrID);
-    const Policy_t pol = prepare_policy(out_cur, traj->tuples[k]);
+    const Policy_t pol = prepare_policy<Policy_t>(out_cur, &aInfo, pol_start, traj->tuples[k]);
     // far policy definition depends on rho (as in paper)
     const bool isOff = traj->isFarPolicy(k, pol.sampImpWeight, CmaxRet,CinvRet);
     // in case rho outside bounds, do not compute gradient
@@ -79,7 +95,7 @@ void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint t,
     updateQret(traj, t+1, 0, nxt[VsID], 0);
   }
 
-  const Policy_t pol = prepare_policy(out_cur, traj->tuples[t]);
+  const Policy_t pol = prepare_policy<Policy_t>(out_cur, &aInfo, pol_start, traj->tuples[t]);
   // check whether importance weight is in 1/Cmax < c < Cmax
   const bool isOff = traj->isFarPolicy(t, pol.sampImpWeight, CmaxRet, CinvRet);
 
@@ -98,7 +114,8 @@ Rvec RACER<Advantage_t, Policy_t, Action_t>::
 compute(Sequence*const traj, const Uint samp, const Rvec& outVec,
   const Policy_t& POL, const Uint thrID) const
 {
-  const Advantage_t ADV = prepare_advantage(outVec, &POL);
+  const Advantage_t ADV = prepare_advantage<Advantage_t,Policy_t>(
+                                  outVec, &aInfo, adv_start, &POL);
   const Real A_cur = ADV.computeAdvantage(POL.sampAct), V_cur = outVec[VsID];
   // shift retrace-advantage with current V(s) estimate:
   const Real A_RET = traj->Q_RET[samp] +traj->state_vals[samp]-V_cur;
@@ -131,7 +148,8 @@ Rvec RACER<Advantage_t, Policy_t, Action_t>::
 offPolCorrUpdate(Sequence*const S, const Uint t, const Rvec output,
   const Policy_t& pol, const Uint thrID) const
 {
-  const Advantage_t adv = prepare_advantage(output, &pol);
+  const Advantage_t adv = prepare_advantage<Advantage_t,Policy_t>(
+                                  output, &aInfo, adv_start, &pol);
   const Real A_cur = adv.computeAdvantage(pol.sampAct);
   // shift retrace-advantage with current V(s) estimate:
   const Real A_RET = S->Q_RET[t] +S->state_vals[t] -output[VsID];
@@ -182,8 +200,9 @@ select(Agent& agent)
   {
     //Compute policy and value on most recent element of the sequence.
     Rvec output = F[0]->forward_agent(agent);
-    Policy_t pol = prepare_policy(output);
-    const Advantage_t adv = prepare_advantage(output, &pol);
+    Policy_t pol = prepare_policy<Policy_t>(output, &aInfo, pol_start);
+    const Advantage_t adv = prepare_advantage<Advantage_t,Policy_t>(
+                                    output, &aInfo, adv_start, &pol);
     Rvec mu = pol.getVector(); // vector-form current policy for storage
 
     // if explNoise is 0, we just act according to policy
@@ -197,7 +216,7 @@ select(Agent& agent)
     data_get->add_action(agent, mu);
 
     #ifndef NDEBUG
-      Policy_t dbg = prepare_policy(output);
+      Policy_t dbg = prepare_policy<Policy_t>(output, &aInfo, pol_start);
       dbg.prepare(traj->tuples.back()->a, traj->tuples.back()->mu);
       const double err = fabs(dbg.sampImpWeight-1);
       if(err>1e-10) _die("Imp W err %20.20e", err);
@@ -240,7 +259,7 @@ prepareGradient()
     profiler->stop_start("QRET");
     const std::vector<Uint>& sampled = data->listSampled();
     const Uint setSize = sampled.size();
-    #pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(dynamic, 1)
     for(Uint i = 0; i < setSize; i++) {
       Sequence * const S = data->get(sampled[i]);
       for(int j=S->just_sampled-1; j>0; j--) updateQretBack(S, j);
@@ -297,6 +316,29 @@ getnDimPolicy(const ActionInfo*const aI) {
   return aI->maxLabel;
 }
 
+template<>
+RACER<Discrete_advantage, Discrete_policy, Uint>::
+RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env,_set),
+  net_outputs(count_outputs(&_env->aI)),
+  pol_start(count_pol_starts(&_env->aI)),
+  adv_start(count_adv_starts(&_env->aI))
+{
+  if(_set.learner_rank == 0) {
+    printf("Discrete-action RACER: Built network with outputs: v:%u pol:%s adv:%s\n", VsID, print(pol_start).c_str(), print(adv_start).c_str());
+  }
+
+  F.push_back(new Approximator("net", _set, input, data));
+  vector<Uint> nouts{1, nL, nA};
+  Builder build = F[0]->buildFromSettings(_set, nouts);
+  F[0]->initializeNetwork(build);
+
+  trainInfo = new TrainData("racer", _set, 1, "| beta | dAdv | avgW ", 3);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+
 template<> vector<Uint>
 RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
 count_outputs(const ActionInfo*const aI) {
@@ -327,25 +369,6 @@ template<> Uint
 RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>::
 getnDimPolicy(const ActionInfo*const aI) {
   return NEXPERTS*(1 +2*aI->dim);
-}
-
-template<>
-RACER<Discrete_advantage, Discrete_policy, Uint>::
-RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env,_set),
-  net_outputs(count_outputs(&_env->aI)),
-  pol_start(count_pol_starts(&_env->aI)),
-  adv_start(count_adv_starts(&_env->aI))
-{
-  if(_set.learner_rank == 0) {
-    printf("Discrete-action RACER: Built network with outputs: v:%u pol:%s adv:%s\n", VsID, print(pol_start).c_str(), print(adv_start).c_str());
-  }
-
-  F.push_back(new Approximator("net", _set, input, data));
-  vector<Uint> nouts{1, nL, nA};
-  Builder build = F[0]->buildFromSettings(_set, nouts);
-  F[0]->initializeNetwork(build);
-
-  trainInfo = new TrainData("racer", _set, 1, "| beta | dAdv | avgW ", 3);
 }
 
 template<>
@@ -405,14 +428,124 @@ RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
     for(Uint i=0; i<NEXPERTS; i++) mu[i] = mu[i]/norm;
     for(Uint i=NEXPERTS*(1+nA);i<NEXPERTS*(1+2*nA);i++) mu[i]=std::exp(mu[i]);
 
-    Gaussian_mixture<NEXPERTS>  pol = prepare_policy(output);
+    Gaussian_mixture<NEXPERTS> pol = prepare_policy<Gaussian_mixture<NEXPERTS>>(output, &aInfo, pol_start);
     Rvec act = pol.finalize(1, &generators[0], mu);
-    Mixture_advantage<NEXPERTS> adv = prepare_advantage(output, &pol);
+    Mixture_advantage<NEXPERTS> adv = prepare_advantage<
+     Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS> > (
+                                output, &aInfo, adv_start, &pol);
     adv.test(act, &generators[0]);
     pol.prepare(act, mu);
     pol.test(act, mu);
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
+
+template<> vector<Uint>
+RACER<Quadratic_advantage, Gaussian_policy, Rvec>::
+count_outputs(const ActionInfo*const aI) {
+  const Uint nL = Quadratic_advantage::compute_nL(aI);
+  return vector<Uint>{1, nL, aI->dim, aI->dim};
+}
+template<> vector<Uint>
+RACER<Quadratic_advantage, Gaussian_policy, Rvec>::
+count_pol_starts(const ActionInfo*const aI) {
+  const vector<Uint> sizes = count_outputs(aI);
+  const vector<Uint> indices = count_indices(sizes);
+  return vector<Uint>{indices[2], indices[3]};
+}
+template<> vector<Uint>
+RACER<Quadratic_advantage, Gaussian_policy, Rvec>::
+count_adv_starts(const ActionInfo*const aI) {
+  const vector<Uint> sizes = count_outputs(aI);
+  const vector<Uint> indices = count_indices(sizes);
+  return vector<Uint>{indices[1]};
+}
+template<> Uint
+RACER<Quadratic_advantage, Gaussian_policy, Rvec>::
+getnOutputs(const ActionInfo*const aI) {
+  const Uint nL = Quadratic_advantage::compute_nL(aI);
+  return 1 + nL + 2*aI->dim;
+}
+template<> Uint
+RACER<Quadratic_advantage, Gaussian_policy, Rvec>::
+getnDimPolicy(const ActionInfo*const aI) {
+  return 2*aI->dim;
+}
+
+template<>
+RACER<Quadratic_advantage, Gaussian_policy, Rvec>::
+RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
+  net_outputs(count_outputs(&_env->aI)),
+  pol_start(count_pol_starts(&_env->aI)),
+  adv_start(count_adv_starts(&_env->aI))
+{
+  if(_set.learner_rank == 0) {
+    printf("Mixture-of-experts continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s (sorted %s)\n", VsID, print(pol_start).c_str(), print(adv_start).c_str(), print(net_outputs).c_str());
+  }
+
+  F.push_back(new Approximator("net", _set, input, data));
+
+  vector<Uint> nouts{1, nL, nA};
+  #ifndef RACER_simpleSigma // network outputs also sigmas
+    nouts.push_back(nA);
+  #endif
+
+  Builder build = F[0]->buildFromSettings(_set, nouts);
+
+  Rvec initBias;
+  initBias.push_back(0); // state value
+  Quadratic_advantage::setInitial(&aInfo, initBias);
+  Gaussian_policy::setInitial_noStdev(&aInfo, initBias);
+
+  #ifdef RACER_simpleSigma // sigma not linked to network: parametric output
+    build.setLastLayersBias(initBias);
+    #ifdef EXTRACT_COVAR
+      Real initParam = noiseMap_inverse(explNoise*explNoise);
+    #else
+      Real initParam = noiseMap_inverse(explNoise);
+    #endif
+    build.addParamLayer(nA, "Linear", initParam);
+  #else
+    Gaussian_policy::setInitial_Stdev(&aInfo, initBias, explNoise);
+    build.setLastLayersBias(initBias);
+  #endif
+  F[0]->initializeNetwork(build);
+  //F[0]->save(learner_name+"init");
+  if(F.size() > 1) die("");
+  F[0]->opt->bAnnealLearnRate= true;
+
+  trainInfo = new TrainData("racer", _set, 1, "| dAdv | avgW ", 2);
+
+  {  // TEST FINITE DIFFERENCES:
+    Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
+    std::normal_distribution<Real> dist(0, 1);
+
+    for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
+    for(Uint i=0; i<nA; i++) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
+
+    for(Uint i=0; i<=nL; i++) output[i] = 0.5*dist(generators[0]);
+    for(Uint i=0; i<nA; i++)
+      output[1+nL+i] = mu[i] + dist(generators[0])*mu[i+nA];
+    for(Uint i=0; i<nA; i++) {
+      const Real S = mu[i+nA];//*mu[i+nA];
+      output[1+nL+i+nA] = (S*S -.25)/S + .1*dist(generators[0]);
+    }
+
+    Gaussian_policy pol = prepare_policy<Gaussian_policy>(output, &aInfo, pol_start);
+    Rvec act = pol.finalize(1, &generators[0], mu);
+    Quadratic_advantage adv = prepare_advantage<Quadratic_advantage,
+      Gaussian_policy> ( output, &aInfo, adv_start, &pol );
+    adv.test(act, &generators[0]);
+    pol.prepare(act, mu);
+    pol.test(act, mu);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 template class RACER<Discrete_advantage, Discrete_policy, Uint>;
+template class RACER<Quadratic_advantage, Gaussian_policy, Rvec>;
 template class RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>;

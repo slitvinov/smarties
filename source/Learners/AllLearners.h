@@ -88,8 +88,8 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
       print(o, "problem_size.log", settings.world_rank);
       ret = new RACER_discrete(env, settings);
     } else {
-      using RACER_continuous = RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>;
-      //typedef RACER_cont RACER_continuous;
+      //using RACER_continuous = RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>;
+      using RACER_continuous = RACER<Quadratic_advantage,Gaussian_policy,Rvec>;
       env->aI.policyVecDim = RACER_continuous::getnDimPolicy(&env->aI);
       o << env->aI.dim << " " << env->aI.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
@@ -148,7 +148,8 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
       print(o, "problem_size.log", settings.world_rank);
       ret = new RACER_discrete(env, settings);
     } else {
-      using RACER_continuous = VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
+      //using RACER_continuous = VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
+      using RACER_continuous = VRACER<Gaussian_policy, Rvec>;
       env->aI.policyVecDim = RACER_continuous::getnDimPolicy(&env->aI);
       o << env->aI.dim << " " << env->aI.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);

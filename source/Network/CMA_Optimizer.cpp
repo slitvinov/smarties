@@ -20,8 +20,13 @@ CMA_Optimizer::CMA_Optimizer(const Settings&S, const Parameters*const W,
   std::generate(seed.begin(), seed.end(), [&](){return S.generators[0]();});
   MPI_Bcast(seed.data(), 3*pop_size, MPI_UNSIGNED_LONG, 0, mastersComm);
   generators.resize(pop_size, nullptr);
-  for(Uint i=0; i<pop_size; i++)
+  stdgens.resize(pop_size, nullptr);
+  #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
+  for(Uint i=0; i<pop_size; i++) {
     generators[i] = new Saru(seed[3*i +0], seed[3*i +1], seed[3*i +2]);
+    stdgens[i] = new std::mt19937(seed[3*i +0]);
+  }
+
   initializeGeneration();
 }
 
@@ -43,12 +48,15 @@ void CMA_Optimizer::initializeGeneration() const {
   const nnReal* const M = weights->params;
   //const nnReal* const D = pathDif->params;
   const nnReal _eta = bAnnealLearnRate? annealRate(eta,nStep,epsAnneal) : eta;
-  #pragma omp parallel for schedule(static)
+  #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
   for(Uint i=1; i<pop_size; i++) {
-    Saru& gen = * generators[i];
+    Saru & gen = * generators[i];
+    //std::mt19937 & gen = * stdgens[i];
     nnReal* const Y = popNoiseVectors[i]->params;
     nnReal* const X = sampled_weights[i]->params;
+    //std::uniform_real_distribution<nnReal> dist(0.0, 1.0);
     for(Uint w=0; w<pDim; w++) {
+      //Y[w] = dist(gen) * S[w];
       Y[w] = gen.f_mean0_var1() * S[w];
       X[w] = M[w] + _eta * Y[w]; //+ _eta*1e-2*D[w];
     }
@@ -109,55 +117,95 @@ void CMA_Optimizer::apply_update()
   momNois->clear(); avgNois->clear(); // prepare for
   weights->clear(); //negNois->clear(); // reductions
 
-  #pragma omp parallel
-  for(Uint i=0; i<pop_size; i++) {
-    const nnReal wC = popWeights[i];
-    {
-      nnReal * const B = momNois->params;
-      const nnReal* const Y = popNoiseVectors[ inds[i] ]->params;
-      #pragma omp for simd schedule(static) aligned(B,Y : VEC_WIDTH)
-      for(Uint w=0; w<pDim; w++) B[w] += wC * Y[w]*Y[w];
-    }
-    if(wC <=0 ) continue;
-    {
-      nnReal * const A = avgNois->params;
-      const nnReal* const Y = popNoiseVectors[ inds[i] ]->params;
-      #pragma omp for simd schedule(static) aligned(A,Y : VEC_WIDTH)
-      for(Uint w=0; w<pDim; w++) A[w] += wC * Y[w];
-    }
-    {
-      nnReal * const M = weights->params;
-      const nnReal* const X = sampled_weights[ inds[i] ]->params;
-      #pragma omp for simd schedule(static) aligned(M,X : VEC_WIDTH)
-      for(Uint w=0; w<pDim; w++) M[w] += wC * X[w];
-    }
-    //{
-    //  nnReal * const C = negNois->params;
-    //  const nnReal* const Y = popNoiseVectors[ inds[pop_size-1-i] ]->params;
-    //  #pragma omp for simd schedule(static) aligned(C,Y : VEC_WIDTH)
-    //  for(Uint w=0; w<pDim; w++) C[w] += wC * Y[w];
-    //}
-  }
 
-  //const nnReal * const C = negNois->params;
-  const nnReal * const B = momNois->params;
-  const nnReal * const A = avgNois->params;
-  //nnReal * const D = pathDif->params;
-  nnReal * const P = pathCov->params;
-  nnReal * const S = diagCov->params;
   static constexpr nnReal c1cov = 1e-5;
   static constexpr nnReal c_sig = 1e-3;
   const nnReal alpha = 1 - c1cov - sumW*mu_eff*c1cov;
   const nnReal updSigP = std::sqrt(c_sig * (2-c_sig) * mu_eff);
-  #pragma omp parallel for simd schedule(static) aligned(A,B,S,P : VEC_WIDTH)
-  for(Uint w=0; w<pDim; w++) {
-    P[w] = (1-c_sig) * P[w] + updSigP * A[w];
-    //D[w] = (1-c_sig) * D[w] + updSigP * ( A[w] - C[w] );
-    S[w] = std::sqrt( alpha*S[w]*S[w] + c1cov*P[w]*P[w] + mu_eff*c1cov*B[w] );
-    S[w] = std::min(S[w], (nnReal) 10); //safety
-  }
+  const nnReal _eta = bAnnealLearnRate? annealRate(eta,nStep,epsAnneal) : eta;
 
-  initializeGeneration();
+  #pragma omp parallel num_threads(nThreads)
+  {
+    for(Uint i=0; i<pop_size; i++)
+    {
+      const nnReal wC = popWeights[i];
+      {
+        nnReal * const B = momNois->params;
+        const nnReal* const Y = popNoiseVectors[ inds[i] ]->params;
+        #pragma omp for simd schedule(static) aligned(B,Y : VEC_WIDTH) nowait
+        for(Uint w=0; w<pDim; w++) B[w] += wC * Y[w]*Y[w];
+      }
+      if(wC <=0 ) continue;
+      {
+        nnReal * const A = avgNois->params;
+        const nnReal* const Y = popNoiseVectors[ inds[i] ]->params;
+        #pragma omp for simd schedule(static) aligned(A,Y : VEC_WIDTH) nowait
+        for(Uint w=0; w<pDim; w++) A[w] += wC * Y[w];
+      }
+      {
+        nnReal * const M = weights->params;
+        const nnReal* const X = sampled_weights[ inds[i] ]->params;
+        #pragma omp for simd schedule(static) aligned(M,X : VEC_WIDTH) nowait
+        for(Uint w=0; w<pDim; w++) M[w] += wC * X[w];
+      }
+      //{
+      //  nnReal * const C = negNois->params;
+      //  const nnReal* const Y = popNoiseVectors[ inds[pop_size-1-i] ]->params;
+      //  #pragma omp for simd schedule(static) aligned(C,Y : VEC_WIDTH)
+      //  for(Uint w=0; w<pDim; w++) C[w] += wC * Y[w];
+      //}
+    }
+
+    //const nnReal * const C = negNois->params;
+    const nnReal * const B = momNois->params;
+    const nnReal * const A = avgNois->params;
+    //nnReal * const D = pathDif->params;
+    nnReal * const P = pathCov->params;
+    nnReal * const S = diagCov->params;
+
+    #pragma omp for simd schedule(static) aligned(P,A,S,B : VEC_WIDTH) nowait
+    for(Uint w=0; w<pDim; w++) {
+      P[w] = (1-c_sig) * P[w] + updSigP * A[w];
+      //D[w] = (1-c_sig) * D[w] + updSigP * ( A[w] - C[w] );
+      S[w] = std::sqrt( alpha*S[w]*S[w] + c1cov*P[w]*P[w] + mu_eff*c1cov*B[w] );
+      S[w] = std::min(S[w], (nnReal) 10); //safety
+    }
+
+    const nnReal* const M = weights->params;
+    if(0)//(pop_size%2 not_eq 0)
+    {
+      std::mt19937 & gen = * stdgens[omp_get_thread_num()];
+      std::normal_distribution<nnReal> dist(0.0, 1.0);
+      for(Uint i=1; i<pop_size; i+=2)
+      {
+        nnReal* const Y1 = popNoiseVectors[i+0]->params;
+        nnReal* const X1 = sampled_weights[i+0]->params;
+        nnReal* const Y2 = popNoiseVectors[i+1]->params;
+        nnReal* const X2 = sampled_weights[i+1]->params;
+        #pragma omp for schedule(static) nowait
+        for(Uint w=0; w<pDim; w++) {
+          Y1[w] = dist(gen) * S[w];
+          Y2[w] = -Y1[w];
+          X1[w] = M[w] + _eta * Y1[w]; //+ _eta*1e-2*D[w];
+          X2[w] = M[w] - _eta * Y1[w]; //+ _eta*1e-2*D[w];
+        }
+      }
+    }
+    else
+    {
+      Saru & gen = * generators[omp_get_thread_num()];
+      for(Uint i=1; i<pop_size; i++)
+      {
+        nnReal* const Y = popNoiseVectors[i]->params;
+        nnReal* const X = sampled_weights[i]->params;
+        #pragma omp for schedule(static) nowait
+        for(Uint w=0; w<pDim; w++) {
+          Y[w] = gen.f_mean0_var1() * S[w];
+          X[w] = M[w] + _eta * Y[w]; //+ _eta*1e-2*D[w];
+        }
+      }
+    }
+  }
 }
 
 void CMA_Optimizer::save(const string fname, const bool backup) {

@@ -6,12 +6,18 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 #include "../StateAction.h"
-#include "../Math/Utils.h"
 #include "../Math/Gaussian_policy.h"
 #include "../Network/Builder.h"
 #include "../Network/Aggregator.h"
 #include "DPG.h"
 //#define DKL_filter
+
+static inline Gaussian_policy prepare_policy(const Rvec&out,
+  const ActionInfo*const aI, const Tuple*const t = nullptr) {
+  Gaussian_policy pol({0, aI->dim}, aI, out);
+  if(t not_eq nullptr) pol.prepare(t->a, t->mu);
+  return pol;
+}
 
 DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set)
 {
@@ -63,7 +69,7 @@ void DPG::select(Agent& agent)
     // recurrent connection from last call from same agent will be reused
     F[0]->prepare_agent(traj, agent);
     Rvec pol = F[0]->forward_agent(agent);
-    Gaussian_policy policy = prepare_policy(pol);
+    Gaussian_policy policy = prepare_policy(pol, &aInfo);
     Rvec MU = policy.getVector();
     Rvec act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
     if(OrUhDecay>0)
@@ -92,7 +98,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint wID,
   F[1]->prepare_one(traj, t, thrID, wID);
 
   const Rvec polVec = F[0]->forward_cur(t, thrID);
-  const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
+  const Gaussian_policy POL = prepare_policy(polVec, &aInfo, traj->tuples[t]);
   const Real DKL = POL.sampKLdiv, rho = POL.sampImpWeight;
   //if(!thrID) cout<<"tpol "<<print(polVec)<<" act: "<<print(POL.sampAct)<<endl;
   const bool isOff = traj->isFarPolicy(t, rho, CmaxRet,CinvRet);

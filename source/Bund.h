@@ -43,12 +43,12 @@ using namespace std;
 
 // Switch between log(1+exp(x)) and (x+sqrt(x*x+1)/2 as mapping to R^+ for
 // policies, advantages, and all math objects that require pos def net outputs
-//#define CHEAP_SOFTPLUS
+#define CHEAP_SOFTPLUS
 
 // Switch between network computing \sigma (stdev) or \Sigma (covar).
 // Does have an effect only if sigma is linked to network output rather than
 // being a separate set of lerned parameters shared by all states.
-#define EXTRACT_COVAR
+//#define EXTRACT_COVAR
 
 // Switch between \sigma in (0 1) or (0 inf).
 #define UNBND_VAR
