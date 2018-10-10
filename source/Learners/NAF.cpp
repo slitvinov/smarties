@@ -44,13 +44,15 @@ void NAF::select(Agent& agent)
     const Rvec output = F[0]->forward_agent(agent);
     //cout << print(output) << endl;
     Rvec polvec = Rvec(&output[net_indices[2]], &output[net_indices[2]]+nA);
+
     #ifndef NDEBUG
       const Quadratic_advantage advantage = prepare_advantage(output, &aInfo, net_indices);
       Rvec polvec2 = advantage.getMean();
       assert(polvec.size() == polvec2.size());
       for(Uint i=0;i<nA;i++) assert(abs(polvec[i]-polvec2[i])<2e-16);
     #endif
-    polvec.resize(policyVecDim, noiseMap_inverse(explNoise));
+
+    polvec.resize(policyVecDim, stdParam);
     assert(polvec.size() == 2 * nA);
     Gaussian_policy policy({0, nA}, &aInfo, polvec);
     const Rvec MU = policy.getVector();
@@ -87,7 +89,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint wID,
   // prepare advantage and policy
   const Quadratic_advantage ADV = prepare_advantage(output, &aInfo,net_indices);
   Rvec polvec = ADV.getMean();            assert(polvec.size() == nA);
-  polvec.resize(policyVecDim, noiseMap_inverse(explNoise));
+  polvec.resize(policyVecDim, stdParam);
   assert(polvec.size() == 2 * nA);
   Gaussian_policy POL({0, nA}, &aInfo, polvec);
   POL.prepare(traj->tuples[samp]->a, traj->tuples[samp]->mu);

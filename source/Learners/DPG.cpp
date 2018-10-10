@@ -40,9 +40,13 @@ DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set)
 
   F.push_back(new Approximator("policy", _set, input, data));
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
-  const Real initParam = noiseMap_inverse(explNoise);
+  #ifdef EXTRACT_COVAR
+    const Real stdParam = noiseMap_inverse(explNoise*explNoise);
+  #else
+    const Real stdParam = noiseMap_inverse(explNoise);
+  #endif
   //F[0]->blockInpGrad = true; // this line must happen b4 initialize
-  build_pol.addParamLayer(nA, "Linear", initParam);
+  build_pol.addParamLayer(nA, "Linear", stdParam);
   F[0]->initializeNetwork(build_pol);
 
   relay = new Aggregator(_set, data, nA, F[0]);

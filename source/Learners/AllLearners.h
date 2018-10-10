@@ -99,7 +99,7 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
   else
   if (settings.learner == "CMA") {
     settings.batchSize_loc = settings.batchSize;
-    if(settings.ESpopSize<1)
+    if(settings.ESpopSize<2)
       die("Must be coupled with CMA. Set ESpopSize>1");
     if( settings.nWorkers % settings.learner_size )
       die("nWorkers must be multiple of learner ranks");

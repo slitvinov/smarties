@@ -199,6 +199,14 @@ public:
     const int sumout=static_cast<int>(accumulate(nouts.begin(),nouts.end(),0));
     const string netType = settings.nnType, funcType = settings.nnFunc;
     const vector<int> lsize = settings.readNetSettingsSize();
+
+    if(ninps == 0)
+    {
+      warn("network with no input space. will return a param layer");
+      addParamLayer(sumout, settings.nnOutputFunc, vector<Real>(sumout,0));
+      return;
+    }
+
     addInput(ninps);
 
     //User can specify how many layers exist independendlty for each output

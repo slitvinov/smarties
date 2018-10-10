@@ -176,8 +176,13 @@ ACER::ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
   F.push_back(new Approximator("advntg", _set, input, data, relay));
 
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
-  const Real initParam = noiseMap_inverse(explNoise);
-  build_pol.addParamLayer(nA, "Linear", initParam);
+
+  #ifdef EXTRACT_COVAR
+    const Real stdParam = noiseMap_inverse(explNoise*explNoise);
+  #else
+    const Real stdParam = noiseMap_inverse(explNoise);
+  #endif
+  build_pol.addParamLayer(nA, "Linear", stdParam);
   Builder build_val = F[1]->buildFromSettings(_set, 1 ); // V
   Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A
 

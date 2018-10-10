@@ -198,9 +198,13 @@ RETPG::RETPG(Environment*const _e, Settings& _s) : Learner_offPolicy(_e, _s)
 
   F.push_back(new Approximator("policy", _s, input, data));
   Builder build_pol = F[0]->buildFromSettings(_s, nA);
-  const Real initParam = noiseMap_inverse(explNoise);
+  #ifdef EXTRACT_COVAR
+    const Real stdParam = noiseMap_inverse(explNoise*explNoise);
+  #else
+    const Real stdParam = noiseMap_inverse(explNoise);
+  #endif
   //F[0]->blockInpGrad = true; // this line must happen b4 initialize
-  build_pol.addParamLayer(nA, "Linear", initParam);
+  build_pol.addParamLayer(nA, "Linear", stdParam);
   F[0]->initializeNetwork(build_pol);
 
   relay = new Aggregator(_s, data, nA, F[0]);

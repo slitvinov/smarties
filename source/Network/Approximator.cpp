@@ -288,7 +288,7 @@ void Approximator::getMetrics(ostringstream& buff) const {
 Rvec Approximator::relay_backprop(const Rvec err,
   const Uint samp, const Uint thrID, const bool bUseTargetWeights) const {
   if(relay == nullptr || relayInp < 0) die("improperly set up the relay");
-  if(ESpopSize > 0) {
+  if(ESpopSize > 1) {
     debugL("Skipping relay_backprop because we use ES optimizers.");
     return Rvec(relay->nOutputs(), 0);
   }
@@ -299,7 +299,8 @@ Rvec Approximator::relay_backprop(const Rvec err,
   const Rvec ret = net->inpBackProp(err, act[ind], W, relayInp);
   for(Uint j=0; j<ret.size(); j++)
     assert(!std::isnan(ret[j]) && !std::isinf(ret[j]));
-  //if(!thrID) {
+  //if(!thrID)
+  //{
   //  const auto pret = Rvec(&ret[nInp], &ret[nInp+relay->nOutputs()]);
   //  const auto inp = act[ind]->getInput();
   //  const auto pinp = Rvec(&inp[nInp], &inp[nInp+relay->nOutputs()]);

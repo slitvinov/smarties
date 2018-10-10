@@ -8,6 +8,7 @@
 
 #pragma once
 #include "Learner_offPolicy.h"
+#include "../Math/Utils.h"
 
 class NAF : public Learner_offPolicy
 {
@@ -16,6 +17,11 @@ class NAF : public Learner_offPolicy
   // - the starting indices along the output vector of each
   const vector<Uint> net_outputs = {1, compute_nL(aInfo.dim), aInfo.dim};
   const vector<Uint> net_indices = {0, 1, 1+compute_nL(aInfo.dim)};
+  #ifdef EXTRACT_COVAR
+    const Real stdParam = noiseMap_inverse(explNoise*explNoise);
+  #else
+    const Real stdParam = noiseMap_inverse(explNoise);
+  #endif
 
   const Uint nA = env->aI.dim;
   const Real OrUhDecay = CmaxPol<=0? .85 : 0;

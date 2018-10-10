@@ -332,7 +332,11 @@ Learner(E, S), pol_outputs(count_pol_outputs(&E->aI))
     build.setLastLayersBias(initBias);
   #else  //stddev params
     Builder build_pol = F[0]->buildFromSettings(S,   {aInfo.dim});
-    const Real initParam = noiseMap_inverse(explNoise);
+    #ifdef EXTRACT_COVAR
+      Real initParam = noiseMap_inverse(explNoise*explNoise);
+    #else
+      Real initParam = noiseMap_inverse(explNoise);
+    #endif
     build_pol.addParamLayer(aInfo.dim, "Linear", initParam);
   #endif
   F[0]->initializeNetwork(build_pol);

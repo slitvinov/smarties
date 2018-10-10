@@ -22,7 +22,7 @@ Communicator::Communicator(int socket, int state_comp, int action_comp,
     printf("FATAL: Communicator created with socket < 0.\n");
     abort();
   }
-  if(state_comp<=0) {
+  if(state_comp<0) {
     printf("FATAL: Cannot set negative state space dimensionality.\n");
     abort();
   }
@@ -34,7 +34,7 @@ Communicator::Communicator(int socket, int state_comp, int action_comp,
     printf("FATAL: Cannot set negative number of agents.\n");
     abort();
   }
-  assert(state_comp>0 && action_comp>0 && number_of_agents>0);
+  assert(state_comp>=0 && action_comp>0 && number_of_agents>0);
   nAgents = number_of_agents;
   update_state_action_dims(state_comp, action_comp);
   assert(socket not_eq 0);
@@ -225,7 +225,7 @@ void Communicator::update_state_action_dims(const int sdim, const int adim)
     return;
   }
   assert(adim>0);
-  assert(sdim>0);
+  assert(sdim>=0);
   assert(nAgents>0);
   nStates = sdim;
   nActions = adim;

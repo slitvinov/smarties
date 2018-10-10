@@ -15,7 +15,7 @@ g(&_settings.generators[0]), settings(_settings), gamma(_settings.gamma) {}
 void Environment::setDims()
 {
   comm_ptr->getStateActionShape();
-  assert(comm_ptr->getDimS()>0);
+  assert(comm_ptr->getDimS()>=0);
   assert(comm_ptr->getDimA()>0);
   assert(comm_ptr->getNagents()>0);
   assert(comm_ptr->nDiscreteAct()>=0);
@@ -116,15 +116,12 @@ void Environment::commonSetup()
   settings.nAgents = nAgents;
 
   if(sI.dim == 0) sI.dim = sI.inUse.size();
-  if(sI.inUse.size() == 0) {
+  if(sI.inUse.size() == 0 and sI.dim > 0) {
     if(settings.world_rank == 0)
     printf("Unspecified whether state vector components are available to learner, assumed yes\n");
     sI.inUse = std::vector<bool>(sI.dim, true);
   }
   if(sI.dim not_eq sI.inUse.size()) { die("must be equal"); }
-  if(sI.dim == 0) {
-    die("State vector dimensionality cannot be zero at this point");
-  }
 
   sI.dimUsed = 0;
   for (Uint i=0; i<sI.inUse.size(); i++) if (sI.inUse[i]) sI.dimUsed++;

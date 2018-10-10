@@ -214,7 +214,7 @@ void Communicator_internal::getStateActionShape()
   discrete_actions = doublePtrToInt(sizes+2);
   nAgents          = doublePtrToInt(sizes+3);
 
-  assert(nStates>=0 && nActions>=0);
+  assert(nStates>=0 && nActions>0);
   update_state_action_dims(nStates, nActions);
   inpBufs = alloc_bufs(size_state,  nOwnWorkers);
   outBufs = alloc_bufs(size_action, nOwnWorkers);
@@ -367,7 +367,7 @@ void Communicator_internal::launch()
     if ( ( thrID==tgtCPU ) && ( fork() == 0 ) )
     {
       createGo_rundir();
-      redirect_stdout_init();
+      //redirect_stdout_init();
       launch_exec("../"+execpath, socket_id); //child spawns process
       printf("setupClient app returned: what TODO?"); fflush(0); abort();
     }
