@@ -55,6 +55,9 @@ class MemoryBuffer
 
   Sampling * const sampler;
 
+  Real minPriorityImpW = 1;
+  Real maxPriorityImpW = 1;
+
   void checkNData();
 
  public:

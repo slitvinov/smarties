@@ -61,7 +61,8 @@ void Learner_offPolicy::spawnTrainTasks_par()
         input->gradient(thrID);
       }
   } else {
-  #pragma omp parallel for collapse(2) schedule(static, 1) num_threads(nThreads)
+  static const Uint CS = batchSize / nThreads;
+  #pragma omp parallel for collapse(2) schedule(static,CS) num_threads(nThreads)
     for (Uint wID=0; wID<ESpopSize; wID++)
       for (Uint bID=0; bID<batchSize; bID++) {
         const Uint thrID = omp_get_thread_num();

@@ -8,7 +8,6 @@
 
 #include "MemoryBuffer.h"
 #include <iterator>
-#include <parallel/algorithm>
 
 MemoryBuffer::MemoryBuffer(const Settings&S, const Environment*const E):
  settings(S), env(E), sampler(prepareSampler(S, this)) {
@@ -111,7 +110,8 @@ void MemoryBuffer::initialize()
   // All sequences obtained before this point should share the same time stamp
   for(Uint i=0;i<Set.size();i++) Set[i]->ID = nSeenSequences.load();
 
-  sampler->prepare();
+  needs_pass = true;
+  sampler->prepare(needs_pass);
 }
 
 MemoryBuffer::~MemoryBuffer()
@@ -135,7 +135,9 @@ Sampling* MemoryBuffer::prepareSampler(const Settings&S, MemoryBuffer* const R)
 {
   Sampling* ret = nullptr;
   if(S.bSampleSequences) ret = new SSample_uniform(S, R);
-  else ret = new TSample_impLen(S, R);
+  //else ret = new TSample_impLen(S, R);
+  else ret = new TSample_uniform(S, R);
+
   assert(ret not_eq nullptr);
   return ret;
 }
