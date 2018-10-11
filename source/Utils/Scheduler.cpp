@@ -89,13 +89,14 @@ void Master::processWorker(const int worker)
   while(1)
   {
     if(!bTrain && getMinSeqId() >= totNumSteps) break;
+
+    int completed = comm->testBuffer(worker);
+
     // Learners lock the workers queue if they have enough data to advance step
     while ( bTrain && learnersLockQueue() ) {
       usleep(1);
       if( bExit.load() > 0 ) break;
     }
-
-    int completed = comm->testBuffer(worker);
 
     if(completed) {
       processAgent(worker);

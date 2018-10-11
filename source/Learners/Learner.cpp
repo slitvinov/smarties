@@ -42,7 +42,7 @@ void Learner::prepareGradient()
   for(auto & net : F) net->prepareUpdate();
   input->prepareUpdate();
 
-  for(auto & net : F) net->updateGradStats(learner_name, currStep);
+  for(auto & net : F) net->updateGradStats(learner_name, currStep-1);
 }
 
 void Learner::initializeLearner()
