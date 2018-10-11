@@ -170,11 +170,11 @@ public:
     // Initialize network workspace to check that all is ok
     Activation*const test = allocate_activation(layers);
 
-    if(test->nInputs not_eq nInputs)
+    if(test->nInputs not_eq (int) nInputs)
       _die("Mismatch between Builder's computed inputs:%u and Activation's:%u",
         nInputs, test->nInputs);
 
-    if(test->nOutputs not_eq nOutputs) {
+    if(test->nOutputs not_eq (int) nOutputs) {
       _warn("Mismatch between Builder's computed outputs:%u and Activation's:%u. Overruled Builder: probable cause is that user's net did not specify which layers are output. If multiple output layers expect trouble\n",
         nOutputs, test->nOutputs);
       nOutputs = test->nOutputs;

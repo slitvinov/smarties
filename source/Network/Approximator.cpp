@@ -87,14 +87,17 @@ void Approximator::initializeNetwork(Builder& build) {
       if(net->layers[2]->bInput) die("should not be possible"); //joining
     }
     if(relay==nullptr) {
+      if(net->layers.size() < layBckPrpInp)
       if(net->layers[layBckPrpInp]->spanCompInpGrads!=nInps)
         die("should not be possible");
     } else
       if(net->layers[layBckPrpInp]->spanCompInpGrads!=nInps+relay->nOutputs())
         die("should not be possible");
 
-    net->layers[layBckPrpInp]->spanCompInpGrads -= nInps;
-    net->layers[layBckPrpInp]->startCompInpGrads = nInps;
+    if(net->layers.size() < layBckPrpInp) {
+      net->layers[layBckPrpInp]->spanCompInpGrads -= nInps;
+      net->layers[layBckPrpInp]->startCompInpGrads = nInps;
+    }
   }
 
   #ifdef __CHECK_DIFF //check gradients with finite differences

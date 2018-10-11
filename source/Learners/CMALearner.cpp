@@ -8,6 +8,7 @@
 
 #include "CMALearner.h"
 #include "../Network/Builder.h"
+#include "../Math/Utils.h"
 
 // nHorizon is number of obs in buffer during training
 // steps per epoch = nEpochs * nHorizon / batchSize
@@ -21,19 +22,30 @@ void CMALearner<Action_t>::select(Agent& agent)
 
   const Uint wrkr = agent.workerID;
 
-  if(agent.Status == INIT_COMM and WnEnded[wrkr] != nAgentsPerWorker) die("");
-  if(agent.Status == CONT_COMM and WnEnded[wrkr]>0) WnEnded[wrkr] = 0;
+  if(agent.Status == INIT_COMM and WnEnded[wrkr]>0) die("");
 
   const Uint progress = WiEnded[wrkr] * nWorkers_own + wrkr;
   const Uint weightID = ESpopStart + progress / batchSize;
-  //printf("Using weight %u on worker %u\n", weightID, wrkr);
+  //const auto W = F[0]->net->sampled_weights[weightID];
+  //std::vector<nnReal> WW(W->params, W->params + W->nParams);
+  //printf("Using weight %u on worker %u %s\n",weightID,wrkr,print(WW).c_str());
 
   if( agent.Status <  TERM_COMM ) //non terminal state
   {
     //Compute policy and value on most recent element of the sequence:
     F[0]->prepare_agent(curr_seq, agent, weightID);
-    const Rvec pol = F[0]->forward_agent(agent);
-    agent.act(pol);
+    Rvec pol = F[0]->forward_agent(agent);
+    Rvec act = pol;
+    if(explNoise>0) {
+      act.resize(aInfo.dim);
+      std::normal_distribution<Real> D(0, 1);
+      for(Uint i=0; i<aInfo.dim; i++) {
+        pol[i+aInfo.dim] = noiseMap_func(pol[i+aInfo.dim]);
+        act[i] += pol[i+aInfo.dim] * D(generators[nThreads+agent.ID]);
+      }
+    }
+    //printf("%s\n", print(pol).c_str());
+    agent.act(act);
     data_get->add_action(agent, pol);
   }
   else
@@ -41,10 +53,9 @@ void CMALearner<Action_t>::select(Agent& agent)
     R[wrkr][weightID] += agent.cumulative_rewards;
     data_get->terminate_seq(agent);
     //_warn("%u %u %f",wrkr, weightID, R[wrkr][weightID]);
-    ++WnEnded[wrkr];
-    if(WnEnded[wrkr] > nAgentsPerWorker) die("");
 
-    if(WnEnded[wrkr] == nAgentsPerWorker) {
+    if(++WnEnded[wrkr] == nAgentsPerWorker) {
+      WnEnded[wrkr] = 0;
       //printf("Simulation %ld ended for worker %u\n", WnEnded[wrkr], wrkr);
       ++WiEnded[wrkr];
     }
@@ -152,10 +163,12 @@ Learner(E, S)
 {
   data_get = new Collector(S, this, data);
   bReady4Init = true;
-  tPrint = 10;
+  tPrint = 100;
   printf("CMALearner\n");
   F.push_back(new Approximator("policy", S, input, data));
   Builder build_pol = F[0]->buildFromSettings(S, {aInfo.dim});
+  if(explNoise>0)
+    build_pol.addParamLayer(aInfo.dim, "Linear", noiseMap_inverse(explNoise));
   F[0]->initializeNetwork(build_pol);
 }
 
@@ -164,7 +177,7 @@ Learner(E, S)
 {
   data_get = new Collector(S, this, data);
   bReady4Init = true;
-  tPrint = 10;
+  tPrint = 100;
   printf("Discrete-action CMALearner\n");
   F.push_back(new Approximator("policy", S, input, data));
   Builder build_pol = F[0]->buildFromSettings(S, aInfo.maxLabel);

@@ -117,6 +117,7 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
     } else {
       using CMA_continuous = CMALearner<Rvec>;
       env->aI.policyVecDim = CMA_continuous::getnDimPolicy(&env->aI);
+      if(settings.explNoise > 0) env->aI.policyVecDim += env->aI.dim;
       o << env->aI.dim << " " << env->aI.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
       ret = new CMA_continuous(env, settings);

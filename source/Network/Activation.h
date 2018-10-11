@@ -13,14 +13,14 @@
 struct Activation
 {
   Uint _nOuts(vector<Uint> _sizes, vector<Uint> _bOut) {
-    assert(_sizes.size() == _bOut.size() && nLayers == _bOut.size());
+    assert(_sizes.size() == _bOut.size() && (size_t) nLayers == _bOut.size());
     Uint ret = 0;
     for(Uint i=0; i<_bOut.size(); i++) if(_bOut[i]) ret += _sizes[i];
     if(!ret) die("err nOutputs");
     return ret;
   }
   Uint _nInps(vector<Uint> _sizes, vector<Uint> _bInp) {
-    assert(_sizes.size() == _bInp.size() && nLayers == _bInp.size());
+    assert(_sizes.size() == _bInp.size() && (size_t) nLayers == _bInp.size());
     Uint ret = 0;
     for(Uint i=0; i<_bInp.size(); i++) if(_bInp[i]) ret += _sizes[i];
     return ret;
@@ -29,9 +29,9 @@ struct Activation
   Activation(vector<Uint>_sizes, vector<Uint>_bOut, vector<Uint>_bInp):
     nLayers(_sizes.size()), nOutputs(_nOuts(_sizes,_bOut)), nInputs(_nInps(_sizes,_bInp)), sizes(_sizes), output(_bOut), input(_bInp),
     suminps(allocate_vec(_sizes)), outvals(allocate_vec(_sizes)), errvals(allocate_vec(_sizes)) {
-    assert(suminps.size()==nLayers);
-    assert(outvals.size()==nLayers);
-    assert(errvals.size()==nLayers);
+    assert(suminps.size()== (size_t) nLayers);
+    assert(outvals.size()== (size_t) nLayers);
+    assert(errvals.size()== (size_t) nLayers);
   }
 
   ~Activation() {
@@ -42,11 +42,11 @@ struct Activation
 
   template<typename T>
   inline void setInput(const vector<T> inp) const {
-    assert(nInputs == inp.size());
-    for(Uint j=0; j<nInputs; j++)
+    assert( (size_t) nInputs == inp.size());
+    for(int j=0; j<nInputs; j++)
       assert(!std::isnan(inp[j]) && !std::isinf(inp[j]));
-    Uint k=0;
-    for(Uint i=0; i<nLayers; i++) if(input[i]) {
+    int k=0;
+    for(int i=0; i<nLayers; i++) if(input[i]) {
       std::copy(&inp[k], &inp[k]+sizes[i], outvals[i]);
       //memcpy(outvals[i], &inp[k], sizes[i]*sizeof(nnReal));
       k += sizes[i];
@@ -55,8 +55,8 @@ struct Activation
   }
   inline vector<Real> getInput() const {
     vector<Real> ret(nInputs);
-    Uint k=0;
-    for(Uint i=0; i<nLayers; i++) if(input[i]) {
+    int k=0;
+    for(int i=0; i<nLayers; i++) if(input[i]) {
       std::copy(outvals[i], outvals[i]+sizes[i], &ret[k]);
       //memcpy(&ret[k], outvals[i], sizes[i]*sizeof(nnReal));
       k += sizes[i];
@@ -75,11 +75,11 @@ struct Activation
 
   template<typename T>
   inline void setOutputDelta(const vector<T> delta) const {
-    assert(nOutputs == delta.size()); //alternative not supported
-    for(Uint j=0; j<nOutputs; j++)
+    assert( (size_t) nOutputs == delta.size()); //alternative not supported
+    for(int j=0; j<nOutputs; j++)
       assert(!std::isnan(delta[j]) && !std::isinf(delta[j]));
-    Uint k=0;
-    for(Uint i=0; i<nLayers; i++) if(output[i]) {
+    int k=0;
+    for(int i=0; i<nLayers; i++) if(output[i]) {
       std::copy(&delta[k], &delta[k]+sizes[i], errvals[i]);
       //memcpy(errvals[i], &delta[k], sizes[i]*sizeof(nnReal));
       k += sizes[i];
@@ -90,9 +90,9 @@ struct Activation
 
   template<typename T>
   inline void addOutputDelta(const vector<T> delta) const {
-    assert(nOutputs == delta.size()); //alternative not supported
-    Uint k=0;
-    for(Uint i=0; i<nLayers; i++) if(output[i])
+    assert( (size_t) nOutputs == delta.size()); //alternative not supported
+    int k=0;
+    for(int i=0; i<nLayers; i++) if(output[i])
       for (Uint j=0; j<sizes[i]; j++, k++) errvals[i][j] += delta[k];
     assert(k == nOutputs);
     written = true;
@@ -101,8 +101,8 @@ struct Activation
   inline vector<nnReal> getOutputDelta() const {
     assert(written == true);
     vector<nnReal> ret(nOutputs);
-    Uint k=0;
-    for(Uint i=0; i<nLayers; i++) if(output[i]) {
+    int k=0;
+    for(int i=0; i<nLayers; i++) if(output[i]) {
       std::copy(errvals[i], errvals[i]+sizes[i], &ret[k]);
       //memcpy(&ret[k], errvals[i], sizes[i]*sizeof(nnReal));
       k += sizes[i];
@@ -114,53 +114,53 @@ struct Activation
   inline vector<Real> getOutput() const {
     assert(written == true);
     vector<Real> ret(nOutputs);
-    Uint k=0;
-    for(Uint i=0; i<nLayers; i++) if(output[i]) {
+    int k=0;
+    for(int i=0; i<nLayers; i++) if(output[i]) {
       std::copy(outvals[i], outvals[i]+sizes[i], &ret[k]);
       //memcpy(&ret[k], outvals[i], sizes[i]*sizeof(nnReal));
       k += sizes[i];
     }
-    for(Uint j=0; j<nOutputs; j++)
+    for(int j=0; j<nOutputs; j++)
       assert(!std::isnan(ret[j]) && !std::isinf(ret[j]));
     assert(k == nOutputs);
     return ret;
   }
 
   inline void clearOutput() const {
-    for(Uint i=0; i<nLayers; i++) {
+    for(int i=0; i<nLayers; i++) {
       assert(outvals[i] not_eq nullptr);
       std::memset( outvals[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
   }
 
   inline void clearErrors() const {
-    for(Uint i=0; i<nLayers; i++) {
+    for(int i=0; i<nLayers; i++) {
       assert(errvals[i] not_eq nullptr);
       std::memset( errvals[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
   }
 
   inline void clearInputs() const {
-    for(Uint i=0; i<nLayers; i++) {
+    for(int i=0; i<nLayers; i++) {
       assert(suminps[i] not_eq nullptr);
       std::memset( suminps[i], 0, roundUpSimd(sizes[i])*sizeof(nnReal) );
     }
   }
 
-  inline nnReal* X(const Uint layerID) const {
+  inline nnReal* X(const int layerID) const {
     assert(layerID < nLayers);
     return suminps[layerID];
   }
-  inline nnReal* Y(const Uint layerID) const {
+  inline nnReal* Y(const int layerID) const {
     assert(layerID < nLayers);
     return outvals[layerID];
   }
-  inline nnReal* E(const Uint layerID) const {
+  inline nnReal* E(const int layerID) const {
     assert(layerID < nLayers);
     return errvals[layerID];
   }
 
-  const Uint nLayers, nOutputs, nInputs;
+  const int nLayers, nOutputs, nInputs;
   const vector<Uint> sizes, output, input;
   //contains all inputs to each neuron (inputs to network input layer is empty)
   const vector<nnReal*> suminps;
