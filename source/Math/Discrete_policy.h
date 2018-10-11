@@ -28,6 +28,7 @@ struct Discrete_policy
     assert(aI->maxLabel);
     return aI->maxLabel;
   }
+  static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias) { }
 
   Discrete_policy(const vector<Uint>& start, const ActionInfo*const aI,
     const Rvec& out) : aInfo(aI), start_prob(start[0]), nA(aI->maxLabel), netOutputs(out), unnorm(extract_unnorm()),

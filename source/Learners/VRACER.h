@@ -59,14 +59,12 @@ class VRACER : public Learner_offPolicy
 
   static vector<Uint> count_outputs(const ActionInfo*const aI);
   static vector<Uint> count_pol_starts(const ActionInfo*const aI);
-
+  void setupNet();
  public:
   VRACER(Environment*const _env, Settings& _set);
   ~VRACER() { }
 
   void select(Agent& agent) override;
-
-  void writeOnPolRetrace(Sequence*const seq) const;
 
   void prepareGradient() override;
   void initializeLearner() override;
