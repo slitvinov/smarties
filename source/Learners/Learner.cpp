@@ -12,6 +12,7 @@
 
 Learner::Learner(Environment*const E, Settings&S): settings(S), env(E)
 {
+  if(input->nOutputs() == 0) return;
   Builder input_build(S);
   input_build.addInput( input->nOutputs() );
   bool builder_used = env->predefinedNetwork(input_build);
@@ -185,6 +186,24 @@ bool Learner::predefinedNetwork(Builder& input_net, Uint privateNum)
   settings.nnl5 = sizeOrig.size() > 4? sizeOrig[4] : 0;
   settings.nnl6 = sizeOrig.size() > 5? sizeOrig[5] : 0;
   return ret;
+}
+
+void Learner::createSharedEncoder(const Uint privateNum)
+{
+  if(input->net not_eq nullptr) {
+    delete input->opt; input->opt = nullptr;
+    delete input->net; input->net = nullptr;
+  }
+  if(input->nOutputs() == 0) return;
+  Builder input_build(settings);
+  bool bInputNet = false;
+  input_build.addInput( input->nOutputs() );
+  bInputNet = bInputNet || env->predefinedNetwork(input_build);
+  bInputNet = bInputNet || predefinedNetwork(input_build, privateNum);
+  if(bInputNet) {
+    Network* net = input_build.build(true);
+    input->initializeNetwork(net, input_build.opt);
+  }
 }
 
 //bool Learner::predefinedNetwork(Builder & input_net)

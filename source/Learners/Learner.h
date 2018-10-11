@@ -72,6 +72,8 @@ class Learner
   mutable std::mutex buffer_mutex;
 
   virtual void processStats();
+  void createSharedEncoder(const Uint privateNum = 1);
+  bool predefinedNetwork(Builder& input_net, const Uint privateNum = 1);
 
  public:
   Profiler* profiler = nullptr;
@@ -164,7 +166,6 @@ class Learner
   virtual void prepareGradient();
   virtual void applyGradient();
   virtual void initializeLearner();
-  bool predefinedNetwork(Builder& input_net, const Uint privateNum = 1);
   virtual void save();
   virtual void restart();
 };

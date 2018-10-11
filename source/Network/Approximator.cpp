@@ -74,7 +74,9 @@ void Approximator::initializeNetwork(Builder& build) {
     } else relayInp = 0;
   }
 
-  if(not net->layers[0]->bInput) die("should not be possible");
+  if(not net->layers[0]->bInput) {
+    warn("Network has no input.");
+  }
   // skip backprop to input vector or to input features if `blockInpGrad`
   if ( input->net == nullptr or blockInpGrad ) {
     Uint layBckPrpInp = 1, nInps = input->nOutputs();

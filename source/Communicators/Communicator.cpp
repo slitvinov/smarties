@@ -200,16 +200,22 @@ void Communicator::sendStateActionShape()
   #ifdef MPI_VERSION
     if (rank_learn_pool>0) {
       MPI_Ssend(sizes, 4*8, MPI_BYTE, 0,3, comm_learn_pool);
+      if(nStates>0)
+      {
       MPI_Ssend(obs_inuse.data(), nStates*1*8, MPI_BYTE, 0, 3, comm_learn_pool);
       MPI_Ssend(obs_bounds.data(), nStates*16, MPI_BYTE, 0, 4, comm_learn_pool);
+      }
       MPI_Ssend(action_options.data(), nActions*16, MPI_BYTE, 0, 5, comm_learn_pool);
       MPI_Ssend(action_bounds.data(), discrete_action_values*8, MPI_BYTE, 0, 6, comm_learn_pool);
     } else
   #endif
     {
       sockSend(Socket, sizes, 4 *sizeof(double));
+      if(nStates>0)
+      {
       sockSend(Socket, obs_inuse.data(),      nStates *1*sizeof(double));
       sockSend(Socket, obs_bounds.data(),     nStates *2*sizeof(double));
+      }
       sockSend(Socket, action_options.data(), nActions*2*sizeof(double));
       sockSend(Socket, action_bounds.data(),  discrete_action_values*8 );
     }

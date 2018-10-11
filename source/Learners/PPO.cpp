@@ -304,19 +304,7 @@ Learner(E, S), pol_outputs(count_pol_outputs(&E->aI))
 
   printf("Continuous-action PPO\n");
   #if 0 // shared input layers
-    if(input->net not_eq nullptr) {
-      delete input->opt; input->opt = nullptr;
-      delete input->net; input->net = nullptr;
-    }
-    Builder input_build(S);
-    bool bInputNet = false;
-    input_build.addInput( input->nOutputs() );
-    bInputNet = bInputNet || env->predefinedNetwork(input_build);
-    bInputNet = bInputNet || predefinedNetwork(input_build);
-    if(bInputNet) {
-      Network* net = input_build.build(true);
-      input->initializeNetwork(net, input_build.opt);
-    }
+    createSharedEncoder();
   #endif
   F.push_back(new Approximator("policy", S, input, data));
   F[0]->blockInpGrad = true;

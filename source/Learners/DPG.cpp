@@ -23,19 +23,7 @@ DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set)
 {
   _set.splitLayers = 0;
   #if 0
-    if(input->net not_eq nullptr) {
-      delete input->opt; input->opt = nullptr;
-      delete input->net; input->net = nullptr;
-    }
-    Builder input_build(_set);
-    bool bInputNet = false;
-    input_build.addInput( input->nOutputs() );
-    bInputNet = bInputNet || env->predefinedNetwork(input_build);
-    bInputNet = bInputNet || predefinedNetwork(input_build);
-    if(bInputNet) {
-      Network* net = input_build.build(true);
-      input->initializeNetwork(net, input_build.opt);
-    }
+    createSharedEncoder();
   #endif
 
   F.push_back(new Approximator("policy", _set, input, data));

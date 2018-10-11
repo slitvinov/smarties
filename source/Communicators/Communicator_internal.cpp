@@ -224,27 +224,40 @@ void Communicator_internal::getStateActionShape()
   if(nOwnWorkers>0)
   {
    if (rank_learn_pool==0) {
+    if(nStates>0)
+    {
     MPI_Recv(obs_inuse.data(),nStates*8,MPI_BYTE,1,3,comm_learn_pool, MPI_STATUS_IGNORE);
     MPI_Recv(obs_bounds.data(),nStates*16,MPI_BYTE,1,4,comm_learn_pool, MPI_STATUS_IGNORE);
+    }
     MPI_Recv(action_options.data(),nActions*16,MPI_BYTE,1,5,comm_learn_pool, MPI_STATUS_IGNORE);
    } else {
     for(int i=0; i<nOwnWorkers; i++)
     {
+      if(nStates>0)
+      {
       sockRecv(clientSockets[i], obs_inuse.data(), nStates*8);
       sockRecv(clientSockets[i], obs_bounds.data(), nStates*16);
+      }
       sockRecv(clientSockets[i], action_options.data(), nActions*16);
     }
     if (rank_learn_pool==1) {
+     if(nStates>0)
+     {
      MPI_Ssend(obs_inuse.data(), nStates*8,MPI_BYTE,0,3, comm_learn_pool);
      MPI_Ssend(obs_bounds.data(), nStates*16,MPI_BYTE,0,4, comm_learn_pool);
+     }
      MPI_Ssend(action_options.data(),nActions*16,MPI_BYTE,0,5, comm_learn_pool);
     }
    }
   }
 
-  if(S.mastersComm not_eq MPI_COMM_NULL) {
+  if(S.mastersComm not_eq MPI_COMM_NULL)
+  {
+    if(nStates>0)
+    {
     MPI_Bcast(obs_inuse.data(), nStates*8, MPI_BYTE, 0, S.mastersComm);
     MPI_Bcast(obs_bounds.data(), nStates*16, MPI_BYTE, 0, S.mastersComm);
+    }
     MPI_Bcast(action_options.data(), nActions*16, MPI_BYTE, 0, S.mastersComm);
   }
 

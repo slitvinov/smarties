@@ -166,7 +166,7 @@ struct Sequence
     tuples.push_back(t);
   }
   inline void add_action(const Rvec act, const Rvec mu) {
-    assert( tuples.back()->s.size() && 0==tuples.back()->a.size() && 0==tuples.back()->mu.size() );
+    assert( 0==tuples.back()->a.size() && 0==tuples.back()->mu.size() );
     tuples.back()->a = act;
     tuples.back()->mu = mu;
   }
