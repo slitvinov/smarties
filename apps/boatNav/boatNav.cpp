@@ -27,6 +27,7 @@ struct Entity
 
 	std::mt19937& genA;
 	bool isOver=false;
+	bool abortSim=false;
 
 
 	Entity(std::mt19937& _gen, const unsigned nQ, const double xS[2], const double xE[2]) : nStates(nQ), genA(_gen)
@@ -54,7 +55,8 @@ struct Entity
 		tt.clear(); forceX.clear(); thrustL.clear(); thrustR.clear(); torque.clear();
 
 		normal_distribution<double> distribX(0, params.l);
-		normal_distribution<double> distribU(0, 2*params.l);
+		uniform_real_distribution<double> distribU(0, 2*params.l);
+		normal_distribution<double> distribV(0, 2*params.l);
 		normal_distribution<double> distribAng(0, M_PI/18.0); // allow random deviation by 10 degrees
 
 		p[0] = this->pathStart[0] + distribX(genA); // random starting positions
@@ -62,8 +64,9 @@ struct Entity
 
 		thetaNose = this->thetaPath + distribAng(genA);
 		isOver = false;
+		abortSim = false;
 
-		u.push_back(distribU(genA)), v.push_back(distribU(genA)); // random initial linear velocities
+		u.push_back(distribU(genA)), v.push_back(distribV(genA)); // random initial linear velocities
 		r.push_back(0.0);
 		x.push_back(p[0]), y.push_back(p[1]), thetaR.push_back(thetaNose - thetaPath);
 		tt.push_back(0.0);
@@ -150,8 +153,9 @@ struct USV: public Entity
 	  const double distStart = getDistance(pathStart);
 	  const double distEnd 	= getDistance(pathEnd); 
 
+	  //double retVal = distStart*abs(sin(thetaStart));
 	  double retVal;
-	  if( abs(thetaEnd) >= M_PI/2.0 && (thetaStart>=-M_PI/2.0 && thetaStart<=M_PI/2.0) )
+	  if( abs(thetaEnd) >= M_PI/2.0 && abs(thetaStart)<=M_PI/2.0 )
 	  {
 		  retVal = distStart*abs(sin(thetaStart));
 	  } else {
@@ -165,24 +169,27 @@ struct USV: public Entity
 	  const double latDist = getLateralDist();
 	  // angle wrt path - punish 45deg to be equal to 1 latDist, and linearly vary up and down
 	  const double anglePenalty = abs(r.back())/(M_PI/4.0);
-	  return -(latDist + anglePenalty);
+	  //return -(latDist + anglePenalty);
+	  //return -(latDist);
+	  //return 0.0;
+	  return -(latDist);// + 0.01*anglePenalty);
   }
 
-  bool checkTermination() {
+  void checkTermination() {
+
+	  if(this->isOver) return; // Already hit termination condition, now just waiting to comm
+
 	  const double threshold= 0.1*this->params.l; // within 10% of ship width
 	  const double distGoal = getDistance(pathEnd);
 	  const bool goal = (distGoal < threshold) ? true : false;
-	  if (goal) isOver = true; 
+	  if (goal) isOver = true;
 
 	  // Check if need to abort
 	  const double latDist = getLateralDist(); // already normalized by params.l
-	  const bool abortSim = (latDist > 10) ? true : false ;
-	  if (abortSim) {
-		  //printf("boat is too far from path, distance = %f boatWidths\n", latDist);
-		  isOver = true;
-	  }
+	  abortSim = (latDist > 10) ? true : false ;
+	  if (abortSim) isOver = true;
 
-	  return abortSim;
+	  return;
   }
  
 };
@@ -196,7 +203,7 @@ int main(int argc, const char * argv[])
   const int number_of_agents = 1;
   char fileName[100];
 
-  const double commInterval = 0.5;
+  const double commInterval = 0.1;
   bool commNow=false;
   const double magnifyAction = 50.0;
 
@@ -248,17 +255,18 @@ int main(int argc, const char * argv[])
 	    boat.advance();
 	    step++;
 
-	    const bool abortSim = boat.checkTermination();// Abort if too far from trajectory
+	    boat.checkTermination();
 	    if(commNow){
 		    if(boat.is_over()){ // Terminate simulation 
 
-			    const double finalReward = 10*boat.params.l;
+			    const double positiveReward = maxStep*dt/commInterval; // This can potentially cancel out to zero all negative reward accrued if the boat travelled at dy avg = 1 length. DO NOT mult by 'step', then agent will try to maximize number of steps!!! Nicht gut
+			    const double negativeReward = -100*positiveReward; // superpunitive, otherwise boat was commiting hara-kiri by hitting the side wall, to avoid negative trail-traversing reward
 
-			    if(abortSim){
-				    comm.sendTermState(boat.getState(), -finalReward, 0);
-				    printf("Sim #%d reporting that boat got lost.\n", sim); fflush(NULL);
+			    if(boat.abortSim){
+				    comm.sendTermState(boat.getState(), negativeReward, 0);
+				    printf("Sim #%d reporting that boat got lost.\n", sim+1); fflush(NULL);
 			    } else {
-				    comm.sendTermState(boat.getState(), +finalReward, 0);
+				    comm.sendTermState(boat.getState(), positiveReward, 0);
 				    printf("Sim #%d reporting that boat reached safe harbor.\n", sim+1); fflush(NULL);
 			    }
 			    sim++; break;
