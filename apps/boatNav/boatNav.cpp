@@ -171,7 +171,7 @@ struct USV: public Entity
 	  const double latDist = getLateralDist(); // already normalized by params.l
 	  const bool abortSim = (latDist > 10) ? true : false ;
 	  if (abortSim) {
-		  printf("boat is too far from path, distance = %f boatWidths\n", latDist);
+		  //printf("boat is too far from path, distance = %f boatWidths\n", latDist);
 		  isOver = true;
 	  }
 
@@ -188,6 +188,10 @@ int main(int argc, const char * argv[])
   const int state_vars = 6;   // number of states
   const int number_of_agents = 1;
   char fileName[100];
+
+  const double commInterval = 0.5;
+  bool commNow=false;
+  const double magnifyAction = 50.0;
 
   //communication:
   const int socket = std::stoi(argv[1]);
@@ -213,45 +217,56 @@ int main(int argc, const char * argv[])
     unsigned step = 0;
     while (true) //simulation loop
     {
+	    tt.push_back(dt*(step+1));
+
+	    const double temp = (tt.back()/commInterval) - floor(tt.back()/commInterval);
+	    commNow = false;
+	    if(temp==0.0) commNow = true; // CAREFUL! assuming dt is even divisor of commInterval
+
 	    vector<double> actions(control_vars, 0.0);
-	    actions = comm.recvAction(0);
 
-	    /*// Overwrite actions
-	      actions[0] = -20.0; // Thruster Left
-	      actions[1] = 20.0; // Thruster Right*/
+	    //Continue previous action, or query from controller
+	    if(commNow){
+		    actions = comm.recvAction(0);
+	    }else{
+		    actions[0] = thrustL.back()/magnifyAction;
+		    actions[1] = thrustR.back()/magnifyAction;
+	    }
 
-	    // Magnify order(1) actions to order(10) forces
-	    thrustL.push_back(50*actions[0]);
-	    thrustR.push_back(50*actions[1]);
+	    // Magnify order(1) actions to order(50) forces
+	    thrustL.push_back(magnifyAction*actions[0]);
+	    thrustR.push_back(magnifyAction*actions[1]);
 	    forceX[step] = actions[0] + actions[1];
 
 	    boat.advance();
-	    tt.push_back(dt*(step+1));
+	    step++;
 
 	    const bool abortSim = boat.checkTermination();// Abort if too far from trajectory
-	    if(boat.is_over()){ // Terminate simulation 
+	    if(commNow){
+		    if(boat.is_over()){ // Terminate simulation 
 
-		    const double finalReward = 10*boat.params.l;
+			    const double finalReward = 10*boat.params.l;
 
-		    if(abortSim){
-			    comm.sendTermState(boat.getState(), -finalReward, 0);
-			    printf("Sim #%d reporting that boat got lost.\n", sim); fflush(NULL);
-		    } else {
-			    comm.sendTermState(boat.getState(), +finalReward, 0);
-			    printf("Sim #%d reporting that boat reached safe harbor.\n", sim+1); fflush(NULL);
+			    if(abortSim){
+				    comm.sendTermState(boat.getState(), -finalReward, 0);
+				    printf("Sim #%d reporting that boat got lost.\n", sim); fflush(NULL);
+			    } else {
+				    comm.sendTermState(boat.getState(), +finalReward, 0);
+				    printf("Sim #%d reporting that boat reached safe harbor.\n", sim+1); fflush(NULL);
+			    }
+			    sim++; break;
 		    }
-		    sim++; break;
-	    }
 
-	    if(step++ < maxStep)
-	    {
-		    comm.sendState(boat.getState(), boat.getReward(), 0);
-	    }
-	    else
-	    {
-		    comm.truncateSeq(boat.getState(), boat.getReward(), 0);
-		    sim++;
-		    break;
+		    if(step < maxStep)
+		    {
+			    comm.sendState(boat.getState(), boat.getReward(), 0);
+		    }
+		    else
+		    {
+			    comm.truncateSeq(boat.getState(), boat.getReward(), 0);
+			    sim++;
+			    break;
+		    }
 	    }
 
     }
