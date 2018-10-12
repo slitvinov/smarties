@@ -259,7 +259,8 @@ int main(int argc, const char * argv[])
 	    if(commNow){
 		    if(boat.is_over()){ // Terminate simulation 
 
-			    const double positiveReward = maxStep*dt/commInterval; // This can potentially cancel out to zero all negative reward accrued if the boat travelled at dy avg = 1 length. DO NOT mult by 'step', then agent will try to maximize number of steps!!! Nicht gut
+			    const double positiveReward = 0.1*maxStep*dt/commInterval; 
+			    // This can potentially cancel out to zero all negative reward accrued if the boat travelled at dy avg = 1 length. DO NOT mult by 'step', then agent will try to maximize number of steps!!! Nicht gut
 			    const double negativeReward = -100*positiveReward; // superpunitive, otherwise boat was commiting hara-kiri by hitting the side wall, to avoid negative trail-traversing reward
 
 			    if(boat.abortSim){
