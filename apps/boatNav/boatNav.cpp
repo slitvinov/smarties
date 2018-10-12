@@ -88,7 +88,14 @@ struct Entity
 		const double xN[3] = {x.back(), y.back(), thetaR.back()};
 		double xNp1[3] = {0.0};
 		trajectory(xN, uN, uNp1, dt, xNp1);
-		x.push_back(xNp1[0]), y.push_back(xNp1[1]), thetaR.push_back(xNp1[2]);
+
+		// limit theta to [0,2pi]
+		const double mult2pi = (xNp1[2]/(2*M_PI));
+		double intPart;
+		const double fractPart = modf(mult2pi, &intPart);
+		double correctedTheta = 2*M_PI*fractPart;
+
+		x.push_back(xNp1[0]), y.push_back(xNp1[1]), thetaR.push_back(correctedTheta);
 
 		p[0] = xNp1[0];
 		p[1] = xNp1[1];
