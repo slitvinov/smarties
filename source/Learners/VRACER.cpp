@@ -52,47 +52,48 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   #endif
 
   if ( wID == 0 and S->isTruncated(t+1) ) {
+    assert( t+1 == S->ndata() );
     const Rvec nxt = F[valNetID]->forward(t+1, thrID);
-    S->setStateValue(t+1, nxt[VsID]);
+    updateRetrace(S, t+1, 0, nxt[VsID], 0);
   }
 
   if(thrID==0)  profiler->stop_start("CMP");
-
-  const Policy_t P = prepare_policy<Policy_t>(out, &aInfo, pol_start, S->tuples[t]);
-  // check whether importance weight is in 1/Cmax < c < Cmax
-  const Real R = data->scaledReward(S, t+1), W = P.sampImpWeight;
-  const Real Vcur = val[0], Vnxt = S->state_vals[t+1], Dnxt = S->Q_RET[t+1];
+  const Policy_t P = prepare_policy<Policy_t>(out, aI, pol_start, S->tuples[t]);
+  const Real W = P.sampImpWeight;
+  const Real A_RET = S->Q_RET[t] - val[0], D_RET = std::min((Real)1, W) * A_RET;
+    // check whether importance weight is in 1/CmaxRet < c < CmaxRet
   const bool isOff = S->isFarPolicy(t, W, CmaxRet, CinvRet);
-  const Real A_RET = R + gamma * (Dnxt + Vnxt) - Vcur;
-  const Real D_RET = std::min((Real)1, W) * A_RET;
 
-  if( wID == 0 ) {
-    S->setStateValue(t, Vcur); S->setRetrace(t, D_RET);
+  if( wID == 0 )
+  {
+    const Real dAdv = updateRetrace(S, t, 0, val[0], W);
     S->setMseDklImpw(t, D_RET*D_RET, P.sampKLdiv, W, CmaxRet, CinvRet);
+    trainInfo->log(val[0], D_RET, { std::pow(dAdv,2), W }, thrID);
   }
 
-  if(ESpopSize>1) {
+  if(ESpopSize>1)
+  {
     advs[bID][wID] = A_RET;
     dkls[bID][wID] = P.sampKLdiv;
     rhos[bID][wID] = P.sampImpWeight;
-    if( wID == 0 )
-      trainInfo->log(Vcur, D_RET, {std::pow(D_RET-S->Q_RET[t],2), W}, thrID);
   }
   else
   {
     assert(wID == 0);
     Rvec G = Rvec(F[0]->nOutputs(), 0);
     if(isOff) P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu, beta-1), G);
-    else {
+    else
+    {
      const Rvec G1 = P.policy_grad(P.sampAct, A_RET * W);
      const Rvec G2 = P.div_kl_grad(S->tuples[t]->mu, -1);
      P.finalize_grad(weightSum2Grads(G1, G2, beta), G);
-     trainInfo->log(Vcur,D_RET,G1,G2, {std::pow(D_RET-S->Q_RET[t],2),W}, thrID);
+     trainInfo->trackPolicy(G1, G2, thrID);
     }
 
     if(thrID==0) profiler->stop_start("BCK");
     #ifdef DACER_singleNet
-      assert(std::fabs(G[0])<1e-16); G[0] = beta * D_RET;
+      assert(std::fabs(G[0])<1e-16); // make sure it was untouched
+      G[0] = beta * D_RET;
     #else
       F[1]->backward( Rvec(1, beta * D_RET), t, thrID);
       F[1]->gradient(thrID);  // backprop
@@ -105,15 +106,15 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::select(Agent& agent)
 {
-  Sequence* const traj = data_get->get(agent.ID);
+  Sequence* const S = data_get->get(agent.ID);
   data_get->add_state(agent);
-  F[0]->prepare_agent(traj, agent);
+  F[0]->prepare_agent(S, agent);
 
   #ifdef DACER_singleNet
     static constexpr int valNetID = 0;
   #else
     static constexpr int valNetID = 1;
-    F[1]->prepare_agent(traj, agent);
+    F[1]->prepare_agent(S, agent);
   #endif
 
   if( agent.Status < TERM_COMM ) // not last of a sequence
@@ -134,7 +135,7 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
     // this should only be used for evaluating a learned policy
     auto act = pol.finalize(explNoise>0, &generators[nThreads+agent.ID], mu);
 
-    traj->state_vals.push_back(value[0]);
+    S->state_vals.push_back(value[0]);
     agent.act(act);
     data_get->add_action(agent, mu);
   }
@@ -142,18 +143,21 @@ void VRACER<Policy_t, Action_t>::select(Agent& agent)
   {
     if( agent.Status == TRNC_COMM ) {
       Rvec output = F[valNetID]->forward_agent(agent);
-      traj->state_vals.push_back(output[0]);
-    } else traj->state_vals.push_back(0); //value of term state is 0
+      S->state_vals.push_back(output[0]);
+    } else S->state_vals.push_back(0); //value of term state is 0
 
-    assert(traj->tuples.size() == traj->state_vals.size());
-    assert(traj->Q_RET.size() == 0);
-    const Uint N = traj->tuples.size();
+    const Uint N = S->tuples.size();
+    // compute initial Qret for whole trajectory:
+    assert(N==S->state_vals.size());
+    assert(0==S->Q_RET.size() && 0==S->action_adv.size());
+
     // compute initial Qret for whole trajectory
     //within Retrace, we use the state_vals vector to write the Q retrace values
-    traj->Q_RET.resize(N, 0);
-    traj->Q_RET[N-1] = 0; //both if truncated or not, last delta is zero
-    //update all q_ret before terminal step.
-    for(Uint i=N-1; i>0; i--) updateVret(traj, i-1, 1);
+    //both if truncated or not, last delta is zero
+    S->Q_RET.resize(N, 0);
+    S->action_adv.resize(N, 0);
+    S->offPolicImpW.resize(N, 1);
+    for(Uint i=S->ndata(); i>0; i--) backPropRetrace(S, i);
 
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
     data_get->terminate_seq(agent);
@@ -200,40 +204,8 @@ void VRACER<Policy_t, Action_t>::prepareGradient()
   }
 
   Learner_offPolicy::prepareGradient();
-
-  if(updateToApply)
-  {
-    profiler->stop_start("QRET");
-    debugL("Update Retrace est. for episodes samples in prev. grad update");
-    // placed here because this happens right after update is computed
-    // this can happen before prune and before workers are joined
-    const std::vector<Uint>& sampled = data->listSampled();
-    const Uint setSize = sampled.size();
-    #pragma omp parallel for schedule(dynamic)
-    for(Uint i = 0; i < setSize; i++) {
-      Sequence * const S = data->get(sampled[i]);
-      for(int j=S->just_sampled; j>=0; j--) updateVret(S,j,S->offPolicImpW[j]);
-    }
-  }
 }
 
-template<typename Policy_t, typename Action_t>
-void VRACER<Policy_t, Action_t>::initializeLearner()
-{
-  Learner_offPolicy::initializeLearner();
-
-  // Rewards second moment is computed right before actual training begins
-  // therefore we need to recompute (rescaled) Retrace values for all obss
-  // seen before this point.
-  debugL("Rescale Retrace est. after gathering initial dataset");
-  const Uint setSize = data->readNSeq();
-  #pragma omp parallel for schedule(dynamic)
-  for(Uint i = 0; i < setSize; i++) {
-    Sequence* const traj = data->get(i);
-    const int N = traj->ndata(); traj->setRetrace(N, 0);
-    for(Uint j=N; j>0; j--) updateVret(traj, j-1, 1);
-  }
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -259,6 +231,7 @@ VRACER(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI))
 {
   printf("Discrete-action DACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
+  computeQretrace = true;
   setupNet();
 }
 
@@ -287,6 +260,7 @@ template<> VRACER<Gaussian_mixture<NEXPERTS>, Rvec>::VRACER(Environment*const _e
 net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI))
 {
   printf("Mixture-of-experts continuous-action DACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
+  computeQretrace = true;
   setupNet();
 
   {  // TEST FINITE DIFFERENCES:
@@ -333,6 +307,7 @@ template<> VRACER<Gaussian_policy, Rvec>::
 VRACER(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set),
 net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
   printf("Gaussian continuous-action DACER: Built network with outputs: v:%u pol:%s\n", VsID, print(pol_start).c_str());
+  computeQretrace = true;
   setupNet();
 
   {  // TEST FINITE DIFFERENCES:
@@ -342,10 +317,8 @@ net_outputs(count_outputs(&_env->aI)),pol_start(count_pol_starts(&_env->aI)) {
     for(Uint i=0; i<mu.size(); i++) mu[i] = dist(generators[0]);
     for(Uint i=0; i<nA; i++) mu[i+nA] = std::exp(0.5*mu[i+nA] -1);
     for(Uint i=0; i<nA; i++) output[1+i] = mu[i] + dist(generators[0])*mu[i+nA];
-    for(Uint i=0; i<nA; i++) {
-      const Real S = mu[i+nA];//*mu[i+nA];
-      output[1+i+nA] = (S*S -.25)/S + .1*dist(generators[0]);
-    }
+    for(Uint i=0; i<nA; i++)
+      output[1+i+nA] = noiseMap_inverse(mu[i+nA]) + .1*dist(generators[0]);
 
     Gaussian_policy pol = prepare_policy<Gaussian_policy>(output, &aInfo, pol_start);
     Rvec act = pol.finalize(1, &generators[0], mu);

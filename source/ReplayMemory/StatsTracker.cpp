@@ -73,7 +73,7 @@ void TrainData::log(const Real Q, const Real Qerr,
   cntVec[thrID] ++;
   trackQ(Q, Qerr, thrID);
   const vector<Real> tmp = extra;
-  assert(tmp.size() == n_extra && not bPolStats);
+  assert(tmp.size() == n_extra);
   for(Uint i=0; i<n_extra; i++) eVec[thrID][i] += tmp[i];
 }
 
@@ -194,7 +194,7 @@ void TrainData::trackPolicy(const std::vector<Real> polG,
   }
   pVec[thrID][0] += std::sqrt(tmpPol);
   pVec[thrID][1] += std::sqrt(tmpPen);
-  static constexpr Real eps = numeric_limits<Real>::epsilon();
+  static constexpr Real eps = std::numeric_limits<Real>::epsilon();
   pVec[thrID][2] += tmpPrj/(std::sqrt(tmpPen)+eps);
 }
 

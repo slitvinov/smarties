@@ -153,8 +153,11 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
           // sequence is off policy if offPol W is out of 1/C : C
           if(W>CmaxRho || W<invC) dbg_nOffPol += 1;
         }
-        if( std::fabs(dbg_sumKLDiv - Set[i]->sumKLDiv) > 1e-1 ) _die("%f %f", dbg_sumKLDiv, Set[i]->sumKLDiv);
-        if( std::fabs(dbg_nOffPol - Set[i]->nOffPol) > 1 ) _die("%f %f", dbg_nOffPol, Set[i]->nOffPol);
+        if( std::fabs(dbg_sumKLDiv - Set[i]->sumKLDiv) > 1e-1 )
+          _die("%f %f", dbg_sumKLDiv, Set[i]->sumKLDiv);
+        if(settings.epsAnneal <= 0) //else CmaxRho will change in time
+          if( std::fabs(dbg_nOffPol - Set[i]->nOffPol) > 1e-1 )
+            _die("%f %f", dbg_nOffPol, Set[i]->nOffPol);
       #endif
 
       const Real W_FAR = Set[i]->nOffPol /Set[i]->ndata();

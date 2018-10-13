@@ -22,6 +22,7 @@
 #undef DKL_filter
 #endif
 #define RACER_simpleSigma
+#define RACER_singleNet
 
 template<typename Policy_t>
 static inline Policy_t prepare_policy(const Rvec& O, const ActionInfo*const aI,
@@ -46,12 +47,11 @@ void RACER<Advantage_t, Policy_t, Action_t>::TrainBySequences(
 
   F[0]->prepare_seq(traj, thrID, wID);
   for (int k=0; k<ndata; k++) F[0]->forward(k, thrID);
+
   //if partial sequence then compute value of last state (!= R_end)
-  if( traj->isTerminal(ndata) ) updateQret(traj, ndata, 0, 0, 0);
-  else if( traj->isTruncated(ndata) ) {
+  if( traj->isTruncated(ndata) ) {
     const Rvec nxt = F[0]->forward(ndata, thrID);
-    traj->setStateValue(ndata, nxt[VsID]);
-    updateQret(traj, ndata, 0, nxt[VsID], 0);
+    updateRetrace(traj, ndata, 0, nxt[VsID], 0);
   }
 
   if(thrID==0)  profiler->stop_start("POL");
@@ -79,30 +79,28 @@ template<typename Advantage_t, typename Policy_t, typename Action_t>
 void RACER<Advantage_t, Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   const Uint wID, const Uint bID, const Uint thrID) const
 {
-  Sequence* const traj = data->get(seq);
-  assert(t+1 < traj->tuples.size());
+  Sequence* const S = data->get(seq);
+  assert(t+1 < S->tuples.size());
 
   if(thrID==0) profiler->stop_start("FWD");
-
-  F[0]->prepare_one(traj, t, thrID, wID); // prepare thread workspace
-  const Rvec out_cur = F[0]->forward(t, thrID); // network compute
+  F[0]->prepare_one(S, t, thrID, wID); // prepare thread workspace
+  const Rvec O = F[0]->forward(t, thrID); // network compute
 
   //Update Qret of eps' last state if sampled T-1. (and V(s_T) for truncated ep)
-  if( traj->isTerminal(t+1) ) updateQret(traj, t+1, 0, 0, 0);
-  else if( traj->isTruncated(t+1) ) {
+  if( S->isTruncated(t+1) ) {
+    assert( t+1 == S->ndata() );
     const Rvec nxt = F[0]->forward(t+1, thrID);
-    traj->setStateValue(t+1, nxt[VsID]);
-    updateQret(traj, t+1, 0, nxt[VsID], 0);
+    updateRetrace(S, t+1, 0, nxt[VsID], 0);
   }
 
-  const Policy_t pol = prepare_policy<Policy_t>(out_cur, &aInfo, pol_start, traj->tuples[t]);
+  const Policy_t P = prepare_policy<Policy_t>(O, aI, pol_start, S->tuples[t]);
   // check whether importance weight is in 1/Cmax < c < Cmax
-  const bool isOff = traj->isFarPolicy(t, pol.sampImpWeight, CmaxRet, CinvRet);
+  const bool isOff = S->isFarPolicy(t, P.sampImpWeight, CmaxRet, CinvRet);
 
   if(thrID==0)  profiler->stop_start("CMP");
   Rvec grad;
-  if(isOff) grad = offPolCorrUpdate(traj, t, out_cur, pol, thrID);
-  else grad = compute(traj, t, out_cur, pol, thrID);
+  if(isOff) grad = offPolCorrUpdate(S, t, O, P, thrID);
+  else grad = compute(S, t, O, P, thrID);
 
   if(thrID==0)  profiler->stop_start("BCK");
   F[0]->backward(grad, t, thrID); // place gradient onto output layer
@@ -115,27 +113,26 @@ compute(Sequence*const traj, const Uint samp, const Rvec& outVec,
   const Policy_t& POL, const Uint thrID) const
 {
   const Advantage_t ADV = prepare_advantage<Advantage_t,Policy_t>(
-                                  outVec, &aInfo, adv_start, &POL);
+                                                  outVec, aI, adv_start, &POL);
   const Real A_cur = ADV.computeAdvantage(POL.sampAct), V_cur = outVec[VsID];
   // shift retrace-advantage with current V(s) estimate:
-  const Real A_RET = traj->Q_RET[samp] +traj->state_vals[samp]-V_cur;
+  const Real A_RET = traj->Q_RET[samp] - V_cur;
   const Real rho = POL.sampImpWeight, dkl = POL.sampKLdiv;
   const Real Ver = std::min((Real)1, rho) * (A_RET-A_cur);
   // all these min(CmaxRet,rho_cur) have no effect with ReFer enabled
   const Real Aer = std::min(CmaxRet, rho) * (A_RET-A_cur);
-  const Rvec polG = policyGradient(traj->tuples[samp], POL,ADV,A_RET, thrID);
+  const Rvec polG = policyGradient(traj->tuples[samp], POL, ADV, A_RET, thrID);
   const Rvec penalG  = POL.div_kl_grad(traj->tuples[samp]->mu, -1);
-  const Rvec finalG  = weightSum2Grads(polG, penalG, beta);
   //if(!thrID) cout<<dkl<<" s "<<print(traj->tuples[samp]->s)
   //  <<" pol "<<print(POL.getVector())<<" mu "<<print(traj->tuples[samp]->mu)
   //  <<" act: "<<print(traj->tuples[samp]->a)<<" pg: "<<print(polG)
   //  <<" pen: "<<print(penalG)<<" fin: "<<print(finalG)<<endl;
   //prepare Q with off policy corrections for next step:
-  const Real dAdv = updateQret(traj, samp, A_cur, V_cur, POL);
+  const Real dAdv = updateRetrace(traj, samp, A_cur, V_cur, rho);
   // compute the gradient:
   Rvec gradient = Rvec(F[0]->nOutputs(), 0);
   gradient[VsID] = beta * Ver;
-  POL.finalize_grad(finalG, gradient);
+  POL.finalize_grad(weightSum2Grads(polG, penalG, beta), gradient);
   ADV.grad(POL.sampAct, beta * Aer, gradient);
   traj->setMseDklImpw(samp, Ver*Ver, dkl, rho, CmaxRet, CinvRet);
   // logging for diagnostics:
@@ -152,9 +149,9 @@ offPolCorrUpdate(Sequence*const S, const Uint t, const Rvec output,
                                   output, &aInfo, adv_start, &pol);
   const Real A_cur = adv.computeAdvantage(pol.sampAct);
   // shift retrace-advantage with current V(s) estimate:
-  const Real A_RET = S->Q_RET[t] +S->state_vals[t] -output[VsID];
+  const Real A_RET = S->Q_RET[t] - output[VsID];
   const Real Ver = std::min((Real)1, pol.sampImpWeight) * (A_RET-A_cur);
-  updateQret(S, t, A_cur, output[VsID], pol);
+  updateRetrace(S, t, A_cur, output[VsID], pol.sampImpWeight);
   S->setMseDklImpw(t, Ver*Ver,pol.sampKLdiv,pol.sampImpWeight, CmaxRet,CinvRet);
   const Rvec pg = pol.div_kl_grad(S->tuples[t]->mu, beta-1);
   // only non zero gradient is policy penalization
@@ -232,56 +229,18 @@ select(Agent& agent)
     }
     //whether seq is truncated or terminated, act adv is undefined:
     traj->action_adv.push_back(0);
+    const Uint N = traj->tuples.size();
     // compute initial Qret for whole trajectory:
-    assert(traj->tuples.size() == traj->action_adv.size());
-    assert(traj->tuples.size() == traj->state_vals.size());
-    assert(traj->Q_RET.size()  == 0);
+    assert(N == traj->action_adv.size());
+    assert(N == traj->state_vals.size());
+    assert(0 == traj->Q_RET.size());
     //within Retrace, we use the Q_RET vector to write the Adv retrace values
-    traj->Q_RET.resize(traj->tuples.size(), 0);
-    for(Uint i=traj->ndata(); i>0; i--) updateQretFront(traj, i);
+    traj->Q_RET.resize(N, 0); traj->offPolicImpW.resize(N, 1);
+    for(Uint i=traj->ndata(); i>0; i--) backPropRetrace(traj, i);
 
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
     data_get->terminate_seq(agent);
   }
-}
-
-template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::
-prepareGradient()
-{
-  Learner_offPolicy::prepareGradient();
-
-  if(updateToApply)
-  {
-    debugL("Update Retrace est. for episodes sampled in prev. grad update");
-    // placed here because this happens right after update is computed
-    // this can happen before prune and before workers are joined
-    profiler->stop_start("QRET");
-    const std::vector<Uint>& sampled = data->listSampled();
-    const Uint setSize = sampled.size();
-    #pragma omp parallel for schedule(dynamic, 1)
-    for(Uint i = 0; i < setSize; i++) {
-      Sequence * const S = data->get(sampled[i]);
-      for(int j=S->just_sampled-1; j>0; j--) updateQretBack(S, j);
-    }
-  }
-}
-
-template<typename Advantage_t, typename Policy_t, typename Action_t>
-void RACER<Advantage_t, Policy_t, Action_t>::
-initializeLearner()
-{
-  Learner_offPolicy::initializeLearner();
-
-  // Rewards second moment is computed right before actual training begins
-  // therefore we need to recompute (rescaled) Retrace values for all obss
-  // seen before this point.
-  debugL("Rescale Retrace est. after gathering initial dataset");
-  // placed here because on 1st step we just computed first rewards statistics
-  const Uint setSize = data->readNSeq();
-  #pragma omp parallel for schedule(dynamic)
-  for(Uint i=0; i<setSize; i++)
-    for(Uint j=data->get(i)->ndata(); j>0; j--) updateQretFront(data->get(i),j);
 }
 
 // Template specializations. From now on, nothing relevant to algorithm itself.
@@ -296,14 +255,14 @@ RACER<Discrete_advantage, Discrete_policy, Uint>::
 count_pol_starts(const ActionInfo*const aI) {
   const vector<Uint> sizes = count_outputs(aI);
   const vector<Uint> indices = count_indices(sizes);
-  return vector<Uint>{indices[1]};
+  return vector<Uint>{indices[2]};
 }
 template<> vector<Uint>
 RACER<Discrete_advantage, Discrete_policy, Uint>::
 count_adv_starts(const ActionInfo*const aI) {
   const vector<Uint> sizes = count_outputs(aI);
   const vector<Uint> indices = count_indices(sizes);
-  return vector<Uint>{indices[2]};
+  return vector<Uint>{indices[1]};
 }
 template<> Uint
 RACER<Discrete_advantage, Discrete_policy, Uint>::
@@ -326,13 +285,8 @@ RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env,_set),
   if(_set.learner_rank == 0) {
     printf("Discrete-action RACER: Built network with outputs: v:%u pol:%s adv:%s\n", VsID, print(pol_start).c_str(), print(adv_start).c_str());
   }
-
-  F.push_back(new Approximator("net", _set, input, data));
-  vector<Uint> nouts{1, nL, nA};
-  Builder build = F[0]->buildFromSettings(_set, nouts);
-  F[0]->initializeNetwork(build);
-
-  trainInfo = new TrainData("racer", _set, 1, "| beta | dAdv | avgW ", 3);
+  computeQretrace = true;
+  setupNet();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -381,39 +335,8 @@ RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
   if(_set.learner_rank == 0) {
     printf("Mixture-of-experts continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s (sorted %s)\n", VsID, print(pol_start).c_str(), print(adv_start).c_str(), print(net_outputs).c_str());
   }
-
-  F.push_back(new Approximator("net", _set, input, data));
-
-  vector<Uint> nouts{1, nL, NEXPERTS, NEXPERTS * nA};
-  #ifndef RACER_simpleSigma // network outputs also sigmas
-    nouts.push_back(NEXPERTS * nA);
-  #endif
-
-  Builder build = F[0]->buildFromSettings(_set, nouts);
-
-  Rvec initBias;
-  initBias.push_back(0); // state value
-  Mixture_advantage<NEXPERTS>::setInitial(&aInfo, initBias);
-  Gaussian_mixture<NEXPERTS>::setInitial_noStdev(&aInfo, initBias);
-
-  #ifdef RACER_simpleSigma // sigma not linked to network: parametric output
-    build.setLastLayersBias(initBias);
-    #ifdef EXTRACT_COVAR
-      Real initParam = noiseMap_inverse(explNoise*explNoise);
-    #else
-      Real initParam = noiseMap_inverse(explNoise);
-    #endif
-    build.addParamLayer(NEXPERTS * nA, "Linear", initParam);
-  #else
-    Gaussian_mixture<NEXPERTS>::setInitial_Stdev(&aInfo, initBias, explNoise);
-    build.setLastLayersBias(initBias);
-  #endif
-  F[0]->initializeNetwork(build);
-  //F[0]->save(learner_name+"init");
-  if(F.size() > 1) die("");
-  F[0]->opt->bAnnealLearnRate= true;
-
-  trainInfo = new TrainData("racer", _set, 1, "| dAdv | avgW ", 2);
+  computeQretrace = true;
+  setupNet();
 
   {  // TEST FINITE DIFFERENCES:
     Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
@@ -485,39 +408,8 @@ RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
   if(_set.learner_rank == 0) {
     printf("Mixture-of-experts continuous-action RACER: Built network with outputs: v:%u pol:%s adv:%s (sorted %s)\n", VsID, print(pol_start).c_str(), print(adv_start).c_str(), print(net_outputs).c_str());
   }
-
-  F.push_back(new Approximator("net", _set, input, data));
-
-  vector<Uint> nouts{1, nL, nA};
-  #ifndef RACER_simpleSigma // network outputs also sigmas
-    nouts.push_back(nA);
-  #endif
-
-  Builder build = F[0]->buildFromSettings(_set, nouts);
-
-  Rvec initBias;
-  initBias.push_back(0); // state value
-  Quadratic_advantage::setInitial(&aInfo, initBias);
-  Gaussian_policy::setInitial_noStdev(&aInfo, initBias);
-
-  #ifdef RACER_simpleSigma // sigma not linked to network: parametric output
-    build.setLastLayersBias(initBias);
-    #ifdef EXTRACT_COVAR
-      Real initParam = noiseMap_inverse(explNoise*explNoise);
-    #else
-      Real initParam = noiseMap_inverse(explNoise);
-    #endif
-    build.addParamLayer(nA, "Linear", initParam);
-  #else
-    Gaussian_policy::setInitial_Stdev(&aInfo, initBias, explNoise);
-    build.setLastLayersBias(initBias);
-  #endif
-  F[0]->initializeNetwork(build);
-  //F[0]->save(learner_name+"init");
-  if(F.size() > 1) die("");
-  F[0]->opt->bAnnealLearnRate= true;
-
-  trainInfo = new TrainData("racer", _set, 1, "| dAdv | avgW ", 2);
+  computeQretrace = true;
+  setupNet();
 
   {  // TEST FINITE DIFFERENCES:
     Rvec output(F[0]->nOutputs()), mu(getnDimPolicy(&aInfo));
@@ -529,10 +421,8 @@ RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
     for(Uint i=0; i<=nL; i++) output[i] = 0.5*dist(generators[0]);
     for(Uint i=0; i<nA; i++)
       output[1+nL+i] = mu[i] + dist(generators[0])*mu[i+nA];
-    for(Uint i=0; i<nA; i++) {
-      const Real S = mu[i+nA];//*mu[i+nA];
-      output[1+nL+i+nA] = (S*S -.25)/S + .1*dist(generators[0]);
-    }
+    for(Uint i=0; i<nA; i++)
+      output[1+nL+i+nA] = noiseMap_inverse(mu[i+nA]) + .1*dist(generators[0]);
 
     Gaussian_policy pol = prepare_policy<Gaussian_policy>(output, &aInfo, pol_start);
     Rvec act = pol.finalize(1, &generators[0], mu);
@@ -545,6 +435,70 @@ RACER(Environment*const _env, Settings& _set) : Learner_offPolicy(_env, _set),
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+
+template<typename Advantage_t, typename Policy_t, typename Action_t>
+void RACER<Advantage_t, Policy_t, Action_t>::setupNet()
+{
+  const std::type_info& actT = typeid(Action_t);
+  const std::type_info& vecT = typeid(Rvec);
+  const bool isContinuous = actT.hash_code() == vecT.hash_code();
+
+  vector<Uint> nouts = count_outputs(&aInfo);
+
+  #ifdef RACER_singleNet // state value is approximated by an other net
+    F.push_back(new Approximator("net", settings, input, data));
+  #else
+    nout.erase( nout.begin() );
+    F.push_back(new Approximator("policy", settings, input, data));
+    F[0]->blockInpGrad = true; // this line must happen b4 initialize
+    F.push_back(new Approximator("critic", settings, input, data));
+    // make value network:
+    Builder build_val = F[1]->buildFromSettings(settings, 1);
+    F[1]->initializeNetwork(build_val);
+  #endif
+
+  #ifdef RACER_simpleSigma // variance not dependent on state
+    const Uint varianceSize = nouts.back();
+    if(isContinuous) nouts.pop_back();
+  #endif
+
+  Builder build = F[0]->buildFromSettings(settings, nouts);
+
+  if(isContinuous)
+  {
+    #ifdef RACER_singleNet
+      Rvec  polBias = Rvec(1, 0);
+      Rvec& valBias = polBias;
+    #else
+      Rvec polBias = Rvec(0, 0); // no state val here
+      Rvec valBias = Rvec(1, 0); // separate bias init vector for val net
+    #endif
+    Advantage_t::setInitial(&aInfo, valBias);
+    Policy_t::setInitial_noStdev(&aInfo, polBias);
+
+    #ifdef RACER_simpleSigma // sigma not linked to state: param output
+      build.setLastLayersBias(polBias);
+      #ifdef EXTRACT_COVAR
+        Real initParam = noiseMap_inverse(explNoise*explNoise);
+      #else
+        Real initParam = noiseMap_inverse(explNoise);
+      #endif
+      build.addParamLayer(varianceSize, "Linear", initParam);
+    #else
+      Policy_t::setInitial_Stdev(&aInfo, polBias, explNoise);
+      build.setLastLayersBias(polBias);
+    #endif
+  }
+
+  // construct policy net:
+  if(F.size() > 1) die("");
+  F[0]->initializeNetwork(build);
+  F[0]->opt->bAnnealLearnRate= true;
+  trainInfo = new TrainData("racer", settings, 1, "| dAdv | avgW ", 2);
+}
+
+////////////////////////////////////////////////////////////////////////////
 
 template class RACER<Discrete_advantage, Discrete_policy, Uint>;
 template class RACER<Quadratic_advantage, Gaussian_policy, Rvec>;

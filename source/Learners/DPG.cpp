@@ -6,9 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 #include "../StateAction.h"
-#include "../Math/Gaussian_policy.h"
 #include "../Network/Builder.h"
 #include "../Network/Aggregator.h"
+#include "../Math/Gaussian_policy.h"
 #include "DPG.h"
 //#define DKL_filter
 
@@ -17,62 +17,6 @@ static inline Gaussian_policy prepare_policy(const Rvec&out,
   Gaussian_policy pol({0, aI->dim}, aI, out);
   if(t not_eq nullptr) pol.prepare(t->a, t->mu);
   return pol;
-}
-
-DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set)
-{
-  _set.splitLayers = 0;
-  #if 0
-    createSharedEncoder();
-  #endif
-
-  F.push_back(new Approximator("policy", _set, input, data));
-  Builder build_pol = F[0]->buildFromSettings(_set, nA);
-  #ifdef EXTRACT_COVAR
-    const Real stdParam = noiseMap_inverse(explNoise*explNoise);
-  #else
-    const Real stdParam = noiseMap_inverse(explNoise);
-  #endif
-  //F[0]->blockInpGrad = true; // this line must happen b4 initialize
-  build_pol.addParamLayer(nA, "Linear", stdParam);
-  F[0]->initializeNetwork(build_pol);
-
-  relay = new Aggregator(_set, data, nA, F[0]);
-  F.push_back(new Approximator("critic", _set, input, data, relay));
-
-  _set.nnLambda = 1e-4; // also wants L2 penl coef
-  _set.learnrate *= 10; // DPG wants critic faster than actor
-  _set.nnOutputFunc = "Linear"; // critic must be linear
-  // we want initial Q to be approx equal to 0 everywhere.
-  // if LRelu we need to make initialization multiplier smaller:
-  Builder build_val = F[1]->buildFromSettings(_set, 1 );
-  F[1]->initializeNetwork(build_val);
-  printf("DPG\n");
-
-  trainInfo = new TrainData("DPG", _set, 1, "| beta | avgW ", 2);
-}
-
-void DPG::select(Agent& agent)
-{
-  Sequence* const traj = data_get->get(agent.ID);
-  data_get->add_state(agent);
-  if( agent.Status < TERM_COMM ) { // not last of a sequence
-    //Compute policy and value on most recent element of the sequence. If RNN
-    // recurrent connection from last call from same agent will be reused
-    F[0]->prepare_agent(traj, agent);
-    Rvec pol = F[0]->forward_agent(agent);
-    Gaussian_policy policy = prepare_policy(pol, &aInfo);
-    Rvec MU = policy.getVector();
-    Rvec act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
-    if(OrUhDecay>0)
-      act = policy.updateOrUhState(OrUhState[agent.ID], MU, OrUhDecay);
-    agent.act(act);
-    data_get->add_action(agent, MU);
-    //if(nStep)cout << print(MU) << " " << print(act) << endl;
-  } else {
-    OrUhState[agent.ID] = Rvec(nA, 0);
-    data_get->terminate_seq(agent);
-  }
 }
 
 void DPG::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
@@ -106,6 +50,7 @@ void DPG::Train(const Uint seq, const Uint t, const Uint wID,
   Real target = data->scaledReward(traj, t+1);
   if (not traj->isTerminal(t+1) && not isOff) {
     const Rvec pol_next = F[0]->forward_tgt(t+1, thrID);
+    relay->prepare(traj, thrID, NET); // relay to pass policy (output of F[0])
     //if(!thrID) cout << "nterm pol "<<print(pol_next) << endl;
     const Rvec v_next = F[1]->forward_tgt(t+1, thrID);//here is {s,pi}_+1
     target += gamma * v_next[0];
@@ -142,4 +87,60 @@ void DPG::Train(const Uint seq, const Uint t, const Uint wID,
   if(thrID==0)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
   F[1]->gradient(thrID);
+}
+
+void DPG::select(Agent& agent)
+{
+  Sequence* const traj = data_get->get(agent.ID);
+  data_get->add_state(agent);
+  if( agent.Status < TERM_COMM ) { // not last of a sequence
+    //Compute policy and value on most recent element of the sequence. If RNN
+    // recurrent connection from last call from same agent will be reused
+    F[0]->prepare_agent(traj, agent);
+    Rvec pol = F[0]->forward_agent(agent);
+    Gaussian_policy policy = prepare_policy(pol, &aInfo);
+    Rvec MU = policy.getVector();
+    Rvec act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
+    if(OrUhDecay>0)
+      act = policy.updateOrUhState(OrUhState[agent.ID], MU, OrUhDecay);
+    agent.act(act);
+    data_get->add_action(agent, MU);
+    //if(nStep)cout << print(MU) << " " << print(act) << endl;
+  } else {
+    OrUhState[agent.ID] = Rvec(nA, 0);
+    data_get->terminate_seq(agent);
+  }
+}
+
+DPG::DPG(Environment*const _env, Settings& _set): Learner_offPolicy(_env,_set)
+{
+  _set.splitLayers = 0;
+  #if 0
+    createSharedEncoder();
+  #endif
+
+  F.push_back(new Approximator("policy", _set, input, data));
+  Builder build_pol = F[0]->buildFromSettings(_set, nA);
+  #ifdef EXTRACT_COVAR
+    const Real stdParam = noiseMap_inverse(explNoise*explNoise);
+  #else
+    const Real stdParam = noiseMap_inverse(explNoise);
+  #endif
+  //F[0]->blockInpGrad = true; // this line must happen b4 initialize
+  build_pol.addParamLayer(nA, "Linear", stdParam);
+  F[0]->initializeNetwork(build_pol);
+
+  relay = new Aggregator(_set, data, nA, F[0]);
+  F.push_back(new Approximator("critic", _set, input, data, relay));
+
+  _set.nnLambda = 1e-4; // also wants L2 penl coef
+  _set.learnrate *= 10; // DPG wants critic faster than actor
+  _set.nnOutputFunc = "Linear"; // critic must be linear
+  // we want initial Q to be approx equal to 0 everywhere.
+  // if LRelu we need to make initialization multiplier smaller:
+  Builder build_val = F[1]->buildFromSettings(_set, 1 );
+  F[1]->initializeNetwork(build_val);
+  printf("DPG\n");
+
+  trainInfo = new TrainData("DPG", _set, 1, "| beta | avgW ", 2);
 }

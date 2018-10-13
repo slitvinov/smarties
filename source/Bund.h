@@ -39,7 +39,7 @@ using namespace std;
 // Learn rate of moving stdev and mean of states. If <=0 averaging switched off
 // and state scaling quantities are only computed from initial data.
 // It can lead to small improvement of results with some computational cost
-#define OFFPOL_ADAPT_STSCALE 0
+#define OFFPOL_ADAPT_STSCALE 1
 
 // Switch between log(1+exp(x)) and (x+sqrt(x*x+1)/2 as mapping to R^+ for
 // policies, advantages, and all math objects that require pos def net outputs

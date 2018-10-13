@@ -70,7 +70,6 @@ struct TrainData
   void getMetrics(ostringstream& buff);
   void getHeaders(ostringstream& buff) const;
 
- private:
   void resetSoft();
   void resetHead();
 

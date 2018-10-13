@@ -47,8 +47,9 @@ class Learner
   const Real explNoise = settings.explNoise;
   const Real epsAnneal = settings.epsAnneal;
 
-  const ActionInfo& aInfo = env->aI;
   const StateInfo&  sInfo = env->sI;
+  const ActionInfo& aInfo = env->aI;
+  const ActionInfo* const aI = &aInfo;
 
  protected:
   long nData_b4Startup = 0;

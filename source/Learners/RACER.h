@@ -56,39 +56,6 @@ class RACER : public Learner_offPolicy
   Rvec offPolCorrUpdate(Sequence*const S, const Uint t,
     const Rvec output, const Policy_t& pol, const Uint thrID) const;
 
-  inline void updateQretFront(Sequence*const S, const Uint t) const {
-    if(t == 0) return;
-    //called only after a new ep is added to membuf. assumed rho=1
-    const Fval D = data->scaledReward(S,t) + gamma * S->state_vals[t];
-    S->Q_RET[t-1] = D +gamma*(S->Q_RET[t]-S->action_adv[t]) -S->state_vals[t-1];
-  }
-  inline void updateQretBack(Sequence*const S, const Uint t) const {
-    assert( t > 0 && not S->isLast(t) );
-    const Fval W = S->offPolicImpW[t], R = data->scaledReward(S, t);
-    const Fval G = gamma, C = W < 1 ? W : 1;
-    const Fval D = R +G*S->state_vals[t] -S->state_vals[t-1];
-    S->Q_RET[t-1] = D + G*C*(S->Q_RET[t] - S->action_adv[t]);
-  }
-
-  inline Fval updateQret(Sequence*const S, const Uint t, const Fval A,
-    const Fval V, const Policy_t& pol) const {
-    // shift retrace advantage with update estimate for V(s_t)
-    S->setRetrace(t, S->Q_RET[t] + S->state_vals[t] -V );
-    S->setStateValue(t, V); S->setAdvantage(t, A);
-    //prepare Qret_{t-1} with off policy corrections for future use
-    return updateQret(S, t, A, V, pol.sampImpWeight);
-  }
-
-  inline Fval updateQret(Sequence*const S, const Uint t, const Fval A,
-    const Fval V, const Fval rho) const {
-    assert(rho >= 0);
-    if(t == 0) return 0;
-    const Fval oldRet = S->Q_RET[t-1], W = rho < 1 ? rho : 1, G = gamma;
-    const Fval D = data->scaledReward(S,t) +G*V - S->state_vals[t-1];
-    S->setRetrace(t-1, D + G*W*(S->Q_RET[t] - A) );
-    return std::fabs(S->Q_RET[t-1] - oldRet);
-  }
-
   Rvec policyGradient(const Tuple*const _t, const Policy_t& POL,
     const Advantage_t& ADV, const Real A_RET, const Uint thrID) const;
 
@@ -104,15 +71,13 @@ class RACER : public Learner_offPolicy
   static vector<Uint> count_outputs(const ActionInfo*const aI);
   static vector<Uint> count_pol_starts(const ActionInfo*const aI);
   static vector<Uint> count_adv_starts(const ActionInfo*const aI);
-
+  void setupNet();
  public:
   RACER(Environment*const _env, Settings& _set);
   ~RACER() { }
 
   void select(Agent& agent) override;
 
-  void prepareGradient() override;
-  void initializeLearner() override;
   static Uint getnOutputs(const ActionInfo*const aI);
   static Uint getnDimPolicy(const ActionInfo*const aI);
 };

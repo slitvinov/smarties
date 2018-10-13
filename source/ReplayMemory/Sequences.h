@@ -172,14 +172,15 @@ struct Sequence
   }
   void finalize(const Uint index) {
     ID = index;
+    const Uint seq_len = tuples.size();
     // whatever the meaning of SquaredError, initialize with all zeros
     // this must be taken into account when sorting/filtering
-    SquaredError = Fvec(ndata(), 0);
+    SquaredError = Fvec(seq_len, 0);
     // off pol importance weights are initialized to 1s
-    offPolicImpW = Fvec(ndata(), 1);
+    offPolicImpW.resize(seq_len, 1);
     #ifdef PRIORITIZED_ER
-      priorityImpW = vector<float>(ndata(), 1);
+      priorityImpW = vector<float>(seq_len, 1);
     #endif
-    KullbLeibDiv = Fvec(ndata(), 0);
+    KullbLeibDiv = Fvec(seq_len, 0);
   }
 };
