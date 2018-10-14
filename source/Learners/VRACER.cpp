@@ -16,6 +16,7 @@
 
 #define DACER_simpleSigma
 #define DACER_singleNet
+#define DACER_useAlpha
 
 template<typename Policy_t>
 static inline Policy_t prepare_policy(const Rvec& O, const ActionInfo*const aI,
@@ -81,11 +82,21 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
   {
     assert(wID == 0);
     Rvec G = Rvec(F[0]->nOutputs(), 0);
-    if(isOff) P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu, beta-1), G);
+    if(isOff)
+    #ifdef DACER_useAlpha
+      P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu, alpha*(beta-1)), G);
+    #else
+      P.finalize_grad(P.div_kl_grad(S->tuples[t]->mu,        beta-1 ), G);
+    #endif
     else
     {
-     const Rvec G1 = P.policy_grad(P.sampAct, A_RET * W);
-     const Rvec G2 = P.div_kl_grad(S->tuples[t]->mu, -1);
+     #ifdef DACER_useAlpha
+       const Rvec G1 = P.policy_grad(P.sampAct, alpha * A_RET * W);
+       const Rvec G2 = P.div_kl_grad(S->tuples[t]->mu, -alpha);
+     #else
+       const Rvec G1 = P.policy_grad(P.sampAct, A_RET * W);
+       const Rvec G2 = P.div_kl_grad(S->tuples[t]->mu, -1);
+     #endif
      P.finalize_grad(weightSum2Grads(G1, G2, beta), G);
      trainInfo->trackPolicy(G1, G2, thrID);
     }
@@ -93,7 +104,11 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
     if(thrID==0) profiler->stop_start("BCK");
     #ifdef DACER_singleNet
       assert(std::fabs(G[0])<1e-16); // make sure it was untouched
-      G[0] = beta * D_RET;
+      #ifdef DACER_useAlpha
+        G[0] = (1-alpha) * beta * D_RET;
+      #else
+        G[0] = beta * D_RET;
+      #endif
     #else
       F[1]->backward( Rvec(1, beta * D_RET), t, thrID);
       F[1]->gradient(thrID);  // backprop

@@ -10,7 +10,7 @@ SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
 
 #SETTINGS+=" --nnType RNN"
-#SETTINGS+=" --nnFunc PRelu"
+#SETTINGS+=" --nnFunc LRelu"
 SETTINGS+=" --nnFunc SoftSign"
 SETTINGS+=" --outWeightsPrefac 0.1"
 
@@ -33,5 +33,6 @@ SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 256"
 SETTINGS+=" --bSampleSequences 0"
+SETTINGS+=" --ERoldSeqFilter oldest"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"
