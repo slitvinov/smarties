@@ -137,11 +137,6 @@ struct USV: public Entity
 	  state[3] = u.back();
 	  state[4] = v.back();
 	  state[5] = r.back();
-
-	  //const double noiseAmp = stdNoise*ETA;
-	  //std::normal_distribution<double> distrib(0, noiseAmp); // mean=0, stdDev=noiseAmp
-	  //const double noisyDy = angEnemy1 + distrib(genA);
-	  //state[2] = distEnemy1*std::cos(noisyAng1); 
 	  return state;
   }
 
@@ -167,12 +162,9 @@ struct USV: public Entity
 
   double getReward() const {
 	  const double latDist = getLateralDist();
-	  // angle wrt path - punish 45deg to be equal to 1 latDist, and linearly vary up and down
-	  const double anglePenalty = abs(r.back())/(M_PI/4.0);
-	  //return -(latDist + anglePenalty);
-	  //return -(latDist);
-	  //return 0.0;
-	  return -(latDist);// + 0.01*anglePenalty);
+	  // angle wrt path - punish 15deg to be equal to 1 latDist, and linearly vary up and down
+	  const double anglePenalty = abs(r.back())/(15.0*M_PI/180.0);
+	  return -(latDist + anglePenalty);// + 0.01*anglePenalty);
   }
 
   void checkTermination() {
@@ -187,6 +179,18 @@ struct USV: public Entity
 	  // Check if need to abort
 	  const double latDist = getLateralDist(); // already normalized by params.l
 	  abortSim = (latDist > 10) ? true : false ;
+
+	  // Check if states have gone haywire
+	  const vector<double> state = getState();
+printf("stateSize = %d\n", state.size());
+	  for (unsigned int i=0; i<state.size(); i++)
+	  {
+		  if(std::isnan(state[i]) || std::isinf(state[i])){
+			  abortSim=true;
+			  printf("states gone haywire, key for abort\n");
+		  }
+	  }
+
 	  if (abortSim) isOver = true;
 
 	  return;
@@ -205,13 +209,18 @@ int main(int argc, const char * argv[])
 
   const double commInterval = 0.1;
   bool commNow=false;
-  const double magnifyAction = 50.0;
+  const double magnifyAction = 1.0;
 
   //communication:
   const int socket = std::stoi(argv[1]);
   //socket number is given by RL as first argument of execution
   Communicator	comm(socket, state_vars, control_vars, number_of_agents);
   std::mt19937	&rngPointer =  comm.getPRNG();
+
+  //OPTIONAL: action bounds
+  const bool bounded = true;
+  vector<double> upper_action_bound{200,200}, lower_action_bound{0,0}; // only positive motor control
+  comm.set_action_scales(upper_action_bound, lower_action_bound, bounded);
 
   // Path start and end
   const double xPathStart[2] = {0,0};
