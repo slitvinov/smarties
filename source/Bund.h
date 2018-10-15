@@ -107,7 +107,7 @@ using namespace std;
 
 //#define PRINT_ALL_RANKS
 
-#define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
+#define PRFL_DMPFRQ 20 // regulates how frequently print profiler info
 
 // hint to reserve memory for the network workspaces, can be breached
 #define MAX_SEQ_LEN 1200
@@ -124,7 +124,7 @@ typedef float Real;
 #define MPI_VALUE_TYPE MPI_FLOAT
 #endif
 ///////////////////////////////////////////////////////////////////////////////
-#if 1 // NETWORK PRECISION
+#if 0 // NETWORK PRECISION
   #define gemv cblas_dgemv
   #define gemm cblas_dgemm
   typedef double nnReal;
@@ -140,7 +140,7 @@ typedef float Real;
 ////////////////////////////////////////////////////////////////////////////////
 // Data format for storage in memory buffer. Switch to float for example for
 // Atari where the memory buffer is in the order of GBs.
-#if 1
+#if 0
 typedef double memReal;
 typedef double Fval;
 #define MPI_Fval MPI_DOUBLE
@@ -252,6 +252,21 @@ inline vector<Uint> count_indices(const vector<Uint> outs)
 #else
 #define GETCPU(CPU) do { CPU=sched_getcpu(); } while(0)
 #endif
+
+#define MPI(NAME, ...)                                                         \
+do {                                                                           \
+  int mpiW = 0;                                                                \
+  if(bAsync) {                                                                 \
+    mpiW = MPI_ ## NAME ( __VA_ARGS__ );                                       \
+  } else {                                                                     \
+    std::lock_guard<std::mutex> lock(mpi_mutex);                               \
+    mpiW = MPI_ ## NAME ( __VA_ARGS__ );                                       \
+  }                                                                            \
+  if(mpiW not_eq MPI_SUCCESS) {                                                \
+    _warn("%s %d", #NAME, mpiW);                                               \
+    throw std::runtime_error("i'll be back");                                  \
+  }                                                                            \
+} while(0)
 
 inline float approxRsqrt( const float number )
 {

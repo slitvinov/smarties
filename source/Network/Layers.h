@@ -371,8 +371,9 @@ inline Activation* allocate_activation(const vector<Layer*>& layers) {
   return new Activation(sizes, output, input);
 }
 
-inline Parameters* allocate_parameters(const vector<Layer*>& layers) {
+inline Parameters* allocate_parameters(const vector<Layer*>&L, const Uint mpiSz)
+{
   vector<Uint> nWeight, nBiases;
-  for(const auto & l : layers) l->requiredParameters(nWeight, nBiases);
-  return new Parameters(nWeight, nBiases);
+  for(const auto & l : L) l->requiredParameters(nWeight, nBiases);
+  return new Parameters(nWeight, nBiases, mpiSz);
 }

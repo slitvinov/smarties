@@ -143,8 +143,8 @@ public:
     bBuilt = true;
 
     nLayers = layers.size();
-    weights = allocate_parameters(layers);
-    tgt_weights = allocate_parameters(layers);
+    weights = allocate_parameters(layers, mpisize);
+    tgt_weights = allocate_parameters(layers, mpisize);
 
     // Initialize weights
     for(const auto & l : layers)
@@ -165,7 +165,7 @@ public:
     #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
     for (Uint i=0; i<nThreads; i++)
       #pragma omp critical // numa-aware allocation if OMP_PROC_BIND is TRUE
-        Vgrad[i] = allocate_parameters(layers);
+        Vgrad[i] = allocate_parameters(layers, mpisize);
 
     // Initialize network workspace to check that all is ok
     Activation*const test = allocate_activation(layers);
@@ -182,7 +182,7 @@ public:
 
     _dispose_object(test);
 
-    popW = initWpop(weights, pop_size);
+    popW = initWpop(weights, pop_size, mpisize);
 
     net = new Network(this, settings);
     if(pop_size>1) opt = new CMA_Optimizer(settings, weights,tgt_weights, popW);
@@ -242,6 +242,7 @@ public:
   const Settings & settings;
   const Uint nThreads = settings.nThreads;
   const Uint pop_size = settings.ESpopSize;
+  const Uint mpisize = settings.learner_size;
   Uint nInputs=0, nOutputs=0, nLayers=0;
   Real gradClip = 1;
   std::vector<std::mt19937>& generators = settings.generators;

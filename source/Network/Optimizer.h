@@ -50,6 +50,7 @@ class Optimizer
   inline const Parameters * getWeights(const int USEW) {
     if(USEW == 0) return weights;
     if(USEW <  0) return tgt_weights;
+    if(wVecReq[USEW] == MPI_REQUEST_NULL) return sampled_weights[USEW];
     std::lock_guard<std::mutex> lockW(samples_mutex);
     if(wVecReq[USEW] not_eq MPI_REQUEST_NULL) {
       MPI(Wait, &wVecReq[USEW], MPI_STATUS_IGNORE);
@@ -64,10 +65,10 @@ class AdamOptimizer : public Optimizer
  protected:
   const Real beta_1, beta_2;
   Real beta_t_1 = beta_1, beta_t_2 = beta_2;
-  const Parameters * const gradSum = weights->allocateGrad();
-  const Parameters * const _1stMom = weights->allocateGrad();
-  const Parameters * const _2ndMom = weights->allocateGrad();
-  const Parameters * const _2ndMax = weights->allocateGrad();
+  const Parameters * const gradSum = weights->allocateGrad(learn_size);
+  const Parameters * const _1stMom = weights->allocateGrad(learn_size);
+  const Parameters * const _2ndMom = weights->allocateGrad(learn_size);
+  const Parameters * const _2ndMax = weights->allocateGrad(learn_size);
   vector<std::mt19937>& generators;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
   //const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD, delay;

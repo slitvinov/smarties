@@ -18,15 +18,16 @@ class CMA_Optimizer : public Optimizer
   const vector<nnReal> popWeights = initializePopWeights(pop_size);
   const nnReal mu_eff = initializeMuEff(popWeights, pop_size);
   const nnReal sumW = initializeSumW(popWeights, pop_size);
-  const vector<Parameters*> sampled_weights;
-  const vector<Parameters*> popNoiseVectors = initWpop(weights, pop_size);
-  const Parameters * const momNois = weights->allocateGrad();
-  const Parameters * const avgNois = weights->allocateGrad();
-  const Parameters * const negNois = weights->allocateGrad();
-  const Parameters * const pathCov = weights->allocateGrad();
-  const Parameters * const pathDif = weights->allocateGrad();
-  const Parameters * const diagCov = weights->allocateGrad();
+  const vector<Parameters*> popNoiseVectors = initWpop(weights, pop_size, learn_size);
+  const Parameters * const momNois = weights->allocateGrad(learn_size);
+  const Parameters * const avgNois = weights->allocateGrad(learn_size);
+  const Parameters * const negNois = weights->allocateGrad(learn_size);
+  const Parameters * const pathCov = weights->allocateGrad(learn_size);
+  const Parameters * const pathDif = weights->allocateGrad(learn_size);
+  const Parameters * const diagCov = weights->allocateGrad(learn_size);
+  const int mpi_stride = roundUpSimd( std::ceil( pDim / (Real) learn_size ) );
 
+  const std::vector<int> pStarts, pCounts;
   const Uint pStart, pCount;
   std::vector<Saru *> generators;
   std::vector<std::mt19937 *> stdgens;
@@ -78,18 +79,17 @@ class CMA_Optimizer : public Optimizer
   void getMetrics(ostringstream& buff) override;
   void getHeaders(ostringstream& buff) override;
 
-  Uint computePstart(const Uint learner_rank) const {
-    const Uint stride = roundUpSimd( std::ceil( pDim / (Real) learn_size ) );
-    return stride * learner_rank;
+  std::vector<int> computePstarts() const {
+    std::vector<int> ret (learn_size, 0);
+    for (int i=0; i < (int) learn_size; i++) ret[i] = mpi_stride * i;
+    return ret;
   }
-  Uint computePcount(const Uint learner_rank) const {
-    const Uint stride = roundUpSimd( std::ceil( pDim / (Real) learn_size ) );
-    return std::min(pDim, stride * ( learner_rank + 1 ) );
+  std::vector<int> computePcounts() const {
+    std::vector<int> ret (learn_size, 0);
+    for (int i=0; i < (int) learn_size; i++)
+      ret[i] = std::min(mpi_stride * (i+1), (int) pDim) - mpi_stride * i;
+    return ret;
   }
 
-  void startAllGather(const Uint ID) {
-    nnReal * const P = ID? sampled_weights[ID]->params : weights->params;
-    MPI(Iallgather, P + pStart, pCount, MPI_NNVALUE_TYPE, P, pDim,
-      MPI_NNVALUE_TYPE, mastersComm, &wVecReq[ID]);
-  }
+  void startAllGather(const Uint ID);
 };
