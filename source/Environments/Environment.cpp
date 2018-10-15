@@ -62,7 +62,7 @@ void Environment::setDims()
 
     const Real amax = aI.getActMaxVal(i), amin = aI.getActMinVal(i);
     if(settings.world_rank==0)
-    printf(" [%u: %f:%f%s]", i, amin, amax, aI.bounded[i]?" (bounded)":"");
+    printf(" [%u: %.1f:%.1f%s]", i, amin, amax, aI.bounded[i]?" (bounded)":"");
   }
   if(settings.world_rank==0) printf("\n");
 
