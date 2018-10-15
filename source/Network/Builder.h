@@ -8,7 +8,7 @@
 
 #pragma once
 #include "Optimizer.h"
-#include "CMA_Optimizer.h"
+#include "CMA_Optimizer_MPI.h"
 #include "Network.h"
 #include "Layer_Base.h"
 #include "Layer_Conv2D.h"
@@ -186,7 +186,7 @@ public:
 
     net = new Network(this, settings);
     if(pop_size>1) opt = new CMA_Optimizer(settings, weights,tgt_weights, popW);
-    else opt = new AdamOptimizer(settings, weights,tgt_weights, Vgrad);
+    else opt = new AdamOptimizer(settings, weights,tgt_weights, popW, Vgrad);
     return net;
   }
 

@@ -18,33 +18,30 @@ class CMA_Optimizer : public Optimizer
   const vector<nnReal> popWeights = initializePopWeights(pop_size);
   const nnReal mu_eff = initializeMuEff(popWeights, pop_size);
   const nnReal sumW = initializeSumW(popWeights, pop_size);
-  const nnReal c_sig = 1e-4; //(2 + mu_eff) / (5 + mu_eff + pDim);
-  //const nnReal cpath = 0.0100; //(4 + mu_eff/pDim)/(pDim +4 +2*mu_eff/pDim);
-  const nnReal c1cov = 1e-6; //2 / (mu_eff + (pDim+1.3)*(pDim+1.3) );
-  nnReal anneal = std::pow( 1 - c_sig, 2 );
-
   const vector<Parameters*> sampled_weights;
   const vector<Parameters*> popNoiseVectors = initWpop(weights, pop_size);
-  const Parameters * const avgNois = weights->allocateGrad();
   const Parameters * const momNois = weights->allocateGrad();
+  const Parameters * const avgNois = weights->allocateGrad();
+  const Parameters * const negNois = weights->allocateGrad();
   const Parameters * const pathCov = weights->allocateGrad();
+  const Parameters * const pathDif = weights->allocateGrad();
   const Parameters * const diagCov = weights->allocateGrad();
 
-  vector<Saru *> generators;
+  const Uint pStart, pCount;
+  std::vector<Saru *> generators;
+  std::vector<std::mt19937 *> stdgens;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
   vector<Real> losses = vector<Real>(pop_size, 0);
-
-  void initializeGeneration() const;
+  Uint Nswap = 0;
 
  public:
-  nnReal sigma = 1e-2;
 
   CMA_Optimizer(const Settings&S, const Parameters*const W,
     const Parameters*const WT, const vector<Parameters*>&G);
 
   ~CMA_Optimizer();
 
-  void prepare_update(const int BS, const vector<Rvec>& L) override;
+  void prepare_update(const Rvec& L) override;
   void apply_update() override;
 
   void save(const string fname, const bool bBackup) override;
@@ -77,5 +74,22 @@ class CMA_Optimizer : public Optimizer
     Real sum = 0;
     for(Uint i=0; i<popsz; i++) sum += popW[i];
     return sum;
+  }
+  void getMetrics(ostringstream& buff) override;
+  void getHeaders(ostringstream& buff) override;
+
+  Uint computePstart(const Uint learner_rank) const {
+    const Uint stride = roundUpSimd( std::ceil( pDim / (Real) learn_size ) );
+    return stride * learner_rank;
+  }
+  Uint computePcount(const Uint learner_rank) const {
+    const Uint stride = roundUpSimd( std::ceil( pDim / (Real) learn_size ) );
+    return std::min(pDim, stride * ( learner_rank + 1 ) );
+  }
+
+  void startAllGather(const Uint ID) {
+    nnReal * const P = ID? sampled_weights[ID]->params : weights->params;
+    MPI(Iallgather, P + pStart, pCount, MPI_NNVALUE_TYPE, P, pDim,
+      MPI_NNVALUE_TYPE, mastersComm, &wVecReq[ID]);
   }
 };

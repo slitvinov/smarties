@@ -18,7 +18,6 @@ class CMA_Optimizer : public Optimizer
   const vector<nnReal> popWeights = initializePopWeights(pop_size);
   const nnReal mu_eff = initializeMuEff(popWeights, pop_size);
   const nnReal sumW = initializeSumW(popWeights, pop_size);
-  const vector<Parameters*> sampled_weights;
   const vector<Parameters*> popNoiseVectors = initWpop(weights, pop_size);
   const Parameters * const momNois = weights->allocateGrad();
   const Parameters * const avgNois = weights->allocateGrad();

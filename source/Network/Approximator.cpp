@@ -184,8 +184,7 @@ Rvec Approximator::getOutput(const Rvec inp, const int ind,
   const vector<Activation*>& act_cur = series[thrID];
   const Activation*const recur = ind? act_cur[ind-1] : nullptr;
   assert(USEW < (int) net->sampled_weights.size() );
-  const Parameters* const W = USEW >0 ? net->sampled_weights[USEW] : (
-                              USEW==0 ? net->weights : net->tgt_weights );
+  const Parameters* const W = opt->getWeights(USEW);
   assert( W not_eq nullptr );
   const Rvec ret = net->predict(inp, recur, act, W);
   //if(!thrID) cout<<"net fwd with inp:"<<print(inp)<<" out:"<<print(ret)<<endl;
@@ -332,8 +331,7 @@ void Approximator::prepare_agent(Sequence*const traj, const Agent&agent,
   // why? because the past is the past.
   if(relay not_eq nullptr) relay->prepare(traj, fakeThrID, ACT);
   assert(act.size() >= nRecurr+1);
-  const Parameters* const W = wghtID >0 ? net->sampled_weights[wghtID] : (
-                              wghtID==0 ? net->weights : net->tgt_weights );
+  const Parameters* const W = opt->getWeights(wghtID);
   //Advance recurr net with 0 initialized activations for nRecurr steps
   for(Uint i=0, t=stepid-nRecurr; i<nRecurr; i++, t++)
     net->predict(getInput(t,fakeThrID,wghtID), i? act[i-1]:nullptr, act[i], W);
@@ -346,8 +344,7 @@ Rvec Approximator::forward_agent(const Uint agentID) const {
   const Uint stepid = agent_seq[agentID]->ndata();
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, stepid) : 0;
   if(act[nRecurr]->written) return act[nRecurr]->getOutput();
-  const Parameters* const W = wghtID >0 ? net->sampled_weights[wghtID] : (
-                              wghtID==0 ? net->weights : net->tgt_weights );
+  const Parameters* const W = opt->getWeights(wghtID);
   const Rvec inp = getInput(stepid, fakeThrID, wghtID);
   return net->predict(inp, nRecurr? act[nRecurr-1] : nullptr, act[nRecurr], W);
 }

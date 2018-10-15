@@ -85,8 +85,7 @@ Rvec Encapsulator::forward(const int samp, const Uint thrID, const int wghtID) c
   const int ind = mapTime2Ind(samp, thrID);
   //if already computed just give answer
   if(act[ind]->written) return act[ind]->getOutput();
-  const Parameters* const W = wghtID >0 ? net->sampled_weights[wghtID] : (
-                              wghtID==0 ? net->weights : net->tgt_weights );
+  const Parameters* const W = opt->getWeights(wghtID);
   act[ind]->written = true;
   return net->predict(state2Inp(samp, thrID), act[ind], W);
 }

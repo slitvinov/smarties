@@ -207,55 +207,16 @@ int AdamOptimizer::restart(const string fname)
   return ret;
 }
 
-#if 0
-void save_recurrent_connections(const string fname)
-{
-  const Uint nNeurons(net->getnNeurons());
-  const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
-  string nameBackup = fname + "_mems_tmp";
-  ofstream out(nameBackup.c_str());
-  if (!out.good())
-    _die("Unable to open save into file %s\n", nameBackup.c_str());
+Optimizer::Optimizer(const Settings&S, const Parameters*const W,
+  const Parameters*const WT, const vector<Parameters*>& samples) :
+mastersComm(MPIComDup(S.mastersComm)), learn_size(S.learner_size),
+pop_size(S.ESpopSize), nThreads(S.nThreads), weights(W), tgt_weights(WT),
+sampled_weights(samples), eta_init(S.learnrate), batchSize(S.batchSize),
+bAsync(S.bAsync), mpi_mutex(S.mpi_mutex), lambda(S.nnLambda),
+epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay) {}
 
-  for(Uint agentID=0; agentID<nAgents; agentID++) {
-    for (Uint j=0; j<nNeurons; j++)
-      out << net->mem[agentID]->outvals[j] << "\n";
-    for (Uint j=0; j<nStates;  j++)
-      out << net->mem[agentID]->ostates[j] << "\n";
-  }
-  out.flush();
-  out.close();
-  string command = "cp " + nameBackup + " " + fname + "_mems";
-  system(command.c_str());
-}
-
-bool restart_recurrent_connections(const string fname)
-{
-  const Uint nNeurons(net->getnNeurons());
-  const Uint nAgents(net->getnAgents()), nStates(net->getnStates());
-
-  string nameBackup = fname + "_mems";
-  ifstream in(nameBackup.c_str());
-  debugN("Reading from %s", nameBackup.c_str());
-  if (!in.good()) {
-    error("Couldnt open file %s \n", nameBackup.c_str());
-    return false;
-  }
-
-  nnReal tmp;
-  for(Uint agentID=0; agentID<nAgents; agentID++) {
-    for (Uint j=0; j<nNeurons; j++) {
-      in >> tmp;
-      if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-      net->mem[agentID]->outvals[j] = tmp;
-    }
-    for (Uint j=0; j<nStates; j++) {
-      in >> tmp;
-      if (std::isnan(tmp) || std::isinf(tmp)) tmp=0.;
-      net->mem[agentID]->ostates[j] = tmp;
-    }
-  }
-  in.close();
-  return true;
-}
-#endif
+AdamOptimizer::AdamOptimizer(const Settings&S, const Parameters*const W,
+  const Parameters*const WT, const vector<Parameters*>& samples,
+  const vector<Parameters*>&G, const Real B1, const Real B2) :
+  Optimizer(S,W,WT,samples), beta_1(B1), beta_2(B2), generators(S.generators),
+  grads(G) { }

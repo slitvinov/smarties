@@ -11,8 +11,7 @@
 #include <algorithm>
 
 CMA_Optimizer::CMA_Optimizer(const Settings&S, const Parameters*const W,
-  const Parameters*const WT, const vector<Parameters*>&G) : Optimizer(S, W, WT),
-  sampled_weights(G) {
+  const Parameters*const WT, const vector<Parameters*>&G): Optimizer(S,W,WT,G) {
   diagCov->set(1);
   pathCov->set(0);
   pathDif->set(0);
