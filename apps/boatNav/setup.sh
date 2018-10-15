@@ -4,6 +4,7 @@ make -C ../apps/boatNav
 cp ../apps/boatNav/launch.sh ${BASEPATH}${RUNFOLDER}/launchSim.sh
 cp ../apps/boatNav/boatNav   ${BASEPATH}${RUNFOLDER}/
 cp ../source/Communicators/Communicator.py ${BASEPATH}${RUNFOLDER}/
+cp -r ../apps/boatNav ${BASEPATH}${RUNFOLDER}/srcDir
 
 #SETTINGS+=" --appendedObs 1"
 cat <<EOF >${BASEPATH}${RUNFOLDER}/appSettings.sh

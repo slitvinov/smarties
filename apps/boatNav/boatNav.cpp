@@ -55,8 +55,8 @@ struct Entity
 		tt.clear(); forceX.clear(); thrustL.clear(); thrustR.clear(); torque.clear();
 
 		normal_distribution<double> distribX(0, params.l);
-		uniform_real_distribution<double> distribU(0, 2*params.l);
-		normal_distribution<double> distribV(0, 2*params.l);
+		normal_distribution<double> distribU(0, params.l);
+		normal_distribution<double> distribV(0, params.l);
 		normal_distribution<double> distribAng(0, M_PI/18.0); // allow random deviation by 10 degrees
 
 		p[0] = this->pathStart[0] + distribX(genA); // random starting positions
@@ -162,9 +162,9 @@ struct USV: public Entity
 
   double getReward() const {
 	  const double latDist = getLateralDist();
-	  // angle wrt path - punish 15deg to be equal to 1 latDist, and linearly vary up and down
-	  const double anglePenalty = abs(r.back())/(15.0*M_PI/180.0);
-	  return -(latDist + anglePenalty);// + 0.01*anglePenalty);
+	  // angle wrt path - punish 45deg to be equal to 1 latDist, and linearly vary up and down
+	  const double anglePenalty = abs(thetaR.back())/(45.0*M_PI/180.0);
+	  return -(latDist + anglePenalty);
   }
 
   void checkTermination() {
@@ -178,7 +178,7 @@ struct USV: public Entity
 
 	  // Check if need to abort
 	  const double latDist = getLateralDist(); // already normalized by params.l
-	  abortSim = (latDist > 10) ? true : false ;
+	  abortSim = (latDist > 5) ? true : false ;
 
 	  // Check if states have gone haywire
 	  const vector<double> state = getState();
@@ -267,9 +267,9 @@ int main(int argc, const char * argv[])
 	    if(commNow){
 		    if(boat.is_over()){ // Terminate simulation 
 
-			    const double positiveReward = 0.1*maxStep*dt/commInterval; 
+			    const double positiveReward = 0.01*maxStep*dt/commInterval; 
 			    // This can potentially cancel out to zero all negative reward accrued if the boat travelled at dy avg = 1 length. DO NOT mult by 'step', then agent will try to maximize number of steps!!! Nicht gut
-			    const double negativeReward = -100*positiveReward; // superpunitive, otherwise boat was commiting hara-kiri by hitting the side wall, to avoid negative trail-traversing reward
+			    const double negativeReward = -1000*positiveReward; // superpunitive, otherwise boat was commiting hara-kiri by hitting the side wall, to avoid negative trail-traversing reward
 
 			    if(boat.abortSim){
 				    comm.sendTermState(boat.getState(), negativeReward, 0);
