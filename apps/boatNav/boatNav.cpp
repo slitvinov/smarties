@@ -182,7 +182,6 @@ struct USV: public Entity
 
 	  // Check if states have gone haywire
 	  const vector<double> state = getState();
-printf("stateSize = %d\n", state.size());
 	  for (unsigned int i=0; i<state.size(); i++)
 	  {
 		  if(std::isnan(state[i]) || std::isinf(state[i])){
