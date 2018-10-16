@@ -146,6 +146,12 @@ void CMA_Optimizer::apply_update()
     {
       nnReal* const Y = popNoiseVectors[i]->params;
       nnReal* const X = sampled_weights[i]->params;
+      #ifdef ACCEL_CMA
+      if(i==1) {
+        popNoiseVectors[1]->copy(avgNois);
+        for(Uint w=pStart; w<pStart+pCount; w++) X[w] = M[w] + _eta * A[w];
+      } else
+      #endif
       for(Uint w=pStart; w<pStart+pCount; w++) {
         Y[w] = gen.f_mean0_var1() * S[w];
         X[w] = M[w] + _eta * Y[w]; //+ _eta*1e-2*D[w];
