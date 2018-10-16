@@ -13,7 +13,7 @@ if [ $# -lt 3 ] ; then
 	echo "Usage: ./launch_base.sh RUNFOLDER APP SETTINGS_PATH (NWORKERS) (NTHREADS) (NMASTERS) (NNODES)"
 	exit 1
 fi
-if [ $# -gt 3 ] ; then #n worker ranks per each master
+if [ $# -gt 3 ] ; then #n worker ranks
 export NWORKERS=$4
 else
 export NWORKERS=1
@@ -26,7 +26,7 @@ fi
 if [ $# -gt 5 ] ; then
 export NPROCESS=$6
 else
-export NPROCESS=$((${NWORKERS}+${NMASTERS})) #n TOTAL ranks
+export NPROCESS=1 # total number of ranks
 fi
 if [ $# -gt 6 ] ; then #n threads on each master
 export NTHREADS=$7
