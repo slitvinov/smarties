@@ -70,10 +70,10 @@ ifneq "$(MAKECMDGOALS)" "clean"
 -include $(notdir $(patsubst %.cpp,%.d,$(CPP_FILES)))
 endif
 
+LIBS+= -L. -lsimulation
+
 ############### Compile application as static library if needed ###############
 ifneq "$(app)" "ext_app_test"
-
-LIBS+= -L. -lsimulation
 
 # let's check if app requires some flag / lib
 ifneq ("$(wildcard ../apps/$(app)/make.flags)","")
