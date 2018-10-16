@@ -15,7 +15,11 @@
 #ifndef __STDC_VERSION__ //it should never be defined with g++
 #define __STDC_VERSION__ 0
 #endif
+#ifdef USE_MKL
+#include "mkl_cblas.h"
+#else
 #include "cblas.h"
+#endif
 
 // Base class of all layer types. To insert a new layer type, overwrite all
 // virtual functions.
