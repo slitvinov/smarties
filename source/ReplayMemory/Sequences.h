@@ -16,15 +16,19 @@
 #include <algorithm>
 #include <fstream>
 
-struct Tuple
+struct Tuple // data obtained at time t
 {
+  // vector containing the vector at time t
   const vector<memReal> s;
+  // actions and behavior follower at time t
   Rvec a, mu;
+  // reward obtained with state s (at time 0 this is 0)
   const Real r;
   Tuple(const Tuple*const c): s(c->s), a(c->a), mu(c->mu), r(c->r) {}
   Tuple(const Rvec _s, const Real _r) : s(convert(_s)), r(_r) {}
   Tuple(const Fval*_s, const Uint dS, float _r) : s(convert(_s,dS)), r(_r) {}
 
+  //convert to probably double (Rvec) to probably single precision for storage
   static inline vector<memReal> convert(const Rvec _s) {
     vector<memReal> ret ( _s.size() );
     for(Uint i=0; i < _s.size(); i++) ret[i] = _s[i];
@@ -44,31 +48,6 @@ struct Tuple
 
 struct Sequence
 {
-  int restart(FILE * f, const Uint dS, const Uint dA, const Uint dP);
-  void save(FILE * f, const Uint dS, const Uint dA, const Uint dP);
-
-  void unpackSequence(const vector<Fval>& data, const Uint dS,
-    const Uint dA, const Uint dP);
-  vector<Fval> packSequence(const Uint dS, const Uint dA, const Uint dP);
-
-  static inline Uint computeTotalEpisodeSize(const Uint dS, const Uint dA,
-    const Uint dP, const Uint Nstep)
-  {
-    const Uint tuplSize = dS+dA+dP+1;
-    const Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
-    const Uint ret = (tuplSize+infoSize)*Nstep + 6;
-    return ret;
-  }
-  static inline Uint computeTotalEpisodeNstep(const Uint dS, const Uint dA,
-    const Uint dP, const Uint size)
-  {
-    const Uint tuplSize = dS+dA+dP+1;
-    const Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
-    const Uint nStep = (size - 6)/(tuplSize+infoSize);
-    assert(Sequence::computeTotalEpisodeSize(dS,dA,dP,nStep) == size);
-    return nStep;
-  }
-
   vector<Tuple*> tuples;
   long ended = 0, ID = -1, just_sampled = -1;
   Uint prefix = 0;
@@ -182,5 +161,30 @@ struct Sequence
       priorityImpW = vector<float>(seq_len, 1);
     #endif
     KullbLeibDiv = Fvec(seq_len, 0);
+  }
+
+  int restart(FILE * f, const Uint dS, const Uint dA, const Uint dP);
+  void save(FILE * f, const Uint dS, const Uint dA, const Uint dP);
+
+  void unpackSequence(const vector<Fval>& data, const Uint dS,
+    const Uint dA, const Uint dP);
+  vector<Fval> packSequence(const Uint dS, const Uint dA, const Uint dP);
+
+  static inline Uint computeTotalEpisodeSize(const Uint dS, const Uint dA,
+    const Uint dP, const Uint Nstep)
+  {
+    const Uint tuplSize = dS+dA+dP+1;
+    const Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
+    const Uint ret = (tuplSize+infoSize)*Nstep + 6;
+    return ret;
+  }
+  static inline Uint computeTotalEpisodeNstep(const Uint dS, const Uint dA,
+    const Uint dP, const Uint size)
+  {
+    const Uint tuplSize = dS+dA+dP+1;
+    const Uint infoSize = 6; //adv,val,ret,mse,dkl,impW
+    const Uint nStep = (size - 6)/(tuplSize+infoSize);
+    assert(Sequence::computeTotalEpisodeSize(dS,dA,dP,nStep) == size);
+    return nStep;
   }
 };

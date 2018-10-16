@@ -60,7 +60,7 @@ void VRACER<Policy_t, Action_t>::Train(const Uint seq, const Uint t,
 
   if(thrID==0)  profiler->stop_start("CMP");
   const Policy_t P = prepare_policy<Policy_t>(out, aI, pol_start, S->tuples[t]);
-  const Real W = P.sampImpWeight;
+  const Real W = P.sampImpWeight; // \rho = \pi / \mu
   const Real A_RET = S->Q_RET[t] - val[0], D_RET = std::min((Real)1, W) * A_RET;
     // check whether importance weight is in 1/CmaxRet < c < CmaxRet
   const bool isOff = S->isFarPolicy(t, W, CmaxRet, CinvRet);
