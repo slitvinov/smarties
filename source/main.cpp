@@ -46,7 +46,7 @@ void runMaster(Settings& S)
   vector<Learner*> learners(nPols, nullptr);
   for(Uint i = 0; i<nPols; i++) {
     stringstream ss; ss<<"agent_"<<std::setw(2)<<std::setfill('0')<<i;
-    cout << "Learner: " << ss.str() << endl;
+    if(S.world_rank == 0) cout << "Learner: " << ss.str() << endl;
     learners[i] = createLearner(env, S);
     learners[i]->setLearnerName(ss.str() +"_", i);
     learners[i]->restart();
