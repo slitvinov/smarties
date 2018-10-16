@@ -73,6 +73,8 @@ endif
 ############### Compile application as static library if needed ###############
 ifneq "$(app)" "ext_app_test"
 
+LIBS+= -L. -lsimulation
+
 # let's check if app requires some flag / lib
 ifneq ("$(wildcard ../apps/$(app)/make.flags)","")
 include ../apps/$(app)/make.flags
@@ -91,8 +93,6 @@ lib: ext_app_test.o
 	ar rs libsimulation.a $^
 
 endif
-
-LIBS+= -L. -lsimulation
 
 rl: $(OBJ_FILES) lib
 	$(CC) $(OBJ_FILES) $(LIBS) -o $@

@@ -45,11 +45,13 @@ cd ${BASEPATH}${RUNFOLDER}
 
 HOST=`hostname`
 
-if [ ${HOST:0:5} == 'euler' ] || [ ${HOST:0:3} == 'eu-' ] ; then
+if [ ${HOST:0:5} == 'euler' ] || [ ${HOST:0:3} == 'eu-' ] ; 
+then
 export NTHREADS=18
 NPROCESSORS=$((${NPROCESS}*${NTHREADS}))
-echo bsub -J ${RUNFOLDER} -R "rusage[mem=128]" -R "select[model==XeonGold_6150]" -n ${NPROCESSORS} -W 24:00 ./run.sh
-bsub -J ${RUNFOLDER} -R "rusage[mem=128]" -R "select[model==XeonGold_6150]" -n ${NPROCESSORS} -W 24:00 < run.sh
+module rm mvapich2/2.3rc1
+module load open_mpi/3.0.0
+bsub -J ${RUNFOLDER} -R fullnode -R "rusage[mem=128]" -R "select[model==XeonGold_6150]" -n ${NPROCESSORS} -W 24:00 < run.sh
 else
  source run.sh
 fi

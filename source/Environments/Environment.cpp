@@ -89,6 +89,8 @@ Communicator_internal Environment::create_communicator()
     comm.set_application_mpicom(app_com, workerGroup);
     comm.ext_app_run(); //worker rank will remain here for ever
   }
+  if(settings.bSpawnApp)
+   die("Learn rank cannot spawn an internally linked app. Use multiple ranks");
   #endif
 
   if(settings.bSpawnApp) { comm_ptr->launch(); }

@@ -6,6 +6,15 @@
 #
 #  Created by Guido Novati (novatig@ethz.ch).
 #
+HOST=`hostname`
+OS_D=`uname`
+
+if [ ${HOST:0:3} == 'eu-' ] #|| [ ${HOST:0:3} == 'eu-' ] ;
+then
+module rm open_mpi
+module load mvapich2/2.3rc1
+fi
+
 unset LSB_AFFINITY_HOSTFILE #euler cluster
 export MPICH_MAX_THREAD_SAFETY=multiple #MPICH
 export MV2_ENABLE_AFFINITY=0 #MVAPICH
@@ -27,15 +36,12 @@ export OMP_NUM_THREADS=${NTHREADS}
 export OMP_PROC_BIND=TRUE
 export OMP_PLACES=cores
 
-#echo $SETTINGS > settings.txt
 env > environment.log
 
 # Mpi call depends on whether user has open mpi or mpich, whether they are on
 # a mac (which does not expose thread affinity), or on a linux cluster ...
 # Let's assume for now users can sort this out themselves
 isOpenMPI=$(mpirun --version | grep "Open MPI" | wc -l)
-HOST=`hostname`
-OS_D=`uname`
 if [ ${isOpenMPI} -ge 1 ]; then
 if [ ${OS_D} == 'Darwin' ] ; then
 mpirun -n ${NPROCESS} ./rl ${SETTINGS} | tee out.log
@@ -43,10 +49,6 @@ else
 mpirun -n ${NPROCESS} --map-by numa:PE=${NTHREADS} -report-bindings --mca mpi_cuda_support 0 ./rl ${SETTINGS} | tee out.log
 fi
 else # mpich / mvapich
-ulimit -c unlimited
 #mpirun -n ${NPROCESS} -bind-to core:${NTHREADS} valgrind --num-callers=100  --tool=memcheck --leak-check=yes  --track-origins=yes ./rl ${SETTINGS} | tee out.log
-#hwthread:${NTHREADS}
-#mpirun -n ${NPROCESS} -bind-to user:0+1+2+3+4+5+6+7,8+9+10+11+12+13+14+15,16+17+18+19+20+21+22+23 ./rl ${SETTINGS} | tee out.log
 mpirun -n ${NPROCESS} -bind-to core:${NTHREADS} ./rl ${SETTINGS} | tee out.log
-#mpirun -n 1  gdb --args ./rl ${SETTINGS} : -n 2 ./rl ${SETTINGS}
 fi
