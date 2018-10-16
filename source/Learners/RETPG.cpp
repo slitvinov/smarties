@@ -9,6 +9,14 @@
 #include "RETPG.h"
 #include "../Network/Builder.h"
 #include "../Network/Aggregator.h"
+#include "../Math/Gaussian_policy.h"
+
+static inline Gaussian_policy prepare_policy(const Rvec&out,
+  const ActionInfo*const aI, const Tuple*const t = nullptr) {
+  Gaussian_policy pol({0, aI->dim}, aI, out);
+  if(t not_eq nullptr) pol.prepare(t->a, t->mu);
+  return pol;
+}
 
 void RETPG::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
   const Uint thrID) const {
@@ -26,25 +34,26 @@ void RETPG::Train(const Uint seq, const Uint t, const Uint wID,
   F[0]->prepare_one(traj, t, thrID, wID);
   F[1]->prepare_one(traj, t, thrID, wID);
 
-  const Rvec polVec = F[0]->forward_cur(t, thrID); // network compute
+  const Rvec polVec = F[0]->forward_cur(t, thrID);
+  const Gaussian_policy POL = prepare_policy(polVec, &aInfo, traj->tuples[t]);
+  const Real DKL = POL.sampKLdiv, rho = POL.sampImpWeight;
+  //if(!thrID) cout<<"tpol "<<print(polVec)<<" act: "<<print(POL.sampAct)<<endl;
+  const bool isOff = traj->isFarPolicy(t, rho, CmaxRet, CinvRet);
+
   relay->prepare(traj, thrID, ACT);
   const Rvec q_curr = F[1]->forward_cur(t, thrID); // inp here is {s,a}
-
-  const Gaussian_policy POL = prepare_policy(polVec, traj->tuples[t]);
-  const Real DKL = POL.sampKLdiv, rho = POL.sampImpWeight;
-  const bool isOff = traj->isFarPolicy(t, rho, CmaxRet);
 
   relay->prepare(traj, thrID, NET); //relay to pass policy (output of F[0])
   const Rvec v_curr = F[1]->forward_cur<TGT>(t, thrID); //here is {s,pi}
   const Rvec detPolG = isOff? Rvec(nA,0) : F[1]->relay_backprop({1}, t, thrID);
+  //if(!thrID) cout << "G "<<print(detPolG) << endl;
 
-  if( traj->isTerminal(t+1) ) updateQret(traj, t+1, 0, 0, 0);
-  else if( traj->isTruncated(t+1) ) {
+  if( traj->isTruncated(t+1) ) {
     F[0]->forward(t+1, thrID);
-    relay->prepare(traj, thrID, NET); // tell relay to pass policy (output of F[0])
-    const Rvec v_next = F[1]->forward(t+1, thrID); //here is {s,pi}_+1
-    traj->setStateValue(t+1, v_next[0]);
-    updateQret(traj, t+1, 0, v_next[0], 0);
+    relay->prepare(traj, thrID, NET); // relay to pass policy (output of F[0])
+    //if(!thrID) cout << "nterm pol "<<print(pol_next) << endl;
+    const Rvec v_next = F[1]->forward(t+1, thrID);
+    updateRetrace(traj, t+1, 0, v_next[0], 0);
   }
 
   //code to compute policy grad:
@@ -61,14 +70,14 @@ void RETPG::Train(const Uint seq, const Uint t, const Uint wID,
 
   //code to compute value grad. Q_RET holds adv, sum with previous est of state
   // val: analogous to having target weights in original DPG
-  const Real retTarget = traj->Q_RET[t] +traj->state_vals[t];
-  const Rvec grad_val={isOff? 0: retTarget - q_curr[0]};
+  const Rvec grad_val = {isOff? 0: traj->Q_RET[t] - q_curr[0]};
   F[1]->backward(grad_val, t, thrID);
 
   //bookkeeping:
-  const Real dAdv = updateQret(traj, t, q_curr[0]-v_curr[0], v_curr[0], POL);
+  //prepare Qret_{t-1} with off policy corrections for future use
+  const Real dAdv = updateRetrace(traj, t, q_curr[0]-v_curr[0], v_curr[0], rho);
   trainInfo->log(q_curr[0], grad_val[0], polG, penG, {beta, dAdv, rho}, thrID);
-  traj->setMseDklImpw(t, grad_val[0]*grad_val[0], DKL, rho);
+  traj->setMseDklImpw(t, grad_val[0]*grad_val[0], DKL, rho, CmaxRet, CinvRet);
   if(thrID==0)  profiler->stop_start("BCK");
   F[0]->gradient(thrID);
   F[1]->gradient(thrID);
@@ -85,7 +94,7 @@ void RETPG::select(Agent& agent)
   {
     //Compute policy and value on most recent element of the sequence.
     Rvec pol = F[0]->forward_agent(agent);
-    Gaussian_policy policy = prepare_policy(pol);
+    Gaussian_policy policy = prepare_policy(pol, &aInfo);
     Rvec MU = policy.getVector();
     // if explNoise is 0, we just act according to policy
     // since explNoise is initial value of diagonal std vectors
@@ -122,73 +131,31 @@ void RETPG::select(Agent& agent)
     assert(traj->Q_RET.size()  == 0);
     //within Retrace, we use the state_vals vector to write the Q retrace values
     traj->Q_RET.resize(traj->tuples.size(), 0);
-    for(Uint i=traj->tuples.size()-1; i>0; i--) updateQretFront(traj, i);
+    traj->offPolicImpW = Fvec(traj->tuples.size(), 1);
+    for(Uint i=traj->ndata(); i>0; i--) backPropRetrace(traj, i);
 
     OrUhState[agent.ID] = Rvec(nA, 0); //reset temp. corr. noise
     data_get->terminate_seq(agent);
   }
 }
 
-void RETPG::prepareGradient()
-{
-  Learner_offPolicy::prepareGradient();
-
-  if(updateToApply)
-  {
-    debugL("Update Retrace est. for episodes samples in prev. grad update");
-    // placed here because this happens right after update is computed
-    // this can happen before prune and before workers are joined
-    profiler->stop_start("QRET");
-    const std::vector<Uint>& sampled = data->listSampled();
-    const Uint setSize = sampled.size();
-    #pragma omp parallel for schedule(dynamic)
-    for(Uint i = 0; i < setSize; i++) {
-      Sequence * const S = data->get(sampled[i]);
-      for(int j=S->just_sampled-1; j>0; j--) updateQretBack(S, j);
-    }
-  }
-}
-
-void RETPG::initializeLearner()
-{
-  Learner_offPolicy::initializeLearner();
-
-  // Rewards second moment is computed right before actual training begins
-  // therefore we need to recompute (rescaled) Retrace values for all obss
-  // seen before this point.
-  debugL("Rescale Retrace est. after gathering initial dataset");
-  // placed here because on 1st step we just computed first rewards statistics
-  const Uint setSize = data->readNSeq();
-  #pragma omp parallel for schedule(dynamic)
-  for(Uint i = 0; i < setSize; i++)
-  for(Uint j=data->get(i)->ndata(); j>0; j--) updateQretFront(data->get(i),j);
-}
-
 RETPG::RETPG(Environment*const _e, Settings& _s) : Learner_offPolicy(_e, _s)
 {
   _s.splitLayers = 0;
   #if 0
-    if(input->net not_eq nullptr) {
-      delete input->opt; input->opt = nullptr;
-      delete input->net; input->net = nullptr;
-    }
-    Builder input_build(_s);
-    bool bInputNet = false;
-    input_build.addInput( input->nOutputs() );
-    bInputNet = bInputNet || env->predefinedNetwork(input_build);
-    bInputNet = bInputNet || predefinedNetwork(input_build);
-    if(bInputNet) {
-      Network* net = input_build.build(true);
-      input->initializeNetwork(net, input_build.opt);
-    }
+    createSharedEncoder();
   #endif
 
   F.push_back(new Approximator("policy", _s, input, data));
   Builder build_pol = F[0]->buildFromSettings(_s, nA);
-  const Real initParam = noiseMap_inverse(explNoise);
+  #ifdef EXTRACT_COVAR
+    const Real stdParam = noiseMap_inverse(explNoise*explNoise);
+  #else
+    const Real stdParam = noiseMap_inverse(explNoise);
+  #endif
   //F[0]->blockInpGrad = true; // this line must happen b4 initialize
-  build_pol.addParamLayer(nA, "Linear", initParam);
-  F[0]->initializeNetwork(build_pol, 0);
+  build_pol.addParamLayer(nA, "Linear", stdParam);
+  F[0]->initializeNetwork(build_pol);
 
   relay = new Aggregator(_s, data, nA, F[0]);
   F.push_back(new Approximator("critic", _s, input, data, relay));
@@ -200,8 +167,9 @@ RETPG::RETPG(Environment*const _e, Settings& _s) : Learner_offPolicy(_e, _s)
   // we want initial Q to be approx equal to 0 everywhere.
   // if LRelu we need to make initialization multiplier smaller:
   Builder build_val = F[1]->buildFromSettings(_s, 1 );
-  F[1]->initializeNetwork(build_val, 0);
+  F[1]->initializeNetwork(build_val);
   printf("DPG with Retrace-based Q network target\n");
+  computeQretrace = true;
 
   trainInfo = new TrainData("DPG", _s, 1, "| beta | dAdv | avgW ", 3);
 }

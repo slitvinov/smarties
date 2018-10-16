@@ -47,8 +47,9 @@ class Learner
   const Real explNoise = settings.explNoise;
   const Real epsAnneal = settings.epsAnneal;
 
-  const ActionInfo& aInfo = env->aI;
   const StateInfo&  sInfo = env->sI;
+  const ActionInfo& aInfo = env->aI;
+  const ActionInfo* const aI = &aInfo;
 
  protected:
   long nData_b4Startup = 0;
@@ -72,11 +73,14 @@ class Learner
   mutable std::mutex buffer_mutex;
 
   virtual void processStats();
+  void createSharedEncoder(const Uint privateNum = 1);
+  bool predefinedNetwork(Builder& input_net, const Uint privateNum = 1);
 
  public:
   Profiler* profiler = nullptr;
   std::string learner_name;
   Uint learnID;
+  Uint tPrint = 1000;
 
   Learner(Environment*const env, Settings & settings);
 
@@ -130,10 +134,7 @@ class Learner
     bReady4Init = true;
     bUpdateNdata = true;
   }
-  void globalGradCounterUpdate() {
-    _nStep++;
-    bUpdateNdata = false;
-  }
+  virtual void globalGradCounterUpdate();
 
   bool unblockGradStep() const {
     return bUpdateNdata.load();
@@ -166,7 +167,6 @@ class Learner
   virtual void prepareGradient();
   virtual void applyGradient();
   virtual void initializeLearner();
-  bool predefinedNetwork(Builder& input_net, const Uint privateNum = 1);
   virtual void save();
   virtual void restart();
 };

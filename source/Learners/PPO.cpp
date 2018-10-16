@@ -8,10 +8,20 @@
 
 #include "PPO.h"
 #include "../Network/Builder.h"
+#include "../Math/Gaussian_policy.h"
+#include "../Math/Discrete_policy.h"
 
 #define PPO_PENALKL
 #define PPO_CLIPPED
 #define PPO_simpleSigma
+
+template<typename Policy_t>
+static inline Policy_t prepare_policy(const Rvec& O, const ActionInfo*const aI,
+  const vector<Uint>& pol_indices, const Tuple*const t = nullptr) {
+  Policy_t pol(pol_indices, aI, O);
+  if(t not_eq nullptr) pol.prepare(t->a, t->mu);
+  return pol;
+}
 
 template<typename Policy_t, typename Action_t>
 void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp,
@@ -27,7 +37,7 @@ void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp,
 
   if(thrID==0)  profiler->stop_start("CMP");
 
-  const Policy_t pol = prepare_policy(pol_cur, traj->tuples[samp]);
+  const Policy_t pol = prepare_policy<Policy_t>(pol_cur, &aInfo, pol_indices, traj->tuples[samp]);
   const Real rho_cur = pol.sampImpWeight, DivKL = pol.sampKLdiv;
   const bool isFarPol = traj->isFarPolicyPPO(samp, rho_cur, CmaxPol);
 
@@ -68,7 +78,7 @@ void PPO<Policy_t, Action_t>::Train(const Uint seq, const Uint samp,
   trainInfo->log(val_cur[0], verr, policy_grad, penal_grad,
     { (Real)valPenal[0], DivKL, rho_cur }, thrID);
   #endif
-  traj->setMseDklImpw(samp, verr*verr, DivKL, rho_cur);
+  traj->setMseDklImpw(samp, verr*verr, DivKL, rho_cur, 1+CmaxPol, 1-CmaxPol);
 
   if(thrID==0)  profiler->stop_start("BCK");
   //if(!thrID) cout << "back pol" << endl;
@@ -230,7 +240,7 @@ void PPO<Policy_t, Action_t>::select(Agent& agent)
     const Rvec val = F[1]->forward_agent(agent);
 
     curr_seq->state_vals.push_back(val[0]);
-    Policy_t policy = prepare_policy(pol);
+    Policy_t policy = prepare_policy<Policy_t>(pol, &aInfo, pol_indices);
     const Rvec MU = policy.getVector();
     auto act = policy.finalize(explNoise>0, &generators[nThreads+agent.ID], MU);
     agent.act(act);
@@ -294,19 +304,7 @@ Learner(E, S), pol_outputs(count_pol_outputs(&E->aI))
 
   printf("Continuous-action PPO\n");
   #if 0 // shared input layers
-    if(input->net not_eq nullptr) {
-      delete input->opt; input->opt = nullptr;
-      delete input->net; input->net = nullptr;
-    }
-    Builder input_build(S);
-    bool bInputNet = false;
-    input_build.addInput( input->nOutputs() );
-    bInputNet = bInputNet || env->predefinedNetwork(input_build);
-    bInputNet = bInputNet || predefinedNetwork(input_build);
-    if(bInputNet) {
-      Network* net = input_build.build(true);
-      input->initializeNetwork(net, input_build.opt);
-    }
+    createSharedEncoder();
   #endif
   F.push_back(new Approximator("policy", S, input, data));
   F[0]->blockInpGrad = true;
@@ -322,7 +320,11 @@ Learner(E, S), pol_outputs(count_pol_outputs(&E->aI))
     build.setLastLayersBias(initBias);
   #else  //stddev params
     Builder build_pol = F[0]->buildFromSettings(S,   {aInfo.dim});
-    const Real initParam = noiseMap_inverse(explNoise);
+    #ifdef EXTRACT_COVAR
+      Real initParam = noiseMap_inverse(explNoise*explNoise);
+    #else
+      Real initParam = noiseMap_inverse(explNoise);
+    #endif
     build_pol.addParamLayer(aInfo.dim, "Linear", initParam);
   #endif
   F[0]->initializeNetwork(build_pol);
@@ -338,7 +340,7 @@ Learner(E, S), pol_outputs(count_pol_outputs(&E->aI))
     for(Uint i=0;  i<mu.size(); i++) mu[i] = dist(generators[0]);
     for(Uint i=nA; i<mu.size(); i++) mu[i] = std::exp(mu[i]);
 
-    Gaussian_policy pol = prepare_policy(output);
+    Gaussian_policy pol = prepare_policy<Gaussian_policy>(output, &aInfo, pol_indices);
     Rvec act = pol.finalize(1, &generators[0], mu);
     pol.prepare(act, mu);
     pol.test(act, mu);

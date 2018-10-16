@@ -22,7 +22,7 @@ Communicator::Communicator(int socket, int state_comp, int action_comp,
     printf("FATAL: Communicator created with socket < 0.\n");
     abort();
   }
-  if(state_comp<=0) {
+  if(state_comp<0) {
     printf("FATAL: Cannot set negative state space dimensionality.\n");
     abort();
   }
@@ -34,7 +34,7 @@ Communicator::Communicator(int socket, int state_comp, int action_comp,
     printf("FATAL: Cannot set negative number of agents.\n");
     abort();
   }
-  assert(state_comp>0 && action_comp>0 && number_of_agents>0);
+  assert(state_comp>=0 && action_comp>0 && number_of_agents>0);
   nAgents = number_of_agents;
   update_state_action_dims(state_comp, action_comp);
   assert(socket not_eq 0);
@@ -200,16 +200,22 @@ void Communicator::sendStateActionShape()
   #ifdef MPI_VERSION
     if (rank_learn_pool>0) {
       MPI_Ssend(sizes, 4*8, MPI_BYTE, 0,3, comm_learn_pool);
+      if(nStates>0)
+      {
       MPI_Ssend(obs_inuse.data(), nStates*1*8, MPI_BYTE, 0, 3, comm_learn_pool);
       MPI_Ssend(obs_bounds.data(), nStates*16, MPI_BYTE, 0, 4, comm_learn_pool);
+      }
       MPI_Ssend(action_options.data(), nActions*16, MPI_BYTE, 0, 5, comm_learn_pool);
       MPI_Ssend(action_bounds.data(), discrete_action_values*8, MPI_BYTE, 0, 6, comm_learn_pool);
     } else
   #endif
     {
       sockSend(Socket, sizes, 4 *sizeof(double));
+      if(nStates>0)
+      {
       sockSend(Socket, obs_inuse.data(),      nStates *1*sizeof(double));
       sockSend(Socket, obs_bounds.data(),     nStates *2*sizeof(double));
+      }
       sockSend(Socket, action_options.data(), nActions*2*sizeof(double));
       sockSend(Socket, action_bounds.data(),  discrete_action_values*8 );
     }
@@ -225,7 +231,7 @@ void Communicator::update_state_action_dims(const int sdim, const int adim)
     return;
   }
   assert(adim>0);
-  assert(sdim>0);
+  assert(sdim>=0);
   assert(nAgents>0);
   nStates = sdim;
   nActions = adim;

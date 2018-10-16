@@ -45,10 +45,15 @@ struct TrainData
   const Uint n_extra, nThreads, bPolStats;
   const string name, extra_header;
 
-  mutable LDvec cntVec = LDvec(nThreads+1,0);
-  mutable vector<LDvec> qVec = vector<LDvec>(nThreads+1, LDvec(5,0));
-  mutable vector<LDvec> pVec = vector<LDvec>(nThreads+1, LDvec(3,0));
-  mutable vector<LDvec> eVec = vector<LDvec>(nThreads+1, LDvec(n_extra,0));
+  long double cnt = 0;
+  LDvec q = LDvec(5, 0);
+  LDvec p = LDvec(3, 0);
+  LDvec e = LDvec(n_extra, 0);
+
+  THRvec<long double> cntVec = THRvec<long double>(nThreads, 0);
+  THRvec<LDvec> qVec = THRvec<LDvec>(nThreads, LDvec(5, 0));
+  THRvec<LDvec> pVec = THRvec<LDvec>(nThreads, LDvec(3, 0));
+  THRvec<LDvec> eVec = THRvec<LDvec>(nThreads, LDvec(n_extra, 0));
 
   TrainData(const string _name, const Settings&set, bool bPPol=0,
     const string extrah = string(), const Uint nextra=0);
@@ -65,7 +70,6 @@ struct TrainData
   void getMetrics(ostringstream& buff);
   void getHeaders(ostringstream& buff) const;
 
- private:
   void resetSoft();
   void resetHead();
 
@@ -82,15 +86,18 @@ struct StatsTracker
   const Uint n_stats;
   const MPI_Comm comm;
   const Uint nThreads, learn_size, learn_rank;
-  const Real grad_cut_fac;
-  mutable LDvec cntVec = LDvec(nThreads+1,0);
-  mutable vector<LDvec> avgVec = vector<LDvec>(nThreads+1, LDvec());
-  mutable vector<LDvec> stdVec = vector<LDvec>(nThreads+1, LDvec());
+
+  long double cnt = 0;
+  LDvec avg = LDvec(n_stats, 0);
+  LDvec std = LDvec(n_stats, 10);
+  THRvec<long double> cntVec = THRvec<long double>(nThreads, 0);
+  THRvec<LDvec> avgVec = THRvec<LDvec>(nThreads, LDvec(n_stats, 0));
+  THRvec<LDvec> stdVec = THRvec<LDvec>(nThreads, LDvec(n_stats, 0));
+
   LDvec instMean, instStdv;
-  mutable Real numCut = 0, numTot = 0;
   unsigned long nStep = 0;
 
-  StatsTracker(const Uint N, const Settings& set, Real fac);
+  StatsTracker(const Uint N, const Settings& set);
 
   void track_vector(const Rvec grad, const Uint thrID) const;
 

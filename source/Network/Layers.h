@@ -329,7 +329,7 @@ class ParamLayer: public Layer
   void biasInitialValues(const vector<Real> init) override {
     if(init.size() != size) _die("size of init:%lu.", init.size());
     initVals.resize(size, 0);
-    std::copy(initVals.begin(), initVals.end(), initVals.begin());
+    std::copy(init.begin(), init.end(), initVals.begin());
   }
   void forward( const Activation*const prev,
                 const Activation*const curr,
@@ -375,14 +375,9 @@ inline Activation* allocate_activation(const vector<Layer*>& layers) {
   return new Activation(sizes, output, input);
 }
 
-inline Parameters* allocate_parameters(const vector<Layer*>& layers) {
+inline Parameters* allocate_parameters(const vector<Layer*>&L, const Uint mpiSz)
+{
   vector<Uint> nWeight, nBiases;
-  for(const auto & l : layers) l->requiredParameters(nWeight, nBiases);
-  return new Parameters(nWeight, nBiases);
-}
-
-inline Memory* allocate_memory(const vector<Layer*>& layers) {
-  vector<Uint> sizes, output, input;
-  for(const auto & l : layers) l->requiredActivation(sizes, output, input);
-  return new Memory(sizes, output);
+  for(const auto & l : L) l->requiredParameters(nWeight, nBiases);
+  return new Parameters(nWeight, nBiases, mpiSz);
 }

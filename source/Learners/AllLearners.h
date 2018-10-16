@@ -88,8 +88,8 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
       print(o, "problem_size.log", settings.world_rank);
       ret = new RACER_discrete(env, settings);
     } else {
-      using RACER_continuous = RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>;
-      //typedef RACER_cont RACER_continuous;
+      //using RACER_continuous = RACER<Mixture_advantage<NEXPERTS>, Gaussian_mixture<NEXPERTS>, Rvec>;
+      using RACER_continuous = RACER<Quadratic_advantage,Gaussian_policy,Rvec>;
       env->aI.policyVecDim = RACER_continuous::getnDimPolicy(&env->aI);
       o << env->aI.dim << " " << env->aI.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
@@ -99,7 +99,7 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
   else
   if (settings.learner == "CMA") {
     settings.batchSize_loc = settings.batchSize;
-    if(settings.ESpopSize<1)
+    if(settings.ESpopSize<2)
       die("Must be coupled with CMA. Set ESpopSize>1");
     if( settings.nWorkers % settings.learner_size )
       die("nWorkers must be multiple of learner ranks");
@@ -117,6 +117,7 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
     } else {
       using CMA_continuous = CMALearner<Rvec>;
       env->aI.policyVecDim = CMA_continuous::getnDimPolicy(&env->aI);
+      if(settings.explNoise > 0) env->aI.policyVecDim += env->aI.dim;
       o << env->aI.dim << " " << env->aI.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);
       ret = new CMA_continuous(env, settings);
@@ -148,7 +149,8 @@ inline Learner* createLearner(Environment*const env, Settings&settings)
       print(o, "problem_size.log", settings.world_rank);
       ret = new RACER_discrete(env, settings);
     } else {
-      using RACER_continuous = VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
+      //using RACER_continuous = VRACER<Gaussian_mixture<NEXPERTS>, Rvec>;
+      using RACER_continuous = VRACER<Gaussian_policy, Rvec>;
       env->aI.policyVecDim = RACER_continuous::getnDimPolicy(&env->aI);
       o << env->aI.dim << " " << env->aI.policyVecDim;
       print(o, "problem_size.log", settings.world_rank);

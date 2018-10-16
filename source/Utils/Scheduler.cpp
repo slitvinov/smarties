@@ -33,7 +33,7 @@ Master::Master(Communicator_internal* const _c, const vector<Learner*> _l,
 void Master::run()
 {
   { // gather initial data OR if not training evaluated restarted policy
-    #pragma omp parallel
+    #pragma omp parallel num_threads(nThreads)
     for(int i=1; i<=nWorkers_own; i++)
     {
       const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
@@ -69,7 +69,7 @@ void Master::run()
       while ( ! learnersUnlockQueue() ) usleep(1);
     }
 
-    if(iterNum++ % 1000 == 0) flushRewardBuffer();
+    flushRewardBuffer();
 
     //This is the last possible time to finish the blocking mpi MPI_Allreduce
     // and finally perform the actual gradient step. Also, operations on memory
@@ -89,13 +89,14 @@ void Master::processWorker(const int worker)
   while(1)
   {
     if(!bTrain && getMinSeqId() >= totNumSteps) break;
+
+    int completed = comm->testBuffer(worker);
+
     // Learners lock the workers queue if they have enough data to advance step
     while ( bTrain && learnersLockQueue() ) {
       usleep(1);
       if( bExit.load() > 0 ) break;
     }
-
-    int completed = comm->testBuffer(worker);
 
     if(completed) {
       processAgent(worker);
@@ -162,6 +163,9 @@ void Master::flushRewardBuffer()
 {
   for(int i=0; i<nPerRank; i++)
   {
+    const Learner*const aAlgo = pickLearner(i, i);
+    if( (iterNum % aAlgo->tPrint) not_eq 0 ) continue;
+
     ostringstream& agentBuf = rewardsBuffer[i];
     streampos pos = agentBuf.tellp(); // store current location
     agentBuf.seekp(0, ios_base::end); // go to end
@@ -176,6 +180,7 @@ void Master::flushRewardBuffer()
     outf.flush();
     outf.close();
   }
+  iterNum++;
 }
 
 void Master::dumpCumulativeReward(const int agent, const int worker,

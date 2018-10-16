@@ -5,12 +5,12 @@ SETTINGS=
 SETTINGS+=" --gamma 0.995  --samplesFile 1"
 
 #size of network layers
-SETTINGS+=" --nnl1 64"
-SETTINGS+=" --nnl2 64"
+SETTINGS+=" --nnl1 128"
+SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
 
 #SETTINGS+=" --nnType RNN"
-#SETTINGS+=" --nnFunc PRelu"
+#SETTINGS+=" --nnFunc LRelu"
 SETTINGS+=" --nnFunc SoftSign"
 SETTINGS+=" --outWeightsPrefac 0.1"
 
@@ -22,16 +22,17 @@ SETTINGS+=" --learner VRACER"
 SETTINGS+=" --explNoise 0.447214"
 
 SETTINGS+=" --obsPerStep 1"
-SETTINGS+=" --minTotObsNum 32768"
+SETTINGS+=" --minTotObsNum 262144"
 SETTINGS+=" --maxTotObsNum 262144"
 
 SETTINGS+=" --totNumSteps 5000000"
-SETTINGS+=" --clipImpWeight 2"
+SETTINGS+=" --clipImpWeight 4"
 
 SETTINGS+=" --penalTol 0.1"
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 256"
 SETTINGS+=" --bSampleSequences 0"
+SETTINGS+=" --ERoldSeqFilter oldest"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"

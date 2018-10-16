@@ -61,7 +61,8 @@ void Learner_offPolicy::spawnTrainTasks_par()
         input->gradient(thrID);
       }
   } else {
-  #pragma omp parallel for collapse(2) schedule(static, 1) num_threads(nThreads)
+  static const Uint CS = batchSize / nThreads;
+  #pragma omp parallel for collapse(2) schedule(static,CS) num_threads(nThreads)
     for (Uint wID=0; wID<ESpopSize; wID++)
       for (Uint bID=0; bID<batchSize; bID++) {
         const Uint thrID = omp_get_thread_num();
@@ -111,8 +112,26 @@ void Learner_offPolicy::prepareGradient()
 
     if(fracOffPol>ReFtol) beta = (1-1e-4)*beta; // iter converges to 0
     else beta = 1e-4 +(1-1e-4)*beta; //fixed point iter converge to 1
-    if(std::fabs(ReFtol-fracOffPol)<0.01) alpha = (1-1e-4)*alpha;
+    if(std::fabs(ReFtol-fracOffPol)<0.001) alpha = (1-1e-4)*alpha;
     else alpha = 1e-4 + (1-1e-4)*alpha;
+
+    if( not computeQretrace ) return;
+
+    debugL("Update Retrace est. for episodes sampled in prev. grad update");
+    // placed here because this happens right after update is computed
+    // this can happen before prune and before workers are joined
+    profiler->stop_start("QRET");
+    const std::vector<Uint>& sampled = data->listSampled();
+    const Uint setSize = sampled.size();
+    #pragma omp parallel for schedule(dynamic, 1)
+    for(Uint i = 0; i < setSize; i++) {
+      Sequence * const S = data->get(sampled[i]);
+      assert(std::fabs(S->Q_RET[S->ndata()]) < 1e-16);
+      assert(std::fabs(S->action_adv[S->ndata()]) < 1e-16);
+      if( S->isTerminal(S->ndata()) )
+        assert(std::fabs(S->state_vals[S->ndata()]) < 1e-16);
+      for(int j=S->just_sampled-1; j>0; j--) backPropRetrace(S, j);
+    }
   }
 }
 
@@ -130,10 +149,8 @@ void Learner_offPolicy::applyGradient()
   debugL("Compute state/rewards stats from the replay memory");
   // placed here because this occurs after workers.join() so we have new data
   profiler->stop_start("PRE");
-  if(currStep%1000==0) { // update state mean/std with net's learning rate
-    const Real WS = annealRate(learnR, currStep, epsAnneal);
-    data_proc->updateRewardsStats(1, WS*(OFFPOL_ADAPT_STSCALE>0));
-  }
+  if(currStep%1000==0) // update state mean/std with net's learning rate
+    data_proc->updateRewardsStats(1, 1e-3*(OFFPOL_ADAPT_STSCALE>0));
 
   Learner::applyGradient();
 }
@@ -156,17 +173,29 @@ void Learner_offPolicy::initializeLearner()
   debugL("Compute state/rewards stats from the replay memory");
   profiler->stop_start("PRE");
   data_proc->updateRewardsStats(1, 1, true);
+  //data_proc->updateRewardsStats(1, 1e-3, true);
   if( learn_rank == 0 )
     std::cout << "Initial reward std " << 1/data->scaledReward(1) << std::endl;
 
   Learner::initializeLearner();
+
+  if( not computeQretrace ) return;
+  // Rewards second moment is computed right before actual training begins
+  // therefore we need to recompute (rescaled) Retrace values for all obss
+  // seen before this point.
+  debugL("Rescale Retrace est. after gathering initial dataset");
+  // placed here because on 1st step we just computed first rewards statistics
+  const Uint setSize = data->readNSeq();
+  #pragma omp parallel for schedule(dynamic)
+  for(Uint i=0; i<setSize; i++)
+    for(Uint j=data->get(i)->ndata(); j>0; j--) backPropRetrace(data->get(i),j);
 }
 
 void Learner_offPolicy::save()
 {
   const long int currStep = nStep()+1;
   Learner::save();
-  static constexpr Real freqSave = 1000*PRFL_DMPFRQ;
+  const Real freqSave = tPrint * PRFL_DMPFRQ;
   const Uint freqBackup = std::ceil(settings.saveFreq / freqSave)*freqSave;
   const bool bBackup = currStep % freqBackup == 0;
   if(not bBackup) return;

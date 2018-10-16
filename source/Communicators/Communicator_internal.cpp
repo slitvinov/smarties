@@ -214,7 +214,7 @@ void Communicator_internal::getStateActionShape()
   discrete_actions = doublePtrToInt(sizes+2);
   nAgents          = doublePtrToInt(sizes+3);
 
-  assert(nStates>=0 && nActions>=0);
+  assert(nStates>=0 && nActions>0);
   update_state_action_dims(nStates, nActions);
   inpBufs = alloc_bufs(size_state,  nOwnWorkers);
   outBufs = alloc_bufs(size_action, nOwnWorkers);
@@ -224,27 +224,40 @@ void Communicator_internal::getStateActionShape()
   if(nOwnWorkers>0)
   {
    if (rank_learn_pool==0) {
+    if(nStates>0)
+    {
     MPI_Recv(obs_inuse.data(),nStates*8,MPI_BYTE,1,3,comm_learn_pool, MPI_STATUS_IGNORE);
     MPI_Recv(obs_bounds.data(),nStates*16,MPI_BYTE,1,4,comm_learn_pool, MPI_STATUS_IGNORE);
+    }
     MPI_Recv(action_options.data(),nActions*16,MPI_BYTE,1,5,comm_learn_pool, MPI_STATUS_IGNORE);
    } else {
     for(int i=0; i<nOwnWorkers; i++)
     {
+      if(nStates>0)
+      {
       sockRecv(clientSockets[i], obs_inuse.data(), nStates*8);
       sockRecv(clientSockets[i], obs_bounds.data(), nStates*16);
+      }
       sockRecv(clientSockets[i], action_options.data(), nActions*16);
     }
     if (rank_learn_pool==1) {
+     if(nStates>0)
+     {
      MPI_Ssend(obs_inuse.data(), nStates*8,MPI_BYTE,0,3, comm_learn_pool);
      MPI_Ssend(obs_bounds.data(), nStates*16,MPI_BYTE,0,4, comm_learn_pool);
+     }
      MPI_Ssend(action_options.data(),nActions*16,MPI_BYTE,0,5, comm_learn_pool);
     }
    }
   }
 
-  if(S.mastersComm not_eq MPI_COMM_NULL) {
+  if(S.mastersComm not_eq MPI_COMM_NULL)
+  {
+    if(nStates>0)
+    {
     MPI_Bcast(obs_inuse.data(), nStates*8, MPI_BYTE, 0, S.mastersComm);
     MPI_Bcast(obs_bounds.data(), nStates*16, MPI_BYTE, 0, S.mastersComm);
+    }
     MPI_Bcast(action_options.data(), nActions*16, MPI_BYTE, 0, S.mastersComm);
   }
 
@@ -358,7 +371,7 @@ void Communicator_internal::launch()
   sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock", socket_id);
   unlink(SOCK_PATH);
 
-  #pragma omp parallel 
+  #pragma omp parallel num_threads(S.nThreads)
   for(int i = 0; i<nOwnWorkers; i++)
   {
     const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
@@ -367,7 +380,7 @@ void Communicator_internal::launch()
     if ( ( thrID==tgtCPU ) && ( fork() == 0 ) )
     {
       createGo_rundir();
-      redirect_stdout_init();
+      //redirect_stdout_init();
       launch_exec("../"+execpath, socket_id); //child spawns process
       printf("setupClient app returned: what TODO?"); fflush(0); abort();
     }

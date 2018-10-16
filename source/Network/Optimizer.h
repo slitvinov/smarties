@@ -14,15 +14,19 @@ class Optimizer
 {
  protected:
   const MPI_Comm mastersComm;
-  const Uint learn_size, pop_size;
+  const Uint learn_size, pop_size, nThreads;
   const Parameters * const weights;
   const Parameters * const tgt_weights;
+  const vector<Parameters*> sampled_weights;
   const Uint pDim = weights->nParams;
   const Real eta_init;
   const Uint batchSize;
   const bool bAsync;
   Uint cntUpdateDelay = 0;
   std::mutex& mpi_mutex;
+  std::mutex samples_mutex;
+
+  std::vector<MPI_Request> wVecReq = std::vector<MPI_Request>(pop_size, MPI_REQUEST_NULL);
 
  public:
   bool bAnnealLearnRate = true;
@@ -30,11 +34,8 @@ class Optimizer
   long unsigned nStep = 0;
   nnReal eta = eta_init;
 
-  Optimizer(const Settings&S,const Parameters*const W,const Parameters*const WT)
-  : mastersComm(MPIComDup(S.mastersComm)), learn_size(S.learner_size),
-  pop_size(S.ESpopSize), weights(W), tgt_weights(WT), eta_init(S.learnrate),
-  batchSize(S.batchSize), bAsync(S.bAsync), mpi_mutex(S.mpi_mutex),
-  lambda(S.nnLambda), epsAnneal(S.epsAnneal), tgtUpdateAlpha(S.targetDelay) {}
+  Optimizer(const Settings&S, const Parameters*const W,
+    const Parameters*const WT, const vector<Parameters*>& samples);
 
   virtual ~Optimizer() {}
   virtual void save(const string fname, const bool bBackup) = 0;
@@ -45,6 +46,18 @@ class Optimizer
 
   virtual void getMetrics(ostringstream& buff) = 0;
   virtual void getHeaders(ostringstream& buff) = 0;
+
+  inline const Parameters * getWeights(const int USEW) {
+    if(USEW == 0) return weights;
+    if(USEW <  0) return tgt_weights;
+    if(wVecReq[USEW] == MPI_REQUEST_NULL) return sampled_weights[USEW];
+    std::lock_guard<std::mutex> lockW(samples_mutex);
+    if(wVecReq[USEW] not_eq MPI_REQUEST_NULL) {
+      MPI(Wait, &wVecReq[USEW], MPI_STATUS_IGNORE);
+      wVecReq[USEW] = MPI_REQUEST_NULL;
+    }
+    return sampled_weights[USEW];
+  }
 };
 
 class AdamOptimizer : public Optimizer
@@ -52,10 +65,10 @@ class AdamOptimizer : public Optimizer
  protected:
   const Real beta_1, beta_2;
   Real beta_t_1 = beta_1, beta_t_2 = beta_2;
-  const Parameters * const gradSum = weights->allocateGrad();
-  const Parameters * const _1stMom = weights->allocateGrad();
-  const Parameters * const _2ndMom = weights->allocateGrad();
-  const Parameters * const _2ndMax = weights->allocateGrad();
+  const Parameters * const gradSum = weights->allocateGrad(learn_size);
+  const Parameters * const _1stMom = weights->allocateGrad(learn_size);
+  const Parameters * const _2ndMom = weights->allocateGrad(learn_size);
+  const Parameters * const _2ndMax = weights->allocateGrad(learn_size);
   vector<std::mt19937>& generators;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
   //const Real alpha_eSGD, gamma_eSGD, eta_eSGD, eps_eSGD, delay;
@@ -65,10 +78,9 @@ class AdamOptimizer : public Optimizer
 
  public:
 
-  AdamOptimizer(const Settings&S, const Parameters*const W, const Parameters*const WT,
-    const vector<Parameters*>&G, const Real B1=.9, const Real B2=.999) :
-    Optimizer(S, W, WT), beta_1(B1), beta_2(B2), generators(S.generators),
-    grads(G) { }
+  AdamOptimizer(const Settings&S, const Parameters*const W,
+    const Parameters*const WT, const vector<Parameters*>& samples,
+    const vector<Parameters*>&G, const Real B1=.9, const Real B2=.999);
   //alpha_eSGD(0.75), gamma_eSGD(10.), eta_eSGD(.1/_s.targetDelay),
   //eps_eSGD(1e-3), delay(_s.targetDelay), L_eSGD(_s.targetDelay),
   //_muW_eSGD(initClean(nWeights)), _muB_eSGD(initClean(nBiases))

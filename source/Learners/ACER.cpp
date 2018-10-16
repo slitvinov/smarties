@@ -8,7 +8,15 @@
 
 #include "../Network/Builder.h"
 #include "../Network/Aggregator.h"
+#include "../Math/Gaussian_policy.h"
 #include "ACER.h"
+
+static inline Gaussian_policy prepare_policy(const Rvec&O,
+  const ActionInfo*const aI, const Tuple*const t = nullptr) {
+  Gaussian_policy pol({0, aI->dim}, aI, O);
+  if(t not_eq nullptr) pol.prepare(t->a, t->mu);
+  return pol;
+}
 
 void ACER::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
   const Uint thrID) const
@@ -23,8 +31,8 @@ void ACER::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
    F[2]->prepare_seq(traj, thrID, 1+nAexpectation);
 
   Rvec Vstates(ndata, 0);
-  vector<Action_t> policy_samples(ndata);
-  vector<Policy_t> policies, policies_tgt;
+  vector<Rvec> policy_samples(ndata);
+  vector<Gaussian_policy> policies, policies_tgt;
   policies_tgt.reserve(ndata); policies.reserve(ndata);
   vector<Rvec> advantages(ndata, Rvec(2+nAexpectation, 0));
 
@@ -32,10 +40,10 @@ void ACER::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
   for(Uint k=0; k<(Uint)ndata; k++)
   {
     const Rvec outPc = F[0]->forward_cur(k, thrID);
-    policies.push_back(prepare_policy(outPc, traj->tuples[k]));
+    policies.push_back(prepare_policy(outPc, &aInfo, traj->tuples[k]));
     assert(policies.size() == k+1);
     const Rvec outPt = F[0]->forward_tgt(k, thrID);
-    policies_tgt.push_back(prepare_policy(outPt));
+    policies_tgt.push_back(prepare_policy(outPt, &aInfo));
     const Rvec outVs = F[1]->forward(k, thrID);
 
     relay->set(policies[k].sampAct, k, thrID);
@@ -90,7 +98,7 @@ void ACER::TrainBySequences(const Uint seq, const Uint wID, const Uint bID,
     Q_OPC = R +gamma*(   (Q_OPC-QTheta) +Vstates[k]); // as paper, but bad
     //Q_OPC = R +gamma*( C*(Q_OPC-QTheta) +Vstates[k]);
     const Rvec penal = policies[k].div_kl_grad(T->mu, -1);
-    traj->setMseDklImpw(k, Q_err*Q_err, dkl, rho);
+    traj->setMseDklImpw(k, Q_err*Q_err, dkl, rho, CmaxRet, CinvRet);
     trainInfo->log(QTheta, Q_err, pGrad, penal, {rho}, thrID);
   }
 
@@ -106,9 +114,9 @@ void ACER::Train(const Uint seq, const Uint samp, const Uint wID,
   die("not allowed");
 }
 
-Rvec ACER::policyGradient(const Tuple*const _t, const Policy_t& POL,
-  const Policy_t& TGT, const Real ARET, const Real APol,
-  const Action_t& pol_samp) const
+Rvec ACER::policyGradient(const Tuple*const _t, const Gaussian_policy& POL,
+  const Gaussian_policy& TGT, const Real ARET, const Real APol,
+  const Rvec& pol_samp) const
 {
   //compute quantities needed for trunc import sampl with bias correction
   const Real polProbBehavior = POL.evalBehavior(pol_samp, _t->mu);
@@ -134,7 +142,7 @@ void ACER::select(Agent& agent)
     // recurrent connection from last call from same agent will be reused
     F[0]->prepare_agent(traj, agent);
     Rvec output = F[0]->forward_agent(agent);
-    Policy_t pol = prepare_policy(output);
+    Gaussian_policy pol = prepare_policy(output, &aInfo);
     Rvec mu = pol.getVector();
     const auto act=pol.finalize(explNoise>0,&generators[nThreads+agent.ID], mu);
     agent.act(act);
@@ -147,19 +155,7 @@ ACER::ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
 {
   _set.splitLayers = 0;
   #if 1
-    if(input->net not_eq nullptr) {
-      delete input->opt; input->opt = nullptr;
-      delete input->net; input->net = nullptr;
-    }
-    Builder input_build(_set);
-    bool bInputNet = false;
-    input_build.addInput( input->nOutputs() );
-    bInputNet = bInputNet || env->predefinedNetwork(input_build);
-    bInputNet = bInputNet || predefinedNetwork(input_build, 0);
-    if(bInputNet) {
-      Network* net = input_build.build(true);
-      input->initializeNetwork(net, input_build.opt);
-    }
+    createSharedEncoder();
   #endif
 
   relay = new Aggregator(_set, data, _env->aI.dim);
@@ -168,8 +164,13 @@ ACER::ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
   F.push_back(new Approximator("advntg", _set, input, data, relay));
 
   Builder build_pol = F[0]->buildFromSettings(_set, nA);
-  const Real initParam = noiseMap_inverse(explNoise);
-  build_pol.addParamLayer(nA, "Linear", initParam);
+
+  #ifdef EXTRACT_COVAR
+    const Real stdParam = noiseMap_inverse(explNoise*explNoise);
+  #else
+    const Real stdParam = noiseMap_inverse(explNoise);
+  #endif
+  build_pol.addParamLayer(nA, "Linear", stdParam);
   Builder build_val = F[1]->buildFromSettings(_set, 1 ); // V
   Builder build_adv = F[2]->buildFromSettings(_set, 1 ); // A
 
@@ -190,7 +191,7 @@ ACER::ACER(Environment*const _env, Settings&_set): Learner_offPolicy(_env,_set)
     for(Uint i=0;  i<mu.size(); i++) mu[i] = dist(generators[0]);
     for(Uint i=nA; i<mu.size(); i++) mu[i] = std::exp(mu[i]);
 
-    Policy_t pol = prepare_policy(output);
+    Gaussian_policy pol = prepare_policy(output, &aInfo);
     Rvec act = pol.finalize(1, &generators[0], mu);
     pol.prepare(act, mu);
     pol.test(act, mu);

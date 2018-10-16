@@ -39,16 +39,16 @@ using namespace std;
 // Learn rate of moving stdev and mean of states. If <=0 averaging switched off
 // and state scaling quantities are only computed from initial data.
 // It can lead to small improvement of results with some computational cost
-#define OFFPOL_ADAPT_STSCALE 0
+#define OFFPOL_ADAPT_STSCALE 1
 
 // Switch between log(1+exp(x)) and (x+sqrt(x*x+1)/2 as mapping to R^+ for
 // policies, advantages, and all math objects that require pos def net outputs
-//#define CHEAP_SOFTPLUS
+#define CHEAP_SOFTPLUS
 
 // Switch between network computing \sigma (stdev) or \Sigma (covar).
 // Does have an effect only if sigma is linked to network output rather than
 // being a separate set of lerned parameters shared by all states.
-#define EXTRACT_COVAR
+//#define EXTRACT_COVAR
 
 // Switch between \sigma in (0 1) or (0 inf).
 #define UNBND_VAR
@@ -107,7 +107,7 @@ using namespace std;
 
 //#define PRINT_ALL_RANKS
 
-#define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
+#define PRFL_DMPFRQ 20 // regulates how frequently print profiler info
 
 // hint to reserve memory for the network workspaces, can be breached
 #define MAX_SEQ_LEN 1200
@@ -140,9 +140,15 @@ typedef float Real;
 ////////////////////////////////////////////////////////////////////////////////
 // Data format for storage in memory buffer. Switch to float for example for
 // Atari where the memory buffer is in the order of GBs.
+#if 0
+typedef double memReal;
+typedef double Fval;
+#define MPI_Fval MPI_DOUBLE
+#else
 typedef float memReal;
 typedef float Fval;
 #define MPI_Fval MPI_FLOAT
+#endif
 
 typedef std::vector<Fval> Fvec;
 typedef std::vector<Real> Rvec;
@@ -247,6 +253,21 @@ inline vector<Uint> count_indices(const vector<Uint> outs)
 #define GETCPU(CPU) do { CPU=sched_getcpu(); } while(0)
 #endif
 
+#define MPI(NAME, ...)                                                         \
+do {                                                                           \
+  int mpiW = 0;                                                                \
+  if(bAsync) {                                                                 \
+    mpiW = MPI_ ## NAME ( __VA_ARGS__ );                                       \
+  } else {                                                                     \
+    std::lock_guard<std::mutex> lock(mpi_mutex);                               \
+    mpiW = MPI_ ## NAME ( __VA_ARGS__ );                                       \
+  }                                                                            \
+  if(mpiW not_eq MPI_SUCCESS) {                                                \
+    _warn("%s %d", #NAME, mpiW);                                               \
+    throw std::runtime_error("i'll be back");                                  \
+  }                                                                            \
+} while(0)
+
 inline float approxRsqrt( const float number )
 {
 	union { float f; uint32_t i; } conv;
@@ -267,6 +288,8 @@ struct THRvec
   const T initial;
   mutable std::vector<T*> m_v = std::vector<T*> (nThreads, nullptr);
   THRvec(const Uint size, const T init=T()) : nThreads(size), initial(init) {}
+  THRvec(const THRvec&c): nThreads(c.nThreads),initial(c.initial),m_v(c.m_v) {}
+
   ~THRvec() { for (Uint i=0; i<nThreads; i++) delete m_v[i]; }
   inline void resize(const Uint N)
   {
@@ -275,7 +298,10 @@ struct THRvec
   }
   inline Uint size() const { return nThreads; };
   inline T& operator[] (const Uint i) const {
-    if(m_v[i] == nullptr) m_v[i] = new T(initial);
+    if(m_v[i] == nullptr) {
+      m_v[i] = new T(initial);
+      //printf("allocting %d\n", i);
+    }
     return * m_v[i];
   }
 };

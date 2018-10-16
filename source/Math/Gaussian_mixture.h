@@ -7,7 +7,8 @@
 //
 
 #pragma once
-#include "Gaussian_policy.h"
+#include "Utils.h"
+
 template<Uint nExperts>
 struct Gaussian_mixture
 {
@@ -169,13 +170,13 @@ public:
     for(Uint e=0; e<nExperts*(1 + aI->dim); e++)
       initBias.push_back(0);
   }
-  static void setInitial_Stdev(const ActionInfo* const aI, Rvec& initBias, const Real explNoise)
+  static void setInitial_Stdev(const ActionInfo* const aI, Rvec&B, const Real S)
   {
     for(Uint e=0; e<nExperts*aI->dim; e++)
     #ifdef EXTRACT_COVAR
-      initBias.push_back(noiseMap_inverse(explNoise*explNoise));
+      B.push_back(noiseMap_inverse(S*S));
     #else
-      initBias.push_back(noiseMap_inverse(explNoise));
+      B.push_back(noiseMap_inverse(S));
     #endif
   }
 

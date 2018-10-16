@@ -10,6 +10,14 @@
 #include "../Network/Builder.h"
 #include "NAF.h"
 
+#include "../Math/Quadratic_advantage.h"
+
+static inline Quadratic_advantage prepare_advantage(const Rvec&O,
+  const ActionInfo*const aI, const vector<Uint>& net_inds)
+{
+  return Quadratic_advantage(vector<Uint>{net_inds[1], net_inds[2]}, aI, O);
+}
+
 NAF::NAF(Environment*const _env, Settings & _set) :
 Learner_offPolicy(_env, _set)
 {
@@ -18,7 +26,7 @@ Learner_offPolicy(_env, _set)
   const Uint nOutp = 1 +aInfo.dim +Quadratic_advantage::compute_nL(&aInfo);
   assert(nOutp == net_outputs[0] + net_outputs[1] + net_outputs[2]);
   Builder build_pol = F[0]->buildFromSettings(_set, nOutp);
-  F[0]->initializeNetwork(build_pol, 0);
+  F[0]->initializeNetwork(build_pol);
   test();
   printf("NAF\n");
   trainInfo = new TrainData("NAF", _set, 0, "| beta | avgW ", 2);
@@ -36,13 +44,15 @@ void NAF::select(Agent& agent)
     const Rvec output = F[0]->forward_agent(agent);
     //cout << print(output) << endl;
     Rvec polvec = Rvec(&output[net_indices[2]], &output[net_indices[2]]+nA);
+
     #ifndef NDEBUG
-      const Quadratic_advantage advantage = prepare_advantage(output);
+      const Quadratic_advantage advantage = prepare_advantage(output, &aInfo, net_indices);
       Rvec polvec2 = advantage.getMean();
       assert(polvec.size() == polvec2.size());
       for(Uint i=0;i<nA;i++) assert(abs(polvec[i]-polvec2[i])<2e-16);
     #endif
-    polvec.resize(policyVecDim, noiseMap_inverse(explNoise));
+
+    polvec.resize(policyVecDim, stdParam);
     assert(polvec.size() == 2 * nA);
     Gaussian_policy policy({0, nA}, &aInfo, polvec);
     const Rvec MU = policy.getVector();
@@ -77,16 +87,16 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint wID,
 
   if(thrID==0) profiler->stop_start("CMP");
   // prepare advantage and policy
-  const Quadratic_advantage ADV = prepare_advantage(output);
+  const Quadratic_advantage ADV = prepare_advantage(output, &aInfo,net_indices);
   Rvec polvec = ADV.getMean();            assert(polvec.size() == nA);
-  polvec.resize(policyVecDim, noiseMap_inverse(explNoise));
+  polvec.resize(policyVecDim, stdParam);
   assert(polvec.size() == 2 * nA);
   Gaussian_policy POL({0, nA}, &aInfo, polvec);
   POL.prepare(traj->tuples[samp]->a, traj->tuples[samp]->mu);
   //cout << POL.sampImpWeight << " " << POL.sampKLdiv << " " << CmaxRet << endl;
 
   const Real Qsold = output[net_indices[0]] + ADV.computeAdvantage(POL.sampAct);
-  const bool isOff = traj->isFarPolicy(samp, POL.sampImpWeight, CmaxRet);
+  const bool isOff = traj->isFarPolicy(samp, POL.sampImpWeight,CmaxRet,CinvRet);
 
   Real Vsnew = data->scaledReward(traj, samp+1);
   if (not traj->isTerminal(samp+1) && not isOff) {
@@ -104,7 +114,7 @@ void NAF::Train(const Uint seq, const Uint samp, const Uint wID,
   }
 
   trainInfo->log(Qsold, error, {beta, POL.sampImpWeight}, thrID);
-  traj->setMseDklImpw(samp, error*error, POL.sampKLdiv, POL.sampImpWeight);
+  traj->setMseDklImpw(samp, error*error, POL.sampKLdiv, POL.sampImpWeight, CmaxRet, CinvRet);
   if(thrID==0)  profiler->stop_start("BCK");
   F[0]->backward(grad, samp, thrID);
   F[0]->gradient(thrID);
@@ -118,6 +128,6 @@ void NAF::test()
   const int thrID = omp_get_thread_num();
   for(Uint i = 0; i<aInfo.dim; i++) act[i] = act_dis(generators[thrID]);
   for(Uint i = 0; i<F[0]->nOutputs(); i++) out[i] = out_dis(generators[thrID]);
-  Quadratic_advantage A = prepare_advantage(out);
+  Quadratic_advantage A = prepare_advantage(out, &aInfo, net_indices);
   A.test(act, &generators[thrID]);
 }

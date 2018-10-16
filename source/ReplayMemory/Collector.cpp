@@ -73,18 +73,15 @@ void Collector::terminate_seq(Agent&a)
 void Collector::push_back(const int & agentId)
 {
   assert(agentId < (int) inProgress.size());
-  if(inProgress[agentId]->tuples.size() > 2 ) //at least s0 and sT
+  if(inProgress[agentId]->tuples.size() > 1 ) //at least s0 and sT
   {
     inProgress[agentId]->finalize( nSeenSequences.load() );
     sharing->addComplete(inProgress[agentId]);
     nSeenTransitions_loc++;
     nSeenSequences_loc++;
   }
-  else
-  {
-    printf("Trashing %lu obs.\n",inProgress[agentId]->tuples.size());
-    _dispose_object(inProgress[agentId]);
-  }
+  else die("Found episode with no steps");
+
   inProgress[agentId] = new Sequence();
 }
 

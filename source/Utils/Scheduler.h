@@ -67,7 +67,7 @@ private:
 
   inline Learner* pickLearner(const Uint agentId, const Uint recvId)
   {
-    assert(agentId<agents.size() && recvId<(Uint)nPerRank);
+    assert(recvId < (Uint)nPerRank);
     if(learners.size()>1) assert(learners.size() == (Uint)nPerRank);
 
     assert( learners.size() == 1 || recvId < learners.size() );

@@ -47,7 +47,7 @@ void Approximator::allocMorePerThread(const Uint nAlloc) {
           series[i].reserve(MAX_SEQ_LEN);
 }
 
-void Approximator::initializeNetwork(Builder& build, Real cutGradFactor) {
+void Approximator::initializeNetwork(Builder& build) {
   net = build.build();
   opt = build.opt;
   assert(opt not_eq nullptr && net not_eq nullptr);
@@ -74,7 +74,9 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor) {
     } else relayInp = 0;
   }
 
-  if(not net->layers[0]->bInput) die("should not be possible");
+  if(not net->layers[0]->bInput) {
+    warn("Network has no input.");
+  }
   // skip backprop to input vector or to input features if `blockInpGrad`
   if ( input->net == nullptr or blockInpGrad ) {
     Uint layBckPrpInp = 1, nInps = input->nOutputs();
@@ -85,20 +87,23 @@ void Approximator::initializeNetwork(Builder& build, Real cutGradFactor) {
       if(net->layers[2]->bInput) die("should not be possible"); //joining
     }
     if(relay==nullptr) {
+      if(net->layers.size() < layBckPrpInp)
       if(net->layers[layBckPrpInp]->spanCompInpGrads!=nInps)
         die("should not be possible");
     } else
       if(net->layers[layBckPrpInp]->spanCompInpGrads!=nInps+relay->nOutputs())
         die("should not be possible");
 
-    net->layers[layBckPrpInp]->spanCompInpGrads -= nInps;
-    net->layers[layBckPrpInp]->startCompInpGrads = nInps;
+    if(net->layers.size() < layBckPrpInp) {
+      net->layers[layBckPrpInp]->spanCompInpGrads -= nInps;
+      net->layers[layBckPrpInp]->startCompInpGrads = nInps;
+    }
   }
 
   #ifdef __CHECK_DIFF //check gradients with finite differences
     net->checkGrads();
   #endif
-  gradStats = new StatsTracker(net->getnOutputs(), settings, cutGradFactor);
+  gradStats = new StatsTracker(net->getnOutputs(), settings);
 }
 
 void Approximator::prepare_seq(Sequence*const traj, const Uint thrID,
@@ -179,8 +184,7 @@ Rvec Approximator::getOutput(const Rvec inp, const int ind,
   const vector<Activation*>& act_cur = series[thrID];
   const Activation*const recur = ind? act_cur[ind-1] : nullptr;
   assert(USEW < (int) net->sampled_weights.size() );
-  const Parameters* const W = USEW >0 ? net->sampled_weights[USEW] : (
-                              USEW==0 ? net->weights : net->tgt_weights );
+  const Parameters* const W = opt->getWeights(USEW);
   assert( W not_eq nullptr );
   const Rvec ret = net->predict(inp, recur, act, W);
   //if(!thrID) cout<<"net fwd with inp:"<<print(inp)<<" out:"<<print(ret)<<endl;
@@ -288,7 +292,7 @@ void Approximator::getMetrics(ostringstream& buff) const {
 Rvec Approximator::relay_backprop(const Rvec err,
   const Uint samp, const Uint thrID, const bool bUseTargetWeights) const {
   if(relay == nullptr || relayInp < 0) die("improperly set up the relay");
-  if(ESpopSize > 0) {
+  if(ESpopSize > 1) {
     debugL("Skipping relay_backprop because we use ES optimizers.");
     return Rvec(relay->nOutputs(), 0);
   }
@@ -299,7 +303,8 @@ Rvec Approximator::relay_backprop(const Rvec err,
   const Rvec ret = net->inpBackProp(err, act[ind], W, relayInp);
   for(Uint j=0; j<ret.size(); j++)
     assert(!std::isnan(ret[j]) && !std::isinf(ret[j]));
-  //if(!thrID) {
+  //if(!thrID)
+  //{
   //  const auto pret = Rvec(&ret[nInp], &ret[nInp+relay->nOutputs()]);
   //  const auto inp = act[ind]->getInput();
   //  const auto pinp = Rvec(&inp[nInp], &inp[nInp+relay->nOutputs()]);
@@ -326,8 +331,7 @@ void Approximator::prepare_agent(Sequence*const traj, const Agent&agent,
   // why? because the past is the past.
   if(relay not_eq nullptr) relay->prepare(traj, fakeThrID, ACT);
   assert(act.size() >= nRecurr+1);
-  const Parameters* const W = wghtID >0 ? net->sampled_weights[wghtID] : (
-                              wghtID==0 ? net->weights : net->tgt_weights );
+  const Parameters* const W = opt->getWeights(wghtID);
   //Advance recurr net with 0 initialized activations for nRecurr steps
   for(Uint i=0, t=stepid-nRecurr; i<nRecurr; i++, t++)
     net->predict(getInput(t,fakeThrID,wghtID), i? act[i-1]:nullptr, act[i], W);
@@ -340,8 +344,7 @@ Rvec Approximator::forward_agent(const Uint agentID) const {
   const Uint stepid = agent_seq[agentID]->ndata();
   const Uint nRecurr = bRecurrent ? std::min(nMaxBPTT, stepid) : 0;
   if(act[nRecurr]->written) return act[nRecurr]->getOutput();
-  const Parameters* const W = wghtID >0 ? net->sampled_weights[wghtID] : (
-                              wghtID==0 ? net->weights : net->tgt_weights );
+  const Parameters* const W = opt->getWeights(wghtID);
   const Rvec inp = getInput(stepid, fakeThrID, wghtID);
   return net->predict(inp, nRecurr? act[nRecurr-1] : nullptr, act[nRecurr], W);
 }

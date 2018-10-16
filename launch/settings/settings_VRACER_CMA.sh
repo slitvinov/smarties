@@ -5,8 +5,8 @@ SETTINGS=
 SETTINGS+=" --gamma 0.995 --samplesFile 1"
 
 #size of network layers
-SETTINGS+=" --nnl1 64"
-SETTINGS+=" --nnl2 64"
+SETTINGS+=" --nnl1 128"
+SETTINGS+=" --nnl2 128"
 #SETTINGS+=" --nnl3 128"
 
 # Activation functions:
@@ -33,7 +33,7 @@ SETTINGS+=" --maxTotObsNum 262144"
 SETTINGS+=" --totNumSteps 50000000"
 
 #C in paper. Determines c_max: boundary between (used) near-policy samples and (skipped) far policy ones
-SETTINGS+=" --clipImpWeight 2"
+SETTINGS+=" --clipImpWeight 4"
 
 # Annealing factor for impWeight and learn rate -> 1/(1+epsAnneal*fac)
 SETTINGS+=" --epsAnneal 0"
@@ -44,8 +44,8 @@ SETTINGS+=" --penalTol 0.1"
 #Here is unused. Used for target network soft update
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 120"
-SETTINGS+=" --ESpopSize 64"
+SETTINGS+=" --batchSize 60"
+SETTINGS+=" --ESpopSize 120"
 #Whether to train based on sampling sequences. Best not to.
 SETTINGS+=" --bSampleSequences 0"
 #network update learning rate

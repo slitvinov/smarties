@@ -114,18 +114,3 @@ inline static void printfmt(char*const p, const int N, const char*const a, ... )
     " ", BUF); FLUSHALL} } while(0)
 
 }
-
-#define MPI(NAME, ...)                                                         \
-do {                                                                           \
-  int mpiW = 0;                                                                \
-  if(bAsync) {                                                                 \
-    mpiW = MPI_ ## NAME ( __VA_ARGS__ );                                       \
-  } else {                                                                     \
-    std::lock_guard<std::mutex> lock(mpi_mutex);                               \
-    mpiW = MPI_ ## NAME ( __VA_ARGS__ );                                       \
-  }                                                                            \
-  if(mpiW not_eq MPI_SUCCESS) {                                                \
-    _warn("%s %d", #NAME, mpiW);                                               \
-    throw std::runtime_error("i'll be back");                                  \
-  }                                                                            \
-} while(0)

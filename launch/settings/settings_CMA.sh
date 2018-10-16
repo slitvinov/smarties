@@ -31,7 +31,9 @@ SETTINGS+=" --totNumSteps 10000000"
 SETTINGS+=" --maxTotObsNum 64000"
 
 #batch size for network gradients compute
-SETTINGS+=" --batchSize 1"
-SETTINGS+=" --ESpopSize 120"
+#SETTINGS+=" --batchSize 120"
+SETTINGS+=" --batchSize 10"
+SETTINGS+=" --ESpopSize 12"
+SETTINGS+=" --explNoise 0.1"
 #network update learning rate
-SETTINGS+=" --learnrate 0.001"
+SETTINGS+=" --learnrate 0.01"

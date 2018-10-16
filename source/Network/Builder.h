@@ -8,7 +8,7 @@
 
 #pragma once
 #include "Optimizer.h"
-#include "CMA_Optimizer.h"
+#include "CMA_Optimizer_MPI.h"
 #include "Network.h"
 #include "Layer_Base.h"
 #include "Layer_Conv2D.h"
@@ -143,8 +143,8 @@ public:
     bBuilt = true;
 
     nLayers = layers.size();
-    weights = allocate_parameters(layers);
-    tgt_weights = allocate_parameters(layers);
+    weights = allocate_parameters(layers, mpisize);
+    tgt_weights = allocate_parameters(layers, mpisize);
 
     // Initialize weights
     for(const auto & l : layers)
@@ -165,16 +165,16 @@ public:
     #pragma omp parallel for schedule(static, 1) num_threads(nThreads)
     for (Uint i=0; i<nThreads; i++)
       #pragma omp critical // numa-aware allocation if OMP_PROC_BIND is TRUE
-        Vgrad[i] = allocate_parameters(layers);
+        Vgrad[i] = allocate_parameters(layers, mpisize);
 
     // Initialize network workspace to check that all is ok
     Activation*const test = allocate_activation(layers);
 
-    if(test->nInputs not_eq nInputs)
+    if(test->nInputs not_eq (int) nInputs)
       _die("Mismatch between Builder's computed inputs:%u and Activation's:%u",
         nInputs, test->nInputs);
 
-    if(test->nOutputs not_eq nOutputs) {
+    if(test->nOutputs not_eq (int) nOutputs) {
       _warn("Mismatch between Builder's computed outputs:%u and Activation's:%u. Overruled Builder: probable cause is that user's net did not specify which layers are output. If multiple output layers expect trouble\n",
         nOutputs, test->nOutputs);
       nOutputs = test->nOutputs;
@@ -182,11 +182,11 @@ public:
 
     _dispose_object(test);
 
-    popW = initWpop(weights, pop_size);
+    popW = initWpop(weights, pop_size, mpisize);
 
     net = new Network(this, settings);
     if(pop_size>1) opt = new CMA_Optimizer(settings, weights,tgt_weights, popW);
-    else opt = new AdamOptimizer(settings, weights,tgt_weights, Vgrad);
+    else opt = new AdamOptimizer(settings, weights,tgt_weights, popW, Vgrad);
     return net;
   }
 
@@ -199,6 +199,14 @@ public:
     const int sumout=static_cast<int>(accumulate(nouts.begin(),nouts.end(),0));
     const string netType = settings.nnType, funcType = settings.nnFunc;
     const vector<int> lsize = settings.readNetSettingsSize();
+
+    if(ninps == 0)
+    {
+      warn("network with no input space. will return a param layer");
+      addParamLayer(sumout, settings.nnOutputFunc, vector<Real>(sumout,0));
+      return;
+    }
+
     addInput(ninps);
 
     //User can specify how many layers exist independendlty for each output
@@ -234,6 +242,7 @@ public:
   const Settings & settings;
   const Uint nThreads = settings.nThreads;
   const Uint pop_size = settings.ESpopSize;
+  const Uint mpisize = settings.learner_size;
   Uint nInputs=0, nOutputs=0, nLayers=0;
   Real gradClip = 1;
   std::vector<std::mt19937>& generators = settings.generators;

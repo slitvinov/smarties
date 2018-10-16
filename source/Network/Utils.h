@@ -19,27 +19,31 @@ inline Uint roundUpSimd(const Real N)
   return std::ceil(N/ARY_WIDTH)*ARY_WIDTH;
 }
 
-inline nnReal* allocate_ptr(const Uint _size)
-{
-  nnReal* ret = nullptr;
-  assert(_size > 0);
-  //printf("requested %u floats of size %lu, allocating %lu bytes\n",
-  //  _size, sizeof(nnReal), roundUpSimd(_size)*sizeof(nnReal));
-  posix_memalign((void **) &ret, VEC_WIDTH, roundUpSimd(_size)*sizeof(nnReal));
-  memset(ret, 0, roundUpSimd(_size)*sizeof(nnReal) );
-  return ret;
-}
-
-
 inline nnReal* allocate_dirty(const Uint _size)
 {
   nnReal* ret = nullptr;
   assert(_size > 0);
-  //printf("requested %u floats of size %lu, allocating %lu bytes\n",
-  //  _size, sizeof(nnReal), roundUpSimd(_size)*sizeof(nnReal));
   posix_memalign((void **) &ret, VEC_WIDTH, roundUpSimd(_size)*sizeof(nnReal));
   return ret;
 }
+
+inline nnReal* allocate_ptr(const Uint _size)
+{
+  nnReal* ret = allocate_dirty(_size);
+  memset(ret, 0, roundUpSimd(_size)*sizeof(nnReal) );
+  return ret;
+}
+
+inline nnReal* allocate_param(const Uint _size, const Real mpiSz)
+{
+  const Uint extraSize = roundUpSimd(std::ceil(_size / mpiSz)) * mpiSz;
+  //printf("requested %u floats of size %lu, allocating %lu bytes\n",
+  //  _size, sizeof(nnReal), extraSize*sizeof(nnReal));
+  nnReal* ret = allocate_dirty(extraSize);
+  memset(ret, 0, extraSize * sizeof(nnReal) );
+  return ret;
+}
+
 
 inline vector<nnReal*> allocate_vec(vector<Uint> _sizes)
 {
