@@ -18,6 +18,7 @@ fi
 unset LSB_AFFINITY_HOSTFILE #euler cluster
 export MPICH_MAX_THREAD_SAFETY=multiple #MPICH
 export MV2_ENABLE_AFFINITY=0 #MVAPICH
+export OPENBLAS_NUM_THREADS=1
 
 SETTINGSNAME=settings.sh
 if [ ! -f $SETTINGSNAME ];then

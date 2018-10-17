@@ -313,7 +313,7 @@ class ParamLayer: public Layer
     std::ostringstream o;
     o<<"("<<ID<<") "<<func->name()
      <<"Parameter Layer of size:"<<size<<". Initialized:"
-     <<print(initVals).c_str()<<"\n";
+     <<print(initVals, 3).c_str()<<"\n";
     return o.str();
   }
 

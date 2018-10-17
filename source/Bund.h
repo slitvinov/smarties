@@ -107,7 +107,7 @@ using namespace std;
 
 //#define PRINT_ALL_RANKS
 
-#define PRFL_DMPFRQ 20 // regulates how frequently print profiler info
+#define PRFL_DMPFRQ 50 // regulates how frequently print profiler info
 
 // hint to reserve memory for the network workspaces, can be breached
 #define MAX_SEQ_LEN 1200
@@ -172,10 +172,11 @@ void _dispose_object(T *const& ptr)
 }
 
 template <typename T>
-inline string print(const vector<T> vals)
+inline string print(const vector<T> vals, const int width = -1)
 {
   std::ostringstream o;
   if(!vals.size()) return o.str();
+  if(width>0) o << std::setprecision(3) << std::fixed;
   for (Uint i=0; i<vals.size()-1; i++) o << vals[i] << " ";
   o << vals[vals.size()-1];
   return o.str();
@@ -236,7 +237,8 @@ inline vector<Uint> count_indices(const vector<Uint> outs)
 
 #ifdef __APPLE__
 #include <cpuid.h>
-#define CPUID(INFO, LEAF, SUBLEAF) __cpuid_count(LEAF, SUBLEAF, INFO[0], INFO[1], INFO[2], INFO[3])
+#define CPUID(INFO, LEAF, SUBLEAF)                     \
+  __cpuid_count(LEAF, SUBLEAF, INFO[0], INFO[1], INFO[2], INFO[3])
 #define GETCPU(CPU) do {                               \
         uint32_t CPUInfo[4];                           \
         CPUID(CPUInfo, 1, 0);                          \
@@ -253,19 +255,19 @@ inline vector<Uint> count_indices(const vector<Uint> outs)
 #define GETCPU(CPU) do { CPU=sched_getcpu(); } while(0)
 #endif
 
-#define MPI(NAME, ...)                                                         \
-do {                                                                           \
-  int mpiW = 0;                                                                \
-  if(bAsync) {                                                                 \
-    mpiW = MPI_ ## NAME ( __VA_ARGS__ );                                       \
-  } else {                                                                     \
-    std::lock_guard<std::mutex> lock(mpi_mutex);                               \
-    mpiW = MPI_ ## NAME ( __VA_ARGS__ );                                       \
-  }                                                                            \
-  if(mpiW not_eq MPI_SUCCESS) {                                                \
-    _warn("%s %d", #NAME, mpiW);                                               \
-    throw std::runtime_error("i'll be back");                                  \
-  }                                                                            \
+#define MPI(NAME, ...)                                 \
+do {                                                   \
+  int mpiW = 0;                                        \
+  if(bAsync) {                                         \
+    mpiW = MPI_ ## NAME ( __VA_ARGS__ );               \
+  } else {                                             \
+    std::lock_guard<std::mutex> lock(mpi_mutex);       \
+    mpiW = MPI_ ## NAME ( __VA_ARGS__ );               \
+  }                                                    \
+  if(mpiW not_eq MPI_SUCCESS) {                        \
+    _warn("%s %d", #NAME, mpiW);                       \
+    throw std::runtime_error("MPI ERROR");             \
+  }                                                    \
 } while(0)
 
 inline float approxRsqrt( const float number )
