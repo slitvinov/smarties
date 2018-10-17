@@ -94,6 +94,8 @@ void CMA_Optimizer::apply_update()
   static constexpr nnReal c1cov = 1e-5;
   static constexpr nnReal c_sig = 1e-3;
   const nnReal alpha = 1 - c1cov - sumW*mu_eff*c1cov;
+  const nnReal alphaP = 1 - c_sig;
+
   const nnReal updSigP = std::sqrt(c_sig * (2-c_sig) * mu_eff);
   const nnReal _eta = bAnnealLearnRate? annealRate(eta,nStep,epsAnneal) : eta;
 
@@ -103,7 +105,9 @@ void CMA_Optimizer::apply_update()
     for(Uint i=0; i<pop_size; i++)
     {
       const nnReal wC = popWeights[i];
-      if(wC <=0 ) continue;
+      #ifndef FDIFF_CMA
+        if(wC <=0 ) continue;
+      #endif
       nnReal * const M = weights->params;
       const nnReal* const X = sampled_weights[ inds[i] ]->params;
       #pragma omp for simd schedule(static) aligned(M,X : VEC_WIDTH) nowait
@@ -114,7 +118,12 @@ void CMA_Optimizer::apply_update()
     if(thrID == 0) startAllGather(0);
 
     for(Uint i=0; i<pop_size; i++) {
-      const nnReal wC = popWeights[i], wZ = std::max(wC, (nnReal) 0 );
+      const nnReal wC = popWeights[i];
+      #ifdef FDIFF_CMA
+        const nnReal wZ = wC;
+      #else
+        const nnReal wZ = std::max(wC, (nnReal) 0 );
+      #endif
       nnReal * const B = momNois->params;
       nnReal * const A = avgNois->params;
       const nnReal* const Y = popNoiseVectors[ inds[i] ]->params;
@@ -133,10 +142,10 @@ void CMA_Optimizer::apply_update()
 
     #pragma omp for simd schedule(static) aligned(P,A,S,B : VEC_WIDTH)
     for(Uint w=pStart; w<pStart+pCount; w++) {
-      P[w] = (1-c_sig) * P[w] + updSigP * A[w];
-      //D[w] = (1-c_sig) * D[w] + updSigP * ( A[w] - C[w] );
+      P[w] = alphaP * P[w] + updSigP * A[w];
       S[w] = std::sqrt( alpha*S[w]*S[w] + c1cov*P[w]*P[w] + mu_eff*c1cov*B[w] );
       S[w] = std::min(S[w], (nnReal) 10); //safety
+      S[w] = std::max(S[w], (nnReal) .01); //safety
     }
 
     const nnReal* const M = weights->params;
@@ -181,14 +190,12 @@ int CMA_Optimizer::restart(const string fname) {
   return weights->restart(fname+"_weights");
 }
 
-void CMA_Optimizer::getMetrics(ostringstream& buff)
-{
-  buff<<" "<<std::setw(5)<<Nswap/2; Nswap = 0; //each swap counted twice
+void CMA_Optimizer::getMetrics(ostringstream& buff) {
+  //buff<<" "<<std::setw(5)<<Nswap/2; Nswap = 0; //each swap counted twice
   real2SS(buff, std::pow(diagCov->compute_weight_norm(), 2) / pDim, 6, 1);
 }
-void CMA_Optimizer::getHeaders(ostringstream& buff)
-{
-  buff << "| Nswp | avgC ";
+void CMA_Optimizer::getHeaders(ostringstream& buff) {
+  buff << "| avgC "; //Nswp |
 }
 
 void CMA_Optimizer::startAllGather(const Uint ID)

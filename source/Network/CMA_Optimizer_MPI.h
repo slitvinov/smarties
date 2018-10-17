@@ -11,6 +11,8 @@
 #include "Optimizer.h"
 #include <iomanip>
 class Saru;
+#define ACCEL_CMA
+//#define FDIFF_CMA
 
 class CMA_Optimizer : public Optimizer
 {
@@ -33,7 +35,7 @@ class CMA_Optimizer : public Optimizer
   std::vector<std::mt19937 *> stdgens;
   MPI_Request paramRequest = MPI_REQUEST_NULL;
   vector<Real> losses = vector<Real>(pop_size, 0);
-  Uint Nswap = 0;
+  //Uint Nswap = 0;
 
  public:
 
@@ -54,7 +56,11 @@ class CMA_Optimizer : public Optimizer
     vector<nnReal> ret(popsz); nnReal sum = 0;
     for(Uint i=0; i<popsz; i++) {
       ret[i] = std::log(0.5*(popsz+1)) - std::log(i+1.);
-      sum += std::max( ret[i], (nnReal) 0 );
+      #ifdef FDIFF_CMA
+        sum += std::fabs( ret[i] );
+      #else
+        sum += std::max( ret[i], (nnReal) 0 );
+      #endif
     }
     for(Uint i=0; i<popsz; i++) ret[i] /= sum;
     return ret;
@@ -64,7 +70,11 @@ class CMA_Optimizer : public Optimizer
   {
     Real sum = 0, sumsq = 0;
     for(Uint i=0; i<popsz; i++) {
-      const nnReal W = std::max( popW[i], (nnReal) 0 );
+      #ifdef FDIFF_CMA
+        const nnReal W = std::fabs( popW[i] );
+      #else
+        const nnReal W = std::max( popW[i], (nnReal) 0 );
+      #endif
       sumsq += W * W; sum += W;
     }
     return sum * sum / sumsq;
