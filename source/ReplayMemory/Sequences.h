@@ -48,7 +48,7 @@ struct Tuple // data obtained at time t
 
 struct Sequence
 {
-  vector<Tuple*> tuples;
+  std::vector<Tuple*> tuples;
   long ended = 0, ID = -1, just_sampled = -1;
   Uint prefix = 0;
   Fval nOffPol = 0, MSE = 0, sumKLDiv = 0, totR = 0;
@@ -56,9 +56,7 @@ struct Sequence
   Fvec Q_RET, action_adv, state_vals;
   //Used for sampling, filtering, and sorting off policy data:
   Fvec SquaredError, offPolicImpW, KullbLeibDiv;
-  #ifdef PRIORITIZED_ER
-    vector<float> priorityImpW;
-  #endif
+  std::vector<float> priorityImpW;
 
   std::mutex seq_mutex;
 
@@ -84,9 +82,7 @@ struct Sequence
     //priorityImpW.clear();
     SquaredError.clear();
     offPolicImpW.clear();
-    #ifdef PRIORITIZED_ER
-      priorityImpW.clear();
-    #endif
+    priorityImpW.clear();
     KullbLeibDiv.clear();
     action_adv.clear();
     state_vals.clear();
@@ -157,9 +153,7 @@ struct Sequence
     SquaredError = Fvec(seq_len, 0);
     // off pol importance weights are initialized to 1s
     offPolicImpW.resize(seq_len, 1);
-    #ifdef PRIORITIZED_ER
-      priorityImpW = vector<float>(seq_len, 1);
-    #endif
+
     KullbLeibDiv = Fvec(seq_len, 0);
   }
 

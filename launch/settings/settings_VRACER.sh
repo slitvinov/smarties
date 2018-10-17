@@ -2,7 +2,7 @@ SETTINGS=
 #discount factor in RL
 #the closer to 1 it is, the harder it is to learn
 #but, the agent might find better long-term strategies
-SETTINGS+=" --gamma 0.995  --samplesFile 1"
+SETTINGS+=" --gamma 0.995  --samplesFile 0"
 
 #size of network layers
 SETTINGS+=" --nnl1 128"
@@ -34,5 +34,6 @@ SETTINGS+=" --targetDelay 0"
 SETTINGS+=" --batchSize 256"
 SETTINGS+=" --bSampleSequences 0"
 SETTINGS+=" --ERoldSeqFilter oldest"
+#SETTINGS+=" --dataSamplingAlgo PERseq"
 #network update learning rate
 SETTINGS+=" --learnrate 0.0001"

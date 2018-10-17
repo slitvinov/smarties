@@ -151,6 +151,10 @@ class MemoryBuffer
     Set[ID] = S;
   }
 
+  inline float getMinPriorityImpW() { return minPriorityImpW; }
+  inline float getMaxPriorityImpW() { return maxPriorityImpW; }
+  const bool requireImpWeights = sampler->requireImportanceWeights();
+
   const std::vector<Uint>& listSampled() { return sampled; }
   static Sampling* prepareSampler(const Settings&S, MemoryBuffer* const R);
 };

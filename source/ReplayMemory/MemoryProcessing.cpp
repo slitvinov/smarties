@@ -145,9 +145,10 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
     {
       #ifndef NDEBUG
         const Fval invC = 1/CmaxRho;
-        Fval dbg_nOffPol = 0, dbg_sumKLDiv = 0;
+        Fval dbg_nOffPol = 0, dbg_sumKLDiv = 0, dbg_sum_mse = 0;
         for(Uint j=0; j<Set[i]->ndata(); j++) {
           const Fval W = Set[i]->offPolicImpW[j];
+          dbg_sum_mse += Set[i]->SquaredError[j];
           dbg_sumKLDiv += Set[i]->KullbLeibDiv[j];
           assert( W>=0  &&  Set[i]->KullbLeibDiv[j]>=0 );
           // sequence is off policy if offPol W is out of 1/C : C
@@ -155,6 +156,8 @@ void MemoryProcessing::prune(const FORGET ALGO, const Fval CmaxRho)
         }
         if( std::fabs(dbg_sumKLDiv - Set[i]->sumKLDiv) > 1e-1 )
           _die("%f %f", dbg_sumKLDiv, Set[i]->sumKLDiv);
+        if( std::fabs(dbg_sum_mse - Set[i]->MSE) > 1e-1 )
+          _die("%f %f", dbg_sum_mse, Set[i]->MSE);
         if(settings.epsAnneal <= 0) //else CmaxRho will change in time
           if( std::fabs(dbg_nOffPol - Set[i]->nOffPol) > 1e-1 )
             _die("%f %f", dbg_nOffPol, Set[i]->nOffPol);
@@ -218,14 +221,6 @@ void MemoryProcessing::finalize()
   nPruned += nB4 - nSeq;
 
   RM->sampler->prepare(RM->needs_pass);
-
-  #ifdef PRIORITIZED_ER
-   if( stepSinceISWeep++ >= 10 || needs_pass ) {
-     updateImportanceWeights();
-     RM->needs_pass = false;
-     stepSinceISWeep = 0;
-   }
-  #endif
 }
 
 void MemoryProcessing::getMetrics(ostringstream& buff)

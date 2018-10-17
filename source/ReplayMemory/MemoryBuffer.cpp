@@ -134,9 +134,27 @@ void MemoryBuffer::checkNData() {
 Sampling* MemoryBuffer::prepareSampler(const Settings&S, MemoryBuffer* const R)
 {
   Sampling* ret = nullptr;
-  if(S.bSampleSequences) ret = new SSample_uniform(S, R);
-  //else ret = new TSample_impLen(S, R);
-  else ret = new TSample_uniform(S, R);
+
+  if(S.dataSamplingAlgo == "uniform") ret = new Sample_uniform(S, R);
+
+  if(S.dataSamplingAlgo == "impLen")  ret = new Sample_impLen(S, R);
+
+  if(S.dataSamplingAlgo == "shuffle") {
+    ret = new TSample_shuffle(S, R);
+    if(S.bSampleSequences) die("Change importance sampling algorithm");
+  }
+
+  if(S.dataSamplingAlgo == "PERrank") {
+    ret = new TSample_impRank(S, R);
+    if(S.bSampleSequences) die("Change importance sampling algorithm");
+  }
+
+  if(S.dataSamplingAlgo == "PERerr") {
+    ret = new TSample_impErr(S, R);
+    if(S.bSampleSequences) die("Change importance sampling algorithm");
+  }
+
+  if(S.dataSamplingAlgo == "PERseq") ret = new Sample_impSeq(S, R);
 
   assert(ret not_eq nullptr);
   return ret;

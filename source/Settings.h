@@ -79,6 +79,13 @@ Default means oldest for ER and farpolfrac for ReFER"
 #define DEFAULT_gamma 0.995
   Real gamma = DEFAULT_gamma;
 
+#define CHARARG_dataSamplingAlgo 'i'
+#define COMMENT_dataSamplingAlgo "Algorithm for sampling the Replay Buffer."
+#define TYPEVAL_dataSamplingAlgo string
+#define TYPENUM_dataSamplingAlgo STRING
+#define DEFAULT_dataSamplingAlgo "uniform"
+  string dataSamplingAlgo = DEFAULT_dataSamplingAlgo;
+
 #define CHARARG_klDivConstraint 'k'
 #define COMMENT_klDivConstraint "Constraint on max KL div, algo specific."
 #define TYPEVAL_klDivConstraint Real
@@ -556,10 +563,10 @@ string setupFolder = DEFAULT_setupFolder;
       // LEARNER ARGS: MUST contain all 17 mentioned above (more if modified)
       READOPT(learner), READOPT(bTrain), READOPT(clipImpWeight),
       READOPT(targetDelay), READOPT(explNoise), READOPT(ERoldSeqFilter),
-      READOPT(gamma), READOPT(klDivConstraint), READOPT(lambda),
-      READOPT(minTotObsNum), READOPT(maxTotObsNum), READOPT(obsPerStep),
-      READOPT(penalTol), READOPT(epsAnneal), READOPT(bSampleSequences),
-      READOPT(bSharedPol), READOPT(totNumSteps),
+      READOPT(gamma), READOPT(dataSamplingAlgo), READOPT(klDivConstraint),
+      READOPT(lambda), READOPT(minTotObsNum), READOPT(maxTotObsNum),
+      READOPT(obsPerStep), READOPT(penalTol), READOPT(epsAnneal),
+      READOPT(bSampleSequences), READOPT(bSharedPol), READOPT(totNumSteps),
 
       // NETWORK ARGS: MUST contain all 15 mentioned above (more if modified)
       READOPT(nnl1), READOPT(nnl2), READOPT(nnl3), READOPT(nnl4),

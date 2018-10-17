@@ -73,9 +73,13 @@ void Collector::terminate_seq(Agent&a)
 void Collector::push_back(const int & agentId)
 {
   assert(agentId < (int) inProgress.size());
-  if(inProgress[agentId]->tuples.size() > 1 ) //at least s0 and sT
+  const Uint seq_len = inProgress[agentId]->tuples.size();
+  if( seq_len > 1 ) //at least s0 and sT
   {
     inProgress[agentId]->finalize( nSeenSequences.load() );
+    if(prepareImpWeights)
+      inProgress[agentId]->priorityImpW = std::vector<float>(seq_len, 1);
+
     sharing->addComplete(inProgress[agentId]);
     nSeenTransitions_loc++;
     nSeenSequences_loc++;

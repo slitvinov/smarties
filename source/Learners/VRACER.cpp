@@ -356,7 +356,7 @@ void VRACER<Policy_t, Action_t>::setupNet()
   #ifdef DACER_singleNet // state value is approximated by an other net
     F.push_back(new Approximator("net", settings, input, data));
   #else
-    nout.erase( nout.begin() );
+    nouts.erase( nouts.begin() );
     F.push_back(new Approximator("policy", settings, input, data));
     F[0]->blockInpGrad = true; // this line must happen b4 initialize
     F.push_back(new Approximator("critic", settings, input, data));
