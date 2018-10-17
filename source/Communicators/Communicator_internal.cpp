@@ -120,7 +120,7 @@ void Communicator_internal::ext_app_run()
     for(size_t i=0; i<argsFiles.size(); i++)
       if(learner_step_id >= stepPrefix[i]) settingsInd = i;
     Uint numStepTSet = stepPrefix[settingsInd+1] - learner_step_id;
-    numStepTSet = numStepTSet / (size_learn_pool-1);
+    numStepTSet = numStepTSet * size_inside_app / S.nWorkers;
     vector<char*> args = readRunArgLst(argsFiles[settingsInd]);
 
     redirect_stdout_init();
