@@ -19,7 +19,7 @@
 struct Tuple // data obtained at time t
 {
   // vector containing the vector at time t
-  const vector<memReal> s;
+  const std::vector<memReal> s;
   // actions and behavior follower at time t
   Rvec a, mu;
   // reward obtained with state s (at time 0 this is 0)

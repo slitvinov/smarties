@@ -40,4 +40,13 @@ public:
 
     virtual Uint getNdumpPoints();
     virtual Rvec getDumpState(Uint k);
+
+    // for a given environment, size of the IRL reward dictionary
+    virtual Uint getNumberRewardParameters();
+
+    // compute the reward given a certain state and param vector
+    virtual Real getReward(const std::vector<memReal> s, const Rvec params);
+
+    // compute the gradient of the reward
+    virtual Rvec getRewardGrad(const std::vector<memReal> s, const Rvec params);
 };

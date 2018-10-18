@@ -165,3 +165,19 @@ Rvec Environment::getDumpState(Uint k)
 {
   return Rvec();
 }
+
+Uint Environment::getNumberRewardParameters() {
+  return 0;
+}
+
+// compute the reward given a certain state and param vector
+Real Environment::getReward(const std::vector<memReal> s, const Rvec params)
+{
+  return 0;
+}
+
+// compute the gradient of the reward
+Rvec Environment::getRewardGrad(const std::vector<memReal> s, const Rvec params)
+{
+  return Rvec();
+}
