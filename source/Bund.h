@@ -122,7 +122,7 @@ typedef float Real;
 #define MPI_VALUE_TYPE MPI_FLOAT
 #endif
 ///////////////////////////////////////////////////////////////////////////////
-#if 0 // NETWORK PRECISION
+#ifndef SINGLE_PREC // NETWORK PRECISION
   #define gemv cblas_dgemv
   #define gemm cblas_dgemm
   typedef double nnReal;
@@ -138,7 +138,7 @@ typedef float Real;
 ////////////////////////////////////////////////////////////////////////////////
 // Data format for storage in memory buffer. Switch to float for example for
 // Atari where the memory buffer is in the order of GBs.
-#if 0
+#ifndef SINGLE_PREC
 typedef double memReal;
 typedef double Fval;
 #define MPI_Fval MPI_DOUBLE
