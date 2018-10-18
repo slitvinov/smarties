@@ -34,13 +34,15 @@ void Master::run()
 {
   { // gather initial data OR if not training evaluated restarted policy
     #pragma omp parallel num_threads(nThreads)
-    for(int i=1; i<=nWorkers_own; i++)
     {
+      std::vector<int> shareWorkers;
       const int thrID = omp_get_thread_num(), thrN = omp_get_num_threads();
-      const int tgtCPU =  ( ( (-i) % thrN ) + thrN ) % thrN;
+      for(int i=1; i<=nWorkers_own; i++)
+       if( thrID == (( ( (-i)%thrN ) +thrN ) %thrN) ) shareWorkers.push_back(i);
+
       #pragma omp critical
-      if( thrID==tgtCPU )
-        worker_replies.push_back(std::thread([&, i]() { processWorker(i); }));
+      if(shareWorkers.size()) worker_replies.push_back(
+        std::thread( [&, shareWorkers] () { processWorker(shareWorkers); }));
     }
     while ( ! learnersInitialized() ) usleep(5);
   }
@@ -83,24 +85,28 @@ void Master::run()
   }
 }
 
-void Master::processWorker(const int worker)
+void Master::processWorker(const std::vector<int> workers)
 {
   assert(worker>0 && worker <= (int) nWorkers_own);
+
   while(1)
   {
-    if(!bTrain && getMinSeqId() >= totNumSteps) break;
+    if( not bTrain && getMinSeqId() >= totNumSteps) break;
 
-    int completed = comm->testBuffer(worker);
+    for( const int worker : workers )
+    {
+      int completed = comm->testBuffer(worker);
 
-    // Learners lock the workers queue if they have enough data to advance step
-    while ( bTrain && learnersLockQueue() ) {
+      // Learners lock workers queue if they have enough data to advance step
+      while ( bTrain && completed && learnersLockQueue() ) {
+        usleep(1);
+        if( bExit.load() > 0 ) break;
+      }
+
+      if(completed) processAgent(worker);
+
       usleep(1);
-      if( bExit.load() > 0 ) break;
     }
-
-    if(completed) {
-      processAgent(worker);
-    } else usleep(1);
   }
 }
 
