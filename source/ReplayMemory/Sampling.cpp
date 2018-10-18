@@ -286,8 +286,8 @@ void TSample_impErr::prepare(std::atomic<bool>& needs_pass)
       // do sqrt(delta^2)^alpha with alpha = 0.5
       const float P = deltasq>0.0f? std::sqrt(std::sqrt(deltasq+EPS)) : 0.0f;
       const float Pe = P + EPS;
-      const float Qe = P>0.0f? P+EPS : 1.0e9f ;
-      minP = std::min(minP, Qe); // avoid nans in impW
+      const float Qe = P>0.0f? P + EPS : 1.0e9f ; // avoid nans in impW
+      minP = std::min(minP, Qe);
       maxP = std::max(maxP, Pe);
       Set[i]->priorityImpW[j] = P;
       probs_i[j] = P;
@@ -349,7 +349,7 @@ void Sample_impSeq::prepare(std::atomic<bool>& needs_pass)
     float sumErrors = Set[i]->MSE;
     for(Uint j=0; j<ndata; j++)
       if( std::fabs( Set[i]->SquaredError[j] ) <= 0 ) sumErrors += maxMSE;
-    // importance weight is episode's RMSE times length of episode
+    //sampling P is episode's RMSE to the power beta=.5 times length of episode
     const float P = std::sqrt( std::sqrt( (sumErrors + EPS)/ndata ) ) * ndata;
     std::fill(Set[i]->priorityImpW.begin(), Set[i]->priorityImpW.end(), P);
     minP = std::min(minP, P); // avoid nans in impW
