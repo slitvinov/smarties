@@ -51,7 +51,7 @@ export NTHREADS=18
 NPROCESSORS=$((${NPROCESS}*${NTHREADS}))
 module rm mvapich2
 module load open_mpi
-bsub -J ${RUNFOLDER} -R fullnode -R "rusage[mem=128]" -R "select[model==XeonGold_6150]" -n ${NPROCESSORS} -W 24:00 < run.sh
+bsub -J ${RUNFOLDER} -R fullnode -R "rusage[mem=128]" -R "select[model==XeonGold_6150]" -n ${NPROCESSORS} -W 120:00 < run.sh
 else
  source run.sh
 fi
