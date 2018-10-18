@@ -5,7 +5,7 @@ compiler ?= gnu
 
 app:
 	# tell Cubism to compile itself for leadFollow
-	make -C ../../../CubismUP_2D/makefiles/ -j4 precision=single \
+	make -C ../../../CubismUP_2D/makefiles/ -j4 precision=single hdf5=off \
     config=$(config) smarties=true CXX=$(CXX) compiler=$(compiler) leadFollow
 	cp ../../../CubismUP_2D/makefiles/libsimulation.a ../../makefiles/
 	rm ../../../CubismUP_2D/makefiles/libsimulation.a
