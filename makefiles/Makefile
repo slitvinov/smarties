@@ -46,6 +46,11 @@ ifeq "$(testdiff)" "on"
 CPPFLAGS+= -D__CHECK_DIFF
 endif
 
+precision ?= double
+ifeq "$(precision)" "single"
+CPPFLAGS+= -DSINGLE_PREC
+endif
+
 app ?= ext_app_test
 
 ifeq "$(compiler)" "intel"
