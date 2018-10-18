@@ -28,8 +28,60 @@ static inline Policy_t prepare_policy(const Rvec& O, const ActionInfo*const aI,
 
 template<typename Policy_t, typename Action_t>
 void VRACER<Policy_t, Action_t>::TrainBySequences(const Uint seq,
-  const Uint wID, const Uint bID, const Uint thrID) const {
-  die("");
+  const Uint wID, const Uint bID, const Uint thrID) const
+{
+  Sequence* const traj = data->get(seq);
+  const int ndata = traj->tuples.size()-1;
+  if(thrID==0) profiler->stop_start("FWD");
+
+  F[0]->prepare_seq(traj, thrID, wID);
+  for (int k=0; k<ndata; k++) F[0]->forward(k, thrID);
+
+  //if partial sequence then compute value of last state (!= R_end)
+  Real Q_RET = data->scaledReward(traj, ndata);
+  if( traj->isTruncated(ndata) ) {
+    const Rvec nxt = F[0]->forward(ndata, thrID);
+    Q_RET = gamma * nxt[VsID];
+  }
+
+  if(thrID==0)  profiler->stop_start("POL");
+  for(int k=ndata-1; k>=0; k--)
+  {
+    const Rvec out_cur = F[0]->get(k, thrID);
+    const Policy_t pol = prepare_policy<Policy_t>(out_cur, &aInfo, pol_start, traj->tuples[k]);
+    // far policy definition depends on rho (as in paper)
+    // in case rho outside bounds, do not compute gradient
+
+    const Real W = pol.sampImpWeight, R = data->scaledReward(traj, k);
+    const Real V_Sk = out_cur[0], A_RET = Q_RET - V_Sk;
+    const Real D_RET = std::min((Real)1, W) * A_RET;
+      // check whether importance weight is in 1/CmaxRet < c < CmaxRet
+    const bool isOff = traj->isFarPolicy(k, W, CmaxRet, CinvRet);
+    traj->setMseDklImpw(k, D_RET*D_RET, pol.sampKLdiv, W, CmaxRet, CinvRet);
+    trainInfo->log(V_Sk, D_RET, { std::pow(0,2), W }, thrID);
+
+    // compute the gradient
+    Rvec G = Rvec(F[0]->nOutputs(), 0);
+    if (isOff) {
+      pol.finalize_grad(pol.div_kl_grad(traj->tuples[k]->mu, alpha*(beta-1)), G);
+    }  else {
+      const Rvec policyG = pol.policy_grad(pol.sampAct, alpha * A_RET * W);
+      const Rvec penaltG = pol.div_kl_grad(traj->tuples[k]->mu, -alpha);
+      pol.finalize_grad(weightSum2Grads(policyG, penaltG, beta), G);
+      trainInfo->trackPolicy(policyG, penaltG, thrID);
+    }
+
+    // value gradient:
+    assert(std::fabs(G[0])<1e-16); // make sure it was untouched
+    G[0] = (1-alpha) * beta * D_RET;
+    F[0]->backward(G, k, thrID);
+
+    // update retrace for the previous step k-1:
+    Q_RET = R + gamma*(V_Sk + std::min((Real)1,W)*(Q_RET - V_Sk) );
+  }
+
+  if(thrID==0)  profiler->stop_start("BCK");
+  F[0]->gradient(thrID);
 }
 
 template<typename Policy_t, typename Action_t>
