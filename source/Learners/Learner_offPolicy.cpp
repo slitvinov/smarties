@@ -90,9 +90,6 @@ void Learner_offPolicy::prepareGradient()
     //shift data / gradient counters to maintain grad stepping to sample
     // collection ratio prescirbed by obsPerStep
 
-    #ifdef PRIORITIZED_ER
-      die("ReFER and Prioritized ER are incompatible. Set CmaxPol to 0");
-    #endif
     CmaxRet = 1 + annealRate(CmaxPol, currStep, epsAnneal);
     CinvRet = 1 / CmaxRet;
     if(CmaxRet<=1 and CmaxPol>0)

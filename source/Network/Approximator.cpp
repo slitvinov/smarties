@@ -192,22 +192,27 @@ Rvec Approximator::getOutput(const Rvec inp, const int ind,
   return ret;
 }
 
-void Approximator::backward(const Rvec grad, const Uint samp,
-  const Uint thrID, const int USE_ACT) const
+void Approximator::applyImpSampling(Rvec& grad, const Sequence*const traj,
+  const Uint samp) const
+{
+  const float anneal = std::min( (Real)1, opt->nStep * opt->epsAnneal);
+  assert( anneal >= 0 );
+  const float beta = 0.5 + 0.5 * anneal, P0 = traj->priorityImpW[samp];
+  // if samples never seen by optimizer the samples have high priority
+  // this matches one of last lines of Sampling::prepare()
+  const float P = P0<=0 ? data->getMaxPriorityImpW() : P0;
+  const float PERW = std::pow(data->getMinPriorityImpW() / P, beta);
+  for(Uint i=0; i<grad.size(); i++) grad[i] *= PERW;
+}
+
+void Approximator::backward(Rvec grad, const Uint samp, const Uint thrID,
+  const int USE_ACT) const
 {
   if(USE_ACT>0) assert( (Uint) USE_ACT <= extraAlloc );
   const Uint netID = thrID + USE_ACT*nThreads;
 
-  #ifdef PRIORITIZED_ER
-   const Real anneal = std::min( (Real)1, opt->nStep * opt->epsAnneal);
-   assert( anneal >= 0 );
-   const float beta = 0.5 + 0.5 * anneal, P0 = traj->priorityImpW[t];
-   // if samples never seen by optimizer the samples have high priority
-   // this matches one of last lines of MemoryBuffer::updateImportanceWeights()
-   const auto P = P0<=0 ? data->maxPriorityImpW : P0;
-   const Real PERW = std::pow(data->minPriorityImpW / P, beta);
-   for(Uint i=0; i<error.size(); i++) error[i] *= PERW;
-  #endif
+  if( data->requireImpWeights )
+    applyImpSampling(grad, thread_seq[thrID], samp);
 
   gradStats->track_vector(grad, thrID);
   const int ind = mapTime2Ind(samp, thrID);

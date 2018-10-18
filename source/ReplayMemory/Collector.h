@@ -23,6 +23,7 @@ private:
 
   std::vector<Sequence*> inProgress;
 
+  const bool prepareImpWeights = replay->sampler->requireImportanceWeights();
   std::atomic<long>& nSeenSequences = replay->nSeenSequences;
   std::atomic<long>& nSeenSequences_loc = replay->nSeenSequences_loc;
   std::atomic<long>& nSeenTransitions_loc = replay->nSeenTransitions_loc;

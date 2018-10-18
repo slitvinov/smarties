@@ -386,10 +386,6 @@ void PPO<Policy_t, Action_t>::spawnTrainTasks_seq()
   if(updateComplete || updateToApply) die("undefined behavior");
   if( data->readNData() < nHorizon ) die("undefined behavior");
 
-  #ifdef PRIORITIZED_ER // NOT SUPPORTED
-    die(" ");
-  #endif
-
   debugL("sampling update from on-pol data");
   profiler->stop_start("SAMP");
   vector<Uint> samp_seq(batchSize, -1), samp_obs(batchSize, -1);

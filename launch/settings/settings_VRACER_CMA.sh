@@ -5,8 +5,8 @@ SETTINGS=
 SETTINGS+=" --gamma 0.995 --samplesFile 1"
 
 #size of network layers
-SETTINGS+=" --nnl1 128"
-SETTINGS+=" --nnl2 128"
+SETTINGS+=" --nnl1 64"
+SETTINGS+=" --nnl2 64"
 #SETTINGS+=" --nnl3 128"
 
 # Activation functions:
@@ -14,7 +14,7 @@ SETTINGS+=" --nnl2 128"
 SETTINGS+=" --nnFunc SoftSign"
 #SETTINGS+=" --nnFunc Tanh"
 # Multiplies initial weights of output layer. Ie U[-.1/sqrt(f), .1/sqrt(f)]
-SETTINGS+=" --outWeightsPrefac 0.1"
+SETTINGS+=" --outWeightsPrefac 0.01"
 
 #whether you are training a policy or testing an already trained network
 SETTINGS+=" --bTrain 1"
@@ -26,7 +26,7 @@ SETTINGS+=" --explNoise 0.447214"
 SETTINGS+=" --obsPerStep 1"
 #Number of samples before starting gradient steps
 #SETTINGS+=" --minTotObsNum 262144"
-SETTINGS+=" --minTotObsNum 32768"
+SETTINGS+=" --minTotObsNum 262144"
 #Maximum size of the replay memory
 SETTINGS+=" --maxTotObsNum 262144"
 #Number of gradient steps before training ends
@@ -45,7 +45,7 @@ SETTINGS+=" --penalTol 0.1"
 SETTINGS+=" --targetDelay 0"
 #batch size for network gradients compute
 SETTINGS+=" --batchSize 60"
-SETTINGS+=" --ESpopSize 120"
+SETTINGS+=" --ESpopSize 60"
 #Whether to train based on sampling sequences. Best not to.
 SETTINGS+=" --bSampleSequences 0"
 #network update learning rate

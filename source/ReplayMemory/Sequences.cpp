@@ -69,9 +69,7 @@ void Sequence::unpackSequence(const vector<Fval>& data, const Uint dS,
   SquaredError = Fvec(buf, buf + seq_len); buf += seq_len;
   offPolicImpW = Fvec(buf, buf + seq_len); buf += seq_len;
   KullbLeibDiv = Fvec(buf, buf + seq_len); buf += seq_len;
-  #ifdef PRIORITIZED_ER
-    priorityImpW = vector<float>(seq_len, 0);
-  #endif
+  priorityImpW = std::vector<float>(seq_len, 1);
   ended = *(buf++); ID = *(buf++); nOffPol = *(buf++);
   MSE = *(buf++); sumKLDiv = *(buf++); totR = *(buf++);
   assert(buf-data.data()==Sequence::computeTotalEpisodeSize(dS,dA,dP,seq_len));

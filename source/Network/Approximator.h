@@ -30,10 +30,10 @@ struct Approximator
   StatsTracker* gradStats = nullptr;
 
   THRvec<int> error_placements = THRvec<int>(nThreads, -1);
-  THRvec<int> first_sample = THRvec<int>(nThreads, -1);
-  THRvec<int> agent_Wind = THRvec<int>(nAgents, -1);
-  THRvec<int> thread_Wind = THRvec<int>(nThreads, -1);
-  THRvec<Sequence*> agent_seq = THRvec<Sequence*>(nAgents, nullptr);
+  THRvec<int> first_sample     = THRvec<int>(nThreads, -1);
+  THRvec<int> agent_Wind       = THRvec<int>(nAgents, -1);
+  THRvec<int> thread_Wind      = THRvec<int>(nThreads, -1);
+  THRvec<Sequence*> agent_seq  = THRvec<Sequence*>(nAgents, nullptr);
   THRvec<Sequence*> thread_seq = THRvec<Sequence*>(nThreads, nullptr);
 
   mutable std::atomic<Uint> nAddedGradients{0};
@@ -47,15 +47,18 @@ struct Approximator
   bool blockInpGrad = false;
 
   //thread safe memory for prediction with current weights:
-  THRvec<vector<Activation*>> series = THRvec<vector<Activation*>>(nThreads);
+  THRvec<std::vector<Activation*>> series =
+                                     THRvec<std::vector<Activation*>>(nThreads);
 
   //thread safe agent specific activations
-  THRvec<vector<Activation*>> agent_series = THRvec<vector<Activation*>>(nAgents);
+  THRvec<std::vector<Activation*>> agent_series =
+                                     THRvec<std::vector<Activation*>>(nAgents);
 
   //thread safe  memory for prediction with target weights. Rules are that
   // index along the two alloc vectors is the same for the same sample, and
   // that tgt net (if available) takes recurrent activation from current net:
-  THRvec<vector<Activation*>> series_tgt = THRvec<vector<Activation*>>(nThreads);
+  THRvec<std::vector<Activation*>> series_tgt =
+                                     THRvec<std::vector<Activation*>>(nThreads);
 
   // For CMAES based optimization. Keeps track of total loss associate with
   // Each weight vector sample:
@@ -146,4 +149,6 @@ struct Approximator
     const int ind = (int)samp - first_sample[thrID];
     return ind;
   }
+
+  void applyImpSampling(Rvec& G, const Sequence*const S, const Uint t) const;
 };

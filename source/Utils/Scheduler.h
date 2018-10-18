@@ -118,7 +118,7 @@ private:
   void dumpCumulativeReward(const int agent, const int worker,
     const unsigned giter, const unsigned tstep) const;
 
-  void processWorker(const int worker);
+  void processWorker(const std::vector<int> workers);
   void processAgent(const int worker);
 
 public:
