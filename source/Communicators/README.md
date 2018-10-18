@@ -2,7 +2,7 @@
 
 Communicators are objects that define the exchange of data between the RL algorithms of smarties and the simulation of the environment.
 
-* Python Communicators
+#### Python Communicators
  
 Initialization functions:
   - `__init__(self, state_components, action_components, number_of_agents=1, discrete_actions=False)` is the constructor which asks for the dimensionality of the state and action space. Note the case of discrete action spaces where the agent can perform one out of N options. Since the agent can only select one option per turn the dimensionality is 1. If the agent were to be able to select two options per turn (e.g. turn L/R AND accel/decel) the dimensionality is 2 and so on.
@@ -20,8 +20,8 @@ Training functions:
 For convenience there are specialized Communicators: `Communicator_gym` creates and handles an instance of the OpenAI gym. `Communicator_atari` uses OpenAI gym for Atari games and applies the DQN preprocessing. `Communicator_dmc` is for the DeepMind Control Suite.
 
 
-* C++ Communicators
+#### C++ Communicators
 Defines the same functions as above but in C++.
 
-* Internal Communicator
+#### Internal Communicator
 Created by smarties and used internally. 
