@@ -87,7 +87,6 @@ void Master::run()
 
 void Master::processWorker(const std::vector<int> workers)
 {
-  assert(worker>0 && worker <= (int) nWorkers_own);
 
   while(1)
   {
@@ -95,6 +94,7 @@ void Master::processWorker(const std::vector<int> workers)
 
     for( const int worker : workers )
     {
+      assert(worker>0 && worker <= (int) nWorkers_own);
       int completed = comm->testBuffer(worker);
 
       // Learners lock workers queue if they have enough data to advance step
