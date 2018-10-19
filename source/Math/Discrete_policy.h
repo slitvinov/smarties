@@ -28,6 +28,15 @@ struct Discrete_policy
     assert(aI->maxLabel);
     return aI->maxLabel;
   }
+  static void setInitial_Stdev(const ActionInfo*const aI, Rvec&O, const Real S)
+  {
+    #ifdef EXTRACT_COVAR
+      for(Uint e=0; e<aI->dim; e++) O.push_back(noiseMap_inverse(S*S));
+    #else
+      for(Uint e=0; e<aI->dim; e++) O.push_back(noiseMap_inverse(S));
+    #endif
+  }
+
   static void setInitial_noStdev(const ActionInfo* const aI, Rvec& initBias) { }
 
   Discrete_policy(const vector<Uint>& start, const ActionInfo*const aI,
